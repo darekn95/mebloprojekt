@@ -2900,6 +2900,28 @@ const MiniBtn = ({ onClick, children, tone = "plain", title }) => (
   </button>
 );
 
+/* ---------- trwaly zapis projektu ----------
+   W artefakcie Claude dostepne jest window.storage; w zwyklej przegladarce
+   (standalone.html, GitHub Pages, dwuklik, Vite) go nie ma, wiec uzywamy
+   localStorage. Interfejs ujednolicony: get -> {value}|null, set(key, value). */
+const projectStore = (() => {
+  const ws = typeof window !== "undefined" ? window.storage : null;
+  if (ws && typeof ws.get === "function" && typeof ws.set === "function") return ws;
+  return {
+    async get(key) {
+      try {
+        const value = localStorage.getItem(key);
+        return value == null ? null : { value };
+      } catch (e) {
+        return null;
+      }
+    },
+    async set(key, value) {
+      localStorage.setItem(key, value);
+    },
+  };
+})();
+
 /* ---------- aplikacja ---------- */
 
 export default function App() {
@@ -3018,7 +3040,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const r = await window.storage.get("szafki:projekt");
+        const r = await projectStore.get("szafki:projekt");
         if (r) {
           const d = JSON.parse(r.value);
           const migratable = d.cab && d.cab.levels && Array.isArray(d.cab.levels);
@@ -3052,7 +3074,7 @@ export default function App() {
     if (!loaded) return;
     const id = setTimeout(async () => {
       try {
-        await window.storage.set("szafki:projekt", JSON.stringify({ cab, mat }));
+        await projectStore.set("szafki:projekt", JSON.stringify({ cab, mat }));
         setSaved("zapisano " + new Date().toLocaleTimeString("pl-PL"));
       } catch (e) {
         setSaved("nie udało się zapisać");
