@@ -231,6 +231,9 @@ function computeGeo(cab, mat) {
   const topR = J.topR || legacy(cab.topMode);
   const botL = J.botL || legacy(cab.bottomMode);
   const botR = J.botR || legacy(cab.bottomMode);
+  // "none" = brak panelu (wieniec/dno). Boki i tak stoja na pelnej wysokosci.
+  const hasTop = topL !== "none" && topR !== "none";
+  const hasBot = botL !== "none" && botR !== "none";
 
   const leftLen = H - (topL === "over" ? t : 0) - (botL === "over" ? t : 0);
   const rightLen = H - (topR === "over" ? t : 0) - (botR === "over" ? t : 0);
@@ -247,7 +250,7 @@ function computeGeo(cab, mat) {
   const plinthH = cab.plinth.on ? cab.plinth.height : 0;
   const bottomY = plinthInBody ? plinthH : 0;
 
-  const interior = { x0: t, x1: W - t, y0: bottomY + t, y1: H - t };
+  const interior = { x0: t, x1: W - t, y0: hasBot ? bottomY + t : bottomY, y1: hasTop ? H - t : H };
   const innerW = interior.x1 - interior.x0;
   const innerH = interior.y1 - interior.y0;
 
@@ -900,12 +903,12 @@ function computeGeo(cab, mat) {
   const sideRDepth = carcassDepth - cornerCut.sideRightDepth;
   const sideL = {
     name: "Bok lewy", qty: 1, a: leftLen, b: sideLDepth, matKey: "board",
-    edges: { a1: true, a2: rear, b1: topL === "between", b2: botL === "between" },
+    edges: { a1: true, a2: rear, b1: topL !== "over", b2: botL !== "over" },
     note: cornerCut.sideLeftDepth > 0 ? `skrócony o ${fmt(cornerCut.sideLeftDepth)} mm przy narożniku` : undefined,
   };
   const sideR = {
     name: "Bok prawy", qty: 1, a: rightLen, b: sideRDepth, matKey: "board",
-    edges: { a1: true, a2: rear, b1: topR === "between", b2: botR === "between" },
+    edges: { a1: true, a2: rear, b1: topR !== "over", b2: botR !== "over" },
     note: cornerCut.sideRightDepth > 0 ? `skrócony o ${fmt(cornerCut.sideRightDepth)} mm przy narożniku` : undefined,
   };
   const same = (x, y) =>
@@ -920,12 +923,12 @@ function computeGeo(cab, mat) {
     name, qty: 1, a: x1 - x0, b: carcassDepth, matKey: "board",
     edges: { a1: true, a2: rear, b1: l === "over", b2: r === "over" },
   });
-  const wien = horiz("Wieniec", topL, topR, topX0, topX1);
-  const dno = horiz("Dno", botL, botR, botX0, botX1);
-  if (same(wien, dno)) P({ ...dno, name: "Dno / wieniec", qty: 2, note: noteOf(dno.edges, "horiz") });
+  const wien = hasTop ? horiz("Wieniec", topL, topR, topX0, topX1) : null;
+  const dno = hasBot ? horiz("Dno", botL, botR, botX0, botX1) : null;
+  if (wien && dno && same(wien, dno)) P({ ...dno, name: "Dno / wieniec", qty: 2, note: noteOf(dno.edges, "horiz") });
   else {
-    P({ ...dno, note: noteOf(dno.edges, "horiz") });
-    P({ ...wien, note: noteOf(wien.edges, "horiz") });
+    if (dno) P({ ...dno, note: noteOf(dno.edges, "horiz") });
+    if (wien) P({ ...wien, note: noteOf(wien.edges, "horiz") });
   }
 
   if (sepShelves.length)
@@ -1477,7 +1480,7 @@ function computeGeo(cab, mat) {
     shelfDepth, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, panels, msgs, maxNL,
     plinthInBody, plinthH, bottomY, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut,
-    topL, topR, botL, botR, leftLen, rightLen, leftY0, rightY0,
+    topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
     topX0, topX1, botX0, botX1, divOv,
   };
 }
@@ -1554,10 +1557,14 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
     <g key={key}>
       {sidePanel("left-side", 0, leftTopY, geo.leftLen, geo.topL === "between", geo.botL === "between")}
       {sidePanel("right-side", W - t, rightTopY, geo.rightLen, geo.topR === "between", geo.botR === "between")}
-      <rect x={geo.topX0} y={topY} width={geo.topX1 - geo.topX0} height={t}
-        fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
-      <rect x={geo.botX0} y={bottomY} width={geo.botX1 - geo.botX0} height={t}
-        fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
+      {geo.hasTop && (
+        <rect x={geo.topX0} y={topY} width={geo.topX1 - geo.topX0} height={t}
+          fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
+      )}
+      {geo.hasBot && (
+        <rect x={geo.botX0} y={bottomY} width={geo.botX1 - geo.botX0} height={t}
+          fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
+      )}
     </g>
   );
 
@@ -2050,11 +2057,15 @@ function RearView({ cab, geo, mat, showDims }) {
       <rect x="0" y={fy(geo.rightY0 + geo.rightLen)} width={t} height={geo.rightLen}
         fill={bf} stroke={INK} strokeWidth="2" />
       {/* wieniec */}
-      <rect x={W - geo.topX1} y="0" width={geo.topX1 - geo.topX0} height={t}
-        fill={bf} stroke={INK} strokeWidth="2" />
+      {geo.hasTop && (
+        <rect x={W - geo.topX1} y="0" width={geo.topX1 - geo.topX0} height={t}
+          fill={bf} stroke={INK} strokeWidth="2" />
+      )}
       {/* dno */}
-      <rect x={W - geo.botX1} y={fy(geo.bottomY + t)} width={geo.botX1 - geo.botX0} height={t}
-        fill={bf} stroke={INK} strokeWidth="2" />
+      {geo.hasBot && (
+        <rect x={W - geo.botX1} y={fy(geo.bottomY + t)} width={geo.botX1 - geo.botX0} height={t}
+          fill={bf} stroke={INK} strokeWidth="2" />
+      )}
 
       {/* polki i przegrody widoczne pod pleckami */}
       {geo.sepShelves.map((sh, i) => (
@@ -2155,8 +2166,10 @@ function TopView({ cab, geo, mat, showDims, showShelves }) {
       <rect x={W - t} y={geo.cornerCut?.sideRightDepth || 0} width={t}
         height={cd - (geo.cornerCut?.sideRightDepth || 0)} fill={bf} stroke={INK} strokeWidth="2" />
       {/* wieniec widoczny z gory jako plyta na calej glebokosci */}
-      <rect x={geo.topX0} y="0" width={geo.topX1 - geo.topX0} height={cd}
-        fill={bf} stroke={INK} strokeWidth="1" opacity="0.25" />
+      {geo.hasTop && (
+        <rect x={geo.topX0} y="0" width={geo.topX1 - geo.topX0} height={cd}
+          fill={bf} stroke={INK} strokeWidth="1" opacity="0.25" />
+      )}
 
       {/* polki widziane z gory — obrys glebokosci polki w kolumnach, ktore je maja */}
       {showShelves &&
@@ -2669,8 +2682,8 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
   const cutSR = geo.cornerCut?.sideRightDepth || 0;
   box(0, geo.leftY0, 0, t, geo.leftY0 + geo.leftLen, cd - cutSL, bf);
   box(W - t, geo.rightY0, 0, W, geo.rightY0 + geo.rightLen, cd - cutSR, bf);
-  box(geo.botX0, geo.bottomY, 0, geo.botX1, geo.bottomY + t, cd, bf);
-  box(geo.topX0, H - t, 0, geo.topX1, H, cd, bf);
+  if (geo.hasBot) box(geo.botX0, geo.bottomY, 0, geo.botX1, geo.bottomY + t, cd, bf);
+  if (geo.hasTop) box(geo.topX0, H - t, 0, geo.topX1, H, cd, bf);
 
   if (cab.back !== "none") {
     const bz = geo.grooved ? cd - geo.grOff - geo.tb : cd;
@@ -3534,8 +3547,14 @@ export default function App() {
                         <span className="text-[11px] text-stone-400">{mark}</span>
                         <div className="flex-1">
                           <Seg value={val}
-                            onChange={(v) => set({ joints: { ...(cab.joints || {}), topL: geo.topL, topR: geo.topR, botL: geo.botL, botR: geo.botR, [key]: v } })}
-                            options={[{ v: "between", l: "między" }, { v: "over", l: "na boku" }]} />
+                            onChange={(v) => {
+                              const cur = { topL: geo.topL, topR: geo.topR, botL: geo.botL, botR: geo.botR };
+                              const sib = key === kl ? kr : kl;
+                              if (v === "none") { cur[key] = "none"; cur[sib] = "none"; }
+                              else { cur[key] = v; if (cur[sib] === "none") cur[sib] = v; }
+                              set({ joints: { ...(cab.joints || {}), ...cur } });
+                            }}
+                            options={[{ v: "between", l: "między" }, { v: "over", l: "na boku" }, { v: "none", l: "brak" }]} />
                         </div>
                       </div>
                     ))}
