@@ -715,6 +715,7 @@ function computeGeo(cab, mat) {
           y,
           w: sx1 - sx0,
           h: fh,
+          colW: c.w, // swiatlo szerokosci kolumny (do swiatla szuflady = colW - 42)
           nl,
           handle: d.handle !== false,
           iInGroup: 0,
@@ -1517,7 +1518,8 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
   // wymiarow wysokosci dalej w lewo, zeby etykiety sie nie nakladaly
   const showSideLengthDims = showDims && (geo.leftLen !== H || geo.rightLen !== H);
   const hasBaseDim = !!cab.legs?.on || (cab.plinth.on && !geo.plinthInBody);
-  const wideDims = showSideLengthDims || hasBaseDim;
+  const hasDoorDims = showDims && !open && (geo.doors || []).some((d) => d.type === "door");
+  const wideDims = showSideLengthDims || hasBaseDim || hasDoorDims;
   const leftExtra = wideDims ? 170 : 0;
   const rightExtraF = Math.max(hasBase ? 60 : 0, showSideLengthDims ? 160 : 0);
   // pozycje X wymiarow
@@ -1525,6 +1527,7 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
   const dimHTotalX = wideDims ? -255 : -115;
   const dimLevelX = W + (showSideLengthDims ? 170 : 60);
   const dimDrawerX = W + (showSideLengthDims ? 230 : 120);
+  const dimDoorX = showSideLengthDims ? -95 : -26; // wymiary wys. drzwi po lewej
   // cokol pod lewym wymiarem boku, nozki pod prawym — tuz przy szafce
   const dimCokolX = -26;
   const dimNozkiX = W + 26;
@@ -1713,6 +1716,12 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
                 {fmt(d.w)}×{fmt(d.h)}
               </text>
             )}
+            {showDims && d.type === "drawer" && d.colW > 42 && d.w > 90 && d.h > 40 && (
+              <text x={d.x + d.w / 2} y={fy(d.y + d.h * 0.3) + 22} textAnchor="middle"
+                fontSize="16" fill={DIMC} opacity="0.9" fontFamily="ui-monospace, monospace">
+                światło {fmt(d.colW - 42)}
+              </text>
+            )}
           </g>
         )
       )}
@@ -1885,6 +1894,14 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
               .map((d) => (
                 <DimV key={"dr" + d.key} y1={fy(d.y + d.h)} y2={fy(d.y)} x={dimDrawerX}
                   label={`${fmt(d.h)}`} left={false} c={DIMC} />
+              ))}
+          {/* wysokosci drzwi przy lewej krawedzi */}
+          {!open &&
+            geo.doors
+              .filter((d) => d.type === "door")
+              .map((d) => (
+                <DimV key={"door" + d.key} y1={fy(d.y + d.h)} y2={fy(d.y)} x={dimDoorX}
+                  label={`${fmt(d.h)}`} c={DIMC} />
               ))}
           {open &&
             geo.levels[0] &&
