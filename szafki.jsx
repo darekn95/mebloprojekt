@@ -24,6 +24,7 @@ const PALETA = [
 ];
 
 const MIN_COL = 200; // najwezsza sensowna kolumna
+const MIN_LEVEL = 100; // najnizszy sensowny poziom przy auto-dodawaniu
 
 /* Sevroll V-BOX 3D Slim, wymiary elementow dla plyty 18 mm */
 const VBOX = {
@@ -119,7 +120,7 @@ const defaultCab = {
   back: "hdf",
   backPos: "inside",
   backBoardMat: "shelf",
-  backGroove: { on: false, offset: 3, depth: 4, play: 1 },
+  backGroove: { on: false, offset: 16, depth: 4, play: 1 },
   frontMode: "overlay",
   gaps: { edge: 2, between: 2, top: 2, bottom: 2, inset: 2, divOverlay: 8 },
   maxGap: 5,
@@ -133,12 +134,48 @@ const defaultCab = {
   legs: { on: false, height: 100 },
   grainMatters: false,
   realColors: false,
-  cutout: { on: false, corner: "backRight", w: 100, d: 100, fullHeight: true, levelIndex: 0, mask: true, maskType: "auto", maskFront: "over" },
+  // dwa niezaleznie wycinane narozniki TYLNE (lewy = cutout, prawy = cutoutR)
+  cutout: { on: false, w: 100, d: 100, fullHeight: true, levelIndex: 0, mask: true, maskType: "auto", maskFront: "over" },
+  cutoutR: { on: false, w: 100, d: 100, fullHeight: true, levelIndex: 0, mask: true, maskType: "auto", maskFront: "over" },
   obstacles: [],
   // kazdy element: { on, w, d, h, side, fromSide, fromBack, fromBottom, fullHeight,
   //   mask, maskType, maskFront, maskCorner, maskToShelf, maskH }
   obstacle: { on: false, w: 80, d: 80, h: 0, side: "right", fromSide: 0, fromBack: 0, fromBottom: 0, fullHeight: true, mask: false, maskType: "auto", maskFront: "over" },
   edgeOverrides: {},
+};
+
+// scala wczytana szafke z domyslnymi polami + migruje stary model wyciecia
+const migrateCab = (rawCab) => {
+  const merged = { ...defaultCab, ...(rawCab || {}), version: defaultCab.version };
+  ["cutout", "cutoutR", "obstacle", "backGroove", "plinth", "legs", "rail", "gaps", "joints"].forEach((k) => {
+    if (defaultCab[k] && typeof defaultCab[k] === "object")
+      merged[k] = { ...defaultCab[k], ...((rawCab && rawCab[k]) || {}) };
+  });
+  if (rawCab && rawCab.cutout && rawCab.cutout.corner === "backRight") {
+    merged.cutoutR = { ...merged.cutout };
+    merged.cutout = { ...defaultCab.cutout };
+  }
+  if (merged.cutout) delete merged.cutout.corner;
+  if (merged.cutoutR) delete merged.cutoutR.corner;
+  return merged;
+};
+const migrateMat = (rawMat) => {
+  const mm = { ...defaultMaterials };
+  if (rawMat) Object.keys(mm).forEach((k) => { mm[k] = { ...mm[k], ...(rawMat[k] || {}) }; });
+  mm.mirror = { ...mm.mirror, color: defaultMaterials.mirror.color }; // kolor lustra staly
+  return mm;
+};
+// buduje stan projektu z wczytanych danych: obsluguje stary {cab,mat} i nowy {items,active}
+const loadProject = (d) => {
+  if (!d) return null;
+  let items;
+  if (Array.isArray(d.items) && d.items.length) {
+    items = d.items.map((it) => ({ cab: migrateCab(it.cab), mat: migrateMat(it.mat) }));
+  } else if (d.cab) {
+    items = [{ cab: migrateCab(d.cab), mat: migrateMat(d.mat) }];
+  } else return null;
+  const active = Math.min(Math.max(0, Math.round(d.active || 0)), items.length - 1);
+  return { items, active };
 };
 
 /* ---------- geometria ---------- */
@@ -155,7 +192,7 @@ function computeGeo(cab, mat) {
   const msgs = [];
   const add = (level, text) => msgs.push({ level, text });
 
-  const gr = cab.backGroove || { on: false, offset: 3, depth: 4, play: 1 };
+  const gr = cab.backGroove || { on: false, offset: 16, depth: 4, play: 1 };
   const grooved = cab.back === "hdf" && !!gr.on;
   const grOff = Math.max(0, Math.round(gr.offset ?? 3));
   const grDep = Math.max(0, Math.round(gr.depth ?? 4));
@@ -355,17 +392,15 @@ function computeGeo(cab, mat) {
   // przeszkody ograniczajace glebokosc szuflad: wyciecie narożnika i element kolizyjny
   const backBlocks = [];
   {
-    const cu = cab.cutout;
-    if (cu?.on) {
-      const onL = cu.corner === "backLeft" || cu.corner === "frontLeft";
-      const onB = cu.corner === "backLeft" || cu.corner === "backRight";
+    [[cab.cutout, true], [cab.cutoutR, false]].forEach(([cu, onL]) => {
+      if (!cu?.on) return;
       const cwv = Math.round(cu.w || 0), cdv = Math.round(cu.d || 0);
-      if (onB && cwv > 0 && cdv > 0) {
+      if (cwv > 0 && cdv > 0) {
         // zabudowa zabiera dodatkowo grubosc plyty czola
         const maskT = cu.mask !== false ? t : 0;
         backBlocks.push({ x0: onL ? 0 : W - cwv, x1: onL ? cwv : W, free: carcassDepth - cdv - maskT });
       }
-    }
+    });
     const preList = (Array.isArray(cab.obstacles) && cab.obstacles.length
       ? cab.obstacles
       : cab.obstacle?.on ? [cab.obstacle] : []).filter((o) => o && o.on !== false);
@@ -802,7 +837,7 @@ function computeGeo(cab, mat) {
   }
 
   /* --- formatki --- */
-  let geoCut = null;
+  const geoCuts = [];
   const geoObs = [];
   const panels = [];
   const sameBoard = cab.frontSameAsBoard !== false;
@@ -838,15 +873,13 @@ function computeGeo(cab, mat) {
     }
   };
   {
-    const cu = cab.cutout;
-    if (cu?.on) {
-      const onL = cu.corner === "backLeft" || cu.corner === "frontLeft";
-      const onB = cu.corner === "backLeft" || cu.corner === "backRight";
+    [[cab.cutout, true], [cab.cutoutR, false]].forEach(([cu, onL]) => {
+      if (!cu?.on) return;
       const cwv = Math.round(cu.w || 0);
-      registerCorner(onL, onB, Math.round(cu.d || 0),
+      registerCorner(onL, true, Math.round(cu.d || 0),
         cu.fullHeight !== false || (cab.levels || []).length <= 1,
         onL ? cwv : W - cwv);
-    }
+    });
     const cornerList = (Array.isArray(cab.obstacles) && cab.obstacles.length
       ? cab.obstacles
       : cab.obstacle?.on ? [cab.obstacle] : []).filter((o) => o && o.on !== false);
@@ -1173,18 +1206,18 @@ function computeGeo(cab, mat) {
     return { count, type, touchBack, touchFront, touchLeft, touchRight };
   }
 
-  /* --- wyciecie w narozniku + maskownica L --- */
-  const cut = cab.cutout || { on: false };
-  if (cut.on) {
+  /* --- wyciecia w narozniku + maskownica L (lewy i prawy tylny) --- */
+  const processCutout = (cut, onLeft) => {
+    if (!cut?.on) return;
+    const side = onLeft ? "lewy" : "prawy";
+    const onBack = true; // narozniki zawsze tylne
     const cw = Math.max(0, Math.round(cut.w || 0)); // szerokosc wciecia od boku
     const cdp = Math.max(0, Math.round(cut.d || 0)); // glebokosc wciecia od tylu
-    const onLeft = cut.corner === "backLeft" || cut.corner === "frontLeft";
-    const onBack = cut.corner === "backLeft" || cut.corner === "backRight";
-    if (cw <= 0 || cdp <= 0) add("error", "Wycięcie w narożniku ma zerowy wymiar.");
-    if (cw >= W) add("error", "Wycięcie szersze niż szafka.");
+    if (cw <= 0 || cdp <= 0) add("error", `Wycięcie w narożniku (${side}) ma zerowy wymiar.`);
+    if (cw >= W) add("error", `Wycięcie w narożniku (${side}) szersze niż szafka.`);
     else if (cw <= t)
-      add("warn", `Wycięcie ${fmt(cw)} mm nie wychodzi poza grubość boku — sprawdź, czy to celowe.`);
-    if (cdp >= carcassDepth) add("error", "Wycięcie głębsze niż korpus.");
+      add("warn", `Wycięcie ${fmt(cw)} mm (${side}) nie wychodzi poza grubość boku — sprawdź, czy to celowe.`);
+    if (cdp >= carcassDepth) add("error", `Wycięcie w narożniku (${side}) głębsze niż korpus.`);
 
     // pionowy zakres: cala szafka albo jeden poziom
     const li = Math.min(Math.max(0, Math.round(cut.levelIndex || 0)), levels.length - 1);
@@ -1200,7 +1233,7 @@ function computeGeo(cab, mat) {
     const bz0 = onBack ? 0 : carcassDepth - cdp;
     const bz1 = onBack ? cdp : carcassDepth;
 
-    geoCut = { cw, cdp, onLeft, onBack, cy0, cy1, cutH, bx0, bx1, bz0, bz1, zFull, li, maskType: cut.maskType };
+    const geoCut = { cw, cdp, onLeft, onBack, cy0, cy1, cutH, bx0, bx1, bz0, bz1, zFull, li, maskType: cut.maskType, mask: cut.mask !== false, side };
 
     // detekcja kolizji: polki, przegrody, szuflady wchodzace we wneke
     const inRangeY = (y0, y1) => Math.min(y1, cy1) - Math.max(y0, cy0) > 0;
@@ -1243,14 +1276,17 @@ function computeGeo(cab, mat) {
 
     // zabudowa
     if (cut.mask !== false) {
-      const r = buildEnclosure("Zabudowa wycięcia", bx0, bx1, bz0, bz1, cy0, cy1,
+      const r = buildEnclosure(`Zabudowa wycięcia (${side})`, bx0, bx1, bz0, bz1, cy0, cy1,
         { maskType: "L", maskFront: cut.maskFront, maskCorner: cut.maskCorner, farSideThickness: t });
       geoCut.maskChosen = r.type;
       geoCut.maskVisible = r.visible;
     } else {
-      add("warn", "Wycięcie narożnika nie ma zabudowy — otwór zostanie odsłonięty. Włącz maskownicę, jeśli ma być zakryty.");
+      add("warn", `Wycięcie narożnika (${side}) nie ma zabudowy — otwór zostanie odsłonięty. Włącz maskownicę, jeśli ma być zakryty.`);
     }
-  }
+    geoCuts.push(geoCut);
+  };
+  processCutout(cab.cutout, true);
+  processCutout(cab.cutoutR, false);
 
   /* --- swobodny element kolizyjny (bryla) --- */
   // lista elementow kolizyjnych (wstecznie: pojedynczy cab.obstacle)
@@ -1438,7 +1474,7 @@ function computeGeo(cab, mat) {
     hardware,
     t, tf, tb, carcassDepth, hasBack, interior, innerW, innerH,
     shelfDepth, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, panels, msgs, maxNL,
-    plinthInBody, plinthH, bottomY, pMode, grooved, grOff, grDep, grPlay, geoCut, geoOb, geoObs,
+    plinthInBody, plinthH, bottomY, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut,
     topL, topR, botL, botR, leftLen, rightLen, leftY0, rightY0,
     topX0, topX1, botX0, botX1, divOv,
@@ -1477,18 +1513,21 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
   const t = geo.t;
   const belowExtra = Math.max(cab.legs?.on ? cab.legs.height || 100 : 0, geo.plinthH || 0) + 60;
   const hasBase = cab.legs?.on || cab.plinth.on;
-  // wymiary dlugosci bokow rysujemy tuz przy szafce; wtedy wymiary wysokosci
-  // odsuwamy dalej i potrzeba szerszego marginesu, zeby nic sie nie nakladalo
+  // wymiary rysowane tuz przy szafce (boki, cokol, nozki) wymuszaja odsuniecie
+  // wymiarow wysokosci dalej w lewo, zeby etykiety sie nie nakladaly
   const showSideLengthDims = showDims && (geo.leftLen !== H || geo.rightLen !== H);
-  const leftExtra = Math.max(hasBase ? 80 : 0, showSideLengthDims ? 170 : 0);
-  const rightExtraF = Math.max(hasBase ? 320 : 0, showSideLengthDims ? 320 : 0);
-  // pozycje X wymiarow (przesuwane, gdy boki sa przy szafce)
-  const dimHMainX = showSideLengthDims ? -180 : -50;
-  const dimHTotalX = showSideLengthDims ? -255 : -115;
+  const hasBaseDim = !!cab.legs?.on || (cab.plinth.on && !geo.plinthInBody);
+  const wideDims = showSideLengthDims || hasBaseDim;
+  const leftExtra = wideDims ? 170 : 0;
+  const rightExtraF = Math.max(hasBase ? 60 : 0, showSideLengthDims ? 160 : 0);
+  // pozycje X wymiarow
+  const dimHMainX = wideDims ? -180 : -50;
+  const dimHTotalX = wideDims ? -255 : -115;
   const dimLevelX = W + (showSideLengthDims ? 170 : 60);
   const dimDrawerX = W + (showSideLengthDims ? 230 : 120);
-  const dimCokolX = W + (showSideLengthDims ? 170 : 70);
-  const dimNozkiX = W + (showSideLengthDims ? 310 : 200);
+  // cokol pod lewym wymiarem boku, nozki pod prawym — tuz przy szafce
+  const dimCokolX = -26;
+  const dimNozkiX = W + 26;
   const vb = `${-pad - leftExtra} ${-pad} ${W + 2 * pad + leftExtra + rightExtraF} ${H + pad + belowExtra + 60}`;
   const fy = (y) => H - y;
   const bf = mat.board.color;
@@ -1825,7 +1864,7 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
                 {/* cokol: mierzony przy prawej krawedzi korpusu (cokol jest szerokosci szafki) */}
                 {plH > 0 && (
                   <DimV y1={H} y2={H + plH} x={dimCokolX} label={`cokół ${fmt(plH)}`}
-                    left={false} c={LINE} />
+                    c={LINE} />
                 )}
                 {/* nozki: mierzone znacznie dalej w prawo, zeby opis sie nie nakladal */}
                 {legH > 0 && (
@@ -2028,14 +2067,13 @@ function RearView({ cab, geo, mat, showDims }) {
       )}
 
       {/* wyciecie w narozniku — widziane od tylu */}
-      {geo.geoCut && (() => {
-        const gc = geo.geoCut;
+      {geo.geoCuts.map((gc, ci) => {
         // od tylu obraz jest lustrzany: mx(x, w)
         const xw = mx(gc.bx0, gc.bx1 - gc.bx0);
         // scianka pionowa stoi na zewnatrz otworu, po stronie wnetrza
         const wallX = gc.onLeft ? gc.bx1 : gc.bx0 - t;
         return (
-          <>
+          <g key={"cut" + ci}>
             <rect x={xw} y={fy(gc.cy1)} width={gc.bx1 - gc.bx0} height={gc.cutH}
               fill={ERRC} opacity="0.14" stroke={ERRC} strokeWidth="1.5" strokeDasharray="6 4" />
             <rect x={mx(wallX, t)} y={fy(gc.cy1)} width={t} height={gc.cutH}
@@ -2044,9 +2082,9 @@ function RearView({ cab, geo, mat, showDims }) {
               fontSize="18" fill={ERRC} fontFamily="ui-monospace, monospace">
               wycięcie {fmt(gc.cw)}×{fmt(gc.cdp)}
             </text>
-          </>
+          </g>
         );
-      })()}
+      })}
 
       {/* cokol pod korpusem / nozki */}
       {cab.plinth.on && !geo.plinthInBody && (
@@ -2193,8 +2231,7 @@ function TopView({ cab, geo, mat, showDims, showShelves }) {
       })()}
 
       {/* wyciecie w narozniku */}
-      {geo.geoCut && (() => {
-        const gc = geo.geoCut;
+      {geo.geoCuts.map((gc, ci) => {
         const smat = mat.shelf?.color || bf;
         // obszar wneki we wspolrzednych widoku z gory (y = glebokosc od tyłu)
         const rx = gc.bx0;
@@ -2202,10 +2239,10 @@ function TopView({ cab, geo, mat, showDims, showShelves }) {
         const rw = gc.bx1 - gc.bx0;
         const rh = gc.bz1 - gc.bz0;
         return (
-          <>
+          <g key={"cut" + ci}>
             <rect x={rx} y={ry} width={rw} height={rh}
               fill={ERRC} opacity="0.15" stroke={ERRC} strokeWidth="1.5" strokeDasharray="6 4" />
-            {cab.cutout?.mask !== false && (() => {
+            {gc.mask && (() => {
               const vVisible = gc.maskVisible === "vertical";
               // scianki NA ZEWNATRZ otworu; czolo dochodzi do lica boku
               const sideFace = gc.onLeft ? rx + t : rx + rw - t; // lico boku od wnetrza
@@ -2242,7 +2279,7 @@ function TopView({ cab, geo, mat, showDims, showShelves }) {
                   label={`${fmt(gc.cdp)}`} left={gc.onLeft} c={ERRC} />
                 {/* wolna glebokosc od czola zabudowy do lica */}
                 {(() => {
-                  const mt = cab.cutout?.mask !== false ? t : 0;
+                  const mt = gc.mask ? t : 0;
                   const zEnd = gc.bz1 + mt;
                   const free = Math.round(cd - zEnd);
                   if (free < 20) return null;
@@ -2254,9 +2291,9 @@ function TopView({ cab, geo, mat, showDims, showShelves }) {
 
               </>
             )}
-          </>
+          </g>
         );
-      })()}
+      })}
 
       {(geo.geoObs || []).map((o, obIx) => (() => {
         return (
@@ -2354,15 +2391,14 @@ function TopView({ cab, geo, mat, showDims, showShelves }) {
       {showDims && (() => {
         const cols = geo.levels[0]?.cols || [];
         const blockers = [];
-        if (geo.geoCut) {
-          const gc = geo.geoCut;
-          const mt = cab.cutout?.mask !== false ? t : 0;
+        geo.geoCuts.forEach((gc) => {
+          const mt = gc.mask ? t : 0;
           blockers.push({
             l: gc.onLeft ? gc.bx0 : gc.bx0 - mt,
             r: gc.onLeft ? gc.bx1 + mt : gc.bx1,
             end: gc.bz1 + mt,
           });
-        }
+        });
         (geo.geoObs || []).forEach((q) => {
           const mt = q.mask ? t : 0;
           blockers.push({
@@ -2540,16 +2576,18 @@ function SideView({ cab, geo, mat, showDims, which }) {
           <DimV y1={0} y2={H} x={-50} label={`${fmt(H)}`} />
         </>
       )}
-      {geo.geoCut && geo.geoCut.onBack && (geo.geoCut.onLeft !== sideRight) && (
-        <>
+      {geo.geoCuts.filter((gc) => gc.onBack && (gc.onLeft !== sideRight)).map((gc, ci) => (
+        <g key={"cut" + ci}>
           {/* obszar wyciecia od tylu (tyl po lewej, x=xC) */}
-          <rect x={xC} y={fy(geo.geoCut.cy1)} width={geo.geoCut.cdp} height={geo.geoCut.cutH}
+          <rect x={xC} y={fy(gc.cy1)} width={gc.cdp} height={gc.cutH}
             fill={ERRC} opacity="0.14" stroke={ERRC} strokeWidth="1.5" strokeDasharray="6 4" />
           {/* maskownica pozioma zamyka wneke */}
-          <rect x={xC + geo.geoCut.cdp - geo.t} y={fy(geo.geoCut.cy1)} width={geo.t} height={geo.geoCut.cutH}
-            fill={mat.shelf?.color || bf} stroke={INK} strokeWidth="2" opacity="0.9" />
-        </>
-      )}
+          {gc.mask && (
+            <rect x={xC + gc.cdp - geo.t} y={fy(gc.cy1)} width={geo.t} height={gc.cutH}
+              fill={mat.shelf?.color || bf} stroke={INK} strokeWidth="2" opacity="0.9" />
+          )}
+        </g>
+      ))}
       {/* elementy kolizyjne — widoczne w przekroju boku */}
       {(geo.geoObs || []).map((o, oi) => {
         const near = sideRight ? o.touchRight : o.touchLeft; // przy pokazywanym boku
@@ -2569,12 +2607,6 @@ function SideView({ cab, geo, mat, showDims, which }) {
         );
       })}
 
-      {geo.geoCut && !geo.geoCut.onBack && (
-        <>
-          <rect x={D - geo.geoCut.cdp} y={fy(geo.geoCut.cy1)} width={geo.geoCut.cdp} height={geo.geoCut.cutH}
-            fill={ERRC} opacity="0.14" stroke={ERRC} strokeWidth="1.5" strokeDasharray="6 4" />
-        </>
-      )}
       <text x={D / 2} y={H + 125} textAnchor="middle" fontSize="22" fill={LINE}
         fontFamily="ui-monospace, monospace">{sideRight ? "prawy bok" : "lewy bok"} — tył po lewej, przód po prawej</text>
     </svg>
@@ -2677,8 +2709,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
     // w 3D z=cd to tyl, a geometria bryly ma tyl przy oz=0 — odwracamy
     box(o.ox0, o.oy0, cd - o.oz1, o.ox1, o.oy1, cd - o.oz0, "#7c3aed", null, 0.45);
   });
-  if (geo.geoCut && cab.cutout?.mask !== false) {
-    const gc = geo.geoCut;
+  geo.geoCuts.filter((gc) => gc.mask).forEach((gc) => {
     const smat = mat.shelf?.color || bf;
     // w 3D z=cd to TYL, geometria wneki ma tyl przy z=0 -> odwracamy: z3d = cd - z
     const zf = (z) => cd - z;
@@ -2695,7 +2726,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
     const a0 = gc.onLeft ? sideFace : (vVisible ? rx : rx - t);
     const a1 = gc.onLeft ? (vVisible ? rx + rw : rx + rw + t) : sideFace;
     box(Math.min(a0, a1), gc.cy0, zf(hz0 + t), Math.max(a0, a1), gc.cy1, zf(hz0), smat);
-  }
+  });
   (geo.geoObs || []).filter((o) => o.mask && o.maskChosen).forEach((o) => {
     const smat = mat.shelf?.color || bf;
     const zf = (z) => cd - z;
@@ -2935,14 +2966,19 @@ const projectStore = (() => {
 /* ---------- aplikacja ---------- */
 
 export default function App() {
-  const [mat, setMat] = useState(defaultMaterials);
-  const [cab, setCabRaw] = useState(defaultCab);
+  // projekt = lista niezaleznych szafek (kazda ma swoj cab i mat) + aktywny indeks
+  const [project, setProjectRaw] = useState({
+    items: [{ cab: defaultCab, mat: defaultMaterials }],
+    active: 0,
+  });
+  const cab = project.items[project.active].cab;
+  const mat = project.items[project.active].mat;
   const histRef = useRef({ past: [], future: [] });
   const [histLen, setHistLen] = useState({ undo: 0, redo: 0 });
 
-  // kazda zmiana cab przechodzi tu — zapisuje poprzedni stan do historii
-  const setCab = useCallback((next) => {
-    setCabRaw((prev) => {
+  // kazda zmiana projektu przechodzi tu — zapisuje poprzedni stan do historii
+  const setProject = useCallback((next) => {
+    setProjectRaw((prev) => {
       const resolved = typeof next === "function" ? next(prev) : next;
       if (resolved === prev) return prev;
       const h = histRef.current;
@@ -2954,10 +2990,58 @@ export default function App() {
     });
   }, []);
 
+  // edycja aktywnej szafki (cab) oraz jej materialow (mat) — przez historie projektu
+  const setCab = useCallback((next) => {
+    setProject((p) => {
+      const it = p.items[p.active];
+      const resolved = typeof next === "function" ? next(it.cab) : next;
+      if (resolved === it.cab) return p;
+      const items = p.items.slice();
+      items[p.active] = { ...it, cab: resolved };
+      return { ...p, items };
+    });
+  }, [setProject]);
+
+  const setMat = useCallback((next) => {
+    setProject((p) => {
+      const it = p.items[p.active];
+      const resolved = typeof next === "function" ? next(it.mat) : next;
+      if (resolved === it.mat) return p;
+      const items = p.items.slice();
+      items[p.active] = { ...it, mat: resolved };
+      return { ...p, items };
+    });
+  }, [setProject]);
+
+  // zastepuje caly projekt (wczytanie / nowy) i czysci historie
+  const replaceProject = useCallback((proj) => {
+    histRef.current = { past: [], future: [] };
+    setHistLen({ undo: 0, redo: 0 });
+    setProjectRaw(proj);
+  }, []);
+
+  // przelaczanie / dodawanie / usuwanie szafek
+  const switchCabinet = useCallback((i) => setProject((p) => (i === p.active ? p : { ...p, active: i })), [setProject]);
+  const addCabinet = useCallback(() => setProject((p) => {
+    // nastepny numer = max z istniejacych "Szafka N" + 1 (odporne na usuwanie)
+    const nums = p.items.map((it) => {
+      const m = /^Szafka (\d+)$/.exec((it.cab.name || "").trim());
+      return m ? Number(m[1]) : 0;
+    });
+    const next = Math.max(0, ...nums) + 1;
+    const items = [...p.items, { cab: { ...defaultCab, name: `Szafka ${next}` }, mat: defaultMaterials }];
+    return { items, active: items.length - 1 };
+  }), [setProject]);
+  const removeCabinet = useCallback((i) => setProject((p) => {
+    if (p.items.length <= 1) return p;
+    const items = p.items.filter((_, k) => k !== i);
+    return { items, active: Math.min(p.active, items.length - 1) };
+  }), [setProject]);
+
   const undo = useCallback(() => {
     const h = histRef.current;
     if (!h.past.length) return;
-    setCabRaw((cur) => {
+    setProjectRaw((cur) => {
       h.future.unshift(cur);
       const prev = h.past.pop();
       setHistLen({ undo: h.past.length, redo: h.future.length });
@@ -2968,7 +3052,7 @@ export default function App() {
   const redo = useCallback(() => {
     const h = histRef.current;
     if (!h.future.length) return;
-    setCabRaw((cur) => {
+    setProjectRaw((cur) => {
       h.past.push(cur);
       const nxt = h.future.shift();
       setHistLen({ undo: h.past.length, redo: h.future.length });
@@ -2992,7 +3076,7 @@ export default function App() {
   const [transfer, setTransfer] = useState(null); // { mode:'export'|'import', text }
 
   const exportProject = async () => {
-    const json = JSON.stringify({ cab, mat }, null, 2);
+    const json = JSON.stringify({ items: project.items, active: project.active }, null, 2);
     let copied = false;
     try {
       await navigator.clipboard.writeText(json);
@@ -3007,17 +3091,9 @@ export default function App() {
   const applyImportText = (raw) => {
     try {
       const d = JSON.parse(raw);
-      if (!d.cab) throw new Error("zły format");
-      const merged = { ...defaultCab, ...d.cab, version: defaultCab.version };
-      ["cutout", "obstacle", "backGroove", "plinth", "legs", "rail", "gaps", "joints"].forEach((k) => {
-        if (defaultCab[k] && typeof defaultCab[k] === "object")
-          merged[k] = { ...defaultCab[k], ...(d.cab[k] || {}) };
-      });
-      setCab(merged);
-      const mm = { ...defaultMaterials };
-      if (d.mat) Object.keys(mm).forEach((k) => { mm[k] = { ...mm[k], ...(d.mat[k] || {}) }; });
-      mm.mirror = { ...mm.mirror, color: defaultMaterials.mirror.color }; // kolor lustra staly
-      setMat(mm);
+      const proj = loadProject(d);
+      if (!proj) throw new Error("zły format");
+      replaceProject(proj);
       setSaved("wczytano projekt");
       setTransfer(null);
     } catch (err) {
@@ -3046,6 +3122,7 @@ export default function App() {
   const drag = useRef(null);
   const [saved, setSaved] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [confirmNew, setConfirmNew] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -3053,24 +3130,11 @@ export default function App() {
         const r = await projectStore.get("szafki:projekt");
         if (r) {
           const d = JSON.parse(r.value);
-          const migratable = d.cab && d.cab.levels && Array.isArray(d.cab.levels);
-          if (migratable) {
-            // migracja: dokladamy nowe pola z domyslnych, zachowujac cala strukture wnetrza
-            const merged = { ...defaultCab, ...d.cab, version: defaultCab.version };
-            ["cutout", "obstacle", "backGroove", "plinth", "legs", "rail", "gaps", "joints"].forEach((k) => {
-              if (defaultCab[k] && typeof defaultCab[k] === "object")
-                merged[k] = { ...defaultCab[k], ...(d.cab[k] || {}) };
-            });
-            setCabRaw(merged);
-            const mm = { ...defaultMaterials };
-            if (d.mat) Object.keys(mm).forEach((k) => { mm[k] = { ...mm[k], ...(d.mat[k] || {}) }; });
-            mm.mirror = { ...mm.mirror, color: defaultMaterials.mirror.color }; // kolor lustra staly
-            setMat(mm);
-            setSaved(
-              d.cab.version === defaultCab.version
-                ? "wczytano zapisany projekt"
-                : "wczytano i zaktualizowano starszy projekt"
-            );
+          const proj = loadProject(d);
+          if (proj) {
+            setProjectRaw(proj);
+            const oldV = Array.isArray(d.items) ? d.items[0]?.cab?.version : d.cab?.version;
+            setSaved(oldV === defaultCab.version ? "wczytano zapisany projekt" : "wczytano i zaktualizowano starszy projekt");
           }
         }
       } catch (e) {
@@ -3084,14 +3148,14 @@ export default function App() {
     if (!loaded) return;
     const id = setTimeout(async () => {
       try {
-        await projectStore.set("szafki:projekt", JSON.stringify({ cab, mat }));
+        await projectStore.set("szafki:projekt", JSON.stringify({ items: project.items, active: project.active }));
         setSaved("zapisano " + new Date().toLocaleTimeString("pl-PL"));
       } catch (e) {
         setSaved("nie udało się zapisać");
       }
     }, 800);
     return () => clearTimeout(id);
-  }, [cab, mat, loaded]);
+  }, [project, loaded]);
 
   const geo = useMemo(() => computeGeo(cab, mat), [cab, mat]);
   const set = useCallback((patch) => setCab((c) => ({ ...c, ...patch })), [setCab]);
@@ -3107,11 +3171,32 @@ export default function App() {
 
   const addLevel = () => editLevels((L) => L.push(newLevel(L[0]?.cols[0]?.doors ?? 1, 0)));
   const removeLevel = (i) => editLevels((L) => L.length > 1 && L.splice(i, 1));
-  const setLevelH = (i, v) => editLevels((L) => (L[i].h = v === "" ? null : Math.round(Number(v))));
+  const setLevelH = (i, v) => editLevels((L) => {
+    L[i].h = v === "" ? null : Math.round(Number(v));
+    // po wypelnieniu ostatniego poziomu dodaj automatycznie kolejny (pusty),
+    // o ile w szafce zostaje jeszcze miejsce na sensowny poziom (>= MIN_LEVEL)
+    if (i === L.length - 1 && L[i].h != null) {
+      const n = L.length;
+      const fixedSum = L.reduce((s, lv) => s + (lv.h != null ? lv.h : 0), 0);
+      const leftover = geo.innerH - n * geo.t - fixedSum;
+      if (leftover >= MIN_LEVEL) L.push(newLevel(L[0]?.cols[0]?.doors ?? 1, 0));
+    }
+  });
 
   const addCol = (i) => editLevels((L) => L[i].cols.push(newColumn(1, 0)));
   const removeCol = (i, j) => editLevels((L) => L[i].cols.length > 1 && L[i].cols.splice(j, 1));
-  const setColW = (i, j, v) => editLevels((L) => (L[i].cols[j].w = v === "" ? null : Math.round(Number(v))));
+  const setColW = (i, j, v) => editLevels((L) => {
+    const cols = L[i].cols;
+    cols[j].w = v === "" ? null : Math.round(Number(v));
+    // po wypelnieniu ostatniej kolumny dodaj automatycznie kolejna (pusta),
+    // o ile w poziomie zostaje jeszcze miejsce na sensowna kolumne (>= MIN_COL)
+    if (j === cols.length - 1 && cols[j].w != null) {
+      const K = cols.length;
+      const fixedSum = cols.reduce((s, c) => s + (c.w != null ? c.w : 0), 0);
+      const leftover = geo.innerW - K * geo.t - fixedSum;
+      if (leftover >= MIN_COL) cols.push(newColumn(1, 0));
+    }
+  });
   const setColDoors = (i, j, v) =>
     editLevels((L) => (L[i].cols[j].doors = Math.max(0, Math.round(Number(v) || 0))));
   const setColShelfCount = (i, j, v) =>
@@ -3271,6 +3356,38 @@ export default function App() {
     return by;
   }, [cutList]);
 
+  // wspolna lista formatek CALEGO projektu — sumuje wszystkie szafki.
+  // Rozne materialy (nazwa/kolor/grubosc) nie lacza sie mimo tych samych wymiarow.
+  const projectCutList = useMemo(() => {
+    const map = new Map();
+    project.items.forEach((it) => {
+      const g = computeGeo(it.cab, it.mat);
+      g.panels.forEach((p) => {
+        const m = it.mat[p.matKey] || {};
+        const e = p.edges;
+        const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name].join("|");
+        if (map.has(key)) map.get(key).qty += p.qty;
+        else map.set(key, { ...p, matName: m.name || p.matKey, matColor: m.color });
+      });
+    });
+    return [...map.values()];
+  }, [project]);
+
+  const projectEdgeMeters = useMemo(() => {
+    let mm = 0;
+    projectCutList.forEach((p) => {
+      const e = p.edges;
+      mm += p.qty * ((e.a1 ? p.a : 0) + (e.a2 ? p.a : 0) + (e.b1 ? p.b : 0) + (e.b2 ? p.b : 0));
+    });
+    return mm / 1000;
+  }, [projectCutList]);
+
+  const projectBoardArea = useMemo(() => {
+    const by = {};
+    projectCutList.forEach((p) => { by[p.matName] = (by[p.matName] || 0) + (p.qty * p.a * p.b) / 1e6; });
+    return by;
+  }, [projectCutList]);
+
   const errors = geo.msgs.filter((m) => m.level === "error");
   const warns = geo.msgs.filter((m) => m.level === "warn");
   const infos = geo.msgs.filter((m) => m.level === "info");
@@ -3296,8 +3413,13 @@ export default function App() {
     <div className="min-h-screen bg-stone-100 text-stone-900">
       <header className="sticky top-0 z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
-          <input value={cab.name} onChange={(e) => set({ name: e.target.value })}
-            className="min-w-0 flex-1 border-b border-transparent bg-transparent text-lg font-semibold tracking-tight focus:border-teal-700 focus:outline-none" />
+          <label className="flex min-w-0 flex-1 items-center gap-1.5"
+            title="Nazwa tej szafki — kliknij i wpisz dowolną">
+            <span aria-hidden="true" className="shrink-0 text-base text-stone-400">✎</span>
+            <input value={cab.name} onChange={(e) => set({ name: e.target.value })}
+              placeholder="Nazwa szafki"
+              className="min-w-0 flex-1 border-b border-stone-300 bg-transparent px-0.5 text-lg font-semibold tracking-tight hover:border-stone-400 focus:border-teal-700 focus:outline-none" />
+          </label>
           <span className="font-mono text-xs text-stone-400">{saved}</span>
           <div className="flex items-center gap-1">
             <button onClick={undo} disabled={!histLen.undo}
@@ -3320,11 +3442,7 @@ export default function App() {
             <input type="file" accept="application/json,.json,.txt" className="hidden"
               onChange={importProject} />
           </label>
-          <button onClick={() => {
-              if (window.confirm("Zacząć nowy projekt? Bieżący zostanie wyczyszczony — można go cofnąć przyciskiem Cofnij.")) {
-                setCab(defaultCab); setMat(defaultMaterials); setSaved("nowy projekt");
-              }
-            }}
+          <button onClick={() => setConfirmNew(true)}
             className="text-xs text-stone-500 hover:text-stone-800 hover:underline">Nowy projekt</button>
           {errors.length > 0 && (
             <button onClick={scrollToNotes} title="Przejdź do uwag"
@@ -3350,6 +3468,32 @@ export default function App() {
           {errors.length === 0 && warns.length === 0 && infos.length === 0 && (
             <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800">bez uwag</span>
           )}
+        </div>
+        {/* pasek szafek w projekcie */}
+        <div className="border-t border-stone-200 bg-stone-50/60">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-1.5 px-4 py-2">
+            <span className="mr-1 shrink-0 text-xs font-medium text-stone-400">Szafki:</span>
+            {project.items.map((it, i) => {
+              const activeTab = i === project.active;
+              return (
+                <div key={i}
+                  className={"flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition " +
+                    (activeTab ? "border-teal-600 bg-teal-700 text-white" : "border-stone-300 bg-white text-stone-600 hover:border-stone-400")}>
+                  <button onClick={() => switchCabinet(i)} className="max-w-[180px] truncate">
+                    {it.cab.name || `Szafka ${i + 1}`}
+                  </button>
+                  {project.items.length > 1 && (
+                    <button onClick={() => removeCabinet(i)} title="Usuń szafkę"
+                      className={"shrink-0 rounded-full px-1 leading-none " + (activeTab ? "hover:bg-teal-800" : "hover:bg-stone-200")}>×</button>
+                  )}
+                </div>
+              );
+            })}
+            <button onClick={addCabinet} title="Dodaj nową szafkę do projektu"
+              className="rounded-full border border-dashed border-teal-500 px-3 py-1 text-xs font-medium text-teal-700 hover:bg-teal-50">
+              + szafka
+            </button>
+          </div>
         </div>
       </header>
 
@@ -3403,7 +3547,7 @@ export default function App() {
             )}
             {geo.grooved && (
               <div className="grid grid-cols-3 gap-3">
-                <Field label="Odsunięcie" hint="od tyłu">
+                <Field label="Szerokość" hint="frezu">
                   <Num value={geo.grOff}
                     onChange={(v) => set({ backGroove: { ...(cab.backGroove || {}), offset: v } })} suffix="" />
                 </Field>
@@ -3820,71 +3964,74 @@ export default function App() {
             </div>
           </Card>
 
-          <Card title="Wycięcie w narożniku">
-            <Check checked={!!cab.cutout?.on}
-              onChange={(v) => set({ cutout: { ...(cab.cutout || {}), on: v } })}
-              label="Wytnij narożnik (np. na rurę)" />
-            {cab.cutout?.on && (
-              <>
-                <Field label="Narożnik">
-                  <Seg value={cab.cutout.corner || "backRight"}
-                    onChange={(v) => set({ cutout: { ...cab.cutout, corner: v } })}
-                    options={[
-                      { v: "backLeft", l: "Tylny lewy" },
-                      { v: "backRight", l: "Tylny prawy" },
-                    ]} />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Szerokość od boku">
-                    <Num value={cab.cutout.w ?? 100}
-                      onChange={(v) => set({ cutout: { ...cab.cutout, w: v } })} />
-                  </Field>
-                  <Field label="Głębokość od tyłu">
-                    <Num value={cab.cutout.d ?? 100}
-                      onChange={(v) => set({ cutout: { ...cab.cutout, d: v } })} />
-                  </Field>
+          <Card title="Wycięcie w narożniku (tylne)">
+            <p className="text-xs text-stone-500">
+              Oba tylne narożniki można wyciąć niezależnie (np. na dwie rury), każdy z własnymi wymiarami.
+            </p>
+            {[
+              { key: "cutout", label: "Wytnij narożnik lewy (np. na rurę)" },
+              { key: "cutoutR", label: "Wytnij narożnik prawy (np. na rurę)" },
+            ].map(({ key, label }) => {
+              const cu = cab[key] || {};
+              const upd = (patch) => set({ [key]: { ...cu, ...patch } });
+              const gCut = geo.geoCuts.find((x) => x.onLeft === (key === "cutout"));
+              return (
+                <div key={key} className="space-y-3 border-t border-stone-100 pt-3 first:border-t-0 first:pt-0">
+                  <Check checked={!!cu.on} onChange={(v) => upd({ on: v })} label={label} />
+                  {cu.on && (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Szerokość od boku">
+                          <Num value={cu.w ?? 100} onChange={(v) => upd({ w: v })} />
+                        </Field>
+                        <Field label="Głębokość od tyłu">
+                          <Num value={cu.d ?? 100} onChange={(v) => upd({ d: v })} />
+                        </Field>
+                      </div>
+                      {geo.levels.length > 1 && (
+                        <>
+                          <Check checked={cu.fullHeight !== false}
+                            onChange={(v) => upd({ fullHeight: v })}
+                            label="Wycięcie przez całą wysokość szafki" />
+                          {cu.fullHeight === false && (
+                            <Field label="Poziom z wycięciem">
+                              <Seg value={String(cu.levelIndex || 0)}
+                                onChange={(v) => upd({ levelIndex: Number(v) })}
+                                options={geo.levels.map((lv) => ({ v: String(lv.i), l: `Poziom ${lv.i + 1}` }))} />
+                            </Field>
+                          )}
+                        </>
+                      )}
+                      <Check checked={cu.mask !== false}
+                        onChange={(v) => upd({ mask: v })}
+                        label="Zabuduj otwór maskownicą" />
+                      {cu.mask !== false && (
+                        <>
+                          <Field label="Widoczna ścianka" hint="wycięcie zabudowuje się w L — jeden bok zachodzi na drugi">
+                            <Seg value={cu.maskCorner === "horizontal" ? "horizontal" : cu.maskCorner === "vertical" ? "vertical" : "auto"}
+                              onChange={(v) => upd({ maskCorner: v })}
+                              options={[
+                                { v: "auto", l: "Auto" },
+                                { v: "vertical", l: "Boczna" },
+                                { v: "horizontal", l: "Czołowa" },
+                              ]} />
+                          </Field>
+                          {gCut?.maskVisible && (
+                            <p className="text-xs text-stone-500">
+                              Widoczna ścianka: {gCut.maskVisible === "vertical" ? "boczna" : "czołowa"}.
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
                 </div>
-                {geo.levels.length > 1 && (
-                  <>
-                    <Check checked={cab.cutout.fullHeight !== false}
-                      onChange={(v) => set({ cutout: { ...cab.cutout, fullHeight: v } })}
-                      label="Wycięcie przez całą wysokość szafki" />
-                    {cab.cutout.fullHeight === false && (
-                      <Field label="Poziom z wycięciem">
-                        <Seg value={String(cab.cutout.levelIndex || 0)}
-                          onChange={(v) => set({ cutout: { ...cab.cutout, levelIndex: Number(v) } })}
-                          options={geo.levels.map((lv) => ({ v: String(lv.i), l: `Poziom ${lv.i + 1}` }))} />
-                      </Field>
-                    )}
-                  </>
-                )}
-                <Check checked={cab.cutout.mask !== false}
-                  onChange={(v) => set({ cutout: { ...cab.cutout, mask: v } })}
-                  label="Zabuduj otwór maskownicą" />
-                {cab.cutout.mask !== false && (
-                  <>
-                    <Field label="Który bok widoczny" hint="wycięcie narożnika zawsze zabudowuje się w L — jeden bok musi zachodzić na drugi">
-                      <Seg value={cab.cutout.maskCorner === "horizontal" ? "horizontal" : "vertical"}
-                        onChange={(v) => set({ cutout: { ...cab.cutout, maskCorner: v } })}
-                        options={[
-                          { v: "auto", l: "Auto" },
-                          { v: "vertical", l: "Boczna" },
-                          { v: "horizontal", l: "Czołowa" },
-                        ]} />
-                    </Field>
-                    {geo.geoCut?.maskVisible && (
-                      <p className="text-xs text-stone-500">
-                        Widoczna ścianka: {geo.geoCut.maskVisible === "vertical" ? "boczna" : "czołowa"}.
-                      </p>
-                    )}
-                  </>
-                )}
-                <p className="text-xs text-stone-500">
-                  Formatki korpusu do zamówienia zostają pełnymi prostokątami — wycięcie
-                  robisz sam. Zabudowa jest liczona z płyty półek.
-                </p>
-              </>
-            )}
+              );
+            })}
+            <p className="text-xs text-stone-500">
+              Formatki korpusu do zamówienia zostają pełnymi prostokątami — wycięcie
+              robisz sam. Zabudowa jest liczona z płyty półek.
+            </p>
           </Card>
 
           <Card title="Elementy kolizyjne"
@@ -4359,6 +4506,74 @@ export default function App() {
               obrzeże, więc zamawiasz dokładnie te liczby.
             </p>
           </Card>
+
+          {project.items.length > 1 && (
+            <Card title="Formatki całego projektu"
+              right={<span className="text-xs text-stone-400">{project.items.length} szafek</span>}>
+              <p className="mb-2 text-xs text-stone-500">
+                Suma formatek ze wszystkich szafek w projekcie — do zamówienia płyty na całość naraz.
+                Formatki o tych samych wymiarach i materiale są łączone; różne materiały liczone osobno.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-sm">
+                  <thead>
+                    <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
+                      <th className="py-2 pr-3 font-medium">Element</th>
+                      <th className="py-2 pr-3 font-medium">Płyta</th>
+                      <th className="py-2 pr-3 text-right font-medium">Długość</th>
+                      <th className="py-2 pr-3 text-right font-medium">Szerokość</th>
+                      <th className="py-2 pr-3 text-right font-medium">Szt.</th>
+                      <th className="py-2 font-medium">Oklejanie PCV 2 mm</th>
+                    </tr>
+                  </thead>
+                  <tbody className="font-mono">
+                    {projectCutList.map((p, i) => {
+                      const eg = [];
+                      if (p.edges.a1) eg.push(`przód ${fmt(p.a)}`);
+                      if (p.edges.a2) eg.push(`tył ${fmt(p.a)}`);
+                      if (p.edges.b1) eg.push(`bok ${fmt(p.b)}`);
+                      if (p.edges.b2) eg.push(`bok ${fmt(p.b)}`);
+                      return (
+                        <tr key={i} className="border-b border-stone-100">
+                          <td className="py-2 pr-3 font-sans">{p.name}</td>
+                          <td className="py-2 pr-3 font-sans text-stone-500">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="inline-block h-3 w-3 shrink-0 rounded-sm border border-stone-300"
+                                style={{ background: p.matColor }} />
+                              {p.matName}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-3 text-right">{fmt(p.a)}</td>
+                          <td className="py-2 pr-3 text-right">{fmt(p.b)}</td>
+                          <td className="py-2 pr-3 text-right">{p.qty}</td>
+                          <td className="py-2 font-sans text-xs text-stone-500">{eg.length ? eg.join(", ") : "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="grid gap-3 border-t border-stone-200 pt-3 text-sm sm:grid-cols-3">
+                <div>
+                  <span className="block text-xs uppercase tracking-wider text-stone-500">Sztuk razem</span>
+                  <span className="font-mono text-lg">{projectCutList.reduce((s, p) => s + p.qty, 0)}</span>
+                </div>
+                <div>
+                  <span className="block text-xs uppercase tracking-wider text-stone-500">Obrzeże PCV</span>
+                  <span className="font-mono text-lg">{fmt(projectEdgeMeters)} mb</span>
+                </div>
+                <div>
+                  <span className="block text-xs uppercase tracking-wider text-stone-500">Powierzchnia</span>
+                  <span className="font-mono text-sm">
+                    {Object.entries(projectBoardArea).map(([k, v]) => (
+                      <span key={k} className="block">{k}: {fmt(v)} m²</span>
+                    ))}
+                  </span>
+                </div>
+              </div>
+            </Card>
+          )}
+
           <Card title="Produkty do zamówienia">
             {geo.hardware.length === 0 ? (
               <p className="text-sm text-stone-400">
@@ -4398,6 +4613,30 @@ export default function App() {
 
         </div>
       </main>
+
+      {confirmNew && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4"
+          onClick={() => setConfirmNew(false)}>
+          <div className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-2 text-sm font-semibold text-stone-800">Zacząć nowy projekt?</h3>
+            <p className="mb-4 text-xs text-stone-500">
+              Bieżący projekt zostanie wyczyszczony. Można go przywrócić przyciskiem Cofnij.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setConfirmNew(false)}
+                className="rounded px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-100">Anuluj</button>
+              <button onClick={() => {
+                  replaceProject({ items: [{ cab: defaultCab, mat: defaultMaterials }], active: 0 });
+                  setSaved("nowy projekt"); setConfirmNew(false);
+                }}
+                className="rounded bg-teal-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-800">
+                Tak, nowy projekt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {transfer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4"
