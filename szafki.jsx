@@ -3548,12 +3548,12 @@ export default function App() {
             {geo.grooved && (
               <div className="grid grid-cols-3 gap-3">
                 <Field label="Szerokość" hint="frezu">
-                  <Num value={geo.grOff}
-                    onChange={(v) => set({ backGroove: { ...(cab.backGroove || {}), offset: v } })} suffix="" />
-                </Field>
-                <Field label="Głębokość" hint="frezu">
                   <Num value={geo.grDep}
                     onChange={(v) => set({ backGroove: { ...(cab.backGroove || {}), depth: v } })} suffix="" />
+                </Field>
+                <Field label="Głębokość" hint="frezu">
+                  <Num value={geo.grOff}
+                    onChange={(v) => set({ backGroove: { ...(cab.backGroove || {}), offset: v } })} suffix="" />
                 </Field>
                 <Field label="Luz" hint="we frezie">
                   <Num value={geo.grPlay}
