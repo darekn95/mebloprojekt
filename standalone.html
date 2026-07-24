@@ -1493,8 +1493,19 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
   const pad = 160;
   const t = geo.t;
   const belowExtra = Math.max(cab.legs?.on ? cab.legs.height || 100 : 0, geo.plinthH || 0) + 60;
-  const leftExtra = cab.legs?.on || cab.plinth.on ? 80 : 0;
-  const rightExtraF = cab.legs?.on || cab.plinth.on ? 320 : 0;
+  const hasBase = cab.legs?.on || cab.plinth.on;
+  // wymiary dlugosci bokow rysujemy tuz przy szafce; wtedy wymiary wysokosci
+  // odsuwamy dalej i potrzeba szerszego marginesu, zeby nic sie nie nakladalo
+  const showSideLengthDims = showDims && (geo.leftLen !== H || geo.rightLen !== H);
+  const leftExtra = Math.max(hasBase ? 80 : 0, showSideLengthDims ? 170 : 0);
+  const rightExtraF = Math.max(hasBase ? 320 : 0, showSideLengthDims ? 320 : 0);
+  // pozycje X wymiarow (przesuwane, gdy boki sa przy szafce)
+  const dimHMainX = showSideLengthDims ? -180 : -50;
+  const dimHTotalX = showSideLengthDims ? -255 : -115;
+  const dimLevelX = W + (showSideLengthDims ? 170 : 60);
+  const dimDrawerX = W + (showSideLengthDims ? 230 : 120);
+  const dimCokolX = W + (showSideLengthDims ? 170 : 70);
+  const dimNozkiX = W + (showSideLengthDims ? 310 : 200);
   const vb = `${-pad - leftExtra} ${-pad} ${W + 2 * pad + leftExtra + rightExtraF} ${H + pad + belowExtra + 60}`;
   const fy = (y) => H - y;
   const bf = mat.board.color;
@@ -1505,7 +1516,6 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
   const leftBottomY = fy(geo.leftY0);
   const rightTopY = fy(geo.rightY0 + geo.rightLen);
   const rightBottomY = fy(geo.rightY0);
-  const showSideLengthDims = showDims && (geo.leftLen !== H || geo.rightLen !== H);
   const sidePanel = (key, x, y, h, topCap, bottomCap) => (
     <g key={key}>
       <rect x={x} y={y} width={t} height={h} fill={bf} />
@@ -1810,12 +1820,12 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
       {showDims && (
         <>
           <DimH x1={0} x2={W} y={-50} label={`${fmt(W)}`} />
-          <DimV y1={0} y2={H} x={-50} label={`${fmt(H)}`} />
+          <DimV y1={0} y2={H} x={dimHMainX} label={`${fmt(H)}`} />
           {showSideLengthDims && (
             <>
-              <DimV y1={leftTopY} y2={leftBottomY} x={-105}
+              <DimV y1={leftTopY} y2={leftBottomY} x={-26}
                 label={`bok L ${fmt(geo.leftLen)}`} c={LINE} />
-              <DimV y1={rightTopY} y2={rightBottomY} x={W + 105}
+              <DimV y1={rightTopY} y2={rightBottomY} x={W + 26}
                 label={`bok P ${fmt(geo.rightLen)}`} left={false} c={LINE} />
             </>
           )}
@@ -1828,22 +1838,22 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
             return (
               <>
                 {/* calkowita wysokosc z podstawa po lewej */}
-                <DimV y1={0} y2={H + extra} x={-115} label={`${fmt(H + extra)}`} c={LINE} />
+                <DimV y1={0} y2={H + extra} x={dimHTotalX} label={`${fmt(H + extra)}`} c={LINE} />
                 {/* cokol: mierzony przy prawej krawedzi korpusu (cokol jest szerokosci szafki) */}
                 {plH > 0 && (
-                  <DimV y1={H} y2={H + plH} x={W + 70} label={`cokół ${fmt(plH)}`}
+                  <DimV y1={H} y2={H + plH} x={dimCokolX} label={`cokół ${fmt(plH)}`}
                     left={false} c={LINE} />
                 )}
                 {/* nozki: mierzone znacznie dalej w prawo, zeby opis sie nie nakladal */}
                 {legH > 0 && (
-                  <DimV y1={H} y2={H + legH} x={W + 200} label={`nóżki ${fmt(legH)}`}
+                  <DimV y1={H} y2={H + legH} x={dimNozkiX} label={`nóżki ${fmt(legH)}`}
                     left={false} c={LINE} />
                 )}
               </>
             );
           })()}
           {geo.levels.map((lv) => (
-            <DimV key={"lv" + lv.i} y1={fy(lv.y1)} y2={fy(lv.y0)} x={W + 60}
+            <DimV key={"lv" + lv.i} y1={fy(lv.y1)} y2={fy(lv.y0)} x={dimLevelX}
               label={`${fmt(lv.h)}`} left={false} c={lv.h < 60 ? WARNC : DIMC} />
           ))}
           {/* wysokosci frontow szuflad przy prawej krawedzi */}
@@ -1851,7 +1861,7 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
             geo.doors
               .filter((d) => d.type === "drawer")
               .map((d) => (
-                <DimV key={"dr" + d.key} y1={fy(d.y + d.h)} y2={fy(d.y)} x={W + 120}
+                <DimV key={"dr" + d.key} y1={fy(d.y + d.h)} y2={fy(d.y)} x={dimDrawerX}
                   label={`${fmt(d.h)}`} left={false} c={DIMC} />
               ))}
           {open &&
