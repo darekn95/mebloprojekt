@@ -100,6 +100,22 @@ const defaultMaterials = {
   mirror: { name: "Lustro 4", thickness: 4, color: "#c3d0d6" },
 };
 
+// element wzmacniajacy w kolumnie (moze byc wiele)
+// orient: "front" = pionowa plyta w licu (trawers), "shelf" = lezacy jak polka,
+//         "vertical" = stojacy jak bok. pos: gora/dol. side: dla vertical lewy/prawy.
+// h = wysokosc pasa (front/vertical), depth = glebokosc w glab (shelf/vertical),
+// atDepth = odsuniecie od lica, fromBack = liczone od tylu, reducesDoor = skraca drzwi.
+const newRail = () => ({
+  orient: "front",
+  pos: "top",
+  side: "left",
+  h: 100,
+  depth: 100,
+  atDepth: 0,
+  fromBack: false,
+  reducesDoor: false,
+});
+
 const newColumn = (doors = 1, shelves = 0) => ({
   w: null,
   kind: "doors",
@@ -111,6 +127,7 @@ const newColumn = (doors = 1, shelves = 0) => ({
   mirrors: [],
   handles: [],
   hinges: [],
+  rails: [],
   backMode: "inherit",
   fix: { side: "none", w: 60, mode: "overlay", support: false, supportDepth: 100 },
   blendaMode: "overlay",
@@ -144,7 +161,6 @@ const defaultCab = {
   shelfExtraSetback: 0,
   levels: [newLevel(2, 3)],
   plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
-  rail: { on: false, height: 100, pos: "top", upright: false },
   frontSameAsBoard: true,
   shelfSameAsBoard: true,
   openAngle: 90,
@@ -164,7 +180,7 @@ const defaultCab = {
 // scala wczytana szafke z domyslnymi polami + migruje stary model wyciecia
 const migrateCab = (rawCab) => {
   const merged = { ...defaultCab, ...(rawCab || {}), version: defaultCab.version };
-  ["cutout", "cutoutR", "obstacle", "backGroove", "plinth", "legs", "rail", "gaps", "joints"].forEach((k) => {
+  ["cutout", "cutoutR", "obstacle", "backGroove", "plinth", "legs", "gaps", "joints"].forEach((k) => {
     if (defaultCab[k] && typeof defaultCab[k] === "object")
       merged[k] = { ...defaultCab[k], ...((rawCab && rawCab[k]) || {}) };
   });
@@ -475,6 +491,37 @@ function computeGeo(cab, mat) {
       c.kind = kind;
       const where = `Poziom ${lv.i + 1}, kolumna ${j + 1}`;
 
+      // --- elementy wzmacniajace kolumny ---
+      const rawRails = Array.isArray(rawCol.rails) ? rawCol.rails : [];
+      // pasmo frontu skracane przez wzmocnienia czolowe "skraca drzwi"
+      let clo = lo, chi = hi;
+      rawRails.forEach((r) => {
+        if (r && r.orient === "front" && r.reducesDoor) {
+          const rr = Math.max(0, Math.round(r.h || 0)) + g.between;
+          if (r.pos === "bottom") clo += rr; else chi -= rr;
+        }
+      });
+      const cbandH = Math.round(chi - clo);
+      // geometria wzmocnien (pozycje do rysunku i formatek); pozycja liczona w pelnym pasmie lo..hi
+      c.rails = rawRails.map((r) => {
+        const rh = Math.max(0, Math.round(r.h || 0));
+        const rd = Math.max(0, Math.round(r.depth || 0));
+        const rAt = Math.max(0, Math.round(r.atDepth || 0));
+        const zLen = r.orient === "front" ? t : rd;
+        const z0 = r.fromBack ? Math.max(0, carcassDepth - rAt - zLen) : rAt;
+        const cw = c.x1 - c.x0;
+        if (r.orient === "shelf") {
+          const ry = r.pos === "bottom" ? lo : hi - t;
+          return { orient: "shelf", x0: c.x0, x1: c.x1, y0: ry, y1: ry + t, z0, zLen: rd, a: cw, b: rd };
+        }
+        if (r.orient === "vertical") {
+          const rx = r.side === "right" ? c.x1 - t : c.x0;
+          return { orient: "vertical", x0: rx, x1: rx + t, y0: lo, y1: lo + rh, z0, zLen: rd, a: rh, b: rd };
+        }
+        const ry1 = r.pos === "bottom" ? lo + rh : hi;
+        return { orient: "front", x0: c.x0, x1: c.x1, y0: ry1 - rh, y1: ry1, z0, zLen: t, a: cw, b: rh };
+      });
+
       let sx0, sx1;
       if (cab.frontMode === "overlay") {
         // front zachodzi na przegrode o zadana wartosc, reszta przegrody to szczelina
@@ -491,8 +538,8 @@ function computeGeo(cab, mat) {
       const fixInset = rawFix.mode === "inset";
       if (hasFix && fixW > 0) {
         // fix wpuszczany siedzi w swietle korpusu, nakladany w pasmie frontu
-        const fLo = fixInset ? lv.y0 + g.inset : lo;
-        const fH = fixInset ? Math.round(lv.y1 - lv.y0 - 2 * g.inset) : bandH;
+        const fLo = fixInset ? lv.y0 + g.inset : clo;
+        const fH = fixInset ? Math.round(lv.y1 - lv.y0 - 2 * g.inset) : cbandH;
         const fx = fixInset
           ? rawFix.side === "left"
             ? c.x0 + g.inset
@@ -545,8 +592,8 @@ function computeGeo(cab, mat) {
         const bi = rawCol.blendaMode === "inset";
         const bx0 = bi ? c.x0 + g.inset : sx0;
         const bx1 = bi ? c.x1 - g.inset : sx1;
-        const by0 = bi ? lv.y0 + g.inset : lo;
-        const by1 = bi ? lv.y1 - g.inset : hi;
+        const by0 = bi ? lv.y0 + g.inset : clo;
+        const by1 = bi ? lv.y1 - g.inset : chi;
         const bw = Math.round(bx1 - bx0);
         const bh = Math.round(by1 - by0);
         c.count = 1;
@@ -598,7 +645,7 @@ function computeGeo(cab, mat) {
           }
         }
         c.doorW = dws.sizes[0];
-        c.doorH = bandH;
+        c.doorH = cbandH;
         let dx = sx0;
         for (let i = 0; i < cnt; i++) {
           const dw = dws.sizes[i];
@@ -608,13 +655,13 @@ function computeGeo(cab, mat) {
             type: "door",
           colKey: `${lv.i}-${j}`,
             x: dx,
-            y: lo,
+            y: clo,
             w: dw,
-            h: bandH,
+            h: cbandH,
             iInGroup: i,
             groupN: cnt,
             mirror: !!(rawCol.mirrors || [])[i],
-            hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(bandH, dw),
+            hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw),
             handle: (rawCol.handles || [])[i] !== false,
             hingeSide:
               cnt === 1
@@ -631,14 +678,14 @@ function computeGeo(cab, mat) {
           c.doors.push(d);
           dx += dw + colGap;
           if (dw <= 0) add("error", `${where}: drzwi ${i + 1} mają szerokość zero lub mniej.`);
-          if ((rawCol.mirrors || [])[i] && dw > 1 && bandH > 1)
-            mirrorParts.push({ a: bandH - 1, b: dw - 1 });
+          if ((rawCol.mirrors || [])[i] && dw > 1 && cbandH > 1)
+            mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
           if ((rawCol.handles || [])[i] !== false) handleCount += 1;
-          const autoH = autoHinges(bandH, dw);
+          const autoH = autoHinges(cbandH, dw);
           const ovH = num((rawCol.hinges || [])[i]);
           hingeCount += ovH !== null ? ovH : autoH;
         }
-        if (bandH <= 0) add("error", `${where}: wysokość drzwi zero lub mniej.`);
+        if (cbandH <= 0) add("error", `${where}: wysokość drzwi zero lub mniej.`);
 
         if (hasFix && fixW > 0) {
           const auto = rawFix.side === "left" ? "right" : "left";
@@ -678,7 +725,7 @@ function computeGeo(cab, mat) {
         else if (drGap === 1)
           add("warn", `${where}: luz między szufladami tylko 1 mm — zalecane 2 mm, żeby fronty się nie ocierały.`);
       }
-      const avail = bandH - (ds.length - 1) * drGap;
+      const avail = cbandH - (ds.length - 1) * drGap;
       const fr = distribute(avail, ds.map((d) => d.front));
       if (fr.diff !== 0)
         add(
@@ -694,7 +741,7 @@ function computeGeo(cab, mat) {
           add("info", `${where}: przy równym podziale fronty szuflad różnią się o ${fmt(spread)} mm. Żeby były identyczne, dobierz luz między frontami lub wysokość pasma tak, by dzieliło się równo.`);
       }
 
-      let y = lo;
+      let y = clo;
       ds.forEach((d, i) => {
         const fh = fr.sizes[i];
         // wysokosc boku V-BOX: auto dobiera najwyzszy bok mieszczacy sie w froncie
@@ -1083,10 +1130,15 @@ function computeGeo(cab, mat) {
         note: plinthInBody ? "krawędź dolna" : "krawędź dolna oraz oba końce" });
   }
 
-  if (cab.rail.on)
-    P({ name: "Element wzmacniający", qty: 1, a: innerW, b: cab.rail.height, matKey: "board",
-        edges: { a1: false, a2: false, b1: false, b2: false },
-        note: "element niewidoczny — bez oklejania" });
+  // formatki wzmocnien (per kolumna, wiele)
+  levels.forEach((lv) => lv.cols.forEach((c) => (c.rails || []).forEach((r) => {
+    if (!(r.a > 0 && r.b > 0)) return;
+    const name = r.orient === "front" ? "Wzmocnienie czołowe"
+      : r.orient === "shelf" ? "Wzmocnienie poziome" : "Wzmocnienie pionowe";
+    P({ name, qty: 1, a: Math.round(r.a), b: Math.round(r.b), matKey: "board",
+        edges: { a1: r.orient === "front", a2: false, b1: false, b2: false },
+        note: r.orient === "front" ? undefined : "element niewidoczny — bez oklejania" });
+  })));
 
   const backOverride = levels.some((lv) =>
     (rawLevels[lv.i].cols || []).some((c) => c.backMode && c.backMode !== "inherit")
@@ -1608,11 +1660,13 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
         </>
       )}
 
-      {cab.rail.on && (
-        <rect x={geo.interior.x0}
-          y={cab.rail.pos === "top" ? fy(geo.interior.y1) : fy(geo.interior.y0 + cab.rail.height)}
-          width={geo.innerW} height={cab.rail.height} fill={bf} stroke={INK} strokeWidth="2" opacity="0.85" />
-      )}
+      {/* elementy wzmacniajace (per kolumna) — widok od czola */}
+      {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
+        <rect key={`rail${lv.i}-${c.j}-${ri}`}
+          x={r.x0} y={fy(r.y1)} width={r.x1 - r.x0} height={r.y1 - r.y0}
+          fill={r.orient === "vertical" ? (mat.shelf?.color || bf) : bf}
+          stroke={INK} strokeWidth="2" opacity={r.orient === "front" ? 0.9 : 0.7} />
+      ))))}
 
       {/* polki przelotowe */}
       {geo.sepShelves.map((s, i) => (
@@ -2741,10 +2795,10 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
       box(geo.interior.x0, 0, sb, geo.interior.x1, geo.plinthH, sb + t, bf);
     else box(0, -geo.plinthH, sb, W, 0, sb + t, bf);
   }
-  if (cab.rail.on) {
-    const ry = cab.rail.pos === "top" ? geo.interior.y1 - cab.rail.height : geo.interior.y0;
-    box(geo.interior.x0, ry, 0, geo.interior.x1, ry + cab.rail.height, t, bf);
-  }
+  geo.levels.forEach((lv) => lv.cols.forEach((c) => (c.rails || []).forEach((r) => {
+    if (r.x1 > r.x0 && r.y1 > r.y0 && r.zLen > 0)
+      box(r.x0, r.y0, r.z0, r.x1, r.y1, r.z0 + r.zLen, bf);
+  })));
   if (cab.legs && cab.legs.on) {
     const lh = cab.legs.height || 100;
     const ins = 40;
@@ -3311,6 +3365,9 @@ export default function App() {
     editLevels((L) => (L[i].cols[j].nl = v === "" ? null : Number(v)));
   const addDrawer = (i, j) => editLevels((L) => L[i].cols[j].drawers.push(newDrawer()));
   const removeDrawer = (i, j, k) => editLevels((L) => L[i].cols[j].drawers.splice(k, 1));
+  const addRail = (i, j) => editLevels((L) => { if (!Array.isArray(L[i].cols[j].rails)) L[i].cols[j].rails = []; L[i].cols[j].rails.push(newRail()); });
+  const removeRail = (i, j, k) => editLevels((L) => L[i].cols[j].rails.splice(k, 1));
+  const setRail = (i, j, k, patch) => editLevels((L) => { L[i].cols[j].rails[k] = { ...L[i].cols[j].rails[k], ...patch }; });
   const setDrawerH = (i, j, k, v) =>
     editLevels((L) => (L[i].cols[j].drawers[k].h = v === "auto" ? "auto" : Number(v)));
   const setDrawerFront = (i, j, k, v) =>
@@ -3974,6 +4031,59 @@ export default function App() {
                             </div>
                           </div>
                         )}
+
+                        {/* elementy wzmacniajace kolumny */}
+                        <div className="border-t border-stone-100 pt-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-medium text-stone-500">Wzmocnienia</span>
+                            <MiniBtn onClick={() => addRail(lv.i, c.j)} tone="accent">+ wzmocnienie</MiniBtn>
+                          </div>
+                          {(rawCol.rails || []).map((r, ri) => (
+                            <div key={ri} className="mt-2 space-y-2 rounded border border-stone-200 p-2">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1">
+                                  <Seg value={r.orient}
+                                    onChange={(v) => setRail(lv.i, c.j, ri, { orient: v })}
+                                    options={[{ v: "front", l: "Czołowy" }, { v: "shelf", l: "Poziomy" }, { v: "vertical", l: "Pionowy" }]} />
+                                </div>
+                                <MiniBtn onClick={() => removeRail(lv.i, c.j, ri)} title="Usuń wzmocnienie">×</MiniBtn>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                {r.orient !== "shelf" && (
+                                  <Field label="Wysokość">
+                                    <Num value={r.h} onChange={(v) => setRail(lv.i, c.j, ri, { h: v })} />
+                                  </Field>
+                                )}
+                                {r.orient !== "front" && (
+                                  <Field label="Głębokość">
+                                    <Num value={r.depth} onChange={(v) => setRail(lv.i, c.j, ri, { depth: v })} />
+                                  </Field>
+                                )}
+                                {r.orient !== "vertical" && (
+                                  <Field label="Położenie">
+                                    <Seg value={r.pos} onChange={(v) => setRail(lv.i, c.j, ri, { pos: v })}
+                                      options={[{ v: "top", l: "Góra" }, { v: "bottom", l: "Dół" }]} />
+                                  </Field>
+                                )}
+                                {r.orient === "vertical" && (
+                                  <Field label="Przy boku">
+                                    <Seg value={r.side} onChange={(v) => setRail(lv.i, c.j, ri, { side: v })}
+                                      options={[{ v: "left", l: "Lewy" }, { v: "right", l: "Prawy" }]} />
+                                  </Field>
+                                )}
+                                <Field label="Głębokość od lica" hint="0 = w licu">
+                                  <Num value={r.atDepth} onChange={(v) => setRail(lv.i, c.j, ri, { atDepth: v })} />
+                                </Field>
+                              </div>
+                              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                <Check checked={!!r.fromBack} onChange={(v) => setRail(lv.i, c.j, ri, { fromBack: v })} label="Liczone od tyłu" />
+                                {r.orient === "front" && (
+                                  <Check checked={!!r.reducesDoor} onChange={(v) => setRail(lv.i, c.j, ri, { reducesDoor: v })} label="Skraca drzwi" />
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   })}
@@ -4228,25 +4338,6 @@ export default function App() {
                 <Num value={cab.legs.height ?? 100}
                   onChange={(v) => set({ legs: { ...cab.legs, height: v } })} />
               </Field>
-            )}
-            <div className="border-t border-stone-100 pt-3">
-              <Check checked={cab.rail.on} onChange={(v) => set({ rail: { ...cab.rail, on: v } })}
-                label="Element wzmacniający" />
-            </div>
-            {cab.rail.on && (
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Szerokość elementu">
-                  <Num value={cab.rail.height} onChange={(v) => set({ rail: { ...cab.rail, height: v } })} />
-                </Field>
-                <Field label="Położenie">
-                  <Seg value={cab.rail.pos} onChange={(v) => set({ rail: { ...cab.rail, pos: v } })}
-                    options={[{ v: "top", l: "Góra" }, { v: "bottom", l: "Dół" }]} />
-                </Field>
-                <div className="col-span-2">
-                  <Check checked={cab.rail.upright} onChange={(v) => set({ rail: { ...cab.rail, upright: v } })}
-                    label="Obrócony do pionu (na sztorc)" />
-                </div>
-              </div>
             )}
           </Card>
 
