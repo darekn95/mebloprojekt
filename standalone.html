@@ -161,6 +161,7 @@ const defaultCab = {
   shelfExtraSetback: 0,
   levels: [newLevel(2, 3)],
   plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
+  topFiller: { on: false, height: 100 }, // zaslepka nad szafka (do sufitu / maskownica)
   frontSameAsBoard: true,
   shelfSameAsBoard: true,
   openAngle: 90,
@@ -180,7 +181,7 @@ const defaultCab = {
 // scala wczytana szafke z domyslnymi polami + migruje stary model wyciecia
 const migrateCab = (rawCab) => {
   const merged = { ...defaultCab, ...(rawCab || {}), version: defaultCab.version };
-  ["cutout", "cutoutR", "obstacle", "backGroove", "plinth", "legs", "gaps", "joints"].forEach((k) => {
+  ["cutout", "cutoutR", "obstacle", "backGroove", "plinth", "topFiller", "legs", "gaps", "joints"].forEach((k) => {
     if (defaultCab[k] && typeof defaultCab[k] === "object")
       merged[k] = { ...defaultCab[k], ...((rawCab && rawCab[k]) || {}) };
   });
@@ -501,7 +502,11 @@ function computeGeo(cab, mat) {
           if (r.pos === "bottom") clo += rr; else chi -= rr;
         }
       });
-      const cbandH = Math.round(chi - clo);
+      // fix "gora" — staly pas u gory skraca pasmo drzwi (np. szafka do sufitu, lampy)
+      const topFixW = (rawCol.fix && rawCol.fix.side === "top") ? Math.max(0, Math.round(rawCol.fix.w || 0)) : 0;
+      let topFixGeo = null;
+      if (topFixW > 0) { topFixGeo = { yTop: chi, w: topFixW }; chi -= topFixW + g.between; }
+      let cbandH = Math.round(chi - clo);
       // geometria wzmocnien (pozycje do rysunku i formatek); pozycja liczona w pelnym pasmie lo..hi
       c.rails = rawRails.map((r) => {
         const rh = Math.max(0, Math.round(r.h || 0));
@@ -516,7 +521,10 @@ function computeGeo(cab, mat) {
         }
         if (r.orient === "vertical") {
           const rx = r.side === "right" ? c.x1 - t : c.x0;
-          return { orient: "vertical", x0: rx, x1: rx + t, y0: lo, y1: lo + rh, z0, zLen: rd, a: rh, b: rd };
+          // domyslnie wisi od gory; poziom najwyzszy z wiencem -> nizej o grubosc wienca
+          const isTopLevel = lv.i === levels.length - 1;
+          const vTop = hi - (hasTop && isTopLevel ? t : 0);
+          return { orient: "vertical", x0: rx, x1: rx + t, y0: vTop - rh, y1: vTop, z0, zLen: rd, a: rh, b: rd };
         }
         const ry1 = r.pos === "bottom" ? lo + rh : hi;
         return { orient: "front", x0: c.x0, x1: c.x1, y0: ry1 - rh, y1: ry1, z0, zLen: t, a: cw, b: rh };
@@ -587,6 +595,17 @@ function computeGeo(cab, mat) {
 
       c.frontX0 = sx0;
       c.frontX1 = sx1;
+
+      // panel stalego pasa u gory (fix "gora") — na szerokosc frontu, skraca drzwi
+      if (topFixGeo && sx1 - sx0 > 0) {
+        const tfy = chi + g.between;
+        c.topFix = { x: sx0, y: tfy, w: sx1 - sx0, h: topFixW };
+        fixParts.push({ h: topFixW, w: sx1 - sx0 });
+        doors.push({
+          lvl: lv.i, key: `ft${lv.i}-${j}`, type: "fix", colKey: `${lv.i}-${j}`,
+          x: sx0, y: tfy, w: sx1 - sx0, h: topFixW, iInGroup: 0, groupN: 1,
+        });
+      }
 
       if (kind === "blenda") {
         const bi = rawCol.blendaMode === "inset";
@@ -1130,6 +1149,12 @@ function computeGeo(cab, mat) {
         note: plinthInBody ? "krawędź dolna" : "krawędź dolna oraz oba końce" });
   }
 
+  if (cab.topFiller?.on && cab.topFiller.height > 0) {
+    P({ name: "Zaślepka górna", qty: 1, a: W, b: Math.round(cab.topFiller.height), matKey: "board",
+        edges: { a1: true, a2: false, b1: true, b2: true },
+        note: "maskownica nad szafką — krawędź górna i oba końce oklejane" });
+  }
+
   // formatki wzmocnien (per kolumna, wiele)
   levels.forEach((lv) => lv.cols.forEach((c) => (c.rails || []).forEach((r) => {
     if (!(r.a > 0 && r.b > 0)) return;
@@ -1651,6 +1676,10 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
       {cab.plinth.on && !geo.plinthInBody && (
         <rect x="0" y={H} width={W} height={geo.plinthH} fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
+      {cab.topFiller?.on && cab.topFiller.height > 0 && (
+        <rect x="0" y={-cab.topFiller.height} width={W} height={cab.topFiller.height}
+          fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
+      )}
       {cab.legs?.on && (
         <>
           <rect x={40} y={H} width={40} height={cab.legs.height || 100}
@@ -1928,7 +1957,7 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
 
       {showDims && (
         <>
-          <DimH x1={0} x2={W} y={-50} label={`${fmt(W)}`} />
+          <DimH x1={0} x2={W} y={cab.topFiller?.on && cab.topFiller.height > 0 ? -(cab.topFiller.height + 40) : -50} label={`${fmt(W)}`} />
           <DimV y1={0} y2={H} x={dimHMainX} label={`${fmt(H)}`} />
           {showSideLengthDims && (
             <>
@@ -2241,6 +2270,12 @@ function TopView({ cab, geo, mat, showDims, showShelves }) {
         <rect x={geo.topX0} y="0" width={geo.topX1 - geo.topX0} height={cd}
           fill={bf} stroke={INK} strokeWidth="1" opacity="0.25" />
       )}
+      {/* elementy wzmacniajace z gory (y=0 tyl; glebokosc od tylu = cd - z0 - zLen) */}
+      {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
+        <rect key={`trail${lv.i}-${c.j}-${ri}`}
+          x={r.x0} y={cd - (r.z0 + r.zLen)} width={r.x1 - r.x0} height={r.zLen}
+          fill={bf} stroke={INK} strokeWidth="1.5" opacity="0.55" />
+      ))))}
 
       {/* polki widziane z gory — obrys glebokosci polki w kolumnach, ktore je maja */}
       {showShelves &&
@@ -2708,6 +2743,13 @@ function SideView({ cab, geo, mat, showDims, which }) {
         );
       })}
 
+      {/* elementy wzmacniajace z boku (x = xC + glebokosc od tylu; tyl po lewej) */}
+      {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
+        <rect key={`srail${lv.i}-${c.j}-${ri}`}
+          x={xC + cd - (r.z0 + r.zLen)} y={fy(r.y1)} width={r.zLen} height={r.y1 - r.y0}
+          fill={r.orient === "vertical" ? (mat.shelf?.color || bf) : bf}
+          stroke={INK} strokeWidth="1.5" opacity="0.6" />
+      ))))}
       <text x={D / 2} y={H + 125} textAnchor="middle" fontSize="22" fill={LINE}
         fontFamily="ui-monospace, monospace">{sideRight ? "prawy bok" : "lewy bok"} — tył po lewej, przód po prawej</text>
     </svg>
@@ -3775,11 +3817,13 @@ export default function App() {
                                   { v: "none", l: "brak" },
                                   { v: "left", l: "lewa" },
                                   { v: "right", l: "prawa" },
+                                  { v: "top", l: "góra" },
                                 ]} />
                             </div>
                           </div>
                           {((rawCol.fix || {}).side || "none") !== "none" && (
                             <>
+                              {(rawCol.fix || {}).side !== "top" && (
                               <div className="flex items-center gap-2 text-xs">
                                 <span className="w-16 shrink-0 text-stone-500">montaż</span>
                                 <div className="flex-1">
@@ -3791,8 +3835,9 @@ export default function App() {
                                     ]} />
                                 </div>
                               </div>
+                              )}
                               <div className="flex items-center gap-2 text-xs">
-                                <span className="w-16 shrink-0 text-stone-500">szerokość</span>
+                                <span className="w-16 shrink-0 text-stone-500">{(rawCol.fix || {}).side === "top" ? "wysokość" : "szerokość"}</span>
                                 <input type="number" min={0} step={1} value={(rawCol.fix || {}).w ?? 60}
                                   onChange={(e) => setFixW(lv.i, c.j, e.target.value)}
                                   className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none" />
@@ -4337,6 +4382,17 @@ export default function App() {
                 hint={`Całkowita wysokość z podstawą: ${fmt(cab.H + Math.max(cab.legs.height || 100, cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0))} mm`}>
                 <Num value={cab.legs.height ?? 100}
                   onChange={(v) => set({ legs: { ...cab.legs, height: v } })} />
+              </Field>
+            )}
+            <div className="border-t border-stone-100 pt-3">
+              <Check checked={!!cab.topFiller?.on}
+                onChange={(v) => set({ topFiller: { ...(cab.topFiller || { height: 100 }), on: v } })}
+                label="Zaślepka nad szafką" />
+            </div>
+            {cab.topFiller?.on && (
+              <Field label="Wysokość zaślepki" hint="maskownica do sufitu / zasłonięcie otworu">
+                <Num value={cab.topFiller.height ?? 100}
+                  onChange={(v) => set({ topFiller: { ...cab.topFiller, height: v } })} />
               </Field>
             )}
           </Card>
