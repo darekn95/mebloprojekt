@@ -488,7 +488,14 @@ function computeGeo(cab, mat) {
       // fix "gora" — staly pas u gory skraca pasmo drzwi (np. szafka do sufitu, lampy)
       const topFixW = (rawCol.fix && rawCol.fix.side === "top") ? Math.max(0, Math.round(rawCol.fix.w || 0)) : 0;
       let topFixGeo = null;
-      if (topFixW > 0) { topFixGeo = { yTop: chi, w: topFixW }; chi -= topFixW + g.between; }
+      if (topFixW > 0) {
+        // maskownica: na najwyzszym poziomie przy froncie nakladanym siedzi rowno
+        // z gora korpusu (bez luzu nad soba), zachowujac zadana wysokosc
+        const flushTop = cab.frontMode === "overlay" && lv.i === levels.length - 1;
+        const tfTop = flushTop ? H : chi;
+        topFixGeo = { y: tfTop - topFixW, w: topFixW };
+        chi = tfTop - topFixW - g.between;
+      }
       let cbandH = Math.round(chi - clo);
       // geometria wzmocnien (pozycje do rysunku i formatek); pozycja liczona w pelnym pasmie lo..hi
       c.rails = rawRails.map((r) => {
@@ -585,17 +592,15 @@ function computeGeo(cab, mat) {
         // nie zostawiamy luzu, ma zaslaniac korpus. Luzy zostaja tylko
         // od strony sasiedniej kolumny (miedzy frontami).
         const ovl = cab.frontMode === "overlay";
-        const tfy = chi + g.between;
+        const tfy = topFixGeo.y;
         const tfx0 = ovl && j === 0 ? 0 : sx0;
         const tfx1 = ovl && j === lv.cols.length - 1 ? W : sx1;
-        const tfTop = ovl && lv.i === levels.length - 1 ? H : tfy + topFixW;
         const tfw = Math.round(tfx1 - tfx0);
-        const tfh = Math.round(tfTop - tfy);
-        c.topFix = { x: tfx0, y: tfy, w: tfw, h: tfh };
-        fixParts.push({ h: tfh, w: tfw });
+        c.topFix = { x: tfx0, y: tfy, w: tfw, h: topFixW };
+        fixParts.push({ h: topFixW, w: tfw });
         doors.push({
           lvl: lv.i, key: `ft${lv.i}-${j}`, type: "fix", colKey: `${lv.i}-${j}`,
-          x: tfx0, y: tfy, w: tfw, h: tfh, iInGroup: 0, groupN: 1,
+          x: tfx0, y: tfy, w: tfw, h: topFixW, iInGroup: 0, groupN: 1,
         });
       }
 
@@ -1815,12 +1820,6 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
                 {fmt(d.w)}×{fmt(d.h)}
               </text>
             )}
-            {showDims && d.type === "drawer" && d.colW > 42 && d.w > 90 && d.h > 40 && (
-              <text x={d.x + d.w / 2} y={fy(d.y + d.h * 0.3) + 22} textAnchor="middle"
-                fontSize="16" fill={DIMC} opacity="0.9" fontFamily="ui-monospace, monospace">
-                światło {fmt(d.colW - 42)}
-              </text>
-            )}
           </g>
         )
       )}
@@ -2066,6 +2065,23 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
                     label={`${fmt(val)} od dna`} left={false} c={DIMC} />
                 );
               });
+            })
+        )}
+
+      {/* swiatlo szerokosci szuflady: swiatlo kolumny minus 2 x 21 mm (prowadnica + bok) */}
+      {open && showDims &&
+        geo.levels.flatMap((lv) =>
+          lv.cols
+            .filter((c) => c.kind === "drawers" && (c.drawers || []).length && c.w > 42 + 60)
+            .flatMap((c) => {
+              const clear = Math.round(c.w - 42);
+              return c.drawers.map((dr, i) =>
+                dr.h < 46 ? null : (
+                  <DimH key={`dw${lv.i}-${c.j}-${i}`}
+                    x1={c.x0 + 21} x2={c.x1 - 21} y={fy(dr.y + 16)}
+                    label={`${fmt(clear)} szer.`} c={DIMC} />
+                )
+              );
             })
         )}
 
