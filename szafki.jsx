@@ -474,6 +474,19 @@ function computeGeo(cab, mat) {
   const slideGroups = new Map();
   const supportParts = [];
   const insetExtra = cab.frontMode === "inset" ? tf : 0;
+  // czy fronty danej kolumny siedza w swietle korpusu — potrzebne sasiadom,
+  // bo front nakladany obok wpuszczanego musi zakryc cala przegrode
+  const colIsInset = (rc) => {
+    if (!rc) return false;
+    if (rc.kind === "drawers")
+      return (
+        (rc.drawerMode === "overlay" || rc.drawerMode === "inset"
+          ? rc.drawerMode
+          : cab.frontMode) === "inset"
+      );
+    if (rc.kind === "blenda") return rc.blendaMode === "inset";
+    return cab.frontMode === "inset";
+  };
   const maxNL = [...VBOX.nl].reverse().find((v) => v + 3 + insetExtra <= carcassDepth) ?? null;
 
   // przeszkody ograniczajace glebokosc szuflad: wyciecie narożnika i element kolizyjny
@@ -587,14 +600,36 @@ function computeGeo(cab, mat) {
         return { orient: "front", x0: c.x0, x1: c.x1, y0: ry1 - rh, y1: ry1, z0, zLen: t, a: cw, b: rh };
       });
 
+      // sasiad z frontem wpuszczanym nie zakryje swojej polowy przegrody,
+      // wiec front nakladany bierze ja w calosci i zostawia normalny luz
+      const rawCols = rawLevels[lv.i].cols;
+      const prevIn = j > 0 && colIsInset(rawCols[j - 1]);
+      const nextIn = j < lv.cols.length - 1 && colIsInset(rawCols[j + 1]);
+      const ovlX0 = j === 0
+        ? g.edge
+        : prevIn
+        ? Math.round(c.x0 - t + g.edge)
+        : Math.round(c.x0 - divOv);
+      const ovlX1 = j === lv.cols.length - 1
+        ? W - g.edge
+        : nextIn
+        ? Math.round(c.x1 + t - g.edge)
+        : Math.round(c.x1 + divOv);
+      const insX0 = c.x0 + g.inset;
+      const insX1 = c.x1 - g.inset;
+      // sciana odniesienia dla szczelin: krawedz korpusu albo dalsze lico
+      // przegrody, gdy to my zakrywamy ja w calosci
+      const selfIn = colIsInset(rawCol);
+      const gwL = selfIn ? c.x0 : j === 0 ? 0 : prevIn ? c.x0 - t : null;
+      const gwR = selfIn ? c.x1 : j === lv.cols.length - 1 ? W : nextIn ? c.x1 + t : null;
+
       let sx0, sx1;
       if (cab.frontMode === "overlay") {
-        // front zachodzi na przegrode o zadana wartosc, reszta przegrody to szczelina
-        sx0 = j === 0 ? g.edge : Math.round(c.x0 - divOv);
-        sx1 = j === lv.cols.length - 1 ? W - g.edge : Math.round(c.x1 + divOv);
+        sx0 = ovlX0;
+        sx1 = ovlX1;
       } else {
-        sx0 = c.x0 + g.inset;
-        sx1 = c.x1 - g.inset;
+        sx0 = insX0;
+        sx1 = insX1;
       }
       /* element staly (fix) zabiera kawalek pasma od strony sciany */
       const rawFix = rawCol.fix || { side: "none", w: 0 };
@@ -643,7 +678,7 @@ function computeGeo(cab, mat) {
           iInGroup: 0,
           groupN: 1,
           inset: fixInset,
-          colX0: c.x0, colX1: c.x1, colY0: lv.y0, colY1: lv.y1,
+          gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
         });
         if (rawFix.support) {
           const sd = Math.max(0, Math.round(rawFix.supportDepth || 0));
@@ -715,7 +750,7 @@ function computeGeo(cab, mat) {
             iInGroup: 0,
             groupN: 1,
             inset: bi,
-            colX0: c.x0, colX1: c.x1, colY0: lv.y0, colY1: lv.y1,
+            gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
           });
         }
         return;
@@ -765,7 +800,7 @@ function computeGeo(cab, mat) {
             iInGroup: i,
             groupN: cnt,
             inset: cab.frontMode === "inset",
-            colX0: c.x0, colX1: c.x1, colY0: lv.y0, colY1: lv.y1,
+            gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
             mirror: !!(rawCol.mirrors || [])[i],
             hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw),
             handle: (rawCol.handles || [])[i] !== false,
@@ -852,10 +887,10 @@ function computeGeo(cab, mat) {
       c.drawerMode = dMode;
       const dIn = dMode === "inset";
       const dInsetExtra = dIn ? tf : 0;
-      const dsx0 = dIn ? c.x0 + g.inset : sx0;
-      const dsx1 = dIn ? c.x1 - g.inset : sx1;
-      const dlo = dIn ? lv.y0 + g.inset : clo;
-      const dhi = dIn ? lv.y1 - g.inset : chi;
+      const dsx0 = dIn ? insX0 : ovlX0;
+      const dsx1 = dIn ? insX1 : ovlX1;
+      const dlo = dIn ? lv.y0 + g.inset : cab.frontMode === "overlay" ? clo : lo;
+      const dhi = dIn ? lv.y1 - g.inset : cab.frontMode === "overlay" ? chi : hi;
       const dbandH = Math.round(dhi - dlo);
 
       const LW = c.w;
@@ -958,7 +993,7 @@ function computeGeo(cab, mat) {
           iInGroup: 0,
           groupN: 1,
           inset: dIn,
-          colX0: c.x0, colX1: c.x1, colY0: lv.y0, colY1: lv.y1,
+          gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
         });
         if (d.handle !== false) handleCount += 1;
         if (nl !== null) {
@@ -2081,16 +2116,10 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels, showHa
             // front wpuszczony ma szczeliny wzgledem wlasnej kolumny — boku albo
             // przegrody obok niego, a nie wzgledem sasiada zza przegrody
             const pairOK = (b2) => !(d.inset || b2.inset) || d.colKey === b2.colKey;
-            const leftWall = d.inset
-              ? d.colX0
-              : cab.frontMode === "overlay"
-              ? 0
-              : geo.interior.x0;
-            const rightWall = d.inset
-              ? d.colX1
-              : cab.frontMode === "overlay"
-              ? W
-              : geo.interior.x1;
+            const leftWall =
+              d.gWallL != null ? d.gWallL : cab.frontMode === "overlay" ? 0 : geo.interior.x0;
+            const rightWall =
+              d.gWallR != null ? d.gWallR : cab.frontMode === "overlay" ? W : geo.interior.x1;
 
             // czy po lewej stronie jest jakis front pokrywajacy sie w pionie
             let leftNb = null;
