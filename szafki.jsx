@@ -57,6 +57,63 @@ function autoHinges(h, w) {
   return 2;
 }
 
+/* prowadnice szuflad: 21 mm na stronę (razem ze ścianką skrzynki) */
+const RUNNER_W = 21; // szerokosc przy boku
+const RUNNER_UP = 18; // dol szyny nad dolem frontu — front nakladany
+const RUNNER_DOWN = 1; // dol szyny pod dolem frontu — front w obrysie
+
+/* gabaryty zawiasu widziane od przodu (puszka + ramie na boku) */
+const HINGE_H = 55; // wysokosc
+const HINGE_W = 20; // szerokosc na boku
+const HINGE_D = 80; // glebokosc zabudowy
+const HINGE_REF = 100; // referencyjny odstep srodka od krawedzi frontu
+const HINGE_CLR = 30; // wymagany luz od polki czy wzmocnienia
+
+/* Srodek skrajnych zawiasow 100 mm od gory i dolu frontu, kolejne rozlozone
+   rowno miedzy nimi (trzeci wypada dokladnie w polowie). Gdy zawias koliduje
+   z polka albo wzmocnieniem, przesuwamy go najkrocej jak sie da tak, zeby
+   zostalo HINGE_CLR luzu — i meldujemy o tym w uwagach. */
+function hingePositions(y0, h, n, obstacles) {
+  if (n <= 0 || h < HINGE_H) return { pts: [], moved: [] };
+  const half = HINGE_H / 2;
+  const lo = y0 + half;
+  const hi = y0 + h - half;
+  let b = y0 + HINGE_REF;
+  let t = y0 + h - HINGE_REF;
+  if (t <= b) {
+    // front za niski na referencyjne 100 mm — rozkladamy na calej wysokosci
+    b = lo;
+    t = hi;
+  }
+  const base =
+    n === 1 ? [(b + t) / 2] : Array.from({ length: n }, (_, i) => b + ((t - b) * i) / (n - 1));
+  const pts = [];
+  const moved = [];
+  base.forEach((want) => {
+    let y = Math.min(hi, Math.max(lo, want));
+    for (let pass = 0; pass < 4; pass++) {
+      const hit = obstacles.find(
+        (o) => y + half + HINGE_CLR > o.y0 && y - half - HINGE_CLR < o.y1
+      );
+      if (!hit) break;
+      const below = hit.y0 - HINGE_CLR - half;
+      const above = hit.y1 + HINGE_CLR + half;
+      const okB = below >= lo;
+      const okA = above <= hi;
+      let ny = null;
+      if (okB && okA) ny = Math.abs(below - want) <= Math.abs(above - want) ? below : above;
+      else if (okB) ny = below;
+      else if (okA) ny = above;
+      if (ny === null) break; // nie ma gdzie uciec — zostawiamy i tak jest ostrzezenie
+      y = ny;
+    }
+    const yr = Math.round(y);
+    if (Math.abs(yr - Math.round(want)) >= 1) moved.push({ from: Math.round(want), to: yr });
+    pts.push(yr);
+  });
+  return { pts, moved };
+}
+
 /* rozdziela `total` na pola: podane zostaja, puste dziela reszte po rowno */
 function distribute(total, targets) {
   const t = targets.map(num);
@@ -535,13 +592,30 @@ function computeGeo(cab, mat) {
       const hasFix = rawFix.side === "left" || rawFix.side === "right";
       const fixInset = rawFix.mode === "inset";
       if (hasFix && fixW > 0) {
-        // fix wpuszczany siedzi w swietle korpusu, nakladany w pasmie frontu
-        const fLo = fixInset ? lv.y0 + g.inset : clo;
-        const fH = fixInset ? Math.round(lv.y1 - lv.y0 - 2 * g.inset) : cbandH;
+        // fix wpuszczany siedzi w swietle korpusu, nakladany w pasmie frontu.
+        // Nakladany dziala jak maskownica: tam gdzie dochodzi do boku, wienca
+        // albo dna idzie rowno z korpusem, luz zostaje tylko od strony drzwi.
+        const ovl = !fixInset && cab.frontMode === "overlay";
+        const atOuter = ovl && (rawFix.side === "left" ? j === 0 : j === lv.cols.length - 1);
+        const fLo = fixInset
+          ? lv.y0 + g.inset
+          : ovl && lv.i === 0 && clo === lo
+          ? bottomY
+          : clo;
+        const fTop = fixInset
+          ? lv.y1 - g.inset
+          : ovl && lv.i === levels.length - 1 && chi === hi
+          ? H
+          : chi;
+        const fH = Math.round(fTop - fLo);
         const fx = fixInset
           ? rawFix.side === "left"
             ? c.x0 + g.inset
             : c.x1 - g.inset - fixW
+          : atOuter
+          ? rawFix.side === "left"
+            ? 0
+            : W - fixW
           : rawFix.side === "left"
           ? sx0
           : sx1 - fixW;
@@ -690,6 +764,27 @@ function computeGeo(cab, mat) {
                 ? "left"
                 : "right",
           };
+          // rozstaw zawiasow + kolizje z polkami i wzmocnieniami w tej kolumnie
+          const hObs = [
+            ...c.shelves.map((s) => ({ y0: s.y, y1: s.y + t, what: "półką" })),
+            ...(c.rails || []).map((r) => ({ y0: r.y0, y1: r.y1, what: "wzmocnieniem" })),
+          ];
+          const hp = hingePositions(d.y, d.h, d.hinges, hObs);
+          d.hingePts = hp.pts;
+          d.hingeX =
+            d.hingeSide === "left"
+              ? c.fix && c.fix.side === "left"
+                ? Math.max(c.x0, c.fix.x + c.fix.w)
+                : c.x0
+              : (c.fix && c.fix.side === "right" ? Math.min(c.x1, c.fix.x) : c.x1) - HINGE_W;
+          hp.moved.forEach((m) =>
+            add(
+              "warn",
+              `${where}, skrzydło ${i + 1}: zawias przesunięty z ${fmt(m.from - d.y)} na ${fmt(
+                m.to - d.y
+              )} mm od dołu frontu — kolizja z półką lub wzmocnieniem, zostawiony luz ${HINGE_CLR} mm.`
+            )
+          );
           doors.push(d);
           c.doors.push(d);
           dx += dw + colGap;
@@ -711,8 +806,9 @@ function computeGeo(cab, mat) {
           const sides = cnt >= 2 ? ["left", "right"] : [hinge];
           if (sides.includes(rawFix.side) && !rawFix.support)
             add(
-              "warn",
-              `${where}: zawias wypada na elemencie stałym, a tam nie ma go w co przykręcić — włącz wspornik pionowy, dodaj przegrodę albo przenieś zawiasy.`
+              "error",
+              `${where}: zawias wypada na elemencie stałym — nie ma go w co przykręcić, tych drzwi fizycznie nie da się zamontować.` +
+                `|fixsup:${lv.i}:${j}|fixnodoor:${lv.i}:${j}`
             );
         }
         return;
@@ -787,6 +883,14 @@ function computeGeo(cab, mat) {
           hClass,
           nl,
           fixed: num(d.front) !== null,
+          // prowadnica: 21 mm szerokosci przy kazdym boku, wysokosc z boku
+          // skrzynki, glebokosc z NL. Front nakladany -> dol szyny 18 mm nad
+          // dolem frontu, front w obrysie -> 1 mm ponizej dolu frontu.
+          rail: {
+            y0: y + (cab.frontMode === "overlay" ? RUNNER_UP : -RUNNER_DOWN),
+            h: hClass,
+            d: nl || 0,
+          },
         };
         c.drawers.push(dr);
         doors.push({
@@ -1631,6 +1735,9 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
   const ff = frontColor;
   const topY = 0;
   const bottomY = fy(geo.bottomY + t);
+  // wymiary wewnetrzne rysujemy w swietle kolumny, omijajac element staly
+  const dimColX = (c) =>
+    (c.fix && c.fix.side === "left" ? Math.max(c.x0, c.fix.x + c.fix.w) : c.x0) + 46;
   const leftTopY = fy(geo.leftY0 + geo.leftLen);
   const leftBottomY = fy(geo.leftY0);
   const rightTopY = fy(geo.rightY0 + geo.rightLen);
@@ -1748,9 +1855,15 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
                 blenda
               </text>
             )}
-            {showDims && d.w > 90 && d.h > 40 && (
-              <text x={d.x + d.w / 2} y={fy(d.y + d.h / 2) + 7} textAnchor="middle"
-                fontSize="20" fill={INK} opacity="0.75" fontFamily="ui-monospace, monospace">
+            {showDims && ((d.w > 170 && d.h > 40) || (d.w > 40 && d.h > 170)) && (
+              <text
+                x={d.x + d.w / 2}
+                y={fy(d.y + d.h / 2) + 7}
+                textAnchor="middle" fontSize="20" fill={INK} opacity="0.75"
+                fontFamily="ui-monospace, monospace"
+                transform={d.w <= 170
+                  ? `rotate(-90 ${d.x + d.w / 2} ${fy(d.y + d.h / 2) + 7})`
+                  : undefined}>
                 {fmt(d.w)}×{fmt(d.h)}
               </text>
             )}
@@ -1786,6 +1899,21 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
                 <rect x={d.hingeSide === "right" ? d.x + d.w - geo.tf : d.x}
                   y={fy(d.y + d.h)} width={geo.tf} height={d.h}
                   fill={ff} stroke={INK} strokeWidth="2" />
+                {/* zawiasy — puszka na boku/przegrodzie, po stronie zawiasu */}
+                {(d.hingePts || []).map((hy, hi2) => (
+                  <g key={`hg${hi2}`}>
+                    <rect x={d.hingeX} y={fy(hy + HINGE_H / 2)} width={HINGE_W} height={HINGE_H}
+                      rx="3" fill="#71717a" stroke={INK} strokeWidth="1.5" />
+                    <line x1={d.hingeX} y1={fy(hy)} x2={d.hingeX + HINGE_W} y2={fy(hy)}
+                      stroke="#fafaf9" strokeWidth="1.5" opacity="0.8" />
+                    {showDims && (
+                      <text x={d.hingeX + HINGE_W + 8} y={fy(hy) + 6} fontSize="17"
+                        fill={DIMC} fontFamily="ui-monospace, monospace">
+                        {fmt(hy - d.y)}
+                      </text>
+                    )}
+                  </g>
+                ))}
               </>
             )}
           </g>
@@ -2041,7 +2169,7 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
                 .filter((op) => op.h > 30)
                 .map((op) => (
                   <DimV key={`op${lv.i}-${c.j}-${op.k}`}
-                    y1={fy(op.to)} y2={fy(op.from)} x={c.x0 + 46}
+                    y1={fy(op.to)} y2={fy(op.from)} x={dimColX(c)}
                     label={`${fmt(op.h)}`} left={false} c={DIMC} />
                 ))
             )
@@ -2061,11 +2189,27 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
                 if (val < 30) return null;
                 return (
                   <DimV key={`du${lv.i}-${c.j}-${i}`}
-                    y1={fy(top)} y2={fy(bottom)} x={c.x0 + 46}
+                    y1={fy(top)} y2={fy(bottom)} x={dimColX(c)}
                     label={`${fmt(val)} od dna`} left={false} c={DIMC} />
                 );
               });
             })
+        )}
+
+      {/* prowadnice szuflad — po jednej przy kazdym boku kolumny */}
+      {open &&
+        geo.levels.flatMap((lv) =>
+          lv.cols
+            .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
+            .flatMap((c) =>
+              c.drawers.flatMap((dr) =>
+                [c.x0, c.x1 - RUNNER_W].map((rx, s) => (
+                  <rect key={`rn${lv.i}-${c.j}-${dr.i}-${s}`}
+                    x={rx} y={fy(dr.rail.y0 + dr.rail.h)} width={RUNNER_W} height={dr.rail.h}
+                    fill="#8b8b93" stroke={INK} strokeWidth="1.5" />
+                ))
+              )
+            )
         )}
 
       {/* swiatlo szerokosci szuflady: swiatlo kolumny minus 2 x 21 mm (prowadnica + bok) */}
@@ -2353,6 +2497,62 @@ function TopView({ cab, geo, mat, showDims, showShelves }) {
           );
         });
       })()}
+
+      {/* prowadnice szuflad z gory — pas 21 mm przy kazdym boku, na glebokosc NL */}
+      {(geo.levels[0]?.cols || [])
+        .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
+        .flatMap((c) => {
+          const nl = Math.max(...c.drawers.map((d) => d.rail.d || 0));
+          if (!nl) return [];
+          return [c.x0, c.x1 - RUNNER_W].map((rx, s) => (
+            <rect key={`trn${c.j}-${s}`} x={rx} y={cd - nl} width={RUNNER_W} height={nl}
+              fill="#8b8b93" stroke={INK} strokeWidth="1.5" opacity="0.85" />
+          ));
+        })}
+
+      {/* elementy stale (fix) widziane z gory — leza w plaszczyznie frontu */}
+      {(() => {
+        const z0 = cab.frontMode === "overlay" ? cd : cd - geo.tf;
+        const ffc = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
+        const panels = [];
+        geo.levels.forEach((lv) =>
+          lv.cols.forEach((c) => {
+            if (c.fix) panels.push({ k: `f${lv.i}-${c.j}`, x: c.fix.x, w: c.fix.w });
+            if (c.topFix) panels.push({ k: `tf${lv.i}-${c.j}`, x: c.topFix.x, w: c.topFix.w });
+          })
+        );
+        // z gory kilka poziomow nakłada się na siebie — rysujemy kazdy pas raz
+        const seen = new Set();
+        return panels
+          .filter((p) => {
+            const key = `${Math.round(p.x)}|${Math.round(p.w)}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .map((p) => (
+            <g key={p.k}>
+              <rect x={p.x} y={z0} width={p.w} height={geo.tf}
+                fill={ffc} stroke={INK} strokeWidth="2" />
+              <line x1={p.x} y1={z0} x2={p.x + p.w} y2={z0 + geo.tf}
+                stroke={INK} strokeWidth="1.2" opacity="0.5" />
+              <line x1={p.x} y1={z0 + geo.tf} x2={p.x + p.w} y2={z0}
+                stroke={INK} strokeWidth="1.2" opacity="0.5" />
+            </g>
+          ));
+      })()}
+
+      {/* wsporniki pionowe przy elementach stalych — z gory widac ich glebokosc */}
+      {geo.levels.flatMap((lv) =>
+        lv.cols
+          .filter((c) => c.support && c.fix)
+          .map((c) => (
+            <rect key={`tsup${lv.i}-${c.j}`}
+              x={c.fix.side === "left" ? c.fix.x + c.fix.w - t : c.fix.x}
+              y={cd - c.support.d} width={t} height={c.support.d}
+              fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
+          ))
+      )}
 
       {/* plecy */}
       {cab.back !== "none" && (() => {
@@ -2709,6 +2909,90 @@ function SideView({ cab, geo, mat, showDims, which }) {
             y={fy(lv.frontHi)} width={geo.tf} height={Math.max(0, lv.frontHi - lv.frontLo)}
             fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="2" />
         ))}
+
+      {/* prowadnice szuflad z boku — widac wysokosc boku skrzynki i glebokosc NL */}
+      {(() => {
+        const seen = new Set();
+        const out = [];
+        geo.levels.forEach((lv) =>
+          lv.cols.forEach((c) =>
+            (c.kind === "drawers" ? c.drawers || [] : []).forEach((dr) => {
+              const k = `${Math.round(dr.rail.y0)}|${dr.rail.h}|${dr.rail.d}`;
+              if (seen.has(k) || !dr.rail.d) return;
+              seen.add(k);
+              out.push(
+                <g key={`srn${k}`}>
+                  <rect x={D - dr.rail.d} y={fy(dr.rail.y0 + dr.rail.h)}
+                    width={dr.rail.d} height={dr.rail.h}
+                    fill="#8b8b93" fillOpacity="0.45" stroke={INK} strokeWidth="1.5" />
+                  <text x={D - dr.rail.d + 12} y={fy(dr.rail.y0 + dr.rail.h / 2) + 6}
+                    fontSize="18" fill={INK} opacity="0.75" fontFamily="ui-monospace, monospace">
+                    prowadnica NL {fmt(dr.rail.d)} / bok {fmt(dr.rail.h)}
+                  </text>
+                </g>
+              );
+            })
+          )
+        );
+        return out;
+      })()}
+
+      {/* zawiasy z boku — widac glebokosc zabudowy i wysokosci */}
+      {(() => {
+        const seen = new Set();
+        const out = [];
+        geo.doors.forEach((d) =>
+          (d.hingePts || []).forEach((hy) => {
+            const k = Math.round(hy);
+            if (seen.has(k)) return;
+            seen.add(k);
+            out.push(
+              <g key={`shg${k}`}>
+                <rect x={D - HINGE_D} y={fy(hy + HINGE_H / 2)} width={HINGE_D} height={HINGE_H}
+                  rx="3" fill="#71717a" fillOpacity="0.8" stroke={INK} strokeWidth="1.5" />
+                <line x1={D - HINGE_D} y1={fy(hy)} x2={D} y2={fy(hy)}
+                  stroke="#fafaf9" strokeWidth="1.5" opacity="0.8" />
+              </g>
+            );
+          })
+        );
+        return out;
+      })()}
+
+      {/* elementy stale (fix) — z boku widac ich zasieg na wysokosci */}
+      {(() => {
+        const fxx = cab.frontMode === "overlay" ? D : D - geo.tf;
+        const ffc = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
+        const panels = [];
+        geo.levels.forEach((lv) =>
+          lv.cols.forEach((c) => {
+            if (c.fix) panels.push({ k: `sf${lv.i}-${c.j}`, y: c.fix.y, h: c.fix.h });
+            if (c.topFix) panels.push({ k: `stf${lv.i}-${c.j}`, y: c.topFix.y, h: c.topFix.h });
+          })
+        );
+        const seen = new Set();
+        return panels
+          .filter((p) => {
+            const key = `${Math.round(p.y)}|${Math.round(p.h)}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .map((p) => (
+            <g key={p.k}>
+              <rect x={fxx} y={fy(p.y + p.h)} width={geo.tf} height={p.h}
+                fill={ffc} stroke={INK} strokeWidth="2" />
+              <line x1={fxx} y1={fy(p.y + p.h)} x2={fxx + geo.tf} y2={fy(p.y)}
+                stroke={INK} strokeWidth="1.2" opacity="0.5" />
+              <line x1={fxx} y1={fy(p.y)} x2={fxx + geo.tf} y2={fy(p.y + p.h)}
+                stroke={INK} strokeWidth="1.2" opacity="0.5" />
+              <text x={fxx + geo.tf + 14} y={fy(p.y + p.h / 2) + 7} fontSize="20"
+                fill={INK} opacity="0.7" fontFamily="ui-monospace, monospace">
+                fix {fmt(p.h)}
+              </text>
+            </g>
+          ));
+      })()}
 
       {showDims && (
         <>
@@ -3075,26 +3359,59 @@ const Card = ({ title, children, right, collapsible = false, defaultOpen = true 
 };
 
 const NoteLine = ({ text, color, icon, editLevels, cab }) => {
-  const [txt, action] = text.split("|");
-  let btn = null;
-  if (action?.startsWith("fixgap:")) {
-    const [, li, j, val] = action.split(":");
-    btn = { label: `Zwiększ luz do ${val} mm`, run: () => editLevels((L) => (L[+li].cols[+j].gapBetween = +val)) };
-  } else if (action?.startsWith("fixnl:")) {
-    const [, li, j, k, val] = action.split(":");
-    btn = { label: `Zmień głębokość prowadnic do NL ${val}`, run: () => editLevels((L) => (L[+li].cols[+j].drawers[+k].nl = +val)) };
-  }
+  const [txt, ...actions] = text.split("|");
+  const btns = actions.map((action) => {
+    if (action.startsWith("fixgap:")) {
+      const [, li, j, val] = action.split(":");
+      return { label: `Zwiększ luz do ${val} mm`, run: () => editLevels((L) => (L[+li].cols[+j].gapBetween = +val)) };
+    }
+    if (action.startsWith("fixnl:")) {
+      const [, li, j, k, val] = action.split(":");
+      return { label: `Zmień głębokość prowadnic do NL ${val}`, run: () => editLevels((L) => (L[+li].cols[+j].drawers[+k].nl = +val)) };
+    }
+    if (action.startsWith("fixsup:")) {
+      const [, li, j] = action.split(":");
+      return {
+        label: "Dobuduj wspornik pionowy",
+        run: () => editLevels((L) => {
+          const f = L[+li].cols[+j].fix || (L[+li].cols[+j].fix = { side: "none", w: 60 });
+          f.support = true;
+          if (!(f.supportDepth > 0)) f.supportDepth = 100;
+        }),
+      };
+    }
+    if (action.startsWith("fixnodoor:")) {
+      const [, li, j] = action.split(":");
+      return {
+        label: "Usuń kolidujące skrzydło",
+        run: () => editLevels((L) => {
+          const col = L[+li].cols[+j];
+          const n = Math.max(0, Math.round(col.doors ?? 0));
+          if (n <= 0) return;
+          // koliduje skrzydlo od strony elementu stalego — usuwamy tylko je
+          const k = (col.fix || {}).side === "right" ? n - 1 : 0;
+          col.doors = n - 1;
+          ["doorWidths", "mirrors", "handles", "hinges"].forEach((key) => {
+            if (Array.isArray(col[key]) && col[key].length > k) col[key].splice(k, 1);
+          });
+          // po usunieciu jednego z dwoch skrzydel zawias wraca na auto
+          if (col.doors === 1) col.hinge = "auto";
+        }),
+      };
+    }
+    return null;
+  }).filter(Boolean);
   return (
     <li className="flex items-start gap-2 text-sm" style={{ color }}>
       <span className="font-mono">{icon}</span>
       <span>
         {txt}
-        {btn && (
-          <button onClick={btn.run}
+        {btns.map((btn, i) => (
+          <button key={i} onClick={btn.run}
             className="ml-2 rounded bg-teal-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-teal-700">
             {btn.label}
           </button>
-        )}
+        ))}
       </span>
     </li>
   );
