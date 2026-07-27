@@ -38,6 +38,15 @@ const VBOX = {
   nl: [250, 270, 300, 350, 400, 450, 500, 550, 600],
 };
 
+/* polska odmiana liczebnikow: 1 blad, 2-4 bledy, 5+ bledow (12-14 tez bledow) */
+const plural = (n, one, few, many) => {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a === 1) return one;
+  if (b >= 2 && b <= 4 && !(a >= 12 && a <= 14)) return few;
+  return many;
+};
+
 const fmt = (n) => {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   const r = Math.round(n * 10) / 10;
@@ -493,7 +502,7 @@ function computeGeo(cab, mat) {
     });
   }
   // najglebsze NL, jakie zmiesci sie w danym pasmie szerokosci
-  const maxNlFor = (x0, x1) => {
+  const maxNlFor = (x0, x1, extra = insetExtra) => {
     let blocked = false;
     const lim = backBlocks.reduce((acc, b) => {
       if (Math.min(b.x1, x1) - Math.max(b.x0, x0) > 0) {
@@ -504,7 +513,7 @@ function computeGeo(cab, mat) {
     }, carcassDepth);
     // przy przeszkodzie wymagamy 4 mm luzu miedzy szuflada a zabudowa
     const margin = blocked ? 4 : 3;
-    return [...VBOX.nl].reverse().find((v) => v + margin + insetExtra <= lim) ?? null;
+    return [...VBOX.nl].reverse().find((v) => v + margin + extra <= lim) ?? null;
   };
 
   levels.forEach((lv) => {
@@ -633,6 +642,8 @@ function computeGeo(cab, mat) {
           h: fH,
           iInGroup: 0,
           groupN: 1,
+          inset: fixInset,
+          colX0: c.x0, colX1: c.x1, colY0: lv.y0, colY1: lv.y1,
         });
         if (rawFix.support) {
           const sd = Math.max(0, Math.round(rawFix.supportDepth || 0));
@@ -703,6 +714,8 @@ function computeGeo(cab, mat) {
             h: bh,
             iInGroup: 0,
             groupN: 1,
+            inset: bi,
+            colX0: c.x0, colX1: c.x1, colY0: lv.y0, colY1: lv.y1,
           });
         }
         return;
@@ -751,6 +764,8 @@ function computeGeo(cab, mat) {
             h: cbandH,
             iInGroup: i,
             groupN: cnt,
+            inset: cab.frontMode === "inset",
+            colX0: c.x0, colX1: c.x1, colY0: lv.y0, colY1: lv.y1,
             mirror: !!(rawCol.mirrors || [])[i],
             hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw),
             handle: (rawCol.handles || [])[i] !== false,
@@ -844,7 +859,7 @@ function computeGeo(cab, mat) {
       const dbandH = Math.round(dhi - dlo);
 
       const LW = c.w;
-      const colMaxNL = maxNlFor(dsx0, dsx1); // ile realnie wchodzi w tej kolumnie
+      const colMaxNL = maxNlFor(dsx0, dsx1, dInsetExtra); // ile realnie wchodzi w tej kolumnie
       const colNl = num(rawCol.nl) ?? colMaxNL; // domyslne dla kolumny
       c.nl = colNl;
       if (colNl === null)
@@ -892,8 +907,17 @@ function computeGeo(cab, mat) {
         const nl = num(d.nl) ?? colNl; // NL tej konkretnej szuflady
         if (nl !== null) {
           const need = nl + 3 + dInsetExtra;
-          if (need > carcassDepth)
-            add("error", `${where}, szuflada ${i + 1}: NL ${nl} wymaga korpusu ${need} mm, a jest ${fmt(carcassDepth)} mm.`);
+          if (need > carcassDepth) {
+            // najdluzsza prowadnica, ktora sie tu zmiesci — do przycisku naprawy
+            const fitNl = [...VBOX.nl]
+              .reverse()
+              .find((v) => v + 3 + dInsetExtra <= carcassDepth && (colMaxNL == null || v <= colMaxNL));
+            add(
+              "error",
+              `${where}, szuflada ${i + 1}: NL ${nl} wymaga korpusu ${need} mm, a jest ${fmt(carcassDepth)} mm.` +
+                (fitNl ? `|fixnl:${lv.i}:${j}:${i}:${fitNl}` : "")
+            );
+          }
           else if (colMaxNL && nl < colMaxNL)
             add("info", `${where}, szuflada ${i + 1}: zmieści się głębsza NL ${colMaxNL}.|fixnl:${lv.i}:${j}:${i}:${colMaxNL}`);
         }
@@ -930,6 +954,8 @@ function computeGeo(cab, mat) {
           handle: d.handle !== false,
           iInGroup: 0,
           groupN: 1,
+          inset: dIn,
+          colX0: c.x0, colX1: c.x1, colY0: lv.y0, colY1: lv.y1,
         });
         if (d.handle !== false) handleCount += 1;
         if (nl !== null) {
@@ -2049,24 +2075,36 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels, showHa
             const yTop = d.y + d.h;
             const yMid = d.y + d.h / 2;
 
+            // front wpuszczony ma szczeliny wzgledem wlasnej kolumny — boku albo
+            // przegrody obok niego, a nie wzgledem sasiada zza przegrody
+            const pairOK = (b2) => !(d.inset || b2.inset) || d.colKey === b2.colKey;
+            const leftWall = d.inset
+              ? d.colX0
+              : cab.frontMode === "overlay"
+              ? 0
+              : geo.interior.x0;
+            const rightWall = d.inset
+              ? d.colX1
+              : cab.frontMode === "overlay"
+              ? W
+              : geo.interior.x1;
+
             // czy po lewej stronie jest jakis front pokrywajacy sie w pionie
             let leftNb = null;
             band.forEach((b2) => {
-              if (b2 === d || b2.x + b2.w > d.x + 0.5) return;
+              if (b2 === d || b2.x + b2.w > d.x + 0.5 || !pairOK(b2)) return;
               const vo = Math.min(d.y + d.h, b2.y + b2.h) - Math.max(d.y, b2.y);
               if (vo <= 0) return;
               if (!leftNb || b2.x + b2.w > leftNb.x + leftNb.w) leftNb = b2;
             });
             // luz z lewej rysujemy tylko gdy nie ma sasiada (bok/przegroda) — sasiad da luz z prawej
-            if (!leftNb) {
-              const wall = cab.frontMode === "overlay" ? 0 : geo.interior.x0;
-              sideMarker(`gl${d.key}`, (wall + d.x) / 2, yMid, Math.round(d.x - wall), true);
-            }
+            if (!leftNb)
+              sideMarker(`gl${d.key}`, (leftWall + d.x) / 2, yMid, Math.round(d.x - leftWall), true);
 
             // luz z prawej: do najblizszego sasiada w pionie albo do sciany
             let nb = null;
             band.forEach((b2) => {
-              if (b2 === d || b2.x < d.x + d.w - 0.5) return;
+              if (b2 === d || b2.x < d.x + d.w - 0.5 || !pairOK(b2)) return;
               const vo = Math.min(d.y + d.h, b2.y + b2.h) - Math.max(d.y, b2.y);
               if (vo <= 0) return;
               if (!nb || b2.x < nb.x) nb = b2;
@@ -2076,12 +2114,19 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels, showHa
               // kropka na styku frontow u gory, kreska i opis wyprowadzone nad krawedz
               marker(`gm${d.key}`, (d.x + d.w + nb.x) / 2, Math.max(yTop, nb.y + nb.h), val, true);
             } else {
-              const wall = cab.frontMode === "overlay" ? W : geo.interior.x1;
-              sideMarker(`gr${d.key}`, (d.x + d.w + wall) / 2, yMid, Math.round(wall - (d.x + d.w)), false);
+              sideMarker(`gr${d.key}`, (d.x + d.w + rightWall) / 2, yMid, Math.round(rightWall - (d.x + d.w)), false);
             }
             // luz gorny liczymy tylko dla najwyzszego frontu kolumny, dolny dla najnizszego
-            const topRef = cab.frontMode === "overlay" ? H : geo.interior.y1;
-            const botRef = cab.frontMode === "overlay" ? geo.bottomY : geo.interior.y0;
+            const topRef = d.inset
+              ? d.colY1
+              : cab.frontMode === "overlay"
+              ? H
+              : geo.interior.y1;
+            const botRef = d.inset
+              ? d.colY0
+              : cab.frontMode === "overlay"
+              ? geo.bottomY
+              : geo.interior.y0;
             if (colTop[d.colKey] === d)
               marker(`gt${d.key}`, d.x + d.w / 2, topRef, Math.round(topRef - (d.y + d.h)), true);
             if (colBot[d.colKey] === d)
@@ -2518,12 +2563,16 @@ function TopView({ cab, geo, mat, showDims, showShelves, showHardware }) {
         // bierzemy dolny poziom jako reprezentatywny (z gory widac tylko przednia plaszczyzne)
         const cols = geo.levels[0]?.cols || [];
         const ffc = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
-        const z0 = cab.frontMode === "overlay" ? cd : cd - geo.tf;
         return cols.map((c) => {
           if (!c.count) return null;
-          const x0 = c.frontX0 ?? c.x0;
-          const x1 = c.frontX1 ?? c.x1;
           const isDrawer = c.kind === "drawers";
+          // kolumna szuflad ma wlasny montaz frontu — wpuszczony siedzi w
+          // swietle korpusu, rowno z bokiem i przegroda, a nie na nich
+          const cMode = isDrawer ? c.drawerMode || cab.frontMode : cab.frontMode;
+          const z0 = cMode === "overlay" ? cd : cd - geo.tf;
+          const dr0 = isDrawer && c.drawers?.length ? c.drawers[0] : null;
+          const x0 = dr0 ? dr0.x : c.frontX0 ?? c.x0;
+          const x1 = dr0 ? dr0.x + dr0.w : c.frontX1 ?? c.x1;
           // skrzynka: bierzemy najglebsze NL sposrod szuflad w kolumnie (rzeczywisty zasieg)
           const nl = isDrawer && c.drawers?.length
             ? Math.max(...c.drawers.map((d) => d.nl || 0))
@@ -4010,21 +4059,21 @@ export default function App() {
             <button onClick={scrollToNotes} title="Przejdź do uwag"
               className="rounded-full px-2.5 py-1 text-xs font-medium transition hover:brightness-95"
               style={{ background: "#fee2e2", color: ERRC }}>
-              {errors.length} błąd{errors.length > 1 ? "y" : ""}
+              {errors.length} {plural(errors.length, "błąd", "błędy", "błędów")}
             </button>
           )}
           {warns.length > 0 && (
             <button onClick={scrollToNotes} title="Przejdź do uwag"
               className="rounded-full px-2.5 py-1 text-xs font-medium transition hover:brightness-95"
               style={{ background: "#fef3c7", color: WARNC }}>
-              {warns.length} ostrzeżeń
+              {warns.length} {plural(warns.length, "ostrzeżenie", "ostrzeżenia", "ostrzeżeń")}
             </button>
           )}
           {infos.length > 0 && (
             <button onClick={scrollToNotes} title="Przejdź do podpowiedzi"
               className="rounded-full px-2.5 py-1 text-xs font-medium text-stone-600 transition hover:brightness-95"
               style={{ background: "#e7e5e4" }}>
-              {infos.length} {infos.length === 1 ? "podpowiedź" : "podpowiedzi"}
+              {infos.length} {plural(infos.length, "podpowiedź", "podpowiedzi", "podpowiedzi")}
             </button>
           )}
           {errors.length === 0 && warns.length === 0 && infos.length === 0 && (
