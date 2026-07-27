@@ -3688,6 +3688,42 @@ function splitFreeRect(r, w, h, mode) {
   return out;
 }
 
+const MIN_USEFUL = 150; // ponizej tego resztka to juz scinek
+
+/* Sasiadujace wolne pola, ktorych nikt nie przecial, sa fizycznie jednym
+   kawalkiem — scalamy je, zeby zrzut liczyl sie jako calosc. Szczelina rowna
+   rzazowi tez sie scala: skoro nie ma tam formatki, nie ma i ciecia. */
+function mergeFree(free) {
+  const rs = free.map((r) => ({ ...r }));
+  let again = true;
+  while (again) {
+    again = false;
+    outer: for (let i = 0; i < rs.length; i++) {
+      for (let j = i + 1; j < rs.length; j++) {
+        const A = rs[i], B = rs[j];
+        const near = (u, v) => Math.abs(u - v) <= KERF + 1e-6;
+        if (Math.abs(A.x - B.x) < 1e-6 && Math.abs(A.w - B.w) < 1e-6) {
+          const [t, d] = A.y <= B.y ? [A, B] : [B, A];
+          if (near(t.y + t.h, d.y)) {
+            rs[i] = { x: t.x, y: t.y, w: t.w, h: d.y + d.h - t.y };
+            rs.splice(j, 1); again = true; break outer;
+          }
+        }
+        if (Math.abs(A.y - B.y) < 1e-6 && Math.abs(A.h - B.h) < 1e-6) {
+          const [l, r2] = A.x <= B.x ? [A, B] : [B, A];
+          if (near(l.x + l.w, r2.x)) {
+            rs[i] = { x: l.x, y: l.y, w: r2.x + r2.w - l.x, h: l.h };
+            rs.splice(j, 1); again = true; break outer;
+          }
+        }
+      }
+    }
+  }
+  return rs.sort((a2, b2) => b2.w * b2.h - a2.w * a2.h);
+}
+
+const usefulOf = (rects) => rects.filter((r) => r.w >= MIN_USEFUL && r.h >= MIN_USEFUL);
+
 function nestPass(parts, sheetW, sheetH, mode, rule) {
   const sheets = [];
   const left = parts.slice();
@@ -3707,6 +3743,7 @@ function nestPass(parts, sheetW, sheetH, mode, rule) {
       placedAny = true;
     }
     if (!placedAny) return { sheets, rejected: left.slice() };
+    sheet.offcuts = mergeFree(sheet.free);
     sheets.push(sheet);
   }
   return { sheets, rejected: [] };
@@ -3740,21 +3777,45 @@ function packSheets(input, { sheetW = SHEET_W, sheetH = SHEET_H } = {}) {
         const used = res.sheets.reduce((s, sh) => s + sh.parts.reduce((q, p) => q + p.w * p.h, 0), 0);
         const cuts = res.sheets.reduce((s, sh) => s + sh.cuts, 0);
         const total = Math.max(1, res.sheets.length) * sheetW * sheetH;
-        const cand = { ...res, used, cuts, total, label, mode, ruleName };
+        // o jakosci decyduje jeden duzy zrzut, a nie suma scinkow
+        const allOff = res.sheets.flatMap((sh) => usefulOf(sh.offcuts || []));
+        const biggest = allOff.reduce((m, r) => Math.max(m, r.w * r.h), 0);
+        const usefulArea = allOff.reduce((q, r) => q + r.w * r.h, 0);
+        const scraps = res.sheets.reduce(
+          (q, sh) => q + (sh.offcuts || []).filter((r) => r.w < MIN_USEFUL || r.h < MIN_USEFUL).length,
+          0
+        );
+        const cand = { ...res, used, cuts, total, label, mode, ruleName, biggest, usefulArea, scraps };
         if (!anyRun) anyRun = cand;
         if (res.rejected.length) return;
-        const better =
-          !best ||
-          cand.sheets.length < best.sheets.length ||
-          (cand.sheets.length === best.sheets.length && cand.cuts < best.cuts) ||
-          (cand.sheets.length === best.sheets.length && cand.cuts === best.cuts && cand.used > best.used);
+        // 1. najmniej arkuszy  2. największy pojedynczy zrzut  3. najwięcej
+        // użytecznej resztki  4. najmniej ścinków  5. najmniej cięć
+        const cmpBy = [
+          (c) => -c.sheets.length,
+          (c) => c.biggest,
+          (c) => c.usefulArea,
+          (c) => -c.scraps,
+          (c) => -c.cuts,
+        ];
+        let better = false;
+        if (!best) better = true;
+        else
+          for (const f of cmpBy) {
+            const d = f(cand) - f(best);
+            if (Math.abs(d) > 1e-6) { better = d > 0; break; }
+          }
         if (better) best = cand;
       });
     });
   });
 
   const win = best || anyRun;
+  const off = win.sheets.flatMap((sh) => usefulOf(sh.offcuts || []));
+  const biggestRect = off.reduce((m, r) => (!m || r.w * r.h > m.w * m.h ? r : m), null);
   return {
+    biggestRect,
+    usefulArea: off.reduce((q, r) => q + r.w * r.h, 0),
+    usefulCount: off.length,
     sheets: win.sheets,
     rejected: win.rejected,
     usedPct: (win.used / win.total) * 100,
@@ -3817,6 +3878,21 @@ function SheetPlan({ sheet, sheetW, sheetH, index, total }) {
             )}
           </g>
         ))}
+        {(sheet.offcuts || [])
+          .filter((o) => o.w >= MIN_USEFUL && o.h >= MIN_USEFUL)
+          .map((o, i) => (
+            <g key={"off" + i}>
+              <rect x={o.x} y={o.y} width={o.w} height={o.h}
+                fill="#14532d" fillOpacity="0.07" stroke="#15803d"
+                strokeWidth="4" strokeDasharray="26 18" />
+              {o.w > 260 && o.h > 130 && (
+                <text x={o.x + o.w / 2} y={o.y + o.h / 2 + 12} textAnchor="middle"
+                  fontSize="46" fill="#15803d" fontFamily="ui-monospace, monospace">
+                  zrzut {fmt(o.w)}×{fmt(o.h)}
+                </text>
+              )}
+            </g>
+          ))}
         <text x={sheetW / 2} y={sheetH + 52} textAnchor="middle" fontSize="44"
           fill={LINE} fontFamily="ui-monospace, monospace">
           {fmt(sheetW)} × {fmt(sheetH)} mm, rzaz {KERF} mm
@@ -5852,7 +5928,10 @@ export default function App() {
                 Arkusz {fmt(SHEET_W)} × {fmt(SHEET_H)} mm, rzaz piły {KERF} mm. Układ jest
                 gilotynowy — każde cięcie idzie przez cały pozostały kawałek, więc da się go
                 wykonać piłą panelową. Formatki oznaczone ↻ są obrócone; dzieje się to tylko tam,
-                gdzie słoje nie mają znaczenia.
+                gdzie słoje nie mają znaczenia. Zielonym obrysem zaznaczone są zrzuty, czyli
+                resztki w jednym kawałku — program celowo zbija je razem, żeby zostawić jak
+                największy użyteczny kawałek zamiast garści ścinków. Za użyteczne uznaje resztki
+                od {MIN_USEFUL} mm w obu wymiarach.
               </p>
               {cutPlan.groups.map((g, gi) => (
                 <div key={gi} className="space-y-3 border-t border-stone-200 pt-3">
@@ -5862,6 +5941,11 @@ export default function App() {
                       {g.sheets.length} {plural(g.sheets.length, "arkusz", "arkusze", "arkuszy")}
                       {" · wykorzystanie "}{fmt(g.usedPct)}%
                       {" · cięć "}{g.cuts}
+                      {g.biggestRect && (
+                        <span style={{ color: "#15803d" }}>
+                          {" · zrzut "}{fmt(g.biggestRect.w)}×{fmt(g.biggestRect.h)}
+                        </span>
+                      )}
                     </span>
                   </div>
                   {g.rejected.length > 0 && (
@@ -5888,6 +5972,12 @@ export default function App() {
                     <div key={i}>
                       {g.matLabel}: {g.sheets.length}{" "}
                       {plural(g.sheets.length, "arkusz", "arkusze", "arkuszy")} {fmt(SHEET_W)}×{fmt(SHEET_H)}
+                      {g.biggestRect && (
+                        <span className="text-stone-500">
+                          {" — zostaje "}{fmt(g.biggestRect.w)}×{fmt(g.biggestRect.h)} mm
+                          {g.usefulCount > 1 ? ` i ${g.usefulCount - 1} ${plural(g.usefulCount - 1, "mniejszy zrzut", "mniejsze zrzuty", "mniejszych zrzutów")}` : ""}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
