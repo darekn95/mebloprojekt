@@ -59,7 +59,7 @@ function autoHinges(h, w) {
 
 /* prowadnice szuflad: 21 mm na stronę (razem ze ścianką skrzynki) */
 const RUNNER_W = 21; // szerokosc przy boku
-const RUNNER_UP = 18; // dol szyny nad dolem frontu — front nakladany
+const RUNNER_UP = 16; // dol szyny nad dolem frontu — front nakladany
 const RUNNER_DOWN = 1; // dol szyny pod dolem frontu — front w obrysie
 
 /* gabaryty zawiasu widziane od przodu (puszka + ramie na boku) */
@@ -171,6 +171,7 @@ const newColumn = (doors = 1, shelves = 0) => ({
   backMode: "inherit",
   fix: { side: "none", w: 60, mode: "overlay", support: false, supportDepth: 100 },
   blendaMode: "overlay",
+  drawerMode: "inherit", // front szuflady: dziedziczy z korpusu / na korpusie / wewnatrz
   hinge: "auto",
 });
 
@@ -827,12 +828,27 @@ function computeGeo(cab, mat) {
       c.drawers = [];
       if (!ds.length) return;
 
+      // front szuflady moze siedziec inaczej niz drzwi: na korpusie albo w jego
+      // obrysie. "inherit" bierze ustawienie calej szafki.
+      const dMode =
+        rawCol.drawerMode === "overlay" || rawCol.drawerMode === "inset"
+          ? rawCol.drawerMode
+          : cab.frontMode;
+      c.drawerMode = dMode;
+      const dIn = dMode === "inset";
+      const dInsetExtra = dIn ? tf : 0;
+      const dsx0 = dIn ? c.x0 + g.inset : sx0;
+      const dsx1 = dIn ? c.x1 - g.inset : sx1;
+      const dlo = dIn ? lv.y0 + g.inset : clo;
+      const dhi = dIn ? lv.y1 - g.inset : chi;
+      const dbandH = Math.round(dhi - dlo);
+
       const LW = c.w;
-      const colMaxNL = maxNlFor(sx0, sx1); // ile realnie wchodzi w tej kolumnie
+      const colMaxNL = maxNlFor(dsx0, dsx1); // ile realnie wchodzi w tej kolumnie
       const colNl = num(rawCol.nl) ?? colMaxNL; // domyslne dla kolumny
       c.nl = colNl;
       if (colNl === null)
-        add("error", `${where}: korpus za płytki na najkrótszą szufladę (potrzeba ${250 + 3 + insetExtra} mm).`);
+        add("error", `${where}: korpus za płytki na najkrótszą szufladę (potrzeba ${250 + 3 + dInsetExtra} mm).`);
       if (LW > 600)
         add("warn", `${where}: szuflada szersza niż 600 mm — wzmocnij dno kątownikiem (Sevroll 40343).`);
 
@@ -844,7 +860,7 @@ function computeGeo(cab, mat) {
         else if (drGap === 1)
           add("warn", `${where}: luz między szufladami tylko 1 mm — zalecane 2 mm, żeby fronty się nie ocierały.`);
       }
-      const avail = cbandH - (ds.length - 1) * drGap;
+      const avail = dbandH - (ds.length - 1) * drGap;
       const fr = distribute(avail, ds.map((d) => d.front));
       if (fr.diff !== 0)
         add(
@@ -860,14 +876,14 @@ function computeGeo(cab, mat) {
           add("info", `${where}: przy równym podziale fronty szuflad różnią się o ${fmt(spread)} mm. Żeby były identyczne, dobierz luz między frontami lub wysokość pasma tak, by dzieliło się równo.`);
       }
 
-      let y = clo;
+      let y = dlo;
       ds.forEach((d, i) => {
         const fh = fr.sizes[i];
         // wysokosc boku V-BOX: auto dobiera najwyzszy bok mieszczacy sie w froncie
         let hClass;
         if (d.h === "auto" || d.h == null) {
           const fit = [...VBOX.heights]
-            .filter((hc) => VBOX.minFront[cab.frontMode][hc] <= fh)
+            .filter((hc) => VBOX.minFront[dMode][hc] <= fh)
             .pop();
           hClass = fit || VBOX.heights[0];
         } else {
@@ -875,7 +891,7 @@ function computeGeo(cab, mat) {
         }
         const nl = num(d.nl) ?? colNl; // NL tej konkretnej szuflady
         if (nl !== null) {
-          const need = nl + 3 + insetExtra;
+          const need = nl + 3 + dInsetExtra;
           if (need > carcassDepth)
             add("error", `${where}, szuflada ${i + 1}: NL ${nl} wymaga korpusu ${need} mm, a jest ${fmt(carcassDepth)} mm.`);
           else if (colMaxNL && nl < colMaxNL)
@@ -885,16 +901,16 @@ function computeGeo(cab, mat) {
           i,
           y,
           h: fh,
-          x: sx0,
-          w: sx1 - sx0,
+          x: dsx0,
+          w: dsx1 - dsx0,
           hClass,
           nl,
           fixed: num(d.front) !== null,
           // prowadnica: 21 mm szerokosci przy kazdym boku, wysokosc z boku
-          // skrzynki, glebokosc z NL. Front nakladany -> dol szyny 18 mm nad
+          // skrzynki, glebokosc z NL. Front nakladany -> dol szyny 16 mm nad
           // dolem frontu, front w obrysie -> 1 mm ponizej dolu frontu.
           rail: {
-            y0: y + (cab.frontMode === "overlay" ? RUNNER_UP : -RUNNER_DOWN),
+            y0: y + (dIn ? -RUNNER_DOWN : RUNNER_UP),
             h: hClass,
             d: nl || 0,
           },
@@ -905,9 +921,9 @@ function computeGeo(cab, mat) {
           key: `x${lv.i}-${j}-${i}`,
           type: "drawer",
           colKey: `${lv.i}-${j}`,
-          x: sx0,
+          x: dsx0,
           y,
-          w: sx1 - sx0,
+          w: dsx1 - dsx0,
           h: fh,
           colW: c.w, // swiatlo szerokosci kolumny (do swiatla szuflady = colW - 42)
           nl,
@@ -921,12 +937,12 @@ function computeGeo(cab, mat) {
           slideGroups.set(kk, (slideGroups.get(kk) || 0) + 1);
         }
 
-        const minF = VBOX.minFront[cab.frontMode][hClass];
+        const minF = VBOX.minFront[dMode][hClass];
         if (fh < minF)
           add(
             "error",
             `${where}, szuflada ${i + 1}: front ${fmt(fh)} mm, a minimum dla wysokości ${hClass} mm przy froncie ${
-              cab.frontMode === "overlay" ? "na korpusie" : "wpuszczanym"
+              dIn ? "wpuszczanym" : "na korpusie"
             } to ${minF} mm.`
           );
         if (fh - hClass > 140)
@@ -936,7 +952,7 @@ function computeGeo(cab, mat) {
           );
 
         if (nl !== null && LW > 0) {
-          drawerParts.push({ kind: "front", a: fh, b: sx1 - sx0 });
+          drawerParts.push({ kind: "front", a: fh, b: dsx1 - dsx0 });
           drawerParts.push({ kind: "dno", a: LW - 75, b: nl - 24 });
           drawerParts.push({ kind: "tyl", a: LW - 87, b: VBOX.backH[hClass] });
         }
@@ -3787,6 +3803,8 @@ export default function App() {
   const setColBack = (i, j, v) => editLevels((L) => (L[i].cols[j].backMode = v));
   const setBlendaMode = (i, j, v) =>
     editLevels((L) => (L[i].cols[j].blendaMode = v));
+  const setDrawerMode = (i, j, v) =>
+    editLevels((L) => (L[i].cols[j].drawerMode = v));
   const setHinge = (i, j, v) => editLevels((L) => (L[i].cols[j].hinge = v));
   const setFixSupport = (i, j, v) =>
     editLevels((L) => {
@@ -3835,7 +3853,8 @@ export default function App() {
     if (!n) return;
     const band = Math.round(lv.frontHi - lv.frontLo);
     const avail = band - (n - 1) * cab.gaps.between;
-    const mins = ds.map((d) => VBOX.minFront[cab.frontMode][Number(d.h)] ?? 0);
+    const cMode = geo.levels[i].cols[j]?.drawerMode || cab.frontMode;
+    const mins = ds.map((d) => VBOX.minFront[cMode][Number(d.h)] ?? 0);
     const base = mins.reduce((a, b) => a + b, 0);
     let sizes;
     if (avail <= base) {
@@ -4204,6 +4223,26 @@ export default function App() {
                           </div>
                         )}
 
+                        {c.kind === "drawers" && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="w-16 shrink-0 text-stone-500">fronty</span>
+                            <div className="flex-1">
+                              <Seg
+                                value={
+                                  rawCol.drawerMode === "overlay" || rawCol.drawerMode === "inset"
+                                    ? rawCol.drawerMode
+                                    : "inherit"
+                                }
+                                onChange={(v) => setDrawerMode(lv.i, c.j, v)}
+                                options={[
+                                  { v: "inherit", l: `jak szafka (${cab.frontMode === "overlay" ? "na korpusie" : "wewnątrz"})` },
+                                  { v: "overlay", l: "Na korpusie" },
+                                  { v: "inset", l: "Wewnątrz" },
+                                ]} />
+                            </div>
+                          </div>
+                        )}
+
                         <div className="space-y-2 rounded border border-stone-200 bg-white p-2">
                           <div className="flex items-center gap-2 text-xs">
                             <span className="w-16 shrink-0 text-stone-500">fix</span>
@@ -4416,10 +4455,10 @@ export default function App() {
                                   ))}
                                 </select>
                                 <AutoNum value={rawCol.drawers[dr.i]?.front} placeholder={fmt(dr.h)}
-                                  fixed={dr.fixed} warn={dr.h < VBOX.minFront[cab.frontMode][dr.hClass]}
+                                  fixed={dr.fixed} warn={dr.h < VBOX.minFront[c.drawerMode || cab.frontMode][dr.hClass]}
                                   onChange={(v) => setDrawerFront(lv.i, c.j, dr.i, v)} />
                                 <span className="w-12 shrink-0 text-right font-mono text-[11px]"
-                                  style={{ color: dr.h < VBOX.minFront[cab.frontMode][dr.hClass] ? ERRC : "#a8a29e" }}>
+                                  style={{ color: dr.h < VBOX.minFront[c.drawerMode || cab.frontMode][dr.hClass] ? ERRC : "#a8a29e" }}>
                                   {fmt(dr.h)}
                                 </span>
                                 <label className="flex shrink-0 items-center gap-1 cursor-pointer"
