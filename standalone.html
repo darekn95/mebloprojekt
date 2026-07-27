@@ -86,7 +86,8 @@ function autoHinges(h, w) {
 /* prowadnice szuflad: 21 mm na stronę (razem ze ścianką skrzynki) */
 const RUNNER_W = 21; // szerokosc przy boku
 const RUNNER_UP = 16; // dol szyny nad dolem frontu — front nakladany
-const RUNNER_DOWN = 1; // dol szyny pod dolem frontu — front w obrysie
+// przy froncie wpuszczanym dol szyny schodzi o luz wpuszczenia, czyli siada
+// rowno z dnem korpusu — tak jak przy froncie nakladanym
 
 /* gabaryty zawiasu widziane od przodu (puszka + ramie na boku) */
 const HINGE_H = 55; // wysokosc
@@ -267,6 +268,8 @@ const migrateMat = (rawMat) => {
   return mm;
 };
 // buduje stan projektu z wczytanych danych: obsluguje stary {cab,mat} i nowy {items,active}
+const DEFAULT_PROJECT_NAME = "Projekt bez nazwy";
+
 const loadProject = (d) => {
   if (!d) return null;
   let items;
@@ -276,7 +279,8 @@ const loadProject = (d) => {
     items = [{ cab: migrateCab(d.cab), mat: migrateMat(d.mat) }];
   } else return null;
   const active = Math.min(Math.max(0, Math.round(d.active || 0)), items.length - 1);
-  return { items, active };
+  const name = typeof d.name === "string" && d.name.trim() ? d.name : DEFAULT_PROJECT_NAME;
+  return { name, items, active };
 };
 
 /* ---------- geometria ---------- */
@@ -984,9 +988,10 @@ function computeGeo(cab, mat) {
           fixed: num(d.front) !== null,
           // prowadnica: 21 mm szerokosci przy kazdym boku, wysokosc z boku
           // skrzynki, glebokosc z NL. Front nakladany -> dol szyny 16 mm nad
-          // dolem frontu, front w obrysie -> 1 mm ponizej dolu frontu.
+          // dolem frontu, front wpuszczany -> o luz wpuszczenia ponizej niego;
+          // w obu przypadkach najnizsza szyna siada rowno z dnem korpusu.
           rail: {
-            y0: y + (dIn ? -RUNNER_DOWN : RUNNER_UP),
+            y0: dIn ? y - g.inset : y + RUNNER_UP,
             h: hClass,
             d: nl || 0,
             // front wpuszczany zamyka sie w swietle korpusu, wiec prowadnice
@@ -3623,6 +3628,7 @@ const projectStore = (() => {
 export default function App() {
   // projekt = lista niezaleznych szafek (kazda ma swoj cab i mat) + aktywny indeks
   const [project, setProjectRaw] = useState({
+    name: DEFAULT_PROJECT_NAME,
     items: [{ cab: defaultCab, mat: defaultMaterials }],
     active: 0,
   });
@@ -3685,12 +3691,12 @@ export default function App() {
     });
     const next = Math.max(0, ...nums) + 1;
     const items = [...p.items, { cab: { ...defaultCab, name: `Szafka ${next}` }, mat: defaultMaterials }];
-    return { items, active: items.length - 1 };
+    return { ...p, items, active: items.length - 1 };
   }), [setProject]);
   const removeCabinet = useCallback((i) => setProject((p) => {
     if (p.items.length <= 1) return p;
     const items = p.items.filter((_, k) => k !== i);
-    return { items, active: Math.min(p.active, items.length - 1) };
+    return { ...p, items, active: Math.min(p.active, items.length - 1) };
   }), [setProject]);
 
   const undo = useCallback(() => {
@@ -3731,7 +3737,11 @@ export default function App() {
   const [transfer, setTransfer] = useState(null); // { mode:'export'|'import', text }
 
   const exportProject = async () => {
-    const json = JSON.stringify({ items: project.items, active: project.active }, null, 2);
+    const json = JSON.stringify(
+      { name: project.name, items: project.items, active: project.active },
+      null,
+      2
+    );
     let copied = false;
     try {
       await navigator.clipboard.writeText(json);
@@ -3804,7 +3814,10 @@ export default function App() {
     if (!loaded) return;
     const id = setTimeout(async () => {
       try {
-        await projectStore.set("szafki:projekt", JSON.stringify({ items: project.items, active: project.active }));
+        await projectStore.set(
+          "szafki:projekt",
+          JSON.stringify({ name: project.name, items: project.items, active: project.active })
+        );
         setSaved("zapisano " + new Date().toLocaleTimeString("pl-PL"));
       } catch (e) {
         setSaved("nie udało się zapisać");
@@ -4075,13 +4088,23 @@ export default function App() {
     <div className="min-h-screen bg-stone-100 text-stone-900">
       <header className="sticky top-0 z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
-          <label className="flex min-w-0 flex-1 items-center gap-1.5"
-            title="Nazwa tej szafki — kliknij i wpisz dowolną">
-            <span aria-hidden="true" className="shrink-0 text-base text-stone-400">✎</span>
-            <input value={cab.name} onChange={(e) => set({ name: e.target.value })}
-              placeholder="Nazwa szafki"
-              className="min-w-0 flex-1 border-b border-stone-300 bg-transparent px-0.5 text-lg font-semibold tracking-tight hover:border-stone-400 focus:border-teal-700 focus:outline-none" />
-          </label>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <label className="flex min-w-0 items-center gap-1.5"
+              title="Nazwa całego projektu — kliknij i wpisz dowolną">
+              <span aria-hidden="true" className="shrink-0 text-base text-stone-400">✎</span>
+              <input value={project.name ?? ""}
+                onChange={(e) => setProject((p) => ({ ...p, name: e.target.value }))}
+                placeholder={DEFAULT_PROJECT_NAME}
+                className="min-w-0 flex-1 border-b border-stone-300 bg-transparent px-0.5 text-lg font-semibold tracking-tight hover:border-stone-400 focus:border-teal-700 focus:outline-none" />
+            </label>
+            <label className="flex min-w-0 items-center gap-1.5 pl-6"
+              title="Nazwa tej szafki — kliknij i wpisz dowolną">
+              <span className="shrink-0 text-[11px] uppercase tracking-wide text-stone-400">szafka</span>
+              <input value={cab.name} onChange={(e) => set({ name: e.target.value })}
+                placeholder="Nazwa szafki"
+                className="min-w-0 flex-1 border-b border-stone-200 bg-transparent px-0.5 text-sm text-stone-700 hover:border-stone-400 focus:border-teal-700 focus:outline-none" />
+            </label>
+          </div>
           <span className="font-mono text-xs text-stone-400">{saved}</span>
           <div className="flex items-center gap-1">
             <button onClick={undo} disabled={!histLen.undo}
@@ -5258,7 +5281,7 @@ export default function App() {
           </Card>
 
           {project.items.length > 1 && (
-            <Card title="Formatki całego projektu"
+            <Card title={`Formatki całego projektu${project.name ? " — " + project.name : ""}`}
               right={<span className="text-xs text-stone-400">{project.items.length} szafek</span>}>
               <p className="mb-2 text-xs text-stone-500">
                 Suma formatek ze wszystkich szafek w projekcie — do zamówienia płyty na całość naraz.
@@ -5377,7 +5400,11 @@ export default function App() {
               <button onClick={() => setConfirmNew(false)}
                 className="rounded px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-100">Anuluj</button>
               <button onClick={() => {
-                  replaceProject({ items: [{ cab: defaultCab, mat: defaultMaterials }], active: 0 });
+                  replaceProject({
+                      name: DEFAULT_PROJECT_NAME,
+                      items: [{ cab: defaultCab, mat: defaultMaterials }],
+                      active: 0,
+                    });
                   setSaved("nowy projekt"); setConfirmNew(false);
                 }}
                 className="rounded bg-teal-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-800">
