@@ -771,12 +771,19 @@ function computeGeo(cab, mat) {
           ];
           const hp = hingePositions(d.y, d.h, d.hinges, hObs);
           d.hingePts = hp.pts;
+          d.colJ = j;
+          d.colLast = j === lv.cols.length - 1;
+          // zawias siedzi w swietle kolumny, przy licu tego, co go niesie:
+          // boku, przegrody albo wspornika przy elemencie stalym. Dodatkowo
+          // odsuwamy go za lico otwartego skrzydla, zeby sie nie nakladaly.
+          const carrierL =
+            c.fix && c.fix.side === "left" ? Math.max(c.x0, c.fix.x + c.fix.w) : c.x0;
+          const carrierR =
+            c.fix && c.fix.side === "right" ? Math.min(c.x1, c.fix.x) : c.x1;
           d.hingeX =
             d.hingeSide === "left"
-              ? c.fix && c.fix.side === "left"
-                ? Math.max(c.x0, c.fix.x + c.fix.w)
-                : c.x0
-              : (c.fix && c.fix.side === "right" ? Math.min(c.x1, c.fix.x) : c.x1) - HINGE_W;
+              ? Math.max(carrierL, d.x + tf)
+              : Math.min(carrierR, d.x + dw - tf) - HINGE_W;
           hp.moved.forEach((m) =>
             add(
               "warn",
@@ -2910,13 +2917,17 @@ function SideView({ cab, geo, mat, showDims, which }) {
             fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="2" />
         ))}
 
-      {/* prowadnice szuflad z boku — widac wysokosc boku skrzynki i glebokosc NL */}
+      {/* prowadnice szuflad z boku — tylko kolumna przylegajaca do ogladanego
+          boku; dalsze zaslania przegroda */}
       {(() => {
         const seen = new Set();
         const out = [];
         geo.levels.forEach((lv) =>
-          lv.cols.forEach((c) =>
-            (c.kind === "drawers" ? c.drawers || [] : []).forEach((dr) => {
+          lv.cols.forEach((c, j) =>
+            (c.kind === "drawers" && (sideRight ? j === lv.cols.length - 1 : j === 0)
+              ? c.drawers || []
+              : []
+            ).forEach((dr) => {
               const k = `${Math.round(dr.rail.y0)}|${dr.rail.h}|${dr.rail.d}`;
               if (seen.has(k) || !dr.rail.d) return;
               seen.add(k);
@@ -2937,11 +2948,18 @@ function SideView({ cab, geo, mat, showDims, which }) {
         return out;
       })()}
 
-      {/* zawiasy z boku — widac glebokosc zabudowy i wysokosci */}
+      {/* zawiasy z boku — tylko te przy ogladanym boku; zawiasy z dalszych
+          kolumn albo z drugiej strony zaslania przegroda */}
       {(() => {
         const seen = new Set();
         const out = [];
-        geo.doors.forEach((d) =>
+        geo.doors
+          .filter((d) =>
+            sideRight
+              ? d.colLast && d.hingeSide === "right"
+              : d.colJ === 0 && d.hingeSide === "left"
+          )
+          .forEach((d) =>
           (d.hingePts || []).forEach((hy) => {
             const k = Math.round(hy);
             if (seen.has(k)) return;
