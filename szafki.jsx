@@ -581,12 +581,21 @@ function computeGeo(cab, mat) {
 
       // panel stalego pasa u gory (fix "gora") — na szerokosc frontu, skraca drzwi
       if (topFixGeo && sx1 - sx0 > 0) {
+        // dziala jak maskownica: tam gdzie dochodzi do boku albo do wienca
+        // nie zostawiamy luzu, ma zaslaniac korpus. Luzy zostaja tylko
+        // od strony sasiedniej kolumny (miedzy frontami).
+        const ovl = cab.frontMode === "overlay";
         const tfy = chi + g.between;
-        c.topFix = { x: sx0, y: tfy, w: sx1 - sx0, h: topFixW };
-        fixParts.push({ h: topFixW, w: sx1 - sx0 });
+        const tfx0 = ovl && j === 0 ? 0 : sx0;
+        const tfx1 = ovl && j === lv.cols.length - 1 ? W : sx1;
+        const tfTop = ovl && lv.i === levels.length - 1 ? H : tfy + topFixW;
+        const tfw = Math.round(tfx1 - tfx0);
+        const tfh = Math.round(tfTop - tfy);
+        c.topFix = { x: tfx0, y: tfy, w: tfw, h: tfh };
+        fixParts.push({ h: tfh, w: tfw });
         doors.push({
           lvl: lv.i, key: `ft${lv.i}-${j}`, type: "fix", colKey: `${lv.i}-${j}`,
-          x: sx0, y: tfy, w: sx1 - sx0, h: topFixW, iInGroup: 0, groupN: 1,
+          x: tfx0, y: tfy, w: tfw, h: tfh, iInGroup: 0, groupN: 1,
         });
       }
 
@@ -1133,7 +1142,7 @@ function computeGeo(cab, mat) {
   }
 
   if (cab.topFiller?.on && cab.topFiller.height > 0) {
-    P({ name: "Zaślepka górna", qty: 1, a: W, b: Math.round(cab.topFiller.height), matKey: "board",
+    P({ name: "Blenda nad szafką", qty: 1, a: W, b: Math.round(cab.topFiller.height), matKey: "board",
         edges: { a1: true, a2: false, b1: true, b2: true },
         note: "maskownica nad szafką — krawędź górna i oba końce oklejane" });
   }
@@ -3021,15 +3030,33 @@ const Check = ({ checked, onChange, label }) => (
   </label>
 );
 
-const Card = ({ title, children, right }) => (
-  <section className="rounded-lg border border-stone-200 bg-white">
-    <header className="flex items-center justify-between border-b border-stone-200 px-4 py-2.5">
-      <h2 className="text-sm font-semibold tracking-tight text-stone-800">{title}</h2>
-      {right}
-    </header>
-    <div className="p-4 space-y-4">{children}</div>
-  </section>
-);
+const Card = ({ title, children, right, collapsible = false, defaultOpen = true }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  const shown = collapsible ? open : true;
+  return (
+    <section className="rounded-lg border border-stone-200 bg-white">
+      <header
+        className={`flex items-center justify-between gap-2 px-4 py-2.5 ${
+          shown ? "border-b border-stone-200" : ""
+        }`}>
+        {collapsible ? (
+          <button type="button" onClick={() => setOpen(!open)}
+            title={open ? "Zwiń sekcję" : "Rozwiń sekcję"}
+            className="flex min-w-0 flex-1 items-center gap-2 text-left">
+            <span className={`text-[10px] leading-none text-stone-400 transition-transform ${open ? "" : "-rotate-90"}`}>
+              ▼
+            </span>
+            <h2 className="truncate text-sm font-semibold tracking-tight text-stone-800">{title}</h2>
+          </button>
+        ) : (
+          <h2 className="min-w-0 truncate text-sm font-semibold tracking-tight text-stone-800">{title}</h2>
+        )}
+        {right}
+      </header>
+      {shown && <div className="p-4 space-y-4">{children}</div>}
+    </section>
+  );
+};
 
 const NoteLine = ({ text, color, icon, editLevels, cab }) => {
   const [txt, action] = text.split("|");
@@ -3626,9 +3653,9 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl gap-4 px-4 py-4 lg:grid lg:grid-cols-[380px_1fr]">
+      <main className="mx-auto max-w-7xl gap-4 px-4 py-4 lg:grid lg:grid-cols-[440px_1fr]">
         <div className="space-y-4">
-          <Card title="Korpus">
+          <Card title="Korpus" collapsible>
             <div className="grid grid-cols-3 gap-3">
               <Field label="Szerokość"><Num value={cab.W} onChange={(v) => set({ W: v })} /></Field>
               <Field label="Wysokość"><Num value={cab.H} onChange={(v) => set({ H: v })} /></Field>
@@ -3724,7 +3751,7 @@ export default function App() {
             )}
           </Card>
 
-          <Card title="Struktura wnętrza"
+          <Card title="Struktura wnętrza" collapsible
             right={<MiniBtn onClick={addLevel}>+ poziom</MiniBtn>}>
             <p className="text-xs text-stone-500">
               Poziomy rozdziela półka na całą szerokość. W poziomie możesz postawić przegrodę
@@ -3826,8 +3853,10 @@ export default function App() {
                                   className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none" />
                                 <span className="text-stone-400">mm</span>
                               </div>
+                              {(rawCol.fix || {}).side !== "top" && (
                               <div className="flex items-center gap-2 text-xs">
-                                <label className="flex items-center gap-2 cursor-pointer">
+                                <label className="flex items-center gap-2 cursor-pointer"
+                                  title="Pionowa płytka za elementem stałym — daje w co przykręcić zawias i usztywnia front.">
                                   <input type="checkbox" checked={!!(rawCol.fix || {}).support}
                                     onChange={(e) => setFixSupport(lv.i, c.j, e.target.checked)}
                                     className="h-3.5 w-3.5 accent-teal-700" />
@@ -3843,6 +3872,7 @@ export default function App() {
                                   </>
                                 )}
                               </div>
+                              )}
                               {c.kind === "doors" && rawCol.doors === 1 && (
                                 <div className="flex items-center gap-2 text-xs">
                                   <span className="w-16 shrink-0 text-stone-500">zawiasy</span>
@@ -4121,7 +4151,7 @@ export default function App() {
             ))}
           </Card>
 
-          <Card title="Luzy drzwi">
+          <Card title="Luzy drzwi" collapsible defaultOpen={false}>
             <div className="grid grid-cols-2 gap-3">
               {cab.frontMode === "overlay" ? (
                 <>
@@ -4155,7 +4185,7 @@ export default function App() {
             </div>
           </Card>
 
-          <Card title="Wycięcie w narożniku (tylne)">
+          <Card title="Wycięcie w narożniku (tylne)" collapsible defaultOpen={false}>
             <p className="text-xs text-stone-500">
               Oba tylne narożniki można wyciąć niezależnie (np. na dwie rury), każdy z własnymi wymiarami.
             </p>
@@ -4225,7 +4255,7 @@ export default function App() {
             </p>
           </Card>
 
-          <Card title="Elementy kolizyjne"
+          <Card title="Elementy kolizyjne" collapsible defaultOpen={false}
             right={<MiniBtn onClick={addObstacle} tone="accent">+ element</MiniBtn>}>
             {obsList.length === 0 && (
               <p className="text-sm text-stone-400">
@@ -4333,8 +4363,8 @@ export default function App() {
             </p>
           </Card>
 
-          <Card title="Cokół i wzmocnienie">
-            <Check checked={cab.plinth.on} onChange={(v) => set({ plinth: { ...cab.plinth, on: v } })} label="Cokół" />
+          <Card title="Cokół" collapsible defaultOpen={false}>
+            <Check checked={cab.plinth.on} onChange={(v) => set({ plinth: { ...cab.plinth, on: v } })} label="Cokół pod szafką" />
             {cab.plinth.on && (
               <div className="space-y-3">
                 <Field label="Montaż" hint={!(geo.botL === "between" && geo.botR === "between")
@@ -4355,11 +4385,12 @@ export default function App() {
                 </div>
               </div>
             )}
-            <div className="border-t border-stone-100 pt-3">
-              <Check checked={!!cab.legs?.on}
-                onChange={(v) => set({ legs: { ...(cab.legs || { height: 100 }), on: v } })}
-                label="Nóżki pod szafką" />
-            </div>
+          </Card>
+
+          <Card title="Nóżki" collapsible defaultOpen={false}>
+            <Check checked={!!cab.legs?.on}
+              onChange={(v) => set({ legs: { ...(cab.legs || { height: 100 }), on: v } })}
+              label="Nóżki pod szafką" />
             {cab.legs?.on && (
               <Field label="Wysokość nóżki"
                 hint={`Całkowita wysokość z podstawą: ${fmt(cab.H + Math.max(cab.legs.height || 100, cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0))} mm`}>
@@ -4367,20 +4398,21 @@ export default function App() {
                   onChange={(v) => set({ legs: { ...cab.legs, height: v } })} />
               </Field>
             )}
-            <div className="border-t border-stone-100 pt-3">
-              <Check checked={!!cab.topFiller?.on}
-                onChange={(v) => set({ topFiller: { ...(cab.topFiller || { height: 100 }), on: v } })}
-                label="Zaślepka nad szafką" />
-            </div>
+          </Card>
+
+          <Card title="Blenda nad szafką" collapsible defaultOpen={false}>
+            <Check checked={!!cab.topFiller?.on}
+              onChange={(v) => set({ topFiller: { ...(cab.topFiller || { height: 100 }), on: v } })}
+              label="Blenda nad szafką" />
             {cab.topFiller?.on && (
-              <Field label="Wysokość zaślepki" hint="maskownica do sufitu / zasłonięcie otworu">
+              <Field label="Wysokość blendy" hint="maskownica do sufitu / zasłonięcie otworu">
                 <Num value={cab.topFiller.height ?? 100}
                   onChange={(v) => set({ topFiller: { ...cab.topFiller, height: v } })} />
               </Field>
             )}
           </Card>
 
-          <Card title="Płyty">
+          <Card title="Płyty" collapsible defaultOpen={false}>
             <Check checked={cab.frontSameAsBoard !== false}
               onChange={(v) => set({ frontSameAsBoard: v })}
               label="Fronty z tej samej płyty co korpus" />
@@ -4580,7 +4612,7 @@ export default function App() {
             </div>
           )}
 
-          <Card title="Kontrola frontów">
+          <Card title="Kontrola frontów" collapsible defaultOpen={false}>
             <p className="text-xs text-stone-500">
               Rzeczywiste położenie każdego frontu na szerokości szafki, z odstępem do
               sąsiada. Liczby są liczone z tego samego silnika co formatki.
