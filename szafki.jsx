@@ -937,6 +937,9 @@ function computeGeo(cab, mat) {
             y0: y + (dIn ? -RUNNER_DOWN : RUNNER_UP),
             h: hClass,
             d: nl || 0,
+            // front wpuszczany zamyka sie w swietle korpusu, wiec prowadnice
+            // trzeba dodatkowo cofnac o grubosc frontu
+            setback: dInsetExtra,
           },
         };
         c.drawers.push(dr);
@@ -2611,8 +2614,9 @@ function TopView({ cab, geo, mat, showDims, showShelves, showHardware }) {
         .flatMap((c) => {
           const nl = Math.max(...c.drawers.map((d) => d.rail.d || 0));
           if (!nl) return [];
+          const sb = c.drawers[0]?.rail.setback || 0;
           return [c.x0, c.x1 - RUNNER_W].map((rx, s) => (
-            <rect key={`trn${c.j}-${s}`} x={rx} y={cd - nl} width={RUNNER_W} height={nl}
+            <rect key={`trn${c.j}-${s}`} x={rx} y={cd - sb - nl} width={RUNNER_W} height={nl}
               fill="#8b8b93" stroke={INK} strokeWidth="1.5" opacity="0.85" />
           ));
         })}
@@ -3031,12 +3035,13 @@ function SideView({ cab, geo, mat, showDims, which, showHardware }) {
               const k = `${Math.round(dr.rail.y0)}|${dr.rail.h}|${dr.rail.d}`;
               if (seen.has(k) || !dr.rail.d) return;
               seen.add(k);
+              const rx0 = D - (dr.rail.setback || 0) - dr.rail.d;
               out.push(
                 <g key={`srn${k}`}>
-                  <rect x={D - dr.rail.d} y={fy(dr.rail.y0 + dr.rail.h)}
+                  <rect x={rx0} y={fy(dr.rail.y0 + dr.rail.h)}
                     width={dr.rail.d} height={dr.rail.h}
                     fill="#8b8b93" fillOpacity="0.45" stroke={INK} strokeWidth="1.5" />
-                  <text x={D - dr.rail.d + 12} y={fy(dr.rail.y0 + dr.rail.h / 2) + 6}
+                  <text x={rx0 + 12} y={fy(dr.rail.y0 + dr.rail.h / 2) + 6}
                     fontSize="18" fill={INK} opacity="0.75" fontFamily="ui-monospace, monospace">
                     prowadnica NL {fmt(dr.rail.d)} / bok {fmt(dr.rail.h)}
                   </text>
