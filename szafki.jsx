@@ -4065,6 +4065,17 @@ function ReportProjectSheet({ project, projectName }) {
   }, 0);
   const area = {};
   rows.forEach((p) => { area[p.matName] = (area[p.matName] || 0) + (p.qty * p.a * p.b) / 1e6; });
+  const hardware = useMemo(() => {
+    const map = new Map();
+    project.items.forEach((it) => {
+      computeGeo(it.cab, it.mat).hardware.forEach((h) => {
+        const k = `${h.name}|${h.spec}|${h.unit}`;
+        if (map.has(k)) map.get(k).qty += h.qty;
+        else map.set(k, { ...h });
+      });
+    });
+    return [...map.values()];
+  }, [project]);
 
   return (
     <section className="rp-page">
@@ -4108,6 +4119,32 @@ function ReportProjectSheet({ project, projectName }) {
           <div key={k}>{k}: {fmt(v)} m²</div>
         ))}
       </div>
+
+      <div style={{ fontSize: "10pt", fontWeight: 600, margin: "10px 0 4px" }}>
+        Produkty całego projektu
+      </div>
+      {hardware.length === 0 ? (
+        <div style={{ fontSize: "9pt", color: "#78716c" }}>Brak okuć.</div>
+      ) : (
+        <table className="rp-tbl">
+          <thead>
+            <tr>
+              <th>Produkt</th>
+              <th>Specyfikacja</th>
+              <th className="num">Ilość</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hardware.map((h, i) => (
+              <tr key={i}>
+                <td>{h.name}</td>
+                <td>{h.spec}</td>
+                <td className="num">{h.qty} {h.unit}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </section>
   );
 }
@@ -4572,6 +4609,19 @@ export default function App() {
     projectCutList.forEach((p) => { by[p.matName] = (by[p.matName] || 0) + (p.qty * p.a * p.b) / 1e6; });
     return by;
   }, [projectCutList]);
+
+  // okucia calego projektu — te same pozycje z roznych szafek sumujemy
+  const projectHardware = useMemo(() => {
+    const map = new Map();
+    project.items.forEach((it) => {
+      computeGeo(it.cab, it.mat).hardware.forEach((h) => {
+        const k = `${h.name}|${h.spec}|${h.unit}`;
+        if (map.has(k)) map.get(k).qty += h.qty;
+        else map.set(k, { ...h });
+      });
+    });
+    return [...map.values()];
+  }, [project]);
 
   // rozkroj liczymy tylko na zadanie — to najciezsza operacja w aplikacji
   const makeCutPlan = useCallback((scope) => {
@@ -6004,6 +6054,39 @@ export default function App() {
               zawsze dostają dwa. Liczbę nadpiszesz w polu przy każdym skrzydle.
             </p>
           </Card>
+
+          {project.items.length > 1 && (
+            <Card title={`Produkty całego projektu${project.name ? " — " + project.name : ""}`}
+              right={<span className="text-xs text-stone-400">{project.items.length} szafek</span>}>
+              <p className="mb-2 text-xs text-stone-500">
+                Suma okuć ze wszystkich szafek w projekcie — do zamówienia na całość naraz.
+                Te same pozycje z różnych szafek są sumowane; różne rozmiary i specyfikacje
+                liczone osobno.
+              </p>
+              {projectHardware.length === 0 ? (
+                <p className="text-sm text-stone-400">Brak okuć w żadnej szafce.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
+                      <th className="py-2 pr-3 font-medium">Produkt</th>
+                      <th className="py-2 pr-3 font-medium">Specyfikacja</th>
+                      <th className="py-2 text-right font-medium">Ilość</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectHardware.map((h, i) => (
+                      <tr key={i} className="border-b border-stone-100">
+                        <td className="py-2 pr-3">{h.name}</td>
+                        <td className="py-2 pr-3 font-mono text-xs text-stone-500">{h.spec}</td>
+                        <td className="py-2 text-right font-mono">{h.qty} {h.unit}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Card>
+          )}
 
         </div>
       </main>
