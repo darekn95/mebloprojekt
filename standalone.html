@@ -3504,6 +3504,27 @@ const Check = ({ checked, onChange, label }) => (
   </label>
 );
 
+/* laczy identyczne formatki w jedna pozycje listy */
+const groupPanels = (panels) => {
+  const map = new Map();
+  panels.forEach((p) => {
+    const e = p.edges;
+    const key = [p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name].join("|");
+    if (map.has(key)) map.get(key).qty += p.qty;
+    else map.set(key, { ...p });
+  });
+  return [...map.values()];
+};
+
+const edgeText = (p) => {
+  const out = [];
+  if (p.edges.a1) out.push("przód " + fmt(p.a));
+  if (p.edges.a2) out.push("tył " + fmt(p.a));
+  if (p.edges.b1) out.push("bok " + fmt(p.b));
+  if (p.edges.b2) out.push("bok " + fmt(p.b));
+  return out.length ? out.join(", ") : "—";
+};
+
 const Card = ({ title, children, right, collapsible = false, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
   const shown = collapsible ? open : true;
@@ -3623,6 +3644,225 @@ const projectStore = (() => {
   };
 })();
 
+/* ---------- zestawienie do druku / PDF ---------- */
+
+const PRINT_CSS = `
+@media screen { .print-only { display: none !important; } }
+@media print {
+  .print-hide { display: none !important; }
+  .print-only { display: block !important; }
+  @page { size: A4 portrait; margin: 10mm; }
+  html, body { background: #fff !important; }
+  .rp-page { break-after: page; page-break-after: always; }
+  .rp-page:last-child { break-after: auto; page-break-after: auto; }
+  .rp-keep { break-inside: avoid; page-break-inside: avoid; }
+  .rp-tbl { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  .rp-tbl th, .rp-tbl td { border: 1px solid #d6d3d1; padding: 3px 5px; text-align: left; }
+  .rp-tbl th { background: #f5f5f4; font-weight: 600; }
+  .rp-tbl td.num, .rp-tbl th.num { text-align: right; font-family: ui-monospace, monospace; }
+}
+`;
+
+function ReportSheet({ cab, mat, projectName, index, total }) {
+  const geo = useMemo(() => computeGeo(cab, mat), [cab, mat]);
+  const panels = useMemo(() => groupPanels(geo.panels), [geo.panels]);
+  const realCab = useMemo(() => ({ ...cab, realColors: true }), [cab]);
+  const totalQty = panels.reduce((s, p) => s + p.qty, 0);
+  const edgeMm = panels.reduce((s, p) => {
+    const e = p.edges;
+    return s + p.qty * ((e.a1 ? p.a : 0) + (e.a2 ? p.a : 0) + (e.b1 ? p.b : 0) + (e.b2 ? p.b : 0));
+  }, 0);
+
+  const head = (
+    <div style={{ borderBottom: "2px solid #292524", marginBottom: 8, paddingBottom: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <strong style={{ fontSize: "13pt" }}>{projectName}</strong>
+        <span style={{ fontSize: "9pt", color: "#57534e" }}>
+          {cab.name} {total > 1 ? `(${index + 1} z ${total})` : ""}
+        </span>
+      </div>
+      <div style={{ fontSize: "9pt", color: "#57534e" }}>
+        {fmt(cab.W)} × {fmt(cab.H)} × {fmt(cab.D)} mm
+      </div>
+    </div>
+  );
+
+  const box = (title, node) => (
+    <div className="rp-keep" style={{ border: "1px solid #e7e5e4", padding: 6 }}>
+      <div style={{ fontSize: "8.5pt", fontWeight: 600, marginBottom: 3, color: "#44403c" }}>{title}</div>
+      {node}
+    </div>
+  );
+
+  return (
+    <>
+      <section className="rp-page">
+        {head}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {box("Widok zamknięty — wymiary, szczeliny, kolory",
+            <FrontView cab={realCab} geo={geo} mat={mat} open={false} showDims showGaps
+              showLabels={false} showHardware={false} />)}
+          {box("Widok otwarty — wymiary i okucia",
+            <FrontView cab={cab} geo={geo} mat={mat} open showDims showGaps={false}
+              showLabels={false} showHardware />)}
+          {box("Widok z góry — wymiary i okucia",
+            <TopView cab={cab} geo={geo} mat={mat} showDims showShelves showHardware />)}
+          {box("Widok z tyłu — wymiary",
+            <RearView cab={cab} geo={geo} mat={mat} showDims />)}
+        </div>
+      </section>
+
+      <section className="rp-page">
+        {head}
+        <div style={{ fontSize: "10pt", fontWeight: 600, margin: "6px 0 4px" }}>
+          Formatki do zamówienia
+        </div>
+        <table className="rp-tbl">
+          <thead>
+            <tr>
+              <th>Element</th>
+              <th>Płyta</th>
+              <th className="num">Długość</th>
+              <th className="num">Szerokość</th>
+              <th className="num">Szt.</th>
+              <th>Oklejanie PCV 2 mm</th>
+              <th>Słoje</th>
+            </tr>
+          </thead>
+          <tbody>
+            {panels.map((p, i) => (
+              <tr key={i}>
+                <td>{p.name}</td>
+                <td>{mat[p.matKey].name}</td>
+                <td className="num">{fmt(p.a)}</td>
+                <td className="num">{fmt(p.b)}</td>
+                <td className="num">{p.qty}</td>
+                <td>{edgeText(p)}</td>
+                <td>{p.matKey === "back" ? "—" : cab.grainMatters ? "wzdłuż dł." : "dowolnie"}</td>
+              </tr>
+            ))}
+            <tr>
+              <td colSpan={4} style={{ fontWeight: 600 }}>Razem</td>
+              <td className="num" style={{ fontWeight: 600 }}>{totalQty}</td>
+              <td colSpan={2}>obrzeże {fmt(edgeMm / 1000)} mb</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style={{ fontSize: "10pt", fontWeight: 600, margin: "10px 0 4px" }}>
+          Produkty do zamówienia
+        </div>
+        {geo.hardware.length === 0 ? (
+          <div style={{ fontSize: "9pt", color: "#78716c" }}>Brak okuć.</div>
+        ) : (
+          <table className="rp-tbl">
+            <thead>
+              <tr>
+                <th>Produkt</th>
+                <th>Specyfikacja</th>
+                <th className="num">Ilość</th>
+              </tr>
+            </thead>
+            <tbody>
+              {geo.hardware.map((h, i) => (
+                <tr key={i}>
+                  <td>{h.name}</td>
+                  <td>{h.spec}</td>
+                  <td className="num">{h.qty} {h.unit}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </>
+  );
+}
+
+function PrintReport({ project }) {
+  const name = (project.name || "").trim() || DEFAULT_PROJECT_NAME;
+  return (
+    <div className="print-only" style={{ color: "#1c1917", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+      <style>{PRINT_CSS}</style>
+      {project.items.map((it, i) => (
+        <ReportSheet key={i} cab={it.cab} mat={it.mat} projectName={name}
+          index={i} total={project.items.length} />
+      ))}
+      {project.items.length > 1 && <ReportProjectSheet project={project} projectName={name} />}
+    </div>
+  );
+}
+
+/* zbiorcza lista formatek calego projektu — tylko przy kilku szafkach */
+function ReportProjectSheet({ project, projectName }) {
+  const rows = useMemo(() => {
+    const map = new Map();
+    project.items.forEach((it) => {
+      const g = computeGeo(it.cab, it.mat);
+      g.panels.forEach((p) => {
+        const m = it.mat[p.matKey] || {};
+        const e = p.edges;
+        const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name].join("|");
+        if (map.has(key)) map.get(key).qty += p.qty;
+        else map.set(key, { ...p, matName: m.name || p.matKey });
+      });
+    });
+    return [...map.values()];
+  }, [project]);
+  const totalQty = rows.reduce((s, p) => s + p.qty, 0);
+  const edgeMm = rows.reduce((s, p) => {
+    const e = p.edges;
+    return s + p.qty * ((e.a1 ? p.a : 0) + (e.a2 ? p.a : 0) + (e.b1 ? p.b : 0) + (e.b2 ? p.b : 0));
+  }, 0);
+  const area = {};
+  rows.forEach((p) => { area[p.matName] = (area[p.matName] || 0) + (p.qty * p.a * p.b) / 1e6; });
+
+  return (
+    <section className="rp-page">
+      <div style={{ borderBottom: "2px solid #292524", marginBottom: 8, paddingBottom: 4 }}>
+        <strong style={{ fontSize: "13pt" }}>{projectName}</strong>
+        <div style={{ fontSize: "9pt", color: "#57534e" }}>
+          Formatki całego projektu — {project.items.length} szafki
+        </div>
+      </div>
+      <table className="rp-tbl">
+        <thead>
+          <tr>
+            <th>Element</th>
+            <th>Płyta</th>
+            <th className="num">Długość</th>
+            <th className="num">Szerokość</th>
+            <th className="num">Szt.</th>
+            <th>Oklejanie PCV 2 mm</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((p, i) => (
+            <tr key={i}>
+              <td>{p.name}</td>
+              <td>{p.matName}</td>
+              <td className="num">{fmt(p.a)}</td>
+              <td className="num">{fmt(p.b)}</td>
+              <td className="num">{p.qty}</td>
+              <td>{edgeText(p)}</td>
+            </tr>
+          ))}
+          <tr>
+            <td colSpan={4} style={{ fontWeight: 600 }}>Razem</td>
+            <td className="num" style={{ fontWeight: 600 }}>{totalQty}</td>
+            <td>obrzeże {fmt(edgeMm / 1000)} mb</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style={{ fontSize: "9pt", marginTop: 6 }}>
+        {Object.entries(area).map(([k, v]) => (
+          <div key={k}>{k}: {fmt(v)} m²</div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /* ---------- aplikacja ---------- */
 
 export default function App() {
@@ -3736,21 +3976,31 @@ export default function App() {
 
   const [transfer, setTransfer] = useState(null); // { mode:'export'|'import', text }
 
-  const exportProject = async () => {
+  const exportProject = () => {
     const json = JSON.stringify(
       { name: project.name, items: project.items, active: project.active },
       null,
       2
     );
-    let copied = false;
+    // nazwa pliku z nazwy projektu — bez znakow, ktore psuja sciezke
+    const base =
+      (project.name || DEFAULT_PROJECT_NAME).trim().replace(/[\\/:*?"<>|]+/g, "-").slice(0, 60) ||
+      "projekt";
     try {
-      await navigator.clipboard.writeText(json);
-      copied = true;
+      const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${base}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      setSaved("zapisano plik " + base + ".json");
     } catch (e) {
-      copied = false;
+      // gdy przegladarka blokuje pobieranie — pokaz tekst do skopiowania
+      setTransfer({ mode: "export", text: json });
+      setSaved("skopiuj tekst projektu");
     }
-    setTransfer({ mode: "export", text: json });
-    setSaved(copied ? "skopiowano projekt do schowka" : "skopiuj tekst projektu");
   };
 
   const applyImportText = (raw) => {
@@ -3789,6 +4039,23 @@ export default function App() {
   const [saved, setSaved] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
+  const [printing, setPrinting] = useState(false);
+
+  // zestawienie renderujemy dopiero na zadanie, potem oddajemy je przegladarce
+  useEffect(() => {
+    if (!printing) return;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          window.print();
+        } catch (e) {
+          setSaved("przeglądarka zablokowała drukowanie — użyj Ctrl+P");
+        }
+        setPrinting(false);
+      });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [printing]);
 
   useEffect(() => {
     (async () => {
@@ -4005,16 +4272,7 @@ export default function App() {
       },
     });
 
-  const cutList = useMemo(() => {
-    const map = new Map();
-    geo.panels.forEach((p) => {
-      const e = p.edges;
-      const key = [p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name].join("|");
-      if (map.has(key)) map.get(key).qty += p.qty;
-      else map.set(key, { ...p });
-    });
-    return [...map.values()];
-  }, [geo.panels]);
+  const cutList = useMemo(() => groupPanels(geo.panels), [geo.panels]);
 
   const edgeMeters = useMemo(() => {
     let mm = 0;
@@ -4086,7 +4344,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900">
-      <header className="sticky top-0 z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur">
+      <header className="print-hide sticky top-0 z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
           <div className="flex w-full flex-col gap-0.5 sm:w-auto sm:min-w-[22rem] sm:flex-1">
             <label className="flex min-w-0 items-center gap-1.5"
@@ -4119,14 +4377,16 @@ export default function App() {
             </button>
           </div>
           <button onClick={exportProject}
-            className="text-xs text-teal-700 hover:underline">Kopiuj projekt</button>
-          <button onClick={() => setTransfer({ mode: "import", text: "" })}
-            className="text-xs text-teal-700 hover:underline">Wklej projekt</button>
+            title="Pobierz projekt jako plik JSON"
+            className="text-xs text-teal-700 hover:underline">Zapisz do pliku</button>
           <label className="cursor-pointer text-xs text-teal-700 hover:underline">
             Wczytaj plik
             <input type="file" accept="application/json,.json,.txt" className="hidden"
               onChange={importProject} />
           </label>
+          <button onClick={() => setPrinting(true)}
+            title="Zestawienie z rysunkami i listami — zapisz jako PDF w oknie druku"
+            className="text-xs font-medium text-teal-700 hover:underline">Zestawienie PDF</button>
           <button onClick={() => setConfirmNew(true)}
             className="text-xs text-stone-500 hover:text-stone-800 hover:underline">Nowy projekt</button>
           {errors.length > 0 && (
@@ -4182,7 +4442,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl gap-4 px-4 py-4 lg:grid lg:grid-cols-[440px_1fr]">
+      <main className="print-hide mx-auto max-w-7xl gap-4 px-4 py-4 lg:grid lg:grid-cols-[440px_1fr]">
         <div className="space-y-4">
           <Card title="Korpus" collapsible>
             <div className="grid grid-cols-3 gap-3">
@@ -5386,6 +5646,8 @@ export default function App() {
 
         </div>
       </main>
+
+      {printing && <PrintReport project={project} />}
 
       {confirmNew && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4"
