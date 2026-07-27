@@ -1710,7 +1710,7 @@ const DimV = ({ y1, y2, x, label, c = DIMC, left = true }) => (
   </g>
 );
 
-function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
+function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels, showHardware }) {
   // tryb wizualizacji: gdy fronty z tej samej plyty, pokaz realny kolor korpusu
   const frontColor = cab.realColors && cab.frontSameAsBoard !== false
     ? mat.board.color : mat.front.color;
@@ -1724,14 +1724,30 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
   const showSideLengthDims = showDims && (geo.leftLen !== H || geo.rightLen !== H);
   const hasBaseDim = !!cab.legs?.on || (cab.plinth.on && !geo.plinthInBody);
   const hasDoorDims = showDims && !open && (geo.doors || []).some((d) => d.type === "door");
-  const wideDims = showSideLengthDims || hasBaseDim || hasDoorDims;
+  // wysokosc montazu prowadnic: kolumna przy boku -> wymiar poza szafka,
+  // kolumna miedzy przegrodami -> w swietle obok prowadnicy
+  const railDimCols = [];
+  if (open && showDims && showHardware)
+    geo.levels.forEach((lv) =>
+      lv.cols.forEach((c, j) => {
+        if (c.kind !== "drawers" || !(c.drawers || []).length) return;
+        railDimCols.push({
+          c,
+          where: j === 0 ? "left" : j === lv.cols.length - 1 ? "right" : "in",
+        });
+      })
+    );
+  const hasRailL = railDimCols.some((r) => r.where === "left");
+  const hasRailR = railDimCols.some((r) => r.where === "right");
+  const wideDims = showSideLengthDims || hasBaseDim || hasDoorDims || hasRailL;
   const leftExtra = wideDims ? 170 : 0;
-  const rightExtraF = Math.max(hasBase ? 60 : 0, showSideLengthDims ? 160 : 0);
+  const rightExtraF = Math.max(hasBase ? 60 : 0, showSideLengthDims ? 160 : 0, hasRailR ? 150 : 0);
   // pozycje X wymiarow
   const dimHMainX = wideDims ? -180 : -50;
   const dimHTotalX = wideDims ? -255 : -115;
-  const dimLevelX = W + (showSideLengthDims ? 170 : 60);
-  const dimDrawerX = W + (showSideLengthDims ? 230 : 120);
+  const railExtra = hasRailR ? 130 : 0;
+  const dimLevelX = W + (showSideLengthDims ? 170 : 60) + railExtra;
+  const dimDrawerX = W + (showSideLengthDims ? 230 : 120) + railExtra;
   const dimDoorX = showSideLengthDims ? -95 : -26; // wymiary wys. drzwi po lewej
   // cokol pod lewym wymiarem boku, nozki pod prawym — tuz przy szafce
   const dimCokolX = -26;
@@ -1907,14 +1923,17 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
                   y={fy(d.y + d.h)} width={geo.tf} height={d.h}
                   fill={ff} stroke={INK} strokeWidth="2" />
                 {/* zawiasy — puszka na boku/przegrodzie, po stronie zawiasu */}
-                {(d.hingePts || []).map((hy, hi2) => (
+                {showHardware && (d.hingePts || []).map((hy, hi2) => (
                   <g key={`hg${hi2}`}>
                     <rect x={d.hingeX} y={fy(hy + HINGE_H / 2)} width={HINGE_W} height={HINGE_H}
                       rx="3" fill="#71717a" stroke={INK} strokeWidth="1.5" />
                     <line x1={d.hingeX} y1={fy(hy)} x2={d.hingeX + HINGE_W} y2={fy(hy)}
                       stroke="#fafaf9" strokeWidth="1.5" opacity="0.8" />
-                    {showDims && (
-                      <text x={d.hingeX + HINGE_W + 8} y={fy(hy) + 6} fontSize="17"
+                    {showDims && d.iInGroup === 0 && (
+                      <text
+                        x={d.hingeSide === "left" ? d.hingeX + HINGE_W + 8 : d.hingeX - 8}
+                        textAnchor={d.hingeSide === "left" ? "start" : "end"}
+                        y={fy(hy) + 6} fontSize="17"
                         fill={DIMC} fontFamily="ui-monospace, monospace">
                         {fmt(hy - d.y)}
                       </text>
@@ -2204,7 +2223,7 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
         )}
 
       {/* prowadnice szuflad — po jednej przy kazdym boku kolumny */}
-      {open &&
+      {open && showHardware &&
         geo.levels.flatMap((lv) =>
           lv.cols
             .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
@@ -2218,6 +2237,22 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels }) {
               )
             )
         )}
+
+      {/* wysokosc montazu prowadnic — mierzona od wewnetrznego dna szafki */}
+      {railDimCols.flatMap(({ c, where }) =>
+        c.drawers.map((dr, i) => {
+          const val = Math.round(dr.rail.y0 - geo.interior.y0);
+          if (val < 0) return null;
+          // w srodku szafki chowamy wymiar przy prawej prowadnicy, zeby nie
+          // wchodzil na wymiary swiatla szuflady rysowane przy lewej
+          const x =
+            where === "left" ? -26 : where === "right" ? W + 26 : c.x1 - RUNNER_W - 30;
+          return (
+            <DimV key={`rh${c.j}-${i}`} y1={fy(dr.rail.y0)} y2={fy(geo.interior.y0)} x={x}
+              label={`szyna ${fmt(val)}`} left={where !== "right"} c={DIMC} />
+          );
+        })
+      )}
 
       {/* swiatlo szerokosci szuflady: swiatlo kolumny minus 2 x 21 mm (prowadnica + bok) */}
       {open && showDims &&
@@ -2405,7 +2440,7 @@ function RearView({ cab, geo, mat, showDims }) {
   );
 }
 
-function TopView({ cab, geo, mat, showDims, showShelves }) {
+function TopView({ cab, geo, mat, showDims, showShelves, showHardware }) {
   const { W, D } = cab;
   const pad = 160;
   // patrzymy z gory: X = szerokosc, Y (w dol na ekranie) = glebokosc, przod u dolu
@@ -2506,7 +2541,7 @@ function TopView({ cab, geo, mat, showDims, showShelves }) {
       })()}
 
       {/* prowadnice szuflad z gory — pas 21 mm przy kazdym boku, na glebokosc NL */}
-      {(geo.levels[0]?.cols || [])
+      {showHardware && (geo.levels[0]?.cols || [])
         .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
         .flatMap((c) => {
           const nl = Math.max(...c.drawers.map((d) => d.rail.d || 0));
@@ -2822,7 +2857,7 @@ function TopView({ cab, geo, mat, showDims, showShelves }) {
   );
 }
 
-function SideView({ cab, geo, mat, showDims, which }) {
+function SideView({ cab, geo, mat, showDims, which, showHardware }) {
   const sideRight = which === "right";
   const { H, D } = cab;
   const pad = 160;
@@ -2919,7 +2954,7 @@ function SideView({ cab, geo, mat, showDims, which }) {
 
       {/* prowadnice szuflad z boku — tylko kolumna przylegajaca do ogladanego
           boku; dalsze zaslania przegroda */}
-      {(() => {
+      {showHardware && (() => {
         const seen = new Set();
         const out = [];
         geo.levels.forEach((lv) =>
@@ -2950,7 +2985,7 @@ function SideView({ cab, geo, mat, showDims, which }) {
 
       {/* zawiasy z boku — tylko te przy ogladanym boku; zawiasy z dalszych
           kolumn albo z drugiej strony zaslania przegroda */}
-      {(() => {
+      {showHardware && (() => {
         const seen = new Set();
         const out = [];
         geo.doors
@@ -3619,6 +3654,7 @@ export default function App() {
   const [showLabels, setShowLabels] = useState(false);
   const [showShelves, setShowShelves] = useState(false);
   const [sideWhich, setSideWhich] = useState("left");
+  const [showHardware, setShowHardware] = useState(true);
   const [yaw, setYaw] = useState(-0.55);
   const [pitch, setPitch] = useState(0.28);
   const [open3d, setOpen3d] = useState(false);
@@ -4865,6 +4901,12 @@ export default function App() {
                     {showLabels ? "Ukryj oznaczenia" : "Oznacz pola"}
                   </button>
                 )}
+                {(view === "open" || view === "side" || view === "top") && (
+                  <button onClick={() => setShowHardware((s) => !s)}
+                    className="text-xs text-teal-700 hover:underline">
+                    {showHardware ? "Ukryj okucia" : "Pokaż okucia"}
+                  </button>
+                )}
                 <div className="w-80">
                   <Seg value={view} onChange={setView}
                     options={[
@@ -4923,13 +4965,16 @@ export default function App() {
                   </div>
                 </div>
               ) : view === "side" ? (
-                <SideView cab={cab} geo={geo} mat={mat} showDims={showDims} which={sideWhich} />
+                <SideView cab={cab} geo={geo} mat={mat} showDims={showDims} which={sideWhich}
+                  showHardware={showHardware} />
               ) : view === "top" ? (
-                <TopView cab={cab} geo={geo} mat={mat} showDims={showDims} showShelves={showShelves} />
+                <TopView cab={cab} geo={geo} mat={mat} showDims={showDims} showShelves={showShelves}
+                  showHardware={showHardware} />
               ) : view === "rear" ? (
                 <RearView cab={cab} geo={geo} mat={mat} showDims={showDims} />
               ) : (
-                <FrontView cab={cab} geo={geo} mat={mat} open={view === "open"} showDims={showDims} showGaps={showGaps} showLabels={showLabels} />
+                <FrontView cab={cab} geo={geo} mat={mat} open={view === "open"} showDims={showDims}
+                  showGaps={showGaps} showLabels={showLabels} showHardware={showHardware} />
               )}
             </div>
           </Card>
