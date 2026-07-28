@@ -660,7 +660,8 @@ function computeGeo(cab, mat) {
         // maskownica: na najwyzszym poziomie przy froncie nakladanym siedzi rowno
         // z gora korpusu (bez luzu nad soba), zachowujac zadana wysokosc
         const flushTop = cab.frontMode === "overlay" && lv.i === levels.length - 1;
-        const tfTop = flushTop ? H : chi;
+        // przy blacie maskownica konczy sie pod nim, a nie na jego licu
+        const tfTop = flushTop ? H - (isBlat ? t : 0) : chi;
         topFixGeo = { y: tfTop - topFixW, w: topFixW };
         chi = tfTop - topFixW - g.between;
       }
