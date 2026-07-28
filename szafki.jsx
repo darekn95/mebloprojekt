@@ -217,6 +217,7 @@ const defaultCab = {
   top: { mode: "wieniec", overL: 0, overR: 0, overFront: 0, overBack: 0 },
   topFiller: { on: false, height: 100 }, // zaslepka nad szafka (do sufitu / maskownica)
   extraParts: [], // formatki dopisane recznie, poza geometria szafki
+  note: "", // notatka montazowa — trafia do zestawienia
   frontSameAsBoard: true,
   shelfSameAsBoard: true,
   openAngle: 90,
@@ -269,8 +270,9 @@ const loadProject = (d) => {
     items = [{ cab: migrateCab(d.cab), mat: migrateMat(d.mat) }];
   } else return null;
   const active = Math.min(Math.max(0, Math.round(d.active || 0)), items.length - 1);
+  const prices = d.prices && typeof d.prices === "object" ? d.prices : {};
   const name = typeof d.name === "string" && d.name.trim() ? d.name : DEFAULT_PROJECT_NAME;
-  return { name, items, active };
+  return { name, items, active, prices };
 };
 
 /* ---------- szablony startowe ----------
@@ -4071,6 +4073,11 @@ function ReportSheet({ cab, mat, projectName, index, total }) {
       <div style={{ fontSize: "9pt", color: "#57534e" }}>
         {fmt(cab.W)} × {fmt(cab.H)} × {fmt(cab.D)} mm
       </div>
+      {(cab.note || "").trim() && (
+        <div style={{ fontSize: "9pt", marginTop: 3, whiteSpace: "pre-wrap" }}>
+          <strong>Uwagi:</strong> {cab.note}
+        </div>
+      )}
     </div>
   );
 
@@ -4369,6 +4376,7 @@ export default function App() {
   // projekt = lista niezaleznych szafek (kazda ma swoj cab i mat) + aktywny indeks
   const [project, setProjectRaw] = useState({
     name: DEFAULT_PROJECT_NAME,
+    prices: {},
     items: [{ cab: defaultCab, mat: defaultMaterials }],
     active: 0,
   });
@@ -4434,6 +4442,17 @@ export default function App() {
     const items = [...p.items, { cab: { ...base, name: `Szafka ${next}` }, mat: defaultMaterials }];
     return { ...p, items, active: items.length - 1 };
   }), [setProject]);
+  const duplicateCabinet = useCallback((i) => setProject((p) => {
+    const src = p.items[i];
+    if (!src) return p;
+    const copy = JSON.parse(JSON.stringify(src));
+    const base = (src.cab.name || "Szafka").replace(/\s*\(kopia( \d+)?\)$/, "");
+    let name = `${base} (kopia)`;
+    for (let n = 2; p.items.some((it) => it.cab.name === name); n++) name = `${base} (kopia ${n})`;
+    copy.cab.name = name;
+    const items = [...p.items.slice(0, i + 1), copy, ...p.items.slice(i + 1)];
+    return { ...p, items, active: i + 1 };
+  }), [setProject]);
   const removeCabinet = useCallback((i) => setProject((p) => {
     if (p.items.length <= 1) return p;
     const items = p.items.filter((_, k) => k !== i);
@@ -4479,7 +4498,7 @@ export default function App() {
 
   const exportProject = () => {
     const json = JSON.stringify(
-      { name: project.name, items: project.items, active: project.active },
+      { name: project.name, prices: project.prices, items: project.items, active: project.active },
       null,
       2
     );
@@ -4586,7 +4605,7 @@ export default function App() {
       try {
         await projectStore.set(
           "szafki:projekt",
-          JSON.stringify({ name: project.name, items: project.items, active: project.active })
+          JSON.stringify({ name: project.name, prices: project.prices, items: project.items, active: project.active })
         );
         setSaved("zapisano " + new Date().toLocaleTimeString("pl-PL"));
       } catch (e) {
@@ -4874,6 +4893,50 @@ export default function App() {
     setCutPlan({ scope, groups: buildCutPlan(rows) });
   }, [cutList, projectCutList, cab.grainMatters, mat]);
 
+  // --- wycena: ceny trzyma projekt, ilosci biora sie z list i rozkroju ---
+  const prices = project.prices || {};
+  const setPrice = (key, v) =>
+    setProject((p) => ({ ...p, prices: { ...(p.prices || {}), [key]: v === "" ? null : Number(v) } }));
+  const priceOf = (key) => {
+    const v = prices[key];
+    return typeof v === "number" && isFinite(v) ? v : 0;
+  };
+
+  const projectEdgeMb = useMemo(() => {
+    let mm = 0;
+    projectCutList.forEach((p) => {
+      const e = p.edges;
+      mm += p.qty * ((e.a1 ? p.a : 0) + (e.a2 ? p.a : 0) + (e.b1 ? p.b : 0) + (e.b2 ? p.b : 0));
+    });
+    return mm / 1000;
+  }, [projectCutList]);
+
+  // arkusze bierzemy z policzonego rozkroju — bez niego nie ma czego mnożyć
+  const planSheets = useMemo(() => {
+    if (!cutPlan) return null;
+    const by = {};
+    cutPlan.groups.forEach((g) => { by[g.matLabel] = (by[g.matLabel] || 0) + g.sheets.length; });
+    return by;
+  }, [cutPlan]);
+
+  const quote = useMemo(() => {
+    const rows = [];
+    if (planSheets)
+      Object.entries(planSheets).forEach(([matLabel, n]) => {
+        rows.push({ key: "plyta:" + matLabel, label: matLabel, qty: n, unit: "ark.", price: priceOf("plyta:" + matLabel) });
+      });
+    const sheetsTotal = planSheets ? Object.values(planSheets).reduce((a, b) => a + b, 0) : 0;
+    if (sheetsTotal)
+      rows.push({ key: "ciecie", label: "Cięcie płyty", qty: sheetsTotal, unit: "ark.", price: priceOf("ciecie") });
+    rows.push({ key: "obrzeze", label: "Obrzeże PCV", qty: Math.round(projectEdgeMb * 10) / 10, unit: "mb", price: priceOf("obrzeze") });
+    projectHardware.forEach((h) => {
+      const k = "okucie:" + h.name + "|" + h.spec;
+      rows.push({ key: k, label: h.name, spec: h.spec, qty: h.qty, unit: h.unit, price: priceOf(k) });
+    });
+    const sum = rows.reduce((a, r) => a + r.qty * r.price, 0);
+    return { rows, sum };
+  }, [planSheets, projectEdgeMb, projectHardware, prices]);
+
   const errors = geo.msgs.filter((m) => m.level === "error");
   const warns = geo.msgs.filter((m) => m.level === "warn");
   const infos = geo.msgs.filter((m) => m.level === "info");
@@ -4979,6 +5042,10 @@ export default function App() {
                     (activeTab ? "border-teal-600 bg-teal-700 text-white" : "border-stone-300 bg-white text-stone-600 hover:border-stone-400")}>
                   <button onClick={() => switchCabinet(i)} className="max-w-[180px] truncate">
                     {it.cab.name || `Szafka ${i + 1}`}
+                  </button>
+                  <button onClick={() => duplicateCabinet(i)} title="Duplikuj tę szafkę"
+                    className={"px-0.5 leading-none " + (activeTab ? "text-teal-100 hover:text-white" : "text-stone-400 hover:text-stone-700")}>
+                    ⧉
                   </button>
                   {project.items.length > 1 && (
                     <button onClick={() => removeCabinet(i)} title="Usuń szafkę"
@@ -5811,6 +5878,16 @@ export default function App() {
             )}
           </Card>
 
+          <Card title="Notatka montażowa" collapsible defaultOpen={false}>
+            <p className="text-xs text-stone-500">
+              Uwagi do tej szafki — trafiają na jej stronę w zestawieniu PDF.
+            </p>
+            <textarea value={cab.note || ""} rows={3}
+              placeholder="np. idzie pod okno, uważać na rurę przy prawym boku"
+              onChange={(e) => set({ note: e.target.value })}
+              className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
+          </Card>
+
           <Card title="Płyty" collapsible defaultOpen={false}>
             <Check checked={cab.frontSameAsBoard !== false}
               onChange={(v) => set({ frontSameAsBoard: v })}
@@ -6376,6 +6453,65 @@ export default function App() {
               500 mm i wysokości powyżej 1400 mm, cztery powyżej 2000 mm. Wąskie drzwi
               zawsze dostają dwa. Liczbę nadpiszesz w polu przy każdym skrzydle.
             </p>
+          </Card>
+
+          <Card title="Wycena" collapsible defaultOpen={false}
+            right={
+              !cutPlan ? (
+                <button onClick={() => makeCutPlan(project.items.length > 1 ? "project" : "cab")}
+                  className="text-xs text-teal-700 hover:underline">
+                  Policz rozkrój
+                </button>
+              ) : null
+            }>
+            <p className="text-xs text-stone-500">
+              Ceny dotyczą całego projektu i zapisują się razem z nim. Płyta i cięcie liczone
+              są od arkusza, więc potrzebują policzonego rozkroju — obrzeże i okucia wyliczą
+              się od razu. Puste pole znaczy zero.
+            </p>
+            {!cutPlan && (
+              <p className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs"
+                style={{ color: WARNC }}>
+                Rozkrój nie jest policzony, więc płyty i cięcia nie ma w wycenie.
+              </p>
+            )}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead>
+                  <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
+                    <th className="py-2 pr-3 font-medium">Pozycja</th>
+                    <th className="py-2 pr-3 text-right font-medium">Ilość</th>
+                    <th className="py-2 pr-3 text-right font-medium">Cena jedn.</th>
+                    <th className="py-2 text-right font-medium">Wartość</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quote.rows.map((r) => (
+                    <tr key={r.key} className="border-b border-stone-100">
+                      <td className="py-1.5 pr-3">
+                        {r.label}
+                        {r.spec && <span className="block font-mono text-[11px] text-stone-400">{r.spec}</span>}
+                      </td>
+                      <td className="py-1.5 pr-3 text-right font-mono">{fmt(r.qty)} {r.unit}</td>
+                      <td className="py-1.5 pr-3 text-right">
+                        <input type="number" min={0} step="0.01"
+                          value={prices[r.key] ?? ""}
+                          placeholder="0"
+                          onChange={(e) => setPrice(r.key, e.target.value)}
+                          className="w-24 rounded border border-stone-300 bg-white px-1.5 py-1 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />
+                      </td>
+                      <td className="py-1.5 text-right font-mono">
+                        {r.price ? fmt(Math.round(r.qty * r.price * 100) / 100) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex items-baseline justify-between border-t border-stone-200 pt-3">
+              <span className="text-xs uppercase tracking-wider text-stone-500">Razem</span>
+              <span className="font-mono text-lg">{fmt(Math.round(quote.sum * 100) / 100)}</span>
+            </div>
           </Card>
 
           {project.items.length > 1 && (
