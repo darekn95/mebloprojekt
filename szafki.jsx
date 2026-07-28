@@ -23,14 +23,32 @@ const PALETA = [
   ["Brąz", "#5b4433"],
 ];
 
-/* Ceny startowe z cennika rozkrojowni (netto, zł). Kazda da sie nadpisac
-   w karcie Wyceny — to tylko punkt wyjscia, zeby nie zaczynac od zer.
+/* Ceny startowe — WSZYSTKIE BRUTTO, bo tyle sie faktycznie placi.
+   Kazda da sie nadpisac w karcie Wyceny; wpisanie 0 zeruje pozycje.
    Oklejanie liczone jest za kazdy rozpoczety metr, stad zaokraglanie w gore. */
 const DEFAULT_PRICES = {
-  "plyta:Płyta laminowana 18": 181.38, // arkusz 2800 × 2100 × 18
-  ciecie: 42, // formatowanie jednego arkusza
-  obrzeze: 2.75, // obrzeze 22 × 2 mm, za mb
-  oklejanie: 7.2, // oklejanie prostoliniowe, za rozpoczety mb
+  "plyta:Płyta laminowana 18": 223.1, // arkusz 2800 × 2100 × 18
+  ciecie: 51.66, // formatowanie jednego arkusza
+  obrzeze: 3.38, // obrzeze 22 × 2 mm, za mb
+  oklejanie: 8.86, // oklejanie prostoliniowe, za rozpoczety mb
+};
+
+/* Okucia dopasowujemy po samej nazwie — specyfikacja bywa zmienna
+   (np. zawias nakladany kontra wpuszczany), a cena i tak jest ta sama. */
+const DEFAULT_HW_PRICES = {
+  Zawias: 3,
+  "Nóżka regulowana": 2.3,
+  "Zaślepka na konfirmat": 0.7, // blister 25 szt.
+};
+
+/* Ceny netto rozdawane przez wczesniejsza wersje — jesli projekt ma
+   dokladnie te wartosci, znaczy ze nikt ich nie ruszal, wiec ustepuja
+   nowym cenom brutto zamiast zanizac wycene. */
+const LEGACY_NET_PRICES = {
+  "plyta:Płyta laminowana 18": 181.38,
+  ciecie: 42,
+  obrzeze: 2.75,
+  oklejanie: 7.2,
 };
 
 const MIN_COL = 200; // najwezsza sensowna kolumna
@@ -62,6 +80,12 @@ const fmt = (n) => {
   const r = Math.round(n * 10) / 10;
   return Number.isInteger(r) ? String(r) : r.toFixed(1);
 };
+
+/* Okucia sprzedawane w opakowaniach trzymamy w sztukach az do wyswietlenia —
+   inaczej suma z kilku szafek zaokraglalaby sie w gore w kazdej z osobna. */
+const hwQty = (h) => (h.pack ? Math.ceil(h.qty / h.pack) : h.qty);
+const hwUnit = (h) => (h.pack ? "op." : h.unit);
+const hwNote = (h) => (h.pack ? ` (${h.qty} szt.)` : "");
 
 // kwoty pokazujemy z groszami — fmt zaokragla do dziesiatych i gubilby je
 const zl = (n) => {
@@ -297,8 +321,11 @@ const loadProject = (d) => {
     items = [{ cab: migrateCab(d.cab), mat: migrateMat(d.mat) }];
   } else return null;
   const active = Math.min(Math.max(0, Math.round(d.active || 0)), items.length - 1);
-  // ceny domyslne wchodza pod spod — to, co uzytkownik wpisal, zawsze wygrywa
-  const prices = { ...DEFAULT_PRICES, ...(d.prices && typeof d.prices === "object" ? d.prices : {}) };
+  // trzymamy wylacznie ceny wpisane recznie; domyslne siedza przy pozycjach
+  const prices = { ...(d.prices && typeof d.prices === "object" ? d.prices : {}) };
+  Object.entries(LEGACY_NET_PRICES).forEach(([k, v]) => {
+    if (prices[k] === v) delete prices[k];
+  });
   const name = typeof d.name === "string" && d.name.trim() ? d.name : DEFAULT_PROJECT_NAME;
   return { name, items, active, prices };
 };
@@ -1929,12 +1956,16 @@ function computeGeo(cab, mat) {
       qty: confQty,
       unit: "szt.",
     });
+  // zaslepki chodza w blistrach po 25 — tak sie je kupuje i tak sie je wycenia.
+  // qty zostaje w sztukach, przeliczenie na opakowania idzie na sam koniec,
+  // zeby suma z kilku szafek nie zaokraglala sie w gore kilka razy
   if (confQty)
     hardware.push({
       name: "Zaślepka na konfirmat",
-      spec: "po jednej na każdy widoczny łeb",
+      spec: "blister 25 szt., po jednej na widoczny łeb",
       qty: confQty,
       unit: "szt.",
+      pack: 25,
     });
 
   if (isBlat)
@@ -4421,7 +4452,7 @@ function ReportSheet({ cab, mat, projectName, index, total }) {
                 <tr key={i}>
                   <td>{h.name}</td>
                   <td>{h.spec}</td>
-                  <td className="num">{h.qty} {h.unit}</td>
+                  <td className="num">{hwQty(h)} {hwUnit(h)}{hwNote(h)}</td>
                 </tr>
               ))}
             </tbody>
@@ -4632,7 +4663,7 @@ function ReportProjectSheet({ project, projectName }) {
               <tr key={i}>
                 <td>{h.name}</td>
                 <td>{h.spec}</td>
-                <td className="num">{h.qty} {h.unit}</td>
+                <td className="num">{hwQty(h)} {hwUnit(h)}{hwNote(h)}</td>
               </tr>
             ))}
           </tbody>
@@ -4648,7 +4679,7 @@ export default function App() {
   // projekt = lista niezaleznych szafek (kazda ma swoj cab i mat) + aktywny indeks
   const [project, setProjectRaw] = useState({
     name: DEFAULT_PROJECT_NAME,
-    prices: { ...DEFAULT_PRICES },
+    prices: {},
     items: [{ cab: defaultCab, mat: defaultMaterials }],
     active: 0,
   });
@@ -5182,9 +5213,10 @@ export default function App() {
   const prices = project.prices || {};
   const setPrice = (key, v) =>
     setProject((p) => ({ ...p, prices: { ...(p.prices || {}), [key]: v === "" ? null : Number(v) } }));
-  const priceOf = (key) => {
+  // wpisana cena wygrywa; puste pole znaczy „weź domyślną", a 0 zeruje pozycję
+  const priceOf = (key, def = 0) => {
     const v = prices[key];
-    return typeof v === "number" && isFinite(v) ? v : 0;
+    return typeof v === "number" && isFinite(v) ? v : def;
   };
 
   const projectEdgeMb = useMemo(() => {
@@ -5206,24 +5238,29 @@ export default function App() {
 
   const quote = useMemo(() => {
     const rows = [];
+    // kazda pozycja niesie swoja cene domyslna, wiec dziala tez dla materialow
+    // i okuc, ktorych nie da sie z gory wypisac w stalej
+    const add = (r) => rows.push({ ...r, def: r.def || 0, price: priceOf(r.key, r.def || 0) });
     if (planSheets)
       Object.entries(planSheets).forEach(([matLabel, n]) => {
-        rows.push({ key: "plyta:" + matLabel, label: matLabel, qty: n, unit: "ark.", price: priceOf("plyta:" + matLabel) });
+        const k = "plyta:" + matLabel;
+        add({ key: k, label: matLabel, qty: n, unit: "ark.", def: DEFAULT_PRICES[k] });
       });
     const sheetsTotal = planSheets ? Object.values(planSheets).reduce((a, b) => a + b, 0) : 0;
     if (sheetsTotal)
-      rows.push({ key: "ciecie", label: "Formatowanie płyty", spec: "cięcie arkusza na formatki",
-        qty: sheetsTotal, unit: "ark.", price: priceOf("ciecie") });
-    rows.push({ key: "obrzeze", label: "Obrzeże 22 × 2 mm", spec: "materiał, dokładna długość",
-      qty: Math.round(projectEdgeMb * 10) / 10, unit: "mb", price: priceOf("obrzeze") });
+      add({ key: "ciecie", label: "Formatowanie płyty", spec: "cięcie arkusza na formatki",
+        qty: sheetsTotal, unit: "ark.", def: DEFAULT_PRICES.ciecie });
+    add({ key: "obrzeze", label: "Obrzeże 22 × 2 mm", spec: "materiał, dokładna długość",
+      qty: Math.round(projectEdgeMb * 10) / 10, unit: "mb", def: DEFAULT_PRICES.obrzeze });
     // rozkrojownia liczy oklejanie za kazdy ROZPOCZETY metr, wiec w gore
     if (projectEdgeMb > 0)
-      rows.push({ key: "oklejanie", label: "Oklejanie prostoliniowe",
+      add({ key: "oklejanie", label: "Oklejanie prostoliniowe",
         spec: `usługa, ${fmt(Math.round(projectEdgeMb * 10) / 10)} mb w górę do pełnego metra`,
-        qty: Math.ceil(projectEdgeMb), unit: "mb", price: priceOf("oklejanie") });
+        qty: Math.ceil(projectEdgeMb), unit: "mb", def: DEFAULT_PRICES.oklejanie });
     projectHardware.forEach((h) => {
-      const k = "okucie:" + h.name + "|" + h.spec;
-      rows.push({ key: k, label: h.name, spec: h.spec, qty: h.qty, unit: h.unit, price: priceOf(k) });
+      add({ key: "okucie:" + h.name + "|" + h.spec, label: h.name,
+        spec: h.spec + (h.pack ? ` — ${h.qty} szt.` : ""),
+        qty: hwQty(h), unit: hwUnit(h), def: DEFAULT_HW_PRICES[h.name] });
     });
     const sum = rows.reduce((a, r) => a + r.qty * r.price, 0);
     return { rows, sum };
@@ -6790,7 +6827,7 @@ export default function App() {
                     <tr key={i} className="border-b border-stone-100">
                       <td className="py-2 pr-3">{h.name}</td>
                       <td className="py-2 pr-3 font-mono text-xs text-stone-500">{h.spec}</td>
-                      <td className="py-2 text-right font-mono">{h.qty} {h.unit}</td>
+                      <td className="py-2 text-right font-mono">{hwQty(h)} {hwUnit(h)}{hwNote(h)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -6818,10 +6855,11 @@ export default function App() {
               ) : null
             }>
             <p className="text-xs text-stone-500">
-              Ceny dotyczą całego projektu i zapisują się razem z nim. Płyta i formatowanie
-              liczone są od arkusza, więc potrzebują policzonego rozkroju — obrzeże, oklejanie
-              i okucia wyliczą się od razu. Puste pole znaczy zero, a szara podpowiedź w polu
-              to cena startowa z cennika rozkrojowni (netto).
+              Wszystkie ceny są <strong>brutto</strong>. Płyta i formatowanie liczone są od
+              arkusza, więc potrzebują policzonego rozkroju — obrzeże, oklejanie i okucia
+              wyliczą się od razu. Puste pole bierze cenę domyślną (szara podpowiedź w polu);
+              wpisz 0, jeśli pozycja ma nie liczyć się do sumy. Ceny zapisują się razem
+              z projektem.
             </p>
             <p className="text-xs text-stone-500">
               Oklejanie rozkrojownia liczy za każdy <strong>rozpoczęty</strong> metr, dlatego
@@ -6840,7 +6878,7 @@ export default function App() {
                   <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
                     <th className="py-2 pr-3 font-medium">Pozycja</th>
                     <th className="py-2 pr-3 text-right font-medium">Ilość</th>
-                    <th className="py-2 pr-3 text-right font-medium">Cena jedn.</th>
+                    <th className="py-2 pr-3 text-right font-medium">Cena jedn. brutto</th>
                     <th className="py-2 text-right font-medium">Wartość</th>
                   </tr>
                 </thead>
@@ -6855,10 +6893,10 @@ export default function App() {
                       <td className="py-1.5 pr-3 text-right">
                         <input type="number" min={0} step="0.01"
                           value={prices[r.key] ?? ""}
-                          placeholder={DEFAULT_PRICES[r.key] != null ? String(DEFAULT_PRICES[r.key]) : "0"}
-                          title={DEFAULT_PRICES[r.key] != null
-                            ? `Cena startowa z cennika: ${DEFAULT_PRICES[r.key]} zł netto`
-                            : "Wpisz cenę jednostkową netto"}
+                          placeholder={r.def ? String(r.def) : "0"}
+                          title={r.def
+                            ? `Cena domyślna: ${zl(r.def)} zł brutto. Wpisz swoją albo 0, żeby wyzerować pozycję.`
+                            : "Wpisz cenę jednostkową brutto"}
                           onChange={(e) => setPrice(r.key, e.target.value)}
                           className="w-24 rounded border border-stone-300 bg-white px-1.5 py-1 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />
                       </td>
@@ -6872,7 +6910,7 @@ export default function App() {
             </div>
             <div className="flex items-baseline justify-between border-t border-stone-200 pt-3">
               <span className="text-xs uppercase tracking-wider text-stone-500">Razem</span>
-              <span className="font-mono text-lg">{zl(quote.sum)} zł netto</span>
+              <span className="font-mono text-lg">{zl(quote.sum)} zł brutto</span>
             </div>
           </Card>
 
@@ -6900,7 +6938,7 @@ export default function App() {
                       <tr key={i} className="border-b border-stone-100">
                         <td className="py-2 pr-3">{h.name}</td>
                         <td className="py-2 pr-3 font-mono text-xs text-stone-500">{h.spec}</td>
-                        <td className="py-2 text-right font-mono">{h.qty} {h.unit}</td>
+                        <td className="py-2 text-right font-mono">{hwQty(h)} {hwUnit(h)}{hwNote(h)}</td>
                       </tr>
                     ))}
                   </tbody>
