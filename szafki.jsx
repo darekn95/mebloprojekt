@@ -213,6 +213,7 @@ const defaultCab = {
   levels: [newLevel(2, 3)],
   plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
   topFiller: { on: false, height: 100 }, // zaslepka nad szafka (do sufitu / maskownica)
+  extraParts: [], // formatki dopisane recznie, poza geometria szafki
   frontSameAsBoard: true,
   shelfSameAsBoard: true,
   openAngle: 90,
@@ -232,6 +233,7 @@ const defaultCab = {
 // scala wczytana szafke z domyslnymi polami + migruje stary model wyciecia
 const migrateCab = (rawCab) => {
   const merged = { ...defaultCab, ...(rawCab || {}), version: defaultCab.version };
+  if (!Array.isArray(c.extraParts)) c.extraParts = [];
   ["cutout", "cutoutR", "obstacle", "backGroove", "plinth", "topFiller", "legs", "gaps", "joints"].forEach((k) => {
     if (defaultCab[k] && typeof defaultCab[k] === "object")
       merged[k] = { ...defaultCab[k], ...((rawCab && rawCab[k]) || {}) };
@@ -1347,6 +1349,32 @@ function computeGeo(cab, mat) {
         edges: { a1: true, a2: false, b1: true, b2: true },
         note: "maskownica nad szafką — krawędź górna i oba końce oklejane" });
   }
+
+  // formatki dopisane recznie — traktowane jak kazda inna, wiec licza sie
+  // do obrzeza, powierzchni, rozkroju i zestawienia
+  (cab.extraParts || []).forEach((e, i) => {
+    const ea = Math.round(num(e.a) ?? 0);
+    const eb = Math.round(num(e.b) ?? 0);
+    const eq = Math.max(0, Math.round(num(e.qty) ?? 0));
+    if (!eq) return;
+    const where = `Dodatkowa formatka ${i + 1}`;
+    if (ea <= 0 || eb <= 0) {
+      add("error", `${where}: brakuje wymiarów.`);
+      return;
+    }
+    P({
+      name: (e.name || "").trim() || `Dodatkowa formatka ${i + 1}`,
+      qty: eq,
+      a: ea,
+      b: eb,
+      matKey: e.matKey === "front" || e.matKey === "shelf" || e.matKey === "back" ? e.matKey : "board",
+      edges: {
+        a1: !!(e.edges || {}).a1, a2: !!(e.edges || {}).a2,
+        b1: !!(e.edges || {}).b1, b2: !!(e.edges || {}).b2,
+      },
+      note: "formatka dopisana ręcznie",
+    });
+  });
 
   // formatki wzmocnien (per kolumna, wiele)
   levels.forEach((lv) => lv.cols.forEach((c) => (c.rails || []).forEach((r) => {
@@ -4038,7 +4066,83 @@ function PrintReport({ project }) {
           index={i} total={project.items.length} />
       ))}
       {project.items.length > 1 && <ReportProjectSheet project={project} projectName={name} />}
+      <ReportCutPlan project={project} projectName={name} />
     </div>
+  );
+}
+
+/* rozkroj na arkuszach — ostatnie strony zestawienia */
+function ReportCutPlan({ project, projectName }) {
+  const groups = useMemo(() => {
+    const rows = [];
+    project.items.forEach((it) => {
+      const g = computeGeo(it.cab, it.mat);
+      groupPanels(g.panels).forEach((p) => {
+        rows.push({
+          name: p.name,
+          qty: p.qty,
+          a: p.a,
+          b: p.b,
+          rotatable: p.matKey === "back" || !it.cab.grainMatters,
+          matLabel: (it.mat[p.matKey] || {}).name || p.matKey,
+        });
+      });
+    });
+    // te same pozycje z roznych szafek lacza sie w jedna
+    const merged = new Map();
+    rows.forEach((r) => {
+      const k = [r.matLabel, r.a, r.b, r.name, r.rotatable].join("|");
+      if (merged.has(k)) merged.get(k).qty += r.qty;
+      else merged.set(k, { ...r });
+    });
+    return buildCutPlan([...merged.values()]);
+  }, [project]);
+
+  if (!groups.length) return null;
+  return (
+    <section className="rp-page">
+      <div style={{ borderBottom: "2px solid #292524", marginBottom: 8, paddingBottom: 4 }}>
+        <strong style={{ fontSize: "13pt" }}>{projectName}</strong>
+        <div style={{ fontSize: "9pt", color: "#57534e" }}>
+          Rozkrój na płycie — arkusz {fmt(SHEET_W)} × {fmt(SHEET_H)} mm, rzaz {KERF} mm
+        </div>
+      </div>
+      <table className="rp-tbl">
+        <thead>
+          <tr>
+            <th>Płyta</th>
+            <th className="num">Arkuszy</th>
+            <th className="num">Wykorzystanie</th>
+            <th className="num">Cięć</th>
+            <th>Największy zrzut</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((g, i) => (
+            <tr key={i}>
+              <td>{g.matLabel}</td>
+              <td className="num">{g.sheets.length}</td>
+              <td className="num">{fmt(g.usedPct)}%</td>
+              <td className="num">{g.cuts}</td>
+              <td>{g.biggestRect ? `${fmt(g.biggestRect.w)} × ${fmt(g.biggestRect.h)} mm` : "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {groups.map((g, gi) => (
+        <div key={gi} style={{ marginTop: 10 }}>
+          <div style={{ fontSize: "10pt", fontWeight: 600, marginBottom: 4 }}>{g.matLabel}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {g.sheets.map((sh, i) => (
+              <div key={i} className="rp-keep" style={{ border: "1px solid #e7e5e4", padding: 6 }}>
+                <SheetPlan sheet={sh} sheetW={g.sheetW} sheetH={g.sheetH}
+                  index={i} total={g.sheets.length} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -4473,6 +4577,19 @@ export default function App() {
     editLevels((L) => (L[i].cols[j].blendaMode = v));
   const setDrawerMode = (i, j, v) =>
     editLevels((L) => (L[i].cols[j].drawerMode = v));
+
+  // dodatkowe formatki — poza geometria szafki, wpisywane recznie
+  const addExtraPart = () =>
+    set({
+      extraParts: [
+        ...(cab.extraParts || []),
+        { name: "", qty: 1, a: null, b: null, matKey: "board", edges: { a1: false, a2: false, b1: false, b2: false } },
+      ],
+    });
+  const setExtraPart = (i, patch) =>
+    set({ extraParts: (cab.extraParts || []).map((e, k) => (k === i ? { ...e, ...patch } : e)) });
+  const removeExtraPart = (i) =>
+    set({ extraParts: (cab.extraParts || []).filter((_, k) => k !== i) });
   const setHinge = (i, j, v) => editLevels((L) => (L[i].cols[j].hinge = v));
   const setFixSupport = (i, j, v) =>
     editLevels((L) => {
@@ -5811,6 +5928,11 @@ export default function App() {
                     Wróć do automatycznego oklejania
                   </button>
                 )}
+                <button onClick={addExtraPart}
+                  title="Dopisz formatkę spoza geometrii szafki — np. blat, listwę, półkę na wymiar"
+                  className="text-xs text-teal-700 hover:underline">
+                  + dodatkowa formatka
+                </button>
                 {project.items.length === 1 && (
                   <button onClick={() => makeCutPlan("cab")}
                     title="Ułóż formatki na arkuszach i policz, ile płyt zamówić"
@@ -5850,6 +5972,59 @@ export default function App() {
                 </tbody>
               </table>
             </div>
+            {(cab.extraParts || []).length > 0 && (
+              <div className="space-y-2 border-t border-stone-200 pt-3">
+                <span className="block text-xs uppercase tracking-wider text-stone-500">
+                  Dodatkowe formatki
+                </span>
+                {(cab.extraParts || []).map((e, i) => (
+                  <div key={i} className="space-y-1.5 rounded border border-stone-200 bg-stone-50 p-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input value={e.name || ""} placeholder={`Dodatkowa formatka ${i + 1}`}
+                        onChange={(ev) => setExtraPart(i, { name: ev.target.value })}
+                        className="min-w-[9rem] flex-1 rounded border border-stone-300 bg-white px-1.5 py-1 text-xs focus:border-teal-600 focus:outline-none" />
+                      <select value={e.matKey || "board"}
+                        onChange={(ev) => setExtraPart(i, { matKey: ev.target.value })}
+                        className="rounded border border-stone-300 bg-white px-1.5 py-1 text-xs focus:border-teal-600 focus:outline-none">
+                        <option value="board">{mat.board.name}</option>
+                        <option value="front">{mat.front.name}</option>
+                        <option value="shelf">{mat.shelf?.name || "Półka"}</option>
+                        <option value="back">{mat.back.name}</option>
+                      </select>
+                      <MiniBtn tone="plain" onClick={() => removeExtraPart(i)} title="Usuń formatkę">×</MiniBtn>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="text-stone-500">długość</span>
+                      <input type="number" min={1} step={1} value={e.a ?? ""}
+                        onChange={(ev) => setExtraPart(i, { a: ev.target.value === "" ? null : Number(ev.target.value) })}
+                        className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none" />
+                      <span className="text-stone-500">szerokość</span>
+                      <input type="number" min={1} step={1} value={e.b ?? ""}
+                        onChange={(ev) => setExtraPart(i, { b: ev.target.value === "" ? null : Number(ev.target.value) })}
+                        className="w-20 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none" />
+                      <span className="text-stone-500">szt.</span>
+                      <input type="number" min={1} step={1} value={e.qty ?? 1}
+                        onChange={(ev) => setExtraPart(i, { qty: Math.max(1, Number(ev.target.value) || 1) })}
+                        className="w-14 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none" />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                      <span className="mr-1 text-stone-500">oklejanie</span>
+                      {[
+                        ["a1", "przód", "a"], ["a2", "tył", "a"],
+                        ["b1", "bok", "b"], ["b2", "bok", "b"],
+                      ].map(([k, lab, dim], n) => (
+                        <MiniBtn key={k} tone={(e.edges || {})[k] ? "on" : "plain"}
+                          onClick={() => setExtraPart(i, { edges: { ...(e.edges || {}), [k]: !(e.edges || {})[k] } })}
+                          title={`Krawędź ${lab} — długość ${dim === "a" ? "A" : "B"}`}>
+                          {lab} {fmt(dim === "a" ? e.a || 0 : e.b || 0)}
+                        </MiniBtn>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="grid gap-3 border-t border-stone-200 pt-3 text-sm sm:grid-cols-3">
               <div>
                 <span className="block text-xs uppercase tracking-wider text-stone-500">Sztuk razem</span>
