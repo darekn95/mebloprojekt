@@ -212,6 +212,9 @@ const defaultCab = {
   shelfExtraSetback: 0,
   levels: [newLevel(2, 3)],
   plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
+  // wieniec jako blat: wystaje poza boki i poza lico korpusu, a fronty
+  // konczą sie pod nim
+  top: { mode: "wieniec", overL: 0, overR: 0, overFront: 0, overBack: 0 },
   topFiller: { on: false, height: 100 }, // zaslepka nad szafka (do sufitu / maskownica)
   extraParts: [], // formatki dopisane recznie, poza geometria szafki
   frontSameAsBoard: true,
@@ -233,7 +236,9 @@ const defaultCab = {
 // scala wczytana szafke z domyslnymi polami + migruje stary model wyciecia
 const migrateCab = (rawCab) => {
   const merged = { ...defaultCab, ...(rawCab || {}), version: defaultCab.version };
-  if (!Array.isArray(c.extraParts)) c.extraParts = [];
+  if (!merged.top || typeof merged.top !== "object")
+    merged.top = { mode: "wieniec", overL: 0, overR: 0, overFront: 0, overBack: 0 };
+  if (!Array.isArray(merged.extraParts)) merged.extraParts = [];
   ["cutout", "cutoutR", "obstacle", "backGroove", "plinth", "topFiller", "legs", "gaps", "joints"].forEach((k) => {
     if (defaultCab[k] && typeof defaultCab[k] === "object")
       merged[k] = { ...defaultCab[k], ...((rawCab && rawCab[k]) || {}) };
@@ -266,6 +271,57 @@ const loadProject = (d) => {
   const active = Math.min(Math.max(0, Math.round(d.active || 0)), items.length - 1);
   const name = typeof d.name === "string" && d.name.trim() ? d.name : DEFAULT_PROJECT_NAME;
   return { name, items, active };
+};
+
+/* ---------- szablony startowe ----------
+   Szablon tylko ustawia zestaw pol — nie blokuje niczego i nie rozgalezia
+   silnika geometrii. Po dodaniu szafki zmieniasz w niej co chcesz. */
+const TEMPLATES = [
+  {
+    id: "stojaca",
+    label: "Szafka stojąca",
+    hint: "600 × 720 × 500, cokół, dwoje drzwi",
+    make: () => ({
+      W: 600, H: 720, D: 500,
+      plinth: { on: true, height: 100, mode: "inbody", setback: 0 },
+      levels: [newLevel(2, 3)],
+    }),
+  },
+  {
+    id: "wiszaca",
+    label: "Szafka wisząca",
+    hint: "600 × 720 × 300, bez cokołu i nóżek",
+    make: () => ({
+      W: 600, H: 720, D: 300,
+      plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
+      legs: { on: false, height: 100 },
+      levels: [newLevel(2, 2)],
+    }),
+  },
+  {
+    id: "biurko",
+    label: "Biurko",
+    hint: "1200 × 750 × 600, blat na bokach, bez dna, pleców i drzwi",
+    make: () => {
+      const col = newColumn(0, 0);
+      col.doors = 0;
+      col.shelfTargets = [null];
+      return {
+        W: 1200, H: 750, D: 600,
+        top: { mode: "blat", overL: 50, overR: 50, overFront: 30, overBack: 0 },
+        joints: { topL: "over", topR: "over", botL: "none", botR: "none" },
+        back: "none",
+        plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
+        legs: { on: false, height: 100 },
+        levels: [{ h: null, cols: [col] }],
+      };
+    },
+  },
+];
+
+const makeFromTemplate = (id) => {
+  const tpl = TEMPLATES.find((t) => t.id === id) || TEMPLATES[0];
+  return migrateCab({ ...JSON.parse(JSON.stringify(defaultCab)), ...tpl.make() });
 };
 
 /* ---------- geometria ---------- */
@@ -322,15 +378,24 @@ function computeGeo(cab, mat) {
   const botL = J.botL || legacy(cab.bottomMode);
   const botR = J.botR || legacy(cab.bottomMode);
   // "none" = brak panelu (wieniec/dno). Boki i tak stoja na pelnej wysokosci.
+  const rawTop = cab.top || {};
+  const ov = (v) => Math.max(0, Math.round(num(v) ?? 0));
   const hasTop = topL !== "none" && topR !== "none";
+  // blat lezy na bokach jak wieniec "na boku", ale ma wlasny obrys
+  const isBlat = hasTop && rawTop.mode === "blat";
+  const blat = isBlat
+    ? { overL: ov(rawTop.overL), overR: ov(rawTop.overR), overFront: ov(rawTop.overFront), overBack: ov(rawTop.overBack) }
+    : null;
   const hasBot = botL !== "none" && botR !== "none";
 
-  const leftLen = H - (topL === "over" ? t : 0) - (botL === "over" ? t : 0);
-  const rightLen = H - (topR === "over" ? t : 0) - (botR === "over" ? t : 0);
+  const topOverL = isBlat || topL === "over";
+  const topOverR = isBlat || topR === "over";
+  const leftLen = H - (topOverL ? t : 0) - (botL === "over" ? t : 0);
+  const rightLen = H - (topOverR ? t : 0) - (botR === "over" ? t : 0);
   const leftY0 = botL === "over" ? t : 0;
   const rightY0 = botR === "over" ? t : 0;
-  const topX0 = topL === "between" ? t : 0;
-  const topX1 = topR === "between" ? W - t : W;
+  const topX0 = isBlat ? -blat.overL : topL === "between" ? t : 0;
+  const topX1 = isBlat ? W + blat.overR : topR === "between" ? W - t : W;
   const botX0 = botL === "between" ? t : 0;
   const botX1 = botR === "between" ? W - t : W;
 
@@ -544,7 +609,7 @@ function computeGeo(cab, mat) {
           : Math.round(sepShelves[lv.i - 1].y + t / 2 + Math.ceil(half));
       hi =
         lv.i === levels.length - 1
-          ? H - g.top
+          ? H - (isBlat ? t : 0) - g.top
           : Math.round(sepShelves[lv.i].y + t / 2 - Math.floor(half));
     } else {
       lo = lv.y0 + g.inset;
@@ -1201,9 +1266,23 @@ function computeGeo(cab, mat) {
     name, qty: 1, a: x1 - x0, b: carcassDepth, matKey: "board",
     edges: { a1: true, a2: rear, b1: l === "over", b2: r === "over" },
   });
-  const wien = hasTop ? horiz("Wieniec", topL, topR, topX0, topX1) : null;
+  const blatDepth = isBlat ? carcassDepth + blat.overFront + blat.overBack : 0;
+  const wien = !hasTop
+    ? null
+    : isBlat
+    ? {
+        name: "Blat",
+        qty: 1,
+        a: topX1 - topX0,
+        b: blatDepth,
+        matKey: "board",
+        // blat jest widoczny dookola, wiec czoło i oba końce zawsze oklejane,
+        // tył tylko gdy wystaje poza korpus albo szafka stoi wolno
+        edges: { a1: true, a2: rear || blat.overBack > 0, b1: true, b2: true },
+      }
+    : horiz("Wieniec", topL, topR, topX0, topX1);
   const dno = hasBot ? horiz("Dno", botL, botR, botX0, botX1) : null;
-  if (wien && dno && same(wien, dno)) P({ ...dno, name: "Dno / wieniec", qty: 2, note: noteOf(dno.edges, "horiz") });
+  if (wien && dno && !isBlat && same(wien, dno)) P({ ...dno, name: "Dno / wieniec", qty: 2, note: noteOf(dno.edges, "horiz") });
   else {
     if (dno) P({ ...dno, note: noteOf(dno.edges, "horiz") });
     if (wien) P({ ...wien, note: noteOf(wien.edges, "horiz") });
@@ -1796,6 +1875,7 @@ function computeGeo(cab, mat) {
     plinthInBody, plinthH, bottomY, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
+    isBlat, blat, blatDepth,
     topX0, topX1, botX0, botX1, divOv,
   };
 }
@@ -1853,19 +1933,21 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels, showHa
   const hasRailL = railDimCols.some((r) => r.where === "left");
   const hasRailR = railDimCols.some((r) => r.where === "right");
   const wideDims = showSideLengthDims || hasBaseDim || hasDoorDims || hasRailL;
-  const leftExtra = wideDims ? 170 : 0;
+  const leftExtra = wideDims ? 300 : 0;
   const rightExtraF = Math.max(hasBase ? 60 : 0, showSideLengthDims ? 160 : 0, hasRailR ? 150 : 0);
   // pozycje X wymiarow
-  const dimHMainX = wideDims ? -180 : -50;
-  const dimHTotalX = wideDims ? -255 : -115;
+  const dimHMainX = wideDims ? -290 : -50;
+  const dimHTotalX = wideDims ? -370 : -115;
   const railExtra = hasRailR ? 130 : 0;
   const dimLevelX = W + (showSideLengthDims ? 170 : 60) + railExtra;
   const dimDrawerX = W + (showSideLengthDims ? 230 : 120) + railExtra;
-  const dimDoorX = showSideLengthDims ? -95 : -26; // wymiary wys. drzwi po lewej
+  const dimDoorX = showSideLengthDims ? -160 : -26; // wymiary wys. drzwi po lewej
   // cokol pod lewym wymiarem boku, nozki pod prawym — tuz przy szafce
   const dimCokolX = -26;
   const dimNozkiX = W + 26;
-  const vb = `${-pad - leftExtra} ${-pad} ${W + 2 * pad + leftExtra + rightExtraF} ${H + pad + belowExtra + 60}`;
+  const blOvL = geo.isBlat ? geo.blat.overL : 0;
+  const blOvR = geo.isBlat ? geo.blat.overR : 0;
+  const vb = `${-pad - leftExtra - blOvL} ${-pad} ${W + blOvL + blOvR + 2 * pad + leftExtra + rightExtraF} ${H + pad + belowExtra + 60}`;
   const fy = (y) => H - y;
   const bf = mat.board.color;
   const ff = frontColor;
@@ -2228,7 +2310,18 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels, showHa
 
       {showDims && (
         <>
-          <DimH x1={0} x2={W} y={cab.topFiller?.on && cab.topFiller.height > 0 ? -(cab.topFiller.height + 40) : -50} label={`${fmt(W)}`} />
+          {(() => {
+            const wy = cab.topFiller?.on && cab.topFiller.height > 0 ? -(cab.topFiller.height + 40) : -50;
+            return (
+              <>
+                <DimH x1={0} x2={W} y={wy} label={`${fmt(W)}`} />
+                {geo.isBlat && (geo.blat.overL > 0 || geo.blat.overR > 0) && (
+                  <DimH x1={geo.topX0} x2={geo.topX1} y={wy - 60}
+                    label={`blat ${fmt(geo.topX1 - geo.topX0)}`} c={LINE} />
+                )}
+              </>
+            );
+          })()}
           <DimV y1={0} y2={H} x={dimHMainX} label={`${fmt(H)}`} />
           {showSideLengthDims && (
             <>
@@ -2571,7 +2664,11 @@ function TopView({ cab, geo, mat, showDims, showShelves, showHardware }) {
   const pad = 160;
   // patrzymy z gory: X = szerokosc, Y (w dol na ekranie) = glebokosc, przod u dolu
   const frontExtra = cab.frontMode === "overlay" ? geo.tf : 0;
-  const vb = `${-pad} ${-pad} ${W + 2 * pad + 120} ${D + 2 * pad + 100 + frontExtra}`;
+  const tOvL = geo.isBlat ? geo.blat.overL : 0;
+  const tOvR = geo.isBlat ? geo.blat.overR : 0;
+  const tOvF = geo.isBlat ? geo.blat.overFront : 0;
+  const tOvB = geo.isBlat ? geo.blat.overBack : 0;
+  const vb = `${-pad - tOvL} ${-pad - tOvB} ${W + tOvL + tOvR + 2 * pad + 120} ${D + tOvB + tOvF + 2 * pad + 100 + frontExtra}`;
   const bf = mat.board.color;
   const t = geo.t;
   const cd = geo.carcassDepth;
@@ -2587,8 +2684,12 @@ function TopView({ cab, geo, mat, showDims, showShelves, showHardware }) {
         height={cd - (geo.cornerCut?.sideRightDepth || 0)} fill={bf} stroke={INK} strokeWidth="2" />
       {/* wieniec widoczny z gory jako plyta na calej glebokosci */}
       {geo.hasTop && (
-        <rect x={geo.topX0} y="0" width={geo.topX1 - geo.topX0} height={cd}
-          fill={bf} stroke={INK} strokeWidth="1" opacity="0.25" />
+        <rect x={geo.topX0} y={geo.isBlat ? -tOvB : 0}
+          width={geo.topX1 - geo.topX0}
+          height={geo.isBlat ? geo.blatDepth : cd}
+          fill={bf} stroke={INK}
+          strokeWidth={geo.isBlat ? 2 : 1}
+          opacity={geo.isBlat ? 0.45 : 0.25} />
       )}
       {/* elementy wzmacniajace z gory (y=0 tyl; glebokosc od tylu = cd - z0 - zLen) */}
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
@@ -2997,7 +3098,9 @@ function SideView({ cab, geo, mat, showDims, which, showHardware }) {
     cab.legs?.on ? cab.legs.height || 100 : 0,
     cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0
   );
-  const vb = `${-pad} ${-pad - 70} ${D + 2 * pad + rightExtra} ${H + 2 * pad + 70 + below}`;
+  const sOvF = geo.isBlat ? geo.blat.overFront : 0;
+  const sOvB = geo.isBlat ? geo.blat.overBack : 0;
+  const vb = `${-pad - sOvB} ${-pad - 70} ${D + sOvB + sOvF + 2 * pad + rightExtra} ${H + 2 * pad + 70 + below}`;
   const fy = (y) => H - y;
   const bf = mat.board.color;
   const cd = geo.carcassDepth;
@@ -3021,7 +3124,9 @@ function SideView({ cab, geo, mat, showDims, which, showHardware }) {
             fill={bf} stroke={INK} strokeWidth="2" opacity="0.35" />
         );
       })()}
-      <rect x={xC} y="0" width={cd} height={geo.t} fill={bf} stroke={INK} strokeWidth="2" />
+      <rect x={geo.isBlat ? xC - sOvB : xC} y="0"
+        width={geo.isBlat ? geo.blatDepth : cd} height={geo.t}
+        fill={bf} stroke={INK} strokeWidth="2" />
       <rect x={xC} y={fy(geo.bottomY + geo.t)} width={cd} height={geo.t} fill={bf} stroke={INK} strokeWidth="2" />
 
       {cab.plinth.on && geo.plinthInBody && (
@@ -3273,7 +3378,11 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
   box(0, geo.leftY0, 0, t, geo.leftY0 + geo.leftLen, cd - cutSL, bf);
   box(W - t, geo.rightY0, 0, W, geo.rightY0 + geo.rightLen, cd - cutSR, bf);
   if (geo.hasBot) box(geo.botX0, geo.bottomY, 0, geo.botX1, geo.bottomY + t, cd, bf);
-  if (geo.hasTop) box(geo.topX0, H - t, 0, geo.topX1, H, cd, bf);
+  if (geo.hasTop)
+    box(
+      geo.topX0, H - t, geo.isBlat ? -geo.blat.overBack : 0,
+      geo.topX1, H, geo.isBlat ? cd + geo.blat.overFront : cd, bf
+    );
 
   if (cab.back !== "none") {
     const bz = geo.grooved ? cd - geo.grOff - geo.tb : cd;
@@ -4313,14 +4422,15 @@ export default function App() {
 
   // przelaczanie / dodawanie / usuwanie szafek
   const switchCabinet = useCallback((i) => setProject((p) => (i === p.active ? p : { ...p, active: i })), [setProject]);
-  const addCabinet = useCallback(() => setProject((p) => {
+  const addCabinet = useCallback((tplId) => setProject((p) => {
     // nastepny numer = max z istniejacych "Szafka N" + 1 (odporne na usuwanie)
     const nums = p.items.map((it) => {
       const m = /^Szafka (\d+)$/.exec((it.cab.name || "").trim());
       return m ? Number(m[1]) : 0;
     });
     const next = Math.max(0, ...nums) + 1;
-    const items = [...p.items, { cab: { ...defaultCab, name: `Szafka ${next}` }, mat: defaultMaterials }];
+    const base = tplId ? makeFromTemplate(tplId) : { ...defaultCab };
+    const items = [...p.items, { cab: { ...base, name: `Szafka ${next}` }, mat: defaultMaterials }];
     return { ...p, items, active: items.length - 1 };
   }), [setProject]);
   const removeCabinet = useCallback((i) => setProject((p) => {
@@ -4876,7 +4986,15 @@ export default function App() {
                 </div>
               );
             })}
-            <button onClick={addCabinet} title="Dodaj nową szafkę do projektu"
+            <select value="" title="Dodaj szafkę z gotowego szablonu"
+              onChange={(e) => { if (e.target.value) addCabinet(e.target.value); e.target.value = ""; }}
+              className="rounded-full border border-dashed border-teal-500 bg-white px-2 py-1 text-xs text-teal-700 focus:border-teal-700 focus:outline-none">
+              <option value="">+ z szablonu…</option>
+              {TEMPLATES.map((t) => (
+                <option key={t.id} value={t.id}>{t.label} — {t.hint}</option>
+              ))}
+            </select>
+            <button onClick={() => addCabinet()} title="Dodaj nową szafkę do projektu"
               className="rounded-full border border-dashed border-teal-500 px-3 py-1 text-xs font-medium text-teal-700 hover:bg-teal-50">
               + szafka
             </button>
@@ -4919,6 +5037,35 @@ export default function App() {
                 ))}
               </div>
             </Field>
+            <Field label="Wieniec"
+              hint={geo.isBlat
+                ? `Blat leży na bokach i wystaje poza nie — fronty kończą się pod nim. Formatka ${fmt(geo.topX1 - geo.topX0)} × ${fmt(geo.blatDepth)} mm.`
+                : "Zwykły wieniec w obrysie korpusu. Wysunięcia ustawisz po przełączeniu na blat."}>
+              <Seg value={(cab.top || {}).mode === "blat" ? "blat" : "wieniec"}
+                onChange={(v) => set({ top: { ...(cab.top || {}), mode: v } })}
+                options={[{ v: "wieniec", l: "Wieniec" }, { v: "blat", l: "Blat" }]} />
+            </Field>
+            {(cab.top || {}).mode === "blat" && (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Wysunięcie w lewo">
+                  <Num value={(cab.top || {}).overL ?? 0}
+                    onChange={(v) => set({ top: { ...(cab.top || {}), overL: v } })} />
+                </Field>
+                <Field label="Wysunięcie w prawo">
+                  <Num value={(cab.top || {}).overR ?? 0}
+                    onChange={(v) => set({ top: { ...(cab.top || {}), overR: v } })} />
+                </Field>
+                <Field label="Wysunięcie do przodu" hint="blat zakrywa górę frontów">
+                  <Num value={(cab.top || {}).overFront ?? 0}
+                    onChange={(v) => set({ top: { ...(cab.top || {}), overFront: v } })} />
+                </Field>
+                <Field label="Wysunięcie do tyłu">
+                  <Num value={(cab.top || {}).overBack ?? 0}
+                    onChange={(v) => set({ top: { ...(cab.top || {}), overBack: v } })} />
+                </Field>
+              </div>
+            )}
+
             <Field label="Drzwi" hint={cab.frontMode === "overlay"
               ? "Zawiasy zwykłe — drzwi zamykają się na korpus."
               : "Drzwi chowają się w świetle korpusu."}>
