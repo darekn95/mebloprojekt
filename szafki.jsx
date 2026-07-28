@@ -222,7 +222,14 @@ const defaultCab = {
   shelfSameAsBoard: true,
   openAngle: 90,
   legs: { on: false, height: 100 },
+  // polki w kolumnach: na kolkach podporowych czy skrecane konfirmatami
+  shelfMount: "pins",
+  // odsuniecie osi otworu pod kolek od przedniej i tylnej krawedzi polki
+  shelfPin: { dFront: 37, dBack: 37 },
+  hangers: "auto", // zawieszki do szafek wiszacych: auto / zawsze / nigdy
   grainMatters: false,
+  texture: false, // rysuj strukture slojow zamiast plaskiego koloru
+  textureDir: "v", // kierunek slojow na rysunku: v = pionowo, h = poziomo
   realColors: false,
   // dwa niezaleznie wycinane narozniki TYLNE (lewy = cutout, prawy = cutoutR)
   cutout: { on: false, w: 100, d: 100, fullHeight: true, levelIndex: 0, mask: true, maskType: "auto", maskFront: "over" },
@@ -240,7 +247,7 @@ const migrateCab = (rawCab) => {
   if (!merged.top || typeof merged.top !== "object")
     merged.top = { mode: "wieniec", overL: 0, overR: 0, overFront: 0, overBack: 0 };
   if (!Array.isArray(merged.extraParts)) merged.extraParts = [];
-  ["cutout", "cutoutR", "obstacle", "backGroove", "plinth", "topFiller", "legs", "gaps", "joints"].forEach((k) => {
+  ["cutout", "cutoutR", "obstacle", "backGroove", "plinth", "topFiller", "legs", "gaps", "joints", "shelfPin"].forEach((k) => {
     if (defaultCab[k] && typeof defaultCab[k] === "object")
       merged[k] = { ...defaultCab[k], ...((rawCab && rawCab[k]) || {}) };
   });
@@ -1871,6 +1878,109 @@ function computeGeo(cab, mat) {
       unit: "szt.",
     });
 
+  /* --- zlacza korpusu, kolki, zawieszki, wkrety ---
+     Konfirmat co ok. 200 mm dlugosci styku, minimum 2 na styk. */
+  const confPer = (len) => Math.max(2, Math.ceil((len || 0) / 200));
+  let confQty = 0;
+  const jointNotes = [];
+  const joint = (n, len, what) => {
+    if (n <= 0) return;
+    const per = confPer(len);
+    confQty += n * per;
+    jointNotes.push(`${what} ${n}×${per}`);
+  };
+  // blat lezy na bokach i jest kryty od gory — mocowany od spodu, nie konfirmatem
+  if (hasTop && !isBlat) joint(2, carcassDepth, "wieniec");
+  if (hasBot) joint(2, carcassDepth, "dno");
+  joint(dividers.length * 2, dividerDepth, "przegrody");
+  joint(sepShelves.length * 2, shelfDepth, "półki przelotowe");
+  joint(supportParts.length * 2, carcassDepth, "wsporniki");
+
+  const shelfPins = cab.shelfMount !== "confirmat";
+  let colShelves = 0;
+  levels.forEach((lv) => lv.cols.forEach((c) => { colShelves += (c.shelves || []).length; }));
+  if (!shelfPins) joint(colShelves * 2, shelfDepth, "półki");
+
+  if (confQty)
+    hardware.push({
+      name: "Konfirmat 7 × 50",
+      spec: `złącza korpusu: ${jointNotes.join(", ")} szt.`,
+      qty: confQty,
+      unit: "szt.",
+    });
+  if (confQty)
+    hardware.push({
+      name: "Zaślepka na konfirmat",
+      spec: "po jednej na każdy widoczny łeb",
+      qty: confQty,
+      unit: "szt.",
+    });
+
+  if (isBlat)
+    hardware.push({
+      name: "Kątownik montażowy",
+      spec: "blat przykręcany od spodu — konfirmat zepsułby lico",
+      qty: 4,
+      unit: "szt.",
+    });
+  if (cab.plinth && cab.plinth.on)
+    hardware.push({
+      name: "Złączka do cokołu",
+      spec: "klips albo kątownik — po jednym na każdy koniec cokołu",
+      qty: 2,
+      unit: "szt.",
+    });
+
+  if (shelfPins && colShelves) {
+    const pin = cab.shelfPin || {};
+    hardware.push({
+      name: "Kołek podporowy ⌀5",
+      spec: `4 szt. na półkę, otwory ${fmt(num(pin.dFront) ?? 37)} mm od przodu i ${fmt(num(pin.dBack) ?? 37)} mm od tyłu półki`,
+      qty: colShelves * 4,
+      unit: "szt.",
+    });
+  }
+
+  // szafka wisząca: brak nozek i cokolu = musi byc na czym powiesic
+  const floorStanding = (cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on);
+  const wantHangers = cab.hangers === "always" || (cab.hangers !== "never" && !floorStanding);
+  if (wantHangers) {
+    const nH = W >= 900 ? 4 : 2;
+    hardware.push({
+      name: "Zawieszka meblowa regulowana",
+      spec: "szafka bez nóżek i cokołu — wieszana na ścianie",
+      qty: nH,
+      unit: "szt.",
+    });
+    hardware.push({
+      name: "Listwa montażowa do zawieszek",
+      spec: `odcinek ${fmt(Math.max(0, W - 40))} mm na szafkę`,
+      qty: 1,
+      unit: "szt.",
+    });
+  }
+
+  const slideSets = [...slideGroups.values()].reduce((a, b) => a + b, 0);
+  const screwQty = hingeCount * 4 + slideSets * 10;
+  if (screwQty)
+    hardware.push({
+      name: "Wkręt 4 × 16",
+      spec: `do zawiasów (4 na sztukę) i prowadnic (10 na komplet)`,
+      qty: screwQty,
+      unit: "szt.",
+    });
+
+  // plecy przybijane — we frezie trzymaja sie same
+  if (hasBack && !grooved) {
+    const per = 2 * (W + H);
+    hardware.push({
+      name: backIsBoard ? "Wkręt 3,5 × 30 do pleców" : "Zszywka / gwoździk do pleców",
+      spec: "co ok. 100 mm po obwodzie",
+      qty: Math.ceil(per / 100),
+      unit: "szt.",
+    });
+  }
+
   return {
     hardware,
     t, tf, tb, carcassDepth, hasBack, interior, innerW, innerH,
@@ -1884,6 +1994,50 @@ function computeGeo(cab, mat) {
 }
 
 /* ---------- rysunki ---------- */
+
+/* ---------- struktura usłojenia na rysunkach ----------
+   Zamiast plaskiego koloru plyta dostaje wzor z delikatnymi slojami.
+   Kolor zostaje ten sam — wzor tylko go rozrysowuje, wiec nic sie nie
+   rozjezdza w zestawieniach, gdzie nadal uzywamy czystego hexa. */
+const TEX_KEYS = ["board", "front", "shelf"];
+const grainId = (hex, dir) =>
+  "gr" + (dir === "h" ? "h" : "v") + String(hex || "").replace(/[^0-9a-fA-F]/g, "").toLowerCase();
+
+const GrainDefs = ({ mat, on, dir }) => {
+  if (!on) return null;
+  const cols = [...new Set(TEX_KEYS.map((k) => (mat[k] || {}).color).filter(Boolean))];
+  return (
+    <defs>
+      {cols.map((c) => (
+        <pattern key={c} id={grainId(c, dir)} width="160" height="54"
+          patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse"
+          patternTransform={dir === "h" ? undefined : "rotate(90)"}>
+          <rect x="0" y="0" width="160" height="54" fill={c} />
+          <g fill="none" stroke="#000" strokeWidth="2.2" strokeOpacity="0.09">
+            <path d="M0 8 q40 -6 80 0 t80 0" />
+            <path d="M0 20 q30 5 60 0 t60 -3 t40 3" />
+            <path d="M0 33 q50 -7 100 0 t60 2" />
+            <path d="M0 46 q35 4 70 0 t90 -2" />
+          </g>
+          <g fill="none" stroke="#fff" strokeWidth="1.6" strokeOpacity="0.18">
+            <path d="M0 14 q45 -5 90 0 t70 1" />
+            <path d="M0 39 q40 5 80 0 t80 -2" />
+          </g>
+        </pattern>
+      ))}
+    </defs>
+  );
+};
+
+/* zwraca kopie materialow, w ktorej kolor plyty wskazuje na wzor slojow */
+const texMat = (mat, on, dir) => {
+  if (!on) return mat;
+  const out = { ...mat };
+  TEX_KEYS.forEach((k) => {
+    if (out[k] && out[k].color) out[k] = { ...out[k], color: `url(#${grainId(out[k].color, dir)})` };
+  });
+  return out;
+};
 
 const DimH = ({ x1, x2, y, label, c = DIMC, above = true }) => (
   <g>
@@ -1906,7 +2060,8 @@ const DimV = ({ y1, y2, x, label, c = DIMC, left = true }) => (
   </g>
 );
 
-function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels, showHardware }) {
+function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware }) {
+  const mat = texMat(matIn, cab.texture, cab.textureDir);
   // tryb wizualizacji: gdy fronty z tej samej plyty, pokaz realny kolor korpusu
   const frontColor = cab.realColors && cab.frontSameAsBoard !== false
     ? mat.board.color : mat.front.color;
@@ -1959,6 +2114,13 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels, showHa
   // wymiary wewnetrzne rysujemy w swietle kolumny, omijajac element staly
   const dimColX = (c) =>
     (c.fix && c.fix.side === "left" ? Math.max(c.x0, c.fix.x + c.fix.w) : c.x0) + 46;
+  // baza wymiarowania otworow pod kolki: dolna krawedz elementu, w ktory wiercimy
+  // (lewy bok dla pierwszej kolumny, inaczej przegroda po lewej stronie kolumny)
+  const pinRef = (c) => {
+    if (c.j === 0) return geo.leftY0;
+    const dv = geo.dividers.find((d) => Math.abs(d.x + t - c.x0) < 2 || Math.abs(d.x - (c.x0 - t)) < 2);
+    return dv ? dv.y1 - dv.h : geo.leftY0;
+  };
   const leftTopY = fy(geo.leftY0 + geo.leftLen);
   const leftBottomY = fy(geo.leftY0);
   const rightTopY = fy(geo.rightY0 + geo.rightLen);
@@ -1989,6 +2151,7 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels, showHa
 
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: 540 }}>
+      <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke="#e7e5e4" strokeWidth="1" />
 
       {/* boki, wieniec, dno */}
@@ -2043,6 +2206,25 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels, showHa
           ))
         )
       )}
+
+      {/* kolki podporowe pod polkami — os otworu na dolnej krawedzi polki */}
+      {open && showHardware && cab.shelfMount !== "confirmat" &&
+        geo.levels.flatMap((lv) =>
+          lv.cols.flatMap((c) =>
+            c.shelves.map((s, k) => (
+              <g key={`pin${lv.i}-${c.j}-${k}`}>
+                <circle cx={c.x0 + 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
+                <circle cx={c.x1 - 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
+                {showDims && (
+                  <text x={(c.x0 + c.x1) / 2} y={fy(s.y + t) - 7} textAnchor="middle" fontSize="17"
+                    fill={DIMC} fontFamily="ui-monospace, monospace">
+                    otw. {fmt(s.y - pinRef(c))}
+                  </text>
+                )}
+              </g>
+            ))
+          )
+        )}
 
       {/* wsporniki pionowe za elementem stalym */}
       {geo.levels.flatMap((lv) =>
@@ -2513,7 +2695,8 @@ function FrontView({ cab, geo, mat, open, showDims, showGaps, showLabels, showHa
   );
 }
 
-function RearView({ cab, geo, mat, showDims }) {
+function RearView({ cab, geo, mat: matIn, showDims }) {
+  const mat = texMat(matIn, cab.texture, cab.textureDir);
   const { W, H } = cab;
   const pad = 170;
   const rBelow = Math.max(
@@ -2565,6 +2748,7 @@ function RearView({ cab, geo, mat, showDims }) {
 
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: 540 }}>
+      <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       {/* korpus widziany od tylu */}
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
       {/* boki — widok od tylu, wiec lewy bok po prawej */}
@@ -2662,7 +2846,8 @@ function RearView({ cab, geo, mat, showDims }) {
   );
 }
 
-function TopView({ cab, geo, mat, showDims, showShelves, showHardware }) {
+function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) {
+  const mat = texMat(matIn, cab.texture, cab.textureDir);
   const { W, D } = cab;
   const pad = 160;
   // patrzymy z gory: X = szerokosc, Y (w dol na ekranie) = glebokosc, przod u dolu
@@ -2678,6 +2863,7 @@ function TopView({ cab, geo, mat, showDims, showShelves, showHardware }) {
 
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: 540 }}>
+      <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       {/* obrys korpusu z gory */}
       <rect x="0" y="0" width={W} height={cd} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
       {/* boki — skrocone przy narozniku z wycieciem/elementem */}
@@ -3092,7 +3278,8 @@ function TopView({ cab, geo, mat, showDims, showShelves, showHardware }) {
   );
 }
 
-function SideView({ cab, geo, mat, showDims, which, showHardware }) {
+function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
+  const mat = texMat(matIn, cab.texture, cab.textureDir);
   const sideRight = which === "right";
   const { H, D } = cab;
   const pad = 160;
@@ -3119,6 +3306,7 @@ function SideView({ cab, geo, mat, showDims, which, showHardware }) {
 
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: 540 }}>
+      <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       <rect x="0" y="0" width={D} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 8" />
       {(() => {
         const cut = (sideRight ? geo.cornerCut?.sideRightDepth : geo.cornerCut?.sideLeftDepth) || 0;
@@ -3858,7 +4046,8 @@ function nestPass(parts, sheetW, sheetH, mode, rule) {
       const hit = pickFreeRect(sheet.free, p.w, p.h, p.rotatable, rule);
       if (!hit) { k++; continue; }
       const r = sheet.free[hit.i];
-      sheet.parts.push({ name: p.name, x: r.x, y: r.y, w: hit.w, h: hit.h, rot: hit.rot });
+      sheet.parts.push({ name: p.name, x: r.x, y: r.y, w: hit.w, h: hit.h, rot: hit.rot,
+        grain: p.rotatable ? false : true });
       const pieces = splitFreeRect(r, hit.w, hit.h, mode);
       sheet.cuts += pieces.length;
       sheet.free.splice(hit.i, 1, ...pieces);
@@ -3970,6 +4159,21 @@ function SheetPlan({ sheet, sheetW, sheetH, index, total }) {
   const vb = `${-pad} ${-pad} ${sheetW + 2 * pad} ${sheetH + 2 * pad + 60}`;
   const used = sheet.parts.reduce((s, p) => s + p.w * p.h, 0);
   const pct = (used / (sheetW * sheetH)) * 100;
+  // slojenie biegnie wzdluz dluzszego boku arkusza; formatki z wymuszonym
+  // kierunkiem nie sa obracane, wiec ich sloje leza tak samo
+  const anyGrain = sheet.parts.some((p) => p.grain);
+  const grainArrow = (x, y, len) => {
+    const a = Math.min(len * 0.6, 300);
+    const x0 = x - a / 2;
+    const x1 = x + a / 2;
+    return (
+      <g opacity="0.55">
+        <line x1={x0} y1={y} x2={x1} y2={y} stroke={INK} strokeWidth="3" />
+        <path d={`M ${x0} ${y} l 16 -9 v 18 z`} fill={INK} />
+        <path d={`M ${x1} ${y} l -16 -9 v 18 z`} fill={INK} />
+      </g>
+    );
+  };
   return (
     <div className="rp-keep space-y-1">
       <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs">
@@ -3999,6 +4203,8 @@ function SheetPlan({ sheet, sheetW, sheetH, index, total }) {
                 </text>
               </>
             )}
+            {p.grain && p.w > 190 && p.h > 90 &&
+              grainArrow(p.x + p.w / 2, p.y + p.h - 34, p.w)}
           </g>
         ))}
         {(sheet.offcuts || [])
@@ -4019,6 +4225,7 @@ function SheetPlan({ sheet, sheetW, sheetH, index, total }) {
         <text x={sheetW / 2} y={sheetH + 52} textAnchor="middle" fontSize="44"
           fill={LINE} fontFamily="ui-monospace, monospace">
           {fmt(sheetW)} × {fmt(sheetH)} mm, rzaz {KERF} mm
+          {anyGrain ? " — ↔ kierunek słojów" : ""}
         </text>
       </svg>
     </div>
@@ -4267,17 +4474,28 @@ function ReportCutPlan({ project, projectName }) {
 function ReportProjectSheet({ project, projectName }) {
   const rows = useMemo(() => {
     const map = new Map();
-    project.items.forEach((it) => {
+    project.items.forEach((it, ci) => {
       const g = computeGeo(it.cab, it.mat);
+      const cabName = (it.cab.name || "").trim() || `Szafka ${ci + 1}`;
       g.panels.forEach((p) => {
         const m = it.mat[p.matKey] || {};
         const e = p.edges;
         const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name].join("|");
-        if (map.has(key)) map.get(key).qty += p.qty;
-        else map.set(key, { ...p, matName: m.name || p.matKey });
+        if (map.has(key)) {
+          const g2 = map.get(key);
+          g2.qty += p.qty;
+          g2.from.set(cabName, (g2.from.get(cabName) || 0) + p.qty);
+        } else {
+          map.set(key, { ...p, matName: m.name || p.matKey, from: new Map([[cabName, p.qty]]) });
+        }
       });
     });
-    return [...map.values()];
+    return [...map.values()].map((p) => ({
+      ...p,
+      fromLabel: [...p.from.entries()]
+        .map(([n, q]) => (p.from.size === 1 && q === p.qty ? n : `${n} × ${q}`))
+        .join(", "),
+    }));
   }, [project]);
   const totalQty = rows.reduce((s, p) => s + p.qty, 0);
   const edgeMm = rows.reduce((s, p) => {
@@ -4310,6 +4528,7 @@ function ReportProjectSheet({ project, projectName }) {
         <thead>
           <tr>
             <th>Element</th>
+            <th>Szafka</th>
             <th>Płyta</th>
             <th className="num">Długość</th>
             <th className="num">Szerokość</th>
@@ -4321,6 +4540,7 @@ function ReportProjectSheet({ project, projectName }) {
           {rows.map((p, i) => (
             <tr key={i}>
               <td>{p.name}</td>
+              <td>{p.fromLabel}</td>
               <td>{p.matName}</td>
               <td className="num">{fmt(p.a)}</td>
               <td className="num">{fmt(p.b)}</td>
@@ -4329,7 +4549,7 @@ function ReportProjectSheet({ project, projectName }) {
             </tr>
           ))}
           <tr>
-            <td colSpan={4} style={{ fontWeight: 600 }}>Razem</td>
+            <td colSpan={5} style={{ fontWeight: 600 }}>Razem</td>
             <td className="num" style={{ fontWeight: 600 }}>{totalQty}</td>
             <td>obrzeże {fmt(edgeMm / 1000)} mb</td>
           </tr>
@@ -4828,18 +5048,31 @@ export default function App() {
   // Rozne materialy (nazwa/kolor/grubosc) nie lacza sie mimo tych samych wymiarow.
   const projectCutList = useMemo(() => {
     const map = new Map();
-    project.items.forEach((it) => {
+    project.items.forEach((it, ci) => {
       const g = computeGeo(it.cab, it.mat);
+      const cabName = (it.cab.name || "").trim() || `Szafka ${ci + 1}`;
       g.panels.forEach((p) => {
         const m = it.mat[p.matKey] || {};
         const e = p.edges;
         const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name, !!it.cab.grainMatters].join("|");
-        if (map.has(key)) map.get(key).qty += p.qty;
-        else map.set(key, { ...p, matName: m.name || p.matKey, matColor: m.color,
-          rotatable: p.matKey === "back" || !it.cab.grainMatters });
+        if (map.has(key)) {
+          const g2 = map.get(key);
+          g2.qty += p.qty;
+          g2.from.set(cabName, (g2.from.get(cabName) || 0) + p.qty);
+        } else {
+          map.set(key, { ...p, matName: m.name || p.matKey, matColor: m.color,
+            from: new Map([[cabName, p.qty]]),
+            rotatable: p.matKey === "back" || !it.cab.grainMatters });
+        }
       });
     });
-    return [...map.values()];
+    // czytelny opis "z której szafki" — przy jednej szafce bez liczby
+    return [...map.values()].map((p) => ({
+      ...p,
+      fromLabel: [...p.from.entries()]
+        .map(([n, q]) => (p.from.size === 1 && q === p.qty ? n : `${n} × ${q}`))
+        .join(", "),
+    }));
   }, [project]);
 
   const projectEdgeMeters = useMemo(() => {
@@ -5866,6 +6099,35 @@ export default function App() {
             )}
           </Card>
 
+          <Card title="Montaż półek i zawieszenie" collapsible defaultOpen={false}>
+            <Field label="Półki w kolumnach"
+              hint={cab.shelfMount === "confirmat"
+                ? "skręcane na stałe — bez wierceń pod kołki"
+                : "przestawne na kołkach — 4 szt. na półkę"}>
+              <Seg value={cab.shelfMount === "confirmat" ? "confirmat" : "pins"}
+                onChange={(v) => set({ shelfMount: v })}
+                options={[{ v: "pins", l: "Kołki podporowe" }, { v: "confirmat", l: "Konfirmaty" }]} />
+            </Field>
+            {cab.shelfMount !== "confirmat" && (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Otwór od przodu">
+                  <Num value={cab.shelfPin?.dFront ?? 37}
+                    onChange={(v) => set({ shelfPin: { ...(cab.shelfPin || {}), dFront: v } })} />
+                </Field>
+                <Field label="Otwór od tyłu">
+                  <Num value={cab.shelfPin?.dBack ?? 37}
+                    onChange={(v) => set({ shelfPin: { ...(cab.shelfPin || {}), dBack: v } })} />
+                </Field>
+              </div>
+            )}
+            <Field label="Zawieszki ścienne"
+              hint="auto = szafka bez nóżek i bez cokołu jest traktowana jako wisząca">
+              <Seg value={cab.hangers === "always" || cab.hangers === "never" ? cab.hangers : "auto"}
+                onChange={(v) => set({ hangers: v })}
+                options={[{ v: "auto", l: "Auto" }, { v: "always", l: "Zawsze" }, { v: "never", l: "Nigdy" }]} />
+            </Field>
+          </Card>
+
           <Card title="Blenda nad szafką" collapsible defaultOpen={false}>
             <Check checked={!!cab.topFiller?.on}
               onChange={(v) => set({ topFiller: { ...(cab.topFiller || { height: 100 }), on: v } })}
@@ -5952,6 +6214,16 @@ export default function App() {
             ))}
             <Check checked={cab.grainMatters} onChange={(v) => set({ grainMatters: v })}
               label="Kierunek usłojenia ma znaczenie" />
+            <Check checked={!!cab.texture} onChange={(v) => set({ texture: v })}
+              label="Rysuj strukturę słojów zamiast gładkiego koloru" />
+            {cab.texture && (
+              <Field label="Kierunek struktury na rysunku"
+                hint="tylko wygląd rysunku — o rozkroju decyduje „kierunek usłojenia ma znaczenie”">
+                <Seg value={cab.textureDir === "h" ? "h" : "v"}
+                  onChange={(v) => set({ textureDir: v })}
+                  options={[{ v: "v", l: "Pionowo" }, { v: "h", l: "Poziomo" }]} />
+              </Field>
+            )}
           </Card>
         </div>
 
@@ -6295,6 +6567,7 @@ export default function App() {
                   <thead>
                     <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
                       <th className="py-2 pr-3 font-medium">Element</th>
+                      <th className="py-2 pr-3 font-medium">Szafka</th>
                       <th className="py-2 pr-3 font-medium">Płyta</th>
                       <th className="py-2 pr-3 text-right font-medium">Długość</th>
                       <th className="py-2 pr-3 text-right font-medium">Szerokość</th>
@@ -6312,6 +6585,7 @@ export default function App() {
                       return (
                         <tr key={i} className="border-b border-stone-100">
                           <td className="py-2 pr-3 font-sans">{p.name}</td>
+                          <td className="py-2 pr-3 font-sans text-xs text-stone-500">{p.fromLabel}</td>
                           <td className="py-2 pr-3 font-sans text-stone-500">
                             <span className="inline-flex items-center gap-1.5">
                               <span className="inline-block h-3 w-3 shrink-0 rounded-sm border border-stone-300"
