@@ -40,6 +40,16 @@ const PALETA = [
   ["Brąz", "#5b4433"],
 ];
 
+/* Ceny startowe z cennika rozkrojowni (netto, zł). Kazda da sie nadpisac
+   w karcie Wyceny — to tylko punkt wyjscia, zeby nie zaczynac od zer.
+   Oklejanie liczone jest za kazdy rozpoczety metr, stad zaokraglanie w gore. */
+const DEFAULT_PRICES = {
+  "plyta:Płyta laminowana 18": 181.38, // arkusz 2800 × 2100 × 18
+  ciecie: 42, // formatowanie jednego arkusza
+  obrzeze: 2.75, // obrzeze 22 × 2 mm, za mb
+  oklejanie: 7.2, // oklejanie prostoliniowe, za rozpoczety mb
+};
+
 const MIN_COL = 200; // najwezsza sensowna kolumna
 const MIN_LEVEL = 100; // najnizszy sensowny poziom przy auto-dodawaniu
 
@@ -68,6 +78,12 @@ const fmt = (n) => {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   const r = Math.round(n * 10) / 10;
   return Number.isInteger(r) ? String(r) : r.toFixed(1);
+};
+
+// kwoty pokazujemy z groszami — fmt zaokragla do dziesiatych i gubilby je
+const zl = (n) => {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return (Math.round(n * 100) / 100).toFixed(2);
 };
 
 const num = (v) =>
@@ -298,7 +314,8 @@ const loadProject = (d) => {
     items = [{ cab: migrateCab(d.cab), mat: migrateMat(d.mat) }];
   } else return null;
   const active = Math.min(Math.max(0, Math.round(d.active || 0)), items.length - 1);
-  const prices = d.prices && typeof d.prices === "object" ? d.prices : {};
+  // ceny domyslne wchodza pod spod — to, co uzytkownik wpisal, zawsze wygrywa
+  const prices = { ...DEFAULT_PRICES, ...(d.prices && typeof d.prices === "object" ? d.prices : {}) };
   const name = typeof d.name === "string" && d.name.trim() ? d.name : DEFAULT_PROJECT_NAME;
   return { name, items, active, prices };
 };
@@ -2258,7 +2275,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 <circle cx={c.x0 + 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
                 <circle cx={c.x1 - 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
                 {showDims && (
-                  <text x={(c.x0 + c.x1) / 2} y={fy(s.y + t) - 7} textAnchor="middle" fontSize="17"
+                  <text x={(c.x0 + c.x1) / 2} y={fy(s.y) + 24} textAnchor="middle" fontSize="17"
                     fill={DIMC} fontFamily="ui-monospace, monospace">
                     otw. {fmt(s.y - pinRef(c))}
                   </text>
@@ -4648,7 +4665,7 @@ export default function App() {
   // projekt = lista niezaleznych szafek (kazda ma swoj cab i mat) + aktywny indeks
   const [project, setProjectRaw] = useState({
     name: DEFAULT_PROJECT_NAME,
-    prices: {},
+    prices: { ...DEFAULT_PRICES },
     items: [{ cab: defaultCab, mat: defaultMaterials }],
     active: 0,
   });
@@ -5212,8 +5229,15 @@ export default function App() {
       });
     const sheetsTotal = planSheets ? Object.values(planSheets).reduce((a, b) => a + b, 0) : 0;
     if (sheetsTotal)
-      rows.push({ key: "ciecie", label: "Cięcie płyty", qty: sheetsTotal, unit: "ark.", price: priceOf("ciecie") });
-    rows.push({ key: "obrzeze", label: "Obrzeże PCV", qty: Math.round(projectEdgeMb * 10) / 10, unit: "mb", price: priceOf("obrzeze") });
+      rows.push({ key: "ciecie", label: "Formatowanie płyty", spec: "cięcie arkusza na formatki",
+        qty: sheetsTotal, unit: "ark.", price: priceOf("ciecie") });
+    rows.push({ key: "obrzeze", label: "Obrzeże 22 × 2 mm", spec: "materiał, dokładna długość",
+      qty: Math.round(projectEdgeMb * 10) / 10, unit: "mb", price: priceOf("obrzeze") });
+    // rozkrojownia liczy oklejanie za kazdy ROZPOCZETY metr, wiec w gore
+    if (projectEdgeMb > 0)
+      rows.push({ key: "oklejanie", label: "Oklejanie prostoliniowe",
+        spec: `usługa, ${fmt(Math.round(projectEdgeMb * 10) / 10)} mb w górę do pełnego metra`,
+        qty: Math.ceil(projectEdgeMb), unit: "mb", price: priceOf("oklejanie") });
     projectHardware.forEach((h) => {
       const k = "okucie:" + h.name + "|" + h.spec;
       rows.push({ key: k, label: h.name, spec: h.spec, qty: h.qty, unit: h.unit, price: priceOf(k) });
@@ -6811,9 +6835,15 @@ export default function App() {
               ) : null
             }>
             <p className="text-xs text-stone-500">
-              Ceny dotyczą całego projektu i zapisują się razem z nim. Płyta i cięcie liczone
-              są od arkusza, więc potrzebują policzonego rozkroju — obrzeże i okucia wyliczą
-              się od razu. Puste pole znaczy zero.
+              Ceny dotyczą całego projektu i zapisują się razem z nim. Płyta i formatowanie
+              liczone są od arkusza, więc potrzebują policzonego rozkroju — obrzeże, oklejanie
+              i okucia wyliczą się od razu. Puste pole znaczy zero, a szara podpowiedź w polu
+              to cena startowa z cennika rozkrojowni (netto).
+            </p>
+            <p className="text-xs text-stone-500">
+              Oklejanie rozkrojownia liczy za każdy <strong>rozpoczęty</strong> metr, dlatego
+              obrzeża zamawiasz co do dziesiątej części metra, a usługę w pełnych metrach
+              w górę.
             </p>
             {!cutPlan && (
               <p className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs"
@@ -6842,12 +6872,15 @@ export default function App() {
                       <td className="py-1.5 pr-3 text-right">
                         <input type="number" min={0} step="0.01"
                           value={prices[r.key] ?? ""}
-                          placeholder="0"
+                          placeholder={DEFAULT_PRICES[r.key] != null ? String(DEFAULT_PRICES[r.key]) : "0"}
+                          title={DEFAULT_PRICES[r.key] != null
+                            ? `Cena startowa z cennika: ${DEFAULT_PRICES[r.key]} zł netto`
+                            : "Wpisz cenę jednostkową netto"}
                           onChange={(e) => setPrice(r.key, e.target.value)}
                           className="w-24 rounded border border-stone-300 bg-white px-1.5 py-1 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />
                       </td>
                       <td className="py-1.5 text-right font-mono">
-                        {r.price ? fmt(Math.round(r.qty * r.price * 100) / 100) : "—"}
+                        {r.price ? zl(r.qty * r.price) : "—"}
                       </td>
                     </tr>
                   ))}
@@ -6856,7 +6889,7 @@ export default function App() {
             </div>
             <div className="flex items-baseline justify-between border-t border-stone-200 pt-3">
               <span className="text-xs uppercase tracking-wider text-stone-500">Razem</span>
-              <span className="font-mono text-lg">{fmt(Math.round(quote.sum * 100) / 100)}</span>
+              <span className="font-mono text-lg">{zl(quote.sum)} zł netto</span>
             </div>
           </Card>
 
