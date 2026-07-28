@@ -226,7 +226,11 @@ const defaultCab = {
   shelfMount: "pins",
   // odsuniecie osi otworu pod kolek od przedniej i tylnej krawedzi polki
   shelfPin: { dFront: 37, dBack: 37 },
+  // od czego liczymy wysokosc otworu: "panel" = dolna krawedz boku/przegrody
+  // (tak sie mierzy plyte na stole), "bottom" = dno szafki
+  pinDatum: "panel",
   hangers: "auto", // zawieszki do szafek wiszacych: auto / zawsze / nigdy
+  hangerMode: "listwa", // zawieszki mocowane na listwie albo wprost na haczyki
   grainMatters: false,
   texture: false, // rysuj strukture slojow zamiast plaskiego koloru
   textureDir: "v", // kierunek slojow na rysunku: v = pionowo, h = poziomo
@@ -1935,7 +1939,8 @@ function computeGeo(cab, mat) {
     const pin = cab.shelfPin || {};
     hardware.push({
       name: "Kołek podporowy ⌀5",
-      spec: `4 szt. na półkę, otwory ${fmt(num(pin.dFront) ?? 37)} mm od przodu i ${fmt(num(pin.dBack) ?? 37)} mm od tyłu półki`,
+      spec: `4 szt. na półkę, otwory ⌀5 — ${fmt(num(pin.dFront) ?? 37)} mm od przodu i ${fmt(num(pin.dBack) ?? 37)} mm od tyłu półki, wysokości na widoku otwartym liczone od ${
+        cab.pinDatum === "bottom" ? "dna" : "dolnej krawędzi boku"}`,
       qty: colShelves * 4,
       unit: "szt.",
     });
@@ -1952,12 +1957,21 @@ function computeGeo(cab, mat) {
       qty: nH,
       unit: "szt.",
     });
-    hardware.push({
-      name: "Listwa montażowa do zawieszek",
-      spec: `odcinek ${fmt(Math.max(0, W - 40))} mm na szafkę`,
-      qty: 1,
-      unit: "szt.",
-    });
+    // listwa montazowa jest opcjonalna — zawieszki moga isc wprost na haki
+    if (cab.hangerMode !== "haczyki")
+      hardware.push({
+        name: "Listwa montażowa do zawieszek",
+        spec: `odcinek ${fmt(Math.max(0, W - 40))} mm na szafkę`,
+        qty: 1,
+        unit: "szt.",
+      });
+    else
+      hardware.push({
+        name: "Hak / wkręt z kołkiem do ściany",
+        spec: "zawieszki wieszane bez listwy — po jednym na zawieszkę",
+        qty: nH,
+        unit: "szt.",
+      });
   }
 
   const slideSets = [...slideGroups.values()].reduce((a, b) => a + b, 0);
@@ -2068,7 +2082,13 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const { W, H } = cab;
   const pad = 160;
   const t = geo.t;
-  const belowExtra = Math.max(cab.legs?.on ? cab.legs.height || 100 : 0, geo.plinthH || 0) + 60;
+  // kolki pod polki: rysowane w widoku otwartym razem z okuciami
+  const showPins = open && showHardware && cab.shelfMount !== "confirmat";
+  const pinFromBottom = cab.pinDatum === "bottom";
+  const anyPins = showPins && geo.levels.some((lv) => lv.cols.some((c) => (c.shelves || []).length));
+  const pinLegend = anyPins && showDims;
+  const belowExtra = Math.max(cab.legs?.on ? cab.legs.height || 100 : 0, geo.plinthH || 0)
+    + 60 + (pinLegend ? 70 : 0);
   const hasBase = cab.legs?.on || cab.plinth.on;
   // wymiary rysowane tuz przy szafce (boki, cokol, nozki) wymuszaja odsuniecie
   // wymiarow wysokosci dalej w lewo, zeby etykiety sie nie nakladaly
@@ -2111,12 +2131,17 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const ff = frontColor;
   const topY = 0;
   const bottomY = fy(geo.bottomY + t);
-  // wymiary wewnetrzne rysujemy w swietle kolumny, omijajac element staly
+  // wymiary wewnetrzne rysujemy w swietle kolumny, omijajac element staly;
+  // gdy widac okucia, odsuwamy je dalej, zeby nie wchodzily na opisy zawiasow
   const dimColX = (c) =>
-    (c.fix && c.fix.side === "left" ? Math.max(c.x0, c.fix.x + c.fix.w) : c.x0) + 46;
-  // baza wymiarowania otworow pod kolki: dolna krawedz elementu, w ktory wiercimy
-  // (lewy bok dla pierwszej kolumny, inaczej przegroda po lewej stronie kolumny)
+    (c.fix && c.fix.side === "left" ? Math.max(c.x0, c.fix.x + c.fix.w) : c.x0)
+    + (open && showHardware ? 116 : 46);
+  // baza wymiarowania otworow pod kolki. Domyslnie dolna krawedz elementu,
+  // w ktory wiercimy (lewy bok dla pierwszej kolumny, inaczej przegroda po jej
+  // lewej stronie) — tak sie mierzy plyte lezaca na stole. W trybie "od dna"
+  // liczymy od gornego lica dna, a przy jego braku od spodu wnetrza.
   const pinRef = (c) => {
+    if (pinFromBottom) return geo.interior.y0;
     if (c.j === 0) return geo.leftY0;
     const dv = geo.dividers.find((d) => Math.abs(d.x + t - c.x0) < 2 || Math.abs(d.x - (c.x0 - t)) < 2);
     return dv ? dv.y1 - dv.h : geo.leftY0;
@@ -2208,7 +2233,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       )}
 
       {/* kolki podporowe pod polkami — os otworu na dolnej krawedzi polki */}
-      {open && showHardware && cab.shelfMount !== "confirmat" &&
+      {showPins &&
         geo.levels.flatMap((lv) =>
           lv.cols.flatMap((c) =>
             c.shelves.map((s, k) => (
@@ -2225,6 +2250,16 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             ))
           )
         )}
+
+      {/* legenda — bez niej sama liczba nie mowi, od czego jest mierzona */}
+      {pinLegend && (
+        <text x={W / 2} y={H + geo.plinthH + (hasBase ? 160 : 150)} textAnchor="middle"
+          fontSize="19" fill={DIMC} fontFamily="ui-monospace, monospace">
+          otw. — oś otworu ⌀5 pod kołek, od {pinFromBottom
+            ? (geo.hasBot ? "górnego lica dna" : "spodu wnętrza")
+            : "dolnej krawędzi boku / przegrody"}
+        </text>
+      )}
 
       {/* wsporniki pionowe za elementem stalym */}
       {geo.levels.flatMap((lv) =>
@@ -6109,16 +6144,26 @@ export default function App() {
                 options={[{ v: "pins", l: "Kołki podporowe" }, { v: "confirmat", l: "Konfirmaty" }]} />
             </Field>
             {cab.shelfMount !== "confirmat" && (
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Otwór od przodu">
-                  <Num value={cab.shelfPin?.dFront ?? 37}
-                    onChange={(v) => set({ shelfPin: { ...(cab.shelfPin || {}), dFront: v } })} />
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Otwór od przodu">
+                    <Num value={cab.shelfPin?.dFront ?? 37}
+                      onChange={(v) => set({ shelfPin: { ...(cab.shelfPin || {}), dFront: v } })} />
+                  </Field>
+                  <Field label="Otwór od tyłu">
+                    <Num value={cab.shelfPin?.dBack ?? 37}
+                      onChange={(v) => set({ shelfPin: { ...(cab.shelfPin || {}), dBack: v } })} />
+                  </Field>
+                </div>
+                <Field label="Wysokość otworów liczona od"
+                  hint={cab.pinDatum === "bottom"
+                    ? "od górnego lica dna, a przy jego braku od spodu wnętrza — tak jak patrzysz na gotową szafkę"
+                    : "od dolnej krawędzi boku lub przegrody — tak mierzysz płytę leżącą na stole"}>
+                  <Seg value={cab.pinDatum === "bottom" ? "bottom" : "panel"}
+                    onChange={(v) => set({ pinDatum: v })}
+                    options={[{ v: "panel", l: "Krawędzi boku" }, { v: "bottom", l: "Dna szafki" }]} />
                 </Field>
-                <Field label="Otwór od tyłu">
-                  <Num value={cab.shelfPin?.dBack ?? 37}
-                    onChange={(v) => set({ shelfPin: { ...(cab.shelfPin || {}), dBack: v } })} />
-                </Field>
-              </div>
+              </>
             )}
             <Field label="Zawieszki ścienne"
               hint="auto = szafka bez nóżek i bez cokołu jest traktowana jako wisząca">
@@ -6126,6 +6171,16 @@ export default function App() {
                 onChange={(v) => set({ hangers: v })}
                 options={[{ v: "auto", l: "Auto" }, { v: "always", l: "Zawsze" }, { v: "never", l: "Nigdy" }]} />
             </Field>
+            {cab.hangers !== "never" && (
+              <Field label="Zawieszki mocowane"
+                hint={cab.hangerMode === "haczyki"
+                  ? "bez listwy — każda zawieszka na własnym haku lub wkręcie"
+                  : "na listwie przykręconej do ściany na całej szerokości szafki"}>
+                <Seg value={cab.hangerMode === "haczyki" ? "haczyki" : "listwa"}
+                  onChange={(v) => set({ hangerMode: v })}
+                  options={[{ v: "listwa", l: "Na listwie" }, { v: "haczyki", l: "Na haczykach" }]} />
+              </Field>
+            )}
           </Card>
 
           <Card title="Blenda nad szafką" collapsible defaultOpen={false}>
