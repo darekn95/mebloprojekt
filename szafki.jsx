@@ -1903,6 +1903,70 @@ function computeGeo(cab, mat) {
   });
   const geoOb = geoObs[0] || null;
 
+  /* --- wiercenia: co i na jakiej wysokosci na kazdej plycie ---
+     Wszystko mierzone od DOLNEJ KRAWEDZI wierconej plyty, bo tak sie ja
+     kladzie na stole. Zawias i prowadnica siedza na tej samej wysokosci po
+     obu stronach kolumny, wiec wpisujemy je do obu plyt. */
+  const drillMap = new Map();
+  const drillKey = (lvI, name) => (levels.length > 1 ? `Poziom ${lvI + 1} — ${name}` : name);
+  const drillAdd = (lvI, name, base, kind, y, note) => {
+    const key = drillKey(lvI, name);
+    if (!drillMap.has(key)) drillMap.set(key, { panel: key, holes: [] });
+    drillMap.get(key).holes.push({ kind, y: Math.round(y - base), note });
+  };
+  const panelsOfCol = (lv, c) => {
+    const last = lv.cols.length - 1;
+    return {
+      left: { name: c.j === 0 ? "Bok lewy" : `Przegroda ${c.j}`, base: c.j === 0 ? leftY0 : lv.y0 },
+      right: { name: c.j === last ? "Bok prawy" : `Przegroda ${c.j + 1}`, base: c.j === last ? rightY0 : lv.y0 },
+    };
+  };
+  {
+    const pin = cab.shelfPin || {};
+    const pinNote = `⌀5, ${fmt(num(pin.dFront) ?? 37)} mm od przodu i ${fmt(num(pin.dBack) ?? 37)} mm od tyłu półki`;
+    levels.forEach((lv) =>
+      lv.cols.forEach((c) => {
+        const p = panelsOfCol(lv, c);
+        if (cab.shelfMount !== "confirmat")
+          (c.shelves || []).forEach((s) => {
+            drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, pinNote);
+            drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNote);
+          });
+        (c.drawers || []).forEach((dr) => {
+          if (!dr.rail) return;
+          const note = `dolna krawędź prowadnicy, NL ${fmt(dr.rail.d)}`
+            + (dr.rail.setback ? `, cofnięta ${fmt(dr.rail.setback)} mm od lica` : "");
+          drillAdd(lv.i, p.left.name, p.left.base, "prowadnica", dr.rail.y0, note);
+          drillAdd(lv.i, p.right.name, p.right.base, "prowadnica", dr.rail.y0, note);
+        });
+      })
+    );
+    doors.forEach((d) => {
+      if (d.type !== "door" || !(d.hingePts || []).length) return;
+      const lv = levels[d.lvl];
+      const c = lv && lv.cols[d.colJ];
+      if (!c) return;
+      const p = panelsOfCol(lv, c);
+      const side = d.hingeSide === "left" ? p.left : p.right;
+      const note = "oś zawiasu — puszka ⌀35 we froncie, prowadnik na płycie";
+      d.hingePts.forEach((hy) => drillAdd(lv.i, side.name, side.base, "zawias", hy, note));
+    });
+  }
+  // scalamy powtorki (te same wysokosci z sasiadujacych kolumn) i porzadkujemy
+  const drillPlan = [...drillMap.values()].map((p) => {
+    const by = new Map();
+    p.holes.forEach((h) => {
+      const k = `${h.kind}|${h.note}`;
+      if (!by.has(k)) by.set(k, { kind: h.kind, note: h.note, ys: [] });
+      const g = by.get(k);
+      if (!g.ys.includes(h.y)) g.ys.push(h.y);
+    });
+    return {
+      panel: p.panel,
+      rows: [...by.values()].map((g) => ({ ...g, ys: g.ys.sort((a, b) => a - b) })),
+    };
+  });
+
   /* --- produkty do zamowienia --- */
   const hardware = [];
   slideGroups.forEach((qty, k) => {
@@ -2002,13 +2066,28 @@ function computeGeo(cab, mat) {
       qty: 4,
       unit: "szt.",
     });
-  if (cab.plinth && cab.plinth.on)
-    hardware.push({
-      name: "Złączka do cokołu",
-      spec: "klips albo kątownik — po jednym na każdy koniec cokołu",
-      qty: 2,
-      unit: "szt.",
-    });
+  if (cab.plinth && cab.plinth.on) {
+    if (cab.legs && cab.legs.on) {
+      hardware.push({
+        name: "Złączka do cokołu",
+        spec: "klips na nóżkę — po jednym na każdy koniec cokołu",
+        qty: 2,
+        unit: "szt.",
+      });
+    } else {
+      /* Bez nozek cokol jest skrecany do korpusu na plastikowe trojkaty:
+         po jednym na kazdym krotkim boku plus wzdluz dlugiego co ok. 300 mm,
+         nie mniej niz dwa. */
+      const plinthLen = Math.round(plinthInBody ? innerW : W);
+      const alongLong = Math.max(2, Math.ceil(plinthLen / 300));
+      hardware.push({
+        name: "Trójkąt meblarski",
+        spec: `cokół skręcany bez nóżek: 2 na krótkie boki + ${alongLong} wzdłuż ${fmt(plinthLen)} mm (co ok. 300 mm)`,
+        qty: 2 + alongLong,
+        unit: "szt.",
+      });
+    }
+  }
 
   if (shelfPins && colShelves) {
     const pin = cab.shelfPin || {};
@@ -2049,15 +2128,7 @@ function computeGeo(cab, mat) {
       });
   }
 
-  const slideSets = [...slideGroups.values()].reduce((a, b) => a + b, 0);
-  const screwQty = hingeCount * 4 + slideSets * 10;
-  if (screwQty)
-    hardware.push({
-      name: "Wkręt 4 × 16",
-      spec: `do zawiasów (4 na sztukę) i prowadnic (10 na komplet)`,
-      qty: screwQty,
-      unit: "szt.",
-    });
+  // wkretow do zawiasow i prowadnic nie liczymy — ida w komplecie z okuciem
 
   // plecy przybijane — we frezie trzymaja sie same
   if (hasBack && !grooved) {
@@ -2077,7 +2148,7 @@ function computeGeo(cab, mat) {
     plinthInBody, plinthH, bottomY, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
-    isBlat, blat, blatDepth, blatInside, W,
+    isBlat, blat, blatDepth, blatInside, W, drillPlan,
     topX0, topX1, botX0, botX1, divOv,
   };
 }
@@ -4493,6 +4564,39 @@ function ReportSheet({ cab, mat, projectName, index, total }) {
             </tbody>
           </table>
         )}
+
+        {(geo.drillPlan || []).length > 0 && (
+          <>
+            <div style={{ fontSize: "10pt", fontWeight: 600, margin: "10px 0 4px" }}>
+              Wiercenia
+            </div>
+            <div style={{ fontSize: "8.5pt", color: "#78716c", marginBottom: 3 }}>
+              Wysokości liczone od dolnej krawędzi wierconej płyty — tak, jak leży na stole.
+            </div>
+            <table className="rp-tbl">
+              <thead>
+                <tr>
+                  <th>Płyta</th>
+                  <th>Otwory pod</th>
+                  <th>Wysokości [mm]</th>
+                  <th>Uwagi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {geo.drillPlan.flatMap((p) =>
+                  p.rows.map((r, k) => (
+                    <tr key={p.panel + r.kind + k}>
+                      <td>{k === 0 ? p.panel : ""}</td>
+                      <td>{r.kind}</td>
+                      <td className="num">{r.ys.map((v) => fmt(v)).join(", ")}</td>
+                      <td>{r.note}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </>
+        )}
       </section>
     </>
   );
@@ -5138,6 +5242,21 @@ export default function App() {
     const n = autoShelves(inner, geo.t);
     editLevels((L) => (L[i].cols[j].shelfTargets = Array(n + 1).fill(null)));
   };
+  /* To samo dla calej szafki — po zmianie wysokosci wygodniej klinkac raz. */
+  const fitShelvesAll = () =>
+    editLevels((L) =>
+      geo.levels.forEach((lv) => {
+        const inner = lv.y1 - lv.y0;
+        const n = autoShelves(inner, geo.t);
+        lv.cols.forEach((c) => {
+          const col = L[lv.i] && L[lv.i].cols[c.j];
+          // szuflady i blendy nie maja polek, wiec ich nie ruszamy
+          if (col && col.kind !== "drawers" && col.kind !== "blenda")
+            col.shelfTargets = Array(n + 1).fill(null);
+        });
+      })
+    );
+
   // liczba polek = liczba swiatel minus 1, wiec dodanie polki to dodanie swiatla
   const addShelf = (i, j) =>
     editLevels((L) => L[i].cols[j].shelfTargets.push(null));
@@ -5583,7 +5702,14 @@ export default function App() {
           </Card>
 
           <Card title="Struktura wnętrza" collapsible
-            right={<MiniBtn onClick={addLevel}>+ poziom</MiniBtn>}>
+            right={
+              <div className="flex items-center gap-2">
+                <button onClick={fitShelvesAll}
+                  title={`Przelicz półki we wszystkich kolumnach — tyle, ile się mieści przy świetle co najmniej ${MIN_OPENING} mm`}
+                  className="text-xs text-teal-700 hover:underline">dopasuj półki</button>
+                <MiniBtn onClick={addLevel}>+ poziom</MiniBtn>
+              </div>
+            }>
             <p className="text-xs text-stone-500">
               Poziomy rozdziela półka na całą szerokość. W poziomie możesz postawić przegrodę
               i podzielić go na kolumny. Puste pole wymiaru znaczy „podziel resztę równo".
