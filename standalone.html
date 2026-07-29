@@ -224,6 +224,21 @@ const newRail = () => ({
   reducesDoor: false,
 });
 
+/* Ile polek wrzucic do swiezej szafki. Zamiast sztywnej trojki bierzemy tyle,
+   ile zmiesci sie przy zachowaniu sensownego swiatla — niska szafka dostanie
+   jedna polke, slupek kilka. Uzytkownik i tak moze dolozyc albo usunac. */
+const MIN_OPENING = 250; // najmniejsze swiatlo miedzy polkami przy auto-doborze
+
+const autoShelves = (innerH, t = 18, minOpen = MIN_OPENING) => {
+  let n = 0;
+  while (n < 20 && (innerH - (n + 1) * t) / (n + 2) >= minOpen) n++;
+  return n;
+};
+
+/* Swiatlo w pionie bez wnikania w kolumny — tyle wystarczy do doboru polek. */
+const innerHeightOf = (H, { t = 18, plinth = 0, hasBot = true, hasTop = true } = {}) =>
+  H - (hasBot ? t : 0) - (hasTop ? t : 0) - plinth;
+
 const newColumn = (doors = 1, shelves = 0) => ({
   w: null,
   kind: "doors",
@@ -268,7 +283,7 @@ const defaultCab = {
   gaps: { edge: 2, between: 2, top: 2, bottom: 2, inset: 2, divOverlay: 8 },
   maxGap: 5,
   shelfExtraSetback: 0,
-  levels: [newLevel(2, 3)],
+  levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
   plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
   // wieniec jako blat: wystaje poza boki i poza lico korpusu, a fronty
   // konczą sie pod nim
@@ -359,7 +374,8 @@ const TEMPLATES = [
     make: () => ({
       W: 600, H: 720, D: 500,
       plinth: { on: true, height: 100, mode: "inbody", setback: 0 },
-      levels: [newLevel(2, 3)],
+      // cokol w bryle zjada swiatlo, wiec polek wychodzi mniej
+      levels: [newLevel(2, autoShelves(innerHeightOf(720, { plinth: 100 })))],
     }),
   },
   {
@@ -370,7 +386,7 @@ const TEMPLATES = [
       W: 600, H: 720, D: 300,
       plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
       legs: { on: false, height: 100 },
-      levels: [newLevel(2, 2)],
+      levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
     }),
   },
   {
@@ -5124,6 +5140,17 @@ export default function App() {
 
   const clearColOpenings = (i, j) =>
     editLevels((L) => (L[i].cols[j].shelfTargets = L[i].cols[j].shelfTargets.map(() => null)));
+  /* Przelicza liczbe polek tak, jakby kolumna powstawala od nowa: tyle, ile
+     zmiesci sie przy swietle co najmniej MIN_OPENING. Wysokosc kolumny bierzemy
+     z policzonej geometrii, wiec cokol, wieniec i poziomy sa juz odliczone. */
+  const fitShelves = (i, j) => {
+    const col = geo.levels[i] && geo.levels[i].cols[j];
+    if (!col) return;
+    const lv = geo.levels[i];
+    const inner = lv.y1 - lv.y0;
+    const n = autoShelves(inner, geo.t);
+    editLevels((L) => (L[i].cols[j].shelfTargets = Array(n + 1).fill(null)));
+  };
   // liczba polek = liczba swiatel minus 1, wiec dodanie polki to dodanie swiatla
   const addShelf = (i, j) =>
     editLevels((L) => L[i].cols[j].shelfTargets.push(null));
@@ -5923,6 +5950,9 @@ export default function App() {
                               <MiniBtn onClick={() => addShelf(lv.i, c.j)} tone="accent">+ półka</MiniBtn>
                               <button onClick={() => clearColOpenings(lv.i, c.j)}
                                 className="text-[11px] text-teal-700 hover:underline">wszystkie równo</button>
+                              <button onClick={() => fitShelves(lv.i, c.j)}
+                                title={`Tyle półek, ile się mieści przy świetle co najmniej ${MIN_OPENING} mm`}
+                                className="text-[11px] text-teal-700 hover:underline">dopasuj do wysokości</button>
                             </div>
                           </div>
                         )}
