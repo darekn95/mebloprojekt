@@ -28,6 +28,7 @@ const PALETA = [
    Oklejanie liczone jest za kazdy rozpoczety metr, stad zaokraglanie w gore. */
 const DEFAULT_PRICES = {
   "plyta:Płyta laminowana 18": 223.1, // arkusz 2800 × 2100 × 18
+  "plyta:HDF 3": 70, // arkusz pleców
   ciecie: 51.66, // formatowanie jednego arkusza
   obrzeze: 3.38, // obrzeze 22 × 2 mm, za mb
   oklejanie: 8.86, // oklejanie prostoliniowe, za rozpoczety mb
