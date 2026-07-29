@@ -272,7 +272,7 @@ const defaultCab = {
   plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
   // wieniec jako blat: wystaje poza boki i poza lico korpusu, a fronty
   // konczą sie pod nim
-  top: { mode: "wieniec", overL: 0, overR: 0, overFront: 0, overBack: 0 },
+  top: { mode: "wieniec", widthMode: "outside", overL: 0, overR: 0, overFront: 0, overBack: 0 },
   topFiller: { on: false, height: 100 }, // zaslepka nad szafka (do sufitu / maskownica)
   extraParts: [], // formatki dopisane recznie, poza geometria szafki
   note: "", // notatka montazowa — trafia do zestawienia
@@ -307,7 +307,7 @@ const defaultCab = {
 const migrateCab = (rawCab) => {
   const merged = { ...defaultCab, ...(rawCab || {}), version: defaultCab.version };
   if (!merged.top || typeof merged.top !== "object")
-    merged.top = { mode: "wieniec", overL: 0, overR: 0, overFront: 0, overBack: 0 };
+    merged.top = { mode: "wieniec", widthMode: "outside", overL: 0, overR: 0, overFront: 0, overBack: 0 };
   if (!Array.isArray(merged.extraParts)) merged.extraParts = [];
   ["cutout", "cutoutR", "obstacle", "backGroove", "plinth", "topFiller", "legs", "gaps", "joints", "shelfPin"].forEach((k) => {
     if (defaultCab[k] && typeof defaultCab[k] === "object")
@@ -383,7 +383,7 @@ const TEMPLATES = [
       col.shelfTargets = [null];
       return {
         W: 1200, H: 750, D: 600,
-        top: { mode: "blat", overL: 50, overR: 50, overFront: 30, overBack: 0 },
+        top: { mode: "blat", widthMode: "inside", overL: 50, overR: 50, overFront: 30, overBack: 0 },
         joints: { topL: "over", topR: "over", botL: "none", botR: "none" },
         back: "none",
         plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
@@ -408,10 +408,38 @@ function computeGeo(cab, mat) {
   // plyta na plecy ma grubosc korpusu, HDF swoja wlasna
   const tb = backIsBoard ? mat.board.thickness : mat.back.thickness;
   const backPos = cab.backPos === "outside" ? "outside" : "inside";
-  const { W, H, D } = cab;
+  const { H, D } = cab;
+
+  // dno i wieniec: kazde zlacze osobno — "between" = plyta miedzy bokami, "over" = plyta na boku
+  const J = cab.joints || {};
+  const legacy = (m) => (m === "outside" || m === "under" ? "over" : "between");
+  const topL = J.topL || legacy(cab.topMode);
+  const topR = J.topR || legacy(cab.topMode);
+  const botL = J.botL || legacy(cab.bottomMode);
+  const botR = J.botR || legacy(cab.bottomMode);
+  // "none" = brak panelu (wieniec/dno). Boki i tak stoja na pelnej wysokosci.
+  const rawTop = cab.top || {};
+  const ov = (v) => Math.max(0, Math.round(num(v) ?? 0));
+  const hasTop = topL !== "none" && topR !== "none";
+  // blat lezy na bokach jak wieniec "na boku", ale ma wlasny obrys
+  const isBlat = hasTop && rawTop.mode === "blat";
+  const blat = isBlat
+    ? { overL: ov(rawTop.overL), overR: ov(rawTop.overR), overFront: ov(rawTop.overFront), overBack: ov(rawTop.overBack) }
+    : null;
+  const hasBot = botL !== "none" && botR !== "none";
+
+  /* Szerokosc blatu: "outside" (domyslnie) — W to korpus, blat wystaje poza
+     niego; "inside" — W to calkowita szerokosc mebla, a boki chowaja sie do
+     srodka o wysuniecia. Reszta silnika liczy jak zwykle od szerokosci
+     korpusu, wiec wystarczy podmienic ja tutaj. */
+  const blatInside = isBlat && rawTop.widthMode === "inside";
+  const W = blatInside ? cab.W - blat.overL - blat.overR : cab.W;
   const g = cab.gaps;
   const msgs = [];
   const add = (level, text) => msgs.push({ level, text });
+
+  if (blatInside && W <= 2 * t)
+    add("error", `Wysunięcia blatu (${fmt(blat.overL)} + ${fmt(blat.overR)} mm) zjadają całą szerokość ${fmt(cab.W)} mm — na korpus nic nie zostaje.`);
 
   const gr = cab.backGroove || { on: false, offset: 16, depth: 4, play: 1 };
   const grooved = cab.back === "hdf" && !!gr.on;
@@ -444,24 +472,6 @@ function computeGeo(cab, mat) {
   if (W <= 2 * t) add("error", "Szerokość jest mniejsza niż dwie grubości płyty.");
   if (H <= 2 * t) add("error", "Wysokość jest mniejsza niż dwie grubości płyty.");
   if (carcassDepth <= 0) add("error", "Głębokość korpusu wychodzi zero lub mniej.");
-
-  // dno i wieniec: kazde zlacze osobno — "between" = plyta miedzy bokami, "over" = plyta na boku
-  const J = cab.joints || {};
-  const legacy = (m) => (m === "outside" || m === "under" ? "over" : "between");
-  const topL = J.topL || legacy(cab.topMode);
-  const topR = J.topR || legacy(cab.topMode);
-  const botL = J.botL || legacy(cab.bottomMode);
-  const botR = J.botR || legacy(cab.bottomMode);
-  // "none" = brak panelu (wieniec/dno). Boki i tak stoja na pelnej wysokosci.
-  const rawTop = cab.top || {};
-  const ov = (v) => Math.max(0, Math.round(num(v) ?? 0));
-  const hasTop = topL !== "none" && topR !== "none";
-  // blat lezy na bokach jak wieniec "na boku", ale ma wlasny obrys
-  const isBlat = hasTop && rawTop.mode === "blat";
-  const blat = isBlat
-    ? { overL: ov(rawTop.overL), overR: ov(rawTop.overR), overFront: ov(rawTop.overFront), overBack: ov(rawTop.overBack) }
-    : null;
-  const hasBot = botL !== "none" && botR !== "none";
 
   const topOverL = isBlat || topL === "over";
   const topOverR = isBlat || topR === "over";
@@ -2068,7 +2078,7 @@ function computeGeo(cab, mat) {
     plinthInBody, plinthH, bottomY, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
-    isBlat, blat, blatDepth,
+    isBlat, blat, blatDepth, blatInside, W,
     topX0, topX1, botX0, botX1, divOv,
   };
 }
@@ -2145,7 +2155,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // tryb wizualizacji: gdy fronty z tej samej plyty, pokaz realny kolor korpusu
   const frontColor = cab.realColors && cab.frontSameAsBoard !== false
     ? mat.board.color : mat.front.color;
-  const { W, H } = cab;
+  const { H } = cab;
+  const W = geo.W;
   const pad = 160;
   const t = geo.t;
   // kolki pod polki: rysowane w widoku otwartym razem z okuciami
@@ -2798,7 +2809,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
 
 function RearView({ cab, geo, mat: matIn, showDims }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
-  const { W, H } = cab;
+  const { H } = cab;
+  const W = geo.W;
   const pad = 170;
   const rBelow = Math.max(
     cab.legs?.on ? cab.legs.height || 100 : 0,
@@ -2949,7 +2961,8 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
 
 function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
-  const { W, D } = cab;
+  const { D } = cab;
+  const W = geo.W;
   const pad = 160;
   // patrzymy z gory: X = szerokosc, Y (w dol na ekranie) = glebokosc, przod u dolu
   const frontExtra = cab.frontMode === "overlay" ? geo.tf : 0;
@@ -3652,7 +3665,8 @@ const rotAboutY = (p, ang, ox, oz) => {
 function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
   const t = geo.t;
   const cd = geo.carcassDepth;
-  const { W, H } = cab;
+  const { H } = cab;
+  const W = geo.W;
   const bf = mat.board.color;
   const ff = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
 
@@ -5460,6 +5474,16 @@ export default function App() {
                 onChange={(v) => set({ top: { ...(cab.top || {}), mode: v } })}
                 options={[{ v: "wieniec", l: "Wieniec" }, { v: "blat", l: "Blat" }]} />
             </Field>
+            {(cab.top || {}).mode === "blat" && (
+              <Field label="Podana szerokość to"
+                hint={geo.blatInside
+                  ? `Boki chowają się do środka: blat ${fmt(cab.W)} mm, korpus ${fmt(geo.W)} mm.`
+                  : `Blat wystaje poza korpus: korpus ${fmt(geo.W)} mm, blat ${fmt(geo.topX1 - geo.topX0)} mm.`}>
+                <Seg value={(cab.top || {}).widthMode === "inside" ? "inside" : "outside"}
+                  onChange={(v) => set({ top: { ...(cab.top || {}), widthMode: v } })}
+                  options={[{ v: "outside", l: "Szerokość korpusu" }, { v: "inside", l: "Szerokość blatu" }]} />
+              </Field>
+            )}
             {(cab.top || {}).mode === "blat" && (
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Wysunięcie w lewo">
