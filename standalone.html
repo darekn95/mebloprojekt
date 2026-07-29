@@ -3274,6 +3274,10 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) 
               // bryla w narozniku wchodzi w plyte boku — wtedy mierzymy od krawedzi szafki
               const cols = geo.levels[0]?.cols || [];
               const host = cols.find((c) => o.ox0 >= c.x0 - 1 && o.ox1 <= c.x1 + 1);
+              // bryla przy boku wchodzi w plyte, wiec nie miesci sie w zadnej
+              // kolumnie — do wymiaru wolnej glebokosci wystarczy ta, ktora
+              // zachodzi, inaczej zabudowa zostawala bez zwymiarowania
+              const hostAny = host || cols.find((c) => Math.min(c.x1, o.ox1) - Math.max(c.x0, o.ox0) > 0);
               const colX0 = host ? host.x0 : 0;
               const colX1 = host ? host.x1 : W;
               const dL = Math.round(o.ox0 - colX0);
@@ -3301,10 +3305,10 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) 
                       label={`${fmt(dR)}`} above={false} c="#6d28d9" />
                   )}
                   {/* wolna przestrzen po zabudowie — tylko w kolumnach z polkami */}
-                  {host && host.kind !== "drawers" && o.mask && (() => {
+                  {hostAny && hostAny.kind !== "drawers" && o.mask && (() => {
                     const gb = o;
-                    const wallL = gb.touchLeft ? host.x0 : o.ox0 - geo.t;
-                    const wallR = gb.touchRight ? host.x1 : o.ox1 + geo.t;
+                    const wallL = gb.touchLeft ? hostAny.x0 : o.ox0 - geo.t;
+                    const wallR = gb.touchRight ? hostAny.x1 : o.ox1 + geo.t;
                     const myEnd = o.oz1 + (o.mask ? geo.t : 0);
                     const frontFree = Math.round(cd - myEnd);
                     return (
