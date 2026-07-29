@@ -43,7 +43,10 @@ const PALETA = [
 /* Nazwa materialu sklada sie sama: typ z pola nazwy, kolor z palety i grubosc
    tylko wtedy, gdy ta sama plyta wystepuje w projekcie w kilku grubosciach. */
 const PALETA_BY_HEX = new Map(PALETA.map(([n, h]) => [h.toLowerCase(), n]));
-const colorName = (hex) => PALETA_BY_HEX.get(String(hex || "").toLowerCase()) || "kolor własny";
+const paletteName = (hex) => PALETA_BY_HEX.get(String(hex || "").toLowerCase()) || null;
+// kolor spoza wzornika trzeba nazwac samemu, inaczej do zamowienia poszloby
+// bezuzyteczne "kolor wlasny"
+const colorLabel = (m) => ((m && m.decor) || "").trim() || paletteName(m && m.color) || "kolor własny";
 const COLORED_KEYS = ["board", "front", "shelf"];
 
 /* Nozki: kolor z palety okuc i ksztalt — kwadratowa albo okragla. */
@@ -74,7 +77,7 @@ const ambiguousThickness = (mats) => {
 
 const matLabelOf = (m, key, ambiguous) => {
   const parts = [((m && m.name) || "").trim() || key];
-  if (COLORED_KEYS.includes(key)) parts.push(colorName(m && m.color));
+  if (COLORED_KEYS.includes(key)) parts.push(colorLabel(m));
   if (ambiguous && ambiguous.has(((m && m.name) || "").trim())) parts.push(String(m.thickness));
   return parts.join(" ");
 };
@@ -127,6 +130,7 @@ const DEFAULT_HW_PRICES = {
   "Złączka do cokołu": 0.3,
   "Lustro na drzwiach": 200, // za m²
   "Zszywka / gwoździk do pleców": 0.05,
+  "Wkręt 3,5 × 30 do pleców": 0.05,
 };
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
@@ -139,7 +143,8 @@ const hwDefaultPrice = (h) => {
     const nl = Number((/(\d+)/.exec(h.spec || "") || [])[1]) || 0;
     return (bands.find((b) => nl <= b.maxNl) || bands[bands.length - 1]).price;
   }
-  return DEFAULT_HW_PRICES[h.name] || 0;
+  // uchwyt moze miec wlasna nazwe, wiec dopasowujemy po stalym kluczu pozycji
+  return DEFAULT_HW_PRICES[h.pk || h.name] || 0;
 };
 
 /* Ceny netto rozdawane przez wczesniejsza wersje — jesli projekt ma
@@ -370,7 +375,7 @@ const defaultCab = {
   backBoardMat: "shelf",
   backGroove: { on: false, offset: 16, depth: 4, play: 1 },
   frontMode: "overlay",
-  gaps: { edge: 2, between: 2, top: 2, bottom: 2, inset: 2, divOverlay: 8 },
+  gaps: { edge: 2, between: 3, top: 3, bottom: 3, inset: 2, divOverlay: 8 },
   maxGap: 5,
   shelfExtraSetback: 0,
   levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
@@ -2131,6 +2136,7 @@ function computeGeo(cab, mat) {
   if (handleCount)
     hardware.push({
       name: cab.handleName || "Uchwyt",
+      pk: "Uchwyt",
       spec: "na fronty z zaznaczonym uchwytem",
       qty: handleCount,
       unit: "szt.",
@@ -6723,11 +6729,19 @@ export default function App() {
                     className="h-9 w-11 cursor-pointer rounded border border-stone-300 bg-white" />
                 )}
                 </div>
+                {COLORED_KEYS.includes(k) && !paletteName(mat[k].color) && (
+                  <Field label="Nazwa dekoru"
+                    hint="kolor spoza wzornika — bez nazwy do zamówienia poszłoby „kolor własny”">
+                    <input value={mat[k].decor || ""} placeholder="np. Dąb halifax naturalny"
+                      onChange={(e) => setMat({ ...mat, [k]: { ...mat[k], decor: e.target.value } })}
+                      className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
+                  </Field>
+                )}
                 {k !== "mirror" && (
                   <div className="flex flex-wrap gap-1">
                     {PALETA.map(([nazwa, hex]) => (
                       <button key={hex} title={nazwa}
-                        onClick={() => setMat({ ...mat, [k]: { ...mat[k], color: hex } })}
+                        onClick={() => setMat({ ...mat, [k]: { ...mat[k], color: hex, decor: "" } })}
                         className={"h-6 w-6 rounded border transition-transform hover:scale-110 " +
                           (mat[k].color.toLowerCase() === hex.toLowerCase()
                             ? "border-teal-700 ring-1 ring-teal-700"
