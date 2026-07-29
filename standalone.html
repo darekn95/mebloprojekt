@@ -28,7 +28,7 @@ const WARNC = "#b45309";
 const ERRC = "#b91c1c";
 const ACC = "#0f766e";
 const PALETA = [
-  ["Biały", "#f4f2ee"],
+  // czysta biel wypadala z rysunku, a cene ma ta sama co mat — zostaje mat
   ["Biały mat", "#e8e6e1"],
   ["Szary", "#9c9b97"],
   ["Antracyt", "#4a4d4f"],
@@ -39,6 +39,45 @@ const PALETA = [
   ["Buk", "#d9b98a"],
   ["Brąz", "#5b4433"],
 ];
+
+/* Nazwa materialu sklada sie sama: typ z pola nazwy, kolor z palety i grubosc
+   tylko wtedy, gdy ta sama plyta wystepuje w projekcie w kilku grubosciach. */
+const PALETA_BY_HEX = new Map(PALETA.map(([n, h]) => [h.toLowerCase(), n]));
+const colorName = (hex) => PALETA_BY_HEX.get(String(hex || "").toLowerCase()) || "kolor własny";
+const COLORED_KEYS = ["board", "front", "shelf"];
+
+/* Nozki: kolor z palety okuc i ksztalt — kwadratowa albo okragla. */
+const LEG_COLORS = [
+  ["Czarny", "#2b2a28"],
+  ["Grafit", "#3f3f46"],
+  ["Aluminium", "#a1a1aa"],
+  ["Chrom", "#d4d4d8"],
+  ["Biały", "#f4f4f5"],
+  ["Złoty", "#b08d3f"],
+];
+const legColorOf = (cab) => (cab.legs && cab.legs.color) || "#3f3f46";
+const legRound = (cab) => (cab.legs || {}).shape === "round";
+
+// zbior nazw, ktore w podanych zestawach materialow maja wiecej niz jedna grubosc
+const ambiguousThickness = (mats) => {
+  const by = new Map();
+  mats.forEach((mm) =>
+    Object.values(mm || {}).forEach((m) => {
+      if (!m || !m.name) return;
+      const k = m.name.trim();
+      if (!by.has(k)) by.set(k, new Set());
+      by.get(k).add(m.thickness);
+    })
+  );
+  return new Set([...by.entries()].filter(([, set]) => set.size > 1).map(([k]) => k));
+};
+
+const matLabelOf = (m, key, ambiguous) => {
+  const parts = [((m && m.name) || "").trim() || key];
+  if (COLORED_KEYS.includes(key)) parts.push(colorName(m && m.color));
+  if (ambiguous && ambiguous.has(((m && m.name) || "").trim())) parts.push(String(m.thickness));
+  return parts.join(" ");
+};
 
 /* Ceny startowe — WSZYSTKIE BRUTTO, bo tyle sie faktycznie placi.
    Kazda da sie nadpisac w karcie Wyceny; wpisanie 0 zeruje pozycje.
@@ -252,11 +291,11 @@ function distribute(total, targets) {
 /* ---------- domyslny projekt ---------- */
 
 const defaultMaterials = {
-  board: { name: "Płyta laminowana 18", thickness: 18, color: "#d8c3a0" },
-  front: { name: "Płyta laminowana 18", thickness: 18, color: "#c2a880" },
-  shelf: { name: "Płyta laminowana 18", thickness: 18, color: "#d0bb96" },
-  back: { name: "HDF 3", thickness: 3, color: "#9c7b56" },
-  mirror: { name: "Lustro 4", thickness: 4, color: "#c3d0d6" },
+  board: { name: "Płyta", thickness: 18, color: "#d8c3a0" },
+  front: { name: "Płyta", thickness: 18, color: "#c2a880" },
+  shelf: { name: "Płyta", thickness: 18, color: "#d0bb96" },
+  back: { name: "HDF", thickness: 3, color: "#9c7b56" },
+  mirror: { name: "Lustro", thickness: 4, color: "#c3d0d6" },
 };
 
 // element wzmacniajacy w kolumnie (moze byc wiele)
@@ -345,7 +384,7 @@ const defaultCab = {
   frontSameAsBoard: true,
   shelfSameAsBoard: true,
   openAngle: 90,
-  legs: { on: false, height: 100 },
+  legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
   // polki w kolumnach: na kolkach podporowych czy skrecane konfirmatami
   shelfMount: "pins",
   // odsuniecie osi otworu pod kolek od przedniej i tylnej krawedzi polki
@@ -387,9 +426,16 @@ const migrateCab = (rawCab) => {
   if (merged.cutoutR) delete merged.cutoutR.corner;
   return merged;
 };
+// stare nazwy niosly grubosc i rodzaj w jednym; teraz sklada sie ja z pol
+const LEGACY_MAT_NAMES = { "Płyta laminowana 18": "Płyta", "HDF 3": "HDF", "Lustro 4": "Lustro" };
+
 const migrateMat = (rawMat) => {
   const mm = { ...defaultMaterials };
   if (rawMat) Object.keys(mm).forEach((k) => { mm[k] = { ...mm[k], ...(rawMat[k] || {}) }; });
+  Object.keys(mm).forEach((k) => {
+    const n = (mm[k].name || "").trim();
+    if (LEGACY_MAT_NAMES[n]) mm[k] = { ...mm[k], name: LEGACY_MAT_NAMES[n] };
+  });
   mm.mirror = { ...mm.mirror, color: defaultMaterials.mirror.color }; // kolor lustra staly
   return mm;
 };
@@ -410,6 +456,21 @@ const loadProject = (d) => {
   Object.entries(LEGACY_NET_PRICES).forEach(([k, v]) => {
     if (prices[k] === v) delete prices[k];
   });
+  /* Etykieta materialu nosi teraz kolor, wiec recznie wpisana cena zapisana
+     pod stara nazwa zostalaby sierota — przenosimy ja na nowy klucz. */
+  const ambig = ambiguousThickness(items.map((it) => it.mat));
+  items.forEach((it) =>
+    Object.entries(it.mat || {}).forEach(([key, m]) => {
+      Object.keys(LEGACY_MAT_NAMES).forEach((old) => {
+        const from = "plyta:" + old;
+        const to = "plyta:" + matLabelOf(m, key, ambig);
+        if (prices[from] != null && prices[to] == null && LEGACY_MAT_NAMES[old] === m.name) {
+          prices[to] = prices[from];
+          delete prices[from];
+        }
+      });
+    })
+  );
   const name = typeof d.name === "string" && d.name.trim() ? d.name : DEFAULT_PROJECT_NAME;
   return { name, items, active, prices };
 };
@@ -436,7 +497,7 @@ const TEMPLATES = [
     make: () => ({
       W: 600, H: 720, D: 300,
       plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
-      legs: { on: false, height: 100 },
+      legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
       levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
     }),
   },
@@ -454,7 +515,7 @@ const TEMPLATES = [
         joints: { topL: "over", topR: "over", botL: "none", botR: "none" },
         back: "none",
         plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
-        legs: { on: false, height: 100 },
+        legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
         levels: [{ h: null, cols: [col] }],
       };
     },
@@ -1686,10 +1747,15 @@ function computeGeo(cab, mat) {
   panels.forEach((p) => {
     p.a = Math.round(p.a);
     p.b = Math.round(p.b);
-    const o = (cab.edgeOverrides || {})[p.name];
-    if (o) {
-      p.edges = { ...p.edges, ...o };
-      p.note = "oklejanie ustawione ręcznie";
+    // plyty na plecy nie da sie okleic — zadne ustawienie tego nie zmieni
+    if (p.matKey === "back") {
+      p.edges = { a1: false, a2: false, b1: false, b2: false };
+    } else {
+      const o = (cab.edgeOverrides || {})[p.name];
+      if (o) {
+        p.edges = { ...p.edges, ...o };
+        p.note = "oklejanie ustawione ręcznie";
+      }
     }
     if (p.a <= 0 || p.b <= 0)
       add("error", `Formatka „${p.name}" ma wymiar zero lub ujemny.`);
@@ -2081,7 +2147,7 @@ function computeGeo(cab, mat) {
   if (cab.legs && cab.legs.on)
     hardware.push({
       name: "Nóżka regulowana",
-      spec: `wysokość ${fmt(cab.legs.height || 100)} mm`,
+      spec: `${(cab.legs || {}).shape === "round" ? "okrągła" : "kwadratowa"}, wysokość ${fmt(cab.legs.height || 100)} mm`,
       qty: 4,
       unit: "szt.",
     });
@@ -2228,6 +2294,12 @@ function computeGeo(cab, mat) {
    Zamiast plaskiego koloru plyta dostaje wzor z delikatnymi slojami.
    Kolor zostaje ten sam — wzor tylko go rozrysowuje, wiec nic sie nie
    rozjezdza w zestawieniach, gdzie nadal uzywamy czystego hexa. */
+/* Polki i zabudowa ida z "plyty polek", a ta domyslnie jest ta sama co korpus.
+   Kolor na rysunku musi isc za tym samym wyborem co lista formatek, inaczej
+   biala szafka dostaje bezowa zabudowe. */
+const shelfColorOf = (cab, mat) =>
+  cab.shelfSameAsBoard !== false ? mat.board.color : (shc);
+
 const TEX_KEYS = ["board", "front", "shelf"];
 const grainId = (hex, dir) =>
   "gr" + (dir === "h" ? "h" : "v") + String(hex || "").replace(/[^0-9a-fA-F]/g, "").toLowerCase();
@@ -2291,6 +2363,7 @@ const DimV = ({ y1, y2, x, label, c = DIMC, left = true }) => (
 
 function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
+  const shc = shelfColorOf(cab, mat);
   // tryb wizualizacji: gdy fronty z tej samej plyty, pokaz realny kolor korpusu
   const frontColor = cab.realColors && cab.frontSameAsBoard !== false
     ? mat.board.color : mat.front.color;
@@ -2412,9 +2485,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {cab.legs?.on && (
         <>
           <rect x={40} y={H} width={40} height={cab.legs.height || 100}
-            fill="#3f3f46" stroke={INK} strokeWidth="2" />
+            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2" />
           <rect x={W - 80} y={H} width={40} height={cab.legs.height || 100}
-            fill="#3f3f46" stroke={INK} strokeWidth="2" />
+            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2" />
         </>
       )}
 
@@ -2422,7 +2495,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
         <rect key={`rail${lv.i}-${c.j}-${ri}`}
           x={r.x0} y={fy(r.y1)} width={r.x1 - r.x0} height={r.y1 - r.y0}
-          fill={r.orient === "vertical" ? (mat.shelf?.color || bf) : bf}
+          fill={r.orient === "vertical" ? (shc) : bf}
           stroke={INK} strokeWidth="2" opacity={r.orient === "front" ? 0.9 : 0.7} />
       ))))}
 
@@ -2948,6 +3021,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
 
 function RearView({ cab, geo, mat: matIn, showDims }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
+  const shc = shelfColorOf(cab, mat);
   const { H } = cab;
   const W = geo.W;
   const pad = 170;
@@ -3041,7 +3115,7 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
       {cab.back !== "none" && (
         <rect x={mx(bx, bw)} y={fy(by + bh)} width={bw} height={bh}
           fill={geo.backIsBoard
-            ? (cab.backPos === "outside" && cab.backBoardMat !== "shelf" ? mat.board.color : (mat.shelf?.color || mat.board.color))
+            ? (cab.backPos === "outside" && cab.backBoardMat !== "shelf" ? mat.board.color : (shc))
             : mat.back.color}
           stroke={INK} strokeWidth="2.5" opacity={geo.backIsBoard ? 0.95 : 0.72} />
       )}
@@ -3057,7 +3131,7 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
             <rect x={xw} y={fy(gc.cy1)} width={gc.bx1 - gc.bx0} height={gc.cutH}
               fill={ERRC} opacity="0.14" stroke={ERRC} strokeWidth="1.5" strokeDasharray="6 4" />
             <rect x={mx(wallX, t)} y={fy(gc.cy1)} width={t} height={gc.cutH}
-              fill={mat.shelf?.color || bf} stroke={INK} strokeWidth="2" opacity="0.9" />
+              fill={shc} stroke={INK} strokeWidth="2" opacity="0.9" />
             <text x={xw + (gc.bx1 - gc.bx0) / 2} y={fy((gc.cy0 + gc.cy1) / 2)} textAnchor="middle"
               fontSize="18" fill={ERRC} fontFamily="ui-monospace, monospace">
               wycięcie {fmt(gc.cw)}×{fmt(gc.cdp)}
@@ -3074,9 +3148,9 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
       {cab.legs?.on && (
         <>
           <rect x={40} y={H} width={40} height={cab.legs.height || 100}
-            fill="#3f3f46" stroke={INK} strokeWidth="2" />
+            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2" />
           <rect x={W - 80} y={H} width={40} height={cab.legs.height || 100}
-            fill="#3f3f46" stroke={INK} strokeWidth="2" />
+            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2" />
         </>
       )}
 
@@ -3100,6 +3174,7 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
 
 function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
+  const shc = shelfColorOf(cab, mat);
   const { D } = cab;
   const W = geo.W;
   const pad = 160;
@@ -3149,7 +3224,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) 
           return (
             <g key={"sh" + c.j}>
               <rect x={c.x0} y={geo.backIntrusion} width={c.w} height={geo.shelfDepth}
-                fill={mat.shelf?.color || mat.board.color} fillOpacity="0.35"
+                fill={shc} fillOpacity="0.35"
                 stroke={INK} strokeWidth="1.5" strokeDasharray="9 6" />
               <text x={(c.x0 + c.x1) / 2} y={geo.backIntrusion + geo.shelfDepth - 14}
                 textAnchor="middle" fontSize="17" fill={INK} opacity="0.75"
@@ -3273,7 +3348,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) 
       {/* plecy */}
       {cab.back !== "none" && (() => {
         const bcol = geo.backIsBoard
-          ? (cab.backPos === "outside" && cab.backBoardMat !== "shelf" ? mat.board.color : (mat.shelf?.color || mat.board.color))
+          ? (cab.backPos === "outside" && cab.backBoardMat !== "shelf" ? mat.board.color : (shc))
           : mat.back.color;
         // z gory: y=0 to tyl. Plecy wewnatrz siedza tuz przy tyle, na zewnatrz za korpusem
         const outside = geo.backIsBoard && geo.backPos === "outside";
@@ -3292,7 +3367,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) 
 
       {/* wyciecie w narozniku */}
       {geo.geoCuts.map((gc, ci) => {
-        const smat = mat.shelf?.color || bf;
+        const smat = shc;
         // obszar wneki we wspolrzednych widoku z gory (y = glebokosc od tyłu)
         const rx = gc.bx0;
         const ry = gc.bz0;
@@ -3361,7 +3436,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) 
             <rect x={o.ox0} y={o.oz0} width={o.ow} height={o.od}
               fill="#7c3aed" opacity="0.28" stroke="#6d28d9" strokeWidth="1.5" strokeDasharray="5 4" />
             {o.mask && o.maskChosen && (() => {
-              const smat = mat.shelf?.color || mat.board.color;
+              const smat = shc;
               const rx = o.ox0, ry = o.oz0, rw = o.ow, rh = o.od;
               const gb = o;
               const needL = !gb.touchLeft, needR = !gb.touchRight;
@@ -3529,6 +3604,17 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) 
           )}
         </>
       )}
+      {/* nozki pod korpusem — tu widac, czy sa kwadratowe czy okragle */}
+      {cab.legs?.on && [[40, 40], [W - 80, 40], [40, cd - 80], [W - 80, cd - 80]].map(([lx, lz], i) =>
+        legRound(cab) ? (
+          <circle key={"leg" + i} cx={lx + 20} cy={lz + 20} r="20"
+            fill={legColorOf(cab)} stroke={INK} strokeWidth="2" opacity="0.55" />
+        ) : (
+          <rect key={"leg" + i} x={lx} y={lz} width="40" height="40"
+            fill={legColorOf(cab)} stroke={INK} strokeWidth="2" opacity="0.55" />
+        )
+      )}
+
       <text x={W / 2} y={cd + 150} textAnchor="middle" fontSize="22" fill={LINE}
         fontFamily="ui-monospace, monospace">widok z góry — tył u góry, przód u dołu</text>
     </svg>
@@ -3537,6 +3623,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) 
 
 function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
+  const shc = shelfColorOf(cab, mat);
   const sideRight = which === "right";
   const { H, D } = cab;
   const pad = 160;
@@ -3588,9 +3675,9 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
       {cab.legs?.on && (
         <>
           <rect x={xC + 40} y={H} width={40} height={cab.legs.height || 100}
-            fill="#3f3f46" stroke={INK} strokeWidth="2" />
+            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2" />
           <rect x={xC + cd - 80} y={H} width={40} height={cab.legs.height || 100}
-            fill="#3f3f46" stroke={INK} strokeWidth="2" />
+            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2" />
         </>
       )}
 
@@ -3612,7 +3699,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
 
       {cab.back !== "none" && (() => {
         const bcol = geo.backIsBoard
-          ? (cab.backPos === "outside" && cab.backBoardMat !== "shelf" ? mat.board.color : (mat.shelf?.color || mat.board.color))
+          ? (cab.backPos === "outside" && cab.backBoardMat !== "shelf" ? mat.board.color : (shc))
           : mat.back.color;
         // tyl po lewej (xC). Wewnatrz przy xC, na zewnatrz za korpusem (xC - tb)
         const px = geo.grooved
@@ -3750,7 +3837,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
           {/* maskownica pozioma zamyka wneke */}
           {gc.mask && (
             <rect x={xC + gc.cdp - geo.t} y={fy(gc.cy1)} width={geo.t} height={gc.cutH}
-              fill={mat.shelf?.color || bf} stroke={INK} strokeWidth="2" opacity="0.9" />
+              fill={shc} stroke={INK} strokeWidth="2" opacity="0.9" />
           )}
         </g>
       ))}
@@ -3763,11 +3850,11 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
               fill="#7c3aed" opacity="0.3" stroke="#6d28d9" strokeWidth="1.5" strokeDasharray="5 4" />
             {o.mask && !o.touchFront && (
               <rect x={xC + o.oz1} y={fy(o.maskTop ?? o.oy1)} width={geo.t} height={(o.maskTop ?? o.oy1) - o.oy0}
-                fill={mat.shelf?.color || bf} stroke={INK} strokeWidth="2" />
+                fill={shc} stroke={INK} strokeWidth="2" />
             )}
             {o.mask && !o.touchBack && (
               <rect x={xC + o.oz0 - geo.t} y={fy(o.maskTop ?? o.oy1)} width={geo.t} height={(o.maskTop ?? o.oy1) - o.oy0}
-                fill={mat.shelf?.color || bf} stroke={INK} strokeWidth="2" />
+                fill={shc} stroke={INK} strokeWidth="2" />
             )}
           </g>
         );
@@ -3777,7 +3864,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
         <rect key={`srail${lv.i}-${c.j}-${ri}`}
           x={xC + cd - (r.z0 + r.zLen)} y={fy(r.y1)} width={r.zLen} height={r.y1 - r.y0}
-          fill={r.orient === "vertical" ? (mat.shelf?.color || bf) : bf}
+          fill={r.orient === "vertical" ? (shc) : bf}
           stroke={INK} strokeWidth="1.5" opacity="0.6" />
       ))))}
       <text x={D / 2} y={H + 125} textAnchor="middle" fontSize="22" fill={LINE}
@@ -3811,6 +3898,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
   const { H } = cab;
   const W = geo.W;
   const bf = mat.board.color;
+  const shc = shelfColorOf(cab, mat);
   const ff = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
 
   /* --- lista bryl --- */
@@ -3880,7 +3968,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
     const lh = cab.legs.height || 100;
     const ins = 40;
     [[ins, ins], [W - ins - 40, ins], [ins, cd - ins - 40], [W - ins - 40, cd - ins - 40]]
-      .forEach(([lx, lz]) => box(lx, -lh, lz, lx + 40, 0, lz + 40, "#3f3f46"));
+      .forEach(([lx, lz]) => box(lx, -lh, lz, lx + 40, 0, lz + 40, legColorOf(cab)));
   }
 
   (geo.geoObs || []).forEach((o) => {
@@ -3888,7 +3976,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
     box(o.ox0, o.oy0, cd - o.oz1, o.ox1, o.oy1, cd - o.oz0, "#7c3aed", null, 0.45);
   });
   geo.geoCuts.filter((gc) => gc.mask).forEach((gc) => {
-    const smat = mat.shelf?.color || bf;
+    const smat = shc;
     // w 3D z=cd to TYL, geometria wneki ma tyl przy z=0 -> odwracamy: z3d = cd - z
     const zf = (z) => cd - z;
     const rx = gc.bx0, rw = gc.bx1 - gc.bx0;
@@ -3906,7 +3994,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
     box(Math.min(a0, a1), gc.cy0, zf(hz0 + t), Math.max(a0, a1), gc.cy1, zf(hz0), smat);
   });
   (geo.geoObs || []).filter((o) => o.mask && o.maskChosen).forEach((o) => {
-    const smat = mat.shelf?.color || bf;
+    const smat = shc;
     const zf = (z) => cd - z;
     const needL = !o.touchLeft, needR = !o.touchRight;
     const needBack = !o.touchBack, needFront = !o.touchFront;
@@ -4518,6 +4606,7 @@ const PRINT_CSS = `
 `;
 
 function ReportSheet({ cab, mat, projectName, index, total }) {
+  const ambig = useMemo(() => ambiguousThickness([mat]), [mat]);
   const geo = useMemo(() => computeGeo(cab, mat), [cab, mat]);
   const panels = useMemo(() => groupPanels(geo.panels), [geo.panels]);
   const realCab = useMemo(() => ({ ...cab, realColors: true }), [cab]);
@@ -4592,7 +4681,7 @@ function ReportSheet({ cab, mat, projectName, index, total }) {
             {panels.map((p, i) => (
               <tr key={i}>
                 <td>{p.name}</td>
-                <td>{mat[p.matKey].name}</td>
+                <td>{matLabelOf(mat[p.matKey], p.matKey, ambig)}</td>
                 <td className="num">{fmt(p.a)}</td>
                 <td className="num">{fmt(p.b)}</td>
                 <td className="num">{p.qty}</td>
@@ -4688,6 +4777,7 @@ function PrintReport({ project }) {
 
 /* rozkroj na arkuszach — ostatnie strony zestawienia */
 function ReportCutPlan({ project, projectName }) {
+  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
   const groups = useMemo(() => {
     const rows = [];
     project.items.forEach((it) => {
@@ -4699,7 +4789,7 @@ function ReportCutPlan({ project, projectName }) {
           a: p.a,
           b: p.b,
           rotatable: p.matKey === "back" || !it.cab.grainMatters,
-          matLabel: (it.mat[p.matKey] || {}).name || p.matKey,
+          matLabel: matLabelOf(it.mat[p.matKey], p.matKey, ambig),
         });
       });
     });
@@ -4763,6 +4853,7 @@ function ReportCutPlan({ project, projectName }) {
 
 /* zbiorcza lista formatek calego projektu — tylko przy kilku szafkach */
 function ReportProjectSheet({ project, projectName }) {
+  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
   const rows = useMemo(() => {
     const map = new Map();
     project.items.forEach((it, ci) => {
@@ -4777,7 +4868,7 @@ function ReportProjectSheet({ project, projectName }) {
           g2.qty += p.qty;
           g2.from.set(cabName, (g2.from.get(cabName) || 0) + p.qty);
         } else {
-          map.set(key, { ...p, matName: m.name || p.matKey, from: new Map([[cabName, p.qty]]) });
+          map.set(key, { ...p, matName: matLabelOf(m, p.matKey, ambig), from: new Map([[cabName, p.qty]]) });
         }
       });
     });
@@ -5344,6 +5435,10 @@ export default function App() {
       },
     });
 
+  // grubosc dopisujemy do etykiety tylko tam, gdzie ta sama plyta wystepuje
+  // w projekcie w kilku grubosciach
+  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
+
   const cutList = useMemo(() => groupPanels(geo.panels), [geo.panels]);
 
   const edgeMeters = useMemo(() => {
@@ -5377,7 +5472,7 @@ export default function App() {
           g2.qty += p.qty;
           g2.from.set(cabName, (g2.from.get(cabName) || 0) + p.qty);
         } else {
-          map.set(key, { ...p, matName: m.name || p.matKey, matColor: m.color,
+          map.set(key, { ...p, matName: matLabelOf(m, p.matKey, ambig), matColor: m.color,
             from: new Map([[cabName, p.qty]]),
             rotatable: p.matKey === "back" || !it.cab.grainMatters });
         }
@@ -5390,7 +5485,7 @@ export default function App() {
         .map(([n, q]) => (p.from.size === 1 && q === p.qty ? n : `${n} × ${q}`))
         .join(", "),
     }));
-  }, [project]);
+  }, [project, ambig]);
 
   const projectEdgeMeters = useMemo(() => {
     let mm = 0;
@@ -5438,10 +5533,10 @@ export default function App() {
             a: p.a,
             b: p.b,
             rotatable: p.matKey === "back" || !cab.grainMatters,
-            matLabel: mat[p.matKey].name,
+            matLabel: matLabelOf(mat[p.matKey], p.matKey, ambig),
           }));
     setCutPlan({ scope, groups: buildCutPlan(rows) });
-  }, [cutList, projectCutList, cab.grainMatters, mat]);
+  }, [cutList, projectCutList, cab.grainMatters, mat, ambig]);
 
   // --- wycena: ceny trzyma projekt, ilosci biora sie z list i rozkroju ---
   const prices = project.prices || {};
@@ -5470,17 +5565,26 @@ export default function App() {
     return by;
   }, [cutPlan]);
 
-  /* Rozkroj grupuje arkusze po samej nazwie materialu, a cena zalezy jeszcze
-     od koloru — stad podreczna mapa nazwa → { kolor, rola }. */
+  /* Rozkroj grupuje arkusze po samej etykiecie materialu, a cena zalezy jeszcze
+     od koloru — stad podreczna mapa etykieta → { kolor, rola }. */
   const matByLabel = useMemo(() => {
     const m = new Map();
     project.items.forEach((it) => {
       Object.entries(it.mat || {}).forEach(([key, v]) => {
-        if (v && v.name && !m.has(v.name)) m.set(v.name, { color: v.color, key });
+        const label = matLabelOf(v, key, ambig);
+        if (v && !m.has(label)) m.set(label, { color: v.color, key });
       });
     });
     return m;
-  }, [project]);
+  }, [project, ambig]);
+
+  /* Etykieta materialu niesie kolor, wiec zmiana koloru unieważnia policzony
+     wczesniej rozkroj — inaczej wycena trzymalaby arkusze pod nazwa, ktorej
+     juz nie ma, i liczyla je po zerowej cenie. */
+  useEffect(() => {
+    if (!cutPlan) return;
+    if (!cutPlan.groups.every((g) => matByLabel.has(g.matLabel))) setCutPlan(null);
+  }, [matByLabel, cutPlan]);
 
   const boardDefault = (label) => {
     const info = matByLabel.get(label);
@@ -5526,19 +5630,23 @@ export default function App() {
   const scrollToNotes = () =>
     notesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  const EdgeChips = ({ p }) => (
-    <div className="flex flex-wrap gap-1">
-      {[["a1", "przód", p.a], ["a2", "tył", p.a], ["b1", "bok", p.b], ["b2", "bok", p.b]].map(
-        ([k, lab, val]) => (
-          <MiniBtn key={k} tone={p.edges[k] ? "on" : "plain"}
-            onClick={() => toggleEdge(p.name, k, p.edges[k])}
-            title={p.edges[k] ? "Oklejona — kliknij, aby wyłączyć" : "Bez obrzeża — kliknij, aby okleić"}>
-            <span className="font-mono">{lab} {fmt(val)}</span>
-          </MiniBtn>
-        )
-      )}
-    </div>
-  );
+  // HDF na plecy jest za cienki na obrzeze — nie dajemy nawet klikac
+  const EdgeChips = ({ p }) =>
+    p.matKey === "back" ? (
+      <span className="text-xs text-stone-400">HDF się nie okleja</span>
+    ) : (
+      <div className="flex flex-wrap gap-1">
+        {[["a1", "przód", p.a], ["a2", "tył", p.a], ["b1", "bok", p.b], ["b2", "bok", p.b]].map(
+          ([k, lab, val]) => (
+            <MiniBtn key={k} tone={p.edges[k] ? "on" : "plain"}
+              onClick={() => toggleEdge(p.name, k, p.edges[k])}
+              title={p.edges[k] ? "Oklejona — kliknij, aby wyłączyć" : "Bez obrzeża — kliknij, aby okleić"}>
+              <span className="font-mono">{lab} {fmt(val)}</span>
+            </MiniBtn>
+          )
+        )}
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900">
@@ -6460,6 +6568,31 @@ export default function App() {
               onChange={(v) => set({ legs: { ...(cab.legs || { height: 100 }), on: v } })}
               label="Nóżki pod szafką" />
             {cab.legs?.on && (
+              <>
+              <Field label="Kształt nóżki">
+                <Seg value={legRound(cab) ? "round" : "box"}
+                  onChange={(v) => set({ legs: { ...(cab.legs || {}), shape: v } })}
+                  options={[{ v: "box", l: "Kwadratowa" }, { v: "round", l: "Okrągła" }]} />
+              </Field>
+              <Field label="Kolor nóżki" hint="widać go na rysunkach i w 3D">
+                <div className="flex flex-wrap items-center gap-1">
+                  {LEG_COLORS.map(([nazwa, hex]) => (
+                    <button key={hex} title={nazwa}
+                      onClick={() => set({ legs: { ...(cab.legs || {}), color: hex } })}
+                      className={"h-6 w-6 rounded border transition-transform hover:scale-110 " +
+                        (legColorOf(cab).toLowerCase() === hex.toLowerCase()
+                          ? "border-teal-700 ring-1 ring-teal-700"
+                          : "border-stone-300")}
+                      style={{ background: hex }} />
+                  ))}
+                  <input type="color" value={legColorOf(cab)}
+                    onChange={(e) => set({ legs: { ...(cab.legs || {}), color: e.target.value } })}
+                    className="h-6 w-8 cursor-pointer rounded border border-stone-300 bg-white" />
+                </div>
+              </Field>
+              </>
+            )}
+            {cab.legs?.on && (
               <Field label="Wysokość nóżki"
                 hint={`Całkowita wysokość z podstawą: ${fmt(cab.H + Math.max(cab.legs.height || 100, cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0))} mm`}>
                 <Num value={cab.legs.height ?? 100}
@@ -6565,9 +6698,13 @@ export default function App() {
                     : k === "shelf" ? "Półki"
                     : k === "back" ? "Plecy" : "Lustro"
                 }>
-                  <input value={mat[k].name}
+                  <input value={mat[k].name} placeholder="Płyta"
+                    title={`Nazwa w zestawieniach: ${matLabelOf(mat[k], k, ambig)}`}
                     onChange={(e) => setMat({ ...mat, [k]: { ...mat[k], name: e.target.value } })}
                     className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
+                  <span className="mt-1 block font-mono text-[11px] text-stone-400">
+                    {matLabelOf(mat[k], k, ambig)}
+                  </span>
                 </Field>
                 </div>
                 <div className="w-20">
@@ -6845,7 +6982,7 @@ export default function App() {
                   {cutList.map((p, i) => (
                     <tr key={i} className="border-b border-stone-100">
                       <td className="py-2 pr-3 font-sans">{p.name}</td>
-                      <td className="py-2 pr-3 font-sans text-stone-500">{mat[p.matKey].name}</td>
+                      <td className="py-2 pr-3 font-sans text-stone-500">{matLabelOf(mat[p.matKey], p.matKey, ambig)}</td>
                       <td className="py-2 pr-3 text-right">{fmt(p.a)}</td>
                       <td className="py-2 pr-3 text-right">{fmt(p.b)}</td>
                       <td className="py-2 pr-3 text-right">{p.qty}</td>
