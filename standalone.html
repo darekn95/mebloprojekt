@@ -44,11 +44,32 @@ const PALETA = [
    Kazda da sie nadpisac w karcie Wyceny; wpisanie 0 zeruje pozycje.
    Oklejanie liczone jest za kazdy rozpoczety metr, stad zaokraglanie w gore. */
 const DEFAULT_PRICES = {
-  "plyta:Płyta laminowana 18": 223.1, // arkusz 2800 × 2100 × 18
-  "plyta:HDF 3": 70, // arkusz pleców
+  plytaBiala: 223.1, // arkusz 2800 × 2100 × 18, biel
+  plytaKolor: 240, // ten sam arkusz w kolorze
+  hdf: 70, // arkusz plecow, cena jedna dla wszystkich kolorow
   ciecie: 51.66, // formatowanie jednego arkusza
   obrzeze: 3.38, // obrzeze 22 × 2 mm, za mb
   oklejanie: 8.86, // oklejanie prostoliniowe, za rozpoczety mb
+};
+
+/* Plyta w kolorze jest drozsza od bialej, a koloru nie ma w nazwie materialu,
+   wiec rozpoznajemy go po odcieniu: bardzo jasny = biel. */
+const isWhiteBoard = (hex) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+  if (!m) return true;
+  const v = parseInt(m[1], 16);
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255].every((c) => c >= 0.85 * 255);
+};
+
+/* Prowadnice: cena zalezy od wysokosci boku i dlugosci NL. Progi z cennika,
+   w kazdym przedziale przyjmujemy srodek podanego widelka. */
+const SLIDE_PRICES = {
+  80: [{ maxNl: 400, price: 74 }, { maxNl: Infinity, price: 81 }], // brak w cenniku, przyjete jak 95
+  95: [{ maxNl: 400, price: 74 }, { maxNl: Infinity, price: 81 }],
+  127: [{ maxNl: 400, price: 86 }, { maxNl: Infinity, price: 95 }],
+  178: [{ maxNl: 400, price: 91.5 }, { maxNl: Infinity, price: 100 }],
+  210: [{ maxNl: Infinity, price: 108.5 }],
+  238: [{ maxNl: 450, price: 110 }, { maxNl: Infinity, price: 126 }],
 };
 
 /* Okucia dopasowujemy po samej nazwie — specyfikacja bywa zmienna
@@ -57,6 +78,29 @@ const DEFAULT_HW_PRICES = {
   Zawias: 3,
   "Nóżka regulowana": 2.3,
   "Zaślepka na konfirmat": 0.7, // blister 25 szt.
+  Uchwyt: 10,
+  "Konfirmat 7 × 50": 0.1,
+  "Kołek podporowy ⌀5": 0.1,
+  "Zawieszka meblowa regulowana": 3,
+  "Listwa montażowa do zawieszek": 9, // za metr
+  "Hak / wkręt z kołkiem do ściany": 1,
+  "Trójkąt meblarski": 0.25,
+  "Złączka do cokołu": 0.3,
+  "Lustro na drzwiach": 200, // za m²
+  "Zszywka / gwoździk do pleców": 0.05,
+};
+
+/* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
+   zalatwic zwyklym wpisem w tabeli — stad osobne dopasowanie. */
+const hwDefaultPrice = (h) => {
+  const sl = /^Prowadnica .*?(\d+) mm$/.exec(h.name || "");
+  if (sl) {
+    const bands = SLIDE_PRICES[Number(sl[1])];
+    if (!bands) return 0;
+    const nl = Number((/(\d+)/.exec(h.spec || "") || [])[1]) || 0;
+    return (bands.find((b) => nl <= b.maxNl) || bands[bands.length - 1]).price;
+  }
+  return DEFAULT_HW_PRICES[h.name] || 0;
 };
 
 /* Ceny netto rozdawane przez wczesniejsza wersje — jesli projekt ma
@@ -104,6 +148,13 @@ const fmt = (n) => {
 const hwQty = (h) => (h.pack ? Math.ceil(h.qty / h.pack) : h.qty);
 const hwUnit = (h) => (h.pack ? "op." : h.unit);
 const hwNote = (h) => (h.pack ? ` (${h.qty} szt.)` : "");
+
+/* Ilosci w wycenie mnozy sie przez cene, wiec nie moga byc zaokraglone
+   mocniej niz to, czym liczymy — fmt gubi setne i m2 przestaja sie zgadzac. */
+const qtyFmt = (n) => {
+  const r = Math.round(n * 100) / 100;
+  return Number.isInteger(r) ? String(r) : r.toFixed(2).replace(/0$/, "");
+};
 
 // kwoty pokazujemy z groszami — fmt zaokragla do dziesiatych i gubilby je
 const zl = (n) => {
@@ -2004,9 +2055,10 @@ function computeGeo(cab, mat) {
     const [a2, b2] = k.split("|").map(Number);
     hardware.push({
       name: "Lustro na drzwiach",
-      spec: `${fmt(b2)} × ${fmt(a2)} mm — luz 0,5 mm na każdą stronę drzwi`,
-      qty,
-      unit: "szt.",
+      // lustro kupuje sie na metry, wiec podajemy powierzchnie, nie sztuki
+      spec: `${fmt(b2)} × ${fmt(a2)} mm × ${qty} szt. — luz 0,5 mm na każdą stronę drzwi`,
+      qty: Math.round((a2 * b2 * qty) / 1e6 * 100) / 100,
+      unit: "m²",
     });
   });
 
@@ -2078,7 +2130,7 @@ function computeGeo(cab, mat) {
 
   if (isBlat)
     hardware.push({
-      name: "Kątownik montażowy",
+      name: "Trójkąt meblarski",
       spec: "blat przykręcany od spodu — konfirmat zepsułby lico",
       qty: 4,
       unit: "szt.",
@@ -2133,8 +2185,8 @@ function computeGeo(cab, mat) {
       hardware.push({
         name: "Listwa montażowa do zawieszek",
         spec: `odcinek ${fmt(Math.max(0, W - 40))} mm na szafkę`,
-        qty: 1,
-        unit: "szt.",
+        qty: Math.round(Math.max(0, W - 40) / 100) / 10,
+        unit: "mb",
       });
     else
       hardware.push({
@@ -5418,6 +5470,25 @@ export default function App() {
     return by;
   }, [cutPlan]);
 
+  /* Rozkroj grupuje arkusze po samej nazwie materialu, a cena zalezy jeszcze
+     od koloru — stad podreczna mapa nazwa → { kolor, rola }. */
+  const matByLabel = useMemo(() => {
+    const m = new Map();
+    project.items.forEach((it) => {
+      Object.entries(it.mat || {}).forEach(([key, v]) => {
+        if (v && v.name && !m.has(v.name)) m.set(v.name, { color: v.color, key });
+      });
+    });
+    return m;
+  }, [project]);
+
+  const boardDefault = (label) => {
+    const info = matByLabel.get(label);
+    if (!info) return 0;
+    if (info.key === "back") return DEFAULT_PRICES.hdf;
+    return isWhiteBoard(info.color) ? DEFAULT_PRICES.plytaBiala : DEFAULT_PRICES.plytaKolor;
+  };
+
   const quote = useMemo(() => {
     const rows = [];
     // kazda pozycja niesie swoja cene domyslna, wiec dziala tez dla materialow
@@ -5426,7 +5497,7 @@ export default function App() {
     if (planSheets)
       Object.entries(planSheets).forEach(([matLabel, n]) => {
         const k = "plyta:" + matLabel;
-        add({ key: k, label: matLabel, qty: n, unit: "ark.", def: DEFAULT_PRICES[k] });
+        add({ key: k, label: matLabel, qty: n, unit: "ark.", def: boardDefault(matLabel) });
       });
     const sheetsTotal = planSheets ? Object.values(planSheets).reduce((a, b) => a + b, 0) : 0;
     if (sheetsTotal)
@@ -5442,11 +5513,11 @@ export default function App() {
     projectHardware.forEach((h) => {
       add({ key: "okucie:" + h.name + "|" + h.spec, label: h.name,
         spec: h.spec + (h.pack ? ` — ${h.qty} szt.` : ""),
-        qty: hwQty(h), unit: hwUnit(h), def: DEFAULT_HW_PRICES[h.name] });
+        qty: hwQty(h), unit: hwUnit(h), def: hwDefaultPrice(h) });
     });
     const sum = rows.reduce((a, r) => a + r.qty * r.price, 0);
     return { rows, sum };
-  }, [planSheets, projectEdgeMb, projectHardware, prices]);
+  }, [planSheets, projectEdgeMb, projectHardware, prices, matByLabel]);
 
   const errors = geo.msgs.filter((m) => m.level === "error");
   const warns = geo.msgs.filter((m) => m.level === "warn");
@@ -7091,7 +7162,7 @@ export default function App() {
                         {r.label}
                         {r.spec && <span className="block font-mono text-[11px] text-stone-400">{r.spec}</span>}
                       </td>
-                      <td className="py-1.5 pr-3 text-right font-mono">{fmt(r.qty)} {r.unit}</td>
+                      <td className="py-1.5 pr-3 text-right font-mono">{qtyFmt(r.qty)} {r.unit}</td>
                       <td className="py-1.5 pr-3 text-right">
                         <input type="number" min={0} step="0.01"
                           value={prices[r.key] ?? ""}
