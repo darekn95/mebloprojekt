@@ -3598,16 +3598,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) 
           )}
         </>
       )}
-      {/* nozki pod korpusem — tu widac, czy sa kwadratowe czy okragle */}
-      {cab.legs?.on && [[40, 40], [W - 80, 40], [40, cd - 80], [W - 80, cd - 80]].map(([lx, lz], i) =>
-        legRound(cab) ? (
-          <circle key={"leg" + i} cx={lx + 20} cy={lz + 20} r="20"
-            fill={legColorOf(cab)} stroke={INK} strokeWidth="2" opacity="0.55" />
-        ) : (
-          <rect key={"leg" + i} x={lx} y={lz} width="40" height="40"
-            fill={legColorOf(cab)} stroke={INK} strokeWidth="2" opacity="0.55" />
-        )
-      )}
+      {/* nozek nie rysujemy z gory — schowane pod korpusem, tylko myla rzut */}
 
       <text x={W / 2} y={cd + 150} textAnchor="middle" fontSize="22" fill={LINE}
         fontFamily="ui-monospace, monospace">widok z góry — tył u góry, przód u dołu</text>
