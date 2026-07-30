@@ -203,17 +203,10 @@ function autoHinges(h, w) {
 }
 
 /* prowadnice szuflad: 21 mm na stronę (razem ze ścianką skrzynki) */
-const RUNNER_W = 21;
+const RUNNER_W = 21; // szerokosc prowadnicy przy boku
 /* Od spodu prowadnicy do spodu dna skrzynki — wymiar okucia, niezalezny od
    wysokosci boku szuflady. Nad nim lezy jeszcze grubosc samego dna. */
-const RAIL_TO_BOTTOM = 26; // szerokosc przy boku
-/* Dol najnizszej szyny ma ZAWSZE siadac rowno z dnem korpusu. Front nakladany
-   zaczyna sie o luz dolny nad spodem szafki, wiec odstep dolu szyny od dolu
-   frontu to reszta grubosci dna: 18 mm plyty minus 3 mm luzu = 15 mm.
-   Liczymy go, zamiast wpisywac na sztywno, zeby zmiana luzu albo grubosci
-   plyty nie odklejala szuflady od dna.
-   Przy froncie wpuszczanym szyna schodzi o luz wpuszczenia i wychodzi tak samo. */
-const runnerUp = (t, gapBottom) => Math.max(0, Math.round(t - gapBottom));
+const RAIL_TO_BOTTOM = 26;
 
 /* gabaryty zawiasu widziane od przodu (puszka + ramie na boku) */
 const HINGE_H = 55; // wysokosc
@@ -382,7 +375,10 @@ const defaultCab = {
   backBoardMat: "shelf",
   backGroove: { on: false, offset: 16, depth: 4, play: 1 },
   frontMode: "overlay",
-  gaps: { edge: 2, between: 3, top: 3, bottom: 3, inset: 2, divOverlay: 8 },
+  // overBottom / overTop — o ile front skrajnej szuflady zachodzi na dno i wieniec,
+  // underRail — o ile front schodzi ponizej wlasnej szyny, gdy pod nia nic nie ma
+  gaps: { edge: 2, between: 3, top: 3, bottom: 3, inset: 2, divOverlay: 7,
+          overBottom: 15, overTop: 15, underRail: 5 },
   maxGap: 5,
   shelfExtraSetback: 0,
   levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
@@ -763,10 +759,12 @@ function computeGeo(cab, mat) {
         "error",
         `Nałożenie ${divOv} mm z obu stron zostawia nad przegrodą tylko ${fmt(divGap)} mm szczeliny — potrzeba minimum 2 mm.`
       );
-    else if (divGap > cab.maxGap)
+    else if (divGap > 5)
+      // szczeline reguluje sie nalozeniem: kazdy milimetr nalozenia zabiera z niej dwa
       add(
         "warn",
-        `Szczelina nad przegrodą to ${fmt(divGap)} mm — powyżej przyjętego maksimum.`
+        `Szczelina nad przegrodą to ${fmt(divGap)} mm — powyżej 5 mm.` +
+          `|fixdiv:${divOv + 1}|fixdiv:${Math.max(0, divOv - 1)}`
       );
   }
   const doors = [];
@@ -851,6 +849,20 @@ function computeGeo(cab, mat) {
     }
     lv.frontLo = lo;
     lv.frontHi = hi;
+    /* Fronty szuflad nie trzymaja luzu do korpusu, tylko go zakrywaja: dolny
+       zachodzi na dno, gorny na wieniec, a nad przegroda dwa sasiednie fronty
+       nakladaja sie po `divOverlay` i zostawiaja miedzy soba szczeline. */
+    if (cab.frontMode === "overlay") {
+      lv.drawLo = lv.i === 0
+        ? lv.y0 - Math.max(0, Math.round(num(g.overBottom) ?? 15))
+        : Math.round(sepShelves[lv.i - 1].y + t - divOv);
+      lv.drawHi = lv.i === levels.length - 1
+        ? lv.y1 + Math.max(0, Math.round(num(g.overTop) ?? 15))
+        : Math.round(sepShelves[lv.i].y + divOv);
+    } else {
+      lv.drawLo = lo;
+      lv.drawHi = hi;
+    }
     const bandH = Math.round(hi - lo);
 
     lv.cols.forEach((c, j) => {
@@ -985,6 +997,7 @@ function computeGeo(cab, mat) {
           groupN: 1,
           inset: fixInset,
           gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
+          bandLo: clo, bandHi: chi,
         });
         if (rawFix.support) {
           const sd = Math.max(0, Math.round(rawFix.supportDepth || 0));
@@ -1057,6 +1070,7 @@ function computeGeo(cab, mat) {
             groupN: 1,
             inset: bi,
             gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
+            bandLo: by0, bandHi: by1,
           });
         }
         return;
@@ -1115,6 +1129,7 @@ function computeGeo(cab, mat) {
             groupN: cnt,
             inset: cab.frontMode === "inset",
             gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
+            bandLo: clo, bandHi: chi,
             mirror: !!(rawCol.mirrors || [])[i],
             hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw),
             handle: (rawCol.handles || [])[i] !== false,
@@ -1203,8 +1218,8 @@ function computeGeo(cab, mat) {
       const dInsetExtra = dIn ? tf : 0;
       const dsx0 = dIn ? insX0 : ovlX0;
       const dsx1 = dIn ? insX1 : ovlX1;
-      const dlo = dIn ? lv.y0 + g.inset : cab.frontMode === "overlay" ? clo : lo;
-      const dhi = dIn ? lv.y1 - g.inset : cab.frontMode === "overlay" ? chi : hi;
+      const dlo = dIn ? lv.y0 + g.inset : cab.frontMode === "overlay" ? lv.drawLo : lo;
+      const dhi = dIn ? lv.y1 - g.inset : cab.frontMode === "overlay" ? lv.drawHi : hi;
       const dbandH = Math.round(dhi - dlo);
 
       const LW = c.w;
@@ -1295,7 +1310,15 @@ function computeGeo(cab, mat) {
           // wpuszczenia ponizej niego; w obu przypadkach najnizsza szyna
           // siada rowno z dnem korpusu.
           rail: {
-            y0: dIn ? y - g.inset : y + runnerUp(t, g.bottom),
+            /* Prowadnica najnizszej szuflady siada rowno na dnie albo na
+               przegrodzie tego poziomu — to ona wyznacza wysokosc, a front sie
+               do niej dostosowuje. Wyzsze szuflady nie maja na czym usiasc,
+               wiec ich front schodzi ponizej szyny o staly, ustawialny wymiar. */
+            y0: i === 0
+              ? lv.y0
+              : dIn
+              ? y - g.inset
+              : y + Math.max(0, Math.round(num(g.underRail) ?? 5)),
             h: hClass,
             d: nl || 0,
             // front wpuszczany zamyka sie w swietle korpusu, wiec prowadnice
@@ -1320,6 +1343,7 @@ function computeGeo(cab, mat) {
           groupN: 1,
           inset: dIn,
           gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
+          bandLo: dlo, bandHi: dhi,
         });
         if (d.handle !== false) handleCount += 1;
         if (nl !== null) {
@@ -2456,6 +2480,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         if (c.kind !== "drawers" || !(c.drawers || []).length) return;
         railDimCols.push({
           c,
+          lvl: lv.i,
           where: j === 0 ? "left" : j === lv.cols.length - 1 ? "right" : "in",
         });
       })
@@ -2859,25 +2884,26 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               sideMarker(`gr${d.key}`, (d.x + d.w + rightWall) / 2, yMid, Math.round(rightWall - (d.x + d.w)), false);
             }
             // luz gorny liczymy tylko dla najwyzszego frontu kolumny, dolny dla najnizszego
-            const topRef = d.inset
-              ? d.colY1
-              : cab.frontMode === "overlay"
-              ? H
-              : geo.interior.y1;
-            const botRef = d.inset
-              ? d.colY0
-              : cab.frontMode === "overlay"
-              ? geo.bottomY
-              : geo.interior.y0;
+            /* Luz gorny i dolny mierzymy do krawedzi pasma frontow TEGO poziomu.
+               Odniesienie do calej szafki pokazywalo przy kilku poziomach
+               odleglosc do wienca zamiast szczeliny nad przegroda. */
+            const topRef = d.inset ? d.colY1 : d.bandHi != null ? d.bandHi
+              : cab.frontMode === "overlay" ? H : geo.interior.y1;
+            const botRef = d.inset ? d.colY0 : d.bandLo != null ? d.bandLo
+              : cab.frontMode === "overlay" ? geo.bottomY : geo.interior.y0;
             if (colTop[d.colKey] === d)
               marker(`gt${d.key}`, d.x + d.w / 2, topRef, Math.round(topRef - (d.y + d.h)), true);
             if (colBot[d.colKey] === d)
               marker(`gb${d.key}`, d.x + d.w / 2, d.y, Math.round(d.y - botRef), false);
 
             // luz pionowy do frontu bezposrednio nad tym w tej samej kolumnie
+            /* Nad przegroda spotykaja sie fronty z dwoch poziomow, wiec sasiada
+               szukamy po numerze kolumny, a nie po kluczu z numerem poziomu. */
+            const colOf = (x) => String(x.colKey || "").split("-")[1];
             let above = null;
-            band.forEach((b2) => {
-              if (b2.colKey !== d.colKey || b2.y < d.y + d.h - 0.5) return;
+            geo.doors.forEach((b2) => {
+              if (!(b2.w > 0)) return;
+              if (colOf(b2) !== colOf(d) || b2.y < d.y + d.h - 0.5) return;
               if (!above || b2.y < above.y) above = b2;
             });
             if (above) {
@@ -3064,7 +3090,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         )}
 
       {/* wysokosc montazu prowadnic — mierzona od wewnetrznego dna szafki */}
-      {railDimCols.flatMap(({ c, where }) =>
+      {railDimCols.flatMap(({ c, lvl, where }) =>
         c.drawers.map((dr, i) => {
           const val = Math.round(dr.rail.y0 - geo.interior.y0);
           if (val < 0) return null;
@@ -3073,7 +3099,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           const x =
             where === "left" ? dimRailLX : where === "right" ? dimRailRX : c.x1 - RUNNER_W - 30;
           return (
-            <DimV key={`rh${c.j}-${i}`} y1={fy(dr.rail.y0)} y2={fy(geo.interior.y0)} x={x}
+            <DimV key={`rh${lvl}-${c.j}-${i}`} y1={fy(dr.rail.y0)} y2={fy(geo.interior.y0)} x={x}
               label={`szyna ${fmt(val)}`} left={where !== "right"} c={DIMC} />
           );
         })
@@ -4307,13 +4333,21 @@ const Card = ({ title, children, right, collapsible = false, defaultOpen = true 
   );
 };
 
-const NoteLine = ({ text, color, icon, editLevels, cab }) => {
+const NoteLine = ({ text, color, icon, editLevels, cab, setGap }) => {
   const [txt, ...actions] = text.split("|");
   const btns = actions.map((action) => {
     if (action.startsWith("fixgap:")) {
       const [, li, j, val, dir] = action.split(":");
       const verb = dir === "down" ? "Zmniejsz" : "Zwiększ";
       return { label: `${verb} luz do ${val} mm`, run: () => editLevels((L) => (L[+li].cols[+j].gapBetween = +val)) };
+    }
+    if (action.startsWith("fixdiv:")) {
+      const val = Number(action.split(":")[1]);
+      const now = cab.gaps?.divOverlay ?? 7;
+      return {
+        label: `${val > now ? "Zwiększ" : "Zmniejsz"} nałożenie do ${val} mm`,
+        run: () => setGap("divOverlay", val),
+      };
     }
     if (action.startsWith("fixh:")) {
       const [, li, j, k, val] = action.split(":");
@@ -6450,10 +6484,24 @@ export default function App() {
                 </>
               )}
               {cab.frontMode === "overlay" && (
-                <Field label="Nałożenie na przegrodę"
-                  hint={`Szczelina nad przegrodą: ${fmt(mat.board.thickness - 2 * (cab.gaps.divOverlay ?? 8))} mm`}>
-                  <Num value={cab.gaps.divOverlay ?? 8} onChange={(v) => setGap("divOverlay", v)} />
-                </Field>
+                <>
+                  <Field label="Nałożenie na przegrodę"
+                    hint={`Szczelina nad przegrodą: ${fmt(mat.board.thickness - 2 * (cab.gaps.divOverlay ?? 7))} mm`}>
+                    <Num value={cab.gaps.divOverlay ?? 7} onChange={(v) => setGap("divOverlay", v)} />
+                  </Field>
+                  <Field label="Front szuflady na dno"
+                    hint="o ile front najniższej szuflady zachodzi na dno korpusu">
+                    <Num value={cab.gaps.overBottom ?? 15} onChange={(v) => setGap("overBottom", v)} />
+                  </Field>
+                  <Field label="Front szuflady na wieniec"
+                    hint="o ile front najwyższej szuflady zachodzi na wieniec">
+                    <Num value={cab.gaps.overTop ?? 15} onChange={(v) => setGap("overTop", v)} />
+                  </Field>
+                  <Field label="Front poniżej prowadnicy"
+                    hint="szuflada, która nie stoi na dnie ani na przegrodzie">
+                    <Num value={cab.gaps.underRail ?? 5} onChange={(v) => setGap("underRail", v)} />
+                  </Field>
+                </>
               )}
               <Field label="Ostrzegaj powyżej"><Num value={cab.maxGap} onChange={(v) => set({ maxGap: v })} /></Field>
               <Field label="Kąt otwarcia" hint="do widoku 3D">
@@ -6990,10 +7038,10 @@ export default function App() {
               {(errors.length > 0 || warns.length > 0) && (
                 <ul className="space-y-2">
                   {errors.map((m, i) => (
-                    <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} cab={cab} />
+                    <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} cab={cab} setGap={setGap} />
                   ))}
                   {warns.map((m, i) => (
-                    <NoteLine key={"w" + i} text={m.text} color={WARNC} icon="!" editLevels={editLevels} cab={cab} />
+                    <NoteLine key={"w" + i} text={m.text} color={WARNC} icon="!" editLevels={editLevels} cab={cab} setGap={setGap} />
                   ))}
                 </ul>
               )}
@@ -7004,7 +7052,7 @@ export default function App() {
                   </div>
                   <ul className="space-y-2">
                     {infos.map((m, i) => (
-                      <NoteLine key={"i" + i} text={m.text} color="#78716c" icon="i" editLevels={editLevels} cab={cab} />
+                      <NoteLine key={"i" + i} text={m.text} color="#78716c" icon="i" editLevels={editLevels} cab={cab} setGap={setGap} />
                     ))}
                   </ul>
                 </div>
