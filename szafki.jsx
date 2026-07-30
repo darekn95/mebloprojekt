@@ -204,9 +204,13 @@ function autoHinges(h, w) {
 
 /* prowadnice szuflad: 21 mm na stronę (razem ze ścianką skrzynki) */
 const RUNNER_W = 21; // szerokosc przy boku
-const RUNNER_UP = 16; // dol szyny nad dolem frontu — front nakladany
-// przy froncie wpuszczanym dol szyny schodzi o luz wpuszczenia, czyli siada
-// rowno z dnem korpusu — tak jak przy froncie nakladanym
+/* Dol najnizszej szyny ma ZAWSZE siadac rowno z dnem korpusu. Front nakladany
+   zaczyna sie o luz dolny nad spodem szafki, wiec odstep dolu szyny od dolu
+   frontu to reszta grubosci dna: 18 mm plyty minus 3 mm luzu = 15 mm.
+   Liczymy go, zamiast wpisywac na sztywno, zeby zmiana luzu albo grubosci
+   plyty nie odklejala szuflady od dna.
+   Przy froncie wpuszczanym szyna schodzi o luz wpuszczenia i wychodzi tak samo. */
+const runnerUp = (t, gapBottom) => Math.max(0, Math.round(t - gapBottom));
 
 /* gabaryty zawiasu widziane od przodu (puszka + ramie na boku) */
 const HINGE_H = 55; // wysokosc
@@ -1239,11 +1243,12 @@ function computeGeo(cab, mat) {
           nl,
           fixed: num(d.front) !== null,
           // prowadnica: 21 mm szerokosci przy kazdym boku, wysokosc z boku
-          // skrzynki, glebokosc z NL. Front nakladany -> dol szyny 16 mm nad
-          // dolem frontu, front wpuszczany -> o luz wpuszczenia ponizej niego;
-          // w obu przypadkach najnizsza szyna siada rowno z dnem korpusu.
+          // skrzynki, glebokosc z NL. Front nakladany -> dol szyny o reszte
+          // grubosci dna nad dolem frontu, front wpuszczany -> o luz
+          // wpuszczenia ponizej niego; w obu przypadkach najnizsza szyna
+          // siada rowno z dnem korpusu.
           rail: {
-            y0: dIn ? y - g.inset : y + RUNNER_UP,
+            y0: dIn ? y - g.inset : y + runnerUp(t, g.bottom),
             h: hClass,
             d: nl || 0,
             // front wpuszczany zamyka sie w swietle korpusu, wiec prowadnice
