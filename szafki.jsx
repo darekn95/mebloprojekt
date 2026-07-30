@@ -609,6 +609,12 @@ function computeGeo(cab, mat) {
     cab.plinth.on && pMode === "inbody" && botL === "between" && botR === "between";
   const plinthH = cab.plinth.on ? cab.plinth.height : 0;
   const bottomY = plinthInBody ? plinthH : 0;
+  /* Nozka podpiera dno. Przy cokole w obrysie dno stoi juz na wysokosci cokolu,
+     wiec nozka miesci sie w tej przestrzeni i nie podnosi szafki — podnosi ja
+     dopiero o tyle, o ile jest wyzsza od cokolu. */
+  const legH = cab.legs && cab.legs.on ? Math.max(0, Math.round(num(cab.legs.height) ?? 100)) : 0;
+  const legTop = plinthInBody ? bottomY : 0;
+  const legBelow = Math.max(0, legH - legTop);
 
   const interior = { x0: t, x1: W - t, y0: hasBot ? bottomY + t : bottomY, y1: hasTop ? H - t : H };
   const innerW = interior.x1 - interior.x0;
@@ -2274,7 +2280,7 @@ function computeGeo(cab, mat) {
     hardware,
     t, tf, tb, carcassDepth, hasBack, interior, innerW, innerH,
     shelfDepth, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, panels, msgs, maxNL,
-    plinthInBody, plinthH, bottomY, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
+    plinthInBody, plinthH, bottomY, legH, legTop, legBelow, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
     isBlat, blat, blatDepth, blatInside, W, drillPlan,
@@ -2370,7 +2376,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const pinFromBottom = cab.pinDatum === "bottom";
   const anyPins = showPins && geo.levels.some((lv) => lv.cols.some((c) => (c.shelves || []).length));
   const pinLegend = anyPins && showDims;
-  const belowExtra = Math.max(cab.legs?.on ? cab.legs.height || 100 : 0, geo.plinthH || 0)
+  const belowExtra = Math.max(geo.legBelow, cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0)
     + 60 + (pinLegend ? 70 : 0);
   const hasBase = cab.legs?.on || cab.plinth.on;
   // wymiary rysowane tuz przy szafce (boki, cokol, nozki) wymuszaja odsuniecie
@@ -2478,10 +2484,12 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       )}
       {cab.legs?.on && (
         <>
-          <rect x={40} y={H} width={40} height={cab.legs.height || 100}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2" />
-          <rect x={W - 80} y={H} width={40} height={cab.legs.height || 100}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2" />
+          <rect x={40} y={H - geo.legTop} width={40} height={geo.legH}
+            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
+            opacity={geo.legTop > 0 ? 0.5 : 1} />
+          <rect x={W - 80} y={H - geo.legTop} width={40} height={geo.legH}
+            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
+            opacity={geo.legTop > 0 ? 0.5 : 1} />
         </>
       )}
 
@@ -2835,11 +2843,13 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             </>
           )}
           {(cab.legs?.on || cab.plinth.on) && (() => {
-            const legH = cab.legs?.on ? cab.legs.height || 100 : 0;
+            const legH = geo.legH;
             const plH = cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
-            // nozki i cokol pod korpusem nie stoja na sobie — cokol jest zabudowa miedzy nozkami
-            const extra = Math.max(plH, legH);
-            if (extra <= 0) return null;
+            // nozki i cokol pod korpusem nie stoja na sobie — cokol jest zabudowa
+            // miedzy nozkami. Przy cokole w obrysie nozka siedzi w jego swietle,
+            // wiec podnosi szafke tylko nadwyzka ponad wysokosc cokolu.
+            const extra = Math.max(plH, geo.legBelow);
+            if (legH <= 0 && extra <= 0) return null;
             return (
               <>
                 {/* calkowita wysokosc z podstawa po lewej */}
@@ -2851,8 +2861,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 )}
                 {/* nozki: mierzone znacznie dalej w prawo, zeby opis sie nie nakladal */}
                 {legH > 0 && (
-                  <DimV y1={H} y2={H + legH} x={dimNozkiX} label={`nóżki ${fmt(legH)}`}
-                    left={false} c={LINE} />
+                  <DimV y1={H - geo.legTop} y2={H - geo.legTop + legH} x={dimNozkiX}
+                    label={`nóżki ${fmt(legH)}`} left={false} c={LINE} />
                 )}
               </>
             );
@@ -3020,7 +3030,7 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
   const W = geo.W;
   const pad = 170;
   const rBelow = Math.max(
-    cab.legs?.on ? cab.legs.height || 100 : 0,
+    geo.legBelow,
     cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0
   );
   const vb = `${-pad} ${-pad} ${W + 2 * pad} ${H + 2 * pad + 40 + rBelow}`;
@@ -3141,10 +3151,12 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
       )}
       {cab.legs?.on && (
         <>
-          <rect x={40} y={H} width={40} height={cab.legs.height || 100}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2" />
-          <rect x={W - 80} y={H} width={40} height={cab.legs.height || 100}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2" />
+          <rect x={40} y={H - geo.legTop} width={40} height={geo.legH}
+            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
+            opacity={geo.legTop > 0 ? 0.5 : 1} />
+          <rect x={W - 80} y={H - geo.legTop} width={40} height={geo.legH}
+            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
+            opacity={geo.legTop > 0 ? 0.5 : 1} />
         </>
       )}
 
@@ -3614,7 +3626,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
   const pad = 160;
   const rightExtra = cab.frontMode === "overlay" ? geo.tf : 0;
   const below = Math.max(
-    cab.legs?.on ? cab.legs.height || 100 : 0,
+    geo.legBelow,
     cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0
   );
   const sOvF = geo.isBlat ? geo.blat.overFront : 0;
@@ -3659,10 +3671,12 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
       )}
       {cab.legs?.on && (
         <>
-          <rect x={xC + 40} y={H} width={40} height={cab.legs.height || 100}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2" />
-          <rect x={xC + cd - 80} y={H} width={40} height={cab.legs.height || 100}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2" />
+          <rect x={xC + 40} y={H - geo.legTop} width={40} height={geo.legH}
+            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
+            opacity={geo.legTop > 0 ? 0.5 : 1} />
+          <rect x={xC + cd - 80} y={H - geo.legTop} width={40} height={geo.legH}
+            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
+            opacity={geo.legTop > 0 ? 0.5 : 1} />
         </>
       )}
 
@@ -3950,10 +3964,13 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
       box(r.x0, r.y0, r.z0, r.x1, r.y1, r.z0 + r.zLen, bf);
   })));
   if (cab.legs && cab.legs.on) {
-    const lh = cab.legs.height || 100;
+    // nozka konczy sie pod dnem: przy cokole w obrysie to wysokosc cokolu,
+    // inaczej spod korpusu
+    const top = geo.legTop;
+    const lh = geo.legH;
     const ins = 40;
     [[ins, ins], [W - ins - 40, ins], [ins, cd - ins - 40], [W - ins - 40, cd - ins - 40]]
-      .forEach(([lx, lz]) => box(lx, -lh, lz, lx + 40, 0, lz + 40, legColorOf(cab)));
+      .forEach(([lx, lz]) => box(lx, top - lh, lz, lx + 40, top, lz + 40, legColorOf(cab)));
   }
 
   (geo.geoObs || []).forEach((o) => {
@@ -6579,7 +6596,10 @@ export default function App() {
             )}
             {cab.legs?.on && (
               <Field label="Wysokość nóżki"
-                hint={`Całkowita wysokość z podstawą: ${fmt(cab.H + Math.max(cab.legs.height || 100, cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0))} mm`}>
+                hint={`Całkowita wysokość z podstawą: ${fmt(cab.H + Math.max(geo.legBelow, cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0))} mm`
+                  + (geo.plinthInBody && geo.legH > 0
+                    ? ` — nóżki mieszczą się w świetle cokołu (${fmt(geo.plinthH)} mm)`
+                    : "")}>
                 <Num value={cab.legs.height ?? 100}
                   onChange={(v) => set({ legs: { ...cab.legs, height: v } })} />
               </Field>
