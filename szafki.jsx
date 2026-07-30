@@ -1251,14 +1251,17 @@ function computeGeo(cab, mat) {
       ds.forEach((d, i) => {
         const fh = fr.sizes[i];
         // wysokosc boku V-BOX: auto dobiera najwyzszy bok mieszczacy sie w froncie
+        const fitH = [...VBOX.heights]
+          .filter((hc) => VBOX.minFront[dMode][hc] <= fh)
+          .pop();
         let hClass;
         if (d.h === "auto" || d.h == null) {
-          const fit = [...VBOX.heights]
-            .filter((hc) => VBOX.minFront[dMode][hc] <= fh)
-            .pop();
-          hClass = fit || VBOX.heights[0];
+          hClass = fitH || VBOX.heights[0];
         } else {
           hClass = VBOX.heights.includes(Number(d.h)) ? Number(d.h) : 127;
+          // bok wybrany recznie — front moze uniesc wyzszy, wiec to podpowiadamy
+          if (fitH && fitH > hClass)
+            add("info", `${where}, szuflada ${i + 1}: front uniesie wyższy bok ${fitH} mm zamiast ${hClass}.|fixh:${lv.i}:${j}:${i}:${fitH}`);
         }
         const nl = num(d.nl) ?? colNl; // NL tej konkretnej szuflady
         if (nl !== null) {
@@ -4298,6 +4301,10 @@ const NoteLine = ({ text, color, icon, editLevels, cab }) => {
       const [, li, j, val, dir] = action.split(":");
       const verb = dir === "down" ? "Zmniejsz" : "Zwiększ";
       return { label: `${verb} luz do ${val} mm`, run: () => editLevels((L) => (L[+li].cols[+j].gapBetween = +val)) };
+    }
+    if (action.startsWith("fixh:")) {
+      const [, li, j, k, val] = action.split(":");
+      return { label: `Zmień bok szuflady na ${val} mm`, run: () => editLevels((L) => (L[+li].cols[+j].drawers[+k].h = +val)) };
     }
     if (action.startsWith("fixnl:")) {
       const [, li, j, k, val] = action.split(":");
