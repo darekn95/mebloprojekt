@@ -1460,10 +1460,23 @@ function computeGeo(cab, mat) {
   const panels = [];
   const sameBoard = cab.frontSameAsBoard !== false;
   const sameShelf = cab.shelfSameAsBoard !== false;
+  /* Arkusz jest okrawany przed rozkrojem, wiec formatka wieksza niz to, co po
+     okrawaniu zostaje, nie ma z czego powstac. Formatka z wymuszonym slojem nie
+     moze sie obrocic, wiec dla niej liczy sie tylko jedno ulozenie. */
+  const laysOn = (a, b) =>
+    Math.round(a * 10) / 10 <= USABLE_W && Math.round(b * 10) / 10 <= USABLE_H;
   const P = (o) => {
     let key = o.matKey;
     if (sameBoard && key === "front") key = "board";
     if (sameShelf && key === "shelf") key = "board";
+    // plecy z HDF wolno obracac zawsze — uslojenie ich nie dotyczy
+    const rot = key === "back" || !cab.grainMatters;
+    const fits = laysOn(o.a, o.b) || (rot && laysOn(o.b, o.a));
+    if (o.a > 0 && o.b > 0 && !fits)
+      add(
+        "error",
+        `${o.name} ${fmt(o.a)} × ${fmt(o.b)} mm nie mieści się na arkuszu — po okrawaniu zostaje ${fmt(USABLE_W)} × ${fmt(USABLE_H)} mm.`
+      );
     panels.push(key === o.matKey ? o : { ...o, matKey: key });
   };
 
@@ -4412,8 +4425,12 @@ const projectStore = (() => {
    Wolne pola powstaja wylacznie z takich ciec i nigdy sie nie nakladaja,
    wiec kazdy uklad da sie wyciac prostymi cieciami piły panelowej. */
 
-const SHEET_W = 2800;
+const SHEET_W = 2800; // arkusz, ktory kupujemy
 const SHEET_H = 2100;
+/* Zanim pojda formatki, arkusz jest okrawany na wymiar bazowy — i to on jest
+   realnym maksimum jednej formatki, nie surowy arkusz. */
+const USABLE_W = 2761.2;
+const USABLE_H = 2061.2;
 const KERF = 3; // rzaz piły
 
 const rectFits = (w, h, r) => w <= r.w + 1e-9 && h <= r.h + 1e-9;
@@ -4514,7 +4531,7 @@ function nestPass(parts, sheetW, sheetH, mode, rule) {
 }
 
 /* input: [{ name, qty, a, b, rotatable }] — a x b w mm */
-function packSheets(input, { sheetW = SHEET_W, sheetH = SHEET_H } = {}) {
+function packSheets(input, { sheetW = USABLE_W, sheetH = USABLE_H } = {}) {
   const parts = [];
   input.forEach((it) => {
     for (let i = 0; i < it.qty; i++)
@@ -4915,7 +4932,8 @@ function ReportCutPlan({ project, projectName }) {
       <div style={{ borderBottom: "2px solid #292524", marginBottom: 8, paddingBottom: 4 }}>
         <strong style={{ fontSize: "13pt" }}>{projectName}</strong>
         <div style={{ fontSize: "9pt", color: "#57534e" }}>
-          Rozkrój na płycie — arkusz {fmt(SHEET_W)} × {fmt(SHEET_H)} mm, rzaz {KERF} mm
+          Rozkrój na płycie — arkusz {fmt(SHEET_W)} × {fmt(SHEET_H)} mm, po okrawaniu
+          {" "}{fmt(USABLE_W)} × {fmt(USABLE_H)} mm, rzaz {KERF} mm
         </div>
       </div>
       <table className="rp-tbl">
@@ -7275,7 +7293,8 @@ export default function App() {
                 </button>
               }>
               <p className="text-xs text-stone-500">
-                Arkusz {fmt(SHEET_W)} × {fmt(SHEET_H)} mm, rzaz piły {KERF} mm. Układ jest
+                Arkusz {fmt(SHEET_W)} × {fmt(SHEET_H)} mm, okrawany przed rozkrojem do
+                {" "}{fmt(USABLE_W)} × {fmt(USABLE_H)} mm, rzaz piły {KERF} mm. Układ jest
                 gilotynowy — każde cięcie idzie przez cały pozostały kawałek, więc da się go
                 wykonać piłą panelową. Formatki oznaczone ↻ są obrócone; dzieje się to tylko tam,
                 gdzie słoje nie mają znaczenia. Zielonym obrysem zaznaczone są zrzuty, czyli
