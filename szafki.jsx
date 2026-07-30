@@ -1262,9 +1262,17 @@ function computeGeo(cab, mat) {
         }
       }
 
+      /* Wciecie na palce: front wpuszczany skracamy od gory, zeby zamiast
+         uchwytu zahaczyc palcami o jego gorna krawedz. Podzial pasma i pozycje
+         prowadnic zostaja bez zmian — skraca sie sama formatka frontu. */
+      const grip = dIn && rawCol.fingerGrip
+        ? Math.max(0, Math.round(num(rawCol.gripDepth) ?? 18))
+        : 0;
+      c.fingerGrip = grip;
       let y = dlo;
       ds.forEach((d, i) => {
-        const fh = fr.sizes[i];
+        const fhFull = fr.sizes[i];
+        const fh = Math.max(0, fhFull - grip);
         // wysokosc boku V-BOX: auto dobiera najwyzszy bok mieszczacy sie w froncie
         const fitH = [...VBOX.heights]
           .filter((hc) => VBOX.minFront[dMode][hc] <= fh)
@@ -1338,27 +1346,31 @@ function computeGeo(cab, mat) {
           h: fh,
           colW: c.w, // swiatlo szerokosci kolumny (do swiatla szuflady = colW - 42)
           nl,
-          handle: d.handle !== false,
+          handle: grip > 0 ? d.handle === true : d.handle !== false,
           iInGroup: 0,
           groupN: 1,
           inset: dIn,
           gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
           bandLo: dlo, bandHi: dhi,
         });
-        if (d.handle !== false) handleCount += 1;
+        if (grip > 0 ? d.handle === true : d.handle !== false) handleCount += 1;
         if (nl !== null) {
           const kk = `${hClass}|${nl}`;
           slideGroups.set(kk, (slideGroups.get(kk) || 0) + 1);
         }
 
         const minF = VBOX.minFront[dMode][hClass];
-        if (fh < minF)
+        if (fh < minF) {
+          // najwyzszy bok, ktory zmiesci sie w tak skroconym froncie
+          const fitLower = [...VBOX.heights].filter((hc) => VBOX.minFront[dMode][hc] <= fh).pop();
           add(
             "error",
             `${where}, szuflada ${i + 1}: front ${fmt(fh)} mm, a minimum dla wysokości ${hClass} mm przy froncie ${
               dIn ? "wpuszczanym" : "na korpusie"
-            } to ${minF} mm.`
+            } to ${minF} mm.` +
+              (fitLower ? `|fixh:${lv.i}:${j}:${i}:${fitLower}` : "")
           );
+        }
         if (fh - hClass > 140)
           add(
             "warn",
@@ -1370,7 +1382,7 @@ function computeGeo(cab, mat) {
           drawerParts.push({ kind: "dno", a: LW - 75, b: nl - 24 });
           drawerParts.push({ kind: "tyl", a: LW - 87, b: VBOX.backH[hClass] });
         }
-        y += fh + drGap;
+        y += fhFull + drGap;
       });
     });
   });
@@ -2499,7 +2511,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const takeL = (w) => { const x = lxCur; lxCur -= w; return x; };
   let rxCur = gapLabels ? W + 26 + 70 : W + 26;
   const takeR = (w) => { const x = rxCur; rxCur += w; return x; };
-  const dimRailLX = hasRailL ? takeL(130) : -26;
+  const dimRailLX = hasRailL ? takeL(180) : -26;
   const dimRailRX = hasRailR ? takeR(150) : W + 26;
   const dimSideLX = showSideLengthDims ? takeL(150) : -26;
   const dimSideRX = showSideLengthDims ? takeR(150) : W + 26;
@@ -2656,8 +2668,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {drawerLegend && (
         <text x={W / 2} y={belowY + (hasBase ? 160 : 150) + (pinLegend ? 34 : 0)}
           textAnchor="middle" fontSize="19" fill={DIMC} fontFamily="ui-monospace, monospace">
-          od dna — od górnego lica dna szuflady ({RAIL_TO_BOTTOM} mm nad prowadnicą
-          {" "}+ {fmt(geo.ts)} mm płyty) do pierwszej przeszkody
+          od dna — górne lico dna szuflady, {RAIL_TO_BOTTOM} + {fmt(geo.ts)} mm nad prowadnicą
         </text>
       )}
 
@@ -5478,6 +5489,8 @@ export default function App() {
 
   const setColNL = (i, j, v) =>
     editLevels((L) => (L[i].cols[j].nl = v === "" ? null : Number(v)));
+  const setCol = (i, j, patch) =>
+    editLevels((L) => Object.assign(L[i].cols[j], patch));
   const addDrawer = (i, j) => editLevels((L) => L[i].cols[j].drawers.push(newDrawer()));
   const removeDrawer = (i, j, k) => editLevels((L) => L[i].cols[j].drawers.splice(k, 1));
   const addRail = (i, j) => editLevels((L) => { if (!Array.isArray(L[i].cols[j].rails)) L[i].cols[j].rails = []; L[i].cols[j].rails.push(newRail()); });
@@ -6128,6 +6141,19 @@ export default function App() {
                                   { v: "inset", l: "Wewnątrz" },
                                 ]} />
                             </div>
+                          </div>
+                        )}
+                        {c.drawerMode === "inset" && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <Check checked={!!rawCol.fingerGrip}
+                              onChange={(v) => setCol(lv.i, c.j, { fingerGrip: v })}
+                              label="Wcięcie na palce zamiast uchwytu" />
+                            {rawCol.fingerGrip && (
+                              <div className="w-20">
+                                <Num value={rawCol.gripDepth ?? 18}
+                                  onChange={(v) => setCol(lv.i, c.j, { gripDepth: v })} />
+                              </div>
+                            )}
                           </div>
                         )}
 
