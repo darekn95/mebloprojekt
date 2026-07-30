@@ -203,7 +203,10 @@ function autoHinges(h, w) {
 }
 
 /* prowadnice szuflad: 21 mm na stronę (razem ze ścianką skrzynki) */
-const RUNNER_W = 21; // szerokosc przy boku
+const RUNNER_W = 21;
+/* Od spodu prowadnicy do spodu dna skrzynki — wymiar okucia, niezalezny od
+   wysokosci boku szuflady. Nad nim lezy jeszcze grubosc samego dna. */
+const RAIL_TO_BOTTOM = 26; // szerokosc przy boku
 /* Dol najnizszej szyny ma ZAWSZE siadac rowno z dnem korpusu. Front nakladany
    zaczyna sie o luz dolny nad spodem szafki, wiec odstep dolu szyny od dolu
    frontu to reszta grubosci dna: 18 mm plyty minus 3 mm luzu = 15 mm.
@@ -541,6 +544,9 @@ const makeFromTemplate = (id) => {
 function computeGeo(cab, mat) {
   const t = mat.board.thickness;
   const tf = mat.front.thickness;
+  // polki w kolumnach (i dno/tyl szuflady) moga byc z innej plyty niz korpus;
+  // przegrody i polki przelotowe zostaja konstrukcyjne, czyli z plyty korpusu
+  const ts = cab.shelfSameAsBoard !== false ? t : ((mat.shelf && mat.shelf.thickness) || t);
   const backIsBoard = cab.back === "board";
   // plyta na plecy ma grubosc korpusu, HDF swoja wlasna
   const tb = backIsBoard ? mat.board.thickness : mat.back.thickness;
@@ -716,7 +722,7 @@ function computeGeo(cab, mat) {
       const st =
         rawCols[j].kind === "drawers" ? [null] : rawCols[j].shelfTargets || [null];
       const nS = Math.max(0, st.length - 1);
-      const shFree = lv.h - nS * t;
+      const shFree = lv.h - nS * ts;
       const sh = distribute(shFree, st);
       if (sh.diff !== 0)
         add(
@@ -734,7 +740,7 @@ function computeGeo(cab, mat) {
         sy += sh.sizes[k];
         if (k < nS) {
           c.shelves.push({ y: sy });
-          sy += t;
+          sy += ts;
         }
       }
 
@@ -1125,7 +1131,7 @@ function computeGeo(cab, mat) {
           };
           // rozstaw zawiasow + kolizje z polkami i wzmocnieniami w tej kolumnie
           const hObs = [
-            ...c.shelves.map((s) => ({ y0: s.y, y1: s.y + t, what: "półką" })),
+            ...c.shelves.map((s) => ({ y0: s.y, y1: s.y + ts, what: "półką" })),
             ...(c.rails || []).map((r) => ({ y0: r.y0, y1: r.y1, what: "wzmocnieniem" })),
           ];
           const hp = hingePositions(d.y, d.h, d.hinges, hObs);
@@ -1644,13 +1650,13 @@ function computeGeo(cab, mat) {
       },
       dno: {
         name: "Dno szuflady",
-        matKey: "board",
+        matKey: "shelf",
         edges: { a1: false, a2: false, b1: false, b2: false },
         note: "bez obrzeża",
       },
       tyl: {
         name: "Tył szuflady",
-        matKey: "board",
+        matKey: "shelf",
         edges: { a1: true, a2: false, b1: false, b2: false },
         note: "oklejona krawędź górna",
       },
@@ -2003,7 +2009,7 @@ function computeGeo(cab, mat) {
         if (!hitX(c.x0, c.x1)) return;
         c.shelves.forEach((sh) => {
           // polka koliduje, jesli bryla siega jej glebokosci od tylu
-          if (hitY(sh.y, sh.y + t) && oz0 < backIntrusion + shelfDepth)
+          if (hitY(sh.y, sh.y + ts) && oz0 < backIntrusion + shelfDepth)
             add("warn", `Poziom ${lv.i + 1}: półka na ${fmt(sh.y)} mm koliduje z elementem — przytnij ją lub skróć.`);
         });
         // kolizja z szufladami: sprawdz czy bryla wchodzi w strefe prowadnicy
@@ -2310,7 +2316,7 @@ function computeGeo(cab, mat) {
 
   return {
     hardware,
-    t, tf, tb, carcassDepth, hasBack, interior, innerW, innerH,
+    t, tf, tb, ts, carcassDepth, hasBack, interior, innerW, innerH,
     shelfDepth, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, panels, msgs, maxNL,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut,
@@ -2330,7 +2336,7 @@ function computeGeo(cab, mat) {
    Kolor na rysunku musi isc za tym samym wyborem co lista formatek, inaczej
    biala szafka dostaje bezowa zabudowe. */
 const shelfColorOf = (cab, mat) =>
-  cab.shelfSameAsBoard !== false ? mat.board.color : (shc);
+  cab.shelfSameAsBoard !== false ? mat.board.color : ((mat.shelf || mat.board).color);
 
 const TEX_KEYS = ["board", "front", "shelf"];
 const grainId = (hex, dir) =>
@@ -2408,9 +2414,15 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const pinFromBottom = cab.pinDatum === "bottom";
   const anyPins = showPins && geo.levels.some((lv) => lv.cols.some((c) => (c.shelves || []).length));
   const pinLegend = anyPins && showDims;
+  // swiatlo szuflady liczymy od gory dna skrzynki — sama liczba tego nie mowi
+  const drawerLegend = open && showDims
+    && geo.levels.some((lv) => lv.cols.some((c) => (c.drawers || []).length));
   const belowExtra = Math.max(geo.legBelow, cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0)
-    + 60 + (pinLegend ? 70 : 0);
+    + 60 + (pinLegend ? 70 : 0) + (drawerLegend ? 40 : 0);
   const hasBase = cab.legs?.on || cab.plinth.on;
+  // wszystko rysowane pod szafka odmierzamy od jej realnego spodu — cokol
+  // w obrysie siedzi juz w wysokosci H i niczego nie obniza
+  const belowY = H + (cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0);
   // wymiary rysowane tuz przy szafce (boki, cokol, nozki) wymuszaja odsuniecie
   // wymiarow wysokosci dalej w lewo, zeby etykiety sie nie nakladaly
   const showSideLengthDims = showDims && (geo.leftLen !== H || geo.rightLen !== H);
@@ -2566,7 +2578,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {geo.levels.map((lv) =>
         lv.cols.map((c) =>
           c.shelves.map((s, k) => (
-            <rect key={`s${lv.i}-${c.j}-${k}`} x={c.x0} y={fy(s.y + t)} width={c.w} height={t}
+            <rect key={`s${lv.i}-${c.j}-${k}`} x={c.x0} y={fy(s.y + geo.ts)} width={c.w} height={geo.ts}
               fill={bf} stroke={INK} strokeWidth="2" />
           ))
         )
@@ -2593,11 +2605,18 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
 
       {/* legenda — bez niej sama liczba nie mowi, od czego jest mierzona */}
       {pinLegend && (
-        <text x={W / 2} y={H + geo.plinthH + (hasBase ? 160 : 150)} textAnchor="middle"
+        <text x={W / 2} y={belowY + (hasBase ? 160 : 150)} textAnchor="middle"
           fontSize="19" fill={DIMC} fontFamily="ui-monospace, monospace">
           otw. — oś otworu ⌀5 pod kołek, od {pinFromBottom
             ? (geo.hasBot ? "górnego lica dna" : "spodu wnętrza")
             : "dolnej krawędzi boku / przegrody"}
+        </text>
+      )}
+      {drawerLegend && (
+        <text x={W / 2} y={belowY + (hasBase ? 160 : 150) + (pinLegend ? 34 : 0)}
+          textAnchor="middle" fontSize="19" fill={DIMC} fontFamily="ui-monospace, monospace">
+          od dna — od górnego lica dna szuflady ({RAIL_TO_BOTTOM} mm nad prowadnicą
+          {" "}+ {fmt(geo.ts)} mm płyty) do pierwszej przeszkody
         </text>
       )}
 
@@ -2944,7 +2963,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             geo.levels[0] &&
             geo.levels[0].cols.length > 1 &&
             geo.levels[0].cols.map((c) => (
-              <DimH key={"c" + c.j} x1={c.x0} x2={c.x1} y={H + geo.plinthH + 90}
+              <DimH key={"c" + c.j} x1={c.x0} x2={c.x1} y={belowY + 90}
                 label={`${fmt(c.w)}`} above={false} c={c.w < MIN_COL ? WARNC : DIMC} />
             ))}
           {/* szerokosci wszystkich frontow dolnego rzedu */}
@@ -2953,7 +2972,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               const bottomLvl = geo.levels[0];
               if (!bottomLvl) return null;
               const seen = new Set();
-              const yLine = H + geo.plinthH + 90;
+              const yLine = belowY + 90;
               return geo.doors
                 .filter((d) => d.lvl === 0 && d.w > 0)
                 .filter((d) => {
@@ -2988,7 +3007,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             )
         )}
 
-      {/* wysokosc uzytkowa szuflad: od gory dna (36 mm nad dolem frontu) do dolu frontu wyzej */}
+      {/* Swiatlo pionowe szuflady. Dol: gora dna skrzynki, czyli 26 mm od spodu
+          prowadnicy (wymiar okucia, staly dla kazdej wysokosci boku) plus grubosc
+          dna, ktore idzie z plyty polek. Gora: pierwsza przeszkoda — spod frontu
+          szuflady wyzej albo gora swiatla poziomu (polka, przegroda, wieniec). */}
       {open && showDims &&
         geo.levels.flatMap((lv) =>
           lv.cols
@@ -2996,13 +3018,13 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             .flatMap((c) => {
               const ds = [...c.drawers].sort((a, b) => a.y - b.y);
               return ds.map((dr, i) => {
-                const bottom = dr.y + 36; // gora dna szuflady
+                const bottom = dr.rail.y0 + RAIL_TO_BOTTOM + geo.ts;
                 const top = i + 1 < ds.length ? ds[i + 1].y : lv.y1;
                 const val = Math.round(top - bottom);
                 if (val < 30) return null;
                 return (
                   <DimV key={`du${lv.i}-${c.j}-${i}`}
-                    y1={fy(top)} y2={fy(bottom)} x={dimColX(c)}
+                    y1={fy(top)} y2={fy(bottom)} x={c.x0 + 46}
                     label={`${fmt(val)} od dna`} left={false} c={DIMC} />
                 );
               });
@@ -3164,8 +3186,8 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
       {geo.levels.map((lv) =>
         lv.cols.map((c) =>
           c.shelves.map((sh, k) => (
-            <rect key={`p${lv.i}-${c.j}-${k}`} x={mx(c.x0, c.w)} y={fy(sh.y + t)}
-              width={c.w} height={t} fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
+            <rect key={`p${lv.i}-${c.j}-${k}`} x={mx(c.x0, c.w)} y={fy(sh.y + geo.ts)}
+              width={c.w} height={geo.ts} fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
           ))
         )
       )}
@@ -3695,9 +3717,11 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
   // przod korpusu jest przy x=D; front nakladany wystaje o tf, wpuszczany jest w licu
   const frontFace = cab.frontMode === "overlay" ? D + geo.tf : D;
 
+  // polki przelotowe sa konstrukcyjne (plyta korpusu), polki w kolumnach moga
+  // byc z cienszej plyty — rysujemy je wiec osobno, kazda swoja gruboscia
   const allShelves = [
-    ...geo.sepShelves.map((s) => s.y),
-    ...geo.levels.flatMap((lv) => lv.cols.flatMap((c) => c.shelves.map((s) => s.y))),
+    ...geo.sepShelves.map((s) => ({ y: s.y, th: geo.t })),
+    ...geo.levels.flatMap((lv) => lv.cols.flatMap((c) => c.shelves.map((s) => ({ y: s.y, th: geo.ts })))),
   ];
 
   return (
@@ -3735,9 +3759,9 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
         </>
       )}
 
-      {allShelves.map((y, i) => (
-        <rect key={i} x={xC + geo.backIntrusion} y={fy(y + geo.t)}
-          width={geo.shelfDepth} height={geo.t} fill={bf} stroke={INK} strokeWidth="2" />
+      {allShelves.map((s, i) => (
+        <rect key={i} x={xC + geo.backIntrusion} y={fy(s.y + s.th)}
+          width={geo.shelfDepth} height={s.th} fill={bf} stroke={INK} strokeWidth="2" />
       ))}
 
       {/* wsporniki pionowe przy elementach stalych */}
@@ -3997,7 +4021,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
   geo.levels.forEach((lv) =>
     lv.cols.forEach((c) => {
       c.shelves.forEach((sh) =>
-        box(c.x0, sh.y, geo.backIntrusion, c.x1, sh.y + t,
+        box(c.x0, sh.y, geo.backIntrusion, c.x1, sh.y + geo.ts,
           geo.backIntrusion + geo.shelfDepth, bf)
       );
       if (c.support && c.fix) {
