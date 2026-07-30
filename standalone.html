@@ -297,6 +297,23 @@ function distribute(total, targets) {
   return { sizes: out, diff: total - sum };
 }
 
+/* Rowny podzial pasma wychodzi tylko przy odpowiednim luzie. Szukamy najblizszego
+   luzu w gore i w dol, przy ktorym reszta pasma dzieli sie na formatki bez
+   resztek — `span` to cale pasmo, `n` liczba frontow, `fixedSum` suma tych o
+   zadanym wymiarze, `autoCnt` liczba dzielonych po rowno. */
+const evenGapOptions = (span, n, fixedSum, autoCnt, gap, min = 2, max = 12) => {
+  const fits = (G) => {
+    if (G < min || G > max) return false;
+    const rest = Math.round(span - (n - 1) * G - fixedSum);
+    return rest >= autoCnt && rest % autoCnt === 0;
+  };
+  let up = null;
+  let down = null;
+  for (let d = 1; d <= max && up === null; d++) if (fits(gap + d)) up = gap + d;
+  for (let d = 1; d <= max && down === null; d++) if (fits(gap - d)) down = gap - d;
+  return { up, down };
+};
+
 /* ---------- domyslny projekt ---------- */
 
 const defaultMaterials = {
@@ -1073,14 +1090,22 @@ function computeGeo(cab, mat) {
             `${where}: zadane szerokości drzwi nie wypełniają pasma — różnica ${fmt(Math.abs(dws.diff))} mm.`
           );
         c.doorWs = dws.sizes;
-        // gdy dzielimy rowno, a wychodza rozne szerokosci o 1-2 mm — podpowiedz zeby zwiekszyc luz
-        const autoCnt = (rawCol.doorWidths || []).filter((v) => num(v) === null).length || cnt;
+        // gdy dzielimy rowno, a wychodza rozne szerokosci o 1-2 mm — podpowiedz,
+        // jakim luzem (w gore albo w dol) pasmo podzieli sie bez resztek
+        const autoCnt = wTargets.filter((v) => num(v) === null).length;
+        const fixedW = wTargets.reduce((s2, v) => s2 + (num(v) ?? 0), 0);
         if (autoCnt > 1) {
           const uniq = [...new Set(dws.sizes.map((v) => Math.round(v)))];
           if (uniq.length > 1) {
             const spread = Math.max(...uniq) - Math.min(...uniq);
-            if (spread <= 2)
-              add("info", `${where}: przy równym podziale drzwi różnią się o ${fmt(spread)} mm. Zwiększ luz między drzwiami o ${fmt(spread)} mm, żeby formatki były identyczne.|fixgap:${lv.i}:${j}:${colGap + spread}`);
+            if (spread <= 2) {
+              const opt = evenGapOptions(sx1 - sx0, cnt, fixedW, autoCnt, colGap);
+              const acts = [opt.up, opt.down]
+                .filter((v) => v !== null)
+                .map((v) => `|fixgap:${lv.i}:${j}:${v}:${v > colGap ? "up" : "down"}`)
+                .join("");
+              add("info", `${where}: przy równym podziale drzwi różnią się o ${fmt(spread)} mm. Zmień luz między drzwiami, żeby formatki były identyczne.${acts}`);
+            }
           }
         }
         c.doorW = dws.sizes[0];
@@ -1219,11 +1244,18 @@ function computeGeo(cab, mat) {
         );
       // podpowiedz wyrownania, gdy rowny podzial daje rozne fronty o 1-2 mm
       const autoFronts = ds.filter((d) => num(d.front) === null).length;
+      const fixedFronts = ds.reduce((s2, d) => s2 + (num(d.front) ?? 0), 0);
       if (autoFronts > 1) {
         const uniq = [...new Set(fr.sizes.map((v) => Math.round(v)))];
         const spread = uniq.length > 1 ? Math.max(...uniq) - Math.min(...uniq) : 0;
-        if (spread >= 1 && spread <= 2)
-          add("info", `${where}: przy równym podziale fronty szuflad różnią się o ${fmt(spread)} mm. Żeby były identyczne, dobierz luz między frontami lub wysokość pasma tak, by dzieliło się równo.`);
+        if (spread >= 1 && spread <= 2) {
+          const opt = evenGapOptions(dbandH, ds.length, fixedFronts, autoFronts, drGap);
+          const acts = [opt.up, opt.down]
+            .filter((v) => v !== null)
+            .map((v) => `|fixgap:${lv.i}:${j}:${v}:${v > drGap ? "up" : "down"}`)
+            .join("");
+          add("info", `${where}: przy równym podziale fronty szuflad różnią się o ${fmt(spread)} mm. Zmień luz między frontami, żeby były identyczne.${acts}`);
+        }
       }
 
       let y = dlo;
@@ -2399,7 +2431,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // wymiary rysowane tuz przy szafce (boki, cokol, nozki) wymuszaja odsuniecie
   // wymiarow wysokosci dalej w lewo, zeby etykiety sie nie nakladaly
   const showSideLengthDims = showDims && (geo.leftLen !== H || geo.rightLen !== H);
-  const hasBaseDim = !!cab.legs?.on || (cab.plinth.on && !geo.plinthInBody);
+  // wymiar wysokosci calkowitej ma sens tylko wtedy, gdy podstawa faktycznie
+  // podnosi szafke — nozki schowane w swietle cokolu niczego nie zmieniaja
+  const hasBaseDim =
+    geo.legBelow > 0 || (cab.plinth.on && !geo.plinthInBody && geo.plinthH > 0);
   const hasDoorDims = showDims && !open && (geo.doors || []).some((d) => d.type === "door");
   // wysokosc montazu prowadnic: kolumna przy boku -> wymiar poza szafka,
   // kolumna miedzy przegrodami -> w swietle obok prowadnicy
@@ -2416,16 +2451,30 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
     );
   const hasRailL = railDimCols.some((r) => r.where === "left");
   const hasRailR = railDimCols.some((r) => r.where === "right");
-  const wideDims = showSideLengthDims || hasBaseDim || hasDoorDims || hasRailL;
-  const leftExtra = wideDims ? 300 : 0;
-  const rightExtraF = Math.max(hasBase ? 60 : 0, showSideLengthDims ? 160 : 0, hasRailR ? 150 : 0);
-  // pozycje X wymiarow
-  const dimHMainX = wideDims ? -290 : -50;
-  const dimHTotalX = wideDims ? -370 : -115;
-  const railExtra = hasRailR ? 130 : 0;
-  const dimLevelX = W + (showSideLengthDims ? 170 : 60) + railExtra;
-  const dimDrawerX = W + (showSideLengthDims ? 230 : 120) + railExtra;
-  const dimDoorX = showSideLengthDims ? -160 : -26; // wymiary wys. drzwi po lewej
+  // swiatlo poziomow opisujemy tylko w widoku otwartym i po lewej stronie —
+  // w zamknietym powtarzaloby wysokosci frontow, ktore i tak sa wymiarowane
+  const hasLevelDims = showDims && open && geo.levels.length > 0;
+  const hasDrawerDims = showDims && !open && (geo.doors || []).some((d) => d.type === "drawer");
+  // Wymiary po bokach ukladamy kolumnami: pierwsza tuz przy obrysie, kazda
+  // kolejna dalej. Rezerwujemy tylko te kolumny, ktore naprawde rysujemy, wiec
+  // gdy nie ma np. dlugosci bokow, reszta wymiarow siedzi znacznie blizej.
+  const gapLabels = showGaps && !open; // opisy szczelin siedza tuz przy krawedzi
+  let lxCur = gapLabels ? -26 - 70 : -26;
+  const takeL = (w) => { const x = lxCur; lxCur -= w; return x; };
+  let rxCur = gapLabels ? W + 26 + 70 : W + 26;
+  const takeR = (w) => { const x = rxCur; rxCur += w; return x; };
+  const dimRailLX = hasRailL ? takeL(130) : -26;
+  const dimRailRX = hasRailR ? takeR(150) : W + 26;
+  const dimSideLX = showSideLengthDims ? takeL(150) : -26;
+  const dimSideRX = showSideLengthDims ? takeR(150) : W + 26;
+  const dimDoorX = hasDoorDims ? takeL(90) : lxCur; // wysokosci drzwi po lewej
+  const dimLevelX = hasLevelDims ? takeL(90) : lxCur; // swiatlo poziomow po lewej
+  const dimDrawerX = hasDrawerDims ? takeR(90) : rxCur; // wysokosci frontow szuflad
+  const dimHMainX = takeL(100);
+  const dimHTotalX = hasBaseDim ? takeL(100) : dimHMainX;
+  const leftExtra = Math.max(0, -lxCur - 40);
+  // "nóżki 100" to szeroki opis — rezerwujemy mu miejsce po prawej
+  const rightExtraF = Math.max(0, rxCur - W - 26) + (hasBase ? 140 : 0);
   // cokol pod lewym wymiarem boku, nozki pod prawym — tuz przy szafce
   const dimCokolX = -26;
   const dimNozkiX = W + 26;
@@ -2853,9 +2902,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           <DimV y1={0} y2={H} x={dimHMainX} label={`${fmt(H)}`} />
           {showSideLengthDims && (
             <>
-              <DimV y1={leftTopY} y2={leftBottomY} x={-26}
+              <DimV y1={leftTopY} y2={leftBottomY} x={dimSideLX}
                 label={`bok L ${fmt(geo.leftLen)}`} c={LINE} />
-              <DimV y1={rightTopY} y2={rightBottomY} x={W + 26}
+              <DimV y1={rightTopY} y2={rightBottomY} x={dimSideRX}
                 label={`bok P ${fmt(geo.rightLen)}`} left={false} c={LINE} />
             </>
           )}
@@ -2869,8 +2918,11 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             if (legH <= 0 && extra <= 0) return null;
             return (
               <>
-                {/* calkowita wysokosc z podstawa po lewej */}
-                <DimV y1={0} y2={H + extra} x={dimHTotalX} label={`${fmt(H + extra)}`} c={LINE} />
+                {/* calkowita wysokosc z podstawa po lewej — tylko gdy podstawa
+                    naprawde podnosi szafke, inaczej powtarzalaby wymiar H */}
+                {extra > 0 && (
+                  <DimV y1={0} y2={H + extra} x={dimHTotalX} label={`${fmt(H + extra)}`} c={LINE} />
+                )}
                 {/* cokol: mierzony przy prawej krawedzi korpusu (cokol jest szerokosci szafki) */}
                 {plH > 0 && (
                   <DimV y1={H} y2={H + plH} x={dimCokolX} label={`cokół ${fmt(plH)}`}
@@ -2884,10 +2936,11 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               </>
             );
           })()}
-          {geo.levels.map((lv) => (
-            <DimV key={"lv" + lv.i} y1={fy(lv.y1)} y2={fy(lv.y0)} x={dimLevelX}
-              label={`${fmt(lv.h)}`} left={false} c={lv.h < 60 ? WARNC : DIMC} />
-          ))}
+          {hasLevelDims &&
+            geo.levels.map((lv) => (
+              <DimV key={"lv" + lv.i} y1={fy(lv.y1)} y2={fy(lv.y0)} x={dimLevelX}
+                label={`${fmt(lv.h)}`} c={lv.h < 60 ? WARNC : DIMC} />
+            ))}
           {/* wysokosci frontow szuflad przy prawej krawedzi */}
           {!open &&
             geo.doors
@@ -2941,7 +2994,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             .filter((c) => c.kind !== "drawers" && c.kind !== "blenda")
             .flatMap((c) =>
               (c.openings || [])
-                .filter((op) => op.h > 30)
+                // jedyne swiatlo rowne calemu poziomowi juz jest zwymiarowane
+                // przy lewej krawedzi szafki — nie powtarzamy go w srodku
+                .filter((op) => op.h > 30 && !(c.openings.length === 1 && Math.round(op.h) === Math.round(lv.h)))
                 .map((op) => (
                   <DimV key={`op${lv.i}-${c.j}-${op.k}`}
                     y1={fy(op.to)} y2={fy(op.from)} x={dimColX(c)}
@@ -2995,7 +3050,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           // w srodku szafki chowamy wymiar przy prawej prowadnicy, zeby nie
           // wchodzil na wymiary swiatla szuflady rysowane przy lewej
           const x =
-            where === "left" ? -26 : where === "right" ? W + 26 : c.x1 - RUNNER_W - 30;
+            where === "left" ? dimRailLX : where === "right" ? dimRailRX : c.x1 - RUNNER_W - 30;
           return (
             <DimV key={`rh${c.j}-${i}`} y1={fy(dr.rail.y0)} y2={fy(geo.interior.y0)} x={x}
               label={`szyna ${fmt(val)}`} left={where !== "right"} c={DIMC} />
@@ -4233,8 +4288,9 @@ const NoteLine = ({ text, color, icon, editLevels, cab }) => {
   const [txt, ...actions] = text.split("|");
   const btns = actions.map((action) => {
     if (action.startsWith("fixgap:")) {
-      const [, li, j, val] = action.split(":");
-      return { label: `Zwiększ luz do ${val} mm`, run: () => editLevels((L) => (L[+li].cols[+j].gapBetween = +val)) };
+      const [, li, j, val, dir] = action.split(":");
+      const verb = dir === "down" ? "Zmniejsz" : "Zwiększ";
+      return { label: `${verb} luz do ${val} mm`, run: () => editLevels((L) => (L[+li].cols[+j].gapBetween = +val)) };
     }
     if (action.startsWith("fixnl:")) {
       const [, li, j, k, val] = action.split(":");
