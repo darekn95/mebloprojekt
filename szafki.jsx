@@ -1306,6 +1306,13 @@ function computeGeo(cab, mat) {
           else if (colMaxNL && nl < colMaxNL)
             add("info", `${where}, szuflada ${i + 1}: zmieści się głębsza NL ${colMaxNL}.|fixnl:${lv.i}:${j}:${i}:${colMaxNL}`);
         }
+        /* Prowadnica najnizszej szuflady siada rowno na dnie albo na przegrodzie
+           tego poziomu — to ona wyznacza wysokosc, a front sie do niej
+           dostosowuje. Wyzsze szuflady nie maja na czym usiasc, wiec ich front
+           schodzi ponizej szyny o staly, ustawialny wymiar. */
+        const railY0 = i === 0
+          ? lv.y0
+          : y + Math.max(0, Math.round(num(g.underRail) ?? 5));
         const dr = {
           i,
           y,
@@ -1321,13 +1328,7 @@ function computeGeo(cab, mat) {
           // wpuszczenia ponizej niego; w obu przypadkach najnizsza szyna
           // siada rowno z dnem korpusu.
           rail: {
-            /* Prowadnica najnizszej szuflady siada rowno na dnie albo na
-               przegrodzie tego poziomu — to ona wyznacza wysokosc, a front sie
-               do niej dostosowuje. Wyzsze szuflady nie maja na czym usiasc,
-               wiec ich front schodzi ponizej szyny o staly, ustawialny wymiar. */
-            y0: i === 0
-              ? lv.y0
-              : y + Math.max(0, Math.round(num(g.underRail) ?? 5)),
+            y0: railY0,
             h: hClass,
             d: nl || 0,
             // front wpuszczany zamyka sie w swietle korpusu, wiec prowadnice
@@ -1383,13 +1384,23 @@ function computeGeo(cab, mat) {
            wtedy nie ma czym spiac skrzynki. */
         const stdBack = VBOX.backH[hClass];
         let backH = stdBack;
-        if (rawCol.tallBack) {
-          backH = Math.max(0, Math.round(num(rawCol.backHeight) ?? fh));
+        if (d.tallBack) {
+          backH = Math.max(0, Math.round(num(d.backHeight) ?? fh));
           if (backH < stdBack)
             add(
               "error",
               `${where}, szuflada ${i + 1}: tył ${fmt(backH)} mm jest niższy niż bok skrzynki (${stdBack} mm).` +
-                `|fixback:${lv.i}:${j}:${stdBack}`
+                `|fixback:${lv.i}:${j}:${i}:${stdBack}`
+            );
+          /* Podniesiony tyl jedzie razem ze skrzynka, wiec musi przejsc pod tym,
+             co jest nad szuflada: frontem wyzej albo gora swiatla poziomu. */
+          const ceilY = i + 1 < ds.length ? y + fhFull + drGap : lv.y1;
+          const maxBack = Math.round(ceilY - railY0);
+          if (backH > maxBack)
+            add(
+              "warn",
+              `${where}, szuflada ${i + 1}: tył ${fmt(backH)} mm nie przejdzie pod tym, co jest wyżej — mieści się ${fmt(maxBack)} mm.` +
+                (maxBack >= stdBack ? `|fixback:${lv.i}:${j}:${i}:${maxBack}` : "")
             );
         }
         if (nl !== null && LW > 0) {
@@ -4371,10 +4382,10 @@ const NoteLine = ({ text, color, icon, editLevels, cab, setGap }) => {
       return { label: `${verb} luz do ${val} mm`, run: () => editLevels((L) => (L[+li].cols[+j].gapBetween = +val)) };
     }
     if (action.startsWith("fixback:")) {
-      const [, li, j, val] = action.split(":");
+      const [, li, j, k, val] = action.split(":");
       return {
-        label: `Podnieś tył do ${val} mm`,
-        run: () => editLevels((L) => (L[+li].cols[+j].backHeight = +val)),
+        label: `Ustaw tył na ${val} mm`,
+        run: () => editLevels((L) => (L[+li].cols[+j].drawers[+k].backHeight = +val)),
       };
     }
     if (action.startsWith("fixcolauto:")) {
@@ -5537,6 +5548,8 @@ export default function App() {
   const addRail = (i, j) => editLevels((L) => { if (!Array.isArray(L[i].cols[j].rails)) L[i].cols[j].rails = []; L[i].cols[j].rails.push(newRail()); });
   const removeRail = (i, j, k) => editLevels((L) => L[i].cols[j].rails.splice(k, 1));
   const setRail = (i, j, k, patch) => editLevels((L) => { L[i].cols[j].rails[k] = { ...L[i].cols[j].rails[k], ...patch }; });
+  const setDrawer = (i, j, k, patch) =>
+    editLevels((L) => Object.assign(L[i].cols[j].drawers[k], patch));
   const setDrawerH = (i, j, k, v) =>
     editLevels((L) => (L[i].cols[j].drawers[k].h = v === "auto" ? "auto" : Number(v)));
   const setDrawerFront = (i, j, k, v) =>
@@ -6188,17 +6201,6 @@ export default function App() {
                             </div>
                           </div>
                         )}
-                        <div className="flex items-center gap-2 text-xs">
-                          <Check checked={!!rawCol.tallBack}
-                            onChange={(v) => setCol(lv.i, c.j, { tallBack: v })}
-                            label="Tył na wysokość frontu" />
-                          {rawCol.tallBack && (
-                            <div className="w-20">
-                              <Num value={rawCol.backHeight ?? ""}
-                                onChange={(v) => setCol(lv.i, c.j, { backHeight: v === "" ? null : v })} />
-                            </div>
-                          )}
-                        </div>
                         {c.drawerMode === "inset" && (
                           <div className="flex items-center gap-2 text-xs">
                             <Check checked={!!rawCol.fingerGrip}
@@ -6439,6 +6441,18 @@ export default function App() {
                                     className="h-3.5 w-3.5 accent-teal-700" />
                                   <span className="text-[11px] text-stone-500">uchwyt</span>
                                 </label>
+                                <label className="flex shrink-0 items-center gap-1 cursor-pointer"
+                                  title="Tył podniesiony do wysokości frontu, żeby rzeczy nie wypadały">
+                                  <input type="checkbox"
+                                    checked={!!rawCol.drawers[dr.i]?.tallBack}
+                                    onChange={(e) => setDrawer(lv.i, c.j, dr.i, { tallBack: e.target.checked })}
+                                    className="h-3.5 w-3.5 accent-teal-700" />
+                                  <span className="text-[11px] text-stone-500">tył</span>
+                                </label>
+                                {rawCol.drawers[dr.i]?.tallBack && (
+                                  <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={fmt(dr.h)}
+                                    onChange={(v) => setDrawer(lv.i, c.j, dr.i, { backHeight: v === "" ? null : Math.round(Number(v)) })} />
+                                )}
                                 <select value={rawCol.drawers[dr.i]?.nl ?? ""}
                                   title="Głębokość NL tej szuflady — puste bierze głębokość kolumny"
                                   onChange={(e) => setDrawerNL(lv.i, c.j, dr.i, e.target.value)}
