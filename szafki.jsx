@@ -206,7 +206,10 @@ function autoHinges(h, w) {
 /* Wysoka i waska szafka po przeskalowaniu do stalej wysokosci chowala sie na
    srodku pola, a wymiary robily sie nieczytelne — bierzemy tyle wysokosci
    okna, ile realnie jest. */
-const DRAW_MAX_H = "min(88vh, 1400px)";
+/* Rysunek ma sie skalowac do szerokosci pola, a nie miescic w stalej wysokosci
+   — inaczej wysoka szafka kurczy sie do paska na srodku. Sufit jest tylko
+   zabezpieczeniem przed skrajnie waskim i wysokim rzutem. */
+const DRAW_MAX_H = "min(180vh, 2000px)";
 
 const RUNNER_W = 21; // szerokosc prowadnicy przy boku
 /* Od spodu prowadnicy do spodu dna skrzynki — wymiar okucia, niezalezny od
@@ -4329,7 +4332,7 @@ const Seg = ({ value, onChange, options }) => (
   <div className="flex rounded border border-stone-300 overflow-hidden">
     {options.map((o) => (
       <button key={o.v} onClick={() => onChange(o.v)}
-        className={"flex-1 px-2 py-1.5 text-xs transition-colors " +
+        className={"flex-1 whitespace-nowrap px-2 py-1.5 text-xs transition-colors " +
           (value === o.v ? "bg-teal-700 text-white" : "bg-white text-stone-600 hover:bg-stone-100")}>
         {o.l}
       </button>
@@ -5991,7 +5994,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[380px_1fr]">
+      <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[440px_1fr]">
         <div className="space-y-4">
           <Card title="Korpus" collapsible>
             <div className="grid grid-cols-3 gap-3">
