@@ -401,7 +401,9 @@ const defaultCab = {
   // (tak sie mierzy plyte na stole), "bottom" = dno szafki
   pinDatum: "panel",
   hangers: "auto", // zawieszki do szafek wiszacych: auto / zawsze / nigdy
-  hangerMode: "listwa", // zawieszki mocowane na listwie albo wprost na haczyki
+  // pojedyncza szafka wisi na haczykach; listwa oplaca sie dopiero, gdy szafek
+  // jest kilka w ciagu i trzeba je wyrownac do jednej linii
+  hangerMode: "haczyki", // zawieszki mocowane na listwie albo wprost na haczyki
   grainMatters: false,
   texture: false, // rysuj strukture slojow zamiast plaskiego koloru
   textureDir: "v", // kierunek slojow na rysunku: v = pionowo, h = poziomo
@@ -997,7 +999,7 @@ function computeGeo(cab, mat) {
           groupN: 1,
           inset: fixInset,
           gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
-          bandLo: clo, bandHi: chi,
+          bandLo: lv.i === 0 ? null : clo, bandHi: lv.i === L - 1 ? null : chi,
         });
         if (rawFix.support) {
           const sd = Math.max(0, Math.round(rawFix.supportDepth || 0));
@@ -1070,7 +1072,7 @@ function computeGeo(cab, mat) {
             groupN: 1,
             inset: bi,
             gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
-            bandLo: by0, bandHi: by1,
+            bandLo: lv.i === 0 ? null : by0, bandHi: lv.i === L - 1 ? null : by1,
           });
         }
         return;
@@ -1129,7 +1131,7 @@ function computeGeo(cab, mat) {
             groupN: cnt,
             inset: cab.frontMode === "inset",
             gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
-            bandLo: clo, bandHi: chi,
+            bandLo: lv.i === 0 ? null : clo, bandHi: lv.i === L - 1 ? null : chi,
             mirror: !!(rawCol.mirrors || [])[i],
             hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw),
             handle: (rawCol.handles || [])[i] !== false,
@@ -1324,8 +1326,6 @@ function computeGeo(cab, mat) {
                wiec ich front schodzi ponizej szyny o staly, ustawialny wymiar. */
             y0: i === 0
               ? lv.y0
-              : dIn
-              ? y - g.inset
               : y + Math.max(0, Math.round(num(g.underRail) ?? 5)),
             h: hClass,
             d: nl || 0,
@@ -1346,14 +1346,14 @@ function computeGeo(cab, mat) {
           h: fh,
           colW: c.w, // swiatlo szerokosci kolumny (do swiatla szuflady = colW - 42)
           nl,
-          handle: grip > 0 ? d.handle === true : d.handle !== false,
+          handle: d.handle !== false,
           iInGroup: 0,
           groupN: 1,
           inset: dIn,
           gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
-          bandLo: dlo, bandHi: dhi,
+          bandLo: lv.i === 0 ? null : dlo, bandHi: lv.i === L - 1 ? null : dhi,
         });
-        if (grip > 0 ? d.handle === true : d.handle !== false) handleCount += 1;
+        if (d.handle !== false) handleCount += 1;
         if (nl !== null) {
           const kk = `${hClass}|${nl}`;
           slideGroups.set(kk, (slideGroups.get(kk) || 0) + 1);
@@ -2440,12 +2440,12 @@ const DimH = ({ x1, x2, y, label, c = DIMC, above = true }) => (
   </g>
 );
 
-const DimV = ({ y1, y2, x, label, c = DIMC, left = true }) => (
+const DimV = ({ y1, y2, x, label, c = DIMC, left = true, labelY = null }) => (
   <g>
     <line x1={x} y1={y1} x2={x} y2={y2} stroke={c} strokeWidth="1.5" />
     <line x1={x - 8} y1={y1} x2={x + 8} y2={y1} stroke={c} strokeWidth="1.5" />
     <line x1={x - 8} y1={y2} x2={x + 8} y2={y2} stroke={c} strokeWidth="1.5" />
-    <text x={left ? x - 8 : x + 8} y={(y1 + y2) / 2 + 7}
+    <text x={left ? x - 8 : x + 8} y={(labelY == null ? (y1 + y2) / 2 : labelY) + 7}
       textAnchor={left ? "end" : "start"} fontSize="22" fill={c}
       fontFamily="ui-monospace, monospace">{label}</text>
   </g>
@@ -3110,7 +3110,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           const x =
             where === "left" ? dimRailLX : where === "right" ? dimRailRX : c.x1 - RUNNER_W - 30;
           return (
+            /* opis przy kresce tej prowadnicy — na srodku wymiaru odjechalby
+               od kreski i przy kilku szufladach nie dalo sie ich powiazac */
             <DimV key={`rh${lvl}-${c.j}-${i}`} y1={fy(dr.rail.y0)} y2={fy(geo.interior.y0)} x={x}
+              labelY={fy(dr.rail.y0)}
               label={`szyna ${fmt(val)}`} left={where !== "right"} c={DIMC} />
           );
         })
@@ -5491,6 +5494,15 @@ export default function App() {
     editLevels((L) => (L[i].cols[j].nl = v === "" ? null : Number(v)));
   const setCol = (i, j, patch) =>
     editLevels((L) => Object.assign(L[i].cols[j], patch));
+  /* Wciecie zastepuje uchwyt, wiec wlaczenie go zdejmuje z calej kolumny —
+     pojedyncza szuflada moze go potem dostac z powrotem. Wylaczenie wciecia
+     oddaje uchwyty, bo inaczej szuflady nie ma za co chwycic. */
+  const setFingerGrip = (i, j, v) =>
+    editLevels((L) => {
+      const col = L[i].cols[j];
+      col.fingerGrip = v;
+      (col.drawers || []).forEach((d) => { d.handle = !v; });
+    });
   const addDrawer = (i, j) => editLevels((L) => L[i].cols[j].drawers.push(newDrawer()));
   const removeDrawer = (i, j, k) => editLevels((L) => L[i].cols[j].drawers.splice(k, 1));
   const addRail = (i, j) => editLevels((L) => { if (!Array.isArray(L[i].cols[j].rails)) L[i].cols[j].rails = []; L[i].cols[j].rails.push(newRail()); });
@@ -6146,7 +6158,7 @@ export default function App() {
                         {c.drawerMode === "inset" && (
                           <div className="flex items-center gap-2 text-xs">
                             <Check checked={!!rawCol.fingerGrip}
-                              onChange={(v) => setCol(lv.i, c.j, { fingerGrip: v })}
+                              onChange={(v) => setFingerGrip(lv.i, c.j, v)}
                               label="Wcięcie na palce zamiast uchwytu" />
                             {rawCol.fingerGrip && (
                               <div className="w-20">
