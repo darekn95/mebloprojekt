@@ -5880,17 +5880,19 @@ export default function App() {
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900">
       <header className="print-hide sticky top-0 z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
-          <div className="flex w-full flex-col gap-0.5 sm:w-auto sm:min-w-[22rem] sm:flex-1">
-            <label className="flex min-w-0 items-center gap-1.5"
+        <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
+          {/* obie nazwy w jednej linii — w waskim oknie naglowek zawijal sie
+              na trzy rzedy i zjadal wysokosc potrzebna rysunkowi */}
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <label className="flex min-w-0 flex-1 items-center gap-1.5"
               title="Nazwa całego projektu — kliknij i wpisz dowolną">
-              <span aria-hidden="true" className="shrink-0 text-base text-stone-400">✎</span>
+              <span aria-hidden="true" className="shrink-0 text-sm text-stone-400">✎</span>
               <input value={project.name ?? ""}
                 onChange={(e) => setProject((p) => ({ ...p, name: e.target.value }))}
                 placeholder={DEFAULT_PROJECT_NAME}
-                className="min-w-0 flex-1 border-b border-stone-300 bg-transparent px-0.5 text-lg font-semibold tracking-tight hover:border-stone-400 focus:border-teal-700 focus:outline-none" />
+                className="min-w-0 flex-1 border-b border-stone-300 bg-transparent px-0.5 text-base font-semibold tracking-tight hover:border-stone-400 focus:border-teal-700 focus:outline-none" />
             </label>
-            <label className="flex min-w-0 items-center gap-1.5 pl-6"
+            <label className="flex min-w-0 flex-1 items-center gap-1.5"
               title="Nazwa tej szafki — kliknij i wpisz dowolną">
               <span className="shrink-0 text-[11px] uppercase tracking-wide text-stone-400">szafka</span>
               <input value={cab.name} onChange={(e) => set({ name: e.target.value })}
@@ -5951,7 +5953,7 @@ export default function App() {
         </div>
         {/* pasek szafek w projekcie */}
         <div className="border-t border-stone-200 bg-stone-50/60">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-1.5 px-4 py-2">
+          <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-1.5 px-4 py-2">
             <span className="mr-1 shrink-0 text-xs font-medium text-stone-400">Szafki:</span>
             {project.items.map((it, i) => {
               const activeTab = i === project.active;
@@ -5989,7 +5991,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="print-hide mx-auto max-w-7xl gap-4 px-4 py-4 lg:grid lg:grid-cols-[440px_1fr]">
+      <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[380px_1fr]">
         <div className="space-y-4">
           <Card title="Korpus" collapsible>
             <div className="grid grid-cols-3 gap-3">
