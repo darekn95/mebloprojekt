@@ -2546,6 +2546,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const dimRailRX = hasRailR ? takeR(150) : W + 26;
   const dimSideLX = showSideLengthDims ? takeL(150) : -26;
   const dimSideRX = showSideLengthDims ? takeR(150) : W + 26;
+  // przegrody poziome: gdzie wiercic konfirmaty, liczone od spodu boku
+  const hasSepDims = showDims && geo.sepShelves.length > 0;
+  const dimSepX = hasSepDims ? takeR(240) : W + 26;
   const dimDoorX = hasDoorDims ? takeL(90) : lxCur; // wysokosci drzwi po lewej
   const dimLevelX = hasLevelDims ? takeL(90) : lxCur; // swiatlo poziomow po lewej
   const dimDrawerX = hasDrawerDims ? takeR(90) : rxCur; // wysokosci frontow szuflad
@@ -3022,6 +3025,19 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               </>
             );
           })()}
+          {hasSepDims &&
+            geo.sepShelves.map((sh, i) => {
+              /* Wiercimy od zewnatrz, wiec baza jest spod boku (y = 0), a nie
+                 od wnetrza. Podajemy oba lica przegrody — miedzy nimi lezy
+                 grubosc plyty i to w nia ida konfirmaty. */
+              const lo = Math.round(sh.y);
+              const hi = Math.round(sh.y + geo.t);
+              return (
+                <DimV key={"sep" + i} y1={fy(lo)} y2={fy(0)} x={dimSepX}
+                  labelY={fy(lo)} label={`przegroda ${fmt(lo)}/${fmt(hi)}`}
+                  left={false} c={LINE} />
+              );
+            })}
           {hasLevelDims &&
             geo.levels.map((lv) => (
               <DimV key={"lv" + lv.i} y1={fy(lv.y1)} y2={fy(lv.y0)} x={dimLevelX}
