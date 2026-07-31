@@ -707,9 +707,10 @@ function computeGeo(cab, mat) {
     if (col.diff !== 0)
       add(
         "error",
-        col.diff < 0
+        (col.diff < 0
           ? `Poziom ${lv.i + 1}: kolumny przekraczają szerokość wnętrza o ${fmt(-col.diff)} mm.`
-          : `Poziom ${lv.i + 1}: kolumny nie wypełniają szerokości — brakuje ${fmt(col.diff)} mm.`
+          : `Poziom ${lv.i + 1}: kolumny nie wypełniają szerokości — brakuje ${fmt(col.diff)} mm.`) +
+          `|fixcolauto:${lv.i}`
       );
 
     let cx = interior.x0;
@@ -731,7 +732,7 @@ function computeGeo(cab, mat) {
           `Poziom ${lv.i + 1}, kolumna ${j + 1}: światło ${fmt(w)} mm, poniżej rozsądnego minimum ${MIN_COL} mm.`
         );
       if (w <= 0)
-        add("error", `Poziom ${lv.i + 1}, kolumna ${j + 1}: szerokość zero lub mniej.`);
+        add("error", `Poziom ${lv.i + 1}, kolumna ${j + 1}: szerokość zero lub mniej.|fixcolauto:${lv.i}`);
 
       /* półki wewnątrz kolumny — kolumna z szufladami ich nie ma */
       const st =
@@ -1394,10 +1395,24 @@ function computeGeo(cab, mat) {
             `${where}, szuflada ${i + 1}: front wystaje ${fmt(fh - hClass)} mm ponad bok szuflady — zastosuj reling boczny.`
           );
 
+        /* Tyl szuflady bywa podnoszony do wysokosci frontu, zeby rzeczy nie
+           wypadaly ponad burte. Nizej niz standardowy tyl zejsc nie moze —
+           wtedy nie ma czym spiac skrzynki. */
+        const stdBack = VBOX.backH[hClass];
+        let backH = stdBack;
+        if (rawCol.tallBack) {
+          backH = Math.max(0, Math.round(num(rawCol.backHeight) ?? fh));
+          if (backH < stdBack)
+            add(
+              "error",
+              `${where}, szuflada ${i + 1}: tył ${fmt(backH)} mm jest niższy niż bok skrzynki (${stdBack} mm).` +
+                `|fixback:${lv.i}:${j}:${stdBack}`
+            );
+        }
         if (nl !== null && LW > 0) {
           drawerParts.push({ kind: "front", a: fh, b: dsx1 - dsx0 });
           drawerParts.push({ kind: "dno", a: LW - 75, b: nl - 24 });
-          drawerParts.push({ kind: "tyl", a: LW - 87, b: VBOX.backH[hClass] });
+          drawerParts.push({ kind: "tyl", a: LW - 87, b: backH });
         }
         y += fhFull + drGap;
       });
@@ -4372,6 +4387,20 @@ const NoteLine = ({ text, color, icon, editLevels, cab, setGap }) => {
       const verb = dir === "down" ? "Zmniejsz" : "Zwiększ";
       return { label: `${verb} luz do ${val} mm`, run: () => editLevels((L) => (L[+li].cols[+j].gapBetween = +val)) };
     }
+    if (action.startsWith("fixback:")) {
+      const [, li, j, val] = action.split(":");
+      return {
+        label: `Podnieś tył do ${val} mm`,
+        run: () => editLevels((L) => (L[+li].cols[+j].backHeight = +val)),
+      };
+    }
+    if (action.startsWith("fixcolauto:")) {
+      const li = Number(action.split(":")[1]);
+      return {
+        label: "Rozłóż kolumny automatycznie",
+        run: () => editLevels((L) => L[li].cols.forEach((c) => { c.w = null; })),
+      };
+    }
     if (action.startsWith("fixdiv:")) {
       const val = Number(action.split(":")[1]);
       const now = cab.gaps?.divOverlay ?? 7;
@@ -6124,6 +6153,10 @@ export default function App() {
                           </span>
                           <AutoNum value={rawCol.w} placeholder={fmt(c.w)} fixed={c.fixed}
                             warn={c.w < MIN_COL} onChange={(v) => setColW(lv.i, c.j, v)} />
+                          {rawCol.w != null && (
+                            <MiniBtn onClick={() => setColW(lv.i, c.j, "")}
+                              title="Wróć na szerokość dobieraną automatycznie">auto</MiniBtn>
+                          )}
                           <span className="w-12 shrink-0 text-right font-mono text-xs"
                             style={{ color: c.w < MIN_COL ? WARNC : "#78716c" }}>{fmt(c.w)}</span>
                           {lv.cols.length > 1 && (
@@ -6172,6 +6205,17 @@ export default function App() {
                             </div>
                           </div>
                         )}
+                        <div className="flex items-center gap-2 text-xs">
+                          <Check checked={!!rawCol.tallBack}
+                            onChange={(v) => setCol(lv.i, c.j, { tallBack: v })}
+                            label="Tył na wysokość frontu" />
+                          {rawCol.tallBack && (
+                            <div className="w-20">
+                              <Num value={rawCol.backHeight ?? ""}
+                                onChange={(v) => setCol(lv.i, c.j, { backHeight: v === "" ? null : v })} />
+                            </div>
+                          )}
+                        </div>
                         {c.drawerMode === "inset" && (
                           <div className="flex items-center gap-2 text-xs">
                             <Check checked={!!rawCol.fingerGrip}
