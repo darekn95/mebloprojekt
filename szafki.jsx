@@ -203,6 +203,11 @@ function autoHinges(h, w) {
 }
 
 /* prowadnice szuflad: 21 mm na stronę (razem ze ścianką skrzynki) */
+/* Wysoka i waska szafka po przeskalowaniu do stalej wysokosci chowala sie na
+   srodku pola, a wymiary robily sie nieczytelne — bierzemy tyle wysokosci
+   okna, ile realnie jest. */
+const DRAW_MAX_H = "min(78vh, 900px)";
+
 const RUNNER_W = 21; // szerokosc prowadnicy przy boku
 /* Od spodu prowadnicy do spodu dna skrzynki — wymiar okucia, niezalezny od
    wysokosci boku szuflady. Nad nim lezy jeszcze grubosc samego dna. */
@@ -2604,7 +2609,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   );
 
   return (
-    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: 540 }}>
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke="#e7e5e4" strokeWidth="1" />
 
@@ -3236,7 +3241,7 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
   }
 
   return (
-    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: 540 }}>
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       {/* korpus widziany od tylu */}
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
@@ -3355,7 +3360,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware }) 
   const cd = geo.carcassDepth;
 
   return (
-    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: 540 }}>
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       {/* obrys korpusu z gory */}
       <rect x="0" y="0" width={W} height={cd} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
@@ -3807,7 +3812,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
   ];
 
   return (
-    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: 540 }}>
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       <rect x="0" y="0" width={D} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 8" />
       {(() => {
@@ -4262,7 +4267,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
   };
 
   return (
-    <svg viewBox={vb} className="w-full h-auto select-none" style={{ maxHeight: 540 }}>
+    <svg viewBox={vb} className="w-full h-auto select-none" style={{ maxHeight: DRAW_MAX_H }}>
       {faces.map((f, i) => (
         <polygon key={i} points={f.pts.map((p) => `${p.X},${p.Y}`).join(" ")}
           fill={tint(f.color, f.shade)} stroke={INK} strokeWidth={f.bold ? 3 : 1.2}
