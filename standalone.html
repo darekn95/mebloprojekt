@@ -2960,19 +2960,19 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               : cab.frontMode === "overlay" ? H : geo.interior.y1;
             const botRef = d.inset ? d.colY0 : d.bandLo != null ? d.bandLo
               : cab.frontMode === "overlay" ? geo.bottomY : geo.interior.y0;
-            if (colTop[d.colKey] === d)
+            if (colTop[d.colKey] === d && (d.inset || d.bandHi == null))
               marker(`gt${d.key}`, d.x + d.w / 2, topRef, Math.round(topRef - (d.y + d.h)), true);
-            if (colBot[d.colKey] === d)
+            if (colBot[d.colKey] === d && (d.inset || d.bandLo == null))
               marker(`gb${d.key}`, d.x + d.w / 2, d.y, Math.round(d.y - botRef), false);
 
             // luz pionowy do frontu bezposrednio nad tym w tej samej kolumnie
             /* Nad przegroda spotykaja sie fronty z dwoch poziomow, wiec sasiada
                szukamy po numerze kolumny, a nie po kluczu z numerem poziomu. */
-            const colOf = (x) => String(x.colKey || "").split("-")[1];
             let above = null;
             geo.doors.forEach((b2) => {
-              if (!(b2.w > 0)) return;
-              if (colOf(b2) !== colOf(d) || b2.y < d.y + d.h - 0.5) return;
+              if (!(b2.w > 0) || b2 === d || b2.y < d.y + d.h - 0.5) return;
+              // musi byc realnie nad tym frontem, czyli zachodzic na jego szerokosc
+              if (Math.min(d.x + d.w, b2.x + b2.w) - Math.max(d.x, b2.x) <= 0) return;
               if (!above || b2.y < above.y) above = b2;
             });
             if (above) {
