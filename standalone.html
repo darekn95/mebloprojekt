@@ -232,6 +232,9 @@ const RUNNER_W = 21; // szerokosc prowadnicy przy boku
 /* Od spodu prowadnicy do spodu dna skrzynki — wymiar okucia, niezalezny od
    wysokosci boku szuflady. Nad nim lezy jeszcze grubosc samego dna. */
 const RAIL_TO_BOTTOM = 26;
+/* Luz nad podniesionym tylem szuflady — tyl nie moze siegac dokladnie do frontu
+   wyzej ani do wienca, bo bedzie o nie zawadzal przy wysuwaniu. */
+const BACK_CLEAR = 5;
 
 /* gabaryty zawiasu widziane od przodu (puszka + ramie na boku) */
 const HINGE_H = 55; // wysokosc
@@ -1412,19 +1415,22 @@ function computeGeo(cab, mat) {
            wypadaly ponad burte. Nizej niz standardowy tyl zejsc nie moze —
            wtedy nie ma czym spiac skrzynki. */
         const stdBack = VBOX.backH[hClass];
+        /* Podniesiony tyl jedzie razem ze skrzynka i musi przejsc pod tym, co
+           jest nad szuflada — frontem wyzej albo gora swiatla poziomu — a do
+           tego zostawic luz, zeby o nic nie zawadzal. */
+        const ceilY = i + 1 < ds.length ? y + fhFull + drGap : lv.y1;
+        const maxBack = Math.max(0, Math.round(ceilY - railY0) - BACK_CLEAR);
         let backH = stdBack;
         if (d.tallBack) {
-          backH = Math.max(0, Math.round(num(d.backHeight) ?? fh));
+          const wanted = num(d.backHeight);
+          // domyslnie tak wysoko jak front, ale nie wyzej niz przejdzie
+          backH = wanted === null ? Math.min(fh, maxBack) : Math.max(0, Math.round(wanted));
           if (backH < stdBack)
             add(
               "error",
               `${where}, szuflada ${i + 1}: tył ${fmt(backH)} mm jest niższy niż bok skrzynki (${stdBack} mm).` +
                 `|fixback:${lv.i}:${j}:${i}:${stdBack}`
             );
-          /* Podniesiony tyl jedzie razem ze skrzynka, wiec musi przejsc pod tym,
-             co jest nad szuflada: frontem wyzej albo gora swiatla poziomu. */
-          const ceilY = i + 1 < ds.length ? y + fhFull + drGap : lv.y1;
-          const maxBack = Math.round(ceilY - railY0);
           if (backH > maxBack)
             add(
               "warn",
