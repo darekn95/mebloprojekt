@@ -2979,15 +2979,17 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               const val = Math.round(above.y - (d.y + d.h));
               const col = val < 2 ? ERRC : ACC;
               // kropka na styku, kreska wyprowadzona az za prawa krawedz frontu
+              /* Opis wyprowadzamy pionowo nad kropke, a nie w prawo — wyprowadzony
+                 w bok ladowal dokladnie tam, gdzie opis szczeliny miedzy sasiednimi
+                 frontami, i oba robily sie nieczytelne. */
               const cxm = d.x + d.w / 2;
               const yv = fy(d.y + d.h);
-              const lx = d.x + d.w + 30;
               out.push(
                 <g key={`gv${d.key}`}>
                   <circle cx={cxm} cy={yv} r="6" fill={col} />
-                  <line x1={cxm} y1={yv} x2={lx} y2={yv}
+                  <line x1={cxm} y1={yv} x2={cxm} y2={yv - 26}
                     stroke={col} strokeWidth="1.5" strokeDasharray="3 3" />
-                  <text x={lx + 6} y={yv + 7} textAnchor="start" fontSize="20"
+                  <text x={cxm} y={yv - 34} textAnchor="middle" fontSize="20"
                     fill={col} fontFamily="ui-monospace, monospace">
                     {fmt(val)}
                   </text>
