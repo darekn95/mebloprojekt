@@ -5994,7 +5994,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[440px_1fr]">
+      <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]">
         <div className="space-y-4">
           <Card title="Korpus" collapsible>
             <div className="grid grid-cols-3 gap-3">
@@ -6442,7 +6442,9 @@ export default function App() {
                               </MiniBtn>
                             </div>
                             {[...(c.drawers || [])].reverse().map((dr) => (
-                              <div key={dr.i} className="flex items-center gap-2">
+                              // wiersz szuflady ma sporo pol — przy waskim panelu
+                              // zawija sie na dwie linie zamiast wystawac poza karte
+                              <div key={dr.i} className="flex flex-wrap items-center gap-2">
                                 <select value={rawCol.drawers[dr.i]?.h ?? "auto"}
                                   title="Wysokość boku V-BOX — auto dobiera najwyższy mieszczący się w froncie"
                                   onChange={(e) => setDrawerH(lv.i, c.j, dr.i, e.target.value)}
@@ -6452,9 +6454,11 @@ export default function App() {
                                     <option key={v} value={v}>{v} mm</option>
                                   ))}
                                 </select>
-                                <AutoNum value={rawCol.drawers[dr.i]?.front} placeholder={fmt(dr.h)}
-                                  fixed={dr.fixed} warn={dr.h < VBOX.minFront[c.drawerMode || cab.frontMode][dr.hClass]}
-                                  onChange={(v) => setDrawerFront(lv.i, c.j, dr.i, v)} />
+                                <div className="w-20 shrink-0">
+                                  <AutoNum value={rawCol.drawers[dr.i]?.front} placeholder={fmt(dr.h)}
+                                    fixed={dr.fixed} warn={dr.h < VBOX.minFront[c.drawerMode || cab.frontMode][dr.hClass]}
+                                    onChange={(v) => setDrawerFront(lv.i, c.j, dr.i, v)} />
+                                </div>
                                 <span className="w-12 shrink-0 text-right font-mono text-[11px]"
                                   style={{ color: dr.h < VBOX.minFront[c.drawerMode || cab.frontMode][dr.hClass] ? ERRC : "#a8a29e" }}>
                                   {fmt(dr.h)}
@@ -6476,8 +6480,10 @@ export default function App() {
                                   <span className="text-[11px] text-stone-500">tył</span>
                                 </label>
                                 {rawCol.drawers[dr.i]?.tallBack && (
-                                  <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={fmt(dr.h)}
-                                    onChange={(v) => setDrawer(lv.i, c.j, dr.i, { backHeight: v === "" ? null : Math.round(Number(v)) })} />
+                                  <div className="w-20 shrink-0">
+                                    <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={fmt(dr.h)}
+                                      onChange={(v) => setDrawer(lv.i, c.j, dr.i, { backHeight: v === "" ? null : Math.round(Number(v)) })} />
+                                  </div>
                                 )}
                                 <select value={rawCol.drawers[dr.i]?.nl ?? ""}
                                   title="Głębokość NL tej szuflady — puste bierze głębokość kolumny"
