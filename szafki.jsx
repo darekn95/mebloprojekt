@@ -846,14 +846,18 @@ function computeGeo(cab, mat) {
   levels.forEach((lv) => {
     let lo, hi;
     if (cab.frontMode === "overlay") {
+      /* Nad przegroda fronty nakladaja sie po `divOverlay` z kazdej strony —
+         tak samo drzwi jak i fronty szuflad. Dotad drzwi dzielilo pol grubosci
+         plus pol luzu, przez co zachodzily 8 mm z dolu i 7 z gory, a pole
+         „nalozenie na przegrode" nie mialo na nie zadnego wplywu. */
       lo =
         lv.i === 0
           ? bottomY + g.bottom
-          : Math.round(sepShelves[lv.i - 1].y + t / 2 + Math.ceil(half));
+          : Math.round(sepShelves[lv.i - 1].y + t - divOv);
       hi =
         lv.i === levels.length - 1
           ? H - (isBlat ? t : 0) - g.top
-          : Math.round(sepShelves[lv.i].y + t / 2 - Math.floor(half));
+          : Math.round(sepShelves[lv.i].y + divOv);
     } else {
       lo = lv.y0 + g.inset;
       hi = lv.y1 - g.inset;
