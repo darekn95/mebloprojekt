@@ -536,9 +536,10 @@ const loadProject = (d) => {
   if (!d) return null;
   let items;
   if (Array.isArray(d.items) && d.items.length) {
-    items = d.items.map((it) => ({ cab: migrateCab(it.cab), mat: migrateMat(it.mat), runId: it.runId || null }));
+    items = d.items.map((it) => ({ cab: migrateCab(it.cab), mat: migrateMat(it.mat),
+      runId: it.runId || null, offset: Math.round(Number(it.offset) || 0) }));
   } else if (d.cab) {
-    items = [{ cab: migrateCab(d.cab), mat: migrateMat(d.mat), runId: null }];
+    items = [{ cab: migrateCab(d.cab), mat: migrateMat(d.mat), runId: null, offset: 0 }];
   } else return null;
   const runs = (Array.isArray(d.runs) ? d.runs : []).filter((r) => r && r.id != null).map(migrateRun);
   // ciag mogl wypasc z zapisu — szafka po nim wraca na wolnostojaca, nie zostaje sierota
@@ -2586,6 +2587,8 @@ const assemblyParts = (project, runs) =>
       const legBelow = it.cab.legs && it.cab.legs.on ? geo.legBelow : 0;
       const o = {
         cab: it.cab, geo, mat, rawMat: it.mat, x, plinthH,
+        // wysuniecie (+) albo cofniecie (-) z lica ciagu
+        offset: Math.round(Number(it.offset) || 0),
         base: mount + Math.max(plinthH, legBelow),
         name: (it.cab.name || "").trim(),
         frontColor: it.cab.realColors && it.cab.frontSameAsBoard !== false
@@ -2782,7 +2785,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
               <rect x={X + 0.5} y={fy(d.y + d.h) + 0.5} width={d.w - 1} height={d.h - 1}
                 fill={mat.mirror.color} stroke={INK} strokeWidth="1" opacity="0.85" />
             )}
-            {showLabels && d.w > 90 && d.h > 40 && (
+            {showDims && d.w > 90 && d.h > 40 && (
               <text x={X + d.w / 2}
                 y={d.type === "drawer" ? fy(d.y + d.h * 0.3) : fy(d.y + d.h / 2) + 7}
                 textAnchor="middle" fontSize="20" fill={INK} opacity="0.75"
@@ -2791,6 +2794,25 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
           </g>
         );
       })}
+
+      {/* wyciecia w narozniku i elementy kolizyjne — w elewacji widac ich obrys */}
+      {geo.geoCuts.map((gc, ci) => (
+        <rect key={"cut" + ci} x={mx(gc.bx0, gc.bx1 - gc.bx0)} y={fy(gc.cy1)}
+          width={gc.bx1 - gc.bx0} height={gc.cy1 - gc.cy0}
+          fill={ERRC} opacity="0.15" stroke={ERRC} strokeWidth="1.5" strokeDasharray="6 4" />
+      ))}
+      {(geo.geoObs || []).map((go, oi) => (
+        <g key={"ob" + oi}>
+          <rect x={mx(go.ox0, go.ox1 - go.ox0)} y={fy(go.oy1)}
+            width={go.ox1 - go.ox0} height={go.oy1 - go.oy0}
+            fill={WARNC} opacity="0.18" stroke={WARNC} strokeWidth="1.5" strokeDasharray="6 4" />
+          {go.name && go.ox1 - go.ox0 > 120 && go.oy1 - go.oy0 > 60 && (
+            <text x={mx(go.ox0, go.ox1 - go.ox0) + (go.ox1 - go.ox0) / 2}
+              y={fy((go.oy0 + go.oy1) / 2) + 6} textAnchor="middle"
+              fontSize="18" fill={WARNC} fontFamily="ui-monospace, monospace">{go.name}</text>
+          )}
+        </g>
+      ))}
 
       {/* korpus jeszcze raz na wierzchu — otwarte skrzydla nie moga zaslaniac bokow */}
       {open && !rear && (
@@ -2809,6 +2831,170 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
           )}
         </g>
       )}
+    </g>
+  );
+}
+
+/* Jedna szafka w rzucie z gory ciagu — z bokami, przegrodami, frontami,
+   maskownicami, prowadnicami, plecami i wycieciami, czyli tym samym, co
+   pokazuje rzut pojedynczej szafki. Uklad lokalny: x = szerokosc, y = glebokosc
+   liczona od sciany (y = 0 to tyl korpusu). */
+function CabTop({ cab, geo, mat, showShelves, showHardware, ghost }) {
+  const W = geo.W;
+  const t = geo.t;
+  const cd = geo.carcassDepth;
+  const bf = mat.board.color;
+  const shc = shelfColorOf(cab, mat);
+  const ffc = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
+  const cols = geo.levels[0]?.cols || [];
+  return (
+    <g>
+      {/* ciag wyzszy idzie przerywana linia, jak szafki gorne na planie kuchni */}
+      <rect x="0" y="0" width={W} height={cd} fill="#fafaf9" stroke={LINE} strokeWidth="1.5"
+        strokeDasharray={ghost ? "14 9" : undefined} />
+
+      {/* boki — skrocone przy narozniku z wycieciem */}
+      <rect x="0" y={geo.cornerCut?.sideLeftDepth || 0} width={t}
+        height={cd - (geo.cornerCut?.sideLeftDepth || 0)} fill={bf} stroke={INK} strokeWidth="2"
+        strokeDasharray={ghost ? "14 9" : undefined} />
+      <rect x={W - t} y={geo.cornerCut?.sideRightDepth || 0} width={t}
+        height={cd - (geo.cornerCut?.sideRightDepth || 0)} fill={bf} stroke={INK} strokeWidth="2"
+        strokeDasharray={ghost ? "14 9" : undefined} />
+
+      {/* wieniec albo blat widoczny z gory */}
+      {geo.hasTop && (
+        <rect x={geo.topX0} y={geo.isBlat ? -geo.blat.overBack : 0}
+          width={geo.topX1 - geo.topX0} height={geo.isBlat ? geo.blatDepth : cd}
+          fill={bf} stroke={INK} strokeWidth={geo.isBlat ? 2 : 1}
+          opacity={geo.isBlat ? 0.45 : 0.25} />
+      )}
+
+      {/* elementy wzmacniajace */}
+      {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
+        <rect key={`trail${lv.i}-${c.j}-${ri}`} x={r.x0} y={cd - (r.z0 + r.zLen)}
+          width={r.x1 - r.x0} height={r.zLen} fill={bf} stroke={INK} strokeWidth="1.5" opacity="0.55" />
+      ))))}
+
+      {showShelves && cols.map((c) => {
+        if (c.kind === "drawers" || c.kind === "blenda") return null;
+        if (!(c.shelves || []).length) return null;
+        return (
+          <rect key={"sh" + c.j} x={c.x0} y={geo.backIntrusion} width={c.w} height={geo.shelfDepth}
+            fill={shc} fillOpacity="0.35" stroke={INK} strokeWidth="1.5" strokeDasharray="9 6" />
+        );
+      })}
+
+      {/* przegrody pionowe */}
+      {geo.dividers.map((d, i) => (
+        <rect key={"dv" + i} x={d.x} y={geo.backIntrusion} width={t} height={geo.dividerDepth}
+          fill={bf} stroke={INK} strokeWidth="2" />
+      ))}
+
+      {/* fronty jako pas przy przedniej krawedzi, ze skrzynkami szuflad */}
+      {cols.map((c) => {
+        if (!c.count) return null;
+        const isDrawer = c.kind === "drawers";
+        const cMode = isDrawer ? c.drawerMode || cab.frontMode : cab.frontMode;
+        const z0 = cMode === "overlay" ? cd : cd - geo.tf;
+        const dr0 = isDrawer && c.drawers?.length ? c.drawers[0] : null;
+        const x0 = dr0 ? dr0.x : c.frontX0 ?? c.x0;
+        const x1 = dr0 ? dr0.x + dr0.w : c.frontX1 ?? c.x1;
+        const nl = isDrawer && c.drawers?.length
+          ? Math.max(...c.drawers.map((d) => d.nl || 0)) : c.nl || 0;
+        const boxBack = Math.max(geo.backIntrusion, cd - nl);
+        return (
+          <g key={"fr" + c.j}>
+            <rect x={x0} y={z0} width={x1 - x0} height={geo.tf} fill={ffc} stroke={INK} strokeWidth="2" />
+            {/* maskownica nie jest skrzydlem — przekreslamy ja, tak jak element staly */}
+            {c.kind === "blenda" && (
+              <>
+                <line x1={x0} y1={z0} x2={x1} y2={z0 + geo.tf} stroke={INK} strokeWidth="1.2" opacity="0.5" />
+                <line x1={x0} y1={z0 + geo.tf} x2={x1} y2={z0} stroke={INK} strokeWidth="1.2" opacity="0.5" />
+              </>
+            )}
+            {isDrawer && nl > 0 && (
+              <rect x={x0 + 4} y={boxBack} width={x1 - x0 - 8} height={cd - boxBack}
+                fill="none" stroke={LINE} strokeWidth="1" strokeDasharray="5 4" opacity="0.6" />
+            )}
+          </g>
+        );
+      })}
+
+      {/* prowadnice szuflad */}
+      {showHardware && cols
+        .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
+        .flatMap((c) => {
+          const nl = Math.max(...c.drawers.map((d) => d.rail.d || 0));
+          if (!nl) return [];
+          const sb = c.drawers[0]?.rail.setback || 0;
+          return [c.x0, c.x1 - RUNNER_W].map((rx, si) => (
+            <rect key={`trn${c.j}-${si}`} x={rx} y={cd - sb - nl} width={RUNNER_W} height={nl}
+              fill="#8b8b93" stroke={INK} strokeWidth="1.5" opacity="0.85" />
+          ));
+        })}
+
+      {/* elementy stale i blendy — leza w plaszczyznie frontu, przekreslone */}
+      {(() => {
+        const z0 = cab.frontMode === "overlay" ? cd : cd - geo.tf;
+        const panels = [];
+        geo.levels.forEach((lv) => lv.cols.forEach((c) => {
+          if (c.fix) panels.push({ k: `f${lv.i}-${c.j}`, x: c.fix.x, w: c.fix.w });
+          if (c.topFix) panels.push({ k: `tf${lv.i}-${c.j}`, x: c.topFix.x, w: c.topFix.w });
+        }));
+        const seen = new Set();
+        return panels.filter((p) => {
+          const key = `${Math.round(p.x)}|${Math.round(p.w)}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).map((p) => (
+          <g key={p.k}>
+            <rect x={p.x} y={z0} width={p.w} height={geo.tf} fill={ffc} stroke={INK} strokeWidth="2" />
+            <line x1={p.x} y1={z0} x2={p.x + p.w} y2={z0 + geo.tf} stroke={INK} strokeWidth="1.2" opacity="0.5" />
+            <line x1={p.x} y1={z0 + geo.tf} x2={p.x + p.w} y2={z0} stroke={INK} strokeWidth="1.2" opacity="0.5" />
+          </g>
+        ));
+      })()}
+
+      {/* wsporniki pionowe przy elementach stalych */}
+      {geo.levels.flatMap((lv) => lv.cols.filter((c) => c.support && c.fix).map((c) => (
+        <rect key={`tsup${lv.i}-${c.j}`}
+          x={c.fix.side === "left" ? c.fix.x + c.fix.w - t : c.fix.x}
+          y={cd - c.support.d} width={t} height={c.support.d}
+          fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
+      )))}
+
+      {/* plecy */}
+      {cab.back !== "none" && (() => {
+        const outside = geo.backIsBoard && geo.backPos === "outside";
+        const bcol = geo.backIsBoard
+          ? (cab.backPos === "outside" && cab.backBoardMat !== "shelf" ? mat.board.color : shc)
+          : mat.back.color;
+        const py = geo.grooved ? geo.grOff : outside ? -geo.tb : 0;
+        const inside = geo.grooved || (geo.backIsBoard && geo.backPos === "inside");
+        const base0 = inside ? geo.interior.x0 : 1;
+        const base1 = inside ? geo.interior.x1 : W - 1;
+        const px = Math.max(base0, geo.cornerCut?.backLeftX ?? base0);
+        const px1 = Math.min(base1, geo.cornerCut?.backRightX ?? base1);
+        return <rect x={px} y={py} width={Math.max(0, px1 - px)} height={geo.tb}
+          fill={bcol} stroke={INK} strokeWidth="2" />;
+      })()}
+
+      {/* wyciecia w narozniku i elementy kolizyjne */}
+      {geo.geoCuts.map((gc, ci) => (
+        <rect key={"cut" + ci} x={gc.bx0} y={gc.bz0} width={gc.bx1 - gc.bx0} height={gc.bz1 - gc.bz0}
+          fill={ERRC} opacity="0.15" stroke={ERRC} strokeWidth="1.5" strokeDasharray="6 4" />
+      ))}
+      {(geo.geoObs || []).map((go, oi) => (
+        <g key={"ob" + oi}>
+          <rect x={go.ox0} y={go.oz0} width={go.ox1 - go.ox0} height={go.oz1 - go.oz0}
+            fill={WARNC} opacity="0.18" stroke={WARNC} strokeWidth="1.5" strokeDasharray="6 4" />
+          {go.name && go.ox1 - go.ox0 > 120 && (
+            <text x={(go.ox0 + go.ox1) / 2} y={(go.oz0 + go.oz1) / 2 + 6} textAnchor="middle"
+              fontSize="17" fill={WARNC} fontFamily="ui-monospace, monospace">{go.name}</text>
+          )}
+        </g>
+      ))}
     </g>
   );
 }
@@ -2941,32 +3127,37 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
   );
 }
 
-/* Rzut z gory. Ciag wyzej rysujemy przerywana linia na tle nizszego — tak samo,
-   jak rysuje sie szafki gorne nad dolnymi na planie kuchni. */
-function AssemblyTopView({ project, runs, showDims }) {
+/* Rzut z gory. Szafki wyrownujemy do LICA, nie do sciany — w ciagu fronty stoja
+   w jednej linii, a glebsza szafka wchodzi blizej sciany, zamiast wystawac do
+   przodu. Szafke da sie tez celowo wysunac albo cofnac. Ciag wyzszy rysujemy
+   przerywana linia na tle nizszego, tak jak szafki gorne nad dolnymi. */
+function AssemblyTopView({ project, runs, showDims, showShelves, showHardware }) {
   const groups = assemblyParts(project, runs).slice().sort((a, b) => a.mount - b.mount);
   if (!groups.length) return null;
   const total = Math.max(...groups.map((g) => g.total));
-  const maxD = Math.max(...groups.flatMap((g) => g.cabs.map((c) => c.geo.carcassDepth)));
+  // lico ciagu to dol rysunku; w glab rosnie do gory, az do sciany
+  const depth = Math.max(...groups.flatMap((g) => g.cabs.map((c) => c.geo.carcassDepth - c.offset)));
+  const front = Math.max(0, ...groups.flatMap((g) => g.cabs.map((c) => c.offset)));
   const pad = showDims ? 170 : 40;
-  // z prawej wypisujemy nazwy ciagow — bez zapasu zostalyby uciete
   const padR = showDims ? 700 : 40;
-  const vb = [-pad, -pad, total + pad + padR, maxD + 2 * pad].join(" ");
+  const vb = [-pad, -pad, total + pad + padR, depth + front + 2 * pad].join(" ");
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
-      {/* sciana z tylu */}
+      <GrainDefs mat={groups[0].cabs[0].rawMat} on={groups[0].cabs[0].cab.texture}
+        dir={groups[0].cabs[0].cab.textureDir} />
       <line x1={-20} y1={0} x2={total + 20} y2={0} stroke={LINE} strokeWidth="3" />
       {groups.map((g, gi) => {
         const upper = gi > 0;
         return (
-          <g key={g.run.id} opacity={upper ? 0.85 : 1}>
+          <g key={g.run.id} opacity={upper ? 0.75 : 1}>
             {g.cabs.map((c, i) => (
-              <rect key={i} x={c.x} y={0} width={c.geo.W} height={c.geo.carcassDepth}
-                fill={upper ? "none" : c.mat.board.color} stroke={INK} strokeWidth="2.5"
-                strokeDasharray={upper ? "14 9" : undefined} />
+              <g key={i} transform={`translate(${c.x}, ${depth - c.geo.carcassDepth + c.offset})`}>
+                <CabTop cab={c.cab} geo={c.geo} mat={c.mat} ghost={upper}
+                  showShelves={showShelves} showHardware={showHardware} />
+              </g>
             ))}
             {showDims && (
-              <text x={total + 30} y={g.cabs[0].geo.carcassDepth / 2}
+              <text x={total + 30} y={40 + gi * 40}
                 fontSize="22" fill={LINE} fontFamily="ui-monospace, monospace">
                 {g.run.name}{g.mount > 0 ? ` — ${fmt(g.mount)} nad podłogą` : ""}
               </text>
@@ -2977,10 +3168,18 @@ function AssemblyTopView({ project, runs, showDims }) {
       {showDims && (
         <g>
           {groups[0].cabs.map((c, i) => (
-            <DimH key={i} x1={c.x} x2={c.x + c.geo.W} y={maxD + 56} label={fmt(c.geo.W)} above={false} />
+            <DimH key={i} x1={c.x} x2={c.x + c.geo.W} y={depth + front + 56}
+              label={fmt(c.geo.W)} above={false} />
           ))}
-          <DimH x1={0} x2={total} y={maxD + 120} label={fmt(total)} above={false} />
-          <DimV y1={0} y2={maxD} x={-70} label={fmt(maxD)} />
+          <DimH x1={0} x2={total} y={depth + front + 120} label={fmt(total)} above={false} />
+          <DimV y1={0} y2={depth + front} x={-70} label={fmt(depth + front)} />
+          {groups.flatMap((g) => g.cabs.filter((c) => c.offset).map((c, i) => (
+            <text key={g.run.id + "o" + i} x={c.x + c.geo.W / 2}
+              y={depth - c.geo.carcassDepth + c.offset - 14} textAnchor="middle"
+              fontSize="20" fill={ACC} fontFamily="ui-monospace, monospace">
+              {c.offset > 0 ? `+${fmt(c.offset)}` : fmt(c.offset)}
+            </text>
+          )))}
         </g>
       )}
     </svg>
@@ -3040,6 +3239,16 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           return;
         }
         box(c.x + d.x, c.base + d.y, -tf, c.x + d.x + d.w, c.base + d.y + d.h, 0, col, null, 1, true);
+      });
+      /* Wyciecia i elementy kolizyjne w bryle — bez nich zabudowa wygladalaby
+         na gotowa tam, gdzie w rzeczywistosci cos przeszkadza. */
+      c.geo.geoCuts.forEach((gc) => {
+        box(c.x + gc.bx0, c.base + gc.cy0, cd - gc.bz1, c.x + gc.bx1, c.base + gc.cy1, cd - gc.bz0,
+          "#b91c1c", null, 0.28);
+      });
+      (c.geo.geoObs || []).forEach((go) => {
+        box(c.x + go.ox0, c.base + go.oy0, cd - go.oz1, c.x + go.ox1, c.base + go.oy1, cd - go.oz0,
+          "#b45309", null, 0.32);
       });
       maxX = Math.max(maxX, c.x + c.geo.W);
       maxY = Math.max(maxY, y1);
@@ -6292,6 +6501,16 @@ export default function App() {
     return withRunDefaults(reorderItems({ ...next, active: i }, i, to), runId);
   }), [setProject]);
 
+  /* Wysuniecie z lica ciagu. Zwykle 0 — fronty stoja w jednej linii — ale bywa,
+     ze jedna szafka ma stac dalej albo blizej sciany i wtedy to jest zabieg
+     celowy, a nie blad. */
+  const setOffset = useCallback((i, v) => setProject((p) => {
+    const items = p.items.slice();
+    if (!items[i]) return p;
+    items[i] = { ...items[i], offset: Math.round(Number(v) || 0) };
+    return { ...p, items };
+  }), [setProject]);
+
   // przesuwanie w obrebie ciagu — sasiadem jest najblizsza szafka tego samego ciagu
   const moveCabinet = useCallback((i, dir) => setProject((p) => {
     const rid = p.items[i] ? p.items[i].runId || null : null;
@@ -7213,6 +7432,11 @@ export default function App() {
               </Field>
               {runInfo && (
                 <>
+                  <Field label="Wysunięcie tej szafki z lica"
+                    hint="0 = front w jednej linii z ciągiem. Dodatnie wysuwa do przodu, ujemne cofa w głąb.">
+                    <Num value={project.items[project.active].offset || 0}
+                      onChange={(v) => setOffset(project.active, v)} />
+                  </Field>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Nazwa ciągu">
                       <input value={runInfo.run.name}
@@ -8458,7 +8682,8 @@ export default function App() {
                     </div>
                   </div>
                 ) : view === "top" ? (
-                  <AssemblyTopView project={project} runs={scopeRuns} showDims={showDims} />
+                  <AssemblyTopView project={project} runs={scopeRuns} showDims={showDims}
+                    showShelves={showShelves} showHardware={showHardware} />
                 ) : (
                   <AssemblyView project={project} runs={scopeRuns} rpOf={rpOf}
                     variant={view} showDims={showDims} showHardware={showHardware}
