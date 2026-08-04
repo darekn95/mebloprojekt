@@ -480,14 +480,50 @@ const migrateMat = (rawMat) => {
 // buduje stan projektu z wczytanych danych: obsluguje stary {cab,mat} i nowy {items,active}
 const DEFAULT_PROJECT_NAME = "Projekt bez nazwy";
 
+/* ---------- ciagi meblowe ----------
+   Ciag to grupa szafek stojacych obok siebie przy jednej scianie. Sam nie jest
+   szafka — trzyma to, co szafki maja wspolne (dlugosc sciany, luz miedzy
+   korpusami), a kolejnosc ustawienia bierze z kolejnosci szafek w projekcie,
+   zeby nie prowadzic dwoch list naraz i nie musiec ich godzic.
+   Szafka bez ciagu jest wolnostojaca i zachowuje sie dokladnie jak dotad. */
+const nextRunId = (runs) => {
+  // numerujemy po kolei zamiast losowac — zapis projektu ma byc powtarzalny
+  let n = 1;
+  while (runs.some((r) => r.id === "c" + n)) n++;
+  return "c" + n;
+};
+
+const makeRun = (runs) => {
+  const nums = runs.map((r) => {
+    const m = /^Ściana (\d+)$/.exec((r.name || "").trim());
+    return m ? Number(m[1]) : 0;
+  });
+  return { id: nextRunId(runs), name: `Ściana ${Math.max(0, ...nums) + 1}`, wallW: null, gap: 0 };
+};
+
+const migrateRun = (r) => ({
+  id: String(r.id),
+  name: typeof r.name === "string" && r.name.trim() ? r.name : "Ciąg",
+  wallW: Number(r.wallW) > 0 ? Math.round(Number(r.wallW)) : null,
+  gap: Math.max(0, Math.round(Number(r.gap) || 0)),
+});
+
+/* szafki jednego ciagu w kolejnosci ustawienia przy scianie; id === null daje
+   szafki wolnostojace, wiec caly pasek grup idzie jednym mechanizmem */
+const runItems = (project, id) =>
+  project.items.map((it, i) => ({ it, i })).filter(({ it }) => (it.runId || null) === (id || null));
+
 const loadProject = (d) => {
   if (!d) return null;
   let items;
   if (Array.isArray(d.items) && d.items.length) {
-    items = d.items.map((it) => ({ cab: migrateCab(it.cab), mat: migrateMat(it.mat) }));
+    items = d.items.map((it) => ({ cab: migrateCab(it.cab), mat: migrateMat(it.mat), runId: it.runId || null }));
   } else if (d.cab) {
-    items = [{ cab: migrateCab(d.cab), mat: migrateMat(d.mat) }];
+    items = [{ cab: migrateCab(d.cab), mat: migrateMat(d.mat), runId: null }];
   } else return null;
+  const runs = (Array.isArray(d.runs) ? d.runs : []).filter((r) => r && r.id != null).map(migrateRun);
+  // ciag mogl wypasc z zapisu — szafka po nim wraca na wolnostojaca, nie zostaje sierota
+  items.forEach((it) => { if (!runs.some((r) => r.id === it.runId)) it.runId = null; });
   const active = Math.min(Math.max(0, Math.round(d.active || 0)), items.length - 1);
   // trzymamy wylacznie ceny wpisane recznie; domyslne siedza przy pozycjach
   const prices = { ...(d.prices && typeof d.prices === "object" ? d.prices : {}) };
@@ -510,7 +546,7 @@ const loadProject = (d) => {
     })
   );
   const name = typeof d.name === "string" && d.name.trim() ? d.name : DEFAULT_PROJECT_NAME;
-  return { name, items, active, prices };
+  return { name, items, runs, active, prices };
 };
 
 /* ---------- szablony startowe ----------
@@ -5223,11 +5259,13 @@ function ReportProjectSheet({ project, projectName }) {
 /* ---------- aplikacja ---------- */
 
 export default function App() {
-  // projekt = lista niezaleznych szafek (kazda ma swoj cab i mat) + aktywny indeks
+  /* projekt = lista szafek (kazda ma swoj cab i mat) + aktywny indeks; runs to
+     ciagi, a szafka wskazuje swoj ciag przez runId (null = wolnostojaca) */
   const [project, setProjectRaw] = useState({
     name: DEFAULT_PROJECT_NAME,
     prices: {},
-    items: [{ cab: defaultCab, mat: defaultMaterials }],
+    items: [{ cab: defaultCab, mat: defaultMaterials, runId: null }],
+    runs: [],
     active: 0,
   });
   const cab = project.items[project.active].cab;
@@ -5281,7 +5319,7 @@ export default function App() {
 
   // przelaczanie / dodawanie / usuwanie szafek
   const switchCabinet = useCallback((i) => setProject((p) => (i === p.active ? p : { ...p, active: i })), [setProject]);
-  const addCabinet = useCallback((tplId) => setProject((p) => {
+  const addCabinet = useCallback((tplId, runId = null) => setProject((p) => {
     // nastepny numer = max z istniejacych "Szafka N" + 1 (odporne na usuwanie)
     const nums = p.items.map((it) => {
       const m = /^Szafka (\d+)$/.exec((it.cab.name || "").trim());
@@ -5289,8 +5327,14 @@ export default function App() {
     });
     const next = Math.max(0, ...nums) + 1;
     const base = tplId ? makeFromTemplate(tplId) : { ...defaultCab };
-    const items = [...p.items, { cab: { ...base, name: `Szafka ${next}` }, mat: defaultMaterials }];
-    return { ...p, items, active: items.length - 1 };
+    const fresh = { cab: { ...base, name: `Szafka ${next}` }, mat: defaultMaterials, runId };
+    /* Nowa szafka ciagu ma stanac na jego koncu, a nie na koncu calego projektu —
+       inaczej kolejnosc przy scianie zalezalaby od tego, w jakiej kolejnosci
+       dokladano szafki do roznych ciagow. */
+    const last = p.items.reduce((acc, it, k) => ((it.runId || null) === runId ? k : acc), -1);
+    const at = last >= 0 ? last + 1 : p.items.length;
+    const items = [...p.items.slice(0, at), fresh, ...p.items.slice(at)];
+    return { ...p, items, active: at };
   }), [setProject]);
   const duplicateCabinet = useCallback((i) => setProject((p) => {
     const src = p.items[i];
@@ -5307,6 +5351,56 @@ export default function App() {
     if (p.items.length <= 1) return p;
     const items = p.items.filter((_, k) => k !== i);
     return { ...p, items, active: Math.min(p.active, items.length - 1) };
+  }), [setProject]);
+
+  /* --- ciagi meblowe ---
+     Przestawienie szafek zmienia ich numery, wiec aktywna trzymamy po tozsamosci
+     obiektu, a nie po indeksie — inaczej po kazdym ruchu skakalibysmy na inna. */
+  const reorderItems = (p, from, to) => {
+    const items = p.items.slice();
+    const [moved] = items.splice(from, 1);
+    items.splice(to, 0, moved);
+    return { ...p, items, active: Math.max(0, items.indexOf(p.items[p.active])) };
+  };
+
+  const addRun = useCallback(() => setProject((p) => {
+    const runs = p.runs || [];
+    return { ...p, runs: [...runs, makeRun(runs)] };
+  }), [setProject]);
+
+  const setRun = useCallback((id, patch) => setProject((p) => ({
+    ...p, runs: (p.runs || []).map((r) => (r.id === id ? { ...r, ...patch } : r)),
+  })), [setProject]);
+
+  const removeRun = useCallback((id) => setProject((p) => ({
+    ...p,
+    runs: (p.runs || []).filter((r) => r.id !== id),
+    // rozwiazanie ciagu nie kasuje szafek — wracaja miedzy wolnostojace
+    items: p.items.map((it) => ((it.runId || null) === id ? { ...it, runId: null } : it)),
+  })), [setProject]);
+
+  // przypisanie szafki do ciagu dostawia ja na jego koncu, zeby kolejnosc przy
+  // scianie zawsze zgadzala sie z kolejnoscia w projekcie
+  const assignCabinet = useCallback((i, runId) => setProject((p) => {
+    const cur = p.items[i];
+    if (!cur || (cur.runId || null) === (runId || null)) return p;
+    const items = p.items.slice();
+    items[i] = { ...cur, runId: runId || null };
+    const next = { ...p, items, active: p.active === i ? i : p.active };
+    const last = items.reduce((acc, it, k) => (k !== i && (it.runId || null) === (runId || null) ? k : acc), -1);
+    if (last < 0) return { ...next, active: i };
+    const to = last < i ? last + 1 : last;
+    const moved = reorderItems({ ...next, active: i }, i, to);
+    return moved;
+  }), [setProject]);
+
+  // przesuwanie w obrebie ciagu — sasiadem jest najblizsza szafka tego samego ciagu
+  const moveCabinet = useCallback((i, dir) => setProject((p) => {
+    const rid = p.items[i] ? p.items[i].runId || null : null;
+    let j = i + dir;
+    while (j >= 0 && j < p.items.length && (p.items[j].runId || null) !== rid) j += dir;
+    if (j < 0 || j >= p.items.length) return p;
+    return reorderItems(p, i, j);
   }), [setProject]);
 
   const undo = useCallback(() => {
@@ -5348,7 +5442,7 @@ export default function App() {
 
   const exportProject = () => {
     const json = JSON.stringify(
-      { name: project.name, prices: project.prices, items: project.items, active: project.active },
+      { name: project.name, prices: project.prices, items: project.items, runs: project.runs, active: project.active },
       null,
       2
     );
@@ -5455,7 +5549,7 @@ export default function App() {
       try {
         await projectStore.set(
           "szafki:projekt",
-          JSON.stringify({ name: project.name, prices: project.prices, items: project.items, active: project.active })
+          JSON.stringify({ name: project.name, prices: project.prices, items: project.items, runs: project.runs, active: project.active })
         );
         setSaved("zapisano " + new Date().toLocaleTimeString("pl-PL"));
       } catch (e) {
@@ -5466,6 +5560,29 @@ export default function App() {
   }, [project, loaded]);
 
   const geo = useMemo(() => computeGeo(cab, mat), [cab, mat]);
+
+  /* wiersze paska szafek: kazdy ciag osobno, wolnostojace na koncu. Gdy nie ma
+     zadnego ciagu zostaje jeden wiersz i pasek wyglada dokladnie jak dotad. */
+  const groupBar = useMemo(() => {
+    const runs = project.runs || [];
+    const rows = runs.map((r) => ({ id: r.id, label: r.name }));
+    if (!runs.length) rows.push({ id: null, label: "Szafki:" });
+    else if (runItems(project, null).length) rows.push({ id: null, label: "Wolnostojące" });
+    return rows;
+  }, [project]);
+
+  // dane ciagu, w ktorym stoi aktywna szafka (null dla wolnostojacej)
+  const runInfo = useMemo(() => {
+    const id = project.items[project.active].runId || null;
+    const run = (project.runs || []).find((r) => r.id === id);
+    if (!run) return null;
+    const list = runItems(project, id);
+    // szerokosc bierzemy z geometrii, nie z cab.W — przy blacie "do wewnatrz" korpus jest wezszy
+    const total = list.reduce((s, { it }) => s + computeGeo(it.cab, it.mat).W, 0)
+      + Math.max(0, list.length - 1) * (run.gap || 0);
+    return { run, count: list.length, total, pos: list.findIndex(({ i }) => i === project.active) + 1 };
+  }, [project]);
+
   const set = useCallback((patch) => setCab((c) => ({ ...c, ...patch })), [setCab]);
   const setGap = (k, v) => setCab((c) => ({ ...c, gaps: { ...c.gaps, [k]: v } }));
 
@@ -5983,48 +6100,122 @@ export default function App() {
             <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800">bez uwag</span>
           )}
         </div>
-        {/* pasek szafek w projekcie */}
+        {/* pasek szafek w projekcie — po jednym wierszu na ciąg, na końcu wolnostojące */}
         <div className="border-t border-stone-200 bg-stone-50/60">
-          <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-1.5 px-4 py-2">
-            <span className="mr-1 shrink-0 text-xs font-medium text-stone-400">Szafki:</span>
-            {project.items.map((it, i) => {
-              const activeTab = i === project.active;
+          <div className="mx-auto max-w-[1700px] space-y-1 px-4 py-2">
+            {groupBar.map((grp) => {
+              const list = runItems(project, grp.id);
               return (
-                <div key={i}
-                  className={"flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition " +
-                    (activeTab ? "border-teal-600 bg-teal-700 text-white" : "border-stone-300 bg-white text-stone-600 hover:border-stone-400")}>
-                  <button onClick={() => switchCabinet(i)} className="max-w-[180px] truncate">
-                    {it.cab.name || `Szafka ${i + 1}`}
+                <div key={grp.id || "free"} className="flex flex-wrap items-center gap-1.5">
+                  <span className="mr-1 shrink-0 text-xs font-medium text-stone-400">{grp.label}</span>
+                  {list.map(({ it, i }, k) => {
+                    const activeTab = i === project.active;
+                    const arrow = "px-0.5 leading-none " +
+                      (activeTab ? "text-teal-100 hover:text-white" : "text-stone-400 hover:text-stone-700");
+                    return (
+                      <div key={i}
+                        className={"flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition " +
+                          (activeTab ? "border-teal-600 bg-teal-700 text-white" : "border-stone-300 bg-white text-stone-600 hover:border-stone-400")}>
+                        {grp.id && list.length > 1 && k > 0 && (
+                          <button onClick={() => moveCabinet(i, -1)} title="Przesuń w lewo w ciągu"
+                            className={arrow}>‹</button>
+                        )}
+                        <button onClick={() => switchCabinet(i)} className="max-w-[180px] truncate">
+                          {it.cab.name || `Szafka ${i + 1}`}
+                        </button>
+                        {grp.id && list.length > 1 && k < list.length - 1 && (
+                          <button onClick={() => moveCabinet(i, 1)} title="Przesuń w prawo w ciągu"
+                            className={arrow}>›</button>
+                        )}
+                        <button onClick={() => duplicateCabinet(i)} title="Duplikuj tę szafkę"
+                          className={arrow}>
+                          ⧉
+                        </button>
+                        {project.items.length > 1 && (
+                          <button onClick={() => removeCabinet(i)} title="Usuń szafkę"
+                            className={"shrink-0 rounded-full px-1 leading-none " + (activeTab ? "hover:bg-teal-800" : "hover:bg-stone-200")}>×</button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <select value="" title="Dodaj szafkę z gotowego szablonu"
+                    onChange={(e) => { if (e.target.value) addCabinet(e.target.value, grp.id); e.target.value = ""; }}
+                    className="rounded-full border border-dashed border-teal-500 bg-white px-2 py-1 text-xs text-teal-700 focus:border-teal-700 focus:outline-none">
+                    <option value="">+ z szablonu…</option>
+                    {TEMPLATES.map((t) => (
+                      <option key={t.id} value={t.id}>{t.label} — {t.hint}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => addCabinet(undefined, grp.id)} title="Dodaj nową szafkę"
+                    className="rounded-full border border-dashed border-teal-500 px-3 py-1 text-xs font-medium text-teal-700 hover:bg-teal-50">
+                    + szafka
                   </button>
-                  <button onClick={() => duplicateCabinet(i)} title="Duplikuj tę szafkę"
-                    className={"px-0.5 leading-none " + (activeTab ? "text-teal-100 hover:text-white" : "text-stone-400 hover:text-stone-700")}>
-                    ⧉
-                  </button>
-                  {project.items.length > 1 && (
-                    <button onClick={() => removeCabinet(i)} title="Usuń szafkę"
-                      className={"shrink-0 rounded-full px-1 leading-none " + (activeTab ? "hover:bg-teal-800" : "hover:bg-stone-200")}>×</button>
-                  )}
                 </div>
               );
             })}
-            <select value="" title="Dodaj szafkę z gotowego szablonu"
-              onChange={(e) => { if (e.target.value) addCabinet(e.target.value); e.target.value = ""; }}
-              className="rounded-full border border-dashed border-teal-500 bg-white px-2 py-1 text-xs text-teal-700 focus:border-teal-700 focus:outline-none">
-              <option value="">+ z szablonu…</option>
-              {TEMPLATES.map((t) => (
-                <option key={t.id} value={t.id}>{t.label} — {t.hint}</option>
-              ))}
-            </select>
-            <button onClick={() => addCabinet()} title="Dodaj nową szafkę do projektu"
-              className="rounded-full border border-dashed border-teal-500 px-3 py-1 text-xs font-medium text-teal-700 hover:bg-teal-50">
-              + szafka
-            </button>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button onClick={addRun} title="Nowy ciąg — szafki stojące obok siebie przy jednej ścianie"
+                className="rounded-full border border-dashed border-stone-400 px-3 py-1 text-xs font-medium text-stone-500 hover:border-stone-500 hover:text-stone-700">
+                + ciąg
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]">
         <div className="space-y-4">
+          {(project.runs || []).length > 0 && (
+            <Card title="Ciąg meblowy" collapsible>
+              <Field label="Ta szafka"
+                hint={runInfo
+                  ? `${runInfo.pos} z ${runInfo.count} w ciągu „${runInfo.run.name}". Kolejność zmieniasz strzałkami na pasku szafek.`
+                  : "Wolnostojąca — nie wchodzi do żadnego ciągu."}>
+                <select value={project.items[project.active].runId || ""}
+                  onChange={(e) => assignCabinet(project.active, e.target.value || null)}
+                  className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-teal-600 focus:outline-none">
+                  <option value="">Wolnostojąca</option>
+                  {(project.runs || []).map((r) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </Field>
+              {runInfo && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Nazwa ciągu">
+                      <input value={runInfo.run.name}
+                        onChange={(e) => setRun(runInfo.run.id, { name: e.target.value })}
+                        className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-teal-600 focus:outline-none" />
+                    </Field>
+                    <Field label="Długość ściany">
+                      <AutoNum value={runInfo.run.wallW} placeholder={fmt(runInfo.total)}
+                        fixed={runInfo.run.wallW != null}
+                        onChange={(v) => setRun(runInfo.run.id,
+                          { wallW: v === "" ? null : Math.max(0, Math.round(Number(v))) })} />
+                    </Field>
+                  </div>
+                  <Field label="Luz między korpusami"
+                    hint="0 przy szafkach skręcanych ze sobą; większy, gdy każda stoi osobno.">
+                    <Num value={runInfo.run.gap} min={0}
+                      onChange={(v) => setRun(runInfo.run.id, { gap: Math.max(0, Math.round(Number(v) || 0)) })} />
+                  </Field>
+                  <p className="text-xs text-stone-500">
+                    {runInfo.count} {plural(runInfo.count, "szafka", "szafki", "szafek")} zajmuje{" "}
+                    <span className="font-mono text-stone-700">{fmt(runInfo.total)} mm</span>
+                    {runInfo.run.wallW != null && (
+                      <> z {fmt(runInfo.run.wallW)} mm ściany — zostaje{" "}
+                        <span className="font-mono text-stone-700">{fmt(runInfo.run.wallW - runInfo.total)} mm</span>.</>
+                    )}
+                  </p>
+                  <button onClick={() => removeRun(runInfo.run.id)}
+                    className="text-xs text-stone-500 hover:text-stone-800 hover:underline">
+                    Rozwiąż ciąg — szafki zostają, wracają na wolnostojące
+                  </button>
+                </>
+              )}
+            </Card>
+          )}
           <Card title="Korpus" collapsible>
             <div className="grid grid-cols-3 gap-3">
               <Field label="Szerokość"><Num value={cab.W} onChange={(v) => set({ W: v })} /></Field>
@@ -7701,7 +7892,8 @@ export default function App() {
               <button onClick={() => {
                   replaceProject({
                       name: DEFAULT_PROJECT_NAME,
-                      items: [{ cab: defaultCab, mat: defaultMaterials }],
+                      items: [{ cab: defaultCab, mat: defaultMaterials, runId: null }],
+                      runs: [],
                       active: 0,
                     });
                   setSaved("nowy projekt"); setConfirmNew(false);
