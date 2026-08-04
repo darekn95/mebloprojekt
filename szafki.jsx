@@ -486,7 +486,7 @@ const makeRun = (runs) => {
   /* H, D i cokol zostaja puste — ciag przejmuje je od pierwszej szafki, ktora do
      niego wejdzie. Dzieki temu nigdy nie narzuca wymiarow wzietych znikad. */
   return { id: nextRunId(runs), name: `Ściana ${Math.max(0, ...nums) + 1}`, wallW: null, gap: 0,
-    H: null, D: null, plinth: null };
+    H: null, D: null, plinth: null, plinthCuts: null };
 };
 
 // wymiary, ktore w ciagu musza byc wspolne — inaczej fronty i blat sie rozjada
@@ -500,6 +500,9 @@ const migrateRun = (r) => ({
   H: Number(r.H) > 0 ? Math.round(Number(r.H)) : null,
   D: Number(r.D) > 0 ? Math.round(Number(r.D)) : null,
   plinth: r.plinth && typeof r.plinth === "object" ? { ...r.plinth } : null,
+  // null = podzial cokolu dobierany sam; tablica = styki wybrane recznie
+  plinthCuts: Array.isArray(r.plinthCuts)
+    ? r.plinthCuts.map(Number).filter((n) => n > 0).sort((a, b) => a - b) : null,
 });
 
 // cokol porownujemy po wszystkich czterech polach — cofniecie tez psuje lico ciagu
@@ -4380,6 +4383,17 @@ const Field = ({ label, children, hint }) => (
   </label>
 );
 
+/* To samo co Field, ale zwyklym divem. Potrzebne wszedzie tam, gdzie w srodku
+   siedza przyciski-przelaczniki: <label> przekazuje klikniecie swojemu
+   pierwszemu przyciskowi, wiec przelacznik zapalilby sie i od razu zgasil. */
+const Group = ({ label, children, hint }) => (
+  <div className="block">
+    <span className="block text-xs uppercase tracking-wider text-stone-500 mb-1">{label}</span>
+    {children}
+    {hint && <span className="block text-xs text-stone-400 mt-1">{hint}</span>}
+  </div>
+);
+
 const Num = ({ value, onChange, min, max, suffix = "mm" }) => (
   <div className="flex items-center gap-2">
     <input type="number" value={value} min={min} max={max} step={1}
@@ -4474,6 +4488,8 @@ const Card = ({ title, children, right, collapsible = false, defaultOpen = true 
 const NoteLine = ({ text, color, icon, editLevels, cab, setGap, runFix }) => {
   const [txt, ...actions] = text.split("|");
   const btns = actions.map((action) => {
+    if (action === "plinthauto")
+      return { label: "Dobierz podział automatycznie", run: () => runFix && runFix(action) };
     // rozjazd z ciagiem da sie naprawic z dwoch stron — szafka albo caly ciag
     if (action.startsWith("runcab:") || action.startsWith("runrun:")) {
       const [kind, field, val] = action.split(":");
@@ -4624,13 +4640,43 @@ const runPlinth = (project, run) => {
   if (!p || !p.on) return null;
   const h = Math.max(0, Math.round(p.height || 0));
   if (!(h > 0)) return null;
-  const total = list.reduce((s, { it }) => s + computeGeo(it.cab, it.mat).W, 0)
-    + Math.max(0, list.length - 1) * (run.gap || 0);
-  const n = Math.max(1, Math.ceil(total / USABLE_W));
-  // rowny podzial, zeby laczenie nie wypadlo tuz przy koncu ciagu
-  const base = Math.round(total / n);
-  const lens = Array.from({ length: n }, (_, i) => (i === n - 1 ? total - base * (n - 1) : base));
-  return { total, h, n, lens, mat: list[0].it.mat, grainMatters: list[0].it.cab.grainMatters, name: run.name };
+  /* Styki korpusow to jedyne miejsca, w ktorych laczenie cokolu nie rzuca sie
+     w oczy — tam wypada pionowa szczelina miedzy frontami, wiec szew cokolu
+     chowa sie w tej samej linii. Dlatego ciac wolno tylko tutaj. */
+  const joints = [];
+  let x = 0;
+  list.forEach(({ it }, k) => {
+    x += computeGeo(it.cab, it.mat).W;
+    if (k < list.length - 1) { joints.push(x); x += run.gap || 0; }
+  });
+  const total = x;
+  const want = Array.isArray(run.plinthCuts) ? run.plinthCuts : null;
+  let cuts = [];
+  let auto = true;
+  let noFit = false;
+  if (want) {
+    // recznie wybrane styki; te, ktore zniknely po zmianie szerokosci, odpadaja same
+    auto = false;
+    cuts = want.filter((c) => joints.includes(c)).sort((a, b) => a - b);
+  } else {
+    /* Automat tnie dopiero wtedy, gdy plaszczyzna nie miesci sie w formatce,
+       i bierze najdalszy styk, ktory jeszcze wchodzi — czyli tnie tak rzadko,
+       jak sie da. */
+    let start = 0;
+    while (total - start > USABLE_W) {
+      const cand = joints.filter((j) => j > start && j - start <= USABLE_W).pop();
+      if (cand == null) { noFit = true; break; }
+      cuts.push(cand);
+      start = cand;
+    }
+  }
+  let lens = [];
+  let prev = 0;
+  cuts.forEach((c) => { lens.push(c - prev); prev = c; });
+  lens.push(total - prev);
+  const tooLong = Math.max(0, ...lens.filter((l) => l > USABLE_W));
+  return { total, h, n: lens.length, lens, cuts, joints, auto, noFit, tooLong,
+    mat: list[0].it.mat, grainMatters: list[0].it.cab.grainMatters, name: run.name };
 };
 
 // rowne kawalki lacza sie w jedna pozycje zamowienia
@@ -4695,16 +4741,30 @@ const runCabMsgs = (run, c) => {
   return out;
 };
 
+// "1600, 1600 i 800" zamiast "1600 i 1600 i 800"
+const listPl = (xs) => (xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " i " + xs[xs.length - 1]);
+
 const runWideMsgs = (run, total, rp) => {
   const out = [];
   if (!run) return out;
   if (run.wallW != null && total > run.wallW)
     out.push({ level: "error", text:
       `Ciąg „${run.name}" zajmuje ${fmt(total)} mm, a ściana ma ${fmt(run.wallW)} mm — brakuje ${fmt(total - run.wallW)} mm.` });
-  if (rp && rp.n > 1)
+  if (rp && rp.noFit)
+    out.push({ level: "error", text:
+      `Cokół ciągu ma ${fmt(rp.total)} mm, a między stykami korpusów nie ma odcinka krótszego niż formatka `
+      + `(${fmt(USABLE_W)} mm) — trzeba zwęzić którąś szafkę albo pociąć cokół poza stykiem.` });
+  else if (rp && rp.tooLong > 0)
+    out.push({ level: "error", text:
+      `Odcinek cokołu ${fmt(rp.tooLong)} mm nie mieści się w formatce (${fmt(USABLE_W)} mm) — dołóż podział na styku korpusów.`
+      + `|plinthauto` });
+  else if (rp && rp.n > 1)
     out.push({ level: "warn", text:
-      `Cokół ciągu ma ${fmt(rp.total)} mm i nie zmieści się na jednej formatce (maksimum ${fmt(USABLE_W)} mm) — pójdzie z ${rp.n} `
-      + `części po ${rp.lens.map(fmt).join(" i ")} mm, oklejonych także na łączeniu.` });
+      (rp.auto
+        ? `Cokół ciągu ma ${fmt(rp.total)} mm i nie zmieści się na jednej formatce (maksimum ${fmt(USABLE_W)} mm) — pójdzie z ${rp.n} części`
+        : `Cokół ciągu idzie z ${rp.n} części`)
+      + ` po ${listPl(rp.lens.map(fmt))} mm, ciętych na styku korpusów `
+      + `(${listPl(rp.cuts.map(fmt))} mm od lewej) i oklejonych także na łączeniu.` });
   return out;
 };
 
@@ -5510,6 +5570,19 @@ export default function App() {
     ...p, runs: (p.runs || []).map((r) => (r.id === id ? { ...r, ...patch } : r)),
   })), [setProject]);
 
+  /* Przelaczenie styku przechodzi z podzialu automatycznego na reczny — od tego
+     momentu ciag trzyma sie dokladnie tych ciec, ktore wskazales. */
+  const togglePlinthCut = useCallback((id, j) => setProject((p) => ({
+    ...p,
+    runs: (p.runs || []).map((r) => {
+      if (r.id !== id) return r;
+      const rp = runPlinth(p, r);
+      const cur = rp ? rp.cuts : [];
+      const next = cur.includes(j) ? cur.filter((c) => c !== j) : [...cur, j].sort((a, b) => a - b);
+      return { ...r, plinthCuts: next };
+    }),
+  })), [setProject]);
+
   // wymiar wspolny zmienia sie w ciagu i we wszystkich jego szafkach naraz
   const setRunShared = useCallback((id, patch) => setProject((p) => ({
     ...p,
@@ -5772,15 +5845,17 @@ export default function App() {
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    if (!runInfo) return;
+    if (action === "plinthauto") { setRun(runInfo.run.id, { plinthCuts: null }); return; }
     const [kind, field] = action.split(":");
-    if (!runInfo || !RUN_SHARED.includes(field)) return;
+    if (!RUN_SHARED.includes(field)) return;
     const { run } = runInfo;
     const c = project.items[project.active].cab;
     if (kind === "runrun")
       setRunShared(run.id, { [field]: field === "plinth" ? { ...c.plinth } : Math.round(c[field]) });
     else
       setCab((cur) => ({ ...cur, [field]: field === "plinth" ? { ...run.plinth } : run[field] }));
-  }, [project, runInfo, setRunShared, setCab]);
+  }, [project, runInfo, setRunShared, setCab, setRun]);
 
   const set = useCallback((patch) => setCab((c) => ({ ...c, ...patch })), [setCab]);
   const setGap = (k, v) => setCab((c) => ({ ...c, gaps: { ...c.gaps, [k]: v } }));
@@ -6452,12 +6527,36 @@ export default function App() {
                         <p className="text-xs text-stone-500">
                           {runPl.n === 1
                             ? <>Jedna formatka <span className="font-mono text-stone-700">{fmt(runPl.total)} × {fmt(runPl.h)} mm</span>, oklejona od dołu i na obu końcach.</>
-                            : <>Płaszczyzna <span className="font-mono text-stone-700">{fmt(runPl.total)} mm</span> nie mieści się na jednej formatce —{" "}
-                                {runPl.n} części po <span className="font-mono text-stone-700">{runPl.lens.map(fmt).join(" i ")} mm</span>, oklejone także na łączeniu.</>}
+                            : <>{runPl.n} części po <span className="font-mono text-stone-700">{listPl(runPl.lens.map(fmt))} mm</span>, cięte na styku korpusów i oklejone także na łączeniu.</>}
                         </p>
                       )}
                     </div>
                   </Field>
+                  {runPl && runPl.joints.length > 0 && (
+                    <Group label="Podział cokołu"
+                      hint="Cięcie idzie na styku korpusów, żeby szew wypadł w linii szczeliny między frontami. Sam dokłada się dopiero wtedy, gdy płaszczyzna nie mieści się w formatce.">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {runPl.joints.map((j) => {
+                          const on = runPl.cuts.includes(j);
+                          return (
+                            <button key={j} onClick={() => togglePlinthCut(runInfo.run.id, j)}
+                              title={on ? "Zdejmij podział z tego styku" : "Potnij cokół na tym styku"}
+                              className={"rounded-full border px-2.5 py-1 font-mono text-xs transition " +
+                                (on ? "border-teal-600 bg-teal-700 text-white"
+                                    : "border-stone-300 bg-white text-stone-500 hover:border-stone-400")}>
+                              {fmt(j)}
+                            </button>
+                          );
+                        })}
+                        {!runPl.auto && (
+                          <button onClick={() => setRun(runInfo.run.id, { plinthCuts: null })}
+                            className="rounded-full border border-dashed border-stone-400 px-2.5 py-1 text-xs text-stone-500 hover:text-stone-700">
+                            auto
+                          </button>
+                        )}
+                      </div>
+                    </Group>
+                  )}
                   <p className="text-xs text-stone-500">
                     {runInfo.count} {plural(runInfo.count, "szafka", "szafki", "szafek")} zajmuje{" "}
                     <span className="font-mono text-stone-700">{fmt(runInfo.total)} mm</span>
