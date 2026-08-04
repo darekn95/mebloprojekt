@@ -2560,6 +2560,116 @@ const DimV = ({ y1, y2, x, label, c = DIMC, left = true, labelY = null }) => (
   </g>
 );
 
+/* ---------- elewacja ciagu ----------
+   Kazda szafka ma swoj widok z przodu, ale dopiero wszystkie obok siebie
+   pokazuja to, co w ciagu naprawde sie liczy: czy fronty stoja w jednej linii,
+   gdzie wypadaja szczeliny miedzy korpusami i gdzie ma szew cokol. */
+function RunView({ project, run, rp, showDims }) {
+  const parts = runItems(project, run.id).map(({ it }) => {
+    const geo = computeGeo(it.cab, it.mat);
+    const mat = texMat(it.mat, it.cab.texture, it.cab.textureDir);
+    // cokol pod korpusem podnosi szafke, cokol w obrysie siedzi juz w H
+    const base = it.cab.plinth && it.cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
+    return { cab: it.cab, geo, mat, base,
+      name: (it.cab.name || "").trim(),
+      frontColor: it.cab.realColors && it.cab.frontSameAsBoard !== false
+        ? mat.board.color : mat.front.color };
+  });
+  if (!parts.length) return null;
+
+  const gap = Math.max(0, Math.round(run.gap || 0));
+  let x = 0;
+  parts.forEach((p, i) => { p.x = x; x += p.geo.W; if (i < parts.length - 1) x += gap; });
+  const total = x;
+  const top = Math.max(...parts.map((p) => p.base + p.cab.H));
+  const fy = (v) => top - v;
+
+  /* Linie frontow ciagniete przez caly ciag — jesli ktorys front wypada inaczej
+     niz sasiedzi, linia przecina go w poprzek i widac to od razu. */
+  const frontLines = [...new Set(parts.flatMap((p) =>
+    p.geo.doors.filter((d) => d.w > 0 && d.h > 0)
+      .flatMap((d) => [Math.round(p.base + d.y), Math.round(p.base + d.y + d.h)])
+  ))].sort((a, b) => a - b);
+
+  const plinthH = rp ? rp.h : 0;
+  const padL = showDims ? 200 : 40;
+  const padR = 40;
+  // luz miedzy korpusami idzie gora — na dole zlewalby sie z szerokosciami szafek
+  const padT = showDims ? (gap > 0 ? 210 : 130) : 40;
+  const padB = showDims ? 210 : 40;
+  const vb = [-padL, -padT, total + padL + padR, top + padT + padB].join(" ");
+
+  return (
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
+      {/* podloga */}
+      <line x1={-20} y1={fy(0)} x2={total + 20} y2={fy(0)} stroke={LINE} strokeWidth="2" />
+
+      {/* cokol ciagu — jedna plaszczyzna, z zaznaczonymi szwami */}
+      {plinthH > 0 && (
+        <g>
+          <rect x={0} y={fy(plinthH)} width={total} height={plinthH}
+            fill={parts[0].mat.board.color} stroke={INK} strokeWidth="2" opacity="0.75" />
+          {rp.cuts.map((c) => (
+            <line key={"pc" + c} x1={c} y1={fy(plinthH)} x2={c} y2={fy(0)}
+              stroke={INK} strokeWidth="3" />
+          ))}
+        </g>
+      )}
+
+      {parts.map((p, i) => (
+        <g key={i}>
+          {/* korpus */}
+          <rect x={p.x} y={fy(p.base + p.cab.H)} width={p.geo.W} height={p.cab.H}
+            fill={p.mat.board.color} stroke={INK} strokeWidth="2.5" />
+          {/* fronty */}
+          {p.geo.doors.filter((d) => d.w > 0 && d.h > 0).map((d) => (
+            <rect key={p.x + d.key} x={p.x + d.x} y={fy(p.base + d.y + d.h)}
+              width={d.w} height={d.h}
+              fill={d.type === "blenda" ? p.mat.board.color : p.frontColor}
+              stroke={INK} strokeWidth="2" />
+          ))}
+          {p.name && (
+            <text x={p.x + p.geo.W / 2} y={fy(p.base + p.cab.H) - 14} textAnchor="middle"
+              fontSize="22" fill={LINE} fontFamily="ui-monospace, monospace">{p.name}</text>
+          )}
+        </g>
+      ))}
+
+      {showDims && (
+        <g>
+          {frontLines.map((v) => (
+            <line key={"fl" + v} x1={-16} y1={fy(v)} x2={total + 16} y2={fy(v)}
+              stroke={ACC} strokeWidth="1" strokeDasharray="10 8" opacity="0.45" />
+          ))}
+          {parts.map((p, i) => (
+            <DimH key={"w" + i} x1={p.x} x2={p.x + p.geo.W} y={fy(0) + 56}
+              label={fmt(p.geo.W)} above={false} />
+          ))}
+          <DimH x1={0} x2={total} y={fy(0) + 130} label={`${fmt(total)} ciąg`} above={false} />
+          {/* Luz miedzy korpusami bywa 3 mm — kreska wymiarowa zlalaby sie w plame,
+              wiec zamiast niej idzie odnosnik z opisem nad ciagiem. */}
+          {gap > 0 && parts.slice(0, -1).map((p, i) => {
+            const cx = p.x + p.geo.W + gap / 2;
+            return (
+              <g key={"g" + i}>
+                <line x1={cx} y1={fy(top) - 12} x2={cx} y2={fy(top) - 58} stroke={ACC} strokeWidth="1.5" />
+                <text x={cx} y={fy(top) - 66} textAnchor="middle" fontSize="22" fill={ACC}
+                  fontFamily="ui-monospace, monospace">{fmt(gap)}</text>
+              </g>
+            );
+          })}
+          <DimV y1={fy(top)} y2={fy(0)} x={-70} label={fmt(top)} />
+          {plinthH > 0 && <DimV y1={fy(plinthH)} y2={fy(0)} x={-150} label={fmt(plinthH)} />}
+          {run.wallW != null && (
+            <DimH x1={0} x2={run.wallW} y={fy(top) - (gap > 0 ? 140 : 66)}
+              label={`${fmt(run.wallW)} ściana`} c={run.wallW < total ? ERRC : DIMC} />
+          )}
+        </g>
+      )}
+    </svg>
+  );
+}
+
 function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
@@ -5804,6 +5914,12 @@ export default function App() {
      ciag, wiec jego formatki ida przy ciagu, a nie przy szafce. */
   const runPl = useMemo(() => (runInfo ? runPlinth(project, runInfo.run) : null), [project, runInfo]);
 
+  /* Przeskok na szafke wolnostojaca zabiera elewacje ciagu — wracamy wtedy na
+     widok zamkniety, zeby przelacznik nie zostal bez zaznaczonej pozycji. */
+  useEffect(() => {
+    if (view === "run" && !runInfo) setView("closed");
+  }, [view, runInfo]);
+
   /* Uwagi wszystkich szafek naraz. Bez tego uwaga do szafki, ktorej akurat nie
      ogladamy, jest niewidoczna — a przy ciagu to wlasnie sasiadka bywa ta,
      ktora sie rozjechala. Geometrie liczymy raz i uzywamy do obu rzeczy. */
@@ -7665,7 +7781,7 @@ export default function App() {
                     {showHardware ? "Ukryj okucia" : "Pokaż okucia"}
                   </button>
                 )}
-                <div className="w-80">
+                <div className={runInfo ? "w-96" : "w-80"}>
                   <Seg value={view} onChange={setView}
                     options={[
                       { v: "closed", l: "Zamk." },
@@ -7674,12 +7790,16 @@ export default function App() {
                       { v: "top", l: "Z góry" },
                       { v: "rear", l: "Z tyłu" },
                       { v: "3d", l: "3D" },
+                      // elewacja calego ciagu ma sens tylko wtedy, gdy ciag istnieje
+                      ...(runInfo ? [{ v: "run", l: "Ciąg" }] : []),
                     ]} />
                 </div>
               </div>
             }>
             <div className="rounded border border-stone-100 bg-stone-50 p-3">
-              {view === "3d" ? (
+              {view === "run" && runInfo ? (
+                <RunView project={project} run={runInfo.run} rp={runPl} showDims={showDims} />
+              ) : view === "3d" ? (
                 <div className="space-y-3">
                   <div
                     className="cursor-grab active:cursor-grabbing touch-none"
