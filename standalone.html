@@ -498,15 +498,39 @@ const makeRun = (runs) => {
     const m = /^Ściana (\d+)$/.exec((r.name || "").trim());
     return m ? Number(m[1]) : 0;
   });
-  return { id: nextRunId(runs), name: `Ściana ${Math.max(0, ...nums) + 1}`, wallW: null, gap: 0 };
+  /* H, D i cokol zostaja puste — ciag przejmuje je od pierwszej szafki, ktora do
+     niego wejdzie. Dzieki temu nigdy nie narzuca wymiarow wzietych znikad. */
+  return { id: nextRunId(runs), name: `Ściana ${Math.max(0, ...nums) + 1}`, wallW: null, gap: 0,
+    H: null, D: null, plinth: null };
 };
+
+// wymiary, ktore w ciagu musza byc wspolne — inaczej fronty i blat sie rozjada
+const RUN_SHARED = ["H", "D", "plinth"];
 
 const migrateRun = (r) => ({
   id: String(r.id),
   name: typeof r.name === "string" && r.name.trim() ? r.name : "Ciąg",
   wallW: Number(r.wallW) > 0 ? Math.round(Number(r.wallW)) : null,
   gap: Math.max(0, Math.round(Number(r.gap) || 0)),
+  H: Number(r.H) > 0 ? Math.round(Number(r.H)) : null,
+  D: Number(r.D) > 0 ? Math.round(Number(r.D)) : null,
+  plinth: r.plinth && typeof r.plinth === "object" ? { ...r.plinth } : null,
 });
+
+// cokol porownujemy po wszystkich czterech polach — cofniecie tez psuje lico ciagu
+const samePlinth = (a, b) => {
+  if (!a || !b) return !a === !b;
+  if (!a.on || !b.on) return !a.on === !b.on;
+  return Math.round(a.height || 0) === Math.round(b.height || 0)
+    && (a.mode || "inbody") === (b.mode || "inbody")
+    && Math.round(a.setback || 0) === Math.round(b.setback || 0);
+};
+
+const plinthText = (p) => {
+  if (!p || !p.on) return "bez cokołu";
+  const gdzie = (p.mode || "inbody") === "inbody" ? "w bryle" : "pod korpusem";
+  return `cokół ${fmt(p.height)} mm ${gdzie}` + (p.setback > 0 ? `, cofnięty ${fmt(p.setback)} mm` : "");
+};
 
 /* szafki jednego ciagu w kolejnosci ustawienia przy scianie; id === null daje
    szafki wolnostojace, wiec caly pasek grup idzie jednym mechanizmem */
@@ -4462,9 +4486,18 @@ const Card = ({ title, children, right, collapsible = false, defaultOpen = true 
   );
 };
 
-const NoteLine = ({ text, color, icon, editLevels, cab, setGap }) => {
+const NoteLine = ({ text, color, icon, editLevels, cab, setGap, runFix }) => {
   const [txt, ...actions] = text.split("|");
   const btns = actions.map((action) => {
+    // rozjazd z ciagiem da sie naprawic z dwoch stron — szafka albo caly ciag
+    if (action.startsWith("runcab:") || action.startsWith("runrun:")) {
+      const [kind, field, val] = action.split(":");
+      const toRun = kind === "runrun";
+      const label = field === "plinth"
+        ? (toRun ? "Ustaw cokół ciągu jak tutaj" : "Wyrównaj cokół do ciągu")
+        : (toRun ? `Ustaw cały ciąg na ${val} mm` : `Wyrównaj tę szafkę do ciągu (${val} mm)`);
+      return { label, run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("fixgap:")) {
       const [, li, j, val, dir] = action.split(":");
       const verb = dir === "down" ? "Zmniejsz" : "Zwiększ";
@@ -5334,7 +5367,7 @@ export default function App() {
     const last = p.items.reduce((acc, it, k) => ((it.runId || null) === runId ? k : acc), -1);
     const at = last >= 0 ? last + 1 : p.items.length;
     const items = [...p.items.slice(0, at), fresh, ...p.items.slice(at)];
-    return { ...p, items, active: at };
+    return withRunDefaults({ ...p, items, active: at }, runId);
   }), [setProject]);
   const duplicateCabinet = useCallback((i) => setProject((p) => {
     const src = p.items[i];
@@ -5363,6 +5396,20 @@ export default function App() {
     return { ...p, items, active: Math.max(0, items.indexOf(p.items[p.active])) };
   };
 
+  /* Pusty ciag nie ma jeszcze wymiarow — bierze je od pierwszej szafki, ktora do
+     niego trafi. Kolejnym niczego nie narzuca po cichu: rozjazd zglasza uwaga
+     z przyciskami, zeby zmiana wymiaru zawsze byla swiadoma. */
+  const withRunDefaults = (p, runId) => {
+    if (!runId) return p;
+    const run = (p.runs || []).find((r) => r.id === runId);
+    if (!run || run.H != null) return p;
+    const list = runItems(p, runId);
+    if (!list.length) return p;
+    const c = list[0].it.cab;
+    return { ...p, runs: p.runs.map((r) => (r.id === runId
+      ? { ...r, H: c.H, D: c.D, plinth: c.plinth ? { ...c.plinth } : null } : r)) };
+  };
+
   const addRun = useCallback(() => setProject((p) => {
     const runs = p.runs || [];
     return { ...p, runs: [...runs, makeRun(runs)] };
@@ -5370,6 +5417,13 @@ export default function App() {
 
   const setRun = useCallback((id, patch) => setProject((p) => ({
     ...p, runs: (p.runs || []).map((r) => (r.id === id ? { ...r, ...patch } : r)),
+  })), [setProject]);
+
+  // wymiar wspolny zmienia sie w ciagu i we wszystkich jego szafkach naraz
+  const setRunShared = useCallback((id, patch) => setProject((p) => ({
+    ...p,
+    runs: (p.runs || []).map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    items: p.items.map((it) => ((it.runId || null) === id ? { ...it, cab: { ...it.cab, ...patch } } : it)),
   })), [setProject]);
 
   const removeRun = useCallback((id) => setProject((p) => ({
@@ -5388,10 +5442,9 @@ export default function App() {
     items[i] = { ...cur, runId: runId || null };
     const next = { ...p, items, active: p.active === i ? i : p.active };
     const last = items.reduce((acc, it, k) => (k !== i && (it.runId || null) === (runId || null) ? k : acc), -1);
-    if (last < 0) return { ...next, active: i };
+    if (last < 0) return withRunDefaults({ ...next, active: i }, runId);
     const to = last < i ? last + 1 : last;
-    const moved = reorderItems({ ...next, active: i }, i, to);
-    return moved;
+    return withRunDefaults(reorderItems({ ...next, active: i }, i, to), runId);
   }), [setProject]);
 
   // przesuwanie w obrebie ciagu — sasiadem jest najblizsza szafka tego samego ciagu
@@ -5582,6 +5635,44 @@ export default function App() {
       + Math.max(0, list.length - 1) * (run.gap || 0);
     return { run, count: list.length, total, pos: list.findIndex(({ i }) => i === project.active) + 1 };
   }, [project]);
+
+  /* Uwagi ciagu — o wymiarach aktywnej szafki na tle ciagu oraz o tym, czy caly
+     ciag miesci sie przy scianie. Ida do tej samej karty co uwagi szafki, bo
+     z punktu widzenia uzytkownika to jedna lista rzeczy do poprawienia. */
+  const runMsgs = useMemo(() => {
+    if (!runInfo) return [];
+    const { run, total } = runInfo;
+    const c = project.items[project.active].cab;
+    const out = [];
+    if (run.H != null && Math.round(c.H) !== run.H)
+      out.push({ level: "warn", text:
+        `Wysokość ${fmt(c.H)} mm nie zgadza się z ciągiem „${run.name}" (${fmt(run.H)} mm) — fronty nie staną w jednej linii.`
+        + `|runcab:H:${run.H}|runrun:H:${Math.round(c.H)}` });
+    if (run.D != null && Math.round(c.D) !== run.D)
+      out.push({ level: "warn", text:
+        `Głębokość ${fmt(c.D)} mm nie zgadza się z ciągiem (${fmt(run.D)} mm) — blat nie przykryje ciągu równo.`
+        + `|runcab:D:${run.D}|runrun:D:${Math.round(c.D)}` });
+    if (run.plinth && !samePlinth(c.plinth, run.plinth))
+      out.push({ level: "warn", text:
+        `Cokół tej szafki (${plinthText(c.plinth)}) nie zgadza się z ciągiem (${plinthText(run.plinth)}) — cokół idzie przez cały ciąg jedną linią.`
+        + `|runcab:plinth:x|runrun:plinth:x` });
+    if (run.wallW != null && total > run.wallW)
+      out.push({ level: "error", text:
+        `Ciąg „${run.name}" zajmuje ${fmt(total)} mm, a ściana ma ${fmt(run.wallW)} mm — brakuje ${fmt(total - run.wallW)} mm.` });
+    return out;
+  }, [project, runInfo]);
+
+  // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
+  const runFix = useCallback((action) => {
+    const [kind, field] = action.split(":");
+    if (!runInfo || !RUN_SHARED.includes(field)) return;
+    const { run } = runInfo;
+    const c = project.items[project.active].cab;
+    if (kind === "runrun")
+      setRunShared(run.id, { [field]: field === "plinth" ? { ...c.plinth } : Math.round(c[field]) });
+    else
+      setCab((cur) => ({ ...cur, [field]: field === "plinth" ? { ...run.plinth } : run[field] }));
+  }, [project, runInfo, setRunShared, setCab]);
 
   const set = useCallback((patch) => setCab((c) => ({ ...c, ...patch })), [setCab]);
   const setGap = (k, v) => setCab((c) => ({ ...c, gaps: { ...c.gaps, [k]: v } }));
@@ -6001,9 +6092,11 @@ export default function App() {
     return { rows, sum };
   }, [planSheets, projectEdgeMb, projectHardware, prices, matByLabel]);
 
-  const errors = geo.msgs.filter((m) => m.level === "error");
-  const warns = geo.msgs.filter((m) => m.level === "warn");
-  const infos = geo.msgs.filter((m) => m.level === "info");
+  // uwagi ciagu ida przed uwagami szafki — dotycza calej sciany, wiec sa nadrzedne
+  const allMsgs = useMemo(() => [...runMsgs, ...geo.msgs], [runMsgs, geo]);
+  const errors = allMsgs.filter((m) => m.level === "error");
+  const warns = allMsgs.filter((m) => m.level === "warn");
+  const infos = allMsgs.filter((m) => m.level === "info");
   const notesRef = useRef(null);
   const scrollToNotes = () =>
     notesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -6199,6 +6292,34 @@ export default function App() {
                     hint="0 przy szafkach skręcanych ze sobą; większy, gdy każda stoi osobno.">
                     <Num value={runInfo.run.gap} min={0}
                       onChange={(v) => setRun(runInfo.run.id, { gap: Math.max(0, Math.round(Number(v) || 0)) })} />
+                  </Field>
+                  <Field label="Wspólne dla całego ciągu"
+                    hint="Zmiana tutaj przestawia od razu wszystkie szafki ciągu. Szafkę, która się rozjedzie, zgłoszą Uwagi.">
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block">
+                        <span className="mb-1 block text-[11px] text-stone-400">Wysokość</span>
+                        <Num value={runInfo.run.H ?? cab.H}
+                          onChange={(v) => setRunShared(runInfo.run.id, { H: Math.max(1, Math.round(Number(v) || 0)) })} />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-[11px] text-stone-400">Głębokość</span>
+                        <Num value={runInfo.run.D ?? cab.D}
+                          onChange={(v) => setRunShared(runInfo.run.id, { D: Math.max(1, Math.round(Number(v) || 0)) })} />
+                      </label>
+                    </div>
+                  </Field>
+                  <Field label="Cokół ciągu" hint="Cokół idzie przez cały ciąg jedną linią.">
+                    <div className="space-y-2">
+                      <Check checked={!!(runInfo.run.plinth || cab.plinth || {}).on}
+                        label="Cokół pod szafkami"
+                        onChange={(v) => setRunShared(runInfo.run.id,
+                          { plinth: { ...(runInfo.run.plinth || cab.plinth), on: v } })} />
+                      {!!(runInfo.run.plinth || cab.plinth || {}).on && (
+                        <Num value={(runInfo.run.plinth || cab.plinth).height}
+                          onChange={(v) => setRunShared(runInfo.run.id,
+                            { plinth: { ...(runInfo.run.plinth || cab.plinth), height: Math.max(0, Math.round(Number(v) || 0)) } })} />
+                      )}
+                    </div>
                   </Field>
                   <p className="text-xs text-stone-500">
                     {runInfo.count} {plural(runInfo.count, "szafka", "szafki", "szafek")} zajmuje{" "}
@@ -7386,10 +7507,10 @@ export default function App() {
               {(errors.length > 0 || warns.length > 0) && (
                 <ul className="space-y-2">
                   {errors.map((m, i) => (
-                    <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} cab={cab} setGap={setGap} />
+                    <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} />
                   ))}
                   {warns.map((m, i) => (
-                    <NoteLine key={"w" + i} text={m.text} color={WARNC} icon="!" editLevels={editLevels} cab={cab} setGap={setGap} />
+                    <NoteLine key={"w" + i} text={m.text} color={WARNC} icon="!" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} />
                   ))}
                 </ul>
               )}
@@ -7400,7 +7521,7 @@ export default function App() {
                   </div>
                   <ul className="space-y-2">
                     {infos.map((m, i) => (
-                      <NoteLine key={"i" + i} text={m.text} color="#78716c" icon="i" editLevels={editLevels} cab={cab} setGap={setGap} />
+                      <NoteLine key={"i" + i} text={m.text} color="#78716c" icon="i" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} />
                     ))}
                   </ul>
                 </div>
