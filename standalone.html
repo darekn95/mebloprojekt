@@ -503,7 +503,7 @@ const makeRun = (runs) => {
   /* H, D i cokol zostaja puste — ciag przejmuje je od pierwszej szafki, ktora do
      niego wejdzie. Dzieki temu nigdy nie narzuca wymiarow wzietych znikad. */
   return { id: nextRunId(runs), name: `Ściana ${Math.max(0, ...nums) + 1}`, wallW: null, gap: 0,
-    H: null, D: null, plinth: null, plinthCuts: null };
+    H: null, D: null, plinth: null, plinthCuts: null, mountY: 0 };
 };
 
 // wymiary, ktore w ciagu musza byc wspolne — inaczej fronty i blat sie rozjada
@@ -520,6 +520,8 @@ const migrateRun = (r) => ({
   // null = podzial cokolu dobierany sam; tablica = styki wybrane recznie
   plinthCuts: Array.isArray(r.plinthCuts)
     ? r.plinthCuts.map(Number).filter((n) => n > 0).sort((a, b) => a - b) : null,
+  // wysokosc spodu korpusu nad podloga: 0 = ciag stoi, wiecej = ciag wisi
+  mountY: Number(r.mountY) > 0 ? Math.round(Number(r.mountY)) : 0,
 });
 
 // cokol porownujemy po wszystkich czterech polach — cofniecie tez psuje lico ciagu
@@ -2577,80 +2579,175 @@ const DimV = ({ y1, y2, x, label, c = DIMC, left = true, labelY = null }) => (
   </g>
 );
 
-/* ---------- elewacja ciagu ----------
-   Kazda szafka ma swoj widok z przodu, ale dopiero wszystkie obok siebie
-   pokazuja to, co w ciagu naprawde sie liczy: czy fronty stoja w jednej linii,
-   gdzie wypadaja szczeliny miedzy korpusami i gdzie ma szew cokol. */
-function RunView({ project, run, rp, showDims }) {
-  const parts = runItems(project, run.id).map(({ it }) => {
-    const geo = computeGeo(it.cab, it.mat);
-    const mat = texMat(it.mat, it.cab.texture, it.cab.textureDir);
-    // cokol pod korpusem podnosi szafke, cokol w obrysie siedzi juz w H
-    const base = it.cab.plinth && it.cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
-    return { cab: it.cab, geo, mat, base,
-      name: (it.cab.name || "").trim(),
-      frontColor: it.cab.realColors && it.cab.frontSameAsBoard !== false
-        ? mat.board.color : mat.front.color };
-  });
-  if (!parts.length) return null;
+/* ---------- widoki zabudowy ----------
+   Pojedyncza szafka ma swoje widoki od dawna. Ciag i cala zabudowa rysuja sie
+   z tych samych czesci: kazda szafka wnosi swoja geometrie, a roznica jest
+   tylko w tym, ile ciagow bierzemy i na jakiej wysokosci one wisza. */
+const assemblyParts = (project, runs) =>
+  runs.map((run) => {
+    const gap = Math.max(0, Math.round(run.gap || 0));
+    const mount = Math.max(0, Math.round(run.mountY || 0));
+    let x = 0;
+    const cabs = runItems(project, run.id).map(({ it }, i, arr) => {
+      const geo = computeGeo(it.cab, it.mat);
+      const mat = texMat(it.mat, it.cab.texture, it.cab.textureDir);
+      // cokol pod korpusem podnosi szafke, cokol w obrysie siedzi juz w H
+      const plinthH = it.cab.plinth && it.cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
+      const o = {
+        cab: it.cab, geo, mat, x, plinthH,
+        base: mount + plinthH,
+        name: (it.cab.name || "").trim(),
+        frontColor: it.cab.realColors && it.cab.frontSameAsBoard !== false
+          ? mat.board.color : mat.front.color,
+      };
+      x += geo.W;
+      if (i < arr.length - 1) x += gap;
+      return o;
+    });
+    return { run, gap, mount, cabs, total: x };
+  }).filter((r) => r.cabs.length);
 
-  const gap = Math.max(0, Math.round(run.gap || 0));
-  let x = 0;
-  parts.forEach((p, i) => { p.x = x; x += p.geo.W; if (i < parts.length - 1) x += gap; });
-  const total = x;
-  const top = Math.max(...parts.map((p) => p.base + p.cab.H));
+/* Elewacja — od przodu (zamknieta i otwarta) oraz od tylu. Wszystkie trzy to ten
+   sam rzut, wiec dzieli je tylko to, co rysujemy w srodku obrysu. */
+function AssemblyView({ project, runs, rpOf, variant, showDims }) {
+  const groups = assemblyParts(project, runs);
+  if (!groups.length) return null;
+  const rear = variant === "rear";
+  const open = variant === "open";
+
+  const total = Math.max(...groups.map((g) => g.total));
+  const top = Math.max(...groups.flatMap((g) => g.cabs.map((c) => c.base + c.cab.H)));
   const fy = (v) => top - v;
+  // patrzac od tylu widzimy ciag w lustrzanym odbiciu
+  const mx = (x, w) => (rear ? total - x - w : x);
 
-  /* Linie frontow ciagniete przez caly ciag — jesli ktorys front wypada inaczej
-     niz sasiedzi, linia przecina go w poprzek i widac to od razu. */
-  const frontLines = [...new Set(parts.flatMap((p) =>
-    p.geo.doors.filter((d) => d.w > 0 && d.h > 0)
-      .flatMap((d) => [Math.round(p.base + d.y), Math.round(p.base + d.y + d.h)])
-  ))].sort((a, b) => a - b);
-
-  const plinthH = rp ? rp.h : 0;
+  const wallW = Math.max(0, ...groups.map((g) => g.run.wallW || 0));
+  const anyGap = groups.some((g) => g.gap > 0);
+  const anyMount = groups.some((g) => g.mount > 0);
   const padL = showDims ? 200 : 40;
-  const padR = 40;
-  // luz miedzy korpusami idzie gora — na dole zlewalby sie z szerokosciami szafek
-  const padT = showDims ? (gap > 0 ? 210 : 130) : 40;
-  const padB = showDims ? 210 : 40;
+  // wysokosc zawieszenia wymiarujemy z prawej, wiec musi sie tam zmiescic
+  const padR = showDims && anyMount ? 200 : 40;
+  const padT = showDims ? (anyGap ? 210 : 130) : 40;
+  // kazdy ciag dokłada wlasny wiersz szerokosci, a pod nimi idzie jeszcze suma
+  const padB = showDims ? 150 + groups.length * 74 : 40;
   const vb = [-padL, -padT, total + padL + padR, top + padT + padB].join(" ");
+
+  /* Linie frontow ciagniete przez cala szerokosc — front, ktory wypada inaczej
+     niz sasiedzi, zostaje przeciety w poprzek i widac to od razu. */
+  const frontLines = showDims && !open
+    ? [...new Set(groups.flatMap((g) => g.cabs.flatMap((c) =>
+        c.geo.doors.filter((d) => d.w > 0 && d.h > 0)
+          .flatMap((d) => [Math.round(c.base + d.y), Math.round(c.base + d.y + d.h)]))))]
+    : [];
 
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
-      {/* podloga */}
       <line x1={-20} y1={fy(0)} x2={total + 20} y2={fy(0)} stroke={LINE} strokeWidth="2" />
 
-      {/* cokol ciagu — jedna plaszczyzna, z zaznaczonymi szwami */}
-      {plinthH > 0 && (
-        <g>
-          <rect x={0} y={fy(plinthH)} width={total} height={plinthH}
-            fill={parts[0].mat.board.color} stroke={INK} strokeWidth="2" opacity="0.75" />
-          {rp.cuts.map((c) => (
-            <line key={"pc" + c} x1={c} y1={fy(plinthH)} x2={c} y2={fy(0)}
-              stroke={INK} strokeWidth="3" />
-          ))}
-        </g>
-      )}
+      {groups.map((g, gi) => {
+        const rp = rpOf ? rpOf(g.run) : null;
+        const plinthH = rp ? rp.h : 0;
+        return (
+          <g key={g.run.id}>
+            {/* cokol ciagu — jedna plaszczyzna, ze szwami w miejscach ciecia */}
+            {plinthH > 0 && !rear && (
+              <g>
+                <rect x={0} y={fy(g.mount + plinthH)} width={g.total} height={plinthH}
+                  fill={g.cabs[0].mat.board.color} stroke={INK} strokeWidth="2" opacity="0.75" />
+                {rp.cuts.map((c) => (
+                  <line key={"pc" + c} x1={c} y1={fy(g.mount + plinthH)} x2={c} y2={fy(g.mount)}
+                    stroke={INK} strokeWidth="3" />
+                ))}
+              </g>
+            )}
 
-      {parts.map((p, i) => (
-        <g key={i}>
-          {/* korpus */}
-          <rect x={p.x} y={fy(p.base + p.cab.H)} width={p.geo.W} height={p.cab.H}
-            fill={p.mat.board.color} stroke={INK} strokeWidth="2.5" />
-          {/* fronty */}
-          {p.geo.doors.filter((d) => d.w > 0 && d.h > 0).map((d) => (
-            <rect key={p.x + d.key} x={p.x + d.x} y={fy(p.base + d.y + d.h)}
-              width={d.w} height={d.h}
-              fill={d.type === "blenda" ? p.mat.board.color : p.frontColor}
-              stroke={INK} strokeWidth="2" />
-          ))}
-          {p.name && (
-            <text x={p.x + p.geo.W / 2} y={fy(p.base + p.cab.H) - 14} textAnchor="middle"
-              fontSize="22" fill={LINE} fontFamily="ui-monospace, monospace">{p.name}</text>
-          )}
-        </g>
-      ))}
+            {g.cabs.map((c, i) => {
+              const X = mx(c.x, c.geo.W);
+              const t = c.geo.t;
+              return (
+                <g key={gi + "-" + i}>
+                  <rect x={X} y={fy(c.base + c.cab.H)} width={c.geo.W} height={c.cab.H}
+                    fill={c.mat.board.color} stroke={INK} strokeWidth="2.5" />
+
+                  {/* wnetrze pokazujemy w widoku otwartym — bez frontow zaslaniajacych */}
+                  {open && (
+                    <g>
+                      {c.geo.sepShelves.map((s, k) => (
+                        <rect key={"sep" + k} x={X + c.geo.interior.x0} y={fy(c.base + s.y + t)}
+                          width={c.geo.innerW} height={t}
+                          fill={c.mat.board.color} stroke={INK} strokeWidth="2" />
+                      ))}
+                      {c.geo.dividers.map((d, k) => (
+                        <rect key={"div" + k} x={X + d.x} y={fy(c.base + d.y1)} width={t} height={d.h}
+                          fill={c.mat.board.color} stroke={INK} strokeWidth="2" />
+                      ))}
+                      {c.geo.levels.flatMap((lv) => lv.cols.flatMap((col) =>
+                        (col.shelves || []).map((s, k) => (
+                          <rect key={`s${lv.i}-${col.j}-${k}`} x={X + col.x0}
+                            y={fy(c.base + s.y + c.geo.ts)} width={col.w} height={c.geo.ts}
+                            fill={shelfColorOf(c.cab, c.mat)} stroke={INK} strokeWidth="2" />
+                        ))
+                      ))}
+                      {/* fronty szuflad zaznaczamy obrysem — skrzynki zostaja w srodku */}
+                      {c.geo.doors.filter((d) => d.type === "drawer" && d.w > 0 && d.h > 0).map((d) => (
+                        <rect key={"dr" + d.key} x={X + d.x} y={fy(c.base + d.y + d.h)}
+                          width={d.w} height={d.h} fill="none" stroke={INK} strokeWidth="1.5"
+                          strokeDasharray="10 7" opacity="0.6" />
+                      ))}
+                    </g>
+                  )}
+
+                  {/* plecy widac tylko od tylu */}
+                  {rear && c.cab.back !== "none" && (
+                    <rect x={X + t / 2} y={fy(c.base + c.cab.H - t / 2)}
+                      width={c.geo.W - t} height={c.cab.H - t}
+                      fill={c.mat.back.color} stroke={INK} strokeWidth="2" opacity="0.9" />
+                  )}
+
+                  {!open && !rear && c.geo.doors.filter((d) => d.w > 0 && d.h > 0).map((d) => (
+                    <rect key={d.key} x={X + d.x} y={fy(c.base + d.y + d.h)}
+                      width={d.w} height={d.h}
+                      fill={d.type === "blenda" ? c.mat.board.color : c.frontColor}
+                      stroke={INK} strokeWidth="2" />
+                  ))}
+
+                  {c.name && (
+                    <text x={X + c.geo.W / 2} y={fy(c.base + c.cab.H) - 14} textAnchor="middle"
+                      fontSize="22" fill={LINE} fontFamily="ui-monospace, monospace">{c.name}</text>
+                  )}
+                </g>
+              );
+            })}
+
+            {showDims && (
+              <g>
+                {g.cabs.map((c, i) => (
+                  <DimH key={"w" + i} x1={mx(c.x, c.geo.W)} x2={mx(c.x, c.geo.W) + c.geo.W}
+                    y={fy(0) + 56 + gi * 74} label={fmt(c.geo.W)} above={false} />
+                ))}
+                {g.mount > 0 && (
+                  <DimV y1={fy(g.mount)} y2={fy(0)} x={total + 90} left={false} label={fmt(g.mount)} />
+                )}
+                {/* Luz miedzy korpusami bywa 3 mm — kreska wymiarowa zlalaby sie
+                    w plame, wiec zamiast niej idzie odnosnik nad ciagiem. */}
+                {g.gap > 0 && g.cabs.slice(0, -1).map((c, i) => {
+                  const cx = rear
+                    ? total - (c.x + c.geo.W) - g.gap / 2
+                    : c.x + c.geo.W + g.gap / 2;
+                  const yTop = fy(Math.max(...g.cabs.map((q) => q.base + q.cab.H)));
+                  return (
+                    <g key={"g" + i}>
+                      <line x1={cx} y1={yTop - 12} x2={cx} y2={yTop - 58} stroke={ACC} strokeWidth="1.5" />
+                      <text x={cx} y={yTop - 66} textAnchor="middle" fontSize="22" fill={ACC}
+                        fontFamily="ui-monospace, monospace">{fmt(g.gap)}</text>
+                    </g>
+                  );
+                })}
+              </g>
+            )}
+          </g>
+        );
+      })}
 
       {showDims && (
         <g>
@@ -2658,31 +2755,180 @@ function RunView({ project, run, rp, showDims }) {
             <line key={"fl" + v} x1={-16} y1={fy(v)} x2={total + 16} y2={fy(v)}
               stroke={ACC} strokeWidth="1" strokeDasharray="10 8" opacity="0.45" />
           ))}
-          {parts.map((p, i) => (
-            <DimH key={"w" + i} x1={p.x} x2={p.x + p.geo.W} y={fy(0) + 56}
-              label={fmt(p.geo.W)} above={false} />
-          ))}
-          <DimH x1={0} x2={total} y={fy(0) + 130} label={`${fmt(total)} ciąg`} above={false} />
-          {/* Luz miedzy korpusami bywa 3 mm — kreska wymiarowa zlalaby sie w plame,
-              wiec zamiast niej idzie odnosnik z opisem nad ciagiem. */}
-          {gap > 0 && parts.slice(0, -1).map((p, i) => {
-            const cx = p.x + p.geo.W + gap / 2;
-            return (
-              <g key={"g" + i}>
-                <line x1={cx} y1={fy(top) - 12} x2={cx} y2={fy(top) - 58} stroke={ACC} strokeWidth="1.5" />
-                <text x={cx} y={fy(top) - 66} textAnchor="middle" fontSize="22" fill={ACC}
-                  fontFamily="ui-monospace, monospace">{fmt(gap)}</text>
-              </g>
-            );
-          })}
+          <DimH x1={0} x2={total} y={fy(0) + 56 + groups.length * 74}
+            label={`${fmt(total)} ${groups.length > 1 ? "zabudowa" : "ciąg"}`} above={false} />
           <DimV y1={fy(top)} y2={fy(0)} x={-70} label={fmt(top)} />
-          {plinthH > 0 && <DimV y1={fy(plinthH)} y2={fy(0)} x={-150} label={fmt(plinthH)} />}
-          {run.wallW != null && (
-            <DimH x1={0} x2={run.wallW} y={fy(top) - (gap > 0 ? 140 : 66)}
-              label={`${fmt(run.wallW)} ściana`} c={run.wallW < total ? ERRC : DIMC} />
+          {groups.map((g) => {
+            const rp = rpOf ? rpOf(g.run) : null;
+            return rp && rp.h > 0 && !rear ? (
+              <DimV key={"pl" + g.run.id} y1={fy(g.mount + rp.h)} y2={fy(g.mount)} x={-150}
+                label={fmt(rp.h)} />
+            ) : null;
+          })}
+          {wallW > 0 && (
+            <DimH x1={0} x2={wallW} y={fy(top) - (anyGap ? 140 : 66)}
+              label={`${fmt(wallW)} ściana`} c={wallW < total ? ERRC : DIMC} />
           )}
         </g>
       )}
+    </svg>
+  );
+}
+
+/* Rzut z gory. Ciag wyzej rysujemy przerywana linia na tle nizszego — tak samo,
+   jak rysuje sie szafki gorne nad dolnymi na planie kuchni. */
+function AssemblyTopView({ project, runs, showDims }) {
+  const groups = assemblyParts(project, runs).slice().sort((a, b) => a.mount - b.mount);
+  if (!groups.length) return null;
+  const total = Math.max(...groups.map((g) => g.total));
+  const maxD = Math.max(...groups.flatMap((g) => g.cabs.map((c) => c.geo.carcassDepth)));
+  const pad = showDims ? 170 : 40;
+  // z prawej wypisujemy nazwy ciagow — bez zapasu zostalyby uciete
+  const padR = showDims ? 700 : 40;
+  const vb = [-pad, -pad, total + pad + padR, maxD + 2 * pad].join(" ");
+  return (
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
+      {/* sciana z tylu */}
+      <line x1={-20} y1={0} x2={total + 20} y2={0} stroke={LINE} strokeWidth="3" />
+      {groups.map((g, gi) => {
+        const upper = gi > 0;
+        return (
+          <g key={g.run.id} opacity={upper ? 0.85 : 1}>
+            {g.cabs.map((c, i) => (
+              <rect key={i} x={c.x} y={0} width={c.geo.W} height={c.geo.carcassDepth}
+                fill={upper ? "none" : c.mat.board.color} stroke={INK} strokeWidth="2.5"
+                strokeDasharray={upper ? "14 9" : undefined} />
+            ))}
+            {showDims && (
+              <text x={total + 30} y={g.cabs[0].geo.carcassDepth / 2}
+                fontSize="22" fill={LINE} fontFamily="ui-monospace, monospace">
+                {g.run.name}{g.mount > 0 ? ` — ${fmt(g.mount)} nad podłogą` : ""}
+              </text>
+            )}
+          </g>
+        );
+      })}
+      {showDims && (
+        <g>
+          {groups[0].cabs.map((c, i) => (
+            <DimH key={i} x1={c.x} x2={c.x + c.geo.W} y={maxD + 56} label={fmt(c.geo.W)} above={false} />
+          ))}
+          <DimH x1={0} x2={total} y={maxD + 120} label={fmt(total)} above={false} />
+          <DimV y1={0} y2={maxD} x={-70} label={fmt(maxD)} />
+        </g>
+      )}
+    </svg>
+  );
+}
+
+/* Widok 3D calej zabudowy. Nie powtarza detalu pojedynczej szafki — na tym
+   poziomie liczy sie bryla: korpusy, cokoly i fronty, ktore da sie otworzyc. */
+function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
+  const groups = assemblyParts(project, runs);
+  const solids = [];
+  const box = (x0, y0, z0, x1, y1, z1, color, transform, alpha, bold) => {
+    let v = VERTS(x0, y0, z0, x1, y1, z1);
+    if (transform) v = v.map(transform);
+    solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold });
+  };
+  let maxX = 0, maxY = 0, maxZ = 0;
+
+  groups.forEach((g) => {
+    const rp = rpOf ? rpOf(g.run) : null;
+    if (rp && rp.h > 0)
+      box(0, g.mount, 0, g.total, g.mount + rp.h, g.cabs[0].geo.carcassDepth * 0.9,
+        g.cabs[0].mat.board.color, null, 0.9);
+    g.cabs.forEach((c) => {
+      const cd = c.geo.carcassDepth;
+      const t = c.geo.t;
+      const bf = c.mat.board.color;
+      const y0 = c.base, y1 = c.base + c.cab.H;
+      // skorupa korpusu: boki, wieniec, dno, plecy
+      box(c.x, y0, 0, c.x + t, y1, cd, bf);
+      box(c.x + c.geo.W - t, y0, 0, c.x + c.geo.W, y1, cd, bf);
+      box(c.x, y0, 0, c.x + c.geo.W, y0 + t, cd, bf);
+      box(c.x, y1 - t, 0, c.x + c.geo.W, y1, cd, bf);
+      if (c.cab.back !== "none")
+        box(c.x, y0, cd - c.geo.tb, c.x + c.geo.W, y1, cd, c.mat.back.color);
+      const tf = c.geo.tf;
+      c.geo.doors.filter((d) => d.w > 0 && d.h > 0).forEach((d) => {
+        const col = d.type === "blenda" ? bf : c.frontColor;
+        if (!open) {
+          box(c.x + d.x, c.base + d.y, -tf, c.x + d.x + d.w, c.base + d.y + d.h, 0, col, null, 1, true);
+          return;
+        }
+        if (d.type === "drawer") {
+          // szuflada wyjezdza do przodu, front zostaje rownolegly do korpusu
+          const out = Math.min(d.h * 1.6, cd * 0.75);
+          box(c.x + d.x, c.base + d.y, -tf - out, c.x + d.x + d.w, c.base + d.y + d.h, -out,
+            col, null, 0.9, true);
+          return;
+        }
+        if (d.type === "door") {
+          const ang = (angle * Math.PI) / 180;
+          const left = d.hingeSide === "left";
+          const ox = c.x + (left ? d.x : d.x + d.w);
+          const rot = (p) => rotAboutY(p, (left ? -1 : 1) * ang, ox, -tf);
+          box(c.x + d.x, c.base + d.y, -tf, c.x + d.x + d.w, c.base + d.y + d.h, 0,
+            col, rot, 0.85, true);
+          return;
+        }
+        box(c.x + d.x, c.base + d.y, -tf, c.x + d.x + d.w, c.base + d.y + d.h, 0, col, null, 1, true);
+      });
+      maxX = Math.max(maxX, c.x + c.geo.W);
+      maxY = Math.max(maxY, y1);
+      maxZ = Math.max(maxZ, cd);
+    });
+  });
+
+  if (!solids.length) return null;
+
+  const cyw = Math.cos(yaw), syw = Math.sin(yaw);
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const cx = maxX / 2, cyc = maxY / 2, cz = maxZ / 2;
+  const proj = (p) => {
+    const x = p.x - cx, y = p.y - cyc, z = p.z - cz;
+    const x1 = x * cyw + z * syw;
+    const z1 = -x * syw + z * cyw;
+    const y2 = y * cp - z1 * sp;
+    return { X: x1, Y: -y2, D: y * sp + z1 * cp };
+  };
+
+  const faces = [];
+  solids.forEach((sol) => {
+    const pv = sol.v.map(proj);
+    QUADS.forEach((q) => {
+      const pts = q.map((i) => pv[i]);
+      const depth = pts.reduce((a, b) => a + b.D, 0) / 4;
+      const a = pts[0], b = pts[1], c2 = pts[2];
+      const area = (b.X - a.X) * (c2.Y - a.Y) - (b.Y - a.Y) * (c2.X - a.X);
+      faces.push({ pts, depth, color: sol.color,
+        shade: 0.62 + 0.38 * Math.min(1, Math.abs(area) / 40000),
+        alpha: sol.alpha, bold: sol.bold });
+    });
+  });
+  faces.sort((a, b) => b.depth - a.depth);
+
+  const xs = faces.flatMap((f) => f.pts.map((p) => p.X));
+  const ys = faces.flatMap((f) => f.pts.map((p) => p.Y));
+  const minX = Math.min(...xs), mX = Math.max(...xs);
+  const minY = Math.min(...ys), mY = Math.max(...ys);
+  const pad = 60;
+  const vb = `${minX - pad} ${minY - pad} ${mX - minX + 2 * pad} ${mY - minY + 2 * pad}`;
+  const tint = (hex, f) => {
+    const n = parseInt(String(hex).replace("#", ""), 16);
+    const r = Math.min(255, Math.round(((n >> 16) & 255) * f));
+    const g2 = Math.min(255, Math.round(((n >> 8) & 255) * f));
+    const b = Math.min(255, Math.round((n & 255) * f));
+    return `rgb(${r},${g2},${b})`;
+  };
+  return (
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
+      {faces.map((f, i) => (
+        <polygon key={i} points={f.pts.map((p) => `${p.X},${p.Y}`).join(" ")}
+          fill={tint(f.color, f.shade)} fillOpacity={f.alpha}
+          stroke={INK} strokeWidth={f.bold ? 2 : 1} strokeOpacity="0.55" />
+      ))}
     </svg>
   );
 }
@@ -5833,6 +6079,7 @@ export default function App() {
     e.target.value = "";
   };
   const [view, setView] = useState("closed");
+  const [scope, setScope] = useState("cab"); // "cab" | "run" | "all"
   const [showDims, setShowDims] = useState(true);
   const [showGaps, setShowGaps] = useState(false);
   const [showLabels, setShowLabels] = useState(false);
@@ -5931,11 +6178,48 @@ export default function App() {
      ciag, wiec jego formatki ida przy ciagu, a nie przy szafce. */
   const runPl = useMemo(() => (runInfo ? runPlinth(project, runInfo.run) : null), [project, runInfo]);
 
-  /* Przeskok na szafke wolnostojaca zabiera elewacje ciagu — wracamy wtedy na
-     widok zamkniety, zeby przelacznik nie zostal bez zaznaczonej pozycji. */
+  /* Zakres rysunku: pojedyncza szafka, jej ciag albo cala zabudowa. Zabudowa ma
+     sens dopiero przy kilku ciagach — inaczej byloby to to samo, co ciag. */
+  const scopeOpts = useMemo(() => {
+    const out = [{ v: "cab", l: "Szafka" }];
+    if (runInfo) out.push({ v: "run", l: "Ciąg" });
+    if ((project.runs || []).filter((r) => runItems(project, r.id).length).length > 1)
+      out.push({ v: "all", l: "Zabudowa" });
+    return out;
+  }, [project, runInfo]);
+
+  // ciagi objete rysunkiem; null = rysujemy pojedyncza szafke jak dotad
+  const scopeRuns = useMemo(() => {
+    if (scope === "run" && runInfo) return [runInfo.run];
+    if (scope === "all")
+      return (project.runs || []).filter((r) => runItems(project, r.id).length);
+    return null;
+  }, [scope, project, runInfo]);
+
+  const rpOf = useCallback((run) => runPlinth(project, run), [project]);
+
+  // zakres, ktory zniknal (np. po przejsciu na szafke wolnostojaca), wraca na szafke
   useEffect(() => {
-    if (view === "run" && !runInfo) setView("closed");
-  }, [view, runInfo]);
+    if (!scopeOpts.some((o) => o.v === scope)) setScope("cab");
+  }, [scopeOpts, scope]);
+
+  /* Widok z boku ma sens tylko dla pojedynczej szafki — bok ciagu to bok szafki
+     skrajnej, wiec przy zabudowie tej pozycji nie pokazujemy. */
+  const viewOpts = useMemo(() => {
+    const base = [
+      { v: "closed", l: "Zamk." },
+      { v: "open", l: "Otw." },
+      ...(scopeRuns ? [] : [{ v: "side", l: "Z boku" }]),
+      { v: "top", l: "Z góry" },
+      { v: "rear", l: "Z tyłu" },
+      { v: "3d", l: "3D" },
+    ];
+    return base;
+  }, [scopeRuns]);
+
+  useEffect(() => {
+    if (!viewOpts.some((o) => o.v === view)) setView("closed");
+  }, [viewOpts, view]);
 
   /* Uwagi wszystkich szafek naraz. Bez tego uwaga do szafki, ktorej akurat nie
      ogladamy, jest niewidoczna — a przy ciagu to wlasnie sasiadka bywa ta,
@@ -6625,11 +6909,18 @@ export default function App() {
                           { wallW: v === "" ? null : Math.max(0, Math.round(Number(v))) })} />
                     </Field>
                   </div>
-                  <Field label="Luz między korpusami"
-                    hint="0 przy szafkach skręcanych ze sobą; większy, gdy każda stoi osobno.">
-                    <Num value={runInfo.run.gap} min={0}
-                      onChange={(v) => setRun(runInfo.run.id, { gap: Math.max(0, Math.round(Number(v) || 0)) })} />
-                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Luz między korpusami"
+                      hint="0 przy szafkach skręcanych ze sobą.">
+                      <Num value={runInfo.run.gap} min={0}
+                        onChange={(v) => setRun(runInfo.run.id, { gap: Math.max(0, Math.round(Number(v) || 0)) })} />
+                    </Field>
+                    <Field label="Poziom montażu"
+                      hint="0 = ciąg stoi na podłodze; wyżej = ciąg wiszący.">
+                      <Num value={runInfo.run.mountY || 0} min={0}
+                        onChange={(v) => setRun(runInfo.run.id, { mountY: Math.max(0, Math.round(Number(v) || 0)) })} />
+                    </Field>
+                  </div>
                   <Field label="Wspólne dla całego ciągu"
                     hint="Zmiana tutaj przestawia od razu wszystkie szafki ciągu. Szafkę, która się rozjedzie, zgłoszą Uwagi.">
                     <div className="grid grid-cols-2 gap-3">
@@ -7798,24 +8089,63 @@ export default function App() {
                     {showHardware ? "Ukryj okucia" : "Pokaż okucia"}
                   </button>
                 )}
-                <div className={runInfo ? "w-96" : "w-80"}>
-                  <Seg value={view} onChange={setView}
-                    options={[
-                      { v: "closed", l: "Zamk." },
-                      { v: "open", l: "Otw." },
-                      { v: "side", l: "Z boku" },
-                      { v: "top", l: "Z góry" },
-                      { v: "rear", l: "Z tyłu" },
-                      { v: "3d", l: "3D" },
-                      // elewacja calego ciagu ma sens tylko wtedy, gdy ciag istnieje
-                      ...(runInfo ? [{ v: "run", l: "Ciąg" }] : []),
-                    ]} />
+                {/* zakres idzie osobnym wierszem nad wariantami — to dwie różne
+                    decyzje: co oglądamy i jak to pokazujemy */}
+                <div className="flex w-80 flex-col gap-1.5">
+                  {scopeOpts.length > 1 && (
+                    <Seg value={scope} onChange={setScope} options={scopeOpts} />
+                  )}
+                  <Seg value={view} onChange={setView} options={viewOpts} />
                 </div>
               </div>
             }>
             <div className="rounded border border-stone-100 bg-stone-50 p-3">
-              {view === "run" && runInfo ? (
-                <RunView project={project} run={runInfo.run} rp={runPl} showDims={showDims} />
+              {scopeRuns ? (
+                view === "3d" ? (
+                  <div className="space-y-3">
+                    <div className="cursor-grab active:cursor-grabbing touch-none"
+                      onPointerDown={(e) => {
+                        drag.current = { x: e.clientX, y: e.clientY, yaw, pitch };
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                      }}
+                      onPointerMove={(e) => {
+                        if (!drag.current) return;
+                        setYaw(drag.current.yaw + (e.clientX - drag.current.x) * 0.008);
+                        setPitch(Math.max(-1.2, Math.min(1.2,
+                          drag.current.pitch + (e.clientY - drag.current.y) * 0.006)));
+                      }}
+                      onPointerUp={() => (drag.current = null)}
+                      onPointerCancel={() => (drag.current = null)}>
+                      <Assembly3D project={project} runs={scopeRuns} open={open3d}
+                        yaw={yaw} pitch={pitch} angle={angle3d} rpOf={rpOf} />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <MiniBtn onClick={() => setYaw((v) => v - Math.PI / 4)}>◀ 45°</MiniBtn>
+                      <MiniBtn onClick={() => { setYaw(-0.55); setPitch(0.28); }}>reset</MiniBtn>
+                      <MiniBtn onClick={() => setYaw((v) => v + Math.PI / 4)}>45° ▶</MiniBtn>
+                      <MiniBtn tone={open3d ? "on" : "plain"} onClick={() => setOpen3d((v) => !v)}>
+                        {open3d ? "otwarte" : "zamknięte"}
+                      </MiniBtn>
+                      {open3d && (
+                        <label className="flex items-center gap-2">
+                          <span className="text-xs text-stone-500">kąt</span>
+                          <input type="range" min={0} max={110} step={1} value={angle3d}
+                            onChange={(e) => setAngle3d(Number(e.target.value))}
+                            className="w-32 accent-teal-700" />
+                          <span className="w-10 font-mono text-xs text-stone-500">{angle3d}°</span>
+                        </label>
+                      )}
+                      <span className="ml-auto font-mono text-xs text-stone-400">
+                        przeciągnij, żeby obrócić
+                      </span>
+                    </div>
+                  </div>
+                ) : view === "top" ? (
+                  <AssemblyTopView project={project} runs={scopeRuns} showDims={showDims} />
+                ) : (
+                  <AssemblyView project={project} runs={scopeRuns} rpOf={rpOf}
+                    variant={view} showDims={showDims} />
+                )
               ) : view === "3d" ? (
                 <div className="space-y-3">
                   <div
