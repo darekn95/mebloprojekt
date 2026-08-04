@@ -393,7 +393,9 @@ const defaultCab = {
   maxGap: 5,
   shelfExtraSetback: 0,
   levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
-  plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
+  /* Cokol domyslnie idzie pod korpusem, nie w obrysie — w ciagu to jedna
+     plaszczyzna przez wszystkie szafki i nie zjada swiatla wnetrza. */
+  plinth: { on: false, height: 100, mode: "under", setback: 0 },
   // wieniec jako blat: wystaje poza boki i poza lico korpusu, a fronty
   // konczą sie pod nim
   top: { mode: "wieniec", widthMode: "outside", overL: 0, overR: 0, overFront: 0, overBack: 0 },
@@ -566,9 +568,9 @@ const TEMPLATES = [
     hint: "600 × 720 × 500, cokół, dwoje drzwi",
     make: () => ({
       W: 600, H: 720, D: 500,
-      plinth: { on: true, height: 100, mode: "inbody", setback: 0 },
-      // cokol w bryle zjada swiatlo, wiec polek wychodzi mniej
-      levels: [newLevel(2, autoShelves(innerHeightOf(720, { plinth: 100 })))],
+      plinth: { on: true, height: 100, mode: "under", setback: 0 },
+      // cokol pod korpusem nie zjada swiatla — korpus stoi na nim caly
+      levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
     }),
   },
   {
@@ -577,7 +579,7 @@ const TEMPLATES = [
     hint: "600 × 720 × 300, bez cokołu i nóżek",
     make: () => ({
       W: 600, H: 720, D: 300,
-      plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
+      plinth: { on: false, height: 100, mode: "under", setback: 0 },
       legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
       levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
     }),
@@ -595,7 +597,7 @@ const TEMPLATES = [
         top: { mode: "blat", widthMode: "inside", overL: 50, overR: 50, overFront: 30, overBack: 0 },
         joints: { topL: "over", topR: "over", botL: "none", botR: "none" },
         back: "none",
-        plinth: { on: false, height: 100, mode: "inbody", setback: 0 },
+        plinth: { on: false, height: 100, mode: "under", setback: 0 },
         legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
         levels: [{ h: null, cols: [col] }],
       };
@@ -4609,6 +4611,103 @@ const USABLE_W = 2761.2;
 const USABLE_H = 2061.2;
 const KERF = 3; // rzaz piły
 
+/* ---------- cokol ciagu ----------
+   W ciagu cokol jest jedna plaszczyzna przez wszystkie szafki, a nie suma
+   odcinkow pod kazda z nich — inaczej mielibysmy szwy tam, gdzie stykaja sie
+   korpusy. Plaszczyzna dluzsza od maksymalnej formatki musi jednak pojsc
+   z kilku kawalkow: dzielimy je rowno i oklejamy takze na laczeniu, zeby styk
+   plaszczyzn bocznych nie zostal surowy. */
+const runPlinth = (project, run) => {
+  const list = runItems(project, run.id);
+  if (!list.length) return null;
+  const p = run.plinth || list[0].it.cab.plinth;
+  if (!p || !p.on) return null;
+  const h = Math.max(0, Math.round(p.height || 0));
+  if (!(h > 0)) return null;
+  const total = list.reduce((s, { it }) => s + computeGeo(it.cab, it.mat).W, 0)
+    + Math.max(0, list.length - 1) * (run.gap || 0);
+  const n = Math.max(1, Math.ceil(total / USABLE_W));
+  // rowny podzial, zeby laczenie nie wypadlo tuz przy koncu ciagu
+  const base = Math.round(total / n);
+  const lens = Array.from({ length: n }, (_, i) => (i === n - 1 ? total - base * (n - 1) : base));
+  return { total, h, n, lens, mat: list[0].it.mat, grainMatters: list[0].it.cab.grainMatters, name: run.name };
+};
+
+// rowne kawalki lacza sie w jedna pozycje zamowienia
+const runPlinthPanels = (rp) => {
+  if (!rp) return [];
+  const map = new Map();
+  rp.lens.forEach((len) => map.set(len, (map.get(len) || 0) + 1));
+  return [...map.entries()].map(([len, qty]) => ({
+    name: "Cokół ciągu", qty, a: len, b: rp.h, matKey: "board",
+    edges: { a1: false, a2: true, b1: true, b2: true },
+    note: rp.n > 1 ? "krawędź dolna oraz oba końce, w tym łączenie" : "krawędź dolna oraz oba końce",
+  }));
+};
+
+/* Zestawienia calego projektu: szafka nalezaca do ciagu z cokolem oddaje swoje
+   formatki bez cokolu, bo ten idzie osobna pozycja na caly ciag. */
+const projectParts = (project) => {
+  const runPl = new Map();
+  (project.runs || []).forEach((r) => {
+    const rp = runPlinth(project, r);
+    if (rp) runPl.set(r.id, rp);
+  });
+  const cabs = project.items.map((it, ci) => {
+    const g = computeGeo(it.cab, it.mat);
+    const shared = runPl.has(it.runId || null);
+    return {
+      mat: it.mat,
+      grainMatters: it.cab.grainMatters,
+      name: (it.cab.name || "").trim() || `Szafka ${ci + 1}`,
+      panels: shared ? g.panels.filter((p) => p.name !== "Cokół") : g.panels,
+      hardware: g.hardware,
+    };
+  });
+  const runs = [...runPl.values()].map((rp) => ({
+    mat: rp.mat, grainMatters: rp.grainMatters,
+    name: `Cokół — ${rp.name}`, panels: runPlinthPanels(rp), hardware: [],
+  }));
+  return [...cabs, ...runs];
+};
+
+/* Uwagi ciagu w jednym miejscu, bo czyta je i karta aktywnej szafki, i licznik
+   uwag przy pozostalych szafkach na pasku — teksty nie moga sie rozjechac.
+   runCabMsgs dotyczy jednej szafki, runWideMsgs calego ciagu. */
+const runCabMsgs = (run, c) => {
+  const out = [];
+  if (!run) return out;
+  if (run.H != null && Math.round(c.H) !== run.H)
+    out.push({ level: "warn", text:
+      `Wysokość ${fmt(c.H)} mm nie zgadza się z ciągiem „${run.name}" (${fmt(run.H)} mm) — fronty nie staną w jednej linii.`
+      + `|runcab:H:${run.H}|runrun:H:${Math.round(c.H)}` });
+  /* Plytsza szafka w ciagu to normalny zabieg, gdy z tylu cos przeszkadza: lico
+     zostaje w linii, cofa sie sam tyl. Dlatego mowimy o tym wprost, zamiast
+     kazac to "naprawiac". */
+  if (run.D != null && Math.round(c.D) !== run.D)
+    out.push({ level: "warn", text:
+      `Głębokość ${fmt(c.D)} mm różni się od ciągu (${fmt(run.D)} mm). Jeśli to celowe — lico zostaje w linii, cofa się tylko tył — zostaw tak; blat licz na najgłębszą szafkę.`
+      + `|runcab:D:${run.D}|runrun:D:${Math.round(c.D)}` });
+  if (run.plinth && !samePlinth(c.plinth, run.plinth))
+    out.push({ level: "warn", text:
+      `Cokół tej szafki (${plinthText(c.plinth)}) nie zgadza się z ciągiem (${plinthText(run.plinth)}) — cokół idzie przez cały ciąg jedną płaszczyzną.`
+      + `|runcab:plinth:x|runrun:plinth:x` });
+  return out;
+};
+
+const runWideMsgs = (run, total, rp) => {
+  const out = [];
+  if (!run) return out;
+  if (run.wallW != null && total > run.wallW)
+    out.push({ level: "error", text:
+      `Ciąg „${run.name}" zajmuje ${fmt(total)} mm, a ściana ma ${fmt(run.wallW)} mm — brakuje ${fmt(total - run.wallW)} mm.` });
+  if (rp && rp.n > 1)
+    out.push({ level: "warn", text:
+      `Cokół ciągu ma ${fmt(rp.total)} mm i nie zmieści się na jednej formatce (maksimum ${fmt(USABLE_W)} mm) — pójdzie z ${rp.n} `
+      + `części po ${rp.lens.map(fmt).join(" i ")} mm, oklejonych także na łączeniu.` });
+  return out;
+};
+
 const rectFits = (w, h, r) => w <= r.w + 1e-9 && h <= r.h + 1e-9;
 
 const RECT_RULES = {
@@ -4904,10 +5003,14 @@ const PRINT_CSS = `
 }
 `;
 
-function ReportSheet({ cab, mat, projectName, index, total }) {
+function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth }) {
   const ambig = useMemo(() => ambiguousThickness([mat]), [mat]);
   const geo = useMemo(() => computeGeo(cab, mat), [cab, mat]);
-  const panels = useMemo(() => groupPanels(geo.panels), [geo.panels]);
+  // cokol ciagu jest wspolny — na kartce szafki go nie ma, idzie osobna pozycja
+  const panels = useMemo(
+    () => groupPanels(sharedPlinth ? geo.panels.filter((p) => p.name !== "Cokół") : geo.panels),
+    [geo.panels, sharedPlinth]
+  );
   const realCab = useMemo(() => ({ ...cab, realColors: true }), [cab]);
   const totalQty = panels.reduce((s, p) => s + p.qty, 0);
   const edgeMm = panels.reduce((s, p) => {
@@ -5061,12 +5164,19 @@ function ReportSheet({ cab, mat, projectName, index, total }) {
 
 function PrintReport({ project }) {
   const name = (project.name || "").trim() || DEFAULT_PROJECT_NAME;
+  // ciagi, ktore maja wspolny cokol — ich szafki nie licza go u siebie
+  const runsWithPlinth = useMemo(() => {
+    const s = new Set();
+    (project.runs || []).forEach((r) => { if (runPlinth(project, r)) s.add(r.id); });
+    return s;
+  }, [project]);
   return (
     <div className="print-only" style={{ color: "#1c1917", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <style>{PRINT_CSS}</style>
       {project.items.map((it, i) => (
         <ReportSheet key={i} cab={it.cab} mat={it.mat} projectName={name}
-          index={i} total={project.items.length} />
+          index={i} total={project.items.length}
+          sharedPlinth={!!runsWithPlinth.has(it.runId || null)} />
       ))}
       {project.items.length > 1 && <ReportProjectSheet project={project} projectName={name} />}
       <ReportCutPlan project={project} projectName={name} />
@@ -5079,16 +5189,15 @@ function ReportCutPlan({ project, projectName }) {
   const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
   const groups = useMemo(() => {
     const rows = [];
-    project.items.forEach((it) => {
-      const g = computeGeo(it.cab, it.mat);
-      groupPanels(g.panels).forEach((p) => {
+    projectParts(project).forEach((part) => {
+      groupPanels(part.panels).forEach((p) => {
         rows.push({
           name: p.name,
           qty: p.qty,
           a: p.a,
           b: p.b,
-          rotatable: p.matKey === "back" || !it.cab.grainMatters,
-          matLabel: matLabelOf(it.mat[p.matKey], p.matKey, ambig),
+          rotatable: p.matKey === "back" || !part.grainMatters,
+          matLabel: matLabelOf(part.mat[p.matKey], p.matKey, ambig),
         });
       });
     });
@@ -5156,11 +5265,10 @@ function ReportProjectSheet({ project, projectName }) {
   const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
   const rows = useMemo(() => {
     const map = new Map();
-    project.items.forEach((it, ci) => {
-      const g = computeGeo(it.cab, it.mat);
-      const cabName = (it.cab.name || "").trim() || `Szafka ${ci + 1}`;
-      g.panels.forEach((p) => {
-        const m = it.mat[p.matKey] || {};
+    projectParts(project).forEach((part) => {
+      const cabName = part.name;
+      part.panels.forEach((p) => {
+        const m = part.mat[p.matKey] || {};
         const e = p.edges;
         const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name].join("|");
         if (map.has(key)) {
@@ -5619,31 +5727,48 @@ export default function App() {
     return { run, count: list.length, total, pos: list.findIndex(({ i }) => i === project.active) + 1 };
   }, [project]);
 
-  /* Uwagi ciagu — o wymiarach aktywnej szafki na tle ciagu oraz o tym, czy caly
-     ciag miesci sie przy scianie. Ida do tej samej karty co uwagi szafki, bo
-     z punktu widzenia uzytkownika to jedna lista rzeczy do poprawienia. */
+  /* Szafka w ciagu nie ma wlasnego cokolu — cokol jest jedna plaszczyzna na caly
+     ciag, wiec jego formatki ida przy ciagu, a nie przy szafce. */
+  const runPl = useMemo(() => (runInfo ? runPlinth(project, runInfo.run) : null), [project, runInfo]);
+
+  /* Uwagi wszystkich szafek naraz. Bez tego uwaga do szafki, ktorej akurat nie
+     ogladamy, jest niewidoczna — a przy ciagu to wlasnie sasiadka bywa ta,
+     ktora sie rozjechala. Geometrie liczymy raz i uzywamy do obu rzeczy. */
+  const projectNotes = useMemo(() => {
+    const geos = project.items.map((it) => computeGeo(it.cab, it.mat));
+    const ctx = new Map();
+    (project.runs || []).forEach((r) => {
+      const list = runItems(project, r.id);
+      const total = list.reduce((s, { i }) => s + geos[i].W, 0)
+        + Math.max(0, list.length - 1) * (r.gap || 0);
+      ctx.set(r.id, { run: r, total, rp: runPlinth(project, r) });
+    });
+    return project.items.map((it, i) => {
+      const c = ctx.get(it.runId || null);
+      const msgs = [...runCabMsgs(c && c.run, it.cab), ...geos[i].msgs];
+      return {
+        i,
+        name: (it.cab.name || "").trim() || `Szafka ${i + 1}`,
+        err: msgs.filter((m) => m.level === "error").length,
+        warn: msgs.filter((m) => m.level === "warn").length,
+      };
+    });
+  }, [project]);
+
+  // uwagi pozostalych szafek — tylko bledy i ostrzezenia, podpowiedzi zostawiamy
+  // przy szafce, ktorej dotycza, zeby lista nie spuchla
+  const otherNotes = useMemo(
+    () => projectNotes.filter((n) => n.i !== project.active && (n.err > 0 || n.warn > 0)),
+    [projectNotes, project.active]
+  );
+
+  /* Uwagi ciagu ida do tej samej karty co uwagi szafki — z punktu widzenia
+     uzytkownika to jedna lista rzeczy do sprawdzenia. */
   const runMsgs = useMemo(() => {
     if (!runInfo) return [];
-    const { run, total } = runInfo;
     const c = project.items[project.active].cab;
-    const out = [];
-    if (run.H != null && Math.round(c.H) !== run.H)
-      out.push({ level: "warn", text:
-        `Wysokość ${fmt(c.H)} mm nie zgadza się z ciągiem „${run.name}" (${fmt(run.H)} mm) — fronty nie staną w jednej linii.`
-        + `|runcab:H:${run.H}|runrun:H:${Math.round(c.H)}` });
-    if (run.D != null && Math.round(c.D) !== run.D)
-      out.push({ level: "warn", text:
-        `Głębokość ${fmt(c.D)} mm nie zgadza się z ciągiem (${fmt(run.D)} mm) — blat nie przykryje ciągu równo.`
-        + `|runcab:D:${run.D}|runrun:D:${Math.round(c.D)}` });
-    if (run.plinth && !samePlinth(c.plinth, run.plinth))
-      out.push({ level: "warn", text:
-        `Cokół tej szafki (${plinthText(c.plinth)}) nie zgadza się z ciągiem (${plinthText(run.plinth)}) — cokół idzie przez cały ciąg jedną linią.`
-        + `|runcab:plinth:x|runrun:plinth:x` });
-    if (run.wallW != null && total > run.wallW)
-      out.push({ level: "error", text:
-        `Ciąg „${run.name}" zajmuje ${fmt(total)} mm, a ściana ma ${fmt(run.wallW)} mm — brakuje ${fmt(total - run.wallW)} mm.` });
-    return out;
-  }, [project, runInfo]);
+    return [...runCabMsgs(runInfo.run, c), ...runWideMsgs(runInfo.run, runInfo.total, runPl)];
+  }, [project, runInfo, runPl]);
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
@@ -5891,7 +6016,10 @@ export default function App() {
   // w projekcie w kilku grubosciach
   const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
 
-  const cutList = useMemo(() => groupPanels(geo.panels), [geo.panels]);
+  const cutList = useMemo(
+    () => groupPanels(runPl ? geo.panels.filter((p) => p.name !== "Cokół") : geo.panels),
+    [geo.panels, runPl]
+  );
 
   const edgeMeters = useMemo(() => {
     let mm = 0;
@@ -5912,13 +6040,12 @@ export default function App() {
   // Rozne materialy (nazwa/kolor/grubosc) nie lacza sie mimo tych samych wymiarow.
   const projectCutList = useMemo(() => {
     const map = new Map();
-    project.items.forEach((it, ci) => {
-      const g = computeGeo(it.cab, it.mat);
-      const cabName = (it.cab.name || "").trim() || `Szafka ${ci + 1}`;
-      g.panels.forEach((p) => {
-        const m = it.mat[p.matKey] || {};
+    projectParts(project).forEach((part) => {
+      const cabName = part.name;
+      part.panels.forEach((p) => {
+        const m = part.mat[p.matKey] || {};
         const e = p.edges;
-        const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name, !!it.cab.grainMatters].join("|");
+        const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name, !!part.grainMatters].join("|");
         if (map.has(key)) {
           const g2 = map.get(key);
           g2.qty += p.qty;
@@ -5926,7 +6053,7 @@ export default function App() {
         } else {
           map.set(key, { ...p, matName: matLabelOf(m, p.matKey, ambig), matColor: m.color,
             from: new Map([[cabName, p.qty]]),
-            rotatable: p.matKey === "back" || !it.cab.grainMatters });
+            rotatable: p.matKey === "back" || !part.grainMatters });
         }
       });
     });
@@ -6175,6 +6302,14 @@ export default function App() {
           {errors.length === 0 && warns.length === 0 && infos.length === 0 && (
             <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800">bez uwag</span>
           )}
+          {/* czysta szafka to jeszcze nie czysty projekt — sasiadka moze miec uwagi */}
+          {otherNotes.length > 0 && (
+            <button onClick={scrollToNotes} title="Uwagi w pozostałych szafkach projektu"
+              className="rounded-full border border-dashed px-2.5 py-1 text-xs font-medium transition hover:brightness-95"
+              style={{ borderColor: "#d6d3d1", color: otherNotes.some((n) => n.err) ? ERRC : WARNC }}>
+              + {otherNotes.length} {plural(otherNotes.length, "szafka", "szafki", "szafek")} z uwagami
+            </button>
+          )}
         </div>
         {/* pasek szafek w projekcie — po jednym wierszu na ciąg, na końcu wolnostojące */}
         <div className="border-t border-stone-200 bg-stone-50/60">
@@ -6196,6 +6331,17 @@ export default function App() {
                           <button onClick={() => moveCabinet(i, -1)} title="Przesuń w lewo w ciągu"
                             className={arrow}>‹</button>
                         )}
+                        {/* kropka mowi o uwagach w szafce, ktorej akurat nie ogladamy */}
+                        {(() => {
+                          const n = projectNotes[i] || {};
+                          if (!n.err && !n.warn) return null;
+                          const kind = n.err ? "błąd" : "ostrzeżenie";
+                          return (
+                            <span title={`${n.err + n.warn} ${plural(n.err + n.warn, kind, kind === "błąd" ? "błędy" : "ostrzeżenia", kind === "błąd" ? "błędów" : "ostrzeżeń")} w tej szafce`}
+                              className="text-[10px] leading-none"
+                              style={{ color: n.err ? (activeTab ? "#fecaca" : ERRC) : (activeTab ? "#fde68a" : WARNC) }}>●</span>
+                          );
+                        })()}
                         <button onClick={() => switchCabinet(i)} className="max-w-[180px] truncate">
                           {it.cab.name || `Szafka ${i + 1}`}
                         </button>
@@ -6291,7 +6437,7 @@ export default function App() {
                       </label>
                     </div>
                   </Field>
-                  <Field label="Cokół ciągu" hint="Cokół idzie przez cały ciąg jedną linią.">
+                  <Field label="Cokół ciągu" hint="Cokół idzie przez cały ciąg jedną płaszczyzną.">
                     <div className="space-y-2">
                       <Check checked={!!(runInfo.run.plinth || cab.plinth || {}).on}
                         label="Cokół pod szafkami"
@@ -6301,6 +6447,14 @@ export default function App() {
                         <Num value={(runInfo.run.plinth || cab.plinth).height}
                           onChange={(v) => setRunShared(runInfo.run.id,
                             { plinth: { ...(runInfo.run.plinth || cab.plinth), height: Math.max(0, Math.round(Number(v) || 0)) } })} />
+                      )}
+                      {runPl && (
+                        <p className="text-xs text-stone-500">
+                          {runPl.n === 1
+                            ? <>Jedna formatka <span className="font-mono text-stone-700">{fmt(runPl.total)} × {fmt(runPl.h)} mm</span>, oklejona od dołu i na obu końcach.</>
+                            : <>Płaszczyzna <span className="font-mono text-stone-700">{fmt(runPl.total)} mm</span> nie mieści się na jednej formatce —{" "}
+                                {runPl.n} części po <span className="font-mono text-stone-700">{runPl.lens.map(fmt).join(" i ")} mm</span>, oklejone także na łączeniu.</>}
+                        </p>
                       )}
                     </div>
                   </Field>
@@ -7484,7 +7638,7 @@ export default function App() {
             </div>
           </Card>
 
-          {(errors.length > 0 || warns.length > 0 || infos.length > 0) && (
+          {(errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0) && (
             <div ref={notesRef} className="scroll-mt-24">
             <Card title="Uwagi">
               {(errors.length > 0 || warns.length > 0) && (
@@ -7505,6 +7659,31 @@ export default function App() {
                   <ul className="space-y-2">
                     {infos.map((m, i) => (
                       <NoteLine key={"i" + i} text={m.text} color="#78716c" icon="i" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} />
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {otherNotes.length > 0 && (
+                <div className={(errors.length || warns.length || infos.length) ? "border-t border-stone-100 pt-3" : ""}>
+                  <div className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">
+                    Do sprawdzenia w innych szafkach
+                  </div>
+                  <ul className="space-y-1.5">
+                    {otherNotes.map((n) => (
+                      <li key={n.i} className="text-sm">
+                        <button onClick={() => switchCabinet(n.i)}
+                          className="text-left hover:underline"
+                          style={{ color: n.err ? ERRC : WARNC }}>
+                          <span className="font-mono">{n.err ? "×" : "!"}</span>{" "}
+                          <span className="font-medium">{n.name}</span>
+                          <span className="text-stone-500">
+                            {" — "}
+                            {[n.err && `${n.err} ${plural(n.err, "błąd", "błędy", "błędów")}`,
+                              n.warn && `${n.warn} ${plural(n.warn, "ostrzeżenie", "ostrzeżenia", "ostrzeżeń")}`]
+                              .filter(Boolean).join(", ")}
+                          </span>
+                        </button>
+                      </li>
                     ))}
                   </ul>
                 </div>
