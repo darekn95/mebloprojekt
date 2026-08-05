@@ -549,6 +549,11 @@ const migrateCorner = (c) => {
     owner: c.owner === "self" ? "self" : "of",
     // dodatkowy luz w rogu, zeby uchwyty i fronty sie nie zaczepialy
     clear: Math.max(0, Math.round(Number(c.clear) || 0)),
+    /* Blat w rogu: ktory ciag przechodzi przez naroze i jak sie tnie styk.
+       null = blat idzie tak jak korpusy, czyli przechodzi ten, ktory wjezdza
+       w rog. „skos" to lyzwa, czyli oba kawalki ciete pod 45 stopni. */
+    top: c.top === "self" || c.top === "of" ? c.top : null,
+    cut: c.cut === "skos" ? "skos" : "prosty",
   };
 };
 
@@ -2767,6 +2772,35 @@ const runLayout = (groups) => {
       side: przyStarcie ? "left" : "right",
       doors: (c.cab.corner || {}).doors || "wsporniki" };
     other.arms.push(n.arm);
+  });
+
+  /* Blat w narozniku. Nad rogiem plaszczyzny obu ciagow na siebie wchodza,
+     wiec albo jeden blat przechodzi przez rog, a drugi dojezdza do jego boku,
+     albo oba tnie sie na 45 stopni (lyzwa) i spotykaja sie po przekatnej.
+     `s` i `e` to poczatek i koniec blatu na osi ciagu — moga wyjsc poza szafki
+     (blat idzie nad rogiem) albo przed nie (rog zabral go sasiad). */
+  info.forEach((n) => {
+    n.top = { s: n.lead, e: n.lead + n.total, skosS: false, skosE: false, corS: false, corE: false };
+  });
+  info.forEach((n) => {
+    if (!n.pair) return;
+    const p = n.parent;
+    const c = n.corner;
+    const przez = c.top === "self" ? n : c.top === "of" ? p : n.pair.wchodzi;
+    const skos = c.cut === "skos";
+    const ust = (r, atStart) => {
+      // na lyzwe oba kawalki dochodza do rogu, na styk tylko ten przechodzacy
+      const d = skos || r === przez ? 0 : przez.depth;
+      if (atStart) { r.top.s = d; r.top.skosS = skos; r.top.corS = true; }
+      else { r.top.e = r.len - d; r.top.skosE = skos; r.top.corE = true; }
+    };
+    ust(n, c.at === "end");
+    ust(p, c.at !== "end");
+  });
+  // ten sam odcinek, ale liczony od lewej krawedzi pierwszej szafki ciagu
+  info.forEach((n) => {
+    n.topSpan = { x0: n.top.s - n.lead, x1: n.top.e - n.lead,
+      skos0: n.top.skosS, skos1: n.top.skosE, cor0: n.top.corS, cor1: n.top.corE };
   });
 
   /* Ramka ciagu: punkt (u, v) — u wzdluz sciany od poczatku ciagu, v w glab
@@ -5869,6 +5903,18 @@ const splitAtJoints = (total, joints, want, max = USABLE_W) => {
     tooLong: Math.max(0, ...lens.filter((l) => l > max)) };
 };
 
+/* Rozmieszczenie ciagow liczy sie z calego projektu, a potrzebuje go i rysunek,
+   i blat, i uwagi. Projekt jest niezmienny — po kazdej zmianie powstaje nowy
+   obiekt — wiec wystarczy zapamietac wynik przy nim samym. */
+const layoutCache = new WeakMap();
+const projectLayout = (project) => {
+  if (layoutCache.has(project)) return layoutCache.get(project);
+  const runs = (project.runs || []).filter((r) => runItems(project, r.id).length);
+  const L = runLayout(assemblyParts(project, runs));
+  layoutCache.set(project, L);
+  return L;
+};
+
 // styki korpusow wzdluz ciagu, liczone od lewej krawedzi pierwszej szafki
 const runJoints = (project, run) => {
   const list = runItems(project, run.id);
@@ -5911,14 +5957,20 @@ const runTop = (project, run) => {
     if (k < list.length - 1) x += gap;
   });
   if (!spans.length) return null;
-  const x0 = Math.min(...spans.map((s) => s.x0));
-  const x1 = Math.max(...spans.map((s) => s.x1));
+  /* Przy narożniku o koncu blatu decyduje rog, a nie wysuniecie blatu szafki:
+     albo blat idzie nad rogiem, albo konczy sie przy boku sasiada. */
+  const ext = (project.runs || []).some((r) => r.corner)
+    ? (projectLayout(project).info.get(run.id) || {}).topSpan : null;
+  const x0 = ext && ext.cor0 ? Math.round(ext.x0) : Math.min(...spans.map((s) => s.x0));
+  const x1 = ext && ext.cor1 ? Math.round(ext.x1) : Math.max(...spans.map((s) => s.x1));
   const total = Math.round(x1 - x0);
   /* Blat roboczy tnie sie z gotowego odcinka, wiec jego granica jest dlugosc
      handlowa, a nie formatka plyty. */
   const worktop = spans.some((s) => s.worktop);
   return {
     total, x0, worktop,
+    // konce ciete na 45 stopni — na formatce trzeba je zaznaczyc
+    skos0: !!(ext && ext.skos0), skos1: !!(ext && ext.skos1),
     matKey: worktop ? "worktop" : "board",
     depth: Math.round(Math.max(...spans.map((s) => s.depth))),
     rear: spans.some((s) => s.rear),
@@ -5986,8 +6038,12 @@ const runTopPanels = (rt) => {
   if (!rt) return [];
   const map = new Map();
   rt.lens.forEach((len) => map.set(len, (map.get(len) || 0) + 1));
+  /* Lyzwa zmienia sposob ciecia, wiec musi byc widoczna w samej nazwie —
+     kolumna z oklejaniem mowi tylko o krawedziach. */
+  const skos = (rt.skos0 ? 1 : 0) + (rt.skos1 ? 1 : 0);
   return [...map.entries()].map(([len, qty]) => ({
-    name: "Blat ciągu", qty, a: len, b: rt.depth, matKey: rt.matKey,
+    name: skos ? `Blat ciągu (łyżwa 45° — ${skos === 2 ? "oba końce" : "jeden koniec"})` : "Blat ciągu",
+    qty, a: len, b: rt.depth, matKey: rt.matKey,
     edges: { a1: true, a2: rt.rear, b1: true, b2: true },
     note: rt.n > 1 ? "czoło i oba końce, w tym łączenie" : "czoło i oba końce",
   }));
@@ -6053,10 +6109,8 @@ const projectParts = (project) => {
   /* Ramie szafki naroznej to osobna pozycja: formatki ida na te sama plyte, co
      szafka, ale latwiej je rozpoznac przy montazu, gdy stoja osobno. */
   const arms = [];
-  const withCabs = (project.runs || []).filter((r) => runItems(project, r.id).length);
-  if (withCabs.some((r) => r.corner)) {
-    const L = runLayout(assemblyParts(project, withCabs));
-    L.info.forEach((n) => {
+  if ((project.runs || []).some((r) => r.corner)) {
+    projectLayout(project).info.forEach((n) => {
       if (!n.arm) return;
       const { panels, hardware } = cornerArmParts(n.arm);
       if (!panels.length) return;
@@ -6227,9 +6281,21 @@ const cornerPairMsgs = (n, blat) => {
         `Wsporniki narożnika: 2 szt. po ${fmt(CORNER_SUPPORT_W)} mm szerokości, na całą wysokość wnętrza — `
         + "usztywniają róg i dają frontom miejsce na otwarcie." });
   }
-  if (blat)
-    out.push({ level: "info", text:
-      "Blat przechodzi przez narożnik — sposób łączenia (na styk czy na 45°, który kawałek wchodzi na który) dobiera się osobno przy zamówieniu blatów." });
+  /* Blat nad rogiem. Nie da sie polozyc dwoch plaszczyzn na tym samym rogu,
+     wiec albo jedna przechodzi, albo obie tnie sie po przekatnej. */
+  if (blat) {
+    const przez = n.corner.top === "self" ? n : n.corner.top === "of" ? p : n.pair.wchodzi;
+    const drugi = przez === n ? p : n;
+    if (n.corner.cut === "skos")
+      out.push({ level: "info", text:
+        `Blat w narożniku na łyżwę: oba kawałki dochodzą do rogu i są cięte pod 45°. `
+        + "Tnij je z jednego arkusza i z tej samej partii — po skosie każda różnica koloru i grubości rzuca się w oczy." });
+    else
+      out.push({ level: "info", text:
+        `Blat w narożniku na styk: przechodzi blat ciągu „${przez.run.name}", `
+        + `a blat ciągu „${drugi.run.name}" dojeżdża do jego boku i jest o ${fmt(przez.depth)} mm krótszy. `
+        + "Widoczne czoło ma wtedy ten przechodzący — ustaw to tak, żeby wypadło od strony, z której się patrzy." });
+  }
   return out;
 };
 
@@ -7399,10 +7465,7 @@ export default function App() {
      uzytkownika to jedna lista rzeczy do sprawdzenia. */
   /* Rozmieszczenie wszystkich ciagow — narożnik jednego przesuwa drugi, wiec
      karta ciagu i uwagi musza patrzec na cala zabudowe, nie tylko na siebie. */
-  const projLayout = useMemo(
-    () => runLayout(assemblyParts(project, (project.runs || []).filter((r) => runItems(project, r.id).length))),
-    [project]
-  );
+  const projLayout = useMemo(() => projectLayout(project), [project]);
   const runNode = runInfo ? projLayout.info.get(runInfo.run.id) : null;
 
   /* Ramie w L moze dostac tylko ta szafka, ktora faktycznie stoi w rogu —
@@ -8143,6 +8206,20 @@ export default function App() {
                               onChange={(v) => setCorner(runInfo.run.id, runInfo.run.corner.of,
                                 { clear: Math.max(0, Math.round(Number(v) || 0)) })} />
                           </label>
+                          {runTp && (
+                            <>
+                              <Seg value={runInfo.run.corner.cut || "prosty"}
+                                onChange={(v) => setCorner(runInfo.run.id, runInfo.run.corner.of, { cut: v })}
+                                options={[{ v: "prosty", l: "Blat na styk" }, { v: "skos", l: "Na 45° (łyżwa)" }]} />
+                              {(runInfo.run.corner.cut || "prosty") !== "skos" && (
+                                <Seg value={runInfo.run.corner.top
+                                  || (runInfo.run.corner.owner === "self" ? "self" : "of")}
+                                  onChange={(v) => setCorner(runInfo.run.id, runInfo.run.corner.of, { top: v })}
+                                  options={[{ v: "self", l: "Przechodzi ten blat" },
+                                    { v: "of", l: "Przechodzi tamten" }]} />
+                              )}
+                            </>
+                          )}
                           {runNode && (
                             <p className="text-xs text-stone-500">
                               {runNode.lead + runNode.tail > 0
