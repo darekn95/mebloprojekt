@@ -445,7 +445,8 @@ const defaultCab = {
      mierzona wzdluz tamtej sciany. `doors` mowi, jak zamykaja sie drzwi:
      „wsporniki" = dwa pionowe wsporniki w wewnetrznym rogu (jak w zdjeciach),
      „lamane" = drzwi na podwojnych zawiasach, „skrecone" = dwa fronty skrecone
-     na staly kat 90 stopni, na zawiasach z jednej strony. */
+     na staly kat 90 stopni, na zawiasach z jednej strony, „fix" = ramie zaslepia
+     przykrecony na staly fix, a otwieraja sie tylko jedne drzwi w korpusie. */
   corner: { on: false, arm: 600, doors: "wsporniki" },
   // polki w kolumnach: na kolkach podporowych czy skrecane konfirmatami
   shelfMount: "pins",
@@ -6042,7 +6043,11 @@ const cornerArmParts = (a) => {
   // front ramienia bierze wysokosc z frontow samej szafki, zeby stanely w linii
   const d0 = (geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
   const luz = (cab.gaps || {}).edge ?? 2;
-  panels.push({ name: "Front ramienia", qty: 1, a: Math.max(0, len - 2 * luz),
+  /* Wariant „fix": ramie zaslepia plyta przykrecona na staly, a otwierac sie
+     bedzie tylko front korpusu — tak sie robi, gdy w rogu i tak nic nie stoi. */
+  const fix = a.doors === "fix";
+  panels.push({ name: fix ? "Fix ramienia" : "Front ramienia", qty: 1,
+    a: Math.max(0, len - (fix ? 0 : 2 * luz)),
     b: d0 ? Math.round(d0.h) : H, matKey: "front",
     edges: { a1: true, a2: true, b1: true, b2: true }, note: "cztery krawędzie" });
   /* Wsporniki trzymaja kat prosty i daja drzwiom miejsce na otwarcie. Przy
@@ -6061,7 +6066,11 @@ const cornerArmParts = (a) => {
   if (a.cab.plinthH > 0)
     panels.push({ name: "Cokół ramienia", qty: 1, a: len, b: a.cab.plinthH, matKey: "board",
       edges: { a1: false, a2: true, b1: true, b2: true }, note: "krawędź dolna oraz oba końce" });
-  const hardware = [{ name: "Zawias", spec: "front ramienia szafki narożnej", qty: 3, unit: "szt." }];
+  /* Fix nie ma zawiasow — trzyma sie na zlaczkach od srodka, zeby z zewnatrz
+     nie bylo nic widac. */
+  const hardware = fix
+    ? [{ name: "Złączka meblowa", spec: "fix ramienia szafki narożnej, od środka", qty: 4, unit: "szt." }]
+    : [{ name: "Zawias", spec: "front ramienia szafki narożnej", qty: 3, unit: "szt." }];
   if (a.doors === "lamane")
     hardware.push({ name: "Zawias łamany 90°", spec: "spina dwa skrzydła szafki narożnej", qty: 2, unit: "szt." });
   return { panels, hardware };
@@ -6279,6 +6288,7 @@ const cornerPairMsgs = (n, blat) => {
       wsporniki: "dwa osobne fronty domykane do dwóch pionowych wsporników w wewnętrznym rogu",
       lamane: "dwa skrzydła spięte zawiasami łamanymi — wspornik nie jest potrzebny",
       skrecone: "dwa fronty skręcone na stałe pod kątem 90°, na zawiasach z jednej strony",
+      fix: "ramię zaślepione fixem przykręconym na stałe, otwierają się tylko drzwi w korpusie",
     }[a.doors] || "dwa fronty spotykające się pod kątem prostym";
     out.push({ level: "info", text:
       `${kto} jest szafką narożną w L: korpus ${fmt(a.cab.geo.W)} mm przy ścianie „${a.run.run.name}" `
@@ -8292,7 +8302,8 @@ export default function App() {
                             <Seg value={cab.corner.doors || "wsporniki"}
                               onChange={(v) => set({ corner: { ...cab.corner, doors: v } })}
                               options={[{ v: "wsporniki", l: "Na wsporniki" },
-                                { v: "lamane", l: "Łamane" }, { v: "skrecone", l: "Skręcone 90°" }]} />
+                                { v: "lamane", l: "Łamane" }, { v: "skrecone", l: "Skręcone 90°" },
+                                { v: "fix", l: "Fix + jedne drzwi" }]} />
                             {cornerNode.arm && (
                               <p className="text-xs text-stone-500">
                                 Korpus <span className="font-mono text-stone-700">{fmt(cornerNode.arm.cab.geo.W)} mm</span>
