@@ -1330,6 +1330,19 @@ function computeGeo(cab, mat) {
                 ? "left"
                 : "right",
           };
+          /* Zawias musi miec do czego sie przykrecic: bok szafki albo przegrode.
+             Tam, gdzie kolumny stykaja sie bez przegrody (przelot do ramienia
+             szafki naroznej), plyty nie ma i drzwi wisialyby w powietrzu. */
+          const kolumny = rawLevels[lv.i].cols;
+          const wPowietrzu = d.hingeSide === "left"
+            ? j > 0 && !!kolumny[j - 1].noDiv
+            : j < kolumny.length - 1 && !!kolumny[j].noDiv;
+          if (wPowietrzu) {
+            const druga = d.hingeSide === "left" ? "right" : "left";
+            add("error", `${where}: zawiasy wypadają od strony przelotu — nie ma tam płyty, `
+              + `do której da się je przykręcić. Przełóż je na ${druga === "left" ? "lewą" : "prawą"} stronę.`
+              + `|hingeflip:${lv.i}:${j}:${druga}`);
+          }
           // rozstaw zawiasow + kolizje z polkami i wzmocnieniami w tej kolumnie
           const hObs = [
             ...c.shelves.map((s) => ({ y0: s.y, y1: s.y + ts, what: "półką" })),
@@ -5762,6 +5775,13 @@ const NoteLine = ({ text, color, icon, editLevels, editItemLevels, cab, setGap, 
       return {
         label: `Ustaw tył na ${val} mm`,
         run: () => editLevels((L) => (L[+li].cols[+j].drawers[+k].backHeight = +val)),
+      };
+    }
+    if (action.startsWith("hingeflip:")) {
+      const [, li, j, side] = action.split(":");
+      return {
+        label: `Przełóż zawiasy na ${side === "left" ? "lewą" : "prawą"}`,
+        run: () => editLevels((L) => (L[+li].cols[+j].hinge = side)),
       };
     }
     if (action.startsWith("cornercol:")) {
