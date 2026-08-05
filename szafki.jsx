@@ -2706,6 +2706,17 @@ const assemblyParts = (project, runs) =>
     return { run, gap, mount, cabs, total: x };
   }).filter((r) => r.cabs.length);
 
+/* Ramie szafki naroznej lezy w pasie sasiedniej sciany. Gdy rysujemy tylko
+   jeden ciag, tamtego pasa nie ma — a ramie i tak trzeba pokazac, bo to kawalek
+   tej szafki. Dostawiamy je wtedy tuz za koncem ciagu. */
+const armsIn = (L, n, rysowane) => {
+  const swoje = n.arms.filter((a) => rysowane.has(a.run.id));
+  const cudze = [...L.info.values()]
+    .filter((k) => k.arm && k.arm.run === n && !rysowane.has(k.arm.other.id))
+    .map((k) => ({ ...k.arm, u0: n.len + WALL_SEP / 2, dostawione: true }));
+  return [...swoje, ...cudze];
+};
+
 /* Glebokosc ciagu liczona od sciany do lica — szafki wyrownujemy do lica, wiec
    od sciany odsuwa nas najglebsza z nich, a wysuniete jeszcze bardziej. */
 const runFrontDepth = (g) => Math.max(...g.cabs.map((c) => c.geo.carcassDepth - c.offset));
@@ -3340,6 +3351,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
   const padB = showDims ? 150 + groups.length * 74 : 40;
   const vb = [-padL, -padT, total + padL + padR, top + padT + padB].join(" ");
 
+  const rysowane = new Set(groups.map((g) => g.run.id));
   /* Linie frontow ciagniete przez cala szerokosc — front, ktory wypada inaczej
      niz sasiedzi, zostaje przeciety w poprzek i widac to od razu. */
   const frontLines = showDims && !open && !rear
@@ -3385,7 +3397,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
             ))}
             {/* front ramienia szafki naroznej — stoi na tej scianie, choc sama
                 szafka nalezy do sasiedniego ciagu */}
-            {L.info.get(g.run.id).arms.map((a, i) => {
+            {armsIn(L, L.info.get(g.run.id), rysowane).map((a, i) => {
               const ax = mx(L.info.get(g.run.id).ex + a.u0, a.len);
               return (
                 <g key={"arm" + i}>
@@ -3411,7 +3423,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                     const ile = Math.max(2, Math.min(4, Math.round(H / 500) + 1));
                     return (
                       <g>
-                        {showHardware && Array.from({ length: ile }, (_, k) => (
+                        {open && showHardware && Array.from({ length: ile }, (_, k) => (
                           <rect key={"hg" + k} x={hx}
                             y={y0 + (H * (k + 1)) / (ile + 1) - HINGE_H / 2}
                             width={HINGE_W} height={HINGE_H}
@@ -3420,6 +3432,12 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                         {a.len > 60 && (
                           <rect x={zawiasLewo ? ax + a.len - 45 : ax + 30} y={y0 + H / 2 - 60}
                             width={15} height={120} rx="5" fill="#52525b" opacity="0.9" />
+                        )}
+                        {/* wspornik w rogu — front domyka sie do niego */}
+                        {a.doors === "wsporniki" && (
+                          <rect x={zawiasLewo ? ax + a.len - CORNER_SUPPORT_W : ax}
+                            y={y0} width={CORNER_SUPPORT_W} height={H}
+                            fill="none" stroke={ACC} strokeWidth="2" strokeDasharray="12 8" opacity="0.8" />
                         )}
                       </g>
                     );
@@ -3543,6 +3561,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
   const vb = [b.x0 - pad, b.y0 - pad,
     b.x1 - b.x0 + pad + padR, b.y1 - b.y0 + 2 * pad].join(" ");
   // ciag nizszy na danej scianie rysujemy pelna kreska, wyzszy przerywana
+  const rysowane = new Set(groups.map((g) => g.run.id));
   const lowest = new Map();
   groups.forEach((g) => {
     const w = L.info.get(g.run.id).wall;
@@ -3570,7 +3589,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
             ))}
             {/* Ramie szafki naroznej lezy w tym ciagu, ale nalezy do szafki
                 z sasiedniego — dlatego rysuje sie tu, a liczy przy tamtej. */}
-            {n.arms.map((a, i) => (
+            {armsIn(L, n, rysowane).map((a, i) => (
               <g key={"arm" + i} transform={`translate(${a.u0}, 0)`}>
                 <rect x={0} y={0} width={a.len} height={a.depth} fill="#fafaf9"
                   stroke="#e7e5e4" strokeWidth="1" />
@@ -3579,11 +3598,24 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
                   fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
                 <rect x={0} y={a.depth - a.cab.geo.tf} width={a.len} height={a.cab.geo.tf}
                   fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
-                {a.doors === "wsporniki" && (
-                  <rect x={a.outerAtEnd ? 0 : a.len - CORNER_SUPPORT_W} y={a.depth - a.cab.geo.tf - CORNER_SUPPORT_W}
-                    width={CORNER_SUPPORT_W} height={CORNER_SUPPORT_W}
-                    fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
-                )}
+                {/* Dwa wsporniki w wewnetrznym rogu: jeden wzdluz ramienia,
+                    drugi w poprzek, w korpusie. W rzucie skladaja sie w L —
+                    do nich domykaja sie oba fronty. */}
+                {a.doors === "wsporniki" && (() => {
+                  const t = a.cab.geo.t;
+                  const tf = a.cab.geo.tf;
+                  const u0 = a.outerAtEnd ? 0 : a.len - CORNER_SUPPORT_W;
+                  const yF = a.depth - tf - t;
+                  return (
+                    <g>
+                      <rect x={u0} y={yF} width={CORNER_SUPPORT_W} height={t}
+                        fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
+                      <rect x={a.outerAtEnd ? 0 : a.len - t} y={yF - CORNER_SUPPORT_W}
+                        width={t} height={CORNER_SUPPORT_W}
+                        fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
+                    </g>
+                  );
+                })()}
                 {showDims && (
                   <text x={a.len / 2} y={a.depth / 2 + 8} textAnchor="middle" fontSize="22"
                     fill={ACC} fontFamily="ui-monospace, monospace">ramię {fmt(a.len)}</text>
