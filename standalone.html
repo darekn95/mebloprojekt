@@ -158,6 +158,8 @@ const LEGACY_NET_PRICES = {
 };
 
 const MIN_COL = 200; // najwezsza sensowna kolumna
+// szerokosc pionowego wspornika w wewnetrznym rogu szafki naroznej
+const CORNER_SUPPORT_W = 100;
 const MIN_LEVEL = 100; // najnizszy sensowny poziom przy auto-dodawaniu
 
 /* Sevroll V-BOX 3D Slim, wymiary elementow dla plyty 18 mm */
@@ -438,6 +440,13 @@ const defaultCab = {
   shelfSameAsBoard: true,
   openAngle: 90,
   legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
+  /* Szafka narozna w L: do korpusu dochodzi ramie wzdluz drugiej sciany, a oba
+     fronty spotykaja sie w rogu pod katem prostym. `arm` to dlugosc ramienia
+     mierzona wzdluz tamtej sciany. `doors` mowi, jak zamykaja sie drzwi:
+     „wsporniki" = dwa pionowe wsporniki w wewnetrznym rogu (jak w zdjeciach),
+     „lamane" = drzwi na podwojnych zawiasach, „skrecone" = dwa fronty skrecone
+     na staly kat 90 stopni, na zawiasach z jednej strony. */
+  corner: { on: false, arm: 600, doors: "wsporniki" },
   // polki w kolumnach: na kolkach podporowych czy skrecane konfirmatami
   shelfMount: "pins",
   // odsuniecie osi otworu pod kolek od przedniej i tylnej krawedzi polki
@@ -469,7 +478,7 @@ const migrateCab = (rawCab) => {
   if (!merged.top || typeof merged.top !== "object")
     merged.top = { mode: "wieniec", widthMode: "outside", overL: 0, overR: 0, overFront: 0, overBack: 0 };
   if (!Array.isArray(merged.extraParts)) merged.extraParts = [];
-  ["cutout", "cutoutR", "obstacle", "backGroove", "plinth", "topFiller", "legs", "gaps", "joints", "shelfPin"].forEach((k) => {
+  ["cutout", "cutoutR", "obstacle", "backGroove", "plinth", "topFiller", "legs", "corner", "gaps", "joints", "shelfPin"].forEach((k) => {
     if (defaultCab[k] && typeof defaultCab[k] === "object")
       merged[k] = { ...defaultCab[k], ...((rawCab && rawCab[k]) || {}) };
   });
@@ -2704,7 +2713,7 @@ const runLayout = (groups) => {
     g, id: g.run.id, run: g.run, depth: runFrontDepth(g), total: g.total,
     // szafka wysunieta z lica wystaje poza lico ciagu — rysunek musi ja objac
     front: Math.max(0, ...g.cabs.map((c) => c.offset)),
-    lead: 0, tail: 0, corner: null, kids: [], zones: [], blind: null,
+    lead: 0, tail: 0, corner: null, kids: [], zones: [], arms: [], blind: null, arm: null, pair: null,
   }));
   info.forEach((n) => {
     const c = n.run.corner;
@@ -2717,10 +2726,17 @@ const runLayout = (groups) => {
   info.forEach((n) => {
     if (!n.corner) return;
     const p = info.get(n.corner.of);
-    const clear = n.corner.clear || 0;
     const wchodzi = n.corner.owner === "self" ? n : p;   // ten jedzie do naroza
     const ustepuje = wchodzi === n ? p : n;              // ten sie odsuwa
-    const o = wchodzi.depth + clear;
+    // przy ktorym koncu ciagu wjezdzajacego w rog wypada narożnik
+    const przyStarcie = (n.corner.at === "end") === (wchodzi === n);
+    const rogowa = wchodzi.g.cabs[przyStarcie ? 0 : wchodzi.g.cabs.length - 1];
+    /* Szafka narozna w L wychodzi ramieniem na sasiednia sciane, wiec drugi
+       ciag musi sie odsunac nie tylko o glebokosc, ale i o dlugosc ramienia. */
+    const kor = rogowa && rogowa.cab.corner;
+    const armLen = kor && kor.on ? Math.max(0, Math.round(kor.arm || 0)) : 0;
+    n.pair = { wchodzi, ustepuje, przyStarcie, rogowa, armLen };
+    const o = wchodzi.depth + armLen + (n.corner.clear || 0);
     // odsuwamy z tej strony ciagu, ktora dotyka rogu
     if (n.corner.at === "end") { if (ustepuje === n) n.lead += o; else p.tail += o; }
     else if (ustepuje === n) n.tail += o; else p.lead += o;
@@ -2730,23 +2746,27 @@ const runLayout = (groups) => {
   /* Slepy narożnik. Ciag, ktory wjezdza w rog, konczy sie szafka stojaca za
      plecami drugiego ciagu: tyle jej frontu, ile ma glebokosci ten drugi ciag,
      jest po prostu zaslonione i nie da sie tamtedy siegnac. Dlatego szafki
-     narozne robi sie szersze — zostaje wtedy kawalek frontu na drzwi. */
+     narozne robi sie szersze — zostaje wtedy kawalek frontu na drzwi — albo
+     dokłada sie ramie i robi z nich jedna szafke w L. */
   info.forEach((n) => {
-    if (!n.corner || !n.parent) return;
-    const p = n.parent;
-    const w = n.corner.owner === "self" ? n : p;
-    const other = w === n ? p : n;
-    // przy ktorym koncu ciagu, ktory wjezdza w rog, wypada narożnik
-    const przyStarcie = (n.corner.at === "end") === (w === n);
-    const c = w.g.cabs[przyStarcie ? 0 : w.g.cabs.length - 1];
+    if (!n.pair) return;
+    const { wchodzi: w, ustepuje: other, przyStarcie, rogowa: c, armLen } = n.pair;
     if (!c) return;
     const covered = Math.min(c.geo.W, other.depth);
     const free = c.geo.W - covered;
     const u0 = przyStarcie ? w.lead : w.lead + w.total - covered;
     const z = { cab: c, covered, free, run: w, other, u0, u1: u0 + covered,
       freeU0: przyStarcie ? u0 + covered : u0 - free };
-    n.blind = z;
-    w.zones.push(z);
+    if (!armLen) { n.blind = z; w.zones.push(z); return; }
+    /* Ramie rysuje sie i mierzy w ukladzie tego ciagu, ktory sie odsunal —
+       lezy dokladnie w luce miedzy rogiem a jego pierwsza szafka. */
+    const a0 = przyStarcie ? other.len - w.depth - armLen : w.depth;
+    n.arm = { cab: c, len: armLen, depth: other.depth, run: w, other,
+      u0: a0, front: free, outerAtEnd: !przyStarcie,
+      // z ktorej strony korpusu wychodzi ramie — po tej stronie nie ma juz frontu
+      side: przyStarcie ? "left" : "right",
+      doors: (c.cab.corner || {}).doors || "wsporniki" };
+    other.arms.push(n.arm);
   });
 
   /* Ramka ciagu: punkt (u, v) — u wzdluz sciany od poczatku ciagu, v w glab
@@ -3271,7 +3291,8 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
   const padL = showDims ? 200 : 40;
   // wysokosc zawieszenia wymiarujemy z prawej, wiec musi sie tam zmiescic
   const padR = showDims && anyMount ? 200 : 40;
-  const padT = showDims ? (anyGap ? 210 : 130) : 40;
+  // przy narożniku nad rysunkiem idzie jeszcze podpis rozwiniecia scian
+  const padT = showDims ? (anyGap ? 210 : 130) + (L.corners ? 44 : 0) : 40;
   // kazdy ciag dokłada wlasny wiersz szerokosci, a pod nimi idzie jeszcze suma
   const padB = showDims ? 150 + groups.length * 74 : 40;
   const vb = [-padL, -padT, total + padL + padR, top + padT + padB].join(" ");
@@ -3319,6 +3340,28 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                   frontColor={c.frontColor} levelDims={showDims && open && c.cab === activeCab} />
               </g>
             ))}
+            {/* front ramienia szafki naroznej — stoi na tej scianie, choc sama
+                szafka nalezy do sasiedniego ciagu */}
+            {L.info.get(g.run.id).arms.map((a, i) => {
+              const ax = mx(L.info.get(g.run.id).ex + a.u0, a.len);
+              return (
+                <g key={"arm" + i}>
+                  <rect x={ax} y={fy(a.cab.base + a.cab.cab.H)} width={a.len} height={a.cab.cab.H}
+                    fill={rear ? a.cab.mat.board.color : a.cab.frontColor}
+                    stroke={INK} strokeWidth="2" />
+                  {a.cab.plinthH > 0 && (
+                    <rect x={ax} y={fy(a.cab.base)} width={a.len} height={a.cab.plinthH}
+                      fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" opacity="0.75" />
+                  )}
+                  {showDims && (
+                    <text x={ax + a.len / 2} y={fy(a.cab.base + a.cab.cab.H / 2)} textAnchor="middle"
+                      fontSize="20" fill={INK} fontFamily="ui-monospace, monospace">
+                      ramię {fmt(a.len)}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
             {g.cabs.map((c, i) => c.name ? (
               <text key={"n" + gi + "-" + i} x={mx(ox + c.x, c.geo.W) + c.geo.W / 2}
                 y={fy(c.base + c.cab.H) - 14} textAnchor="middle"
@@ -3401,7 +3444,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
               <g key={"cn" + w.wall}>
                 <line x1={cx} y1={fy(top) - 40} x2={cx} y2={fy(0) + 40}
                   stroke={ACC} strokeWidth="2" strokeDasharray="16 12" />
-                <text x={cx} y={fy(top) - (anyGap ? 196 : 122)} textAnchor="middle" fontSize="22" fill={ACC}
+                <text x={cx} y={fy(top) - (anyGap ? 200 : 126)} textAnchor="middle" fontSize="22" fill={ACC}
                   fontFamily="ui-monospace, monospace">narożnik</text>
               </g>
             );
@@ -3452,6 +3495,28 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
               <g key={i} transform={`translate(${n.lead + c.x}, ${n.depth - c.geo.carcassDepth + c.offset})`}>
                 <CabTop cab={c.cab} geo={c.geo} mat={c.mat} ghost={upper}
                   showShelves={showShelves} showHardware={showHardware} />
+              </g>
+            ))}
+            {/* Ramie szafki naroznej lezy w tym ciagu, ale nalezy do szafki
+                z sasiedniego — dlatego rysuje sie tu, a liczy przy tamtej. */}
+            {n.arms.map((a, i) => (
+              <g key={"arm" + i} transform={`translate(${a.u0}, 0)`}>
+                <rect x={0} y={0} width={a.len} height={a.depth} fill="#fafaf9"
+                  stroke="#e7e5e4" strokeWidth="1" />
+                <rect x={a.outerAtEnd ? a.len - a.cab.geo.t : 0} y={0}
+                  width={a.cab.geo.t} height={a.depth}
+                  fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
+                <rect x={0} y={a.depth - a.cab.geo.tf} width={a.len} height={a.cab.geo.tf}
+                  fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
+                {a.doors === "wsporniki" && (
+                  <rect x={a.outerAtEnd ? 0 : a.len - CORNER_SUPPORT_W} y={a.depth - a.cab.geo.tf - CORNER_SUPPORT_W}
+                    width={CORNER_SUPPORT_W} height={CORNER_SUPPORT_W}
+                    fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
+                )}
+                {showDims && (
+                  <text x={a.len / 2} y={a.depth / 2 + 8} textAnchor="middle" fontSize="22"
+                    fill={ACC} fontFamily="ui-monospace, monospace">ramię {fmt(a.len)}</text>
+                )}
               </g>
             ))}
             {showDims && (
@@ -3595,6 +3660,17 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         if (needBack) box(c.x + o.ox0, c.base + o.oy0, zf(o.oz0), c.x + o.ox1, mTop, zf(o.oz0 - t), smat);
         if (needFront) box(c.x + o.ox0, c.base + o.oy0, zf(o.oz1 + t), c.x + o.ox1, mTop, zf(o.oz1), smat);
       });
+    });
+    /* Ramie szafki naroznej stoi w tym ciagu, ale nalezy do sasiedniego —
+        w bryle to ono domyka rog. */
+    n.arms.forEach((a) => {
+      const c = a.cab;
+      const x0 = a.u0 - n.lead;
+      const y0 = c.base, y1 = c.base + c.cab.H;
+      box(x0, y0, 0, x0 + a.len, y1, a.depth, c.mat.board.color);
+      box(x0, y0, -c.geo.tf, x0 + a.len, y1, 0, c.frontColor, null, 1, true);
+      if (c.plinthH > 0)
+        box(x0, y0 - c.plinthH, 0, x0 + a.len, y0, a.depth * 0.9, c.mat.board.color, null, 0.9);
     });
   });
   place = null;
@@ -5865,6 +5941,47 @@ const runPlinthPanels = (rp) => {
   }));
 };
 
+/* Formatki ramienia szafki naroznej. Plyty poziome i plecy sa osobnymi
+   kawalkami dostawionymi na kolki do korpusu — tak jak w kupnych szafkach
+   naroznych — bo w calosci nie da sie ich ani okleic, ani wnieść. */
+const cornerArmParts = (a) => {
+  const geo = a.cab.geo;
+  const cab = a.cab.cab;
+  const t = geo.t;
+  const H = cab.H;
+  // ramie liczymy od lica korpusu: to, co wystaje poza jego glebokosc
+  const len = Math.max(0, a.len);
+  const inner = Math.max(0, H - 2 * t);
+  const panels = [];
+  if (len <= 0) return { panels, hardware: [] };
+  panels.push({ name: "Wieniec i dno ramienia", qty: 2, a: len, b: a.depth - t, matKey: "board",
+    edges: { a1: true, a2: false, b1: true, b2: false }, note: "czoło i koniec przy wsporniku" });
+  panels.push({ name: "Bok ramienia", qty: 1, a: a.depth - t, b: inner, matKey: "board",
+    edges: { a1: true, a2: false, b1: false, b2: false }, note: "czoło" });
+  if (cab.back !== "none")
+    panels.push({ name: "Plecy ramienia", qty: 1, a: len, b: inner, matKey: "back",
+      edges: { a1: false, a2: false, b1: false, b2: false }, note: "" });
+  // front ramienia bierze wysokosc z frontow samej szafki, zeby stanely w linii
+  const d0 = (geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
+  const luz = (cab.gaps || {}).edge ?? 2;
+  panels.push({ name: "Front ramienia", qty: 1, a: Math.max(0, len - 2 * luz),
+    b: d0 ? Math.round(d0.h) : H, matKey: "front",
+    edges: { a1: true, a2: true, b1: true, b2: true }, note: "cztery krawędzie" });
+  /* Wsporniki trzymaja kat prosty i daja drzwiom miejsce na otwarcie. Przy
+     drzwiach lamanych albo skreconych na staly kat nie sa potrzebne. */
+  if (a.doors === "wsporniki")
+    panels.push({ name: "Wspornik narożnika", qty: 2, a: CORNER_SUPPORT_W, b: inner, matKey: "board",
+      edges: { a1: true, a2: true, b1: false, b2: false }, note: "obie krawędzie pionowe" });
+  // cokol idzie dalej pod ramieniem — to osobny kawalek wzdluz drugiej sciany
+  if (a.cab.plinthH > 0)
+    panels.push({ name: "Cokół ramienia", qty: 1, a: len, b: a.cab.plinthH, matKey: "board",
+      edges: { a1: false, a2: true, b1: true, b2: true }, note: "krawędź dolna oraz oba końce" });
+  const hardware = [{ name: "Zawias", spec: "front ramienia szafki narożnej", qty: 3, unit: "szt." }];
+  if (a.doors === "lamane")
+    hardware.push({ name: "Zawias łamany 90°", spec: "spina dwa skrzydła szafki narożnej", qty: 2, unit: "szt." });
+  return { panels, hardware };
+};
+
 const runTopPanels = (rt) => {
   if (!rt) return [];
   const map = new Map();
@@ -5933,7 +6050,22 @@ const projectParts = (project) => {
       hardware: [{ name: RAIL_NAME, spec: `jeden odcinek ${fmt(rr.len)} mm na ciąg`,
         qty: Math.round(rr.len / 100) / 10, unit: "mb" }] });
   });
-  return [...cabs, ...runs];
+  /* Ramie szafki naroznej to osobna pozycja: formatki ida na te sama plyte, co
+     szafka, ale latwiej je rozpoznac przy montazu, gdy stoja osobno. */
+  const arms = [];
+  const withCabs = (project.runs || []).filter((r) => runItems(project, r.id).length);
+  if (withCabs.some((r) => r.corner)) {
+    const L = runLayout(assemblyParts(project, withCabs));
+    L.info.forEach((n) => {
+      if (!n.arm) return;
+      const { panels, hardware } = cornerArmParts(n.arm);
+      if (!panels.length) return;
+      arms.push({ mat: n.arm.cab.rawMat, grainMatters: n.arm.cab.cab.grainMatters,
+        name: `Narożnik — ${(n.arm.cab.cab.name || "").trim() || "szafka w rogu"}`,
+        panels, hardware });
+    });
+  }
+  return [...cabs, ...runs, ...arms];
 };
 
 /* Uwagi ciagu w jednym miejscu, bo czyta je i karta aktywnej szafki, i licznik
@@ -6050,6 +6182,50 @@ const cornerPairMsgs = (n, blat) => {
       out.push({ level: "info", text:
         `Ślepy narożnik: ${kto} ma ${fmt(z.covered)} mm frontu zasłonięte przez ${za}, `
         + `do ręki zostaje ${fmt(z.free)} mm. Drzwi rób na tę szerokość, reszta korpusu jest ślepa.` });
+  }
+  /* Szafka narozna w L: zamiast chowac front za sasiadem, korpus wychodzi
+     ramieniem na druga sciane i oba fronty spotykaja sie w rogu. */
+  const a = n.arm;
+  if (a) {
+    const kto = `Szafka „${(a.cab.cab.name || "").trim() || "bez nazwy"}"`;
+    const opisDrzwi = {
+      wsporniki: "dwa osobne fronty domykane do dwóch pionowych wsporników w wewnętrznym rogu",
+      lamane: "dwa skrzydła spięte zawiasami łamanymi — wspornik nie jest potrzebny",
+      skrecone: "dwa fronty skręcone na stałe pod kątem 90°, na zawiasach z jednej strony",
+    }[a.doors] || "dwa fronty spotykające się pod kątem prostym";
+    out.push({ level: "info", text:
+      `${kto} jest szafką narożną w L: korpus ${fmt(a.cab.geo.W)} mm przy ścianie „${a.run.run.name}" `
+      + `plus ramię ${fmt(a.len)} × ${fmt(a.depth)} mm przy ścianie „${a.other.run.name}". `
+      + `Drzwi: ${opisDrzwi}. Płyty poziome ramienia dostawia się na kołki, oklejone na łączeniu.` });
+    if (a.front <= 0)
+      out.push({ level: "error", text:
+        `${kto} nie ma frontu od strony ciągu „${a.run.run.name}" — korpus jest węższy `
+        + `niż głębokość ramienia. Poszerz go do co najmniej ${fmt(a.depth + MIN_COL)} mm.` });
+    else if (a.front < MIN_COL)
+      out.push({ level: "warn", text:
+        `${kto} ma od strony ciągu „${a.run.run.name}" tylko ${fmt(a.front)} mm frontu — na drzwi to za mało. `
+        + `Poszerz korpus albo wydłuż ramię i przenieś otwieranie na drugą stronę.` });
+    if (a.len < MIN_COL)
+      out.push({ level: "warn", text:
+        `Ramię szafki narożnej ma ${fmt(a.len)} mm — to za krótko na front. Wydłuż je do co najmniej ${fmt(MIN_COL)} mm.` });
+    /* Fronty samej szafki dalej licza sie z jej szerokosci — nad ramieniem
+       zadnego frontu nie ma, wiec kolumny trzeba ustawic recznie. */
+    const fr = (a.cab.geo.doors || []).filter((d) => d.w > 0 && d.type !== "blenda");
+    const zajete = fr.length
+      ? (a.side === "right"
+        ? Math.max(...fr.map((d) => d.x + d.w))
+        : a.cab.geo.W - Math.min(...fr.map((d) => d.x)))
+      : 0;
+    if (a.front > 0 && zajete > a.front + 1)
+      out.push({ level: "warn", text:
+        `Fronty szafki „${(a.cab.cab.name || "").trim() || "w rogu"}" sięgają ${fmt(zajete)} mm od `
+        + `${a.side === "right" ? "lewej" : "prawej"} krawędzi, a od tej strony dostępne jest tylko ${fmt(a.front)} mm `
+        + `— nad ramieniem frontu nie ma. Ustaw w tej szafce kolumnę ${fmt(a.front)} mm z drzwiami, `
+        + "a resztę szerokości zostaw bez frontu." });
+    if (a.doors === "wsporniki" && a.front > 0)
+      out.push({ level: "info", text:
+        `Wsporniki narożnika: 2 szt. po ${fmt(CORNER_SUPPORT_W)} mm szerokości, na całą wysokość wnętrza — `
+        + "usztywniają róg i dają frontom miejsce na otwarcie." });
   }
   if (blat)
     out.push({ level: "info", text:
@@ -7229,6 +7405,17 @@ export default function App() {
   );
   const runNode = runInfo ? projLayout.info.get(runInfo.run.id) : null;
 
+  /* Ramie w L moze dostac tylko ta szafka, ktora faktycznie stoi w rogu —
+     dlatego pytamy o to rozmieszczenie, a nie uzytkownika. */
+  const cornerNode = useMemo(() => {
+    const c = project.items[project.active].cab;
+    let found = null;
+    projLayout.info.forEach((n) => {
+      if (n.pair && n.pair.rogowa && n.pair.rogowa.cab === c) found = n;
+    });
+    return found;
+  }, [projLayout, project]);
+
   /* Do narożnika mozna wskazac kazdy inny ciag oprocz tych, ktore same wisza
      na naszym — inaczej powstalby pierscien scian bez poczatku. */
   const cornerCandidates = useMemo(() => {
@@ -7967,6 +8154,36 @@ export default function App() {
                       )}
                     </div>
                   </Group>
+                  {cornerNode && (
+                    <Group label="Szafka narożna (L)"
+                      hint="Ta szafka stoi w rogu. Zamiast chować front za sąsiednim ciągiem, może wyjść ramieniem na drugą ścianę — fronty spotkają się wtedy pod kątem prostym.">
+                      <div className="space-y-2">
+                        <Check checked={!!(cab.corner || {}).on} label="Korpus wychodzi ramieniem w L"
+                          onChange={(v) => set({ corner: { ...cab.corner, on: v } })} />
+                        {!!(cab.corner || {}).on && (
+                          <>
+                            <label className="block">
+                              <span className="mb-1 block text-[11px] text-stone-400">Długość ramienia</span>
+                              <Num value={cab.corner.arm} min={0}
+                                onChange={(v) => set({ corner: { ...cab.corner, arm: Math.max(0, Math.round(Number(v) || 0)) } })} />
+                            </label>
+                            <Seg value={cab.corner.doors || "wsporniki"}
+                              onChange={(v) => set({ corner: { ...cab.corner, doors: v } })}
+                              options={[{ v: "wsporniki", l: "Na wsporniki" },
+                                { v: "lamane", l: "Łamane" }, { v: "skrecone", l: "Skręcone 90°" }]} />
+                            {cornerNode.arm && (
+                              <p className="text-xs text-stone-500">
+                                Korpus <span className="font-mono text-stone-700">{fmt(cornerNode.arm.cab.geo.W)} mm</span>
+                                {" "}plus ramię <span className="font-mono text-stone-700">{fmt(cornerNode.arm.len)} × {fmt(cornerNode.arm.depth)} mm</span>.
+                                {" "}Front od tej strony ma{" "}
+                                <span className="font-mono text-stone-700">{fmt(cornerNode.arm.front)} mm</span>.
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </Group>
+                  )}
                   <Field label="Wspólne dla całego ciągu"
                     hint="Zmiana tutaj przestawia od razu wszystkie szafki ciągu. Szafkę, która się rozjedzie, zgłoszą Uwagi.">
                     <div className="grid grid-cols-2 gap-3">
@@ -9643,7 +9860,9 @@ export default function App() {
                       {plural(g.sheets.length, "arkusz", "arkusze", "arkuszy")} {fmt(SHEET_W)}×{fmt(SHEET_H)}
                       {g.biggestRect && (
                         <span className="text-stone-500">
-                          {" — zostaje "}{fmt(g.biggestRect.w)}×{fmt(g.biggestRect.h)} mm
+                          {/* zrzut podajemy w pelnych milimetrach — na dziesiatych
+                              i tak nikt nie policzy, ze cos sie z niego wytnie */}
+                          {" — zostaje "}{fmt(Math.floor(g.biggestRect.w))}×{fmt(Math.floor(g.biggestRect.h))} mm
                           {g.usefulCount > 1 ? ` i ${g.usefulCount - 1} ${plural(g.usefulCount - 1, "mniejszy zrzut", "mniejsze zrzuty", "mniejszych zrzutów")}` : ""}
                         </span>
                       )}
