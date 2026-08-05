@@ -2760,8 +2760,12 @@ const runLayout = (groups) => {
        ciag musi sie odsunac nie tylko o glebokosc, ale i o dlugosc ramienia. */
     const kor = rogowa && rogowa.cab.corner;
     const armLen = kor && kor.on ? Math.max(0, Math.round(kor.arm || 0)) : 0;
-    n.pair = { wchodzi, ustepuje, przyStarcie, rogowa, armLen };
-    const o = wchodzi.depth + armLen + (n.corner.clear || 0);
+    /* Rog zjada tyle, ile ma glebokosci szafka, ktora w nim faktycznie stoi —
+       nie caly ciag. Plytsza szafka w rogu odsuwa sasiada mniej, glebsza
+       wiecej; branie glebokosci ciagu myliloby sie w obie strony. */
+    const glRog = rogowa ? Math.round(rogowa.geo.carcassDepth - rogowa.offset) : wchodzi.depth;
+    n.pair = { wchodzi, ustepuje, przyStarcie, rogowa, armLen, glRog };
+    const o = glRog + armLen + (n.corner.clear || 0);
     // odsuwamy z tej strony ciagu, ktora dotyka rogu
     if (n.corner.at === "end") { if (ustepuje === n) n.lead += o; else p.tail += o; }
     else if (ustepuje === n) n.tail += o; else p.lead += o;
@@ -2775,7 +2779,7 @@ const runLayout = (groups) => {
      dokłada sie ramie i robi z nich jedna szafke w L. */
   info.forEach((n) => {
     if (!n.pair) return;
-    const { wchodzi: w, ustepuje: other, przyStarcie, rogowa: c, armLen } = n.pair;
+    const { wchodzi: w, ustepuje: other, przyStarcie, rogowa: c, armLen, glRog } = n.pair;
     if (!c) return;
     const covered = Math.min(c.geo.W, other.depth);
     const free = c.geo.W - covered;
@@ -2785,7 +2789,7 @@ const runLayout = (groups) => {
     if (!armLen) { n.blind = z; w.zones.push(z); return; }
     /* Ramie rysuje sie i mierzy w ukladzie tego ciagu, ktory sie odsunal —
        lezy dokladnie w luce miedzy rogiem a jego pierwsza szafka. */
-    const a0 = przyStarcie ? other.len - w.depth - armLen : w.depth;
+    const a0 = przyStarcie ? other.len - glRog - armLen : glRog;
     n.arm = { cab: c, len: armLen, depth: other.depth, run: w, other,
       u0: a0, front: free, outerAtEnd: !przyStarcie,
       // z ktorej strony korpusu wychodzi ramie — po tej stronie nie ma juz frontu
@@ -6396,6 +6400,18 @@ const cornerPairMsgs = (n, blat) => {
   }
   /* Blat nad rogiem. Nie da sie polozyc dwoch plaszczyzn na tym samym rogu,
      wiec albo jedna przechodzi, albo obie tnie sie po przekatnej. */
+  /* Odsuniecie liczy sie z szafki stojacej w rogu. Jesli ktoras z pozostalych
+     szafek tego ciagu jest glebsza, to ona wejdzie na sasiada. */
+  const gl = n.pair && n.pair.glRog;
+  if (gl != null) {
+    const w2 = n.pair.wchodzi;
+    const najgl = Math.max(...w2.g.cabs.map((q) => Math.round(q.geo.carcassDepth - q.offset)));
+    if (najgl > gl)
+      out.push({ level: "error", text:
+        `Ciąg „${w2.run.name}" ma szafkę głębszą (${fmt(najgl)} mm) niż ta stojąca w rogu (${fmt(gl)} mm) `
+        + `— o róg odsuwa się tylko ${fmt(gl)} mm, więc głębsza szafka weszłaby na drugi ciąg. `
+        + `Zwiększ luz w rogu o ${fmt(najgl - gl)} mm albo wyrównaj głębokości.` });
+  }
   if (blat) {
     const przez = n.corner.top === "self" ? n : n.corner.top === "of" ? p : n.pair.wchodzi;
     const drugi = przez === n ? p : n;
