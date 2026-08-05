@@ -2606,7 +2606,7 @@ const assemblyParts = (project, runs) =>
    pokazywalby uproszczenie, na ktorym nie da sie niczego sprawdzic. Uklad
    wspolrzednych jest lokalny (0,0 = lewy gorny rog korpusu); na miejsce
    przesuwa go transform w AssemblyView. */
-function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels, frontColor, rear }) {
+function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels, frontColor, rear, levelDims }) {
   const H = cab.H;
   const W = geo.W;
   const t = geo.t;
@@ -2814,6 +2814,27 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         </g>
       ))}
 
+      /* Swiatla poziomow i polek rysujemy tylko dla szafki wybranej na pasku —
+         przy kilku szafkach obok siebie lancuchy wymiarowe przy kazdej krawedzi
+         zlalyby sie w gaszcz. Liczy je ten sam geo.openings, co widok
+         pojedynczej szafki, wiec wartosci sa identyczne. */
+      {levelDims && !rear && geo.levels.flatMap((lv) =>
+        lv.cols
+          .filter((c) => c.kind !== "drawers" && c.kind !== "blenda")
+          .flatMap((c) => (c.openings || [])
+            .filter((op) => op.h > 30 && !(c.openings.length === 1 && Math.round(op.h) === Math.round(lv.h)))
+            .map((op) => (
+              <DimV key={`op${lv.i}-${c.j}-${op.k}`} y1={fy(op.to)} y2={fy(op.from)}
+                x={c.x0 + 46} label={fmt(op.h)} left={false} c={DIMC} />
+            ))
+          )
+      )}
+      {/* wysokosc calego poziomu przy lewej krawedzi — jak w widoku szafki */}
+      {levelDims && !rear && geo.levels.map((lv) => (
+        <DimV key={"lvh" + lv.i} y1={fy(lv.y1)} y2={fy(lv.y0)} x={-46}
+          label={fmt(lv.h)} c={DIMC} />
+      ))}
+
       {/* korpus jeszcze raz na wierzchu — otwarte skrzydla nie moga zaslaniac bokow */}
       {open && !rear && (
         <g>
@@ -2985,13 +3006,39 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost }) {
         <rect key={"cut" + ci} x={gc.bx0} y={gc.bz0} width={gc.bx1 - gc.bx0} height={gc.bz1 - gc.bz0}
           fill={ERRC} opacity="0.15" stroke={ERRC} strokeWidth="1.5" strokeDasharray="6 4" />
       ))}
-      {(geo.geoObs || []).map((go, oi) => (
+      {(geo.geoObs || []).map((o, oi) => (
         <g key={"ob" + oi}>
-          <rect x={go.ox0} y={go.oz0} width={go.ox1 - go.ox0} height={go.oz1 - go.oz0}
-            fill={WARNC} opacity="0.18" stroke={WARNC} strokeWidth="1.5" strokeDasharray="6 4" />
-          {go.name && go.ox1 - go.ox0 > 120 && (
-            <text x={(go.ox0 + go.ox1) / 2} y={(go.oz0 + go.oz1) / 2 + 6} textAnchor="middle"
-              fontSize="17" fill={WARNC} fontFamily="ui-monospace, monospace">{go.name}</text>
+          <rect x={o.ox0} y={o.oz0} width={o.ow} height={o.od}
+            fill="#7c3aed" opacity="0.28" stroke="#6d28d9" strokeWidth="1.5" strokeDasharray="5 4" />
+          {/* scianki zabudowy — to one ida na formatki, wiec musza byc widoczne */}
+          {o.mask && o.maskChosen && (() => {
+            const rx = o.ox0, ry = o.oz0, rw = o.ow, rh = o.od;
+            const needL = !o.touchLeft, needR = !o.touchRight;
+            const needBack = !o.touchBack, needFront = !o.touchFront;
+            const vVisible = o.maskVisible === "vertical";
+            const isU = o.maskChosen === "U";
+            const frontBetween = o.maskFront === "between";
+            const hx0 = o.touchLeft ? (o.boundL ?? t)
+              : isU ? (frontBetween ? rx : rx - t)
+              : (needL && !vVisible ? rx - t : rx);
+            const hx1 = o.touchRight ? (o.boundR ?? W - t)
+              : isU ? (frontBetween ? rx + rw : rx + rw + t)
+              : (needR && !vVisible ? rx + rw + t : rx + rw);
+            const eB = needBack && (isU ? frontBetween : vVisible) ? t : 0;
+            const eF = needFront && (isU ? frontBetween : vVisible) ? t : 0;
+            const walls = [];
+            if (needL) walls.push({ x: rx - t, y: ry - eB, w: t, h: rh + eB + eF });
+            if (needR) walls.push({ x: rx + rw, y: ry - eB, w: t, h: rh + eB + eF });
+            if (needBack) walls.push({ x: hx0, y: ry - t, w: hx1 - hx0, h: t });
+            if (needFront) walls.push({ x: hx0, y: ry + rh, w: hx1 - hx0, h: t });
+            return walls.map((w, i) => (
+              <rect key={"ow" + i} x={w.x} y={w.y} width={w.w} height={w.h}
+                fill={shc} stroke={INK} strokeWidth="2" />
+            ));
+          })()}
+          {o.name && o.ow > 120 && (
+            <text x={o.ox0 + o.ow / 2} y={o.oz0 + o.od / 2 + 6} textAnchor="middle"
+              fontSize="17" fill="#6d28d9" fontFamily="ui-monospace, monospace">{o.name}</text>
           )}
         </g>
       ))}
@@ -3001,7 +3048,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost }) {
 
 /* Elewacja — od przodu (zamknieta i otwarta) oraz od tylu. Wszystkie trzy to ten
    sam rzut, wiec dzieli je tylko to, co rysujemy w srodku obrysu. */
-function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, showLabels }) {
+function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, showLabels, activeCab }) {
   const groups = assemblyParts(project, runs);
   if (!groups.length) return null;
   const rear = variant === "rear";
@@ -3062,7 +3109,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                 transform={`translate(${mx(c.x, c.geo.W)}, ${fy(c.base + c.cab.H)})`}>
                 <CabElevation cab={c.cab} geo={c.geo} mat={c.mat} open={open} rear={rear}
                   showDims={showDims} showHardware={showHardware} showLabels={showLabels}
-                  frontColor={c.frontColor} />
+                  frontColor={c.frontColor} levelDims={showDims && open && c.cab === activeCab} />
               </g>
             ))}
             {g.cabs.map((c, i) => c.name ? (
@@ -3246,9 +3293,21 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         box(c.x + gc.bx0, c.base + gc.cy0, cd - gc.bz1, c.x + gc.bx1, c.base + gc.cy1, cd - gc.bz0,
           "#b91c1c", null, 0.28);
       });
-      (c.geo.geoObs || []).forEach((go) => {
-        box(c.x + go.ox0, c.base + go.oy0, cd - go.oz1, c.x + go.ox1, c.base + go.oy1, cd - go.oz0,
+      (c.geo.geoObs || []).forEach((o) => {
+        box(c.x + o.ox0, c.base + o.oy0, cd - o.oz1, c.x + o.ox1, c.base + o.oy1, cd - o.oz0,
           "#b45309", null, 0.32);
+        // scianki zabudowy bryly — te same, ktore ida na formatki
+        if (!o.mask || !o.maskChosen) return;
+        const smat = shelfColorOf(c.cab, c.mat);
+        const zf = (z) => cd - z;
+        const needL = !o.touchLeft, needR = !o.touchRight;
+        const needBack = !o.touchBack, needFront = !o.touchFront;
+        const eB = needBack ? t : 0, eF = needFront ? t : 0;
+        const mTop = c.base + (o.maskTop ?? o.oy1);
+        if (needL) box(c.x + o.ox0 - t, c.base + o.oy0, zf(o.oz1 + eF), c.x + o.ox0, mTop, zf(o.oz0 - eB), smat);
+        if (needR) box(c.x + o.ox1, c.base + o.oy0, zf(o.oz1 + eF), c.x + o.ox1 + t, mTop, zf(o.oz0 - eB), smat);
+        if (needBack) box(c.x + o.ox0, c.base + o.oy0, zf(o.oz0), c.x + o.ox1, mTop, zf(o.oz0 - t), smat);
+        if (needFront) box(c.x + o.ox0, c.base + o.oy0, zf(o.oz1 + t), c.x + o.ox1, mTop, zf(o.oz1), smat);
       });
       maxX = Math.max(maxX, c.x + c.geo.W);
       maxY = Math.max(maxY, y1);
@@ -8687,7 +8746,7 @@ export default function App() {
                 ) : (
                   <AssemblyView project={project} runs={scopeRuns} rpOf={rpOf}
                     variant={view} showDims={showDims} showHardware={showHardware}
-                    showLabels={showLabels} />
+                    showLabels={showLabels} activeCab={cab} />
                 )
               ) : view === "3d" ? (
                 <div className="space-y-3">
