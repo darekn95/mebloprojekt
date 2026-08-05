@@ -852,7 +852,11 @@ function computeGeo(cab, mat) {
       ? rawLevels[lv.i].cols
       : [newColumn()];
     const K = rawCols.length;
-    const colFree = innerW - (K - 1) * t;
+    /* Kolumna oznaczona `noDiv` nie ma przegrody po swojej prawej stronie —
+       wnetrze idzie dalej bez przerwy. Tak wchodzi sie do ramienia szafki
+       naroznej: front konczy sie, a korpus nie. */
+    const nDiv = rawCols.slice(0, -1).filter((c) => !c.noDiv).length;
+    const colFree = innerW - nDiv * t;
     const col = distribute(colFree, rawCols.map((c) => c.w));
     if (col.diff !== 0)
       add(
@@ -910,9 +914,10 @@ function computeGeo(cab, mat) {
         }
       }
 
+      c.noDiv = !!rawCols[j].noDiv;
       lv.cols.push(c);
       cx += w;
-      if (j < K - 1) {
+      if (j < K - 1 && !rawCols[j].noDiv) {
         dividers.push({ x: cx, y0: lv.y0, y1: lv.y1, h: lv.h, level: lv.i });
         cx += t;
       }
@@ -2673,7 +2678,7 @@ const assemblyParts = (project, runs) =>
     const gap = Math.max(0, Math.round(run.gap || 0));
     const mount = Math.max(0, Math.round(run.mountY || 0));
     let x = 0;
-    const cabs = runItems(project, run.id).map(({ it }, i, arr) => {
+    const cabs = runItems(project, run.id).map(({ it, i: index }, i, arr) => {
       const geo = computeGeo(it.cab, it.mat);
       const mat = texMat(it.mat, it.cab.texture, it.cab.textureDir);
       /* Cokol pod korpusem podnosi szafke, cokol w obrysie siedzi juz w H.
@@ -2682,7 +2687,8 @@ const assemblyParts = (project, runs) =>
       const plinthH = it.cab.plinth && it.cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
       const legBelow = it.cab.legs && it.cab.legs.on ? geo.legBelow : 0;
       const o = {
-        cab: it.cab, geo, mat, rawMat: it.mat, x, plinthH,
+        // index = pozycja szafki w projekcie; po niej trafiaja w nia poprawki
+        cab: it.cab, geo, mat, rawMat: it.mat, x, plinthH, index,
         // wysuniecie (+) albo cofniecie (-) z lica ciagu
         offset: Math.round(Number(it.offset) || 0),
         base: mount + Math.max(plinthH, legBelow),
@@ -5719,7 +5725,7 @@ const Card = ({ title, children, right, collapsible = false, defaultOpen = true 
   );
 };
 
-const NoteLine = ({ text, color, icon, editLevels, cab, setGap, runFix, setMatDepth }) => {
+const NoteLine = ({ text, color, icon, editLevels, editItemLevels, cab, setGap, runFix, setMatDepth }) => {
   const [txt, ...actions] = text.split("|");
   const btns = actions.map((action) => {
     if (action.startsWith("worktop:")) {
@@ -5749,6 +5755,26 @@ const NoteLine = ({ text, color, icon, editLevels, cab, setGap, runFix, setMatDe
       return {
         label: `Ustaw tył na ${val} mm`,
         run: () => editLevels((L) => (L[+li].cols[+j].drawers[+k].backHeight = +val)),
+      };
+    }
+    if (action.startsWith("cornercol:")) {
+      const [, w, side, idx] = action.split(":");
+      return {
+        label: `Zrób z tego przejście ${w} mm bez frontu`,
+        // uwaga bywa widoczna z innej szafki ciagu, wiec poprawka idzie po numerze
+        run: () => editItemLevels(Number(idx), (L) => L.forEach((lv) => {
+          const c = newColumn(0, 0);
+          c.w = Number(w);
+          /* Przejscie do ramienia nie ma przegrody — inaczej zamknelaby wnetrze
+             tam, gdzie ma byc przelot do drugiej sciany. */
+          if (side === "right") {
+            lv.cols[lv.cols.length - 1].noDiv = true;
+            lv.cols.push(c);
+          } else {
+            c.noDiv = true;
+            lv.cols.unshift(c);
+          }
+        })),
       };
     }
     if (action.startsWith("fixcolauto:")) {
@@ -6024,6 +6050,13 @@ const cornerArmParts = (a) => {
   if (a.doors === "wsporniki")
     panels.push({ name: "Wspornik narożnika", qty: 2, a: CORNER_SUPPORT_W, b: inner, matKey: "board",
       edges: { a1: true, a2: true, b1: false, b2: false }, note: "obie krawędzie pionowe" });
+  /* Polki w ramieniu ida osobno, tak jak plyty poziome — w calosci w L nikt ich
+     nie okleji ani nie wniesie. Liczba idzie za szafka, zeby stanely w linii. */
+  const polek = Math.max(0, ...(geo.levels || []).flatMap((lv) =>
+    (lv.cols || []).map((c) => (c.shelves || []).length)));
+  if (polek > 0)
+    panels.push({ name: "Półka ramienia", qty: polek, a: len - t, b: a.depth - t, matKey: "board",
+      edges: { a1: true, a2: false, b1: false, b2: false }, note: "krawędź przednia" });
   // cokol idzie dalej pod ramieniem — to osobny kawalek wzdluz drugiej sciany
   if (a.cab.plinthH > 0)
     panels.push({ name: "Cokół ramienia", qty: 1, a: len, b: a.cab.plinthH, matKey: "board",
@@ -6275,7 +6308,8 @@ const cornerPairMsgs = (n, blat) => {
         `Fronty szafki „${(a.cab.cab.name || "").trim() || "w rogu"}" sięgają ${fmt(zajete)} mm od `
         + `${a.side === "right" ? "lewej" : "prawej"} krawędzi, a od tej strony dostępne jest tylko ${fmt(a.front)} mm `
         + `— nad ramieniem frontu nie ma. Ustaw w tej szafce kolumnę ${fmt(a.front)} mm z drzwiami, `
-        + "a resztę szerokości zostaw bez frontu." });
+        + "a resztę szerokości zostaw bez frontu."
+        + `|cornercol:${Math.round(a.depth)}:${a.side}:${a.cab.index}` });
     if (a.doors === "wsporniki" && a.front > 0)
       out.push({ level: "info", text:
         `Wsporniki narożnika: 2 szt. po ${fmt(CORNER_SUPPORT_W)} mm szerokości, na całą wysokość wnętrza — `
@@ -7533,6 +7567,17 @@ export default function App() {
       fn(levels);
       return { ...c, levels };
     });
+
+  /* To samo, ale dla dowolnej szafki w projekcie — uwagi ciagu widac takze
+     z sasiadki, wiec przycisk naprawy musi trafic w te wlasciwa. */
+  const editItemLevels = useCallback((i, fn) => setProject((p) => {
+    const items = p.items.slice();
+    if (!items[i]) return p;
+    const levels = JSON.parse(JSON.stringify(items[i].cab.levels));
+    fn(levels);
+    items[i] = { ...items[i], cab: { ...items[i].cab, levels } };
+    return { ...p, items };
+  }), [setProject]);
 
   const addLevel = () => editLevels((L) => L.push(newLevel(L[0]?.cols[0]?.doors ?? 1, 0)));
   const removeLevel = (i) => editLevels((L) => L.length > 1 && L.splice(i, 1));
@@ -9576,10 +9621,10 @@ export default function App() {
               {(errors.length > 0 || warns.length > 0) && (
                 <ul className="space-y-2">
                   {errors.map((m, i) => (
-                    <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
+                    <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} editItemLevels={editItemLevels} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
                   ))}
                   {warns.map((m, i) => (
-                    <NoteLine key={"w" + i} text={m.text} color={WARNC} icon="!" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
+                    <NoteLine key={"w" + i} text={m.text} color={WARNC} icon="!" editLevels={editLevels} editItemLevels={editItemLevels} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
                   ))}
                 </ul>
               )}
@@ -9590,7 +9635,7 @@ export default function App() {
                   </div>
                   <ul className="space-y-2">
                     {infos.map((m, i) => (
-                      <NoteLine key={"i" + i} text={m.text} color="#78716c" icon="i" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
+                      <NoteLine key={"i" + i} text={m.text} color="#78716c" icon="i" editLevels={editLevels} editItemLevels={editItemLevels} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
                     ))}
                   </ul>
                 </div>
