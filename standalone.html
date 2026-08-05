@@ -2726,10 +2726,14 @@ const assemblyParts = (project, runs) =>
 /* Ramie szafki naroznej lezy w pasie sasiedniej sciany. Gdy rysujemy tylko
    jeden ciag, tamtego pasa nie ma — a ramie i tak trzeba pokazac, bo to kawalek
    tej szafki. Dostawiamy je wtedy tuz za koncem ciagu. */
-const armsIn = (L, n, rysowane) => {
-  const swoje = n.arms.filter((a) => rysowane.has(a.run.id));
-  const cudze = [...L.info.values()]
-    .filter((k) => k.arm && k.arm.run === n && !rysowane.has(k.arm.other.id))
+const armsIn = (full, n, rysowane) => {
+  const fn = full.info.get(n.id);
+  if (!fn) return [];
+  // ramiona lezace w tym pasie — tylko te, ktorych szafka jest na rysunku
+  const swoje = fn.arms.filter((a) => rysowane.has(a.run.id));
+  // ramiona szafek tego ciagu, ktorych pas nie jest rysowany — dostawiamy za koniec
+  const cudze = [...full.info.values()]
+    .filter((k) => k.arm && k.arm.run.id === n.id && !rysowane.has(k.arm.other.id))
     .map((k) => ({ ...k.arm, u0: n.len + WALL_SEP / 2, dostawione: true }));
   return [...swoje, ...cudze];
 };
@@ -3355,7 +3359,16 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
      dostaje swoj pas, obok siebie, oddzielone linia naroza. Bez narozy
      rozwiniecie ma jeden pas i elewacja wyglada dokladnie jak dotad. */
   const L = runLayout(groups);
-  const total = L.elevTotal;
+  /* Rozmieszczenie do rysowania liczymy z ciagow objetych zakresem, ale o
+     narozniki pytamy caly projekt — inaczej przy zakresie „ciag" naroznika by
+     nie bylo i ramie szafki znikaloby z rysunku. */
+  const full = projectLayout(project);
+  const rysowane = new Set(groups.map((g) => g.run.id));
+  const dostawione = groups.flatMap((g) => {
+    const n = L.info.get(g.run.id);
+    return armsIn(full, n, rysowane).filter((a) => a.dostawione).map((a) => n.ex + a.u0 + a.len);
+  });
+  const total = Math.max(L.elevTotal, ...dostawione);
   const top = Math.max(...groups.flatMap((g) => g.cabs.map((c) => c.base + c.cab.H)));
   const fy = (v) => top - v;
   // patrzac od tylu widzimy ciag w lustrzanym odbiciu
@@ -3372,7 +3385,6 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
   const padB = showDims ? 150 + groups.length * 74 : 40;
   const vb = [-padL, -padT, total + padL + padR, top + padT + padB].join(" ");
 
-  const rysowane = new Set(groups.map((g) => g.run.id));
   /* Linie frontow ciagniete przez cala szerokosc — front, ktory wypada inaczej
      niz sasiedzi, zostaje przeciety w poprzek i widac to od razu. */
   const frontLines = showDims && !open && !rear
@@ -3418,7 +3430,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
             ))}
             {/* front ramienia szafki naroznej — stoi na tej scianie, choc sama
                 szafka nalezy do sasiedniego ciagu */}
-            {armsIn(L, L.info.get(g.run.id), rysowane).map((a, i) => {
+            {armsIn(full, L.info.get(g.run.id), rysowane).map((a, i) => {
               const ax = mx(L.info.get(g.run.id).ex + a.u0, a.len);
               return (
                 <g key={"arm" + i}>
@@ -3526,8 +3538,9 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                 );
               })
             : (
-              <DimH x1={0} x2={total} y={fy(0) + 56 + groups.length * 74}
-                label={`${fmt(total)} ${groups.length > 1 ? "zabudowa" : "ciąg"}`} above={false} />
+              /* mierzymy sam ciag — dostawione ramie lezy juz przy innej scianie */
+              <DimH x1={0} x2={L.elevTotal} y={fy(0) + 56 + groups.length * 74}
+                label={`${fmt(L.elevTotal)} ${groups.length > 1 ? "zabudowa" : "ciąg"}`} above={false} />
             )}
           <DimV y1={fy(top)} y2={fy(0)} x={-70} label={fmt(top)} />
           {groups.map((g) => {
@@ -3582,6 +3595,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
   const vb = [b.x0 - pad, b.y0 - pad,
     b.x1 - b.x0 + pad + padR, b.y1 - b.y0 + 2 * pad].join(" ");
   // ciag nizszy na danej scianie rysujemy pelna kreska, wyzszy przerywana
+  const full = projectLayout(project);
   const rysowane = new Set(groups.map((g) => g.run.id));
   const lowest = new Map();
   groups.forEach((g) => {
@@ -3610,7 +3624,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
             ))}
             {/* Ramie szafki naroznej lezy w tym ciagu, ale nalezy do szafki
                 z sasiedniego — dlatego rysuje sie tu, a liczy przy tamtej. */}
-            {armsIn(L, n, rysowane).map((a, i) => (
+            {armsIn(full, n, rysowane).map((a, i) => (
               <g key={"arm" + i} transform={`translate(${a.u0}, 0)`}>
                 <rect x={0} y={0} width={a.len} height={a.depth} fill="#fafaf9"
                   stroke="#e7e5e4" strokeWidth="1" />
