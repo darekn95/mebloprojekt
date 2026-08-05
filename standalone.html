@@ -3413,6 +3413,34 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                     <rect x={ax} y={fy(a.cab.base)} width={a.len} height={a.cab.plinthH}
                       fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" opacity="0.75" />
                   )}
+                  {/* Front ramienia to zwykle drzwi, wiec musi miec uchwyt i
+                      zawiasy — inaczej na elewacji wyglada jak zaslepka.
+                      Zawiasy ida od konca dalszego od naroza, bo przy samym
+                      rogu domyka sie do wspornika albo do drugiego frontu. */}
+                  {(() => {
+                    if (a.doors === "fix") return null;
+                    const H = a.cab.cab.H;
+                    const y0 = fy(a.cab.base + H);
+                    /* Zawias siedzi przy koncu dalszym od naroza; patrzac od
+                       tylu caly rysunek jest w lustrze, wiec i on. */
+                    const zawiasLewo = rear ? a.outerAtEnd : !a.outerAtEnd;
+                    const hx = zawiasLewo ? ax : ax + a.len - HINGE_W;
+                    const ile = Math.max(2, Math.min(4, Math.round(H / 500) + 1));
+                    return (
+                      <g>
+                        {showHardware && Array.from({ length: ile }, (_, k) => (
+                          <rect key={"hg" + k} x={hx}
+                            y={y0 + (H * (k + 1)) / (ile + 1) - HINGE_H / 2}
+                            width={HINGE_W} height={HINGE_H}
+                            fill="#a1a1aa" stroke={INK} strokeWidth="1.5" opacity="0.9" />
+                        ))}
+                        {a.len > 60 && (
+                          <rect x={zawiasLewo ? ax + a.len - 45 : ax + 30} y={y0 + H / 2 - 60}
+                            width={15} height={120} rx="5" fill="#52525b" opacity="0.9" />
+                        )}
+                      </g>
+                    );
+                  })()}
                   {showDims && (
                     <text x={ax + a.len / 2} y={fy(a.cab.base + a.cab.cab.H / 2)} textAnchor="middle"
                       fontSize="20" fill={INK} fontFamily="ui-monospace, monospace">
