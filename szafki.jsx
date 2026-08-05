@@ -314,12 +314,20 @@ const defaultMaterials = {
   mirror: { name: "Lustro", thickness: 4, color: "#c3d0d6" },
   /* Blat roboczy to nie plyta meblowa: grubszy, kupowany w gotowych odcinkach
      i ciety na dlugosc, wiec nie idzie do rozkroju razem z korpusami. */
-  worktop: { name: "Blat roboczy", thickness: 38, color: "#8d7b68" },
+  worktop: { name: "Blat roboczy", thickness: 38, color: "#8d7b68", depth: 600 },
 };
 
-/* Handlowa dlugosc blatu roboczego. Dluzszego po prostu nie ma w jednym
-   kawalku, wiec to on — a nie formatka plyty — wyznacza podzial. */
+/* Blaty robocze sprzedaje sie w gotowych arkuszach: 4100 x 600 i 4100 x 1200.
+   Dluzszego po prostu nie ma w jednym kawalku, wiec to dlugosc arkusza — a nie
+   formatka plyty meblowej — wyznacza podzial blatu w ciagu. Blat wchodzi do
+   rozkroju na wlasnym arkuszu, zeby bylo widac, ile sztuk trzeba kupic. */
 const WORKTOP_LEN = 4100;
+const WORKTOP_DEPTHS = [600, 1200];
+const WORKTOP_PRICES = { 600: 470, 1200: 780 };
+const worktopDepth = (mat) => {
+  const d = Math.round(Number((mat.worktop || {}).depth) || 600);
+  return WORKTOP_DEPTHS.includes(d) ? d : 600;
+};
 
 // element wzmacniajacy w kolumnie (moze byc wiele)
 // orient: "front" = pionowa plyta w licu (trawers), "shelf" = lezacy jak polka,
@@ -1842,6 +1850,19 @@ function computeGeo(cab, mat) {
     }[kind];
     P({ ...meta, qty, a: Number(a), b: Number(b) });
   });
+
+  /* Blat roboczy ma stala glebokosc arkusza. Formatka glebsza niz on po prostu
+     sie z niego nie wytnie — trzeba wziac szerszy blat. */
+  if (isWorktop) {
+    const wd = worktopDepth(mat);
+    if (blatDepth > wd) {
+      const szerszy = WORKTOP_DEPTHS.find((d) => d >= blatDepth);
+      add("error", `Blat ${fmt(blatDepth)} mm jest głębszy niż arkusz blatu ${fmt(wd)} mm — nie wytnie się z niego.`
+        + (szerszy ? `|worktop:${szerszy}` : ""));
+    }
+    if (topX1 - topX0 > WORKTOP_LEN)
+      add("error", `Blat ${fmt(topX1 - topX0)} mm jest dłuższy niż arkusz blatu (${fmt(WORKTOP_LEN)} mm) — trzeba go podzielić.`);
+  }
 
   if (cab.plinth.on) {
     if (plinthH < 50)
@@ -5331,9 +5352,13 @@ const Card = ({ title, children, right, collapsible = false, defaultOpen = true 
   );
 };
 
-const NoteLine = ({ text, color, icon, editLevels, cab, setGap, runFix }) => {
+const NoteLine = ({ text, color, icon, editLevels, cab, setGap, runFix, setMatDepth }) => {
   const [txt, ...actions] = text.split("|");
   const btns = actions.map((action) => {
+    if (action.startsWith("worktop:")) {
+      const d = Number(action.split(":")[1]);
+      return { label: `Zmień na blat ${fmt(d)} mm`, run: () => setMatDepth && setMatDepth(d) };
+    }
     if (action === "plinthauto" || action === "topauto")
       return { label: "Dobierz podział automatycznie", run: () => runFix && runFix(action) };
     // rozjazd z ciagiem da sie naprawic z dwoch stron — szafka albo caly ciag
@@ -5696,9 +5721,9 @@ const listPl = (xs) => (xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ")
 const splitMsgs = (what, whatGen, s, fixAction) => {
   const out = [];
   if (!s) return out;
-  // blat roboczy ogranicza dlugosc handlowa odcinka, plyta — wielkosc formatki
-  const jednostka = s.max === WORKTOP_LEN ? "odcinku" : "formatce";
-  const jednostkaM = s.max === WORKTOP_LEN ? "odcinek" : "formatka";
+  // blat roboczy ma swoj arkusz 4100, plyta meblowa swoj po okrawaniu
+  const jednostka = s.max === WORKTOP_LEN ? "arkuszu blatu" : "formatce";
+  const jednostkaM = s.max === WORKTOP_LEN ? "arkusz blatu" : "formatka";
   if (s.noFit)
     out.push({ level: "error", text:
       `${what} ma ${fmt(s.total)} mm, a między stykami korpusów nie ma odcinka krótszego niż ${jednostkaM} `
@@ -5710,7 +5735,7 @@ const splitMsgs = (what, whatGen, s, fixAction) => {
   else if (s.n > 1)
     out.push({ level: "warn", text:
       (s.auto
-        ? `${what} ma ${fmt(s.total)} mm i nie zmieści się w jednym ${s.max === WORKTOP_LEN ? "odcinku" : "arkuszu"} (maksimum ${fmt(s.max)} mm) — pójdzie z ${s.n} części`
+        ? `${what} ma ${fmt(s.total)} mm i nie zmieści się w jednym ${s.max === WORKTOP_LEN ? "arkuszu blatu" : "arkuszu"} (maksimum ${fmt(s.max)} mm) — pójdzie z ${s.n} części`
         : `${what} idzie z ${s.n} części`)
       + ` po ${listPl(s.lens.map(fmt))} mm, ciętych na styku korpusów `
       + `(${listPl(s.cuts.map(fmt))} mm od lewej) i oklejonych także na łączeniu.` });
@@ -5911,10 +5936,15 @@ function buildCutPlan(rows) {
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(r);
   });
-  return [...groups.entries()].map(([matLabel, list]) => ({
-    matLabel,
-    ...packSheets(list),
-  }));
+  /* Kazdy material moze miec inny arkusz — plyta meblowa 2761 x 2061 po
+     okrawaniu, blat roboczy 4100 x 600 albo 4100 x 1200. */
+  return [...groups.entries()].map(([matLabel, list]) => {
+    const sh = list.find((r) => r.sheet);
+    return {
+      matLabel,
+      ...packSheets(list, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {}),
+    };
+  });
 }
 
 /* rysunek jednego arkusza z ulozonymi formatkami */
@@ -6210,9 +6240,7 @@ function ReportCutPlan({ project, projectName }) {
   const groups = useMemo(() => {
     const rows = [];
     projectParts(project).forEach((part) => {
-      /* Blat roboczy nie idzie na arkusz plyty — kupuje sie go w gotowym
-         odcinku i tnie na dlugosc, wiec w rozkroju nie ma czego ukladac. */
-      groupPanels(part.panels.filter((p) => p.matKey !== "worktop")).forEach((p) => {
+      groupPanels(part.panels).forEach((p) => {
         rows.push({
           name: p.name,
           qty: p.qty,
@@ -6220,6 +6248,9 @@ function ReportCutPlan({ project, projectName }) {
           b: p.b,
           rotatable: p.matKey === "back" || !part.grainMatters,
           matLabel: matLabelOf(part.mat[p.matKey], p.matKey, ambig),
+          // blat roboczy uklada sie na wlasnym arkuszu, nie na plycie meblowej
+          sheet: p.matKey === "worktop"
+            ? { w: WORKTOP_LEN, h: worktopDepth(part.mat) } : null,
         });
       });
     });
@@ -6891,6 +6922,9 @@ export default function App() {
   }, [project, runInfo, setRunShared, setCab, setRun]);
 
   const set = useCallback((patch) => setCab((c) => ({ ...c, ...patch })), [setCab]);
+  // szerszy arkusz blatu — zmienia material, wiec dotyczy calego projektu
+  const setMatDepth = useCallback((d) =>
+    setMat((m) => ({ ...m, worktop: { ...m.worktop, depth: d } })), [setMat]);
   const setGap = (k, v) => setCab((c) => ({ ...c, gaps: { ...c.gaps, [k]: v } }));
 
   /* --- edycja struktury --- */
@@ -7204,24 +7238,27 @@ export default function App() {
 
   // rozkroj liczymy tylko na zadanie — to najciezsza operacja w aplikacji
   const makeCutPlan = useCallback((scope) => {
-    // blat roboczy kupuje sie w odcinku, nie uklada na arkuszu plyty
     const rows =
       scope === "project"
-        ? projectCutList.filter((p) => p.matKey !== "worktop").map((p) => ({
+        ? projectCutList.map((p) => ({
             name: p.name,
             qty: p.qty,
             a: p.a,
             b: p.b,
             rotatable: p.rotatable !== false,
             matLabel: p.matName,
+            // blat roboczy w projekcie jest jeden, wiec jego arkusz bierzemy z materialow
+            sheet: p.matKey === "worktop" ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
           }))
-        : cutList.filter((p) => p.matKey !== "worktop").map((p) => ({
+        : cutList.map((p) => ({
             name: p.name,
             qty: p.qty,
             a: p.a,
             b: p.b,
             rotatable: p.matKey === "back" || !cab.grainMatters,
             matLabel: matLabelOf(mat[p.matKey], p.matKey, ambig),
+            sheet: p.matKey === "worktop"
+              ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
           }));
     setCutPlan({ scope, groups: buildCutPlan(rows) });
   }, [cutList, projectCutList, cab.grainMatters, mat, ambig]);
@@ -7278,6 +7315,8 @@ export default function App() {
     const info = matByLabel.get(label);
     if (!info) return 0;
     if (info.key === "back") return DEFAULT_PRICES.hdf;
+    // blat roboczy ma cene za arkusz, taka sama niezaleznie od koloru
+    if (info.key === "worktop") return WORKTOP_PRICES[worktopDepth(mat)] || WORKTOP_PRICES[600];
     return isWhiteBoard(info.color) ? DEFAULT_PRICES.plytaBiala : DEFAULT_PRICES.plytaKolor;
   };
 
@@ -7663,8 +7702,8 @@ export default function App() {
             {(cab.top || {}).mode === "blat" && (
               <Field label="Blat z czego"
                 hint={geo.isWorktop
-                  ? `Blat roboczy ${fmt(geo.tTop)} mm — osobna pozycja zamówienia, cięta z odcinka do ${fmt(WORKTOP_LEN)} mm, poza rozkrojem płyty.`
-                  : "Blat z płyty meblowej — idzie do rozkroju razem z korpusami."}>
+                  ? `Blat roboczy ${fmt(geo.tTop)} mm — układany na własnym arkuszu ${fmt(WORKTOP_LEN)} × ${fmt(worktopDepth(mat))} mm, osobno od płyty meblowej.`
+                  : "Blat z płyty meblowej — idzie na arkusz razem z korpusami."}>
                 <Seg value={(cab.top || {}).material === "worktop" ? "worktop" : "board"}
                   onChange={(v) => set({ top: { ...(cab.top || {}), material: v } })}
                   options={[{ v: "board", l: "Z płyty" }, { v: "worktop", l: "Blat roboczy" }]} />
@@ -8665,6 +8704,14 @@ export default function App() {
                 )}
               </div>
             ))}
+            {geo.isWorktop && (
+              <Field label="Arkusz blatu roboczego"
+                hint={`Blat kupuje się w gotowym arkuszu ${fmt(WORKTOP_LEN)} mm długości. Szerszy bierze się pod głębsze zabudowy.`}>
+                <Seg value={String(worktopDepth(mat))}
+                  onChange={(v) => setMatDepth(Number(v))}
+                  options={WORKTOP_DEPTHS.map((d) => ({ v: String(d), l: `${fmt(WORKTOP_LEN)} × ${fmt(d)}` }))} />
+              </Field>
+            )}
             <Check checked={cab.grainMatters} onChange={(v) => set({ grainMatters: v })}
               label="Kierunek usłojenia ma znaczenie" />
             <Check checked={!!cab.texture} onChange={(v) => set({ texture: v })}
@@ -8844,10 +8891,10 @@ export default function App() {
               {(errors.length > 0 || warns.length > 0) && (
                 <ul className="space-y-2">
                   {errors.map((m, i) => (
-                    <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} />
+                    <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
                   ))}
                   {warns.map((m, i) => (
-                    <NoteLine key={"w" + i} text={m.text} color={WARNC} icon="!" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} />
+                    <NoteLine key={"w" + i} text={m.text} color={WARNC} icon="!" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
                   ))}
                 </ul>
               )}
@@ -8858,7 +8905,7 @@ export default function App() {
                   </div>
                   <ul className="space-y-2">
                     {infos.map((m, i) => (
-                      <NoteLine key={"i" + i} text={m.text} color="#78716c" icon="i" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} />
+                      <NoteLine key={"i" + i} text={m.text} color="#78716c" icon="i" editLevels={editLevels} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
                     ))}
                   </ul>
                 </div>
