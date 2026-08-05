@@ -502,7 +502,28 @@ const makeRun = (runs) => {
      niego wejdzie. Dzieki temu nigdy nie narzuca wymiarow wzietych znikad. */
   return { id: nextRunId(runs), name: `Ściana ${Math.max(0, ...nums) + 1}`, wallW: null, gap: 0,
     H: null, D: null, plinth: null, plinthCuts: null, topCuts: null,
-    hangerMode: "listwa", mountY: 0 };
+    hangerMode: "listwa", mountY: 0, corner: null };
+};
+
+/* ---------- narozniki ----------
+   Dwa ciagi spotykaja sie pod katem prostym. Ciag „dziecko" dostawia sie do
+   konca albo do poczatku ciagu-rodzica i skreca w strone pokoju — tak samo jak
+   sciany w prawdziwym pomieszczeniu. Lancuch takich narozy daje L (dwa ciagi),
+   U (trzy) i G (cztery-piec), wiec nie ma tu osobnego pola „ksztalt".
+
+   W samym rogu dwa ciagi zawsze na siebie wchodza: jeden z nich musi dojechac
+   do naroza, a drugi zaczac sie dopiero za jego glebokoscia. Kto wchodzi w rog,
+   mowi `owner`: „of" = rodzic, „self" = ten ciag. */
+const migrateCorner = (c) => {
+  if (!c || c.of == null) return null;
+  return {
+    of: String(c.of),
+    // "end" = przy koncu rodzica (skret w prawo), "start" = przy jego poczatku
+    at: c.at === "start" ? "start" : "end",
+    owner: c.owner === "self" ? "self" : "of",
+    // dodatkowy luz w rogu, zeby uchwyty i fronty sie nie zaczepialy
+    clear: Math.max(0, Math.round(Number(c.clear) || 0)),
+  };
 };
 
 // wymiary, ktore w ciagu musza byc wspolne — inaczej fronty i blat sie rozjada
@@ -525,6 +546,8 @@ const migrateRun = (r) => ({
   hangerMode: r.hangerMode === "haczyki" ? "haczyki" : "listwa",
   // wysokosc spodu korpusu nad podloga: 0 = ciag stoi, wiecej = ciag wisi
   mountY: Number(r.mountY) > 0 ? Math.round(Number(r.mountY)) : 0,
+  // null = ciag stoi przy wlasnej scianie, bez zwiazku z innymi
+  corner: migrateCorner(r.corner),
 });
 
 // cokol porownujemy po wszystkich czterech polach — cofniecie tez psuje lico ciagu
@@ -559,6 +582,17 @@ const loadProject = (d) => {
   const runs = (Array.isArray(d.runs) ? d.runs : []).filter((r) => r && r.id != null).map(migrateRun);
   // ciag mogl wypasc z zapisu — szafka po nim wraca na wolnostojaca, nie zostaje sierota
   items.forEach((it) => { if (!runs.some((r) => r.id === it.runId)) it.runId = null; });
+  /* Narożnik wskazujacy na skasowany ciag, na samego siebie albo zapetlony
+     rozwiazujemy — inaczej rozmieszczenie ciagow nie mialoby konca. */
+  runs.forEach((r) => {
+    if (!r.corner) return;
+    if (r.corner.of === r.id || !runs.some((q) => q.id === r.corner.of)) { r.corner = null; return; }
+    let p = runs.find((q) => q.id === r.corner.of);
+    for (let n = 0; p && p.corner && n <= runs.length; n++) {
+      if (p.corner.of === r.id) { r.corner = null; break; }
+      p = runs.find((q) => q.id === p.corner.of);
+    }
+  });
   const active = Math.min(Math.max(0, Math.round(d.active || 0)), items.length - 1);
   // trzymamy wylacznie ceny wpisane recznie; domyslne siedza przy pozycjach
   const prices = { ...(d.prices && typeof d.prices === "object" ? d.prices : {}) };
@@ -2632,6 +2666,126 @@ const assemblyParts = (project, runs) =>
     return { run, gap, mount, cabs, total: x };
   }).filter((r) => r.cabs.length);
 
+/* Glebokosc ciagu liczona od sciany do lica — szafki wyrownujemy do lica, wiec
+   od sciany odsuwa nas najglebsza z nich, a wysuniete jeszcze bardziej. */
+const runFrontDepth = (g) => Math.max(...g.cabs.map((c) => c.geo.carcassDepth - c.offset));
+
+// odstep miedzy scianami w rozwinieciu elewacji — tyle, zeby rog byl widoczny
+const WALL_SEP = 260;
+
+/* Rozmieszczenie ciagow w rzucie i w rozwinietej elewacji. Ciag bez naroznika
+   lezy wzdluz osi X: sciana na y = 0, front w strone +y. Naroznik obraca ciag
+   o 90 stopni tak, zeby sciana zostala po tej samej rece — dlatego kolejne
+   narozniki skladaja sie same w L, U i G i nie ma tu osobnego pola „ksztalt".
+
+   `lead` to odcinek przed pierwsza szafka, `tail` za ostatnia. W rogu dwa ciagi
+   zawsze na siebie wchodza: ten, ktory w rog wjezdza, jedzie do konca, a drugi
+   musi sie odsunac o jego glebokosc. */
+const runLayout = (groups) => {
+  const info = new Map();
+  groups.forEach((g) => info.set(g.run.id, {
+    g, id: g.run.id, run: g.run, depth: runFrontDepth(g), total: g.total,
+    // szafka wysunieta z lica wystaje poza lico ciagu — rysunek musi ja objac
+    front: Math.max(0, ...g.cabs.map((c) => c.offset)),
+    lead: 0, tail: 0, corner: null, kids: [], zones: [], blind: null,
+  }));
+  info.forEach((n) => {
+    const c = n.run.corner;
+    // narożnik do ciagu, ktorego na rysunku nie ma, po prostu nie dziala
+    if (!c || c.of === n.id || !info.has(c.of)) return;
+    n.corner = c;
+    n.parent = info.get(c.of);
+    n.parent.kids.push(n);
+  });
+  info.forEach((n) => {
+    if (!n.corner) return;
+    const p = info.get(n.corner.of);
+    const clear = n.corner.clear || 0;
+    const wchodzi = n.corner.owner === "self" ? n : p;   // ten jedzie do naroza
+    const ustepuje = wchodzi === n ? p : n;              // ten sie odsuwa
+    const o = wchodzi.depth + clear;
+    // odsuwamy z tej strony ciagu, ktora dotyka rogu
+    if (n.corner.at === "end") { if (ustepuje === n) n.lead += o; else p.tail += o; }
+    else if (ustepuje === n) n.tail += o; else p.lead += o;
+  });
+  info.forEach((n) => { n.len = n.lead + n.total + n.tail; });
+
+  /* Slepy narożnik. Ciag, ktory wjezdza w rog, konczy sie szafka stojaca za
+     plecami drugiego ciagu: tyle jej frontu, ile ma glebokosci ten drugi ciag,
+     jest po prostu zaslonione i nie da sie tamtedy siegnac. Dlatego szafki
+     narozne robi sie szersze — zostaje wtedy kawalek frontu na drzwi. */
+  info.forEach((n) => {
+    if (!n.corner || !n.parent) return;
+    const p = n.parent;
+    const w = n.corner.owner === "self" ? n : p;
+    const other = w === n ? p : n;
+    // przy ktorym koncu ciagu, ktory wjezdza w rog, wypada narożnik
+    const przyStarcie = (n.corner.at === "end") === (w === n);
+    const c = w.g.cabs[przyStarcie ? 0 : w.g.cabs.length - 1];
+    if (!c) return;
+    const covered = Math.min(c.geo.W, other.depth);
+    const free = c.geo.W - covered;
+    const u0 = przyStarcie ? w.lead : w.lead + w.total - covered;
+    const z = { cab: c, covered, free, run: w, other, u0, u1: u0 + covered,
+      freeU0: przyStarcie ? u0 + covered : u0 - free };
+    n.blind = z;
+    w.zones.push(z);
+  });
+
+  /* Ramka ciagu: punkt (u, v) — u wzdluz sciany od poczatku ciagu, v w glab
+     pokoju od sciany — trafia na (ox + ux·u + vx·v, oy + uy·u + vy·v). */
+  const at = (f, u, v) => ({ x: f.ox + f.ux * u + f.vx * v, y: f.oy + f.uy * u + f.vy * v });
+  const seen = new Set();
+  const put = (n, f, wall) => {
+    if (seen.has(n.id)) return;
+    seen.add(n.id);
+    n.f = f;
+    n.wall = wall;
+    n.at = (u, v) => at(f, u, v);
+    n.kids.forEach((k) => {
+      if (k.corner.at === "end") {
+        // rog na koncu rodzica: dziecko rusza z rogu i skreca w strone pokoju
+        const o = at(f, n.len, 0);
+        put(k, { ox: o.x, oy: o.y, ux: -f.uy, uy: f.ux, vx: -f.vy, vy: f.vx }, wall + 1);
+      } else {
+        // rog na poczatku rodzica: dziecko konczy sie w rogu, wiec cofamy o jego dlugosc
+        const o = at(f, 0, 0);
+        const ux = f.uy, uy = -f.ux;
+        put(k, { ox: o.x - ux * k.len, oy: o.y - uy * k.len, ux, uy, vx: f.vy, vy: -f.vx }, wall - 1);
+      }
+    });
+  };
+  const base = { ox: 0, oy: 0, ux: 1, uy: 0, vx: 0, vy: 1 };
+  [...info.values()].filter((n) => !n.corner).forEach((n) => put(n, base, 0));
+  // ciag ocalaly z zapetlonego naroznika i tak trzeba gdzies postawic
+  info.forEach((n) => put(n, base, 0));
+
+  /* Rozwiniecie elewacji: kazda sciana dostaje swoj pas, ciag gorny i dolny tej
+     samej sciany trafiaja na siebie, bo maja ten sam numer sciany. */
+  const wallLen = new Map();
+  info.forEach((n) => wallLen.set(n.wall, Math.max(wallLen.get(n.wall) || 0, n.len)));
+  const keys = [...wallLen.keys()].sort((a, b) => a - b);
+  let ex = 0;
+  const exOf = new Map();
+  keys.forEach((k, i) => {
+    exOf.set(k, ex);
+    ex += wallLen.get(k) + (i < keys.length - 1 ? WALL_SEP : 0);
+  });
+  info.forEach((n) => { n.ex = exOf.get(n.wall); });
+
+  const pts = [...info.values()].flatMap((n) =>
+    [[0, 0], [n.len, 0], [0, n.depth + n.front], [n.len, n.depth + n.front]]
+      .map(([u, v]) => n.at(u, v)));
+  return {
+    info,
+    corners: [...info.values()].some((n) => n.corner),
+    walls: keys.map((k) => ({ wall: k, ex: exOf.get(k), len: wallLen.get(k) })),
+    elevTotal: ex,
+    box: { x0: Math.min(...pts.map((p) => p.x)), x1: Math.max(...pts.map((p) => p.x)),
+      y0: Math.min(...pts.map((p) => p.y)), y1: Math.max(...pts.map((p) => p.y)) },
+  };
+};
+
 /* Jedna szafka w elewacji ciagu. Rysuje sie tak samo jak w widoku pojedynczej
    szafki — z bokami, nozkami, uchwytami, zawiasami i wnetrzem — bo inaczej ciag
    pokazywalby uproszczenie, na ktorym nie da sie niczego sprawdzic. Uklad
@@ -3085,13 +3239,16 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
   const rear = variant === "rear";
   const open = variant === "open";
 
-  const total = Math.max(...groups.map((g) => g.total));
+  /* Ciagi polaczone naroznikiem rysujemy jako rozwiniecie scian: kazda sciana
+     dostaje swoj pas, obok siebie, oddzielone linia naroza. Bez narozy
+     rozwiniecie ma jeden pas i elewacja wyglada dokladnie jak dotad. */
+  const L = runLayout(groups);
+  const total = L.elevTotal;
   const top = Math.max(...groups.flatMap((g) => g.cabs.map((c) => c.base + c.cab.H)));
   const fy = (v) => top - v;
   // patrzac od tylu widzimy ciag w lustrzanym odbiciu
   const mx = (x, w) => (rear ? total - x - w : x);
 
-  const wallW = Math.max(0, ...groups.map((g) => g.run.wallW || 0));
   const anyGap = groups.some((g) => g.gap > 0);
   const anyMount = groups.some((g) => g.mount > 0);
   const padL = showDims ? 200 : 40;
@@ -3121,30 +3278,32 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
       {groups.map((g, gi) => {
         const rp = rpOf ? rpOf(g.run) : null;
         const plinthH = rp ? rp.h : 0;
+        // przesuniecie ciagu w rozwinieciu: pas jego sciany plus miejsce zjedzone w rogu
+        const ox = L.info.get(g.run.id).ex + L.info.get(g.run.id).lead;
         return (
           <g key={g.run.id}>
             {/* cokol ciagu — jedna plaszczyzna, ze szwami w miejscach ciecia */}
             {plinthH > 0 && (
               <g>
-                <rect x={0} y={fy(g.mount + plinthH)} width={g.total} height={plinthH}
+                <rect x={mx(ox, g.total)} y={fy(g.mount + plinthH)} width={g.total} height={plinthH}
                   fill={g.cabs[0].mat.board.color} stroke={INK} strokeWidth="2" opacity="0.75" />
                 {rp.cuts.map((c) => (
-                  <line key={"pc" + c} x1={rear ? g.total - c : c} y1={fy(g.mount + plinthH)}
-                    x2={rear ? g.total - c : c} y2={fy(g.mount)} stroke={INK} strokeWidth="3" />
+                  <line key={"pc" + c} x1={mx(ox + c, 0)} y1={fy(g.mount + plinthH)}
+                    x2={mx(ox + c, 0)} y2={fy(g.mount)} stroke={INK} strokeWidth="3" />
                 ))}
               </g>
             )}
 
             {g.cabs.map((c, i) => (
               <g key={gi + "-" + i}
-                transform={`translate(${mx(c.x, c.geo.W)}, ${fy(c.base + c.cab.H)})`}>
+                transform={`translate(${mx(ox + c.x, c.geo.W)}, ${fy(c.base + c.cab.H)})`}>
                 <CabElevation cab={c.cab} geo={c.geo} mat={c.mat} open={open} rear={rear}
                   showDims={showDims} showHardware={showHardware} showLabels={showLabels}
                   frontColor={c.frontColor} levelDims={showDims && open && c.cab === activeCab} />
               </g>
             ))}
             {g.cabs.map((c, i) => c.name ? (
-              <text key={"n" + gi + "-" + i} x={mx(c.x, c.geo.W) + c.geo.W / 2}
+              <text key={"n" + gi + "-" + i} x={mx(ox + c.x, c.geo.W) + c.geo.W / 2}
                 y={fy(c.base + c.cab.H) - 14} textAnchor="middle"
                 fontSize="22" fill={LINE} fontFamily="ui-monospace, monospace">{c.name}</text>
             ) : null)}
@@ -3152,7 +3311,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
             {showDims && (
               <g>
                 {g.cabs.map((c, i) => (
-                  <DimH key={"w" + i} x1={mx(c.x, c.geo.W)} x2={mx(c.x, c.geo.W) + c.geo.W}
+                  <DimH key={"w" + i} x1={mx(ox + c.x, c.geo.W)} x2={mx(ox + c.x, c.geo.W) + c.geo.W}
                     y={fy(0) + 56 + gi * 74} label={fmt(c.geo.W)} above={false} />
                 ))}
                 {g.mount > 0 && (
@@ -3162,8 +3321,8 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                     w plame, wiec zamiast niej idzie odnosnik nad ciagiem. */}
                 {g.gap > 0 && g.cabs.slice(0, -1).map((c, i) => {
                   const cx = rear
-                    ? total - (c.x + c.geo.W) - g.gap / 2
-                    : c.x + c.geo.W + g.gap / 2;
+                    ? total - (ox + c.x + c.geo.W) - g.gap / 2
+                    : ox + c.x + c.geo.W + g.gap / 2;
                   const yTop = fy(Math.max(...g.cabs.map((q) => q.base + q.cab.H)));
                   return (
                     <g key={"g" + i}>
@@ -3185,8 +3344,21 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
             <line key={"fl" + v} x1={-16} y1={fy(v)} x2={total + 16} y2={fy(v)}
               stroke={ACC} strokeWidth="1" strokeDasharray="10 8" opacity="0.45" />
           ))}
-          <DimH x1={0} x2={total} y={fy(0) + 56 + groups.length * 74}
-            label={`${fmt(total)} ${groups.length > 1 ? "zabudowa" : "ciąg"}`} above={false} />
+          {/* W rozwinieciu suma wszystkich pasow nie jest zadnym wymiarem —
+              mierzymy wtedy kazda sciane osobno. */}
+          {L.corners
+            ? L.walls.map((w) => {
+                const [a, b2] = rear ? [total - w.ex - w.len, total - w.ex] : [w.ex, w.ex + w.len];
+                const nazwa = (groups.find((g) => L.info.get(g.run.id).wall === w.wall) || {}).run;
+                return (
+                  <DimH key={"wl" + w.wall} x1={a} x2={b2} y={fy(0) + 56 + groups.length * 74}
+                    label={`${fmt(w.len)} ${nazwa ? nazwa.name : "ściana"}`} above={false} />
+                );
+              })
+            : (
+              <DimH x1={0} x2={total} y={fy(0) + 56 + groups.length * 74}
+                label={`${fmt(total)} ${groups.length > 1 ? "zabudowa" : "ciąg"}`} above={false} />
+            )}
           <DimV y1={fy(top)} y2={fy(0)} x={-70} label={fmt(top)} />
           {groups.map((g) => {
             const rp = rpOf ? rpOf(g.run) : null;
@@ -3195,10 +3367,28 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                 label={fmt(rp.h)} />
             ) : null;
           })}
-          {wallW > 0 && (
-            <DimH x1={0} x2={wallW} y={fy(top) - (anyGap ? 140 : 66)}
-              label={`${fmt(wallW)} ściana`} c={wallW < total ? ERRC : DIMC} />
-          )}
+          {L.walls.map((w) => {
+            const mine = groups.filter((g) => L.info.get(g.run.id).wall === w.wall);
+            const wallW = Math.max(0, ...mine.map((g) => g.run.wallW || 0));
+            if (!wallW) return null;
+            const [a, b2] = rear ? [total - w.ex - wallW, total - w.ex] : [w.ex, w.ex + wallW];
+            return (
+              <DimH key={"ws" + w.wall} x1={a} x2={b2} y={fy(top) - (anyGap ? 140 : 66)}
+                label={`${fmt(wallW)} ściana`} c={wallW < w.len ? ERRC : DIMC} />
+            );
+          })}
+          {/* granica scian w rozwinieciu — za nia zaczyna sie kolejna sciana */}
+          {L.walls.slice(0, -1).map((w) => {
+            const cx = mx(w.ex + w.len + WALL_SEP / 2, 0);
+            return (
+              <g key={"cn" + w.wall}>
+                <line x1={cx} y1={fy(top) - 40} x2={cx} y2={fy(0) + 40}
+                  stroke={ACC} strokeWidth="2" strokeDasharray="16 12" />
+                <text x={cx} y={fy(top) - (anyGap ? 196 : 122)} textAnchor="middle" fontSize="22" fill={ACC}
+                  fontFamily="ui-monospace, monospace">narożnik</text>
+              </g>
+            );
+          })}
         </g>
       )}
     </svg>
@@ -3208,58 +3398,96 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
 /* Rzut z gory. Szafki wyrownujemy do LICA, nie do sciany — w ciagu fronty stoja
    w jednej linii, a glebsza szafka wchodzi blizej sciany, zamiast wystawac do
    przodu. Szafke da sie tez celowo wysunac albo cofnac. Ciag wyzszy rysujemy
-   przerywana linia na tle nizszego, tak jak szafki gorne nad dolnymi. */
+   przerywana linia na tle nizszego, tak jak szafki gorne nad dolnymi.
+   Ciagi polaczone naroznikiem stoja wzgledem siebie pod katem prostym — kazdy
+   rysuje sie we wlasnym ukladzie (u wzdluz sciany, v w glab pokoju), a na
+   miejsce obraca go transform. */
 function AssemblyTopView({ project, runs, showDims, showShelves, showHardware }) {
   const groups = assemblyParts(project, runs).slice().sort((a, b) => a.mount - b.mount);
   if (!groups.length) return null;
-  const total = Math.max(...groups.map((g) => g.total));
-  // lico ciagu to dol rysunku; w glab rosnie do gory, az do sciany
-  const depth = Math.max(...groups.flatMap((g) => g.cabs.map((c) => c.geo.carcassDepth - c.offset)));
-  const front = Math.max(0, ...groups.flatMap((g) => g.cabs.map((c) => c.offset)));
-  const pad = showDims ? 170 : 40;
+  const L = runLayout(groups);
+  const b = L.box;
+  const pad = showDims ? 190 : 40;
   const padR = showDims ? 700 : 40;
-  const vb = [-pad, -pad, total + pad + padR, depth + front + 2 * pad].join(" ");
+  const vb = [b.x0 - pad, b.y0 - pad,
+    b.x1 - b.x0 + pad + padR, b.y1 - b.y0 + 2 * pad].join(" ");
+  // ciag nizszy na danej scianie rysujemy pelna kreska, wyzszy przerywana
+  const lowest = new Map();
+  groups.forEach((g) => {
+    const w = L.info.get(g.run.id).wall;
+    if (!lowest.has(w)) lowest.set(w, g.run.id);
+  });
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       <GrainDefs mat={groups[0].cabs[0].rawMat} on={groups[0].cabs[0].cab.texture}
         dir={groups[0].cabs[0].cab.textureDir} />
-      <line x1={-20} y1={0} x2={total + 20} y2={0} stroke={LINE} strokeWidth="3" />
       {groups.map((g, gi) => {
-        const upper = gi > 0;
+        const n = L.info.get(g.run.id);
+        const upper = lowest.get(n.wall) !== g.run.id;
+        const o = n.at(0, 0);
+        const deg = Math.round((Math.atan2(n.f.uy, n.f.ux) * 180) / Math.PI);
+        const dv = n.depth + n.front;
         return (
-          <g key={g.run.id} opacity={upper ? 0.75 : 1}>
+          <g key={g.run.id} opacity={upper ? 0.75 : 1}
+            transform={`translate(${o.x}, ${o.y}) rotate(${deg})`}>
+            {!upper && <line x1={-20} y1={0} x2={n.len + 20} y2={0} stroke={LINE} strokeWidth="3" />}
             {g.cabs.map((c, i) => (
-              <g key={i} transform={`translate(${c.x}, ${depth - c.geo.carcassDepth + c.offset})`}>
+              <g key={i} transform={`translate(${n.lead + c.x}, ${n.depth - c.geo.carcassDepth + c.offset})`}>
                 <CabTop cab={c.cab} geo={c.geo} mat={c.mat} ghost={upper}
                   showShelves={showShelves} showHardware={showHardware} />
               </g>
             ))}
             {showDims && (
-              <text x={total + 30} y={40 + gi * 40}
-                fontSize="22" fill={LINE} fontFamily="ui-monospace, monospace">
-                {g.run.name}{g.mount > 0 ? ` — ${fmt(g.mount)} nad podłogą` : ""}
-              </text>
+              <g>
+                {/* miejsce zjedzone przez narożnik — tam nie stanie zadna szafka */}
+                {[["lead", 0, n.lead], ["tail", n.lead + n.total, n.tail]]
+                  .filter(([, , d]) => d > 0).map(([k, u0, d]) => (
+                    <g key={k}>
+                      <rect x={u0} y={0} width={d} height={n.depth} fill="none"
+                        stroke={ACC} strokeWidth="2" strokeDasharray="14 10" opacity="0.7" />
+                      <text x={u0 + d / 2} y={n.depth / 2} textAnchor="middle" fontSize="22"
+                        fill={ACC} fontFamily="ui-monospace, monospace">{fmt(d)}</text>
+                    </g>
+                  ))}
+                {/* ile frontu szafki w rogu zostaje odsloniete — reszta chowa
+                    sie za drugim ciagiem i drzwi nie maja tam czego szukac */}
+                {n.zones.map((z, i) => (z.free > 0 ? (
+                  <DimH key={"bl" + i} x1={z.freeU0} x2={z.freeU0 + z.free} y={dv + 18}
+                    label={`${fmt(z.free)} dostępu`} above={false} c={ACC} />
+                ) : (
+                  <text key={"bl" + i} x={(z.u0 + z.u1) / 2} y={n.depth - 30} textAnchor="middle"
+                    fontSize="22" fill={ERRC} fontFamily="ui-monospace, monospace">ślepa</text>
+                )))}
+                {!upper && g.cabs.map((c, i) => (
+                  <DimH key={i} x1={n.lead + c.x} x2={n.lead + c.x + c.geo.W} y={dv + 56}
+                    label={fmt(c.geo.W)} above={false} />
+                ))}
+                {!upper && (
+                  <DimH x1={n.lead} x2={n.lead + n.total} y={dv + 120} label={fmt(n.total)} above={false} />
+                )}
+                {/* Glebokosc mierzymy od strony wolnej: przy narożniku poczatek
+                    ciagu lezy na sasiednim ciagu i kreska wpadlaby w jego rysunek. */}
+                {!upper && (n.lead > 0
+                  ? <DimV y1={0} y2={dv} x={n.len + 70} left={false} label={fmt(dv)} />
+                  : <DimV y1={0} y2={dv} x={-70} label={fmt(dv)} />)}
+                {g.cabs.filter((c) => c.offset).map((c, i) => (
+                  <text key={"o" + i} x={n.lead + c.x + c.geo.W / 2}
+                    y={n.depth - c.geo.carcassDepth + c.offset - 14} textAnchor="middle"
+                    fontSize="20" fill={ACC} fontFamily="ui-monospace, monospace">
+                    {c.offset > 0 ? `+${fmt(c.offset)}` : fmt(c.offset)}
+                  </text>
+                ))}
+              </g>
             )}
           </g>
         );
       })}
-      {showDims && (
-        <g>
-          {groups[0].cabs.map((c, i) => (
-            <DimH key={i} x1={c.x} x2={c.x + c.geo.W} y={depth + front + 56}
-              label={fmt(c.geo.W)} above={false} />
-          ))}
-          <DimH x1={0} x2={total} y={depth + front + 120} label={fmt(total)} above={false} />
-          <DimV y1={0} y2={depth + front} x={-70} label={fmt(depth + front)} />
-          {groups.flatMap((g) => g.cabs.filter((c) => c.offset).map((c, i) => (
-            <text key={g.run.id + "o" + i} x={c.x + c.geo.W / 2}
-              y={depth - c.geo.carcassDepth + c.offset - 14} textAnchor="middle"
-              fontSize="20" fill={ACC} fontFamily="ui-monospace, monospace">
-              {c.offset > 0 ? `+${fmt(c.offset)}` : fmt(c.offset)}
-            </text>
-          )))}
-        </g>
-      )}
+      {showDims && groups.map((g, gi) => (
+        <text key={"nm" + g.run.id} x={b.x1 + 30} y={b.y0 + 40 + gi * 40}
+          fontSize="22" fill={LINE} fontFamily="ui-monospace, monospace">
+          {g.run.name}{g.mount > 0 ? ` — ${fmt(g.mount)} nad podłogą` : ""}
+        </text>
+      ))}
     </svg>
   );
 }
@@ -3268,15 +3496,25 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
    poziomie liczy sie bryla: korpusy, cokoly i fronty, ktore da sie otworzyc. */
 function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
   const groups = assemblyParts(project, runs);
+  const L = runLayout(groups);
   const solids = [];
+  /* Ciag narozny stoi w bryle pod katem prostym, wiec kazdy jego punkt idzie
+     jeszcze przez `place`: z ukladu ciagu (x wzdluz sciany, z od lica w glab)
+     na uklad calej zabudowy. Ciag bez naroznika dostaje przesuniecie zerowe. */
+  let place = null;
   const box = (x0, y0, z0, x1, y1, z1, color, transform, alpha, bold) => {
     let v = VERTS(x0, y0, z0, x1, y1, z1);
     if (transform) v = v.map(transform);
+    if (place) v = v.map(place);
     solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold });
   };
-  let maxX = 0, maxY = 0, maxZ = 0;
 
   groups.forEach((g) => {
+    const n = L.info.get(g.run.id);
+    place = (p) => {
+      const q = n.at(n.lead + p.x, n.depth - p.z);
+      return { x: q.x, y: p.y, z: -q.y };
+    };
     const rp = rpOf ? rpOf(g.run) : null;
     if (rp && rp.h > 0)
       box(0, g.mount, 0, g.total, g.mount + rp.h, g.cabs[0].geo.carcassDepth * 0.9,
@@ -3340,17 +3578,19 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         if (needBack) box(c.x + o.ox0, c.base + o.oy0, zf(o.oz0), c.x + o.ox1, mTop, zf(o.oz0 - t), smat);
         if (needFront) box(c.x + o.ox0, c.base + o.oy0, zf(o.oz1 + t), c.x + o.ox1, mTop, zf(o.oz1), smat);
       });
-      maxX = Math.max(maxX, c.x + c.geo.W);
-      maxY = Math.max(maxY, y1);
-      maxZ = Math.max(maxZ, cd);
     });
   });
+  place = null;
 
   if (!solids.length) return null;
 
   const cyw = Math.cos(yaw), syw = Math.sin(yaw);
   const cp = Math.cos(pitch), sp = Math.sin(pitch);
-  const cx = maxX / 2, cyc = maxY / 2, cz = maxZ / 2;
+  /* Srodek obrotu bierzemy z gotowej bryly, a nie z samych szerokosci szafek —
+     ciag narozny lezy w innym miejscu ukladu niz ten, od ktorego zaczynamy. */
+  const all = solids.flatMap((s) => s.v);
+  const mid = (k) => (Math.min(...all.map((p) => p[k])) + Math.max(...all.map((p) => p[k]))) / 2;
+  const cx = mid("x"), cyc = mid("y"), cz = mid("z");
   const proj = (p) => {
     const x = p.x - cx, y = p.y - cyc, z = p.z - cz;
     const x1 = x * cyw + z * syw;
@@ -5742,15 +5982,67 @@ const splitMsgs = (what, whatGen, s, fixAction) => {
   return out;
 };
 
-const runWideMsgs = (run, total, rp, rt) => {
+const runWideMsgs = (run, total, rp, rt, len) => {
   const out = [];
   if (!run) return out;
-  if (run.wallW != null && total > run.wallW)
+  // przy narożniku liczy sie miejsce od rogu, a nie sama suma korpusow
+  const zajete = Math.max(total, Math.round(len || 0));
+  if (run.wallW != null && zajete > run.wallW)
     out.push({ level: "error", text:
-      `Ciąg „${run.name}" zajmuje ${fmt(total)} mm, a ściana ma ${fmt(run.wallW)} mm — brakuje ${fmt(total - run.wallW)} mm.` });
+      `Ciąg „${run.name}" zajmuje ${fmt(zajete)} mm`
+      + (zajete > total ? ` (${fmt(total)} mm szafek i ${fmt(zajete - total)} mm na narożnik)` : "")
+      + `, a ściana ma ${fmt(run.wallW)} mm — brakuje ${fmt(zajete - run.wallW)} mm.` });
   out.push(...splitMsgs("Cokół ciągu", "cokołu ciągu", rp, "plinthauto"));
   out.push(...splitMsgs("Blat ciągu", "blatu ciągu", rt, "topauto"));
   return out;
+};
+
+/* Uwagi o narozniku. W rogu zawsze cos przepada — chodzi o to, zeby bylo
+   wiadomo ile, po ktorej stronie i czego jeszcze nie da sie z tego wyliczyc.
+   Rog dotyczy obu ciagow po rowno, wiec uwage widac z kazdego z nich. */
+const cornerPairMsgs = (n, blat) => {
+  const out = [];
+  const p = n.parent;
+  if (!n.corner || !p) return out;
+  const wchodzi = n.corner.owner === "self" ? n.run.name : p.run.name;
+  const ustepuje = n.corner.owner === "self" ? p : n;
+  const strata = Math.round(ustepuje.lead + ustepuje.tail);
+  const gdzie = n.corner.at === "end" ? "za jego końcem" : "przed jego początkiem";
+  out.push({ level: "info", text:
+    `Narożnik: ciąg „${n.run.name}" stoi pod kątem prostym do „${p.run.name}" (${gdzie}). `
+    + `W róg wjeżdża „${wchodzi}"`
+    + (strata > 0
+      ? `, więc ciąg „${ustepuje.run.name}" zaczyna się ${fmt(strata)} mm od rogu.`
+      : ".") });
+  /* Szafka wjezdzajaca w rog chowa czesc frontu za drugim ciagiem — to wlasnie
+     slepy narożnik. Mowimy wprost, ile frontu zostaje do reki. */
+  const z = n.blind;
+  if (z) {
+    const kto = `Szafka „${(z.cab.cab.name || "").trim() || "bez nazwy"}" z ciągu „${z.run.run.name}"`;
+    const za = `ciąg „${z.other.run.name}"`;
+    const zaCiagiem = `ciągiem „${z.other.run.name}"`;
+    if (z.free <= 0)
+      out.push({ level: "error", text:
+        `${kto} chowa się w całości za ${zaCiagiem} — nie ma jak jej otworzyć. `
+        + `Poszerz ją do co najmniej ${fmt(z.other.depth + MIN_COL)} mm albo zrób z niej szafkę narożną.` });
+    else if (z.free < MIN_COL)
+      out.push({ level: "warn", text:
+        `Ślepy narożnik: ${kto} ma ${fmt(z.covered)} mm frontu zasłonięte przez ${za}, `
+        + `zostaje ${fmt(z.free)} mm — na drzwi to za mało. Poszerz szafkę albo zrób z niej szafkę narożną.` });
+    else
+      out.push({ level: "info", text:
+        `Ślepy narożnik: ${kto} ma ${fmt(z.covered)} mm frontu zasłonięte przez ${za}, `
+        + `do ręki zostaje ${fmt(z.free)} mm. Drzwi rób na tę szerokość, reszta korpusu jest ślepa.` });
+  }
+  if (blat)
+    out.push({ level: "info", text:
+      "Blat przechodzi przez narożnik — sposób łączenia (na styk czy na 45°, który kawałek wchodzi na który) dobiera się osobno przy zamówieniu blatów." });
+  return out;
+};
+
+const runCornerMsgs = (node, blat) => {
+  if (!node) return [];
+  return [...cornerPairMsgs(node, blat), ...node.kids.flatMap((k) => cornerPairMsgs(k, blat))];
 };
 
 const rectFits = (w, h, r) => w <= r.w + 1e-9 && h <= r.h + 1e-9;
@@ -6593,9 +6885,23 @@ export default function App() {
 
   const removeRun = useCallback((id) => setProject((p) => ({
     ...p,
-    runs: (p.runs || []).filter((r) => r.id !== id),
+    // narożnik wskazujacy na skasowany ciag przestaje cokolwiek znaczyc
+    runs: (p.runs || []).filter((r) => r.id !== id)
+      .map((r) => (r.corner && r.corner.of === id ? { ...r, corner: null } : r)),
     // rozwiazanie ciagu nie kasuje szafek — wracaja miedzy wolnostojace
     items: p.items.map((it) => ((it.runId || null) === id ? { ...it, runId: null } : it)),
+  })), [setProject]);
+
+  /* Narożnik. `of` = ciag, do ktorego sie dostawiamy; brak = ciag stoi osobno.
+     Domyslnie w rog wjezdza tamten ciag, bo tak sie zwykle robi kuchnie: jedna
+     sciana idzie do konca, druga zaczyna sie za jej glebokoscia. */
+  const setCorner = useCallback((id, of, patch) => setProject((p) => ({
+    ...p,
+    runs: (p.runs || []).map((r) => {
+      if (r.id !== id) return r;
+      if (!of) return { ...r, corner: null };
+      return { ...r, corner: migrateCorner({ at: "end", owner: "of", clear: 0, ...(r.corner || {}), ...patch, of }) };
+    }),
   })), [setProject]);
 
   // przypisanie szafki do ciagu dostawia ja na jego koncu, zeby kolejnosc przy
@@ -6898,11 +7204,37 @@ export default function App() {
 
   /* Uwagi ciagu ida do tej samej karty co uwagi szafki — z punktu widzenia
      uzytkownika to jedna lista rzeczy do sprawdzenia. */
+  /* Rozmieszczenie wszystkich ciagow — narożnik jednego przesuwa drugi, wiec
+     karta ciagu i uwagi musza patrzec na cala zabudowe, nie tylko na siebie. */
+  const projLayout = useMemo(
+    () => runLayout(assemblyParts(project, (project.runs || []).filter((r) => runItems(project, r.id).length))),
+    [project]
+  );
+  const runNode = runInfo ? projLayout.info.get(runInfo.run.id) : null;
+
+  /* Do narożnika mozna wskazac kazdy inny ciag oprocz tych, ktore same wisza
+     na naszym — inaczej powstalby pierscien scian bez poczatku. */
+  const cornerCandidates = useMemo(() => {
+    if (!runInfo) return [];
+    const runs = (project.runs || []).filter((r) => runItems(project, r.id).length);
+    const wisiNaNas = (r) => {
+      for (let q = r, n = 0; q && q.corner && n <= runs.length; n++) {
+        if (q.corner.of === runInfo.run.id) return true;
+        q = runs.find((x) => x.id === q.corner.of);
+      }
+      return false;
+    };
+    return runs.filter((r) => r.id !== runInfo.run.id && !wisiNaNas(r));
+  }, [project, runInfo]);
+
   const runMsgs = useMemo(() => {
     if (!runInfo) return [];
     const c = project.items[project.active].cab;
-    return [...runCabMsgs(runInfo.run, c), ...runWideMsgs(runInfo.run, runInfo.total, runPl, runTp)];
-  }, [project, runInfo, runPl, runTp]);
+    const node = projLayout.info.get(runInfo.run.id);
+    return [...runCabMsgs(runInfo.run, c),
+      ...runWideMsgs(runInfo.run, runInfo.total, runPl, runTp, node ? node.len : 0),
+      ...runCornerMsgs(node, !!runTp)];
+  }, [project, runInfo, runPl, runTp, projLayout]);
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
@@ -7582,6 +7914,42 @@ export default function App() {
                         onChange={(v) => setRun(runInfo.run.id, { mountY: Math.max(0, Math.round(Number(v) || 0)) })} />
                     </Field>
                   </div>
+                  <Group label="Narożnik"
+                    hint="Ciąg dostawiony pod kątem prostym do innego. Kolejne narożniki układają się w L, U i G.">
+                    <div className="space-y-2">
+                      <select value={(runInfo.run.corner || {}).of || ""}
+                        onChange={(e) => setCorner(runInfo.run.id, e.target.value || null)}
+                        className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-teal-600 focus:outline-none">
+                        <option value="">Ciąg stoi osobno</option>
+                        {cornerCandidates.map((r) => (
+                          <option key={r.id} value={r.id}>Pod kątem prostym do „{r.name}"</option>
+                        ))}
+                      </select>
+                      {runInfo.run.corner && (
+                        <>
+                          <Seg value={runInfo.run.corner.at}
+                            onChange={(v) => setCorner(runInfo.run.id, runInfo.run.corner.of, { at: v })}
+                            options={[{ v: "end", l: "Za tamtym" }, { v: "start", l: "Przed tamtym" }]} />
+                          <Seg value={runInfo.run.corner.owner}
+                            onChange={(v) => setCorner(runInfo.run.id, runInfo.run.corner.of, { owner: v })}
+                            options={[{ v: "of", l: "Tamten w róg" }, { v: "self", l: "Ten w róg" }]} />
+                          <label className="block">
+                            <span className="mb-1 block text-[11px] text-stone-400">Luz w rogu</span>
+                            <Num value={runInfo.run.corner.clear || 0} min={0}
+                              onChange={(v) => setCorner(runInfo.run.id, runInfo.run.corner.of,
+                                { clear: Math.max(0, Math.round(Number(v) || 0)) })} />
+                          </label>
+                          {runNode && (
+                            <p className="text-xs text-stone-500">
+                              {runNode.lead + runNode.tail > 0
+                                ? <>Róg zjada <span className="font-mono text-stone-700">{fmt(runNode.lead + runNode.tail)} mm</span> tego ciągu — pierwsza szafka stoi dopiero za nim.</>
+                                : <>Ten ciąg dojeżdża do samego rogu; odsuwa się drugi.</>}
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </Group>
                   <Field label="Wspólne dla całego ciągu"
                     hint="Zmiana tutaj przestawia od razu wszystkie szafki ciągu. Szafkę, która się rozjedzie, zgłoszą Uwagi.">
                     <div className="grid grid-cols-2 gap-3">
@@ -7645,9 +8013,15 @@ export default function App() {
                   <p className="text-xs text-stone-500">
                     {runInfo.count} {plural(runInfo.count, "szafka", "szafki", "szafek")} zajmuje{" "}
                     <span className="font-mono text-stone-700">{fmt(runInfo.total)} mm</span>
+                    {/* przy narożniku od sciany ubywa jeszcze rog, wiec liczymy od niego */}
+                    {runNode && runNode.len > runInfo.total && (
+                      <>, a z narożnikiem{" "}
+                        <span className="font-mono text-stone-700">{fmt(runNode.len)} mm</span></>
+                    )}
                     {runInfo.run.wallW != null && (
                       <> z {fmt(runInfo.run.wallW)} mm ściany — zostaje{" "}
-                        <span className="font-mono text-stone-700">{fmt(runInfo.run.wallW - runInfo.total)} mm</span>.</>
+                        <span className="font-mono text-stone-700">
+                          {fmt(runInfo.run.wallW - Math.max(runInfo.total, runNode ? runNode.len : 0))} mm</span>.</>
                     )}
                   </p>
                   <button onClick={() => removeRun(runInfo.run.id)}
