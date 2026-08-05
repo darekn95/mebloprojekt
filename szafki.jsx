@@ -422,6 +422,10 @@ const defaultCab = {
   frontSameAsBoard: true,
   shelfSameAsBoard: true,
   openAngle: 90,
+  /* Strona zawiasow dla pojedynczych drzwi — jedno ustawienie na cala szafke,
+     bo w kuchni wszystkie drzwi otwiera sie zwykle w te sama strone.
+     „auto" = jak dotad, czyli od lewej, chyba ze z lewej stoi fix. */
+  hinge: "auto",
   legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
   /* Szafka narozna w L: do korpusu dochodzi ramie wzdluz drugiej sciany, a oba
      fronty spotykaja sie w rogu pod katem prostym. `arm` to dlugosc ramienia
@@ -1300,6 +1304,8 @@ function computeGeo(cab, mat) {
               cnt === 1
                 ? rawCol.hinge === "left" || rawCol.hinge === "right"
                   ? rawCol.hinge
+                  : cab.hinge === "left" || cab.hinge === "right"
+                  ? cab.hinge
                   : hasFix && rawFix.side === "left"
                   ? "right"
                   : "left"
@@ -9028,6 +9034,12 @@ export default function App() {
                 </>
               )}
               <Field label="Ostrzegaj powyżej"><Num value={cab.maxGap} onChange={(v) => set({ maxGap: v })} /></Field>
+              <Group label="Strona zawiasów"
+                hint="Dotyczy wszystkich pojedynczych drzwi w tej szafce. Kolumna z własnym ustawieniem zostaje przy swoim.">
+                <Seg value={cab.hinge === "left" || cab.hinge === "right" ? cab.hinge : "auto"}
+                  onChange={(v) => set({ hinge: v })}
+                  options={[{ v: "auto", l: "Auto" }, { v: "left", l: "Z lewej" }, { v: "right", l: "Z prawej" }]} />
+              </Group>
               <Field label="Kąt otwarcia" hint="do widoku 3D">
                 <Num value={cab.openAngle ?? 90} onChange={(v) => set({ openAngle: v })} suffix="°" />
               </Field>
