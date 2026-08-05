@@ -312,7 +312,14 @@ const defaultMaterials = {
   shelf: { name: "Płyta", thickness: 18, color: "#d0bb96" },
   back: { name: "HDF", thickness: 3, color: "#9c7b56" },
   mirror: { name: "Lustro", thickness: 4, color: "#c3d0d6" },
+  /* Blat roboczy to nie plyta meblowa: grubszy, kupowany w gotowych odcinkach
+     i ciety na dlugosc, wiec nie idzie do rozkroju razem z korpusami. */
+  worktop: { name: "Blat roboczy", thickness: 38, color: "#8d7b68" },
 };
+
+/* Handlowa dlugosc blatu roboczego. Dluzszego po prostu nie ma w jednym
+   kawalku, wiec to on — a nie formatka plyty — wyznacza podzial. */
+const WORKTOP_LEN = 4100;
 
 // element wzmacniajacy w kolumnie (moze byc wiele)
 // orient: "front" = pionowa plyta w licu (trawers), "shelf" = lezacy jak polka,
@@ -648,6 +655,9 @@ function computeGeo(cab, mat) {
   const hasTop = topL !== "none" && topR !== "none";
   // blat lezy na bokach jak wieniec "na boku", ale ma wlasny obrys
   const isBlat = hasTop && rawTop.mode === "blat";
+  // blat roboczy ma swoja grubosc — wieniec z plyty zostaje przy grubosci plyty
+  const isWorktop = isBlat && rawTop.material === "worktop";
+  const tTop = isWorktop ? ((mat.worktop && mat.worktop.thickness) || 38) : t;
   const blat = isBlat
     ? { overL: ov(rawTop.overL), overR: ov(rawTop.overR), overFront: ov(rawTop.overFront), overBack: ov(rawTop.overBack) }
     : null;
@@ -1695,7 +1705,7 @@ function computeGeo(cab, mat) {
         qty: 1,
         a: topX1 - topX0,
         b: blatDepth,
-        matKey: "board",
+        matKey: rawTop.material === "worktop" ? "worktop" : "board",
         // blat jest widoczny dookola, wiec czoło i oba końce zawsze oklejane,
         // tył tylko gdy wystaje poza korpus albo szafka stoi wolno
         edges: { a1: true, a2: rear || blat.overBack > 0, b1: true, b2: true },
@@ -2490,7 +2500,7 @@ function computeGeo(cab, mat) {
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
-    isBlat, blat, blatDepth, blatInside, W, drillPlan,
+    isBlat, isWorktop, tTop, blat, blatDepth, blatInside, W, drillPlan,
     topX0, topX1, botX0, botX1, divOv,
   };
 }
@@ -5476,7 +5486,7 @@ const KERF = 3; // rzaz piły
    w tej samej linii. Dlatego ciac wolno tylko tutaj. Automat tnie dopiero
    wtedy, gdy plaszczyzna nie miesci sie w formatce, i bierze najdalszy styk,
    ktory jeszcze wchodzi — czyli tak rzadko, jak sie da. */
-const splitAtJoints = (total, joints, want) => {
+const splitAtJoints = (total, joints, want, max = USABLE_W) => {
   let cuts = [];
   let auto = true;
   let noFit = false;
@@ -5486,8 +5496,8 @@ const splitAtJoints = (total, joints, want) => {
     cuts = want.filter((c) => joints.includes(c)).sort((a, b) => a - b);
   } else {
     let start = 0;
-    while (total - start > USABLE_W) {
-      const cand = joints.filter((j) => j > start && j - start <= USABLE_W).pop();
+    while (total - start > max) {
+      const cand = joints.filter((j) => j > start && j - start <= max).pop();
       if (cand == null) { noFit = true; break; }
       cuts.push(cand);
       start = cand;
@@ -5497,8 +5507,8 @@ const splitAtJoints = (total, joints, want) => {
   let prev = 0;
   cuts.forEach((c) => { lens.push(c - prev); prev = c; });
   lens.push(total - prev);
-  return { cuts, joints, lens, auto, noFit, n: lens.length,
-    tooLong: Math.max(0, ...lens.filter((l) => l > USABLE_W)) };
+  return { cuts, joints, lens, auto, noFit, max, n: lens.length,
+    tooLong: Math.max(0, ...lens.filter((l) => l > max)) };
 };
 
 // styki korpusow wzdluz ciagu, liczone od lewej krawedzi pierwszej szafki
@@ -5537,6 +5547,7 @@ const runTop = (project, run) => {
     const geo = computeGeo(it.cab, it.mat);
     if (geo.isBlat)
       spans.push({ x0: x + geo.topX0, x1: x + geo.topX1, depth: geo.blatDepth,
+        worktop: geo.isWorktop,
         rear: it.cab.back !== "none" || geo.blat.overBack > 0 });
     x += geo.W;
     if (k < list.length - 1) x += gap;
@@ -5545,12 +5556,17 @@ const runTop = (project, run) => {
   const x0 = Math.min(...spans.map((s) => s.x0));
   const x1 = Math.max(...spans.map((s) => s.x1));
   const total = Math.round(x1 - x0);
+  /* Blat roboczy tnie sie z gotowego odcinka, wiec jego granica jest dlugosc
+     handlowa, a nie formatka plyty. */
+  const worktop = spans.some((s) => s.worktop);
   return {
-    total, x0,
+    total, x0, worktop,
+    matKey: worktop ? "worktop" : "board",
     depth: Math.round(Math.max(...spans.map((s) => s.depth))),
     rear: spans.some((s) => s.rear),
     // styki przeliczamy na uklad samej plyty, zeby ciecia liczyly sie od jej konca
-    ...splitAtJoints(total, joints.filter((j) => j > x0 && j < x1).map((j) => Math.round(j - x0)), run.topCuts),
+    ...splitAtJoints(total, joints.filter((j) => j > x0 && j < x1).map((j) => Math.round(j - x0)),
+      run.topCuts, worktop ? WORKTOP_LEN : USABLE_W),
     mat: list[0].it.mat, grainMatters: list[0].it.cab.grainMatters, name: run.name,
   };
 };
@@ -5572,7 +5588,7 @@ const runTopPanels = (rt) => {
   const map = new Map();
   rt.lens.forEach((len) => map.set(len, (map.get(len) || 0) + 1));
   return [...map.entries()].map(([len, qty]) => ({
-    name: "Blat ciągu", qty, a: len, b: rt.depth, matKey: "board",
+    name: "Blat ciągu", qty, a: len, b: rt.depth, matKey: rt.matKey,
     edges: { a1: true, a2: rt.rear, b1: true, b2: true },
     note: rt.n > 1 ? "czoło i oba końce, w tym łączenie" : "czoło i oba końce",
   }));
@@ -5680,18 +5696,21 @@ const listPl = (xs) => (xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ")
 const splitMsgs = (what, whatGen, s, fixAction) => {
   const out = [];
   if (!s) return out;
+  // blat roboczy ogranicza dlugosc handlowa odcinka, plyta — wielkosc formatki
+  const jednostka = s.max === WORKTOP_LEN ? "odcinku" : "formatce";
+  const jednostkaM = s.max === WORKTOP_LEN ? "odcinek" : "formatka";
   if (s.noFit)
     out.push({ level: "error", text:
-      `${what} ma ${fmt(s.total)} mm, a między stykami korpusów nie ma odcinka krótszego niż formatka `
-      + `(${fmt(USABLE_W)} mm) — trzeba zwęzić którąś szafkę albo pociąć go poza stykiem.` });
+      `${what} ma ${fmt(s.total)} mm, a między stykami korpusów nie ma odcinka krótszego niż ${jednostkaM} `
+      + `(${fmt(s.max)} mm) — trzeba zwęzić którąś szafkę albo pociąć go poza stykiem.` });
   else if (s.tooLong > 0)
     out.push({ level: "error", text:
-      `Odcinek ${whatGen} ${fmt(s.tooLong)} mm nie mieści się w formatce (${fmt(USABLE_W)} mm) `
+      `Odcinek ${whatGen} ${fmt(s.tooLong)} mm nie mieści się w ${jednostka} (${fmt(s.max)} mm) `
       + `— dołóż podział na styku korpusów.|${fixAction}` });
   else if (s.n > 1)
     out.push({ level: "warn", text:
       (s.auto
-        ? `${what} ma ${fmt(s.total)} mm i nie zmieści się na jednej formatce (maksimum ${fmt(USABLE_W)} mm) — pójdzie z ${s.n} części`
+        ? `${what} ma ${fmt(s.total)} mm i nie zmieści się w jednym ${s.max === WORKTOP_LEN ? "odcinku" : "arkuszu"} (maksimum ${fmt(s.max)} mm) — pójdzie z ${s.n} części`
         : `${what} idzie z ${s.n} części`)
       + ` po ${listPl(s.lens.map(fmt))} mm, ciętych na styku korpusów `
       + `(${listPl(s.cuts.map(fmt))} mm od lewej) i oklejonych także na łączeniu.` });
@@ -6191,7 +6210,9 @@ function ReportCutPlan({ project, projectName }) {
   const groups = useMemo(() => {
     const rows = [];
     projectParts(project).forEach((part) => {
-      groupPanels(part.panels).forEach((p) => {
+      /* Blat roboczy nie idzie na arkusz plyty — kupuje sie go w gotowym
+         odcinku i tnie na dlugosc, wiec w rozkroju nie ma czego ukladac. */
+      groupPanels(part.panels.filter((p) => p.matKey !== "worktop")).forEach((p) => {
         rows.push({
           name: p.name,
           qty: p.qty,
@@ -7183,9 +7204,10 @@ export default function App() {
 
   // rozkroj liczymy tylko na zadanie — to najciezsza operacja w aplikacji
   const makeCutPlan = useCallback((scope) => {
+    // blat roboczy kupuje sie w odcinku, nie uklada na arkuszu plyty
     const rows =
       scope === "project"
-        ? projectCutList.map((p) => ({
+        ? projectCutList.filter((p) => p.matKey !== "worktop").map((p) => ({
             name: p.name,
             qty: p.qty,
             a: p.a,
@@ -7193,7 +7215,7 @@ export default function App() {
             rotatable: p.rotatable !== false,
             matLabel: p.matName,
           }))
-        : cutList.map((p) => ({
+        : cutList.filter((p) => p.matKey !== "worktop").map((p) => ({
             name: p.name,
             qty: p.qty,
             a: p.a,
@@ -7638,6 +7660,16 @@ export default function App() {
                 onChange={(v) => set({ top: { ...(cab.top || {}), mode: v } })}
                 options={[{ v: "wieniec", l: "Wieniec" }, { v: "blat", l: "Blat" }]} />
             </Field>
+            {(cab.top || {}).mode === "blat" && (
+              <Field label="Blat z czego"
+                hint={geo.isWorktop
+                  ? `Blat roboczy ${fmt(geo.tTop)} mm — osobna pozycja zamówienia, cięta z odcinka do ${fmt(WORKTOP_LEN)} mm, poza rozkrojem płyty.`
+                  : "Blat z płyty meblowej — idzie do rozkroju razem z korpusami."}>
+                <Seg value={(cab.top || {}).material === "worktop" ? "worktop" : "board"}
+                  onChange={(v) => set({ top: { ...(cab.top || {}), material: v } })}
+                  options={[{ v: "board", l: "Z płyty" }, { v: "worktop", l: "Blat roboczy" }]} />
+              </Field>
+            )}
             {(cab.top || {}).mode === "blat" && (
               <Field label="Podana szerokość to"
                 hint={geo.blatInside
