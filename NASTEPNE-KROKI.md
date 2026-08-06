@@ -60,8 +60,13 @@ Wniosek do implementacji: sprawdzanie musi iść po **bryle otwartego skrzydła
 w układzie całej zabudowy**, a nie w układzie pojedynczej szafki. Rozmieszczenie
 ciągów jest już policzone (`runLayout` / `projectLayout`) i zna obrót każdej
 ściany, więc jest z czego brać współrzędne. Pod uwagę wchodzą co najmniej:
-skrzydła i fronty wysunięte (szuflady), sprzęt wystający poza lico
-(zmywarka, piekarnik), sąsiednie ciągi za rogiem i uchwyty.
+skrzydła i fronty wysunięte (szuflady), sąsiednie ciągi za rogiem i uchwyty.
+
+**Nie mylić z „wysunięciem z lica".** To pole przesuwa **całą szafkę** do przodu
+albo w tył względem lica ciągu i nie ma nic wspólnego ze sprzętem, który
+wystaje z szafki. Sprzęt wystający poza lico (zmywarka, piekarnik) dostanie
+własną opcję — ale to nie jest zadanie na teraz i kolizji nie wolno na tym
+polu opierać.
 
 ## 4. ~~Drzwi ramienia otwierane~~ — zrobione
 
