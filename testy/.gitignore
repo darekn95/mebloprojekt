@@ -2,3 +2,6 @@ mebloprojekt-app.html
 standalone-local.html
 *.png
 vendorpkg/
+cdn/
+report.html
+dl*.json

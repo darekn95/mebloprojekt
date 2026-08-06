@@ -141,8 +141,18 @@ const LEGACY_NET_PRICES = {
 };
 
 const MIN_COL = 200; // najwezsza sensowna kolumna
+/* Wystawanie uchwytu przed lico frontu. Jedno miejsce dla rysunku 3D i dla
+   kontroli otwierania — inaczej model kolizji rozjezdzalby sie z tym, co widac.
+   Dotyczy tak samo drzwi jak i szuflad. */
+const handleOutOf = (cab) => Math.max(0, Math.round(Number((cab || {}).handleOut ?? 20) || 0));
 // szerokosc pionowego wspornika w wewnetrznym rogu szafki naroznej
 const CORNER_SUPPORT_W = 60;
+/* Wymiary startowe szablonu „Narożnik L". Korpus jest szerszy od glebokosci
+   drugiego ciagu, bo inaczej nie zostaje nic na front — CORNER_L_W minus
+   CORNER_L_D to wlasnie swiatlo, ktore zostaje do reki. */
+const CORNER_L_W = 900;
+const CORNER_L_D = 600;
+const CORNER_L_ARM = 600;
 // ponizej tego boku formatki nie utnie sie na pile formatowej
 const MIN_PART = 60;
 const MIN_LEVEL = 100; // najnizszy sensowny poziom przy auto-dodawaniu
@@ -410,6 +420,11 @@ const defaultCab = {
   gaps: { edge: 2, between: 3, top: 3, bottom: 3, inset: 2, divOverlay: 7,
           overBottom: 15, overTop: 15, underRail: 5 },
   maxGap: 5,
+  /* Ile uchwyt wystaje przed lico frontu — tak samo dla drzwi i dla szuflad.
+     To on styka sie pierwszy, wiec z tego wymiaru korzysta i rysunek 3D,
+     i kontrola otwierania. Relingi trzymaja sie okolic 20-35 mm, muszelki
+     i uchwyty frezowane nie wystaja wcale. */
+  handleOut: 20,
   shelfExtraSetback: 0,
   levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
   /* Cokol domyslnie idzie pod korpusem, nie w obrysie — w ciagu to jedna
@@ -684,11 +699,46 @@ const TEMPLATES = [
       };
     },
   },
+  {
+    /* Narożnik w L to nie jedna szafka, tylko układ: szafka w rogu przy jednej
+       ścianie, drugi ciąg pod kątem prostym i szafka przy nim. Ustawianie tego
+       ręcznie to cztery różne pola w trzech miejscach — szablon składa to od
+       razu, a `corner: true` mówi karcie, że po dodaniu ma jeszcze założyć
+       drugi ciąg i dołożyć do niego szafkę. */
+    id: "naroznikL",
+    label: "Narożnik L",
+    hint: "szafka narożna z ramieniem plus drugi ciąg za rogiem",
+    corner: true,
+    // szafka za rogiem, w nowym ciagu — zwykla stojaca na glebokosc naroznika
+    other: () => ({
+      W: 600, H: 720, D: CORNER_L_D,
+      plinth: { on: true, height: 100, mode: "under", setback: 0 },
+      levels: [newLevel(1, autoShelves(innerHeightOf(720)))],
+    }),
+    make: () => {
+      /* Front sięga tylko tam, gdzie korpus nie wchodzi w ramię: reszta
+         szerokości chowa się za drugim ciągiem. Stąd jedne drzwi o szerokości
+         dostępnego światła, a nie na całą szafkę. */
+      const col = newColumn(1, autoShelves(innerHeightOf(720)));
+      col.doorWidths = [CORNER_L_W - CORNER_L_D];
+      return {
+        W: CORNER_L_W, H: 720, D: CORNER_L_D,
+        plinth: { on: true, height: 100, mode: "under", setback: 0 },
+        corner: { on: true, arm: CORNER_L_ARM, doors: "wsporniki" },
+        levels: [{ h: null, cols: [col] }],
+      };
+    },
+  },
 ];
 
 const makeFromTemplate = (id) => {
   const tpl = TEMPLATES.find((t) => t.id === id) || TEMPLATES[0];
   return migrateCab({ ...JSON.parse(JSON.stringify(defaultCab)), ...tpl.make() });
+};
+const templateOther = (id) => {
+  const tpl = TEMPLATES.find((t) => t.id === id);
+  if (!tpl || !tpl.other) return null;
+  return migrateCab({ ...JSON.parse(JSON.stringify(defaultCab)), ...tpl.other() });
 };
 
 /* ---------- geometria ---------- */
@@ -1610,6 +1660,32 @@ function computeGeo(cab, mat) {
       ? "blenda"
       : "element stały";
 
+  /* Odcinki lica zabudowane na staly. Tam, gdzie stoi plyta, nie ma szczeliny —
+     i kontrola luzu nie moze tego kawalka liczyc. W szafce naroznej front konczy
+     sie tam, gdzie zaczyna sie ramie: dalsza czesc lica idzie w druga sciane,
+     a styk zamyka maskownica przy wsporniku. Ktora to strona, wiadomo dopiero
+     z rozmieszczenia ciagow, wiec sam luz przy boku sprawdza cornerPairMsgs —
+     tutaj zostaje odjecie zabudowanego kawalka i wyciszenie znacznika na
+     rysunku. */
+  const builtFront = [];
+  if (cab.corner && cab.corner.on) {
+    levels.forEach((lv) => {
+      const band = doors.filter((d) => d.lvl === lv.i && d.w > 0);
+      if (!band.length) return;
+      const lo = Math.min(...band.map((d) => d.x));
+      const hi = Math.max(...band.map((d) => d.x + d.w));
+      /* Ramie wychodzi ta strona, po ktorej zostalo wiecej niezakrytego lica —
+         po drugiej dziura w froncie zostaje dziura i ma sie odezwac. */
+      if (lo >= W - hi) builtFront.push({ lvl: lv.i, x0: 0, x1: lo });
+      else builtFront.push({ lvl: lv.i, x0: hi, x1: W });
+    });
+  }
+  // ile z odcinka [x0, x1) na danym poziomie jest zabudowane plyta
+  const builtIn = (lvl, x0, x1) => builtFront.reduce((s2, b) => {
+    if (b.lvl !== lvl) return s2;
+    return s2 + Math.max(0, Math.min(x1, b.x1) - Math.max(x0, b.x0));
+  }, 0);
+
   levels.forEach((lv) => {
     const band = doors.filter((d) => d.lvl === lv.i && d.w > 0);
     band.forEach((a2) => {
@@ -1622,7 +1698,11 @@ function computeGeo(cab, mat) {
         if (!nb || b2.x < nb.x) nb = b2;
       });
       if (!nb) return;
-      const gap = Math.round(nb.x - (a2.x + a2.w));
+      const surowy = Math.round(nb.x - (a2.x + a2.w));
+      // to, co zabudowane, nie jest szczelina — zostaje sam luz
+      const gap = surowy > 0
+        ? Math.round(surowy - builtIn(lv.i, a2.x + a2.w, nb.x))
+        : surowy;
       if (gap <= 0)
         add(
           "error",
@@ -1634,9 +1714,12 @@ function computeGeo(cab, mat) {
           `Poziom ${lv.i + 1}: między ${nameOf(a2)} a ${nameOf(nb)} tylko 1 mm luzu — zalecane 2 mm, żeby fronty się nie ocierały.`
         );
       else if (a2.colKey === nb.colKey && gap > cab.maxGap)
+        /* Za duza szczelina to blad, nie kosmetyka: widac przez nia wnetrze,
+           a fronty przestaja stac w linii. Mowimy o ile za duzo i miedzy czym. */
         add(
-          "warn",
-          `Poziom ${lv.i + 1}: między ${nameOf(a2)} a ${nameOf(nb)} jest ${fmt(gap)} mm szczeliny.`
+          "error",
+          `Poziom ${lv.i + 1}: między ${nameOf(a2)} a ${nameOf(nb)} jest ${fmt(gap)} mm luzu — `
+            + `o ${fmt(gap - cab.maxGap)} mm za dużo, granica to ${fmt(cab.maxGap)} mm.`
         );
     });
 
@@ -2606,7 +2689,7 @@ function computeGeo(cab, mat) {
     t, tf, tb, ts, carcassDepth, hasBack, interior, innerW, innerH,
     shelfDepth, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, panels, msgs, maxNL,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
-    backPos, backIsBoard, cornerCut,
+    backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
     isBlat, isWorktop, tTop, blat, blatDepth, blatInside, W, drillPlan,
     topX0, topX1, botX0, botX1, divOv,
@@ -4349,8 +4432,12 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               if (vo <= 0) return;
               if (!leftNb || b2.x + b2.w > leftNb.x + leftNb.w) leftNb = b2;
             });
+            /* Odcinek zabudowany na staly (maskownica narozna) nie jest
+               szczelina — nie ma czego tam mierzyc. */
+            const zabud = (x0, x1) => (geo.builtFront || []).some(
+              (b) => b.lvl === d.lvl && x0 >= b.x0 - 0.5 && x1 <= b.x1 + 0.5 && x1 > x0);
             // luz z lewej rysujemy tylko gdy nie ma sasiada (bok/przegroda) — sasiad da luz z prawej
-            if (!leftNb)
+            if (!leftNb && !zabud(leftWall, d.x))
               sideMarker(`gl${d.key}`, (leftWall + d.x) / 2, yMid, Math.round(d.x - leftWall), true);
 
             // luz z prawej: do najblizszego sasiada w pionie albo do sciany
@@ -4365,7 +4452,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               const val = Math.round(nb.x - (d.x + d.w));
               // kropka na styku frontow u gory, kreska i opis wyprowadzone nad krawedz
               marker(`gm${d.key}`, (d.x + d.w + nb.x) / 2, Math.max(yTop, nb.y + nb.h), val, true);
-            } else {
+            } else if (!zabud(d.x + d.w, rightWall)) {
               sideMarker(`gr${d.key}`, (d.x + d.w + rightWall) / 2, yMid, Math.round(rightWall - (d.x + d.w)), false);
             }
             // luz gorny liczymy tylko dla najwyzszego frontu kolumny, dolny dla najnizszego
@@ -5635,7 +5722,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
   const tf = geo.tf;
   const handleBar = (d, z0trans, transform) => {
     if (!d.handle) return;
-    const depth = 22; // ile uchwyt wystaje przed front
+    const depth = handleOutOf(cab); // ile uchwyt wystaje przed front
     const zA = z0trans - depth;
     const zB = z0trans;
     let hx0, hy0, hx1, hy1;
@@ -6171,6 +6258,20 @@ const runPlinthPanels = (rp) => {
   }));
 };
 
+/* Kolumna korpusu, ktora styka sie z ramieniem. Ramie wychodzi bokiem, wiec
+   polka ramienia konczy sie wlasnie na polkach tej kolumny — z niej bierzemy
+   i liczbe polek, i wysokosci do sprawdzenia. */
+const armColumn = (side, lv) => {
+  const cs = (lv && lv.cols) || [];
+  return (side === "right" ? cs[cs.length - 1] : cs[0]) || null;
+};
+const armShelfYs = (side, levels) => {
+  const ys = [];
+  (levels || []).forEach((lv) =>
+    ((armColumn(side, lv) || {}).shelves || []).forEach((s) => ys.push(Math.round(s.y))));
+  return ys;
+};
+
 /* Formatki ramienia szafki naroznej. Plyty poziome i plecy sa osobnymi
    kawalkami dostawionymi na kolki do korpusu — tak jak w kupnych szafkach
    naroznych — bo w calosci nie da sie ich ani okleic, ani wnieść. */
@@ -6213,9 +6314,10 @@ const cornerArmParts = (a) => {
       edges: { a1: true, a2: true, b1: true, b2: true }, note: "cztery krawędzie" });
   }
   /* Polki w ramieniu ida osobno, tak jak plyty poziome — w calosci w L nikt ich
-     nie okleji ani nie wniesie. Liczba idzie za szafka, zeby stanely w linii. */
-  const polek = Math.max(0, ...(geo.levels || []).flatMap((lv) =>
-    (lv.cols || []).map((c) => (c.shelves || []).length)));
+     nie okleji ani nie wniesie. Liczba idzie za kolumna przy ramieniu, bo to na
+     jej polkach polka ramienia sie konczy — polka bez pary wisialaby w powietrzu.
+     Poziomy sumujemy, bo kazdy z nich ma wlasny podzial na wysokosc. */
+  const polek = armShelfYs(a.side, geo.levels).length;
   if (polek > 0)
     panels.push({ name: "Półka ramienia", qty: polek, a: len - t, b: a.depth - t, matKey: "board",
       edges: { a1: true, a2: false, b1: false, b2: false }, note: "krawędź przednia" });
@@ -6476,6 +6578,40 @@ const cornerPairMsgs = (n, blat) => {
         + `${a.side === "right" ? "lewej" : "prawej"} krawędzi, a od tej strony dostępne jest tylko ${fmt(a.front)} mm. `
         + `Zrób jedne drzwi na ${fmt(a.front)} mm — reszta korpusu wchodzi w ramię i frontu nie potrzebuje.`
         + `|cornerdoor:${Math.round(a.front)}:${a.cab.index}` });
+    /* Polka ramienia opiera sie jednym koncem o bok ramienia, a drugim dochodzi
+       do wnetrza korpusu i musi tam trafic na polke na tej samej wysokosci.
+       Odkad narozna jest jedna komora, polka biegnie przez cale wnetrze — ale
+       gdy kolumn jest wiecej, ta przy ramieniu moze miec inny podzial i polka
+       z sasiedniej kolumny konczy sie w powietrzu. */
+    const lvls = a.cab.geo.levels || [];
+    const przyRamieniu = new Set(armShelfYs(a.side, lvls));
+    const wszystkie = new Set();
+    lvls.forEach((lv) => (lv.cols || []).forEach((c) =>
+      (c.shelves || []).forEach((s) => wszystkie.add(Math.round(s.y)))));
+    const wiszace = [...wszystkie].filter((y) => !przyRamieniu.has(y)).sort((p, q) => p - q);
+    if (a.len > 0 && wiszace.length)
+      out.push({ level: "error", text:
+        `${kto}: półka na ${wiszace.map(fmt).join(", ")} mm nie ma pary w kolumnie od strony ramienia, `
+        + `więc w ramieniu skończyłaby się w powietrzu. Ustaw ten sam podział półek w kolumnie przy `
+        + `ramieniu albo zrób jedną kolumnę na całe wnętrze — narożna to jedna komora.` });
+    /* Luz przy licu szafki naroznej. Od strony ramienia nie ma tam zadnej
+       szczeliny — przestrzen miedzy frontem korpusu a frontem ramienia zamyka
+       maskownica przy wsporniku — wiec tego odcinka nie liczymy. Po drugiej
+       stronie brak frontu to zwykla dziura i granica jest ta sama co wszedzie:
+       `maxGap`, domyslnie 5 mm. */
+    const fronty = (a.cab.geo.doors || []).filter((d) => d.w > 0);
+    const maxG = Math.max(0, Math.round(a.cab.cab.maxGap ?? 5));
+    if (fronty.length) {
+      const odBoku = a.side === "right"
+        ? Math.round(Math.min(...fronty.map((d) => d.x)))
+        : Math.round(a.cab.geo.W - Math.max(...fronty.map((d) => d.x + d.w)));
+      const bok = a.side === "right" ? "lewym" : "prawym";
+      if (odBoku > maxG)
+        out.push({ level: "error", text:
+          `${kto}: między frontem a ${bok} bokiem korpusu zostaje ${fmt(odBoku)} mm luzu — `
+          + `o ${fmt(odBoku - maxG)} mm za dużo, granica to ${fmt(maxG)} mm. `
+          + `Po tej stronie nie ma ramienia ani maskownicy, więc jest to odsłonięta szczelina.` });
+    }
     if (a.doors === "wsporniki" && a.front > 0)
       out.push({ level: "info", text:
         `Wsporniki narożnika: 2 szt. po ${fmt(CORNER_SUPPORT_W)} mm szerokości, na całą wysokość wnętrza — `
@@ -6514,6 +6650,174 @@ const cornerPairMsgs = (n, blat) => {
 const runCornerMsgs = (node, blat) => {
   if (!node) return [];
   return [...cornerPairMsgs(node, blat), ...node.kids.flatMap((k) => cornerPairMsgs(k, blat))];
+};
+
+/* ---------- kontrola otwierania ----------
+
+   Skrzydlo obraca sie wokol pionowej osi przy zawiasach, wiec po drodze
+   zakresla cwiartke kola: wzdluz sciany nie wychodzi poza wlasny front, a przed
+   lico wyjezdza na cala swoja szerokosc. Sprawdzamy wiec te cwiartke, a nie jej
+   pudelko — dwa pudelka przy rogu zachodza na siebie prawie zawsze, a same
+   skrzydla juz nie.
+
+   Liczymy to w ukladzie calej zabudowy, nie pojedynczej szafki, bo najczestsza
+   kolizja jest wlasnie miedzy scianami: zmywarka przy jednej nie otworzy sie,
+   gdy szafka zza rogu wystaje bardziej. runLayout zna obrot kazdej sciany, wiec
+   jest z czego brac wspolrzedne.
+
+   Wysuniecie z lica przesuwa cala szafke i siedzi juz w tych wspolrzednych. To
+   nie jest „sprzet wystajacy z szafki" — ten dostanie wlasna opcje i wtedy
+   dolozy sie tu jako kolejna bryla. */
+
+const SWING_TOL = 2;     // ponizej tego to styk na papierze, nie kolizja
+
+// wspolrzedne pokoju z ramki ciagu; obroty sa wielokrotnoscia 90 stopni,
+// wiec prostokat po przeliczeniu dalej jest prostokatem rownoleglym do osi
+const roomBox = (n, u0, u1, v0, v1, z0, z1, meta) => {
+  const p = [n.at(u0, v0), n.at(u1, v0), n.at(u0, v1), n.at(u1, v1)];
+  return {
+    x0: Math.min(...p.map((q) => q.x)), x1: Math.max(...p.map((q) => q.x)),
+    y0: Math.min(...p.map((q) => q.y)), y1: Math.max(...p.map((q) => q.y)),
+    z0, z1, ...meta,
+  };
+};
+
+/* Skrzydlo: os zawiasow w punkcie (hx, hy), promien rowny szerokosci frontu
+   i cwiartka wyznaczona przez dwa kierunki — wzdluz frontu w strone wolnej
+   krawedzi i przed lico. Kierunki sa osiowe, wiec cwiartka to zwykle dwie
+   polplaszczyzny. */
+const swingLeaf = (n, hu, hv, sideSign, r, z0, z1, meta) => {
+  const h = n.at(hu, hv);
+  const f = n.f;
+  return {
+    hx: h.x, hy: h.y, r, z0, z1,
+    sx: f.ux * sideSign + f.vx, sy: f.uy * sideSign + f.vy,
+    ...meta,
+  };
+};
+
+// o ile skrzydlo wchodzi w bryle; 0 gdy sie mijaja
+const swingHit = (s, b) => {
+  if (Math.min(s.z1, b.z1) - Math.max(s.z0, b.z0) <= SWING_TOL) return 0;
+  // pudelko obciete do cwiartki, w ktorej skrzydlo w ogole sie rusza
+  let x0 = b.x0, x1 = b.x1, y0 = b.y0, y1 = b.y1;
+  if (s.sx > 0) x0 = Math.max(x0, s.hx); else x1 = Math.min(x1, s.hx);
+  if (s.sy > 0) y0 = Math.max(y0, s.hy); else y1 = Math.min(y1, s.hy);
+  if (x1 - x0 <= SWING_TOL || y1 - y0 <= SWING_TOL) return 0;
+  const cx = Math.min(Math.max(s.hx, x0), x1);
+  const cy = Math.min(Math.max(s.hy, y0), y1);
+  const d = Math.hypot(cx - s.hx, cy - s.hy);
+  return d < s.r - SWING_TOL ? s.r - d : 0;
+};
+
+/* Wszystko, co stoi w zabudowie, w jednej liscie bryl: korpusy, fronty
+   zamkniete, fronty szuflad wysuniete na dlugosc prowadnicy i uchwyty — bo to
+   one stykaja sie pierwsze. Kolizja nie jest sprawa dwoch skrzydel: skrzydlo
+   sprawdza sie przeciw wszystkiemu, co stoi na jego drodze. */
+const swingBodies = (L) => {
+  const bryly = [];
+  const skrzydla = [];
+  L.info.forEach((n) => {
+    n.g.cabs.forEach((c) => {
+      const geo = c.geo;
+      const nazwa = (c.cab.name || "").trim() || `szafka ${c.index + 1}`;
+      // po nazwie nie da sie rozroznic dwoch szafek nazwanych tak samo
+      const kto = { cab: nazwa, run: n.run.name, id: `${n.id}#${c.index}` };
+      const u0 = n.lead + c.x;
+      const cdV1 = n.depth + c.offset;                 // lico korpusu
+      const cdV0 = cdV1 - geo.carcassDepth;            // tyl korpusu
+      const zBase = c.base;
+      bryly.push(roomBox(n, u0, u0 + geo.W, cdV0, cdV1, zBase, zBase + c.cab.H,
+        { ...kto, co: "korpus", klucz: `${kto.id}|korpus` }));
+      const overlay = c.cab.frontMode !== "inset";
+      const lico = overlay ? cdV1 + geo.tf : cdV1;     // przed czym otwiera sie skrzydlo
+      // uchwyt wystaje przed lico i to on styka sie pierwszy — dla drzwi i szuflad tak samo
+      const uchwyt = handleOutOf(c.cab);
+      (geo.doors || []).forEach((d) => {
+        if (!(d.w > 0) || !(d.h > 0)) return;
+        const klucz = `${kto.id}|${d.key}`;
+        const z0 = zBase + d.y;
+        const z1 = zBase + d.y + d.h;
+        const fv0 = overlay ? cdV1 : cdV1 - geo.tf;
+        if (d.handle && uchwyt > 0)
+          bryly.push(roomBox(n, u0 + d.x, u0 + d.x + d.w, lico, lico + uchwyt, z0, z1,
+            { ...kto, co: "uchwyt", klucz }));
+        if (d.type === "drawer") {
+          /* Szuflada w trakcie otwierania wyjezdza frontem na dlugosc
+             prowadnicy — dla skrzydla obok to przeszkoda jak kazda inna.
+             Uchwyt jedzie razem z frontem, wiec siega jeszcze dalej. */
+          const wysuw = Math.max(0, num(d.nl) ?? 0);
+          const zasieg = wysuw + (d.handle ? uchwyt : 0);
+          bryly.push(roomBox(n, u0 + d.x, u0 + d.x + d.w, fv0, lico + zasieg, z0, z1,
+            { ...kto, co: "wysunięty front szuflady", klucz }));
+          return;
+        }
+        // front zamkniety stoi w licu i to w niego uderza sasiednie skrzydlo
+        bryly.push(roomBox(n, u0 + d.x, u0 + d.x + d.w, fv0, lico, z0, z1,
+          { ...kto, co: d.type === "door" ? "front" : "element stały", klucz }));
+        if (d.type !== "door") return;
+        // zawias po lewej -> wolna krawedz idzie w prawo, i odwrotnie
+        const prawe = d.hingeSide === "right";
+        const hu = u0 + d.x + (prawe ? d.w : 0);
+        skrzydla.push(swingLeaf(n, hu, lico, prawe ? -1 : 1, d.w, z0, z1,
+          { ...kto, klucz, szer: d.w }));
+      });
+    });
+    /* Ramie szafki naroznej lezy w pasie sasiedniej sciany, ale jest kawalkiem
+       tamtej szafki — a jego drzwi otwieraja sie jak kazde inne. To wlasnie one
+       spotykaja sie w rogu z frontem korpusu. */
+    (n.arms || []).forEach((a) => {
+      if (!(a.len > 0)) return;
+      const nazwa = (a.cab.cab.name || "").trim() || "szafka w rogu";
+      const kto = { cab: nazwa, run: a.run.run.name, id: `${a.run.id}#${a.cab.index}` };
+      const z0 = a.cab.base;
+      const z1 = z0 + a.cab.cab.H;
+      const lico = a.depth;
+      bryly.push(roomBox(n, a.u0, a.u0 + a.len, 0, lico, z0, z1,
+        { ...kto, co: "ramię", klucz: `${kto.id}|ramie` }));
+      if (a.doors === "fix") return;
+      /* Maskownica siedzi przy samym rogu, front ramienia zaczyna sie za nia,
+         a zawiasy ida od konca dalszego od naroza — tak jak je rysujemy. */
+      const mask = a.doors === "wsporniki" ? CORNER_SUPPORT_W : 0;
+      const przyKoncu = a.outerAtEnd;            // rog przy poczatku ramienia
+      const fu0 = przyKoncu ? mask : 0;
+      const fu1 = przyKoncu ? a.len : a.len - mask;
+      const w = fu1 - fu0;
+      if (!(w > 0)) return;
+      const klucz = `${kto.id}|ramie-front`;
+      // fu0/fu1 sa liczone wzdluz samego ramienia, a zawias siedzi w ciagu
+      skrzydla.push(swingLeaf(n, a.u0 + (przyKoncu ? fu1 : fu0), lico, przyKoncu ? -1 : 1,
+        w, z0, z1, { ...kto, klucz, szer: w, ramie: true }));
+    });
+  });
+  return { bryly, skrzydla };
+};
+
+/* Kolizja otwierania jako blad. Na jedno skrzydlo zostawiamy jedna uwage —
+   tego, w co wchodzi najglebiej — bo lista rzeczy do poprawy ma byc krotka,
+   a poprawka i tak jest ta sama. */
+const openingMsgs = (L) => {
+  const out = [];
+  if (!L || !L.info) return out;
+  const { bryly, skrzydla } = swingBodies(L);
+  skrzydla.forEach((s) => {
+    let g = null;
+    bryly.forEach((b) => {
+      // wlasny front, wlasny uchwyt i wlasny korpus to nie przeszkoda
+      if (b.klucz === s.klucz || (b.id === s.id && b.co === "korpus")) return;
+      const ile = swingHit(s, b);
+      if (ile > 0 && (!g || ile > g.ile)) g = { b, ile };
+    });
+    if (!g) return;
+    const gdzie = g.b.run === s.run ? "w tym samym ciągu" : `z ciągu „${g.b.run}"`;
+    const czyje = g.b.id === s.id ? "tej samej szafki" : `szafki „${g.b.cab}" ${gdzie}`;
+    const zostaje = Math.max(0, Math.round(s.szer - g.ile));
+    out.push({ level: "error", text:
+      `${s.ramie ? "Front ramienia" : "Skrzydło"} szafki „${s.cab}" (ciąg „${s.run}") nie ma się jak `
+      + `otworzyć: po drodze stoi ${g.b.co} ${czyje} — brakuje ${fmt(Math.round(g.ile))} mm. `
+      + `Przełóż zawiasy na drugą stronę, zwęź front do ${fmt(zostaje)} mm albo odsuń ciągi w rogu.` });
+  });
+  return out;
 };
 
 const rectFits = (w, h, r) => w <= r.w + 1e-9 && h <= r.h + 1e-9;
@@ -7282,7 +7586,34 @@ export default function App() {
     const last = p.items.reduce((acc, it, k) => ((it.runId || null) === runId ? k : acc), -1);
     const at = last >= 0 ? last + 1 : p.items.length;
     const items = [...p.items.slice(0, at), fresh, ...p.items.slice(at)];
-    return withRunDefaults({ ...p, items, active: at }, runId);
+    /* Szablon narożnika składa cały układ, a nie samą szafkę: za rogiem staje
+       drugi ciąg pod kątem prostym i pierwsza szafka przy nim. Bez tego szafka
+       narożna nie ma z czym się spotkać — długość ramienia i szerokość frontu
+       liczą się dopiero z głębokości sąsiedniego ciągu. */
+    const tpl = tplId ? TEMPLATES.find((t) => t.id === tplId) : null;
+    const druga = tpl && tpl.corner ? templateOther(tplId) : null;
+    if (!druga) return withRunDefaults({ ...p, items, active: at }, runId);
+    let runs = p.runs || [];
+    /* Narożnik to zawsze dwie ściany, więc szafka dodana poza ciągiem dostaje
+       najpierw swój własny — inaczej nie byłoby czego zaginać. */
+    let bazowy = runId;
+    if (!bazowy) {
+      const pierwszy = makeRun(runs);
+      runs = [...runs, pierwszy];
+      bazowy = pierwszy.id;
+      items[at] = { ...items[at], runId: bazowy,
+        cab: { ...items[at].cab, hangerMode: pierwszy.hangerMode || "listwa",
+          legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } } };
+    }
+    const nowy = { ...makeRun(runs), corner: { of: bazowy, at: "end", owner: "of", clear: 0 } };
+    const zaRogiem = { cab: { ...druga, name: `Szafka ${next + 1}`,
+      hangerMode: nowy.hangerMode || "listwa",
+      legs: { ...(druga.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } },
+      mat: defaultMaterials, runId: nowy.id };
+    const zItems = [...items, zaRogiem];
+    return withRunDefaults(
+      withRunDefaults({ ...p, runs: [...runs, nowy], items: zItems, active: at }, bazowy),
+      nowy.id);
   }), [setProject]);
   const duplicateCabinet = useCallback((i) => setProject((p) => {
     const src = p.items[i];
@@ -7712,7 +8043,10 @@ export default function App() {
     const node = projLayout.info.get(runInfo.run.id);
     return [...runCabMsgs(runInfo.run, c),
       ...runWideMsgs(runInfo.run, runInfo.total, runPl, runTp, node ? node.len : 0),
-      ...runCornerMsgs(node, !!runTp)];
+      ...runCornerMsgs(node, !!runTp),
+      /* Kolizje otwierania sa sprawa calej zabudowy, a nie tego jednego ciagu —
+         dlatego lecimy po calym rozmieszczeniu i pokazujemy wszystkie. */
+      ...openingMsgs(projLayout)];
   }, [project, runInfo, runPl, runTp, projLayout]);
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
@@ -8458,6 +8792,14 @@ export default function App() {
                     <Group label="Szafka narożna (L)"
                       hint="Ta szafka stoi w rogu. Zamiast chować front za sąsiednim ciągiem, może wyjść ramieniem na drugą ścianę — fronty spotkają się wtedy pod kątem prostym.">
                       <div className="space-y-2">
+                        {/* Ze samej karty szafki nie widac, ze stoi w rogu —
+                            dlatego mowimy to wprost, z nazwami obu scian. */}
+                        {cornerNode.pair && (
+                          <p className="rounded border border-teal-200 bg-teal-50 px-2 py-1.5 text-xs text-teal-900">
+                            Ta szafka jest częścią narożnika — stoi w rogu ścian
+                            {" "}„{cornerNode.pair.wchodzi.run.name}" i „{cornerNode.pair.ustepuje.run.name}".
+                          </p>
+                        )}
                         <Check checked={!!(cab.corner || {}).on} label="Korpus wychodzi ramieniem w L"
                           onChange={(v) => set({ corner: { ...cab.corner, on: v } })} />
                         {!!(cab.corner || {}).on && (
@@ -10209,6 +10551,13 @@ export default function App() {
               <input value={cab.handleName || ""} placeholder="np. Uchwyt relingowy 160"
                 onChange={(e) => set({ handleName: e.target.value })}
                 className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
+            </Field>
+            {/* Uchwyt styka sie pierwszy, wiec ten wymiar decyduje o kolizjach
+                otwierania — i tak samo dotyczy drzwi, jak i szuflad. */}
+            <Field label="Uchwyt wystaje przed front"
+              hint="Relingi zwykle 20–35 mm. Muszelki i uchwyty frezowane: 0 — wtedy nic nie wystaje. Ten wymiar wchodzi do kontroli otwierania.">
+              <Num value={cab.handleOut ?? 20} min={0}
+                onChange={(v) => set({ handleOut: Math.max(0, Math.round(Number(v) || 0)) })} />
             </Field>
             <p className="text-xs text-stone-500">
               Zawiasy domyślnie dwa na skrzydło. Trzy dopiero przy szerokości powyżej

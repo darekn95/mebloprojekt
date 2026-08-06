@@ -1,95 +1,65 @@
 # Szafka narożna — co zostało do zrobienia
 
 Testy siedzą w `testy/` — jak je uruchomić, opisuje `testy/README.md`.
-Przed zmianami warto przelecieć `bash testy/sweep.sh narozn narozn2 narozn3`,
+Przed zmianami warto przelecieć `bash testy/sweep.sh narozn narozn2 narozn3 otwier`,
 żeby wiedzieć, od czego się startuje.
 
 Lista z testów na prawdziwym projekcie (elewacja + rzut z góry kuchni w L).
-Kolejność jest celowa: punkty 1 i 2 ruszają geometrię, reszta się na nich opiera.
 
-## 1. Koniec z kolumną przejścia — jedne drzwi i ich skrócenie
+## 1. ~~Koniec z kolumną przejścia — jedne drzwi i ich skrócenie~~ — zrobione
 
-Dziś przycisk w Uwagach wstawia w szafce narożnej drugą kolumnę bez frontu
-(`noDiv`), żeby front nie wychodził na całą szerokość korpusu. To myli przy
-projektowaniu — szafka narożna to jedna komora, nie dwie kolumny.
+Szafka narożna jest jedną komorą: przycisk w Uwagach ustawia jedne drzwi
+o szerokości dostępnego światła, kontrola „zadane szerokości drzwi nie
+wypełniają pasma" nie odzywa się przy szafce z ramieniem, a półka, która nie
+ma pary w kolumnie od strony ramienia, jest zgłaszana jako błąd — bo
+w ramieniu skończyłaby się w powietrzu.
 
-Docelowo: jedne drzwi o szerokości dostępnego światła, korpus zostaje jeden.
+## 2. ~~Wspornik narożnika przebudowany~~ — zrobione
 
-Do zrobienia:
-- szerokość drzwi zadaje się przez `doorWidths` (jest w modelu), ale drzwi
-  węższe od kolumny są dziś zgłaszane jako błąd „zadane szerokości drzwi nie
-  wypełniają pasma" (`computeGeo`, ok. linii 1255) — dla szafki z ramieniem
-  (`cab.corner.on`) ta kontrola musi zniknąć,
-- akcję `cornercol:` zastąpić taką, która ustawia `doors: 1` i
-  `doorWidths: [dostępne światło]`,
-- po wyrzuceniu kolumny półka sama biegnie przez całe wnętrze; dodać kontrolę,
-  żeby półka nie kończyła się w powietrzu.
+## 2b. ~~Luz przy maskownicy narożnika~~ — zrobione
 
-## 2. Wspornik narożnika przebudowany
+Odcinek zabudowany maskownicą nie liczy się jako szczelina (ani w kontroli,
+ani na rysunku), a luz ponad `cab.maxGap` (domyślnie 5 mm) jest błędem
+z podaniem, o ile za dużo i między którymi frontami. Po stronie bez ramienia
+odsłonięta szczelina przy boku korpusu też jest błędem.
 
-- obrócić o 90° przeciwnie do ruchu wskazówek zegara, tak żeby wchodził w obie
-  części szafki, a nie leżał wzdłuż jednej,
-- dołożyć drugą maskownicę na froncie, do której dochodzą drzwi,
-- rysować jako płytę, a nie przerywaną kreskę na froncie ramienia (dziś wygląda
-  jak podział frontu, którym nie jest),
-- szerokość 60 mm — już zrobione.
+## 3. ~~Kontrola otwierania — nie tylko szafka narożna~~ — zrobione
 
-## 2b. Luz przy maskownicy narożnika
+Skrzydło zakreśla ćwiartkę koła wokół osi zawiasów i jest sprawdzane
+w układzie całej zabudowy (`projectLayout`), a nie pojedynczej szafki.
+Przeciwnikiem jest wszystko, co stoi na drodze: korpusy, ramiona, fronty
+zamknięte, fronty szuflad wysunięte na długość prowadnicy i uchwyty. Kolizja
+to błąd; suita `otwier` pilnuje i tego, że zwykły ciąg przy jednej ścianie
+niczego nie zgłasza.
 
-Maskownica zabudowuje przestrzeń między frontem korpusu a frontem ramienia,
-więc po jej wstawieniu nie ma tam już żadnej szczeliny — a aplikacja i tak
-liczy ten odcinek jako luz między frontami i krzyczy o „zbyt duży luz".
-Kontrola musi wiedzieć, że ten kawałek jest zabudowany.
+Ile uchwyt wystaje przed lico, mówi pole „Uchwyt wystaje przed front"
+(`cab.handleOut`, domyślnie 20 mm, tak samo dla drzwi i szuflad). Tego samego
+wymiaru używa rysunek 3D, więc model kolizji nie rozjeżdża się z tym, co widać.
+Uchwyt na wysuwanej szufladzie jedzie razem z frontem, więc sięga dalej niż
+sama prowadnica; przy 0 mm (muszelka, frez) uchwyt znika z listy przeszkód.
 
-Drugi kierunek tej samej sprawy: luz naprawdę za duży ma być **błędem**, nie
-tylko ostrzeżeniem. Granica 5 mm. Dziś służy do tego `cab.maxGap`
-(pole „Ostrzegaj powyżej", domyślnie 5) i kończy się na ostrzeżeniu.
-
-Do zrobienia:
-- wyłączyć liczenie luzu na odcinku zajętym przez maskownicę narożnika,
-- luz ponad 5 mm podnieść z ostrzeżenia do błędu, z podaniem o ile za dużo
-  i przy których dwóch frontach wypada.
-
-## 3. Kontrola otwierania — nie tylko szafka narożna
-
-Kolizja skrzydeł ma być błędem. Dwa przypadki z projektu:
-
-1. **W samym narożniku**: żeby otworzyć drzwi od lewej ściany, trzeba najpierw
-   otworzyć prawe.
-2. **Przy narożniku, między ścianami**: na ścianie A stoi zmywarka, a druga
-   szafka za narożnikiem na ścianie B wystaje bardziej — i zmywarka się nie
-   otworzy. Kolizja nie dotyczy więc jednego elementu ani jednej ściany.
-
-Wniosek do implementacji: sprawdzanie musi iść po **bryle otwartego skrzydła
-w układzie całej zabudowy**, a nie w układzie pojedynczej szafki. Rozmieszczenie
-ciągów jest już policzone (`runLayout` / `projectLayout`) i zna obrót każdej
-ściany, więc jest z czego brać współrzędne. Pod uwagę wchodzą co najmniej:
-Kolizja nie jest sprawą dwóch skrzydeł — sprawdzamy bryłę otwartego skrzydła
-przeciw **wszystkiemu, co stoi na jej drodze**:
-
-- korpusy szafek (własnego ciągu i tych za rogiem),
-- inne fronty, zarówno zamknięte, jak i otwarte,
-- fronty wysunięte do przodu (szuflady w trakcie otwierania),
-- sprzęt wystający z szafki poza jej lico,
-- uchwyty, bo to one stykają się pierwsze.
-
-**Nie mylić z „wysunięciem z lica".** To pole przesuwa **całą szafkę** do przodu
-albo w tył względem lica ciągu i nie ma nic wspólnego ze sprzętem, który
-wystaje z szafki. Sprzęt wystający poza lico (zmywarka, piekarnik) dostanie
-własną opcję — ale to nie jest zadanie na teraz i kolizji nie wolno na tym
-polu opierać.
+Wysunięcie z lica dalej jest tylko pozycją całej szafki. Sprzęt wystający
+z szafki poza jej lico (zmywarka, piekarnik) nie ma jeszcze własnej opcji —
+gdy ją dostanie, dokłada się w `swingBodies` jako kolejna bryła.
 
 ## 4. ~~Drzwi ramienia otwierane~~ — zrobione
 
 ## ~~Testy do przepisania~~ — zrobione
 
-`narozn2.mjs` opisuje juz nowy przebieg (`cornerdoor`): jedne drzwi zamiast
-kolumny przejscia, 50 OK.
-
 ## 5. ~~Formatki poniżej 60 mm~~ — zrobione
 
-## 6. Typ „narożnik L" w szablonie
+## 6. ~~Typ „narożnik L" w szablonie~~ — zrobione
 
-Zamiast ustawiania wszystkiego ręcznie: szablon tworzy część przy jednej
-ścianie, zakłada drugi ciąg i dokłada do niego szafkę. Minimum: okienko
-mówiące, że ta szafka jest częścią narożnika.
+`+ z szablonu… → Narożnik L` stawia szafkę narożną z ramieniem, zakłada drugi
+ciąg pod kątem prostym i dokłada do niego szafkę. Karta szafki mówi wprost,
+że stoi w rogu i których dwóch ścian on dotyczy.
+
+## Co dalej
+
+- Sprzęt wystający z szafki poza jej lico jako osobna opcja (zmywarka,
+  piekarnik) — i dołożenie go do kontroli otwierania.
+- Pięć suit pada niezależnie od narożnika i padało już wcześniej: `pdf`
+  (względny adres `file://`), `savetest` (szuka nieistniejącego
+  `preview-local.html`), `d2test` i `fixbtn` (timeout na kliknięciu) oraz
+  `pins2` (kołki i etykiety w dwóch kolumnach). Sprawdzone na artefakcie
+  zbudowanym z `git show HEAD:szafki.jsx`, szczegóły w `AI_NOTES.md`.

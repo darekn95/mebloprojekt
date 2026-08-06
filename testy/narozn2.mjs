@@ -182,6 +182,56 @@ const wiersz = await page.evaluate(() => ([...document.querySelectorAll('tr')]
   .find((tr) => /Półka ramienia/.test(tr.innerText)) || {}).innerText || '');
 console.log('     ' + wiersz.replace(/\s+/g, ' '));
 ok('tyle półek, ile w szafce', / 2 /.test(wiersz.replace(/\s+/g, ' ')), wiersz.replace(/\s+/g, ' '));
+uw = await card(/Uwagi/).innerText();
+ok('jedna kolumna — półka ma na czym się skończyć',
+  !/skończyłaby się w powietrzu/.test(uw), uw.slice(0, 300));
+
+console.log('\n== polka bez pary w kolumnie przy ramieniu ==');
+/* Ramie wychodzi z prawej strony korpusu, wiec polke lapie kolumna prawa.
+   Lewa ma polki, prawa nie — polka lewej konczylaby sie w ramieniu w powietrzu. */
+await seed(
+  [RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })],
+  [{ cab: { name: 'rogowa', W: 900, H: 720, D: 600, plinth: PL, corner: L(500),
+      levels: [{ h: null, cols: [
+        { kind: 'doors', doors: 1, w: 400, shelfTargets: [null, null] },
+        { kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }, runId: 'c1', offset: 0 },
+   CAB('B1', 700, 'c2')]);
+uw = await card(/Uwagi/).innerText();
+console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 400));
+ok('błąd o półce kończącej się w powietrzu', /skończyłaby się w powietrzu/.test(uw), uw.slice(0, 300));
+ok('podana wysokość wiszącej półki', /półka na \d+ mm nie ma pary/.test(uw), uw.slice(0, 300));
+
+console.log('\n== maskownica naroznika nie liczy sie jako luz ==');
+/* Front szafki naroznej konczy sie tam, gdzie zaczyna sie ramie. Reszta lica
+   jest zabudowana — maskownica przy wsporniku i sam korpus ramienia — wiec
+   kontrola luzu nie ma prawa tam niczego mierzyc. */
+await seed(
+  [RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })],
+  [{ cab: { name: 'rogowa', W: 900, H: 720, D: 600, plinth: PL, corner: L(500),
+      levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null,
+        doorWidths: [300], hinge: 'left' }] }] }, runId: 'c1', offset: 0 },
+   CAB('B1', 700, 'c2')]);
+uw = await card(/Uwagi/).innerText();
+console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 300));
+ok('nie krzyczy o luzie przy zabudowanym odcinku', !/luzu — o \d+ mm za dużo/.test(uw), uw.slice(0, 300));
+ok('brak fałszywej szczeliny do boku korpusu', !/między frontem a \w+ bokiem/.test(uw), uw.slice(0, 300));
+
+console.log('\n== dziura po drugiej stronie frontu dalej jest bledem ==');
+/* Ramie wychodzi prawa strona korpusu, wiec lewa dziura nie ma czym byc
+   zabudowana — i ma sie odezwac jak kazdy inny za duzy luz. */
+await seed(
+  [RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })],
+  [{ cab: { name: 'rogowa', W: 900, H: 720, D: 600, plinth: PL, corner: L(500),
+      levels: [{ h: null, cols: [
+        { kind: 'doors', doors: 0, w: 200 },
+        { kind: 'doors', doors: 1, w: null, doorWidths: [200] }] }] }, runId: 'c1', offset: 0 },
+   CAB('B1', 700, 'c2')]);
+uw = await card(/Uwagi/).innerText();
+console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 400));
+ok('odsłonięta szczelina przy boku zgłoszona jako błąd',
+  /między frontem a lewym bokiem korpusu zostaje \d+ mm luzu/.test(uw), uw.slice(0, 300));
+ok('podane, o ile za dużo i jaka granica',
+  /za dużo, granica to 5 mm/.test(uw), uw.slice(0, 300));
 
 console.log('\n== za krotkie ramie ==');
 await uklad(120);
