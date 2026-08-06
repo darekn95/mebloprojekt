@@ -60,7 +60,14 @@ Wniosek do implementacji: sprawdzanie musi iść po **bryle otwartego skrzydła
 w układzie całej zabudowy**, a nie w układzie pojedynczej szafki. Rozmieszczenie
 ciągów jest już policzone (`runLayout` / `projectLayout`) i zna obrót każdej
 ściany, więc jest z czego brać współrzędne. Pod uwagę wchodzą co najmniej:
-skrzydła i fronty wysunięte (szuflady), sąsiednie ciągi za rogiem i uchwyty.
+Kolizja nie jest sprawą dwóch skrzydeł — sprawdzamy bryłę otwartego skrzydła
+przeciw **wszystkiemu, co stoi na jej drodze**:
+
+- korpusy szafek (własnego ciągu i tych za rogiem),
+- inne fronty, zarówno zamknięte, jak i otwarte,
+- fronty wysunięte do przodu (szuflady w trakcie otwierania),
+- sprzęt wystający z szafki poza jej lico,
+- uchwyty, bo to one stykają się pierwsze.
 
 **Nie mylić z „wysunięciem z lica".** To pole przesuwa **całą szafkę** do przodu
 albo w tył względem lica ciągu i nie ma nic wspólnego ze sprzętem, który
