@@ -1,5 +1,9 @@
 # Szafka narożna — co zostało do zrobienia
 
+Testy siedzą w `testy/` — jak je uruchomić, opisuje `testy/README.md`.
+Przed zmianami warto przelecieć `bash testy/sweep.sh narozn narozn2 narozn3`,
+żeby wiedzieć, od czego się startuje.
+
 Lista z testów na prawdziwym projekcie (elewacja + rzut z góry kuchni w L).
 Kolejność jest celowa: punkty 1 i 2 ruszają geometrię, reszta się na nich opiera.
 
