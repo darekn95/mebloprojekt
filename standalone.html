@@ -159,7 +159,9 @@ const LEGACY_NET_PRICES = {
 
 const MIN_COL = 200; // najwezsza sensowna kolumna
 // szerokosc pionowego wspornika w wewnetrznym rogu szafki naroznej
-const CORNER_SUPPORT_W = 100;
+const CORNER_SUPPORT_W = 60;
+// ponizej tego boku formatki nie utnie sie na pile formatowej
+const MIN_PART = 60;
 const MIN_LEVEL = 100; // najnizszy sensowny poziom przy auto-dodawaniu
 
 /* Sevroll V-BOX 3D Slim, wymiary elementow dla plyty 18 mm */
@@ -2603,6 +2605,15 @@ function computeGeo(cab, mat) {
       unit: "szt.",
     });
   }
+
+  /* Najmniejszy bok formatki. Ponizej tego piła formatowa nie ma czego trzymac
+     — takiego kawalka nikt nie wytnie z plyty na maszynie. */
+  const male = panels.filter((q) => Math.min(q.a, q.b) > 0 && Math.min(q.a, q.b) < MIN_PART);
+  if (male.length)
+    add("warn", `${male.length === 1 ? "Formatka" : "Formatki"} `
+      + listPl([...new Set(male.map((q) => `${q.name} ${fmt(q.a)} × ${fmt(q.b)} mm`))])
+      + ` ${male.length === 1 ? "ma bok" : "mają bok"} poniżej ${fmt(MIN_PART)} mm — `
+      + "na formatówce się tego nie utnie, trzeba dociąć ręcznie z większego kawałka.");
 
   return {
     hardware,
