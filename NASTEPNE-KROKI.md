@@ -46,10 +46,22 @@ Do zrobienia:
 - luz ponad 5 mm podnieść z ostrzeżenia do błędu, z podaniem o ile za dużo
   i przy których dwóch frontach wypada.
 
-## 3. Kontrola otwierania
+## 3. Kontrola otwierania — nie tylko szafka narożna
 
-Kolizja skrzydeł w narożniku ma być błędem. Przypadek z projektu: żeby otworzyć
-drzwi od lewej ściany, trzeba najpierw otworzyć prawe.
+Kolizja skrzydeł ma być błędem. Dwa przypadki z projektu:
+
+1. **W samym narożniku**: żeby otworzyć drzwi od lewej ściany, trzeba najpierw
+   otworzyć prawe.
+2. **Przy narożniku, między ścianami**: na ścianie A stoi zmywarka, a druga
+   szafka za narożnikiem na ścianie B wystaje bardziej — i zmywarka się nie
+   otworzy. Kolizja nie dotyczy więc jednego elementu ani jednej ściany.
+
+Wniosek do implementacji: sprawdzanie musi iść po **bryle otwartego skrzydła
+w układzie całej zabudowy**, a nie w układzie pojedynczej szafki. Rozmieszczenie
+ciągów jest już policzone (`runLayout` / `projectLayout`) i zna obrót każdej
+ściany, więc jest z czego brać współrzędne. Pod uwagę wchodzą co najmniej:
+skrzydła i fronty wysunięte (szuflady), sprzęt wystający poza lico
+(zmywarka, piekarnik), sąsiednie ciągi za rogiem i uchwyty.
 
 ## 4. Drzwi ramienia otwierane
 
