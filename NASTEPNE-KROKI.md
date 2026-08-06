@@ -63,10 +63,14 @@ ciągów jest już policzone (`runLayout` / `projectLayout`) i zna obrót każde
 skrzydła i fronty wysunięte (szuflady), sprzęt wystający poza lico
 (zmywarka, piekarnik), sąsiednie ciągi za rogiem i uchwyty.
 
-## 4. Drzwi ramienia otwierane
+## 4. ~~Drzwi ramienia otwierane~~ — zrobione
 
-W widoku otwartym front ramienia jest sztywnym prostokątem — ma się odchylać
-jak każdy inny front.
+## Testy do przepisania
+
+`narozn2.mjs` opisuje nieistniejący juz przebieg: przycisk „Zrób z tego
+przejście N mm bez frontu", kolumnę przejścia i `noDiv`. Po zmianie na jedne
+drzwi trzy asercje sa nieaktualne i suita przerywa sie na kliknieciu w
+nieistniejacy przycisk. Do przepisania na nowy przebieg (`cornerdoor`).
 
 ## 5. ~~Formatki poniżej 60 mm~~ — zrobione
 

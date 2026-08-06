@@ -3462,9 +3462,31 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
               const ax = mx(L.info.get(g.run.id).ex + a.u0, a.len);
               return (
                 <g key={"arm" + i}>
-                  <rect x={ax} y={fy(a.cab.base + a.cab.cab.H)} width={a.len} height={a.cab.cab.H}
-                    fill={rear ? a.cab.mat.board.color : a.cab.frontColor}
-                    stroke={INK} strokeWidth="2" />
+                  {/* Front ramienia otwiera sie tak samo jak kazdy inny: po
+                      otwarciu zostaje obrys skrzydla, symbol kierunku i sama
+                      plyta widziana od czola przy zawiasach. */}
+                  {open && !rear && a.doors !== "fix" ? (() => {
+                    // zawias przy koncu dalszym od naroza — jak nizej przy okuciach
+                    const zl = rear ? a.outerAtEnd : !a.outerAtEnd;
+                    return (
+                    <g>
+                      <rect x={ax} y={fy(a.cab.base + a.cab.cab.H)} width={a.len} height={a.cab.cab.H}
+                        fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="12 9" opacity="0.6" />
+                      <path
+                        d={`M ${zl ? ax + a.len : ax} ${fy(a.cab.base + a.cab.cab.H)}
+                            L ${zl ? ax : ax + a.len} ${fy(a.cab.base + a.cab.cab.H / 2)}
+                            L ${zl ? ax + a.len : ax} ${fy(a.cab.base)}`}
+                        fill="none" stroke={INK} strokeWidth="1.8" opacity="0.5" />
+                      <rect x={zl ? ax : ax + a.len - a.cab.geo.tf}
+                        y={fy(a.cab.base + a.cab.cab.H)} width={a.cab.geo.tf} height={a.cab.cab.H}
+                        fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
+                    </g>
+                    );
+                  })() : (
+                    <rect x={ax} y={fy(a.cab.base + a.cab.cab.H)} width={a.len} height={a.cab.cab.H}
+                      fill={rear ? a.cab.mat.board.color : a.cab.frontColor}
+                      stroke={INK} strokeWidth="2" />
+                  )}
                   {a.cab.plinthH > 0 && (
                     <rect x={ax} y={fy(a.cab.base)} width={a.len} height={a.cab.plinthH}
                       fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" opacity="0.75" />
