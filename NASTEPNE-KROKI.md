@@ -65,12 +65,10 @@ skrzydła i fronty wysunięte (szuflady), sprzęt wystający poza lico
 
 ## 4. ~~Drzwi ramienia otwierane~~ — zrobione
 
-## Testy do przepisania
+## ~~Testy do przepisania~~ — zrobione
 
-`narozn2.mjs` opisuje nieistniejący juz przebieg: przycisk „Zrób z tego
-przejście N mm bez frontu", kolumnę przejścia i `noDiv`. Po zmianie na jedne
-drzwi trzy asercje sa nieaktualne i suita przerywa sie na kliknieciu w
-nieistniejacy przycisk. Do przepisania na nowy przebieg (`cornerdoor`).
+`narozn2.mjs` opisuje juz nowy przebieg (`cornerdoor`): jedne drzwi zamiast
+kolumny przejscia, 50 OK.
 
 ## 5. ~~Formatki poniżej 60 mm~~ — zrobione
 
