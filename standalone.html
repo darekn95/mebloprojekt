@@ -3428,6 +3428,37 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                   frontColor={c.frontColor} levelDims={showDims && open && c.cab === activeCab} />
               </g>
             ))}
+            {/* Odcinek zjedzony przez rog nie jest pusty — stoi w nim bok szafki
+                z sasiedniej sciany. Bez tego szafki wygladaja, jakby bez powodu
+                odjechaly od naroza. */}
+            {(() => {
+              const n = L.info.get(g.run.id);
+              const ar = armsIn(full, n, rysowane).filter((a) => !a.dostawione);
+              const sasiad = [...full.info.values()]
+                .find((k) => k.pair && k.pair.ustepuje.id === n.id);
+              if (!sasiad) return null;
+              const nazwa = sasiad.pair.wchodzi.run.name;
+              const hTop = Math.max(...g.cabs.map((c) => c.base + c.cab.H));
+              const bok = (u0, w) => w <= 0 ? null : (
+                <g key={"bok" + u0}>
+                  <rect x={mx(n.ex + u0, w)} y={fy(hTop)} width={w} height={hTop - g.mount}
+                    fill={g.cabs[0].mat.board.color} opacity="0.3"
+                    stroke={LINE} strokeWidth="2" strokeDasharray="14 10" />
+                  {showDims && w > 180 && (
+                    <text x={mx(n.ex + u0, w) + w / 2} y={fy(hTop) + (hTop - g.mount) / 2}
+                      textAnchor="middle" fontSize="20" fill={LINE}
+                      fontFamily="ui-monospace, monospace">bok „{nazwa}" {fmt(w)}</text>
+                  )}
+                </g>
+              );
+              const przodem = ar.length ? Math.min(...ar.map((a) => a.u0)) : n.lead;
+              return (
+                <g>
+                  {n.lead > 0 && bok(0, Math.min(przodem, n.lead))}
+                  {n.tail > 0 && bok(n.len - n.tail, n.tail)}
+                </g>
+              );
+            })()}
             {/* front ramienia szafki naroznej — stoi na tej scianie, choc sama
                 szafka nalezy do sasiedniego ciagu */}
             {armsIn(full, L.info.get(g.run.id), rysowane).map((a, i) => {
