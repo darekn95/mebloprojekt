@@ -30,6 +30,22 @@ Do zrobienia:
   jak podział frontu, którym nie jest),
 - szerokość 60 mm — już zrobione.
 
+## 2b. Luz przy maskownicy narożnika
+
+Maskownica zabudowuje przestrzeń między frontem korpusu a frontem ramienia,
+więc po jej wstawieniu nie ma tam już żadnej szczeliny — a aplikacja i tak
+liczy ten odcinek jako luz między frontami i krzyczy o „zbyt duży luz".
+Kontrola musi wiedzieć, że ten kawałek jest zabudowany.
+
+Drugi kierunek tej samej sprawy: luz naprawdę za duży ma być **błędem**, nie
+tylko ostrzeżeniem. Granica 5 mm. Dziś służy do tego `cab.maxGap`
+(pole „Ostrzegaj powyżej", domyślnie 5) i kończy się na ostrzeżeniu.
+
+Do zrobienia:
+- wyłączyć liczenie luzu na odcinku zajętym przez maskownicę narożnika,
+- luz ponad 5 mm podnieść z ostrzeżenia do błędu, z podaniem o ile za dużo
+  i przy których dwóch frontach wypada.
+
 ## 3. Kontrola otwierania
 
 Kolizja skrzydeł w narożniku ma być błędem. Przypadek z projektu: żeby otworzyć
