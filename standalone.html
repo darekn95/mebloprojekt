@@ -3511,11 +3511,13 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                           <rect x={zawiasLewo ? ax + a.len - 45 : ax + 30} y={y0 + H / 2 - 60}
                             width={15} height={120} rx="5" fill="#52525b" opacity="0.9" />
                         )}
-                        {/* wspornik w rogu — front domyka sie do niego */}
+                        {/* Maskownica w rogu: plyta frontowa, do ktorej domykaja
+                            sie drzwi. Za nia stoi wspornik, ale ten jest w srodku
+                            i z zewnatrz go nie widac. */}
                         {a.doors === "wsporniki" && (
                           <rect x={zawiasLewo ? ax + a.len - CORNER_SUPPORT_W : ax}
                             y={y0} width={CORNER_SUPPORT_W} height={H}
-                            fill="none" stroke={ACC} strokeWidth="2" strokeDasharray="12 8" opacity="0.8" />
+                            fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
                         )}
                       </g>
                     );
@@ -3688,10 +3690,11 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
                   const yF = a.depth - tf - t;
                   return (
                     <g>
-                      <rect x={u0} y={yF} width={CORNER_SUPPORT_W} height={t}
+                      {/* listwa w poprzek ramienia i druga, ktora wchodzi w
+                          korpus — razem trzymaja kat prosty */}
+                      <rect x={u0} y={yF - CORNER_SUPPORT_W} width={t} height={CORNER_SUPPORT_W + t}
                         fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
-                      <rect x={a.outerAtEnd ? 0 : a.len - t} y={yF - CORNER_SUPPORT_W}
-                        width={t} height={CORNER_SUPPORT_W}
+                      <rect x={u0} y={yF - CORNER_SUPPORT_W} width={CORNER_SUPPORT_W} height={t}
                         fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
                     </g>
                   );
@@ -6195,9 +6198,15 @@ const cornerArmParts = (a) => {
     edges: { a1: true, a2: true, b1: true, b2: true }, note: "cztery krawędzie" });
   /* Wsporniki trzymaja kat prosty i daja drzwiom miejsce na otwarcie. Przy
      drzwiach lamanych albo skreconych na staly kat nie sa potrzebne. */
-  if (a.doors === "wsporniki")
+  if (a.doors === "wsporniki") {
     panels.push({ name: "Wspornik narożnika", qty: 2, a: CORNER_SUPPORT_W, b: inner, matKey: "board",
       edges: { a1: true, a2: true, b1: false, b2: false }, note: "obie krawędzie pionowe" });
+    /* Do wspornika nie domykaja sie same drzwi — na froncie idzie jeszcze waska
+       maskownica, ktora zakrywa styk i daje im o co oprzec sie na zamknieciu. */
+    panels.push({ name: "Maskownica narożnika", qty: 1, a: CORNER_SUPPORT_W,
+      b: d0 ? Math.round(d0.h) : H, matKey: "front",
+      edges: { a1: true, a2: true, b1: true, b2: true }, note: "cztery krawędzie" });
+  }
   /* Polki w ramieniu ida osobno, tak jak plyty poziome — w calosci w L nikt ich
      nie okleji ani nie wniesie. Liczba idzie za szafka, zeby stanely w linii. */
   const polek = Math.max(0, ...(geo.levels || []).flatMap((lv) =>
