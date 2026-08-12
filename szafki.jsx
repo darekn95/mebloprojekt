@@ -530,6 +530,13 @@ const migrateCab = (rawCab) => {
     if (defaultCab[k] && typeof defaultCab[k] === "object")
       merged[k] = { ...defaultCab[k], ...((rawCab && rawCab[k]) || {}) };
   });
+  /* Tylne wzmocnienie ma stac PRZED plecami. Projekty sprzed tej zasady mialy je
+     na zero, czyli dokladnie w plycie pleców — przesuwamy je o jej grubosc. */
+  (merged.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => {
+    (c.rails || []).forEach((r) => {
+      if (r.orient === "front" && r.fromBack && !(Number(r.atDepth) > 0)) r.atDepth = 18;
+    });
+  }));
   if (rawCab && rawCab.cutout && rawCab.cutout.corner === "backRight") {
     merged.cutoutR = { ...merged.cutout };
     merged.cutout = { ...defaultCab.cutout };
@@ -3620,13 +3627,15 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
         const px = geo.postSide === "right" ? W - t : 0;
         // obie plyty maja te sama formatke, wiec druga zaczyna sie za grubosc pierwszej
         const bx = geo.postSide === "right" ? W - t - pw : t;
+        // plyta plecow lezy przy zerze — katownik staje dopiero za nia
+        const pOd = Math.max(geo.backIntrusion, cab.back !== "none" ? geo.tb : 0);
         return (
           <g>
             {/* w rzucie z gory tyl jest u gory (y = 0), wiec katownik siedzi
                 przy zerze, a nie przy licu */}
-            <rect x={px} y={geo.backIntrusion} width={t} height={pw}
+            <rect x={px} y={pOd} width={t} height={pw}
               fill={shc} stroke={INK} strokeWidth="2" />
-            <rect x={bx} y={geo.backIntrusion} width={pw} height={t}
+            <rect x={bx} y={pOd} width={pw} height={t}
               fill={shc} stroke={INK} strokeWidth="2" />
           </g>
         );
@@ -4303,7 +4312,8 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         const pShc = shelfColorOf(c.cab, c.mat);
         const px = c.x + (c.geo.postSide === "right" ? c.geo.W - t : 0);
         const bx = c.x + (c.geo.postSide === "right" ? c.geo.W - t - c.geo.postW : t);
-        const zT = cd - c.geo.backIntrusion;
+        const zT = cd - Math.max(c.geo.backIntrusion,
+          c.cab.back !== "none" ? c.geo.tb : 0);
         box(px, c.base + c.geo.interior.y0, zT - c.geo.postW,
           px + t, c.base + c.geo.interior.y1, zT, pShc);
         box(bx, c.base + c.geo.interior.y0, zT - t,
@@ -5541,14 +5551,17 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           height={cd - (geo.cornerCut?.sideRightDepth || 0)} fill={bf} stroke={INK} strokeWidth="2" />
       )}
       {/* katownik w zewnetrznym narozniku — zastepuje bok i plyte plecow */}
-      {geo.postSide && (
+      {geo.postSide && (() => {
+        const pOd = Math.max(geo.backIntrusion, cab.back !== "none" ? geo.tb : 0);
+        return (
         <g>
-          <rect x={geo.postSide === "right" ? W - t : 0} y={geo.backIntrusion}
+          <rect x={geo.postSide === "right" ? W - t : 0} y={pOd}
             width={t} height={geo.postW} fill={shc} stroke={INK} strokeWidth="2" />
-          <rect x={geo.postSide === "right" ? W - t - geo.postW : t} y={geo.backIntrusion}
+          <rect x={geo.postSide === "right" ? W - t - geo.postW : t} y={pOd}
             width={geo.postW} height={t} fill={shc} stroke={INK} strokeWidth="2" />
         </g>
-      )}
+        );
+      })()}
       {/* wieniec widoczny z gory jako plyta na calej glebokosci */}
       {geo.hasTop && (
         <rect x={geo.topX0} y={geo.isBlat ? -tOvB : 0}
@@ -6223,7 +6236,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
     const px = geo.postSide === "right" ? W - t : 0;
     const bx = geo.postSide === "right" ? W - t - geo.postW : t;
     // plecy zajmuja swoja grubosc, katownik staje dopiero przed nimi
-    const zT = cd - geo.backIntrusion;
+    const zT = cd - Math.max(geo.backIntrusion, cab.back !== "none" ? geo.tb : 0);
     box(px, geo.interior.y0, zT - geo.postW, px + t, geo.interior.y1, zT, pShc);
     box(bx, geo.interior.y0, zT - t, bx + geo.postW, geo.interior.y1, zT, pShc);
   }
@@ -6874,8 +6887,11 @@ const runTop = (project, run) => {
   const { joints, list } = runJoints(project, run);
   /* Pas moze byc pusty, a i tak potrzebowac blatu: lezy w nim ramie szafki
      naroznej z sasiedniej sciany. */
-  const ramiona = run.worktop
-    ? ((projectLayout(project).info.get(run.id) || {}).arms || []) : [];
+  /* Ramie lezy w tym pasie, ale nalezy do szafki z sasiedniej sciany — i to jej
+     ciag decyduje, czy ma nad soba blat. Pytanie o `run.worktop` zostawialo rog
+     bez blatu, gdy pas za rogiem byl pusty i nikt mu blatu nie wlaczyl. */
+  const ramiona = ((projectLayout(project).info.get(run.id) || {}).arms || [])
+    .filter((a) => (a.run && a.run.run && a.run.run.worktop) || run.worktop);
   if (!list.length && !ramiona.length) return null;
   const gap = Math.max(0, Math.round(run.gap || 0));
   let x = 0;
