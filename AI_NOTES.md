@@ -60,6 +60,13 @@ Pierwsze dwie to braki w samych suitach, nie w aplikacji. Do przejrzenia osobno.
 Objaw: wszystkie suity naraz `CRASH: name: 'Error'`. Zanim uzna się to za regresję,
 warto sprawdzić `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5205/mebloprojekt-app.html`.
 
+[AI-INFO] Część suit nie chodzi po 5205, tylko po **5199**: `stdfull`, `stdnew`,
+`stdtest` i `narjedne` (przy `STD=1`) czytają `standalone-local.html`, a `interact`
+i `savetest` — `preview-local.html`. Bez tego serwera zgłaszają `CRASH: name: 'Error'`,
+co wygląda jak regresja, a jest tylko brakiem hosta. `standalone-local.html` robi się
+z `standalone.html` przez podmianę czterech adresów CDN na `cdn/…`; po każdej zmianie
+w `szafki.jsx` trzeba go odświeżyć razem ze `standalone.html`.
+
 ## Kontrola otwierania skrzydeł
 
 [AI-INFO] `swingBodies` / `openingMsgs` w `szafki.jsx` liczą kolizje otwierania
@@ -70,3 +77,57 @@ i uchwyty. Pole „wysunięcie z lica" jest tylko pozycją szafki — sprzęt wy
 lico dostanie osobną opcję i wtedy dołoży się tu jako kolejna bryła.
 
 [AI-INFO] Jeśli terminal agenta nie może pobrać aktualnego `claude-zmiany.txt` z GitHuba, można użyć workflow `Promote Claude Changes`. Workflow działa na GitHubie: kopiuje `claude-zmiany.txt` do `szafki.jsx`, uruchamia build Vite jako walidację, regeneruje `standalone.html`, commituje wynik na gałąź i od razu publikuje GitHub Pages. To jest potrzebne, bo push wykonany przez `GITHUB_TOKEN` nie uruchamia kolejnego workflowu Pages automatycznie.
+
+## Narożnik w L — co jest z czego liczone
+
+[AI-INFO] Ramię liczy się **od końca narożnego kwadratu**: przy drugiej ścianie
+narożnik zajmuje `głębokość szafki w rogu + arm`. Przy 600 + 600 wychodzi 1200 mm
+i tyle odsuwa się tamten ciąg. Pole „Długość ramienia" to `arm`, nie całość.
+
+[AI-INFO] W rogu spotykają się dwa lica frontów i stoi tam **kątownik**: cztery
+pionowe płyty (dwie wewnętrzne z płyty półkowej na całą wysokość wnętrza, dwie
+maskownice z płyty frontowej na wysokość drzwi). Formatka nie schodzi poniżej
+`MIN_PART`, więc jedna płyta nachodzi na czoło drugiej — nachodząca wystaje poza
+naroże o grubość płyty **mniej** niż jej szerokość, doczołowa o tyle **więcej**.
+Stąd przy 60 mm i froncie 18 mm: 42 mm po jednej stronie, 78 po drugiej.
+`cornerBracket()` liczy to raz, `bracketPlan()` daje z tego prostokąty do rzutu.
+
+[AI-INFO] Od strony ramienia korpus **nie ma boku** — przechodzi w ramię. Zamiast
+płyty stoi kątownik przy plecach (`corner.post`, ramiona domyślnie 150 mm),
+a `corner.side` mówi, która to strona („auto" = prawa).
+
+[AI-INFO] Osie w rysunkach są różne i łatwo o pomyłkę: w **rzucie z góry**
+(`CabTop`, `TopView`) `y = 0` to **tył** korpusu, a `y = cd` lico. W **bryle 3D**
+(`Scene3D`, `Assembly3D`) `z` liczy się **od lica** w głąb. `rail.z0` w geometrii
+jest liczone od lica — w rzucie trzeba je przeliczyć (`cd - (z0 + zLen)`),
+w bryle nie. Dwa razy w tej sesji pomyliło to strony płyt.
+
+## Blat roboczy ciągu
+
+[AI-INFO] `run.worktop` włącza blat na całym ciągu; nowe ciągi mają go domyślnie,
+stare projekty nie (pola po prostu nie mają). Szafka dokładana do takiego ciągu
+przychodzi bez wieńca i z parą wzmocnień (`bezWienca`): z przodu płyta na płask,
+z tyłu stojąca. Blat obejmuje szafki tej wysokości lica, która zajmuje w ciągu
+najwięcej miejsca; reszta wypada spod niego — różnica od `SLUPEK_MIN` (200 mm)
+to zamierzony słupek, poniżej to rozjazd i ostrzeżenie. Głębokość blatu jest
+wymiarem rzeczywistym: korpus + grubość frontu + `WORKTOP_OVERHANG` (10 mm).
+
+[AI-INFO] Suity klikające „Cokół pod szafką" albo „Nóżki pod szafką" muszą
+**ustawiać stan**, a nie klikać na oślep — nowy projekt startuje z szablonu
+„Szafka stojąca", więc cokół bywa już włączony. Tak samo zawieszki: karta pokazuje
+je tylko szafce wiszącej, więc najpierw trzeba zdjąć cokół i nóżki.
+
+## Piętra ściany (ciąg dolny i górny)
+
+[AI-INFO] Jedna sciana trzyma dwa ciagi: `run.tier` = „dolny"/„gorny", a gorny
+wskazuje `run.wall` na dolny. Dlugosc sciany i narożnik sa wspolne — gorny bierze
+je od dolnego. Wysokosci montazu gornego **nie wpisuje sie**: `tierMountY` liczy
+ja z lica dolnego (`cabTopY`) plus grubosc blatu plus `run.clearance` (500).
+Przy szafce 720 z cokolem 100 i blacie 38 wychodzi 1358.
+
+[AI-INFO] Zakres „Ciąg" przy scianie z dwoma pietrami dostaje podzakladki
+dolny / gorny / calosc — wybor siedzi w `tierScope` i przelacza `scopeRuns`.
+
+[AI-INFO] W ukladzie **ramienia** w bryle 3D `z = 0` to LICO, a `z = glebokosc`
+plecy — odwrotnie niz podpowiada intuicja i odwrotnie niz w rzucie z gory.
+Pomylka w te strone wsadza plecy na front, a wzmocnienia zamienia miejscami.
