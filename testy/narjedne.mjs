@@ -18,13 +18,22 @@ await page.evaluate(()=>{localStorage.clear();
 await page.reload({waitUntil:'networkidle'}); await page.waitForTimeout(2400);
 let uw = await card(/Uwagi/).innerText();
 console.log('   '+uw.replace(/\n+/g,' / ').slice(0,300));
-ok('podpowiedź o jednych drzwiach', /Zrób jedne drzwi na 300 mm/.test(uw), uw.slice(0,220));
-await card(/Uwagi/).getByRole('button',{name:/Ustaw jedne drzwi 300 mm/}).click();
+/* Dostepne swiatlo to szerokosc korpusu minus glebokosc sasiedniego ciagu,
+   minus grubosc frontu ramienia (jego lico stoi przed korpusem ramienia),
+   minus katownik z luzem — nachodzaca plyta wchodzi w kwadrat styku obu lic,
+   wiec poza naroze wystaje o grubosc frontu mniej: 900 - 600 - 18 - 42 - 3
+   = 237. Bierzemy je
+   z podpowiedzi, zeby test nie trzymal wlasnej kopii tego rachunku. */
+const swiatlo = Number((/Zrób jedne drzwi na (\d+) mm/.exec(uw)||[])[1]);
+ok('podpowiedź o jednych drzwiach', swiatlo>0, uw.slice(0,220));
+ok('światło liczone z lica ramienia i po kątowniku', swiatlo===237, String(swiatlo));
+await card(/Uwagi/).getByRole('button',{name:new RegExp('Ustaw jedne drzwi '+swiatlo+' mm')}).click();
 await page.waitForTimeout(1200);
 const kol = await page.evaluate(()=>JSON.parse(localStorage.getItem('szafki:projekt')).items[1].cab.levels[0].cols
   .map(c=>({w:c.w,doors:c.doors,dw:c.doorWidths})));
 console.log('   kolumny: '+JSON.stringify(kol));
-ok('jedna kolumna, jedne drzwi 300', kol.length===1 && kol[0].doors===1 && kol[0].dw[0]===300, JSON.stringify(kol));
+ok('jedna kolumna, jedne drzwi na dostępne światło',
+  kol.length===1 && kol[0].doors===1 && kol[0].dw[0]===swiatlo, JSON.stringify(kol));
 uw = await card(/Uwagi/).count()? await card(/Uwagi/).innerText():'';
 ok('brak błędu o niewypełnionym paśmie', !/nie wypełniają pasma/.test(uw), uw.slice(0,200));
 ok('ostrzeżenie o froncie znika', !/nad ramieniem frontu nie ma/.test(uw), uw.slice(0,200));

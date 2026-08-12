@@ -93,7 +93,8 @@ await pick('Ciąg');
 rows = await segRows();
 console.log('     ' + JSON.stringify(rows[1].map((b) => b.t)));
 ok('bok znika przy ciągu', !rows[1].some((b) => b.t === 'Z boku'), rows[1].map((b) => b.t).join());
-ok('reszta wariantów zostaje', rows[1].map((b) => b.t).join() === 'Zamk.,Otw.,Z góry,Z tyłu,3D',
+// przy ciagu dochodzi jeszcze staly widok 3/4 („45°")
+ok('reszta wariantów zostaje', rows[1].map((b) => b.t).join() === 'Zamk.,Otw.,Z góry,Z tyłu,3D,45°',
   rows[1].map((b) => b.t).join());
 
 console.log('\n== dwa ciągi: dochodzi Zabudowa ==');

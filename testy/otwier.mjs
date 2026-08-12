@@ -95,16 +95,21 @@ console.log('     ' + k.join('\n     '));
 ok('front przez całą szerokość wchodzi w ramię',
   k.some((l) => /rogowa/.test(l) && /ramię/.test(l)), skrot(k));
 
-console.log('\n== ta sama szafka z jednymi drzwiami na dostepne swiatlo ==');
+console.log('\n== podpowiedz aplikacji zdejmuje kolizje ==');
+/* Nie wpisujemy szerokości z palca: klikamy „Ustaw jedne drzwi …", czyli to,
+   co aplikacja sama proponuje. Jeśli jej własna podpowiedź zostawia kolizję,
+   to jest to błąd podpowiedzi, nie testu. */
 await seed(LRUNY(),
-  [CAB('A1', 600, 'c1'),
-   { cab: { name: 'rogowa', W: 900, H: 720, D: 600, plinth: PL,
-       corner: { on: true, arm: 500, doors: 'wsporniki' },
-       levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null,
-         doorWidths: [300], hinge: 'left' }] }] }, runId: 'c1', offset: 0 },
+  [CAB('A1', 600, 'c1'), CAB('rogowa', 900, 'c1', { on: true, arm: 500, doors: 'wsporniki' }),
    CAB('B1', 700, 'c2')]);
+const uwagi = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi$/ }) }).first();
+const btn = uwagi.getByRole('button', { name: /^Ustaw jedne drzwi \d+ mm$/ }).first();
+const etykieta = (await btn.count()) ? await btn.innerText() : '(brak przycisku)';
+console.log('     podpowiedź: ' + etykieta);
+ok('aplikacja podpowiada szerokość drzwi', await btn.count() > 0, etykieta);
+if (await btn.count()) { await btn.click(); await page.waitForTimeout(1200); }
 k = await kolizje();
-ok('poprawiona szafka narożna otwiera się bez kolizji', k.length === 0, skrot(k));
+ok('po przyjęciu podpowiedzi nie ma kolizji', k.length === 0, skrot(k));
 
 console.log('\n== wysunieta szuflada zza rogu tez jest przeszkoda ==');
 await seed(LRUNY(), [CAB('A1', 600, 'c1'), CAB('rogowa', 900, 'c1'), SZUF('B1', 700, 'c2')]);

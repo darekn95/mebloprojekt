@@ -11,7 +11,7 @@ await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1500);
 const card = (re) => page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
-const rows = () => card(/^Produkty do zamówienia$/).evaluate((s) =>
+const rows = () => card(/^Produkty do zamówienia/).evaluate((s) =>
   [...s.querySelectorAll('tbody tr')].map(tr => [...tr.querySelectorAll('td')].map(td => td.innerText.trim()).join(' | ')));
 const qty = (rs, n) => { const r = rs.find(x => x.startsWith(n)); return r ? Number((r.split('|').pop() || '').trim().split(' ')[0]) : null; };
 
@@ -23,10 +23,14 @@ console.log('\n== cokół bez nóżek: trójkąty meblarskie ==');
 const cok = card(/^Cokół$/);
 await cok.locator('h2').click();
 await page.waitForTimeout(400);
-await cok.getByText('Cokół pod szafką', { exact: true }).click().catch(async () => {
-  await cok.locator('input[type=checkbox]').first().click();
-});
-await page.waitForTimeout(1000);
+/* Nowy projekt startuje z szablonu „Szafka stojąca", wiec cokol bywa juz
+   wlaczony — zamiast klikac na oslep, ustawiamy stan, jakiego chcemy. */
+const cokol = async (want) => {
+  const chk = cok.locator('input[type=checkbox]').first();
+  if (await chk.isChecked() !== want) await chk.click();
+  await page.waitForTimeout(1000);
+};
+await cokol(true);
 rs = await rows();
 console.log('    ', (rs.find(r => /Trójkąt|Złączka/.test(r)) || '(brak)'));
 ok('są trójkąty, nie klipsy', qty(rs, 'Trójkąt') !== null && qty(rs, 'Złączka') === null, '');
@@ -54,10 +58,7 @@ console.log('    ', (rs.find(r => /Trójkąt|Złączka/.test(r)) || '(brak)'));
 ok('klipsy zamiast trójkątów', qty(rs, 'Złączka do cokołu') === 2 && qty(rs, 'Trójkąt') === null, '');
 
 console.log('\n== bez cokołu: ani jedno, ani drugie ==');
-await cok.getByText('Cokół pod szafką', { exact: true }).click().catch(async () => {
-  await cok.locator('input[type=checkbox]').first().click();
-});
-await page.waitForTimeout(1000);
+await cokol(false);
 rs = await rows();
 ok('brak złączek i trójkątów', qty(rs, 'Złączka do cokołu') === null && qty(rs, 'Trójkąt') === null, '');
 

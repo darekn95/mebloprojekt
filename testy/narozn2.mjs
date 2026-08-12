@@ -91,13 +91,15 @@ let uw = await card(/Uwagi/).innerText();
 console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 400));
 ok('uwaga o szafce narożnej w L', /szafką narożną w L/.test(uw), uw.slice(0, 200));
 ok('podany korpus i ramię', /900 mm przy ścianie/.test(uw) && /500 × 600 mm/.test(uw), uw.slice(0, 300));
-ok('opisany sposób otwierania', /wsporników/.test(uw), uw.slice(0, 400));
+ok('opisany sposób otwierania', /kątownika/.test(uw), uw.slice(0, 400));
 ok('nie ma już mowy o ślepym narożniku', !/Ślepy narożnik/.test(uw), uw.slice(0, 200));
 
 console.log('\n== formatki ramienia wchodza do zestawienia ==');
 const zest = card(/Zestawienie|Formatki|Rozkrój/);
 const zt = await page.evaluate(() => document.body.innerText);
-for (const nazwa of ['Wieniec i dno ramienia', 'Bok ramienia', 'Front ramienia', 'Wspornik narożnika']) {
+for (const nazwa of ['Wieniec i dno ramienia', 'Bok ramienia', 'Front ramienia',
+  'Kątownik narożnika — nachodzący', 'Kątownik narożnika — doczołowy',
+  'Maskownica kątownika — nachodząca', 'Maskownica kątownika — doczołowa']) {
   ok(`formatka „${nazwa}" jest w zestawieniu`, zt.includes(nazwa), '');
 }
 ok('grupa formatek podpisana narożnikiem', /Narożnik — rogowa/.test(zt), '');
@@ -106,9 +108,9 @@ console.log('\n== warianty drzwi ==');
 await uklad(500, 900, 'lamane');
 uw = await card(/Uwagi/).innerText();
 ok('drzwi łamane opisane', /zawiasami łamanymi/.test(uw), uw.slice(0, 300));
-ok('bez wsporników przy łamanych', !/Wsporniki narożnika/.test(uw), uw.slice(0, 300));
+ok('bez kątownika przy łamanych', !/Kątownik narożnika/.test(uw), uw.slice(0, 300));
 let body = await page.evaluate(() => document.body.innerText);
-ok('wspornik nie idzie na formatki', !body.includes('Wspornik narożnika'), '');
+ok('kątownik nie idzie na formatki', !body.includes('Kątownik narożnika'), '');
 ok('dochodzi zawias łamany', body.includes('Zawias łamany 90°'), '');
 await uklad(500, 900, 'skrecone');
 uw = await card(/Uwagi/).innerText();
@@ -121,13 +123,15 @@ body = await page.evaluate(() => document.body.innerText);
 ok('formatka to fix, nie front', body.includes('Fix ramienia') && !body.includes('Front ramienia'), '');
 ok('fix nie dostaje zawiasów', !/front ramienia szafki narożnej/.test(body), '');
 ok('fix trzyma się na złączkach', body.includes('Złączka meblowa'), '');
-ok('przy fixie nie ma wsporników', !body.includes('Wspornik narożnika'), '');
+ok('przy fixie nie ma kątownika', !body.includes('Kątownik narożnika'), '');
 
 console.log('\n== za waski korpus przy szafce naroznej ==');
-await uklad(500, 700);   // korpus 700, glebokosc ramienia 600 → zostaje 100 mm frontu
+/* Korpus 700, glebokosc ramienia 600, front ramienia 18 → z lica zostaje 82 mm,
+   a katownik z luzem zabiera z tego jeszcze 45. */
+await uklad(500, 700);
 uw = await card(/Uwagi/).innerText();
 console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 240));
-ok('ostrzeżenie o zbyt wąskim froncie', /tylko 100 mm frontu/.test(uw), uw.slice(0, 240));
+ok('ostrzeżenie o zbyt wąskim froncie', /tylko 37 mm frontu/.test(uw), uw.slice(0, 240));
 await uklad(500, 500);   // korpus wezszy niz ramie → nie ma frontu w ogole
 uw = await card(/Uwagi/).innerText();
 ok('brak frontu to błąd', /nie ma frontu od strony/.test(uw), uw.slice(0, 240));
@@ -137,14 +141,23 @@ console.log('\n== fronty szafki naroznej musza sie zmiescic obok ramienia ==');
 await uklad(500, 900);   // korpus 900, ramie 600 gleboko → front tylko 300 mm
 uw = await card(/Uwagi/).innerText();
 console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 400));
-ok('ostrzeżenie o froncie nad ramieniem', /dostępne jest tylko 300 mm/.test(uw), uw.slice(0, 300));
-ok('podpowiedź, ile mają mieć drzwi', /Zrób jedne drzwi na 300 mm/.test(uw), uw.slice(0, 400));
+/* Dostepne swiatlo to szerokosc korpusu minus glebokosc sasiedniego ciagu
+   i minus grubosc frontu ramienia (jego lico stoi przed korpusem ramienia),
+   a z tego jeszcze katownik z luzem. Nachodzaca plyta wchodzi w kwadrat styku
+   obu lic, wiec poza naroze wystaje o grubosc frontu mniej: 900 - 600 - 18
+   - (60 - 18) - 3 = 237. */
+const swiatlo = Number((/dostępne jest tylko (\d+) mm/.exec(uw) || [])[1]);
+console.log('     dostępne światło: ' + swiatlo + ' mm');
+ok('ostrzeżenie o froncie nad ramieniem', swiatlo > 0, uw.slice(0, 300));
+ok('światło liczone z lica ramienia i po kątowniku', swiatlo === 237, String(swiatlo));
+ok('podpowiedź, ile mają mieć drzwi',
+  new RegExp('Zrób jedne drzwi na ' + swiatlo + ' mm').test(uw), uw.slice(0, 400));
 
 console.log('\n== przycisk ustawia jedne drzwi na dostepne swiatlo ==');
 await uklad(500, 900);
 let przed = await page.evaluate(() => document.body.innerText);
 ok('przed naprawą jest ostrzeżenie', /nad ramieniem frontu nie ma|dostępne jest tylko/.test(przed), '');
-await card(/Uwagi/).getByRole('button', { name: /Ustaw jedne drzwi 300 mm/ }).click();
+await card(/Uwagi/).getByRole('button', { name: new RegExp('Ustaw jedne drzwi ' + swiatlo + ' mm') }).click();
 await page.waitForTimeout(1200);
 const kol = await page.evaluate(() =>
   JSON.parse(localStorage.getItem('szafki:projekt')).items[1].cab.levels[0].cols
@@ -153,7 +166,7 @@ console.log('     kolumny: ' + JSON.stringify(kol));
 /* Szafka narozna to jedna komora — zostaje jedna kolumna, a front jest po
    prostu wezszy od korpusu, bo nad ramieniem nie ma czego zaslaniac. */
 ok('jedna kolumna z jednymi drzwiami',
-  kol.length === 1 && kol[0].doors === 1 && kol[0].dw[0] === 300, JSON.stringify(kol));
+  kol.length === 1 && kol[0].doors === 1 && kol[0].dw[0] === swiatlo, JSON.stringify(kol));
 uw = await card(/Uwagi/).count() ? await card(/Uwagi/).innerText() : '';
 ok('ostrzeżenie znika po naprawie', !/dostępne jest tylko/.test(uw), uw.slice(0, 200));
 ok('front węższy od korpusu nie jest błędem', !/nie wypełniają pasma/.test(uw), uw.slice(0, 200));
@@ -166,7 +179,7 @@ console.log('     ' + tx.filter((t) => /×/.test(t)).join(' | '));
 /* Zadana szerokosc drzwi wchodzi wprost, bez doliczania nalozenia — front
    ma dokladnie tyle, ile pokazala podpowiedz. */
 ok('front szafki narożnej zwężony do dostępnego światła',
-  tx.some((t) => /^300×/.test(t)) && !tx.some((t) => /^8\d\d×/.test(t)),
+  tx.some((t) => new RegExp('^' + swiatlo + '×').test(t)) && !tx.some((t) => /^8\d\d×/.test(t)),
   tx.filter((t) => /×/.test(t)).join(' | '));
 
 console.log('\n== polki w ramieniu ida za szafka ==');

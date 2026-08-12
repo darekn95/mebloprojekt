@@ -52,7 +52,7 @@ const seed = async (widths, run = {}, cabPatch = {}) => {
 const projRows = () => rowsOf(/Formatki całego projektu/);
 const cabRows = () => rowsOf(/^Formatki do zamówienia$/);
 const hwProj = () => rowsOf(/Produkty całego projektu/).catch(() => []);
-const hwCab = () => rowsOf(/^Produkty do zamówienia$/);
+const hwCab = () => rowsOf(/^Produkty do zamówienia/);
 
 console.log('== blat ciągu to jedna płyta na całą długość ==');
 // 3 x 600 = 1800, blat wystaje 20 z lewej i 20 z prawej -> 1840

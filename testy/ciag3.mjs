@@ -43,8 +43,10 @@ await page.waitForTimeout(2000);
 const cok = card(/^Cokół$/);
 await cok.locator('button').first().click(); // rozwiń kartę
 await page.waitForTimeout(400);
-await page.getByText('Cokół pod szafką', { exact: true }).click();
-await page.waitForTimeout(900);
+/* Cokol moze byc juz wlaczony — nowy projekt startuje z szablonu „Szafka
+   stojąca". Klikniecie na oslep wylaczyloby go i tryb nie mialby czego pokazac. */
+const cokChk = cok.locator('input[type=checkbox]').first();
+if (!(await cokChk.isChecked())) { await cokChk.click(); await page.waitForTimeout(900); }
 let tryb = await cok.evaluate((sec) => [...sec.querySelectorAll('button')]
   .filter((b) => /Pod dnem|Pod korpusem/.test(b.textContent))
   .map((b) => b.textContent.trim() + (b.className.includes('bg-teal-700') ? '*' : '')));

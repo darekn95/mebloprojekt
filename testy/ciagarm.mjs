@@ -34,5 +34,17 @@ const otw=await puszki();
 console.log('   puszki zawiasów: zamk.', zam, ' otw.', otw);
 ok('w zamkniętym nie ma zawiasów ramienia', zam===0, String(zam));
 ok('w otwartym są', otw>0, String(otw));
+/* Ramie lezy w pasie sasiedniej sciany, wiec w widoku TAMTEGO ciagu tez musi
+   byc widoczne — inaczej ciag za rogiem wyglada tak, jakby naroznika nie bylo. */
+await page.evaluate(() => {
+  const p = JSON.parse(localStorage.getItem('szafki:projekt'));
+  p.active = 2;
+  localStorage.setItem('szafki:projekt', JSON.stringify(p));
+});
+await page.reload({ waitUntil:'networkidle' }); await page.waitForTimeout(2400);
+await page.getByText('Ciąg',{exact:true}).first().click(); await page.waitForTimeout(900);
+await page.getByText('Zamk.',{exact:true}).first().click(); await page.waitForTimeout(900);
+t = await txt();
+ok('ramię widać też w widoku ciągu za rogiem', t.some(x=>/^ramię 500$/.test(x)), t.join(' | '));
 console.log('BLEDY:', errors.length?errors.join('; '):'(brak)');
 await b.close();

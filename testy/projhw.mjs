@@ -21,7 +21,7 @@ const rowsOf = async (re) => {
 };
 
 ok('przy jednej szafce brak karty zbiorczej', await card(/^Produkty całego projektu/).count() === 0);
-const one = await rowsOf(/^Produkty do zamówienia$/);
+const one = await rowsOf(/^Produkty do zamówienia/);
 console.log('  szafka 1 — produkty:'); (one || []).forEach(r => console.log('     ' + r));
 
 await page.getByText('+ szafka', { exact: true }).click();

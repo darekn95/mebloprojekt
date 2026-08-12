@@ -76,7 +76,7 @@ const cs = card(/^Ciąg meblowy$/);
 let hint = await cs.locator('span.text-stone-400.mt-1').first().textContent();
 console.log('     ' + hint.trim());
 ok('pozycja 1 z 1', /1 z 1 w ciągu/.test(hint), hint.trim());
-let sum = (await cs.locator('p').first().textContent()).trim();
+let sum = (await cs.locator('p').filter({ hasText: /zajmuje|zostaje/ }).first().textContent()).trim();
 console.log('     ' + sum);
 // nowa szafka ma domyslne 600 mm
 ok('suma szerokości 600 mm', /1 szafka zajmuje\s*600 mm/.test(sum.replace(/\s+/g, ' ')), sum);
@@ -101,7 +101,7 @@ b = await bar();
 ok('nazwa ciągu widoczna na pasku', b.some((r) => r.label === 'Ściana kuchenna'), JSON.stringify(b.map((r) => r.label)));
 await numByLabel('Długość ściany').fill('2400');
 await page.waitForTimeout(800);
-sum = (await cs.locator('p').first().textContent()).replace(/\s+/g, ' ').trim();
+sum = (await cs.locator('p').filter({ hasText: /zajmuje|zostaje/ }).first().textContent()).replace(/\s+/g, ' ').trim();
 console.log('     ' + sum);
 ok('zostaje 1800 mm ściany', /zostaje 1800 mm/.test(sum), sum);
 // luz miedzy korpusami: druga szafka w ciagu + luz 5 -> 600+600+5
@@ -110,7 +110,7 @@ await page.locator('header .space-y-1 > div').filter({ hasText: 'Ściana kuchenn
 await page.waitForTimeout(900);
 await numByLabel('Luz między korpusami').fill('5');
 await page.waitForTimeout(900);
-sum = (await cs.locator('p').first().textContent()).replace(/\s+/g, ' ').trim();
+sum = (await cs.locator('p').filter({ hasText: /zajmuje|zostaje/ }).first().textContent()).replace(/\s+/g, ' ').trim();
 console.log('     ' + sum);
 ok('luz wchodzi do sumy (1205 mm)', /2 szafki zajmuje 1205 mm/.test(sum), sum);
 ok('zostaje 1195 mm', /zostaje 1195 mm/.test(sum), sum);

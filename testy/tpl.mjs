@@ -53,8 +53,11 @@ ok('szafka narożna z ramieniem', !!wRogu && wRogu.cab.corner.arm > 0,
 ok('szafka narożna wylądowała w ciągu', !!wRogu && !!wRogu.runId, String(wRogu && wRogu.runId));
 ok('powstał drugi ciąg pod kątem prostym', !!drugi && drugi.corner.of === (wRogu || {}).runId,
   JSON.stringify(drugi && drugi.corner));
-ok('do drugiego ciągu doszła szafka',
-  !!drugi && proj.items.some((i) => i.runId === drugi.id), JSON.stringify(proj.items.map((i) => i.runId)));
+/* Drugi ciąg zakłada się pusty — szafki dokłada się do niego samemu. Ma za to
+   od razu głębokość, bo to z niej liczy się ramię i szerokość frontu w rogu. */
+ok('drugi ciąg został pusty',
+  !!drugi && !proj.items.some((i) => i.runId === drugi.id), JSON.stringify(proj.items.map((i) => i.runId)));
+ok('drugi ciąg ma zadaną głębokość', !!drugi && Number(drugi.D) > 0, String(drugi && drugi.D));
 /* Front sięga tylko dostępnego światła, więc gotowy układ nie startuje
    z błędem — ani o luzie, ani o otwieraniu. */
 const uwagi = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi$/ }) }).first();
