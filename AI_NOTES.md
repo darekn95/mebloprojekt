@@ -131,3 +131,17 @@ dolny / gorny / calosc — wybor siedzi w `tierScope` i przelacza `scopeRuns`.
 [AI-INFO] W ukladzie **ramienia** w bryle 3D `z = 0` to LICO, a `z = glebokosc`
 plecy — odwrotnie niz podpowiada intuicja i odwrotnie niz w rzucie z gory.
 Pomylka w te strone wsadza plecy na front, a wzmocnienia zamienia miejscami.
+
+## Kontekst rogu w geometrii szafki
+
+[AI-INFO] `computeGeo(cab, mat, ctx)` bierze opcjonalny trzeci argument z
+rozmieszczenia ciagow: `{ armFree, armSide }`. Sama szafka nie wie, jak gleboki
+jest sasiedni ciag, a wlasnie z tego wychodzi, ile jej lica zostaje przed
+narozem — bez tego wzmocnienia szafki naroznej biegly przez caly korpus, takze
+przez przelot w ramie.
+
+[AI-INFO] Kolejnosc jest dwuprzebiegowa i tak ma byc: `projectLayout` liczy
+rozmieszczenie **bez** ctx (inaczej wpadlby w kolo), a rysunki i zestawienie
+wolaja `assemblyParts(project, runs, full)` albo `computeGeo(..., armCtxOf(...))`
+juz z gotowym rozmieszczeniem. Przyciecie dotyczy tylko `x0`/`x1` wzmocnien,
+wiec nie zmienia niczego, z czego liczy sie samo rozmieszczenie.

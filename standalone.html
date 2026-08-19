@@ -867,7 +867,12 @@ const newProject = () => ({
 
 /* ---------- geometria ---------- */
 
-function computeGeo(cab, mat) {
+/* `ctx` to informacja z rozmieszczenia ciagow, ktorej sama szafka nie ma:
+   `armFree` mowi, ile jej lica zostaje przed narozem, a `armSide`, z ktorej
+   strony wychodzi ramie. Bez tego wzmocnienia w szafce naroznej biegly przez
+   caly korpus, takze przez przelot w ramie. Pole jest opcjonalne — widoki,
+   ktore o narozniku nie wiedza, wolaja `computeGeo` jak dotad. */
+function computeGeo(cab, mat, ctx) {
   const t = mat.board.thickness;
   const tf = mat.front.thickness;
   // polki w kolumnach (i dno/tyl szuflady) moga byc z innej plyty niz korpus;
@@ -1253,6 +1258,13 @@ function computeGeo(cab, mat) {
          milimetrow do krawedzi boku. */
       const kLo = lv.y0;
       const kHi = lv.y1;
+      /* Wzmocnienie konczy sie na maskownicy katownika: dalej lico jest juz
+         otwarte i prowadzi w ramie, wiec nie ma czego usztywniac ani do czego
+         przykrecac. */
+      const licoOd = ctx && ctx.armFree > 0 && ctx.armSide === "left"
+        ? W - ctx.armFree : 0;
+      const licoDo = ctx && ctx.armFree > 0
+        ? (ctx.armSide === "right" ? ctx.armFree : W) : W;
       c.rails = rawRails.map((r) => {
         const rh = Math.max(0, Math.round(r.h || 0));
         const rd = Math.max(0, Math.round(r.depth || 0));
@@ -1260,9 +1272,12 @@ function computeGeo(cab, mat) {
         const zLen = r.orient === "front" ? t : rd;
         const z0 = r.fromBack ? Math.max(0, carcassDepth - rAt - zLen) : rAt;
         const cw = c.x1 - c.x0;
+        const rx0 = Math.max(c.x0, licoOd);
+        const rx1 = Math.min(c.x1, licoDo);
+        const rw = Math.max(0, rx1 - rx0);
         if (r.orient === "shelf") {
           const ry = r.pos === "bottom" ? kLo : kHi - t;
-          return { orient: "shelf", x0: c.x0, x1: c.x1, y0: ry, y1: ry + t, z0, zLen: rd, a: cw, b: rd };
+          return { orient: "shelf", x0: rx0, x1: rx1, y0: ry, y1: ry + t, z0, zLen: rd, a: rw, b: rd };
         }
         if (r.orient === "vertical") {
           const rx = r.side === "right" ? c.x1 - t : c.x0;
@@ -1270,7 +1285,7 @@ function computeGeo(cab, mat) {
           return { orient: "vertical", x0: rx, x1: rx + t, y0: kHi - rh, y1: kHi, z0, zLen: rd, a: rh, b: rd };
         }
         const ry1 = r.pos === "bottom" ? kLo + rh : kHi;
-        return { orient: "front", x0: c.x0, x1: c.x1, y0: ry1 - rh, y1: ry1, z0, zLen: t, a: cw, b: rh };
+        return { orient: "front", x0: rx0, x1: rx1, y0: ry1 - rh, y1: ry1, z0, zLen: t, a: rw, b: rh };
       });
 
       // sasiad z frontem wpuszczanym nie zakryje swojej polowy przegrody,
@@ -2965,13 +2980,27 @@ const runWallW = (project, run) => {
    Pojedyncza szafka ma swoje widoki od dawna. Ciag i cala zabudowa rysuja sie
    z tych samych czesci: kazda szafka wnosi swoja geometrie, a roznica jest
    tylko w tym, ile ciagow bierzemy i na jakiej wysokosci one wisza. */
-const assemblyParts = (project, runs) =>
+/* `ref` to rozmieszczenie calego projektu. Szafka narozna potrzebuje z niego
+   szerokosci dostepnego lica — bez tego jej wzmocnienia biegna przez przelot
+   w ramie. Pierwsze przejscie (to, ktore buduje rozmieszczenie) `ref` nie ma
+   i liczy sie jak dotad; rysunki i zestawienie wolaja juz z nim. */
+const armCtxOf = (ref, index) => {
+  if (!ref) return undefined;
+  let out;
+  ref.info.forEach((k) => {
+    if (k.arm && k.arm.cab.index === index)
+      out = { armFree: k.arm.free, armSide: k.arm.side };
+  });
+  return out;
+};
+
+const assemblyParts = (project, runs, ref) =>
   runs.map((run) => {
     const gap = Math.max(0, Math.round(run.gap || 0));
     const mount = tierMountY(project, run);
     let x = 0;
     const cabs = runItems(project, run.id).map(({ it, i: index }, i, arr) => {
-      const geo = computeGeo(it.cab, it.mat);
+      const geo = computeGeo(it.cab, it.mat, armCtxOf(ref, index));
       const mat = texMat(it.mat, it.cab.texture, it.cab.textureDir);
       /* Cokol pod korpusem podnosi szafke, cokol w obrysie siedzi juz w H.
          Nozki podnosza tak samo, ale schowane w cokole nie dokladaja nic —
@@ -3817,7 +3846,8 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
 /* Elewacja — od przodu (zamknieta i otwarta) oraz od tylu. Wszystkie trzy to ten
    sam rzut, wiec dzieli je tylko to, co rysujemy w srodku obrysu. */
 function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, showLabels, activeCab }) {
-  const groups = assemblyParts(project, runs);
+  const full = projectLayout(project);
+  const groups = assemblyParts(project, runs, full);
   const wzor = wzorcowaSzafka(groups);
   if (!wzor) return null;
   const plyta = (g) => kolorPlyty(g, wzor);
@@ -3830,7 +3860,6 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
   /* Rozmieszczenie do rysowania liczymy z ciagow objetych zakresem, ale o
      narozniki pytamy caly projekt — inaczej przy zakresie „ciag" naroznika by
      nie bylo i ramie szafki znikaloby z rysunku. */
-  const full = projectLayout(project);
   const L = runLayout(groups, full);
   const rysowane = new Set(groups.map((g) => g.run.id));
   const dostawione = groups.flatMap((g) => {
@@ -4135,10 +4164,10 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
    rysuje sie we wlasnym ukladzie (u wzdluz sciany, v w glab pokoju), a na
    miejsce obraca go transform. */
 function AssemblyTopView({ project, runs, showDims, showShelves, showHardware }) {
-  const groups = assemblyParts(project, runs).slice().sort((a, b) => a.mount - b.mount);
+  const full = projectLayout(project);
+  const groups = assemblyParts(project, runs, full).slice().sort((a, b) => a.mount - b.mount);
   const wzor = wzorcowaSzafka(groups);
   if (!wzor) return null;
-  const full = projectLayout(project);
   const L = runLayout(groups, full);
   /* Ramie opisane jest przy sasiednim pasie, a przycina lico TEJ szafki. */
   const armOf = new Map();
@@ -4269,8 +4298,8 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
 /* Widok 3D calej zabudowy. Nie powtarza detalu pojedynczej szafki — na tym
    poziomie liczy sie bryla: korpusy, cokoly i fronty, ktore da sie otworzyc. */
 function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
-  const groups = assemblyParts(project, runs);
   const full = projectLayout(project);
+  const groups = assemblyParts(project, runs, full);
   const L = runLayout(groups, full);
   const rysowane = new Set(groups.map((g) => g.run.id));
   /* Ramie jest opisane przy sasiednim pasie, a maskownica po stronie korpusu
@@ -7135,8 +7164,10 @@ const projectParts = (project) => {
     if (s.rt) names.push("Blat");
     return names;
   };
+  // szafka narozna liczy sie z kontekstem rogu — inaczej jej wzmocnienia sa za dlugie
+  const layout = projectLayout(project);
   const cabs = project.items.map((it, ci) => {
-    const g = computeGeo(it.cab, it.mat);
+    const g = computeGeo(it.cab, it.mat, armCtxOf(layout, ci));
     const gone = drop(it.runId || null);
     const s = shared.get(it.runId || null);
     return {
@@ -8774,7 +8805,13 @@ export default function App() {
     return () => clearTimeout(id);
   }, [project, loaded]);
 
-  const geo = useMemo(() => computeGeo(cab, mat), [cab, mat]);
+  /* Szafka narozna liczy sie z kontekstem rogu — bez niego jej wzmocnienia
+     bylyby dluzsze niz lico, ktore im zostaje. */
+  const projLayoutGeo = useMemo(() => projectLayout(project), [project]);
+  const geo = useMemo(
+    () => computeGeo(cab, mat, armCtxOf(projLayoutGeo, project.active)),
+    [cab, mat, projLayoutGeo, project.active]
+  );
 
   /* wiersze paska szafek: kazdy ciag osobno, wolnostojace na koncu. Gdy nie ma
      zadnego ciagu zostaje jeden wiersz i pasek wyglada dokladnie jak dotad. */

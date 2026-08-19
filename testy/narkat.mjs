@@ -54,6 +54,13 @@ ok('prawego boku nie ma', !bokPrawy);
 ok('ramię kątownika przy boku', !!ramBok, JSON.stringify(ramBok));
 ok('ramię kątownika przy plecach', !!ramPlecy, JSON.stringify(ramPlecy));
 
+/* Wzmocnienia szafki naroznej koncza sie na maskownicy katownika: dostepne lico
+   to 900 - 600 - 18 = 282, wiec od lewego boku zostaje 282 - 18 = 264. */
+rows = await formatki();
+const wzm = wiersz(rows, /^Wzmocnienie poziome/);
+ok('wzmocnienie kończy się na maskownicy', !!wzm && wzm[2] === '264',
+  wzm ? wzm.slice(0, 4).join('|') : '(brak)');
+
 console.log('\n== przełącznik w karcie: kątownik zdejmowalny, ramiona regulowane ==');
 const naroznik = page.getByText('Kątownik w tylnym narożniku', { exact: true }).first();
 ok('przełącznik jest w karcie', await naroznik.count() > 0);
