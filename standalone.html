@@ -4375,24 +4375,6 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         box(c.x, y0, cd - c.geo.tb, c.x + c.geo.W, y1, cd, c.mat.back.color);
       /* Maskownica katownika po stronie korpusu: bez niej w rogu zostawala dziura
          miedzy drzwiami tej szafki a frontem ramienia. */
-      const katN = armOf.get(c.index);
-      if (katN && katN.bracket && katN.free > 0) {
-        const kb = katN.bracket;
-        const wM = kb.odKorpusu - kb.luz;
-        /* Nachodzaca plyta ma pelne 60 mm i wchodzi w kwadrat styku obu lic —
-           rysowana tylko do naroza wygladala, jakby obie dochodzily do siebie
-           na styk, a maja sie zachodzic. */
-        const pelna = kb.nachodziKorpus ? kb.w : wM;
-        const mx0 = katN.side === "right"
-          ? katN.free - wM
-          : c.geo.W - katN.free - (pelna - wM);
-        const shcK = shelfColorOf(c.cab, c.mat);
-        if (wM > 0) {
-          box(c.x + mx0, y0, -c.geo.tf, c.x + mx0 + pelna, y1, 0, c.frontColor, null, 1, true);
-          // za maskownica stoi plyta wewnetrzna katownika, z plyty polkowej
-          box(c.x + mx0, y0, 0, c.x + mx0 + pelna, y1, c.geo.t, shcK);
-        }
-      }
       /* Wzmocnienia: pod blatem to one zastepuja wieniec, wiec bez nich bryla
          calej zabudowy pokazywala korpus otwarty od gory. */
       /* `r.z0` liczy sie od lica, a w bryle os z tak samo — przeliczanie go jak
@@ -4541,18 +4523,15 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         box(x0 + fu0, y0, -tfA, x0 + fu0 + fw, y1, 0, c.frontColor, rot, 0.85, true);
         uchwytBox(rot);
       }
-      /* Maskownica katownika stoi w licu drzwi, przy samym rogu, a za nia plyta
-         wewnetrzna. Nachodzaca siega pelnych 60 mm i zachodzi na sasiadke. */
+      /* Cztery plyty katownika liczy `bracketPlan` — ta sama funkcja co w rzucie
+         z gory, zeby bryla i rzut nie rozjechaly sie o grubosc plyty. W ukladzie
+         ramienia `v` idzie od sciany, a os z w bryle od lica, stad odbicie. */
       if (kat) {
-        /* Formatka maskownicy ma zawsze `kat.w` — to, ktora z plyt nachodzi,
-           zmienia tylko miejsce jej konca, nie szerokosc. */
-        const mu1 = kat.odRamienia - kat.luz;
-        const mu0 = mu1 - kat.w;
-        const pelna = kat.w;
-        const m0 = przyKoncu ? mu0 : a.len - mu1;
         const shcA = shelfColorOf(c.cab, c.mat);
-        box(x0 + m0, y0, -tfA, x0 + m0 + pelna, y1, 0, c.frontColor, null, 1, true);
-        box(x0 + m0, y0, 0, x0 + m0 + pelna, y1, c.geo.t, shcA);
+        bracketPlan(a).forEach((r) => {
+          box(x0 + r.u, y0, a.depth - (r.v + r.h), x0 + r.u + r.w, y1, a.depth - r.v,
+            r.front ? c.frontColor : shcA, null, 1, r.front);
+        });
       }
     });
   });
