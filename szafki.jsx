@@ -409,9 +409,10 @@ const newDrawer = (h = "auto") => ({ h, front: null, handle: true });
 
 /* Para wzmocnien zamiast wienca: z przodu plyta na plask, do ktorej przykreca
    sie blat, z tylu stojaca, ktora trzyma korpus w kacie prostym. */
-/* Tylne wzmocnienie stoi pionowo, ale nie na plecach — cofa sie od nich o
-   grubosc plyty, zeby nie wchodzic w HDF i zeby bylo do czego je przykrecic. */
-const railPair = (cofniete = 0, odTylu = 18) => ([
+/* Tylne wzmocnienie stoi pionowo i konczy sie rowno z bokami — dokladnie tak,
+   jak konczy sie tylna krawedz korpusu. Plecy idzie na nie normalnie, tak jak
+   przybija sie je do bokow. */
+const railPair = (cofniete = 0, odTylu = 0) => ([
   { ...newRail(), orient: "shelf", pos: "top", depth: 100, atDepth: cofniete, fromBack: false },
   { ...newRail(), orient: "front", pos: "top", h: 100, atDepth: odTylu, fromBack: true },
 ]);
@@ -428,7 +429,7 @@ const bezWienca = (cab, tf = 18) => {
   const cofniete = (cab.corner || {}).on ? tf : 0;
   if (last >= 0)
     levels[last].cols = (levels[last].cols || []).map((c) => ({
-      ...c, rails: [...(c.rails || []), ...railPair(cofniete, tf)],
+      ...c, rails: [...(c.rails || []), ...railPair(cofniete)],
     }));
   return { joints: { ...(cab.joints || {}), topL: "none", topR: "none" }, levels };
 };
@@ -494,7 +495,10 @@ const defaultCab = {
        stoi tam katownik: dwie plyty polkowe pod 90 stopni, na cala wysokosc
        wnetrza, w zewnetrznym narozniku. `side` mowi, ktora strona to jest;
        „auto" znaczy prawa, a rozjazd z ukladem zglasza uwaga. */
-    post: { on: true, w: 150 }, side: "auto" },
+    /* Plecy ramienia z pelnej plyty zamiast HDF. Plyta trzyma rog sama, wiec
+       stojace wzmocnienie przy niej schodzi — to samo po stronie korpusu robi
+       zwykle ustawienie pleców na „płyta". */
+    post: { on: true, w: 150 }, side: "auto", backBoard: false },
   // polki w kolumnach: na kolkach podporowych czy skrecane konfirmatami
   shelfMount: "pins",
   // odsuniecie osi otworu pod kolek od przedniej i tylnej krawedzi polki
@@ -530,11 +534,14 @@ const migrateCab = (rawCab) => {
     if (defaultCab[k] && typeof defaultCab[k] === "object")
       merged[k] = { ...defaultCab[k], ...((rawCab && rawCab[k]) || {}) };
   });
-  /* Tylne wzmocnienie ma stac PRZED plecami. Projekty sprzed tej zasady mialy je
-     na zero, czyli dokladnie w plycie pleców — przesuwamy je o jej grubosc. */
+  /* Tylne wzmocnienie konczy sie rowno z bokami. Byla krotka wersja, w ktorej
+     odsuwalo sie od plecow o grubosc plyty — projekty z tamtego czasu maja tam
+     18 i wracaja na zero. Ruszamy tylko plyte z tej pary (stojaca, 100 mm),
+     zeby nie przestawiac wzmocnien ustawionych recznie. */
   (merged.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => {
     (c.rails || []).forEach((r) => {
-      if (r.orient === "front" && r.fromBack && !(Number(r.atDepth) > 0)) r.atDepth = 18;
+      if (r.orient === "front" && r.fromBack && Number(r.atDepth) === 18
+        && Number(r.h) === 100) r.atDepth = 0;
     });
   }));
   if (rawCab && rawCab.cutout && rawCab.cutout.corner === "backRight") {
@@ -868,6 +875,9 @@ function computeGeo(cab, mat, ctx) {
   // przegrody i polki przelotowe zostaja konstrukcyjne, czyli z plyty korpusu
   const ts = cab.shelfSameAsBoard !== false ? t : ((mat.shelf && mat.shelf.thickness) || t);
   const backIsBoard = cab.back === "board";
+  /* Pelne plecy z plyty w szafce naroznej zastepuja stojace wzmocnienie przy
+     tej samej scianie — konstrukcja jest wtedy sztywna bez niego. */
+  const plecyUsztywniaja = !!(cab.corner || {}).on && backIsBoard;
   // plyta na plecy ma grubosc korpusu, HDF swoja wlasna
   const tb = backIsBoard ? mat.board.thickness : mat.back.thickness;
   const backPos = cab.backPos === "outside" ? "outside" : "inside";
@@ -1218,7 +1228,11 @@ function computeGeo(cab, mat, ctx) {
       const where = `Poziom ${lv.i + 1}, kolumna ${j + 1}`;
 
       // --- elementy wzmacniajace kolumny ---
-      const rawRails = Array.isArray(rawCol.rails) ? rawCol.rails : [];
+      /* Plecy z plyty trzymaja korpus w kacie prostym tak samo jak stojace
+         wzmocnienie tuz przy nich — w szafce naroznej to wlasnie ta zamiana
+         pozwala je zdjac i nie robic dwa razy tej samej roboty. */
+      const rawRails = (Array.isArray(rawCol.rails) ? rawCol.rails : [])
+        .filter((r) => !(plecyUsztywniaja && r.orient === "front" && r.fromBack));
       // pasmo frontu skracane przez wzmocnienia czolowe "skraca drzwi"
       let clo = lo, chi = hi;
       rawRails.forEach((r) => {
@@ -3139,7 +3153,11 @@ const armPlan = (a, lokalnie) => {
   const cab = a.cab.cab;
   const t = geo.t;
   const tf = geo.tf;
-  const tb = cab.back === "none" ? 0 : geo.tb || t;
+  /* Plecy ramienia moga byc pelna plyta zamiast HDF — wtedy trzymaja rog same
+     i stojace wzmocnienie przy nich jest juz niepotrzebne. */
+  const plytaRamienia = !!(cab.corner || {}).on && !!(cab.corner || {}).backBoard;
+  const maPlecy = cab.back !== "none" || plytaRamienia;
+  const tb = !maPlecy ? 0 : plytaRamienia ? t : geo.tb || t;
   const pOd = Math.max(geo.backIntrusion, tb);
   const tyl = geo.postSide
     ? Math.max(0, Math.round(geo.carcassDepth - pOd - geo.postW)) : 0;
@@ -3147,15 +3165,21 @@ const armPlan = (a, lokalnie) => {
   const u1 = Math.max(0, Math.round(a.len - t));
   const surowe = (((cab.levels || []).slice(-1)[0] || {}).cols || [])
     .flatMap((c) => c.rails || []);
-  const rails = geo.hasTop ? [] : surowe.map((r) => {
+  const rails = geo.hasTop ? [] : surowe
+    .filter((r) => !(plytaRamienia && r.orient === "front" && r.fromBack))
+    .map((r) => {
     const gr = Math.max(0, Math.round(r.orient === "front" ? t : Number(r.depth) || 0));
     const at = Math.max(0, Math.round(Number(r.atDepth) || 0));
     const v0 = r.fromBack ? at : Math.max(0, a.depth - at - gr);
-    return { u0: r.fromBack ? -tyl : 0, u1, v0, v1: v0 + gr,
+    /* Wzmocnienie czolowe ramienia dobija do tylnej krawedzi tego samego
+       wzmocnienia w korpusie — czyli wchodzi w szafke o jego cofniecie plus
+       szerokosc. Dopiero wtedy obie plyty stykaja sie cala szerokoscia i da sie
+       je skrecic; skrocone do lica mijaly sie o grubosc frontu. */
+    return { u0: r.fromBack ? -tyl : -(at + gr), u1, v0, v1: v0 + gr,
       wys: Math.max(0, Math.round(r.orient === "front" ? Number(r.h) || 0 : Number(r.depth) || 0)),
       stojace: r.orient === "front" };
   });
-  const back = cab.back === "none" ? null : { u0: -tyl, u1: a.len, v0: 0, v1: tb };
+  const back = maPlecy ? { u0: -tyl, u1: a.len, v0: 0, v1: tb, plyta: plytaRamienia } : null;
   /* Tak samo jak katownik: w ukladzie ciagu rog wypada raz na poczatku, raz na
      koncu ramienia, a rysunek samej szafki liczy zawsze od jej lica. */
   const odbij = (r) => (lokalnie || a.outerAtEnd
@@ -4334,7 +4358,8 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
                       {ap.back && (
                         <rect x={ap.back.u0} y={ap.back.v0}
                           width={ap.back.u1 - ap.back.u0} height={ap.back.v1 - ap.back.v0}
-                          fill={a.cab.mat.back.color} stroke={INK} strokeWidth="1.5" />
+                          fill={ap.back.plyta ? a.cab.mat.board.color : a.cab.mat.back.color}
+                          stroke={INK} strokeWidth="1.5" />
                       )}
                       {ap.rails.map((r, k) => (
                         <rect key={"awz" + k} x={r.u0} y={r.v0}
@@ -4617,7 +4642,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       const apBack = armPlan(a).back;
       if (apBack) {
         box(x0 + apBack.u0, y0, a.depth - apBack.v1, x0 + apBack.u1, y1, a.depth - apBack.v0,
-          c.mat.back.color, null, 0.95);
+          apBack.plyta ? bA : c.mat.back.color, null, 0.95);
       }
       // cokol ramienia to plyta pod frontem, nie kloc na cala glebokosc
       if (c.plinthH > 0)
@@ -5774,7 +5799,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
               );
               return (
                 <>
-                  {ap.back && pas(ap.back, mat.back.color, 1)}
+                  {ap.back && pas(ap.back, ap.back.plyta ? bf : mat.back.color, 1)}
                   {ap.rails.map((r, k) => (
                     <g key={"awz" + k}>{pas(r, bf, 0.55)}</g>
                   ))}
@@ -7307,10 +7332,13 @@ const cornerArmParts = (a) => {
   /* Plecy ramienia siegaja poza samo ramie: wzdluz drugiej sciany biegna dalej,
      az do katownika w tylnym narozniku — inaczej zostawal tam goly kawalek. */
   if (plan.back)
-    panels.push({ name: "Plecy ramienia", qty: 1,
-      a: Math.round(plan.back.u1 - plan.back.u0), b: inner, matKey: "back",
+    panels.push({ name: plan.back.plyta ? "Plecy ramienia z płyty" : "Plecy ramienia", qty: 1,
+      a: Math.round(plan.back.u1 - plan.back.u0), b: inner,
+      matKey: plan.back.plyta ? "board" : "back",
       edges: { a1: false, a2: false, b1: false, b2: false },
-      note: plan.tyl > 0 ? "sięgają do kątownika w tylnym narożniku" : "" });
+      note: [plan.tyl > 0 ? "sięgają do kątownika w tylnym narożniku" : "",
+        plan.back.plyta ? "pełna płyta zamiast HDF — usztywnia róg" : ""]
+        .filter(Boolean).join(", ") });
   // front ramienia bierze wysokosc z frontow samej szafki, zeby stanely w linii
   const d0 = (geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
   const luz = (cab.gaps || {}).edge ?? 2;
@@ -10210,6 +10238,29 @@ export default function App() {
                                       w: Math.max(MIN_PART, Math.round(Number(v) || 0)) } } })} />
                               </label>
                             )}
+                            {/* Pelne plecy z plyty. Plyta trzyma rog sama, wiec
+                                stojace wzmocnienie przy tej scianie schodzi —
+                                czasem to prostsze niz dokladanie wsporników. */}
+                            {(() => {
+                              const sc1 = cornerNode.pair
+                                ? cornerNode.pair.wchodzi.run.name : "korpusu";
+                              const sc2 = cornerNode.pair
+                                ? cornerNode.pair.ustepuje.run.name : "ramienia";
+                              return (
+                                <div className="space-y-1.5 rounded border border-stone-200 px-2 py-1.5">
+                                  <span className="block text-[11px] text-stone-400">
+                                    Plecy z pełnej płyty — usztywniają róg i zdejmują wzmocnienie
+                                    przy tej ścianie
+                                  </span>
+                                  <Check checked={cab.back === "board"}
+                                    label={`Od ściany „${sc1}" (korpus)`}
+                                    onChange={(v) => set({ back: v ? "board" : "hdf" })} />
+                                  <Check checked={!!cab.corner.backBoard}
+                                    label={`Od ściany „${sc2}" (ramię)`}
+                                    onChange={(v) => set({ corner: { ...cab.corner, backBoard: v } })} />
+                                </div>
+                              );
+                            })()}
                             {(cab.corner.doors || "wsporniki") === "wsporniki" && (
                               <label className="block">
                                 <span className="mb-1 block text-[11px] text-stone-400">
@@ -10288,15 +10339,39 @@ export default function App() {
                         onChange={(v) => setRun(runInfo.run.id, { worktop: v })} />
                     </Field>
                   )}
-                  {runTp && (
-                    <Field label="Blat ciągu" hint="Blat idzie nad całym ciągiem jedną płaszczyzną.">
-                      <p className="text-xs text-stone-500">
-                        {runTp.n === 1
-                          ? <>Jedna formatka <span className="font-mono text-stone-700">{fmt(runTp.total)} × {fmt(runTp.depth)} mm</span>.</>
-                          : <>{runTp.n} części po <span className="font-mono text-stone-700">{listPl(runTp.lens.map(fmt))} mm</span>, cięte na styku korpusów i oklejone także na łączeniu.</>}
-                      </p>
-                    </Field>
-                  )}
+                  {runTp && (() => {
+                    /* W rogu blat nigdy nie jest jednym kawalkiem: kazda sciana
+                       ma swoj odcinek i tnie sie je osobno. Karta mowi o swoim,
+                       wiec musi tez powiedziec, ze obok lezy drugi — inaczej
+                       „jedna formatka" czyta sie jak caly blat kuchni. */
+                    const rogi = (project.runs || [])
+                      .filter((r) => r.id !== runInfo.run.id
+                        && ((r.corner && r.corner.of === runInfo.run.id)
+                          || (runInfo.run.corner && runInfo.run.corner.of === r.id)))
+                      .map((r) => ({ r, rt: runTop(project, r) }))
+                      .filter((o) => o.rt);
+                    return (
+                      <Field label="Blat ciągu"
+                        hint={rogi.length
+                          ? "Blat tej ściany. W narożniku styka się z blatem sąsiedniej — to osobne odcinki."
+                          : "Blat idzie nad całym ciągiem jedną płaszczyzną."}>
+                        <p className="text-xs text-stone-500">
+                          {rogi.length ? "Odcinek tej ściany: " : ""}
+                          {runTp.n === 1
+                            ? <>jedna formatka <span className="font-mono text-stone-700">{fmt(runTp.total)} × {fmt(runTp.depth)} mm</span>.</>
+                            : <>{runTp.n} części po <span className="font-mono text-stone-700">{listPl(runTp.lens.map(fmt))} mm</span>, cięte na styku korpusów i oklejone także na łączeniu.</>}
+                          {rogi.map((o) => (
+                            <span key={o.r.id}>
+                              {" "}W narożniku dochodzi odcinek ciągu „{o.r.name}" —{" "}
+                              <span className="font-mono text-stone-700">
+                                {fmt(o.rt.total)} × {fmt(o.rt.depth)} mm
+                              </span>.
+                            </span>
+                          ))}
+                        </p>
+                      </Field>
+                    );
+                  })()}
                   <SplitPicker label="Podział blatu" what="blat" s={runTp}
                     onToggle={(j) => toggleCut(runInfo.run.id, "topCuts", runTop, j)}
                     onAuto={() => setRun(runInfo.run.id, { topCuts: null })} />
@@ -11611,6 +11686,32 @@ export default function App() {
                   arm={cornerNode && cornerNode.arm} />
               )}
             </div>
+            {/* Podpis pod rysunkiem: co za blat na nim widac. W rogu to nigdy
+                nie jest jeden kawalek — kazda sciana ma swoj odcinek i tnie sie
+                je osobno, wiec pisanie o „jednej formatce" mylilo. */}
+            {scopeRuns && (() => {
+              const odcinki = scopeRuns.map((r) => ({ r, rt: runTop(project, r) }))
+                .filter((o) => o.rt);
+              if (!odcinki.length) return null;
+              const jaki = odcinki.some((o) => o.rt.worktop) ? "Blat" : "Wieniec ciągu";
+              return (
+                <p className="mt-2 text-xs text-stone-500">
+                  {jaki}
+                  {odcinki.length > 1 ? " — " + odcinki.length + " odcinki, po jednym na ścianę: " : " — "}
+                  {odcinki.map((o, i) => (
+                    <span key={o.r.id}>
+                      {i > 0 ? ", " : ""}
+                      {o.r.name}{" "}
+                      <span className="font-mono text-stone-700">
+                        {fmt(o.rt.total)} × {fmt(o.rt.depth)} mm
+                      </span>
+                      {o.rt.n > 1 ? ` (${o.rt.n} części)` : ""}
+                    </span>
+                  ))}
+                  {odcinki.length > 1 ? ". Odcinki spotykają się w narożniku i tnie się je osobno." : "."}
+                </p>
+              );
+            })()}
           </Card>
 
           {(errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0) && (

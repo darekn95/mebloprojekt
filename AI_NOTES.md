@@ -198,3 +198,22 @@ tej samej sciany (przycisk „× ciąg" w naglowku). Ostatnich szafek projektu
 ostrzezenia i podpowiedzi, ale nie bledy. Licznik nad projektem liczy tylko
 nieprzeczytane (`warnsNowe`, `infosNowe`) — inaczej pasek straszy liczba, ktora
 dawno przeczytales.
+
+## Plecy z plyty w narozniku
+
+[AI-INFO] Pelne plecy z plyty usztywniaja rog tak samo jak stojace wzmocnienie
+przy tej samej scianie, wiec je zdejmuja. Po stronie korpusu robi to zwykle
+ustawienie `cab.back === "board"` (checkbox w karcie naroznika jest tylko
+skrotem do niego), po stronie ramienia — `cab.corner.backBoard`. Filtr siedzi
+w dwoch miejscach: `computeGeo` wyrzuca wtedy wzmocnienie `front` + `fromBack`
+z korpusu, a `armPlan` to samo z ramienia. Plaskie wzmocnienie pod blatem
+zostaje zawsze — ono nie usztywnia, tylko trzyma blat.
+
+[AI-INFO] Wzmocnienie czolowe ramienia wchodzi w szafke o `atDepth + szerokosc`
+tego samego wzmocnienia w korpusie (przy standardzie: 18 + 100 = 118). Dopiero
+wtedy obie plyty stykaja sie cala szerokoscia i da sie je skrecic — skrocone do
+lica mijaly sie o grubosc frontu.
+
+[AI-INFO] Stojace wzmocnienie przy plecach stoi na zero z tylna krawedzia
+korpusu, tak samo jak koncza sie boki; plecy ida na nie normalnie. Byla krotka
+wersja z odsunieciem o 18 mm i `migrateCab` sprowadza ja z powrotem do zera.
