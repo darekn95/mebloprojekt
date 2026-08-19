@@ -145,3 +145,12 @@ rozmieszczenie **bez** ctx (inaczej wpadlby w kolo), a rysunki i zestawienie
 wolaja `assemblyParts(project, runs, full)` albo `computeGeo(..., armCtxOf(...))`
 juz z gotowym rozmieszczeniem. Przyciecie dotyczy tylko `x0`/`x1` wzmocnien,
 wiec nie zmienia niczego, z czego liczy sie samo rozmieszczenie.
+
+[AI-INFO] Odsuniecie ciagu na scianie (`offset` + `offsetFrom`) wchodzi w
+`runLayout` od razu w `lead` albo `tail` — dalej cala geometria pasa liczy sie
+sama, bo idzie wlasnie od tych dwoch liczb. Nie ma osobnej sciezki na
+„przesuniety ciag".
+
+[AI-INFO] Dlugosc sciany jest wspolna dla obu pieter (`runWallW`), a pole w
+karcie gornego ciagu zapisuje ja do ciagu dolnego — inaczej kazde pietro
+trzymaloby wlasna dlugosc tej samej sciany.

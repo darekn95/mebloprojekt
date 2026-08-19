@@ -587,7 +587,8 @@ const makeRun = (runs) => {
   return { id: nextRunId(runs), name: `Ściana ${Math.max(0, ...nums) + 1}`, wallW: null, gap: 0,
     H: null, D: null, plinth: null, plinthCuts: null, topCuts: null, worktop: true,
     hangerMode: "listwa", mountY: 0, corner: null,
-    tier: "dolny", wall: null, clearance: 500, ceiling: null };
+    tier: "dolny", wall: null, clearance: 500, ceiling: null,
+    offset: 0, offsetFrom: "left" };
 };
 
 /* Gorny ciag tej samej sciany. Dlugosc sciany i narożnik bierze od dolnego, wiec
@@ -597,6 +598,7 @@ const makeUpperRun = (runs, dolny, mountY) => ({
   ...makeRun(runs), name: dolny.name, tier: "gorny", wall: dolny.id,
   wallW: null, D: GORNY_D, H: null, plinth: null, worktop: false,
   clearance: 500, ceiling: null, mountY, corner: null,
+  offset: 0, offsetFrom: "left",
 });
 
 /* Nazwa z pietrem — sama „Ściana 1" przestaje wystarczac, gdy ma dwa ciagi. */
@@ -665,6 +667,10 @@ const migrateRun = (r) => ({
   wall: r.wall != null ? String(r.wall) : null,
   clearance: Number(r.clearance) > 0 ? Math.round(Number(r.clearance)) : 500,
   ceiling: Number(r.ceiling) > 0 ? Math.round(Number(r.ceiling)) : null,
+  /* Odsuniecie ciagu w obrebie sciany: dolne szafki moga zaczynac sie w innym
+     miejscu niz gorne. Liczone od tej krawedzi, ktora wskazuje `offsetFrom`. */
+  offset: Math.max(0, Math.round(Number(r.offset) || 0)),
+  offsetFrom: r.offsetFrom === "right" ? "right" : "left",
   // null = ciag stoi przy wlasnej scianie, bez zwiazku z innymi
   corner: migrateCorner(r.corner),
 });
@@ -3141,7 +3147,11 @@ const runLayout = (groups, ref = null) => {
     g, id: g.run.id, run: g.run, depth: runFrontDepth(g), total: g.total,
     // szafka wysunieta z lica wystaje poza lico ciagu — rysunek musi ja objac
     front: Math.max(0, ...g.cabs.map((c) => c.offset)),
-    lead: 0, tail: 0, corner: null, kids: [], zones: [], arms: [], blind: null, arm: null, pair: null,
+    /* Odsuniecie ciagu w obrebie sciany wchodzi od razu w `lead` albo `tail` —
+       dalej liczy sie samo, bo cala geometria pasa idzie od tych dwoch liczb. */
+    lead: g.run.offsetFrom === "right" ? 0 : Math.max(0, Math.round(g.run.offset || 0)),
+    tail: g.run.offsetFrom === "right" ? Math.max(0, Math.round(g.run.offset || 0)) : 0,
+    corner: null, kids: [], zones: [], arms: [], blind: null, arm: null, pair: null,
   }));
   info.forEach((n) => {
     const c = n.run.corner;
@@ -7301,6 +7311,56 @@ const worktopMsgs = (project, run) => {
   return out;
 };
 
+/* Uwagi o pietrach: gorny ciag nie moze wystawac poza dolny, a pod sufitem
+   warto wiedziec, ile jeszcze zostaje. */
+const tierMsgs = (project, run) => {
+  const out = [];
+  if (!run) return out;
+  const runs = project.runs || [];
+  const dolny = run.tier === "gorny" ? runs.find((r) => r.id === run.wall) : run;
+  const gorny = run.tier === "gorny" ? run : runs.find((r) => r.tier === "gorny" && r.wall === run.id);
+  if (!dolny || !gorny) return out;
+  /* Oba pietra liczymy w tym samym ukladzie sciany: od lewej krawedzi. */
+  const zakres = (r) => {
+    const { total } = runJoints(project, r);
+    const od = r.offsetFrom === "right" ? null : Math.max(0, Math.round(r.offset || 0));
+    const sciana = runWallW(project, r);
+    const start = od != null ? od
+      : sciana != null ? Math.max(0, sciana - Math.max(0, Math.round(r.offset || 0)) - total) : 0;
+    return { start, koniec: start + total, total };
+  };
+  const d = zakres(dolny);
+  const g = zakres(gorny);
+  if (g.total > 0 && d.total > 0) {
+    const zLewej = d.start - g.start;
+    const zPrawej = g.koniec - d.koniec;
+    if (zLewej > 0 || zPrawej > 0)
+      out.push({ level: "warn", text:
+        `Ciąg górny wystaje poza dolny`
+        + (zLewej > 0 ? ` o ${fmt(zLewej)} mm z lewej` : "")
+        + (zLewej > 0 && zPrawej > 0 ? " i" : "")
+        + (zPrawej > 0 ? ` o ${fmt(zPrawej)} mm z prawej` : "")
+        + ". Górna szafka wisi wtedy nad pustym miejscem — przesuń ciąg albo wyrównaj długości." });
+  }
+  if (gorny.ceiling != null) {
+    const { list } = runJoints(project, gorny);
+    if (list.length) {
+      const mount = tierMountY(project, gorny);
+      const gora = mount + Math.max(...list.map(({ it }) => Math.round(it.cab.H)));
+      const luz = Math.round(gorny.ceiling - gora);
+      if (luz < 0)
+        out.push({ level: "error", text:
+          `Szafki górne sięgają ${fmt(gora)} mm, a sufit jest na ${fmt(gorny.ceiling)} mm — `
+          + `nie mieszczą się o ${fmt(-luz)} mm.` });
+      else
+        out.push({ level: "info", text:
+          `Nad szafkami górnymi zostaje ${fmt(luz)} mm do sufitu`
+          + (luz > 0 ? ` — o tyle da się je jeszcze podwyższyć albo dołożyć blendę.` : ".") });
+    }
+  }
+  return out;
+};
+
 const runWideMsgs = (run, total, rp, rt, len) => {
   const out = [];
   if (!run) return out;
@@ -8971,6 +9031,7 @@ export default function App() {
     return [...runCabMsgs(runInfo.run, c),
       ...runWideMsgs(runInfo.run, runInfo.total, runPl, runTp, node ? node.len : 0),
       ...worktopMsgs(project, runInfo.run),
+      ...tierMsgs(project, runInfo.run),
       ...runCornerMsgs(node, !!runTp),
       /* Kolizje otwierania sa sprawa calej zabudowy, a nie tego jednego ciagu —
          dlatego lecimy po calym rozmieszczeniu i pokazujemy wszystkie. */
@@ -9679,13 +9740,47 @@ export default function App() {
                         onChange={(e) => setRun(runInfo.run.id, { name: e.target.value })}
                         className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-teal-600 focus:outline-none" />
                     </Field>
-                    <Field label="Długość ściany">
-                      <AutoNum value={runInfo.run.wallW} placeholder={fmt(runInfo.total)}
-                        fixed={runInfo.run.wallW != null}
-                        onChange={(v) => setRun(runInfo.run.id,
+                    <Field label="Długość ściany"
+                      hint={runInfo.run.tier === "gorny"
+                        ? "Wspólna dla obu pięter — ustawia się przy ciągu dolnym."
+                        : undefined}>
+                      <AutoNum value={runWallW(project, runInfo.run)} placeholder={fmt(runInfo.total)}
+                        fixed={runWallW(project, runInfo.run) != null}
+                        onChange={(v) => setRun(runInfo.run.tier === "gorny" && runInfo.run.wall
+                          ? runInfo.run.wall : runInfo.run.id,
                           { wallW: v === "" ? null : Math.max(0, Math.round(Number(v))) })} />
                     </Field>
                   </div>
+                  {/* Dolne szafki moga zaczynac sie w innym miejscu niz gorne —
+                      stad odsuniecie liczone od wybranej krawedzi sciany. */}
+                  <Field label="Położenie na ścianie"
+                    hint="Odsunięcie całego ciągu od wybranej krawędzi ściany.">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Num value={runInfo.run.offset || 0} min={0}
+                        onChange={(v) => setRun(runInfo.run.id,
+                          { offset: Math.max(0, Math.round(Number(v) || 0)) })} />
+                      <Seg value={runInfo.run.offsetFrom === "right" ? "right" : "left"}
+                        onChange={(v) => setRun(runInfo.run.id, { offsetFrom: v })}
+                        options={[{ v: "left", l: "Od lewej" }, { v: "right", l: "Od prawej" }]} />
+                    </div>
+                  </Field>
+                  {runInfo.run.tier === "gorny" && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Prześwit nad blatem"
+                        hint="Od góry blatu do spodu szafek górnych.">
+                        <Num value={runInfo.run.clearance ?? 500} min={0}
+                          onChange={(v) => setRun(runInfo.run.id,
+                            { clearance: Math.max(0, Math.round(Number(v) || 0)) })} />
+                      </Field>
+                      <Field label="Wysokość pomieszczenia"
+                        hint="Puste = nie liczymy luzu pod sufitem.">
+                        <AutoNum value={runInfo.run.ceiling} placeholder="do sufitu"
+                          fixed={runInfo.run.ceiling != null}
+                          onChange={(v) => setRun(runInfo.run.id,
+                            { ceiling: v === "" ? null : Math.max(0, Math.round(Number(v))) })} />
+                      </Field>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Luz między korpusami"
                       hint="0 przy szafkach skręcanych ze sobą.">

@@ -66,6 +66,39 @@ ok('dolny pokazuje tylko dolne', nD > 0);
 ok('górny pokazuje tylko górne', nG > 0 && nG < nD);
 ok('całość pokazuje oba piętra', nC === nD + nG, `${nD}+${nG} vs ${nC}`);
 
+console.log('\n== odsunięcie ciągu i sufit ==');
+const pole = (cap) => page.locator('label')
+  .filter({ has: page.locator('span', { hasText: new RegExp('^' + cap + '$') }) })
+  .last().locator('input[type=number]').first();
+const uwagi = async () => {
+  const u = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi$/ }) }).first();
+  return (await u.count()) ? u.innerText() : '';
+};
+/* Dolny ma dwie szafki (1200), gorny jedna (600). Odsuniete o 800 od lewej
+   konczy sie na 1400, czyli 200 poza dolnym. */
+await pole('Położenie na ścianie').fill('800');
+await page.waitForTimeout(1400);
+let t = await uwagi();
+console.log('   ' + (t.split('\n').find((l) => /wystaje poza dolny/.test(l)) || '(brak)').slice(0, 150));
+ok('ostrzeżenie o wystawaniu poza dolny', /wystaje poza dolny.*200 mm z prawej/.test(t.replace(/\s+/g, ' ')), t.slice(0, 200));
+await pole('Położenie na ścianie').fill('0');
+await page.waitForTimeout(1400);
+t = await uwagi();
+ok('po wyrównaniu ostrzeżenie znika', !/wystaje poza dolny/.test(t), t.slice(0, 160));
+
+// sufit: 2700 przy szafkach gornych 720 na 1358 -> zostaje 622
+await pole('Wysokość pomieszczenia').fill('2700');
+await page.waitForTimeout(1400);
+t = await uwagi();
+console.log('   ' + (t.split('\n').find((l) => /do sufitu/.test(l)) || '(brak)').slice(0, 150));
+ok('luz pod sufitem policzony', /622 mm do sufitu/.test(t.replace(/\s+/g, ' ')), t.slice(0, 200));
+await pole('Wysokość pomieszczenia').fill('1900');
+await page.waitForTimeout(1400);
+t = await uwagi();
+ok('za wysokie szafki to błąd', /nie mieszczą się/.test(t), t.slice(0, 200));
+await pole('Wysokość pomieszczenia').fill('2700');
+await page.waitForTimeout(1200);
+
 console.log('\n== górny pas stoi nad dolnym we wszystkich widokach ==');
 for (const w of ['Zamk.', 'Otw.', 'Z góry', 'Z tyłu', '3D', '45°']) {
   const btn = page.getByText(w, { exact: true }).first();
