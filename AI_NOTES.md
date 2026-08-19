@@ -154,3 +154,47 @@ sama, bo idzie wlasnie od tych dwoch liczb. Nie ma osobnej sciezki na
 [AI-INFO] Dlugosc sciany jest wspolna dla obu pieter (`runWallW`), a pole w
 karcie gornego ciagu zapisuje ja do ciagu dolnego — inaczej kazde pietro
 trzymaloby wlasna dlugosc tej samej sciany.
+
+## Ramie naroznika: jedno miejsce na plyty, dwa uklady osi
+
+[AI-INFO] `armPlan(a, lokalnie)` liczy wzmocnienia i plecy ramienia — tak samo
+jak `bracketPlan` liczy katownik. Rysunek ciagu, rysunek samej szafki, bryla 3D
+i formatki biora z niego te same liczby; dopisanie plyty tylko w jednym z tych
+miejsc konczy sie tym, ze lista mowi swoje, a rysunek swoje.
+
+[AI-INFO] Plecy i **tylne** wzmocnienie ramienia nie koncza sie na licu korpusu:
+wchodza w glab szafki naroznej az do katownika w tylnym narozniku, czyli o
+`glebokosc - plecy - ramie katownika` (u ujemne w ukladzie ramienia). Bez tego
+wisialy w powietrzu nad przelotem, a wzdluz drugiej sciany zostawal goly pas.
+
+[AI-INFO] Wolne lico przycina w `computeGeo` tylko te wzmocnienia, ktore stoja
+**z przodu**. Rozpoznajemy je po `fromBack`: plyta przy plecach idzie przez cala
+szafke do katownika w narozniku, plyta przy licu konczy sie na katowniku przy
+drzwiach — `ctx.armKat` mowi, ile ten katownik wystaje poza samo lico, i liczy
+sie go z `bracketPlan`, zeby nie powtarzac wzoru.
+
+## Blat na rysunkach
+
+[AI-INFO] `runTop` oddaje `spans`, `y` i `th` — odcinki, wysokosc lica i
+grubosc. Rysunki wolaja `worktopSpans(rt)`, ktore skleja sasiadujace odcinki
+w jedna plyte i dociaga skrajne do konca calego blatu (nad rogiem blat idzie
+dalej niz szafki pod nim).
+
+[AI-INFO] W bryle 3D blat dostaje `bias` rowny polowie swojej glebokosci. Sciany
+sortuja sie po **sredniej** glebokosci, a blat to jedna wielka plyta: jej srodek
+wypada dalej niz wzmocnienia i katowniki tuz pod nia, wiec bez przyciagniecia do
+widza przebijaly sie przez wierzch. Polowa glebokosci wygrywa z tym, co lezy pod
+blatem, i jest wyraznie mniejsza od przeswitu do szafek gornych.
+
+## Ciagi i uwagi
+
+[AI-INFO] Sa dwie rozne operacje na ciagu i latwo je pomylic: `removeRun`
+**rozwiazuje** ciag (szafki zostaja, wracaja na wolnostojace, przycisk w karcie
+„Ciąg meblowy"), a `deleteRun` **kasuje** go razem z szafkami i z gornym pietrem
+tej samej sciany (przycisk „× ciąg" w naglowku). Ostatnich szafek projektu
+`deleteRun` nie zabiera — aplikacja nie ma wtedy czego pokazac.
+
+[AI-INFO] Odhaczanie uwag (`szafki:przeczytane` w localStorage) obejmuje
+ostrzezenia i podpowiedzi, ale nie bledy. Licznik nad projektem liczy tylko
+nieprzeczytane (`warnsNowe`, `infosNowe`) — inaczej pasek straszy liczba, ktora
+dawno przeczytales.

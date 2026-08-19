@@ -13,7 +13,9 @@ const card = (re) => page.locator('section').filter({ has: page.locator('h2', { 
 const notes = () => page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')].find((s) => /^Uwagi$/.test((s.querySelector('h2') || {}).textContent || ''));
   return sec ? [...sec.querySelectorAll('li')].map((li) => ({
-    txt: li.textContent.trim(), btns: [...li.querySelectorAll('button')].map((b) => b.textContent.trim()),
+    txt: li.textContent.trim(),
+    // ptaszek „przeczytane" to nie jest poprawka — liczymy same przyciski akcji
+    btns: [...li.querySelectorAll('button')].map((b) => b.textContent.trim()).filter((t) => t !== '\u2713'),
   })) : [];
 });
 const cutRows = (re) => card(re).evaluate((sec) =>

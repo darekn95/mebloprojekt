@@ -1267,10 +1267,14 @@ function computeGeo(cab, mat, ctx) {
       /* Wzmocnienie konczy sie na maskownicy katownika: dalej lico jest juz
          otwarte i prowadzi w ramie, wiec nie ma czego usztywniac ani do czego
          przykrecac. */
+      /* Kawalek za wolnym licem to jeszcze nie koniec: wzmocnienie ma dojsc do
+         konca katownika, bo dopiero na jego calej szerokosci ma sie czego
+         trzymac. `armKat` mowi, ile katownik wystaje poza lico. */
+      const kat = (ctx && ctx.armKat) || 0;
       const licoOd = ctx && ctx.armFree > 0 && ctx.armSide === "left"
-        ? W - ctx.armFree : 0;
+        ? W - ctx.armFree - kat : 0;
       const licoDo = ctx && ctx.armFree > 0
-        ? (ctx.armSide === "right" ? ctx.armFree : W) : W;
+        ? (ctx.armSide === "right" ? ctx.armFree + kat : W) : W;
       c.rails = rawRails.map((r) => {
         const rh = Math.max(0, Math.round(r.h || 0));
         const rd = Math.max(0, Math.round(r.depth || 0));
@@ -1278,8 +1282,12 @@ function computeGeo(cab, mat, ctx) {
         const zLen = r.orient === "front" ? t : rd;
         const z0 = r.fromBack ? Math.max(0, carcassDepth - rAt - zLen) : rAt;
         const cw = c.x1 - c.x0;
-        const rx0 = Math.max(c.x0, licoOd);
-        const rx1 = Math.min(c.x1, licoDo);
+        /* Lico przycina tylko to, co stoi z przodu — przy tylnej scianie ramie
+           niczego nie otwiera, wiec wzmocnienie idzie przez cala szafke az do
+           katownika w tylnym narozniku. Inaczej wisialo w powietrzu. */
+        const przyTyle = !!r.fromBack;
+        const rx0 = przyTyle ? c.x0 : Math.max(c.x0, licoOd);
+        const rx1 = przyTyle ? c.x1 : Math.min(c.x1, licoDo);
         const rw = Math.max(0, rx1 - rx0);
         if (r.orient === "shelf") {
           const ry = r.pos === "bottom" ? kLo : kHi - t;
@@ -2990,12 +2998,24 @@ const runWallW = (project, run) => {
    szerokosci dostepnego lica — bez tego jej wzmocnienia biegna przez przelot
    w ramie. Pierwsze przejscie (to, ktore buduje rozmieszczenie) `ref` nie ma
    i liczy sie jak dotad; rysunki i zestawienie wolaja juz z nim. */
+/* Ile katownik wystaje poza wolne lico korpusu. Liczymy z `bracketPlan`, zeby
+   rysunek i geometria nie rozjechaly sie przy zmianie ukladu plyt: bierzemy te
+   plyty, ktore stoja w plaszczyznie korpusu (siegaja w glab ramienia). */
+const bracketPozaLico = (a) => {
+  if (!a.bracket) return 0;
+  const tf = a.cab.geo.tf;
+  const vF0 = armInset(a) ? a.depth - tf : a.depth;
+  const korpusowe = bracketPlan(a, true).filter((r) => r.h === a.bracket.w);
+  if (!korpusowe.length) return 0;
+  return Math.max(0, Math.round(vF0 + tf - Math.min(...korpusowe.map((r) => r.v))));
+};
+
 const armCtxOf = (ref, index) => {
   if (!ref) return undefined;
   let out;
   ref.info.forEach((k) => {
     if (k.arm && k.arm.cab.index === index)
-      out = { armFree: k.arm.free, armSide: k.arm.side };
+      out = { armFree: k.arm.free, armSide: k.arm.side, armKat: bracketPozaLico(k.arm) };
   });
   return out;
 };
@@ -3121,6 +3141,43 @@ const bracketPlan = (a, lokalnie) => {
   /* W ukladzie ciagu rog wypada raz na poczatku, raz na koncu ramienia. Rysunek
      samej szafki liczy zawsze od jej lica, wiec tam odbicie jest zbedne. */
   return lokalnie || a.outerAtEnd ? rects : rects.map((r) => ({ ...r, u: a.len - r.u - r.w }));
+};
+
+/* Wzmocnienia i plecy ramienia w jego wlasnym ukladzie: `u` biegnie wzdluz
+   ramienia od lica korpusu, `v` w glab od sciany. Jedno miejsce dla rysunku
+   i dla formatek — inaczej lista mowi swoje, a rysunek swoje.
+
+   Dwie rzeczy nie koncza sie na licu korpusu, tylko wchodza w glab szafki
+   naroznej az do katownika w tylnym narozniku: plecy i tylne wzmocnienie.
+   Bez tego wisialy w powietrzu nad przejsciem, a wzdluz drugiej sciany
+   zostawal goly kawalek. */
+const armPlan = (a, lokalnie) => {
+  const geo = a.cab.geo;
+  const cab = a.cab.cab;
+  const t = geo.t;
+  const tf = geo.tf;
+  const tb = cab.back === "none" ? 0 : geo.tb || t;
+  const pOd = Math.max(geo.backIntrusion, tb);
+  const tyl = geo.postSide
+    ? Math.max(0, Math.round(geo.carcassDepth - pOd - geo.postW)) : 0;
+  // ramie zamyka bok na wolnym koncu — plyty poziome dochodza do jego lica
+  const u1 = Math.max(0, Math.round(a.len - t));
+  const surowe = (((cab.levels || []).slice(-1)[0] || {}).cols || [])
+    .flatMap((c) => c.rails || []);
+  const rails = geo.hasTop ? [] : surowe.map((r) => {
+    const gr = Math.max(0, Math.round(r.orient === "front" ? t : Number(r.depth) || 0));
+    const at = Math.max(0, Math.round(Number(r.atDepth) || 0));
+    const v0 = r.fromBack ? at : Math.max(0, a.depth - at - gr);
+    return { u0: r.fromBack ? -tyl : 0, u1, v0, v1: v0 + gr,
+      wys: Math.max(0, Math.round(r.orient === "front" ? Number(r.h) || 0 : Number(r.depth) || 0)),
+      stojace: r.orient === "front" };
+  });
+  const back = cab.back === "none" ? null : { u0: -tyl, u1: a.len, v0: 0, v1: tb };
+  /* Tak samo jak katownik: w ukladzie ciagu rog wypada raz na poczatku, raz na
+     koncu ramienia, a rysunek samej szafki liczy zawsze od jej lica. */
+  const odbij = (r) => (lokalnie || a.outerAtEnd
+    ? r : { ...r, u0: a.len - r.u1, u1: a.len - r.u0 });
+  return { tyl, u1, tb, rails: rails.map(odbij), back: back && odbij(back) };
 };
 
 /* Glebokosc ciagu liczona od sciany do lica — szafki wyrownujemy do lica, wiec
@@ -3935,6 +3992,20 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                   frontColor={c.frontColor} levelDims={showDims && open && c.cab === activeCab} />
               </g>
             ))}
+            {/* Blat ciagu — jedna plaszczyzna nad szafkami, takze nad ramieniem
+                w rogu. Bez tego widok konczyl sie na licu korpusow. */}
+            {(() => {
+              const rt = runTop(project, g.run);
+              if (!rt) return null;
+              const kol = rt.worktop
+                ? (rt.mat.worktop || {}).color || "#8d7b68"
+                : (rt.mat.board || {}).color || "#d8c3a0";
+              return worktopSpans(rt).map((s, i) => (
+                <rect key={"blat" + i} x={mx(ox + s.x0, s.x1 - s.x0)}
+                  y={fy(g.mount + rt.y + rt.th)} width={s.x1 - s.x0} height={rt.th}
+                  fill={kol} stroke={INK} strokeWidth="2" />
+              ));
+            })()}
             {/* Odcinek zjedzony przez rog nie jest pusty — stoi w nim bok szafki
                 z sasiedniej sciany. Bez tego szafki wygladaja, jakby bez powodu
                 odjechaly od naroza. */}
@@ -4028,6 +4099,14 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                     <rect x={ax} y={fy(a.cab.base)} width={a.len} height={a.cab.plinthH}
                       fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" opacity="0.75" />
                   )}
+                  {/* Polki ramienia widac dopiero po otwarciu — ida na tych samych
+                      wysokosciach co polki kolumny przy ramieniu, bo to na nich
+                      sie koncza. */}
+                  {open && !rear && armShelfYs(a.side, a.cab.geo.levels).map((sy, k) => (
+                    <rect key={"apo" + k} x={ax} y={fy(a.cab.base + sy + a.cab.geo.ts)}
+                      width={a.len} height={a.cab.geo.ts}
+                      fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
+                  ))}
                   {/* Front ramienia to zwykle drzwi, wiec musi miec uchwyt i
                       zawiasy — inaczej na elewacji wyglada jak zaslepka.
                       Zawiasy ida od konca dalszego od naroza, bo przy samym
@@ -4039,16 +4118,24 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                     const y0 = fy(a.cab.base + H);
                     // zawias na zewnetrznej krawedzi skrzydla, uchwyt przy wolnej
                     const hx = zl ? lx : lx + lw - HINGE_W;
+                    /* Zawiasy ramienia siadaja na tych samych wysokosciach co
+                       zawiasy drzwi tej szafki — front ramienia jest tak samo
+                       wysoki, wiec rozstawione na oko wypadaly obok tamtych. */
+                    const dRef = (a.cab.geo.doors || [])
+                      .find((d) => d.h > 0 && d.type === "door" && (d.hingePts || []).length);
                     const ile = Math.max(2, Math.min(4, Math.round(H / 500) + 1));
+                    const hys = dRef ? dRef.hingePts
+                      : Array.from({ length: ile }, (_, k) => (H * (k + 1)) / (ile + 1));
                     return (
                       <g>
-                        {open && showHardware && Array.from({ length: ile }, (_, k) => (
-                          <rect key={"hg" + k} x={hx}
-                            y={y0 + (H * (k + 1)) / (ile + 1) - HINGE_H / 2}
+                        {open && showHardware && hys.map((hy, k) => (
+                          <rect key={"hg" + k} x={hx} y={fy(a.cab.base + hy) - HINGE_H / 2}
                             width={HINGE_W} height={HINGE_H}
                             fill="#a1a1aa" stroke={INK} strokeWidth="1.5" opacity="0.9" />
                         ))}
-                        {lw > 60 && (
+                        {/* Uchwytu na otwartym skrzydle nie widac — tak samo jak
+                            przy drzwiach szafki, gdzie zostaje sam obrys. */}
+                        {!open && lw > 60 && (
                           <rect x={zl ? lx + lw - 45 : lx + 30} y={y0 + H / 2 - 60}
                             width={15} height={120} rx="5" fill="#52525b" opacity="0.9" />
                         )}
@@ -4064,10 +4151,17 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                     );
                   })()}
                   {showDims && (
-                    <text x={ax + a.len / 2} y={fy(a.cab.base + a.cab.cab.H / 2)} textAnchor="middle"
-                      fontSize="20" fill={INK} fontFamily="ui-monospace, monospace">
-                      ramię {fmt(a.len)}
-                    </text>
+                    <>
+                      <text x={ax + a.len / 2} y={fy(a.cab.base + a.cab.cab.H / 2)} textAnchor="middle"
+                        fontSize="20" fill={INK} fontFamily="ui-monospace, monospace">
+                        ramię {fmt(a.len)}
+                      </text>
+                      {/* Ramie jest kawalkiem zabudowy jak kazdy inny, wiec
+                          dostaje kreske w tym samym wierszu co szerokosci
+                          szafek — bez niej pas z samym ramieniem byl niemierzony. */}
+                      <DimH x1={ax} x2={ax + a.len} y={fy(0) + 56 + gi * 74}
+                        label={fmt(a.len)} above={false} />
+                    </>
                   )}
                 </g>
               );
@@ -4087,6 +4181,23 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                 {g.mount > 0 && (
                   <DimV y1={fy(g.mount)} y2={fy(0)} x={total + 90} left={false} label={fmt(g.mount)} />
                 )}
+                {/* Przeswit nad blatem: od lica dolnego ciagu (z blatem, jesli
+                    go ma) do spodu szafek gornych. To ten wymiar bierze sie pod
+                    uwage przy okapie i plytkach, wiec musi byc na rysunku. */}
+                {g.mount > 0 && (() => {
+                  const dolny = groups.find((q) => q.run.id === g.run.wall);
+                  if (!dolny || !dolny.cabs.length) return null;
+                  const rtD = runTop(project, dolny.run);
+                  const lico = rtD
+                    ? dolny.mount + rtD.y + rtD.th
+                    : Math.max(...dolny.cabs.map((c) => c.base + c.cab.H));
+                  const luz = Math.round(g.mount - lico);
+                  if (!(luz > 0)) return null;
+                  return (
+                    <DimV y1={fy(g.mount)} y2={fy(lico)} x={mx(ox + g.total / 2, 0)}
+                      label={fmt(luz)} />
+                  );
+                })()}
                 {/* Luz miedzy korpusami bywa 3 mm — kreska wymiarowa zlalaby sie
                     w plame, wiec zamiast niej idzie odnosnik nad ciagiem. */}
                 {g.gap > 0 && g.cabs.slice(0, -1).map((c, i) => {
@@ -4231,11 +4342,25 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
                   y={armInset(a) ? a.depth - a.cab.geo.tf : a.depth}
                   width={a.armFront} height={a.cab.geo.tf}
                   fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
-                {/* plecy ramienia — bez nich w rzucie zostawala dziura przy scianie */}
-                {a.cab.cab.back !== "none" && (
-                  <rect x={0} y={0} width={a.len} height={a.cab.geo.tb || a.cab.geo.t}
-                    fill={a.cab.mat.back.color} stroke={INK} strokeWidth="1.5" />
-                )}
+                {/* Plecy i wzmocnienia ramienia. Plecy i tylne wzmocnienie ida
+                    dalej niz samo ramie — az do katownika w tylnym narozniku. */}
+                {(() => {
+                  const ap = armPlan(a);
+                  return (
+                    <>
+                      {ap.back && (
+                        <rect x={ap.back.u0} y={ap.back.v0}
+                          width={ap.back.u1 - ap.back.u0} height={ap.back.v1 - ap.back.v0}
+                          fill={a.cab.mat.back.color} stroke={INK} strokeWidth="1.5" />
+                      )}
+                      {ap.rails.map((r, k) => (
+                        <rect key={"awz" + k} x={r.u0} y={r.v0}
+                          width={r.u1 - r.u0} height={r.v1 - r.v0}
+                          fill={a.cab.mat.board.color} stroke={INK} strokeWidth="1.5" opacity="0.55" />
+                      ))}
+                    </>
+                  );
+                })()}
                 {/* Katownik w wewnetrznym rogu: po jednej plycie w kazdej
                     plaszczyznie frontu, a za nimi te same dwie w srodku szafki.
                     Do zewnetrznych domykaja sie oba skrzydla. */}
@@ -4250,6 +4375,20 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
                 )}
               </g>
             ))}
+            {/* Blat ciagu lezy nad wszystkim, wiec i rysujemy go na wierzchu —
+                przezroczysto, zeby bylo widac, co pod nim stoi. */}
+            {(() => {
+              const rt = runTop(project, g.run);
+              if (!rt) return null;
+              const kol = rt.worktop
+                ? (rt.mat.worktop || {}).color || "#8d7b68"
+                : (rt.mat.board || {}).color || "#d8c3a0";
+              return worktopSpans(rt).map((s, i) => (
+                <rect key={"blat" + i} x={n.lead + s.x0} y={0}
+                  width={s.x1 - s.x0} height={rt.depth}
+                  fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
+              ));
+            })()}
             {showDims && (
               <g>
                 {/* miejsce zjedzone przez narożnik — tam nie stanie zadna szafka */}
@@ -4484,21 +4623,17 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       if (c.geo.hasTop) {
         box(x0, y1 - tA, 0, x0 + a.len, y1, a.depth, bA);
       } else {
-        /* Z przodu plyta na plask, z tylu stojaca — tak samo jak w szafce. Obie
-           koncza sie na katowniku, a stojaca cofa sie od plecow o grubosc plyty.
-           W ukladzie ramienia z = 0 to LICO, a z = glebokosc plecy. */
-        const wLen = a.armFront != null ? a.armFront : a.len;
-        // rog jest przy poczatku ramienia, gdy `outerAtEnd` — wzmocnienia zaczynaja
-        // sie wtedy za katownikiem, czyli od strony wolnego konca
-        const wU0 = x0 + (przyKoncuBok ? a.len - wLen : 0);
-        box(wU0, y1 - tA, 0, wU0 + wLen, y1, 100, bA);
-        /* Tylne wzmocnienie nie konczy sie na maskownicy jak przednie — biegnie
-           przez cale ramie, az do katownika w tylnym narozniku szafki. */
-        box(x0, y1 - 100, a.depth - 2 * tA, x0 + a.len, y1, a.depth - tA, bA);
+        /* Z przodu plyta na plask, z tylu stojaca — te same, ktore liczy rzut
+           z gory, wiec bryla nie rozjedzie sie z rysunkiem. W ukladzie ramienia
+           `v` idzie od sciany, a os z w bryle od lica, stad odbicie. */
+        armPlan(a).rails.forEach((r) => {
+          box(x0 + r.u0, y1 - (r.stojace ? r.wys : tA), a.depth - r.v1,
+            x0 + r.u1, y1, a.depth - r.v0, bA);
+        });
       }
-      if (c.cab.back !== "none") {
-        const tb = c.geo.tb || tA;
-        box(x0, y0, Math.max(0, a.depth - tb), x0 + a.len, y1, a.depth,
+      const apBack = armPlan(a).back;
+      if (apBack) {
+        box(x0 + apBack.u0, y0, a.depth - apBack.v1, x0 + apBack.u1, y1, a.depth - apBack.v0,
           c.mat.back.color, null, 0.95);
       }
       // cokol ramienia to plyta pod frontem, nie kloc na cala glebokosc
@@ -4544,6 +4679,23 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         });
       }
     });
+    /* Blat ciagu — plyta lezaca na wszystkim, co pod nia stoi, takze na ramieniu
+       w rogu. W ukladzie ciagu z = 0 to lico, wiec blat wychodzi przed nie. */
+    const rt = runTop(project, g.run);
+    if (rt) {
+      const kolB = rt.worktop
+        ? (rt.mat.worktop || {}).color || "#8d7b68"
+        : (rt.mat.board || {}).color || "#d8c3a0";
+      worktopSpans(rt).forEach((s) => {
+        /* Sciany sortuja sie po sredniej glebokosci, a blat to jedna wielka
+           plyta: jej srodek wypada dalej niz wzmocnienia i katowniki tuz pod
+           nia, wiec bez przyciagniecia do widza przebijaly sie przez wierzch.
+           Polowa glebokosci wystarcza, zeby wygrac z tym, co lezy pod blatem,
+           i jest wyraznie mniejsza od przeswitu do szafek gornych. */
+        box(s.x0, g.mount + rt.y, n.depth - rt.depth, s.x1, g.mount + rt.y + rt.th, n.depth,
+          kolB, null, 1, true, Math.round(rt.depth / 2));
+      });
+    }
   });
   place = null;
 
@@ -4683,7 +4835,12 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const dimNozkiX = W + 26;
   const blOvL = geo.isBlat ? geo.blat.overL : 0;
   const blOvR = geo.isBlat ? geo.blat.overR : 0;
-  const vb = `${-pad - leftExtra - blOvL} ${-pad} ${W + blOvL + blOvR + 2 * pad + leftExtra + rightExtraF} ${H + pad + belowExtra + 60}`;
+  /* Szafka narozna nie konczy sie na korpusie: ramie idzie wzdluz drugiej
+     sciany. W elewacji pokazujemy je jak rozwiniecie — obok korpusu, za linia
+     naroza — bo inaczej z rysunku znika polowa mebla. */
+  const armLen = arm ? Math.max(0, arm.len) : 0;
+  const armL = !!arm && arm.side === "left";
+  const vb = `${-pad - leftExtra - blOvL - (armL ? armLen : 0)} ${-pad} ${W + armLen + blOvL + blOvR + 2 * pad + leftExtra + rightExtraF} ${H + pad + belowExtra + 60}`;
   const fy = (y) => H - y;
   const bf = mat.board.color;
   const ff = frontColor;
@@ -4736,6 +4893,71 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke="#e7e5e4" strokeWidth="1" />
+
+      {/* Ramie w rozwinieciu: pas drugiej sciany dostawiony do korpusu. Rysujemy
+          je pod korpusem, zeby wszystko, co przy narozu, zostalo na wierzchu. */}
+      {arm && armLen > 0 && (() => {
+        const ax0 = armL ? -armLen : W;
+        // front ramienia konczy sie na maskownicy katownika, ktora stoi przy rogu
+        const fw = arm.armFront != null ? arm.armFront : armLen;
+        const przyRogu = armL ? ax0 : ax0 + armLen - fw;   // odleglosc frontu od naroza
+        const fx = armL ? ax0 : ax0 + armLen - fw;
+        const maskW = arm.bracket ? arm.bracket.odRamienia - arm.bracket.luz : 0;
+        const plinthH = cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
+        return (
+          <g>
+            <rect x={ax0} y="0" width={armLen} height={H}
+              fill="#fafaf9" stroke="#e7e5e4" strokeWidth="1" />
+            {plinthH > 0 && (
+              <rect x={ax0} y={H} width={armLen} height={plinthH}
+                fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
+            )}
+            {open && (() => {
+              /* Wzmocnienia ramienia widac po otwarciu tak samo jak te w szafce:
+                 stojace przy plecach na cala swoja wysokosc, plaskie tuz pod
+                 blatem. Wysokosc bierzemy z wzmocnien tej szafki, bo leza na
+                 tym samym poziomie. */
+              const moje = ((geo.levels[geo.levels.length - 1] || {}).cols || [])
+                .flatMap((c) => c.rails || []);
+              return armPlan(arm, true).rails.map((r, k) => {
+                const wz = moje.find((q) => (q.orient === "front") === r.stojace) || moje[0];
+                if (!wz) return null;
+                const u0 = Math.max(0, r.u0), u1 = Math.min(armLen, r.u1);
+                if (!(u1 > u0)) return null;
+                return (
+                  <rect key={"apw" + k} x={armL ? -u1 : W + u0} y={fy(wz.y1)}
+                    width={u1 - u0} height={wz.y1 - wz.y0}
+                    fill={bf} stroke={INK} strokeWidth="2" opacity={r.stojace ? 0.9 : 0.7} />
+                );
+              });
+            })()}
+            {open
+              ? armShelfYs(arm.side, geo.levels).map((sy, k) => (
+                  <rect key={"aps" + k} x={ax0} y={fy(sy + geo.ts)} width={armLen} height={geo.ts}
+                    fill={bf} stroke={INK} strokeWidth="2" />
+                ))
+              : (
+                <rect x={fx} y="0" width={fw} height={H}
+                  fill={ff} stroke={INK} strokeWidth="2" />
+              )}
+            {maskW > 0 && (
+              <rect x={armL ? ax0 + armLen - maskW : ax0} y="0" width={maskW} height={H}
+                fill={ff} stroke={INK} strokeWidth="2" />
+            )}
+            {/* linia naroza — za nia zaczyna sie juz druga sciana */}
+            <line x1={armL ? 0 : W} y1={-30} x2={armL ? 0 : W} y2={H + plinthH + 30}
+              stroke={ACC} strokeWidth="2" strokeDasharray="14 10" opacity="0.7" />
+            {showDims && (
+              <>
+                <text x={ax0 + armLen / 2} y={fy(H / 2)} textAnchor="middle" fontSize="20"
+                  fill={ACC} fontFamily="ui-monospace, monospace">ramię {fmt(armLen)}</text>
+                <DimH x1={ax0} x2={ax0 + armLen} y={H + plinthH + 60}
+                  label={fmt(armLen)} above={false} />
+              </>
+            )}
+          </g>
+        );
+      })()}
 
       {/* boki, wieniec, dno */}
       {carcassFrame("carcass-frame")}
@@ -5559,6 +5781,23 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
             {/* bok zamykajacy ramie na wolnym koncu */}
             <rect x={ax(0, arm.depth)} y={ay(arm.len - t)} width={arm.depth} height={t}
               fill={bf} stroke={INK} strokeWidth="2" />
+            {/* plecy i wzmocnienia — te same, co w rzucie calej zabudowy */}
+            {(() => {
+              const ap = armPlan(arm, true);
+              const pas = (r, fill, op) => (
+                <rect x={ax(r.v0, r.v1 - r.v0)} y={ay(r.u0)}
+                  width={r.v1 - r.v0} height={r.u1 - r.u0}
+                  fill={fill} stroke={INK} strokeWidth="1.5" opacity={op} />
+              );
+              return (
+                <>
+                  {ap.back && pas(ap.back, mat.back.color, 1)}
+                  {ap.rails.map((r, k) => (
+                    <g key={"awz" + k}>{pas(r, bf, 0.55)}</g>
+                  ))}
+                </>
+              );
+            })()}
             {/* front ramienia zaczyna sie za katownikiem i luzem */}
             <rect x={ax(cab.frontMode === "inset" ? vLico - geo.tf : vLico, geo.tf)}
               y={ay(arm.len - arm.armFront)} width={geo.tf} height={arm.armFront}
@@ -6897,6 +7136,25 @@ const runPlinth = (project, run) => {
    rzeczywistym — od sciany do jego konca — wiec ten wysieg wchodzi w nia. */
 const WORKTOP_OVERHANG = 10;
 
+/* Odcinki blatu do rysunku. Skrajne dociagamy do konca calej plyty, bo nad
+   rogiem blat idzie dalej niz szafki, ktore pod nim stoja. */
+const worktopSpans = (rt) => {
+  if (!rt || !(rt.spans || []).length) return [];
+  const s = rt.spans.map((x) => ({ ...x })).sort((a, b) => a.x0 - b.x0);
+  s[0].x0 = Math.min(s[0].x0, rt.x0);
+  s[s.length - 1].x1 = Math.max(s[s.length - 1].x1, rt.x0 + rt.total);
+  /* Blat nad sasiadujacymi szafkami to jedna plyta, a nie kawalek na szafke —
+     rysowany osobno pokazywal szwy tam, gdzie ich nie ma. Rozdziela go dopiero
+     przerwa miedzy szafkami. */
+  const out = [s[0]];
+  s.slice(1).forEach((x) => {
+    const p = out[out.length - 1];
+    if (x.x0 <= p.x1) { p.x1 = Math.max(p.x1, x.x1); p.depth = Math.max(p.depth, x.depth); }
+    else out.push(x);
+  });
+  return out;
+};
+
 /* Szafki ciagu pogrupowane po wysokosci lica. Blat idzie nad ta grupa, ktora
    zajmuje najwiecej miejsca — reszta to slupki albo szafka z rozjechana
    wysokoscia, i jedno od drugiego rozni sie tylko skala roznicy. */
@@ -6974,8 +7232,20 @@ const runTop = (project, run) => {
   /* Blat roboczy tnie sie z gotowego odcinka, wiec jego granica jest dlugosc
      handlowa, a nie formatka plyty. */
   const worktop = spans.some((s) => s.worktop);
+  const mat0 = list.length ? list[0].it.mat : ramiona[0].cab.rawMat;
   return {
     total, x0, worktop,
+    /* Odcinki, ktore blat naprawde zakrywa — rysunek bierze je wprost, zeby
+       plaszczyzna konczyla sie tam, gdzie konczy sie mebel pod nia. */
+    spans: spans.map((s) => ({
+      x0: Math.round(s.x0), x1: Math.round(s.x1), depth: Math.round(s.depth) })),
+    th: Math.round(worktop
+      ? (mat0.worktop || {}).thickness || 38
+      : (mat0.board || {}).thickness || 18),
+    /* Wysokosc lica, na ktorym blat lezy — elewacja rysuje go wlasnie stad.
+       Pas z samym ramieniem bierze ja z szafki, do ktorej ramie nalezy. */
+    y: lvl && lvl.pod.length ? lvl.y
+      : ramiona.length ? cabTopY(ramiona[0].cab.cab, ramiona[0].cab.geo) : 0,
     // konce ciete na 45 stopni — na formatce trzeba je zaznaczyc
     skos0: !!(ext && ext.skos0), skos1: !!(ext && ext.skos1),
     matKey: worktop ? "worktop" : "board",
@@ -6986,7 +7256,7 @@ const runTop = (project, run) => {
       run.topCuts, worktop ? WORKTOP_LEN : USABLE_W),
     /* Pas z samym ramieniem nie ma wlasnych szafek — material bierze wtedy
        od tej, do ktorej ramie nalezy. */
-    mat: list.length ? list[0].it.mat : ramiona[0].cab.rawMat,
+    mat: mat0,
     grainMatters: list.length ? list[0].it.cab.grainMatters : ramiona[0].cab.cab.grainMatters,
     name: run.name,
   };
@@ -7037,16 +7307,27 @@ const cornerArmParts = (a) => {
   panels.push({ name: armTop ? "Wieniec i dno ramienia" : "Dno ramienia", qty: armTop ? 2 : 1,
     a: len, b: a.depth - t, matKey: "board",
     edges: { a1: true, a2: false, b1: true, b2: false }, note: "czoło i koniec przy wsporniku" });
-  if (!armTop)
-    panels.push({ name: "Wzmocnienie ramienia", qty: 2,
-      a: a.armFront != null ? a.armFront : len, b: 100, matKey: "board",
-      edges: { a1: true, a2: false, b1: true, b2: false },
-      note: "z przodu na płask, z tyłu stojące — kończą się na kątowniku, zamiast wieńca" });
+  /* Wzmocnienia ramienia nie sa juz jedna pozycja na dwie sztuki: czolowe
+     konczy sie na katowniku przy drzwiach, a tylne idzie dalej — az do
+     katownika w tylnym narozniku, bo tam ma sie czego trzymac. */
+  const plan = armPlan(a);
+  plan.rails.forEach((r) => panels.push({
+    name: r.stojace ? "Wzmocnienie ramienia — tylne" : "Wzmocnienie ramienia — czołowe",
+    qty: 1, a: Math.max(0, Math.round(r.u1 - r.u0)), b: r.wys, matKey: "board",
+    edges: { a1: true, a2: false, b1: true, b2: false },
+    note: r.stojace
+      ? "stojące przy plecach, od kątownika w narożniku po bok ramienia"
+      : "na płask pod blatem, od kątownika przy drzwiach po bok ramienia",
+  }));
   panels.push({ name: "Bok ramienia", qty: 1, a: a.depth - t, b: inner, matKey: "board",
     edges: { a1: true, a2: false, b1: false, b2: false }, note: "czoło" });
-  if (cab.back !== "none")
-    panels.push({ name: "Plecy ramienia", qty: 1, a: len, b: inner, matKey: "back",
-      edges: { a1: false, a2: false, b1: false, b2: false }, note: "" });
+  /* Plecy ramienia siegaja poza samo ramie: wzdluz drugiej sciany biegna dalej,
+     az do katownika w tylnym narozniku — inaczej zostawal tam goly kawalek. */
+  if (plan.back)
+    panels.push({ name: "Plecy ramienia", qty: 1,
+      a: Math.round(plan.back.u1 - plan.back.u0), b: inner, matKey: "back",
+      edges: { a1: false, a2: false, b1: false, b2: false },
+      note: plan.tyl > 0 ? "sięgają do kątownika w tylnym narożniku" : "" });
   // front ramienia bierze wysokosc z frontow samej szafki, zeby stanely w linii
   const d0 = (geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
   const luz = (cab.gaps || {}).edge ?? 2;
@@ -8584,6 +8865,23 @@ export default function App() {
     return { ...p, runs: [...runs, { ...gorny, mountY: mount }] };
   }), [setProject]);
 
+  /* Kasowanie ciagu. Idzie z nim wszystko, co bez niego nie ma sensu: jego
+     szafki i gorne pietro tej samej sciany. Sasiad, ktory mial tu narożnik,
+     zostaje — traci tylko powiazanie z rogiem. Ostatnich szafek w projekcie nie
+     zabieramy, bo aplikacja nie ma czego pokazac. */
+  const deleteRun = useCallback((id) => setProject((p) => {
+    const runs = p.runs || [];
+    if (!runs.some((r) => r.id === id)) return p;
+    const znikaja = new Set([id,
+      ...runs.filter((r) => r.tier === "gorny" && r.wall === id).map((r) => r.id)]);
+    const items = p.items.filter((it) => !znikaja.has(it.runId));
+    if (!items.length) return p;
+    const zostaja = runs.filter((r) => !znikaja.has(r.id))
+      .map((r) => (r.corner && znikaja.has(r.corner.of) ? { ...r, corner: null } : r));
+    return { ...p, runs: zostaja, items,
+      active: Math.max(0, items.indexOf(p.items[p.active])) };
+  }), [setProject]);
+
   const setRun = useCallback((id, patch) => setProject((p) => ({
     ...p, runs: (p.runs || []).map((r) => (r.id === id ? { ...r, ...patch } : r)),
   })), [setProject]);
@@ -8773,12 +9071,23 @@ export default function App() {
     catch (e) { return new Set(); }
   });
   const [pokazPrzeczytane, setPokazPrzeczytane] = useState(false);
+  const [pokazPrzeczytaneW, setPokazPrzeczytaneW] = useState(false);
   const oznaczPrzeczytane = useCallback((tekst, czy) => setPrzeczytane((prev) => {
     const next = new Set(prev);
     if (czy) next.add(tekst); else next.delete(tekst);
     try { localStorage.setItem("szafki:przeczytane", JSON.stringify([...next])); } catch (e) {}
     return next;
   }), []);
+  // ptaszek „przeczytane" przy uwadze — ten sam przy ostrzezeniach i podpowiedziach
+  const znacznik = useCallback((tekst, czyt) => (
+    <button onClick={() => oznaczPrzeczytane(tekst, !czyt)}
+      title={czyt ? "Oznacz jako nieprzeczytane" : "Oznacz jako przeczytane"}
+      className={"mt-0.5 shrink-0 rounded border px-1 text-[10px] leading-4 "
+        + (czyt ? "border-teal-600 bg-teal-700 text-white"
+          : "border-stone-300 text-stone-400 hover:border-stone-500 hover:text-stone-600")}>
+      ✓
+    </button>
+  ), [oznaczPrzeczytane]);
 
   const [yaw, setYaw] = useState(-0.55);
   const [pitch, setPitch] = useState(0.28);
@@ -9386,12 +9695,16 @@ export default function App() {
       });
     });
     // czytelny opis "z której szafki" — przy jednej szafce bez liczby
-    return [...map.values()].map((p) => ({
-      ...p,
-      fromLabel: [...p.from.entries()]
-        .map(([n, q]) => (p.from.size === 1 && q === p.qty ? n : `${n} × ${q}`))
-        .join(", "),
-    }));
+    // Kolejnosc taka sama jak w liscie jednej szafki: blat na gorze, HDF na dole.
+    return [...map.values()]
+      .map((p, i) => ({ p, i }))
+      .sort((x, y) => (MAT_ORDER[x.p.matKey] ?? 2) - (MAT_ORDER[y.p.matKey] ?? 2) || x.i - y.i)
+      .map(({ p }) => ({
+        ...p,
+        fromLabel: [...p.from.entries()]
+          .map(([n, q]) => (p.from.size === 1 && q === p.qty ? n : `${n} × ${q}`))
+          .join(", "),
+      }));
   }, [project, ambig]);
 
   const projectEdgeMeters = useMemo(() => {
@@ -9541,6 +9854,11 @@ export default function App() {
   const errors = allMsgs.filter((m) => m.level === "error");
   const warns = allMsgs.filter((m) => m.level === "warn");
   const infos = allMsgs.filter((m) => m.level === "info");
+  /* Odhaczone ostrzezenia i podpowiedzi znikaja z licznika u gory — inaczej
+     pasek nad projektem straszy liczba, ktora dawno przeczytales. Bledy licza
+     sie zawsze: to nie jest cos, co da sie odklikac. */
+  const warnsNowe = warns.filter((m) => !przeczytane.has(m.text));
+  const infosNowe = infos.filter((m) => !przeczytane.has(m.text));
   const notesRef = useRef(null);
   const scrollToNotes = () =>
     notesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -9619,21 +9937,21 @@ export default function App() {
               {errors.length} {plural(errors.length, "błąd", "błędy", "błędów")}
             </button>
           )}
-          {warns.length > 0 && (
+          {warnsNowe.length > 0 && (
             <button onClick={scrollToNotes} title="Przejdź do uwag"
               className="rounded-full px-2.5 py-1 text-xs font-medium transition hover:brightness-95"
               style={{ background: "#fef3c7", color: WARNC }}>
-              {warns.length} {plural(warns.length, "ostrzeżenie", "ostrzeżenia", "ostrzeżeń")}
+              {warnsNowe.length} {plural(warnsNowe.length, "ostrzeżenie", "ostrzeżenia", "ostrzeżeń")}
             </button>
           )}
-          {infos.length > 0 && (
+          {infosNowe.length > 0 && (
             <button onClick={scrollToNotes} title="Przejdź do podpowiedzi"
               className="rounded-full px-2.5 py-1 text-xs font-medium text-stone-600 transition hover:brightness-95"
               style={{ background: "#e7e5e4" }}>
-              {infos.length} {plural(infos.length, "podpowiedź", "podpowiedzi", "podpowiedzi")}
+              {infosNowe.length} {plural(infosNowe.length, "podpowiedź", "podpowiedzi", "podpowiedzi")}
             </button>
           )}
-          {errors.length === 0 && warns.length === 0 && infos.length === 0 && (
+          {errors.length === 0 && warnsNowe.length === 0 && infosNowe.length === 0 && (
             <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800">bez uwag</span>
           )}
           {/* czysta szafka to jeszcze nie czysty projekt — sasiadka moze miec uwagi */}
@@ -9712,6 +10030,14 @@ export default function App() {
                       title="Górny ciąg nad tym — wisi nad licem dolnego, dziedziczy ścianę i narożnik"
                       className="rounded-full border border-dashed border-stone-400 px-3 py-1 text-xs font-medium text-stone-500 hover:border-stone-500 hover:text-stone-700">
                       + ciąg górny
+                    </button>
+                  )}
+                  {grp.id && (
+                    <button onClick={() => deleteRun(grp.id)}
+                      title={"Usuń ten ciąg razem z jego szafkami"
+                        + (grp.maGorny ? " i z górnym piętrem tej ściany" : "")}
+                      className="rounded-full border border-dashed border-stone-300 px-3 py-1 text-xs font-medium text-stone-400 hover:border-red-400 hover:text-red-600">
+                      × ciąg
                     </button>
                   )}
                 </div>
@@ -11307,32 +11633,51 @@ export default function App() {
           {(errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0) && (
             <div ref={notesRef} className="scroll-mt-24">
             <Card title="Uwagi">
-              {(errors.length > 0 || warns.length > 0) && (
-                <ul className="space-y-2">
-                  {errors.map((m, i) => (
-                    <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
-                  ))}
-                  {warns.map((m, i) => (
-                    <NoteLine key={"w" + i} text={m.text} color={WARNC} icon="!" editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
-                  ))}
-                </ul>
-              )}
+              {(errors.length > 0 || warns.length > 0) && (() => {
+                /* Ostrzezenie mozna odhaczyc tak samo jak podpowiedz: odhaczone
+                   schodzi pod zwijany naglowek i przestaje sie liczyc u gory.
+                   Bledow sie nie odhacza — to nie jest cos, co da sie odklikac. */
+                const stare = warns.filter((m) => przeczytane.has(m.text));
+                const linia = (m, i, czyt) => (
+                  <NoteLine key={(czyt ? "wp" : "w") + i} text={m.text} color={WARNC} icon="!"
+                    przed={znacznik(m.text, czyt)}
+                    editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab}
+                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
+                );
+                return (
+                  <>
+                    {(errors.length > 0 || warnsNowe.length > 0) && (
+                      <ul className="space-y-2">
+                        {errors.map((m, i) => (
+                          <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
+                        ))}
+                        {warnsNowe.map((m, i) => linia(m, i, false))}
+                      </ul>
+                    )}
+                    {stare.length > 0 && (
+                      <div className={(errors.length || warnsNowe.length) ? "mt-3 border-t border-stone-100 pt-2" : ""}>
+                        <button onClick={() => setPokazPrzeczytaneW((v) => !v)}
+                          className="flex items-center gap-2 text-xs text-stone-400 hover:text-stone-600">
+                          <span className={"text-[10px] leading-none transition-transform "
+                            + (pokazPrzeczytaneW ? "" : "-rotate-90")}>▼</span>
+                          Przeczytane ostrzeżenia ({stare.length})
+                        </button>
+                        {pokazPrzeczytaneW && (
+                          <ul className="mt-2 space-y-2 opacity-60">{stare.map((m, i) => linia(m, i, true))}</ul>
+                        )}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               {infos.length > 0 && (() => {
-                const nowe = infos.filter((m) => !przeczytane.has(m.text));
+                const nowe = infosNowe;
                 const stare = infos.filter((m) => przeczytane.has(m.text));
                 /* Znacznik idzie do srodka wiersza uwagi, a nie w osobne <li> —
                    zagniezdzone listy dublowaly kazda podpowiedz. */
                 const linia = (m, i, czyt) => (
                   <NoteLine key={(czyt ? "p" : "i") + i} text={m.text} color="#78716c" icon="i"
-                    przed={(
-                      <button onClick={() => oznaczPrzeczytane(m.text, !czyt)}
-                        title={czyt ? "Oznacz jako nieprzeczytane" : "Oznacz jako przeczytane"}
-                        className={"mt-0.5 shrink-0 rounded border px-1 text-[10px] leading-4 "
-                          + (czyt ? "border-teal-600 bg-teal-700 text-white"
-                            : "border-stone-300 text-stone-400 hover:border-stone-500 hover:text-stone-600")}>
-                        ✓
-                      </button>
-                    )}
+                    przed={znacznik(m.text, czyt)}
                     editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab}
                     cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
                 );

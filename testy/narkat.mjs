@@ -54,12 +54,18 @@ ok('prawego boku nie ma', !bokPrawy);
 ok('ramię kątownika przy boku', !!ramBok, JSON.stringify(ramBok));
 ok('ramię kątownika przy plecach', !!ramPlecy, JSON.stringify(ramPlecy));
 
-/* Wzmocnienia szafki naroznej koncza sie na maskownicy katownika: dostepne lico
-   to 900 - 600 - 18 = 282, wiec od lewego boku zostaje 282 - 18 = 264. */
+/* Wzmocnienie czolowe idzie do konca katownika, bo dopiero na calej jego
+   szerokosci ma sie czego trzymac: wolne lico to 900 - 600 - 18 = 282, katownik
+   siega jeszcze 36 dalej, wiec od lewego boku zostaje 318 - 18 = 300.
+   Tylne nie ma nad soba zadnego przejscia i idzie przez cala szafke az do
+   katownika w tylnym narozniku: 882 - 18 = 864. */
 rows = await formatki();
 const wzm = wiersz(rows, /^Wzmocnienie poziome/);
-ok('wzmocnienie kończy się na maskownicy', !!wzm && wzm[2] === '264',
+ok('wzmocnienie czołowe kończy się na kątowniku', !!wzm && wzm[2] === '300',
   wzm ? wzm.slice(0, 4).join('|') : '(brak)');
+const wzmT = wiersz(rows, /^Wzmocnienie czołowe/);
+ok('tylne wzmocnienie dochodzi do kątownika w narożniku', !!wzmT && wzmT[2] === '864',
+  wzmT ? wzmT.slice(0, 4).join('|') : '(brak)');
 
 console.log('\n== przełącznik w karcie: kątownik zdejmowalny, ramiona regulowane ==');
 const naroznik = page.getByText('Kątownik w tylnym narożniku', { exact: true }).first();
