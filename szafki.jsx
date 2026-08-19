@@ -9369,12 +9369,16 @@ export default function App() {
       });
     });
     // czytelny opis "z której szafki" — przy jednej szafce bez liczby
-    return [...map.values()].map((p) => ({
-      ...p,
-      fromLabel: [...p.from.entries()]
-        .map(([n, q]) => (p.from.size === 1 && q === p.qty ? n : `${n} × ${q}`))
-        .join(", "),
-    }));
+    // Kolejnosc taka sama jak w liscie jednej szafki: blat na gorze, HDF na dole.
+    return [...map.values()]
+      .map((p, i) => ({ p, i }))
+      .sort((x, y) => (MAT_ORDER[x.p.matKey] ?? 2) - (MAT_ORDER[y.p.matKey] ?? 2) || x.i - y.i)
+      .map(({ p }) => ({
+        ...p,
+        fromLabel: [...p.from.entries()]
+          .map(([n, q]) => (p.from.size === 1 && q === p.qty ? n : `${n} × ${q}`))
+          .join(", "),
+      }));
   }, [project, ambig]);
 
   const projectEdgeMeters = useMemo(() => {
