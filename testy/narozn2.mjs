@@ -253,13 +253,15 @@ ok('ostrzeżenie o krótkim ramieniu', /Ramię szafki narożnej ma 120 mm/.test(
 
 console.log('\n== karta: wlaczenie ramienia z UI ==');
 await uklad(0);
-const cc = card(/^Ciąg meblowy$/);
+/* Ramie to dalszy ciag tej samej szafki, wiec jego ustawienia siedza w karcie
+   „Struktura wnetrza" — w karcie ciagu zostaje sam narożnik miedzy pasami. */
+const cc = card(/^Struktura wnętrza$/);
 // szafka rogowa to druga w ciagu A — przelaczamy sie na nia
 await page.locator('header div.rounded-full').filter({ hasText: 'rogowa' }).first()
   .getByRole('button', { name: 'rogowa', exact: true }).click();
 await page.waitForTimeout(1000);
-const grupa = cc.locator('div').filter({ hasText: /^Szafka narożna \(L\)/ }).first();
-ok('sekcja szafki narożnej jest w karcie', await grupa.count() === 1, String(await grupa.count()));
+const grupa = cc.locator('div').filter({ hasText: /^Ramię narożnika/i }).first();
+ok('sekcja ramienia jest w strukturze wnętrza', await grupa.count() === 1, String(await grupa.count()));
 await cc.getByText('Korpus wychodzi ramieniem w L', { exact: true }).click();
 await page.waitForTimeout(900);
 const zapis = await page.evaluate(() =>
@@ -273,8 +275,8 @@ console.log('\n== szafka spoza rogu nie dostaje tej sekcji ==');
 await page.locator('header div.rounded-full').filter({ hasText: 'A1' }).first()
   .getByRole('button', { name: 'A1', exact: true }).click();
 await page.waitForTimeout(1000);
-const brak = card(/^Ciąg meblowy$/).locator('div').filter({ hasText: /^Szafka narożna \(L\)/ });
-ok('zwykła szafka nie ma sekcji narożnej', await brak.count() === 0, String(await brak.count()));
+const brak = card(/^Struktura wnętrza$/).locator('div').filter({ hasText: /^Ramię narożnika/i });
+ok('zwykła szafka nie ma sekcji ramienia', await brak.count() === 0, String(await brak.count()));
 
 console.log('\n== wszystkie widoki z szafka narozna ==');
 await uklad(500);

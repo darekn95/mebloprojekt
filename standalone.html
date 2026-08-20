@@ -10299,96 +10299,6 @@ export default function App() {
                       )}
                     </div>
                   </Group>
-                  {cornerNode && (
-                    <Group label="Szafka narożna (L)"
-                      hint="Ta szafka stoi w rogu. Zamiast chować front za sąsiednim ciągiem, może wyjść ramieniem na drugą ścianę — fronty spotkają się wtedy pod kątem prostym.">
-                      <div className="space-y-2">
-                        {/* Ze samej karty szafki nie widac, ze stoi w rogu —
-                            dlatego mowimy to wprost, z nazwami obu scian. */}
-                        {cornerNode.pair && (
-                          <p className="rounded border border-teal-200 bg-teal-50 px-2 py-1.5 text-xs text-teal-900">
-                            Ta szafka jest częścią narożnika — stoi w rogu ścian
-                            {" "}„{cornerNode.pair.wchodzi.run.name}" i „{cornerNode.pair.ustepuje.run.name}".
-                          </p>
-                        )}
-                        <Check checked={!!(cab.corner || {}).on} label="Korpus wychodzi ramieniem w L"
-                          onChange={(v) => set({ corner: { ...cab.corner, on: v } })} />
-                        {!!(cab.corner || {}).on && (
-                          <>
-                            <label className="block">
-                              <span className="mb-1 block text-[11px] text-stone-400">Długość ramienia</span>
-                              <Num value={cab.corner.arm} min={0}
-                                onChange={(v) => set({ corner: { ...cab.corner, arm: Math.max(0, Math.round(Number(v) || 0)) } })} />
-                            </label>
-                            <Seg value={cab.corner.doors || "wsporniki"}
-                              onChange={(v) => set({ corner: { ...cab.corner, doors: v } })}
-                              options={[{ v: "wsporniki", l: "Na wsporniki" },
-                                { v: "lamane", l: "Łamane" }, { v: "skrecone", l: "Skręcone 90°" },
-                                { v: "fix", l: "Fix + jedne drzwi" }]} />
-                            {/* Bok od strony ramienia zastepuje katownik przy plecach;
-                                da sie go zdjac i zmienic szerokosc ramion. */}
-                            <Check checked={(cab.corner.post || {}).on !== false}
-                              label="Kątownik w tylnym narożniku"
-                              onChange={(v) => set({ corner: { ...cab.corner,
-                                post: { ...(cab.corner.post || { w: 150 }), on: v } } })} />
-                            {(cab.corner.post || {}).on !== false && (
-                              <label className="block">
-                                <span className="mb-1 block text-[11px] text-stone-400">Ramiona kątownika</span>
-                                <Num value={(cab.corner.post || {}).w ?? 150} min={MIN_PART}
-                                  onChange={(v) => set({ corner: { ...cab.corner,
-                                    post: { ...(cab.corner.post || {}), on: true,
-                                      w: Math.max(MIN_PART, Math.round(Number(v) || 0)) } } })} />
-                              </label>
-                            )}
-                            {/* Pelne plecy z plyty. Plyta trzyma rog sama, wiec
-                                stojace wzmocnienie przy tej scianie schodzi —
-                                czasem to prostsze niz dokladanie wsporników. */}
-                            {(() => {
-                              const sc1 = cornerNode.pair
-                                ? cornerNode.pair.wchodzi.run.name : "korpusu";
-                              const sc2 = cornerNode.pair
-                                ? cornerNode.pair.ustepuje.run.name : "ramienia";
-                              return (
-                                <div className="space-y-1.5 rounded border border-stone-200 px-2 py-1.5">
-                                  <span className="block text-[11px] text-stone-400">
-                                    Plecy z pełnej płyty — usztywniają róg i zdejmują wzmocnienie
-                                    przy tej ścianie
-                                  </span>
-                                  <Check checked={cab.back === "board"}
-                                    label={`Od ściany „${sc1}" (korpus)`}
-                                    onChange={(v) => set({ back: v ? "board" : "hdf" })} />
-                                  <Check checked={!!cab.corner.backBoard}
-                                    label={`Od ściany „${sc2}" (ramię)`}
-                                    onChange={(v) => set({ corner: { ...cab.corner, backBoard: v } })} />
-                                </div>
-                              );
-                            })()}
-                            {(cab.corner.doors || "wsporniki") === "wsporniki" && (
-                              <label className="block">
-                                <span className="mb-1 block text-[11px] text-stone-400">
-                                  Nachodząca płyta kątownika
-                                </span>
-                                <Seg value={cab.corner.bracket || "krotsze"}
-                                  onChange={(v) => set({ corner: { ...cab.corner, bracket: v } })}
-                                  options={[{ v: "krotsze", l: "Od krótszych drzwi" },
-                                    { v: "dluzsze", l: "Od dłuższych" }]} />
-                              </label>
-                            )}
-                            {cornerNode.arm && (
-                              <p className="text-xs text-stone-500">
-                                Korpus <span className="font-mono text-stone-700">{fmt(cornerNode.arm.cab.geo.W)} mm</span>
-                                {" "}plus ramię <span className="font-mono text-stone-700">{fmt(cornerNode.arm.len)} × {fmt(cornerNode.arm.depth)} mm</span>.
-                                {" "}Fronty: od tej strony{" "}
-                                <span className="font-mono text-stone-700">{fmt(cornerNode.arm.front)} mm</span>,
-                                {" "}ramienia{" "}
-                                <span className="font-mono text-stone-700">{fmt(cornerNode.arm.armFront)} mm</span>.
-                              </p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </Group>
-                  )}
                   <Field label="Wspólne dla całego ciągu"
                     hint="Zmiana tutaj przestawia od razu wszystkie szafki ciągu. Szafkę, która się rozjedzie, zgłoszą Uwagi.">
                     <div className="grid grid-cols-2 gap-3">
@@ -10679,6 +10589,117 @@ export default function App() {
               Poziomy rozdziela półka na całą szerokość. W poziomie możesz postawić przegrodę
               i podzielić go na kolumny. Puste pole wymiaru znaczy „podziel resztę równo".
             </p>
+
+            {cornerNode && (
+              <Group label="Ramię narożnika"
+                hint="Ramię to dalszy ciąg tej samej szafki, wzdłuż drugiej ściany. Wnętrze ma wspólne z korpusem — półki są te same, bo to te same półki — a osobno ustawia się tylko to, czego korpus nie definiuje.">
+                <div className="space-y-2">
+                  {/* Ze samej karty szafki nie widac, ze stoi w rogu —
+                      dlatego mowimy to wprost, z nazwami obu scian. */}
+                  {cornerNode.pair && (
+                    <p className="rounded border border-teal-200 bg-teal-50 px-2 py-1.5 text-xs text-teal-900">
+                      Ta szafka jest częścią narożnika — stoi w rogu ścian
+                      {" "}„{cornerNode.pair.wchodzi.run.name}" i „{cornerNode.pair.ustepuje.run.name}".
+                    </p>
+                  )}
+                  <Check checked={!!(cab.corner || {}).on} label="Korpus wychodzi ramieniem w L"
+                    onChange={(v) => set({ corner: { ...cab.corner, on: v } })} />
+                  {!!(cab.corner || {}).on && (
+                    <>
+                      <label className="block">
+                        <span className="mb-1 block text-[11px] text-stone-400">Długość ramienia</span>
+                        <Num value={cab.corner.arm} min={0}
+                          onChange={(v) => set({ corner: { ...cab.corner, arm: Math.max(0, Math.round(Number(v) || 0)) } })} />
+                      </label>
+                      <Seg value={cab.corner.doors || "wsporniki"}
+                        onChange={(v) => set({ corner: { ...cab.corner, doors: v } })}
+                        options={[{ v: "wsporniki", l: "Na wsporniki" },
+                          { v: "lamane", l: "Łamane" }, { v: "skrecone", l: "Skręcone 90°" },
+                          { v: "fix", l: "Fix + jedne drzwi" }]} />
+                      {/* Bok od strony ramienia zastepuje katownik przy plecach;
+                          da sie go zdjac i zmienic szerokosc ramion. */}
+                      <Check checked={(cab.corner.post || {}).on !== false}
+                        label="Kątownik w tylnym narożniku"
+                        onChange={(v) => set({ corner: { ...cab.corner,
+                          post: { ...(cab.corner.post || { w: 150 }), on: v } } })} />
+                      {(cab.corner.post || {}).on !== false && (
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] text-stone-400">Ramiona kątownika</span>
+                          <Num value={(cab.corner.post || {}).w ?? 150} min={MIN_PART}
+                            onChange={(v) => set({ corner: { ...cab.corner,
+                              post: { ...(cab.corner.post || {}), on: true,
+                                w: Math.max(MIN_PART, Math.round(Number(v) || 0)) } } })} />
+                        </label>
+                      )}
+                      {/* Pelne plecy z plyty. Plyta trzyma rog sama, wiec
+                          stojace wzmocnienie przy tej scianie schodzi —
+                          czasem to prostsze niz dokladanie wsporników. */}
+                      {(() => {
+                        const sc1 = cornerNode.pair
+                          ? cornerNode.pair.wchodzi.run.name : "korpusu";
+                        const sc2 = cornerNode.pair
+                          ? cornerNode.pair.ustepuje.run.name : "ramienia";
+                        return (
+                          <div className="space-y-1.5 rounded border border-stone-200 px-2 py-1.5">
+                            <span className="block text-[11px] text-stone-400">
+                              Plecy z pełnej płyty — usztywniają róg i zdejmują wzmocnienie
+                              przy tej ścianie
+                            </span>
+                            <Check checked={cab.back === "board"}
+                              label={`Od ściany „${sc1}" (korpus)`}
+                              onChange={(v) => set({ back: v ? "board" : "hdf" })} />
+                            <Check checked={!!cab.corner.backBoard}
+                              label={`Od ściany „${sc2}" (ramię)`}
+                              onChange={(v) => set({ corner: { ...cab.corner, backBoard: v } })} />
+                          </div>
+                        );
+                      })()}
+                      {(cab.corner.doors || "wsporniki") === "wsporniki" && (
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] text-stone-400">
+                            Nachodząca płyta kątownika
+                          </span>
+                          <Seg value={cab.corner.bracket || "krotsze"}
+                            onChange={(v) => set({ corner: { ...cab.corner, bracket: v } })}
+                            options={[{ v: "krotsze", l: "Od krótszych drzwi" },
+                              { v: "dluzsze", l: "Od dłuższych" }]} />
+                        </label>
+                      )}
+                      {cornerNode.arm && (
+                        <p className="text-xs text-stone-500">
+                          Korpus <span className="font-mono text-stone-700">{fmt(cornerNode.arm.cab.geo.W)} mm</span>
+                          {" "}plus ramię <span className="font-mono text-stone-700">{fmt(cornerNode.arm.len)} × {fmt(cornerNode.arm.depth)} mm</span>.
+                          {" "}Fronty: od tej strony{" "}
+                          <span className="font-mono text-stone-700">{fmt(cornerNode.arm.front)} mm</span>,
+                          {" "}ramienia{" "}
+                          <span className="font-mono text-stone-700">{fmt(cornerNode.arm.armFront)} mm</span>.
+                        </p>
+                      )}
+                      {/* Wysokosc, glebokosc i polki ramienia nie sa jego wlasne:
+                          bierze je z szafki i z sasiedniego ciagu. Mowimy to
+                          wprost, zeby nikt nie szukal tych pol tutaj. */}
+                      {cornerNode.arm && (() => {
+                        const ys = armShelfYs(cornerNode.arm.side, geo.levels);
+                        return (
+                          <p className="rounded border border-stone-200 bg-stone-50 px-2 py-1.5 text-xs text-stone-500">
+                            Z szafki, bez osobnego ustawienia: wysokość{" "}
+                            <span className="font-mono text-stone-700">{fmt(cab.H)} mm</span>,
+                            {" "}głębokość ze ściany obok{" "}
+                            <span className="font-mono text-stone-700">{fmt(cornerNode.arm.depth)} mm</span>,
+                            {" "}cokół i front.{" "}
+                            {ys.length
+                              ? <>Półki to te same płyty co w kolumnie przy ramieniu —{" "}
+                                <span className="font-mono text-stone-700">{listPl(ys.map(fmt))} mm</span>
+                                {" "}nad dnem.</>
+                              : <>Kolumna przy ramieniu nie ma półek, więc i ramię ich nie ma.</>}
+                          </p>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+              </Group>
+            )}
 
             {[...geo.levels].reverse().map((lv) => (
               <div key={lv.i} className="rounded border border-stone-200 p-3 space-y-3">

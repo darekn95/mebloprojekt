@@ -239,3 +239,9 @@ obie nazywalyby sie tak samo.
 ramieniem naroznika liczy sie do sciany za rogiem, wiec to tam wychodzi za
 szeroki. Poprawka `rundepth:<mm>@<runId>` umie siegnac do sasiedniego ciagu —
 bez tego ostrzezenie nie mialoby gdzie sie pokazac, bo pusty pas nie ma karty.
+
+[AI-INFO] Ustawienia ramienia siedza w karcie „Struktura wnetrza", pod grupa
+„Ramię narożnika" — ramie to dalszy ciag tej samej szafki, a nie sprawa ciagu.
+W karcie „Ciąg meblowy" zostaje sam narożnik miedzy pasami. Wysokosc, glebokosc,
+cokol, front i polki ramienia nie maja tam wlasnych pol, bo bierze je z szafki
+i z sasiedniego ciagu — mowi o tym akapit pod ustawieniami.
