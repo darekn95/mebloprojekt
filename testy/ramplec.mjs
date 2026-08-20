@@ -51,6 +51,13 @@ ok('wzmocnienie czołowe jest osobną pozycją', !!wCz, wCz ? wCz.slice(0, 4).jo
 ok('wzmocnienie tylne jest osobną pozycją', !!wTy, wTy ? wTy.slice(0, 4).join('|') : '(brak)');
 ok('tylne wzmocnienie dłuższe od czołowego', !!wCz && !!wTy && Number(wTy[3]) > Number(wCz[3]),
   `${wCz && wCz[3]} vs ${wTy && wTy[3]}`);
+/* Tylne nachodzi jeszcze na ramie katownika w narozniku — o jego dlugosc bez
+   dwoch grubosci plyty — zeby dalo sie je z nim skrecic. */
+/* Dlugosc: od boku zamykajacego ramie (len - 18) w glab szafki do katownika
+   (glebokosc - plecy - ramie katownika) i jeszcze po jego wolnej czesci. */
+const tylneDl = (ramie - 18) + (glRog - 3 - postW) + (postW - 36);
+ok('tylne nachodzi na kątownik w narożniku', !!wTy && Number(wTy[3]) === tylneDl,
+  wTy && `${wTy[3]} zamiast ${tylneDl}`);
 /* Plecy i tylne wzmocnienie dobijaja do katownika: od lica korpusu w glab
    zostaje glebokosc minus plecy (3 mm) minus ramię kątownika. */
 const zapas = glRog - 3 - postW;

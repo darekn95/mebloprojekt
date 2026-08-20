@@ -3178,6 +3178,12 @@ const armPlan = (a, lokalnie) => {
   const pOd = Math.max(geo.backIntrusion, tb);
   const tyl = geo.postSide
     ? Math.max(0, Math.round(geo.carcassDepth - pOd - geo.postW)) : 0;
+  /* Plecy koncza sie na katowniku, ale wzmocnienie idzie dalej: nachodzi na jego
+     ramie i tam sie z nim skreca. Wolna czesc tego ramienia to jego dlugosc bez
+     dwoch grubosci plyty — drugiego ramienia katownika i wzmocnienia korpusu,
+     ktore stoi przy tej samej scianie. */
+  const tylWzm = geo.postSide
+    ? tyl + Math.max(0, Math.round(geo.postW - 2 * t)) : 0;
   // ramie zamyka bok na wolnym koncu — plyty poziome dochodza do jego lica
   const u1 = Math.max(0, Math.round(a.len - t));
   const surowe = (((cab.levels || []).slice(-1)[0] || {}).cols || [])
@@ -3192,7 +3198,7 @@ const armPlan = (a, lokalnie) => {
        wzmocnienia w korpusie — czyli wchodzi w szafke o jego cofniecie plus
        szerokosc. Dopiero wtedy obie plyty stykaja sie cala szerokoscia i da sie
        je skrecic; skrocone do lica mijaly sie o grubosc frontu. */
-    return { u0: r.fromBack ? -tyl : -(at + gr), u1, v0, v1: v0 + gr,
+    return { u0: r.fromBack ? -tylWzm : -(at + gr), u1, v0, v1: v0 + gr,
       wys: Math.max(0, Math.round(r.orient === "front" ? Number(r.h) || 0 : Number(r.depth) || 0)),
       stojace: r.orient === "front" };
   });
