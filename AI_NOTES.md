@@ -217,3 +217,25 @@ lica mijaly sie o grubosc frontu.
 [AI-INFO] Stojace wzmocnienie przy plecach stoi na zero z tylna krawedzia
 korpusu, tak samo jak koncza sie boki; plecy ida na nie normalnie. Byla krotka
 wersja z odsunieciem o 18 mm i `migrateCab` sprowadza ja z powrotem do zera.
+
+## Rog: co gdzie stoi
+
+[AI-INFO] Katownik w tylnym narozniku stoi rowno z tylna i boczna plaszczyzna
+korpusu (`pOd = geo.backIntrusion`, bez grubosci plecow) — plecy ida na niego,
+tak jak na boki. Tylne wzmocnienia sa za to cofniete o grubosc plyty i dolegaja
+do jego wewnetrznego lica; tam sie je skreca. W zwyklej szafce tego cofniecia
+nie ma: wzmocnienie konczy sie rowno z tylna krawedzia.
+
+[AI-INFO] W szafce naroznej plyta od strony drzwi tez stoi pionowo (60 mm),
+a nie lezy na plask — dwie stojace plyty spotykaja sie w kacie i skreca sie je
+przez lico jednej w czolo drugiej. `railPair(cofniete, odTylu, pionZPrzodu)`,
+a `migrateCab` przestawia stare pary po ich sygnaturze (shelf, top, 100 mm).
+
+[AI-INFO] Nazwy wzmocnien rozroznia `przyTyle` (czyli `fromBack`), a nie sama
+orientacja — po zmianie powyzej obie plyty pary sa `orient: "front"` i bez tego
+obie nazywalyby sie tak samo.
+
+[AI-INFO] `worktopMsgs` dziala takze dla pasa bez wlasnych szafek: blat nad
+ramieniem naroznika liczy sie do sciany za rogiem, wiec to tam wychodzi za
+szeroki. Poprawka `rundepth:<mm>@<runId>` umie siegnac do sasiedniego ciagu —
+bez tego ostrzezenie nie mialoby gdzie sie pokazac, bo pusty pas nie ma karty.

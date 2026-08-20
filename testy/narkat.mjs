@@ -56,14 +56,16 @@ ok('ramię kątownika przy plecach', !!ramPlecy, JSON.stringify(ramPlecy));
 
 /* Wzmocnienie czolowe idzie do konca katownika, bo dopiero na calej jego
    szerokosci ma sie czego trzymac: wolne lico to 900 - 600 - 18 = 282, katownik
-   siega jeszcze 36 dalej, wiec od lewego boku zostaje 318 - 18 = 300.
+   siega jeszcze 36 dalej, wiec od lewego boku zostaje 318 - 18 = 300. W rogu
+   stoi pionowo i ma 60 mm — dwie stojace plyty da sie skrecic w kacie.
    Tylne nie ma nad soba zadnego przejscia i idzie przez cala szafke az do
    katownika w tylnym narozniku: 882 - 18 = 864. */
 rows = await formatki();
-const wzm = wiersz(rows, /^Wzmocnienie poziome/);
+const wzm = wiersz(rows, /^Wzmocnienie czołowe/);
 ok('wzmocnienie czołowe kończy się na kątowniku', !!wzm && wzm[2] === '300',
   wzm ? wzm.slice(0, 4).join('|') : '(brak)');
-const wzmT = wiersz(rows, /^Wzmocnienie czołowe/);
+ok('czołowe stoi pionowo, 60 mm', !!wzm && wzm[3] === '60', wzm ? wzm.slice(0, 4).join('|') : '(brak)');
+const wzmT = wiersz(rows, /^Wzmocnienie tylne/);
 ok('tylne wzmocnienie dochodzi do kątownika w narożniku', !!wzmT && wzmT[2] === '864',
   wzmT ? wzmT.slice(0, 4).join('|') : '(brak)');
 

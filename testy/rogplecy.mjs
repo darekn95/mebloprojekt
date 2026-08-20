@@ -35,7 +35,7 @@ console.log('== na start: HDF i oba wzmocnienia tylne ==');
 ok('plecy korpusu z HDF', !!wiersz(rows, /^Plecy HDF/), '');
 ok('plecy ramienia z HDF', (wiersz(rows, /^Plecy ramienia/) || [])[2] === 'HDF',
   JSON.stringify((wiersz(rows, /^Plecy ramienia/) || []).slice(0, 3)));
-ok('jest wzmocnienie czołowe korpusu', jest(rows, /^Wzmocnienie czołowe/));
+ok('jest tylne wzmocnienie korpusu', jest(rows, /^Wzmocnienie tylne/));
 ok('jest tylne wzmocnienie ramienia', jest(rows, /^Wzmocnienie ramienia — tylne/));
 
 console.log('\n== plecy korpusu z płyty ==');
@@ -47,9 +47,9 @@ await page.waitForTimeout(1500);
 rows = await lista();
 ok('plecy korpusu idą z płyty', !jest(rog(rows), /^Plecy HDF/) && jest(rog(rows), /^Plecy/),
   JSON.stringify((rog(rows).find((r) => /^Plecy/.test(r[0])) || []).slice(0, 3)));
-ok('stojące wzmocnienie korpusu znika', !jest(rows, /^Wzmocnienie czołowe/),
-  JSON.stringify((wiersz(rows, /^Wzmocnienie czołowe/) || []).slice(0, 3)));
-ok('płaskie wzmocnienie korpusu zostaje', jest(rows, /^Wzmocnienie poziome/));
+ok('tylne wzmocnienie korpusu znika', !jest(rows, /^Wzmocnienie tylne/),
+  JSON.stringify((wiersz(rows, /^Wzmocnienie tylne/) || []).slice(0, 3)));
+ok('czołowe wzmocnienie korpusu zostaje', jest(rows, /^Wzmocnienie czołowe/));
 ok('ramienia to jeszcze nie dotyczy', jest(rows, /^Wzmocnienie ramienia — tylne/));
 
 console.log('\n== plecy ramienia z płyty ==');
@@ -75,7 +75,7 @@ ok('wraca HDF w korpusie', jest(rog(rows), /^Plecy HDF/),
 ok('wraca HDF w ramieniu', (wiersz(rows, /^Plecy ramienia$/) || [])[2] === 'HDF',
   JSON.stringify((wiersz(rows, /^Plecy ramienia/) || []).slice(0, 3)));
 ok('wracają oba wzmocnienia tylne',
-  jest(rows, /^Wzmocnienie czołowe/) && jest(rows, /^Wzmocnienie ramienia — tylne/));
+  jest(rows, /^Wzmocnienie tylne/) && jest(rows, /^Wzmocnienie ramienia — tylne/));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();
