@@ -38,9 +38,11 @@ const szerszy = u.find((x) => /Blat nad ramieniem/.test(x.t));
 console.log('   ' + (rozne ? rozne.t.slice(0, 190) : '(brak o różnych)'));
 console.log('   ' + (szerszy ? szerszy.t.slice(0, 190) : '(brak o arkuszu)'));
 ok('ostrzeżenie o różnych szerokościach', !!rozne, u.map((x) => x.t.slice(0, 40)).join(' // '));
-ok('mówi, które odcinki', !!rozne && /598 mm/.test(rozne.t) && /628 mm/.test(rozne.t), rozne && rozne.t.slice(0, 120));
+/* 598 zamawia sie w calym pasie 600 i dociera przy scianie, wiec w uwadze
+   o rogu stoi juz szerokosc zamawiana. */
+ok('mówi, które odcinki', !!rozne && /600 mm/.test(rozne.t) && /628 mm/.test(rozne.t), rozne && rozne.t.slice(0, 120));
 ok('wskazuje głębszy ciąg', !!rozne && /jest głębszy/.test(rozne.t));
-ok('ma poprawkę na sąsiedni ciąg', !!rozne && rozne.b.some((x) => /sąsiedniego ciągu do 570/.test(x)),
+ok('ma poprawkę na sąsiedni ciąg', !!rozne && rozne.b.some((x) => /sąsiedniego ciągu do \d+/.test(x)),
   rozne ? rozne.b.join(' | ') : '');
 /* Blat nad ramieniem to 600 glebokosci + front + wysieg = 628, czyli ponad
    arkusz 600 — a ciag za rogiem nie ma wlasnych szafek, wiec nie ma tez
@@ -57,6 +59,21 @@ ok('sąsiedni ciąg ma 570', p2.runs.every((r) => r.D === 570), JSON.stringify(p
 u = await uwagi();
 ok('ostrzeżenia znikają', !u.some((x) => /różne szerokości|Blat nad ramieniem/.test(x.t)),
   u.map((x) => x.t.slice(0, 40)).join(' // '));
+
+console.log('\n== blat blisko arkusza: caly pas, docinany na miejscu ==');
+u = await uwagi();
+const docinka = u.find((x) => /zdejmujemy \d+ mm przy ścianie/.test(x.t));
+console.log('   ' + (docinka ? docinka.t.slice(0, 220) : '(brak)'));
+ok('jest podpowiedź o docinaniu na miejscu', !!docinka, u.map((x) => x.t.slice(0, 40)).join(' // '));
+ok('da się zamówić docięty', !!docinka && docinka.b.some((x) => /docięty na wymiar/.test(x)),
+  docinka ? docinka.b.join(' | ') : '');
+await page.getByRole('button', { name: /docięty na wymiar/ }).first().click();
+await page.waitForTimeout(1400);
+u = await uwagi();
+const poCieciu = u.find((x) => /zamawiamy docięty/.test(x.t));
+ok('po przełączeniu blat idzie na wymiar', !!poCieciu, u.map((x) => x.t.slice(0, 40)).join(' // '));
+ok('i da się wrócić do całego pasa', !!poCieciu && poCieciu.b.some((x) => /cały pas/.test(x)),
+  poCieciu ? poCieciu.b.join(' | ') : '');
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

@@ -3232,7 +3232,12 @@ const armPlan = (a, lokalnie) => {
       // stojace = plyta na sztorc (liczy sie wysokosc), przyTyle = ktora to z pary
       stojace: r.orient === "front", przyTyle: !!r.fromBack };
   });
-  const back = maPlecy ? { u0: -tyl, u1: a.len, v0: 0, v1: tb, plyta: plytaRamienia } : null;
+  /* Plecy ida dalej niz wzmocnienie: nachodza na katownik w narozniku i konczą
+     sie dopiero na tylnej plaszczyznie szafki. Przybija sie je do niego tak samo
+     jak do bokow, wiec nie ma powodu urywac ich na jego czole. */
+  const tylPlecy = geo.postSide ? Math.max(0, Math.round(geo.carcassDepth - pOd)) : tyl;
+  const back = maPlecy
+    ? { u0: -tylPlecy, u1: a.len, v0: 0, v1: tb, plyta: plytaRamienia } : null;
   /* Tak samo jak katownik: w ukladzie ciagu rog wypada raz na poczatku, raz na
      koncu ramienia, a rysunek samej szafki liczy zawsze od jej lica. */
   const odbij = (r) => (lokalnie || a.outerAtEnd
@@ -4037,7 +4042,10 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
             {/* cokol ciagu — jedna plaszczyzna, ze szwami w miejscach ciecia */}
             {plinthH > 0 && (
               <g>
-                <rect x={mx(ox, g.total)} y={fy(g.mount + plinthH)} width={g.total} height={plinthH}
+                {/* W rogu cokol konczy sie na cokole prostopadlej sciany, a nie
+                    na koncu szafki naroznej — `rp.total` ma to juz policzone.
+                    Rysowany na cala dlugosc ciagu wystawal w powietrze. */}
+                <rect x={mx(ox, rp.total)} y={fy(g.mount + plinthH)} width={rp.total} height={plinthH}
                   fill={plyta(g)} stroke={INK} strokeWidth="2" opacity="0.75" />
                 {rp.cuts.map((c) => (
                   <line key={"pc" + c} x1={mx(ox + c, 0)} y1={fy(g.mount + plinthH)}
@@ -4546,7 +4554,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     if (rp && rp.h > 0 && g.cabs.length) {
       const cokT = g.cabs[0].geo.t;
       const cokZ = Math.max(0, Math.round(rp.setback || 0));
-      box(0, g.mount, cokZ, g.total, g.mount + rp.h, cokZ + cokT,
+      box(0, g.mount, cokZ, rp.total, g.mount + rp.h, cokZ + cokT,
         g.cabs[0].mat.board.color, null, 0.95);
     }
     g.cabs.forEach((c) => {
@@ -4593,6 +4601,29 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
          strone szafki. */
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.rails || []).forEach((r) => {
         box(c.x + r.x0, c.base + r.y0, r.z0, c.x + r.x1, c.base + r.y1, r.z0 + r.zLen, bf);
+      })));
+      /* Polki i przegrody. Po otwarciu drzwi to one sa cala trescia szafki, wiec
+         bez nich bryla calej zabudowy pokazywala puste pudla. Glebokosci w `geo`
+         licza sie od plecow, a tu os z idzie od lica — stad odbicie przez `cd`. */
+      const shc3 = shelfColorOf(c.cab, c.mat);
+      const zPolki = [cd - (c.geo.backIntrusion + c.geo.shelfDepth), cd - c.geo.backIntrusion];
+      /* Polka siega az do lica, wiec jej przednia krawedz lezy w jednej
+         plaszczyznie z drzwiami. Sciany sortuja sie po sredniej glebokosci
+         i przy takim styku polka potrafila przebic sie na wierzch zamknietych
+         drzwi — odsuwamy ja od widza o pol glebokosci szafki. */
+      const wGlab = -Math.round(cd / 2);
+      (c.geo.sepShelves || []).forEach((sh) => box(
+        c.x + c.geo.interior.x0, c.base + sh.y, zPolki[0],
+        c.x + c.geo.interior.x1, c.base + sh.y + t, zPolki[1], shc3,
+        null, 1, false, wGlab));
+      (c.geo.dividers || []).forEach((d) => box(
+        c.x + d.x, c.base + d.y0, cd - (c.geo.backIntrusion + c.geo.dividerDepth),
+        c.x + d.x + t, c.base + d.y1, cd - c.geo.backIntrusion, bf,
+        null, 1, false, wGlab));
+      c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.shelves || []).forEach((sh) => {
+        box(c.x + col.x0, c.base + sh.y, zPolki[0],
+          c.x + col.x1, c.base + sh.y + c.geo.ts, zPolki[1], shc3,
+          null, 1, false, wGlab);
       })));
       const tf = c.geo.tf;
       /* Uchwyt wystaje przed lico i w bryle calej zabudowy widac go tak samo jak
@@ -4693,6 +4724,12 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
             x0 + r.u1, y1, a.depth - r.v0, bA);
         });
       }
+      /* Polki ramienia — te same plyty co w kolumnie przy nim, wiec i te same
+         wysokosci. Bez nich ramie po otwarciu bylo pustym pudlem. */
+      armShelfYs(a.side, c.geo.levels).forEach((sy) => {
+        box(x0, y0 + sy, 0, x0 + a.len, y0 + sy + c.geo.ts, a.depth - (c.geo.tb || tA),
+          shelfColorOf(c.cab, c.mat), null, 1, false, -Math.round(a.depth / 2));
+      });
       const apBack = armPlan(a).back;
       if (apBack) {
         box(x0 + apBack.u0, y0, a.depth - apBack.v1, x0 + apBack.u1, y1, a.depth - apBack.v0,
@@ -5002,6 +5039,38 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 <rect x={fx} y="0" width={fw} height={H}
                   fill={ff} stroke={INK} strokeWidth="2" />
               )}
+            {/* Bok zamykajacy ramie na wolnym koncu — ta sama plyta, ktora
+                w rzucie z gory konczy ramie. Bez niej po otwarciu ramie
+                wygladalo jak przelot donikad. */}
+            <rect x={armL ? ax0 : ax0 + armLen - t} y="0" width={t} height={H}
+              fill={bf} stroke={INK} strokeWidth="2" />
+            {/* Front ramienia to zwykle drzwi: zawias na koncu dalszym od rogu,
+                uchwyt przy rogu. Po otwarciu zostaja same zawiasy, tak jak przy
+                drzwiach szafki. */}
+            {arm.doors !== "fix" && (() => {
+              const zawiasPrawy = !armL;
+              const uchwytOut = handleOutOf(cab);
+              if (!open) {
+                if (!(uchwytOut > 0) || fw <= 60) return null;
+                return (
+                  <rect x={zawiasPrawy ? fx + 30 : fx + fw - 45} y={fy(H * 0.5) - 60}
+                    width={15} height={120} rx="5" fill="#52525b" opacity="0.9" />
+                );
+              }
+              if (!showHardware) return null;
+              /* Te same wysokosci co zawiasy drzwi tej szafki — front ramienia
+                 jest tak samo wysoki, wiec maja stanac w jednej linii. */
+              const dRef = (geo.doors || [])
+                .find((d) => d.h > 0 && d.type === "door" && (d.hingePts || []).length);
+              const ile = Math.max(2, Math.min(4, Math.round(H / 500) + 1));
+              const hys = dRef ? dRef.hingePts
+                : Array.from({ length: ile }, (_, k) => (H * (k + 1)) / (ile + 1));
+              return hys.map((hy, k) => (
+                <rect key={"azw" + k} x={zawiasPrawy ? fx + fw - HINGE_W : fx}
+                  y={fy(hy) - HINGE_H / 2} width={HINGE_W} height={HINGE_H}
+                  fill="#a1a1aa" stroke={INK} strokeWidth="1.5" opacity="0.9" />
+              ));
+            })()}
             {maskW > 0 && (
               <rect x={armL ? ax0 + armLen - maskW : ax0} y="0" width={maskW} height={H}
                 fill={ff} stroke={INK} strokeWidth="2" />
@@ -6931,6 +7000,12 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     }
     if (action === "plinthauto" || action === "topauto")
       return { label: "Dobierz podział automatycznie", run: () => runFix && runFix(action) };
+    if (action.startsWith("topcut:")) {
+      return { label: action === "topcut:1"
+        ? "Zamów blat docięty na wymiar"
+        : "Zamów cały pas, dotnij na miejscu",
+        run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("rundepth:")) {
       // „rundepth:570" — ten ciag, „rundepth:570@c2" — sasiedni, po nazwie w akcji
       const [d, gdzie] = action.slice("rundepth:".length).split("@");
@@ -7201,6 +7276,11 @@ const runPlinth = (project, run) => {
 /* Ile blat wystaje przed lico frontow. Glebokosc blatu jest wymiarem
    rzeczywistym — od sciany do jego konca — wiec ten wysieg wchodzi w nia. */
 const WORKTOP_OVERHANG = 10;
+/* Blat kupuje sie w gotowym pasie 600 albo 1200 mm. Kilku centymetrow nie warto
+   zdejmowac w zakladzie: sciana i tak nie jest prosta, wiec i tak dopasowuje sie
+   go na miejscu. Przy wiekszej roznicy ciecie na wymiar ma juz sens — mniej
+   odpadu i lzej go wniesc. */
+const WORKTOP_ONSITE = 50;
 
 /* Odcinki blatu do rysunku. Skrajne dociagamy do konca calej plyty, bo nad
    rogiem blat idzie dalej niz szafki, ktore pod nim stoja. */
@@ -7315,7 +7395,17 @@ const runTop = (project, run) => {
     // konce ciete na 45 stopni — na formatce trzeba je zaznaczyc
     skos0: !!(ext && ext.skos0), skos1: !!(ext && ext.skos1),
     matKey: worktop ? "worktop" : "board",
-    depth: Math.round(Math.max(...spans.map((s) => s.depth))),
+    ...(() => {
+      /* Szerokosc zamawiana: przy malej roznicy bierzemy caly arkusz i docinamy
+         przy scianie na miejscu. `surowa` zostaje na uwagi i wymiary. */
+      const surowa = Math.round(Math.max(...spans.map((s) => s.depth)));
+      const arkusz = worktop ? WORKTOP_DEPTHS.find((d) => d >= surowa) : null;
+      const docinka = arkusz ? arkusz - surowa : 0;
+      const pelny = !!arkusz && docinka > 0 && docinka <= WORKTOP_ONSITE
+        && run.topCut !== true;
+      return { surowa, arkusz: arkusz || null, docinka, pelnyArkusz: pelny,
+        depth: pelny ? arkusz : surowa };
+    })(),
     rear: spans.some((s) => s.rear),
     // styki przeliczamy na uklad samej plyty, zeby ciecia liczyly sie od jej konca
     ...splitAtJoints(total, joints.filter((j) => j > x0 && j < x1).map((j) => Math.round(j - x0)),
@@ -7661,6 +7751,20 @@ const worktopMsgs = (project, run) => {
       + `i mieści się z zapasem. Można też świadomie wziąć szerszy arkusz.`
       + (glebokosc > sugerowana ? `|rundepth:${sugerowana}` : "")
       + `|worktop:${WORKTOP_DEPTHS[1]}` });
+  }
+  /* Blat kupiony w calym pasie trzeba docisnac do sciany na miejscu — o tym
+     trzeba powiedziec, bo inaczej te kilka milimetrow wychodzi dopiero przy
+     montazu. Przy wiekszej roznicy ciecie na wymiar ma sens i wtedy pytamy. */
+  if (rt && rt.worktop && rt.docinka > 0) {
+    out.push({ level: "info", text: rt.pelnyArkusz
+      ? `Blat wychodzi ${fmt(rt.surowa)} mm, a kupuje się go w pasie ${fmt(rt.arkusz)} mm — `
+        + `zamawiamy cały pas i zdejmujemy ${fmt(rt.docinka)} mm przy ścianie na miejscu. `
+        + `Ściana i tak nie jest prosta, więc docinanie w zakładzie niewiele daje. `
+        + `Jeśli nic nie zdejmiesz, blat wystanie o ${fmt(rt.docinka)} mm dalej przed fronty.`
+        + `|topcut:1`
+      : `Blat zamawiamy docięty do ${fmt(rt.surowa)} mm z pasa ${fmt(rt.arkusz)} mm — `
+        + `zdejmuje go zakład, na miejscu zostaje tylko dopasowanie do ściany.`
+        + `|topcut:0` });
   }
   /* Dwa odcinki blatu spotykaja sie w rogu. Rozne szerokosci widac tam od razu:
      jeden konczy sie przed licem drugiego albo za nim, a styk trzeba doginac.
@@ -9412,15 +9516,18 @@ export default function App() {
     });
     return project.items.map((it, i) => {
       const c = ctx.get(it.runId || null);
+      /* Odhaczone ostrzezenia znikaja tez z listy „w innych szafkach" i z paska
+         nad projektem — inaczej to samo zdanie, raz przeczytane, dalej wolalo
+         o sobie z drugiego konca ekranu. Bledy licza sie zawsze. */
       const msgs = [...runCabMsgs(c && c.run, it.cab), ...geos[i].msgs];
       return {
         i,
         name: (it.cab.name || "").trim() || `Szafka ${i + 1}`,
         err: msgs.filter((m) => m.level === "error").length,
-        warn: msgs.filter((m) => m.level === "warn").length,
+        warn: msgs.filter((m) => m.level === "warn" && !przeczytane.has(m.text)).length,
       };
     });
-  }, [project]);
+  }, [project, przeczytane]);
 
   // uwagi pozostalych szafek — tylko bledy i ostrzezenia, podpowiedzi zostawiamy
   // przy szafce, ktorej dotycza, zeby lista nie spuchla
@@ -9481,6 +9588,10 @@ export default function App() {
     if (!runInfo) return;
     if (action === "plinthauto") { setRun(runInfo.run.id, { plinthCuts: null }); return; }
     if (action === "topauto") { setRun(runInfo.run.id, { topCuts: null }); return; }
+    if (action.startsWith("topcut:")) {
+      setRun(runInfo.run.id, { topCut: action === "topcut:1" });
+      return;
+    }
     if (action.startsWith("rundepth:")) {
       const [dRaw, gdzie] = action.slice("rundepth:".length).split("@");
       const d = Math.max(1, Math.round(Number(dRaw) || 0));
@@ -10464,53 +10575,67 @@ export default function App() {
                 ))}
               </div>
             </Field>
-            <Field label="Wieniec"
-              hint={geo.isBlat
-                ? `Blat leży na bokach i wystaje poza nie — fronty kończą się pod nim. Formatka ${fmt(geo.topX1 - geo.topX0)} × ${fmt(geo.blatDepth)} mm.`
-                : "Zwykły wieniec w obrysie korpusu. Wysunięcia ustawisz po przełączeniu na blat."}>
-              <Seg value={(cab.top || {}).mode === "blat" ? "blat" : "wieniec"}
-                onChange={(v) => set({ top: { ...(cab.top || {}), mode: v } })}
-                options={[{ v: "wieniec", l: "Wieniec" }, { v: "blat", l: "Blat" }]} />
-            </Field>
-            {(cab.top || {}).mode === "blat" && (
-              <Field label="Blat z czego"
-                hint={geo.isWorktop
-                  ? `Blat roboczy ${fmt(geo.tTop)} mm — układany na własnym arkuszu ${fmt(WORKTOP_LEN)} × ${fmt(worktopDepth(mat))} mm, osobno od płyty meblowej.`
-                  : "Blat z płyty meblowej — idzie na arkusz razem z korpusami."}>
-                <Seg value={(cab.top || {}).material === "worktop" ? "worktop" : "board"}
-                  onChange={(v) => set({ top: { ...(cab.top || {}), material: v } })}
-                  options={[{ v: "board", l: "Z płyty" }, { v: "worktop", l: "Blat roboczy" }]} />
+            {/* Bez wienca nie ma czego ustawiac: przelacznik „Wieniec / Blat"
+                pod zlaczami ustawionymi na „brak" mowil o plycie, ktorej w tej
+                szafce nie ma. */}
+            {geo.hasTop ? (
+              <>
+              <Field label="Wieniec"
+                hint={geo.isBlat
+                  ? `Blat leży na bokach i wystaje poza nie — fronty kończą się pod nim. Formatka ${fmt(geo.topX1 - geo.topX0)} × ${fmt(geo.blatDepth)} mm.`
+                  : "Zwykły wieniec w obrysie korpusu. Wysunięcia ustawisz po przełączeniu na blat."}>
+                <Seg value={(cab.top || {}).mode === "blat" ? "blat" : "wieniec"}
+                  onChange={(v) => set({ top: { ...(cab.top || {}), mode: v } })}
+                  options={[{ v: "wieniec", l: "Wieniec" }, { v: "blat", l: "Blat" }]} />
               </Field>
-            )}
-            {(cab.top || {}).mode === "blat" && (
-              <Field label="Podana szerokość to"
-                hint={geo.blatInside
-                  ? `Boki chowają się do środka: blat ${fmt(cab.W)} mm, korpus ${fmt(geo.W)} mm.`
-                  : `Blat wystaje poza korpus: korpus ${fmt(geo.W)} mm, blat ${fmt(geo.topX1 - geo.topX0)} mm.`}>
-                <Seg value={(cab.top || {}).widthMode === "inside" ? "inside" : "outside"}
-                  onChange={(v) => set({ top: { ...(cab.top || {}), widthMode: v } })}
-                  options={[{ v: "outside", l: "Szerokość korpusu" }, { v: "inside", l: "Szerokość blatu" }]} />
-              </Field>
-            )}
-            {(cab.top || {}).mode === "blat" && (
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Wysunięcie w lewo">
-                  <Num value={(cab.top || {}).overL ?? 0}
-                    onChange={(v) => set({ top: { ...(cab.top || {}), overL: v } })} />
+              {(cab.top || {}).mode === "blat" && (
+                <Field label="Blat z czego"
+                  hint={geo.isWorktop
+                    ? `Blat roboczy ${fmt(geo.tTop)} mm — układany na własnym arkuszu ${fmt(WORKTOP_LEN)} × ${fmt(worktopDepth(mat))} mm, osobno od płyty meblowej.`
+                    : "Blat z płyty meblowej — idzie na arkusz razem z korpusami."}>
+                  <Seg value={(cab.top || {}).material === "worktop" ? "worktop" : "board"}
+                    onChange={(v) => set({ top: { ...(cab.top || {}), material: v } })}
+                    options={[{ v: "board", l: "Z płyty" }, { v: "worktop", l: "Blat roboczy" }]} />
                 </Field>
-                <Field label="Wysunięcie w prawo">
-                  <Num value={(cab.top || {}).overR ?? 0}
-                    onChange={(v) => set({ top: { ...(cab.top || {}), overR: v } })} />
+              )}
+              {(cab.top || {}).mode === "blat" && (
+                <Field label="Podana szerokość to"
+                  hint={geo.blatInside
+                    ? `Boki chowają się do środka: blat ${fmt(cab.W)} mm, korpus ${fmt(geo.W)} mm.`
+                    : `Blat wystaje poza korpus: korpus ${fmt(geo.W)} mm, blat ${fmt(geo.topX1 - geo.topX0)} mm.`}>
+                  <Seg value={(cab.top || {}).widthMode === "inside" ? "inside" : "outside"}
+                    onChange={(v) => set({ top: { ...(cab.top || {}), widthMode: v } })}
+                    options={[{ v: "outside", l: "Szerokość korpusu" }, { v: "inside", l: "Szerokość blatu" }]} />
                 </Field>
-                <Field label="Wysunięcie do przodu" hint="blat zakrywa górę frontów">
-                  <Num value={(cab.top || {}).overFront ?? 0}
-                    onChange={(v) => set({ top: { ...(cab.top || {}), overFront: v } })} />
-                </Field>
-                <Field label="Wysunięcie do tyłu">
-                  <Num value={(cab.top || {}).overBack ?? 0}
-                    onChange={(v) => set({ top: { ...(cab.top || {}), overBack: v } })} />
-                </Field>
-              </div>
+              )}
+              {(cab.top || {}).mode === "blat" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Wysunięcie w lewo">
+                    <Num value={(cab.top || {}).overL ?? 0}
+                      onChange={(v) => set({ top: { ...(cab.top || {}), overL: v } })} />
+                  </Field>
+                  <Field label="Wysunięcie w prawo">
+                    <Num value={(cab.top || {}).overR ?? 0}
+                      onChange={(v) => set({ top: { ...(cab.top || {}), overR: v } })} />
+                  </Field>
+                  <Field label="Wysunięcie do przodu" hint="blat zakrywa górę frontów">
+                    <Num value={(cab.top || {}).overFront ?? 0}
+                      onChange={(v) => set({ top: { ...(cab.top || {}), overFront: v } })} />
+                  </Field>
+                  <Field label="Wysunięcie do tyłu">
+                    <Num value={(cab.top || {}).overBack ?? 0}
+                      onChange={(v) => set({ top: { ...(cab.top || {}), overBack: v } })} />
+                  </Field>
+                </div>
+              )}
+              </>
+            ) : (
+              <p className="text-xs text-stone-500">
+                Wieńca nie ma — złącza wieńca stoją na „brak"{runTp
+                  ? ", bo nad ciągiem idzie blat roboczy i zamiast wieńca korpus trzyma para wzmocnień"
+                  : ""}. Ustawienia wieńca i blatu wrócą, gdy któreś złącze wróci
+                na „między" albo „na boku".
+              </p>
             )}
 
             <Field label="Drzwi" hint={cab.frontMode === "overlay"
@@ -11094,7 +11219,9 @@ export default function App() {
                         {/* elementy wzmacniajace kolumny */}
                         <div className="border-t border-stone-100 pt-2">
                           <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-medium text-stone-500">Wzmocnienia</span>
+                            <span className="text-[11px] font-medium text-stone-500">
+                              Wzmocnienia{cornerNode && cornerNode.arm ? " korpusu" : ""}
+                            </span>
                             <div className="flex gap-2">
                               {/* bez wienca korpus stoi otwarty — para wzmocnien
                                   pod blat to standardowe rozwiazanie */}
@@ -11107,6 +11234,30 @@ export default function App() {
                               <MiniBtn onClick={() => addRail(lv.i, c.j)} tone="accent">+ wzmocnienie</MiniBtn>
                             </div>
                           </div>
+                          {/* W szafce naroznej te same plyty biegna dalej w ramieniu.
+                              Nie ustawia sie ich osobno — sa dluzsze o to, co
+                              ramie dokłada — ale trzeba powiedziec, ktore to. */}
+                          {cornerNode && cornerNode.arm && lv.i === geo.levels.length - 1
+                            && (rawCol.rails || []).length > 0 && (() => {
+                            const ap = armPlan(cornerNode.arm, true);
+                            if (!ap.rails.length) return null;
+                            return (
+                              <p className="mt-2 rounded border border-stone-200 bg-stone-50 px-2 py-1.5 text-[11px] text-stone-500">
+                                Te same wzmocnienia idą dalej w ramieniu — osobno się ich nie
+                                ustawia, są tylko dłuższe:{" "}
+                                {ap.rails.map((r, k) => (
+                                  <span key={k}>
+                                    {k > 0 ? ", " : ""}
+                                    {r.przyTyle ? "tylne" : "czołowe"}{" "}
+                                    <span className="font-mono text-stone-700">
+                                      {fmt(Math.round(r.u1 - r.u0))} × {fmt(r.wys)} mm
+                                    </span>
+                                  </span>
+                                ))}
+                                . Tylne dochodzi do kątownika w narożniku, czołowe do tego przy drzwiach.
+                              </p>
+                            );
+                          })()}
                           {(rawCol.rails || []).map((r, ri) => (
                             <div key={ri} className="mt-2 space-y-2 rounded border border-stone-200 p-2">
                               <div className="flex items-center gap-2">

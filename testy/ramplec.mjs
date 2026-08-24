@@ -58,9 +58,9 @@ ok('tylne wzmocnienie dłuższe od czołowego', !!wCz && !!wTy && Number(wTy[3])
 const tylneDl = (ramie - 18) + (glRog - postW) + (postW - 36);
 ok('tylne nachodzi na kątownik w narożniku', !!wTy && Number(wTy[3]) === tylneDl,
   wTy && `${wTy[3]} zamiast ${tylneDl}`);
-/* Plecy dobijaja do katownika: od lica korpusu w glab zostaje glebokosc minus
-   ramie katownika — katownik stoi rowno z tylna plaszczyzna korpusu. */
-const zapas = glRog - postW;
+/* Plecy nachodza na katownik i koncza sie dopiero na tylnej plaszczyznie
+   szafki — przybija sie je do niego tak samo jak do bokow. */
+const zapas = glRog;
 ok('plecy sięgają do kątownika w narożniku',
   !!plecy && Number(plecy[3]) === ramie + zapas,
   plecy ? `${plecy[3]} zamiast ${ramie + zapas}` : '(brak)');

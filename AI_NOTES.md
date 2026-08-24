@@ -245,3 +245,25 @@ bez tego ostrzezenie nie mialoby gdzie sie pokazac, bo pusty pas nie ma karty.
 W karcie „Ciąg meblowy" zostaje sam narożnik miedzy pasami. Wysokosc, glebokosc,
 cokol, front i polki ramienia nie maja tam wlasnych pol, bo bierze je z szafki
 i z sasiedniego ciagu — mowi o tym akapit pod ustawieniami.
+
+## Blat: co zamawiamy, a co dociera sie na miejscu
+
+[AI-INFO] Blat kupuje sie w gotowym pasie 600 albo 1200 mm. Roznicy do
+`WORKTOP_ONSITE` (50 mm) nie zdejmuje zaklad — sciana i tak nie jest prosta,
+wiec `runTop` zamawia caly pas (`pelnyArkusz`), a `surowa` trzyma wymiar
+wynikajacy z szafek. Uzytkownik moze to odwrocic przelacznikiem `run.topCut`
+(poprawka `topcut:0/1` w Uwagach). Wieksza roznica idzie na wymiar.
+
+[AI-INFO] Cokol ciagu rysuje sie na `rp.total`, a nie na `g.total`: w rogu
+konczy sie na cokole prostopadlej sciany, a nie na koncu szafki naroznej.
+Rysowany na cala dlugosc ciagu wystawal w powietrze — w elewacji i w bryle.
+
+[AI-INFO] Polki w bryle calej zabudowy dostaja ujemny `bias` (pol glebokosci
+szafki). Siegaja az do lica, wiec ich przednia krawedz lezy w jednej
+plaszczyznie z drzwiami i przy sortowaniu po sredniej glebokosci potrafily
+przebic sie na wierzch zamknietych drzwi.
+
+[AI-INFO] Plecy ramienia koncza sie dalej niz jego wzmocnienie: nachodza na
+katownik w tylnym narozniku na cala jego dlugosc i urywaja sie dopiero na
+tylnej plaszczyznie szafki (`tylPlecy`), a wzmocnienie zatrzymuje sie na
+`tylWzm`, czyli na wolnej czesci ramienia katownika.

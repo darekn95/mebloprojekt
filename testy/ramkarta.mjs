@@ -47,5 +47,14 @@ ok('jest informacja o dziedziczeniu', !!dziedz, st.slice(0, 160));
 ok('mówi o wysokości i głębokości', /wysokość/.test(dziedz) && /głębokość/.test(dziedz), dziedz.slice(0, 120));
 ok('mówi o półkach', /Półki|półek/.test(dziedz), dziedz.slice(0, 160));
 
+console.log('\n== widać, które wzmocnienia są czyje ==');
+st = await struktura();
+ok('wzmocnienia podpisane jako korpusu', /Wzmocnienia korpusu/.test(st), st.slice(0, 160));
+const owzm = st.split('\n').find((l) => /idą dalej w ramieniu/.test(l)) || '';
+console.log('   ' + owzm.slice(0, 220));
+ok('jest opis wzmocnień ramienia', !!owzm, st.slice(-200));
+ok('podaje oba wymiary', (owzm.match(/mm/g) || []).length >= 2, owzm.slice(0, 160));
+ok('mówi, gdzie dochodzą', /kątownik/i.test(owzm), owzm.slice(0, 200));
+
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();
