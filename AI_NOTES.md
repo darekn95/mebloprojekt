@@ -267,3 +267,9 @@ przebic sie na wierzch zamknietych drzwi.
 katownik w tylnym narozniku na cala jego dlugosc i urywaja sie dopiero na
 tylnej plaszczyznie szafki (`tylPlecy`), a wzmocnienie zatrzymuje sie na
 `tylWzm`, czyli na wolnej czesci ramienia katownika.
+
+[AI-INFO] Lico szafki naroznej za maskownica jest otwarte — tam zaczyna sie
+przejscie do ramienia. W elewacji zamknietej zaznaczamy je przerywanym polem
+z podpisem „przejście do ramienia", bo zostawione puste czytalo sie jak dziura
+miedzy drzwiami a wzmocnieniem. Po otwarciu drzwi pola nie ma: wtedy i tak
+widac wnetrze.

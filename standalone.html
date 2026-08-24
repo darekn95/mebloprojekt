@@ -4122,11 +4122,36 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                 const u0 = a.side === "right"
                   ? c.x + a.free - wM
                   : c.x + c.geo.W - a.free;
+                /* Za maskownica lico szafki naroznej jest juz otwarte — tam
+                   zaczyna sie przejscie do ramienia. Zostawione puste wygladalo
+                   jak dziura miedzy drzwiami a wzmocnieniem, wiec zaznaczamy je
+                   jako przejscie: bez frontu, ale i bez udawania, ze czegos
+                   brakuje. Po otwarciu drzwi widac tam wnetrze, wiec nie
+                   zakrywamy. */
+                const pu0 = a.side === "right" ? c.x + a.free : c.x;
+                const pw = Math.max(0, c.geo.W - a.free);
                 return (
-                  <rect key={"kmask" + i} x={mx(ox + u0, wM)}
-                    y={fy(c.base + c.cab.H)} width={wM} height={c.cab.H}
-                    fill={rear ? c.mat.board.color : c.frontColor}
-                    stroke={INK} strokeWidth="2" />
+                  <g key={"kmask" + i}>
+                    {!open && pw > 0 && (
+                      <g>
+                        <rect x={mx(ox + pu0, pw)} y={fy(c.base + c.cab.H)}
+                          width={pw} height={c.cab.H}
+                          fill={c.mat.board.color} fillOpacity="0.25"
+                          stroke={ACC} strokeWidth="2" strokeDasharray="14 10" />
+                        {showDims && pw > 260 && (
+                          <text x={mx(ox + pu0, pw) + pw / 2} y={fy(c.base + c.cab.H / 2)}
+                            textAnchor="middle" fontSize="20" fill={ACC}
+                            fontFamily="ui-monospace, monospace">
+                            przejście do ramienia {fmt(pw)}
+                          </text>
+                        )}
+                      </g>
+                    )}
+                    <rect x={mx(ox + u0, wM)}
+                      y={fy(c.base + c.cab.H)} width={wM} height={c.cab.H}
+                      fill={rear ? c.mat.board.color : c.frontColor}
+                      stroke={INK} strokeWidth="2" />
+                  </g>
                 );
               })}
             {/* front ramienia szafki naroznej — stoi na tej scianie, choc sama
