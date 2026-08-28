@@ -47,9 +47,14 @@ ok('jest informacja o dziedziczeniu', !!dziedz, st.slice(0, 160));
 ok('mówi o wysokości i głębokości', /wysokość/.test(dziedz) && /głębokość/.test(dziedz), dziedz.slice(0, 120));
 ok('mówi o półkach', /Półki|półek/.test(dziedz), dziedz.slice(0, 160));
 
+console.log('\n== typ montażu drzwi jest podpisany ==');
+const drzwi = card(/^Struktura wnętrza$/).getByText(/Drzwi w narożniku — typ montażu/i);
+ok('pasek drzwi ma podpis', await drzwi.count() === 1, String(await drzwi.count()));
+
 console.log('\n== widać, które wzmocnienia są czyje ==');
 st = await struktura();
 ok('wzmocnienia podpisane jako korpusu', /Wzmocnienia korpusu/.test(st), st.slice(0, 160));
+ok('ramię ma własną sekcję wzmocnień', /Wzmocnienia ramienia/i.test(st), st.slice(0, 160));
 const owzm = st.split('\n').find((l) => /idą dalej w ramieniu/.test(l)) || '';
 console.log('   ' + owzm.slice(0, 220));
 ok('jest opis wzmocnień ramienia', !!owzm, st.slice(-200));

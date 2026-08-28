@@ -981,6 +981,10 @@ function computeGeo(cab, mat, ctx) {
   const postCfg = rawCorner.post || {};
   const postOn = !!(rawCorner.on && postCfg.on !== false);
   const postSide = postOn ? (rawCorner.side === "left" ? "left" : "right") : null;
+  /* Katownik w tylnym narozniku chowa sie za plecami z obu stron: wzdluz sciany
+     korpusu i wzdluz sciany ramienia. Plecy przybija sie na niego od zewnatrz,
+     wiec o ich grubosc odsuwa sie od obu plaszczyzn. */
+  const postBack = Math.max(0, cab.back !== "none" ? Math.round(tb) : 0);
   const postW = Math.max(MIN_PART, Math.round(Number(postCfg.w) || 150));
 
   const topOverL = isBlat || topL === "over";
@@ -1303,14 +1307,28 @@ function computeGeo(cab, mat, ctx) {
         const rd = Math.max(0, Math.round(r.depth || 0));
         const rAt = Math.max(0, Math.round(r.atDepth || 0));
         const zLen = r.orient === "front" ? t : rd;
-        const z0 = r.fromBack ? Math.max(0, carcassDepth - rAt - zLen) : rAt;
-        const cw = c.x1 - c.x0;
         /* Lico przycina tylko to, co stoi z przodu — przy tylnej scianie ramie
            niczego nie otwiera, wiec wzmocnienie idzie przez cala szafke az do
            katownika w tylnym narozniku. Inaczej wisialo w powietrzu. */
         const przyTyle = !!r.fromBack;
-        const rx0 = przyTyle ? c.x0 : Math.max(c.x0, licoOd);
-        const rx1 = przyTyle ? c.x1 : Math.min(c.x1, licoDo);
+        /* W rogu plyta przy plecach ma dolegac do wewnetrznego lica katownika:
+           od tylu idzie najpierw plyta plecow, potem ramie katownika, dopiero
+           potem wzmocnienie. Zapisane cofniecie moze byc mniejsze, wiec tutaj
+           je dociagamy — inaczej zostawalaby szpara na grubosc plecow. */
+        const zaKatownikiem = postSide && przyTyle
+          ? Math.max(backIntrusion, cab.back !== "none" ? tb : 0) + t : 0;
+        const z0 = przyTyle
+          ? Math.max(0, carcassDepth - Math.max(rAt, zaKatownikiem) - zLen) : rAt;
+        const cw = c.x1 - c.x0;
+        /* Od strony ramienia wzmocnienie konczy sie na wewnetrznym licu
+           katownika, a nie na plaszczyznie boku — katownik jest jeszcze cofniety
+           o grubosc plecow. */
+        const doKatownika = postSide === "right" ? W - t - postBack : null;
+        const odKatownika = postSide === "left" ? t + postBack : null;
+        const rx0 = przyTyle
+          ? Math.max(c.x0, odKatownika ?? c.x0) : Math.max(c.x0, licoOd);
+        const rx1 = przyTyle
+          ? Math.min(c.x1, doKatownika ?? c.x1) : Math.min(c.x1, licoDo);
         const rw = Math.max(0, rx1 - rx0);
         if (r.orient === "shelf") {
           const ry = r.pos === "bottom" ? kLo : kHi - t;
@@ -2326,6 +2344,8 @@ function computeGeo(cab, mat, ctx) {
     const x0 = (cornerCut.backLeftX ?? 0) + 1;
     const x1 = (cornerCut.backRightX ?? W) - 1;
     const cutInfo = (cornerCut.backLeftX || cornerCut.backRightX) ? ", docięte przy narożniku" : "";
+    /* Luz 1 mm z kazdej strony takze pod blatem: gora korpusu i tak jest
+       zamknieta wzmocnieniami, wiec plecy maja sie do czego przybic. */
     P({ name: "Plecy HDF", qty: 1, a: x1 - x0, b: H - 2, matKey: "back",
         edges: { a1: false, a2: false, b1: false, b2: false },
         note: "luz 1 mm z każdej strony" + cutInfo });
@@ -2897,7 +2917,7 @@ function computeGeo(cab, mat, ctx) {
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
-    postSide, postW,
+    postSide, postW, postBack,
     isBlat, isWorktop, tTop, blat, blatDepth, blatInside, W, drillPlan,
     topX0, topX1, botX0, botX1, divOv,
   };
@@ -3187,7 +3207,7 @@ const armPlan = (a, lokalnie) => {
   const plytaRamienia = !!(cab.corner || {}).on && !!(cab.corner || {}).backBoard;
   const maPlecy = cab.back !== "none" || plytaRamienia;
   const tb = !maPlecy ? 0 : plytaRamienia ? t : geo.tb || t;
-  const pOd = geo.backIntrusion;
+  const pOd = Math.max(geo.backIntrusion, cab.back !== "none" ? geo.tb : 0);
   const tyl = geo.postSide
     ? Math.max(0, Math.round(geo.carcassDepth - pOd - geo.postW)) : 0;
   /* Plecy koncza sie na katowniku, ale wzmocnienie idzie dalej: nachodzi na jego
@@ -3205,7 +3225,10 @@ const armPlan = (a, lokalnie) => {
     .map((r) => {
     const gr = Math.max(0, Math.round(r.orient === "front" ? t : Number(r.depth) || 0));
     const at = Math.max(0, Math.round(Number(r.atDepth) || 0));
-    const v0 = r.fromBack ? at : Math.max(0, a.depth - at - gr);
+    /* Przy plecach katownik jest cofniety o ich grubosc, wiec wzmocnienie
+       ramienia zaczyna sie dopiero za jego ramieniem. */
+    const zaKat = geo.postSide ? geo.postBack + t : 0;
+    const v0 = r.fromBack ? Math.max(at, zaKat) : Math.max(0, a.depth - at - gr);
     /* Wzmocnienie czolowe ramienia dobija do tylnej krawedzi tego samego
        wzmocnienia w korpusie — czyli wchodzi w szafke o jego cofniecie plus
        szerokosc. Dopiero wtedy obie plyty stykaja sie cala szerokoscia i da sie
@@ -3785,13 +3808,14 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
           w plaszczyznie plecow, skrecone pod katem prostym */}
       {geo.postSide && (() => {
         const pw = geo.postW;
-        const px = geo.postSide === "right" ? W - t : 0;
+        /* Katownik chowa sie za plecami z obu stron: `pOd` odsuwa go od tylnej
+           plaszczyzny, `pBok` od bocznej. Plecy przybija sie na niego, a
+           wzmocnienia dolegaja do jego wewnetrznego lica i tam sie skreca. */
+        const pOd = Math.max(geo.backIntrusion, geo.postBack);
+        const pBok = geo.postBack;
+        const px = geo.postSide === "right" ? W - t - pBok : pBok;
         // obie plyty maja te sama formatke, wiec druga zaczyna sie za grubosc pierwszej
-        const bx = geo.postSide === "right" ? W - t - pw : t;
-        /* Katownik stoi rowno z tylna i boczna plaszczyzna korpusu, tak samo
-           jak koncza sie boki — plecy ida na niego, a wzmocnienia cofniete o
-           grubosc plyty dolegaja do jego wewnetrznego lica i tam sie skreca. */
-        const pOd = geo.backIntrusion;
+        const bx = geo.postSide === "right" ? W - t - pBok - pw : t + pBok;
         return (
           <g>
             {/* w rzucie z gory tyl jest u gory (y = 0), wiec katownik siedzi
@@ -4115,7 +4139,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                 const pw = Math.max(0, c.geo.W - a.free);
                 return (
                   <g key={"kmask" + i}>
-                    {!open && pw > 0 && (
+                    {!open && !rear && pw > 0 && (
                       <g>
                         <rect x={mx(ox + pu0, pw)} y={fy(c.base + c.cab.H)}
                           width={pw} height={c.cab.H}
@@ -4169,8 +4193,12 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                         fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
                     </g>
                   ) : (
-                    <rect x={lx} y={fy(a.cab.base + a.cab.cab.H)} width={lw} height={a.cab.cab.H}
-                      fill={rear ? a.cab.mat.board.color : a.cab.frontColor}
+                    /* Od tylu ramie pokazuje plecy, a nie front — i to na calej
+                       dlugosci, bo plecy ida przez cale ramie, a front tylko do
+                       maskownicy katownika. */
+                    <rect x={rear ? ax : lx} y={fy(a.cab.base + a.cab.cab.H)}
+                      width={rear ? a.len : lw} height={a.cab.cab.H}
+                      fill={rear ? a.cab.mat.back.color : a.cab.frontColor}
                       stroke={INK} strokeWidth="2" />
                   )}
                   {a.cab.plinthH > 0 && (
@@ -4584,9 +4612,10 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       /* Katownik w zewnetrznym narozniku zamiast boku od strony ramienia. */
       if (c.geo.postSide) {
         const pShc = shelfColorOf(c.cab, c.mat);
-        const px = c.x + (c.geo.postSide === "right" ? c.geo.W - t : 0);
-        const bx = c.x + (c.geo.postSide === "right" ? c.geo.W - t - c.geo.postW : t);
-        const zT = cd - c.geo.backIntrusion;
+        const pBok = c.geo.postBack;
+        const px = c.x + (c.geo.postSide === "right" ? c.geo.W - t - pBok : pBok);
+        const bx = c.x + (c.geo.postSide === "right" ? c.geo.W - t - pBok - c.geo.postW : t + pBok);
+        const zT = cd - Math.max(c.geo.backIntrusion, c.geo.postBack);
         box(px, c.base + c.geo.interior.y0, zT - c.geo.postW,
           px + t, c.base + c.geo.interior.y1, zT, pShc);
         box(bx, c.base + c.geo.interior.y0, zT - t,
@@ -5011,8 +5040,28 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         const fx = armL ? ax0 : ax0 + armLen - fw;
         const maskW = arm.bracket ? arm.bracket.odRamienia - arm.bracket.luz : 0;
         const plinthH = cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
+        /* Lico korpusu za maskownica jest otwarte — tamtedy siega sie do rogu.
+           Puste czytalo sie jak dziura miedzy drzwiami a kątownikiem, wiec
+           zaznaczamy je jako przejscie. Po otwarciu drzwi i tak widac wnetrze,
+           wiec wtedy pola nie ma. */
+        const wolne = Math.max(0, Math.round(arm.free));
+        const przejW = Math.max(0, W - wolne);
+        const przejX = armL ? 0 : wolne;
         return (
           <g>
+            {!open && przejW > 0 && (
+              <g>
+                <rect x={przejX} y="0" width={przejW} height={H}
+                  fill={bf} fillOpacity="0.25" stroke={ACC} strokeWidth="2"
+                  strokeDasharray="14 10" />
+                {showDims && przejW > 260 && (
+                  <text x={przejX + przejW / 2} y={fy(H / 2)} textAnchor="middle"
+                    fontSize="20" fill={ACC} fontFamily="ui-monospace, monospace">
+                    przejście do ramienia {fmt(przejW)}
+                  </text>
+                )}
+              </g>
+            )}
             <rect x={ax0} y="0" width={armLen} height={H}
               fill="#fafaf9" stroke="#e7e5e4" strokeWidth="1" />
             {plinthH > 0 && (
@@ -5965,12 +6014,13 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
       )}
       {/* katownik w zewnetrznym narozniku — zastepuje bok i plyte plecow */}
       {geo.postSide && (() => {
-        const pOd = geo.backIntrusion;
+        const pOd = Math.max(geo.backIntrusion, geo.postBack);
+        const pBok = geo.postBack;
         return (
         <g>
-          <rect x={geo.postSide === "right" ? W - t : 0} y={pOd}
+          <rect x={geo.postSide === "right" ? W - t - pBok : pBok} y={pOd}
             width={t} height={geo.postW} fill={shc} stroke={INK} strokeWidth="2" />
-          <rect x={geo.postSide === "right" ? W - t - geo.postW : t} y={pOd}
+          <rect x={geo.postSide === "right" ? W - t - pBok - geo.postW : t + pBok} y={pOd}
             width={geo.postW} height={t} fill={shc} stroke={INK} strokeWidth="2" />
         </g>
         );
@@ -6646,10 +6696,11 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
     box(W - t, geo.rightY0, 0, W, geo.rightY0 + geo.rightLen, cd - cutSR, bf);
   if (geo.postSide) {
     const pShc = shelfColorOf(cab, mat);
-    const px = geo.postSide === "right" ? W - t : 0;
-    const bx = geo.postSide === "right" ? W - t - geo.postW : t;
+    const pBok = geo.postBack;
+    const px = geo.postSide === "right" ? W - t - pBok : pBok;
+    const bx = geo.postSide === "right" ? W - t - pBok - geo.postW : t + pBok;
     // plecy zajmuja swoja grubosc, katownik staje dopiero przed nimi
-    const zT = cd - geo.backIntrusion;
+    const zT = cd - Math.max(geo.backIntrusion, geo.postBack);
     box(px, geo.interior.y0, zT - geo.postW, px + t, geo.interior.y1, zT, pShc);
     box(bx, geo.interior.y0, zT - t, bx + geo.postW, geo.interior.y1, zT, pShc);
   }
@@ -7269,8 +7320,10 @@ const runPlinth = (project, run) => {
   if (mojeRamie && mojeRamie.free > 0) {
     const c = mojeRamie.cab;
     const t = c.geo.t;
-    // koniec cokolu: lico ramienia plus grubosc jego cokolu
-    const koniec = Math.round(c.x + mojeRamie.free + t);
+    /* Koniec cokolu: lico ramienia plus grubosc jego cokolu i jeszcze grubosc
+       plyty, na ktora ma zachodzic. Cokoly obu scian nie stykaja sie w rogu
+       czolami — jeden idzie na zakladke po drugim. */
+    const koniec = Math.round(c.x + mojeRamie.free + 2 * t);
     if (koniec > 0 && koniec < total) dl = koniec;
   }
   return { total: dl, h,
@@ -10744,11 +10797,16 @@ export default function App() {
                         <Num value={cab.corner.arm} min={0}
                           onChange={(v) => set({ corner: { ...cab.corner, arm: Math.max(0, Math.round(Number(v) || 0)) } })} />
                       </label>
-                      <Seg value={cab.corner.doors || "wsporniki"}
-                        onChange={(v) => set({ corner: { ...cab.corner, doors: v } })}
-                        options={[{ v: "wsporniki", l: "Na wsporniki" },
-                          { v: "lamane", l: "Łamane" }, { v: "skrecone", l: "Skręcone 90°" },
-                          { v: "fix", l: "Fix + jedne drzwi" }]} />
+                      {/* Sam pasek nie mowil, czego dotyczy — a decyduje o tym,
+                          jak w rogu wiszą drzwi korpusu i ramienia. */}
+                      <Group label="Drzwi w narożniku — typ montażu"
+                        hint="Na wsporniki: dwa osobne fronty, w rogu zostaje słupek. Łamane: skręcone zawiasem narożnym. Skręcone 90°: jeden front zagięty. Fix + jedne drzwi: od jednej ściany stała blenda.">
+                        <Seg value={cab.corner.doors || "wsporniki"}
+                          onChange={(v) => set({ corner: { ...cab.corner, doors: v } })}
+                          options={[{ v: "wsporniki", l: "Na wsporniki" },
+                            { v: "lamane", l: "Łamane" }, { v: "skrecone", l: "Skręcone 90°" },
+                            { v: "fix", l: "Fix + jedne drzwi" }]} />
+                      </Group>
                       {/* Bok od strony ramienia zastepuje katownik przy plecach;
                           da sie go zdjac i zmienic szerokosc ramion. */}
                       <Check checked={(cab.corner.post || {}).on !== false}
@@ -10788,15 +10846,12 @@ export default function App() {
                         );
                       })()}
                       {(cab.corner.doors || "wsporniki") === "wsporniki" && (
-                        <label className="block">
-                          <span className="mb-1 block text-[11px] text-stone-400">
-                            Nachodząca płyta kątownika
-                          </span>
+                        <Group label="Nachodząca płyta kątownika">
                           <Seg value={cab.corner.bracket || "krotsze"}
                             onChange={(v) => set({ corner: { ...cab.corner, bracket: v } })}
                             options={[{ v: "krotsze", l: "Od krótszych drzwi" },
                               { v: "dluzsze", l: "Od dłuższych" }]} />
-                        </label>
+                        </Group>
                       )}
                       {cornerNode.arm && (
                         <p className="text-xs text-stone-500">
@@ -10826,6 +10881,44 @@ export default function App() {
                                 {" "}nad dnem.</>
                               : <>Kolumna przy ramieniu nie ma półek, więc i ramię ich nie ma.</>}
                           </p>
+                        );
+                      })()}
+                      {/* Wzmocnienia ramienia to te same plyty co w szafce, tylko
+                          dluzsze — nie ma ich czego ustawiac osobno, ale trzeba
+                          je pokazac tam, gdzie sie patrzy na ramie. */}
+                      {cornerNode.arm && (() => {
+                        const ap = armPlan(cornerNode.arm, true);
+                        const opis = (r) => (r.przyTyle
+                          ? "tylne, do kątownika w narożniku"
+                          : "czołowe, do kątownika przy drzwiach");
+                        return (
+                          <Group label="Wzmocnienia ramienia"
+                            hint="Bierze je z tej samej kolumny co szafka — dokłada się tylko to, co ramię przedłuża.">
+                            {ap.rails.length ? (
+                              <p className="rounded border border-stone-200 bg-stone-50 px-2 py-1.5 text-[11px] text-stone-500">
+                                Te same wzmocnienia idą dalej w ramieniu — osobno się ich nie
+                                ustawia, są tylko dłuższe:{" "}
+                                {ap.rails.map((r, k) => (
+                                  <span key={k}>
+                                    {k > 0 ? ", " : ""}
+                                    {opis(r)}{" "}
+                                    <span className="font-mono text-stone-700">
+                                      {fmt(Math.round(r.u1 - r.u0))} × {fmt(r.wys)} mm
+                                    </span>
+                                  </span>
+                                ))}.
+                                {ap.back && ap.back.plyta
+                                  ? " Plecy z płyty od tej ściany trzymają róg same, więc tylnego wzmocnienia tu nie ma."
+                                  : ""}
+                              </p>
+                            ) : (
+                              <p className="rounded border border-stone-200 bg-stone-50 px-2 py-1.5 text-[11px] text-stone-500">
+                                {geo.hasTop
+                                  ? "Korpus ma wieniec, więc ramię nie potrzebuje wzmocnień pod blatem."
+                                  : "Kolumna przy ramieniu nie ma wzmocnień, więc i ramię ich nie ma."}
+                              </p>
+                            )}
+                          </Group>
                         );
                       })()}
                     </>
@@ -11246,26 +11339,12 @@ export default function App() {
                               Nie ustawia sie ich osobno — sa dluzsze o to, co
                               ramie dokłada — ale trzeba powiedziec, ktore to. */}
                           {cornerNode && cornerNode.arm && lv.i === geo.levels.length - 1
-                            && (rawCol.rails || []).length > 0 && (() => {
-                            const ap = armPlan(cornerNode.arm, true);
-                            if (!ap.rails.length) return null;
-                            return (
-                              <p className="mt-2 rounded border border-stone-200 bg-stone-50 px-2 py-1.5 text-[11px] text-stone-500">
-                                Te same wzmocnienia idą dalej w ramieniu — osobno się ich nie
-                                ustawia, są tylko dłuższe:{" "}
-                                {ap.rails.map((r, k) => (
-                                  <span key={k}>
-                                    {k > 0 ? ", " : ""}
-                                    {r.przyTyle ? "tylne" : "czołowe"}{" "}
-                                    <span className="font-mono text-stone-700">
-                                      {fmt(Math.round(r.u1 - r.u0))} × {fmt(r.wys)} mm
-                                    </span>
-                                  </span>
-                                ))}
-                                . Tylne dochodzi do kątownika w narożniku, czołowe do tego przy drzwiach.
-                              </p>
-                            );
-                          })()}
+                            && (rawCol.rails || []).length > 0 && (
+                            <p className="mt-2 rounded border border-stone-200 bg-stone-50 px-2 py-1.5 text-[11px] text-stone-500">
+                              Te same płyty biegną dalej w ramieniu — ich wymiary stoją
+                              wyżej, w „Wzmocnieniach ramienia".
+                            </p>
+                          )}
                           {(rawCol.rails || []).map((r, ri) => (
                             <div key={ri} className="mt-2 space-y-2 rounded border border-stone-200 p-2">
                               <div className="flex items-center gap-2">

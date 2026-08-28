@@ -55,12 +55,13 @@ ok('tylne wzmocnienie dłuższe od czołowego', !!wCz && !!wTy && Number(wTy[3])
    dwoch grubosci plyty — zeby dalo sie je z nim skrecic. */
 /* Dlugosc: od boku zamykajacego ramie (len - 18) w glab szafki do katownika
    (glebokosc - plecy - ramie katownika) i jeszcze po jego wolnej czesci. */
-const tylneDl = (ramie - 18) + (glRog - postW) + (postW - 36);
+/* Katownik chowa sie za plecami (3 mm), wiec liczymy od jego lica. */
+const tylneDl = (ramie - 18) + (glRog - 3 - postW) + (postW - 36);
 ok('tylne nachodzi na kątownik w narożniku', !!wTy && Number(wTy[3]) === tylneDl,
   wTy && `${wTy[3]} zamiast ${tylneDl}`);
 /* Plecy nachodza na katownik i koncza sie dopiero na tylnej plaszczyznie
    szafki — przybija sie je do niego tak samo jak do bokow. */
-const zapas = glRog;
+const zapas = glRog - 3;
 ok('plecy sięgają do kątownika w narożniku',
   !!plecy && Number(plecy[3]) === ramie + zapas,
   plecy ? `${plecy[3]} zamiast ${ramie + zapas}` : '(brak)');

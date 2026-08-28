@@ -244,7 +244,10 @@ bez tego ostrzezenie nie mialoby gdzie sie pokazac, bo pusty pas nie ma karty.
 „Ramię narożnika" — ramie to dalszy ciag tej samej szafki, a nie sprawa ciagu.
 W karcie „Ciąg meblowy" zostaje sam narożnik miedzy pasami. Wysokosc, glebokosc,
 cokol, front i polki ramienia nie maja tam wlasnych pol, bo bierze je z szafki
-i z sasiedniego ciagu — mowi o tym akapit pod ustawieniami.
+i z sasiedniego ciagu — mowi o tym akapit pod ustawieniami. Wzmocnienia maja
+tam wlasna podgrupe „Wzmocnienia ramienia" (wymiary z `armPlan`, do czytania —
+ustawia sie je w kolumnie szafki, bo to te same plyty). W kolumnie naglowek
+mowi „Wzmocnienia korpusu" i odsyla do tamtej podgrupy.
 
 ## Blat: co zamawiamy, a co dociera sie na miejscu
 

@@ -46,9 +46,10 @@ const plyty = () => page.evaluate(() => [...document.querySelectorAll('svg rect'
 let rs = await plyty();
 const bokLewy = rs.find((r) => r.x === 0 && r.w === 18 && r.h === 600);
 const bokPrawy = rs.find((r) => r.x === 882 && r.w === 18 && r.h === 600);
-// katownik stoi PRZED plecami, wiec y to ich grubosc, a nie zero
-const ramBok = rs.find((r) => r.x === 882 && r.w === 18 && r.h === 150);
-const ramPlecy = rs.find((r) => r.w === 150 && r.h === 18 && r.x === 732);
+/* Katownik chowa sie za plecami z obu stron: od tylu o ich grubosc (y = 3)
+   i od boku tak samo, wiec jego plyta stoi na 879, a nie na 882. */
+const ramBok = rs.find((r) => r.x === 879 && r.w === 18 && r.h === 150);
+const ramPlecy = rs.find((r) => r.w === 150 && r.h === 18 && r.x === 729);
 ok('lewy bok jest', !!bokLewy);
 ok('prawego boku nie ma', !bokPrawy);
 ok('ramię kątownika przy boku', !!ramBok, JSON.stringify(ramBok));
@@ -59,14 +60,15 @@ ok('ramię kątownika przy plecach', !!ramPlecy, JSON.stringify(ramPlecy));
    siega jeszcze 36 dalej, wiec od lewego boku zostaje 318 - 18 = 300. W rogu
    stoi pionowo i ma 60 mm — dwie stojace plyty da sie skrecic w kacie.
    Tylne nie ma nad soba zadnego przejscia i idzie przez cala szafke az do
-   katownika w tylnym narozniku: 882 - 18 = 864. */
+   wewnetrznego lica katownika w tylnym narozniku. Katownik chowa sie za plecami
+   (3 mm), wiec jego lico stoi na 879, a wzmocnienie ma 879 - 18 = 861. */
 rows = await formatki();
 const wzm = wiersz(rows, /^Wzmocnienie czołowe/);
 ok('wzmocnienie czołowe kończy się na kątowniku', !!wzm && wzm[2] === '300',
   wzm ? wzm.slice(0, 4).join('|') : '(brak)');
 ok('czołowe stoi pionowo, 60 mm', !!wzm && wzm[3] === '60', wzm ? wzm.slice(0, 4).join('|') : '(brak)');
 const wzmT = wiersz(rows, /^Wzmocnienie tylne/);
-ok('tylne wzmocnienie dochodzi do kątownika w narożniku', !!wzmT && wzmT[2] === '864',
+ok('tylne wzmocnienie dochodzi do kątownika w narożniku', !!wzmT && wzmT[2] === '861',
   wzmT ? wzmT.slice(0, 4).join('|') : '(brak)');
 
 console.log('\n== przełącznik w karcie: kątownik zdejmowalny, ramiona regulowane ==');
