@@ -2973,6 +2973,19 @@ const GrainDefs = ({ mat, on, dir }) => {
   );
 };
 
+/* Lico szafki naroznej za maskownica katownika jest otwarte — tamtedy siega sie
+   w rog. Samo jasne pole czytalo sie jak dziura albo jak brakujaca plyta, wiec
+   kreskujemy je na ukos: tak rysuje sie miejsce, w ktorym plyty nie ma. */
+const PRZEJSCIE_ID = "mp-przejscie";
+const PrzejscieDefs = () => (
+  <defs>
+    <pattern id={PRZEJSCIE_ID} width="34" height="34" patternUnits="userSpaceOnUse"
+      patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="34" stroke={ACC} strokeWidth="3" opacity="0.3" />
+    </pattern>
+  </defs>
+);
+
 /* zwraca kopie materialow, w ktorej kolor plyty wskazuje na wzor slojow */
 const texMat = (mat, on, dir) => {
   if (!on) return mat;
@@ -3166,6 +3179,22 @@ const cornerBracket = (arm) => {
     // ile lica zjada katownik razem z luzem — osobno po stronie korpusu i ramienia
     odKorpusu: (nachodziKorpus ? w - geo.tf : w) + luz,
     odRamienia: (nachodziKorpus ? w + geo.tf : w) + luz,
+  };
+};
+
+/* Front ramienia w ukladzie „od naroza": `odRogu` mowi, gdzie sie zaczyna, `w`
+   jaki jest szeroki. Przy katowniku luz siedzi tylko na wolnym koncu — front
+   zachodzi tam na bok ramienia dokladnie tak, jak drzwi szafki zachodza na jej
+   bok. Jedno miejsce dla formatki i dla wszystkich rysunkow: rysowany po staremu
+   na cala `armFront` konczyl sie rowno z bokiem, zamiast na niego zachodzic. */
+const armFrontPlan = (a) => {
+  const luz = (a.cab.cab.gaps || {}).edge ?? 2;
+  const pelne = a.armFront != null ? a.armFront : a.len;
+  const fix = a.doors === "fix";
+  const ubytek = fix ? 0 : a.bracket ? luz : 2 * luz;
+  return {
+    odRogu: (a.len - pelne) + (fix || a.bracket ? 0 : luz),
+    w: Math.max(0, Math.round(pelne - ubytek)),
   };
 };
 
@@ -3878,9 +3907,12 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
       {/* fronty jako pas przy przedniej krawedzi, ze skrzynkami szuflad */}
       {(() => {
         /* Szafka narozna ma front tylko tam, gdzie nie wchodzi ramie — dalej lico
-           jest otwarte. Bez tego rzut ciagu rysowal sciane przez cale przejscie. */
-        const licoOd = arm ? (arm.side === "right" ? 0 : W - arm.free) : 0;
-        const licoDo = arm ? (arm.side === "right" ? arm.free : W) : W;
+           jest otwarte. Bez tego rzut ciagu rysowal sciane przez cale przejscie.
+           Przy rogu front konczy sie jeszcze przed maskownica katownika — inaczej
+           drzwi nachodzily z gory na wspornik. */
+        const maskK = arm && arm.bracket ? arm.bracket.odKorpusu - arm.bracket.luz : 0;
+        const licoOd = arm ? (arm.side === "right" ? 0 : W - arm.free + maskK) : 0;
+        const licoDo = arm ? (arm.side === "right" ? arm.free - maskK : W) : W;
         return cols.map((c) => {
         if (!c.count) return null;
         const isDrawer = c.kind === "drawers";
@@ -4054,6 +4086,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
       {/* jeden zestaw wzorow slojow na cala elewacje — id wzoru bierze sie
           z koloru, wiec powtarzanie ich przy kazdej szafce dalo by duplikaty */}
       <GrainDefs mat={wzor.rawMat} on={wzor.cab.texture} dir={wzor.cab.textureDir} />
+      <PrzejscieDefs />
       <line x1={-20} y1={fy(0)} x2={total + 20} y2={fy(0)} stroke={LINE} strokeWidth="2" />
 
       {groups.map((g, gi) => {
@@ -4162,6 +4195,9 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                           width={pw} height={c.cab.H}
                           fill={c.mat.board.color} fillOpacity="0.25"
                           stroke={ACC} strokeWidth="2" strokeDasharray="14 10" />
+                        <rect x={mx(ox + pu0, pw)} y={fy(c.base + c.cab.H)}
+                          width={pw} height={c.cab.H}
+                          fill={`url(#${PRZEJSCIE_ID})`} stroke="none" />
                         {showDims && pw > 260 && (
                           <text x={mx(ox + pu0, pw) + pw / 2} y={fy(c.base + c.cab.H / 2)}
                             textAnchor="middle" fontSize="20" fill={ACC}
@@ -4189,8 +4225,14 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
               /* Przy samym rogu stoi maskownica katownika, za nia luz, a dopiero
                  potem zaczyna sie front — dlatego `armFront`, a nie cala dlugosc. */
               const maskW = a.bracket ? a.bracket.odRamienia - a.bracket.luz : 0;
-              const lw = a.armFront != null ? a.armFront : a.len;
-              const lx = zl ? ax : ax + (a.len - lw);
+              /* Front zachodzi na bok ramienia z luzem, tak samo jak drzwi
+                 szafki na jej bok — `armFrontPlan` liczy to raz dla rysunkow
+                 i dla formatki. */
+              const fp = armFrontPlan(a);
+              const lw = fp.w;
+              const lx = zl ? ax + (a.len - fp.odRogu - lw) : ax + fp.odRogu;
+              // wewnetrzne lico boku na wolnym koncu ramienia — tam siedza zawiasy
+              const licoBoku = zl ? ax + a.cab.geo.t : ax + a.len - a.cab.geo.t;
               return (
                 <g key={"arm" + i}>
                   {/* Front ramienia otwiera sie tak samo jak kazdy inny: po
@@ -4222,6 +4264,14 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                     <rect x={ax} y={fy(a.cab.base)} width={a.len} height={a.cab.plinthH}
                       fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" opacity="0.75" />
                   )}
+                  {/* Ramie stoi na wlasnych nozkach — bez nich widac sam cokol,
+                      jakby ten kawalek zabudowy na niczym nie stal. */}
+                  {a.cab.cab.legs?.on && a.len > 160 && [ax + 40, ax + a.len - 80].map((lx2, k) => (
+                    <rect key={"anog" + k} x={lx2}
+                      y={fy(a.cab.base) - a.cab.geo.legTop} width={40} height={a.cab.geo.legH}
+                      rx={legRound(a.cab.cab) ? 20 : 0} fill={legColorOf(a.cab.cab)}
+                      stroke={INK} strokeWidth="2" opacity={a.cab.geo.legTop > 0 ? 0.5 : 1} />
+                  ))}
                   {/* Polki ramienia widac dopiero po otwarciu — ida na tych samych
                       wysokosciach co polki kolumny przy ramieniu, bo to na nich
                       sie koncza. */}
@@ -4239,8 +4289,9 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                     if (a.doors === "fix" || rear) return null;
                     const H = a.cab.cab.H;
                     const y0 = fy(a.cab.base + H);
-                    // zawias na zewnetrznej krawedzi skrzydla, uchwyt przy wolnej
-                    const hx = zl ? lx : lx + lw - HINGE_W;
+                    // puszka zawiasu siedzi na boku ramienia, w jego wewnetrznym
+                    // licu — po staremu stala na krawedzi skrzydla, w powietrzu
+                    const hx = zl ? licoBoku : licoBoku - HINGE_W;
                     /* Zawiasy ramienia siadaja na tych samych wysokosciach co
                        zawiasy drzwi tej szafki — front ramienia jest tak samo
                        wysoki, wiec rozstawione na oko wypadaly obok tamtych. */
@@ -4461,10 +4512,16 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
                     nakladany idzie PRZED korpusem, wpuszczany chowa sie w nim.
                     Rysowany po staremu zawsze do srodka stal 18 mm za linia
                     frontow sasiadow — a ma z nimi byc w jednym licu. */}
-                <rect x={a.outerAtEnd ? a.len - a.armFront : 0}
-                  y={armInset(a) ? a.depth - a.cab.geo.tf : a.depth}
-                  width={a.armFront} height={a.cab.geo.tf}
-                  fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
+                {(() => {
+                  // front zachodzi na bok ramienia z luzem — jak drzwi na bok szafki
+                  const fp = armFrontPlan(a);
+                  return (
+                    <rect x={a.outerAtEnd ? fp.odRogu : a.len - fp.odRogu - fp.w}
+                      y={armInset(a) ? a.depth - a.cab.geo.tf : a.depth}
+                      width={fp.w} height={a.cab.geo.tf}
+                      fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
+                  );
+                })()}
                 {/* Plecy i wzmocnienia ramienia. Plecy i tylne wzmocnienie ida
                     dalej niz samo ramie — az do katownika w tylnym narozniku. */}
                 {(() => {
@@ -4796,8 +4853,10 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
          zawias ma na koncu dalszym od naroza i otwiera sie razem z reszta. */
       const przyKoncu = a.outerAtEnd;                 // rog przy poczatku ramienia
       const kat = a.bracket;
-      const fw = a.armFront != null ? a.armFront : a.len;
-      const fu0 = przyKoncu ? a.len - fw : 0;
+      // front zachodzi na bok ramienia z luzem — tak samo jak w elewacji
+      const fpA = armFrontPlan(a);
+      const fw = fpA.w;
+      const fu0 = przyKoncu ? fpA.odRogu : a.len - fpA.odRogu - fw;
       const otwiera = open && a.doors !== "fix";
       /* Uchwyt idzie przy krawedzi wolnej, czyli od strony rogu — zawias siedzi
          na przeciwnym koncu. Bez niego front ramienia wygladal w bryle jak
@@ -5045,16 +5104,21 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
+      <PrzejscieDefs />
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke="#e7e5e4" strokeWidth="1" />
 
       {/* Ramie w rozwinieciu: pas drugiej sciany dostawiony do korpusu. Rysujemy
           je pod korpusem, zeby wszystko, co przy narozu, zostalo na wierzchu. */}
       {arm && armLen > 0 && (() => {
         const ax0 = armL ? -armLen : W;
-        // front ramienia konczy sie na maskownicy katownika, ktora stoi przy rogu
-        const fw = arm.armFront != null ? arm.armFront : armLen;
-        const przyRogu = armL ? ax0 : ax0 + armLen - fw;   // odleglosc frontu od naroza
-        const fx = armL ? ax0 : ax0 + armLen - fw;
+        /* Front ramienia konczy sie przy rogu na maskownicy katownika, a na
+           wolnym koncu zachodzi na bok ramienia — tak jak drzwi szafki na jej
+           bok. `armFrontPlan` liczy to raz, dla rysunku i dla formatki. */
+        const fp = armFrontPlan(arm);
+        const fw = fp.w;
+        const fx = armL ? -(fp.odRogu + fw) : ax0 + fp.odRogu;
+        // wewnetrzne lico boku ramienia — tam siedza puszki zawiasow
+        const licoBoku = armL ? ax0 + t : ax0 + armLen - t;
         const maskW = arm.bracket ? arm.bracket.odRamienia - arm.bracket.luz : 0;
         const plinthH = cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
         /* Lico korpusu za maskownica jest otwarte — tamtedy siega sie do rogu.
@@ -5071,12 +5135,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 <rect x={przejX} y="0" width={przejW} height={H}
                   fill={bf} fillOpacity="0.25" stroke={ACC} strokeWidth="2"
                   strokeDasharray="14 10" />
-                {showDims && przejW > 260 && (
-                  <text x={przejX + przejW / 2} y={fy(H / 2)} textAnchor="middle"
-                    fontSize="20" fill={ACC} fontFamily="ui-monospace, monospace">
-                    przejście do ramienia {fmt(przejW)}
-                  </text>
-                )}
+                <rect x={przejX} y="0" width={przejW} height={H}
+                  fill={`url(#${PRZEJSCIE_ID})`} stroke="none" />
               </g>
             )}
             <rect x={ax0} y="0" width={armLen} height={H}
@@ -5085,6 +5145,13 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               <rect x={ax0} y={H} width={armLen} height={plinthH}
                 fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
             )}
+            {/* Ramie stoi na wlasnych nozkach tak samo jak korpus — bez nich
+                wyglada, jakby wisialo nad cokolem. */}
+            {cab.legs?.on && armLen > 160 && [ax0 + 40, ax0 + armLen - 80].map((lx, k) => (
+              <rect key={"anz" + k} x={lx} y={H - geo.legTop} width={40} height={geo.legH}
+                rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
+                opacity={geo.legTop > 0 ? 0.5 : 1} />
+            ))}
             {open && (() => {
               /* Wzmocnienia ramienia widac po otwarciu tak samo jak te w szafce:
                  stojace przy plecach na cala swoja wysokosc, plaskie tuz pod
@@ -5104,22 +5171,22 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 );
               });
             })()}
-            {open
-              ? armShelfYs(arm.side, geo.levels).map((sy, k) => (
-                  <rect key={"aps" + k} x={ax0} y={fy(sy + geo.ts)} width={armLen} height={geo.ts}
-                    fill={bf} stroke={INK} strokeWidth="2" />
-                ))
-              : (
-                <rect x={fx} y="0" width={fw} height={H}
-                  fill={ff} stroke={INK} strokeWidth="2" />
-              )}
+            {open && armShelfYs(arm.side, geo.levels).map((sy, k) => (
+              <rect key={"aps" + k} x={ax0} y={fy(sy + geo.ts)} width={armLen} height={geo.ts}
+                fill={bf} stroke={INK} strokeWidth="2" />
+            ))}
             {/* Bok zamykajacy ramie na wolnym koncu — ta sama plyta, ktora
-                w rzucie z gory konczy ramie. Bez niej po otwarciu ramie
-                wygladalo jak przelot donikad. */}
+                w rzucie z gory konczy ramie. Rysowany przed frontem, bo front
+                nakladany na niego zachodzi. */}
             <rect x={armL ? ax0 : ax0 + armLen - t} y="0" width={t} height={H}
               fill={bf} stroke={INK} strokeWidth="2" />
+            {!open && (
+              <rect x={fx} y="0" width={fw} height={H}
+                fill={ff} stroke={INK} strokeWidth="2" />
+            )}
             {/* Front ramienia to zwykle drzwi: zawias na koncu dalszym od rogu,
-                uchwyt przy rogu. Po otwarciu zostaja same zawiasy, tak jak przy
+                uchwyt przy rogu. Po otwarciu zostaje obrys skrzydla, plyta
+                widziana od czola i puszki zawiasow na boku — tak samo jak przy
                 drzwiach szafki. */}
             {arm.doors !== "fix" && (() => {
               const zawiasPrawy = !armL;
@@ -5131,7 +5198,6 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                     width={15} height={120} rx="5" fill="#52525b" opacity="0.9" />
                 );
               }
-              if (!showHardware) return null;
               /* Te same wysokosci co zawiasy drzwi tej szafki — front ramienia
                  jest tak samo wysoki, wiec maja stanac w jednej linii. */
               const dRef = (geo.doors || [])
@@ -5139,11 +5205,27 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               const ile = Math.max(2, Math.min(4, Math.round(H / 500) + 1));
               const hys = dRef ? dRef.hingePts
                 : Array.from({ length: ile }, (_, k) => (H * (k + 1)) / (ile + 1));
-              return hys.map((hy, k) => (
-                <rect key={"azw" + k} x={zawiasPrawy ? fx + fw - HINGE_W : fx}
-                  y={fy(hy) - HINGE_H / 2} width={HINGE_W} height={HINGE_H}
-                  fill="#a1a1aa" stroke={INK} strokeWidth="1.5" opacity="0.9" />
-              ));
+              return (
+                <g>
+                  <rect x={fx} y="0" width={fw} height={H}
+                    fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="12 9" opacity="0.6" />
+                  <path
+                    d={`M ${zawiasPrawy ? fx + fw : fx} 0
+                        L ${zawiasPrawy ? fx : fx + fw} ${fy(H / 2)}
+                        L ${zawiasPrawy ? fx + fw : fx} ${H}`}
+                    fill="none" stroke={INK} strokeWidth="1.8" opacity="0.5" />
+                  <rect x={zawiasPrawy ? fx + fw - geo.tf : fx} y="0" width={geo.tf} height={H}
+                    fill={ff} stroke={INK} strokeWidth="2" />
+                  {/* Puszka siedzi na boku ramienia, w jego wewnetrznym licu —
+                      po staremu stala na samym boku, jakby wisiala w powietrzu. */}
+                  {showHardware && hys.map((hy, k) => (
+                    <rect key={"azw" + k}
+                      x={zawiasPrawy ? licoBoku - HINGE_W : licoBoku}
+                      y={fy(hy) - HINGE_H / 2} width={HINGE_W} height={HINGE_H}
+                      rx="3" fill="#71717a" stroke={INK} strokeWidth="1.5" />
+                  ))}
+                </g>
+              );
             })()}
             {maskW > 0 && (
               <rect x={armL ? ax0 + armLen - maskW : ax0} y="0" width={maskW} height={H}
@@ -5218,6 +5300,22 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           ))
         )
       )}
+
+      {/* Podpis przejscia do ramienia idzie dopiero tutaj, nad polkami
+          i wzmocnieniami — pod nimi byl zaslaniany i puste lico czytalo sie
+          jak dziura miedzy drzwiami a wzmocnieniem. */}
+      {arm && armLen > 0 && !open && showDims && (() => {
+        const wolne = Math.max(0, Math.round(arm.free));
+        const przejW = Math.max(0, W - wolne);
+        if (!(przejW > 260)) return null;
+        const przejX = armL ? 0 : wolne;
+        return (
+          <text x={przejX + przejW / 2} y={fy(H / 2)} textAnchor="middle" fontSize="20"
+            fill={ACC} fontFamily="ui-monospace, monospace">
+            przejście do ramienia {fmt(przejW)}
+          </text>
+        );
+      })()}
 
       {/* kolki podporowe pod polkami — os otworu na dolnej krawedzi polki */}
       {showPins &&
@@ -5892,6 +5990,23 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
           stroke={INK} strokeWidth="2.5" opacity={geo.backIsBoard ? 0.95 : 0.72} />
       )}
 
+      {/* Wzmocnienia widziane od tylu. Stojace przy plecach dolega do nich od
+          srodka, plaskie lezy pod blatem — obu z tylu nie widac, wiec ida
+          kreska, ale na wierzchu pleców, zeby w ogole bylo je widac. */}
+      {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
+        <g key={`rwzm${lv.i}-${c.j}-${ri}`}>
+          <rect x={mx(r.x0, r.x1 - r.x0)} y={fy(r.y1)}
+            width={r.x1 - r.x0} height={r.y1 - r.y0}
+            fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
+          {showDims && r.x1 - r.x0 > 220 && (
+            <text x={mx(r.x0, r.x1 - r.x0) + (r.x1 - r.x0) / 2} y={fy(r.y0) - 8}
+              textAnchor="middle" fontSize="17" fill={LINE} fontFamily="ui-monospace, monospace">
+              {r.przyTyle ? "wzmocnienie tylne" : "wzmocnienie czołowe"} {fmt(r.x1 - r.x0)}
+            </text>
+          )}
+        </g>
+      ))))}
+
       {/* wyciecie w narozniku — widziane od tylu */}
       {geo.geoCuts.map((gc, ci) => {
         // od tylu obraz jest lustrzany: mx(x, w)
@@ -6003,10 +6118,16 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
                 </>
               );
             })()}
-            {/* front ramienia zaczyna sie za katownikiem i luzem */}
-            <rect x={ax(cab.frontMode === "inset" ? vLico - geo.tf : vLico, geo.tf)}
-              y={ay(arm.len - arm.armFront)} width={geo.tf} height={arm.armFront}
-              fill={mat.front.color} stroke={INK} strokeWidth="2" />
+            {/* front ramienia zaczyna sie za katownikiem i luzem, a na wolnym
+                koncu zachodzi na bok ramienia — bez luzu stal z nim rowno */}
+            {(() => {
+              const fp = armFrontPlan(arm);
+              return (
+                <rect x={ax(cab.frontMode === "inset" ? vLico - geo.tf : vLico, geo.tf)}
+                  y={ay(fp.odRogu)} width={geo.tf} height={fp.w}
+                  fill={mat.front.color} stroke={INK} strokeWidth="2" />
+              );
+            })()}
             {bracketPlan(arm, true).map((r, k) => (
               <rect key={"kat" + k} x={ax(r.v, r.h)} y={ay(r.u)} width={r.h} height={r.w}
                 fill={r.front ? mat.front.color : bf} stroke={INK} strokeWidth="2" />
@@ -6091,9 +6212,12 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
         const ffc = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
         /* Szafka narozna ma front tylko tam, gdzie nie wchodzi ramie — dalej lico
            jest otwarte i prowadzi w ramie. Pas ciagniety przez cala szerokosc
-           rysowal tam sciane, ktorej nie ma. */
-        const licoOd = arm ? (arm.side === "right" ? 0 : W - arm.free) : 0;
-        const licoDo = arm ? (arm.side === "right" ? arm.free : W) : W;
+           rysowal tam sciane, ktorej nie ma. Przy samym rogu konczy sie jeszcze
+           wczesniej: tam stoi maskownica katownika i drzwi na nia nie wchodza —
+           z gory wygladalo to, jakby front nachodzil na wspornik. */
+        const maskK = arm && arm.bracket ? arm.bracket.odKorpusu - arm.bracket.luz : 0;
+        const licoOd = arm ? (arm.side === "right" ? 0 : W - arm.free + maskK) : 0;
+        const licoDo = arm ? (arm.side === "right" ? arm.free - maskK : W) : W;
         return cols.map((c) => {
           if (!c.count) return null;
           const isDrawer = c.kind === "drawers";
@@ -7567,17 +7691,13 @@ const cornerArmParts = (a) => {
         .filter(Boolean).join(", ") });
   // front ramienia bierze wysokosc z frontow samej szafki, zeby stanely w linii
   const d0 = (geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
-  const luz = (cab.gaps || {}).edge ?? 2;
   /* Wariant „fix": ramie zaslepia plyta przykrecona na staly, a otwierac sie
      bedzie tylko front korpusu — tak sie robi, gdy w rogu i tak nic nie stoi. */
   const fix = a.doors === "fix";
   /* Przy katowniku front ramienia konczy sie na maskownicy i luzie, a nie na
-     koncu ramienia — `armFront` ma to juz policzone. */
-  /* Od strony katownika luz jest juz odjety w `armFront`, zostaje tylko ten na
-     wolnym koncu ramienia — inaczej liczylibysmy go dwa razy. */
-  const wolneRamie = a.armFront != null ? a.armFront : len;
+     koncu ramienia — `armFrontPlan` ma to juz policzone, tak samo jak rysunki. */
   panels.push({ name: fix ? "Fix ramienia" : "Front ramienia", qty: 1,
-    a: Math.max(0, wolneRamie - (fix ? 0 : a.bracket ? luz : 2 * luz)),
+    a: armFrontPlan(a).w,
     b: d0 ? Math.round(d0.h) : H, matKey: "front",
     edges: { a1: true, a2: true, b1: true, b2: true }, note: "cztery krawędzie" });
   /* Katownik trzyma kat prosty i daje obu skrzydlom o co sie oprzec przy

@@ -235,6 +235,30 @@ a `migrateCab` przestawia stare pary po ich sygnaturze (shelf, top, 100 mm).
 orientacja — po zmianie powyzej obie plyty pary sa `orient: "front"` i bez tego
 obie nazywalyby sie tak samo.
 
+[AI-INFO] Front ramienia liczy `armFrontPlan(a)` — `odRogu` (gdzie sie zaczyna,
+mierzone od naroza) i `w` (szerokosc). Przy katowniku luz siedzi tylko na wolnym
+koncu: front zachodzi tam na bok ramienia dokladnie tak, jak drzwi szafki na jej
+bok. Tej jednej funkcji uzywaja formatka i wszystkie rysunki (elewacja szafki
+i ciagu, oba rzuty z gory, bryla) — wczesniej kazdy rysowal `armFront` rowno
+z koncem ramienia, wiec bok byl rysowany na froncie.
+
+[AI-INFO] Puszki zawiasow ramienia siedza na wewnetrznym licu boku na wolnym
+koncu (`licoBoku`), a nie na krawedzi skrzydla — tak samo jak `d.hingeX` przy
+drzwiach szafki, gdzie zawias niesie bok albo przegroda.
+
+[AI-INFO] W rzutach z gory front szafki naroznej konczy sie nie na `arm.free`,
+tylko przed maskownica katownika (`arm.free - (odKorpusu - luz)`). Ciagniety do
+`free` nachodzil z gory na wspornik. W elewacji tego problemu nie ma, bo tam
+front bierze sie z `geo.doors`.
+
+[AI-INFO] Otwarte lico przy rogu (przejscie do ramienia) rysuje sie polem
+`PrzejscieDefs` — kreskowanie na ukos plus podpis. Podpis idzie na koncu, nad
+polkami i wzmocnieniami: pod nimi byl zaslaniany i puste lico czytalo sie jak
+dziura miedzy drzwiami a wzmocnieniem.
+
+[AI-INFO] Widok od tylu pojedynczej szafki pokazuje wzmocnienia kreska, na
+wierzchu plecow — sa za nimi, wiec inaczej nie widac ich wcale.
+
 [AI-INFO] `worktopMsgs` dziala takze dla pasa bez wlasnych szafek: blat nad
 ramieniem naroznika liczy sie do sciany za rogiem, wiec to tam wychodzi za
 szeroki. Poprawka `rundepth:<mm>@<runId>` umie siegnac do sasiedniego ciagu —
