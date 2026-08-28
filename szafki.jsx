@@ -420,7 +420,8 @@ const railPair = (cofniete = 0, odTylu = 0, pionZPrzodu = false) => ([
   pionZPrzodu
     ? { ...newRail(), orient: "front", pos: "top", h: ROG_WZM_H, atDepth: cofniete, fromBack: false }
     : { ...newRail(), orient: "shelf", pos: "top", depth: 100, atDepth: cofniete, fromBack: false },
-  { ...newRail(), orient: "front", pos: "top", h: 100, atDepth: odTylu, fromBack: true },
+  { ...newRail(), orient: "front", pos: "top",
+    h: pionZPrzodu ? ROG_WZM_H : 100, atDepth: odTylu, fromBack: true },
 ]);
 
 /* Szafka pod blatem roboczym: wieniec schodzi, a kazda kolumna najwyzszego
@@ -510,7 +511,10 @@ const defaultCab = {
     /* Plecy ramienia z pelnej plyty zamiast HDF. Plyta trzyma rog sama, wiec
        stojace wzmocnienie przy niej schodzi — to samo po stronie korpusu robi
        zwykle ustawienie pleców na „płyta". */
-    post: { on: true, w: 150 }, side: "auto", backBoard: false },
+    /* Wzmocnienia ramienia to osobne plyty — `railW` trzyma ich szerokosc,
+       osobno dla czolowej i tylnej. Puste = tak jak w korpusie. */
+    post: { on: true, w: 150 }, side: "auto", backBoard: false,
+    railW: { przod: null, tyl: null } },
   // polki w kolumnach: na kolkach podporowych czy skrecane konfirmatami
   shelfMount: "pins",
   // odsuniecie osi otworu pod kolek od przedniej i tylnej krawedzi polki
@@ -549,14 +553,18 @@ const migrateCab = (rawCab) => {
   /* Tylne wzmocnienie: w zwyklej szafce rowno z tylna krawedzia (plecy ida na
      nie), w naroznej cofniete o grubosc plyty, zeby doleglo do wewnetrznego
      lica katownika w rogu. Po drodze bylo raz tak, raz tak, wiec prostujemy to
-     przy wczytaniu — ale tylko dla plyty z tej pary (stojaca, 100 mm) i tylko
+     przy wczytaniu — ale tylko dla plyty z tej pary (stojaca, u gory) i tylko
      gdy stoi na jednej z naszych wartosci, zeby nie kasowac recznych ustawien. */
   const wRogu = !!(merged.corner || {}).on;
   (merged.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => {
     (c.rails || []).forEach((r) => {
-      if (r.orient === "front" && r.fromBack && Number(r.h) === 100) {
+      if (r.orient === "front" && r.fromBack && r.pos === "top") {
         const at = Number(r.atDepth) || 0;
         if (at === 0 || at === 18) r.atDepth = wRogu ? 18 : 0;
+        /* W rogu obie plyty tej pary stoja pionowo i maja 60 mm — dwie stojace
+           latwiej skrecic w kacie. Stare 100 mm z domyslnego ukladu zmieniamy,
+           recznie ustawionej innej szerokosci nie ruszamy. */
+        if (wRogu && Number(r.h) === 100) r.h = ROG_WZM_H;
         return;
       }
       /* Plyta od strony drzwi w rogu stoi teraz pionowo i ma 60 mm. Projekty
@@ -3220,10 +3228,20 @@ const armPlan = (a, lokalnie) => {
   const u1 = Math.max(0, Math.round(a.len - t));
   const surowe = (((cab.levels || []).slice(-1)[0] || {}).cols || [])
     .flatMap((c) => c.rails || []);
+  /* Wzmocnienia ramienia to osobne plyty, wiec ich szerokosc moze byc inna niz
+     w korpusie — polozenie zostaje wspolne, bo obie plyty musza sie spotkac.
+     Puste ustawienie znaczy „tak jak w szafce". */
+  const szerRam = (cab.corner || {}).railW || {};
+  const nadpis = (r) => {
+    const v = Number(szerRam[r.fromBack ? "tyl" : "przod"]);
+    return v > 0 ? Math.round(v) : null;
+  };
   const rails = geo.hasTop ? [] : surowe
     .filter((r) => !(plytaRamienia && r.orient === "front" && r.fromBack))
     .map((r) => {
-    const gr = Math.max(0, Math.round(r.orient === "front" ? t : Number(r.depth) || 0));
+    const szer = nadpis(r)
+      ?? Math.max(0, Math.round(r.orient === "front" ? Number(r.h) || 0 : Number(r.depth) || 0));
+    const gr = Math.max(0, Math.round(r.orient === "front" ? t : szer));
     const at = Math.max(0, Math.round(Number(r.atDepth) || 0));
     /* Przy plecach katownik jest cofniety o ich grubosc, wiec wzmocnienie
        ramienia zaczyna sie dopiero za jego ramieniem. */
@@ -3233,10 +3251,9 @@ const armPlan = (a, lokalnie) => {
        wzmocnienia w korpusie — czyli wchodzi w szafke o jego cofniecie plus
        szerokosc. Dopiero wtedy obie plyty stykaja sie cala szerokoscia i da sie
        je skrecic; skrocone do lica mijaly sie o grubosc frontu. */
-    return { u0: r.fromBack ? -tylWzm : -(at + gr), u1, v0, v1: v0 + gr,
-      wys: Math.max(0, Math.round(r.orient === "front" ? Number(r.h) || 0 : Number(r.depth) || 0)),
+    return { u0: r.fromBack ? -tylWzm : -(at + gr), u1, v0, v1: v0 + gr, wys: szer,
       // stojace = plyta na sztorc (liczy sie wysokosc), przyTyle = ktora to z pary
-      stojace: r.orient === "front", przyTyle: !!r.fromBack };
+      stojace: r.orient === "front", przyTyle: !!r.fromBack, wlasna: nadpis(r) != null };
   });
   /* Plecy ida dalej niz wzmocnienie: nachodza na katownik w narozniku i konczą
      sie dopiero na tylnej plaszczyznie szafki. Przybija sie je do niego tak samo
@@ -10883,39 +10900,66 @@ export default function App() {
                           </p>
                         );
                       })()}
-                      {/* Wzmocnienia ramienia to te same plyty co w szafce, tylko
-                          dluzsze — nie ma ich czego ustawiac osobno, ale trzeba
-                          je pokazac tam, gdzie sie patrzy na ramie. */}
+                      {/* Wzmocnienia ramienia to osobne plyty — polozenie musza
+                          miec wspolne z korpusem, zeby sie w rogu spotkaly, ale
+                          szerokosc kazdej ustawia sie tutaj. */}
                       {cornerNode.arm && (() => {
                         const ap = armPlan(cornerNode.arm, true);
-                        const opis = (r) => (r.przyTyle
-                          ? "tylne, do kątownika w narożniku"
-                          : "czołowe, do kątownika przy drzwiach");
+                        const rw = (cab.corner || {}).railW || {};
+                        const setW = (k, v) => set({ corner: { ...cab.corner,
+                          railW: { ...rw,
+                            [k]: v === "" || v == null ? null : Math.max(1, Math.round(Number(v) || 0)) } } });
+                        const grupy = [
+                          ["przod", "czołowe — dochodzi do kątownika przy drzwiach",
+                            ap.rails.filter((r) => !r.przyTyle)],
+                          ["tyl", "tylne — dochodzi do kątownika w tylnym narożniku",
+                            ap.rails.filter((r) => r.przyTyle)],
+                        ].filter((g) => g[2].length);
                         return (
-                          <Group label="Wzmocnienia ramienia"
-                            hint="Bierze je z tej samej kolumny co szafka — dokłada się tylko to, co ramię przedłuża.">
-                            {ap.rails.length ? (
-                              <p className="rounded border border-stone-200 bg-stone-50 px-2 py-1.5 text-[11px] text-stone-500">
-                                Te same wzmocnienia idą dalej w ramieniu — osobno się ich nie
-                                ustawia, są tylko dłuższe:{" "}
-                                {ap.rails.map((r, k) => (
-                                  <span key={k}>
-                                    {k > 0 ? ", " : ""}
-                                    {opis(r)}{" "}
-                                    <span className="font-mono text-stone-700">
-                                      {fmt(Math.round(r.u1 - r.u0))} × {fmt(r.wys)} mm
-                                    </span>
-                                  </span>
-                                ))}.
-                                {ap.back && ap.back.plyta
-                                  ? " Plecy z płyty od tej ściany trzymają róg same, więc tylnego wzmocnienia tu nie ma."
-                                  : ""}
-                              </p>
+                          <Group label="Wzmocnienia ramienia">
+                            {grupy.length ? (
+                              <div className="space-y-2">
+                                <p className="text-[11px] text-stone-500">
+                                  Osobne płyty od tych w szafce — te same wzmocnienia idą dalej
+                                  w ramieniu, tylko dłuższe. Położenie bierze z korpusu, żeby
+                                  obie płyty spotkały się w rogu; szerokość ustawiasz tutaj.
+                                </p>
+                                {grupy.map(([k, opis, rs]) => (
+                                  <div key={k} className="space-y-1.5 rounded border border-stone-200 px-2 py-1.5">
+                                    <div className="flex items-center gap-2">
+                                      <span className="flex-1 text-[11px] text-stone-500">{opis}</span>
+                                      <span className="font-mono text-[11px] text-stone-700">
+                                        {listPl(rs.map((r) => fmt(Math.round(r.u1 - r.u0))))} mm
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-20 shrink-0 text-[11px] text-stone-400">szerokość</span>
+                                      <div className="flex-1">
+                                        <AutoNum value={rw[k] ?? ""} placeholder={fmt(rs[0].wys)}
+                                          fixed={rs[0].wlasna} onChange={(v) => setW(k, v)} />
+                                      </div>
+                                      <span className="w-5 shrink-0 text-[11px] text-stone-400">mm</span>
+                                      {rs[0].wlasna ? (
+                                        <MiniBtn onClick={() => setW(k, "")}
+                                          title="Wróć do szerokości jak w szafce">×</MiniBtn>
+                                      ) : (
+                                        <span className="w-6 shrink-0" />
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             ) : (
                               <p className="rounded border border-stone-200 bg-stone-50 px-2 py-1.5 text-[11px] text-stone-500">
                                 {geo.hasTop
                                   ? "Korpus ma wieniec, więc ramię nie potrzebuje wzmocnień pod blatem."
                                   : "Kolumna przy ramieniu nie ma wzmocnień, więc i ramię ich nie ma."}
+                              </p>
+                            )}
+                            {ap.back && ap.back.plyta && (
+                              <p className="mt-1 text-[11px] text-stone-400">
+                                Plecy z płyty od tej ściany trzymają róg same, więc tylnego
+                                wzmocnienia w ramieniu nie ma.
                               </p>
                             )}
                           </Group>
@@ -11341,8 +11385,8 @@ export default function App() {
                           {cornerNode && cornerNode.arm && lv.i === geo.levels.length - 1
                             && (rawCol.rails || []).length > 0 && (
                             <p className="mt-2 rounded border border-stone-200 bg-stone-50 px-2 py-1.5 text-[11px] text-stone-500">
-                              Te same płyty biegną dalej w ramieniu — ich wymiary stoją
-                              wyżej, w „Wzmocnieniach ramienia".
+                              W ramieniu biegną dalej takie same płyty, ale osobne —
+                              ich szerokość ustawia się wyżej, w „Wzmocnieniach ramienia".
                             </p>
                           )}
                           {(rawCol.rails || []).map((r, ri) => (

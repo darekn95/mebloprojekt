@@ -245,9 +245,12 @@ bez tego ostrzezenie nie mialoby gdzie sie pokazac, bo pusty pas nie ma karty.
 W karcie „Ciąg meblowy" zostaje sam narożnik miedzy pasami. Wysokosc, glebokosc,
 cokol, front i polki ramienia nie maja tam wlasnych pol, bo bierze je z szafki
 i z sasiedniego ciagu — mowi o tym akapit pod ustawieniami. Wzmocnienia maja
-tam wlasna podgrupe „Wzmocnienia ramienia" (wymiary z `armPlan`, do czytania —
-ustawia sie je w kolumnie szafki, bo to te same plyty). W kolumnie naglowek
-mowi „Wzmocnienia korpusu" i odsyla do tamtej podgrupy.
+tam wlasna podgrupe „Wzmocnienia ramienia". W rogu sa cztery plyty: dwie w
+korpusie (ustawiane w kolumnie) i dwie w ramieniu — osobne formatki, wiec ich
+szerokosc siedzi w `cab.corner.railW = { przod, tyl }` (puste = jak w korpusie,
+czyta to `armPlan`). Polozenie zostaje wspolne, bo obie plyty musza sie spotkac
+w rogu. Domyslnie oba wzmocnienia pary w rogu stoja pionowo i maja `ROG_WZM_H`
+(60 mm); stare 100 mm prostuje `migrateCab`.
 
 ## Blat: co zamawiamy, a co dociera sie na miejscu
 

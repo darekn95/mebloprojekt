@@ -58,8 +58,28 @@ ok('ramię ma własną sekcję wzmocnień', /Wzmocnienia ramienia/i.test(st), st
 const owzm = st.split('\n').find((l) => /idą dalej w ramieniu/.test(l)) || '';
 console.log('   ' + owzm.slice(0, 220));
 ok('jest opis wzmocnień ramienia', !!owzm, st.slice(-200));
-ok('podaje oba wymiary', (owzm.match(/mm/g) || []).length >= 2, owzm.slice(0, 160));
-ok('mówi, gdzie dochodzą', /kątownik/i.test(owzm), owzm.slice(0, 200));
+/* Ramie ma dwie wlasne plyty: czolowa i tylna — obie z wlasna szerokoscia. */
+const sekcja = st.slice(st.indexOf('WZMOCNIENIA RAMIENIA'));
+ok('są obie płyty ramienia', /czołowe/.test(sekcja) && /tylne/.test(sekcja), sekcja.slice(0, 200));
+ok('mówi, gdzie dochodzą', (sekcja.match(/kątownik/gi) || []).length >= 2, sekcja.slice(0, 260));
+const szer = card(/^Struktura wnętrza$/).locator('div')
+  .filter({ has: page.getByText(/czołowe — dochodzi do kątownika/) })
+  .filter({ has: page.locator('input[type=number]') })
+  .last().locator('input[type=number]').first();
+ok('szerokość czołowego da się ustawić', await szer.count() === 1, String(await szer.count()));
+await szer.fill('80');
+await page.waitForTimeout(1400);
+const p3 = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
+const rog3 = p3.items.map((i) => i.cab).find((c) => c.corner && c.corner.on);
+ok('szerokość trafia do projektu', rog3 && Number(rog3.corner.railW.przod) === 80,
+  JSON.stringify(rog3 && rog3.corner.railW));
+const wzmR = await card(/Formatki ca/).evaluate((sec) =>
+  [...sec.querySelectorAll('tbody tr')].map((tr) =>
+    [...tr.querySelectorAll('td')].map((t) => t.innerText.trim().split('\n')[0]))
+    .find((r) => /^Wzmocnienie ramienia — czołowe/.test(r[0])));
+console.log('   formatka: ' + JSON.stringify(wzmR && wzmR.slice(0, 5)));
+ok('formatka ramienia ma nową szerokość', !!wzmR && wzmR[4] === '80',
+  wzmR ? wzmR.slice(0, 5).join('|') : '(brak)');
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();
