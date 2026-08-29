@@ -55,7 +55,12 @@ await nogi.getByText('Nóżki pod szafką', { exact: true }).click();
 await page.waitForTimeout(1000);
 rs = await rows();
 console.log('    ', (rs.find(r => /Trójkąt|Złączka/.test(r)) || '(brak)'));
-ok('klipsy zamiast trójkątów', qty(rs, 'Złączka do cokołu') === 2 && qty(rs, 'Trójkąt') === null, '');
+/* Klipsow jest tyle, ile nozek w przednim rzedzie — przy 1800 mm szafka ma
+   ich 8, czyli 4 z przodu. Liczbe czytamy z zestawienia nozek, zeby test nie
+   zalezal od tego, co akurat wychodzi z szerokosci. */
+const nozek = qty(rs, 'Nóżka regulowana');
+ok('klipsy zamiast trójkątów', qty(rs, 'Złączka do cokołu') === nozek / 2
+  && qty(rs, 'Trójkąt') === null, `klipsy ${qty(rs, 'Złączka do cokołu')}, nóżki ${nozek}`);
 
 console.log('\n== bez cokołu: ani jedno, ani drugie ==');
 await cokol(false);

@@ -134,6 +134,10 @@ const DEFAULT_HW_PRICES = {
   "Zszywka / gwoździk do pleców": 0.05,
   "Wkręt 3,5 × 30 do pleców": 0.05,
   "Wkręt 4 × 30": 0.08,
+  /* Okucia naroznika nie mialy wpisu, wiec wycena liczyla je po 0 zl —
+     ceny orientacyjne, tak jak reszta tej tabeli, i tak samo do zmiany. */
+  "Zawias łamany 90°": 12,
+  "Złączka meblowa": 0.6,
 };
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
@@ -447,7 +451,10 @@ const railPair = (cofniete = 0, odTylu = 0, pionZPrzodu = false) => ([
 /* Szafka pod blatem roboczym: wieniec schodzi, a kazda kolumna najwyzszego
    poziomu dostaje te pare. Ta sama zamiana idzie z przycisku w Uwagach, wiec
    liczy sie w jednym miejscu. */
-const bezWienca = (cab, tf = 18) => {
+const bezWienca = (cab, tfIn) => {
+  /* Grubosc frontu bierzemy z materialu szafki — wpisana na sztywno klamalaby
+     przy plycie innej niz 18 mm. Gdy wolajacy jej nie zna, zostaje domyslna. */
+  const tf = Math.max(1, Math.round(Number(tfIn) || defaultMaterials.front.thickness));
   const levels = JSON.parse(JSON.stringify(cab.levels || []));
   const last = levels.length - 1;
   /* W szafce naroznej wzmocnienie z przodu cofa sie o grubosc frontu, zeby jego
@@ -2874,19 +2881,29 @@ function computeGeo(cab, mat, ctx) {
       pack: 25,
     });
 
-  if (isBlat)
+  if (isBlat) {
+    /* Blat lapie sie od spodu na dwoch rzedach — przy przednim i tylnym boku —
+       po jednym trojkacie na kazdym koncu i kolejnym co ok. 400 mm szerokosci.
+       Wpisane na sztywno cztery starczaly na 600 mm, a na 1200 juz nie. */
+    const wRzedzie = Math.max(2, Math.ceil(W / 400));
     hardware.push({
       name: "Trójkąt meblarski",
-      spec: "blat przykręcany od spodu — konfirmat zepsułby lico",
-      qty: 4,
+      spec: `blat przykręcany od spodu — konfirmat zepsułby lico: 2 rzędy po ${wRzedzie} na ${fmt(W)} mm`,
+      qty: 2 * wRzedzie,
       unit: "szt.",
     });
+  }
   if (cab.plinth && cab.plinth.on) {
     if (cab.legs && cab.legs.on) {
+      /* Cokol wpina sie w nozki przedniego rzedu, wiec klipsow jest tyle, ile
+         tych nozek — przy szerokiej szafce sam poczatek i koniec nie wystarcza.
+         Nozka srodkowa (przy nieparzystej liczbie) stoi w glebi, nie pod
+         cokolem, wiec do klipsow sie nie liczy. */
+      const przod = legs.xs.length;
       hardware.push({
         name: "Złączka do cokołu",
-        spec: "klips na nóżkę — po jednym na każdy koniec cokołu",
-        qty: 2,
+        spec: `klips na nóżkę — po jednym na każdą nóżkę przedniego rzędu (${przod})`,
+        qty: przod,
         unit: "szt.",
       });
     } else {
@@ -7308,7 +7325,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const idx = Number(action.split(":")[1]);
       return {
         label: "Dołóż parę wzmocnień",
-        run: () => editItemCab && editItemCab(idx, (c) => Object.assign(c, bezWienca(c))),
+        run: () => editItemCab && editItemCab(idx, (c, m) =>
+          Object.assign(c, bezWienca(c, (m.front || {}).thickness))),
       };
     }
     if (action.startsWith("cornerdoor:")) {
@@ -7797,18 +7815,23 @@ const cornerArmParts = (a) => {
       edges: { a1: false, a2: true, b1: true, b2: true }, note: "krawędź dolna oraz oba końce" });
   /* Fix nie ma zawiasow — trzyma sie na zlaczkach od srodka, zeby z zewnatrz
      nie bylo nic widac. */
-  /* Zawiasow tyle, ile wychodzi z wysokosci i szerokosci skrzydla — tak samo
+  /* Zlaczek nie wpisujemy na sztywno: para na kazdym koncu fixu i kolejna
+     co ok. 400 mm wysokosci, zeby wysoki fix nie trzymal sie na czterech.
+     Zawiasow tyle, ile wychodzi z wysokosci i szerokosci skrzydla — tak samo
      jak przy drzwiach szafki. Na sztywno wpisane 3 rozjezdzaly sie z rysunkiem,
      ktory rysuje tyle zawiasow, co przy froncie korpusu. */
+  const zlaczek = 2 * Math.max(2, Math.ceil(inner / 400));
   const hardware = fix
-    ? [{ name: "Złączka meblowa", spec: "fix ramienia szafki narożnej, od środka", qty: 4, unit: "szt." }]
+    ? [{ name: "Złączka meblowa",
+        spec: `fix ramienia szafki narożnej, od środka: 2 rzędy po ${zlaczek / 2} na ${fmt(inner)} mm`,
+        qty: zlaczek, unit: "szt." }]
     : [{ name: "Zawias", spec: "front ramienia szafki narożnej",
         qty: autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w), unit: "szt." }];
   /* Ramie liczy okucia tak samo jak szafka: konfirmaty na stykach plyt
      poziomych z bokiem, kolki pod polke, wkrety do wzmocnien i katownika,
      nozki pod wolnym koncem. Bez tego zamowienie mowilo tylko o zawiasach. */
   const konf = (n, dl) => n * Math.max(2, Math.ceil((dl || 0) / 200));
-  const konfQty = konf(armTop ? 2 : 1, a.depth) + (a.bracket ? 0 : 0);
+  const konfQty = konf(armTop ? 2 : 1, a.depth);
   if (konfQty)
     hardware.push({ name: "Konfirmat 7 × 50",
       spec: `ramię szafki narożnej: ${armTop ? "wieniec i dno" : "dno"} do boku ramienia`,
@@ -7832,8 +7855,11 @@ const cornerArmParts = (a) => {
       spec: `pod ramieniem szafki narożnej, wysokość ${fmt(cab.legs.height || 100)} mm`,
       qty: ile, unit: "szt." });
   }
+  /* Zawiasow lamanych tyle samo, co zwyklych na tej wysokosci — spinaja
+     skrzydla na calej dlugosci styku, wiec przy wysokim froncie dwa to za malo. */
   if (a.doors === "lamane")
-    hardware.push({ name: "Zawias łamany 90°", spec: "spina dwa skrzydła szafki narożnej", qty: 2, unit: "szt." });
+    hardware.push({ name: "Zawias łamany 90°", spec: "spina dwa skrzydła szafki narożnej",
+      qty: autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w), unit: "szt." });
   return { panels, hardware };
 };
 
@@ -7901,7 +7927,10 @@ const projectParts = (project) => {
   });
   const runs = [];
   shared.forEach(({ run, rp, rt, rr }) => {
-    const base = { mat: (rp || rt || {}).mat || project.items[0].mat,
+    /* Sam ciag (listwa, cokol, blat) moze zostac bez szafek — wtedy nie ma od
+       kogo pozyczyc materialu i siegniecie po items[0] wywracalo aplikacje. */
+    const base = { mat: (rp || rt || {}).mat
+      || (project.items[0] || {}).mat || defaultMaterials,
       grainMatters: (rp || rt || {}).grainMatters };
     if (rp) runs.push({ ...base, mat: rp.mat, name: `Cokół — ${run.name}`,
       panels: runPlinthPanels(rp), hardware: [] });
@@ -8034,7 +8063,9 @@ const worktopMsgs = (project, run) => {
     const tf = lvl && lvl.pod.length
       ? lvl.pod[0].geo.tf
       : ((rt.spans || []).find((s2) => s2.tf) || {}).tf
-        ?? (project.items[0] ? computeGeo(project.items[0].cab, project.items[0].mat).tf : 18);
+        ?? (project.items[0]
+          ? computeGeo(project.items[0].cab, project.items[0].mat).tf
+          : defaultMaterials.front.thickness);
     // pas z samym ramieniem glebokosc bierze z ustawienia ciagu
     const glebokosc = lvl && lvl.pod.length
       ? Math.max(...lvl.pod.map((c) => Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0))))
@@ -9315,7 +9346,7 @@ export default function App() {
     const podBlat = !!(run && run.worktop);
     const fresh = { cab: { ...base, name: `Szafka ${next}`,
       ...(run ? { hangerMode: run.hangerMode || "listwa" } : {}),
-      ...(podBlat ? bezWienca(base) : {}),
+      ...(podBlat ? bezWienca(base, defaultMaterials.front.thickness) : {}),
       ...(stoi ? { legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } } : {}) },
       mat: defaultMaterials, runId };
     /* Nowa szafka ciagu ma stanac na jego koncu, a nie na koncu calego projektu —
@@ -9344,7 +9375,8 @@ export default function App() {
       const wRogu = { ...items[at].cab, hangerMode: pierwszy.hangerMode || "listwa",
         legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } };
       items[at] = { ...items[at], runId: bazowy,
-        cab: pierwszy.worktop ? { ...wRogu, ...bezWienca(wRogu) } : wRogu };
+        cab: pierwszy.worktop
+          ? { ...wRogu, ...bezWienca(wRogu, defaultMaterials.front.thickness) } : wRogu };
     }
     /* Pusty ciag nie ma szafki, od ktorej wzialby glebokosc, wiec dostaje ja od
        razu z szablonu — inaczej ramie nie mialoby o co sie oprzec. */
@@ -9974,7 +10006,10 @@ export default function App() {
     const items = p.items.slice();
     if (!items[i]) return p;
     const cab = JSON.parse(JSON.stringify(items[i].cab));
-    fn(cab);
+    /* Poprawka z Uwag moze potrzebowac grubosci plyty tej wlasnie szafki (na
+       przyklad zeby cofnac wzmocnienie o grubosc frontu), a szafka trzyma swoj
+       material osobno — podajemy go razem z szafka. */
+    fn(cab, items[i].mat || defaultMaterials);
     items[i] = { ...items[i], cab };
     return { ...p, items };
   }), [setProject]);

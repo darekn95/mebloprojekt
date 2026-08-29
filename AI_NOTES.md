@@ -324,3 +324,22 @@ przejscie do ramienia. W elewacji zamknietej zaznaczamy je przerywanym polem
 z podpisem „przejście do ramienia", bo zostawione puste czytalo sie jak dziura
 miedzy drzwiami a wzmocnieniem. Po otwarciu drzwi pola nie ma: wtedy i tak
 widac wnetrze.
+
+[AI-INFO] Regula po audycie: zadna liczba okuc nie moze byc wpisana na sztywno,
+jesli da sie ja wyprowadzic z wymiaru. Wzorzec jest wszedzie ten sam — para na
+koncach plus jedna sztuka co ustalony odcinek, czyli
+`Math.max(2, Math.ceil(dlugosc / skok))`. Skoki, ktore juz sa w kodzie:
+trojkat pod cokolem co 300 mm, trojkat pod blatem co 400 mm w dwoch rzedach,
+zlaczka fixu ramienia co 400 mm w dwoch rzedach, wkret 4 x 30 do katownika
+co 200 mm, konfirmat co 200 mm. Zawiasy (takze lamane 90 stopni) licza sie
+przez `autoHinges(wysokosc, szerokosc)`, nogi przez `legPlan`.
+
+[AI-INFO] Kazda pozycja okucia musi miec wpis w `DEFAULT_HW_PRICES` — inaczej
+`hwDefaultPrice` zwraca 0 i wycena po cichu zaniza sume, bez zadnego
+ostrzezenia. Klucz to `h.pk` albo `h.name`, wiec nazwa pozycji i klucz ceny
+musza sie zgadzac co do znaku (takze co do spacji wokol znaku „x").
+
+[AI-INFO] Grubosci plyty nie wpisujemy w kodzie. `bezWienca(cab, tf)` bierze ja
+od wolajacego (`editItemCab` podaje material tej szafki drugim argumentem
+callbacku), `migrateCab` z materialu projektu, a ostatnia deska ratunku to
+`defaultMaterials.front.thickness`, nigdy goly literal 18.
