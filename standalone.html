@@ -872,17 +872,12 @@ const TEMPLATES = [
     make: () => {
       /* Front sięga tylko tam, gdzie korpus nie wchodzi w ramię: reszta
          szerokości chowa się za drugim ciągiem, a ostatnie milimetry zabiera
-         lico ramienia, które stoi o grubość frontu przed jego korpusem. */
+         lico ramienia, które stoi o grubość frontu przed jego korpusem.
+         Szerokosci nie wpisujemy: pasmo frontu jest juz przyciete do lica
+         naroznika, wiec drzwi dobieraja sie same i jada za kazda zmiana
+         glebokosci sasiada. Wpisana na sztywno zostawala stara i robila szpare
+         miedzy drzwiami a maskownica katownika. */
       const col = newColumn(1, autoShelves(innerHeightOf(720)));
-      /* Z lica korpusu w rogu zostaje tylko to, czego nie zaslania drugi ciag
-         (razem z jego frontem), a z tego jeszcze kawalek zabiera katownik
-         i luz do niego. */
-      const wolne = CORNER_L_W - CORNER_L_D - defaultMaterials.front.thickness;
-      /* Nachodzaca plyta katownika stoi po stronie krotszych drzwi, czyli tutaj:
-         wchodzi w kwadrat styku obu lic, wiec poza naroze wystaje o grubosc
-         frontu mniej niz jej szerokosc. */
-      col.doorWidths = [wolne - (CORNER_BRACKET_W - defaultMaterials.front.thickness)
-        - defaultCab.gaps.between];
       return {
         W: CORNER_L_W, H: 720, D: CORNER_L_D,
         plinth: { on: true, height: 100, mode: "under", setback: 0 },
@@ -1401,6 +1396,16 @@ function computeGeo(cab, mat, ctx) {
         sx0 = insX0;
         sx1 = insX1;
       }
+      /* W szafce naroznej pasmo frontu konczy sie na maskownicy katownika —
+         dalej lico chowa sie za drugim ciagiem i nie ma czego zaslaniac.
+         Bez tego szerokosc drzwi trzeba bylo wpisac recznie i po zmianie
+         glebokosci sasiada zostawala stara: miedzy drzwiami a maskownica robila
+         sie szpara, bo maskownica jedzie z licem, a wpisana liczba nie. */
+      if (ctx && ctx.armFront > 0) {
+        const licoOd0 = cab.frontMode === "overlay" ? g.edge : t + g.inset;
+        if (ctx.armSide === "right") sx1 = Math.min(sx1, licoOd0 + ctx.armFront);
+        else sx0 = Math.max(sx0, W - licoOd0 - ctx.armFront);
+      }
       /* element staly (fix) zabiera kawalek pasma od strony sciany */
       const rawFix = rawCol.fix || { side: "none", w: 0 };
       const fixW = Math.max(0, Math.round(rawFix.w || 0));
@@ -1538,6 +1543,13 @@ function computeGeo(cab, mat, ctx) {
         const availW = Math.round(sx1 - sx0 - (cnt - 1) * colGap);
         const wTargets = [];
         for (let i = 0; i < cnt; i++) wTargets.push((rawCol.doorWidths || [])[i]);
+        /* Jedne drzwi w kolumnie przy rogu maja wypelnic lico az do maskownicy
+           katownika — innej szerokosci nie ma tam po co ustawiac. Starsze
+           projekty maja ja wpisana na sztywno (tak robil szablon) i po zmianie
+           glebokosci sasiada zostawala szpara, wiec taka liczbe pomijamy. */
+        const przyRogu = ctx && ctx.armFront > 0
+          && (ctx.armSide === "right" ? j === lv.cols.length - 1 : j === 0);
+        if (przyRogu && cnt === 1) wTargets[0] = null;
         const dws = distribute(availW, wTargets);
         /* W szafce naroznej front celowo nie siega konca korpusu — nad
            ramieniem nie ma czego zaslaniac, wiec to nie jest blad. */
@@ -3099,7 +3111,9 @@ const armCtxOf = (ref, index) => {
   let out;
   ref.info.forEach((k) => {
     if (k.arm && k.arm.cab.index === index)
-      out = { armFree: k.arm.free, armSide: k.arm.side, armKat: bracketPozaLico(k.arm) };
+      out = { armFree: k.arm.free, armSide: k.arm.side, armKat: bracketPozaLico(k.arm),
+        // ile lica zostaje na front korpusu: wolne lico bez maskownicy i luzu
+        armFront: k.arm.front };
   });
   return out;
 };
@@ -3924,9 +3938,12 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
       {/* fronty jako pas przy przedniej krawedzi, ze skrzynkami szuflad */}
       {(() => {
         /* Szafka narozna ma front tylko tam, gdzie nie wchodzi ramie — dalej lico
-           jest otwarte. Bez tego rzut ciagu rysowal sciane przez cale przejscie. */
-        const licoOd = arm ? (arm.side === "right" ? 0 : W - arm.free) : 0;
-        const licoDo = arm ? (arm.side === "right" ? arm.free : W) : W;
+           jest otwarte. Bez tego rzut ciagu rysowal sciane przez cale przejscie.
+           Przy rogu front konczy sie jeszcze przed maskownica katownika — inaczej
+           drzwi nachodzily z gory na wspornik. */
+        const maskK = arm && arm.bracket ? arm.bracket.odKorpusu - arm.bracket.luz : 0;
+        const licoOd = arm ? (arm.side === "right" ? 0 : W - arm.free + maskK) : 0;
+        const licoDo = arm ? (arm.side === "right" ? arm.free - maskK : W) : W;
         return cols.map((c) => {
         if (!c.count) return null;
         const isDrawer = c.kind === "drawers";
@@ -8176,18 +8193,34 @@ const cornerPairMsgs = (n, blat) => {
     });
     /* Fronty samej szafki dalej licza sie z jej szerokosci — nad ramieniem
        zadnego frontu nie ma, wiec kolumny trzeba ustawic recznie. */
-    const fr = (a.cab.geo.doors || []).filter((d) => d.w > 0 && d.type !== "blenda");
+    /* Geometria w ukladzie liczy sie bez kontekstu rogu (to z niej dopiero
+       wychodzi ramie), wiec do porownania z licem bierzemy ja jeszcze raz —
+       juz z kontekstem, czyli z frontem doszlifowanym do maskownicy. */
+    const geoRog = computeGeo(a.cab.cab, a.cab.rawMat || a.cab.mat, {
+      armFree: a.free, armSide: a.side, armKat: bracketPozaLico(a), armFront: a.front });
+    const fr = (geoRog.doors || []).filter((d) => d.w > 0 && d.type !== "blenda");
     const zajete = fr.length
       ? (a.side === "right"
         ? Math.max(...fr.map((d) => d.x + d.w))
         : a.cab.geo.W - Math.min(...fr.map((d) => d.x)))
       : 0;
-    if (a.front > 0 && zajete > a.front + 5)
+    /* Rozjazd liczy sie w obie strony. Za szeroki front wchodzi na maskownice
+       katownika, za waski zostawia miedzy nimi szpare — a tak wlasnie konczy
+       sie recznie wpisana szerokosc drzwi po zmianie glebokosci sasiada. */
+    const luzLica = ((a.cab.cab.gaps || {}).edge ?? 2) + 3;
+    if (a.front > 0 && Math.abs(zajete - a.front) > luzLica) {
+      const zaSzerokie = zajete > a.front;
       out.push({ level: "warn", text:
         `Fronty szafki „${(a.cab.cab.name || "").trim() || "w rogu"}" sięgają ${fmt(zajete)} mm od `
-        + `${a.side === "right" ? "lewej" : "prawej"} krawędzi, a od tej strony dostępne jest tylko ${fmt(a.front)} mm. `
+        + `${a.side === "right" ? "lewej" : "prawej"} krawędzi, a od tej strony lica przed narożnikiem `
+        + `jest ${fmt(a.front)} mm. `
+        + (zaSzerokie
+          ? "Front wchodzi na maskownicę kątownika. "
+          : `Między drzwiami a maskownicą kątownika zostaje ${fmt(a.front - zajete)} mm szpary — `
+            + "zwykle znaczy to, że szerokość drzwi jest wpisana ręcznie i nie zmieniła się razem z licem. ")
         + `Zrób jedne drzwi na ${fmt(a.front)} mm — reszta korpusu wchodzi w ramię i frontu nie potrzebuje.`
         + `|cornerdoor:${Math.round(a.front)}:${a.cab.index}` });
+    }
     /* Polka ramienia opiera sie jednym koncem o bok ramienia, a drugim dochodzi
        do wnetrza korpusu i musi tam trafic na polke na tej samej wysokosci.
        Odkad narozna jest jedna komora, polka biegnie przez cale wnetrze — ale
@@ -8333,7 +8366,12 @@ const swingBodies = (L) => {
   const skrzydla = [];
   L.info.forEach((n) => {
     n.g.cabs.forEach((c) => {
-      const geo = c.geo;
+      /* Szafka narozna ma front przyciety do lica przed narozem, ale geometria
+         w ukladzie liczy sie bez kontekstu rogu (to z niej dopiero wychodzi
+         ramie). Bez tego kontrola otwierania widzi front przez cala szerokosc
+         korpusu i zglasza kolizje, ktorej naprawde nie ma. */
+      const ctxRog = armCtxOf(L, c.index);
+      const geo = ctxRog ? computeGeo(c.cab, c.rawMat || c.mat, ctxRog) : c.geo;
       const nazwa = (c.cab.name || "").trim() || `szafka ${c.index + 1}`;
       // po nazwie nie da sie rozroznic dwoch szafek nazwanych tak samo
       const kto = { cab: nazwa, run: n.run.name, id: `${n.id}#${c.index}` };

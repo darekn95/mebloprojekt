@@ -86,22 +86,28 @@ ok('podpowiedziane zawiasy i węższy front',
 console.log('\n== kolizja z uchwytem, nie tylko z plyta ==');
 ok('uchwyt bywa tym, co stoi na drodze', k.some((l) => /uchwyt/.test(l)), skrot(k));
 
-console.log('\n== szafka narozna z ramieniem: front na cala szerokosc nie wejdzie ==');
+console.log('\n== szafka narozna: front sam konczy sie na licu, wiec nie koliduje ==');
+/* Pasmo frontu jest przyciete do lica przed narozem, wiec drzwi nie maja jak
+   wejsc w ramie — nie trzeba nic wpisywac ani niczego poprawiac. */
 await seed(LRUNY(),
   [CAB('A1', 600, 'c1'), CAB('rogowa', 900, 'c1', { on: true, arm: 500, doors: 'wsporniki' }),
+   CAB('B1', 700, 'c2')]);
+k = await kolizje();
+console.log('     ' + (k.join('\n     ') || '(brak kolizji)'));
+ok('automatyczny front nie wchodzi w ramię', !k.some((l) => /rogowa/.test(l)), skrot(k));
+
+console.log('\n== recznie poszerzony front w rogu dalej jest kolizja ==');
+/* Wpisane szerokosci maja pierwszenstwo — dwa skrzydla po 400 mm wystaja poza
+   lico i wchodza w ramie. Wtedy uwaga i podpowiedz musza sie pojawic. */
+await seed(LRUNY(),
+  [CAB('A1', 600, 'c1'),
+   CAB('rogowa', 900, 'c1', { on: true, arm: 500, doors: 'wsporniki' }, {
+     levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, doorWidths: [400, 400] }] }] }),
    CAB('B1', 700, 'c2')]);
 k = await kolizje();
 console.log('     ' + k.join('\n     '));
 ok('front przez całą szerokość wchodzi w ramię',
   k.some((l) => /rogowa/.test(l) && /ramię/.test(l)), skrot(k));
-
-console.log('\n== podpowiedz aplikacji zdejmuje kolizje ==');
-/* Nie wpisujemy szerokości z palca: klikamy „Ustaw jedne drzwi …", czyli to,
-   co aplikacja sama proponuje. Jeśli jej własna podpowiedź zostawia kolizję,
-   to jest to błąd podpowiedzi, nie testu. */
-await seed(LRUNY(),
-  [CAB('A1', 600, 'c1'), CAB('rogowa', 900, 'c1', { on: true, arm: 500, doors: 'wsporniki' }),
-   CAB('B1', 700, 'c2')]);
 const uwagi = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi$/ }) }).first();
 const btn = uwagi.getByRole('button', { name: /^Ustaw jedne drzwi \d+ mm$/ }).first();
 const etykieta = (await btn.count()) ? await btn.innerText() : '(brak przycisku)';

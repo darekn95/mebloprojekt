@@ -60,6 +60,39 @@ ok('front zachodzi na bok', !!front && !!bok && front.x + front.w > bok.x,
 ok('przejście do ramienia jest podpisane',
   d.text.some((t) => /przejście do ramienia/.test(t)), d.text.slice(0, 4).join(' | '));
 
+console.log('\n== drzwi jadą za licem, gdy zmieni się głębokość sąsiada ==');
+/* Lico przed narozem to szerokosc korpusu bez glebokosci sasiedniego ciagu
+   i bez frontu ramienia; drzwi maja siegac az do maskownicy katownika. */
+const pasFrontu = async () => {
+  const dd = await plyty();
+  return dd.rect.filter((r) => r.f === frontKol && r.h > 600 && r.x < W)
+    .sort((a, b) => a.x - b.x);
+};
+const szpara = (p) => (p.length >= 2 ? p[1].x - (p[0].x + p[0].w) : null);
+let p = await pasFrontu();
+console.log('   ' + p.map((r) => `${r.x}..${r.x + r.w}`).join(' | ') + `  szpara ${szpara(p)}`);
+ok('drzwi dochodzą do maskownicy', szpara(p) !== null && szpara(p) <= 3, String(szpara(p)));
+const glOk = await page.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem('szafki:projekt'));
+  const rog = d.items.find((i) => i.cab.corner && i.cab.corner.on);
+  d.runs.forEach((r) => { if (r.id !== rog.runId) r.D = 500; });
+  localStorage.setItem('szafki:projekt', JSON.stringify(d));
+  return true;
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(2400);
+const kafel = page.locator('button', { hasText: /^Szafka 2/ });
+if (await kafel.count()) { await kafel.first().click(); await page.waitForTimeout(1000); }
+await klik('Szafka'); await klik('Zamk.');
+const p2 = await pasFrontu();
+console.log('   po zmianie na 500: ' + p2.map((r) => `${r.x}..${r.x + r.w}`).join(' | ')
+  + `  szpara ${szpara(p2)}`);
+ok('drzwi poszerzyły się razem z licem', !!p2.length && !!p.length && p2[0].w > p[0].w,
+  `${p.length && p[0].w} -> ${p2.length && p2[0].w}`);
+ok('nadal bez szpary', szpara(p2) !== null && szpara(p2) <= 3, String(szpara(p2)));
+ok('bez ostrzeżenia o szparze', !(await page.evaluate(() =>
+  [...document.querySelectorAll('li')].some((li) => /szpary/.test(li.textContent)))), '');
+
 console.log('\n== rzut z góry: drzwi nie wchodzą na maskownicę ==');
 await klik('Z góry');
 d = await plyty();

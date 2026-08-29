@@ -235,6 +235,17 @@ a `migrateCab` przestawia stare pary po ich sygnaturze (shelf, top, 100 mm).
 orientacja — po zmianie powyzej obie plyty pary sa `orient: "front"` i bez tego
 obie nazywalyby sie tak samo.
 
+[AI-INFO] Pasmo frontu szafki naroznej jest przyciete do lica przed narozem:
+`ctx.armFront` (z `armCtxOf`) konczy je tam, gdzie zaczyna sie maskownica
+katownika. Wczesniej szerokosc drzwi wpisywal na sztywno szablon — po zmianie
+glebokosci sasiedniego ciagu maskownica jechala z licem, a liczba zostawala
+i miedzy nimi robila sie szpara (to byla „dziura miedzy drzwiami a wspornikiem").
+Jedne drzwi w kolumnie przy rogu ignoruja wpisana szerokosc i biora cale pasmo,
+wiec stare projekty prostuja sie same przy wczytaniu. Uwaga o rozjezdzie liczy
+sie w obie strony (za szeroki front i szpara) i liczy `zajete` z geometrii
+policzonej JESZCZE RAZ z kontekstem — ta z `projectLayout` kontekstu nie ma,
+bo to z niej dopiero wychodzi ramie.
+
 [AI-INFO] Front ramienia liczy `armFrontPlan(a)` — `odRogu` (gdzie sie zaczyna,
 mierzone od naroza) i `w` (szerokosc). Przy katowniku luz siedzi tylko na wolnym
 koncu: front zachodzi tam na bok ramienia dokladnie tak, jak drzwi szafki na jej

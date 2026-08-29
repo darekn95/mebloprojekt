@@ -137,26 +137,44 @@ uw = await card(/Uwagi/).innerText();
 ok('brak frontu to błąd', /nie ma frontu od strony/.test(uw), uw.slice(0, 240));
 ok('podpowiedź, do ilu poszerzyć', /800 mm/.test(uw), uw.slice(0, 300));
 
-console.log('\n== fronty szafki naroznej musza sie zmiescic obok ramienia ==');
-await uklad(500, 900);   // korpus 900, ramie 600 gleboko → front tylko 300 mm
-uw = await card(/Uwagi/).innerText();
-console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 400));
+console.log('\n== fronty szafki naroznej same mieszcza sie obok ramienia ==');
+await uklad(500, 900);   // korpus 900, ramie 600 gleboko → front tylko 237 mm
 /* Dostepne swiatlo to szerokosc korpusu minus glebokosc sasiedniego ciagu
    i minus grubosc frontu ramienia (jego lico stoi przed korpusem ramienia),
    a z tego jeszcze katownik z luzem. Nachodzaca plyta wchodzi w kwadrat styku
    obu lic, wiec poza naroze wystaje o grubosc frontu mniej: 900 - 600 - 18
-   - (60 - 18) - 3 = 237. */
-const swiatlo = Number((/dostępne jest tylko (\d+) mm/.exec(uw) || [])[1]);
-console.log('     dostępne światło: ' + swiatlo + ' mm');
-ok('ostrzeżenie o froncie nad ramieniem', swiatlo > 0, uw.slice(0, 300));
-ok('światło liczone z lica ramienia i po kątowniku', swiatlo === 237, String(swiatlo));
+   - (60 - 18) - 3 = 237. Pasmo frontu jest do tego przyciete, wiec drzwi maja
+   te szerokosc same z siebie — nie trzeba jej nigdzie wpisywac. */
+const swiatlo = 237;
+// widok „Szafka" pokazuje aktywna szafke — klikamy w kafel naroznika
+await page.locator('button', { hasText: /^rogowa/ }).first().click();
+await page.waitForTimeout(1000);
+await pick('Szafka');
+await pick('Zamk.');
+tx = await svgTexts();
+console.log('     podpisy frontów: ' + tx.filter((t) => /×/.test(t)).join(' | '));
+ok('front dobiera się do lica narożnika',
+  tx.some((t) => new RegExp('^' + swiatlo + '×').test(t)),
+  tx.filter((t) => /×/.test(t)).join(' | '));
+uw = await card(/Uwagi/).innerText();
+ok('nie ma po co ostrzegać', !/dostępne jest tylko|szpary/.test(uw), uw.slice(0, 240));
+
+console.log('\n== recznie wpisane szerokosci: uwaga o szparze i przycisk ==');
+await page.evaluate(() => {
+  const p = JSON.parse(localStorage.getItem('szafki:projekt'));
+  /* Dwa skrzydla z wpisana szerokoscia nie wypelniaja lica — tak wlasnie
+     konczyly stare projekty po zmianie glebokosci sasiada. */
+  p.items[1].cab.levels[0].cols[0].doors = 2;
+  p.items[1].cab.levels[0].cols[0].doorWidths = [100, 100];
+  localStorage.setItem('szafki:projekt', JSON.stringify(p));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(2400);
+uw = await card(/Uwagi/).innerText();
+console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 300));
+ok('ostrzeżenie o szparze przy maskownicy', /szpary/.test(uw), uw.slice(0, 300));
 ok('podpowiedź, ile mają mieć drzwi',
   new RegExp('Zrób jedne drzwi na ' + swiatlo + ' mm').test(uw), uw.slice(0, 400));
-
-console.log('\n== przycisk ustawia jedne drzwi na dostepne swiatlo ==');
-await uklad(500, 900);
-let przed = await page.evaluate(() => document.body.innerText);
-ok('przed naprawą jest ostrzeżenie', /nad ramieniem frontu nie ma|dostępne jest tylko/.test(przed), '');
 await card(/Uwagi/).getByRole('button', { name: new RegExp('Ustaw jedne drzwi ' + swiatlo + ' mm') }).click();
 await page.waitForTimeout(1200);
 const kol = await page.evaluate(() =>
@@ -168,7 +186,7 @@ console.log('     kolumny: ' + JSON.stringify(kol));
 ok('jedna kolumna z jednymi drzwiami',
   kol.length === 1 && kol[0].doors === 1 && kol[0].dw[0] === swiatlo, JSON.stringify(kol));
 uw = await card(/Uwagi/).count() ? await card(/Uwagi/).innerText() : '';
-ok('ostrzeżenie znika po naprawie', !/dostępne jest tylko/.test(uw), uw.slice(0, 200));
+ok('ostrzeżenie znika po naprawie', !/szpary|dostępne jest tylko/.test(uw), uw.slice(0, 200));
 ok('front węższy od korpusu nie jest błędem', !/nie wypełniają pasma/.test(uw), uw.slice(0, 200));
 body = await page.evaluate(() => document.body.innerText);
 ok('nie doszła przegroda pionowa', !/Przegroda pionowa/.test(body), '');
