@@ -558,7 +558,9 @@ const defaultCab = {
 };
 
 // scala wczytana szafke z domyslnymi polami + migruje stary model wyciecia
-const migrateCab = (rawCab) => {
+/* `mat` sluzy tylko do tego, zeby prostowanie starych ustawien liczylo sie
+   gruboscia plyty z projektu, a nie liczba wpisana na sztywno. */
+const migrateCab = (rawCab, mat) => {
   const merged = { ...defaultCab, ...(rawCab || {}), version: defaultCab.version };
   if (!merged.top || typeof merged.top !== "object")
     merged.top = { mode: "wieniec", widthMode: "outside", overL: 0, overR: 0, overFront: 0, overBack: 0 };
@@ -573,11 +575,12 @@ const migrateCab = (rawCab) => {
      przy wczytaniu — ale tylko dla plyty z tej pary (stojaca, u gory) i tylko
      gdy stoi na jednej z naszych wartosci, zeby nie kasowac recznych ustawien. */
   const wRogu = !!(merged.corner || {}).on;
+  const tPlyty = Math.max(1, Math.round(Number(((mat || defaultMaterials).board || {}).thickness) || 18));
   (merged.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => {
     (c.rails || []).forEach((r) => {
       if (r.orient === "front" && r.fromBack && r.pos === "top") {
         const at = Number(r.atDepth) || 0;
-        if (at === 0 || at === 18) r.atDepth = wRogu ? 18 : 0;
+        if (at === 0 || at === tPlyty) r.atDepth = wRogu ? tPlyty : 0;
         /* W rogu obie plyty tej pary stoja pionowo i maja 60 mm — dwie stojace
            latwiej skrecic w kacie. Stare 100 mm z domyslnego ukladu zmieniamy,
            recznie ustawionej innej szerokosci nie ruszamy. */
@@ -757,10 +760,14 @@ const loadProject = (d) => {
   if (!d) return null;
   let items;
   if (Array.isArray(d.items) && d.items.length) {
-    items = d.items.map((it) => ({ cab: migrateCab(it.cab), mat: migrateMat(it.mat),
-      runId: it.runId || null, offset: Math.round(Number(it.offset) || 0) }));
+    items = d.items.map((it) => {
+      const mat = migrateMat(it.mat);
+      return { cab: migrateCab(it.cab, mat), mat,
+        runId: it.runId || null, offset: Math.round(Number(it.offset) || 0) };
+    });
   } else if (d.cab) {
-    items = [{ cab: migrateCab(d.cab), mat: migrateMat(d.mat), runId: null, offset: 0 }];
+    items = (() => { const mat = migrateMat(d.mat);
+      return [{ cab: migrateCab(d.cab, mat), mat, runId: null, offset: 0 }]; })();
   } else return null;
   const runs = (Array.isArray(d.runs) ? d.runs : []).filter((r) => r && r.id != null).map(migrateRun);
   // ciag mogl wypasc z zapisu — szafka po nim wraca na wolnostojaca, nie zostaje sierota
@@ -7586,6 +7593,8 @@ const runTop = (project, run) => {
     ramiona.forEach((a) => {
       spans.push({ x0: a.u0 - (n.lead || 0), x1: a.u0 - (n.lead || 0) + a.len,
         depth: a.depth + a.cab.geo.tf + WORKTOP_OVERHANG,
+        // grubosc frontu ramienia — pas z samym ramieniem nie ma jej skad wziac
+        tf: a.cab.geo.tf,
         worktop: true, rear: a.cab.cab.back !== "none" });
     });
   }
@@ -7766,9 +7775,13 @@ const cornerArmParts = (a) => {
       edges: { a1: false, a2: true, b1: true, b2: true }, note: "krawędź dolna oraz oba końce" });
   /* Fix nie ma zawiasow — trzyma sie na zlaczkach od srodka, zeby z zewnatrz
      nie bylo nic widac. */
+  /* Zawiasow tyle, ile wychodzi z wysokosci i szerokosci skrzydla — tak samo
+     jak przy drzwiach szafki. Na sztywno wpisane 3 rozjezdzaly sie z rysunkiem,
+     ktory rysuje tyle zawiasow, co przy froncie korpusu. */
   const hardware = fix
     ? [{ name: "Złączka meblowa", spec: "fix ramienia szafki narożnej, od środka", qty: 4, unit: "szt." }]
-    : [{ name: "Zawias", spec: "front ramienia szafki narożnej", qty: 3, unit: "szt." }];
+    : [{ name: "Zawias", spec: "front ramienia szafki narożnej",
+        qty: autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w), unit: "szt." }];
   if (a.doors === "lamane")
     hardware.push({ name: "Zawias łamany 90°", spec: "spina dwa skrzydła szafki narożnej", qty: 2, unit: "szt." });
   return { panels, hardware };
@@ -7966,7 +7979,12 @@ const worktopMsgs = (project, run) => {
      niz kupowac dwa razy szerszy blat — ale to decyzja, nie blad. */
   if (rt && rt.worktop && rt.depth > WORKTOP_DEPTHS[0] && rt.depth <= WORKTOP_DEPTHS[1]) {
     const nadmiar = rt.depth - WORKTOP_DEPTHS[0];
-    const tf = lvl && lvl.pod.length ? lvl.pod[0].geo.tf : 18;
+    /* Grubosc frontu bierzemy z szafki, a w pasie z samym ramieniem — z tej,
+       do ktorej ramie nalezy. Na sztywno wpisane 18 klamalo przy innej plycie. */
+    const tf = lvl && lvl.pod.length
+      ? lvl.pod[0].geo.tf
+      : ((rt.spans || []).find((s2) => s2.tf) || {}).tf
+        ?? (project.items[0] ? computeGeo(project.items[0].cab, project.items[0].mat).tf : 18);
     // pas z samym ramieniem glebokosc bierze z ustawienia ciagu
     const glebokosc = lvl && lvl.pod.length
       ? Math.max(...lvl.pod.map((c) => Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0))))
@@ -8779,9 +8797,12 @@ const PRINT_CSS = `
 }
 `;
 
-function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth }) {
+/* `ctx` i `arm` przychodza z ukladu calego projektu: bez nich kartka szafki
+   naroznej liczyla front przez cala szerokosc korpusu i nie pokazywala ramienia,
+   czyli wydruk mowil co innego niz aplikacja i niz lista formatek. */
+function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, ctx, arm }) {
   const ambig = useMemo(() => ambiguousThickness([mat]), [mat]);
-  const geo = useMemo(() => computeGeo(cab, mat), [cab, mat]);
+  const geo = useMemo(() => computeGeo(cab, mat, ctx), [cab, mat, ctx]);
   // cokol ciagu jest wspolny — na kartce szafki go nie ma, idzie osobna pozycja
   const panels = useMemo(
     () => groupPanels(sharedPlinth ? geo.panels.filter((p) => p.name !== "Cokół") : geo.panels),
@@ -8827,12 +8848,12 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {box("Widok zamknięty — wymiary, szczeliny, kolory",
             <FrontView cab={realCab} geo={geo} mat={mat} open={false} showDims showGaps
-              showLabels={false} showHardware={false} />)}
+              showLabels={false} showHardware={false} arm={arm} />)}
           {box("Widok otwarty — wymiary i okucia",
             <FrontView cab={cab} geo={geo} mat={mat} open showDims showGaps={false}
-              showLabels={false} showHardware />)}
+              showLabels={false} showHardware arm={arm} />)}
           {box("Widok z góry — wymiary i okucia",
-            <TopView cab={cab} geo={geo} mat={mat} showDims showShelves showHardware />)}
+            <TopView cab={cab} geo={geo} mat={mat} showDims showShelves showHardware arm={arm} />)}
           {box("Widok z tyłu — wymiary",
             <RearView cab={cab} geo={geo} mat={mat} showDims />)}
         </div>
@@ -8946,12 +8967,21 @@ function PrintReport({ project }) {
     (project.runs || []).forEach((r) => { if (runPlinth(project, r)) s.add(r.id); });
     return s;
   }, [project]);
+  /* Szafka narozna liczy sie z kontekstem rogu — tak samo na wydruku jak
+     w aplikacji i w liscie formatek. Ramie idzie na kartke razem z nia. */
+  const layout = useMemo(() => projectLayout(project), [project]);
+  const armOf = useMemo(() => {
+    const m = new Map();
+    layout.info.forEach((n) => { if (n.arm) m.set(n.arm.cab.index, n.arm); });
+    return m;
+  }, [layout]);
   return (
     <div className="print-only" style={{ color: "#1c1917", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <style>{PRINT_CSS}</style>
       {project.items.map((it, i) => (
         <ReportSheet key={i} cab={it.cab} mat={it.mat} projectName={name}
           index={i} total={project.items.length}
+          ctx={armCtxOf(layout, i)} arm={armOf.get(i)}
           sharedPlinth={!!runsWithPlinth.has(it.runId || null)} />
       ))}
       {project.items.length > 1 && <ReportProjectSheet project={project} projectName={name} />}
@@ -9756,7 +9786,10 @@ export default function App() {
      ogladamy, jest niewidoczna — a przy ciagu to wlasnie sasiadka bywa ta,
      ktora sie rozjechala. Geometrie liczymy raz i uzywamy do obu rzeczy. */
   const projectNotes = useMemo(() => {
-    const geos = project.items.map((it) => computeGeo(it.cab, it.mat));
+    /* Szafka narozna liczy sie z kontekstem rogu — bez niego jej uwagi mowily
+       o froncie przez cala szerokosc korpusu, czyli o czyms, czego nie ma. */
+    const geos = project.items.map((it, i) =>
+      computeGeo(it.cab, it.mat, armCtxOf(projLayoutGeo, i)));
     const ctx = new Map();
     (project.runs || []).forEach((r) => {
       const list = runItems(project, r.id);
@@ -9777,7 +9810,7 @@ export default function App() {
         warn: msgs.filter((m) => m.level === "warn" && !przeczytane.has(m.text)).length,
       };
     });
-  }, [project, przeczytane]);
+  }, [project, przeczytane, projLayoutGeo]);
 
   // uwagi pozostalych szafek — tylko bledy i ostrzezenia, podpowiedzi zostawiamy
   // przy szafce, ktorej dotycza, zeby lista nie spuchla

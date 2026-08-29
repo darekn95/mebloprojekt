@@ -235,6 +235,16 @@ a `migrateCab` przestawia stare pary po ich sygnaturze (shelf, top, 100 mm).
 orientacja — po zmianie powyzej obie plyty pary sa `orient: "front"` i bez tego
 obie nazywalyby sie tak samo.
 
+[AI-INFO] Regula: wszystko, co pokazuje albo liczy szafke NAROZNA, musi wziac
+geometrie z kontekstem (`computeGeo(cab, mat, armCtxOf(layout, index))`). Bez
+kontekstu front idzie przez cala szerokosc korpusu i wychodza z tego zjawy:
+za dlugie wzmocnienia, kolizje otwierania, ktorych nie ma, i uwagi o czyms, co
+nie istnieje. Kontekst maja juz: karta szafki, `assemblyParts`, `projectParts`
+(czyli formatki, ceny i rozkroj), uwagi projektu, kontrola otwierania i kartka
+wydruku. Bez kontekstu zostaja tylko te miejsca, ktorym wystarcza `geo.W` albo
+gorne lico (`runJoints`, `worktopLevel`, paski szerokosci) — tam kontekst
+niczego nie zmienia.
+
 [AI-INFO] Pasmo frontu szafki naroznej jest przyciete do lica przed narozem:
 `ctx.armFront` (z `armCtxOf`) konczy je tam, gdzie zaczyna sie maskownica
 katownika. Wczesniej szerokosc drzwi wpisywal na sztywno szablon — po zmianie
