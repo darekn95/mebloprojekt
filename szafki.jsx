@@ -43,6 +43,25 @@ const LEG_COLORS = [
 ];
 const legColorOf = (cab) => (cab.legs && cab.legs.color) || "#3f3f46";
 const legRound = (cab) => (cab.legs || {}).shape === "round";
+const LEG_W = 40;      // kwadrat nozki na rysunku
+const LEG_INSET = 40;  // odsuniecie od krawedzi korpusu
+/* Nozki liczy szerokosc: para na kazdy rog, a od 900 mm dochodzi para posrodku —
+   dno bez podparcia zaczyna tam pracowac. Wpisana liczba ma pierwszenstwo:
+   parzysta rozklada sie po dwoch rzedach w rownych odstepach, nieparzysta znaczy
+   jeszcze jedna podpora na samym srodku dna. */
+const autoLegs = (W) => 4 + 2 * Math.floor(Math.max(0, W) / 900);
+const legPlan = (cab, W) => {
+  const wpisane = Number((cab.legs || {}).count);
+  const ile = Math.max(2, Math.round(wpisane > 0 ? wpisane : autoLegs(W)));
+  const wRzedzie = Math.max(1, Math.floor(ile / 2));
+  const srodek = ile % 2 === 1;
+  const xs = [];
+  const skok = W - 2 * LEG_INSET - LEG_W;
+  if (wRzedzie === 1) xs.push(Math.round((W - LEG_W) / 2));
+  else for (let i = 0; i < wRzedzie; i++)
+    xs.push(Math.round(LEG_INSET + (skok * i) / (wRzedzie - 1)));
+  return { ile, xs, srodek, w: LEG_W, ins: LEG_INSET };
+};
 
 // zbior nazw, ktore w podanych zestawach materialow maja wiecej niz jedna grubosc
 const ambiguousThickness = (mats) => {
@@ -114,6 +133,7 @@ const DEFAULT_HW_PRICES = {
   "Lustro na drzwiach": 200, // za m²
   "Zszywka / gwoździk do pleców": 0.05,
   "Wkręt 3,5 × 30 do pleców": 0.05,
+  "Wkręt 4 × 30": 0.08,
 };
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
@@ -159,7 +179,7 @@ const CORNER_BRACKET_W = 60;
    CORNER_L_TOTAL to ta wlasnie calkowita szerokosc przy drugiej scianie —
    1200 mm, bo krotsze ramie nie daje sie po nie siegnac przez rog. */
 const CORNER_L_W = 900;
-const CORNER_L_D = 600;
+const CORNER_L_D = 570;   // blat wychodzi wtedy 598 mm i miesci sie w pasie 600
 const CORNER_L_TOTAL = 1200;
 const CORNER_L_ARM = CORNER_L_TOTAL - CORNER_L_D;
 // ponizej tego boku formatki nie utnie sie na pile formatowej
@@ -495,7 +515,9 @@ const defaultCab = {
      bo w kuchni wszystkie drzwi otwiera sie zwykle w te sama strone.
      „auto" = jak dotad, czyli od lewej, chyba ze z lewej stoi fix. */
   hinge: "auto",
-  legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
+  /* `count` puste = liczba nozek z szerokosci (autoLegs); wpisana liczba ma
+     pierwszenstwo. Nieparzysta znaczy jeszcze jedna podpora na srodku dna. */
+  legs: { on: false, height: 100, color: "#3f3f46", shape: "box", count: null },
   /* Szafka narozna w L: do korpusu dochodzi ramie wzdluz drugiej sciany, a oba
      fronty spotykaja sie w rogu pod katem prostym. `arm` to dlugosc ramienia
      mierzona wzdluz tamtej sciany. `doors` mowi, jak zamykaja sie drzwi:
@@ -513,7 +535,9 @@ const defaultCab = {
        zwykle ustawienie pleców na „płyta". */
     /* Wzmocnienia ramienia to osobne plyty — `railW` trzyma ich szerokosc,
        osobno dla czolowej i tylnej. Puste = tak jak w korpusie. */
-    post: { on: true, w: 150 }, side: "auto", backBoard: false,
+    /* `bracketW` to szerokosc pionowych wspornikow w rogu przy drzwiach —
+       domyslnie CORNER_BRACKET_W, mniej niz MIN_PART sie nie da okleic. */
+    post: { on: true, w: 150 }, side: "auto", backBoard: false, bracketW: null,
     railW: { przod: null, tyl: null } },
   // polki w kolumnach: na kolkach podporowych czy skrecane konfirmatami
   shelfMount: "pins",
@@ -1019,6 +1043,8 @@ function computeGeo(cab, mat, ctx) {
   const legH = cab.legs && cab.legs.on ? Math.max(0, Math.round(num(cab.legs.height) ?? 100)) : 0;
   const legTop = plinthInBody ? bottomY : 0;
   const legBelow = Math.max(0, legH - legTop);
+  // rozstaw i liczba nozek — jedno miejsce dla rysunkow i dla zamowienia
+  const legs = legPlan(cab, W);
 
   const interior = { x0: t, x1: W - t, y0: hasBot ? bottomY + t : bottomY, y1: hasTop ? H - t : H };
   const innerW = interior.x1 - interior.x0;
@@ -2799,8 +2825,10 @@ function computeGeo(cab, mat, ctx) {
   if (cab.legs && cab.legs.on)
     hardware.push({
       name: "Nóżka regulowana",
-      spec: `${(cab.legs || {}).shape === "round" ? "okrągła" : "kwadratowa"}, wysokość ${fmt(cab.legs.height || 100)} mm`,
-      qty: 4,
+      spec: `${(cab.legs || {}).shape === "round" ? "okrągła" : "kwadratowa"}, wysokość ${fmt(cab.legs.height || 100)} mm`
+        + (legs.srodek ? ", w tym jedna podpora na środku dna" : ""),
+      // tyle, ile ich stoi na rysunku — para na rog plus para na kazde 900 mm
+      qty: legs.ile,
       unit: "szt.",
     });
 
@@ -2915,6 +2943,27 @@ function computeGeo(cab, mat, ctx) {
       });
   }
 
+  /* Wzmocnienia i katownik skreca sie wkretami, nie konfirmatem: tam plyty
+     stykaja sie licem do czola i konfirmat nie ma w co wejsc. Dwa wkrety na
+     kazdy koniec wzmocnienia, a przy katowniku co ok. 200 mm wysokosci. */
+  let wkretyPlyt = 0;
+  const wkretyOpis = [];
+  let ileWzm = 0;
+  levels.forEach((lv) => lv.cols.forEach((c) => { ileWzm += (c.rails || []).length; }));
+  if (ileWzm) { wkretyPlyt += ileWzm * 4; wkretyOpis.push(`wzmocnienia ${ileWzm}×4`); }
+  if (postSide) {
+    const naPlyte = Math.max(2, Math.ceil(innerH / 200));
+    wkretyPlyt += 2 * naPlyte;
+    wkretyOpis.push(`kątownik w narożniku 2×${naPlyte}`);
+  }
+  if (wkretyPlyt)
+    hardware.push({
+      name: "Wkręt 4 × 30",
+      spec: `skręcanie płyt na licu: ${wkretyOpis.join(", ")} szt.`,
+      qty: wkretyPlyt,
+      unit: "szt.",
+    });
+
   // wkretow do zawiasow i prowadnic nie liczymy — ida w komplecie z okuciem
 
   // plecy przybijane — we frezie trzymaja sie same
@@ -2941,7 +2990,7 @@ function computeGeo(cab, mat, ctx) {
     hardware,
     t, tf, tb, ts, carcassDepth, hasBack, interior, innerW, innerH,
     shelfDepth, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, panels, msgs, maxNL,
-    plinthInBody, plinthH, bottomY, legH, legTop, legBelow, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
+    plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
     postSide, postW, postBack,
@@ -3187,7 +3236,8 @@ const cornerBracket = (arm) => {
   const geo = arm.cab.geo;
   const cab = arm.cab.cab;
   const luz = (cab.gaps || {}).between ?? 3;
-  const w = CORNER_BRACKET_W;
+  // szerokosc wspornikow w rogu: z ustawienia szafki, domyslnie CORNER_BRACKET_W
+  const w = Math.max(MIN_PART, Math.round(Number((cab.corner || {}).bracketW) || CORNER_BRACKET_W));
   const tryb = (cab.corner || {}).bracket === "dluzsze" ? "dluzsze" : "krotsze";
   const korpusKrotszy = arm.free <= arm.len;
   const nachodziKorpus = tryb === "krotsze" ? korpusKrotszy : !korpusKrotszy;
@@ -3579,16 +3629,11 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         <rect x="0" y={-cab.topFiller.height} width={W} height={cab.topFiller.height}
           fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
-      {cab.legs?.on && (
-        <>
-          <rect x={40} y={H - geo.legTop} width={40} height={geo.legH}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
-            opacity={geo.legTop > 0 ? 0.5 : 1} />
-          <rect x={W - 80} y={H - geo.legTop} width={40} height={geo.legH}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
-            opacity={geo.legTop > 0 ? 0.5 : 1} />
-        </>
-      )}
+      {cab.legs?.on && geo.legs.xs.map((lx, li) => (
+        <rect key={"noga" + li} x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
+          rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
+          opacity={geo.legTop > 0 ? 0.5 : 1} />
+      ))}
 
       {/* plecy widac tylko od tylu */}
       {rear && cab.back !== "none" && (
@@ -5281,16 +5326,11 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         <rect x="0" y={-cab.topFiller.height} width={W} height={cab.topFiller.height}
           fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
-      {cab.legs?.on && (
-        <>
-          <rect x={40} y={H - geo.legTop} width={40} height={geo.legH}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
-            opacity={geo.legTop > 0 ? 0.5 : 1} />
-          <rect x={W - 80} y={H - geo.legTop} width={40} height={geo.legH}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
-            opacity={geo.legTop > 0 ? 0.5 : 1} />
-        </>
-      )}
+      {cab.legs?.on && geo.legs.xs.map((lx, li) => (
+        <rect key={"noga" + li} x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
+          rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
+          opacity={geo.legTop > 0 ? 0.5 : 1} />
+      ))}
 
       {/* elementy wzmacniajace (per kolumna) — widok od czola */}
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
@@ -6053,16 +6093,11 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
         <rect x="0" y={H} width={W} height={geo.plinthH}
           fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
-      {cab.legs?.on && (
-        <>
-          <rect x={40} y={H - geo.legTop} width={40} height={geo.legH}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
-            opacity={geo.legTop > 0 ? 0.5 : 1} />
-          <rect x={W - 80} y={H - geo.legTop} width={40} height={geo.legH}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
-            opacity={geo.legTop > 0 ? 0.5 : 1} />
-        </>
-      )}
+      {cab.legs?.on && geo.legs.xs.map((lx, li) => (
+        <rect key={"noga" + li} x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
+          rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
+          opacity={geo.legTop > 0 ? 0.5 : 1} />
+      ))}
 
       {showDims && cab.back !== "none" && (
         <>
@@ -6921,9 +6956,13 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
     // inaczej spod korpusu
     const top = geo.legTop;
     const lh = geo.legH;
-    const ins = 40;
-    [[ins, ins], [W - ins - 40, ins], [ins, cd - ins - 40], [W - ins - 40, cd - ins - 40]]
-      .forEach(([lx, lz]) => box(lx, top - lh, lz, lx + 40, top, lz + 40, legColorOf(cab)));
+    const ins = geo.legs.ins;
+    const lw = geo.legs.w;
+    /* Dwa rzedy nozek: przy licu i przy plecach. Nieparzysta liczba znaczy
+       jeszcze jedna podpore na srodku dna — tak samo jak w elewacji. */
+    const miejsca = geo.legs.xs.flatMap((lx) => [[lx, ins], [lx, cd - ins - lw]]);
+    if (geo.legs.srodek) miejsca.push([(W - lw) / 2, (cd - lw) / 2]);
+    miejsca.forEach(([lx, lz]) => box(lx, top - lh, lz, lx + lw, top, lz + lw, legColorOf(cab)));
   }
 
   (geo.geoObs || []).forEach((o) => {
@@ -7765,6 +7804,34 @@ const cornerArmParts = (a) => {
     ? [{ name: "Złączka meblowa", spec: "fix ramienia szafki narożnej, od środka", qty: 4, unit: "szt." }]
     : [{ name: "Zawias", spec: "front ramienia szafki narożnej",
         qty: autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w), unit: "szt." }];
+  /* Ramie liczy okucia tak samo jak szafka: konfirmaty na stykach plyt
+     poziomych z bokiem, kolki pod polke, wkrety do wzmocnien i katownika,
+     nozki pod wolnym koncem. Bez tego zamowienie mowilo tylko o zawiasach. */
+  const konf = (n, dl) => n * Math.max(2, Math.ceil((dl || 0) / 200));
+  const konfQty = konf(armTop ? 2 : 1, a.depth) + (a.bracket ? 0 : 0);
+  if (konfQty)
+    hardware.push({ name: "Konfirmat 7 × 50",
+      spec: `ramię szafki narożnej: ${armTop ? "wieniec i dno" : "dno"} do boku ramienia`,
+      qty: konfQty, unit: "szt." });
+  if (polek > 0 && cab.shelfMount !== "confirmat")
+    hardware.push({ name: "Kołek podporowy ⌀5",
+      spec: "półki ramienia, po cztery na półkę", qty: polek * 4, unit: "szt." });
+  {
+    const naPlyte = Math.max(2, Math.ceil(inner / 200));
+    const opis = [];
+    let wk = 0;
+    if (plan.rails.length) { wk += plan.rails.length * 4; opis.push(`wzmocnienia ${plan.rails.length}×4`); }
+    if (a.bracket) { wk += 4 * naPlyte; opis.push(`kątownik narożnika 4×${naPlyte}`); }
+    if (wk) hardware.push({ name: "Wkręt 4 × 30",
+      spec: `ramię szafki narożnej: ${opis.join(", ")} szt.`, qty: wk, unit: "szt." });
+  }
+  if (cab.legs && cab.legs.on) {
+    // para pod wolnym koncem, a przy dlugim ramieniu jeszcze jedna posrodku
+    const ile = 2 + 2 * Math.floor(len / 900);
+    hardware.push({ name: "Nóżka regulowana",
+      spec: `pod ramieniem szafki narożnej, wysokość ${fmt(cab.legs.height || 100)} mm`,
+      qty: ile, unit: "szt." });
+  }
   if (a.doors === "lamane")
     hardware.push({ name: "Zawias łamany 90°", spec: "spina dwa skrzydła szafki narożnej", qty: 2, unit: "szt." });
   return { panels, hardware };
@@ -11051,6 +11118,22 @@ export default function App() {
                         );
                       })()}
                       {(cab.corner.doors || "wsporniki") === "wsporniki" && (
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] text-stone-400">
+                            Szerokość wsporników w rogu
+                          </span>
+                          <AutoNum value={cab.corner.bracketW ?? ""} placeholder={fmt(CORNER_BRACKET_W)}
+                            fixed={Number(cab.corner.bracketW) > 0}
+                            onChange={(v) => set({ corner: { ...cab.corner,
+                              bracketW: v === "" || v == null
+                                ? null : Math.max(MIN_PART, Math.round(Number(v) || 0)) } })} />
+                          <span className="mt-1 block text-[11px] text-stone-400">
+                            Puste = {fmt(CORNER_BRACKET_W)} mm. Węższej płyty nie da się okleić,
+                            więc mniej niż {fmt(MIN_PART)} mm nie wejdzie.
+                          </span>
+                        </label>
+                      )}
+                      {(cab.corner.doors || "wsporniki") === "wsporniki" && (
                         <Group label="Nachodząca płyta kątownika">
                           <Seg value={cab.corner.bracket || "krotsze"}
                             onChange={(v) => set({ corner: { ...cab.corner, bracket: v } })}
@@ -11929,6 +12012,17 @@ export default function App() {
                     : "")}>
                 <Num value={cab.legs.height ?? 100}
                   onChange={(v) => set({ legs: { ...cab.legs, height: v } })} />
+              </Field>
+            )}
+            {cab.legs?.on && (
+              <Field label="Liczba nóżek"
+                hint={`Puste = z szerokości: para na róg, a od 900 mm dochodzi para pośrodku `
+                  + `(tutaj ${autoLegs(geo.W)} szt.). Parzysta rozkłada się w dwóch rzędach po równo, `
+                  + `nieparzysta znaczy jeszcze jedną podporę na środku dna.`}>
+                <AutoNum value={cab.legs.count ?? ""} placeholder={fmt(autoLegs(geo.W))}
+                  fixed={Number(cab.legs.count) > 0}
+                  onChange={(v) => set({ legs: { ...cab.legs,
+                    count: v === "" || v == null ? null : Math.max(2, Math.round(Number(v) || 0)) } })} />
               </Field>
             )}
           </Card>

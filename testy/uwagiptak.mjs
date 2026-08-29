@@ -30,6 +30,11 @@ const ile = await ptaszki().count();
 console.log('   ptaszków w Uwagach: ' + ile);
 ok('ostrzeżenie da się odhaczyć', ile > 0, String(ile));
 
+/* Zapamietujemy tresc odhaczanej uwagi — po rozwinieciu ma wrocic ta sama,
+   a nie akurat ta, ktora dzis wypada pierwsza w szablonie. */
+const odhaczana = ((await card(/^Uwagi$/).locator('li').first().innerText())
+  .replace(/\s+/g, ' ').match(/[a-ząćęłńóśźż]{6,}/i) || ['uwaga'])[0];
+console.log('   odhaczamy uwagę ze słowem: ' + odhaczana);
 await ptaszki().first().click();
 await page.waitForTimeout(1000);
 const n1 = await licznik();
@@ -40,7 +45,8 @@ ok('przeczytane schodzą pod nagłówek', await zwiniete.count() === 1, String(a
 await zwiniete.first().click();
 await page.waitForTimeout(800);
 const tekst = await card(/^Uwagi$/).innerText();
-ok('po rozwinięciu treść wraca', /poniżej 250 mm/.test(tekst.replace(/\s+/g, ' ')), tekst.slice(0, 160));
+ok('po rozwinięciu treść wraca', new RegExp(odhaczana, 'i').test(tekst.replace(/\s+/g, ' ')),
+  tekst.slice(0, 160));
 
 /* Odhaczenie trzyma sie przegladarki, nie projektu — po przeladowaniu zostaje. */
 await page.reload({ waitUntil: 'networkidle' });

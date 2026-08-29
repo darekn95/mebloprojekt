@@ -15,13 +15,12 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1800);
 await page.locator('select[title="Dodaj szafkę z gotowego szablonu"]').first().selectOption('naroznikL');
 await page.waitForTimeout(2200);
-/* Szablon daje obie sciany po 600. Zwezamy te z szafka narozna do 570, zeby
+/* Szablon daje obie sciany po tyle samo. Poglebiamy te za rogiem do 600, zeby
    odcinki blatu rozjechaly sie tak jak w prawdziwym projekcie. */
 await page.evaluate(() => {
   const p = JSON.parse(localStorage.getItem('szafki:projekt'));
   const rog = p.items.find((i) => i.cab.corner && i.cab.corner.on);
-  p.runs.forEach((r) => { if (r.id === rog.runId) r.D = 570; });
-  rog.cab.D = 570;
+  p.runs.forEach((r) => { if (r.id !== rog.runId) r.D = 600; });
   localStorage.setItem('szafki:projekt', JSON.stringify(p));
 });
 await page.reload({ waitUntil: 'networkidle' });

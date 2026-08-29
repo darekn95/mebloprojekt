@@ -44,8 +44,14 @@ const plyty = () => page.evaluate(() => [...document.querySelectorAll('svg rect'
   w: +r.getAttribute('width'), h: +r.getAttribute('height'),
 })).filter((r) => r.w > 0 && r.h > 0));
 let rs = await plyty();
-const bokLewy = rs.find((r) => r.x === 0 && r.w === 18 && r.h === 600);
-const bokPrawy = rs.find((r) => r.x === 882 && r.w === 18 && r.h === 600);
+/* Glebokosc bierzemy z projektu, a nie z palca — szablon moze ja zmienic. */
+const proj = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
+const rog = proj.items.map((i) => i.cab).find((c) => c.corner && c.corner.on);
+const glRog = Math.round(rog.D);
+const sasiad = Math.round((proj.runs.find((r) => r.id !== rog.runId) || {}).D || glRog);
+console.log(`   szafka ${rog.W} × ${glRog}, sąsiad ${sasiad}`);
+const bokLewy = rs.find((r) => r.x === 0 && r.w === 18 && r.h === glRog);
+const bokPrawy = rs.find((r) => r.x === 882 && r.w === 18 && r.h === glRog);
 /* Katownik chowa sie za plecami z obu stron: od tylu o ich grubosc (y = 3)
    i od boku tak samo, wiec jego plyta stoi na 879, a nie na 882. */
 const ramBok = rs.find((r) => r.x === 879 && r.w === 18 && r.h === 150);
@@ -64,8 +70,11 @@ ok('ramię kątownika przy plecach', !!ramPlecy, JSON.stringify(ramPlecy));
    (3 mm), wiec jego lico stoi na 879, a wzmocnienie ma 879 - 18 = 861. */
 rows = await formatki();
 const wzm = wiersz(rows, /^Wzmocnienie czołowe/);
-ok('wzmocnienie czołowe kończy się na kątowniku', !!wzm && wzm[2] === '300',
-  wzm ? wzm.slice(0, 4).join('|') : '(brak)');
+/* Wolne lico to szerokosc bez glebokosci sasiada i bez frontu ramienia,
+   katownik siega jeszcze 36 dalej, a od lewego boku odchodzi jego grubosc. */
+const czolowe = (rog.W - sasiad - 18) + 36 - 18;
+ok('wzmocnienie czołowe kończy się na kątowniku', !!wzm && Number(wzm[2]) === czolowe,
+  wzm ? `${wzm.slice(0, 4).join('|')} (oczekiwane ${czolowe})` : '(brak)');
 ok('czołowe stoi pionowo, 60 mm', !!wzm && wzm[3] === '60', wzm ? wzm.slice(0, 4).join('|') : '(brak)');
 const wzmT = wiersz(rows, /^Wzmocnienie tylne/);
 ok('tylne wzmocnienie dochodzi do kątownika w narożniku', !!wzmT && wzmT[2] === '861',
