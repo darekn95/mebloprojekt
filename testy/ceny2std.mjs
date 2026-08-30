@@ -24,9 +24,16 @@ const find = (rows, re) => rows.find(r => re.test(r.label));
 
 // wlacz wszystko, zeby zobaczyc jak najwiecej pozycji naraz
 const nogi = card(/^Nóżki$/); await nogi.locator('h2').click(); await page.waitForTimeout(300);
-await nogi.getByText('Nóżki pod szafką', { exact: true }).click(); await page.waitForTimeout(600);
 const cok = card(/^Cokół$/); await cok.locator('h2').click(); await page.waitForTimeout(300);
-await cok.locator('input[type=checkbox]').first().click(); await page.waitForTimeout(600);
+/* Nowy projekt startuje z szablonu „Szafka stojąca", wiec cokol bywa juz
+   wlaczony — ustawiamy stan, ktorego chcemy, zamiast klikac na oslep. */
+const ustaw = async (karta, want) => {
+  const chk = karta.locator('input[type=checkbox]').first();
+  if (await chk.isChecked() !== want) await chk.click();
+  await page.waitForTimeout(700);
+};
+await ustaw(nogi, true);
+await ustaw(cok, true);
 await wyc.getByRole('button', { name: 'Policz rozkrój' }).click().catch(()=>{});
 await page.waitForTimeout(2500);
 
@@ -72,9 +79,15 @@ await korpus.locator('button').filter({ hasText: /^Wieniec$/ }).first().click();
 await page.waitForTimeout(800);
 
 console.log('\n== listwa montażowa w metrach ==');
-await nogi.getByText('Nóżki pod szafką', { exact: true }).click();
+await ustaw(nogi, false);
+await ustaw(cok, false);
+await page.waitForTimeout(600);
+/* Pojedyncza szafka wisi domyslnie na haczykach — listwe wlaczamy wprost,
+   bo to jej wycene sprawdzamy. Tak samo jak w bliźniaczej suicie `ceny2`. */
+const mont2 = card(/^Montaż półek i zawieszenie$/);
+await mont2.locator('h2').click();
 await page.waitForTimeout(400);
-await cok.locator('input[type=checkbox]').first().click();
+await mont2.getByText('Na listwie', { exact: true }).click();
 await page.waitForTimeout(1200);
 rows = await dump();
 const li = find(rows, /^Listwa montażowa/);

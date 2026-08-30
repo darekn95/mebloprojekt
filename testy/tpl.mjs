@@ -36,5 +36,37 @@ for (const [id, expect] of [['wiszaca', '600×720×300'], ['biurko', '1200×750�
 }
 const tabs = await page.evaluate(() => [...document.querySelectorAll('button')].filter(b => /^Szafka \d+$/.test(b.textContent.trim())).length);
 ok('doszły dwie szafki', tabs === 3, tabs + ' zakładek');
+
+console.log('\n== szablon „Narożnik L" sklada caly uklad, nie sama szafke ==');
+await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(1500);
+await page.locator('select[title="Dodaj szafkę z gotowego szablonu"]').first().selectOption('naroznikL');
+await page.waitForTimeout(1800);
+const proj = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
+const wRogu = proj.items.find((i) => i.cab.corner && i.cab.corner.on);
+const drugi = (proj.runs || []).find((r) => r.corner);
+console.log('  ciągi:', JSON.stringify((proj.runs || []).map((r) => ({ id: r.id, corner: r.corner && r.corner.of }))));
+console.log('  szafki:', JSON.stringify(proj.items.map((i) => ({ W: i.cab.W, run: i.runId, L: !!(i.cab.corner || {}).on }))));
+ok('szafka narożna z ramieniem', !!wRogu && wRogu.cab.corner.arm > 0,
+  JSON.stringify(wRogu && wRogu.cab.corner));
+ok('szafka narożna wylądowała w ciągu', !!wRogu && !!wRogu.runId, String(wRogu && wRogu.runId));
+ok('powstał drugi ciąg pod kątem prostym', !!drugi && drugi.corner.of === (wRogu || {}).runId,
+  JSON.stringify(drugi && drugi.corner));
+/* Drugi ciąg zakłada się pusty — szafki dokłada się do niego samemu. Ma za to
+   od razu głębokość, bo to z niej liczy się ramię i szerokość frontu w rogu. */
+ok('drugi ciąg został pusty',
+  !!drugi && !proj.items.some((i) => i.runId === drugi.id), JSON.stringify(proj.items.map((i) => i.runId)));
+ok('drugi ciąg ma zadaną głębokość', !!drugi && Number(drugi.D) > 0, String(drugi && drugi.D));
+/* Front sięga tylko dostępnego światła, więc gotowy układ nie startuje
+   z błędem — ani o luzie, ani o otwieraniu. */
+const uwagi = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi$/ }) }).first();
+const tekst = (await uwagi.count()) ? await uwagi.innerText() : '';
+ok('układ z szablonu jest od razu poprawny',
+  !/nie ma się jak otworzyć/.test(tekst) && !/za dużo, granica/.test(tekst),
+  tekst.replace(/\n+/g, ' / ').slice(0, 240));
+const okienko = page.getByText(/Ta szafka jest częścią narożnika/);
+ok('karta mówi, że szafka jest częścią narożnika', await okienko.count() > 0,
+  String(await okienko.count()));
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

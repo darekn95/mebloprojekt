@@ -55,6 +55,11 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 
 console.log('== ramie odsuwa drugi ciag ==');
 await uklad(0);
+/* Szerokosc frontu w rogu konczy sie na luzie miedzy drzwiami, wiec liczby
+   wyprowadzamy z projektu zamiast wpisywac je tutaj — inaczej zmiana
+   domyslnego luzu wywracala test. */
+const luzDrzwi = await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('szafki:projekt')).items[1].cab.gaps.between);
 await pick('Zabudowa');
 await pick('Z góry');
 let k = (await mmShapes('rect')).filter((q) => q.f === '#fafaf9' && q.w > 100 && q.h > 100);
@@ -91,13 +96,15 @@ let uw = await card(/Uwagi/).innerText();
 console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 400));
 ok('uwaga o szafce narożnej w L', /szafką narożną w L/.test(uw), uw.slice(0, 200));
 ok('podany korpus i ramię', /900 mm przy ścianie/.test(uw) && /500 × 600 mm/.test(uw), uw.slice(0, 300));
-ok('opisany sposób otwierania', /wsporników/.test(uw), uw.slice(0, 400));
+ok('opisany sposób otwierania', /kątownika/.test(uw), uw.slice(0, 400));
 ok('nie ma już mowy o ślepym narożniku', !/Ślepy narożnik/.test(uw), uw.slice(0, 200));
 
 console.log('\n== formatki ramienia wchodza do zestawienia ==');
 const zest = card(/Zestawienie|Formatki|Rozkrój/);
 const zt = await page.evaluate(() => document.body.innerText);
-for (const nazwa of ['Wieniec i dno ramienia', 'Bok ramienia', 'Front ramienia', 'Wspornik narożnika']) {
+for (const nazwa of ['Wieniec i dno ramienia', 'Bok ramienia', 'Front ramienia',
+  'Kątownik narożnika — nachodzący', 'Kątownik narożnika — doczołowy',
+  'Maskownica kątownika — nachodząca', 'Maskownica kątownika — doczołowa']) {
   ok(`formatka „${nazwa}" jest w zestawieniu`, zt.includes(nazwa), '');
 }
 ok('grupa formatek podpisana narożnikiem', /Narożnik — rogowa/.test(zt), '');
@@ -106,9 +113,9 @@ console.log('\n== warianty drzwi ==');
 await uklad(500, 900, 'lamane');
 uw = await card(/Uwagi/).innerText();
 ok('drzwi łamane opisane', /zawiasami łamanymi/.test(uw), uw.slice(0, 300));
-ok('bez wsporników przy łamanych', !/Wsporniki narożnika/.test(uw), uw.slice(0, 300));
+ok('bez kątownika przy łamanych', !/Kątownik narożnika/.test(uw), uw.slice(0, 300));
 let body = await page.evaluate(() => document.body.innerText);
-ok('wspornik nie idzie na formatki', !body.includes('Wspornik narożnika'), '');
+ok('kątownik nie idzie na formatki', !body.includes('Kątownik narożnika'), '');
 ok('dochodzi zawias łamany', body.includes('Zawias łamany 90°'), '');
 await uklad(500, 900, 'skrecone');
 uw = await card(/Uwagi/).innerText();
@@ -120,31 +127,68 @@ ok('wariant z fixem opisany', /zaślepione fixem/.test(uw), uw.slice(0, 300));
 body = await page.evaluate(() => document.body.innerText);
 ok('formatka to fix, nie front', body.includes('Fix ramienia') && !body.includes('Front ramienia'), '');
 ok('fix nie dostaje zawiasów', !/front ramienia szafki narożnej/.test(body), '');
-ok('fix trzyma się na złączkach', body.includes('Złączka meblowa'), '');
-ok('przy fixie nie ma wsporników', !body.includes('Wspornik narożnika'), '');
+/* Fix przykreca sie od srodka na trojkaty meblarskie — tak samo jak cokol
+   bez nozek. Wiersz musi byc podpisany fixem, zeby nie pomylic go z cokolem. */
+ok('fix trzyma się na trójkątach meblarskich',
+  /Trójkąt meblarski[^\n]*fix ramienia/.test(body), '');
+ok('przy fixie nie ma kątownika', !body.includes('Kątownik narożnika'), '');
 
 console.log('\n== za waski korpus przy szafce naroznej ==');
-await uklad(500, 700);   // korpus 700, glebokosc ramienia 600 → zostaje 100 mm frontu
+/* Korpus 700, glebokosc ramienia 600, front ramienia 18 → z lica zostaje 82 mm,
+   a katownik z luzem zabiera z tego jeszcze 45. */
+await uklad(500, 700);
 uw = await card(/Uwagi/).innerText();
 console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 240));
-ok('ostrzeżenie o zbyt wąskim froncie', /tylko 100 mm frontu/.test(uw), uw.slice(0, 240));
+/* Ostatni skladnik znowu jest luzem miedzy drzwiami, wiec liczymy tak samo
+   jak wyzej: 700 - 600 - 18 - (60 - 18) - luz. */
+const waskie = 700 - 600 - 18 - (60 - 18) - luzDrzwi;
+ok('ostrzeżenie o zbyt wąskim froncie',
+  new RegExp('tylko ' + waskie + ' mm frontu').test(uw), uw.slice(0, 240));
 await uklad(500, 500);   // korpus wezszy niz ramie → nie ma frontu w ogole
 uw = await card(/Uwagi/).innerText();
 ok('brak frontu to błąd', /nie ma frontu od strony/.test(uw), uw.slice(0, 240));
 ok('podpowiedź, do ilu poszerzyć', /800 mm/.test(uw), uw.slice(0, 300));
 
-console.log('\n== fronty szafki naroznej musza sie zmiescic obok ramienia ==');
-await uklad(500, 900);   // korpus 900, ramie 600 gleboko → front tylko 300 mm
+console.log('\n== fronty szafki naroznej same mieszcza sie obok ramienia ==');
+await uklad(500, 900);   // korpus 900, ramie 600 gleboko → front tylko 237 mm
+/* Dostepne swiatlo to szerokosc korpusu minus glebokosc sasiedniego ciagu
+   i minus grubosc frontu ramienia (jego lico stoi przed korpusem ramienia),
+   a z tego jeszcze katownik z luzem. Nachodzaca plyta wchodzi w kwadrat styku
+   obu lic, wiec poza naroze wystaje o grubosc frontu mniej: 900 - 600 - 18
+   - (60 - 18) - 3 = 237. Pasmo frontu jest do tego przyciete, wiec drzwi maja
+   te szerokosc same z siebie — nie trzeba jej nigdzie wpisywac. */
+const swiatlo = 900 - 600 - 18 - (60 - 18) - luzDrzwi;
+console.log('     luz między drzwiami ' + luzDrzwi + ' mm → światło ' + swiatlo + ' mm');
+// widok „Szafka" pokazuje aktywna szafke — klikamy w kafel naroznika
+await page.locator('button', { hasText: /^rogowa/ }).first().click();
+await page.waitForTimeout(1000);
+await pick('Szafka');
+await pick('Zamk.');
+tx = await svgTexts();
+console.log('     podpisy frontów: ' + tx.filter((t) => /×/.test(t)).join(' | '));
+ok('front dobiera się do lica narożnika',
+  tx.some((t) => new RegExp('^' + swiatlo + '×').test(t)),
+  tx.filter((t) => /×/.test(t)).join(' | '));
 uw = await card(/Uwagi/).innerText();
-console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 400));
-ok('ostrzeżenie o froncie nad ramieniem', /dostępne jest tylko 300 mm/.test(uw), uw.slice(0, 300));
-ok('podpowiedź, ile mają mieć drzwi', /Zrób jedne drzwi na 300 mm/.test(uw), uw.slice(0, 400));
+ok('nie ma po co ostrzegać', !/dostępne jest tylko|szpary/.test(uw), uw.slice(0, 240));
 
-console.log('\n== przycisk ustawia jedne drzwi na dostepne swiatlo ==');
-await uklad(500, 900);
-let przed = await page.evaluate(() => document.body.innerText);
-ok('przed naprawą jest ostrzeżenie', /nad ramieniem frontu nie ma|dostępne jest tylko/.test(przed), '');
-await card(/Uwagi/).getByRole('button', { name: /Ustaw jedne drzwi 300 mm/ }).click();
+console.log('\n== recznie wpisane szerokosci: uwaga o szparze i przycisk ==');
+await page.evaluate(() => {
+  const p = JSON.parse(localStorage.getItem('szafki:projekt'));
+  /* Dwa skrzydla z wpisana szerokoscia nie wypelniaja lica — tak wlasnie
+     konczyly stare projekty po zmianie glebokosci sasiada. */
+  p.items[1].cab.levels[0].cols[0].doors = 2;
+  p.items[1].cab.levels[0].cols[0].doorWidths = [100, 100];
+  localStorage.setItem('szafki:projekt', JSON.stringify(p));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(2400);
+uw = await card(/Uwagi/).innerText();
+console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 300));
+ok('ostrzeżenie o szparze przy maskownicy', /szpary/.test(uw), uw.slice(0, 300));
+ok('podpowiedź, ile mają mieć drzwi',
+  new RegExp('Zrób jedne drzwi na ' + swiatlo + ' mm').test(uw), uw.slice(0, 400));
+await card(/Uwagi/).getByRole('button', { name: new RegExp('Ustaw jedne drzwi ' + swiatlo + ' mm') }).click();
 await page.waitForTimeout(1200);
 const kol = await page.evaluate(() =>
   JSON.parse(localStorage.getItem('szafki:projekt')).items[1].cab.levels[0].cols
@@ -153,9 +197,9 @@ console.log('     kolumny: ' + JSON.stringify(kol));
 /* Szafka narozna to jedna komora — zostaje jedna kolumna, a front jest po
    prostu wezszy od korpusu, bo nad ramieniem nie ma czego zaslaniac. */
 ok('jedna kolumna z jednymi drzwiami',
-  kol.length === 1 && kol[0].doors === 1 && kol[0].dw[0] === 300, JSON.stringify(kol));
+  kol.length === 1 && kol[0].doors === 1 && kol[0].dw[0] === swiatlo, JSON.stringify(kol));
 uw = await card(/Uwagi/).count() ? await card(/Uwagi/).innerText() : '';
-ok('ostrzeżenie znika po naprawie', !/dostępne jest tylko/.test(uw), uw.slice(0, 200));
+ok('ostrzeżenie znika po naprawie', !/szpary|dostępne jest tylko/.test(uw), uw.slice(0, 200));
 ok('front węższy od korpusu nie jest błędem', !/nie wypełniają pasma/.test(uw), uw.slice(0, 200));
 body = await page.evaluate(() => document.body.innerText);
 ok('nie doszła przegroda pionowa', !/Przegroda pionowa/.test(body), '');
@@ -166,7 +210,7 @@ console.log('     ' + tx.filter((t) => /×/.test(t)).join(' | '));
 /* Zadana szerokosc drzwi wchodzi wprost, bez doliczania nalozenia — front
    ma dokladnie tyle, ile pokazala podpowiedz. */
 ok('front szafki narożnej zwężony do dostępnego światła',
-  tx.some((t) => /^300×/.test(t)) && !tx.some((t) => /^8\d\d×/.test(t)),
+  tx.some((t) => new RegExp('^' + swiatlo + '×').test(t)) && !tx.some((t) => /^8\d\d×/.test(t)),
   tx.filter((t) => /×/.test(t)).join(' | '));
 
 console.log('\n== polki w ramieniu ida za szafka ==');
@@ -182,6 +226,56 @@ const wiersz = await page.evaluate(() => ([...document.querySelectorAll('tr')]
   .find((tr) => /Półka ramienia/.test(tr.innerText)) || {}).innerText || '');
 console.log('     ' + wiersz.replace(/\s+/g, ' '));
 ok('tyle półek, ile w szafce', / 2 /.test(wiersz.replace(/\s+/g, ' ')), wiersz.replace(/\s+/g, ' '));
+uw = await card(/Uwagi/).innerText();
+ok('jedna kolumna — półka ma na czym się skończyć',
+  !/skończyłaby się w powietrzu/.test(uw), uw.slice(0, 300));
+
+console.log('\n== polka bez pary w kolumnie przy ramieniu ==');
+/* Ramie wychodzi z prawej strony korpusu, wiec polke lapie kolumna prawa.
+   Lewa ma polki, prawa nie — polka lewej konczylaby sie w ramieniu w powietrzu. */
+await seed(
+  [RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })],
+  [{ cab: { name: 'rogowa', W: 900, H: 720, D: 600, plinth: PL, corner: L(500),
+      levels: [{ h: null, cols: [
+        { kind: 'doors', doors: 1, w: 400, shelfTargets: [null, null] },
+        { kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }, runId: 'c1', offset: 0 },
+   CAB('B1', 700, 'c2')]);
+uw = await card(/Uwagi/).innerText();
+console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 400));
+ok('błąd o półce kończącej się w powietrzu', /skończyłaby się w powietrzu/.test(uw), uw.slice(0, 300));
+ok('podana wysokość wiszącej półki', /półka na \d+ mm nie ma pary/.test(uw), uw.slice(0, 300));
+
+console.log('\n== maskownica naroznika nie liczy sie jako luz ==');
+/* Front szafki naroznej konczy sie tam, gdzie zaczyna sie ramie. Reszta lica
+   jest zabudowana — maskownica przy wsporniku i sam korpus ramienia — wiec
+   kontrola luzu nie ma prawa tam niczego mierzyc. */
+await seed(
+  [RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })],
+  [{ cab: { name: 'rogowa', W: 900, H: 720, D: 600, plinth: PL, corner: L(500),
+      levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null,
+        doorWidths: [300], hinge: 'left' }] }] }, runId: 'c1', offset: 0 },
+   CAB('B1', 700, 'c2')]);
+uw = await card(/Uwagi/).innerText();
+console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 300));
+ok('nie krzyczy o luzie przy zabudowanym odcinku', !/luzu — o \d+ mm za dużo/.test(uw), uw.slice(0, 300));
+ok('brak fałszywej szczeliny do boku korpusu', !/między frontem a \w+ bokiem/.test(uw), uw.slice(0, 300));
+
+console.log('\n== dziura po drugiej stronie frontu dalej jest bledem ==');
+/* Ramie wychodzi prawa strona korpusu, wiec lewa dziura nie ma czym byc
+   zabudowana — i ma sie odezwac jak kazdy inny za duzy luz. */
+await seed(
+  [RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })],
+  [{ cab: { name: 'rogowa', W: 900, H: 720, D: 600, plinth: PL, corner: L(500),
+      levels: [{ h: null, cols: [
+        { kind: 'doors', doors: 0, w: 200 },
+        { kind: 'doors', doors: 1, w: null, doorWidths: [200] }] }] }, runId: 'c1', offset: 0 },
+   CAB('B1', 700, 'c2')]);
+uw = await card(/Uwagi/).innerText();
+console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 400));
+ok('odsłonięta szczelina przy boku zgłoszona jako błąd',
+  /między frontem a lewym bokiem korpusu zostaje \d+ mm luzu/.test(uw), uw.slice(0, 300));
+ok('podane, o ile za dużo i jaka granica',
+  /za dużo, granica to 5 mm/.test(uw), uw.slice(0, 300));
 
 console.log('\n== za krotkie ramie ==');
 await uklad(120);
@@ -190,13 +284,15 @@ ok('ostrzeżenie o krótkim ramieniu', /Ramię szafki narożnej ma 120 mm/.test(
 
 console.log('\n== karta: wlaczenie ramienia z UI ==');
 await uklad(0);
-const cc = card(/^Ciąg meblowy$/);
+/* Ramie to dalszy ciag tej samej szafki, wiec jego ustawienia siedza w karcie
+   „Struktura wnetrza" — w karcie ciagu zostaje sam narożnik miedzy pasami. */
+const cc = card(/^Struktura wnętrza$/);
 // szafka rogowa to druga w ciagu A — przelaczamy sie na nia
 await page.locator('header div.rounded-full').filter({ hasText: 'rogowa' }).first()
   .getByRole('button', { name: 'rogowa', exact: true }).click();
 await page.waitForTimeout(1000);
-const grupa = cc.locator('div').filter({ hasText: /^Szafka narożna \(L\)/ }).first();
-ok('sekcja szafki narożnej jest w karcie', await grupa.count() === 1, String(await grupa.count()));
+const grupa = cc.locator('div').filter({ hasText: /^Ramię narożnika/i }).first();
+ok('sekcja ramienia jest w strukturze wnętrza', await grupa.count() === 1, String(await grupa.count()));
 await cc.getByText('Korpus wychodzi ramieniem w L', { exact: true }).click();
 await page.waitForTimeout(900);
 const zapis = await page.evaluate(() =>
@@ -210,8 +306,8 @@ console.log('\n== szafka spoza rogu nie dostaje tej sekcji ==');
 await page.locator('header div.rounded-full').filter({ hasText: 'A1' }).first()
   .getByRole('button', { name: 'A1', exact: true }).click();
 await page.waitForTimeout(1000);
-const brak = card(/^Ciąg meblowy$/).locator('div').filter({ hasText: /^Szafka narożna \(L\)/ });
-ok('zwykła szafka nie ma sekcji narożnej', await brak.count() === 0, String(await brak.count()));
+const brak = card(/^Struktura wnętrza$/).locator('div').filter({ hasText: /^Ramię narożnika/i });
+ok('zwykła szafka nie ma sekcji ramienia', await brak.count() === 0, String(await brak.count()));
 
 console.log('\n== wszystkie widoki z szafka narozna ==');
 await uklad(500);

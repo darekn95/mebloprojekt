@@ -25,7 +25,7 @@ const shelves = () => card(/^Formatki do zamówienia$/).evaluate((s) => {
   const tr = [...s.querySelectorAll('tbody tr')].filter(t => /^Półka\b/.test(t.querySelector('td').innerText.trim()));
   return tr.reduce((a, t) => a + Number([...t.querySelectorAll('td')][4].innerText.trim()), 0);
 });
-const drawersQty = () => card(/^Produkty do zamówienia$/).evaluate((s) => {
+const drawersQty = () => card(/^Produkty do zamówienia/).evaluate((s) => {
   const tr = [...s.querySelectorAll('tbody tr')].find(t => /Prowadnica/.test(t.innerText));
   return tr ? tr.innerText.trim() : null;
 });

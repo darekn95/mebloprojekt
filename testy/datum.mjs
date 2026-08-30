@@ -12,7 +12,7 @@ await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1500);
 const card = (re) => page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
-const hw = () => card(/^Produkty do zamówienia$/).innerText();
+const hw = () => card(/^Produkty do zamówienia/).innerText();
 const svgInfo = () => page.evaluate(() => {
   const svg = document.querySelector('svg');
   const ts = [...svg.querySelectorAll('text')].map(t => t.textContent.trim());
@@ -20,6 +20,16 @@ const svgInfo = () => page.evaluate(() => {
     legenda: ts.find(t => /^otw\. —/.test(t)) || null,
     vbH: Number(svg.getAttribute('viewBox').split(/\s+/)[3]) };
 });
+
+/* Zawieszki pokazuja sie tylko szafce wiszacej, a nowy projekt startuje
+   z szablonu „Szafka stojąca" — najpierw zdejmujemy cokol. */
+const cokKarta = card(/^Cokół$/);
+await cokKarta.locator('h2').click();
+await page.waitForTimeout(300);
+const cokChk = cokKarta.locator('input[type=checkbox]').first();
+if (await cokChk.isChecked()) { await cokChk.click(); await page.waitForTimeout(800); }
+await cokKarta.locator('h2').click();
+await page.waitForTimeout(300);
 
 console.log('== zawieszki: listwa vs haczyki ==');
 let h = await hw();

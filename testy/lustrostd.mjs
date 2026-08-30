@@ -18,7 +18,7 @@ await page.evaluate(() => {
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(2500);
 const card = (re) => page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
-const hw = await card(/^Produkty do zamówienia$/).evaluate((s) =>
+const hw = await card(/^Produkty do zamówienia/).evaluate((s) =>
   [...s.querySelectorAll('tbody tr')].map(tr => [...tr.querySelectorAll('td')].map(td => td.innerText.trim()).join(' | ')));
 const mirRows = hw.filter(r => /^Lustro/.test(r));
 const mirRow = mirRows[0];

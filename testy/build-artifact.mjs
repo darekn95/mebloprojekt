@@ -2,7 +2,12 @@ import { readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 
 const PROJ = new URL("../", import.meta.url).pathname.replace(/\/$/, "");
-const VENDOR = "/tmp/claude-0/-home-user-mebloprojekt/89068941-15d9-56b6-b1d0-03c416ab4e9c/scratchpad/vendorpkg/node_modules";
+// Paczki do zbudowania artefaktu leza obok testow (testy/vendorpkg, gitignore).
+// Jesli ich nie ma:
+//   cd testy/vendorpkg && npm init -y
+//   npm i @babel/standalone react@18 react-dom@18 @tailwindcss/browser
+const VENDOR = process.env.VENDOR
+  || new URL("./vendorpkg/node_modules", import.meta.url).pathname;
 const OUT = new URL("./mebloprojekt-app.html", import.meta.url).pathname;
 
 const require = createRequire(VENDOR + "/");

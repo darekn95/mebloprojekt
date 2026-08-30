@@ -106,7 +106,7 @@ const rx = await page.evaluate(() => [...document.querySelector('svg').querySele
   .filter(r => r.getAttribute('fill') === '#a1a1aa').map(r => r.getAttribute('rx')));
 ok('okrągła nóżka rysowana z zaokrągleniem', rx.every(v => Number(v) > 0), rx.join(', '));
 await page.locator('svg').first().screenshot({ path: S + 'shot-nozki.png' });
-const hw = await card(/^Produkty do zamówienia$/).innerText();
+const hw = await card(/^Produkty do zamówienia/).innerText();
 ok('kształt w specyfikacji nóżki', /okrągła, wysokość/.test(hw), (hw.split('\n').find(l => /Nóżka/.test(l)) || ''));
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');

@@ -26,7 +26,11 @@ const vals = await luzy.evaluate((s) => {
   return out;
 });
 console.log('  pola luzów:', JSON.stringify(vals));
-ok('między drzwiami 3 mm', vals['Między drzwiami'] === '3', vals['Między drzwiami']);
+/* Luz miedzy drzwiami jest parzysty (2 mm), zeby pasmo — szerokosc minus dwa
+   luzy brzegowe, czyli liczba parzysta — dzielilo sie na rowne skrzydla.
+   Przy 3 mm kazda szafka o parzystej szerokosci dawala jedno skrzydlo szersze
+   o milimetr. */
+ok('między drzwiami 2 mm i parzyste', vals['Między drzwiami'] === '2', vals['Między drzwiami']);
 ok('u góry 3 mm', vals['U góry'] === '3', vals['U góry']);
 ok('u dołu 3 mm', vals['U dołu'] === '3', vals['U dołu']);
 ok('od krawędzi zostaje 2 mm', vals['Od krawędzi korpusu'] === '2', vals['Od krawędzi korpusu']);
@@ -43,7 +47,7 @@ for (let i = 0; i < 2; i++) { await page.getByText('+ szuflada', { exact: true }
 await page.waitForTimeout(900);
 const fronty = (await cutRows()).filter(r => /Front szuflady/.test(r));
 console.log('  fronty szuflad:', fronty.join(' ;; '));
-ok('fronty szuflad policzone z luzem 3 mm', fronty.length > 0, fronty.join(' ;; '));
+ok('fronty szuflad policzone z tym samym luzem', fronty.length > 0, fronty.join(' ;; '));
 
 console.log('\n== 1. własna nazwa uchwytu nie gubi ceny ==');
 await page.evaluate(() => {

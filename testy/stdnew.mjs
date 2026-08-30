@@ -13,10 +13,12 @@ await page.waitForTimeout(3000);
 const card = (re) => page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
 
 console.log('=== nowe funkcje na ścieżce GitHub Pages ===');
-const hw = await card(/^Produkty do zamówienia$/).innerText();
-// listwa nie jest juz domyslna — pojedyncza szafka wisi na haczykach
-['Konfirmat', 'Zaślepka na konfirmat', 'Kołek podporowy', 'Zawieszka meblowa', 'Hak / wkręt', 'Zszywka'].forEach((n) =>
+const hw = await card(/^Produkty do zamówienia/).innerText();
+/* Nowy projekt startuje z szablonu „Szafka stojąca", wiec zawieszek na starcie
+   nie ma — pojawiaja sie dopiero po zdjeciu cokolu, nizej w tej suicie. */
+['Konfirmat', 'Zaślepka na konfirmat', 'Kołek podporowy', 'Zszywka'].forEach((n) =>
   ok('produkt: ' + n, hw.includes(n)));
+ok('szafka stojąca nie ma zawieszek', !/Zawieszka meblowa/.test(hw));
 
 const mont = card(/^Montaż półek i zawieszenie$/);
 ok('karta montażu półek', await mont.count() === 1);
@@ -24,7 +26,7 @@ await mont.locator('h2').click();
 await page.waitForTimeout(400);
 await mont.getByText('Konfirmaty', { exact: true }).click();
 await page.waitForTimeout(800);
-ok('przełącznik montażu działa', !(await card(/^Produkty do zamówienia$/).innerText()).includes('Kołek podporowy'));
+ok('przełącznik montażu działa', !(await card(/^Produkty do zamówienia/).innerText()).includes('Kołek podporowy'));
 await mont.getByText('Kołki podporowe', { exact: true }).click();
 await page.waitForTimeout(700);
 
@@ -55,10 +57,20 @@ ok('baza "od dna" przelicza wysokości',
 ok('legenda zmieniła bazę', /górnego lica dna/.test(pins2.legenda || ''), pins2.legenda);
 await mont.getByText('Krawędzi boku', { exact: true }).click();
 await page.waitForTimeout(600);
+/* Zawieszki pokazuja sie tylko szafce wiszacej, a nowy projekt startuje
+   z szablonu „Szafka stojąca" — najpierw zdejmujemy cokol. */
+const cok = card(/^Cokół$/);
+await cok.locator('h2').click();
+await page.waitForTimeout(300);
+const cokChk = cok.locator('input[type=checkbox]').first();
+if (await cokChk.isChecked()) { await cokChk.click(); await page.waitForTimeout(800); }
+await cok.locator('h2').click();
+await page.waitForTimeout(300);
 // zawieszki na haczykach
 await mont.getByText('Na haczykach', { exact: true }).click();
 await page.waitForTimeout(800);
-const hw2 = await card(/^Produkty do zamówienia$/).innerText();
+const hw2 = await card(/^Produkty do zamówienia/).innerText();
+ok('bez cokołu doszły zawieszki', /Zawieszka meblowa/.test(hw2), hw2.slice(0, 120));
 ok('haczyki zamiast listwy', !/Listwa montażowa/.test(hw2) && /Hak \/ wkręt/.test(hw2));
 await mont.getByText('Na listwie', { exact: true }).click();
 await page.waitForTimeout(600);

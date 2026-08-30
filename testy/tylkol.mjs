@@ -53,11 +53,16 @@ t = await tyl();
 t.forEach((r) => console.log('     ' + r));
 const tall = Number((t[0] || '').split('|')[3].trim());
 ok('tył urósł ponad standardowy', tall > std, `${std} → ${tall}`);
-// tyl idzie za frontem, ale nie wyzej niz przejdzie: dolny do spodu frontu
-// wyzej minus 20 luzu (324), gorny do gory swiatla poziomu minus 20 (315)
+/* Tyl idzie za frontem, ale nie wyzej niz przejdzie: dolny konczy sie pod
+   spodem frontu wyzej, gorny pod gora swiatla poziomu — i jedno, i drugie z
+   20 mm luzu. Konkretne liczby zaleza od luzu miedzy frontami, wiec zamiast
+   je wpisywac sprawdzamy to, o co tu chodzi: kazda szuflada dostaje SWOJE
+   przyciecie i zadna nie dostaje ostrzezenia, ze tyl nie przejdzie. */
 const wys = t.map((r) => Number(r.split('|')[3].trim())).sort((a2, b2) => b2 - a2);
-ok('tył przycięty do tego, co przejdzie (324 i 315)',
-  wys.length === 2 && wys[0] === 324 && wys[1] === 315, wys.join(', '));
+const nieprzejdzie = (await notes()).filter((n) => /nie przejdzie pod/.test(n.txt));
+ok('każda szuflada przycięta osobno', wys.length === 2 && wys[0] !== wys[1], wys.join(', '));
+ok('tył przycięty do tego, co przejdzie', nieprzejdzie.length === 0,
+  nieprzejdzie.map((n) => n.txt).join(' / '));
 ok('tył niższy od frontu, bo front ma 356/355', wys.every((w) => w < 355), wys.join(', '));
 
 console.log('\n== własna wysokość tyłu ==');

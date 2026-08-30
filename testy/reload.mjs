@@ -35,7 +35,7 @@ await plyty.getByText('Rysuj strukturę słojów zamiast gładkiego koloru').cli
 await page.waitForTimeout(500);
 await plyty.getByText('Poziomo', { exact: true }).click();
 await page.waitForTimeout(900);
-const hwBefore = await card(/^Produkty do zamówienia$/).innerText();
+const hwBefore = await card(/^Produkty do zamówienia/).innerText();
 
 // PRZEŁADOWANIE — tu wcześniej wywalało się migrateCab
 await page.reload({ waitUntil: 'networkidle' });
@@ -58,7 +58,7 @@ await page.waitForTimeout(400);
 const segState = await mont2.evaluate((s) => [...s.querySelectorAll('button')]
   .filter(b => b.className.includes('bg-teal-700')).map(b => b.textContent.trim()));
 ok('montaż półek i zawieszki wczytane', segState.includes('Konfirmaty') && segState.includes('Nigdy'), segState.join(', '));
-const hwAfter = await card(/^Produkty do zamówienia$/).innerText();
+const hwAfter = await card(/^Produkty do zamówienia/).innerText();
 ok('produkty identyczne po przeładowaniu', hwAfter === hwBefore,
   hwAfter === hwBefore ? '' : 'przed: ' + hwBefore.slice(0, 120) + ' | po: ' + hwAfter.slice(0, 120));
 ok('brak kołków po wczytaniu (półki na konfirmatach)', !/Kołek podporowy/.test(hwAfter));

@@ -13,7 +13,9 @@ const card = (re) => page.locator('section').filter({ has: page.locator('h2', { 
 const notes = () => page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')].find((s) => /^Uwagi$/.test((s.querySelector('h2') || {}).textContent || ''));
   return sec ? [...sec.querySelectorAll('li')].map((li) => ({
-    txt: li.textContent.trim(), btns: [...li.querySelectorAll('button')].map((b) => b.textContent.trim()),
+    txt: li.textContent.trim(),
+    // ptaszek „przeczytane" to nie jest poprawka — liczymy same przyciski akcji
+    btns: [...li.querySelectorAll('button')].map((b) => b.textContent.trim()).filter((t) => t !== '\u2713'),
   })) : [];
 });
 const cutRows = (re) => card(re).evaluate((sec) =>
@@ -43,8 +45,10 @@ await page.waitForTimeout(2000);
 const cok = card(/^Cokół$/);
 await cok.locator('button').first().click(); // rozwiń kartę
 await page.waitForTimeout(400);
-await page.getByText('Cokół pod szafką', { exact: true }).click();
-await page.waitForTimeout(900);
+/* Cokol moze byc juz wlaczony — nowy projekt startuje z szablonu „Szafka
+   stojąca". Klikniecie na oslep wylaczyloby go i tryb nie mialby czego pokazac. */
+const cokChk = cok.locator('input[type=checkbox]').first();
+if (!(await cokChk.isChecked())) { await cokChk.click(); await page.waitForTimeout(900); }
 let tryb = await cok.evaluate((sec) => [...sec.querySelectorAll('button')]
   .filter((b) => /Pod dnem|Pod korpusem/.test(b.textContent))
   .map((b) => b.textContent.trim() + (b.className.includes('bg-teal-700') ? '*' : '')));

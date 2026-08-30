@@ -126,5 +126,29 @@ const doorSizes = after.filter((s) => Number(s.split('×')[0]) > 300);
 ok('drzwi mają identyczne formatki', new Set(doorSizes).size === 1, doorSizes.join(', '));
 await page.locator('svg').first().screenshot({ path: S + 'shot-luzy.png' });
 
+console.log('\n== za duzy luz miedzy drzwiami to blad, nie ostrzezenie ==');
+/* Granica to `maxGap` (pole „Ostrzegaj powyżej", domyślnie 5 mm). Przez taką
+   szczelinę widać wnętrze, więc to rzecz do poprawy, a nie kosmetyka. */
+await page.evaluate(() => {
+  localStorage.clear();
+  const cab = { name: 'T', W: 900, H: 720, D: 500,
+    plinth: { on: true, height: 100, mode: 'under', setback: 0 },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, gapBetween: 14 }] }] };
+  localStorage.setItem('szafki:projekt', JSON.stringify({ name: 'T', active: 0, prices: {}, items: [{ cab }] }));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(2200);
+const uw = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi$/ }) }).first();
+const linie = (await uw.innerText()).split('\n').map((l) => l.trim());
+const i14 = linie.findIndex((l) => /mm luzu — o \d+ mm za dużo/.test(l));
+console.log('     ' + (i14 >= 0 ? linie[i14] : '(brak uwagi o luzie)'));
+ok('luz 14 mm zgłoszony', i14 >= 0, linie.filter((l) => /luz/i.test(l)).join(' / '));
+ok('podane, o ile za dużo i jaka granica',
+  i14 >= 0 && /o 9 mm za dużo/.test(linie[i14]) && /granica to 5 mm/.test(linie[i14]),
+  i14 >= 0 ? linie[i14] : '');
+ok('podane, między którymi frontami', i14 >= 0 && /między drzwi a drzwi/.test(linie[i14]),
+  i14 >= 0 ? linie[i14] : '');
+ok('to błąd, nie ostrzeżenie', i14 > 0 && linie[i14 - 1] === '×', i14 > 0 ? linie[i14 - 1] : '');
+
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

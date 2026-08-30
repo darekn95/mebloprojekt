@@ -13,13 +13,23 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1500);
 const ok = (l, c, e = '') => console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : ''));
 const card = (re) => page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
-const hwRows = async () => card(/^Produkty do zamówienia$/).evaluate((sec) =>
+const hwRows = async () => card(/^Produkty do zamówienia/).evaluate((sec) =>
   [...sec.querySelectorAll('tbody tr')].map(tr => [...tr.querySelectorAll('td')].map(td => td.innerText.trim()).join(' | ')));
 const clickView = async (v) => { await page.getByText(v, { exact: true }).first().click(); await page.waitForTimeout(700); };
 const qty = (rows, name) => {
   const r = rows.find(x => x.startsWith(name));
   return r ? Number((r.split('|').pop() || '').trim().split(' ')[0]) : null;
 };
+
+/* Ta suita liczy okucia szafki WISZACEJ, a nowy projekt startuje z szablonu
+   „Szafka stojąca" — cokol zdejmujemy, zeby bylo z czego liczyc zawieszki. */
+const cokKarta = card(/^Cokół$/);
+await cokKarta.locator('h2').click();
+await page.waitForTimeout(400);
+const cokChk = cokKarta.locator('input[type=checkbox]').first();
+if (await cokChk.isChecked()) { await cokChk.click(); await page.waitForTimeout(900); }
+await cokKarta.locator('h2').click();
+await page.waitForTimeout(400);
 
 console.log('== domyślna szafka 600×720×500, 2 drzwi, 1 półka (auto), bez nóżek/cokołu ==');
 let rows = await hwRows();
@@ -70,16 +80,22 @@ await page.waitForTimeout(800);
 rows = await hwRows();
 ok('powrót na kołki', qty(rows, 'Kołek') === 4 && qty(rows, 'Konfirmat') === 12,
   `kołki ${qty(rows, 'Kołek')}, konfirmaty ${qty(rows, 'Konfirmat')}`);
-// zawieszki na "zawsze"
-await mont.getByText('Zawsze', { exact: true }).click();
+/* Wybor zawieszek pokazuje sie tylko szafce wiszacej — przy nozkach szafka stoi
+   na podlodze i to ustawienie tylko mylilo. */
+ok('przy nóżkach nie ma wyboru zawieszek',
+  await mont.getByText('Zawsze', { exact: true }).count() === 0,
+  String(await mont.getByText('Zawsze', { exact: true }).count()));
+// zdejmujemy nozki — wybor wraca i dalej dziala
+await nogi.getByText('Nóżki pod szafką', { exact: true }).click();
 await page.waitForTimeout(800);
-rows = await hwRows();
-ok('zawieszki "zawsze" mimo nóżek', qty(rows, 'Zawieszka') === 2);
+ok('bez nóżek wybór zawieszek wraca',
+  await mont.getByText('Zawsze', { exact: true }).count() > 0);
 await mont.getByText('Nigdy', { exact: true }).click();
 await page.waitForTimeout(800);
 ok('zawieszki "nigdy"', qty(await hwRows(), 'Zawieszka') === null);
 await mont.getByText('Auto', { exact: true }).click();
 await page.waitForTimeout(600);
+ok('auto wraca do zawieszek', qty(await hwRows(), 'Zawieszka') === 2);
 
 console.log('\n== kołki na rysunku otwartym ==');
 await clickView('Otw.');

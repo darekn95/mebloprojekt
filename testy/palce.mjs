@@ -17,7 +17,7 @@ const notes = () => page.evaluate(() => {
     txt: li.textContent.trim(), btns: [...li.querySelectorAll('button')].map((b) => b.textContent.trim()),
   })) : [];
 });
-const hwRows = () => card(/^Produkty do zamówienia$/).evaluate((sec) =>
+const hwRows = () => card(/^Produkty do zamówienia/).evaluate((sec) =>
   [...sec.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.trim()).join(' | ')));
 const cutRows = () => card(/^Formatki do zamówienia$/).evaluate((sec) =>
   [...sec.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.trim()).join(' | ')));
