@@ -330,9 +330,12 @@ jesli da sie ja wyprowadzic z wymiaru. Wzorzec jest wszedzie ten sam — para na
 koncach plus jedna sztuka co ustalony odcinek, czyli
 `Math.max(2, Math.ceil(dlugosc / skok))`. Skoki, ktore juz sa w kodzie:
 trojkat pod cokolem co 300 mm, trojkat pod blatem co 400 mm w dwoch rzedach,
-zlaczka fixu ramienia co 400 mm w dwoch rzedach, wkret 4 x 30 do katownika
-co 200 mm, konfirmat co 200 mm. Zawiasy (takze lamane 90 stopni) licza sie
-przez `autoHinges(wysokosc, szerokosc)`, nogi przez `legPlan`.
+trojkat pod fixem ramienia co 400 mm w dwoch rzedach, wkret 4 x 30 do
+katownika co 200 mm, konfirmat co 200 mm. Zawiasy (takze 165 stopni i lamane
+90 stopni) licza sie przez `autoHinges(wysokosc, szerokosc)` — kazde skrzydlo
+ze SWOJEJ wielkosci, wiec skrzydlo przy boku i skrzydlo na ramieniu moga miec
+rozna liczbe zawiasow. Nogi licza sie przez `legPlan`, a klipsy cokolu to
+`legs.xs.length`, czyli nozki przedniego rzedu.
 
 [AI-INFO] Kazda pozycja okucia musi miec wpis w `DEFAULT_HW_PRICES` — inaczej
 `hwDefaultPrice` zwraca 0 i wycena po cichu zaniza sume, bez zadnego
@@ -343,3 +346,28 @@ musza sie zgadzac co do znaku (takze co do spacji wokol znaku „x").
 od wolajacego (`editItemCab` podaje material tej szafki drugim argumentem
 callbacku), `migrateCab` z materialu projektu, a ostatnia deska ratunku to
 `defaultMaterials.front.thickness`, nigdy goly literal 18.
+
+[AI-INFO] Szafka narozna ze skrzydlami lamanymi ma DWA rodzaje zawiasow i
+zaden z nich nie jest zwykly: pierwsze skrzydlo wisi na boku na zawiasie
+165 stopni (nazwa pozycji „Zawias 165°", liczona w `computeGeo` przez
+`skrzydlaLamane`), drugie wisi na pierwszym na „Zawias lamany 90°" liczonym
+w `cornerArmParts`. W tym trybie ramie NIE dostaje zwyklej pozycji „Zawias" —
+kiedys dostawalo i zawiasy liczyly sie podwojnie.
+
+[AI-INFO] Fix ramienia przykreca sie od srodka na trojkaty meblarskie, tak samo
+jak cokol bez nozek — nie na zadne osobne zlaczki. Wiersz jest podpisany
+„fix ramienia", zeby odroznic go od trojkatow cokolu; zestawienie grupuje
+pozycje po nazwie ORAZ opisie, wiec te dwa uzycia zostaja osobno.
+
+[AI-INFO] Luz miedzy drzwiami musi byc parzysty, jesli luz brzegowy tez jest
+parzysty. Pasmo frontu to szerokosc minus dwa luzy brzegowe, czyli liczba
+parzysta; po odjeciu nieparzystego luzu srodkowego nie dzieli sie na rowno i
+jedno skrzydlo wychodzi o milimetr szersze. Dlatego domyslny `gaps.between`
+to 4, a nie 3 — przy 3 podpowiedz „drzwi roznia sie o 1 mm" wyskakiwala na
+KAZDEJ swiezej szafce o parzystej szerokosci. Testy, ktore licza szerokosc
+frontu w rogu, musza brac `gaps.between` z projektu, a nie wpisywac liczbe.
+
+[AI-INFO] Dane katalogowe (skrzynki V-BOX, minimalne wysokosci frontow) sa
+podane dla plyty 18 mm. Innej grubosci nie blokujemy, ale `computeGeo` daje
+wtedy ostrzezenie „Plyta inna niz 18 mm" — 99 procent projektow idzie na 18,
+wiec to nie jest szum, tylko sygnal, ze liczby z katalogu wymagaja sprawdzenia.

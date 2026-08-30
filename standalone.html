@@ -151,10 +151,10 @@ const DEFAULT_HW_PRICES = {
   "Zszywka / gwoździk do pleców": 0.05,
   "Wkręt 3,5 × 30 do pleców": 0.05,
   "Wkręt 4 × 30": 0.08,
-  /* Okucia naroznika nie mialy wpisu, wiec wycena liczyla je po 0 zl —
-     ceny orientacyjne, tak jak reszta tej tabeli, i tak samo do zmiany. */
-  "Zawias łamany 90°": 12,
-  "Złączka meblowa": 0.6,
+  /* Zawiasy szafki naroznej ze skrzydlami lamanymi: pierwsze skrzydlo na
+     zawiasie szerokokatnym, drugie na lamanym — jedne i drugie po 15 zl. */
+  "Zawias 165°": 15,
+  "Zawias łamany 90°": 15,
 };
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
@@ -513,7 +513,12 @@ const defaultCab = {
   frontMode: "overlay",
   // overBottom / overTop — o ile front skrajnej szuflady zachodzi na dno i wieniec,
   // underRail — o ile front schodzi ponizej wlasnej szyny, gdy pod nia nic nie ma
-  gaps: { edge: 2, between: 3, top: 3, bottom: 3, inset: 2, divOverlay: 7,
+  /* Luz miedzy drzwiami musi byc PARZYSTY, jesli luz przy krawedziach tez jest
+     parzysty — inaczej pasmo (szerokosc minus dwa luzy brzegowe, czyli liczba
+     parzysta) po odjeciu nieparzystego luzu srodkowego nie dzieli sie na rowno
+     i jedno skrzydlo wychodzi o milimetr szersze. Przy 2 i 3 tak bylo na KAZDEJ
+     szafce o parzystej szerokosci; przy 2 i 4 kazda dzieli sie rowno. */
+  gaps: { edge: 2, between: 4, top: 3, bottom: 3, inset: 2, divOverlay: 7,
           overBottom: 15, overTop: 15, underRail: 5 },
   maxGap: 5,
   /* Ile uchwyt wystaje przed lico frontu — tak samo dla drzwi i dla szuflad.
@@ -2048,6 +2053,19 @@ function computeGeo(cab, mat, ctx) {
   if (doors.length >= 2 && g.between < 2)
     add("warn", "Luz między drzwiami poniżej 2 mm — mogą się blokować przy otwieraniu.");
 
+  /* Katalogi okuc, z ktorych liczy ta aplikacja (skrzynki V-BOX, minimalne
+     wysokosci frontow, cofniecia wzmocnien), sa podane dla plyty 18 mm. Innej
+     nie blokujemy — trzeba tylko wiedziec, ze te liczby wymagaja sprawdzenia. */
+  const NORMALNA_PLYTA = 18;
+  const inne = [
+    t !== NORMALNA_PLYTA ? `korpus ${fmt(t)} mm` : null,
+    tf !== NORMALNA_PLYTA ? `front ${fmt(tf)} mm` : null,
+    ts !== t && ts !== NORMALNA_PLYTA ? `półki ${fmt(ts)} mm` : null,
+  ].filter(Boolean);
+  if (inne.length)
+    add("warn", `Płyta inna niż 18 mm (${inne.join(", ")}) — wymiary skrzynek szuflad`
+      + " i minimalne wysokości frontów liczone są z katalogu dla 18 mm, sprawdź je przed zamówieniem.");
+
   if (cab.frontMode === "inset" && doors.length > 0) {
     const need = carcassDepth - (tf + 5);
     if (shelfDepth > need)
@@ -2837,12 +2855,18 @@ function computeGeo(cab, mat, ctx) {
       qty: handleCount,
       unit: "szt.",
     });
+  /* Szafka narozna ze skrzydlami lamanymi: pierwsze skrzydlo wisi na boku i
+     musi otworzyc sie szerzej niz zwykle, zeby drugie zdazylo sie zlozyc —
+     stad zawias 165 stopni zamiast zwyklego. Drugie skrzydlo wisi juz na tym
+     pierwszym, na zawiasie lamanym, i liczy sie przy ramieniu. */
+  const skrzydlaLamane = !!(cab.corner || {}).on && (cab.corner || {}).doors === "lamane";
   if (hingeCount)
     hardware.push({
-      name: "Zawias",
-      spec:
-        (cab.frontMode === "overlay" ? "nakładany" : "wpuszczany") +
-        ", 2 szt. na skrzydło poza szerokimi i wysokimi",
+      name: skrzydlaLamane ? "Zawias 165°" : "Zawias",
+      spec: skrzydlaLamane
+        ? "skrzydło przy boku szafki narożnej — otwiera się na tyle, żeby drugie skrzydło się złożyło"
+        : (cab.frontMode === "overlay" ? "nakładany" : "wpuszczany") +
+          ", 2 szt. na skrzydło poza szerokimi i wysokimi",
       qty: hingeCount,
       unit: "szt.",
     });
@@ -7832,18 +7856,23 @@ const cornerArmParts = (a) => {
       edges: { a1: false, a2: true, b1: true, b2: true }, note: "krawędź dolna oraz oba końce" });
   /* Fix nie ma zawiasow — trzyma sie na zlaczkach od srodka, zeby z zewnatrz
      nie bylo nic widac. */
-  /* Zlaczek nie wpisujemy na sztywno: para na kazdym koncu fixu i kolejna
-     co ok. 400 mm wysokosci, zeby wysoki fix nie trzymal sie na czterech.
-     Zawiasow tyle, ile wychodzi z wysokosci i szerokosci skrzydla — tak samo
-     jak przy drzwiach szafki. Na sztywno wpisane 3 rozjezdzaly sie z rysunkiem,
-     ktory rysuje tyle zawiasow, co przy froncie korpusu. */
-  const zlaczek = 2 * Math.max(2, Math.ceil(inner / 400));
+  /* Fix przykreca sie od srodka na trojkaty meblarskie — tak samo jak cokol
+     bez nozek. Trojkatow nie wpisujemy na sztywno: para na kazdym koncu i
+     kolejna co ok. 400 mm wysokosci, zeby wysoki fix nie trzymal sie na
+     czterech. Zawiasow tyle, ile wychodzi z wysokosci i szerokosci skrzydla —
+     tak samo jak przy drzwiach szafki. */
+  const trojkatow = 2 * Math.max(2, Math.ceil(inner / 400));
+  const zawiasow = autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w);
+  /* Skrzydla lamane: drugie skrzydlo wisi na pierwszym, a nie na korpusie,
+     wiec zwyklych zawiasow do niego nie ma — sa tylko lamane. */
   const hardware = fix
-    ? [{ name: "Złączka meblowa",
-        spec: `fix ramienia szafki narożnej, od środka: 2 rzędy po ${zlaczek / 2} na ${fmt(inner)} mm`,
-        qty: zlaczek, unit: "szt." }]
-    : [{ name: "Zawias", spec: "front ramienia szafki narożnej",
-        qty: autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w), unit: "szt." }];
+    ? [{ name: "Trójkąt meblarski",
+        spec: `fix ramienia szafki narożnej, przykręcany od środka: 2 rzędy po ${trojkatow / 2} na ${fmt(inner)} mm`,
+        qty: trojkatow, unit: "szt." }]
+    : a.doors === "lamane"
+      ? []
+      : [{ name: "Zawias", spec: "front ramienia szafki narożnej",
+          qty: zawiasow, unit: "szt." }];
   /* Ramie liczy okucia tak samo jak szafka: konfirmaty na stykach plyt
      poziomych z bokiem, kolki pod polke, wkrety do wzmocnien i katownika,
      nozki pod wolnym koncem. Bez tego zamowienie mowilo tylko o zawiasach. */
@@ -7875,8 +7904,9 @@ const cornerArmParts = (a) => {
   /* Zawiasow lamanych tyle samo, co zwyklych na tej wysokosci — spinaja
      skrzydla na calej dlugosci styku, wiec przy wysokim froncie dwa to za malo. */
   if (a.doors === "lamane")
-    hardware.push({ name: "Zawias łamany 90°", spec: "spina dwa skrzydła szafki narożnej",
-      qty: autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w), unit: "szt." });
+    hardware.push({ name: "Zawias łamany 90°",
+      spec: "spina drugie skrzydło z pierwszym — pierwsze wisi na boku na zawiasie 165°",
+      qty: zawiasow, unit: "szt." });
   return { panels, hardware };
 };
 

@@ -26,7 +26,11 @@ const vals = await luzy.evaluate((s) => {
   return out;
 });
 console.log('  pola luzów:', JSON.stringify(vals));
-ok('między drzwiami 3 mm', vals['Między drzwiami'] === '3', vals['Między drzwiami']);
+/* Luz miedzy drzwiami jest parzysty (4 mm), zeby pasmo — szerokosc minus dwa
+   luzy brzegowe, czyli liczba parzysta — dzielilo sie na rowne skrzydla.
+   Przy 3 mm kazda szafka o parzystej szerokosci dawala jedno skrzydlo szersze
+   o milimetr. */
+ok('między drzwiami 4 mm i parzyste', vals['Między drzwiami'] === '4', vals['Między drzwiami']);
 ok('u góry 3 mm', vals['U góry'] === '3', vals['U góry']);
 ok('u dołu 3 mm', vals['U dołu'] === '3', vals['U dołu']);
 ok('od krawędzi zostaje 2 mm', vals['Od krawędzi korpusu'] === '2', vals['Od krawędzi korpusu']);

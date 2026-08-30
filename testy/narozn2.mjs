@@ -55,6 +55,11 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 
 console.log('== ramie odsuwa drugi ciag ==');
 await uklad(0);
+/* Szerokosc frontu w rogu konczy sie na luzie miedzy drzwiami, wiec liczby
+   wyprowadzamy z projektu zamiast wpisywac je tutaj — inaczej zmiana
+   domyslnego luzu wywracala test. */
+const luzDrzwi = await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('szafki:projekt')).items[1].cab.gaps.between);
 await pick('Zabudowa');
 await pick('Z góry');
 let k = (await mmShapes('rect')).filter((q) => q.f === '#fafaf9' && q.w > 100 && q.h > 100);
@@ -122,7 +127,10 @@ ok('wariant z fixem opisany', /zaślepione fixem/.test(uw), uw.slice(0, 300));
 body = await page.evaluate(() => document.body.innerText);
 ok('formatka to fix, nie front', body.includes('Fix ramienia') && !body.includes('Front ramienia'), '');
 ok('fix nie dostaje zawiasów', !/front ramienia szafki narożnej/.test(body), '');
-ok('fix trzyma się na złączkach', body.includes('Złączka meblowa'), '');
+/* Fix przykreca sie od srodka na trojkaty meblarskie — tak samo jak cokol
+   bez nozek. Wiersz musi byc podpisany fixem, zeby nie pomylic go z cokolem. */
+ok('fix trzyma się na trójkątach meblarskich',
+  /Trójkąt meblarski[^\n]*fix ramienia/.test(body), '');
 ok('przy fixie nie ma kątownika', !body.includes('Kątownik narożnika'), '');
 
 console.log('\n== za waski korpus przy szafce naroznej ==');
@@ -131,7 +139,11 @@ console.log('\n== za waski korpus przy szafce naroznej ==');
 await uklad(500, 700);
 uw = await card(/Uwagi/).innerText();
 console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 240));
-ok('ostrzeżenie o zbyt wąskim froncie', /tylko 37 mm frontu/.test(uw), uw.slice(0, 240));
+/* Ostatni skladnik znowu jest luzem miedzy drzwiami, wiec liczymy tak samo
+   jak wyzej: 700 - 600 - 18 - (60 - 18) - luz. */
+const waskie = 700 - 600 - 18 - (60 - 18) - luzDrzwi;
+ok('ostrzeżenie o zbyt wąskim froncie',
+  new RegExp('tylko ' + waskie + ' mm frontu').test(uw), uw.slice(0, 240));
 await uklad(500, 500);   // korpus wezszy niz ramie → nie ma frontu w ogole
 uw = await card(/Uwagi/).innerText();
 ok('brak frontu to błąd', /nie ma frontu od strony/.test(uw), uw.slice(0, 240));
@@ -145,7 +157,8 @@ await uklad(500, 900);   // korpus 900, ramie 600 gleboko → front tylko 237 mm
    obu lic, wiec poza naroze wystaje o grubosc frontu mniej: 900 - 600 - 18
    - (60 - 18) - 3 = 237. Pasmo frontu jest do tego przyciete, wiec drzwi maja
    te szerokosc same z siebie — nie trzeba jej nigdzie wpisywac. */
-const swiatlo = 237;
+const swiatlo = 900 - 600 - 18 - (60 - 18) - luzDrzwi;
+console.log('     luz między drzwiami ' + luzDrzwi + ' mm → światło ' + swiatlo + ' mm');
 // widok „Szafka" pokazuje aktywna szafke — klikamy w kafel naroznika
 await page.locator('button', { hasText: /^rogowa/ }).first().click();
 await page.waitForTimeout(1000);

@@ -90,40 +90,53 @@ const seed = async (H, doors, arm = 500) => {
   await page.waitForTimeout(2400);
 };
 
-console.log('\n== zlaczki fixu ida za wysokoscia ramienia ==');
-const zlaczki = async (H) => {
+console.log('\n== fix trzyma sie na trojkatach, tyle ile wysokosci ==');
+const fixTr = async (H) => {
   await seed(H, 'fix');
   const rs = await projRows();
-  const w = rs.find((r) => /^Złączka meblowa/.test(r)) || '(brak)';
+  const w = rs.find((r) => /^Trójkąt meblarski \| fix ramienia/.test(r)) || '(brak)';
   console.log(`     H=${H}: ` + w);
-  return { ile: qty(rs, 'Złączka meblowa'), opis: w };
+  const m = /2 rzędy po (\d+) na (\d+) mm \| (\d+)/.exec(w);
+  return m ? { wRzedzie: +m[1], swiatlo: +m[2], ile: +m[3] } : null;
 };
-const z720 = await zlaczki(720);
-const z2000 = await zlaczki(2000);
-ok('opis podaje rzedy i swiatlo', /2 rzędy po \d+ na \d+ mm/.test(z720.opis), z720.opis);
-const zRzedu = (o) => { const m = /2 rzędy po (\d+) na (\d+) mm/.exec(o); return m ? [+m[1], +m[2]] : null; };
-const p720 = zRzedu(z720.opis); const p2000 = zRzedu(z2000.opis);
-ok('zlaczek dokladnie 2 x rzad (720)', p720 && z720.ile === 2 * p720[0], `${z720.ile} vs ${p720 && 2 * p720[0]}`);
-ok('rzad z podzialu swiatla co 400 mm (720)',
-  p720 && p720[0] === Math.max(2, Math.ceil(p720[1] / 400)), JSON.stringify(p720));
-ok('rzad z podzialu swiatla co 400 mm (2000)',
-  p2000 && p2000[0] === Math.max(2, Math.ceil(p2000[1] / 400)), JSON.stringify(p2000));
-ok('wyzsze ramie ma wiecej zlaczek', z2000.ile > z720.ile, `${z720.ile} → ${z2000.ile}`);
+const t720 = await fixTr(720);
+const t2000 = await fixTr(2000);
+ok('fix idzie na trojkaty meblarskie, nie na zlaczki', !!t720, '(brak wiersza trojkatow dla fixu)');
+ok('zlaczki meblowej juz nie ma', qty(await projRows(), 'Złączka meblowa') === null, '');
+if (t720 && t2000) {
+  ok('trojkatow dokladnie 2 x rzad (720)', t720.ile === 2 * t720.wRzedzie, JSON.stringify(t720));
+  ok('rzad z podzialu swiatla co 400 mm (720)',
+    t720.wRzedzie === Math.max(2, Math.ceil(t720.swiatlo / 400)), JSON.stringify(t720));
+  ok('rzad z podzialu swiatla co 400 mm (2000)',
+    t2000.wRzedzie === Math.max(2, Math.ceil(t2000.swiatlo / 400)), JSON.stringify(t2000));
+  ok('wyzszy fix ma wiecej trojkatow', t2000.ile > t720.ile, `${t720.ile} \u2192 ${t2000.ile}`);
+}
 
-console.log('\n== zawiasy lamane licza sie jak zwykle ==');
+console.log('\n== skrzydla lamane: 165 stopni do boku, 90 do drzwi ==');
 const lamane = async (H, arm = 500) => {
   await seed(H, 'lamane', arm);
   const rs = await projRows();
-  const zw = qty(rs, 'Zawias łamany');
-  console.log(`     H=${H}, ramie ${arm}: łamane ${zw}`);
-  return zw;
+  const wynik = { l: qty(rs, 'Zawias łamany'), s: qty(rs, 'Zawias 165'), z: qty(rs, 'Zawias |') };
+  console.log(`     H=${H}, ramie ${arm}: 165 stopni ${wynik.s}, lamane ${wynik.l}`);
+  return wynik;
 };
 const l720 = await lamane(720);
 /* Reguly sa te same, co przy zwyklych zawiasach: waskie skrzydlo zawsze dwa,
    trzeci dopiero przy szerokosci ponad 500 i wysokosci ponad 1400 mm. */
 const l2000 = await lamane(2000, 700);
-ok('przy 720 mm dwa zawiasy lamane', l720 === 2, String(l720));
-ok('wysokie i szerokie skrzydlo dostaje trzeci', l2000 !== null && l2000 > 2, String(l2000));
+ok('skrzydlo przy boku dostaje zawias 165 stopni', l720.s === 2, String(l720.s));
+ok('drugie skrzydlo na zawiasie lamanym', l720.l === 2, String(l720.l));
+/* Kazde skrzydlo liczy zawiasy ze swojej wielkosci, a w narozniku skrzydlo
+   przy boku jest wezsze od tego na ramieniu — wiec liczby nie musza byc rowne.
+   Wazne, ze obie ida za wymiarem, a nie stoja na sztywno. */
+ok('szerokie skrzydlo ramienia dostaje trzeci zawias lamany', l2000.l > 2, String(l2000.l));
+ok('waskie skrzydlo przy boku zostaje przy dwoch', l2000.s === 2, String(l2000.s));
+/* Drugie skrzydlo wisi na pierwszym, wiec zwyklych zawiasow do ramienia nie ma
+   — kiedys liczyly sie podwojnie. */
+const rsL = await projRows();
+ok('ramie nie dostaje juz zwyklych zawiasow',
+  !rsL.some((r) => /^Zawias \| front ramienia/.test(r)),
+  JSON.stringify(rsL.filter((r) => /^Zawias/.test(r))));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();
