@@ -385,3 +385,10 @@ widac je w karcie pojedynczej szafki, ktora sie nie scala.
 
 [AI-INFO] Dodajac nowa pozycje okucia: nadaj jej `use`, jesli ten sam produkt
 moze wejsc w projekt z kilku powodow, i dopisz cene do `DEFAULT_HW_PRICES`.
+
+[AI-INFO] `SLOWNIK.md` to sciaga: etykieta w aplikacji -> sciezka w danych ->
+funkcja, ktora to liczy, plus dokladne nazwy formatek i okuc, kody szybkich
+poprawek i spis, co pilnuje ktora suita. Zajrzyj tam ZANIM zaczniesz szukac
+po calym `szafki.jsx` — szczegolnie przy narozniku, gdzie sa dwa rozne
+katowniki i latwo trafic w niewlasciwy. Zmieniasz etykiete, pole albo nazwe
+formatki — dopisz tam wiersz w tej samej zmianie.

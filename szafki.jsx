@@ -3326,7 +3326,10 @@ const armFrontV = (a) => a.depth + (armInset(a) ? 0 : a.cab.geo.tf);
 const cornerBracket = (arm) => {
   const geo = arm.cab.geo;
   const cab = arm.cab.cab;
-  const luz = (cab.gaps || {}).between ?? 3;
+  /* Luz miedzy katownikiem a frontami to ten sam luz, co miedzy drzwiami —
+     domyslna wartosc bierzemy z `defaultCab`, zeby nie rozjechala sie z nia,
+     gdy tam sie zmieni. */
+  const luz = (cab.gaps || {}).between ?? defaultCab.gaps.between;
   // szerokosc wspornikow w rogu: z ustawienia szafki, domyslnie CORNER_BRACKET_W
   const w = Math.max(MIN_PART, Math.round(Number((cab.corner || {}).bracketW) || CORNER_BRACKET_W));
   const tryb = (cab.corner || {}).bracket === "dluzsze" ? "dluzsze" : "krotsze";
