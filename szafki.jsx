@@ -226,6 +226,39 @@ const hwQty = (h) => (h.pack ? Math.ceil(h.qty / h.pack) : h.qty);
 const hwUnit = (h) => (h.pack ? "op." : h.unit);
 const hwNote = (h) => (h.pack ? ` (${h.qty} szt.)` : "");
 
+/* Zamowienie ma miec JEDEN wiersz na produkt. Rozbite wiersze — ten sam
+   trojkat osobno pod cokolem kazdej szafki i osobno pod fixem — zmuszaly do
+   przegladania calej tabeli i zgadywania, czy dane zastosowanie w ogole sie
+   policzylo. Pozycje z polem `use` (krotki opis, do czego ida) skladamy w
+   jeden wiersz i wypisujemy kazde zastosowanie z jego liczba, zeby po sumie
+   dalo sie sprawdzic, co sie na nia zlozylo. Pozycje bez `use` — prowadnice,
+   lustra — zostaja osobno, bo tam inny opis znaczy inny produkt do kupienia. */
+const scalOkucia = (lista) => {
+  const map = new Map();
+  lista.forEach((h) => {
+    const k = `${h.name}|${h.unit}|${h.pack || 0}|${h.use ? "" : h.spec}`;
+    const e = map.get(k);
+    if (!e) {
+      map.set(k, { ...h, uzycia: h.use ? [{ use: h.use, qty: h.qty }] : null });
+      return;
+    }
+    e.qty += h.qty;
+    if (!e.uzycia) return;
+    const u = e.uzycia.find((x) => x.use === h.use);
+    if (u) u.qty += h.qty;
+    else e.uzycia.push({ use: h.use, qty: h.qty });
+  });
+  return [...map.values()].map(({ uzycia, ...h }) => {
+    if (!uzycia) return h;
+    /* Przy jednym zastosowaniu liczba jest juz w kolumnie „Ilosc", wiec jej
+       nie powtarzamy — dopiero kilka zastosowan trzeba rozpisac. */
+    const opis = uzycia.length === 1
+      ? uzycia[0].use
+      : uzycia.map((u) => `${u.use} — ${qtyFmt(u.qty)} ${h.unit}`).join("; ");
+    return { ...h, spec: opis };
+  });
+};
+
 /* Ilosci w wycenie mnozy sie przez cene, wiec nie moga byc zaokraglone
    mocniej niz to, czym liczymy — fmt gubi setne i m2 przestaja sie zgadzac. */
 const qtyFmt = (n) => {
@@ -499,9 +532,10 @@ const defaultCab = {
   /* Luz miedzy drzwiami musi byc PARZYSTY, jesli luz przy krawedziach tez jest
      parzysty — inaczej pasmo (szerokosc minus dwa luzy brzegowe, czyli liczba
      parzysta) po odjeciu nieparzystego luzu srodkowego nie dzieli sie na rowno
-     i jedno skrzydlo wychodzi o milimetr szersze. Przy 2 i 3 tak bylo na KAZDEJ
-     szafce o parzystej szerokosci; przy 2 i 4 kazda dzieli sie rowno. */
-  gaps: { edge: 2, between: 4, top: 3, bottom: 3, inset: 2, divOverlay: 7,
+     i jedno skrzydlo wychodzi o milimetr szersze. Przy 3 tak bylo na KAZDEJ
+     szafce o parzystej szerokosci; przy 2 kazda dzieli sie rowno, a szpara
+     miedzy skrzydlami zostaje najwezsza, jaka jeszcze nie blokuje otwierania. */
+  gaps: { edge: 2, between: 2, top: 3, bottom: 3, inset: 2, divOverlay: 7,
           overBottom: 15, overTop: 15, underRail: 5 },
   maxGap: 5,
   /* Ile uchwyt wystaje przed lico frontu — tak samo dla drzwi i dla szuflad.
@@ -2834,6 +2868,7 @@ function computeGeo(cab, mat, ctx) {
     hardware.push({
       name: cab.handleName || "Uchwyt",
       pk: "Uchwyt",
+      use: "fronty z zaznaczonym uchwytem",
       spec: "na fronty z zaznaczonym uchwytem",
       qty: handleCount,
       unit: "szt.",
@@ -2846,6 +2881,9 @@ function computeGeo(cab, mat, ctx) {
   if (hingeCount)
     hardware.push({
       name: skrzydlaLamane ? "Zawias 165°" : "Zawias",
+      use: skrzydlaLamane
+        ? "pierwsze skrzydło szafki narożnej, na boku"
+        : "drzwi szafki",
       spec: skrzydlaLamane
         ? "skrzydło przy boku szafki narożnej — otwiera się na tyle, żeby drugie skrzydło się złożyło"
         : (cab.frontMode === "overlay" ? "nakładany" : "wpuszczany") +
@@ -2856,6 +2894,7 @@ function computeGeo(cab, mat, ctx) {
   if (cab.legs && cab.legs.on)
     hardware.push({
       name: "Nóżka regulowana",
+      use: "pod szafką",
       spec: `${(cab.legs || {}).shape === "round" ? "okrągła" : "kwadratowa"}, wysokość ${fmt(cab.legs.height || 100)} mm`
         + (legs.srodek ? ", w tym jedna podpora na środku dna" : ""),
       // tyle, ile ich stoi na rysunku — para na rog plus para na kazde 900 mm
@@ -2889,6 +2928,7 @@ function computeGeo(cab, mat, ctx) {
   if (confQty)
     hardware.push({
       name: "Konfirmat 7 × 50",
+      use: "złącza korpusu, co ok. 200 mm styku",
       spec: `złącza korpusu: ${jointNotes.join(", ")} szt.`,
       qty: confQty,
       unit: "szt.",
@@ -2899,6 +2939,7 @@ function computeGeo(cab, mat, ctx) {
   if (confQty)
     hardware.push({
       name: "Zaślepka na konfirmat",
+      use: "po jednej na widoczny łeb konfirmatu",
       spec: "blister 25 szt., po jednej na widoczny łeb",
       qty: confQty,
       unit: "szt.",
@@ -2912,6 +2953,7 @@ function computeGeo(cab, mat, ctx) {
     const wRzedzie = Math.max(2, Math.ceil(W / 400));
     hardware.push({
       name: "Trójkąt meblarski",
+      use: "blat roboczy przykręcany od spodu, 2 rzędy co ok. 400 mm",
       spec: `blat przykręcany od spodu — konfirmat zepsułby lico: 2 rzędy po ${wRzedzie} na ${fmt(W)} mm`,
       qty: 2 * wRzedzie,
       unit: "szt.",
@@ -2926,6 +2968,7 @@ function computeGeo(cab, mat, ctx) {
       const przod = legs.xs.length;
       hardware.push({
         name: "Złączka do cokołu",
+        use: "cokół wpinany w nóżki przedniego rzędu",
         spec: `klips na nóżkę — po jednym na każdą nóżkę przedniego rzędu (${przod})`,
         qty: przod,
         unit: "szt.",
@@ -2938,6 +2981,7 @@ function computeGeo(cab, mat, ctx) {
       const alongLong = Math.max(2, Math.ceil(plinthLen / 300));
       hardware.push({
         name: "Trójkąt meblarski",
+        use: "cokół skręcany do korpusu (bez nóżek), po obwodzie co ok. 300 mm",
         spec: `cokół skręcany bez nóżek: 2 na krótkie boki + ${alongLong} wzdłuż ${fmt(plinthLen)} mm (co ok. 300 mm)`,
         qty: 2 + alongLong,
         unit: "szt.",
@@ -2949,6 +2993,7 @@ function computeGeo(cab, mat, ctx) {
     const pin = cab.shelfPin || {};
     hardware.push({
       name: "Kołek podporowy ⌀5",
+      use: "półki szafki, po cztery na półkę",
       spec: `4 szt. na półkę, otwory ⌀5 — ${fmt(num(pin.dFront) ?? 37)} mm od przodu i ${fmt(num(pin.dBack) ?? 37)} mm od tyłu półki, wysokości na widoku otwartym liczone od ${
         cab.pinDatum === "bottom" ? "dna" : "dolnej krawędzi boku"}`,
       qty: colShelves * 4,
@@ -2963,6 +3008,7 @@ function computeGeo(cab, mat, ctx) {
     const nH = W >= 900 ? 4 : 2;
     hardware.push({
       name: "Zawieszka meblowa regulowana",
+      use: "szafka wieszana na ścianie",
       spec: "szafka bez nóżek i cokołu — wieszana na ścianie",
       qty: nH,
       unit: "szt.",
@@ -2971,6 +3017,7 @@ function computeGeo(cab, mat, ctx) {
     if (cab.hangerMode !== "haczyki")
       hardware.push({
         name: "Listwa montażowa do zawieszek",
+        use: "pod zawieszki szafek wiszących",
         spec: `odcinek ${fmt(Math.max(0, W - 40))} mm na szafkę`,
         qty: Math.round(Math.max(0, W - 40) / 100) / 10,
         unit: "mb",
@@ -2978,6 +3025,7 @@ function computeGeo(cab, mat, ctx) {
     else
       hardware.push({
         name: "Hak / wkręt z kołkiem do ściany",
+        use: "zawieszki wieszane bez listwy",
         spec: "zawieszki wieszane bez listwy — po jednym na zawieszkę",
         qty: nH,
         unit: "szt.",
@@ -3000,6 +3048,7 @@ function computeGeo(cab, mat, ctx) {
   if (wkretyPlyt)
     hardware.push({
       name: "Wkręt 4 × 30",
+      use: "wzmocnienia i kątownik skręcane na licu — 4 na wzmocnienie, kątownik co ok. 200 mm",
       spec: `skręcanie płyt na licu: ${wkretyOpis.join(", ")} szt.`,
       qty: wkretyPlyt,
       unit: "szt.",
@@ -3012,6 +3061,7 @@ function computeGeo(cab, mat, ctx) {
     const per = 2 * (W + H);
     hardware.push({
       name: backIsBoard ? "Wkręt 3,5 × 30 do pleców" : "Zszywka / gwoździk do pleców",
+      use: "plecy przybijane po obwodzie, co ok. 100 mm",
       spec: "co ok. 100 mm po obwodzie",
       qty: Math.ceil(per / 100),
       unit: "szt.",
@@ -7849,12 +7899,13 @@ const cornerArmParts = (a) => {
   /* Skrzydla lamane: drugie skrzydlo wisi na pierwszym, a nie na korpusie,
      wiec zwyklych zawiasow do niego nie ma — sa tylko lamane. */
   const hardware = fix
-    ? [{ name: "Trójkąt meblarski",
+    ? [{ name: "Trójkąt meblarski", use: "fix ramienia szafki narożnej, od środka, 2 rzędy co ok. 400 mm",
         spec: `fix ramienia szafki narożnej, przykręcany od środka: 2 rzędy po ${trojkatow / 2} na ${fmt(inner)} mm`,
         qty: trojkatow, unit: "szt." }]
     : a.doors === "lamane"
       ? []
-      : [{ name: "Zawias", spec: "front ramienia szafki narożnej",
+      : [{ name: "Zawias", use: "front ramienia szafki narożnej",
+          spec: "front ramienia szafki narożnej",
           qty: zawiasow, unit: "szt." }];
   /* Ramie liczy okucia tak samo jak szafka: konfirmaty na stykach plyt
      poziomych z bokiem, kolki pod polke, wkrety do wzmocnien i katownika,
@@ -7863,10 +7914,12 @@ const cornerArmParts = (a) => {
   const konfQty = konf(armTop ? 2 : 1, a.depth);
   if (konfQty)
     hardware.push({ name: "Konfirmat 7 × 50",
+      use: "złącza ramienia szafki narożnej, co ok. 200 mm styku",
       spec: `ramię szafki narożnej: ${armTop ? "wieniec i dno" : "dno"} do boku ramienia`,
       qty: konfQty, unit: "szt." });
   if (polek > 0 && cab.shelfMount !== "confirmat")
     hardware.push({ name: "Kołek podporowy ⌀5",
+      use: "półki ramienia narożnika, po cztery na półkę",
       spec: "półki ramienia, po cztery na półkę", qty: polek * 4, unit: "szt." });
   {
     const naPlyte = Math.max(2, Math.ceil(inner / 200));
@@ -7875,12 +7928,14 @@ const cornerArmParts = (a) => {
     if (plan.rails.length) { wk += plan.rails.length * 4; opis.push(`wzmocnienia ${plan.rails.length}×4`); }
     if (a.bracket) { wk += 4 * naPlyte; opis.push(`kątownik narożnika 4×${naPlyte}`); }
     if (wk) hardware.push({ name: "Wkręt 4 × 30",
+      use: "wzmocnienia i kątownik ramienia narożnika — 4 na wzmocnienie, kątownik co ok. 200 mm",
       spec: `ramię szafki narożnej: ${opis.join(", ")} szt.`, qty: wk, unit: "szt." });
   }
   if (cab.legs && cab.legs.on) {
     // para pod wolnym koncem, a przy dlugim ramieniu jeszcze jedna posrodku
     const ile = 2 + 2 * Math.floor(len / 900);
     hardware.push({ name: "Nóżka regulowana",
+      use: "pod ramieniem szafki narożnej",
       spec: `pod ramieniem szafki narożnej, wysokość ${fmt(cab.legs.height || 100)} mm`,
       qty: ile, unit: "szt." });
   }
@@ -7888,6 +7943,7 @@ const cornerArmParts = (a) => {
      skrzydla na calej dlugosci styku, wiec przy wysokim froncie dwa to za malo. */
   if (a.doors === "lamane")
     hardware.push({ name: "Zawias łamany 90°",
+      use: "drugie skrzydło szafki narożnej, spięte z pierwszym",
       spec: "spina drugie skrzydło z pierwszym — pierwsze wisi na boku na zawiasie 165°",
       qty: zawiasow, unit: "szt." });
   return { panels, hardware };
@@ -7967,7 +8023,8 @@ const projectParts = (project) => {
     if (rt) runs.push({ ...base, mat: rt.mat, name: `Blat — ${run.name}`,
       panels: runTopPanels(rt), hardware: [] });
     if (rr) runs.push({ ...base, name: `Listwa — ${run.name}`, panels: [],
-      hardware: [{ name: RAIL_NAME, spec: `jeden odcinek ${fmt(rr.len)} mm na ciąg`,
+      hardware: [{ name: RAIL_NAME, use: "pod zawieszki szafek wiszących",
+        spec: `jeden odcinek ${fmt(rr.len)} mm na ciąg`,
         qty: Math.round(rr.len / 100) / 10, unit: "mb" }] });
   });
   /* Ramie szafki naroznej to osobna pozycja: formatki ida na te sama plyte, co
@@ -9215,15 +9272,7 @@ function ReportProjectSheet({ project, projectName }) {
   const area = {};
   rows.forEach((p) => { area[p.matName] = (area[p.matName] || 0) + (p.qty * p.a * p.b) / 1e6; });
   const hardware = useMemo(() => {
-    const map = new Map();
-    projectParts(project).forEach((part) => {
-      part.hardware.forEach((h) => {
-        const k = `${h.name}|${h.spec}|${h.unit}`;
-        if (map.has(k)) map.get(k).qty += h.qty;
-        else map.set(k, { ...h });
-      });
-    });
-    return [...map.values()];
+    return scalOkucia(projectParts(project).flatMap((part) => part.hardware));
   }, [project]);
 
   return (
@@ -10346,15 +10395,7 @@ export default function App() {
 
   // okucia calego projektu — te same pozycje z roznych szafek sumujemy
   const projectHardware = useMemo(() => {
-    const map = new Map();
-    projectParts(project).forEach((part) => {
-      part.hardware.forEach((h) => {
-        const k = `${h.name}|${h.spec}|${h.unit}`;
-        if (map.has(k)) map.get(k).qty += h.qty;
-        else map.set(k, { ...h });
-      });
-    });
-    return [...map.values()];
+    return scalOkucia(projectParts(project).flatMap((part) => part.hardware));
   }, [project]);
 
   // rozkroj liczymy tylko na zadanie — to najciezsza operacja w aplikacji

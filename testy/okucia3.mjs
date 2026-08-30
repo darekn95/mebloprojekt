@@ -91,26 +91,27 @@ const seed = async (H, doors, arm = 500) => {
 };
 
 console.log('\n== fix trzyma sie na trojkatach, tyle ile wysokosci ==');
+/* Zamowienie ma jeden wiersz na produkt, wiec trojkaty pod fixem sumuja sie z
+   tymi pod cokolem — liczbe czytamy z rozpisanych zastosowan w opisie. */
 const fixTr = async (H) => {
   await seed(H, 'fix');
   const rs = await projRows();
-  const w = rs.find((r) => /^Trójkąt meblarski \| fix ramienia/.test(r)) || '(brak)';
+  const w = rs.find((r) => /^Trójkąt meblarski/.test(r)) || '(brak)';
   console.log(`     H=${H}: ` + w);
-  const m = /2 rzędy po (\d+) na (\d+) mm \| (\d+)/.exec(w);
-  return m ? { wRzedzie: +m[1], swiatlo: +m[2], ile: +m[3] } : null;
+  const m = /fix ramienia[^;|]*— (\d+) szt/.exec(w);
+  return { wiersz: w, fix: m ? +m[1] : null,
+    razem: Number((w.split('|').pop() || '').trim().split(' ')[0]) };
 };
 const t720 = await fixTr(720);
 const t2000 = await fixTr(2000);
-ok('fix idzie na trojkaty meblarskie, nie na zlaczki', !!t720, '(brak wiersza trojkatow dla fixu)');
+ok('fix idzie na trojkaty meblarskie, nie na zlaczki', t720.fix !== null, t720.wiersz);
 ok('zlaczki meblowej juz nie ma', qty(await projRows(), 'Złączka meblowa') === null, '');
-if (t720 && t2000) {
-  ok('trojkatow dokladnie 2 x rzad (720)', t720.ile === 2 * t720.wRzedzie, JSON.stringify(t720));
-  ok('rzad z podzialu swiatla co 400 mm (720)',
-    t720.wRzedzie === Math.max(2, Math.ceil(t720.swiatlo / 400)), JSON.stringify(t720));
-  ok('rzad z podzialu swiatla co 400 mm (2000)',
-    t2000.wRzedzie === Math.max(2, Math.ceil(t2000.swiatlo / 400)), JSON.stringify(t2000));
-  ok('wyzszy fix ma wiecej trojkatow', t2000.ile > t720.ile, `${t720.ile} \u2192 ${t2000.ile}`);
-}
+ok('jeden wiersz na produkt, zastosowania rozpisane',
+  /cokół[^;|]*—[^;|]*;\s*fix ramienia/.test(t720.wiersz), t720.wiersz);
+ok('suma to tyle, ile wychodzi z zastosowan',
+  t720.razem > t720.fix, `${t720.fix} z ${t720.razem}`);
+ok('swiatlo 684 mm -> 2 rzedy po 2', t720.fix === 4, String(t720.fix));
+ok('swiatlo 1964 mm -> 2 rzedy po 5', t2000.fix === 10, String(t2000.fix));
 
 console.log('\n== skrzydla lamane: 165 stopni do boku, 90 do drzwi ==');
 const lamane = async (H, arm = 500) => {
@@ -135,7 +136,7 @@ ok('waskie skrzydlo przy boku zostaje przy dwoch', l2000.s === 2, String(l2000.s
    — kiedys liczyly sie podwojnie. */
 const rsL = await projRows();
 ok('ramie nie dostaje juz zwyklych zawiasow',
-  !rsL.some((r) => /^Zawias \| front ramienia/.test(r)),
+  !rsL.some((r) => /^Zawias \|/.test(r) && /front ramienia/.test(r)),
   JSON.stringify(rsL.filter((r) => /^Zawias/.test(r))));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');

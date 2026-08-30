@@ -363,11 +363,25 @@ pozycje po nazwie ORAZ opisie, wiec te dwa uzycia zostaja osobno.
 parzysty. Pasmo frontu to szerokosc minus dwa luzy brzegowe, czyli liczba
 parzysta; po odjeciu nieparzystego luzu srodkowego nie dzieli sie na rowno i
 jedno skrzydlo wychodzi o milimetr szersze. Dlatego domyslny `gaps.between`
-to 4, a nie 3 — przy 3 podpowiedz „drzwi roznia sie o 1 mm" wyskakiwala na
-KAZDEJ swiezej szafce o parzystej szerokosci. Testy, ktore licza szerokosc
+to 2, a nie 3 — przy 3 podpowiedz „drzwi roznia sie o 1 mm" wyskakiwala na
+KAZDEJ swiezej szafce o parzystej szerokosci. Ten sam luz dziala miedzy
+frontami szuflad, wiec jego zmiana rusza tez przyciecie podniesionych tylow. Testy, ktore licza szerokosc
 frontu w rogu, musza brac `gaps.between` z projektu, a nie wpisywac liczbe.
 
 [AI-INFO] Dane katalogowe (skrzynki V-BOX, minimalne wysokosci frontow) sa
 podane dla plyty 18 mm. Innej grubosci nie blokujemy, ale `computeGeo` daje
 wtedy ostrzezenie „Plyta inna niz 18 mm" — 99 procent projektow idzie na 18,
 wiec to nie jest szum, tylko sygnal, ze liczby z katalogu wymagaja sprawdzenia.
+
+[AI-INFO] Zestawienie okuc calego projektu (i wydruk) idzie przez
+`scalOkucia` — JEDEN wiersz na produkt. Pozycja z polem `use` (krotki opis
+zastosowania wraz z rozstawem, np. „cokol skrecany do korpusu (bez nozek),
+po obwodzie co ok. 300 mm") laczy sie z innymi o tej samej nazwie, a opis
+wiersza wypisuje wszystkie zastosowania z ich liczbami. Etykieta `use` NIE
+moze zawierac wymiaru konkretnej szafki — inaczej wiersze znowu sie rozjada.
+Pozycja bez `use` (prowadnice, lustra) zostaje osobno, bo tam inny opis
+znaczy inny produkt do kupienia. Szczegoly z wymiarami zostaja w `spec` i
+widac je w karcie pojedynczej szafki, ktora sie nie scala.
+
+[AI-INFO] Dodajac nowa pozycje okucia: nadaj jej `use`, jesli ten sam produkt
+moze wejsc w projekt z kilku powodow, i dopisz cene do `DEFAULT_HW_PRICES`.
