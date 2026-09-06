@@ -214,6 +214,13 @@ Rozstawy okuć (wzorzec `max(2, ceil(długość / skok))`): konfirmat co 200 mm,
 wkręt 4 × 30 do kątownika co 200 mm, trójkąt pod cokołem co 300 mm, trójkąt
 pod blatem i pod fixem co 400 mm w dwóch rzędach, zszywki co 100 mm.
 
+**Zasada „minimum 2 na styku"**: każdy styk dwóch płyt dostaje co najmniej dwa
+łączniki, bo na jednym płyta się obraca. Wkręt 4 × 30 to 4 na wzmocnienie
+(czyli 2 na koniec), kołek podporowy 4 na półkę (2 na bok).
+Jedyny wyjątek: **cokół skręcany bez nóżek** ma po 1 trójkącie na każdym
+krótkim boku — wolno, bo jest mocowany z trzech stron naraz, więc się nie
+przekręci. Nie „poprawiaj" tego przy audycie.
+
 ---
 
 ## 5. Dokładne nazwy formatek i okuć
