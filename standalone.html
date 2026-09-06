@@ -2991,15 +2991,17 @@ function computeGeo(cab, mat, ctx) {
         unit: "szt.",
       });
     } else {
-      /* Bez nozek cokol jest skrecany do korpusu na plastikowe trojkaty:
-         po jednym na kazdym krotkim boku plus wzdluz dlugiego co ok. 300 mm,
-         nie mniej niz dwa. */
+      /* Bez nozek cokol jest skrecany do korpusu na plastikowe trojkaty.
+         To JEDYNE miejsce, gdzie styk dostaje mniej niz dwa laczniki: cokol
+         jest mocowany z trzech stron naraz (oba konce plus dlugi bok), wiec
+         pojedynczy trojkat na koncu nie ma sie jak obrocic i calosc zostaje
+         sztywna. Wzdluz dlugiego boku co ok. 300 mm, nie mniej niz dwa. */
       const plinthLen = Math.round(plinthInBody ? innerW : W);
       const alongLong = Math.max(2, Math.ceil(plinthLen / 300));
       hardware.push({
         name: "Trójkąt meblarski",
         use: "cokół skręcany do korpusu (bez nóżek), po obwodzie co ok. 300 mm",
-        spec: `cokół skręcany bez nóżek: 2 na krótkie boki + ${alongLong} wzdłuż ${fmt(plinthLen)} mm (co ok. 300 mm)`,
+        spec: `cokół skręcany bez nóżek: po 1 na każdy krótki bok + ${alongLong} wzdłuż ${fmt(plinthLen)} mm (co ok. 300 mm)`,
         qty: 2 + alongLong,
         unit: "szt.",
       });

@@ -392,3 +392,19 @@ poprawek i spis, co pilnuje ktora suita. Zajrzyj tam ZANIM zaczniesz szukac
 po calym `szafki.jsx` — szczegolnie przy narozniku, gdzie sa dwa rozne
 katowniki i latwo trafic w niewlasciwy. Zmieniasz etykiete, pole albo nazwe
 formatki — dopisz tam wiersz w tej samej zmianie.
+
+[AI-INFO] Regula „minimum 2 na styku": kazdy styk dwoch plyt dostaje co
+najmniej dwa laczniki, bo na jednym plyta sie obraca. Stad wzorzec
+`Math.max(2, Math.ceil(dlugosc / skok))` wszedzie, gdzie liczymy zlacza —
+konfirmaty korpusu i ramienia, trojkaty pod blatem i pod fixem (dwa rzedy,
+kazdy z minimum dwoma), wkrety do katownika. Tam, gdzie licznik jest staly,
+i tak wychodzi po dwa na styk: wkret 4 x 30 to 4 na wzmocnienie, czyli 2 na
+kazdy koniec, a kolek podporowy to 4 na polke, czyli 2 na bok.
+
+JEDYNY udokumentowany wyjatek: cokol skrecany bez nozek dostaje po JEDNYM
+trojkacie na kazdy krotki bok (plus rzad wzdluz dlugiego co ok. 300 mm).
+Wolno tak, bo cokol jest mocowany z trzech stron naraz — oba konce i dlugi
+bok — wiec pojedynczy trojkat na koncu nie ma sie jak obrocic i calosc
+zostaje sztywna. To nie jest przeoczenie: nie „poprawiaj" tego przy kolejnym
+audycie. Kazdy nowy wyjatek wymaga takiego samego uzasadnienia z geometrii,
+a nie samego „tak wystarczy".
