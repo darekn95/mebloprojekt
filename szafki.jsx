@@ -1091,6 +1091,16 @@ function computeGeo(cab, mat, ctx) {
   const legBelow = Math.max(0, legH - legTop);
   // rozstaw i liczba nozek — jedno miejsce dla rysunkow i dla zamowienia
   const legs = legPlan(cab, W);
+  /* Recznie wpisana liczba nozek, przy ktorej srodek dna nie ma zadnej podpory.
+     Od 900 mm automat stawia pare posrodku; jedna nozka na srodku dna tez
+     wystarcza — dlatego podpowiedz odzywa sie dopiero ponizej tego, i od razu
+     proponuje obie wersje. To nie blad: pod spodem moze stac cos nosnego. */
+  const zalecaneNozki = autoLegs(W);
+  if (cab.legs && cab.legs.on && Number(cab.legs.count) > 0
+      && zalecaneNozki >= 6 && legs.ile <= zalecaneNozki - 2)
+    add("info", `Szafka ${fmt(W)} mm stoi na ${legs.ile} ${plural(legs.ile, "nóżce", "nóżkach", "nóżkach")}`
+      + ` — przy tej szerokości środek dna nie ma podpory. Dołóż nóżkę na środku`
+      + ` albo parę na środku.|legs:${zalecaneNozki - 1}|legs:${zalecaneNozki}`);
 
   const interior = { x0: t, x1: W - t, y0: hasBot ? bottomY + t : bottomY, y1: hasTop ? H - t : H };
   const innerW = interior.x1 - interior.x0;
@@ -3365,6 +3375,23 @@ const armFrontPlan = (a) => {
   };
 };
 
+/* Nozki ramienia w jego ukladzie: `us` to odleglosci od rogu (wzdluz ramienia),
+   `vs` od sciany — dwa rzedy, przy scianie i przy licu. Para stoi pod wolnym
+   koncem i po jednej parze co pelne 900 mm dlugosci, rozlozone rowno miedzy
+   rogiem a wolnym koncem. Przy samym rogu ramie opiera sie na szafce naroznej
+   — jej przedni rzad nozek stoi tuz za licem — wiec wlasnej pary tam nie ma.
+   Jedno miejsce dla zamowienia, elewacji i bryly: wczesniej zamowienie mowilo
+   „koniec i srodek", a elewacja rysowala oba konce bez srodka. */
+const armLegPlan = (a) => {
+  const len = Math.max(0, Math.round(a.len));
+  const posrodku = Math.floor(len / 900);
+  const us = [];
+  for (let k = 1; k <= posrodku; k++) us.push(Math.round((len * k) / (posrodku + 1) - LEG_W / 2));
+  us.push(Math.max(0, len - LEG_INSET - LEG_W));
+  const vs = [LEG_INSET, Math.max(LEG_INSET, Math.round(a.depth) - LEG_INSET - LEG_W)];
+  return { us, vs, w: LEG_W, ile: us.length * vs.length };
+};
+
 /* Cztery plyty katownika w rzucie z gory, w ukladzie ramienia: `u` biegnie wzdluz
    ramienia od strony rogu, `v` w glab od sciany. Zewnetrzne siedza w licach obu
    frontow, wewnetrzne tuz za nimi. Gdy rog wypada na drugim koncu ramienia,
@@ -4428,7 +4455,10 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                   )}
                   {/* Ramie stoi na wlasnych nozkach — bez nich widac sam cokol,
                       jakby ten kawalek zabudowy na niczym nie stal. */}
-                  {a.cab.cab.legs?.on && a.len > 160 && [ax + 40, ax + a.len - 80].map((lx2, k) => (
+                  {a.cab.cab.legs?.on && armLegPlan(a).us.map((u) => (
+                    // od rogu — a rog lezy po stronie przeciwnej do wolnego konca
+                    zl ? ax + a.len - u - LEG_W : ax + u
+                  )).map((lx2, k) => (
                     <rect key={"anog" + k} x={lx2}
                       y={fy(a.cab.base) - a.cab.geo.legTop} width={40} height={a.cab.geo.legH}
                       rx={legRound(a.cab.cab) ? 20 : 0} fill={legColorOf(a.cab.cab)}
@@ -4807,11 +4837,13 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
   /* `bias` przyciaga bryle do widza przy sortowaniu scian. Uchwyt jest maly
      i siedzi tuz przy duzym froncie — bez tego przy niektorych katach front
      wypadal blizej niz on i uchwyt znikal pod plyta. */
-  const box = (x0, y0, z0, x1, y1, z1, color, transform, alpha, bold, bias) => {
+  /* `tag` mowi, czym jest bryla — idzie do atrybutu wielokata, zeby test mogl
+     sprawdzic, co faktycznie widac na wierzchu, a nie tylko co narysowano. */
+  const box = (x0, y0, z0, x1, y1, z1, color, transform, alpha, bold, bias, tag) => {
     let v = VERTS(x0, y0, z0, x1, y1, z1);
     if (transform) v = v.map(transform);
     if (place) v = v.map(place);
-    solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold, bias: bias || 0 });
+    solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold, bias: bias || 0, tag });
   };
 
   groups.forEach((g) => {
@@ -4865,8 +4897,6 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           c.x + c.geo.topX1, y1, c.geo.isBlat ? cd + c.geo.blat.overFront : cd, bf);
       if (c.cab.back !== "none")
         box(c.x, y0, cd - c.geo.tb, c.x + c.geo.W, y1, cd, c.mat.back.color);
-      /* Maskownica katownika po stronie korpusu: bez niej w rogu zostawala dziura
-         miedzy drzwiami tej szafki a frontem ramienia. */
       /* Wzmocnienia: pod blatem to one zastepuja wieniec, wiec bez nich bryla
          calej zabudowy pokazywala korpus otwarty od gory. */
       /* `r.z0` liczy sie od lica, a w bryle os z tak samo — przeliczanie go jak
@@ -4917,7 +4947,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           hy1 = d.y + d.h / 2 + Math.min(90, d.h * 0.25);
         }
         box(c.x + hx0, c.base + hy0, zLico - uchwyt, c.x + hx1, c.base + hy1, zLico,
-          "#3f3f46", transform, 1, false);
+          "#3f3f46", transform, 1, false, 0, "uchwyt");
       };
       c.geo.doors.filter((d) => d.w > 0 && d.h > 0).forEach((d) => {
         const col = d.type === "blenda" ? bf : c.frontColor;
@@ -4953,6 +4983,17 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         box(c.x + gc.bx0, c.base + gc.cy0, cd - gc.bz1, c.x + gc.bx1, c.base + gc.cy1, cd - gc.bz0,
           "#b91c1c", null, 0.28);
       });
+      /* Nozki — te same miejsca co w bryle pojedynczej szafki i na elewacji
+         (`legPlan`). Bez nich zabudowa stala w bryle na samym cokole, choc
+         cokol jest tylko plyta pod frontami. */
+      if (c.cab.legs && c.cab.legs.on && c.geo.legH > 0) {
+        const lw = c.geo.legs.w, ins = c.geo.legs.ins;
+        const gora = c.base + c.geo.legTop;
+        const miejsca = c.geo.legs.xs.flatMap((lx) => [[lx, ins], [lx, cd - ins - lw]]);
+        if (c.geo.legs.srodek) miejsca.push([(c.geo.W - lw) / 2, (cd - lw) / 2]);
+        miejsca.forEach(([lx, lz]) => box(c.x + lx, gora - c.geo.legH, lz,
+          c.x + lx + lw, gora, lz + lw, legColorOf(c.cab), null, 1, false, 0, "noga"));
+      }
       (c.geo.geoObs || []).forEach((o) => {
         box(c.x + o.ox0, c.base + o.oy0, cd - o.oz1, c.x + o.ox1, c.base + o.oy1, cd - o.oz0,
           "#b45309", null, 0.32);
@@ -5029,7 +5070,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       const hh = Math.min(90, c.cab.H * 0.25);
       const uchwytBox = (rot) => {
         if (a.doors === "fix" || !(uchwytA > 0)) return;
-        box(hcx - 6, hcy - hh, -tfA - uchwytA, hcx + 6, hcy + hh, -tfA, "#3f3f46", rot, 1, false, 400);
+        box(hcx - 6, hcy - hh, -tfA - uchwytA, hcx + 6, hcy + hh, -tfA, "#3f3f46", rot, 1, false, 400, "uchwyt");
       };
       if (!otwiera) {
         box(x0 + fu0, y0, -tfA, x0 + fu0 + fw, y1, 0, c.frontColor, null, 1, true);
@@ -5048,9 +5089,22 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       if (kat) {
         const shcA = shelfColorOf(c.cab, c.mat);
         bracketPlan(a).forEach((r) => {
+          // plyta wydluzona wzdluz ramienia stoi w jego licu, wzdluz `v` — w licu korpusu
+          const tag = !r.front ? "katownik" : r.w > r.h ? "maska-ramie" : "maska-korpus";
           box(x0 + r.u, y0, a.depth - (r.v + r.h), x0 + r.u + r.w, y1, a.depth - r.v,
-            r.front ? c.frontColor : shcA, null, 1, r.front);
+            r.front ? c.frontColor : shcA, null, 1, r.front, 0, tag);
         });
+      }
+      /* Nozki ramienia — te same miejsca, ktore liczy zamowienie i elewacja.
+         W ukladzie ramienia `u` biegnie od rogu, a `v` od sciany. */
+      if (c.cab.legs && c.cab.legs.on && c.geo.legH > 0) {
+        const lp = armLegPlan(a);
+        const gora = c.base + c.geo.legTop;
+        lp.us.forEach((u) => lp.vs.forEach((v) => {
+          const lx = przyKoncu ? x0 + u : x0 + a.len - u - lp.w;
+          box(lx, gora - c.geo.legH, a.depth - v - lp.w, lx + lp.w, gora, a.depth - v,
+            legColorOf(c.cab), null, 1, false, 0, "noga-ramie");
+        }));
       }
     });
     /* Blat ciagu — plyta lezaca na wszystkim, co pod nia stoi, takze na ramieniu
@@ -5067,7 +5121,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
            Polowa glebokosci wystarcza, zeby wygrac z tym, co lezy pod blatem,
            i jest wyraznie mniejsza od przeswitu do szafek gornych. */
         box(s.x0, g.mount + rt.y, n.depth - rt.depth, s.x1, g.mount + rt.y + rt.th, n.depth,
-          kolB, null, 1, true, Math.round(rt.depth / 2));
+          kolB, null, 1, true, Math.round(rt.depth / 2), "blat");
       });
     }
   });
@@ -5090,20 +5144,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     return { X: x1, Y: -y2, D: y * sp + z1 * cp };
   };
 
-  const faces = [];
-  solids.forEach((sol) => {
-    const pv = sol.v.map(proj);
-    QUADS.forEach((q) => {
-      const pts = q.map((i) => pv[i]);
-      const depth = pts.reduce((a, b) => a + b.D, 0) / 4;
-      const a = pts[0], b = pts[1], c2 = pts[2];
-      const area = (b.X - a.X) * (c2.Y - a.Y) - (b.Y - a.Y) * (c2.X - a.X);
-      faces.push({ pts, depth: depth - (sol.bias || 0), color: sol.color,
-        shade: 0.62 + 0.38 * Math.min(1, Math.abs(area) / 40000),
-        alpha: sol.alpha, bold: sol.bold });
-    });
-  });
-  faces.sort((a, b) => b.depth - a.depth);
+  const faces = ulozSciany(solids, proj);
 
   const xs = faces.flatMap((f) => f.pts.map((p) => p.X));
   const ys = faces.flatMap((f) => f.pts.map((p) => p.Y));
@@ -5119,11 +5160,13 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     return `rgb(${r},${g2},${b})`;
   };
   return (
-    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}
+      data-cykle={faces.cykle}>
       {faces.map((f, i) => (
         <polygon key={i} points={f.pts.map((p) => `${p.X},${p.Y}`).join(" ")}
           fill={tint(f.color, f.shade)} fillOpacity={f.alpha}
-          stroke={INK} strokeWidth={f.bold ? 2 : 1} strokeOpacity="0.55" />
+          stroke={INK} strokeWidth={f.bold ? 2 : 1} strokeOpacity="0.55"
+          data-el={f.tag || undefined} data-b={f.bryla} />
       ))}
     </svg>
   );
@@ -6962,6 +7005,192 @@ const rotAboutY = (p, ang, ox, oz) => {
   return { x: ox + dx * c - dz * s2, y: p.y, z: oz + dx * s2 + dz * c };
 };
 
+/* Kolejnosc rysowania bryl w rzucie 3D — wspolna dla bryly calej zabudowy
+   i pojedynczej szafki. Malowanie scian po ich sredniej glebokosci mylilo sie
+   przy duzych plytach: srodek blatu albo dna ramienia lezy daleko od widza,
+   wiec drobny element przy jego kraju (wzmocnienie pod blatem, maskownica
+   przy rogu) wychodzil na wierzch, choc jest pod nim albo za nim. Stad paski
+   na blacie i ramie, ktore wygladalo, jakby nie mialo maskownicy.
+
+   Tu ukladamy cale bryly, a nie pojedyncze sciany. Dwa prostopadlosciany,
+   ktore sie nie przenikaja, zawsze rozdziela plaszczyzna prostopadla do
+   ktorejs osi — i po tej osi widac wprost, ktory lezy dalej od widza. Bryly,
+   ktorych rzuty na siebie nie nachodza, moga isc w dowolnej kolejnosci.
+   Otwarte drzwi sa obrocone, wiec porownujemy je po ich obrysie osiowym —
+   jesli nawet obrysy sie przenikaja, zostaje dawne porownanie srodkow.
+
+   Sciany odwrocone od widza pomijamy: w bryle wypuklej nigdy ich nie widac,
+   a rysowane potrafily przebic sie na wierzch sasiadki. Wyjatek to bryly
+   polprzezroczyste (wyciecia, elementy kolizyjne) — tam tylna sciana jest
+   czescia obrazu. */
+const ulozSciany = (solids, proj) => {
+  const EPS = 1; // mm — stykajace sie plyty licza sie jako rozdzielone
+  const osie3 = ["x", "y", "z"];
+  const zero = proj({ x: 0, y: 0, z: 0 }).D;
+  // o ile rosnie glebokosc przy kroku o 1 mm wzdluz kazdej osi
+  const grad = {
+    x: proj({ x: 1, y: 0, z: 0 }).D - zero,
+    y: proj({ x: 0, y: 1, z: 0 }).D - zero,
+    z: proj({ x: 0, y: 0, z: 1 }).D - zero,
+  };
+  const osie = osie3.filter((k) => Math.abs(grad[k]) > 1e-9)
+    .sort((a, b) => Math.abs(grad[b]) - Math.abs(grad[a]));
+  /* Obrys rzutu bryly — wypukly wielokat. Porownujemy tylko bryly, ktorych
+     rzuty naprawde na siebie nachodza: przy samym prostokatnym obrysie pary,
+     ktore sie wcale nie zaslaniaja, dokladaly przypadkowe powiazania, te
+     zamykaly sie w cykl, a przy jego lamaniu drzwi potrafily pojsc za wlasny
+     uchwyt. */
+  const otoczka = (pts) => {
+    const p = [...pts].sort((a, b) => a.X - b.X || a.Y - b.Y);
+    const kr = (o, a, b) => (a.X - o.X) * (b.Y - o.Y) - (a.Y - o.Y) * (b.X - o.X);
+    const dol = [], gora = [];
+    p.forEach((q) => {
+      while (dol.length >= 2 && kr(dol[dol.length - 2], dol[dol.length - 1], q) <= 0) dol.pop();
+      dol.push(q);
+    });
+    [...p].reverse().forEach((q) => {
+      while (gora.length >= 2 && kr(gora[gora.length - 2], gora[gora.length - 1], q) <= 0) gora.pop();
+      gora.push(q);
+    });
+    return dol.slice(0, -1).concat(gora.slice(0, -1));
+  };
+  // rozdzielenie dwoch wypuklych wielokatow wzdluz ktorejs krawedzi (twierdzenie o osi rozdzielajacej)
+  const NAKLAD = 0.5;
+  /* Petla bez tworzenia tablic — przy obracaniu w „3D" liczy sie to przy
+     kazdym ruchu myszy dla kazdej pary nachodzacych bryl. */
+  const rozdzielonePrzez = (W, P, Q) => {
+    for (let i = 0; i < W.length; i++) {
+      const a = W[i], b = W[(i + 1) % W.length];
+      const nx = b.Y - a.Y, ny = a.X - b.X;
+      const dl = Math.hypot(nx, ny);
+      if (dl < 1e-9) continue;
+      let p0 = Infinity, p1 = -Infinity, q0 = Infinity, q1 = -Infinity;
+      for (let k = 0; k < P.length; k++) {
+        const r = P[k].X * nx + P[k].Y * ny;
+        if (r < p0) p0 = r;
+        if (r > p1) p1 = r;
+      }
+      for (let k = 0; k < Q.length; k++) {
+        const r = Q[k].X * nx + Q[k].Y * ny;
+        if (r < q0) q0 = r;
+        if (r > q1) q1 = r;
+      }
+      const tol = NAKLAD * dl;
+      if (p1 <= q0 + tol || q1 <= p0 + tol) return true;
+    }
+    return false;
+  };
+  const rozdzielone = (P, Q) => rozdzielonePrzez(P, P, Q) || rozdzielonePrzez(Q, P, Q);
+  const bryly = solids.map((sol) => {
+    const pv = sol.v.map(proj);
+    const lo = {}, hi = {};
+    osie3.forEach((k) => {
+      lo[k] = Math.min(...sol.v.map((p) => p[k]));
+      hi[k] = Math.max(...sol.v.map((p) => p[k]));
+    });
+    const X = pv.map((p) => p.X), Y = pv.map((p) => p.Y);
+    const dS = pv.reduce((s, p) => s + p.D, 0) / pv.length;
+    return { sol, pv, lo, hi, dS, d: dS - (sol.bias || 0), obrys: otoczka(pv),
+      x0: Math.min(...X), x1: Math.max(...X), y0: Math.min(...Y), y1: Math.max(...Y) };
+  });
+  const n = bryly.length;
+  const po = Array.from({ length: n }, () => []);   // bryly, ktore ida po tej
+  const czeka = new Array(n).fill(0);               // ile bryl musi isc przed ta
+  for (let i = 0; i < n; i++) {
+    const A = bryly[i];
+    for (let j = i + 1; j < n; j++) {
+      const B = bryly[j];
+      if (A.x1 <= B.x0 + NAKLAD || B.x1 <= A.x0 + NAKLAD
+        || A.y1 <= B.y0 + NAKLAD || B.y1 <= A.y0 + NAKLAD) continue;
+      if (rozdzielone(A.obrys, B.obrys)) continue;
+      /* Kazda os, na ktorej bryly sa rozdzielone, musi wskazac te sama: skoro
+         rzuty na siebie nachodza, promien widza przechodzi przez obie i kazda
+         plaszczyzna rozdzialu przecina go miedzy nimi. */
+      let dalsza = -1, sprzeczne = false;
+      for (const k of osie) {
+        const aNizej = A.hi[k] <= B.lo[k] + EPS;
+        const bNizej = B.hi[k] <= A.lo[k] + EPS;
+        if (aNizej === bNizej) continue;
+        // przy dodatnim gradiencie wyzsza wartosc na tej osi lezy dalej
+        const nizszaDalej = grad[k] < 0;
+        const ta = aNizej === nizszaDalej ? i : j;
+        if (dalsza >= 0 && ta !== dalsza) sprzeczne = true;
+        if (dalsza < 0) dalsza = ta;
+      }
+      if (sprzeczne) continue;
+      /* Bryly, ktore naprawde sie przenikaja — np. plecy w ostatnich 3 mm
+         glebokosci korpusu i dno siegajace do samego tylu, albo plecy wpuszczone
+         we frez boku. Rozstrzyga os, na ktorej zachodza na siebie najmniej:
+         to ona mowi, po ktorej stronie jest ktora plyta. Porownanie srodkow
+         calych plyt dawalo z niektorych stron sprzeczne pary i cykl. */
+      if (dalsza < 0) {
+        let najm = Infinity;
+        for (const k of osie) {
+          const zakl = Math.min(A.hi[k], B.hi[k]) - Math.max(A.lo[k], B.lo[k]);
+          const sA = A.lo[k] + A.hi[k], sB = B.lo[k] + B.hi[k];
+          if (zakl >= najm || Math.abs(sA - sB) < 1e-6) continue;
+          najm = zakl;
+          const nizszaDalej = grad[k] < 0;
+          dalsza = (sA < sB) === nizszaDalej ? i : j;
+        }
+      }
+      if (dalsza < 0) dalsza = A.d >= B.d ? i : j;
+      const blizsza = dalsza === i ? j : i;
+      po[dalsza].push(blizsza);
+      czeka[blizsza]++;
+    }
+  }
+  /* Z gotowych do rysowania bierzemy zawsze najdalsza — kolejnosc jest wtedy
+     stala. Cykl (bryly, ktore naprawde sie przenikaja) lamiemy tak samo. */
+  const kolej = [];
+  const gotowe = new Array(n).fill(false);
+  let cykle = 0;
+  for (let krok = 0; krok < n; krok++) {
+    let wyb = -1;
+    for (let i = 0; i < n; i++)
+      if (!gotowe[i] && czeka[i] <= 0 && (wyb < 0 || bryly[i].d > bryly[wyb].d)) wyb = i;
+    if (wyb < 0) {
+      cykle++;
+      for (let i = 0; i < n; i++)
+        if (!gotowe[i] && (wyb < 0 || bryly[i].d > bryly[wyb].d)) wyb = i;
+    }
+    gotowe[wyb] = true;
+    kolej.push(wyb);
+    po[wyb].forEach((k) => { czeka[k]--; });
+  }
+  /* Cien zalezy od kierunku sciany, a nie od jej wielkosci na ekranie. Przy
+     cieniu „od pola" waska plyta w licu (maskownica katownika) wychodzila
+     ciemna jak szpara, choc stoi w tej samej plaszczyznie co drzwi obok —
+     i narożnik wygladal, jakby czegos w nim brakowalo. Swiatlo idzie od widza,
+     troche z gory i z boku, wiec przy obracaniu bryla nie gasnie. */
+  const dl = Math.hypot(grad.x, grad.y, grad.z) || 1;
+  const kam = { x: -grad.x / dl, y: -grad.y / dl, z: -grad.z / dl };
+  const sw = { x: kam.x + 0.3 * kam.z, y: kam.y + 0.9, z: kam.z - 0.3 * kam.x };
+  const sl = Math.hypot(sw.x, sw.y, sw.z) || 1;
+  const srodek = (pts) => osie3.reduce((o, k) => ({ ...o,
+    [k]: pts.reduce((s, p) => s + p[k], 0) / pts.length }), {});
+  const faces = [];
+  kolej.forEach((i) => {
+    const { sol, pv, dS } = bryly[i];
+    const sB = srodek(sol.v);
+    QUADS.forEach((q) => {
+      const pts = q.map((k) => pv[k]);
+      const dF = pts.reduce((s, p) => s + p.D, 0) / 4;
+      if ((sol.alpha ?? 1) >= 0.5 && dF >= dS - 1e-6) return;
+      // normalna zewnetrzna: od srodka bryly do srodka sciany
+      const sF = srodek(q.map((k) => sol.v[k]));
+      const nx = sF.x - sB.x, ny = sF.y - sB.y, nz = sF.z - sB.z;
+      const nl = Math.hypot(nx, ny, nz) || 1;
+      const jasno = Math.max(0, (nx * sw.x + ny * sw.y + nz * sw.z) / (nl * sl));
+      faces.push({ pts, color: sol.color, alpha: sol.alpha ?? 1, bold: !!sol.bold,
+        shade: Math.min(1, 0.75 + 0.3 * jasno), tag: sol.tag || null, bryla: i });
+    });
+  });
+  // ile razy kolejnosc trzeba bylo wymusic — rysunek pokazuje to testom
+  faces.cykle = cykle;
+  return faces;
+};
+
 function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
   const t = geo.t;
   const cd = geo.carcassDepth;
@@ -7157,21 +7386,8 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
     return { X: x1, Y: -y2, D: z2 };
   };
 
-  const faces = [];
-  solids.forEach((sol) => {
-    const pv = sol.v.map(proj);
-    QUADS.forEach((q) => {
-      const pts = q.map((i) => pv[i]);
-      const depth = pts.reduce((a, b) => a + b.D, 0) / 4;
-      const a = pts[0], b = pts[1], c2 = pts[2];
-      const ux = b.X - a.X, uy = b.Y - a.Y;
-      const vx = c2.X - a.X, vy = c2.Y - a.Y;
-      const area = ux * vy - uy * vx;
-      const shade = 0.62 + 0.38 * Math.min(1, Math.abs(area) / 40000);
-      faces.push({ pts, depth, color: sol.color, shade, alpha: sol.alpha, bold: sol.bold });
-    });
-  });
-  faces.sort((a, b) => b.depth - a.depth);
+  // ta sama kolejnosc bryl co w bryle calej zabudowy — `ulozSciany`
+  const faces = ulozSciany(solids, proj);
 
   const xs = faces.flatMap((f) => f.pts.map((p) => p.X));
   const ys = faces.flatMap((f) => f.pts.map((p) => p.Y));
@@ -7189,7 +7405,8 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
   };
 
   return (
-    <svg viewBox={vb} className="w-full h-auto select-none" style={{ maxHeight: DRAW_MAX_H }}>
+    <svg viewBox={vb} className="w-full h-auto select-none" style={{ maxHeight: DRAW_MAX_H }}
+      data-cykle={faces.cykle}>
       {faces.map((f, i) => (
         <polygon key={i} points={f.pts.map((p) => `${p.X},${p.Y}`).join(" ")}
           fill={tint(f.color, f.shade)} stroke={INK} strokeWidth={f.bold ? 3 : 1.2}
@@ -7347,7 +7564,7 @@ const Card = ({ title, children, right, collapsible = false, defaultOpen = true 
   );
 };
 
-const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editItemCab, cab, setGap, runFix, setMatDepth }) => {
+const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editItemCab, cab, setGap, runFix, setMatDepth, setLegs }) => {
   const [txt, ...actions] = text.split("|");
   const btns = actions.map((action) => {
     if (action.startsWith("worktop:")) {
@@ -7391,6 +7608,13 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: `Ustaw tył na ${val} mm`,
         run: () => editLevels((L) => (L[+li].cols[+j].drawers[+k].backHeight = +val)),
+      };
+    }
+    if (action.startsWith("legs:")) {
+      const ile = Math.max(2, Math.round(Number(action.split(":")[1]) || 0));
+      return {
+        label: `${ile} nóżek — ${ile % 2 ? "jedna na środku" : "para na środku"}`,
+        run: () => setLegs && setLegs(ile),
       };
     }
     if (action.startsWith("hingeflip:")) {
@@ -7937,12 +8161,13 @@ const cornerArmParts = (a) => {
       spec: `ramię szafki narożnej: ${opis.join(", ")} szt.`, qty: wk, unit: "szt." });
   }
   if (cab.legs && cab.legs.on) {
-    // para pod wolnym koncem, a przy dlugim ramieniu jeszcze jedna posrodku
-    const ile = 2 + 2 * Math.floor(len / 900);
+    // te same miejsca, ktore rysuje elewacja i bryla — `armLegPlan`
+    const lp = armLegPlan(a);
     hardware.push({ name: "Nóżka regulowana",
       use: "pod ramieniem szafki narożnej",
-      spec: `pod ramieniem szafki narożnej, wysokość ${fmt(cab.legs.height || 100)} mm`,
-      qty: ile, unit: "szt." });
+      spec: `pod ramieniem szafki narożnej, wysokość ${fmt(cab.legs.height || 100)} mm: `
+        + `${lp.us.length} pary — ${lp.us.length > 1 ? "na środku i " : ""}pod wolnym końcem`,
+      qty: lp.ile, unit: "szt." });
   }
   /* Zawiasow lamanych tyle samo, co zwyklych na tej wysokosci — spinaja
      skrzydla na calej dlugosci styku, wiec przy wysokim froncie dwa to za malo. */
@@ -10064,6 +10289,8 @@ export default function App() {
   const setMatDepth = useCallback((d) =>
     setMat((m) => ({ ...m, worktop: { ...m.worktop, depth: d } })), [setMat]);
   const setGap = (k, v) => setCab((c) => ({ ...c, gaps: { ...c.gaps, [k]: v } }));
+  // liczba nozek z przycisku w Uwagach — reszta ustawien nozek zostaje
+  const setLegs = (ile) => setCab((c) => ({ ...c, legs: { ...(c.legs || {}), on: true, count: ile } }));
 
   /* --- edycja struktury --- */
   const editLevels = (fn) =>
@@ -12535,14 +12762,14 @@ export default function App() {
                   <NoteLine key={(czyt ? "wp" : "w") + i} text={m.text} color={WARNC} icon="!"
                     przed={znacznik(m.text, czyt)}
                     editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab}
-                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
+                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} />
                 );
                 return (
                   <>
                     {(errors.length > 0 || warnsNowe.length > 0) && (
                       <ul className="space-y-2">
                         {errors.map((m, i) => (
-                          <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
+                          <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} />
                         ))}
                         {warnsNowe.map((m, i) => linia(m, i, false))}
                       </ul>
@@ -12572,7 +12799,7 @@ export default function App() {
                   <NoteLine key={(czyt ? "p" : "i") + i} text={m.text} color="#78716c" icon="i"
                     przed={znacznik(m.text, czyt)}
                     editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab}
-                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} />
+                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} />
                 );
                 return (
                   <div className={(errors.length || warns.length) ? "border-t border-stone-100 pt-3" : ""}>

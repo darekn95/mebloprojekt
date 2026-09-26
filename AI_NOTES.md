@@ -408,3 +408,36 @@ bok — wiec pojedynczy trojkat na koncu nie ma sie jak obrocic i calosc
 zostaje sztywna. To nie jest przeoczenie: nie „poprawiaj" tego przy kolejnym
 audycie. Kazdy nowy wyjatek wymaga takiego samego uzasadnienia z geometrii,
 a nie samego „tak wystarczy".
+
+[AI-INFO] Oba widoki 3D (bryla zabudowy `Assembly3D` z widokiem 45° i „3D",
+oraz pojedyncza szafka `Scene3D`) rysuja przez wspolne `ulozSciany(solids,
+proj)`. Nie sortuj scian po sredniej glebokosci — przy duzych plytach (blat,
+dno ramienia) srodek lezy daleko i drobne elementy przy krawedzi wychodzily
+na wierzch: paski wzmocnien na blacie, styk blatow w rogu, schowana
+maskownica ramienia, znikajacy co drugi uchwyt. `ulozSciany` uklada cale
+bryly: para, ktorej rzuty (wypukle obrysy) naprawde na siebie nachodza, jest
+rozdzielona wzdluz ktorejs osi i ta os mowi, ktora jest dalej. Bryly, ktore
+sie przenikaja (plecy w ostatnich 3 mm glebokosci korpusu, plecy we frezie),
+rozstrzyga os najmniejszego zakladu. Sciany tylem do widza sa pomijane, poza
+bryla polprzezroczysta (alpha < 0.5). Cien zalezy od kierunku sciany, nie od
+jej pola na ekranie — inaczej waska maskownica w licu wygladala jak szpara.
+
+`box(...)` w `Assembly3D` przyjmuje na koncu `tag` (np. „blat", „uchwyt",
+„noga", „noga-ramie", „maska-korpus", „maska-ramie", „katownik"). Wielokaty
+dostaja `data-el` i `data-b` (numer bryly), a `<svg>` — `data-cykle`, czyli
+ile razy kolejnosc trzeba bylo wymusic. Suita `bryla3d` pyta przegladarke
+(`elementFromPoint`), co lezy na wierzchu, i wymaga zera wymuszen z osmiu
+stron. Dokladasz bryle, ktora ma byc widoczna — nadaj jej `tag` i dopisz ja
+do testu.
+
+[AI-INFO] Nozki ramienia liczy `armLegPlan(a)`: para pod wolnym koncem
+i po parze co pelne 900 mm, rozlozone rowno miedzy rogiem a wolnym koncem.
+Przy rogu ramie opiera sie na przednim rzedzie nozek szafki naroznej, wiec
+wlasnej pary tam nie ma. Z tej funkcji biora zamowienie (`cornerArmParts`),
+elewacja zabudowy (`AssemblyView`) i bryla — wczesniej zamowienie mowilo
+„srodek i koniec", a elewacja rysowala oba konce bez srodka.
+
+[AI-INFO] Recznie wpisana liczba nozek (`cab.legs.count`) mniejsza o dwie lub
+wiecej od `autoLegs(W)` przy szafce od 900 mm daje podpowiedz z przyciskami
+`|legs:<n>` — obsluguje je `NoteLine` przez `setLegs`. Jedna nozka na srodku
+dna (liczba nieparzysta) tez sie liczy jako podpora, stad prog „o dwie".

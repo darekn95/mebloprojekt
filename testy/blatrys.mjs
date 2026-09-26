@@ -50,10 +50,15 @@ ok('leży na licu szafek, grubość 38', bl.length === 1 && bl[0].h === 38, bl[0
 
 console.log('\n== blat w bryle ==');
 /* W bryle sciany dostaja kolor przycieniowany, wiec po samym kolorze blatu nie
-   poznamy. Liczymy inaczej: zdjecie blatu z ciagu ma zabrac dokladnie jedna
-   kostke, czyli szesc scian. */
+   poznamy. Kazda bryla niesie za to swoj numer (`data-b`), a blat — znacznik
+   `data-el="blat"`. Zdjecie blatu z ciagu ma zabrac dokladnie jedna bryle;
+   scian nie liczymy, bo rysowane sa tylko te zwrocone do widza. */
 await klik('3D');
-const scian = () => page.locator('svg polygon').count();
+const scian = () => page.evaluate(() =>
+  new Set([...document.querySelectorAll('svg polygon[data-b]')].map((p) => p.dataset.b)).size);
+const blatow = () => page.evaluate(() =>
+  new Set([...document.querySelectorAll('svg polygon[data-el="blat"]')].map((p) => p.dataset.b)).size);
+const blatyZ = await blatow();
 const zBlatem = await scian();
 await page.evaluate(() => {
   const p = JSON.parse(localStorage.getItem('szafki:projekt'));
@@ -65,8 +70,9 @@ await page.waitForTimeout(2000);
 await klik('Ciąg');
 await klik('3D');
 const bezBlatu = await scian();
-console.log(`   ścian: z blatem ${zBlatem}, bez ${bezBlatu}`);
-ok('blat to jedna kostka w bryle', zBlatem - bezBlatu === 6, `${zBlatem} - ${bezBlatu}`);
+console.log(`   brył: z blatem ${zBlatem}, bez ${bezBlatu}`);
+ok('blat to jedna kostka w bryle', zBlatem - bezBlatu === 1 && blatyZ === 1 && (await blatow()) === 0,
+  `${zBlatem} - ${bezBlatu}, blatów ${blatyZ} -> ${await blatow()}`);
 await page.evaluate(() => {
   const p = JSON.parse(localStorage.getItem('szafki:projekt'));
   p.runs[0].worktop = true;

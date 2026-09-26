@@ -173,6 +173,8 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `armFrontPlan(arm)` | gdzie zaczyna się i jak szeroki jest front ramienia — jedno miejsce dla formatki i rysunków |
 | `armPlan(arm)` / `bracketPlan` | wzmocnienia i kątownik ramienia w układzie „od naroża" |
 | `legPlan(cab, W)` / `autoLegs(W)` | rozstaw i liczba nóżek |
+| `armLegPlan(arm)` | nóżki ramienia narożnika: `us` od rogu, `vs` od ściany — jedno źródło dla zamówienia, elewacji i bryły |
+| `ulozSciany(solids, proj)` | kolejność rysowania i cieniowanie w obu widokach 3D (zabudowa i szafka) |
 | `autoHinges(h, w)` | liczba zawiasów na skrzydło |
 | `autoShelves(innerH, t)` | liczba półek przy automacie |
 | `distribute` / `evenGapOptions` | podział pasma na fronty + propozycja luzu bez resztek |
@@ -265,6 +267,7 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `noTop:<idx>` | zamienia wieniec na parę wzmocnień |
 | `rundepth:<mm>[@runId]` / `runcab:` / `runrun:` | wyrównuje głębokość / szafkę / cały ciąg |
 | `plinthauto` / `topauto` / `topcut:0\|1` / `worktop:` | cokół, wieniec, cięcie blatu |
+| `legs:<n>` | wpisuje liczbę nóżek (podpowiedź przy ręcznie za małej liczbie) |
 
 ---
 
@@ -285,6 +288,7 @@ Uruchamianie: `cd testy && bash sweep.sh <nazwy>` (bez `.mjs`).
 | `rysrog` | rysunki narożnika: front na bok z luzem, zawiasy, rzut z góry, tył, nóżki ramienia |
 | `blatrog` / `blatrys` / `blat` / `blatciag` | blat roboczy: róg, rysunki, ciąg, wieniec |
 | `okucia3` | liczby okuc z wymiaru: klipsy, trójkąty, fix, zawiasy 165°/90° |
+| `bryla3d` | co widać na wierzchu w 45° i 3D: blat, maskownice, uchwyty; nóżki; zero wymuszeń kolejności z ośmiu stron |
 | `hw2` / `cokol` / `cokolstd` / `ceny` / `ceny2` | okucia, cokół, cennik |
 | `ciag`…`ciag10` | ciągi: zakładanie, rozjazdy, cokół ciągu, światła |
 | `pietra` | dolny i górny ciąg na tej samej ścianie |
