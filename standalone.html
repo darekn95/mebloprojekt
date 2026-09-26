@@ -691,6 +691,10 @@ const migrateMat = (rawMat) => {
 };
 // buduje stan projektu z wczytanych danych: obsluguje stary {cab,mat} i nowy {items,active}
 const DEFAULT_PROJECT_NAME = "Projekt bez nazwy";
+/* Dokument we wspolnym magazynie artefaktu na claude.ai, do ktorego przycisk
+   „Wyslij do Claude" zapisuje biezacy projekt (pole `json`) — Claude czyta go
+   stamtad. Poza artefaktem na claude.ai nieuzywany. */
+const PROJEKT_DLA_CLAUDE = "projekt/biezacy";
 
 /* ---------- ciagi meblowe ----------
    Ciag to grupa szafek stojacych obok siebie przy jednej scianie. Sam nie jest
@@ -5368,8 +5372,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
             )}
             {/* Ramie stoi na wlasnych nozkach tak samo jak korpus — bez nich
-                wyglada, jakby wisialo nad cokolem. */}
-            {cab.legs?.on && armLen > 160 && [ax0 + 40, ax0 + armLen - 80].map((lx, k) => (
+                wyglada, jakby wisialo nad cokolem. Miejsca z `armLegPlan`, tak
+                jak w zamowieniu i w bryle: `u` liczy sie od rogu, a rog lezy
+                przy korpusie. */}
+            {cab.legs?.on && armLegPlan(arm).us.map((u) => (armL ? -u - LEG_W : ax0 + u)).map((lx, k) => (
               <rect key={"anz" + k} x={lx} y={H - geo.legTop} width={40} height={geo.legH}
                 rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
                 opacity={geo.legTop > 0 ? 0.5 : 1} />
@@ -9901,6 +9907,45 @@ export default function App() {
 
   const [transfer, setTransfer] = useState(null); // { mode:'export'|'import', text }
 
+  /* „Wyslij do Claude" — TYLKO w artefakcie na claude.ai. Tam strona dostaje
+     wspolny magazyn artefaktu (`db`) i zapisuje w nim biezacy projekt, a Claude
+     czyta go stamtad wprost — bez kopiowania tekstu. Na GitHub Pages i w
+     standalone `window.claude` nie istnieje, wiec przycisku po prostu nie ma.
+     Zapis do repozytorium z przegladarki wymagalby tokenu GitHuba w stronie,
+     ktory kazdy moglby z niej wyciagnac — dlatego tej drogi nie ma. */
+  const [dbClaude, setDbClaude] = useState(null);
+  useEffect(() => {
+    let zyje = true;
+    try {
+      if (window.claude && typeof window.claude.use === "function")
+        Promise.resolve(window.claude.use("db"))
+          .then((db) => { if (zyje) setDbClaude(db || null); }, () => {});
+    } catch (e) { /* poza claude.ai nie ma czego szukac */ }
+    return () => { zyje = false; };
+  }, []);
+  const wyslijDoClaude = async () => {
+    if (!dbClaude) return;
+    const json = JSON.stringify({ name: project.name, prices: project.prices, items: project.items,
+      runs: project.runs, active: project.active });
+    // dokument w magazynie ma limit 256 KiB — zostawiamy zapas na opis
+    if (new Blob([json]).size > 240 * 1024) {
+      setSaved("projekt za duży do wysłania — użyj „Zapisz do pliku”");
+      return;
+    }
+    try {
+      await dbClaude.doc(PROJEKT_DLA_CLAUDE).set({
+        json, nazwa: project.name || "", szafek: project.items.length,
+        wyslano: new Date().toISOString(),
+      });
+      setSaved("wysłano do Claude "
+        + new Date().toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }));
+    } catch (e) {
+      setSaved(e && e.code === "invalid_argument"
+        ? "brak prawa zapisu w tym artefakcie — użyj „Zapisz do pliku”"
+        : "nie udało się wysłać — spróbuj jeszcze raz");
+    }
+  };
+
   const exportProject = () => {
     const json = JSON.stringify(
       { name: project.name, prices: project.prices, items: project.items, runs: project.runs, active: project.active },
@@ -10832,6 +10877,11 @@ export default function App() {
           <button onClick={exportProject}
             title="Pobierz projekt jako plik JSON"
             className="text-xs text-teal-700 hover:underline">Zapisz do pliku</button>
+          {dbClaude && (
+            <button onClick={wyslijDoClaude}
+              title="Tylko w artefakcie na claude.ai: zapisuje bieżący projekt we wspólnym magazynie, z którego Claude go odczyta"
+              className="text-xs font-medium text-teal-700 hover:underline">Wyślij do Claude</button>
+          )}
           <label className="cursor-pointer text-xs text-teal-700 hover:underline">
             Wczytaj plik
             <input type="file" accept="application/json,.json,.txt" className="hidden"

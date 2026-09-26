@@ -441,3 +441,22 @@ elewacja zabudowy (`AssemblyView`) i bryla — wczesniej zamowienie mowilo
 wiecej od `autoLegs(W)` przy szafce od 900 mm daje podpowiedz z przyciskami
 `|legs:<n>` — obsluguje je `NoteLine` przez `setLegs`. Jedna nozka na srodku
 dna (liczba nieparzysta) tez sie liczy jako podpora, stad prog „o dwie".
+
+[AI-INFO] „Wyslij do Claude" to opcja TYLKO do pracy na artefakcie wewnatrz
+claude.ai — NIE na GitHub Pages i nie w standalone. Artefakt publikujemy
+z `capabilities: {db: {}}`; strona pyta `window.claude.use("db")` i dopiero
+gdy dostanie magazyn, pokazuje przycisk obok „Zapisz do pliku". Klikniecie
+zapisuje dokument `projekt/biezacy` (stala `PROJEKT_DLA_CLAUDE`) z polami
+`json` (caly projekt jak z „Zapisz do pliku"), `nazwa`, `szafek`, `wyslano`.
+Claude czyta go narzedziem `ArtifactData` (akcja `get`, kolekcja `projekt`,
+dokument `biezacy`) na adresie artefaktu MebloProjekt, zapisuje `json` do
+scratchpada jako projekt do testow i NIE wrzuca go do repozytorium bez zgody
+uzytkownika — to jego prywatny projekt.
+
+Na GitHub Pages przycisku nie ma i nie bedzie: zapis do repozytorium
+z przegladarki wymagalby tokenu GitHuba zaszytego w stronie, ktory kazdy
+moglby z niej wyciagnac. Tam zostaje „Zapisz do pliku" i wklejenie tekstu
+w rozmowie. Uwaga: artefakt z zadeklarowanym `db` jest widoczny tylko w
+organizacji wlasciciela — nie da sie go udostepnic publicznym linkiem.
+Suita `wyslij` sprawdza oba przypadki (bez magazynu przycisku nie ma,
+z atrapa magazynu zapis ma pelny projekt).

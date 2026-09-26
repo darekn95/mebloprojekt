@@ -161,6 +161,23 @@ await pick('3D');
 s8 = await osiemStron();
 ok('szafka narożna: bez wymuszeń z ośmiu stron', s8.every((c) => c === 0), s8.join(' '));
 
+console.log('\n== elewacja szafki narożnej: nóżki ramienia jak w zamówieniu ==');
+/* Rysunek szafki naroznej rozwija ramie obok korpusu (900 mm, ramie od x=900).
+   Nozki ramienia ida z `armLegPlan`: para posrodku i pod wolnym koncem, przy
+   rogu zadnej — tam stoi szafka narozna. Wczesniej ten widok rysowal oba konce
+   ramienia bez srodka. */
+await pick('Szafka');
+await pick('Zamk.');
+const nogiElew = await page.evaluate(() => [...document.querySelector('svg').querySelectorAll('rect')]
+  .filter((r) => (r.getAttribute('fill') || '').toLowerCase() === '#3f3f46')
+  .map((r) => Math.round(+r.getAttribute('x'))).sort((a, c) => a - c));
+const nogiRam = nogiElew.filter((x) => x >= 900);
+console.log('     nóżki w elewacji: ' + nogiElew.join(' '));
+ok('ramię: dwie nóżki od przodu', nogiRam.length === 2, nogiRam.join(' '));
+ok('żadnej przy samym rogu', !nogiRam.some((x) => x < 900 + 200), nogiRam.join(' '));
+ok('jedna na środku ramienia, jedna pod końcem', nogiRam.some((x) => Math.abs(x - (900 + 600 - 20)) <= 5)
+  && nogiRam.some((x) => Math.abs(x - (900 + 1200 - 80)) <= 5), nogiRam.join(' '));
+
 console.log('\n== podpowiedź przy ręcznie wpisanych nóżkach ==');
 const uwagi = async () => (await page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi$/ }) })
   .count()) ? await card(/^Uwagi$/).innerText() : '';

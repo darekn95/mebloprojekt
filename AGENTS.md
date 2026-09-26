@@ -14,4 +14,8 @@
 - Zanim zaczniesz szukać po całym `szafki.jsx`, zajrzyj do `SLOWNIK.md`:
   wiąże etykietę z interfejsu ze ścieżką w danych i funkcją, która to liczy.
   Dokładasz nowe pole albo nazwę formatki — dopisz tam wiersz w tej samej zmianie.
+- Projekt użytkownika do testów: w artefakcie na claude.ai jest przycisk
+  „Wyślij do Claude” (tylko tam — nie na GitHub Pages ani w standalone).
+  Odczyt: `ArtifactData`, dokument `projekt/biezacy`, pole `json`. Trzymaj go
+  w scratchpadzie; do repozytorium tylko za zgodą użytkownika.
 - Jeśli zapisujesz roboczą informację, używaj tagów `[AI-INFO]`, `[AI-TODO]`, `[CLAUDE-CHANGE]` albo `[CHECK]` w `AI_NOTES.md` zamiast znaczników podobnych do konfliktów Git.
