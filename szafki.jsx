@@ -3380,18 +3380,15 @@ const armFrontPlan = (a) => {
 };
 
 /* Nozki ramienia w jego ukladzie: `us` to odleglosci od rogu (wzdluz ramienia),
-   `vs` od sciany — dwa rzedy, przy scianie i przy licu. Para stoi pod wolnym
-   koncem i po jednej parze co pelne 900 mm dlugosci, rozlozone rowno miedzy
-   rogiem a wolnym koncem. Przy samym rogu ramie opiera sie na szafce naroznej
-   — jej przedni rzad nozek stoi tuz za licem — wiec wlasnej pary tam nie ma.
-   Jedno miejsce dla zamowienia, elewacji i bryly: wczesniej zamowienie mowilo
-   „koniec i srodek", a elewacja rysowala oba konce bez srodka. */
+   `vs` od sciany — dwa rzedy, przy scianie i przy licu. Ramie stoi na nozkach
+   tak jak samodzielna szafka tej dlugosci — rozstaw liczy ten sam `legPlan`:
+   para przy rogu, para pod wolnym koncem i od 900 mm para posrodku (1200 mm
+   to 6 nozek). Przy rogu ramie mogloby sie oprzec na nozkach szafki naroznej,
+   ale uzytkownik wybral wlasna pare — ramie nie zalezy wtedy od tego, jak
+   stanie szafka obok. Jedno miejsce dla zamowienia, obu elewacji i bryly. */
 const armLegPlan = (a) => {
   const len = Math.max(0, Math.round(a.len));
-  const posrodku = Math.floor(len / 900);
-  const us = [];
-  for (let k = 1; k <= posrodku; k++) us.push(Math.round((len * k) / (posrodku + 1) - LEG_W / 2));
-  us.push(Math.max(0, len - LEG_INSET - LEG_W));
+  const us = legPlan({}, len).xs;
   const vs = [LEG_INSET, Math.max(LEG_INSET, Math.round(a.depth) - LEG_INSET - LEG_W)];
   return { us, vs, w: LEG_W, ile: us.length * vs.length };
 };
@@ -8172,7 +8169,7 @@ const cornerArmParts = (a) => {
     hardware.push({ name: "Nóżka regulowana",
       use: "pod ramieniem szafki narożnej",
       spec: `pod ramieniem szafki narożnej, wysokość ${fmt(cab.legs.height || 100)} mm: `
-        + `${lp.us.length} pary — ${lp.us.length > 1 ? "na środku i " : ""}pod wolnym końcem`,
+        + `${lp.us.length} pary — przy rogu, ${lp.us.length > 2 ? "na środku i " : ""}pod wolnym końcem`,
       qty: lp.ile, unit: "szt." });
   }
   /* Zawiasow lamanych tyle samo, co zwyklych na tej wysokosci — spinaja

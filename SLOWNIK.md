@@ -173,7 +173,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `armFrontPlan(arm)` | gdzie zaczyna się i jak szeroki jest front ramienia — jedno miejsce dla formatki i rysunków |
 | `armPlan(arm)` / `bracketPlan` | wzmocnienia i kątownik ramienia w układzie „od naroża" |
 | `legPlan(cab, W)` / `autoLegs(W)` | rozstaw i liczba nóżek |
-| `armLegPlan(arm)` | nóżki ramienia narożnika: `us` od rogu, `vs` od ściany — jedno źródło dla zamówienia, elewacji i bryły |
+| `armLegPlan(arm)` | nóżki ramienia narożnika jak w szafce tej długości (`legPlan`): przy rogu, pod końcem, od 900 mm na środku; `us` od rogu, `vs` od ściany — jedno źródło dla zamówienia, elewacji i bryły |
 | `ulozSciany(solids, proj)` | kolejność rysowania i cieniowanie w obu widokach 3D (zabudowa i szafka) |
 | `autoHinges(h, w)` | liczba zawiasów na skrzydło |
 | `autoShelves(innerH, t)` | liczba półek przy automacie |

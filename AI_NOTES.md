@@ -430,12 +430,14 @@ ile razy kolejnosc trzeba bylo wymusic. Suita `bryla3d` pyta przegladarke
 stron. Dokladasz bryle, ktora ma byc widoczna — nadaj jej `tag` i dopisz ja
 do testu.
 
-[AI-INFO] Nozki ramienia liczy `armLegPlan(a)`: para pod wolnym koncem
-i po parze co pelne 900 mm, rozlozone rowno miedzy rogiem a wolnym koncem.
-Przy rogu ramie opiera sie na przednim rzedzie nozek szafki naroznej, wiec
-wlasnej pary tam nie ma. Z tej funkcji biora zamowienie (`cornerArmParts`),
-elewacja zabudowy (`AssemblyView`) i bryla — wczesniej zamowienie mowilo
-„srodek i koniec", a elewacja rysowala oba konce bez srodka.
+[AI-INFO] Nozki ramienia liczy `armLegPlan(a)`: ramie stoi jak samodzielna
+szafka swojej dlugosci — rozstaw z `legPlan({}, len)`, czyli para przy rogu,
+para pod wolnym koncem i od 900 mm para posrodku (ramie 1200 = 6 nozek).
+Przy rogu ramie mogloby sie oprzec na nozkach szafki naroznej (stoja 40-80 mm
+za licem), ale uzytkownik wybral wlasna pare: ramie nie zalezy wtedy od tego,
+jak stanie szafka obok. Z tej funkcji biora zamowienie (`cornerArmParts`),
+elewacja zabudowy (`AssemblyView`), elewacja szafki naroznej (`FrontView`)
+i bryla — wczesniej kazdy z tych widokow rysowal nozki po swojemu.
 
 [AI-INFO] Recznie wpisana liczba nozek (`cab.legs.count`) mniejsza o dwie lub
 wiecej od `autoLegs(W)` przy szafce od 900 mm daje podpowiedz z przyciskami
