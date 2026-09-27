@@ -48,6 +48,8 @@ narożnika przy froncie**, a nie wzmocnienie. To nie to samo co:
 |---|---|
 | Ta szafka | `item.runId` |
 | Wysunięcie tej szafki z lica | `item.offset` |
+| Odsunięcie tej szafki od ściany (dół / blat) | `item.wallGap = { bottom, top }`; `null` = jak ciąg; rozwiązuje `wallGapOf(run, item)` |
+| Odsunięcie od ściany (dół / blat) | `run.wallGap = { bottom, top }`; `top: null` = jak na dole; widok z boku rysuje ścianę (`data-el="sciana"`), uwagi: `wallGapMsgs` |
 | Nazwa ciągu | `run.name` |
 | Długość ściany | `run.wallW` (efektywna: `runWallW`) |
 | Położenie na ścianie | `run.offset` |
@@ -211,6 +213,8 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `KERF` | 3 | rzaz piły |
 | `WORKTOP_LEN` | 4100 | długość pasa blatu |
 | `WORKTOP_DEPTHS` / `WORKTOP_PRICES` | 600, 1200 / 470, 780 | głębokości i ceny blatu |
+| `WORKTOP_OVERHANG` / `WORKTOP_MAX_OVERHANG` | 10 / 30 | wysięg blatu przed drzwi: standard / granica, ponad którą ostrzeżenie i docinanie |
+| `HINGE_PLAY` | 2 | luz między korpusem a drzwiami przy zawiasach — tylko do głębokości blatu, nie do rysunków |
 | `BACK_CLEAR` | 20 | luz nad podniesionym tyłem szuflady |
 | `VBOX` | — | dane katalogowe Sevroll V-BOX 3D Slim, **dla płyty 18 mm** |
 
@@ -268,7 +272,7 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `cornerdoor:<w>:<idx>` | ustawia jedne drzwi szafki narożnej na podaną szerokość |
 | `noTop:<idx>` | zamienia wieniec na parę wzmocnień |
 | `rundepth:<mm>[@runId]` / `runcab:` / `runrun:` | wyrównuje głębokość / szafkę / cały ciąg |
-| `plinthauto` / `topauto` / `topcut:0\|1` / `worktop:` | cokół, wieniec, cięcie blatu |
+| `plinthauto` / `topauto` / `topcut:0\|1` / `worktop:` | cokół, wieniec, cięcie blatu (`topcut:1` → `run.topCut = true` docięty, `topcut:0` → `false` cały arkusz; `null` = sam dobiera) |
 | `legs:<n>` | wpisuje liczbę nóżek (podpowiedź przy ręcznie za małej liczbie) |
 
 ---
@@ -292,6 +296,7 @@ Uruchamianie: `cd testy && bash sweep.sh <nazwy>` (bez `.mjs`).
 | `okucia3` | liczby okuc z wymiaru: klipsy, trójkąty, fix, zawiasy 165°/90° |
 | `bryla3d` | co widać na wierzchu w 45° i 3D: blat, maskownice, uchwyty; nóżki; zero wymuszeń kolejności z ośmiu stron |
 | `wyslij` | przycisk „Wyślij do Claude”: bez magazynu go nie ma, z atrapą zapisuje pełny projekt |
+| `odsuniecie` | odsunięcie od ściany: głębokość blatu, wysięg przed drzwi (10 / <10 uwaga / >30 ostrzeżenie), krzywa ściana w widoku z boku, róg przesunięty o odstęp, wyjątek jednej szafki |
 | `hw2` / `cokol` / `cokolstd` / `ceny` / `ceny2` | okucia, cokół, cennik |
 | `ciag`…`ciag10` | ciągi: zakładanie, rozjazdy, cokół ciągu, światła |
 | `pietra` | dolny i górny ciąg na tej samej ścianie |

@@ -706,7 +706,7 @@ const makeRun = (runs) => {
     H: null, D: null, plinth: null, plinthCuts: null, topCuts: null, worktop: true,
     hangerMode: "listwa", mountY: 0, corner: null,
     tier: "dolny", wall: null, clearance: 500, ceiling: null,
-    offset: 0, offsetFrom: "left" };
+    offset: 0, offsetFrom: "left", wallGap: { bottom: 0, top: null }, topCut: null };
 };
 
 /* Gorny ciag tej samej sciany. Dlugosc sciany i narożnik bierze od dolnego, wiec
@@ -757,6 +757,21 @@ const migrateCorner = (c) => {
 // wymiary, ktore w ciagu musza byc wspolne — inaczej fronty i blat sie rozjada
 const RUN_SHARED = ["H", "D", "plinth", "hangerMode"];
 
+/* Odsuniecie od sciany. Szafke odsuwa sie, gdy sciana jest krzywa albo cos
+   z niej wystaje (rura, listwa) — za plecami zostaje wtedy pusta przestrzen.
+   Dwie wartosci, bo krzywa sciana daje inny odstep przy podlodze i inny na
+   wysokosci blatu, a blat liczy sie od sciany wlasnie tam. `top: null` = tyle
+   samo co na dole. W szafce `null` znaczy „jak caly ciag". */
+const migrateWallGap = (g) => {
+  if (!g || typeof g !== "object") return null;
+  const mm = (v) => Math.max(0, Math.round(Number(v) || 0));
+  return { bottom: mm(g.bottom), top: g.top == null || g.top === "" ? null : mm(g.top) };
+};
+const wallGapOf = (run, it) => {
+  const g = migrateWallGap(it && it.wallGap) || migrateWallGap(run && run.wallGap) || { bottom: 0, top: null };
+  return { bottom: g.bottom, top: g.top == null ? g.bottom : g.top };
+};
+
 const migrateRun = (r) => ({
   id: String(r.id),
   name: typeof r.name === "string" && r.name.trim() ? r.name : "Ciąg",
@@ -791,6 +806,9 @@ const migrateRun = (r) => ({
   offsetFrom: r.offsetFrom === "right" ? "right" : "left",
   // null = ciag stoi przy wlasnej scianie, bez zwiazku z innymi
   corner: migrateCorner(r.corner),
+  wallGap: migrateWallGap(r.wallGap) || { bottom: 0, top: null },
+  // blat: true = docięty na wymiar, false = caly arkusz, null = dobiera sam
+  topCut: r.topCut === true ? true : r.topCut === false ? false : null,
 });
 
 // cokol porownujemy po wszystkich czterech polach — cofniecie tez psuje lico ciagu
@@ -820,7 +838,8 @@ const loadProject = (d) => {
     items = d.items.map((it) => {
       const mat = migrateMat(it.mat);
       return { cab: migrateCab(it.cab, mat), mat,
-        runId: it.runId || null, offset: Math.round(Number(it.offset) || 0) };
+        runId: it.runId || null, offset: Math.round(Number(it.offset) || 0),
+        wallGap: migrateWallGap(it.wallGap) };
     });
   } else if (d.cab) {
     items = (() => { const mat = migrateMat(d.mat);
@@ -3280,6 +3299,8 @@ const assemblyParts = (project, runs, ref) =>
       const o = {
         // index = pozycja szafki w projekcie; po niej trafiaja w nia poprawki
         cab: it.cab, geo, mat, rawMat: it.mat, x, plinthH, index,
+        // odstep od sciany przy podlodze i pod blatem — ciagu albo wlasny szafki
+        wallGap: wallGapOf(run, it),
         // wysuniecie (+) albo cofniecie (-) z lica ciagu
         offset: Math.round(Number(it.offset) || 0),
         base: mount + Math.max(plinthH, legBelow),
@@ -3562,7 +3583,11 @@ const runLayout = (groups, ref = null) => {
     /* Rog zjada tyle, ile ma glebokosci szafka, ktora w nim faktycznie stoi —
        nie caly ciag. Plytsza szafka w rogu odsuwa sasiada mniej, glebsza
        wiecej; branie glebokosci ciagu myliloby sie w obie strony. */
-    const glRog = rogowa ? Math.round(rogowa.geo.carcassDepth - rogowa.offset) : wchodzi.depth;
+    /* Szafka odsunieta od sciany zjada rog razem z tym odstepem — sasiad
+       zaczyna sie za jej frontem, a nie za samym korpusem. */
+    const glRog = rogowa
+      ? Math.round(rogowa.wallGap.bottom + rogowa.geo.carcassDepth - rogowa.offset)
+      : wchodzi.depth + wallGapOf(wchodzi.run, null).bottom;
     n.pair = { wchodzi, ustepuje, przyStarcie, rogowa, armLen, glRog };
     const o = glRog + armLen + (n.corner.clear || 0);
     // odsuwamy z tej strony ciagu, ktora dotyka rogu
@@ -6739,7 +6764,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
   );
 }
 
-function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
+function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const sideRight = which === "right";
@@ -6752,11 +6777,27 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
   );
   const sOvF = geo.isBlat ? geo.blat.overFront : 0;
   const sOvB = geo.isBlat ? geo.blat.overBack : 0;
-  const vb = `${-pad - sOvB} ${-pad - 70} ${D + sOvB + sOvF + 2 * pad + rightExtra} ${H + 2 * pad + 70 + below}`;
   const fy = (y) => H - y;
   const bf = mat.board.color;
   const cd = geo.carcassDepth;
   const xC = D - cd; // tyl po lewej
+  /* Sciana za szafka stojaca z odstepem. Rysujemy ja tylko wtedy, gdy odstep
+     jest, zeby bylo widac, skad wziela sie pusta przestrzen za plecami: pionowa
+     przy rownym odstepie, pochyla, gdy przy podlodze jest inny niz pod blatem.
+     Tyl korpusu to plecy nakladane z zewnatrz albo sam bok. */
+  const xTyl = geo.backIsBoard && geo.backPos === "outside" && cab.back !== "none" ? xC - geo.tb : xC;
+  const sciana = wallGap && (wallGap.bottom > 0 || wallGap.top > 0) ? (() => {
+    const yPodloga = H + below, yBlat = 0;
+    const xD = xTyl - wallGap.bottom, xG = xTyl - wallGap.top;
+    // przedluzamy linie sciany o 60 mm ponad blat, z tym samym pochyleniem
+    const nad = 60;
+    const xN = xG + (xG - xD) * nad / yPodloga;
+    return { xD, xG, xN, yPodloga, yBlat, yN: -nad };
+  })() : null;
+  // wymiar wysokosci idzie wtedy za sciane, zeby na nia nie wchodzil
+  const xWysokosc = sciana ? Math.min(sciana.xD, sciana.xN) - 130 : -50;
+  const lewo = Math.min(-pad - sOvB, xWysokosc - 110);
+  const vb = `${lewo} ${-pad - 70} ${D + sOvF + pad + rightExtra - lewo} ${H + 2 * pad + 70 + below}`;
   const hasFront = geo.levels.some((lv) => lv.cols.some((c) => c.count > 0));
   // przod korpusu jest przy x=D; front nakladany wystaje o tf, wpuszczany jest w licu
   const frontFace = cab.frontMode === "overlay" ? D + geo.tf : D;
@@ -6772,6 +6813,24 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       <rect x="0" y="0" width={D} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 8" />
+      {sciana && (
+        <g data-el="sciana">
+          <polygon points={`${sciana.xN},${sciana.yN} ${sciana.xD},${sciana.yPodloga} `
+            + `${sciana.xD - 40},${sciana.yPodloga} ${sciana.xN - 40},${sciana.yN}`}
+            fill="#a8a29e" opacity="0.35" />
+          <line x1={sciana.xN} y1={sciana.yN} x2={sciana.xD} y2={sciana.yPodloga}
+            stroke={INK} strokeWidth="3" />
+          <line x1={sciana.xD - 60} y1={sciana.yPodloga} x2={xTyl + 60} y2={sciana.yPodloga}
+            stroke={INK} strokeWidth="1.5" opacity="0.6" />
+          <text x={sciana.xN - 44} y={sciana.yN + 4} fontSize="20" fill={INK} opacity="0.7"
+            textAnchor="end" fontFamily="ui-monospace, monospace">ściana</text>
+          {[{ y: sciana.yPodloga - 14, x: sciana.xD, g: wallGap.bottom },
+            { y: 26, x: sciana.xG, g: wallGap.top }].map((o, i) => (
+            <text key={i} x={o.x - 8} y={o.y} fontSize="20" fill={INK} textAnchor="end"
+              fontFamily="ui-monospace, monospace">{`↔ ${fmt(o.g)}`}</text>
+          ))}
+        </g>
+      )}
       {(() => {
         const cut = (sideRight ? geo.cornerCut?.sideRightDepth : geo.cornerCut?.sideLeftDepth) || 0;
         return (
@@ -6948,7 +7007,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
             <DimH x1={0} x2={frontFace} y={-110} label={`z drzwiami ${fmt(frontFace)}`} c={LINE} />
           )}
           <DimH x1={xC} x2={xC + geo.shelfDepth} y={H + 70} label={`półka ${fmt(geo.shelfDepth)}`} above={false} />
-          <DimV y1={0} y2={H} x={-50} label={`${fmt(H)}`} />
+          <DimV y1={0} y2={H} x={xWysokosc} label={`${fmt(H)}`} />
         </>
       )}
       {geo.geoCuts.filter((gc) => gc.onBack && (gc.onLeft !== sideRight)).map((gc, ci) => (
@@ -7585,7 +7644,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("topcut:")) {
       return { label: action === "topcut:1"
         ? "Zamów blat docięty na wymiar"
-        : "Zamów cały pas, dotnij na miejscu",
+        : "Zamów cały arkusz",
         run: () => runFix && runFix(action) };
     }
     if (action.startsWith("rundepth:")) {
@@ -7868,11 +7927,15 @@ const runPlinth = (project, run) => {
 /* Ile blat wystaje przed lico frontow. Glebokosc blatu jest wymiarem
    rzeczywistym — od sciany do jego konca — wiec ten wysieg wchodzi w nia. */
 const WORKTOP_OVERHANG = 10;
-/* Blat kupuje sie w gotowym pasie 600 albo 1200 mm. Kilku centymetrow nie warto
-   zdejmowac w zakladzie: sciana i tak nie jest prosta, wiec i tak dopasowuje sie
-   go na miejscu. Przy wiekszej roznicy ciecie na wymiar ma juz sens — mniej
-   odpadu i lzej go wniesc. */
-const WORKTOP_ONSITE = 50;
+/* Blat kupuje sie w gotowym pasie 600 albo 1200 mm i nie docina z glebokosci,
+   dopoki wystaje przed drzwi najwyzej tyle — do sciany i tak dopasowuje sie go
+   na miejscu. Wiecej znaczy zwykle, ze zle jest odsuniecie od sciany albo
+   glebokosc szafek, i dopiero wtedy pytamy, czy blat ciac. */
+const WORKTOP_MAX_OVERHANG = 30;
+/* Drzwi na zawiasach puszkowych nie leza na krawedzi korpusu — przy zawiasach
+   zostaje ok. 2 mm szczeliny. To wytyczna montazowa: nie ma jej na rysunkach
+   ani w wymiarach, liczy sie tylko do tego, ile blat wystaje przed fronty. */
+const HINGE_PLAY = 2;
 
 /* Odcinki blatu do rysunku. Skrajne dociagamy do konca calej plyty, bo nad
    rogiem blat idzie dalej niz szafki, ktore pod nim stoja. */
@@ -7935,20 +7998,26 @@ const runTop = (project, run, bezRogu = false) => {
      od tego, co ma ustawione pojedyncza szafka. Slupek jest wyzszy, wiec blat
      konczy sie przy jego boku i do niego dolega. */
   const lvl = run.worktop ? worktopLevel(project, run) : null;
+  /* Blat liczy sie od sciany na wysokosci blatu: odstep od niej, korpus,
+     szczelina przy zawiasach, front i wysieg przed fronty. */
   if (lvl && lvl.pod.length) {
     lvl.pod.forEach((c) => {
       const gl = Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0));
-      spans.push({ x0: c.x0, x1: c.x1, depth: gl + c.geo.tf + WORKTOP_OVERHANG,
-        worktop: true, rear: c.it.cab.back !== "none" });
+      const odSciany = wallGapOf(run, c.it).top;
+      spans.push({ x0: c.x0, x1: c.x1,
+        depth: odSciany + gl + HINGE_PLAY + c.geo.tf + WORKTOP_OVERHANG,
+        odSciany, worktop: true, rear: c.it.cab.back !== "none" });
     });
   }
   /* Ramie szafki naroznej lezy w pasie sasiedniej sciany i tez chce blat nad
      soba — bez tego blat konczyl sie na korpusie, a rog zostawal goly. */
   if (ramiona.length) {
     const n = projectLayout(project).info.get(run.id) || { lead: 0 };
+    const odSciany = wallGapOf(run, null).top;
     ramiona.forEach((a) => {
       spans.push({ x0: a.u0 - (n.lead || 0), x1: a.u0 - (n.lead || 0) + a.len,
-        depth: a.depth + a.cab.geo.tf + WORKTOP_OVERHANG,
+        depth: odSciany + a.depth + HINGE_PLAY + a.cab.geo.tf + WORKTOP_OVERHANG,
+        odSciany,
         // grubosc frontu ramienia — pas z samym ramieniem nie ma jej skad wziac
         tf: a.cab.geo.tf,
         worktop: true, rear: a.cab.cab.back !== "none" });
@@ -7977,7 +8046,11 @@ const runTop = (project, run, bezRogu = false) => {
     if (!id || bezRogu) return 0;
     const r = (project.runs || []).find((x) => x.id === id);
     const rp = r ? runTop(project, r, true) : null;
-    return rp ? Math.max(0, Math.round(rp.depth - gl)) : 0;
+    if (!rp) return 0;
+    /* Blat liczy sie od sciany pod blatem, a uklad ciagu — od sciany przy
+       podlodze. Przy krzywej scianie roznica miedzy nimi przesuwa krawedz. */
+    const g = wallGapOf(r, null);
+    return Math.max(0, Math.round(rp.depth + g.bottom - g.top - gl));
   };
   const x0 = ext && ext.cor0 ? Math.round(ext.x0) + doKrawedzi(ext.przez0, ext.glPrzez0)
     : Math.min(...spans.map((s) => s.x0));
@@ -8005,15 +8078,21 @@ const runTop = (project, run, bezRogu = false) => {
     skos0: !!(ext && ext.skos0), skos1: !!(ext && ext.skos1),
     matKey: worktop ? "worktop" : "board",
     ...(() => {
-      /* Szerokosc zamawiana: przy malej roznicy bierzemy caly arkusz i docinamy
-         przy scianie na miejscu. `surowa` zostaje na uwagi i wymiary. */
+      /* Szerokosc zamawiana. `surowa` to blat ze standardowym wysiegiem 10 mm,
+         `doLica` — od sciany do lica drzwi. Arkusz musi wyjsc przed drzwi choc
+         o milimetr; caly pas zamawiamy, dopoki wystaje najwyzej 30 mm. Dalej
+         domyslnie docinamy na wymiar, a uzytkownik moze to odwrocic
+         (`run.topCut`: true = docięty, false = caly arkusz). */
       const surowa = Math.round(Math.max(...spans.map((s) => s.depth)));
-      const arkusz = worktop ? WORKTOP_DEPTHS.find((d) => d >= surowa) : null;
-      const docinka = arkusz ? arkusz - surowa : 0;
-      const pelny = !!arkusz && docinka > 0 && docinka <= WORKTOP_ONSITE
-        && run.topCut !== true;
-      return { surowa, arkusz: arkusz || null, docinka, pelnyArkusz: pelny,
-        depth: pelny ? arkusz : surowa };
+      const doLica = surowa - WORKTOP_OVERHANG;
+      const arkusz = worktop ? WORKTOP_DEPTHS.find((d) => d - doLica >= 1) || null : null;
+      const wysiegArkusza = arkusz ? arkusz - doLica : null;
+      const pelny = !!arkusz && (run.topCut === false
+        || (run.topCut !== true && wysiegArkusza <= WORKTOP_MAX_OVERHANG));
+      const depth = pelny ? arkusz : arkusz ? Math.min(surowa, arkusz) : surowa;
+      return { surowa, arkusz, docinka: arkusz ? arkusz - depth : 0, pelnyArkusz: pelny,
+        depth, doLica, wysiegArkusza, wysieg: depth - doLica,
+        odSciany: Math.max(0, ...spans.map((s) => s.odSciany || 0)) };
     })(),
     rear: spans.some((s) => s.rear),
     // styki przeliczamy na uklad samej plyty, zeby ciecia liczyly sie od jej konca
@@ -8371,6 +8450,31 @@ const SLUPEK_MIN = 200;
 
 /* Uwagi o blacie roboczym ciagu: co jest pod nim, co obok, i co jeszcze ma
    wieniec, choc pod blatem powinno miec pare wzmocnien. */
+/* Odstep od sciany jest swiadoma decyzja (krzywa sciana, rura), ale latwo o nim
+   zapomniec przy montazu — i to on przesuwa glebokosc blatu. Dlatego mowimy
+   o nim zawsze, osobno dla ciagu i dla szafek, ktore stoja inaczej niz on. */
+const wallGapMsgs = (project, run) => {
+  const out = [];
+  if (!run) return out;
+  const opis = (g) => (g.bottom === g.top
+    ? `${fmt(g.bottom)} mm od ściany`
+    : `${fmt(g.bottom)} mm od ściany przy podłodze i ${fmt(g.top)} mm na wysokości blatu`);
+  const gc = wallGapOf(run, null);
+  if (gc.bottom || gc.top)
+    out.push({ level: "info", text:
+      `Ciąg stoi ${opis(gc)} — za plecami zostaje wolna przestrzeń. `
+      + `Blat liczymy od ściany na wysokości blatu.` });
+  runItems(project, run.id).forEach(({ it }) => {
+    if (!it.wallGap) return;
+    const g = wallGapOf(run, it);
+    if (g.bottom === gc.bottom && g.top === gc.top) return;
+    const nazwa = (it.cab.name || "").trim() || "szafka";
+    out.push({ level: "info", text:
+      `Szafka „${nazwa}" stoi ${opis(g)}, inaczej niż reszta ciągu.` });
+  });
+  return out;
+};
+
 const worktopMsgs = (project, run) => {
   const out = [];
   if (!run) return out;
@@ -8411,29 +8515,60 @@ const worktopMsgs = (project, run) => {
     const glebokosc = lvl && lvl.pod.length
       ? Math.max(...lvl.pod.map((c) => Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0))))
       : Math.max(0, Math.round(Number(run.D) || 0));
-    // 2 mm zapasu, zeby blat na pewno wszedl w arkusz 600
-    const sugerowana = WORKTOP_DEPTHS[0] - tf - WORKTOP_OVERHANG - 2;
+    // glebokosc szafek, przy ktorej arkusz 600 wystaje przed drzwi standardowe 10 mm
+    const sugerowana = WORKTOP_DEPTHS[0] - WORKTOP_OVERHANG - HINGE_PLAY - tf - (rt.odSciany || 0);
     out.push({ level: "warn", text:
       `Blat wychodzi ${fmt(rt.depth)} mm — o ${fmt(nadmiar)} mm za dużo na arkusz `
       + `${fmt(WORKTOP_DEPTHS[0])} mm, a z arkusza ${fmt(WORKTOP_DEPTHS[1])} mm zostaje pas odpadu. `
-      + `Szafki są za głębokie: przy ${fmt(sugerowana)} mm blat ma ${fmt(sugerowana + tf + WORKTOP_OVERHANG)} mm `
-      + `i mieści się z zapasem. Można też świadomie wziąć szerszy arkusz.`
+      + `Szafki są za głębokie: przy ${fmt(sugerowana)} mm arkusz ${fmt(WORKTOP_DEPTHS[0])} mm `
+      + `wystaje przed drzwi ${fmt(WORKTOP_OVERHANG)} mm`
+      + (rt.odSciany ? ` (razem z odstępem ${fmt(rt.odSciany)} mm od ściany)` : "")
+      + `. Można też świadomie wziąć szerszy arkusz.`
       + (glebokosc > sugerowana ? `|rundepth:${sugerowana}` : "")
       + `|worktop:${WORKTOP_DEPTHS[1]}` });
   }
-  /* Blat kupiony w calym pasie trzeba docisnac do sciany na miejscu — o tym
-     trzeba powiedziec, bo inaczej te kilka milimetrow wychodzi dopiero przy
-     montazu. Przy wiekszej roznicy ciecie na wymiar ma sens i wtedy pytamy. */
-  if (rt && rt.worktop && rt.docinka > 0) {
-    out.push({ level: "info", text: rt.pelnyArkusz
-      ? `Blat wychodzi ${fmt(rt.surowa)} mm, a kupuje się go w pasie ${fmt(rt.arkusz)} mm — `
-        + `zamawiamy cały pas i zdejmujemy ${fmt(rt.docinka)} mm przy ścianie na miejscu. `
-        + `Ściana i tak nie jest prosta, więc docinanie w zakładzie niewiele daje. `
-        + `Jeśli nic nie zdejmiesz, blat wystanie o ${fmt(rt.docinka)} mm dalej przed fronty.`
-        + `|topcut:1`
-      : `Blat zamawiamy docięty do ${fmt(rt.surowa)} mm z pasa ${fmt(rt.arkusz)} mm — `
-        + `zdejmuje go zakład, na miejscu zostaje tylko dopasowanie do ściany.`
-        + `|topcut:0` });
+  /* Ile arkusz 600 wystaje przed drzwi. Standard to 10 mm — blat oslania gorna
+     krawedz frontow, zeby przy krojeniu nie kapalo na nie. Mniej: uwaga.
+     Ponad 30 mm: ostrzezenie, bo zwykle zle jest odsuniecie od sciany albo
+     glebokosc szafek — a jesli oba sa dobre, blat trzeba dociac. */
+  const naArkusz600 = rt && rt.worktop && rt.arkusz === WORKTOP_DEPTHS[0];
+  let opisanyWysieg = false;
+  if (naArkusz600) {
+    const w = rt.wysiegArkusza;
+    const gl = lvl && lvl.pod.length
+      ? Math.max(...lvl.pod.map((c) => Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0))))
+      : Math.max(0, Math.round(Number(run.D) || 0));
+    const front = rt.doLica - (rt.odSciany || 0) - gl - HINGE_PLAY;
+    const sklad = (rt.odSciany ? `${fmt(rt.odSciany)} mm od ściany + ` : "")
+      + `korpus ${fmt(gl)} + ${fmt(HINGE_PLAY)} mm luzu przy zawiasach + front ${fmt(front)} `
+      + `= ${fmt(rt.doLica)} mm do lica drzwi`;
+    // glebokosc szafek, przy ktorej arkusz wystaje przed drzwi dokladnie 10 mm
+    const cel = gl + w - WORKTOP_OVERHANG;
+    const naCel = lvl && lvl.pod.length && cel > 0 && cel !== gl ? `|rundepth:${cel}` : "";
+    if (w < WORKTOP_OVERHANG) {
+      opisanyWysieg = true;
+      out.push({ level: "info", text:
+        `Blat ${fmt(rt.arkusz)} mm wystaje przed drzwi tylko ${fmt(w)} mm (${sklad}). `
+        + `Zwykle wychodzi ok. ${fmt(WORKTOP_OVERHANG)} mm i osłania górną krawędź frontów. `
+        + `Zmniejsz głębokość szafek albo odsunięcie od ściany.` + naCel });
+    } else if (w > WORKTOP_MAX_OVERHANG) {
+      opisanyWysieg = true;
+      out.push({ level: "warn", text:
+        `Cały arkusz ${fmt(rt.arkusz)} mm wystawałby przed drzwi ${fmt(w)} mm (${sklad}) — `
+        + `ponad ${fmt(WORKTOP_MAX_OVERHANG)} mm. Sprawdź odsunięcie od ściany i głębokość szafek; `
+        + `jeśli oba są dobre, blat trzeba dociąć. `
+        + (rt.pelnyArkusz
+          ? `Teraz zamawiamy cały arkusz.|topcut:1`
+          : `Teraz zamawiamy go dociętego do ${fmt(rt.depth)} mm — ${fmt(rt.wysieg)} mm przed drzwi.|topcut:0`)
+        + naCel });
+    }
+  }
+  // docięty na życzenie albo z arkusza 1200 — mówimy, że tnie go zakład
+  if (rt && rt.worktop && !rt.pelnyArkusz && rt.docinka > 0 && !opisanyWysieg) {
+    out.push({ level: "info", text:
+      `Blat zamawiamy docięty do ${fmt(rt.depth)} mm z pasa ${fmt(rt.arkusz)} mm — `
+      + `zdejmuje go zakład, na miejscu zostaje tylko dopasowanie do ściany.`
+      + (naArkusz600 ? `|topcut:0` : "") });
   }
   /* Dwa odcinki blatu spotykaja sie w rogu. Rozne szerokosci widac tam od razu:
      jeden konczy sie przed licem drugiego albo za nim, a styk trzeba doginac.
@@ -8464,7 +8599,8 @@ const worktopMsgs = (project, run) => {
     /* Sasiad z blatem ponad arkusz 600 nie ma gdzie o tym powiedziec, gdy stoi
        w nim samo ramie — wtedy mowimy to tutaj, przy szafce naroznej. */
     if (rtI.depth > WORKTOP_DEPTHS[0] && !runItems(project, inny.id).length) {
-      const celI = glOf(inny, null) - (rtI.depth - WORKTOP_DEPTHS[0]) - 2;
+      // przy tej glebokosci arkusz 600 wystaje przed drzwi standardowe 10 mm
+      const celI = glOf(inny, null) - (rtI.surowa - WORKTOP_DEPTHS[0]);
       out.push({ level: "warn", text:
         `Blat nad ramieniem, po stronie ciągu „${inny.name}", wychodzi ${fmt(rtI.depth)} mm `
         + `— nie wytnie się z arkusza ${fmt(WORKTOP_DEPTHS[0])} mm. Ramię jest tak głębokie, `
@@ -8711,7 +8847,8 @@ const cornerPairMsgs = (n, blat) => {
   const gl = n.pair && n.pair.glRog;
   if (gl != null) {
     const w2 = n.pair.wchodzi;
-    const najgl = Math.max(...w2.g.cabs.map((q) => Math.round(q.geo.carcassDepth - q.offset)));
+    const najgl = Math.max(...w2.g.cabs.map((q) =>
+      Math.round(q.wallGap.bottom + q.geo.carcassDepth - q.offset)));
     if (najgl > gl)
       out.push({ level: "error", text:
         `Ciąg „${w2.run.name}" ma szafkę głębszą (${fmt(najgl)} mm) niż ta stojąca w rogu (${fmt(gl)} mm) `
@@ -8728,7 +8865,7 @@ const cornerPairMsgs = (n, blat) => {
     else
       out.push({ level: "info", text:
         `Blat w narożniku na styk: przechodzi blat ciągu „${przez.run.name}", `
-        + `a blat ciągu „${drugi.run.name}" dojeżdża do jego boku i jest o ${fmt(przez.depth)} mm krótszy. `
+        + `a blat ciągu „${drugi.run.name}" dojeżdża do jego przedniej krawędzi i tam się kończy. `
         + "Widoczne czoło ma wtedy ten przechodzący — ustaw to tak, żeby wypadło od strony, z której się patrzy." });
   }
   return out;
@@ -9861,6 +9998,13 @@ export default function App() {
     items[i] = { ...items[i], offset: Math.round(Number(v) || 0) };
     return { ...p, items };
   }), [setProject]);
+  // odsuniecie jednej szafki od sciany; null = jak caly ciag
+  const setItemWallGap = useCallback((i, g) => setProject((p) => {
+    const items = p.items.slice();
+    if (!items[i]) return p;
+    items[i] = { ...items[i], wallGap: migrateWallGap(g) };
+    return { ...p, items };
+  }), [setProject]);
 
   // przesuwanie w obrebie ciagu — sasiadem jest najblizsza szafka tego samego ciagu
   const moveCabinet = useCallback((i, dir) => setProject((p) => {
@@ -10312,6 +10456,7 @@ export default function App() {
     const node = projLayout.info.get(runInfo.run.id);
     return [...runCabMsgs(runInfo.run, c),
       ...runWideMsgs(runInfo.run, runInfo.total, runPl, runTp, node ? node.len : 0),
+      ...wallGapMsgs(project, runInfo.run),
       ...worktopMsgs(project, runInfo.run),
       ...tierMsgs(project, runInfo.run),
       ...runCornerMsgs(node, !!runTp),
@@ -11040,6 +11185,33 @@ export default function App() {
                     <Num value={project.items[project.active].offset || 0}
                       onChange={(v) => setOffset(project.active, v)} />
                   </Field>
+                  {(() => {
+                    /* Wlasne odsuniecie tej jednej szafki — np. przy rurze. Puste
+                       pola biora wartosc z ciagu. */
+                    const it = project.items[project.active];
+                    const wlasne = migrateWallGap(it.wallGap);
+                    const ciag = wallGapOf(runInfo.run, null);
+                    const ustaw = (pole, v) => {
+                      const g = { ...(wlasne || { bottom: ciag.bottom, top: null }) };
+                      g[pole] = v === "" ? (pole === "top" ? null : ciag.bottom)
+                        : Math.max(0, Math.round(Number(v) || 0));
+                      const jakCiag = g.bottom === ciag.bottom
+                        && (g.top == null ? g.bottom : g.top) === ciag.top;
+                      setItemWallGap(project.active, jakCiag ? null : g);
+                    };
+                    return (
+                      <Field label="Odsunięcie tej szafki od ściany"
+                        hint="Na dole i na wysokości blatu. Puste = jak cały ciąg.">
+                        <div className="grid grid-cols-2 gap-3">
+                          <AutoNum value={wlasne ? wlasne.bottom : null} placeholder={`${fmt(ciag.bottom)} (ciąg)`}
+                            fixed={!!wlasne} onChange={(v) => ustaw("bottom", v)} />
+                          <AutoNum value={wlasne ? wlasne.top : null}
+                            placeholder={`${fmt(wlasne ? wlasne.bottom : ciag.top)} (blat)`}
+                            fixed={!!wlasne && wlasne.top != null} onChange={(v) => ustaw("top", v)} />
+                        </div>
+                      </Field>
+                    );
+                  })()}
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Nazwa ciągu">
                       <input value={runInfo.run.name}
@@ -11068,6 +11240,21 @@ export default function App() {
                       <Seg value={runInfo.run.offsetFrom === "right" ? "right" : "left"}
                         onChange={(v) => setRun(runInfo.run.id, { offsetFrom: v })}
                         options={[{ v: "left", l: "Od lewej" }, { v: "right", l: "Od prawej" }]} />
+                    </div>
+                  </Field>
+                  {/* Krzywa sciana albo rura za szafkami: odstep przy podlodze i na
+                      wysokosci blatu. Blat liczy sie od sciany wlasnie tam. */}
+                  <Field label="Odsunięcie od ściany"
+                    hint="Na dole i na wysokości blatu. Puste pole blatu = tyle samo co na dole.">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Num value={wallGapOf(runInfo.run, null).bottom} min={0}
+                        onChange={(v) => setRun(runInfo.run.id, { wallGap: migrateWallGap({
+                          ...(runInfo.run.wallGap || {}), bottom: v }) })} />
+                      <AutoNum value={(runInfo.run.wallGap || {}).top ?? null}
+                        placeholder={`${fmt(wallGapOf(runInfo.run, null).bottom)} (blat)`}
+                        fixed={(runInfo.run.wallGap || {}).top != null}
+                        onChange={(v) => setRun(runInfo.run.id, { wallGap: migrateWallGap({
+                          ...(runInfo.run.wallGap || {}), top: v === "" ? null : v }) })} />
                     </div>
                   </Field>
                   {runInfo.run.tier === "gorny" && (
@@ -12778,7 +12965,8 @@ export default function App() {
                 </div>
               ) : view === "side" ? (
                 <SideView cab={cab} geo={geo} mat={mat} showDims={showDims} which={sideWhich}
-                  showHardware={showHardware} />
+                  showHardware={showHardware}
+                  wallGap={runInfo ? wallGapOf(runInfo.run, project.items[project.active]) : null} />
               ) : view === "top" ? (
                 <TopView cab={cab} geo={geo} mat={mat} showDims={showDims} showShelves={showShelves}
                   showHardware={showHardware} arm={cornerNode && cornerNode.arm} />

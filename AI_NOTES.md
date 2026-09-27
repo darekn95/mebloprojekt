@@ -52,7 +52,9 @@ artefaktu z `git show HEAD:szafki.jsx` i przelecenie ich osobno, wynik identyczn
   suita potrzebuje ścieżki bezwzględnej,
 - `savetest` — szuka `http://127.0.0.1:5199/preview-local.html`, którego nikt nie buduje,
 - `d2test`, `fixbtn` — timeout `locator.click` na przycisku, którego nie ma,
-- `pins2` — 2 BLAD: kołki i etykiety w dwóch kolumnach.
+- `pins2` — 2 BLAD: kołki i etykiety w dwóch kolumnach,
+- `narjedne` — 2 BLAD: nie ma podpowiedzi „Ustaw jedne drzwi …” (szerokość wychodzi
+  NaN); pada tak samo na czystym `main` (sprawdzone przy odsunięciu od ściany).
 
 Pierwsze dwie to braki w samych suitach, nie w aplikacji. Do przejrzenia osobno.
 
@@ -304,6 +306,28 @@ w rogu. Domyslnie oba wzmocnienia pary w rogu stoja pionowo i maja `ROG_WZM_H`
 wiec `runTop` zamawia caly pas (`pelnyArkusz`), a `surowa` trzyma wymiar
 wynikajacy z szafek. Uzytkownik moze to odwrocic przelacznikiem `run.topCut`
 (poprawka `topcut:0/1` w Uwagach). Wieksza roznica idzie na wymiar.
+
+[AI-INFO] Glebokosc blatu (ustalone z uzytkownikiem): od sciany na wysokosci
+blatu = odsuniecie od sciany (`wallGapOf(run, item).top`) + korpus +
+`HINGE_PLAY` (2 mm luzu przy zawiasach) + front + `WORKTOP_OVERHANG` (10).
+Luz przy zawiasach to wytyczna montazowa: nie ma go na rysunkach ani
+w wymiarach. `runTop` liczy `doLica` (sciana → lico drzwi) i `wysiegArkusza`
+(ile arkusz wystaje przed drzwi): <10 mm uwaga, 10–30 bez uwag i caly arkusz,
+>30 ostrzezenie (zle odsuniecie, zla glebokosc albo blat do dociecia)
+i domyslnie blat na wymiar. `run.topCut` jest trojstanowy: true = docięty,
+false = caly arkusz, null = dobiera sam. Dawna regula „do 50 mm zdejmujemy przy
+scianie" (`WORKTOP_ONSITE`) wyleciala. `topCut` wczesniej gubil sie przy
+wczytaniu projektu (nie bylo go w `migrateRun`).
+
+[AI-INFO] Odsuniecie od sciany: `run.wallGap = { bottom, top }` i wyjatek
+w szafce `item.wallGap` (null = jak ciag). Dwie wartosci, bo krzywa sciana
+daje inny odstep przy podlodze (polozenie szafki, rog) i inny pod blatem
+(glebokosc blatu). Rog: `glRog` w `projectLayout` zawiera odstep szafki
+naroznej przy podlodze, a styk blatow — roznice dol/blat przechodzacego ciagu.
+Widok z boku rysuje sciane (`data-el="sciana"`) ukosem albo pionowo.
+[AI-TODO] Rzut z gory, elewacja zabudowy i bryla 3D nie pokazuja jeszcze
+odstepu od sciany; ramie szafki naroznej nie bierze odstepu ciagu, przy ktorego
+scianie lezy (glebokosc ramienia = `other.depth`).
 
 [AI-INFO] Blat w rogu „na styk": przechodzacy przez rog ma glebokosc
 `rt.depth` (korpus + front + wysieg, a przy pelnym arkuszu 600), a nie
