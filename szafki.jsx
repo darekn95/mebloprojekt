@@ -1799,6 +1799,17 @@ function computeGeoLiczy(cab, mat, ctx) {
           hingeCount += ovH !== null ? ovH : autoH;
         }
         if (cbandH <= 0) add("error", `${where}: wysokość drzwi zero lub mniej.`);
+        /* Dwa waskie skrzydla tam, gdzie zmiesci sie jedno (np. 2 x 148 w szafce
+           300) — czesto zostaje tak z szablonu, a czasem klient tak chce, wiec to
+           tylko informacja. Przyciski pytaja od razu o strone zawiasow. Szafki
+           naroznej i drzwi przy rogu to nie dotyczy — tam sa wlasne zasady. */
+        const jedne = Math.round(sx1 - sx0);
+        if (cnt === 2 && !narozna && !przyRogu && jedne <= SZEROKI_FRONT
+            && dws.sizes.every((v) => v > 0 && v < WASKI_FRONT))
+          add("info", `${where}: dwoje wąskich drzwi po ${fmt(Math.round(dws.sizes[0]))} mm `
+            + `(poniżej ${fmt(WASKI_FRONT)} mm). Jedne drzwi miałyby ${fmt(jedne)} mm — `
+            + "zostaw dwoje, jeśli tak ma być."
+            + `|onedoor:${lv.i}:${j}:${jedne}:left|onedoor:${lv.i}:${j}:${jedne}:right`);
 
         if (hasFix && fixW > 0) {
           const auto = rawFix.side === "left" ? "right" : "left";
@@ -8157,6 +8168,19 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         run: () => editLevels((L) => (L[+li].cols[+j].hinge = side)),
       };
     }
+    if (action.startsWith("onedoor:")) {
+      // „onedoor:<poziom>:<kolumna>:<szerokosc>:<strona zawiasow>" — dwoje waskich drzwi w jedne
+      const [, li, j, w, side] = action.split(":");
+      return {
+        label: `Jedne drzwi ${fmt(Number(w))} mm — zawiasy z ${side === "left" ? "lewej" : "prawej"}`,
+        run: () => editLevels((L) => {
+          const c = L[+li].cols[+j];
+          c.doors = 1;
+          c.hinge = side;
+          c.doorWidths = [];
+        }),
+      };
+    }
     if (action.startsWith("noTop:")) {
       const idx = Number(action.split(":")[1]);
       return {
@@ -8273,17 +8297,43 @@ const MiniBtn = ({ onClick, children, tone = "plain", title }) => (
 /* Powiekszanie rysunku. 100% to rozmiar dopasowany do karty (jak dotad); wyzej
    SVG rosnie od tego dopasowanego rozmiaru, a ramka dostaje przewijanie
    i przesuwanie przeciaganiem. Tam, gdzie przeciaganie obraca bryle (3D),
-   przesuwa sie z wcisnietym Shiftem. Zmiana widoku wraca do 100%. */
+   przesuwa sie z wcisnietym Shiftem.
+   Kazdy rysunek (zakres | widok | szafka — `resetKey`) pamieta swoje
+   powiekszenie, miejsce przewiniecia i szerokosc przy 100%: po przelaczeniu
+   widoku i powrocie rysunek jest taki, jak go zostawiono. Pamiec trwa do
+   przeladowania strony; nowy rysunek startuje od „Dopasuj”. */
 const ZOOM_KROKI = [1, 1.25, 1.5, 2, 2.5, 3, 4];
+const ZOOM_PAMIEC = new Map();   // resetKey -> { z, x, y, fit }
+const zoomPamiec = (k) => {
+  if (!ZOOM_PAMIEC.has(k)) ZOOM_PAMIEC.set(k, { z: 1, x: 0, y: 0, fit: 0 });
+  return ZOOM_PAMIEC.get(k);
+};
 function ZoomBox({ children, obraca = false, pelny = false, onPelny, resetKey }) {
-  const [zoom, setZoom] = useState(1);
+  const kluczRef = useRef(resetKey);
+  kluczRef.current = resetKey;
+  const [stan, setStan] = useState(() => ({ k: resetKey, z: zoomPamiec(resetKey).z }));
+  // po zmianie rysunku od razu (w tym samym rysowaniu) jego zapamietane powiekszenie
+  const zoom = stan.k === resetKey ? stan.z : zoomPamiec(resetKey).z;
+  const setZoom = (f) => setStan((s) => {
+    const k = kluczRef.current;
+    const z0 = s.k === k ? s.z : zoomPamiec(k).z;
+    const z = typeof f === "function" ? f(z0) : f;
+    zoomPamiec(k).z = z;
+    return { k, z };
+  });
   const ramka = useRef(null);
-  const dopasowana = useRef(0);
+  const dopasowana = useRef(zoomPamiec(resetKey).fit);
   const przes = useRef(null);
   const zoomRef = useRef(1);
   zoomRef.current = zoom;
   const poScroll = useRef(null);
-  useEffect(() => { setZoom(1); }, [resetKey]);
+  /* Powrot do rysunku: przewiniecie ustawiamy dopiero, gdy ramka juz ma
+     powiekszony rysunek (efekt nizej, po kazdym rysowaniu). */
+  useEffect(() => {
+    const p = zoomPamiec(resetKey);
+    if (p.fit) dopasowana.current = p.fit;
+    poScroll.current = p.z > 1 ? { x: p.x, y: p.y, z: p.z } : null;
+  }, [resetKey]);
   /* Ctrl + kolko nad rysunkiem przybliza rysunek w miejscu kursora zamiast
      calej strony (tak jak mapy); szczypanie na touchpadzie przychodzi jako to
      samo. React podpina kolko jako pasywne, wiec bez wlasnego nasluchu nie da
@@ -8300,18 +8350,22 @@ function ZoomBox({ children, obraca = false, pelny = false, onPelny, resetKey })
       const r = el.getBoundingClientRect();
       const mx = e.clientX - r.left, my = e.clientY - r.top;
       // punkt pod kursorem zostaje na miejscu
-      poScroll.current = { x: (el.scrollLeft + mx) * (z1 / z0) - mx, y: (el.scrollTop + my) * (z1 / z0) - my };
+      poScroll.current = { x: (el.scrollLeft + mx) * (z1 / z0) - mx, y: (el.scrollTop + my) * (z1 / z0) - my, z: z1 };
       setZoom(z1);
     };
     el.addEventListener("wheel", naKolko, { passive: false });
     return () => el.removeEventListener("wheel", naKolko);
   }, []);
   useEffect(() => {
-    if (!poScroll.current || !ramka.current) return;
-    ramka.current.scrollLeft = poScroll.current.x;
-    ramka.current.scrollTop = poScroll.current.y;
+    const p = poScroll.current;
+    if (!p || !ramka.current || Math.abs(p.z - zoom) > 1e-6) return;
+    ramka.current.scrollLeft = p.x;
+    ramka.current.scrollTop = p.y;
     poScroll.current = null;
-  }, [zoom]);
+    const m = zoomPamiec(resetKey);
+    m.x = ramka.current.scrollLeft;
+    m.y = ramka.current.scrollTop;
+  });
   /* Szerokosc rysunku przy 100%: SVG ma szerokosc karty, ale wysokosc
      ograniczona, wiec sama tresc bywa wezsza — liczymy ja z proporcji viewBox,
      inaczej pierwszy krok powiekszenia skakalby kilka razy. */
@@ -8323,6 +8377,7 @@ function ZoomBox({ children, obraca = false, pelny = false, onPelny, resetKey })
     const vb = svg.viewBox && svg.viewBox.baseVal;
     dopasowana.current = vb && vb.width && vb.height
       ? Math.min(r.width, r.height * (vb.width / vb.height)) : r.width;
+    zoomPamiec(resetKey).fit = dopasowana.current;
   });
   const krok = (d) => setZoom((z) => {
     const i = ZOOM_KROKI.findIndex((k) => k >= z - 1e-6);
@@ -8356,7 +8411,7 @@ function ZoomBox({ children, obraca = false, pelny = false, onPelny, resetKey })
         /* `contain: inline-size` trzyma szerokosc ramki na szerokosci karty — bez
            tego kolumna strony rozszerzala sie pod powiekszony rysunek i nie bylo
            czego przewijac. */
-        style={wiekszy ? { "--zw": `${Math.round(dopasowana.current * zoom)}px`,
+        style={wiekszy ? { "--zw": `${Math.round((zoomPamiec(resetKey).fit || dopasowana.current) * zoom)}px`,
           contain: "inline-size", width: "100%",
           maxHeight: pelny ? "calc(100vh - 170px)" : "75vh",
           cursor: obraca ? undefined : "grab" } : undefined}
@@ -8374,6 +8429,12 @@ function ZoomBox({ children, obraca = false, pelny = false, onPelny, resetKey })
           p0.ruszyl = true;
           ramka.current.scrollLeft = p0.sl - dx;
           ramka.current.scrollTop = p0.st - dy;
+        }}
+        onScroll={(e) => {
+          if (!wiekszy || poScroll.current) return;
+          const m = zoomPamiec(resetKey);
+          m.x = e.currentTarget.scrollLeft;
+          m.y = e.currentTarget.scrollTop;
         }}
         onPointerUp={() => { przes.current = null; }}
         onPointerLeave={() => { przes.current = null; }}>

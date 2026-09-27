@@ -198,7 +198,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `worktopMsgs` / `runCornerMsgs` / `cornerPairMsgs` / `tierMsgs` | uwagi na poziomie ciągu i narożnika |
 | `hwDefaultPrice(h)` | cena okucia — klucz to `h.pk` albo `h.name` |
 | „Pokaż rysunek” (górny pasek) | przewija do karty `Card id="rysunek"` (`scrollMarginTop` pod przyklejony pasek) — przycisk roboczy |
-| `ZoomBox` / `ZOOM_KROKI` | powiększanie rysunku: „− / % / + / Dopasuj” nad rysunkiem, przeciąganie przesuwa (w 3D z Shiftem), zmiana widoku wraca do 100%; Ctrl + kółko nad rysunkiem przybliża w miejscu kursora; „Pełny ekran” (`pelnyRys`, Esc zamyka) |
+| `ZoomBox` / `ZOOM_KROKI` | powiększanie rysunku: „− / % / + / Dopasuj” nad rysunkiem, przeciąganie przesuwa (w 3D z Shiftem); każdy rysunek (`resetKey` = zakres | widok | szafka) pamięta powiększenie, przewinięcie i szerokość przy 100% w `ZOOM_PAMIEC` (do przeładowania strony), nowy startuje od „Dopasuj”; Ctrl + kółko nad rysunkiem przybliża w miejscu kursora; „Pełny ekran” (`pelnyRys`, Esc zamyka) |
 | `wyslijDoClaude` / `PROJEKT_DLA_CLAUDE` | przycisk „Wyślij do Claude” — **tylko w artefakcie na claude.ai**: zapis projektu do wspólnego magazynu (`projekt/biezacy`, pole `json`) |
 
 Widoki: `CabElevation`, `FrontView`, `RearView`, `TopView`, `SideView`,
@@ -214,7 +214,7 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `MIN_PART` | 60 | najwęższa formatka, jaką da się uciąć i okleić |
 | `MIN_OPENING` | 250 | najmniejsze światło między półkami przy automacie |
 | `MIN_LEVEL` | 100 | najniższy sensowny poziom |
-| `WASKI_FRONT` | 250 | poniżej tego front jest wąski — podpowiedź, nie błąd |
+| `WASKI_FRONT` | 250 | poniżej tego front jest wąski — podpowiedź, nie błąd; też próg podpowiedzi „dwoje wąskich drzwi” |
 | `CORNER_BRACKET_W` | 60 | domyślna szerokość wsporników w rogu |
 | `ROG_WZM_H` | 60 | wysokość wzmocnień w szafce narożnej |
 | `LEG_W` / `LEG_INSET` | 40 / 40 | nóżka i jej odsunięcie od krawędzi |
@@ -281,6 +281,7 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `fixh:` / `fixnl:` / `fixback:` / `fixnodoor:` | wysokość, NL prowadnicy, tył szuflady, kolumna bez drzwi |
 | `fixdiv:` / `fixsup:` / `fixcolauto:` | przegroda, wspornik, kolumna na automat |
 | `hingeflip:<lv>:<col>:<side>` | przekłada zawiasy na drugą stronę |
+| `onedoor:<lv>:<col>:<szer>:<side>` | dwoje wąskich drzwi (każde < `WASKI_FRONT`, jedne ≤ `SZEROKI_FRONT`) zamienia na jedne z zawiasami z lewej/prawej; podpowiedź „dwoje wąskich drzwi” w `computeGeo` (nie w szafce narożnej ani przy rogu) |
 | `cornerdoor:<w>:<idx>` | ustawia jedne drzwi szafki narożnej na podaną szerokość |
 | `noTop:<idx>` | zamienia wieniec na parę wzmocnień |
 | `rundepth:<mm>[@runId]` / `runcab:` / `runrun:` | wyrównuje głębokość / szafkę / cały ciąg |
@@ -312,7 +313,8 @@ Uruchamianie: `cd testy && bash sweep.sh <nazwy>` (bez `.mjs`).
 | `bryla3d` | co widać na wierzchu w 45° i 3D: blat, maskownice, uchwyty; nóżki; zero wymuszeń kolejności z ośmiu stron |
 | `wyslij` | przycisk „Wyślij do Claude”: bez magazynu go nie ma, z atrapą zapisuje pełny projekt |
 | `opisy` | żaden napis na rysunku nie jest przykryty płytą, nóżką ani blatem — wszystkie zakresy i widoki szafki narożnej |
-| `zoom` | powiększanie i przesuwanie rysunku, „Dopasuj”, powrót do 100% przy zmianie widoku, pełny ekran z Esc, 3D: obrót vs Shift + przesuwanie |
+| `zoom` | powiększanie i przesuwanie rysunku, „Dopasuj”, pamięć powiększenia i przewinięcia każdego widoku, pełny ekran z Esc, 3D: obrót vs Shift + przesuwanie |
+| `wasdrzwi` | podpowiedź „dwoje wąskich drzwi” (300, 500 tak; 600 i jedne drzwi nie), przyciski zawiasy z lewej/prawej |
 | `odsuniecie` | odsunięcie od ściany: głębokość blatu, wysięg przed drzwi (10 / <10 uwaga / >30 ostrzeżenie), krzywa ściana w widoku z boku, róg przesunięty o odstęp, wyjątek jednej szafki |
 | `hw2` / `cokol` / `cokolstd` / `ceny` / `ceny2` | okucia, cokół, cennik |
 | `ciag`…`ciag10` | ciągi: zakładanie, rozjazdy, cokół ciągu, światła |

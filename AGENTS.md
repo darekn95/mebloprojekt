@@ -33,6 +33,13 @@
   seria zrzutów), napisz o tym **przed** startem, z przybliżonym czasem —
   np. „Testy lecą (~25 min)” — i co w tym czasie robisz albo na co czekasz.
   Pełny przebieg obu buildów to ok. 20–30 min, pojedyncza suita 1–3 min.
+- **Kiedy jakie testy i kiedy git** (ustalone z użytkownikiem):
+  - po zmianie tylko suity z tego obszaru (2–5 suit, 1–3 min; spis w `SLOWNIK.md`);
+  - zapis na gałąź roboczą na bieżąco — bez pełnych testów, to kopia bezpieczeństwa
+    (kontener jest tymczasowy);
+  - **pełny przebieg i scalenie do `main`** (publikacja na GitHub Pages) — tylko na
+    żądanie użytkownika albo w czasie jego dłuższej nieobecności;
+  - artefakt publikuj, gdy użytkownik ma coś obejrzeć.
 - Znane błędy (aplikacji i testów), ich przyczyny i sprawy do decyzji użytkownika
   trzymaj w `BLEDY.md` — sprawdź go przed pełnym przebiegiem testów i dopisuj tam
   każdy nowy błąd razem z commitem, który go usuwa.
