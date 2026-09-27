@@ -1,5 +1,5 @@
 /* Powiekszanie rysunku: przyciski − / + / Dopasuj, przesuwanie przeciaganiem,
-   powrot do 100% przy zmianie widoku, pelny ekran z Esc, a w 3D przeciaganie
+   pamiec powiekszenia i przewiniecia kazdego widoku, pelny ekran z Esc, a w 3D przeciaganie
    obraca, a Shift + przeciaganie przesuwa. */
 import pw from '/opt/node22/lib/node_modules/playwright/index.js';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -40,10 +40,27 @@ const s3 = await stan();
 ok('przeciąganie przesuwa rysunek', s3.sl > s2.sl + 100, JSON.stringify(s3));
 await page.getByRole('button', { name: 'Dopasuj', exact: true }).click(); await page.waitForTimeout(400);
 ok('„Dopasuj" wraca do 100%', (await stan()).zoom === '100%');
-await page.getByRole('button', { name: '+', exact: true }).click(); await pick('Otw.');
-ok('zmiana widoku wraca do 100%', (await stan()).zoom === '100%');
-// Ctrl + kolko nad rysunkiem: przybliza rysunek, punkt pod kursorem zostaje
+// kazdy rysunek pamieta swoje powiekszenie i przewiniecie
 await pick('Zamk.');
+for (let k = 0; k < 3; k++) await page.getByRole('button', { name: '+', exact: true }).click();
+await page.waitForTimeout(400);
+const bz = await page.locator('#rysunek .zoom-on').boundingBox();
+await page.mouse.move(bz.x + bz.width / 2, bz.y + bz.height / 2);
+await page.mouse.down(); await page.mouse.move(bz.x + bz.width / 2 - 150, bz.y + bz.height / 2 - 60, { steps: 8 }); await page.mouse.up();
+await page.waitForTimeout(300);
+const sZ = await stan();
+await pick('Otw.');
+ok('inny widok startuje od 100%', (await stan()).zoom === '100%');
+await page.getByRole('button', { name: '+', exact: true }).click(); await page.waitForTimeout(300);
+await pick('Zamk.');
+const sZ2 = await stan();
+ok('powrót do widoku: to samo powiększenie i miejsce', sZ2.zoom === '200%' && Math.abs(sZ2.sl - sZ.sl) < 3
+  && Math.abs(sZ2.st - sZ.st) < 3 && Math.abs(sZ2.tresc - sZ.tresc) < 3, JSON.stringify({ sZ, sZ2 }));
+await pick('Otw.');
+ok('drugi widok też pamięta swoje (125%)', (await stan()).zoom === '125%');
+await pick('Zamk.');
+await page.getByRole('button', { name: 'Dopasuj', exact: true }).click(); await page.waitForTimeout(300);
+// Ctrl + kolko nad rysunkiem: przybliza rysunek, punkt pod kursorem zostaje
 const rama = await page.locator('#rysunek .zoom-fit, #rysunek .zoom-on').first().boundingBox();
 const cx = rama.x + rama.width * 0.7, cy = rama.y + rama.height * 0.5;
 const podKursorem = () => page.evaluate(([x, y]) => {

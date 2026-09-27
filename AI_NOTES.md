@@ -347,8 +347,11 @@ inaczej pierwszy krok skakal. Ramka ma `contain: inline-size`, bo bez tego
 kolumna strony rosla pod rysunek i nie bylo czego przewijac. Pelny ekran to
 nakladka `fixed inset-0` z `margin: 0` (odstepy miedzy kartami dokladaly
 margines i spod nakladki wystawaly inne karty).
-[AI-TODO] Pomysl uzytkownika na pozniej: zapamietywac powiekszenie osobno dla
-kazdego widoku (localStorage), takze po odswiezeniu.
+[AI-INFO] Kazdy rysunek pamieta powiekszenie i przewiniecie (`ZOOM_PAMIEC`,
+klucz `resetKey` = zakres|widok|szafka, zyczenie uzytkownika: po powrocie do
+widoku ma byc tak, jak zostawiono). Pamiec w module, do przeladowania strony.
+Przewiniecie ustawia efekt po kazdym rysowaniu, dopiero gdy powiekszenie ramki
+zgadza sie z docelowym (`poScroll.z`).
 [AI-INFO] Ctrl + kolko nad rysunkiem przybliza rysunek w miejscu kursora (1–4×,
 plynnie), zamiast powiekszac cala strone — wlasny nasluch `wheel` z
 `passive: false`, bo React podpina kolko pasywnie i `preventDefault` by nie
