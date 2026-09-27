@@ -182,6 +182,19 @@ if (naDrzwi600) {
   ok('ostrzeżenie znika', !(await uwagi()).some((x) => /drzwi ramienia mają/.test(x.t)));
 }
 
+console.log('\n== szafka narożna z góry: wymiary ramienia, blat i przycisk blatu ==');
+await page.getByRole('button', { name: 'Z góry', exact: true }).first().click();
+await page.waitForTimeout(900);
+const wymR = await page.locator('g[data-el="wymiary-ramienia"] text').allTextContents();
+ok('wymiar ramienia i całości z ramieniem', wymR.some((t) => /^ramię \d+/.test(t)) && wymR.some((t) => /z ramieniem/.test(t)),
+  wymR.join(' | '));
+ok('blat nad korpusem i nad ramieniem', await page.locator('g[data-el="blat-szafki"] rect').count() >= 2);
+await page.getByRole('button', { name: 'Ukryj blat' }).first().click();
+await page.waitForTimeout(500);
+ok('„Ukryj blat" chowa blat', await page.locator('g[data-el="blat-szafki"]').count() === 0);
+await page.getByRole('button', { name: 'Pokaż blat' }).first().click();
+await page.waitForTimeout(500);
+
 console.log('\n== 575: za mało wysięgu ==');
 await uklad(575, { bottom: 0, top: null });
 u = await uwagi();

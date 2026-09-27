@@ -4835,7 +4835,7 @@ const ScianaDefs = () => (
   </defs>
 );
 
-function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, showWall = true }) {
+function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, showWall = true, showBlat = true }) {
   const full = projectLayout(project);
   const groups = assemblyParts(project, runs, full).slice().sort((a, b) => a.mount - b.mount);
   const wzor = wzorcowaSzafka(groups);
@@ -4937,7 +4937,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
      zeby bylo widac, co pod nim stoi. Zaczyna sie przy scianie na wysokosci
      blatu; przy krzywej scianie lezy ona blizej pokoju niz sciana przy podlodze. */
   const blatPasa = (run, lead) => {
-    const rt = runTop(project, run);
+    const rt = showBlat ? runTop(project, run) : null;
     if (!rt) return null;
     const kol = rt.worktop
       ? (rt.mat.worktop || {}).color || "#8d7b68"
@@ -6594,7 +6594,52 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
   );
 }
 
-function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, arm }) {
+/* Blat ciagu nad jedna szafka, w ukladzie jej rzutu z gory (x = 0 lewy bok,
+   y = 0 tyl korpusu). Szafka w ciagu nie ma wlasnego blatu — lezy na niej blat
+   ciagu, przyciety tu do jej szerokosci. Nad szafka w L dochodzi blat sasiedniej
+   sciany nad ramieniem, w ukladzie ramienia (`u` od rogu, `v` od jego plecow). */
+const blatNadSzafka = (project, full, index, arm) => {
+  const it = project.items[index];
+  const run = it && it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
+  const n = run ? full.info.get(run.id) : null;
+  const c = n ? n.g.cabs.find((q) => q.index === index) : null;
+  if (!c) return null;
+  const kolorOf = (rt) => (rt.worktop
+    ? (rt.mat.worktop || {}).color || "#8d7b68"
+    : (rt.mat.board || {}).color || "#d8c3a0");
+  const out = { korpus: [], ramie: [], kolor: null };
+  const rt = runTop(project, run);
+  if (rt) {
+    out.kolor = kolorOf(rt);
+    const gs = wallGapOf(run, null);
+    const tyl = n.depth - c.geo.carcassDepth + c.offset;   // tyl korpusu od sciany
+    const v0 = Math.max(0, gs.bottom - gs.top);
+    worktopSpans(rt).forEach((sp) => {
+      const x0 = Math.max(0, n.lead + sp.x0 - (n.lead + c.x));
+      const x1 = Math.min(c.geo.W, n.lead + sp.x1 - (n.lead + c.x));
+      if (x1 > x0) out.korpus.push({ x: x0, y: v0 - tyl, w: x1 - x0, h: rt.depth });
+    });
+  }
+  const fo = arm ? full.info.get(arm.other.id) : null;
+  const rt2 = fo ? runTop(project, arm.other.run) : null;
+  if (rt2) {
+    out.kolor = out.kolor || kolorOf(rt2);
+    const gs = wallGapOf(arm.other.run, null);
+    const plecy = fo.depth - arm.depth;                   // plecy ramienia od sciany
+    const v0 = Math.max(0, gs.bottom - gs.top) - plecy;
+    worktopSpans(rt2).forEach((sp) => {
+      const a0 = Math.max(arm.u0, fo.lead + sp.x0), a1 = Math.min(arm.u0 + arm.len, fo.lead + sp.x1);
+      if (a1 <= a0) return;
+      // „od rogu": przy ramieniu wychodzacym od konca ciagu rog jest na poczatku pasa
+      const [u0, u1] = arm.outerAtEnd ? [a0 - arm.u0, a1 - arm.u0]
+        : [arm.u0 + arm.len - a1, arm.u0 + arm.len - a0];
+      out.ramie.push({ u0, u1, v0, v1: v0 + rt2.depth });
+    });
+  }
+  return out.kolor ? out : null;
+};
+
+function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, arm, blat }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const { D } = cab;
@@ -6609,7 +6654,10 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
   /* Szafka narozna nie konczy sie na korpusie — ramie idzie w bok wzdluz drugiej
      sciany i rysunek musi je objac, inaczej widac tylko kawalek mebla. */
   const armLen = arm ? arm.len + geo.tf : 0;
-  const vb = `${-pad - tOvL} ${-pad - tOvB} ${W + tOvL + tOvR + 2 * pad + 120} ${D + tOvB + tOvF + 2 * pad + 100 + frontExtra + armLen}`;
+  // po stronie ramienia ida jeszcze dwa wymiary: samo ramie i calosc z nim
+  const armDimL = arm && arm.side === "left" && showDims ? 240 : 0;
+  const armDimR = arm && arm.side !== "left" && showDims ? 240 : 0;
+  const vb = `${-pad - tOvL - armDimL} ${-pad - tOvB} ${W + tOvL + tOvR + 2 * pad + 120 + armDimL + armDimR} ${D + tOvB + tOvF + 2 * pad + 100 + frontExtra + armLen}`;
   const bf = mat.board.color;
   const t = geo.t;
   const cd = geo.carcassDepth;
@@ -6665,6 +6713,31 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
               <rect key={"kat" + k} x={ax(r.v, r.h)} y={ay(r.u)} width={r.h} height={r.w}
                 fill={r.front ? mat.front.color : bf} stroke={INK} strokeWidth="2" />
             ))}
+            {/* Uchwyt i zawias frontu ramienia — uchwyt po stronie rogu przed
+                licem, zawias przy wolnym koncu na wewnetrznym licu boku. */}
+            {showHardware && arm.doors !== "fix" && (() => {
+              const fp = armFrontPlan(arm);
+              const uch = handleOutOf(cab);
+              const lico = cab.frontMode === "inset" ? vLico : vLico + geo.tf;
+              return (
+                <g>
+                  {uch > 0 && <rect x={ax(lico, uch)} y={ay(fp.odRogu + 20)} width={uch} height={12}
+                    fill="#3f3f46" stroke={INK} strokeWidth="1" />}
+                  <rect x={ax(vLico - HINGE_D, HINGE_D)} y={ay(arm.len - t - 12)} width={HINGE_D} height={12}
+                    rx="3" fill="#71717a" fillOpacity="0.8" stroke={INK} strokeWidth="1.2" />
+                </g>
+              );
+            })()}
+            {/* Nozki ramienia pod dnem (przerywane) — te same miejsca co
+                w zamowieniu; `u` od rogu, `v` od sciany ramienia. */}
+            {showHardware && cab.legs && cab.legs.on && (() => {
+              const lp = armLegPlan(arm);
+              return lp.us.flatMap((u) => lp.vs.map((v) => (
+                <rect key={`anog${u}-${v}`} x={ax(v, lp.w)} y={ay(u)} width={lp.w} height={lp.w}
+                  rx={legRound(cab) ? lp.w / 2 : 0} fill="none" stroke={INK}
+                  strokeWidth="1.5" strokeDasharray="6 4" opacity="0.7" />
+              )));
+            })()}
             {showDims && (
               <text x={ax(arm.depth / 2, 0)} y={ay(arm.len / 2)} textAnchor="middle"
                 fontSize="22" fill={ACC} fontFamily="ui-monospace, monospace">
@@ -7061,9 +7134,38 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           )}
         </>
       )}
-      {/* nozek nie rysujemy z gory — schowane pod korpusem, tylko myla rzut */}
+      {/* Blat ciagu nad szafka (i nad ramieniem) — przezroczysty, na wierzchu,
+          tak jak w rzucie zabudowy. */}
+      {blat && (
+        <g data-el="blat-szafki">
+          {blat.korpus.map((r, i) => (
+            <rect key={"bk" + i} x={r.x} y={r.y} width={r.w} height={r.h}
+              fill={blat.kolor} opacity="0.35" stroke={INK} strokeWidth="2" />
+          ))}
+          {arm && blat.ramie.map((r, i) => (
+            <rect key={"br" + i} x={arm.side === "left" ? r.v0 : W - r.v1} y={cd + r.u0}
+              width={r.v1 - r.v0} height={r.u1 - r.u0}
+              fill={blat.kolor} opacity="0.35" stroke={INK} strokeWidth="2" />
+          ))}
+        </g>
+      )}
+      {/* Wymiary wzdluz sciany ramienia: samo ramie (od lica korpusu) i cala
+          szafka w L od tylu korpusu do konca ramienia — to jest dlugosc, ktora
+          szafka zajmuje przy drugiej scianie. */}
+      {showDims && arm && (() => {
+        const left = arm.side === "left";
+        const x1 = left ? -50 : W + 55;
+        const x2 = left ? -250 : W + 245;
+        return (
+          <g data-el="wymiary-ramienia">
+            <DimV y1={cd} y2={cd + arm.len} x={x1} left={left} label={`ramię ${fmt(arm.len)}`} />
+            <DimV y1={0} y2={cd + arm.len} x={x2} left={left} label={`${fmt(cd + arm.len)} z ramieniem`} />
+          </g>
+        );
+      })()}
 
-      <text x={W / 2} y={cd + 150} textAnchor="middle" fontSize="22" fill={LINE}
+      {/* podpis pod calym rysunkiem — przy szafce w L pod ramieniem */}
+      <text x={W / 2} y={cd + 150 + (arm ? arm.len : 0)} textAnchor="middle" fontSize="22" fill={LINE}
         fontFamily="ui-monospace, monospace">widok z góry — tył u góry, przód u dołu</text>
     </svg>
   );
@@ -10528,6 +10630,8 @@ export default function App() {
   const [showHardware, setShowHardware] = useState(true);
   // sciana za szafkami w widoku z boku i w rzucie zabudowy
   const [showWall, setShowWall] = useState(true);
+  // blat ciagu w rzucie z gory — da sie go schowac, zeby zajrzec do szafek
+  const [showBlat, setShowBlat] = useState(true);
   /* Przeczytane podpowiedzi chowaja sie z listy. To nie jest czesc projektu —
      dotyczy tego, co juz raz przeczytales, wiec siedzi obok, w przegladarce. */
   const [przeczytane, setPrzeczytane] = useState(() => {
@@ -13223,6 +13327,12 @@ export default function App() {
                     {showLabels ? "Ukryj oznaczenia" : "Oznacz pola"}
                   </button>
                 )}
+                {view === "top" && (scopeRuns || runInfo) && (
+                  <button onClick={() => setShowBlat((s) => !s)}
+                    className="text-xs text-teal-700 hover:underline">
+                    {showBlat ? "Ukryj blat" : "Pokaż blat"}
+                  </button>
+                )}
                 {((view === "side" && runInfo) || (view === "top" && scopeRuns)) && (
                   <button onClick={() => setShowWall((s) => !s)}
                     className="text-xs text-teal-700 hover:underline">
@@ -13318,7 +13428,8 @@ export default function App() {
                   </div>
                 ) : view === "top" ? (
                   <AssemblyTopView project={project} runs={scopeRuns} showDims={showDims}
-                    showShelves={showShelves} showHardware={showHardware} showWall={showWall} />
+                    showShelves={showShelves} showHardware={showHardware} showWall={showWall}
+                    showBlat={showBlat} />
                 ) : (
                   <AssemblyView project={project} runs={scopeRuns} rpOf={rpOf}
                     variant={view} showDims={showDims} showHardware={showHardware}
@@ -13373,7 +13484,8 @@ export default function App() {
                   wallGap={runInfo && showWall ? wallGapOf(runInfo.run, project.items[project.active]) : null} />
               ) : view === "top" ? (
                 <TopView cab={cab} geo={geo} mat={mat} showDims={showDims} showShelves={showShelves}
-                  showHardware={showHardware} arm={cornerNode && cornerNode.arm} />
+                  showHardware={showHardware} arm={cornerNode && cornerNode.arm}
+                  blat={showBlat ? blatNadSzafka(project, projLayout, project.active, cornerNode && cornerNode.arm) : null} />
               ) : view === "rear" ? (
                 <RearView cab={cab} geo={geo} mat={mat} showDims={showDims} />
               ) : (
