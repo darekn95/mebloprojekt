@@ -4696,6 +4696,19 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
    Ciagi polaczone naroznikiem stoja wzgledem siebie pod katem prostym — kazdy
    rysuje sie we wlasnym ukladzie (u wzdluz sciany, v w glab pokoju), a na
    miejsce obraca go transform. */
+/* Sciana na rysunkach: pas o grubosci SCIANA_GR, kreskowany na szaro, zeby
+   od razu bylo widac, ze to nie plyta zadnego mebla. */
+const SCIANA_GR = 100;
+const ScianaDefs = () => (
+  <defs>
+    <pattern id="sciana-kreski" width="22" height="22" patternUnits="userSpaceOnUse"
+      patternTransform="rotate(45)">
+      <rect width="22" height="22" fill="#e7e5e4" />
+      <line x1="0" y1="0" x2="0" y2="22" stroke="#a8a29e" strokeWidth="5" />
+    </pattern>
+  </defs>
+);
+
 function AssemblyTopView({ project, runs, showDims, showShelves, showHardware }) {
   const full = projectLayout(project);
   const groups = assemblyParts(project, runs, full).slice().sort((a, b) => a.mount - b.mount);
@@ -4706,8 +4719,9 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
   const armOf = new Map();
   full.info.forEach((k) => { if (k.arm) armOf.set(k.arm.cab.index, k.arm); });
   const b = L.box;
-  const pad = showDims ? 190 : 40;
-  const padR = showDims ? 700 : 40;
+  // margines obejmuje tez grubosc sciany; nazwy scian stoja na niej
+  const pad = (showDims ? 190 : 40) + SCIANA_GR;
+  const padR = pad;
   const vb = [b.x0 - pad, b.y0 - pad,
     b.x1 - b.x0 + pad + padR, b.y1 - b.y0 + 2 * pad].join(" ");
   // ciag nizszy na danej scianie rysujemy pelna kreska, wyzszy przerywana
@@ -4720,6 +4734,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       <GrainDefs mat={wzor.rawMat} on={wzor.cab.texture} dir={wzor.cab.textureDir} />
+      <ScianaDefs />
       {groups.map((g, gi) => {
         const n = L.info.get(g.run.id);
         const upper = lowest.get(n.wall) !== g.run.id;
@@ -4729,7 +4744,32 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
         return (
           <g key={g.run.id} opacity={upper ? 0.75 : 1}
             transform={`translate(${o.x}, ${o.y}) rotate(${deg})`}>
-            {!upper && <line x1={-20} y1={0} x2={n.len + 20} y2={0} stroke={LINE} strokeWidth="3" />}
+            {/* Sciana ma grubosc i kreskowanie — sama kreska mylila sie
+                z krawedzia plyty. Pas wychodzi za oba konce ciagu, wiec
+                w rogu dwie sciany zachodza na siebie jak w murze. */}
+            {!upper && (
+              <g data-el="sciana">
+                <rect x={-SCIANA_GR} y={-SCIANA_GR} width={n.len + 2 * SCIANA_GR} height={SCIANA_GR}
+                  fill="url(#sciana-kreski)" />
+                <line x1={-SCIANA_GR} y1={0} x2={n.len + SCIANA_GR} y2={0} stroke={INK} strokeWidth="3" />
+                {(() => {
+                  /* Na scianie moze wisiec tez ciag gorny — jego nazwa i wysokosc
+                     ida w drugiej linii, bo w rzucie lezy na dolnym. */
+                  const gorne = groups.filter((q) => q !== g && L.info.get(q.run.id).wall === n.wall);
+                  const napis = (t, y, k) => (
+                    <text key={k} x={n.len / 2} y={y} textAnchor="middle" fontSize="24"
+                      fill={INK} stroke="#fafaf9" strokeWidth="6" paintOrder="stroke"
+                      fontFamily="ui-monospace, monospace">{t}</text>
+                  );
+                  return [
+                    napis(g.run.name, gorne.length ? -62 : -SCIANA_GR / 2 + 8, "d"),
+                    ...gorne.map((q, i) => napis(
+                      `${q.run.name === g.run.name ? "ciąg górny" : q.run.name}`
+                        + (q.mount > 0 ? ` — ${fmt(q.mount)} nad podłogą` : ""), -30 + i * 28, "g" + i)),
+                  ];
+                })()}
+              </g>
+            )}
             {g.cabs.map((c, i) => (
               <g key={i} transform={`translate(${n.lead + c.x}, ${n.depth - c.geo.carcassDepth + c.offset})`}>
                 <CabTop cab={c.cab} geo={c.geo} mat={c.mat} ghost={upper}
@@ -4796,23 +4836,6 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
                 )}
               </g>
             ))}
-            {/* Blat ciagu lezy nad wszystkim, wiec i rysujemy go na wierzchu —
-                przezroczysto, zeby bylo widac, co pod nim stoi. */}
-            {(() => {
-              const rt = runTop(project, g.run);
-              if (!rt) return null;
-              const kol = rt.worktop
-                ? (rt.mat.worktop || {}).color || "#8d7b68"
-                : (rt.mat.board || {}).color || "#d8c3a0";
-              /* Blat zaczyna sie przy scianie na wysokosci blatu. Przy krzywej
-                 scianie lezy ona blizej pokoju niz sciana przy podlodze. */
-              const gs = wallGapOf(g.run, null);
-              return worktopSpans(rt).map((s, i) => (
-                <rect key={"blat" + i} x={n.lead + s.x0} y={Math.max(0, gs.bottom - gs.top)}
-                  width={s.x1 - s.x0} height={rt.depth}
-                  fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
-              ));
-            })()}
             {showDims && (
               <g>
                 {/* miejsce zjedzone przez narożnik — tam nie stanie zadna szafka */}
@@ -4858,12 +4881,34 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
           </g>
         );
       })}
-      {showDims && groups.map((g, gi) => (
-        <text key={"nm" + g.run.id} x={b.x1 + 30} y={b.y0 + 40 + gi * 40}
-          fontSize="22" fill={LINE} fontFamily="ui-monospace, monospace">
-          {g.run.name}{g.mount > 0 ? ` — ${fmt(g.mount)} nad podłogą` : ""}
-        </text>
-      ))}
+      {/* Blaty dopiero po szafkach WSZYSTKICH scian: ramie z sasiedniej
+          sciany rysowane pozniej zakrywalo kawalek blatu nad rogiem. */}
+      {groups.map((g) => {
+        const n = L.info.get(g.run.id);
+        const o = n.at(0, 0);
+        const deg = Math.round((Math.atan2(n.f.uy, n.f.ux) * 180) / Math.PI);
+        return (
+          <g key={"blaty" + g.run.id} transform={`translate(${o.x}, ${o.y}) rotate(${deg})`}>
+            {/* Blat ciagu lezy nad wszystkim, wiec i rysujemy go na wierzchu —
+                przezroczysto, zeby bylo widac, co pod nim stoi. */}
+            {(() => {
+              const rt = runTop(project, g.run);
+              if (!rt) return null;
+              const kol = rt.worktop
+                ? (rt.mat.worktop || {}).color || "#8d7b68"
+                : (rt.mat.board || {}).color || "#d8c3a0";
+              /* Blat zaczyna sie przy scianie na wysokosci blatu. Przy krzywej
+                 scianie lezy ona blizej pokoju niz sciana przy podlodze. */
+              const gs = wallGapOf(g.run, null);
+              return worktopSpans(rt).map((s, i) => (
+                <rect key={"blat" + i} x={n.lead + s.x0} y={Math.max(0, gs.bottom - gs.top)}
+                  width={s.x1 - s.x0} height={rt.depth}
+                  fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
+              ));
+            })()}
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -6817,7 +6862,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
     return { xD, xG, xN, yPodloga, yBlat, yN: -nad };
   })() : null;
   // wymiar wysokosci idzie wtedy za sciane, zeby na nia nie wchodzil
-  const xWysokosc = sciana ? Math.min(sciana.xD, sciana.xN) - 130 : -50;
+  const xWysokosc = sciana ? Math.min(sciana.xD, sciana.xN) - SCIANA_GR - 60 : -50;
   const lewo = Math.min(-pad - sOvB, xWysokosc - 110);
   const vb = `${lewo} ${-pad - 70} ${D + sOvF + pad + rightExtra - lewo} ${H + 2 * pad + 70 + below}`;
   const hasFront = geo.levels.some((lv) => lv.cols.some((c) => c.count > 0));
@@ -6834,18 +6879,19 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
+      {sciana && <ScianaDefs />}
       <rect x="0" y="0" width={D} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 8" />
       {sciana && (
         <g data-el="sciana">
           <polygon points={`${sciana.xN},${sciana.yN} ${sciana.xD},${sciana.yPodloga} `
-            + `${sciana.xD - 40},${sciana.yPodloga} ${sciana.xN - 40},${sciana.yN}`}
-            fill="#a8a29e" opacity="0.35" />
+            + `${sciana.xD - SCIANA_GR},${sciana.yPodloga} ${sciana.xN - SCIANA_GR},${sciana.yN}`}
+            fill="url(#sciana-kreski)" />
           <line x1={sciana.xN} y1={sciana.yN} x2={sciana.xD} y2={sciana.yPodloga}
             stroke={INK} strokeWidth="3" />
           <line x1={sciana.xD - 60} y1={sciana.yPodloga} x2={xTyl + 60} y2={sciana.yPodloga}
             stroke={INK} strokeWidth="1.5" opacity="0.6" />
-          <text x={sciana.xN - 44} y={sciana.yN + 4} fontSize="20" fill={INK} opacity="0.7"
-            textAnchor="end" fontFamily="ui-monospace, monospace">ściana</text>
+          <text x={sciana.xN - SCIANA_GR / 2} y={sciana.yN - 12} fontSize="20" fill={INK} opacity="0.8"
+            textAnchor="middle" fontFamily="ui-monospace, monospace">ściana</text>
           {[{ y: sciana.yPodloga - 14, x: sciana.xD, g: wallGap.bottom },
             { y: 26, x: sciana.xG, g: wallGap.top }].map((o, i) => (
             <text key={i} x={o.x - 8} y={o.y} fontSize="20" fill={INK} textAnchor="end"
