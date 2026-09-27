@@ -1037,7 +1037,22 @@ const newProject = () => ({
    strony wychodzi ramie. Bez tego wzmocnienia w szafce naroznej biegly przez
    caly korpus, takze przez przelot w ramie. Pole jest opcjonalne — widoki,
    ktore o narozniku nie wiedza, wolaja `computeGeo` jak dotad. */
+/* Geometrie tej samej szafki liczy przy jednym przerysowaniu kilkanascie miejsc
+   (uklad ciagu, blat, zlacza, uwagi, zestawienie). Szafka i materialy sa
+   niezmienne — kazda zmiana tworzy nowy obiekt — wiec wynik zapamietujemy przy
+   nich, osobno dla kazdego kontekstu rogu. Wynik jest tylko do odczytu. */
+const geoCache = new WeakMap();
 function computeGeo(cab, mat, ctx) {
+  if (!cab || typeof cab !== "object" || !mat || typeof mat !== "object") return computeGeoLiczy(cab, mat, ctx);
+  let poMat = geoCache.get(cab);
+  if (!poMat) { poMat = new WeakMap(); geoCache.set(cab, poMat); }
+  let poCtx = poMat.get(mat);
+  if (!poCtx) { poCtx = new Map(); poMat.set(mat, poCtx); }
+  const klucz = ctx ? JSON.stringify(ctx) : "";
+  if (!poCtx.has(klucz)) poCtx.set(klucz, computeGeoLiczy(cab, mat, ctx));
+  return poCtx.get(klucz);
+}
+function computeGeoLiczy(cab, mat, ctx) {
   const t = mat.board.thickness;
   const tf = mat.front.thickness;
   // polki w kolumnach (i dno/tyl szuflady) moga byc z innej plyty niz korpus;
@@ -8570,7 +8585,23 @@ const worktopLevel = (project, run) => {
   return { cabs, y, pod: cabs.filter((c) => c.y === y), poza: cabs.filter((c) => c.y !== y) };
 };
 
+/* Blat ciagu liczy sie z calego projektu, a pyta o niego kilkanascie miejsc
+   przy kazdym przerysowaniu (rysunki, uwagi, zestawienie) — kazde przeliczalo
+   geometrie wszystkich szafek ciagu. Projekt jest niezmienny (kazda zmiana to
+   nowy obiekt), wiec wynik zapamietujemy przy nim i przy obiekcie ciagu; kopia
+   ciagu po prostu nie trafi w pamiec i policzy sie od nowa. */
+const runTopCache = new WeakMap();
 const runTop = (project, run, bezRogu = false) => {
+  if (!project || !run || typeof run !== "object") return runTopLiczy(project, run, bezRogu);
+  let m = runTopCache.get(project);
+  if (!m) { m = new WeakMap(); runTopCache.set(project, m); }
+  let e = m.get(run);
+  if (!e) { e = {}; m.set(run, e); }
+  const k = bezRogu ? "b" : "n";
+  if (!(k in e)) e[k] = runTopLiczy(project, run, bezRogu);
+  return e[k];
+};
+const runTopLiczy = (project, run, bezRogu = false) => {
   const { joints, list } = runJoints(project, run);
   /* Pas moze byc pusty, a i tak potrzebowac blatu: lezy w nim ramie szafki
      naroznej z sasiedniej sciany. */

@@ -38,6 +38,12 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Pomysły / optymalizacja
 
+- **Zrobione 2026-09-27:** zapamiętywanie `computeGeo` i `runTop` (niezmienne
+  obiekty projektu jako klucz). Pomiar na 24 szafkach w 3 ciągach (mediana
+  czasu od zmiany szerokości do narysowania): Szafka/Zamk. 53→33 ms,
+  Zabudowa/Zamk. 62→38 ms, Zabudowa/Z góry 47→33 ms, Zabudowa/3D 62→41 ms;
+  obrót 3D 53→44 ms. Pełny przebieg testów zielony przed i po zmianie.
+  Warunek: nikt nie zmienia szafki, materiałów, projektu ani wyniku w miejscu.
 - Podpowiedź „Zrób jedne drzwi na … mm” (`cornerdoor:` w `runCornerMsgs`) jest prawie
   nieosiągalna, odkąd drzwi przy rogu same dopasowują się do lica — do uproszczenia
   albo usunięcia (niepilne, nic nie psuje).
