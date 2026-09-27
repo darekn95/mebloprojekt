@@ -344,6 +344,17 @@ wymiary w uwagach i w karcie narożnika; front ramienia > `SZEROKI_FRONT`
 (600) daje ostrzezenie z propozycja skrocenia ramienia (bez dzielenia frontu —
 uzytkownik wybral samo ostrzezenie).
 
+[AI-INFO] Powiekszanie rysunku (`ZoomBox`): 100% to rozmiar dopasowany do karty,
+kroki liczone od tresci SVG (proporcja viewBox), nie od szerokosci elementu —
+inaczej pierwszy krok skakal. Ramka ma `contain: inline-size`, bo bez tego
+kolumna strony rosla pod rysunek i nie bylo czego przewijac. Pelny ekran to
+nakladka `fixed inset-0` z `margin: 0` (odstepy miedzy kartami dokladaly
+margines i spod nakladki wystawaly inne karty).
+[AI-TODO] Pomysl uzytkownika na pozniej: zapamietywac powiekszenie osobno dla
+kazdego widoku (localStorage), takze po odswiezeniu. Ctrl + kolko nad rysunkiem
+(przyblizanie w miejscu kursora zamiast powiekszania calej strony) — czeka na
+decyzje uzytkownika.
+
 [AI-INFO] Rzut z gory w zakresie „ciag": ramie szafki w L, ktorego sciany nie
 rysujemy, stoi w prawdziwym polozeniu — obrocone wzdluz drugiej sciany, z jej
 kawalkiem. `AssemblyTopView` liczy macierz: uklad pasa ramienia (z `full`) →

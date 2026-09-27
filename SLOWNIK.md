@@ -196,6 +196,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `worktopMsgs` / `runCornerMsgs` / `cornerPairMsgs` / `tierMsgs` | uwagi na poziomie ciągu i narożnika |
 | `hwDefaultPrice(h)` | cena okucia — klucz to `h.pk` albo `h.name` |
 | „Pokaż rysunek” (górny pasek) | przewija do karty `Card id="rysunek"` (`scrollMarginTop` pod przyklejony pasek) — przycisk roboczy |
+| `ZoomBox` / `ZOOM_KROKI` | powiększanie rysunku: „− / % / + / Dopasuj” nad rysunkiem, przeciąganie przesuwa (w 3D z Shiftem), zmiana widoku wraca do 100%; „Pełny ekran” (`pelnyRys`, Esc zamyka) |
 | `wyslijDoClaude` / `PROJEKT_DLA_CLAUDE` | przycisk „Wyślij do Claude” — **tylko w artefakcie na claude.ai**: zapis projektu do wspólnego magazynu (`projekt/biezacy`, pole `json`) |
 
 Widoki: `CabElevation`, `FrontView`, `RearView`, `TopView`, `SideView`,
@@ -306,6 +307,7 @@ Uruchamianie: `cd testy && bash sweep.sh <nazwy>` (bez `.mjs`).
 | `okucia3` | liczby okuc z wymiaru: klipsy, trójkąty, fix, zawiasy 165°/90° |
 | `bryla3d` | co widać na wierzchu w 45° i 3D: blat, maskownice, uchwyty; nóżki; zero wymuszeń kolejności z ośmiu stron |
 | `wyslij` | przycisk „Wyślij do Claude”: bez magazynu go nie ma, z atrapą zapisuje pełny projekt |
+| `zoom` | powiększanie i przesuwanie rysunku, „Dopasuj”, powrót do 100% przy zmianie widoku, pełny ekran z Esc, 3D: obrót vs Shift + przesuwanie |
 | `odsuniecie` | odsunięcie od ściany: głębokość blatu, wysięg przed drzwi (10 / <10 uwaga / >30 ostrzeżenie), krzywa ściana w widoku z boku, róg przesunięty o odstęp, wyjątek jednej szafki |
 | `hw2` / `cokol` / `cokolstd` / `ceny` / `ceny2` | okucia, cokół, cennik |
 | `ciag`…`ciag10` | ciągi: zakładanie, rozjazdy, cokół ciągu, światła |

@@ -8243,6 +8243,87 @@ const MiniBtn = ({ onClick, children, tone = "plain", title }) => (
   </button>
 );
 
+/* Powiekszanie rysunku. 100% to rozmiar dopasowany do karty (jak dotad); wyzej
+   SVG rosnie od tego dopasowanego rozmiaru, a ramka dostaje przewijanie
+   i przesuwanie przeciaganiem. Tam, gdzie przeciaganie obraca bryle (3D),
+   przesuwa sie z wcisnietym Shiftem. Zmiana widoku wraca do 100%. */
+const ZOOM_KROKI = [1, 1.25, 1.5, 2, 2.5, 3, 4];
+function ZoomBox({ children, obraca = false, pelny = false, onPelny, resetKey }) {
+  const [zoom, setZoom] = useState(1);
+  const ramka = useRef(null);
+  const dopasowana = useRef(0);
+  const przes = useRef(null);
+  useEffect(() => { setZoom(1); }, [resetKey]);
+  /* Szerokosc rysunku przy 100%: SVG ma szerokosc karty, ale wysokosc
+     ograniczona, wiec sama tresc bywa wezsza — liczymy ja z proporcji viewBox,
+     inaczej pierwszy krok powiekszenia skakalby kilka razy. */
+  useEffect(() => {
+    if (zoom !== 1 || !ramka.current) return;
+    const svg = ramka.current.querySelector("svg");
+    if (!svg) return;
+    const r = svg.getBoundingClientRect();
+    const vb = svg.viewBox && svg.viewBox.baseVal;
+    dopasowana.current = vb && vb.width && vb.height
+      ? Math.min(r.width, r.height * (vb.width / vb.height)) : r.width;
+  });
+  const krok = (d) => setZoom((z) => {
+    const i = ZOOM_KROKI.findIndex((k) => k >= z - 1e-6);
+    const j = Math.max(0, Math.min(ZOOM_KROKI.length - 1, (i < 0 ? ZOOM_KROKI.length - 1 : i) + d));
+    return ZOOM_KROKI[j];
+  });
+  const wiekszy = zoom > 1;
+  return (
+    <div className={pelny ? "pelny-rys" : ""}>
+      <style>{`.zoom-on svg{width:var(--zw)!important;max-width:none!important;max-height:none!important;height:auto!important}
+.pelny-rys .zoom-fit svg{max-height:calc(100vh - 230px)!important}`}</style>
+      <div className="mb-1 flex items-center justify-end gap-1">
+        <span className="mr-1 text-[11px] text-stone-400">
+          {wiekszy ? (obraca ? "Shift + przeciągnij, żeby przesunąć" : "przeciągnij, żeby przesunąć") : ""}
+        </span>
+        <MiniBtn onClick={() => krok(-1)} title="Pomniejsz">−</MiniBtn>
+        <span className="w-10 text-center font-mono text-[11px] text-stone-500" data-el="zoom">{Math.round(zoom * 100)}%</span>
+        <MiniBtn onClick={() => krok(1)} title="Powiększ">+</MiniBtn>
+        <MiniBtn onClick={() => setZoom(1)} title="Cały rysunek w karcie">Dopasuj</MiniBtn>
+        {onPelny && (
+          <MiniBtn onClick={onPelny} tone={pelny ? "on" : "plain"}
+            title={pelny ? "Wróć do zwykłego widoku (Esc)" : "Rysunek na całe okno"}>
+            {pelny ? "Zamknij pełny ekran" : "Pełny ekran"}
+          </MiniBtn>
+        )}
+      </div>
+      <div ref={ramka}
+        className={"rounded border border-stone-100 bg-stone-50 p-3 "
+          + (wiekszy ? "zoom-on overflow-auto" : "zoom-fit")}
+        /* `contain: inline-size` trzyma szerokosc ramki na szerokosci karty — bez
+           tego kolumna strony rozszerzala sie pod powiekszony rysunek i nie bylo
+           czego przewijac. */
+        style={wiekszy ? { "--zw": `${Math.round(dopasowana.current * zoom)}px`,
+          contain: "inline-size", width: "100%",
+          maxHeight: pelny ? "calc(100vh - 170px)" : "75vh",
+          cursor: obraca ? undefined : "grab" } : undefined}
+        onPointerDownCapture={(e) => {
+          if (!wiekszy || (obraca && !e.shiftKey) || e.button !== 0) return;
+          przes.current = { x: e.clientX, y: e.clientY,
+            sl: ramka.current.scrollLeft, st: ramka.current.scrollTop, ruszyl: false };
+          if (obraca) e.stopPropagation();   // Shift przesuwa zamiast obracac
+        }}
+        onPointerMove={(e) => {
+          const p0 = przes.current;
+          if (!p0) return;
+          const dx = e.clientX - p0.x, dy = e.clientY - p0.y;
+          if (!p0.ruszyl && Math.abs(dx) + Math.abs(dy) < 4) return;
+          p0.ruszyl = true;
+          ramka.current.scrollLeft = p0.sl - dx;
+          ramka.current.scrollTop = p0.st - dy;
+        }}
+        onPointerUp={() => { przes.current = null; }}
+        onPointerLeave={() => { przes.current = null; }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- trwaly zapis projektu ----------
    W artefakcie Claude dostepne jest window.storage; w zwyklej przegladarce
    (standalone.html, GitHub Pages, dwuklik, Vite) go nie ma, wiec uzywamy
@@ -10635,6 +10716,14 @@ export default function App() {
   const [showWall, setShowWall] = useState(true);
   // blat ciagu w rzucie z gory — da sie go schowac, zeby zajrzec do szafek
   const [showBlat, setShowBlat] = useState(true);
+  // rysunek na cale okno — na laptopie daje najwiecej miejsca
+  const [pelnyRys, setPelnyRys] = useState(false);
+  useEffect(() => {
+    if (!pelnyRys) return undefined;
+    const esc = (e) => { if (e.key === "Escape") setPelnyRys(false); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [pelnyRys]);
   /* Przeczytane podpowiedzi chowaja sie z listy. To nie jest czesc projektu —
      dotyczy tego, co juz raz przeczytales, wiec siedzi obok, w przegladarce. */
   const [przeczytane, setPrzeczytane] = useState(() => {
@@ -13306,6 +13395,11 @@ export default function App() {
         </div>
 
         <div className="mt-4 space-y-4 lg:mt-0">
+          {/* Pelny ekran: karta rysunku przykrywa cale okno, Esc wraca. */}
+          {/* margines zerujemy — odstepy miedzy kartami dokladaly go i nakladka
+              konczyla sie przed dolem okna, a spod niej wystawaly inne karty */}
+          <div className={pelnyRys ? "fixed inset-0 z-50 overflow-auto bg-stone-100 p-3" : ""}
+            style={pelnyRys ? { margin: 0 } : undefined}>
           <Card title="Rysunek" id="rysunek"
             right={
               <div className="flex items-center gap-3">
@@ -13374,7 +13468,8 @@ export default function App() {
                 </div>
               </div>
             }>
-            <div className="rounded border border-stone-100 bg-stone-50 p-3">
+            <ZoomBox obraca={view === "3d"} pelny={pelnyRys} onPelny={() => setPelnyRys((v) => !v)}
+              resetKey={`${scope}|${view}|${project.active}`}>
               {scopeRuns ? (
                 view === "iso" ? (
                   <div className="space-y-3">
@@ -13506,7 +13601,7 @@ export default function App() {
                   showGaps={showGaps} showLabels={showLabels} showHardware={showHardware}
                   arm={cornerNode && cornerNode.arm} />
               )}
-            </div>
+            </ZoomBox>
             {/* Podpis pod rysunkiem: co za blat na nim widac. W rogu to nigdy
                 nie jest jeden kawalek — kazda sciana ma swoj odcinek i tnie sie
                 je osobno, wiec pisanie o „jednej formatce" mylilo. */}
@@ -13534,6 +13629,7 @@ export default function App() {
               );
             })()}
           </Card>
+          </div>
 
           {(errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0) && (
             <div ref={notesRef} className="scroll-mt-24">
