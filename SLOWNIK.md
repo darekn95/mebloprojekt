@@ -299,6 +299,13 @@ Uruchamianie: `cd testy && bash sweep.sh <nazwy>` (bez `.mjs`).
 `STD=1` przełącza na `standalone-local.html` (port 5199), domyślnie
 `mebloprojekt-app.html` (port 5205).
 
+Testy importują Playwrighta przez `testy/pw.mjs`: `page.waitForTimeout(N)` kończy
+się, gdy strona jest bezczynna (narysowana, bez oczekujących zegarów aplikacji,
+bez trwającego przewijania), a `N` jest tylko limitem. `PW_WOLNO=1` przywraca
+sztywne pauzy — gdy test sypie się tylko w szybkim trybie, znaczy to, że czeka
+na coś, czego `pw.mjs` nie widzi (dopisz to do `zajeta` w `pw.mjs`, nie wydłużaj
+pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
+
 | Suita | Pilnuje |
 |---|---|
 | `narozn` | dwa ciągi pod kątem prostym, kto wjeżdża w róg, luz w rogu, lustrzane L, U z trzech ścian |
@@ -343,7 +350,7 @@ cd testy && bash sweep.sh narozn2 okucia3 # wynik: „NN OK, N BLAD"
 python3 -c "s=open('standalone.html').read()
 for a,b in [('https://cdn.tailwindcss.com','cdn/tailwind.js'),('https://unpkg.com/react@18/umd/react.development.js','cdn/react.js'),('https://unpkg.com/react-dom@18/umd/react-dom.development.js','cdn/react-dom.js'),('https://unpkg.com/@babel/standalone/babel.min.js','cdn/babel.min.js')]: s=s.replace(a,b)
 open('testy/standalone-local.html','w').write(s)"
-# pełny przebieg (ok. 90 suit, po 5 naraz, ok. 20 min) — logi w katalogu $L:
+# pełny przebieg (94 suity, po 5 naraz, ok. 3 min) — logi w katalogu $L:
 cd testy && L=/tmp/pelny && mkdir -p $L && grep -l "'  OK   '" *.mjs | sed 's/\.mjs$//' \
   | xargs -P 5 -I{} sh -c "timeout 600 node {}.mjs > $L/{}.log 2>&1"
 for f in $L/*.log; do echo "$(basename $f .log): $(grep -c '  OK' $f) OK, $(grep -c BLAD $f) BLAD"; done

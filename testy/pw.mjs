@@ -31,11 +31,16 @@ const SLEDZ_ZEGARY = () => {
   window.clearTimeout = function (id) { zeg.delete(id); return clr.call(window, id); };
 };
 
+/* Zajeta = laduje sie, czeka na zegar albo jeszcze sie przewija (plynne
+   `scrollIntoView` — np. „Pokaz rysunek” — przesuwa strone przez kilkaset ms,
+   a zegara przy tym nie ma). */
 const zajeta = (page) => page.evaluate(() => new Promise((r) => {
+  const y0 = window.scrollY;
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const root = document.getElementById('root');
     const laduje = !!root && /adowanie/.test(root.textContent || '') && !root.querySelector('section');
-    r((window.__zegary ? window.__zegary.size : 0) + (laduje ? 1 : 0));
+    const przewija = Math.abs(window.scrollY - y0) > 0.5;
+    r((window.__zegary ? window.__zegary.size : 0) + (laduje ? 1 : 0) + (przewija ? 1 : 0));
   }));
 })).catch(() => 0);
 
