@@ -1,7 +1,8 @@
 import pw from '/opt/node22/lib/node_modules/playwright/index.js';
 const { chromium } = pw;
 
-const URL = process.argv[2] || 'http://127.0.0.1:5199/preview-local.html';
+// dawniej preview-local.html, ktorego nikt juz nie buduje
+const URL = process.argv[2] || 'http://127.0.0.1:5205/mebloprojekt-app.html';
 const OUTDIR = '.';
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });

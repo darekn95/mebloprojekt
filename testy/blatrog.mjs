@@ -37,17 +37,17 @@ const szerszy = u.find((x) => /Blat nad ramieniem/.test(x.t));
 console.log('   ' + (rozne ? rozne.t.slice(0, 190) : '(brak o różnych)'));
 console.log('   ' + (szerszy ? szerszy.t.slice(0, 190) : '(brak o arkuszu)'));
 ok('ostrzeżenie o różnych szerokościach', !!rozne, u.map((x) => x.t.slice(0, 40)).join(' // '));
-/* 598 zamawia sie w calym pasie 600 i dociera przy scianie, wiec w uwadze
-   o rogu stoi juz szerokosc zamawiana. */
-ok('mówi, które odcinki', !!rozne && /600 mm/.test(rozne.t) && /628 mm/.test(rozne.t), rozne && rozne.t.slice(0, 120));
+/* 570 + 2 + 18 = 590 do lica, wiec arkusz 600 wystaje 10 mm i idzie w calosci;
+   za rogiem 600 + 2 + 18 + 10 = 630 — ponad arkusz, wiec na wymiar. */
+ok('mówi, które odcinki', !!rozne && /600 mm/.test(rozne.t) && /630 mm/.test(rozne.t), rozne && rozne.t.slice(0, 120));
 ok('wskazuje głębszy ciąg', !!rozne && /jest głębszy/.test(rozne.t));
 ok('ma poprawkę na sąsiedni ciąg', !!rozne && rozne.b.some((x) => /sąsiedniego ciągu do \d+/.test(x)),
   rozne ? rozne.b.join(' | ') : '');
-/* Blat nad ramieniem to 600 glebokosci + front + wysieg = 628, czyli ponad
-   arkusz 600 — a ciag za rogiem nie ma wlasnych szafek, wiec nie ma tez
-   wlasnej karty, w ktorej moglby o tym powiedziec. */
+/* Blat nad ramieniem to 600 glebokosci + luz przy zawiasach + front + wysieg
+   = 630, czyli ponad arkusz 600 — a ciag za rogiem nie ma wlasnych szafek,
+   wiec nie ma tez wlasnej karty, w ktorej moglby o tym powiedziec. */
 ok('ostrzeżenie o blacie ponad arkusz', !!szerszy, '');
-ok('podaje 628 mm', !!szerszy && /628 mm/.test(szerszy.t), szerszy && szerszy.t.slice(0, 120));
+ok('podaje 630 mm', !!szerszy && /630 mm/.test(szerszy.t), szerszy && szerszy.t.slice(0, 120));
 
 console.log('\n== poprawka wyrównuje sąsiedni ciąg ==');
 await page.getByRole('button', { name: /sąsiedniego ciągu do 570 mm/ }).first().click();
@@ -59,20 +59,12 @@ u = await uwagi();
 ok('ostrzeżenia znikają', !u.some((x) => /różne szerokości|Blat nad ramieniem/.test(x.t)),
   u.map((x) => x.t.slice(0, 40)).join(' // '));
 
-console.log('\n== blat blisko arkusza: caly pas, docinany na miejscu ==');
+/* 570 + 2 mm luzu przy zawiasach + front 18 = 590 do lica drzwi, wiec caly
+   arkusz 600 wystaje przed nie standardowe 10 mm — nie ma o czym mowic. */
+console.log('\n== szafki 570: arkusz 600 wystaje 10 mm, bez uwag ==');
 u = await uwagi();
-const docinka = u.find((x) => /zdejmujemy \d+ mm przy ścianie/.test(x.t));
-console.log('   ' + (docinka ? docinka.t.slice(0, 220) : '(brak)'));
-ok('jest podpowiedź o docinaniu na miejscu', !!docinka, u.map((x) => x.t.slice(0, 40)).join(' // '));
-ok('da się zamówić docięty', !!docinka && docinka.b.some((x) => /docięty na wymiar/.test(x)),
-  docinka ? docinka.b.join(' | ') : '');
-await page.getByRole('button', { name: /docięty na wymiar/ }).first().click();
-await page.waitForTimeout(1400);
-u = await uwagi();
-const poCieciu = u.find((x) => /zamawiamy docięty/.test(x.t));
-ok('po przełączeniu blat idzie na wymiar', !!poCieciu, u.map((x) => x.t.slice(0, 40)).join(' // '));
-ok('i da się wrócić do całego pasa', !!poCieciu && poCieciu.b.some((x) => /cały pas/.test(x)),
-  poCieciu ? poCieciu.b.join(' | ') : '');
+ok('bez uwag o wysięgu i docinaniu', !u.some((x) => /wystaje przed drzwi|wystawałby|docięty/.test(x.t)),
+  u.map((x) => x.t.slice(0, 40)).join(' // '));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

@@ -70,7 +70,8 @@ ok('brak pojedynczych blatów', !p.some((r) => /^Blat \|/.test(r)), p.filter((r)
 console.log('\n== karta opisuje blat ==');
 const opis = await cs().locator('p').allTextContents();
 console.log('     ' + opis.map((t) => t.replace(/\s+/g, ' ').trim()).join(' // '));
-ok('opis jednej formatki blatu', opis.some((t) => /Jedna formatka 1840 × \d+ mm/.test(t.replace(/\s+/g, ' '))),
+// „jedna formatka" bywa w srodku zdania („Odcinek tej sciany: jedna formatka…")
+ok('opis jednej formatki blatu', opis.some((t) => /[Jj]edna formatka 1840 × \d+ mm/.test(t.replace(/\s+/g, ' '))),
   opis.join(' // '));
 
 console.log('\n== długi blat dzieli się na styku korpusów ==');
@@ -144,8 +145,12 @@ const listwa = ph.filter((r) => /^Listwa/.test(r));
 console.log('     projekt: ' + listwa.join(' // '));
 ok('projekt ma jedną listwę', listwa.length === 1, ph.filter((r) => /Listwa/.test(r)).join(' // '));
 // 1800 - 40 = 1760 mm = 17,6 mb
-ok('listwa 1760 mm na cały ciąg', /1760 mm/.test(listwa[0]), listwa[0]);
-ok('podana jako jeden odcinek', /jeden odcinek/.test(listwa[0]), listwa[0]);
+/* Od scalania okuc zestawienie projektu podaje listwe jednym wierszem w metrach
+   biezacych (1760 mm → 1.8 mb), a „jedna listwa 1760 mm na caly ciag" mowi
+   karta ciagu. */
+ok('listwa w zestawieniu: 1.8 mb', /1[.,]8 mb/.test(listwa[0]), listwa[0]);
+ok('karta ciągu: jedna listwa 1760 mm na cały ciąg',
+  /Jedna listwa 1760 mm na cały ciąg/.test(await page.evaluate(() => document.body.innerText)));
 
 console.log('\n== ciąg domyślnie na listwie, szafka na haczykach dostaje uwagę ==');
 await seed([600, 600], {}, { hangerMode: 'haczyki' });

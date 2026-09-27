@@ -3,6 +3,7 @@ const { chromium } = pw;
 const URL = 'http://127.0.0.1:5205/mebloprojekt-app.html';
 const S = './';
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const ok = (l, c, e = '') => console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : ''));
 
 async function setup(page) {
   await page.goto(URL, { waitUntil: 'networkidle' });
@@ -16,7 +17,8 @@ async function setup(page) {
 }
 const notes = (page) => page.evaluate(() => [...document.querySelectorAll('li')].map(l => l.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
 
-for (const btn of ['Dobuduj wspornik pionowy', 'Usuń drzwi z tej kolumny']) {
+// „Usun drzwi z tej kolumny" nazywa sie dzis „Usun kolidujace skrzydlo"
+for (const btn of ['Dobuduj wspornik pionowy', 'Usuń kolidujące skrzydło']) {
   const page = await (await browser.newContext({ viewport: { width: 1440, height: 1000 } })).newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message));
@@ -25,7 +27,8 @@ for (const btn of ['Dobuduj wspornik pionowy', 'Usuń drzwi z tej kolumny']) {
   console.log('\n=== ' + btn + ' ===');
   console.log('przed:', before.join(' // ') || '(brak)');
   const b = page.getByRole('button', { name: btn });
-  console.log('przycisk widoczny:', await b.count());
+  ok(`${btn}: błąd o zawiasie na fixie jest`, before.some((t) => /zawias wypada na elemencie stałym/.test(t)));
+  ok(`${btn}: przycisk jest`, (await b.count()) > 0);
   await b.first().click();
   await page.waitForTimeout(800);
   const after = await notes(page);
@@ -39,6 +42,9 @@ for (const btn of ['Dobuduj wspornik pionowy', 'Usuń drzwi z tej kolumny']) {
     return out;
   });
   console.log('formatki:'); parts.forEach(p => console.log('   ', p));
+  ok(`${btn}: błąd znika`, !after.some((t) => /zawias wypada na elemencie stałym/.test(t)), after.join(' // ').slice(0, 160));
+  if (btn.startsWith('Dobuduj')) ok('jest formatka wspornika', parts.some((x) => /Wspornik/.test(x)), parts.join(' // '));
+  ok(`${btn}: bez błędów strony`, errors.length === 0, errors.join('; '));
   await page.evaluate(() => window.scrollTo(0, 0));
   try { await page.locator('svg').first().screenshot({ path: S + 'shot-btn-' + (btn.startsWith('Dobuduj') ? 'sup' : 'nodoor') + '.png' }); } catch (e) {}
   console.log('BLEDY:', errors.length ? errors.join('\n') : '(brak)');

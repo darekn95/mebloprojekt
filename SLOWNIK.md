@@ -44,10 +44,16 @@ narożnika przy froncie**, a nie wzmocnienie. To nie to samo co:
 
 ### Karta „Ciąg meblowy" (`project.runs[]`)
 
+Dwie części (`CardPart`): u góry **„Ta szafka w ciągu"** (pola jednej szafki),
+niżej **„Cały ciąg „…""** z podsekcjami (`CardSub`): Ściana · Wymiary i montaż ·
+Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
+
 | Etykieta | W kodzie |
 |---|---|
-| Ta szafka | `item.runId` |
+| Należy do ciągu | `item.runId` |
 | Wysunięcie tej szafki z lica | `item.offset` |
+| Odsunięcie tej szafki od ściany (dół / blat) | `item.wallGap = { bottom, top }`; `null` = jak ciąg; rozwiązuje `wallGapOf(run, item)` |
+| Odsunięcie od ściany (dół / blat) | `run.wallGap = { bottom, top }`; `top: null` = jak na dole; wchodzi do `runFrontDepth` (rzut, 3D, róg); widok z boku rysuje ścianę (`data-el="sciana"`), uwagi: `wallGapMsgs`; szafka w L odsuwa się od ściany sąsiada o jego odstęp (`pair.odSasiada`) |
 | Nazwa ciągu | `run.name` |
 | Długość ściany | `run.wallW` (efektywna: `runWallW`) |
 | Położenie na ścianie | `run.offset` |
@@ -56,9 +62,10 @@ narożnika przy froncie**, a nie wzmocnienie. To nie to samo co:
 | Luz między korpusami | `run.gap` |
 | Poziom montażu | `run.mountY` |
 | Narożnik / Luz w rogu | `run.corner = { of, at, owner, clear }` |
-| Wysokość / Głębokość (wspólne dla ciągu) | `run.H`, `run.D` |
+| Wysokość i głębokość szafek (Wymiary i montaż) | `run.H`, `run.D` |
 | Cokół ciągu / Cokół pod szafkami / Podział cokołu | `run.plinth`, `runPlinth`, `runPlinthPanels` |
 | Blat roboczy / Blat ciągu / Podział blatu | `run.worktop`, `runTop`, `worktopSpans`, `runTopPanels` |
+| Blat w narożniku (przechodzi / dojeżdża / łyżwa) | `run.corner.top`, `run.corner.cut`; `projectLayout` → `topSpan.przez0/przez1` (czyj blat idzie przez róg); `runTop` skraca dojeżdżający do głębokości przechodzącego (`rt.depth`, z docinką arkusza) |
 | Wieszanie ciągu | `run.hangerMode` („listwa" / „haczyki") |
 
 ### Karta „Korpus" (`cab`)
@@ -162,10 +169,10 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 
 | Funkcja | Co robi |
 |---|---|
-| `computeGeo(cab, mat, ctx)` | **serce aplikacji** — z opisu szafki robi geometrię, formatki, okucia i uwagi. `ctx` (z `armCtxOf`) jest OBOWIĄZKOWY dla szafki narożnej |
+| `computeGeo(cab, mat, ctx)` | **serce aplikacji** — z opisu szafki robi geometrię, formatki, okucia i uwagi. `ctx` (z `armCtxOf`) jest OBOWIĄZKOWY dla szafki narożnej. Wynik zapamiętany (`geoCache`: szafka → materiały → `JSON(ctx)`), liczy `computeGeoLiczy` — **wyniku nie wolno zmieniać**, a szafki ani materiałów nie zmienia się w miejscu (zawsze nowy obiekt) |
 | `armCtxOf(layout, index)` | kontekst rogu dla szafki narożnej: `armFront`, `armSide`, `armFree` |
 | `projectLayout(project)` | rozstawia ciągi w rzucie z góry, liczy rogi |
-| `runLayout` / `runJoints` / `runPlinth` / `runTop` | układ ciągu, złącza między szafkami, wspólny cokół, wspólny blat |
+| `runLayout` / `runJoints` / `runPlinth` / `runTop` | układ ciągu, złącza między szafkami, wspólny cokół, wspólny blat. `runTop` zapamiętany przy obiekcie projektu i ciągu (`runTopCache`, liczy `runTopLiczy`) — jak przy `computeGeo`: wynik tylko do odczytu |
 | `projectParts(project)` | **jedyne** źródło formatek i okuć całego projektu (zestawienia, wycena, rozkrój) |
 | `scalOkucia(lista)` | scala okucia do jednego wiersza na produkt, z rozpisanymi zastosowaniami (pole `use`) |
 | `cornerArmParts(arm)` | formatki i okucia ramienia narożnika |
@@ -183,8 +190,15 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `splitAtJoints` | dzieli wspólny cokół/blat na odcinki |
 | `buildCutPlan` / `packSheets` / `nestPass` | rozkrój na arkusze |
 | `swingBodies` / `openingMsgs` | kontrola otwierania skrzydeł, kolizje |
+| `wallGapOf(run, item)` / `migrateWallGap` | odsunięcie od ściany szafki: własne albo z ciągu; `{ bottom, top }` (`top` = pod blatem, domyślnie jak `bottom`) |
+| `cudzeRamiona` (w `AssemblyTopView`) | ramię szafki w L, którego ściany nie rysujemy (zakres „Ciąg”) — przeniesione macierzą na swoje prawdziwe miejsce, z kawałkiem ściany i blatem |
+| `cornerSpan(n)` / `SZEROKI_FRONT` (600) | ile szafka w L zajmuje od rogu wzdłuż obu ścian (odstęp + głębokość korpusu + ramię; odstęp + szerokość korpusu) i ostrzeżenie o froncie ramienia szerszym niż 600 mm |
+| `blatNadSzafka(project, full, index, arm)` | blat ciągu nad jedną szafką w jej rzucie z góry (i blat sąsiedniej ściany nad ramieniem); przełącznik „Ukryj / Pokaż blat” (`showBlat`) także w rzucie zabudowy; wymiary ramienia w rzucie szafki: `data-el="wymiary-ramienia"` |
+| `TopHardware` | okucia w widoku z góry (szafka i zabudowa, pod „Pokaż okucia”): uchwyty przed frontem, zawiasy przy boku od frontu, nóżki przerywane; `data-el="okucia-gora"` |
 | `worktopMsgs` / `runCornerMsgs` / `cornerPairMsgs` / `tierMsgs` | uwagi na poziomie ciągu i narożnika |
 | `hwDefaultPrice(h)` | cena okucia — klucz to `h.pk` albo `h.name` |
+| „Pokaż rysunek” (górny pasek) | przewija do karty `Card id="rysunek"` (`scrollMarginTop` pod przyklejony pasek) — przycisk roboczy |
+| `ZoomBox` / `ZOOM_KROKI` | powiększanie rysunku: „− / % / + / Dopasuj” nad rysunkiem, przeciąganie przesuwa (w 3D z Shiftem), zmiana widoku wraca do 100%; Ctrl + kółko nad rysunkiem przybliża w miejscu kursora; „Pełny ekran” (`pelnyRys`, Esc zamyka) |
 | `wyslijDoClaude` / `PROJEKT_DLA_CLAUDE` | przycisk „Wyślij do Claude” — **tylko w artefakcie na claude.ai**: zapis projektu do wspólnego magazynu (`projekt/biezacy`, pole `json`) |
 
 Widoki: `CabElevation`, `FrontView`, `RearView`, `TopView`, `SideView`,
@@ -210,6 +224,9 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `KERF` | 3 | rzaz piły |
 | `WORKTOP_LEN` | 4100 | długość pasa blatu |
 | `WORKTOP_DEPTHS` / `WORKTOP_PRICES` | 600, 1200 / 470, 780 | głębokości i ceny blatu |
+| `WORKTOP_OVERHANG` / `WORKTOP_MAX_OVERHANG` | 10 / 30 | wysięg blatu przed drzwi: standard / granica, ponad którą ostrzeżenie i docinanie |
+| `HINGE_PLAY` | 2 | luz między korpusem a drzwiami przy zawiasach — tylko do głębokości blatu, nie do rysunków |
+| `SCIANA_GR` / `ScianaDefs` | 100 | ściana na rysunkach: pas 100 mm z szarym kreskowaniem (`url(#sciana-kreski)`) — rzut z góry (z nazwą ściany i ciągu górnego) i widok z boku; zasięg w rzucie liczy `scianaZasieg` (róg: do narożnika muru, wolny koniec: koniec ciągu albo „Długość ściany”); przełącznik „Ukryj / Pokaż ścianę” (`showWall`) |
 | `BACK_CLEAR` | 20 | luz nad podniesionym tyłem szuflady |
 | `VBOX` | — | dane katalogowe Sevroll V-BOX 3D Slim, **dla płyty 18 mm** |
 
@@ -267,12 +284,15 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `cornerdoor:<w>:<idx>` | ustawia jedne drzwi szafki narożnej na podaną szerokość |
 | `noTop:<idx>` | zamienia wieniec na parę wzmocnień |
 | `rundepth:<mm>[@runId]` / `runcab:` / `runrun:` | wyrównuje głębokość / szafkę / cały ciąg |
-| `plinthauto` / `topauto` / `topcut:0\|1` / `worktop:` | cokół, wieniec, cięcie blatu |
+| `plinthauto` / `topauto` / `topcut:0\|1` / `worktop:` | cokół, wieniec, cięcie blatu (`topcut:1` → `run.topCut = true` docięty, `topcut:0` → `false` cały arkusz; `null` = sam dobiera) |
+| `armlen:<mm>:<idx>:<drzwi>` | skraca ramię szafki w L (`cab.corner.arm`) — przyciski przy drzwiach ramienia szerszych niż 600 mm |
 | `legs:<n>` | wpisuje liczbę nóżek (podpowiedź przy ręcznie za małej liczbie) |
 
 ---
 
 ## 7. Testy — co która suita pilnuje
+
+Znane błędy suit i ich przyczyny: `BLEDY.md`.
 
 Uruchamianie: `cd testy && bash sweep.sh <nazwy>` (bez `.mjs`).
 `STD=1` przełącza na `standalone-local.html` (port 5199), domyślnie
@@ -291,6 +311,9 @@ Uruchamianie: `cd testy && bash sweep.sh <nazwy>` (bez `.mjs`).
 | `okucia3` | liczby okuc z wymiaru: klipsy, trójkąty, fix, zawiasy 165°/90° |
 | `bryla3d` | co widać na wierzchu w 45° i 3D: blat, maskownice, uchwyty; nóżki; zero wymuszeń kolejności z ośmiu stron |
 | `wyslij` | przycisk „Wyślij do Claude”: bez magazynu go nie ma, z atrapą zapisuje pełny projekt |
+| `opisy` | żaden napis na rysunku nie jest przykryty płytą, nóżką ani blatem — wszystkie zakresy i widoki szafki narożnej |
+| `zoom` | powiększanie i przesuwanie rysunku, „Dopasuj”, powrót do 100% przy zmianie widoku, pełny ekran z Esc, 3D: obrót vs Shift + przesuwanie |
+| `odsuniecie` | odsunięcie od ściany: głębokość blatu, wysięg przed drzwi (10 / <10 uwaga / >30 ostrzeżenie), krzywa ściana w widoku z boku, róg przesunięty o odstęp, wyjątek jednej szafki |
 | `hw2` / `cokol` / `cokolstd` / `ceny` / `ceny2` | okucia, cokół, cennik |
 | `ciag`…`ciag10` | ciągi: zakładanie, rozjazdy, cokół ciągu, światła |
 | `pietra` | dolny i górny ciąg na tej samej ścianie |
@@ -314,4 +337,12 @@ node scripts/generate-standalone.mjs # szafki.jsx -> standalone.html
 cd testy && python3 -m http.server 5205   # dla mebloprojekt-app.html
 cd testy && python3 -m http.server 5199   # dla standalone-local.html
 cd testy && bash sweep.sh narozn2 okucia3 # wynik: „NN OK, N BLAD"
+# standalone-local.html z standalone.html (podmiana 4 adresów CDN):
+python3 -c "s=open('standalone.html').read()
+for a,b in [('https://cdn.tailwindcss.com','cdn/tailwind.js'),('https://unpkg.com/react@18/umd/react.development.js','cdn/react.js'),('https://unpkg.com/react-dom@18/umd/react-dom.development.js','cdn/react-dom.js'),('https://unpkg.com/@babel/standalone/babel.min.js','cdn/babel.min.js')]: s=s.replace(a,b)
+open('testy/standalone-local.html','w').write(s)"
+# pełny przebieg (ok. 90 suit, po 5 naraz, ok. 20 min) — logi w katalogu $L:
+cd testy && L=/tmp/pelny && mkdir -p $L && grep -l "'  OK   '" *.mjs | sed 's/\.mjs$//' \
+  | xargs -P 5 -I{} sh -c "timeout 600 node {}.mjs > $L/{}.log 2>&1"
+for f in $L/*.log; do echo "$(basename $f .log): $(grep -c '  OK' $f) OK, $(grep -c BLAD $f) BLAD"; done
 ```

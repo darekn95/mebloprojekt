@@ -33,6 +33,14 @@ console.log('== poza claude.ai: przycisku nie ma ==');
 let { page, errors, ctx } = await otworz(false);
 ok('bez magazynu nie ma przycisku', (await przycisk(page).count()) === 0, '');
 ok('a „Zapisz do pliku" jest jak był', (await page.getByRole('button', { name: 'Zapisz do pliku' }).count()) === 1, '');
+// „Pokaz rysunek" w gornym pasku przewija do karty rysunku, pod przyklejony pasek
+await page.setViewportSize({ width: 900, height: 900 });
+await page.getByRole('button', { name: 'Pokaż rysunek' }).click();
+await page.waitForTimeout(1200);
+const rys = await page.evaluate(() => ({
+  top: Math.round(document.getElementById('rysunek').getBoundingClientRect().top),
+  pasek: Math.round(document.querySelector('header.sticky').getBoundingClientRect().bottom) }));
+ok('„Pokaż rysunek" przewija do rysunku', rys.top >= rys.pasek - 2 && rys.top < 300, JSON.stringify(rys));
 ok('bez błędów strony', errors.length === 0, errors.join('; '));
 await ctx.close();
 

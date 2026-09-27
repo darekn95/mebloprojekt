@@ -191,6 +191,29 @@ const MIN_PART = 60;
 /* Ponizej tego front robi sie waski — nie blad, bo czasem inaczej sie nie da,
    ale warto rzucic okiem, zanim pojdzie do ciecia. */
 const WASKI_FRONT = 250;
+/* Skrzydlo szersze niz to ciazy na zawiasach, opada i zabiera duzo miejsca przy
+   otwieraniu — w kuchni drzwi robi sie zwykle do ok. 600 mm. */
+const SZEROKI_FRONT = 600;
+
+/* Ile szafka w L zajmuje od rogu wzdluz obu scian i skad sie to bierze. Przy
+   zwyklej szafce szerokosc to szerokosc — tu przy scianie ramienia dochodzi
+   jeszcze odstep od sciany i glebokosc korpusu, a front korpusu jest wezszy
+   od niego o to, co zabiera rog (glebokosc ramienia z frontem). */
+const cornerSpan = (n) => {
+  const a = n && n.arm;
+  if (!a || !n.pair) return null;
+  const r = n.pair.rogowa;
+  const odScianyA = r ? r.wallGap.bottom : 0;
+  const glKorpusu = r ? Math.round(r.geo.carcassDepth - r.offset) : n.pair.glRog;
+  const odScianyB = n.pair.odSasiada || 0;
+  return {
+    odScianyA, glKorpusu, odScianyB,
+    // wzdluz sciany korpusu: odstep od sciany ramienia + szerokosc korpusu
+    wzdluzKorpusu: odScianyB + a.cab.geo.W,
+    // wzdluz sciany ramienia: odstep od sciany korpusu + glebokosc korpusu + ramie
+    wzdluzRamienia: n.pair.glRog + a.len,
+  };
+};
 const MIN_LEVEL = 100; // najnizszy sensowny poziom przy auto-dodawaniu
 
 /* Sevroll V-BOX 3D Slim, wymiary elementow dla plyty 18 mm */
@@ -706,7 +729,7 @@ const makeRun = (runs) => {
     H: null, D: null, plinth: null, plinthCuts: null, topCuts: null, worktop: true,
     hangerMode: "listwa", mountY: 0, corner: null,
     tier: "dolny", wall: null, clearance: 500, ceiling: null,
-    offset: 0, offsetFrom: "left" };
+    offset: 0, offsetFrom: "left", wallGap: { bottom: 0, top: null }, topCut: null };
 };
 
 /* Gorny ciag tej samej sciany. Dlugosc sciany i narożnik bierze od dolnego, wiec
@@ -757,6 +780,21 @@ const migrateCorner = (c) => {
 // wymiary, ktore w ciagu musza byc wspolne — inaczej fronty i blat sie rozjada
 const RUN_SHARED = ["H", "D", "plinth", "hangerMode"];
 
+/* Odsuniecie od sciany. Szafke odsuwa sie, gdy sciana jest krzywa albo cos
+   z niej wystaje (rura, listwa) — za plecami zostaje wtedy pusta przestrzen.
+   Dwie wartosci, bo krzywa sciana daje inny odstep przy podlodze i inny na
+   wysokosci blatu, a blat liczy sie od sciany wlasnie tam. `top: null` = tyle
+   samo co na dole. W szafce `null` znaczy „jak caly ciag". */
+const migrateWallGap = (g) => {
+  if (!g || typeof g !== "object") return null;
+  const mm = (v) => Math.max(0, Math.round(Number(v) || 0));
+  return { bottom: mm(g.bottom), top: g.top == null || g.top === "" ? null : mm(g.top) };
+};
+const wallGapOf = (run, it) => {
+  const g = migrateWallGap(it && it.wallGap) || migrateWallGap(run && run.wallGap) || { bottom: 0, top: null };
+  return { bottom: g.bottom, top: g.top == null ? g.bottom : g.top };
+};
+
 const migrateRun = (r) => ({
   id: String(r.id),
   name: typeof r.name === "string" && r.name.trim() ? r.name : "Ciąg",
@@ -791,6 +829,9 @@ const migrateRun = (r) => ({
   offsetFrom: r.offsetFrom === "right" ? "right" : "left",
   // null = ciag stoi przy wlasnej scianie, bez zwiazku z innymi
   corner: migrateCorner(r.corner),
+  wallGap: migrateWallGap(r.wallGap) || { bottom: 0, top: null },
+  // blat: true = docięty na wymiar, false = caly arkusz, null = dobiera sam
+  topCut: r.topCut === true ? true : r.topCut === false ? false : null,
 });
 
 // cokol porownujemy po wszystkich czterech polach — cofniecie tez psuje lico ciagu
@@ -820,7 +861,8 @@ const loadProject = (d) => {
     items = d.items.map((it) => {
       const mat = migrateMat(it.mat);
       return { cab: migrateCab(it.cab, mat), mat,
-        runId: it.runId || null, offset: Math.round(Number(it.offset) || 0) };
+        runId: it.runId || null, offset: Math.round(Number(it.offset) || 0),
+        wallGap: migrateWallGap(it.wallGap) };
     });
   } else if (d.cab) {
     items = (() => { const mat = migrateMat(d.mat);
@@ -978,7 +1020,22 @@ const newProject = () => ({
    strony wychodzi ramie. Bez tego wzmocnienia w szafce naroznej biegly przez
    caly korpus, takze przez przelot w ramie. Pole jest opcjonalne — widoki,
    ktore o narozniku nie wiedza, wolaja `computeGeo` jak dotad. */
+/* Geometrie tej samej szafki liczy przy jednym przerysowaniu kilkanascie miejsc
+   (uklad ciagu, blat, zlacza, uwagi, zestawienie). Szafka i materialy sa
+   niezmienne — kazda zmiana tworzy nowy obiekt — wiec wynik zapamietujemy przy
+   nich, osobno dla kazdego kontekstu rogu. Wynik jest tylko do odczytu. */
+const geoCache = new WeakMap();
 function computeGeo(cab, mat, ctx) {
+  if (!cab || typeof cab !== "object" || !mat || typeof mat !== "object") return computeGeoLiczy(cab, mat, ctx);
+  let poMat = geoCache.get(cab);
+  if (!poMat) { poMat = new WeakMap(); geoCache.set(cab, poMat); }
+  let poCtx = poMat.get(mat);
+  if (!poCtx) { poCtx = new Map(); poMat.set(mat, poCtx); }
+  const klucz = ctx ? JSON.stringify(ctx) : "";
+  if (!poCtx.has(klucz)) poCtx.set(klucz, computeGeoLiczy(cab, mat, ctx));
+  return poCtx.get(klucz);
+}
+function computeGeoLiczy(cab, mat, ctx) {
   const t = mat.board.thickness;
   const tf = mat.front.thickness;
   // polki w kolumnach (i dno/tyl szuflady) moga byc z innej plyty niz korpus;
@@ -3280,6 +3337,8 @@ const assemblyParts = (project, runs, ref) =>
       const o = {
         // index = pozycja szafki w projekcie; po niej trafiaja w nia poprawki
         cab: it.cab, geo, mat, rawMat: it.mat, x, plinthH, index,
+        // odstep od sciany przy podlodze i pod blatem — ciagu albo wlasny szafki
+        wallGap: wallGapOf(run, it),
         // wysuniecie (+) albo cofniecie (-) z lica ciagu
         offset: Math.round(Number(it.offset) || 0),
         base: mount + Math.max(plinthH, legBelow),
@@ -3320,7 +3379,8 @@ const armsIn = (full, n, rysowane) => {
   // ramiona szafek tego ciagu, ktorych pas nie jest rysowany — dostawiamy za koniec
   const cudze = [...full.info.values()]
     .filter((k) => k.arm && k.arm.run.id === n.id && !rysowane.has(k.arm.other.id))
-    .map((k) => ({ ...k.arm, u0: n.len + WALL_SEP / 2, dostawione: true }));
+    // `u0Pasa` — gdzie ramie stoi naprawde w swoim pasie; blat tamtego pasa liczy sie od niego
+    .map((k) => ({ ...k.arm, u0: n.len + WALL_SEP / 2, u0Pasa: k.arm.u0, dostawione: true }));
   return [...swoje, ...cudze];
 };
 
@@ -3496,10 +3556,12 @@ const armPlan = (a, lokalnie) => {
    od sciany odsuwa nas najglebsza z nich, a wysuniete jeszcze bardziej.
    Pusty ciag za rogiem glebokosci jeszcze nie ma z czego wziac, wiec bierze ja
    z wlasnego ustawienia — to od niej zalezy szerokosc frontu szafki naroznej. */
+/* Odsuniecie od sciany (przy podlodze) tez tu wchodzi: szafka odsunieta stoi
+   dalej od sciany razem z licem, a za plecami zostaje pusta przestrzen. */
 const runFrontDepth = (g) =>
   g.cabs.length
-    ? Math.max(...g.cabs.map((c) => c.geo.carcassDepth - c.offset))
-    : Math.max(0, Math.round(Number(g.run.D) || 0));
+    ? Math.max(...g.cabs.map((c) => (c.wallGap ? c.wallGap.bottom : 0) + c.geo.carcassDepth - c.offset))
+    : Math.max(0, Math.round(Number(g.run.D) || 0)) + wallGapOf(g.run, null).bottom;
 
 /* Ciag bez szafek zwykle nie ma czego pokazac, ale ten za rogiem owszem: w jego
    pasie lezy ramie szafki naroznej, a jego glebokosc wyznacza szerokosc frontu
@@ -3509,6 +3571,21 @@ const runInCorner = (runs, r) =>
 const drawableRuns = (project) => {
   const runs = project.runs || [];
   return runs.filter((r) => runItems(project, r.id).length || runInCorner(runs, r));
+};
+
+/* Zasieg sciany w ukladzie ciagu (u wzdluz sciany). W rogu mur idzie o swoja
+   grubosc dalej, do narozu, a lico konczy sie na licu drugiej sciany. Na wolnym
+   koncu nie wiemy, gdzie sciana sie konczy — rysujemy ja do konca ciagu albo
+   na wpisana dlugosc sciany, liczona od rogu albo od krawedzi, od ktorej
+   mierzy sie polozenie ciagu. */
+const scianaZasieg = (n, dl) => {
+  const rogS = (n.corner && n.corner.at === "end") || n.kids.some((k) => k.corner.at === "start");
+  const rogE = (n.corner && n.corner.at === "start") || n.kids.some((k) => k.corner.at === "end");
+  let u0 = 0, u1 = n.len;
+  if (dl != null && dl > n.len) {
+    if (rogS || (!rogE && n.run.offsetFrom !== "right")) u1 = dl; else u0 = n.len - dl;
+  }
+  return { u0, u1, rogS, rogE };
 };
 
 // odstep miedzy scianami w rozwinieciu elewacji — tyle, zeby rog byl widoczny
@@ -3562,12 +3639,25 @@ const runLayout = (groups, ref = null) => {
     /* Rog zjada tyle, ile ma glebokosci szafka, ktora w nim faktycznie stoi —
        nie caly ciag. Plytsza szafka w rogu odsuwa sasiada mniej, glebsza
        wiecej; branie glebokosci ciagu myliloby sie w obie strony. */
-    const glRog = rogowa ? Math.round(rogowa.geo.carcassDepth - rogowa.offset) : wchodzi.depth;
+    /* Szafka odsunieta od sciany zjada rog razem z tym odstepem — sasiad
+       zaczyna sie za jej frontem, a nie za samym korpusem. */
+    const glRog = rogowa
+      ? Math.round(rogowa.wallGap.bottom + rogowa.geo.carcassDepth - rogowa.offset)
+      : wchodzi.depth; // glebokosc ciagu juz liczy sie od sciany, z odstepem
     n.pair = { wchodzi, ustepuje, przyStarcie, rogowa, armLen, glRog };
     const o = glRog + armLen + (n.corner.clear || 0);
     // odsuwamy z tej strony ciagu, ktora dotyka rogu
     if (n.corner.at === "end") { if (ustepuje === n) n.lead += o; else p.tail += o; }
     else if (ustepuje === n) n.tail += o; else p.lead += o;
+    /* Szafka w L stoi tylem ramienia i bokiem korpusu przy scianie sasiada.
+       Gdy tamten ciag jest odsuniety od sciany, ramie stoi z tym samym odstepem
+       — a razem z nim cala szafka, wiec jej ciag konczy sie o tyle wczesniej. */
+    const odSasiada = armLen ? wallGapOf(ustepuje.run, null).bottom : 0;
+    n.pair.odSasiada = odSasiada;
+    if (odSasiada) {
+      if (n.corner.at === "end") { if (wchodzi === p) p.tail += odSasiada; else n.lead += odSasiada; }
+      else if (wchodzi === p) p.lead += odSasiada; else n.tail += odSasiada;
+    }
   });
   /* Ciag, ktorego partner z rogu nie jest rysowany, nie policzyl sobie wyzej
      odsuniecia — bierze je z calosci, razem z ta sama luka na ramie. */
@@ -3602,9 +3692,12 @@ const runLayout = (groups, ref = null) => {
        Lico ramienia lezy o grubosc frontu przed jego korpusem (przy froncie
        nakladanym), wiec front korpusu ma do dyspozycji o tyle mniej — liczony
        po staremu do samej glebokosci sasiada nachodzil na tamten front. */
-    const licoRamienia = other.depth
+    /* Glebokosc sasiada liczy sie od sciany, razem z odstepem od niej — ramie
+       ma tyle, ile sam korpus, i stoi z tym samym odstepem co tamte szafki. */
+    const glRamienia = Math.max(0, other.depth - (n.pair.odSasiada || 0));
+    const licoRamienia = glRamienia
       + (c.cab.frontMode === "inset" ? 0 : c.geo.tf);
-    const arm = { cab: c, len: armLen, depth: other.depth, run: w, other,
+    const arm = { cab: c, len: armLen, depth: glRamienia, run: w, other,
       u0: a0, free: Math.max(0, Math.round(c.geo.W - licoRamienia)),
       outerAtEnd: !przyStarcie,
       // z ktorej strony korpusu wychodzi ramie — po tej stronie nie ma juz frontu
@@ -3637,8 +3730,12 @@ const runLayout = (groups, ref = null) => {
     const ust = (r, atStart) => {
       // na lyzwe oba kawalki dochodza do rogu, na styk tylko ten przechodzacy
       const d = skos || r === przez ? 0 : przez.depth;
-      if (atStart) { r.top.s = d; r.top.skosS = skos; r.top.corS = true; }
-      else { r.top.e = r.len - d; r.top.skosE = skos; r.top.corE = true; }
+      /* Dojezdzajacy blat konczy sie na krawedzi przechodzacego, a ten jest
+         glebszy od szafek o front, wysieg i docinke arkusza. Te glebokosc zna
+         dopiero `runTop`, wiec zostawiamy mu, czyj blat idzie przez rog. */
+      const przezId = d ? przez.id : null;
+      if (atStart) { r.top.s = d; r.top.skosS = skos; r.top.corS = true; r.top.przezS = przezId; }
+      else { r.top.e = r.len - d; r.top.skosE = skos; r.top.corE = true; r.top.przezE = przezId; }
     };
     ust(n, c.at === "end");
     ust(p, c.at !== "end");
@@ -3646,7 +3743,9 @@ const runLayout = (groups, ref = null) => {
   // ten sam odcinek, ale liczony od lewej krawedzi pierwszej szafki ciagu
   info.forEach((n) => {
     n.topSpan = { x0: n.top.s - n.lead, x1: n.top.e - n.lead,
-      skos0: n.top.skosS, skos1: n.top.skosE, cor0: n.top.corS, cor1: n.top.corE };
+      skos0: n.top.skosS, skos1: n.top.skosE, cor0: n.top.corS, cor1: n.top.corE,
+      przez0: n.top.przezS || null, przez1: n.top.przezE || null,
+      glPrzez0: n.top.s, glPrzez1: n.len - n.top.e };
   });
 
   /* Ramka ciagu: punkt (u, v) — u wzdluz sciany od poczatku ciagu, v w glab
@@ -3690,9 +3789,14 @@ const runLayout = (groups, ref = null) => {
   });
   info.forEach((n) => { n.ex = exOf.get(n.wall); });
 
-  const pts = [...info.values()].flatMap((n) =>
-    [[0, 0], [n.len, 0], [0, n.depth + n.front], [n.len, n.depth + n.front]]
-      .map(([u, v]) => n.at(u, v)));
+  /* Rzut rysuje tez sciane na jej wpisana dlugosc — kadr musi ja objac, z ktorej
+     strony ciagu by nie wypadla. */
+  const pts = [...info.values()].flatMap((n) => {
+    const sc = scianaZasieg(n, n.run.wallW);
+    return [[0, 0], [n.len, 0], [0, n.depth + n.front], [n.len, n.depth + n.front],
+      [sc.u0, 0], [sc.u1, 0]]
+      .map(([u, v]) => n.at(u, v));
+  });
   return {
     info,
     corners: [...info.values()].some((n) => n.corner),
@@ -4014,6 +4118,53 @@ const ObsMaskTop = ({ o, t, W, color }) => {
   ));
 };
 
+/* Okucia widziane z gory — to, co pokazuje „Pokaz okucia" w rzucie szafki
+   i zabudowy: uchwyty wystajace przed front, zawiasy na boku przy froncie
+   i nozki pod dnem (przerywane, bo sa pod spodem). Prowadnice szuflad
+   rysuje kazdy widok sam. Uklad: y = 0 z tylu korpusu, `cd` to jego przod. */
+const TopHardware = ({ cab, geo, cd }) => {
+  const out = [];
+  const lico = cab.frontMode === "inset" ? cd : cd + geo.tf;
+  const uchwyt = handleOutOf(cab);
+  const seen = new Set();
+  geo.doors.filter((d) => d.w > 0 && d.h > 0).forEach((d) => {
+    // z gory poziomy nakladaja sie na siebie — kazdy uchwyt i zawias raz
+    if (d.handle && uchwyt) {
+      const [hx0, hx1] = d.type === "drawer"
+        ? [d.x + d.w / 2 - Math.min(120, d.w * 0.3), d.x + d.w / 2 + Math.min(120, d.w * 0.3)]
+        : d.hingeSide === "left" ? [d.x + d.w - 44, d.x + d.w - 32] : [d.x + 20, d.x + 32];
+      const k = `u${Math.round(hx0)}`;
+      if (!seen.has(k)) {
+        seen.add(k);
+        out.push(<rect key={k} x={hx0} y={lico} width={hx1 - hx0} height={uchwyt}
+          fill="#3f3f46" stroke={INK} strokeWidth="1" />);
+      }
+    }
+    if (d.type !== "drawer") {
+      const [li, cj] = String(d.colKey || "").split("-").map(Number);
+      const col = ((geo.levels[li] || {}).cols || [])[cj];
+      if (col) {
+        const hx = d.hingeSide === "left" ? col.x0 : col.x1 - 12;
+        const k = `z${Math.round(hx)}`;
+        if (!seen.has(k)) {
+          seen.add(k);
+          out.push(<rect key={k} x={hx} y={cd - HINGE_D} width={12} height={HINGE_D}
+            rx="3" fill="#71717a" fillOpacity="0.8" stroke={INK} strokeWidth="1.2" />);
+        }
+      }
+    }
+  });
+  if (cab.legs && cab.legs.on) {
+    const lp = legPlan(cab, geo.W);
+    const pkt = lp.xs.flatMap((x) => [[x, LEG_INSET], [x, cd - LEG_INSET - LEG_W]]);
+    if (lp.srodek) pkt.push([Math.round((geo.W - LEG_W) / 2), Math.round((cd - LEG_W) / 2)]);
+    pkt.forEach(([x, y], i) => out.push(
+      <rect key={"n" + i} x={x} y={y} width={LEG_W} height={LEG_W} rx={legRound(cab) ? LEG_W / 2 : 0}
+        fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="6 4" opacity="0.7" />));
+  }
+  return <g data-el="okucia-gora">{out}</g>;
+};
+
 function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
   const W = geo.W;
   const t = geo.t;
@@ -4137,6 +4288,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
         });
       })()}
 
+      {showHardware && <TopHardware cab={cab} geo={geo} cd={cd} />}
       {/* prowadnice szuflad */}
       {showHardware && cols
         .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
@@ -4465,6 +4617,40 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                       rx={legRound(a.cab.cab) ? 20 : 0} fill={legColorOf(a.cab.cab)}
                       stroke={INK} strokeWidth="2" opacity={a.cab.geo.legTop > 0 ? 0.5 : 1} />
                   ))}
+                  {/* Wzmocnienia ramienia pod blatem — po otwarciu widac je tak samo
+                      jak wzmocnienia szafek obok. Od frontu uklad jak w rzucie,
+                      od tylu w lustrze. */}
+                  {open && !rear && armPlan(a).rails.map((r, k) => {
+                    const h = r.stojace ? r.wys : a.cab.geo.t;
+                    // tylne wzmocnienie siega w rog, za koniec ramienia — tniemy do ramienia
+                    const u0 = Math.max(0, r.u0), u1 = Math.min(a.len, r.u1);
+                    if (u1 <= u0) return null;
+                    return (
+                      <rect key={"awz" + k} x={ax + u0} y={fy(a.cab.base + a.cab.cab.H)}
+                        width={u1 - u0} height={h}
+                        fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
+                    );
+                  })}
+                  {/* Ramie dostawione obok ciagu (jego sciany nie rysujemy) nie
+                      dostaje blatu od swojego pasa — kladziemy go tu, w tym samym
+                      miejscu co naprawde, przesuniety razem z ramieniem. */}
+                  {a.dostawione && (() => {
+                    const fo = full.info.get(a.other.id);
+                    const rt = fo ? runTop(project, a.other.run) : null;
+                    if (!rt) return null;
+                    const kol = rt.worktop
+                      ? (rt.mat.worktop || {}).color || "#8d7b68"
+                      : (rt.mat.board || {}).color || "#d8c3a0";
+                    const przes = a.u0 - a.u0Pasa;
+                    return worktopSpans(rt).map((sp, k) => {
+                      const x0 = L.info.get(g.run.id).ex + fo.lead + sp.x0 + przes;
+                      const w = sp.x1 - sp.x0;
+                      return (
+                        <rect key={"ablat" + k} x={mx(x0, w)} y={fy(tierMountY(project, a.other.run) + rt.y + rt.th)}
+                          width={w} height={rt.th} fill={kol} stroke={INK} strokeWidth="2" />
+                      );
+                    });
+                  })()}
                   {/* Polki ramienia widac dopiero po otwarciu — ida na tych samych
                       wysokosciach co polki kolumny przy ramieniu, bo to na nich
                       sie koncza. */}
@@ -4651,7 +4837,20 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
    Ciagi polaczone naroznikiem stoja wzgledem siebie pod katem prostym — kazdy
    rysuje sie we wlasnym ukladzie (u wzdluz sciany, v w glab pokoju), a na
    miejsce obraca go transform. */
-function AssemblyTopView({ project, runs, showDims, showShelves, showHardware }) {
+/* Sciana na rysunkach: pas o grubosci SCIANA_GR, kreskowany na szaro, zeby
+   od razu bylo widac, ze to nie plyta zadnego mebla. */
+const SCIANA_GR = 100;
+const ScianaDefs = () => (
+  <defs>
+    <pattern id="sciana-kreski" width="22" height="22" patternUnits="userSpaceOnUse"
+      patternTransform="rotate(45)">
+      <rect width="22" height="22" fill="#e7e5e4" />
+      <line x1="0" y1="0" x2="0" y2="22" stroke="#a8a29e" strokeWidth="5" />
+    </pattern>
+  </defs>
+);
+
+function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, showWall = true, showBlat = true }) {
   const full = projectLayout(project);
   const groups = assemblyParts(project, runs, full).slice().sort((a, b) => a.mount - b.mount);
   const wzor = wzorcowaSzafka(groups);
@@ -4660,13 +4859,156 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
   /* Ramie opisane jest przy sasiednim pasie, a przycina lico TEJ szafki. */
   const armOf = new Map();
   full.info.forEach((k) => { if (k.arm) armOf.set(k.arm.cab.index, k.arm); });
-  const b = L.box;
-  const pad = showDims ? 190 : 40;
-  const padR = showDims ? 700 : 40;
-  const vb = [b.x0 - pad, b.y0 - pad,
-    b.x1 - b.x0 + pad + padR, b.y1 - b.y0 + 2 * pad].join(" ");
   // ciag nizszy na danej scianie rysujemy pelna kreska, wyzszy przerywana
   const rysowane = new Set(groups.map((g) => g.run.id));
+  /* Ramie szafki naroznej w ukladzie pasa, w ktorym lezy (u wzdluz jego
+     sciany, v od niej). `glPasa` to glebokosc tego pasa od sciany do lica. */
+  const ramie = (a, i, glPasa) => (
+    <g key={"arm" + i} transform={`translate(${a.u0}, ${Math.max(0, glPasa - a.depth)})`}>
+        <rect x={0} y={0} width={a.len} height={a.depth} fill="#fafaf9"
+          stroke="#e7e5e4" strokeWidth="1" />
+        <rect x={a.outerAtEnd ? a.len - a.cab.geo.t : 0} y={0}
+          width={a.cab.geo.t} height={a.depth}
+          fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
+        {/* Front ramienia siada tak samo jak front kazdej szafki ciagu:
+            nakladany idzie PRZED korpusem, wpuszczany chowa sie w nim.
+            Rysowany po staremu zawsze do srodka stal 18 mm za linia
+            frontow sasiadow — a ma z nimi byc w jednym licu. */}
+        {(() => {
+          // front zachodzi na bok ramienia z luzem — jak drzwi na bok szafki
+          const fp = armFrontPlan(a);
+          return (
+            <rect x={a.outerAtEnd ? fp.odRogu : a.len - fp.odRogu - fp.w}
+              y={armInset(a) ? a.depth - a.cab.geo.tf : a.depth}
+              width={fp.w} height={a.cab.geo.tf}
+              fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
+          );
+        })()}
+        {/* Plecy i wzmocnienia ramienia. Plecy i tylne wzmocnienie ida
+            dalej niz samo ramie — az do katownika w tylnym narozniku. */}
+        {(() => {
+          const ap = armPlan(a);
+          return (
+            <>
+              {ap.back && (
+                <rect x={ap.back.u0} y={ap.back.v0}
+                  width={ap.back.u1 - ap.back.u0} height={ap.back.v1 - ap.back.v0}
+                  fill={ap.back.plyta ? a.cab.mat.board.color : a.cab.mat.back.color}
+                  stroke={INK} strokeWidth="1.5" />
+              )}
+              {ap.rails.map((r, k) => (
+                <rect key={"awz" + k} x={r.u0} y={r.v0}
+                  width={r.u1 - r.u0} height={r.v1 - r.v0}
+                  fill={a.cab.mat.board.color} stroke={INK} strokeWidth="1.5" opacity="0.55" />
+              ))}
+            </>
+          );
+        })()}
+        {/* Katownik w wewnetrznym rogu: po jednej plycie w kazdej
+            plaszczyznie frontu, a za nimi te same dwie w srodku szafki.
+            Do zewnetrznych domykaja sie oba skrzydla. */}
+        {a.bracket && bracketPlan(a).map((r, k) => (
+          <rect key={"kat" + k} x={r.u} y={r.v} width={r.w} height={r.h}
+            fill={r.front ? a.cab.frontColor : a.cab.mat.board.color}
+            stroke={INK} strokeWidth="2" />
+        ))}
+        {/* Uchwyt i zawiasy frontu ramienia — jak przy drzwiach szafek. Zawiasy
+            siedza przy wolnym koncu (na wewnetrznym licu boku), uchwyt po
+            stronie rogu, przed licem frontu. */}
+        {showHardware && a.doors !== "fix" && (() => {
+          const fp = armFrontPlan(a);
+          const fx0 = a.outerAtEnd ? fp.odRogu : a.len - fp.odRogu - fp.w;
+          const lico = armInset(a) ? a.depth : a.depth + a.cab.geo.tf;
+          const uch = handleOutOf(a.cab.cab);
+          const hx = a.outerAtEnd ? fx0 + 20 : fx0 + fp.w - 32;
+          const zx = a.outerAtEnd ? a.len - a.cab.geo.t - 12 : a.cab.geo.t;
+          return (
+            <g>
+              {uch > 0 && <rect x={hx} y={lico} width={12} height={uch}
+                fill="#3f3f46" stroke={INK} strokeWidth="1" />}
+              <rect x={zx} y={a.depth - HINGE_D} width={12} height={HINGE_D} rx="3"
+                fill="#71717a" fillOpacity="0.8" stroke={INK} strokeWidth="1.2" />
+            </g>
+          );
+        })()}
+        {/* Nozki ramienia pod dnem — te same miejsca co w zamowieniu i w bryle.
+            `u` liczy sie od rogu, a rog lezy naprzeciw wolnego konca ramienia. */}
+        {showHardware && a.cab.cab.legs && a.cab.cab.legs.on && (() => {
+          const lp = armLegPlan(a);
+          return lp.us.flatMap((u) => lp.vs.map((v) => [a.outerAtEnd ? u : a.len - u - lp.w, v]))
+            .map(([x, y], k) => (
+              <rect key={"anog" + k} x={x} y={y} width={lp.w} height={lp.w}
+                rx={legRound(a.cab.cab) ? lp.w / 2 : 0} fill="none" stroke={INK}
+                strokeWidth="1.5" strokeDasharray="6 4" opacity="0.7" />
+            ));
+        })()}
+      </g>
+  );
+  // podpis ramienia — osobno, w przebiegu wymiarow, zeby blat go nie przykrywal
+  const podpisRamienia = (a, i, glPasa) => (
+    <text key={"pr" + i} x={a.u0 + a.len / 2} y={Math.max(0, glPasa - a.depth) + a.depth / 2 + 8}
+      textAnchor="middle" fontSize="22" fill={ACC} fontFamily="ui-monospace, monospace">
+      ramię {fmt(a.len)}
+    </text>
+  );
+  /* Blat pasa — lezy nad wszystkim, wiec rysujemy go na wierzchu, przezroczysto,
+     zeby bylo widac, co pod nim stoi. Zaczyna sie przy scianie na wysokosci
+     blatu; przy krzywej scianie lezy ona blizej pokoju niz sciana przy podlodze. */
+  const blatPasa = (run, lead) => {
+    const rt = showBlat ? runTop(project, run) : null;
+    if (!rt) return null;
+    const kol = rt.worktop
+      ? (rt.mat.worktop || {}).color || "#8d7b68"
+      : (rt.mat.board || {}).color || "#d8c3a0";
+    const gs = wallGapOf(run, null);
+    return worktopSpans(rt).map((sp, i) => (
+      <rect key={"blat" + i} x={lead + sp.x0} y={Math.max(0, gs.bottom - gs.top)}
+        width={sp.x1 - sp.x0} height={rt.depth}
+        fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
+    ));
+  };
+  /* Ramie, ktorego sciany nie rysujemy (zakres „ciag"), stawiamy tam, gdzie stoi
+     naprawde — obrocone wzdluz drugiej sciany, razem z jej kawalkiem. Przenosi
+     je macierz: uklad tamtego pasa → rzut calosci → uklad rysowanego ciagu. */
+  const cudzeRamiona = [];
+  groups.forEach((g) => {
+    const n = L.info.get(g.run.id);
+    const fn = full.info.get(g.run.id);
+    if (!fn || !fn.f || !n.f) return;
+    [...full.info.values()]
+      .filter((k) => k.arm && k.arm.run.id === g.run.id && !rysowane.has(k.arm.other.id))
+      .forEach((k) => {
+        const a = k.arm;
+        const fo = full.info.get(a.other.id);
+        if (!fo || !fo.f) return;
+        const doL = (u, v) => {
+          const pp = fo.at(u, v);
+          const dx = pp.x - fn.f.ox, dy = pp.y - fn.f.oy;
+          return n.at(dx * fn.f.ux + dy * fn.f.uy, dx * fn.f.vx + dy * fn.f.vy);
+        };
+        const p0 = doL(0, 0), pu = doL(1, 0), pv = doL(0, 1);
+        cudzeRamiona.push({ a, fo, n, doL,
+          m: `matrix(${pu.x - p0.x}, ${pu.y - p0.y}, ${pv.x - p0.x}, ${pv.y - p0.y}, ${p0.x}, ${p0.y})`,
+          // naroze scian lezy na poczatku pasa ramienia, gdy ramie wychodzi od konca ciagu
+          rogNaPoczatku: a.outerAtEnd });
+      });
+  });
+  // kadr obejmuje takze te ramiona i kawalek ich sciany
+  const b = { ...L.box };
+  cudzeRamiona.forEach((c) => {
+    const u0 = c.rogNaPoczatku ? -SCIANA_GR : c.a.u0;
+    const u1 = c.rogNaPoczatku ? c.a.u0 + c.a.len : c.fo.len + SCIANA_GR;
+    [[u0, -SCIANA_GR], [u1, -SCIANA_GR], [u0, c.fo.depth], [u1, c.fo.depth]].forEach(([u, v]) => {
+      const q = c.doL(u, v);
+      b.x0 = Math.min(b.x0, q.x); b.x1 = Math.max(b.x1, q.x);
+      b.y0 = Math.min(b.y0, q.y); b.y1 = Math.max(b.y1, q.y);
+    });
+  });
+  // margines obejmuje tez grubosc sciany; nazwy scian stoja na niej
+  const pad = (showDims ? 190 : 40) + SCIANA_GR;
+  const padR = pad;
+  const vb = [b.x0 - pad, b.y0 - pad,
+    b.x1 - b.x0 + pad + padR, b.y1 - b.y0 + 2 * pad].join(" ");
   const lowest = new Map();
   groups.forEach((g) => {
     const w = L.info.get(g.run.id).wall;
@@ -4675,6 +5017,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       <GrainDefs mat={wzor.rawMat} on={wzor.cab.texture} dir={wzor.cab.textureDir} />
+      <ScianaDefs />
       {groups.map((g, gi) => {
         const n = L.info.get(g.run.id);
         const upper = lowest.get(n.wall) !== g.run.id;
@@ -4684,7 +5027,41 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
         return (
           <g key={g.run.id} opacity={upper ? 0.75 : 1}
             transform={`translate(${o.x}, ${o.y}) rotate(${deg})`}>
-            {!upper && <line x1={-20} y1={0} x2={n.len + 20} y2={0} stroke={LINE} strokeWidth="3" />}
+            {/* Sciana ma grubosc i kreskowanie — sama kreska mylila sie
+                z krawedzia plyty. Pas wychodzi za oba konce ciagu, wiec
+                w rogu dwie sciany zachodza na siebie jak w murze. */}
+            {!upper && showWall && (() => {
+              const zs = scianaZasieg(n, runWallW(project, g.run));
+              const { u0, u1 } = zs;
+              // naroze z niewidoczna sciana: tam stoi szafka w L, ktorej ramie rysujemy
+              const cudze = cudzeRamiona.filter((c) => c.n === n);
+              const rogS = zs.rogS || cudze.some((c) => !c.rogNaPoczatku);
+              const rogE = zs.rogE || cudze.some((c) => c.rogNaPoczatku);
+              const b0 = rogS ? -SCIANA_GR : u0, b1 = rogE ? n.len + SCIANA_GR : u1;
+              return (
+              <g data-el="sciana">
+                <rect x={b0} y={-SCIANA_GR} width={b1 - b0} height={SCIANA_GR}
+                  fill="url(#sciana-kreski)" />
+                <line x1={u0} y1={0} x2={u1} y2={0} stroke={INK} strokeWidth="3" />
+                {(() => {
+                  /* Na scianie moze wisiec tez ciag gorny — jego nazwa i wysokosc
+                     ida w drugiej linii, bo w rzucie lezy na dolnym. */
+                  const gorne = groups.filter((q) => q !== g && L.info.get(q.run.id).wall === n.wall);
+                  const napis = (t, y, k) => (
+                    <text key={k} x={(u0 + u1) / 2} y={y} textAnchor="middle" fontSize="24"
+                      fill={INK} stroke="#fafaf9" strokeWidth="6" paintOrder="stroke"
+                      fontFamily="ui-monospace, monospace">{t}</text>
+                  );
+                  return [
+                    napis(g.run.name, gorne.length ? -62 : -SCIANA_GR / 2 + 8, "d"),
+                    ...gorne.map((q, i) => napis(
+                      `${q.run.name === g.run.name ? "ciąg górny" : q.run.name}`
+                        + (q.mount > 0 ? ` — ${fmt(q.mount)} nad podłogą` : ""), -30 + i * 28, "g" + i)),
+                  ];
+                })()}
+              </g>
+              );
+            })()}
             {g.cabs.map((c, i) => (
               <g key={i} transform={`translate(${n.lead + c.x}, ${n.depth - c.geo.carcassDepth + c.offset})`}>
                 <CabTop cab={c.cab} geo={c.geo} mat={c.mat} ghost={upper}
@@ -4694,75 +5071,57 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
             ))}
             {/* Ramie szafki naroznej lezy w tym ciagu, ale nalezy do szafki
                 z sasiedniego — dlatego rysuje sie tu, a liczy przy tamtej. */}
-            {armsIn(full, n, rysowane).map((a, i) => (
-              <g key={"arm" + i} transform={`translate(${a.u0}, 0)`}>
-                <rect x={0} y={0} width={a.len} height={a.depth} fill="#fafaf9"
-                  stroke="#e7e5e4" strokeWidth="1" />
-                <rect x={a.outerAtEnd ? a.len - a.cab.geo.t : 0} y={0}
-                  width={a.cab.geo.t} height={a.depth}
-                  fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
-                {/* Front ramienia siada tak samo jak front kazdej szafki ciagu:
-                    nakladany idzie PRZED korpusem, wpuszczany chowa sie w nim.
-                    Rysowany po staremu zawsze do srodka stal 18 mm za linia
-                    frontow sasiadow — a ma z nimi byc w jednym licu. */}
-                {(() => {
-                  // front zachodzi na bok ramienia z luzem — jak drzwi na bok szafki
-                  const fp = armFrontPlan(a);
-                  return (
-                    <rect x={a.outerAtEnd ? fp.odRogu : a.len - fp.odRogu - fp.w}
-                      y={armInset(a) ? a.depth - a.cab.geo.tf : a.depth}
-                      width={fp.w} height={a.cab.geo.tf}
-                      fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
-                  );
-                })()}
-                {/* Plecy i wzmocnienia ramienia. Plecy i tylne wzmocnienie ida
-                    dalej niz samo ramie — az do katownika w tylnym narozniku. */}
-                {(() => {
-                  const ap = armPlan(a);
-                  return (
-                    <>
-                      {ap.back && (
-                        <rect x={ap.back.u0} y={ap.back.v0}
-                          width={ap.back.u1 - ap.back.u0} height={ap.back.v1 - ap.back.v0}
-                          fill={ap.back.plyta ? a.cab.mat.board.color : a.cab.mat.back.color}
-                          stroke={INK} strokeWidth="1.5" />
-                      )}
-                      {ap.rails.map((r, k) => (
-                        <rect key={"awz" + k} x={r.u0} y={r.v0}
-                          width={r.u1 - r.u0} height={r.v1 - r.v0}
-                          fill={a.cab.mat.board.color} stroke={INK} strokeWidth="1.5" opacity="0.55" />
-                      ))}
-                    </>
-                  );
-                })()}
-                {/* Katownik w wewnetrznym rogu: po jednej plycie w kazdej
-                    plaszczyznie frontu, a za nimi te same dwie w srodku szafki.
-                    Do zewnetrznych domykaja sie oba skrzydla. */}
-                {a.bracket && bracketPlan(a).map((r, k) => (
-                  <rect key={"kat" + k} x={r.u} y={r.v} width={r.w} height={r.h}
-                    fill={r.front ? a.cab.frontColor : a.cab.mat.board.color}
-                    stroke={INK} strokeWidth="2" />
-                ))}
-                {showDims && (
-                  <text x={a.len / 2} y={a.depth / 2 + 8} textAnchor="middle" fontSize="22"
-                    fill={ACC} fontFamily="ui-monospace, monospace">ramię {fmt(a.len)}</text>
-                )}
+            {/* Ramie stoi z odstepem tego ciagu od sciany — jego lico jest
+                w licu ciagu, a glebokosc to sam korpus. */}
+            {armsIn(full, n, rysowane).filter((a) => !a.dostawione).map((a, i) => ramie(a, i, n.depth))}
+          </g>
+        );
+      })}
+      {cudzeRamiona.map((c, i) => {
+        const u0 = c.rogNaPoczatku ? -SCIANA_GR : c.a.u0;
+        const u1 = c.rogNaPoczatku ? c.a.u0 + c.a.len : c.fo.len + SCIANA_GR;
+        const l0 = c.rogNaPoczatku ? 0 : c.a.u0, l1 = c.rogNaPoczatku ? c.a.u0 + c.a.len : c.fo.len;
+        return (
+          <g key={"cudze" + i} transform={c.m}>
+            {showWall && (
+              <g data-el="sciana">
+                <rect x={u0} y={-SCIANA_GR} width={u1 - u0} height={SCIANA_GR} fill="url(#sciana-kreski)" />
+                <line x1={l0} y1={0} x2={l1} y2={0} stroke={INK} strokeWidth="3" />
+                <text x={(l0 + l1) / 2} y={-SCIANA_GR / 2 + 8} textAnchor="middle" fontSize="24"
+                  fill={INK} stroke="#fafaf9" strokeWidth="6" paintOrder="stroke"
+                  fontFamily="ui-monospace, monospace">{c.fo.run.name}</text>
               </g>
-            ))}
-            {/* Blat ciagu lezy nad wszystkim, wiec i rysujemy go na wierzchu —
-                przezroczysto, zeby bylo widac, co pod nim stoi. */}
-            {(() => {
-              const rt = runTop(project, g.run);
-              if (!rt) return null;
-              const kol = rt.worktop
-                ? (rt.mat.worktop || {}).color || "#8d7b68"
-                : (rt.mat.board || {}).color || "#d8c3a0";
-              return worktopSpans(rt).map((s, i) => (
-                <rect key={"blat" + i} x={n.lead + s.x0} y={0}
-                  width={s.x1 - s.x0} height={rt.depth}
-                  fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
-              ));
-            })()}
+            )}
+            {ramie(c.a, i, c.fo.depth)}
+            {blatPasa(c.fo.run, c.fo.lead)}
+            {showDims && podpisRamienia(c.a, i, c.fo.depth)}
+          </g>
+        );
+      })}
+      {/* Blaty dopiero po szafkach WSZYSTKICH scian: ramie z sasiedniej
+          sciany rysowane pozniej zakrywalo kawalek blatu nad rogiem. */}
+      {groups.map((g) => {
+        const n = L.info.get(g.run.id);
+        const o = n.at(0, 0);
+        const deg = Math.round((Math.atan2(n.f.uy, n.f.ux) * 180) / Math.PI);
+        return (
+          <g key={"blaty" + g.run.id} transform={`translate(${o.x}, ${o.y}) rotate(${deg})`}>
+            {blatPasa(g.run, n.lead)}
+          </g>
+        );
+      })}
+      {groups.map((g) => {
+        const n = L.info.get(g.run.id);
+        const upper = lowest.get(n.wall) !== g.run.id;
+        const dv = n.depth + n.front;
+        const o = n.at(0, 0);
+        const deg = Math.round((Math.atan2(n.f.uy, n.f.ux) * 180) / Math.PI);
+        return (
+          <g key={"wym" + g.run.id} transform={`translate(${o.x}, ${o.y}) rotate(${deg})`}>
+            {showDims && armsIn(full, n, rysowane).filter((a) => !a.dostawione)
+              .map((a, i) => podpisRamienia(a, i, n.depth))}
+            {/* Wymiary na samym wierzchu — ramie z sasiedniej sciany i blat
+                rysowane pozniej zaslanialy opisy, np. szerokosc szafki w rogu. */}
             {showDims && (
               <g>
                 {/* miejsce zjedzone przez narożnik — tam nie stanie zadna szafka */}
@@ -4808,12 +5167,6 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
           </g>
         );
       })}
-      {showDims && groups.map((g, gi) => (
-        <text key={"nm" + g.run.id} x={b.x1 + 30} y={b.y0 + 40 + gi * 40}
-          fontSize="22" fill={LINE} fontFamily="ui-monospace, monospace">
-          {g.run.name}{g.mount > 0 ? ` — ${fmt(g.mount)} nad podłogą` : ""}
-        </text>
-      ))}
     </svg>
   );
 }
@@ -5115,13 +5468,16 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       const kolB = rt.worktop
         ? (rt.mat.worktop || {}).color || "#8d7b68"
         : (rt.mat.board || {}).color || "#d8c3a0";
+      // przy krzywej scianie blat zaczyna sie blizej pokoju niz sciana przy podlodze
+      const gs = wallGapOf(g.run, null);
+      const przyScianie = n.depth - Math.max(0, gs.bottom - gs.top);
       worktopSpans(rt).forEach((s) => {
         /* Sciany sortuja sie po sredniej glebokosci, a blat to jedna wielka
            plyta: jej srodek wypada dalej niz wzmocnienia i katowniki tuz pod
            nia, wiec bez przyciagniecia do widza przebijaly sie przez wierzch.
            Polowa glebokosci wystarcza, zeby wygrac z tym, co lezy pod blatem,
            i jest wyraznie mniejsza od przeswitu do szafek gornych. */
-        box(s.x0, g.mount + rt.y, n.depth - rt.depth, s.x1, g.mount + rt.y + rt.th, n.depth,
+        box(s.x0, g.mount + rt.y, przyScianie - rt.depth, s.x1, g.mount + rt.y + rt.th, przyScianie,
           kolB, null, 1, true, Math.round(rt.depth / 2), "blat");
       });
     }
@@ -5229,28 +5585,34 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // kolejna dalej. Rezerwujemy tylko te kolumny, ktore naprawde rysujemy, wiec
   // gdy nie ma np. dlugosci bokow, reszta wymiarow siedzi znacznie blizej.
   const gapLabels = showGaps && !open; // opisy szczelin siedza tuz przy krawedzi
-  let lxCur = gapLabels ? -26 - 70 : -26;
+  /* Szafka narozna ma obok korpusu rozlozone ramie — wymiary z jego strony
+     zaczynamy dopiero za nim, inaczej nozki, cokol i przegrody ramienia
+     zaslanialy opisy (np. „nozki 100"). */
+  const armLenD = arm ? Math.max(0, arm.len) : 0;
+  const baseL = arm && arm.side === "left" ? -armLenD : 0;
+  const baseR = W + (arm && arm.side !== "left" ? armLenD : 0);
+  let lxCur = baseL + (gapLabels ? -26 - 70 : -26);
   const takeL = (w) => { const x = lxCur; lxCur -= w; return x; };
-  let rxCur = gapLabels ? W + 26 + 70 : W + 26;
+  let rxCur = baseR + (gapLabels ? 26 + 70 : 26);
   const takeR = (w) => { const x = rxCur; rxCur += w; return x; };
-  const dimRailLX = hasRailL ? takeL(180) : -26;
-  const dimRailRX = hasRailR ? takeR(150) : W + 26;
-  const dimSideLX = showSideLengthDims ? takeL(150) : -26;
-  const dimSideRX = showSideLengthDims ? takeR(150) : W + 26;
+  const dimRailLX = hasRailL ? takeL(180) : baseL - 26;
+  const dimRailRX = hasRailR ? takeR(150) : baseR + 26;
+  const dimSideLX = showSideLengthDims ? takeL(150) : baseL - 26;
+  const dimSideRX = showSideLengthDims ? takeR(150) : baseR + 26;
   // przegrody poziome: gdzie wiercic konfirmaty, liczone od spodu boku
   const hasSepDims = showDims && geo.sepShelves.length > 0;
-  const dimSepX = hasSepDims ? takeR(240) : W + 26;
+  const dimSepX = hasSepDims ? takeR(240) : baseR + 26;
   const dimDoorX = hasDoorDims ? takeL(90) : lxCur; // wysokosci drzwi po lewej
   const dimLevelX = hasLevelDims ? takeL(90) : lxCur; // swiatlo poziomow po lewej
   const dimDrawerX = hasDrawerDims ? takeR(90) : rxCur; // wysokosci frontow szuflad
   const dimHMainX = takeL(100);
   const dimHTotalX = hasBaseDim ? takeL(100) : dimHMainX;
-  const leftExtra = Math.max(0, -lxCur - 40);
+  const leftExtra = Math.max(0, baseL - lxCur - 40);
   // "nóżki 100" to szeroki opis — rezerwujemy mu miejsce po prawej
-  const rightExtraF = Math.max(0, rxCur - W - 26) + (hasBase ? 140 : 0);
+  const rightExtraF = Math.max(0, rxCur - baseR - 26) + (hasBase ? 140 : 0);
   // cokol pod lewym wymiarem boku, nozki pod prawym — tuz przy szafce
-  const dimCokolX = -26;
-  const dimNozkiX = W + 26;
+  const dimCokolX = baseL - 26;
+  const dimNozkiX = baseR + 26;
   const blOvL = geo.isBlat ? geo.blat.overL : 0;
   const blOvR = geo.isBlat ? geo.blat.overR : 0;
   /* Szafka narozna nie konczy sie na korpusie: ramie idzie wzdluz drugiej
@@ -6259,7 +6621,52 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
   );
 }
 
-function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, arm }) {
+/* Blat ciagu nad jedna szafka, w ukladzie jej rzutu z gory (x = 0 lewy bok,
+   y = 0 tyl korpusu). Szafka w ciagu nie ma wlasnego blatu — lezy na niej blat
+   ciagu, przyciety tu do jej szerokosci. Nad szafka w L dochodzi blat sasiedniej
+   sciany nad ramieniem, w ukladzie ramienia (`u` od rogu, `v` od jego plecow). */
+const blatNadSzafka = (project, full, index, arm) => {
+  const it = project.items[index];
+  const run = it && it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
+  const n = run ? full.info.get(run.id) : null;
+  const c = n ? n.g.cabs.find((q) => q.index === index) : null;
+  if (!c) return null;
+  const kolorOf = (rt) => (rt.worktop
+    ? (rt.mat.worktop || {}).color || "#8d7b68"
+    : (rt.mat.board || {}).color || "#d8c3a0");
+  const out = { korpus: [], ramie: [], kolor: null };
+  const rt = runTop(project, run);
+  if (rt) {
+    out.kolor = kolorOf(rt);
+    const gs = wallGapOf(run, null);
+    const tyl = n.depth - c.geo.carcassDepth + c.offset;   // tyl korpusu od sciany
+    const v0 = Math.max(0, gs.bottom - gs.top);
+    worktopSpans(rt).forEach((sp) => {
+      const x0 = Math.max(0, n.lead + sp.x0 - (n.lead + c.x));
+      const x1 = Math.min(c.geo.W, n.lead + sp.x1 - (n.lead + c.x));
+      if (x1 > x0) out.korpus.push({ x: x0, y: v0 - tyl, w: x1 - x0, h: rt.depth });
+    });
+  }
+  const fo = arm ? full.info.get(arm.other.id) : null;
+  const rt2 = fo ? runTop(project, arm.other.run) : null;
+  if (rt2) {
+    out.kolor = out.kolor || kolorOf(rt2);
+    const gs = wallGapOf(arm.other.run, null);
+    const plecy = fo.depth - arm.depth;                   // plecy ramienia od sciany
+    const v0 = Math.max(0, gs.bottom - gs.top) - plecy;
+    worktopSpans(rt2).forEach((sp) => {
+      const a0 = Math.max(arm.u0, fo.lead + sp.x0), a1 = Math.min(arm.u0 + arm.len, fo.lead + sp.x1);
+      if (a1 <= a0) return;
+      // „od rogu": przy ramieniu wychodzacym od konca ciagu rog jest na poczatku pasa
+      const [u0, u1] = arm.outerAtEnd ? [a0 - arm.u0, a1 - arm.u0]
+        : [arm.u0 + arm.len - a1, arm.u0 + arm.len - a0];
+      out.ramie.push({ u0, u1, v0, v1: v0 + rt2.depth });
+    });
+  }
+  return out.kolor ? out : null;
+};
+
+function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, arm, blat }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const { D } = cab;
@@ -6274,7 +6681,10 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
   /* Szafka narozna nie konczy sie na korpusie — ramie idzie w bok wzdluz drugiej
      sciany i rysunek musi je objac, inaczej widac tylko kawalek mebla. */
   const armLen = arm ? arm.len + geo.tf : 0;
-  const vb = `${-pad - tOvL} ${-pad - tOvB} ${W + tOvL + tOvR + 2 * pad + 120} ${D + tOvB + tOvF + 2 * pad + 100 + frontExtra + armLen}`;
+  // po stronie ramienia ida jeszcze dwa wymiary: samo ramie i calosc z nim
+  const armDimL = arm && arm.side === "left" && showDims ? 240 : 0;
+  const armDimR = arm && arm.side !== "left" && showDims ? 240 : 0;
+  const vb = `${-pad - tOvL - armDimL} ${-pad - tOvB} ${W + tOvL + tOvR + 2 * pad + 120 + armDimL + armDimR} ${D + tOvB + tOvF + 2 * pad + 100 + frontExtra + armLen}`;
   const bf = mat.board.color;
   const t = geo.t;
   const cd = geo.carcassDepth;
@@ -6330,12 +6740,31 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
               <rect key={"kat" + k} x={ax(r.v, r.h)} y={ay(r.u)} width={r.h} height={r.w}
                 fill={r.front ? mat.front.color : bf} stroke={INK} strokeWidth="2" />
             ))}
-            {showDims && (
-              <text x={ax(arm.depth / 2, 0)} y={ay(arm.len / 2)} textAnchor="middle"
-                fontSize="22" fill={ACC} fontFamily="ui-monospace, monospace">
-                ramię {fmt(arm.len)}
-              </text>
-            )}
+            {/* Uchwyt i zawias frontu ramienia — uchwyt po stronie rogu przed
+                licem, zawias przy wolnym koncu na wewnetrznym licu boku. */}
+            {showHardware && arm.doors !== "fix" && (() => {
+              const fp = armFrontPlan(arm);
+              const uch = handleOutOf(cab);
+              const lico = cab.frontMode === "inset" ? vLico : vLico + geo.tf;
+              return (
+                <g>
+                  {uch > 0 && <rect x={ax(lico, uch)} y={ay(fp.odRogu + 20)} width={uch} height={12}
+                    fill="#3f3f46" stroke={INK} strokeWidth="1" />}
+                  <rect x={ax(vLico - HINGE_D, HINGE_D)} y={ay(arm.len - t - 12)} width={HINGE_D} height={12}
+                    rx="3" fill="#71717a" fillOpacity="0.8" stroke={INK} strokeWidth="1.2" />
+                </g>
+              );
+            })()}
+            {/* Nozki ramienia pod dnem (przerywane) — te same miejsca co
+                w zamowieniu; `u` od rogu, `v` od sciany ramienia. */}
+            {showHardware && cab.legs && cab.legs.on && (() => {
+              const lp = armLegPlan(arm);
+              return lp.us.flatMap((u) => lp.vs.map((v) => (
+                <rect key={`anog${u}-${v}`} x={ax(v, lp.w)} y={ay(u)} width={lp.w} height={lp.w}
+                  rx={legRound(cab) ? lp.w / 2 : 0} fill="none" stroke={INK}
+                  strokeWidth="1.5" strokeDasharray="6 4" opacity="0.7" />
+              )));
+            })()}
           </g>
         );
       })()}
@@ -6461,6 +6890,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
         });
       })()}
 
+      {showHardware && <TopHardware cab={cab} geo={geo} cd={cd} />}
       {/* prowadnice szuflad z gory — pas 21 mm przy kazdym boku, na glebokosc NL */}
       {showHardware && (geo.levels[0]?.cols || [])
         .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
@@ -6725,15 +7155,50 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           )}
         </>
       )}
-      {/* nozek nie rysujemy z gory — schowane pod korpusem, tylko myla rzut */}
+      {/* Blat ciagu nad szafka (i nad ramieniem) — przezroczysty, na wierzchu,
+          tak jak w rzucie zabudowy. */}
+      {blat && (
+        <g data-el="blat-szafki">
+          {blat.korpus.map((r, i) => (
+            <rect key={"bk" + i} x={r.x} y={r.y} width={r.w} height={r.h}
+              fill={blat.kolor} opacity="0.35" stroke={INK} strokeWidth="2" />
+          ))}
+          {arm && blat.ramie.map((r, i) => (
+            <rect key={"br" + i} x={arm.side === "left" ? r.v0 : W - r.v1} y={cd + r.u0}
+              width={r.v1 - r.v0} height={r.u1 - r.u0}
+              fill={blat.kolor} opacity="0.35" stroke={INK} strokeWidth="2" />
+          ))}
+        </g>
+      )}
+      {showDims && arm && (
+        <text x={arm.side === "left" ? arm.depth / 2 : W - arm.depth / 2} y={cd + arm.len / 2}
+          textAnchor="middle" fontSize="22" fill={ACC} fontFamily="ui-monospace, monospace">
+          ramię {fmt(arm.len)}
+        </text>
+      )}
+      {/* Wymiary wzdluz sciany ramienia: samo ramie (od lica korpusu) i cala
+          szafka w L od tylu korpusu do konca ramienia — to jest dlugosc, ktora
+          szafka zajmuje przy drugiej scianie. */}
+      {showDims && arm && (() => {
+        const left = arm.side === "left";
+        const x1 = left ? -50 : W + 55;
+        const x2 = left ? -250 : W + 245;
+        return (
+          <g data-el="wymiary-ramienia">
+            <DimV y1={cd} y2={cd + arm.len} x={x1} left={left} label={`ramię ${fmt(arm.len)}`} />
+            <DimV y1={0} y2={cd + arm.len} x={x2} left={left} label={`${fmt(cd + arm.len)} z ramieniem`} />
+          </g>
+        );
+      })()}
 
-      <text x={W / 2} y={cd + 150} textAnchor="middle" fontSize="22" fill={LINE}
+      {/* podpis pod calym rysunkiem — przy szafce w L pod ramieniem */}
+      <text x={W / 2} y={cd + 150 + (arm ? arm.len : 0)} textAnchor="middle" fontSize="22" fill={LINE}
         fontFamily="ui-monospace, monospace">widok z góry — tył u góry, przód u dołu</text>
     </svg>
   );
 }
 
-function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
+function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const sideRight = which === "right";
@@ -6746,11 +7211,28 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
   );
   const sOvF = geo.isBlat ? geo.blat.overFront : 0;
   const sOvB = geo.isBlat ? geo.blat.overBack : 0;
-  const vb = `${-pad - sOvB} ${-pad - 70} ${D + sOvB + sOvF + 2 * pad + rightExtra} ${H + 2 * pad + 70 + below}`;
   const fy = (y) => H - y;
   const bf = mat.board.color;
   const cd = geo.carcassDepth;
   const xC = D - cd; // tyl po lewej
+  /* Sciana za szafka w ciagu — takze przy odstepie 0, zeby bylo widac, do czego
+     szafka dostaje. Przy odstepie pokazuje, skad wziela sie pusta przestrzen za
+     plecami: pionowa przy rownym odstepie, pochyla, gdy przy podlodze jest inny
+     niz pod blatem. Szafka wolnostojaca sciany nie ma — nie wiadomo, gdzie jest.
+     Tyl korpusu to plecy nakladane z zewnatrz albo sam bok. */
+  const xTyl = geo.backIsBoard && geo.backPos === "outside" && cab.back !== "none" ? xC - geo.tb : xC;
+  const sciana = wallGap ? (() => {
+    const yPodloga = H + below, yBlat = 0;
+    const xD = xTyl - wallGap.bottom, xG = xTyl - wallGap.top;
+    // przedluzamy linie sciany o 60 mm ponad blat, z tym samym pochyleniem
+    const nad = 60;
+    const xN = xG + (xG - xD) * nad / yPodloga;
+    return { xD, xG, xN, yPodloga, yBlat, yN: -nad };
+  })() : null;
+  // wymiar wysokosci idzie wtedy za sciane, zeby na nia nie wchodzil
+  const xWysokosc = sciana ? Math.min(sciana.xD, sciana.xN) - SCIANA_GR - 60 : -50;
+  const lewo = Math.min(-pad - sOvB, xWysokosc - 110);
+  const vb = `${lewo} ${-pad - 70} ${D + sOvF + pad + rightExtra - lewo} ${H + 2 * pad + 70 + below}`;
   const hasFront = geo.levels.some((lv) => lv.cols.some((c) => c.count > 0));
   // przod korpusu jest przy x=D; front nakladany wystaje o tf, wpuszczany jest w licu
   const frontFace = cab.frontMode === "overlay" ? D + geo.tf : D;
@@ -6765,7 +7247,26 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
+      {sciana && <ScianaDefs />}
       <rect x="0" y="0" width={D} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 8" />
+      {sciana && (
+        <g data-el="sciana">
+          <polygon points={`${sciana.xN},${sciana.yN} ${sciana.xD},${sciana.yPodloga} `
+            + `${sciana.xD - SCIANA_GR},${sciana.yPodloga} ${sciana.xN - SCIANA_GR},${sciana.yN}`}
+            fill="url(#sciana-kreski)" />
+          <line x1={sciana.xN} y1={sciana.yN} x2={sciana.xD} y2={sciana.yPodloga}
+            stroke={INK} strokeWidth="3" />
+          <line x1={sciana.xD - 60} y1={sciana.yPodloga} x2={xTyl + 60} y2={sciana.yPodloga}
+            stroke={INK} strokeWidth="1.5" opacity="0.6" />
+          <text x={sciana.xN - SCIANA_GR / 2} y={sciana.yN - 12} fontSize="20" fill={INK} opacity="0.8"
+            textAnchor="middle" fontFamily="ui-monospace, monospace">ściana</text>
+          {(wallGap.bottom > 0 || wallGap.top > 0) && [{ y: sciana.yPodloga - 14, x: sciana.xD, g: wallGap.bottom },
+            { y: 26, x: sciana.xG, g: wallGap.top }].map((o, i) => (
+            <text key={i} x={o.x - 8} y={o.y} fontSize="20" fill={INK} textAnchor="end"
+              fontFamily="ui-monospace, monospace">{`↔ ${fmt(o.g)}`}</text>
+          ))}
+        </g>
+      )}
       {(() => {
         const cut = (sideRight ? geo.cornerCut?.sideRightDepth : geo.cornerCut?.sideLeftDepth) || 0;
         return (
@@ -6942,7 +7443,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware }) {
             <DimH x1={0} x2={frontFace} y={-110} label={`z drzwiami ${fmt(frontFace)}`} c={LINE} />
           )}
           <DimH x1={xC} x2={xC + geo.shelfDepth} y={H + 70} label={`półka ${fmt(geo.shelfDepth)}`} above={false} />
-          <DimV y1={0} y2={H} x={-50} label={`${fmt(H)}`} />
+          <DimV y1={0} y2={H} x={xWysokosc} label={`${fmt(H)}`} />
         </>
       )}
       {geo.geoCuts.filter((gc) => gc.onBack && (gc.onLeft !== sideRight)).map((gc, ci) => (
@@ -7440,6 +7941,32 @@ const Group = ({ label, children, hint }) => (
   </div>
 );
 
+/* Czesc karty z wlasnym naglowkiem — np. „Ta szafka w ciagu" i „Caly ciag",
+   zeby bylo jasne, co zmienia jedna szafke, a co wszystkie naraz. */
+const CardPart = ({ title, note, children, first = false }) => (
+  <div className={first ? "space-y-4" : "space-y-4 border-t border-stone-200 pt-4"}>
+    <div>
+      <h3 className="text-sm font-semibold text-stone-800">{title}</h3>
+      {note && <p className="text-xs text-stone-500">{note}</p>}
+    </div>
+    {children}
+  </div>
+);
+
+// podsekcja w czesci karty; bez tresci (np. cokol ciagu wiszacego) znika cala
+const CardSub = ({ title, hint, children }) => {
+  if (!React.Children.toArray(children).length) return null;
+  return (
+    <div className="space-y-3 rounded-md border border-stone-100 bg-stone-50/60 p-3">
+      <div>
+        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-teal-800">{title}</h4>
+        {hint && <p className="text-xs text-stone-400">{hint}</p>}
+      </div>
+      {children}
+    </div>
+  );
+};
+
 /* Kafelki styków, na których wolno przeciąć długą płaszczyznę. Wspólne dla
    cokołu i blatu, bo reguła jest ta sama. */
 const SplitPicker = ({ label, what, s, onToggle, onAuto }) =>
@@ -7539,11 +8066,14 @@ const edgeText = (p) => {
   return out.length ? out.join(", ") : "—";
 };
 
-const Card = ({ title, children, right, collapsible = false, defaultOpen = true }) => {
+// `id` — kotwica, do ktorej da sie przewinac (np. „Pokaz rysunek" z gornego paska)
+const Card = ({ title, children, right, collapsible = false, defaultOpen = true, id }) => {
   const [open, setOpen] = useState(defaultOpen);
   const shown = collapsible ? open : true;
   return (
-    <section className="rounded-lg border border-stone-200 bg-white">
+    <section id={id} className="rounded-lg border border-stone-200 bg-white"
+      // gorny pasek jest przyklejony — bez odstepu zaslanialby naglowek karty
+      style={id ? { scrollMarginTop: 120 } : undefined}>
       <header
         className={`flex items-center justify-between gap-2 px-4 py-2.5 ${
           shown ? "border-b border-stone-200" : ""
@@ -7579,7 +8109,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("topcut:")) {
       return { label: action === "topcut:1"
         ? "Zamów blat docięty na wymiar"
-        : "Zamów cały pas, dotnij na miejscu",
+        : "Zamów cały arkusz",
         run: () => runFix && runFix(action) };
     }
     if (action.startsWith("rundepth:")) {
@@ -7633,6 +8163,15 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         label: "Dołóż parę wzmocnień",
         run: () => editItemCab && editItemCab(idx, (c, m) =>
           Object.assign(c, bezWienca(c, (m.front || {}).thickness))),
+      };
+    }
+    if (action.startsWith("armlen:")) {
+      // „armlen:<dlugosc>:<nr szafki>:<szerokosc drzwi>" — skraca ramie szafki w L
+      const [, len, idx, drzwi] = action.split(":");
+      return {
+        label: `Skróć ramię do ${fmt(Number(len))} mm — drzwi ${fmt(Number(drzwi))} mm`,
+        run: () => editItemCab && editItemCab(Number(idx), (c) => Object.assign(c, {
+          corner: { ...(c.corner || {}), arm: Number(len) } })),
       };
     }
     if (action.startsWith("cornerdoor:")) {
@@ -7730,6 +8269,119 @@ const MiniBtn = ({ onClick, children, tone = "plain", title }) => (
     {children}
   </button>
 );
+
+/* Powiekszanie rysunku. 100% to rozmiar dopasowany do karty (jak dotad); wyzej
+   SVG rosnie od tego dopasowanego rozmiaru, a ramka dostaje przewijanie
+   i przesuwanie przeciaganiem. Tam, gdzie przeciaganie obraca bryle (3D),
+   przesuwa sie z wcisnietym Shiftem. Zmiana widoku wraca do 100%. */
+const ZOOM_KROKI = [1, 1.25, 1.5, 2, 2.5, 3, 4];
+function ZoomBox({ children, obraca = false, pelny = false, onPelny, resetKey }) {
+  const [zoom, setZoom] = useState(1);
+  const ramka = useRef(null);
+  const dopasowana = useRef(0);
+  const przes = useRef(null);
+  const zoomRef = useRef(1);
+  zoomRef.current = zoom;
+  const poScroll = useRef(null);
+  useEffect(() => { setZoom(1); }, [resetKey]);
+  /* Ctrl + kolko nad rysunkiem przybliza rysunek w miejscu kursora zamiast
+     calej strony (tak jak mapy); szczypanie na touchpadzie przychodzi jako to
+     samo. React podpina kolko jako pasywne, wiec bez wlasnego nasluchu nie da
+     sie zablokowac powiekszania strony. */
+  useEffect(() => {
+    const el = ramka.current;
+    if (!el) return undefined;
+    const naKolko = (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      const z0 = zoomRef.current;
+      const z1 = Math.max(1, Math.min(ZOOM_KROKI[ZOOM_KROKI.length - 1], z0 * Math.exp(-e.deltaY * 0.0015)));
+      if (Math.abs(z1 - z0) < 1e-3) return;
+      const r = el.getBoundingClientRect();
+      const mx = e.clientX - r.left, my = e.clientY - r.top;
+      // punkt pod kursorem zostaje na miejscu
+      poScroll.current = { x: (el.scrollLeft + mx) * (z1 / z0) - mx, y: (el.scrollTop + my) * (z1 / z0) - my };
+      setZoom(z1);
+    };
+    el.addEventListener("wheel", naKolko, { passive: false });
+    return () => el.removeEventListener("wheel", naKolko);
+  }, []);
+  useEffect(() => {
+    if (!poScroll.current || !ramka.current) return;
+    ramka.current.scrollLeft = poScroll.current.x;
+    ramka.current.scrollTop = poScroll.current.y;
+    poScroll.current = null;
+  }, [zoom]);
+  /* Szerokosc rysunku przy 100%: SVG ma szerokosc karty, ale wysokosc
+     ograniczona, wiec sama tresc bywa wezsza — liczymy ja z proporcji viewBox,
+     inaczej pierwszy krok powiekszenia skakalby kilka razy. */
+  useEffect(() => {
+    if (zoom !== 1 || !ramka.current) return;
+    const svg = ramka.current.querySelector("svg");
+    if (!svg) return;
+    const r = svg.getBoundingClientRect();
+    const vb = svg.viewBox && svg.viewBox.baseVal;
+    dopasowana.current = vb && vb.width && vb.height
+      ? Math.min(r.width, r.height * (vb.width / vb.height)) : r.width;
+  });
+  const krok = (d) => setZoom((z) => {
+    const i = ZOOM_KROKI.findIndex((k) => k >= z - 1e-6);
+    const j = Math.max(0, Math.min(ZOOM_KROKI.length - 1, (i < 0 ? ZOOM_KROKI.length - 1 : i) + d));
+    return ZOOM_KROKI[j];
+  });
+  const wiekszy = zoom > 1;
+  return (
+    <div className={pelny ? "pelny-rys" : ""}>
+      <style>{`.zoom-on svg{width:var(--zw)!important;max-width:none!important;max-height:none!important;height:auto!important}
+.pelny-rys .zoom-fit svg{max-height:calc(100vh - 230px)!important}`}</style>
+      <div className="mb-1 flex items-center justify-end gap-1">
+        <span className="mr-1 text-[11px] text-stone-400">
+          {wiekszy ? (obraca ? "Shift + przeciągnij, żeby przesunąć" : "przeciągnij, żeby przesunąć")
+            : "Ctrl + kółko nad rysunkiem: przybliż"}
+        </span>
+        <MiniBtn onClick={() => krok(-1)} title="Pomniejsz">−</MiniBtn>
+        <span className="w-10 text-center font-mono text-[11px] text-stone-500" data-el="zoom">{Math.round(zoom * 100)}%</span>
+        <MiniBtn onClick={() => krok(1)} title="Powiększ">+</MiniBtn>
+        <MiniBtn onClick={() => setZoom(1)} title="Cały rysunek w karcie">Dopasuj</MiniBtn>
+        {onPelny && (
+          <MiniBtn onClick={onPelny} tone={pelny ? "on" : "plain"}
+            title={pelny ? "Wróć do zwykłego widoku (Esc)" : "Rysunek na całe okno"}>
+            {pelny ? "Zamknij pełny ekran" : "Pełny ekran"}
+          </MiniBtn>
+        )}
+      </div>
+      <div ref={ramka}
+        className={"rounded border border-stone-100 bg-stone-50 p-3 "
+          + (wiekszy ? "zoom-on overflow-auto" : "zoom-fit")}
+        /* `contain: inline-size` trzyma szerokosc ramki na szerokosci karty — bez
+           tego kolumna strony rozszerzala sie pod powiekszony rysunek i nie bylo
+           czego przewijac. */
+        style={wiekszy ? { "--zw": `${Math.round(dopasowana.current * zoom)}px`,
+          contain: "inline-size", width: "100%",
+          maxHeight: pelny ? "calc(100vh - 170px)" : "75vh",
+          cursor: obraca ? undefined : "grab" } : undefined}
+        onPointerDownCapture={(e) => {
+          if (!wiekszy || (obraca && !e.shiftKey) || e.button !== 0) return;
+          przes.current = { x: e.clientX, y: e.clientY,
+            sl: ramka.current.scrollLeft, st: ramka.current.scrollTop, ruszyl: false };
+          if (obraca) e.stopPropagation();   // Shift przesuwa zamiast obracac
+        }}
+        onPointerMove={(e) => {
+          const p0 = przes.current;
+          if (!p0) return;
+          const dx = e.clientX - p0.x, dy = e.clientY - p0.y;
+          if (!p0.ruszyl && Math.abs(dx) + Math.abs(dy) < 4) return;
+          p0.ruszyl = true;
+          ramka.current.scrollLeft = p0.sl - dx;
+          ramka.current.scrollTop = p0.st - dy;
+        }}
+        onPointerUp={() => { przes.current = null; }}
+        onPointerLeave={() => { przes.current = null; }}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 /* ---------- trwaly zapis projektu ----------
    W artefakcie Claude dostepne jest window.storage; w zwyklej przegladarce
@@ -7862,11 +8514,15 @@ const runPlinth = (project, run) => {
 /* Ile blat wystaje przed lico frontow. Glebokosc blatu jest wymiarem
    rzeczywistym — od sciany do jego konca — wiec ten wysieg wchodzi w nia. */
 const WORKTOP_OVERHANG = 10;
-/* Blat kupuje sie w gotowym pasie 600 albo 1200 mm. Kilku centymetrow nie warto
-   zdejmowac w zakladzie: sciana i tak nie jest prosta, wiec i tak dopasowuje sie
-   go na miejscu. Przy wiekszej roznicy ciecie na wymiar ma juz sens — mniej
-   odpadu i lzej go wniesc. */
-const WORKTOP_ONSITE = 50;
+/* Blat kupuje sie w gotowym pasie 600 albo 1200 mm i nie docina z glebokosci,
+   dopoki wystaje przed drzwi najwyzej tyle — do sciany i tak dopasowuje sie go
+   na miejscu. Wiecej znaczy zwykle, ze zle jest odsuniecie od sciany albo
+   glebokosc szafek, i dopiero wtedy pytamy, czy blat ciac. */
+const WORKTOP_MAX_OVERHANG = 30;
+/* Drzwi na zawiasach puszkowych nie leza na krawedzi korpusu — przy zawiasach
+   zostaje ok. 2 mm szczeliny. To wytyczna montazowa: nie ma jej na rysunkach
+   ani w wymiarach, liczy sie tylko do tego, ile blat wystaje przed fronty. */
+const HINGE_PLAY = 2;
 
 /* Odcinki blatu do rysunku. Skrajne dociagamy do konca calej plyty, bo nad
    rogiem blat idzie dalej niz szafki, ktore pod nim stoja. */
@@ -7875,11 +8531,15 @@ const worktopSpans = (rt) => {
   const s = rt.spans.map((x) => ({ ...x })).sort((a, b) => a.x0 - b.x0);
   s[0].x0 = Math.min(s[0].x0, rt.x0);
   s[s.length - 1].x1 = Math.max(s[s.length - 1].x1, rt.x0 + rt.total);
+  // ...i przycinamy do niej: przy rogu blat konczy sie na krawedzi sasiada
+  s.forEach((x) => { x.x0 = Math.max(x.x0, rt.x0); x.x1 = Math.min(x.x1, rt.x0 + rt.total); });
+  const zostaje = s.filter((x) => x.x1 > x.x0);
+  if (!zostaje.length) return [];
   /* Blat nad sasiadujacymi szafkami to jedna plyta, a nie kawalek na szafke —
      rysowany osobno pokazywal szwy tam, gdzie ich nie ma. Rozdziela go dopiero
      przerwa miedzy szafkami. */
-  const out = [s[0]];
-  s.slice(1).forEach((x) => {
+  const out = [zostaje[0]];
+  zostaje.slice(1).forEach((x) => {
     const p = out[out.length - 1];
     if (x.x0 <= p.x1) { p.x1 = Math.max(p.x1, x.x1); p.depth = Math.max(p.depth, x.depth); }
     else out.push(x);
@@ -7908,7 +8568,23 @@ const worktopLevel = (project, run) => {
   return { cabs, y, pod: cabs.filter((c) => c.y === y), poza: cabs.filter((c) => c.y !== y) };
 };
 
-const runTop = (project, run) => {
+/* Blat ciagu liczy sie z calego projektu, a pyta o niego kilkanascie miejsc
+   przy kazdym przerysowaniu (rysunki, uwagi, zestawienie) — kazde przeliczalo
+   geometrie wszystkich szafek ciagu. Projekt jest niezmienny (kazda zmiana to
+   nowy obiekt), wiec wynik zapamietujemy przy nim i przy obiekcie ciagu; kopia
+   ciagu po prostu nie trafi w pamiec i policzy sie od nowa. */
+const runTopCache = new WeakMap();
+const runTop = (project, run, bezRogu = false) => {
+  if (!project || !run || typeof run !== "object") return runTopLiczy(project, run, bezRogu);
+  let m = runTopCache.get(project);
+  if (!m) { m = new WeakMap(); runTopCache.set(project, m); }
+  let e = m.get(run);
+  if (!e) { e = {}; m.set(run, e); }
+  const k = bezRogu ? "b" : "n";
+  if (!(k in e)) e[k] = runTopLiczy(project, run, bezRogu);
+  return e[k];
+};
+const runTopLiczy = (project, run, bezRogu = false) => {
   const { joints, list } = runJoints(project, run);
   /* Pas moze byc pusty, a i tak potrzebowac blatu: lezy w nim ramie szafki
      naroznej z sasiedniej sciany. */
@@ -7925,20 +8601,26 @@ const runTop = (project, run) => {
      od tego, co ma ustawione pojedyncza szafka. Slupek jest wyzszy, wiec blat
      konczy sie przy jego boku i do niego dolega. */
   const lvl = run.worktop ? worktopLevel(project, run) : null;
+  /* Blat liczy sie od sciany na wysokosci blatu: odstep od niej, korpus,
+     szczelina przy zawiasach, front i wysieg przed fronty. */
   if (lvl && lvl.pod.length) {
     lvl.pod.forEach((c) => {
       const gl = Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0));
-      spans.push({ x0: c.x0, x1: c.x1, depth: gl + c.geo.tf + WORKTOP_OVERHANG,
-        worktop: true, rear: c.it.cab.back !== "none" });
+      const odSciany = wallGapOf(run, c.it).top;
+      spans.push({ x0: c.x0, x1: c.x1,
+        depth: odSciany + gl + HINGE_PLAY + c.geo.tf + WORKTOP_OVERHANG,
+        odSciany, worktop: true, rear: c.it.cab.back !== "none" });
     });
   }
   /* Ramie szafki naroznej lezy w pasie sasiedniej sciany i tez chce blat nad
      soba — bez tego blat konczyl sie na korpusie, a rog zostawal goly. */
   if (ramiona.length) {
     const n = projectLayout(project).info.get(run.id) || { lead: 0 };
+    const odSciany = wallGapOf(run, null).top;
     ramiona.forEach((a) => {
       spans.push({ x0: a.u0 - (n.lead || 0), x1: a.u0 - (n.lead || 0) + a.len,
-        depth: a.depth + a.cab.geo.tf + WORKTOP_OVERHANG,
+        depth: odSciany + a.depth + HINGE_PLAY + a.cab.geo.tf + WORKTOP_OVERHANG,
+        odSciany,
         // grubosc frontu ramienia — pas z samym ramieniem nie ma jej skad wziac
         tf: a.cab.geo.tf,
         worktop: true, rear: a.cab.cab.back !== "none" });
@@ -7960,8 +8642,23 @@ const runTop = (project, run) => {
      albo blat idzie nad rogiem, albo konczy sie przy boku sasiada. */
   const ext = (project.runs || []).some((r) => r.corner)
     ? (projectLayout(project).info.get(run.id) || {}).topSpan : null;
-  const x0 = ext && ext.cor0 ? Math.round(ext.x0) : Math.min(...spans.map((s) => s.x0));
-  const x1 = ext && ext.cor1 ? Math.round(ext.x1) : Math.max(...spans.map((s) => s.x1));
+  /* Blat dojezdzajacy do rogu styka sie z krawedzia przechodzacego, a ta lezy
+     dalej od sciany niz lico szafek — o tyle go skracamy. Bez tego oba blaty
+     zachodzily na siebie i ten krotszy wychodzil w zamowieniu za dlugi. */
+  const doKrawedzi = (id, gl) => {
+    if (!id || bezRogu) return 0;
+    const r = (project.runs || []).find((x) => x.id === id);
+    const rp = r ? runTop(project, r, true) : null;
+    if (!rp) return 0;
+    /* Blat liczy sie od sciany pod blatem, a uklad ciagu — od sciany przy
+       podlodze. Przy krzywej scianie roznica miedzy nimi przesuwa krawedz. */
+    const g = wallGapOf(r, null);
+    return Math.max(0, Math.round(rp.depth + g.bottom - g.top - gl));
+  };
+  const x0 = ext && ext.cor0 ? Math.round(ext.x0) + doKrawedzi(ext.przez0, ext.glPrzez0)
+    : Math.min(...spans.map((s) => s.x0));
+  const x1 = ext && ext.cor1 ? Math.round(ext.x1) - doKrawedzi(ext.przez1, ext.glPrzez1)
+    : Math.max(...spans.map((s) => s.x1));
   const total = Math.round(x1 - x0);
   /* Blat roboczy tnie sie z gotowego odcinka, wiec jego granica jest dlugosc
      handlowa, a nie formatka plyty. */
@@ -7984,15 +8681,21 @@ const runTop = (project, run) => {
     skos0: !!(ext && ext.skos0), skos1: !!(ext && ext.skos1),
     matKey: worktop ? "worktop" : "board",
     ...(() => {
-      /* Szerokosc zamawiana: przy malej roznicy bierzemy caly arkusz i docinamy
-         przy scianie na miejscu. `surowa` zostaje na uwagi i wymiary. */
+      /* Szerokosc zamawiana. `surowa` to blat ze standardowym wysiegiem 10 mm,
+         `doLica` — od sciany do lica drzwi. Arkusz musi wyjsc przed drzwi choc
+         o milimetr; caly pas zamawiamy, dopoki wystaje najwyzej 30 mm. Dalej
+         domyslnie docinamy na wymiar, a uzytkownik moze to odwrocic
+         (`run.topCut`: true = docięty, false = caly arkusz). */
       const surowa = Math.round(Math.max(...spans.map((s) => s.depth)));
-      const arkusz = worktop ? WORKTOP_DEPTHS.find((d) => d >= surowa) : null;
-      const docinka = arkusz ? arkusz - surowa : 0;
-      const pelny = !!arkusz && docinka > 0 && docinka <= WORKTOP_ONSITE
-        && run.topCut !== true;
-      return { surowa, arkusz: arkusz || null, docinka, pelnyArkusz: pelny,
-        depth: pelny ? arkusz : surowa };
+      const doLica = surowa - WORKTOP_OVERHANG;
+      const arkusz = worktop ? WORKTOP_DEPTHS.find((d) => d - doLica >= 1) || null : null;
+      const wysiegArkusza = arkusz ? arkusz - doLica : null;
+      const pelny = !!arkusz && (run.topCut === false
+        || (run.topCut !== true && wysiegArkusza <= WORKTOP_MAX_OVERHANG));
+      const depth = pelny ? arkusz : arkusz ? Math.min(surowa, arkusz) : surowa;
+      return { surowa, arkusz, docinka: arkusz ? arkusz - depth : 0, pelnyArkusz: pelny,
+        depth, doLica, wysiegArkusza, wysieg: depth - doLica,
+        odSciany: Math.max(0, ...spans.map((s) => s.odSciany || 0)) };
     })(),
     rear: spans.some((s) => s.rear),
     // styki przeliczamy na uklad samej plyty, zeby ciecia liczyly sie od jej konca
@@ -8350,6 +9053,31 @@ const SLUPEK_MIN = 200;
 
 /* Uwagi o blacie roboczym ciagu: co jest pod nim, co obok, i co jeszcze ma
    wieniec, choc pod blatem powinno miec pare wzmocnien. */
+/* Odstep od sciany jest swiadoma decyzja (krzywa sciana, rura), ale latwo o nim
+   zapomniec przy montazu — i to on przesuwa glebokosc blatu. Dlatego mowimy
+   o nim zawsze, osobno dla ciagu i dla szafek, ktore stoja inaczej niz on. */
+const wallGapMsgs = (project, run) => {
+  const out = [];
+  if (!run) return out;
+  const opis = (g) => (g.bottom === g.top
+    ? `${fmt(g.bottom)} mm od ściany`
+    : `${fmt(g.bottom)} mm od ściany przy podłodze i ${fmt(g.top)} mm na wysokości blatu`);
+  const gc = wallGapOf(run, null);
+  if (gc.bottom || gc.top)
+    out.push({ level: "info", text:
+      `Ciąg stoi ${opis(gc)} — za plecami zostaje wolna przestrzeń. `
+      + `Blat liczymy od ściany na wysokości blatu.` });
+  runItems(project, run.id).forEach(({ it }) => {
+    if (!it.wallGap) return;
+    const g = wallGapOf(run, it);
+    if (g.bottom === gc.bottom && g.top === gc.top) return;
+    const nazwa = (it.cab.name || "").trim() || "szafka";
+    out.push({ level: "info", text:
+      `Szafka „${nazwa}" stoi ${opis(g)}, inaczej niż reszta ciągu.` });
+  });
+  return out;
+};
+
 const worktopMsgs = (project, run) => {
   const out = [];
   if (!run) return out;
@@ -8390,29 +9118,60 @@ const worktopMsgs = (project, run) => {
     const glebokosc = lvl && lvl.pod.length
       ? Math.max(...lvl.pod.map((c) => Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0))))
       : Math.max(0, Math.round(Number(run.D) || 0));
-    // 2 mm zapasu, zeby blat na pewno wszedl w arkusz 600
-    const sugerowana = WORKTOP_DEPTHS[0] - tf - WORKTOP_OVERHANG - 2;
+    // glebokosc szafek, przy ktorej arkusz 600 wystaje przed drzwi standardowe 10 mm
+    const sugerowana = WORKTOP_DEPTHS[0] - WORKTOP_OVERHANG - HINGE_PLAY - tf - (rt.odSciany || 0);
     out.push({ level: "warn", text:
       `Blat wychodzi ${fmt(rt.depth)} mm — o ${fmt(nadmiar)} mm za dużo na arkusz `
       + `${fmt(WORKTOP_DEPTHS[0])} mm, a z arkusza ${fmt(WORKTOP_DEPTHS[1])} mm zostaje pas odpadu. `
-      + `Szafki są za głębokie: przy ${fmt(sugerowana)} mm blat ma ${fmt(sugerowana + tf + WORKTOP_OVERHANG)} mm `
-      + `i mieści się z zapasem. Można też świadomie wziąć szerszy arkusz.`
+      + `Szafki są za głębokie: przy ${fmt(sugerowana)} mm arkusz ${fmt(WORKTOP_DEPTHS[0])} mm `
+      + `wystaje przed drzwi ${fmt(WORKTOP_OVERHANG)} mm`
+      + (rt.odSciany ? ` (razem z odstępem ${fmt(rt.odSciany)} mm od ściany)` : "")
+      + `. Można też świadomie wziąć szerszy arkusz.`
       + (glebokosc > sugerowana ? `|rundepth:${sugerowana}` : "")
       + `|worktop:${WORKTOP_DEPTHS[1]}` });
   }
-  /* Blat kupiony w calym pasie trzeba docisnac do sciany na miejscu — o tym
-     trzeba powiedziec, bo inaczej te kilka milimetrow wychodzi dopiero przy
-     montazu. Przy wiekszej roznicy ciecie na wymiar ma sens i wtedy pytamy. */
-  if (rt && rt.worktop && rt.docinka > 0) {
-    out.push({ level: "info", text: rt.pelnyArkusz
-      ? `Blat wychodzi ${fmt(rt.surowa)} mm, a kupuje się go w pasie ${fmt(rt.arkusz)} mm — `
-        + `zamawiamy cały pas i zdejmujemy ${fmt(rt.docinka)} mm przy ścianie na miejscu. `
-        + `Ściana i tak nie jest prosta, więc docinanie w zakładzie niewiele daje. `
-        + `Jeśli nic nie zdejmiesz, blat wystanie o ${fmt(rt.docinka)} mm dalej przed fronty.`
-        + `|topcut:1`
-      : `Blat zamawiamy docięty do ${fmt(rt.surowa)} mm z pasa ${fmt(rt.arkusz)} mm — `
-        + `zdejmuje go zakład, na miejscu zostaje tylko dopasowanie do ściany.`
-        + `|topcut:0` });
+  /* Ile arkusz 600 wystaje przed drzwi. Standard to 10 mm — blat oslania gorna
+     krawedz frontow, zeby przy krojeniu nie kapalo na nie. Mniej: uwaga.
+     Ponad 30 mm: ostrzezenie, bo zwykle zle jest odsuniecie od sciany albo
+     glebokosc szafek — a jesli oba sa dobre, blat trzeba dociac. */
+  const naArkusz600 = rt && rt.worktop && rt.arkusz === WORKTOP_DEPTHS[0];
+  let opisanyWysieg = false;
+  if (naArkusz600) {
+    const w = rt.wysiegArkusza;
+    const gl = lvl && lvl.pod.length
+      ? Math.max(...lvl.pod.map((c) => Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0))))
+      : Math.max(0, Math.round(Number(run.D) || 0));
+    const front = rt.doLica - (rt.odSciany || 0) - gl - HINGE_PLAY;
+    const sklad = (rt.odSciany ? `${fmt(rt.odSciany)} mm od ściany + ` : "")
+      + `korpus ${fmt(gl)} + ${fmt(HINGE_PLAY)} mm luzu przy zawiasach + front ${fmt(front)} `
+      + `= ${fmt(rt.doLica)} mm do lica drzwi`;
+    // glebokosc szafek, przy ktorej arkusz wystaje przed drzwi dokladnie 10 mm
+    const cel = gl + w - WORKTOP_OVERHANG;
+    const naCel = lvl && lvl.pod.length && cel > 0 && cel !== gl ? `|rundepth:${cel}` : "";
+    if (w < WORKTOP_OVERHANG) {
+      opisanyWysieg = true;
+      out.push({ level: "info", text:
+        `Blat ${fmt(rt.arkusz)} mm wystaje przed drzwi tylko ${fmt(w)} mm (${sklad}). `
+        + `Zwykle wychodzi ok. ${fmt(WORKTOP_OVERHANG)} mm i osłania górną krawędź frontów. `
+        + `Zmniejsz głębokość szafek albo odsunięcie od ściany.` + naCel });
+    } else if (w > WORKTOP_MAX_OVERHANG) {
+      opisanyWysieg = true;
+      out.push({ level: "warn", text:
+        `Cały arkusz ${fmt(rt.arkusz)} mm wystawałby przed drzwi ${fmt(w)} mm (${sklad}) — `
+        + `ponad ${fmt(WORKTOP_MAX_OVERHANG)} mm. Sprawdź odsunięcie od ściany i głębokość szafek; `
+        + `jeśli oba są dobre, blat trzeba dociąć. `
+        + (rt.pelnyArkusz
+          ? `Teraz zamawiamy cały arkusz.|topcut:1`
+          : `Teraz zamawiamy go dociętego do ${fmt(rt.depth)} mm — ${fmt(rt.wysieg)} mm przed drzwi.|topcut:0`)
+        + naCel });
+    }
+  }
+  // docięty na życzenie albo z arkusza 1200 — mówimy, że tnie go zakład
+  if (rt && rt.worktop && !rt.pelnyArkusz && rt.docinka > 0 && !opisanyWysieg) {
+    out.push({ level: "info", text:
+      `Blat zamawiamy docięty do ${fmt(rt.depth)} mm z pasa ${fmt(rt.arkusz)} mm — `
+      + `zdejmuje go zakład, na miejscu zostaje tylko dopasowanie do ściany.`
+      + (naArkusz600 ? `|topcut:0` : "") });
   }
   /* Dwa odcinki blatu spotykaja sie w rogu. Rozne szerokosci widac tam od razu:
      jeden konczy sie przed licem drugiego albo za nim, a styk trzeba doginac.
@@ -8443,7 +9202,8 @@ const worktopMsgs = (project, run) => {
     /* Sasiad z blatem ponad arkusz 600 nie ma gdzie o tym powiedziec, gdy stoi
        w nim samo ramie — wtedy mowimy to tutaj, przy szafce naroznej. */
     if (rtI.depth > WORKTOP_DEPTHS[0] && !runItems(project, inny.id).length) {
-      const celI = glOf(inny, null) - (rtI.depth - WORKTOP_DEPTHS[0]) - 2;
+      // przy tej glebokosci arkusz 600 wystaje przed drzwi standardowe 10 mm
+      const celI = glOf(inny, null) - (rtI.surowa - WORKTOP_DEPTHS[0]);
       out.push({ level: "warn", text:
         `Blat nad ramieniem, po stronie ciągu „${inny.name}", wychodzi ${fmt(rtI.depth)} mm `
         + `— nie wytnie się z arkusza ${fmt(WORKTOP_DEPTHS[0])} mm. Ramię jest tak głębokie, `
@@ -8590,6 +9350,32 @@ const cornerPairMsgs = (n, blat) => {
       `${kto} jest szafką narożną w L: korpus ${fmt(a.cab.geo.W)} mm przy ścianie „${a.run.run.name}" `
       + `plus ramię ${fmt(a.len)} × ${fmt(a.depth)} mm przy ścianie „${a.other.run.name}". `
       + `Drzwi: ${opisDrzwi}. Płyty poziome ramienia dostawia się na kołki, oklejone na łączeniu.` });
+    const zasieg = cornerSpan(n);
+    if (zasieg)
+      out.push({ level: "info", text:
+        `Od rogu szafka zajmuje wzdłuż ściany „${a.other.run.name}" ${fmt(zasieg.wzdluzRamienia)} mm `
+        + `(${zasieg.odScianyA ? `${fmt(zasieg.odScianyA)} odstępu od ściany + ` : ""}`
+        + `${fmt(zasieg.glKorpusu)} głębokości korpusu + ${fmt(a.len)} ramienia), `
+        + `a wzdłuż ściany „${a.run.run.name}" ${fmt(zasieg.wzdluzKorpusu)} mm`
+        + (zasieg.odScianyB ? ` (${fmt(zasieg.odScianyB)} odstępu + ${fmt(a.cab.geo.W)} korpusu)` : "")
+        + `. Front korpusu nie ma całej jego szerokości: róg zabiera głębokość ramienia `
+        + `z frontem, więc na drzwi od tej strony zostaje ${fmt(Math.max(0, a.front))} mm.` });
+    /* Szerokosc skrzydla to formatka drzwi ramienia: ramie minus katownik w rogu
+       (plyta, front, na ktory nachodzi, i luz) i minus luz na wolnym koncu.
+       Skrocenie ramienia o X skraca skrzydlo dokladnie o X. */
+    const skrzydlo = armFrontPlan(a).w;
+    if (a.doors !== "fix" && skrzydlo > SZEROKI_FRONT) {
+      const zabiera = a.len - skrzydlo;
+      const naDrzwi = a.len - (skrzydlo - SZEROKI_FRONT);
+      const krotkie = 600;
+      out.push({ level: "warn", text:
+        `${kto}: drzwi ramienia mają ${fmt(skrzydlo)} mm (ramię ${fmt(a.len)} minus ${fmt(zabiera)} mm, `
+        + `które zabiera kątownik w rogu z luzami) — skrzydło szersze niż ok. ${fmt(SZEROKI_FRONT)} mm `
+        + `ciąży na zawiasach, opada i zabiera dużo miejsca przy otwieraniu. Skróć ramię albo zaplanuj tam dwoje drzwi.`
+        + `|armlen:${naDrzwi}:${a.cab.index}:${SZEROKI_FRONT}`
+        + (krotkie < naDrzwi && krotkie - zabiera >= WASKI_FRONT
+          ? `|armlen:${krotkie}:${a.cab.index}:${krotkie - zabiera}` : "") });
+    }
     if (a.front <= 0)
       out.push({ level: "error", text:
         `${kto} nie ma frontu od strony ciągu „${a.run.run.name}" — korpus jest węższy `
@@ -8690,7 +9476,8 @@ const cornerPairMsgs = (n, blat) => {
   const gl = n.pair && n.pair.glRog;
   if (gl != null) {
     const w2 = n.pair.wchodzi;
-    const najgl = Math.max(...w2.g.cabs.map((q) => Math.round(q.geo.carcassDepth - q.offset)));
+    const najgl = Math.max(...w2.g.cabs.map((q) =>
+      Math.round(q.wallGap.bottom + q.geo.carcassDepth - q.offset)));
     if (najgl > gl)
       out.push({ level: "error", text:
         `Ciąg „${w2.run.name}" ma szafkę głębszą (${fmt(najgl)} mm) niż ta stojąca w rogu (${fmt(gl)} mm) `
@@ -8707,7 +9494,7 @@ const cornerPairMsgs = (n, blat) => {
     else
       out.push({ level: "info", text:
         `Blat w narożniku na styk: przechodzi blat ciągu „${przez.run.name}", `
-        + `a blat ciągu „${drugi.run.name}" dojeżdża do jego boku i jest o ${fmt(przez.depth)} mm krótszy. `
+        + `a blat ciągu „${drugi.run.name}" dojeżdża do jego przedniej krawędzi i tam się kończy. `
         + "Widoczne czoło ma wtedy ten przechodzący — ustaw to tak, żeby wypadło od strony, z której się patrzy." });
   }
   return out;
@@ -9840,6 +10627,13 @@ export default function App() {
     items[i] = { ...items[i], offset: Math.round(Number(v) || 0) };
     return { ...p, items };
   }), [setProject]);
+  // odsuniecie jednej szafki od sciany; null = jak caly ciag
+  const setItemWallGap = useCallback((i, g) => setProject((p) => {
+    const items = p.items.slice();
+    if (!items[i]) return p;
+    items[i] = { ...items[i], wallGap: migrateWallGap(g) };
+    return { ...p, items };
+  }), [setProject]);
 
   // przesuwanie w obrebie ciagu — sasiadem jest najblizsza szafka tego samego ciagu
   const moveCabinet = useCallback((i, dir) => setProject((p) => {
@@ -9993,6 +10787,18 @@ export default function App() {
   const [showShelves, setShowShelves] = useState(false);
   const [sideWhich, setSideWhich] = useState("left");
   const [showHardware, setShowHardware] = useState(true);
+  // sciana za szafkami w widoku z boku i w rzucie zabudowy
+  const [showWall, setShowWall] = useState(true);
+  // blat ciagu w rzucie z gory — da sie go schowac, zeby zajrzec do szafek
+  const [showBlat, setShowBlat] = useState(true);
+  // rysunek na cale okno — na laptopie daje najwiecej miejsca
+  const [pelnyRys, setPelnyRys] = useState(false);
+  useEffect(() => {
+    if (!pelnyRys) return undefined;
+    const esc = (e) => { if (e.key === "Escape") setPelnyRys(false); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [pelnyRys]);
   /* Przeczytane podpowiedzi chowaja sie z listy. To nie jest czesc projektu —
      dotyczy tego, co juz raz przeczytales, wiec siedzi obok, w przegladarce. */
   const [przeczytane, setPrzeczytane] = useState(() => {
@@ -10291,6 +11097,7 @@ export default function App() {
     const node = projLayout.info.get(runInfo.run.id);
     return [...runCabMsgs(runInfo.run, c),
       ...runWideMsgs(runInfo.run, runInfo.total, runPl, runTp, node ? node.len : 0),
+      ...wallGapMsgs(project, runInfo.run),
       ...worktopMsgs(project, runInfo.run),
       ...tierMsgs(project, runInfo.run),
       ...runCornerMsgs(node, !!runTp),
@@ -10854,6 +11661,16 @@ export default function App() {
               Ponów ↷
             </button>
           </div>
+          {/* Robocze: po poprawce w polach wyzej jednym kliknieciem wraca sie
+              do rysunku, zamiast go szukac przewijaniem. */}
+          <button onClick={() => {
+            const el = document.getElementById("rysunek");
+            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+            title="Przewiń do karty „Rysunek”"
+            className="rounded border border-teal-600 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-50">
+            Pokaż rysunek
+          </button>
           <button onClick={exportProject}
             title="Pobierz projekt jako plik JSON"
             className="text-xs text-teal-700 hover:underline">Zapisz do pliku</button>
@@ -10999,7 +11816,10 @@ export default function App() {
         <div className="space-y-4">
           {(project.runs || []).length > 0 && (
             <Card title="Ciąg meblowy" collapsible>
-              <Field label="Ta szafka"
+              {/* Najpierw ta jedna szafka (kilka pol), pod nia caly ciag — zeby
+                  bylo jasne, co zmienia tylko ja, a co wszystkie szafki ciagu. */}
+              <CardPart title="Ta szafka w ciągu" first>
+              <Field label="Należy do ciągu"
                 hint={runInfo
                   ? `${runInfo.pos} z ${runInfo.count} w ciągu „${runInfo.run.name}". Kolejność zmieniasz strzałkami na pasku szafek.`
                   : "Wolnostojąca — nie wchodzi do żadnego ciągu."}>
@@ -11019,6 +11839,40 @@ export default function App() {
                     <Num value={project.items[project.active].offset || 0}
                       onChange={(v) => setOffset(project.active, v)} />
                   </Field>
+                  {(() => {
+                    /* Wlasne odsuniecie tej jednej szafki — np. przy rurze. Puste
+                       pola biora wartosc z ciagu. */
+                    const it = project.items[project.active];
+                    const wlasne = migrateWallGap(it.wallGap);
+                    const ciag = wallGapOf(runInfo.run, null);
+                    const ustaw = (pole, v) => {
+                      const g = { ...(wlasne || { bottom: ciag.bottom, top: null }) };
+                      g[pole] = v === "" ? (pole === "top" ? null : ciag.bottom)
+                        : Math.max(0, Math.round(Number(v) || 0));
+                      const jakCiag = g.bottom === ciag.bottom
+                        && (g.top == null ? g.bottom : g.top) === ciag.top;
+                      setItemWallGap(project.active, jakCiag ? null : g);
+                    };
+                    return (
+                      <Field label="Odsunięcie tej szafki od ściany"
+                        hint="Na dole i na wysokości blatu. Puste = jak cały ciąg.">
+                        <div className="grid grid-cols-2 gap-3">
+                          <AutoNum value={wlasne ? wlasne.bottom : null} placeholder={`${fmt(ciag.bottom)} (ciąg)`}
+                            fixed={!!wlasne} onChange={(v) => ustaw("bottom", v)} />
+                          <AutoNum value={wlasne ? wlasne.top : null}
+                            placeholder={`${fmt(wlasne ? wlasne.bottom : ciag.top)} (blat)`}
+                            fixed={!!wlasne && wlasne.top != null} onChange={(v) => ustaw("top", v)} />
+                        </div>
+                      </Field>
+                    );
+                  })()}
+                </>
+              )}
+              </CardPart>
+              {runInfo && (
+                <CardPart title={`Cały ciąg „${runInfo.run.name}"`}
+                  note={`Zmiany tutaj dotyczą wszystkich szafek tego ciągu (${runInfo.count}).`}>
+                  <CardSub title="Ściana">
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Nazwa ciągu">
                       <input value={runInfo.run.name}
@@ -11049,6 +11903,21 @@ export default function App() {
                         options={[{ v: "left", l: "Od lewej" }, { v: "right", l: "Od prawej" }]} />
                     </div>
                   </Field>
+                  {/* Krzywa sciana albo rura za szafkami: odstep przy podlodze i na
+                      wysokosci blatu. Blat liczy sie od sciany wlasnie tam. */}
+                  <Field label="Odsunięcie od ściany"
+                    hint="Na dole i na wysokości blatu. Puste pole blatu = tyle samo co na dole.">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Num value={wallGapOf(runInfo.run, null).bottom} min={0}
+                        onChange={(v) => setRun(runInfo.run.id, { wallGap: migrateWallGap({
+                          ...(runInfo.run.wallGap || {}), bottom: v }) })} />
+                      <AutoNum value={(runInfo.run.wallGap || {}).top ?? null}
+                        placeholder={`${fmt(wallGapOf(runInfo.run, null).bottom)} (blat)`}
+                        fixed={(runInfo.run.wallGap || {}).top != null}
+                        onChange={(v) => setRun(runInfo.run.id, { wallGap: migrateWallGap({
+                          ...(runInfo.run.wallGap || {}), top: v === "" ? null : v }) })} />
+                    </div>
+                  </Field>
                   {runInfo.run.tier === "gorny" && (
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Prześwit nad blatem"
@@ -11066,6 +11935,23 @@ export default function App() {
                       </Field>
                     </div>
                   )}
+                  </CardSub>
+                  <CardSub title="Wymiary i montaż">
+                  <Field label="Wysokość i głębokość szafek"
+                    hint="Zmiana tutaj przestawia od razu wszystkie szafki ciągu. Szafkę, która się rozjedzie, zgłoszą Uwagi.">
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block">
+                        <span className="mb-1 block text-[11px] text-stone-400">Wysokość</span>
+                        <Num value={runInfo.run.H ?? cab.H}
+                          onChange={(v) => setRunShared(runInfo.run.id, { H: Math.max(1, Math.round(Number(v) || 0)) })} />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-[11px] text-stone-400">Głębokość</span>
+                        <Num value={runInfo.run.D ?? cab.D}
+                          onChange={(v) => setRunShared(runInfo.run.id, { D: Math.max(1, Math.round(Number(v) || 0)) })} />
+                      </label>
+                    </div>
+                  </Field>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Luz między korpusami"
                       hint="0 przy szafkach skręcanych ze sobą.">
@@ -11078,7 +11964,8 @@ export default function App() {
                         onChange={(v) => setRun(runInfo.run.id, { mountY: Math.max(0, Math.round(Number(v) || 0)) })} />
                     </Field>
                   </div>
-                  <Group label="Narożnik"
+                  </CardSub>
+                  <CardSub title="Narożnik"
                     hint="Ciąg dostawiony pod kątem prostym do innego. Kolejne narożniki układają się w L, U i G.">
                     <div className="space-y-2">
                       <select value={(runInfo.run.corner || {}).of || ""}
@@ -11127,22 +12014,8 @@ export default function App() {
                         </>
                       )}
                     </div>
-                  </Group>
-                  <Field label="Wspólne dla całego ciągu"
-                    hint="Zmiana tutaj przestawia od razu wszystkie szafki ciągu. Szafkę, która się rozjedzie, zgłoszą Uwagi.">
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="block">
-                        <span className="mb-1 block text-[11px] text-stone-400">Wysokość</span>
-                        <Num value={runInfo.run.H ?? cab.H}
-                          onChange={(v) => setRunShared(runInfo.run.id, { H: Math.max(1, Math.round(Number(v) || 0)) })} />
-                      </label>
-                      <label className="block">
-                        <span className="mb-1 block text-[11px] text-stone-400">Głębokość</span>
-                        <Num value={runInfo.run.D ?? cab.D}
-                          onChange={(v) => setRunShared(runInfo.run.id, { D: Math.max(1, Math.round(Number(v) || 0)) })} />
-                      </label>
-                    </div>
-                  </Field>
+                  </CardSub>
+                  <CardSub title="Cokół">
                   {/* Ciag wiszacy nie ma na czym postawic cokolu, a stojacy nie ma
                       po co wieszac — pokazywanie obu opcji zawsze tylko mylilo. */}
                   {!ciagWisi && (
@@ -11183,7 +12056,8 @@ export default function App() {
                       onToggle={(j) => toggleCut(runInfo.run.id, "plinthCuts", runPlinth, j)}
                       onAuto={() => setRun(runInfo.run.id, { plinthCuts: null })} />
                   )}
-
+                  </CardSub>
+                  <CardSub title="Blat">
                   {!ciagWisi && (
                     <Field label="Blat roboczy"
                       hint="Blat idzie nad całym ciągiem. Szafki pod nim nie mają wieńca — usztywnia je para wzmocnień.">
@@ -11227,7 +12101,8 @@ export default function App() {
                   <SplitPicker label="Podział blatu" what="blat" s={runTp}
                     onToggle={(j) => toggleCut(runInfo.run.id, "topCuts", runTop, j)}
                     onAuto={() => setRun(runInfo.run.id, { topCuts: null })} />
-
+                  </CardSub>
+                  <CardSub title="Wieszanie">
                   {ciagWisi && (
                     <Field label="Wieszanie ciągu"
                       hint={runRl
@@ -11238,6 +12113,7 @@ export default function App() {
                         options={[{ v: "listwa", l: "Na listwie" }, { v: "haczyki", l: "Na haczykach" }]} />
                     </Field>
                   )}
+                  </CardSub>
                   <p className="text-xs text-stone-500">
                     {runInfo.count} {plural(runInfo.count, "szafka", "szafki", "szafek")} zajmuje{" "}
                     <span className="font-mono text-stone-700">{fmt(runInfo.total)} mm</span>
@@ -11256,7 +12132,7 @@ export default function App() {
                     className="text-xs text-stone-500 hover:text-stone-800 hover:underline">
                     Rozwiąż ciąg — szafki zostają, wracają na wolnostojące
                   </button>
-                </>
+                </CardPart>
               )}
             </Card>
           )}
@@ -11532,8 +12408,19 @@ export default function App() {
                           {" "}plus ramię <span className="font-mono text-stone-700">{fmt(cornerNode.arm.len)} × {fmt(cornerNode.arm.depth)} mm</span>.
                           {" "}Fronty: od tej strony{" "}
                           <span className="font-mono text-stone-700">{fmt(cornerNode.arm.front)} mm</span>,
-                          {" "}ramienia{" "}
-                          <span className="font-mono text-stone-700">{fmt(cornerNode.arm.armFront)} mm</span>.
+                          {" "}drzwi ramienia{" "}
+                          <span className="font-mono text-stone-700">{fmt(armFrontPlan(cornerNode.arm).w)} mm</span>.
+                          {(() => {
+                            const z = cornerSpan(cornerNode);
+                            return z && (
+                              <>
+                                {" "}Od rogu:{" "}
+                                <span className="font-mono text-stone-700">{fmt(z.wzdluzKorpusu)} × {fmt(z.wzdluzRamienia)} mm</span>
+                                {" "}(przy ścianie ramienia: {z.odScianyA ? `${fmt(z.odScianyA)} odstępu + ` : ""}
+                                {fmt(z.glKorpusu)} głębokości + {fmt(cornerNode.arm.len)} ramienia).
+                              </>
+                            );
+                          })()}
                         </p>
                       )}
                       {/* Wysokosc, glebokosc i polki ramienia nie sa jego wlasne:
@@ -12583,7 +13470,12 @@ export default function App() {
         </div>
 
         <div className="mt-4 space-y-4 lg:mt-0">
-          <Card title="Rysunek"
+          {/* Pelny ekran: karta rysunku przykrywa cale okno, Esc wraca. */}
+          {/* margines zerujemy — odstepy miedzy kartami dokladaly go i nakladka
+              konczyla sie przed dolem okna, a spod niej wystawaly inne karty */}
+          <div className={pelnyRys ? "fixed inset-0 z-50 overflow-auto bg-stone-100 p-3" : ""}
+            style={pelnyRys ? { margin: 0 } : undefined}>
+          <Card title="Rysunek" id="rysunek"
             right={
               <div className="flex items-center gap-3">
                 <button onClick={() => setShowDims((s) => !s)} className="text-xs text-teal-700 hover:underline">
@@ -12617,6 +13509,18 @@ export default function App() {
                     {showLabels ? "Ukryj oznaczenia" : "Oznacz pola"}
                   </button>
                 )}
+                {view === "top" && (scopeRuns || runInfo) && (
+                  <button onClick={() => setShowBlat((s) => !s)}
+                    className="text-xs text-teal-700 hover:underline">
+                    {showBlat ? "Ukryj blat" : "Pokaż blat"}
+                  </button>
+                )}
+                {((view === "side" && runInfo) || (view === "top" && scopeRuns)) && (
+                  <button onClick={() => setShowWall((s) => !s)}
+                    className="text-xs text-teal-700 hover:underline">
+                    {showWall ? "Ukryj ścianę" : "Pokaż ścianę"}
+                  </button>
+                )}
                 {(view === "open" || view === "side" || view === "top") && (
                   <button onClick={() => setShowHardware((s) => !s)}
                     className="text-xs text-teal-700 hover:underline">
@@ -12639,7 +13543,8 @@ export default function App() {
                 </div>
               </div>
             }>
-            <div className="rounded border border-stone-100 bg-stone-50 p-3">
+            <ZoomBox obraca={view === "3d"} pelny={pelnyRys} onPelny={() => setPelnyRys((v) => !v)}
+              resetKey={`${scope}|${view}|${project.active}`}>
               {scopeRuns ? (
                 view === "iso" ? (
                   <div className="space-y-3">
@@ -12706,7 +13611,8 @@ export default function App() {
                   </div>
                 ) : view === "top" ? (
                   <AssemblyTopView project={project} runs={scopeRuns} showDims={showDims}
-                    showShelves={showShelves} showHardware={showHardware} />
+                    showShelves={showShelves} showHardware={showHardware} showWall={showWall}
+                    showBlat={showBlat} />
                 ) : (
                   <AssemblyView project={project} runs={scopeRuns} rpOf={rpOf}
                     variant={view} showDims={showDims} showHardware={showHardware}
@@ -12757,10 +13663,12 @@ export default function App() {
                 </div>
               ) : view === "side" ? (
                 <SideView cab={cab} geo={geo} mat={mat} showDims={showDims} which={sideWhich}
-                  showHardware={showHardware} />
+                  showHardware={showHardware}
+                  wallGap={runInfo && showWall ? wallGapOf(runInfo.run, project.items[project.active]) : null} />
               ) : view === "top" ? (
                 <TopView cab={cab} geo={geo} mat={mat} showDims={showDims} showShelves={showShelves}
-                  showHardware={showHardware} arm={cornerNode && cornerNode.arm} />
+                  showHardware={showHardware} arm={cornerNode && cornerNode.arm}
+                  blat={showBlat ? blatNadSzafka(project, projLayout, project.active, cornerNode && cornerNode.arm) : null} />
               ) : view === "rear" ? (
                 <RearView cab={cab} geo={geo} mat={mat} showDims={showDims} />
               ) : (
@@ -12768,7 +13676,7 @@ export default function App() {
                   showGaps={showGaps} showLabels={showLabels} showHardware={showHardware}
                   arm={cornerNode && cornerNode.arm} />
               )}
-            </div>
+            </ZoomBox>
             {/* Podpis pod rysunkiem: co za blat na nim widac. W rogu to nigdy
                 nie jest jeden kawalek — kazda sciana ma swoj odcinek i tnie sie
                 je osobno, wiec pisanie o „jednej formatce" mylilo. */}
@@ -12796,6 +13704,7 @@ export default function App() {
               );
             })()}
           </Card>
+          </div>
 
           {(errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0) && (
             <div ref={notesRef} className="scroll-mt-24">

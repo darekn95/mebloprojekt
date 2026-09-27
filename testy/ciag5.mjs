@@ -118,7 +118,8 @@ console.log('\n== szew cokołu narysowany w miejscu cięcia ==');
 await seed([800, 800, 800, 800, 800].map((w, i) => K('S' + i, { W: w })));
 await view('Ciąg');
 const linie = await page.evaluate(() => [...document.querySelectorAll('svg line')]
-  .filter((l) => l.getAttribute('stroke-width') === '3')
+  // kreski wewnatrz <pattern> (kreskowanie „przejscia do ramienia") to nie szwy
+  .filter((l) => l.getAttribute('stroke-width') === '3' && !l.closest('pattern'))
   .map((l) => Math.round(+l.getAttribute('x1'))));
 console.log('     szwy: ' + JSON.stringify(linie));
 ok('jeden szew na styku 2400', linie.length === 1 && linie[0] === 2400, JSON.stringify(linie));

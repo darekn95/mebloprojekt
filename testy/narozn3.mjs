@@ -59,7 +59,7 @@ ok('blat ciągu B skrócony o głębokość A', b.some((t) => /\b900\b/.test(t))
 let uw = await card(/Uwagi/).innerText();
 console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 300));
 ok('uwaga mówi, który blat przechodzi', /przechodzi blat ciągu „Ściana A"/.test(uw), uw.slice(0, 300));
-ok('podana różnica długości', /o 600 mm krótszy/.test(uw), uw.slice(0, 300));
+ok('drugi kończy się na krawędzi przechodzącego', /dojeżdża do jego przedniej krawędzi/.test(uw), uw.slice(0, 300));
 
 console.log('\n== przelaczenie: przechodzi blat drugiego ciagu ==');
 await uklad({ top: 'self' });

@@ -45,16 +45,14 @@ w `.gitignore`, więc w świeżym środowisku trzeba go założyć:
 deoptimised the styling" i przestaje formatować wynik. Artefakt testowy jest przez to
 o ~100 KB mniejszy niż wcześniej — to nie jest oznaka obciętego builda.
 
-[AI-TODO] Pięć suit pada niezależnie od zmian w narożniku — sprawdzone przez zbudowanie
-artefaktu z `git show HEAD:szafki.jsx` i przelecenie ich osobno, wynik identyczny:
+[AI-INFO] Znane błędy aplikacji i testów, ich przyczyny i decyzje: **`BLEDY.md`**.
 
-- `pdf` — `page.goto("file://./report.html")`, względny adres `file://` jest nieprawidłowy;
-  suita potrzebuje ścieżki bezwzględnej,
-- `savetest` — szuka `http://127.0.0.1:5199/preview-local.html`, którego nikt nie buduje,
-- `d2test`, `fixbtn` — timeout `locator.click` na przycisku, którego nie ma,
-- `pins2` — 2 BLAD: kołki i etykiety w dwóch kolumnach.
-
-Pierwsze dwie to braki w samych suitach, nie w aplikacji. Do przejrzenia osobno.
+[AI-INFO] Pełny przebieg: wszystkie suity, które wypisują „  OK / BLAD” (ok. 90, z czego
+18 z końcówką `std` i `stdfull`/`stdnew` chodzi po 5199), po 5 naraz w tle — polecenie
+w `SLOWNIK.md`, sekcja 8. Serwery najlepiej trzymać jako proces w tle narzędzia
+(`exec python3 -m http.server …`), bo uruchomione przez `setsid … &` znikały przy
+przeładowaniu kontenera. Przy 5 naraz pojedyncza suita potrafi raz paść na czasie
+(np. `narozn3` bez listy blatów) — zanim uzna się to za regresję, puścić ją osobno.
 
 [AI-INFO] `python3 -m http.server` na 5205 potrafi paść w trakcie długiego przelotu.
 Objaw: wszystkie suity naraz `CRASH: name: 'Error'`. Zanim uzna się to za regresję,
@@ -81,8 +79,9 @@ lico dostanie osobną opcję i wtedy dołoży się tu jako kolejna bryła.
 ## Narożnik w L — co jest z czego liczone
 
 [AI-INFO] Ramię liczy się **od końca narożnego kwadratu**: przy drugiej ścianie
-narożnik zajmuje `głębokość szafki w rogu + arm`. Przy 600 + 600 wychodzi 1200 mm
-i tyle odsuwa się tamten ciąg. Pole „Długość ramienia" to `arm`, nie całość.
+narożnik zajmuje `odsunięcie od ściany + głębokość szafki w rogu + arm` (+ „Luz
+w rogu”, jeśli ustawiony). Przy 0 + 570 + 1200 wychodzi 1770 mm i tyle odsuwa się
+tamten ciąg (`glRog + armLen + clear`). Pole „Długość ramienia" to `arm`, nie całość.
 
 [AI-INFO] W rogu spotykają się dwa lica frontów i stoi tam **kątownik**: cztery
 pionowe płyty (dwie wewnętrzne z płyty półkowej na całą wysokość wnętrza, dwie
@@ -110,7 +109,9 @@ przychodzi bez wieńca i z parą wzmocnień (`bezWienca`): z przodu płyta na p�
 z tyłu stojąca. Blat obejmuje szafki tej wysokości lica, która zajmuje w ciągu
 najwięcej miejsca; reszta wypada spod niego — różnica od `SLUPEK_MIN` (200 mm)
 to zamierzony słupek, poniżej to rozjazd i ostrzeżenie. Głębokość blatu jest
-wymiarem rzeczywistym: korpus + grubość frontu + `WORKTOP_OVERHANG` (10 mm).
+wymiarem rzeczywistym od ściany na wysokości blatu: odsunięcie od ściany + korpus
++ `HINGE_PLAY` (2 mm) + grubość frontu + `WORKTOP_OVERHANG` (10 mm) — szczegóły
+w sekcji „Blat: co zamawiamy…”.
 
 [AI-INFO] Suity klikające „Cokół pod szafką" albo „Nóżki pod szafką" muszą
 **ustawiać stan**, a nie klikać na oślep — nowy projekt startuje z szablonu
@@ -304,6 +305,74 @@ w rogu. Domyslnie oba wzmocnienia pary w rogu stoja pionowo i maja `ROG_WZM_H`
 wiec `runTop` zamawia caly pas (`pelnyArkusz`), a `surowa` trzyma wymiar
 wynikajacy z szafek. Uzytkownik moze to odwrocic przelacznikiem `run.topCut`
 (poprawka `topcut:0/1` w Uwagach). Wieksza roznica idzie na wymiar.
+
+[AI-INFO] Glebokosc blatu (ustalone z uzytkownikiem): od sciany na wysokosci
+blatu = odsuniecie od sciany (`wallGapOf(run, item).top`) + korpus +
+`HINGE_PLAY` (2 mm luzu przy zawiasach) + front + `WORKTOP_OVERHANG` (10).
+Luz przy zawiasach to wytyczna montazowa: nie ma go na rysunkach ani
+w wymiarach. `runTop` liczy `doLica` (sciana → lico drzwi) i `wysiegArkusza`
+(ile arkusz wystaje przed drzwi): <10 mm uwaga, 10–30 bez uwag i caly arkusz,
+>30 ostrzezenie (zle odsuniecie, zla glebokosc albo blat do dociecia)
+i domyslnie blat na wymiar. `run.topCut` jest trojstanowy: true = docięty,
+false = caly arkusz, null = dobiera sam. Dawna regula „do 50 mm zdejmujemy przy
+scianie" (`WORKTOP_ONSITE`) wyleciala. `topCut` wczesniej gubil sie przy
+wczytaniu projektu (nie bylo go w `migrateRun`).
+
+[AI-INFO] Odsuniecie od sciany: `run.wallGap = { bottom, top }` i wyjatek
+w szafce `item.wallGap` (null = jak ciag). Dwie wartosci, bo krzywa sciana
+daje inny odstep przy podlodze (polozenie szafki, rog) i inny pod blatem
+(glebokosc blatu). Rog: `glRog` w `projectLayout` zawiera odstep szafki
+naroznej przy podlodze, a styk blatow — roznice dol/blat przechodzacego ciagu.
+Widok z boku rysuje sciane (`data-el="sciana"`) ukosem albo pionowo.
+`runFrontDepth` (czyli `n.depth` w `runLayout`) liczy od sciany do lica
+RAZEM z odstepem przy podlodze — dlatego rzut z gory i bryla 3D przesuwaja
+szafki od sciany same. Ramie szafki w L ma glebokosc samego korpusu
+(`other.depth` minus odstep sasiada), a cala szafka w L odsuwa sie od
+sciany sasiada o jego odstep (`n.pair.odSasiada` dochodzi do `tail`/`lead`
+ciagu, ktory wjezdza w rog). Blat w rzucie i w bryle zaczyna sie przy scianie
+na wysokosci blatu, czyli o `bottom - top` blizej pokoju. Elewacja z przodu
+odstepu nie pokazuje — nie ma w niej glebokosci.
+
+[AI-INFO] Wymiary szafki w L (ustalone z uzytkownikiem): ramie w programie
+liczy sie od frontu korpusu, nie od sciany — wzdluz sciany ramienia szafka
+zajmuje odstep od sciany + glebokosc korpusu + ramie (np. 570 + 1200 = 1770).
+Typowa narozna to 900 × 900 od rogu (ramie ok. 330). `cornerSpan` podaje oba
+wymiary w uwagach i w karcie narożnika; front ramienia > `SZEROKI_FRONT`
+(600) daje ostrzezenie z propozycja skrocenia ramienia (bez dzielenia frontu —
+uzytkownik wybral samo ostrzezenie).
+
+[AI-INFO] Powiekszanie rysunku (`ZoomBox`): 100% to rozmiar dopasowany do karty,
+kroki liczone od tresci SVG (proporcja viewBox), nie od szerokosci elementu —
+inaczej pierwszy krok skakal. Ramka ma `contain: inline-size`, bo bez tego
+kolumna strony rosla pod rysunek i nie bylo czego przewijac. Pelny ekran to
+nakladka `fixed inset-0` z `margin: 0` (odstepy miedzy kartami dokladaly
+margines i spod nakladki wystawaly inne karty).
+[AI-TODO] Pomysl uzytkownika na pozniej: zapamietywac powiekszenie osobno dla
+kazdego widoku (localStorage), takze po odswiezeniu.
+[AI-INFO] Ctrl + kolko nad rysunkiem przybliza rysunek w miejscu kursora (1–4×,
+plynnie), zamiast powiekszac cala strone — wlasny nasluch `wheel` z
+`passive: false`, bo React podpina kolko pasywnie i `preventDefault` by nie
+zadzialal. Szczypanie na touchpadzie przychodzi jako Ctrl + kolko.
+
+[AI-INFO] Rzut z gory w zakresie „ciag": ramie szafki w L, ktorego sciany nie
+rysujemy, stoi w prawdziwym polozeniu — obrocone wzdluz drugiej sciany, z jej
+kawalkiem. `AssemblyTopView` liczy macierz: uklad pasa ramienia (z `full`) →
+rzut calosci → uklad rysowanego ciagu (`cudzeRamiona`), a kadr je obejmuje.
+Wczesniej ramie bylo „dostawione" rozlozone za koncem ciagu (`armsIn`,
+`dostawione`), kadr je ucinal, a plecy i wzmocnienie siegajace w rog nachodzily
+na szafke narozna. Elewacja nadal uzywa dostawionych ramion z `armsIn`. Dostawione ramie
+w elewacji dostaje blat swojego pasa (przesuniety o `u0 - u0Pasa`), a po
+otwarciu — wzmocnienia z `armPlan`. W rzucie: blaty (`blatPasa`) i wymiary
+rysuja sie w osobnych przebiegach po wszystkich szafkach i ramionach, zeby nic
+ich nie zaslanialo; ramie ma w rzucie nozki, uchwyt i zawiasy pod „Pokaz okucia".
+
+[AI-INFO] Blat w rogu „na styk": przechodzacy przez rog ma glebokosc
+`rt.depth` (korpus + front + wysieg, a przy pelnym arkuszu 600), a nie
+glebokosc szafek ciagu. `projectLayout` zapisuje w `topSpan.przez0/przez1`,
+czyj blat przechodzi, a `runTop` skraca dojezdzajacy o roznice — wczesniej
+oba blaty zachodzily na siebie o ok. 30 mm (w bryle jeden wystawal nad
+drugim) i dojezdzajacy byl o tyle za dlugi w zamowieniu. `worktopSpans`
+przycina odcinki do `rt.x0 … rt.x0 + rt.total`. Lyzwa (`cut: "skos"`) bez zmian.
 
 [AI-INFO] Cokol ciagu rysuje sie na `rp.total`, a nie na `g.total`: w rogu
 konczy sie na cokole prostopadlej sciany, a nie na koncu szafki naroznej.

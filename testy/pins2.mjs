@@ -17,11 +17,13 @@ await korpus.locator('input[type=number]').first().blur();
 await page.waitForTimeout(700);
 await card(/^Struktura wnętrza$/).getByText('+ przegroda i kolumna', { exact: true }).first().click();
 await page.waitForTimeout(1200);
-// druga kolumna startuje bez polek — dodaj dwie
-const addShelf = page.getByText('+ półka', { exact: true });
-console.log('  przycisków "+ półka":', await addShelf.count());
-await addShelf.last().click(); await page.waitForTimeout(500);
-await addShelf.last().click(); await page.waitForTimeout(900);
+// druga kolumna startuje bez polek — liczbe ustawia pole „polki" tej kolumny
+// („+ polka" pojawia sie dopiero w kolumnie, ktora ma juz polki)
+const struktura = card(/^Struktura wnętrza$/);
+const polkiPola = struktura.locator('span', { hasText: /^półki$/ }).locator('xpath=following-sibling::input[1]');
+console.log('  pól „półki":', await polkiPola.count());
+await polkiPola.last().fill('2');
+await page.waitForTimeout(900);
 await page.getByText('Otw.', { exact: true }).first().click();
 await page.waitForTimeout(900);
 const info = await page.evaluate(() => {
@@ -34,12 +36,11 @@ const info = await page.evaluate(() => {
 console.log('  kółka X:', info.xs.join(', '));
 ok('kołki w dwóch kolumnach (4 pionowe rzędy)', info.xs.length === 4, info.xs.join(', '));
 console.log('  kółek razem:', info.cs.length);
-// etykieta wysokosci: jedna na polke na kolumne
-const ys = [...new Set(info.cs.map(c => c.y))];
-const near = info.labels.filter(l => ys.some(y => Math.abs(y + 7 - y) < 1e9 && Math.abs(l.y - (y - 7)) < 2) && /^\d+$/.test(l.s));
-console.log('  etykiety przy kołkach:', near.map(l => l.s + '@' + l.x).join(', '));
+// etykiety otworow: „otw. 527" — od dolnej krawedzi boku / przegrody, w kazdej kolumnie
+const near = info.labels.filter((l) => /^otw\. \d+$/.test(l.s)).map((l) => ({ ...l, v: Number(l.s.split(' ')[1]) }));
+console.log('  etykiety przy kołkach:', near.map(l => l.v + '@' + l.x).join(', '));
 ok('etykiety w obu kolumnach', new Set(near.map(l => l.x)).size === 2, [...new Set(near.map(l=>l.x))].join(', '));
-ok('etykiety liczą od dołu przegrody/boku', near.every(l => Number(l.s) > 0 && Number(l.s) < 720), near.map(l=>l.s).join(','));
+ok('etykiety liczą od dołu przegrody/boku', near.length > 0 && near.every(l => l.v > 0 && l.v < 720), near.map(l=>l.v).join(','));
 await page.locator('svg').first().screenshot({ path: './shot-pins.png' });
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

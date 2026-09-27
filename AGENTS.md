@@ -17,6 +17,14 @@
 - Gdy pytasz o decyzję, która sprowadza się do kilku opcji, dawaj pytanie
   z przyciskami do kliknięcia (narzędzie pytań z opcjami), a nie tekst do
   odpisania — użytkownik woli kliknąć niż wpisywać odpowiedź.
+- **Dwie wersje aplikacji, dwie role** (ustalone z użytkownikiem):
+  - **Artefakt na claude.ai** służy do pokazywania i testów na projekcie
+    użytkownika. **Musi** mieć przycisk „Wyślij do Claude”. **Nie potrzebuje**
+    pobierania plików — „Zapisz do pliku” może tam zostać przy obecnym
+    zastępstwie (tekst do skopiowania), nie dokładaj do tego zdolności `downloads`.
+  - **GitHub Pages / `standalone.html`** to wersja do pracy. Tu działa zapis do
+    pliku, a przycisku „Wyślij do Claude” **nie może być** (brak `window.claude`,
+    a tokenu GitHuba w stronie nie wolno umieszczać).
 - Projekt użytkownika do testów: w artefakcie na claude.ai jest przycisk
   „Wyślij do Claude” (tylko tam — nie na GitHub Pages ani w standalone).
   Odczyt: `ArtifactData`, dokument `projekt/biezacy`, pole `json`. Trzymaj go
@@ -25,4 +33,7 @@
   seria zrzutów), napisz o tym **przed** startem, z przybliżonym czasem —
   np. „Testy lecą (~25 min)” — i co w tym czasie robisz albo na co czekasz.
   Pełny przebieg obu buildów to ok. 20–30 min, pojedyncza suita 1–3 min.
+- Znane błędy (aplikacji i testów), ich przyczyny i sprawy do decyzji użytkownika
+  trzymaj w `BLEDY.md` — sprawdź go przed pełnym przebiegiem testów i dopisuj tam
+  każdy nowy błąd razem z commitem, który go usuwa.
 - Jeśli zapisujesz roboczą informację, używaj tagów `[AI-INFO]`, `[AI-TODO]`, `[CLAUDE-CHANGE]` albo `[CHECK]` w `AI_NOTES.md` zamiast znaczników podobnych do konfliktów Git.
