@@ -18,6 +18,10 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-27 | **formatki: jedna szafka w ciągu** | blat i cokół ciągu wypadały z listy szafki (liczą się w ciągu), a „Formatki całego projektu”, produkty, rozkrój całości i strona projektu w PDF pokazywały się dopiero od 2 szafek — blatu i cokołu nie było **nigdzie**; teraz warunek `calyProjekt` (2+ szafki albo części ciągu/ramię) i informacja pod listą szafki | (ten commit) |
+| 2026-09-27 | **formatki: szafka w L** | płyty ramienia były tylko w liście projektu, nie w liście szafki (ani na jej kartce PDF); teraz `formatkiSzafki` dokłada ramię | (ten commit) |
+| 2026-09-27 | **formatki ramienia** | formatki ramienia (bok 552 × 684 między dnem a górą, dno i półka o 18 mm płytsze, plecy 684) nie zgadzały się z rysunkiem; użytkownik: „ma być tak, jak wygląda” — bok na pełną wysokość i głębokość, dno/wieniec między korpusem a bokiem na pełną głębokość, plecy HDF H − 2 jak w korpusie; rysunek: front ramienia i maskownice w linii drzwi, kątownik między dnem a górą, dno i półka nie wchodzą pod bok | (ten commit) |
+| 2026-09-27 | wydruk szafki | kartka szafki w ciągu z blatem liczyła „Blat” szafki, choć aplikacja go pomija (blat ciągu) — ta sama `formatkiSzafki` w obu miejscach | (ten commit) |
 | 2026-09-27 | `wygl`, `wyglstd` | test sprawdzał dawną zasadę „z góry bez nóżek”; teraz przerywany obrys pod „Pokaż okucia” | 30d1c93 |
 | 2026-09-27 | `drobnestd` | test oczekiwał dawnego luzu 3 mm między drzwiami (domyślnie 2) | 30d1c93 |
 | 2026-09-27 | `ciag5`, `grain` | kreskowanie „przejścia do ramienia” (`<pattern id="mp-przejscie">`) brane za szew cokołu i za strukturę słojów — aplikacja dobra | b89e078 |
@@ -38,10 +42,33 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Ustalone — nie ruszać
 
+- Podpowiedź „Zrób jedne drzwi na … mm” przy szafce narożnej w L (`cornerdoor:`
+  w `runCornerMsgs`) zostaje **celowo** jako zabezpieczenie, choć dziś praktycznie
+  się nie pojawia: pas frontu szafki narożnej sam kończy się na maskownicy kątownika,
+  więc jedne drzwi, dwoje i ręczna szerokość mieszczą się w licu (sprawdzone
+  2026-09-27 na szablonie `naroznikL`). Nie usuwać (decyzja użytkownika).
+
 - Artefakt na claude.ai **nie** potrzebuje pobierania plików (tylko wersja na
   GitHubie). „Wyślij do Claude” jest **tylko** w artefakcie. Szczegóły w `AGENTS.md`.
 
 ## Pomysły / optymalizacja
+
+- **W planie (ustalone z użytkownikiem 2026-09-27): wstawka w rogu** przy zwykłych
+  szafkach (bez szafki w L). Mocowana do boku pierwszej szafki ciągu, który **nie**
+  wjeżdża w róg, od strony rogu (np. w róg wjeżdża ściana 2 → ostatnia szafka
+  ściany 1). Płyta frontowa, wysokość korpusu. Dwie wersje:
+  - płaska: 18 (grubość płyty) × 60 mm głębokości, przykręcona płasko wkrętami do
+    boku, wystaje przed korpus o grubość frontu (licuje się z drzwiami), od przodu
+    widać krawędź 18 mm; oklejona krawędź przednia i dolna; odsuwa ciąg o 18 mm;
+  - szeroka (gdy 18 mm nie wystarcza): formatka 60 mm obrócona licem do przodu,
+    mocowana na trójkątach meblowych; odsuwa ciąg o 60 mm.
+  Jej grubość/szerokość dolicza się do luzu w rogu. W karcie ciągu (Narożnik)
+  pole „Wstawka w rogu”; ostrzeżenie o kolizji drzwi w rogu dostaje przycisk
+  „Dodaj wstawkę 18 mm”, a gdy to za mało — „Wstawka 60 mm (na trójkątach)”.
+- Z testu rogu ze zwykłymi szafkami (2026-09-27): rada „zwęź front do 0 mm”
+  (i do 14, 44 mm) przy kolizji otwierania — do usunięcia, gdy wychodzi za wąsko;
+  „odsuń ciągi w rogu” nie mówi, o ile; w rzucie z góry napis „30 dostępu”
+  przecina linia wymiaru.
 
 - **Zrobione 2026-09-27:** zapamiętywanie `computeGeo` i `runTop` (niezmienne
   obiekty projektu jako klucz). Pomiar na 24 szafkach w 3 ciągach (mediana
@@ -49,14 +76,13 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   Zabudowa/Zamk. 62→38 ms, Zabudowa/Z góry 47→33 ms, Zabudowa/3D 62→41 ms;
   obrót 3D 53→44 ms. Pełny przebieg testów zielony przed i po zmianie.
   Warunek: nikt nie zmienia szafki, materiałów, projektu ani wyniku w miejscu.
-- Podpowiedź „Zrób jedne drzwi na … mm” (`cornerdoor:` w `runCornerMsgs`) dotyczy
-  szafki przy narożniku, której drzwi nie trafiają w wolne lico przed rogiem. Jest prawie
-  nieosiągalna, odkąd drzwi przy rogu same dopasowują się do lica — do uproszczenia
-  albo usunięcia (niepilne, nic nie psuje).
 
 - **Zrobione 2026-09-27:** powiększenie rysunku wraca po przełączeniu widoku
   (osobno dla każdej szafki i widoku, razem z miejscem przewinięcia).
 - **Zrobione 2026-09-27:** podpowiedź „dwoje wąskich drzwi” (każde < 250 mm,
   jedne ≤ 600 mm) z przyciskami „Jedne drzwi … — zawiasy z lewej / z prawej”.
   To co innego niż „Zrób jedne drzwi” przy rogu (poniżej).
-- Sprzęty wystające poza lico (zmywarka, piekarnik) i kontrola otwierania przy nich.
+- **Później, po szablonie słupka:** nowa kategoria „Sprzęty” (płyta indukcyjna,
+  piekarnik, lodówka, zmywarka, mikrofala itd.), a z nią sprzęty wystające poza
+  lico i kontrola otwierania przy nich. Do tego czasu sprzętów nie ruszamy
+  (decyzja użytkownika 2026-09-27).
