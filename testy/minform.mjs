@@ -1,4 +1,4 @@
-import pw from '/opt/node22/lib/node_modules/playwright/index.js';
+import pw from './pw.mjs';
 const b = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await (await b.newContext({ viewport: { width: 1400, height: 1000 } })).newPage();
 const err=[]; page.on('pageerror', e=>err.push(e.message));

@@ -1,4 +1,4 @@
-import pw from '/opt/node22/lib/node_modules/playwright/index.js';
+import pw from './pw.mjs';
 const { chromium } = pw;
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';

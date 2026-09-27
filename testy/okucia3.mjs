@@ -1,7 +1,7 @@
 /* Okucia, ktore kiedys byly wpisane na sztywno, maja sie liczyc z wymiaru:
    trojkaty pod blatem od szerokosci szafki, a w ramieniu naroznika zlaczki
    fixu i zawiasy lamane od wysokosci frontu. */
-import pw from '/opt/node22/lib/node_modules/playwright/index.js';
+import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
 const b = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });

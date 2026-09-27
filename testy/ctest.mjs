@@ -1,4 +1,4 @@
-import pw from '/opt/node22/lib/node_modules/playwright/index.js';
+import pw from './pw.mjs';
 const { chromium } = pw;
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const p = await b.newPage({ viewport: { width: 1280, height: 1000 } });

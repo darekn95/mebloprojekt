@@ -3,7 +3,7 @@
    GitHub Pages, w standalone, w tym buildzie testowym — nie ma go wcale.
    Prawdziwego magazynu tu nie ma, wiec w drugiej czesci podstawiamy atrape
    z tym samym ksztaltem wywolan i sprawdzamy, co strona do niej zapisuje. */
-import pw from '/opt/node22/lib/node_modules/playwright/index.js';
+import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
 const b = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });

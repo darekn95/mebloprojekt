@@ -1,7 +1,7 @@
 /* Dwoje waskich drzwi tam, gdzie zmiesci sie jedno skrzydlo: informacja
    z dwoma przyciskami (zawiasy z lewej / z prawej). Szafka 600 z dwojgiem
    drzwi po 298 i szafka narozna nie dostaja tej podpowiedzi. */
-import pw from '/opt/node22/lib/node_modules/playwright/index.js';
+import pw from './pw.mjs';
 const b = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await (await b.newContext({ viewport: { width: 1500, height: 1100 } })).newPage();
 const errors = []; page.on('pageerror', e => errors.push(e.message));

@@ -1,7 +1,7 @@
 /* Plecy z pełnej płyty w szafce narożnej — osobno od ściany korpusu i od ściany
    ramienia. Płyta usztywnia róg, więc stojące wzmocnienie przy tej ścianie ma
    zniknąć z formatek i z rysunku. */
-import pw from '/opt/node22/lib/node_modules/playwright/index.js';
+import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
 const b = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
