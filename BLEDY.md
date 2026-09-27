@@ -48,5 +48,9 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   nieosiągalna, odkąd drzwi przy rogu same dopasowują się do lica — do uproszczenia
   albo usunięcia (niepilne, nic nie psuje).
 
+- „Zapisz do pliku” w artefakcie na claude.ai: przeglądarka w ramce nie pobiera
+  plików, więc aplikacja pokazuje tekst projektu do skopiowania (działa, ale to
+  obejście). Prawdziwe pobieranie dałaby zdolność artefaktu `downloads`
+  (`window.claude.downloads.save`) — tylko w artefakcie, jak „Wyślij do Claude”.
 - Zapamiętywanie powiększenia rysunku osobno dla każdego widoku (pomysł użytkownika).
 - Sprzęty wystające poza lico (zmywarka, piekarnik) i kontrola otwierania przy nich.
