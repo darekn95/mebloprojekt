@@ -42,6 +42,26 @@ await page.getByRole('button', { name: 'Dopasuj', exact: true }).click(); await 
 ok('„Dopasuj" wraca do 100%', (await stan()).zoom === '100%');
 await page.getByRole('button', { name: '+', exact: true }).click(); await pick('Otw.');
 ok('zmiana widoku wraca do 100%', (await stan()).zoom === '100%');
+// Ctrl + kolko nad rysunkiem: przybliza rysunek, punkt pod kursorem zostaje
+await pick('Zamk.');
+const rama = await page.locator('#rysunek .zoom-fit, #rysunek .zoom-on').first().boundingBox();
+const cx = rama.x + rama.width * 0.7, cy = rama.y + rama.height * 0.5;
+const podKursorem = () => page.evaluate(([x, y]) => {
+  const svg = document.querySelector('#rysunek svg'); const m = svg.getScreenCTM().inverse();
+  const q = new DOMPoint(x, y).matrixTransform(m); return [Math.round(q.x), Math.round(q.y)];
+}, [cx, cy]);
+const przedK = await podKursorem();
+await page.mouse.move(cx, cy);
+await page.keyboard.down('Control');
+for (let k = 0; k < 4; k++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(120); }
+await page.keyboard.up('Control');
+await page.waitForTimeout(400);
+const poK = await podKursorem();
+const zK = await stan();
+ok('Ctrl + kółko przybliża rysunek', parseInt(zK.zoom, 10) > 100, zK.zoom);
+ok('punkt pod kursorem zostaje na miejscu', Math.abs(poK[0] - przedK[0]) < 40 && Math.abs(poK[1] - przedK[1]) < 40,
+  JSON.stringify({ przedK, poK }));
+await page.getByRole('button', { name: 'Dopasuj', exact: true }).click(); await page.waitForTimeout(300);
 // pelny ekran
 await page.getByRole('button', { name: 'Pełny ekran' }).click(); await page.waitForTimeout(500);
 const pe = await page.evaluate(() => { const ov = document.getElementById('rysunek').parentElement;

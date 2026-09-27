@@ -351,9 +351,11 @@ kolumna strony rosla pod rysunek i nie bylo czego przewijac. Pelny ekran to
 nakladka `fixed inset-0` z `margin: 0` (odstepy miedzy kartami dokladaly
 margines i spod nakladki wystawaly inne karty).
 [AI-TODO] Pomysl uzytkownika na pozniej: zapamietywac powiekszenie osobno dla
-kazdego widoku (localStorage), takze po odswiezeniu. Ctrl + kolko nad rysunkiem
-(przyblizanie w miejscu kursora zamiast powiekszania calej strony) — czeka na
-decyzje uzytkownika.
+kazdego widoku (localStorage), takze po odswiezeniu.
+[AI-INFO] Ctrl + kolko nad rysunkiem przybliza rysunek w miejscu kursora (1–4×,
+plynnie), zamiast powiekszac cala strone — wlasny nasluch `wheel` z
+`passive: false`, bo React podpina kolko pasywnie i `preventDefault` by nie
+zadzialal. Szczypanie na touchpadzie przychodzi jako Ctrl + kolko.
 
 [AI-INFO] Rzut z gory w zakresie „ciag": ramie szafki w L, ktorego sciany nie
 rysujemy, stoi w prawdziwym polozeniu — obrocone wzdluz drugiej sciany, z jej

@@ -8270,7 +8270,38 @@ function ZoomBox({ children, obraca = false, pelny = false, onPelny, resetKey })
   const ramka = useRef(null);
   const dopasowana = useRef(0);
   const przes = useRef(null);
+  const zoomRef = useRef(1);
+  zoomRef.current = zoom;
+  const poScroll = useRef(null);
   useEffect(() => { setZoom(1); }, [resetKey]);
+  /* Ctrl + kolko nad rysunkiem przybliza rysunek w miejscu kursora zamiast
+     calej strony (tak jak mapy); szczypanie na touchpadzie przychodzi jako to
+     samo. React podpina kolko jako pasywne, wiec bez wlasnego nasluchu nie da
+     sie zablokowac powiekszania strony. */
+  useEffect(() => {
+    const el = ramka.current;
+    if (!el) return undefined;
+    const naKolko = (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      const z0 = zoomRef.current;
+      const z1 = Math.max(1, Math.min(ZOOM_KROKI[ZOOM_KROKI.length - 1], z0 * Math.exp(-e.deltaY * 0.0015)));
+      if (Math.abs(z1 - z0) < 1e-3) return;
+      const r = el.getBoundingClientRect();
+      const mx = e.clientX - r.left, my = e.clientY - r.top;
+      // punkt pod kursorem zostaje na miejscu
+      poScroll.current = { x: (el.scrollLeft + mx) * (z1 / z0) - mx, y: (el.scrollTop + my) * (z1 / z0) - my };
+      setZoom(z1);
+    };
+    el.addEventListener("wheel", naKolko, { passive: false });
+    return () => el.removeEventListener("wheel", naKolko);
+  }, []);
+  useEffect(() => {
+    if (!poScroll.current || !ramka.current) return;
+    ramka.current.scrollLeft = poScroll.current.x;
+    ramka.current.scrollTop = poScroll.current.y;
+    poScroll.current = null;
+  }, [zoom]);
   /* Szerokosc rysunku przy 100%: SVG ma szerokosc karty, ale wysokosc
      ograniczona, wiec sama tresc bywa wezsza — liczymy ja z proporcji viewBox,
      inaczej pierwszy krok powiekszenia skakalby kilka razy. */
@@ -8295,7 +8326,8 @@ function ZoomBox({ children, obraca = false, pelny = false, onPelny, resetKey })
 .pelny-rys .zoom-fit svg{max-height:calc(100vh - 230px)!important}`}</style>
       <div className="mb-1 flex items-center justify-end gap-1">
         <span className="mr-1 text-[11px] text-stone-400">
-          {wiekszy ? (obraca ? "Shift + przeciągnij, żeby przesunąć" : "przeciągnij, żeby przesunąć") : ""}
+          {wiekszy ? (obraca ? "Shift + przeciągnij, żeby przesunąć" : "przeciągnij, żeby przesunąć")
+            : "Ctrl + kółko nad rysunkiem: przybliż"}
         </span>
         <MiniBtn onClick={() => krok(-1)} title="Pomniejsz">−</MiniBtn>
         <span className="w-10 text-center font-mono text-[11px] text-stone-500" data-el="zoom">{Math.round(zoom * 100)}%</span>
