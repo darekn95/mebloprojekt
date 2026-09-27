@@ -14,28 +14,32 @@ await page.evaluate(()=>{localStorage.clear();
   runs:[{id:'c1',name:'A',wallW:null,gap:0,mountY:0,H:720,D:600,plinth:PL,corner:null},
         {id:'c2',name:'B',wallW:null,gap:0,mountY:0,H:720,D:600,plinth:PL,
          corner:{of:'c1',at:'end',owner:'of',clear:0,top:null,cut:'prosty'}}],
-  items:[C('A1',600,'c1'),C('rogowa',900,'c1',{corner:{on:true,arm:500,doors:'wsporniki'}}),C('B1',700,'c2')]}));});
+  /* Drzwi szafki naroznej dopasowuja sie do lica same — podpowiedz pojawia sie
+     dopiero wtedy, gdy szerokosc wpisano recznie i nie pasuje (np. po zmianie
+     glebokosci sasiada). Stad reczne 500 mm. */
+  items:[C('A1',600,'c1'),C('rogowa',900,'c1',{corner:{on:true,arm:500,doors:'wsporniki'},
+    levels:[{h:null,cols:[{kind:'doors',doors:1,w:null,doorWidths:[500],shelfTargets:[null,null]}]}]}),
+    C('B1',700,'c2')]}));});
 await page.reload({waitUntil:'networkidle'}); await page.waitForTimeout(2400);
 let uw = await card(/Uwagi/).innerText();
 console.log('   '+uw.replace(/\n+/g,' / ').slice(0,300));
-/* Dostepne swiatlo to szerokosc korpusu minus glebokosc sasiedniego ciagu,
-   minus grubosc frontu ramienia (jego lico stoi przed korpusem ramienia),
-   minus katownik z luzem — nachodzaca plyta wchodzi w kwadrat styku obu lic,
-   wiec poza naroze wystaje o grubosc frontu mniej: 900 - 600 - 18 - 42 - 3
-   = 237. Bierzemy je
-   z podpowiedzi, zeby test nie trzymal wlasnej kopii tego rachunku. */
-const swiatlo = Number((/Zrób jedne drzwi na (\d+) mm/.exec(uw)||[])[1]);
-ok('podpowiedź o jednych drzwiach', swiatlo>0, uw.slice(0,220));
-ok('światło liczone z lica ramienia i po kątowniku', swiatlo===237, String(swiatlo));
-await card(/Uwagi/).getByRole('button',{name:new RegExp('Ustaw jedne drzwi '+swiatlo+' mm')}).click();
-await page.waitForTimeout(1200);
-const kol = await page.evaluate(()=>JSON.parse(localStorage.getItem('szafki:projekt')).items[1].cab.levels[0].cols
-  .map(c=>({w:c.w,doors:c.doors,dw:c.doorWidths})));
-console.log('   kolumny: '+JSON.stringify(kol));
-ok('jedna kolumna, jedne drzwi na dostępne światło',
-  kol.length===1 && kol[0].doors===1 && kol[0].dw[0]===swiatlo, JSON.stringify(kol));
-uw = await card(/Uwagi/).count()? await card(/Uwagi/).innerText():'';
+/* Jedne drzwi przy rogu wypelniaja lico az do maskownicy katownika same —
+   recznie wpisana szerokosc (tu 500) jest pomijana, bo po zmianie glebokosci
+   sasiada zostawiala szpare. Dawna podpowiedz „Zrob jedne drzwi" nie ma wiec
+   czego naprawiac. Lico: 900 - 600 - 18 - 42 - 2 (luz) = 238, bierzemy je
+   z uwagi o waskim froncie, zeby test nie trzymal kopii rachunku. */
+const lico = Number((/front od strony ciągu „A” ma (\d+) mm/.exec(uw)||[])[1]);
+ok('lico przed narożnikiem 238 mm', lico===238, String(lico));
+await page.getByRole('button',{name:'Zamk.',exact:true}).first().click();
+await page.waitForTimeout(800);
+const fronty = await page.evaluate(()=>[...document.querySelectorAll('#rysunek svg text')]
+  .map(t=>t.textContent.trim()).filter(t=>/^\d+×\d+$/.test(t)).map(t=>Number(t.split('×')[0])));
+console.log('   fronty: '+JSON.stringify(fronty));
+/* Drzwi = lico minus luz od krawedzi korpusu (2) — nie wpisane 500. */
+ok('drzwi dopasowane do lica, nie wpisane 500', fronty.length===1 && fronty[0]<=lico && fronty[0]>=lico-6,
+  JSON.stringify({fronty, lico}));
+ok('brak podpowiedzi o jednych drzwiach (nie ma czego poprawiać)', !/Zrób jedne drzwi/.test(uw));
 ok('brak błędu o niewypełnionym paśmie', !/nie wypełniają pasma/.test(uw), uw.slice(0,200));
-ok('ostrzeżenie o froncie znika', !/nad ramieniem frontu nie ma/.test(uw), uw.slice(0,200));
+ok('brak ostrzeżenia o szparze przy maskownicy', !/szpary/.test(uw), uw.slice(0,200));
 console.log('BLEDY:', err.length?err.join('; '):'(brak)');
 await b.close();
