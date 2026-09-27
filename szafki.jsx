@@ -4927,11 +4927,14 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
                 strokeWidth="1.5" strokeDasharray="6 4" opacity="0.7" />
             ));
         })()}
-        {showDims && (
-          <text x={a.len / 2} y={a.depth / 2 + 8} textAnchor="middle" fontSize="22"
-            fill={ACC} fontFamily="ui-monospace, monospace">ramię {fmt(a.len)}</text>
-        )}
       </g>
+  );
+  // podpis ramienia — osobno, w przebiegu wymiarow, zeby blat go nie przykrywal
+  const podpisRamienia = (a, i, glPasa) => (
+    <text key={"pr" + i} x={a.u0 + a.len / 2} y={Math.max(0, glPasa - a.depth) + a.depth / 2 + 8}
+      textAnchor="middle" fontSize="22" fill={ACC} fontFamily="ui-monospace, monospace">
+      ramię {fmt(a.len)}
+    </text>
   );
   /* Blat pasa — lezy nad wszystkim, wiec rysujemy go na wierzchu, przezroczysto,
      zeby bylo widac, co pod nim stoi. Zaczyna sie przy scianie na wysokosci
@@ -5076,6 +5079,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
             )}
             {ramie(c.a, i, c.fo.depth)}
             {blatPasa(c.fo.run, c.fo.lead)}
+            {showDims && podpisRamienia(c.a, i, c.fo.depth)}
           </g>
         );
       })}
@@ -5099,6 +5103,8 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
         const deg = Math.round((Math.atan2(n.f.uy, n.f.ux) * 180) / Math.PI);
         return (
           <g key={"wym" + g.run.id} transform={`translate(${o.x}, ${o.y}) rotate(${deg})`}>
+            {showDims && armsIn(full, n, rysowane).filter((a) => !a.dostawione)
+              .map((a, i) => podpisRamienia(a, i, n.depth))}
             {/* Wymiary na samym wierzchu — ramie z sasiedniej sciany i blat
                 rysowane pozniej zaslanialy opisy, np. szerokosc szafki w rogu. */}
             {showDims && (
@@ -5564,28 +5570,34 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // kolejna dalej. Rezerwujemy tylko te kolumny, ktore naprawde rysujemy, wiec
   // gdy nie ma np. dlugosci bokow, reszta wymiarow siedzi znacznie blizej.
   const gapLabels = showGaps && !open; // opisy szczelin siedza tuz przy krawedzi
-  let lxCur = gapLabels ? -26 - 70 : -26;
+  /* Szafka narozna ma obok korpusu rozlozone ramie — wymiary z jego strony
+     zaczynamy dopiero za nim, inaczej nozki, cokol i przegrody ramienia
+     zaslanialy opisy (np. „nozki 100"). */
+  const armLenD = arm ? Math.max(0, arm.len) : 0;
+  const baseL = arm && arm.side === "left" ? -armLenD : 0;
+  const baseR = W + (arm && arm.side !== "left" ? armLenD : 0);
+  let lxCur = baseL + (gapLabels ? -26 - 70 : -26);
   const takeL = (w) => { const x = lxCur; lxCur -= w; return x; };
-  let rxCur = gapLabels ? W + 26 + 70 : W + 26;
+  let rxCur = baseR + (gapLabels ? 26 + 70 : 26);
   const takeR = (w) => { const x = rxCur; rxCur += w; return x; };
-  const dimRailLX = hasRailL ? takeL(180) : -26;
-  const dimRailRX = hasRailR ? takeR(150) : W + 26;
-  const dimSideLX = showSideLengthDims ? takeL(150) : -26;
-  const dimSideRX = showSideLengthDims ? takeR(150) : W + 26;
+  const dimRailLX = hasRailL ? takeL(180) : baseL - 26;
+  const dimRailRX = hasRailR ? takeR(150) : baseR + 26;
+  const dimSideLX = showSideLengthDims ? takeL(150) : baseL - 26;
+  const dimSideRX = showSideLengthDims ? takeR(150) : baseR + 26;
   // przegrody poziome: gdzie wiercic konfirmaty, liczone od spodu boku
   const hasSepDims = showDims && geo.sepShelves.length > 0;
-  const dimSepX = hasSepDims ? takeR(240) : W + 26;
+  const dimSepX = hasSepDims ? takeR(240) : baseR + 26;
   const dimDoorX = hasDoorDims ? takeL(90) : lxCur; // wysokosci drzwi po lewej
   const dimLevelX = hasLevelDims ? takeL(90) : lxCur; // swiatlo poziomow po lewej
   const dimDrawerX = hasDrawerDims ? takeR(90) : rxCur; // wysokosci frontow szuflad
   const dimHMainX = takeL(100);
   const dimHTotalX = hasBaseDim ? takeL(100) : dimHMainX;
-  const leftExtra = Math.max(0, -lxCur - 40);
+  const leftExtra = Math.max(0, baseL - lxCur - 40);
   // "nóżki 100" to szeroki opis — rezerwujemy mu miejsce po prawej
-  const rightExtraF = Math.max(0, rxCur - W - 26) + (hasBase ? 140 : 0);
+  const rightExtraF = Math.max(0, rxCur - baseR - 26) + (hasBase ? 140 : 0);
   // cokol pod lewym wymiarem boku, nozki pod prawym — tuz przy szafce
-  const dimCokolX = -26;
-  const dimNozkiX = W + 26;
+  const dimCokolX = baseL - 26;
+  const dimNozkiX = baseR + 26;
   const blOvL = geo.isBlat ? geo.blat.overL : 0;
   const blOvR = geo.isBlat ? geo.blat.overR : 0;
   /* Szafka narozna nie konczy sie na korpusie: ramie idzie wzdluz drugiej
@@ -6738,12 +6750,6 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
                   strokeWidth="1.5" strokeDasharray="6 4" opacity="0.7" />
               )));
             })()}
-            {showDims && (
-              <text x={ax(arm.depth / 2, 0)} y={ay(arm.len / 2)} textAnchor="middle"
-                fontSize="22" fill={ACC} fontFamily="ui-monospace, monospace">
-                ramię {fmt(arm.len)}
-              </text>
-            )}
           </g>
         );
       })()}
@@ -7148,6 +7154,12 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
               fill={blat.kolor} opacity="0.35" stroke={INK} strokeWidth="2" />
           ))}
         </g>
+      )}
+      {showDims && arm && (
+        <text x={arm.side === "left" ? arm.depth / 2 : W - arm.depth / 2} y={cd + arm.len / 2}
+          textAnchor="middle" fontSize="22" fill={ACC} fontFamily="ui-monospace, monospace">
+          ramię {fmt(arm.len)}
+        </text>
       )}
       {/* Wymiary wzdluz sciany ramienia: samo ramie (od lica korpusu) i cala
           szafka w L od tylu korpusu do konca ramienia — to jest dlugosc, ktora
