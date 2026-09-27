@@ -7527,6 +7527,32 @@ const Group = ({ label, children, hint }) => (
   </div>
 );
 
+/* Czesc karty z wlasnym naglowkiem — np. „Ta szafka w ciagu" i „Caly ciag",
+   zeby bylo jasne, co zmienia jedna szafke, a co wszystkie naraz. */
+const CardPart = ({ title, note, children, first = false }) => (
+  <div className={first ? "space-y-4" : "space-y-4 border-t border-stone-200 pt-4"}>
+    <div>
+      <h3 className="text-sm font-semibold text-stone-800">{title}</h3>
+      {note && <p className="text-xs text-stone-500">{note}</p>}
+    </div>
+    {children}
+  </div>
+);
+
+// podsekcja w czesci karty; bez tresci (np. cokol ciagu wiszacego) znika cala
+const CardSub = ({ title, hint, children }) => {
+  if (!React.Children.toArray(children).length) return null;
+  return (
+    <div className="space-y-3 rounded-md border border-stone-100 bg-stone-50/60 p-3">
+      <div>
+        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-teal-800">{title}</h4>
+        {hint && <p className="text-xs text-stone-400">{hint}</p>}
+      </div>
+      {children}
+    </div>
+  );
+};
+
 /* Kafelki styków, na których wolno przeciąć długą płaszczyznę. Wspólne dla
    cokołu i blatu, bo reguła jest ta sama. */
 const SplitPicker = ({ label, what, s, onToggle, onAuto }) =>
@@ -11187,7 +11213,10 @@ export default function App() {
         <div className="space-y-4">
           {(project.runs || []).length > 0 && (
             <Card title="Ciąg meblowy" collapsible>
-              <Field label="Ta szafka"
+              {/* Najpierw ta jedna szafka (kilka pol), pod nia caly ciag — zeby
+                  bylo jasne, co zmienia tylko ja, a co wszystkie szafki ciagu. */}
+              <CardPart title="Ta szafka w ciągu" first>
+              <Field label="Należy do ciągu"
                 hint={runInfo
                   ? `${runInfo.pos} z ${runInfo.count} w ciągu „${runInfo.run.name}". Kolejność zmieniasz strzałkami na pasku szafek.`
                   : "Wolnostojąca — nie wchodzi do żadnego ciągu."}>
@@ -11234,6 +11263,13 @@ export default function App() {
                       </Field>
                     );
                   })()}
+                </>
+              )}
+              </CardPart>
+              {runInfo && (
+                <CardPart title={`Cały ciąg „${runInfo.run.name}"`}
+                  note={`Zmiany tutaj dotyczą wszystkich szafek tego ciągu (${runInfo.count}).`}>
+                  <CardSub title="Ściana">
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Nazwa ciągu">
                       <input value={runInfo.run.name}
@@ -11296,6 +11332,23 @@ export default function App() {
                       </Field>
                     </div>
                   )}
+                  </CardSub>
+                  <CardSub title="Wymiary i montaż">
+                  <Field label="Wysokość i głębokość szafek"
+                    hint="Zmiana tutaj przestawia od razu wszystkie szafki ciągu. Szafkę, która się rozjedzie, zgłoszą Uwagi.">
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block">
+                        <span className="mb-1 block text-[11px] text-stone-400">Wysokość</span>
+                        <Num value={runInfo.run.H ?? cab.H}
+                          onChange={(v) => setRunShared(runInfo.run.id, { H: Math.max(1, Math.round(Number(v) || 0)) })} />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-[11px] text-stone-400">Głębokość</span>
+                        <Num value={runInfo.run.D ?? cab.D}
+                          onChange={(v) => setRunShared(runInfo.run.id, { D: Math.max(1, Math.round(Number(v) || 0)) })} />
+                      </label>
+                    </div>
+                  </Field>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Luz między korpusami"
                       hint="0 przy szafkach skręcanych ze sobą.">
@@ -11308,7 +11361,8 @@ export default function App() {
                         onChange={(v) => setRun(runInfo.run.id, { mountY: Math.max(0, Math.round(Number(v) || 0)) })} />
                     </Field>
                   </div>
-                  <Group label="Narożnik"
+                  </CardSub>
+                  <CardSub title="Narożnik"
                     hint="Ciąg dostawiony pod kątem prostym do innego. Kolejne narożniki układają się w L, U i G.">
                     <div className="space-y-2">
                       <select value={(runInfo.run.corner || {}).of || ""}
@@ -11357,22 +11411,8 @@ export default function App() {
                         </>
                       )}
                     </div>
-                  </Group>
-                  <Field label="Wspólne dla całego ciągu"
-                    hint="Zmiana tutaj przestawia od razu wszystkie szafki ciągu. Szafkę, która się rozjedzie, zgłoszą Uwagi.">
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="block">
-                        <span className="mb-1 block text-[11px] text-stone-400">Wysokość</span>
-                        <Num value={runInfo.run.H ?? cab.H}
-                          onChange={(v) => setRunShared(runInfo.run.id, { H: Math.max(1, Math.round(Number(v) || 0)) })} />
-                      </label>
-                      <label className="block">
-                        <span className="mb-1 block text-[11px] text-stone-400">Głębokość</span>
-                        <Num value={runInfo.run.D ?? cab.D}
-                          onChange={(v) => setRunShared(runInfo.run.id, { D: Math.max(1, Math.round(Number(v) || 0)) })} />
-                      </label>
-                    </div>
-                  </Field>
+                  </CardSub>
+                  <CardSub title="Cokół">
                   {/* Ciag wiszacy nie ma na czym postawic cokolu, a stojacy nie ma
                       po co wieszac — pokazywanie obu opcji zawsze tylko mylilo. */}
                   {!ciagWisi && (
@@ -11413,7 +11453,8 @@ export default function App() {
                       onToggle={(j) => toggleCut(runInfo.run.id, "plinthCuts", runPlinth, j)}
                       onAuto={() => setRun(runInfo.run.id, { plinthCuts: null })} />
                   )}
-
+                  </CardSub>
+                  <CardSub title="Blat">
                   {!ciagWisi && (
                     <Field label="Blat roboczy"
                       hint="Blat idzie nad całym ciągiem. Szafki pod nim nie mają wieńca — usztywnia je para wzmocnień.">
@@ -11457,7 +11498,8 @@ export default function App() {
                   <SplitPicker label="Podział blatu" what="blat" s={runTp}
                     onToggle={(j) => toggleCut(runInfo.run.id, "topCuts", runTop, j)}
                     onAuto={() => setRun(runInfo.run.id, { topCuts: null })} />
-
+                  </CardSub>
+                  <CardSub title="Wieszanie">
                   {ciagWisi && (
                     <Field label="Wieszanie ciągu"
                       hint={runRl
@@ -11468,6 +11510,7 @@ export default function App() {
                         options={[{ v: "listwa", l: "Na listwie" }, { v: "haczyki", l: "Na haczykach" }]} />
                     </Field>
                   )}
+                  </CardSub>
                   <p className="text-xs text-stone-500">
                     {runInfo.count} {plural(runInfo.count, "szafka", "szafki", "szafek")} zajmuje{" "}
                     <span className="font-mono text-stone-700">{fmt(runInfo.total)} mm</span>
@@ -11486,7 +11529,7 @@ export default function App() {
                     className="text-xs text-stone-500 hover:text-stone-800 hover:underline">
                     Rozwiąż ciąg — szafki zostają, wracają na wolnostojące
                   </button>
-                </>
+                </CardPart>
               )}
             </Card>
           )}

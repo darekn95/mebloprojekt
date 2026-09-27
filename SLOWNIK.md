@@ -44,9 +44,13 @@ narożnika przy froncie**, a nie wzmocnienie. To nie to samo co:
 
 ### Karta „Ciąg meblowy" (`project.runs[]`)
 
+Dwie części (`CardPart`): u góry **„Ta szafka w ciągu"** (pola jednej szafki),
+niżej **„Cały ciąg „…""** z podsekcjami (`CardSub`): Ściana · Wymiary i montaż ·
+Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
+
 | Etykieta | W kodzie |
 |---|---|
-| Ta szafka | `item.runId` |
+| Należy do ciągu | `item.runId` |
 | Wysunięcie tej szafki z lica | `item.offset` |
 | Odsunięcie tej szafki od ściany (dół / blat) | `item.wallGap = { bottom, top }`; `null` = jak ciąg; rozwiązuje `wallGapOf(run, item)` |
 | Odsunięcie od ściany (dół / blat) | `run.wallGap = { bottom, top }`; `top: null` = jak na dole; wchodzi do `runFrontDepth` (rzut, 3D, róg); widok z boku rysuje ścianę (`data-el="sciana"`), uwagi: `wallGapMsgs`; szafka w L odsuwa się od ściany sąsiada o jego odstęp (`pair.odSasiada`) |
@@ -58,7 +62,7 @@ narożnika przy froncie**, a nie wzmocnienie. To nie to samo co:
 | Luz między korpusami | `run.gap` |
 | Poziom montażu | `run.mountY` |
 | Narożnik / Luz w rogu | `run.corner = { of, at, owner, clear }` |
-| Wysokość / Głębokość (wspólne dla ciągu) | `run.H`, `run.D` |
+| Wysokość i głębokość szafek (Wymiary i montaż) | `run.H`, `run.D` |
 | Cokół ciągu / Cokół pod szafkami / Podział cokołu | `run.plinth`, `runPlinth`, `runPlinthPanels` |
 | Blat roboczy / Blat ciągu / Podział blatu | `run.worktop`, `runTop`, `worktopSpans`, `runTopPanels` |
 | Blat w narożniku (przechodzi / dojeżdża / łyżwa) | `run.corner.top`, `run.corner.cut`; `projectLayout` → `topSpan.przez0/przez1` (czyj blat idzie przez róg); `runTop` skraca dojeżdżający do głębokości przechodzącego (`rt.depth`, z docinką arkusza) |
