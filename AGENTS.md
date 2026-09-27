@@ -17,6 +17,14 @@
 - Gdy pytasz o decyzję, która sprowadza się do kilku opcji, dawaj pytanie
   z przyciskami do kliknięcia (narzędzie pytań z opcjami), a nie tekst do
   odpisania — użytkownik woli kliknąć niż wpisywać odpowiedź.
+- **Dwie wersje aplikacji, dwie role** (ustalone z użytkownikiem):
+  - **Artefakt na claude.ai** służy do pokazywania i testów na projekcie
+    użytkownika. **Musi** mieć przycisk „Wyślij do Claude”. **Nie potrzebuje**
+    pobierania plików — „Zapisz do pliku” może tam zostać przy obecnym
+    zastępstwie (tekst do skopiowania), nie dokładaj do tego zdolności `downloads`.
+  - **GitHub Pages / `standalone.html`** to wersja do pracy. Tu działa zapis do
+    pliku, a przycisku „Wyślij do Claude” **nie może być** (brak `window.claude`,
+    a tokenu GitHuba w stronie nie wolno umieszczać).
 - Projekt użytkownika do testów: w artefakcie na claude.ai jest przycisk
   „Wyślij do Claude” (tylko tam — nie na GitHub Pages ani w standalone).
   Odczyt: `ArtifactData`, dokument `projekt/biezacy`, pole `json`. Trzymaj go
