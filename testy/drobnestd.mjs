@@ -26,7 +26,8 @@ const vals = await luzy.evaluate((s) => {
   return out;
 });
 console.log('  pola luzów:', JSON.stringify(vals));
-ok('między drzwiami 3 mm', vals['Między drzwiami'] === '3', vals['Między drzwiami']);
+// domyslny luz miedzy drzwiami to 2 mm (jak w `drobne`) — parzysty dzieli sie bez resztek
+ok('między drzwiami 2 mm i parzyste', vals['Między drzwiami'] === '2', vals['Między drzwiami']);
 ok('u góry 3 mm', vals['U góry'] === '3', vals['U góry']);
 ok('u dołu 3 mm', vals['U dołu'] === '3', vals['U dołu']);
 ok('od krawędzi zostaje 2 mm', vals['Od krawędzi korpusu'] === '2', vals['Od krawędzi korpusu']);

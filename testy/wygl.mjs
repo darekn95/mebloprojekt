@@ -91,11 +91,24 @@ await page.getByText('Z góry', { exact: true }).first().click();
 await page.waitForTimeout(800);
 const tv = await topLegs();
 console.log('  widok z góry:', JSON.stringify(tv));
-ok('nóżek nie ma w widoku z góry', tv.circles === 0 && tv.legs === 0, JSON.stringify(tv));
+/* Z gory nozki widac tylko jako przerywany obrys pod dnem, pod „Pokaz okucia"
+   (ustalone z uzytkownikiem) — bez okuc rzut jest czysty. Okragle to
+   zaokraglony kwadrat, nie kolo. */
+const ileP = async () => page.evaluate(() => [...document.querySelector('svg').querySelectorAll('rect')]
+  .filter((r) => Math.round(+r.getAttribute('width')) === 40 && r.getAttribute('stroke-dasharray') === '6 4').length);
+ok('z góry nóżki tylko jako przerywany obrys (pod okuciami)', tv.circles === 0 && tv.legs === 4 && (await ileP()) === 4,
+  JSON.stringify(tv));
+await page.getByText('Ukryj okucia', { exact: true }).first().click();
+await page.waitForTimeout(600);
+ok('„Ukryj okucia" chowa nóżki w rzucie', (await ileP()) === 0, String(await ileP()));
+await page.getByText('Pokaż okucia', { exact: true }).first().click();
+await page.waitForTimeout(600);
 await nogi.getByText('Okrągła', { exact: true }).click();
 await page.waitForTimeout(900);
 const tv2 = await topLegs();
-ok('okrągłe też nie wchodzą do rzutu z góry', tv2.circles === 0 && tv2.legs === 0, JSON.stringify(tv2));
+const okragle = await page.evaluate(() => [...document.querySelector('svg').querySelectorAll('rect')]
+  .filter((r) => r.getAttribute('stroke-dasharray') === '6 4' && +r.getAttribute('rx') > 0).length);
+ok('okrągłe z góry: zaokrąglony obrys, nie koło', tv2.circles === 0 && okragle === 4, JSON.stringify({ ...tv2, okragle }));
 // kolor i ksztalt widac za to od czola
 await nogi.locator('button[title="Aluminium"]').click();
 await page.waitForTimeout(900);

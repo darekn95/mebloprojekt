@@ -57,6 +57,18 @@ artefaktu z `git show HEAD:szafki.jsx` i przelecenie ich osobno, wynik identyczn
   NaN); pada tak samo na czystym `main` (sprawdzone przy odsunięciu od ściany).
 - `nozki` — 2 BLAD: wysokość nóżki pod cokołem w obrysie i pod korpusem w elewacji;
   pada tak samo na czystym `main` (sprawdzone przy okuciach w rzucie z góry).
+- `nozkistd` — to samo co `nozki`, na standalone.
+- Wykryte w pełnym przebiegu 2026-09-27, padają identycznie na czystym `main`
+  (przyczyny wstępne, niezweryfikowane w kodzie):
+  - `luzy` — 6 BLAD + timeout: brak podpowiedzi „luz w górę / w dół” — przy domyślnym
+    luzie 2 mm drzwi dzielą się równo i podpowiedź się nie pojawia; test do przestawienia,
+  - `polkigr` — 2 BLAD: światło szuflad 249/242 zamiast 250/241 (1 mm, pewnie od luzów),
+  - `ciag7` — 3 BLAD: opis blatu w karcie i listwa zawieszek „1.8 mb” zamiast „1760 mm
+    jednym odcinkiem” — zmieniony format opisu,
+  - `grain` — 1 BLAD: przy wyłączonej strukturze na rysunku jest 1 `<pattern>` (może to
+    kreskowanie „przejścia do ramienia”, a nie słoje),
+  - `ciag5` — 1 BLAD: szew cokołu rysowany także na 0 mm, a nie tylko w miejscu cięcia —
+    możliwy prawdziwy drobny błąd rysunku.
 
 Pierwsze dwie to braki w samych suitach, nie w aplikacji. Do przejrzenia osobno.
 
