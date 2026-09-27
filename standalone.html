@@ -8050,6 +8050,15 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
           Object.assign(c, bezWienca(c, (m.front || {}).thickness))),
       };
     }
+    if (action.startsWith("armlen:")) {
+      // „armlen:<dlugosc>:<nr szafki>:<szerokosc drzwi>" — skraca ramie szafki w L
+      const [, len, idx, drzwi] = action.split(":");
+      return {
+        label: `Skróć ramię do ${fmt(Number(len))} mm — drzwi ${fmt(Number(drzwi))} mm`,
+        run: () => editItemCab && editItemCab(Number(idx), (c) => Object.assign(c, {
+          corner: { ...(c.corner || {}), arm: Number(len) } })),
+      };
+    }
     if (action.startsWith("cornerdoor:")) {
       const [, w, idx] = action.split(":");
       return {
@@ -9107,11 +9116,22 @@ const cornerPairMsgs = (n, blat) => {
         + (zasieg.odScianyB ? ` (${fmt(zasieg.odScianyB)} odstępu + ${fmt(a.cab.geo.W)} korpusu)` : "")
         + `. Front korpusu nie ma całej jego szerokości: róg zabiera głębokość ramienia `
         + `z frontem, więc na drzwi od tej strony zostaje ${fmt(Math.max(0, a.front))} mm.` });
-    if (a.doors !== "fix" && a.armFront > SZEROKI_FRONT)
+    /* Szerokosc skrzydla to formatka drzwi ramienia: ramie minus katownik w rogu
+       (plyta, front, na ktory nachodzi, i luz) i minus luz na wolnym koncu.
+       Skrocenie ramienia o X skraca skrzydlo dokladnie o X. */
+    const skrzydlo = armFrontPlan(a).w;
+    if (a.doors !== "fix" && skrzydlo > SZEROKI_FRONT) {
+      const zabiera = a.len - skrzydlo;
+      const naDrzwi = a.len - (skrzydlo - SZEROKI_FRONT);
+      const krotkie = 600;
       out.push({ level: "warn", text:
-        `${kto}: front ramienia ma ${fmt(a.armFront)} mm — skrzydło szersze niż ok. ${fmt(SZEROKI_FRONT)} mm `
-        + `ciąży na zawiasach, opada i zabiera dużo miejsca przy otwieraniu. Skróć ramię do ok. `
-        + `${fmt(a.len - (a.armFront - SZEROKI_FRONT))} mm albo zaplanuj tam dwoje drzwi.` });
+        `${kto}: drzwi ramienia mają ${fmt(skrzydlo)} mm (ramię ${fmt(a.len)} minus ${fmt(zabiera)} mm, `
+        + `które zabiera kątownik w rogu z luzami) — skrzydło szersze niż ok. ${fmt(SZEROKI_FRONT)} mm `
+        + `ciąży na zawiasach, opada i zabiera dużo miejsca przy otwieraniu. Skróć ramię albo zaplanuj tam dwoje drzwi.`
+        + `|armlen:${naDrzwi}:${a.cab.index}:${SZEROKI_FRONT}`
+        + (krotkie < naDrzwi && krotkie - zabiera >= WASKI_FRONT
+          ? `|armlen:${krotkie}:${a.cab.index}:${krotkie - zabiera}` : "") });
+    }
     if (a.front <= 0)
       out.push({ level: "error", text:
         `${kto} nie ma frontu od strony ciągu „${a.run.run.name}" — korpus jest węższy `
@@ -12124,8 +12144,8 @@ export default function App() {
                           {" "}plus ramię <span className="font-mono text-stone-700">{fmt(cornerNode.arm.len)} × {fmt(cornerNode.arm.depth)} mm</span>.
                           {" "}Fronty: od tej strony{" "}
                           <span className="font-mono text-stone-700">{fmt(cornerNode.arm.front)} mm</span>,
-                          {" "}ramienia{" "}
-                          <span className="font-mono text-stone-700">{fmt(cornerNode.arm.armFront)} mm</span>.
+                          {" "}drzwi ramienia{" "}
+                          <span className="font-mono text-stone-700">{fmt(armFrontPlan(cornerNode.arm).w)} mm</span>.
                           {(() => {
                             const z = cornerSpan(cornerNode);
                             return z && (

@@ -280,6 +280,7 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `noTop:<idx>` | zamienia wieniec na parę wzmocnień |
 | `rundepth:<mm>[@runId]` / `runcab:` / `runrun:` | wyrównuje głębokość / szafkę / cały ciąg |
 | `plinthauto` / `topauto` / `topcut:0\|1` / `worktop:` | cokół, wieniec, cięcie blatu (`topcut:1` → `run.topCut = true` docięty, `topcut:0` → `false` cały arkusz; `null` = sam dobiera) |
+| `armlen:<mm>:<idx>:<drzwi>` | skraca ramię szafki w L (`cab.corner.arm`) — przyciski przy drzwiach ramienia szerszych niż 600 mm |
 | `legs:<n>` | wpisuje liczbę nóżek (podpowiedź przy ręcznie za małej liczbie) |
 
 ---

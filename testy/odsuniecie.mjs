@@ -162,6 +162,26 @@ ok('ramię ma swoje 4 nóżki', !!ramieWKadrze && ramieWKadrze.nozki === 4, JSON
 await page.getByRole('button', { name: 'Szafka', exact: true }).first().click().catch(() => {});
 await page.waitForTimeout(500);
 
+console.log('\n== ramię 1200: drzwi ramienia za szerokie, przyciski skracają ==');
+/* Drzwi ramienia to ramie minus katownik w rogu z luzami. Powyzej 600 mm
+   ostrzezenie z dwoma przyciskami: ramie na drzwi 600 i ramie 600. */
+await uklad(570, { bottom: 0, top: null }, (p) => {
+  const r = p.items.find((i) => i.cab.corner && i.cab.corner.on); r.cab.corner.arm = 1200;
+  p.active = p.items.indexOf(r); });  // karta narożnika jest przy szafce narożnej
+u = await uwagi();
+const szerokie = u.find((x) => /drzwi ramienia mają/.test(x.t));
+ok('ostrzeżenie o szerokich drzwiach ramienia', !!szerokie, u.map((x) => x.t.slice(0, 40)).join(' // '));
+const naDrzwi600 = szerokie && szerokie.b.find((x) => /drzwi 600 mm/.test(x));
+ok('przycisk „drzwi 600" i „ramię 600"', !!naDrzwi600 && szerokie.b.some((x) => /Skróć ramię do 600 mm/.test(x)),
+  szerokie && szerokie.b.join(' | '));
+if (naDrzwi600) {
+  await page.getByRole('button', { name: naDrzwi600 }).first().click();
+  await page.waitForTimeout(1400);
+  const kartaR = await page.evaluate(() => document.body.innerText.split('\n').find((l) => /drzwi ramienia \d/.test(l)) || '');
+  ok('po skróceniu drzwi ramienia mają 600', /drzwi ramienia 600 mm/.test(kartaR), kartaR.slice(0, 160));
+  ok('ostrzeżenie znika', !(await uwagi()).some((x) => /drzwi ramienia mają/.test(x.t)));
+}
+
 console.log('\n== 575: za mało wysięgu ==');
 await uklad(575, { bottom: 0, top: null });
 u = await uwagi();
