@@ -77,6 +77,22 @@ ok('blat ściany ma 600', bl.length > 0 && bl[0].includes('600'), JSON.stringify
 ok('ciąg za rogiem zaczyna się 1200 mm od rogu',
   u.some((x) => /zaczyna się 1200 mm od rogu/.test(x.t)), (u.find((x) => /zaczyna się/.test(x.t)) || {}).t);
 
+console.log('\n== obie ściany 30 mm: ramię zostaje przy korpusie 540 ==');
+/* Ramie lezy przy scianie drugiego ciagu i stoi z jego odstepem — jego plyty
+   maja glebokosc korpusu, a nie korpusu z odstepem. Blat nad nim wychodzi
+   wtedy tak samo jak na pierwszej scianie. */
+await uklad(540, { bottom: 30, top: null }, (p) => { p.runs[1].wallGap = { bottom: 30, top: null }; });
+u = await uwagi();
+bl = await blaty();
+const lka = u.find((x) => /szafką narożną w L/.test(x.t));
+ok('ramię 630 × 540', !!lka && /ramię 630 × 540 mm/.test(lka.t), lka && lka.t.slice(0, 160));
+ok('oba blaty po 600, bez uwagi o różnych szerokościach',
+  bl.length === 2 && bl.every((r) => r.includes('600')) && !u.some((x) => /różne szerokości/.test(x.t)),
+  JSON.stringify(bl.map((r) => r.slice(3, 5))));
+/* Szafka w L odsuwa sie od drugiej sciany razem z ramieniem, wiec blat
+   pierwszej sciany wychodzi o te 30 mm dluzszy — dochodzi do sciany. */
+ok('blat pierwszej ściany dochodzi do ściany: 1530', bl.length > 0 && bl[0].includes('1530'), JSON.stringify(bl[0]));
+
 console.log('\n== krzywa ściana: 30 mm przy podłodze, 0 pod blatem ==');
 await uklad(540, { bottom: 30, top: 0 });
 u = await uwagi();

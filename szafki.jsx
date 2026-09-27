@@ -3517,10 +3517,12 @@ const armPlan = (a, lokalnie) => {
    od sciany odsuwa nas najglebsza z nich, a wysuniete jeszcze bardziej.
    Pusty ciag za rogiem glebokosci jeszcze nie ma z czego wziac, wiec bierze ja
    z wlasnego ustawienia — to od niej zalezy szerokosc frontu szafki naroznej. */
+/* Odsuniecie od sciany (przy podlodze) tez tu wchodzi: szafka odsunieta stoi
+   dalej od sciany razem z licem, a za plecami zostaje pusta przestrzen. */
 const runFrontDepth = (g) =>
   g.cabs.length
-    ? Math.max(...g.cabs.map((c) => c.geo.carcassDepth - c.offset))
-    : Math.max(0, Math.round(Number(g.run.D) || 0));
+    ? Math.max(...g.cabs.map((c) => (c.wallGap ? c.wallGap.bottom : 0) + c.geo.carcassDepth - c.offset))
+    : Math.max(0, Math.round(Number(g.run.D) || 0)) + wallGapOf(g.run, null).bottom;
 
 /* Ciag bez szafek zwykle nie ma czego pokazac, ale ten za rogiem owszem: w jego
    pasie lezy ramie szafki naroznej, a jego glebokosc wyznacza szerokosc frontu
@@ -3587,12 +3589,21 @@ const runLayout = (groups, ref = null) => {
        zaczyna sie za jej frontem, a nie za samym korpusem. */
     const glRog = rogowa
       ? Math.round(rogowa.wallGap.bottom + rogowa.geo.carcassDepth - rogowa.offset)
-      : wchodzi.depth + wallGapOf(wchodzi.run, null).bottom;
+      : wchodzi.depth; // glebokosc ciagu juz liczy sie od sciany, z odstepem
     n.pair = { wchodzi, ustepuje, przyStarcie, rogowa, armLen, glRog };
     const o = glRog + armLen + (n.corner.clear || 0);
     // odsuwamy z tej strony ciagu, ktora dotyka rogu
     if (n.corner.at === "end") { if (ustepuje === n) n.lead += o; else p.tail += o; }
     else if (ustepuje === n) n.tail += o; else p.lead += o;
+    /* Szafka w L stoi tylem ramienia i bokiem korpusu przy scianie sasiada.
+       Gdy tamten ciag jest odsuniety od sciany, ramie stoi z tym samym odstepem
+       — a razem z nim cala szafka, wiec jej ciag konczy sie o tyle wczesniej. */
+    const odSasiada = armLen ? wallGapOf(ustepuje.run, null).bottom : 0;
+    n.pair.odSasiada = odSasiada;
+    if (odSasiada) {
+      if (n.corner.at === "end") { if (wchodzi === p) p.tail += odSasiada; else n.lead += odSasiada; }
+      else if (wchodzi === p) p.lead += odSasiada; else n.tail += odSasiada;
+    }
   });
   /* Ciag, ktorego partner z rogu nie jest rysowany, nie policzyl sobie wyzej
      odsuniecia — bierze je z calosci, razem z ta sama luka na ramie. */
@@ -3627,9 +3638,12 @@ const runLayout = (groups, ref = null) => {
        Lico ramienia lezy o grubosc frontu przed jego korpusem (przy froncie
        nakladanym), wiec front korpusu ma do dyspozycji o tyle mniej — liczony
        po staremu do samej glebokosci sasiada nachodzil na tamten front. */
-    const licoRamienia = other.depth
+    /* Glebokosc sasiada liczy sie od sciany, razem z odstepem od niej — ramie
+       ma tyle, ile sam korpus, i stoi z tym samym odstepem co tamte szafki. */
+    const glRamienia = Math.max(0, other.depth - (n.pair.odSasiada || 0));
+    const licoRamienia = glRamienia
       + (c.cab.frontMode === "inset" ? 0 : c.geo.tf);
-    const arm = { cab: c, len: armLen, depth: other.depth, run: w, other,
+    const arm = { cab: c, len: armLen, depth: glRamienia, run: w, other,
       u0: a0, free: Math.max(0, Math.round(c.geo.W - licoRamienia)),
       outerAtEnd: !przyStarcie,
       // z ktorej strony korpusu wychodzi ramie — po tej stronie nie ma juz frontu
@@ -4725,8 +4739,10 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
             ))}
             {/* Ramie szafki naroznej lezy w tym ciagu, ale nalezy do szafki
                 z sasiedniego — dlatego rysuje sie tu, a liczy przy tamtej. */}
+            {/* Ramie stoi z odstepem tego ciagu od sciany — jego lico jest
+                w licu ciagu, a glebokosc to sam korpus. */}
             {armsIn(full, n, rysowane).map((a, i) => (
-              <g key={"arm" + i} transform={`translate(${a.u0}, 0)`}>
+              <g key={"arm" + i} transform={`translate(${a.u0}, ${Math.max(0, n.depth - a.depth)})`}>
                 <rect x={0} y={0} width={a.len} height={a.depth} fill="#fafaf9"
                   stroke="#e7e5e4" strokeWidth="1" />
                 <rect x={a.outerAtEnd ? a.len - a.cab.geo.t : 0} y={0}
@@ -4788,8 +4804,11 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
               const kol = rt.worktop
                 ? (rt.mat.worktop || {}).color || "#8d7b68"
                 : (rt.mat.board || {}).color || "#d8c3a0";
+              /* Blat zaczyna sie przy scianie na wysokosci blatu. Przy krzywej
+                 scianie lezy ona blizej pokoju niz sciana przy podlodze. */
+              const gs = wallGapOf(g.run, null);
               return worktopSpans(rt).map((s, i) => (
-                <rect key={"blat" + i} x={n.lead + s.x0} y={0}
+                <rect key={"blat" + i} x={n.lead + s.x0} y={Math.max(0, gs.bottom - gs.top)}
                   width={s.x1 - s.x0} height={rt.depth}
                   fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
               ));
@@ -5146,13 +5165,16 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       const kolB = rt.worktop
         ? (rt.mat.worktop || {}).color || "#8d7b68"
         : (rt.mat.board || {}).color || "#d8c3a0";
+      // przy krzywej scianie blat zaczyna sie blizej pokoju niz sciana przy podlodze
+      const gs = wallGapOf(g.run, null);
+      const przyScianie = n.depth - Math.max(0, gs.bottom - gs.top);
       worktopSpans(rt).forEach((s) => {
         /* Sciany sortuja sie po sredniej glebokosci, a blat to jedna wielka
            plyta: jej srodek wypada dalej niz wzmocnienia i katowniki tuz pod
            nia, wiec bez przyciagniecia do widza przebijaly sie przez wierzch.
            Polowa glebokosci wystarcza, zeby wygrac z tym, co lezy pod blatem,
            i jest wyraznie mniejsza od przeswitu do szafek gornych. */
-        box(s.x0, g.mount + rt.y, n.depth - rt.depth, s.x1, g.mount + rt.y + rt.th, n.depth,
+        box(s.x0, g.mount + rt.y, przyScianie - rt.depth, s.x1, g.mount + rt.y + rt.th, przyScianie,
           kolB, null, 1, true, Math.round(rt.depth / 2), "blat");
       });
     }

@@ -325,9 +325,14 @@ daje inny odstep przy podlodze (polozenie szafki, rog) i inny pod blatem
 (glebokosc blatu). Rog: `glRog` w `projectLayout` zawiera odstep szafki
 naroznej przy podlodze, a styk blatow — roznice dol/blat przechodzacego ciagu.
 Widok z boku rysuje sciane (`data-el="sciana"`) ukosem albo pionowo.
-[AI-TODO] Rzut z gory, elewacja zabudowy i bryla 3D nie pokazuja jeszcze
-odstepu od sciany; ramie szafki naroznej nie bierze odstepu ciagu, przy ktorego
-scianie lezy (glebokosc ramienia = `other.depth`).
+`runFrontDepth` (czyli `n.depth` w `runLayout`) liczy od sciany do lica
+RAZEM z odstepem przy podlodze — dlatego rzut z gory i bryla 3D przesuwaja
+szafki od sciany same. Ramie szafki w L ma glebokosc samego korpusu
+(`other.depth` minus odstep sasiada), a cala szafka w L odsuwa sie od
+sciany sasiada o jego odstep (`n.pair.odSasiada` dochodzi do `tail`/`lead`
+ciagu, ktory wjezdza w rog). Blat w rzucie i w bryle zaczyna sie przy scianie
+na wysokosci blatu, czyli o `bottom - top` blizej pokoju. Elewacja z przodu
+odstepu nie pokazuje — nie ma w niej glebokosci.
 
 [AI-INFO] Blat w rogu „na styk": przechodzacy przez rog ma glebokosc
 `rt.depth` (korpus + front + wysieg, a przy pelnym arkuszu 600), a nie

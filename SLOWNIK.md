@@ -49,7 +49,7 @@ narożnika przy froncie**, a nie wzmocnienie. To nie to samo co:
 | Ta szafka | `item.runId` |
 | Wysunięcie tej szafki z lica | `item.offset` |
 | Odsunięcie tej szafki od ściany (dół / blat) | `item.wallGap = { bottom, top }`; `null` = jak ciąg; rozwiązuje `wallGapOf(run, item)` |
-| Odsunięcie od ściany (dół / blat) | `run.wallGap = { bottom, top }`; `top: null` = jak na dole; widok z boku rysuje ścianę (`data-el="sciana"`), uwagi: `wallGapMsgs` |
+| Odsunięcie od ściany (dół / blat) | `run.wallGap = { bottom, top }`; `top: null` = jak na dole; wchodzi do `runFrontDepth` (rzut, 3D, róg); widok z boku rysuje ścianę (`data-el="sciana"`), uwagi: `wallGapMsgs`; szafka w L odsuwa się od ściany sąsiada o jego odstęp (`pair.odSasiada`) |
 | Nazwa ciągu | `run.name` |
 | Długość ściany | `run.wallW` (efektywna: `runWallW`) |
 | Położenie na ścianie | `run.offset` |
