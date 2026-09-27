@@ -55,6 +55,8 @@ artefaktu z `git show HEAD:szafki.jsx` i przelecenie ich osobno, wynik identyczn
 - `pins2` — 2 BLAD: kołki i etykiety w dwóch kolumnach,
 - `narjedne` — 2 BLAD: nie ma podpowiedzi „Ustaw jedne drzwi …” (szerokość wychodzi
   NaN); pada tak samo na czystym `main` (sprawdzone przy odsunięciu od ściany).
+- `nozki` — 2 BLAD: wysokość nóżki pod cokołem w obrysie i pod korpusem w elewacji;
+  pada tak samo na czystym `main` (sprawdzone przy okuciach w rzucie z góry).
 
 Pierwsze dwie to braki w samych suitach, nie w aplikacji. Do przejrzenia osobno.
 

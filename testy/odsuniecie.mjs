@@ -121,10 +121,18 @@ await page.waitForTimeout(900);
 ok('ściana jest', await page.locator('g[data-el="sciana"]').count() === 1);
 const napisy = await page.locator('g[data-el="sciana"] text').allTextContents();
 ok('podpisane odstępy 30 i 0', napisy.some((t) => /30/.test(t)) && napisy.some((t) => /↔ 0/.test(t)), napisy.join(' | '));
+await page.getByRole('button', { name: 'Ukryj ścianę' }).first().click();
+await page.waitForTimeout(600);
+ok('„Ukryj ścianę" chowa ją', await page.locator('g[data-el="sciana"]').count() === 0);
+await page.getByRole('button', { name: 'Pokaż ścianę' }).first().click();
+await page.waitForTimeout(600);
+ok('„Pokaż ścianę" przywraca', await page.locator('g[data-el="sciana"]').count() === 1);
 await uklad(570, { bottom: 0, top: null });
 await page.getByRole('button', { name: 'Z boku', exact: true }).first().click();
 await page.waitForTimeout(900);
-ok('bez odstępu ściany nie ma', await page.locator('g[data-el="sciana"]').count() === 0);
+// przy odstepie 0 sciana tez jest — szafka po prostu do niej dostaje — ale bez podpisow
+ok('bez odstępu ściana jest, bez podpisów odstępu', await page.locator('g[data-el="sciana"]').count() === 1
+  && (await page.locator('g[data-el="sciana"] text').allTextContents()).every((t) => !/↔/.test(t)));
 
 console.log('\n== 575: za mało wysięgu ==');
 await uklad(575, { bottom: 0, top: null });

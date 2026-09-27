@@ -3551,6 +3551,21 @@ const drawableRuns = (project) => {
   return runs.filter((r) => runItems(project, r.id).length || runInCorner(runs, r));
 };
 
+/* Zasieg sciany w ukladzie ciagu (u wzdluz sciany). W rogu mur idzie o swoja
+   grubosc dalej, do narozu, a lico konczy sie na licu drugiej sciany. Na wolnym
+   koncu nie wiemy, gdzie sciana sie konczy — rysujemy ja do konca ciagu albo
+   na wpisana dlugosc sciany, liczona od rogu albo od krawedzi, od ktorej
+   mierzy sie polozenie ciagu. */
+const scianaZasieg = (n, dl) => {
+  const rogS = (n.corner && n.corner.at === "end") || n.kids.some((k) => k.corner.at === "start");
+  const rogE = (n.corner && n.corner.at === "start") || n.kids.some((k) => k.corner.at === "end");
+  let u0 = 0, u1 = n.len;
+  if (dl != null && dl > n.len) {
+    if (rogS || (!rogE && n.run.offsetFrom !== "right")) u1 = dl; else u0 = n.len - dl;
+  }
+  return { u0, u1, rogS, rogE };
+};
+
 // odstep miedzy scianami w rozwinieciu elewacji — tyle, zeby rog byl widoczny
 const WALL_SEP = 260;
 
@@ -3752,9 +3767,14 @@ const runLayout = (groups, ref = null) => {
   });
   info.forEach((n) => { n.ex = exOf.get(n.wall); });
 
-  const pts = [...info.values()].flatMap((n) =>
-    [[0, 0], [n.len, 0], [0, n.depth + n.front], [n.len, n.depth + n.front]]
-      .map(([u, v]) => n.at(u, v)));
+  /* Rzut rysuje tez sciane na jej wpisana dlugosc — kadr musi ja objac, z ktorej
+     strony ciagu by nie wypadla. */
+  const pts = [...info.values()].flatMap((n) => {
+    const sc = scianaZasieg(n, n.run.wallW);
+    return [[0, 0], [n.len, 0], [0, n.depth + n.front], [n.len, n.depth + n.front],
+      [sc.u0, 0], [sc.u1, 0]]
+      .map(([u, v]) => n.at(u, v));
+  });
   return {
     info,
     corners: [...info.values()].some((n) => n.corner),
@@ -4076,6 +4096,53 @@ const ObsMaskTop = ({ o, t, W, color }) => {
   ));
 };
 
+/* Okucia widziane z gory — to, co pokazuje „Pokaz okucia" w rzucie szafki
+   i zabudowy: uchwyty wystajace przed front, zawiasy na boku przy froncie
+   i nozki pod dnem (przerywane, bo sa pod spodem). Prowadnice szuflad
+   rysuje kazdy widok sam. Uklad: y = 0 z tylu korpusu, `cd` to jego przod. */
+const TopHardware = ({ cab, geo, cd }) => {
+  const out = [];
+  const lico = cab.frontMode === "inset" ? cd : cd + geo.tf;
+  const uchwyt = handleOutOf(cab);
+  const seen = new Set();
+  geo.doors.filter((d) => d.w > 0 && d.h > 0).forEach((d) => {
+    // z gory poziomy nakladaja sie na siebie — kazdy uchwyt i zawias raz
+    if (d.handle && uchwyt) {
+      const [hx0, hx1] = d.type === "drawer"
+        ? [d.x + d.w / 2 - Math.min(120, d.w * 0.3), d.x + d.w / 2 + Math.min(120, d.w * 0.3)]
+        : d.hingeSide === "left" ? [d.x + d.w - 44, d.x + d.w - 32] : [d.x + 20, d.x + 32];
+      const k = `u${Math.round(hx0)}`;
+      if (!seen.has(k)) {
+        seen.add(k);
+        out.push(<rect key={k} x={hx0} y={lico} width={hx1 - hx0} height={uchwyt}
+          fill="#3f3f46" stroke={INK} strokeWidth="1" />);
+      }
+    }
+    if (d.type !== "drawer") {
+      const [li, cj] = String(d.colKey || "").split("-").map(Number);
+      const col = ((geo.levels[li] || {}).cols || [])[cj];
+      if (col) {
+        const hx = d.hingeSide === "left" ? col.x0 : col.x1 - 12;
+        const k = `z${Math.round(hx)}`;
+        if (!seen.has(k)) {
+          seen.add(k);
+          out.push(<rect key={k} x={hx} y={cd - HINGE_D} width={12} height={HINGE_D}
+            rx="3" fill="#71717a" fillOpacity="0.8" stroke={INK} strokeWidth="1.2" />);
+        }
+      }
+    }
+  });
+  if (cab.legs && cab.legs.on) {
+    const lp = legPlan(cab, geo.W);
+    const pkt = lp.xs.flatMap((x) => [[x, LEG_INSET], [x, cd - LEG_INSET - LEG_W]]);
+    if (lp.srodek) pkt.push([Math.round((geo.W - LEG_W) / 2), Math.round((cd - LEG_W) / 2)]);
+    pkt.forEach(([x, y], i) => out.push(
+      <rect key={"n" + i} x={x} y={y} width={LEG_W} height={LEG_W} rx={legRound(cab) ? LEG_W / 2 : 0}
+        fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="6 4" opacity="0.7" />));
+  }
+  return <g data-el="okucia-gora">{out}</g>;
+};
+
 function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
   const W = geo.W;
   const t = geo.t;
@@ -4199,6 +4266,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
         });
       })()}
 
+      {showHardware && <TopHardware cab={cab} geo={geo} cd={cd} />}
       {/* prowadnice szuflad */}
       {showHardware && cols
         .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
@@ -4726,7 +4794,7 @@ const ScianaDefs = () => (
   </defs>
 );
 
-function AssemblyTopView({ project, runs, showDims, showShelves, showHardware }) {
+function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, showWall = true }) {
   const full = projectLayout(project);
   const groups = assemblyParts(project, runs, full).slice().sort((a, b) => a.mount - b.mount);
   const wzor = wzorcowaSzafka(groups);
@@ -4764,17 +4832,20 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
             {/* Sciana ma grubosc i kreskowanie — sama kreska mylila sie
                 z krawedzia plyty. Pas wychodzi za oba konce ciagu, wiec
                 w rogu dwie sciany zachodza na siebie jak w murze. */}
-            {!upper && (
+            {!upper && showWall && (() => {
+              const { u0, u1, rogS, rogE } = scianaZasieg(n, runWallW(project, g.run));
+              const b0 = rogS ? -SCIANA_GR : u0, b1 = rogE ? n.len + SCIANA_GR : u1;
+              return (
               <g data-el="sciana">
-                <rect x={-SCIANA_GR} y={-SCIANA_GR} width={n.len + 2 * SCIANA_GR} height={SCIANA_GR}
+                <rect x={b0} y={-SCIANA_GR} width={b1 - b0} height={SCIANA_GR}
                   fill="url(#sciana-kreski)" />
-                <line x1={-SCIANA_GR} y1={0} x2={n.len + SCIANA_GR} y2={0} stroke={INK} strokeWidth="3" />
+                <line x1={u0} y1={0} x2={u1} y2={0} stroke={INK} strokeWidth="3" />
                 {(() => {
                   /* Na scianie moze wisiec tez ciag gorny — jego nazwa i wysokosc
                      ida w drugiej linii, bo w rzucie lezy na dolnym. */
                   const gorne = groups.filter((q) => q !== g && L.info.get(q.run.id).wall === n.wall);
                   const napis = (t, y, k) => (
-                    <text key={k} x={n.len / 2} y={y} textAnchor="middle" fontSize="24"
+                    <text key={k} x={(u0 + u1) / 2} y={y} textAnchor="middle" fontSize="24"
                       fill={INK} stroke="#fafaf9" strokeWidth="6" paintOrder="stroke"
                       fontFamily="ui-monospace, monospace">{t}</text>
                   );
@@ -4786,7 +4857,8 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware })
                   ];
                 })()}
               </g>
-            )}
+              );
+            })()}
             {g.cabs.map((c, i) => (
               <g key={i} transform={`translate(${n.lead + c.x}, ${n.depth - c.geo.carcassDepth + c.offset})`}>
                 <CabTop cab={c.cab} geo={c.geo} mat={c.mat} ghost={upper}
@@ -6576,6 +6648,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
         });
       })()}
 
+      {showHardware && <TopHardware cab={cab} geo={geo} cd={cd} />}
       {/* prowadnice szuflad z gory — pas 21 mm przy kazdym boku, na glebokosc NL */}
       {showHardware && (geo.levels[0]?.cols || [])
         .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
@@ -6865,12 +6938,13 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
   const bf = mat.board.color;
   const cd = geo.carcassDepth;
   const xC = D - cd; // tyl po lewej
-  /* Sciana za szafka stojaca z odstepem. Rysujemy ja tylko wtedy, gdy odstep
-     jest, zeby bylo widac, skad wziela sie pusta przestrzen za plecami: pionowa
-     przy rownym odstepie, pochyla, gdy przy podlodze jest inny niz pod blatem.
+  /* Sciana za szafka w ciagu — takze przy odstepie 0, zeby bylo widac, do czego
+     szafka dostaje. Przy odstepie pokazuje, skad wziela sie pusta przestrzen za
+     plecami: pionowa przy rownym odstepie, pochyla, gdy przy podlodze jest inny
+     niz pod blatem. Szafka wolnostojaca sciany nie ma — nie wiadomo, gdzie jest.
      Tyl korpusu to plecy nakladane z zewnatrz albo sam bok. */
   const xTyl = geo.backIsBoard && geo.backPos === "outside" && cab.back !== "none" ? xC - geo.tb : xC;
-  const sciana = wallGap && (wallGap.bottom > 0 || wallGap.top > 0) ? (() => {
+  const sciana = wallGap ? (() => {
     const yPodloga = H + below, yBlat = 0;
     const xD = xTyl - wallGap.bottom, xG = xTyl - wallGap.top;
     // przedluzamy linie sciany o 60 mm ponad blat, z tym samym pochyleniem
@@ -6909,7 +6983,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
             stroke={INK} strokeWidth="1.5" opacity="0.6" />
           <text x={sciana.xN - SCIANA_GR / 2} y={sciana.yN - 12} fontSize="20" fill={INK} opacity="0.8"
             textAnchor="middle" fontFamily="ui-monospace, monospace">ściana</text>
-          {[{ y: sciana.yPodloga - 14, x: sciana.xD, g: wallGap.bottom },
+          {(wallGap.bottom > 0 || wallGap.top > 0) && [{ y: sciana.yPodloga - 14, x: sciana.xD, g: wallGap.bottom },
             { y: 26, x: sciana.xG, g: wallGap.top }].map((o, i) => (
             <text key={i} x={o.x - 8} y={o.y} fontSize="20" fill={INK} textAnchor="end"
               fontFamily="ui-monospace, monospace">{`↔ ${fmt(o.g)}`}</text>
@@ -10269,6 +10343,8 @@ export default function App() {
   const [showShelves, setShowShelves] = useState(false);
   const [sideWhich, setSideWhich] = useState("left");
   const [showHardware, setShowHardware] = useState(true);
+  // sciana za szafkami w widoku z boku i w rzucie zabudowy
+  const [showWall, setShowWall] = useState(true);
   /* Przeczytane podpowiedzi chowaja sie z listy. To nie jest czesc projektu —
      dotyczy tego, co juz raz przeczytales, wiec siedzi obok, w przegladarce. */
   const [przeczytane, setPrzeczytane] = useState(() => {
@@ -12953,6 +13029,12 @@ export default function App() {
                     {showLabels ? "Ukryj oznaczenia" : "Oznacz pola"}
                   </button>
                 )}
+                {((view === "side" && runInfo) || (view === "top" && scopeRuns)) && (
+                  <button onClick={() => setShowWall((s) => !s)}
+                    className="text-xs text-teal-700 hover:underline">
+                    {showWall ? "Ukryj ścianę" : "Pokaż ścianę"}
+                  </button>
+                )}
                 {(view === "open" || view === "side" || view === "top") && (
                   <button onClick={() => setShowHardware((s) => !s)}
                     className="text-xs text-teal-700 hover:underline">
@@ -13042,7 +13124,7 @@ export default function App() {
                   </div>
                 ) : view === "top" ? (
                   <AssemblyTopView project={project} runs={scopeRuns} showDims={showDims}
-                    showShelves={showShelves} showHardware={showHardware} />
+                    showShelves={showShelves} showHardware={showHardware} showWall={showWall} />
                 ) : (
                   <AssemblyView project={project} runs={scopeRuns} rpOf={rpOf}
                     variant={view} showDims={showDims} showHardware={showHardware}
@@ -13094,7 +13176,7 @@ export default function App() {
               ) : view === "side" ? (
                 <SideView cab={cab} geo={geo} mat={mat} showDims={showDims} which={sideWhich}
                   showHardware={showHardware}
-                  wallGap={runInfo ? wallGapOf(runInfo.run, project.items[project.active]) : null} />
+                  wallGap={runInfo && showWall ? wallGapOf(runInfo.run, project.items[project.active]) : null} />
               ) : view === "top" ? (
                 <TopView cab={cab} geo={geo} mat={mat} showDims={showDims} showShelves={showShelves}
                   showHardware={showHardware} arm={cornerNode && cornerNode.arm} />
