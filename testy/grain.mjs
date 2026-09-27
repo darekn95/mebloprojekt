@@ -24,7 +24,8 @@ ok('checkbox struktury jest', await plyty.getByText('Rysuj strukturę słojów z
 const fills = async () => page.evaluate(() => {
   const svg = document.querySelector('svg');
   return {
-    patterns: svg.querySelectorAll('pattern').length,
+    // wzory slojow — bez kreskowania „przejscia do ramienia" i sciany, ktore nie sa struktura
+    patterns: [...svg.querySelectorAll('pattern')].filter((q) => !['mp-przejscie', 'sciana-kreski'].includes(q.id)).length,
     urlFills: [...svg.querySelectorAll('rect')].filter(r => /^url\(/.test(r.getAttribute('fill') || '')).length,
     hexFills: [...svg.querySelectorAll('rect')].filter(r => /^#/.test(r.getAttribute('fill') || '')).length,
   };

@@ -65,10 +65,9 @@ artefaktu z `git show HEAD:szafki.jsx` i przelecenie ich osobno, wynik identyczn
   - `polkigr` — 2 BLAD: światło szuflad 249/242 zamiast 250/241 (1 mm, pewnie od luzów),
   - `ciag7` — 3 BLAD: opis blatu w karcie i listwa zawieszek „1.8 mb” zamiast „1760 mm
     jednym odcinkiem” — zmieniony format opisu,
-  - `grain` — 1 BLAD: przy wyłączonej strukturze na rysunku jest 1 `<pattern>` (może to
-    kreskowanie „przejścia do ramienia”, a nie słoje),
-  - `ciag5` — 1 BLAD: szew cokołu rysowany także na 0 mm, a nie tylko w miejscu cięcia —
-    możliwy prawdziwy drobny błąd rysunku.
+  - (naprawione w testach) `grain` i `ciag5` łapały kreskowanie „przejścia do ramienia”
+    (`<pattern id="mp-przejscie">` z kreską grubości 3) jako wzór słojów i jako szew
+    cokołu — aplikacja była w porządku; testy pomijają teraz wzory kreskowania.
 
 Pierwsze dwie to braki w samych suitach, nie w aplikacji. Do przejrzenia osobno.
 
