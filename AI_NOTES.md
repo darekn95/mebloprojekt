@@ -336,6 +336,14 @@ ciagu, ktory wjezdza w rog). Blat w rzucie i w bryle zaczyna sie przy scianie
 na wysokosci blatu, czyli o `bottom - top` blizej pokoju. Elewacja z przodu
 odstepu nie pokazuje — nie ma w niej glebokosci.
 
+[AI-INFO] Rzut z gory w zakresie „ciag": ramie szafki w L, ktorego sciany nie
+rysujemy, stoi w prawdziwym polozeniu — obrocone wzdluz drugiej sciany, z jej
+kawalkiem. `AssemblyTopView` liczy macierz: uklad pasa ramienia (z `full`) →
+rzut calosci → uklad rysowanego ciagu (`cudzeRamiona`), a kadr je obejmuje.
+Wczesniej ramie bylo „dostawione" rozlozone za koncem ciagu (`armsIn`,
+`dostawione`), kadr je ucinal, a plecy i wzmocnienie siegajace w rog nachodzily
+na szafke narozna. Elewacja nadal uzywa dostawionych ramion z `armsIn`.
+
 [AI-INFO] Blat w rogu „na styk": przechodzacy przez rog ma glebokosc
 `rt.depth` (korpus + front + wysieg, a przy pelnym arkuszu 600), a nie
 glebokosc szafek ciagu. `projectLayout` zapisuje w `topSpan.przez0/przez1`,

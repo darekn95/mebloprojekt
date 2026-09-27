@@ -134,6 +134,28 @@ await page.waitForTimeout(900);
 ok('bez odstępu ściana jest, bez podpisów odstępu', await page.locator('g[data-el="sciana"]').count() === 1
   && (await page.locator('g[data-el="sciana"] text').allTextContents()).every((t) => !/↔/.test(t)));
 
+console.log('\n== zakres „Ciąg", z góry: ramię obrócone wzdłuż drugiej ściany ==');
+/* Druga sciana nie jest tu rysowana — ramie stoi mimo to na swoim miejscu,
+   obrocone, z kawalkiem tamtej sciany, i miesci sie w kadrze. */
+await page.getByRole('button', { name: 'Ciąg', exact: true }).first().click();
+await page.waitForTimeout(700);
+await page.getByRole('button', { name: 'Z góry', exact: true }).first().click();
+await page.waitForTimeout(900);
+const ramieWKadrze = await page.evaluate(() => {
+  const g = [...document.querySelectorAll('g[transform^="matrix"]')][0];
+  if (!g) return null;
+  const svg = g.closest('svg').getBoundingClientRect(), r = g.getBoundingClientRect();
+  return { wys: Math.round(r.height), szer: Math.round(r.width),
+    wKadrze: r.left >= svg.left - 1 && r.right <= svg.right + 1 && r.top >= svg.top - 1 && r.bottom <= svg.bottom + 1,
+    sciany: g.querySelectorAll('g[data-el="sciana"]').length };
+});
+ok('ramię narysowane w prawdziwym położeniu', !!ramieWKadrze, JSON.stringify(ramieWKadrze));
+ok('obrócone: wyższe niż szersze', !!ramieWKadrze && ramieWKadrze.wys > ramieWKadrze.szer, JSON.stringify(ramieWKadrze));
+ok('mieści się w kadrze, z kawałkiem drugiej ściany', !!ramieWKadrze && ramieWKadrze.wKadrze && ramieWKadrze.sciany === 1,
+  JSON.stringify(ramieWKadrze));
+await page.getByRole('button', { name: 'Szafka', exact: true }).first().click().catch(() => {});
+await page.waitForTimeout(500);
+
 console.log('\n== 575: za mało wysięgu ==');
 await uklad(575, { bottom: 0, top: null });
 u = await uwagi();
