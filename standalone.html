@@ -3358,7 +3358,8 @@ const armsIn = (full, n, rysowane) => {
   // ramiona szafek tego ciagu, ktorych pas nie jest rysowany — dostawiamy za koniec
   const cudze = [...full.info.values()]
     .filter((k) => k.arm && k.arm.run.id === n.id && !rysowane.has(k.arm.other.id))
-    .map((k) => ({ ...k.arm, u0: n.len + WALL_SEP / 2, dostawione: true }));
+    // `u0Pasa` — gdzie ramie stoi naprawde w swoim pasie; blat tamtego pasa liczy sie od niego
+    .map((k) => ({ ...k.arm, u0: n.len + WALL_SEP / 2, u0Pasa: k.arm.u0, dostawione: true }));
   return [...swoje, ...cudze];
 };
 
@@ -4595,6 +4596,40 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                       rx={legRound(a.cab.cab) ? 20 : 0} fill={legColorOf(a.cab.cab)}
                       stroke={INK} strokeWidth="2" opacity={a.cab.geo.legTop > 0 ? 0.5 : 1} />
                   ))}
+                  {/* Wzmocnienia ramienia pod blatem — po otwarciu widac je tak samo
+                      jak wzmocnienia szafek obok. Od frontu uklad jak w rzucie,
+                      od tylu w lustrze. */}
+                  {open && !rear && armPlan(a).rails.map((r, k) => {
+                    const h = r.stojace ? r.wys : a.cab.geo.t;
+                    // tylne wzmocnienie siega w rog, za koniec ramienia — tniemy do ramienia
+                    const u0 = Math.max(0, r.u0), u1 = Math.min(a.len, r.u1);
+                    if (u1 <= u0) return null;
+                    return (
+                      <rect key={"awz" + k} x={ax + u0} y={fy(a.cab.base + a.cab.cab.H)}
+                        width={u1 - u0} height={h}
+                        fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
+                    );
+                  })}
+                  {/* Ramie dostawione obok ciagu (jego sciany nie rysujemy) nie
+                      dostaje blatu od swojego pasa — kladziemy go tu, w tym samym
+                      miejscu co naprawde, przesuniety razem z ramieniem. */}
+                  {a.dostawione && (() => {
+                    const fo = full.info.get(a.other.id);
+                    const rt = fo ? runTop(project, a.other.run) : null;
+                    if (!rt) return null;
+                    const kol = rt.worktop
+                      ? (rt.mat.worktop || {}).color || "#8d7b68"
+                      : (rt.mat.board || {}).color || "#d8c3a0";
+                    const przes = a.u0 - a.u0Pasa;
+                    return worktopSpans(rt).map((sp, k) => {
+                      const x0 = L.info.get(g.run.id).ex + fo.lead + sp.x0 + przes;
+                      const w = sp.x1 - sp.x0;
+                      return (
+                        <rect key={"ablat" + k} x={mx(x0, w)} y={fy(tierMountY(project, a.other.run) + rt.y + rt.th)}
+                          width={w} height={rt.th} fill={kol} stroke={INK} strokeWidth="2" />
+                      );
+                    });
+                  })()}
                   {/* Polki ramienia widac dopiero po otwarciu — ida na tych samych
                       wysokosciach co polki kolumny przy ramieniu, bo to na nich
                       sie koncza. */}
@@ -4856,12 +4891,58 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
             fill={r.front ? a.cab.frontColor : a.cab.mat.board.color}
             stroke={INK} strokeWidth="2" />
         ))}
+        {/* Uchwyt i zawiasy frontu ramienia — jak przy drzwiach szafek. Zawiasy
+            siedza przy wolnym koncu (na wewnetrznym licu boku), uchwyt po
+            stronie rogu, przed licem frontu. */}
+        {showHardware && a.doors !== "fix" && (() => {
+          const fp = armFrontPlan(a);
+          const fx0 = a.outerAtEnd ? fp.odRogu : a.len - fp.odRogu - fp.w;
+          const lico = armInset(a) ? a.depth : a.depth + a.cab.geo.tf;
+          const uch = handleOutOf(a.cab.cab);
+          const hx = a.outerAtEnd ? fx0 + 20 : fx0 + fp.w - 32;
+          const zx = a.outerAtEnd ? a.len - a.cab.geo.t - 12 : a.cab.geo.t;
+          return (
+            <g>
+              {uch > 0 && <rect x={hx} y={lico} width={12} height={uch}
+                fill="#3f3f46" stroke={INK} strokeWidth="1" />}
+              <rect x={zx} y={a.depth - HINGE_D} width={12} height={HINGE_D} rx="3"
+                fill="#71717a" fillOpacity="0.8" stroke={INK} strokeWidth="1.2" />
+            </g>
+          );
+        })()}
+        {/* Nozki ramienia pod dnem — te same miejsca co w zamowieniu i w bryle.
+            `u` liczy sie od rogu, a rog lezy naprzeciw wolnego konca ramienia. */}
+        {showHardware && a.cab.cab.legs && a.cab.cab.legs.on && (() => {
+          const lp = armLegPlan(a);
+          return lp.us.flatMap((u) => lp.vs.map((v) => [a.outerAtEnd ? u : a.len - u - lp.w, v]))
+            .map(([x, y], k) => (
+              <rect key={"anog" + k} x={x} y={y} width={lp.w} height={lp.w}
+                rx={legRound(a.cab.cab) ? lp.w / 2 : 0} fill="none" stroke={INK}
+                strokeWidth="1.5" strokeDasharray="6 4" opacity="0.7" />
+            ));
+        })()}
         {showDims && (
           <text x={a.len / 2} y={a.depth / 2 + 8} textAnchor="middle" fontSize="22"
             fill={ACC} fontFamily="ui-monospace, monospace">ramię {fmt(a.len)}</text>
         )}
       </g>
   );
+  /* Blat pasa — lezy nad wszystkim, wiec rysujemy go na wierzchu, przezroczysto,
+     zeby bylo widac, co pod nim stoi. Zaczyna sie przy scianie na wysokosci
+     blatu; przy krzywej scianie lezy ona blizej pokoju niz sciana przy podlodze. */
+  const blatPasa = (run, lead) => {
+    const rt = runTop(project, run);
+    if (!rt) return null;
+    const kol = rt.worktop
+      ? (rt.mat.worktop || {}).color || "#8d7b68"
+      : (rt.mat.board || {}).color || "#d8c3a0";
+    const gs = wallGapOf(run, null);
+    return worktopSpans(rt).map((sp, i) => (
+      <rect key={"blat" + i} x={lead + sp.x0} y={Math.max(0, gs.bottom - gs.top)}
+        width={sp.x1 - sp.x0} height={rt.depth}
+        fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
+    ));
+  };
   /* Ramie, ktorego sciany nie rysujemy (zakres „ciag"), stawiamy tam, gdzie stoi
      naprawde — obrocone wzdluz drugiej sciany, razem z jej kawalkiem. Przenosi
      je macierz: uklad tamtego pasa → rzut calosci → uklad rysowanego ciagu. */
@@ -4969,6 +5050,51 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
             {/* Ramie stoi z odstepem tego ciagu od sciany — jego lico jest
                 w licu ciagu, a glebokosc to sam korpus. */}
             {armsIn(full, n, rysowane).filter((a) => !a.dostawione).map((a, i) => ramie(a, i, n.depth))}
+          </g>
+        );
+      })}
+      {cudzeRamiona.map((c, i) => {
+        const u0 = c.rogNaPoczatku ? -SCIANA_GR : c.a.u0;
+        const u1 = c.rogNaPoczatku ? c.a.u0 + c.a.len : c.fo.len + SCIANA_GR;
+        const l0 = c.rogNaPoczatku ? 0 : c.a.u0, l1 = c.rogNaPoczatku ? c.a.u0 + c.a.len : c.fo.len;
+        return (
+          <g key={"cudze" + i} transform={c.m}>
+            {showWall && (
+              <g data-el="sciana">
+                <rect x={u0} y={-SCIANA_GR} width={u1 - u0} height={SCIANA_GR} fill="url(#sciana-kreski)" />
+                <line x1={l0} y1={0} x2={l1} y2={0} stroke={INK} strokeWidth="3" />
+                <text x={(l0 + l1) / 2} y={-SCIANA_GR / 2 + 8} textAnchor="middle" fontSize="24"
+                  fill={INK} stroke="#fafaf9" strokeWidth="6" paintOrder="stroke"
+                  fontFamily="ui-monospace, monospace">{c.fo.run.name}</text>
+              </g>
+            )}
+            {ramie(c.a, i, c.fo.depth)}
+            {blatPasa(c.fo.run, c.fo.lead)}
+          </g>
+        );
+      })}
+      {/* Blaty dopiero po szafkach WSZYSTKICH scian: ramie z sasiedniej
+          sciany rysowane pozniej zakrywalo kawalek blatu nad rogiem. */}
+      {groups.map((g) => {
+        const n = L.info.get(g.run.id);
+        const o = n.at(0, 0);
+        const deg = Math.round((Math.atan2(n.f.uy, n.f.ux) * 180) / Math.PI);
+        return (
+          <g key={"blaty" + g.run.id} transform={`translate(${o.x}, ${o.y}) rotate(${deg})`}>
+            {blatPasa(g.run, n.lead)}
+          </g>
+        );
+      })}
+      {groups.map((g) => {
+        const n = L.info.get(g.run.id);
+        const upper = lowest.get(n.wall) !== g.run.id;
+        const dv = n.depth + n.front;
+        const o = n.at(0, 0);
+        const deg = Math.round((Math.atan2(n.f.uy, n.f.ux) * 180) / Math.PI);
+        return (
+          <g key={"wym" + g.run.id} transform={`translate(${o.x}, ${o.y}) rotate(${deg})`}>
+            {/* Wymiary na samym wierzchu — ramie z sasiedniej sciany i blat
+                rysowane pozniej zaslanialy opisy, np. szerokosc szafki w rogu. */}
             {showDims && (
               <g>
                 {/* miejsce zjedzone przez narożnik — tam nie stanie zadna szafka */}
@@ -5011,53 +5137,6 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
                 ))}
               </g>
             )}
-          </g>
-        );
-      })}
-      {cudzeRamiona.map((c, i) => {
-        const u0 = c.rogNaPoczatku ? -SCIANA_GR : c.a.u0;
-        const u1 = c.rogNaPoczatku ? c.a.u0 + c.a.len : c.fo.len + SCIANA_GR;
-        const l0 = c.rogNaPoczatku ? 0 : c.a.u0, l1 = c.rogNaPoczatku ? c.a.u0 + c.a.len : c.fo.len;
-        return (
-          <g key={"cudze" + i} transform={c.m}>
-            {showWall && (
-              <g data-el="sciana">
-                <rect x={u0} y={-SCIANA_GR} width={u1 - u0} height={SCIANA_GR} fill="url(#sciana-kreski)" />
-                <line x1={l0} y1={0} x2={l1} y2={0} stroke={INK} strokeWidth="3" />
-                <text x={(l0 + l1) / 2} y={-SCIANA_GR / 2 + 8} textAnchor="middle" fontSize="24"
-                  fill={INK} stroke="#fafaf9" strokeWidth="6" paintOrder="stroke"
-                  fontFamily="ui-monospace, monospace">{c.fo.run.name}</text>
-              </g>
-            )}
-            {ramie(c.a, i, c.fo.depth)}
-          </g>
-        );
-      })}
-      {/* Blaty dopiero po szafkach WSZYSTKICH scian: ramie z sasiedniej
-          sciany rysowane pozniej zakrywalo kawalek blatu nad rogiem. */}
-      {groups.map((g) => {
-        const n = L.info.get(g.run.id);
-        const o = n.at(0, 0);
-        const deg = Math.round((Math.atan2(n.f.uy, n.f.ux) * 180) / Math.PI);
-        return (
-          <g key={"blaty" + g.run.id} transform={`translate(${o.x}, ${o.y}) rotate(${deg})`}>
-            {/* Blat ciagu lezy nad wszystkim, wiec i rysujemy go na wierzchu —
-                przezroczysto, zeby bylo widac, co pod nim stoi. */}
-            {(() => {
-              const rt = runTop(project, g.run);
-              if (!rt) return null;
-              const kol = rt.worktop
-                ? (rt.mat.worktop || {}).color || "#8d7b68"
-                : (rt.mat.board || {}).color || "#d8c3a0";
-              /* Blat zaczyna sie przy scianie na wysokosci blatu. Przy krzywej
-                 scianie lezy ona blizej pokoju niz sciana przy podlodze. */
-              const gs = wallGapOf(g.run, null);
-              return worktopSpans(rt).map((s, i) => (
-                <rect key={"blat" + i} x={n.lead + s.x0} y={Math.max(0, gs.bottom - gs.top)}
-                  width={s.x1 - s.x0} height={rt.depth}
-                  fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
-              ));
-            })()}
           </g>
         );
       })}

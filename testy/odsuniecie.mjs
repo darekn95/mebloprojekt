@@ -147,12 +147,18 @@ const ramieWKadrze = await page.evaluate(() => {
   const svg = g.closest('svg').getBoundingClientRect(), r = g.getBoundingClientRect();
   return { wys: Math.round(r.height), szer: Math.round(r.width),
     wKadrze: r.left >= svg.left - 1 && r.right <= svg.right + 1 && r.top >= svg.top - 1 && r.bottom <= svg.bottom + 1,
-    sciany: g.querySelectorAll('g[data-el="sciana"]').length };
+    sciany: g.querySelectorAll('g[data-el="sciana"]').length,
+    // blat pasa ramienia (przezroczysty) i nozki ramienia (przerywane)
+    blaty: [...g.querySelectorAll('rect')].filter((q) => q.getAttribute('opacity') === '0.35').length,
+    nozki: [...g.querySelectorAll('rect')].filter((q) => q.getAttribute('stroke-dasharray') === '6 4').length };
 });
 ok('ramię narysowane w prawdziwym położeniu', !!ramieWKadrze, JSON.stringify(ramieWKadrze));
 ok('obrócone: wyższe niż szersze', !!ramieWKadrze && ramieWKadrze.wys > ramieWKadrze.szer, JSON.stringify(ramieWKadrze));
 ok('mieści się w kadrze, z kawałkiem drugiej ściany', !!ramieWKadrze && ramieWKadrze.wKadrze && ramieWKadrze.sciany === 1,
   JSON.stringify(ramieWKadrze));
+ok('nad ramieniem jest blat jego ściany', !!ramieWKadrze && ramieWKadrze.blaty >= 1, JSON.stringify(ramieWKadrze));
+// ramie 630 mm: para przy rogu i para pod wolnym koncem (srodkowa dopiero od 900)
+ok('ramię ma swoje 4 nóżki', !!ramieWKadrze && ramieWKadrze.nozki === 4, JSON.stringify(ramieWKadrze));
 await page.getByRole('button', { name: 'Szafka', exact: true }).first().click().catch(() => {});
 await page.waitForTimeout(500);
 

@@ -342,7 +342,11 @@ kawalkiem. `AssemblyTopView` liczy macierz: uklad pasa ramienia (z `full`) →
 rzut calosci → uklad rysowanego ciagu (`cudzeRamiona`), a kadr je obejmuje.
 Wczesniej ramie bylo „dostawione" rozlozone za koncem ciagu (`armsIn`,
 `dostawione`), kadr je ucinal, a plecy i wzmocnienie siegajace w rog nachodzily
-na szafke narozna. Elewacja nadal uzywa dostawionych ramion z `armsIn`.
+na szafke narozna. Elewacja nadal uzywa dostawionych ramion z `armsIn`. Dostawione ramie
+w elewacji dostaje blat swojego pasa (przesuniety o `u0 - u0Pasa`), a po
+otwarciu — wzmocnienia z `armPlan`. W rzucie: blaty (`blatPasa`) i wymiary
+rysuja sie w osobnych przebiegach po wszystkich szafkach i ramionach, zeby nic
+ich nie zaslanialo; ramie ma w rzucie nozki, uchwyt i zawiasy pod „Pokaz okucia".
 
 [AI-INFO] Blat w rogu „na styk": przechodzacy przez rog ma glebokosc
 `rt.depth` (korpus + front + wysieg, a przy pelnym arkuszu 600), a nie
