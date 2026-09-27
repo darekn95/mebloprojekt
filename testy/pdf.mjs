@@ -97,7 +97,8 @@ fs.writeFileSync(S + 'report.html',
   '.rp-tbl td.num,.rp-tbl th.num{text-align:right;font-family:ui-monospace,monospace}' +
   '</style>' + html);
 const p2 = await browser.newPage();
-await p2.goto('file://' + S + 'report.html', { waitUntil: 'networkidle' });
+// adres file:// musi byc bezwzgledny — „file://./report.html" przegladarka odrzuca
+await p2.goto('file://' + process.cwd() + '/' + S.replace(/^\.\//, '') + 'report.html', { waitUntil: 'networkidle' });
 await p2.pdf({ path: S + 'zestawienie.pdf', format: 'A4', printBackground: true });
 await p2.screenshot({ path: S + 'shot-report1.png', fullPage: false, clip: { x: 0, y: 0, width: 800, height: 1000 } });
 const st = fs.statSync(S + 'zestawienie.pdf');
