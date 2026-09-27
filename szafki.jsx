@@ -5184,6 +5184,16 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
 
 /* Widok 3D calej zabudowy. Nie powtarza detalu pojedynczej szafki — na tym
    poziomie liczy sie bryla: korpusy, cokoly i fronty, ktore da sie otworzyc. */
+/* Tylko dla testow (`testy/formatki.mjs`): gdy strona ma `window.__audytBryl`,
+   kazda bryla 3D dopisuje tam swoje wymiary — test porownuje je z lista
+   formatek, zeby nic narysowanego nie wypadlo z zamowienia. Bez tej tablicy
+   nie robi nic. */
+const audytBryly = (x0, y0, z0, x1, y1, z1, color, tag) => {
+  const A = typeof window !== "undefined" ? window.__audytBryl : null;
+  if (!A) return;
+  A.push({ d: [Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)], color, tag: tag || null });
+};
+
 function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
   const full = projectLayout(project);
   const groups = assemblyParts(project, runs, full);
@@ -5205,6 +5215,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
   /* `tag` mowi, czym jest bryla — idzie do atrybutu wielokata, zeby test mogl
      sprawdzic, co faktycznie widac na wierzchu, a nie tylko co narysowano. */
   const box = (x0, y0, z0, x1, y1, z1, color, transform, alpha, bold, bias, tag) => {
+    audytBryly(x0, y0, z0, x1, y1, z1, color, tag);
     let v = VERTS(x0, y0, z0, x1, y1, z1);
     if (transform) v = v.map(transform);
     if (place) v = v.map(place);
@@ -5389,11 +5400,13 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
          wieniec tylko wtedy, gdy jest, a w jego miejsce para wzmocnien. */
       const tA = c.geo.t;
       const bA = c.mat.board.color;
-      if (c.geo.hasBot) box(x0, y0, 0, x0 + a.len, y0 + tA, a.depth, bA);
+      // dno i wieniec miedzy korpusem a bokiem ramienia — tak jak w formatkach
+      const pz0 = przyKoncuBok ? x0 : x0 + tA, pz1 = przyKoncuBok ? x0 + a.len - tA : x0 + a.len;
+      if (c.geo.hasBot) box(pz0, y0, 0, pz1, y0 + tA, a.depth, bA);
       const bokU = przyKoncuBok ? x0 + a.len - tA : x0;
       box(bokU, y0, 0, bokU + tA, y1, a.depth, bA);
       if (c.geo.hasTop) {
-        box(x0, y1 - tA, 0, x0 + a.len, y1, a.depth, bA);
+        box(pz0, y1 - tA, 0, pz1, y1, a.depth, bA);
       } else {
         /* Z przodu plyta na plask, z tylu stojaca — te same, ktore liczy rzut
            z gory, wiec bryla nie rozjedzie sie z rysunkiem. W ukladzie ramienia
@@ -5406,7 +5419,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       /* Polki ramienia — te same plyty co w kolumnie przy nim, wiec i te same
          wysokosci. Bez nich ramie po otwarciu bylo pustym pudlem. */
       armShelfYs(a.side, c.geo.levels).forEach((sy) => {
-        box(x0, y0 + sy, 0, x0 + a.len, y0 + sy + c.geo.ts, a.depth - (c.geo.tb || tA),
+        box(pz0, y0 + sy, 0, pz1, y0 + sy + c.geo.ts, a.depth - (c.geo.tb || tA),
           shelfColorOf(c.cab, c.mat), null, 1, false, -Math.round(a.depth / 2));
       });
       const apBack = armPlan(a).back;
@@ -5421,6 +5434,10 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
          zawias ma na koncu dalszym od naroza i otwiera sie razem z reszta. */
       const przyKoncu = a.outerAtEnd;                 // rog przy poczatku ramienia
       const kat = a.bracket;
+      /* Front ramienia i maskownice staja w linii drzwi szafki — ta sama
+         wysokosc i te same luzy co jej skrzydla (tak jak w formatkach). */
+      const drzwiA = (c.geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
+      const fy0 = drzwiA ? y0 + drzwiA.y : y0, fy1 = drzwiA ? y0 + drzwiA.y + drzwiA.h : y1;
       // front zachodzi na bok ramienia z luzem — tak samo jak w elewacji
       const fpA = armFrontPlan(a);
       const fw = fpA.w;
@@ -5438,14 +5455,14 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         box(hcx - 6, hcy - hh, -tfA - uchwytA, hcx + 6, hcy + hh, -tfA, "#3f3f46", rot, 1, false, 400, "uchwyt");
       };
       if (!otwiera) {
-        box(x0 + fu0, y0, -tfA, x0 + fu0 + fw, y1, 0, c.frontColor, null, 1, true);
+        box(x0 + fu0, fy0, -tfA, x0 + fu0 + fw, fy1, 0, c.frontColor, null, 1, true);
         uchwytBox(null);
       } else {
         const ang = (angle * Math.PI) / 180;
         const left = !przyKoncu;                      // zawias po stronie dalszej od rogu
         const ox = x0 + (left ? fu0 : fu0 + fw);
         const rot = (p) => rotAboutY(p, (left ? -1 : 1) * ang, ox, -tfA);
-        box(x0 + fu0, y0, -tfA, x0 + fu0 + fw, y1, 0, c.frontColor, rot, 0.85, true);
+        box(x0 + fu0, fy0, -tfA, x0 + fu0 + fw, fy1, 0, c.frontColor, rot, 0.85, true);
         uchwytBox(rot);
       }
       /* Cztery plyty katownika liczy `bracketPlan` — ta sama funkcja co w rzucie
@@ -5456,7 +5473,9 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         bracketPlan(a).forEach((r) => {
           // plyta wydluzona wzdluz ramienia stoi w jego licu, wzdluz `v` — w licu korpusu
           const tag = !r.front ? "katownik" : r.w > r.h ? "maska-ramie" : "maska-korpus";
-          box(x0 + r.u, y0, a.depth - (r.v + r.h), x0 + r.u + r.w, y1, a.depth - r.v,
+          // katownik stoi miedzy dnem a gora, maskownice w linii drzwi
+          const ky0 = r.front ? fy0 : y0 + tA, ky1 = r.front ? fy1 : y1 - tA;
+          box(x0 + r.u, ky0, a.depth - (r.v + r.h), x0 + r.u + r.w, ky1, a.depth - r.v,
             r.front ? c.frontColor : shcA, null, 1, r.front, 0, tag);
         });
       }
@@ -7718,6 +7737,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
   /* --- lista bryl --- */
   const solids = [];
   const box = (x0, y0, z0, x1, y1, z1, color, transform, alpha, bold) => {
+    audytBryly(x0, y0, z0, x1, y1, z1, color);
     let v = VERTS(x0, y0, z0, x1, y1, z1);
     if (transform) v = v.map(transform);
     solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold });
@@ -8067,6 +8087,23 @@ const groupPanels = (panels) => {
     .sort((x, y) => (MAT_ORDER[x.p.matKey] ?? 2) - (MAT_ORDER[y.p.matKey] ?? 2) || x.i - y.i)
     .map(({ p }) => p);
 };
+
+/* Lista formatek jednej szafki — ta sama w aplikacji i na wydruku. Cokol i blat
+   wspolne dla ciagu ida jego pozycja (w formatkach calego projektu), wiec tu ich
+   nie ma. Ramie szafki naroznej nalezy do niej: jego plyty sa tu razem
+   z korpusem — wczesniej trafialy tylko do listy calego projektu. */
+const formatkiSzafki = (geo, { bezCokolu = false, bezBlatu = false, arm = null } = {}) => {
+  const gone = [...(bezCokolu ? ["Cokół"] : []), ...(bezBlatu ? ["Blat"] : [])];
+  const wlasne = gone.length ? geo.panels.filter((p) => !gone.includes(p.name)) : geo.panels;
+  return groupPanels(arm ? [...wlasne, ...cornerArmParts(arm).panels] : wlasne);
+};
+
+/* Czy projekt ma cos poza lista jednej szafki: druga szafke, wspolny cokol albo
+   blat ciagu, ramie szafki naroznej. Wtedy potrzebne sa „Formatki calego
+   projektu” i rozkroj calosci — przy jednej szafce w ciagu blat i cokol ciagu
+   nie trafialy inaczej nigdzie. */
+const calyProjekt = (project) =>
+  project.items.length > 1 || projectParts(project).length > project.items.length;
 
 const edgeText = (p) => {
   const out = [];
@@ -8812,8 +8849,13 @@ const cornerArmParts = (a) => {
   /* Ramie idzie za szafka, do ktorej nalezy: pod blatem nie ma wienca, wiec i
      ramie go nie ma — zamiast niego dostaje te sama pare wzmocnien. */
   const armTop = geo.hasTop;
+  /* Ramie jest zbudowane jak korpus (tak tez je rysujemy): bok na wolnym koncu
+     na cala wysokosc i glebokosc, a dno — i wieniec, gdy jest — miedzy
+     korpusem a tym bokiem, na pelna glebokosc. Wczesniej formatki mialy
+     glebokosc o grubosc plyty mniejsza i bok miedzy dnem a gora, a rysunek
+     pokazywal co innego (ustalone z uzytkownikiem 2026-09-27). */
   panels.push({ name: armTop ? "Wieniec i dno ramienia" : "Dno ramienia", qty: armTop ? 2 : 1,
-    a: len, b: a.depth - t, matKey: "board",
+    a: Math.max(0, len - t), b: a.depth, matKey: "board",
     edges: { a1: true, a2: false, b1: true, b2: false }, note: "czoło i koniec przy wsporniku" });
   /* Wzmocnienia ramienia nie sa juz jedna pozycja na dwie sztuki: czolowe
      konczy sie na katowniku przy drzwiach, a tylne idzie dalej — az do
@@ -8827,13 +8869,14 @@ const cornerArmParts = (a) => {
       ? "stojące przy plecach, od kątownika w narożniku po bok ramienia"
       : (r.stojace ? "stojące" : "na płask") + " pod blatem, od kątownika przy drzwiach po bok ramienia",
   }));
-  panels.push({ name: "Bok ramienia", qty: 1, a: a.depth - t, b: inner, matKey: "board",
+  panels.push({ name: "Bok ramienia", qty: 1, a: H, b: a.depth, matKey: "board",
     edges: { a1: true, a2: false, b1: false, b2: false }, note: "czoło" });
   /* Plecy ramienia siegaja poza samo ramie: wzdluz drugiej sciany biegna dalej,
      az do katownika w tylnym narozniku — inaczej zostawal tam goly kawalek. */
   if (plan.back)
+    // HDF jak w korpusie: na cala wysokosc z luzem 1 mm z kazdej strony
     panels.push({ name: plan.back.plyta ? "Plecy ramienia z płyty" : "Plecy ramienia", qty: 1,
-      a: Math.round(plan.back.u1 - plan.back.u0), b: inner,
+      a: Math.round(plan.back.u1 - plan.back.u0), b: plan.back.plyta ? inner : H - 2,
       matKey: plan.back.plyta ? "board" : "back",
       edges: { a1: false, a2: false, b1: false, b2: false },
       note: [plan.tyl > 0 ? "sięgają do kątownika w tylnym narożniku" : "",
@@ -8877,7 +8920,7 @@ const cornerArmParts = (a) => {
      Poziomy sumujemy, bo kazdy z nich ma wlasny podzial na wysokosc. */
   const polek = armShelfYs(a.side, geo.levels).length;
   if (polek > 0)
-    panels.push({ name: "Półka ramienia", qty: polek, a: len - t, b: a.depth - t, matKey: "board",
+    panels.push({ name: "Półka ramienia", qty: polek, a: len - t, b: a.depth - (geo.tb || t), matKey: "board",
       edges: { a1: true, a2: false, b1: false, b2: false }, note: "krawędź przednia" });
   // cokol idzie dalej pod ramieniem — to osobny kawalek wzdluz drugiej sciany
   if (a.cab.plinthH > 0)
@@ -10049,13 +10092,13 @@ const PRINT_CSS = `
 /* `ctx` i `arm` przychodza z ukladu calego projektu: bez nich kartka szafki
    naroznej liczyla front przez cala szerokosc korpusu i nie pokazywala ramienia,
    czyli wydruk mowil co innego niz aplikacja i niz lista formatek. */
-function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, ctx, arm }) {
+function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, sharedTop, ctx, arm }) {
   const ambig = useMemo(() => ambiguousThickness([mat]), [mat]);
   const geo = useMemo(() => computeGeo(cab, mat, ctx), [cab, mat, ctx]);
-  // cokol ciagu jest wspolny — na kartce szafki go nie ma, idzie osobna pozycja
+  // cokol i blat ciagu sa wspolne — na kartce szafki ich nie ma, ida osobna pozycja
   const panels = useMemo(
-    () => groupPanels(sharedPlinth ? geo.panels.filter((p) => p.name !== "Cokół") : geo.panels),
-    [geo.panels, sharedPlinth]
+    () => formatkiSzafki(geo, { bezCokolu: sharedPlinth, bezBlatu: sharedTop, arm }),
+    [geo, sharedPlinth, sharedTop, arm]
   );
   const realCab = useMemo(() => ({ ...cab, realColors: true }), [cab]);
   const totalQty = panels.reduce((s, p) => s + p.qty, 0);
@@ -10216,6 +10259,11 @@ function PrintReport({ project }) {
     (project.runs || []).forEach((r) => { if (runPlinth(project, r)) s.add(r.id); });
     return s;
   }, [project]);
+  const runsWithTop = useMemo(() => {
+    const s = new Set();
+    (project.runs || []).forEach((r) => { if (runTop(project, r)) s.add(r.id); });
+    return s;
+  }, [project]);
   /* Szafka narozna liczy sie z kontekstem rogu — tak samo na wydruku jak
      w aplikacji i w liscie formatek. Ramie idzie na kartke razem z nia. */
   const layout = useMemo(() => projectLayout(project), [project]);
@@ -10231,9 +10279,10 @@ function PrintReport({ project }) {
         <ReportSheet key={i} cab={it.cab} mat={it.mat} projectName={name}
           index={i} total={project.items.length}
           ctx={armCtxOf(layout, i)} arm={armOf.get(i)}
-          sharedPlinth={!!runsWithPlinth.has(it.runId || null)} />
+          sharedPlinth={!!runsWithPlinth.has(it.runId || null)}
+          sharedTop={!!runsWithTop.has(it.runId || null)} />
       ))}
-      {project.items.length > 1 && <ReportProjectSheet project={project} projectName={name} />}
+      {calyProjekt(project) && <ReportProjectSheet project={project} projectName={name} />}
       <ReportCutPlan project={project} projectName={name} />
     </div>
   );
@@ -11466,10 +11515,14 @@ export default function App() {
   // w projekcie w kilku grubosciach
   const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
 
-  const cutList = useMemo(() => {
-    const gone = [...(runPl ? ["Cokół"] : []), ...(runTp ? ["Blat"] : [])];
-    return groupPanels(gone.length ? geo.panels.filter((p) => !gone.includes(p.name)) : geo.panels);
-  }, [geo.panels, runPl, runTp]);
+  const armAktywnej = useMemo(() => {
+    const n = projLayout.info && [...projLayout.info.values()].find((k) => k.arm && k.arm.cab.index === project.active);
+    return n ? n.arm : null;
+  }, [projLayout, project.active]);
+  const cutList = useMemo(
+    () => formatkiSzafki(geo, { bezCokolu: !!runPl, bezBlatu: !!runTp, arm: armAktywnej }),
+    [geo, runPl, runTp, armAktywnej]);
+  const zCaloscia = useMemo(() => calyProjekt(project), [project]);
 
   const edgeMeters = useMemo(() => {
     let mm = 0;
@@ -13930,7 +13983,7 @@ export default function App() {
                   className="text-xs text-teal-700 hover:underline">
                   + dodatkowa formatka
                 </button>
-                {project.items.length === 1 && (
+                {!zCaloscia && (
                   <button onClick={() => makeCutPlan("cab")}
                     title="Ułóż formatki na arkuszach i policz, ile płyt zamówić"
                     className="text-xs font-medium text-teal-700 hover:underline">
@@ -14040,13 +14093,23 @@ export default function App() {
                 </span>
               </div>
             </div>
+            {(runPl || runTp || armAktywnej) && (
+              <p className="text-xs text-stone-500" data-el="formatki-ciagu">
+                {armAktywnej ? "Płyty ramienia są w tej liście razem z korpusem. " : ""}
+                {runPl || runTp
+                  ? `${[runPl ? "Cokół" : "", runTp ? "blat" : ""].filter(Boolean).join(" i ")} tej szafki `
+                    + `${runPl && runTp ? "liczą" : "liczy"} się wspólnie dla ciągu „${runInfo.run.name}” — `
+                    + "są w „Formatkach całego projektu”."
+                  : ""}
+              </p>
+            )}
             <p className="text-xs text-stone-500">
               Wymiary są wymiarami gotowej formatki — automat szlifuje krawędź o 2 mm i nakleja
               obrzeże, więc zamawiasz dokładnie te liczby.
             </p>
           </Card>
 
-          {project.items.length > 1 && (
+          {zCaloscia && (
             <Card title={`Formatki całego projektu${project.name ? " — " + project.name : ""}`}
               right={
                 <div className="flex items-center gap-3">
@@ -14055,7 +14118,7 @@ export default function App() {
                     className="text-xs font-medium text-teal-700 hover:underline">
                     Rozkrój na płycie
                   </button>
-                  <span className="text-xs text-stone-400">{project.items.length} szafek</span>
+                  <span className="text-xs text-stone-400">{project.items.length} {plural(project.items.length, "szafka", "szafki", "szafek")}</span>
                 </div>
               }>
               <p className="mb-2 text-xs text-stone-500">
@@ -14243,7 +14306,7 @@ export default function App() {
           <Card title="Wycena" collapsible defaultOpen={false}
             right={
               !cutPlan ? (
-                <button onClick={() => makeCutPlan(project.items.length > 1 ? "project" : "cab")}
+                <button onClick={() => makeCutPlan(zCaloscia ? "project" : "cab")}
                   className="text-xs text-teal-700 hover:underline">
                   Policz rozkrój
                 </button>
@@ -14309,9 +14372,9 @@ export default function App() {
             </div>
           </Card>
 
-          {project.items.length > 1 && (
+          {zCaloscia && (
             <Card title={`Produkty całego projektu${project.name ? " — " + project.name : ""}`}
-              right={<span className="text-xs text-stone-400">{project.items.length} szafek</span>}>
+              right={<span className="text-xs text-stone-400">{project.items.length} {plural(project.items.length, "szafka", "szafki", "szafek")}</span>}>
               <p className="mb-2 text-xs text-stone-500">
                 Suma okuć ze wszystkich szafek w projekcie — do zamówienia na całość naraz.
                 Te same pozycje z różnych szafek są sumowane; różne rozmiary i specyfikacje
