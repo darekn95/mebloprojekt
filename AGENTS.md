@@ -31,14 +31,18 @@
   w scratchpadzie; do repozytorium tylko za zgodą użytkownika.
 - Gdy coś potrwa dłużej niż ok. 3 minuty (pełny przebieg testów, duży build,
   seria zrzutów), napisz o tym **przed** startem, z przybliżonym czasem —
-  np. „Testy lecą (~25 min)” — i co w tym czasie robisz albo na co czekasz.
-  Pełny przebieg obu buildów to ok. 20–30 min, pojedyncza suita 1–3 min.
+  np. „Testy lecą (~5 min)” — i co w tym czasie robisz albo na co czekasz.
+  Pełny przebieg obu buildów (94 suity, po 5 naraz) to ok. 3 min, pojedyncza
+  suita 5–30 s. Czasy sprawdzaj z logów, nie z pamięci.
 - **Kiedy jakie testy i kiedy git** (ustalone z użytkownikiem):
-  - po zmianie tylko suity z tego obszaru (2–5 suit, 1–3 min; spis w `SLOWNIK.md`);
+  - po zmianie tylko suity z tego obszaru (2–5 suit, ok. 1 min; spis w `SLOWNIK.md`);
   - zapis na gałąź roboczą na bieżąco — bez pełnych testów, to kopia bezpieczeństwa
     (kontener jest tymczasowy);
   - **pełny przebieg i scalenie do `main`** (publikacja na GitHub Pages) — tylko na
     żądanie użytkownika albo w czasie jego dłuższej nieobecności;
+  - pełny przebieg to `bash testy/pelny.sh`: wszystko szybko, a wolno (`PW_WOLNO=1`)
+    powtarza tylko suity z błędem i mówi, czy to prawdziwy błąd, czy fałszywy
+    alarm z czekania (ten poprawia się w `testy/pw.mjs`, nie w aplikacji);
   - artefakt publikuj, gdy użytkownik ma coś obejrzeć.
 - Znane błędy (aplikacji i testów), ich przyczyny i sprawy do decyzji użytkownika
   trzymaj w `BLEDY.md` — sprawdź go przed pełnym przebiegiem testów i dopisuj tam

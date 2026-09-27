@@ -1,7 +1,7 @@
 /* Bez wieńca nie ma czego ustawiać: przełącznik „Wieniec / Blat" i całe
    ustawienia blatu chowają się, a w ich miejsce idzie zdanie, dlaczego ich nie
    ma. Ze złączem z powrotem na „między" wszystko wraca. */
-import pw from '/opt/node22/lib/node_modules/playwright/index.js';
+import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
 const b = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });

@@ -1,7 +1,7 @@
 /* Piętra ściany: dolny i górny ciąg na tej samej ścianie. Sprawdzamy zakładanie
    górnego, wysokość montażu liczoną z lica dolnego i blatu, podpisy z piętrem
    oraz podzakładki zakresu „Ciąg". */
-import pw from '/opt/node22/lib/node_modules/playwright/index.js';
+import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
 const b = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });

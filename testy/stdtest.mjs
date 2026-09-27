@@ -1,4 +1,4 @@
-import pw from '/opt/node22/lib/node_modules/playwright/index.js';
+import pw from './pw.mjs';
 const { chromium } = pw;
 const URL = 'http://127.0.0.1:5199/standalone-local.html';
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });

@@ -1,4 +1,4 @@
-import pw from '/opt/node22/lib/node_modules/playwright/index.js';
+import pw from './pw.mjs';
 const { chromium } = pw;
 
 // dawniej preview-local.html, ktorego nikt juz nie buduje
