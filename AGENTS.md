@@ -40,6 +40,9 @@
     (kontener jest tymczasowy);
   - **pełny przebieg i scalenie do `main`** (publikacja na GitHub Pages) — tylko na
     żądanie użytkownika albo w czasie jego dłuższej nieobecności;
+  - pełny przebieg to `bash testy/pelny.sh`: wszystko szybko, a wolno (`PW_WOLNO=1`)
+    powtarza tylko suity z błędem i mówi, czy to prawdziwy błąd, czy fałszywy
+    alarm z czekania (ten poprawia się w `testy/pw.mjs`, nie w aplikacji);
   - artefakt publikuj, gdy użytkownik ma coś obejrzeć.
 - Znane błędy (aplikacji i testów), ich przyczyny i sprawy do decyzji użytkownika
   trzymaj w `BLEDY.md` — sprawdź go przed pełnym przebiegiem testów i dopisuj tam

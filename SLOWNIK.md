@@ -350,8 +350,10 @@ cd testy && bash sweep.sh narozn2 okucia3 # wynik: „NN OK, N BLAD"
 python3 -c "s=open('standalone.html').read()
 for a,b in [('https://cdn.tailwindcss.com','cdn/tailwind.js'),('https://unpkg.com/react@18/umd/react.development.js','cdn/react.js'),('https://unpkg.com/react-dom@18/umd/react-dom.development.js','cdn/react-dom.js'),('https://unpkg.com/@babel/standalone/babel.min.js','cdn/babel.min.js')]: s=s.replace(a,b)
 open('testy/standalone-local.html','w').write(s)"
-# pełny przebieg (94 suity, po 5 naraz, ok. 3 min) — logi w katalogu $L:
-cd testy && L=/tmp/pelny && mkdir -p $L && grep -l "'  OK   '" *.mjs | sed 's/\.mjs$//' \
-  | xargs -P 5 -I{} sh -c "timeout 600 node {}.mjs > $L/{}.log 2>&1"
-for f in $L/*.log; do echo "$(basename $f .log): $(grep -c '  OK' $f) OK, $(grep -c BLAD $f) BLAD"; done
+# pełny przebieg: wszystkie suity szybko (po 5 naraz, ok. 3 min), potem tylko te
+# z błędem jeszcze raz wolno (PW_WOLNO=1). Wynik: „WSZYSTKO ZIELONE” albo dla
+# każdej padającej suity „PRAWDZIWY BLAD” (pada też wolno — naprawić) lub
+# „FALSZYWY ALARM” (wolno przechodzi — poprawić czekanie w pw.mjs). Kod wyjścia 1
+# tylko przy prawdziwym błędzie. Logi: <katalog>/<suita>.log i .wolno.log.
+cd testy && bash pelny.sh /tmp/pelny            # albo: bash pelny.sh /tmp/p narozn2 zoom
 ```
