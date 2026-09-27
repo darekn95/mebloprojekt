@@ -19,6 +19,10 @@ const seed = async (shelfSame, shelfTh) => {
     localStorage.clear();
     const cab = {
       name: 'T', W: 900, H: 720, D: 500,
+      /* Luz miedzy frontami 3 mm wprost — rachunki swiatla szuflad ponizej
+         (250 / 241, 256 / 247) sa policzone przy nim; przy domyslnych 2 mm
+         podzial pasma przesuwa sie o 1 mm (249 / 242). */
+      gaps: { edge: 2, between: 3, top: 3, bottom: 3, inset: 2 },
       shelfSameAsBoard: same,
       plinth: { on: true, height: 100, mode: 'inbody', setback: 0 },
       levels: [{ h: null, cols: [
