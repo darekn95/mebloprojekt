@@ -63,8 +63,9 @@ artefaktu z `git show HEAD:szafki.jsx` i przelecenie ich osobno, wynik identyczn
   - `luzy` — 6 BLAD + timeout: brak podpowiedzi „luz w górę / w dół” — przy domyślnym
     luzie 2 mm drzwi dzielą się równo i podpowiedź się nie pojawia; test do przestawienia,
   - `polkigr` — 2 BLAD: światło szuflad 249/242 zamiast 250/241 (1 mm, pewnie od luzów),
-  - `ciag7` — 3 BLAD: opis blatu w karcie i listwa zawieszek „1.8 mb” zamiast „1760 mm
-    jednym odcinkiem” — zmieniony format opisu,
+  - (naprawione w teście) `ciag7` — opis blatu ma „jedna formatka” małą literą w środku
+    zdania, a listwa zawieszek jest w zestawieniu jednym wierszem w mb (1760 → 1.8 mb);
+    „jedna listwa 1760 mm na cały ciąg” mówi karta ciągu,
   - (naprawione w testach) `grain` i `ciag5` łapały kreskowanie „przejścia do ramienia”
     (`<pattern id="mp-przejscie">` z kreską grubości 3) jako wzór słojów i jako szew
     cokołu — aplikacja była w porządku; testy pomijają teraz wzory kreskowania.
