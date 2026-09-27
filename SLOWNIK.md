@@ -59,6 +59,7 @@ narożnika przy froncie**, a nie wzmocnienie. To nie to samo co:
 | Wysokość / Głębokość (wspólne dla ciągu) | `run.H`, `run.D` |
 | Cokół ciągu / Cokół pod szafkami / Podział cokołu | `run.plinth`, `runPlinth`, `runPlinthPanels` |
 | Blat roboczy / Blat ciągu / Podział blatu | `run.worktop`, `runTop`, `worktopSpans`, `runTopPanels` |
+| Blat w narożniku (przechodzi / dojeżdża / łyżwa) | `run.corner.top`, `run.corner.cut`; `projectLayout` → `topSpan.przez0/przez1` (czyj blat idzie przez róg); `runTop` skraca dojeżdżający do głębokości przechodzącego (`rt.depth`, z docinką arkusza) |
 | Wieszanie ciągu | `run.hangerMode` („listwa" / „haczyki") |
 
 ### Karta „Korpus" (`cab`)

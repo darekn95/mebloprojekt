@@ -305,6 +305,14 @@ wiec `runTop` zamawia caly pas (`pelnyArkusz`), a `surowa` trzyma wymiar
 wynikajacy z szafek. Uzytkownik moze to odwrocic przelacznikiem `run.topCut`
 (poprawka `topcut:0/1` w Uwagach). Wieksza roznica idzie na wymiar.
 
+[AI-INFO] Blat w rogu „na styk": przechodzacy przez rog ma glebokosc
+`rt.depth` (korpus + front + wysieg, a przy pelnym arkuszu 600), a nie
+glebokosc szafek ciagu. `projectLayout` zapisuje w `topSpan.przez0/przez1`,
+czyj blat przechodzi, a `runTop` skraca dojezdzajacy o roznice — wczesniej
+oba blaty zachodzily na siebie o ok. 30 mm (w bryle jeden wystawal nad
+drugim) i dojezdzajacy byl o tyle za dlugi w zamowieniu. `worktopSpans`
+przycina odcinki do `rt.x0 … rt.x0 + rt.total`. Lyzwa (`cut: "skos"`) bez zmian.
+
 [AI-INFO] Cokol ciagu rysuje sie na `rp.total`, a nie na `g.total`: w rogu
 konczy sie na cokole prostopadlej sciany, a nie na koncu szafki naroznej.
 Rysowany na cala dlugosc ciagu wystawal w powietrze — w elewacji i w bryle.

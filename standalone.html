@@ -3654,8 +3654,12 @@ const runLayout = (groups, ref = null) => {
     const ust = (r, atStart) => {
       // na lyzwe oba kawalki dochodza do rogu, na styk tylko ten przechodzacy
       const d = skos || r === przez ? 0 : przez.depth;
-      if (atStart) { r.top.s = d; r.top.skosS = skos; r.top.corS = true; }
-      else { r.top.e = r.len - d; r.top.skosE = skos; r.top.corE = true; }
+      /* Dojezdzajacy blat konczy sie na krawedzi przechodzacego, a ten jest
+         glebszy od szafek o front, wysieg i docinke arkusza. Te glebokosc zna
+         dopiero `runTop`, wiec zostawiamy mu, czyj blat idzie przez rog. */
+      const przezId = d ? przez.id : null;
+      if (atStart) { r.top.s = d; r.top.skosS = skos; r.top.corS = true; r.top.przezS = przezId; }
+      else { r.top.e = r.len - d; r.top.skosE = skos; r.top.corE = true; r.top.przezE = przezId; }
     };
     ust(n, c.at === "end");
     ust(p, c.at !== "end");
@@ -3663,7 +3667,9 @@ const runLayout = (groups, ref = null) => {
   // ten sam odcinek, ale liczony od lewej krawedzi pierwszej szafki ciagu
   info.forEach((n) => {
     n.topSpan = { x0: n.top.s - n.lead, x1: n.top.e - n.lead,
-      skos0: n.top.skosS, skos1: n.top.skosE, cor0: n.top.corS, cor1: n.top.corE };
+      skos0: n.top.skosS, skos1: n.top.skosE, cor0: n.top.corS, cor1: n.top.corE,
+      przez0: n.top.przezS || null, przez1: n.top.przezE || null,
+      glPrzez0: n.top.s, glPrzez1: n.len - n.top.e };
   });
 
   /* Ramka ciagu: punkt (u, v) — u wzdluz sciany od poczatku ciagu, v w glab
@@ -7892,11 +7898,15 @@ const worktopSpans = (rt) => {
   const s = rt.spans.map((x) => ({ ...x })).sort((a, b) => a.x0 - b.x0);
   s[0].x0 = Math.min(s[0].x0, rt.x0);
   s[s.length - 1].x1 = Math.max(s[s.length - 1].x1, rt.x0 + rt.total);
+  // ...i przycinamy do niej: przy rogu blat konczy sie na krawedzi sasiada
+  s.forEach((x) => { x.x0 = Math.max(x.x0, rt.x0); x.x1 = Math.min(x.x1, rt.x0 + rt.total); });
+  const zostaje = s.filter((x) => x.x1 > x.x0);
+  if (!zostaje.length) return [];
   /* Blat nad sasiadujacymi szafkami to jedna plyta, a nie kawalek na szafke —
      rysowany osobno pokazywal szwy tam, gdzie ich nie ma. Rozdziela go dopiero
      przerwa miedzy szafkami. */
-  const out = [s[0]];
-  s.slice(1).forEach((x) => {
+  const out = [zostaje[0]];
+  zostaje.slice(1).forEach((x) => {
     const p = out[out.length - 1];
     if (x.x0 <= p.x1) { p.x1 = Math.max(p.x1, x.x1); p.depth = Math.max(p.depth, x.depth); }
     else out.push(x);
@@ -7925,7 +7935,7 @@ const worktopLevel = (project, run) => {
   return { cabs, y, pod: cabs.filter((c) => c.y === y), poza: cabs.filter((c) => c.y !== y) };
 };
 
-const runTop = (project, run) => {
+const runTop = (project, run, bezRogu = false) => {
   const { joints, list } = runJoints(project, run);
   /* Pas moze byc pusty, a i tak potrzebowac blatu: lezy w nim ramie szafki
      naroznej z sasiedniej sciany. */
@@ -7977,8 +7987,19 @@ const runTop = (project, run) => {
      albo blat idzie nad rogiem, albo konczy sie przy boku sasiada. */
   const ext = (project.runs || []).some((r) => r.corner)
     ? (projectLayout(project).info.get(run.id) || {}).topSpan : null;
-  const x0 = ext && ext.cor0 ? Math.round(ext.x0) : Math.min(...spans.map((s) => s.x0));
-  const x1 = ext && ext.cor1 ? Math.round(ext.x1) : Math.max(...spans.map((s) => s.x1));
+  /* Blat dojezdzajacy do rogu styka sie z krawedzia przechodzacego, a ta lezy
+     dalej od sciany niz lico szafek — o tyle go skracamy. Bez tego oba blaty
+     zachodzily na siebie i ten krotszy wychodzil w zamowieniu za dlugi. */
+  const doKrawedzi = (id, gl) => {
+    if (!id || bezRogu) return 0;
+    const r = (project.runs || []).find((x) => x.id === id);
+    const rp = r ? runTop(project, r, true) : null;
+    return rp ? Math.max(0, Math.round(rp.depth - gl)) : 0;
+  };
+  const x0 = ext && ext.cor0 ? Math.round(ext.x0) + doKrawedzi(ext.przez0, ext.glPrzez0)
+    : Math.min(...spans.map((s) => s.x0));
+  const x1 = ext && ext.cor1 ? Math.round(ext.x1) - doKrawedzi(ext.przez1, ext.glPrzez1)
+    : Math.max(...spans.map((s) => s.x1));
   const total = Math.round(x1 - x0);
   /* Blat roboczy tnie sie z gotowego odcinka, wiec jego granica jest dlugosc
      handlowa, a nie formatka plyty. */
