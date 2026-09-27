@@ -8039,11 +8039,14 @@ const edgeText = (p) => {
   return out.length ? out.join(", ") : "—";
 };
 
-const Card = ({ title, children, right, collapsible = false, defaultOpen = true }) => {
+// `id` — kotwica, do ktorej da sie przewinac (np. „Pokaz rysunek" z gornego paska)
+const Card = ({ title, children, right, collapsible = false, defaultOpen = true, id }) => {
   const [open, setOpen] = useState(defaultOpen);
   const shown = collapsible ? open : true;
   return (
-    <section className="rounded-lg border border-stone-200 bg-white">
+    <section id={id} className="rounded-lg border border-stone-200 bg-white"
+      // gorny pasek jest przyklejony — bez odstepu zaslanialby naglowek karty
+      style={id ? { scrollMarginTop: 120 } : undefined}>
       <header
         className={`flex items-center justify-between gap-2 px-4 py-2.5 ${
           shown ? "border-b border-stone-200" : ""
@@ -11494,6 +11497,16 @@ export default function App() {
               Ponów ↷
             </button>
           </div>
+          {/* Robocze: po poprawce w polach wyzej jednym kliknieciem wraca sie
+              do rysunku, zamiast go szukac przewijaniem. */}
+          <button onClick={() => {
+            const el = document.getElementById("rysunek");
+            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+            title="Przewiń do karty „Rysunek”"
+            className="rounded border border-teal-600 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-50">
+            Pokaż rysunek
+          </button>
           <button onClick={exportProject}
             title="Pobierz projekt jako plik JSON"
             className="text-xs text-teal-700 hover:underline">Zapisz do pliku</button>
@@ -13293,7 +13306,7 @@ export default function App() {
         </div>
 
         <div className="mt-4 space-y-4 lg:mt-0">
-          <Card title="Rysunek"
+          <Card title="Rysunek" id="rysunek"
             right={
               <div className="flex items-center gap-3">
                 <button onClick={() => setShowDims((s) => !s)} className="text-xs text-teal-700 hover:underline">

@@ -195,6 +195,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `TopHardware` | okucia w widoku z góry (szafka i zabudowa, pod „Pokaż okucia”): uchwyty przed frontem, zawiasy przy boku od frontu, nóżki przerywane; `data-el="okucia-gora"` |
 | `worktopMsgs` / `runCornerMsgs` / `cornerPairMsgs` / `tierMsgs` | uwagi na poziomie ciągu i narożnika |
 | `hwDefaultPrice(h)` | cena okucia — klucz to `h.pk` albo `h.name` |
+| „Pokaż rysunek” (górny pasek) | przewija do karty `Card id="rysunek"` (`scrollMarginTop` pod przyklejony pasek) — przycisk roboczy |
 | `wyslijDoClaude` / `PROJEKT_DLA_CLAUDE` | przycisk „Wyślij do Claude” — **tylko w artefakcie na claude.ai**: zapis projektu do wspólnego magazynu (`projekt/biezacy`, pole `json`) |
 
 Widoki: `CabElevation`, `FrontView`, `RearView`, `TopView`, `SideView`,
