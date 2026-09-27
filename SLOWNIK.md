@@ -190,6 +190,8 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `splitAtJoints` | dzieli wspólny cokół/blat na odcinki |
 | `buildCutPlan` / `packSheets` / `nestPass` | rozkrój na arkusze |
 | `swingBodies` / `openingMsgs` | kontrola otwierania skrzydeł, kolizje |
+| `wallGapOf(run, item)` / `migrateWallGap` | odsunięcie od ściany szafki: własne albo z ciągu; `{ bottom, top }` (`top` = pod blatem, domyślnie jak `bottom`) |
+| `cudzeRamiona` (w `AssemblyTopView`) | ramię szafki w L, którego ściany nie rysujemy (zakres „Ciąg”) — przeniesione macierzą na swoje prawdziwe miejsce, z kawałkiem ściany i blatem |
 | `cornerSpan(n)` / `SZEROKI_FRONT` (600) | ile szafka w L zajmuje od rogu wzdłuż obu ścian (odstęp + głębokość korpusu + ramię; odstęp + szerokość korpusu) i ostrzeżenie o froncie ramienia szerszym niż 600 mm |
 | `blatNadSzafka(project, full, index, arm)` | blat ciągu nad jedną szafką w jej rzucie z góry (i blat sąsiedniej ściany nad ramieniem); przełącznik „Ukryj / Pokaż blat” (`showBlat`) także w rzucie zabudowy; wymiary ramienia w rzucie szafki: `data-el="wymiary-ramienia"` |
 | `TopHardware` | okucia w widoku z góry (szafka i zabudowa, pod „Pokaż okucia”): uchwyty przed frontem, zawiasy przy boku od frontu, nóżki przerywane; `data-el="okucia-gora"` |
@@ -333,4 +335,12 @@ node scripts/generate-standalone.mjs # szafki.jsx -> standalone.html
 cd testy && python3 -m http.server 5205   # dla mebloprojekt-app.html
 cd testy && python3 -m http.server 5199   # dla standalone-local.html
 cd testy && bash sweep.sh narozn2 okucia3 # wynik: „NN OK, N BLAD"
+# standalone-local.html z standalone.html (podmiana 4 adresów CDN):
+python3 -c "s=open('standalone.html').read()
+for a,b in [('https://cdn.tailwindcss.com','cdn/tailwind.js'),('https://unpkg.com/react@18/umd/react.development.js','cdn/react.js'),('https://unpkg.com/react-dom@18/umd/react-dom.development.js','cdn/react-dom.js'),('https://unpkg.com/@babel/standalone/babel.min.js','cdn/babel.min.js')]: s=s.replace(a,b)
+open('testy/standalone-local.html','w').write(s)"
+# pełny przebieg (ok. 90 suit, po 5 naraz, ok. 20 min) — logi w katalogu $L:
+cd testy && L=/tmp/pelny && mkdir -p $L && grep -l "'  OK   '" *.mjs | sed 's/\.mjs$//' \
+  | xargs -P 5 -I{} sh -c "timeout 600 node {}.mjs > $L/{}.log 2>&1"
+for f in $L/*.log; do echo "$(basename $f .log): $(grep -c '  OK' $f) OK, $(grep -c BLAD $f) BLAD"; done
 ```

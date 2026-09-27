@@ -60,6 +60,13 @@ artefaktu z `git show HEAD:szafki.jsx` i przelecenie ich osobno, wynik identyczn
 
 Pierwsze dwie to braki w samych suitach, nie w aplikacji. Do przejrzenia osobno.
 
+[AI-INFO] Pełny przebieg: wszystkie suity, które wypisują „  OK / BLAD” (ok. 90, z czego
+18 z końcówką `std` i `stdfull`/`stdnew` chodzi po 5199), po 5 naraz w tle — polecenie
+w `SLOWNIK.md`, sekcja 8. Serwery najlepiej trzymać jako proces w tle narzędzia
+(`exec python3 -m http.server …`), bo uruchomione przez `setsid … &` znikały przy
+przeładowaniu kontenera. Przy 5 naraz pojedyncza suita potrafi raz paść na czasie
+(np. `narozn3` bez listy blatów) — zanim uzna się to za regresję, puścić ją osobno.
+
 [AI-INFO] `python3 -m http.server` na 5205 potrafi paść w trakcie długiego przelotu.
 Objaw: wszystkie suity naraz `CRASH: name: 'Error'`. Zanim uzna się to za regresję,
 warto sprawdzić `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5205/mebloprojekt-app.html`.
@@ -85,8 +92,9 @@ lico dostanie osobną opcję i wtedy dołoży się tu jako kolejna bryła.
 ## Narożnik w L — co jest z czego liczone
 
 [AI-INFO] Ramię liczy się **od końca narożnego kwadratu**: przy drugiej ścianie
-narożnik zajmuje `głębokość szafki w rogu + arm`. Przy 600 + 600 wychodzi 1200 mm
-i tyle odsuwa się tamten ciąg. Pole „Długość ramienia" to `arm`, nie całość.
+narożnik zajmuje `odsunięcie od ściany + głębokość szafki w rogu + arm` (+ „Luz
+w rogu”, jeśli ustawiony). Przy 0 + 570 + 1200 wychodzi 1770 mm i tyle odsuwa się
+tamten ciąg (`glRog + armLen + clear`). Pole „Długość ramienia" to `arm`, nie całość.
 
 [AI-INFO] W rogu spotykają się dwa lica frontów i stoi tam **kątownik**: cztery
 pionowe płyty (dwie wewnętrzne z płyty półkowej na całą wysokość wnętrza, dwie
@@ -114,7 +122,9 @@ przychodzi bez wieńca i z parą wzmocnień (`bezWienca`): z przodu płyta na p�
 z tyłu stojąca. Blat obejmuje szafki tej wysokości lica, która zajmuje w ciągu
 najwięcej miejsca; reszta wypada spod niego — różnica od `SLUPEK_MIN` (200 mm)
 to zamierzony słupek, poniżej to rozjazd i ostrzeżenie. Głębokość blatu jest
-wymiarem rzeczywistym: korpus + grubość frontu + `WORKTOP_OVERHANG` (10 mm).
+wymiarem rzeczywistym od ściany na wysokości blatu: odsunięcie od ściany + korpus
++ `HINGE_PLAY` (2 mm) + grubość frontu + `WORKTOP_OVERHANG` (10 mm) — szczegóły
+w sekcji „Blat: co zamawiamy…”.
 
 [AI-INFO] Suity klikające „Cokół pod szafką" albo „Nóżki pod szafką" muszą
 **ustawiać stan**, a nie klikać na oślep — nowy projekt startuje z szablonu
