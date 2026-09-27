@@ -12,7 +12,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Suita | Objaw | Przyczyna / stan |
 |---|---|---|
-| `pins2` | 2 BLAD: kołki i etykiety w dwóch kolumnach | do zdiagnozowania |
 | `pdf` | crash: `page.goto("file://./report.html")` — względny `file://` | usterka testu |
 | `savetest` | szuka `http://127.0.0.1:5199/preview-local.html`, którego nikt nie buduje | usterka testu |
 | `d2test`, `fixbtn` | timeout `locator.click` na przycisku, którego nie ma | usterka testu |
@@ -28,6 +27,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 | 2026-09-27 | `narjedne` | nie błąd aplikacji: jedne drzwi przy rogu same wypełniają lico do maskownicy (ręczna szerokość celowo pomijana), więc podpowiedź „Zrób jedne drzwi” nie ma czego naprawiać; test sprawdza teraz dopasowanie drzwi (238 mm), brak szpary i błędu pasma | (ten commit) |
 | 2026-09-27 | `nozki`, `nozkistd` | test zakładał 2 nóżki od czoła, a szafka 900 mm ma od wcześniejszej zmiany parę na środku (3 widoczne); wysokości i przygaszenie były dobre | (ten commit) |
 | 2026-09-27 | `polkigr` | rachunki testu liczone przy dawnym luzie 3 mm między frontami; przy 2 mm podział pasma szuflad przesuwa się o 1 mm (suma ta sama) — sprawdzone: z luzem 3 mm wychodzą 250/241; test ustawia luz 3 mm wprost | (ten commit) |
+| 2026-09-27 | `pins2` | nowa kolumna startuje bez półek, a „+ półka” jest tylko w kolumnie, która już je ma — test klikał go w pierwszej; podpisy otworów mają dziś postać „otw. 527”. Test ustawia pole „półki” drugiej kolumny i czyta nowy format; kołki i podpisy były dobre | (ten commit) |
 | 2026-09-27 | `luzy` | podpowiedź o luzie pojawia się przy nierównym podziale; test ustawia luz 3 mm wprost | 3d2690b |
 
 ## Do decyzji użytkownika
