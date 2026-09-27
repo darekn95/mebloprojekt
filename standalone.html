@@ -208,6 +208,29 @@ const MIN_PART = 60;
 /* Ponizej tego front robi sie waski — nie blad, bo czasem inaczej sie nie da,
    ale warto rzucic okiem, zanim pojdzie do ciecia. */
 const WASKI_FRONT = 250;
+/* Skrzydlo szersze niz to ciazy na zawiasach, opada i zabiera duzo miejsca przy
+   otwieraniu — w kuchni drzwi robi sie zwykle do ok. 600 mm. */
+const SZEROKI_FRONT = 600;
+
+/* Ile szafka w L zajmuje od rogu wzdluz obu scian i skad sie to bierze. Przy
+   zwyklej szafce szerokosc to szerokosc — tu przy scianie ramienia dochodzi
+   jeszcze odstep od sciany i glebokosc korpusu, a front korpusu jest wezszy
+   od niego o to, co zabiera rog (glebokosc ramienia z frontem). */
+const cornerSpan = (n) => {
+  const a = n && n.arm;
+  if (!a || !n.pair) return null;
+  const r = n.pair.rogowa;
+  const odScianyA = r ? r.wallGap.bottom : 0;
+  const glKorpusu = r ? Math.round(r.geo.carcassDepth - r.offset) : n.pair.glRog;
+  const odScianyB = n.pair.odSasiada || 0;
+  return {
+    odScianyA, glKorpusu, odScianyB,
+    // wzdluz sciany korpusu: odstep od sciany ramienia + szerokosc korpusu
+    wzdluzKorpusu: odScianyB + a.cab.geo.W,
+    // wzdluz sciany ramienia: odstep od sciany korpusu + glebokosc korpusu + ramie
+    wzdluzRamienia: n.pair.glRog + a.len,
+  };
+};
 const MIN_LEVEL = 100; // najnizszy sensowny poziom przy auto-dodawaniu
 
 /* Sevroll V-BOX 3D Slim, wymiary elementow dla plyty 18 mm */
@@ -9074,6 +9097,21 @@ const cornerPairMsgs = (n, blat) => {
       `${kto} jest szafką narożną w L: korpus ${fmt(a.cab.geo.W)} mm przy ścianie „${a.run.run.name}" `
       + `plus ramię ${fmt(a.len)} × ${fmt(a.depth)} mm przy ścianie „${a.other.run.name}". `
       + `Drzwi: ${opisDrzwi}. Płyty poziome ramienia dostawia się na kołki, oklejone na łączeniu.` });
+    const zasieg = cornerSpan(n);
+    if (zasieg)
+      out.push({ level: "info", text:
+        `Od rogu szafka zajmuje wzdłuż ściany „${a.other.run.name}" ${fmt(zasieg.wzdluzRamienia)} mm `
+        + `(${zasieg.odScianyA ? `${fmt(zasieg.odScianyA)} odstępu od ściany + ` : ""}`
+        + `${fmt(zasieg.glKorpusu)} głębokości korpusu + ${fmt(a.len)} ramienia), `
+        + `a wzdłuż ściany „${a.run.run.name}" ${fmt(zasieg.wzdluzKorpusu)} mm`
+        + (zasieg.odScianyB ? ` (${fmt(zasieg.odScianyB)} odstępu + ${fmt(a.cab.geo.W)} korpusu)` : "")
+        + `. Front korpusu nie ma całej jego szerokości: róg zabiera głębokość ramienia `
+        + `z frontem, więc na drzwi od tej strony zostaje ${fmt(Math.max(0, a.front))} mm.` });
+    if (a.doors !== "fix" && a.armFront > SZEROKI_FRONT)
+      out.push({ level: "warn", text:
+        `${kto}: front ramienia ma ${fmt(a.armFront)} mm — skrzydło szersze niż ok. ${fmt(SZEROKI_FRONT)} mm `
+        + `ciąży na zawiasach, opada i zabiera dużo miejsca przy otwieraniu. Skróć ramię do ok. `
+        + `${fmt(a.len - (a.armFront - SZEROKI_FRONT))} mm albo zaplanuj tam dwoje drzwi.` });
     if (a.front <= 0)
       out.push({ level: "error", text:
         `${kto} nie ma frontu od strony ciągu „${a.run.run.name}" — korpus jest węższy `
@@ -12088,6 +12126,17 @@ export default function App() {
                           <span className="font-mono text-stone-700">{fmt(cornerNode.arm.front)} mm</span>,
                           {" "}ramienia{" "}
                           <span className="font-mono text-stone-700">{fmt(cornerNode.arm.armFront)} mm</span>.
+                          {(() => {
+                            const z = cornerSpan(cornerNode);
+                            return z && (
+                              <>
+                                {" "}Od rogu:{" "}
+                                <span className="font-mono text-stone-700">{fmt(z.wzdluzKorpusu)} × {fmt(z.wzdluzRamienia)} mm</span>
+                                {" "}(przy ścianie ramienia: {z.odScianyA ? `${fmt(z.odScianyA)} odstępu + ` : ""}
+                                {fmt(z.glKorpusu)} głębokości + {fmt(cornerNode.arm.len)} ramienia).
+                              </>
+                            );
+                          })()}
                         </p>
                       )}
                       {/* Wysokosc, glebokosc i polki ramienia nie sa jego wlasne:

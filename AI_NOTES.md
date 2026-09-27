@@ -336,6 +336,14 @@ ciagu, ktory wjezdza w rog). Blat w rzucie i w bryle zaczyna sie przy scianie
 na wysokosci blatu, czyli o `bottom - top` blizej pokoju. Elewacja z przodu
 odstepu nie pokazuje — nie ma w niej glebokosci.
 
+[AI-INFO] Wymiary szafki w L (ustalone z uzytkownikiem): ramie w programie
+liczy sie od frontu korpusu, nie od sciany — wzdluz sciany ramienia szafka
+zajmuje odstep od sciany + glebokosc korpusu + ramie (np. 570 + 1200 = 1770).
+Typowa narozna to 900 × 900 od rogu (ramie ok. 330). `cornerSpan` podaje oba
+wymiary w uwagach i w karcie narożnika; front ramienia > `SZEROKI_FRONT`
+(600) daje ostrzezenie z propozycja skrocenia ramienia (bez dzielenia frontu —
+uzytkownik wybral samo ostrzezenie).
+
 [AI-INFO] Rzut z gory w zakresie „ciag": ramie szafki w L, ktorego sciany nie
 rysujemy, stoi w prawdziwym polozeniu — obrocone wzdluz drugiej sciany, z jej
 kawalkiem. `AssemblyTopView` liczy macierz: uklad pasa ramienia (z `full`) →
