@@ -17,6 +17,10 @@ await page.evaluate(() => {
   localStorage.clear();
   const cab = {
     name: 'T', W: 900, H: 720, D: 500,
+    /* Luz miedzy frontami 3 mm wprost: podpowiedz „zwieksz / zmniejsz luz"
+       pojawia sie, gdy pasmo nie dzieli sie rowno — przy domyslnych 2 mm
+       te drzwi dziela sie bez resztek i nie byloby czego sprawdzac. */
+    gaps: { edge: 2, between: 3, top: 3, bottom: 3, inset: 2 },
     plinth: { on: true, height: 100, mode: 'inbody', setback: 0 },
     legs: { on: true, height: 100, color: '#3f3f46', shape: 'box' },
     levels: [{ h: null, cols: [

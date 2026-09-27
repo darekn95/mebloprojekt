@@ -60,8 +60,9 @@ artefaktu z `git show HEAD:szafki.jsx` i przelecenie ich osobno, wynik identyczn
 - `nozkistd` — to samo co `nozki`, na standalone.
 - Wykryte w pełnym przebiegu 2026-09-27, padają identycznie na czystym `main`
   (przyczyny wstępne, niezweryfikowane w kodzie):
-  - `luzy` — 6 BLAD + timeout: brak podpowiedzi „luz w górę / w dół” — przy domyślnym
-    luzie 2 mm drzwi dzielą się równo i podpowiedź się nie pojawia; test do przestawienia,
+  - (naprawione w teście) `luzy` — podpowiedź „luz w górę / w dół” pojawia się tylko przy
+    nierównym podziale; test ustawia teraz luz 3 mm wprost, bo przy domyślnych 2 mm jego
+    drzwi dzielą się równo,
   - `polkigr` — 2 BLAD: światło szuflad 249/242 zamiast 250/241 (1 mm, pewnie od luzów),
   - (naprawione w teście) `ciag7` — opis blatu ma „jedna formatka” małą literą w środku
     zdania, a listwa zawieszek jest w zestawieniu jednym wierszem w mb (1760 → 1.8 mb);
