@@ -38,6 +38,12 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Ustalone — nie ruszać
 
+- Podpowiedź „Zrób jedne drzwi na … mm” przy szafce narożnej w L (`cornerdoor:`
+  w `runCornerMsgs`) zostaje **celowo** jako zabezpieczenie, choć dziś praktycznie
+  się nie pojawia: pas frontu szafki narożnej sam kończy się na maskownicy kątownika,
+  więc jedne drzwi, dwoje i ręczna szerokość mieszczą się w licu (sprawdzone
+  2026-09-27 na szablonie `naroznikL`). Nie usuwać (decyzja użytkownika).
+
 - Artefakt na claude.ai **nie** potrzebuje pobierania plików (tylko wersja na
   GitHubie). „Wyślij do Claude” jest **tylko** w artefakcie. Szczegóły w `AGENTS.md`.
 
@@ -49,14 +55,13 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   Zabudowa/Zamk. 62→38 ms, Zabudowa/Z góry 47→33 ms, Zabudowa/3D 62→41 ms;
   obrót 3D 53→44 ms. Pełny przebieg testów zielony przed i po zmianie.
   Warunek: nikt nie zmienia szafki, materiałów, projektu ani wyniku w miejscu.
-- Podpowiedź „Zrób jedne drzwi na … mm” (`cornerdoor:` w `runCornerMsgs`) dotyczy
-  szafki przy narożniku, której drzwi nie trafiają w wolne lico przed rogiem. Jest prawie
-  nieosiągalna, odkąd drzwi przy rogu same dopasowują się do lica — do uproszczenia
-  albo usunięcia (niepilne, nic nie psuje).
 
 - **Zrobione 2026-09-27:** powiększenie rysunku wraca po przełączeniu widoku
   (osobno dla każdej szafki i widoku, razem z miejscem przewinięcia).
 - **Zrobione 2026-09-27:** podpowiedź „dwoje wąskich drzwi” (każde < 250 mm,
   jedne ≤ 600 mm) z przyciskami „Jedne drzwi … — zawiasy z lewej / z prawej”.
   To co innego niż „Zrób jedne drzwi” przy rogu (poniżej).
-- Sprzęty wystające poza lico (zmywarka, piekarnik) i kontrola otwierania przy nich.
+- **Później, po szablonie słupka:** nowa kategoria „Sprzęty” (płyta indukcyjna,
+  piekarnik, lodówka, zmywarka, mikrofala itd.), a z nią sprzęty wystające poza
+  lico i kontrola otwierania przy nich. Do tego czasu sprzętów nie ruszamy
+  (decyzja użytkownika 2026-09-27).
