@@ -45,33 +45,7 @@ w `.gitignore`, więc w świeżym środowisku trzeba go założyć:
 deoptimised the styling" i przestaje formatować wynik. Artefakt testowy jest przez to
 o ~100 KB mniejszy niż wcześniej — to nie jest oznaka obciętego builda.
 
-[AI-TODO] Pięć suit pada niezależnie od zmian w narożniku — sprawdzone przez zbudowanie
-artefaktu z `git show HEAD:szafki.jsx` i przelecenie ich osobno, wynik identyczny:
-
-- `pdf` — `page.goto("file://./report.html")`, względny adres `file://` jest nieprawidłowy;
-  suita potrzebuje ścieżki bezwzględnej,
-- `savetest` — szuka `http://127.0.0.1:5199/preview-local.html`, którego nikt nie buduje,
-- `d2test`, `fixbtn` — timeout `locator.click` na przycisku, którego nie ma,
-- `pins2` — 2 BLAD: kołki i etykiety w dwóch kolumnach,
-- `narjedne` — 2 BLAD: nie ma podpowiedzi „Ustaw jedne drzwi …” (szerokość wychodzi
-  NaN); pada tak samo na czystym `main` (sprawdzone przy odsunięciu od ściany).
-- `nozki` — 2 BLAD: wysokość nóżki pod cokołem w obrysie i pod korpusem w elewacji;
-  pada tak samo na czystym `main` (sprawdzone przy okuciach w rzucie z góry).
-- `nozkistd` — to samo co `nozki`, na standalone.
-- Wykryte w pełnym przebiegu 2026-09-27, padają identycznie na czystym `main`
-  (przyczyny wstępne, niezweryfikowane w kodzie):
-  - (naprawione w teście) `luzy` — podpowiedź „luz w górę / w dół” pojawia się tylko przy
-    nierównym podziale; test ustawia teraz luz 3 mm wprost, bo przy domyślnych 2 mm jego
-    drzwi dzielą się równo,
-  - `polkigr` — 2 BLAD: światło szuflad 249/242 zamiast 250/241 (1 mm, pewnie od luzów),
-  - (naprawione w teście) `ciag7` — opis blatu ma „jedna formatka” małą literą w środku
-    zdania, a listwa zawieszek jest w zestawieniu jednym wierszem w mb (1760 → 1.8 mb);
-    „jedna listwa 1760 mm na cały ciąg” mówi karta ciągu,
-  - (naprawione w testach) `grain` i `ciag5` łapały kreskowanie „przejścia do ramienia”
-    (`<pattern id="mp-przejscie">` z kreską grubości 3) jako wzór słojów i jako szew
-    cokołu — aplikacja była w porządku; testy pomijają teraz wzory kreskowania.
-
-Pierwsze dwie to braki w samych suitach, nie w aplikacji. Do przejrzenia osobno.
+[AI-INFO] Znane błędy aplikacji i testów, ich przyczyny i decyzje: **`BLEDY.md`**.
 
 [AI-INFO] Pełny przebieg: wszystkie suity, które wypisują „  OK / BLAD” (ok. 90, z czego
 18 z końcówką `std` i `stdfull`/`stdnew` chodzi po 5199), po 5 naraz w tle — polecenie

@@ -25,4 +25,7 @@
   seria zrzutów), napisz o tym **przed** startem, z przybliżonym czasem —
   np. „Testy lecą (~25 min)” — i co w tym czasie robisz albo na co czekasz.
   Pełny przebieg obu buildów to ok. 20–30 min, pojedyncza suita 1–3 min.
+- Znane błędy (aplikacji i testów), ich przyczyny i sprawy do decyzji użytkownika
+  trzymaj w `BLEDY.md` — sprawdź go przed pełnym przebiegiem testów i dopisuj tam
+  każdy nowy błąd razem z commitem, który go usuwa.
 - Jeśli zapisujesz roboczą informację, używaj tagów `[AI-INFO]`, `[AI-TODO]`, `[CLAUDE-CHANGE]` albo `[CHECK]` w `AI_NOTES.md` zamiast znaczników podobnych do konfliktów Git.

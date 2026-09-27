@@ -292,6 +292,8 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 
 ## 7. Testy — co która suita pilnuje
 
+Znane błędy suit i ich przyczyny: `BLEDY.md`.
+
 Uruchamianie: `cd testy && bash sweep.sh <nazwy>` (bez `.mjs`).
 `STD=1` przełącza na `standalone-local.html` (port 5199), domyślnie
 `mebloprojekt-app.html` (port 5205).
