@@ -34,11 +34,13 @@ const front = async () => {
   });
 };
 
+/* Szafka 900: od 900 mm nozki ida parami przy bokach i para na srodku
+   (legPlan), wiec od czola widac trzy. */
 console.log('== cokół w obrysie 100 + nóżki 100 ==');
 await setup('inbody', 100, 100);
 let f = await front();
 console.log('  nóżki:', JSON.stringify(f.legs), '| podpisy:', f.total.join(', '), '|', f.nozki);
-ok('nóżka kończy się pod dnem, nie pod szafką', f.legs.length === 2 && f.legs[0].y === 620, JSON.stringify(f.legs));
+ok('nóżka kończy się pod dnem, nie pod szafką', f.legs.length === 3 && f.legs.every((l) => l.y === 620), JSON.stringify(f.legs));
 ok('nóżka rysowana za cokołem (przygaszona)', f.legs.every(l => l.op === '0.5'), JSON.stringify(f.legs.map(l => l.op)));
 ok('całkowita wysokość zostaje 720', f.total.includes(720) && !f.total.includes(820), f.total.join(', '));
 await page.locator('svg').first().screenshot({ path: S + 'shot-nozki-obrys.png' });
@@ -53,7 +55,7 @@ console.log('\n== cokół pod korpusem 100 + nóżki 100 ==');
 await setup('outside', 100, 100);
 f = await front();
 console.log('  nóżki:', JSON.stringify(f.legs), '| podpisy:', f.total.join(', '));
-ok('nóżka pod korpusem, pełna widoczność', f.legs.length === 2 && f.legs[0].op === '1', JSON.stringify(f.legs));
+ok('nóżka pod korpusem, pełna widoczność', f.legs.length === 3 && f.legs.every((l) => l.op === '1'), JSON.stringify(f.legs));
 ok('całkowita wysokość 820', f.total.includes(820), f.total.join(', '));
 
 console.log('\n== bez cokołu, nóżki 100 ==');

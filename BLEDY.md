@@ -12,7 +12,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Suita | Objaw | Przyczyna / stan |
 |---|---|---|
-| `nozki` / `nozkistd` | 2 BLAD: wysokość nóżki pod cokołem w obrysie i pod korpusem w elewacji | do zdiagnozowania |
 | `polkigr` | 2 BLAD: światło szuflad 249/242 zamiast 250/241 | do zdiagnozowania (1 mm) |
 | `pins2` | 2 BLAD: kołki i etykiety w dwóch kolumnach | do zdiagnozowania |
 | `pdf` | crash: `page.goto("file://./report.html")` — względny `file://` | usterka testu |
@@ -28,6 +27,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 | 2026-09-27 | `ciag5`, `grain` | kreskowanie „przejścia do ramienia” (`<pattern id="mp-przejscie">`) brane za szew cokołu i za strukturę słojów — aplikacja dobra | b89e078 |
 | 2026-09-27 | `ciag7` | nowy format opisu („jedna formatka” w środku zdania, listwa w mb w zestawieniu) | e46e01b |
 | 2026-09-27 | `narjedne` | nie błąd aplikacji: jedne drzwi przy rogu same wypełniają lico do maskownicy (ręczna szerokość celowo pomijana), więc podpowiedź „Zrób jedne drzwi” nie ma czego naprawiać; test sprawdza teraz dopasowanie drzwi (238 mm), brak szpary i błędu pasma | (ten commit) |
+| 2026-09-27 | `nozki`, `nozkistd` | test zakładał 2 nóżki od czoła, a szafka 900 mm ma od wcześniejszej zmiany parę na środku (3 widoczne); wysokości i przygaszenie były dobre | (ten commit) |
 | 2026-09-27 | `luzy` | podpowiedź o luzie pojawia się przy nierównym podziale; test ustawia luz 3 mm wprost | 3d2690b |
 
 ## Do decyzji użytkownika
