@@ -8433,6 +8433,15 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
           corner: { ...(c.corner || {}), arm: Number(len) } })),
       };
     }
+    if (action.startsWith("hingeflipcab:")) {
+      // „hingeflipcab:<nr szafki>:<poziom>:<kolumna>:<strona>:<ile zostaje>" — z uwagi o kolizji
+      const [, idx, li, j, side, zostaje] = action.split(":");
+      const reszta = Number(zostaje) > 0 ? ` — zostaje ${fmt(Number(zostaje))} mm` : " — bez kolizji";
+      return {
+        label: `Przełóż zawiasy na ${side === "left" ? "lewą" : "prawą"}${reszta}`,
+        run: () => editItemLevels(Number(idx), (L) => { L[+li].cols[+j].hinge = side; }),
+      };
+    }
     if (action.startsWith("slepyrog:")) {
       // „slepyrog:<nr szafki>:<strona fixu>:<szerokosc fixu>:<ciag z narożnikiem albo ->"
       const [, idx, strona, w, ciag] = action.split(":");
@@ -9996,8 +10005,19 @@ const swingBodies = (L) => {
         // zawias po lewej -> wolna krawedz idzie w prawo, i odwrotnie
         const prawe = d.hingeSide === "right";
         const hu = u0 + d.x + (prawe ? d.w : 0);
+        /* Pojedyncze drzwi mozna przelozyc na druga strone — liczymy od razu,
+           jak otwieraloby sie wtedy, zeby uwaga mogla dac przycisk tylko tam,
+           gdzie to naprawde pomaga. Po stronie fixu zawias wymaga wspornika,
+           wiec tam nie proponujemy. */
+        const kol = (((c.cab.levels || [])[d.lvl] || {}).cols || [])[d.colJ] || {};
+        const nowaStrona = prawe ? "left" : "right";
+        const fixTam = kol.fix && kol.fix.side === nowaStrona && Number(kol.fix.w) > 0;
+        const alt = d.groupN === 1 && !fixTam
+          ? swingLeaf(n, u0 + d.x + (prawe ? 0 : d.w), lico, prawe ? 1 : -1, d.w, z0, z1, {})
+          : null;
         skrzydla.push(swingLeaf(n, hu, lico, prawe ? -1 : 1, d.w, z0, z1,
-          { ...kto, klucz, szer: d.w }));
+          { ...kto, klucz, szer: d.w, alt,
+            flip: alt ? { idx: c.index, lvl: d.lvl, col: d.colJ, side: nowaStrona } : null }));
       });
     });
     /* Wstawka w rogu stoi w licu drzwi, wiec dla skrzydel jest przeszkoda —
@@ -10064,14 +10084,29 @@ const openingMsgs = (L) => {
     const gdzie = g.b.run === s.run ? "w tym samym ciągu" : `z ciągu „${g.b.run}"`;
     const czyje = g.b.id === s.id ? "tej samej szafki" : `szafki „${g.b.cab}" ${gdzie}`;
     const zostaje = Math.max(0, Math.round(s.szer - g.ile));
+    /* Przycisk przelozenia zawiasow — tylko gdy po przelozeniu kolizja maleje;
+       podpis mowi, ile jej zostanie. */
+    let akcjaFlip = "";
+    if (s.alt && s.flip) {
+      let altIle = 0;
+      bryly.forEach((b) => {
+        if (b.klucz === s.klucz || (b.id === s.id && b.co === "korpus")) return;
+        altIle = Math.max(altIle, swingHit(s.alt, b));
+      });
+      if (altIle < g.ile - 5)
+        akcjaFlip = `|hingeflipcab:${s.flip.idx}:${s.flip.lvl}:${s.flip.col}:${s.flip.side}:${Math.round(altIle)}`;
+    }
     /* Rady tylko wykonalne: front wezszy niz najwezsza sensowna kolumna to juz
        nie drzwi (wychodzilo „zwez front do 0 mm”), a odsuniecie ciagow ma
        konkretne pole w karcie ciagu. */
-    const rady = ["przełóż zawiasy na drugą stronę"];
+    /* Przy pojedynczych drzwiach wiemy juz, czy przelozenie pomaga — gdy nie,
+       nie radzimy go (wychodzilo „przeloz zawiasy”, a po drugiej stronie bylo
+       gorzej). Przy dwojgu drzwiach i froncie ramienia rada zostaje ogolna. */
+    const rady = !s.flip || akcjaFlip ? ["przełóż zawiasy na drugą stronę"] : [];
     if (zostaje >= MIN_COL) rady.push(`zwęź front do ${fmt(zostaje)} mm`);
     if (g.b.run !== s.run) rady.push("odsuń ciągi w rogu (karta ciągu → Narożnik → „Luz w rogu”)");
     const rada = rady.length > 1
-      ? rady.slice(0, -1).join(", ") + " albo " + rady[rady.length - 1] : rady[0];
+      ? rady.slice(0, -1).join(", ") + " albo " + rady[rady.length - 1] : (rady[0] || "zmień układ w rogu");
     /* Kolizja miedzy dwoma ciagami w rogu bez szafki w L: od razu przycisk
        wstawki — najpierw plaskiej (grubosc plyty), a gdy juz jest i nie
        wystarcza, szerokiej 60 mm na trojkatach. Ustawienie siedzi w narozniku
@@ -10094,7 +10129,7 @@ const openingMsgs = (L) => {
     out.push({ level: "error", text:
       `${s.ramie ? "Front ramienia" : "Skrzydło"} szafki „${s.cab}" (ciąg „${s.run}") nie ma się jak `
       + `otworzyć: po drodze stoi ${g.b.co} ${czyje} — brakuje ${fmt(Math.round(g.ile))} mm. `
-      + rada.charAt(0).toUpperCase() + rada.slice(1) + "." + akcja });
+      + rada.charAt(0).toUpperCase() + rada.slice(1) + "." + akcjaFlip + akcja });
   });
   return out;
 };
@@ -13194,6 +13229,20 @@ export default function App() {
                                 {fmt(c.doorH)} wys.
                               </span>
                             )}
+                          </div>
+                        )}
+
+                        {/* Strona zawiasow pojedynczych drzwi — przy kolumnie, a nie tylko
+                            w zwinietej karcie „Luzy drzwi” (prosba uzytkownika 2026-09-28).
+                            „auto” pokazuje, gdzie zawias wypada teraz. */}
+                        {c.kind === "doors" && rawCol.doors === 1 && (
+                          <div className="flex items-center gap-2 text-xs" data-el="zawias-kolumny">
+                            <span className="text-stone-500">zawias</span>
+                            <Seg value={rawCol.hinge === "left" || rawCol.hinge === "right" ? rawCol.hinge : "auto"}
+                              onChange={(v) => editLevels((L) => { L[lv.i].cols[c.j].hinge = v; })}
+                              options={[
+                                { v: "auto", l: `auto (${((c.doors || [])[0] || {}).hingeSide === "right" ? "P" : "L"})` },
+                                { v: "left", l: "z lewej" }, { v: "right", l: "z prawej" }]} />
                           </div>
                         )}
 

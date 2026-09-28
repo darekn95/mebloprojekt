@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-28 | `tylkol` | test szukał przycisku po nazwie „auto” bez dokładnego dopasowania i łapał nowy „auto (L)” przełącznika zawiasu — selektor `exact: true`; aplikacja dobra | (ten commit) |
 | 2026-09-28 | `blat`, `fromcab`, `stdfull` | testy zakładały szablon „Szafka stojąca” 500 w głąb — od zmiany na 570 (prośba użytkownika) głębokość blatu to 620, prowadnica w rzucie 52..552, a druga szafka dostaje w teście 570, żeby boki były wspólne; aplikacja dobra | (ten commit) |
 | 2026-09-28 | `otwier`, `wstawka` | kolizje w nieustawionym ślepym rogu czekają na „Ustaw szafkę w rogu” — scenariusze mają szafkę w rogu już ustawioną (fix, jedne drzwi, zawias od zewnątrz); kolizja z uchwytem sprawdzana w układzie użytkownika | (ten commit) |
 | 2026-09-28 | róg ze zwykłymi szafkami (`kreator`) | po dodaniu drugiego ciągu na górze były trzy kolizje z osobnymi przyciskami wstawki, a informacja o ślepym narożniku ginęła w podpowiedziach — nic o fixie, jednych drzwiach, uchwycie i zawiasie; teraz blok „Szafka w rogu do ustawienia” z jednym przyciskiem (fix + drzwi + zawias od zewnątrz + wstawka), kolizje w tym rogu czekają na ustawienie, a „+ ciąg” otwiera kreator rogu z gotową szafką | (ten commit) |

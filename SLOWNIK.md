@@ -125,7 +125,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Front szuflady na dno / na wieniec | `gaps.overBottom`, `gaps.overTop` | 15 |
 | Front poniżej prowadnicy | `gaps.underRail` | 5 |
 | Ostrzegaj powyżej | `cab.maxGap` | 5 |
-| Strona zawiasów | `cab.hinge` | „auto" |
+| Strona zawiasów | `cab.hinge` | „auto" — w karcie „Luzy drzwi” (cała szafka, pojedyncze drzwi); przy kolumnie z jednymi drzwiami przełącznik „zawias” w Strukturze wnętrza (`col.hinge`, `data-el="zawias-kolumny"`) |
 | Kąt otwarcia | `cab.openAngle` | 90 |
 
 `gaps.between` obsługuje też odstęp między frontami szuflad ORAZ luz między
@@ -288,6 +288,7 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `fixh:` / `fixnl:` / `fixback:` / `fixnodoor:` | wysokość, NL prowadnicy, tył szuflady, kolumna bez drzwi |
 | `fixdiv:` / `fixsup:` / `fixcolauto:` | przegroda, wspornik, kolumna na automat |
 | `hingeflip:<lv>:<col>:<side>` | przekłada zawiasy na drugą stronę |
+| `hingeflipcab:<nr szafki>:<lv>:<col>:<side>:<ile zostaje>` | w uwadze o kolizji otwierania: „Przełóż zawiasy na lewą/prawą — zostaje N mm / bez kolizji”; tylko pojedyncze drzwi i tylko gdy przełożenie zmniejsza kolizję (liczone w `swingBodies` → `s.alt`); gdy nie pomaga, rady o zawiasach nie ma |
 | `slepyrog:<nr szafki>:<strona fixu>:<fix mm>:<ciąg z narożnikiem albo ->` | „Ustaw szafkę w rogu”: w każdym poziomie kolumna od rogu dostaje fix na zasłoniętą część, jedne drzwi i zawias od zewnątrz (uchwyt przy fixie), a narożnik — płaską wstawkę; blok „Szafka w rogu do ustawienia” (`cornerPairMsgs`) pokazuje się, dopóki `slepyUstawiony(z)` nie jest spełnione, a kolizje otwierania w tym rogu czekają |
 | `wstawka:<ciąg z narożnikiem>:<plaska\|szeroka>:<mm>` | przy kolizji otwierania między ciągami w rogu (bez szafki w L): „Dodaj wstawkę 18 mm”, a gdy płaska już jest — „Wstawka 60 mm (na trójkątach)”; obsługa w `runFix` przez `setCorner` |
 | `onedoor:<lv>:<col>:<szer>:<side>` | dwoje wąskich drzwi (każde < `WASKI_FRONT`, jedne ≤ `SZEROKI_FRONT`) zamienia na jedne z zawiasami z lewej/prawej; podpowiedź „dwoje wąskich drzwi” w `computeGeo` (nie w szafce narożnej ani przy rogu) |
@@ -335,6 +336,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `wstawka` | wstawka w rogu: przyciski przy kolizji, formatka 720 × 60 w liście szafki i projektu, wkręty/trójkąty, rzut 18 × 60 / 60 × 18, elewacja, odsunięcie ciągu o 18/60, pole w Narożniku, brak przy szafce w L |
 | `gorne` | ciągi górne w L: górny drugiej ściany wisi na niej (bez kolizji z górnym pierwszej), odsunięcie 300 w rogu, gdy górny ściany wjeżdżającej sięga rogu; „+ szafka” bierze H/D/cokół ciągu (górny 300, dolny 570) |
 | `kreator` | kreator rogu: ślepa szafka 1000 z fixem 618 od rogu, jedne drzwi, zawias od zewnątrz, wstawka płaska — bez bloku „do ustawienia”; szafka w L 900 + ramię 630 bez wstawki; osobny ciąg; przycisk „Ustaw szafkę w rogu” w istniejącym projekcie |
+| `zawiasy` | przycisk przełożenia zawiasów przy kolizji tylko, gdy pomaga (17 mm z lewej → bez przycisku; 564 z prawej → „na lewą — zostaje 17 mm”), przełącznik „zawias” przy kolumnie z jednymi drzwiami |
 | `odsuniecie` | odsunięcie od ściany: głębokość blatu, wysięg przed drzwi (10 / <10 uwaga / >30 ostrzeżenie), krzywa ściana w widoku z boku, róg przesunięty o odstęp, wyjątek jednej szafki |
 | `hw2` / `cokol` / `cokolstd` / `ceny` / `ceny2` | okucia, cokół, cennik |
 | `ciag`…`ciag10` | ciągi: zakładanie, rozjazdy, cokół ciągu, światła |

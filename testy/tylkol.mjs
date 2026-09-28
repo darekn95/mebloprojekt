@@ -112,11 +112,12 @@ ok('po przycięciu jedno ostrzeżenie mniej',
 console.log('\n== szerokość kolumny wraca na auto ==');
 await seed({}, { levels: [{ h: null, cols: [
   { kind: 'doors', doors: 1, w: 300 }, { kind: 'doors', doors: 1, w: null }] }] });
-const auto = page.getByRole('button', { name: 'auto' }).first();
+// dokladnie „auto” — przelacznik zawiasu kolumny ma przycisk „auto (L)” (od 2026-09-28)
+const auto = page.getByRole('button', { name: 'auto', exact: true }).first();
 ok('przycisk auto przy zadanej szerokości', await auto.count() === 1);
 await auto.click();
 await page.waitForTimeout(1000);
-ok('przycisk znika po powrocie na auto', await page.getByRole('button', { name: 'auto' }).count() === 0);
+ok('przycisk znika po powrocie na auto', await page.getByRole('button', { name: 'auto', exact: true }).count() === 0);
 
 console.log('\n== błąd wypełnienia szerokości ma przycisk naprawy ==');
 await seed({}, { levels: [{ h: null, cols: [
