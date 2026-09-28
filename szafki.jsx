@@ -929,9 +929,10 @@ const TEMPLATES = [
   {
     id: "stojaca",
     label: "Szafka stojąca",
-    hint: "600 × 720 × 500, cokół, dwoje drzwi",
+    // 570 w glab — standard szafki pod blat 600 (ustalone z uzytkownikiem 2026-09-28)
+    hint: "600 × 720 × 570, cokół, dwoje drzwi",
     make: () => ({
-      W: 600, H: 720, D: 500,
+      W: 600, H: 720, D: 570,
       plinth: { on: true, height: 100, mode: "under", setback: 0 },
       // cokol pod korpusem nie zjada swiatla — korpus stoi na nim caly
       levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
