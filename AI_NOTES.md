@@ -579,8 +579,9 @@ zawiasy bez rozstawu na boku, bez skrzydla w kontroli otwierania; w kolizjach
 klapa zamknieta liczy sie jako „front”). Dobor sily: `dobierzPodnosnik`,
 tabela `GTV_PD_G00`. Suita `testy/klapy.mjs`.
 [AI-TODO] Klapy — uzytkownik sprawdzi je sam w innym terminie (2026-09-28);
-do tego czasu nie rozbudowywac bez pytania. Czeka PDF amortyzatora do klap
-opadanych — gdy przyjdzie, tabela doboru jak `GTV_PD_G00` dla klapy w dol.
+do tego czasu nie rozbudowywac bez pytania. PDF amortyzatora (PD-ECGDL)
+dotarl i jest w `GTV_PD_ECGDL`. Karta PD-ECGDL podaje zgodny zawias barkowy
+PD-MD-ZB, ale uzytkownik chce zwyklych zawiasow jak przy skrzydlach.
 [AI-TODO] Klapy — czego jeszcze nie ma: plan wiercen dla zawiasow klapy
 (na wiencu/dnie) i mocowan podnosnika na boku; kolizja otwartej klapy do gory
 z gorna szafka/sufitem i opadanej z blatem; wsparcie klapy w szafce z kilkoma

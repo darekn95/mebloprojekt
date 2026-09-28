@@ -1,9 +1,11 @@
 /* Klapy (prosba uzytkownika 2026-09-28): front uchylny do gory (zawiasy na
    gornej krawedzi) albo opadany w dol (na dolnej), z podnosnikiem gazowym.
-   - zawiasy puszkowe: 2, powyzej 900 mm szerokosci 3,
-   - podnosniki: 1, powyzej 600 mm domyslnie 2, do zmiany na 1 albo 2,
+   - zawiasy te same co przy skrzydlach: 2, powyzej 900 mm szerokosci 3,
+   - podnosniki/amortyzatory: 1, powyzej 600 mm domyslnie 2, do zmiany; jeden
+     przy szerokosci ponad 600 — ostrzezenie,
    - sila klapy do gory z tabeli GTV PD-G00 (waga frontu na jeden podnosnik,
-     wysokosc frontu, kat), klapy w dol — wpisana recznie,
+     wysokosc frontu, kat), klapy w dol z tabeli amortyzatora GTV PD-ECGDL,
+   - UI: najpierw „skrzydło / klapa”, dopiero przy klapie „do góry / w dół”,
    - formatka „Klapa” zamiast „Drzwi”, klapa na rysunku i w bryle. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -17,11 +19,12 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 // ta sama tabela co w aplikacji — test liczy oczekiwana sile niezaleznie
 const GTV90 = { 50: [1.5, 1.1, 0.9, 0.7], 60: [1.8, 1.3, 1.1, 0.9], 80: [2.4, 1.8, 1.4, 1.2],
   100: [3.0, 2.2, 1.8, 1.5], 120: [3.6, 2.7, 2.1, 1.8], 150: [4.1, 3.2, 2.3, 2.1] };
-const oczekiwana = (h, kg) => {
+const ECGDL = { 60: GTV90[60], 80: GTV90[80], 150: GTV90[150] };
+const oczekiwana = (h, kg, tab = GTV90) => {
   const W = [300, 400, 500, 600]; const hh = Math.max(300, Math.min(600, h));
   let i = 0; while (i < 2 && hh > W[i + 1]) i++;
   const t = (hh - W[i]) / 100;
-  return [50, 60, 80, 100, 120, 150].find((f) => GTV90[f][i] + (GTV90[f][i + 1] - GTV90[f][i]) * t >= kg) || null;
+  return Object.keys(tab).map(Number).find((f) => tab[f][i] + (tab[f][i + 1] - tab[f][i]) * t >= kg) || null;
 };
 
 const GORNA = (W, col = {}) => ({ name: 'K', active: 0, prices: {}, runs: [],
@@ -50,7 +53,7 @@ if (m) {
   const [, w, h, kg, ile, F] = m; const kgN = Number(kg.replace(',', '.'));
   ok('szerokość 600 → jeden podnośnik', ile === '1');
   ok(`siła zgodna z tabelą (${h} mm, ${kg} kg → ${oczekiwana(Number(h), kgN)} N)`, Number(F) === oczekiwana(Number(h), kgN), F);
-  ok('waga ≈ szer × wys × 18 mm × 700 kg/m³', Math.abs(kgN - (w / 1000) * (h / 1000) * 0.018 * 700) < 0.06, kg);
+  ok('waga ≈ szer × wys × 18 mm × 680 kg/m³', Math.abs(kgN - (w / 1000) * (h / 1000) * 0.018 * 680) < 0.06, kg);
 }
 let hw = await okucia();
 ok('okucia: „Podnośnik gazowy N N” × 1', ilosc(hw, /^Podnośnik gazowy \d+ N/) === 1, hw.filter((r) => /Podnośnik|Zawias/.test(r)).join(' / '));
@@ -59,27 +62,39 @@ let fk = await formatki();
 ok('formatka „Klapa”, bez „Drzwi”', fk.some((r) => /^Klapa/.test(r)) && !fk.some((r) => /^Drzwi/.test(r)), fk.filter((r) => /Klapa|Drzwi/.test(r)).join(' / '));
 ok('na widoku z przodu jest klapa', await page.locator('#rysunek [data-el="klapa"]').count() >= 1);
 
-console.log('\n== UI: przełącznik otwierania i podnośników ==');
+console.log('\n== UI: najpierw skrzydło / klapa, potem kierunek ==');
 const pole = page.locator('[data-el="klapa-kolumny"]');
-ok('przy jednych drzwiach jest „otwieranie”', await pole.count() === 1);
+ok('przy jednych drzwiach jest wybór frontu', await pole.count() === 1);
 ok('przy klapie nie ma przełącznika strony zawiasu', await page.locator('[data-el="zawias-kolumny"]').count() === 0);
-await pole.getByText('klapa w dół', { exact: true }).click(); await page.waitForTimeout(1500);
+ok('przy klapie jest wybór „do góry / w dół”', await pole.getByText('w dół', { exact: true }).count() === 1);
+await pole.getByText('w dół', { exact: true }).click(); await page.waitForTimeout(1500);
 let p = await zapis();
-ok('„klapa w dół” zapisuje col.klapa = "dol"', p.items[0].cab.levels[0].cols[0].klapa === 'dol');
+ok('„w dół” zapisuje col.klapa = "dol"', p.items[0].cab.levels[0].cols[0].klapa === 'dol');
 u = await uwagi();
-ok('klapa w dół bez siły → uwaga „wpisz siłę siłownika” z wzorcem 80 N', /wpisz siłę siłownika/.test(u) && /80 N/.test(u));
+const md = /klapa w dół (\d+) × (\d+) mm, ok\. ([\d,]+) kg — 1 × amortyzator (\d+) N/.exec(u);
+console.log('     ' + (md ? md[0] : '(brak uwagi o amortyzatorze)'));
+ok('klapa w dół: siła z tabeli PD-ECGDL', md && Number(md[4]) === oczekiwana(Number(md[2]), Number(md[3].replace(',', '.')), ECGDL), md && md[4]);
 hw = await okucia();
-ok('okucia: „Siłownik do klapy opadanej — siła do dobrania”', hw.some((r) => /^Siłownik do klapy opadanej — siła do dobrania/.test(r)), hw.filter((r) => /Siłownik/.test(r)).join(' / '));
+ok('okucia: „Amortyzator do klapy opadanej N N” × 1', ilosc(hw, /^Amortyzator do klapy opadanej \d+ N/) === 1, hw.filter((r) => /Amortyzator/.test(r)).join(' / '));
 await pole.locator('[data-el="klapa-sila"] input').fill('80'); await page.waitForTimeout(1500);
 hw = await okucia();
-ok('po wpisaniu 80 → „Siłownik do klapy opadanej 80 N” × 1', ilosc(hw, /^Siłownik do klapy opadanej 80 N/) === 1, hw.filter((r) => /Siłownik/.test(r)).join(' / '));
-ok('uwaga o braku siły znika', !/wpisz siłę siłownika/.test(await uwagi()));
+ok('po wpisaniu 80 → „Amortyzator do klapy opadanej 80 N” × 1', ilosc(hw, /^Amortyzator do klapy opadanej 80 N/) === 1, hw.filter((r) => /Amortyzator/.test(r)).join(' / '));
+ok('uwaga mówi o sile wpisanej ręcznie', /amortyzator 80 N \(siła wpisana ręcznie\)/.test(await uwagi()));
 await pole.getByText('skrzydło', { exact: true }).click(); await page.waitForTimeout(1500);
 p = await zapis();
-ok('„skrzydło” usuwa klapę, wraca przełącznik zawiasu', !p.items[0].cab.levels[0].cols[0].klapa
-  && await page.locator('[data-el="zawias-kolumny"]').count() === 1);
+ok('„skrzydło” usuwa klapę, wraca przełącznik zawiasu, znika wybór kierunku', !p.items[0].cab.levels[0].cols[0].klapa
+  && await page.locator('[data-el="zawias-kolumny"]').count() === 1 && await pole.getByText('w dół', { exact: true }).count() === 0);
 fk = await formatki();
 ok('formatka znów „Drzwi”', fk.some((r) => /^Drzwi/.test(r)) && !fk.some((r) => /^Klapa/.test(r)));
+await pole.getByText('klapa', { exact: true }).click(); await page.waitForTimeout(1500);
+p = await zapis();
+ok('„klapa” bez wyboru kierunku zaczyna od „do góry”', p.items[0].cab.levels[0].cols[0].klapa === 'gora');
+
+console.log('\n== klapa użytkownika: w dół 560 × 750 ==');
+await seed({ ...GORNA(560), items: [{ ...GORNA(560).items[0], cab: { ...GORNA(560, { klapa: 'dol' }).items[0].cab, H: 754 } }] });
+u = await uwagi();
+ok('poza tabelą (ponad 600 mm) i za ciężka na 150 N, z uwagą o kącie 45°',
+  /poza tabelą GTV PD-ECGDL/.test(u) && /za ciężka/.test(u) && /45°/.test(u), u.split('\n').filter((l) => /klapa/.test(l)).join(' / ').slice(0, 300));
 
 console.log('\n== szeroka klapa: 900 → 2 podnośniki, 1000 → 3 zawiasy ==');
 await seed(GORNA(900, { klapa: 'gora' }));
@@ -89,7 +104,9 @@ ok('900: dwa podnośniki (auto), dwa zawiasy', ilosc(hw, /^Podnośnik gazowy/) =
 await page.locator('[data-el="klapa-kolumny"]').getByText('1', { exact: true }).click(); await page.waitForTimeout(1500);
 hw = await okucia();
 u = await uwagi();
-ok('ręcznie 1 podnośnik → 1 szt. i podpowiedź „zwykle daje się dwa”', ilosc(hw, /^Podnośnik gazowy/) === 1 && /zwykle daje się dwa/.test(u));
+const cz = u.split('\n'); const iP = cz.findIndex((l) => /^podpowiedzi — nic nie trzeba/i.test(l.trim()));
+const linia = cz.findIndex((l) => /dają się dwa/.test(l));
+ok('ręcznie 1 podnośnik → 1 szt. i OSTRZEŻENIE „dają się dwa”', ilosc(hw, /^Podnośnik gazowy/) === 1 && linia >= 0 && (iP < 0 || linia < iP), `${linia} / ${iP}`);
 await seed(GORNA(1000, { klapa: 'gora' }));
 hw = await okucia();
 ok('1000: trzy zawiasy', ilosc(hw, /^Zawias/) === 3, hw.filter((r) => /Zawias/.test(r)).join(' / '));
@@ -111,7 +128,7 @@ ok('3D z otwartą klapą bez błędów strony', errors.length === 0, errors.join
 console.log('\n== zabudowa: klapa w ciągu górnym, bryła otwarta ==');
 const RUN = (id, o = {}) => ({ id, name: 'Górne', wallW: null, gap: 0, mountY: 1358, H: 360, D: 300, plinth: null, worktop: false, corner: null, ...o });
 await seed({ name: 'Z', active: 0, prices: {}, runs: [RUN('c1', { tier: 'gorny' })],
-  items: [{ ...GORNA(600, { klapa: 'gora' }).items[0], runId: 'c1' }, { ...GORNA(800, { klapa: 'dol', silaN: 80 }).items[0], runId: 'c1' }] });
+  items: [{ ...GORNA(600, { klapa: 'gora' }).items[0], runId: 'c1' }, { ...GORNA(800, { klapa: 'dol' }).items[0], runId: 'c1' }] });
 await pick('Zabudowa'); await pick('3D'); await pick('zamknięte');
 ok('bryła zabudowy z otwartymi klapami bez błędów strony', errors.length === 0, errors.join('; '));
 

@@ -51,9 +51,9 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   (prośba 2026-09-28). Zrobione i w artefakcie (wersja 48), ale użytkownik
   jeszcze ich nie oglądał. Do przejrzenia razem: przełącznik „otwieranie”,
   dobór siły z tabeli GTV PD-G00, liczba podnośników i zawiasów, uwagi,
-  formatka „Klapa”, rysunki i bryła 3D. Czeka też PDF amortyzatora do klap
-  opadanych (tabela doboru siły dla klapy w dół) — pierwsza próba wgrania nie
-  dotarła. Braki spisane w `AI_NOTES.md` ([AI-TODO] Klapy).
+  formatka „Klapa”, rysunki i bryła 3D. Poprawki po pierwszym spojrzeniu
+  (wybór w dwóch krokach, amortyzator z tabeli PD-ECGDL, ostrzeżenie przy
+  jednym podnośniku, cena 10 zł, gęstość 680) już wprowadzone. Braki spisane w `AI_NOTES.md` ([AI-TODO] Klapy).
 
 ## Ustalone — nie ruszać
 
@@ -70,14 +70,18 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   więc jedne drzwi, dwoje i ręczna szerokość mieszczą się w licu (sprawdzone
   2026-09-27 na szablonie `naroznikL`). Nie usuwać (decyzja użytkownika).
 
-- **Klapy** (2026-09-28): do góry i w dół, zawiasy puszkowe 2 szt. (powyżej
-  900 mm szerokości 3), podnośnik gazowy 1 szt. (powyżej 600 mm domyślnie 2,
-  do zmiany). Siła klapy do góry z tabeli GTV PD-G00 (instrukcja od
-  użytkownika; waga frontu z wymiarów i grubości, 700 kg/m³, dzielona na
-  podnośniki, najmniejsza siła, która uniesie). Klapa w dół — siła wpisywana
-  ręcznie; wzorzec użytkownika: 560 × 750, jeden siłownik GTV 80 N, „idealnie
-  spowalnia”, ale nie traktujemy go jako reguły. Ceny podnośnika i siłownika
-  (15 zł) są orientacyjne — do poprawienia w cenniku.
+- **Klapy** (2026-09-28): najpierw wybór „skrzydło / klapa”, przy klapie
+  „do góry / w dół”. Zawiasy te same co przy skrzydłach, 2 szt. (powyżej
+  900 mm szerokości 3). Podnośnik (do góry) / amortyzator (w dół) 1 szt.,
+  powyżej 600 mm domyślnie 2, do zmiany; jeden przy ponad 600 mm to
+  **ostrzeżenie**. Siła z tabel GTV (karty od użytkownika): do góry PD-G00,
+  w dół amortyzator olejowy PD-ECGDL (60/80/150 N, 90°). Waga frontu
+  z wymiarów, grubości i gęstości 680 kg/m³ (użytkownik: 660–680), dzielona na
+  sztuki, najmniejsza siła, która uniesie. Klapa użytkownika 560 × 750 na
+  jednym 80 N wg tabeli jest za ciężka — działa, bo otwiera się tylko na ok.
+  45° (dlatego uwaga o kącie przy za ciężkiej klapie w dół). Cena standardowa
+  podnośnika i amortyzatora: 10 zł. Strona Kornera (waga płyty) zablokowana
+  przez sieć kontenera — gęstość od użytkownika.
 
 - Artefakt na claude.ai **nie** potrzebuje pobierania plików (tylko wersja na
   GitHubie). „Wyślij do Claude” jest **tylko** w artefakcie. Szczegóły w `AGENTS.md`.

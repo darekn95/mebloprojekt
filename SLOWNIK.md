@@ -106,9 +106,9 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | szerokość (kolumny) | `col.w` |
 | drzwi 1 / drzwi 2 … | `col.doorWidths[]` |
 | zaw. | `col.hinges[]` (puste = `autoHinges`) |
-| otwieranie: skrzydło / klapa do góry / klapa w dół | `col.klapa` = brak / `"gora"` / `"dol"` — tylko przy 1 drzwiach w kolumnie (`data-el="klapa-kolumny"`); w geometrii front typu `"klapa"` z `klapaZawiasy` (x zawiasów), lista `geo.klapy[]` |
-| podnośniki / siłowniki: auto / 1 / 2 | `col.silowniki` (puste = 1, powyżej 600 mm szerokości 2) |
-| siła N | `col.silaN` (puste = z tabeli GTV przy klapie do góry; przy klapie w dół do wpisania) — `data-el="klapa-sila"` |
+| front: skrzydło / klapa, a przy klapie „otwierana: do góry / w dół” | `col.klapa` = brak / `"gora"` / `"dol"` (samo „klapa” zaczyna od `"gora"`) — tylko przy 1 drzwiach w kolumnie (`data-el="klapa-kolumny"`); w geometrii front typu `"klapa"` z `klapaZawiasy` (x zawiasów), lista `geo.klapy[]` |
+| podnośniki (do góry) / amortyzatory (w dół): auto / 1 / 2 | `col.silowniki` (puste = 1, powyżej 600 mm szerokości 2; jeden przy ponad 600 mm — ostrzeżenie) |
+| siła N | `col.silaN` (puste = z tabeli: PD-G00 do góry, PD-ECGDL w dół) — `data-el="klapa-sila"` |
 | kąt 75° / 90° / 100° (klapa do góry) | `col.katKlapy` (puste = 90) |
 | uchwyt / lustro | `col.handles[]`, `col.mirrors[]` |
 | własny luz między drzwiami | `col.gapBetween` |
@@ -203,7 +203,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `cudzeRamiona` (w `AssemblyTopView`) | ramię szafki w L, którego ściany nie rysujemy (zakres „Ciąg”) — przeniesione macierzą na swoje prawdziwe miejsce, z kawałkiem ściany i blatem |
 | `cornerSpan(n)` / `SZEROKI_FRONT` (600) | ile szafka w L zajmuje od rogu wzdłuż obu ścian (odstęp + głębokość korpusu + ramię; odstęp + szerokość korpusu) i ostrzeżenie o froncie ramienia szerszym niż 600 mm |
 | `blatNadSzafka(project, full, index, arm)` | blat ciągu nad jedną szafką w jej rzucie z góry (i blat sąsiedniej ściany nad ramieniem); przełącznik „Ukryj / Pokaż blat” (`showBlat`) także w rzucie zabudowy; wymiary ramienia w rzucie szafki: `data-el="wymiary-ramienia"` |
-| `dobierzPodnosnik(hFrontu, kgNaJeden, kat)` | najmniejsza siła z `GTV_PD_G00`, która uniesie wagę na jeden podnośnik (między wierszami proporcjonalnie; poniżej 300 jak 300, powyżej 600 → `poza`) |
+| `dobierzPodnosnik(hFrontu, kgNaJeden, kat, kierunek)` | najmniejsza siła z `GTV_PD_G00` (do góry) albo `GTV_PD_ECGDL` (w dół), która uniesie wagę na jeden podnośnik (między wierszami proporcjonalnie; poniżej 300 jak 300, powyżej 600 → `poza`) |
 | `KlapaElewacja` | klapa na widoku z przodu (szafka i ciąg): trójkąt z wierzchołkiem przy krawędzi zawiasów, uchwyt poziomy przy wolnej; otwarta — pasek frontu przy zawiasach. `data-el="klapa"` |
 | `rotAboutX` / `klapaObrot` / `klapaUchwytY` | klapa w bryle 3D: obrót wokół krawędzi zawiasów (do góry +, w dół −, najwyżej 90°), uchwyt przy wolnej krawędzi |
 | `TopHardware` | okucia w widoku z góry (szafka i zabudowa, pod „Pokaż okucia”): uchwyty przed frontem, zawiasy przy boku od frontu, nóżki przerywane; `data-el="okucia-gora"` |
@@ -229,7 +229,8 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `WASKI_FRONT` | 250 | poniżej tego front jest wąski — podpowiedź, nie błąd; też próg podpowiedzi „dwoje wąskich drzwi” |
 | `SLEPY_ZAPAS` | 30 | ślepy róg: zasłonięta część frontu = głębokość sąsiada + jego front + ten zapas na uchwyt (`n.blind.covered`, pełna wartość `zaslania`) |
 | `GTV_PD_G00`, `KLAPA_WYS`, `KLAPA_SILY` | tabela | udźwig [kg] jednego podnośnika GTV PD-G00 wg kąta (75/90/100°), siły (50–150 N) i wysokości frontu (300–600 mm); instrukcja od użytkownika. „12” dla 50 N/400 mm/75° to literówka → 1,2 |
-| `GESTOSC_FRONTU` | 700 | kg/m³ płyty frontu do wagi klapy (`wagaFrontu`; 18 mm ≈ 12,6 kg/m²) |
+| `GTV_PD_ECGDL` | tabela | amortyzator olejowy klapy opadanej: 60 / 80 / 150 N, tylko 90°, liczby jak PD-G00 dla 90° (karta od użytkownika) |
+| `GESTOSC_FRONTU` | 680 | kg/m³ płyty frontu do wagi klapy (`wagaFrontu`; gęstość robocza od użytkownika 660–680, bierzemy górną; 18 mm ≈ 12,2 kg/m²) |
 | `KLAPA_MIN_KORPUS` | 290 | instrukcja GTV: tyle korpusu na boku pod podnośnik klapy do góry |
 | `WSTAWKA_W` | 60 | wstawka w rogu: płaska tyle w głąb, szeroka tyle licem do przodu |
 | `CORNER_BRACKET_W` | 60 | domyślna szerokość wsporników w rogu |
@@ -284,8 +285,8 @@ Złączka do cokołu (0,30) · Zawieszka meblowa regulowana (3) ·
 Listwa montażowa do zawieszek (9/mb) · Hak / wkręt z kołkiem do ściany (1) ·
 Wkręt 4 × 30 (0,08) · Wkręt 3,5 × 30 do pleców (0,05) ·
 Zszywka / gwoździk do pleców (0,05) · Lustro na drzwiach (200/m²) ·
-Podnośnik gazowy N N / Podnośnik gazowy — siła do dobrania (cena po `pk` „Podnośnik gazowy do klapy”, 15) ·
-Siłownik do klapy opadanej N N (`pk` „Siłownik do klapy opadanej”, 15) ·
+Podnośnik gazowy N N / Podnośnik gazowy — siła do dobrania (cena po `pk` „Podnośnik gazowy do klapy”, 10) ·
+Amortyzator do klapy opadanej N N (`pk` „Amortyzator do klapy opadanej”, 10) ·
 Prowadnica Sevroll V-BOX 3D Slim … mm (`SLIDE_PRICES` wg NL)
 
 ---
@@ -348,7 +349,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `wstawka` | wstawka w rogu: przyciski przy kolizji, formatka 720 × 60 w liście szafki i projektu, wkręty/trójkąty, rzut 18 × 60 / 60 × 18, elewacja, odsunięcie ciągu o 18/60, pole w Narożniku, brak przy szafce w L |
 | `gorne` | ciągi górne w L: górny drugiej ściany wisi na niej (bez kolizji z górnym pierwszej), odsunięcie 300 w rogu, gdy górny ściany wjeżdżającej sięga rogu; „+ szafka” bierze H/D/cokół ciągu (górny 300, dolny 570) |
 | `kreator` | kreator rogu: ślepa szafka 1000 z fixem 618 od rogu, jedne drzwi, zawias od zewnątrz, wstawka płaska — bez bloku „do ustawienia”; szafka w L 900 + ramię 630 bez wstawki; osobny ciąg; przycisk „Ustaw szafkę w rogu” w istniejącym projekcie |
-| `klapy` | klapa do góry: siła z tabeli GTV (test liczy ją sam), waga frontu, 1 podnośnik przy 600, 2 przy 900, ręcznie 1 → podpowiedź; zawiasy 2 / 3 powyżej 900; formatka „Klapa”; klapa w dół: uwaga „wpisz siłę”, po wpisaniu 80 N pozycja w okuciach; ostrzeżenia >600 mm i <290 mm; bryła otwarta szafki i ciągu bez błędów |
+| `klapy` | klapa do góry: siła z tabeli GTV (test liczy ją sam), waga frontu (680 kg/m³), 1 podnośnik przy 600, 2 przy 900, ręcznie 1 → ostrzeżenie; zawiasy 2 / 3 powyżej 900; formatka „Klapa”; UI „skrzydło / klapa”, potem „do góry / w dół”; klapa w dół: amortyzator z tabeli PD-ECGDL, po wpisaniu 80 N pozycja w okuciach; klapa użytkownika 560 × 750 — poza tabelą i za ciężka, z uwagą o kącie 45°; ostrzeżenia >600 mm i <290 mm; bryła otwarta szafki i ciągu bez błędów |
 | `zawiasy` | przycisk przełożenia zawiasów przy kolizji tylko, gdy pomaga (17 mm z lewej → bez przycisku; 564 z prawej → „na lewą — zostaje 17 mm”), przełącznik „zawias” przy kolumnie z jednymi drzwiami |
 | `odsuniecie` | odsunięcie od ściany: głębokość blatu, wysięg przed drzwi (10 / <10 uwaga / >30 ostrzeżenie), krzywa ściana w widoku z boku, róg przesunięty o odstęp, wyjątek jednej szafki |
 | `hw2` / `cokol` / `cokolstd` / `ceny` / `ceny2` | okucia, cokół, cennik |

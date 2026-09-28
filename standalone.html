@@ -155,9 +155,9 @@ const DEFAULT_HW_PRICES = {
      zawiasie szerokokatnym, drugie na lamanym — jedne i drugie po 15 zl. */
   "Zawias 165°": 15,
   "Zawias łamany 90°": 15,
-  // klapy — cena orientacyjna, do poprawienia w cenniku
-  "Podnośnik gazowy do klapy": 15,
-  "Siłownik do klapy opadanej": 15,
+  // klapy — cena standardowa ustalona z uzytkownikiem (2026-09-28)
+  "Podnośnik gazowy do klapy": 10,
+  "Amortyzator do klapy opadanej": 10,
 };
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
@@ -226,13 +226,17 @@ const SLEPY_ZAPAS = 30;
 
 /* ---------- klapy ----------
    Front uchylny: klapa do gory (zawiasy na gornej krawedzi) albo opadana w dol
-   (zawiasy na dolnej). Zawiasy puszkowe: 2, powyzej 900 mm szerokosci 3.
-   Podnosnik gazowy: 1, powyzej 600 mm szerokosci domyslnie 2 (mozna zmienic).
-   Sile podnosnika klapy do gory bierzemy z tabeli producenta — GTV PD-G00
-   „standard” (instrukcja od uzytkownika, 2026-09-28): maksymalna waga frontu
-   [kg] na jeden podnosnik dla sily 50–150 N, wysokosci frontu 300–600 mm
-   i kata otwarcia 75/90/100°. W tabeli dla 50 N / 400 mm / 75° wydrukowano
-   „12” — to literowka, ma byc 1,2. Klapa w dol: tabeli nie ma, sila recznie. */
+   (zawiasy na dolnej). Zawiasy te same co przy skrzydlach: 2, powyzej 900 mm
+   szerokosci 3. Podnosnik (do gory) albo amortyzator (w dol): 1, powyzej
+   600 mm szerokosci domyslnie 2 (mozna zmienic).
+   Sile bierzemy z tabel producenta (instrukcje od uzytkownika, 2026-09-28):
+   - klapa do gory: podnosnik gazowy GTV PD-G00 „standard” — maksymalna waga
+     frontu [kg] na jeden podnosnik dla sily 50–150 N, wysokosci frontu
+     300–600 mm i kata otwarcia 75/90/100°. W tabeli dla 50 N / 400 mm / 75°
+     wydrukowano „12” — to literowka, ma byc 1,2.
+   - klapa w dol: amortyzator olejowy GTV PD-ECGDL — 60 / 80 / 150 N, tylko
+     kat 90°; liczby takie same jak w PD-G00 dla 90°. Klapa uzytkownika
+     560 × 750 pracuje na jednym 80 N, ale otwiera sie tylko na ok. 45°. */
 const KLAPA_WYS = [300, 400, 500, 600];
 const GTV_PD_G00 = {
   75: { 50: [1.6, 1.2, 1.0, 0.8], 60: [2.0, 1.5, 1.2, 1.0], 80: [2.7, 2.0, 1.6, 1.4],
@@ -242,23 +246,29 @@ const GTV_PD_G00 = {
   100: { 50: [1.1, 1.0, 0.8, 0.7], 60: [1.6, 1.2, 0.9, 0.8], 80: [2.1, 1.6, 1.2, 1.0],
     100: [2.6, 1.9, 1.6, 1.3], 120: [3.1, 2.3, 1.9, 1.6], 150: [3.5, 2.6, 2.2, 1.9] },
 };
-const KLAPA_SILY = [50, 60, 80, 100, 120, 150];
-// plyta wiorowa / MDF — ok. 700 kg/m3, czyli 18 mm to ok. 12,6 kg/m2
-const GESTOSC_FRONTU = 700;
+const GTV_PD_ECGDL = { 60: [1.8, 1.3, 1.1, 0.9], 80: [2.4, 1.8, 1.4, 1.2], 150: [4.1, 3.2, 2.3, 2.1] };
+/* Gestosc robocza plyty frontu od uzytkownika: 660–680 kg/m3 — bierzemy
+   gorna granice, zeby podnosnik nie wyszedl za slaby (18 mm ≈ 12,2 kg/m2). */
+const GESTOSC_FRONTU = 680;
 const KLAPA_MIN_KORPUS = 290;   // instrukcja GTV: korpus co najmniej 290 mm
 const wagaFrontu = (w, h, grub) => (w / 1000) * (h / 1000) * (grub / 1000) * GESTOSC_FRONTU;
-/* Najmniejszy podnosnik, ktory przy tej wysokosci frontu utrzyma podana wage
-   (na jeden podnosnik). Miedzy wierszami tabeli liczymy proporcjonalnie;
-   ponizej 300 mm bierzemy wiersz 300 (bezpiecznie), powyzej 600 — poza tabela. */
-const dobierzPodnosnik = (hFrontu, kgNaJeden, kat) => {
-  const tab = GTV_PD_G00[kat] || GTV_PD_G00[90];
+/* Najmniejsza sila z tabeli, ktora przy tej wysokosci frontu utrzyma podana
+   wage (na jeden podnosnik). Miedzy wierszami tabeli liczymy proporcjonalnie;
+   ponizej 300 mm bierzemy wiersz 300 (bezpiecznie), powyzej 600 — poza tabela.
+   Klapa w dol ma tylko tabele PD-ECGDL dla 90°, wiec kat nie gra roli. */
+const dobierzPodnosnik = (hFrontu, kgNaJeden, kat, kierunek = "gora") => {
+  const tab = kierunek === "dol" ? GTV_PD_ECGDL : (GTV_PD_G00[kat] || GTV_PD_G00[90]);
+  const sily = Object.keys(tab).map(Number).sort((a, b) => a - b);
   const h = Math.max(KLAPA_WYS[0], Math.min(KLAPA_WYS[KLAPA_WYS.length - 1], hFrontu));
   let i = 0;
   while (i < KLAPA_WYS.length - 2 && h > KLAPA_WYS[i + 1]) i++;
   const t = (h - KLAPA_WYS[i]) / (KLAPA_WYS[i + 1] - KLAPA_WYS[i]);
   const udzwig = (f) => tab[f][i] + (tab[f][i + 1] - tab[f][i]) * t;
-  const sila = KLAPA_SILY.find((f) => udzwig(f) >= kgNaJeden);
-  return { sila: sila || null, poza: hFrontu > KLAPA_WYS[KLAPA_WYS.length - 1], udzwig: sila ? udzwig(sila) : udzwig(150) };
+  const sila = sily.find((f) => udzwig(f) >= kgNaJeden);
+  const max = sily[sily.length - 1];
+  return { sila: sila || null, poza: hFrontu > KLAPA_WYS[KLAPA_WYS.length - 1],
+    udzwig: sila ? udzwig(sila) : udzwig(max), max,
+    tabela: kierunek === "dol" ? "GTV PD-ECGDL" : "GTV PD-G00" };
 };
 
 /* Ile szafka w L zajmuje od rogu wzdluz obu scian i skad sie to bierze. Przy
@@ -1884,9 +1894,9 @@ function computeGeoLiczy(cab, mat, ctx) {
             // podnosnik: 1, powyzej 600 mm szerokosci domyslnie 2
             const ile = rawCol.silowniki === 1 || rawCol.silowniki === 2 ? rawCol.silowniki : (dw > 600 ? 2 : 1);
             const kg = wagaFrontu(dw, cbandH, tf);
-            const kat = [75, 90, 100].includes(Number(rawCol.katKlapy)) ? Number(rawCol.katKlapy) : 90;
+            const kat = klapa === "gora" && [75, 90, 100].includes(Number(rawCol.katKlapy)) ? Number(rawCol.katKlapy) : 90;
             const recznie = num(rawCol.silaN);
-            const dobor = klapa === "gora" ? dobierzPodnosnik(cbandH, kg / ile, kat) : null;
+            const dobor = dobierzPodnosnik(cbandH, kg / ile, kat, klapa);
             const sila = recznie ?? (dobor ? dobor.sila : null);
             klapy.push({ klapa, colKey: `${lv.i}-${j}`, w: dw, h: cbandH, kg, ile, kat, sila, recznie: recznie != null, dobor, where });
             dx += dw + colGap;
@@ -3161,32 +3171,32 @@ function computeGeoLiczy(cab, mat, ctx) {
         ? "skrzydło przy boku szafki narożnej — otwiera się na tyle, żeby drugie skrzydło się złożyło"
         : (cab.frontMode === "overlay" ? "nakładany" : "wpuszczany") +
           ", 2 szt. na skrzydło poza szerokimi i wysokimi"
-          + (klapy.length ? "; klapa: 2 szt. na górnej lub dolnej krawędzi, powyżej 900 mm 3" : ""),
+          + (klapy.length ? "; klapa: te same zawiasy, 2 szt. na górnej lub dolnej krawędzi, powyżej 900 mm 3" : ""),
       qty: hingeCount,
       unit: "szt.",
     });
-  /* Klapy: podnosnik gazowy (do gory, sila z tabeli GTV PD-G00) albo
-     silownik do klapy opadanej (sila wpisana recznie). Grupujemy po kierunku
-     i sile, zeby na liscie byla jedna pozycja na rodzaj. */
+  /* Klapy: podnosnik gazowy (do gory, tabela GTV PD-G00) albo amortyzator
+     klapy opadanej (w dol, tabela GTV PD-ECGDL). Sila z tabeli albo wpisana
+     recznie. Grupujemy po kierunku i sile — jedna pozycja na rodzaj. */
   const klapyGrupy = new Map();
   klapy.forEach((k) => {
     const opis = `${fmt(k.w)} × ${fmt(k.h)} mm, ok. ${k.kg.toFixed(1).replace(".", ",")} kg`;
-    if (k.klapa === "gora") {
-      if (k.h < KLAPA_MIN_KORPUS)
-        add("warn", `${k.where}: klapa do góry ma tylko ${fmt(k.h)} mm wysokości — podnośnik GTV potrzebuje co najmniej ${KLAPA_MIN_KORPUS} mm korpusu na boku.`);
-      if (!k.recznie && k.dobor && k.dobor.poza)
-        add("warn", `${k.where}: klapa ${fmt(k.h)} mm jest wyższa niż 600 mm — poza tabelą GTV. Siłę ${k.sila ? `${k.sila} N ` : ""}przyjęto jak dla 600 mm; sprawdź u producenta albo wpisz ją ręcznie.`);
-      if (!k.recznie && k.dobor && !k.dobor.sila)
-        add("warn", `${k.where}: klapa (${opis}) jest za ciężka — nawet 150 N udźwignie ok. ${k.dobor.udzwig.toFixed(1).replace(".", ",")} kg na podnośnik. `
-          + (k.ile < 2 ? "Daj dwa podnośniki albo lżejszy front." : "Daj lżejszy front albo mocniejszy podnośnik spoza tabeli (wpisz siłę ręcznie)."));
-      else if (k.sila)
-        add("info", `${k.where}: klapa do góry ${opis} — ${k.ile} × podnośnik ${k.sila} N`
-          + (k.recznie ? " (siła wpisana ręcznie)." : ` (tabela GTV PD-G00, kąt ${k.kat}°, udźwig ok. ${k.dobor.udzwig.toFixed(1).replace(".", ",")} kg na sztukę).`));
-    } else if (!k.recznie)
-      add("warn", `${k.where}: klapa opadana ${opis} — wpisz siłę siłownika. Producent nie podaje tabeli; `
-        + "dla porównania: klapa 560 × 750 z płyty 18 mm pracuje dobrze na jednym siłowniku 80 N.");
+    const gora = k.klapa === "gora";
+    const co = gora ? "podnośnik" : "amortyzator";
+    const kg1 = (v) => v.toFixed(1).replace(".", ",");
+    if (gora && k.h < KLAPA_MIN_KORPUS)
+      add("warn", `${k.where}: klapa do góry ma tylko ${fmt(k.h)} mm wysokości — podnośnik GTV potrzebuje co najmniej ${KLAPA_MIN_KORPUS} mm korpusu na boku.`);
+    if (!k.recznie && k.dobor.poza)
+      add("warn", `${k.where}: klapa ${fmt(k.h)} mm jest wyższa niż 600 mm — poza tabelą ${k.dobor.tabela}. Siłę ${k.sila ? `${k.sila} N ` : ""}przyjęto jak dla 600 mm; sprawdź u producenta albo wpisz ją ręcznie.`);
+    if (!k.recznie && !k.dobor.sila)
+      add("warn", `${k.where}: klapa (${opis}) jest za ciężka — nawet ${k.dobor.max} N utrzyma ok. ${kg1(k.dobor.udzwig)} kg na ${co}. `
+        + (k.ile < 2 ? `Daj dwa ${gora ? "podnośniki" : "amortyzatory"}, lżejszy front albo wpisz siłę ręcznie.` : "Daj lżejszy front albo wpisz siłę ręcznie.")
+        + (gora ? "" : " Tabela jest dla otwarcia 90° — klapa otwierana na mniejszy kąt (np. 45°) zwykle pracuje na słabszym."));
+    else if (k.sila)
+      add("info", `${k.where}: klapa ${gora ? "do góry" : "w dół"} ${opis} — ${k.ile} × ${co} ${k.sila} N`
+        + (k.recznie ? " (siła wpisana ręcznie)." : ` (tabela ${k.dobor.tabela}, kąt ${k.kat}°, udźwig ok. ${kg1(k.dobor.udzwig)} kg na sztukę).`));
     if (k.ile === 1 && k.w > 600)
-      add("info", `${k.where}: klapa ma ${fmt(k.w)} mm szerokości, a jeden ${k.klapa === "gora" ? "podnośnik" : "siłownik"} — przy tej szerokości zwykle daje się dwa, po jednym na bok.`);
+      add("warn", `${k.where}: klapa ma ${fmt(k.w)} mm szerokości, a jeden ${co} — przy szerokości ponad 600 mm dają się dwa, po jednym na bok.`);
     const key = `${k.klapa}|${k.sila || 0}`;
     const gr = klapyGrupy.get(key) || { klapa: k.klapa, sila: k.sila, qty: 0, opisy: [], kat: k.kat, recznie: k.recznie };
     gr.qty += k.ile;
@@ -3196,13 +3206,13 @@ function computeGeoLiczy(cab, mat, ctx) {
   klapyGrupy.forEach((gr) => {
     const gora = gr.klapa === "gora";
     hardware.push({
-      pk: gora ? "Podnośnik gazowy do klapy" : "Siłownik do klapy opadanej",
+      pk: gora ? "Podnośnik gazowy do klapy" : "Amortyzator do klapy opadanej",
       name: gora
         ? `Podnośnik gazowy ${gr.sila ? gr.sila + " N" : "— siła do dobrania"}`
-        : `Siłownik do klapy opadanej ${gr.sila ? gr.sila + " N" : "— siła do dobrania"}`,
+        : `Amortyzator do klapy opadanej ${gr.sila ? gr.sila + " N" : "— siła do dobrania"}`,
       use: gora ? "klapa otwierana do góry" : "klapa opadająca w dół",
       spec: `${gr.opisy.join("; ")}`
-        + (gora && !gr.recznie ? `; dobór z tabeli GTV PD-G00, kąt ${gr.kat}°` : ""),
+        + (!gr.recznie && gr.sila ? `; dobór z tabeli ${gora ? "GTV PD-G00" : "GTV PD-ECGDL"}, kąt ${gr.kat}°` : ""),
       qty: gr.qty,
       unit: "szt.",
     });
@@ -13483,7 +13493,7 @@ export default function App() {
                             Zawiasy na gornej (do gory) albo dolnej krawedzi (w dol),
                             do tego podnosnik gazowy; sila z tabeli GTV albo recznie. */}
                         {c.kind === "doors" && rawCol.doors === 1 && (() => {
-                          const kl = rawCol.klapa === "gora" || rawCol.klapa === "dol" ? rawCol.klapa : "skrzydlo";
+                          const kl = rawCol.klapa === "gora" || rawCol.klapa === "dol" ? rawCol.klapa : null;
                           const info = (geo.klapy || []).find((k) => k.colKey === `${lv.i}-${c.j}`);
                           const ustaw = (pole, v) => editLevels((L) => {
                             const col = L[lv.i].cols[c.j];
@@ -13492,13 +13502,21 @@ export default function App() {
                           return (
                             <div className="space-y-1 text-xs" data-el="klapa-kolumny">
                               <div className="flex items-center gap-2">
-                                <span className="text-stone-500">otwieranie</span>
-                                <Seg value={kl} onChange={(v) => ustaw("klapa", v === "skrzydlo" ? null : v)}
-                                  options={[{ v: "skrzydlo", l: "skrzydło" }, { v: "gora", l: "klapa do góry" }, { v: "dol", l: "klapa w dół" }]} />
+                                <span className="text-stone-500">front</span>
+                                <Seg value={kl ? "klapa" : "skrzydlo"}
+                                  onChange={(v) => ustaw("klapa", v === "skrzydlo" ? null : (kl || "gora"))}
+                                  options={[{ v: "skrzydlo", l: "skrzydło" }, { v: "klapa", l: "klapa" }]} />
                               </div>
+                              {kl && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-stone-500">otwierana</span>
+                                  <Seg value={kl} onChange={(v) => ustaw("klapa", v)}
+                                    options={[{ v: "gora", l: "do góry" }, { v: "dol", l: "w dół" }]} />
+                                </div>
+                              )}
                               {info && (
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-stone-500">{kl === "gora" ? "podnośniki" : "siłowniki"}</span>
+                                  <span className="text-stone-500">{kl === "gora" ? "podnośniki" : "amortyzatory"}</span>
                                   <Seg value={rawCol.silowniki === 1 || rawCol.silowniki === 2 ? String(rawCol.silowniki) : "auto"}
                                     onChange={(v) => ustaw("silowniki", v === "auto" ? null : Number(v))}
                                     options={[{ v: "auto", l: `auto (${info.w > 600 ? 2 : 1})` }, { v: "1", l: "1" }, { v: "2", l: "2" }]} />
