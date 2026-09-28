@@ -47,7 +47,13 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-(pusto — pytania z nocy 2026-09-28 rozstrzygnięte, patrz niżej)
+- **Klapy do góry i w dół — do sprawdzenia przez użytkownika w innym terminie**
+  (prośba 2026-09-28). Zrobione i w artefakcie (wersja 48), ale użytkownik
+  jeszcze ich nie oglądał. Do przejrzenia razem: przełącznik „otwieranie”,
+  dobór siły z tabeli GTV PD-G00, liczba podnośników i zawiasów, uwagi,
+  formatka „Klapa”, rysunki i bryła 3D. Czeka też PDF amortyzatora do klap
+  opadanych (tabela doboru siły dla klapy w dół) — pierwsza próba wgrania nie
+  dotarła. Braki spisane w `AI_NOTES.md` ([AI-TODO] Klapy).
 
 ## Ustalone — nie ruszać
 
