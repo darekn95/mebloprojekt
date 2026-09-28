@@ -1308,7 +1308,11 @@ function computeGeoLiczy(cab, mat, ctx) {
   const innerH = interior.y1 - interior.y0;
 
   // przy plecach we frezie polka musi zatrzymac sie przed HDF
-  const backIntrusion = grooved ? grOff + tb : 0; // polka konczy sie przed licem HDF
+  /* Polka i przegroda koncza sie przed plecami, ktore siedza w glebokosci
+     korpusu: HDF we frezie (odsuniety o grOff) albo plyta wewnatrz miedzy
+     bokami. Plyty wewnatrz wczesniej nie odejmowalismy — polka wchodzila
+     18 mm w plecy (audyt 2026-09-28). */
+  const backIntrusion = grooved ? grOff + tb : backIsBoard && backPos === "inside" && cab.back !== "none" ? tb : 0;
   const frontCut =
     (cab.shelfExtraSetback || 0) + (cab.frontMode === "inset" ? tf + 5 : 0);
   const shelfDepth = Math.round(carcassDepth - backIntrusion - frontCut);
@@ -5585,10 +5589,15 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
    kazda bryla 3D dopisuje tam swoje wymiary — test porownuje je z lista
    formatek, zeby nic narysowanego nie wypadlo z zamowienia. Bez tej tablicy
    nie robi nic. */
-const audytBryly = (x0, y0, z0, x1, y1, z1, color, tag) => {
+const audytBryly = (x0, y0, z0, x1, y1, z1, color, tag, v, alpha) => {
   const A = typeof window !== "undefined" ? window.__audytBryl : null;
   if (!A) return;
-  A.push({ d: [Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)], color, tag: tag || null });
+  /* `p` to obrys bryly juz na swoim miejscu (po obrocie skrzydla i po
+     ustawieniu ciagu w rogu) — po nim test szuka bryl nachodzacych na siebie. */
+  const r = (k, f) => Math.round(f(...(v || []).map((q) => q[k])) * 10) / 10;
+  A.push({ d: [Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)], color, tag: tag || null,
+    p: v ? [r("x", Math.min), r("y", Math.min), r("z", Math.min), r("x", Math.max), r("y", Math.max), r("z", Math.max)] : null,
+    alpha: alpha ?? 1 });
 };
 
 function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
@@ -5612,10 +5621,10 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
   /* `tag` mowi, czym jest bryla — idzie do atrybutu wielokata, zeby test mogl
      sprawdzic, co faktycznie widac na wierzchu, a nie tylko co narysowano. */
   const box = (x0, y0, z0, x1, y1, z1, color, transform, alpha, bold, bias, tag) => {
-    audytBryly(x0, y0, z0, x1, y1, z1, color, tag);
     let v = VERTS(x0, y0, z0, x1, y1, z1);
     if (transform) v = v.map(transform);
     if (place) v = v.map(place);
+    audytBryly(x0, y0, z0, x1, y1, z1, color, tag, v, alpha);
     solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold, bias: bias || 0, tag });
   };
 
@@ -5673,8 +5682,11 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       if (c.geo.hasTop)
         box(c.x + c.geo.topX0, y1 - t, c.geo.isBlat ? -c.geo.blat.overBack : 0,
           c.x + c.geo.topX1, y1, c.geo.isBlat ? cd + c.geo.blat.overFront : cd, bf);
-      if (c.cab.back !== "none")
-        box(c.x, y0, cd - c.geo.tb, c.x + c.geo.W, y1, cd, c.mat.back.color);
+      {
+        const pb = plecyBryla(c.cab, c.geo);
+        if (pb) box(c.x + pb.x0, c.base + pb.y0, pb.z0, c.x + pb.x1, c.base + pb.y1, pb.z1,
+          c.cab.back === "board" ? bf : c.mat.back.color);
+      }
       /* Wzmocnienia: pod blatem to one zastepuja wieniec, wiec bez nich bryla
          calej zabudowy pokazywala korpus otwarty od gory. */
       /* `r.z0` liczy sie od lica, a w bryle os z tak samo — przeliczanie go jak
@@ -7969,6 +7981,35 @@ const QUADS = [
   [1, 5, 6, 2], [3, 2, 6, 7], [4, 5, 1, 0],
 ];
 
+/* Plecy w bryle 3D — jedna zasada dla szafki i dla zabudowy, ta sama co
+   w widoku z tylu i w formatkach. Uklad szafki: z = 0 to przod korpusu,
+   `cd` jego tyl. HDF przybijane: na tyle korpusu, 1 mm luzu z kazdej strony;
+   HDF we frezie: w bokach, `grOff` od tylu; plyta na zewnatrz: caly tyl, za
+   korpusem; plyta wewnatrz: miedzy bokami, wiencem i dnem. Wczesniej zabudowa
+   wstawiala kazde plecy na cala szerokosc w ostatnie mm korpusu — wchodzily
+   w boki, dno i polki, a plecy z plyty wewnatrz mialy zly wymiar. */
+const plecyBryla = (cab, geo) => {
+  if (cab.back === "none") return null;
+  const cd = geo.carcassDepth, W = geo.W, H = cab.H;
+  let x0, x1, y0, y1, z0;
+  if (cab.back === "board") {
+    const wew = geo.backPos !== "outside";
+    x0 = wew ? geo.interior.x0 : 0; x1 = wew ? geo.interior.x1 : W;
+    y0 = wew ? geo.interior.y0 : 0; y1 = wew ? geo.interior.y1 : H;
+    z0 = wew ? cd - geo.tb : cd;
+  } else if (geo.grooved) {
+    const grab = geo.grDep - geo.grPlay;
+    x0 = geo.interior.x0 - grab; x1 = geo.interior.x1 + grab;
+    y0 = geo.interior.y0 - grab; y1 = geo.interior.y1 + grab;
+    z0 = cd - geo.grOff - geo.tb;
+  } else {
+    x0 = 1; x1 = W - 1; y0 = 1; y1 = H - 1; z0 = cd;
+  }
+  x0 = Math.max(x0, geo.cornerCut?.backLeftX ?? x0);
+  x1 = Math.min(x1, geo.cornerCut?.backRightX ?? x1);
+  return { x0, y0, z0, x1, y1, z1: z0 + geo.tb };
+};
+
 const rotAboutY = (p, ang, ox, oz) => {
   const c = Math.cos(ang), s2 = Math.sin(ang);
   const dx = p.x - ox, dz = p.z - oz;
@@ -8192,9 +8233,9 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
   /* --- lista bryl --- */
   const solids = [];
   const box = (x0, y0, z0, x1, y1, z1, color, transform, alpha, bold) => {
-    audytBryly(x0, y0, z0, x1, y1, z1, color);
     let v = VERTS(x0, y0, z0, x1, y1, z1);
     if (transform) v = v.map(transform);
+    audytBryly(x0, y0, z0, x1, y1, z1, color, null, v, alpha);
     solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold });
   };
 
@@ -8223,30 +8264,26 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
       geo.topX1, H, geo.isBlat ? cd + geo.blat.overFront : cd, bf
     );
 
-  if (cab.back !== "none") {
-    const bz = geo.grooved ? cd - geo.grOff - geo.tb : cd;
-    const grab = geo.grooved ? geo.grDep - geo.grPlay : 0;
-    const bx0 = geo.grooved ? geo.interior.x0 - grab : 1;
-    const bx1 = geo.grooved ? geo.interior.x1 + grab : W - 1;
-    const by0 = geo.grooved ? geo.interior.y0 - grab : 1;
-    const by1 = geo.grooved ? geo.interior.y1 + grab : H - 1;
-    const px0 = Math.max(bx0, geo.cornerCut?.backLeftX ?? bx0);
-    const px1 = Math.min(bx1, geo.cornerCut?.backRightX ?? bx1);
-    box(px0, by0, bz, px1, by1, bz + geo.tb, mat.back.color);
+  {
+    const pb = plecyBryla(cab, geo);
+    if (pb) box(pb.x0, pb.y0, pb.z0, pb.x1, pb.y1, pb.z1, cab.back === "board" ? bf : mat.back.color);
   }
 
+  /* Glebokosci polek i przegrod `geo` liczy od plecow, a tu os z idzie od
+     lica (z = 0 to przod korpusu) — stad odbicie przez `cd`, jak w bryle
+     zabudowy. Wczesniej polka zaczynala sie od lica i przy frontach
+     wpuszczanych wchodzila w drzwi, a przy HDF we frezie w plecy. */
+  const zPolki = [cd - geo.backIntrusion - geo.shelfDepth, cd - geo.backIntrusion];
   geo.sepShelves.forEach((sh) =>
-    box(geo.interior.x0, sh.y, geo.backIntrusion, geo.interior.x1, sh.y + t,
-      geo.backIntrusion + geo.shelfDepth, bf)
+    box(geo.interior.x0, sh.y, zPolki[0], geo.interior.x1, sh.y + t, zPolki[1], bf)
   );
   geo.dividers.forEach((d) =>
-    box(d.x, d.y0, geo.backIntrusion, d.x + t, d.y1, geo.backIntrusion + geo.dividerDepth, bf)
+    box(d.x, d.y0, cd - geo.backIntrusion - geo.dividerDepth, d.x + t, d.y1, cd - geo.backIntrusion, bf)
   );
   geo.levels.forEach((lv) =>
     lv.cols.forEach((c) => {
       c.shelves.forEach((sh) =>
-        box(c.x0, sh.y, geo.backIntrusion, c.x1, sh.y + geo.ts,
-          geo.backIntrusion + geo.shelfDepth, bf)
+        box(c.x0, sh.y, zPolki[0], c.x1, sh.y + geo.ts, zPolki[1], bf)
       );
       if (c.support && c.fix) {
         const sx = c.fix.side === "left" ? c.fix.x + c.fix.w - t : c.fix.x;
@@ -8565,6 +8602,24 @@ const formatkiSzafki = (geo, { bezCokolu = false, bezBlatu = false, arm = null, 
   // wstawka w rogu przykreca sie do tej szafki, wiec idzie na jej liste
   return groupPanels([...wlasne, ...(arm ? cornerArmParts(arm).panels : []),
     ...wstawki.flatMap((w) => wstawkaParts(w).panels)]);
+};
+
+/* Okucia jednej szafki — ta sama lista w aplikacji i na wydruku, na tej samej
+   zasadzie co `formatkiSzafki`: listwa montazowa wspolna dla ciagu idzie jego
+   pozycja, a okucia ramienia szafki w L i wstawki w rogu naleza do szafki,
+   do ktorej sie przykrecaja (wczesniej byly tylko w liscie projektu, choc ich
+   formatki byly juz na liscie szafki). Te same nazwy sumujemy w jednej pozycji. */
+const okuciaSzafki = (geo, { bezListwy = false, arm = null, wstawki = [] } = {}) => {
+  const out = (bezListwy ? geo.hardware.filter((h) => h.name !== RAIL_NAME) : geo.hardware).map((h) => ({ ...h }));
+  const dodaj = (h) => {
+    const jest = out.find((x) => x.name === h.name && (x.unit || "") === (h.unit || ""));
+    if (!jest) { out.push({ ...h }); return; }
+    jest.qty = Math.round((jest.qty + h.qty) * 100) / 100;
+    if (h.spec && h.spec !== jest.spec) jest.spec = jest.spec ? `${jest.spec}; ${h.spec}` : h.spec;
+  };
+  if (arm) cornerArmParts(arm).hardware.forEach(dodaj);
+  wstawki.forEach((w) => wstawkaParts(w).hardware.forEach(dodaj));
+  return out;
 };
 
 /* Czy projekt ma cos poza lista jednej szafki: druga szafke, wspolny cokol albo
@@ -10724,9 +10779,10 @@ const PRINT_CSS = `
 /* `ctx` i `arm` przychodza z ukladu calego projektu: bez nich kartka szafki
    naroznej liczyla front przez cala szerokosc korpusu i nie pokazywala ramienia,
    czyli wydruk mowil co innego niz aplikacja i niz lista formatek. */
-function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, sharedTop, ctx, arm, wstawki = [] }) {
+function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, sharedTop, sharedRail, ctx, arm, wstawki = [] }) {
   const ambig = useMemo(() => ambiguousThickness([mat]), [mat]);
   const geo = useMemo(() => computeGeo(cab, mat, ctx), [cab, mat, ctx]);
+  const hardware = useMemo(() => okuciaSzafki(geo, { bezListwy: sharedRail, arm, wstawki }), [geo, sharedRail, arm, wstawki]);
   // cokol i blat ciagu sa wspolne — na kartce szafki ich nie ma, ida osobna pozycja
   const panels = useMemo(
     () => formatkiSzafki(geo, { bezCokolu: sharedPlinth, bezBlatu: sharedTop, arm, wstawki }),
@@ -10823,7 +10879,7 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
         <div style={{ fontSize: "10pt", fontWeight: 600, margin: "10px 0 4px" }}>
           Produkty do zamówienia
         </div>
-        {geo.hardware.length === 0 ? (
+        {hardware.length === 0 ? (
           <div style={{ fontSize: "9pt", color: "#78716c" }}>Brak okuć.</div>
         ) : (
           <table className="rp-tbl">
@@ -10835,7 +10891,7 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
               </tr>
             </thead>
             <tbody>
-              {geo.hardware.map((h, i) => (
+              {hardware.map((h, i) => (
                 <tr key={i}>
                   <td>{h.name}</td>
                   <td>{h.spec}</td>
@@ -10896,6 +10952,12 @@ function PrintReport({ project }) {
     (project.runs || []).forEach((r) => { if (runTop(project, r)) s.add(r.id); });
     return s;
   }, [project]);
+  // ciagi ze wspolna listwa montazowa — na kartce szafki listwy nie ma, jak w aplikacji
+  const runsWithRail = useMemo(() => {
+    const s = new Set();
+    (project.runs || []).forEach((r) => { if (runRail(project, r)) s.add(r.id); });
+    return s;
+  }, [project]);
   /* Szafka narozna liczy sie z kontekstem rogu — tak samo na wydruku jak
      w aplikacji i w liscie formatek. Ramie idzie na kartke razem z nia. */
   const layout = useMemo(() => projectLayout(project), [project]);
@@ -10913,6 +10975,7 @@ function PrintReport({ project }) {
           ctx={armCtxOf(layout, i)} arm={armOf.get(i)}
           sharedPlinth={!!runsWithPlinth.has(it.runId || null)}
           sharedTop={!!runsWithTop.has(it.runId || null)}
+          sharedRail={!!runsWithRail.has(it.runId || null)}
           wstawki={wstawkiOf(layout).filter((w) => w.cab.index === i)} />
       ))}
       {calyProjekt(project) && <ReportProjectSheet project={project} projectName={name} />}
@@ -11700,10 +11763,6 @@ export default function App() {
   const szafkaStoi = !!((cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on)
     || (runInfo && !ciagWisi));
 
-  const cabHardware = useMemo(
-    () => (runRl ? geo.hardware.filter((h) => h.name !== RAIL_NAME) : geo.hardware),
-    [geo, runRl]
-  );
 
   /* Zakres rysunku: pojedyncza szafka, jej ciag albo cala zabudowa. Zabudowa ma
      sens dopiero przy kilku ciagach — inaczej byloby to to samo, co ciag. */
@@ -12185,6 +12244,11 @@ export default function App() {
   const wstawkiAktywnej = useMemo(
     () => wstawkiOf(projLayout).filter((w) => w.cab.index === project.active),
     [projLayout, project.active]);
+  // okucia szafki: bez listwy wspolnej dla ciagu, z ramieniem i wstawka (jak formatki)
+  const cabHardware = useMemo(
+    () => okuciaSzafki(geo, { bezListwy: !!runRl, arm: armAktywnej, wstawki: wstawkiAktywnej }),
+    [geo, runRl, armAktywnej, wstawkiAktywnej]
+  );
   const cutList = useMemo(
     () => formatkiSzafki(geo, { bezCokolu: !!runPl, bezBlatu: !!runTp, arm: armAktywnej, wstawki: wstawkiAktywnej }),
     [geo, runPl, runTp, armAktywnej, wstawkiAktywnej]);
