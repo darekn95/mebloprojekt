@@ -110,7 +110,8 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | podnośniki (do góry) / amortyzatory (w dół): auto / 1 / 2 | `col.silowniki` (puste = 1, powyżej 600 mm szerokości 2; jeden przy ponad 600 mm — ostrzeżenie) |
 | siła N | `col.silaN` (puste = z tabeli: PD-G00 do góry, PD-ECGDL w dół) — `data-el="klapa-sila"` |
 | kąt 75° / 90° / 100° (klapa do góry) | `col.katKlapy` (puste = 90) |
-| uchwyt / lustro | `col.handles[]`, `col.mirrors[]` |
+| uchwyt / lustro | `col.handles[]`, `col.mirrors[]` — w wierszu okuć pod szerokością skrzydła (`data-el="drzwi-okucia"`): zawiasy, uchwyt, lustro |
+| uchwyt: … mm, na boku / górze | `col.handleOuts[]` (puste = `cab.handleOut`, 20), `col.handlePos[]` (`"bok"` / `"gora"`); liczy `uchwytOut(d, cab)` i `uchwytObrys(d)` — rysunek z przodu (`data-el="uchwyt-bok|gora"`), 3D, rzut z góry, kontrola otwierania |
 | własny luz między drzwiami | `col.gapBetween` |
 | światło 1 / światło 2 … | `col.shelfTargets[]` |
 | Wcięcie na palce zamiast uchwytu | `col.gripDepth` |
@@ -360,6 +361,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `gorne` | ciągi górne w L: górny drugiej ściany wisi na niej (bez kolizji z górnym pierwszej), odsunięcie 300 w rogu, gdy górny ściany wjeżdżającej sięga rogu; „+ szafka” bierze H/D/cokół ciągu (górny 300, dolny 570) |
 | `kreator` | kreator rogu: ślepa szafka 1000 z fixem 618 od rogu, jedne drzwi, zawias od zewnątrz, wstawka płaska — bez bloku „do ustawienia”; szafka w L 900 + ramię 630 bez wstawki; osobny ciąg; przycisk „Ustaw szafkę w rogu” w istniejącym projekcie |
 | `audyt` | audyt całości na ~20 konfiguracjach: nachodzenie brył 3D (szafka i zabudowa, zamknięte), formatki ↔ rysunek w obie strony z ilościami (szuflady w bryle otwartej), formatki projektu = suma szafek + cokół/blat ciągu, okucia projektu vs suma, PDF = ekran (formatki i okucia szafek i projektu). HDF we frezie może wchodzić krawędzią do 4 mm; `znane` — przypadki czekające na decyzję (BLEDY.md). Trwa ok. 4 min |
+| `uchwyt` | wiersz okuć skrzydła (zawiasy, uchwyt, lustro), wysunięcie i położenie uchwytu per skrzydło — zapis, rysunek z przodu, bryła 3D |
 | `klapy` | klapa do góry: siła z tabeli GTV (test liczy ją sam), waga frontu (680 kg/m³), 1 podnośnik przy 600, 2 przy 900, ręcznie 1 → ostrzeżenie; zawiasy 2 / 3 powyżej 900; formatka „Klapa”; UI „skrzydło / klapa”, potem „do góry / w dół”; klapa w dół: amortyzator z tabeli PD-ECGDL, po wpisaniu 80 N pozycja w okuciach; klapa użytkownika 560 × 750 — poza tabelą i za ciężka, z uwagą o kącie 45°; ostrzeżenia >600 mm i <290 mm; bryła otwarta szafki i ciągu bez błędów |
 | `zawiasy` | przycisk przełożenia zawiasów przy kolizji tylko, gdy pomaga (17 mm z lewej → bez przycisku; 564 z prawej → „na lewą — zostaje 17 mm”), przełącznik „zawias” przy kolumnie z jednymi drzwiami |
 | `odsuniecie` | odsunięcie od ściany: głębokość blatu, wysięg przed drzwi (10 / <10 uwaga / >30 ostrzeżenie), krzywa ściana w widoku z boku, róg przesunięty o odstęp, wyjątek jednej szafki |

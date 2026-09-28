@@ -172,6 +172,30 @@ const MIN_COL = 200; // najwezsza sensowna kolumna
    kontroli otwierania — inaczej model kolizji rozjezdzalby sie z tym, co widac.
    Dotyczy tak samo drzwi jak i szuflad. */
 const handleOutOf = (cab) => Math.max(0, Math.round(Number((cab || {}).handleOut ?? 20) || 0));
+/* Uchwyt jednego frontu: ile wystaje (wlasne ustawienie skrzydla albo szafki,
+   domyslnie 20 mm) i gdzie siedzi. Drzwi maja uchwyt na boku (pionowy, przy
+   wolnej krawedzi) albo u gory (poziomy, przy wolnym rogu) — prosba
+   uzytkownika 2026-09-28. Szuflada i klapa: poziomy na srodku. Zwraca obrys
+   w ukladzie szafki (mm) dla bryly 3D i rzutu z gory. */
+const uchwytOut = (d, cab) => {
+  const w = num(d.handleOut);
+  return w !== null ? Math.max(0, Math.round(w)) : handleOutOf(cab);
+};
+const uchwytObrys = (d) => {
+  if (d.type === "drawer" || d.type === "klapa") {
+    const cy = d.type === "klapa" ? klapaUchwytY(d) : d.y + d.h - Math.min(50, d.h / 2);
+    return { x0: d.x + d.w / 2 - Math.min(120, d.w * 0.3), x1: d.x + d.w / 2 + Math.min(120, d.w * 0.3), y0: cy - 6, y1: cy + 6 };
+  }
+  if (d.handlePos === "gora") {
+    const len = Math.min(160, d.w * 0.5);
+    const cy = d.y + d.h - Math.min(40, d.h / 4);
+    return d.hingeSide === "left"
+      ? { x0: d.x + d.w - 30 - len, x1: d.x + d.w - 30, y0: cy - 6, y1: cy + 6 }
+      : { x0: d.x + 30, x1: d.x + 30 + len, y0: cy - 6, y1: cy + 6 };
+  }
+  const cx = d.hingeSide === "left" ? d.x + d.w - 38 : d.x + 26;
+  return { x0: cx - 6, x1: cx + 6, y0: d.y + d.h / 2 - Math.min(90, d.h * 0.25), y1: d.y + d.h / 2 + Math.min(90, d.h * 0.25) };
+};
 // szerokosc pionowego wspornika w wewnetrznym rogu szafki naroznej
 /* Ramie katownika w rogu szafki w L. To nie jest liczba z powietrza: 60 mm to
    najmniejsza formatka, jaka da sie uciac i okleic (MIN_PART nizej), a katownika
@@ -1954,6 +1978,8 @@ function computeGeoLiczy(cab, mat, ctx) {
             mirror: !!(rawCol.mirrors || [])[i],
             hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw),
             handle: (rawCol.handles || [])[i] !== false,
+            handleOut: num((rawCol.handleOuts || [])[i]),
+            handlePos: (rawCol.handlePos || [])[i] === "gora" ? "gora" : "bok",
             hingeSide:
               cnt === 1
                 ? rawCol.hinge === "left" || rawCol.hinge === "right"
@@ -4398,13 +4424,16 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
                 stroke={INK} strokeWidth="4" opacity="0.45" />
             )}
             {d.handle && d.w > 60 && d.h > 30 && (
-              <rect
-                x={d.type === "drawer" ? X + d.w / 2 - 60 : hinge === "left" ? X + d.w - 45 : X + 30}
+              <rect data-el={d.type === "door" ? `uchwyt-${d.handlePos}` : undefined}
+                x={d.type === "drawer" ? X + d.w / 2 - 60
+                  : d.handlePos === "gora" ? (hinge === "left" ? X + d.w - 150 : X + 30)
+                  : hinge === "left" ? X + d.w - 45 : X + 30}
                 y={d.type === "drawer"
                   ? fy(d.y + d.h - Math.min(50, d.h / 2)) - 5
+                  : d.handlePos === "gora" ? fy(d.y + d.h - Math.min(40, d.h / 4)) - 5
                   : fy(d.y + d.h * 0.5) - 60}
-                width={d.type === "drawer" ? 120 : 15}
-                height={d.type === "drawer" ? 10 : 120}
+                width={d.type === "drawer" || d.handlePos === "gora" ? 120 : 15}
+                height={d.type === "drawer" || d.handlePos === "gora" ? 10 : 120}
                 rx="5" fill="#52525b" opacity="0.9" />
             )}
             {d.mirror && d.w > 2 && d.h > 2 && (
@@ -4548,14 +4577,13 @@ const ObsMaskTop = ({ o, t, W, color }) => {
 const TopHardware = ({ cab, geo, cd }) => {
   const out = [];
   const lico = cab.frontMode === "inset" ? cd : cd + geo.tf;
-  const uchwyt = handleOutOf(cab);
   const seen = new Set();
   geo.doors.filter((d) => d.w > 0 && d.h > 0).forEach((d) => {
     // z gory poziomy nakladaja sie na siebie — kazdy uchwyt i zawias raz
+    const uchwyt = uchwytOut(d, cab);
     if (d.handle && uchwyt) {
-      const [hx0, hx1] = d.type === "drawer" || d.type === "klapa"
-        ? [d.x + d.w / 2 - Math.min(120, d.w * 0.3), d.x + d.w / 2 + Math.min(120, d.w * 0.3)]
-        : d.hingeSide === "left" ? [d.x + d.w - 44, d.x + d.w - 32] : [d.x + 20, d.x + 32];
+      const u = uchwytObrys(d);
+      const [hx0, hx1] = [u.x0, u.x1];
       const k = `u${Math.round(hx0)}`;
       if (!seen.has(k)) {
         seen.add(k);
@@ -5791,22 +5819,11 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       const tf = c.geo.tf;
       /* Uchwyt wystaje przed lico i w bryle calej zabudowy widac go tak samo jak
          przy pojedynczej szafce — bez niego fronty wygladaja jak gladkie plyty. */
-      const uchwyt = handleOutOf(c.cab);
       const handleBar = (d, zLico, transform) => {
+        const uchwyt = uchwytOut(d, c.cab);
         if (!d.handle || !uchwyt) return;
-        let hx0, hy0, hx1, hy1;
-        if (d.type === "drawer" || d.type === "klapa") {
-          const cy = d.type === "klapa" ? klapaUchwytY(d) : d.y + d.h - Math.min(50, d.h / 2);
-          hx0 = d.x + d.w / 2 - Math.min(120, d.w * 0.3);
-          hx1 = d.x + d.w / 2 + Math.min(120, d.w * 0.3);
-          hy0 = cy - 6; hy1 = cy + 6;
-        } else {
-          const cx = d.hingeSide === "left" ? d.x + d.w - 38 : d.x + 26;
-          hx0 = cx - 6; hx1 = cx + 6;
-          hy0 = d.y + d.h / 2 - Math.min(90, d.h * 0.25);
-          hy1 = d.y + d.h / 2 + Math.min(90, d.h * 0.25);
-        }
-        box(c.x + hx0, c.base + hy0, zLico - uchwyt, c.x + hx1, c.base + hy1, zLico,
+        const u = uchwytObrys(d);
+        box(c.x + u.x0, c.base + u.y0, zLico - uchwyt, c.x + u.x1, c.base + u.y1, zLico,
           "#3f3f46", transform, 1, false, 0, "uchwyt");
       };
       c.geo.doors.filter((d) => d.w > 0 && d.h > 0).forEach((d) => {
@@ -6584,13 +6601,16 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 stroke={INK} strokeWidth="4" opacity="0.45" />
             )}
             {d.handle && d.w > 60 && d.h > 30 && (
-              <rect
-                x={d.type === "drawer" ? d.x + d.w / 2 - 60 : d.hingeSide === "left" ? d.x + d.w - 45 : d.x + 30}
+              <rect data-el={d.type === "door" ? `uchwyt-${d.handlePos}` : undefined}
+                x={d.type === "drawer" ? d.x + d.w / 2 - 60
+                  : d.handlePos === "gora" ? (d.hingeSide === "left" ? d.x + d.w - 150 : d.x + 30)
+                  : d.hingeSide === "left" ? d.x + d.w - 45 : d.x + 30}
                 y={d.type === "drawer"
                   ? fy(d.y + d.h - Math.min(50, d.h / 2)) - 5
+                  : d.handlePos === "gora" ? fy(d.y + d.h - Math.min(40, d.h / 4)) - 5
                   : fy(d.y + d.h * 0.5) - 60}
-                width={d.type === "drawer" ? 120 : 15}
-                height={d.type === "drawer" ? 10 : 120}
+                width={d.type === "drawer" || d.handlePos === "gora" ? 120 : 15}
+                height={d.type === "drawer" || d.handlePos === "gora" ? 10 : 120}
                 rx="5" fill="#52525b" opacity="0.9" />
             )}
             {d.mirror && d.w > 2 && d.h > 2 && (
@@ -8475,24 +8495,10 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
   const tf = geo.tf;
   const handleBar = (d, z0trans, transform) => {
     if (!d.handle) return;
-    const depth = handleOutOf(cab); // ile uchwyt wystaje przed front
-    const zA = z0trans - depth;
-    const zB = z0trans;
-    let hx0, hy0, hx1, hy1;
-    if (d.type === "drawer" || d.type === "klapa") {
-      const cy = d.type === "klapa" ? klapaUchwytY(d) : d.y + d.h - Math.min(50, d.h / 2);
-      hx0 = d.x + d.w / 2 - Math.min(120, d.w * 0.3);
-      hx1 = d.x + d.w / 2 + Math.min(120, d.w * 0.3);
-      hy0 = cy - 6;
-      hy1 = cy + 6;
-    } else {
-      const cx = d.hingeSide === "left" ? d.x + d.w - 38 : d.x + 26;
-      hx0 = cx - 6;
-      hx1 = cx + 6;
-      hy0 = d.y + d.h / 2 - Math.min(90, d.h * 0.25);
-      hy1 = d.y + d.h / 2 + Math.min(90, d.h * 0.25);
-    }
-    box(hx0, hy0, zA, hx1, hy1, zB, "#3f3f46", transform, 1, false);
+    const depth = uchwytOut(d, cab); // ile uchwyt wystaje przed front
+    if (!depth) return;
+    const u = uchwytObrys(d);
+    box(u.x0, u.y0, z0trans - depth, u.x1, u.y1, z0trans, "#3f3f46", transform, 1, false);
   };
 
   geo.doors.forEach((d) => {
@@ -10488,9 +10494,9 @@ const swingBodies = (L) => {
       const overlay = c.cab.frontMode !== "inset";
       const lico = overlay ? cdV1 + geo.tf : cdV1;     // przed czym otwiera sie skrzydlo
       // uchwyt wystaje przed lico i to on styka sie pierwszy — dla drzwi i szuflad tak samo
-      const uchwyt = handleOutOf(c.cab);
       (geo.doors || []).forEach((d) => {
         if (!(d.w > 0) || !(d.h > 0)) return;
+        const uchwyt = uchwytOut(d, c.cab);   // wlasne ustawienie skrzydla albo szafki
         const klucz = `${kto.id}|${d.key}`;
         const z0 = zBase + d.y;
         const z1 = zBase + d.y + d.h;
@@ -12244,7 +12250,7 @@ export default function App() {
   const setDoorFlag = (i, j, k, key, v) =>
     editLevels((L) => {
       const a = L[i].cols[j][key] || [];
-      while (a.length <= k) a.push(key === "handles" ? true : key === "hinges" ? null : false);
+      while (a.length <= k) a.push(key === "handles" ? true : key === "hinges" || key === "handleOuts" || key === "handlePos" ? null : false);
       a[k] = v;
       L[i].cols[j][key] = a;
     });
@@ -13824,37 +13830,64 @@ export default function App() {
                         {c.kind === "doors" && rawCol.doors > 0 && (
                           <div className="space-y-1">
                             {(c.doorWs || []).map((w, k) => (
-                              <div key={k} className="flex items-center gap-2">
+                              <div key={k} className="space-y-1">
+                              <div className="flex items-center gap-2">
                                 <span className="w-20 shrink-0 text-[11px] text-stone-400">
                                   drzwi {k + 1}
                                 </span>
                                 <AutoNum value={(rawCol.doorWidths || [])[k]} placeholder={fmt(w)}
                                   fixed={num((rawCol.doorWidths || [])[k]) !== null}
                                   onChange={(v) => setDoorWidth(lv.i, c.j, k, v)} />
-                                <label className="flex shrink-0 items-center gap-1 cursor-pointer"
-                                  title="Lustro na tych drzwiach">
-                                  <input type="checkbox"
-                                    checked={!!(rawCol.mirrors || [])[k]}
-                                    onChange={(e) => setDoorFlag(lv.i, c.j, k, "mirrors", e.target.checked)}
-                                    className="h-3.5 w-3.5 accent-teal-700" />
-                                  <span className="text-[11px] text-stone-500">lustro</span>
-                                </label>
-                                <label className="flex shrink-0 items-center gap-1 cursor-pointer"
-                                  title="Uchwyt na tych drzwiach">
-                                  <input type="checkbox"
-                                    checked={(rawCol.handles || [])[k] !== false}
-                                    onChange={(e) => setDoorFlag(lv.i, c.j, k, "handles", e.target.checked)}
-                                    className="h-3.5 w-3.5 accent-teal-700" />
-                                  <span className="text-[11px] text-stone-500">uchwyt</span>
-                                </label>
-                                <input type="number" min={0} step={1}
-                                  title="Liczba zawiasów — puste liczy automatycznie"
-                                  value={(rawCol.hinges || [])[k] ?? ""}
-                                  placeholder={String((c.doors[k] || {}).hinges ?? 2)}
-                                  onChange={(e) => setDoorFlag(lv.i, c.j, k, "hinges",
-                                    e.target.value === "" ? null : Math.round(Number(e.target.value)))}
-                                  className="w-12 shrink-0 rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none" />
-                                <span className="shrink-0 text-[11px] text-stone-400">zaw.</span>
+                              </div>
+                              {/* Pod szerokoscia okucia tego skrzydla: zawiasy, uchwyt (ile
+                                  wystaje, na boku czy u gory), lustro — w tej kolejnosci
+                                  (prosba uzytkownika 2026-09-28). */}
+                              {(() => {
+                                const uchw = (rawCol.handles || [])[k] !== false;
+                                const poz = (rawCol.handlePos || [])[k] === "gora" ? "gora" : "bok";
+                                const pole = "rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none";
+                                return (
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[88px]" data-el="drzwi-okucia">
+                                    <label className="flex items-center gap-1" title="Liczba zawiasów — puste liczy automatycznie">
+                                      <span className="text-[11px] text-stone-500">zawiasy</span>
+                                      <input type="number" min={0} step={1}
+                                        value={(rawCol.hinges || [])[k] ?? ""}
+                                        placeholder={String((c.doors[k] || {}).hinges ?? 2)}
+                                        onChange={(e) => setDoorFlag(lv.i, c.j, k, "hinges",
+                                          e.target.value === "" ? null : Math.round(Number(e.target.value)))}
+                                        className={"w-12 " + pole} />
+                                    </label>
+                                    <span className="flex items-center gap-1" data-el="drzwi-uchwyt">
+                                      <label className="flex items-center gap-1 cursor-pointer" title="Uchwyt na tych drzwiach">
+                                        <input type="checkbox" checked={uchw}
+                                          onChange={(e) => setDoorFlag(lv.i, c.j, k, "handles", e.target.checked)}
+                                          className="h-3.5 w-3.5 accent-teal-700" />
+                                        <span className="text-[11px] text-stone-500">uchwyt</span>
+                                      </label>
+                                      {uchw && (
+                                        <>
+                                          <input type="number" min={0} step={1} title="Ile uchwyt wystaje przed front — puste bierze ustawienie szafki"
+                                            value={(rawCol.handleOuts || [])[k] ?? ""}
+                                            placeholder={String(handleOutOf(cab))}
+                                            onChange={(e) => setDoorFlag(lv.i, c.j, k, "handleOuts",
+                                              e.target.value === "" ? null : Math.max(0, Math.round(Number(e.target.value))))}
+                                            className={"w-12 " + pole} />
+                                          <span className="text-[11px] text-stone-400">mm, na</span>
+                                          <Seg value={poz} onChange={(v) => setDoorFlag(lv.i, c.j, k, "handlePos", v)}
+                                            options={[{ v: "bok", l: "boku" }, { v: "gora", l: "górze" }]} />
+                                        </>
+                                      )}
+                                    </span>
+                                    <label className="flex items-center gap-1 cursor-pointer" title="Lustro na tych drzwiach">
+                                      <input type="checkbox"
+                                        checked={!!(rawCol.mirrors || [])[k]}
+                                        onChange={(e) => setDoorFlag(lv.i, c.j, k, "mirrors", e.target.checked)}
+                                        className="h-3.5 w-3.5 accent-teal-700" />
+                                      <span className="text-[11px] text-stone-500">lustro</span>
+                                    </label>
+                                  </div>
+                                );
+                              })()}
                               </div>
                             ))}
                             {rawCol.doors > 1 && (
