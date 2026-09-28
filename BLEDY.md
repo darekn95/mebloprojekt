@@ -64,6 +64,15 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   więc jedne drzwi, dwoje i ręczna szerokość mieszczą się w licu (sprawdzone
   2026-09-27 na szablonie `naroznikL`). Nie usuwać (decyzja użytkownika).
 
+- **Klapy** (2026-09-28): do góry i w dół, zawiasy puszkowe 2 szt. (powyżej
+  900 mm szerokości 3), podnośnik gazowy 1 szt. (powyżej 600 mm domyślnie 2,
+  do zmiany). Siła klapy do góry z tabeli GTV PD-G00 (instrukcja od
+  użytkownika; waga frontu z wymiarów i grubości, 700 kg/m³, dzielona na
+  podnośniki, najmniejsza siła, która uniesie). Klapa w dół — siła wpisywana
+  ręcznie; wzorzec użytkownika: 560 × 750, jeden siłownik GTV 80 N, „idealnie
+  spowalnia”, ale nie traktujemy go jako reguły. Ceny podnośnika i siłownika
+  (15 zł) są orientacyjne — do poprawienia w cenniku.
+
 - Artefakt na claude.ai **nie** potrzebuje pobierania plików (tylko wersja na
   GitHubie). „Wyślij do Claude” jest **tylko** w artefakcie. Szczegóły w `AGENTS.md`.
 

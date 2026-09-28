@@ -571,3 +571,15 @@ zeby nie odtwarzac ustalen od nowa:
 - Narzedzia do tego tematu: `testy/projekt.mjs` (przeglad), suity `otwier`,
   `narozn`, `wstawka`, `gorne`, `formatki` (audyt, scenariusze wstawki
   i gornych ciagow w L).
+
+[AI-INFO] Klapy (2026-09-28): `col.klapa` "gora"/"dol" przy 1 drzwiach w kolumnie,
+front typu "klapa" (nie "door") — dlatego wszedzie, gdzie kod filtruje
+`d.type === "door"`, klapa jest pomijana celowo (formatka „Klapa” osobno,
+zawiasy bez rozstawu na boku, bez skrzydla w kontroli otwierania; w kolizjach
+klapa zamknieta liczy sie jako „front”). Dobor sily: `dobierzPodnosnik`,
+tabela `GTV_PD_G00`. Suita `testy/klapy.mjs`.
+[AI-TODO] Klapy — czego jeszcze nie ma: plan wiercen dla zawiasow klapy
+(na wiencu/dnie) i mocowan podnosnika na boku; kolizja otwartej klapy do gory
+z gorna szafka/sufitem i opadanej z blatem; wsparcie klapy w szafce z kilkoma
+poziomami w kontroli otwierania. Do omowienia z uzytkownikiem, gdy zacznie
+uzywac klap na projekcie.

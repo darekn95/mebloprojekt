@@ -138,6 +138,9 @@ const DEFAULT_HW_PRICES = {
      zawiasie szerokokatnym, drugie na lamanym — jedne i drugie po 15 zl. */
   "Zawias 165°": 15,
   "Zawias łamany 90°": 15,
+  // klapy — cena orientacyjna, do poprawienia w cenniku
+  "Podnośnik gazowy do klapy": 15,
+  "Siłownik do klapy opadanej": 15,
 };
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
@@ -203,6 +206,43 @@ const WSTAWKA_W = 60;
    sasiednich drzwiach. Uzytkownik robi ok. 50 mm, ale 30 mm wystarcza
    (ustalone 2026-09-28). */
 const SLEPY_ZAPAS = 30;
+
+/* ---------- klapy ----------
+   Front uchylny: klapa do gory (zawiasy na gornej krawedzi) albo opadana w dol
+   (zawiasy na dolnej). Zawiasy puszkowe: 2, powyzej 900 mm szerokosci 3.
+   Podnosnik gazowy: 1, powyzej 600 mm szerokosci domyslnie 2 (mozna zmienic).
+   Sile podnosnika klapy do gory bierzemy z tabeli producenta — GTV PD-G00
+   „standard” (instrukcja od uzytkownika, 2026-09-28): maksymalna waga frontu
+   [kg] na jeden podnosnik dla sily 50–150 N, wysokosci frontu 300–600 mm
+   i kata otwarcia 75/90/100°. W tabeli dla 50 N / 400 mm / 75° wydrukowano
+   „12” — to literowka, ma byc 1,2. Klapa w dol: tabeli nie ma, sila recznie. */
+const KLAPA_WYS = [300, 400, 500, 600];
+const GTV_PD_G00 = {
+  75: { 50: [1.6, 1.2, 1.0, 0.8], 60: [2.0, 1.5, 1.2, 1.0], 80: [2.7, 2.0, 1.6, 1.4],
+    100: [3.4, 2.6, 2.0, 1.7], 120: [4.1, 3.1, 2.5, 2.0], 150: [4.7, 3.5, 2.9, 2.4] },
+  90: { 50: [1.5, 1.1, 0.9, 0.7], 60: [1.8, 1.3, 1.1, 0.9], 80: [2.4, 1.8, 1.4, 1.2],
+    100: [3.0, 2.2, 1.8, 1.5], 120: [3.6, 2.7, 2.1, 1.8], 150: [4.1, 3.2, 2.3, 2.1] },
+  100: { 50: [1.1, 1.0, 0.8, 0.7], 60: [1.6, 1.2, 0.9, 0.8], 80: [2.1, 1.6, 1.2, 1.0],
+    100: [2.6, 1.9, 1.6, 1.3], 120: [3.1, 2.3, 1.9, 1.6], 150: [3.5, 2.6, 2.2, 1.9] },
+};
+const KLAPA_SILY = [50, 60, 80, 100, 120, 150];
+// plyta wiorowa / MDF — ok. 700 kg/m3, czyli 18 mm to ok. 12,6 kg/m2
+const GESTOSC_FRONTU = 700;
+const KLAPA_MIN_KORPUS = 290;   // instrukcja GTV: korpus co najmniej 290 mm
+const wagaFrontu = (w, h, grub) => (w / 1000) * (h / 1000) * (grub / 1000) * GESTOSC_FRONTU;
+/* Najmniejszy podnosnik, ktory przy tej wysokosci frontu utrzyma podana wage
+   (na jeden podnosnik). Miedzy wierszami tabeli liczymy proporcjonalnie;
+   ponizej 300 mm bierzemy wiersz 300 (bezpiecznie), powyzej 600 — poza tabela. */
+const dobierzPodnosnik = (hFrontu, kgNaJeden, kat) => {
+  const tab = GTV_PD_G00[kat] || GTV_PD_G00[90];
+  const h = Math.max(KLAPA_WYS[0], Math.min(KLAPA_WYS[KLAPA_WYS.length - 1], hFrontu));
+  let i = 0;
+  while (i < KLAPA_WYS.length - 2 && h > KLAPA_WYS[i + 1]) i++;
+  const t = (h - KLAPA_WYS[i]) / (KLAPA_WYS[i + 1] - KLAPA_WYS[i]);
+  const udzwig = (f) => tab[f][i] + (tab[f][i + 1] - tab[f][i]) * t;
+  const sila = KLAPA_SILY.find((f) => udzwig(f) >= kgNaJeden);
+  return { sila: sila || null, poza: hFrontu > KLAPA_WYS[KLAPA_WYS.length - 1], udzwig: sila ? udzwig(sila) : udzwig(150) };
+};
 
 /* Ile szafka w L zajmuje od rogu wzdluz obu scian i skad sie to bierze. Przy
    zwyklej szafce szerokosc to szerokosc — tu przy scianie ramienia dochodzi
@@ -1398,6 +1438,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   const mirrorParts = [];
   let handleCount = 0;
   let hingeCount = 0;
+  const klapy = [];   // podnosniki klapy do okuc i uwag
   const slideGroups = new Map();
   const supportParts = [];
   const insetExtra = cab.frontMode === "inset" ? tf : 0;
@@ -1804,8 +1845,36 @@ function computeGeoLiczy(cab, mat, ctx) {
         c.doorW = dws.sizes[0];
         c.doorH = cbandH;
         let dx = sx0;
+        const klapa = cnt === 1 && (rawCol.klapa === "gora" || rawCol.klapa === "dol") ? rawCol.klapa : null;
         for (let i = 0; i < cnt; i++) {
           const dw = dws.sizes[i];
+          if (klapa) {
+            /* Klapa: zawiasy na krawedzi gornej (do gory) albo dolnej (w dol),
+               rozstawione wzdluz szerokosci — 2 szt., powyzej 900 mm 3 szt. */
+            const nZaw = num((rawCol.hinges || [])[0]) ?? (dw > 900 ? 3 : 2);
+            const xs = nZaw >= 3 ? [dx + 100, dx + dw / 2, dx + dw - 100] : [dx + 100, dx + dw - 100];
+            const d = { lvl: lv.i, key: `d${lv.i}-${j}-0`, type: "klapa", klapa, colKey: `${lv.i}-${j}`,
+              x: dx, y: clo, w: dw, h: cbandH, iInGroup: 0, groupN: 1,
+              inset: cab.frontMode === "inset", gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
+              bandLo: lv.i === 0 ? null : clo, bandHi: lv.i === L - 1 ? null : chi,
+              mirror: !!(rawCol.mirrors || [])[0], hinges: nZaw, hingePts: [], klapaZawiasy: xs,
+              handle: (rawCol.handles || [])[0] !== false, colJ: j, colLast: j === lv.cols.length - 1 };
+            doors.push(d);
+            c.doors.push(d);
+            hingeCount += nZaw;
+            if (d.handle) handleCount += 1;
+            if (d.mirror && dw > 1 && cbandH > 1) mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
+            // podnosnik: 1, powyzej 600 mm szerokosci domyslnie 2
+            const ile = rawCol.silowniki === 1 || rawCol.silowniki === 2 ? rawCol.silowniki : (dw > 600 ? 2 : 1);
+            const kg = wagaFrontu(dw, cbandH, tf);
+            const kat = [75, 90, 100].includes(Number(rawCol.katKlapy)) ? Number(rawCol.katKlapy) : 90;
+            const recznie = num(rawCol.silaN);
+            const dobor = klapa === "gora" ? dobierzPodnosnik(cbandH, kg / ile, kat) : null;
+            const sila = recznie ?? (dobor ? dobor.sila : null);
+            klapy.push({ klapa, colKey: `${lv.i}-${j}`, w: dw, h: cbandH, kg, ile, kat, sila, recznie: recznie != null, dobor, where });
+            dx += dw + colGap;
+            continue;
+          }
           const d = {
             lvl: lv.i,
             key: `d${lv.i}-${j}-${i}`,
@@ -2133,6 +2202,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   const nameOf = (d) =>
     d.type === "door"
       ? "drzwi"
+      : d.type === "klapa"
+      ? "klapa"
       : d.type === "drawer"
       ? "front szuflady"
       : d.type === "blenda"
@@ -2433,6 +2504,19 @@ function computeGeoLiczy(cab, mat, ctx) {
         qty, a: dh, b: dw, matKey: "front",
         edges: { a1: true, a2: true, b1: true, b2: true },
         note: "oklejone wszystkie krawędzie" });
+  });
+
+  const klapaSizes = new Map();
+  doors.forEach((d) => {
+    if (d.type !== "klapa") return;
+    const k = `${Math.round(d.h)}x${Math.round(d.w)}`;
+    klapaSizes.set(k, (klapaSizes.get(k) || 0) + 1);
+  });
+  klapaSizes.forEach((qty, k) => {
+    const [dh, dw] = k.split("x").map(Number);
+    P({ name: "Klapa", qty, a: dh, b: dw, matKey: "front",
+        edges: { a1: true, a2: true, b1: true, b2: true },
+        note: "front uchylny, oklejone wszystkie krawędzie" });
   });
 
   const fixGroups = new Map();
@@ -3059,10 +3143,53 @@ function computeGeoLiczy(cab, mat, ctx) {
       spec: skrzydlaLamane
         ? "skrzydło przy boku szafki narożnej — otwiera się na tyle, żeby drugie skrzydło się złożyło"
         : (cab.frontMode === "overlay" ? "nakładany" : "wpuszczany") +
-          ", 2 szt. na skrzydło poza szerokimi i wysokimi",
+          ", 2 szt. na skrzydło poza szerokimi i wysokimi"
+          + (klapy.length ? "; klapa: 2 szt. na górnej lub dolnej krawędzi, powyżej 900 mm 3" : ""),
       qty: hingeCount,
       unit: "szt.",
     });
+  /* Klapy: podnosnik gazowy (do gory, sila z tabeli GTV PD-G00) albo
+     silownik do klapy opadanej (sila wpisana recznie). Grupujemy po kierunku
+     i sile, zeby na liscie byla jedna pozycja na rodzaj. */
+  const klapyGrupy = new Map();
+  klapy.forEach((k) => {
+    const opis = `${fmt(k.w)} × ${fmt(k.h)} mm, ok. ${k.kg.toFixed(1).replace(".", ",")} kg`;
+    if (k.klapa === "gora") {
+      if (k.h < KLAPA_MIN_KORPUS)
+        add("warn", `${k.where}: klapa do góry ma tylko ${fmt(k.h)} mm wysokości — podnośnik GTV potrzebuje co najmniej ${KLAPA_MIN_KORPUS} mm korpusu na boku.`);
+      if (!k.recznie && k.dobor && k.dobor.poza)
+        add("warn", `${k.where}: klapa ${fmt(k.h)} mm jest wyższa niż 600 mm — poza tabelą GTV. Siłę ${k.sila ? `${k.sila} N ` : ""}przyjęto jak dla 600 mm; sprawdź u producenta albo wpisz ją ręcznie.`);
+      if (!k.recznie && k.dobor && !k.dobor.sila)
+        add("warn", `${k.where}: klapa (${opis}) jest za ciężka — nawet 150 N udźwignie ok. ${k.dobor.udzwig.toFixed(1).replace(".", ",")} kg na podnośnik. `
+          + (k.ile < 2 ? "Daj dwa podnośniki albo lżejszy front." : "Daj lżejszy front albo mocniejszy podnośnik spoza tabeli (wpisz siłę ręcznie)."));
+      else if (k.sila)
+        add("info", `${k.where}: klapa do góry ${opis} — ${k.ile} × podnośnik ${k.sila} N`
+          + (k.recznie ? " (siła wpisana ręcznie)." : ` (tabela GTV PD-G00, kąt ${k.kat}°, udźwig ok. ${k.dobor.udzwig.toFixed(1).replace(".", ",")} kg na sztukę).`));
+    } else if (!k.recznie)
+      add("warn", `${k.where}: klapa opadana ${opis} — wpisz siłę siłownika. Producent nie podaje tabeli; `
+        + "dla porównania: klapa 560 × 750 z płyty 18 mm pracuje dobrze na jednym siłowniku 80 N.");
+    if (k.ile === 1 && k.w > 600)
+      add("info", `${k.where}: klapa ma ${fmt(k.w)} mm szerokości, a jeden ${k.klapa === "gora" ? "podnośnik" : "siłownik"} — przy tej szerokości zwykle daje się dwa, po jednym na bok.`);
+    const key = `${k.klapa}|${k.sila || 0}`;
+    const gr = klapyGrupy.get(key) || { klapa: k.klapa, sila: k.sila, qty: 0, opisy: [], kat: k.kat, recznie: k.recznie };
+    gr.qty += k.ile;
+    gr.opisy.push(opis);
+    klapyGrupy.set(key, gr);
+  });
+  klapyGrupy.forEach((gr) => {
+    const gora = gr.klapa === "gora";
+    hardware.push({
+      pk: gora ? "Podnośnik gazowy do klapy" : "Siłownik do klapy opadanej",
+      name: gora
+        ? `Podnośnik gazowy ${gr.sila ? gr.sila + " N" : "— siła do dobrania"}`
+        : `Siłownik do klapy opadanej ${gr.sila ? gr.sila + " N" : "— siła do dobrania"}`,
+      use: gora ? "klapa otwierana do góry" : "klapa opadająca w dół",
+      spec: `${gr.opisy.join("; ")}`
+        + (gora && !gr.recznie ? `; dobór z tabeli GTV PD-G00, kąt ${gr.kat}°` : ""),
+      qty: gr.qty,
+      unit: "szt.",
+    });
+  });
   if (cab.legs && cab.legs.on)
     hardware.push({
       name: "Nóżka regulowana",
@@ -3254,7 +3381,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   return {
     hardware,
     t, tf, tb, ts, carcassDepth, hasBack, interior, innerW, innerH,
-    shelfDepth, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, panels, msgs, maxNL,
+    shelfDepth, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels, msgs, maxNL,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
@@ -3980,6 +4107,55 @@ const runLayout = (groups, ref = null) => {
    pokazywalby uproszczenie, na ktorym nie da sie niczego sprawdzic. Uklad
    wspolrzednych jest lokalny (0,0 = lewy gorny rog korpusu); na miejsce
    przesuwa go transform w AssemblyView. */
+/* Klapa na widoku z przodu. Symbol otwierania jak przy drzwiach — trojkat
+   z wierzcholkiem po stronie zawiasow — tylko obrocony: klapa do gory ma
+   zawiasy na gornej krawedzi, opadana na dolnej. Uchwyt poziomy przy wolnej
+   krawedzi. Po otwarciu zostaje pasek frontu przy krawedzi zawiasow. */
+function KlapaElewacja({ d, fy, ff, open, tf, showDims, showHardware, lustro, x0 = 0 }) {
+  const gora = d.klapa === "gora";
+  const X = d.x + x0;
+  const yZaw = gora ? d.y + d.h : d.y;        // krawedz zawiasow
+  const yWolna = gora ? d.y : d.y + d.h;      // krawedz wolna
+  const trojkat = `M ${X} ${fy(yWolna)} L ${X + d.w / 2} ${fy(yZaw)} L ${X + d.w} ${fy(yWolna)}`;
+  const zawiasy = showHardware && (d.klapaZawiasy || []).map((hx, i) => (
+    <rect key={`kz${i}`} x={hx + x0 - HINGE_H / 2} y={fy(yZaw) + (gora ? 4 : -4 - HINGE_W)}
+      width={HINGE_H} height={HINGE_W} rx="3" fill="#71717a" stroke={INK} strokeWidth="1.5" />
+  ));
+  if (open)
+    return (
+      <g data-el="klapa">
+        <rect x={X} y={fy(d.y + d.h)} width={d.w} height={d.h}
+          fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="12 9" opacity="0.6" />
+        <path d={trojkat} fill="none" stroke={INK} strokeWidth="1.8" opacity="0.5" />
+        {/* klapa otwarta widziana od czola — pasek przy krawedzi zawiasow */}
+        <rect x={X} y={gora ? fy(yZaw) - tf : fy(yZaw)} width={d.w} height={tf}
+          fill={ff} stroke={INK} strokeWidth="2" />
+        {zawiasy}
+      </g>
+    );
+  const uchwytY = gora ? d.y + Math.min(50, d.h / 2) : d.y + d.h - Math.min(50, d.h / 2);
+  return (
+    <g data-el="klapa">
+      <rect x={X} y={fy(d.y + d.h)} width={d.w} height={d.h} fill={ff} stroke={INK} strokeWidth="2.5" />
+      {d.mirror && d.w > 2 && d.h > 2 && (
+        <rect x={X + 0.5} y={fy(d.y + d.h) + 0.5} width={d.w - 1} height={d.h - 1}
+          fill={lustro} stroke={INK} strokeWidth="1" opacity="0.85" />
+      )}
+      <path d={trojkat} fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="10 8" opacity="0.35" />
+      {d.handle && d.w > 60 && d.h > 30 && (
+        <rect x={X + d.w / 2 - 60} y={fy(uchwytY) - 5} width={120} height={10}
+          rx="5" fill="#52525b" opacity="0.9" />
+      )}
+      {showDims && d.w > 90 && d.h > 40 && (
+        <text x={X + d.w / 2} y={fy(d.y + d.h / 2) + 7} textAnchor="middle" fontSize="20"
+          fill={INK} opacity="0.75" fontFamily="ui-monospace, monospace">
+          {fmt(d.w)}×{fmt(d.h)} {gora ? "↑" : "↓"}
+        </text>
+      )}
+    </g>
+  );
+}
+
 function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels, frontColor, rear, levelDims }) {
   const H = cab.H;
   const W = geo.W;
@@ -4092,6 +4268,9 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
       {!rear && geo.doors.filter((d) => d.w > 0 && d.h > 0).map((d) => {
         const X = mx(d.x, d.w);
         const hinge = rear ? (d.hingeSide === "left" ? "right" : "left") : d.hingeSide;
+        if (d.type === "klapa")
+          return <KlapaElewacja key={d.key} d={d} fy={fy} ff={ff} open={open} tf={geo.tf} x0={X - d.x}
+            showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />;
         if (d.type === "fix" || d.type === "blenda")
           return (
             <g key={d.key}>
@@ -4298,7 +4477,7 @@ const TopHardware = ({ cab, geo, cd }) => {
   geo.doors.filter((d) => d.w > 0 && d.h > 0).forEach((d) => {
     // z gory poziomy nakladaja sie na siebie — kazdy uchwyt i zawias raz
     if (d.handle && uchwyt) {
-      const [hx0, hx1] = d.type === "drawer"
+      const [hx0, hx1] = d.type === "drawer" || d.type === "klapa"
         ? [d.x + d.w / 2 - Math.min(120, d.w * 0.3), d.x + d.w / 2 + Math.min(120, d.w * 0.3)]
         : d.hingeSide === "left" ? [d.x + d.w - 44, d.x + d.w - 32] : [d.x + 20, d.x + 32];
       const k = `u${Math.round(hx0)}`;
@@ -4307,6 +4486,17 @@ const TopHardware = ({ cab, geo, cd }) => {
         out.push(<rect key={k} x={hx0} y={lico} width={hx1 - hx0} height={uchwyt}
           fill="#3f3f46" stroke={INK} strokeWidth="1" />);
       }
+    }
+    // klapa: zawiasy na wiencu albo dnie, rozstawione wzdluz szerokosci
+    if (d.type === "klapa") {
+      (d.klapaZawiasy || []).forEach((hx) => {
+        const k = `z${Math.round(hx)}`;
+        if (seen.has(k)) return;
+        seen.add(k);
+        out.push(<rect key={k} x={hx - HINGE_H / 2} y={cd - HINGE_D} width={HINGE_H} height={HINGE_D}
+          rx="3" fill="#71717a" fillOpacity="0.8" stroke={INK} strokeWidth="1.2" />);
+      });
+      return;
     }
     if (d.type !== "drawer") {
       const [li, cj] = String(d.colKey || "").split("-").map(Number);
@@ -5499,8 +5689,8 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       const handleBar = (d, zLico, transform) => {
         if (!d.handle || !uchwyt) return;
         let hx0, hy0, hx1, hy1;
-        if (d.type === "drawer") {
-          const cy = d.y + d.h - Math.min(50, d.h / 2);
+        if (d.type === "drawer" || d.type === "klapa") {
+          const cy = d.type === "klapa" ? klapaUchwytY(d) : d.y + d.h - Math.min(50, d.h / 2);
           hx0 = d.x + d.w / 2 - Math.min(120, d.w * 0.3);
           hx1 = d.x + d.w / 2 + Math.min(120, d.w * 0.3);
           hy0 = cy - 6; hy1 = cy + 6;
@@ -5526,6 +5716,15 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           box(c.x + d.x, c.base + d.y, -tf - out, c.x + d.x + d.w, c.base + d.y + d.h, -out,
             col, null, 0.9, true);
           handleBar(d, -tf - out, null);
+          return;
+        }
+        if (d.type === "klapa") {
+          const obr = klapaObrot(d, angle, -tf);
+          const rot = (p) => obr({ ...p, y: p.y - c.base });
+          const rotB = (p) => { const q = rot(p); return { ...q, y: q.y + c.base }; };
+          box(c.x + d.x, c.base + d.y, -tf, c.x + d.x + d.w, c.base + d.y + d.h, 0,
+            col, rotB, 0.85, true);
+          handleBar(d, -tf, rotB);
           return;
         }
         if (d.type === "door") {
@@ -5778,7 +5977,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // podnosi szafke — nozki schowane w swietle cokolu niczego nie zmieniaja
   const hasBaseDim =
     geo.legBelow > 0 || (cab.plinth.on && !geo.plinthInBody && geo.plinthH > 0);
-  const hasDoorDims = showDims && !open && (geo.doors || []).some((d) => d.type === "door");
+  const hasDoorDims = showDims && !open && (geo.doors || []).some((d) => d.type === "door" || d.type === "klapa");
   // wysokosc montazu prowadnic: kolumna przy boku -> wymiar poza szafka,
   // kolumna miedzy przegrodami -> w swietle obok prowadnicy
   const railDimCols = [];
@@ -6173,7 +6372,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         );
       })()}
       {geo.doors.map((d) =>
-        d.type === "fix" || d.type === "blenda" ? (
+        d.type === "klapa" ? (
+          <KlapaElewacja key={d.key} d={d} fy={fy} ff={ff} open={open} tf={geo.tf}
+            showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />
+        ) : d.type === "fix" || d.type === "blenda" ? (
           <g key={d.key}>
             <rect x={d.x} y={fy(d.y + d.h)} width={d.w} height={d.h}
               fill={ff} stroke={INK} strokeWidth="2.5" />
@@ -6513,7 +6715,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           {/* wysokosci drzwi przy lewej krawedzi */}
           {!open &&
             geo.doors
-              .filter((d) => d.type === "door")
+              .filter((d) => d.type === "door" || d.type === "klapa")
               .map((d) => (
                 <DimV key={"door" + d.key} y1={fy(d.y + d.h)} y2={fy(d.y)} x={dimDoorX}
                   label={`${fmt(d.h)}`} c={DIMC} />
@@ -7726,6 +7928,25 @@ const rotAboutY = (p, ang, ox, oz) => {
   const dx = p.x - ox, dz = p.z - oz;
   return { x: ox + dx * c - dz * s2, y: p.y, z: oz + dx * s2 + dz * c };
 };
+/* Obrot wokol osi poziomej (krawedz zawiasow klapy). Dodatni kat podnosi
+   dolna krawedz do przodu i w gore (klapa do gory, os na gorze), ujemny
+   opuszcza gorna do przodu i w dol (klapa opadana, os na dole). */
+const rotAboutX = (p, ang, oy, oz) => {
+  const c = Math.cos(ang), s2 = Math.sin(ang);
+  const dy = p.y - oy, dz = p.z - oz;
+  return { x: p.x, y: oy + dy * c - dz * s2, z: oz + dy * s2 + dz * c };
+};
+// klapa otwarta w bryle: do gory do poziomu, opadana troche ponizej
+const klapaObrot = (d, angle, oz) => {
+  const ang = (Math.min(90, angle) * Math.PI) / 180;
+  return d.klapa === "gora"
+    ? (p) => rotAboutX(p, ang, d.y + d.h, oz)
+    : (p) => rotAboutX(p, -ang, d.y, oz);
+};
+// uchwyt klapy lezy poziomo przy wolnej krawedzi — jak w szufladzie, tylko
+// przy klapie do gory na dole frontu
+const klapaUchwytY = (d) => d.klapa === "gora"
+  ? d.y + Math.min(50, d.h / 2) : d.y + d.h - Math.min(50, d.h / 2);
 
 /* Kolejnosc rysowania bryl w rzucie 3D — wspolna dla bryly calej zabudowy
    i pojedynczej szafki. Malowanie scian po ich sredniej glebokosci mylilo sie
@@ -8055,8 +8276,8 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
     const zA = z0trans - depth;
     const zB = z0trans;
     let hx0, hy0, hx1, hy1;
-    if (d.type === "drawer") {
-      const cy = d.y + d.h - Math.min(50, d.h / 2);
+    if (d.type === "drawer" || d.type === "klapa") {
+      const cy = d.type === "klapa" ? klapaUchwytY(d) : d.y + d.h - Math.min(50, d.h / 2);
       hx0 = d.x + d.w / 2 - Math.min(120, d.w * 0.3);
       hx1 = d.x + d.w / 2 + Math.min(120, d.w * 0.3);
       hy0 = cy - 6;
@@ -8084,6 +8305,12 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
     if (d.type === "fix" || d.type === "blenda" || !open) {
       box(d.x, d.y, z0, d.x + d.w, d.y + d.h, z1, col, null, 1, true);
       if (d.type !== "fix" && d.type !== "blenda") handleBar(d, z0, null);
+      return;
+    }
+    if (d.type === "klapa") {
+      const rot = klapaObrot(d, angle, z0);
+      box(d.x, d.y, z0, d.x + d.w, d.y + d.h, z1, col, rot, 0.85, true);
+      handleBar(d, z0, rot);
       return;
     }
     // os obrotu na wlasnej zewnetrznej krawedzi plyty, zeby nie wychodzila poza obrys
@@ -10000,7 +10227,7 @@ const swingBodies = (L) => {
         }
         // front zamkniety stoi w licu i to w niego uderza sasiednie skrzydlo
         bryly.push(roomBox(n, u0 + d.x, u0 + d.x + d.w, fv0, lico, z0, z1,
-          { ...kto, co: d.type === "door" ? "front" : "element stały", klucz }));
+          { ...kto, co: d.type === "door" || d.type === "klapa" ? "front" : "element stały", klucz }));
         if (d.type !== "door") return;
         // zawias po lewej -> wolna krawedz idzie w prawo, i odwrotnie
         const prawe = d.hingeSide === "right";
@@ -13235,7 +13462,54 @@ export default function App() {
                         {/* Strona zawiasow pojedynczych drzwi — przy kolumnie, a nie tylko
                             w zwinietej karcie „Luzy drzwi” (prosba uzytkownika 2026-09-28).
                             „auto” pokazuje, gdzie zawias wypada teraz. */}
-                        {c.kind === "doors" && rawCol.doors === 1 && (
+                        {/* Klapa zamiast skrzydla — tylko przy jednych drzwiach w kolumnie.
+                            Zawiasy na gornej (do gory) albo dolnej krawedzi (w dol),
+                            do tego podnosnik gazowy; sila z tabeli GTV albo recznie. */}
+                        {c.kind === "doors" && rawCol.doors === 1 && (() => {
+                          const kl = rawCol.klapa === "gora" || rawCol.klapa === "dol" ? rawCol.klapa : "skrzydlo";
+                          const info = (geo.klapy || []).find((k) => k.colKey === `${lv.i}-${c.j}`);
+                          const ustaw = (pole, v) => editLevels((L) => {
+                            const col = L[lv.i].cols[c.j];
+                            if (v === null || v === undefined || v === "") delete col[pole]; else col[pole] = v;
+                          });
+                          return (
+                            <div className="space-y-1 text-xs" data-el="klapa-kolumny">
+                              <div className="flex items-center gap-2">
+                                <span className="text-stone-500">otwieranie</span>
+                                <Seg value={kl} onChange={(v) => ustaw("klapa", v === "skrzydlo" ? null : v)}
+                                  options={[{ v: "skrzydlo", l: "skrzydło" }, { v: "gora", l: "klapa do góry" }, { v: "dol", l: "klapa w dół" }]} />
+                              </div>
+                              {info && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-stone-500">{kl === "gora" ? "podnośniki" : "siłowniki"}</span>
+                                  <Seg value={rawCol.silowniki === 1 || rawCol.silowniki === 2 ? String(rawCol.silowniki) : "auto"}
+                                    onChange={(v) => ustaw("silowniki", v === "auto" ? null : Number(v))}
+                                    options={[{ v: "auto", l: `auto (${info.w > 600 ? 2 : 1})` }, { v: "1", l: "1" }, { v: "2", l: "2" }]} />
+                                  <span className="text-stone-500">siła N</span>
+                                  <span data-el="klapa-sila" className="w-20">
+                                    <AutoNum value={rawCol.silaN}
+                                      placeholder={info.dobor && info.dobor.sila ? String(info.dobor.sila) : "?"}
+                                      fixed={num(rawCol.silaN) !== null}
+                                      warn={!info.sila}
+                                      onChange={(v) => ustaw("silaN", v === "" ? null : Number(v))} />
+                                  </span>
+                                  {kl === "gora" && (
+                                    <>
+                                      <span className="text-stone-500">kąt</span>
+                                      <Seg value={String(info.kat)} onChange={(v) => ustaw("katKlapy", v === "90" ? null : Number(v))}
+                                        options={[{ v: "75", l: "75°" }, { v: "90", l: "90°" }, { v: "100", l: "100°" }]} />
+                                    </>
+                                  )}
+                                  <span className="ml-auto font-mono text-stone-500">
+                                    ok. {info.kg.toFixed(1).replace(".", ",")} kg
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                        {c.kind === "doors" && rawCol.doors === 1 && !(rawCol.klapa === "gora" || rawCol.klapa === "dol") && (
                           <div className="flex items-center gap-2 text-xs" data-el="zawias-kolumny">
                             <span className="text-stone-500">zawias</span>
                             <Seg value={rawCol.hinge === "left" || rawCol.hinge === "right" ? rawCol.hinge : "auto"}
