@@ -3701,6 +3701,39 @@ const runLayout = (groups, ref = null) => {
   });
   info.forEach((n) => { n.len = n.lead + n.total + n.tail; });
 
+  /* Ciag gorny wisi na scianie swojego dolnego: ta sama ramka i ten sam numer
+     sciany (ustawiane nizej, przy ramkach). Wczesniej gorny bez wlasnego
+     narożnika zawsze trafial na pierwsza sciane — gorny drugiej sciany wisial
+     nad pierwsza i nachodzil na tamten.
+     W rogu gorne zachowuja sie jak dolne, ale z wlasna glebokoscia: gdy gorny
+     ciag sciany wjezdzajacej w rog (ta sama zasada `owner` co na dole) siega
+     rogu, gorny drugiej sciany zaczyna sie dopiero za jego glebokoscia i luzem. */
+  info.forEach((n) => {
+    if (n.run.tier === "gorny" && n.run.wall && info.has(n.run.wall)) n.dolny = info.get(n.run.wall);
+  });
+  info.forEach((n) => {
+    const dol = n.dolny;
+    if (!dol || !dol.corner || !info.has(dol.corner.of)) return;
+    const pDol = info.get(dol.corner.of);
+    const p = [...info.values()].find((q) => q.dolny === pDol);
+    if (!p || !n.g.cabs.length || !p.g.cabs.length) return;
+    const c = dol.corner;
+    // gdzie w ramce danego ciagu lezy rog: na poczatku (u = 0) albo na koncu
+    const rogU = (q) => (q === n ? (c.at === "end" ? 0 : dol.len) : (c.at === "end" ? pDol.len : 0));
+    const odRogu = (q) => (rogU(q) === 0 ? q.lead : rogU(q) - (q.lead + q.total));
+    const wchodzi = c.owner === "self" ? n : p;
+    const ustepuje = wchodzi === n ? p : n;
+    if (odRogu(wchodzi) >= ustepuje.depth) return;       // wchodzacy do rogu nie siega
+    const trzeba = wchodzi.depth + (c.clear || 0);
+    /* Odsuwamy tylko ciag, ktory w rogu sie zaczyna. Ten, ktory w rogu sie
+       konczy, stoi od poczatku sciany — jego przesuniecie zmieniloby uklad
+       calej sciany; jesli wchodzi w rog, powie o tym kontrola otwierania. */
+    if (rogU(ustepuje) === 0 && ustepuje.lead < trzeba) {
+      ustepuje.lead = trzeba;
+      ustepuje.len = ustepuje.lead + ustepuje.total + ustepuje.tail;
+    }
+  });
+
   /* Slepy narożnik. Ciag, ktory wjezdza w rog, konczy sie szafka stojaca za
      plecami drugiego ciagu: tyle jej frontu, ile ma glebokosci ten drugi ciag,
      jest po prostu zaslonione i nie da sie tamtedy siegnac. Dlatego szafki
@@ -3814,7 +3847,15 @@ const runLayout = (groups, ref = null) => {
     });
   };
   const base = { ox: 0, oy: 0, ux: 1, uy: 0, vx: 0, vy: 1 };
-  [...info.values()].filter((n) => !n.corner).forEach((n) => put(n, base, 0));
+  [...info.values()].filter((n) => !n.corner && !n.dolny).forEach((n) => put(n, base, 0));
+  // gorny ciag dostaje ramke i numer sciany swojego dolnego
+  info.forEach((n) => {
+    if (!n.dolny || !seen.has(n.dolny.id) || seen.has(n.id)) return;
+    seen.add(n.id);
+    n.f = n.dolny.f;
+    n.wall = n.dolny.wall;
+    n.at = (u, v) => at(n.f, u, v);
+  });
   // ciag ocalaly z zapetlonego naroznika i tak trzeba gdzies postawic
   info.forEach((n) => put(n, base, 0));
 
@@ -10689,7 +10730,15 @@ export default function App() {
        pare wzmocnien: z przodu plyta na plask, do ktorej przykreca sie blat,
        z tylu stojaca, ktora trzyma korpus w kacie prostym. */
     const podBlat = !!(run && run.worktop);
-    const fresh = { cab: { ...base, name: `Szafka ${next}`,
+    /* ...i jego wymiary: wysokosc, glebokosc i cokol, gdy ciag je juz ma.
+       Domyslna szafka ma 500 w glab, wiec w ciagu 570 (albo gornym 300) od razu
+       wyskakiwalo ostrzezenie o rozjezdzie, ktory zrobila sama aplikacja. */
+    const wymiaryCiagu = run && !tplId ? {
+      ...(run.H != null ? { H: run.H } : {}),
+      ...(run.D != null ? { D: run.D } : {}),
+      ...(run.plinth ? { plinth: { ...run.plinth } } : {}),
+    } : {};
+    const fresh = { cab: { ...base, name: `Szafka ${next}`, ...wymiaryCiagu,
       ...(run ? { hangerMode: run.hangerMode || "listwa" } : {}),
       ...(podBlat ? bezWienca(base, defaultMaterials.front.thickness) : {}),
       ...(stoi ? { legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } } : {}) },

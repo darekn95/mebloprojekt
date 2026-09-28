@@ -118,6 +118,17 @@ for (const typ of ['plaska', 'szeroka']) {
       corner: { of: 'c1', at: 'end', owner: 'self', clear: 0, wstawka: { typ, w: 60 } } })]), { zabudowa: true });
 }
 
+// kuchnia w L z górnymi ciągami na obu ścianach (górne 300 w głąb, wiszą na listwie)
+{
+  const wisz = (name) => szafka(name, { D: 300, plinth: { ...PL, on: false }, legs: { on: false }, hangerMode: 'listwa' });
+  await scenariusz('górne ciągi w L', projekt([
+    [szafka('D1'), 'c1'], [szafka('D2', { W: 1000 }), 'c1'], [szafka('D3'), 'c2'],
+    [wisz('G1'), 'c3'], [wisz('G2'), 'c3'], [wisz('G3'), 'c4']],
+  [run('c1', 'Ściana 1'), run('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } }),
+    run('c3', 'Ściana 1', { tier: 'gorny', wall: 'c1', D: 300, mountY: 1358, worktop: false, plinth: null }),
+    run('c4', 'Ściana 2', { tier: 'gorny', wall: 'c2', D: 300, mountY: 1358, worktop: false, plinth: null })]), { zabudowa: true });
+}
+
 // szablony z listy „+ z szablonu”
 for (const t of ['stojaca', 'wiszaca', 'biurko', 'slupek', 'naroznikL']) {
   await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(600);
