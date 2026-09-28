@@ -1839,6 +1839,26 @@ function computeGeoLiczy(cab, mat, ctx) {
           else {
             supportParts.push({ h: lv.h, d: sd });
             c.support = { d: sd, side: rawFix.side };
+            /* Polka nie przejdzie przez wspornik, a nikt nie wycina w niej „U”
+               na niego — jest krotsza: konczy sie na wsporniku i lezy na kolkach
+               w nim (ustalone z uzytkownikiem 2026-09-28). Ostrzezenie mowi o tym
+               i daje przycisk: zawias na druga strone i wspornik niepotrzebny. */
+            const spX = rawFix.side === "left" ? fx + fixW - t : fx;
+            if (rawFix.side === "left") c.shX0 = Math.max(c.shX0 ?? c.x0, spX + t);
+            else c.shX1 = Math.min(c.shX1 ?? c.x1, spX);
+            c.shW = Math.round(c.shX1 - c.shX0);
+            if ((c.shelves || []).length) {
+              const zawiasPrzyFixie = (rawCol.hinge === "left" || rawCol.hinge === "right"
+                ? rawCol.hinge : cab.hinge === "left" || cab.hinge === "right" ? cab.hinge
+                : rawFix.side === "left" ? "right" : "left") === rawFix.side;
+              const jedne = kind === "doors" && Number(rawCol.doors) === 1;
+              add("warn", `${where}: półka jest krótsza — kończy się na wsporniku pionowym fixu `
+                + `(${fmt(c.shW)} zamiast ${fmt(c.w)} mm) i leży na kołkach we wsporniku, który ma tylko ${fmt(sd)} mm głębokości.`
+                + (jedne ? (zawiasPrzyFixie
+                  ? " Wspornik jest po to, żeby przykręcić zawias — po przełożeniu zawiasów na drugą stronę nie jest potrzebny."
+                  : " Zawiasy są po drugiej stronie, więc wspornik nie jest potrzebny.")
+                  + `|wspornikoff:${lv.i}:${j}:${zawiasPrzyFixie ? (rawFix.side === "left" ? "right" : "left") : "-"}` : ""));
+            }
           }
         }
         if (rawFix.side === "left") sx0 = Math.max(sx0, fx + fixW + g.between);
@@ -3162,10 +3182,17 @@ function computeGeoLiczy(cab, mat, ctx) {
     levels.forEach((lv) =>
       lv.cols.forEach((c) => {
         const p = panelsOfCol(lv, c);
+        /* Polka skrocona do wspornika fixu lezy od jego strony na kolkach we
+           wsporniku — tam, a nie w boku, trzeba wiercic (wspornik ma tylko
+           swoja glebokosc, wiec jeden kolek z przodu). */
+        const wsp = c.support ? { name: "Wspornik pionowy", base: lv.y0 } : null;
+        const wspNote = c.support ? `⌀5, ${fmt(Math.round(Math.min(37, c.support.d / 2)))} mm od przodu — wspornik ma ${fmt(c.support.d)} mm głębokości` : "";
         if (cab.shelfMount !== "confirmat")
           (c.shelves || []).forEach((s) => {
-            drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, pinNote);
-            drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNote);
+            if (wsp && c.support.side === "left") drillAdd(lv.i, wsp.name, wsp.base, "kołek półki", s.y, wspNote);
+            else drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, pinNote);
+            if (wsp && c.support.side === "right") drillAdd(lv.i, wsp.name, wsp.base, "kołek półki", s.y, wspNote);
+            else drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNote);
           });
         (c.drawers || []).forEach((dr) => {
           if (!dr.rail) return;
@@ -4351,7 +4378,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
       ))}
       {!rear && geo.levels.flatMap((lv) => lv.cols.flatMap((c) =>
         (c.shelves || []).map((s, k) => (
-          <rect key={`s${lv.i}-${c.j}-${k}`} x={mx(c.x0, c.w)} y={fy(s.y + geo.ts)} width={c.w} height={geo.ts}
+          <rect key={`s${lv.i}-${c.j}-${k}`} x={mx(c.shX0 ?? c.x0, c.shW ?? c.w)} y={fy(s.y + geo.ts)} width={c.shW ?? c.w} height={geo.ts}
             fill={shc} stroke={INK} strokeWidth="2" />
         ))
       ))}
@@ -4361,8 +4388,8 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         geo.levels.flatMap((lv) => lv.cols.flatMap((c) =>
           (c.shelves || []).map((s, k) => (
             <g key={`pin${lv.i}-${c.j}-${k}`}>
-              <circle cx={mx(c.x0 + 7, 0)} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
-              <circle cx={mx(c.x1 - 7, 0)} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
+              <circle cx={mx((c.shX0 ?? c.x0) + 7, 0)} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
+              <circle cx={mx((c.shX1 ?? c.x1) - 7, 0)} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
             </g>
           ))
         ))}
@@ -6422,7 +6449,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {geo.levels.map((lv) =>
         lv.cols.map((c) =>
           c.shelves.map((s, k) => (
-            <rect key={`s${lv.i}-${c.j}-${k}`} x={c.x0} y={fy(s.y + geo.ts)} width={c.w} height={geo.ts}
+            <rect key={`s${lv.i}-${c.j}-${k}`} x={c.shX0 ?? c.x0} y={fy(s.y + geo.ts)} width={c.shW ?? c.w} height={geo.ts}
               fill={bf} stroke={INK} strokeWidth="2" />
           ))
         )
@@ -6450,8 +6477,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           lv.cols.flatMap((c) =>
             c.shelves.map((s, k) => (
               <g key={`pin${lv.i}-${c.j}-${k}`}>
-                <circle cx={c.x0 + 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
-                <circle cx={c.x1 - 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
+                <circle cx={(c.shX0 ?? c.x0) + 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
+                <circle cx={(c.shX1 ?? c.x1) - 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
                 {showDims && (
                   <text x={(c.x0 + c.x1) / 2} y={fy(s.y) + 24} textAnchor="middle" fontSize="17"
                     fill={DIMC} fontFamily="ui-monospace, monospace">
@@ -7113,8 +7140,8 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
       {geo.levels.map((lv) =>
         lv.cols.map((c) =>
           c.shelves.map((sh, k) => (
-            <rect key={`p${lv.i}-${c.j}-${k}`} x={mx(c.x0, c.w)} y={fy(sh.y + geo.ts)}
-              width={c.w} height={geo.ts} fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
+            <rect key={`p${lv.i}-${c.j}-${k}`} x={mx(c.shX0 ?? c.x0, c.shW ?? c.w)} y={fy(sh.y + geo.ts)}
+              width={c.shW ?? c.w} height={geo.ts} fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
           ))
         )
       )}
@@ -8921,6 +8948,18 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         run: () => editItemLevels(Number(idx), (L) => { L[+li].cols[+j].hinge = side; }),
       };
     }
+    if (action.startsWith("wspornikoff:")) {
+      // „wspornikoff:<poziom>:<kolumna>:<nowa strona zawiasu albo ->" — bez wspornika polka wraca na cala szerokosc
+      const [, li, j, strona] = action.split(":");
+      return {
+        label: strona !== "-" ? "Przełóż zawiasy na drugą stronę i usuń wspornik" : "Usuń wspornik",
+        run: () => editLevels((L) => {
+          const col = L[+li].cols[+j];
+          col.fix = { ...(col.fix || {}), support: false };
+          if (strona !== "-") col.hinge = strona;
+        }),
+      };
+    }
     if (action.startsWith("slepyfix:")) {
       // „slepyfix:<nr szafki>:<strona fixu>:<szerokosc>" — sam fix, reszta zostaje
       const [, idx, strona, w] = action.split(":");
@@ -8934,10 +8973,11 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       };
     }
     if (action.startsWith("slepyrog:")) {
-      // „slepyrog:<nr szafki>:<strona fixu>:<szerokosc fixu>:<ciag z narożnikiem albo ->"
-      const [, idx, strona, w, ciag] = action.split(":");
+      // „slepyrog:<nr szafki>:<strona fixu>:<szerokosc fixu>:<ciag z narożnikiem albo ->:<grubosc wstawki>"
+      const [, idx, strona, w, ciag, gr] = action.split(":");
+      const grW = Number(gr) || 18;
       return {
-        label: `Ustaw szafkę w rogu: fix ${fmt(Number(w))} mm + drzwi${ciag !== "-" ? " + wstawka 18 mm" : ""}`,
+        label: `Ustaw szafkę w rogu: fix ${fmt(Number(w))} mm + drzwi${ciag !== "-" ? ` + wstawka ${fmt(grW)} mm` : ""}`,
         run: () => {
           editItemLevels(Number(idx), (L) => L.forEach((lv) => {
             const j = strona === "left" ? 0 : lv.cols.length - 1;
@@ -8946,7 +8986,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
               // zawias od zewnatrz, czyli po stronie przeciwnej do fixu — uchwyt wypada przy fixie
               hinge: strona === "left" ? "right" : "left" };
           }));
-          if (ciag !== "-" && runFix) runFix(`wstawka:${ciag}:plaska:18`);
+          if (ciag !== "-" && runFix) runFix(`wstawka:${ciag}:plaska:${grW}`);
         },
       };
     }
@@ -10208,15 +10248,16 @@ const cornerPairMsgs = (n, blat) => {
       /* Najpierw rog, potem reszta: jeden blok z tym, co trzeba zrobic, i jednym
          przyciskiem — fix na zaslonieta czesc, jedne drzwi z zawiasem od
          zewnatrz (uchwyt przy fixie) i wstawka przy szafce drugiego ciagu.
-         Kolizje otwierania w tym rogu czekaja, az to bedzie ustawione. */
+         Kolizje otwierania w tym rogu widac obok, od razu. */
       const ws = n.corner && n.corner.wstawka;
-      const wsTxt = ws ? "" : ", wstawka 18 mm przy szafce ciągu „" + z.other.run.name + "”";
+      const tfW = tfPrzyRogu(n);
+      const wsTxt = ws ? "" : `, wstawka ${fmt(tfW)} mm przy szafce ciągu „` + z.other.run.name + "”";
       out.push({ level: "warn", text:
         `Ślepy narożnik — szafka w rogu do ustawienia: ${kto} ma ${fmt(z.covered)} mm frontu zasłonięte przez ${za} `
         + `(do lica jego frontów i ${fmt(SLEPY_ZAPAS)} mm zapasu na uchwyt), do ręki zostaje ${fmt(z.free)} mm. `
         + `Proponuję: fix ${fmt(z.covered)} mm przy rogu, jedne drzwi na resztę z zawiasem od zewnętrznej `
         + `strony (uchwyt przy fixie)${wsTxt}.`
-        + `|slepyrog:${z.cab.index}:${z.strona}:${z.covered}:${ws ? "-" : n.id}` });
+        + `|slepyrog:${z.cab.index}:${z.strona}:${z.covered}:${ws ? "-" : n.id}:${tfW}` });
     } else if (slepyFixy(z).length) {
       /* Fix jest, ale innej szerokosci niz zaslonieta czesc — wezszy znaczy,
          ze drzwi wchodza za sasiedni ciag (uchwyt przy jego drzwiach), szerszy
@@ -10404,6 +10445,16 @@ const cornerPairMsgs = (n, blat) => {
    kazda roznica od zaslonietej czesci to podpowiedz z przyciskiem (ustalone
    z uzytkownikiem 2026-09-28; wczesniej ±3 mm uchodzilo za ustawione).
    Kontroli kolizji to nie wstrzymuje — kolizje w rogu widac zawsze. */
+/* Grubosc frontu szafki ciagu ustepujacego, ta przy rogu — do niej przykreca
+   sie plaska wstawka i tyle ona ma od przodu. Wczesniej w opisie i przycisku
+   stalo na sztywno 18 mm, a przy kolizji brana byla pierwsza szafka ciagu. */
+const tfPrzyRogu = (n) => {
+  const u = n && n.pair && n.pair.ustepuje;
+  const cabs = (u && u.g.cabs) || [];
+  if (!cabs.length) return defaultMaterials.front.thickness;
+  const naStarcie = n.corner.at === "end" ? u === n : u !== n;
+  return Math.round(cabs[naStarcie ? 0 : cabs.length - 1].geo.tf);
+};
 const slepaKolumna = (z, l) => {
   const cols = l.cols || [];
   return z.strona === "left" ? cols[0] : cols[cols.length - 1];
@@ -10654,8 +10705,7 @@ const openingMsgs = (L) => {
          blokowana”) — blok „do ustawienia” stoi obok nich. */
       if (rog) {
         const ws = rog.corner.wstawka;
-        const cabRog = rog.pair.ustepuje.g.cabs[0];
-        const tf = cabRog ? Math.round(cabRog.geo.tf) : 18;
+        const tf = tfPrzyRogu(rog);
         if (!ws) akcja = `|wstawka:${rog.id}:plaska:${tf}`;
         else if (ws.typ === "plaska") akcja = `|wstawka:${rog.id}:szeroka:${WSTAWKA_W}`;
       }

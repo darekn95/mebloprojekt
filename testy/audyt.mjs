@@ -194,9 +194,8 @@ const USTAWIONA = { W: 1000, levels: [{ h: null, cols: [kol({ doors: 1, fix: { s
 
 await scenariusz('szafka: drzwi i półki', projekt([[szafka('D')]]));
 await scenariusz('szafka: szuflady', projekt([[szafka('S', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] })]]));
-// polka przechodzi przez wspornik pionowy fixu — sposob (plytsza/wezsza) do decyzji uzytkownika
-await scenariusz('szafka: fix ze wspornikiem + drzwi', projekt([[szafka('F', { levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] })]]),
-  { znane: /^18×564×570 × 18×100×684/ });
+// polka w kolumnie ze wspornikiem fixu jest krotsza — konczy sie na wsporniku (2026-09-28)
+await scenariusz('szafka: fix ze wspornikiem + drzwi', projekt([[szafka('F', { levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] })]]));
 await scenariusz('szafka: blenda w kolumnie + drzwi', projekt([[szafka('B', { W: 800, levels: [{ h: null, cols: [kol({ doors: 1 }), { ...kol(), kind: 'blenda', w: 100 }] }] })]]));
 await scenariusz('szafka: dwa poziomy', projekt([[szafka('P', { W: 800, H: 2000, levels: [{ h: null, cols: [kol({ doors: 1 }), kol({ doors: 1 })] }, { h: 700, cols: [kol()] }] })]]));
 await scenariusz('szafka: fronty wpuszczane', projekt([[szafka('WP', { frontMode: 'inset' })]]));

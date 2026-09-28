@@ -310,6 +310,7 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `fixgap:<lv>:<col>:<v>:<up\|down>` | ustawia luz między drzwiami, żeby fronty wyszły równe |
 | `fixh:` / `fixnl:` / `fixback:` / `fixnodoor:` | wysokość, NL prowadnicy, tył szuflady, kolumna bez drzwi |
 | `fixdiv:` / `fixsup:` / `fixcolauto:` | przegroda, wspornik, kolumna na automat |
+| `wspornikoff:<poziom>:<kolumna>:<strona zawiasu albo ->` | przy półce skróconej do wspornika fixu: „Przełóż zawiasy na drugą stronę i usuń wspornik” albo „Usuń wspornik” |
 | `slepyfix:<nr szafki>:<strona>:<szerokość>` | „Popraw fix na N mm” — fix szafki w ślepym rogu inny niż zasłonięta część (bez tolerancji) |
 | `hingeflip:<lv>:<col>:<side>` | przekłada zawiasy na drugą stronę |
 | `hingeflipcab:<nr szafki>:<lv>:<col>:<side>:<ile zostaje>` | w uwadze o kolizji otwierania: „Przełóż zawiasy na lewą/prawą — zostaje N mm / bez kolizji”; tylko pojedyncze drzwi i tylko gdy przełożenie zmniejsza kolizję (liczone w `swingBodies` → `s.alt`); gdy nie pomaga, rady o zawiasach nie ma |
@@ -361,6 +362,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `gorne` | ciągi górne w L: górny drugiej ściany wisi na niej (bez kolizji z górnym pierwszej), odsunięcie 300 w rogu, gdy górny ściany wjeżdżającej sięga rogu; „+ szafka” bierze H/D/cokół ciągu (górny 300, dolny 570) |
 | `kreator` | kreator rogu: ślepa szafka 1000 z fixem 618 od rogu, jedne drzwi, zawias od zewnątrz, wstawka płaska — bez bloku „do ustawienia”; szafka w L 900 + ramię 630 bez wstawki; osobny ciąg; przycisk „Ustaw szafkę w rogu” w istniejącym projekcie |
 | `audyt` | audyt całości na ~20 konfiguracjach: nachodzenie brył 3D (szafka i zabudowa, zamknięte), formatki ↔ rysunek w obie strony z ilościami (szuflady w bryle otwartej), formatki projektu = suma szafek + cokół/blat ciągu, okucia projektu vs suma, PDF = ekran (formatki i okucia szafek i projektu). HDF we frezie może wchodzić krawędzią do 4 mm; `znane` — przypadki czekające na decyzję (BLEDY.md). Trwa ok. 4 min |
+| `wspornik` | półka krótsza przy wsporniku fixu (482 zamiast 564), ostrzeżenie, oba warianty przycisku, kołek półki we wsporniku w planie wierceń (PDF) |
 | `uchwyt` | wiersz okuć skrzydła (zawiasy, uchwyt, lustro), wysunięcie i położenie uchwytu per skrzydło — zapis, rysunek z przodu, bryła 3D |
 | `klapy` | klapa do góry: siła z tabeli GTV (test liczy ją sam), waga frontu (680 kg/m³), 1 podnośnik przy 600, 2 przy 900, ręcznie 1 → ostrzeżenie; zawiasy 2 / 3 powyżej 900; formatka „Klapa”; UI „skrzydło / klapa”, potem „do góry / w dół”; klapa w dół: amortyzator z tabeli PD-ECGDL, po wpisaniu 80 N pozycja w okuciach; klapa użytkownika 560 × 750 — poza tabelą i za ciężka, z uwagą o kącie 45°; ostrzeżenia >600 mm i <290 mm; bryła otwarta szafki i ciągu bez błędów |
 | `zawiasy` | przycisk przełożenia zawiasów przy kolizji tylko, gdy pomaga (17 mm z lewej → bez przycisku; 564 z prawej → „na lewą — zostaje 17 mm”), przełącznik „zawias” przy kolumnie z jednymi drzwiami |

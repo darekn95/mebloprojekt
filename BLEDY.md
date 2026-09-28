@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-28 | przegląd wartości na sztywno | wstawka w rogu: opis bloku i przycisk „Ustaw szafkę w rogu” miały „18 mm” na sztywno, a przycisk wstawki przy kolizji brał grubość frontu z pierwszej szafki ciągu, nie tej przy rogu — teraz `tfPrzyRogu`; plan wierceń: kołek półki przy wsporniku fixu we wsporniku, nie w boku | (ten commit) |
 | 2026-09-28 | audyt całości (`testy/audyt.mjs`) | nowa suita: nachodzenie brył w 3D (szafka i zabudowa), formatki ↔ rysunek w obie strony z ilościami, projekt = suma szafek, PDF = ekran; 20 konfiguracji. Znalezione i poprawione: plecy w bryle zabudowy wchodziły 3 mm w boki/dno/półki (`plecyBryla`); półki i przegrody w bryle szafki odkładane od lica (przy frontach wpuszczanych wchodziły w drzwi); plecy z płyty wewnątrz nie skracały półek (półka 18 mm za głęboka w formatce); plecy z płyty wewnątrz rysowane na cały tył; okucia ramienia szafki w L i wstawki tylko w projekcie, nie na liście szafki (`okuciaSzafki`); listwa wspólna ciągu na kartce szafki w PDF; szafka w L ze stroną „auto” zawsze z kątownikiem po prawej — przy ramieniu w lewo (kreator rogu) pełny bok stał po stronie ramienia; dno i tył szuflady nie były nigdzie rysowane (`skrzynkaBryly`) | (ten commit) |
 | 2026-09-28 | plecy za korpusem | HDF przybijany (i płyta na zewnątrz) stoi za korpusem, więc szafka stoi o jego grubość od ściany — układ ciągu, róg, blat ciągu, ramię szafki w L i kreator rogu liczą teraz z `geo.glebOdSciany` (decyzja użytkownika). Przesunięte liczby w testach (+3 mm): narozn 621/671/249/651, narozn2 621→1103, narozn3 1097/1521/918, wstawka 591/609/651, gorne 321, narjedne 235, blatciag/blatrys 533, blatrog (uwaga „tylko 7 mm”), odsuniecie (korpusy o 3 mm płytsze, odległości te same); kreator fix 621 liczony z układu | (ten commit) |
 | 2026-09-28 | przegląd wszystkich rysunków projektu użytkownika | wstawki brakowało na widoku z boku (prawy bok), z tyłu szafki i z tyłu ciągu; podpis „bok „Ściana 2” 606” liczył wstawkę, która stoi przed bokiem i jest rysowana osobno — teraz 588. Reszta widoków (przód, z góry, 3D, 45°, zabudowa) i audyt 3D ↔ formatki bez uwag; suita `wstawka` | (ten commit) |
@@ -52,13 +53,14 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-- **Półka a wspornik pionowy fixu** (audyt 2026-09-28). W kolumnie z fixem
-  można zaznaczyć „wspornik pionowy” (Struktura wnętrza → fix → „wspornik
-  pionowy”, 100 mm głęb.) — pionowa płytka za krawędzią fixu, żeby było w co
-  przykręcić zawias drzwi. Półka w tej kolumnie ma pełną szerokość i przechodzi
-  przez ten wspornik (18 × 100 z przodu). Do wyboru: półka płytsza (za
-  wspornikiem) albo węższa (do wspornika). Użytkownik nie rozpoznał przypadku —
-  wytłumaczyć z rysunkiem. Suita `audyt` ma go jako „znane”.
+- **Tył krótszej półki przy wsporniku fixu**: wspornik ma tylko swoją
+  głębokość (domyślnie 100 mm), więc od jego strony półka ma oparcie tylko
+  z przodu — z tyłu nic jej nie trzyma. Jak to rozwiązać (kołek w boku za
+  wspornikiem? głębszy wspornik?) — do pytania.
+- **Głębokość szablonu szafki w L** (`CORNER_L_D` = 570): stojąca ma już 560,
+  w rogu z szafką w L głębokości się rozjeżdżają (uwaga o głębszej szafce).
+- **Odsunięcie frezu pod HDF**: w ustawieniach domyślnie 16 mm, a gdy pole
+  puste, obliczenia biorą 3 mm (`grOff = gr.offset ?? 3`) — która wartość?
 - **Kontrola kolizji otwierania — cały zakres** (użytkownik 2026-09-28): ma
   obejmować otwieranie WSZYSTKICH drzwi, klap i szuflad, a potem też wystające
   sprzęty w zabudowie (lodówka, piekarnik, mikrofala itd.). Dziś liczymy
@@ -77,6 +79,10 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Ustalone — nie ruszać
 
+- **Półka przy wsporniku pionowym fixu** (2026-09-28): krótsza — kończy się na
+  wsporniku (nikt nie wycina „U”), kołki od tej strony we wsporniku; ostrzeżenie
+  z przyciskiem „Przełóż zawiasy na drugą stronę i usuń wspornik” (albo „Usuń
+  wspornik”, gdy zawiasy już są po drugiej stronie), `wspornikoff:`.
 - **Kontrola kolizji nigdy nie jest wstrzymywana** (2026-09-28): przy
   nieustawionej szafce w rogu kolizje stoją obok bloku „do ustawienia”.
 - **Fix w ślepym rogu bez tolerancji** (2026-09-28): każda różnica od
