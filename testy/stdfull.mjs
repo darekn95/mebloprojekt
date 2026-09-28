@@ -79,7 +79,8 @@ const topRail = await page.evaluate(() => {
   const r = [...svg.querySelectorAll('rect')].find(x => x.getAttribute('fill') === '#8b8b93');
   return r ? Math.round(+r.getAttribute('y')) + '..' + Math.round(+r.getAttribute('y') + +r.getAttribute('height')) : null;
 });
-ok('prowadnica cofnięta o grubość frontu', topRail === '32..482', String(topRail));
+// szafka z szablonu ma 560 w głąb (wcześniej 570 → 52..552, 500 → 32..482)
+ok('prowadnica cofnięta o grubość frontu', topRail === '42..542', String(topRail));
 
 // --- nazwa projektu, zapis do pliku, zestawienie PDF ---
 const projInp = page.locator('input[placeholder="Projekt bez nazwy"]').first();

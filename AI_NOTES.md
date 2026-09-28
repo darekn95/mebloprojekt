@@ -534,3 +534,117 @@ w rozmowie. Uwaga: artefakt z zadeklarowanym `db` jest widoczny tylko w
 organizacji wlasciciela — nie da sie go udostepnic publicznym linkiem.
 Suita `wyslij` sprawdza oba przypadki (bez magazynu przycisku nie ma,
 z atrapa magazynu zapis ma pelny projekt).
+
+[AI-INFO] Przeglad projektu uzytkownika jednym poleceniem:
+`node testy/projekt.mjs <plik.json> [katalog-na-zrzuty]` (plik = dokument
+z ArtifactData `projekt/biezacy` zapisany w scratchpadzie — skrypt sam wyjmie
+pole `json`). Wypisuje ciagi i szafki, bledy/ostrzezenia kazdej szafki,
+kolizje otwierania, audyt rysunek 3D ↔ formatki projektu i robi zrzuty
+(3D, rzut z gory, elewacja). Wymaga serwera 5205 i swiezego buildu.
+
+[AI-TODO] Rog ze zwyklymi szafkami (bez szafki w L) — na realnym projekcie
+uzytkownika (zapowiedzial przyklad w artefakcie, 2026-09-28). Stan i pomysly,
+zeby nie odtwarzac ustalen od nowa:
+- Ustalone: slepa czesc szafki w rogu = glebokosc sasiada + jego front +
+  `SLEPY_ZAPAS` 30 mm (u uzytkownika fix jest ok. 5 cm szerszy niz lico
+  sasiada, 3 cm wystarcza). Wstawka w rogu: na boku szafki ciagu, ktory NIE
+  wjezdza w rog (u uzytkownika w rog wjezdza sciana 2, wiec wstawka jest
+  przy ostatniej szafce sciany 1); plaska 18 × 60 na wkrety 4 × 30 co 200,
+  szeroka 60 licem na trojkatach (po 2 z kazdej strony), szeroka oklejona
+  tylko od dolu. Szczegoly w BLEDY.md „Ustalone — nie ruszac”.
+- ZROBIONE 2026-09-28 (pomysl 1): przycisk „Ustaw szafkę w rogu” (akcja
+  `slepyrog:`) i kreator rogu przy „+ ciąg” (`utworzCiagZRogiem`) — fix na
+  zaslonieta czesc, jedne drzwi, zawias od zewnatrz, uchwyt przy fixie,
+  wstawka plaska. Gdy 18 mm nie wystarcza (np. uchwyt szafki w rogu na drodze
+  skrzydla sasiada), zostaje kolizja z przyciskiem „Wstawka 60 mm”.
+- Pomysl 2: zawiasy drzwi przy rogu domyslnie po stronie dalszej od rogu
+  (skrzydlo otwiera sie od rogu) — dzis kolizje otwierania czesto znikaja po
+  „Przełóż zawiasy”. Mozna to proponowac automatycznie przy dodaniu szafki
+  na koncu ciagu przy rogu.
+- Pomysl 3: „Luz w rogu” a wstawka — dzis sumuja sie (luz + wstawka). Na
+  realnym projekcie sprawdzic, czy ktokolwiek uzywa luzu bez wstawki; moze
+  luz powinien sam proponowac wstawke tej szerokosci.
+- Pomysl 4: gorne ciagi w rogu — gorny ciag, ktory w rogu sie KONCZY (stoi od
+  poczatku sciany), nie przesuwa sie sam; jesli wchodzi w rog, powie o tym
+  tylko kontrola otwierania. Brak gornej szafki naroznej (L albo slepej
+  z fixem) — temat na osobna rozmowe.
+- Narzedzia do tego tematu: `testy/projekt.mjs` (przeglad), suity `otwier`,
+  `narozn`, `wstawka`, `gorne`, `formatki` (audyt, scenariusze wstawki
+  i gornych ciagow w L).
+
+[AI-INFO] Klapy (2026-09-28): `col.klapa` "gora"/"dol" przy 1 drzwiach w kolumnie,
+front typu "klapa" (nie "door") — dlatego wszedzie, gdzie kod filtruje
+`d.type === "door"`, klapa jest pomijana celowo (formatka „Klapa” osobno,
+zawiasy bez rozstawu na boku, bez skrzydla w kontroli otwierania; w kolizjach
+klapa zamknieta liczy sie jako „front”). Dobor sily: `dobierzPodnosnik`,
+tabela `GTV_PD_G00`. Suita `testy/klapy.mjs`.
+[AI-TODO] Klapy — uzytkownik sprawdzi je sam w innym terminie (2026-09-28);
+do tego czasu nie rozbudowywac bez pytania. PDF amortyzatora (PD-ECGDL)
+dotarl i jest w `GTV_PD_ECGDL`. Karta PD-ECGDL podaje zgodny zawias barkowy
+PD-MD-ZB, ale uzytkownik chce zwyklych zawiasow jak przy skrzydlach.
+[AI-TODO] Klapy — czego jeszcze nie ma: plan wiercen dla zawiasow klapy
+(na wiencu/dnie) i mocowan podnosnika na boku; kolizja otwartej klapy do gory
+z gorna szafka/sufitem i opadanej z blatem; wsparcie klapy w szafce z kilkoma
+poziomami w kontroli otwierania. Do omowienia z uzytkownikiem, gdy zacznie
+uzywac klap na projekcie.
+
+[AI-INFO] Audyt calosci: `testy/audyt.mjs` (ok. 4 min, sekwencyjnie). Hook
+`audytBryly` zapisuje teraz tez obrys bryly na miejscu (`p`, po obrocie
+skrzydla i ustawieniu ciagu w rogu) — po nim audyt szuka brył nachodzacych na
+siebie. Nowy scenariusz = jedna linia `await scenariusz(...)`. Przypadki
+czekajace na decyzje uzytkownika oznaczaj `znane` (regex), zeby suita byla
+zielona, i opisz je w BLEDY.md „Do decyzji”.
+[AI-INFO] Plecy za korpusem: `geo.plecyZa` / `geo.glebOdSciany`. W ukladzie
+ciagu (odleglosc od sciany) uzywaj `glebOdSciany`, w geometrii szafki dalej
+`carcassDepth` (formatki bokow sie nie zmieniaja). Szablon stojacej: 560.
+
+[AI-INFO] Kontrola otwierania (2026-09-28): skrzydla (`swingHit`, cwiartka),
+szuflady (`wysuwHit`, prosty wysuw na `d.nl` + uchwyt), klapy (`klapaHit`,
+prostokat klapy z gruboscia frontu obracany co 1° wokol wewnetrznej krawedzi
+— zwraca ostatni wolny kat). Przeszkody w `swingBodies`: korpusy, fronty,
+uchwyty (`uchwytObrys`), wstawki, ramiona, maskownice, blat ciagu. Szuflady
+i klapy nie sprawdzaja sie przeciw innym ruchom (nie otwiera sie naraz).
+[AI-TODO] Sprzety w zabudowie (lodowka, piekarnik, mikrofala): gdy powstanie
+kategoria „sprzety”, dolozyc ich bryly i drzwi do `swingBodies` — prosba
+uzytkownika, zeby wrocic. Szafka luzem (bez ciagu) nie ma kontroli
+otwierania — `openingMsgs` idzie po ukladzie ciagow.
+
+[AI-INFO] Szafka w L: `CORNER_L_D` = 560 (jak stojaca), ramie 640. Pusty ciag
+za rogiem liczy glebokosc od sciany z domyslnymi plecami HDF (`runFrontDepth`).
+W uwagach i UI glebokosc ramienia = `armKorpus(a)` (bez plecow).
+[AI-INFO] Polka przy wsporniku pionowym fixu: na cala szerokosc, plytsza o
+wspornik (`c.shFront`/`c.shD`), kolki w bokach — tak ustalil uzytkownik.
+[AI-INFO] Frez pod HDF (`cab.backGroove`) = frez od tylu na krawedzi bokow,
+wienca i dna (w UI zawsze „frez”, nie „wręg” — prosba uzytkownika): `depth` 16 (z grubosci plyty), `offset` 3 (w strone drzwi, HDF
+zlicowany z tylem), `play` 1 na strone. `backIntrusion = grOff`, HDF z0 =
+cd - grOff. Stare {16, 4} bez `wreg` migruja w `migrateCab`. Suita `wreg`.
+
+[AI-INFO] Audyt rysunkow 2D (`testy/audyt2d.mjs`): prostokaty SVG w jednostkach
+viewBox przez getCTM, porownanie z rzutami `window.__audytBryl` (bryla samej
+szafki, zamknieta i otwarta) oraz widoki „Ciąg” i „Zabudowa z góry” (uklad osi szukany wsrod obrotow).
+Uchwyty na elewacjach rysuje `UchwytElewacja` (wspolny obrys `uchwytObrys`).
+[AI-INFO] Szuflada V-BOX wg instrukcji (instrukcje/Folder-Szuflada-V-BOX-18mm-online.pdf,
+str. 6): tyl rowno z gora boku, `tylOd` = bok - tyl (9-10 mm) nad dolem boku, dno
+dochodzi do tylu. Podniesiony tyl: nie wyzej niz gora frontu szuflady (blad), nie
+nizej niz bok, pod tym co wyzej z luzem BACK_CLEAR. Instrukcje trzymamy w `instrukcje/` (spis: `instrukcje/SPIS.md`).
+[AI-TODO] Gorna szafka narozna (uzytkownik 2026-09-28) — na wzor dolnej, te same
+zasady (slepy rog z fixem/drzwiami/wstawka albo szafka w L z ramieniem). Roznice:
+wieniec zamiast wzmocnien, dno widoczne od dolu, bez cokolu i blatu, gl. ok. 300.
+Tylne wzmocnienie w tylnym narozniku — dwie opcje do wyboru w UI:
+  A) jak w dolnej: na dnie, po kacie plyty;
+  B) dwie plyty skrecone pod 90°, obrocone o 180° — kat prosty skierowany do
+     srodka szafki (od zbiegu scian 1 i 2).
+Zawieszki: przy A — jedna po lewej stronie „szafki” (korpusu), druga po prawej
+stronie „ramienia”; przy B — dwie w czesci „ramienia” (na boku wzmocnienia i na
+boku ramienia) albo analogicznie obie w czesci „szafki”.
+[AI-INFO] Slupek (szablon) zostaje 600 w glab (uzytkownik 2026-09-28); glebsza
+szafka w ciagu daje ostrzezenie, ze reszta odsunie sie od sciany (`runCabMsgs`).
+
+[AI-TODO] Audyt 2D rogu (`audyt2d`, `tylkoInfo`): w zabudowach z rogiem roznice
+wypisujemy jako INFO. Do rozebrania: bryla „Ciąg” pokazuje caly sasiedni ciag
+(z jego blatem i uchwytem szafki w rogu), elewacja tylko przekroj sasiada;
+w U i gornych w L czesc szafki sasiada nie ma prostokata na elewacji; przy
+szafce w L front i maskownica na elewacji ciagu maja pelna wysokosc korpusu
+(bez szczelin 3 mm, w 3D sa), a uchwyt w rzucie z gory zabudowy jest w innym
+miejscu niz w 3D (geo bez kontekstu rogu?). Szafka w L sama z gory: rog bez
+boku odslania ~15 mm cokolu (ZNANE).

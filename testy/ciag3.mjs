@@ -166,6 +166,16 @@ ok('tłumaczy, że lico zostaje w linii', !!gl && /lico zostaje w linii/.test(gl
 ok('podpowiada, jak liczyć blat', !!gl && /najgłębszą szafkę/.test(gl.txt), gl && gl.txt);
 ok('dalej ma oba przyciski', !!gl && gl.btns.length === 2, gl && gl.btns);
 
+console.log('\n== głębsza szafka (np. słupek 600 w ciągu 500): ostrzeżenie, reszta odsuwa się od ściany ==');
+await seed([K('A'), K('B', { D: 600 })], { H: 720, D: 500, plinth: PL() });
+await chip('B').getByRole('button', { name: 'B', exact: true }).click();
+await page.waitForTimeout(1200);
+n = await notes();
+const gl2 = n.find((x) => /Głębokość 600 mm jest większa niż w ciągu \(500 mm\) o 100 mm/.test(x.txt));
+ok('ostrzeżenie o głębszej szafce', !!gl2, n.map((x) => x.txt.slice(0, 60)).join(' // '));
+ok('mówi, że pozostałe odsuną się od ściany', !!gl2 && /pozostałe odsuną się o tyle od ściany/.test(gl2.txt), gl2 && gl2.txt);
+ok('ma oba przyciski', !!gl2 && gl2.btns.length === 2, gl2 && gl2.btns);
+
 console.log('\n== projekt bez ciągów: nic się nie zmienia ==');
 await seed([K('A'), K('B', { H: 900 })], null);
 f = await cutRows(/^Formatki do zamówienia$/);

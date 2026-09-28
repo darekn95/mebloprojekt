@@ -93,6 +93,9 @@ let nAuto = await notes();
 ok('domyślny tył sam mieści się pod przeszkodą',
   !nAuto.some((x) => /nie przejdzie pod tym/.test(x.txt)),
   (nAuto.find((x) => /nie przejdzie/.test(x.txt)) || {}).txt);
+// instrukcja V-BOX + uzytkownik 2026-09-28: tyl nigdy wyzej niz gorna krawedz frontu szuflady
+ok('domyślny tył poniżej górnej krawędzi frontu', !nAuto.some((x) => /wyżej niż górna krawędź frontu/.test(x.txt)),
+  (nAuto.find((x) => /górna krawędź frontu/.test(x.txt)) || {}).txt);
 
 console.log('\n== ręcznie za wysoki tył: ostrzeżenie z przyciskiem ==');
 await seed({ drawers: [0, 1].map(() => ({ h: 'auto', front: null, handle: true,
@@ -101,6 +104,8 @@ n = await notes();
 const zaW = n.find((x) => /nie przejdzie pod tym, co jest wyżej/.test(x.txt));
 console.log('     ' + (zaW ? zaW.txt + '  →  [' + zaW.btns.join(' | ') + ']' : '(brak)'));
 ok('ostrzeżenie o zbyt wysokim tyle', !!zaW, n.map((x) => x.txt.slice(0, 60)).join(' // '));
+const zaF = n.find((x) => /sięga wyżej niż górna krawędź frontu szuflady/.test(x.txt));
+ok('błąd: tył 400 wyżej niż górna krawędź frontu', !!zaF, n.map((x) => x.txt.slice(0, 60)).join(' // '));
 ok('przycisk przycinający tył', !!zaW && zaW.btns.some((b) => /^Ustaw tył na \d+ mm$/.test(b)), zaW && zaW.btns);
 await uwagi.getByRole('button', { name: /Ustaw tył na/ }).first().click();
 await page.waitForTimeout(1000);
@@ -112,11 +117,12 @@ ok('po przycięciu jedno ostrzeżenie mniej',
 console.log('\n== szerokość kolumny wraca na auto ==');
 await seed({}, { levels: [{ h: null, cols: [
   { kind: 'doors', doors: 1, w: 300 }, { kind: 'doors', doors: 1, w: null }] }] });
-const auto = page.getByRole('button', { name: 'auto' }).first();
+// dokladnie „auto” — przelacznik zawiasu kolumny ma przycisk „auto (L)” (od 2026-09-28)
+const auto = page.getByRole('button', { name: 'auto', exact: true }).first();
 ok('przycisk auto przy zadanej szerokości', await auto.count() === 1);
 await auto.click();
 await page.waitForTimeout(1000);
-ok('przycisk znika po powrocie na auto', await page.getByRole('button', { name: 'auto' }).count() === 0);
+ok('przycisk znika po powrocie na auto', await page.getByRole('button', { name: 'auto', exact: true }).count() === 0);
 
 console.log('\n== błąd wypełnienia szerokości ma przycisk naprawy ==');
 await seed({}, { levels: [{ h: null, cols: [

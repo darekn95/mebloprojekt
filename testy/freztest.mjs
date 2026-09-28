@@ -22,6 +22,6 @@ const vals = await page.evaluate(()=>{
   if(grid){ const ins=[...grid.querySelectorAll('input')]; return ins.map(i=>i.value); }
   return null;
 });
-console.log('Wartosci pol frezu [Szerokosc, Glebokosc, Luz]:', JSON.stringify(vals), '(oczekiwane 4,16,1)');
+console.log('Wartosci pol frezu [Szerokosc, Glebokosc, Luz]:', JSON.stringify(vals), '(oczekiwane 16,3,1 — frez 16 × 3, od 2026-09-28)');
 console.log('BLEDY:', errors.length?errors.join(' | '):'(brak)');
 await browser.close();

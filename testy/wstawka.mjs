@@ -17,7 +17,12 @@ const PL = { on: true, height: 100, mode: 'under', setback: 0 };
 const CAB = (name, W, runId, o = {}) => ({ cab: { name, W, H: 720, D: 570, plinth: PL, legs: { on: true, height: 100 },
   levels: [{ h: null, cols: [{ kind: 'doors', doors: W > 600 ? 2 : 1, w: null }] }], ...o }, runId, offset: 0 });
 const RUN = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 570, plinth: PL, worktop: false, corner: null, ...o });
-const seed = async (wstawka, active = 1, rogowa = {}) => {
+/* Szafka w rogu ustawiona jak po „Ustaw szafkę w rogu”: fix 618 od rogu
+   (570 + 18 + 30), jedne drzwi, zawias od zewnatrz — dopiero wtedy kolizje
+   w rogu wracaja do uwag razem z przyciskami wstawki (od 2026-09-28). */
+const USTAWIONA = { levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null,
+  fix: { side: 'left', w: 618, mode: 'overlay', support: false }, hinge: 'right' }] }] };
+const seed = async (wstawka, active = 1, rogowa = USTAWIONA) => {
   await page.evaluate((p) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(p)); }, {
     name: 'W', active, prices: {},
     runs: [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0, wstawka } })],
@@ -80,22 +85,30 @@ ok('narożnik ma szeroką wstawkę 60', p.runs[1].corner.wstawka && p.runs[1].co
 lista = await tabela(/^Formatki do zamówienia/);
 ok('formatka 720 × 60 w liście szafki', lista.some((l) => /^Wstawka w rogu \|/.test(l) && /\| 720 \| 60 \|/.test(l)), lista.join(' / '));
 prod = await tabela(/^Produkty całego projektu/);
-ok('trójkąty do wstawki w produktach', prod.some((l) => /Trójkąt meblarski/.test(l) && /wstawka w rogu/.test(l)), prod.filter((l) => /Trójkąt/.test(l)).join(' / '));
+ok('trójkąty do wstawki: po 2 z każdej strony = 4', prod.some((l) => /Trójkąt meblarski/.test(l) && /wstawka w rogu/.test(l) && /\| 4 szt\./.test(l)), prod.filter((l) => /Trójkąt/.test(l)).join(' / '));
+proj = await tabela(/^Formatki całego projektu/);
+const wiersz = proj.find((l) => /^Wstawka w rogu/.test(l)) || '';
+ok('szeroka: oklejona tylko dolna krawędź (boki stykają się z szafkami)', /bok 60/.test(wiersz) && !/przód 720/.test(wiersz), wiersz);
 wg = await wstawkaZGory();
 ok('rzut z góry: wstawka 60 × 18', wg.length === 1 && wg[0].w === 60 && wg[0].h === 18, JSON.stringify(wg));
 
 console.log('\n== odsunięcie ciągu o wstawkę ==');
-/* Ciag sciany 1 odsuwa sie od rogu o glebokosc szafki w rogu (570) plus
-   wstawke — rzut pisze te liczbe w przerywanym polu „zjedzonym przez narożnik”. */
+/* Ciag sciany 1 odsuwa sie od rogu o glebokosc szafki w rogu (570), jej
+   front (18) i wstawke — rzut pisze te liczbe w przerywanym polu „zjedzonym
+   przez narożnik”. Front doliczany od 2026-09-28: wczesniej bok sasiada stal
+   na fixie szafki w rogu, a wstawka na niego nachodzila. */
 const zjedzone = async (w) => {
   await seed(w);
   await pick('Zabudowa'); await pick('Z góry');
   return page.evaluate(() => [...document.querySelectorAll('#rysunek text')].map((t) => t.textContent.trim()));
 };
 const tBez = await zjedzone(null), tPl = await zjedzone({ typ: 'plaska', w: 60 }), tSz = await zjedzone({ typ: 'szeroka', w: 60 });
-ok('bez wstawki róg zjada 570', tBez.includes('570') && !tBez.includes('588'));
-ok('płaska odsuwa ciąg o 18 (588)', tPl.includes('588'), tPl.filter((t) => /^5\d\d$/.test(t)).join(','));
-ok('szeroka odsuwa ciąg o 60 (630)', tSz.includes('630'), tSz.filter((t) => /^6\d\d$/.test(t)).join(','));
+// 570 + 3 (HDF za korpusem) + 18 frontu
+ok('bez wstawki róg zjada 591 (korpus + plecy + front)', tBez.includes('591') && !tBez.includes('609'), tBez.filter((t) => /^[56]\d\d$/.test(t)).join(','));
+// sciana 1: A1 + A2 = 1200 i plaska wstawka 18 — wymiar calosci razem z nia
+ok('wymiar ciągu z wstawką: 1218', tPl.includes('1218 z wstawką'), tPl.filter((t) => /wstawk/.test(t)).join(','));
+ok('płaska odsuwa ciąg o 18 (609)', tPl.includes('609'), tPl.filter((t) => /^[56]\d\d$/.test(t)).join(','));
+ok('szeroka odsuwa ciąg o 60 (651)', tSz.includes('651'), tSz.filter((t) => /^6\d\d$/.test(t)).join(','));
 
 console.log('\n== pole w karcie ciągu ==');
 await seed(null, 3);
@@ -105,6 +118,39 @@ ok('pole „Wstawka w rogu” w sekcji Narożnik', await pole.count() === 1);
 await pole.selectOption('plaska'); await page.waitForTimeout(1500);
 p = await zapis();
 ok('wybór w polu zapisuje płaską wstawkę', p.runs[1].corner.wstawka && p.runs[1].corner.wstawka.typ === 'plaska');
+
+console.log('\n== widok samej szafki z wstawką (zgłoszenie 2026-09-28) ==');
+// A2 to ostatnia szafka sciany 1 — wstawka przykreca sie do jej prawego boku
+await seed({ typ: 'plaska', w: 60 }, 1);
+const wRys = async () => page.locator('#rysunek [data-el="wstawka"]').count();
+await pick('Szafka'); await pick('Zamk.');
+ok('widok z przodu (zamknięty): wstawka przy boku szafki', await wRys() === 1);
+const bx = await page.locator('#rysunek [data-el="wstawka"]').first().evaluate((r) => ({ x: +r.getAttribute('x'), w: +r.getAttribute('width'), h: +r.getAttribute('height') }));
+ok('po prawej stronie, 18 mm szerokości, wysokość korpusu 720', bx.x === 600 && bx.w === 18 && bx.h === 720, JSON.stringify(bx));
+await pick('Otw.');
+ok('widok z przodu (otwarty): wstawka jest', await wRys() === 1);
+await pick('Z góry');
+const bt = await page.locator('#rysunek [data-el="wstawka"]').first().evaluate((r) => ({ x: +r.getAttribute('x'), w: +r.getAttribute('width'), h: +r.getAttribute('height') })).catch(() => null);
+ok('rzut z góry: wstawka 18 × 60 przy prawym boku', bt && bt.x === 600 && bt.w === 18 && bt.h === 60, JSON.stringify(bt));
+await page.evaluate(() => { window.__audytBryl = []; });
+await pick('3D');
+const bryly = await page.evaluate(() => (window.__audytBryl || []).map((b) => [...b.d].sort((x, y) => x - y).map(Math.round).join('×')));
+ok('bryła 3D: płyta 18 × 60 × 720', bryly.includes('18×60×720'), [...new Set(bryly)].filter((x) => /^18×/.test(x)).join(', '));
+await pick('Z tyłu');
+ok('widok z tyłu szafki: wstawka jest (po lewej, bo lustro)', await wRys() === 1);
+await pick('Z boku');
+ok('lewy bok: wstawki nie widać (jest przy prawym)', await wRys() === 0);
+await page.getByRole('button', { name: /prawy bok/ }).first().click(); await page.waitForTimeout(300);
+const bs = await page.locator('#rysunek [data-el="wstawka"]').first().evaluate((r) => ({ w: +r.getAttribute('width'), h: +r.getAttribute('height') })).catch(() => null);
+ok('prawy bok: wstawka 60 × 720 przy froncie', bs && bs.w === 60 && bs.h === 720, JSON.stringify(bs));
+await pick('Ciąg'); await pick('Z tyłu');
+ok('ciąg z tyłu: wstawka jest', await wRys() === 1);
+await pick('Zamk.');
+const napisy = await page.evaluate(() => [...document.querySelectorAll('#rysunek text')].map((t) => t.textContent.trim()));
+ok('ciąg: bok sąsiada bez wstawki (591, nie 609)', napisy.some((t) => /^bok „Ściana 2" 591$/.test(t)), napisy.filter((t) => /^bok/.test(t)).join(' | '));
+await seed({ typ: 'plaska', w: 60 }, 0);
+await pick('Szafka'); await pick('Zamk.');
+ok('pierwsza szafka ściany 1 (nie przy rogu): bez wstawki', await wRys() === 0);
 
 console.log('\n== szafka w L: wstawki nie ma ==');
 await seed({ typ: 'plaska', w: 60 }, 3, { corner: { on: true, arm: 600 } });

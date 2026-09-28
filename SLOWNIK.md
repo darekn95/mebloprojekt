@@ -62,6 +62,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Luz między korpusami | `run.gap` |
 | Poziom montażu | `run.mountY` |
 | Narożnik / Luz w rogu | `run.corner = { of, at, owner, clear }` |
+| Kreator rogu („+ ciąg” przy istniejącym ciągu) | okienko `kreator` (`data-el="kreator-rogu"`): do którego ciągu, za/przed, kto w róg, szafka w rogu (ślepa z fixem / w L / bez), szerokość, ramię, wstawka, blat; tworzy `utworzCiagZRogiem(p, o)` (domyślne `KREATOR_DOMYSLNY`) |
 | Wstawka w rogu | `run.corner.wstawka = { typ: "plaska" \| "szeroka", w }` (`WSTAWKA_W` = 60); tylko bez szafki w L; w układzie `n.pair.wstawka` i `n.wstawki[]` ciągu, który ustępuje (u0/u1, v0/v1, z0/z1); formatka i okucia `wstawkaParts`; odsuwa ciąg o grubość frontu (płaska) albo `w` (szeroka) |
 | Wysokość i głębokość szafek (Wymiary i montaż) | `run.H`, `run.D` |
 | Cokół ciągu / Cokół pod szafkami / Podział cokołu | `run.plinth`, `runPlinth`, `runPlinthPanels` |
@@ -80,7 +81,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Wysunięcie w lewo / prawo / do przodu / do tyłu | `cab.top.overL/overR/overFront/overBack` |
 | Drzwi (nakładane / wpuszczane) | `cab.frontMode` („overlay" / „inset") |
 | Plecy | `cab.back` („hdf" / „board" / „none") |
-| Montaż pleców / Szerokość / Głębokość / Luz | `cab.backGroove = { on, offset, depth, play }` |
+| Montaż pleców / Szerokość / Głębokość / Luz | `cab.backGroove = { on, offset, depth, play, wreg }` — plecy „We frezie” to frez od tyłu na krawędzi boków, wieńca i dna (w UI zawsze „frez”; `wreg` to tylko znacznik migracji): „Szerokość” = `depth` (16 z 18 mm płyty), „Głębokość” = `offset` (3, w stronę drzwi — HDF zlicowany z tyłem), „Luz” = `play` na stronę; HDF W−6 × H−6. W geometrii `grDep`/`grOff`/`grPlay`; stare {16, 4} bez `wreg` migrują na {3, 16} (`migrateCab`) |
 | Pozycja pleców | `cab.backPos` („inside" / „outside") |
 | Materiał pleców | `cab.backBoardMat` |
 | Podana głębokość zawiera plecy | `cab.depthIncludesBack`, `cab.depthIncludesFront` |
@@ -105,7 +106,12 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | szerokość (kolumny) | `col.w` |
 | drzwi 1 / drzwi 2 … | `col.doorWidths[]` |
 | zaw. | `col.hinges[]` (puste = `autoHinges`) |
-| uchwyt / lustro | `col.handles[]`, `col.mirrors[]` |
+| front: skrzydło / klapa, a przy klapie „otwierana: do góry / w dół” | `col.klapa` = brak / `"gora"` / `"dol"` (samo „klapa” zaczyna od `"gora"`) — tylko przy 1 drzwiach w kolumnie (`data-el="klapa-kolumny"`); w geometrii front typu `"klapa"` z `klapaZawiasy` (x zawiasów), lista `geo.klapy[]` |
+| podnośniki (do góry) / amortyzatory (w dół): auto / 1 / 2 | `col.silowniki` (puste = 1, powyżej 600 mm szerokości 2; jeden przy ponad 600 mm — ostrzeżenie) |
+| siła N | `col.silaN` (puste = z tabeli: PD-G00 do góry, PD-ECGDL w dół) — `data-el="klapa-sila"` |
+| kąt 75° / 90° / 100° (klapa do góry) | `col.katKlapy` (puste = 90) |
+| uchwyt / lustro | `col.handles[]`, `col.mirrors[]` — w wierszu okuć pod szerokością skrzydła (`data-el="drzwi-okucia"`): zawiasy, uchwyt, lustro |
+| uchwyt: … mm, na boku / górze | `col.handleOuts[]` (puste = `cab.handleOut`, 20), `col.handlePos[]` (`"bok"` / `"gora"`); liczy `uchwytOut(d, cab)` i `uchwytObrys(d)` — rysunek z przodu (`data-el="uchwyt-bok|gora"`), 3D, rzut z góry, kontrola otwierania |
 | własny luz między drzwiami | `col.gapBetween` |
 | światło 1 / światło 2 … | `col.shelfTargets[]` |
 | Wcięcie na palce zamiast uchwytu | `col.gripDepth` |
@@ -124,7 +130,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Front szuflady na dno / na wieniec | `gaps.overBottom`, `gaps.overTop` | 15 |
 | Front poniżej prowadnicy | `gaps.underRail` | 5 |
 | Ostrzegaj powyżej | `cab.maxGap` | 5 |
-| Strona zawiasów | `cab.hinge` | „auto" |
+| Strona zawiasów | `cab.hinge` | „auto" — w karcie „Luzy drzwi” (cała szafka, pojedyncze drzwi); przy kolumnie z jednymi drzwiami przełącznik „zawias” w Strukturze wnętrza (`col.hinge`, `data-el="zawias-kolumny"`) |
 | Kąt otwarcia | `cab.openAngle` | 90 |
 
 `gaps.between` obsługuje też odstęp między frontami szuflad ORAZ luz między
@@ -193,11 +199,24 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `migrateCab(cab, mat)` / `migrateRun` / `migrateCorner` | podnoszenie starych projektów do bieżącego formatu |
 | `splitAtJoints` | dzieli wspólny cokół/blat na odcinki |
 | `buildCutPlan` / `packSheets` / `nestPass` | rozkrój na arkusze |
-| `swingBodies` / `openingMsgs` | kontrola otwierania skrzydeł, kolizje |
+| `swingBodies` / `openingMsgs` | kontrola otwierania: skrzydła (`swingHit`), szuflady (`wysuwHit`), klapy (`klapaHit`, kąt co 1°) przeciw korpusom, frontom, uchwytom, wstawkom, ramionom i blatowi |
 | `wallGapOf(run, item)` / `migrateWallGap` | odsunięcie od ściany szafki: własne albo z ciągu; `{ bottom, top }` (`top` = pod blatem, domyślnie jak `bottom`) |
 | `cudzeRamiona` (w `AssemblyTopView`) | ramię szafki w L, którego ściany nie rysujemy (zakres „Ciąg”) — przeniesione macierzą na swoje prawdziwe miejsce, z kawałkiem ściany i blatem |
 | `cornerSpan(n)` / `SZEROKI_FRONT` (600) | ile szafka w L zajmuje od rogu wzdłuż obu ścian (odstęp + głębokość korpusu + ramię; odstęp + szerokość korpusu) i ostrzeżenie o froncie ramienia szerszym niż 600 mm |
 | `blatNadSzafka(project, full, index, arm)` | blat ciągu nad jedną szafką w jej rzucie z góry (i blat sąsiedniej ściany nad ramieniem); przełącznik „Ukryj / Pokaż blat” (`showBlat`) także w rzucie zabudowy; wymiary ramienia w rzucie szafki: `data-el="wymiary-ramienia"` |
+| `dobierzPodnosnik(hFrontu, kgNaJeden, kat, kierunek)` | najmniejsza siła z `GTV_PD_G00` (do góry) albo `GTV_PD_ECGDL` (w dół), która uniesie wagę na jeden podnośnik (między wierszami proporcjonalnie; poniżej 300 jak 300, powyżej 600 → `poza`) |
+| `geo.plecyZa`, `geo.glebOdSciany` | grubość pleców stojących za korpusem (HDF przybijany, płyta na zewnątrz; 0 dla frezu i płyty wewnątrz) i głębokość od ściany do lica korpusu z nimi — tej używa układ ciągu (`runFrontDepth`, róg `glRog`, blat ciągu `runTop`, kontrola głębszej szafki w rogu) |
+| `plecyBryla(cab, geo)` | położenie pleców w bryle 3D (szafka i zabudowa) — jedna zasada z widokiem z tyłu i formatkami |
+| `geo.shelfBack`, `c.shX0/shX1/shW` | półki: odsunięcie od tyłu (w szafce w L przed kątownikiem) i zasięg w kolumnie (przy kątowniku węższa o plecy); formatka „Półka” ma szerokość `shW` |
+| `armKorpus(a)` | głębokość korpusu ramienia szafki w L: głębokość sąsiada od ściany bez pleców ramienia (bok, dno ramienia) |
+| `c.shFront`, `c.shD` | półka przy wsporniku pionowym fixu: o ile zaczyna się dalej od lica (za wspornikiem) i jej głębokość; formatki grupują półki po `shW|shD` |
+| pusty ciąg (`runFrontDepth`) | bez szafek: `run.D` + domyślne plecy HDF + odstęp od ściany — ramię szafki w L stoi tak daleko od ściany jak szafki obok |
+| `skrzynkaBryly(d, t, zFront)` | skrzynka szuflady w 3D po otwarciu (boki metalowe, dno, tył) z `dr.skrzynka` (te same wymiary co formatki); na widoku z boku kontur `data-el="skrzynka"` |
+| `okuciaSzafki(geo, { bezListwy, arm, wstawki })` | okucia jednej szafki — ekran i PDF: bez listwy wspólnej ciągu, z okuciami ramienia szafki w L i wstawki (jak `formatkiSzafki`) |
+| wymiar „N z wstawką” | rzut z góry ciągu/zabudowy: wstawka jako odcinek w łańcuchu wymiarów i wymiar całości z nią (`data-el="wymiar-wstawki"`) |
+| `wstawkiSzafki(wstawki, geo)` | wstawka w rogu w układzie samej szafki (lewy bok, gdy szafka zaczyna ciąg od rogu, inaczej prawy) — dla `FrontView`, `TopView`, `SideView` (bok od strony wstawki), `RearView`, `Scene3D` i arkusza PDF; `data-el="wstawka"` |
+| `KlapaElewacja` | klapa na widoku z przodu (szafka i ciąg): trójkąt z wierzchołkiem przy krawędzi zawiasów, uchwyt poziomy przy wolnej; otwarta — pasek frontu przy zawiasach. `data-el="klapa"` |
+| `rotAboutX` / `klapaObrot` / `klapaUchwytY` | klapa w bryle 3D: obrót wokół krawędzi zawiasów (do góry +, w dół −, najwyżej 90°), uchwyt przy wolnej krawędzi |
 | `TopHardware` | okucia w widoku z góry (szafka i zabudowa, pod „Pokaż okucia”): uchwyty przed frontem, zawiasy przy boku od frontu, nóżki przerywane; `data-el="okucia-gora"` |
 | `worktopMsgs` / `runCornerMsgs` / `cornerPairMsgs` / `tierMsgs` | uwagi na poziomie ciągu i narożnika |
 | `hwDefaultPrice(h)` | cena okucia — klucz to `h.pk` albo `h.name` |
@@ -219,10 +238,17 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `MIN_OPENING` | 250 | najmniejsze światło między półkami przy automacie |
 | `MIN_LEVEL` | 100 | najniższy sensowny poziom |
 | `WASKI_FRONT` | 250 | poniżej tego front jest wąski — podpowiedź, nie błąd; też próg podpowiedzi „dwoje wąskich drzwi” |
+| `n.pair.frontRog` | tf / 0 | ślepy róg: front szafki w rogu (nakładany) — drugi ciąg zaczyna się za nim: korpus + front + luz + wstawka; przy szafce w L 0 (róg domyka ramię) |
+| `SLEPY_ZAPAS` | 30 | ślepy róg: zasłonięta część frontu = głębokość sąsiada + jego front + ten zapas na uchwyt (`n.blind.covered`, pełna wartość `zaslania`) |
+| `GTV_PD_G00`, `KLAPA_WYS`, `KLAPA_SILY` | tabela | udźwig [kg] jednego podnośnika GTV PD-G00 wg kąta (75/90/100°), siły (50–150 N) i wysokości frontu (300–600 mm); instrukcja od użytkownika. „12” dla 50 N/400 mm/75° to literówka → 1,2 |
+| `GTV_PD_ECGDL` | tabela | amortyzator olejowy klapy opadanej: 60 / 80 / 150 N, tylko 90°, liczby jak PD-G00 dla 90° (karta od użytkownika) |
+| `GESTOSC_FRONTU` | 680 | kg/m³ płyty frontu do wagi klapy (`wagaFrontu`; gęstość robocza od użytkownika 660–680, bierzemy górną; 18 mm ≈ 12,2 kg/m²) |
+| `KLAPA_MIN_KORPUS` | 290 | instrukcja GTV: tyle korpusu na boku pod podnośnik klapy do góry |
+| `WSTAWKA_W` | 60 | wstawka w rogu: płaska tyle w głąb, szeroka tyle licem do przodu |
 | `CORNER_BRACKET_W` | 60 | domyślna szerokość wsporników w rogu |
 | `ROG_WZM_H` | 60 | wysokość wzmocnień w szafce narożnej |
 | `LEG_W` / `LEG_INSET` | 40 / 40 | nóżka i jej odsunięcie od krawędzi |
-| `CORNER_L_W` / `CORNER_L_D` / `CORNER_L_TOTAL` | 900 / 570 / 1200 | szablon „narożnik L" |
+| `CORNER_L_W` / `CORNER_L_D` / `CORNER_L_TOTAL` | 900 / 560 / 1200 | szablon „narożnik L" |
 | `SHEET_W` × `SHEET_H` | 2800 × 2100 | arkusz płyty |
 | `USABLE_W` × `USABLE_H` | 2761,2 × 2061,2 | po okrawaniu |
 | `KERF` | 3 | rzaz piły |
@@ -232,7 +258,7 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `HINGE_PLAY` | 2 | luz między korpusem a drzwiami przy zawiasach — tylko do głębokości blatu, nie do rysunków |
 | `SCIANA_GR` / `ScianaDefs` | 100 | ściana na rysunkach: pas 100 mm z szarym kreskowaniem (`url(#sciana-kreski)`) — rzut z góry (z nazwą ściany i ciągu górnego) i widok z boku; zasięg w rzucie liczy `scianaZasieg` (róg: do narożnika muru, wolny koniec: koniec ciągu albo „Długość ściany”); przełącznik „Ukryj / Pokaż ścianę” (`showWall`) |
 | `BACK_CLEAR` | 20 | luz nad podniesionym tyłem szuflady |
-| `VBOX` | — | dane katalogowe Sevroll V-BOX 3D Slim, **dla płyty 18 mm** |
+| `VBOX` | — | dane katalogowe Sevroll V-BOX 3D Slim, **dla płyty 18 mm** (instrukcja: `instrukcje/Folder-Szuflada-V-BOX-18mm-online.pdf`); tył od `tylOd` = bok − tył nad dołem boku |
 
 Rozstawy okuć (wzorzec `max(2, ceil(długość / skok))`): konfirmat co 200 mm,
 wkręt 4 × 30 do kątownika co 200 mm, trójkąt pod cokołem co 300 mm, trójkąt
@@ -254,7 +280,7 @@ co do znaku (łącznie ze spacjami wokół „×").
 
 **Formatki:** Bok · Bok lewy · Bok prawy · Dno / wieniec · Blat · Blat roboczy ·
 Półka · Półka przelotowa · Przegroda pionowa · Wspornik pionowy · Blenda ·
-Blenda nad szafką · Cokół · Cokół ciągu · Element stały (fix) ·
+Blenda nad szafką · Klapa · Cokół · Cokół ciągu · Element stały (fix) ·
 Front szuflady · Dno szuflady · Tył szuflady · Plecy HDF · Plecy HDF we frezie ·
 Plecy z płyty (na zewnątrz) · Plecy z płyty (wewnątrz) ·
 Kątownik przy ramieniu — bok · Kątownik przy ramieniu — plecy ·
@@ -271,6 +297,8 @@ Złączka do cokołu (0,30) · Zawieszka meblowa regulowana (3) ·
 Listwa montażowa do zawieszek (9/mb) · Hak / wkręt z kołkiem do ściany (1) ·
 Wkręt 4 × 30 (0,08) · Wkręt 3,5 × 30 do pleców (0,05) ·
 Zszywka / gwoździk do pleców (0,05) · Lustro na drzwiach (200/m²) ·
+Podnośnik gazowy N N / Podnośnik gazowy — siła do dobrania (cena po `pk` „Podnośnik gazowy do klapy”, 10) ·
+Amortyzator do klapy opadanej N N (`pk` „Amortyzator do klapy opadanej”, 10) ·
 Prowadnica Sevroll V-BOX 3D Slim … mm (`SLIDE_PRICES` wg NL)
 
 ---
@@ -284,7 +312,11 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `fixgap:<lv>:<col>:<v>:<up\|down>` | ustawia luz między drzwiami, żeby fronty wyszły równe |
 | `fixh:` / `fixnl:` / `fixback:` / `fixnodoor:` | wysokość, NL prowadnicy, tył szuflady, kolumna bez drzwi |
 | `fixdiv:` / `fixsup:` / `fixcolauto:` | przegroda, wspornik, kolumna na automat |
+| `wspornikoff:<poziom>:<kolumna>:<strona zawiasu albo ->` | przy półce skróconej do wspornika fixu: „Przełóż zawiasy na drugą stronę i usuń wspornik” albo „Usuń wspornik” |
+| `slepyfix:<nr szafki>:<strona>:<szerokość>` | „Popraw fix na N mm” — fix szafki w ślepym rogu inny niż zasłonięta część (bez tolerancji) |
 | `hingeflip:<lv>:<col>:<side>` | przekłada zawiasy na drugą stronę |
+| `hingeflipcab:<nr szafki>:<lv>:<col>:<side>:<ile zostaje>` | w uwadze o kolizji otwierania: „Przełóż zawiasy na lewą/prawą — zostaje N mm / bez kolizji”; tylko pojedyncze drzwi i tylko gdy przełożenie zmniejsza kolizję (liczone w `swingBodies` → `s.alt`); gdy nie pomaga, rady o zawiasach nie ma |
+| `slepyrog:<nr szafki>:<strona fixu>:<fix mm>:<ciąg z narożnikiem albo ->` | „Ustaw szafkę w rogu”: w każdym poziomie kolumna od rogu dostaje fix na zasłoniętą część, jedne drzwi i zawias od zewnątrz (uchwyt przy fixie), a narożnik — płaską wstawkę; blok „Szafka w rogu do ustawienia” (`cornerPairMsgs`) pokazuje się, dopóki `slepyUstawiony(z)` nie jest spełnione, a kolizje otwierania w tym rogu czekają |
 | `wstawka:<ciąg z narożnikiem>:<plaska\|szeroka>:<mm>` | przy kolizji otwierania między ciągami w rogu (bez szafki w L): „Dodaj wstawkę 18 mm”, a gdy płaska już jest — „Wstawka 60 mm (na trójkątach)”; obsługa w `runFix` przez `setCorner` |
 | `onedoor:<lv>:<col>:<szer>:<side>` | dwoje wąskich drzwi (każde < `WASKI_FRONT`, jedne ≤ `SZEROKI_FRONT`) zamienia na jedne z zawiasami z lewej/prawej; podpowiedź „dwoje wąskich drzwi” w `computeGeo` (nie w szafce narożnej ani przy rogu) |
 | `cornerdoor:<w>:<idx>` | ustawia jedne drzwi szafki narożnej na podaną szerokość |
@@ -328,8 +360,19 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `zoom` | powiększanie i przesuwanie rysunku, „Dopasuj”, pamięć powiększenia i przewinięcia każdego widoku, pełny ekran z Esc, 3D: obrót vs Shift + przesuwanie |
 | `wasdrzwi` | podpowiedź „dwoje wąskich drzwi” (300, 500 tak; 600 i jedne drzwi nie), przyciski zawiasy z lewej/prawej |
 | `formatki` | **audyt**: każda płyta z rysunku 3D (szafka i zabudowa) ma parę w formatkach szafki/projektu — drzwi, szuflady, fix ze wspornikiem, fix u góry, blendy, maskownica wycięcia, plecy z płyty, przegrody, ciąg z blatem i cokołem, szablony (w tym szafka w L); ramię w liście szafki narożnej |
-| `wstawka` | wstawka w rogu: przyciski przy kolizji, formatka 720 × 60 w liście szafki i projektu, wkręty/trójkąty, rzut 18 × 60 / 60 × 18, elewacja, odsunięcie ciągu o 18/60, pole w Narożniku, brak przy szafce w L |
+| `wstawka` | wstawka w rogu: przyciski przy kolizji, formatka 720 × 60 w liście szafki i projektu, wkręty/trójkąty, rzut 18 × 60 / 60 × 18, elewacja, odsunięcie ciągu o 18/60, pole w Narożniku, brak przy szafce w L; widoki samej szafki (przód zamk./otw. przy prawym boku 18 × 720, z góry 18 × 60, bryła 3D), a szafka nie przy rogu bez wstawki |
 | `gorne` | ciągi górne w L: górny drugiej ściany wisi na niej (bez kolizji z górnym pierwszej), odsunięcie 300 w rogu, gdy górny ściany wjeżdżającej sięga rogu; „+ szafka” bierze H/D/cokół ciągu (górny 300, dolny 570) |
+| `kreator` | kreator rogu: ślepa szafka 1000 z fixem 618 od rogu, jedne drzwi, zawias od zewnątrz, wstawka płaska — bez bloku „do ustawienia”; szafka w L 900 + ramię 630 bez wstawki; osobny ciąg; przycisk „Ustaw szafkę w rogu” w istniejącym projekcie |
+| `audyt` | audyt całości na ~20 konfiguracjach: nachodzenie brył 3D (szafka i zabudowa, zamknięte), formatki ↔ rysunek w obie strony z ilościami (szuflady w bryle otwartej), formatki projektu = suma szafek + cokół/blat ciągu, okucia projektu vs suma, PDF = ekran (formatki i okucia szafek i projektu). HDF we frezie może wchodzić krawędzią do 16 mm (w grubość płyty) i 4 mm (w głąb); `znane` — przypadki czekające na decyzję (BLEDY.md). Trwa ok. 4 min |
+| `audytwycena` | rozkrój i wycena na 7 projektach (hook `window.__audytRozkroj` w `makeCutPlan`): każda formatka na arkuszach tyle razy, ile zamawiamy, nic odrzuconego, bez nachodzenia, rzaz 3 mm, słoje; arkusze = rozkrój, formatowanie, obrzeże 22 mm = suma krawędzi płyty, blat osobno, oklejanie w górę, okucia = lista, wartość = ilość × cena, Razem = suma |
+| `audytwierc` | plan wierceń z PDF vs rysunek i bryła na 12 konfiguracjach: zawiasy (ile, wysokości, na wsporniku po stronie fixu, klapy w wieńcu/dnie), kołki (wysokość spodu półki, odległości od przedniej krawędzi płyty), prowadnice (wysokość, otwory wg NL z instrukcji V-BOX), płyty z planu w formatkach, zawiasy = okucia |
+| `audyt2d` | rysunki 2D = rzut bryły 3D, w obie strony, dla widoków szafki (z przodu zamkn./otw., z góry, z boku, z tyłu) na 15 konfiguracjach; szuka przesunięcia układu sam, fronty w jednej linii mogą być jednym pasem, obrysy przerywane = obwiednia kilku brył, zasłonięte bryły pomija. Trwa ok. 2 min |
+| `ruchy` | kontrola otwierania szuflad i klap: prosty ciąg bez kolizji, klapa do góry pod blatem (otworzy się na kilkanaście stopni), klapa w dół w górnej wolna, szuflada w zasłoniętej części ślepego rogu trafia w korpus sąsiada, drzwi w zasłoniętej części i szuflady obok — wolne |
+| `wreg` | plecy „We frezie” jako frez 16 × 3 na krawędzi: HDF W−6 × H−6, półka o 3 mm płytsza, HDF w rzucie na tyle korpusu, pola 16/3/1, ostrzeżenie przy frezie płytszym niż HDF, migracja starego {16, 4} |
+| `wspornik` | półka przy wsporniku fixu płytsza (564 × 460 zamiast 564 × 560), ostrzeżenie, oba warianty przycisku, kołki półki w bokach w planie wierceń (PDF) |
+| `uchwyt` | wiersz okuć skrzydła (zawiasy, uchwyt, lustro), wysunięcie i położenie uchwytu per skrzydło — zapis, rysunek z przodu, bryła 3D |
+| `klapy` | klapa do góry: siła z tabeli GTV (test liczy ją sam), waga frontu (680 kg/m³), 1 podnośnik przy 600, 2 przy 900, ręcznie 1 → ostrzeżenie; zawiasy 2 / 3 powyżej 900; formatka „Klapa”; UI „skrzydło / klapa”, potem „do góry / w dół”; klapa w dół: amortyzator z tabeli PD-ECGDL, po wpisaniu 80 N pozycja w okuciach; klapa użytkownika 560 × 750 — poza tabelą i za ciężka, z uwagą o kącie 45°; ostrzeżenia >600 mm i <290 mm; bryła otwarta szafki i ciągu bez błędów |
+| `zawiasy` | przycisk przełożenia zawiasów przy kolizji tylko, gdy pomaga (17 mm z lewej → bez przycisku; 564 z prawej → „na lewą — zostaje 17 mm”), przełącznik „zawias” przy kolumnie z jednymi drzwiami |
 | `odsuniecie` | odsunięcie od ściany: głębokość blatu, wysięg przed drzwi (10 / <10 uwaga / >30 ostrzeżenie), krzywa ściana w widoku z boku, róg przesunięty o odstęp, wyjątek jednej szafki |
 | `hw2` / `cokol` / `cokolstd` / `ceny` / `ceny2` | okucia, cokół, cennik |
 | `ciag`…`ciag10` | ciągi: zakładanie, rozjazdy, cokół ciągu, światła |

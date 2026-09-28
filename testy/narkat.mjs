@@ -72,7 +72,9 @@ rows = await formatki();
 const wzm = wiersz(rows, /^Wzmocnienie czołowe/);
 /* Wolne lico to szerokosc bez glebokosci sasiada i bez frontu ramienia,
    katownik siega jeszcze 36 dalej, a od lewego boku odchodzi jego grubosc. */
-const czolowe = (rog.W - sasiad - 18) + 36 - 18;
+/* Pusty ciag sasiada stoi od sciany z plecami HDF (3 mm, od 2026-09-28),
+   wiec wolne lico jest o nie wezsze. */
+const czolowe = (rog.W - sasiad - 3 - 18) + 36 - 18;
 ok('wzmocnienie czołowe kończy się na kątowniku', !!wzm && Number(wzm[2]) === czolowe,
   wzm ? `${wzm.slice(0, 4).join('|')} (oczekiwane ${czolowe})` : '(brak)');
 ok('czołowe stoi pionowo, 60 mm', !!wzm && wzm[3] === '60', wzm ? wzm.slice(0, 4).join('|') : '(brak)');

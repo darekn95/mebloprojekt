@@ -1,0 +1,186 @@
+/* Audyt planu wiercen (uzytkownik 2026-09-28: „potrzebny — sprawdz dokladnie”).
+   Tabela „Wiercenia” z arkusza PDF porownana z niezaleznymi zrodlami:
+   - zawiasy skrzydel: z rysunku z przodu (otwarte) — ile i na jakiej wysokosci,
+     po ktorej stronie; na plycie, ktora je niesie (bok, przegroda, wspornik fixu),
+   - kolki polek: z bryly 3D — kazda polka ma otwory w obu plytach obok,
+     na wysokosci jej spodu, z odleglosciami od przedniej krawedzi plyty,
+   - prowadnice: z bryly 3D (boki metalowe skrzynek) — wysokosc i otwory wg NL,
+   - zawiasy klap: z rysunku z przodu — w wiencu/dnie, wzdluz szerokosci,
+   - kazda plyta z planu jest w formatkach, liczba zawiasow = okucia.
+   Wysokosci w planie sa od dolnej krawedzi plyty; dol plyty bierzemy z bryly. */
+import pw from './pw.mjs';
+const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
+  : 'http://127.0.0.1:5205/mebloprojekt-app.html';
+const ok = (l, c, e = '') => console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : ''));
+const b = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await (await b.newContext({ viewport: { width: 1500, height: 1300 } })).newPage();
+const errors = []; page.on('pageerror', (e) => errors.push(e.message));
+await page.goto(URL, { waitUntil: 'networkidle' });
+
+const PL = { on: true, height: 100, mode: 'under', setback: 0 };
+const kol = (o = {}) => ({ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null], ...o });
+const szafka = (name, o = {}) => ({ name, W: 600, H: 720, D: 560, plinth: PL, legs: { on: true, height: 100 },
+  levels: [{ h: null, cols: [kol()] }], ...o });
+const wisz = (name, o = {}) => szafka(name, { D: 300, plinth: { ...PL, on: false }, legs: { on: false }, hangerMode: 'listwa', ...o });
+const click = async (l) => { const x = page.getByRole('button', { name: l, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(350); return true; } return false; };
+const num = (s) => Number(String(s).replace(/\s/g, '').replace(',', '.').replace(/[^\d.\-]/g, '')) || 0;
+
+const wiercenia = async () => {
+  await page.evaluate(() => { window.__rep = null; window.print = () => {
+    const t = [...document.querySelectorAll('.print-only table')].find((x) => /Otwory pod/.test(x.querySelector('thead')?.textContent || ''));
+    window.__rep = t ? [...t.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent.trim())) : [];
+  }; });
+  await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click();
+  await page.waitForTimeout(1000);
+  const rows = (await page.evaluate(() => window.__rep)) || [];
+  let panel = '';
+  return rows.map((r) => { if (r[0]) panel = r[0]; return { panel, kind: r[1], ys: r[2].split(',').map(num), note: r[3] }; });
+};
+const tabela = (re) => page.evaluate((src) => {
+  const re = new RegExp(src);
+  const sec = [...document.querySelectorAll('section')].find((s) => re.test((s.querySelector('h2') || {}).textContent || ''));
+  return sec ? [...sec.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent.trim())) : [];
+}, re.source);
+const bryla = async () => {
+  await click('Zamk.');
+  await page.evaluate(() => { window.__audytBryl = []; });
+  await click('3D');
+  return page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return (x || []).filter((q) => q.p); });
+};
+// zawiasy na rysunku z przodu (otwarte): prostokaty #71717a, w ukladzie szafki (y od dolu korpusu)
+const zawiasyRys = async (H) => {
+  await click('Otw.');
+  return page.evaluate((H) => {
+    const svg = document.querySelector('#rysunek svg'); const sm = svg.getCTM().inverse();
+    return [...svg.querySelectorAll('rect')].filter((r) => r.getAttribute('fill') === '#71717a').map((r) => {
+      const bb = r.getBBox(); const m = sm.multiply(r.getCTM());
+      const a = new DOMPoint(bb.x, bb.y).matrixTransform(m), c = new DOMPoint(bb.x + bb.width, bb.y + bb.height).matrixTransform(m);
+      return { x: (a.x + c.x) / 2, y: H - (a.y + c.y) / 2, w: Math.abs(c.x - a.x), h: Math.abs(c.y - a.y) };
+    });
+  }, H);
+};
+
+const scenariusz = async (tytul, cab, { spr = {} } = {}) => {
+  console.log(`\n== ${tytul} ==`);
+  await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
+    { name: 'W', active: 0, prices: {}, runs: [], items: [{ cab, runId: null, offset: 0 }] });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(700);
+  await click('Szafka');
+  const plan = await wiercenia();
+  const sol = await bryla();
+  const t = 18, W = cab.W, H = cab.H;
+  // plyty pionowe z bryly: boki i przegrody (grubosc t w x, wysokie), wsporniki (plytkie w z)
+  const pion = sol.filter((q) => Math.abs((q.p[3] - q.p[0]) - t) < 0.6 && q.p[4] - q.p[1] > 60 && q.p[2] >= -0.5 && q.color === '#d8c3a0');
+  // polki: poziome plyty dosuniete do plyt pionowych z obu stron (dno szuflady stoi 37 mm od boku)
+  const przy = (x) => pion.some((v) => Math.abs(v.p[0] - x) <= 1 || Math.abs(v.p[3] - x) <= 1);
+  const polki = sol.filter((q) => Math.abs((q.p[4] - q.p[1]) - t) < 0.6 && q.p[3] - q.p[0] > 60 && q.p[5] - q.p[2] > 60
+    && q.p[1] > 20 && q.p[4] < H - 20 && q.color === '#d8c3a0' && q.p[2] >= -0.5 && przy(q.p[0]) && przy(q.p[3]));
+  const metal = sol.filter((q) => q.color === '#8b8b93');
+  const formatki = (await tabela(/^Formatki do zamówienia/)).map((r) => r[0]);
+  const okucia = await tabela(/^Produkty do zamówienia/);
+
+  // 1. kazda plyta z planu jest w formatkach
+  const wFormatkach = (panel) => {
+    const n = panel.replace(/^Poziom \d+ — /, '');
+    const re = /^Bok/.test(n) ? /^Bok/ : /^Przegroda/.test(n) ? /^Przegroda/ : /^Wspornik/.test(n) ? /^Wspornik pionowy/
+      : /^(Wieniec|Dno)/.test(n) ? /Wieniec|Dno|wieniec/ : /^Półka przelotowa/.test(n) ? /^Półka przelotowa/ : new RegExp('^' + n);
+    return formatki.some((f) => re.test(f));
+  };
+  const obce = [...new Set(plan.map((r) => r.panel))].filter((p) => !wFormatkach(p));
+  ok('każda płyta z planu jest w formatkach', !obce.length, obce.join('; '));
+
+  // dol plyty z planu wg bryly: bok lewy/prawy — skrajne; przegroda k — k-ta pionowa w swoim poziomie
+  const dolPlyty = (panel) => {
+    const n = panel.replace(/^Poziom \d+ — /, '');
+    const boki = pion.filter((q) => q.p[5] - q.p[2] > 200).sort((a, c) => a.p[0] - c.p[0]);
+    if (n === 'Bok lewy') return boki[0]?.p[1];
+    if (n === 'Bok prawy') return boki[boki.length - 1]?.p[1];
+    return null;   // przegrody/wsporniki — wysokosci sprawdzamy wzgledem poziomu nizej
+  };
+
+  // 2. zawiasy skrzydel: tyle ile na rysunku i na tych wysokosciach
+  const zr = (await zawiasyRys(H)).filter((z) => z.h > z.w);        // pionowe = skrzydla (klapy maja poziome)
+  const zPlan = plan.filter((r) => r.kind === 'zawias');
+  const nPlan = zPlan.reduce((s, r) => s + r.ys.length, 0);
+  ok(`zawiasy: w planie ${nPlan}, na rysunku ${zr.length}`, nPlan === zr.length, zPlan.map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | '));
+  const zawOk = zPlan.every((r) => { const d0 = dolPlyty(r.panel); return d0 == null
+    || r.ys.every((y) => zr.some((z) => Math.abs(z.y - (y + d0)) <= 1)); });
+  ok('zawiasy na tych samych wysokościach co na rysunku', zawOk,
+    zPlan.map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | ') + ' // rys: ' + zr.map((z) => Math.round(z.y)).join(','));
+  const hw = okucia.find((r) => /^Zawias/.test(r[0]) && !/klap/.test(r[0]));
+  if (spr.zawiasyOkucia !== false && hw) {
+    const q = num(hw[hw.length - 1].split(' ')[0]);
+    const nKlap = plan.filter((r) => r.kind === 'zawias klapy').reduce((s, r) => s + r.ys.length, 0);
+    ok(`liczba zawiasów w okuciach (${q}) = otwory w planie (${nPlan + nKlap})`, q === nPlan + nKlap, hw.join(' | '));
+  }
+  if (spr.wspornik) ok('zawias po stronie fixu na wsporniku, nie na boku', zPlan.some((r) => /^Wspornik pionowy/.test(r.panel))
+    && !zPlan.some((r) => r.panel === (spr.wspornik === 'left' ? 'Bok lewy' : 'Bok prawy')), zPlan.map((r) => r.panel).join(', '));
+
+  // 3. kolki polek: kazda polka z bryly ma otwory w dwoch plytach na wysokosci swojego spodu
+  const kPlan = plan.filter((r) => r.kind === 'kołek półki');
+  const nKol = kPlan.reduce((s, r) => s + r.ys.length, 0);
+  if (cab.shelfMount !== 'confirmat') {
+    // polka przelotowa (miedzy poziomami) jest na konfirmatach — kolki maja tylko polki kolumn
+    ok(`kołki: ${polki.length} półek → ${2 * polki.length} otworów w planie (jest ${nKol})`,
+      nKol === 2 * polki.length || spr.polkiPrzelotowe, kPlan.map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | '));
+    const bokL = kPlan.find((r) => r.panel === 'Bok lewy');
+    if (bokL) {
+      const d0 = dolPlyty('Bok lewy');
+      const lewe = polki.filter((q) => q.p[0] <= t + 1).map((q) => Math.round(q.p[1] - d0)).sort((a, c) => a - c);
+      ok('kołki w boku lewym na wysokości spodu półek', JSON.stringify([...bokL.ys].sort((a, c) => a - c)) === JSON.stringify(lewe),
+        `plan ${bokL.ys.join(',')} / bryła ${lewe.join(',')}`);
+      // odleglosci od przedniej krawedzi plyty: przod polki z bryly + 37 i tyl - 37
+      const q0 = polki.find((q) => q.p[0] <= t + 1);
+      const [a1, a2] = (bokL.note.match(/([\d.]+) i ([\d.]+) mm od przedniej krawędzi/) || []).slice(1).map(Number);
+      ok('kołki: odległości od przedniej krawędzi płyty jak półka w bryle', !!q0 && Math.abs(a1 - (q0.p[2] + 37)) <= 1 && Math.abs(a2 - (q0.p[5] - 37)) <= 1,
+        `${bokL.note} / półka z ${q0 && q0.p[2]} do ${q0 && q0.p[5]}`);
+    }
+  }
+
+  // 4. prowadnice: wysokosc dolnej krawedzi = dol boku metalowego, otwory wg NL
+  const pPlan = plan.filter((r) => r.kind === 'prowadnica');
+  const skrzynek = metal.length / 2;
+  const nPr = pPlan.reduce((s, r) => s + r.ys.length, 0);
+  if (skrzynek) {
+    ok(`prowadnice: ${skrzynek} szuflad → ${2 * skrzynek} wpisów (jest ${nPr})`, nPr === 2 * skrzynek, pPlan.map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | '));
+    const bokL = pPlan.filter((r) => r.panel === 'Bok lewy');
+    const d0 = dolPlyty('Bok lewy');
+    const ys = bokL.flatMap((r) => r.ys).sort((a, c) => a - c);
+    const zBryly = metal.filter((q) => q.p[0] < W / 2).map((q) => Math.round(q.p[1] - d0)).sort((a, c) => a - c);
+    ok('prowadnice na wysokości dołu skrzynek z bryły', JSON.stringify(ys) === JSON.stringify(zBryly), `plan ${ys.join(',')} / bryła ${zBryly.join(',')}`);
+    const OTW = { 250: '37, 133', 270: '37, 133', 300: '37, 165', 350: '37, 165', 400: '37, 229', 450: '37, 261', 500: '37, 261', 550: '37, 261', 600: '37, 261, 389' };
+    const zle = pPlan.filter((r) => { const nl = Number((r.note.match(/NL (\d+)/) || [])[1]); const sb = Number((r.note.match(/cofnięta o (\d+)/) || [])[1] || 0);
+      const oczek = OTW[nl] && OTW[nl].split(', ').map((x) => Number(x) + sb).join(', ');
+      return !oczek || !r.note.includes(`otwory ${oczek} mm`); });
+    ok('otwory prowadnic wg instrukcji V-BOX (37 + rozstaw wg NL)', !zle.length, zle.map((r) => r.note).join(' | '));
+  }
+
+  // 5. zawiasy klap: w wiencu (do gory) albo dnie (w dol), tyle co na rysunku, w tych samych miejscach
+  const kl = plan.filter((r) => r.kind === 'zawias klapy');
+  if (spr.klapa) {
+    const zk = (await zawiasyRys(H)).filter((z) => z.w > z.h);
+    ok(`zawiasy klapy w ${spr.klapa === 'gora' ? 'wieńcu' : 'dnie'}`, kl.length > 0 && kl.every((r) => (spr.klapa === 'gora' ? /Wieniec/ : /Dno/).test(r.panel)),
+      kl.map((r) => r.panel).join(', ') || '(brak)');
+    const xs = kl.flatMap((r) => r.ys).sort((a, c) => a - c);
+    const xr = zk.map((z) => Math.round(z.x - t)).sort((a, c) => a - c);
+    ok('zawiasy klapy tam, gdzie na rysunku', JSON.stringify(xs) === JSON.stringify(xr), `plan ${xs.join(',')} / rysunek ${xr.join(',')}`);
+  }
+};
+
+await scenariusz('drzwi i półki', szafka('D'));
+await scenariusz('dwie kolumny z przegrodą', szafka('P2', { W: 900, levels: [{ h: null, cols: [kol({ doors: 1 }), kol({ doors: 1, hinge: 'right' })] }] }));
+await scenariusz('fix ze wspornikiem, zawias przy fixie', szafka('F', { levels: [{ h: null, cols: [kol({ doors: 1, hinge: 'left',
+  fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] }), { spr: { wspornik: 'left' } });
+await scenariusz('fix bez wspornika, zawias od drugiej strony', szafka('F2', { levels: [{ h: null, cols: [kol({ doors: 1, hinge: 'right',
+  fix: { side: 'left', w: 100, mode: 'overlay', support: false } })] }] }));
+await scenariusz('fronty wpuszczane (półki cofnięte)', szafka('WP', { frontMode: 'inset' }));
+await scenariusz('szuflady NL 500', szafka('S', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] }));
+await scenariusz('szuflady, fronty wpuszczane (prowadnica cofnięta)', szafka('SW', { frontMode: 'inset', levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }] }] }] }));
+await scenariusz('szuflady NL 300 (płytka szafka)', szafka('S3', { D: 330, levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }] }] }] }));
+await scenariusz('wysoka, dwa poziomy', szafka('H', { W: 600, H: 2000, levels: [{ h: null, cols: [kol({ doors: 1 })] }, { h: 700, cols: [kol()] }] }), { spr: { polkiPrzelotowe: true } });
+await scenariusz('klapa do góry', wisz('KG', { W: 800, H: 400, levels: [{ h: null, cols: [kol({ doors: 1, klapa: 'gora' })] }] }), { spr: { klapa: 'gora' } });
+await scenariusz('klapa w dół', wisz('KD', { W: 600, H: 400, levels: [{ h: null, cols: [kol({ doors: 1, klapa: 'dol' })] }] }), { spr: { klapa: 'dol' } });
+await scenariusz('półki na konfirmatach (bez kołków)', szafka('K', { shelfMount: 'confirmat' }));
+
+console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
+await b.close();

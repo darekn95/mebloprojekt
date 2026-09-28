@@ -49,6 +49,12 @@ const ikonyKolizji = async () => page.evaluate(() => {
     /nie ma się jak otworzyć/.test(l) ? [(linie[i - 1] || '').trim()] : []);
 });
 const skrot = (xs) => xs.map((l) => l.slice(0, 90)).join(' / ');
+/* Szafka w slepym rogu juz ustawiona tak, jak robi to „Ustaw szafkę w rogu”:
+   fix od strony rogu na zasloniete 648 mm (600 + front 18 + zapas 30), jedne
+   drzwi, zawias od zewnatrz. Bez tego kolizje w rogu czekaja na ustawienie
+   (od 2026-09-28) i w uwagach jest tylko blok z przyciskiem. */
+const ROGOWA = (W, extra = {}) => CAB('rogowa', W, 'c1', null, Object.assign({ levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null,
+  fix: { side: 'right', w: 648, mode: 'overlay', support: false }, hinge: 'left' }] }] }, extra));
 // narożnik L: ciąg A wjeżdża w róg, ciąg B odsuwa się o jego głębokość
 const LRUNY = (extra = {}) => [RUN('c1', 'Ściana A'),
   RUN('c2', 'Ściana B', Object.assign({ corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } }, extra))];
@@ -70,7 +76,7 @@ k = await kolizje();
 ok('wysunięta sąsiadka nie blokuje skrzydła', k.length === 0, skrot(k));
 
 console.log('\n== slepy naroznik: skrzydlo wjezdza w drugi ciag ==');
-await seed(LRUNY(), [CAB('A1', 600, 'c1'), CAB('rogowa', 900, 'c1'), CAB('B1', 700, 'c2')]);
+await seed(LRUNY(), [CAB('A1', 600, 'c1'), ROGOWA(900), CAB('B1', 700, 'c2')]);
 k = await kolizje();
 console.log('     ' + k.join('\n     '));
 ok('kolizja w narożniku zgłoszona', k.length > 0, String(k.length));
@@ -80,8 +86,9 @@ ok('kolizja zgłoszona jako błąd, nie ostrzeżenie',
 ok('kolizja idzie przez granicę ścian', k.some((l) => /Ściana B/.test(l) && /Ściana A/.test(l)),
   skrot(k));
 ok('podane, o ile brakuje', k.some((l) => /brakuje \d+ mm/.test(l)), skrot(k));
-ok('podpowiedziane zawiasy i węższy front',
-  k.some((l) => /Przełóż zawiasy/.test(l) && /zwęź front do \d+ mm/.test(l)), skrot(k));
+/* Po ustawieniu rogu skrzydlo B1 uderza w fix — zostaloby 4 mm, wiec rady
+   „zwez front” juz nie ma (tylko >= 200 mm); zostaja zawiasy i odsuniecie. */
+ok('podpowiedziane zawiasy', k.some((l) => /Przełóż zawiasy/.test(l)), skrot(k));
 
 console.log('\n== waska szafka w slepym rogu: tylko wykonalne rady ==');
 /* Szafka 600 w rogu, drugi ciag glebokosci 600: zostaje 0–30 mm frontu. Rada
@@ -92,8 +99,7 @@ const zaWaskie = kw.filter((l) => { const m = l.match(/zwęź front do (\d+) mm/
 ok('żadnej rady „zwęź front” poniżej 200 mm', kw.length > 0 && zaWaskie.length === 0, skrot(zaWaskie.length ? zaWaskie : kw));
 ok('rada o odsunięciu wskazuje pole „Luz w rogu”', kw.some((l) => /Luz w rogu/.test(l)), skrot(kw));
 
-console.log('\n== kolizja z uchwytem, nie tylko z plyta ==');
-ok('uchwyt bywa tym, co stoi na drodze', k.some((l) => /uchwyt/.test(l)), skrot(k));
+// kolizja z uchwytem sprawdzana nizej, w ukladzie z uchwytem na drodze skrzydla
 
 console.log('\n== szafka narozna: front sam konczy sie na licu, wiec nie koliduje ==');
 /* Pasmo frontu jest przyciete do lica przed narozem, wiec drzwi nie maja jak
@@ -127,7 +133,7 @@ k = await kolizje();
 ok('po przyjęciu podpowiedzi nie ma kolizji', k.length === 0, skrot(k));
 
 console.log('\n== wysunieta szuflada zza rogu tez jest przeszkoda ==');
-await seed(LRUNY(), [CAB('A1', 600, 'c1'), CAB('rogowa', 900, 'c1'), SZUF('B1', 700, 'c2')]);
+await seed(LRUNY(), [CAB('A1', 600, 'c1'), ROGOWA(900), SZUF('B1', 700, 'c2')]);
 k = await kolizje();
 console.log('     ' + k.join('\n     '));
 ok('szuflady zza rogu wchodzą do sprawdzenia', k.length > 0, String(k.length));
@@ -148,19 +154,34 @@ console.log('\n== wystawanie uchwytu wchodzi do kontroli ==');
 /* Uchwyt styka sie pierwszy, wiec to on decyduje o kilku ostatnich milimetrach.
    Ten sam uklad z uchwytem 20 mm i ze 100 mm ma dac inna glebokosc kolizji,
    a uchwyt zerowy (muszelka, frez) ma zniknac z listy przeszkod. */
-const ileBrakuje = async () => (await kolizje())
-  .map((l) => Number((/brakuje (\d+) mm/.exec(l) || [])[1] || 0));
-const zUchwytem = (mm) => seed(LRUNY(),
-  [CAB('A1', 600, 'c1'), CAB('rogowa', 900, 'c1', null, { handleOut: mm }),
-   CAB('B1', 700, 'c2', null, { handleOut: mm })]);
+/* Uklad uzytkownika (2026-09-28): w rog wjezdza sciana B ze slepa szafka 1000
+   (fix 648 od rogu, zawias od zewnatrz, uchwyt przy fixie), sciana A konczy sie
+   bokiem przed jej fixem. Bez wstawki prawe skrzydlo ostatniej szafki A przy
+   otwieraniu zahacza wlasnie o uchwyt szafki w rogu; plaska wstawka 18 mm
+   odsuwa je na tyle, ze uchwyt 20 mm juz nie przeszkadza. */
+const DWA = { levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null }] }] };
+const zUchwytem = (mm, wstawka = null) => seed([RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0,
+    wstawka } })],
+  [CAB('A1', 600, 'c1', null, { ...DWA, handleOut: mm }), CAB('A2', 600, 'c1', null, { ...DWA, handleOut: mm }),
+   CAB('R', 1000, 'c2', null, { handleOut: mm, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null,
+     fix: { side: 'left', w: 648, mode: 'overlay', support: false }, hinge: 'right' }] }] })]);
 await zUchwytem(20);
-const u20 = await ileBrakuje();
-await zUchwytem(100);
-const u100 = await ileBrakuje();
-console.log('     uchwyt 20 mm: ' + JSON.stringify(u20) + ', 100 mm: ' + JSON.stringify(u100));
-ok('grubszy uchwyt zabiera więcej miejsca',
-  u100.length > 0 && u20.length > 0 && Math.max(...u100) > Math.max(...u20),
-  JSON.stringify(u20) + ' → ' + JSON.stringify(u100));
+console.log('\n== kolizja z uchwytem, nie tylko z plyta ==');
+ok('uchwyt bywa tym, co stoi na drodze', (await kolizje()).some((l) => /stoi uchwyt/.test(l)), skrot(await kolizje()));
+/* Uchwyt liczy sie tam, gdzie naprawde jest (od 2026-09-28). Bez wstawki
+   stoi dokladnie na linii zawiasu skrzydla A2 i wystaje od niej w bok, wiec
+   skrzydlo trafia w jego nasade niezaleznie od grubosci. Z plaska wstawka
+   18 mm zawias A2 odsuwa sie o 18 mm: uchwyt 20 mm wchodzi za linie zawiasu
+   ledwie 2 mm (styk), a 100 mm — o 82 mm, i to juz jest kolizja. */
+await zUchwytem(100, { typ: 'plaska', w: 60 });
+const u100 = await kolizje();
+console.log('     z wstawką, uchwyt 100 mm: ' + skrot(u100));
+ok('grubszy uchwyt zabiera więcej miejsca (100 mm przeszkadza tam, gdzie 20 mm nie)',
+  u100.some((l) => /stoi uchwyt/.test(l)), skrot(u100));
+
+await zUchwytem(20, { typ: 'plaska', w: 60 });
+const zWstawka = await kolizje();
+ok('płaska wstawka 18 mm zdejmuje kolizję z uchwytem 20 mm', !zWstawka.some((l) => /stoi uchwyt/.test(l)), skrot(zWstawka));
 
 await zUchwytem(0);
 const bezUchwytu = await kolizje();

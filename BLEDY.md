@@ -18,6 +18,27 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-28 | elewacja ciągu, otwarte (`ciag8`, pełny przebieg) | po dołożeniu uchwytów otwartych skrzydeł i szuflad w widoku szafki elewacja ciągu ich nie miała — rysunki rozjechały się (test parytetu); teraz te same uchwyty w obu | (ten commit) |
+| 2026-09-28 | rysunki szafki w L, uchwyty (audyt2d) | z przodu rysowany był pełny prawy bok, którego w szafce w L nie ma (stoi tam kątownik) — teraz bez boku, a po otwarciu widać obie płyty kątownika; z tyłu kątownik bez 3 mm za plecami; uchwyt skrzydła przy zawiasie po prawej 20 mm od wolnej krawędzi, po lewej 32 — teraz z obu stron 30 mm (`UCHWYT_OD_KRAWEDZI` = oś 36), też na ramieniu w L (3D, elewacje, rzut z góry). Audyt 2D obejmuje teraz też widoki „Ciąg” i „Zabudowa z góry” (przy rogach jako INFO — AI_NOTES) | (ten commit) |
+| 2026-09-28 | wycena, znalazł nowy `audytwycena` | krawędzie blatu roboczego (38 mm) wliczały się do „Obrzeże 22 × 2 mm” i usługi oklejania — teraz osobna pozycja „Obrzeże blatu roboczego” (cena 0 do ustalenia, pytanie do użytkownika), suma „Obrzeże PCV” bez blatu. Reszta wyceny i rozkroju zgodna na 7 projektach: każda formatka na arkuszach tyle razy, ile zamawiamy, bez nachodzenia, z rzazem 3 mm, bez obrotu przy pilnowanych słojach; arkusze/formatowanie/obrzeże/oklejanie/okucia/suma | (ten commit) |
+| 2026-09-28 | plan wierceń (`drillPlan`), znalazł nowy `audytwierc` | zawias po stronie fixu ze wspornikiem był wpisany na bok zamiast na wspornik; zawiasów klap nie było wcale (teraz w wieńcu/dnie, wzdłuż szerokości); kołki półek podawane „od przodu półki” — teraz od przedniej krawędzi płyty (półka bywa cofnięta albo płytsza); prowadnice bez otworów — teraz wg instrukcji V-BOX (37 + 96/128/192/224, przy NL 600 trzy otwory, cofnięte przy frontach wpuszczanych); przegroda z półkami z obu stron miała otwory zlane w jeden wpis — teraz „(od kolumny N)” | (ten commit) |
+| 2026-09-28 | skrzynka szuflady (`skrzynkaBryly`, widok z boku, `maxBack`) | tył stał na dnie — przy górnej szufladzie wchodził 14 mm w wieniec; wg instrukcji V-BOX tył jest równo z górą boku, a dno dochodzi do niego. Wysokość podniesionego tyłu liczona od jego dołu (`tylOd`), nowy błąd „tył wyżej niż górna krawędź frontu szuflady” z przyciskiem, domyślny podniesiony tył o 20 mm niżej niż front. Testy: `tylkol` (reguła frontu), `audyt` i `audyt2d` (scenariusz z podniesionym tyłem, bez „znanych”) | (ten commit) |
+| 2026-09-28 | rysunki 2D, znalazł nowy `audyt2d` | rysunek płaski porównany z rzutem bryły 3D w obie strony (z przodu zamknięte/otwarte, z góry, z boku, z tyłu; 15 konfiguracji). Poprawione: uchwyty z przodu miały własne wymiary (120 zamiast 180 mm, przy prawych drzwiach 10 mm obok) — teraz `UchwytElewacja` z `uchwytObrys`, też w elewacji ciągu i przy klapie; z boku HDF przybijany stał w korpusie zamiast za nim, cokół był klockiem na całą głębokość zamiast płyty przy licu, brakowało uchwytów, tył szuflady stał przy froncie zamiast z tyłu skrzynki; HDF we frezie z góry i z boku bez części we frezie; z góry obrys skrzynki szuflady wchodził w boki (szerokość frontu zamiast światła); z tyłu bez pleców nie było widać frontów; otwarte skrzydła i klapy bez uchwytów, otwarta klapa po złej stronie osi. Skrzynka szuflady jest teraz też w zamkniętej bryle 3D. Kontrola klap: oś w licu, grubość po stronie korpusu (jak skrzydła i 3D) — klapa pod blatem się otwiera | (ten commit) |
+| 2026-09-28 | kontrola otwierania (`swingBodies`, `openingMsgs`) | szuflady były tylko przeszkodą dla skrzydeł, a klapy nie były sprawdzane wcale. Teraz: szuflada wysuwa się prosto na prowadnicę z uchwytem (`wysuwHit`) — np. w zasłoniętej części ślepego rogu trafia w korpus sąsiada; klapa obraca się z grubością frontu co 1° (`klapaHit`) — pod blatem otworzy się tylko na kilkanaście stopni; blat ciągu jest przeszkodą. Uchwyt liczony tam, gdzie naprawdę jest (`uchwytObrys`), a nie paskiem przez cały front — test `otwier` „grubszy uchwyt” przerobiony na układ z płaską wstawką. Nowa suita `ruchy` | (ten commit) |
+| 2026-09-28 | plecy we frezie (`computeGeo`, rysunki, 3D) | frez liczony jak rowek odsunięty 16 mm od tyłu i 4 mm w płytę (HDF 570 × 690 w szafce 600 × 720, półki 19 mm płytsze) — a u użytkownika to frez 16 × 3 na tylnej krawędzi, HDF zlicowany z tyłem. Domyślne {16, 4} były zamienione; teraz {3, 16}, stare zapisy z {16, 4} migrują (`migrateCab`, znacznik `wreg`). Frez płytszy niż HDF — ostrzeżenie i plecy liczone za korpusem. Nowa suita `wreg`; audyt dopuszcza HDF 15 mm w płycie | (ten commit) |
+| 2026-09-28 | róg (`projectLayout`, `glRog`), znalazł `audyt` | odsunięcie drugiego ciągu liczone od ściany do lica samej szafki w rogu, jakby stała przy ścianie — a szafki ciągu stoją wyrównane do lica, więc płytsza szafka w rogu stoi dalej od ściany. Szafka w L 560 w ciągu szafek 570 wchodziła ramieniem 10 mm w pierwszą szafkę drugiego ciągu. Teraz `glRog` = lico ciągu + wysunięcie szafki w rogu. Uwaga „Od rogu szafka zajmuje…” rozpisuje też plecy / dosunięcie do lica (wcześniej składniki nie sumowały się do podanej liczby). Testy: `narozn2` ramię „500 × 600” (korpus), `narkat` wzmocnienie czołowe o plecy pustego ciągu krótsze | (ten commit) |
+| 2026-09-28 | szafka w L, pusty ciąg, półka przy wsporniku | szablon szafki w L 560 w głąb jak stojąca (`CORNER_L_D`, ramię 640, razem nadal 1200); pusty ciąg za rogiem liczony od ściany razem z domyślnymi plecami HDF (ramię było o 3 mm płytsze niż szafki obok); uwaga „szafka w L … ramię N × M” podaje głębokość korpusu ramienia (`armKorpus`), nie z plecami; półka przy wsporniku fixu — na całą szerokość, płytsza o wspornik, na zwykłych kołkach w bokach (poprawka użytkownika; wcześniej węższa z kołkiem we wsporniku). Przesunięte liczby w testach: `kreator` ramię 640, `odsuniecie` 1210 od rogu i „ramię 640 × 537”, `blatrog` 633 i uwaga o 7 mm przy ręcznie ustawionych 570, `wspornik` 564 × 460 | (ten commit) |
+| 2026-09-28 | przegląd wartości na sztywno | wstawka w rogu: opis bloku i przycisk „Ustaw szafkę w rogu” miały „18 mm” na sztywno, a przycisk wstawki przy kolizji brał grubość frontu z pierwszej szafki ciągu, nie tej przy rogu — teraz `tfPrzyRogu` | (ten commit) |
+| 2026-09-28 | audyt całości (`testy/audyt.mjs`) | nowa suita: nachodzenie brył w 3D (szafka i zabudowa), formatki ↔ rysunek w obie strony z ilościami, projekt = suma szafek, PDF = ekran; 20 konfiguracji. Znalezione i poprawione: plecy w bryle zabudowy wchodziły 3 mm w boki/dno/półki (`plecyBryla`); półki i przegrody w bryle szafki odkładane od lica (przy frontach wpuszczanych wchodziły w drzwi); plecy z płyty wewnątrz nie skracały półek (półka 18 mm za głęboka w formatce); plecy z płyty wewnątrz rysowane na cały tył; okucia ramienia szafki w L i wstawki tylko w projekcie, nie na liście szafki (`okuciaSzafki`); listwa wspólna ciągu na kartce szafki w PDF; szafka w L ze stroną „auto” zawsze z kątownikiem po prawej — przy ramieniu w lewo (kreator rogu) pełny bok stał po stronie ramienia; dno i tył szuflady nie były nigdzie rysowane (`skrzynkaBryly`) | (ten commit) |
+| 2026-09-28 | plecy za korpusem | HDF przybijany (i płyta na zewnątrz) stoi za korpusem, więc szafka stoi o jego grubość od ściany — układ ciągu, róg, blat ciągu, ramię szafki w L i kreator rogu liczą teraz z `geo.glebOdSciany` (decyzja użytkownika). Przesunięte liczby w testach (+3 mm): narozn 621/671/249/651, narozn2 621→1103, narozn3 1097/1521/918, wstawka 591/609/651, gorne 321, narjedne 235, blatciag/blatrys 533, blatrog (uwaga „tylko 7 mm”), odsuniecie (korpusy o 3 mm płytsze, odległości te same); kreator fix 621 liczony z układu | (ten commit) |
+| 2026-09-28 | przegląd wszystkich rysunków projektu użytkownika | wstawki brakowało na widoku z boku (prawy bok), z tyłu szafki i z tyłu ciągu; podpis „bok „Ściana 2” 606” liczył wstawkę, która stoi przed bokiem i jest rysowana osobno — teraz 588. Reszta widoków (przód, z góry, 3D, 45°, zabudowa) i audyt 3D ↔ formatki bez uwag; suita `wstawka` | (ten commit) |
+| 2026-09-28 | ślepy róg (`projectLayout`) | drugi ciąg odsuwał się od rogu o sam korpus szafki w rogu (570), bez jej frontu (18) — bok sąsiada stał w miejscu fixu, a płaska wstawka na niego nachodziła i nic nie odsuwała (zgłoszenie użytkownika: „nie widać wstawki, bok do boku”). Teraz `frontRog` (front szafki w rogu, gdy nakładany; nie przy szafce w L) i to samo w górnych ciągach. Przesunięte liczby w testach: `narozn` 618/668, `narozn2` 618, `narozn3` blaty 918/1518, `wstawka` 588/606/648, `gorne` 318; `otwier` i `zawiasy` — kolizja z uchwytem liczona bez wstawki (z płaską 18 mm przy uchwycie 20 mm jej nie ma) | (ten commit) |
+| 2026-09-28 | widoki „Szafka” (przód, z góry, 3D, PDF) | wstawka w rogu była w formatkach szafki, do której się przykręca, i w widoku ciągu, ale nie na rysunku samej szafki (zgłoszenie użytkownika) — widoki dostają `wstawki` (`wstawkiSzafki`); suita `wstawka` | (ten commit) |
+| 2026-09-28 | `tylkol` | test szukał przycisku po nazwie „auto” bez dokładnego dopasowania i łapał nowy „auto (L)” przełącznika zawiasu — selektor `exact: true`; aplikacja dobra | (ten commit) |
+| 2026-09-28 | `blat`, `fromcab`, `stdfull` | testy zakładały szablon „Szafka stojąca” 500 w głąb — od zmiany na 570 (prośba użytkownika) głębokość blatu to 620, prowadnica w rzucie 52..552, a druga szafka dostaje w teście 570, żeby boki były wspólne; aplikacja dobra | (ten commit) |
+| 2026-09-28 | `otwier`, `wstawka` | kolizje w nieustawionym ślepym rogu czekają na „Ustaw szafkę w rogu” — scenariusze mają szafkę w rogu już ustawioną (fix, jedne drzwi, zawias od zewnątrz); kolizja z uchwytem sprawdzana w układzie użytkownika | (ten commit) |
+| 2026-09-28 | róg ze zwykłymi szafkami (`kreator`) | po dodaniu drugiego ciągu na górze były trzy kolizje z osobnymi przyciskami wstawki, a informacja o ślepym narożniku ginęła w podpowiedziach — nic o fixie, jednych drzwiach, uchwycie i zawiasie; teraz blok „Szafka w rogu do ustawienia” z jednym przyciskiem (fix + drzwi + zawias od zewnątrz + wstawka), kolizje w tym rogu czekają na ustawienie, a „+ ciąg” otwiera kreator rogu z gotową szafką | (ten commit) |
+| 2026-09-28 | ślepy róg (`narozn`) | zasłonięta część liczona tylko do korpusu sąsiada (570) — jego drzwi stoją 18 mm dalej, a fix robi się jeszcze szerszy na uchwyt; teraz korpus + front + 30 mm (np. 900 przy sąsiedzie 600: 252 dostępu zamiast 300) | (ten commit) |
 | 2026-09-28 | **ciągi górne w L** (`gorne`) | górny ciąg drugiej ściany trafiał na pierwszą ścianę (układ nie brał ramki od dolnego, choć kod o tym mówił) — nachodził na tamten górny, rysunki i kontrola otwierania pokazywały bzdury; teraz górny stoi w ramce swojego dolnego, a w rogu odsuwa się o głębokość górnego ciągu ściany wjeżdżającej | (ten commit) |
 | 2026-09-28 | „+ szafka” w ciągu (`gorne`) | nowa szafka miała domyślne 500 w głąb (w górnym ciągu 300, w dolnym 570) i bez cokołu ciągu — od razu ostrzeżenie o rozjeździe, który zrobiła sama aplikacja; teraz bierze H/D/cokół ciągu | (ten commit) |
 | 2026-09-28 | `otwier`: kolizja w rogu | rada „zwęź front do 0 mm” (14, 44 mm) przy wąskiej szafce w ślepym rogu — teraz tylko, gdy zostaje ≥ `MIN_COL` (200); „odsuń ciągi w rogu” wskazuje pole „Luz w rogu” | (ten commit) |
@@ -42,29 +63,89 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-Pytania z pracy nocnej 2026-09-28 — do zadania rano przyciskami.
+- **Krawędzie blatu roboczego w wycenie** (2026-09-28): osobna pozycja „Obrzeże
+  blatu roboczego” z ceną 0 — jak je wykańczasz (obrzeże 40/45 mm, listwa
+  końcowa, postforming z przodu)? Czy formatowanie blatu liczy się jak arkusza
+  płyty (dziś tak)?
+- **Otwory kołków z obu stron przegrody na tej samej wysokości** (2026-09-28):
+  plan pokazuje je osobno „(od kolumny N)”; czy przy 18 mm dawać ostrzeżenie /
+  przesuwać o 32 mm, żeby się nie przewierciły?
+- **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
+  drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
+  się kategoria „sprzęty” (lodówka, piekarnik, mikrofala) — dołożyć je jako
+  bryły w `swingBodies`, a ich drzwi/klapy jako ruchy.
 
-1. **Ślepy róg — ile frontu naprawdę zasłania drugi ciąg?** Dziś zasłonięta część
-   szafki w rogu = głębokość korpusu drugiego ciągu (570). Jego drzwi stoją jednak
-   18 mm dalej (570 + front 18 = 588), więc „N dostępu” jest zawyżone o grubość
-   frontu, a pierwsze drzwi szafki w rogu (i wstawka) mogą zahaczać o front sąsiada.
-   Opcje: (a) liczyć do lica frontów sąsiada (588) — zmieni podpisy „dostępu”
-   i szerokości drzwi przy rogu o 18 mm; (b) zostawić od korpusu (570).
-   Rekomendacja: (a).
-2. **Wstawka szeroka (60 licem) — oklejanie i trójkąty.** Przyjąłem: oklejona krawędź
-   pionowa od strony drzwi i dolna; trójkąty meblarskie w jednym rzędzie co ok.
-   400 mm (przy 720 — 2 szt.). Opcje oklejania: (a) tak jak jest; (b) obie krawędzie
-   pionowe i dolna. Trójkąty: (a) jeden rząd; (b) dwa rzędy (od góry i od dołu po 2).
-3. **Wstawka płaska — wkręty.** Przyjąłem „Wkręt 4 × 30” od środka szafki przez bok,
-   co ok. 200 mm (przy 720 — 4 szt.). Czy tak, czy inna długość/rozstaw?
+- **Klapy do góry i w dół — do sprawdzenia przez użytkownika w innym terminie**
+  (prośba 2026-09-28). Zrobione i w artefakcie (wersja 48), ale użytkownik
+  jeszcze ich nie oglądał. Do przejrzenia razem: przełącznik „otwieranie”,
+  dobór siły z tabeli GTV PD-G00, liczba podnośników i zawiasów, uwagi,
+  formatka „Klapa”, rysunki i bryła 3D. Poprawki po pierwszym spojrzeniu
+  (wybór w dwóch krokach, amortyzator z tabeli PD-ECGDL, ostrzeżenie przy
+  jednym podnośniku, cena 10 zł, gęstość 680) już wprowadzone. Braki spisane w `AI_NOTES.md` ([AI-TODO] Klapy).
 
 ## Ustalone — nie ruszać
+
+- **Półka przy wsporniku pionowym fixu** (2026-09-28): na całą szerokość
+  szafki, ale płytsza — zaczyna się za wspornikiem (nikt nie wycina „U”), na
+  zwykłych kołkach w bokach; ostrzeżenie
+  z przyciskiem „Przełóż zawiasy na drugą stronę i usuń wspornik” (albo „Usuń
+  wspornik”, gdy zawiasy już są po drugiej stronie), `wspornikoff:`.
+- **Plecy „We frezie” = frez 16 × 3 na tylnej krawędzi** (2026-09-28; w aplikacji zawsze „frez”, nie „wręg”): z płyty 18 frezuje się
+  16 mm (zostają 2 mm od zewnątrz), 3 mm w głąb w stronę drzwi — HDF 3 mm
+  zlicowany z tyłem korpusu; frez też w wieńcu i dnie; luz 1 mm na stronę.
+  HDF = W − 6 × H − 6. Pola: „Szerokość” 16, „Głębokość” 3, „Luz” 1.
+- **Tył szuflady V-BOX** (2026-09-28, instrukcja w `instrukcje/`): standardowy
+  tył ma górę równo z górą boku, dół `tylOd` (9–10 mm) nad dołem boku, dno
+  dochodzi do tyłu. Tył nigdy wyżej niż górna krawędź frontu szuflady (błąd),
+  domyślny podniesiony — o `BACK_CLEAR` niżej; nie niżej niż bok; wyższy tył
+  dopuszczamy, jeśli przejdzie pod tym, co wyżej, z luzem na wyjęcie.
+- **Słupek 600 w głąb** (2026-09-28): szablon zostaje; głębsza szafka w ciągu
+  to ostrzeżenie mówiące, że pozostałe odsuną się od ściany (lico wyznacza
+  najgłębsza), z przyciskami wyrównania.
+- **Szafka w L 560 w głąb** (2026-09-28), jak stojąca; ramię 640 (razem 1200).
+  Półki ramienia płytsze o kątowniki.
+- **Kontrola kolizji nigdy nie jest wstrzymywana** (2026-09-28): przy
+  nieustawionej szafce w rogu kolizje stoją obok bloku „do ustawienia”.
+- **Fix w ślepym rogu bez tolerancji** (2026-09-28): każda różnica od
+  zasłoniętej części daje podpowiedź z przyciskiem „Popraw fix na N mm”
+  (`slepyfix:`); szafka z fixem i jednymi drzwiami liczy się jako ustawiona.
+
+- **Ślepy róg** (2026-09-28): zasłonięta część frontu szafki w rogu = głębokość
+  sąsiedniego ciągu + jego front + `SLEPY_ZAPAS` (30 mm) na uchwyt. U użytkownika
+  fix w ślepej części jest ok. 5 cm szerszy, ale 30 mm wystarcza.
+- **Wstawka szeroka**: oklejona tylko dolna krawędź (boki stykają się z bokami
+  szafek); trójkąty po 2 z każdej strony (przy 720 — 4 szt.). **Wstawka płaska**:
+  wkręty 4 × 30 co ok. 200 mm, krawędź przednia i dolna.
 
 - Podpowiedź „Zrób jedne drzwi na … mm” przy szafce narożnej w L (`cornerdoor:`
   w `runCornerMsgs`) zostaje **celowo** jako zabezpieczenie, choć dziś praktycznie
   się nie pojawia: pas frontu szafki narożnej sam kończy się na maskownicy kątownika,
   więc jedne drzwi, dwoje i ręczna szerokość mieszczą się w licu (sprawdzone
   2026-09-27 na szablonie `naroznikL`). Nie usuwać (decyzja użytkownika).
+
+- **Plecy za korpusem** (2026-09-28): HDF przybijany stoi za korpusem, szafka
+  o jego grubość od ściany (lico 560 + 3 + 18 = 581). Szablon „Szafka stojąca”
+  ma 560 w głąb — lepiej dociąć tył blatu do kąta ściany niż żeby zabrakło,
+  zawsze można odsunąć szafki od ściany.
+- **Półki w szafce w L** (2026-09-28): półka korpusu płytsza o kątownik przy
+  plecach i kątownik narożnika z przodu (na całej szerokości), od strony
+  kątownika węższa o grubość pleców; półka ramienia kończy się za kątownikiem
+  narożnika.
+- **Skrzynka szuflady** (2026-09-28): rysowana w 3D po otwarciu i na widoku
+  z boku (dno, tył, boki metalowe), wymiary jak formatki.
+
+- **Klapy** (2026-09-28): najpierw wybór „skrzydło / klapa”, przy klapie
+  „do góry / w dół”. Zawiasy te same co przy skrzydłach, 2 szt. (powyżej
+  900 mm szerokości 3). Podnośnik (do góry) / amortyzator (w dół) 1 szt.,
+  powyżej 600 mm domyślnie 2, do zmiany; jeden przy ponad 600 mm to
+  **ostrzeżenie**. Siła z tabel GTV (karty od użytkownika): do góry PD-G00,
+  w dół amortyzator olejowy PD-ECGDL (60/80/150 N, 90°). Waga frontu
+  z wymiarów, grubości i gęstości 680 kg/m³ (użytkownik: 660–680), dzielona na
+  sztuki, najmniejsza siła, która uniesie. Klapa użytkownika 560 × 750 na
+  jednym 80 N wg tabeli jest za ciężka — działa, bo otwiera się tylko na ok.
+  45° (dlatego uwaga o kącie przy za ciężkiej klapie w dół). Cena standardowa
+  podnośnika i amortyzatora: 10 zł. Strona Kornera (waga płyty) zablokowana
+  przez sieć kontenera — gęstość od użytkownika.
 
 - Artefakt na claude.ai **nie** potrzebuje pobierania plików (tylko wersja na
   GitHubie). „Wyślij do Claude” jest **tylko** w artefakcie. Szczegóły w `AGENTS.md`.
