@@ -97,7 +97,8 @@ console.log('\n== uwagi opisuja szafke narozna ==');
 let uw = await card(/Uwagi/).innerText();
 console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 400));
 ok('uwaga o szafce narożnej w L', /szafką narożną w L/.test(uw), uw.slice(0, 200));
-ok('podany korpus i ramię', /900 mm przy ścianie/.test(uw) && /500 × 603 mm/.test(uw), uw.slice(0, 300));
+// ramie podane glebokoscia korpusu (bez plecow, od 2026-09-28)
+ok('podany korpus i ramię', /900 mm przy ścianie/.test(uw) && /500 × 600 mm/.test(uw), uw.slice(0, 300));
 ok('opisany sposób otwierania', /kątownika/.test(uw), uw.slice(0, 400));
 ok('nie ma już mowy o ślepym narożniku', !/Ślepy narożnik/.test(uw), uw.slice(0, 200));
 

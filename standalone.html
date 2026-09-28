@@ -308,8 +308,10 @@ const cornerSpan = (n) => {
   const odScianyA = r ? r.wallGap.bottom : 0;
   const glKorpusu = r ? Math.round(r.geo.carcassDepth - r.offset) : n.pair.glRog;
   const odScianyB = n.pair.odSasiada || 0;
+  // miedzy odstepem a korpusem: plecy przybijane i dosuniecie do lica ciagu
+  const zaKorpusem = Math.max(0, n.pair.glRog - odScianyA - glKorpusu);
   return {
-    odScianyA, glKorpusu, odScianyB,
+    odScianyA, glKorpusu, odScianyB, zaKorpusem, plecy: r ? r.geo.plecyZa || 0 : 0,
     // wzdluz sciany korpusu: odstep od sciany ramienia + szerokosc korpusu
     wzdluzKorpusu: odScianyB + a.cab.geo.W,
     // wzdluz sciany ramienia: odstep od sciany korpusu + glebokosc korpusu + ramie
@@ -4005,8 +4007,13 @@ const runLayout = (groups, ref = null) => {
        wiecej; branie glebokosci ciagu myliloby sie w obie strony. */
     /* Szafka odsunieta od sciany zjada rog razem z tym odstepem — sasiad
        zaczyna sie za jej frontem, a nie za samym korpusem. */
+    /* Szafki ciagu stoja wyrownane do lica (`n.depth`), wiec plytsza szafka
+       w rogu stoi dalej od sciany, a jej lico jest tam, gdzie lico ciagu —
+       plus jej wlasne wysuniecie. Wczesniej liczone od sciany: szafka w L 560
+       w ciagu szafek 570 wchodzila ramieniem 10 mm w pierwsza szafke drugiego
+       ciagu (audyt 2026-09-28). */
     const glRog = rogowa
-      ? Math.round(rogowa.wallGap.bottom + rogowa.geo.glebOdSciany - rogowa.offset)
+      ? Math.round(wchodzi.depth + rogowa.offset)
       : wchodzi.depth; // glebokosc ciagu juz liczy sie od sciany, z odstepem
     n.pair = { wchodzi, ustepuje, przyStarcie, rogowa, armLen, glRog };
     /* Wstawka siedzi na boku tej szafki ciagu ustepujacego, ktora stoi przy
@@ -10294,6 +10301,8 @@ const cornerPairMsgs = (n, blat) => {
       out.push({ level: "info", text:
         `Od rogu szafka zajmuje wzdłuż ściany „${a.other.run.name}" ${fmt(zasieg.wzdluzRamienia)} mm `
         + `(${zasieg.odScianyA ? `${fmt(zasieg.odScianyA)} odstępu od ściany + ` : ""}`
+        + (zasieg.zaKorpusem ? (zasieg.zaKorpusem === zasieg.plecy ? `${fmt(zasieg.zaKorpusem)} plecy + `
+          : `${fmt(zasieg.zaKorpusem)} za korpusem (plecy i wyrównanie do lica ciągu) + `) : "")
         + `${fmt(zasieg.glKorpusu)} głębokości korpusu + ${fmt(a.len)} ramienia), `
         + `a wzdłuż ściany „${a.run.run.name}" ${fmt(zasieg.wzdluzKorpusu)} mm`
         + (zasieg.odScianyB ? ` (${fmt(zasieg.odScianyB)} odstępu + ${fmt(a.cab.geo.W)} korpusu)` : "")
@@ -13531,6 +13540,7 @@ export default function App() {
                                 {" "}Od rogu:{" "}
                                 <span className="font-mono text-stone-700">{fmt(z.wzdluzKorpusu)} × {fmt(z.wzdluzRamienia)} mm</span>
                                 {" "}(przy ścianie ramienia: {z.odScianyA ? `${fmt(z.odScianyA)} odstępu + ` : ""}
+                                {z.zaKorpusem ? `${fmt(z.zaKorpusem)} ${z.zaKorpusem === z.plecy ? "plecy" : "za korpusem"} + ` : ""}
                                 {fmt(z.glKorpusu)} głębokości + {fmt(cornerNode.arm.len)} ramienia).
                               </>
                             );
