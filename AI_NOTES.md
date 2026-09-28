@@ -534,3 +534,42 @@ w rozmowie. Uwaga: artefakt z zadeklarowanym `db` jest widoczny tylko w
 organizacji wlasciciela — nie da sie go udostepnic publicznym linkiem.
 Suita `wyslij` sprawdza oba przypadki (bez magazynu przycisku nie ma,
 z atrapa magazynu zapis ma pelny projekt).
+
+[AI-INFO] Przeglad projektu uzytkownika jednym poleceniem:
+`node testy/projekt.mjs <plik.json> [katalog-na-zrzuty]` (plik = dokument
+z ArtifactData `projekt/biezacy` zapisany w scratchpadzie — skrypt sam wyjmie
+pole `json`). Wypisuje ciagi i szafki, bledy/ostrzezenia kazdej szafki,
+kolizje otwierania, audyt rysunek 3D ↔ formatki projektu i robi zrzuty
+(3D, rzut z gory, elewacja). Wymaga serwera 5205 i swiezego buildu.
+
+[AI-TODO] Rog ze zwyklymi szafkami (bez szafki w L) — na realnym projekcie
+uzytkownika (zapowiedzial przyklad w artefakcie, 2026-09-28). Stan i pomysly,
+zeby nie odtwarzac ustalen od nowa:
+- Ustalone: slepa czesc szafki w rogu = glebokosc sasiada + jego front +
+  `SLEPY_ZAPAS` 30 mm (u uzytkownika fix jest ok. 5 cm szerszy niz lico
+  sasiada, 3 cm wystarcza). Wstawka w rogu: na boku szafki ciagu, ktory NIE
+  wjezdza w rog (u uzytkownika w rog wjezdza sciana 2, wiec wstawka jest
+  przy ostatniej szafce sciany 1); plaska 18 × 60 na wkrety 4 × 30 co 200,
+  szeroka 60 licem na trojkatach (po 2 z kazdej strony), szeroka oklejona
+  tylko od dolu. Szczegoly w BLEDY.md „Ustalone — nie ruszac”.
+- Pomysl 1 (najwazniejszy): slepa szafka w rogu powinna od razu miec fix na
+  zaslonieta czesc (`col.fix = { side, w }`, formatka „Element stały (fix)”)
+  i drzwi na reszte. Dzis uwaga mowi tylko „drzwi rob na te szerokosc, reszta
+  jest slepa (fix)” — brak przycisku. Propozycja: przycisk „Fix N mm + drzwi
+  M mm” w uwadze o slepym narozniku (N = `z.covered`, strona = od rogu). Do
+  sprawdzenia z uzytkownikiem: czy fix idzie na cala wysokosc drzwi, czy
+  drzwi dzielic (1 czy 2 skrzydla), gdzie zawias (od strony fixu?).
+- Pomysl 2: zawiasy drzwi przy rogu domyslnie po stronie dalszej od rogu
+  (skrzydlo otwiera sie od rogu) — dzis kolizje otwierania czesto znikaja po
+  „Przełóż zawiasy”. Mozna to proponowac automatycznie przy dodaniu szafki
+  na koncu ciagu przy rogu.
+- Pomysl 3: „Luz w rogu” a wstawka — dzis sumuja sie (luz + wstawka). Na
+  realnym projekcie sprawdzic, czy ktokolwiek uzywa luzu bez wstawki; moze
+  luz powinien sam proponowac wstawke tej szerokosci.
+- Pomysl 4: gorne ciagi w rogu — gorny ciag, ktory w rogu sie KONCZY (stoi od
+  poczatku sciany), nie przesuwa sie sam; jesli wchodzi w rog, powie o tym
+  tylko kontrola otwierania. Brak gornej szafki naroznej (L albo slepej
+  z fixem) — temat na osobna rozmowe.
+- Narzedzia do tego tematu: `testy/projekt.mjs` (przeglad), suity `otwier`,
+  `narozn`, `wstawka`, `gorne`, `formatki` (audyt, scenariusze wstawki
+  i gornych ciagow w L).
