@@ -4,7 +4,7 @@
    - przelacznik „zawias” przy kolumnie z jednymi drzwiami w Strukturze wnetrza.
    Uklad jak u uzytkownika: sciana 1 konczy sie szafka z jednymi drzwiami przy
    rogu, w rog wjezdza sciana 2 ze slepa szafka 1000 (fix 618, uchwyt przy
-   fixie) i wstawka plaska. */
+   fixie), bez wstawki — z plaska wstawka 18 mm kolizji z uchwytem juz nie ma. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
@@ -21,7 +21,7 @@ const RUN = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H
 const seed = async (hingeA3) => {
   await page.evaluate((p) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(p)); }, {
     name: 'Z', active: 2, prices: {},
-    runs: [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0, wstawka: { typ: 'plaska', w: 60 } } })],
+    runs: [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
     items: [CAB('A1', 600, 'c1'), CAB('A2', 600, 'c1'), CAB('A3', 600, 'c1', { doors: 1, hinge: hingeA3 }),
       CAB('R', 1000, 'c2', { doors: 1, fix: { side: 'left', w: 618, mode: 'overlay', support: false }, hinge: 'right' })] });
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(800);

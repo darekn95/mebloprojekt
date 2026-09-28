@@ -3,7 +3,7 @@
    - gorny ciag drugiej sciany wisi na tej scianie (wczesniej trafial na
      pierwsza i nachodzil na tamten gorny),
    - gorny ciag, ktory zaczyna sie w rogu, odsuwa sie o glebokosc gornego ciagu
-     sciany wjezdzajacej (300), gdy ten siega rogu — a nie wcale,
+     sciany wjezdzajacej (300) i jego front (18), gdy ten siega rogu,
    - „+ szafka” w ciagu bierze jego wymiary (gorny 300 w glab, dolny 570),
      zamiast domyslnych 500. */
 import pw from './pw.mjs';
@@ -50,11 +50,11 @@ ok('dwa podpisy „ciąg górny — 1358” (po jednym na ścianę)', gorneNapis
 let k = (await kolizje()).filter((l) => /szafki „G\d"[^„]*„G\d"/.test(l) || /Skrzydło szafki „G/.test(l));
 ok('górne ciągi obu ścian nie nachodzą na siebie (brak kolizji górnych)', k.length === 0, k.map((l) => l.slice(0, 80)).join(' / '));
 
-console.log('\n== górny ciąg sięgający rogu odsuwa górny drugiej ściany o 300 ==');
+console.log('\n== górny ciąg sięgający rogu odsuwa górny drugiej ściany o 300 + 18 ==');
 // gorny sciany 1 do samego rogu: 600 + 600 + 1000 = 2200 = dlugosc dolnego
 await seed([...dolne, gor('G1', 600, 'c3'), gor('G2', 600, 'c3'), gor('G3', 1000, 'c3'), gor('G4', 600, 'c4')]);
 t = await napisyZGory();
-ok('rzut pokazuje odsunięcie 300 w rogu górnego ciągu', t.includes('300'), t.filter((x) => /^\d{3}$/.test(x)).join(','));
+ok('rzut pokazuje odsunięcie 318 w rogu górnego ciągu', t.includes('318'), t.filter((x) => /^\d{3}$/.test(x)).join(','));
 
 console.log('\n== „+ szafka” bierze wymiary ciągu ==');
 await seed([...dolne, gor('G1', 600, 'c3'), gor('G2', 600, 'c4')]);

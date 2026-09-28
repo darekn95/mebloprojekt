@@ -228,6 +228,7 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `MIN_OPENING` | 250 | najmniejsze światło między półkami przy automacie |
 | `MIN_LEVEL` | 100 | najniższy sensowny poziom |
 | `WASKI_FRONT` | 250 | poniżej tego front jest wąski — podpowiedź, nie błąd; też próg podpowiedzi „dwoje wąskich drzwi” |
+| `n.pair.frontRog` | tf / 0 | ślepy róg: front szafki w rogu (nakładany) — drugi ciąg zaczyna się za nim: korpus + front + luz + wstawka; przy szafce w L 0 (róg domyka ramię) |
 | `SLEPY_ZAPAS` | 30 | ślepy róg: zasłonięta część frontu = głębokość sąsiada + jego front + ten zapas na uchwyt (`n.blind.covered`, pełna wartość `zaslania`) |
 | `GTV_PD_G00`, `KLAPA_WYS`, `KLAPA_SILY` | tabela | udźwig [kg] jednego podnośnika GTV PD-G00 wg kąta (75/90/100°), siły (50–150 N) i wysokości frontu (300–600 mm); instrukcja od użytkownika. „12” dla 50 N/400 mm/75° to literówka → 1,2 |
 | `GTV_PD_ECGDL` | tabela | amortyzator olejowy klapy opadanej: 60 / 80 / 150 N, tylko 90°, liczby jak PD-G00 dla 90° (karta od użytkownika) |

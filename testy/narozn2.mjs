@@ -74,7 +74,9 @@ await pick('Z góry');
 k = (await mmShapes('rect')).filter((q) => q.f === '#fafaf9' && q.w > 100 && q.h > 100);
 const zRamieniem = Math.min(...szafkaB(k).map((q) => q.y));
 console.log('     z ramieniem 500 ciąg B zaczyna się na ' + zRamieniem);
-ok('ramię odsuwa drugi ciąg o swoją długość', zRamieniem - bezRamienia === 500,
+/* Slepy rog (bez ramienia) zjada korpus i front szafki w rogu (600 + 18);
+   szafka w L — korpus i ramie (600 + 500), front domyka tam ramie. */
+ok('ramię odsuwa drugi ciąg o swoją długość (bez ramienia 618, z ramieniem 1100)', bezRamienia === 618 && zRamieniem === 1100,
   `${bezRamienia} → ${zRamieniem}`);
 
 console.log('\n== ramie widac w rzucie z gory ==');

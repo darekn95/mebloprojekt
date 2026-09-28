@@ -3911,7 +3911,14 @@ const runLayout = (groups, ref = null) => {
     const wsU = przyRogu ? (ws.typ === "szeroka" ? ws.w : przyRogu.geo.tf) : 0;
     if (przyRogu) n.pair.wstawka = { ...ws, cab: przyRogu, run: ustepuje, naStarcie: ustNaStarcie,
       u: wsU, gl: ws.typ === "szeroka" ? przyRogu.geo.tf : ws.w };
-    const o = glRog + armLen + (n.corner.clear || 0) + wsU;
+    /* Slepy rog: drugi ciag staje bokiem przed licem szafki w rogu, czyli
+       za jej frontem (fix / drzwi w zaslonietej czesci), a nie za korpusem.
+       Bez tego bok sasiada i fix zajmowaly to samo miejsce, a wstawka
+       nachodzila na fix (zgloszenie uzytkownika 2026-09-28). Przy szafce
+       w L rog domyka ramie — tam front liczy geometria ramienia. */
+    const frontRog = rogowa && !armLen && rogowa.cab.frontMode !== "inset" ? rogowa.geo.tf : 0;
+    n.pair.frontRog = frontRog;
+    const o = glRog + frontRog + armLen + (n.corner.clear || 0) + wsU;
     // odsuwamy z tej strony ciagu, ktora dotyka rogu
     if (n.corner.at === "end") { if (ustepuje === n) n.lead += o; else p.tail += o; }
     else if (ustepuje === n) n.tail += o; else p.lead += o;
@@ -3959,7 +3966,10 @@ const runLayout = (groups, ref = null) => {
     const wchodzi = c.owner === "self" ? n : p;
     const ustepuje = wchodzi === n ? p : n;
     if (odRogu(wchodzi) >= ustepuje.depth) return;       // wchodzacy do rogu nie siega
-    const trzeba = wchodzi.depth + (c.clear || 0);
+    // jak w dolnym rogu: za licem szafki wchodzacej, czyli razem z jej frontem
+    const pierwsza = wchodzi.g.cabs[rogU(wchodzi) === 0 ? 0 : wchodzi.g.cabs.length - 1];
+    const frontW = pierwsza && pierwsza.cab.frontMode !== "inset" ? pierwsza.geo.tf : 0;
+    const trzeba = wchodzi.depth + frontW + (c.clear || 0);
     /* Odsuwamy tylko ciag, ktory w rogu sie zaczyna. Ten, ktory w rogu sie
        konczy, stoi od poczatku sciany — jego przesuniecie zmieniloby uklad
        calej sciany; jesli wchodzi w rog, powie o tym kontrola otwierania. */

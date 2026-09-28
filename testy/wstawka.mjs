@@ -93,17 +93,19 @@ wg = await wstawkaZGory();
 ok('rzut z góry: wstawka 60 × 18', wg.length === 1 && wg[0].w === 60 && wg[0].h === 18, JSON.stringify(wg));
 
 console.log('\n== odsunięcie ciągu o wstawkę ==');
-/* Ciag sciany 1 odsuwa sie od rogu o glebokosc szafki w rogu (570) plus
-   wstawke — rzut pisze te liczbe w przerywanym polu „zjedzonym przez narożnik”. */
+/* Ciag sciany 1 odsuwa sie od rogu o glebokosc szafki w rogu (570), jej
+   front (18) i wstawke — rzut pisze te liczbe w przerywanym polu „zjedzonym
+   przez narożnik”. Front doliczany od 2026-09-28: wczesniej bok sasiada stal
+   na fixie szafki w rogu, a wstawka na niego nachodzila. */
 const zjedzone = async (w) => {
   await seed(w);
   await pick('Zabudowa'); await pick('Z góry');
   return page.evaluate(() => [...document.querySelectorAll('#rysunek text')].map((t) => t.textContent.trim()));
 };
 const tBez = await zjedzone(null), tPl = await zjedzone({ typ: 'plaska', w: 60 }), tSz = await zjedzone({ typ: 'szeroka', w: 60 });
-ok('bez wstawki róg zjada 570', tBez.includes('570') && !tBez.includes('588'));
-ok('płaska odsuwa ciąg o 18 (588)', tPl.includes('588'), tPl.filter((t) => /^5\d\d$/.test(t)).join(','));
-ok('szeroka odsuwa ciąg o 60 (630)', tSz.includes('630'), tSz.filter((t) => /^6\d\d$/.test(t)).join(','));
+ok('bez wstawki róg zjada 588 (korpus + front)', tBez.includes('588') && !tBez.includes('606'), tBez.filter((t) => /^[56]\d\d$/.test(t)).join(','));
+ok('płaska odsuwa ciąg o 18 (606)', tPl.includes('606'), tPl.filter((t) => /^[56]\d\d$/.test(t)).join(','));
+ok('szeroka odsuwa ciąg o 60 (648)', tSz.includes('648'), tSz.filter((t) => /^6\d\d$/.test(t)).join(','));
 
 console.log('\n== pole w karcie ciągu ==');
 await seed(null, 3);

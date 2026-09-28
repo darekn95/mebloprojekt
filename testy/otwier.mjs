@@ -158,11 +158,12 @@ const ileBrakuje = async () => (await kolizje())
   .map((l) => Number((/brakuje (\d+) mm/.exec(l) || [])[1] || 0));
 /* Uklad uzytkownika (2026-09-28): w rog wjezdza sciana B ze slepa szafka 1000
    (fix 648 od rogu, zawias od zewnatrz, uchwyt przy fixie), sciana A konczy sie
-   przy niej z wstawka plaska. Prawe skrzydlo ostatniej szafki A przy otwieraniu
-   zahacza wlasnie o uchwyt szafki w rogu. */
+   bokiem przed jej fixem. Bez wstawki prawe skrzydlo ostatniej szafki A przy
+   otwieraniu zahacza wlasnie o uchwyt szafki w rogu; plaska wstawka 18 mm
+   odsuwa je na tyle, ze uchwyt 20 mm juz nie przeszkadza. */
 const DWA = { levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null }] }] };
-const zUchwytem = (mm) => seed([RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0,
-    wstawka: { typ: 'plaska', w: 60 } } })],
+const zUchwytem = (mm, wstawka = null) => seed([RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0,
+    wstawka } })],
   [CAB('A1', 600, 'c1', null, { ...DWA, handleOut: mm }), CAB('A2', 600, 'c1', null, { ...DWA, handleOut: mm }),
    CAB('R', 1000, 'c2', null, { handleOut: mm, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null,
      fix: { side: 'left', w: 648, mode: 'overlay', support: false }, hinge: 'right' }] }] })]);
@@ -177,6 +178,10 @@ ok('grubszy uchwyt zabiera więcej miejsca',
   // wiecej miejsca = glebsza kolizja albo dodatkowa kolizja, ktorej przy 20 mm nie bylo
   u100.length > 0 && u20.length > 0 && (Math.max(...u100) > Math.max(...u20) || u100.length > u20.length),
   JSON.stringify(u20) + ' → ' + JSON.stringify(u100));
+
+await zUchwytem(20, { typ: 'plaska', w: 60 });
+const zWstawka = await kolizje();
+ok('płaska wstawka 18 mm zdejmuje kolizję z uchwytem 20 mm', !zWstawka.some((l) => /stoi uchwyt/.test(l)), skrot(zWstawka));
 
 await zUchwytem(0);
 const bezUchwytu = await kolizje();

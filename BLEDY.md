@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-28 | ślepy róg (`projectLayout`) | drugi ciąg odsuwał się od rogu o sam korpus szafki w rogu (570), bez jej frontu (18) — bok sąsiada stał w miejscu fixu, a płaska wstawka na niego nachodziła i nic nie odsuwała (zgłoszenie użytkownika: „nie widać wstawki, bok do boku”). Teraz `frontRog` (front szafki w rogu, gdy nakładany; nie przy szafce w L) i to samo w górnych ciągach. Przesunięte liczby w testach: `narozn` 618/668, `narozn2` 618, `narozn3` blaty 918/1518, `wstawka` 588/606/648, `gorne` 318; `otwier` i `zawiasy` — kolizja z uchwytem liczona bez wstawki (z płaską 18 mm przy uchwycie 20 mm jej nie ma) | (ten commit) |
 | 2026-09-28 | widoki „Szafka” (przód, z góry, 3D, PDF) | wstawka w rogu była w formatkach szafki, do której się przykręca, i w widoku ciągu, ale nie na rysunku samej szafki (zgłoszenie użytkownika) — widoki dostają `wstawki` (`wstawkiSzafki`); suita `wstawka` | (ten commit) |
 | 2026-09-28 | `tylkol` | test szukał przycisku po nazwie „auto” bez dokładnego dopasowania i łapał nowy „auto (L)” przełącznika zawiasu — selektor `exact: true`; aplikacja dobra | (ten commit) |
 | 2026-09-28 | `blat`, `fromcab`, `stdfull` | testy zakładały szablon „Szafka stojąca” 500 w głąb — od zmiany na 570 (prośba użytkownika) głębokość blatu to 620, prowadnica w rzucie 52..552, a druga szafka dostaje w teście 570, żeby boki były wspólne; aplikacja dobra | (ten commit) |

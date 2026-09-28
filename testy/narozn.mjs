@@ -78,11 +78,12 @@ ok('obrócone szafki zachowały swoje szerokości',
   JSON.stringify(pionowe.map((q) => q.h)));
 
 console.log('\n== rog zjada glebokosc ciagu, ktory w niego wjezdza ==');
-// A dojezdza do rogu (koniec A = 1400), wiec B startuje 600 mm dalej
+// A dojezdza do rogu (koniec A = 1400), wiec B startuje za licem szafki A:
+// 600 korpusu + 18 frontu (od 2026-09-28 — wczesniej bok B stal na froncie A)
 const konA = Math.max(...poziome.map((q) => q.x + q.w));
 const startB = Math.min(...pionowe.map((q) => q.y));
 console.log(`     koniec A: ${konA}, poczatek B: ${startB}`);
-ok('ciąg B zaczyna się o głębokość ciągu A od rogu', startB === 600, String(startB));
+ok('ciąg B zaczyna się o głębokość ciągu A + front od rogu (618)', startB === 618, String(startB));
 ok('ciągi nie wchodzą na siebie', pionowe.every((q) => q.y >= 600), JSON.stringify(pionowe.map((q) => q.y)));
 ok('lico ciągu B jest po stronie pokoju',
   pionowe.every((q) => q.x + q.w <= konA + 1 && q.x >= konA - 601),
@@ -117,7 +118,7 @@ await pick('Zabudowa');
 await pick('Z góry');
 k = await korpusy();
 const startB2 = Math.min(...k.filter((q) => q.rot === 90).map((q) => q.y));
-ok('luz dokłada się do straty w rogu', startB2 === 650, String(startB2));
+ok('luz dokłada się do straty w rogu (600 + 18 + 50)', startB2 === 668, String(startB2));
 
 console.log('\n== narożnik przed ciagiem (lustrzane L) ==');
 await seed(
