@@ -1330,13 +1330,13 @@ function computeGeoLiczy(cab, mat, ctx) {
 
   if (grooved) {
     if (grDep >= t)
-      add("error", `Wręg ${grDep} mm jest szerszy niż płyta ${fmt(t)} mm — z płyty nic nie zostaje.`);
+      add("error", `Frez ${grDep} mm jest szerszy niż płyta ${fmt(t)} mm — z płyty nic nie zostaje.`);
     if (grPlay >= grDep)
-      add("error", "Luz we wręgu jest większy niż jego szerokość — plecy nie wejdą.");
+      add("error", "Luz we frezie jest większy niż jego szerokość — plecy nie wejdą.");
     if (grOff > carcassDepth)
-      add("error", "Wręg wypada poza głębokość korpusu.");
+      add("error", "Frez wypada poza głębokość korpusu.");
     if (grOff < tb)
-      add("warn", `Wręg ma ${fmt(grOff)} mm głębokości, a HDF ${fmt(tb)} mm — plecy wystają ${fmt(tb - grOff)} mm za tył korpusu.`);
+      add("warn", `Frez ma ${fmt(grOff)} mm głębokości, a HDF ${fmt(tb)} mm — plecy wystają ${fmt(tb - grOff)} mm za tył korpusu.`);
   }
 
   if (W <= 2 * t) add("error", "Szerokość jest mniejsza niż dwie grubości płyty.");
@@ -2858,7 +2858,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     P({ name: "Plecy HDF we frezie", qty: 1,
         a: gx1 - gx0, b: innerH + 2 * grab, matKey: "back",
         edges: { a1: false, a2: false, b1: false, b2: false },
-        note: `wchodzi ${fmt(grab)} mm we wręg w bokach, wieńcu i dnie (${grDep} mm wręgu minus ${grPlay} mm luzu)` });
+        note: `wchodzi ${fmt(grab)} mm we frez w bokach, wieńcu i dnie (${grDep} mm frezu minus ${grPlay} mm luzu)` });
   } else if (cab.back === "hdf") {
     const x0 = (cornerCut.backLeftX ?? 0) + 1;
     const x1 = (cornerCut.backRightX ?? W) - 1;
@@ -7103,7 +7103,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
     by = geo.interior.y0 - grab;
     bw = geo.innerW + 2 * grab;
     bh = geo.innerH + 2 * grab;
-    label = `HDF we wręgu, wchodzi ${fmt(grab)} mm w boki, wieniec i dno`;
+    label = `HDF we frezie, wchodzi ${fmt(grab)} mm w boki, wieniec i dno`;
   } else {
     bx = 1; by = 1; bw = W - 2; bh = H - 2;
     label = "HDF przybijane, luz 1 mm z każdej strony";
@@ -7233,7 +7233,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
           <DimV y1={fy(by + bh)} y2={fy(by)} x={-55} label={`${fmt(bh)}`} />
           {geo.grooved && (
             <DimH x1={mx(bx, bw)} x2={mx(bx, bw) + grab} y={H + 60}
-              label={`wręg ${fmt(grab)}`} above={false} c={WARNC} />
+              label={`frez ${fmt(grab)}`} above={false} c={WARNC} />
           )}
         </>
       )}
@@ -13384,7 +13384,7 @@ export default function App() {
             </Field>
             {cab.back === "hdf" && (
               <Field label="Montaż pleców" hint={geo.grooved
-                ? "Plecy we wręgu (frez od tyłu w bokach, wieńcu i dnie), zlicowane z tyłem korpusu."
+                ? "Plecy we frezie od tyłu w bokach, wieńcu i dnie, zlicowane z tyłem korpusu."
                 : "Plecy przybijane od tyłu, luz 1 mm z każdej strony."}>
                 <Seg value={geo.grooved ? "groove" : "nail"}
                   onChange={(v) => set({ backGroove: { ...(cab.backGroove || {}), on: v === "groove" } })}

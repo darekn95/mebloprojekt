@@ -18,7 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
-| 2026-09-28 | plecy we frezie (`computeGeo`, rysunki, 3D) | frez liczony jak rowek odsunięty 16 mm od tyłu i 4 mm w płytę (HDF 570 × 690 w szafce 600 × 720, półki 19 mm płytsze) — a u użytkownika to wręg 16 × 3 od tyłu, HDF zlicowany z tyłem. Domyślne {16, 4} były zamienione; teraz {3, 16}, stare zapisy z {16, 4} migrują (`migrateCab`, znacznik `wreg`). Wręg płytszy niż HDF — ostrzeżenie i plecy liczone za korpusem. Nowa suita `wreg`; audyt dopuszcza HDF 15 mm w płycie | (ten commit) |
+| 2026-09-28 | plecy we frezie (`computeGeo`, rysunki, 3D) | frez liczony jak rowek odsunięty 16 mm od tyłu i 4 mm w płytę (HDF 570 × 690 w szafce 600 × 720, półki 19 mm płytsze) — a u użytkownika to frez 16 × 3 na tylnej krawędzi, HDF zlicowany z tyłem. Domyślne {16, 4} były zamienione; teraz {3, 16}, stare zapisy z {16, 4} migrują (`migrateCab`, znacznik `wreg`). Frez płytszy niż HDF — ostrzeżenie i plecy liczone za korpusem. Nowa suita `wreg`; audyt dopuszcza HDF 15 mm w płycie | (ten commit) |
 | 2026-09-28 | róg (`projectLayout`, `glRog`), znalazł `audyt` | odsunięcie drugiego ciągu liczone od ściany do lica samej szafki w rogu, jakby stała przy ścianie — a szafki ciągu stoją wyrównane do lica, więc płytsza szafka w rogu stoi dalej od ściany. Szafka w L 560 w ciągu szafek 570 wchodziła ramieniem 10 mm w pierwszą szafkę drugiego ciągu. Teraz `glRog` = lico ciągu + wysunięcie szafki w rogu. Uwaga „Od rogu szafka zajmuje…” rozpisuje też plecy / dosunięcie do lica (wcześniej składniki nie sumowały się do podanej liczby). Testy: `narozn2` ramię „500 × 600” (korpus), `narkat` wzmocnienie czołowe o plecy pustego ciągu krótsze | (ten commit) |
 | 2026-09-28 | szafka w L, pusty ciąg, półka przy wsporniku | szablon szafki w L 560 w głąb jak stojąca (`CORNER_L_D`, ramię 640, razem nadal 1200); pusty ciąg za rogiem liczony od ściany razem z domyślnymi plecami HDF (ramię było o 3 mm płytsze niż szafki obok); uwaga „szafka w L … ramię N × M” podaje głębokość korpusu ramienia (`armKorpus`), nie z plecami; półka przy wsporniku fixu — na całą szerokość, płytsza o wspornik, na zwykłych kołkach w bokach (poprawka użytkownika; wcześniej węższa z kołkiem we wsporniku). Przesunięte liczby w testach: `kreator` ramię 640, `odsuniecie` 1210 od rogu i „ramię 640 × 537”, `blatrog` 633 i uwaga o 7 mm przy ręcznie ustawionych 570, `wspornik` 564 × 460 | (ten commit) |
 | 2026-09-28 | przegląd wartości na sztywno | wstawka w rogu: opis bloku i przycisk „Ustaw szafkę w rogu” miały „18 mm” na sztywno, a przycisk wstawki przy kolizji brał grubość frontu z pierwszej szafki ciągu, nie tej przy rogu — teraz `tfPrzyRogu` | (ten commit) |
@@ -79,9 +79,9 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   zwykłych kołkach w bokach; ostrzeżenie
   z przyciskiem „Przełóż zawiasy na drugą stronę i usuń wspornik” (albo „Usuń
   wspornik”, gdy zawiasy już są po drugiej stronie), `wspornikoff:`.
-- **Plecy „We frezie” = wręg 16 × 3** (2026-09-28): z płyty 18 frezuje się
+- **Plecy „We frezie” = frez 16 × 3 na tylnej krawędzi** (2026-09-28; w aplikacji zawsze „frez”, nie „wręg”): z płyty 18 frezuje się
   16 mm (zostają 2 mm od zewnątrz), 3 mm w głąb w stronę drzwi — HDF 3 mm
-  zlicowany z tyłem korpusu; wręg też w wieńcu i dnie; luz 1 mm na stronę.
+  zlicowany z tyłem korpusu; frez też w wieńcu i dnie; luz 1 mm na stronę.
   HDF = W − 6 × H − 6. Pola: „Szerokość” 16, „Głębokość” 3, „Luz” 1.
 - **Szafka w L 560 w głąb** (2026-09-28), jak stojąca; ramię 640 (razem 1200).
   Półki ramienia płytsze o kątowniki.

@@ -609,7 +609,7 @@ za rogiem liczy glebokosc od sciany z domyslnymi plecami HDF (`runFrontDepth`).
 W uwagach i UI glebokosc ramienia = `armKorpus(a)` (bez plecow).
 [AI-INFO] Polka przy wsporniku pionowym fixu: na cala szerokosc, plytsza o
 wspornik (`c.shFront`/`c.shD`), kolki w bokach — tak ustalil uzytkownik.
-[AI-INFO] Frez pod HDF (`cab.backGroove`) = wreg od tylu w bokach, wiencu
-i dnie: `depth` 16 (z grubosci plyty), `offset` 3 (w strone drzwi, HDF
+[AI-INFO] Frez pod HDF (`cab.backGroove`) = frez od tylu na krawedzi bokow,
+wienca i dna (w UI zawsze „frez”, nie „wręg” — prosba uzytkownika): `depth` 16 (z grubosci plyty), `offset` 3 (w strone drzwi, HDF
 zlicowany z tylem), `play` 1 na strone. `backIntrusion = grOff`, HDF z0 =
 cd - grOff. Stare {16, 4} bez `wreg` migruja w `migrateCab`. Suita `wreg`.

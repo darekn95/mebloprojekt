@@ -1,5 +1,5 @@
-/* Plecy HDF „We frezie” = wreg od tylu w bokach, wiencu i dnie (ustalone
-   z uzytkownikiem 2026-09-28): z plyty 18 frezujemy 16 (zostaja 2 mm od
+/* Plecy HDF „We frezie” = frez od tylu na krawedzi bokow, wienca i dna
+   (ustalone z uzytkownikiem 2026-09-28; w UI zawsze „frez”): z plyty 18 frezujemy 16 (zostaja 2 mm od
    zewnatrz), 3 mm w glab w strone drzwi, wiec HDF 3 mm stoi rowno z tylem
    korpusu; luz 1 mm na strone. HDF = W - 6 × H - 6, polki o 3 mm plytsze,
    szafka stoi tylem korpusu przy scianie (bez 3 mm plecow za nim). */
@@ -27,7 +27,7 @@ const formatki = () => page.evaluate(() => {
 const wymiar = (rows, re) => rows.filter((r) => re.test(r[0])).map((r) => `${r[2]}×${r[3]}`);
 const zapis = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.backGroove);
 
-console.log('== wręg 16 × 3, luz 1 ==');
+console.log('== frez 16 × 3, luz 1 ==');
 await seed({ on: true, offset: 3, depth: 16, play: 1, wreg: true });
 let rows = await formatki();
 ok('Plecy HDF we frezie 594 × 714 (W − 6 × H − 6)', wymiar(rows, /^Plecy HDF we frezie/).includes('594×714'),
@@ -51,13 +51,13 @@ const hdf = await page.evaluate(() => [...document.querySelectorAll('svg rect')]
   .filter((r) => r.h === 3 && r.w > 500));
 ok('HDF na y = 0 (tył korpusu), nie za nim', hdf.some((r) => r.y === 0), JSON.stringify(hdf));
 
-console.log('\n== wręg płytszy niż HDF: ostrzeżenie ==');
+console.log('\n== frez płytszy niż HDF: ostrzeżenie ==');
 await seed({ on: true, offset: 2, depth: 16, play: 1, wreg: true });
 const card = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi/ }) }).first();
 const u = (await card.count()) ? await card.innerText() : '';
 ok('„plecy wystają 1 mm za tył korpusu”', /plecy wystają 1 mm za tył korpusu/.test(u), u.slice(0, 200));
 
-console.log('\n== stary zapis {16 od tyłu, 4 w płytę} przechodzi na wręg 16 × 3 ==');
+console.log('\n== stary zapis {16 od tyłu, 4 w płytę} przechodzi na frez 16 × 3 ==');
 await seed({ on: true, offset: 16, depth: 4, play: 1 });
 rows = await formatki();
 ok('stary projekt: HDF 594 × 714', wymiar(rows, /^Plecy HDF we frezie/).includes('594×714'), wymiar(rows, /^Plecy/).join(', '));
