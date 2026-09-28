@@ -75,10 +75,10 @@ bl = await blaty();
 ok('bez uwag o wysięgu', wysiegowe(u).length === 0, wysiegowe(u).map((x) => x.t.slice(0, 80)).join(' // '));
 ok('uwaga o odstępie od ściany', u.some((x) => /Ciąg stoi 30 mm od ściany/.test(x.t)), u.map((x) => x.t.slice(0, 40)).join(' // '));
 ok('blat ściany ma 600', bl.length > 0 && bl[0].includes('600'), JSON.stringify(bl[0]));
-/* Szafka narozna odsunieta o 30 mm zjada rog razem z odstepem: 30 + 540 +
-   ramie 630 = 1200, tyle samo co przy 570 bez odstepu. */
-ok('ciąg za rogiem zaczyna się 1200 mm od rogu',
-  u.some((x) => /zaczyna się 1200 mm od rogu/.test(x.t)), (u.find((x) => /zaczyna się/.test(x.t)) || {}).t);
+/* Szafka narozna odsunieta o 30 mm zjada rog razem z odstepem: 30 + plecy 3
+   + korpus 537 + ramie 640 (szafka w L 560 + 640 = 1200 od 2026-09-28) = 1210. */
+ok('ciąg za rogiem zaczyna się 1210 mm od rogu',
+  u.some((x) => /zaczyna się 1210 mm od rogu/.test(x.t)), (u.find((x) => /zaczyna się/.test(x.t)) || {}).t);
 
 console.log('\n== obie ściany 30 mm: ramię zostaje przy korpusie 540 ==');
 /* Ramie lezy przy scianie drugiego ciagu i stoi z jego odstepem — jego plyty
@@ -88,7 +88,7 @@ await uklad(537, { bottom: 30, top: null }, (p) => { p.runs[1].wallGap = { botto
 u = await uwagi();
 bl = await blaty();
 const lka = u.find((x) => /szafką narożną w L/.test(x.t));
-ok('ramię 630 × 537 (głębokość korpusu)', !!lka && /ramię 630 × 537 mm/.test(lka.t), lka && lka.t.slice(0, 160));
+ok('ramię 640 × 537 (głębokość korpusu)', !!lka && /ramię 640 × 537 mm/.test(lka.t), lka && lka.t.slice(0, 160));
 ok('oba blaty po 600, bez uwagi o różnych szerokościach',
   bl.length === 2 && bl.every((r) => r.includes('600')) && !u.some((x) => /różne szerokości/.test(x.t)),
   JSON.stringify(bl.map((r) => r.slice(3, 5))));
@@ -160,7 +160,7 @@ ok('obrócone: wyższe niż szersze', !!ramieWKadrze && ramieWKadrze.wys > ramie
 ok('mieści się w kadrze, z kawałkiem drugiej ściany', !!ramieWKadrze && ramieWKadrze.wKadrze && ramieWKadrze.sciany === 1,
   JSON.stringify(ramieWKadrze));
 ok('nad ramieniem jest blat jego ściany', !!ramieWKadrze && ramieWKadrze.blaty >= 1, JSON.stringify(ramieWKadrze));
-// ramie 630 mm: para przy rogu i para pod wolnym koncem (srodkowa dopiero od 900)
+// ramie 640 mm: para przy rogu i para pod wolnym koncem (srodkowa dopiero od 900)
 ok('ramię ma swoje 4 nóżki', !!ramieWKadrze && ramieWKadrze.nozki === 4, JSON.stringify(ramieWKadrze));
 await page.getByRole('button', { name: 'Szafka', exact: true }).first().click().catch(() => {});
 await page.waitForTimeout(500);

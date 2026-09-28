@@ -37,32 +37,42 @@ const szerszy = u.find((x) => /Blat nad ramieniem/.test(x.t));
 console.log('   ' + (rozne ? rozne.t.slice(0, 190) : '(brak o różnych)'));
 console.log('   ' + (szerszy ? szerszy.t.slice(0, 190) : '(brak o arkuszu)'));
 ok('ostrzeżenie o różnych szerokościach', !!rozne, u.map((x) => x.t.slice(0, 40)).join(' // '));
-/* 570 + 2 + 18 = 590 do lica, wiec arkusz 600 wystaje 10 mm i idzie w calosci;
-   za rogiem 600 + 2 + 18 + 10 = 630 — ponad arkusz, wiec na wymiar. */
-ok('mówi, które odcinki', !!rozne && /600 mm/.test(rozne.t) && /630 mm/.test(rozne.t), rozne && rozne.t.slice(0, 120));
+/* Plecy 3 + 560 + 2 + 18 = 583 do lica, wiec arkusz 600 idzie w calosci;
+   za rogiem plecy 3 + 600 + 2 + 18 + 10 = 633 — ponad arkusz, wiec na wymiar. */
+ok('mówi, które odcinki', !!rozne && /600 mm/.test(rozne.t) && /633 mm/.test(rozne.t), rozne && rozne.t.slice(0, 120));
 ok('wskazuje głębszy ciąg', !!rozne && /jest głębszy/.test(rozne.t));
 ok('ma poprawkę na sąsiedni ciąg', !!rozne && rozne.b.some((x) => /sąsiedniego ciągu do \d+/.test(x)),
   rozne ? rozne.b.join(' | ') : '');
-/* Blat nad ramieniem to 600 glebokosci + luz przy zawiasach + front + wysieg
-   = 630, czyli ponad arkusz 600 — a ciag za rogiem nie ma wlasnych szafek,
+/* Blat nad ramieniem to plecy 3 + 600 glebokosci + luz przy zawiasach + front
+   + wysieg = 633, czyli ponad arkusz 600 — a ciag za rogiem nie ma wlasnych szafek,
    wiec nie ma tez wlasnej karty, w ktorej moglby o tym powiedziec. */
 ok('ostrzeżenie o blacie ponad arkusz', !!szerszy, '');
-ok('podaje 630 mm', !!szerszy && /630 mm/.test(szerszy.t), szerszy && szerszy.t.slice(0, 120));
+ok('podaje 633 mm', !!szerszy && /633 mm/.test(szerszy.t), szerszy && szerszy.t.slice(0, 120));
 
 console.log('\n== poprawka wyrównuje sąsiedni ciąg ==');
-await page.getByRole('button', { name: /sąsiedniego ciągu do 570 mm/ }).first().click();
+// szafka w L ma od 2026-09-28 560 w glab (jak stojaca) — przycisk wyrownuje do niej
+await page.getByRole('button', { name: /sąsiedniego ciągu do \d+ mm/ }).first().click();
 await page.waitForTimeout(1600);
 const p2 = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
 console.log('   głębokości ciągów: ' + JSON.stringify(p2.runs.map((r) => [r.name, r.D])));
-ok('sąsiedni ciąg ma 570', p2.runs.every((r) => r.D === 570), JSON.stringify(p2.runs.map((r) => r.D)));
+ok('sąsiedni ciąg dostał głębokość z podpowiedzi (płytszy niż 600)', p2.runs.every((r) => r.D < 600), JSON.stringify(p2.runs.map((r) => r.D)));
 u = await uwagi();
 ok('ostrzeżenia znikają', !u.some((x) => /różne szerokości|Blat nad ramieniem/.test(x.t)),
   u.map((x) => x.t.slice(0, 40)).join(' // '));
 
 /* Plecy HDF 3 (za korpusem, od 2026-09-28) + 570 + 2 mm luzu przy zawiasach
    + front 18 = 593 do lica drzwi, wiec arkusz 600 wystaje tylko 7 mm — uwaga
-   (nie ostrzezenie), z rozpisaniem, skad to sie bierze. */
+   (nie ostrzezenie), z rozpisaniem, skad to sie bierze. Szablon ma teraz 560,
+   wiec glebokosc 570 ustawiamy recznie. */
 console.log('\n== szafki 570 z plecami: arkusz 600 wystaje 7 mm — uwaga ==');
+await page.evaluate(() => {
+  const p = JSON.parse(localStorage.getItem('szafki:projekt'));
+  p.runs.forEach((r) => { r.D = 570; });
+  p.items.forEach((i) => { i.cab.D = 570; });
+  localStorage.setItem('szafki:projekt', JSON.stringify(p));
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(2500);
 u = await uwagi();
 const wys = u.find((x) => /wystaje przed drzwi tylko 7 mm/.test(x.t));
 ok('uwaga o 7 mm z plecami w rozpisce', !!wys && /plecy 3 \+ korpus 570/.test(wys.t), u.map((x) => x.t.slice(0, 60)).join(' // '));

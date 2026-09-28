@@ -1,6 +1,6 @@
 /* Wspornik pionowy fixu a polka (ustalone z uzytkownikiem 2026-09-28): nikt
-   nie wycina w polce „U” na wspornik, wiec polka jest krotsza — konczy sie na
-   wsporniku i lezy na kolkach w nim. Ostrzezenie z przyciskiem: zawiasy na
+   nie wycina w polce „U” na wspornik, wiec polka jest plytsza — na cala
+   szerokosc, zaczyna sie za wspornikiem, na zwyklych kolkach w bokach. Ostrzezenie z przyciskiem: zawiasy na
    druga strone i wspornik usuniety (albo sam wspornik, gdy zawiasy juz sa po
    drugiej stronie); bez wspornika polka wraca na pelna szerokosc. */
 import pw from './pw.mjs';
@@ -31,24 +31,24 @@ const kol = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:pr
 
 console.log('== zawias przy fixie: półka krótsza, przycisk przekłada zawiasy ==');
 await seed('left');
-// fix 100 od lewej, wspornik 82..100 — polka od wspornika do prawego boku: 582 - 100 = 482
-ok('formatka półki 482 × 560 (do wspornika)', (await polki()).includes('482×560'), (await polki()).join(', '));
+// wspornik 100 mm od frontu — polka 564 na szerokosc, 560 - 100 = 460 w glab
+ok('formatka półki 564 × 460 (płytsza, za wspornikiem)', (await polki()).includes('564×460'), (await polki()).join(', '));
 let u = await uwagi();
-ok('ostrzeżenie: półka krótsza, na kołkach we wsporniku', /półka jest krótsza — kończy się na wsporniku pionowym fixu \(482 zamiast 564 mm\)/.test(u), u.slice(0, 200));
+ok('ostrzeżenie: półka płytsza, za wspornikiem', /półka jest płytsza — zaczyna się za wspornikiem pionowym fixu \(460 zamiast 560 mm głębokości\)/.test(u), u.slice(0, 200));
 // plan wiercen jest w arkuszu PDF — kolek polki od strony fixu we wsporniku, nie w boku lewym
 await page.evaluate(() => { window.__rep = ''; window.print = () => { const r = document.querySelector('.print-only');
   window.__rep = r ? [...r.querySelectorAll('tr')].map((tr) => tr.innerText.replace(/\s+/g, ' ')).join('\n') : ''; }; });
 await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click(); await page.waitForTimeout(1200);
 const rep = await page.evaluate(() => window.__rep);
-ok('plan wierceń: kołek półki we wsporniku pionowym, nie w boku lewym',
-  /Wspornik pionowy.*kołek półki/.test(rep) && !/Bok lewy.*kołek półki/.test(rep), rep.split('\n').filter((l) => /kołek/.test(l)).join(' / '));
+ok('plan wierceń: kołki półki w obu bokach (nie we wsporniku)',
+  /Bok lewy.*kołek półki/.test(rep) && /Bok prawy.*kołek półki/.test(rep) && !/Wspornik pionowy.*kołek półki/.test(rep), rep.split('\n').filter((l) => /kołek/.test(l)).join(' / '));
 const btn = card(/^Uwagi/).getByRole('button', { name: 'Przełóż zawiasy na drugą stronę i usuń wspornik' });
 ok('przycisk „Przełóż zawiasy na drugą stronę i usuń wspornik”', await btn.count() === 1);
 await btn.click(); await page.waitForTimeout(1500);
 let c = await kol();
 ok('po kliknięciu: zawias z prawej, bez wspornika', c.hinge === 'right' && c.fix.support === false, JSON.stringify({ h: c.hinge, s: c.fix.support }));
-ok('półka wraca na pełną szerokość (564)', (await polki()).includes('564×560'), (await polki()).join(', '));
-ok('ostrzeżenie znika', !/półka jest krótsza/.test(await uwagi()));
+ok('półka wraca na pełną głębokość (560)', (await polki()).includes('564×560'), (await polki()).join(', '));
+ok('ostrzeżenie znika', !/półka jest płytsza/.test(await uwagi()));
 
 
 console.log('\n== zawias już po drugiej stronie: sam „Usuń wspornik” ==');

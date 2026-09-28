@@ -227,7 +227,9 @@ const CORNER_BRACKET_W = 60;
    CORNER_L_TOTAL to ta wlasnie calkowita szerokosc przy drugiej scianie —
    1200 mm, bo krotsze ramie nie daje sie po nie siegnac przez rog. */
 const CORNER_L_W = 900;
-const CORNER_L_D = 570;   // blat wychodzi wtedy 598 mm i miesci sie w pasie 600
+/* 560 jak szafka stojaca (ustalone z uzytkownikiem 2026-09-28): z HDF za
+   korpusem 563 od sciany, blat nad ramieniem 593 — miesci sie w arkuszu 600. */
+const CORNER_L_D = 560;
 const CORNER_L_TOTAL = 1200;
 const CORNER_L_ARM = CORNER_L_TOTAL - CORNER_L_D;
 // ponizej tego boku formatki nie utnie sie na pile formatowej
@@ -1840,20 +1842,19 @@ function computeGeoLiczy(cab, mat, ctx) {
             supportParts.push({ h: lv.h, d: sd });
             c.support = { d: sd, side: rawFix.side };
             /* Polka nie przejdzie przez wspornik, a nikt nie wycina w niej „U”
-               na niego — jest krotsza: konczy sie na wsporniku i lezy na kolkach
-               w nim (ustalone z uzytkownikiem 2026-09-28). Ostrzezenie mowi o tym
-               i daje przycisk: zawias na druga strone i wspornik niepotrzebny. */
-            const spX = rawFix.side === "left" ? fx + fixW - t : fx;
-            if (rawFix.side === "left") c.shX0 = Math.max(c.shX0 ?? c.x0, spX + t);
-            else c.shX1 = Math.min(c.shX1 ?? c.x1, spX);
-            c.shW = Math.round(c.shX1 - c.shX0);
+               na niego — jest plytsza: na cala szerokosc, ale zaczyna sie za
+               wspornikiem i lezy na zwyklych kolkach w bokach (ustalone
+               z uzytkownikiem 2026-09-28). Ostrzezenie mowi o tym i daje
+               przycisk: zawias na druga strone i wspornik niepotrzebny. */
+            c.shFront = Math.max(0, sd - frontCut - shelfFrontL);
+            c.shD = Math.max(0, shelfDepth - c.shFront);
             if ((c.shelves || []).length) {
               const zawiasPrzyFixie = (rawCol.hinge === "left" || rawCol.hinge === "right"
                 ? rawCol.hinge : cab.hinge === "left" || cab.hinge === "right" ? cab.hinge
                 : rawFix.side === "left" ? "right" : "left") === rawFix.side;
               const jedne = kind === "doors" && Number(rawCol.doors) === 1;
-              add("warn", `${where}: półka jest krótsza — kończy się na wsporniku pionowym fixu `
-                + `(${fmt(c.shW)} zamiast ${fmt(c.w)} mm) i leży na kołkach we wsporniku, który ma tylko ${fmt(sd)} mm głębokości.`
+              add("warn", `${where}: półka jest płytsza — zaczyna się za wspornikiem pionowym fixu `
+                + `(${fmt(c.shD)} zamiast ${fmt(shelfDepth)} mm głębokości), na całą szerokość, na zwykłych kołkach w bokach.`
                 + (jedne ? (zawiasPrzyFixie
                   ? " Wspornik jest po to, żeby przykręcić zawias — po przełożeniu zawiasów na drugą stronę nie jest potrzebny."
                   : " Zawiasy są po drugiej stronie, więc wspornik nie jest potrzebny.")
@@ -2611,14 +2612,16 @@ function computeGeoLiczy(cab, mat, ctx) {
   const shSizes = new Map();
   levels.forEach((lv) =>
     lv.cols.forEach((c) => {
-      c.shelves.forEach(() => shSizes.set(c.shW, (shSizes.get(c.shW) || 0) + 1));
+      const k = `${c.shW}|${c.shD ?? shelfDepth}`;
+      c.shelves.forEach(() => shSizes.set(k, (shSizes.get(k) || 0) + 1));
     })
   );
-  shSizes.forEach((qty, w) =>
-    P({ name: "Półka", qty, a: w, b: shelfDepth, matKey: shelfMat,
+  shSizes.forEach((qty, k) => {
+    const [w, dep] = k.split("|").map(Number);
+    P({ name: "Półka", qty, a: w, b: dep, matKey: shelfMat,
         edges: { a1: true, a2: rear, b1: false, b2: false },
-        note: "krawędź przednia" })
-  );
+        note: "krawędź przednia" });
+  });
 
   const doorSizes = new Map();
   doors.forEach((d) => {
@@ -3182,17 +3185,10 @@ function computeGeoLiczy(cab, mat, ctx) {
     levels.forEach((lv) =>
       lv.cols.forEach((c) => {
         const p = panelsOfCol(lv, c);
-        /* Polka skrocona do wspornika fixu lezy od jego strony na kolkach we
-           wsporniku — tam, a nie w boku, trzeba wiercic (wspornik ma tylko
-           swoja glebokosc, wiec jeden kolek z przodu). */
-        const wsp = c.support ? { name: "Wspornik pionowy", base: lv.y0 } : null;
-        const wspNote = c.support ? `⌀5, ${fmt(Math.round(Math.min(37, c.support.d / 2)))} mm od przodu — wspornik ma ${fmt(c.support.d)} mm głębokości` : "";
         if (cab.shelfMount !== "confirmat")
           (c.shelves || []).forEach((s) => {
-            if (wsp && c.support.side === "left") drillAdd(lv.i, wsp.name, wsp.base, "kołek półki", s.y, wspNote);
-            else drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, pinNote);
-            if (wsp && c.support.side === "right") drillAdd(lv.i, wsp.name, wsp.base, "kołek półki", s.y, wspNote);
-            else drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNote);
+            drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, pinNote);
+            drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNote);
           });
         (c.drawers || []).forEach((dr) => {
           if (!dr.rail) return;
@@ -3925,7 +3921,11 @@ const armPlan = (a, lokalnie) => {
 const runFrontDepth = (g) =>
   g.cabs.length
     ? Math.max(...g.cabs.map((c) => (c.wallGap ? c.wallGap.bottom : 0) + c.geo.glebOdSciany - c.offset))
-    : Math.max(0, Math.round(Number(g.run.D) || 0)) + wallGapOf(g.run, null).bottom;
+    /* Pusty ciag (np. z samym ramieniem szafki w L): glebokosc z ustawienia
+       ciagu jak u szafki z domyslnymi plecami HDF przybijanymi — tak samo
+       daleko od sciany jak szafki obok. Bez tego ramie w pustym ciagu bylo
+       o grubosc plecow plytsze (2026-09-28). */
+    : Math.max(0, Math.round(Number(g.run.D) || 0)) + defaultMaterials.back.thickness + wallGapOf(g.run, null).bottom;
 
 /* Ciag bez szafek zwykle nie ma czego pokazac, ale ten za rogiem owszem: w jego
    pasie lezy ramie szafki naroznej, a jego glebokosc wyznacza szerokosc frontu
@@ -4739,7 +4739,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
         if (c.kind === "drawers" || c.kind === "blenda") return null;
         if (!(c.shelves || []).length) return null;
         return (
-          <rect key={"sh" + c.j} x={c.shX0 ?? c.x0} y={geo.shelfBack} width={c.shW ?? c.w} height={geo.shelfDepth}
+          <rect key={"sh" + c.j} x={c.shX0 ?? c.x0} y={geo.shelfBack} width={c.shW ?? c.w} height={c.shD ?? geo.shelfDepth}
             fill={shc} fillOpacity="0.35" stroke={INK} strokeWidth="1.5" strokeDasharray="9 6" />
         );
       })}
@@ -5856,7 +5856,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         c.x + d.x + t, c.base + d.y1, cd - c.geo.backIntrusion, bf,
         null, 1, false, wGlab));
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.shelves || []).forEach((sh) => {
-        box(c.x + (col.shX0 ?? col.x0), c.base + sh.y, zPolki[0],
+        box(c.x + (col.shX0 ?? col.x0), c.base + sh.y, zPolki[0] + (col.shFront || 0),
           c.x + (col.shX1 ?? col.x1), c.base + sh.y + c.geo.ts, zPolki[1], shc3,
           null, 1, false, wGlab);
       })));
@@ -7424,13 +7424,13 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           if (!n) return null;
           return (
             <g key={"sh" + c.j}>
-              <rect x={c.shX0 ?? c.x0} y={geo.shelfBack} width={c.shW ?? c.w} height={geo.shelfDepth}
+              <rect x={c.shX0 ?? c.x0} y={geo.shelfBack} width={c.shW ?? c.w} height={c.shD ?? geo.shelfDepth}
                 fill={shc} fillOpacity="0.35"
                 stroke={INK} strokeWidth="1.5" strokeDasharray="9 6" />
               <text x={(c.x0 + c.x1) / 2} y={geo.shelfBack + geo.shelfDepth - 14}
                 textAnchor="middle" fontSize="17" fill={INK} opacity="0.75"
                 fontFamily="ui-monospace, monospace">
-                {n} {n === 1 ? "półka" : "półki"} {fmt(c.shW ?? c.w)}×{fmt(geo.shelfDepth)}
+                {n} {n === 1 ? "półka" : "półki"} {fmt(c.shW ?? c.w)}×{fmt(c.shD ?? geo.shelfDepth)}
               </text>
             </g>
           );
@@ -7851,8 +7851,8 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
   // polki przelotowe sa konstrukcyjne (plyta korpusu), polki w kolumnach moga
   // byc z cienszej plyty — rysujemy je wiec osobno, kazda swoja gruboscia
   const allShelves = [
-    ...geo.sepShelves.map((s) => ({ y: s.y, th: geo.t })),
-    ...geo.levels.flatMap((lv) => lv.cols.flatMap((c) => c.shelves.map((s) => ({ y: s.y, th: geo.ts })))),
+    ...geo.sepShelves.map((s) => ({ y: s.y, th: geo.t, d: geo.shelfDepth })),
+    ...geo.levels.flatMap((lv) => lv.cols.flatMap((c) => c.shelves.map((s) => ({ y: s.y, th: geo.ts, d: c.shD ?? geo.shelfDepth })))),
   ];
 
   return (
@@ -7911,7 +7911,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
 
       {allShelves.map((s, i) => (
         <rect key={i} x={xC + geo.shelfBack} y={fy(s.y + s.th)}
-          width={geo.shelfDepth} height={s.th} fill={bf} stroke={INK} strokeWidth="2" />
+          width={s.d} height={s.th} fill={bf} stroke={INK} strokeWidth="2" />
       ))}
 
       {/* wsporniki pionowe przy elementach stalych */}
@@ -8467,7 +8467,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
   geo.levels.forEach((lv) =>
     lv.cols.forEach((c) => {
       c.shelves.forEach((sh) =>
-        box(c.shX0 ?? c.x0, sh.y, zPolki[0], c.shX1 ?? c.x1, sh.y + geo.ts, zPolki[1], bf)
+        box(c.shX0 ?? c.x0, sh.y, zPolki[0] + (c.shFront || 0), c.shX1 ?? c.x1, sh.y + geo.ts, zPolki[1], bf)
       );
       if (c.support && c.fix) {
         const sx = c.fix.side === "left" ? c.fix.x + c.fix.w - t : c.fix.x;
@@ -10287,7 +10287,7 @@ const cornerPairMsgs = (n, blat) => {
     }[a.doors] || "dwa fronty spotykające się pod kątem prostym";
     out.push({ level: "info", text:
       `${kto} jest szafką narożną w L: korpus ${fmt(a.cab.geo.W)} mm przy ścianie „${a.run.run.name}" `
-      + `plus ramię ${fmt(a.len)} × ${fmt(a.depth)} mm przy ścianie „${a.other.run.name}". `
+      + `plus ramię ${fmt(a.len)} × ${fmt(armKorpus(a))} mm przy ścianie „${a.other.run.name}". `
       + `Drzwi: ${opisDrzwi}. Płyty poziome ramienia dostawia się na kołki, oklejone na łączeniu.` });
     const zasieg = cornerSpan(n);
     if (zasieg)
@@ -13519,7 +13519,7 @@ export default function App() {
                       {cornerNode.arm && (
                         <p className="text-xs text-stone-500">
                           Korpus <span className="font-mono text-stone-700">{fmt(cornerNode.arm.cab.geo.W)} mm</span>
-                          {" "}plus ramię <span className="font-mono text-stone-700">{fmt(cornerNode.arm.len)} × {fmt(cornerNode.arm.depth)} mm</span>.
+                          {" "}plus ramię <span className="font-mono text-stone-700">{fmt(cornerNode.arm.len)} × {fmt(armKorpus(cornerNode.arm))} mm</span>.
                           {" "}Fronty: od tej strony{" "}
                           <span className="font-mono text-stone-700">{fmt(cornerNode.arm.front)} mm</span>,
                           {" "}drzwi ramienia{" "}

@@ -56,7 +56,7 @@ await kreator.locator('select').nth(1).selectOption('L'); await page.waitForTime
 await utworz();
 p = await zapis();
 const l = p.items.find((it) => it.cab.corner && it.cab.corner.on);
-ok('szafka w L 900 z ramieniem 630 w nowym ciągu', l && l.cab.W === 900 && l.cab.corner.arm === 630 && l.runId !== 'c1',
+ok('szafka w L 900 z ramieniem 640 w nowym ciągu', l && l.cab.W === 900 && l.cab.corner.arm === 640 && l.runId !== 'c1',
   l && JSON.stringify({ W: l.cab.W, arm: l.cab.corner.arm, run: l.runId }));
 const c2L = p.runs.find((r) => r.id !== 'c1');
 ok('przy szafce w L bez wstawki', c2L && c2L.corner && !c2L.corner.wstawka);

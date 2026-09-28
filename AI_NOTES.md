@@ -603,3 +603,13 @@ ciagu (odleglosc od sciany) uzywaj `glebOdSciany`, w geometrii szafki dalej
 jako przeszkoda), klapy do gory/w dol (brak), a potem wystajace sprzety
 w zabudowie (lodowka, piekarnik, mikrofala). `swingBodies` + `openingMsgs`.
 Nigdy nie wstrzymywac kontroli (ustalone).
+
+[AI-INFO] Szafka w L: `CORNER_L_D` = 560 (jak stojaca), ramie 640. Pusty ciag
+za rogiem liczy glebokosc od sciany z domyslnymi plecami HDF (`runFrontDepth`).
+W uwagach i UI glebokosc ramienia = `armKorpus(a)` (bez plecow).
+[AI-INFO] Polka przy wsporniku pionowym fixu: na cala szerokosc, plytsza o
+wspornik (`c.shFront`/`c.shD`), kolki w bokach — tak ustalil uzytkownik.
+[AI-TODO] Frez pod HDF (`cab.backGroove`): etykiety w UI mylace („Szerokość”
+pokazuje `depth`, „Głębokość” pokazuje `offset`), a `grOff = gr.offset ?? 3`
+kontra domyslne 16. Uzytkownik: 16 = frez na szerokosc (w grubosci plyty 18),
+3 = wglab szafki w kierunku drzwi — czeka na doprecyzowanie pytaniem z opcjami.
