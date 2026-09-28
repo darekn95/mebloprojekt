@@ -89,6 +89,9 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   16 mm (zostają 2 mm od zewnątrz), 3 mm w głąb w stronę drzwi — HDF 3 mm
   zlicowany z tyłem korpusu; frez też w wieńcu i dnie; luz 1 mm na stronę.
   HDF = W − 6 × H − 6. Pola: „Szerokość” 16, „Głębokość” 3, „Luz” 1.
+- **Słupek 600 w głąb** (2026-09-28): szablon zostaje; głębsza szafka w ciągu
+  to ostrzeżenie mówiące, że pozostałe odsuną się od ściany (lico wyznacza
+  najgłębsza), z przyciskami wyrównania.
 - **Szafka w L 560 w głąb** (2026-09-28), jak stojąca; ramię 640 (razem 1200).
   Półki ramienia płytsze o kątowniki.
 - **Kontrola kolizji nigdy nie jest wstrzymywana** (2026-09-28): przy

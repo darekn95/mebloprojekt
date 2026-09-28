@@ -627,3 +627,15 @@ Uchwyty na elewacjach rysuje `UchwytElewacja` (wspolny obrys `uchwytObrys`).
 potem: polozenie dna, minimalny tyl, `maxBack` od gory dna, ostrzezenie „tyl wyzej
 niz front szuflady”, kontrola standardowego tylu pod wiencem/frontem wyzej.
 Instrukcje trzymamy w `instrukcje/` (spis: `instrukcje/SPIS.md`).
+[AI-TODO] Gorna szafka narozna (uzytkownik 2026-09-28) — na wzor dolnej, te same
+zasady (slepy rog z fixem/drzwiami/wstawka albo szafka w L z ramieniem). Roznice:
+wieniec zamiast wzmocnien, dno widoczne od dolu, bez cokolu i blatu, gl. ok. 300.
+Tylne wzmocnienie w tylnym narozniku — dwie opcje do wyboru w UI:
+  A) jak w dolnej: na dnie, po kacie plyty;
+  B) dwie plyty skrecone pod 90°, obrocone o 180° — kat prosty skierowany do
+     srodka szafki (od zbiegu scian 1 i 2).
+Zawieszki: przy A — jedna po lewej stronie „szafki” (korpusu), druga po prawej
+stronie „ramienia”; przy B — dwie w czesci „ramienia” (na boku wzmocnienia i na
+boku ramienia) albo analogicznie obie w czesci „szafki”.
+[AI-INFO] Slupek (szablon) zostaje 600 w glab (uzytkownik 2026-09-28); glebsza
+szafka w ciagu daje ostrzezenie, ze reszta odsunie sie od sciany (`runCabMsgs`).

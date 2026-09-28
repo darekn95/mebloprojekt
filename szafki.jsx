@@ -9959,7 +9959,16 @@ const runCabMsgs = (run, c) => {
   /* Plytsza szafka w ciagu to normalny zabieg, gdy z tylu cos przeszkadza: lico
      zostaje w linii, cofa sie sam tyl. Dlatego mowimy o tym wprost, zamiast
      kazac to "naprawiac". */
-  if (run.D != null && Math.round(c.D) !== run.D)
+  /* Glebsza szafka (np. slupek 600 w ciagu 560 — uzytkownik 2026-09-28: zostaje
+     600, ale ma byc ostrzezenie) wyznacza lico calego ciagu: pozostale szafki
+     odsuwaja sie od sciany o roznice albo ona sama wystaje, gdy ja cofnac. */
+  if (run.D != null && Math.round(c.D) > run.D)
+    out.push({ level: "warn", text:
+      `Głębokość ${fmt(c.D)} mm jest większa niż w ciągu (${fmt(run.D)} mm) o ${fmt(Math.round(c.D) - run.D)} mm. `
+      + `Szafki stoją równo w licu, więc pozostałe odsuną się o tyle od ściany (za nimi zostanie pusta przestrzeń), `
+      + `a blat i cokół pójdą za tym licem. Jeśli ta ma wystawać przed pozostałe, ustaw jej wysunięcie z lica.`
+      + `|runcab:D:${run.D}|runrun:D:${Math.round(c.D)}` });
+  else if (run.D != null && Math.round(c.D) !== run.D)
     out.push({ level: "warn", text:
       `Głębokość ${fmt(c.D)} mm różni się od ciągu (${fmt(run.D)} mm). Jeśli to celowe — lico zostaje w linii, cofa się tylko tył — zostaw tak; blat licz na najgłębszą szafkę.`
       + `|runcab:D:${run.D}|runrun:D:${Math.round(c.D)}` });
