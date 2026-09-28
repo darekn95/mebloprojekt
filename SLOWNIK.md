@@ -199,7 +199,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `migrateCab(cab, mat)` / `migrateRun` / `migrateCorner` | podnoszenie starych projektów do bieżącego formatu |
 | `splitAtJoints` | dzieli wspólny cokół/blat na odcinki |
 | `buildCutPlan` / `packSheets` / `nestPass` | rozkrój na arkusze |
-| `swingBodies` / `openingMsgs` | kontrola otwierania skrzydeł, kolizje |
+| `swingBodies` / `openingMsgs` | kontrola otwierania: skrzydła (`swingHit`), szuflady (`wysuwHit`), klapy (`klapaHit`, kąt co 1°) przeciw korpusom, frontom, uchwytom, wstawkom, ramionom i blatowi |
 | `wallGapOf(run, item)` / `migrateWallGap` | odsunięcie od ściany szafki: własne albo z ciągu; `{ bottom, top }` (`top` = pod blatem, domyślnie jak `bottom`) |
 | `cudzeRamiona` (w `AssemblyTopView`) | ramię szafki w L, którego ściany nie rysujemy (zakres „Ciąg”) — przeniesione macierzą na swoje prawdziwe miejsce, z kawałkiem ściany i blatem |
 | `cornerSpan(n)` / `SZEROKI_FRONT` (600) | ile szafka w L zajmuje od rogu wzdłuż obu ścian (odstęp + głębokość korpusu + ramię; odstęp + szerokość korpusu) i ostrzeżenie o froncie ramienia szerszym niż 600 mm |
@@ -364,6 +364,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `gorne` | ciągi górne w L: górny drugiej ściany wisi na niej (bez kolizji z górnym pierwszej), odsunięcie 300 w rogu, gdy górny ściany wjeżdżającej sięga rogu; „+ szafka” bierze H/D/cokół ciągu (górny 300, dolny 570) |
 | `kreator` | kreator rogu: ślepa szafka 1000 z fixem 618 od rogu, jedne drzwi, zawias od zewnątrz, wstawka płaska — bez bloku „do ustawienia”; szafka w L 900 + ramię 630 bez wstawki; osobny ciąg; przycisk „Ustaw szafkę w rogu” w istniejącym projekcie |
 | `audyt` | audyt całości na ~20 konfiguracjach: nachodzenie brył 3D (szafka i zabudowa, zamknięte), formatki ↔ rysunek w obie strony z ilościami (szuflady w bryle otwartej), formatki projektu = suma szafek + cokół/blat ciągu, okucia projektu vs suma, PDF = ekran (formatki i okucia szafek i projektu). HDF we frezie może wchodzić krawędzią do 16 mm (w grubość płyty) i 4 mm (w głąb); `znane` — przypadki czekające na decyzję (BLEDY.md). Trwa ok. 4 min |
+| `ruchy` | kontrola otwierania szuflad i klap: prosty ciąg bez kolizji, klapa do góry pod blatem (otworzy się na kilkanaście stopni), klapa w dół w górnej wolna, szuflada w zasłoniętej części ślepego rogu trafia w korpus sąsiada, drzwi w zasłoniętej części i szuflady obok — wolne |
 | `wreg` | plecy „We frezie” jako frez 16 × 3 na krawędzi: HDF W−6 × H−6, półka o 3 mm płytsza, HDF w rzucie na tyle korpusu, pola 16/3/1, ostrzeżenie przy frezie płytszym niż HDF, migracja starego {16, 4} |
 | `wspornik` | półka przy wsporniku fixu płytsza (564 × 460 zamiast 564 × 560), ostrzeżenie, oba warianty przycisku, kołki półki w bokach w planie wierceń (PDF) |
 | `uchwyt` | wiersz okuć skrzydła (zawiasy, uchwyt, lustro), wysunięcie i położenie uchwytu per skrzydło — zapis, rysunek z przodu, bryła 3D |

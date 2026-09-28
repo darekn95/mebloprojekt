@@ -598,11 +598,16 @@ zielona, i opisz je w BLEDY.md „Do decyzji”.
 ciagu (odleglosc od sciany) uzywaj `glebOdSciany`, w geometrii szafki dalej
 `carcassDepth` (formatki bokow sie nie zmieniaja). Szablon stojacej: 560.
 
-[AI-TODO] Kontrola kolizji otwierania dla WSZYSTKIEGO, co sie otwiera
-(uzytkownik 2026-09-28): drzwi (jest), szuflady przy wysuwaniu (dzis tylko
-jako przeszkoda), klapy do gory/w dol (brak), a potem wystajace sprzety
-w zabudowie (lodowka, piekarnik, mikrofala). `swingBodies` + `openingMsgs`.
-Nigdy nie wstrzymywac kontroli (ustalone).
+[AI-INFO] Kontrola otwierania (2026-09-28): skrzydla (`swingHit`, cwiartka),
+szuflady (`wysuwHit`, prosty wysuw na `d.nl` + uchwyt), klapy (`klapaHit`,
+prostokat klapy z gruboscia frontu obracany co 1° wokol wewnetrznej krawedzi
+— zwraca ostatni wolny kat). Przeszkody w `swingBodies`: korpusy, fronty,
+uchwyty (`uchwytObrys`), wstawki, ramiona, maskownice, blat ciagu. Szuflady
+i klapy nie sprawdzaja sie przeciw innym ruchom (nie otwiera sie naraz).
+[AI-TODO] Sprzety w zabudowie (lodowka, piekarnik, mikrofala): gdy powstanie
+kategoria „sprzety”, dolozyc ich bryly i drzwi do `swingBodies` — prosba
+uzytkownika, zeby wrocic. Szafka luzem (bez ciagu) nie ma kontroli
+otwierania — `openingMsgs` idzie po ukladzie ciagow.
 
 [AI-INFO] Szafka w L: `CORNER_L_D` = 560 (jak stojaca), ramie 640. Pusty ciag
 za rogiem liczy glebokosc od sciany z domyslnymi plecami HDF (`runFrontDepth`).

@@ -154,8 +154,6 @@ console.log('\n== wystawanie uchwytu wchodzi do kontroli ==');
 /* Uchwyt styka sie pierwszy, wiec to on decyduje o kilku ostatnich milimetrach.
    Ten sam uklad z uchwytem 20 mm i ze 100 mm ma dac inna glebokosc kolizji,
    a uchwyt zerowy (muszelka, frez) ma zniknac z listy przeszkod. */
-const ileBrakuje = async () => (await kolizje())
-  .map((l) => Number((/brakuje (\d+) mm/.exec(l) || [])[1] || 0));
 /* Uklad uzytkownika (2026-09-28): w rog wjezdza sciana B ze slepa szafka 1000
    (fix 648 od rogu, zawias od zewnatrz, uchwyt przy fixie), sciana A konczy sie
    bokiem przed jej fixem. Bez wstawki prawe skrzydlo ostatniej szafki A przy
@@ -168,16 +166,18 @@ const zUchwytem = (mm, wstawka = null) => seed([RUN('c1', 'Ściana A'), RUN('c2'
    CAB('R', 1000, 'c2', null, { handleOut: mm, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null,
      fix: { side: 'left', w: 648, mode: 'overlay', support: false }, hinge: 'right' }] }] })]);
 await zUchwytem(20);
-const u20 = await ileBrakuje();
 console.log('\n== kolizja z uchwytem, nie tylko z plyta ==');
 ok('uchwyt bywa tym, co stoi na drodze', (await kolizje()).some((l) => /stoi uchwyt/.test(l)), skrot(await kolizje()));
-await zUchwytem(100);
-const u100 = await ileBrakuje();
-console.log('     uchwyt 20 mm: ' + JSON.stringify(u20) + ', 100 mm: ' + JSON.stringify(u100));
-ok('grubszy uchwyt zabiera więcej miejsca',
-  // wiecej miejsca = glebsza kolizja albo dodatkowa kolizja, ktorej przy 20 mm nie bylo
-  u100.length > 0 && u20.length > 0 && (Math.max(...u100) > Math.max(...u20) || u100.length > u20.length),
-  JSON.stringify(u20) + ' → ' + JSON.stringify(u100));
+/* Uchwyt liczy sie tam, gdzie naprawde jest (od 2026-09-28). Bez wstawki
+   stoi dokladnie na linii zawiasu skrzydla A2 i wystaje od niej w bok, wiec
+   skrzydlo trafia w jego nasade niezaleznie od grubosci. Z plaska wstawka
+   18 mm zawias A2 odsuwa sie o 18 mm: uchwyt 20 mm wchodzi za linie zawiasu
+   ledwie 2 mm (styk), a 100 mm — o 82 mm, i to juz jest kolizja. */
+await zUchwytem(100, { typ: 'plaska', w: 60 });
+const u100 = await kolizje();
+console.log('     z wstawką, uchwyt 100 mm: ' + skrot(u100));
+ok('grubszy uchwyt zabiera więcej miejsca (100 mm przeszkadza tam, gdzie 20 mm nie)',
+  u100.some((l) => /stoi uchwyt/.test(l)), skrot(u100));
 
 await zUchwytem(20, { typ: 'plaska', w: 60 });
 const zWstawka = await kolizje();

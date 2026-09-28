@@ -1994,6 +1994,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             const ile = rawCol.silowniki === 1 || rawCol.silowniki === 2 ? rawCol.silowniki : (dw > 600 ? 2 : 1);
             const kg = wagaFrontu(dw, cbandH, tf);
             const kat = klapa === "gora" && [75, 90, 100].includes(Number(rawCol.katKlapy)) ? Number(rawCol.katKlapy) : 90;
+            d.kat = kat;   // kontrola otwierania liczy luk klapy do tego kata
             const recznie = num(rawCol.silaN);
             const dobor = dobierzPodnosnik(cbandH, kg / ile, kat, klapa);
             const sila = recznie ?? (dobor ? dobor.sila : null);
@@ -10544,13 +10545,71 @@ const swingHit = (s, b) => {
   return d < s.r - SWING_TOL ? s.r - d : 0;
 };
 
+/* Pudelko z ukladu pokoju z powrotem we wspolrzednych ciagu (u wzdluz
+   sciany, v od sciany). Obroty sa o wielokrotnosc 90 stopni, wiec to dalej
+   prostokat. */
+const doCiagu = (n, b) => {
+  const f = n.f;
+  const us = [], vs = [];
+  [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1]].forEach(([x, y]) => {
+    us.push((x - f.ox) * f.ux + (y - f.oy) * f.uy);
+    vs.push((x - f.ox) * f.vx + (y - f.oy) * f.vy);
+  });
+  return { u0: Math.min(...us), u1: Math.max(...us), v0: Math.min(...vs), v1: Math.max(...vs) };
+};
+
+/* Szuflada wyjezdza prosto przed lico na dlugosc prowadnicy (z uchwytem).
+   Zwraca, ile mm wysuwu zabiera przeszkoda — 0, gdy droga wolna. */
+const wysuwHit = (m, b) => {
+  if (Math.min(m.z1, b.z1) - Math.max(m.z0, b.z0) <= SWING_TOL) return 0;
+  const q = doCiagu(m.n, b);
+  if (Math.min(m.u1, q.u1) - Math.max(m.u0, q.u0) <= SWING_TOL) return 0;
+  const v0 = Math.max(q.v0, m.v0);
+  const v1 = Math.min(q.v1, m.v1);
+  if (v1 - v0 <= SWING_TOL) return 0;
+  return m.v1 - v0;
+};
+
+/* Klapa obraca sie wokol poziomej krawedzi zawiasow. W przekroju (v w glab
+   pokoju, z w gore) to prostokat: dlugosc = wysokosc klapy (z uchwytem przy
+   wolnej krawedzi), grubosc = front. Os lezy na wewnetrznej krawedzi frontu
+   (gornej przy klapie do gory, dolnej przy opadanej), wiec zamknieta klapa
+   stoi dokladnie w swoim miejscu, a otwarta do gory wychodzi grubowscia ponad
+   korpus — tak jak na zawiasach puszkowych i podnosnikach; pod blatem sie nie
+   otworzy. Obracamy co 1° i szukamy pierwszego kata, przy ktorym prostokat
+   klapy wchodzi w przeszkode (test osi rozdzielajacych). Zwraca ostatni wolny
+   kat albo null, gdy klapa otwiera sie do konca. */
+const klapaHit = (m, b) => {
+  const q = doCiagu(m.n, b);
+  if (Math.min(m.u1, q.u1) - Math.max(m.u0, q.u0) <= SWING_TOL) return null;
+  const sg = m.gora ? -1 : 1;                 // kierunek „zamkniety” w osi z
+  const pv = m.hv - m.tf, pz = m.hz;          // os: wewnetrzna krawedz frontu
+  const box = [[q.v0, b.z0], [q.v1, b.z0], [q.v0, b.z1], [q.v1, b.z1]];
+  const zachodzi = (lo1, hi1, lo2, hi2) => Math.min(hi1, hi2) - Math.max(lo1, lo2) > SWING_TOL;
+  for (let a = 1; a <= m.kat; a++) {
+    const t = (a * Math.PI) / 180;
+    const d = [Math.sin(t), Math.cos(t) * sg];          // wzdluz klapy od osi
+    const nn = [Math.cos(t), -sg * Math.sin(t)];        // na zewnatrz (lico)
+    const rog = [[0, 0], [m.r, 0], [0, m.tf], [m.r, m.tf]]
+      .map(([s1, w1]) => [pv + s1 * d[0] + w1 * nn[0], pz + s1 * d[1] + w1 * nn[1]]);
+    const zakres = (pts, os) => { const p = pts.map((x) => x[0] * os[0] + x[1] * os[1]); return [Math.min(...p), Math.max(...p)]; };
+    const trafia = [[1, 0], [0, 1], d, nn].every((os) => {
+      const [a1, b1] = zakres(rog, os), [a2, b2] = zakres(box, os);
+      return zachodzi(a1, b1, a2, b2);
+    });
+    if (trafia) return a - 1;
+  }
+  return null;
+};
+
 /* Wszystko, co stoi w zabudowie, w jednej liscie bryl: korpusy, fronty
    zamkniete, fronty szuflad wysuniete na dlugosc prowadnicy i uchwyty — bo to
    one stykaja sie pierwsze. Kolizja nie jest sprawa dwoch skrzydel: skrzydlo
    sprawdza sie przeciw wszystkiemu, co stoi na jego drodze. */
-const swingBodies = (L) => {
+const swingBodies = (L, project) => {
   const bryly = [];
   const skrzydla = [];
+  const ruchy = [];   // szuflady (wysuw) i klapy (obrot wokol poziomej osi)
   L.info.forEach((n) => {
     n.g.cabs.forEach((c) => {
       /* Szafka narozna ma front przyciety do lica przed narozem, ale geometria
@@ -10578,9 +10637,14 @@ const swingBodies = (L) => {
         const z0 = zBase + d.y;
         const z1 = zBase + d.y + d.h;
         const fv0 = overlay ? cdV1 : cdV1 - geo.tf;
-        if (d.handle && uchwyt > 0)
-          bryly.push(roomBox(n, u0 + d.x, u0 + d.x + d.w, lico, lico + uchwyt, z0, z1,
+        /* Uchwyt tam, gdzie naprawde jest (bok/gora drzwi, srodek szuflady
+           i klapy) — pasek przez caly front zglaszal klape otwarta na 100°
+           jako uderzajaca w uchwyt drzwi nad nia, stojacy daleko z boku. */
+        if (d.handle && uchwyt > 0) {
+          const ob = uchwytObrys(d);
+          bryly.push(roomBox(n, u0 + ob.x0, u0 + ob.x1, lico, lico + uchwyt, zBase + ob.y0, zBase + ob.y1,
             { ...kto, co: "uchwyt", klucz }));
+        }
         if (d.type === "drawer") {
           /* Szuflada w trakcie otwierania wyjezdza frontem na dlugosc
              prowadnicy — dla skrzydla obok to przeszkoda jak kazda inna.
@@ -10588,12 +10652,29 @@ const swingBodies = (L) => {
           const wysuw = Math.max(0, num(d.nl) ?? 0);
           const zasieg = wysuw + (d.handle ? uchwyt : 0);
           bryly.push(roomBox(n, u0 + d.x, u0 + d.x + d.w, fv0, lico + zasieg, z0, z1,
-            { ...kto, co: "wysunięty front szuflady", klucz }));
+            { ...kto, co: "wysunięty front szuflady", klucz, wysuw: true }));
+          /* Dla wysuwanej szuflady sasiednia stoi zamknieta — jej front
+             w licu (wysuniety widza tylko skrzydla, ktore otwieraja sie obok). */
+          bryly.push(roomBox(n, u0 + d.x, u0 + d.x + d.w, fv0, lico, z0, z1,
+            { ...kto, co: "front szuflady", klucz, zamknieta: true }));
+          if (wysuw > 0)
+            ruchy.push({ ...kto, klucz, n, typ: "szuflada", szer: zasieg,
+              u0: u0 + d.x, u1: u0 + d.x + d.w, v0: lico, v1: lico + zasieg, z0, z1 });
           return;
         }
         // front zamkniety stoi w licu i to w niego uderza sasiednie skrzydlo
         bryly.push(roomBox(n, u0 + d.x, u0 + d.x + d.w, fv0, lico, z0, z1,
           { ...kto, co: d.type === "door" || d.type === "klapa" ? "front" : "element stały", klucz }));
+        if (d.type === "klapa") {
+          /* Klapa: os na gornej krawedzi (do gory) albo dolnej (w dol), w licu.
+             Promien to wysokosc klapy, a z uchwytem przy wolnej krawedzi —
+             przekatna do jego czola. */
+          const gora = d.klapa === "gora";
+          const r = d.handle && uchwyt > 0 ? Math.hypot(d.h, uchwyt) : d.h;
+          ruchy.push({ ...kto, klucz, n, typ: "klapa", gora, kat: d.kat || 90, r, tf: geo.tf, szer: d.h,
+            u0: u0 + d.x, u1: u0 + d.x + d.w, hv: lico, hz: gora ? z1 : z0 });
+          return;
+        }
         if (d.type !== "door") return;
         // zawias po lewej -> wolna krawedz idzie w prawo, i odwrotnie
         const prawe = d.hingeSide === "right";
@@ -10654,22 +10735,37 @@ const swingBodies = (L) => {
       skrzydla.push(swingLeaf(n, a.u0 + (przyKoncu ? fu1 : fu0), lico, przyKoncu ? -1 : 1,
         w, z0, z1, { ...kto, klucz, szer: w, ramie: true }));
     });
+    /* Blat lezy nad szafkami i wystaje przed fronty — klapa do gory w szafce
+       pod nim uderza w niego od razu. Skrzydla i szuflady stoja pod nim, wiec
+       ich nie dotyczy (wysokosc sie nie pokrywa). */
+    const rt = project ? runTop(project, n.run) : null;
+    if (rt) {
+      const gs = wallGapOf(n.run, null);
+      const v0 = Math.max(0, gs.bottom - gs.top);
+      worktopSpans(rt).forEach((sp, i) => {
+        bryly.push(roomBox(n, n.lead + sp.x0, n.lead + sp.x1, v0, v0 + rt.depth,
+          n.g.mount + rt.y, n.g.mount + rt.y + rt.th,
+          { cab: "blat", run: n.run.name, id: `${n.id}#blat`, co: "blat", klucz: `${n.id}|blat${i}`, blat: true }));
+      });
+    }
   });
-  return { bryly, skrzydla };
+  return { bryly, skrzydla, ruchy };
 };
 
 /* Kolizja otwierania jako blad. Na jedno skrzydlo zostawiamy jedna uwage —
    tego, w co wchodzi najglebiej — bo lista rzeczy do poprawy ma byc krotka,
    a poprawka i tak jest ta sama. */
-const openingMsgs = (L) => {
+const openingMsgs = (L, project) => {
   const out = [];
   if (!L || !L.info) return out;
-  const { bryly, skrzydla } = swingBodies(L);
+  const { bryly, skrzydla, ruchy } = swingBodies(L, project);
   skrzydla.forEach((s) => {
     let g = null;
     bryly.forEach((b) => {
       // wlasny front, wlasny uchwyt i wlasny korpus to nie przeszkoda
       if (b.klucz === s.klucz || (b.id === s.id && b.co === "korpus")) return;
+      // szuflade obok skrzydlo widzi wysunieta (to pudelko zawiera zamknieta)
+      if (b.zamknieta) return;
       const ile = swingHit(s, b);
       if (ile > 0 && (!g || ile > g.ile)) g = { b, ile };
     });
@@ -10723,6 +10819,42 @@ const openingMsgs = (L) => {
       `${s.ramie ? "Front ramienia" : "Skrzydło"} szafki „${s.cab}" (ciąg „${s.run}") nie ma się jak `
       + `otworzyć: po drodze stoi ${g.b.co} ${czyje} — brakuje ${fmt(Math.round(g.ile))} mm. `
       + rada.charAt(0).toUpperCase() + rada.slice(1) + "." + akcjaFlip + akcja });
+  });
+  /* Szuflady i klapy (uzytkownik 2026-09-28: kontrola ma objac wszystko, co
+     sie otwiera). Kazda sprawdzamy przeciw temu, co stoi — korpusom, frontom
+     zamknietym, uchwytom, wstawkom, ramionom i blatowi. Nie przeciw innym
+     szufladom wysunietym ani otwartym skrzydlom: tego nie otwiera sie naraz. */
+  ruchy.forEach((m) => {
+    let g = null;
+    bryly.forEach((b) => {
+      if (b.klucz === m.klucz || b.wysuw || (b.id === m.id && b.co === "korpus")) return;
+      if (m.typ === "szuflada") {
+        const ile = wysuwHit(m, b);
+        if (ile > 0 && (!g || ile > g.ile)) g = { b, ile };
+        return;
+      }
+      // klapa: liczy sie przeszkoda, ktora zatrzymuje ja najwczesniej
+      const kat = klapaHit(m, b);
+      if (kat != null && (!g || kat < g.kat)) g = { b, kat };
+    });
+    if (!g) return;
+    const gdzie = g.b.run === m.run ? "w tym samym ciągu" : `z ciągu „${g.b.run}"`;
+    const czyje = g.b.blat ? `ciągu „${g.b.run}"` : g.b.id === m.id ? "tej samej szafki" : `szafki „${g.b.cab}" ${gdzie}`;
+    if (m.typ === "szuflada") {
+      const zostaje = Math.max(0, Math.round(m.szer - g.ile));
+      out.push({ level: "error", text:
+        `Szuflada szafki „${m.cab}" (ciąg „${m.run}") nie wysunie się do końca: po drodze stoi `
+        + `${g.b.co} ${czyje} — wysunie się tylko ${fmt(zostaje)} z ${fmt(Math.round(m.szer))} mm (z uchwytem). `
+        + (g.b.run !== m.run ? "Odsuń ciągi w rogu (karta ciągu → Narożnik → „Luz w rogu”) albo przesuń szufladę dalej od rogu."
+          : "Zmień układ tak, żeby przed szufladą było wolne.") });
+      return;
+    }
+    const rada = g.b.blat ? "Pod blatem klapa do góry się nie otworzy — zrób szufladę albo drzwi."
+      : m.gora && g.kat >= 75 && m.kat > 75 ? "Ustaw mniejszy kąt otwarcia (75°) albo zmień układ."
+      : m.gora ? "Zrób klapę w dół albo drzwi." : "Zrób klapę do góry albo drzwi.";
+    out.push({ level: "error", text:
+      `Klapa ${m.gora ? "do góry" : "w dół"} szafki „${m.cab}" (ciąg „${m.run}") nie otworzy się `
+      + `na ${m.kat}°: po drodze stoi ${g.b.co} ${czyje} — otworzy się tylko na ok. ${g.kat}°. ${rada}` });
   });
   return out;
 };
@@ -12179,7 +12311,7 @@ export default function App() {
       ...runCornerMsgs(node, !!runTp),
       /* Kolizje otwierania sa sprawa calej zabudowy, a nie tego jednego ciagu —
          dlatego lecimy po calym rozmieszczeniu i pokazujemy wszystkie. */
-      ...openingMsgs(projLayout)];
+      ...openingMsgs(projLayout, project)];
   }, [project, runInfo, runPl, runTp, projLayout]);
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka

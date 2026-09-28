@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-28 | kontrola otwierania (`swingBodies`, `openingMsgs`) | szuflady były tylko przeszkodą dla skrzydeł, a klapy nie były sprawdzane wcale. Teraz: szuflada wysuwa się prosto na prowadnicę z uchwytem (`wysuwHit`) — np. w zasłoniętej części ślepego rogu trafia w korpus sąsiada; klapa obraca się z grubością frontu co 1° (`klapaHit`) — pod blatem otworzy się tylko na kilkanaście stopni; blat ciągu jest przeszkodą. Uchwyt liczony tam, gdzie naprawdę jest (`uchwytObrys`), a nie paskiem przez cały front — test `otwier` „grubszy uchwyt” przerobiony na układ z płaską wstawką. Nowa suita `ruchy` | (ten commit) |
 | 2026-09-28 | plecy we frezie (`computeGeo`, rysunki, 3D) | frez liczony jak rowek odsunięty 16 mm od tyłu i 4 mm w płytę (HDF 570 × 690 w szafce 600 × 720, półki 19 mm płytsze) — a u użytkownika to frez 16 × 3 na tylnej krawędzi, HDF zlicowany z tyłem. Domyślne {16, 4} były zamienione; teraz {3, 16}, stare zapisy z {16, 4} migrują (`migrateCab`, znacznik `wreg`). Frez płytszy niż HDF — ostrzeżenie i plecy liczone za korpusem. Nowa suita `wreg`; audyt dopuszcza HDF 15 mm w płycie | (ten commit) |
 | 2026-09-28 | róg (`projectLayout`, `glRog`), znalazł `audyt` | odsunięcie drugiego ciągu liczone od ściany do lica samej szafki w rogu, jakby stała przy ścianie — a szafki ciągu stoją wyrównane do lica, więc płytsza szafka w rogu stoi dalej od ściany. Szafka w L 560 w ciągu szafek 570 wchodziła ramieniem 10 mm w pierwszą szafkę drugiego ciągu. Teraz `glRog` = lico ciągu + wysunięcie szafki w rogu. Uwaga „Od rogu szafka zajmuje…” rozpisuje też plecy / dosunięcie do lica (wcześniej składniki nie sumowały się do podanej liczby). Testy: `narozn2` ramię „500 × 600” (korpus), `narkat` wzmocnienie czołowe o plecy pustego ciągu krótsze | (ten commit) |
 | 2026-09-28 | szafka w L, pusty ciąg, półka przy wsporniku | szablon szafki w L 560 w głąb jak stojąca (`CORNER_L_D`, ramię 640, razem nadal 1200); pusty ciąg za rogiem liczony od ściany razem z domyślnymi plecami HDF (ramię było o 3 mm płytsze niż szafki obok); uwaga „szafka w L … ramię N × M” podaje głębokość korpusu ramienia (`armKorpus`), nie z plecami; półka przy wsporniku fixu — na całą szerokość, płytsza o wspornik, na zwykłych kołkach w bokach (poprawka użytkownika; wcześniej węższa z kołkiem we wsporniku). Przesunięte liczby w testach: `kreator` ramię 640, `odsuniecie` 1210 od rogu i „ramię 640 × 537”, `blatrog` 633 i uwaga o 7 mm przy ręcznie ustawionych 570, `wspornik` 564 × 460 | (ten commit) |
@@ -56,13 +57,10 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-- **Kontrola kolizji otwierania — cały zakres** (użytkownik 2026-09-28): ma
-  obejmować otwieranie WSZYSTKICH drzwi, klap i szuflad, a potem też wystające
-  sprzęty w zabudowie (lodówka, piekarnik, mikrofala itd.). Dziś liczymy
-  skrzydła drzwi przeciw wszystkiemu (korpusy, fronty, uchwyty, wysunięte
-  szuflady, wstawki); szuflady są tylko przeszkodą, same nie są sprawdzane
-  przy wysuwaniu; klapy nie są sprawdzane wcale; sprzętów jeszcze nie ma.
-  Do zaplanowania razem z kategorią „sprzęty”.
+- **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
+  drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
+  się kategoria „sprzęty” (lodówka, piekarnik, mikrofala) — dołożyć je jako
+  bryły w `swingBodies`, a ich drzwi/klapy jako ruchy.
 
 - **Klapy do góry i w dół — do sprawdzenia przez użytkownika w innym terminie**
   (prośba 2026-09-28). Zrobione i w artefakcie (wersja 48), ale użytkownik
