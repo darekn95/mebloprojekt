@@ -1,0 +1,116 @@
+/* Wstawka w rogu przy zwyklych szafkach (bez szafki w L). Uklad jak u
+   uzytkownika: w rog wjezdza sciana 2, sciana 1 konczy sie przy jej drzwiach.
+   Wstawka siedzi na boku ostatniej szafki sciany 1, od strony rogu:
+   - plaska: grubosc plyty frontowej × 60 w glab, odsuwa ciag o 18 mm,
+   - szeroka: 60 mm licem do przodu, na trojkatach, odsuwa ciag o 60 mm.
+   Formatka z plyty frontowej, wysokosc korpusu; przyciski przy kolizji. */
+import pw from './pw.mjs';
+const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
+  : 'http://127.0.0.1:5205/mebloprojekt-app.html';
+const ok = (l, c, e = '') => console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : ''));
+const b = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await (await b.newContext({ viewport: { width: 1500, height: 1300 } })).newPage();
+const errors = []; page.on('pageerror', (e) => errors.push(e.message));
+await page.goto(URL, { waitUntil: 'networkidle' });
+
+const PL = { on: true, height: 100, mode: 'under', setback: 0 };
+const CAB = (name, W, runId, o = {}) => ({ cab: { name, W, H: 720, D: 570, plinth: PL, legs: { on: true, height: 100 },
+  levels: [{ h: null, cols: [{ kind: 'doors', doors: W > 600 ? 2 : 1, w: null }] }], ...o }, runId, offset: 0 });
+const RUN = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 570, plinth: PL, worktop: false, corner: null, ...o });
+const seed = async (wstawka, active = 1, rogowa = {}) => {
+  await page.evaluate((p) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(p)); }, {
+    name: 'W', active, prices: {},
+    runs: [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0, wstawka } })],
+    items: [CAB('A1', 600, 'c1'), CAB('A2', 600, 'c1'), CAB('rog', 1000, 'c2', rogowa), CAB('B2', 600, 'c2')] });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(800);
+};
+const card = (re) => page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
+const uwagi = async () => (await card(/^Uwagi/).count() ? await card(/^Uwagi/).innerText() : '');
+const tabela = (re) => page.evaluate((src) => {
+  const re = new RegExp(src);
+  const sec = [...document.querySelectorAll('section')].find((s) => re.test((s.querySelector('h2') || {}).textContent || ''));
+  return sec ? [...sec.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((td) => td.textContent.trim()).join(' | ')) : [];
+}, re.source);
+const zapis = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
+const pick = async (l) => { await page.getByRole('button', { name: l, exact: true }).first().click(); await page.waitForTimeout(300); };
+const wstawkaZGory = async () => {
+  await pick('Zabudowa'); await pick('Z góry');
+  return page.evaluate(() => [...document.querySelectorAll('#rysunek [data-el="wstawka"]')].map((r) =>
+    ({ w: Math.round(Number(r.getAttribute('width'))), h: Math.round(Number(r.getAttribute('height'))) })));
+};
+
+console.log('== bez wstawki: kolizja w rogu podpowiada wstawkę ==');
+await seed(null);
+let uw = await uwagi();
+ok('kolizja otwierania w rogu jest zgłoszona', /nie ma się jak otworzyć/.test(uw));
+const przycisk18 = card(/^Uwagi/).getByRole('button', { name: /Dodaj wstawkę 18 mm/ }).first();
+ok('przycisk „Dodaj wstawkę 18 mm”', await przycisk18.count() === 1);
+await przycisk18.click(); await page.waitForTimeout(1500);
+let p = await zapis();
+ok('po kliknięciu: płaska wstawka w narożniku ciągu', JSON.stringify(p.runs[1].corner.wstawka) === JSON.stringify({ typ: 'plaska', w: 60 }),
+  JSON.stringify(p.runs[1].corner.wstawka));
+
+console.log('\n== płaska: formatka, okucia, rysunki ==');
+let lista = await tabela(/^Formatki do zamówienia/);
+ok('formatka w liście szafki A2 (720 × 60, płyta frontowa)', lista.some((l) => /^Wstawka w rogu \|/.test(l) && /\| 720 \| 60 \|/.test(l)), lista.join(' / '));
+let proj = await tabela(/^Formatki całego projektu/);
+ok('formatka w liście projektu', proj.some((l) => /^Wstawka w rogu \| Wstawka w rogu — A2/.test(l)), proj.filter((l) => /Wstawka/.test(l)).join(' / '));
+let prod = await tabela(/^Produkty całego projektu/);
+ok('wkręty do wstawki w produktach', prod.some((l) => /Wkręt 4 × 30/.test(l) && /wstawka w rogu/.test(l)), prod.filter((l) => /Wkręt/.test(l)).join(' / '));
+let wg = await wstawkaZGory();
+ok('rzut z góry: wstawka 18 × 60', wg.length === 1 && wg[0].w === 18 && wg[0].h === 60, JSON.stringify(wg));
+await pick('Zamk.');
+const el = await page.evaluate(() => [...document.querySelectorAll('#rysunek [data-el="wstawka"]')].map((r) =>
+  ({ w: Math.round(Number(r.getAttribute('width'))), h: Math.round(Number(r.getAttribute('height'))) })));
+ok('elewacja: pasek 18 × 720', el.length === 1 && el[0].w === 18 && el[0].h === 720, JSON.stringify(el));
+
+console.log('\n== szeroka: 60 mm na trójkątach ==');
+uw = await uwagi();
+const przycisk60 = card(/^Uwagi/).getByRole('button', { name: /Wstawka 60 mm \(na trójkątach\)/ }).first();
+if (/nie ma się jak otworzyć/.test(uw)) {
+  ok('gdy 18 mm nie wystarcza: przycisk „Wstawka 60 mm (na trójkątach)”', await przycisk60.count() === 1);
+  await przycisk60.click(); await page.waitForTimeout(1500);
+} else {
+  console.log('     (18 mm wystarczyło — szeroką ustawiam wprost)');
+  await seed({ typ: 'szeroka', w: 60 });
+}
+p = await zapis();
+ok('narożnik ma szeroką wstawkę 60', p.runs[1].corner.wstawka && p.runs[1].corner.wstawka.typ === 'szeroka' && p.runs[1].corner.wstawka.w === 60,
+  JSON.stringify(p.runs[1].corner.wstawka));
+lista = await tabela(/^Formatki do zamówienia/);
+ok('formatka 720 × 60 w liście szafki', lista.some((l) => /^Wstawka w rogu \|/.test(l) && /\| 720 \| 60 \|/.test(l)), lista.join(' / '));
+prod = await tabela(/^Produkty całego projektu/);
+ok('trójkąty do wstawki w produktach', prod.some((l) => /Trójkąt meblarski/.test(l) && /wstawka w rogu/.test(l)), prod.filter((l) => /Trójkąt/.test(l)).join(' / '));
+wg = await wstawkaZGory();
+ok('rzut z góry: wstawka 60 × 18', wg.length === 1 && wg[0].w === 60 && wg[0].h === 18, JSON.stringify(wg));
+
+console.log('\n== odsunięcie ciągu o wstawkę ==');
+/* Ciag sciany 1 odsuwa sie od rogu o glebokosc szafki w rogu (570) plus
+   wstawke — rzut pisze te liczbe w przerywanym polu „zjedzonym przez narożnik”. */
+const zjedzone = async (w) => {
+  await seed(w);
+  await pick('Zabudowa'); await pick('Z góry');
+  return page.evaluate(() => [...document.querySelectorAll('#rysunek text')].map((t) => t.textContent.trim()));
+};
+const tBez = await zjedzone(null), tPl = await zjedzone({ typ: 'plaska', w: 60 }), tSz = await zjedzone({ typ: 'szeroka', w: 60 });
+ok('bez wstawki róg zjada 570', tBez.includes('570') && !tBez.includes('588'));
+ok('płaska odsuwa ciąg o 18 (588)', tPl.includes('588'), tPl.filter((t) => /^5\d\d$/.test(t)).join(','));
+ok('szeroka odsuwa ciąg o 60 (630)', tSz.includes('630'), tSz.filter((t) => /^6\d\d$/.test(t)).join(','));
+
+console.log('\n== pole w karcie ciągu ==');
+await seed(null, 3);
+await page.getByText('Narożnik', { exact: true }).first().scrollIntoViewIfNeeded().catch(() => {});
+const pole = page.locator('[data-el="wstawka-pole"] select');
+ok('pole „Wstawka w rogu” w sekcji Narożnik', await pole.count() === 1);
+await pole.selectOption('plaska'); await page.waitForTimeout(1500);
+p = await zapis();
+ok('wybór w polu zapisuje płaską wstawkę', p.runs[1].corner.wstawka && p.runs[1].corner.wstawka.typ === 'plaska');
+
+console.log('\n== szafka w L: wstawki nie ma ==');
+await seed({ typ: 'plaska', w: 60 }, 3, { corner: { on: true, arm: 600 } });
+ok('przy szafce w L pola wstawki nie ma', await page.locator('[data-el="wstawka-pole"]').count() === 0);
+proj = await tabela(/^Formatki całego projektu/);
+ok('przy szafce w L formatki wstawki nie ma', !proj.some((l) => /Wstawka w rogu/.test(l)));
+
+console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
+await b.close();

@@ -40,7 +40,21 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-(pusto)
+Pytania z pracy nocnej 2026-09-28 — do zadania rano przyciskami.
+
+1. **Ślepy róg — ile frontu naprawdę zasłania drugi ciąg?** Dziś zasłonięta część
+   szafki w rogu = głębokość korpusu drugiego ciągu (570). Jego drzwi stoją jednak
+   18 mm dalej (570 + front 18 = 588), więc „N dostępu” jest zawyżone o grubość
+   frontu, a pierwsze drzwi szafki w rogu (i wstawka) mogą zahaczać o front sąsiada.
+   Opcje: (a) liczyć do lica frontów sąsiada (588) — zmieni podpisy „dostępu”
+   i szerokości drzwi przy rogu o 18 mm; (b) zostawić od korpusu (570).
+   Rekomendacja: (a).
+2. **Wstawka szeroka (60 licem) — oklejanie i trójkąty.** Przyjąłem: oklejona krawędź
+   pionowa od strony drzwi i dolna; trójkąty meblarskie w jednym rzędzie co ok.
+   400 mm (przy 720 — 2 szt.). Opcje oklejania: (a) tak jak jest; (b) obie krawędzie
+   pionowe i dolna. Trójkąty: (a) jeden rząd; (b) dwa rzędy (od góry i od dołu po 2).
+3. **Wstawka płaska — wkręty.** Przyjąłem „Wkręt 4 × 30” od środka szafki przez bok,
+   co ok. 200 mm (przy 720 — 4 szt.). Czy tak, czy inna długość/rozstaw?
 
 ## Ustalone — nie ruszać
 
@@ -55,18 +69,10 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Pomysły / optymalizacja
 
-- **W planie (ustalone z użytkownikiem 2026-09-27): wstawka w rogu** przy zwykłych
-  szafkach (bez szafki w L). Mocowana do boku pierwszej szafki ciągu, który **nie**
-  wjeżdża w róg, od strony rogu (np. w róg wjeżdża ściana 2 → ostatnia szafka
-  ściany 1). Płyta frontowa, wysokość korpusu. Dwie wersje:
-  - płaska: 18 (grubość płyty) × 60 mm głębokości, przykręcona płasko wkrętami do
-    boku, wystaje przed korpus o grubość frontu (licuje się z drzwiami), od przodu
-    widać krawędź 18 mm; oklejona krawędź przednia i dolna; odsuwa ciąg o 18 mm;
-  - szeroka (gdy 18 mm nie wystarcza): formatka 60 mm obrócona licem do przodu,
-    mocowana na trójkątach meblowych; odsuwa ciąg o 60 mm.
-  Jej grubość/szerokość dolicza się do luzu w rogu. W karcie ciągu (Narożnik)
-  pole „Wstawka w rogu”; ostrzeżenie o kolizji drzwi w rogu dostaje przycisk
-  „Dodaj wstawkę 18 mm”, a gdy to za mało — „Wstawka 60 mm (na trójkątach)”.
+- **Zrobione 2026-09-28: wstawka w rogu** (`run.corner.wstawka`, suita `wstawka`) —
+  płaska 18 × 60 na wkręty i szeroka 60 na trójkąty, przy pierwszej szafce ciągu,
+  który nie wjeżdża w róg; formatka z płyty frontowej na wysokość korpusu, rysunki,
+  kontrola otwierania, przyciski przy kolizji, pole w karcie ciągu (Narożnik).
 
 - **Zrobione 2026-09-27:** zapamiętywanie `computeGeo` i `runTop` (niezmienne
   obiekty projektu jako klucz). Pomiar na 24 szafkach w 3 ciągach (mediana

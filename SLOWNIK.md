@@ -62,6 +62,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Luz między korpusami | `run.gap` |
 | Poziom montażu | `run.mountY` |
 | Narożnik / Luz w rogu | `run.corner = { of, at, owner, clear }` |
+| Wstawka w rogu | `run.corner.wstawka = { typ: "plaska" \| "szeroka", w }` (`WSTAWKA_W` = 60); tylko bez szafki w L; w układzie `n.pair.wstawka` i `n.wstawki[]` ciągu, który ustępuje (u0/u1, v0/v1, z0/z1); formatka i okucia `wstawkaParts`; odsuwa ciąg o grubość frontu (płaska) albo `w` (szeroka) |
 | Wysokość i głębokość szafek (Wymiary i montaż) | `run.H`, `run.D` |
 | Cokół ciągu / Cokół pod szafkami / Podział cokołu | `run.plinth`, `runPlinth`, `runPlinthPanels` |
 | Blat roboczy / Blat ciągu / Podział blatu | `run.worktop`, `runTop`, `worktopSpans`, `runTopPanels` |
@@ -284,6 +285,7 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `fixh:` / `fixnl:` / `fixback:` / `fixnodoor:` | wysokość, NL prowadnicy, tył szuflady, kolumna bez drzwi |
 | `fixdiv:` / `fixsup:` / `fixcolauto:` | przegroda, wspornik, kolumna na automat |
 | `hingeflip:<lv>:<col>:<side>` | przekłada zawiasy na drugą stronę |
+| `wstawka:<ciąg z narożnikiem>:<plaska\|szeroka>:<mm>` | przy kolizji otwierania między ciągami w rogu (bez szafki w L): „Dodaj wstawkę 18 mm”, a gdy płaska już jest — „Wstawka 60 mm (na trójkątach)”; obsługa w `runFix` przez `setCorner` |
 | `onedoor:<lv>:<col>:<szer>:<side>` | dwoje wąskich drzwi (każde < `WASKI_FRONT`, jedne ≤ `SZEROKI_FRONT`) zamienia na jedne z zawiasami z lewej/prawej; podpowiedź „dwoje wąskich drzwi” w `computeGeo` (nie w szafce narożnej ani przy rogu) |
 | `cornerdoor:<w>:<idx>` | ustawia jedne drzwi szafki narożnej na podaną szerokość |
 | `noTop:<idx>` | zamienia wieniec na parę wzmocnień |
@@ -326,6 +328,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `zoom` | powiększanie i przesuwanie rysunku, „Dopasuj”, pamięć powiększenia i przewinięcia każdego widoku, pełny ekran z Esc, 3D: obrót vs Shift + przesuwanie |
 | `wasdrzwi` | podpowiedź „dwoje wąskich drzwi” (300, 500 tak; 600 i jedne drzwi nie), przyciski zawiasy z lewej/prawej |
 | `formatki` | **audyt**: każda płyta z rysunku 3D (szafka i zabudowa) ma parę w formatkach szafki/projektu — drzwi, szuflady, fix ze wspornikiem, fix u góry, blendy, maskownica wycięcia, plecy z płyty, przegrody, ciąg z blatem i cokołem, szablony (w tym szafka w L); ramię w liście szafki narożnej |
+| `wstawka` | wstawka w rogu: przyciski przy kolizji, formatka 720 × 60 w liście szafki i projektu, wkręty/trójkąty, rzut 18 × 60 / 60 × 18, elewacja, odsunięcie ciągu o 18/60, pole w Narożniku, brak przy szafce w L |
 | `odsuniecie` | odsunięcie od ściany: głębokość blatu, wysięg przed drzwi (10 / <10 uwaga / >30 ostrzeżenie), krzywa ściana w widoku z boku, róg przesunięty o odstęp, wyjątek jednej szafki |
 | `hw2` / `cokol` / `cokolstd` / `ceny` / `ceny2` | okucia, cokół, cennik |
 | `ciag`…`ciag10` | ciągi: zakładanie, rozjazdy, cokół ciągu, światła |

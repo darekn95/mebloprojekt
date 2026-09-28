@@ -194,6 +194,9 @@ const WASKI_FRONT = 250;
 /* Skrzydlo szersze niz to ciazy na zawiasach, opada i zabiera duzo miejsca przy
    otwieraniu — w kuchni drzwi robi sie zwykle do ok. 600 mm. */
 const SZEROKI_FRONT = 600;
+/* Wstawka w rogu: 60 mm to najwezsza formatka, jaka da sie jeszcze okleic —
+   tyle ma plaska w glab, a szeroka licem do przodu (ustalone z uzytkownikiem). */
+const WSTAWKA_W = 60;
 
 /* Ile szafka w L zajmuje od rogu wzdluz obu scian i skad sie to bierze. Przy
    zwyklej szafce szerokosc to szerokosc — tu przy scianie ramienia dochodzi
@@ -774,6 +777,12 @@ const migrateCorner = (c) => {
        w rog. „skos" to lyzwa, czyli oba kawalki ciete pod 45 stopni. */
     top: c.top === "self" || c.top === "of" ? c.top : null,
     cut: c.cut === "skos" ? "skos" : "prosty",
+    /* Wstawka w rogu (tylko bez szafki w L): listwa z plyty frontowej na boku
+       pierwszej szafki ciagu, ktory ustepuje, od strony rogu. „plaska" — grubosc
+       plyty w poprzek, `w` (60) w glab, przykrecona wkretami; „szeroka" — `w`
+       licem do przodu, na trojkatach. Odsuwa ciag o to, co widac od przodu. */
+    wstawka: c.wstawka && (c.wstawka.typ === "plaska" || c.wstawka.typ === "szeroka")
+      ? { typ: c.wstawka.typ, w: Math.max(20, Math.round(Number(c.wstawka.w) || WSTAWKA_W)) } : null,
   };
 };
 
@@ -3625,7 +3634,7 @@ const runLayout = (groups, ref = null) => {
        dalej liczy sie samo, bo cala geometria pasa idzie od tych dwoch liczb. */
     lead: g.run.offsetFrom === "right" ? 0 : Math.max(0, Math.round(g.run.offset || 0)),
     tail: g.run.offsetFrom === "right" ? Math.max(0, Math.round(g.run.offset || 0)) : 0,
-    corner: null, kids: [], zones: [], arms: [], blind: null, arm: null, pair: null,
+    corner: null, kids: [], zones: [], arms: [], blind: null, arm: null, pair: null, wstawki: [],
   }));
   info.forEach((n) => {
     const c = n.run.corner;
@@ -3656,7 +3665,18 @@ const runLayout = (groups, ref = null) => {
       ? Math.round(rogowa.wallGap.bottom + rogowa.geo.carcassDepth - rogowa.offset)
       : wchodzi.depth; // glebokosc ciagu juz liczy sie od sciany, z odstepem
     n.pair = { wchodzi, ustepuje, przyStarcie, rogowa, armLen, glRog };
-    const o = glRog + armLen + (n.corner.clear || 0);
+    /* Wstawka siedzi na boku tej szafki ciagu ustepujacego, ktora stoi przy
+       rogu, i odsuwa caly ciag o to, co z niej widac od przodu: grubosc plyty
+       frontowej (plaska) albo swoja szerokosc (szeroka). Przy szafce w L jej
+       nie ma — tam rog zamyka ramie. */
+    const ustNaStarcie = n.corner.at === "end" ? ustepuje === n : ustepuje === p;
+    const ws = !armLen && n.corner.wstawka ? n.corner.wstawka : null;
+    const przyRogu = ws && ustepuje.g.cabs.length
+      ? ustepuje.g.cabs[ustNaStarcie ? 0 : ustepuje.g.cabs.length - 1] : null;
+    const wsU = przyRogu ? (ws.typ === "szeroka" ? ws.w : przyRogu.geo.tf) : 0;
+    if (przyRogu) n.pair.wstawka = { ...ws, cab: przyRogu, run: ustepuje, naStarcie: ustNaStarcie,
+      u: wsU, gl: ws.typ === "szeroka" ? przyRogu.geo.tf : ws.w };
+    const o = glRog + armLen + (n.corner.clear || 0) + wsU;
     // odsuwamy z tej strony ciagu, ktora dotyka rogu
     if (n.corner.at === "end") { if (ustepuje === n) n.lead += o; else p.tail += o; }
     else if (ustepuje === n) n.tail += o; else p.lead += o;
@@ -3695,6 +3715,17 @@ const runLayout = (groups, ref = null) => {
     const u0 = przyStarcie ? w.lead : w.lead + w.total - covered;
     const z = { cab: c, covered, free, run: w, other, u0, u1: u0 + covered,
       freeU0: przyStarcie ? u0 + covered : u0 - free };
+    /* Polozenie wstawki liczymy dopiero tu, gdy znane sa juz ostateczne
+       odsuniecia ciagow. Lico korpusu to glebokosc ciagu plus wysuniecie szafki;
+       wstawka konczy sie w licu drzwi, czyli grubosc frontu przed nim. */
+    const wsp = n.pair.wstawka;
+    if (wsp) {
+      const c0 = wsp.cab;
+      const u0 = wsp.naStarcie ? wsp.run.lead + c0.x - wsp.u : wsp.run.lead + c0.x + c0.geo.W;
+      const lico = wsp.run.depth + c0.offset + (c0.cab.frontMode === "inset" ? 0 : c0.geo.tf);
+      wsp.run.wstawki.push({ ...wsp, u0, u1: u0 + wsp.u, v0: lico - wsp.gl, v1: lico,
+        z0: c0.base, z1: c0.base + c0.cab.H, H: c0.cab.H, rogRun: n.run.id });
+    }
     if (!armLen) { n.blind = z; w.zones.push(z); return; }
     /* Ramie rysuje sie i mierzy w ukladzie tego ciagu, ktory sie odsunal —
        lezy dokladnie w luce miedzy rogiem a jego pierwsza szafka. */
@@ -4472,6 +4503,14 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                   frontColor={c.frontColor} levelDims={showDims && open && c.cab === activeCab} />
               </g>
             ))}
+            {/* Wstawka w rogu od przodu: plaska to pasek grubosci plyty przy boku,
+                szeroka — pas 60 mm; ta sama wysokosc co korpus. */}
+            {!rear && ((full.info.get(g.run.id) || {}).wstawki || []).map((w, i) => (
+              <rect key={"ws" + i} data-el="wstawka"
+                x={mx(L.info.get(g.run.id).ex + w.u0, w.u1 - w.u0)} y={fy(w.z1)}
+                width={w.u1 - w.u0} height={w.z1 - w.z0}
+                fill={w.cab.frontColor} stroke={INK} strokeWidth="2" />
+            ))}
             {/* Blat ciagu — jedna plaszczyzna nad szafkami, takze nad ramieniem
                 w rogu. Bez tego widok konczyl sie na licu korpusow. */}
             {(() => {
@@ -5085,6 +5124,12 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
             {/* Ramie stoi z odstepem tego ciagu od sciany — jego lico jest
                 w licu ciagu, a glebokosc to sam korpus. */}
             {armsIn(full, n, rysowane).filter((a) => !a.dostawione).map((a, i) => ramie(a, i, n.depth))}
+            {/* Wstawka w rogu: listwa z plyty frontowej przy boku pierwszej szafki,
+                w licu drzwi — tu widac, o ile odsuwa ciag od frontu w rogu. */}
+            {((full.info.get(g.run.id) || n).wstawki || []).map((w, i) => (
+              <rect key={"ws" + i} data-el="wstawka" x={w.u0} y={w.v0} width={w.u1 - w.u0} height={w.v1 - w.v0}
+                fill={w.cab.mat.front.color} stroke={INK} strokeWidth="1.5" />
+            ))}
           </g>
         );
       })}
@@ -5241,6 +5286,11 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       return { x: q.x, y: p.y, z: -q.y };
     };
     const rp = rpOf ? rpOf(g.run) : null;
+    // wstawka w rogu: te same wymiary co w rzucie i w formatkach
+    ((full.info.get(g.run.id) || n).wstawki || []).forEach((w) => {
+      box(w.u0 - n.lead, w.z0, n.depth - w.v1, w.u1 - n.lead, w.z1, n.depth - w.v0,
+        w.cab.frontColor, null, 1, true, 0, "wstawka");
+    });
     /* Cokol to plyta stojaca pod frontami, a nie pelna kostka — rysowany na cala
        glebokosc pokazywal plyte tam, gdzie jej nie ma: przy bokach i z tylu. */
     if (rp && rp.h > 0 && g.cabs.length) {
@@ -8104,10 +8154,12 @@ const groupPanels = (panels) => {
    wspolne dla ciagu ida jego pozycja (w formatkach calego projektu), wiec tu ich
    nie ma. Ramie szafki naroznej nalezy do niej: jego plyty sa tu razem
    z korpusem — wczesniej trafialy tylko do listy calego projektu. */
-const formatkiSzafki = (geo, { bezCokolu = false, bezBlatu = false, arm = null } = {}) => {
+const formatkiSzafki = (geo, { bezCokolu = false, bezBlatu = false, arm = null, wstawki = [] } = {}) => {
   const gone = [...(bezCokolu ? ["Cokół"] : []), ...(bezBlatu ? ["Blat"] : [])];
   const wlasne = gone.length ? geo.panels.filter((p) => !gone.includes(p.name)) : geo.panels;
-  return groupPanels(arm ? [...wlasne, ...cornerArmParts(arm).panels] : wlasne);
+  // wstawka w rogu przykreca sie do tej szafki, wiec idzie na jej liste
+  return groupPanels([...wlasne, ...(arm ? cornerArmParts(arm).panels : []),
+    ...wstawki.flatMap((w) => wstawkaParts(w).panels)]);
 };
 
 /* Czy projekt ma cos poza lista jednej szafki: druga szafke, wspolny cokol albo
@@ -8190,6 +8242,14 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         ? (toRun ? "Tak ma wisieć cały ciąg" : "Wieszaj tę szafkę jak ciąg")
         : (toRun ? `Ustaw cały ciąg na ${val} mm` : `Wyrównaj tę szafkę do ciągu (${val} mm)`);
       return { label, run: () => runFix && runFix(action) };
+    }
+    if (action.startsWith("wstawka:")) {
+      // „wstawka:<ciag z narożnikiem>:<plaska|szeroka>:<ile mm widac od przodu>"
+      const [, , typ, ile] = action.split(":");
+      return {
+        label: typ === "szeroka" ? `Wstawka ${fmt(Number(ile))} mm (na trójkątach)` : `Dodaj wstawkę ${fmt(Number(ile))} mm`,
+        run: () => runFix && runFix(action),
+      };
     }
     if (action.startsWith("fixgap:")) {
       const [, li, j, val, dir] = action.split(":");
@@ -8845,6 +8905,30 @@ const armShelfYs = (side, levels) => {
   return ys;
 };
 
+/* Formatka i okucia wstawki w rogu. Z plyty frontowej (jest widoczna), na
+   wysokosc korpusu. Plaska: grubosc plyty od przodu, 60 mm w glab, przykrecona
+   od srodka szafki przez bok wkretami co ok. 200 mm. Szeroka: 60 mm licem do
+   przodu, na trojkatach meblarskich co ok. 400 mm. Oklejana krawedz widoczna
+   od przodu i dolna (ustalone z uzytkownikiem 2026-09-27). */
+const wstawkaParts = (ws) => {
+  const H = Math.round(ws.H);
+  const plaska = ws.typ === "plaska";
+  const panels = [{ name: "Wstawka w rogu", qty: 1, a: H, b: plaska ? ws.gl : ws.u, matKey: "front",
+    edges: { a1: true, a2: false, b1: true, b2: false },
+    note: plaska
+      ? "płasko przy boku szafki, licuje się z drzwiami — krawędź przednia i dolna"
+      : "licem do przodu, na trójkątach — krawędź od strony drzwi i dolna" }];
+  const hardware = plaska
+    ? [{ name: "Wkręt 4 × 30", use: "wstawka w rogu — od środka szafki przez bok, co ok. 200 mm",
+        spec: `wstawka w rogu: ${Math.max(2, Math.ceil(H / 200))} szt. co ok. 200 mm`,
+        qty: Math.max(2, Math.ceil(H / 200)), unit: "szt." }]
+    : [{ name: "Trójkąt meblarski", use: "wstawka w rogu — do boku szafki, co ok. 400 mm",
+        spec: `wstawka w rogu: ${Math.max(2, Math.ceil(H / 400))} szt. co ok. 400 mm`,
+        qty: Math.max(2, Math.ceil(H / 400)), unit: "szt." }];
+  return { panels, hardware };
+};
+const wstawkiOf = (layout) => [...layout.info.values()].flatMap((n) => n.wstawki || []);
+
 /* Formatki ramienia szafki naroznej. Plyty poziome i plecy sa osobnymi
    kawalkami dostawionymi na kolki do korpusu — tak jak w kupnych szafkach
    naroznych — bo w calosci nie da sie ich ani okleic, ani wnieść. */
@@ -9097,7 +9181,13 @@ const projectParts = (project) => {
         panels, hardware });
     });
   }
-  return [...cabs, ...runs, ...arms];
+  const wstawki = wstawkiOf(layout).map((w) => {
+    const { panels, hardware } = wstawkaParts(w);
+    return { mat: w.cab.rawMat || w.cab.mat, grainMatters: w.cab.cab.grainMatters,
+      name: `Wstawka w rogu — ${(w.cab.cab.name || "").trim() || `Szafka ${w.cab.index + 1}`}`,
+      panels, hardware };
+  });
+  return [...cabs, ...runs, ...arms, ...wstawki];
 };
 
 /* Uwagi ciagu w jednym miejscu, bo czyta je i karta aktywnej szafki, i licznik
@@ -9737,6 +9827,14 @@ const swingBodies = (L) => {
           { ...kto, klucz, szer: d.w }));
       });
     });
+    /* Wstawka w rogu stoi w licu drzwi, wiec dla skrzydel jest przeszkoda —
+       rowniez dla drzwi jej wlasnej szafki, gdy maja zawias od jej strony. */
+    (n.wstawki || []).forEach((w) => {
+      const nazwa = (w.cab.cab.name || "").trim() || `szafka ${w.cab.index + 1}`;
+      const id = `${n.id}#${w.cab.index}`;
+      bryly.push(roomBox(n, w.u0, w.u1, w.v0, w.v1, w.z0, w.z1,
+        { cab: nazwa, run: n.run.name, id, co: "wstawka w rogu", klucz: `${id}|wstawka` }));
+    });
     /* Ramie szafki naroznej lezy w pasie sasiedniej sciany, ale jest kawalkiem
        tamtej szafki — a jego drzwi otwieraja sie jak kazde inne. To wlasnie one
        spotykaja sie w rogu z frontem korpusu. */
@@ -9801,10 +9899,27 @@ const openingMsgs = (L) => {
     if (g.b.run !== s.run) rady.push("odsuń ciągi w rogu (karta ciągu → Narożnik → „Luz w rogu”)");
     const rada = rady.length > 1
       ? rady.slice(0, -1).join(", ") + " albo " + rady[rady.length - 1] : rady[0];
+    /* Kolizja miedzy dwoma ciagami w rogu bez szafki w L: od razu przycisk
+       wstawki — najpierw plaskiej (grubosc plyty), a gdy juz jest i nie
+       wystarcza, szerokiej 60 mm na trojkatach. Ustawienie siedzi w narozniku
+       ciagu, ktory go ma (tego z `corner.of`). */
+    let akcja = "";
+    const rA = s.id.split("#")[0], rB = g.b.id.split("#")[0];
+    if (rA !== rB) {
+      const rog = [...L.info.values()].find((k) => k.corner && k.pair && !k.pair.armLen
+        && ((k.id === rA && k.corner.of === rB) || (k.id === rB && k.corner.of === rA)));
+      if (rog) {
+        const ws = rog.corner.wstawka;
+        const cabRog = rog.pair.ustepuje.g.cabs[0];
+        const tf = cabRog ? Math.round(cabRog.geo.tf) : 18;
+        if (!ws) akcja = `|wstawka:${rog.id}:plaska:${tf}`;
+        else if (ws.typ === "plaska") akcja = `|wstawka:${rog.id}:szeroka:${WSTAWKA_W}`;
+      }
+    }
     out.push({ level: "error", text:
       `${s.ramie ? "Front ramienia" : "Skrzydło"} szafki „${s.cab}" (ciąg „${s.run}") nie ma się jak `
       + `otworzyć: po drodze stoi ${g.b.co} ${czyje} — brakuje ${fmt(Math.round(g.ile))} mm. `
-      + rada.charAt(0).toUpperCase() + rada.slice(1) + "." });
+      + rada.charAt(0).toUpperCase() + rada.slice(1) + "." + akcja });
   });
   return out;
 };
@@ -10112,13 +10227,13 @@ const PRINT_CSS = `
 /* `ctx` i `arm` przychodza z ukladu calego projektu: bez nich kartka szafki
    naroznej liczyla front przez cala szerokosc korpusu i nie pokazywala ramienia,
    czyli wydruk mowil co innego niz aplikacja i niz lista formatek. */
-function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, sharedTop, ctx, arm }) {
+function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, sharedTop, ctx, arm, wstawki = [] }) {
   const ambig = useMemo(() => ambiguousThickness([mat]), [mat]);
   const geo = useMemo(() => computeGeo(cab, mat, ctx), [cab, mat, ctx]);
   // cokol i blat ciagu sa wspolne — na kartce szafki ich nie ma, ida osobna pozycja
   const panels = useMemo(
-    () => formatkiSzafki(geo, { bezCokolu: sharedPlinth, bezBlatu: sharedTop, arm }),
-    [geo, sharedPlinth, sharedTop, arm]
+    () => formatkiSzafki(geo, { bezCokolu: sharedPlinth, bezBlatu: sharedTop, arm, wstawki }),
+    [geo, sharedPlinth, sharedTop, arm, wstawki]
   );
   const realCab = useMemo(() => ({ ...cab, realColors: true }), [cab]);
   const totalQty = panels.reduce((s, p) => s + p.qty, 0);
@@ -10300,7 +10415,8 @@ function PrintReport({ project }) {
           index={i} total={project.items.length}
           ctx={armCtxOf(layout, i)} arm={armOf.get(i)}
           sharedPlinth={!!runsWithPlinth.has(it.runId || null)}
-          sharedTop={!!runsWithTop.has(it.runId || null)} />
+          sharedTop={!!runsWithTop.has(it.runId || null)}
+          wstawki={wstawkiOf(layout).filter((w) => w.cab.index === i)} />
       ))}
       {calyProjekt(project) && <ReportProjectSheet project={project} projectName={name} />}
       <ReportCutPlan project={project} projectName={name} />
@@ -11238,6 +11354,13 @@ export default function App() {
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    if (action.startsWith("wstawka:")) {
+      const [, id, typ] = action.split(":");
+      const r = (project.runs || []).find((x) => x.id === id);
+      if (r && r.corner) setCorner(id, r.corner.of,
+        { wstawka: { typ, w: (r.corner.wstawka && r.corner.wstawka.w) || WSTAWKA_W } });
+      return;
+    }
     if (!runInfo) return;
     if (action === "plinthauto") { setRun(runInfo.run.id, { plinthCuts: null }); return; }
     if (action === "topauto") { setRun(runInfo.run.id, { topCuts: null }); return; }
@@ -11261,7 +11384,7 @@ export default function App() {
       : field === "hangerMode" ? (run.hangerMode || "listwa") : run[field];
     if (kind === "runrun") setRunShared(run.id, { [field]: fromCab });
     else setCab((cur) => ({ ...cur, [field]: fromRun }));
-  }, [project, runInfo, setRunShared, setCab, setRun]);
+  }, [project, runInfo, setRunShared, setCab, setRun, setCorner]);
 
   const set = useCallback((patch) => setCab((c) => ({ ...c, ...patch })), [setCab]);
   // szerszy arkusz blatu — zmienia material, wiec dotyczy calego projektu
@@ -11539,9 +11662,12 @@ export default function App() {
     const n = projLayout.info && [...projLayout.info.values()].find((k) => k.arm && k.arm.cab.index === project.active);
     return n ? n.arm : null;
   }, [projLayout, project.active]);
+  const wstawkiAktywnej = useMemo(
+    () => wstawkiOf(projLayout).filter((w) => w.cab.index === project.active),
+    [projLayout, project.active]);
   const cutList = useMemo(
-    () => formatkiSzafki(geo, { bezCokolu: !!runPl, bezBlatu: !!runTp, arm: armAktywnej }),
-    [geo, runPl, runTp, armAktywnej]);
+    () => formatkiSzafki(geo, { bezCokolu: !!runPl, bezBlatu: !!runTp, arm: armAktywnej, wstawki: wstawkiAktywnej }),
+    [geo, runPl, runTp, armAktywnej, wstawkiAktywnej]);
   const zCaloscia = useMemo(() => calyProjekt(project), [project]);
 
   const edgeMeters = useMemo(() => {
@@ -12124,6 +12250,34 @@ export default function App() {
                               onChange={(v) => setCorner(runInfo.run.id, runInfo.run.corner.of,
                                 { clear: Math.max(0, Math.round(Number(v) || 0)) })} />
                           </label>
+                          {/* Wstawka tylko przy zwyklych szafkach — szafke w L zamyka ramie. */}
+                          {!(runNode && runNode.pair && runNode.pair.armLen) && (
+                            <div className="flex items-end gap-2" data-el="wstawka-pole">
+                              <label className="block flex-1">
+                                <span className="mb-1 block text-[11px] text-stone-400">Wstawka w rogu</span>
+                                <select value={(runInfo.run.corner.wstawka || {}).typ || ""}
+                                  title="Listwa z płyty frontowej na boku pierwszej szafki ciągu, który nie wjeżdża w róg — odsuwa jego drzwi od frontu w rogu"
+                                  onChange={(e) => setCorner(runInfo.run.id, runInfo.run.corner.of, {
+                                    wstawka: e.target.value
+                                      ? { typ: e.target.value, w: (runInfo.run.corner.wstawka || {}).w || WSTAWKA_W } : null })}
+                                  className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-teal-600 focus:outline-none">
+                                  <option value="">brak</option>
+                                  <option value="plaska">płaska — grubość płyty, na wkręty</option>
+                                  <option value="szeroka">szeroka — licem do przodu, na trójkąty</option>
+                                </select>
+                              </label>
+                              {runInfo.run.corner.wstawka && (
+                                <label className="block w-24">
+                                  <span className="mb-1 block text-[11px] text-stone-400">
+                                    {runInfo.run.corner.wstawka.typ === "szeroka" ? "szerokość" : "w głąb"}
+                                  </span>
+                                  <Num value={runInfo.run.corner.wstawka.w} min={20}
+                                    onChange={(v) => setCorner(runInfo.run.id, runInfo.run.corner.of, {
+                                      wstawka: { ...runInfo.run.corner.wstawka, w: Math.max(20, Math.round(Number(v) || WSTAWKA_W)) } })} />
+                                </label>
+                              )}
+                            </div>
+                          )}
                           {runTp && (
                             <>
                               <Seg value={runInfo.run.corner.cut || "prosty"}
