@@ -53,7 +53,7 @@ const porownaj = (sol, parts, luzCokol = false) => {
   /* Uchwyty i nozki to okucia (osobna lista), nie formatki — w bryle maja
      kolor okuc albo znacznik. */
   const plyty = sol.filter((s) => { const d = [...s.d].sort((x, y) => x - y);
-    return d[0] > 0.5 && d[0] <= 40 && d[1] >= 20 && s.color !== '#3f3f46' && !/^(uchwyt|noga)/.test(s.tag || ''); });
+    return d[0] > 0.5 && d[0] <= 40 && d[1] >= 20 && s.color !== '#3f3f46' && s.color !== '#8b8b93' && !/^(uchwyt|noga)/.test(s.tag || ''); });
   const brak = [];
   plyty.forEach((s) => {
     const [, q, r] = [...s.d].sort((x, y) => x - y).map(Math.round);

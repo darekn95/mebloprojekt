@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-28 | rysunki 2D, znalazł nowy `audyt2d` | rysunek płaski porównany z rzutem bryły 3D w obie strony (z przodu zamknięte/otwarte, z góry, z boku, z tyłu; 15 konfiguracji). Poprawione: uchwyty z przodu miały własne wymiary (120 zamiast 180 mm, przy prawych drzwiach 10 mm obok) — teraz `UchwytElewacja` z `uchwytObrys`, też w elewacji ciągu i przy klapie; z boku HDF przybijany stał w korpusie zamiast za nim, cokół był klockiem na całą głębokość zamiast płyty przy licu, brakowało uchwytów, tył szuflady stał przy froncie zamiast z tyłu skrzynki; HDF we frezie z góry i z boku bez części we frezie; z góry obrys skrzynki szuflady wchodził w boki (szerokość frontu zamiast światła); z tyłu bez pleców nie było widać frontów; otwarte skrzydła i klapy bez uchwytów, otwarta klapa po złej stronie osi. Skrzynka szuflady jest teraz też w zamkniętej bryle 3D. Kontrola klap: oś w licu, grubość po stronie korpusu (jak skrzydła i 3D) — klapa pod blatem się otwiera | (ten commit) |
 | 2026-09-28 | kontrola otwierania (`swingBodies`, `openingMsgs`) | szuflady były tylko przeszkodą dla skrzydeł, a klapy nie były sprawdzane wcale. Teraz: szuflada wysuwa się prosto na prowadnicę z uchwytem (`wysuwHit`) — np. w zasłoniętej części ślepego rogu trafia w korpus sąsiada; klapa obraca się z grubością frontu co 1° (`klapaHit`) — pod blatem otworzy się tylko na kilkanaście stopni; blat ciągu jest przeszkodą. Uchwyt liczony tam, gdzie naprawdę jest (`uchwytObrys`), a nie paskiem przez cały front — test `otwier` „grubszy uchwyt” przerobiony na układ z płaską wstawką. Nowa suita `ruchy` | (ten commit) |
 | 2026-09-28 | plecy we frezie (`computeGeo`, rysunki, 3D) | frez liczony jak rowek odsunięty 16 mm od tyłu i 4 mm w płytę (HDF 570 × 690 w szafce 600 × 720, półki 19 mm płytsze) — a u użytkownika to frez 16 × 3 na tylnej krawędzi, HDF zlicowany z tyłem. Domyślne {16, 4} były zamienione; teraz {3, 16}, stare zapisy z {16, 4} migrują (`migrateCab`, znacznik `wreg`). Frez płytszy niż HDF — ostrzeżenie i plecy liczone za korpusem. Nowa suita `wreg`; audyt dopuszcza HDF 15 mm w płycie | (ten commit) |
 | 2026-09-28 | róg (`projectLayout`, `glRog`), znalazł `audyt` | odsunięcie drugiego ciągu liczone od ściany do lica samej szafki w rogu, jakby stała przy ścianie — a szafki ciągu stoją wyrównane do lica, więc płytsza szafka w rogu stoi dalej od ściany. Szafka w L 560 w ciągu szafek 570 wchodziła ramieniem 10 mm w pierwszą szafkę drugiego ciągu. Teraz `glRog` = lico ciągu + wysunięcie szafki w rogu. Uwaga „Od rogu szafka zajmuje…” rozpisuje też plecy / dosunięcie do lica (wcześniej składniki nie sumowały się do podanej liczby). Testy: `narozn2` ramię „500 × 600” (korpus), `narkat` wzmocnienie czołowe o plecy pustego ciągu krótsze | (ten commit) |
@@ -57,6 +58,13 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
+- **Tył skrzynki szuflady V-BOX** (2026-09-28): tył stoi na dnie, więc
+  katalogowy (200 przy boku 210) wystaje ponad bok — przy górnej szufladzie
+  wchodzi w wieniec (`audyt`, `audyt2d` — oznaczone jako znane). Ustalone:
+  tył nigdy wyżej niż górna krawędź frontu szuflady (lepiej niżej), nie niżej
+  niż bok, wyższy tył dopuszczamy, jeśli o nic nie zahacza (blat, front wyżej,
+  uchwyt u góry) i ma luz na wyjęcie. Reszta (gdzie dno, minimalny tył) —
+  według instrukcji V-BOX, którą użytkownik przyśle (`instrukcje/`).
 - **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
   się kategoria „sprzęty” (lodówka, piekarnik, mikrofala) — dołożyć je jako

@@ -41,12 +41,24 @@ await seed([RUN('c1', 'Ściana A', { worktop: false })], [
 let r = await ruchy();
 ok('bez blatu nic się nie blokuje', r.length === 0, skrot(r));
 
-console.log('\n== klapa do góry pod blatem uderza w blat ==');
+console.log('\n== klapa do góry pod blatem: staje przed wieńcem, otwiera się ==');
+/* Zawiasy te same co przy skrzydlach (uzytkownik 2026-09-28): skrzydlo staje
+   przed krawedzia boku, klapa — przed krawedzia wienca, 3 mm pod blatem. */
 await seed([RUN('c1', 'Ściana A')], [CAB('S1', 600, 'c1', SZUF),
   CAB('K1', 600, 'c1', { kind: 'doors', doors: 1, klapa: 'gora' })]);
 r = await ruchy();
-ok('uwaga: klapa do góry, po drodze blat', r.some((l) => /Klapa do góry szafki „K1".*nie otworzy się na 90°: po drodze stoi blat .*otworzy się tylko na ok\. \d+°/.test(l)), skrot(r));
+ok('klapa pod blatem bez kolizji', !r.some((l) => /Klapa/.test(l)), skrot(r));
 ok('szuflady pod blatem wolne', !r.some((l) => /Szuflada szafki „S1"/.test(l)), skrot(r));
+
+console.log('\n== klapa w zasłoniętej części ślepego rogu ==');
+await seed([RUN('c1', 'Ściana A', { worktop: false }),
+  RUN('c2', 'Ściana B', { worktop: false, corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })], [
+  CAB('A1', 600, 'c1', DRZWI), CAB('A2', 600, 'c1', DRZWI),
+  CAB('R', 1000, 'c2', { kind: 'doors', doors: 1, klapa: 'gora' })]);
+r = await ruchy();
+const kl = r.find((l) => /Klapa do góry szafki „R"/.test(l));
+ok('klapa R nie otworzy się: po drodze szafka z ciągu „Ściana A”',
+  !!kl && /nie otworzy się na 90°: po drodze stoi .* szafki „A2" z ciągu „Ściana A" — otworzy się tylko na ok\. \d+°/.test(kl), skrot(r));
 
 console.log('\n== klapa w dół w szafce górnej: wolna ==');
 await seed([RUN('g1', 'Górne', { worktop: false, H: 360, D: 300, plinth: { on: false }, mountY: 1500 })], [

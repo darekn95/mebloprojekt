@@ -618,3 +618,12 @@ wspornik (`c.shFront`/`c.shD`), kolki w bokach — tak ustalil uzytkownik.
 wienca i dna (w UI zawsze „frez”, nie „wręg” — prosba uzytkownika): `depth` 16 (z grubosci plyty), `offset` 3 (w strone drzwi, HDF
 zlicowany z tylem), `play` 1 na strone. `backIntrusion = grOff`, HDF z0 =
 cd - grOff. Stare {16, 4} bez `wreg` migruja w `migrateCab`. Suita `wreg`.
+
+[AI-INFO] Audyt rysunkow 2D (`testy/audyt2d.mjs`): prostokaty SVG w jednostkach
+viewBox przez getCTM, porownanie z rzutami `window.__audytBryl` (bryla samej
+szafki, zamknieta i otwarta). Widoki ciagu/zabudowy jeszcze nie — [AI-TODO].
+Uchwyty na elewacjach rysuje `UchwytElewacja` (wspolny obrys `uchwytObrys`).
+[AI-TODO] Szuflada V-BOX: czekamy na instrukcje od uzytkownika („folder-szuflada”);
+potem: polozenie dna, minimalny tyl, `maxBack` od gory dna, ostrzezenie „tyl wyzej
+niz front szuflady”, kontrola standardowego tylu pod wiencem/frontem wyzej.
+Instrukcje trzymamy w `instrukcje/` (spis: `instrukcje/SPIS.md`).

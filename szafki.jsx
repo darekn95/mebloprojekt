@@ -4261,11 +4261,24 @@ const runLayout = (groups, ref = null) => {
    pokazywalby uproszczenie, na ktorym nie da sie niczego sprawdzic. Uklad
    wspolrzednych jest lokalny (0,0 = lewy gorny rog korpusu); na miejsce
    przesuwa go transform w AssemblyView. */
+/* Uchwyt na rysunku z przodu — ten sam obrys co w bryle 3D, rzucie z gory
+   i kontroli otwierania (`uchwytObrys`). Wczesniej elewacja miala wlasne
+   wymiary (120 mm zamiast 180, przy prawych drzwiach 10 mm obok) — znalazl to
+   audyt rysunkow 2D (2026-09-28). */
+function UchwytElewacja({ d, fy, dx = 0 }) {
+  const ob = uchwytObrys(d);
+  return (
+    <rect data-el={d.type === "door" ? `uchwyt-${d.handlePos}` : undefined}
+      x={ob.x0 + dx} y={fy(ob.y1)} width={ob.x1 - ob.x0} height={ob.y1 - ob.y0}
+      rx="5" fill="#52525b" opacity="0.9" />
+  );
+}
+
 /* Klapa na widoku z przodu. Symbol otwierania jak przy drzwiach — trojkat
    z wierzcholkiem po stronie zawiasow — tylko obrocony: klapa do gory ma
    zawiasy na gornej krawedzi, opadana na dolnej. Uchwyt poziomy przy wolnej
    krawedzi. Po otwarciu zostaje pasek frontu przy krawedzi zawiasow. */
-function KlapaElewacja({ d, fy, ff, open, tf, showDims, showHardware, lustro, x0 = 0 }) {
+function KlapaElewacja({ d, fy, ff, open, tf, showDims, showHardware, lustro, x0 = 0, uchOut = 20 }) {
   const gora = d.klapa === "gora";
   const X = d.x + x0;
   const yZaw = gora ? d.y + d.h : d.y;        // krawedz zawiasow
@@ -4281,13 +4294,20 @@ function KlapaElewacja({ d, fy, ff, open, tf, showDims, showHardware, lustro, x0
         <rect x={X} y={fy(d.y + d.h)} width={d.w} height={d.h}
           fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="12 9" opacity="0.6" />
         <path d={trojkat} fill="none" stroke={INK} strokeWidth="1.8" opacity="0.5" />
-        {/* klapa otwarta widziana od czola — pasek przy krawedzi zawiasow */}
-        <rect x={X} y={gora ? fy(yZaw) - tf : fy(yZaw)} width={d.w} height={tf}
+        {/* klapa otwarta widziana od czola — pasek przy krawedzi zawiasow, po
+            stronie korpusu (jak skrzydlo przed bokiem i jak w bryle 3D) */}
+        <rect x={X} y={gora ? fy(yZaw) : fy(yZaw) - tf} width={d.w} height={tf}
           fill={ff} stroke={INK} strokeWidth="2" />
+        {/* uchwyt otwartej klapy sterczy od lica — nad osia przy klapie do gory,
+            pod nia przy opadanej (jak w bryle 3D) */}
+        {d.handle && uchOut > 0 && (() => {
+          const ob = uchwytObrys(d);
+          return <rect data-el="uchwyt-otwarte" x={ob.x0 + x0} y={gora ? fy(yZaw) - uchOut : fy(yZaw)}
+            width={ob.x1 - ob.x0} height={uchOut} rx="3" fill="#52525b" opacity="0.9" />;
+        })()}
         {zawiasy}
       </g>
     );
-  const uchwytY = gora ? d.y + Math.min(50, d.h / 2) : d.y + d.h - Math.min(50, d.h / 2);
   return (
     <g data-el="klapa">
       <rect x={X} y={fy(d.y + d.h)} width={d.w} height={d.h} fill={ff} stroke={INK} strokeWidth="2.5" />
@@ -4296,10 +4316,7 @@ function KlapaElewacja({ d, fy, ff, open, tf, showDims, showHardware, lustro, x0
           fill={lustro} stroke={INK} strokeWidth="1" opacity="0.85" />
       )}
       <path d={trojkat} fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="10 8" opacity="0.35" />
-      {d.handle && d.w > 60 && d.h > 30 && (
-        <rect x={X + d.w / 2 - 60} y={fy(uchwytY) - 5} width={120} height={10}
-          rx="5" fill="#52525b" opacity="0.9" />
-      )}
+      {d.handle && d.w > 60 && d.h > 30 && <UchwytElewacja d={d} fy={fy} dx={x0} />}
       {showDims && d.w > 90 && d.h > 40 && (
         <text x={X + d.w / 2} y={fy(d.y + d.h / 2) + 7} textAnchor="middle" fontSize="20"
           fill={INK} opacity="0.75" fontFamily="ui-monospace, monospace">
@@ -4423,7 +4440,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         const X = mx(d.x, d.w);
         const hinge = rear ? (d.hingeSide === "left" ? "right" : "left") : d.hingeSide;
         if (d.type === "klapa")
-          return <KlapaElewacja key={d.key} d={d} fy={fy} ff={ff} open={open} tf={geo.tf} x0={X - d.x}
+          return <KlapaElewacja key={d.key} d={d} fy={fy} ff={ff} open={open} tf={geo.tf} x0={X - d.x} uchOut={uchwytOut(d, cab)}
             showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />;
         if (d.type === "fix" || d.type === "blenda")
           return (
@@ -4476,17 +4493,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
                 stroke={INK} strokeWidth="4" opacity="0.45" />
             )}
             {d.handle && d.w > 60 && d.h > 30 && (
-              <rect data-el={d.type === "door" ? `uchwyt-${d.handlePos}` : undefined}
-                x={d.type === "drawer" ? X + d.w / 2 - 60
-                  : d.handlePos === "gora" ? (hinge === "left" ? X + d.w - 150 : X + 30)
-                  : hinge === "left" ? X + d.w - 45 : X + 30}
-                y={d.type === "drawer"
-                  ? fy(d.y + d.h - Math.min(50, d.h / 2)) - 5
-                  : d.handlePos === "gora" ? fy(d.y + d.h - Math.min(40, d.h / 4)) - 5
-                  : fy(d.y + d.h * 0.5) - 60}
-                width={d.type === "drawer" || d.handlePos === "gora" ? 120 : 15}
-                height={d.type === "drawer" || d.handlePos === "gora" ? 10 : 120}
-                rx="5" fill="#52525b" opacity="0.9" />
+              <UchwytElewacja d={d} fy={fy} dx={X - d.x} />
             )}
             {d.mirror && d.w > 2 && d.h > 2 && (
               <rect x={X + 0.5} y={fy(d.y + d.h) + 0.5} width={d.w - 1} height={d.h - 1}
@@ -4856,8 +4863,10 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
         // przybijany HDF i plyta na zewnatrz siedza za korpusem (`plecyZa`)
         const py = geo.grooved ? geo.grOff - geo.tb : geo.plecyZa ? -geo.tb : outside ? -geo.tb : 0;
         const inside = geo.grooved || (geo.backIsBoard && geo.backPos === "inside");
-        const base0 = inside ? geo.interior.x0 : 1;
-        const base1 = inside ? geo.interior.x1 : W - 1;
+        // HDF we frezie wchodzi w boki na szerokosc frezu minus luz — jak w bryle i formatce
+        const grab = geo.grooved ? geo.grDep - geo.grPlay : 0;
+        const base0 = inside ? geo.interior.x0 - grab : 1;
+        const base1 = inside ? geo.interior.x1 + grab : W - 1;
         const px = Math.max(base0, geo.cornerCut?.backLeftX ?? base0);
         const px1 = Math.min(base1, geo.cornerCut?.backRightX ?? base1);
         return <rect x={px} y={py} width={Math.max(0, px1 - px)} height={geo.tb}
@@ -6558,7 +6567,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       ))}
       {geo.doors.map((d) =>
         d.type === "klapa" ? (
-          <KlapaElewacja key={d.key} d={d} fy={fy} ff={ff} open={open} tf={geo.tf}
+          <KlapaElewacja key={d.key} d={d} fy={fy} ff={ff} open={open} tf={geo.tf} uchOut={uchwytOut(d, cab)}
             showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />
         ) : d.type === "fix" || d.type === "blenda" ? (
           <g key={d.key}>
@@ -6598,10 +6607,12 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 {/* front szuflady zostaje na miejscu, tylko przygaszony */}
                 <rect x={d.x} y={fy(d.y + d.h)} width={d.w} height={d.h}
                   fill={ff} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
-                <line x1={d.x + d.w * 0.25} x2={d.x + d.w * 0.75}
-                  y1={fy(d.y + d.h - Math.min(50, d.h / 2))}
-                  y2={fy(d.y + d.h - Math.min(50, d.h / 2))}
-                  stroke={INK} strokeWidth="5" opacity="0.5" />
+                {d.handle && uchwytOut(d, cab) > 0 ? <UchwytElewacja d={d} fy={fy} /> : (
+                  <line x1={d.x + d.w * 0.25} x2={d.x + d.w * 0.75}
+                    y1={fy(d.y + d.h - Math.min(50, d.h / 2))}
+                    y2={fy(d.y + d.h - Math.min(50, d.h / 2))}
+                    stroke={INK} strokeWidth="5" opacity="0.5" />
+                )}
                 <text x={d.x + d.w / 2} y={fy(d.y + d.h * 0.42)} textAnchor="middle"
                   fontSize="19" fill={INK} opacity="0.8" fontFamily="ui-monospace, monospace">
                   szuflada
@@ -6622,6 +6633,12 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 <rect x={d.hingeSide === "right" ? d.x + d.w - geo.tf : d.x}
                   y={fy(d.y + d.h)} width={geo.tf} height={d.h}
                   fill={ff} stroke={INK} strokeWidth="2" />
+                {/* uchwyt otwartego skrzydla wystaje w bok, od strony lica — jak w bryle 3D */}
+                {d.handle && uchwytOut(d, cab) > 0 && (() => {
+                  const ob = uchwytObrys(d), out = uchwytOut(d, cab);
+                  return <rect data-el="uchwyt-otwarte" x={d.hingeSide === "right" ? d.x + d.w : d.x - out}
+                    y={fy(ob.y1)} width={out} height={ob.y1 - ob.y0} rx="3" fill="#52525b" opacity="0.9" />;
+                })()}
                 {/* zawiasy — puszka na boku/przegrodzie, po stronie zawiasu */}
                 {showHardware && (d.hingePts || []).map((hy, hi2) => (
                   <g key={`hg${hi2}`}>
@@ -6653,17 +6670,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 stroke={INK} strokeWidth="4" opacity="0.45" />
             )}
             {d.handle && d.w > 60 && d.h > 30 && (
-              <rect data-el={d.type === "door" ? `uchwyt-${d.handlePos}` : undefined}
-                x={d.type === "drawer" ? d.x + d.w / 2 - 60
-                  : d.handlePos === "gora" ? (d.hingeSide === "left" ? d.x + d.w - 150 : d.x + 30)
-                  : d.hingeSide === "left" ? d.x + d.w - 45 : d.x + 30}
-                y={d.type === "drawer"
-                  ? fy(d.y + d.h - Math.min(50, d.h / 2)) - 5
-                  : d.handlePos === "gora" ? fy(d.y + d.h - Math.min(40, d.h / 4)) - 5
-                  : fy(d.y + d.h * 0.5) - 60}
-                width={d.type === "drawer" || d.handlePos === "gora" ? 120 : 15}
-                height={d.type === "drawer" || d.handlePos === "gora" ? 10 : 120}
-                rx="5" fill="#52525b" opacity="0.9" />
+              <UchwytElewacja d={d} fy={fy} dx={0} />
             )}
             {d.mirror && d.w > 2 && d.h > 2 && (
               <rect x={d.x + 0.5} y={fy(d.y + d.h) + 0.5} width={d.w - 1} height={d.h - 1}
@@ -7110,6 +7117,13 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       {/* korpus widziany od tylu */}
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
+      {/* Bez plecow przez tyl widac fronty od srodka (audyt 2D: w bryle sa,
+          na rysunku z tylu ich nie bylo). Lustrzanie, jak reszta widoku. */}
+      {cab.back === "none" && geo.doors.filter((d) => d.w > 0 && d.h > 0).map((d) => (
+        <rect key={`fr${d.key}`} data-el="front-od-tylu" x={mx(d.x, d.w)} y={fy(d.y + d.h)} width={d.w} height={d.h}
+          fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color}
+          stroke={INK} strokeWidth="1.5" opacity="0.5" />
+      ))}
       {/* boki — widok od tylu, wiec lewy bok po prawej */}
       {/* Od strony ramienia boku nie ma — od tylu widac tam ramie katownika. */}
       {geo.postSide !== "left" && (
@@ -7477,8 +7491,14 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           const nl = isDrawer && c.drawers?.length
             ? Math.max(...c.drawers.map((d) => d.nl || 0))
             : c.nl || 0;
-          const boxFront = cd; // lico korpusu
-          const boxBack = Math.max(geo.backIntrusion, cd - nl);
+          /* Skrzynka stoi w swietle kolumny, nie na szerokosc frontu (ten zachodzi
+             na boki) — tak jak w bryle 3D: od boku o 4 mm, cofnieta o setback
+             prowadnicy. Wczesniej obrys wchodzil w boki korpusu (audyt 2D). */
+          const sb = dr0?.rail?.setback || 0;
+          const boxFront = cd - sb;
+          const boxBack = Math.max(geo.backIntrusion, cd - sb - nl);
+          const skX0 = c.x0 + 4;
+          const skX1 = c.x0 + (dr0?.skrzynka?.LW ?? (c.x1 - c.x0)) - 4;
           return (
             <g key={"fr" + c.j}>
               {Math.min(x1, licoDo) > Math.max(x0, licoOd) && (
@@ -7488,7 +7508,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
               )}
               {isDrawer && nl > 0 && (
                 <>
-                  <rect x={x0 + 4} y={boxBack} width={x1 - x0 - 8}
+                  <rect data-el="skrzynka-obrys" x={skX0} y={boxBack} width={skX1 - skX0}
                     height={boxFront - boxBack}
                     fill="none" stroke={LINE} strokeWidth="1" strokeDasharray="5 4" opacity="0.6" />
                   <text x={(x0 + x1) / 2} y={(boxBack + boxFront) / 2 + 6} textAnchor="middle"
@@ -7576,8 +7596,10 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
         // przybijany HDF i plyta na zewnatrz siedza za korpusem (`plecyZa`)
         const py = geo.grooved ? geo.grOff - geo.tb : geo.plecyZa ? -geo.tb : outside ? -geo.tb : 0;
         const inside = geo.grooved || (geo.backIsBoard && geo.backPos === "inside");
-        const base0 = inside ? geo.interior.x0 : 1;
-        const base1 = inside ? geo.interior.x1 : W - 1;
+        // HDF we frezie wchodzi w boki na szerokosc frezu minus luz — jak w bryle i formatce
+        const grab = geo.grooved ? geo.grDep - geo.grPlay : 0;
+        const base0 = inside ? geo.interior.x0 - grab : 1;
+        const base1 = inside ? geo.interior.x1 + grab : W - 1;
         const px = Math.max(base0, geo.cornerCut?.backLeftX ?? base0);
         const px1 = Math.min(base1, geo.cornerCut?.backRightX ?? base1);
         const pw = Math.max(0, px1 - px);
@@ -7902,8 +7924,10 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
         <rect x={D - geo.t - (cab.plinth.setback || 0)} y={fy(geo.plinthH)}
           width={geo.t} height={geo.plinthH} fill={bf} stroke={INK} strokeWidth="2" />
       )}
+      {/* Cokol pod korpusem to plyta przy licu (cofnieta o `setback`), nie
+          klocek na cala glebokosc — z boku widac jej krawedz, jak w bryle 3D. */}
       {cab.plinth.on && !geo.plinthInBody && (
-        <rect x={xC} y={H} width={cd} height={geo.plinthH}
+        <rect x={D - geo.t - (cab.plinth.setback || 0)} y={H} width={geo.t} height={geo.plinthH}
           fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
       {cab.legs?.on && (
@@ -7937,14 +7961,20 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
         const bcol = geo.backIsBoard
           ? (cab.backPos === "outside" && cab.backBoardMat !== "shelf" ? mat.board.color : (shc))
           : mat.back.color;
-        // tyl po lewej (xC). Wewnatrz przy xC, na zewnatrz za korpusem (xC - tb)
+        /* tyl po lewej (xC). Plyta wewnatrz przy xC; HDF przybijany i plyta na
+           zewnatrz za korpusem (`plecyZa`) — HDF przybijany stal tu wczesniej
+           w korpusie, choc w bryle i rzucie z gory jest za nim (audyt 2D). */
         const px = geo.grooved
           ? xC + geo.grOff - geo.tb
-          : geo.backIsBoard && geo.backPos === "outside"
-          ? xC - geo.tb
+          : geo.plecyZa
+          ? xC - geo.plecyZa
           : xC;
-        const py = geo.backIsBoard && geo.backPos === "inside" ? fy(geo.interior.y1) : 0;
-        const ph = geo.backIsBoard && geo.backPos === "inside" ? geo.innerH : H;
+        // HDF we frezie ma wysokosc swiatla plus to, co wchodzi we frez w wiencu i dnie
+        const grab = geo.grooved ? geo.grDep - geo.grPlay : 0;
+        const py = geo.backIsBoard && geo.backPos === "inside" ? fy(geo.interior.y1)
+          : geo.grooved ? fy(geo.interior.y1 + grab) : 0;
+        const ph = geo.backIsBoard && geo.backPos === "inside" ? geo.innerH
+          : geo.grooved ? geo.innerH + 2 * grab : H;
         return (
           <rect x={px} y={py} width={geo.tb} height={ph}
             fill={bcol} stroke={INK} strokeWidth="2" />
@@ -7958,6 +7988,18 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
             y={fy(lv.frontHi)} width={geo.tf} height={Math.max(0, lv.frontHi - lv.frontLo)}
             fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="2" />
         ))}
+
+      {/* Uchwyty wystaja przed fronty, wiec z boku widac je wszystkie — ten sam
+          obrys co w bryle (`uchwytObrys`), wysuniecie z `uchwytOut`. */}
+      {geo.doors.filter((d) => d.handle && d.w > 0 && d.h > 0).map((d) => {
+        const ob = uchwytObrys(d);
+        const out = uchwytOut(d, cab);
+        if (!(out > 0)) return null;
+        return (
+          <rect key={`uch${d.key}`} data-el="uchwyt-bok-widok" x={frontFace} y={fy(ob.y1)}
+            width={out} height={ob.y1 - ob.y0} rx="3" fill="#52525b" opacity="0.9" />
+        );
+      })}
 
       {/* prowadnice szuflad z boku — tylko kolumna przylegajaca do ogladanego
           boku; dalsze zaslania przegroda */}
@@ -7977,7 +8019,9 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
                   fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="10 6" opacity="0.6" />
                 <rect x={x0 + 12} y={fy(dnoY + geo.t)} width={sk.dno[1]} height={geo.t}
                   fill={bf} stroke={INK} strokeWidth="1" opacity="0.7" />
-                <rect x={x0 + sk.nl - 12 - geo.t} y={fy(dnoY + geo.t + sk.tyl[1])} width={geo.t} height={sk.tyl[1]}
+                {/* tyl szuflady na jej koncu od strony plecow korpusu (x0) — stal przy
+                    froncie, odwrotnie niz w bryle 3D (audyt 2D) */}
+                <rect x={x0 + 12} y={fy(dnoY + geo.t + sk.tyl[1])} width={geo.t} height={sk.tyl[1]}
                   fill={bf} stroke={INK} strokeWidth="1" opacity="0.7" />
               </g>
             );
@@ -8560,7 +8604,8 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
       const pull = open ? Math.min(220, (d.nl || 400) * 0.6) : 0;
       box(d.x, d.y, z0 - pull, d.x + d.w, d.y + d.h, z1 - pull, ff, null, 1, true);
       handleBar(d, z0 - pull, null);
-      if (open) skrzynkaBryly(d, t, z1 - pull).forEach(([a0, b0, c0, a1, b1, c1, r]) =>
+      // skrzynka jest w szafce i przy zamknietej — rysunki z gory i z boku ja pokazuja
+      skrzynkaBryly(d, t, z1 - pull).forEach(([a0, b0, c0, a1, b1, c1, r]) =>
         box(a0, b0, c0, a1, b1, c1, r === "metal" ? "#8b8b93" : bf, null, 1, false));
       return;
     }
@@ -10572,24 +10617,25 @@ const wysuwHit = (m, b) => {
 
 /* Klapa obraca sie wokol poziomej krawedzi zawiasow. W przekroju (v w glab
    pokoju, z w gore) to prostokat: dlugosc = wysokosc klapy (z uchwytem przy
-   wolnej krawedzi), grubosc = front. Os lezy na wewnetrznej krawedzi frontu
-   (gornej przy klapie do gory, dolnej przy opadanej), wiec zamknieta klapa
-   stoi dokladnie w swoim miejscu, a otwarta do gory wychodzi grubowscia ponad
-   korpus — tak jak na zawiasach puszkowych i podnosnikach; pod blatem sie nie
-   otworzy. Obracamy co 1° i szukamy pierwszego kata, przy ktorym prostokat
+   wolnej krawedzi), grubosc = front. Os lezy w licu, na krawedzi zawiasow,
+   a grubosc klapy po stronie korpusu — tak jak skrzydlo, ktore na zawiasach
+   puszkowych staje przed krawedzia boku, i tak jak klapa w bryle 3D. Otwarta
+   do poziomu stoi wiec przed krawedzia wienca (dna), pod blatem sie miesci.
+   Obracamy co 1° i szukamy pierwszego kata, przy ktorym prostokat
    klapy wchodzi w przeszkode (test osi rozdzielajacych). Zwraca ostatni wolny
    kat albo null, gdy klapa otwiera sie do konca. */
 const klapaHit = (m, b) => {
   const q = doCiagu(m.n, b);
   if (Math.min(m.u1, q.u1) - Math.max(m.u0, q.u0) <= SWING_TOL) return null;
   const sg = m.gora ? -1 : 1;                 // kierunek „zamkniety” w osi z
-  const pv = m.hv - m.tf, pz = m.hz;          // os: wewnetrzna krawedz frontu
+  const pv = m.hv, pz = m.hz;                 // os: krawedz zawiasow w licu
   const box = [[q.v0, b.z0], [q.v1, b.z0], [q.v0, b.z1], [q.v1, b.z1]];
   const zachodzi = (lo1, hi1, lo2, hi2) => Math.min(hi1, hi2) - Math.max(lo1, lo2) > SWING_TOL;
   for (let a = 1; a <= m.kat; a++) {
     const t = (a * Math.PI) / 180;
     const d = [Math.sin(t), Math.cos(t) * sg];          // wzdluz klapy od osi
-    const nn = [Math.cos(t), -sg * Math.sin(t)];        // na zewnatrz (lico)
+    // w strone korpusu: przy zamknietej (-1, 0), po obrocie razem z klapa
+    const nn = sg < 0 ? [d[1], -d[0]] : [-d[1], d[0]];
     const rog = [[0, 0], [m.r, 0], [0, m.tf], [m.r, m.tf]]
       .map(([s1, w1]) => [pv + s1 * d[0] + w1 * nn[0], pz + s1 * d[1] + w1 * nn[1]]);
     const zakres = (pts, os) => { const p = pts.map((x) => x[0] * os[0] + x[1] * os[1]); return [Math.min(...p), Math.max(...p)]; };

@@ -11,6 +11,10 @@
   poprawka wpisana na wyczucie, która potem wraca jako błąd w zamówieniu.
   Pytanie zadawaj konkretne — powiedz, co już sprawdziłeś w kodzie, gdzie
   widzisz dwa możliwe odczyty i co zrobisz przy każdym z nich.
+- Instrukcje montażu i karty katalogowe od użytkownika (PDF) trzymaj w folderze
+  `instrukcje/` i dopisuj każdy plik do `instrukcje/SPIS.md` (co to, co z niego
+  bierzemy, gdzie w kodzie). Zanim zmienisz liczbę z katalogu (okucia, szuflady,
+  podnośniki), sprawdź, czy instrukcja jest w tym folderze.
 - Zanim zaczniesz szukać po całym `szafki.jsx`, zajrzyj do `SLOWNIK.md`:
   wiąże etykietę z interfejsu ze ścieżką w danych i funkcją, która to liczy.
   Dokładasz nowe pole albo nazwę formatki — dopisz tam wiersz w tej samej zmianie.
