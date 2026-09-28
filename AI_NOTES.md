@@ -623,10 +623,10 @@ cd - grOff. Stare {16, 4} bez `wreg` migruja w `migrateCab`. Suita `wreg`.
 viewBox przez getCTM, porownanie z rzutami `window.__audytBryl` (bryla samej
 szafki, zamknieta i otwarta). Widoki ciagu/zabudowy jeszcze nie — [AI-TODO].
 Uchwyty na elewacjach rysuje `UchwytElewacja` (wspolny obrys `uchwytObrys`).
-[AI-TODO] Szuflada V-BOX: czekamy na instrukcje od uzytkownika („folder-szuflada”);
-potem: polozenie dna, minimalny tyl, `maxBack` od gory dna, ostrzezenie „tyl wyzej
-niz front szuflady”, kontrola standardowego tylu pod wiencem/frontem wyzej.
-Instrukcje trzymamy w `instrukcje/` (spis: `instrukcje/SPIS.md`).
+[AI-INFO] Szuflada V-BOX wg instrukcji (instrukcje/Folder-Szuflada-V-BOX-18mm-online.pdf,
+str. 6): tyl rowno z gora boku, `tylOd` = bok - tyl (9-10 mm) nad dolem boku, dno
+dochodzi do tylu. Podniesiony tyl: nie wyzej niz gora frontu szuflady (blad), nie
+nizej niz bok, pod tym co wyzej z luzem BACK_CLEAR. Instrukcje trzymamy w `instrukcje/` (spis: `instrukcje/SPIS.md`).
 [AI-TODO] Gorna szafka narozna (uzytkownik 2026-09-28) — na wzor dolnej, te same
 zasady (slepy rog z fixem/drzwiami/wstawka albo szafka w L z ramieniem). Roznice:
 wieniec zamiast wzmocnien, dno widoczne od dolu, bez cokolu i blatu, gl. ok. 300.

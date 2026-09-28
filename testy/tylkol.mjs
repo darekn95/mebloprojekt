@@ -93,6 +93,9 @@ let nAuto = await notes();
 ok('domyślny tył sam mieści się pod przeszkodą',
   !nAuto.some((x) => /nie przejdzie pod tym/.test(x.txt)),
   (nAuto.find((x) => /nie przejdzie/.test(x.txt)) || {}).txt);
+// instrukcja V-BOX + uzytkownik 2026-09-28: tyl nigdy wyzej niz gorna krawedz frontu szuflady
+ok('domyślny tył poniżej górnej krawędzi frontu', !nAuto.some((x) => /wyżej niż górna krawędź frontu/.test(x.txt)),
+  (nAuto.find((x) => /górna krawędź frontu/.test(x.txt)) || {}).txt);
 
 console.log('\n== ręcznie za wysoki tył: ostrzeżenie z przyciskiem ==');
 await seed({ drawers: [0, 1].map(() => ({ h: 'auto', front: null, handle: true,
@@ -101,6 +104,8 @@ n = await notes();
 const zaW = n.find((x) => /nie przejdzie pod tym, co jest wyżej/.test(x.txt));
 console.log('     ' + (zaW ? zaW.txt + '  →  [' + zaW.btns.join(' | ') + ']' : '(brak)'));
 ok('ostrzeżenie o zbyt wysokim tyle', !!zaW, n.map((x) => x.txt.slice(0, 60)).join(' // '));
+const zaF = n.find((x) => /sięga wyżej niż górna krawędź frontu szuflady/.test(x.txt));
+ok('błąd: tył 400 wyżej niż górna krawędź frontu', !!zaF, n.map((x) => x.txt.slice(0, 60)).join(' // '));
 ok('przycisk przycinający tył', !!zaW && zaW.btns.some((b) => /^Ustaw tył na \d+ mm$/.test(b)), zaW && zaW.btns);
 await uwagi.getByRole('button', { name: /Ustaw tył na/ }).first().click();
 await page.waitForTimeout(1000);

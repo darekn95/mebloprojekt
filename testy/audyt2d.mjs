@@ -130,7 +130,7 @@ const opisB = (a) => `${a.s.color} ${[...a.s.d].map(Math.round).join('×')} @${M
 /* Znane, czekajace na decyzje (BLEDY.md): tyl skrzynki szuflady stoi na dnie
    i przy gornej szufladzie wchodzi w wieniec — uzytkownik przysle instrukcje
    V-BOX (2026-09-28). Wypisujemy jako INFO, nie BLAD. */
-const ZNANE = [/^#d8c3a0 \d+×(200|230|169|118|86|71)×18 /];
+const ZNANE = [];
 const info = (l) => console.log('  INFO ' + l);
 const scenariusz = async (tytul, cab) => {
   console.log(`\n== ${tytul} ==`);
@@ -168,6 +168,7 @@ const scenariusz = async (tytul, cab) => {
 
 await scenariusz('drzwi i półki', szafka('D'));
 await scenariusz('szuflady', szafka('S', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] }));
+await scenariusz('szuflady z podniesionym tyłem', szafka('ST', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto', tallBack: true }, { h: 'auto', tallBack: true }] }] }] }));
 await scenariusz('fix ze wspornikiem + drzwi', szafka('F', { levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] }));
 await scenariusz('blenda w kolumnie + drzwi', szafka('B', { W: 800, levels: [{ h: null, cols: [kol({ doors: 1 }), { ...kol(), kind: 'blenda', w: 100 }] }] }));
 await scenariusz('dwa poziomy, dwie kolumny', szafka('P', { W: 800, H: 2000, levels: [{ h: null, cols: [kol({ doors: 1 }), kol({ doors: 1 })] }, { h: 700, cols: [kol()] }] }));

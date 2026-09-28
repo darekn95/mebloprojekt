@@ -258,7 +258,7 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `HINGE_PLAY` | 2 | luz między korpusem a drzwiami przy zawiasach — tylko do głębokości blatu, nie do rysunków |
 | `SCIANA_GR` / `ScianaDefs` | 100 | ściana na rysunkach: pas 100 mm z szarym kreskowaniem (`url(#sciana-kreski)`) — rzut z góry (z nazwą ściany i ciągu górnego) i widok z boku; zasięg w rzucie liczy `scianaZasieg` (róg: do narożnika muru, wolny koniec: koniec ciągu albo „Długość ściany”); przełącznik „Ukryj / Pokaż ścianę” (`showWall`) |
 | `BACK_CLEAR` | 20 | luz nad podniesionym tyłem szuflady |
-| `VBOX` | — | dane katalogowe Sevroll V-BOX 3D Slim, **dla płyty 18 mm** |
+| `VBOX` | — | dane katalogowe Sevroll V-BOX 3D Slim, **dla płyty 18 mm** (instrukcja: `instrukcje/Folder-Szuflada-V-BOX-18mm-online.pdf`); tył od `tylOd` = bok − tył nad dołem boku |
 
 Rozstawy okuć (wzorzec `max(2, ceil(długość / skok))`): konfirmat co 200 mm,
 wkręt 4 × 30 do kątownika co 200 mm, trójkąt pod cokołem co 300 mm, trójkąt

@@ -2296,16 +2296,31 @@ function computeGeoLiczy(cab, mat, ctx) {
            wypadaly ponad burte. Nizej niz standardowy tyl zejsc nie moze —
            wtedy nie ma czym spiac skrzynki. */
         const stdBack = VBOX.backH[hClass];
+        /* Tyl wg instrukcji V-BOX (instrukcje/Folder-Szuflada-V-BOX-18mm-online.pdf,
+           „Wymiary montazowe scianki tylnej”): standardowy tyl ma gore rowno
+           z gora boku, a dol `tylOd` nad dolem boku; dno dochodzi do niego.
+           Podniesiony tyl rosnie od tego samego dolu. */
+        const tylOd = hClass - stdBack;
+        const tylY0 = railY0 + tylOd;
         /* Podniesiony tyl jedzie razem ze skrzynka i musi przejsc pod tym, co
            jest nad szuflada — frontem wyzej albo gora swiatla poziomu — a do
            tego zostawic luz, zeby o nic nie zawadzal. */
         const ceilY = i + 1 < ds.length ? y + fhFull + drGap : lv.y1;
-        const maxBack = Math.max(0, Math.round(ceilY - railY0) - BACK_CLEAR);
+        const maxBack = Math.max(0, Math.round(ceilY - tylY0) - BACK_CLEAR);
+        /* Tyl nigdy wyzej niz gorna krawedz frontu tej szuflady, a najlepiej
+           nizej (uzytkownik 2026-09-28) — domyslny podniesiony tyl konczy sie
+           o BACK_CLEAR ponizej niej. */
+        const doFrontu = Math.max(0, Math.round(y + fh - tylY0));
         let backH = stdBack;
         if (d.tallBack) {
           const wanted = num(d.backHeight);
-          // domyslnie tak wysoko jak front, ale nie wyzej niz przejdzie
-          backH = wanted === null ? Math.min(fh, maxBack) : Math.max(0, Math.round(wanted));
+          backH = wanted === null ? Math.max(stdBack, Math.min(doFrontu - BACK_CLEAR, maxBack)) : Math.max(0, Math.round(wanted));
+          if (backH > doFrontu)
+            add(
+              "error",
+              `${where}, szuflada ${i + 1}: tył ${fmt(backH)} mm sięga wyżej niż górna krawędź frontu szuflady — najwyżej ${fmt(doFrontu)} mm, lepiej niżej.` +
+                (Math.min(doFrontu - BACK_CLEAR, maxBack) >= stdBack ? `|fixback:${lv.i}:${j}:${i}:${Math.min(doFrontu - BACK_CLEAR, maxBack)}` : "")
+            );
           if (backH < stdBack)
             add(
               "error",
@@ -2321,7 +2336,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         }
         if (nl !== null && LW > 0) {
           // skrzynka do rysunku — te same wymiary co formatki dna i tylu
-          dr.skrzynka = { LW, nl, bok: hClass, dno: [LW - 75, nl - 24], tyl: [LW - 87, backH] };
+          dr.skrzynka = { LW, nl, bok: hClass, dno: [LW - 75, nl - 24], tyl: [LW - 87, backH], tylOd };
           drawerParts.push({ kind: "front", a: fh, b: dsx1 - dsx0 });
           drawerParts.push({ kind: "dno", a: LW - 75, b: nl - 24 });
           drawerParts.push({ kind: "tyl", a: LW - 87, b: backH });
@@ -8012,16 +8027,17 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
             const sk = dr.skrzynka;
             const x0 = D - (dr.rail.setback || 0) - sk.nl;
             const dnoY = dr.rail.y0 + 12;
-            const hS = Math.max(sk.bok, 12 + geo.t + sk.tyl[1]);
+            const tylOd = sk.tylOd || 0;
+            const hS = Math.max(sk.bok, tylOd + sk.tyl[1]);
             return (
               <g key={`skr${lv.i}-${j}-${dr.i}`} data-el="skrzynka">
                 <rect x={x0} y={fy(dr.rail.y0 + hS)} width={sk.nl} height={hS}
                   fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="10 6" opacity="0.6" />
-                <rect x={x0 + 12} y={fy(dnoY + geo.t)} width={sk.dno[1]} height={geo.t}
+                <rect x={x0 + 2 + geo.t} y={fy(dnoY + geo.t)} width={sk.dno[1]} height={geo.t}
                   fill={bf} stroke={INK} strokeWidth="1" opacity="0.7" />
-                {/* tyl szuflady na jej koncu od strony plecow korpusu (x0) — stal przy
-                    froncie, odwrotnie niz w bryle 3D (audyt 2D) */}
-                <rect x={x0 + 12} y={fy(dnoY + geo.t + sk.tyl[1])} width={geo.t} height={sk.tyl[1]}
+                {/* tyl szuflady na koncu bokow od strony plecow korpusu (x0), od
+                    `tylOd` nad dolem boku — dno dochodzi do niego (instrukcja V-BOX) */}
+                <rect x={x0 + 2} y={fy(dr.rail.y0 + tylOd + sk.tyl[1])} width={geo.t} height={sk.tyl[1]}
                   fill={bf} stroke={INK} strokeWidth="1" opacity="0.7" />
               </g>
             );
@@ -8219,8 +8235,11 @@ const skrzynkaBryly = (d, t, zFront) => {
   return [
     [x0 + 4, y0, z0, x0 + 4 + bokW, y0 + sk.bok, z1 - 2, "metal"],
     [x1 - 4 - bokW, y0, z0, x1 - 4, y0 + sk.bok, z1 - 2, "metal"],
-    [xm - dA / 2, dnoY, z0 + 12, xm + dA / 2, dnoY + t, z0 + 12 + dB, "dno"],
-    [xm - tA / 2, dnoY + t, z1 - 12 - t, xm + tA / 2, dnoY + t + tH, z1 - 12, "tyl"],
+    /* Wg instrukcji V-BOX: tyl na koncu bokow, od `tylOd` nad dolem boku
+       (standardowy konczy sie rowno z gora boku), dno dochodzi do tylu. Wczesniej
+       tyl stal na dnie i przy gornej szufladzie wchodzil w wieniec. */
+    [xm - dA / 2, dnoY, z1 - 2 - t - dB, xm + dA / 2, dnoY + t, z1 - 2 - t, "dno"],
+    [xm - tA / 2, y0 + (sk.tylOd || 0), z1 - 2 - t, xm + tA / 2, y0 + (sk.tylOd || 0) + tH, z1 - 2, "tyl"],
   ];
 };
 

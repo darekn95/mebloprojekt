@@ -194,9 +194,9 @@ const rog = (o = {}) => ({ of: 'c1', at: 'end', owner: 'self', clear: 0, ...o })
 const USTAWIONA = { W: 1000, levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 618, mode: 'overlay', support: false }, hinge: 'right' })] }] };
 
 await scenariusz('szafka: drzwi i półki', projekt([[szafka('D')]]));
-// tyl gornej szuflady stoi na dnie i wchodzi w wieniec — czeka na instrukcje V-BOX (BLEDY.md)
-await scenariusz('szafka: szuflady', projekt([[szafka('S', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] })]]),
-  { znane: /18×200×477/ });
+await scenariusz('szafka: szuflady', projekt([[szafka('S', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] })]]));
+// podniesiony tyl szuflady (do frontu minus luz) — nie moze wejsc w nic nad soba
+await scenariusz('szafka: szuflady z podniesionym tyłem', projekt([[szafka('ST', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto', tallBack: true }, { h: 'auto', tallBack: true }, { h: 'auto', tallBack: true }] }] }] })]]));
 // polka w kolumnie ze wspornikiem fixu jest krotsza — konczy sie na wsporniku (2026-09-28)
 await scenariusz('szafka: fix ze wspornikiem + drzwi', projekt([[szafka('F', { levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] })]]));
 await scenariusz('szafka: blenda w kolumnie + drzwi', projekt([[szafka('B', { W: 800, levels: [{ h: null, cols: [kol({ doors: 1 }), { ...kol(), kind: 'blenda', w: 100 }] }] })]]));
