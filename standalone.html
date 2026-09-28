@@ -652,7 +652,11 @@ const defaultCab = {
   back: "hdf",
   backPos: "inside",
   backBoardMat: "shelf",
-  backGroove: { on: false, offset: 16, depth: 4, play: 1 },
+  /* Plecy we frezie = wreg od tylu w bokach, wiencu i dnie (ustalone
+     z uzytkownikiem 2026-09-28): `depth` — szerokosc wregu z grubosci plyty
+     (16 z 18, zostaja 2 mm od zewnatrz), `offset` — glebokosc wregu w strone
+     drzwi (3 = HDF zlicowany z tylem korpusu), `play` — luz na strone. */
+  backGroove: { on: false, offset: 3, depth: 16, play: 1, wreg: true },
   frontMode: "overlay",
   // overBottom / overTop — o ile front skrajnej szuflady zachodzi na dno i wieniec,
   // underRail — o ile front schodzi ponizej wlasnej szyny, gdy pod nia nic nie ma
@@ -749,6 +753,15 @@ const migrateCab = (rawCab, mat) => {
     if (defaultCab[k] && typeof defaultCab[k] === "object")
       merged[k] = { ...defaultCab[k], ...((rawCab && rawCab[k]) || {}) };
   });
+  /* Stare domyslne frezu (16 od tylu, 4 w plyte) liczyly sie jak rowek
+     odsuniety od tylu — zamieniamy na wreg 16 × 3 zlicowany z tylem. Wpisane
+     recznie liczby zostaja: pola „Szerokość”/„Głębokość” juz wtedy znaczyly to,
+     co teraz. */
+  {
+    const bg = merged.backGroove;
+    if (bg && !(rawCab && rawCab.backGroove && rawCab.backGroove.wreg)) merged.backGroove = (bg.offset === 16 && bg.depth === 4)
+      ? { ...bg, offset: 3, depth: 16, wreg: true } : { ...bg, wreg: true };
+  }
   /* Tylne wzmocnienie: w zwyklej szafce rowno z tylna krawedzia (plecy ida na
      nie), w naroznej cofniete o grubosc plyty, zeby doleglo do wewnetrznego
      lica katownika w rogu. Po drodze bylo raz tak, raz tak, wiec prostujemy to
@@ -1287,10 +1300,11 @@ function computeGeoLiczy(cab, mat, ctx) {
   if (blatInside && W <= 2 * t)
     add("error", `Wysunięcia blatu (${fmt(blat.overL)} + ${fmt(blat.overR)} mm) zjadają całą szerokość ${fmt(cab.W)} mm — na korpus nic nie zostaje.`);
 
-  const gr = cab.backGroove || { on: false, offset: 16, depth: 4, play: 1 };
+  const gr = cab.backGroove || defaultCab.backGroove;
   const grooved = cab.back === "hdf" && !!gr.on;
+  // wreg: grOff — glebokosc w strone drzwi (lico HDF od tylu), grDep — szerokosc w plyte
   const grOff = Math.max(0, Math.round(gr.offset ?? 3));
-  const grDep = Math.max(0, Math.round(gr.depth ?? 4));
+  const grDep = Math.max(0, Math.round(gr.depth ?? 16));
   const grPlay = Math.max(0, Math.round(gr.play ?? 1));
 
   // plecy we frezie chowaja sie w korpusie, wiec nie doliczaja sie do glebokosci
@@ -1310,16 +1324,19 @@ function computeGeoLiczy(cab, mat, ctx) {
      samo wysuwa sie jej lico (ustalone z uzytkownikiem 2026-09-28). HDF we
      frezie i plyta wewnatrz chowaja sie w glebokosci korpusu. `glebOdSciany`
      to glebokosc od sciany do lica korpusu — tej uzywa uklad ciagu. */
-  const plecyZa = hasBack && !grooved && !(cab.back === "board" && backPos === "inside") ? tb : 0;
+  const plecyZa = grooved ? Math.max(0, tb - grOff)   // wreg plytszy niz HDF: wystaje z tylu
+    : hasBack && !(cab.back === "board" && backPos === "inside") ? tb : 0;
   const glebOdSciany = carcassDepth + plecyZa;
 
   if (grooved) {
     if (grDep >= t)
-      add("error", `Frez ${grDep} mm jest głębszy niż płyta ${fmt(t)} mm.`);
+      add("error", `Wręg ${grDep} mm jest szerszy niż płyta ${fmt(t)} mm — z płyty nic nie zostaje.`);
     if (grPlay >= grDep)
-      add("error", "Luz we frezie jest większy niż jego głębokość — plecy nie wejdą.");
-    if (grOff + tb > carcassDepth)
-      add("error", "Frez wypada poza głębokość korpusu.");
+      add("error", "Luz we wręgu jest większy niż jego szerokość — plecy nie wejdą.");
+    if (grOff > carcassDepth)
+      add("error", "Wręg wypada poza głębokość korpusu.");
+    if (grOff < tb)
+      add("warn", `Wręg ma ${fmt(grOff)} mm głębokości, a HDF ${fmt(tb)} mm — plecy wystają ${fmt(tb - grOff)} mm za tył korpusu.`);
   }
 
   if (W <= 2 * t) add("error", "Szerokość jest mniejsza niż dwie grubości płyty.");
@@ -1386,10 +1403,10 @@ function computeGeoLiczy(cab, mat, ctx) {
 
   // przy plecach we frezie polka musi zatrzymac sie przed HDF
   /* Polka i przegroda koncza sie przed plecami, ktore siedza w glebokosci
-     korpusu: HDF we frezie (odsuniety o grOff) albo plyta wewnatrz miedzy
+     korpusu: HDF we wregu (jego lico grOff od tylu) albo plyta wewnatrz miedzy
      bokami. Plyty wewnatrz wczesniej nie odejmowalismy — polka wchodzila
      18 mm w plecy (audyt 2026-09-28). */
-  const backIntrusion = grooved ? grOff + tb : backIsBoard && backPos === "inside" && cab.back !== "none" ? tb : 0;
+  const backIntrusion = grooved ? grOff : backIsBoard && backPos === "inside" && cab.back !== "none" ? tb : 0;
   const frontCut =
     (cab.shelfExtraSetback || 0) + (cab.frontMode === "inset" ? tf + 5 : 0);
   /* Szafka w L: polka korpusu konczy sie przed katownikiem w tylnym rogu
@@ -2835,13 +2852,13 @@ function computeGeoLiczy(cab, mat, ctx) {
       });
     });
   } else if (cab.back === "hdf" && grooved) {
-    const grab = grDep - grPlay; // ile plecow wchodzi w kazdy frez
+    const grab = grDep - grPlay; // ile plecow wchodzi w kazdy wreg
     const gx0 = Math.max(interior.x0 - grab, cornerCut.backLeftX ?? (interior.x0 - grab));
     const gx1 = Math.min(interior.x1 + grab, cornerCut.backRightX ?? (interior.x1 + grab));
     P({ name: "Plecy HDF we frezie", qty: 1,
         a: gx1 - gx0, b: innerH + 2 * grab, matKey: "back",
         edges: { a1: false, a2: false, b1: false, b2: false },
-        note: `wchodzi ${fmt(grab)} mm w każdy frez (${grDep} mm frezu minus ${grPlay} mm luzu)` });
+        note: `wchodzi ${fmt(grab)} mm we wręg w bokach, wieńcu i dnie (${grDep} mm wręgu minus ${grPlay} mm luzu)` });
   } else if (cab.back === "hdf") {
     const x0 = (cornerCut.backLeftX ?? 0) + 1;
     const x1 = (cornerCut.backRightX ?? W) - 1;
@@ -4853,7 +4870,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
           ? (cab.backPos === "outside" && cab.backBoardMat !== "shelf" ? mat.board.color : shc)
           : mat.back.color;
         // przybijany HDF i plyta na zewnatrz siedza za korpusem (`plecyZa`)
-        const py = geo.grooved ? geo.grOff : geo.plecyZa ? -geo.tb : outside ? -geo.tb : 0;
+        const py = geo.grooved ? geo.grOff - geo.tb : geo.plecyZa ? -geo.tb : outside ? -geo.tb : 0;
         const inside = geo.grooved || (geo.backIsBoard && geo.backPos === "inside");
         const base0 = inside ? geo.interior.x0 : 1;
         const base1 = inside ? geo.interior.x1 : W - 1;
@@ -7086,7 +7103,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
     by = geo.interior.y0 - grab;
     bw = geo.innerW + 2 * grab;
     bh = geo.innerH + 2 * grab;
-    label = `HDF we frezie, wchodzi ${fmt(grab)} mm w każdy frez`;
+    label = `HDF we wręgu, wchodzi ${fmt(grab)} mm w boki, wieniec i dno`;
   } else {
     bx = 1; by = 1; bw = W - 2; bh = H - 2;
     label = "HDF przybijane, luz 1 mm z każdej strony";
@@ -7216,7 +7233,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
           <DimV y1={fy(by + bh)} y2={fy(by)} x={-55} label={`${fmt(bh)}`} />
           {geo.grooved && (
             <DimH x1={mx(bx, bw)} x2={mx(bx, bw) + grab} y={H + 60}
-              label={`frez ${fmt(grab)}`} above={false} c={WARNC} />
+              label={`wręg ${fmt(grab)}`} above={false} c={WARNC} />
           )}
         </>
       )}
@@ -7573,7 +7590,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
         // z gory: y=0 to tyl. Plecy wewnatrz siedza tuz przy tyle, na zewnatrz za korpusem
         const outside = geo.backIsBoard && geo.backPos === "outside";
         // przybijany HDF i plyta na zewnatrz siedza za korpusem (`plecyZa`)
-        const py = geo.grooved ? geo.grOff : geo.plecyZa ? -geo.tb : outside ? -geo.tb : 0;
+        const py = geo.grooved ? geo.grOff - geo.tb : geo.plecyZa ? -geo.tb : outside ? -geo.tb : 0;
         const inside = geo.grooved || (geo.backIsBoard && geo.backPos === "inside");
         const base0 = inside ? geo.interior.x0 : 1;
         const base1 = inside ? geo.interior.x1 : W - 1;
@@ -7938,7 +7955,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
           : mat.back.color;
         // tyl po lewej (xC). Wewnatrz przy xC, na zewnatrz za korpusem (xC - tb)
         const px = geo.grooved
-          ? xC + geo.grOff
+          ? xC + geo.grOff - geo.tb
           : geo.backIsBoard && geo.backPos === "outside"
           ? xC - geo.tb
           : xC;
@@ -8192,7 +8209,7 @@ const plecyBryla = (cab, geo) => {
     const grab = geo.grDep - geo.grPlay;
     x0 = geo.interior.x0 - grab; x1 = geo.interior.x1 + grab;
     y0 = geo.interior.y0 - grab; y1 = geo.interior.y1 + grab;
-    z0 = cd - geo.grOff - geo.tb;
+    z0 = cd - geo.grOff;
   } else {
     x0 = 1; x1 = W - 1; y0 = 1; y1 = H - 1; z0 = cd;
   }
@@ -13367,7 +13384,7 @@ export default function App() {
             </Field>
             {cab.back === "hdf" && (
               <Field label="Montaż pleców" hint={geo.grooved
-                ? "Plecy chowają się we frezie, tył korpusu dolega do ściany."
+                ? "Plecy we wręgu (frez od tyłu w bokach, wieńcu i dnie), zlicowane z tyłem korpusu."
                 : "Plecy przybijane od tyłu, luz 1 mm z każdej strony."}>
                 <Seg value={geo.grooved ? "groove" : "nail"}
                   onChange={(v) => set({ backGroove: { ...(cab.backGroove || {}), on: v === "groove" } })}
@@ -13376,15 +13393,15 @@ export default function App() {
             )}
             {geo.grooved && (
               <div className="grid grid-cols-3 gap-3">
-                <Field label="Szerokość" hint="frezu">
+                <Field label="Szerokość" hint="frezu, z grubości płyty">
                   <Num value={geo.grDep}
                     onChange={(v) => set({ backGroove: { ...(cab.backGroove || {}), depth: v } })} suffix="" />
                 </Field>
-                <Field label="Głębokość" hint="frezu">
+                <Field label="Głębokość" hint="frezu, w stronę drzwi">
                   <Num value={geo.grOff}
                     onChange={(v) => set({ backGroove: { ...(cab.backGroove || {}), offset: v } })} suffix="" />
                 </Field>
-                <Field label="Luz" hint="we frezie">
+                <Field label="Luz" hint="na stronę">
                   <Num value={geo.grPlay}
                     onChange={(v) => set({ backGroove: { ...(cab.backGroove || {}), play: v } })} suffix="" />
                 </Field>

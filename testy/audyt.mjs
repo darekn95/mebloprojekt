@@ -75,12 +75,13 @@ const nachodzi = (sol) => {
   for (let i = 0; i < s.length; i++) for (let j = i + 1; j < s.length; j++) {
     const a = s[i].p, c = s[j].p;
     const ov = [0, 1, 2].map((k) => Math.min(a[k + 3], c[k + 3]) - Math.max(a[k], c[k]));
-    /* HDF we frezie wchodzi krawedzia w boki, wieniec i dno na glebokosc
-       frezu — to nie kolizja: cienka plyta (do 4 mm) i styk do 4 mm w dwoch
-       kierunkach. HDF wstawiony w korpus na plasko dalby 18 mm i jest bledem. */
+    /* HDF we wregu wchodzi krawedzia w boki, wieniec i dno na szerokosc
+       wregu minus luz (16 - 1 = 15) — to nie kolizja: cienka plyta (do 4 mm),
+       styk do 4 mm w jednym kierunku i do 16 w drugim. HDF wstawiony w korpus
+       na plasko wszedlby na cale 18 mm plyty i jest bledem. */
     const cienka = Math.min(...s[i].d) <= 4 || Math.min(...s[j].d) <= 4;
     const [o1, o2] = [...ov].sort((x, y) => x - y);
-    if (cienka && o1 <= 4 && o2 <= 4) continue;
+    if (cienka && o1 <= 4 && o2 <= 16) continue;
     if (ov.every((v) => v > 1)) out.push(`${opis(s[i])} × ${opis(s[j])} (${ov.map(Math.round).join('×')})`);
   }
   return [...new Set(out)];
@@ -199,7 +200,7 @@ await scenariusz('szafka: fix ze wspornikiem + drzwi', projekt([[szafka('F', { l
 await scenariusz('szafka: blenda w kolumnie + drzwi', projekt([[szafka('B', { W: 800, levels: [{ h: null, cols: [kol({ doors: 1 }), { ...kol(), kind: 'blenda', w: 100 }] }] })]]));
 await scenariusz('szafka: dwa poziomy', projekt([[szafka('P', { W: 800, H: 2000, levels: [{ h: null, cols: [kol({ doors: 1 }), kol({ doors: 1 })] }, { h: 700, cols: [kol()] }] })]]));
 await scenariusz('szafka: fronty wpuszczane', projekt([[szafka('WP', { frontMode: 'inset' })]]));
-await scenariusz('szafka: HDF we frezie', projekt([[szafka('FR', { backGroove: { on: true, offset: 16, depth: 4, play: 1 } })]]));
+await scenariusz('szafka: HDF we frezie', projekt([[szafka('FR', { backGroove: { on: true, offset: 3, depth: 16, play: 1, wreg: true } })]]));
 await scenariusz('szafka: plecy z płyty wewnątrz', projekt([[szafka('PW', { back: 'board', backPos: 'inside' })]]));
 await scenariusz('szafka: klapa do góry i w dół', projekt([[wisz('KG', { W: 800, H: 400, levels: [{ h: null, cols: [kol({ doors: 1, klapa: 'gora' })] }] })],
   [wisz('KD', { W: 600, H: 400, levels: [{ h: null, cols: [kol({ doors: 1, klapa: 'dol' })] }] })]]));

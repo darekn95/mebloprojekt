@@ -81,7 +81,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Wysunięcie w lewo / prawo / do przodu / do tyłu | `cab.top.overL/overR/overFront/overBack` |
 | Drzwi (nakładane / wpuszczane) | `cab.frontMode` („overlay" / „inset") |
 | Plecy | `cab.back` („hdf" / „board" / „none") |
-| Montaż pleców / Szerokość / Głębokość / Luz | `cab.backGroove = { on, offset, depth, play }` |
+| Montaż pleców / Szerokość / Głębokość / Luz | `cab.backGroove = { on, offset, depth, play, wreg }` — plecy „We frezie” to wręg od tyłu w bokach, wieńcu i dnie: „Szerokość” = `depth` (16 z 18 mm płyty), „Głębokość” = `offset` (3, w stronę drzwi — HDF zlicowany z tyłem), „Luz” = `play` na stronę; HDF W−6 × H−6. W geometrii `grDep`/`grOff`/`grPlay`; stare {16, 4} bez `wreg` migrują na {3, 16} (`migrateCab`) |
 | Pozycja pleców | `cab.backPos` („inside" / „outside") |
 | Materiał pleców | `cab.backBoardMat` |
 | Podana głębokość zawiera plecy | `cab.depthIncludesBack`, `cab.depthIncludesFront` |
@@ -363,7 +363,8 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `wstawka` | wstawka w rogu: przyciski przy kolizji, formatka 720 × 60 w liście szafki i projektu, wkręty/trójkąty, rzut 18 × 60 / 60 × 18, elewacja, odsunięcie ciągu o 18/60, pole w Narożniku, brak przy szafce w L; widoki samej szafki (przód zamk./otw. przy prawym boku 18 × 720, z góry 18 × 60, bryła 3D), a szafka nie przy rogu bez wstawki |
 | `gorne` | ciągi górne w L: górny drugiej ściany wisi na niej (bez kolizji z górnym pierwszej), odsunięcie 300 w rogu, gdy górny ściany wjeżdżającej sięga rogu; „+ szafka” bierze H/D/cokół ciągu (górny 300, dolny 570) |
 | `kreator` | kreator rogu: ślepa szafka 1000 z fixem 618 od rogu, jedne drzwi, zawias od zewnątrz, wstawka płaska — bez bloku „do ustawienia”; szafka w L 900 + ramię 630 bez wstawki; osobny ciąg; przycisk „Ustaw szafkę w rogu” w istniejącym projekcie |
-| `audyt` | audyt całości na ~20 konfiguracjach: nachodzenie brył 3D (szafka i zabudowa, zamknięte), formatki ↔ rysunek w obie strony z ilościami (szuflady w bryle otwartej), formatki projektu = suma szafek + cokół/blat ciągu, okucia projektu vs suma, PDF = ekran (formatki i okucia szafek i projektu). HDF we frezie może wchodzić krawędzią do 4 mm; `znane` — przypadki czekające na decyzję (BLEDY.md). Trwa ok. 4 min |
+| `audyt` | audyt całości na ~20 konfiguracjach: nachodzenie brył 3D (szafka i zabudowa, zamknięte), formatki ↔ rysunek w obie strony z ilościami (szuflady w bryle otwartej), formatki projektu = suma szafek + cokół/blat ciągu, okucia projektu vs suma, PDF = ekran (formatki i okucia szafek i projektu). HDF we wręgu może wchodzić krawędzią do 16 mm (w grubość płyty) i 4 mm (w głąb); `znane` — przypadki czekające na decyzję (BLEDY.md). Trwa ok. 4 min |
+| `wreg` | plecy „We frezie” jako wręg 16 × 3: HDF W−6 × H−6, półka o 3 mm płytsza, HDF w rzucie na tyle korpusu, pola 16/3/1, ostrzeżenie przy wręgu płytszym niż HDF, migracja starego {16, 4} |
 | `wspornik` | półka przy wsporniku fixu płytsza (564 × 460 zamiast 564 × 560), ostrzeżenie, oba warianty przycisku, kołki półki w bokach w planie wierceń (PDF) |
 | `uchwyt` | wiersz okuć skrzydła (zawiasy, uchwyt, lustro), wysunięcie i położenie uchwytu per skrzydło — zapis, rysunek z przodu, bryła 3D |
 | `klapy` | klapa do góry: siła z tabeli GTV (test liczy ją sam), waga frontu (680 kg/m³), 1 podnośnik przy 600, 2 przy 900, ręcznie 1 → ostrzeżenie; zawiasy 2 / 3 powyżej 900; formatka „Klapa”; UI „skrzydło / klapa”, potem „do góry / w dół”; klapa w dół: amortyzator z tabeli PD-ECGDL, po wpisaniu 80 N pozycja w okuciach; klapa użytkownika 560 × 750 — poza tabelą i za ciężka, z uwagą o kącie 45°; ostrzeżenia >600 mm i <290 mm; bryła otwarta szafki i ciągu bez błędów |

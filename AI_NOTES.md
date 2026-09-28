@@ -609,7 +609,7 @@ za rogiem liczy glebokosc od sciany z domyslnymi plecami HDF (`runFrontDepth`).
 W uwagach i UI glebokosc ramienia = `armKorpus(a)` (bez plecow).
 [AI-INFO] Polka przy wsporniku pionowym fixu: na cala szerokosc, plytsza o
 wspornik (`c.shFront`/`c.shD`), kolki w bokach — tak ustalil uzytkownik.
-[AI-TODO] Frez pod HDF (`cab.backGroove`): etykiety w UI mylace („Szerokość”
-pokazuje `depth`, „Głębokość” pokazuje `offset`), a `grOff = gr.offset ?? 3`
-kontra domyslne 16. Uzytkownik: 16 = frez na szerokosc (w grubosci plyty 18),
-3 = wglab szafki w kierunku drzwi — czeka na doprecyzowanie pytaniem z opcjami.
+[AI-INFO] Frez pod HDF (`cab.backGroove`) = wreg od tylu w bokach, wiencu
+i dnie: `depth` 16 (z grubosci plyty), `offset` 3 (w strone drzwi, HDF
+zlicowany z tylem), `play` 1 na strone. `backIntrusion = grOff`, HDF z0 =
+cd - grOff. Stare {16, 4} bez `wreg` migruja w `migrateCab`. Suita `wreg`.

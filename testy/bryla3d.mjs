@@ -148,7 +148,7 @@ const osiemStron = async () => {
   }
   return w;
 };
-await seed([CAB('F', 800, { backGroove: { on: true, offset: 16, depth: 8, play: 1 },
+await seed([CAB('F', 800, { backGroove: { on: true, offset: 3, depth: 16, play: 1, wreg: true },
   levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null }] }] })], []);
 await pick('3D');
 let s8 = await osiemStron();
