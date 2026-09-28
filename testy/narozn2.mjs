@@ -74,9 +74,9 @@ await pick('Z góry');
 k = (await mmShapes('rect')).filter((q) => q.f === '#fafaf9' && q.w > 100 && q.h > 100);
 const zRamieniem = Math.min(...szafkaB(k).map((q) => q.y));
 console.log('     z ramieniem 500 ciąg B zaczyna się na ' + zRamieniem);
-/* Slepy rog (bez ramienia) zjada korpus i front szafki w rogu (600 + 18);
-   szafka w L — korpus i ramie (600 + 500), front domyka tam ramie. */
-ok('ramię odsuwa drugi ciąg o swoją długość (bez ramienia 618, z ramieniem 1100)', bezRamienia === 618 && zRamieniem === 1100,
+/* Slepy rog (bez ramienia) zjada korpus i front szafki w rogu (600 + 3 HDF + 18);
+   szafka w L — korpus z plecami i ramie (603 + 500), front domyka tam ramie. */
+ok('ramię odsuwa drugi ciąg o swoją długość (bez ramienia 621, z ramieniem 1103)', bezRamienia === 621 && zRamieniem === 1103,
   `${bezRamienia} → ${zRamieniem}`);
 
 console.log('\n== ramie widac w rzucie z gory ==');
@@ -89,7 +89,7 @@ const front = (await mmShapes('rect')).filter((q) => q.rot === 90 && q.h === 500
 console.log('     kształty ramienia: ' + JSON.stringify(front.map((q) => ({ x: q.x, y: q.y, w: q.w, h: q.h }))));
 ok('ramię narysowane w obróconym ciągu', front.length >= 1, String(front.length));
 ok('ramię stoi między rogiem a szafką B',
-  front.every((q) => q.y >= 600 && q.y + q.h <= 1100 + 1),
+  front.every((q) => q.y >= 603 && q.y + q.h <= 1103 + 1),
   JSON.stringify(front.map((q) => ({ y: q.y, kon: q.y + q.h }))));
 await page.locator('svg').first().screenshot({ path: S + 'shot-L-top.png' });
 
@@ -97,7 +97,7 @@ console.log('\n== uwagi opisuja szafke narozna ==');
 let uw = await card(/Uwagi/).innerText();
 console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 400));
 ok('uwaga o szafce narożnej w L', /szafką narożną w L/.test(uw), uw.slice(0, 200));
-ok('podany korpus i ramię', /900 mm przy ścianie/.test(uw) && /500 × 600 mm/.test(uw), uw.slice(0, 300));
+ok('podany korpus i ramię', /900 mm przy ścianie/.test(uw) && /500 × 603 mm/.test(uw), uw.slice(0, 300));
 ok('opisany sposób otwierania', /kątownika/.test(uw), uw.slice(0, 400));
 ok('nie ma już mowy o ślepym narożniku', !/Ślepy narożnik/.test(uw), uw.slice(0, 200));
 
@@ -143,13 +143,14 @@ uw = await card(/Uwagi/).innerText();
 console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 240));
 /* Ostatni skladnik znowu jest luzem miedzy drzwiami, wiec liczymy tak samo
    jak wyzej: 700 - 600 - 18 - (60 - 18) - luz. */
-const waskie = 700 - 600 - 18 - (60 - 18) - luzDrzwi;
+const waskie = 700 - 603 - 18 - (60 - 18) - luzDrzwi;
 ok('ostrzeżenie o zbyt wąskim froncie',
   new RegExp('tylko ' + waskie + ' mm frontu').test(uw), uw.slice(0, 240));
 await uklad(500, 500);   // korpus wezszy niz ramie → nie ma frontu w ogole
 uw = await card(/Uwagi/).innerText();
 ok('brak frontu to błąd', /nie ma frontu od strony/.test(uw), uw.slice(0, 240));
-ok('podpowiedź, do ilu poszerzyć', /800 mm/.test(uw), uw.slice(0, 300));
+// glebokosc sasiada z plecami 603 → szafka co najmniej 803
+ok('podpowiedź, do ilu poszerzyć', /803 mm/.test(uw), uw.slice(0, 300));
 
 console.log('\n== fronty szafki naroznej same mieszcza sie obok ramienia ==');
 await uklad(500, 900);   // korpus 900, ramie 600 gleboko → front tylko 237 mm
@@ -159,7 +160,7 @@ await uklad(500, 900);   // korpus 900, ramie 600 gleboko → front tylko 237 mm
    obu lic, wiec poza naroze wystaje o grubosc frontu mniej: 900 - 600 - 18
    - (60 - 18) - 3 = 237. Pasmo frontu jest do tego przyciete, wiec drzwi maja
    te szerokosc same z siebie — nie trzeba jej nigdzie wpisywac. */
-const swiatlo = 900 - 600 - 18 - (60 - 18) - luzDrzwi;
+const swiatlo = 900 - 603 - 18 - (60 - 18) - luzDrzwi;
 console.log('     luz między drzwiami ' + luzDrzwi + ' mm → światło ' + swiatlo + ' mm');
 // widok „Szafka" pokazuje aktywna szafke — klikamy w kafel naroznika
 await page.locator('button', { hasText: /^rogowa/ }).first().click();

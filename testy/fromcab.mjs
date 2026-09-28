@@ -21,9 +21,9 @@ const korpus = card(/^Korpus$/);
 await korpus.locator('input[type=number]').first().fill('800');
 await korpus.locator('input[type=number]').first().blur();
 await page.waitForTimeout(900);
-/* Pierwsza szafka jest z szablonu „Szafka stojąca” (570 w głąb), a „+ szafka”
+/* Pierwsza szafka jest z szablonu „Szafka stojąca” (560 w głąb), a „+ szafka”
    daje domyślne 500 — wyrównujemy głębokość, żeby boki były wspólne. */
-await korpus.locator('input[type=number]').nth(2).fill('570');
+await korpus.locator('input[type=number]').nth(2).fill('560');
 await korpus.locator('input[type=number]').nth(2).blur();
 await page.waitForTimeout(900);
 
@@ -39,7 +39,7 @@ const rows = await proj.evaluate((s) => [...s.querySelectorAll('tbody tr')].map(
 rows.forEach(r => console.log('     ' + r));
 ok('każdy wiersz ma nazwę szafki', rows.every(r => /Szafka [12]/.test(r.split('|')[1] || '')), rows[0]);
 
-// bok jest identyczny w obu szafkach (720x570) -> wiersz z obiema nazwami i mnoznikami
+// bok jest identyczny w obu szafkach (720x560) -> wiersz z obiema nazwami i mnoznikami
 const bok = rows.find(r => /^Bok/.test(r)) || '';
 console.log('  wiersz boków:', bok);
 ok('wspólny bok pokazuje obie szafki', /Szafka 1/.test(bok) && /Szafka 2/.test(bok), bok.split('|')[1]);

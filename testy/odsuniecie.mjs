@@ -2,7 +2,10 @@
    sciany na wysokosci blatu: odstep + korpus + 2 mm luzu przy zawiasach +
    front + wysieg. Arkusz 600 ma wystawac przed drzwi 10 mm; mniej to uwaga,
    ponad 30 mm — ostrzezenie i domyslnie blat na wymiar. Krzywa sciana daje
-   inny odstep przy podlodze niz pod blatem — widok z boku rysuje ja ukosem. */
+   inny odstep przy podlodze niz pod blatem — widok z boku rysuje ja ukosem.
+   Od 2026-09-28 HDF przybijany (3 mm) stoi za korpusem i odsuwa szafke od
+   sciany — korpusy sa tu wiec o 3 mm plytsze (567, 537, 572), zeby odleglosci
+   od sciany do lica zostaly te same co wczesniej (570, 540, 575). */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
@@ -53,7 +56,7 @@ const blaty = () => page.evaluate(() => [...document.querySelectorAll('tr')]
 const wysiegowe = (u) => u.filter((x) => /wystaje przed drzwi|wystawałby|zamawiamy docięty/.test(x.t));
 
 console.log('== pola w ciągu i w szafce ==');
-await uklad(570, { bottom: 0, top: null });
+await uklad(567, { bottom: 0, top: null });
 ok('ciąg ma „Odsunięcie od ściany"', await page.getByText('Odsunięcie od ściany', { exact: true }).count() === 1);
 ok('szafka ma własne odsunięcie', await page.getByText('Odsunięcie tej szafki od ściany', { exact: true }).count() === 1);
 
@@ -66,7 +69,7 @@ ok('bez uwagi o odstępie', !u.some((x) => /stoi .* od ściany/.test(x.t)));
 ok('blat ściany ma 600', bl.length > 0 && bl[0].includes('600'), JSON.stringify(bl[0]));
 
 console.log('\n== 540 + 30 mm od ściany: też 600, bez docinania ==');
-await uklad(540, { bottom: 30, top: null });
+await uklad(537, { bottom: 30, top: null });
 u = await uwagi();
 bl = await blaty();
 ok('bez uwag o wysięgu', wysiegowe(u).length === 0, wysiegowe(u).map((x) => x.t.slice(0, 80)).join(' // '));
@@ -81,11 +84,11 @@ console.log('\n== obie ściany 30 mm: ramię zostaje przy korpusie 540 ==');
 /* Ramie lezy przy scianie drugiego ciagu i stoi z jego odstepem — jego plyty
    maja glebokosc korpusu, a nie korpusu z odstepem. Blat nad nim wychodzi
    wtedy tak samo jak na pierwszej scianie. */
-await uklad(540, { bottom: 30, top: null }, (p) => { p.runs[1].wallGap = { bottom: 30, top: null }; });
+await uklad(537, { bottom: 30, top: null }, (p) => { p.runs[1].wallGap = { bottom: 30, top: null }; });
 u = await uwagi();
 bl = await blaty();
 const lka = u.find((x) => /szafką narożną w L/.test(x.t));
-ok('ramię 630 × 540', !!lka && /ramię 630 × 540 mm/.test(lka.t), lka && lka.t.slice(0, 160));
+ok('ramię 630 × 537 (głębokość korpusu)', !!lka && /ramię 630 × 537 mm/.test(lka.t), lka && lka.t.slice(0, 160));
 ok('oba blaty po 600, bez uwagi o różnych szerokościach',
   bl.length === 2 && bl.every((r) => r.includes('600')) && !u.some((x) => /różne szerokości/.test(x.t)),
   JSON.stringify(bl.map((r) => r.slice(3, 5))));
@@ -94,13 +97,13 @@ ok('oba blaty po 600, bez uwagi o różnych szerokościach',
 ok('blat pierwszej ściany dochodzi do ściany: 1530', bl.length > 0 && bl[0].includes('1530'), JSON.stringify(bl[0]));
 
 console.log('\n== krzywa ściana: 30 mm przy podłodze, 0 pod blatem ==');
-await uklad(540, { bottom: 30, top: 0 });
+await uklad(537, { bottom: 30, top: 0 });
 u = await uwagi();
 bl = await blaty();
 const duzo = u.find((x) => /wystawałby przed drzwi 40 mm/.test(x.t));
 console.log('     ' + (duzo ? duzo.t.slice(0, 200) : '(brak)'));
 ok('ostrzeżenie: arkusz wystawałby 40 mm', !!duzo, wysiegowe(u).map((x) => x.t.slice(0, 80)).join(' // '));
-ok('pokazuje, z czego to wynika', !!duzo && /korpus 540 \+ 2 mm luzu przy zawiasach \+ front 18 = 560 mm/.test(duzo.t));
+ok('pokazuje, z czego to wynika', !!duzo && /plecy 3 \+ korpus 537 \+ 2 mm luzu przy zawiasach \+ front 18 = 560 mm/.test(duzo.t));
 ok('domyślnie blat docięty do 570', bl.length > 0 && bl[0].includes('570'), JSON.stringify(bl[0]));
 ok('uwaga mówi o obu odstępach', u.some((x) => /30 mm od ściany przy podłodze i 0 mm na wysokości blatu/.test(x.t)));
 ok('da się wziąć cały arkusz', !!duzo && duzo.b.includes('Zamów cały arkusz'), duzo && duzo.b.join(' | '));
@@ -127,7 +130,7 @@ ok('„Ukryj ścianę" chowa ją', await page.locator('g[data-el="sciana"]').cou
 await page.getByRole('button', { name: 'Pokaż ścianę' }).first().click();
 await page.waitForTimeout(600);
 ok('„Pokaż ścianę" przywraca', await page.locator('g[data-el="sciana"]').count() === 1);
-await uklad(570, { bottom: 0, top: null });
+await uklad(567, { bottom: 0, top: null });
 await page.getByRole('button', { name: 'Z boku', exact: true }).first().click();
 await page.waitForTimeout(900);
 // przy odstepie 0 sciana tez jest — szafka po prostu do niej dostaje — ale bez podpisow
@@ -165,7 +168,7 @@ await page.waitForTimeout(500);
 console.log('\n== ramię 1200: drzwi ramienia za szerokie, przyciski skracają ==');
 /* Drzwi ramienia to ramie minus katownik w rogu z luzami. Powyzej 600 mm
    ostrzezenie z dwoma przyciskami: ramie na drzwi 600 i ramie 600. */
-await uklad(570, { bottom: 0, top: null }, (p) => {
+await uklad(567, { bottom: 0, top: null }, (p) => {
   const r = p.items.find((i) => i.cab.corner && i.cab.corner.on); r.cab.corner.arm = 1200;
   p.active = p.items.indexOf(r); });  // karta narożnika jest przy szafce narożnej
 u = await uwagi();
@@ -196,15 +199,15 @@ await page.getByRole('button', { name: 'Pokaż blat' }).first().click();
 await page.waitForTimeout(500);
 
 console.log('\n== 575: za mało wysięgu ==');
-await uklad(575, { bottom: 0, top: null });
+await uklad(572, { bottom: 0, top: null });
 u = await uwagi();
 const malo = u.find((x) => /wystaje przed drzwi tylko 5 mm/.test(x.t));
 ok('uwaga: tylko 5 mm', !!malo, wysiegowe(u).map((x) => x.t.slice(0, 80)).join(' // '));
 ok('to uwaga, nie ostrzeżenie', !!malo && !/wystawałby/.test(malo.t));
-ok('podpowiada głębokość 570', !!malo && malo.b.some((x) => /570/.test(x)), malo && malo.b.join(' | '));
+ok('podpowiada głębokość 567', !!malo && malo.b.some((x) => /567/.test(x)), malo && malo.b.join(' | '));
 
 console.log('\n== szafka stojąca inaczej niż ciąg ==');
-await uklad(570, { bottom: 0, top: null }, (p) => { p.items[0].wallGap = { bottom: 20, top: null }; });
+await uklad(567, { bottom: 0, top: null }, (p) => { p.items[0].wallGap = { bottom: 20, top: null }; });
 u = await uwagi();
 ok('uwaga o tej jednej szafce', u.some((x) => /Szafka „Zwykła" stoi 20 mm od ściany, inaczej niż reszta ciągu/.test(x.t)),
   u.map((x) => x.t.slice(0, 50)).join(' // '));

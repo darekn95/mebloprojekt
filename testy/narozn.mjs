@@ -83,10 +83,10 @@ console.log('\n== rog zjada glebokosc ciagu, ktory w niego wjezdza ==');
 const konA = Math.max(...poziome.map((q) => q.x + q.w));
 const startB = Math.min(...pionowe.map((q) => q.y));
 console.log(`     koniec A: ${konA}, poczatek B: ${startB}`);
-ok('ciąg B zaczyna się o głębokość ciągu A + front od rogu (618)', startB === 618, String(startB));
+ok('ciąg B zaczyna się o głębokość ciągu A + plecy + front od rogu (621)', startB === 621, String(startB));
 ok('ciągi nie wchodzą na siebie', pionowe.every((q) => q.y >= 600), JSON.stringify(pionowe.map((q) => q.y)));
 ok('lico ciągu B jest po stronie pokoju',
-  pionowe.every((q) => q.x + q.w <= konA + 1 && q.x >= konA - 601),
+  pionowe.every((q) => q.x + q.w <= konA + 1 && q.x >= konA - 604),
   JSON.stringify(pionowe.map((q) => ({ x: q.x, kon: q.x + q.w }))));
 let tx = await svgTexts();
 ok('strata w rogu opisana na rysunku', tx.includes('600'), tx.join(' | '));
@@ -118,7 +118,7 @@ await pick('Zabudowa');
 await pick('Z góry');
 k = await korpusy();
 const startB2 = Math.min(...k.filter((q) => q.rot === 90).map((q) => q.y));
-ok('luz dokłada się do straty w rogu (600 + 18 + 50)', startB2 === 668, String(startB2));
+ok('luz dokłada się do straty w rogu (600 + 3 + 18 + 50)', startB2 === 671, String(startB2));
 
 console.log('\n== narożnik przed ciagiem (lustrzane L) ==');
 await seed(
@@ -132,7 +132,7 @@ const a = k.find((q) => q.rot === 0), b = k.find((q) => q.rot !== 0);
 console.log('     obroty: ' + JSON.stringify(k.map((q) => q.rot)));
 /* Lustrzane L: sciana A idzie w prawo gora, sciana B schodzi w dol po lewej —
    rog wypada w (0,0), a B konczy sie przy nim, zamiast od niego zaczynac. */
-ok('drugi ciąg schodzi w dół przy lewej ścianie', b.rot === 270 && b.x === 0,
+ok('drugi ciąg schodzi w dół przy lewej ścianie', b.rot === 270 && b.x === 3,
   `rot ${b.rot}, x ${b.x}`);
 ok('i nie wchodzi na pierwszy', b.y >= 600, String(b.y));
 ok('pierwszy ciąg dojeżdża do rogu', a.x === 0, String(a.x));
@@ -181,7 +181,7 @@ ok('narożnik opisany w uwagach', /naroż/i.test(txt), txt.slice(0, 120));
 
 console.log('\n== slepy naroznik: ile frontu zostaje ==');
 // szafka 900 w rogu, drugi ciag 600 gleboki — zasloniete do lica jego frontow
-// (600 + 18) i 30 mm zapasu na uchwyt = 648, do reki zostaje 252 mm frontu
+// (600 + 3 HDF + 18) i 30 mm zapasu na uchwyt = 651, do reki zostaje 249 mm frontu
 await seed(
   [RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })],
   [CAB('A1', 600, 600, 'c1'), CAB('A2', 900, 600, 'c1'), CAB('B1', 500, 600, 'c2')]);
@@ -189,11 +189,11 @@ await pick('Zabudowa');
 await pick('Z góry');
 tx = await svgTexts();
 console.log('     ' + tx.join(' | '));
-ok('rysunek pokazuje odsłonięty kawałek frontu', tx.includes('252 dostępu'), tx.join(' | '));
+ok('rysunek pokazuje odsłonięty kawałek frontu', tx.includes('249 dostępu'), tx.join(' | '));
 let uwagi = await card(/Uwagi/).innerText();
 console.log('     ' + uwagi.replace(/\n+/g, ' / ').slice(0, 260));
 ok('uwagi mówią o ślepym narożniku', /Ślepy narożnik/.test(uwagi), uwagi.slice(0, 160));
-ok('podana zasłonięta i wolna szerokość', /648 mm frontu zasłonięte/.test(uwagi) && /252 mm/.test(uwagi),
+ok('podana zasłonięta i wolna szerokość', /651 mm frontu zasłonięte/.test(uwagi) && /249 mm/.test(uwagi),
   uwagi.slice(0, 200));
 
 console.log('\n== szafka w rogu weższa niz drugi ciag jest slepa ==');
@@ -207,7 +207,7 @@ ok('rysunek oznacza szafkę jako ślepą', tx.includes('ślepa'), tx.join(' | ')
 uwagi = await card(/Uwagi/).innerText();
 console.log('     ' + uwagi.replace(/\n+/g, ' / ').slice(0, 260));
 ok('to jest błąd, nie podpowiedź', /chowa się w całości/.test(uwagi), uwagi.slice(0, 200));
-ok('podpowiedź, do ilu poszerzyć (648 + 200)', /848 mm/.test(uwagi), uwagi.slice(0, 260));
+ok('podpowiedź, do ilu poszerzyć (651 + 200)', /851 mm/.test(uwagi), uwagi.slice(0, 260));
 await page.locator('svg').first().screenshot({ path: S + 'shot-narozn-slepa.png' });
 
 console.log('\n== karta ciagu: ustawienie naroznika z UI ==');

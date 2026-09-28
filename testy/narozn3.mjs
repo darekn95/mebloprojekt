@@ -57,6 +57,8 @@ console.log('     ' + b.join('  //  '));
 ok('blat ciągu A na całą jego długość', b.some((t) => /1700/.test(t)), b.join(' | '));
 /* Szafki B zaczynaja sie za licem szafki A (600 + 18), blat B dochodzi do
    przedniej krawedzi blatu A (600) — stad 900 szafek + 18. */
+/* Szafki B zaczynaja sie 621 od rogu, a ich blat dochodzi do przedniej
+   krawedzi blatu A: 600 korpusu + 3 HDF za nim = 603 — stad 1521 - 603 = 918. */
 ok('blat ciągu B skrócony o głębokość A (918)', b.some((t) => /\b918\b/.test(t)), b.join(' | '));
 let uw = await card(/Uwagi/).innerText();
 console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 300));
@@ -69,8 +71,10 @@ b = await blaty();
 console.log('     ' + b.join('  //  '));
 /* Teraz przechodzi blat ciagu B: siega az do rogu, wiec ma 900 mm szafek plus
    600 mm nad rogiem = 1500 mm. Blat ciagu A konczy sie 600 mm przed rogiem. */
-ok('blat ciągu B idzie nad rogiem (900 + 18 + 600)', b.some((t) => /1518/.test(t)), b.join(' | '));
-ok('blat ciągu A skrócony', b.some((t) => /1100/.test(t)), b.join(' | '));
+// szafki B zaczynaja sie 621 od rogu (600 + 3 HDF + 18 frontu A)
+ok('blat ciągu B idzie nad rogiem (900 + 621)', b.some((t) => /1521/.test(t)), b.join(' | '));
+// blat B siega sciany: 600 + 3 za korpusem = 603 glebokosci — A konczy sie 603 przed rogiem
+ok('blat ciągu A skrócony', b.some((t) => /1097/.test(t)), b.join(' | '));
 uw = await card(/Uwagi/).innerText();
 ok('uwaga mówi o zamianie', /przechodzi blat ciągu „Ściana B"/.test(uw), uw.slice(0, 300));
 
@@ -79,7 +83,7 @@ await uklad({ cut: 'skos' });
 b = await blaty();
 console.log('     ' + b.join('  //  '));
 ok('blat A dochodzi do rogu', b.some((t) => /1700/.test(t)), b.join(' | '));
-ok('blat B też dochodzi do rogu (1518)', b.some((t) => /1518/.test(t)), b.join(' | '));
+ok('blat B też dochodzi do rogu (1521)', b.some((t) => /1521/.test(t)), b.join(' | '));
 ok('formatka mówi o cięciu na 45°', b.every((t) => /łyżwa 45°/.test(t)), b.join(' | '));
 uw = await card(/Uwagi/).innerText();
 console.log('     ' + uw.replace(/\n+/g, ' / ').slice(0, 300));

@@ -1,7 +1,7 @@
 /* Kreator rogu przy „+ ciąg” i przycisk „Ustaw szafkę w rogu” (2026-09-28).
    Scenariusz uzytkownika: sciana 1 z trzema szafkami 600, drugi ciag pod katem
    prostym za nia, w rog wjezdza nowy ciag, slepa szafka 1000 z fixem, wstawka.
-   Kreator ma od razu dac gotowy rog: fix 618 (570 + 18 + 30) przy rogu, jedne
+   Kreator ma od razu dac gotowy rog: fix 621 (570 + 3 HDF + 18 + 30) przy rogu, jedne
    drzwi z zawiasem od zewnatrz, wstawka plaska — bez bloku „do ustawienia”. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -41,11 +41,12 @@ ok('nowy ciąg ma narożnik do „Ściana 1”, za nim, sam w róg, z płaską w
     && c2.corner.wstawka && c2.corner.wstawka.typ === 'plaska', JSON.stringify(c2 && c2.corner));
 const rog = p.items.find((it) => it.runId === (c2 || {}).id);
 const kol = rog && rog.cab.levels[0].cols[0];
-ok('szafka w rogu 1000 × 570 w nowym ciągu', rog && rog.cab.W === 1000 && rog.cab.D === 570, rog && `${rog.cab.W}×${rog.cab.D}`);
-ok('fix 618 przy rogu (od lewej), jedne drzwi, zawias od zewnątrz (prawy)',
-  kol && kol.fix.side === 'left' && kol.fix.w === 618 && kol.doors === 1 && kol.hinge === 'right', JSON.stringify(kol && { fix: kol.fix, doors: kol.doors, hinge: kol.hinge }));
+// szablon stojacej ma od 2026-09-28 560 w glab
+ok('szafka w rogu 1000 × 560 w nowym ciągu', rog && rog.cab.W === 1000 && rog.cab.D === 560, rog && `${rog.cab.W}×${rog.cab.D}`);
+ok('fix 621 przy rogu (od lewej), jedne drzwi, zawias od zewnątrz (prawy)',
+  kol && kol.fix.side === 'left' && kol.fix.w === 621 && kol.doors === 1 && kol.hinge === 'right', JSON.stringify(kol && { fix: kol.fix, doors: kol.doors, hinge: kol.hinge }));
 let u = await uwagi();
-ok('bez bloku „Szafka w rogu do ustawienia” — róg jest od razu ustawiony', !/do ustawienia/.test(u) && /ma fix 618 mm/.test(u),
+ok('bez bloku „Szafka w rogu do ustawienia” — róg jest od razu ustawiony', !/do ustawienia/.test(u) && /ma fix 621 mm/.test(u),
   u.split('\n').filter((l) => /fix|ustawienia/.test(l)).join(' / '));
 
 console.log('\n== kreator: szafka w L ==');
@@ -74,15 +75,15 @@ await seed({ name: 'K', active: 3, prices: {}, runs: [RUN('c1', 'Ściana 1'), RU
 u = await uwagi();
 ok('na górze blok „Ślepy narożnik — szafka w rogu do ustawienia”', /szafka w rogu do ustawienia/.test(u));
 ok('kolizje w tym rogu czekają na ustawienie', !/nie ma się jak otworzyć/.test(u), u.split('\n').filter((l) => /otworzyć/.test(l)).join(' / '));
-await card(/^Uwagi/).getByRole('button', { name: /Ustaw szafkę w rogu: fix 618 mm \+ drzwi \+ wstawka 18 mm/ }).click();
+await card(/^Uwagi/).getByRole('button', { name: /Ustaw szafkę w rogu: fix 621 mm \+ drzwi \+ wstawka 18 mm/ }).click();
 await page.waitForTimeout(1500);
 p = await zapis();
 const k2 = p.items[3].cab.levels[0].cols[0];
-ok('po kliknięciu: fix 618 od lewej, jedne drzwi, zawias prawy, wstawka płaska',
-  k2.fix.side === 'left' && k2.fix.w === 618 && k2.doors === 1 && k2.hinge === 'right' && p.runs[1].corner.wstawka && p.runs[1].corner.wstawka.typ === 'plaska',
+ok('po kliknięciu: fix 621 od lewej, jedne drzwi, zawias prawy, wstawka płaska',
+  k2.fix.side === 'left' && k2.fix.w === 621 && k2.doors === 1 && k2.hinge === 'right' && p.runs[1].corner.wstawka && p.runs[1].corner.wstawka.typ === 'plaska',
   JSON.stringify({ fix: k2.fix, doors: k2.doors, hinge: k2.hinge, ws: p.runs[1].corner.wstawka }));
 u = await uwagi();
-ok('blok znika, zostaje podpowiedź o fixie', !/do ustawienia/.test(u) && /ma fix 618 mm/.test(u));
+ok('blok znika, zostaje podpowiedź o fixie', !/do ustawienia/.test(u) && /ma fix 621 mm/.test(u));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

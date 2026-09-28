@@ -29,7 +29,8 @@ console.log('   '+uw.replace(/\n+/g,' / ').slice(0,300));
    czego naprawiac. Lico: 900 - 600 - 18 - 42 - 2 (luz) = 238, bierzemy je
    z uwagi o waskim froncie, zeby test nie trzymal kopii rachunku. */
 const lico = Number((/front od strony ciągu „A” ma (\d+) mm/.exec(uw)||[])[1]);
-ok('lico przed narożnikiem 238 mm', lico===238, String(lico));
+// od 2026-09-28 ciag za rogiem stoi 603 od sciany (HDF 3 mm za korpusem): 900 - 603 - 18 - 42 - 2
+ok('lico przed narożnikiem 235 mm', lico===235, String(lico));
 await page.getByRole('button',{name:'Zamk.',exact:true}).first().click();
 await page.waitForTimeout(800);
 const fronty = await page.evaluate(()=>[...document.querySelectorAll('#rysunek svg text')]

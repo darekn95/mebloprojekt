@@ -103,9 +103,10 @@ const zjedzone = async (w) => {
   return page.evaluate(() => [...document.querySelectorAll('#rysunek text')].map((t) => t.textContent.trim()));
 };
 const tBez = await zjedzone(null), tPl = await zjedzone({ typ: 'plaska', w: 60 }), tSz = await zjedzone({ typ: 'szeroka', w: 60 });
-ok('bez wstawki róg zjada 588 (korpus + front)', tBez.includes('588') && !tBez.includes('606'), tBez.filter((t) => /^[56]\d\d$/.test(t)).join(','));
-ok('płaska odsuwa ciąg o 18 (606)', tPl.includes('606'), tPl.filter((t) => /^[56]\d\d$/.test(t)).join(','));
-ok('szeroka odsuwa ciąg o 60 (648)', tSz.includes('648'), tSz.filter((t) => /^6\d\d$/.test(t)).join(','));
+// 570 + 3 (HDF za korpusem) + 18 frontu
+ok('bez wstawki róg zjada 591 (korpus + plecy + front)', tBez.includes('591') && !tBez.includes('609'), tBez.filter((t) => /^[56]\d\d$/.test(t)).join(','));
+ok('płaska odsuwa ciąg o 18 (609)', tPl.includes('609'), tPl.filter((t) => /^[56]\d\d$/.test(t)).join(','));
+ok('szeroka odsuwa ciąg o 60 (651)', tSz.includes('651'), tSz.filter((t) => /^6\d\d$/.test(t)).join(','));
 
 console.log('\n== pole w karcie ciągu ==');
 await seed(null, 3);
@@ -144,7 +145,7 @@ await pick('Ciąg'); await pick('Z tyłu');
 ok('ciąg z tyłu: wstawka jest', await wRys() === 1);
 await pick('Zamk.');
 const napisy = await page.evaluate(() => [...document.querySelectorAll('#rysunek text')].map((t) => t.textContent.trim()));
-ok('ciąg: bok sąsiada bez wstawki (588, nie 606)', napisy.some((t) => /^bok „Ściana 2" 588$/.test(t)), napisy.filter((t) => /^bok/.test(t)).join(' | '));
+ok('ciąg: bok sąsiada bez wstawki (591, nie 609)', napisy.some((t) => /^bok „Ściana 2" 591$/.test(t)), napisy.filter((t) => /^bok/.test(t)).join(' | '));
 await seed({ typ: 'plaska', w: 60 }, 0);
 await pick('Szafka'); await pick('Zamk.');
 ok('pierwsza szafka ściany 1 (nie przy rogu): bez wstawki', await wRys() === 0);

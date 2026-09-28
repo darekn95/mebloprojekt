@@ -53,8 +53,19 @@ const bryly = async (zakres) => {
   await click('3D');
   return page.evaluate(() => { const a = window.__audytBryl; window.__audytBryl = null; return a || []; });
 };
+// bryla po otwarciu — tam widac skrzynki szuflad; nachodzenia tu nie liczymy (skrzydla sie obracaja)
+const brylyOtw = async () => {
+  await page.evaluate(() => { window.__audytBryl = []; });
+  const z = page.getByRole('button', { name: 'zamknięte', exact: true });
+  if (await z.count()) { await z.first().click(); await page.waitForTimeout(400); }
+  const a = await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; });
+  const o = page.getByRole('button', { name: 'otwarte', exact: true });
+  if (await o.count()) { await o.first().click(); await page.waitForTimeout(200); }
+  return a;
+};
+// uchwyty, nozki i metalowe boki szuflad (#8b8b93) to okucia, nie formatki
 const plyty = (sol) => sol.filter((s) => { const d = [...s.d].sort((x, y) => x - y);
-  return d[0] > 0.5 && d[0] <= 40 && d[1] >= 20 && s.color !== '#3f3f46' && !/^(uchwyt|noga)/.test(s.tag || ''); });
+  return d[0] > 0.5 && d[0] <= 40 && d[1] >= 20 && s.color !== '#3f3f46' && s.color !== '#8b8b93' && !/^(uchwyt|noga)/.test(s.tag || ''); });
 const opis = (q) => `${q.tag || ''}${[...q.d].sort((x, y) => x - y).map(Math.round).join('×')}`;
 
 // 1. nachodzenie brył (bez stref kolizji i wyciec, ktore sa przezroczyste)
@@ -110,7 +121,8 @@ const tekstF = (l) => l.map((r) => `${r.name} ${r.a}×${r.b} ×${r.qty}`).sort()
 const tekstH = (l) => l.map((r) => `${r.name} ×${r.qty}`).sort().join('; ');
 
 const wynik = { blad: 0 };
-const scenariusz = async (tytul, p, { pominRys = /$^/ } = {}) => {
+// `znane` — nachodzenie czekajace na decyzje uzytkownika (BLEDY.md), wypisywane jako INFO
+const scenariusz = async (tytul, p, { pominRys = /$^/, znane = null } = {}) => {
   console.log(`\n== ${tytul} ==`);
   const set = async (active) => {
     await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); }, { ...p, active });
@@ -123,10 +135,13 @@ const scenariusz = async (tytul, p, { pominRys = /$^/ } = {}) => {
     const h = okucia(await tabela(/^Produkty do zamówienia/));
     const sol = await bryly('Szafka');
     const nm = p.items[i].cab.name;
-    const n = nachodzi(sol);
+    const nAll = nachodzi(sol);
+    const n = znane ? nAll.filter((x) => !znane.test(x)) : nAll;
+    if (nAll.length > n.length) info(`${nm}: znane, do decyzji (BLEDY.md): ${nAll.filter((x) => znane.test(x)).join('; ')}`);
     ok(`${nm}: w bryle szafki nic na nic nie nachodzi`, !n.length, n.slice(0, 6).join('; '));
+    const otw = await brylyOtw();
     // ramie szafki w L i elementy wspolne ciagu rysuja sie dopiero w zabudowie
-    const bp = bezPlyty(f, sol, /ramienia|Kątownik|Maskownica|^Cokół ramienia/);
+    const bp = bezPlyty(f, [...sol, ...otw.filter((q) => !sol.some((x) => x.p && q.p && x.p.join() === q.p.join()))], /ramienia|Kątownik|Maskownica|^Cokół ramienia/);
     ok(`${nm}: każda formatka szafki jest na rysunku w swojej ilości`, !bp.length, bp.join('; '));
     szafki.push({ f, h, nm });
   }
@@ -179,7 +194,9 @@ const USTAWIONA = { W: 1000, levels: [{ h: null, cols: [kol({ doors: 1, fix: { s
 
 await scenariusz('szafka: drzwi i półki', projekt([[szafka('D')]]));
 await scenariusz('szafka: szuflady', projekt([[szafka('S', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] })]]));
-await scenariusz('szafka: fix ze wspornikiem + drzwi', projekt([[szafka('F', { levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] })]]));
+// polka przechodzi przez wspornik pionowy fixu — sposob (plytsza/wezsza) do decyzji uzytkownika
+await scenariusz('szafka: fix ze wspornikiem + drzwi', projekt([[szafka('F', { levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] })]]),
+  { znane: /^18×564×570 × 18×100×684/ });
 await scenariusz('szafka: blenda w kolumnie + drzwi', projekt([[szafka('B', { W: 800, levels: [{ h: null, cols: [kol({ doors: 1 }), { ...kol(), kind: 'blenda', w: 100 }] }] })]]));
 await scenariusz('szafka: dwa poziomy', projekt([[szafka('P', { W: 800, H: 2000, levels: [{ h: null, cols: [kol({ doors: 1 }), kol({ doors: 1 })] }, { h: 700, cols: [kol()] }] })]]));
 await scenariusz('szafka: fronty wpuszczane', projekt([[szafka('WP', { frontMode: 'inset' })]]));

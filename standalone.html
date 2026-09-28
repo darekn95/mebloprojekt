@@ -889,6 +889,20 @@ const utworzCiagZRogiem = (p, o) => {
     const pierwsza = wynik.items.find((it) => it.runId === r.id);
     return pierwsza ? { ...r, H: pierwsza.cab.H, D: pierwsza.cab.D, plinth: pierwsza.cab.plinth ? { ...pierwsza.cab.plinth } : null } : r;
   });
+  /* Fix liczymy ostatecznie z ukladu, tak samo jak kontrola slepego rogu
+     (`zaslania`): glebokosc sasiedniego ciagu od sciany — razem z plecami
+     przybijanymi i odstepem — plus jego front i zapas. Szacunek z ustawien
+     ciagu (wyzej) nie zna plecow sasiadow i roznil sie o ich grubosc. */
+  if (!L && o.szafka !== "brak") {
+    const z = [...projectLayout(wynik).info.values()].map((n) => n.blind)
+      .find((b) => b && b.cab.index === active);
+    const it = wynik.items[active];
+    if (z && it) {
+      const lv = it.cab.levels.map((l) => ({ ...l, cols: l.cols.map((c) => (c.fix && c.fix.w > 0
+        ? { ...c, fix: { ...c.fix, w: Math.round(z.covered) } } : c)) }));
+      wynik.items = wynik.items.map((x, k) => (k === active ? { ...x, cab: { ...x.cab, levels: lv } } : x));
+    }
+  }
   return wynik;
 };
 
@@ -1070,10 +1084,12 @@ const TEMPLATES = [
   {
     id: "stojaca",
     label: "Szafka stojąca",
-    // 570 w glab — standard szafki pod blat 600 (ustalone z uzytkownikiem 2026-09-28)
-    hint: "600 × 720 × 570, cokół, dwoje drzwi",
+    /* 560 w glab: z HDF przybijanym 563 od sciany, z drzwiami 581 — blat 600
+       ma zapas na krzywa sciane; lepiej dociac tyl blatu niz zeby zabraklo
+       (ustalone z uzytkownikiem 2026-09-28, wczesniej 570). */
+    hint: "600 × 720 × 560, cokół, dwoje drzwi",
     make: () => ({
-      W: 600, H: 720, D: 570,
+      W: 600, H: 720, D: 560,
       plinth: { on: true, height: 100, mode: "under", setback: 0 },
       // cokol pod korpusem nie zjada swiatla — korpus stoi na nim caly
       levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
@@ -1259,6 +1275,13 @@ function computeGeoLiczy(cab, mat, ctx) {
   }
   const hasBack = cab.back !== "none";
   const rear = !hasBack;
+  /* Plecy za korpusem: HDF przybijany i plyta na zewnatrz siedza na tylnych
+     krawedziach bokow, wiec szafka stoi o ich grubosc dalej od sciany i tyle
+     samo wysuwa sie jej lico (ustalone z uzytkownikiem 2026-09-28). HDF we
+     frezie i plyta wewnatrz chowaja sie w glebokosci korpusu. `glebOdSciany`
+     to glebokosc od sciany do lica korpusu — tej uzywa uklad ciagu. */
+  const plecyZa = hasBack && !grooved && !(cab.back === "board" && backPos === "inside") ? tb : 0;
+  const glebOdSciany = carcassDepth + plecyZa;
 
   if (grooved) {
     if (grDep >= t)
@@ -1278,7 +1301,14 @@ function computeGeoLiczy(cab, mat, ctx) {
   const rawCorner = cab.corner || {};
   const postCfg = rawCorner.post || {};
   const postOn = !!(rawCorner.on && postCfg.on !== false);
-  const postSide = postOn ? (rawCorner.side === "left" ? "left" : "right") : null;
+  /* „auto” bierze strone z ukladu ciagow (w ktora strone wychodzi ramie) —
+     wczesniej zawsze „prawa”, wiec szafka w L na poczatku ciagu (ramie w lewo,
+     tak ustawia ja kreator rogu) miala pelny bok od strony ramienia, a katownik
+     po przeciwnej stronie (audyt 2026-09-28). */
+  const postSide = postOn
+    ? (rawCorner.side === "left" || rawCorner.side === "right" ? rawCorner.side
+      : ctx && (ctx.armSide === "left" || ctx.armSide === "right") ? ctx.armSide : "right")
+    : null;
   /* Katownik w tylnym narozniku chowa sie za plecami z obu stron: wzdluz sciany
      korpusu i wzdluz sciany ramienia. Plecy przybija sie na niego od zewnatrz,
      wiec o ich grubosc odsuwa sie od obu plaszczyzn. */
@@ -1332,7 +1362,13 @@ function computeGeoLiczy(cab, mat, ctx) {
   const backIntrusion = grooved ? grOff + tb : backIsBoard && backPos === "inside" && cab.back !== "none" ? tb : 0;
   const frontCut =
     (cab.shelfExtraSetback || 0) + (cab.frontMode === "inset" ? tf + 5 : 0);
-  const shelfDepth = Math.round(carcassDepth - backIntrusion - frontCut);
+  /* Szafka w L: polka korpusu konczy sie przed katownikiem w tylnym rogu
+     (plecy + plyta katownika) i zaczyna za katownikiem naroznika, ktory stoi
+     w licu przy ramieniu — plytsza o nie na calej szerokosci (ustalone
+     z uzytkownikiem 2026-09-28; wczesniej przechodzila przez oba). */
+  const shelfBack = postSide ? Math.max(backIntrusion, postBack + t) : backIntrusion;
+  const shelfFrontL = postSide && ctx && ctx.armBracket ? t : 0;
+  const shelfDepth = Math.round(carcassDepth - shelfBack - frontCut - shelfFrontL);
   const dividerDepth = Math.round(carcassDepth - backIntrusion);
   if (shelfDepth <= 0)
     add("error", "Głębokość półki wychodzi zero lub mniej — zmniejsz cofnięcie półki.");
@@ -1443,6 +1479,16 @@ function computeGeoLiczy(cab, mat, ctx) {
       }
     }
   });
+
+  /* Zasieg polek w kolumnie: w szafce w L plyta katownika wzdluz sciany
+     ramienia stoi o grubosc plecow od boku — polka w kolumnie przy nim jest
+     o tyle wezsza (inaczej wchodzi w katownik 3 mm). */
+  levels.forEach((lv) => lv.cols.forEach((c, j) => {
+    const przyKat = postSide && (postSide === "left" ? j === 0 : j === lv.cols.length - 1);
+    c.shX0 = przyKat && postSide === "left" ? c.x0 + postBack : c.x0;
+    c.shX1 = przyKat && postSide === "right" ? c.x1 - postBack : c.x1;
+    c.shW = Math.round(c.shX1 - c.shX0);
+  }));
 
   /* --- fronty: pasmo pionowe z poziomu, poziome z kolumny --- */
   const half = g.between / 2;
@@ -2160,6 +2206,8 @@ function computeGeoLiczy(cab, mat, ctx) {
           w: dsx1 - dsx0,
           h: fh,
           colW: c.w, // swiatlo szerokosci kolumny (do swiatla szuflady = colW - 42)
+          colX0: c.x0,
+          dr,
           nl,
           handle: d.handle !== false,
           iInGroup: 0,
@@ -2220,6 +2268,8 @@ function computeGeoLiczy(cab, mat, ctx) {
             );
         }
         if (nl !== null && LW > 0) {
+          // skrzynka do rysunku — te same wymiary co formatki dna i tylu
+          dr.skrzynka = { LW, nl, bok: hClass, dno: [LW - 75, nl - 24], tyl: [LW - 87, backH] };
           drawerParts.push({ kind: "front", a: fh, b: dsx1 - dsx0 });
           drawerParts.push({ kind: "dno", a: LW - 75, b: nl - 24 });
           drawerParts.push({ kind: "tyl", a: LW - 87, b: backH });
@@ -2513,7 +2563,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   const shSizes = new Map();
   levels.forEach((lv) =>
     lv.cols.forEach((c) => {
-      c.shelves.forEach(() => shSizes.set(c.w, (shSizes.get(c.w) || 0) + 1));
+      c.shelves.forEach(() => shSizes.set(c.shW, (shSizes.get(c.shW) || 0) + 1));
     })
   );
   shSizes.forEach((qty, w) =>
@@ -2995,7 +3045,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (!hitX(c.x0, c.x1)) return;
         c.shelves.forEach((sh) => {
           // polka koliduje, jesli bryla siega jej glebokosci od tylu
-          if (hitY(sh.y, sh.y + ts) && oz0 < backIntrusion + shelfDepth)
+          if (hitY(sh.y, sh.y + ts) && oz0 < shelfBack + shelfDepth)
             add("warn", `Poziom ${lv.i + 1}: półka na ${fmt(sh.y)} mm koliduje z elementem — przytnij ją lub skróć.`);
         });
         // kolizja z szufladami: sprawdz czy bryla wchodzi w strefe prowadnicy
@@ -3411,8 +3461,8 @@ function computeGeoLiczy(cab, mat, ctx) {
 
   return {
     hardware,
-    t, tf, tb, ts, carcassDepth, hasBack, interior, innerW, innerH,
-    shelfDepth, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels, msgs, maxNL,
+    t, tf, tb, ts, carcassDepth, plecyZa, glebOdSciany, hasBack, interior, innerW, innerH,
+    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels, msgs, maxNL,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
@@ -3573,7 +3623,7 @@ const armCtxOf = (ref, index) => {
   let out;
   ref.info.forEach((k) => {
     if (k.arm && k.arm.cab.index === index)
-      out = { armFree: k.arm.free, armSide: k.arm.side, armKat: bracketPozaLico(k.arm),
+      out = { armFree: k.arm.free, armSide: k.arm.side, armKat: bracketPozaLico(k.arm), armBracket: !!k.arm.bracket,
         // ile lica zostaje na front korpusu: wolne lico bez maskownicy i luzu
         armFront: k.arm.front };
   });
@@ -3819,7 +3869,7 @@ const armPlan = (a, lokalnie) => {
    dalej od sciany razem z licem, a za plecami zostaje pusta przestrzen. */
 const runFrontDepth = (g) =>
   g.cabs.length
-    ? Math.max(...g.cabs.map((c) => (c.wallGap ? c.wallGap.bottom : 0) + c.geo.carcassDepth - c.offset))
+    ? Math.max(...g.cabs.map((c) => (c.wallGap ? c.wallGap.bottom : 0) + c.geo.glebOdSciany - c.offset))
     : Math.max(0, Math.round(Number(g.run.D) || 0)) + wallGapOf(g.run, null).bottom;
 
 /* Ciag bez szafek zwykle nie ma czego pokazac, ale ten za rogiem owszem: w jego
@@ -3901,7 +3951,7 @@ const runLayout = (groups, ref = null) => {
     /* Szafka odsunieta od sciany zjada rog razem z tym odstepem — sasiad
        zaczyna sie za jej frontem, a nie za samym korpusem. */
     const glRog = rogowa
-      ? Math.round(rogowa.wallGap.bottom + rogowa.geo.carcassDepth - rogowa.offset)
+      ? Math.round(rogowa.wallGap.bottom + rogowa.geo.glebOdSciany - rogowa.offset)
       : wchodzi.depth; // glebokosc ciagu juz liczy sie od sciany, z odstepem
     n.pair = { wchodzi, ustepuje, przyStarcie, rogowa, armLen, glRog };
     /* Wstawka siedzi na boku tej szafki ciagu ustepujacego, ktora stoi przy
@@ -4632,7 +4682,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
         if (c.kind === "drawers" || c.kind === "blenda") return null;
         if (!(c.shelves || []).length) return null;
         return (
-          <rect key={"sh" + c.j} x={c.x0} y={geo.backIntrusion} width={c.w} height={geo.shelfDepth}
+          <rect key={"sh" + c.j} x={c.shX0 ?? c.x0} y={geo.shelfBack} width={c.shW ?? c.w} height={geo.shelfDepth}
             fill={shc} fillOpacity="0.35" stroke={INK} strokeWidth="1.5" strokeDasharray="9 6" />
         );
       })}
@@ -4738,7 +4788,8 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
         const bcol = geo.backIsBoard
           ? (cab.backPos === "outside" && cab.backBoardMat !== "shelf" ? mat.board.color : shc)
           : mat.back.color;
-        const py = geo.grooved ? geo.grOff : outside ? -geo.tb : 0;
+        // przybijany HDF i plyta na zewnatrz siedza za korpusem (`plecyZa`)
+        const py = geo.grooved ? geo.grOff : geo.plecyZa ? -geo.tb : outside ? -geo.tb : 0;
         const inside = geo.grooved || (geo.backIsBoard && geo.backPos === "inside");
         const base0 = inside ? geo.interior.x0 : 1;
         const base1 = inside ? geo.interior.x1 : W - 1;
@@ -5278,8 +5329,8 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
     <g key={"arm" + i} transform={`translate(${a.u0}, ${Math.max(0, glPasa - a.depth)})`}>
         <rect x={0} y={0} width={a.len} height={a.depth} fill="#fafaf9"
           stroke="#e7e5e4" strokeWidth="1" />
-        <rect x={a.outerAtEnd ? a.len - a.cab.geo.t : 0} y={0}
-          width={a.cab.geo.t} height={a.depth}
+        <rect x={a.outerAtEnd ? a.len - a.cab.geo.t : 0} y={a.depth - armKorpus(a)}
+          width={a.cab.geo.t} height={armKorpus(a)}
           fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
         {/* Front ramienia siada tak samo jak front kazdej szafki ciagu:
             nakladany idzie PRZED korpusem, wpuszczany chowa sie w nim.
@@ -5716,7 +5767,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
          bez nich bryla calej zabudowy pokazywala puste pudla. Glebokosci w `geo`
          licza sie od plecow, a tu os z idzie od lica — stad odbicie przez `cd`. */
       const shc3 = shelfColorOf(c.cab, c.mat);
-      const zPolki = [cd - (c.geo.backIntrusion + c.geo.shelfDepth), cd - c.geo.backIntrusion];
+      const zPolki = [cd - (c.geo.shelfBack + c.geo.shelfDepth), cd - c.geo.shelfBack];
       /* Polka siega az do lica, wiec jej przednia krawedz lezy w jednej
          plaszczyznie z drzwiami. Sciany sortuja sie po sredniej glebokosci
          i przy takim styku polka potrafila przebic sie na wierzch zamknietych
@@ -5731,8 +5782,8 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         c.x + d.x + t, c.base + d.y1, cd - c.geo.backIntrusion, bf,
         null, 1, false, wGlab));
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.shelves || []).forEach((sh) => {
-        box(c.x + col.x0, c.base + sh.y, zPolki[0],
-          c.x + col.x1, c.base + sh.y + c.geo.ts, zPolki[1], shc3,
+        box(c.x + (col.shX0 ?? col.x0), c.base + sh.y, zPolki[0],
+          c.x + (col.shX1 ?? col.x1), c.base + sh.y + c.geo.ts, zPolki[1], shc3,
           null, 1, false, wGlab);
       })));
       const tf = c.geo.tf;
@@ -5769,6 +5820,9 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           box(c.x + d.x, c.base + d.y, -tf - out, c.x + d.x + d.w, c.base + d.y + d.h, -out,
             col, null, 0.9, true);
           handleBar(d, -tf - out, null);
+          skrzynkaBryly(d, t, -out).forEach(([a0, b0, c0, a1, b1, c1, r]) =>
+            box(c.x + a0, c.base + b0, c0, c.x + a1, c.base + b1, c1,
+              r === "metal" ? "#8b8b93" : bf, null, 1, false, 0, r === "metal" ? "skrzynka-bok" : null));
           return;
         }
         if (d.type === "klapa") {
@@ -5842,11 +5896,12 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       const bA = c.mat.board.color;
       // dno i wieniec miedzy korpusem a bokiem ramienia — tak jak w formatkach
       const pz0 = przyKoncuBok ? x0 : x0 + tA, pz1 = przyKoncuBok ? x0 + a.len - tA : x0 + a.len;
-      if (c.geo.hasBot) box(pz0, y0, 0, pz1, y0 + tA, a.depth, bA);
+      const korR = armKorpus(a);   // korpus ramienia konczy sie na plecach
+      if (c.geo.hasBot) box(pz0, y0, 0, pz1, y0 + tA, korR, bA);
       const bokU = przyKoncuBok ? x0 + a.len - tA : x0;
-      box(bokU, y0, 0, bokU + tA, y1, a.depth, bA);
+      box(bokU, y0, 0, bokU + tA, y1, korR, bA);
       if (c.geo.hasTop) {
-        box(pz0, y1 - tA, 0, pz1, y1, a.depth, bA);
+        box(pz0, y1 - tA, 0, pz1, y1, korR, bA);
       } else {
         /* Z przodu plyta na plask, z tylu stojaca — te same, ktore liczy rzut
            z gory, wiec bryla nie rozjedzie sie z rysunkiem. W ukladzie ramienia
@@ -5859,7 +5914,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       /* Polki ramienia — te same plyty co w kolumnie przy nim, wiec i te same
          wysokosci. Bez nich ramie po otwarciu bylo pustym pudlem. */
       armShelfYs(a.side, c.geo.levels).forEach((sy) => {
-        box(pz0, y0 + sy, 0, pz1, y0 + sy + c.geo.ts, a.depth - (c.geo.tb || tA),
+        box(pz0, y0 + sy, a.bracket ? tA : 0, pz1, y0 + sy + c.geo.ts, a.depth - (c.geo.tb || tA),
           shelfColorOf(c.cab, c.mat), null, 1, false, -Math.round(a.depth / 2));
       });
       const apBack = armPlan(a).back;
@@ -7196,7 +7251,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
             <rect x={ax(0, arm.depth)} y={ay(0)} width={arm.depth} height={arm.len}
               fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
             {/* bok zamykajacy ramie na wolnym koncu */}
-            <rect x={ax(0, arm.depth)} y={ay(arm.len - t)} width={arm.depth} height={t}
+            <rect x={ax(arm.depth - armKorpus(arm), armKorpus(arm))} y={ay(arm.len - t)} width={armKorpus(arm)} height={t}
               fill={bf} stroke={INK} strokeWidth="2" />
             {/* plecy i wzmocnienia — te same, co w rzucie calej zabudowy */}
             {(() => {
@@ -7303,13 +7358,13 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           if (!n) return null;
           return (
             <g key={"sh" + c.j}>
-              <rect x={c.x0} y={geo.backIntrusion} width={c.w} height={geo.shelfDepth}
+              <rect x={c.shX0 ?? c.x0} y={geo.shelfBack} width={c.shW ?? c.w} height={geo.shelfDepth}
                 fill={shc} fillOpacity="0.35"
                 stroke={INK} strokeWidth="1.5" strokeDasharray="9 6" />
-              <text x={(c.x0 + c.x1) / 2} y={geo.backIntrusion + geo.shelfDepth - 14}
+              <text x={(c.x0 + c.x1) / 2} y={geo.shelfBack + geo.shelfDepth - 14}
                 textAnchor="middle" fontSize="17" fill={INK} opacity="0.75"
                 fontFamily="ui-monospace, monospace">
-                {n} {n === 1 ? "półka" : "półki"} {fmt(c.w)}×{fmt(geo.shelfDepth)}
+                {n} {n === 1 ? "półka" : "półki"} {fmt(c.shW ?? c.w)}×{fmt(geo.shelfDepth)}
               </text>
             </g>
           );
@@ -7444,7 +7499,8 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           : mat.back.color;
         // z gory: y=0 to tyl. Plecy wewnatrz siedza tuz przy tyle, na zewnatrz za korpusem
         const outside = geo.backIsBoard && geo.backPos === "outside";
-        const py = geo.grooved ? geo.grOff : outside ? -geo.tb : 0;
+        // przybijany HDF i plyta na zewnatrz siedza za korpusem (`plecyZa`)
+        const py = geo.grooved ? geo.grOff : geo.plecyZa ? -geo.tb : outside ? -geo.tb : 0;
         const inside = geo.grooved || (geo.backIsBoard && geo.backPos === "inside");
         const base0 = inside ? geo.interior.x0 : 1;
         const base1 = inside ? geo.interior.x1 : W - 1;
@@ -7639,7 +7695,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
             label={`${fmt(cd - geo.backIntrusion)}`} left={false} c={DIMC} />
           {/* glebokosc polki, jesli krotsza niz swiatlo */}
           {geo.shelfDepth < cd - geo.backIntrusion && (
-            <DimV y1={geo.backIntrusion} y2={geo.backIntrusion + geo.shelfDepth} x={W + 115}
+            <DimV y1={geo.shelfBack} y2={geo.shelfBack + geo.shelfDepth} x={W + 115}
               label={`półka ${fmt(geo.shelfDepth)}`} left={false} c={LINE} />
           )}
         </>
@@ -7709,7 +7765,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
      plecami: pionowa przy rownym odstepie, pochyla, gdy przy podlodze jest inny
      niz pod blatem. Szafka wolnostojaca sciany nie ma — nie wiadomo, gdzie jest.
      Tyl korpusu to plecy nakladane z zewnatrz albo sam bok. */
-  const xTyl = geo.backIsBoard && geo.backPos === "outside" && cab.back !== "none" ? xC - geo.tb : xC;
+  const xTyl = xC - (geo.plecyZa || 0);
   const sciana = wallGap ? (() => {
     const yPodloga = H + below, yBlat = 0;
     const xD = xTyl - wallGap.bottom, xG = xTyl - wallGap.top;
@@ -7788,7 +7844,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
       )}
 
       {allShelves.map((s, i) => (
-        <rect key={i} x={xC + geo.backIntrusion} y={fy(s.y + s.th)}
+        <rect key={i} x={xC + geo.shelfBack} y={fy(s.y + s.th)}
           width={geo.shelfDepth} height={s.th} fill={bf} stroke={INK} strokeWidth="2" />
       ))}
 
@@ -7831,6 +7887,27 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
 
       {/* prowadnice szuflad z boku — tylko kolumna przylegajaca do ogladanego
           boku; dalsze zaslania przegroda */}
+      {/* Skrzynka szuflady przy tym boku — kontur (bok metalowy albo wyzszy tyl)
+          i dno. Te same wymiary co formatki dna i tylu szuflady. */}
+      {geo.levels.flatMap((lv) => lv.cols.flatMap((c, j) =>
+        (c.kind === "drawers" && (sideRight ? j === lv.cols.length - 1 : j === 0) ? c.drawers || [] : [])
+          .filter((dr) => dr.skrzynka)
+          .map((dr) => {
+            const sk = dr.skrzynka;
+            const x0 = D - (dr.rail.setback || 0) - sk.nl;
+            const dnoY = dr.rail.y0 + 12;
+            const hS = Math.max(sk.bok, 12 + geo.t + sk.tyl[1]);
+            return (
+              <g key={`skr${lv.i}-${j}-${dr.i}`} data-el="skrzynka">
+                <rect x={x0} y={fy(dr.rail.y0 + hS)} width={sk.nl} height={hS}
+                  fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="10 6" opacity="0.6" />
+                <rect x={x0 + 12} y={fy(dnoY + geo.t)} width={sk.dno[1]} height={geo.t}
+                  fill={bf} stroke={INK} strokeWidth="1" opacity="0.7" />
+                <rect x={x0 + sk.nl - 12 - geo.t} y={fy(dnoY + geo.t + sk.tyl[1])} width={geo.t} height={sk.tyl[1]}
+                  fill={bf} stroke={INK} strokeWidth="1" opacity="0.7" />
+              </g>
+            );
+          })))}
       {showHardware && (() => {
         const seen = new Set();
         const out = [];
@@ -8005,6 +8082,30 @@ const QUADS = [
    korpusem; plyta wewnatrz: miedzy bokami, wiencem i dnem. Wczesniej zabudowa
    wstawiala kazde plecy na cala szerokosc w ostatnie mm korpusu — wchodzily
    w boki, dno i polki, a plecy z plyty wewnatrz mialy zly wymiar. */
+/* Skrzynka szuflady (Sevroll V-BOX) w bryle 3D po otwarciu: boki metalowe na
+   prowadnicach, dno i tyl z plyty — te same wymiary co formatki szuflady.
+   Uklad szafki: z = 0 to przod korpusu (rosnie w glab), `zFront` to tylna
+   plaszczyzna frontu szuflady po wysunieciu. Zwraca liste bryl
+   [x0, y0, z0, x1, y1, z1, rodzaj]. Wczesniej po otwarciu widac bylo sam
+   front — dna i tylu szuflady nie bylo na zadnym rysunku (audyt 2026-09-28). */
+const skrzynkaBryly = (d, t, zFront) => {
+  const sk = d.dr && d.dr.skrzynka;
+  if (!sk) return [];
+  const x0 = d.colX0, x1 = d.colX0 + sk.LW;
+  const y0 = d.dr.rail.y0;
+  const z0 = zFront + (d.dr.rail.setback || 0), z1 = z0 + sk.nl;
+  const bokW = 13;          // bok metalowy V-BOX, stoi na prowadnicy przy boku korpusu
+  const dnoY = y0 + 12;     // dno wpuszczone w bok nad szyna
+  const xm = (x0 + x1) / 2;
+  const [dA, dB] = sk.dno, [tA, tH] = sk.tyl;
+  return [
+    [x0 + 4, y0, z0, x0 + 4 + bokW, y0 + sk.bok, z1 - 2, "metal"],
+    [x1 - 4 - bokW, y0, z0, x1 - 4, y0 + sk.bok, z1 - 2, "metal"],
+    [xm - dA / 2, dnoY, z0 + 12, xm + dA / 2, dnoY + t, z0 + 12 + dB, "dno"],
+    [xm - tA / 2, dnoY + t, z1 - 12 - t, xm + tA / 2, dnoY + t + tH, z1 - 12, "tyl"],
+  ];
+};
+
 const plecyBryla = (cab, geo) => {
   if (cab.back === "none") return null;
   const cd = geo.carcassDepth, W = geo.W, H = cab.H;
@@ -8290,7 +8391,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
      lica (z = 0 to przod korpusu) — stad odbicie przez `cd`, jak w bryle
      zabudowy. Wczesniej polka zaczynala sie od lica i przy frontach
      wpuszczanych wchodzila w drzwi, a przy HDF we frezie w plecy. */
-  const zPolki = [cd - geo.backIntrusion - geo.shelfDepth, cd - geo.backIntrusion];
+  const zPolki = [cd - geo.shelfBack - geo.shelfDepth, cd - geo.shelfBack];
   geo.sepShelves.forEach((sh) =>
     box(geo.interior.x0, sh.y, zPolki[0], geo.interior.x1, sh.y + t, zPolki[1], bf)
   );
@@ -8300,7 +8401,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
   geo.levels.forEach((lv) =>
     lv.cols.forEach((c) => {
       c.shelves.forEach((sh) =>
-        box(c.x0, sh.y, zPolki[0], c.x1, sh.y + geo.ts, zPolki[1], bf)
+        box(c.shX0 ?? c.x0, sh.y, zPolki[0], c.shX1 ?? c.x1, sh.y + geo.ts, zPolki[1], bf)
       );
       if (c.support && c.fix) {
         const sx = c.fix.side === "left" ? c.fix.x + c.fix.w - t : c.fix.x;
@@ -8399,6 +8500,8 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
       const pull = open ? Math.min(220, (d.nl || 400) * 0.6) : 0;
       box(d.x, d.y, z0 - pull, d.x + d.w, d.y + d.h, z1 - pull, ff, null, 1, true);
       handleBar(d, z0 - pull, null);
+      if (open) skrzynkaBryly(d, t, z1 - pull).forEach(([a0, b0, c0, a1, b1, c1, r]) =>
+        box(a0, b0, c0, a1, b1, c1, r === "metal" ? "#8b8b93" : bf, null, 1, false));
       return;
     }
     const col = d.mirror ? mat.mirror.color : ff;
@@ -9278,7 +9381,8 @@ const runTopLiczy = (project, run, bezRogu = false) => {
      szczelina przy zawiasach, front i wysieg przed fronty. */
   if (lvl && lvl.pod.length) {
     lvl.pod.forEach((c) => {
-      const gl = Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0));
+      // od sciany do lica korpusu razem z plecami przybijanymi (szafka stoi o nie dalej)
+      const gl = Math.round((c.geo.glebOdSciany ?? c.geo.carcassDepth) - (Number(c.it.offset) || 0));
       const odSciany = wallGapOf(run, c.it).top;
       spans.push({ x0: c.x0, x1: c.x1,
         depth: odSciany + gl + HINGE_PLAY + c.geo.tf + WORKTOP_OVERHANG,
@@ -9446,6 +9550,8 @@ const wstawkiSzafki = (ws, geo) => (ws || []).map((w) => ({
 /* Formatki ramienia szafki naroznej. Plyty poziome i plecy sa osobnymi
    kawalkami dostawionymi na kolki do korpusu — tak jak w kupnych szafkach
    naroznych — bo w calosci nie da sie ich ani okleic, ani wnieść. */
+// glebokosc korpusu ramienia: od plecow (przy scianie) do lica
+const armKorpus = (a) => Math.max(0, Math.round(a.depth - armPlan(a).tb));
 const cornerArmParts = (a) => {
   const geo = a.cab.geo;
   const cab = a.cab.cab;
@@ -9464,8 +9570,13 @@ const cornerArmParts = (a) => {
      korpusem a tym bokiem, na pelna glebokosc. Wczesniej formatki mialy
      glebokosc o grubosc plyty mniejsza i bok miedzy dnem a gora, a rysunek
      pokazywal co innego (ustalone z uzytkownikiem 2026-09-27). */
+  /* Plecy ramienia stoja przy scianie (v od 0 do grubosci plecow), a korpus
+     ramienia przed nimi — tak jak w kazdej szafce z plecami przybijanymi. Glebokosc
+     `a.depth` to glebokosc sasiedniego ciagu od sciany razem z jego plecami
+     (od 2026-09-28), wiec bok i dno ramienia sa o plecy krotsze. */
+  const korpusR = armKorpus(a);
   panels.push({ name: armTop ? "Wieniec i dno ramienia" : "Dno ramienia", qty: armTop ? 2 : 1,
-    a: Math.max(0, len - t), b: a.depth, matKey: "board",
+    a: Math.max(0, len - t), b: korpusR, matKey: "board",
     edges: { a1: true, a2: false, b1: true, b2: false }, note: "czoło i koniec przy wsporniku" });
   /* Wzmocnienia ramienia nie sa juz jedna pozycja na dwie sztuki: czolowe
      konczy sie na katowniku przy drzwiach, a tylne idzie dalej — az do
@@ -9479,7 +9590,7 @@ const cornerArmParts = (a) => {
       ? "stojące przy plecach, od kątownika w narożniku po bok ramienia"
       : (r.stojace ? "stojące" : "na płask") + " pod blatem, od kątownika przy drzwiach po bok ramienia",
   }));
-  panels.push({ name: "Bok ramienia", qty: 1, a: H, b: a.depth, matKey: "board",
+  panels.push({ name: "Bok ramienia", qty: 1, a: H, b: korpusR, matKey: "board",
     edges: { a1: true, a2: false, b1: false, b2: false }, note: "czoło" });
   /* Plecy ramienia siegaja poza samo ramie: wzdluz drugiej sciany biegna dalej,
      az do katownika w tylnym narozniku — inaczej zostawal tam goly kawalek. */
@@ -9530,7 +9641,8 @@ const cornerArmParts = (a) => {
      Poziomy sumujemy, bo kazdy z nich ma wlasny podzial na wysokosc. */
   const polek = armShelfYs(a.side, geo.levels).length;
   if (polek > 0)
-    panels.push({ name: "Półka ramienia", qty: polek, a: len - t, b: a.depth - (geo.tb || t), matKey: "board",
+    // za katownikiem naroznika w licu ramienia (gdy jest) — jak polka korpusu
+    panels.push({ name: "Półka ramienia", qty: polek, a: len - t, b: a.depth - (geo.tb || t) - (a.bracket ? t : 0), matKey: "board",
       edges: { a1: true, a2: false, b1: false, b2: false }, note: "krawędź przednia" });
   // cokol idzie dalej pod ramieniem — to osobny kawalek wzdluz drugiej sciany
   if (a.cab.plinthH > 0)
@@ -9839,7 +9951,8 @@ const worktopMsgs = (project, run) => {
       ? Math.max(...lvl.pod.map((c) => Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0))))
       : Math.max(0, Math.round(Number(run.D) || 0));
     // glebokosc szafek, przy ktorej arkusz 600 wystaje przed drzwi standardowe 10 mm
-    const sugerowana = WORKTOP_DEPTHS[0] - WORKTOP_OVERHANG - HINGE_PLAY - tf - (rt.odSciany || 0);
+    const plecySz = lvl && lvl.pod.length ? Math.max(...lvl.pod.map((c) => c.geo.plecyZa || 0)) : 0;
+    const sugerowana = WORKTOP_DEPTHS[0] - WORKTOP_OVERHANG - HINGE_PLAY - tf - (rt.odSciany || 0) - plecySz;
     out.push({ level: "warn", text:
       `Blat wychodzi ${fmt(rt.depth)} mm — o ${fmt(nadmiar)} mm za dużo na arkusz `
       + `${fmt(WORKTOP_DEPTHS[0])} mm, a z arkusza ${fmt(WORKTOP_DEPTHS[1])} mm zostaje pas odpadu. `
@@ -9861,8 +9974,11 @@ const worktopMsgs = (project, run) => {
     const gl = lvl && lvl.pod.length
       ? Math.max(...lvl.pod.map((c) => Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0))))
       : Math.max(0, Math.round(Number(run.D) || 0));
-    const front = rt.doLica - (rt.odSciany || 0) - gl - HINGE_PLAY;
+    // plecy przybijane stoja za korpusem i odsuwaja go od sciany (2026-09-28)
+    const plecy = lvl && lvl.pod.length ? Math.max(...lvl.pod.map((c) => c.geo.plecyZa || 0)) : 0;
+    const front = rt.doLica - (rt.odSciany || 0) - gl - plecy - HINGE_PLAY;
     const sklad = (rt.odSciany ? `${fmt(rt.odSciany)} mm od ściany + ` : "")
+      + (plecy ? `plecy ${fmt(plecy)} + ` : "")
       + `korpus ${fmt(gl)} + ${fmt(HINGE_PLAY)} mm luzu przy zawiasach + front ${fmt(front)} `
       + `= ${fmt(rt.doLica)} mm do lica drzwi`;
     // glebokosc szafek, przy ktorej arkusz wystaje przed drzwi dokladnie 10 mm
@@ -10136,7 +10252,7 @@ const cornerPairMsgs = (n, blat) => {
        wychodzi ramie), wiec do porownania z licem bierzemy ja jeszcze raz —
        juz z kontekstem, czyli z frontem doszlifowanym do maskownicy. */
     const geoRog = computeGeo(a.cab.cab, a.cab.rawMat || a.cab.mat, {
-      armFree: a.free, armSide: a.side, armKat: bracketPozaLico(a), armFront: a.front });
+      armFree: a.free, armSide: a.side, armKat: bracketPozaLico(a), armBracket: !!a.bracket, armFront: a.front });
     const fr = (geoRog.doors || []).filter((d) => d.w > 0 && d.type !== "blenda");
     const zajete = fr.length
       ? (a.side === "right"
@@ -10211,7 +10327,7 @@ const cornerPairMsgs = (n, blat) => {
   if (gl != null) {
     const w2 = n.pair.wchodzi;
     const najgl = Math.max(...w2.g.cabs.map((q) =>
-      Math.round(q.wallGap.bottom + q.geo.carcassDepth - q.offset)));
+      Math.round(q.wallGap.bottom + q.geo.glebOdSciany - q.offset)));
     if (najgl > gl)
       out.push({ level: "error", text:
         `Ciąg „${w2.run.name}" ma szafkę głębszą (${fmt(najgl)} mm) niż ta stojąca w rogu (${fmt(gl)} mm) `
