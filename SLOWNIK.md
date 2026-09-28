@@ -219,6 +219,8 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `MIN_OPENING` | 250 | najmniejsze światło między półkami przy automacie |
 | `MIN_LEVEL` | 100 | najniższy sensowny poziom |
 | `WASKI_FRONT` | 250 | poniżej tego front jest wąski — podpowiedź, nie błąd; też próg podpowiedzi „dwoje wąskich drzwi” |
+| `SLEPY_ZAPAS` | 30 | ślepy róg: zasłonięta część frontu = głębokość sąsiada + jego front + ten zapas na uchwyt (`n.blind.covered`, pełna wartość `zaslania`) |
+| `WSTAWKA_W` | 60 | wstawka w rogu: płaska tyle w głąb, szeroka tyle licem do przodu |
 | `CORNER_BRACKET_W` | 60 | domyślna szerokość wsporników w rogu |
 | `ROG_WZM_H` | 60 | wysokość wzmocnień w szafce narożnej |
 | `LEG_W` / `LEG_INSET` | 40 / 40 | nóżka i jej odsunięcie od krawędzi |

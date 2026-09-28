@@ -179,7 +179,8 @@ console.log('     ' + txt.replace(/\n+/g, ' / ').slice(0, 300));
 ok('narożnik opisany w uwagach', /naroż/i.test(txt), txt.slice(0, 120));
 
 console.log('\n== slepy naroznik: ile frontu zostaje ==');
-// szafka 900 w rogu, drugi ciag 600 gleboki — do reki zostaje 300 mm frontu
+// szafka 900 w rogu, drugi ciag 600 gleboki — zasloniete do lica jego frontow
+// (600 + 18) i 30 mm zapasu na uchwyt = 648, do reki zostaje 252 mm frontu
 await seed(
   [RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })],
   [CAB('A1', 600, 600, 'c1'), CAB('A2', 900, 600, 'c1'), CAB('B1', 500, 600, 'c2')]);
@@ -187,11 +188,11 @@ await pick('Zabudowa');
 await pick('Z góry');
 tx = await svgTexts();
 console.log('     ' + tx.join(' | '));
-ok('rysunek pokazuje odsłonięty kawałek frontu', tx.includes('300 dostępu'), tx.join(' | '));
+ok('rysunek pokazuje odsłonięty kawałek frontu', tx.includes('252 dostępu'), tx.join(' | '));
 let uwagi = await card(/Uwagi/).innerText();
 console.log('     ' + uwagi.replace(/\n+/g, ' / ').slice(0, 260));
 ok('uwagi mówią o ślepym narożniku', /Ślepy narożnik/.test(uwagi), uwagi.slice(0, 160));
-ok('podana zasłonięta i wolna szerokość', /600 mm frontu zasłonięte/.test(uwagi) && /300 mm/.test(uwagi),
+ok('podana zasłonięta i wolna szerokość', /648 mm frontu zasłonięte/.test(uwagi) && /252 mm/.test(uwagi),
   uwagi.slice(0, 200));
 
 console.log('\n== szafka w rogu weższa niz drugi ciag jest slepa ==');
@@ -205,7 +206,7 @@ ok('rysunek oznacza szafkę jako ślepą', tx.includes('ślepa'), tx.join(' | ')
 uwagi = await card(/Uwagi/).innerText();
 console.log('     ' + uwagi.replace(/\n+/g, ' / ').slice(0, 260));
 ok('to jest błąd, nie podpowiedź', /chowa się w całości/.test(uwagi), uwagi.slice(0, 200));
-ok('podpowiedź, do ilu poszerzyć', /800 mm/.test(uwagi), uwagi.slice(0, 260));
+ok('podpowiedź, do ilu poszerzyć (648 + 200)', /848 mm/.test(uwagi), uwagi.slice(0, 260));
 await page.locator('svg').first().screenshot({ path: S + 'shot-narozn-slepa.png' });
 
 console.log('\n== karta ciagu: ustawienie naroznika z UI ==');

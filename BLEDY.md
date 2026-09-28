@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-28 | ślepy róg (`narozn`) | zasłonięta część liczona tylko do korpusu sąsiada (570) — jego drzwi stoją 18 mm dalej, a fix robi się jeszcze szerszy na uchwyt; teraz korpus + front + 30 mm (np. 900 przy sąsiedzie 600: 252 dostępu zamiast 300) | (ten commit) |
 | 2026-09-28 | **ciągi górne w L** (`gorne`) | górny ciąg drugiej ściany trafiał na pierwszą ścianę (układ nie brał ramki od dolnego, choć kod o tym mówił) — nachodził na tamten górny, rysunki i kontrola otwierania pokazywały bzdury; teraz górny stoi w ramce swojego dolnego, a w rogu odsuwa się o głębokość górnego ciągu ściany wjeżdżającej | (ten commit) |
 | 2026-09-28 | „+ szafka” w ciągu (`gorne`) | nowa szafka miała domyślne 500 w głąb (w górnym ciągu 300, w dolnym 570) i bez cokołu ciągu — od razu ostrzeżenie o rozjeździe, który zrobiła sama aplikacja; teraz bierze H/D/cokół ciągu | (ten commit) |
 | 2026-09-28 | `otwier`: kolizja w rogu | rada „zwęź front do 0 mm” (14, 44 mm) przy wąskiej szafce w ślepym rogu — teraz tylko, gdy zostaje ≥ `MIN_COL` (200); „odsuń ciągi w rogu” wskazuje pole „Luz w rogu” | (ten commit) |
@@ -42,23 +43,16 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-Pytania z pracy nocnej 2026-09-28 — do zadania rano przyciskami.
-
-1. **Ślepy róg — ile frontu naprawdę zasłania drugi ciąg?** Dziś zasłonięta część
-   szafki w rogu = głębokość korpusu drugiego ciągu (570). Jego drzwi stoją jednak
-   18 mm dalej (570 + front 18 = 588), więc „N dostępu” jest zawyżone o grubość
-   frontu, a pierwsze drzwi szafki w rogu (i wstawka) mogą zahaczać o front sąsiada.
-   Opcje: (a) liczyć do lica frontów sąsiada (588) — zmieni podpisy „dostępu”
-   i szerokości drzwi przy rogu o 18 mm; (b) zostawić od korpusu (570).
-   Rekomendacja: (a).
-2. **Wstawka szeroka (60 licem) — oklejanie i trójkąty.** Przyjąłem: oklejona krawędź
-   pionowa od strony drzwi i dolna; trójkąty meblarskie w jednym rzędzie co ok.
-   400 mm (przy 720 — 2 szt.). Opcje oklejania: (a) tak jak jest; (b) obie krawędzie
-   pionowe i dolna. Trójkąty: (a) jeden rząd; (b) dwa rzędy (od góry i od dołu po 2).
-3. **Wstawka płaska — wkręty.** Przyjąłem „Wkręt 4 × 30” od środka szafki przez bok,
-   co ok. 200 mm (przy 720 — 4 szt.). Czy tak, czy inna długość/rozstaw?
+(pusto — pytania z nocy 2026-09-28 rozstrzygnięte, patrz niżej)
 
 ## Ustalone — nie ruszać
+
+- **Ślepy róg** (2026-09-28): zasłonięta część frontu szafki w rogu = głębokość
+  sąsiedniego ciągu + jego front + `SLEPY_ZAPAS` (30 mm) na uchwyt. U użytkownika
+  fix w ślepej części jest ok. 5 cm szerszy, ale 30 mm wystarcza.
+- **Wstawka szeroka**: oklejona tylko dolna krawędź (boki stykają się z bokami
+  szafek); trójkąty po 2 z każdej strony (przy 720 — 4 szt.). **Wstawka płaska**:
+  wkręty 4 × 30 co ok. 200 mm, krawędź przednia i dolna.
 
 - Podpowiedź „Zrób jedne drzwi na … mm” przy szafce narożnej w L (`cornerdoor:`
   w `runCornerMsgs`) zostaje **celowo** jako zabezpieczenie, choć dziś praktycznie

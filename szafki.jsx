@@ -197,6 +197,12 @@ const SZEROKI_FRONT = 600;
 /* Wstawka w rogu: 60 mm to najwezsza formatka, jaka da sie jeszcze okleic —
    tyle ma plaska w glab, a szeroka licem do przodu (ustalone z uzytkownikiem). */
 const WSTAWKA_W = 60;
+/* Slepy narożnik: zaslonieta czesc frontu szafki w rogu konczy sie nie na
+   korpusie sasiada, tylko na jego licu (korpus + front) i jeszcze dalej —
+   fix w slepej czesci robi sie szerszy, zeby drzwi nie zahaczaly o uchwyt na
+   sasiednich drzwiach. Uzytkownik robi ok. 50 mm, ale 30 mm wystarcza
+   (ustalone 2026-09-28). */
+const SLEPY_ZAPAS = 30;
 
 /* Ile szafka w L zajmuje od rogu wzdluz obu scian i skad sie to bierze. Przy
    zwyklej szafce szerokosc to szerokosc — tu przy scianie ramienia dochodzi
@@ -3743,10 +3749,13 @@ const runLayout = (groups, ref = null) => {
     if (!n.pair) return;
     const { wchodzi: w, ustepuje: other, przyStarcie, rogowa: c, armLen, glRog } = n.pair;
     if (!c) return;
-    const covered = Math.min(c.geo.W, other.depth);
+    const frontSasiada = other.g.cabs.length && other.g.cabs[0].cab.frontMode !== "inset"
+      ? other.g.cabs[0].geo.tf : (other.g.cabs.length ? 0 : defaultMaterials.front.thickness);
+    const zaslania = other.depth + frontSasiada + SLEPY_ZAPAS;   // ile zabiera sasiad, niezaleznie od szafki
+    const covered = Math.min(c.geo.W, zaslania);
     const free = c.geo.W - covered;
     const u0 = przyStarcie ? w.lead : w.lead + w.total - covered;
-    const z = { cab: c, covered, free, run: w, other, u0, u1: u0 + covered,
+    const z = { cab: c, covered, zaslania, free, run: w, other, u0, u1: u0 + covered,
       freeU0: przyStarcie ? u0 + covered : u0 - free };
     /* Polozenie wstawki liczymy dopiero tu, gdy znane sa juz ostateczne
        odsuniecia ciagow. Lico korpusu to glebokosc ciagu plus wysuniecie szafki;
@@ -8949,23 +8958,26 @@ const armShelfYs = (side, levels) => {
 /* Formatka i okucia wstawki w rogu. Z plyty frontowej (jest widoczna), na
    wysokosc korpusu. Plaska: grubosc plyty od przodu, 60 mm w glab, przykrecona
    od srodka szafki przez bok wkretami co ok. 200 mm. Szeroka: 60 mm licem do
-   przodu, na trojkatach meblarskich co ok. 400 mm. Oklejana krawedz widoczna
-   od przodu i dolna (ustalone z uzytkownikiem 2026-09-27). */
+   przodu, na trojkatach po obu stronach (2 na strone przy 720). Plaska ma
+   oklejona krawedz przednia i dolna, szeroka tylko dolna (ustalone
+   z uzytkownikiem 2026-09-27/28). */
 const wstawkaParts = (ws) => {
   const H = Math.round(ws.H);
   const plaska = ws.typ === "plaska";
+  /* Szeroka stoi licem do przodu, a jej boki stykaja sie z bokami szafek —
+     widac tylko dolna krawedz (ustalone 2026-09-28). */
   const panels = [{ name: "Wstawka w rogu", qty: 1, a: H, b: plaska ? ws.gl : ws.u, matKey: "front",
-    edges: { a1: true, a2: false, b1: true, b2: false },
+    edges: plaska ? { a1: true, a2: false, b1: true, b2: false } : { a1: false, a2: false, b1: true, b2: false },
     note: plaska
       ? "płasko przy boku szafki, licuje się z drzwiami — krawędź przednia i dolna"
-      : "licem do przodu, na trójkątach — krawędź od strony drzwi i dolna" }];
+      : "licem do przodu, na trójkątach — oklejona tylko dolna krawędź (boki stykają się z szafkami)" }];
   const hardware = plaska
     ? [{ name: "Wkręt 4 × 30", use: "wstawka w rogu — od środka szafki przez bok, co ok. 200 mm",
         spec: `wstawka w rogu: ${Math.max(2, Math.ceil(H / 200))} szt. co ok. 200 mm`,
         qty: Math.max(2, Math.ceil(H / 200)), unit: "szt." }]
-    : [{ name: "Trójkąt meblarski", use: "wstawka w rogu — do boku szafki, co ok. 400 mm",
-        spec: `wstawka w rogu: ${Math.max(2, Math.ceil(H / 400))} szt. co ok. 400 mm`,
-        qty: Math.max(2, Math.ceil(H / 400)), unit: "szt." }];
+    : [{ name: "Trójkąt meblarski", use: "wstawka w rogu — po obu jej stronach, co ok. 400 mm",
+        spec: `wstawka w rogu: 2 × ${Math.max(2, Math.ceil(H / 400))} szt. (po obu stronach)`,
+        qty: 2 * Math.max(2, Math.ceil(H / 400)), unit: "szt." }];
   return { panels, hardware };
 };
 const wstawkiOf = (layout) => [...layout.info.values()].flatMap((n) => n.wstawki || []);
@@ -9572,15 +9584,17 @@ const cornerPairMsgs = (n, blat) => {
     if (z.free <= 0)
       out.push({ level: "error", text:
         `${kto} chowa się w całości za ${zaCiagiem} — nie ma jak jej otworzyć. `
-        + `Poszerz ją do co najmniej ${fmt(z.other.depth + MIN_COL)} mm albo zrób z niej szafkę narożną.` });
+        + `Poszerz ją do co najmniej ${fmt(z.zaslania + MIN_COL)} mm albo zrób z niej szafkę narożną.` });
     else if (z.free < MIN_COL)
       out.push({ level: "warn", text:
-        `Ślepy narożnik: ${kto} ma ${fmt(z.covered)} mm frontu zasłonięte przez ${za}, `
+        `Ślepy narożnik: ${kto} ma ${fmt(z.covered)} mm frontu zasłonięte przez ${za} `
+        + `(do lica jego frontów i ${fmt(SLEPY_ZAPAS)} mm zapasu na uchwyt), `
         + `zostaje ${fmt(z.free)} mm — na drzwi to za mało. Poszerz szafkę albo zrób z niej szafkę narożną.` });
     else
       out.push({ level: "info", text:
-        `Ślepy narożnik: ${kto} ma ${fmt(z.covered)} mm frontu zasłonięte przez ${za}, `
-        + `do ręki zostaje ${fmt(z.free)} mm. Drzwi rób na tę szerokość, reszta korpusu jest ślepa.` });
+        `Ślepy narożnik: ${kto} ma ${fmt(z.covered)} mm frontu zasłonięte przez ${za} `
+        + `(do lica jego frontów i ${fmt(SLEPY_ZAPAS)} mm zapasu na uchwyt), `
+        + `do ręki zostaje ${fmt(z.free)} mm. Drzwi rób na tę szerokość, reszta korpusu jest ślepa (fix).` });
   }
   /* Szafka narozna w L: zamiast chowac front za sasiadem, korpus wychodzi
      ramieniem na druga sciane i oba fronty spotykaja sie w rogu. */

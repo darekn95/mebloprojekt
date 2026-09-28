@@ -80,7 +80,10 @@ ok('narożnik ma szeroką wstawkę 60', p.runs[1].corner.wstawka && p.runs[1].co
 lista = await tabela(/^Formatki do zamówienia/);
 ok('formatka 720 × 60 w liście szafki', lista.some((l) => /^Wstawka w rogu \|/.test(l) && /\| 720 \| 60 \|/.test(l)), lista.join(' / '));
 prod = await tabela(/^Produkty całego projektu/);
-ok('trójkąty do wstawki w produktach', prod.some((l) => /Trójkąt meblarski/.test(l) && /wstawka w rogu/.test(l)), prod.filter((l) => /Trójkąt/.test(l)).join(' / '));
+ok('trójkąty do wstawki: po 2 z każdej strony = 4', prod.some((l) => /Trójkąt meblarski/.test(l) && /wstawka w rogu/.test(l) && /\| 4 szt\./.test(l)), prod.filter((l) => /Trójkąt/.test(l)).join(' / '));
+proj = await tabela(/^Formatki całego projektu/);
+const wiersz = proj.find((l) => /^Wstawka w rogu/.test(l)) || '';
+ok('szeroka: oklejona tylko dolna krawędź (boki stykają się z szafkami)', /bok 60/.test(wiersz) && !/przód 720/.test(wiersz), wiersz);
 wg = await wstawkaZGory();
 ok('rzut z góry: wstawka 60 × 18', wg.length === 1 && wg[0].w === 60 && wg[0].h === 18, JSON.stringify(wg));
 
