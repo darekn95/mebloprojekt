@@ -130,7 +130,8 @@ const opisB = (a) => `${a.s.color} ${[...a.s.d].map(Math.round).join('×')} @${M
 /* Znane, czekajace na decyzje (BLEDY.md): tyl skrzynki szuflady stoi na dnie
    i przy gornej szufladzie wchodzi w wieniec — uzytkownik przysle instrukcje
    V-BOX (2026-09-28). Wypisujemy jako INFO, nie BLAD. */
-const ZNANE = [];
+// szafka w L sama: z gory w rogu bez boku widac ~15 mm cokolu (w ciagu zakrywa go ramie) — drobne, do decyzji
+const ZNANE = [/^#d8c3a0 900×100×18 @0,-18$/];
 const info = (l) => console.log('  INFO ' + l);
 const scenariusz = async (tytul, cab) => {
   console.log(`\n== ${tytul} ==`);
@@ -181,7 +182,81 @@ await scenariusz('klapa do góry', wisz('KG', { W: 800, H: 400, levels: [{ h: nu
 await scenariusz('klapa w dół', wisz('KD', { W: 600, H: 400, levels: [{ h: null, cols: [kol({ doors: 1, klapa: 'dol' })] }] }));
 await scenariusz('wisząca na listwie', wisz('W'));
 await scenariusz('uchwyty u góry, 35 mm', szafka('U', { levels: [{ h: null, cols: [kol({ handlePos: ['gora', 'gora'], handleOuts: [35, 35] })] }] }));
+await scenariusz('szafka w L (sama)', szafka('L', { W: 900, corner: { on: true, arm: 640, doors: 'wsporniki' }, levels: [{ h: null, cols: [kol({ doors: 1 })] }] }));
 await scenariusz('cokół w obrysie', szafka('CO', { plinth: { on: true, height: 100, mode: 'inside', setback: 50 } }));
+
+/* ---- Ciag i zabudowa: te same zasady, ale uklad osi rysunku szukamy
+   posrod obrotow i odbic (sciany w zabudowie sa obrocone), a bryly bierzemy
+   z bryly calej zabudowy. */
+const MAPY = [];
+for (const X of [[0, 1], [0, -1], [2, 1], [2, -1]]) for (const Yz of [[1, -1]]) MAPY.push({ X, Y: Yz, blizej: X[0] === 0 ? [2, -1] : [0, -1], front: true });
+for (const X of [[0, 1], [0, -1], [2, 1], [2, -1]]) for (const Ys of [1, -1]) MAPY.push({ X, Y: [X[0] === 0 ? 2 : 0, Ys], blizej: [1, 1], top: true });
+/* `tylkoInfo` — zabudowy z rogiem: rysunek ciagu pokazuje sasiada inaczej niz
+   bryla (przekroj, bez jego blatu i uchwytow) i nie wszystkie roznice sa juz
+   rozebrane (AI_NOTES, [AI-TODO] audyt 2D rogu) — wypisujemy je jako INFO. */
+const zabudowa = async (tytul, p, { widoki = ['Zamk.', 'Z góry'], tylkoInfo = false } = {}) => {
+  const sprawdz = (l, c, e) => (tylkoInfo ? (c ? ok(l, c, e) : info(`${l} — ${e}`)) : ok(l, c, e));
+  console.log(`\n== ${tytul} ==`);
+  await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); }, p);
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
+  for (const zakres of ['Ciąg', 'Zabudowa']) {
+    if (!(await click(zakres))) continue;
+    await click('Zamk.');
+    await page.evaluate(() => { window.__audytBryl = []; });
+    await click('3D');
+    const sol = (await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; }))
+      .filter((q) => q.p && q.color !== '#b91c1c' && q.color !== '#b45309' && (q.alpha ?? 1) > 0.2);
+    for (const nazwa of widoki) {
+      // zabudowa z przodu to rozwiniecie scian obok siebie — jednego ukladu osi nie ma
+      if (zakres === 'Zabudowa' && nazwa !== 'Z góry') continue;
+      if (!(await click(nazwa))) continue;
+      const wsz = await prostokaty();
+      // przerywane obrysy to strefy (rog, zasieg) — nie plyty
+      const rs = wsz.filter((r) => r.f !== '#fafaf9' && !OKUCIA_2D.has(r.f) && !prowadnica(r) && !(r.da && (!r.f || r.f === 'none'))
+        && !(r.f === 'none' && (!r.s || r.s === 'none')) && !/sciana|wymiar/.test(r.el));
+      // blat w rzucie z gory jest domyslnie ukryty — gdy go nie ma na rysunku, nie szukamy go
+      const blatNaRys = wsz.some((r) => r.f === '#8d7b68');
+      const solW = sol.filter((q) => blatNaRys || q.color !== '#8d7b68' || nazwa !== 'Z góry');
+      let best = null;
+      for (const w of MAPY.filter((m) => (nazwa === 'Z góry') === !!m.top)) {
+        const rz = solW.map((q) => rzut(q, w));
+        const [dx, dy] = przesuniecie(rz, rs);
+        const trafione = rs.filter((r) => rz.some((a) => rowny(a, r, dx, dy))).length;
+        if (!best || trafione > best.trafione) best = { w, rz, dx, dy, trafione };
+      }
+      const { rz, dx, dy } = best;
+      /* Sasiedni ciag na elewacji to przekroj — jeden pelny blok w obrysie jego
+         szafki. Pasuje, gdy jest obwiednia kilku bryl; bryly w nim sa wtedy „na rysunku”. */
+      const blok = (r) => !!r.da && r.f && r.f !== 'none' && obwiednia({ ...r, f: 'none' }, rz, dx, dy);
+      const bloki = rs.filter(blok);
+      const wBloku = (a) => bloki.some((r) => a.x0 + dx >= r.x0 - 2.5 && a.x1 + dx <= r.x1 + 2.5 && a.y0 + dy >= r.y0 - 2.5 && a.y1 + dy <= r.y1 + 2.5);
+      const brak = rz.filter((a) => !rs.some((r) => rowny(a, r, dx, dy) || wPasie(a, r, dx, dy)) && !zasloniety(a, rz) && !wBloku(a));
+      const obce = rs.filter((r) => !rz.some((a) => rowny(a, r, dx, dy)) && !pasem(r, rz, dx, dy) && !obwiednia(r, rz, dx, dy) && !blok(r));
+      sprawdz(`${zakres} ${nazwa}: każda bryła ma swój prostokąt`, !brak.length, brak.map(opisB).slice(0, 8).join('; '));
+      sprawdz(`${zakres} ${nazwa}: każdy prostokąt jest rzutem bryły`, !obce.length, obce.slice(0, 8).map((r) => opisR({ ...r, x0: r.x0 - dx, x1: r.x1 - dx, y0: r.y0 - dy, y1: r.y1 - dy })).join('; '));
+    }
+  }
+};
+const RUN = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null, ...o });
+const PRJ = (items, runs) => ({ name: 'Z', active: 0, prices: {}, runs, items: items.map(([cab, runId]) => ({ cab, runId, offset: 0 })) });
+await zabudowa('ciąg trzech szafek z blatem i cokołem', PRJ([[szafka('C1'), 'c1'], [szafka('C2'), 'c1'], [szafka('C3', { W: 400 }), 'c1']], [RUN('c1', 'Ściana 1')]));
+const ROG = (o = {}) => ({ of: 'c1', at: 'end', owner: 'self', clear: 0, ...o });
+const USTAW = { W: 1000, levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 621, mode: 'overlay', support: false }, hinge: 'right' })] }] };
+for (const ws of [null, { typ: 'plaska', w: 60 }, { typ: 'szeroka', w: 60 }])
+  await zabudowa('ślepy róg ' + (ws ? 'z wstawką ' + ws.typ : 'bez wstawki'), PRJ([[szafka('A1'), 'c1'], [szafka('A2'), 'c1'],
+    [szafka('R', USTAW), 'c2'], [szafka('B2'), 'c2']], [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: ROG({ wstawka: ws }) })]), { tylkoInfo: true });
+await zabudowa('szafka w L w rogu', PRJ([[szafka('A1'), 'c1'], [szafka('A2'), 'c1'],
+  [szafka('L', { W: 900, corner: { on: true, arm: 640, doors: 'wsporniki' }, levels: [{ h: null, cols: [kol({ doors: 1 })] }] }), 'c2'], [szafka('B2'), 'c2']],
+  [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: ROG() })]), { tylkoInfo: true });
+await zabudowa('U: trzy ściany', PRJ([[szafka('A', { W: 1200, levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'right', w: 621, mode: 'overlay', support: false }, hinge: 'left' })] }] }), 'c1'],
+  [szafka('B', { W: 1400, levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'right', w: 621, mode: 'overlay', support: false }, hinge: 'left' })] }] }), 'c2'],
+  [szafka('C', { W: 900 }), 'c3']],
+  [RUN('c1', 'A'), RUN('c2', 'B', { corner: ROG({ owner: 'of' }) }), RUN('c3', 'C', { corner: { of: 'c2', at: 'end', owner: 'of', clear: 0 } })]), { tylkoInfo: true });
+await zabudowa('górne ciągi w L', PRJ([[szafka('D1'), 'c1'], [szafka('D2'), 'c1'], [szafka('D3'), 'c2'],
+  [wisz('G1'), 'c3'], [wisz('G2'), 'c3'], [wisz('G3'), 'c4']],
+  [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: ROG({ owner: 'of' }) }),
+   RUN('c3', 'Ściana 1', { tier: 'gorny', wall: 'c1', D: 300, mountY: 1358, worktop: false, plinth: null }),
+   RUN('c4', 'Ściana 2', { tier: 'gorny', wall: 'c2', D: 300, mountY: 1358, worktop: false, plinth: null })]), { tylkoInfo: true });
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

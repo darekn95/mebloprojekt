@@ -198,6 +198,7 @@ const uchwytOut = (d, cab) => {
   const w = num(d.handleOut);
   return w !== null ? Math.max(0, Math.round(w)) : handleOutOf(cab);
 };
+const UCHWYT_OD_KRAWEDZI = 36;   // os uchwytu pionowego od wolnej krawedzi skrzydla
 const uchwytObrys = (d) => {
   if (d.type === "drawer" || d.type === "klapa") {
     const cy = d.type === "klapa" ? klapaUchwytY(d) : d.y + d.h - Math.min(50, d.h / 2);
@@ -210,7 +211,9 @@ const uchwytObrys = (d) => {
       ? { x0: d.x + d.w - 30 - len, x1: d.x + d.w - 30, y0: cy - 6, y1: cy + 6 }
       : { x0: d.x + 30, x1: d.x + 30 + len, y0: cy - 6, y1: cy + 6 };
   }
-  const cx = d.hingeSide === "left" ? d.x + d.w - 38 : d.x + 26;
+  /* 30 mm od wolnej krawedzi do uchwytu z obu stron (os 36 mm). Wczesniej
+     przy zawiasie po prawej bylo 20 mm, po lewej 32 — audyt rysunkow 2D. */
+  const cx = d.hingeSide === "left" ? d.x + d.w - UCHWYT_OD_KRAWEDZI : d.x + UCHWYT_OD_KRAWEDZI;
   return { x0: cx - 6, x1: cx + 6, y0: d.y + d.h / 2 - Math.min(90, d.h * 0.25), y1: d.y + d.h / 2 + Math.min(90, d.h * 0.25) };
 };
 // szerokosc pionowego wspornika w wewnetrznym rogu szafki naroznej
@@ -5302,8 +5305,9 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                         {/* Uchwytu na otwartym skrzydle nie widac — tak samo jak
                             przy drzwiach szafki, gdzie zostaje sam obrys. */}
                         {!open && lw > 60 && (
-                          <rect x={zl ? lx + lw - 45 : lx + 30} y={y0 + H / 2 - 60}
-                            width={15} height={120} rx="5" fill="#52525b" opacity="0.9" />
+                          <rect x={zl ? lx + lw - UCHWYT_OD_KRAWEDZI - 6 : lx + UCHWYT_OD_KRAWEDZI - 6}
+                            y={y0 + H / 2 - Math.min(90, H * 0.25)}
+                            width={12} height={2 * Math.min(90, H * 0.25)} rx="5" fill="#52525b" opacity="0.9" />
                         )}
                         {/* Maskownica w rogu: plyta frontowa, do ktorej domykaja
                             sie drzwi. Za nia stoi wspornik, ale ten jest w srodku
@@ -6099,7 +6103,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
          na przeciwnym koncu. Bez niego front ramienia wygladal w bryle jak
          zaslepka, choc to zwykle drzwi. */
       const uchwytA = handleOutOf(c.cab);
-      const hcx = przyKoncu ? x0 + fu0 + 26 : x0 + fu0 + fw - 38;
+      const hcx = przyKoncu ? x0 + fu0 + UCHWYT_OD_KRAWEDZI : x0 + fu0 + fw - UCHWYT_OD_KRAWEDZI;
       const hcy = y0 + c.cab.H / 2;
       const hh = Math.min(90, c.cab.H * 0.25);
       const uchwytBox = (rot) => {
@@ -6337,10 +6341,27 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {bottomCap && <line x1={x} y1={y + h} x2={x + t} y2={y + h} stroke={INK} strokeWidth="2" />}
     </g>
   );
+  /* Szafka w L nie ma boku od strony ramienia — stoi tam katownik (dwie plyty
+     w tylnym rogu, 3 mm za plecami, jak w bryle). Wczesniej rysunek z przodu
+     pokazywal tam pelny bok, ktorego w zamowieniu nie ma (audyt 2D). */
+  const katownik = geo.postSide ? (() => {
+    const pb = geo.postBack || 0;
+    const xs = geo.postSide === "right" ? W - t - pb : pb;             // plyta przy boku
+    const xp = geo.postSide === "right" ? W - t - pb - geo.postW : t + pb; // plyta przy plecach
+    return { xs, xp };
+  })() : null;
   const carcassFrame = (key) => (
     <g key={key}>
-      {sidePanel("left-side", 0, leftTopY, geo.leftLen, geo.topL === "between", geo.botL === "between")}
-      {sidePanel("right-side", W - t, rightTopY, geo.rightLen, geo.topR === "between", geo.botR === "between")}
+      {geo.postSide !== "left" && sidePanel("left-side", 0, leftTopY, geo.leftLen, geo.topL === "between", geo.botL === "between")}
+      {geo.postSide !== "right" && sidePanel("right-side", W - t, rightTopY, geo.rightLen, geo.topR === "between", geo.botR === "between")}
+      {open && katownik && (
+        <g data-el="katownik-przod">
+          <rect x={katownik.xp} y={fy(geo.interior.y1)} width={geo.postW} height={geo.interior.y1 - geo.interior.y0}
+            fill={shc} stroke={INK} strokeWidth="2" opacity="0.8" />
+          <rect x={katownik.xs} y={fy(geo.interior.y1)} width={t} height={geo.interior.y1 - geo.interior.y0}
+            fill={shc} stroke={INK} strokeWidth="2" />
+        </g>
+      )}
       {geo.hasTop && (
         <rect x={geo.topX0} y={topY} width={geo.topX1 - geo.topX0} height={t}
           fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
@@ -6447,8 +6468,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               if (!open) {
                 if (!(uchwytOut > 0) || fw <= 60) return null;
                 return (
-                  <rect x={zawiasPrawy ? fx + 30 : fx + fw - 45} y={fy(H * 0.5) - 60}
-                    width={15} height={120} rx="5" fill="#52525b" opacity="0.9" />
+                  <rect x={zawiasPrawy ? fx + UCHWYT_OD_KRAWEDZI - 6 : fx + fw - UCHWYT_OD_KRAWEDZI - 6}
+                    y={fy(H * 0.5) - Math.min(90, H * 0.25)}
+                    width={12} height={2 * Math.min(90, H * 0.25)} rx="5" fill="#52525b" opacity="0.9" />
                 );
               }
               /* Te same wysokosci co zawiasy drzwi tej szafki — front ramienia
@@ -7211,8 +7233,9 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
         <rect x="0" y={fy(geo.rightY0 + geo.rightLen)} width={t} height={geo.rightLen}
           fill={bf} stroke={INK} strokeWidth="2" />
       )}
+      {/* katownik stoi 3 mm za plecami (`postBack`) — jak w bryle */}
       {geo.postSide && (
-        <rect x={geo.postSide === "right" ? t : W - t - geo.postW}
+        <rect x={geo.postSide === "right" ? t + (geo.postBack || 0) : W - t - (geo.postBack || 0) - geo.postW}
           y={fy(geo.interior.y1)} width={geo.postW} height={geo.interior.y1 - geo.interior.y0}
           fill={shc} stroke={INK} strokeWidth="2" />
       )}
@@ -7457,7 +7480,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
               const lico = cab.frontMode === "inset" ? vLico : vLico + geo.tf;
               return (
                 <g>
-                  {uch > 0 && <rect x={ax(lico, uch)} y={ay(fp.odRogu + 20)} width={uch} height={12}
+                  {uch > 0 && <rect x={ax(lico, uch)} y={ay(fp.odRogu + UCHWYT_OD_KRAWEDZI - 6)} width={uch} height={12}
                     fill="#3f3f46" stroke={INK} strokeWidth="1" />}
                   <rect x={ax(vLico - HINGE_D, HINGE_D)} y={ay(arm.len - t - 12)} width={HINGE_D} height={12}
                     rx="3" fill="#71717a" fillOpacity="0.8" stroke={INK} strokeWidth="1.2" />

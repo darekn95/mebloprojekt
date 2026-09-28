@@ -621,7 +621,7 @@ cd - grOff. Stare {16, 4} bez `wreg` migruja w `migrateCab`. Suita `wreg`.
 
 [AI-INFO] Audyt rysunkow 2D (`testy/audyt2d.mjs`): prostokaty SVG w jednostkach
 viewBox przez getCTM, porownanie z rzutami `window.__audytBryl` (bryla samej
-szafki, zamknieta i otwarta). Widoki ciagu/zabudowy jeszcze nie — [AI-TODO].
+szafki, zamknieta i otwarta) oraz widoki „Ciąg” i „Zabudowa z góry” (uklad osi szukany wsrod obrotow).
 Uchwyty na elewacjach rysuje `UchwytElewacja` (wspolny obrys `uchwytObrys`).
 [AI-INFO] Szuflada V-BOX wg instrukcji (instrukcje/Folder-Szuflada-V-BOX-18mm-online.pdf,
 str. 6): tyl rowno z gora boku, `tylOd` = bok - tyl (9-10 mm) nad dolem boku, dno
@@ -639,3 +639,12 @@ stronie „ramienia”; przy B — dwie w czesci „ramienia” (na boku wzmocni
 boku ramienia) albo analogicznie obie w czesci „szafki”.
 [AI-INFO] Slupek (szablon) zostaje 600 w glab (uzytkownik 2026-09-28); glebsza
 szafka w ciagu daje ostrzezenie, ze reszta odsunie sie od sciany (`runCabMsgs`).
+
+[AI-TODO] Audyt 2D rogu (`audyt2d`, `tylkoInfo`): w zabudowach z rogiem roznice
+wypisujemy jako INFO. Do rozebrania: bryla „Ciąg” pokazuje caly sasiedni ciag
+(z jego blatem i uchwytem szafki w rogu), elewacja tylko przekroj sasiada;
+w U i gornych w L czesc szafki sasiada nie ma prostokata na elewacji; przy
+szafce w L front i maskownica na elewacji ciagu maja pelna wysokosc korpusu
+(bez szczelin 3 mm, w 3D sa), a uchwyt w rzucie z gory zabudowy jest w innym
+miejscu niz w 3D (geo bez kontekstu rogu?). Szafka w L sama z gory: rog bez
+boku odslania ~15 mm cokolu (ZNANE).
