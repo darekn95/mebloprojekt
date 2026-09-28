@@ -12777,6 +12777,7 @@ export default function App() {
   const edgeMeters = useMemo(() => {
     let mm = 0;
     cutList.forEach((p) => {
+      if (p.matKey === "worktop") return;   // blat roboczy — nie obrzeze PCV 22 mm
       const e = p.edges;
       mm += p.qty * ((e.a1 ? p.a : 0) + (e.a2 ? p.a : 0) + (e.b1 ? p.b : 0) + (e.b2 ? p.b : 0));
     });
@@ -12826,6 +12827,7 @@ export default function App() {
   const projectEdgeMeters = useMemo(() => {
     let mm = 0;
     projectCutList.forEach((p) => {
+      if (p.matKey === "worktop") return;   // blat roboczy — osobna pozycja w wycenie
       const e = p.edges;
       mm += p.qty * ((e.a1 ? p.a : 0) + (e.a2 ? p.a : 0) + (e.b1 ? p.b : 0) + (e.b2 ? p.b : 0));
     });
@@ -12867,7 +12869,10 @@ export default function App() {
             sheet: p.matKey === "worktop"
               ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
           }));
-    setCutPlan({ scope, groups: buildCutPlan(rows) });
+    const groups = buildCutPlan(rows);
+    // tylko dla testow (`testy/audytwycena.mjs`): gdy strona ma tablice, dostaje rozkroj
+    if (typeof window !== "undefined" && window.__audytRozkroj !== undefined) window.__audytRozkroj = { scope, groups };
+    setCutPlan({ scope, groups });
   }, [cutList, projectCutList, cab.grainMatters, mat, ambig]);
 
   // --- wycena: ceny trzyma projekt, ilosci biora sie z list i rozkroju ---
@@ -12880,14 +12885,19 @@ export default function App() {
     return typeof v === "number" && isFinite(v) ? v : def;
   };
 
-  const projectEdgeMb = useMemo(() => {
+  /* Obrzeze 22 × 2 mm idzie na plyte; krawedzie blatu roboczego (38 mm) liczymy
+     osobno — tasma 22 mm sie na nie nie nadaje (audyt wyceny 2026-09-28). */
+  const krawedzieMb = (lista, blat) => {
     let mm = 0;
-    projectCutList.forEach((p) => {
+    lista.forEach((p) => {
+      if ((p.matKey === "worktop") !== blat) return;
       const e = p.edges;
       mm += p.qty * ((e.a1 ? p.a : 0) + (e.a2 ? p.a : 0) + (e.b1 ? p.b : 0) + (e.b2 ? p.b : 0));
     });
     return mm / 1000;
-  }, [projectCutList]);
+  };
+  const projectEdgeMb = useMemo(() => krawedzieMb(projectCutList, false), [projectCutList]);
+  const projectEdgeBlatMb = useMemo(() => krawedzieMb(projectCutList, true), [projectCutList]);
 
   // arkusze bierzemy z policzonego rozkroju — bez niego nie ma czego mnożyć
   const planSheets = useMemo(() => {
@@ -12943,6 +12953,10 @@ export default function App() {
         qty: sheetsTotal, unit: "ark.", def: DEFAULT_PRICES.ciecie });
     add({ key: "obrzeze", label: "Obrzeże 22 × 2 mm", spec: "materiał, dokładna długość",
       qty: Math.round(projectEdgeMb * 10) / 10, unit: "mb", def: DEFAULT_PRICES.obrzeze });
+    if (projectEdgeBlatMb > 0)
+      add({ key: "obrzezeBlat", label: "Obrzeże blatu roboczego",
+        spec: "krawędzie blatu do wykończenia — dobierz obrzeże albo listwę do grubości blatu",
+        qty: Math.round(projectEdgeBlatMb * 10) / 10, unit: "mb", def: 0 });
     // rozkrojownia liczy oklejanie za kazdy ROZPOCZETY metr, wiec w gore
     if (projectEdgeMb > 0)
       add({ key: "oklejanie", label: "Oklejanie prostoliniowe",
@@ -12955,7 +12969,7 @@ export default function App() {
     });
     const sum = rows.reduce((a, r) => a + r.qty * r.price, 0);
     return { rows, sum };
-  }, [planSheets, projectEdgeMb, projectHardware, prices, matByLabel]);
+  }, [planSheets, projectEdgeMb, projectEdgeBlatMb, projectHardware, prices, matByLabel]);
 
   // uwagi ciagu ida przed uwagami szafki — dotycza calej sciany, wiec sa nadrzedne
   const allMsgs = useMemo(() => [...runMsgs, ...geo.msgs], [runMsgs, geo]);

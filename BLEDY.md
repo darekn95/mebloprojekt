@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-28 | wycena, znalazł nowy `audytwycena` | krawędzie blatu roboczego (38 mm) wliczały się do „Obrzeże 22 × 2 mm” i usługi oklejania — teraz osobna pozycja „Obrzeże blatu roboczego” (cena 0 do ustalenia, pytanie do użytkownika), suma „Obrzeże PCV” bez blatu. Reszta wyceny i rozkroju zgodna na 7 projektach: każda formatka na arkuszach tyle razy, ile zamawiamy, bez nachodzenia, z rzazem 3 mm, bez obrotu przy pilnowanych słojach; arkusze/formatowanie/obrzeże/oklejanie/okucia/suma | (ten commit) |
 | 2026-09-28 | plan wierceń (`drillPlan`), znalazł nowy `audytwierc` | zawias po stronie fixu ze wspornikiem był wpisany na bok zamiast na wspornik; zawiasów klap nie było wcale (teraz w wieńcu/dnie, wzdłuż szerokości); kołki półek podawane „od przodu półki” — teraz od przedniej krawędzi płyty (półka bywa cofnięta albo płytsza); prowadnice bez otworów — teraz wg instrukcji V-BOX (37 + 96/128/192/224, przy NL 600 trzy otwory, cofnięte przy frontach wpuszczanych); przegroda z półkami z obu stron miała otwory zlane w jeden wpis — teraz „(od kolumny N)” | (ten commit) |
 | 2026-09-28 | skrzynka szuflady (`skrzynkaBryly`, widok z boku, `maxBack`) | tył stał na dnie — przy górnej szufladzie wchodził 14 mm w wieniec; wg instrukcji V-BOX tył jest równo z górą boku, a dno dochodzi do niego. Wysokość podniesionego tyłu liczona od jego dołu (`tylOd`), nowy błąd „tył wyżej niż górna krawędź frontu szuflady” z przyciskiem, domyślny podniesiony tył o 20 mm niżej niż front. Testy: `tylkol` (reguła frontu), `audyt` i `audyt2d` (scenariusz z podniesionym tyłem, bez „znanych”) | (ten commit) |
 | 2026-09-28 | rysunki 2D, znalazł nowy `audyt2d` | rysunek płaski porównany z rzutem bryły 3D w obie strony (z przodu zamknięte/otwarte, z góry, z boku, z tyłu; 15 konfiguracji). Poprawione: uchwyty z przodu miały własne wymiary (120 zamiast 180 mm, przy prawych drzwiach 10 mm obok) — teraz `UchwytElewacja` z `uchwytObrys`, też w elewacji ciągu i przy klapie; z boku HDF przybijany stał w korpusie zamiast za nim, cokół był klockiem na całą głębokość zamiast płyty przy licu, brakowało uchwytów, tył szuflady stał przy froncie zamiast z tyłu skrzynki; HDF we frezie z góry i z boku bez części we frezie; z góry obrys skrzynki szuflady wchodził w boki (szerokość frontu zamiast światła); z tyłu bez pleców nie było widać frontów; otwarte skrzydła i klapy bez uchwytów, otwarta klapa po złej stronie osi. Skrzynka szuflady jest teraz też w zamkniętej bryle 3D. Kontrola klap: oś w licu, grubość po stronie korpusu (jak skrzydła i 3D) — klapa pod blatem się otwiera | (ten commit) |
@@ -60,6 +61,13 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
+- **Krawędzie blatu roboczego w wycenie** (2026-09-28): osobna pozycja „Obrzeże
+  blatu roboczego” z ceną 0 — jak je wykańczasz (obrzeże 40/45 mm, listwa
+  końcowa, postforming z przodu)? Czy formatowanie blatu liczy się jak arkusza
+  płyty (dziś tak)?
+- **Otwory kołków z obu stron przegrody na tej samej wysokości** (2026-09-28):
+  plan pokazuje je osobno „(od kolumny N)”; czy przy 18 mm dawać ostrzeżenie /
+  przesuwać o 32 mm, żeby się nie przewierciły?
 - **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
   się kategoria „sprzęty” (lodówka, piekarnik, mikrofala) — dołożyć je jako
