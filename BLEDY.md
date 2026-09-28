@@ -18,6 +18,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-28 | `otwier`: kolizja w rogu | rada „zwęź front do 0 mm” (14, 44 mm) przy wąskiej szafce w ślepym rogu — teraz tylko, gdy zostaje ≥ `MIN_COL` (200); „odsuń ciągi w rogu” wskazuje pole „Luz w rogu” | (ten commit) |
+| 2026-09-28 | rzut z góry: ślepy róg | napis „30 dostępu” nad wąskim wymiarem przecinał wymiary drugiego ciągu — przy dostępie < 160 mm stoi obok, nad zasłoniętą częścią szafki (`data-el="dostep-waski"`) | (ten commit) |
 | 2026-09-27 | **formatki: jedna szafka w ciągu** | blat i cokół ciągu wypadały z listy szafki (liczą się w ciągu), a „Formatki całego projektu”, produkty, rozkrój całości i strona projektu w PDF pokazywały się dopiero od 2 szafek — blatu i cokołu nie było **nigdzie**; teraz warunek `calyProjekt` (2+ szafki albo części ciągu/ramię) i informacja pod listą szafki | (ten commit) |
 | 2026-09-27 | **formatki: szafka w L** | płyty ramienia były tylko w liście projektu, nie w liście szafki (ani na jej kartce PDF); teraz `formatkiSzafki` dokłada ramię | (ten commit) |
 | 2026-09-27 | **formatki ramienia** | formatki ramienia (bok 552 × 684 między dnem a górą, dno i półka o 18 mm płytsze, plecy 684) nie zgadzały się z rysunkiem; użytkownik: „ma być tak, jak wygląda” — bok na pełną wysokość i głębokość, dno/wieniec między korpusem a bokiem na pełną głębokość, plecy HDF H − 2 jak w korpusie; rysunek: front ramienia i maskownice w linii drzwi, kątownik między dnem a górą, dno i półka nie wchodzą pod bok | (ten commit) |
@@ -65,10 +67,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   Jej grubość/szerokość dolicza się do luzu w rogu. W karcie ciągu (Narożnik)
   pole „Wstawka w rogu”; ostrzeżenie o kolizji drzwi w rogu dostaje przycisk
   „Dodaj wstawkę 18 mm”, a gdy to za mało — „Wstawka 60 mm (na trójkątach)”.
-- Z testu rogu ze zwykłymi szafkami (2026-09-27): rada „zwęź front do 0 mm”
-  (i do 14, 44 mm) przy kolizji otwierania — do usunięcia, gdy wychodzi za wąsko;
-  „odsuń ciągi w rogu” nie mówi, o ile; w rzucie z góry napis „30 dostępu”
-  przecina linia wymiaru.
 
 - **Zrobione 2026-09-27:** zapamiętywanie `computeGeo` i `runTop` (niezmienne
   obiekty projektu jako klucz). Pomiar na 24 szafkach w 3 ciągach (mediana

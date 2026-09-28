@@ -5148,8 +5148,20 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
                 {/* ile frontu szafki w rogu zostaje odsloniete — reszta chowa
                     sie za drugim ciagiem i drzwi nie maja tam czego szukac */}
                 {n.zones.map((z, i) => (z.free > 0 ? (
-                  <DimH key={"bl" + i} x1={z.freeU0} x2={z.freeU0 + z.free} y={dv + 18}
-                    label={`${fmt(z.free)} dostępu`} above={false} c={ACC} />
+                  /* Waskiego dostepu podpis nie miesci sie nad wymiarem i wchodzil na
+                     wymiary drugiego ciagu — wtedy stoi obok, nad zaslonieta czescia
+                     szafki, gdzie nic innego nie jest rysowane. */
+                  z.free >= 160 ? (
+                    <DimH key={"bl" + i} x1={z.freeU0} x2={z.freeU0 + z.free} y={dv + 18}
+                      label={`${fmt(z.free)} dostępu`} above={false} c={ACC} />
+                  ) : (
+                    <g key={"bl" + i} data-el="dostep-waski">
+                      <DimH x1={z.freeU0} x2={z.freeU0 + z.free} y={dv + 18} label="" above={false} c={ACC} />
+                      <text x={z.u0 < z.freeU0 ? z.freeU0 - 12 : z.freeU0 + z.free + 12} y={n.depth - 36}
+                        textAnchor={z.u0 < z.freeU0 ? "end" : "start"} fontSize="22" fill={ACC}
+                        fontFamily="ui-monospace, monospace">{`${fmt(z.free)} dostępu`}</text>
+                    </g>
+                  )
                 ) : (
                   <text key={"bl" + i} x={(z.u0 + z.u1) / 2} y={n.depth - 30} textAnchor="middle"
                     fontSize="22" fill={ERRC} fontFamily="ui-monospace, monospace">ślepa</text>
@@ -9781,10 +9793,18 @@ const openingMsgs = (L) => {
     const gdzie = g.b.run === s.run ? "w tym samym ciągu" : `z ciągu „${g.b.run}"`;
     const czyje = g.b.id === s.id ? "tej samej szafki" : `szafki „${g.b.cab}" ${gdzie}`;
     const zostaje = Math.max(0, Math.round(s.szer - g.ile));
+    /* Rady tylko wykonalne: front wezszy niz najwezsza sensowna kolumna to juz
+       nie drzwi (wychodzilo „zwez front do 0 mm”), a odsuniecie ciagow ma
+       konkretne pole w karcie ciagu. */
+    const rady = ["przełóż zawiasy na drugą stronę"];
+    if (zostaje >= MIN_COL) rady.push(`zwęź front do ${fmt(zostaje)} mm`);
+    if (g.b.run !== s.run) rady.push("odsuń ciągi w rogu (karta ciągu → Narożnik → „Luz w rogu”)");
+    const rada = rady.length > 1
+      ? rady.slice(0, -1).join(", ") + " albo " + rady[rady.length - 1] : rady[0];
     out.push({ level: "error", text:
       `${s.ramie ? "Front ramienia" : "Skrzydło"} szafki „${s.cab}" (ciąg „${s.run}") nie ma się jak `
       + `otworzyć: po drodze stoi ${g.b.co} ${czyje} — brakuje ${fmt(Math.round(g.ile))} mm. `
-      + `Przełóż zawiasy na drugą stronę, zwęź front do ${fmt(zostaje)} mm albo odsuń ciągi w rogu.` });
+      + rada.charAt(0).toUpperCase() + rada.slice(1) + "." });
   });
   return out;
 };
