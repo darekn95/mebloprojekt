@@ -114,6 +114,27 @@ await pole.selectOption('plaska'); await page.waitForTimeout(1500);
 p = await zapis();
 ok('wybór w polu zapisuje płaską wstawkę', p.runs[1].corner.wstawka && p.runs[1].corner.wstawka.typ === 'plaska');
 
+console.log('\n== widok samej szafki z wstawką (zgłoszenie 2026-09-28) ==');
+// A2 to ostatnia szafka sciany 1 — wstawka przykreca sie do jej prawego boku
+await seed({ typ: 'plaska', w: 60 }, 1);
+const wRys = async () => page.locator('#rysunek [data-el="wstawka"]').count();
+await pick('Szafka'); await pick('Zamk.');
+ok('widok z przodu (zamknięty): wstawka przy boku szafki', await wRys() === 1);
+const bx = await page.locator('#rysunek [data-el="wstawka"]').first().evaluate((r) => ({ x: +r.getAttribute('x'), w: +r.getAttribute('width'), h: +r.getAttribute('height') }));
+ok('po prawej stronie, 18 mm szerokości, wysokość korpusu 720', bx.x === 600 && bx.w === 18 && bx.h === 720, JSON.stringify(bx));
+await pick('Otw.');
+ok('widok z przodu (otwarty): wstawka jest', await wRys() === 1);
+await pick('Z góry');
+const bt = await page.locator('#rysunek [data-el="wstawka"]').first().evaluate((r) => ({ x: +r.getAttribute('x'), w: +r.getAttribute('width'), h: +r.getAttribute('height') })).catch(() => null);
+ok('rzut z góry: wstawka 18 × 60 przy prawym boku', bt && bt.x === 600 && bt.w === 18 && bt.h === 60, JSON.stringify(bt));
+await page.evaluate(() => { window.__audytBryl = []; });
+await pick('3D');
+const bryly = await page.evaluate(() => (window.__audytBryl || []).map((b) => [...b.d].sort((x, y) => x - y).map(Math.round).join('×')));
+ok('bryła 3D: płyta 18 × 60 × 720', bryly.includes('18×60×720'), [...new Set(bryly)].filter((x) => /^18×/.test(x)).join(', '));
+await seed({ typ: 'plaska', w: 60 }, 0);
+await pick('Szafka'); await pick('Zamk.');
+ok('pierwsza szafka ściany 1 (nie przy rogu): bez wstawki', await wRys() === 0);
+
 console.log('\n== szafka w L: wstawki nie ma ==');
 await seed({ typ: 'plaska', w: 60 }, 3, { corner: { on: true, arm: 600 } });
 ok('przy szafce w L pola wstawki nie ma', await page.locator('[data-el="wstawka-pole"]').count() === 0);

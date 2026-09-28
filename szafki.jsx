@@ -5956,7 +5956,8 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
   );
 }
 
-function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware, arm }) {
+function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware, arm, wstawki }) {
+  const wsL = wstawkiSzafki(wstawki, geo);
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   // tryb wizualizacji: gdy fronty z tej samej plyty, pokaz realny kolor korpusu
@@ -6016,8 +6017,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
      zaczynamy dopiero za nim, inaczej nozki, cokol i przegrody ramienia
      zaslanialy opisy (np. „nozki 100"). */
   const armLenD = arm ? Math.max(0, arm.len) : 0;
-  const baseL = arm && arm.side === "left" ? -armLenD : 0;
-  const baseR = W + (arm && arm.side !== "left" ? armLenD : 0);
+  const baseL = (arm && arm.side === "left" ? -armLenD : 0) - wsL.filter((w) => w.lewa).reduce((a, w) => a + w.u, 0);
+  const baseR = W + (arm && arm.side !== "left" ? armLenD : 0) + wsL.filter((w) => !w.lewa).reduce((a, w) => a + w.u, 0);
   let lxCur = baseL + (gapLabels ? -26 - 70 : -26);
   const takeL = (w) => { const x = lxCur; lxCur -= w; return x; };
   let rxCur = baseR + (gapLabels ? 26 + 70 : 26);
@@ -6381,6 +6382,11 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           </g>
         );
       })()}
+      {/* wstawka w rogu przykrecona do boku tej szafki — pasek w licu drzwi */}
+      {wsL.map((w, i) => (
+        <rect key={"ws" + i} data-el="wstawka" x={w.x0} y={fy(w.H)} width={w.x1 - w.x0} height={w.H}
+          fill={ff} stroke={INK} strokeWidth="2" />
+      ))}
       {geo.doors.map((d) =>
         d.type === "klapa" ? (
           <KlapaElewacja key={d.key} d={d} fy={fy} ff={ff} open={open} tf={geo.tf}
@@ -7096,7 +7102,7 @@ const blatNadSzafka = (project, full, index, arm) => {
   return out.kolor ? out : null;
 };
 
-function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, arm, blat }) {
+function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, arm, blat, wstawki }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const { D } = cab;
@@ -7124,6 +7130,11 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       {/* obrys korpusu z gory */}
       <rect x="0" y="0" width={W} height={cd} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
+      {/* wstawka w rogu: przy boku, konczy sie w licu drzwi */}
+      {wstawkiSzafki(wstawki, geo).map((w, i) => (
+        <rect key={"ws" + i} data-el="wstawka" x={w.x0} y={cd + frontExtra - w.gl} width={w.x1 - w.x0} height={w.gl}
+          fill={mat.front.color} stroke={INK} strokeWidth="1.5" />
+      ))}
       {/* Ramie szafki naroznej: biegnie wzdluz drugiej sciany, wiec w ukladzie
           tej szafki idzie w bok od jej lica. `v` to glebokosc ramienia od tamtej
           sciany, `u` — dlugosc liczona od lica korpusu. */}
@@ -8144,7 +8155,7 @@ const ulozSciany = (solids, proj) => {
   return faces;
 };
 
-function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
+function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
   const t = geo.t;
   const cd = geo.carcassDepth;
   const { H } = cab;
@@ -8331,6 +8342,12 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle }) {
     const rot = (p) => rotAboutY(p, sign * ang, ox, z0);
     box(d.x, d.y, z0, d.x + d.w, d.y + d.h, z1, col, rot, 0.85, true);
     handleBar(d, z0, rot);
+  });
+
+  // wstawka w rogu przy boku szafki: od lica drzwi `gl` w glab
+  wstawkiSzafki(wstawki, geo).forEach((w) => {
+    const zL = cab.frontMode === "overlay" ? -tf : 0;
+    box(w.x0, 0, zL, w.x1, w.H, zL + w.gl, ff, null, 1, true);
   });
 
   /* --- rzut --- */
@@ -9320,6 +9337,14 @@ const wstawkaParts = (ws) => {
   return { panels, hardware };
 };
 const wstawkiOf = (layout) => [...layout.info.values()].flatMap((n) => n.wstawki || []);
+/* Wstawka w ukladzie samej szafki (widoki „Szafka”): przy lewym boku, gdy
+   szafka zaczyna ciag od rogu, inaczej przy prawym. Wysokosc korpusu, w licu
+   drzwi, `gl` w glab od lica. Bez tego wstawka byla tylko w formatkach szafki
+   i w widoku ciagu — na rysunku samej szafki jej brakowalo (zgloszenie
+   uzytkownika 2026-09-28). */
+const wstawkiSzafki = (ws, geo) => (ws || []).map((w) => ({
+  x0: w.naStarcie ? -w.u : geo.W, x1: w.naStarcie ? 0 : geo.W + w.u,
+  u: w.u, gl: w.gl, H: w.H, typ: w.typ, lewa: !!w.naStarcie }));
 
 /* Formatki ramienia szafki naroznej. Plyty poziome i plecy sa osobnymi
    kawalkami dostawionymi na kolki do korpusu — tak jak w kupnych szafkach
@@ -10722,12 +10747,12 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {box("Widok zamknięty — wymiary, szczeliny, kolory",
             <FrontView cab={realCab} geo={geo} mat={mat} open={false} showDims showGaps
-              showLabels={false} showHardware={false} arm={arm} />)}
+              showLabels={false} showHardware={false} arm={arm} wstawki={wstawki} />)}
           {box("Widok otwarty — wymiary i okucia",
             <FrontView cab={cab} geo={geo} mat={mat} open showDims showGaps={false}
-              showLabels={false} showHardware arm={arm} />)}
+              showLabels={false} showHardware arm={arm} wstawki={wstawki} />)}
           {box("Widok z góry — wymiary i okucia",
-            <TopView cab={cab} geo={geo} mat={mat} showDims showShelves showHardware arm={arm} />)}
+            <TopView cab={cab} geo={geo} mat={mat} showDims showShelves showHardware arm={arm} wstawki={wstawki} />)}
           {box("Widok z tyłu — wymiary",
             <RearView cab={cab} geo={geo} mat={mat} showDims />)}
         </div>
@@ -14465,7 +14490,7 @@ export default function App() {
                     onPointerUp={() => (drag.current = null)}
                     onPointerCancel={() => (drag.current = null)}
                   >
-                    <Scene3D cab={cab} geo={geo} mat={mat} open={open3d} yaw={yaw} pitch={pitch} angle={angle3d} />
+                    <Scene3D cab={cab} geo={geo} mat={mat} open={open3d} yaw={yaw} pitch={pitch} angle={angle3d} wstawki={wstawkiAktywnej} />
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <MiniBtn onClick={() => setYaw((v) => v - Math.PI / 4)}>◀ 45°</MiniBtn>
@@ -14494,14 +14519,14 @@ export default function App() {
                   wallGap={runInfo && showWall ? wallGapOf(runInfo.run, project.items[project.active]) : null} />
               ) : view === "top" ? (
                 <TopView cab={cab} geo={geo} mat={mat} showDims={showDims} showShelves={showShelves}
-                  showHardware={showHardware} arm={cornerNode && cornerNode.arm}
+                  showHardware={showHardware} arm={cornerNode && cornerNode.arm} wstawki={wstawkiAktywnej}
                   blat={showBlat ? blatNadSzafka(project, projLayout, project.active, cornerNode && cornerNode.arm) : null} />
               ) : view === "rear" ? (
                 <RearView cab={cab} geo={geo} mat={mat} showDims={showDims} />
               ) : (
                 <FrontView cab={cab} geo={geo} mat={mat} open={view === "open"} showDims={showDims}
                   showGaps={showGaps} showLabels={showLabels} showHardware={showHardware}
-                  arm={cornerNode && cornerNode.arm} />
+                  arm={cornerNode && cornerNode.arm} wstawki={wstawkiAktywnej} />
               )}
             </ZoomBox>
             {/* Podpis pod rysunkiem: co za blat na nim widac. W rogu to nigdy
