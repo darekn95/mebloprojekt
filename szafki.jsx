@@ -5613,6 +5613,23 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
                 {!upper && (
                   <DimH x1={n.lead} x2={n.lead + n.total} y={dv + 120} label={fmt(n.total)} above={false} />
                 )}
+                {/* Wstawka w rogu to czesc zabudowy: jej szerokosc w lancuchu
+                    wymiarow szafek i wymiar calosci razem z nia (prosba
+                    uzytkownika 2026-09-28: „brak zwymiarowania 1818”). */}
+                {!upper && (() => {
+                  const ws = ((full.info.get(g.run.id) || n).wstawki || []);
+                  if (!ws.length) return null;
+                  const u0 = Math.min(n.lead, ...ws.map((w) => w.u0));
+                  const u1 = Math.max(n.lead + n.total, ...ws.map((w) => w.u1));
+                  return (
+                    <g data-el="wymiar-wstawki">
+                      {ws.map((w, i) => (
+                        <DimH key={"ws" + i} x1={w.u0} x2={w.u1} y={dv + 56} label={fmt(w.u1 - w.u0)} above={false} c={ACC} />
+                      ))}
+                      <DimH x1={u0} x2={u1} y={dv + 184} label={`${fmt(u1 - u0)} z wstawką`} above={false} />
+                    </g>
+                  );
+                })()}
                 {/* Glebokosc mierzymy od strony wolnej: przy narożniku poczatek
                     ciagu lezy na sasiednim ciagu i kreska wpadlaby w jego rysunek. */}
                 {!upper && (n.lead > 0

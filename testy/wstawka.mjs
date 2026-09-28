@@ -105,6 +105,8 @@ const zjedzone = async (w) => {
 const tBez = await zjedzone(null), tPl = await zjedzone({ typ: 'plaska', w: 60 }), tSz = await zjedzone({ typ: 'szeroka', w: 60 });
 // 570 + 3 (HDF za korpusem) + 18 frontu
 ok('bez wstawki róg zjada 591 (korpus + plecy + front)', tBez.includes('591') && !tBez.includes('609'), tBez.filter((t) => /^[56]\d\d$/.test(t)).join(','));
+// sciana 1: A1 + A2 = 1200 i plaska wstawka 18 — wymiar calosci razem z nia
+ok('wymiar ciągu z wstawką: 1218', tPl.includes('1218 z wstawką'), tPl.filter((t) => /wstawk/.test(t)).join(','));
 ok('płaska odsuwa ciąg o 18 (609)', tPl.includes('609'), tPl.filter((t) => /^[56]\d\d$/.test(t)).join(','));
 ok('szeroka odsuwa ciąg o 60 (651)', tSz.includes('651'), tSz.filter((t) => /^6\d\d$/.test(t)).join(','));
 

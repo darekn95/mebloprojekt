@@ -587,3 +587,13 @@ PD-MD-ZB, ale uzytkownik chce zwyklych zawiasow jak przy skrzydlach.
 z gorna szafka/sufitem i opadanej z blatem; wsparcie klapy w szafce z kilkoma
 poziomami w kontroli otwierania. Do omowienia z uzytkownikiem, gdy zacznie
 uzywac klap na projekcie.
+
+[AI-INFO] Audyt calosci: `testy/audyt.mjs` (ok. 4 min, sekwencyjnie). Hook
+`audytBryly` zapisuje teraz tez obrys bryly na miejscu (`p`, po obrocie
+skrzydla i ustawieniu ciagu w rogu) — po nim audyt szuka brył nachodzacych na
+siebie. Nowy scenariusz = jedna linia `await scenariusz(...)`. Przypadki
+czekajace na decyzje uzytkownika oznaczaj `znane` (regex), zeby suita byla
+zielona, i opisz je w BLEDY.md „Do decyzji”.
+[AI-INFO] Plecy za korpusem: `geo.plecyZa` / `geo.glebOdSciany`. W ukladzie
+ciagu (odleglosc od sciany) uzywaj `glebOdSciany`, w geometrii szafki dalej
+`carcassDepth` (formatki bokow sie nie zmieniaja). Szablon stojacej: 560.

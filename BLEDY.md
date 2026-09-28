@@ -18,6 +18,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-28 | audyt całości (`testy/audyt.mjs`) | nowa suita: nachodzenie brył w 3D (szafka i zabudowa), formatki ↔ rysunek w obie strony z ilościami, projekt = suma szafek, PDF = ekran; 20 konfiguracji. Znalezione i poprawione: plecy w bryle zabudowy wchodziły 3 mm w boki/dno/półki (`plecyBryla`); półki i przegrody w bryle szafki odkładane od lica (przy frontach wpuszczanych wchodziły w drzwi); plecy z płyty wewnątrz nie skracały półek (półka 18 mm za głęboka w formatce); plecy z płyty wewnątrz rysowane na cały tył; okucia ramienia szafki w L i wstawki tylko w projekcie, nie na liście szafki (`okuciaSzafki`); listwa wspólna ciągu na kartce szafki w PDF; szafka w L ze stroną „auto” zawsze z kątownikiem po prawej — przy ramieniu w lewo (kreator rogu) pełny bok stał po stronie ramienia; dno i tył szuflady nie były nigdzie rysowane (`skrzynkaBryly`) | (ten commit) |
+| 2026-09-28 | plecy za korpusem | HDF przybijany (i płyta na zewnątrz) stoi za korpusem, więc szafka stoi o jego grubość od ściany — układ ciągu, róg, blat ciągu, ramię szafki w L i kreator rogu liczą teraz z `geo.glebOdSciany` (decyzja użytkownika). Przesunięte liczby w testach (+3 mm): narozn 621/671/249/651, narozn2 621→1103, narozn3 1097/1521/918, wstawka 591/609/651, gorne 321, narjedne 235, blatciag/blatrys 533, blatrog (uwaga „tylko 7 mm”), odsuniecie (korpusy o 3 mm płytsze, odległości te same); kreator fix 621 liczony z układu | (ten commit) |
 | 2026-09-28 | przegląd wszystkich rysunków projektu użytkownika | wstawki brakowało na widoku z boku (prawy bok), z tyłu szafki i z tyłu ciągu; podpis „bok „Ściana 2” 606” liczył wstawkę, która stoi przed bokiem i jest rysowana osobno — teraz 588. Reszta widoków (przód, z góry, 3D, 45°, zabudowa) i audyt 3D ↔ formatki bez uwag; suita `wstawka` | (ten commit) |
 | 2026-09-28 | ślepy róg (`projectLayout`) | drugi ciąg odsuwał się od rogu o sam korpus szafki w rogu (570), bez jej frontu (18) — bok sąsiada stał w miejscu fixu, a płaska wstawka na niego nachodziła i nic nie odsuwała (zgłoszenie użytkownika: „nie widać wstawki, bok do boku”). Teraz `frontRog` (front szafki w rogu, gdy nakładany; nie przy szafce w L) i to samo w górnych ciągach. Przesunięte liczby w testach: `narozn` 618/668, `narozn2` 618, `narozn3` blaty 918/1518, `wstawka` 588/606/648, `gorne` 318; `otwier` i `zawiasy` — kolizja z uchwytem liczona bez wstawki (z płaską 18 mm przy uchwycie 20 mm jej nie ma) | (ten commit) |
 | 2026-09-28 | widoki „Szafka” (przód, z góry, 3D, PDF) | wstawka w rogu była w formatkach szafki, do której się przykręca, i w widoku ciągu, ale nie na rysunku samej szafki (zgłoszenie użytkownika) — widoki dostają `wstawki` (`wstawkiSzafki`); suita `wstawka` | (ten commit) |
@@ -50,6 +52,18 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
+- **Półka a wspornik pionowy fixu** (audyt 2026-09-28). W kolumnie z fixem
+  można zaznaczyć „wspornik pionowy” (Struktura wnętrza → fix → „wspornik
+  pionowy”, 100 mm głęb.) — pionowa płytka za krawędzią fixu, żeby było w co
+  przykręcić zawias drzwi. Półka w tej kolumnie ma pełną szerokość i przechodzi
+  przez ten wspornik (18 × 100 z przodu). Do wyboru: półka płytsza (za
+  wspornikiem) albo węższa (do wspornika). Użytkownik nie rozpoznał przypadku —
+  wytłumaczyć z rysunkiem. Suita `audyt` ma go jako „znane”.
+- **Tolerancja ±3 mm przy „szafka w rogu ustawiona”** (`slepyUstawiony`): fix
+  w zasłoniętej części uznajemy za ustawiony, gdy różni się od wyliczonego
+  o najwyżej 3 mm. Użytkownik zapytał, co to za zasada — do potwierdzenia albo
+  zmiany.
+
 - **Klapy do góry i w dół — do sprawdzenia przez użytkownika w innym terminie**
   (prośba 2026-09-28). Zrobione i w artefakcie (wersja 48), ale użytkownik
   jeszcze ich nie oglądał. Do przejrzenia razem: przełącznik „otwieranie”,
@@ -72,6 +86,17 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   się nie pojawia: pas frontu szafki narożnej sam kończy się na maskownicy kątownika,
   więc jedne drzwi, dwoje i ręczna szerokość mieszczą się w licu (sprawdzone
   2026-09-27 na szablonie `naroznikL`). Nie usuwać (decyzja użytkownika).
+
+- **Plecy za korpusem** (2026-09-28): HDF przybijany stoi za korpusem, szafka
+  o jego grubość od ściany (lico 560 + 3 + 18 = 581). Szablon „Szafka stojąca”
+  ma 560 w głąb — lepiej dociąć tył blatu do kąta ściany niż żeby zabrakło,
+  zawsze można odsunąć szafki od ściany.
+- **Półki w szafce w L** (2026-09-28): półka korpusu płytsza o kątownik przy
+  plecach i kątownik narożnika z przodu (na całej szerokości), od strony
+  kątownika węższa o grubość pleców; półka ramienia kończy się za kątownikiem
+  narożnika.
+- **Skrzynka szuflady** (2026-09-28): rysowana w 3D po otwarciu i na widoku
+  z boku (dno, tył, boki metalowe), wymiary jak formatki.
 
 - **Klapy** (2026-09-28): najpierw wybór „skrzydło / klapa”, przy klapie
   „do góry / w dół”. Zawiasy te same co przy skrzydłach, 2 szt. (powyżej

@@ -59,12 +59,14 @@ u = await uwagi();
 ok('ostrzeżenia znikają', !u.some((x) => /różne szerokości|Blat nad ramieniem/.test(x.t)),
   u.map((x) => x.t.slice(0, 40)).join(' // '));
 
-/* 570 + 2 mm luzu przy zawiasach + front 18 = 590 do lica drzwi, wiec caly
-   arkusz 600 wystaje przed nie standardowe 10 mm — nie ma o czym mowic. */
-console.log('\n== szafki 570: arkusz 600 wystaje 10 mm, bez uwag ==');
+/* Plecy HDF 3 (za korpusem, od 2026-09-28) + 570 + 2 mm luzu przy zawiasach
+   + front 18 = 593 do lica drzwi, wiec arkusz 600 wystaje tylko 7 mm — uwaga
+   (nie ostrzezenie), z rozpisaniem, skad to sie bierze. */
+console.log('\n== szafki 570 z plecami: arkusz 600 wystaje 7 mm — uwaga ==');
 u = await uwagi();
-ok('bez uwag o wysięgu i docinaniu', !u.some((x) => /wystaje przed drzwi|wystawałby|docięty/.test(x.t)),
-  u.map((x) => x.t.slice(0, 40)).join(' // '));
+const wys = u.find((x) => /wystaje przed drzwi tylko 7 mm/.test(x.t));
+ok('uwaga o 7 mm z plecami w rozpisce', !!wys && /plecy 3 \+ korpus 570/.test(wys.t), u.map((x) => x.t.slice(0, 60)).join(' // '));
+ok('bez ostrzeżenia o docinaniu', !u.some((x) => /wystawałby|docięty/.test(x.t)));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

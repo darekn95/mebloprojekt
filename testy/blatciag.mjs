@@ -64,10 +64,10 @@ let rs = await wiersze();
 const blat = rs.find((r) => /^Blat ciągu/.test(r));
 console.log('     ' + (blat || '(brak)'));
 ok('blat ciągu w zestawieniu', !!blat, String(rs.length));
-/* Glebokosc blatu to wymiar rzeczywisty: korpus 500 + 2 mm luzu przy
-   zawiasach + front 18 + 10 mm wysiegu. Arkusz 600 wystawalby 80 mm, wiec
-   blat idzie na wymiar. */
-ok('głębokość blatu 530 mm', !!blat && / 530 /.test(blat.replace(/\|/g, ' ')), blat || '');
+/* Glebokosc blatu to wymiar rzeczywisty: plecy HDF 3 za korpusem (od
+   2026-09-28) + korpus 500 + 2 mm luzu przy zawiasach + front 18 + 10 mm
+   wysiegu. Arkusz 600 wystawalby 77 mm, wiec blat idzie na wymiar. */
+ok('głębokość blatu 533 mm', !!blat && / 533 /.test(blat.replace(/\|/g, ' ')), blat || '');
 
 console.log('\n== słupek: blat kończy się przy nim, bez błędu ==');
 await seed([RUN('c1', 'Ściana 1')], [CAB('A', 720, 'c1'), CAB('Słupek', 2000, 'c1')]);
