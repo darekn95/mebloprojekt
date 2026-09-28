@@ -111,6 +111,24 @@ await scenariusz('plecy z płyty na zewnątrz', projekt([[szafka('PL', { back: '
 await scenariusz('jedna szafka w ciągu z blatem i cokołem', projekt([[szafka('J'), 'c1']], [run('c1', 'Ściana 1')]), { zabudowa: true });
 await scenariusz('ciąg trzech szafek', projekt([[szafka('C1'), 'c1'], [szafka('C2'), 'c1'], [szafka('C3', { W: 400 }), 'c1']], [run('c1', 'Ściana 1')]), { zabudowa: true });
 
+// wstawka w rogu (plaska i szeroka) — bryla 3D ma pare w formatkach
+for (const typ of ['plaska', 'szeroka']) {
+  await scenariusz('wstawka ' + typ, projekt([[szafka('A1'), 'c1'], [szafka('A2'), 'c1'], [szafka('R', { W: 1000 }), 'c2'], [szafka('B2'), 'c2']],
+    [run('c1', 'Ściana 1', { worktop: false }), run('c2', 'Ściana 2', { worktop: false,
+      corner: { of: 'c1', at: 'end', owner: 'self', clear: 0, wstawka: { typ, w: 60 } } })]), { zabudowa: true });
+}
+
+// kuchnia w L z górnymi ciągami na obu ścianach (górne 300 w głąb, wiszą na listwie)
+{
+  const wisz = (name) => szafka(name, { D: 300, plinth: { ...PL, on: false }, legs: { on: false }, hangerMode: 'listwa' });
+  await scenariusz('górne ciągi w L', projekt([
+    [szafka('D1'), 'c1'], [szafka('D2', { W: 1000 }), 'c1'], [szafka('D3'), 'c2'],
+    [wisz('G1'), 'c3'], [wisz('G2'), 'c3'], [wisz('G3'), 'c4']],
+  [run('c1', 'Ściana 1'), run('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } }),
+    run('c3', 'Ściana 1', { tier: 'gorny', wall: 'c1', D: 300, mountY: 1358, worktop: false, plinth: null }),
+    run('c4', 'Ściana 2', { tier: 'gorny', wall: 'c2', D: 300, mountY: 1358, worktop: false, plinth: null })]), { zabudowa: true });
+}
+
 // szablony z listy „+ z szablonu”
 for (const t of ['stojaca', 'wiszaca', 'biurko', 'slupek', 'naroznikL']) {
   await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(600);

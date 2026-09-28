@@ -83,6 +83,15 @@ ok('podane, o ile brakuje', k.some((l) => /brakuje \d+ mm/.test(l)), skrot(k));
 ok('podpowiedziane zawiasy i węższy front',
   k.some((l) => /Przełóż zawiasy/.test(l) && /zwęź front do \d+ mm/.test(l)), skrot(k));
 
+console.log('\n== waska szafka w slepym rogu: tylko wykonalne rady ==');
+/* Szafka 600 w rogu, drugi ciag glebokosci 600: zostaje 0–30 mm frontu. Rada
+   „zwez front do 0 mm” byla bez sensu — wezszy front niz 200 mm to nie drzwi. */
+await seed(LRUNY(), [CAB('A1', 600, 'c1'), CAB('rog600', 600, 'c1', null, { levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null }] }] }), CAB('B1', 600, 'c2')]);
+const kw = await kolizje();
+const zaWaskie = kw.filter((l) => { const m = l.match(/zwęź front do (\d+) mm/); return m && Number(m[1]) < 200; });
+ok('żadnej rady „zwęź front” poniżej 200 mm', kw.length > 0 && zaWaskie.length === 0, skrot(zaWaskie.length ? zaWaskie : kw));
+ok('rada o odsunięciu wskazuje pole „Luz w rogu”', kw.some((l) => /Luz w rogu/.test(l)), skrot(kw));
+
 console.log('\n== kolizja z uchwytem, nie tylko z plyta ==');
 ok('uchwyt bywa tym, co stoi na drodze', k.some((l) => /uchwyt/.test(l)), skrot(k));
 
