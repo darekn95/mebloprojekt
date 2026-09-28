@@ -5,3 +5,5 @@ core/build/
 node_modules/
 dist/
 .DS_Store
+# zrzuty ekranu zapisywane przez testy w katalogu glownym
+/shot-*.png
