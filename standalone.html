@@ -320,6 +320,16 @@ const cornerSpan = (n) => {
 };
 const MIN_LEVEL = 100; // najnizszy sensowny poziom przy auto-dodawaniu
 
+/* Otwory pod prowadnice V-BOX wzdluz boku, od krawedzi korpusu (instrukcja
+   Sevroll, str. 6 „Wymagana przestrzen i montaz prowadnic”). */
+const prowadnicaOtwory = (nl) => {
+  const n = Math.round(Number(nl) || 0);
+  if (n >= 600) return [37, 37 + 224, 37 + 224 + 128];
+  if (n >= 450) return [37, 37 + 224];
+  if (n >= 400) return [37, 37 + 192];
+  if (n >= 300) return [37, 37 + 128];
+  return [37, 37 + 96];
+};
 /* Sevroll V-BOX 3D Slim, wymiary elementow dla plyty 18 mm */
 const VBOX = {
   heights: [80, 95, 127, 178, 210, 238],
@@ -3207,41 +3217,76 @@ function computeGeoLiczy(cab, mat, ctx) {
     if (!drillMap.has(key)) drillMap.set(key, { panel: key, holes: [] });
     drillMap.get(key).holes.push({ kind, y: Math.round(y - base), note });
   };
+  /* Przegroda niesie kolki i zawiasy z obu stron — kazda strona to osobne
+     wiercenie, wiec w planie osobny wpis „(od kolumny N)”. Wczesniej te same
+     wysokosci z obu stron zlewaly sie w jeden wpis i jednego otworu brakowalo. */
   const panelsOfCol = (lv, c) => {
     const last = lv.cols.length - 1;
+    const strona = ` (od kolumny ${c.j + 1})`;
     return {
-      left: { name: c.j === 0 ? "Bok lewy" : `Przegroda ${c.j}`, base: c.j === 0 ? leftY0 : lv.y0 },
-      right: { name: c.j === last ? "Bok prawy" : `Przegroda ${c.j + 1}`, base: c.j === last ? rightY0 : lv.y0 },
+      left: { name: c.j === 0 ? "Bok lewy" : `Przegroda ${c.j}`, base: c.j === 0 ? leftY0 : lv.y0, strona: c.j === 0 ? "" : strona },
+      right: { name: c.j === last ? "Bok prawy" : `Przegroda ${c.j + 1}`, base: c.j === last ? rightY0 : lv.y0, strona: c.j === last ? "" : strona },
     };
   };
   {
     const pin = cab.shelfPin || {};
-    const pinNote = `⌀5, ${fmt(num(pin.dFront) ?? 37)} mm od przodu i ${fmt(num(pin.dBack) ?? 37)} mm od tyłu półki`;
+    const pinF = num(pin.dFront) ?? 37, pinB = num(pin.dBack) ?? 37;
     levels.forEach((lv) =>
       lv.cols.forEach((c) => {
         const p = panelsOfCol(lv, c);
+        /* Kolki od przedniej krawedzi boku, nie od przodu polki: polka bywa
+           cofnieta (fronty wpuszczane) albo plytsza (wspornik fixu, katowniki
+           w L) — wiertacz ma przed soba plyte boku, a nie polke. */
+        const przod = frontCut + (c.shFront || 0);
+        const gl = c.shD ?? shelfDepth;
+        const pinNote = `⌀5, ${fmt(przod + pinF)} i ${fmt(przod + gl - pinB)} mm od przedniej krawędzi płyty; wysokość = spód półki`;
         if (cab.shelfMount !== "confirmat")
           (c.shelves || []).forEach((s) => {
-            drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, pinNote);
-            drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNote);
+            drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, pinNote + p.left.strona);
+            drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNote + p.right.strona);
           });
         (c.drawers || []).forEach((dr) => {
           if (!dr.rail) return;
-          const note = `dolna krawędź prowadnicy, NL ${fmt(dr.rail.d)}`
-            + (dr.rail.setback ? `, cofnięta ${fmt(dr.rail.setback)} mm od lica` : "");
-          drillAdd(lv.i, p.left.name, p.left.base, "prowadnica", dr.rail.y0, note);
-          drillAdd(lv.i, p.right.name, p.right.base, "prowadnica", dr.rail.y0, note);
+          /* Otwory wg instrukcji V-BOX (instrukcje/…V-BOX…pdf, str. 6): 37 mm od
+             krawedzi korpusu i dalej wg NL; przy frontach wpuszczanych prowadnica
+             cofnieta o grubosc frontu. */
+          const sb = dr.rail.setback || 0;
+          const otw = prowadnicaOtwory(dr.rail.d).map((x) => fmt(x + sb)).join(", ");
+          const note = `dolna krawędź prowadnicy, NL ${fmt(dr.rail.d)}; otwory ${otw} mm od przedniej krawędzi`
+            + (sb ? ` (cofnięta o ${fmt(sb)} mm)` : "");
+          drillAdd(lv.i, p.left.name, p.left.base, "prowadnica", dr.rail.y0, note + p.left.strona);
+          drillAdd(lv.i, p.right.name, p.right.base, "prowadnica", dr.rail.y0, note + p.right.strona);
         });
       })
     );
     doors.forEach((d) => {
-      if (d.type !== "door" || !(d.hingePts || []).length) return;
       const lv = levels[d.lvl];
       const c = lv && lv.cols[d.colJ];
       if (!c) return;
+      if (d.type === "klapa") {
+        /* Klapa do gory — zawiasy w wiencu nad nia, w dol — w dnie pod nia;
+           polozenie wzdluz szerokosci od wewnetrznej strony lewego boku. */
+        const gora = d.klapa === "gora";
+        const nazwa = gora ? (lv.i === levels.length - 1 ? "Wieniec" : `Półka przelotowa nad poziomem ${lv.i + 1}`)
+          : (lv.i === 0 ? "Dno" : `Półka przelotowa pod poziomem ${lv.i + 1}`);
+        (d.klapaZawiasy || []).forEach((hx) => {
+          const key = nazwa;
+          if (!drillMap.has(key)) drillMap.set(key, { panel: key, holes: [] });
+          drillMap.get(key).holes.push({ kind: "zawias klapy", y: Math.round(hx - interior.x0),
+            note: "oś zawiasu od wewnętrznej strony lewego boku — puszka ⌀35 w klapie, prowadnik na płycie" });
+        });
+        return;
+      }
+      if (d.type !== "door" || !(d.hingePts || []).length) return;
       const p = panelsOfCol(lv, c);
-      const side = d.hingeSide === "left" ? p.left : p.right;
-      const note = "oś zawiasu — puszka ⌀35 we froncie, prowadnik na płycie";
+      /* Po stronie fixu zawias niesie wspornik pionowy, a nie bok — tam trzeba
+         wiercic (wczesniej plan wysylal te otwory na bok). Wspornik stoi na
+         wysokosc poziomu, od jego dolu liczymy. */
+      const naWsporniku = c.fix && c.support && c.fix.side === d.hingeSide;
+      const side = naWsporniku
+        ? { name: lv.cols.length > 1 ? `Wspornik pionowy — kolumna ${c.j + 1}` : "Wspornik pionowy", base: lv.y0 }
+        : d.hingeSide === "left" ? p.left : p.right;
+      const note = "oś zawiasu — puszka ⌀35 we froncie, prowadnik na płycie" + (side.strona || "");
       d.hingePts.forEach((hy) => drillAdd(lv.i, side.name, side.base, "zawias", hy, note));
     });
   }
@@ -11382,7 +11427,8 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
               Wiercenia
             </div>
             <div style={{ fontSize: "8.5pt", color: "#78716c", marginBottom: 3 }}>
-              Wysokości liczone od dolnej krawędzi wierconej płyty — tak, jak leży na stole.
+              Wysokości liczone od dolnej krawędzi wierconej płyty — tak, jak leży na stole
+              (zawiasy klapy: wzdłuż szerokości, jak w uwadze).
             </div>
             <table className="rp-tbl">
               <thead>
