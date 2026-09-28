@@ -74,7 +74,8 @@ await seed({ name: 'K', active: 3, prices: {}, runs: [RUN('c1', 'Ściana 1'), RU
   items: [CAB('S1', 600, 'c1'), CAB('S2', 600, 'c1'), CAB('S3', 600, 'c1'), CAB('R', 1000, 'c2')] });
 u = await uwagi();
 ok('na górze blok „Ślepy narożnik — szafka w rogu do ustawienia”', /szafka w rogu do ustawienia/.test(u));
-ok('kolizje w tym rogu czekają na ustawienie', !/nie ma się jak otworzyć/.test(u), u.split('\n').filter((l) => /otworzyć/.test(l)).join(' / '));
+// kontrola kolizji nigdy nie jest wstrzymywana (uzytkownik 2026-09-28) — kolizje stoja obok bloku
+ok('kolizje w rogu widać od razu, obok bloku', /nie ma się jak otworzyć/.test(u), u.split('\n').filter((l) => /otworzyć/.test(l)).join(' / '));
 await card(/^Uwagi/).getByRole('button', { name: /Ustaw szafkę w rogu: fix 621 mm \+ drzwi \+ wstawka 18 mm/ }).click();
 await page.waitForTimeout(1500);
 p = await zapis();
@@ -84,6 +85,18 @@ ok('po kliknięciu: fix 621 od lewej, jedne drzwi, zawias prawy, wstawka płaska
   JSON.stringify({ fix: k2.fix, doors: k2.doors, hinge: k2.hinge, ws: p.runs[1].corner.wstawka }));
 u = await uwagi();
 ok('blok znika, zostaje podpowiedź o fixie', !/do ustawienia/.test(u) && /ma fix 621 mm/.test(u));
+
+console.log('\n== fix inny niż zasłonięta część: podpowiedź z przyciskiem (bez tolerancji) ==');
+await seed({ name: 'K', active: 3, prices: {}, runs: [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
+  items: [CAB('S1', 600, 'c1'), CAB('S2', 600, 'c1'), CAB('S3', 600, 'c1'),
+    { ...CAB('R', 1000, 'c2'), cab: { ...CAB('R', 1000, 'c2').cab, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null,
+      fix: { side: 'left', w: 619, mode: 'overlay', support: false }, hinge: 'right' }] }] } }] });
+u = await uwagi();
+ok('fix 619 zamiast 621: podpowiedź, bez bloku „do ustawienia”', /ma fix 619 mm, a zasłonięte jest 621 mm/.test(u) && !/do ustawienia/.test(u),
+  u.split('\n').filter((l) => /fix/.test(l)).join(' / '));
+await card(/^Uwagi/).getByRole('button', { name: 'Popraw fix na 621 mm' }).click(); await page.waitForTimeout(1500);
+p = await zapis();
+ok('przycisk ustawia fix 621', p.items[3].cab.levels[0].cols[0].fix.w === 621, String(p.items[3].cab.levels[0].cols[0].fix.w));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

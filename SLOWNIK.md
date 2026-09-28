@@ -309,6 +309,7 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `fixgap:<lv>:<col>:<v>:<up\|down>` | ustawia luz między drzwiami, żeby fronty wyszły równe |
 | `fixh:` / `fixnl:` / `fixback:` / `fixnodoor:` | wysokość, NL prowadnicy, tył szuflady, kolumna bez drzwi |
 | `fixdiv:` / `fixsup:` / `fixcolauto:` | przegroda, wspornik, kolumna na automat |
+| `slepyfix:<nr szafki>:<strona>:<szerokość>` | „Popraw fix na N mm” — fix szafki w ślepym rogu inny niż zasłonięta część (bez tolerancji) |
 | `hingeflip:<lv>:<col>:<side>` | przekłada zawiasy na drugą stronę |
 | `hingeflipcab:<nr szafki>:<lv>:<col>:<side>:<ile zostaje>` | w uwadze o kolizji otwierania: „Przełóż zawiasy na lewą/prawą — zostaje N mm / bez kolizji”; tylko pojedyncze drzwi i tylko gdy przełożenie zmniejsza kolizję (liczone w `swingBodies` → `s.alt`); gdy nie pomaga, rady o zawiasach nie ma |
 | `slepyrog:<nr szafki>:<strona fixu>:<fix mm>:<ciąg z narożnikiem albo ->` | „Ustaw szafkę w rogu”: w każdym poziomie kolumna od rogu dostaje fix na zasłoniętą część, jedne drzwi i zawias od zewnątrz (uchwyt przy fixie), a narożnik — płaską wstawkę; blok „Szafka w rogu do ustawienia” (`cornerPairMsgs`) pokazuje się, dopóki `slepyUstawiony(z)` nie jest spełnione, a kolizje otwierania w tym rogu czekają |

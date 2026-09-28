@@ -883,7 +883,9 @@ const utworzCiagZRogiem = (p, o) => {
     if (z && it) {
       const lv = it.cab.levels.map((l) => ({ ...l, cols: l.cols.map((c) => (c.fix && c.fix.w > 0
         ? { ...c, fix: { ...c.fix, w: Math.round(z.covered) } } : c)) }));
-      wynik.items = wynik.items.map((x, k) => (k === active ? { ...x, cab: { ...x.cab, levels: lv } } : x));
+      /* Nowy obiekt, nie zmiana w miejscu: uklad jest zapamietany przy obiekcie
+         projektu (`layoutCache`), wiec po podmianie `items` zostalby stary. */
+      return { ...wynik, items: wynik.items.map((x, k) => (k === active ? { ...x, cab: { ...x.cab, levels: lv } } : x)) };
     }
   }
   return wynik;
@@ -8896,6 +8898,18 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         run: () => editItemLevels(Number(idx), (L) => { L[+li].cols[+j].hinge = side; }),
       };
     }
+    if (action.startsWith("slepyfix:")) {
+      // „slepyfix:<nr szafki>:<strona fixu>:<szerokosc>" — sam fix, reszta zostaje
+      const [, idx, strona, w] = action.split(":");
+      return {
+        label: `Popraw fix na ${fmt(Number(w))} mm`,
+        run: () => editItemLevels(Number(idx), (L) => L.forEach((lv) => {
+          const j = strona === "left" ? 0 : lv.cols.length - 1;
+          const col = lv.cols[j];
+          if (col && col.fix && col.fix.side === strona) lv.cols[j] = { ...col, fix: { ...col.fix, w: Number(w) } };
+        })),
+      };
+    }
     if (action.startsWith("slepyrog:")) {
       // „slepyrog:<nr szafki>:<strona fixu>:<szerokosc fixu>:<ciag z narożnikiem albo ->"
       const [, idx, strona, w, ciag] = action.split(":");
@@ -10178,8 +10192,19 @@ const cornerPairMsgs = (n, blat) => {
         `Ślepy narożnik — szafka w rogu do ustawienia: ${kto} ma ${fmt(z.covered)} mm frontu zasłonięte przez ${za} `
         + `(do lica jego frontów i ${fmt(SLEPY_ZAPAS)} mm zapasu na uchwyt), do ręki zostaje ${fmt(z.free)} mm. `
         + `Proponuję: fix ${fmt(z.covered)} mm przy rogu, jedne drzwi na resztę z zawiasem od zewnętrznej `
-        + `strony (uchwyt przy fixie)${wsTxt}. Kolizje drzwi w tym rogu sprawdzę po ustawieniu.`
+        + `strony (uchwyt przy fixie)${wsTxt}.`
         + `|slepyrog:${z.cab.index}:${z.strona}:${z.covered}:${ws ? "-" : n.id}` });
+    } else if (slepyFixy(z).length) {
+      /* Fix jest, ale innej szerokosci niz zaslonieta czesc — wezszy znaczy,
+         ze drzwi wchodza za sasiedni ciag (uchwyt przy jego drzwiach), szerszy
+         zabiera frontu do reki. Jedna podpowiedz z przyciskiem. */
+      const inne = slepyFixy(z);
+      const wezszy = inne.some((w) => w < z.covered);
+      out.push({ level: wezszy ? "warn" : "info", text:
+        `Ślepy narożnik: ${kto} ma fix ${inne.map((w) => fmt(w)).join(" / ")} mm, a zasłonięte jest ${fmt(z.covered)} mm `
+        + `(do lica frontów ciągu „${z.other.run.name}" i ${fmt(SLEPY_ZAPAS)} mm zapasu na uchwyt)`
+        + (wezszy ? " — drzwi wchodzą za sąsiedni ciąg." : " — zostaje mniej frontu do ręki.")
+        + `|slepyfix:${z.cab.index}:${z.strona}:${Math.round(z.covered)}` });
     } else
       out.push({ level: "info", text:
         `Ślepy narożnik: ${kto} ma fix ${fmt(z.covered)} mm na zasłoniętą część `
@@ -10351,17 +10376,27 @@ const cornerPairMsgs = (n, blat) => {
 };
 
 /* Czy slepa szafka w rogu jest juz ustawiona: w kazdym poziomie kolumna od
-   strony rogu ma fix na zaslonieta czesc (±3 mm) i jedne drzwi. Dopoki nie,
-   uwagi pokazuja jeden blok z przyciskiem zamiast kolizji otwierania w rogu. */
+   strony rogu ma fix i jedne drzwi. Dopoki nie, uwagi pokazuja jeden blok
+   z przyciskiem. Szerokosc fixu sprawdza osobno `slepyFixy` — bez tolerancji:
+   kazda roznica od zaslonietej czesci to podpowiedz z przyciskiem (ustalone
+   z uzytkownikiem 2026-09-28; wczesniej ±3 mm uchodzilo za ustawione).
+   Kontroli kolizji to nie wstrzymuje — kolizje w rogu widac zawsze. */
+const slepaKolumna = (z, l) => {
+  const cols = l.cols || [];
+  return z.strona === "left" ? cols[0] : cols[cols.length - 1];
+};
 const slepyUstawiony = (z) => {
   const lv = (z.cab.cab.levels || []);
   return lv.length > 0 && lv.every((l) => {
-    const cols = l.cols || [];
-    const col = z.strona === "left" ? cols[0] : cols[cols.length - 1];
-    return !!col && col.fix && col.fix.side === z.strona
-      && Math.abs(Math.round(Number(col.fix.w) || 0) - z.covered) <= 3 && col.kind === "doors" && col.doors === 1;
+    const col = slepaKolumna(z, l);
+    return !!col && col.fix && col.fix.side === z.strona && Number(col.fix.w) > 0
+      && col.kind === "doors" && col.doors === 1;
   });
 };
+// szerokosci fixu, ktore roznia sie od zaslonietej czesci (po jednej na roznice)
+const slepyFixy = (z) => [...new Set((z.cab.cab.levels || [])
+  .map((l) => Math.round(Number((slepaKolumna(z, l) || {}).fix?.w) || 0))
+  .filter((w) => w !== Math.round(z.covered)))];
 
 const runCornerMsgs = (node, blat) => {
   if (!node) return [];
@@ -10591,8 +10626,9 @@ const openingMsgs = (L) => {
     if (rA !== rB) {
       const rog = [...L.info.values()].find((k) => k.corner && k.pair && !k.pair.armLen
         && ((k.id === rA && k.corner.of === rB) || (k.id === rB && k.corner.of === rA)));
-      // slepa szafka w tym rogu jeszcze nieustawiona — najpierw jej blok w uwagach
-      if (rog && rog.blind && rog.blind.free >= MIN_COL && !slepyUstawiony(rog.blind)) return;
+      /* Kolizje w rogu pokazujemy zawsze, takze przy nieustawionej szafce
+         w rogu (uzytkownik 2026-09-28: „kontrola kolizji nie powinna nigdy byc
+         blokowana”) — blok „do ustawienia” stoi obok nich. */
       if (rog) {
         const ws = rog.corner.wstawka;
         const cabRog = rog.pair.ustepuje.g.cabs[0];

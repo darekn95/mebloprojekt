@@ -597,3 +597,9 @@ zielona, i opisz je w BLEDY.md „Do decyzji”.
 [AI-INFO] Plecy za korpusem: `geo.plecyZa` / `geo.glebOdSciany`. W ukladzie
 ciagu (odleglosc od sciany) uzywaj `glebOdSciany`, w geometrii szafki dalej
 `carcassDepth` (formatki bokow sie nie zmieniaja). Szablon stojacej: 560.
+
+[AI-TODO] Kontrola kolizji otwierania dla WSZYSTKIEGO, co sie otwiera
+(uzytkownik 2026-09-28): drzwi (jest), szuflady przy wysuwaniu (dzis tylko
+jako przeszkoda), klapy do gory/w dol (brak), a potem wystajace sprzety
+w zabudowie (lodowka, piekarnik, mikrofala). `swingBodies` + `openingMsgs`.
+Nigdy nie wstrzymywac kontroli (ustalone).

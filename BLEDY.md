@@ -59,10 +59,13 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   przez ten wspornik (18 × 100 z przodu). Do wyboru: półka płytsza (za
   wspornikiem) albo węższa (do wspornika). Użytkownik nie rozpoznał przypadku —
   wytłumaczyć z rysunkiem. Suita `audyt` ma go jako „znane”.
-- **Tolerancja ±3 mm przy „szafka w rogu ustawiona”** (`slepyUstawiony`): fix
-  w zasłoniętej części uznajemy za ustawiony, gdy różni się od wyliczonego
-  o najwyżej 3 mm. Użytkownik zapytał, co to za zasada — do potwierdzenia albo
-  zmiany.
+- **Kontrola kolizji otwierania — cały zakres** (użytkownik 2026-09-28): ma
+  obejmować otwieranie WSZYSTKICH drzwi, klap i szuflad, a potem też wystające
+  sprzęty w zabudowie (lodówka, piekarnik, mikrofala itd.). Dziś liczymy
+  skrzydła drzwi przeciw wszystkiemu (korpusy, fronty, uchwyty, wysunięte
+  szuflady, wstawki); szuflady są tylko przeszkodą, same nie są sprawdzane
+  przy wysuwaniu; klapy nie są sprawdzane wcale; sprzętów jeszcze nie ma.
+  Do zaplanowania razem z kategorią „sprzęty”.
 
 - **Klapy do góry i w dół — do sprawdzenia przez użytkownika w innym terminie**
   (prośba 2026-09-28). Zrobione i w artefakcie (wersja 48), ale użytkownik
@@ -73,6 +76,12 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   jednym podnośniku, cena 10 zł, gęstość 680) już wprowadzone. Braki spisane w `AI_NOTES.md` ([AI-TODO] Klapy).
 
 ## Ustalone — nie ruszać
+
+- **Kontrola kolizji nigdy nie jest wstrzymywana** (2026-09-28): przy
+  nieustawionej szafce w rogu kolizje stoją obok bloku „do ustawienia”.
+- **Fix w ślepym rogu bez tolerancji** (2026-09-28): każda różnica od
+  zasłoniętej części daje podpowiedź z przyciskiem „Popraw fix na N mm”
+  (`slepyfix:`); szafka z fixem i jednymi drzwiami liczy się jako ustawiona.
 
 - **Ślepy róg** (2026-09-28): zasłonięta część frontu szafki w rogu = głębokość
   sąsiedniego ciągu + jego front + `SLEPY_ZAPAS` (30 mm) na uchwyt. U użytkownika
