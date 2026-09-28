@@ -4839,9 +4839,9 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                   frontColor={c.frontColor} levelDims={showDims && open && c.cab === activeCab} />
               </g>
             ))}
-            {/* Wstawka w rogu od przodu: plaska to pasek grubosci plyty przy boku,
+            {/* Wstawka w rogu od przodu i od tylu: plaska to pasek grubosci plyty przy boku,
                 szeroka — pas 60 mm; ta sama wysokosc co korpus. */}
-            {!rear && ((full.info.get(g.run.id) || {}).wstawki || []).map((w, i) => (
+            {((full.info.get(g.run.id) || {}).wstawki || []).map((w, i) => (
               <rect key={"ws" + i} data-el="wstawka"
                 x={mx(L.info.get(g.run.id).ex + w.u0, w.u1 - w.u0)} y={fy(w.z1)}
                 width={w.u1 - w.u0} height={w.z1 - w.z0}
@@ -4885,10 +4885,14 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                 </g>
               );
               const przodem = ar.length ? Math.min(...ar.map((a) => a.u0)) : n.lead;
+              // wstawka stoi przed bokiem sasiada i jest rysowana osobno
+              const ws = (full.info.get(g.run.id) || n).wstawki || [];
+              const wsStart = ws.filter((w) => w.naStarcie).reduce((a, w) => a + w.u, 0);
+              const wsKoniec = ws.filter((w) => !w.naStarcie).reduce((a, w) => a + w.u, 0);
               return (
                 <g>
-                  {n.lead > 0 && bok(0, Math.min(przodem, n.lead))}
-                  {n.tail > 0 && bok(n.len - n.tail, n.tail)}
+                  {n.lead > 0 && bok(0, Math.min(przodem, n.lead) - wsStart)}
+                  {n.tail > 0 && bok(n.len - n.tail + wsKoniec, n.tail - wsKoniec)}
                 </g>
               );
             })()}
@@ -6890,7 +6894,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   );
 }
 
-function RearView({ cab, geo, mat: matIn, showDims }) {
+function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const { H } = cab;
@@ -7063,6 +7067,11 @@ function RearView({ cab, geo, mat: matIn, showDims }) {
         fontFamily="ui-monospace, monospace">{label}</text>
       <text x={W / 2} y={H + 150 + rBelow} textAnchor="middle" fontSize="20" fill={LINE}
         fontFamily="ui-monospace, monospace">widok od tyłu — lewy bok szafki po prawej</text>
+      {/* wstawka w rogu przy boku — od tylu tez ja widac (lustro w poziomie) */}
+      {wstawkiSzafki(wstawki, geo).map((w, k) => (
+        <rect key={"ws" + k} data-el="wstawka" x={mx(w.x0, w.x1 - w.x0)} y={fy(w.H)} width={w.x1 - w.x0} height={w.H}
+          fill={mat.front.color} stroke={INK} strokeWidth="2" />
+      ))}
     </svg>
   );
 }
@@ -7649,7 +7658,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
   );
 }
 
-function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap }) {
+function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap, wstawki }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const sideRight = which === "right";
@@ -7937,6 +7946,12 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
       ))))}
       <text x={D / 2} y={H + 125} textAnchor="middle" fontSize="22" fill={LINE}
         fontFamily="ui-monospace, monospace">{sideRight ? "prawy bok" : "lewy bok"} — tył po lewej, przód po prawej</text>
+      {/* wstawka w rogu stoi na zewnatrz tego boku, w licu drzwi — zaslania
+          jego przednie `gl` mm na cala wysokosc korpusu */}
+      {wstawkiSzafki(wstawki, geo).filter((w) => w.lewa !== sideRight).map((w, k) => (
+        <rect key={"ws" + k} data-el="wstawka" x={frontFace - w.gl} y={fy(w.H)} width={w.gl} height={w.H}
+          fill={mat.front.color} stroke={INK} strokeWidth="2" opacity="0.9" />
+      ))}
     </svg>
   );
 }
@@ -10764,7 +10779,7 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
           {box("Widok z góry — wymiary i okucia",
             <TopView cab={cab} geo={geo} mat={mat} showDims showShelves showHardware arm={arm} wstawki={wstawki} />)}
           {box("Widok z tyłu — wymiary",
-            <RearView cab={cab} geo={geo} mat={mat} showDims />)}
+            <RearView cab={cab} geo={geo} mat={mat} showDims wstawki={wstawki} />)}
         </div>
       </section>
 
@@ -14525,14 +14540,14 @@ export default function App() {
                 </div>
               ) : view === "side" ? (
                 <SideView cab={cab} geo={geo} mat={mat} showDims={showDims} which={sideWhich}
-                  showHardware={showHardware}
+                  showHardware={showHardware} wstawki={wstawkiAktywnej}
                   wallGap={runInfo && showWall ? wallGapOf(runInfo.run, project.items[project.active]) : null} />
               ) : view === "top" ? (
                 <TopView cab={cab} geo={geo} mat={mat} showDims={showDims} showShelves={showShelves}
                   showHardware={showHardware} arm={cornerNode && cornerNode.arm} wstawki={wstawkiAktywnej}
                   blat={showBlat ? blatNadSzafka(project, projLayout, project.active, cornerNode && cornerNode.arm) : null} />
               ) : view === "rear" ? (
-                <RearView cab={cab} geo={geo} mat={mat} showDims={showDims} />
+                <RearView cab={cab} geo={geo} mat={mat} showDims={showDims} wstawki={wstawkiAktywnej} />
               ) : (
                 <FrontView cab={cab} geo={geo} mat={mat} open={view === "open"} showDims={showDims}
                   showGaps={showGaps} showLabels={showLabels} showHardware={showHardware}
