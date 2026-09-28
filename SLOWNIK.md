@@ -62,6 +62,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Luz między korpusami | `run.gap` |
 | Poziom montażu | `run.mountY` |
 | Narożnik / Luz w rogu | `run.corner = { of, at, owner, clear }` |
+| Kreator rogu („+ ciąg” przy istniejącym ciągu) | okienko `kreator` (`data-el="kreator-rogu"`): do którego ciągu, za/przed, kto w róg, szafka w rogu (ślepa z fixem / w L / bez), szerokość, ramię, wstawka, blat; tworzy `utworzCiagZRogiem(p, o)` (domyślne `KREATOR_DOMYSLNY`) |
 | Wstawka w rogu | `run.corner.wstawka = { typ: "plaska" \| "szeroka", w }` (`WSTAWKA_W` = 60); tylko bez szafki w L; w układzie `n.pair.wstawka` i `n.wstawki[]` ciągu, który ustępuje (u0/u1, v0/v1, z0/z1); formatka i okucia `wstawkaParts`; odsuwa ciąg o grubość frontu (płaska) albo `w` (szeroka) |
 | Wysokość i głębokość szafek (Wymiary i montaż) | `run.H`, `run.D` |
 | Cokół ciągu / Cokół pod szafkami / Podział cokołu | `run.plinth`, `runPlinth`, `runPlinthPanels` |
@@ -287,6 +288,7 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `fixh:` / `fixnl:` / `fixback:` / `fixnodoor:` | wysokość, NL prowadnicy, tył szuflady, kolumna bez drzwi |
 | `fixdiv:` / `fixsup:` / `fixcolauto:` | przegroda, wspornik, kolumna na automat |
 | `hingeflip:<lv>:<col>:<side>` | przekłada zawiasy na drugą stronę |
+| `slepyrog:<nr szafki>:<strona fixu>:<fix mm>:<ciąg z narożnikiem albo ->` | „Ustaw szafkę w rogu”: w każdym poziomie kolumna od rogu dostaje fix na zasłoniętą część, jedne drzwi i zawias od zewnątrz (uchwyt przy fixie), a narożnik — płaską wstawkę; blok „Szafka w rogu do ustawienia” (`cornerPairMsgs`) pokazuje się, dopóki `slepyUstawiony(z)` nie jest spełnione, a kolizje otwierania w tym rogu czekają |
 | `wstawka:<ciąg z narożnikiem>:<plaska\|szeroka>:<mm>` | przy kolizji otwierania między ciągami w rogu (bez szafki w L): „Dodaj wstawkę 18 mm”, a gdy płaska już jest — „Wstawka 60 mm (na trójkątach)”; obsługa w `runFix` przez `setCorner` |
 | `onedoor:<lv>:<col>:<szer>:<side>` | dwoje wąskich drzwi (każde < `WASKI_FRONT`, jedne ≤ `SZEROKI_FRONT`) zamienia na jedne z zawiasami z lewej/prawej; podpowiedź „dwoje wąskich drzwi” w `computeGeo` (nie w szafce narożnej ani przy rogu) |
 | `cornerdoor:<w>:<idx>` | ustawia jedne drzwi szafki narożnej na podaną szerokość |
@@ -332,6 +334,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `formatki` | **audyt**: każda płyta z rysunku 3D (szafka i zabudowa) ma parę w formatkach szafki/projektu — drzwi, szuflady, fix ze wspornikiem, fix u góry, blendy, maskownica wycięcia, plecy z płyty, przegrody, ciąg z blatem i cokołem, szablony (w tym szafka w L); ramię w liście szafki narożnej |
 | `wstawka` | wstawka w rogu: przyciski przy kolizji, formatka 720 × 60 w liście szafki i projektu, wkręty/trójkąty, rzut 18 × 60 / 60 × 18, elewacja, odsunięcie ciągu o 18/60, pole w Narożniku, brak przy szafce w L |
 | `gorne` | ciągi górne w L: górny drugiej ściany wisi na niej (bez kolizji z górnym pierwszej), odsunięcie 300 w rogu, gdy górny ściany wjeżdżającej sięga rogu; „+ szafka” bierze H/D/cokół ciągu (górny 300, dolny 570) |
+| `kreator` | kreator rogu: ślepa szafka 1000 z fixem 618 od rogu, jedne drzwi, zawias od zewnątrz, wstawka płaska — bez bloku „do ustawienia”; szafka w L 900 + ramię 630 bez wstawki; osobny ciąg; przycisk „Ustaw szafkę w rogu” w istniejącym projekcie |
 | `odsuniecie` | odsunięcie od ściany: głębokość blatu, wysięg przed drzwi (10 / <10 uwaga / >30 ostrzeżenie), krzywa ściana w widoku z boku, róg przesunięty o odstęp, wyjątek jednej szafki |
 | `hw2` / `cokol` / `cokolstd` / `ceny` / `ceny2` | okucia, cokół, cennik |
 | `ciag`…`ciag10` | ciągi: zakładanie, rozjazdy, cokół ciągu, światła |

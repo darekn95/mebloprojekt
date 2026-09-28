@@ -17,7 +17,12 @@ const PL = { on: true, height: 100, mode: 'under', setback: 0 };
 const CAB = (name, W, runId, o = {}) => ({ cab: { name, W, H: 720, D: 570, plinth: PL, legs: { on: true, height: 100 },
   levels: [{ h: null, cols: [{ kind: 'doors', doors: W > 600 ? 2 : 1, w: null }] }], ...o }, runId, offset: 0 });
 const RUN = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 570, plinth: PL, worktop: false, corner: null, ...o });
-const seed = async (wstawka, active = 1, rogowa = {}) => {
+/* Szafka w rogu ustawiona jak po „Ustaw szafkę w rogu”: fix 618 od rogu
+   (570 + 18 + 30), jedne drzwi, zawias od zewnatrz — dopiero wtedy kolizje
+   w rogu wracaja do uwag razem z przyciskami wstawki (od 2026-09-28). */
+const USTAWIONA = { levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null,
+  fix: { side: 'left', w: 618, mode: 'overlay', support: false }, hinge: 'right' }] }] };
+const seed = async (wstawka, active = 1, rogowa = USTAWIONA) => {
   await page.evaluate((p) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(p)); }, {
     name: 'W', active, prices: {},
     runs: [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0, wstawka } })],

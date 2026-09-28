@@ -41,7 +41,8 @@ const blatRow = rows.find(r => /^Blat/.test(r)) || '';
 console.log('  formatka blatu:', blatRow);
 ok('blat jest osobną formatką', !!blatRow);
 ok('szerokość blatu = 600 + 50 + 50', /\| 700 \|/.test(blatRow), blatRow.split('|')[2]?.trim());
-ok('głębokość blatu = 500 + 30 + 20', /\| 550 \|/.test(blatRow), blatRow.split('|')[3]?.trim());
+// szablon „Szafka stojąca” ma od 2026-09-28 570 w głąb (standard pod blat 600)
+ok('głębokość blatu = 570 + 30 + 20', /\| 620 \|/.test(blatRow), blatRow.split('|')[3]?.trim());
 ok('wieniec zniknął z listy', !rows.some(r => /Dno \/ wieniec|^Wieniec/.test(r)));
 ok('dno zostało osobno', rows.some(r => /^Dno/.test(r)), (rows.find(r => /^Dno/.test(r)) || '').slice(0, 50));
 

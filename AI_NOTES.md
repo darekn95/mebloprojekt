@@ -552,13 +552,11 @@ zeby nie odtwarzac ustalen od nowa:
   przy ostatniej szafce sciany 1); plaska 18 × 60 na wkrety 4 × 30 co 200,
   szeroka 60 licem na trojkatach (po 2 z kazdej strony), szeroka oklejona
   tylko od dolu. Szczegoly w BLEDY.md „Ustalone — nie ruszac”.
-- Pomysl 1 (najwazniejszy): slepa szafka w rogu powinna od razu miec fix na
-  zaslonieta czesc (`col.fix = { side, w }`, formatka „Element stały (fix)”)
-  i drzwi na reszte. Dzis uwaga mowi tylko „drzwi rob na te szerokosc, reszta
-  jest slepa (fix)” — brak przycisku. Propozycja: przycisk „Fix N mm + drzwi
-  M mm” w uwadze o slepym narozniku (N = `z.covered`, strona = od rogu). Do
-  sprawdzenia z uzytkownikiem: czy fix idzie na cala wysokosc drzwi, czy
-  drzwi dzielic (1 czy 2 skrzydla), gdzie zawias (od strony fixu?).
+- ZROBIONE 2026-09-28 (pomysl 1): przycisk „Ustaw szafkę w rogu” (akcja
+  `slepyrog:`) i kreator rogu przy „+ ciąg” (`utworzCiagZRogiem`) — fix na
+  zaslonieta czesc, jedne drzwi, zawias od zewnatrz, uchwyt przy fixie,
+  wstawka plaska. Gdy 18 mm nie wystarcza (np. uchwyt szafki w rogu na drodze
+  skrzydla sasiada), zostaje kolizja z przyciskiem „Wstawka 60 mm”.
 - Pomysl 2: zawiasy drzwi przy rogu domyslnie po stronie dalszej od rogu
   (skrzydlo otwiera sie od rogu) — dzis kolizje otwierania czesto znikaja po
   „Przełóż zawiasy”. Mozna to proponowac automatycznie przy dodaniu szafki

@@ -768,6 +768,80 @@ const makeUpperRun = (runs, dolny, mountY) => ({
   offset: 0, offsetFrom: "left",
 });
 
+/* ---------- kreator rogu ----------
+   Drugi ciag pod katem prostym do pierwszego razem z gotowa szafka w rogu —
+   bez szukania pol po kartach (prosba uzytkownika 2026-09-28). Te same reguly
+   co przycisk „Ustaw szafke w rogu”: slepa szafka dostaje fix na zaslonieta
+   czesc (glebokosc sasiada + front + SLEPY_ZAPAS), jedne drzwi z zawiasem od
+   zewnatrz (uchwyt przy fixie), a narożnik — wstawke. Szafka w L bierze
+   szablon „Narożnik L” z podana szerokoscia i ramieniem.
+   o = { of, at, owner, szafka: "slepa" | "L" | "brak", W, arm, wstawka: null |
+   "plaska" | "szeroka", top: null | "of" | "self" } */
+const KREATOR_DOMYSLNY = { at: "end", owner: "self", szafka: "slepa", W: 1000, arm: CORNER_L_ARM,
+  wstawka: "plaska", top: null };
+const utworzCiagZRogiem = (p, o) => {
+  const runs = p.runs || [];
+  const rodzic = runs.find((r) => r.id === o.of);
+  if (!rodzic) return p;
+  const L = o.szafka === "L";
+  const nowy = { ...makeRun(runs), corner: migrateCorner({ of: o.of, at: o.at, owner: o.owner, clear: 0,
+    top: o.top || null, wstawka: !L && o.wstawka ? { typ: o.wstawka, w: WSTAWKA_W } : null }) };
+  let items = [...p.items];
+  let active = p.active;
+  if (o.szafka !== "brak") {
+    const doNowego = o.owner === "self";                 // szafka stoi w ciagu, ktory wjezdza w rog
+    const cel = doNowego ? nowy : rodzic;
+    const inny = doNowego ? rodzic : nowy;
+    // rog na poczatku ciagu docelowego: nowy ciag zaczyna sie w rogu, gdy stoi „za tamtym"
+    const rogNaStarcie = doNowego ? o.at === "end" : o.at !== "end";
+    const W = Math.max(MIN_COL, Math.round(Number(o.W) || 0));
+    let cab;
+    if (L) {
+      cab = { ...makeFromTemplate("naroznikL"), W };
+      cab.corner = { ...cab.corner, arm: Math.max(0, Math.round(Number(o.arm) || CORNER_L_ARM)) };
+    } else {
+      cab = { ...makeFromTemplate("stojaca"), W };
+      const strona = rogNaStarcie ? "left" : "right";
+      const glInnego = (inny.D != null ? inny.D : (cel.D != null ? cel.D : CORNER_L_D))
+        + wallGapOf(inny, null).bottom;
+      const fixW = Math.min(W, glInnego + defaultMaterials.front.thickness + SLEPY_ZAPAS);
+      cab.levels = cab.levels.map((lv) => {
+        const cols = [...lv.cols];
+        const j = strona === "left" ? 0 : cols.length - 1;
+        cols[j] = { ...cols[j], kind: "doors", doors: 1, doorWidths: [],
+          fix: { ...(cols[j].fix || {}), side: strona, w: fixW, mode: "overlay", support: false },
+          hinge: strona === "left" ? "right" : "left" };
+        return { ...lv, cols };
+      });
+    }
+    // wymiary i sposob stania ciagu docelowego, jak przy „+ szafka”
+    if (cel.H != null) cab.H = cel.H;
+    if (cel.D != null && !L) cab.D = cel.D;
+    if (cel.plinth) cab.plinth = { ...cel.plinth };
+    cab.legs = { ...(cab.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true };
+    cab.hangerMode = cel.hangerMode || "listwa";
+    if (cel.worktop) Object.assign(cab, bezWienca(cab, defaultMaterials.front.thickness));
+    const nums = items.map((it) => { const m = /^Szafka (\d+)$/.exec((it.cab.name || "").trim()); return m ? Number(m[1]) : 0; });
+    cab.name = `Szafka ${Math.max(0, ...nums) + 1}`;
+    const nowa = { cab, mat: defaultMaterials, runId: cel.id, offset: 0 };
+    // w ciagu docelowym: pierwsza, gdy rog jest na jego poczatku, inaczej ostatnia
+    const wCelu = items.map((it, k) => ((it.runId || null) === cel.id ? k : -1)).filter((k) => k >= 0);
+    const at = !wCelu.length ? items.length : rogNaStarcie ? wCelu[0] : wCelu[wCelu.length - 1] + 1;
+    items = [...items.slice(0, at), nowa, ...items.slice(at)];
+    active = at;
+  }
+  // szafka w L potrzebuje glebokosci drugiego ciagu od razu (jak szablon)
+  const nowyD = L && o.owner !== "self" ? { ...nowy, D: nowy.D || CORNER_L_D } : nowy;
+  const wynik = { ...p, runs: [...runs, nowyD], items, active };
+  // ciag bez wymiarow przejmuje je od pierwszej szafki (jak withRunDefaults)
+  wynik.runs = wynik.runs.map((r) => {
+    if (r.H != null) return r;
+    const pierwsza = wynik.items.find((it) => it.runId === r.id);
+    return pierwsza ? { ...r, H: pierwsza.cab.H, D: pierwsza.cab.D, plinth: pierwsza.cab.plinth ? { ...pierwsza.cab.plinth } : null } : r;
+  });
+  return wynik;
+};
+
 /* Nazwa z pietrem — sama „Ściana 1" przestaje wystarczac, gdy ma dwa ciagi. */
 const runLabel = (runs, run) => {
   const dolny = run.tier === "gorny" ? (runs || []).find((r) => r.id === run.wall) : run;
@@ -3774,6 +3848,7 @@ const runLayout = (groups, ref = null) => {
     const free = c.geo.W - covered;
     const u0 = przyStarcie ? w.lead : w.lead + w.total - covered;
     const z = { cab: c, covered, zaslania, free, run: w, other, u0, u1: u0 + covered,
+      strona: przyStarcie ? "left" : "right",
       freeU0: przyStarcie ? u0 + covered : u0 - free };
     /* Polozenie wstawki liczymy dopiero tu, gdy znane sa juz ostateczne
        odsuniecia ciagow. Lico korpusu to glebokosc ciagu plus wysuniecie szafki;
@@ -8375,6 +8450,23 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
           corner: { ...(c.corner || {}), arm: Number(len) } })),
       };
     }
+    if (action.startsWith("slepyrog:")) {
+      // „slepyrog:<nr szafki>:<strona fixu>:<szerokosc fixu>:<ciag z narożnikiem albo ->"
+      const [, idx, strona, w, ciag] = action.split(":");
+      return {
+        label: `Ustaw szafkę w rogu: fix ${fmt(Number(w))} mm + drzwi${ciag !== "-" ? " + wstawka 18 mm" : ""}`,
+        run: () => {
+          editItemLevels(Number(idx), (L) => L.forEach((lv) => {
+            const j = strona === "left" ? 0 : lv.cols.length - 1;
+            lv.cols[j] = { ...lv.cols[j], kind: "doors", doors: 1, doorWidths: [],
+              fix: { ...((lv.cols[j] || {}).fix || {}), side: strona, w: Number(w), mode: "overlay", support: false },
+              // zawias od zewnatrz, czyli po stronie przeciwnej do fixu — uchwyt wypada przy fixie
+              hinge: strona === "left" ? "right" : "left" };
+          }));
+          if (ciag !== "-" && runFix) runFix(`wstawka:${ciag}:plaska:18`);
+        },
+      };
+    }
     if (action.startsWith("cornerdoor:")) {
       const [, w, idx] = action.split(":");
       return {
@@ -9608,11 +9700,23 @@ const cornerPairMsgs = (n, blat) => {
         `Ślepy narożnik: ${kto} ma ${fmt(z.covered)} mm frontu zasłonięte przez ${za} `
         + `(do lica jego frontów i ${fmt(SLEPY_ZAPAS)} mm zapasu na uchwyt), `
         + `zostaje ${fmt(z.free)} mm — na drzwi to za mało. Poszerz szafkę albo zrób z niej szafkę narożną.` });
-    else
+    else if (!slepyUstawiony(z)) {
+      /* Najpierw rog, potem reszta: jeden blok z tym, co trzeba zrobic, i jednym
+         przyciskiem — fix na zaslonieta czesc, jedne drzwi z zawiasem od
+         zewnatrz (uchwyt przy fixie) i wstawka przy szafce drugiego ciagu.
+         Kolizje otwierania w tym rogu czekaja, az to bedzie ustawione. */
+      const ws = n.corner && n.corner.wstawka;
+      const wsTxt = ws ? "" : ", wstawka 18 mm przy szafce ciągu „" + z.other.run.name + "”";
+      out.push({ level: "warn", text:
+        `Ślepy narożnik — szafka w rogu do ustawienia: ${kto} ma ${fmt(z.covered)} mm frontu zasłonięte przez ${za} `
+        + `(do lica jego frontów i ${fmt(SLEPY_ZAPAS)} mm zapasu na uchwyt), do ręki zostaje ${fmt(z.free)} mm. `
+        + `Proponuję: fix ${fmt(z.covered)} mm przy rogu, jedne drzwi na resztę z zawiasem od zewnętrznej `
+        + `strony (uchwyt przy fixie)${wsTxt}. Kolizje drzwi w tym rogu sprawdzę po ustawieniu.`
+        + `|slepyrog:${z.cab.index}:${z.strona}:${z.covered}:${ws ? "-" : n.id}` });
+    } else
       out.push({ level: "info", text:
-        `Ślepy narożnik: ${kto} ma ${fmt(z.covered)} mm frontu zasłonięte przez ${za} `
-        + `(do lica jego frontów i ${fmt(SLEPY_ZAPAS)} mm zapasu na uchwyt), `
-        + `do ręki zostaje ${fmt(z.free)} mm. Drzwi rób na tę szerokość, reszta korpusu jest ślepa (fix).` });
+        `Ślepy narożnik: ${kto} ma fix ${fmt(z.covered)} mm na zasłoniętą część `
+        + `(do lica frontów ciągu „${z.other.run.name}" i ${fmt(SLEPY_ZAPAS)} mm zapasu), drzwi na pozostałe ${fmt(z.free)} mm.` });
   }
   /* Szafka narozna w L: zamiast chowac front za sasiadem, korpus wychodzi
      ramieniem na druga sciane i oba fronty spotykaja sie w rogu. */
@@ -9777,6 +9881,19 @@ const cornerPairMsgs = (n, blat) => {
         + "Widoczne czoło ma wtedy ten przechodzący — ustaw to tak, żeby wypadło od strony, z której się patrzy." });
   }
   return out;
+};
+
+/* Czy slepa szafka w rogu jest juz ustawiona: w kazdym poziomie kolumna od
+   strony rogu ma fix na zaslonieta czesc (±3 mm) i jedne drzwi. Dopoki nie,
+   uwagi pokazuja jeden blok z przyciskiem zamiast kolizji otwierania w rogu. */
+const slepyUstawiony = (z) => {
+  const lv = (z.cab.cab.levels || []);
+  return lv.length > 0 && lv.every((l) => {
+    const cols = l.cols || [];
+    const col = z.strona === "left" ? cols[0] : cols[cols.length - 1];
+    return !!col && col.fix && col.fix.side === z.strona
+      && Math.abs(Math.round(Number(col.fix.w) || 0) - z.covered) <= 3 && col.kind === "doors" && col.doors === 1;
+  });
 };
 
 const runCornerMsgs = (node, blat) => {
@@ -9981,6 +10098,8 @@ const openingMsgs = (L) => {
     if (rA !== rB) {
       const rog = [...L.info.values()].find((k) => k.corner && k.pair && !k.pair.armLen
         && ((k.id === rA && k.corner.of === rB) || (k.id === rB && k.corner.of === rA)));
+      // slepa szafka w tym rogu jeszcze nieustawiona — najpierw jej blok w uwagach
+      if (rog && rog.blind && rog.blind.free >= MIN_COL && !slepyUstawiony(rog.blind)) return;
       if (rog) {
         const ws = rog.corner.wstawka;
         const cabRog = rog.pair.ustepuje.g.cabs[0];
@@ -11007,6 +11126,21 @@ export default function App() {
   }, [undo, redo]);
 
   const [transfer, setTransfer] = useState(null); // { mode:'export'|'import', text }
+  /* Kreator rogu: przy drugim i kolejnym ciagu „+ ciąg” pyta, czy nowy ciag
+     stoi pod katem prostym do ktoregos z dolnych, i od razu stawia szafke
+     w rogu. Pierwszy ciag dodaje sie jak dotad. */
+  const [kreator, setKreator] = useState(null);
+  const dolneCiagi = (project.runs || []).filter((r) => r.tier !== "gorny");
+  const otworzKreator = () => {
+    if (!dolneCiagi.length) { addRun(); return; }
+    setKreator({ ...KREATOR_DOMYSLNY, rog: true, of: dolneCiagi[dolneCiagi.length - 1].id });
+  };
+  const utworzZKreatora = () => {
+    const o = kreator;
+    setKreator(null);
+    if (!o.rog) { addRun(); return; }
+    setProject((p) => utworzCiagZRogiem(p, o));
+  };
 
   /* „Wyslij do Claude" — TYLKO w artefakcie na claude.ai. Tam strona dostaje
      wspolny magazyn artefaktu (`db`) i zapisuje w nim biezacy projekt, a Claude
@@ -12144,7 +12278,7 @@ export default function App() {
               );
             })}
             <div className="flex flex-wrap items-center gap-1.5">
-              <button onClick={addRun} title="Nowy ciąg — szafki stojące obok siebie przy jednej ścianie"
+              <button onClick={otworzKreator} title="Nowy ciąg — szafki stojące obok siebie przy jednej ścianie; przy kolejnym ciągu kreator zapyta o narożnik"
                 className="rounded-full border border-dashed border-stone-400 px-3 py-1 text-xs font-medium text-stone-500 hover:border-stone-500 hover:text-stone-700">
                 + ciąg
               </button>
@@ -14689,6 +14823,84 @@ export default function App() {
         </div>
       )}
 
+      {kreator && (() => {
+        const k = kreator;
+        const zm = (patch) => setKreator((c) => ({ ...c, ...patch }));
+        const nazwaOf = (dolneCiagi.find((r) => r.id === k.of) || {}).name || "";
+        const pole = "w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-teal-600 focus:outline-none";
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4"
+            onClick={() => setKreator(null)}>
+            <div className="w-full max-w-lg space-y-3 rounded-lg bg-white p-4 shadow-xl" data-el="kreator-rogu"
+              onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-sm font-semibold text-stone-800">Nowy ciąg</h3>
+              <Seg value={k.rog ? "rog" : "osobno"} onChange={(v) => zm({ rog: v === "rog" })}
+                options={[{ v: "rog", l: "Pod kątem prostym (narożnik)" }, { v: "osobno", l: "Osobny ciąg" }]} />
+              {k.rog && (
+                <div className="space-y-2">
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] text-stone-400">Do którego ciągu</span>
+                    <select value={k.of} onChange={(e) => zm({ of: e.target.value })} className={pole}>
+                      {dolneCiagi.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                  </label>
+                  <Seg value={k.at} onChange={(v) => zm({ at: v })}
+                    options={[{ v: "end", l: `Za „${nazwaOf}”` }, { v: "start", l: `Przed „${nazwaOf}”` }]} />
+                  <Seg value={k.owner} onChange={(v) => zm({ owner: v })}
+                    options={[{ v: "self", l: "Nowy ciąg w róg" }, { v: "of", l: `„${nazwaOf}” w róg` }]} />
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] text-stone-400">Szafka w rogu</span>
+                    <select value={k.szafka} onChange={(e) => zm({ szafka: e.target.value,
+                      W: e.target.value === "L" ? CORNER_L_W : (k.W === CORNER_L_W ? 1000 : k.W) })} className={pole}>
+                      <option value="slepa">ślepa z fixem — fix na zasłoniętą część, jedne drzwi</option>
+                      <option value="L">w L z ramieniem na drugą ścianę</option>
+                      <option value="brak">bez szafki (dołożę sam)</option>
+                    </select>
+                  </label>
+                  {k.szafka !== "brak" && (
+                    <div className="flex gap-2">
+                      <label className="block flex-1">
+                        <span className="mb-1 block text-[11px] text-stone-400">Szerokość szafki</span>
+                        <Num value={k.W} min={MIN_COL} onChange={(v) => zm({ W: Math.round(Number(v) || 0) })} />
+                      </label>
+                      {k.szafka === "L" && (
+                        <label className="block flex-1">
+                          <span className="mb-1 block text-[11px] text-stone-400">Ramię</span>
+                          <Num value={k.arm} min={0} onChange={(v) => zm({ arm: Math.round(Number(v) || 0) })} />
+                        </label>
+                      )}
+                    </div>
+                  )}
+                  {k.szafka !== "L" && (
+                    <label className="block">
+                      <span className="mb-1 block text-[11px] text-stone-400">Wstawka w rogu</span>
+                      <select value={k.wstawka || ""} onChange={(e) => zm({ wstawka: e.target.value || null })} className={pole}>
+                        <option value="">brak</option>
+                        <option value="plaska">płaska — grubość płyty, na wkręty</option>
+                        <option value="szeroka">szeroka — 60 mm licem, na trójkąty</option>
+                      </select>
+                    </label>
+                  )}
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] text-stone-400">Blat przez róg</span>
+                    <select value={k.top || ""} onChange={(e) => zm({ top: e.target.value || null })} className={pole}>
+                      <option value="">jak szafki (przechodzi ciąg, który wjeżdża w róg)</option>
+                      <option value="of">{`przechodzi „${nazwaOf}”`}</option>
+                      <option value="self">przechodzi nowy ciąg</option>
+                    </select>
+                  </label>
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <button onClick={() => setKreator(null)}
+                  className="rounded border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:bg-stone-50">Anuluj</button>
+                <button onClick={utworzZKreatora}
+                  className="rounded bg-teal-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-800">Utwórz ciąg</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       {transfer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4"
           onClick={() => setTransfer(null)}>
