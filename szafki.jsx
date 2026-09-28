@@ -4527,9 +4527,12 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
               {/* front szuflady zostaje na miejscu, tylko przygaszony */}
               <rect x={X} y={fy(d.y + d.h)} width={d.w} height={d.h}
                 fill={ff} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
-              <line x1={X + d.w * 0.25} x2={X + d.w * 0.75}
-                y1={fy(d.y + d.h - Math.min(50, d.h / 2))} y2={fy(d.y + d.h - Math.min(50, d.h / 2))}
-                stroke={INK} strokeWidth="5" opacity="0.5" />
+              {/* jak w widoku samej szafki: uchwyt, a bez uchwytu kreska */}
+              {d.handle && uchwytOut(d, cab) > 0 ? <UchwytElewacja d={d} fy={fy} dx={X - d.x} /> : (
+                <line x1={X + d.w * 0.25} x2={X + d.w * 0.75}
+                  y1={fy(d.y + d.h - Math.min(50, d.h / 2))} y2={fy(d.y + d.h - Math.min(50, d.h / 2))}
+                  stroke={INK} strokeWidth="5" opacity="0.5" />
+              )}
             </g>
           ) : (
             <g key={d.key}>
@@ -4541,6 +4544,11 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
                 fill="none" stroke={INK} strokeWidth="1.8" opacity="0.5" />
               <rect x={hinge === "right" ? X + d.w - geo.tf : X} y={fy(d.y + d.h)}
                 width={geo.tf} height={d.h} fill={ff} stroke={INK} strokeWidth="2" />
+              {d.handle && uchwytOut(d, cab) > 0 && (() => {
+                const ob = uchwytObrys(d), out = uchwytOut(d, cab);
+                return <rect data-el="uchwyt-otwarte" x={hinge === "right" ? X + d.w : X - out}
+                  y={fy(ob.y1)} width={out} height={ob.y1 - ob.y0} rx="3" fill="#52525b" opacity="0.9" />;
+              })()}
               {showHardware && (d.hingePts || []).map((hy, hi2) => (
                 <rect key={`hg${hi2}`} x={mx(d.hingeX, HINGE_W)} y={fy(hy + HINGE_H / 2)}
                   width={HINGE_W} height={HINGE_H} rx="3" fill="#71717a" stroke={INK} strokeWidth="1.5" />
