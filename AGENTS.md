@@ -42,8 +42,11 @@
   - po zmianie tylko suity z tego obszaru (2–5 suit, ok. 1 min; spis w `SLOWNIK.md`);
   - zapis na gałąź roboczą na bieżąco — bez pełnych testów, to kopia bezpieczeństwa
     (kontener jest tymczasowy);
-  - **pełny przebieg i scalenie do `main`** (publikacja na GitHub Pages) — tylko na
-    żądanie użytkownika albo w czasie jego dłuższej nieobecności;
+  - **scalenie do `main`** (publikacja na GitHub Pages) — **wyłącznie na wyraźną
+    prośbę użytkownika** w danej chwili, także gdy testy są zielone (zasada ogólna,
+    2026-09-29). Zgoda na jedno scalenie nie obejmuje następnych. Zmiany czekają
+    na gałęzi roboczej; nowego PR też nie otwieraj bez prośby;
+  - pełny przebieg testów — na żądanie użytkownika albo przed scaleniem;
   - pełny przebieg to `bash testy/pelny.sh`: wszystko szybko, a wolno (`PW_WOLNO=1`)
     powtarza tylko suity z błędem i mówi, czy to prawdziwy błąd, czy fałszywy
     alarm z czekania (ten poprawia się w `testy/pw.mjs`, nie w aplikacji);

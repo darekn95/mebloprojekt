@@ -87,6 +87,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Ustalone — nie ruszać
 
+- **Wycięcie w narożniku a formatka boku** (2026-09-29): wycięcie na całą wysokość boku → zamawiamy krótszą formatkę (zmienia rozkrój); wycięcie tylko na części wysokości (jeden poziom wysokiej szafki) → bok w całości, bez zmiany rozkroju (`registerCorner`, `fullHeight`).
+- **Scalanie do `main`** tylko na wyraźną prośbę użytkownika (AGENTS.md).
 - **Rozkrój automatyczny** (2026-09-29): 1 s po ostatniej zmianie formatek (lista formatek z płytą i kolorem); jeśli okaże się zauważalny — wydłużyć `ROZKROJ_ZWLOKA`. Każda karta ma zwijanie.
 - **Obrzeże** (2026-09-29): materiał do 1 mm + 9 cm na każdy oklejany bok (zapas oklejarki); usługa oklejania od tej okleiny z zapasem, w górę do pełnego metra (przykłady rozliczenia firmy). Zawieszki ZK-ZAW-R0-10 przykręcane 2 wkrętami 4 × 30, bez wiercenia, na samej górze pod wieńcem, 1 cm od pleców; od 900 mm dodatkowa na przegrodzie pionowej (po jednej na przegrodę, najwyżej dwie), para trzyma 95 kg. Półki: kołki, konfirmaty albo trójkąty meblowe.
 - **Górna szafka w L** (2026-09-29): szablon 650 × 720 × 300, ramię 350; wzmocnienie tylne A albo B (B tylko przy wieńcu); zawieszki A: bok korpusu + bok ramienia, B: obie w części ramienia albo obie w części szafki; pod zawieszką ramienia listwa (domyślnie) albo hak. Koniec blatu przy ścianie oklejany zawsze. Blat 1200: 1128,22 zł brutto.
