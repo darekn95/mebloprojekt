@@ -48,8 +48,9 @@ ok('zawieszki przy braku nóżek i cokołu', qty(rows, 'Zawieszka') === 2, Strin
 // pojedyncza szafka wisi domyslnie na haczykach — listwa dopiero w ciagu
 ok('domyślnie haczyki, bez listwy', qty(rows, 'Hak') > 0 && qty(rows, 'Listwa') === null,
   `haki ${qty(rows, 'Hak')}, listwa ${qty(rows, 'Listwa')}`);
-// 4. wkretow nie liczymy — ida w komplecie z zawiasem i prowadnica
-ok('brak osobnej pozycji na wkręty', qty(rows, 'Wkręt') === null, String(qty(rows, 'Wkręt')));
+// 4. wkrety do zawiasow i prowadnic ida w komplecie; osobno tylko 4 × 30 do zawieszek
+//    (2 na zawieszke, uzytkownik 2026-09-29)
+ok('wkręty 4 × 30 tylko do zawieszek: 2 × 2', qty(rows, 'Wkręt') === 4, String(qty(rows, 'Wkręt')));
 // 5. plecy HDF przybijane
 ok('zszywki do pleców', qty(rows, 'Zszywka') > 0, String(qty(rows, 'Zszywka')));
 

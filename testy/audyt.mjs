@@ -89,12 +89,21 @@ const nachodzi = (sol) => {
 // 2. formatki ↔ plyty: ile plyt o wymiarach formatki (±3 mm, dowolnie obrocone)
 const pasuje = (p, s) => { const [, q, r] = [...s.d].sort((x, y) => x - y).map(Math.round);
   return (Math.abs(p.a - q) <= 3 && Math.abs(p.b - r) <= 3) || (Math.abs(p.a - r) <= 3 && Math.abs(p.b - q) <= 3); };
-const bezPlyty = (parts, sol, pomin) => {
+/* Polka z wycietym tylnym rogiem (wzmocnienie tylne B w szafce w L) to w bryle
+   dwa prostopadlosciany: pas na cala szerokosc i reszta obok wyciecia. */
+const czesci = (parts) => parts.flatMap((p) => {
+  const m = /wycięty tylny róg (\d+) × (\d+)/.exec(p.name);
+  if (!m) return [p];
+  const nw = Number(m[1]), nd = Number(m[2]);
+  return [{ ...p, name: p.name + ' (pas)', b: p.b - nd }, { ...p, name: p.name + ' (obok wycięcia)', a: p.a - nw, b: nd }];
+});
+const bezPlyty = (parts0, sol, pomin) => {
   const pl = plyty(sol);
+  const parts = czesci(parts0);
   return parts.filter((p) => !pomin.test(p.name)).map((p) => ({ p, ile: pl.filter((s) => pasuje(p, s)).length }))
     .filter((x) => x.ile < x.p.qty).map((x) => `${x.p.name} ${x.p.a}×${x.p.b}: ${x.ile} z ${x.p.qty}`);
 };
-const bezFormatki = (parts, sol) => plyty(sol).filter((s) => !parts.some((p) => pasuje(p, s)
+const bezFormatki = (parts, sol) => plyty(sol).filter((s) => !czesci(parts).some((p) => pasuje(p, s)
   || (/^Cokół/.test(p.name) && Math.abs(p.b - [...s.d].sort((x, y) => x - y)[1]) <= 3))).map(opis);
 // 3. suma list
 const suma = (lists, key) => { const m = new Map(); lists.flat().forEach((r) => m.set(key(r), (m.get(key(r)) || 0) + r.qty)); return m; };
@@ -229,8 +238,24 @@ await scenariusz('górne ciągi w L', projekt([
 [run('c1', 'Ściana 1'), run('c2', 'Ściana 2', { corner: rog({ owner: 'of' }) }),
   run('c3', 'Ściana 1', { tier: 'gorny', wall: 'c1', D: 300, mountY: 1358, worktop: false, plinth: null }),
   run('c4', 'Ściana 2', { tier: 'gorny', wall: 'c2', D: 300, mountY: 1358, worktop: false, plinth: null })]));
+/* Gorna szafka w L (2026-09-29): para gornych ciagow dostaje narożnik jak dolna,
+   gdy w rogu wisi szafka z ramieniem — w rog wjezdza ten gorny ciag, w ktorym
+   ona stoi, a ciag konczacy sie w rogu dosuwa sie do niego. */
+const GL = (post) => wisz('GL', { W: 650, corner: { on: true, arm: 350, doors: 'wsporniki', ...(post ? { post } : {}) }, levels: [{ h: null, cols: [kol({ doors: 1 })] }] });
+const RUNY_G = [run('c1', 'Ściana 1'), run('c2', 'Ściana 2', { corner: rog({ owner: 'of' }) }),
+  run('c3', 'Ściana 1', { tier: 'gorny', wall: 'c1', D: 300, mountY: 1358, worktop: false, plinth: null }),
+  run('c4', 'Ściana 2', { tier: 'gorny', wall: 'c2', D: 300, mountY: 1358, worktop: false, plinth: null })];
+await scenariusz('górna szafka w L: ściana 1 wjeżdża w róg', projekt([
+  [szafka('D1'), 'c1'], [szafka('D2', USTAWIONA_P), 'c1'], [szafka('D3'), 'c2'],
+  [wisz('G1'), 'c3'], [GL(), 'c3'], [wisz('G3'), 'c4']], RUNY_G));
+await scenariusz('górna szafka w L: wzmocnienie tylne B (kąt do środka, półki z wyciętym rogiem)', projekt([
+  [szafka('D1'), 'c1'], [szafka('D2', USTAWIONA_P), 'c1'], [szafka('D3'), 'c2'],
+  [wisz('G1'), 'c3'], [GL({ on: true, w: 150, typ: 'B' }), 'c3'], [wisz('G3'), 'c4']], RUNY_G));
+await scenariusz('górna szafka w L na drugiej ścianie (róg górny odwrotnie niż dolny)', projekt([
+  [szafka('D1'), 'c1'], [szafka('D2', USTAWIONA_P), 'c1'], [szafka('D3'), 'c2'],
+  [wisz('G1'), 'c3'], [GL(), 'c4'], [wisz('G3'), 'c4']], RUNY_G));
 // szablony, w tym szafka w L z ramieniem
-for (const t of ['stojaca', 'wiszaca', 'slupek', 'naroznikL']) {
+for (const t of ['stojaca', 'wiszaca', 'slupek', 'naroznikL', 'naroznikLgorny']) {
   await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(600);
   await page.locator('select[title="Dodaj szafkę z gotowego szablonu"]').first().selectOption(t);
   await page.waitForTimeout(900);

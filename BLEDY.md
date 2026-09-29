@@ -18,6 +18,13 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-29 | wycena obrzeża, zawieszki (`OBRZEZE_ZAPAS`, `qtyFmt`, `ZAWIESZKA_MODEL`/`ZAWIESZKA_MONTAZ`) | decyzje użytkownika: obrzeże (22 mm i ABS na blat) liczone do 1 mm, a do każdego oklejanego boku doliczone 90 mm okleiny — oklejarka wypuszcza ją z przodu i z tyłu i potem odcina; usługa oklejania dalej od samych krawędzi, w górę do metra. Ilości w wycenie do 3 miejsc. Zawieszka ZK-ZAW-R0-10 (karta w `instrukcje/`) przykręcana 2 wkrętami 4 × 30 (doliczone do „Wkręt 4 × 30”) — w planie wierceń „bez wiercenia”, górna krawędź pod wieńcem, 1 cm od pleców. Testy `audytwycena`, `ceny`, `hw2` (dawna zasada „bez wkrętów” — teraz 2 na zawieszkę), `gornaL` | (ten commit) |
+| 2026-09-29 | wzmocnienie tylne B, zawieszki, blat 1200 (`postRects`, `polkaCzesci`, `zawieszki`, `cornerArmParts`) | decyzje użytkownika: przełącznik A/B wzmocnienia tylnego szafki w L z wieńcem (B — kąt prosty do środka szafki; półka „wycięty tylny róg W × D” w nazwie formatki, w bryle i na rzucie dwa prostokąty; kołki w płytach wzmocnienia); zawieszki w planie wierceń (górny tylny róg boku), w szafce w L: A — bok korpusu + bok ramienia, B — obie w części ramienia (domyślnie) albo w części szafki; pod zawieszką ramienia odcinek listwy (domyślnie) albo hak; blat 1200 × 38 — 1128,22 zł brutto z faktury (`blatrob` miał jeszcze 470/780). Szablon 650/350 zatwierdzony. Płyty wzmocnienia liczone raz w `computeGeo` — sześć rysunków liczyło je osobno. `audyt` rozkłada półkę z wycięciem na dwie bryły | (ten commit) |
+| 2026-09-29 | szafka w L po stronie ramienia (`computeGeo`: `topX0/botX0`, zawias, `drillPlan`, okucia) | decyzja użytkownika po audycie planu wierceń: boku od strony ramienia nie ma, więc (1) wieniec i dno sięgają do zewnętrznego lica kątownika (wcześniej kończyły się na płaszczyźnie boku i nachodziły na kątownik 3 mm) i idą konfirmatem w czoło obu jego płyt — okucia 16 zamiast 18 przy szafce 900; (2) drzwi korpusu domyślnie na jego boku, z dala od ramienia, a zawias od strony ramienia to błąd z przyciskiem przełożenia; (3) kołki półki po stronie ramienia we wzmocnieniu tylnym (po jednym w każdej płycie kątownika). `audytwierc`: plan nie wierci w boku, którego nie ma | (ten commit) |
+| 2026-09-29 | górna szafka narożna (`runLayout`, szablon `naroznikLgorny`, `tierMsgs`), nowa suita `gornaL` | na prośbę użytkownika: szafka w L w górnym ciągu nie miała ramienia — górne ciągi brały z dolnych samo odsunięcie o głębokość. Teraz para górnych z szafką w L w rogu dostaje narożnik jak dolna (ramię, kątownik, sąsiad odsunięty o głębokość i ramię), górny ciąg kończący się w rogu dosuwa się do niego, pusty górny ciąg za rogiem jest rysowany. Szablon „Górna narożna L” 650 × 720 × 300, ramię 350. Kontrola „ciąg górny wystaje poza dolny” liczyła same szafki bez narożnika — górna szafka nad ramieniem dolnej szafki w L dostawała fałszywe ostrzeżenie; teraz dolny ciąg liczy się razem z rogiem. Zawieszki szafki w L: jedna na boku korpusu, druga na boku ramienia (wariant A) | (ten commit) |
+| 2026-09-29 | plan wierceń szafki w L i wstawki (`wierceniaDodatkowe`) | ramię szafki w L i wstawka w rogu nie miały nic w planie wierceń — teraz „Bok ramienia” (konfirmaty dna i wieńca ramienia, kołki półek ramienia, zawiasy frontu ramienia), „Fix ramienia” i „Wstawka w rogu” (trójkąty, 2 rzędy); frez pod HDF (16 × 3) jako wiersz przy bokach, wieńcu i dnie. `audytwierc`: kartka aktywnej szafki w PDF (wcześniej czytał pierwszą), 3 scenariusze z rogiem | (ten commit) |
+| 2026-09-29 | elewacje szafki w L i rogu (`audyt2d`) | front ramienia i maskownica kątownika na elewacji ciągu i na rysunku szafki miały pełną wysokość korpusu — teraz pas drzwi szafki (`pasFrontu`, luzy jak w bryle i formatce); uchwyt ramienia w rzucie zabudowy z góry miał stare 20/32 mm — teraz `UCHWYT_OD_KRAWEDZI`; na elewacji ciągu przy ślepym rogu brakowało uchwytu szafki sąsiada wystającego z przekroju (o niego zahaczają drzwi) — dorysowany. Audyt: ślepy róg i szafka w L w rogu sprawdzane ściśle | (ten commit) |
+| 2026-09-29 | plan wierceń (`drillPlan`) | na życzenie użytkownika: kołki z obu stron przegrody na tej samej wysokości — jedna strona 20 mm bliżej środka; konfirmaty (wieniec, dno, półki przelotowe, przegrody, wsporniki, półki na konfirmatach) z odległościami od krawędzi i trójkąty (blat, cokół) w planie; `audytwierc`: plan = okucia dla konfirmatów i trójkątów, 3 nowe konfiguracje | (ten commit) |
 | 2026-09-28 | elewacja ciągu, otwarte (`ciag8`, pełny przebieg) | po dołożeniu uchwytów otwartych skrzydeł i szuflad w widoku szafki elewacja ciągu ich nie miała — rysunki rozjechały się (test parytetu); teraz te same uchwyty w obu | (ten commit) |
 | 2026-09-28 | rysunki szafki w L, uchwyty (audyt2d) | z przodu rysowany był pełny prawy bok, którego w szafce w L nie ma (stoi tam kątownik) — teraz bez boku, a po otwarciu widać obie płyty kątownika; z tyłu kątownik bez 3 mm za plecami; uchwyt skrzydła przy zawiasie po prawej 20 mm od wolnej krawędzi, po lewej 32 — teraz z obu stron 30 mm (`UCHWYT_OD_KRAWEDZI` = oś 36), też na ramieniu w L (3D, elewacje, rzut z góry). Audyt 2D obejmuje teraz też widoki „Ciąg” i „Zabudowa z góry” (przy rogach jako INFO — AI_NOTES) | (ten commit) |
 | 2026-09-28 | wycena, znalazł nowy `audytwycena` | krawędzie blatu roboczego (38 mm) wliczały się do „Obrzeże 22 × 2 mm” i usługi oklejania — teraz osobna pozycja „Obrzeże blatu roboczego” (cena 0 do ustalenia, pytanie do użytkownika), suma „Obrzeże PCV” bez blatu. Reszta wyceny i rozkroju zgodna na 7 projektach: każda formatka na arkuszach tyle razy, ile zamawiamy, bez nachodzenia, z rzazem 3 mm, bez obrotu przy pilnowanych słojach; arkusze/formatowanie/obrzeże/oklejanie/okucia/suma | (ten commit) |
@@ -63,13 +70,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-- **Krawędzie blatu roboczego w wycenie** (2026-09-28): osobna pozycja „Obrzeże
-  blatu roboczego” z ceną 0 — jak je wykańczasz (obrzeże 40/45 mm, listwa
-  końcowa, postforming z przodu)? Czy formatowanie blatu liczy się jak arkusza
-  płyty (dziś tak)?
-- **Otwory kołków z obu stron przegrody na tej samej wysokości** (2026-09-28):
-  plan pokazuje je osobno „(od kolumny N)”; czy przy 18 mm dawać ostrzeżenie /
-  przesuwać o 32 mm, żeby się nie przewierciły?
 - **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
   się kategoria „sprzęty” (lodówka, piekarnik, mikrofala) — dołożyć je jako
@@ -85,6 +85,9 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Ustalone — nie ruszać
 
+- **Obrzeże** (2026-09-29): materiał do 1 mm + 9 cm na każdy oklejany bok (zapas oklejarki); usługa oklejania od samych krawędzi, w górę do pełnego metra. Zawieszki ZK-ZAW-R0-10 przykręcane 2 wkrętami 4 × 30, bez wiercenia, na samej górze pod wieńcem, 1 cm od pleców.
+- **Górna szafka w L** (2026-09-29): szablon 650 × 720 × 300, ramię 350; wzmocnienie tylne A albo B (B tylko przy wieńcu); zawieszki A: bok korpusu + bok ramienia, B: obie w części ramienia albo obie w części szafki; pod zawieszką ramienia listwa (domyślnie) albo hak. Koniec blatu przy ścianie oklejany zawsze. Blat 1200: 1128,22 zł brutto.
+- **Szafka w L po stronie ramienia** (2026-09-29): wieniec i dno do zewnętrznego lica kątownika, po jednym konfirmacie w czoło każdej jego płyty; drzwi korpusu na boku korpusu, front ramienia na boku ramienia (zawsze z dala od rogu); kołki (albo trójkąty) półki we wzmocnieniu tylnym — przy wariancie A po obu jego płytach, przy B z wyciętym tylnym rogiem półki.
 - **Półka przy wsporniku pionowym fixu** (2026-09-28): na całą szerokość
   szafki, ale płytsza — zaczyna się za wspornikiem (nikt nie wycina „U”), na
   zwykłych kołkach w bokach; ostrzeżenie
@@ -94,6 +97,18 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   16 mm (zostają 2 mm od zewnątrz), 3 mm w głąb w stronę drzwi — HDF 3 mm
   zlicowany z tyłem korpusu; frez też w wieńcu i dnie; luz 1 mm na stronę.
   HDF = W − 6 × H − 6. Pola: „Szerokość” 16, „Głębokość” 3, „Luz” 1.
+- **Kołki z obu stron przegrody na tej samej wysokości** (2026-09-29): po
+  stronie kolumny z prawej przesunięte o 20 mm do środka półki (`KOLEK_PRZESUN`),
+  półki zostają na swoich wysokościach. Wysokość w planie = spód półki, zawsze.
+- **Konfirmaty i trójkąty w planie wierceń** (2026-09-29): konfirmaty co ok.
+  200 mm styku (min. 2), skrajne 50 mm od przedniej i tylnej krawędzi
+  (`KONF_OD_KRAWEDZI`), reszta równo; trójkąty (blat od spodu, cokół bez nóżek)
+  jako wiersze tabeli. Liczby = okucia.
+- **Blat roboczy — oklejanie** (2026-09-29, faktura użytkownika): oklejane tylko
+  wolne końce (przód z fabrycznym profilem, tył przy ścianie; nie w rogu, przy
+  słupku ani na łączeniu kawałków) — obrzeże ABS 43 × 2 (6,68 zł/mb, dokładna
+  długość) i usługa „oklejanie PCV > 23 mm” (11,81 zł/mb, w górę do pełnego
+  metra). Blat 600 × 38: 563,99 zł. Formatowanie 51,66 zł za arkusz (też blat).
 - **Tył szuflady V-BOX** (2026-09-28, instrukcja w `instrukcje/`): standardowy
   tył ma górę równo z górą boku, dół `tylOd` (9–10 mm) nad dołem boku, dno
   dochodzi do tyłu. Tył nigdy wyżej niż górna krawędź frontu szuflady (błąd),

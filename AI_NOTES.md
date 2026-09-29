@@ -627,7 +627,16 @@ Uchwyty na elewacjach rysuje `UchwytElewacja` (wspolny obrys `uchwytObrys`).
 str. 6): tyl rowno z gora boku, `tylOd` = bok - tyl (9-10 mm) nad dolem boku, dno
 dochodzi do tylu. Podniesiony tyl: nie wyzej niz gora frontu szuflady (blad), nie
 nizej niz bok, pod tym co wyzej z luzem BACK_CLEAR. Instrukcje trzymamy w `instrukcje/` (spis: `instrukcje/SPIS.md`).
-[AI-TODO] Gorna szafka narozna (uzytkownik 2026-09-28) — na wzor dolnej, te same
+[AI-INFO] Gorna szafka w L (2026-09-29): szablon `naroznikLgorny` (CORNER_LG_W/ARM),
+narożnik pary gornych w `runLayout` tylko gdy przy rogu stoi szafka z `corner.on`
+(`corner.gorny`, owner wg tego, gdzie stoi szafka w L), `pair.dosuniety` dosuwa
+gorny ciag do konca dolnego, `gornyPodRamie` rysuje pusty gorny ciag pod ramie.
+Zrobiony wariant A ponizej; B i reszta pytan — BLEDY.md „Do decyzji”. Suita `gornaL`.
+[AI-INFO] Wariant B wzmocnienia tylnego i zawieszki zrobione 2026-09-29 (`postRects`,
+`shNotch`/`polkaCzesci`, `geo.zawieszki`). Nowe miejsce rysujace katownik ma czytac
+`geo.postRects`, nie liczyc polozenia samo. Dokladne wymiary otworow zawieszek — gdy
+uzytkownik przysle karte zawieszki (wtedy do `instrukcje/`).
+[AI-INFO] (historia) Gorna szafka narozna (uzytkownik 2026-09-28) — na wzor dolnej, te same
 zasady (slepy rog z fixem/drzwiami/wstawka albo szafka w L z ramieniem). Roznice:
 wieniec zamiast wzmocnien, dno widoczne od dolu, bez cokolu i blatu, gl. ok. 300.
 Tylne wzmocnienie w tylnym narozniku — dwie opcje do wyboru w UI:
@@ -640,11 +649,10 @@ boku ramienia) albo analogicznie obie w czesci „szafki”.
 [AI-INFO] Slupek (szablon) zostaje 600 w glab (uzytkownik 2026-09-28); glebsza
 szafka w ciagu daje ostrzezenie, ze reszta odsunie sie od sciany (`runCabMsgs`).
 
-[AI-TODO] Audyt 2D rogu (`audyt2d`, `tylkoInfo`): w zabudowach z rogiem roznice
-wypisujemy jako INFO. Do rozebrania: bryla „Ciąg” pokazuje caly sasiedni ciag
-(z jego blatem i uchwytem szafki w rogu), elewacja tylko przekroj sasiada;
-w U i gornych w L czesc szafki sasiada nie ma prostokata na elewacji; przy
-szafce w L front i maskownica na elewacji ciagu maja pelna wysokosc korpusu
-(bez szczelin 3 mm, w 3D sa), a uchwyt w rzucie z gory zabudowy jest w innym
-miejscu niz w 3D (geo bez kontekstu rogu?). Szafka w L sama z gory: rog bez
-boku odslania ~15 mm cokolu (ZNANE).
+[AI-TODO] Audyt 2D rogu (`audyt2d`, `tylkoInfo`): szafka w L w rogu juz scisle
+(front i maskownica ramienia w pasie drzwi `pasFrontu`, uchwyt ramienia z
+`UCHWYT_OD_KRAWEDZI`). Jako INFO zostaja roznice sposobu rysowania: w slepym
+rogu elewacja ciagu nie pokazuje uchwytu szafki sasiada wystajacego z
+przekroju; w U i gornych w L sasiad za rogiem jest na elewacji przekrojem
+z krzyzem (bryla 3D „Ciąg” jest poprawna — sprawdzone zrzutem 2026-09-29).
+Szafka w L sama z gory: rog bez boku odslania ~15 mm cokolu (ZNANE).

@@ -25,14 +25,23 @@ const wisz = (name, o = {}) => szafka(name, { D: 300, plinth: { ...PL, on: false
 const click = async (l) => { const x = page.getByRole('button', { name: l, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(350); return true; } return false; };
 const num = (s) => Number(String(s).replace(/\s/g, '').replace(',', '.').replace(/[^\d.\-]/g, '')) || 0;
 
-const wiercenia = async () => {
-  await page.evaluate(() => { window.__rep = null; window.print = () => {
-    const t = [...document.querySelectorAll('.print-only table')].find((x) => /Otwory pod/.test(x.querySelector('thead')?.textContent || ''));
+let formatkiPdf = [];
+// nr: numer szafki w PDF („(2 z 3)” w naglowku kartki); bez numeru — pierwsza kartka z wierceniami
+const wiercenia = async (nr = null) => {
+  await page.evaluate((nr) => { window.__rep = null; window.print = () => {
+    const tabele = [...document.querySelectorAll('.print-only .rp-page')]
+      .filter((s) => nr == null || (s.querySelector('span')?.textContent || '').includes(`(${nr} z `))
+      .flatMap((s) => [...s.querySelectorAll('table')]);
+    const t = tabele.find((x) => /Otwory pod/.test(x.querySelector('thead')?.textContent || ''));
     window.__rep = t ? [...t.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent.trim())) : [];
-  }; });
+    // formatki tej samej szafki (pierwsza kolumna tabeli z dlugosciami)
+    const f = tabele.find((x) => /Długość/.test(x.querySelector('thead')?.textContent || ''));
+    window.__fmt = f ? [...f.querySelectorAll('tbody tr')].map((tr) => tr.children[0].textContent.trim()) : [];
+  }; }, nr);
   await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click();
   await page.waitForTimeout(1000);
   const rows = (await page.evaluate(() => window.__rep)) || [];
+  formatkiPdf = (await page.evaluate(() => window.__fmt)) || [];
   let panel = '';
   return rows.map((r) => { if (r[0]) panel = r[0]; return { panel, kind: r[1], ys: r[2].split(',').map(num), note: r[3] }; });
 };
@@ -83,7 +92,8 @@ const scenariusz = async (tytul, cab, { spr = {} } = {}) => {
   const wFormatkach = (panel) => {
     const n = panel.replace(/^Poziom \d+ — /, '');
     const re = /^Bok/.test(n) ? /^Bok/ : /^Przegroda/.test(n) ? /^Przegroda/ : /^Wspornik/.test(n) ? /^Wspornik pionowy/
-      : /^(Wieniec|Dno)/.test(n) ? /Wieniec|Dno|wieniec/ : /^Półka przelotowa/.test(n) ? /^Półka przelotowa/ : new RegExp('^' + n);
+      : /^(Wieniec|Dno)/.test(n) ? /Wieniec|Dno|wieniec/ : /^Półka przelotowa/.test(n) ? /^Półka przelotowa/
+      : /^Cokół/.test(n) ? /Cokół/ : new RegExp('^' + n);
     return formatki.some((f) => re.test(f));
   };
   const obce = [...new Set(plan.map((r) => r.panel))].filter((p) => !wFormatkach(p));
@@ -137,6 +147,27 @@ const scenariusz = async (tytul, cab, { spr = {} } = {}) => {
     }
   }
 
+  // 3a. laczenia: konfirmaty i trojkaty w planie = w okuciach
+  const ileWNocie = (note) => ((note.match(/,\s*([\d.]+(?:, [\d.]+)*) mm od przedniej/) || [])[1] || '').split(', ').filter(Boolean).length;
+  const konPlan = plan.filter((r) => /^konfirmat/.test(r.kind)).reduce((s2, r) => s2 + r.ys.length * ileWNocie(r.note), 0);
+  const konHw = okucia.find((r) => /^Konfirmat/.test(r[0]));
+  if (!spr.bezKatownika) ok(`konfirmaty: w planie ${konPlan}, w okuciach ${konHw ? num(konHw[konHw.length - 1].split(' ')[0]) : 0}`,
+    konPlan === (konHw ? num(konHw[konHw.length - 1].split(' ')[0]) : 0), plan.filter((r) => /^konfirmat/.test(r.kind)).map((r) => `${r.panel} ${r.kind}: ${r.ys.join(',')}`).join(' | '));
+  const trPlan = plan.filter((r) => r.kind === 'trójkąt meblowy').reduce((s2, r) => s2 + r.ys.length * (/2 rzędy/.test(r.note) ? 2 : 1) + (/po 1 na każdym krótkim boku/.test(r.note) ? 2 : 0), 0);
+  const trHw = okucia.find((r) => /^Trójkąt/.test(r[0]));
+  ok(`trójkąty: w planie ${trPlan}, w okuciach ${trHw ? num(trHw[trHw.length - 1].split(' ')[0]) : 0}`,
+    trPlan === (trHw ? num(trHw[trHw.length - 1].split(' ')[0]) : 0), plan.filter((r) => r.kind === 'trójkąt meblowy').map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | '));
+
+  // 3b. przegroda z polkami z obu stron na tej samej wysokosci: jedna strona o 20 mm do srodka
+  if (spr.przegrodaObie) {
+    const pr = kPlan.filter((r) => /^Przegroda 1/.test(r.panel));
+    const k1 = pr.find((r) => /od kolumny 1/.test(r.note)), k2 = pr.find((r) => /od kolumny 2/.test(r.note));
+    const odl = (r) => ((r && r.note.match(/⌀5, ([\d.]+) i ([\d.]+) mm/)) || []).slice(1).map(Number);
+    const [a1, b1] = odl(k1), [a2, b2] = odl(k2);
+    ok('przegroda: półki na tej samej wysokości — druga strona kołki o 20 mm bliżej środka',
+      !!k1 && !!k2 && a2 - a1 === 20 && b1 - b2 === 20 && /przesunięte o 20 mm/.test(k2.note), pr.map((r) => r.note).join(' | '));
+  }
+
   // 4. prowadnice: wysokosc dolnej krawedzi = dol boku metalowego, otwory wg NL
   const pPlan = plan.filter((r) => r.kind === 'prowadnica');
   const skrzynek = metal.length / 2;
@@ -168,7 +199,7 @@ const scenariusz = async (tytul, cab, { spr = {} } = {}) => {
 };
 
 await scenariusz('drzwi i półki', szafka('D'));
-await scenariusz('dwie kolumny z przegrodą', szafka('P2', { W: 900, levels: [{ h: null, cols: [kol({ doors: 1 }), kol({ doors: 1, hinge: 'right' })] }] }));
+await scenariusz('dwie kolumny z przegrodą', szafka('P2', { W: 900, levels: [{ h: null, cols: [kol({ doors: 1 }), kol({ doors: 1, hinge: 'right' })] }] }), { spr: { przegrodaObie: true } });
 await scenariusz('fix ze wspornikiem, zawias przy fixie', szafka('F', { levels: [{ h: null, cols: [kol({ doors: 1, hinge: 'left',
   fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] }), { spr: { wspornik: 'left' } });
 await scenariusz('fix bez wspornika, zawias od drugiej strony', szafka('F2', { levels: [{ h: null, cols: [kol({ doors: 1, hinge: 'right',
@@ -181,6 +212,67 @@ await scenariusz('wysoka, dwa poziomy', szafka('H', { W: 600, H: 2000, levels: [
 await scenariusz('klapa do góry', wisz('KG', { W: 800, H: 400, levels: [{ h: null, cols: [kol({ doors: 1, klapa: 'gora' })] }] }), { spr: { klapa: 'gora' } });
 await scenariusz('klapa w dół', wisz('KD', { W: 600, H: 400, levels: [{ h: null, cols: [kol({ doors: 1, klapa: 'dol' })] }] }), { spr: { klapa: 'dol' } });
 await scenariusz('półki na konfirmatach (bez kołków)', szafka('K', { shelfMount: 'confirmat' }));
+await scenariusz('cokół bez nóżek (trójkąty), przegroda i wspornik', szafka('CT', { W: 900, legs: { on: false }, levels: [{ h: null, cols: [kol({ doors: 1 }),
+  kol({ doors: 1, fix: { side: 'right', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] }));
+await scenariusz('blat na szafce (trójkąty od spodu)', szafka('BL', { W: 800, top: { mode: 'blat', material: 'worktop', widthMode: 'outside', overL: 0, overR: 0, overFront: 20, overBack: 0 } }));
+await scenariusz('wieniec na bokach', szafka('WB', { joints: { topL: 'over', topR: 'over', botL: 'between', botR: 'between' } }));
+
+/* Projekty z rogiem: plan szafki w L (ramie) i wstawki szerokiej jest na karcie
+   szafki w PDF. Liczby musza sie zgadzac z jej okuciami (korpus + ramie + wstawka). */
+const PLr = { on: true, height: 100, mode: 'under', setback: 0 };
+const RUNr = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLr, worktop: true, corner: null, ...o });
+const zRogiem = async (tytul, runs, items, aktywna, oczek) => {
+  console.log(`\n== ${tytul} ==`);
+  await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
+    { name: 'W', active: aktywna, prices: {}, runs, items: items.map(([cab, runId]) => ({ cab, runId, offset: 0 })) });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
+  const plan = await wiercenia(aktywna + 1);
+  const okucia = await tabela(/^Produkty do zamówienia/);
+  const q = (re) => { const r = okucia.find((x) => re.test(x[0])); return r ? num(r[r.length - 1].split(' ')[0]) : 0; };
+  const ileWNocie = (note) => ((note.match(/,\s*([\d.]+(?:, [\d.]+)*) mm od przedniej/) || [])[1] || '').split(', ').filter(Boolean).length;
+  const kon = plan.filter((r) => /^konfirmat/.test(r.kind)).reduce((a, r) => a + r.ys.length * ileWNocie(r.note), 0);
+  const tr = plan.filter((r) => r.kind === 'trójkąt meblowy').reduce((a, r) => a + r.ys.length * (/2 rzędy/.test(r.note) ? 2 : 1) + (/po 1 na każdym krótkim boku/.test(r.note) ? 2 : 0), 0);
+  const zaw = plan.filter((r) => r.kind === 'zawias').reduce((a, r) => a + r.ys.length, 0);
+  /* Szafka w L nie ma boku od strony ramienia (stoi tam katownik). Ustalone
+     z uzytkownikiem 2026-09-29: wieniec i dno konfirmatem w czolo obu plyt
+     katownika, drzwi korpusu na jego boku, kolki polki we wzmocnieniu tylnym.
+     Plan nie moze wiercic w boku, ktorego nie ma w formatkach. */
+  const formatki = formatkiPdf;
+  const bezBoku = ['Bok lewy', 'Bok prawy'].filter((n) => !formatki.includes(n) && !formatki.includes('Bok'));
+  const naBrak = plan.filter((r) => bezBoku.includes(r.panel));
+  ok('plan nie wierci w boku, którego nie ma w formatkach', !naBrak.length, naBrak.map((r) => `${r.panel} | ${r.kind}`).join(' / '));
+  const zKatownikiem = plan.filter((r) => /^Kątownik przy ramieniu/.test(r.panel)).map((r) => r.panel);
+  ok('kątowniki z planu są w formatkach', zKatownikiem.every((n) => formatki.includes(n)), zKatownikiem.join(', '));
+  const konfOk = q(/^Konfirmat/);
+  ok(`konfirmaty: plan ${kon} = okucia ${konfOk}`, kon === konfOk, plan.filter((r) => /^konfirmat/.test(r.kind)).map((r) => `${r.panel} ${r.kind}`).join(' | '));
+  ok(`trójkąty: plan ${tr} = okucia ${q(/^Trójkąt/)}`, tr === q(/^Trójkąt/), plan.filter((r) => r.kind === 'trójkąt meblowy').map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | '));
+  ok(`zawiasy: plan ${zaw} = okucia ${q(/^Zawias$/)}`, zaw === q(/^Zawias$/), plan.filter((r) => r.kind === 'zawias').map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | '));
+  (oczek || []).forEach(([opis, re]) => ok(opis, plan.some((r) => re.test(`${r.panel} | ${r.kind}`)), [...new Set(plan.map((r) => `${r.panel} | ${r.kind}`))].join(' / ')));
+};
+const Lcab = (o = {}) => ({ name: 'L', W: 900, H: 720, D: 560, plinth: PLr, legs: { on: true, height: 100 }, corner: { on: true, arm: 640, doors: 'wsporniki', ...o },
+  levels: [{ h: null, cols: [kol({ doors: 1 })] }] });
+await zRogiem('szafka w L w rogu — ramię z drzwiami', [RUNr('c1', 'Ściana 1'), RUNr('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
+  [[szafka('A1'), 'c1'], [Lcab(), 'c2'], [szafka('B2'), 'c2']], 1,
+  [['wieniec i dno w kątownik', /^(Wieniec|Dno) \| konfirmat — kątownik przy ramieniu/], ['kołki półki we wzmocnieniu tylnym', /^Kątownik przy ramieniu — (bok|plecy) \| kołek półki/],
+   ['zawiasy drzwi korpusu na jego boku', /^Bok (lewy|prawy) \| zawias/],
+   ['bok ramienia: konfirmaty dna ramienia', /^Bok ramienia \| konfirmat — dno ramienia/], ['bok ramienia: zawiasy frontu ramienia', /^Bok ramienia \| zawias/],
+   ['bok ramienia: kołki półek ramienia', /^Bok ramienia \| kołek półki/]]);
+await zRogiem('szafka w L w rogu — fix ramienia', [RUNr('c1', 'Ściana 1'), RUNr('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
+  [[szafka('A1'), 'c1'], [Lcab({ doors: 'fix' }), 'c2'], [szafka('B2'), 'c2']], 1,
+  [['fix ramienia na trójkątach', /^Fix ramienia \| trójkąt meblowy/]]);
+const USTr = { W: 1000, levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 621, mode: 'overlay', support: false }, hinge: 'right' })] }] };
+await zRogiem('ślepy róg z wstawką szeroką (trójkąty wstawki)', [RUNr('c1', 'Ściana 1'), RUNr('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0, wstawka: { typ: 'szeroka', w: 60 } } })],
+  [[szafka('A1'), 'c1'], [szafka('A2'), 'c1'], [szafka('R', USTr), 'c2']], 1,
+  [['wstawka szeroka na trójkątach', /^Wstawka w rogu \| trójkąt meblowy/]]);
+
+console.log('\n== frez pod HDF w planie ==');
+await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
+  { name: 'W', active: 0, prices: {}, runs: [], items: [{ cab: szafka('FR', { backGroove: { on: true, offset: 3, depth: 16, play: 1, wreg: true } }), runId: null, offset: 0 }] });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(800);
+const planF = await wiercenia();
+const zFrezem = planF.filter((r) => r.kind === 'frez pod HDF').map((r) => r.panel);
+ok('frez pod HDF w bokach, wieńcu i dnie (16 × 3)', ['Bok lewy', 'Bok prawy', 'Wieniec', 'Dno'].every((n) => zFrezem.includes(n))
+  && planF.filter((r) => r.kind === 'frez pod HDF').every((r) => /16 mm w grubość płyty × 3 mm/.test(r.note)), zFrezem.join(', '));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

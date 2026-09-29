@@ -5,7 +5,7 @@
       nachodza na siebie, miedzy sasiednimi jest rzaz, wszystko w arkuszu;
       obrocone tylko te, ktorym slojow nie pilnujemy,
    2. wycena: arkusze = rozkroj (na material), formatowanie = suma arkuszy,
-      obrzeze = suma oklejanych krawedzi z listy formatek, oklejanie = w gore
+      obrzeze = suma oklejanych krawedzi z listy formatek do 1 mm + 90 mm na kazdy oklejany bok, oklejanie = w gore
       do pelnego metra, okucia = lista okuc projektu, suma = suma pozycji.
    Rozkroj czyta hook `window.__audytRozkroj` (makeCutPlan). */
 import pw from './pw.mjs';
@@ -40,7 +40,7 @@ const tabela = (re) => page.evaluate((src) => {
     const inp = tr.querySelector('input'); if (inp) o._cena = inp.value || inp.getAttribute('placeholder');
     // lista szafki pokazuje krawedzie jako przelaczniki — liczymy tylko oklejone
     const chips = [...tr.querySelectorAll('button[title]')].filter((x) => /^Oklejona/.test(x.getAttribute('title')));
-    if (tr.querySelector('button[title]')) o._okl = chips.reduce((sum, x) => sum + (Number((x.textContent.match(/[\d.]+/) || [0])[0]) || 0), 0);
+    if (tr.querySelector('button[title]')) { o._okl = chips.reduce((sum, x) => sum + (Number((x.textContent.match(/[\d.]+/) || [0])[0]) || 0), 0); o._boki = chips.length; }
     o._pierwszy = td[0] ? (td[0].childNodes[0]?.textContent || '').trim() : '';
     return o;
   });
@@ -57,6 +57,8 @@ const scenariusz = async (tytul, p, { grain = false } = {}) => {
   const formatki = (f || []).filter((r) => r['Długość']).map((r) => ({
     name: r._[0], mat: (r['Płyta'] || r['Materiał'] || '').trim(), a: num(r['Długość']), b: num(r['Szerokość']), qty: num(r['Szt.']),
     edge: r._okl != null ? r._okl : ((r['Oklejanie PCV 2 mm'] ?? '').match(/\d+(?:[.,]\d+)?/g) || []).map(num).reduce((s, x) => s + x, 0),
+    // ile bokow oklejonych — do kazdego 90 mm zapasu okleiny (uzytkownik 2026-09-29)
+    boki: r._boki != null ? r._boki : ((r['Oklejanie PCV 2 mm'] ?? '').match(/\d+(?:[.,]\d+)?/g) || []).length,
   }));
   let hw = await tabela(/^Produkty całego projektu/);
   if (!hw) hw = await tabela(/^Produkty do zamówienia/);
@@ -119,9 +121,14 @@ const scenariusz = async (tytul, p, { grain = false } = {}) => {
   const blatowy = (x) => /^Blat/.test(x.name) && /blat/i.test(x.mat);
   const mb = formatki.filter((x) => !blatowy(x)).reduce((s, x) => s + x.qty * x.edge, 0) / 1000;
   const mbBlat = formatki.filter(blatowy).reduce((s, x) => s + x.qty * x.edge, 0) / 1000;
-  if (mbBlat > 0) ok(`krawędzie blatu osobno (${Math.round(mbBlat * 10) / 10} mb)`, Math.abs(ilosc(wiersz(/^Obrzeże blatu/)) - Math.round(mbBlat * 10) / 10) < 0.051, JSON.stringify(wiersz(/^Obrzeże blatu/)?._));
-  ok(`obrzeże 22 mm = suma oklejanych krawędzi płyty (${Math.round(mb * 10) / 10} mb)`, Math.abs(ilosc(wiersz(/^Obrzeże 22/)) - Math.round(mb * 10) / 10) < 0.051, JSON.stringify(wiersz(/^Obrzeże/)?._));
-  if (mb > 0) ok(`oklejanie w górę do pełnego metra (${Math.ceil(mb)})`, ilosc(wiersz(/^Oklejanie/)) === Math.ceil(mb), JSON.stringify(wiersz(/^Oklejanie/)?._));
+  // material obrzeza do 1 mm + 90 mm na kazdy oklejany bok (oklejarka wypuszcza okleine)
+  const zapas = (lista) => lista.reduce((s, x) => s + x.qty * x.boki, 0) * 90 / 1000;
+  const mbBlatZ = Math.round((mbBlat + zapas(formatki.filter(blatowy))) * 1000) / 1000;
+  const mbZ = Math.round((mb + zapas(formatki.filter((x) => !blatowy(x)))) * 1000) / 1000;
+  if (mbBlat > 0) ok(`obrzeże blatu osobno: ${Math.round(mbBlat * 1000) / 1000} mb + 9 cm na koniec = ${mbBlatZ}`, Math.abs(ilosc(wiersz(/^Obrzeże ABS .* — blat/)) - mbBlatZ) < 0.0015, JSON.stringify(wiersz(/^Obrzeże ABS/)?._));
+  if (mbBlat > 0) ok(`oklejanie PCV > 23 mm w górę do pełnego metra (${Math.ceil(mbBlat)})`, ilosc(wiersz(/^Oklejanie prostoliniowe PCV > 23/)) === Math.ceil(mbBlat), JSON.stringify(wiersz(/PCV > 23/)?._));
+  ok(`obrzeże 22 mm = krawędzie płyty ${Math.round(mb * 1000) / 1000} mb + 9 cm na bok = ${mbZ} mb (do 1 mm)`, Math.abs(ilosc(wiersz(/^Obrzeże 22/)) - mbZ) < 0.0015, JSON.stringify(wiersz(/^Obrzeże/)?._));
+  if (mb > 0) ok(`oklejanie w górę do pełnego metra (${Math.ceil(mb)})`, ilosc(wiersz(/^Oklejanie prostoliniowe$/)) === Math.ceil(mb), JSON.stringify(wiersz(/^Oklejanie prostoliniowe$/)?._));
   // okucia: kazda pozycja listy okuc jest w wycenie z ta sama iloscia
   // po nazwie, z suma ilosci — wycena scala opisy zastosowan w jeden wiersz
   const sumy = (rows, nazwa, il) => { const m = new Map(); rows.forEach((r) => m.set(nazwa(r), (m.get(nazwa(r)) || 0) + il(r))); return m; };
