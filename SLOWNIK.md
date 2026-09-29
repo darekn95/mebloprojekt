@@ -42,6 +42,18 @@ narożnika przy froncie**, a nie wzmocnienie. To nie to samo co:
 
 ## 2. Etykieta w aplikacji → ścieżka w danych
 
+### Pasek „Pomieszczenia” (`project.rooms[]`)
+
+| Etykieta | W kodzie |
+|---|---|
+| „Pomieszczenia”, kafelek pomieszczenia | `project.rooms = [{ id: "p1", name }]`; ciąg `run.roomId`, szafka wolnostojąca `item.roomId` (szafka w ciągu należy do pomieszczenia ciągu — `roomOfItem`) |
+| ogladane pomieszczenie | `activeRoomOf(project)` = pomieszczenie aktywnej szafki; `wejdzDoPokoju` (puste dostaje szafkę startową) |
+| „+ pomieszczenie” | `makeRoom` → „Pomieszczenie N” |
+| ✎ (zmień nazwę), × (usuń) | `renameRoom`; `usunPokoj(p, id, cel)` — okno „Usunąć …?”: „Przenieś i usuń pomieszczenie” / „Usuń razem z szafkami” |
+| „Przenieś szafkę / zabudowę … do…” | `przeniesDoPokoju` — ciąg idzie z całą grupą (`grupaCiagow`: róg + piętro), „Ściana N” zajęta w celu dostaje wolny numer (`przeniesCiagi`) |
+| „Zamówienie: Cały projekt / To pomieszczenie” | `zakresZam` (domyślnie „projekt”), `projZam = projektPomieszczenia(project, pokoj)` — formatki, produkty, rozkrój i wycena |
+| „Łazienka: 1 ostrzeżenie” w nagłówku, kropka przy kafelku | `innePokojeNotes` (uwagi szafek z innych pomieszczeń) |
+
 ### Karta „Ciąg meblowy" (`project.runs[]`)
 
 Dwie części (`CardPart`): u góry **„Ta szafka w ciągu"** (pola jednej szafki),
@@ -178,7 +190,8 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 |---|---|
 | `computeGeo(cab, mat, ctx)` | **serce aplikacji** — z opisu szafki robi geometrię, formatki, okucia i uwagi. `ctx` (z `armCtxOf`) jest OBOWIĄZKOWY dla szafki narożnej. Wynik zapamiętany (`geoCache`: szafka → materiały → `JSON(ctx)`), liczy `computeGeoLiczy` — **wyniku nie wolno zmieniać**, a szafki ani materiałów nie zmienia się w miejscu (zawsze nowy obiekt) |
 | `armCtxOf(layout, index)` | kontekst rogu dla szafki narożnej: `armFront`, `armSide`, `armFree` |
-| `projectLayout(project)` | rozstawia ciągi w rzucie z góry, liczy rogi |
+| `projectLayout(project)` | rozstawia ciągi w rzucie z góry, liczy rogi — **osobno w każdym pomieszczeniu** (`.pokoje` = Map pomieszczenie → układ, `.info` = wszystkie ciągi); kolizje otwierania biorą układ pomieszczenia |
+| `projektPomieszczenia(project, roomId)` | wycinek projektu z jednym pomieszczeniem — listy „To pomieszczenie” i rozdziały PDF |
 | `formatkiSzafki(geo, { bezCokolu, bezBlatu, arm })` | lista formatek jednej szafki — **ta sama** w karcie „Formatki do zamówienia” i na wydruku; cokół i blat wspólne dla ciągu wypadają (są w liście projektu), ramię szafki w L dochodzi (`cornerArmParts`) |
 | `calyProjekt(project)` | czy pokazać „Formatki / Produkty całego projektu”, rozkrój całości i stronę projektu w PDF: 2+ szafki **albo** cokół/blat ciągu/ramię — przy jednej szafce w ciągu to jedyne miejsce, gdzie są blat i cokół |
 | `audytBryly` | tylko dla testów: gdy strona ma `window.__audytBryl`, bryły 3D (szafka i zabudowa) dopisują tam wymiary; `testy/formatki.mjs` sprawdza, czy każda narysowana płyta jest w formatkach |
@@ -379,6 +392,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `gorne` | ciągi górne w L: górny drugiej ściany wisi na niej (bez kolizji z górnym pierwszej), odsunięcie 300 w rogu, gdy górny ściany wjeżdżającej sięga rogu; „+ szafka” bierze H/D/cokół ciągu (górny 300, dolny 570) |
 | `gornaL` | górna szafka w L: szablon tylko w górnym ciągu, staje przy rogu (koniec/początek ciągu), zakłada górny ciąg drugiej ściany, ramię po właściwej stronie, dosunięcie do rogu, bez kolizji i bez „wystaje poza dolny”, formatki ramienia z wieńcem, 2 zawieszki; górny ślepy róg bez szafki w L po staremu |
 | `zwijanie` | karty (rysunek, notatka, formatki i produkty szafki i projektu) zwijają się i rozwijają; „Uwagi” bez zwijania; kolejność: notatka pod rysunkiem, wycena pod produktami całego projektu, bez „Kontrola frontów” |
+| `pomieszczenia` | stary projekt → „Pomieszczenie 1”, dodawanie, zmiana nazwy, pasek tylko z szafkami pomieszczenia, „Zabudowa” i kolizje w obrębie pomieszczenia, licznik uwag innych pomieszczeń, przenoszenie zabudowy (z Cofnij), usuwanie z pytaniem (przenieś / z szafkami), zakres zamówienia, PDF z rozdziałami i zbiorczym zamówieniem |
 | `podzial` | podział blatu/cokołu (pola + własne cięcie), wymiar „Ciąg” bez rogu, długości ścian osobno, „Rozwiąż ciąg” u góry, zwijany pasek ciągów i szafek |
 | `kreator` | kreator rogu: ślepa szafka 1000 z fixem 618 od rogu, jedne drzwi, zawias od zewnątrz, wstawka płaska — bez bloku „do ustawienia”; szafka w L 900 + ramię 630 bez wstawki; osobny ciąg; przycisk „Ustaw szafkę w rogu” w istniejącym projekcie |
 | `audyt` | audyt całości na ~20 konfiguracjach: nachodzenie brył 3D (szafka i zabudowa, zamknięte), formatki ↔ rysunek w obie strony z ilościami (szuflady w bryle otwartej), formatki projektu = suma szafek + cokół/blat ciągu, okucia projektu vs suma, PDF = ekran (formatki i okucia szafek i projektu). HDF we frezie może wchodzić krawędzią do 16 mm (w grubość płyty) i 4 mm (w głąb); `znane` — przypadki czekające na decyzję (BLEDY.md). Trwa ok. 4 min |

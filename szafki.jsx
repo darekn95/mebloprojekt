@@ -898,8 +898,10 @@ const nextRunId = (runs) => {
   return "c" + n;
 };
 
-const makeRun = (runs) => {
-  const nums = runs.map((r) => {
+const makeRun = (runs, roomId = null) => {
+  /* Numer sciany liczymy w obrebie pomieszczenia — kazde zaczyna od „Ściana 1”.
+     Id ciagu jest wspolne dla calego projektu, wiec liczy sie ze wszystkich. */
+  const nums = runs.filter((r) => !roomId || !r.roomId || r.roomId === roomId).map((r) => {
     const m = /^Ściana (\d+)$/.exec((r.name || "").trim());
     return m ? Number(m[1]) : 0;
   });
@@ -908,7 +910,7 @@ const makeRun = (runs) => {
   /* Nowy ciag od razu dostaje blat roboczy: w kuchni to regula, a szafki pod
      nim nie maja wienca, tylko pare wzmocnien. Stare projekty zostaja bez
      zmian — tam `worktop` po prostu nie ma i nie wlacza sie samo. */
-  return { id: nextRunId(runs), name: `Ściana ${Math.max(0, ...nums) + 1}`, wallW: null, gap: 0,
+  return { id: nextRunId(runs), name: `Ściana ${Math.max(0, ...nums) + 1}`, roomId, wallW: null, gap: 0,
     H: null, D: null, plinth: null, plinthCuts: null, topCuts: null, worktop: true,
     hangerMode: "listwa", mountY: 0, corner: null,
     tier: "dolny", wall: null, clearance: 500, ceiling: null,
@@ -919,7 +921,7 @@ const makeRun = (runs) => {
    ich tu nie ma. Wisi nad nim, jest plytszy i nie ma cokolu ani blatu. */
 const GORNY_D = 300;
 const makeUpperRun = (runs, dolny, mountY) => ({
-  ...makeRun(runs), name: dolny.name, tier: "gorny", wall: dolny.id,
+  ...makeRun(runs, dolny.roomId || null), name: dolny.name, tier: "gorny", wall: dolny.id,
   wallW: null, D: GORNY_D, H: null, plinth: null, worktop: false,
   clearance: 500, ceiling: null, mountY, corner: null,
   offset: 0, offsetFrom: "left",
@@ -941,7 +943,7 @@ const utworzCiagZRogiem = (p, o) => {
   const rodzic = runs.find((r) => r.id === o.of);
   if (!rodzic) return p;
   const L = o.szafka === "L";
-  const nowy = { ...makeRun(runs), corner: migrateCorner({ of: o.of, at: o.at, owner: o.owner, clear: 0,
+  const nowy = { ...makeRun(runs, rodzic.roomId || null), corner: migrateCorner({ of: o.of, at: o.at, owner: o.owner, clear: 0,
     top: o.top || null, wstawka: !L && o.wstawka ? { typ: o.wstawka, w: WSTAWKA_W } : null }) };
   let items = [...p.items];
   let active = p.active;
@@ -980,7 +982,7 @@ const utworzCiagZRogiem = (p, o) => {
     if (cel.worktop) Object.assign(cab, bezWienca(cab, defaultMaterials.front.thickness));
     const nums = items.map((it) => { const m = /^Szafka (\d+)$/.exec((it.cab.name || "").trim()); return m ? Number(m[1]) : 0; });
     cab.name = `Szafka ${Math.max(0, ...nums) + 1}`;
-    const nowa = { cab, mat: defaultMaterials, runId: cel.id, offset: 0 };
+    const nowa = { cab, mat: defaultMaterials, runId: cel.id, roomId: cel.roomId || null, offset: 0 };
     // w ciagu docelowym: pierwsza, gdy rog jest na jego poczatku, inaczej ostatnia
     const wCelu = items.map((it, k) => ((it.runId || null) === cel.id ? k : -1)).filter((k) => k >= 0);
     const at = !wCelu.length ? items.length : rogNaStarcie ? wCelu[0] : wCelu[wCelu.length - 1] + 1;
@@ -1076,6 +1078,8 @@ const wallGapOf = (run, it) => {
 
 const migrateRun = (r) => ({
   id: String(r.id),
+  // pomieszczenie; brak (stary projekt) = pierwsze — rozstrzyga loadProject
+  roomId: r.roomId != null ? String(r.roomId) : null,
   name: typeof r.name === "string" && r.name.trim() ? r.name : "Ciąg",
   wallW: Number(r.wallW) > 0 ? Math.round(Number(r.wallW)) : null,
   gap: Math.max(0, Math.round(Number(r.gap) || 0)),
@@ -1138,6 +1142,56 @@ const plinthText = (p) => {
 const runItems = (project, id) =>
   project.items.map((it, i) => ({ it, i })).filter(({ it }) => (it.runId || null) === (id || null));
 
+/* ---------- pomieszczenia ----------
+   Projekt → pomieszczenia → ciagi (sciany) → szafki (uzytkownik 2026-09-29).
+   Ciag ma `roomId`, szafka w ciagu nalezy do pomieszczenia swojego ciagu,
+   a wolnostojaca ma wlasne `roomId`. Rogi, pietra, blaty i kolizje dzialaja
+   tylko w obrebie jednego pomieszczenia; formatki, produkty, rozkroj i wycena
+   ida domyslnie z calego projektu, bo to jedno zamowienie. Stary projekt bez
+   pomieszczen otwiera sie jako „Pomieszczenie 1”. */
+const ROOM_FIRST = { id: "p1", name: "Pomieszczenie 1" };
+const roomsOf = (project) => (project && Array.isArray(project.rooms) && project.rooms.length
+  ? project.rooms : [ROOM_FIRST]);
+const roomOfRun = (project, run) => (run && run.roomId) || roomsOf(project)[0].id;
+const roomOfItem = (project, it) => {
+  if (!it) return roomsOf(project)[0].id;
+  const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
+  return run ? roomOfRun(project, run) : it.roomId || roomsOf(project)[0].id;
+};
+// pomieszczenie, ktore ogladamy = to, w ktorym stoi aktywna szafka
+const activeRoomOf = (project) => roomOfItem(project, project.items[project.active]);
+const runsInRoom = (project, roomId) => (project.runs || []).filter((r) => roomOfRun(project, r) === roomId);
+const itemsInRoom = (project, roomId) =>
+  project.items.map((it, i) => ({ it, i })).filter(({ it }) => roomOfItem(project, it) === roomId);
+const roomName = (project, roomId) => {
+  const r = roomsOf(project).find((x) => x.id === roomId);
+  return r ? r.name : "";
+};
+const makeRoom = (rooms) => {
+  let n = 1;
+  while (rooms.some((r) => r.id === "p" + n)) n++;
+  const nums = rooms.map((r) => { const m = /^Pomieszczenie (\d+)$/.exec((r.name || "").trim()); return m ? Number(m[1]) : 0; });
+  return { id: "p" + n, name: `Pomieszczenie ${Math.max(0, ...nums) + 1}` };
+};
+/* Ciagi zwiazane ze soba rogiem albo pietrem (gorny nad dolnym) to jedna
+   zabudowa — przenosi sie je miedzy pomieszczeniami tylko razem, inaczej rog
+   laczylby dwa rozne pokoje. */
+const grupaCiagow = (runs, id) => {
+  const out = new Set([id]);
+  for (let zmiana = true; zmiana;) {
+    zmiana = false;
+    runs.forEach((r) => {
+      const sasiedzi = [r.corner && r.corner.of, r.tier === "gorny" ? r.wall : null].filter(Boolean);
+      const w = out.has(r.id);
+      sasiedzi.forEach((q) => {
+        if (w && !out.has(q) && runs.some((x) => x.id === q)) { out.add(q); zmiana = true; }
+        if (!w && out.has(q)) { out.add(r.id); zmiana = true; }
+      });
+    });
+  }
+  return out;
+};
+
 const loadProject = (d) => {
   if (!d) return null;
   let items;
@@ -1145,7 +1199,8 @@ const loadProject = (d) => {
     items = d.items.map((it) => {
       const mat = migrateMat(it.mat);
       return { cab: migrateCab(it.cab, mat), mat,
-        runId: it.runId || null, offset: Math.round(Number(it.offset) || 0),
+        runId: it.runId || null, roomId: it.roomId != null ? String(it.roomId) : null,
+        offset: Math.round(Number(it.offset) || 0),
         wallGap: migrateWallGap(it.wallGap) };
     });
   } else if (d.cab) {
@@ -1165,6 +1220,28 @@ const loadProject = (d) => {
       if (p.corner.of === r.id) { r.corner = null; break; }
       p = runs.find((q) => q.id === p.corner.of);
     }
+  });
+  /* Pomieszczenia. Stary projekt ich nie ma — calosc trafia do „Pomieszczenie 1”.
+     Ciagi zwiazane rogiem albo pietrem ida do jednego pomieszczenia (tego, co
+     ciag, od ktorego sie zaczynaja), a szafka w ciagu — do pomieszczenia ciagu. */
+  const rooms = [];
+  (Array.isArray(d.rooms) ? d.rooms : []).forEach((r) => {
+    if (!r || r.id == null || rooms.some((x) => x.id === String(r.id))) return;
+    rooms.push({ id: String(r.id), name: typeof r.name === "string" && r.name.trim() ? r.name : `Pomieszczenie ${rooms.length + 1}` });
+  });
+  if (!rooms.length) rooms.push({ ...ROOM_FIRST });
+  const jest = (id) => rooms.some((r) => r.id === id);
+  runs.forEach((r) => { if (!jest(r.roomId)) r.roomId = rooms[0].id; });
+  for (let n = 0; n <= runs.length; n++) {
+    runs.forEach((r) => {
+      const od = r.tier === "gorny" && r.wall ? r.wall : r.corner ? r.corner.of : null;
+      const q = od && runs.find((x) => x.id === od);
+      if (q && q.roomId !== r.roomId) r.roomId = q.roomId;
+    });
+  }
+  items.forEach((it) => {
+    const run = it.runId && runs.find((r) => r.id === it.runId);
+    it.roomId = run ? run.roomId : jest(it.roomId) ? it.roomId : rooms[0].id;
   });
   const active = Math.min(Math.max(0, Math.round(d.active || 0)), items.length - 1);
   // trzymamy wylacznie ceny wpisane recznie; domyslne siedza przy pozycjach
@@ -1188,7 +1265,7 @@ const loadProject = (d) => {
     })
   );
   const name = typeof d.name === "string" && d.name.trim() ? d.name : DEFAULT_PROJECT_NAME;
-  return { name, items, runs, active, prices };
+  return { name, rooms, items, runs, active, prices };
 };
 
 /* ---------- szablony startowe ----------
@@ -1314,10 +1391,80 @@ const START_TEMPLATE = "stojaca";
 const newProject = () => ({
   name: DEFAULT_PROJECT_NAME,
   prices: {},
-  items: [{ cab: makeFromTemplate(START_TEMPLATE), mat: defaultMaterials, runId: null }],
+  rooms: [{ ...ROOM_FIRST }],
+  items: [{ cab: makeFromTemplate(START_TEMPLATE), mat: defaultMaterials, runId: null, roomId: ROOM_FIRST.id }],
   runs: [],
   active: 0,
 });
+
+/* Wejscie do pomieszczenia: aktywna staje sie jego pierwsza szafka. Puste
+   pomieszczenie (nowe albo po usunieciu ciagu) dostaje szafke startowa, jak
+   nowy projekt — aplikacja zawsze ma jakas szafke do pokazania. */
+const wejdzDoPokoju = (p, roomId) => {
+  const akt = p.items[p.active];
+  if (akt && roomOfItem(p, akt) === roomId) return p;
+  const tu = itemsInRoom(p, roomId);
+  if (tu.length) return { ...p, active: tu[0].i };
+  const nums = p.items.map((it) => { const m = /^Szafka (\d+)$/.exec((it.cab.name || "").trim()); return m ? Number(m[1]) : 0; });
+  const cab = { ...makeFromTemplate(START_TEMPLATE), name: `Szafka ${Math.max(0, ...nums) + 1}` };
+  return { ...p, items: [...p.items, { cab, mat: defaultMaterials, runId: null, roomId }], active: p.items.length };
+};
+
+/* Ciagi przeniesione do innego pomieszczenia: zmieniaja `roomId` razem ze
+   swoimi szafkami, a „Ściana N”, ktora tam juz jest, dostaje kolejny wolny
+   numer (gorny ciag bierze nazwe swojego dolnego). Wlasne nazwy zostaja. */
+const przeniesCiagi = (p, ids, roomId) => {
+  const runs = p.runs || [];
+  const zajete = new Set(runs.filter((r) => !ids.has(r.id) && r.tier !== "gorny"
+    && roomOfRun(p, r) === roomId).map((r) => r.name));
+  const nowe = new Map();
+  let n = 1;
+  runs.forEach((r) => {
+    if (!ids.has(r.id) || r.tier === "gorny") return;
+    if (zajete.has(r.name) && /^Ściana \d+$/.test(r.name)) {
+      while (zajete.has(`Ściana ${n}`)) n++;
+      nowe.set(r.id, `Ściana ${n}`);
+    }
+    zajete.add(nowe.get(r.id) || r.name);
+  });
+  return { ...p,
+    runs: runs.map((r) => (!ids.has(r.id) ? r : { ...r, roomId,
+      ...(nowe.has(r.id) ? { name: nowe.get(r.id) }
+        : r.tier === "gorny" && nowe.has(r.wall) ? { name: nowe.get(r.wall) } : {}) })),
+    items: p.items.map((it) => (it.runId && ids.has(it.runId) ? { ...it, roomId } : it)) };
+};
+
+/* Szafka (wolnostojaca) albo cala jej zabudowa — ciag razem ze wszystkim, co
+   laczy z nim rog albo pietro — idzie do innego pomieszczenia. Widok idzie
+   za nia, bo to ona jest aktywna. */
+const przeniesDoPokoju = (p, i, cel) => {
+  const it = p.items[i];
+  if (!it || !roomsOf(p).some((r) => r.id === cel) || roomOfItem(p, it) === cel) return p;
+  if (it.runId) return przeniesCiagi(p, grupaCiagow(p.runs || [], it.runId), cel);
+  return { ...p, items: p.items.map((x, k) => (k === i ? { ...x, roomId: cel } : x)) };
+};
+
+/* Usuniecie pomieszczenia (uzytkownik 2026-09-29: zawsze z pytaniem). `cel`
+   = pomieszczenie, do ktorego ida jego ciagi i szafki; brak = znikaja razem
+   z nim. Ostatniego pomieszczenia nie usuwamy. */
+const usunPokoj = (p, id, cel) => {
+  const rooms = roomsOf(p);
+  if (rooms.length <= 1 || !rooms.some((r) => r.id === id)) return p;
+  const zostaja = rooms.filter((r) => r.id !== id);
+  const ids = new Set(runsInRoom(p, id).map((r) => r.id));
+  const byl = activeRoomOf(p);
+  let q;
+  if (cel && zostaja.some((r) => r.id === cel)) {
+    q = przeniesCiagi(p, ids, cel);
+    q = { ...q, items: q.items.map((it) => (!it.runId && roomOfItem(p, it) === id ? { ...it, roomId: cel } : it)) };
+  } else {
+    const items = p.items.filter((it) => roomOfItem(p, it) !== id);
+    q = { ...p, runs: (p.runs || []).filter((r) => !ids.has(r.id)), items,
+      active: Math.max(0, items.indexOf(p.items[p.active])) };
+  }
+  q = { ...q, rooms: zostaja };
+  return wejdzDoPokoju(q, byl === id ? (cel || zostaja[0].id) : byl);
+};
 
 /* ---------- geometria ---------- */
 
@@ -4367,9 +4514,10 @@ const gornyPodRamie = (project, runs, r) => {
   return runs.some((g) => g.tier === "gorny" && sasiedzi.includes(g.wall)
     && runItems(project, g.id).some(({ it }) => it.cab.corner && it.cab.corner.on));
 };
-const drawableRuns = (project) => {
+const drawableRuns = (project, roomId = null) => {
   const runs = project.runs || [];
-  return runs.filter((r) => runItems(project, r.id).length || runInCorner(runs, r) || gornyPodRamie(project, runs, r));
+  return runs.filter((r) => (!roomId || roomOfRun(project, r) === roomId)
+    && (runItems(project, r.id).length || runInCorner(runs, r) || gornyPodRamie(project, runs, r)));
 };
 
 /* Zasieg sciany w ukladzie ciagu (u wzdluz sciany). W rogu mur idzie o swoja
@@ -9404,6 +9552,15 @@ const okuciaSzafki = (geo, { bezListwy = false, arm = null, wstawki = [] } = {})
    blat ciagu, ramie szafki naroznej. Wtedy potrzebne sa „Formatki calego
    projektu” i rozkroj calosci — przy jednej szafce w ciagu blat i cokol ciagu
    nie trafialy inaczej nigdzie. */
+/* Wycinek projektu z jednym pomieszczeniem — do list, wyceny i rozkroju
+   „tylko to pomieszczenie” oraz do rozdzialow wydruku. Rogi i pietra nie
+   wychodza poza pomieszczenie, wiec uklad wycinka jest taki sam jak w calosci. */
+const projektPomieszczenia = (project, roomId) => {
+  const items = project.items.filter((it) => roomOfItem(project, it) === roomId);
+  return { ...project, rooms: roomsOf(project).filter((r) => r.id === roomId),
+    runs: runsInRoom(project, roomId), items, active: 0 };
+};
+
 const calyProjekt = (project) =>
   project.items.length > 1 || projectParts(project).length > project.items.length;
 
@@ -9931,10 +10088,24 @@ const splitAtJoints = (total, joints, want, max = USABLE_W, wlasne = []) => {
    i blat, i uwagi. Projekt jest niezmienny — po kazdej zmianie powstaje nowy
    obiekt — wiec wystarczy zapamietac wynik przy nim samym. */
 const layoutCache = new WeakMap();
+/* Kazde pomieszczenie ma wlasny uklad: ciagi roznych pomieszczen nie stoja
+   w jednym rzucie, wiec nie moga ze soba kolidowac ani skladac sie w rog.
+   `info` laczy wszystkie (ciag ma jedno pomieszczenie, wiec klucze sie nie
+   gryza), a `pokoje` trzyma uklad kazdego osobno — do kolizji otwierania. */
 const projectLayout = (project) => {
   if (layoutCache.has(project)) return layoutCache.get(project);
-  const runs = drawableRuns(project);
-  const L = runLayout(assemblyParts(project, runs));
+  const info = new Map();
+  const pokoje = new Map();
+  const ids = [...new Set([...roomsOf(project).map((r) => r.id),
+    ...(project.runs || []).map((r) => roomOfRun(project, r))])];
+  ids.forEach((id) => {
+    const runs = drawableRuns(project, id);
+    if (!runs.length) return;
+    const L = runLayout(assemblyParts(project, runs));
+    pokoje.set(id, L);
+    L.info.forEach((n, k) => info.set(k, n));
+  });
+  const L = { info, pokoje, corners: [...info.values()].some((n) => n.corner) };
   layoutCache.set(project, L);
   return L;
 };
@@ -10568,7 +10739,11 @@ const projectParts = (project) => {
     };
   });
   const runs = [];
-  shared.forEach(({ run, rp, rt, rr }) => {
+  /* W kilku pomieszczeniach „Ściana 1” jest w kazdym — pozycja ciagu niesie
+     wiec nazwe pomieszczenia, zeby w zbiorczym zamowieniu dalo sie je odroznic. */
+  const wielePokoi = roomsOf(project).length > 1;
+  shared.forEach(({ run: r0, rp, rt, rr }) => {
+    const run = wielePokoi ? { ...r0, name: `${roomName(project, roomOfRun(project, r0))}, ${r0.name}` } : r0;
     /* Sam ciag (listwa, cokol, blat) moze zostac bez szafek — wtedy nie ma od
        kogo pozyczyc materialu i siegniecie po items[0] wywracalo aplikacje. */
     const base = { mat: (rp || rt || {}).mat
@@ -11895,7 +12070,7 @@ const PRINT_CSS = `
 /* `ctx` i `arm` przychodza z ukladu calego projektu: bez nich kartka szafki
    naroznej liczyla front przez cala szerokosc korpusu i nie pokazywala ramienia,
    czyli wydruk mowil co innego niz aplikacja i niz lista formatek. */
-function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, sharedTop, sharedRail, ctx, arm, wstawki = [] }) {
+function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, sharedTop, sharedRail, ctx, arm, wstawki = [], rozdzial = null }) {
   const ambig = useMemo(() => ambiguousThickness([mat]), [mat]);
   const geo = useMemo(() => computeGeo(cab, mat, ctx), [cab, mat, ctx]);
   const hardware = useMemo(() => okuciaSzafki(geo, { bezListwy: sharedRail, arm, wstawki }), [geo, sharedRail, arm, wstawki]);
@@ -11916,7 +12091,7 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
   const head = (
     <div style={{ borderBottom: "2px solid #292524", marginBottom: 8, paddingBottom: 4 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <strong style={{ fontSize: "13pt" }}>{projectName}</strong>
+        <strong style={{ fontSize: "13pt" }}>{projectName}{rozdzial ? ` — ${rozdzial}` : ""}</strong>
         <span style={{ fontSize: "9pt", color: "#57534e" }}>
           {cab.name} {total > 1 ? `(${index + 1} z ${total})` : ""}
         </span>
@@ -12085,18 +12260,48 @@ function PrintReport({ project }) {
     layout.info.forEach((n) => { if (n.arm) m.set(n.arm.cab.index, n.arm); });
     return m;
   }, [layout]);
+  const arkusz = (it, i, nr, rozdzial) => (
+    <ReportSheet key={i} cab={it.cab} mat={it.mat} projectName={name}
+      index={nr} total={project.items.length} rozdzial={rozdzial}
+      ctx={armCtxOf(layout, i)} arm={armOf.get(i)}
+      sharedPlinth={!!runsWithPlinth.has(it.runId || null)}
+      sharedTop={!!runsWithTop.has(it.runId || null)}
+      sharedRail={!!runsWithRail.has(it.runId || null)}
+      wstawki={wstawkiOf(layout).filter((w) => w.cab.index === i)} />
+  );
+  /* Kilka pomieszczen: rozdzial na kazde (kartki jego szafek i jego formatki
+     z produktami), a na koncu zbiorcze zamowienie i rozkroj calego projektu. */
+  const pokoje = roomsOf(project);
+  if (pokoje.length > 1) {
+    let nr = 0;
+    return (
+      <div className="print-only" style={{ color: "#1c1917", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+        <style>{PRINT_CSS}</style>
+        {pokoje.map((r) => {
+          const tu = itemsInRoom(project, r.id);
+          if (!tu.length) return null;
+          const wycinek = projektPomieszczenia(project, r.id);
+          return (
+            <React.Fragment key={r.id}>
+              {tu.map(({ it, i }) => arkusz(it, i, nr++, r.name))}
+              {calyProjekt(wycinek) && (
+                <ReportProjectSheet project={wycinek} projectName={`${name} — ${r.name}`}
+                  tytul={`Formatki pomieszczenia „${r.name}” — ${tu.length} ${plural(tu.length, "szafka", "szafki", "szafek")}`}
+                  tytulProduktow={`Produkty pomieszczenia „${r.name}”`} />
+              )}
+            </React.Fragment>
+          );
+        })}
+        <ReportProjectSheet project={project} projectName={name}
+          tytul={`Zbiorcze zamówienie — cały projekt: ${pokoje.length} ${plural(pokoje.length, "pomieszczenie", "pomieszczenia", "pomieszczeń")}, ${project.items.length} ${plural(project.items.length, "szafka", "szafki", "szafek")}`} />
+        <ReportCutPlan project={project} projectName={name} />
+      </div>
+    );
+  }
   return (
     <div className="print-only" style={{ color: "#1c1917", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <style>{PRINT_CSS}</style>
-      {project.items.map((it, i) => (
-        <ReportSheet key={i} cab={it.cab} mat={it.mat} projectName={name}
-          index={i} total={project.items.length}
-          ctx={armCtxOf(layout, i)} arm={armOf.get(i)}
-          sharedPlinth={!!runsWithPlinth.has(it.runId || null)}
-          sharedTop={!!runsWithTop.has(it.runId || null)}
-          sharedRail={!!runsWithRail.has(it.runId || null)}
-          wstawki={wstawkiOf(layout).filter((w) => w.cab.index === i)} />
-      ))}
+      {project.items.map((it, i) => arkusz(it, i, i, null))}
       {calyProjekt(project) && <ReportProjectSheet project={project} projectName={name} />}
       <ReportCutPlan project={project} projectName={name} />
     </div>
@@ -12183,7 +12388,7 @@ function ReportCutPlan({ project, projectName }) {
 }
 
 /* zbiorcza lista formatek calego projektu — tylko przy kilku szafkach */
-function ReportProjectSheet({ project, projectName }) {
+function ReportProjectSheet({ project, projectName, tytul = null, tytulProduktow = "Produkty całego projektu" }) {
   const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
   const rows = useMemo(() => {
     const map = new Map();
@@ -12225,7 +12430,7 @@ function ReportProjectSheet({ project, projectName }) {
       <div style={{ borderBottom: "2px solid #292524", marginBottom: 8, paddingBottom: 4 }}>
         <strong style={{ fontSize: "13pt" }}>{projectName}</strong>
         <div style={{ fontSize: "9pt", color: "#57534e" }}>
-          Formatki całego projektu — {project.items.length} szafki
+          {tytul || `Formatki całego projektu — ${project.items.length} szafki`}
         </div>
       </div>
       <table className="rp-tbl">
@@ -12269,7 +12474,7 @@ function ReportProjectSheet({ project, projectName }) {
       </div>
 
       <div style={{ fontSize: "10pt", fontWeight: 600, margin: "10px 0 4px" }}>
-        Produkty całego projektu
+        {tytulProduktow}
       </div>
       {hardware.length === 0 ? (
         <div style={{ fontSize: "9pt", color: "#78716c" }}>Brak okuć.</div>
@@ -12305,6 +12510,8 @@ export default function App() {
   const [project, setProjectRaw] = useState(newProject);
   const cab = project.items[project.active].cab;
   const mat = project.items[project.active].mat;
+  // pomieszczenie, ktore ogladamy — to, w ktorym stoi aktywna szafka
+  const pokoj = activeRoomOf(project);
   const histRef = useRef({ past: [], future: [] });
   const [histLen, setHistLen] = useState({ undo: 0, redo: 0 });
 
@@ -12379,15 +12586,17 @@ export default function App() {
       ...(run.D != null ? { D: run.D } : {}),
       ...(run.plinth ? { plinth: { ...run.plinth } } : {}),
     } : {};
+    const roomId = run ? roomOfRun(p, run) : activeRoomOf(p);
     const fresh = { cab: { ...base, name: `Szafka ${next}`, ...wymiaryCiagu,
       ...(run ? { hangerMode: run.hangerMode || "listwa" } : {}),
       ...(podBlat ? bezWienca(base, defaultMaterials.front.thickness) : {}),
       ...(stoi ? { legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } } : {}) },
-      mat: defaultMaterials, runId };
+      mat: defaultMaterials, runId, roomId };
     /* Nowa szafka ciagu ma stanac na jego koncu, a nie na koncu calego projektu —
        inaczej kolejnosc przy scianie zalezalaby od tego, w jakiej kolejnosci
        dokladano szafki do roznych ciagow. */
-    const last = p.items.reduce((acc, it, k) => ((it.runId || null) === runId ? k : acc), -1);
+    const last = p.items.reduce((acc, it, k) => ((it.runId || null) === runId
+      && (runId || roomOfItem(p, it) === roomId) ? k : acc), -1);
     const at = last >= 0 ? last + 1 : p.items.length;
     const items = [...p.items.slice(0, at), fresh, ...p.items.slice(at)];
     /* Szablon narożnika składa cały układ, a nie samą szafkę: za rogiem staje
@@ -12426,7 +12635,7 @@ export default function App() {
        najpierw swój własny — inaczej nie byłoby czego zaginać. */
     let bazowy = runId;
     if (!bazowy) {
-      const pierwszy = makeRun(runs);
+      const pierwszy = makeRun(runs, roomId);
       runs = [...runs, pierwszy];
       bazowy = pierwszy.id;
       /* Ciag powstaje dopiero teraz, wiec szafka nie przeszla przez zwykla
@@ -12440,7 +12649,7 @@ export default function App() {
     }
     /* Pusty ciag nie ma szafki, od ktorej wzialby glebokosc, wiec dostaje ja od
        razu z szablonu — inaczej ramie nie mialoby o co sie oprzec. */
-    const nowy = { ...makeRun(runs), D: tpl.otherD || null,
+    const nowy = { ...makeRun(runs, roomId), D: tpl.otherD || null,
       corner: { of: bazowy, at: "end", owner: "of", clear: 0 } };
     return withRunDefaults(
       withRunDefaults({ ...p, runs: [...runs, nowy], items, active: at }, bazowy),
@@ -12457,10 +12666,21 @@ export default function App() {
     const items = [...p.items.slice(0, i + 1), copy, ...p.items.slice(i + 1)];
     return { ...p, items, active: i + 1 };
   }), [setProject]);
+  /* Ostatnia szafka pomieszczenia zostaje — pomieszczenie usuwa sie w calosci
+     jego wlasnym przyciskiem (z pytaniem, co zrobic z szafkami). */
   const removeCabinet = useCallback((i) => setProject((p) => {
-    if (p.items.length <= 1) return p;
+    if (p.items.length <= 1 || !p.items[i]) return p;
+    const room = roomOfItem(p, p.items[i]);
+    if (itemsInRoom(p, room).length <= 1) return p;
     const items = p.items.filter((_, k) => k !== i);
-    return { ...p, items, active: Math.min(p.active, items.length - 1) };
+    const q = { ...p, items };
+    let active = Math.min(p.active, items.length - 1);
+    // po usunieciu zostajemy w tym samym pomieszczeniu
+    if (roomOfItem(q, items[active]) !== activeRoomOf(p)) {
+      const tu = itemsInRoom(q, activeRoomOf(p)).map(({ i: k }) => k);
+      if (tu.length) active = tu.find((k) => k >= Math.min(i, items.length - 1)) ?? tu[tu.length - 1];
+    }
+    return { ...q, active };
   }), [setProject]);
 
   /* --- ciagi meblowe ---
@@ -12489,7 +12709,7 @@ export default function App() {
 
   const addRun = useCallback(() => setProject((p) => {
     const runs = p.runs || [];
-    return { ...p, runs: [...runs, makeRun(runs)] };
+    return { ...p, runs: [...runs, makeRun(runs, activeRoomOf(p))] };
   }), [setProject]);
 
   /* Gorne pietro tej samej sciany. Wysokosc montazu liczy sie z lica dolnego
@@ -12516,8 +12736,9 @@ export default function App() {
     if (!items.length) return p;
     const zostaja = runs.filter((r) => !znikaja.has(r.id))
       .map((r) => (r.corner && znikaja.has(r.corner.of) ? { ...r, corner: null } : r));
-    return { ...p, runs: zostaja, items,
-      active: Math.max(0, items.indexOf(p.items[p.active])) };
+    const q = { ...p, runs: zostaja, items, active: Math.max(0, items.indexOf(p.items[p.active])) };
+    // aktywna szafka zniknela razem z ciagiem — zostajemy w tym samym pomieszczeniu
+    return items.indexOf(p.items[p.active]) >= 0 ? q : wejdzDoPokoju(q, activeRoomOf(p));
   }), [setProject]);
 
   const setRun = useCallback((id, patch) => setProject((p) => ({
@@ -12549,8 +12770,9 @@ export default function App() {
     // narożnik wskazujacy na skasowany ciag przestaje cokolwiek znaczyc
     runs: (p.runs || []).filter((r) => r.id !== id)
       .map((r) => (r.corner && r.corner.of === id ? { ...r, corner: null } : r)),
-    // rozwiazanie ciagu nie kasuje szafek — wracaja miedzy wolnostojace
-    items: p.items.map((it) => ((it.runId || null) === id ? { ...it, runId: null } : it)),
+    // rozwiazanie ciagu nie kasuje szafek — wracaja miedzy wolnostojace tego pomieszczenia
+    items: p.items.map((it) => ((it.runId || null) === id
+      ? { ...it, runId: null, roomId: roomOfItem(p, it) } : it)),
   })), [setProject]);
 
   /* Narożnik. `of` = ciag, do ktorego sie dostawiamy; brak = ciag stoi osobno.
@@ -12571,7 +12793,8 @@ export default function App() {
     const cur = p.items[i];
     if (!cur || (cur.runId || null) === (runId || null)) return p;
     const items = p.items.slice();
-    items[i] = { ...cur, runId: runId || null };
+    const run = runId && (p.runs || []).find((r) => r.id === runId);
+    items[i] = { ...cur, runId: runId || null, roomId: run ? roomOfRun(p, run) : roomOfItem(p, cur) };
     const next = { ...p, items, active: p.active === i ? i : p.active };
     const last = items.reduce((acc, it, k) => (k !== i && (it.runId || null) === (runId || null) ? k : acc), -1);
     if (last < 0) return withRunDefaults({ ...next, active: i }, runId);
@@ -12599,11 +12822,31 @@ export default function App() {
   // przesuwanie w obrebie ciagu — sasiadem jest najblizsza szafka tego samego ciagu
   const moveCabinet = useCallback((i, dir) => setProject((p) => {
     const rid = p.items[i] ? p.items[i].runId || null : null;
+    const room = roomOfItem(p, p.items[i]);
     let j = i + dir;
-    while (j >= 0 && j < p.items.length && (p.items[j].runId || null) !== rid) j += dir;
+    while (j >= 0 && j < p.items.length
+      && ((p.items[j].runId || null) !== rid || roomOfItem(p, p.items[j]) !== room)) j += dir;
     if (j < 0 || j >= p.items.length) return p;
     return reorderItems(p, i, j);
   }), [setProject]);
+
+  // --- pomieszczenia ---
+  const addRoom = useCallback(() => setProject((p) => {
+    const room = makeRoom(roomsOf(p));
+    return wejdzDoPokoju({ ...p, rooms: [...roomsOf(p), room] }, room.id);
+  }), [setProject]);
+  const switchRoom = useCallback((id) => setProject((p) => wejdzDoPokoju(p, id)), [setProject]);
+  const renameRoom = useCallback((id, name) => setProject((p) => ({
+    ...p, rooms: roomsOf(p).map((r) => (r.id === id ? { ...r, name } : r)) })), [setProject]);
+  const deleteRoom = useCallback((id, cel) => setProject((p) => usunPokoj(p, id, cel)), [setProject]);
+  const moveToRoom = useCallback((i, cel) => setProject((p) => przeniesDoPokoju(p, i, cel)), [setProject]);
+  // pytanie przy usuwaniu pomieszczenia: { id, cel } albo null
+  const [usuwanyPokoj, setUsuwanyPokoj] = useState(null);
+  // nazwa pomieszczenia w trakcie zmiany (pole zamiast przycisku)
+  const [nazwaPokoju, setNazwaPokoju] = useState(null);
+  /* Formatki, produkty, rozkroj i wycena: domyslnie caly projekt — to jedno
+     zamowienie (uzytkownik 2026-09-29); podglad samego pomieszczenia osobno. */
+  const [zakresZam, setZakresZam] = useState("projekt");
 
   const undo = useCallback(() => {
     const h = histRef.current;
@@ -12645,7 +12888,7 @@ export default function App() {
      stoi pod katem prostym do ktoregos z dolnych, i od razu stawia szafke
      w rogu. Pierwszy ciag dodaje sie jak dotad. */
   const [kreator, setKreator] = useState(null);
-  const dolneCiagi = (project.runs || []).filter((r) => r.tier !== "gorny");
+  const dolneCiagi = runsInRoom(project, pokoj).filter((r) => r.tier !== "gorny");
   const otworzKreator = () => {
     if (!dolneCiagi.length) { addRun(); return; }
     setKreator({ ...KREATOR_DOMYSLNY, rog: true, of: dolneCiagi[dolneCiagi.length - 1].id });
@@ -12675,8 +12918,8 @@ export default function App() {
   }, []);
   const wyslijDoClaude = async () => {
     if (!dbClaude) return;
-    const json = JSON.stringify({ name: project.name, prices: project.prices, items: project.items,
-      runs: project.runs, active: project.active });
+    const json = JSON.stringify({ name: project.name, prices: project.prices, rooms: roomsOf(project),
+      items: project.items, runs: project.runs, active: project.active });
     // dokument w magazynie ma limit 256 KiB — zostawiamy zapas na opis
     if (new Blob([json]).size > 240 * 1024) {
       setSaved("projekt za duży do wysłania — użyj „Zapisz do pliku”");
@@ -12698,7 +12941,7 @@ export default function App() {
 
   const exportProject = () => {
     const json = JSON.stringify(
-      { name: project.name, prices: project.prices, items: project.items, runs: project.runs, active: project.active },
+      { name: project.name, prices: project.prices, rooms: roomsOf(project), items: project.items, runs: project.runs, active: project.active },
       null,
       2
     );
@@ -12854,7 +13097,7 @@ export default function App() {
       try {
         await projectStore.set(
           "szafki:projekt",
-          JSON.stringify({ name: project.name, prices: project.prices, items: project.items, runs: project.runs, active: project.active })
+          JSON.stringify({ name: project.name, prices: project.prices, rooms: roomsOf(project), items: project.items, runs: project.runs, active: project.active })
         );
         setSaved("zapisano " + new Date().toLocaleTimeString("pl-PL"));
       } catch (e) {
@@ -12878,16 +13121,19 @@ export default function App() {
   const [pasekZwiniety, setPasekZwiniety] = useState(() => {
     try { return localStorage.getItem("mp-pasek-zwiniety") === "1"; } catch (e) { return false; }
   });
+  // szafki wolnostojace tego pomieszczenia
+  const wolneWPokoju = useMemo(() => runItems(project, null).filter(({ it }) => roomOfItem(project, it) === pokoj),
+    [project, pokoj]);
   const groupBar = useMemo(() => {
-    const runs = project.runs || [];
+    const runs = runsInRoom(project, pokoj);
     /* Sciana z dwoma pietrami pokazuje je osobno i podpisuje, ktore jest ktore —
        samo „Ściana 1" przestaje wystarczac. */
     const rows = runs.map((r) => ({ id: r.id, label: runLabel(runs, r), tier: r.tier,
       maGorny: runs.some((q) => q.tier === "gorny" && q.wall === r.id) }));
     if (!runs.length) rows.push({ id: null, label: "Szafki:" });
-    else if (runItems(project, null).length) rows.push({ id: null, label: "Wolnostojące" });
+    else if (wolneWPokoju.length) rows.push({ id: null, label: "Wolnostojące" });
     return rows;
-  }, [project]);
+  }, [project, pokoj, wolneWPokoju]);
 
   // dane ciagu, w ktorym stoi aktywna szafka (null dla wolnostojacej)
   const runInfo = useMemo(() => {
@@ -12920,10 +13166,10 @@ export default function App() {
   const scopeOpts = useMemo(() => {
     const out = [{ v: "cab", l: "Szafka" }];
     if (runInfo) out.push({ v: "run", l: "Ciąg" });
-    if (drawableRuns(project).length > 1)
+    if (drawableRuns(project, pokoj).length > 1)
       out.push({ v: "all", l: "Zabudowa" });
     return out;
-  }, [project, runInfo]);
+  }, [project, runInfo, pokoj]);
 
   // ciagi objete rysunkiem; null = rysujemy pojedyncza szafke jak dotad
   /* Sciana z dwoma pietrami: zakres „Ciąg" dostaje jeszcze wybor, ktore z nich
@@ -12946,9 +13192,9 @@ export default function App() {
       if (tierScope === "gorny") return [pietraSciany.gorny];
       return [pietraSciany.dolny, pietraSciany.gorny];
     }
-    if (scope === "all") return drawableRuns(project);
+    if (scope === "all") return drawableRuns(project, pokoj);
     return null;
-  }, [scope, project, runInfo, pietraSciany, tierScope]);
+  }, [scope, project, runInfo, pietraSciany, tierScope, pokoj]);
 
   /* Bryly nie da sie zlozyc z jednego ciagu, gdy w rogu wychodzi z niego ramie:
      lezy ono w pasie sasiada, wiec do 3D dobieramy tez tamten ciag. Rysunki
@@ -13030,9 +13276,24 @@ export default function App() {
   // uwagi pozostalych szafek — tylko bledy i ostrzezenia, podpowiedzi zostawiamy
   // przy szafce, ktorej dotycza, zeby lista nie spuchla
   const otherNotes = useMemo(
-    () => projectNotes.filter((n) => n.i !== project.active && (n.err > 0 || n.warn > 0)),
-    [projectNotes, project.active]
+    () => projectNotes.filter((n) => n.i !== project.active && (n.err > 0 || n.warn > 0)
+      && roomOfItem(project, project.items[n.i]) === pokoj),
+    [projectNotes, project, pokoj]
   );
+  /* Uwagi w innych pomieszczeniach — tylko licznik z przejsciem, zeby blad
+     w lazience nie zginal, kiedy pracujemy nad kuchnia. */
+  const innePokojeNotes = useMemo(() => {
+    const out = new Map();
+    projectNotes.forEach((n) => {
+      if (!(n.err > 0 || n.warn > 0)) return;
+      const r = roomOfItem(project, project.items[n.i]);
+      if (r === pokoj) return;
+      const e = out.get(r) || { id: r, name: roomName(project, r), err: 0, warn: 0, szafek: 0 };
+      e.err += n.err; e.warn += n.warn; e.szafek += 1;
+      out.set(r, e);
+    });
+    return [...out.values()];
+  }, [projectNotes, project, pokoj]);
 
   /* Uwagi ciagu ida do tej samej karty co uwagi szafki — z punktu widzenia
      uzytkownika to jedna lista rzeczy do sprawdzenia. */
@@ -13056,7 +13317,7 @@ export default function App() {
      na naszym — inaczej powstalby pierscien scian bez poczatku. */
   const cornerCandidates = useMemo(() => {
     if (!runInfo) return [];
-    const runs = (project.runs || []).filter((r) => runItems(project, r.id).length);
+    const runs = runsInRoom(project, pokoj).filter((r) => runItems(project, r.id).length);
     const wisiNaNas = (r) => {
       for (let q = r, n = 0; q && q.corner && n <= runs.length; n++) {
         if (q.corner.of === runInfo.run.id) return true;
@@ -13065,7 +13326,7 @@ export default function App() {
       return false;
     };
     return runs.filter((r) => r.id !== runInfo.run.id && !wisiNaNas(r));
-  }, [project, runInfo]);
+  }, [project, runInfo, pokoj]);
 
   const runMsgs = useMemo(() => {
     if (!runInfo) return [];
@@ -13079,8 +13340,8 @@ export default function App() {
       ...runCornerMsgs(node, !!runTp),
       /* Kolizje otwierania sa sprawa calej zabudowy, a nie tego jednego ciagu —
          dlatego lecimy po calym rozmieszczeniu i pokazujemy wszystkie. */
-      ...openingMsgs(projLayout, project)];
-  }, [project, runInfo, runPl, runTp, projLayout]);
+      ...openingMsgs(projLayout.pokoje.get(pokoj), project)];
+  }, [project, runInfo, runPl, runTp, projLayout, pokoj]);
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
@@ -13423,9 +13684,14 @@ export default function App() {
 
   // wspolna lista formatek CALEGO projektu — sumuje wszystkie szafki.
   // Rozne materialy (nazwa/kolor/grubosc) nie lacza sie mimo tych samych wymiarow.
+  /* Zakres zamowienia: caly projekt albo samo ogladane pomieszczenie (przelacznik
+     na pasku pomieszczen). Przy jednym pomieszczeniu to zawsze calosc. */
+  const zamTylkoPokoj = zakresZam === "pomieszczenie" && roomsOf(project).length > 1;
+  const projZam = useMemo(() => (zamTylkoPokoj ? projektPomieszczenia(project, pokoj) : project),
+    [project, pokoj, zamTylkoPokoj]);
   const projectCutList = useMemo(() => {
     const map = new Map();
-    projectParts(project).forEach((part) => {
+    projectParts(projZam).forEach((part) => {
       const cabName = part.name;
       part.panels.forEach((p) => {
         const m = part.mat[p.matKey] || {};
@@ -13453,7 +13719,7 @@ export default function App() {
           .map(([n, q]) => (p.from.size === 1 && q === p.qty ? n : `${n} × ${q}`))
           .join(", "),
       }));
-  }, [project, ambig]);
+  }, [projZam, ambig]);
 
   const projectEdgeMeters = useMemo(() => {
     let mm = 0;
@@ -13473,8 +13739,8 @@ export default function App() {
 
   // okucia calego projektu — te same pozycje z roznych szafek sumujemy
   const projectHardware = useMemo(() => {
-    return scalOkucia(projectParts(project).flatMap((part) => part.hardware));
-  }, [project]);
+    return scalOkucia(projectParts(projZam).flatMap((part) => part.hardware));
+  }, [projZam]);
 
   /* Wejscie rozkroju: sama lista formatek (nazwa, wymiary, ilosc, plyta z kolorem,
      sloje). Z niej liczy sie klucz — rozkroj przelicza sie tylko, gdy ta lista
@@ -13791,10 +14057,89 @@ export default function App() {
               + {otherNotes.length} {plural(otherNotes.length, "szafka", "szafki", "szafek")} z uwagami
             </button>
           )}
+          {innePokojeNotes.map((r) => (
+            <button key={r.id} onClick={() => switchRoom(r.id)} title="Przejdź do tego pomieszczenia"
+              className="rounded-full border border-dashed px-2.5 py-1 text-xs font-medium transition hover:brightness-95"
+              style={{ borderColor: "#d6d3d1", color: r.err ? ERRC : WARNC }}>
+              {r.name}: {r.err ? `${r.err} ${plural(r.err, "błąd", "błędy", "błędów")}` : `${r.warn} ${plural(r.warn, "ostrzeżenie", "ostrzeżenia", "ostrzeżeń")}`}
+            </button>
+          ))}
         </div>
         {/* pasek szafek w projekcie — po jednym wierszu na ciąg, na końcu wolnostojące.
             Da sie go zwinac do jednej linii (komentarz uzytkownika 2026-09-29: „zajmuje
             sporo miejsca”); stan pamieta przegladarka. */}
+        {/* pomieszczenia: Projekt → Pomieszczenie → ciagi → szafki (uzytkownik 2026-09-29) */}
+        <div className="border-t border-stone-200 bg-white/70" data-pasek="pomieszczenia">
+          <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-1.5 px-4 py-1.5">
+            <span className="mr-1 shrink-0 text-xs font-medium text-stone-400">Pomieszczenia</span>
+            {roomsOf(project).map((r) => {
+              const akt = r.id === pokoj;
+              const uw = innePokojeNotes.find((x) => x.id === r.id);
+              if (akt && nazwaPokoju != null) return (
+                <input key={r.id} autoFocus value={nazwaPokoju} aria-label="Nazwa pomieszczenia"
+                  onChange={(e) => setNazwaPokoju(e.target.value)}
+                  onBlur={() => { renameRoom(r.id, nazwaPokoju.trim() || r.name); setNazwaPokoju(null); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                    if (e.key === "Escape") setNazwaPokoju(null);
+                  }}
+                  className="w-44 rounded-full border border-teal-600 bg-white px-3 py-1 text-xs text-stone-900 focus:outline-none" />
+              );
+              return (
+                <div key={r.id} data-pokoj={r.id}
+                  className={"flex items-center gap-1 rounded-md border px-3 py-1 text-xs font-medium transition " +
+                    (akt ? "border-stone-700 bg-stone-800 text-white" : "border-stone-300 bg-white text-stone-600 hover:border-stone-400")}>
+                  {uw && (
+                    <span title={`${uw.err ? uw.err + " " + plural(uw.err, "błąd", "błędy", "błędów") : ""}${uw.err && uw.warn ? ", " : ""}${uw.warn ? uw.warn + " " + plural(uw.warn, "ostrzeżenie", "ostrzeżenia", "ostrzeżeń") : ""} w tym pomieszczeniu`}
+                      className="text-[10px] leading-none" style={{ color: uw.err ? ERRC : WARNC }}>●</span>
+                  )}
+                  <button onClick={() => switchRoom(r.id)} className="max-w-[200px] truncate">{r.name || "Pomieszczenie"}</button>
+                  {akt && (
+                    <button onClick={() => setNazwaPokoju(r.name || "")} title="Zmień nazwę pomieszczenia"
+                      className="px-0.5 leading-none text-stone-300 hover:text-white">✎</button>
+                  )}
+                  {akt && roomsOf(project).length > 1 && (
+                    <button onClick={() => {
+                      const inne = roomsOf(project).filter((x) => x.id !== r.id);
+                      setUsuwanyPokoj({ id: r.id, cel: inne[0].id });
+                    }} title="Usuń pomieszczenie — zapyta, co zrobić z jego szafkami"
+                      className="rounded-full px-1 leading-none hover:bg-stone-700">×</button>
+                  )}
+                </div>
+              );
+            })}
+            <button onClick={addRoom} title="Nowe pomieszczenie — własne ściany i szafki, zamówienie dalej wspólne"
+              className="rounded-md border border-dashed border-stone-400 px-3 py-1 text-xs font-medium text-stone-500 hover:border-stone-500 hover:text-stone-700">
+              + pomieszczenie
+            </button>
+            {roomsOf(project).length > 1 && (() => {
+              const it = project.items[project.active];
+              const co = it.runId
+                ? `zabudowę „${(runInfo && runInfo.run.name) || "ciąg"}”` : `szafkę „${cab.name}”`;
+              return (
+                <select value="" aria-label="Przenieś do pomieszczenia"
+                  title={it.runId
+                    ? "Przenosi cały ciąg razem ze wszystkim, co łączy z nim narożnik albo górne piętro"
+                    : "Przenosi tę wolnostojącą szafkę"}
+                  onChange={(e) => { if (e.target.value) moveToRoom(project.active, e.target.value); e.target.value = ""; }}
+                  className="rounded-md border border-stone-300 bg-white px-2 py-1 text-xs text-stone-600 focus:border-teal-600 focus:outline-none">
+                  <option value="">Przenieś {co} do…</option>
+                  {roomsOf(project).filter((r) => r.id !== pokoj).map((r) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              );
+            })()}
+            {roomsOf(project).length > 1 && (
+              <div className="ml-auto flex items-center gap-1.5 text-xs text-stone-500"
+                title="Formatki, produkty, rozkrój i wycena — z całego projektu (jedno zamówienie) albo tylko z tego pomieszczenia">
+                Zamówienie:
+                <Seg value={zakresZam} onChange={setZakresZam}
+                  options={[{ v: "projekt", l: "Cały projekt" }, { v: "pomieszczenie", l: "To pomieszczenie" }]} />
+              </div>
+            )}
+          </div>
+        </div>
         <div className="border-t border-stone-200 bg-stone-50/60">
           <div className="mx-auto max-w-[1700px] px-4 pt-1">
             <button onClick={() => {
@@ -13807,7 +14152,7 @@ export default function App() {
               Ciągi i szafki
               {pasekZwiniety && (
                 <span className="text-stone-400">
-                  — {project.items.length} {plural(project.items.length, "szafka", "szafki", "szafek")}, aktywna: „{cab.name}”
+                  — {itemsInRoom(project, pokoj).length} {plural(itemsInRoom(project, pokoj).length, "szafka", "szafki", "szafek")}, aktywna: „{cab.name}”
                 </span>
               )}
             </button>
@@ -13815,7 +14160,7 @@ export default function App() {
           {!pasekZwiniety && (
           <div className="mx-auto max-w-[1700px] space-y-1 px-4 py-2">
             {groupBar.map((grp) => {
-              const list = runItems(project, grp.id);
+              const list = grp.id ? runItems(project, grp.id) : wolneWPokoju;
               return (
                 <div key={grp.id || "free"} className="flex flex-wrap items-center gap-1.5">
                   <span className="mr-1 shrink-0 text-xs font-medium text-stone-400">{grp.label}</span>
@@ -13853,7 +14198,7 @@ export default function App() {
                           className={arrow}>
                           ⧉
                         </button>
-                        {project.items.length > 1 && (
+                        {itemsInRoom(project, pokoj).length > 1 && (
                           <button onClick={() => removeCabinet(i)} title="Usuń szafkę"
                             className={"shrink-0 rounded-full px-1 leading-none " + (activeTab ? "hover:bg-teal-800" : "hover:bg-stone-200")}>×</button>
                         )}
@@ -13906,7 +14251,7 @@ export default function App() {
 
       <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]">
         <div className="space-y-4">
-          {(project.runs || []).length > 0 && (
+          {runsInRoom(project, pokoj).length > 0 && (
             <Card title="Ciąg meblowy" collapsible>
               {/* Najpierw ta jedna szafka (kilka pol), pod nia caly ciag — zeby
                   bylo jasne, co zmienia tylko ja, a co wszystkie szafki ciagu. */}
@@ -13919,7 +14264,7 @@ export default function App() {
                   onChange={(e) => assignCabinet(project.active, e.target.value || null)}
                   className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-teal-600 focus:outline-none">
                   <option value="">Wolnostojąca</option>
-                  {(project.runs || []).map((r) => (
+                  {runsInRoom(project, pokoj).map((r) => (
                     <option key={r.id} value={r.id}>{r.name}</option>
                   ))}
                 </select>
@@ -14035,7 +14380,7 @@ export default function App() {
                       zajetego przez szafke drugiej sciany (komentarze uzytkownika
                       2026-09-29: „ściana 1 to ściana 1, a ściana 2 to ściana 2”). */}
                   {(() => {
-                    const sciany = (project.runs || [])
+                    const sciany = runsInRoom(project, pokoj)
                       .filter((r) => (r.tier || "dolny") === (runInfo.run.tier || "dolny") && runItems(project, r.id).length)
                       .map((r) => {
                         const lst = runItems(project, r.id);
@@ -16229,7 +16574,8 @@ export default function App() {
           </Card>
 
           {zCaloscia && (
-            <Card title={`Formatki całego projektu${project.name ? " — " + project.name : ""}`} collapsible
+            <Card title={zamTylkoPokoj ? `Formatki pomieszczenia „${roomName(project, pokoj)}”`
+              : `Formatki całego projektu${project.name ? " — " + project.name : ""}`} collapsible
               right={
                 <div className="flex items-center gap-3">
                   <button onClick={() => makeCutPlan("project")}
@@ -16237,7 +16583,7 @@ export default function App() {
                     className="text-xs font-medium text-teal-700 hover:underline">
                     Rozkrój na płycie
                   </button>
-                  <span className="text-xs text-stone-400">{project.items.length} {plural(project.items.length, "szafka", "szafki", "szafek")}</span>
+                  <span className="text-xs text-stone-400">{projZam.items.length} {plural(projZam.items.length, "szafka", "szafki", "szafek")}</span>
                 </div>
               }>
               <p className="mb-2 text-xs text-stone-500">
@@ -16315,7 +16661,7 @@ export default function App() {
           )}
 
           {cutPlan && (
-            <Card title={`Rozkrój na płycie${cutPlan.scope === "project" ? " — cały projekt" : ""}`}
+            <Card title={`Rozkrój na płycie${cutPlan.scope === "project" ? (zamTylkoPokoj ? ` — pomieszczenie „${roomName(project, pokoj)}”` : " — cały projekt") : ""}`}
               right={
                 <button onClick={() => setCutPlan(null)} className="text-xs text-stone-500 hover:underline">
                   Zamknij
@@ -16421,8 +16767,9 @@ export default function App() {
           </Card>
 
           {zCaloscia && (
-            <Card title={`Produkty całego projektu${project.name ? " — " + project.name : ""}`} collapsible
-              right={<span className="text-xs text-stone-400">{project.items.length} {plural(project.items.length, "szafka", "szafki", "szafek")}</span>}>
+            <Card title={zamTylkoPokoj ? `Produkty pomieszczenia „${roomName(project, pokoj)}”`
+              : `Produkty całego projektu${project.name ? " — " + project.name : ""}`} collapsible
+              right={<span className="text-xs text-stone-400">{projZam.items.length} {plural(projZam.items.length, "szafka", "szafki", "szafek")}</span>}>
               <p className="mb-2 text-xs text-stone-500">
                 Suma okuć ze wszystkich szafek w projekcie — do zamówienia na całość naraz.
                 Te same pozycje z różnych szafek są sumowane; różne rozmiary i specyfikacje
@@ -16464,6 +16811,13 @@ export default function App() {
                 </button>
               ) : null
             }>
+            {roomsOf(project).length > 1 && (
+              <p className="text-xs font-medium text-stone-600">
+                {zamTylkoPokoj
+                  ? `Zakres: tylko pomieszczenie „${roomName(project, pokoj)}” — przełącznik „Zamówienie” na pasku pomieszczeń.`
+                  : `Zakres: cały projekt (${roomsOf(project).length} ${plural(roomsOf(project).length, "pomieszczenie", "pomieszczenia", "pomieszczeń")}) — jedno zamówienie.`}
+              </p>
+            )}
             <p className="text-xs text-stone-500">
               Wszystkie ceny są <strong>brutto</strong>. Płyta i formatowanie liczone są od
               arkusza — rozkrój przelicza się sam sekundę (przy ponad {ROZKROJ_DUZY} szafkach — 5 sekund) po każdej zmianie formatek albo
@@ -16552,6 +16906,49 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* usuwanie pomieszczenia — zawsze z pytaniem (uzytkownik 2026-09-29) */}
+      {usuwanyPokoj && (() => {
+        const u = usuwanyPokoj;
+        const nazwa = roomName(project, u.id) || "Pomieszczenie";
+        const szafek = itemsInRoom(project, u.id).length;
+        const ciagow = runsInRoom(project, u.id).filter((r) => r.tier !== "gorny").length;
+        const inne = roomsOf(project).filter((r) => r.id !== u.id);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4"
+            onClick={() => setUsuwanyPokoj(null)}>
+            <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-xl" data-okno="usun-pokoj"
+              onClick={(e) => e.stopPropagation()}>
+              <h3 className="mb-2 text-sm font-semibold text-stone-800">Usunąć „{nazwa}”?</h3>
+              <p className="mb-3 text-xs text-stone-500">
+                W nim {szafek} {plural(szafek, "szafka", "szafki", "szafek")}
+                {ciagow ? ` i ${ciagow} ${plural(ciagow, "ściana", "ściany", "ścian")}` : ""}. Co z nimi zrobić?
+                Wszystko da się przywrócić przyciskiem Cofnij.
+              </p>
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded border border-stone-200 p-2">
+                <span className="text-xs text-stone-600">Przenieś do</span>
+                <select value={u.cel} onChange={(e) => setUsuwanyPokoj({ ...u, cel: e.target.value })}
+                  aria-label="Pomieszczenie docelowe"
+                  className="rounded border border-stone-300 bg-white px-2 py-1 text-sm text-stone-900 focus:border-teal-600 focus:outline-none">
+                  {inne.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <button onClick={() => { deleteRoom(u.id, u.cel); setUsuwanyPokoj(null); }}
+                  className="ml-auto rounded bg-teal-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-800">
+                  Przenieś i usuń pomieszczenie
+                </button>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setUsuwanyPokoj(null)}
+                  className="rounded px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-100">Anuluj</button>
+                <button onClick={() => { deleteRoom(u.id, null); setUsuwanyPokoj(null); }}
+                  className="rounded border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50">
+                  Usuń razem z szafkami
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {kreator && (() => {
         const k = kreator;
