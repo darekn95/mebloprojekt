@@ -1449,6 +1449,25 @@ function computeGeoLiczy(cab, mat, ctx) {
      bokami. Plyty wewnatrz wczesniej nie odejmowalismy — polka wchodzila
      18 mm w plecy (audyt 2026-09-28). */
   const backIntrusion = grooved ? grOff : backIsBoard && backPos === "inside" && cab.back !== "none" ? tb : 0;
+  /* Wzmocnienie tylne szafki w L (katownik w tylnym narozniku), dwie plyty na
+     wysokosc wnetrza. Rzut z gory: x wzdluz szerokosci, v od tylnej plaszczyzny.
+     A — kat w zewnetrznym narozniku: plyta w plaszczyznie boku i plyta przy
+         plecach (jak dotad).
+     B — to samo obrocone o 180° (uzytkownik 2026-09-28): kat prosty skierowany
+         do srodka szafki, wolne konce plyt dochodza do plecow i do plaszczyzny
+         boku. Tylko przy wiencu — wzmocnienia pod blatem biegna przy plecach
+         i weszlyby w te plyty.
+     Nazwy plyt zostaja: „bok” = rownolegla do boku, „plecy” = do plecow. */
+  const postTyp = !postSide ? null : postCfg.typ === "B" && hasTop && !isBlat ? "B" : "A";
+  const postRects = !postSide ? [] : (() => {
+    const pOd = Math.max(backIntrusion, postBack);
+    // uklad dla katownika po prawej; po lewej odbicie lustrzane
+    const x1 = W - postBack, x0 = x1 - t - postW, v0 = pOd, v1 = pOd + postW;
+    const r = postTyp === "B"
+      ? [{ nazwa: "bok", x0, x1: x0 + t, v0, v1 }, { nazwa: "plecy", x0: x0 + t, x1, v0: v1 - t, v1 }]
+      : [{ nazwa: "bok", x0: x1 - t, x1, v0, v1 }, { nazwa: "plecy", x0, x1: x1 - t, v0, v1: v0 + t }];
+    return postSide === "right" ? r : r.map((q) => ({ ...q, x0: W - q.x1, x1: W - q.x0 }));
+  })();
   const frontCut =
     (cab.shelfExtraSetback || 0) + (cab.frontMode === "inset" ? tf + 5 : 0);
   /* Szafka w L: polka korpusu konczy sie przed katownikiem w tylnym rogu
@@ -1577,6 +1596,18 @@ function computeGeoLiczy(cab, mat, ctx) {
     c.shX0 = przyKat && postSide === "left" ? c.x0 + postBack : c.x0;
     c.shX1 = przyKat && postSide === "right" ? c.x1 - postBack : c.x1;
     c.shW = Math.round(c.shX1 - c.shX0);
+    /* Wzmocnienie tylne B stoi skrzynka w tylnym rogu — polka ma tam wyciety
+       tylny rog (uzytkownik 2026-09-29), od jej tylu do lica plyty rownoleglej
+       do plecow. v od tylnej plaszczyzny, jak w `postRects`. */
+    c.shNotch = null;
+    if (przyKat && postTyp === "B") {
+      const bok = postRects.find((q) => q.nazwa === "bok");
+      c.shNotch = postSide === "right"
+        ? { x0: bok.x0, x1: c.shX1, v1: bok.v1 }
+        : { x0: c.shX0, x1: bok.x1, v1: bok.v1 };
+      c.shNotch.w = Math.round(c.shNotch.x1 - c.shNotch.x0);
+      c.shNotch.d = Math.round(bok.v1 - shelfBack);
+    }
   }));
 
   /* --- fronty: pasmo pionowe z poziomu, poziome z kolumny --- */
@@ -2638,11 +2669,15 @@ function computeGeoLiczy(cab, mat, ctx) {
        skrecone pod 90 stopni. Formatka nie schodzi ponizej MIN_PART, wiec jedna
        nachodzi na czolo drugiej — tak samo jak przy maskownicy w rogu. */
     const postH = interior.y1 - interior.y0;
+    /* Wariant B: te same dwie plyty, kat prosty do srodka szafki — wolne konce
+       dochodza do plecow i do plaszczyzny boku (tam sie ich nie okleja). */
+    const wB = postTyp === "B" ? " (wariant B — kąt prosty do środka szafki)" : "";
     P({ name: "Kątownik przy ramieniu — bok", qty: 1, a: postW, b: postH, matKey: "shelf",
-      edges: { a1: false, a2: false, b1: true, b2: true }, note: "obie krawędzie pionowe" });
+      edges: { a1: false, a2: false, b1: true, b2: postTyp !== "B" },
+      note: (postTyp === "B" ? "krawędź pionowa od strony wnętrza — druga dochodzi do pleców" : "obie krawędzie pionowe") + wB });
     P({ name: "Kątownik przy ramieniu — plecy", qty: 1, a: postW, b: postH, matKey: "shelf",
       edges: { a1: false, a2: false, b1: true, b2: false },
-      note: "krawędź pionowa od strony wnętrza — druga wchodzi w styk" });
+      note: (postTyp === "B" ? "krawędź pionowa od strony wnętrza — druga dochodzi do boku ramienia" : "krawędź pionowa od strony wnętrza — druga wchodzi w styk") + wB });
   } else if (same(sideL, sideR)) {
     P({ ...sideL, name: "Bok", qty: 2, note: sideL.note || noteOf(sideL.edges, "side") });
   } else {
@@ -2694,15 +2729,16 @@ function computeGeoLiczy(cab, mat, ctx) {
   const shSizes = new Map();
   levels.forEach((lv) =>
     lv.cols.forEach((c) => {
-      const k = `${c.shW}|${c.shD ?? shelfDepth}`;
+      const k = `${c.shW}|${c.shD ?? shelfDepth}|${c.shNotch ? `${c.shNotch.w}|${c.shNotch.d}` : ""}`;
       c.shelves.forEach(() => shSizes.set(k, (shSizes.get(k) || 0) + 1));
     })
   );
   shSizes.forEach((qty, k) => {
-    const [w, dep] = k.split("|").map(Number);
-    P({ name: "Półka", qty, a: w, b: dep, matKey: shelfMat,
+    const [w, dep, nw, nd] = k.split("|").map(Number);
+    // wyciecie idzie w nazwe — opis formatki nie trafia do tabeli ani do PDF
+    P({ name: nw > 0 ? `Półka — wycięty tylny róg ${fmt(nw)} × ${fmt(nd)}` : "Półka", qty, a: w, b: dep, matKey: shelfMat,
         edges: { a1: true, a2: rear, b1: false, b2: false },
-        note: "krawędź przednia" });
+        note: nw > 0 ? "krawędź przednia; róg wycięty pod wzmocnienie tylne B" : "krawędź przednia" });
   });
 
   const doorSizes = new Map();
@@ -3384,14 +3420,10 @@ function computeGeoLiczy(cab, mat, ctx) {
        w czolo obu plyt katownika (uzytkownik 2026-09-29) — po jednym na plyte,
        w jej srodku. Polozenie w plycie od jej lewego konca i od przodu. */
     if (postSide) {
-      const pOd = Math.max(backIntrusion, postBack);
-      const px = postSide === "right" ? W - t - postBack : postBack;          // plyta w plaszczyznie boku
-      const bx = postSide === "right" ? W - t - postBack - postW : t + postBack; // plyta przy plecach
-      const wKatownik = (plyta, x0) => {
-        const note = (odPrzodu) => `⌀7 w płycie (od jej lewego końca), ${fmt(Math.round(odPrzodu))} mm od przedniej krawędzi; w czole kątownika ⌀5 × 50`;
-        doPlyty(plyta, "konfirmat — kątownik przy ramieniu (bok)", px + t / 2 - x0, note(carcassDepth - pOd - postW / 2));
-        doPlyty(plyta, "konfirmat — kątownik przy ramieniu (plecy)", bx + postW / 2 - x0, note(carcassDepth - pOd - t / 2));
-      };
+      // w srodku czola kazdej plyty (A i B — polozenie z `postRects`, v od tylu)
+      const wKatownik = (plyta, x0) => postRects.forEach((q) => doPlyty(plyta,
+        `konfirmat — kątownik przy ramieniu (${q.nazwa})`, (q.x0 + q.x1) / 2 - x0,
+        `⌀7 w płycie (od jej lewego końca), ${fmt(Math.round(carcassDepth - (q.v0 + q.v1) / 2))} mm od przedniej krawędzi; w czole kątownika ⌀5 × 50`));
       if (hasTop && !isBlat) wKatownik("Wieniec", topX0);
       if (hasBot) wKatownik("Dno", botX0);
     }
@@ -3450,6 +3482,32 @@ function computeGeoLiczy(cab, mat, ctx) {
   }
 
   // scalamy powtorki (te same wysokosci z sasiadujacych kolumn) i porzadkujemy
+  /* Zawieszki szafki wiszacej (uzytkownik 2026-09-29): w gornym tylnym rogu
+     boku, od wnetrza. Szafka w L ma dwie, kazda na plycie prostopadlej do
+     swojej sciany: przy wzmocnieniu A — bok korpusu i bok ramienia; przy B —
+     obie w czesci ramienia (plyta wzmocnienia rownolegla do plecow i bok
+     ramienia) albo obie w czesci szafki (bok korpusu i plyta rownolegla do
+     boku). Bok ramienia dopisuje `wierceniaDodatkowe`. */
+  const zawieszki = (() => {
+    const wisi = cab.hangers === "always"
+      || (cab.hangers !== "never" && !((cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on)));
+    const n = !wisi ? 0 : postSide ? 2 : W >= 900 ? 4 : 2;
+    const gdzie = !postSide ? null : postTyp === "B" ? (rawCorner.zawieszki === "korpus" ? "korpus" : "ramie") : "A";
+    const naKorpusie = !n ? 0 : !postSide ? n : gdzie === "A" ? 1 : gdzie === "korpus" ? 2 : 0;
+    return { n, gdzie, naKorpusie, naRamieniu: postSide && n ? n - naKorpusie : 0 };
+  })();
+  if (zawieszki.n) {
+    const zaw = (name, ile) => {
+      if (!drillMap.has(name)) drillMap.set(name, { panel: name, holes: [] });
+      drillMap.get(name).holes.push({ kind: "zawieszka", y: null,
+        note: `górny tylny róg, od wnętrza${ile > 1 ? ` — ${ile} szt. na płycie` : ""}; otwory wg karty zawieszki` });
+    };
+    const bokKorpusu = postSide === "right" ? "Bok lewy" : "Bok prawy";
+    if (!postSide) { zaw("Bok lewy", zawieszki.n / 2); zaw("Bok prawy", zawieszki.n / 2); }
+    else if (zawieszki.gdzie === "A") zaw(bokKorpusu, 1);
+    else if (zawieszki.gdzie === "korpus") { zaw(bokKorpusu, 1); zaw("Kątownik przy ramieniu — bok", 1); }
+    else zaw("Kątownik przy ramieniu — plecy", 1);
+  }
   const drillPlan = [...drillMap.values()].map((p) => {
     const by = new Map();
     p.holes.forEach((h) => {
@@ -3682,28 +3740,31 @@ function computeGeoLiczy(cab, mat, ctx) {
   const floorStanding = (cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on);
   const wantHangers = cab.hangers === "always" || (cab.hangers !== "never" && !floorStanding);
   if (wantHangers) {
-    const nH = W >= 900 ? 4 : 2;
+    const nH = zawieszki.n;
+    const gdzieL = { A: "jedna na boku korpusu, druga na boku ramienia (każda przy swojej ścianie)",
+      ramie: "obie w części ramienia — na płycie wzmocnienia tylnego i na boku ramienia",
+      korpus: "obie w części szafki — na boku korpusu i na płycie wzmocnienia tylnego" };
     hardware.push({
       name: "Zawieszka meblowa regulowana",
       use: "szafka wieszana na ścianie",
-      /* Gorna szafka w L nie ma boku od strony ramienia (stoi tam katownik) —
-         uzytkownik 2026-09-28: jedna zawieszka na boku korpusu, druga na boku
-         ramienia, kazda na swojej scianie. */
       spec: "szafka bez nóżek i cokołu — wieszana na ścianie"
-        + (postSide ? "; szafka w L: jedna na boku korpusu, druga na boku ramienia (każda przy swojej ścianie)" : ""),
+        + (postSide ? `; szafka w L: ${gdzieL[zawieszki.gdzie]}` : ""),
       qty: nH,
       unit: "szt.",
     });
-    // listwa montazowa jest opcjonalna — zawieszki moga isc wprost na haki
-    if (cab.hangerMode !== "haczyki")
-      hardware.push({
-        name: "Listwa montażowa do zawieszek",
-        use: "pod zawieszki szafek wiszących",
-        spec: `odcinek ${fmt(Math.max(0, W - 40))} mm na szafkę`,
-        qty: Math.round(Math.max(0, W - 40) / 100) / 10,
-        unit: "mb",
-      });
-    else
+    /* listwa montazowa jest opcjonalna — zawieszki moga isc wprost na haki.
+       W szafce w L listwa pod korpusem tylko wtedy, gdy wisi tam zawieszka;
+       odcinek pod ramieniem liczy `cornerArmParts`. */
+    if (cab.hangerMode !== "haczyki") {
+      if (zawieszki.naKorpusie)
+        hardware.push({
+          name: "Listwa montażowa do zawieszek",
+          use: "pod zawieszki szafek wiszących",
+          spec: `odcinek ${fmt(Math.max(0, W - 40))} mm na szafkę`,
+          qty: Math.round(Math.max(0, W - 40) / 100) / 10,
+          unit: "mb",
+        });
+    } else
       hardware.push({
         name: "Hak / wkręt z kołkiem do ściany",
         use: "zawieszki wieszane bez listwy",
@@ -3765,7 +3826,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
-    postSide, postW, postBack,
+    postSide, postW, postBack, postTyp, postRects, zawieszki,
     isBlat, isWorktop, tTop, blat, blatDepth, blatInside, W, drillPlan,
     topX0, topX1, botX0, botX1, divOv,
   };
@@ -4059,6 +4120,17 @@ const armLegPlan = (a) => {
   const us = legPlan({}, len).xs;
   const vs = [LEG_INSET, Math.max(LEG_INSET, Math.round(a.depth) - LEG_INSET - LEG_W)];
   return { us, vs, w: LEG_W, ile: us.length * vs.length };
+};
+
+/* Polka w bryle: prostopadloscian, a przy wzmocnieniu tylnym B z wycietym
+   tylnym rogiem — dwa (pas od frontu do lica wzmocnienia na cala szerokosc
+   i reszta z tylu obok wyciecia). z od frontu, `cd` = glebokosc korpusu. */
+const polkaCzesci = (c, z0, z1, cd) => {
+  const x0 = c.shX0 ?? c.x0, x1 = c.shX1 ?? c.x1, n = c.shNotch;
+  if (!n) return [[x0, z0, x1, z1]];
+  const zN = cd - n.v1;
+  const [r0, r1] = n.x0 > x0 + 0.5 ? [x0, n.x0] : [n.x1, x1];
+  return [[x0, z0, x1, zN], [r0, zN, r1, z1]];
 };
 
 /* Cztery plyty katownika w rzucie z gory, w ukladzie ramienia: `u` biegnie wzdluz
@@ -5025,29 +5097,13 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
           height={cd - (geo.cornerCut?.sideRightDepth || 0)} fill={bf} stroke={INK} strokeWidth="2"
           strokeDasharray={ghost ? "14 9" : undefined} />
       )}
-      {/* katownik w zewnetrznym narozniku: plyta w plaszczyznie boku i druga
-          w plaszczyznie plecow, skrecone pod katem prostym */}
-      {geo.postSide && (() => {
-        const pw = geo.postW;
-        /* Katownik chowa sie za plecami z obu stron: `pOd` odsuwa go od tylnej
-           plaszczyzny, `pBok` od bocznej. Plecy przybija sie na niego, a
-           wzmocnienia dolegaja do jego wewnetrznego lica i tam sie skreca. */
-        const pOd = Math.max(geo.backIntrusion, geo.postBack);
-        const pBok = geo.postBack;
-        const px = geo.postSide === "right" ? W - t - pBok : pBok;
-        // obie plyty maja te sama formatke, wiec druga zaczyna sie za grubosc pierwszej
-        const bx = geo.postSide === "right" ? W - t - pBok - pw : t + pBok;
-        return (
-          <g>
-            {/* w rzucie z gory tyl jest u gory (y = 0), wiec katownik siedzi
-                przy zerze, a nie przy licu */}
-            <rect x={px} y={pOd} width={t} height={pw}
-              fill={shc} stroke={INK} strokeWidth="2" />
-            <rect x={bx} y={pOd} width={pw} height={t}
-              fill={shc} stroke={INK} strokeWidth="2" />
-          </g>
-        );
-      })()}
+      {/* wzmocnienie tylne szafki w L (katownik, wariant A albo B) — polozenie
+          plyt liczy `computeGeo` (`postRects`); w rzucie z gory tyl jest u gory
+          (y = 0), wiec v od tylu to wprost y */}
+      {(geo.postRects || []).map((q) => (
+        <rect key={"post-" + q.nazwa} x={q.x0} y={q.v0} width={q.x1 - q.x0} height={q.v1 - q.v0}
+          fill={shc} stroke={INK} strokeWidth="2" />
+      ))}
 
       {/* wieniec albo blat widoczny z gory */}
       {geo.hasTop && (
@@ -5067,8 +5123,13 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
         if (c.kind === "drawers" || c.kind === "blenda") return null;
         if (!(c.shelves || []).length) return null;
         return (
-          <rect key={"sh" + c.j} x={c.shX0 ?? c.x0} y={geo.shelfBack} width={c.shW ?? c.w} height={c.shD ?? geo.shelfDepth}
-            fill={shc} fillOpacity="0.35" stroke={INK} strokeWidth="1.5" strokeDasharray="9 6" />
+          <g key={"sh" + c.j}>
+            {/* przy wzmocnieniu tylnym B polka ma wyciety tylny rog — dwa prostokaty */}
+            {polkaCzesci(c, cd - geo.shelfBack - (c.shD ?? geo.shelfDepth), cd - geo.shelfBack, cd).map(([x0, z0, x1, z1], k) => (
+              <rect key={k} x={x0} y={cd - z1} width={x1 - x0} height={z1 - z0}
+                fill={shc} fillOpacity="0.35" stroke={INK} strokeWidth="1.5" strokeDasharray="9 6" />
+            ))}
+          </g>
         );
       })}
 
@@ -6162,14 +6223,9 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       /* Katownik w zewnetrznym narozniku zamiast boku od strony ramienia. */
       if (c.geo.postSide) {
         const pShc = shelfColorOf(c.cab, c.mat);
-        const pBok = c.geo.postBack;
-        const px = c.x + (c.geo.postSide === "right" ? c.geo.W - t - pBok : pBok);
-        const bx = c.x + (c.geo.postSide === "right" ? c.geo.W - t - pBok - c.geo.postW : t + pBok);
-        const zT = cd - Math.max(c.geo.backIntrusion, c.geo.postBack);
-        box(px, c.base + c.geo.interior.y0, zT - c.geo.postW,
-          px + t, c.base + c.geo.interior.y1, zT, pShc);
-        box(bx, c.base + c.geo.interior.y0, zT - t,
-          bx + c.geo.postW, c.base + c.geo.interior.y1, zT, pShc);
+        // plyty wzmocnienia tylnego z `postRects` (v od tylu, w 3D z = cd - v)
+        c.geo.postRects.forEach((q) => box(c.x + q.x0, c.base + c.geo.interior.y0, cd - q.v1,
+          c.x + q.x1, c.base + c.geo.interior.y1, cd - q.v0, pShc));
       }
       if (c.geo.hasBot)
         box(c.x + c.geo.botX0, c.base + c.geo.bottomY, 0,
@@ -6209,9 +6265,9 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         c.x + d.x + t, c.base + d.y1, cd - c.geo.backIntrusion, bf,
         null, 1, false, wGlab));
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.shelves || []).forEach((sh) => {
-        box(c.x + (col.shX0 ?? col.x0), c.base + sh.y, zPolki[0] + (col.shFront || 0),
-          c.x + (col.shX1 ?? col.x1), c.base + sh.y + c.geo.ts, zPolki[1], shc3,
-          null, 1, false, wGlab);
+        polkaCzesci(col, zPolki[0] + (col.shFront || 0), zPolki[1], cd).forEach(([x0, z0, x1, z1]) =>
+          box(c.x + x0, c.base + sh.y, z0, c.x + x1, c.base + sh.y + c.geo.ts, z1, shc3,
+            null, 1, false, wGlab));
       })));
       const tf = c.geo.tf;
       /* Uchwyt wystaje przed lico i w bryle calej zabudowy widac go tak samo jak
@@ -6599,11 +6655,11 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   /* Szafka w L nie ma boku od strony ramienia — stoi tam katownik (dwie plyty
      w tylnym rogu, 3 mm za plecami, jak w bryle). Wczesniej rysunek z przodu
      pokazywal tam pelny bok, ktorego w zamowieniu nie ma (audyt 2D). */
+  // wzmocnienie tylne (A albo B) — polozenie plyt z `computeGeo`
   const katownik = geo.postSide ? (() => {
-    const pb = geo.postBack || 0;
-    const xs = geo.postSide === "right" ? W - t - pb : pb;             // plyta przy boku
-    const xp = geo.postSide === "right" ? W - t - pb - geo.postW : t + pb; // plyta przy plecach
-    return { xs, xp };
+    const q = (n) => geo.postRects.find((r) => r.nazwa === n);
+    const bok = q("bok"), plecy = q("plecy");
+    return { xs: bok.x0, xp: plecy.x0, wp: plecy.x1 - plecy.x0 };
   })() : null;
   const carcassFrame = (key) => (
     <g key={key}>
@@ -6611,7 +6667,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {geo.postSide !== "right" && sidePanel("right-side", W - t, rightTopY, geo.rightLen, geo.topR === "between", geo.botR === "between")}
       {open && katownik && (
         <g data-el="katownik-przod">
-          <rect x={katownik.xp} y={fy(geo.interior.y1)} width={geo.postW} height={geo.interior.y1 - geo.interior.y0}
+          <rect x={katownik.xp} y={fy(geo.interior.y1)} width={katownik.wp} height={geo.interior.y1 - geo.interior.y0}
             fill={shc} stroke={INK} strokeWidth="2" opacity="0.8" />
           <rect x={katownik.xs} y={fy(geo.interior.y1)} width={t} height={geo.interior.y1 - geo.interior.y0}
             fill={shc} stroke={INK} strokeWidth="2" />
@@ -7492,11 +7548,12 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
           fill={bf} stroke={INK} strokeWidth="2" />
       )}
       {/* katownik stoi 3 mm za plecami (`postBack`) — jak w bryle */}
-      {geo.postSide && (
-        <rect x={geo.postSide === "right" ? t + (geo.postBack || 0) : W - t - (geo.postBack || 0) - geo.postW}
-          y={fy(geo.interior.y1)} width={geo.postW} height={geo.interior.y1 - geo.interior.y0}
+      {/* z tylu widok jest odbity: x z przodu to W - x z tylu */}
+      {(geo.postRects || []).map((q) => (
+        <rect key={"post-" + q.nazwa} x={W - q.x1}
+          y={fy(geo.interior.y1)} width={q.x1 - q.x0} height={geo.interior.y1 - geo.interior.y0}
           fill={shc} stroke={INK} strokeWidth="2" />
-      )}
+      ))}
       {/* wieniec */}
       {geo.hasTop && (
         <rect x={W - geo.topX1} y="0" width={geo.topX1 - geo.topX0} height={t}
@@ -7767,19 +7824,11 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
         <rect x={W - t} y={geo.cornerCut?.sideRightDepth || 0} width={t}
           height={cd - (geo.cornerCut?.sideRightDepth || 0)} fill={bf} stroke={INK} strokeWidth="2" />
       )}
-      {/* katownik w zewnetrznym narozniku — zastepuje bok i plyte plecow */}
-      {geo.postSide && (() => {
-        const pOd = Math.max(geo.backIntrusion, geo.postBack);
-        const pBok = geo.postBack;
-        return (
-        <g>
-          <rect x={geo.postSide === "right" ? W - t - pBok : pBok} y={pOd}
-            width={t} height={geo.postW} fill={shc} stroke={INK} strokeWidth="2" />
-          <rect x={geo.postSide === "right" ? W - t - pBok - geo.postW : t + pBok} y={pOd}
-            width={geo.postW} height={t} fill={shc} stroke={INK} strokeWidth="2" />
-        </g>
-        );
-      })()}
+      {/* wzmocnienie tylne szafki w L (A albo B) — zastepuje bok od strony ramienia */}
+      {(geo.postRects || []).map((q) => (
+        <rect key={"post-" + q.nazwa} x={q.x0} y={q.v0} width={q.x1 - q.x0} height={q.v1 - q.v0}
+          fill={shc} stroke={INK} strokeWidth="2" />
+      ))}
       {/* wieniec widoczny z gory jako plyta na calej glebokosci */}
       {geo.hasTop && (
         <rect x={geo.topX0} y={geo.isBlat ? -tOvB : 0}
@@ -7804,9 +7853,11 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           if (!n) return null;
           return (
             <g key={"sh" + c.j}>
-              <rect x={c.shX0 ?? c.x0} y={geo.shelfBack} width={c.shW ?? c.w} height={c.shD ?? geo.shelfDepth}
-                fill={shc} fillOpacity="0.35"
-                stroke={INK} strokeWidth="1.5" strokeDasharray="9 6" />
+              {polkaCzesci(c, cd - geo.shelfBack - (c.shD ?? geo.shelfDepth), cd - geo.shelfBack, cd).map(([x0, z0, x1, z1], k) => (
+                <rect key={k} x={x0} y={cd - z1} width={x1 - x0} height={z1 - z0}
+                  fill={shc} fillOpacity="0.35"
+                  stroke={INK} strokeWidth="1.5" strokeDasharray="9 6" />
+              ))}
               <text x={(c.x0 + c.x1) / 2} y={geo.shelfBack + geo.shelfDepth - 14}
                 textAnchor="middle" fontSize="17" fill={INK} opacity="0.75"
                 fontFamily="ui-monospace, monospace">
@@ -8847,13 +8898,8 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
     box(W - t, geo.rightY0, 0, W, geo.rightY0 + geo.rightLen, cd - cutSR, bf);
   if (geo.postSide) {
     const pShc = shelfColorOf(cab, mat);
-    const pBok = geo.postBack;
-    const px = geo.postSide === "right" ? W - t - pBok : pBok;
-    const bx = geo.postSide === "right" ? W - t - pBok - geo.postW : t + pBok;
-    // plecy zajmuja swoja grubosc, katownik staje dopiero przed nimi
-    const zT = cd - Math.max(geo.backIntrusion, geo.postBack);
-    box(px, geo.interior.y0, zT - geo.postW, px + t, geo.interior.y1, zT, pShc);
-    box(bx, geo.interior.y0, zT - t, bx + geo.postW, geo.interior.y1, zT, pShc);
+    // plyty wzmocnienia tylnego (A albo B) z `postRects`: v od tylu, w 3D z = cd - v
+    geo.postRects.forEach((q) => box(q.x0, geo.interior.y0, cd - q.v1, q.x1, geo.interior.y1, cd - q.v0, pShc));
   }
   if (geo.hasBot) box(geo.botX0, geo.bottomY, 0, geo.botX1, geo.bottomY + t, cd, bf);
   if (geo.hasTop)
@@ -8881,7 +8927,8 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
   geo.levels.forEach((lv) =>
     lv.cols.forEach((c) => {
       c.shelves.forEach((sh) =>
-        box(c.shX0 ?? c.x0, sh.y, zPolki[0] + (c.shFront || 0), c.shX1 ?? c.x1, sh.y + geo.ts, zPolki[1], bf)
+        polkaCzesci(c, zPolki[0] + (c.shFront || 0), zPolki[1], cd).forEach(([x0, z0, x1, z1]) =>
+          box(x0, sh.y, z0, x1, sh.y + geo.ts, z1, bf))
       );
       if (c.support && c.fix) {
         const sx = c.fix.side === "left" ? c.fix.x + c.fix.w - t : c.fix.x;
@@ -10175,6 +10222,22 @@ const cornerArmParts = (a) => {
       use: "złącza ramienia szafki narożnej, co ok. 200 mm styku",
       spec: `ramię szafki narożnej: ${armTop ? "wieniec i dno" : "dno"} do boku ramienia`,
       qty: konfQty, unit: "szt." });
+  /* Zawieszki w czesci ramienia wisza na drugiej scianie — pod nimi odcinek
+     listwy (domyslnie) albo hak: `corner.armHanger` (uzytkownik 2026-09-29).
+     Przy B w czesci ramienia listwa biegnie od plyty wzmocnienia do boku ramienia. */
+  const zw = geo.zawieszki || {};
+  if (zw.naRamieniu && cab.hangerMode !== "haczyki") {
+    if ((cab.corner || {}).armHanger === "hak")
+      hardware.push({ name: "Hak / wkręt z kołkiem do ściany", use: "zawieszki ramienia szafki narożnej bez listwy",
+        spec: "pod zawieszką w części ramienia — po jednym na zawieszkę", qty: zw.naRamieniu, unit: "szt." });
+    else {
+      const wzm = (geo.postRects || []).find((q) => q.nazwa === "plecy");
+      const dl = Math.max(0, Math.round(zw.gdzie === "ramie" && wzm ? len + geo.carcassDepth - wzm.v0 - 40 : len - 40));
+      hardware.push({ name: "Listwa montażowa do zawieszek", use: "pod zawieszki szafek wiszących",
+        spec: `ramię szafki narożnej: odcinek ${fmt(dl)} mm przy drugiej ścianie`,
+        qty: Math.round(dl / 100) / 10, unit: "mb" });
+    }
+  }
   if (polek > 0 && cab.shelfMount !== "confirmat")
     hardware.push({ name: "Kołek podporowy ⌀5",
       use: "półki ramienia narożnika, po cztery na półkę",
@@ -10245,6 +10308,9 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
       const hys = dRef ? dRef.hingePts : d0 ? hingePositions(d0.y, d0.h, n, []).pts : rowno(100, H - 100, n);
       wiersz("Bok ramienia", "zawias", hys, "oś zawiasu frontu ramienia — puszka ⌀35 we froncie, prowadnik na wewnętrznym licu boku");
     }
+    // zawieszka w czesci ramienia (wzmocnienie A albo B „w części ramienia”) — patrz `zawieszki` w computeGeo
+    if ((geo.zawieszki || {}).naRamieniu)
+      wiersz("Bok ramienia", "zawieszka", [], "górny tylny róg, od wnętrza; otwory wg karty zawieszki");
   }
   (wstawki || []).filter((w) => w.typ !== "plaska").forEach((w) => {
     const H = Math.round(w.H), n = Math.max(2, Math.ceil(H / 400));
@@ -14161,6 +14227,38 @@ export default function App() {
                               post: { ...(cab.corner.post || {}), on: true,
                                 w: Math.max(MIN_PART, Math.round(Number(v) || 0)) } } })} />
                         </label>
+                      )}
+                      {/* Wariant B (uzytkownik 2026-09-28): kat prosty do srodka szafki.
+                          Tylko przy wiencu — pod blatem wzmocnienia biegna przy plecach. */}
+                      {(cab.corner.post || {}).on !== false && (
+                        <Group label="Ustawienie kątownika"
+                          hint={geo.hasTop && !geo.isBlat
+                            ? "A: w zewnętrznym narożniku, w płaszczyźnie boku i pleców. B: obrócony o 180° — kąt prosty do środka szafki, półka ma wycięty tylny róg."
+                            : "Wariant B tylko w szafce z wieńcem — pod blatem wzmocnienia biegną przy plecach i weszłyby w kątownik."}>
+                          <Seg value={geo.postTyp || "A"}
+                            onChange={(v) => set({ corner: { ...cab.corner,
+                              post: { ...(cab.corner.post || { w: 150 }), on: true, typ: v } } })}
+                            options={[{ v: "A", l: "A — w narożniku" },
+                              ...(geo.hasTop && !geo.isBlat ? [{ v: "B", l: "B — kąt do środka" }] : [])]} />
+                        </Group>
+                      )}
+                      {/* Zawieszki szafki w L: przy B obie w jednej czesci; pod
+                          zawieszka ramienia listwa albo hak (uzytkownik 2026-09-29). */}
+                      {geo.zawieszki && geo.zawieszki.n > 0 && geo.postTyp === "B" && (
+                        <Group label="Zawieszki przy wzmocnieniu B"
+                          hint="Obie w części ramienia (płyta wzmocnienia i bok ramienia) albo obie w części szafki (bok korpusu i płyta wzmocnienia).">
+                          <Seg value={geo.zawieszki.gdzie}
+                            onChange={(v) => set({ corner: { ...cab.corner, zawieszki: v } })}
+                            options={[{ v: "ramie", l: "W części ramienia" }, { v: "korpus", l: "W części szafki" }]} />
+                        </Group>
+                      )}
+                      {geo.zawieszki && geo.zawieszki.naRamieniu > 0 && cab.hangerMode !== "haczyki" && (
+                        <Group label="Pod zawieszką ramienia"
+                          hint="Zawieszka ramienia wisi na drugiej ścianie: na własnym odcinku listwy albo na haku.">
+                          <Seg value={cab.corner.armHanger === "hak" ? "hak" : "listwa"}
+                            onChange={(v) => set({ corner: { ...cab.corner, armHanger: v } })}
+                            options={[{ v: "listwa", l: "Odcinek listwy" }, { v: "hak", l: "Hak" }]} />
+                        </Group>
                       )}
                       {/* Pelne plecy z plyty. Plyta trzyma rog sama, wiec
                           stojace wzmocnienie przy tej scianie schodzi —

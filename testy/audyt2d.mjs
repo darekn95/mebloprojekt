@@ -183,6 +183,8 @@ await scenariusz('klapa w dół', wisz('KD', { W: 600, H: 400, levels: [{ h: nul
 await scenariusz('wisząca na listwie', wisz('W'));
 await scenariusz('uchwyty u góry, 35 mm', szafka('U', { levels: [{ h: null, cols: [kol({ handlePos: ['gora', 'gora'], handleOuts: [35, 35] })] }] }));
 await scenariusz('szafka w L (sama)', szafka('L', { W: 900, corner: { on: true, arm: 640, doors: 'wsporniki' }, levels: [{ h: null, cols: [kol({ doors: 1 })] }] }));
+await scenariusz('górna szafka w L (sama), wzmocnienie tylne A', wisz('GLA', { W: 650, corner: { on: true, arm: 350, doors: 'wsporniki' }, levels: [{ h: null, cols: [kol({ doors: 1 })] }] }));
+await scenariusz('górna szafka w L (sama), wzmocnienie tylne B', wisz('GLB', { W: 650, corner: { on: true, arm: 350, doors: 'wsporniki', post: { on: true, w: 150, typ: 'B' } }, levels: [{ h: null, cols: [kol({ doors: 1 })] }] }));
 await scenariusz('cokół w obrysie', szafka('CO', { plinth: { on: true, height: 100, mode: 'inside', setback: 50 } }));
 
 /* ---- Ciag i zabudowa: te same zasady, ale uklad osi rysunku szukamy

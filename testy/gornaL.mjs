@@ -47,6 +47,23 @@ const szablon = async (nr, id) => {
 };
 const opcje = (nr) => page.locator('select[title="Dodaj szafkę z gotowego szablonu"]').nth(nr)
   .evaluate((s) => [...s.options].map((o) => o.value).filter(Boolean));
+// plan wiercen z PDF: kartka szafki nr (1..n) — tabela „Otwory pod” i formatki
+const wiercenia = async (nr) => {
+  await page.evaluate((nr) => { window.__rep = null; window.print = () => {
+    const tabele = [...document.querySelectorAll('.print-only .rp-page')]
+      .filter((s) => (s.querySelector('span')?.textContent || '').includes(`(${nr} z `))
+      .flatMap((s) => [...s.querySelectorAll('table')]);
+    const t = tabele.find((x) => /Otwory pod/.test(x.querySelector('thead')?.textContent || ''));
+    window.__rep = t ? [...t.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent.trim())) : [];
+  }; }, nr);
+  await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click();
+  await page.waitForTimeout(1000);
+  let panel = '';
+  return ((await page.evaluate(() => window.__rep)) || []).map((r) => { if (r[0]) panel = r[0]; return { panel, kind: r[1], note: r[3] }; });
+};
+const zawieszkiW = (plan) => plan.filter((r) => r.kind === 'zawieszka').map((r) => r.panel);
+const okuciaT = () => tabela(/^Produkty do zamówienia/);
+const listwy = (h) => h.filter((r) => /^Listwa montażowa/.test(r[0])).map((r) => r[1]);
 const kolizje = (u) => u.filter((l) => /nie ma się jak otworzyć|nie otworzy się|nie wysunie się/.test(l) && /„G/.test(l));
 
 console.log('== szablon w górnym ciągu ściany 1 (róg na jego końcu) ==');
@@ -96,6 +113,50 @@ ok('ramię przy ścianie 1', u.some((l) => /korpus 650 mm przy ścianie „Ścia
   u.filter((l) => /narożną w L/.test(l)).map((l) => l.slice(0, 160)).join(' | '));
 ok('bez kolizji otwierania szafek górnych', !kolizje(u).length, kolizje(u).join(' / '));
 ok('bez „Ciąg górny wystaje poza dolny” (nad ramieniem dolnej szafki w L)', !u.some((l) => /wystaje poza dolny/.test(l)), u.filter((l) => /wystaje/.test(l)).join(' | '));
+
+console.log('\n== zawieszki i listwa: zwykła górna, szafka w L (A), B w części ramienia / szafki, hak ==');
+const GL = (post, o = {}) => ({ cab: { name: 'GL', W: 650, H: 720, D: 300, plinth: { ...PL, on: false }, legs: { on: false }, hangerMode: 'listwa',
+  corner: { on: true, arm: 350, doors: 'wsporniki', ...(post ? { post } : {}), ...o },
+  levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }] }] }, runId: 'c3', offset: 0 });
+const RUNY4 = [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } }),
+  GORNY('c3', 'c1', 'Ściana 1'), GORNY('c4', 'c2', 'Ściana 2')];
+// kolejnosc: D1, L, D4, G1, GL, G4 — GL to 5. szafka
+await seed(RUNY4, [...DOLNE, gor('G1', 600, 'c3'), GL(null), gor('G4', 600, 'c4')], 4);
+let plan = await wiercenia(4);
+ok('zwykła górna: zawieszki w obu bokach', ['Bok lewy', 'Bok prawy'].every((n) => zawieszkiW(plan).includes(n)), zawieszkiW(plan).join(', '));
+plan = await wiercenia(5);
+ok('szafka w L, wzmocnienie A: zawieszki w boku korpusu i w boku ramienia', zawieszkiW(plan).length === 2
+  && zawieszkiW(plan).includes('Bok lewy') && zawieszkiW(plan).includes('Bok ramienia'), zawieszkiW(plan).join(', '));
+let hw = await okuciaT();
+// listwa pod korpusem w ciagu to wspolna listwa ciagu — na karcie szafki jest tylko odcinek pod ramieniem
+ok('A: odcinek listwy pod ramieniem 310 mm (przy drugiej ścianie)', listwy(hw).length === 1 && /ramię.*310 mm/.test(listwy(hw)[0]), listwy(hw).join(' | '));
+ok('A: dwie zawieszki', hw.some((r) => /^Zawieszka/.test(r[0]) && /^2 szt/.test(r[r.length - 1])), hw.filter((r) => /^Zawieszka/.test(r[0])).map((r) => r.join(' ')).join(''));
+
+await seed(RUNY4, [...DOLNE, gor('G1', 600, 'c3'), GL({ on: true, w: 150, typ: 'B' }), gor('G4', 600, 'c4')], 4);
+const fB = (await tabela(/^Formatki do zamówienia/)).map((r) => r[0]);
+ok('B: półka z wyciętym tylnym rogiem (w nazwie formatki)', fB.some((n) => /^Półka — wycięty tylny róg \d+ × \d+$/.test(n)), fB.join(', '));
+plan = await wiercenia(5);
+ok('B w części ramienia (domyślnie): płyta wzmocnienia przy plecach i bok ramienia', zawieszkiW(plan).length === 2
+  && zawieszkiW(plan).includes('Kątownik przy ramieniu — plecy') && zawieszkiW(plan).includes('Bok ramienia'), zawieszkiW(plan).join(', '));
+ok('B: kołki półki w płytach wzmocnienia', plan.some((r) => /^Kątownik przy ramieniu — bok$/.test(r.panel) && r.kind === 'kołek półki')
+  && plan.some((r) => /^Kątownik przy ramieniu — plecy$/.test(r.panel) && r.kind === 'kołek półki'), [...new Set(plan.map((r) => r.panel + '|' + r.kind))].join(' / '));
+hw = await okuciaT();
+ok('B w części ramienia: listwa przy ścianie ramienia od płyty wzmocnienia do boku ramienia', listwy(hw).length === 1 && /ramię.*odcinek (\d+)/.test(listwy(hw)[0]) && Number(/odcinek (\d+)/.exec(listwy(hw)[0])[1]) > 400, listwy(hw).join(' | '));
+// przelacznik „W części szafki” w karcie szafki narożnej
+await page.getByRole('button', { name: 'W części szafki', exact: true }).first().click(); await page.waitForTimeout(900);
+plan = await wiercenia(5);
+ok('B w części szafki: bok korpusu i płyta wzmocnienia równoległa do boku', zawieszkiW(plan).length === 2
+  && zawieszkiW(plan).includes('Bok lewy') && zawieszkiW(plan).includes('Kątownik przy ramieniu — bok'), zawieszkiW(plan).join(', '));
+hw = await okuciaT();
+ok('B w części szafki: bez odcinka listwy pod ramieniem', listwy(hw).length === 0, listwy(hw).join(' | '));
+
+await seed(RUNY4, [...DOLNE, gor('G1', 600, 'c3'), GL(null, { armHanger: 'hak' }), gor('G4', 600, 'c4')], 4);
+hw = await okuciaT();
+ok('hak pod zawieszką ramienia zamiast listwy', hw.some((r) => /^Hak/.test(r[0]) && /^1 szt/.test(r[r.length - 1])) && listwy(hw).length === 0, hw.map((r) => r[0]).join(', '));
+// przelacznik A/B w karcie
+await page.getByRole('button', { name: 'B — kąt do środka', exact: true }).first().click(); await page.waitForTimeout(900);
+p = await projekt();
+ok('przełącznik „B — kąt do środka” zapisuje wariant B', ((p.items[4].cab.corner || {}).post || {}).typ === 'B', JSON.stringify((p.items[4].cab.corner || {}).post));
 
 console.log('\n== górny ślepy róg bez szafki w L: po staremu ==');
 await seed([RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } }),
