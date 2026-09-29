@@ -565,8 +565,8 @@ const defaultMaterials = {
    rozkroju na wlasnym arkuszu, zeby bylo widac, ile sztuk trzeba kupic. */
 const WORKTOP_LEN = 4100;
 const WORKTOP_DEPTHS = [600, 1200];
-// 600: PB0090 Śnieżna biel CS 4100 × 600 × 38 — cena z faktury uzytkownika (2026-09-29)
-const WORKTOP_PRICES = { 600: 563.99, 1200: 780 };
+// PB0090 Śnieżna biel CS 4100 × 600 / 1200 × 38 — ceny brutto z faktur uzytkownika (2026-09-29)
+const WORKTOP_PRICES = { 600: 563.99, 1200: 1128.22 };
 const worktopDepth = (mat) => {
   const d = Math.round(Number((mat.worktop || {}).depth) || 600);
   return WORKTOP_DEPTHS.includes(d) ? d : 600;

@@ -139,7 +139,7 @@ const stW = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:pr
 ok('arkusz zapisany w materiałach', stW.items[0].mat.worktop.depth === 1200,
   JSON.stringify((stW.items[0].mat || {}).worktop));
 
-console.log('\n== ceny: 470 zł za blat 600, 780 zł za blat 1200 ==');
+console.log('\n== ceny brutto z faktur: 563,99 zł za blat 600, 1128,22 zł za blat 1200 ==');
 await seed([800], 'worktop', {}, false);
 /* Wycena arkuszy bierze sie z policzonego rozkroju, a zamkniecie okna rozkroju
    go kasuje — wiec czytamy wycene przy otwartym rozkroju. Karta wyceny jest
@@ -162,8 +162,8 @@ const cena600 = await page.evaluate(() => {
   return tr ? tr.textContent.replace(/\s+/g, ' ').trim() : '(brak pozycji blatu)';
 });
 console.log('     ' + cena600);
-ok('blat 600 po 470 zł', /470/.test(cena600), cena600);
-// ten sam blat w wersji 1200 kosztuje 780
+ok('blat 600 po 563,99 zł', /563[,.]99/.test(cena600), cena600);
+// ten sam blat w wersji 1200 kosztuje 1128,22 (faktura uzytkownika 2026-09-29)
 await page.evaluate(() => {
   const d = JSON.parse(localStorage.getItem('szafki:projekt'));
   d.items[0].mat = Object.assign({}, d.items[0].mat, {
@@ -181,7 +181,7 @@ const cena1200 = await page.evaluate(() => {
   return tr ? tr.textContent.replace(/\s+/g, ' ').trim() : '(brak pozycji blatu)';
 });
 console.log('     ' + cena1200);
-ok('blat 1200 po 780 zł', /780/.test(cena1200), cena1200);
+ok('blat 1200 po 1128,22 zł', /1\s?128[,.]22/.test(cena1200), cena1200);
 
 console.log('\n== w ciągu: blat roboczy tnie się co 4100, nie co 2761 ==');
 // 4 x 800 = 3200 + 40 = 3240 — miesci sie w odcinku 4100, ale nie w formatce 2761

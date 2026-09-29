@@ -255,7 +255,7 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `USABLE_W` × `USABLE_H` | 2761,2 × 2061,2 | po okrawaniu |
 | `KERF` | 3 | rzaz piły |
 | `WORKTOP_LEN` | 4100 | długość pasa blatu |
-| `WORKTOP_DEPTHS` / `WORKTOP_PRICES` | 600, 1200 / 563,99, 780 | głębokości i ceny blatu (600 z faktury użytkownika) |
+| `WORKTOP_DEPTHS` / `WORKTOP_PRICES` | 600, 1200 / 563,99, 1128,22 | głębokości i ceny blatu brutto (obie z faktur użytkownika) |
 | `KONF_OD_KRAWEDZI` / `konfirmatyNaStyk` / `konfirmatyPoz` | 50 mm / co 200, min. 2 | konfirmaty: liczba na styk (okucia i plan wierceń) i ich położenia od przedniej krawędzi |
 | PDF „Wiercenia” (kartka szafki) | `geo.drillPlan` + `wierceniaDodatkowe(arm, wstawki)` | plan wierceń korpusu (`computeGeo`) i dokładka: „Bok ramienia” szafki w L (konfirmaty dna/wieńca ramienia, kołki półek ramienia, zawiasy frontu ramienia), „Fix ramienia” i „Wstawka w rogu” (trójkąty); wiersz bez wysokości (frez pod HDF) ma „—” |
 | `KOLEK_PRZESUN` | 20 mm | kołki po drugiej stronie przegrody, gdy półki na tej samej wysokości |
