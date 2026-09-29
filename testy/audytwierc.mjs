@@ -233,18 +233,18 @@ const zRogiem = async (tytul, runs, items, aktywna, oczek) => {
   const kon = plan.filter((r) => /^konfirmat/.test(r.kind)).reduce((a, r) => a + r.ys.length * ileWNocie(r.note), 0);
   const tr = plan.filter((r) => r.kind === 'trójkąt meblowy').reduce((a, r) => a + r.ys.length * (/2 rzędy/.test(r.note) ? 2 : 1) + (/po 1 na każdym krótkim boku/.test(r.note) ? 2 : 0), 0);
   const zaw = plan.filter((r) => r.kind === 'zawias').reduce((a, r) => a + r.ys.length, 0);
-  /* Szafka w L nie ma boku od strony ramienia (stoi tam katownik). Okucia licza
-     konfirmaty wienca i dna na dwa boki, plan — tylko na bok, ktory jest, a
-     kolki i zawiasy od tej strony plan wysyla na „Bok lewy/prawy”, ktorego nie
-     ma w formatkach. Co tam wiercic — do decyzji uzytkownika (BLEDY.md). */
+  /* Szafka w L nie ma boku od strony ramienia (stoi tam katownik). Ustalone
+     z uzytkownikiem 2026-09-29: wieniec i dno konfirmatem w czolo obu plyt
+     katownika, drzwi korpusu na jego boku, kolki polki we wzmocnieniu tylnym.
+     Plan nie moze wiercic w boku, ktorego nie ma w formatkach. */
   const formatki = formatkiPdf;
   const bezBoku = ['Bok lewy', 'Bok prawy'].filter((n) => !formatki.includes(n) && !formatki.includes('Bok'));
   const naBrak = plan.filter((r) => bezBoku.includes(r.panel));
-  if (naBrak.length) console.log(`  ZNANE (do decyzji, BLEDY.md) plan wierci w „${bezBoku.join(', ')}”, którego nie ma w formatkach: ${[...new Set(naBrak.map((r) => r.kind))].join(', ')}`);
+  ok('plan nie wierci w boku, którego nie ma w formatkach', !naBrak.length, naBrak.map((r) => `${r.panel} | ${r.kind}`).join(' / '));
+  const zKatownikiem = plan.filter((r) => /^Kątownik przy ramieniu/.test(r.panel)).map((r) => r.panel);
+  ok('kątowniki z planu są w formatkach', zKatownikiem.every((n) => formatki.includes(n)), zKatownikiem.join(', '));
   const konfOk = q(/^Konfirmat/);
-  const brakBoku = bezBoku.length && kon < konfOk;
-  if (brakBoku) console.log(`  ZNANE (do decyzji, BLEDY.md) konfirmaty: okucia ${konfOk} liczą wieniec i dno także do boku, którego nie ma (${bezBoku.join(', ')}); plan ${kon}`);
-  ok(`konfirmaty: plan ${kon} = okucia ${konfOk}`, kon === konfOk || brakBoku, plan.filter((r) => /^konfirmat/.test(r.kind)).map((r) => `${r.panel} ${r.kind}`).join(' | '));
+  ok(`konfirmaty: plan ${kon} = okucia ${konfOk}`, kon === konfOk, plan.filter((r) => /^konfirmat/.test(r.kind)).map((r) => `${r.panel} ${r.kind}`).join(' | '));
   ok(`trójkąty: plan ${tr} = okucia ${q(/^Trójkąt/)}`, tr === q(/^Trójkąt/), plan.filter((r) => r.kind === 'trójkąt meblowy').map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | '));
   ok(`zawiasy: plan ${zaw} = okucia ${q(/^Zawias$/)}`, zaw === q(/^Zawias$/), plan.filter((r) => r.kind === 'zawias').map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | '));
   (oczek || []).forEach(([opis, re]) => ok(opis, plan.some((r) => re.test(`${r.panel} | ${r.kind}`)), [...new Set(plan.map((r) => `${r.panel} | ${r.kind}`))].join(' / ')));
@@ -253,7 +253,9 @@ const Lcab = (o = {}) => ({ name: 'L', W: 900, H: 720, D: 560, plinth: PLr, legs
   levels: [{ h: null, cols: [kol({ doors: 1 })] }] });
 await zRogiem('szafka w L w rogu — ramię z drzwiami', [RUNr('c1', 'Ściana 1'), RUNr('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
   [[szafka('A1'), 'c1'], [Lcab(), 'c2'], [szafka('B2'), 'c2']], 1,
-  [['bok ramienia: konfirmaty dna ramienia', /^Bok ramienia \| konfirmat — dno ramienia/], ['bok ramienia: zawiasy frontu ramienia', /^Bok ramienia \| zawias/],
+  [['wieniec i dno w kątownik', /^(Wieniec|Dno) \| konfirmat — kątownik przy ramieniu/], ['kołki półki we wzmocnieniu tylnym', /^Kątownik przy ramieniu — (bok|plecy) \| kołek półki/],
+   ['zawiasy drzwi korpusu na jego boku', /^Bok (lewy|prawy) \| zawias/],
+   ['bok ramienia: konfirmaty dna ramienia', /^Bok ramienia \| konfirmat — dno ramienia/], ['bok ramienia: zawiasy frontu ramienia', /^Bok ramienia \| zawias/],
    ['bok ramienia: kołki półek ramienia', /^Bok ramienia \| kołek półki/]]);
 await zRogiem('szafka w L w rogu — fix ramienia', [RUNr('c1', 'Ściana 1'), RUNr('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
   [[szafka('A1'), 'c1'], [Lcab({ doors: 'fix' }), 'c2'], [szafka('B2'), 'c2']], 1,

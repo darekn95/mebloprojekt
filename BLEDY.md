@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-29 | szafka w L po stronie ramienia (`computeGeo`: `topX0/botX0`, zawias, `drillPlan`, okucia) | decyzja użytkownika po audycie planu wierceń: boku od strony ramienia nie ma, więc (1) wieniec i dno sięgają do zewnętrznego lica kątownika (wcześniej kończyły się na płaszczyźnie boku i nachodziły na kątownik 3 mm) i idą konfirmatem w czoło obu jego płyt — okucia 16 zamiast 18 przy szafce 900; (2) drzwi korpusu domyślnie na jego boku, z dala od ramienia, a zawias od strony ramienia to błąd z przyciskiem przełożenia; (3) kołki półki po stronie ramienia we wzmocnieniu tylnym (po jednym w każdej płycie kątownika). `audytwierc`: plan nie wierci w boku, którego nie ma | (ten commit) |
 | 2026-09-29 | górna szafka narożna (`runLayout`, szablon `naroznikLgorny`, `tierMsgs`), nowa suita `gornaL` | na prośbę użytkownika: szafka w L w górnym ciągu nie miała ramienia — górne ciągi brały z dolnych samo odsunięcie o głębokość. Teraz para górnych z szafką w L w rogu dostaje narożnik jak dolna (ramię, kątownik, sąsiad odsunięty o głębokość i ramię), górny ciąg kończący się w rogu dosuwa się do niego, pusty górny ciąg za rogiem jest rysowany. Szablon „Górna narożna L” 650 × 720 × 300, ramię 350. Kontrola „ciąg górny wystaje poza dolny” liczyła same szafki bez narożnika — górna szafka nad ramieniem dolnej szafki w L dostawała fałszywe ostrzeżenie; teraz dolny ciąg liczy się razem z rogiem. Zawieszki szafki w L: jedna na boku korpusu, druga na boku ramienia (wariant A) | (ten commit) |
 | 2026-09-29 | plan wierceń szafki w L i wstawki (`wierceniaDodatkowe`) | ramię szafki w L i wstawka w rogu nie miały nic w planie wierceń — teraz „Bok ramienia” (konfirmaty dna i wieńca ramienia, kołki półek ramienia, zawiasy frontu ramienia), „Fix ramienia” i „Wstawka w rogu” (trójkąty, 2 rzędy); frez pod HDF (16 × 3) jako wiersz przy bokach, wieńcu i dnie. `audytwierc`: kartka aktywnej szafki w PDF (wcześniej czytał pierwszą), 3 scenariusze z rogiem | (ten commit) |
 | 2026-09-29 | elewacje szafki w L i rogu (`audyt2d`) | front ramienia i maskownica kątownika na elewacji ciągu i na rysunku szafki miały pełną wysokość korpusu — teraz pas drzwi szafki (`pasFrontu`, luzy jak w bryle i formatce); uchwyt ramienia w rzucie zabudowy z góry miał stare 20/32 mm — teraz `UCHWYT_OD_KRAWEDZI`; na elewacji ciągu przy ślepym rogu brakowało uchwytu szafki sąsiada wystającego z przekroju (o niego zahaczają drzwi) — dorysowany. Audyt: ślepy róg i szafka w L w rogu sprawdzane ściśle | (ten commit) |
@@ -76,16 +77,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   tylko na szerokość korpusu — czy dokładać odcinek pod ramieniem na drugiej
   ścianie; (4) gdzie idą zawieszki w planie wierceń (od góry i od tyłu boku?).
 
-- **Szafka w L — co wiercić po stronie ramienia, gdzie nie ma boku** (audyt
-  planu wierceń 2026-09-29). Korpus szafki w L nie ma boku od strony ramienia
-  (stoi tam kątownik 150 mm przy plecach i kątownik narożnika przy frontach),
-  a: (1) okucia liczą konfirmaty wieńca i dna na dwa boki (18 zamiast 12 przy
-  szafce 900), (2) plan wierceń wysyła kołki półki i zawiasy drzwi korpusu na
-  „Bok lewy/prawy”, którego nie ma w formatkach. Pytanie do użytkownika: czym
-  wieniec i dno trzymają się po tej stronie (konfirmat w czoło kątownika /
-  wkręty / nic) i na czym wiszą zawiasy drzwi korpusu i kołki półki (kątownik
-  narożnika / kątownik przy plecach). `audytwierc` pokazuje to jako ZNANE.
-
 - **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
   się kategoria „sprzęty” (lodówka, piekarnik, mikrofala) — dołożyć je jako
@@ -101,6 +92,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Ustalone — nie ruszać
 
+- **Szafka w L po stronie ramienia** (2026-09-29): wieniec i dno do zewnętrznego lica kątownika, po jednym konfirmacie w czoło każdej jego płyty; drzwi korpusu na boku korpusu, front ramienia na boku ramienia (zawsze z dala od rogu); kołki (albo trójkąty) półki we wzmocnieniu tylnym — przy wariancie A po obu jego płytach, przy B z wyciętym tylnym rogiem półki.
 - **Półka przy wsporniku pionowym fixu** (2026-09-28): na całą szerokość
   szafki, ale płytsza — zaczyna się za wspornikiem (nikt nie wycina „U”), na
   zwykłych kołkach w bokach; ostrzeżenie

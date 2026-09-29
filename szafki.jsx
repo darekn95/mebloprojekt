@@ -1403,10 +1403,17 @@ function computeGeoLiczy(cab, mat, ctx) {
   const rightLen = H - (topOverR ? t : 0) - (botR === "over" ? t : 0);
   const leftY0 = botL === "over" ? t : 0;
   const rightY0 = botR === "over" ? t : 0;
-  const topX0 = isBlat ? -blat.overL : topL === "between" ? t : 0;
-  const topX1 = isBlat ? W + blat.overR : topR === "between" ? W - t : W;
-  const botX0 = botL === "between" ? t : 0;
-  const botX1 = botR === "between" ? W - t : W;
+  /* Po stronie ramienia nie ma boku, a katownik stoi miedzy dnem a wiencem —
+     obie plyty ida wiec do jego zewnetrznego lica (plaszczyzna boku cofnieta
+     o plecy) i skreca sie je konfirmatem w czolo plyt katownika (uzytkownik
+     2026-09-29). Wczesniej konczyly sie tam, gdzie bylby bok, i nachodzily
+     na katownik tylko grubosc plecow. */
+  const postX0 = postSide === "left" ? postBack : null;
+  const postX1 = postSide === "right" ? W - postBack : null;
+  const topX0 = isBlat ? -blat.overL : postX0 ?? (topL === "between" ? t : 0);
+  const topX1 = isBlat ? W + blat.overR : postX1 ?? (topR === "between" ? W - t : W);
+  const botX0 = postX0 ?? (botL === "between" ? t : 0);
+  const botX1 = postX1 ?? (botR === "between" ? W - t : W);
 
   const pMode = cab.plinth.mode === "between" ? "inbody" : cab.plinth.mode;
   const plinthInBody =
@@ -2081,6 +2088,10 @@ function computeGeoLiczy(cab, mat, ctx) {
                   ? cab.hinge
                   : hasFix && rawFix.side === "left"
                   ? "right"
+                  /* szafka w L: drzwi korpusu wisza na jego boku, z dala od
+                     ramienia — od strony ramienia boku nie ma (uzytkownik 2026-09-29) */
+                  : postSide && (postSide === "left" ? j === 0 : j === lv.cols.length - 1)
+                  ? (postSide === "left" ? "right" : "left")
                   : "left"
                 : i < cnt / 2
                 ? "left"
@@ -2091,8 +2102,8 @@ function computeGeoLiczy(cab, mat, ctx) {
              szafki naroznej), plyty nie ma i drzwi wisialyby w powietrzu. */
           const kolumny = rawLevels[lv.i].cols;
           const wPowietrzu = d.hingeSide === "left"
-            ? j > 0 && !!kolumny[j - 1].noDiv
-            : j < kolumny.length - 1 && !!kolumny[j].noDiv;
+            ? (j > 0 && !!kolumny[j - 1].noDiv) || (postSide === "left" && j === 0)
+            : (j < kolumny.length - 1 && !!kolumny[j].noDiv) || (postSide === "right" && j === kolumny.length - 1);
           if (wPowietrzu) {
             const druga = d.hingeSide === "left" ? "right" : "left";
             add("error", `${where}: zawiasy wypadają od strony przelotu — nie ma tam płyty, `
@@ -3274,10 +3285,25 @@ function computeGeoLiczy(cab, mat, ctx) {
         const kolidujeL = (y) => !!sasiadL && (sasiadL.shelves || []).some((q) => Math.abs(q.y - y) < 10);
         const pinNoteL = `⌀5, ${fmt(przod + pinF + KOLEK_PRZESUN)} i ${fmt(przod + gl - pinB - KOLEK_PRZESUN)} mm od przedniej krawędzi płyty; `
           + `wysokość = spód półki; przesunięte o ${KOLEK_PRZESUN} mm do środka — po drugiej stronie półka na tej samej wysokości`;
+        /* Szafka w L: po stronie ramienia boku nie ma — polka lezy tam na
+           kolkach (albo trojkatach) we wzmocnieniu tylnym, po jednym w kazdej
+           jego plycie (uzytkownik 2026-09-29). Liczba kolkow sie nie zmienia. */
+        const przyKatL = postSide === "left" && c.j === 0;
+        const przyKatP = postSide === "right" && c.j === lv.cols.length - 1;
+        const pOdK = Math.max(backIntrusion, postBack);
+        const katownikKolki = (y) => {
+          const tyl = przod + gl - pinB - (carcassDepth - pOdK - postW);
+          drillAdd(lv.i, "Kątownik przy ramieniu — bok", interior.y0, "kołek półki", y,
+            `⌀5, ${fmt(Math.max(0, Math.round(tyl)))} mm od przedniej krawędzi płyty; wysokość = spód półki; zamiast boku (albo trójkąt meblowy)`);
+          drillAdd(lv.i, "Kątownik przy ramieniu — plecy", interior.y0, "kołek półki", y,
+            `⌀5 w licu od wnętrza, ${fmt(pinF)} mm od końca przy płycie bocznej; wysokość = spód półki; zamiast boku (albo trójkąt meblowy)`);
+        };
         if (cab.shelfMount !== "confirmat")
           (c.shelves || []).forEach((s) => {
-            drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, (kolidujeL(s.y) ? pinNoteL : pinNote) + p.left.strona);
-            drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNote + p.right.strona);
+            if (przyKatL) katownikKolki(s.y);
+            else drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, (kolidujeL(s.y) ? pinNoteL : pinNote) + p.left.strona);
+            if (przyKatP) katownikKolki(s.y);
+            else drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNote + p.right.strona);
           });
         (c.drawers || []).forEach((dr) => {
           if (!dr.rail) return;
@@ -3353,6 +3379,21 @@ function computeGeoLiczy(cab, mat, ctx) {
     if (hasBot) {
       przezBok(0, { nazwa: "dno", l: botL === "between", r: botR === "between" }, bottomY + t / 2, carcassDepth, 0, "dna");
       naBokach("Dno", { l: botL === "over", r: botR === "over" }, carcassDepth, 0);
+    }
+    /* Szafka w L: po stronie ramienia wieniec i dno skreca sie konfirmatem
+       w czolo obu plyt katownika (uzytkownik 2026-09-29) — po jednym na plyte,
+       w jej srodku. Polozenie w plycie od jej lewego konca i od przodu. */
+    if (postSide) {
+      const pOd = Math.max(backIntrusion, postBack);
+      const px = postSide === "right" ? W - t - postBack : postBack;          // plyta w plaszczyznie boku
+      const bx = postSide === "right" ? W - t - postBack - postW : t + postBack; // plyta przy plecach
+      const wKatownik = (plyta, x0) => {
+        const note = (odPrzodu) => `⌀7 w płycie (od jej lewego końca), ${fmt(Math.round(odPrzodu))} mm od przedniej krawędzi; w czole kątownika ⌀5 × 50`;
+        doPlyty(plyta, "konfirmat — kątownik przy ramieniu (bok)", px + t / 2 - x0, note(carcassDepth - pOd - postW / 2));
+        doPlyty(plyta, "konfirmat — kątownik przy ramieniu (plecy)", bx + postW / 2 - x0, note(carcassDepth - pOd - t / 2));
+      };
+      if (hasTop && !isBlat) wKatownik("Wieniec", topX0);
+      if (hasBot) wKatownik("Dno", botX0);
     }
     // polki przelotowe miedzy poziomami — przez boki, w osi polki
     sepShelves.forEach((sh) => przezBok(0, { nazwa: "półka przelotowa", l: true, r: true }, sh.y + t / 2, shelfDepth, frontCut, "półki"));
@@ -3543,8 +3584,13 @@ function computeGeoLiczy(cab, mat, ctx) {
     jointNotes.push(`${what} ${n}×${per}`);
   };
   // blat lezy na bokach i jest kryty od gory — mocowany od spodu, nie konfirmatem
-  if (hasTop && !isBlat) joint(2, carcassDepth, "wieniec");
-  if (hasBot) joint(2, carcassDepth, "dno");
+  // po stronie ramienia (bez boku) wieniec i dno ida konfirmatem w czolo obu plyt katownika
+  if (hasTop && !isBlat) joint(postSide ? 1 : 2, carcassDepth, "wieniec");
+  if (hasBot) joint(postSide ? 1 : 2, carcassDepth, "dno");
+  if (postSide) {
+    const n = (hasTop && !isBlat ? 1 : 0) + (hasBot ? 1 : 0);
+    if (n) { confQty += 2 * n; jointNotes.push(`${hasTop && !isBlat && hasBot ? "wieniec i dno" : hasBot ? "dno" : "wieniec"} do kątownika przy ramieniu ${n}×2`); }
+  }
   joint(dividers.length * 2, dividerDepth, "przegrody");
   joint(sepShelves.length * 2, shelfDepth, "półki przelotowe");
   joint(supportParts.length * 2, carcassDepth, "wsporniki");
