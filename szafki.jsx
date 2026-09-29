@@ -90,6 +90,8 @@ const matLabelOf = (m, key, ambiguous) => {
 const ZAWIESZKA_MODEL = "ZK-ZAW-R0-10, 57,2 × 37,5 × 17,4 mm, przykręcana 2 wkrętami 4 × 30 (otwory ⌀4,1, rozstaw 32 mm)";
 // montaz (uzytkownik 2026-09-29): na samej gorze, pod wiencem, 1 cm od plecow; wkrety 4 × 30 jak w reszcie szafki
 const ZAWIESZKA_OD_PLECOW = 10;
+// od tej szerokosci dodatkowe zawieszki na przegrodach pionowych
+const ZAWIESZKA_SZEROKA = 900;
 const ZAWIESZKA_WKRETY = 2;
 const zawieszkaNote = (odTylu, ile = 1) =>
   `bez wiercenia — przykręcana ${ZAWIESZKA_WKRETY} wkrętami 4 × 30 od wnętrza; wysokość = górna krawędź zawieszki pod wieńcem, `
@@ -97,7 +99,7 @@ const zawieszkaNote = (odTylu, ile = 1) =>
 
 /* Zapas okleiny na kazdy oklejany bok formatki: oklejarka wypuszcza okleine
    z przodu i z tylu, a potem ja odcina — 9 cm na bok (uzytkownik 2026-09-29).
-   Doliczany do materialu obrzeza (22 mm i ABS na blat), nie do uslugi. */
+   Doliczany do materialu obrzeza (22 mm i ABS na blat) i do uslugi oklejania. */
 const OBRZEZE_ZAPAS = 90;
 
 /* Ceny startowe — WSZYSTKIE BRUTTO, bo tyle sie faktycznie placi.
@@ -212,6 +214,11 @@ const konfirmatyPoz = (len, od = 0) => {
 };
 // kolki z obu stron przegrody na tej samej wysokosci: o tyle przesuwamy jedna strone do srodka polki
 const KOLEK_PRZESUN = 20;
+/* Mocowanie polek w kolumnach: kolki podporowe (przestawne), konfirmaty albo
+   trojkaty meblowe (uzytkownik 2026-09-29) — po dwa na strone polki, przy jej
+   przedniej i tylnej krawedzi, KONF_OD_KRAWEDZI od nich. */
+const mocowaniePolek = (cab) => (cab.shelfMount === "confirmat" ? "confirmat"
+  : cab.shelfMount === "trojkaty" ? "trojkaty" : "pins");
 const UCHWYT_OD_KRAWEDZI = 36;   // os uchwytu pionowego od wolnej krawedzi skrzydla
 const uchwytObrys = (d) => {
   if (d.type === "drawer" || d.type === "klapa") {
@@ -1599,7 +1606,8 @@ function computeGeoLiczy(cab, mat, ctx) {
       lv.cols.push(c);
       cx += w;
       if (j < K - 1 && !rawCols[j].noDiv) {
-        dividers.push({ x: cx, y0: lv.y0, y1: lv.y1, h: lv.h, level: lv.i });
+        // j: kolumna po lewej — w planie wiercen ta przegroda to „Przegroda j + 1”
+        dividers.push({ x: cx, y0: lv.y0, y1: lv.y1, h: lv.h, level: lv.i, j });
         cx += t;
       }
     }
@@ -3351,13 +3359,31 @@ function computeGeoLiczy(cab, mat, ctx) {
           drillAdd(lv.i, "Kątownik przy ramieniu — plecy", interior.y0, "kołek półki", y,
             `⌀5 w licu od wnętrza, ${fmt(pinF)} mm od końca przy płycie bocznej; wysokość = spód półki; zamiast boku (albo trójkąt meblowy)`);
         };
-        if (cab.shelfMount !== "confirmat")
+        if (mocowaniePolek(cab) === "pins")
           (c.shelves || []).forEach((s) => {
             if (przyKatL) katownikKolki(s.y);
             else drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, (kolidujeL(s.y) ? pinNoteL : pinNote) + p.left.strona);
             if (przyKatP) katownikKolki(s.y);
             else drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNote + p.right.strona);
           });
+        /* Polka na trojkatach: dwa pod polka z kazdej strony, przy jej przedniej
+           i tylnej krawedzi. Z obu stron przegrody na tej samej wysokosci wkrety
+           trafilyby w siebie — jak przy kolkach, ta strona o KOLEK_PRZESUN blizej
+           srodka polki. Po stronie ramienia szafki w L — w plytach wzmocnienia. */
+        if (mocowaniePolek(cab) === "trojkaty") {
+          const trNote = (o) => `2 rzędy — pod półką, przy jej przedniej i tylnej krawędzi: ${fmt(przod + KONF_OD_KRAWEDZI + o)} i ${fmt(przod + gl - KONF_OD_KRAWEDZI - o)} mm od przedniej krawędzi płyty; wysokość = spód półki`
+            + (o ? `; przesunięte o ${o} mm do środka — po drugiej stronie półka na tej samej wysokości` : "");
+          const katownikTr = (y) => {
+            drillAdd(lv.i, "Kątownik przy ramieniu — bok", interior.y0, "trójkąt meblowy", y, "pod półką, zamiast boku; wysokość = spód półki");
+            drillAdd(lv.i, "Kątownik przy ramieniu — plecy", interior.y0, "trójkąt meblowy", y, "pod półką, w licu od wnętrza, zamiast boku; wysokość = spód półki");
+          };
+          (c.shelves || []).forEach((s) => {
+            if (przyKatL) katownikTr(s.y);
+            else drillAdd(lv.i, p.left.name, p.left.base, "trójkąt meblowy", s.y, trNote(kolidujeL(s.y) ? KOLEK_PRZESUN : 0) + p.left.strona);
+            if (przyKatP) katownikTr(s.y);
+            else drillAdd(lv.i, p.right.name, p.right.base, "trójkąt meblowy", s.y, trNote(0) + p.right.strona);
+          });
+        }
         (c.drawers || []).forEach((dr) => {
           if (!dr.rail) return;
           /* Otwory wg instrukcji V-BOX (instrukcje/…V-BOX…pdf, str. 6): 37 mm od
@@ -3508,10 +3534,19 @@ function computeGeoLiczy(cab, mat, ctx) {
   const zawieszki = (() => {
     const wisi = cab.hangers === "always"
       || (cab.hangers !== "never" && !((cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on)));
-    const n = !wisi ? 0 : postSide ? 2 : W >= 900 ? 4 : 2;
+    /* Szafka od ZAWIESZKA_SZEROKA wzwyz dostaje dodatkowe zawieszki na
+       przegrodach pionowych siegajacych wienca — po jednej na przegrode, najwyzej
+       dwie; dwie na tej samej przegrodzie nie wejda, bo wkrety z obu stron
+       trafialyby w siebie (uzytkownik 2026-09-29). Bez przegrody zostaja dwie
+       na bokach — para trzyma 95 kg (karta ZK-ZAW-R0-10). */
+    const przegrodyGora = dividers.filter((d) => d.level === levels.length - 1);
+    const naPrzegrodach = !wisi || postSide || W < ZAWIESZKA_SZEROKA ? []
+      : przegrodyGora.length <= 2 ? przegrodyGora
+      : [przegrodyGora[0], przegrodyGora[przegrodyGora.length - 1]];
+    const n = !wisi ? 0 : 2 + naPrzegrodach.length;
     const gdzie = !postSide ? null : postTyp === "B" ? (rawCorner.zawieszki === "korpus" ? "korpus" : "ramie") : "A";
     const naKorpusie = !n ? 0 : !postSide ? n : gdzie === "A" ? 1 : gdzie === "korpus" ? 2 : 0;
-    return { n, gdzie, naKorpusie, naRamieniu: postSide && n ? n - naKorpusie : 0 };
+    return { n, gdzie, naKorpusie, naRamieniu: postSide && n ? n - naKorpusie : 0, naPrzegrodach };
   })();
   /* Zawieszka na samej gorze, pod wiencem, 1 cm od plecow (uzytkownik
      2026-09-29) — wysokosc w planie to jej gorna krawedz. Na boku plecy stoja
@@ -3525,8 +3560,10 @@ function computeGeoLiczy(cab, mat, ctx) {
     const baseBoku = postSide === "right" ? leftY0 : rightY0;
     const odTyluBoku = ZAWIESZKA_OD_PLECOW + backIntrusion;
     if (!postSide) {
-      zaw("Bok lewy", leftY0, odTyluBoku, zawieszki.n / 2);
-      zaw("Bok prawy", rightY0, odTyluBoku, zawieszki.n / 2);
+      zaw("Bok lewy", leftY0, odTyluBoku, 1);
+      zaw("Bok prawy", rightY0, odTyluBoku, 1);
+      // przegroda konczy sie na plecach (backIntrusion od tylu), wiec 10 mm od jej tylnej krawedzi
+      zawieszki.naPrzegrodach.forEach((d) => zaw(`Przegroda ${d.j + 1}`, d.y0, ZAWIESZKA_OD_PLECOW, 1));
     } else if (zawieszki.gdzie === "A") zaw(bokKorpusu, baseBoku, odTyluBoku, 1);
     else if (zawieszki.gdzie === "korpus") {
       zaw(bokKorpusu, baseBoku, odTyluBoku, 1);
@@ -3678,10 +3715,10 @@ function computeGeoLiczy(cab, mat, ctx) {
   joint(sepShelves.length * 2, shelfDepth, "półki przelotowe");
   joint(supportParts.length * 2, carcassDepth, "wsporniki");
 
-  const shelfPins = cab.shelfMount !== "confirmat";
+  const shelfPins = mocowaniePolek(cab) === "pins";
   let colShelves = 0;
   levels.forEach((lv) => lv.cols.forEach((c) => { colShelves += (c.shelves || []).length; }));
-  if (!shelfPins) joint(colShelves * 2, shelfDepth, "półki");
+  if (mocowaniePolek(cab) === "confirmat") joint(colShelves * 2, shelfDepth, "półki");
 
   if (confQty)
     hardware.push({
@@ -3760,6 +3797,14 @@ function computeGeoLiczy(cab, mat, ctx) {
       unit: "szt.",
     });
   }
+  if (mocowaniePolek(cab) === "trojkaty" && colShelves)
+    hardware.push({
+      name: "Trójkąt meblarski",
+      use: "półki szafki na trójkątach, po cztery na półkę",
+      spec: `półki na trójkątach: 4 szt. na półkę (po 2 z każdej strony, ${KONF_OD_KRAWEDZI} mm od przedniej i tylnej krawędzi) × ${colShelves}`,
+      qty: colShelves * 4,
+      unit: "szt.",
+    });
 
   // szafka wisząca: brak nozek i cokolu = musi byc na czym powiesic
   const floorStanding = (cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on);
@@ -4813,7 +4858,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
       ))}
 
       {/* kolki pod polki */}
-      {open && showHardware && !rear && cab.shelfMount !== "confirmat" &&
+      {open && showHardware && !rear && mocowaniePolek(cab) === "pins" &&
         geo.levels.flatMap((lv) => lv.cols.flatMap((c) =>
           (c.shelves || []).map((s, k) => (
             <g key={`pin${lv.i}-${c.j}-${k}`}>
@@ -6565,7 +6610,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const pad = 160;
   const t = geo.t;
   // kolki pod polki: rysowane w widoku otwartym razem z okuciami
-  const showPins = open && showHardware && cab.shelfMount !== "confirmat";
+  const showPins = open && showHardware && mocowaniePolek(cab) === "pins";
   const pinFromBottom = cab.pinDatum === "bottom";
   const anyPins = showPins && geo.levels.some((lv) => lv.cols.some((c) => (c.shelves || []).length));
   const pinLegend = anyPins && showDims;
@@ -10265,10 +10310,14 @@ const cornerArmParts = (a) => {
         qty: Math.round(dl / 100) / 10, unit: "mb" });
     }
   }
-  if (polek > 0 && cab.shelfMount !== "confirmat")
+  if (polek > 0 && mocowaniePolek(cab) === "pins")
     hardware.push({ name: "Kołek podporowy ⌀5",
       use: "półki ramienia narożnika, po cztery na półkę",
       spec: "półki ramienia, po cztery na półkę", qty: polek * 4, unit: "szt." });
+  if (polek > 0 && mocowaniePolek(cab) === "trojkaty")
+    hardware.push({ name: "Trójkąt meblarski",
+      use: "półki ramienia narożnika na trójkątach, po cztery na półkę",
+      spec: `półki ramienia na trójkątach: 4 szt. na półkę × ${polek}`, qty: polek * 4, unit: "szt." });
   {
     const naPlyte = Math.max(2, Math.ceil(inner / 200));
     const opis = [];
@@ -10316,12 +10365,16 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
     wiersz("Bok ramienia", "konfirmat — dno ramienia", [geo.bottomY + t / 2], kon);
     if (geo.hasTop) wiersz("Bok ramienia", "konfirmat — wieniec ramienia", [H - t / 2], kon);
     const ys = armShelfYs(a.side, geo.levels);
-    if (ys.length && cab.shelfMount !== "confirmat") {
+    if (ys.length && mocowaniePolek(cab) !== "confirmat") {
       const przod = a.bracket ? t : 0, gl = a.depth - (geo.tb || t) - (a.bracket ? t : 0);
       const pin = cab.shelfPin || {};
       const pf = num(pin.dFront) ?? 37, pb = num(pin.dBack) ?? 37;
-      wiersz("Bok ramienia", "kołek półki", ys,
-        `⌀5, ${fmt(przod + pf)} i ${fmt(przod + gl - pb)} mm od przedniej krawędzi płyty; wysokość = spód półki; tu 2 z 4 kołków półki`);
+      if (mocowaniePolek(cab) === "trojkaty")
+        wiersz("Bok ramienia", "trójkąt meblowy", ys,
+          `2 rzędy — pod półką ramienia, przy jej przedniej i tylnej krawędzi: ${fmt(przod + KONF_OD_KRAWEDZI)} i ${fmt(przod + gl - KONF_OD_KRAWEDZI)} mm od przedniej krawędzi płyty; wysokość = spód półki; tu 2 z 4`);
+      else
+        wiersz("Bok ramienia", "kołek półki", ys,
+          `⌀5, ${fmt(przod + pf)} i ${fmt(przod + gl - pb)} mm od przedniej krawędzi płyty; wysokość = spód półki; tu 2 z 4 kołków półki`);
     }
     const d0 = (geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
     if (a.doors === "fix") {
@@ -13443,7 +13496,7 @@ export default function App() {
         qty: sheetsTotal, unit: "ark.", def: DEFAULT_PRICES.ciecie });
     /* Material obrzeza: do 1 mm, a do kazdego oklejanego boku OBRZEZE_ZAPAS —
        oklejarka wypuszcza okleine z przodu i z tylu i potem ja odcina
-       (uzytkownik 2026-09-29). Usluga oklejania liczy sie od samych krawedzi. */
+       (uzytkownik 2026-09-29). */
     const zZapasem = (mb, boki) => Math.round(mb * 1000 + boki * OBRZEZE_ZAPAS) / 1000;
     const zapasOpis = (boki) => `${boki} ${boki === 1 ? "bok" : boki % 10 >= 2 && boki % 10 <= 4 && (boki % 100 < 10 || boki % 100 >= 20) ? "boki" : "boków"}`;
     add({ key: "obrzeze", label: "Obrzeże 22 × 2 mm",
@@ -13457,14 +13510,17 @@ export default function App() {
         spec: `końce blatu roboczego, do 1 mm: ${qtyFmt(projectEdgeBlatMb)} mb + ${OBRZEZE_ZAPAS / 10} cm na każdy koniec (${zapasOpis(projectEdgeBlatBoki)})`,
         qty: zZapasem(projectEdgeBlatMb, projectEdgeBlatBoki), unit: "mb", def: DEFAULT_PRICES.obrzezeBlat });
       add({ key: "oklejanieBlat", label: "Oklejanie prostoliniowe PCV > 23 mm",
-        spec: `usługa, ${fmt(Math.round(projectEdgeBlatMb * 100) / 100)} mb w górę do pełnego metra`,
-        qty: Math.ceil(projectEdgeBlatMb), unit: "mb", def: DEFAULT_PRICES.oklejanieBlat });
+        spec: `usługa od okleiny z zapasem: ${qtyFmt(zZapasem(projectEdgeBlatMb, projectEdgeBlatBoki))} mb w górę do pełnego metra`,
+        qty: Math.ceil(zZapasem(projectEdgeBlatMb, projectEdgeBlatBoki) - 1e-9), unit: "mb", def: DEFAULT_PRICES.oklejanieBlat });
     }
     // rozkrojownia liczy oklejanie za kazdy ROZPOCZETY metr, wiec w gore
+    /* Usluga liczy sie od okleiny razem z zapasem, w gore do pelnego metra — tak
+       rozlicza firma (przyklady uzytkownika 2026-09-29: bok 1000 → 1,09 mb
+       okleiny → 2 mb uslugi; 1000 + 1000 + 500 + 500 → 3,36 → 4). */
     if (projectEdgeMb > 0)
       add({ key: "oklejanie", label: "Oklejanie prostoliniowe",
-        spec: `usługa, ${fmt(Math.round(projectEdgeMb * 10) / 10)} mb w górę do pełnego metra`,
-        qty: Math.ceil(projectEdgeMb), unit: "mb", def: DEFAULT_PRICES.oklejanie });
+        spec: `usługa od okleiny z zapasem: ${qtyFmt(zZapasem(projectEdgeMb, projectEdgeBoki))} mb w górę do pełnego metra`,
+        qty: Math.ceil(zZapasem(projectEdgeMb, projectEdgeBoki) - 1e-9), unit: "mb", def: DEFAULT_PRICES.oklejanie });
     projectHardware.forEach((h) => {
       add({ key: "okucie:" + h.name + "|" + h.spec, label: h.name,
         spec: h.spec + (h.pack ? ` — ${h.qty} szt.` : ""),
@@ -15341,14 +15397,17 @@ export default function App() {
 
           <Card title="Montaż półek i zawieszenie" collapsible defaultOpen={false}>
             <Field label="Półki w kolumnach"
-              hint={cab.shelfMount === "confirmat"
+              hint={mocowaniePolek(cab) === "confirmat"
                 ? "skręcane na stałe — bez wierceń pod kołki"
+                : mocowaniePolek(cab) === "trojkaty"
+                ? "na trójkątach meblowych — 4 szt. na półkę, po 2 z każdej strony, 50 mm od przedniej i tylnej krawędzi"
                 : "przestawne na kołkach — 4 szt. na półkę"}>
-              <Seg value={cab.shelfMount === "confirmat" ? "confirmat" : "pins"}
+              <Seg value={mocowaniePolek(cab)}
                 onChange={(v) => set({ shelfMount: v })}
-                options={[{ v: "pins", l: "Kołki podporowe" }, { v: "confirmat", l: "Konfirmaty" }]} />
+                options={[{ v: "pins", l: "Kołki podporowe" }, { v: "confirmat", l: "Konfirmaty" },
+                  { v: "trojkaty", l: "Trójkąty meblowe" }]} />
             </Field>
-            {cab.shelfMount !== "confirmat" && (
+            {mocowaniePolek(cab) === "pins" && (
               <>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Otwór od przodu">

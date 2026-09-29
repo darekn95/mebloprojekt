@@ -51,7 +51,7 @@ const opcje = (nr) => page.locator('select[title="Dodaj szafkę z gotowego szabl
 const wiercenia = async (nr) => {
   await page.evaluate((nr) => { window.__rep = null; window.print = () => {
     const tabele = [...document.querySelectorAll('.print-only .rp-page')]
-      .filter((s) => (s.querySelector('span')?.textContent || '').includes(`(${nr} z `))
+      .filter((s) => nr == null || (s.querySelector('span')?.textContent || '').includes(`(${nr} z `))
       .flatMap((s) => [...s.querySelectorAll('table')]);
     const t = tabele.find((x) => /Otwory pod/.test(x.querySelector('thead')?.textContent || ''));
     window.__rep = t ? [...t.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent.trim())) : [];
@@ -160,6 +160,27 @@ ok('hak pod zawieszką ramienia zamiast listwy', hw.some((r) => /^Hak/.test(r[0]
 await page.getByRole('button', { name: 'B — kąt do środka', exact: true }).first().click(); await page.waitForTimeout(900);
 p = await projekt();
 ok('przełącznik „B — kąt do środka” zapisuje wariant B', ((p.items[4].cab.corner || {}).post || {}).typ === 'B', JSON.stringify((p.items[4].cab.corner || {}).post));
+
+console.log('\n== szeroka wisząca: dodatkowe zawieszki na przegrodach (po jednej, najwyżej dwie) ==');
+/* Uzytkownik 2026-09-29: od 900 mm, gdy jest przegroda pionowa, dokladamy
+   zawieszke na przegrodzie; przy dwoch przegrodach — dwie. Na jednej przegrodzie
+   tylko jedna (wkrety z obu stron trafialyby w siebie). */
+const wiszS = (W, kolumn) => ({ cab: { name: 'WS', W, H: 720, D: 300, plinth: { ...PL, on: false }, legs: { on: false },
+  levels: [{ h: null, cols: [...Array(kolumn)].map(() => ({ kind: 'doors', doors: 1, w: null })) }] }, runId: null, offset: 0 });
+for (const [W, kol, ile, przegrody] of [[800, 2, 2, []], [1000, 1, 2, []], [1000, 2, 3, ['Przegroda 1']],
+  [1200, 3, 4, ['Przegroda 1', 'Przegroda 2']], [1600, 4, 4, ['Przegroda 1', 'Przegroda 3']]]) {
+  await seed([], [wiszS(W, kol)], 0);
+  const pl = await wiercenia(null);
+  const hwS = await okuciaT();
+  const zw = hwS.find((r) => /^Zawieszka/.test(r[0]));
+  const naP = zawieszkiW(pl).filter((n) => /^Przegroda/.test(n)).sort();
+  ok(`${W} mm, ${kol} kol.: ${ile} zawieszki, na przegrodach: ${przegrody.join(', ') || 'brak'}`,
+    !!zw && new RegExp(`^${ile} szt`).test(zw[zw.length - 1]) && JSON.stringify(naP) === JSON.stringify(przegrody)
+      && zawieszkiW(pl).includes('Bok lewy') && zawieszkiW(pl).includes('Bok prawy'),
+    `${zw ? zw[zw.length - 1] : '(brak)'} / ${zawieszkiW(pl).join(', ')}`);
+  const wk = hwS.find((r) => /^Wkręt 4 × 30/.test(r[0]));
+  ok(`${W} mm: wkręty do zawieszek ${ile}×2`, !!wk && new RegExp(`zawieszki ${ile}×2`).test(wk[1]), wk ? wk.join(' ') : '(brak)');
+}
 
 console.log('\n== górny ślepy róg bez szafki w L: po staremu ==');
 await seed([RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } }),
