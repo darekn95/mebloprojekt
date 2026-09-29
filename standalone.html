@@ -122,6 +122,24 @@ const ROZKROJ_ZWLOKA = 1000;
 const ROZKROJ_ZWLOKA_DUZY = 5000;
 const ROZKROJ_DUZY = 40;
 
+// zasada liczby zawiasow — podpowiedz przy polu „zawiasy” drzwi (przeniesiona z listy produktow)
+const ZAWIASY_ZASADA = "Liczba zawiasów — puste liczy automatycznie: dwa na skrzydło, trzy dopiero przy szerokości powyżej 500 mm i wysokości powyżej 1400 mm, cztery powyżej 2000 mm; wąskie drzwi zawsze dwa.";
+// powierzchnia w podsumowaniach: mala (np. wstawka 720 × 60 = 0,04 m²) z dwoma miejscami, zero pomijamy
+const m2Fmt = (v) => (v < 1 ? (Math.round(v * 100) / 100).toFixed(2).replace(/0$/, "") : fmt(v));
+
+/* Blat roboczy liczy sie dlugoscia, nie powierzchnia — kupuje sie go w arkuszach
+   4100 mm, wiec liczy sie ile metrow (komentarz uzytkownika 2026-09-29). W
+   podsumowaniach formatek: plyty w m², blat w mb. Klucz — nazwa materialu. */
+const powierzchnieIBlat = (lista, klucz) => {
+  const pow = {}, blat = {};
+  lista.forEach((p) => {
+    const k = klucz(p);
+    if (p.matKey === "worktop") blat[k] = (blat[k] || 0) + (p.qty * p.a) / 1000;
+    else pow[k] = (pow[k] || 0) + (p.qty * p.a * p.b) / 1e6;
+  });
+  return { pow, blat };
+};
+
 /* Zapas okleiny na kazdy oklejany bok formatki: oklejarka wypuszcza okleine
    z przodu i z tylu, a potem ja odcina — 9 cm na bok (uzytkownik 2026-09-29).
    Doliczany do materialu obrzeza (22 mm i ABS na blat) i do uslugi oklejania. */
@@ -12162,8 +12180,8 @@ function ReportProjectSheet({ project, projectName }) {
     const e = p.edges;
     return s + p.qty * ((e.a1 ? p.a : 0) + (e.a2 ? p.a : 0) + (e.b1 ? p.b : 0) + (e.b2 ? p.b : 0));
   }, 0);
-  const area = {};
-  rows.forEach((p) => { area[p.matName] = (area[p.matName] || 0) + (p.qty * p.a * p.b) / 1e6; });
+  const { pow: area, blat: blatMb } = powierzchnieIBlat(rows, (p) => p.matName);
+  Object.keys(area).forEach((k) => { if (area[k] < 0.005) delete area[k]; });
   const hardware = useMemo(() => {
     return scalOkucia(projectParts(project).flatMap((part) => part.hardware));
   }, [project]);
@@ -12209,7 +12227,10 @@ function ReportProjectSheet({ project, projectName }) {
       </table>
       <div style={{ fontSize: "9pt", marginTop: 6 }}>
         {Object.entries(area).map(([k, v]) => (
-          <div key={k}>{k}: {fmt(v)} m²</div>
+          <div key={k}>{k}: {m2Fmt(v)} m²</div>
+        ))}
+        {Object.entries(blatMb).map(([k, v]) => (
+          <div key={"b" + k}>{k}: {qtyFmt(v)} mb długości</div>
         ))}
       </div>
 
@@ -13667,11 +13688,6 @@ export default function App() {
               className="rounded px-2 py-1 text-xs font-medium hover:bg-stone-200">
               ▸ Zwiń wszystkie
             </button>
-            <button onClick={() => window.dispatchEvent(new CustomEvent("mp-karty", { detail: { open: true } }))}
-              title="Rozwiń wszystkie karty"
-              className="rounded px-2 py-1 text-xs font-medium hover:bg-stone-200">
-              ▾ Rozwiń wszystkie
-            </button>
           </div>
           {/* Robocze: po poprawce w polach wyzej jednym kliknieciem wraca sie
               do rysunku, zamiast go szukac przewijaniem. */}
@@ -14902,7 +14918,7 @@ export default function App() {
                                 const pole = "rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none";
                                 return (
                                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[88px]" data-el="drzwi-okucia">
-                                    <label className="flex items-center gap-1" title="Liczba zawiasów — puste liczy automatycznie">
+                                    <label className="flex items-center gap-1" title={ZAWIASY_ZASADA}>
                                       <span className="text-[11px] text-stone-500">zawiasy</span>
                                       <input type="number" min={0} step={1}
                                         value={(rawCol.hinges || [])[k] ?? ""}
@@ -14920,7 +14936,7 @@ export default function App() {
                                       </label>
                                       {uchw && (
                                         <>
-                                          <input type="number" min={0} step={1} title="Ile uchwyt wystaje przed front — puste bierze ustawienie szafki"
+                                          <input type="number" min={0} step={1} title="Ile uchwyt wystaje przed front (mm) — wchodzi do kontroli otwierania. Relingi zwykle 20–35 mm, muszelki i uchwyty frezowane 0. Puste = domyślne 20"
                                             value={(rawCol.handleOuts || [])[k] ?? ""}
                                             placeholder={String(handleOutOf(cab))}
                                             onChange={(e) => setDoorFlag(lv.i, c.j, k, "handleOuts",
@@ -16131,9 +16147,17 @@ export default function App() {
               <div>
                 <span className="block text-xs uppercase tracking-wider text-stone-500">Powierzchnia</span>
                 <span className="font-mono text-sm">
-                  {Object.entries(boardArea).map(([k, v]) => (
-                    <span key={k} className="block">{mat[k].name}: {fmt(v)} m²</span>
-                  ))}
+                  {(() => {
+                    const { pow, blat } = powierzchnieIBlat(cutList, (p) => p.matKey);
+                    return (<>
+                      {Object.entries(pow).filter(([, v]) => v >= 0.005).map(([k, v]) => (
+                        <span key={k} className="block">{mat[k].name}: {m2Fmt(v)} m²</span>
+                      ))}
+                      {Object.entries(blat).map(([k, v]) => (
+                        <span key={"b" + k} className="block">{mat[k].name}: {qtyFmt(v)} mb długości</span>
+                      ))}
+                    </>);
+                  })()}
                 </span>
               </div>
             </div>
@@ -16222,9 +16246,17 @@ export default function App() {
                 <div>
                   <span className="block text-xs uppercase tracking-wider text-stone-500">Powierzchnia</span>
                   <span className="font-mono text-sm">
-                    {Object.entries(projectBoardArea).map(([k, v]) => (
-                      <span key={k} className="block">{k}: {fmt(v)} m²</span>
-                    ))}
+                    {(() => {
+                      const { pow, blat } = powierzchnieIBlat(projectCutList, (p) => p.matName);
+                      return (<>
+                        {Object.entries(pow).filter(([, v]) => v >= 0.005).map(([k, v]) => (
+                          <span key={k} className="block">{k}: {m2Fmt(v)} m²</span>
+                        ))}
+                        {Object.entries(blat).map(([k, v]) => (
+                          <span key={"b" + k} className="block">{k}: {qtyFmt(v)} mb długości</span>
+                        ))}
+                      </>);
+                    })()}
                   </span>
                 </div>
               </div>
@@ -16333,18 +16365,8 @@ export default function App() {
                 onChange={(e) => set({ handleName: e.target.value })}
                 className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
             </Field>
-            {/* Uchwyt styka sie pierwszy, wiec ten wymiar decyduje o kolizjach
-                otwierania — i tak samo dotyczy drzwi, jak i szuflad. */}
-            <Field label="Uchwyt wystaje przed front"
-              hint="Relingi zwykle 20–35 mm. Muszelki i uchwyty frezowane: 0 — wtedy nic nie wystaje. Ten wymiar wchodzi do kontroli otwierania.">
-              <Num value={cab.handleOut ?? 20} min={0}
-                onChange={(v) => set({ handleOut: Math.max(0, Math.round(Number(v) || 0)) })} />
-            </Field>
-            <p className="text-xs text-stone-500">
-              Zawiasy domyślnie dwa na skrzydło. Trzy dopiero przy szerokości powyżej
-              500 mm i wysokości powyżej 1400 mm, cztery powyżej 2000 mm. Wąskie drzwi
-              zawsze dostają dwa. Liczbę nadpiszesz w polu przy każdym skrzydle.
-            </p>
+            {/* „Uchwyt wystaje przed front” i zasada liczby zawiasow sa przy drzwiach
+                (Struktura wnetrza) — tu byly zdublowane (komentarze uzytkownika 2026-09-29). */}
           </Card>
 
           {zCaloscia && (

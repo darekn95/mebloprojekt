@@ -154,7 +154,7 @@ szerokość frontu w rogu i przycięcie podniesionych tyłów szuflad.
 | Grubość / Nazwa dekoru | `mat.board/front/shelf/back/mirror.thickness`, `.decor` |
 | Arkusz blatu roboczego | `mat.worktop`, `worktopDepth(mat)` |
 | Kierunek usłojenia ma znaczenie | `cab.grainMatters`, `cab.texture`, `cab.textureDir` |
-| Nazwa uchwytu / Uchwyt wystaje przed front | `cab.handleName`, `cab.handleOut` |
+| Nazwa uchwytu (karta produktów) / wystawanie uchwytu (przy drzwiach; domyślne 20 mm) | `cab.handleName`, `cab.handleOut` (pola globalnego od 2026-09-29 nie ma — jest `col.handleOuts[]` przy drzwiach) |
 
 ### Karta „Wycięcie w narożniku (tylne)" i „Elementy kolizyjne"
 
