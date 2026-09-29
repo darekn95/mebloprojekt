@@ -33,6 +33,12 @@
   „Wyślij do Claude” (tylko tam — nie na GitHub Pages ani w standalone).
   Odczyt: `ArtifactData`, dokument `projekt/biezacy`, pole `json`. Trzymaj go
   w scratchpadzie; do repozytorium tylko za zgodą użytkownika.
+- **Komentarze w artefakcie** (ustalone z użytkownikiem 2026-09-29): komentarz
+  wysłany do Claude z artefaktu **nie jest realizowany od razu** — tylko krótko
+  potwierdź przyjęcie. Wszystkie zebrane komentarze realizuj dopiero na polecenie
+  „realizuj komentarze” (albo podobne): wtedy zrób zmiany, w każdym wątku wysłanym
+  do Claude odpisz, co zrobiono, i zamknij go. Wątków niewysłanych do Claude nie da
+  się zamknąć — powiedz, które zostały otwarte.
 - Gdy coś potrwa dłużej niż ok. 3 minuty (pełny przebieg testów, duży build,
   seria zrzutów), napisz o tym **przed** startem, z przybliżonym czasem —
   np. „Testy lecą (~5 min)” — i co w tym czasie robisz albo na co czekasz.
@@ -42,8 +48,11 @@
   - po zmianie tylko suity z tego obszaru (2–5 suit, ok. 1 min; spis w `SLOWNIK.md`);
   - zapis na gałąź roboczą na bieżąco — bez pełnych testów, to kopia bezpieczeństwa
     (kontener jest tymczasowy);
-  - **pełny przebieg i scalenie do `main`** (publikacja na GitHub Pages) — tylko na
-    żądanie użytkownika albo w czasie jego dłuższej nieobecności;
+  - **scalenie do `main`** (publikacja na GitHub Pages) — **wyłącznie na wyraźną
+    prośbę użytkownika** w danej chwili, także gdy testy są zielone (zasada ogólna,
+    2026-09-29). Zgoda na jedno scalenie nie obejmuje następnych. Zmiany czekają
+    na gałęzi roboczej; nowego PR też nie otwieraj bez prośby;
+  - pełny przebieg testów — na żądanie użytkownika albo przed scaleniem;
   - pełny przebieg to `bash testy/pelny.sh`: wszystko szybko, a wolno (`PW_WOLNO=1`)
     powtarza tylko suity z błędem i mówi, czy to prawdziwy błąd, czy fałszywy
     alarm z czekania (ten poprawia się w `testy/pw.mjs`, nie w aplikacji);

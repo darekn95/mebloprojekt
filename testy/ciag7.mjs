@@ -21,12 +21,18 @@ const rowsOf = (re) => card(re).evaluate((sec) =>
   [...sec.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.trim()).join(' | ')));
 const stan = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt') || '{}'));
 // kafelki podzialu danej sekcji
+// podzial: styki jako pola do zaznaczenia „2420 mm” (od 2026-09-29, wczesniej kafelki)
 const cutBtns = (label) => cs().evaluate((sec, lab) => {
   const f = [...sec.querySelectorAll('div')].find((l) => new RegExp('^' + lab).test((l.textContent || '').trim()));
-  return f ? [...f.querySelectorAll('button')].map((b) => ({
-    t: b.textContent.trim(), on: b.className.includes('bg-teal-700'),
+  return f ? [...f.querySelectorAll('label')].filter((l) => l.querySelector('input[type=checkbox]')).map((l) => ({
+    t: l.textContent.trim().replace(/ mm$/, ''), on: l.querySelector('input').checked,
   })) : [];
 }, label);
+const klik = (lab, t) => cs().evaluate((sec, [lab, t]) => {
+  const f = [...sec.querySelectorAll('div')].find((l) => new RegExp('^' + lab).test((l.textContent || '').trim()));
+  const l = [...f.querySelectorAll('label')].find((x) => x.textContent.trim() === t + ' mm');
+  l.querySelector('input').click();
+}, [lab, t]);
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 const BLAT = { mode: 'blat', widthMode: 'outside', overL: 20, overR: 20, overFront: 30, overBack: 0 };
@@ -95,11 +101,11 @@ let j = await cutBtns('Podział blatu');
 console.log('     ' + JSON.stringify(j));
 ok('kafelki styków blatu są', j.length >= 4, JSON.stringify(j.map((x) => x.t)));
 ok('automat zaznaczył 2420', j.filter((x) => x.on).map((x) => x.t).join() === '2420', JSON.stringify(j));
-await cs().getByRole('button', { name: '2420', exact: true }).click();
+await klik('Podział blatu', '2420');
 await page.waitForTimeout(800);
-await cs().getByRole('button', { name: '1620', exact: true }).click();
+await klik('Podział blatu', '1620');
 await page.waitForTimeout(800);
-await cs().getByRole('button', { name: '3220', exact: true }).click();
+await klik('Podział blatu', '3220');
 await page.waitForTimeout(1000);
 j = await cutBtns('Podział blatu');
 ok('ręczny wybór 1620 i 3220', j.filter((x) => x.on).map((x) => x.t).join() === '1620,3220', JSON.stringify(j));

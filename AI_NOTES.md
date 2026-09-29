@@ -656,3 +656,23 @@ rogu elewacja ciagu nie pokazuje uchwytu szafki sasiada wystajacego z
 przekroju; w U i gornych w L sasiad za rogiem jest na elewacji przekrojem
 z krzyzem (bryla 3D „Ciąg” jest poprawna — sprawdzone zrzutem 2026-09-29).
 Szafka w L sama z gory: rog bez boku odslania ~15 mm cokolu (ZNANE).
+
+[AI-INFO] Rozkroj automatyczny (2026-09-29): `autoPlan` liczy `buildCutPlan` po
+`ROZKROJ_ZWLOKA` (1 s; powyzej `ROZKROJ_DUZY` = 40 szafek — 5 s) od ostatniej zmiany
+`rozkrojKlucz` = JSON calego wejscia rozkroju (formatki z wymiarami, iloscia,
+plyta z kolorem, slojami, arkuszem blatu). Arkusz 2800 × 2100, okrawanie i rzaz sa
+stale — gdyby staly sie ustawieniem, trzeba je dopisac do klucza. Mozliwy powod
+przycinania — patrz BLEDY.md „Do decyzji”.
+
+[AI-TODO] Warstwa „Pomieszczenia” (plan zaakceptowany co do zasad 2026-09-29, czeka na start):
+Projekt → Pomieszczenia → ciagi/sciany → szafki. Decyzje uzytkownika: istniejace
+projekty otwieraja sie jako „Pomieszczenie 1”; rozkroj i wycena domyslnie dla
+calego projektu (jedno zamowienie), podglad pomieszczenia osobno; usuwanie
+pomieszczenia z szafkami — zawsze pytanie: usun z szafkami albo przenies do innego.
+Zakres: `project.rooms`, `run.roomId`, `item.roomId` (szafka w ciagu dziedziczy po
+ciagu), wybor pomieszczenia nad paskiem ciagow („+ pomieszczenie”, „Cały projekt”),
+Zabudowa/rogi/kolizje/blaty tylko w obrebie pomieszczenia (`drawableRuns`,
+`projectLayout`), formatki/produkty/wycena z przelacznikiem pomieszczenie/calosc,
+uwagi pomieszczenia + licznik bledow w innych, PDF z rozdzialami na pomieszczenia
+i zbiorczym zamowieniem, nowa suita, migracja starych projektow. Nazwa w UI:
+„Pomieszczenie” („Zabudowa” zajeta przez widok).

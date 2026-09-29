@@ -20,13 +20,18 @@ const notes = () => page.evaluate(() => {
 const cutRows = (re) => card(re).evaluate((sec) =>
   [...sec.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.trim()).join(' | ')));
 const stan = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt') || '{}'));
-// kafelki podzialu: przyciski z sama liczba w karcie ciagu
+// podzial: styki jako pola do zaznaczenia „800 mm” (od 2026-09-29, wczesniej kafelki)
 const jointBtns = () => cs().evaluate((sec) => {
   const f = [...sec.querySelectorAll('div')].find((l) => /^Podział cokołu/.test((l.textContent || '').trim()));
-  return f ? [...f.querySelectorAll('button')].map((b) => ({
-    t: b.textContent.trim(), on: b.className.includes('bg-teal-700'),
+  return f ? [...f.querySelectorAll('label')].filter((l) => l.querySelector('input[type=checkbox]')).map((l) => ({
+    t: l.textContent.trim().replace(/ mm$/, ''), on: l.querySelector('input').checked,
   })) : [];
 });
+const klik = (t) => cs().evaluate((sec, t) => {
+  const f = [...sec.querySelectorAll('div')].find((l) => /^Podział cokołu/.test((l.textContent || '').trim()));
+  const l = [...f.querySelectorAll('label')].find((x) => x.textContent.trim() === t + ' mm');
+  l.querySelector('input').click();
+}, t);
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 const seed = async (widths, run = {}) => {
@@ -78,27 +83,27 @@ console.log('\n== jedno kliknięcie to jedno przełączenie ==');
 const hits = await cs().evaluate((sec) => {
   const f = [...sec.querySelectorAll('div')].find((l) => /^Podział cokołu/.test((l.textContent || '').trim()));
   window.__hits = [];
-  [...f.querySelectorAll('button')].forEach((b) =>
-    b.addEventListener('click', () => window.__hits.push(b.textContent.trim()), true));
+  [...f.querySelectorAll('label')].forEach((b) => { const i = b.querySelector('input[type=checkbox]');
+    if (i) i.addEventListener('click', () => window.__hits.push(b.textContent.trim().replace(/ mm$/, '')), true); });
   return true;
 });
-await cs().getByRole('button', { name: '800', exact: true }).click();
+await klik('800');
 await page.waitForTimeout(500);
 const fired = await page.evaluate(() => window.__hits);
 console.log('     odpalone kliki: ' + JSON.stringify(fired));
 ok('pierwszy kafelek odpala się raz, nie dwa', fired.length === 1 && fired[0] === '800', JSON.stringify(fired));
 j = await jointBtns();
 ok('i faktycznie się zaznaczył', j.find((x) => x.t === '800').on, JSON.stringify(j));
-await cs().getByRole('button', { name: '800', exact: true }).click();
+await klik('800');
 await page.waitForTimeout(700);
 
 console.log('\n== podział da się przestawić ręcznie ==');
 // przelaczamy na styk 1600 + 3200 zamiast 2400
-await cs().getByRole('button', { name: '2400', exact: true }).click();
+await klik('2400');
 await page.waitForTimeout(900);
-await cs().getByRole('button', { name: '1600', exact: true }).click();
+await klik('1600');
 await page.waitForTimeout(900);
-await cs().getByRole('button', { name: '3200', exact: true }).click();
+await klik('3200');
 await page.waitForTimeout(1000);
 j = await jointBtns();
 console.log('     ' + JSON.stringify(j.filter((x) => x.on)));

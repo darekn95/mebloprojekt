@@ -117,8 +117,8 @@ ok('obrzeże 3,38 brutto', (await priceRow(/Obrzeże/))?.ph === '3.38', JSON.str
 ok('oklejanie 8,86 i pełne metry', (await priceRow(/Oklejanie/))?.ph === '8.86'
   && /^\d+ mb$/.test((await priceRow(/Oklejanie/))?.qty || ''), JSON.stringify(await priceRow(/Oklejanie/)));
 // rozkroj moze byc juz policzony wczesniej w tym tescie
-if (await wyc.getByRole('button', { name: 'Policz rozkrój' }).count()) {
-  await wyc.getByRole('button', { name: 'Policz rozkrój' }).click();
+if (await wyc.getByRole('button', { name: 'Pokaż rozkrój' }).count()) {
+  await wyc.getByRole('button', { name: 'Pokaż rozkrój' }).click();
   await page.waitForTimeout(3000);
 }
 // domyslny dekor to dab sonoma, wiec cena kolorowa

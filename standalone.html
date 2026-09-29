@@ -114,6 +114,32 @@ const zawieszkaNote = (odTylu, ile = 1) =>
   `bez wiercenia — przykręcana ${ZAWIESZKA_WKRETY} wkrętami 4 × 30 od wnętrza; wysokość = górna krawędź zawieszki pod wieńcem, `
   + `tylna krawędź ${fmt(odTylu)} mm od tylnej krawędzi płyty (1 cm od pleców)${ile > 1 ? ` — ${ile} szt. na płycie` : ""}; ZK-ZAW-R0-10`;
 
+/* Rozkroj przelicza sie sam tyle po ostatniej zmianie formatek (uzytkownik
+   2026-09-29): 1 s do ROZKROJ_DUZY szafek, 5 s powyzej — pomiar: 40 szafek
+   niezauwazalne, 100 szafek jedno przytrzymanie ok. 0,3–0,45 s. Gdy program
+   przycina albo sie zawiesza po zmianach, to pierwszy podejrzany (BLEDY.md). */
+const ROZKROJ_ZWLOKA = 1000;
+const ROZKROJ_ZWLOKA_DUZY = 5000;
+const ROZKROJ_DUZY = 40;
+
+// zasada liczby zawiasow — podpowiedz przy polu „zawiasy” drzwi (przeniesiona z listy produktow)
+const ZAWIASY_ZASADA = "Liczba zawiasów — puste liczy automatycznie: dwa na skrzydło, trzy dopiero przy szerokości powyżej 500 mm i wysokości powyżej 1400 mm, cztery powyżej 2000 mm; wąskie drzwi zawsze dwa.";
+// powierzchnia w podsumowaniach: mala (np. wstawka 720 × 60 = 0,04 m²) z dwoma miejscami, zero pomijamy
+const m2Fmt = (v) => (v < 1 ? (Math.round(v * 100) / 100).toFixed(2).replace(/0$/, "") : fmt(v));
+
+/* Blat roboczy liczy sie dlugoscia, nie powierzchnia — kupuje sie go w arkuszach
+   4100 mm, wiec liczy sie ile metrow (komentarz uzytkownika 2026-09-29). W
+   podsumowaniach formatek: plyty w m², blat w mb. Klucz — nazwa materialu. */
+const powierzchnieIBlat = (lista, klucz) => {
+  const pow = {}, blat = {};
+  lista.forEach((p) => {
+    const k = klucz(p);
+    if (p.matKey === "worktop") blat[k] = (blat[k] || 0) + (p.qty * p.a) / 1000;
+    else pow[k] = (pow[k] || 0) + (p.qty * p.a * p.b) / 1e6;
+  });
+  return { pow, blat };
+};
+
 /* Zapas okleiny na kazdy oklejany bok formatki: oklejarka wypuszcza okleine
    z przodu i z tylu, a potem ja odcina — 9 cm na bok (uzytkownik 2026-09-29).
    Doliczany do materialu obrzeza (22 mm i ABS na blat) i do uslugi oklejania. */
@@ -1078,6 +1104,11 @@ const migrateRun = (r) => ({
     ? r.plinthCuts.map(Number).filter((n) => n > 0).sort((a, b) => a - b) : null,
   topCuts: Array.isArray(r.topCuts)
     ? r.topCuts.map(Number).filter((n) => n > 0).sort((a, b) => a - b) : null,
+  // wlasne ciecia w dowolnym miejscu (mm od lewego konca), poza stykami korpusow
+  plinthCutsWlasne: Array.isArray(r.plinthCutsWlasne)
+    ? r.plinthCutsWlasne.map((n) => Math.round(Number(n))).filter((n) => n > 0).sort((a, b) => a - b) : [],
+  topCutsWlasne: Array.isArray(r.topCutsWlasne)
+    ? r.topCutsWlasne.map((n) => Math.round(Number(n))).filter((n) => n > 0).sort((a, b) => a - b) : [],
   // blat roboczy przez caly ciag; w starych projektach pola nie ma, wiec zostaje wylaczony
   worktop: r.worktop === true,
   // ciag wiesza sie na listwie; pojedyncza szafka na haczykach
@@ -5811,9 +5842,21 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                 );
               })
             : (
-              /* mierzymy sam ciag — dostawione ramie lezy juz przy innej scianie */
-              <DimH x1={0} x2={L.elevTotal} y={fy(0) + 56 + groups.length * 74}
-                label={`${fmt(L.elevTotal)} ${groups.length > 1 ? "zabudowa" : "ciąg"}`} above={false} />
+              /* mierzymy sam ciag — dostawione ramie lezy juz przy innej scianie.
+                 Jeden ciag: tylko jego szafki, bez rogu zajetego przez szafke
+                 drugiej sciany (komentarz uzytkownika 2026-09-29: „2399 to
+                 błędna informacja” — to byly szafki 1800 + bok sasiada w rogu). */
+              groups.length === 1 && L.info.get(groups[0].run.id) ? (() => {
+                const n = L.info.get(groups[0].run.id);
+                const [a, b2] = rear ? [total - n.lead - n.total, total - n.lead] : [n.lead, n.lead + n.total];
+                return (
+                  <DimH x1={a} x2={b2} y={fy(0) + 56 + groups.length * 74}
+                    label={`${fmt(n.total)} ciąg`} above={false} />
+                );
+              })() : (
+                <DimH x1={0} x2={L.elevTotal} y={fy(0) + 56 + groups.length * 74}
+                  label={`${fmt(L.elevTotal)} ${groups.length > 1 ? "zabudowa" : "ciąg"}`} above={false} />
+              )
             )}
           <DimV y1={fy(top)} y2={fy(0)} x={-70} label={fmt(top)} />
           {groups.map((g) => {
@@ -9227,23 +9270,40 @@ const CardSub = ({ title, hint, children }) => {
 
 /* Kafelki styków, na których wolno przeciąć długą płaszczyznę. Wspólne dla
    cokołu i blatu, bo reguła jest ta sama. */
-const SplitPicker = ({ label, what, s, onToggle, onAuto }) =>
-  s && s.joints.length ? (
+/* Podzial cokolu/blatu: styki korpusow jako pola do zaznaczenia plus wlasny
+   wymiar ciecia wpisany recznie (komentarz uzytkownika 2026-09-29: „checkbox
+   i dodatkowe pole do wpisania konkretnego wymiaru”). */
+const SplitPicker = ({ label, what, s, onToggle, onAuto, onWlasne }) => {
+  const [nowe, setNowe] = useState("");
+  if (!s || (!s.joints.length && !onWlasne)) return null;
+  const wl = s.wlasne || [];
+  const dodaj = () => {
+    const v = Math.round(Number(nowe));
+    if (!(v > 0 && v < s.total) || !onWlasne) return;
+    onWlasne([...new Set([...wl, v])].sort((a, b) => a - b));
+    setNowe("");
+  };
+  return (
     <Group label={label}
-      hint={`Cięcie idzie na styku korpusów, żeby szew wypadł w linii szczeliny między frontami. Sam dokłada się dopiero wtedy, gdy ${what} nie mieści się w formatce.`}>
-      <div className="flex flex-wrap items-center gap-1.5">
+      hint={`Zaznacz styki korpusów, na których ${what} ma być cięty — wtedy szew wypada w linii szczeliny między frontami. Własne cięcie wpisz w mm od lewego końca. Bez zaznaczeń podział dobiera się sam, gdy ${what} nie mieści się w formatce.`}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         {s.joints.map((j) => {
           const on = s.cuts.includes(j);
           return (
-            <button key={j} onClick={() => onToggle(j)}
-              title={on ? "Zdejmij podział z tego styku" : `Potnij ${what} na tym styku`}
-              className={"rounded-full border px-2.5 py-1 font-mono text-xs transition " +
-                (on ? "border-teal-600 bg-teal-700 text-white"
-                    : "border-stone-300 bg-white text-stone-500 hover:border-stone-400")}>
-              {fmt(j)}
-            </button>
+            <label key={j} className="flex cursor-pointer items-center gap-1 text-xs"
+              title={on ? "Zdejmij podział z tego styku" : `Potnij ${what} na tym styku`}>
+              <input type="checkbox" checked={on} onChange={() => onToggle(j)} className="h-3.5 w-3.5 accent-teal-700" />
+              <span className="font-mono">{fmt(j)} mm</span>
+            </label>
           );
         })}
+        {wl.map((c) => (
+          <span key={"w" + c} className="flex items-center gap-1 rounded-full border border-teal-600 bg-teal-50 px-2 py-0.5 font-mono text-xs">
+            {fmt(c)} mm
+            <button onClick={() => onWlasne(wl.filter((x) => x !== c))} title="Usuń to cięcie"
+              className="text-stone-500 hover:text-stone-800">×</button>
+          </span>
+        ))}
         {!s.auto && (
           <button onClick={onAuto}
             className="rounded-full border border-dashed border-stone-400 px-2.5 py-1 text-xs text-stone-500 hover:text-stone-700">
@@ -9251,8 +9311,20 @@ const SplitPicker = ({ label, what, s, onToggle, onAuto }) =>
           </button>
         )}
       </div>
+      {onWlasne && (
+        <div className="mt-1.5 flex items-center gap-2 text-xs">
+          <span className="text-stone-500">własne cięcie</span>
+          <input type="number" min={1} step={1} value={nowe} placeholder="mm od lewej"
+            onChange={(e) => setNowe(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") dodaj(); }}
+            className="w-28 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none" />
+          <button onClick={dodaj} className="rounded border border-stone-300 px-2 py-1 hover:bg-stone-100">dodaj</button>
+          <span className="text-stone-400">długość {fmt(s.total)} mm</span>
+        </div>
+      )}
     </Group>
-  ) : null;
+  );
+};
 
 const Num = ({ value, onChange, min, max, suffix = "mm" }) => (
   <div className="flex items-center gap-2">
@@ -9362,8 +9434,17 @@ const edgeText = (p) => {
 };
 
 // `id` — kotwica, do ktorej da sie przewinac (np. „Pokaz rysunek" z gornego paska)
-const Card = ({ title, children, right, collapsible = false, defaultOpen = true, id }) => {
+// kazda karta da sie zwinac (uzytkownik 2026-09-29); domyslnie rozwinieta
+const Card = ({ title, children, right, collapsible = true, defaultOpen = true, id }) => {
   const [open, setOpen] = useState(defaultOpen);
+  /* „Zwiń wszystkie / Rozwiń wszystkie” w gornym pasku (komentarz uzytkownika
+     2026-09-29) — jedno zdarzenie do wszystkich kart, ktore da sie zwinac. */
+  useEffect(() => {
+    if (!collapsible) return undefined;
+    const h = (e) => setOpen(!!(e.detail && e.detail.open));
+    window.addEventListener("mp-karty", h);
+    return () => window.removeEventListener("mp-karty", h);
+  }, [collapsible]);
   const shown = collapsible ? open : true;
   return (
     <section id={id} className="rounded-lg border border-stone-200 bg-white"
@@ -9833,14 +9914,19 @@ const KERF = 3; // rzaz piły
    w tej samej linii. Dlatego ciac wolno tylko tutaj. Automat tnie dopiero
    wtedy, gdy plaszczyzna nie miesci sie w formatce, i bierze najdalszy styk,
    ktory jeszcze wchodzi — czyli tak rzadko, jak sie da. */
-const splitAtJoints = (total, joints, want, max = USABLE_W) => {
+/* `wlasne` — ciecia wpisane recznie w dowolnym miejscu (mm od lewego konca),
+   niekoniecznie na styku korpusow (komentarz uzytkownika 2026-09-29). Gdy sa,
+   podzial przestaje byc automatyczny: styki tylko te zaznaczone plus wlasne. */
+const splitAtJoints = (total, joints, want, max = USABLE_W, wlasne = []) => {
   let cuts = [];
   let auto = true;
   let noFit = false;
-  if (Array.isArray(want)) {
+  const wl = (wlasne || []).filter((c) => c > 0 && c < total);
+  if (Array.isArray(want) || wl.length) {
     // recznie wybrane styki; te, ktore zniknely po zmianie szerokosci, odpadaja same
     auto = false;
-    cuts = want.filter((c) => joints.includes(c)).sort((a, b) => a - b);
+    cuts = [...new Set([...(Array.isArray(want) ? want.filter((c) => joints.includes(c)) : []), ...wl])]
+      .sort((a, b) => a - b);
   } else {
     let start = 0;
     while (total - start > max) {
@@ -9854,7 +9940,7 @@ const splitAtJoints = (total, joints, want, max = USABLE_W) => {
   let prev = 0;
   cuts.forEach((c) => { lens.push(c - prev); prev = c; });
   lens.push(total - prev);
-  return { cuts, joints, lens, auto, noFit, max, n: lens.length,
+  return { cuts, joints, lens, auto, noFit, max, n: lens.length, wlasne: wl,
     tooLong: Math.max(0, ...lens.filter((l) => l > max)) };
 };
 
@@ -9908,7 +9994,7 @@ const runPlinth = (project, run) => {
     if (koniec > 0 && koniec < total) dl = koniec;
   }
   return { total: dl, h,
-    ...splitAtJoints(dl, joints.filter((j) => j < dl), run.plinthCuts),
+    ...splitAtJoints(dl, joints.filter((j) => j < dl), run.plinthCuts, USABLE_W, run.plinthCutsWlasne),
     mat: list[0].it.mat, grainMatters: list[0].it.cab.grainMatters, name: run.name };
 };
 
@@ -10111,7 +10197,7 @@ const runTopLiczy = (project, run, bezRogu = false) => {
     rear: spans.some((s) => s.rear),
     // styki przeliczamy na uklad samej plyty, zeby ciecia liczyly sie od jej konca
     ...splitAtJoints(total, joints.filter((j) => j > x0 && j < x1).map((j) => Math.round(j - x0)),
-      run.topCuts, worktop ? WORKTOP_LEN : USABLE_W),
+      run.topCuts, worktop ? WORKTOP_LEN : USABLE_W, run.topCutsWlasne),
     /* Pas z samym ramieniem nie ma wlasnych szafek — material bierze wtedy
        od tej, do ktorej ramie nalezy. */
     mat: mat0,
@@ -12145,8 +12231,8 @@ function ReportProjectSheet({ project, projectName }) {
     const e = p.edges;
     return s + p.qty * ((e.a1 ? p.a : 0) + (e.a2 ? p.a : 0) + (e.b1 ? p.b : 0) + (e.b2 ? p.b : 0));
   }, 0);
-  const area = {};
-  rows.forEach((p) => { area[p.matName] = (area[p.matName] || 0) + (p.qty * p.a * p.b) / 1e6; });
+  const { pow: area, blat: blatMb } = powierzchnieIBlat(rows, (p) => p.matName);
+  Object.keys(area).forEach((k) => { if (area[k] < 0.005) delete area[k]; });
   const hardware = useMemo(() => {
     return scalOkucia(projectParts(project).flatMap((part) => part.hardware));
   }, [project]);
@@ -12192,7 +12278,10 @@ function ReportProjectSheet({ project, projectName }) {
       </table>
       <div style={{ fontSize: "9pt", marginTop: 6 }}>
         {Object.entries(area).map(([k, v]) => (
-          <div key={k}>{k}: {fmt(v)} m²</div>
+          <div key={k}>{k}: {m2Fmt(v)} m²</div>
+        ))}
+        {Object.entries(blatMb).map(([k, v]) => (
+          <div key={"b" + k}>{k}: {qtyFmt(v)} mb długości</div>
         ))}
       </div>
 
@@ -12802,6 +12891,10 @@ export default function App() {
 
   /* wiersze paska szafek: kazdy ciag osobno, wolnostojace na koncu. Gdy nie ma
      zadnego ciagu zostaje jeden wiersz i pasek wyglada dokladnie jak dotad. */
+  // zwiniety pasek ciagow i szafek — wygoda jednego widza, pamieta przegladarka
+  const [pasekZwiniety, setPasekZwiniety] = useState(() => {
+    try { return localStorage.getItem("mp-pasek-zwiniety") === "1"; } catch (e) { return false; }
+  });
   const groupBar = useMemo(() => {
     const runs = project.runs || [];
     /* Sciana z dwoma pietrami pokazuje je osobno i podpisuje, ktore jest ktore —
@@ -13016,8 +13109,8 @@ export default function App() {
       return;
     }
     if (!runInfo) return;
-    if (action === "plinthauto") { setRun(runInfo.run.id, { plinthCuts: null }); return; }
-    if (action === "topauto") { setRun(runInfo.run.id, { topCuts: null }); return; }
+    if (action === "plinthauto") { setRun(runInfo.run.id, { plinthCuts: null, plinthCutsWlasne: [] }); return; }
+    if (action === "topauto") { setRun(runInfo.run.id, { topCuts: null, topCutsWlasne: [] }); return; }
     if (action.startsWith("topcut:")) {
       setRun(runInfo.run.id, { topCut: action === "topcut:1" });
       return;
@@ -13400,35 +13493,63 @@ export default function App() {
     return scalOkucia(projectParts(project).flatMap((part) => part.hardware));
   }, [project]);
 
-  // rozkroj liczymy tylko na zadanie — to najciezsza operacja w aplikacji
+  /* Wejscie rozkroju: sama lista formatek (nazwa, wymiary, ilosc, plyta z kolorem,
+     sloje). Z niej liczy sie klucz — rozkroj przelicza sie tylko, gdy ta lista
+     naprawde sie zmieni. Kolor plyty jest w etykiecie materialu, wiec zmiana
+     koloru korpusu, polek albo frontow przelicza rozkroj (inna plyta, osobne
+     arkusze). Lustro, uchwyty, zawiasy czy plan wiercen formatek nie zmieniaja
+     i niczego nie ruszaja (uzytkownik 2026-09-29). */
+  const wierszeRozkroju = useCallback((scope) => (scope === "project"
+    ? projectCutList.map((p) => ({
+        name: p.name,
+        qty: p.qty,
+        a: p.a,
+        b: p.b,
+        rotatable: p.rotatable !== false,
+        matLabel: p.matName,
+        // blat roboczy w projekcie jest jeden, wiec jego arkusz bierzemy z materialow
+        sheet: p.matKey === "worktop" ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
+      }))
+    : cutList.map((p) => ({
+        name: p.name,
+        qty: p.qty,
+        a: p.a,
+        b: p.b,
+        rotatable: p.matKey === "back" || !cab.grainMatters,
+        matLabel: matLabelOf(mat[p.matKey], p.matKey, ambig),
+        sheet: p.matKey === "worktop"
+          ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
+      }))), [cutList, projectCutList, cab.grainMatters, mat, ambig]);
+  const autoScope = zCaloscia ? "project" : "cab";
+  const rozkrojWejscie = useMemo(() => wierszeRozkroju(autoScope), [wierszeRozkroju, autoScope]);
+  const rozkrojKlucz = useMemo(() => autoScope + "|" + JSON.stringify(rozkrojWejscie), [autoScope, rozkrojWejscie]);
+
+  /* Rozkroj liczy sie sam, ROZKROJ_ZWLOKA (duzy projekt: ROZKROJ_ZWLOKA_DUZY)
+     po ostatniej zmianie formatek — przy wpisywaniu wymiaru raz, na koncu.
+     Typowa kuchnia (15 szafek) to 20–40 ms, 60 szafek ok. 130 ms (pomiar
+     2026-09-29). */
+  const [autoPlan, setAutoPlan] = useState(null);
+  useEffect(() => {
+    if (autoPlan && autoPlan.key === rozkrojKlucz) return undefined;
+    const id = setTimeout(() => {
+      setAutoPlan({ key: rozkrojKlucz, scope: autoScope, groups: buildCutPlan(rozkrojWejscie) });
+    }, project.items.length > ROZKROJ_DUZY ? ROZKROJ_ZWLOKA_DUZY : ROZKROJ_ZWLOKA);
+    return () => clearTimeout(id);
+  }, [rozkrojKlucz]); // eslint-disable-line react-hooks/exhaustive-deps
+  const autoAktualny = !!autoPlan && autoPlan.key === rozkrojKlucz;
+
+  // okno „Rozkrój na płycie”: gdy rozkroj jest juz policzony w tle, pokazuje sie od razu
   const makeCutPlan = useCallback((scope) => {
-    const rows =
-      scope === "project"
-        ? projectCutList.map((p) => ({
-            name: p.name,
-            qty: p.qty,
-            a: p.a,
-            b: p.b,
-            rotatable: p.rotatable !== false,
-            matLabel: p.matName,
-            // blat roboczy w projekcie jest jeden, wiec jego arkusz bierzemy z materialow
-            sheet: p.matKey === "worktop" ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
-          }))
-        : cutList.map((p) => ({
-            name: p.name,
-            qty: p.qty,
-            a: p.a,
-            b: p.b,
-            rotatable: p.matKey === "back" || !cab.grainMatters,
-            matLabel: matLabelOf(mat[p.matKey], p.matKey, ambig),
-            sheet: p.matKey === "worktop"
-              ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
-          }));
-    const groups = buildCutPlan(rows);
+    const groups = autoAktualny && autoPlan.scope === scope ? autoPlan.groups : buildCutPlan(wierszeRozkroju(scope));
     // tylko dla testow (`testy/audytwycena.mjs`): gdy strona ma tablice, dostaje rozkroj
     if (typeof window !== "undefined" && window.__audytRozkroj !== undefined) window.__audytRozkroj = { scope, groups };
     setCutPlan({ scope, groups });
-  }, [cutList, projectCutList, cab.grainMatters, mat, ambig]);
+  }, [autoAktualny, autoPlan, wierszeRozkroju]);
+  // otwarte okno odswieza sie razem z rozkrojem w tle
+  useEffect(() => {
+    if (autoPlan && cutPlan && cutPlan.scope === autoPlan.scope && cutPlan.groups !== autoPlan.groups)
+      setCutPlan({ scope: autoPlan.scope, groups: autoPlan.groups });
+  }, [autoPlan]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- wycena: ceny trzyma projekt, ilosci biora sie z list i rozkroju ---
   const prices = project.prices || {};
@@ -13461,11 +13582,12 @@ export default function App() {
 
   // arkusze bierzemy z policzonego rozkroju — bez niego nie ma czego mnożyć
   const planSheets = useMemo(() => {
-    if (!cutPlan) return null;
+    const plan = autoAktualny ? autoPlan : cutPlan;
+    if (!plan) return null;
     const by = {};
-    cutPlan.groups.forEach((g) => { by[g.matLabel] = (by[g.matLabel] || 0) + g.sheets.length; });
+    plan.groups.forEach((g) => { by[g.matLabel] = (by[g.matLabel] || 0) + g.sheets.length; });
     return by;
-  }, [cutPlan]);
+  }, [cutPlan, autoPlan, autoAktualny]);
 
   /* Rozkroj grupuje arkusze po samej etykiecie materialu, a cena zalezy jeszcze
      od koloru — stad podreczna mapa etykieta → { kolor, rola }. */
@@ -13615,11 +13737,22 @@ export default function App() {
               Ponów ↷
             </button>
           </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => window.dispatchEvent(new CustomEvent("mp-karty", { detail: { open: false } }))}
+              title="Zwiń wszystkie karty (uwagi zostają)"
+              className="rounded px-2 py-1 text-xs font-medium hover:bg-stone-200">
+              ▸ Zwiń wszystkie
+            </button>
+          </div>
           {/* Robocze: po poprawce w polach wyzej jednym kliknieciem wraca sie
               do rysunku, zamiast go szukac przewijaniem. */}
           <button onClick={() => {
+            /* pod przyklejony gorny pasek — jego wysokosc sie zmienia (zwijany pasek
+               ciagow, szerokosc okna), wiec liczymy ja przy kazdym kliknieciu */
             const el = document.getElementById("rysunek");
-            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+            const pasek = document.querySelector("header.sticky");
+            if (el) window.scrollTo({ behavior: "smooth",
+              top: el.getBoundingClientRect().top + window.scrollY - (pasek ? pasek.getBoundingClientRect().bottom : 0) - 8 });
           }}
             title="Przewiń do karty „Rysunek”"
             className="rounded border border-teal-600 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-50">
@@ -13676,8 +13809,27 @@ export default function App() {
             </button>
           )}
         </div>
-        {/* pasek szafek w projekcie — po jednym wierszu na ciąg, na końcu wolnostojące */}
+        {/* pasek szafek w projekcie — po jednym wierszu na ciąg, na końcu wolnostojące.
+            Da sie go zwinac do jednej linii (komentarz uzytkownika 2026-09-29: „zajmuje
+            sporo miejsca”); stan pamieta przegladarka. */}
         <div className="border-t border-stone-200 bg-stone-50/60">
+          <div className="mx-auto max-w-[1700px] px-4 pt-1">
+            <button onClick={() => {
+              const v = !pasekZwiniety; setPasekZwiniety(v);
+              try { localStorage.setItem("mp-pasek-zwiniety", v ? "1" : "0"); } catch (e) { /* bez pamieci */ }
+            }}
+              title={pasekZwiniety ? "Pokaż ciągi i szafki" : "Zwiń pasek ciągów i szafek"}
+              className="flex items-center gap-1.5 text-[11px] text-stone-500 hover:text-stone-800">
+              <span className={`text-[10px] transition-transform ${pasekZwiniety ? "-rotate-90" : ""}`}>▼</span>
+              Ciągi i szafki
+              {pasekZwiniety && (
+                <span className="text-stone-400">
+                  — {project.items.length} {plural(project.items.length, "szafka", "szafki", "szafek")}, aktywna: „{cab.name}”
+                </span>
+              )}
+            </button>
+          </div>
+          {!pasekZwiniety && (
           <div className="mx-auto max-w-[1700px] space-y-1 px-4 py-2">
             {groupBar.map((grp) => {
               const list = runItems(project, grp.id);
@@ -13765,6 +13917,7 @@ export default function App() {
               </button>
             </div>
           </div>
+          )}
         </div>
       </header>
 
@@ -13828,6 +13981,10 @@ export default function App() {
               {runInfo && (
                 <CardPart title={`Cały ciąg „${runInfo.run.name}"`}
                   note={`Zmiany tutaj dotyczą wszystkich szafek tego ciągu (${runInfo.count}).`}>
+                  <button onClick={() => removeRun(runInfo.run.id)}
+                    className="text-xs text-stone-500 hover:text-stone-800 hover:underline">
+                    Rozwiąż ciąg — szafki zostają, wracają na wolnostojące
+                  </button>
                   <CardSub title="Ściana">
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Nazwa ciągu">
@@ -13891,6 +14048,33 @@ export default function App() {
                       </Field>
                     </div>
                   )}
+                  {/* Dlugosc kazdej sciany osobno — tylko jej wlasne szafki, bez rogu
+                      zajetego przez szafke drugiej sciany (komentarze uzytkownika
+                      2026-09-29: „ściana 1 to ściana 1, a ściana 2 to ściana 2”). */}
+                  {(() => {
+                    const sciany = (project.runs || [])
+                      .filter((r) => (r.tier || "dolny") === (runInfo.run.tier || "dolny") && runItems(project, r.id).length)
+                      .map((r) => {
+                        const lst = runItems(project, r.id);
+                        const tot = lst.reduce((acc, { it }) => acc + computeGeo(it.cab, it.mat).W, 0)
+                          + Math.max(0, lst.length - 1) * (r.gap || 0);
+                        return { r, ile: lst.length, tot };
+                      });
+                    return (
+                      <div className="text-xs text-stone-500">
+                        {sciany.map(({ r, ile, tot }) => (
+                          <div key={r.id} className={r.id === runInfo.run.id ? "font-semibold text-stone-700" : ""}>
+                            {r.name}: {ile} {plural(ile, "szafka", "szafki", "szafek")} —{" "}
+                            <span className="font-mono">{fmt(tot)} mm</span>
+                            {r.id === runInfo.run.id && r.wallW != null && (
+                              <> z {fmt(r.wallW)} mm ściany — zostaje{" "}
+                                <span className="font-mono">{fmt(r.wallW - Math.max(tot, runNode ? runNode.len : 0))} mm</span></>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   </CardSub>
                   <CardSub title="Wymiary i montaż">
                   <Field label="Wysokość i głębokość szafek"
@@ -14038,7 +14222,8 @@ export default function App() {
                   {!ciagWisi && (
                     <SplitPicker label="Podział cokołu" what="cokół" s={runPl}
                       onToggle={(j) => toggleCut(runInfo.run.id, "plinthCuts", runPlinth, j)}
-                      onAuto={() => setRun(runInfo.run.id, { plinthCuts: null })} />
+                      onWlasne={(v) => setRun(runInfo.run.id, { plinthCutsWlasne: v })}
+                      onAuto={() => setRun(runInfo.run.id, { plinthCuts: null, plinthCutsWlasne: [] })} />
                   )}
                   </CardSub>
                   <CardSub title="Blat">
@@ -14084,7 +14269,8 @@ export default function App() {
                   })()}
                   <SplitPicker label="Podział blatu" what="blat" s={runTp}
                     onToggle={(j) => toggleCut(runInfo.run.id, "topCuts", runTop, j)}
-                    onAuto={() => setRun(runInfo.run.id, { topCuts: null })} />
+                    onWlasne={(v) => setRun(runInfo.run.id, { topCutsWlasne: v })}
+                    onAuto={() => setRun(runInfo.run.id, { topCuts: null, topCutsWlasne: [] })} />
                   </CardSub>
                   <CardSub title="Wieszanie">
                   {ciagWisi && (
@@ -14098,24 +14284,6 @@ export default function App() {
                     </Field>
                   )}
                   </CardSub>
-                  <p className="text-xs text-stone-500">
-                    {runInfo.count} {plural(runInfo.count, "szafka", "szafki", "szafek")} zajmuje{" "}
-                    <span className="font-mono text-stone-700">{fmt(runInfo.total)} mm</span>
-                    {/* przy narożniku od sciany ubywa jeszcze rog, wiec liczymy od niego */}
-                    {runNode && runNode.len > runInfo.total && (
-                      <>, a z narożnikiem{" "}
-                        <span className="font-mono text-stone-700">{fmt(runNode.len)} mm</span></>
-                    )}
-                    {runInfo.run.wallW != null && (
-                      <> z {fmt(runInfo.run.wallW)} mm ściany — zostaje{" "}
-                        <span className="font-mono text-stone-700">
-                          {fmt(runInfo.run.wallW - Math.max(runInfo.total, runNode ? runNode.len : 0))} mm</span>.</>
-                    )}
-                  </p>
-                  <button onClick={() => removeRun(runInfo.run.id)}
-                    className="text-xs text-stone-500 hover:text-stone-800 hover:underline">
-                    Rozwiąż ciąg — szafki zostają, wracają na wolnostojące
-                  </button>
                 </CardPart>
               )}
             </Card>
@@ -14818,7 +14986,7 @@ export default function App() {
                                 const pole = "rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none";
                                 return (
                                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[88px]" data-el="drzwi-okucia">
-                                    <label className="flex items-center gap-1" title="Liczba zawiasów — puste liczy automatycznie">
+                                    <label className="flex items-center gap-1" title={ZAWIASY_ZASADA}>
                                       <span className="text-[11px] text-stone-500">zawiasy</span>
                                       <input type="number" min={0} step={1}
                                         value={(rawCol.hinges || [])[k] ?? ""}
@@ -14836,7 +15004,7 @@ export default function App() {
                                       </label>
                                       {uchw && (
                                         <>
-                                          <input type="number" min={0} step={1} title="Ile uchwyt wystaje przed front — puste bierze ustawienie szafki"
+                                          <input type="number" min={0} step={1} title="Ile uchwyt wystaje przed front (mm) — wchodzi do kontroli otwierania. Relingi zwykle 20–35 mm, muszelki i uchwyty frezowane 0. Puste = domyślne 20"
                                             value={(rawCol.handleOuts || [])[k] ?? ""}
                                             placeholder={String(handleOutOf(cab))}
                                             onChange={(e) => setDoorFlag(lv.i, c.j, k, "handleOuts",
@@ -15478,23 +15646,7 @@ export default function App() {
             )}
           </Card>
 
-          <Card title="Notatka montażowa" collapsible defaultOpen={false}>
-            <p className="text-xs text-stone-500">
-              Uwagi do tej szafki — trafiają na jej stronę w zestawieniu PDF.
-            </p>
-            <textarea value={cab.note || ""} rows={3}
-              placeholder="np. idzie pod okno, uważać na rurę przy prawym boku"
-              onChange={(e) => set({ note: e.target.value })}
-              className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
-          </Card>
-
           <Card title="Płyty" collapsible defaultOpen={false}>
-            <Check checked={cab.frontSameAsBoard !== false}
-              onChange={(v) => set({ frontSameAsBoard: v })}
-              label="Fronty z tej samej płyty co korpus" />
-            <Check checked={cab.shelfSameAsBoard !== false}
-              onChange={(v) => set({ shelfSameAsBoard: v })}
-              label="Półki z tej samej płyty co korpus" />
             {[
               "board",
               ...(cab.frontSameAsBoard !== false ? [] : ["front"]),
@@ -15570,6 +15722,13 @@ export default function App() {
                   options={WORKTOP_DEPTHS.map((d) => ({ v: String(d), l: `${fmt(WORKTOP_LEN)} × ${fmt(d)}` }))} />
               </Field>
             )}
+            {/* „z tej samej plyty” pod kolorami plyt (komentarz uzytkownika 2026-09-29) */}
+            <Check checked={cab.frontSameAsBoard !== false}
+              onChange={(v) => set({ frontSameAsBoard: v })}
+              label="Fronty z tej samej płyty co korpus" />
+            <Check checked={cab.shelfSameAsBoard !== false}
+              onChange={(v) => set({ shelfSameAsBoard: v })}
+              label="Półki z tej samej płyty co korpus" />
             <Check checked={cab.grainMatters} onChange={(v) => set({ grainMatters: v })}
               label="Kierunek usłojenia ma znaczenie" />
             <Check checked={!!cab.texture} onChange={(v) => set({ texture: v })}
@@ -15822,9 +15981,21 @@ export default function App() {
           </Card>
           </div>
 
+          {/* notatka montazowa pod rysunkiem (uzytkownik 2026-09-29) */}
+          <Card title="Notatka montażowa" collapsible defaultOpen={false}>
+            <p className="text-xs text-stone-500">
+              Uwagi do tej szafki — trafiają na jej stronę w zestawieniu PDF.
+            </p>
+            <textarea value={cab.note || ""} rows={3}
+              placeholder="np. idzie pod okno, uważać na rurę przy prawym boku"
+              onChange={(e) => set({ note: e.target.value })}
+              className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
+          </Card>
+
           {(errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0) && (
             <div ref={notesRef} className="scroll-mt-24">
-            <Card title="Uwagi">
+            {/* uwagi zawsze na wierzchu — bez zwijania (uzytkownik 2026-09-29) */}
+            <Card title="Uwagi" collapsible={false}>
               {(errors.length > 0 || warns.length > 0) && (() => {
                 /* Ostrzezenie mozna odhaczyc tak samo jak podpowiedz: odhaczone
                    schodzi pod zwijany naglowek i przestaje sie liczyc u gory.
@@ -15924,55 +16095,10 @@ export default function App() {
             </div>
           )}
 
-          <Card title="Kontrola frontów" collapsible defaultOpen={false}>
-            <p className="text-xs text-stone-500">
-              Rzeczywiste położenie każdego frontu na szerokości szafki, z odstępem do
-              sąsiada. Liczby są liczone z tego samego silnika co formatki.
-            </p>
-            {geo.levels.map((lv) => {
-              const rows = geo.doors
-                .filter((d) => d.lvl === lv.i && d.w > 0)
-                .sort((a, b) => b.y - a.y || a.x - b.x);
-              if (!rows.length) return null;
-              return (
-                <div key={lv.i}>
-                  <div className="mb-1 text-xs font-medium text-stone-700">
-                    Poziom {lv.i + 1}
-                  </div>
-                  <table className="w-full text-xs">
-                    <tbody className="font-mono">
-                      {rows.map((d, i) => {
-                        let nb = null;
-                        rows.forEach((b) => {
-                          if (b === d || b.x < d.x + d.w - 0.5) return;
-                          const vo = Math.min(d.y + d.h, b.y + b.h) - Math.max(d.y, b.y);
-                          if (vo <= 0) return;
-                          if (!nb || b.x < nb.x) nb = b;
-                        });
-                        const gap = nb ? Math.round(nb.x - (d.x + d.w)) : null;
-                        const nm = { door: "drzwi", drawer: "szuflada", fix: "fix", blenda: "blenda" }[d.type];
-                        return (
-                          <tr key={i} className="border-b border-stone-100">
-                            <td className="py-1 pr-2 font-sans text-stone-600">{nm}</td>
-                            <td className="py-1 pr-2 text-right">{fmt(d.x)}</td>
-                            <td className="py-1 pr-2 text-stone-400">…</td>
-                            <td className="py-1 pr-2">{fmt(d.x + d.w)}</td>
-                            <td className="py-1 pr-2 text-right text-stone-500">{fmt(d.w)}×{fmt(d.h)}</td>
-                            <td className="py-1 text-right"
-                              style={{ color: gap === null ? "#a8a29e" : gap < 2 ? ERRC : "#78716c" }}>
-                              {gap === null ? "—" : `luz ${fmt(gap)}`}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })}
-          </Card>
+          {/* „Kontrola frontów” (polozenia i luzy frontow) zdjeta z ekranu — uzytkownikowi
+              niepotrzebna (2026-09-29); te same liczby sprawdzaja testy z `geo.doors`. */}
 
-          <Card title="Formatki do zamówienia"
+          <Card title="Formatki do zamówienia" collapsible
             right={
               <div className="flex items-center gap-3">
                 {Object.keys(cab.edgeOverrides || {}).length > 0 && (
@@ -16089,9 +16215,17 @@ export default function App() {
               <div>
                 <span className="block text-xs uppercase tracking-wider text-stone-500">Powierzchnia</span>
                 <span className="font-mono text-sm">
-                  {Object.entries(boardArea).map(([k, v]) => (
-                    <span key={k} className="block">{mat[k].name}: {fmt(v)} m²</span>
-                  ))}
+                  {(() => {
+                    const { pow, blat } = powierzchnieIBlat(cutList, (p) => p.matKey);
+                    return (<>
+                      {Object.entries(pow).filter(([, v]) => v >= 0.005).map(([k, v]) => (
+                        <span key={k} className="block">{mat[k].name}: {m2Fmt(v)} m²</span>
+                      ))}
+                      {Object.entries(blat).map(([k, v]) => (
+                        <span key={"b" + k} className="block">{mat[k].name}: {qtyFmt(v)} mb długości</span>
+                      ))}
+                    </>);
+                  })()}
                 </span>
               </div>
             </div>
@@ -16112,7 +16246,7 @@ export default function App() {
           </Card>
 
           {zCaloscia && (
-            <Card title={`Formatki całego projektu${project.name ? " — " + project.name : ""}`}
+            <Card title={`Formatki całego projektu${project.name ? " — " + project.name : ""}`} collapsible
               right={
                 <div className="flex items-center gap-3">
                   <button onClick={() => makeCutPlan("project")}
@@ -16180,9 +16314,17 @@ export default function App() {
                 <div>
                   <span className="block text-xs uppercase tracking-wider text-stone-500">Powierzchnia</span>
                   <span className="font-mono text-sm">
-                    {Object.entries(projectBoardArea).map(([k, v]) => (
-                      <span key={k} className="block">{k}: {fmt(v)} m²</span>
-                    ))}
+                    {(() => {
+                      const { pow, blat } = powierzchnieIBlat(projectCutList, (p) => p.matName);
+                      return (<>
+                        {Object.entries(pow).filter(([, v]) => v >= 0.005).map(([k, v]) => (
+                          <span key={k} className="block">{k}: {m2Fmt(v)} m²</span>
+                        ))}
+                        {Object.entries(blat).map(([k, v]) => (
+                          <span key={"b" + k} className="block">{k}: {qtyFmt(v)} mb długości</span>
+                        ))}
+                      </>);
+                    })()}
                   </span>
                 </div>
               </div>
@@ -16261,7 +16403,7 @@ export default function App() {
           )}
 
           {/* podpis mowi, czyje to okucia — przy kilku szafkach latwo pomylic karty */}
-          <Card title={`Produkty do zamówienia${(cab.name || "").trim() ? " — " + cab.name.trim() : ""}`}>
+          <Card title={`Produkty do zamówienia${(cab.name || "").trim() ? " — " + cab.name.trim() : ""}`} collapsible>
             {cabHardware.length === 0 ? (
               <p className="text-sm text-stone-400">
                 Brak okuć — dodaj szuflady, uchwyty albo nóżki.
@@ -16291,45 +16433,70 @@ export default function App() {
                 onChange={(e) => set({ handleName: e.target.value })}
                 className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
             </Field>
-            {/* Uchwyt styka sie pierwszy, wiec ten wymiar decyduje o kolizjach
-                otwierania — i tak samo dotyczy drzwi, jak i szuflad. */}
-            <Field label="Uchwyt wystaje przed front"
-              hint="Relingi zwykle 20–35 mm. Muszelki i uchwyty frezowane: 0 — wtedy nic nie wystaje. Ten wymiar wchodzi do kontroli otwierania.">
-              <Num value={cab.handleOut ?? 20} min={0}
-                onChange={(v) => set({ handleOut: Math.max(0, Math.round(Number(v) || 0)) })} />
-            </Field>
-            <p className="text-xs text-stone-500">
-              Zawiasy domyślnie dwa na skrzydło. Trzy dopiero przy szerokości powyżej
-              500 mm i wysokości powyżej 1400 mm, cztery powyżej 2000 mm. Wąskie drzwi
-              zawsze dostają dwa. Liczbę nadpiszesz w polu przy każdym skrzydle.
-            </p>
+            {/* „Uchwyt wystaje przed front” i zasada liczby zawiasow sa przy drzwiach
+                (Struktura wnetrza) — tu byly zdublowane (komentarze uzytkownika 2026-09-29). */}
           </Card>
 
+          {zCaloscia && (
+            <Card title={`Produkty całego projektu${project.name ? " — " + project.name : ""}`} collapsible
+              right={<span className="text-xs text-stone-400">{project.items.length} {plural(project.items.length, "szafka", "szafki", "szafek")}</span>}>
+              <p className="mb-2 text-xs text-stone-500">
+                Suma okuć ze wszystkich szafek w projekcie — do zamówienia na całość naraz.
+                Te same pozycje z różnych szafek są sumowane; różne rozmiary i specyfikacje
+                liczone osobno.
+              </p>
+              {projectHardware.length === 0 ? (
+                <p className="text-sm text-stone-400">Brak okuć w żadnej szafce.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
+                      <th className="py-2 pr-3 font-medium">Produkt</th>
+                      <th className="py-2 pr-3 font-medium">Specyfikacja</th>
+                      <th className="py-2 text-right font-medium">Ilość</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectHardware.map((h, i) => (
+                      <tr key={i} className="border-b border-stone-100">
+                        <td className="py-2 pr-3">{h.name}</td>
+                        <td className="py-2 pr-3 font-mono text-xs text-stone-500">{h.spec}</td>
+                        <td className="py-2 text-right font-mono">{hwQty(h)} {hwUnit(h)}{hwNote(h)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Card>
+          )}
+
+          {/* wycena na koncu, pod produktami calego projektu (uzytkownik 2026-09-29) */}
           <Card title="Wycena" collapsible defaultOpen={false}
             right={
               !cutPlan ? (
                 <button onClick={() => makeCutPlan(zCaloscia ? "project" : "cab")}
+                  title="Rozkrój liczy się sam po każdej zmianie formatek — tu otwierasz rysunek arkuszy"
                   className="text-xs text-teal-700 hover:underline">
-                  Policz rozkrój
+                  Pokaż rozkrój
                 </button>
               ) : null
             }>
             <p className="text-xs text-stone-500">
               Wszystkie ceny są <strong>brutto</strong>. Płyta i formatowanie liczone są od
-              arkusza, więc potrzebują policzonego rozkroju — obrzeże, oklejanie i okucia
-              wyliczą się od razu. Puste pole bierze cenę domyślną (szara podpowiedź w polu);
+              arkusza — rozkrój przelicza się sam sekundę (przy ponad {ROZKROJ_DUZY} szafkach — 5 sekund) po każdej zmianie formatek albo
+              płyty (także jej koloru — to inne arkusze); lustro, uchwyty czy zawiasy go
+              nie ruszają. Obrzeże, oklejanie i okucia wyliczają się od razu. Puste pole bierze cenę domyślną (szara podpowiedź w polu);
               wpisz 0, jeśli pozycja ma nie liczyć się do sumy. Ceny zapisują się razem
               z projektem.
             </p>
             <p className="text-xs text-stone-500">
-              Oklejanie rozkrojownia liczy za każdy <strong>rozpoczęty</strong> metr, dlatego
-              obrzeża zamawiasz co do dziesiątej części metra, a usługę w pełnych metrach
-              w górę.
+              Obrzeże liczone jest do 1 mm z zapasem 9 cm na każdy oklejany bok (oklejarka
+              wypuszcza okleinę z przodu i z tyłu), a usługę oklejania rozkrojownia liczy od
+              tej okleiny za każdy <strong>rozpoczęty</strong> metr.
             </p>
-            {!cutPlan && (
-              <p className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs"
-                style={{ color: WARNC }}>
-                Rozkrój nie jest policzony, więc płyty i cięcia nie ma w wycenie.
+            {!planSheets && (
+              <p className="rounded border border-stone-200 bg-stone-50 px-2 py-1 text-xs text-stone-500">
+                Przeliczam rozkrój — płyta i cięcie pojawią się w wycenie za chwilę.
               </p>
             )}
             <div className="overflow-x-auto">
@@ -16373,39 +16540,6 @@ export default function App() {
               <span className="font-mono text-lg">{zl(quote.sum)} zł brutto</span>
             </div>
           </Card>
-
-          {zCaloscia && (
-            <Card title={`Produkty całego projektu${project.name ? " — " + project.name : ""}`}
-              right={<span className="text-xs text-stone-400">{project.items.length} {plural(project.items.length, "szafka", "szafki", "szafek")}</span>}>
-              <p className="mb-2 text-xs text-stone-500">
-                Suma okuć ze wszystkich szafek w projekcie — do zamówienia na całość naraz.
-                Te same pozycje z różnych szafek są sumowane; różne rozmiary i specyfikacje
-                liczone osobno.
-              </p>
-              {projectHardware.length === 0 ? (
-                <p className="text-sm text-stone-400">Brak okuć w żadnej szafce.</p>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
-                      <th className="py-2 pr-3 font-medium">Produkt</th>
-                      <th className="py-2 pr-3 font-medium">Specyfikacja</th>
-                      <th className="py-2 text-right font-medium">Ilość</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {projectHardware.map((h, i) => (
-                      <tr key={i} className="border-b border-stone-100">
-                        <td className="py-2 pr-3">{h.name}</td>
-                        <td className="py-2 pr-3 font-mono text-xs text-stone-500">{h.spec}</td>
-                        <td className="py-2 text-right font-mono">{hwQty(h)} {hwUnit(h)}{hwNote(h)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </Card>
-          )}
 
         </div>
       </main>
