@@ -15546,12 +15546,6 @@ export default function App() {
           </Card>
 
           <Card title="Płyty" collapsible defaultOpen={false}>
-            <Check checked={cab.frontSameAsBoard !== false}
-              onChange={(v) => set({ frontSameAsBoard: v })}
-              label="Fronty z tej samej płyty co korpus" />
-            <Check checked={cab.shelfSameAsBoard !== false}
-              onChange={(v) => set({ shelfSameAsBoard: v })}
-              label="Półki z tej samej płyty co korpus" />
             {[
               "board",
               ...(cab.frontSameAsBoard !== false ? [] : ["front"]),
@@ -15627,6 +15621,13 @@ export default function App() {
                   options={WORKTOP_DEPTHS.map((d) => ({ v: String(d), l: `${fmt(WORKTOP_LEN)} × ${fmt(d)}` }))} />
               </Field>
             )}
+            {/* „z tej samej plyty” pod kolorami plyt (komentarz uzytkownika 2026-09-29) */}
+            <Check checked={cab.frontSameAsBoard !== false}
+              onChange={(v) => set({ frontSameAsBoard: v })}
+              label="Fronty z tej samej płyty co korpus" />
+            <Check checked={cab.shelfSameAsBoard !== false}
+              onChange={(v) => set({ shelfSameAsBoard: v })}
+              label="Półki z tej samej płyty co korpus" />
             <Check checked={cab.grainMatters} onChange={(v) => set({ grainMatters: v })}
               label="Kierunek usłojenia ma znaczenie" />
             <Check checked={!!cab.texture} onChange={(v) => set({ texture: v })}
