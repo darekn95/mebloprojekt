@@ -656,3 +656,10 @@ rogu elewacja ciagu nie pokazuje uchwytu szafki sasiada wystajacego z
 przekroju; w U i gornych w L sasiad za rogiem jest na elewacji przekrojem
 z krzyzem (bryla 3D „Ciąg” jest poprawna — sprawdzone zrzutem 2026-09-29).
 Szafka w L sama z gory: rog bez boku odslania ~15 mm cokolu (ZNANE).
+
+[AI-INFO] Rozkroj automatyczny (2026-09-29): `autoPlan` liczy `buildCutPlan` po
+`ROZKROJ_ZWLOKA` (1 s; powyzej `ROZKROJ_DUZY` = 40 szafek — 5 s) od ostatniej zmiany
+`rozkrojKlucz` = JSON calego wejscia rozkroju (formatki z wymiarami, iloscia,
+plyta z kolorem, slojami, arkuszem blatu). Arkusz 2800 × 2100, okrawanie i rzaz sa
+stale — gdyby staly sie ustawieniem, trzeba je dopisac do klucza. Mozliwy powod
+przycinania — patrz BLEDY.md „Do decyzji”.

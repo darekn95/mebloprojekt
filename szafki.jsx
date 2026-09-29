@@ -97,8 +97,13 @@ const zawieszkaNote = (odTylu, ile = 1) =>
   `bez wiercenia — przykręcana ${ZAWIESZKA_WKRETY} wkrętami 4 × 30 od wnętrza; wysokość = górna krawędź zawieszki pod wieńcem, `
   + `tylna krawędź ${fmt(odTylu)} mm od tylnej krawędzi płyty (1 cm od pleców)${ile > 1 ? ` — ${ile} szt. na płycie` : ""}; ZK-ZAW-R0-10`;
 
-// rozkroj przelicza sie sam tyle po ostatniej zmianie formatek (uzytkownik 2026-09-29)
+/* Rozkroj przelicza sie sam tyle po ostatniej zmianie formatek (uzytkownik
+   2026-09-29): 1 s do ROZKROJ_DUZY szafek, 5 s powyzej — pomiar: 40 szafek
+   niezauwazalne, 100 szafek jedno przytrzymanie ok. 0,3–0,45 s. Gdy program
+   przycina albo sie zawiesza po zmianach, to pierwszy podejrzany (BLEDY.md). */
 const ROZKROJ_ZWLOKA = 1000;
+const ROZKROJ_ZWLOKA_DUZY = 5000;
+const ROZKROJ_DUZY = 40;
 
 /* Zapas okleiny na kazdy oklejany bok formatki: oklejarka wypuszcza okleine
    z przodu i z tylu, a potem ja odcina — 9 cm na bok (uzytkownik 2026-09-29).
@@ -13418,15 +13423,16 @@ export default function App() {
   const rozkrojWejscie = useMemo(() => wierszeRozkroju(autoScope), [wierszeRozkroju, autoScope]);
   const rozkrojKlucz = useMemo(() => autoScope + "|" + JSON.stringify(rozkrojWejscie), [autoScope, rozkrojWejscie]);
 
-  /* Rozkroj liczy sie sam, ROZKROJ_ZWLOKA po ostatniej zmianie formatek —
-     przy wpisywaniu wymiaru raz, na koncu. Typowa kuchnia (15 szafek) to
-     20–40 ms, 60 szafek ok. 130 ms (pomiar 2026-09-29). */
+  /* Rozkroj liczy sie sam, ROZKROJ_ZWLOKA (duzy projekt: ROZKROJ_ZWLOKA_DUZY)
+     po ostatniej zmianie formatek — przy wpisywaniu wymiaru raz, na koncu.
+     Typowa kuchnia (15 szafek) to 20–40 ms, 60 szafek ok. 130 ms (pomiar
+     2026-09-29). */
   const [autoPlan, setAutoPlan] = useState(null);
   useEffect(() => {
     if (autoPlan && autoPlan.key === rozkrojKlucz) return undefined;
     const id = setTimeout(() => {
       setAutoPlan({ key: rozkrojKlucz, scope: autoScope, groups: buildCutPlan(rozkrojWejscie) });
-    }, ROZKROJ_ZWLOKA);
+    }, project.items.length > ROZKROJ_DUZY ? ROZKROJ_ZWLOKA_DUZY : ROZKROJ_ZWLOKA);
     return () => clearTimeout(id);
   }, [rozkrojKlucz]); // eslint-disable-line react-hooks/exhaustive-deps
   const autoAktualny = !!autoPlan && autoPlan.key === rozkrojKlucz;
@@ -16323,7 +16329,7 @@ export default function App() {
             }>
             <p className="text-xs text-stone-500">
               Wszystkie ceny są <strong>brutto</strong>. Płyta i formatowanie liczone są od
-              arkusza — rozkrój przelicza się sam sekundę po każdej zmianie formatek albo
+              arkusza — rozkrój przelicza się sam sekundę (przy ponad {ROZKROJ_DUZY} szafkach — 5 sekund) po każdej zmianie formatek albo
               płyty (także jej koloru — to inne arkusze); lustro, uchwyty czy zawiasy go
               nie ruszają. Obrzeże, oklejanie i okucia wyliczają się od razu. Puste pole bierze cenę domyślną (szara podpowiedź w polu);
               wpisz 0, jeśli pozycja ma nie liczyć się do sumy. Ceny zapisują się razem

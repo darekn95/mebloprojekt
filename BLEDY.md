@@ -73,6 +73,14 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
+- **Przycinanie albo zawieszanie po zmianach — pierwszy podejrzany: automatyczny
+  rozkrój** (2026-09-29). Liczy się sam 1 s po zmianie formatek (powyżej 40 szafek
+  — 5 s). Pomiar: 40 szafek niezauważalnie, 100 szafek jedno przytrzymanie ok.
+  0,3–0,45 s. Gdy program zacznie przycinać: zmierzyć (`scratchpad` skrypt jak
+  `czas_auto` — Long Tasks po zmianie wymiaru), wydłużyć `ROZKROJ_ZWLOKA*` albo
+  przenieść liczenie do Web Workera. Decyzja użytkownika: tak zostaje, dopóki nie
+  będzie źle.
+
 - **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
   się kategoria „sprzęty” (lodówka, piekarnik, mikrofala) — dołożyć je jako
