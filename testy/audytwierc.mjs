@@ -265,6 +265,23 @@ await zRogiem('ślepy róg z wstawką szeroką (trójkąty wstawki)', [RUNr('c1'
   [[szafka('A1'), 'c1'], [szafka('A2'), 'c1'], [szafka('R', USTr), 'c2']], 1,
   [['wstawka szeroka na trójkątach', /^Wstawka w rogu \| trójkąt meblowy/]]);
 
+console.log('\n== półki na trójkątach meblowych (trzecia opcja mocowania) ==');
+/* Uzytkownik 2026-09-29: obok kolkow i konfirmatow — trojkaty. Po 2 z kazdej
+   strony polki (przy przedniej i tylnej krawedzi), 4 na polke; przy przegrodzie
+   z polkami na tej samej wysokosci po obu stronach — jedna strona przesunieta. */
+await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
+  { name: 'W', active: 0, prices: {}, runs: [], items: [{ cab: szafka('TR', { W: 800, shelfMount: 'trojkaty',
+    levels: [{ h: null, cols: [kol({ doors: 1 }), kol({ doors: 1 })] }] }), runId: null, offset: 0 }] });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(800);
+const planT = await wiercenia();
+const okT = await tabela(/^Produkty do zamówienia/);
+const trOk = okT.find((r) => /^Trójkąt/.test(r[0]));
+const trPlan = planT.filter((r) => r.kind === 'trójkąt meblowy').reduce((a, r) => a + r.ys.length * (/2 rzędy/.test(r.note) ? 2 : 1), 0);
+ok(`trójkąty półek: plan ${trPlan} = okucia ${trOk ? num(trOk[trOk.length - 1].split(' ')[0]) : 0}`, !!trOk && trPlan === num(trOk[trOk.length - 1].split(' ')[0]), trOk ? trOk.join(' | ') : '(brak)');
+ok('bez kołków i bez konfirmatów półek', !planT.some((r) => r.kind === 'kołek półki' || r.kind === 'konfirmat — półka') && !okT.some((r) => /^Kołek/.test(r[0])), [...new Set(planT.map((r) => r.kind))].join(', '));
+ok('przy przegrodzie jedna strona przesunięta o 20 mm', planT.some((r) => r.kind === 'trójkąt meblowy' && /przesunięte o 20 mm/.test(r.note) && /od kolumny 2/.test(r.note)),
+  planT.filter((r) => r.kind === 'trójkąt meblowy').map((r) => `${r.panel}: ${r.note}`).join(' / '));
+
 console.log('\n== frez pod HDF w planie ==');
 await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
   { name: 'W', active: 0, prices: {}, runs: [], items: [{ cab: szafka('FR', { backGroove: { on: true, offset: 3, depth: 16, play: 1, wreg: true } }), runId: null, offset: 0 }] });

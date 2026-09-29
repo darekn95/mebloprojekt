@@ -46,13 +46,13 @@ ok('formatowanie płyty → 51,66 brutto', f(/Formatowanie/)?.ph === '51.66', JS
 ok('formatowanie liczone od arkusza', /ark\./.test(f(/Formatowanie/)?.qty || ''), f(/Formatowanie/)?.qty);
 ok('HDF 3 → 70 zł brutto', f(/HDF/)?.ph === '70', JSON.stringify(f(/HDF/)));
 
-// oklejanie (usluga) w gore do pelnego metra od samych krawedzi; obrzeze (material)
-// ma doliczone 9 cm na kazdy oklejany bok (uzytkownik 2026-09-29)
+// obrzeze (material) ma doliczone 9 cm na kazdy oklejany bok, a usluga liczy sie od
+// tej okleiny z zapasem, w gore do pelnego metra (uzytkownik 2026-09-29)
 const mb = Number((f(/Obrzeże/)?.qty || '').replace(' mb', '').replace(',', '.'));
 const kraw = Number(((f(/Obrzeże/)?.spec || '').match(/([\d.]+) mb krawędzi/) || [])[1]);
 const okl = Number((f(/Oklejanie/)?.qty || '').replace(' mb', '').replace(',', '.'));
 console.log('  krawędzie', kraw, 'mb, obrzeże z zapasem', mb, 'mb → oklejanie', okl, 'mb');
-ok('oklejanie zaokrąglone w górę do pełnego metra krawędzi', okl === Math.ceil(kraw) && Number.isInteger(okl), `${kraw} → ${okl}`);
+ok('oklejanie od okleiny z zapasem, w górę do pełnego metra', okl === Math.ceil(mb - 1e-9) && Number.isInteger(okl), `${mb} → ${okl}`);
 ok('obrzeże: krawędzie + zapas okleiny (więcej niż same krawędzie)', mb > kraw, `${kraw} → ${mb}`);
 
 // wartosci = ilosc x cena
