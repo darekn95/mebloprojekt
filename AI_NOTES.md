@@ -640,11 +640,10 @@ boku ramienia) albo analogicznie obie w czesci „szafki”.
 [AI-INFO] Slupek (szablon) zostaje 600 w glab (uzytkownik 2026-09-28); glebsza
 szafka w ciagu daje ostrzezenie, ze reszta odsunie sie od sciany (`runCabMsgs`).
 
-[AI-TODO] Audyt 2D rogu (`audyt2d`, `tylkoInfo`): w zabudowach z rogiem roznice
-wypisujemy jako INFO. Do rozebrania: bryla „Ciąg” pokazuje caly sasiedni ciag
-(z jego blatem i uchwytem szafki w rogu), elewacja tylko przekroj sasiada;
-w U i gornych w L czesc szafki sasiada nie ma prostokata na elewacji; przy
-szafce w L front i maskownica na elewacji ciagu maja pelna wysokosc korpusu
-(bez szczelin 3 mm, w 3D sa), a uchwyt w rzucie z gory zabudowy jest w innym
-miejscu niz w 3D (geo bez kontekstu rogu?). Szafka w L sama z gory: rog bez
-boku odslania ~15 mm cokolu (ZNANE).
+[AI-TODO] Audyt 2D rogu (`audyt2d`, `tylkoInfo`): szafka w L w rogu juz scisle
+(front i maskownica ramienia w pasie drzwi `pasFrontu`, uchwyt ramienia z
+`UCHWYT_OD_KRAWEDZI`). Jako INFO zostaja roznice sposobu rysowania: w slepym
+rogu elewacja ciagu nie pokazuje uchwytu szafki sasiada wystajacego z
+przekroju; w U i gornych w L sasiad za rogiem jest na elewacji przekrojem
+z krzyzem (bryla 3D „Ciąg” jest poprawna — sprawdzone zrzutem 2026-09-29).
+Szafka w L sama z gory: rog bez boku odslania ~15 mm cokolu (ZNANE).

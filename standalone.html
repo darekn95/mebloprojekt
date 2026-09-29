@@ -4441,6 +4441,13 @@ const runLayout = (groups, ref = null) => {
    pokazywalby uproszczenie, na ktorym nie da sie niczego sprawdzic. Uklad
    wspolrzednych jest lokalny (0,0 = lewy gorny rog korpusu); na miejsce
    przesuwa go transform w AssemblyView. */
+/* Pas frontu szafki w ukladzie ciagu: wysokosc i luzy jej drzwi (tak liczy
+   bryla i formatka frontu ramienia i maskownicy). Bez drzwi — caly korpus. */
+const pasFrontu = (c) => {
+  const d = (c.geo.doors || []).find((q) => q.h > 0 && q.type !== "blenda");
+  return d ? { y0: c.base + d.y, h: d.h } : { y0: c.base, h: c.cab.H };
+};
+
 /* Uchwyt na rysunku z przodu — ten sam obrys co w bryle 3D, rzucie z gory
    i kontroli otwierania (`uchwytObrys`). Wczesniej elewacja miala wlasne
    wymiary (120 mm zamiast 180, przy prawych drzwiach 10 mm obok) — znalazl to
@@ -5223,10 +5230,27 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
               const ws = (full.info.get(g.run.id) || n).wstawki || [];
               const wsStart = ws.filter((w) => w.naStarcie).reduce((a, w) => a + w.u, 0);
               const wsKoniec = ws.filter((w) => !w.naStarcie).reduce((a, w) => a + w.u, 0);
+              /* Uchwyty szafki sasiada w rogu wystaja z jej lica w nasz ciag —
+                 to o nie zahaczaja drzwi przy rogu, wiec je pokazujemy (w bryle
+                 3D byly, na elewacji nie — audyt 2D 2026-09-29). Lico sasiada
+                 stoi `glRog + frontRog` od naroza. */
+              const rog = sasiad.pair.rogowa;
+              const naStarcie = sasiad.corner.at === "end" ? n === sasiad : n !== sasiad;
+              const licoU = (sasiad.pair.glRog || 0) + (sasiad.pair.frontRog || 0);
+              // przy szafce w L w rogu lezy ramie — jej uchwyty sa na froncie korpusu, nie tu
+              const uchwytySasiada = rog && !rear && !sasiad.pair.armLen ? (rog.geo.doors || [])
+                .filter((d) => d.handle && d.w > 0 && d.h > 0 && uchwytOut(d, rog.cab) > 0)
+                .map((d, k) => {
+                  const ob = uchwytObrys(d), out = uchwytOut(d, rog.cab);
+                  const u = naStarcie ? licoU : n.len - licoU - out;
+                  return <rect key={"uchs" + k} data-el="uchwyt-sasiada" x={mx(n.ex + u, out)}
+                    y={fy(rog.base + ob.y1)} width={out} height={ob.y1 - ob.y0} rx="3" fill="#52525b" opacity="0.9" />;
+                }) : [];
               return (
                 <g>
                   {n.lead > 0 && bok(0, Math.min(przodem, n.lead) - wsStart)}
                   {n.tail > 0 && bok(n.len - n.tail + wsKoniec, n.tail - wsKoniec)}
+                  {uchwytySasiada}
                 </g>
               );
             })()}
@@ -5273,10 +5297,12 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                         )}
                       </g>
                     )}
-                    <rect x={mx(ox + u0, wM)}
-                      y={fy(c.base + c.cab.H)} width={wM} height={c.cab.H}
-                      fill={rear ? c.mat.board.color : c.frontColor}
-                      stroke={INK} strokeWidth="2" />
+                    {/* maskownica w linii drzwi szafki — te same luzy (jak w bryle i formatce) */}
+                    {(() => {
+                      const pf = rear ? { y0: c.base, h: c.cab.H } : pasFrontu(c);
+                      return <rect x={mx(ox + u0, wM)} y={fy(pf.y0 + pf.h)} width={wM} height={pf.h}
+                        fill={rear ? c.mat.board.color : c.frontColor} stroke={INK} strokeWidth="2" />;
+                    })()}
                   </g>
                 );
               })}
@@ -5299,6 +5325,8 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
               const lx = zl ? ax + (a.len - fp.odRogu - lw) : ax + fp.odRogu;
               // wewnetrzne lico boku na wolnym koncu ramienia — tam siedza zawiasy
               const licoBoku = zl ? ax + a.cab.geo.t : ax + a.len - a.cab.geo.t;
+              // front ramienia w linii drzwi szafki — ta sama wysokosc i luzy co w bryle
+              const pf = pasFrontu(a.cab);
               return (
                 <g key={"arm" + i}>
                   {/* Front ramienia otwiera sie tak samo jak kazdy inny: po
@@ -5306,7 +5334,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                       plyta widziana od czola przy zawiasach. */}
                   {open && !rear && a.doors !== "fix" ? (
                     <g>
-                      <rect x={lx} y={fy(a.cab.base + a.cab.cab.H)} width={lw} height={a.cab.cab.H}
+                      <rect x={lx} y={fy(pf.y0 + pf.h)} width={lw} height={pf.h}
                         fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="12 9" opacity="0.6" />
                       <path
                         d={`M ${zl ? lx + lw : lx} ${fy(a.cab.base + a.cab.cab.H)}
@@ -5314,15 +5342,15 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                             L ${zl ? lx + lw : lx} ${fy(a.cab.base)}`}
                         fill="none" stroke={INK} strokeWidth="1.8" opacity="0.5" />
                       <rect x={zl ? lx : lx + lw - a.cab.geo.tf}
-                        y={fy(a.cab.base + a.cab.cab.H)} width={a.cab.geo.tf} height={a.cab.cab.H}
+                        y={fy(pf.y0 + pf.h)} width={a.cab.geo.tf} height={pf.h}
                         fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
                     </g>
                   ) : (
                     /* Od tylu ramie pokazuje plecy, a nie front — i to na calej
                        dlugosci, bo plecy ida przez cale ramie, a front tylko do
                        maskownicy katownika. */
-                    <rect x={rear ? ax : lx} y={fy(a.cab.base + a.cab.cab.H)}
-                      width={rear ? a.len : lw} height={a.cab.cab.H}
+                    <rect x={rear ? ax : lx} y={fy(rear ? a.cab.base + a.cab.cab.H : pf.y0 + pf.h)}
+                      width={rear ? a.len : lw} height={rear ? a.cab.cab.H : pf.h}
                       fill={rear ? a.cab.mat.back.color : a.cab.frontColor}
                       stroke={INK} strokeWidth="2" />
                   )}
@@ -5422,7 +5450,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                             i z zewnatrz go nie widac. */}
                         {maskW > 0 && (
                           <rect x={zl ? ax + a.len - maskW : ax}
-                            y={y0} width={maskW} height={H}
+                            y={fy(pf.y0 + pf.h)} width={maskW} height={pf.h}
                             fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
                         )}
                       </g>
@@ -5645,7 +5673,8 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
           const fx0 = a.outerAtEnd ? fp.odRogu : a.len - fp.odRogu - fp.w;
           const lico = armInset(a) ? a.depth : a.depth + a.cab.geo.tf;
           const uch = handleOutOf(a.cab.cab);
-          const hx = a.outerAtEnd ? fx0 + 20 : fx0 + fp.w - 32;
+          // os uchwytu UCHWYT_OD_KRAWEDZI od wolnej krawedzi frontu — jak w bryle 3D
+          const hx = a.outerAtEnd ? fx0 + UCHWYT_OD_KRAWEDZI - 6 : fx0 + fp.w - UCHWYT_OD_KRAWEDZI - 6;
           const zx = a.outerAtEnd ? a.len - a.cab.geo.t - 12 : a.cab.geo.t;
           return (
             <g>
@@ -6501,6 +6530,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         const licoBoku = armL ? ax0 + t : ax0 + armLen - t;
         const maskW = arm.bracket ? arm.bracket.odRamienia - arm.bracket.luz : 0;
         const plinthH = cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
+        // front ramienia i maskownica w linii drzwi szafki — te same luzy co w bryle i formatce
+        const dPas = (geo.doors || []).find((q) => q.h > 0 && q.type !== "blenda");
+        const pY = dPas ? fy(dPas.y + dPas.h) : 0, pH = dPas ? dPas.h : H;
         /* Lico korpusu za maskownica jest otwarte — tamtedy siega sie do rogu.
            Puste czytalo sie jak dziura miedzy drzwiami a kątownikiem, wiec
            zaznaczamy je jako przejscie. Po otwarciu drzwi i tak widac wnetrze,
@@ -6563,7 +6595,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             <rect x={armL ? ax0 : ax0 + armLen - t} y="0" width={t} height={H}
               fill={bf} stroke={INK} strokeWidth="2" />
             {!open && (
-              <rect x={fx} y="0" width={fw} height={H}
+              <rect x={fx} y={pY} width={fw} height={pH}
                 fill={ff} stroke={INK} strokeWidth="2" />
             )}
             {/* Front ramienia to zwykle drzwi: zawias na koncu dalszym od rogu,
@@ -6590,14 +6622,14 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 : Array.from({ length: ile }, (_, k) => (H * (k + 1)) / (ile + 1));
               return (
                 <g>
-                  <rect x={fx} y="0" width={fw} height={H}
+                  <rect x={fx} y={pY} width={fw} height={pH}
                     fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="12 9" opacity="0.6" />
                   <path
                     d={`M ${zawiasPrawy ? fx + fw : fx} 0
                         L ${zawiasPrawy ? fx : fx + fw} ${fy(H / 2)}
                         L ${zawiasPrawy ? fx + fw : fx} ${H}`}
                     fill="none" stroke={INK} strokeWidth="1.8" opacity="0.5" />
-                  <rect x={zawiasPrawy ? fx + fw - geo.tf : fx} y="0" width={geo.tf} height={H}
+                  <rect x={zawiasPrawy ? fx + fw - geo.tf : fx} y={pY} width={geo.tf} height={pH}
                     fill={ff} stroke={INK} strokeWidth="2" />
                   {/* Puszka siedzi na boku ramienia, w jego wewnetrznym licu —
                       po staremu stala na samym boku, jakby wisiala w powietrzu. */}
@@ -6611,7 +6643,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               );
             })()}
             {maskW > 0 && (
-              <rect x={armL ? ax0 + armLen - maskW : ax0} y="0" width={maskW} height={H}
+              <rect x={armL ? ax0 + armLen - maskW : ax0} y={pY} width={maskW} height={pH}
                 fill={ff} stroke={INK} strokeWidth="2" />
             )}
             {/* linia naroza — za nia zaczyna sie juz druga sciana */}

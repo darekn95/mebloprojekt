@@ -230,7 +230,9 @@ const zabudowa = async (tytul, p, { widoki = ['Zamk.', 'Z góry'], tylkoInfo = f
       const blok = (r) => !!r.da && r.f && r.f !== 'none' && obwiednia({ ...r, f: 'none' }, rz, dx, dy);
       const bloki = rs.filter(blok);
       const wBloku = (a) => bloki.some((r) => a.x0 + dx >= r.x0 - 2.5 && a.x1 + dx <= r.x1 + 2.5 && a.y0 + dy >= r.y0 - 2.5 && a.y1 + dy <= r.y1 + 2.5);
-      const brak = rz.filter((a) => !rs.some((r) => rowny(a, r, dx, dy) || wPasie(a, r, dx, dy)) && !zasloniety(a, rz) && !wBloku(a));
+      // w „Ciąg” blat sasiedniego ciagu jest tylko tlem bryly — elewacja i rzut ciagu go nie rysuja
+      const brak = rz.filter((a) => !rs.some((r) => rowny(a, r, dx, dy) || wPasie(a, r, dx, dy)) && !zasloniety(a, rz) && !wBloku(a)
+        && !(zakres === 'Ciąg' && a.s.color === '#8d7b68'));
       const obce = rs.filter((r) => !rz.some((a) => rowny(a, r, dx, dy)) && !pasem(r, rz, dx, dy) && !obwiednia(r, rz, dx, dy) && !blok(r));
       sprawdz(`${zakres} ${nazwa}: każda bryła ma swój prostokąt`, !brak.length, brak.map(opisB).slice(0, 8).join('; '));
       sprawdz(`${zakres} ${nazwa}: każdy prostokąt jest rzutem bryły`, !obce.length, obce.slice(0, 8).map((r) => opisR({ ...r, x0: r.x0 - dx, x1: r.x1 - dx, y0: r.y0 - dy, y1: r.y1 - dy })).join('; '));
@@ -244,10 +246,10 @@ const ROG = (o = {}) => ({ of: 'c1', at: 'end', owner: 'self', clear: 0, ...o })
 const USTAW = { W: 1000, levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 621, mode: 'overlay', support: false }, hinge: 'right' })] }] };
 for (const ws of [null, { typ: 'plaska', w: 60 }, { typ: 'szeroka', w: 60 }])
   await zabudowa('ślepy róg ' + (ws ? 'z wstawką ' + ws.typ : 'bez wstawki'), PRJ([[szafka('A1'), 'c1'], [szafka('A2'), 'c1'],
-    [szafka('R', USTAW), 'c2'], [szafka('B2'), 'c2']], [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: ROG({ wstawka: ws }) })]), { tylkoInfo: true });
+    [szafka('R', USTAW), 'c2'], [szafka('B2'), 'c2']], [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: ROG({ wstawka: ws }) })]));
 await zabudowa('szafka w L w rogu', PRJ([[szafka('A1'), 'c1'], [szafka('A2'), 'c1'],
   [szafka('L', { W: 900, corner: { on: true, arm: 640, doors: 'wsporniki' }, levels: [{ h: null, cols: [kol({ doors: 1 })] }] }), 'c2'], [szafka('B2'), 'c2']],
-  [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: ROG() })]), { tylkoInfo: true });
+  [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: ROG() })]));
 await zabudowa('U: trzy ściany', PRJ([[szafka('A', { W: 1200, levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'right', w: 621, mode: 'overlay', support: false }, hinge: 'left' })] }] }), 'c1'],
   [szafka('B', { W: 1400, levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'right', w: 621, mode: 'overlay', support: false }, hinge: 'left' })] }] }), 'c2'],
   [szafka('C', { W: 900 }), 'c3']],
