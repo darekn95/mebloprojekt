@@ -83,7 +83,8 @@ const scenariusz = async (tytul, cab, { spr = {} } = {}) => {
   const wFormatkach = (panel) => {
     const n = panel.replace(/^Poziom \d+ — /, '');
     const re = /^Bok/.test(n) ? /^Bok/ : /^Przegroda/.test(n) ? /^Przegroda/ : /^Wspornik/.test(n) ? /^Wspornik pionowy/
-      : /^(Wieniec|Dno)/.test(n) ? /Wieniec|Dno|wieniec/ : /^Półka przelotowa/.test(n) ? /^Półka przelotowa/ : new RegExp('^' + n);
+      : /^(Wieniec|Dno)/.test(n) ? /Wieniec|Dno|wieniec/ : /^Półka przelotowa/.test(n) ? /^Półka przelotowa/
+      : /^Cokół/.test(n) ? /Cokół/ : new RegExp('^' + n);
     return formatki.some((f) => re.test(f));
   };
   const obce = [...new Set(plan.map((r) => r.panel))].filter((p) => !wFormatkach(p));
@@ -137,6 +138,27 @@ const scenariusz = async (tytul, cab, { spr = {} } = {}) => {
     }
   }
 
+  // 3a. laczenia: konfirmaty i trojkaty w planie = w okuciach
+  const ileWNocie = (note) => ((note.match(/,\s*([\d.]+(?:, [\d.]+)*) mm od przedniej/) || [])[1] || '').split(', ').filter(Boolean).length;
+  const konPlan = plan.filter((r) => /^konfirmat/.test(r.kind)).reduce((s2, r) => s2 + r.ys.length * ileWNocie(r.note), 0);
+  const konHw = okucia.find((r) => /^Konfirmat/.test(r[0]));
+  if (!spr.bezKatownika) ok(`konfirmaty: w planie ${konPlan}, w okuciach ${konHw ? num(konHw[konHw.length - 1].split(' ')[0]) : 0}`,
+    konPlan === (konHw ? num(konHw[konHw.length - 1].split(' ')[0]) : 0), plan.filter((r) => /^konfirmat/.test(r.kind)).map((r) => `${r.panel} ${r.kind}: ${r.ys.join(',')}`).join(' | '));
+  const trPlan = plan.filter((r) => r.kind === 'trójkąt meblowy').reduce((s2, r) => s2 + r.ys.length * (/2 rzędy/.test(r.note) ? 2 : 1) + (/po 1 na każdym krótkim boku/.test(r.note) ? 2 : 0), 0);
+  const trHw = okucia.find((r) => /^Trójkąt/.test(r[0]));
+  ok(`trójkąty: w planie ${trPlan}, w okuciach ${trHw ? num(trHw[trHw.length - 1].split(' ')[0]) : 0}`,
+    trPlan === (trHw ? num(trHw[trHw.length - 1].split(' ')[0]) : 0), plan.filter((r) => r.kind === 'trójkąt meblowy').map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | '));
+
+  // 3b. przegroda z polkami z obu stron na tej samej wysokosci: jedna strona o 20 mm do srodka
+  if (spr.przegrodaObie) {
+    const pr = kPlan.filter((r) => /^Przegroda 1/.test(r.panel));
+    const k1 = pr.find((r) => /od kolumny 1/.test(r.note)), k2 = pr.find((r) => /od kolumny 2/.test(r.note));
+    const odl = (r) => ((r && r.note.match(/⌀5, ([\d.]+) i ([\d.]+) mm/)) || []).slice(1).map(Number);
+    const [a1, b1] = odl(k1), [a2, b2] = odl(k2);
+    ok('przegroda: półki na tej samej wysokości — druga strona kołki o 20 mm bliżej środka',
+      !!k1 && !!k2 && a2 - a1 === 20 && b1 - b2 === 20 && /przesunięte o 20 mm/.test(k2.note), pr.map((r) => r.note).join(' | '));
+  }
+
   // 4. prowadnice: wysokosc dolnej krawedzi = dol boku metalowego, otwory wg NL
   const pPlan = plan.filter((r) => r.kind === 'prowadnica');
   const skrzynek = metal.length / 2;
@@ -168,7 +190,7 @@ const scenariusz = async (tytul, cab, { spr = {} } = {}) => {
 };
 
 await scenariusz('drzwi i półki', szafka('D'));
-await scenariusz('dwie kolumny z przegrodą', szafka('P2', { W: 900, levels: [{ h: null, cols: [kol({ doors: 1 }), kol({ doors: 1, hinge: 'right' })] }] }));
+await scenariusz('dwie kolumny z przegrodą', szafka('P2', { W: 900, levels: [{ h: null, cols: [kol({ doors: 1 }), kol({ doors: 1, hinge: 'right' })] }] }), { spr: { przegrodaObie: true } });
 await scenariusz('fix ze wspornikiem, zawias przy fixie', szafka('F', { levels: [{ h: null, cols: [kol({ doors: 1, hinge: 'left',
   fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] }), { spr: { wspornik: 'left' } });
 await scenariusz('fix bez wspornika, zawias od drugiej strony', szafka('F2', { levels: [{ h: null, cols: [kol({ doors: 1, hinge: 'right',
@@ -181,6 +203,10 @@ await scenariusz('wysoka, dwa poziomy', szafka('H', { W: 600, H: 2000, levels: [
 await scenariusz('klapa do góry', wisz('KG', { W: 800, H: 400, levels: [{ h: null, cols: [kol({ doors: 1, klapa: 'gora' })] }] }), { spr: { klapa: 'gora' } });
 await scenariusz('klapa w dół', wisz('KD', { W: 600, H: 400, levels: [{ h: null, cols: [kol({ doors: 1, klapa: 'dol' })] }] }), { spr: { klapa: 'dol' } });
 await scenariusz('półki na konfirmatach (bez kołków)', szafka('K', { shelfMount: 'confirmat' }));
+await scenariusz('cokół bez nóżek (trójkąty), przegroda i wspornik', szafka('CT', { W: 900, legs: { on: false }, levels: [{ h: null, cols: [kol({ doors: 1 }),
+  kol({ doors: 1, fix: { side: 'right', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] }));
+await scenariusz('blat na szafce (trójkąty od spodu)', szafka('BL', { W: 800, top: { mode: 'blat', material: 'worktop', widthMode: 'outside', overL: 0, overR: 0, overFront: 20, overBack: 0 } }));
+await scenariusz('wieniec na bokach', szafka('WB', { joints: { topL: 'over', topR: 'over', botL: 'between', botR: 'between' } }));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

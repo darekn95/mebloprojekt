@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-29 | plan wierceń (`drillPlan`) | na życzenie użytkownika: kołki z obu stron przegrody na tej samej wysokości — jedna strona 20 mm bliżej środka; konfirmaty (wieniec, dno, półki przelotowe, przegrody, wsporniki, półki na konfirmatach) z odległościami od krawędzi i trójkąty (blat, cokół) w planie; `audytwierc`: plan = okucia dla konfirmatów i trójkątów, 3 nowe konfiguracje | (ten commit) |
 | 2026-09-28 | elewacja ciągu, otwarte (`ciag8`, pełny przebieg) | po dołożeniu uchwytów otwartych skrzydeł i szuflad w widoku szafki elewacja ciągu ich nie miała — rysunki rozjechały się (test parytetu); teraz te same uchwyty w obu | (ten commit) |
 | 2026-09-28 | rysunki szafki w L, uchwyty (audyt2d) | z przodu rysowany był pełny prawy bok, którego w szafce w L nie ma (stoi tam kątownik) — teraz bez boku, a po otwarciu widać obie płyty kątownika; z tyłu kątownik bez 3 mm za plecami; uchwyt skrzydła przy zawiasie po prawej 20 mm od wolnej krawędzi, po lewej 32 — teraz z obu stron 30 mm (`UCHWYT_OD_KRAWEDZI` = oś 36), też na ramieniu w L (3D, elewacje, rzut z góry). Audyt 2D obejmuje teraz też widoki „Ciąg” i „Zabudowa z góry” (przy rogach jako INFO — AI_NOTES) | (ten commit) |
 | 2026-09-28 | wycena, znalazł nowy `audytwycena` | krawędzie blatu roboczego (38 mm) wliczały się do „Obrzeże 22 × 2 mm” i usługi oklejania — teraz osobna pozycja „Obrzeże blatu roboczego” (cena 0 do ustalenia, pytanie do użytkownika), suma „Obrzeże PCV” bez blatu. Reszta wyceny i rozkroju zgodna na 7 projektach: każda formatka na arkuszach tyle razy, ile zamawiamy, bez nachodzenia, z rzazem 3 mm, bez obrotu przy pilnowanych słojach; arkusze/formatowanie/obrzeże/oklejanie/okucia/suma | (ten commit) |
@@ -63,9 +64,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-- **Otwory kołków z obu stron przegrody na tej samej wysokości** (2026-09-28):
-  plan pokazuje je osobno „(od kolumny N)”; czy przy 18 mm dawać ostrzeżenie /
-  przesuwać o 32 mm, żeby się nie przewierciły?
 - **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
   się kategoria „sprzęty” (lodówka, piekarnik, mikrofala) — dołożyć je jako
@@ -90,6 +88,13 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   16 mm (zostają 2 mm od zewnątrz), 3 mm w głąb w stronę drzwi — HDF 3 mm
   zlicowany z tyłem korpusu; frez też w wieńcu i dnie; luz 1 mm na stronę.
   HDF = W − 6 × H − 6. Pola: „Szerokość” 16, „Głębokość” 3, „Luz” 1.
+- **Kołki z obu stron przegrody na tej samej wysokości** (2026-09-29): po
+  stronie kolumny z prawej przesunięte o 20 mm do środka półki (`KOLEK_PRZESUN`),
+  półki zostają na swoich wysokościach. Wysokość w planie = spód półki, zawsze.
+- **Konfirmaty i trójkąty w planie wierceń** (2026-09-29): konfirmaty co ok.
+  200 mm styku (min. 2), skrajne 50 mm od przedniej i tylnej krawędzi
+  (`KONF_OD_KRAWEDZI`), reszta równo; trójkąty (blat od spodu, cokół bez nóżek)
+  jako wiersze tabeli. Liczby = okucia.
 - **Blat roboczy — oklejanie** (2026-09-29, faktura użytkownika): oklejane tylko
   wolne końce (przód z fabrycznym profilem, tył przy ścianie; nie w rogu, przy
   słupku ani na łączeniu kawałków) — obrzeże ABS 43 × 2 (6,68 zł/mb, dokładna

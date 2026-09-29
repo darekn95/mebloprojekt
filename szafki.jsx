@@ -184,6 +184,18 @@ const uchwytOut = (d, cab) => {
   const w = num(d.handleOut);
   return w !== null ? Math.max(0, Math.round(w)) : handleOutOf(cab);
 };
+/* Konfirmaty: co ok. 200 mm styku, minimum 2; skrajne 50 mm od przedniej
+   i tylnej krawedzi plyty, reszta rowno pomiedzy (uzytkownik 2026-09-29). Ta
+   sama liczba idzie do okuc i do planu wiercen. */
+const KONF_OD_KRAWEDZI = 50;
+const konfirmatyNaStyk = (len) => Math.max(2, Math.ceil((len || 0) / 200));
+const konfirmatyPoz = (len, od = 0) => {
+  const n = konfirmatyNaStyk(len);
+  const a = KONF_OD_KRAWEDZI, b = Math.max(a, len - KONF_OD_KRAWEDZI);
+  return [...Array(n)].map((_, i) => Math.round(od + (n === 1 ? (a + b) / 2 : a + ((b - a) * i) / (n - 1))));
+};
+// kolki z obu stron przegrody na tej samej wysokosci: o tyle przesuwamy jedna strone do srodka polki
+const KOLEK_PRZESUN = 20;
 const UCHWYT_OD_KRAWEDZI = 36;   // os uchwytu pionowego od wolnej krawedzi skrzydla
 const uchwytObrys = (d) => {
   if (d.type === "drawer" || d.type === "klapa") {
@@ -3231,9 +3243,17 @@ function computeGeoLiczy(cab, mat, ctx) {
         const przod = frontCut + (c.shFront || 0);
         const gl = c.shD ?? shelfDepth;
         const pinNote = `⌀5, ${fmt(przod + pinF)} i ${fmt(przod + gl - pinB)} mm od przedniej krawędzi płyty; wysokość = spód półki`;
+        /* Po drugiej stronie przegrody polka na tej samej wysokosci — otwory
+           z obu stron trafilyby w siebie w plycie 18 mm. Kolki od tej kolumny
+           idą o KOLEK_PRZESUN blizej srodka polki, polki zostaja na swoich
+           wysokosciach (uzytkownik 2026-09-29). */
+        const sasiadL = c.j > 0 ? lv.cols[c.j - 1] : null;
+        const kolidujeL = (y) => !!sasiadL && (sasiadL.shelves || []).some((q) => Math.abs(q.y - y) < 10);
+        const pinNoteL = `⌀5, ${fmt(przod + pinF + KOLEK_PRZESUN)} i ${fmt(przod + gl - pinB - KOLEK_PRZESUN)} mm od przedniej krawędzi płyty; `
+          + `wysokość = spód półki; przesunięte o ${KOLEK_PRZESUN} mm do środka — po drugiej stronie półka na tej samej wysokości`;
         if (cab.shelfMount !== "confirmat")
           (c.shelves || []).forEach((s) => {
-            drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, pinNote + p.left.strona);
+            drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, (kolidujeL(s.y) ? pinNoteL : pinNote) + p.left.strona);
             drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNote + p.right.strona);
           });
         (c.drawers || []).forEach((dr) => {
@@ -3281,6 +3301,81 @@ function computeGeoLiczy(cab, mat, ctx) {
       d.hingePts.forEach((hy) => drillAdd(lv.i, side.name, side.base, "zawias", hy, note));
     });
   }
+  /* Laczenia korpusu w planie wiercen (uzytkownik 2026-09-29): konfirmaty —
+     gdzie wiercic i w ktorej plycie, oraz trojkaty meblowe — zeby bylo widac,
+     co jest na konfirmaty, a co na trojkaty. Plyta pozioma „miedzy bokami”
+     dostaje konfirmat przez bok (otwor w boku na wysokosci osi plyty), plyta
+     „na bokach” — przez siebie w czolo boku (otwor w niej, od jej lewego konca). */
+  {
+    const listaPoz = (xs) => xs.map((v) => fmt(v)).join(", ");
+    const doPlyty = (name, kind, v, note) => {
+      if (!drillMap.has(name)) drillMap.set(name, { panel: name, holes: [] });
+      drillMap.get(name).holes.push({ kind, y: Math.round(v), note });
+    };
+    const top = levels.length - 1;
+    const przezBok = (lvI, zlacze, yOs, gl, od, co) => {
+      const note = `⌀7 w boku, ${listaPoz(konfirmatyPoz(gl, od))} mm od przedniej krawędzi; w czole ${co} ⌀5 × 50`;
+      if (postSide !== "left" && zlacze.l) drillAdd(lvI, "Bok lewy", leftY0, `konfirmat — ${zlacze.nazwa}`, yOs, note);
+      if (postSide !== "right" && zlacze.r) drillAdd(lvI, "Bok prawy", rightY0, `konfirmat — ${zlacze.nazwa}`, yOs, note);
+    };
+    const naBokach = (plyta, zlacze, gl, od) => {
+      const note = `⌀7 w płycie (od jej lewego końca), ${listaPoz(konfirmatyPoz(gl, od))} mm od przedniej krawędzi; w czole boku ⌀5 × 50`;
+      if (postSide !== "left" && zlacze.l) doPlyty(plyta, "konfirmat — bok lewy", t / 2, note);
+      if (postSide !== "right" && zlacze.r) doPlyty(plyta, "konfirmat — bok prawy", W - t / 2, note);
+    };
+    if (hasTop && !isBlat) {
+      przezBok(top, { nazwa: "wieniec", l: topL === "between", r: topR === "between" }, H - t / 2, carcassDepth, 0, "wieńca");
+      naBokach("Wieniec", { l: topL === "over", r: topR === "over" }, carcassDepth, 0);
+    }
+    if (hasBot) {
+      przezBok(0, { nazwa: "dno", l: botL === "between", r: botR === "between" }, bottomY + t / 2, carcassDepth, 0, "dna");
+      naBokach("Dno", { l: botL === "over", r: botR === "over" }, carcassDepth, 0);
+    }
+    // polki przelotowe miedzy poziomami — przez boki, w osi polki
+    sepShelves.forEach((sh) => przezBok(0, { nazwa: "półka przelotowa", l: true, r: true }, sh.y + t / 2, shelfDepth, frontCut, "półki"));
+    /* Przegrody pionowe i wsporniki fixu stoja na plycie pod soba i dochodza do
+       plyty nad soba — konfirmat przez te plyty w ich czolo; polozenie wzdluz
+       szerokosci od wewnetrznej strony lewego boku. */
+    const nad = (lvI) => (lvI === top ? (hasTop && !isBlat ? "Wieniec" : null) : `Półka przelotowa nad poziomem ${lvI + 1}`);
+    const pod = (lvI) => (lvI === 0 ? (hasBot ? "Dno" : null) : `Półka przelotowa pod poziomem ${lvI + 1}`);
+    dividers.forEach((dv, k) => {
+      const x = Math.round(dv.x + t / 2 - interior.x0);
+      const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(dividerDepth))} mm od przedniej krawędzi; w czole przegrody ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
+      [nad(dv.level), pod(dv.level)].filter(Boolean).forEach((pl) => doPlyty(pl, `konfirmat — przegroda ${k + 1}`, x, note));
+    });
+    levels.forEach((lv) => lv.cols.forEach((c) => {
+      if (!c.support || !c.fix) return;
+      const x = Math.round((c.fix.side === "left" ? c.fix.x + c.fix.w - t : c.fix.x) + t / 2 - interior.x0);
+      const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(carcassDepth))} mm od przedniej krawędzi; w czole wspornika ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
+      [nad(lv.i), pod(lv.i)].filter(Boolean).forEach((pl) => doPlyty(pl, "konfirmat — wspornik pionowy", x, note));
+    }));
+    // polki na konfirmatach (zamiast kolkow) — przez boki/przegrody w osi polki
+    if (cab.shelfMount === "confirmat")
+      levels.forEach((lv) => lv.cols.forEach((c) => {
+        const p = panelsOfCol(lv, c);
+        const gl = c.shD ?? shelfDepth, od = frontCut + (c.shFront || 0);
+        const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(gl, od))} mm od przedniej krawędzi; w czole półki ⌀5 × 50`;
+        (c.shelves || []).forEach((s2) => {
+          drillAdd(lv.i, p.left.name, p.left.base, "konfirmat — półka", s2.y + ts / 2, note + p.left.strona);
+          drillAdd(lv.i, p.right.name, p.right.base, "konfirmat — półka", s2.y + ts / 2, note + p.right.strona);
+        });
+      }));
+    /* Trojkaty meblowe (na wkrety, bez wiercenia): blat roboczy przykrecany od
+       spodu i cokol bez nozek — te same ilosci co w okuciach. */
+    const rowno = (len, n) => (n <= 1 ? [Math.round(len / 2)]
+      : [...Array(n)].map((_, i) => Math.round(KONF_OD_KRAWEDZI + ((len - 2 * KONF_OD_KRAWEDZI) * i) / (n - 1))));
+    if (isBlat) {
+      const n = Math.max(2, Math.ceil(W / 400));
+      rowno(W, n).forEach((x) => doPlyty("Blat", "trójkąt meblowy",
+        x, "od spodu, 2 rzędy — przy przedniej i przy tylnej krawędzi boków; położenie od lewej krawędzi korpusu"));
+    }
+    if (cab.plinth && cab.plinth.on && !(cab.legs && cab.legs.on)) {
+      const len = Math.round(plinthInBody ? innerW : W);
+      rowno(len, Math.max(2, Math.ceil(len / 300))).forEach((x) => doPlyty("Cokół", "trójkąt meblowy",
+        x, "wzdłuż cokołu, od jego lewego końca — plus po 1 na każdym krótkim boku"));
+    }
+  }
+
   // scalamy powtorki (te same wysokosci z sasiadujacych kolumn) i porzadkujemy
   const drillPlan = [...drillMap.values()].map((p) => {
     const by = new Map();
@@ -3406,7 +3501,7 @@ function computeGeoLiczy(cab, mat, ctx) {
 
   /* --- zlacza korpusu, kolki, zawieszki, wkrety ---
      Konfirmat co ok. 200 mm dlugosci styku, minimum 2 na styk. */
-  const confPer = (len) => Math.max(2, Math.ceil((len || 0) / 200));
+  const confPer = konfirmatyNaStyk;
   let confQty = 0;
   const jointNotes = [];
   const joint = (n, len, what) => {
