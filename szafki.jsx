@@ -84,6 +84,17 @@ const matLabelOf = (m, key, ambiguous) => {
   return parts.join(" ");
 };
 
+/* Zawieszka kuchenna R0 z regulacja, ZK-ZAW-R0-10 (instrukcje/ZK-ZAW-R0-10_zawieszka_karta.pdf):
+   57,2 × 37,5 × 17,4 mm, dwa otwory ⌀4,1 w rozstawie 32 mm. W plycie nic sie nie
+   wierci — zawieszke przykreca sie wkretami (uzytkownik 2026-09-29). */
+const ZAWIESZKA_MODEL = "ZK-ZAW-R0-10, 57,2 × 37,5 × 17,4 mm, przykręcana 2 wkrętami (otwory ⌀4,1, rozstaw 32 mm)";
+const ZAWIESZKA_MONTAZ = "bez wiercenia — przykręcana 2 wkrętami w górnym tylnym rogu, od wnętrza (ZK-ZAW-R0-10, otwory ⌀4,1 co 32 mm)";
+
+/* Zapas okleiny na kazdy oklejany bok formatki: oklejarka wypuszcza okleine
+   z przodu i z tylu, a potem ja odcina — 9 cm na bok (uzytkownik 2026-09-29).
+   Doliczany do materialu obrzeza (22 mm i ABS na blat), nie do uslugi. */
+const OBRZEZE_ZAPAS = 90;
+
 /* Ceny startowe — WSZYSTKIE BRUTTO, bo tyle sie faktycznie placi.
    Kazda da sie nadpisac w karcie Wyceny; wpisanie 0 zeruje pozycje.
    Oklejanie liczone jest za kazdy rozpoczety metr, stad zaokraglanie w gore. */
@@ -403,9 +414,10 @@ const scalOkucia = (lista) => {
 
 /* Ilosci w wycenie mnozy sie przez cene, wiec nie moga byc zaokraglone
    mocniej niz to, czym liczymy — fmt gubi setne i m2 przestaja sie zgadzac. */
+// do 3 miejsc — obrzeze liczy sie do 1 mm (uzytkownik 2026-09-29)
 const qtyFmt = (n) => {
-  const r = Math.round(n * 100) / 100;
-  return Number.isInteger(r) ? String(r) : r.toFixed(2).replace(/0$/, "");
+  const r = Math.round(n * 1000) / 1000;
+  return Number.isInteger(r) ? String(r) : r.toFixed(3).replace(/0+$/, "");
 };
 
 // kwoty pokazujemy z groszami — fmt zaokragla do dziesiatych i gubilby je
@@ -3500,7 +3512,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     const zaw = (name, ile) => {
       if (!drillMap.has(name)) drillMap.set(name, { panel: name, holes: [] });
       drillMap.get(name).holes.push({ kind: "zawieszka", y: null,
-        note: `górny tylny róg, od wnętrza${ile > 1 ? ` — ${ile} szt. na płycie` : ""}; otwory wg karty zawieszki` });
+        note: `${ZAWIESZKA_MONTAZ}${ile > 1 ? ` — ${ile} szt. na płycie` : ""}` });
     };
     const bokKorpusu = postSide === "right" ? "Bok lewy" : "Bok prawy";
     if (!postSide) { zaw("Bok lewy", zawieszki.n / 2); zaw("Bok prawy", zawieszki.n / 2); }
@@ -3747,7 +3759,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     hardware.push({
       name: "Zawieszka meblowa regulowana",
       use: "szafka wieszana na ścianie",
-      spec: "szafka bez nóżek i cokołu — wieszana na ścianie"
+      spec: `${ZAWIESZKA_MODEL}; szafka bez nóżek i cokołu — wieszana na ścianie`
         + (postSide ? `; szafka w L: ${gdzieL[zawieszki.gdzie]}` : ""),
       qty: nH,
       unit: "szt.",
@@ -10310,7 +10322,7 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
     }
     // zawieszka w czesci ramienia (wzmocnienie A albo B „w części ramienia”) — patrz `zawieszki` w computeGeo
     if ((geo.zawieszki || {}).naRamieniu)
-      wiersz("Bok ramienia", "zawieszka", [], "górny tylny róg, od wnętrza; otwory wg karty zawieszki");
+      wiersz("Bok ramienia", "zawieszka", [], ZAWIESZKA_MONTAZ);
   }
   (wstawki || []).filter((w) => w.typ !== "plaska").forEach((w) => {
     const H = Math.round(w.H), n = Math.max(2, Math.ceil(H / 400));
@@ -13354,8 +13366,13 @@ export default function App() {
     });
     return mm / 1000;
   };
+  // ile bokow formatek idzie przez oklejarke — do kazdego OBRZEZE_ZAPAS okleiny
+  const krawedzieBoki = (lista, blat) => lista.reduce((n, p) => ((p.matKey === "worktop") !== blat ? n
+    : n + p.qty * ["a1", "a2", "b1", "b2"].filter((k) => p.edges[k]).length), 0);
   const projectEdgeMb = useMemo(() => krawedzieMb(projectCutList, false), [projectCutList]);
   const projectEdgeBlatMb = useMemo(() => krawedzieMb(projectCutList, true), [projectCutList]);
+  const projectEdgeBoki = useMemo(() => krawedzieBoki(projectCutList, false), [projectCutList]);
+  const projectEdgeBlatBoki = useMemo(() => krawedzieBoki(projectCutList, true), [projectCutList]);
 
   // arkusze bierzemy z policzonego rozkroju — bez niego nie ma czego mnożyć
   const planSheets = useMemo(() => {
@@ -13409,15 +13426,21 @@ export default function App() {
     if (sheetsTotal)
       add({ key: "ciecie", label: "Formatowanie płyty", spec: "cięcie arkusza na formatki",
         qty: sheetsTotal, unit: "ark.", def: DEFAULT_PRICES.ciecie });
-    add({ key: "obrzeze", label: "Obrzeże 22 × 2 mm", spec: "materiał, dokładna długość",
-      qty: Math.round(projectEdgeMb * 10) / 10, unit: "mb", def: DEFAULT_PRICES.obrzeze });
+    /* Material obrzeza: do 1 mm, a do kazdego oklejanego boku OBRZEZE_ZAPAS —
+       oklejarka wypuszcza okleine z przodu i z tylu i potem ja odcina
+       (uzytkownik 2026-09-29). Usluga oklejania liczy sie od samych krawedzi. */
+    const zZapasem = (mb, boki) => Math.round(mb * 1000 + boki * OBRZEZE_ZAPAS) / 1000;
+    const zapasOpis = (boki) => `${boki} ${boki === 1 ? "bok" : boki % 10 >= 2 && boki % 10 <= 4 && (boki % 100 < 10 || boki % 100 >= 20) ? "boki" : "boków"}`;
+    add({ key: "obrzeze", label: "Obrzeże 22 × 2 mm",
+      spec: `materiał do 1 mm: ${qtyFmt(projectEdgeMb)} mb krawędzi + ${OBRZEZE_ZAPAS / 10} cm na każdy oklejany bok (${zapasOpis(projectEdgeBoki)})`,
+      qty: zZapasem(projectEdgeMb, projectEdgeBoki), unit: "mb", def: DEFAULT_PRICES.obrzeze });
     /* Konce blatu roboczego: obrzeze szersze od blatu (38 → 43 mm) i osobna
        usluga oklejania PCV > 23 mm, tez za kazdy rozpoczety metr. */
     if (projectEdgeBlatMb > 0) {
       const thB = (mat.worktop || {}).thickness || 38;
       add({ key: "obrzezeBlat", label: `Obrzeże ABS ${fmt(thB + 5)} × 2 mm — blat`,
-        spec: "końce blatu roboczego, dokładna długość",
-        qty: Math.round(projectEdgeBlatMb * 100) / 100, unit: "mb", def: DEFAULT_PRICES.obrzezeBlat });
+        spec: `końce blatu roboczego, do 1 mm: ${qtyFmt(projectEdgeBlatMb)} mb + ${OBRZEZE_ZAPAS / 10} cm na każdy koniec (${zapasOpis(projectEdgeBlatBoki)})`,
+        qty: zZapasem(projectEdgeBlatMb, projectEdgeBlatBoki), unit: "mb", def: DEFAULT_PRICES.obrzezeBlat });
       add({ key: "oklejanieBlat", label: "Oklejanie prostoliniowe PCV > 23 mm",
         spec: `usługa, ${fmt(Math.round(projectEdgeBlatMb * 100) / 100)} mb w górę do pełnego metra`,
         qty: Math.ceil(projectEdgeBlatMb), unit: "mb", def: DEFAULT_PRICES.oklejanieBlat });
@@ -13434,7 +13457,7 @@ export default function App() {
     });
     const sum = rows.reduce((a, r) => a + r.qty * r.price, 0);
     return { rows, sum };
-  }, [planSheets, projectEdgeMb, projectEdgeBlatMb, projectHardware, prices, matByLabel]);
+  }, [planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, prices, matByLabel]);
 
   // uwagi ciagu ida przed uwagami szafki — dotycza calej sciany, wiec sa nadrzedne
   const allMsgs = useMemo(() => [...runMsgs, ...geo.msgs], [runMsgs, geo]);
