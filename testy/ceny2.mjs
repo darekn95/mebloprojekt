@@ -34,7 +34,7 @@ const ustaw = async (karta, want) => {
 };
 await ustaw(nogi, true);
 await ustaw(cok, true);
-await wyc.getByRole('button', { name: 'Policz rozkrój' }).click().catch(()=>{});
+await wyc.getByRole('button', { name: 'Pokaż rozkrój' }).click().catch(()=>{});
 await page.waitForTimeout(2500);
 
 let rows = await dump();
@@ -55,14 +55,14 @@ const plyty = card(/^Płyty$/); await plyty.locator('h2').click(); await page.wa
 await plyty.locator('button[title="Biały mat"]').first().click();
 await page.waitForTimeout(1200);
 // zmiana koloru zmienia etykiete materiału, więc rozkrój trzeba przeliczyć
-await wyc.getByRole('button', { name: 'Policz rozkrój' }).click().catch(()=>{});
+await wyc.getByRole('button', { name: 'Pokaż rozkrój' }).click().catch(()=>{});
 await page.waitForTimeout(2500);
 rows = await dump();
 ok('biały mat → 223,10', find(rows, /^Płyta /)?.ph === '223.1', find(rows, /^Płyta /)?.ph);
 ok('HDF dalej 70 mimo koloru płyty', find(rows, /HDF/)?.ph === '70', find(rows, /HDF/)?.ph);
 await plyty.locator('button[title="Antracyt"]').first().click();
 await page.waitForTimeout(1000);
-await wyc.getByRole('button', { name: 'Policz rozkrój' }).click().catch(()=>{});
+await wyc.getByRole('button', { name: 'Pokaż rozkrój' }).click().catch(()=>{});
 await page.waitForTimeout(2500);
 ok('antracyt → 240', find(await dump(), /^Płyta /)?.ph === '240', JSON.stringify(find(await dump(), /^Płyta /)));
 ok('stary rozkrój sam się unieważnia po zmianie koloru', true);

@@ -51,8 +51,10 @@ await page.waitForTimeout(900);
 const wy = card(/^Wycena$/);
 ok('karta wyceny', await wy.count() === 1);
 await wy.locator('h2').click(); await page.waitForTimeout(500);
-ok('ostrzeżenie o braku rozkroju', /Rozkrój nie jest policzony/.test(await wy.innerText()));
-await wy.getByText('Policz rozkrój', { exact: true }).click();
+// rozkroj liczy sie sam sekunde po zmianie formatek (2026-09-29) — plyta jest w wycenie bez klikania
+await page.waitForTimeout(1800);
+ok('płyta w wycenie bez klikania „Pokaż rozkrój”', /^Płyta /m.test(await wy.evaluate((s) => [...s.querySelectorAll('tbody tr')].map((tr) => tr.innerText.trim()).join('\n'))));
+await wy.getByText('Pokaż rozkrój', { exact: true }).click();
 await page.waitForTimeout(2500);
 const rowsTxt = await wy.evaluate(s => [...s.querySelectorAll('tbody tr')].map(tr => [...tr.querySelectorAll('td')].map(td => td.innerText.trim().replace(/\n/g, ' ')).join(' | ')));
 console.log('  pozycje wyceny:'); rowsTxt.forEach(r => console.log('     ' + r));
@@ -82,7 +84,7 @@ await wy2.locator('h2').click(); await page.waitForTimeout(500);
 const stored = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('szafki:projekt')).prices; } catch { return null; } });
 ok('ceny zapisane w projekcie', !!stored && Object.values(stored).includes(200), JSON.stringify(stored));
 // po przeliczeniu rozkroju ceny wracaja do tabeli
-await wy2.getByText('Policz rozkrój', { exact: true }).click();
+await wy2.getByText('Pokaż rozkrój', { exact: true }).click();
 await page.waitForTimeout(2500);
 const kept = await wy2.evaluate(s => [...s.querySelectorAll('tbody input')].map(i => i.value).filter(Boolean).join(','));
 ok('ceny wracają do tabeli po przeliczeniu', kept.includes('200'), kept || '(puste)');

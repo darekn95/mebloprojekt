@@ -97,6 +97,9 @@ const zawieszkaNote = (odTylu, ile = 1) =>
   `bez wiercenia — przykręcana ${ZAWIESZKA_WKRETY} wkrętami 4 × 30 od wnętrza; wysokość = górna krawędź zawieszki pod wieńcem, `
   + `tylna krawędź ${fmt(odTylu)} mm od tylnej krawędzi płyty (1 cm od pleców)${ile > 1 ? ` — ${ile} szt. na płycie` : ""}; ZK-ZAW-R0-10`;
 
+// rozkroj przelicza sie sam tyle po ostatniej zmianie formatek (uzytkownik 2026-09-29)
+const ROZKROJ_ZWLOKA = 1000;
+
 /* Zapas okleiny na kazdy oklejany bok formatki: oklejarka wypuszcza okleine
    z przodu i z tylu, a potem ja odcina — 9 cm na bok (uzytkownik 2026-09-29).
    Doliczany do materialu obrzeza (22 mm i ABS na blat) i do uslugi oklejania. */
@@ -9345,7 +9348,8 @@ const edgeText = (p) => {
 };
 
 // `id` — kotwica, do ktorej da sie przewinac (np. „Pokaz rysunek" z gornego paska)
-const Card = ({ title, children, right, collapsible = false, defaultOpen = true, id }) => {
+// kazda karta da sie zwinac (uzytkownik 2026-09-29); domyslnie rozwinieta
+const Card = ({ title, children, right, collapsible = true, defaultOpen = true, id }) => {
   const [open, setOpen] = useState(defaultOpen);
   const shown = collapsible ? open : true;
   return (
@@ -13383,35 +13387,62 @@ export default function App() {
     return scalOkucia(projectParts(project).flatMap((part) => part.hardware));
   }, [project]);
 
-  // rozkroj liczymy tylko na zadanie — to najciezsza operacja w aplikacji
+  /* Wejscie rozkroju: sama lista formatek (nazwa, wymiary, ilosc, plyta z kolorem,
+     sloje). Z niej liczy sie klucz — rozkroj przelicza sie tylko, gdy ta lista
+     naprawde sie zmieni. Kolor plyty jest w etykiecie materialu, wiec zmiana
+     koloru korpusu, polek albo frontow przelicza rozkroj (inna plyta, osobne
+     arkusze). Lustro, uchwyty, zawiasy czy plan wiercen formatek nie zmieniaja
+     i niczego nie ruszaja (uzytkownik 2026-09-29). */
+  const wierszeRozkroju = useCallback((scope) => (scope === "project"
+    ? projectCutList.map((p) => ({
+        name: p.name,
+        qty: p.qty,
+        a: p.a,
+        b: p.b,
+        rotatable: p.rotatable !== false,
+        matLabel: p.matName,
+        // blat roboczy w projekcie jest jeden, wiec jego arkusz bierzemy z materialow
+        sheet: p.matKey === "worktop" ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
+      }))
+    : cutList.map((p) => ({
+        name: p.name,
+        qty: p.qty,
+        a: p.a,
+        b: p.b,
+        rotatable: p.matKey === "back" || !cab.grainMatters,
+        matLabel: matLabelOf(mat[p.matKey], p.matKey, ambig),
+        sheet: p.matKey === "worktop"
+          ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
+      }))), [cutList, projectCutList, cab.grainMatters, mat, ambig]);
+  const autoScope = zCaloscia ? "project" : "cab";
+  const rozkrojWejscie = useMemo(() => wierszeRozkroju(autoScope), [wierszeRozkroju, autoScope]);
+  const rozkrojKlucz = useMemo(() => autoScope + "|" + JSON.stringify(rozkrojWejscie), [autoScope, rozkrojWejscie]);
+
+  /* Rozkroj liczy sie sam, ROZKROJ_ZWLOKA po ostatniej zmianie formatek —
+     przy wpisywaniu wymiaru raz, na koncu. Typowa kuchnia (15 szafek) to
+     20–40 ms, 60 szafek ok. 130 ms (pomiar 2026-09-29). */
+  const [autoPlan, setAutoPlan] = useState(null);
+  useEffect(() => {
+    if (autoPlan && autoPlan.key === rozkrojKlucz) return undefined;
+    const id = setTimeout(() => {
+      setAutoPlan({ key: rozkrojKlucz, scope: autoScope, groups: buildCutPlan(rozkrojWejscie) });
+    }, ROZKROJ_ZWLOKA);
+    return () => clearTimeout(id);
+  }, [rozkrojKlucz]); // eslint-disable-line react-hooks/exhaustive-deps
+  const autoAktualny = !!autoPlan && autoPlan.key === rozkrojKlucz;
+
+  // okno „Rozkrój na płycie”: gdy rozkroj jest juz policzony w tle, pokazuje sie od razu
   const makeCutPlan = useCallback((scope) => {
-    const rows =
-      scope === "project"
-        ? projectCutList.map((p) => ({
-            name: p.name,
-            qty: p.qty,
-            a: p.a,
-            b: p.b,
-            rotatable: p.rotatable !== false,
-            matLabel: p.matName,
-            // blat roboczy w projekcie jest jeden, wiec jego arkusz bierzemy z materialow
-            sheet: p.matKey === "worktop" ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
-          }))
-        : cutList.map((p) => ({
-            name: p.name,
-            qty: p.qty,
-            a: p.a,
-            b: p.b,
-            rotatable: p.matKey === "back" || !cab.grainMatters,
-            matLabel: matLabelOf(mat[p.matKey], p.matKey, ambig),
-            sheet: p.matKey === "worktop"
-              ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
-          }));
-    const groups = buildCutPlan(rows);
+    const groups = autoAktualny && autoPlan.scope === scope ? autoPlan.groups : buildCutPlan(wierszeRozkroju(scope));
     // tylko dla testow (`testy/audytwycena.mjs`): gdy strona ma tablice, dostaje rozkroj
     if (typeof window !== "undefined" && window.__audytRozkroj !== undefined) window.__audytRozkroj = { scope, groups };
     setCutPlan({ scope, groups });
-  }, [cutList, projectCutList, cab.grainMatters, mat, ambig]);
+  }, [autoAktualny, autoPlan, wierszeRozkroju]);
+  // otwarte okno odswieza sie razem z rozkrojem w tle
+  useEffect(() => {
+    if (autoPlan && cutPlan && cutPlan.scope === autoPlan.scope && cutPlan.groups !== autoPlan.groups)
+      setCutPlan({ scope: autoPlan.scope, groups: autoPlan.groups });
+  }, [autoPlan]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- wycena: ceny trzyma projekt, ilosci biora sie z list i rozkroju ---
   const prices = project.prices || {};
@@ -13444,11 +13475,12 @@ export default function App() {
 
   // arkusze bierzemy z policzonego rozkroju — bez niego nie ma czego mnożyć
   const planSheets = useMemo(() => {
-    if (!cutPlan) return null;
+    const plan = autoAktualny ? autoPlan : cutPlan;
+    if (!plan) return null;
     const by = {};
-    cutPlan.groups.forEach((g) => { by[g.matLabel] = (by[g.matLabel] || 0) + g.sheets.length; });
+    plan.groups.forEach((g) => { by[g.matLabel] = (by[g.matLabel] || 0) + g.sheets.length; });
     return by;
-  }, [cutPlan]);
+  }, [cutPlan, autoPlan, autoAktualny]);
 
   /* Rozkroj grupuje arkusze po samej etykiecie materialu, a cena zalezy jeszcze
      od koloru — stad podreczna mapa etykieta → { kolor, rola }. */
@@ -15807,7 +15839,7 @@ export default function App() {
 
           {(errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0) && (
             <div ref={notesRef} className="scroll-mt-24">
-            <Card title="Uwagi">
+            <Card title="Uwagi" collapsible>
               {(errors.length > 0 || warns.length > 0) && (() => {
                 /* Ostrzezenie mozna odhaczyc tak samo jak podpowiedz: odhaczone
                    schodzi pod zwijany naglowek i przestaje sie liczyc u gory.
@@ -15955,7 +15987,7 @@ export default function App() {
             })}
           </Card>
 
-          <Card title="Formatki do zamówienia"
+          <Card title="Formatki do zamówienia" collapsible
             right={
               <div className="flex items-center gap-3">
                 {Object.keys(cab.edgeOverrides || {}).length > 0 && (
@@ -16095,7 +16127,7 @@ export default function App() {
           </Card>
 
           {zCaloscia && (
-            <Card title={`Formatki całego projektu${project.name ? " — " + project.name : ""}`}
+            <Card title={`Formatki całego projektu${project.name ? " — " + project.name : ""}`} collapsible
               right={
                 <div className="flex items-center gap-3">
                   <button onClick={() => makeCutPlan("project")}
@@ -16244,7 +16276,7 @@ export default function App() {
           )}
 
           {/* podpis mowi, czyje to okucia — przy kilku szafkach latwo pomylic karty */}
-          <Card title={`Produkty do zamówienia${(cab.name || "").trim() ? " — " + cab.name.trim() : ""}`}>
+          <Card title={`Produkty do zamówienia${(cab.name || "").trim() ? " — " + cab.name.trim() : ""}`} collapsible>
             {cabHardware.length === 0 ? (
               <p className="text-sm text-stone-400">
                 Brak okuć — dodaj szuflady, uchwyty albo nóżki.
@@ -16292,27 +16324,28 @@ export default function App() {
             right={
               !cutPlan ? (
                 <button onClick={() => makeCutPlan(zCaloscia ? "project" : "cab")}
+                  title="Rozkrój liczy się sam po każdej zmianie formatek — tu otwierasz rysunek arkuszy"
                   className="text-xs text-teal-700 hover:underline">
-                  Policz rozkrój
+                  Pokaż rozkrój
                 </button>
               ) : null
             }>
             <p className="text-xs text-stone-500">
               Wszystkie ceny są <strong>brutto</strong>. Płyta i formatowanie liczone są od
-              arkusza, więc potrzebują policzonego rozkroju — obrzeże, oklejanie i okucia
-              wyliczą się od razu. Puste pole bierze cenę domyślną (szara podpowiedź w polu);
+              arkusza — rozkrój przelicza się sam sekundę po każdej zmianie formatek albo
+              płyty (także jej koloru — to inne arkusze); lustro, uchwyty czy zawiasy go
+              nie ruszają. Obrzeże, oklejanie i okucia wyliczają się od razu. Puste pole bierze cenę domyślną (szara podpowiedź w polu);
               wpisz 0, jeśli pozycja ma nie liczyć się do sumy. Ceny zapisują się razem
               z projektem.
             </p>
             <p className="text-xs text-stone-500">
-              Oklejanie rozkrojownia liczy za każdy <strong>rozpoczęty</strong> metr, dlatego
-              obrzeża zamawiasz co do dziesiątej części metra, a usługę w pełnych metrach
-              w górę.
+              Obrzeże liczone jest do 1 mm z zapasem 9 cm na każdy oklejany bok (oklejarka
+              wypuszcza okleinę z przodu i z tyłu), a usługę oklejania rozkrojownia liczy od
+              tej okleiny za każdy <strong>rozpoczęty</strong> metr.
             </p>
-            {!cutPlan && (
-              <p className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs"
-                style={{ color: WARNC }}>
-                Rozkrój nie jest policzony, więc płyty i cięcia nie ma w wycenie.
+            {!planSheets && (
+              <p className="rounded border border-stone-200 bg-stone-50 px-2 py-1 text-xs text-stone-500">
+                Przeliczam rozkrój — płyta i cięcie pojawią się w wycenie za chwilę.
               </p>
             )}
             <div className="overflow-x-auto">
@@ -16358,7 +16391,7 @@ export default function App() {
           </Card>
 
           {zCaloscia && (
-            <Card title={`Produkty całego projektu${project.name ? " — " + project.name : ""}`}
+            <Card title={`Produkty całego projektu${project.name ? " — " + project.name : ""}`} collapsible
               right={<span className="text-xs text-stone-400">{project.items.length} {plural(project.items.length, "szafka", "szafki", "szafek")}</span>}>
               <p className="mb-2 text-xs text-stone-500">
                 Suma okuć ze wszystkich szafek w projekcie — do zamówienia na całość naraz.

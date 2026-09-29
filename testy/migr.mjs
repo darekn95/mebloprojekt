@@ -21,8 +21,8 @@ const card = (re) => page.locator('section').filter({ has: page.locator('h2', { 
 const wyc = card(/^Wycena$/);
 await wyc.locator('h2').click();
 await page.waitForTimeout(400);
-if (await wyc.getByRole('button', { name: 'Policz rozkrój' }).count()) {
-  await wyc.getByRole('button', { name: 'Policz rozkrój' }).click();
+if (await wyc.getByRole('button', { name: 'Pokaż rozkrój' }).count()) {
+  await wyc.getByRole('button', { name: 'Pokaż rozkrój' }).click();
   await page.waitForTimeout(2500);
 }
 const row = async (re) => wyc.evaluate((sec, src) => {
@@ -54,8 +54,8 @@ await page.waitForTimeout(2500);
 const wyc2 = card(/^Wycena$/);
 await wyc2.locator('h2').click();
 await page.waitForTimeout(400);
-if (await wyc2.getByRole('button', { name: 'Policz rozkrój' }).count()) {
-  await wyc2.getByRole('button', { name: 'Policz rozkrój' }).click();
+if (await wyc2.getByRole('button', { name: 'Pokaż rozkrój' }).count()) {
+  await wyc2.getByRole('button', { name: 'Pokaż rozkrój' }).click();
   await page.waitForTimeout(2500);
 }
 const moved = await wyc2.evaluate((sec) => {

@@ -34,7 +34,7 @@ ok('obrzeże 22 × 2 mm — domyślna 3,38 brutto', find(/Obrzeże/)?.ph === '3.
 ok('oklejanie — domyślna 8,86 brutto', find(/Oklejanie/)?.ph === '8.86', JSON.stringify(find(/Oklejanie/)));
 
 // policz rozkroj -> plyta + formatowanie
-await wyc.getByRole('button', { name: 'Policz rozkrój' }).click();
+await wyc.getByRole('button', { name: 'Pokaż rozkrój' }).click();
 await page.waitForTimeout(2500);
 d = await dump();
 console.log('\n  po rozkroju:');

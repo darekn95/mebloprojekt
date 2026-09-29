@@ -66,7 +66,7 @@ const scenariusz = async (tytul, p, { grain = false } = {}) => {
   await page.evaluate(() => { window.__audytRozkroj = null; });
   const wyc = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Wycena/ }) }).first();
   await wyc.locator('h2').first().click(); await page.waitForTimeout(300);
-  await page.getByRole('button', { name: 'Policz rozkrój', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Pokaż rozkrój', exact: true }).first().click();
   await page.waitForTimeout(1500);
   const rk = await page.evaluate(() => window.__audytRozkroj);
   ok('rozkrój policzony', !!rk && rk.groups.length > 0, JSON.stringify(rk).slice(0, 80));
