@@ -32,7 +32,7 @@ const status = await page.evaluate(() => {
 const lsKeys = await page.evaluate(() => Object.keys(localStorage));
 const lsVal = await page.evaluate(() => {
   const v = localStorage.getItem('szafki:projekt');
-  return v ? v.slice(0, 120) : null;
+  return v || null;   // cały zapis — `rooms` (2026-09-29) przesunął wymiary za 120. znak
 });
 
 console.log('STATUS w naglowku:', JSON.stringify(status));

@@ -664,7 +664,13 @@ plyta z kolorem, slojami, arkuszem blatu). Arkusz 2800 × 2100, okrawanie i rzaz
 stale — gdyby staly sie ustawieniem, trzeba je dopisac do klucza. Mozliwy powod
 przycinania — patrz BLEDY.md „Do decyzji”.
 
-[AI-TODO] Warstwa „Pomieszczenia” (plan zaakceptowany co do zasad 2026-09-29, czeka na start):
+[AI-INFO] Warstwa „Pomieszczenia” ZROBIONA 2026-09-29 (opis w SLOWNIK.md, pasek
+„Pomieszczenia”; zasady w BLEDY.md „Ustalone”). Niezmiennik: ciagi polaczone rogiem
+(`corner.of`) albo pietrem (`wall`) sa zawsze w jednym pomieszczeniu — pilnuje tego
+loadProject (migracja), `makeRun(runs, roomId)`, kandydaci rogu i kreator (tylko
+ciagi pomieszczenia) oraz `przeniesCiagi` (cala `grupaCiagow`). Dzieki temu
+`projectLayout(project).info` moze laczyc uklady pomieszczen bez kolizji kluczy.
+Pierwotny plan (dla porownania):
 Projekt → Pomieszczenia → ciagi/sciany → szafki. Decyzje uzytkownika: istniejace
 projekty otwieraja sie jako „Pomieszczenie 1”; rozkroj i wycena domyslnie dla
 calego projektu (jedno zamowienie), podglad pomieszczenia osobno; usuwanie
