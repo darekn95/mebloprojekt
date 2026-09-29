@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-29 | plan wierceń szafki w L i wstawki (`wierceniaDodatkowe`) | ramię szafki w L i wstawka w rogu nie miały nic w planie wierceń — teraz „Bok ramienia” (konfirmaty dna i wieńca ramienia, kołki półek ramienia, zawiasy frontu ramienia), „Fix ramienia” i „Wstawka w rogu” (trójkąty, 2 rzędy); frez pod HDF (16 × 3) jako wiersz przy bokach, wieńcu i dnie. `audytwierc`: kartka aktywnej szafki w PDF (wcześniej czytał pierwszą), 3 scenariusze z rogiem | (ten commit) |
 | 2026-09-29 | elewacje szafki w L i rogu (`audyt2d`) | front ramienia i maskownica kątownika na elewacji ciągu i na rysunku szafki miały pełną wysokość korpusu — teraz pas drzwi szafki (`pasFrontu`, luzy jak w bryle i formatce); uchwyt ramienia w rzucie zabudowy z góry miał stare 20/32 mm — teraz `UCHWYT_OD_KRAWEDZI`; na elewacji ciągu przy ślepym rogu brakowało uchwytu szafki sąsiada wystającego z przekroju (o niego zahaczają drzwi) — dorysowany. Audyt: ślepy róg i szafka w L w rogu sprawdzane ściśle | (ten commit) |
 | 2026-09-29 | plan wierceń (`drillPlan`) | na życzenie użytkownika: kołki z obu stron przegrody na tej samej wysokości — jedna strona 20 mm bliżej środka; konfirmaty (wieniec, dno, półki przelotowe, przegrody, wsporniki, półki na konfirmatach) z odległościami od krawędzi i trójkąty (blat, cokół) w planie; `audytwierc`: plan = okucia dla konfirmatów i trójkątów, 3 nowe konfiguracje | (ten commit) |
 | 2026-09-28 | elewacja ciągu, otwarte (`ciag8`, pełny przebieg) | po dołożeniu uchwytów otwartych skrzydeł i szuflad w widoku szafki elewacja ciągu ich nie miała — rysunki rozjechały się (test parytetu); teraz te same uchwyty w obu | (ten commit) |
@@ -64,6 +65,16 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 | 2026-09-27 | `luzy` | podpowiedź o luzie pojawia się przy nierównym podziale; test ustawia luz 3 mm wprost | 3d2690b |
 
 ## Do decyzji użytkownika
+
+- **Szafka w L — co wiercić po stronie ramienia, gdzie nie ma boku** (audyt
+  planu wierceń 2026-09-29). Korpus szafki w L nie ma boku od strony ramienia
+  (stoi tam kątownik 150 mm przy plecach i kątownik narożnika przy frontach),
+  a: (1) okucia liczą konfirmaty wieńca i dna na dwa boki (18 zamiast 12 przy
+  szafce 900), (2) plan wierceń wysyła kołki półki i zawiasy drzwi korpusu na
+  „Bok lewy/prawy”, którego nie ma w formatkach. Pytanie do użytkownika: czym
+  wieniec i dno trzymają się po tej stronie (konfirmat w czoło kątownika /
+  wkręty / nic) i na czym wiszą zawiasy drzwi korpusu i kołki półki (kątownik
+  narożnika / kątownik przy plecach). `audytwierc` pokazuje to jako ZNANE.
 
 - **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi

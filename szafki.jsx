@@ -3218,7 +3218,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   const drillAdd = (lvI, name, base, kind, y, note) => {
     const key = drillKey(lvI, name);
     if (!drillMap.has(key)) drillMap.set(key, { panel: key, holes: [] });
-    drillMap.get(key).holes.push({ kind, y: Math.round(y - base), note });
+    drillMap.get(key).holes.push({ kind, y: y == null ? null : Math.round(y - base), note });
   };
   /* Przegroda niesie kolki i zawiasy z obu stron — kazda strona to osobne
      wiercenie, wiec w planie osobny wpis „(od kolumny N)”. Wczesniej te same
@@ -3310,7 +3310,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     const listaPoz = (xs) => xs.map((v) => fmt(v)).join(", ");
     const doPlyty = (name, kind, v, note) => {
       if (!drillMap.has(name)) drillMap.set(name, { panel: name, holes: [] });
-      drillMap.get(name).holes.push({ kind, y: Math.round(v), note });
+      drillMap.get(name).holes.push({ kind, y: v == null ? null : Math.round(v), note });
     };
     const top = levels.length - 1;
     const przezBok = (lvI, zlacze, yOs, gl, od, co) => {
@@ -3369,6 +3369,15 @@ function computeGeoLiczy(cab, mat, ctx) {
       rowno(W, n).forEach((x) => doPlyty("Blat", "trójkąt meblowy",
         x, "od spodu, 2 rzędy — przy przedniej i przy tylnej krawędzi boków; położenie od lewej krawędzi korpusu"));
     }
+    /* Frez pod HDF (uzytkownik 2026-09-29): na tylnej krawedzi bokow, wienca
+       i dna — to nie wiercenie, ale ta sama kartka idzie na stol. */
+    if (grooved) {
+      const note = `na tylnej krawędzi, na całej długości: ${fmt(grDep)} mm w grubość płyty × ${fmt(grOff)} mm w stronę drzwi`;
+      if (postSide !== "left") drillAdd(0, "Bok lewy", leftY0, "frez pod HDF", null, note);
+      if (postSide !== "right") drillAdd(0, "Bok prawy", rightY0, "frez pod HDF", null, note);
+      if (hasTop && !isBlat) doPlyty("Wieniec", "frez pod HDF", null, note);
+      if (hasBot) doPlyty("Dno", "frez pod HDF", null, note);
+    }
     if (cab.plinth && cab.plinth.on && !(cab.legs && cab.legs.on)) {
       const len = Math.round(plinthInBody ? innerW : W);
       rowno(len, Math.max(2, Math.ceil(len / 300))).forEach((x) => doPlyty("Cokół", "trójkąt meblowy",
@@ -3383,7 +3392,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       const k = `${h.kind}|${h.note}`;
       if (!by.has(k)) by.set(k, { kind: h.kind, note: h.note, ys: [] });
       const g = by.get(k);
-      if (!g.ys.includes(h.y)) g.ys.push(h.y);
+      if (h.y != null && !g.ys.includes(h.y)) g.ys.push(h.y);
     });
     return {
       panel: p.panel,
@@ -10034,8 +10043,7 @@ const cornerArmParts = (a) => {
   /* Ramie liczy okucia tak samo jak szafka: konfirmaty na stykach plyt
      poziomych z bokiem, kolki pod polke, wkrety do wzmocnien i katownika,
      nozki pod wolnym koncem. Bez tego zamowienie mowilo tylko o zawiasach. */
-  const konf = (n, dl) => n * Math.max(2, Math.ceil((dl || 0) / 200));
-  const konfQty = konf(armTop ? 2 : 1, a.depth);
+  const konfQty = (armTop ? 2 : 1) * konfirmatyNaStyk(korpusR);
   if (konfQty)
     hardware.push({ name: "Konfirmat 7 × 50",
       use: "złącza ramienia szafki narożnej, co ok. 200 mm styku",
@@ -10072,6 +10080,52 @@ const cornerArmParts = (a) => {
       spec: "spina drugie skrzydło z pierwszym — pierwsze wisi na boku na zawiasie 165°",
       qty: zawiasow, unit: "szt." });
   return { panels, hardware };
+};
+
+/* Plan wiercen tego, co nie jest w geometrii samej szafki (uzytkownik
+   2026-09-29): ramie szafki w L — konfirmaty dna/wienca ramienia w boku
+   ramienia, kolki polek ramienia, zawiasy frontu ramienia, trojkaty fixu
+   ramienia — i trojkaty wstawki szerokiej w rogu. Te same liczby co okucia
+   (`cornerArmParts`, `wstawkaParts`). Wiersze jak w `geo.drillPlan`. */
+const wierceniaDodatkowe = (a, wstawki = []) => {
+  const out = [];
+  const plyta = (panel) => { let p = out.find((q) => q.panel === panel); if (!p) out.push(p = { panel, rows: [] }); return p; };
+  const wiersz = (panel, kind, ys, note) => plyta(panel).rows.push({ kind, ys: ys.map((v) => Math.round(v)), note });
+  const rowno = (lo, hi, n) => (n <= 1 ? [(lo + hi) / 2] : [...Array(n)].map((_, i) => lo + ((hi - lo) * i) / (n - 1)));
+  if (a && a.len > 0) {
+    const geo = a.cab.geo, cab = a.cab.cab, t = geo.t, H = cab.H;
+    const korpusR = armKorpus(a);
+    const lista = (xs) => xs.map((v) => fmt(v)).join(", ");
+    const kon = `⌀7 w boku ramienia, ${lista(konfirmatyPoz(korpusR))} mm od przedniej krawędzi; w czole płyty ⌀5 × 50`;
+    wiersz("Bok ramienia", "konfirmat — dno ramienia", [geo.bottomY + t / 2], kon);
+    if (geo.hasTop) wiersz("Bok ramienia", "konfirmat — wieniec ramienia", [H - t / 2], kon);
+    const ys = armShelfYs(a.side, geo.levels);
+    if (ys.length && cab.shelfMount !== "confirmat") {
+      const przod = a.bracket ? t : 0, gl = a.depth - (geo.tb || t) - (a.bracket ? t : 0);
+      const pin = cab.shelfPin || {};
+      const pf = num(pin.dFront) ?? 37, pb = num(pin.dBack) ?? 37;
+      wiersz("Bok ramienia", "kołek półki", ys,
+        `⌀5, ${fmt(przod + pf)} i ${fmt(przod + gl - pb)} mm od przedniej krawędzi płyty; wysokość = spód półki; tu 2 z 4 kołków półki`);
+    }
+    const d0 = (geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
+    if (a.doors === "fix") {
+      const inner = Math.max(0, H - 2 * t);
+      const n = Math.max(2, Math.ceil(inner / 400));
+      wiersz("Fix ramienia", "trójkąt meblowy", rowno(KONF_OD_KRAWEDZI, inner - KONF_OD_KRAWEDZI, n),
+        "od środka, 2 rzędy — położenie od dołu fixu");
+    } else if (a.doors !== "lamane") {
+      const n = autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w);
+      const dRef = (geo.doors || []).find((d) => d.h > 0 && d.type === "door" && (d.hingePts || []).length === n);
+      const hys = dRef ? dRef.hingePts : d0 ? hingePositions(d0.y, d0.h, n, []).pts : rowno(100, H - 100, n);
+      wiersz("Bok ramienia", "zawias", hys, "oś zawiasu frontu ramienia — puszka ⌀35 we froncie, prowadnik na wewnętrznym licu boku");
+    }
+  }
+  (wstawki || []).filter((w) => w.typ !== "plaska").forEach((w) => {
+    const H = Math.round(w.H), n = Math.max(2, Math.ceil(H / 400));
+    wiersz("Wstawka w rogu", "trójkąt meblowy", rowno(KONF_OD_KRAWEDZI, H - KONF_OD_KRAWEDZI, n),
+      "2 rzędy — po obu jej stronach, do boków sąsiednich szafek; położenie od dołu wstawki");
+  });
+  return out;
 };
 
 const runTopPanels = (rt) => {
@@ -11479,6 +11533,8 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
     [geo, sharedPlinth, sharedTop, arm, wstawki]
   );
   const realCab = useMemo(() => ({ ...cab, realColors: true }), [cab]);
+  // plan wiercen szafki + ramie szafki w L i wstawki w rogu (tego nie ma w geometrii samej szafki)
+  const planWiercen = useMemo(() => [...(geo.drillPlan || []), ...wierceniaDodatkowe(arm, wstawki)], [geo, arm, wstawki]);
   const totalQty = panels.reduce((s, p) => s + p.qty, 0);
   const edgeMm = panels.reduce((s, p) => {
     const e = p.edges;
@@ -11592,7 +11648,7 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
           </table>
         )}
 
-        {(geo.drillPlan || []).length > 0 && (
+        {planWiercen.length > 0 && (
           <>
             <div style={{ fontSize: "10pt", fontWeight: 600, margin: "10px 0 4px" }}>
               Wiercenia
@@ -11611,12 +11667,12 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
                 </tr>
               </thead>
               <tbody>
-                {geo.drillPlan.flatMap((p) =>
+                {planWiercen.flatMap((p) =>
                   p.rows.map((r, k) => (
                     <tr key={p.panel + r.kind + k}>
                       <td>{k === 0 ? p.panel : ""}</td>
                       <td>{r.kind}</td>
-                      <td className="num">{r.ys.map((v) => fmt(v)).join(", ")}</td>
+                      <td className="num">{r.ys.length ? r.ys.map((v) => fmt(v)).join(", ") : "—"}</td>
                       <td>{r.note}</td>
                     </tr>
                   ))

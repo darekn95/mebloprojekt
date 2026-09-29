@@ -25,14 +25,23 @@ const wisz = (name, o = {}) => szafka(name, { D: 300, plinth: { ...PL, on: false
 const click = async (l) => { const x = page.getByRole('button', { name: l, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(350); return true; } return false; };
 const num = (s) => Number(String(s).replace(/\s/g, '').replace(',', '.').replace(/[^\d.\-]/g, '')) || 0;
 
-const wiercenia = async () => {
-  await page.evaluate(() => { window.__rep = null; window.print = () => {
-    const t = [...document.querySelectorAll('.print-only table')].find((x) => /Otwory pod/.test(x.querySelector('thead')?.textContent || ''));
+let formatkiPdf = [];
+// nr: numer szafki w PDF („(2 z 3)” w naglowku kartki); bez numeru — pierwsza kartka z wierceniami
+const wiercenia = async (nr = null) => {
+  await page.evaluate((nr) => { window.__rep = null; window.print = () => {
+    const tabele = [...document.querySelectorAll('.print-only .rp-page')]
+      .filter((s) => nr == null || (s.querySelector('span')?.textContent || '').includes(`(${nr} z `))
+      .flatMap((s) => [...s.querySelectorAll('table')]);
+    const t = tabele.find((x) => /Otwory pod/.test(x.querySelector('thead')?.textContent || ''));
     window.__rep = t ? [...t.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent.trim())) : [];
-  }; });
+    // formatki tej samej szafki (pierwsza kolumna tabeli z dlugosciami)
+    const f = tabele.find((x) => /Długość/.test(x.querySelector('thead')?.textContent || ''));
+    window.__fmt = f ? [...f.querySelectorAll('tbody tr')].map((tr) => tr.children[0].textContent.trim()) : [];
+  }; }, nr);
   await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click();
   await page.waitForTimeout(1000);
   const rows = (await page.evaluate(() => window.__rep)) || [];
+  formatkiPdf = (await page.evaluate(() => window.__fmt)) || [];
   let panel = '';
   return rows.map((r) => { if (r[0]) panel = r[0]; return { panel, kind: r[1], ys: r[2].split(',').map(num), note: r[3] }; });
 };
@@ -207,6 +216,61 @@ await scenariusz('cokół bez nóżek (trójkąty), przegroda i wspornik', szafk
   kol({ doors: 1, fix: { side: 'right', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] }));
 await scenariusz('blat na szafce (trójkąty od spodu)', szafka('BL', { W: 800, top: { mode: 'blat', material: 'worktop', widthMode: 'outside', overL: 0, overR: 0, overFront: 20, overBack: 0 } }));
 await scenariusz('wieniec na bokach', szafka('WB', { joints: { topL: 'over', topR: 'over', botL: 'between', botR: 'between' } }));
+
+/* Projekty z rogiem: plan szafki w L (ramie) i wstawki szerokiej jest na karcie
+   szafki w PDF. Liczby musza sie zgadzac z jej okuciami (korpus + ramie + wstawka). */
+const PLr = { on: true, height: 100, mode: 'under', setback: 0 };
+const RUNr = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLr, worktop: true, corner: null, ...o });
+const zRogiem = async (tytul, runs, items, aktywna, oczek) => {
+  console.log(`\n== ${tytul} ==`);
+  await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
+    { name: 'W', active: aktywna, prices: {}, runs, items: items.map(([cab, runId]) => ({ cab, runId, offset: 0 })) });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
+  const plan = await wiercenia(aktywna + 1);
+  const okucia = await tabela(/^Produkty do zamówienia/);
+  const q = (re) => { const r = okucia.find((x) => re.test(x[0])); return r ? num(r[r.length - 1].split(' ')[0]) : 0; };
+  const ileWNocie = (note) => ((note.match(/,\s*([\d.]+(?:, [\d.]+)*) mm od przedniej/) || [])[1] || '').split(', ').filter(Boolean).length;
+  const kon = plan.filter((r) => /^konfirmat/.test(r.kind)).reduce((a, r) => a + r.ys.length * ileWNocie(r.note), 0);
+  const tr = plan.filter((r) => r.kind === 'trójkąt meblowy').reduce((a, r) => a + r.ys.length * (/2 rzędy/.test(r.note) ? 2 : 1) + (/po 1 na każdym krótkim boku/.test(r.note) ? 2 : 0), 0);
+  const zaw = plan.filter((r) => r.kind === 'zawias').reduce((a, r) => a + r.ys.length, 0);
+  /* Szafka w L nie ma boku od strony ramienia (stoi tam katownik). Okucia licza
+     konfirmaty wienca i dna na dwa boki, plan — tylko na bok, ktory jest, a
+     kolki i zawiasy od tej strony plan wysyla na „Bok lewy/prawy”, ktorego nie
+     ma w formatkach. Co tam wiercic — do decyzji uzytkownika (BLEDY.md). */
+  const formatki = formatkiPdf;
+  const bezBoku = ['Bok lewy', 'Bok prawy'].filter((n) => !formatki.includes(n) && !formatki.includes('Bok'));
+  const naBrak = plan.filter((r) => bezBoku.includes(r.panel));
+  if (naBrak.length) console.log(`  ZNANE (do decyzji, BLEDY.md) plan wierci w „${bezBoku.join(', ')}”, którego nie ma w formatkach: ${[...new Set(naBrak.map((r) => r.kind))].join(', ')}`);
+  const konfOk = q(/^Konfirmat/);
+  const brakBoku = bezBoku.length && kon < konfOk;
+  if (brakBoku) console.log(`  ZNANE (do decyzji, BLEDY.md) konfirmaty: okucia ${konfOk} liczą wieniec i dno także do boku, którego nie ma (${bezBoku.join(', ')}); plan ${kon}`);
+  ok(`konfirmaty: plan ${kon} = okucia ${konfOk}`, kon === konfOk || brakBoku, plan.filter((r) => /^konfirmat/.test(r.kind)).map((r) => `${r.panel} ${r.kind}`).join(' | '));
+  ok(`trójkąty: plan ${tr} = okucia ${q(/^Trójkąt/)}`, tr === q(/^Trójkąt/), plan.filter((r) => r.kind === 'trójkąt meblowy').map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | '));
+  ok(`zawiasy: plan ${zaw} = okucia ${q(/^Zawias$/)}`, zaw === q(/^Zawias$/), plan.filter((r) => r.kind === 'zawias').map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | '));
+  (oczek || []).forEach(([opis, re]) => ok(opis, plan.some((r) => re.test(`${r.panel} | ${r.kind}`)), [...new Set(plan.map((r) => `${r.panel} | ${r.kind}`))].join(' / ')));
+};
+const Lcab = (o = {}) => ({ name: 'L', W: 900, H: 720, D: 560, plinth: PLr, legs: { on: true, height: 100 }, corner: { on: true, arm: 640, doors: 'wsporniki', ...o },
+  levels: [{ h: null, cols: [kol({ doors: 1 })] }] });
+await zRogiem('szafka w L w rogu — ramię z drzwiami', [RUNr('c1', 'Ściana 1'), RUNr('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
+  [[szafka('A1'), 'c1'], [Lcab(), 'c2'], [szafka('B2'), 'c2']], 1,
+  [['bok ramienia: konfirmaty dna ramienia', /^Bok ramienia \| konfirmat — dno ramienia/], ['bok ramienia: zawiasy frontu ramienia', /^Bok ramienia \| zawias/],
+   ['bok ramienia: kołki półek ramienia', /^Bok ramienia \| kołek półki/]]);
+await zRogiem('szafka w L w rogu — fix ramienia', [RUNr('c1', 'Ściana 1'), RUNr('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
+  [[szafka('A1'), 'c1'], [Lcab({ doors: 'fix' }), 'c2'], [szafka('B2'), 'c2']], 1,
+  [['fix ramienia na trójkątach', /^Fix ramienia \| trójkąt meblowy/]]);
+const USTr = { W: 1000, levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 621, mode: 'overlay', support: false }, hinge: 'right' })] }] };
+await zRogiem('ślepy róg z wstawką szeroką (trójkąty wstawki)', [RUNr('c1', 'Ściana 1'), RUNr('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0, wstawka: { typ: 'szeroka', w: 60 } } })],
+  [[szafka('A1'), 'c1'], [szafka('A2'), 'c1'], [szafka('R', USTr), 'c2']], 1,
+  [['wstawka szeroka na trójkątach', /^Wstawka w rogu \| trójkąt meblowy/]]);
+
+console.log('\n== frez pod HDF w planie ==');
+await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
+  { name: 'W', active: 0, prices: {}, runs: [], items: [{ cab: szafka('FR', { backGroove: { on: true, offset: 3, depth: 16, play: 1, wreg: true } }), runId: null, offset: 0 }] });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(800);
+const planF = await wiercenia();
+const zFrezem = planF.filter((r) => r.kind === 'frez pod HDF').map((r) => r.panel);
+ok('frez pod HDF w bokach, wieńcu i dnie (16 × 3)', ['Bok lewy', 'Bok prawy', 'Wieniec', 'Dno'].every((n) => zFrezem.includes(n))
+  && planF.filter((r) => r.kind === 'frez pod HDF').every((r) => /16 mm w grubość płyty × 3 mm/.test(r.note)), zFrezem.join(', '));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();
