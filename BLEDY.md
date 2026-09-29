@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-29 | wzmocnienie tylne B, zawieszki, blat 1200 (`postRects`, `polkaCzesci`, `zawieszki`, `cornerArmParts`) | decyzje użytkownika: przełącznik A/B wzmocnienia tylnego szafki w L z wieńcem (B — kąt prosty do środka szafki; półka „wycięty tylny róg W × D” w nazwie formatki, w bryle i na rzucie dwa prostokąty; kołki w płytach wzmocnienia); zawieszki w planie wierceń (górny tylny róg boku), w szafce w L: A — bok korpusu + bok ramienia, B — obie w części ramienia (domyślnie) albo w części szafki; pod zawieszką ramienia odcinek listwy (domyślnie) albo hak; blat 1200 × 38 — 1128,22 zł brutto z faktury (`blatrob` miał jeszcze 470/780). Szablon 650/350 zatwierdzony. Płyty wzmocnienia liczone raz w `computeGeo` — sześć rysunków liczyło je osobno. `audyt` rozkłada półkę z wycięciem na dwie bryły | (ten commit) |
 | 2026-09-29 | szafka w L po stronie ramienia (`computeGeo`: `topX0/botX0`, zawias, `drillPlan`, okucia) | decyzja użytkownika po audycie planu wierceń: boku od strony ramienia nie ma, więc (1) wieniec i dno sięgają do zewnętrznego lica kątownika (wcześniej kończyły się na płaszczyźnie boku i nachodziły na kątownik 3 mm) i idą konfirmatem w czoło obu jego płyt — okucia 16 zamiast 18 przy szafce 900; (2) drzwi korpusu domyślnie na jego boku, z dala od ramienia, a zawias od strony ramienia to błąd z przyciskiem przełożenia; (3) kołki półki po stronie ramienia we wzmocnieniu tylnym (po jednym w każdej płycie kątownika). `audytwierc`: plan nie wierci w boku, którego nie ma | (ten commit) |
 | 2026-09-29 | górna szafka narożna (`runLayout`, szablon `naroznikLgorny`, `tierMsgs`), nowa suita `gornaL` | na prośbę użytkownika: szafka w L w górnym ciągu nie miała ramienia — górne ciągi brały z dolnych samo odsunięcie o głębokość. Teraz para górnych z szafką w L w rogu dostaje narożnik jak dolna (ramię, kątownik, sąsiad odsunięty o głębokość i ramię), górny ciąg kończący się w rogu dosuwa się do niego, pusty górny ciąg za rogiem jest rysowany. Szablon „Górna narożna L” 650 × 720 × 300, ramię 350. Kontrola „ciąg górny wystaje poza dolny” liczyła same szafki bez narożnika — górna szafka nad ramieniem dolnej szafki w L dostawała fałszywe ostrzeżenie; teraz dolny ciąg liczy się razem z rogiem. Zawieszki szafki w L: jedna na boku korpusu, druga na boku ramienia (wariant A) | (ten commit) |
 | 2026-09-29 | plan wierceń szafki w L i wstawki (`wierceniaDodatkowe`) | ramię szafki w L i wstawka w rogu nie miały nic w planie wierceń — teraz „Bok ramienia” (konfirmaty dna i wieńca ramienia, kołki półek ramienia, zawiasy frontu ramienia), „Fix ramienia” i „Wstawka w rogu” (trójkąty, 2 rzędy); frez pod HDF (16 × 3) jako wiersz przy bokach, wieńcu i dnie. `audytwierc`: kartka aktywnej szafki w PDF (wcześniej czytał pierwszą), 3 scenariusze z rogiem | (ten commit) |
@@ -68,15 +69,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-- **Górna szafka w L — tylne wzmocnienie B, wymiary szablonu, listwa i
-  zawieszki** (2026-09-29). Zrobiony wariant A (kątownik w tylnym narożniku
-  jak w dolnej, zawieszki: bok korpusu + bok ramienia). Do decyzji: (1) czy
-  dokładać wariant B (dwie płyty skręcone pod 90°, kąt prosty do środka szafki)
-  jako przełącznik; (2) wymiary szablonu 650 × 720 × 300, ramię 350 — dobrane
-  tak, żeby oba fronty miały ponad 250 mm; (3) listwa montażowa liczona dziś
-  tylko na szerokość korpusu — czy dokładać odcinek pod ramieniem na drugiej
-  ścianie; (4) gdzie idą zawieszki w planie wierceń (od góry i od tyłu boku?).
-
 - **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
   się kategoria „sprzęty” (lodówka, piekarnik, mikrofala) — dołożyć je jako
@@ -92,6 +84,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Ustalone — nie ruszać
 
+- **Górna szafka w L** (2026-09-29): szablon 650 × 720 × 300, ramię 350; wzmocnienie tylne A albo B (B tylko przy wieńcu); zawieszki A: bok korpusu + bok ramienia, B: obie w części ramienia albo obie w części szafki; pod zawieszką ramienia listwa (domyślnie) albo hak. Koniec blatu przy ścianie oklejany zawsze. Blat 1200: 1128,22 zł brutto.
 - **Szafka w L po stronie ramienia** (2026-09-29): wieniec i dno do zewnętrznego lica kątownika, po jednym konfirmacie w czoło każdej jego płyty; drzwi korpusu na boku korpusu, front ramienia na boku ramienia (zawsze z dala od rogu); kołki (albo trójkąty) półki we wzmocnieniu tylnym — przy wariancie A po obu jego płytach, przy B z wyciętym tylnym rogiem półki.
 - **Półka przy wsporniku pionowym fixu** (2026-09-28): na całą szerokość
   szafki, ale płytsza — zaczyna się za wspornikiem (nikt nie wycina „U”), na

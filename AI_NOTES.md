@@ -632,7 +632,11 @@ narożnik pary gornych w `runLayout` tylko gdy przy rogu stoi szafka z `corner.o
 (`corner.gorny`, owner wg tego, gdzie stoi szafka w L), `pair.dosuniety` dosuwa
 gorny ciag do konca dolnego, `gornyPodRamie` rysuje pusty gorny ciag pod ramie.
 Zrobiony wariant A ponizej; B i reszta pytan — BLEDY.md „Do decyzji”. Suita `gornaL`.
-[AI-TODO] Gorna szafka narozna (uzytkownik 2026-09-28) — na wzor dolnej, te same
+[AI-INFO] Wariant B wzmocnienia tylnego i zawieszki zrobione 2026-09-29 (`postRects`,
+`shNotch`/`polkaCzesci`, `geo.zawieszki`). Nowe miejsce rysujace katownik ma czytac
+`geo.postRects`, nie liczyc polozenia samo. Dokladne wymiary otworow zawieszek — gdy
+uzytkownik przysle karte zawieszki (wtedy do `instrukcje/`).
+[AI-INFO] (historia) Gorna szafka narozna (uzytkownik 2026-09-28) — na wzor dolnej, te same
 zasady (slepy rog z fixem/drzwiami/wstawka albo szafka w L z ramieniem). Roznice:
 wieniec zamiast wzmocnien, dno widoczne od dolu, bez cokolu i blatu, gl. ok. 300.
 Tylne wzmocnienie w tylnym narozniku — dwie opcje do wyboru w UI:
