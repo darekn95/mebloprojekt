@@ -33,6 +33,12 @@
   „Wyślij do Claude” (tylko tam — nie na GitHub Pages ani w standalone).
   Odczyt: `ArtifactData`, dokument `projekt/biezacy`, pole `json`. Trzymaj go
   w scratchpadzie; do repozytorium tylko za zgodą użytkownika.
+- **Komentarze w artefakcie** (ustalone z użytkownikiem 2026-09-29): komentarz
+  wysłany do Claude z artefaktu **nie jest realizowany od razu** — tylko krótko
+  potwierdź przyjęcie. Wszystkie zebrane komentarze realizuj dopiero na polecenie
+  „realizuj komentarze” (albo podobne): wtedy zrób zmiany, w każdym wątku wysłanym
+  do Claude odpisz, co zrobiono, i zamknij go. Wątków niewysłanych do Claude nie da
+  się zamknąć — powiedz, które zostały otwarte.
 - Gdy coś potrwa dłużej niż ok. 3 minuty (pełny przebieg testów, duży build,
   seria zrzutów), napisz o tym **przed** startem, z przybliżonym czasem —
   np. „Testy lecą (~5 min)” — i co w tym czasie robisz albo na co czekasz.
