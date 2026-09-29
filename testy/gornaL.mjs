@@ -127,7 +127,10 @@ ok('zwykła górna: zawieszki w obu bokach', ['Bok lewy', 'Bok prawy'].every((n)
 plan = await wiercenia(5);
 ok('szafka w L, wzmocnienie A: zawieszki w boku korpusu i w boku ramienia', zawieszkiW(plan).length === 2
   && zawieszkiW(plan).includes('Bok lewy') && zawieszkiW(plan).includes('Bok ramienia'), zawieszkiW(plan).join(', '));
+ok('zawieszka pod wieńcem, 1 cm od pleców, bez wiercenia', plan.filter((r) => r.kind === 'zawieszka').every((r) => /bez wiercenia/.test(r.note) && /pod wieńcem/.test(r.note) && /1 cm od pleców/.test(r.note)),
+  plan.filter((r) => r.kind === 'zawieszka').map((r) => r.note).join(' | '));
 let hw = await okuciaT();
+ok('wkręty 4 × 30 także do zawieszek (2 × 2)', hw.some((r) => /^Wkręt 4 × 30/.test(r[0]) && /zawieszki 2×2/.test(r[1])), hw.filter((r) => /^Wkręt/.test(r[0])).map((r) => r.join(' ')).join(''));
 // listwa pod korpusem w ciagu to wspolna listwa ciagu — na karcie szafki jest tylko odcinek pod ramieniem
 ok('A: odcinek listwy pod ramieniem 310 mm (przy drugiej ścianie)', listwy(hw).length === 1 && /ramię.*310 mm/.test(listwy(hw)[0]), listwy(hw).join(' | '));
 ok('A: dwie zawieszki', hw.some((r) => /^Zawieszka/.test(r[0]) && /^2 szt/.test(r[r.length - 1])), hw.filter((r) => /^Zawieszka/.test(r[0])).map((r) => r.join(' ')).join(''));

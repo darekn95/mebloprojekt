@@ -104,8 +104,13 @@ const matLabelOf = (m, key, ambiguous) => {
 /* Zawieszka kuchenna R0 z regulacja, ZK-ZAW-R0-10 (instrukcje/ZK-ZAW-R0-10_zawieszka_karta.pdf):
    57,2 × 37,5 × 17,4 mm, dwa otwory ⌀4,1 w rozstawie 32 mm. W plycie nic sie nie
    wierci — zawieszke przykreca sie wkretami (uzytkownik 2026-09-29). */
-const ZAWIESZKA_MODEL = "ZK-ZAW-R0-10, 57,2 × 37,5 × 17,4 mm, przykręcana 2 wkrętami (otwory ⌀4,1, rozstaw 32 mm)";
-const ZAWIESZKA_MONTAZ = "bez wiercenia — przykręcana 2 wkrętami w górnym tylnym rogu, od wnętrza (ZK-ZAW-R0-10, otwory ⌀4,1 co 32 mm)";
+const ZAWIESZKA_MODEL = "ZK-ZAW-R0-10, 57,2 × 37,5 × 17,4 mm, przykręcana 2 wkrętami 4 × 30 (otwory ⌀4,1, rozstaw 32 mm)";
+// montaz (uzytkownik 2026-09-29): na samej gorze, pod wiencem, 1 cm od plecow; wkrety 4 × 30 jak w reszcie szafki
+const ZAWIESZKA_OD_PLECOW = 10;
+const ZAWIESZKA_WKRETY = 2;
+const zawieszkaNote = (odTylu, ile = 1) =>
+  `bez wiercenia — przykręcana ${ZAWIESZKA_WKRETY} wkrętami 4 × 30 od wnętrza; wysokość = górna krawędź zawieszki pod wieńcem, `
+  + `tylna krawędź ${fmt(odTylu)} mm od tylnej krawędzi płyty (1 cm od pleców)${ile > 1 ? ` — ${ile} szt. na płycie` : ""}; ZK-ZAW-R0-10`;
 
 /* Zapas okleiny na kazdy oklejany bok formatki: oklejarka wypuszcza okleine
    z przodu i z tylu, a potem ja odcina — 9 cm na bok (uzytkownik 2026-09-29).
@@ -3525,17 +3530,25 @@ function computeGeoLiczy(cab, mat, ctx) {
     const naKorpusie = !n ? 0 : !postSide ? n : gdzie === "A" ? 1 : gdzie === "korpus" ? 2 : 0;
     return { n, gdzie, naKorpusie, naRamieniu: postSide && n ? n - naKorpusie : 0 };
   })();
+  /* Zawieszka na samej gorze, pod wiencem, 1 cm od plecow (uzytkownik
+     2026-09-29) — wysokosc w planie to jej gorna krawedz. Na boku plecy stoja
+     za plyta albo we frezie, wiec od tylnej krawedzi boku 10 mm + wejscie
+     plecow; plyty wzmocnienia tylnego dochodza koncem do plecow — 10 mm. */
   if (zawieszki.n) {
-    const zaw = (name, ile) => {
-      if (!drillMap.has(name)) drillMap.set(name, { panel: name, holes: [] });
-      drillMap.get(name).holes.push({ kind: "zawieszka", y: null,
-        note: `${ZAWIESZKA_MONTAZ}${ile > 1 ? ` — ${ile} szt. na płycie` : ""}` });
-    };
+    const top = levels.length - 1;
+    const zaw = (name, base, odTylu, ile) => drillAdd(top, name, base, "zawieszka", interior.y1,
+      zawieszkaNote(odTylu, ile));
     const bokKorpusu = postSide === "right" ? "Bok lewy" : "Bok prawy";
-    if (!postSide) { zaw("Bok lewy", zawieszki.n / 2); zaw("Bok prawy", zawieszki.n / 2); }
-    else if (zawieszki.gdzie === "A") zaw(bokKorpusu, 1);
-    else if (zawieszki.gdzie === "korpus") { zaw(bokKorpusu, 1); zaw("Kątownik przy ramieniu — bok", 1); }
-    else zaw("Kątownik przy ramieniu — plecy", 1);
+    const baseBoku = postSide === "right" ? leftY0 : rightY0;
+    const odTyluBoku = ZAWIESZKA_OD_PLECOW + backIntrusion;
+    if (!postSide) {
+      zaw("Bok lewy", leftY0, odTyluBoku, zawieszki.n / 2);
+      zaw("Bok prawy", rightY0, odTyluBoku, zawieszki.n / 2);
+    } else if (zawieszki.gdzie === "A") zaw(bokKorpusu, baseBoku, odTyluBoku, 1);
+    else if (zawieszki.gdzie === "korpus") {
+      zaw(bokKorpusu, baseBoku, odTyluBoku, 1);
+      zaw("Kątownik przy ramieniu — bok", interior.y0, ZAWIESZKA_OD_PLECOW, 1);
+    } else zaw("Kątownik przy ramieniu — plecy", interior.y0, ZAWIESZKA_OD_PLECOW, 1);
   }
   const drillPlan = [...drillMap.values()].map((p) => {
     const by = new Map();
@@ -3816,6 +3829,8 @@ function computeGeoLiczy(cab, mat, ctx) {
     wkretyPlyt += 2 * naPlyte;
     wkretyOpis.push(`kątownik w narożniku 2×${naPlyte}`);
   }
+  // zawieszki przykreca sie tymi samymi wkretami 4 × 30 (uzytkownik 2026-09-29)
+  if (zawieszki.n) { wkretyPlyt += ZAWIESZKA_WKRETY * zawieszki.n; wkretyOpis.push(`zawieszki ${zawieszki.n}×${ZAWIESZKA_WKRETY}`); }
   if (wkretyPlyt)
     hardware.push({
       name: "Wkręt 4 × 30",
@@ -10339,7 +10354,7 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
     }
     // zawieszka w czesci ramienia (wzmocnienie A albo B „w części ramienia”) — patrz `zawieszki` w computeGeo
     if ((geo.zawieszki || {}).naRamieniu)
-      wiersz("Bok ramienia", "zawieszka", [], ZAWIESZKA_MONTAZ);
+      wiersz("Bok ramienia", "zawieszka", [geo.hasTop ? H - t : H], zawieszkaNote(ZAWIESZKA_OD_PLECOW + (geo.backIntrusion || 0), 1));
   }
   (wstawki || []).filter((w) => w.typ !== "plaska").forEach((w) => {
     const H = Math.round(w.H), n = Math.max(2, Math.ceil(H / 400));

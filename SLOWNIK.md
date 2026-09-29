@@ -264,7 +264,7 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `KOLEK_PRZESUN` | 20 mm | kołki po drugiej stronie przegrody, gdy półki na tej samej wysokości |
 | `DEFAULT_PRICES.obrzezeBlat` / `.oklejanieBlat` | 6,68 / 11,81 zł | obrzeże ABS 43 × 2 na końce blatu roboczego (za mb) i usługa „oklejanie PCV > 23 mm” (za rozpoczęty mb); końce blatu wolne = `rt.wolny0/wolny1` |
 | `OBRZEZE_ZAPAS` | 90 mm | zapas okleiny na każdy oklejany bok (oklejarka wypuszcza ją z przodu i z tyłu) — doliczany do materiału „Obrzeże 22 × 2 mm” i „Obrzeże ABS … — blat”, nie do usługi; materiał do 1 mm (`qtyFmt` do 3 miejsc) |
-| `ZAWIESZKA_MODEL` / `ZAWIESZKA_MONTAZ` | ZK-ZAW-R0-10 | zawieszka z karty w `instrukcje/` (57,2 × 37,5 × 17,4, otwory ⌀4,1 co 32 mm) — opis w okuciach i wiersz „zawieszka” w planie wierceń (bez wiercenia, przykręcana) |
+| `ZAWIESZKA_MODEL` / `ZAWIESZKA_OD_PLECOW` / `ZAWIESZKA_WKRETY` / `zawieszkaNote` | ZK-ZAW-R0-10 / 10 mm / 2 | zawieszka z karty w `instrukcje/` (57,2 × 37,5 × 17,4, otwory ⌀4,1 co 32 mm): w planie wierceń bez wiercenia, górna krawędź pod wieńcem, 1 cm od pleców; 2 wkręty 4 × 30 na zawieszkę w „Wkręt 4 × 30” |
 | `WORKTOP_OVERHANG` / `WORKTOP_MAX_OVERHANG` | 10 / 30 | wysięg blatu przed drzwi: standard / granica, ponad którą ostrzeżenie i docinanie |
 | `HINGE_PLAY` | 2 | luz między korpusem a drzwiami przy zawiasach — tylko do głębokości blatu, nie do rysunków |
 | `SCIANA_GR` / `ScianaDefs` | 100 | ściana na rysunkach: pas 100 mm z szarym kreskowaniem (`url(#sciana-kreski)`) — rzut z góry (z nazwą ściany i ciągu górnego) i widok z boku; zasięg w rzucie liczy `scianaZasieg` (róg: do narożnika muru, wolny koniec: koniec ciągu albo „Długość ściany”); przełącznik „Ukryj / Pokaż ścianę” (`showWall`) |
