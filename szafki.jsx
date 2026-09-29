@@ -13730,8 +13730,12 @@ export default function App() {
           {/* Robocze: po poprawce w polach wyzej jednym kliknieciem wraca sie
               do rysunku, zamiast go szukac przewijaniem. */}
           <button onClick={() => {
+            /* pod przyklejony gorny pasek — jego wysokosc sie zmienia (zwijany pasek
+               ciagow, szerokosc okna), wiec liczymy ja przy kazdym kliknieciu */
             const el = document.getElementById("rysunek");
-            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+            const pasek = document.querySelector("header.sticky");
+            if (el) window.scrollTo({ behavior: "smooth",
+              top: el.getBoundingClientRect().top + window.scrollY - (pasek ? pasek.getBoundingClientRect().bottom : 0) - 8 });
           }}
             title="Przewiń do karty „Rysunek”"
             className="rounded border border-teal-600 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-50">
