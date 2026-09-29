@@ -183,6 +183,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `calyProjekt(project)` | czy pokazać „Formatki / Produkty całego projektu”, rozkrój całości i stronę projektu w PDF: 2+ szafki **albo** cokół/blat ciągu/ramię — przy jednej szafce w ciągu to jedyne miejsce, gdzie są blat i cokół |
 | `audytBryly` | tylko dla testów: gdy strona ma `window.__audytBryl`, bryły 3D (szafka i zabudowa) dopisują tam wymiary; `testy/formatki.mjs` sprawdza, czy każda narysowana płyta jest w formatkach |
 | `runLayout` / `runJoints` / `runPlinth` / `runTop` | układ ciągu, złącza między szafkami, wspólny cokół, wspólny blat. `runTop` zapamiętany przy obiekcie projektu i ciągu (`runTopCache`, liczy `runTopLiczy`) — jak przy `computeGeo`: wynik tylko do odczytu |
+| narożnik górnych ciągów (`runLayout`, `corner.gorny`) / `gornyPodRamie` | górny ciąg nie ma własnego narożnika; gdy przy rogu wisi szafka z ramieniem, para górnych dostaje narożnik jak dolna (w róg wjeżdża ten, w którym stoi szafka w L), ciąg kończący się w rogu dosuwa się do niego (`pair.dosuniety`, uwaga), a pusty górny ciąg za rogiem jest rysowany (leży na nim ramię). Bez szafki w L — stare odsunięcie o głębokość górnego (`dolny`) |
 | `projectParts(project)` | **jedyne** źródło formatek i okuć całego projektu (zestawienia, wycena, rozkrój) |
 | `scalOkucia(lista)` | scala okucia do jednego wiersza na produkt, z rozpisanymi zastosowaniami (pole `use`) |
 | `cornerArmParts(arm)` | formatki i okucia ramienia narożnika |
@@ -249,6 +250,7 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `ROG_WZM_H` | 60 | wysokość wzmocnień w szafce narożnej |
 | `LEG_W` / `LEG_INSET` | 40 / 40 | nóżka i jej odsunięcie od krawędzi |
 | `CORNER_L_W` / `CORNER_L_D` / `CORNER_L_TOTAL` | 900 / 560 / 1200 | szablon „narożnik L" |
+| `CORNER_LG_W` / `CORNER_LG_ARM` | 650 / 350 | szablon „Górna narożna L” (`naroznikLgorny`, 300 w głąb): oba fronty ponad 250 mm; dołożony w górnym ciągu staje przy rogu i zakłada górny ciąg drugiej ściany |
 | `SHEET_W` × `SHEET_H` | 2800 × 2100 | arkusz płyty |
 | `USABLE_W` × `USABLE_H` | 2761,2 × 2061,2 | po okrawaniu |
 | `KERF` | 3 | rzaz piły |
@@ -366,6 +368,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `formatki` | **audyt**: każda płyta z rysunku 3D (szafka i zabudowa) ma parę w formatkach szafki/projektu — drzwi, szuflady, fix ze wspornikiem, fix u góry, blendy, maskownica wycięcia, plecy z płyty, przegrody, ciąg z blatem i cokołem, szablony (w tym szafka w L); ramię w liście szafki narożnej |
 | `wstawka` | wstawka w rogu: przyciski przy kolizji, formatka 720 × 60 w liście szafki i projektu, wkręty/trójkąty, rzut 18 × 60 / 60 × 18, elewacja, odsunięcie ciągu o 18/60, pole w Narożniku, brak przy szafce w L; widoki samej szafki (przód zamk./otw. przy prawym boku 18 × 720, z góry 18 × 60, bryła 3D), a szafka nie przy rogu bez wstawki |
 | `gorne` | ciągi górne w L: górny drugiej ściany wisi na niej (bez kolizji z górnym pierwszej), odsunięcie 300 w rogu, gdy górny ściany wjeżdżającej sięga rogu; „+ szafka” bierze H/D/cokół ciągu (górny 300, dolny 570) |
+| `gornaL` | górna szafka w L: szablon tylko w górnym ciągu, staje przy rogu (koniec/początek ciągu), zakłada górny ciąg drugiej ściany, ramię po właściwej stronie, dosunięcie do rogu, bez kolizji i bez „wystaje poza dolny”, formatki ramienia z wieńcem, 2 zawieszki; górny ślepy róg bez szafki w L po staremu |
 | `kreator` | kreator rogu: ślepa szafka 1000 z fixem 618 od rogu, jedne drzwi, zawias od zewnątrz, wstawka płaska — bez bloku „do ustawienia”; szafka w L 900 + ramię 630 bez wstawki; osobny ciąg; przycisk „Ustaw szafkę w rogu” w istniejącym projekcie |
 | `audyt` | audyt całości na ~20 konfiguracjach: nachodzenie brył 3D (szafka i zabudowa, zamknięte), formatki ↔ rysunek w obie strony z ilościami (szuflady w bryle otwartej), formatki projektu = suma szafek + cokół/blat ciągu, okucia projektu vs suma, PDF = ekran (formatki i okucia szafek i projektu). HDF we frezie może wchodzić krawędzią do 16 mm (w grubość płyty) i 4 mm (w głąb); `znane` — przypadki czekające na decyzję (BLEDY.md). Trwa ok. 4 min |
 | `audytwycena` | rozkrój i wycena na 7 projektach (hook `window.__audytRozkroj` w `makeCutPlan`): każda formatka na arkuszach tyle razy, ile zamawiamy, nic odrzuconego, bez nachodzenia, rzaz 3 mm, słoje; arkusze = rozkrój, formatowanie, obrzeże 22 mm = suma krawędzi płyty, blat osobno, oklejanie w górę, okucia = lista, wartość = ilość × cena, Razem = suma |

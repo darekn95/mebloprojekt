@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-09-29 | górna szafka narożna (`runLayout`, szablon `naroznikLgorny`, `tierMsgs`), nowa suita `gornaL` | na prośbę użytkownika: szafka w L w górnym ciągu nie miała ramienia — górne ciągi brały z dolnych samo odsunięcie o głębokość. Teraz para górnych z szafką w L w rogu dostaje narożnik jak dolna (ramię, kątownik, sąsiad odsunięty o głębokość i ramię), górny ciąg kończący się w rogu dosuwa się do niego, pusty górny ciąg za rogiem jest rysowany. Szablon „Górna narożna L” 650 × 720 × 300, ramię 350. Kontrola „ciąg górny wystaje poza dolny” liczyła same szafki bez narożnika — górna szafka nad ramieniem dolnej szafki w L dostawała fałszywe ostrzeżenie; teraz dolny ciąg liczy się razem z rogiem. Zawieszki szafki w L: jedna na boku korpusu, druga na boku ramienia (wariant A) | (ten commit) |
 | 2026-09-29 | plan wierceń szafki w L i wstawki (`wierceniaDodatkowe`) | ramię szafki w L i wstawka w rogu nie miały nic w planie wierceń — teraz „Bok ramienia” (konfirmaty dna i wieńca ramienia, kołki półek ramienia, zawiasy frontu ramienia), „Fix ramienia” i „Wstawka w rogu” (trójkąty, 2 rzędy); frez pod HDF (16 × 3) jako wiersz przy bokach, wieńcu i dnie. `audytwierc`: kartka aktywnej szafki w PDF (wcześniej czytał pierwszą), 3 scenariusze z rogiem | (ten commit) |
 | 2026-09-29 | elewacje szafki w L i rogu (`audyt2d`) | front ramienia i maskownica kątownika na elewacji ciągu i na rysunku szafki miały pełną wysokość korpusu — teraz pas drzwi szafki (`pasFrontu`, luzy jak w bryle i formatce); uchwyt ramienia w rzucie zabudowy z góry miał stare 20/32 mm — teraz `UCHWYT_OD_KRAWEDZI`; na elewacji ciągu przy ślepym rogu brakowało uchwytu szafki sąsiada wystającego z przekroju (o niego zahaczają drzwi) — dorysowany. Audyt: ślepy róg i szafka w L w rogu sprawdzane ściśle | (ten commit) |
 | 2026-09-29 | plan wierceń (`drillPlan`) | na życzenie użytkownika: kołki z obu stron przegrody na tej samej wysokości — jedna strona 20 mm bliżej środka; konfirmaty (wieniec, dno, półki przelotowe, przegrody, wsporniki, półki na konfirmatach) z odległościami od krawędzi i trójkąty (blat, cokół) w planie; `audytwierc`: plan = okucia dla konfirmatów i trójkątów, 3 nowe konfiguracje | (ten commit) |
@@ -65,6 +66,15 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 | 2026-09-27 | `luzy` | podpowiedź o luzie pojawia się przy nierównym podziale; test ustawia luz 3 mm wprost | 3d2690b |
 
 ## Do decyzji użytkownika
+
+- **Górna szafka w L — tylne wzmocnienie B, wymiary szablonu, listwa i
+  zawieszki** (2026-09-29). Zrobiony wariant A (kątownik w tylnym narożniku
+  jak w dolnej, zawieszki: bok korpusu + bok ramienia). Do decyzji: (1) czy
+  dokładać wariant B (dwie płyty skręcone pod 90°, kąt prosty do środka szafki)
+  jako przełącznik; (2) wymiary szablonu 650 × 720 × 300, ramię 350 — dobrane
+  tak, żeby oba fronty miały ponad 250 mm; (3) listwa montażowa liczona dziś
+  tylko na szerokość korpusu — czy dokładać odcinek pod ramieniem na drugiej
+  ścianie; (4) gdzie idą zawieszki w planie wierceń (od góry i od tyłu boku?).
 
 - **Szafka w L — co wiercić po stronie ramienia, gdzie nie ma boku** (audyt
   planu wierceń 2026-09-29). Korpus szafki w L nie ma boku od strony ramienia

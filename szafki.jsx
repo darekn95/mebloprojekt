@@ -233,6 +233,10 @@ const CORNER_L_W = 900;
 const CORNER_L_D = 560;
 const CORNER_L_TOTAL = 1200;
 const CORNER_L_ARM = CORNER_L_TOTAL - CORNER_L_D;
+/* Gorna szafka w L (szablon „Górna narożna L”): korpus 650 i ramie 350 przy
+   glebokosci 300 — oba fronty ponad 250 mm, przy obu scianach ok. 650. */
+const CORNER_LG_W = 650;
+const CORNER_LG_ARM = 350;
 // ponizej tego boku formatki nie utnie sie na pile formatowej
 const MIN_PART = 60;
 /* Ponizej tego front robi sie waski — nie blad, bo czasem inaczej sie nie da,
@@ -1219,6 +1223,25 @@ const TEMPLATES = [
         levels: [{ h: null, cols: [col] }],
       };
     },
+  },
+  {
+    /* Gorna szafka narozna (uzytkownik 2026-09-28): „wzorowana na dolnej, z tym
+       ze ma wieniec”. Te same zasady co w szafce w L: korpus przy jednej scianie,
+       ramie przy drugiej, katownik w tylnym narozniku zamiast boku, katownik
+       naroznika przy frontach. Wymiary tak, zeby oba fronty mialy ponad 250 mm
+       (przy 300 w glab korpus 650 daje 285, ramie 350 — 270); dolozona do
+       gornego ciagu staje od razu przy rogu. */
+    id: "naroznikLgorny",
+    label: "Górna narożna L",
+    hint: `${CORNER_LG_W} × 720 × ${GORNY_D}, ramię ${CORNER_LG_ARM}, wieniec, wisząca`,
+    gornyRog: true,
+    make: () => ({
+      W: CORNER_LG_W, H: 720, D: GORNY_D,
+      plinth: { on: false, height: 100, mode: "under", setback: 0 },
+      legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
+      corner: { on: true, arm: CORNER_LG_ARM, doors: "wsporniki" },
+      levels: [{ h: null, cols: [newColumn(1, autoShelves(innerHeightOf(720)))] }],
+    }),
   },
 ];
 
@@ -3617,7 +3640,11 @@ function computeGeoLiczy(cab, mat, ctx) {
     hardware.push({
       name: "Zawieszka meblowa regulowana",
       use: "szafka wieszana na ścianie",
-      spec: "szafka bez nóżek i cokołu — wieszana na ścianie",
+      /* Gorna szafka w L nie ma boku od strony ramienia (stoi tam katownik) —
+         uzytkownik 2026-09-28: jedna zawieszka na boku korpusu, druga na boku
+         ramienia, kazda na swojej scianie. */
+      spec: "szafka bez nóżek i cokołu — wieszana na ścianie"
+        + (postSide ? "; szafka w L: jedna na boku korpusu, druga na boku ramienia (każda przy swojej ścianie)" : ""),
       qty: nH,
       unit: "szt.",
     });
@@ -4107,9 +4134,21 @@ const runFrontDepth = (g) =>
    w rogu. Dlatego pusty ciag zostaje na rysunku, jesli laczy go z czyms narożnik. */
 const runInCorner = (runs, r) =>
   !!(r.corner && r.corner.of) || runs.some((o) => o.corner && o.corner.of === r.id);
+/* Pusty gorny ciag nie ma wlasnego narożnika (bierze go od dolnego), ale gdy za
+   rogiem wisi gorna szafka w L, lezy na nim jej ramie — bez niego ramienia nie
+   byloby gdzie polozyc. */
+const gornyPodRamie = (project, runs, r) => {
+  if (r.tier !== "gorny" || !r.wall) return false;
+  const dol = runs.find((q) => q.id === r.wall);
+  if (!dol) return false;
+  const sasiedzi = [dol.corner && dol.corner.of,
+    ...runs.filter((o) => o.corner && o.corner.of === dol.id).map((o) => o.id)].filter(Boolean);
+  return runs.some((g) => g.tier === "gorny" && sasiedzi.includes(g.wall)
+    && runItems(project, g.id).some(({ it }) => it.cab.corner && it.cab.corner.on));
+};
 const drawableRuns = (project) => {
   const runs = project.runs || [];
-  return runs.filter((r) => runItems(project, r.id).length || runInCorner(runs, r));
+  return runs.filter((r) => runItems(project, r.id).length || runInCorner(runs, r) || gornyPodRamie(project, runs, r));
 };
 
 /* Zasieg sciany w ukladzie ciagu (u wzdluz sciany). W rogu mur idzie o swoja
@@ -4162,6 +4201,33 @@ const runLayout = (groups, ref = null) => {
     n.corner = c;
     n.parent = info.get(c.of);
     n.parent.kids.push(n);
+  });
+  /* Gorna szafka w L (uzytkownik 2026-09-28: „wzorowana na dolnej”). Gorny ciag
+     nie ma wlasnego narożnika — bierze go od dolnego i tylko odsuwa sie o gorny
+     ciag sciany wjezdzajacej (nizej). Gdy w rogu wisi szafka z ramieniem, para
+     gornych ciagow dostaje narożnik jak dolna: ramie, katownik, odsuniecie
+     sasiada o glebokosc i ramie. W rog wjezdza ten gorny ciag, w ktorym szafka
+     w L stoi przy rogu — niekoniecznie ten sam co na dole. Bez szafki w L nic
+     sie nie zmienia (dotychczasowy slepy rog gornych). */
+  info.forEach((n) => {
+    if (n.corner || n.run.tier !== "gorny" || !n.run.wall || !info.has(n.run.wall)) return;
+    const c = info.get(n.run.wall).run.corner;
+    if (!c || !info.has(c.of)) return;
+    const p = [...info.values()].find((q) => q.run.tier === "gorny" && q.run.wall === c.of);
+    if (!p || p === n) return;
+    // przy ktorym koncu danego ciagu jest rog — jak `przyStarcie` nizej
+    const naRogu = (q) => {
+      const s = q === n ? c.at === "end" : c.at !== "end";
+      const k = q.g.cabs[s ? 0 : q.g.cabs.length - 1];
+      return !!(k && k.cab.corner && k.cab.corner.on);
+    };
+    const pierwszy = c.owner === "self" ? n : p;
+    const owner = naRogu(pierwszy) ? c.owner
+      : naRogu(pierwszy === n ? p : n) ? (c.owner === "self" ? "of" : "self") : null;
+    if (!owner) return;
+    n.corner = { of: p.id, at: c.at, owner, clear: c.clear || 0, gorny: true };
+    n.parent = p;
+    p.kids.push(n);
   });
   info.forEach((n) => {
     if (!n.corner) return;
@@ -4231,6 +4297,20 @@ const runLayout = (groups, ref = null) => {
     n.tail = rn.tail;
   });
   info.forEach((n) => { n.len = n.lead + n.total + n.tail; });
+  /* Gorna szafka w L musi wisiec w samym rogu, inaczej jej ramie (liczone od
+     rogu, w ramce sasiada) rozjezdza sie z korpusem. Gorny ciag, ktory konczy
+     sie w rogu, jest zwykle krotszy od dolnego — dosuwamy go do rogu, czyli do
+     konca dolnego ciagu tej sciany, i mowimy o tym w uwagach. */
+  info.forEach((n) => {
+    if (!n.pair || !n.corner.gorny || n.pair.przyStarcie) return;
+    const w = n.pair.wchodzi;
+    const dol = w.run.wall && info.get(w.run.wall);
+    const brak = dol ? Math.round(dol.len - w.len) : 0;
+    if (brak <= 0) return;
+    w.lead += brak;
+    w.len += brak;
+    n.pair.dosuniety = brak;
+  });
 
   /* Ciag gorny wisi na scianie swojego dolnego: ta sama ramka i ten sam numer
      sciany (ustawiane nizej, przy ramkach). Wczesniej gorny bez wlasnego
@@ -4244,7 +4324,7 @@ const runLayout = (groups, ref = null) => {
   });
   info.forEach((n) => {
     const dol = n.dolny;
-    if (!dol || !dol.corner || !info.has(dol.corner.of)) return;
+    if (n.corner || !dol || !dol.corner || !info.has(dol.corner.of)) return;
     const pDol = info.get(dol.corner.of);
     const p = [...info.values()].find((q) => q.dolny === pDol);
     if (!p || !n.g.cabs.length || !p.g.cabs.length) return;
@@ -10523,17 +10603,27 @@ const tierMsgs = (project, run) => {
   const dolny = run.tier === "gorny" ? runs.find((r) => r.id === run.wall) : run;
   const gorny = run.tier === "gorny" ? run : runs.find((r) => r.tier === "gorny" && r.wall === run.id);
   if (!dolny || !gorny) return out;
-  /* Oba pietra liczymy w tym samym ukladzie sciany: od lewej krawedzi. */
-  const zakres = (r) => {
+  /* Oba pietra liczymy w tym samym ukladzie sciany: od lewej krawedzi.
+     Narożnik zabiera poczatek albo koniec ciagu (szafka sasiada, ramie szafki
+     w L, luz) — pod gornym ciagiem to tez meble, wiec dolny liczy sie razem
+     z nim, a gorny zaczyna sie za swoim. Bez tego gorna szafka w L nad ramieniem
+     dolnej „wystawala nad pustym miejscem” (2026-09-29). */
+  const lay = projectLayout(project).info;
+  const zakres = (r, zRogiem) => {
     const { total } = runJoints(project, r);
-    const od = r.offsetFrom === "right" ? null : Math.max(0, Math.round(r.offset || 0));
+    const odLewej = r.offsetFrom !== "right";
+    const off = Math.max(0, Math.round(r.offset || 0));
+    const n = lay.get(r.id);
+    const rogL = n && odLewej ? Math.max(0, Math.round(n.lead - off)) : 0;
+    const rogP = n && odLewej ? Math.max(0, Math.round(n.tail)) : 0;
     const sciana = runWallW(project, r);
-    const start = od != null ? od
-      : sciana != null ? Math.max(0, sciana - Math.max(0, Math.round(r.offset || 0)) - total) : 0;
-    return { start, koniec: start + total, total };
+    const start = odLewej ? off
+      : sciana != null ? Math.max(0, sciana - off - total) : 0;
+    return zRogiem ? { start, koniec: start + rogL + total + rogP, total }
+      : { start: start + rogL, koniec: start + rogL + total, total };
   };
-  const d = zakres(dolny);
-  const g = zakres(gorny);
+  const d = zakres(dolny, true);
+  const g = zakres(gorny, false);
   if (g.total > 0 && d.total > 0) {
     const zLewej = d.start - g.start;
     const zPrawej = g.koniec - d.koniec;
@@ -10596,6 +10686,10 @@ const cornerPairMsgs = (n, blat) => {
     + (strata > 0
       ? `, więc ciąg „${ustepuje.run.name}" zaczyna się ${fmt(strata)} mm od rogu.`
       : ".") });
+  if (n.pair && n.pair.dosuniety > 0)
+    out.push({ level: "info", text:
+      `Górny ciąg „${n.pair.wchodzi.run.name}" jest dosunięty do rogu o ${fmt(n.pair.dosuniety)} mm, `
+      + `bo w rogu wisi szafka w L — jej ramię zaczyna się w samym rogu. Tyle zostaje wolnego na początku ściany.` });
   /* Szafka wjezdzajaca w rog chowa czesc frontu za drugim ciagiem — to wlasnie
      slepy narożnik. Mowimy wprost, ile frontu zostaje do reki. */
   const z = n.blind;
@@ -12020,6 +12114,31 @@ export default function App() {
        samemu — ale sam ciąg musi być, bo to od jego głębokości liczy się
        długość ramienia i szerokość frontu w rogu. */
     const tpl = tplId ? TEMPLATES.find((t) => t.id === tplId) : null;
+    /* Gorna szafka w L dolozona do gornego ciagu staje przy tym jego koncu,
+       ktory lezy w rogu (narożnik bierze sie z dolnych ciagow), a gorny ciag
+       drugiej sciany powstaje, gdy go jeszcze nie ma — to w nim lezy ramie. */
+    if (tpl && tpl.gornyRog && run && run.tier === "gorny") {
+      let runs = p.runs || [];
+      const dolny = runs.find((r) => r.id === run.wall);
+      const rodzic = dolny && runs.find((r) => r.tier !== "gorny" && r.corner && r.corner.of === dolny.id);
+      const dziecko = dolny && !rodzic && dolny.corner && runs.some((r) => r.id === dolny.corner.of) ? dolny : null;
+      if (!rodzic && !dziecko) return withRunDefaults({ ...p, items, active: at }, runId);
+      const naStarcie = rodzic ? rodzic.corner.at !== "end" : dziecko.corner.at === "end";
+      let lista = items;
+      let gdzie = at;
+      if (naStarcie) {
+        const bez = items.filter((_, k) => k !== at);
+        const pierwsza = bez.findIndex((it) => (it.runId || null) === runId);
+        gdzie = pierwsza >= 0 ? pierwsza : at;
+        lista = [...bez.slice(0, gdzie), items[at], ...bez.slice(gdzie)];
+      }
+      const drugiDolny = runs.find((r) => r.id === (rodzic ? rodzic.id : dziecko.corner.of));
+      if (drugiDolny && !runs.some((r) => r.tier === "gorny" && r.wall === drugiDolny.id)) {
+        const gorny = makeUpperRun(runs, drugiDolny, 0);
+        runs = [...runs, { ...gorny, mountY: tierMountY({ ...p, runs: [...runs, gorny] }, gorny) }];
+      }
+      return withRunDefaults({ ...p, runs, items: lista, active: gdzie }, runId);
+    }
     if (!tpl || !tpl.corner) return withRunDefaults({ ...p, items, active: at }, runId);
     let runs = p.runs || [];
     /* Narożnik to zawsze dwie ściany, więc szafka dodana poza ciągiem dostaje
@@ -13387,7 +13506,9 @@ export default function App() {
                     onChange={(e) => { if (e.target.value) addCabinet(e.target.value, grp.id); e.target.value = ""; }}
                     className="rounded-full border border-dashed border-teal-500 bg-white px-2 py-1 text-xs text-teal-700 focus:border-teal-700 focus:outline-none">
                     <option value="">+ z szablonu…</option>
-                    {TEMPLATES.map((t) => (
+                    {/* narożnik dolny zaklada nowy ciag — w gornym nie ma sensu; gorna
+                        narożna nie ma czego szukac w dolnym ciagu */}
+                    {TEMPLATES.filter((t) => (grp.tier === "gorny" ? !t.corner : !(t.gornyRog && grp.id))).map((t) => (
                       <option key={t.id} value={t.id}>{t.label} — {t.hint}</option>
                     ))}
                   </select>

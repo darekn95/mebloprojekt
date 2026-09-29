@@ -229,8 +229,21 @@ await scenariusz('górne ciągi w L', projekt([
 [run('c1', 'Ściana 1'), run('c2', 'Ściana 2', { corner: rog({ owner: 'of' }) }),
   run('c3', 'Ściana 1', { tier: 'gorny', wall: 'c1', D: 300, mountY: 1358, worktop: false, plinth: null }),
   run('c4', 'Ściana 2', { tier: 'gorny', wall: 'c2', D: 300, mountY: 1358, worktop: false, plinth: null })]));
+/* Gorna szafka w L (2026-09-29): para gornych ciagow dostaje narożnik jak dolna,
+   gdy w rogu wisi szafka z ramieniem — w rog wjezdza ten gorny ciag, w ktorym
+   ona stoi, a ciag konczacy sie w rogu dosuwa sie do niego. */
+const GL = () => wisz('GL', { W: 650, corner: { on: true, arm: 350, doors: 'wsporniki' }, levels: [{ h: null, cols: [kol({ doors: 1 })] }] });
+const RUNY_G = [run('c1', 'Ściana 1'), run('c2', 'Ściana 2', { corner: rog({ owner: 'of' }) }),
+  run('c3', 'Ściana 1', { tier: 'gorny', wall: 'c1', D: 300, mountY: 1358, worktop: false, plinth: null }),
+  run('c4', 'Ściana 2', { tier: 'gorny', wall: 'c2', D: 300, mountY: 1358, worktop: false, plinth: null })];
+await scenariusz('górna szafka w L: ściana 1 wjeżdża w róg', projekt([
+  [szafka('D1'), 'c1'], [szafka('D2', USTAWIONA_P), 'c1'], [szafka('D3'), 'c2'],
+  [wisz('G1'), 'c3'], [GL(), 'c3'], [wisz('G3'), 'c4']], RUNY_G));
+await scenariusz('górna szafka w L na drugiej ścianie (róg górny odwrotnie niż dolny)', projekt([
+  [szafka('D1'), 'c1'], [szafka('D2', USTAWIONA_P), 'c1'], [szafka('D3'), 'c2'],
+  [wisz('G1'), 'c3'], [GL(), 'c4'], [wisz('G3'), 'c4']], RUNY_G));
 // szablony, w tym szafka w L z ramieniem
-for (const t of ['stojaca', 'wiszaca', 'slupek', 'naroznikL']) {
+for (const t of ['stojaca', 'wiszaca', 'slupek', 'naroznikL', 'naroznikLgorny']) {
   await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(600);
   await page.locator('select[title="Dodaj szafkę z gotowego szablonu"]').first().selectOption(t);
   await page.waitForTimeout(900);

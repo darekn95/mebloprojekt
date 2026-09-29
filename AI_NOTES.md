@@ -627,6 +627,11 @@ Uchwyty na elewacjach rysuje `UchwytElewacja` (wspolny obrys `uchwytObrys`).
 str. 6): tyl rowno z gora boku, `tylOd` = bok - tyl (9-10 mm) nad dolem boku, dno
 dochodzi do tylu. Podniesiony tyl: nie wyzej niz gora frontu szuflady (blad), nie
 nizej niz bok, pod tym co wyzej z luzem BACK_CLEAR. Instrukcje trzymamy w `instrukcje/` (spis: `instrukcje/SPIS.md`).
+[AI-INFO] Gorna szafka w L (2026-09-29): szablon `naroznikLgorny` (CORNER_LG_W/ARM),
+narożnik pary gornych w `runLayout` tylko gdy przy rogu stoi szafka z `corner.on`
+(`corner.gorny`, owner wg tego, gdzie stoi szafka w L), `pair.dosuniety` dosuwa
+gorny ciag do konca dolnego, `gornyPodRamie` rysuje pusty gorny ciag pod ramie.
+Zrobiony wariant A ponizej; B i reszta pytan — BLEDY.md „Do decyzji”. Suita `gornaL`.
 [AI-TODO] Gorna szafka narozna (uzytkownik 2026-09-28) — na wzor dolnej, te same
 zasady (slepy rog z fixem/drzwiami/wstawka albo szafka w L z ramieniem). Roznice:
 wieniec zamiast wzmocnien, dno widoczne od dolu, bez cokolu i blatu, gl. ok. 300.
