@@ -15510,16 +15510,6 @@ export default function App() {
             )}
           </Card>
 
-          <Card title="Notatka montażowa" collapsible defaultOpen={false}>
-            <p className="text-xs text-stone-500">
-              Uwagi do tej szafki — trafiają na jej stronę w zestawieniu PDF.
-            </p>
-            <textarea value={cab.note || ""} rows={3}
-              placeholder="np. idzie pod okno, uważać na rurę przy prawym boku"
-              onChange={(e) => set({ note: e.target.value })}
-              className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
-          </Card>
-
           <Card title="Płyty" collapsible defaultOpen={false}>
             <Check checked={cab.frontSameAsBoard !== false}
               onChange={(v) => set({ frontSameAsBoard: v })}
@@ -15854,9 +15844,21 @@ export default function App() {
           </Card>
           </div>
 
+          {/* notatka montazowa pod rysunkiem (uzytkownik 2026-09-29) */}
+          <Card title="Notatka montażowa" collapsible defaultOpen={false}>
+            <p className="text-xs text-stone-500">
+              Uwagi do tej szafki — trafiają na jej stronę w zestawieniu PDF.
+            </p>
+            <textarea value={cab.note || ""} rows={3}
+              placeholder="np. idzie pod okno, uważać na rurę przy prawym boku"
+              onChange={(e) => set({ note: e.target.value })}
+              className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
+          </Card>
+
           {(errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0) && (
             <div ref={notesRef} className="scroll-mt-24">
-            <Card title="Uwagi" collapsible>
+            {/* uwagi zawsze na wierzchu — bez zwijania (uzytkownik 2026-09-29) */}
+            <Card title="Uwagi" collapsible={false}>
               {(errors.length > 0 || warns.length > 0) && (() => {
                 /* Ostrzezenie mozna odhaczyc tak samo jak podpowiedz: odhaczone
                    schodzi pod zwijany naglowek i przestaje sie liczyc u gory.
@@ -15956,53 +15958,8 @@ export default function App() {
             </div>
           )}
 
-          <Card title="Kontrola frontów" collapsible defaultOpen={false}>
-            <p className="text-xs text-stone-500">
-              Rzeczywiste położenie każdego frontu na szerokości szafki, z odstępem do
-              sąsiada. Liczby są liczone z tego samego silnika co formatki.
-            </p>
-            {geo.levels.map((lv) => {
-              const rows = geo.doors
-                .filter((d) => d.lvl === lv.i && d.w > 0)
-                .sort((a, b) => b.y - a.y || a.x - b.x);
-              if (!rows.length) return null;
-              return (
-                <div key={lv.i}>
-                  <div className="mb-1 text-xs font-medium text-stone-700">
-                    Poziom {lv.i + 1}
-                  </div>
-                  <table className="w-full text-xs">
-                    <tbody className="font-mono">
-                      {rows.map((d, i) => {
-                        let nb = null;
-                        rows.forEach((b) => {
-                          if (b === d || b.x < d.x + d.w - 0.5) return;
-                          const vo = Math.min(d.y + d.h, b.y + b.h) - Math.max(d.y, b.y);
-                          if (vo <= 0) return;
-                          if (!nb || b.x < nb.x) nb = b;
-                        });
-                        const gap = nb ? Math.round(nb.x - (d.x + d.w)) : null;
-                        const nm = { door: "drzwi", drawer: "szuflada", fix: "fix", blenda: "blenda" }[d.type];
-                        return (
-                          <tr key={i} className="border-b border-stone-100">
-                            <td className="py-1 pr-2 font-sans text-stone-600">{nm}</td>
-                            <td className="py-1 pr-2 text-right">{fmt(d.x)}</td>
-                            <td className="py-1 pr-2 text-stone-400">…</td>
-                            <td className="py-1 pr-2">{fmt(d.x + d.w)}</td>
-                            <td className="py-1 pr-2 text-right text-stone-500">{fmt(d.w)}×{fmt(d.h)}</td>
-                            <td className="py-1 text-right"
-                              style={{ color: gap === null ? "#a8a29e" : gap < 2 ? ERRC : "#78716c" }}>
-                              {gap === null ? "—" : `luz ${fmt(gap)}`}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })}
-          </Card>
+          {/* „Kontrola frontów” (polozenia i luzy frontow) zdjeta z ekranu — uzytkownikowi
+              niepotrzebna (2026-09-29); te same liczby sprawdzaja testy z `geo.doors`. */}
 
           <Card title="Formatki do zamówienia" collapsible
             right={
@@ -16337,6 +16294,40 @@ export default function App() {
             </p>
           </Card>
 
+          {zCaloscia && (
+            <Card title={`Produkty całego projektu${project.name ? " — " + project.name : ""}`} collapsible
+              right={<span className="text-xs text-stone-400">{project.items.length} {plural(project.items.length, "szafka", "szafki", "szafek")}</span>}>
+              <p className="mb-2 text-xs text-stone-500">
+                Suma okuć ze wszystkich szafek w projekcie — do zamówienia na całość naraz.
+                Te same pozycje z różnych szafek są sumowane; różne rozmiary i specyfikacje
+                liczone osobno.
+              </p>
+              {projectHardware.length === 0 ? (
+                <p className="text-sm text-stone-400">Brak okuć w żadnej szafce.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
+                      <th className="py-2 pr-3 font-medium">Produkt</th>
+                      <th className="py-2 pr-3 font-medium">Specyfikacja</th>
+                      <th className="py-2 text-right font-medium">Ilość</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectHardware.map((h, i) => (
+                      <tr key={i} className="border-b border-stone-100">
+                        <td className="py-2 pr-3">{h.name}</td>
+                        <td className="py-2 pr-3 font-mono text-xs text-stone-500">{h.spec}</td>
+                        <td className="py-2 text-right font-mono">{hwQty(h)} {hwUnit(h)}{hwNote(h)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Card>
+          )}
+
+          {/* wycena na koncu, pod produktami calego projektu (uzytkownik 2026-09-29) */}
           <Card title="Wycena" collapsible defaultOpen={false}
             right={
               !cutPlan ? (
@@ -16406,39 +16397,6 @@ export default function App() {
               <span className="font-mono text-lg">{zl(quote.sum)} zł brutto</span>
             </div>
           </Card>
-
-          {zCaloscia && (
-            <Card title={`Produkty całego projektu${project.name ? " — " + project.name : ""}`} collapsible
-              right={<span className="text-xs text-stone-400">{project.items.length} {plural(project.items.length, "szafka", "szafki", "szafek")}</span>}>
-              <p className="mb-2 text-xs text-stone-500">
-                Suma okuć ze wszystkich szafek w projekcie — do zamówienia na całość naraz.
-                Te same pozycje z różnych szafek są sumowane; różne rozmiary i specyfikacje
-                liczone osobno.
-              </p>
-              {projectHardware.length === 0 ? (
-                <p className="text-sm text-stone-400">Brak okuć w żadnej szafce.</p>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
-                      <th className="py-2 pr-3 font-medium">Produkt</th>
-                      <th className="py-2 pr-3 font-medium">Specyfikacja</th>
-                      <th className="py-2 text-right font-medium">Ilość</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {projectHardware.map((h, i) => (
-                      <tr key={i} className="border-b border-stone-100">
-                        <td className="py-2 pr-3">{h.name}</td>
-                        <td className="py-2 pr-3 font-mono text-xs text-stone-500">{h.spec}</td>
-                        <td className="py-2 text-right font-mono">{hwQty(h)} {hwUnit(h)}{hwNote(h)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </Card>
-          )}
 
         </div>
       </main>

@@ -1,5 +1,6 @@
 /* Kazda karta da sie zwinac (prosba uzytkownika 2026-09-29: „każda karta powinna
-   mieć opcję zwijania”) — tu rysunek, uwagi, formatki i produkty szafki i projektu. Domyslnie rozwiniete;
+   mieć opcję zwijania”) — poza uwagami, ktore zawsze sa na wierzchu. Tu tez
+   kolejnosc: notatka pod rysunkiem, wycena na koncu. Domyslnie rozwiniete;
    klik w naglowek chowa tresc, drugi klik ja przywraca. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -17,8 +18,11 @@ await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:
   { name: 'Zwijanie', prices: {}, runs: [], items: [{ cab: sz('S1'), runId: null, offset: 0 }, { cab: { ...sz('S2'), W: 400 }, runId: null, offset: 0 }], active: 1 });
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
 
-for (const re of [/^Rysunek$/, /^Uwagi/, /^Formatki do zamówienia/, /^Formatki całego projektu/, /^Produkty do zamówienia/, /^Produkty całego projektu/]) {
+for (const re of [/^Rysunek$/, /^Notatka montażowa$/, /^Formatki do zamówienia/, /^Formatki całego projektu/, /^Produkty do zamówienia/, /^Produkty całego projektu/]) {
   const sec = page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
+  // notatka montazowa startuje zwinieta — najpierw ja rozwijamy
+  const rozwin = sec.locator('header button[title="Rozwiń sekcję"]');
+  if ((await sec.count()) && (await rozwin.count())) { await rozwin.click(); await page.waitForTimeout(250); }
   const btn = sec.locator('header button[title="Zwiń sekcję"]');
   const jest = (await sec.count()) && (await btn.count());
   if (!jest) { ok(`${re.source}: przycisk zwijania`, false, (await sec.count()) ? 'brak przycisku' : 'brak karty'); continue; }
@@ -28,8 +32,18 @@ for (const re of [/^Rysunek$/, /^Uwagi/, /^Formatki do zamówienia/, /^Formatki 
   const zwinieta = !(await tresc());
   await sec.locator('header button[title="Rozwiń sekcję"]').click(); await page.waitForTimeout(250);
   const znow = await tresc();
-  ok(`${re.source}: domyślnie rozwinięta, zwija się i rozwija`, przed && zwinieta && znow, `przed ${przed}, zwinięta ${zwinieta}, znów ${znow}`);
+  ok(`${re.source}: zwija się i rozwija`, przed && zwinieta && znow, `przed ${przed}, zwinięta ${zwinieta}, znów ${znow}`);
 }
+
+/* Uwagi zawsze na wierzchu — bez zwijania (uzytkownik 2026-09-29) */
+const uw = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi/ }) }).first();
+ok('Uwagi bez zwijania', (await uw.count()) === 1 && (await uw.locator('header button[title="Zwiń sekcję"], header button[title="Rozwiń sekcję"]').count()) === 0);
+// kolejnosc kart: notatka pod rysunkiem, wycena na koncu (pod produktami calego projektu)
+const tytuly = await page.evaluate(() => [...document.querySelectorAll('section h2')].map((h) => h.textContent.trim()));
+const idx = (re) => tytuly.findIndex((t) => re.test(t));
+ok('notatka montażowa zaraz pod rysunkiem', idx(/^Notatka montażowa$/) === idx(/^Rysunek$/) + 1, tytuly.join(' | '));
+ok('wycena pod produktami całego projektu', idx(/^Wycena$/) > idx(/^Produkty całego projektu/) && idx(/^Produkty całego projektu/) >= 0, tytuly.join(' | '));
+ok('bez karty „Kontrola frontów”', idx(/^Kontrola frontów$/) < 0);
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

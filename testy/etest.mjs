@@ -16,8 +16,9 @@ await page.waitForTimeout(1500);
 const txt = () => page.evaluate(() => document.body.innerText);
 let b = await txt();
 console.log('--- Karty ---');
-for (const n of ['Korpus', 'Struktura wnętrza', 'Luzy drzwi', 'Wycięcie w narożniku', 'Elementy kolizyjne', 'Cokół', 'Nóżki', 'Blenda nad szafką', 'Płyty', 'Kontrola frontów'])
+for (const n of ['Korpus', 'Struktura wnętrza', 'Luzy drzwi', 'Wycięcie w narożniku', 'Elementy kolizyjne', 'Cokół', 'Nóżki', 'Blenda nad szafką', 'Płyty'])
   console.log(' ', n.padEnd(24), b.includes(n) ? 'jest' : 'BRAK');
+console.log('Karta "Kontrola frontów" zdjęta z ekranu:', b.includes('Kontrola frontów') ? 'BLAD - nadal jest' : 'usunieta');
 console.log('Stara karta "Cokół i wzmocnienie":', b.includes('Cokół i wzmocnienie') ? 'BLAD - nadal jest' : 'usunieta');
 
 // zwiniete sekcje nie pokazuja tresci
