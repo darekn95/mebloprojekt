@@ -1087,6 +1087,11 @@ const migrateRun = (r) => ({
     ? r.plinthCuts.map(Number).filter((n) => n > 0).sort((a, b) => a - b) : null,
   topCuts: Array.isArray(r.topCuts)
     ? r.topCuts.map(Number).filter((n) => n > 0).sort((a, b) => a - b) : null,
+  // wlasne ciecia w dowolnym miejscu (mm od lewego konca), poza stykami korpusow
+  plinthCutsWlasne: Array.isArray(r.plinthCutsWlasne)
+    ? r.plinthCutsWlasne.map((n) => Math.round(Number(n))).filter((n) => n > 0).sort((a, b) => a - b) : [],
+  topCutsWlasne: Array.isArray(r.topCutsWlasne)
+    ? r.topCutsWlasne.map((n) => Math.round(Number(n))).filter((n) => n > 0).sort((a, b) => a - b) : [],
   // blat roboczy przez caly ciag; w starych projektach pola nie ma, wiec zostaje wylaczony
   worktop: r.worktop === true,
   // ciag wiesza sie na listwie; pojedyncza szafka na haczykach
@@ -5820,9 +5825,21 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                 );
               })
             : (
-              /* mierzymy sam ciag — dostawione ramie lezy juz przy innej scianie */
-              <DimH x1={0} x2={L.elevTotal} y={fy(0) + 56 + groups.length * 74}
-                label={`${fmt(L.elevTotal)} ${groups.length > 1 ? "zabudowa" : "ciąg"}`} above={false} />
+              /* mierzymy sam ciag — dostawione ramie lezy juz przy innej scianie.
+                 Jeden ciag: tylko jego szafki, bez rogu zajetego przez szafke
+                 drugiej sciany (komentarz uzytkownika 2026-09-29: „2399 to
+                 błędna informacja” — to byly szafki 1800 + bok sasiada w rogu). */
+              groups.length === 1 && L.info.get(groups[0].run.id) ? (() => {
+                const n = L.info.get(groups[0].run.id);
+                const [a, b2] = rear ? [total - n.lead - n.total, total - n.lead] : [n.lead, n.lead + n.total];
+                return (
+                  <DimH x1={a} x2={b2} y={fy(0) + 56 + groups.length * 74}
+                    label={`${fmt(n.total)} ciąg`} above={false} />
+                );
+              })() : (
+                <DimH x1={0} x2={L.elevTotal} y={fy(0) + 56 + groups.length * 74}
+                  label={`${fmt(L.elevTotal)} ${groups.length > 1 ? "zabudowa" : "ciąg"}`} above={false} />
+              )
             )}
           <DimV y1={fy(top)} y2={fy(0)} x={-70} label={fmt(top)} />
           {groups.map((g) => {
@@ -9236,23 +9253,40 @@ const CardSub = ({ title, hint, children }) => {
 
 /* Kafelki styków, na których wolno przeciąć długą płaszczyznę. Wspólne dla
    cokołu i blatu, bo reguła jest ta sama. */
-const SplitPicker = ({ label, what, s, onToggle, onAuto }) =>
-  s && s.joints.length ? (
+/* Podzial cokolu/blatu: styki korpusow jako pola do zaznaczenia plus wlasny
+   wymiar ciecia wpisany recznie (komentarz uzytkownika 2026-09-29: „checkbox
+   i dodatkowe pole do wpisania konkretnego wymiaru”). */
+const SplitPicker = ({ label, what, s, onToggle, onAuto, onWlasne }) => {
+  const [nowe, setNowe] = useState("");
+  if (!s || (!s.joints.length && !onWlasne)) return null;
+  const wl = s.wlasne || [];
+  const dodaj = () => {
+    const v = Math.round(Number(nowe));
+    if (!(v > 0 && v < s.total) || !onWlasne) return;
+    onWlasne([...new Set([...wl, v])].sort((a, b) => a - b));
+    setNowe("");
+  };
+  return (
     <Group label={label}
-      hint={`Cięcie idzie na styku korpusów, żeby szew wypadł w linii szczeliny między frontami. Sam dokłada się dopiero wtedy, gdy ${what} nie mieści się w formatce.`}>
-      <div className="flex flex-wrap items-center gap-1.5">
+      hint={`Zaznacz styki korpusów, na których ${what} ma być cięty — wtedy szew wypada w linii szczeliny między frontami. Własne cięcie wpisz w mm od lewego końca. Bez zaznaczeń podział dobiera się sam, gdy ${what} nie mieści się w formatce.`}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         {s.joints.map((j) => {
           const on = s.cuts.includes(j);
           return (
-            <button key={j} onClick={() => onToggle(j)}
-              title={on ? "Zdejmij podział z tego styku" : `Potnij ${what} na tym styku`}
-              className={"rounded-full border px-2.5 py-1 font-mono text-xs transition " +
-                (on ? "border-teal-600 bg-teal-700 text-white"
-                    : "border-stone-300 bg-white text-stone-500 hover:border-stone-400")}>
-              {fmt(j)}
-            </button>
+            <label key={j} className="flex cursor-pointer items-center gap-1 text-xs"
+              title={on ? "Zdejmij podział z tego styku" : `Potnij ${what} na tym styku`}>
+              <input type="checkbox" checked={on} onChange={() => onToggle(j)} className="h-3.5 w-3.5 accent-teal-700" />
+              <span className="font-mono">{fmt(j)} mm</span>
+            </label>
           );
         })}
+        {wl.map((c) => (
+          <span key={"w" + c} className="flex items-center gap-1 rounded-full border border-teal-600 bg-teal-50 px-2 py-0.5 font-mono text-xs">
+            {fmt(c)} mm
+            <button onClick={() => onWlasne(wl.filter((x) => x !== c))} title="Usuń to cięcie"
+              className="text-stone-500 hover:text-stone-800">×</button>
+          </span>
+        ))}
         {!s.auto && (
           <button onClick={onAuto}
             className="rounded-full border border-dashed border-stone-400 px-2.5 py-1 text-xs text-stone-500 hover:text-stone-700">
@@ -9260,8 +9294,20 @@ const SplitPicker = ({ label, what, s, onToggle, onAuto }) =>
           </button>
         )}
       </div>
+      {onWlasne && (
+        <div className="mt-1.5 flex items-center gap-2 text-xs">
+          <span className="text-stone-500">własne cięcie</span>
+          <input type="number" min={1} step={1} value={nowe} placeholder="mm od lewej"
+            onChange={(e) => setNowe(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") dodaj(); }}
+            className="w-28 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none" />
+          <button onClick={dodaj} className="rounded border border-stone-300 px-2 py-1 hover:bg-stone-100">dodaj</button>
+          <span className="text-stone-400">długość {fmt(s.total)} mm</span>
+        </div>
+      )}
     </Group>
-  ) : null;
+  );
+};
 
 const Num = ({ value, onChange, min, max, suffix = "mm" }) => (
   <div className="flex items-center gap-2">
@@ -9851,14 +9897,19 @@ const KERF = 3; // rzaz piły
    w tej samej linii. Dlatego ciac wolno tylko tutaj. Automat tnie dopiero
    wtedy, gdy plaszczyzna nie miesci sie w formatce, i bierze najdalszy styk,
    ktory jeszcze wchodzi — czyli tak rzadko, jak sie da. */
-const splitAtJoints = (total, joints, want, max = USABLE_W) => {
+/* `wlasne` — ciecia wpisane recznie w dowolnym miejscu (mm od lewego konca),
+   niekoniecznie na styku korpusow (komentarz uzytkownika 2026-09-29). Gdy sa,
+   podzial przestaje byc automatyczny: styki tylko te zaznaczone plus wlasne. */
+const splitAtJoints = (total, joints, want, max = USABLE_W, wlasne = []) => {
   let cuts = [];
   let auto = true;
   let noFit = false;
-  if (Array.isArray(want)) {
+  const wl = (wlasne || []).filter((c) => c > 0 && c < total);
+  if (Array.isArray(want) || wl.length) {
     // recznie wybrane styki; te, ktore zniknely po zmianie szerokosci, odpadaja same
     auto = false;
-    cuts = want.filter((c) => joints.includes(c)).sort((a, b) => a - b);
+    cuts = [...new Set([...(Array.isArray(want) ? want.filter((c) => joints.includes(c)) : []), ...wl])]
+      .sort((a, b) => a - b);
   } else {
     let start = 0;
     while (total - start > max) {
@@ -9872,7 +9923,7 @@ const splitAtJoints = (total, joints, want, max = USABLE_W) => {
   let prev = 0;
   cuts.forEach((c) => { lens.push(c - prev); prev = c; });
   lens.push(total - prev);
-  return { cuts, joints, lens, auto, noFit, max, n: lens.length,
+  return { cuts, joints, lens, auto, noFit, max, n: lens.length, wlasne: wl,
     tooLong: Math.max(0, ...lens.filter((l) => l > max)) };
 };
 
@@ -9926,7 +9977,7 @@ const runPlinth = (project, run) => {
     if (koniec > 0 && koniec < total) dl = koniec;
   }
   return { total: dl, h,
-    ...splitAtJoints(dl, joints.filter((j) => j < dl), run.plinthCuts),
+    ...splitAtJoints(dl, joints.filter((j) => j < dl), run.plinthCuts, USABLE_W, run.plinthCutsWlasne),
     mat: list[0].it.mat, grainMatters: list[0].it.cab.grainMatters, name: run.name };
 };
 
@@ -10129,7 +10180,7 @@ const runTopLiczy = (project, run, bezRogu = false) => {
     rear: spans.some((s) => s.rear),
     // styki przeliczamy na uklad samej plyty, zeby ciecia liczyly sie od jej konca
     ...splitAtJoints(total, joints.filter((j) => j > x0 && j < x1).map((j) => Math.round(j - x0)),
-      run.topCuts, worktop ? WORKTOP_LEN : USABLE_W),
+      run.topCuts, worktop ? WORKTOP_LEN : USABLE_W, run.topCutsWlasne),
     /* Pas z samym ramieniem nie ma wlasnych szafek — material bierze wtedy
        od tej, do ktorej ramie nalezy. */
     mat: mat0,
@@ -12823,6 +12874,10 @@ export default function App() {
 
   /* wiersze paska szafek: kazdy ciag osobno, wolnostojace na koncu. Gdy nie ma
      zadnego ciagu zostaje jeden wiersz i pasek wyglada dokladnie jak dotad. */
+  // zwiniety pasek ciagow i szafek — wygoda jednego widza, pamieta przegladarka
+  const [pasekZwiniety, setPasekZwiniety] = useState(() => {
+    try { return localStorage.getItem("mp-pasek-zwiniety") === "1"; } catch (e) { return false; }
+  });
   const groupBar = useMemo(() => {
     const runs = project.runs || [];
     /* Sciana z dwoma pietrami pokazuje je osobno i podpisuje, ktore jest ktore —
@@ -13037,8 +13092,8 @@ export default function App() {
       return;
     }
     if (!runInfo) return;
-    if (action === "plinthauto") { setRun(runInfo.run.id, { plinthCuts: null }); return; }
-    if (action === "topauto") { setRun(runInfo.run.id, { topCuts: null }); return; }
+    if (action === "plinthauto") { setRun(runInfo.run.id, { plinthCuts: null, plinthCutsWlasne: [] }); return; }
+    if (action === "topauto") { setRun(runInfo.run.id, { topCuts: null, topCutsWlasne: [] }); return; }
     if (action.startsWith("topcut:")) {
       setRun(runInfo.run.id, { topCut: action === "topcut:1" });
       return;
@@ -13733,8 +13788,27 @@ export default function App() {
             </button>
           )}
         </div>
-        {/* pasek szafek w projekcie — po jednym wierszu na ciąg, na końcu wolnostojące */}
+        {/* pasek szafek w projekcie — po jednym wierszu na ciąg, na końcu wolnostojące.
+            Da sie go zwinac do jednej linii (komentarz uzytkownika 2026-09-29: „zajmuje
+            sporo miejsca”); stan pamieta przegladarka. */}
         <div className="border-t border-stone-200 bg-stone-50/60">
+          <div className="mx-auto max-w-[1700px] px-4 pt-1">
+            <button onClick={() => {
+              const v = !pasekZwiniety; setPasekZwiniety(v);
+              try { localStorage.setItem("mp-pasek-zwiniety", v ? "1" : "0"); } catch (e) { /* bez pamieci */ }
+            }}
+              title={pasekZwiniety ? "Pokaż ciągi i szafki" : "Zwiń pasek ciągów i szafek"}
+              className="flex items-center gap-1.5 text-[11px] text-stone-500 hover:text-stone-800">
+              <span className={`text-[10px] transition-transform ${pasekZwiniety ? "-rotate-90" : ""}`}>▼</span>
+              Ciągi i szafki
+              {pasekZwiniety && (
+                <span className="text-stone-400">
+                  — {project.items.length} {plural(project.items.length, "szafka", "szafki", "szafek")}, aktywna: „{cab.name}”
+                </span>
+              )}
+            </button>
+          </div>
+          {!pasekZwiniety && (
           <div className="mx-auto max-w-[1700px] space-y-1 px-4 py-2">
             {groupBar.map((grp) => {
               const list = runItems(project, grp.id);
@@ -13822,6 +13896,7 @@ export default function App() {
               </button>
             </div>
           </div>
+          )}
         </div>
       </header>
 
@@ -13885,6 +13960,10 @@ export default function App() {
               {runInfo && (
                 <CardPart title={`Cały ciąg „${runInfo.run.name}"`}
                   note={`Zmiany tutaj dotyczą wszystkich szafek tego ciągu (${runInfo.count}).`}>
+                  <button onClick={() => removeRun(runInfo.run.id)}
+                    className="text-xs text-stone-500 hover:text-stone-800 hover:underline">
+                    Rozwiąż ciąg — szafki zostają, wracają na wolnostojące
+                  </button>
                   <CardSub title="Ściana">
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Nazwa ciągu">
@@ -13948,6 +14027,33 @@ export default function App() {
                       </Field>
                     </div>
                   )}
+                  {/* Dlugosc kazdej sciany osobno — tylko jej wlasne szafki, bez rogu
+                      zajetego przez szafke drugiej sciany (komentarze uzytkownika
+                      2026-09-29: „ściana 1 to ściana 1, a ściana 2 to ściana 2”). */}
+                  {(() => {
+                    const sciany = (project.runs || [])
+                      .filter((r) => (r.tier || "dolny") === (runInfo.run.tier || "dolny") && runItems(project, r.id).length)
+                      .map((r) => {
+                        const lst = runItems(project, r.id);
+                        const tot = lst.reduce((acc, { it }) => acc + computeGeo(it.cab, it.mat).W, 0)
+                          + Math.max(0, lst.length - 1) * (r.gap || 0);
+                        return { r, ile: lst.length, tot };
+                      });
+                    return (
+                      <div className="text-xs text-stone-500">
+                        {sciany.map(({ r, ile, tot }) => (
+                          <div key={r.id} className={r.id === runInfo.run.id ? "font-semibold text-stone-700" : ""}>
+                            {r.name}: {ile} {plural(ile, "szafka", "szafki", "szafek")} —{" "}
+                            <span className="font-mono">{fmt(tot)} mm</span>
+                            {r.id === runInfo.run.id && r.wallW != null && (
+                              <> z {fmt(r.wallW)} mm ściany — zostaje{" "}
+                                <span className="font-mono">{fmt(r.wallW - Math.max(tot, runNode ? runNode.len : 0))} mm</span></>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   </CardSub>
                   <CardSub title="Wymiary i montaż">
                   <Field label="Wysokość i głębokość szafek"
@@ -14095,7 +14201,8 @@ export default function App() {
                   {!ciagWisi && (
                     <SplitPicker label="Podział cokołu" what="cokół" s={runPl}
                       onToggle={(j) => toggleCut(runInfo.run.id, "plinthCuts", runPlinth, j)}
-                      onAuto={() => setRun(runInfo.run.id, { plinthCuts: null })} />
+                      onWlasne={(v) => setRun(runInfo.run.id, { plinthCutsWlasne: v })}
+                      onAuto={() => setRun(runInfo.run.id, { plinthCuts: null, plinthCutsWlasne: [] })} />
                   )}
                   </CardSub>
                   <CardSub title="Blat">
@@ -14141,7 +14248,8 @@ export default function App() {
                   })()}
                   <SplitPicker label="Podział blatu" what="blat" s={runTp}
                     onToggle={(j) => toggleCut(runInfo.run.id, "topCuts", runTop, j)}
-                    onAuto={() => setRun(runInfo.run.id, { topCuts: null })} />
+                    onWlasne={(v) => setRun(runInfo.run.id, { topCutsWlasne: v })}
+                    onAuto={() => setRun(runInfo.run.id, { topCuts: null, topCutsWlasne: [] })} />
                   </CardSub>
                   <CardSub title="Wieszanie">
                   {ciagWisi && (
@@ -14155,50 +14263,6 @@ export default function App() {
                     </Field>
                   )}
                   </CardSub>
-                  {/* Szafki w rogu stoja na dwoch scianach — kazda sciana osobno
-                      (komentarz uzytkownika 2026-09-29: „powinno być na ścianie 1 x
-                      a na ścianie 2 y”). Ten ciag pogrubiony. */}
-                  {(() => {
-                    const sciany = (project.runs || [])
-                      .filter((r) => (r.tier || "dolny") === (runInfo.run.tier || "dolny") && runItems(project, r.id).length)
-                      .map((r) => {
-                        const lst = runItems(project, r.id);
-                        const tot = lst.reduce((acc, { it }) => acc + computeGeo(it.cab, it.mat).W, 0)
-                          + Math.max(0, lst.length - 1) * (r.gap || 0);
-                        const n = projLayout.info.get(r.id);
-                        return { r, ile: lst.length, tot, len: n ? n.len : tot };
-                      });
-                    if (sciany.length < 2) return null;
-                    return (
-                      <div className="text-xs text-stone-500">
-                        {sciany.map(({ r, ile, tot, len }) => (
-                          <div key={r.id} className={r.id === runInfo.run.id ? "font-semibold text-stone-700" : ""}>
-                            {r.name}: {ile} {plural(ile, "szafka", "szafki", "szafek")} —{" "}
-                            <span className="font-mono">{fmt(tot)} mm</span>
-                            {len > tot + 0.5 && <>, od rogu z narożnikiem <span className="font-mono">{fmt(len)} mm</span></>}
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                  <p className="text-xs text-stone-500">
-                    Ta ściana („{runInfo.run.name}”): {runInfo.count} {plural(runInfo.count, "szafka", "szafki", "szafek")} zajmuje{" "}
-                    <span className="font-mono text-stone-700">{fmt(runInfo.total)} mm</span>
-                    {/* przy narożniku od sciany ubywa jeszcze rog, wiec liczymy od niego */}
-                    {runNode && runNode.len > runInfo.total && (
-                      <>, a z narożnikiem{" "}
-                        <span className="font-mono text-stone-700">{fmt(runNode.len)} mm</span></>
-                    )}
-                    {runInfo.run.wallW != null && (
-                      <> z {fmt(runInfo.run.wallW)} mm ściany — zostaje{" "}
-                        <span className="font-mono text-stone-700">
-                          {fmt(runInfo.run.wallW - Math.max(runInfo.total, runNode ? runNode.len : 0))} mm</span>.</>
-                    )}
-                  </p>
-                  <button onClick={() => removeRun(runInfo.run.id)}
-                    className="text-xs text-stone-500 hover:text-stone-800 hover:underline">
-                    Rozwiąż ciąg — szafki zostają, wracają na wolnostojące
-                  </button>
                 </CardPart>
               )}
             </Card>
