@@ -45,5 +45,13 @@ ok('notatka montażowa zaraz pod rysunkiem', idx(/^Notatka montażowa$/) === idx
 ok('wycena pod produktami całego projektu', idx(/^Wycena$/) > idx(/^Produkty całego projektu/) && idx(/^Produkty całego projektu/) >= 0, tytuly.join(' | '));
 ok('bez karty „Kontrola frontów”', idx(/^Kontrola frontów$/) < 0);
 
+// „Zwiń wszystkie / Rozwiń wszystkie” w gornym pasku (komentarz uzytkownika 2026-09-29)
+await page.getByRole('button', { name: '▸ Zwiń wszystkie' }).click(); await page.waitForTimeout(400);
+const otwarte = await page.evaluate(() => [...document.querySelectorAll('section')].filter((s) => s.children.length > 1).map((s) => s.querySelector('h2')?.textContent));
+ok('„Zwiń wszystkie” zwija wszystko poza uwagami', otwarte.length === 1 && /^Uwagi/.test(otwarte[0]), otwarte.join(', '));
+await page.getByRole('button', { name: '▾ Rozwiń wszystkie' }).click(); await page.waitForTimeout(400);
+const zwiniete = await page.evaluate(() => [...document.querySelectorAll('section')].filter((s) => s.children.length === 1).map((s) => s.querySelector('h2')?.textContent));
+ok('„Rozwiń wszystkie” rozwija wszystko', zwiniete.length === 0, zwiniete.join(', '));
+
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

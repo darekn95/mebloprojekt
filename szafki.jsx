@@ -9356,6 +9356,14 @@ const edgeText = (p) => {
 // kazda karta da sie zwinac (uzytkownik 2026-09-29); domyslnie rozwinieta
 const Card = ({ title, children, right, collapsible = true, defaultOpen = true, id }) => {
   const [open, setOpen] = useState(defaultOpen);
+  /* „Zwiń wszystkie / Rozwiń wszystkie” w gornym pasku (komentarz uzytkownika
+     2026-09-29) — jedno zdarzenie do wszystkich kart, ktore da sie zwinac. */
+  useEffect(() => {
+    if (!collapsible) return undefined;
+    const h = (e) => setOpen(!!(e.detail && e.detail.open));
+    window.addEventListener("mp-karty", h);
+    return () => window.removeEventListener("mp-karty", h);
+  }, [collapsible]);
   const shown = collapsible ? open : true;
   return (
     <section id={id} className="rounded-lg border border-stone-200 bg-white"
@@ -13636,6 +13644,18 @@ export default function App() {
               Ponów ↷
             </button>
           </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => window.dispatchEvent(new CustomEvent("mp-karty", { detail: { open: false } }))}
+              title="Zwiń wszystkie karty (uwagi zostają)"
+              className="rounded px-2 py-1 text-xs font-medium hover:bg-stone-200">
+              ▸ Zwiń wszystkie
+            </button>
+            <button onClick={() => window.dispatchEvent(new CustomEvent("mp-karty", { detail: { open: true } }))}
+              title="Rozwiń wszystkie karty"
+              className="rounded px-2 py-1 text-xs font-medium hover:bg-stone-200">
+              ▾ Rozwiń wszystkie
+            </button>
+          </div>
           {/* Robocze: po poprawce w polach wyzej jednym kliknieciem wraca sie
               do rysunku, zamiast go szukac przewijaniem. */}
           <button onClick={() => {
@@ -14119,8 +14139,34 @@ export default function App() {
                     </Field>
                   )}
                   </CardSub>
+                  {/* Szafki w rogu stoja na dwoch scianach — kazda sciana osobno
+                      (komentarz uzytkownika 2026-09-29: „powinno być na ścianie 1 x
+                      a na ścianie 2 y”). Ten ciag pogrubiony. */}
+                  {(() => {
+                    const sciany = (project.runs || [])
+                      .filter((r) => (r.tier || "dolny") === (runInfo.run.tier || "dolny") && runItems(project, r.id).length)
+                      .map((r) => {
+                        const lst = runItems(project, r.id);
+                        const tot = lst.reduce((acc, { it }) => acc + computeGeo(it.cab, it.mat).W, 0)
+                          + Math.max(0, lst.length - 1) * (r.gap || 0);
+                        const n = projLayout.info.get(r.id);
+                        return { r, ile: lst.length, tot, len: n ? n.len : tot };
+                      });
+                    if (sciany.length < 2) return null;
+                    return (
+                      <div className="text-xs text-stone-500">
+                        {sciany.map(({ r, ile, tot, len }) => (
+                          <div key={r.id} className={r.id === runInfo.run.id ? "font-semibold text-stone-700" : ""}>
+                            {r.name}: {ile} {plural(ile, "szafka", "szafki", "szafek")} —{" "}
+                            <span className="font-mono">{fmt(tot)} mm</span>
+                            {len > tot + 0.5 && <>, od rogu z narożnikiem <span className="font-mono">{fmt(len)} mm</span></>}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   <p className="text-xs text-stone-500">
-                    {runInfo.count} {plural(runInfo.count, "szafka", "szafki", "szafek")} zajmuje{" "}
+                    Ta ściana („{runInfo.run.name}”): {runInfo.count} {plural(runInfo.count, "szafka", "szafki", "szafek")} zajmuje{" "}
                     <span className="font-mono text-stone-700">{fmt(runInfo.total)} mm</span>
                     {/* przy narożniku od sciany ubywa jeszcze rog, wiec liczymy od niego */}
                     {runNode && runNode.len > runInfo.total && (
