@@ -97,18 +97,21 @@ await seed(
   [CAB('A1', 900, 'c1'), CAB('B1', 900, 'c2'), CAB('C1', 900, 'c3')]);
 b = await blaty();
 console.log('     ' + b.join('  //  '));
-/* Wszystkie trzy wychodza po 900 mm, wiec zestawienie scala je w jedna pozycje
-   po 3 sztuki — i wymienia, z ktorych scian pochodza. */
 /* A: 900. B i C zaczynaja sie za licem szafki poprzedniej sciany (+18),
-   a blat dochodzi do krawedzi poprzedniego blatu — po 918, jedna pozycja × 2. */
+   a blat dochodzi do krawedzi poprzedniego blatu — po 918. Od 2026-09-29 blat
+   roboczy ma oklejone tylko wolne konce (uzytkownik): A i C po jednym koncu,
+   B — oba konce w rogach, bez oklejania — wiec B i C to osobne pozycje. */
 ok('blaty wszystkich trzech ścian w zestawieniu',
-  b.length === 2 && b.some((t) => /Blat — A/.test(t) && /\b900\b/.test(t))
-    && b.some((t) => /Blat — B/.test(t) && /Blat — C/.test(t) && /\b918\b/.test(t)),
+  b.length === 3 && b.some((t) => /Blat — A/.test(t) && /\b900\b/.test(t))
+    && b.some((t) => /Blat — B/.test(t) && /\b918\b/.test(t)) && b.some((t) => /Blat — C/.test(t) && /\b918\b/.test(t)),
   b.join(' | '));
 /* B wjezdza w rog z C, ale ustepuje A — jego blat zaczyna sie 600 za rogiem
    i konczy nad drugim rogiem, wiec ma tyle, co szafki. */
 ok('środkowy blat nie nakłada się na sąsiadów', /\b900\b/.test(b[0] || ''), b.join(' | '));
-ok('trzy sztuki blatu (1 + 2)', b.some((t) => /Blat — A/.test(t) && / 1 /.test(t)) && b.some((t) => /Blat — B/.test(t) && / 2 /.test(t)), b.join(' | '));
+ok('po jednej sztuce każdej ściany', b.every((t) => / 1 /.test(t)), b.join(' | '));
+ok('oklejone tylko wolne końce: A i C jeden koniec, B żadnego',
+  b.some((t) => /Blat — A/.test(t) && /bok 600/.test(t)) && b.some((t) => /Blat — C/.test(t) && /bok 600/.test(t))
+    && b.some((t) => /Blat — B/.test(t) && !/bok/.test(t)), b.join(' | '));
 
 console.log('\n== karta ciagu: przelaczniki blatu w rogu ==');
 await uklad({});

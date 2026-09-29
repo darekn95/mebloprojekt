@@ -94,6 +94,9 @@ const DEFAULT_PRICES = {
   ciecie: 51.66, // formatowanie jednego arkusza
   obrzeze: 3.38, // obrzeze 22 × 2 mm, za mb
   oklejanie: 8.86, // oklejanie prostoliniowe, za rozpoczety mb
+  // blat roboczy (faktura uzytkownika 2026-09-29): ABS 43/2 na konce, usluga PCV > 23 mm
+  obrzezeBlat: 6.68, // obrzeze ABS 43 × 2 mm, za mb
+  oklejanieBlat: 11.81, // oklejanie prostoliniowe PCV > 23 mm, za rozpoczety mb
 };
 
 /* Plyta w kolorze jest drozsza od bialej, a koloru nie ma w nazwie materialu,
@@ -529,7 +532,8 @@ const defaultMaterials = {
    rozkroju na wlasnym arkuszu, zeby bylo widac, ile sztuk trzeba kupic. */
 const WORKTOP_LEN = 4100;
 const WORKTOP_DEPTHS = [600, 1200];
-const WORKTOP_PRICES = { 600: 470, 1200: 780 };
+// 600: PB0090 Śnieżna biel CS 4100 × 600 × 38 — cena z faktury uzytkownika (2026-09-29)
+const WORKTOP_PRICES = { 600: 563.99, 1200: 780 };
 const worktopDepth = (mat) => {
   const d = Math.round(Number((mat.worktop || {}).depth) || 600);
   return WORKTOP_DEPTHS.includes(d) ? d : 600;
@@ -2615,8 +2619,9 @@ function computeGeoLiczy(cab, mat, ctx) {
         b: blatDepth,
         matKey: rawTop.material === "worktop" ? "worktop" : "board",
         // blat jest widoczny dookola, wiec czoło i oba końce zawsze oklejane,
-        // tył tylko gdy wystaje poza korpus albo szafka stoi wolno
-        edges: { a1: true, a2: rear || blat.overBack > 0, b1: true, b2: true },
+        // tył tylko gdy wystaje poza korpus albo szafka stoi wolno; blat roboczy
+        // ma przod z fabrycznym profilem — oklejamy konce (uzytkownik 2026-09-29)
+        edges: { a1: rawTop.material !== "worktop", a2: rear || blat.overBack > 0, b1: true, b2: true },
       }
     : horiz("Wieniec", topL, topR, topX0, topX1);
   const dno = hasBot ? horiz("Dno", botL, botR, botX0, botX1) : null;
@@ -9681,6 +9686,12 @@ const runTopLiczy = (project, run, bezRogu = false) => {
       : ramiona.length ? cabTopY(ramiona[0].cab.cab, ramiona[0].cab.geo) : 0,
     // konce ciete na 45 stopni — na formatce trzeba je zaznaczyc
     skos0: !!(ext && ext.skos0), skos1: !!(ext && ext.skos1),
+    /* Koniec blatu wolny = widoczny, do oklejenia (uzytkownik 2026-09-29: blat
+       oklejany od zewnetrznej strony). Nie jest wolny w rogu (styk z drugim
+       blatem albo sciana, do ktorej dochodzi przechodzacy) ani przy wyzszej
+       szafce (slupek), do ktorej blat dolega. */
+    wolny0: !(ext && ext.cor0) && !(lvl && lvl.poza.some((c) => Math.abs(c.x1 - x0) <= 2)),
+    wolny1: !(ext && ext.cor1) && !(lvl && lvl.poza.some((c) => Math.abs(c.x0 - x1) <= 2)),
     matKey: worktop ? "worktop" : "board",
     ...(() => {
       /* Szerokosc zamawiana. `surowa` to blat ze standardowym wysiegiem 10 mm,
@@ -9938,16 +9949,35 @@ const cornerArmParts = (a) => {
 
 const runTopPanels = (rt) => {
   if (!rt) return [];
-  const map = new Map();
-  rt.lens.forEach((len) => map.set(len, (map.get(len) || 0) + 1));
   /* Lyzwa zmienia sposob ciecia, wiec musi byc widoczna w samej nazwie —
      kolumna z oklejaniem mowi tylko o krawedziach. */
   const skos = (rt.skos0 ? 1 : 0) + (rt.skos1 ? 1 : 0);
-  return [...map.entries()].map(([len, qty]) => ({
-    name: skos ? `Blat ciągu (łyżwa 45° — ${skos === 2 ? "oba końce" : "jeden koniec"})` : "Blat ciągu",
-    qty, a: len, b: rt.depth, matKey: rt.matKey,
-    edges: { a1: true, a2: rt.rear, b1: true, b2: true },
-    note: rt.n > 1 ? "czoło i oba końce, w tym łączenie" : "czoło i oba końce",
+  const name = skos ? `Blat ciągu (łyżwa 45° — ${skos === 2 ? "oba końce" : "jeden koniec"})` : "Blat ciągu";
+  if (rt.matKey !== "worktop") {
+    // blat z plyty 18 mm: czolo i oba konce jak dotad
+    const map = new Map();
+    rt.lens.forEach((len) => map.set(len, (map.get(len) || 0) + 1));
+    return [...map.entries()].map(([len, qty]) => ({
+      name, qty, a: len, b: rt.depth, matKey: rt.matKey,
+      edges: { a1: true, a2: rt.rear, b1: true, b2: true },
+      note: rt.n > 1 ? "czoło i oba końce, w tym łączenie" : "czoło i oba końce",
+    }));
+  }
+  /* Blat roboczy: przod ma fabryczny profil, tyl stoi przy scianie — oklejamy
+     tylko wolne konce (uzytkownik 2026-09-29, faktura: obrzeze ABS 43/2 na
+     dwa konce). Laczenia kawalkow i konce w rogu / przy slupku zostaja bez. */
+  const map = new Map();
+  const ost = rt.lens.length - 1;
+  rt.lens.forEach((len, k) => {
+    const b1 = k === 0 && rt.wolny0 !== false, b2 = k === ost && rt.wolny1 !== false;
+    const key = `${len}|${b1}|${b2}`;
+    if (!map.has(key)) map.set(key, { len, b1, b2, qty: 0 });
+    map.get(key).qty += 1;
+  });
+  return [...map.values()].map((g) => ({
+    name, qty: g.qty, a: g.len, b: rt.depth, matKey: rt.matKey,
+    edges: { a1: false, a2: false, b1: g.b1, b2: g.b2 },
+    note: g.b1 && g.b2 ? "oba końce (przód z profilem)" : g.b1 || g.b2 ? "jeden koniec (przód z profilem)" : "bez oklejania — końce przy rogu, słupku albo łączeniu",
   }));
 };
 
@@ -12967,10 +12997,17 @@ export default function App() {
         qty: sheetsTotal, unit: "ark.", def: DEFAULT_PRICES.ciecie });
     add({ key: "obrzeze", label: "Obrzeże 22 × 2 mm", spec: "materiał, dokładna długość",
       qty: Math.round(projectEdgeMb * 10) / 10, unit: "mb", def: DEFAULT_PRICES.obrzeze });
-    if (projectEdgeBlatMb > 0)
-      add({ key: "obrzezeBlat", label: "Obrzeże blatu roboczego",
-        spec: "krawędzie blatu do wykończenia — dobierz obrzeże albo listwę do grubości blatu",
-        qty: Math.round(projectEdgeBlatMb * 10) / 10, unit: "mb", def: 0 });
+    /* Konce blatu roboczego: obrzeze szersze od blatu (38 → 43 mm) i osobna
+       usluga oklejania PCV > 23 mm, tez za kazdy rozpoczety metr. */
+    if (projectEdgeBlatMb > 0) {
+      const thB = (mat.worktop || {}).thickness || 38;
+      add({ key: "obrzezeBlat", label: `Obrzeże ABS ${fmt(thB + 5)} × 2 mm — blat`,
+        spec: "końce blatu roboczego, dokładna długość",
+        qty: Math.round(projectEdgeBlatMb * 100) / 100, unit: "mb", def: DEFAULT_PRICES.obrzezeBlat });
+      add({ key: "oklejanieBlat", label: "Oklejanie prostoliniowe PCV > 23 mm",
+        spec: `usługa, ${fmt(Math.round(projectEdgeBlatMb * 100) / 100)} mb w górę do pełnego metra`,
+        qty: Math.ceil(projectEdgeBlatMb), unit: "mb", def: DEFAULT_PRICES.oklejanieBlat });
+    }
     // rozkrojownia liczy oklejanie za kazdy ROZPOCZETY metr, wiec w gore
     if (projectEdgeMb > 0)
       add({ key: "oklejanie", label: "Oklejanie prostoliniowe",

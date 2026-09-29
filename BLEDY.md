@@ -63,10 +63,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-- **Krawędzie blatu roboczego w wycenie** (2026-09-28): osobna pozycja „Obrzeże
-  blatu roboczego” z ceną 0 — jak je wykańczasz (obrzeże 40/45 mm, listwa
-  końcowa, postforming z przodu)? Czy formatowanie blatu liczy się jak arkusza
-  płyty (dziś tak)?
 - **Otwory kołków z obu stron przegrody na tej samej wysokości** (2026-09-28):
   plan pokazuje je osobno „(od kolumny N)”; czy przy 18 mm dawać ostrzeżenie /
   przesuwać o 32 mm, żeby się nie przewierciły?
@@ -94,6 +90,11 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   16 mm (zostają 2 mm od zewnątrz), 3 mm w głąb w stronę drzwi — HDF 3 mm
   zlicowany z tyłem korpusu; frez też w wieńcu i dnie; luz 1 mm na stronę.
   HDF = W − 6 × H − 6. Pola: „Szerokość” 16, „Głębokość” 3, „Luz” 1.
+- **Blat roboczy — oklejanie** (2026-09-29, faktura użytkownika): oklejane tylko
+  wolne końce (przód z fabrycznym profilem, tył przy ścianie; nie w rogu, przy
+  słupku ani na łączeniu kawałków) — obrzeże ABS 43 × 2 (6,68 zł/mb, dokładna
+  długość) i usługa „oklejanie PCV > 23 mm” (11,81 zł/mb, w górę do pełnego
+  metra). Blat 600 × 38: 563,99 zł. Formatowanie 51,66 zł za arkusz (też blat).
 - **Tył szuflady V-BOX** (2026-09-28, instrukcja w `instrukcje/`): standardowy
   tył ma górę równo z górą boku, dół `tylOd` (9–10 mm) nad dołem boku, dno
   dochodzi do tyłu. Tył nigdy wyżej niż górna krawędź frontu szuflady (błąd),

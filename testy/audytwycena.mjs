@@ -119,9 +119,10 @@ const scenariusz = async (tytul, p, { grain = false } = {}) => {
   const blatowy = (x) => /^Blat/.test(x.name) && /blat/i.test(x.mat);
   const mb = formatki.filter((x) => !blatowy(x)).reduce((s, x) => s + x.qty * x.edge, 0) / 1000;
   const mbBlat = formatki.filter(blatowy).reduce((s, x) => s + x.qty * x.edge, 0) / 1000;
-  if (mbBlat > 0) ok(`krawędzie blatu osobno (${Math.round(mbBlat * 10) / 10} mb)`, Math.abs(ilosc(wiersz(/^Obrzeże blatu/)) - Math.round(mbBlat * 10) / 10) < 0.051, JSON.stringify(wiersz(/^Obrzeże blatu/)?._));
+  if (mbBlat > 0) ok(`krawędzie blatu osobno (${Math.round(mbBlat * 100) / 100} mb)`, Math.abs(ilosc(wiersz(/^Obrzeże ABS .* — blat/)) - Math.round(mbBlat * 100) / 100) < 0.006, JSON.stringify(wiersz(/^Obrzeże ABS/)?._));
+  if (mbBlat > 0) ok(`oklejanie PCV > 23 mm w górę do pełnego metra (${Math.ceil(mbBlat)})`, ilosc(wiersz(/^Oklejanie prostoliniowe PCV > 23/)) === Math.ceil(mbBlat), JSON.stringify(wiersz(/PCV > 23/)?._));
   ok(`obrzeże 22 mm = suma oklejanych krawędzi płyty (${Math.round(mb * 10) / 10} mb)`, Math.abs(ilosc(wiersz(/^Obrzeże 22/)) - Math.round(mb * 10) / 10) < 0.051, JSON.stringify(wiersz(/^Obrzeże/)?._));
-  if (mb > 0) ok(`oklejanie w górę do pełnego metra (${Math.ceil(mb)})`, ilosc(wiersz(/^Oklejanie/)) === Math.ceil(mb), JSON.stringify(wiersz(/^Oklejanie/)?._));
+  if (mb > 0) ok(`oklejanie w górę do pełnego metra (${Math.ceil(mb)})`, ilosc(wiersz(/^Oklejanie prostoliniowe$/)) === Math.ceil(mb), JSON.stringify(wiersz(/^Oklejanie prostoliniowe$/)?._));
   // okucia: kazda pozycja listy okuc jest w wycenie z ta sama iloscia
   // po nazwie, z suma ilosci — wycena scala opisy zastosowan w jeden wiersz
   const sumy = (rows, nazwa, il) => { const m = new Map(); rows.forEach((r) => m.set(nazwa(r), (m.get(nazwa(r)) || 0) + il(r))); return m; };

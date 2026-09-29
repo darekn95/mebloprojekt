@@ -253,7 +253,8 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `USABLE_W` × `USABLE_H` | 2761,2 × 2061,2 | po okrawaniu |
 | `KERF` | 3 | rzaz piły |
 | `WORKTOP_LEN` | 4100 | długość pasa blatu |
-| `WORKTOP_DEPTHS` / `WORKTOP_PRICES` | 600, 1200 / 470, 780 | głębokości i ceny blatu |
+| `WORKTOP_DEPTHS` / `WORKTOP_PRICES` | 600, 1200 / 563,99, 780 | głębokości i ceny blatu (600 z faktury użytkownika) |
+| `DEFAULT_PRICES.obrzezeBlat` / `.oklejanieBlat` | 6,68 / 11,81 zł | obrzeże ABS 43 × 2 na końce blatu roboczego (za mb) i usługa „oklejanie PCV > 23 mm” (za rozpoczęty mb); końce blatu wolne = `rt.wolny0/wolny1` |
 | `WORKTOP_OVERHANG` / `WORKTOP_MAX_OVERHANG` | 10 / 30 | wysięg blatu przed drzwi: standard / granica, ponad którą ostrzeżenie i docinanie |
 | `HINGE_PLAY` | 2 | luz między korpusem a drzwiami przy zawiasach — tylko do głębokości blatu, nie do rysunków |
 | `SCIANA_GR` / `ScianaDefs` | 100 | ściana na rysunkach: pas 100 mm z szarym kreskowaniem (`url(#sciana-kreski)`) — rzut z góry (z nazwą ściany i ciągu górnego) i widok z boku; zasięg w rzucie liczy `scianaZasieg` (róg: do narożnika muru, wolny koniec: koniec ciągu albo „Długość ściany”); przełącznik „Ukryj / Pokaż ścianę” (`showWall`) |
