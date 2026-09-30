@@ -87,7 +87,8 @@ const projInp = page.locator('input[placeholder="Projekt bez nazwy"]').first();
 ok('pole nazwy projektu', await projInp.count() === 1);
 await projInp.fill('Kuchnia testowa');
 await page.waitForTimeout(600);
-ok('pole nazwy szafki obok', await page.locator('input[placeholder="Nazwa szafki"]').count() === 1);
+// nazwa szafki zmienia sie na pasku szafek, nie w gornym pasku (2026-09-30)
+ok('bez pola nazwy szafki w górnym pasku', await page.locator('input[placeholder="Nazwa szafki"]').count() === 0);
 
 const hb = (n) => page.getByRole('button', { name: n, exact: true });
 ok('"Zapisz do pliku"', await hb('Zapisz do pliku').count() === 1);

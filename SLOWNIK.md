@@ -49,6 +49,7 @@ narożnika przy froncie**, a nie wzmocnienie. To nie to samo co:
 | „Pomieszczenia”, kafelek pomieszczenia | `project.rooms = [{ id: "p1", name }]`; ciąg `run.roomId`, szafka wolnostojąca `item.roomId` (szafka w ciągu należy do pomieszczenia ciągu — `roomOfItem`) |
 | ogladane pomieszczenie | `activeRoomOf(project)` = pomieszczenie aktywnej szafki; `wejdzDoPokoju` (puste dostaje szafkę startową) |
 | „+ pomieszczenie” | `makeRoom` → „Pomieszczenie N” |
+| nazwa szafki — drugie kliknięcie w aktywną szafkę na pasku szafek (pole „Nazwa szafki”; Enter zapisuje, Esc wraca) | `cab.name`, stan edycji `nazwaSzafki` w `App`; w górnym pasku zostaje tylko nazwa projektu `project.name` |
 | ✎ (zmień nazwę), × (usuń) | `renameRoom`; `usunPokoj(p, id, cel)` — okno „Usunąć …?”: „Przenieś i usuń pomieszczenie” / „Usuń razem z szafkami” |
 | „Przenieś szafkę / zabudowę … do…” | `przeniesDoPokoju` — ciąg idzie z całą grupą (`grupaCiagow`: róg + piętro), „Ściana N” zajęta w celu dostaje wolny numer (`przeniesCiagi`) |
 | „Zamówienie: Cały projekt / To pomieszczenie” | `zakresZam` (domyślnie „projekt”), `projZam = projektPomieszczenia(project, pokoj)` — formatki, produkty, rozkrój i wycena |

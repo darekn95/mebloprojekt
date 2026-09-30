@@ -12,7 +12,8 @@ await page.addInitScript(() => { try { localStorage.clear(); } catch (e) {} });
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1500);
 
-const nameInput = page.locator('input[placeholder="Nazwa szafki"]').first();
+// pole nazwy szafki otwiera drugie klikniecie w aktywna szafke na pasku (2026-09-30)
+const nameInput = await (async () => { if (!(await page.locator('input[placeholder="Nazwa szafki"]').count())) { await page.locator('header button[title="Kliknij, aby zmienić nazwę szafki"]').first().click(); await page.waitForTimeout(200); } return page.locator('input[placeholder="Nazwa szafki"]').first(); })();
 console.log('Pole nazwy istnieje:', await nameInput.count() > 0);
 console.log('Wartosc domyslna:', JSON.stringify(await nameInput.inputValue()));
 

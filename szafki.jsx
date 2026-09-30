@@ -12844,6 +12844,10 @@ export default function App() {
   const [usuwanyPokoj, setUsuwanyPokoj] = useState(null);
   // nazwa pomieszczenia w trakcie zmiany (pole zamiast przycisku)
   const [nazwaPokoju, setNazwaPokoju] = useState(null);
+  /* Nazwa szafki: drugie klikniecie w aktywna szafke na pasku otwiera pole
+     (trzyma nazwe sprzed edycji — Esc do niej wraca); null = bez edycji. */
+  const [nazwaSzafki, setNazwaSzafki] = useState(null);
+  useEffect(() => { setNazwaSzafki(null); }, [project.active]);
   /* Formatki, produkty, rozkroj i wycena: domyslnie caly projekt — to jedno
      zamowienie (uzytkownik 2026-09-29); podglad samego pomieszczenia osobno. */
   const [zakresZam, setZakresZam] = useState("projekt");
@@ -13954,9 +13958,10 @@ export default function App() {
     <div className="min-h-screen bg-stone-100 text-stone-900">
       <header className="print-hide sticky top-0 z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
-          {/* obie nazwy w jednej linii — w waskim oknie naglowek zawijal sie
-              na trzy rzedy i zjadal wysokosc potrzebna rysunkowi */}
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+          {/* Nazwa projektu. Nazwa szafki zmienia sie juz na pasku szafek, wiec
+              pole projektu dostaje co najmniej 16rem — przy waskim oknie reszta
+              przyciskow zawija sie pod nie, zamiast sciskac nazwe do kilku pikseli. */}
+          <div className="flex min-w-[16rem] flex-1 items-center gap-3">
             <label className="flex min-w-0 flex-1 items-center gap-1.5"
               title="Nazwa całego projektu — kliknij i wpisz dowolną">
               <span aria-hidden="true" className="shrink-0 text-sm text-stone-400">✎</span>
@@ -13965,13 +13970,8 @@ export default function App() {
                 placeholder={DEFAULT_PROJECT_NAME}
                 className="min-w-0 flex-1 border-b border-stone-300 bg-transparent px-0.5 text-base font-semibold tracking-tight hover:border-stone-400 focus:border-teal-700 focus:outline-none" />
             </label>
-            <label className="flex min-w-0 flex-1 items-center gap-1.5"
-              title="Nazwa tej szafki — kliknij i wpisz dowolną">
-              <span className="shrink-0 text-[11px] uppercase tracking-wide text-stone-400">szafka</span>
-              <input value={cab.name} onChange={(e) => set({ name: e.target.value })}
-                placeholder="Nazwa szafki"
-                className="min-w-0 flex-1 border-b border-stone-200 bg-transparent px-0.5 text-sm text-stone-700 hover:border-stone-400 focus:border-teal-700 focus:outline-none" />
-            </label>
+            {/* nazwe szafki zmienia sie na pasku szafek: drugie klikniecie w aktywna
+                (uzytkownik 2026-09-30 — pole w gornym pasku bylo zbedne) */}
           </div>
           <span className="font-mono text-xs text-stone-400">{saved}</span>
           <div className="flex items-center gap-1">
@@ -14187,9 +14187,24 @@ export default function App() {
                               style={{ color: n.err ? (activeTab ? "#fecaca" : ERRC) : (activeTab ? "#fde68a" : WARNC) }}>●</span>
                           );
                         })()}
-                        <button onClick={() => switchCabinet(i)} className="max-w-[180px] truncate">
-                          {it.cab.name || `Szafka ${i + 1}`}
-                        </button>
+                        {activeTab && nazwaSzafki != null ? (
+                          <input autoFocus value={cab.name} placeholder="Nazwa szafki" aria-label="Nazwa szafki"
+                            onChange={(e) => set({ name: e.target.value })}
+                            onFocus={(e) => e.currentTarget.select()}
+                            onBlur={() => setNazwaSzafki(null)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") e.currentTarget.blur();
+                              // Esc wraca do nazwy sprzed edycji
+                              if (e.key === "Escape") { set({ name: nazwaSzafki }); setNazwaSzafki(null); }
+                            }}
+                            className="w-40 rounded-sm bg-white px-1 text-xs text-stone-900 focus:outline-none" />
+                        ) : (
+                          <button onClick={() => (activeTab ? setNazwaSzafki(cab.name || "") : switchCabinet(i))}
+                            title={activeTab ? "Kliknij, aby zmienić nazwę szafki" : undefined}
+                            className={"max-w-[180px] truncate" + (activeTab ? " cursor-text" : "")}>
+                            {it.cab.name || `Szafka ${i + 1}`}
+                          </button>
+                        )}
                         {grp.id && list.length > 1 && k < list.length - 1 && (
                           <button onClick={() => moveCabinet(i, 1)} title="Przesuń w prawo w ciągu"
                             className={arrow}>›</button>

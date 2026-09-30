@@ -14,15 +14,18 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1500);
 
 const widthInput = () => page.locator('input[type="number"]').first();
-const nameInput = () => page.locator('input[placeholder="Nazwa szafki"]').first();
+// nazwa szafki: pole otwiera drugie klikniecie w aktywna szafke na pasku (2026-09-30)
+const nameInput = () => (async () => { if (!(await page.locator('input[placeholder="Nazwa szafki"]').count())) { await page.locator('header button[title="Kliknij, aby zmienić nazwę szafki"]').first().click(); await page.waitForTimeout(200); } return page.locator('input[placeholder="Nazwa szafki"]').first(); })();
 const tab = (name) => page.locator('button', { hasText: new RegExp('^' + name + '$') }).first();
 
-console.log('Start: nazwa =', JSON.stringify(await nameInput().inputValue()), ', szer =', await widthInput().inputValue());
+console.log('Start: nazwa =', JSON.stringify(await (await nameInput()).inputValue()), ', szer =', await widthInput().inputValue());
+await page.keyboard.press('Enter');
 
 // dodaj druga szafke
 await page.getByText('+ szafka', { exact: true }).click();
 await page.waitForTimeout(500);
-console.log('Po dodaniu: nazwa =', JSON.stringify(await nameInput().inputValue()), ', szer =', await widthInput().inputValue(), '(oczekiwane Szafka 2 / 600)');
+console.log('Po dodaniu: nazwa =', JSON.stringify(await (await nameInput()).inputValue()), ', szer =', await widthInput().inputValue(), '(oczekiwane Szafka 2 / 600)');
+await page.keyboard.press('Enter');
 
 // ustaw szer szafki 2 na 900
 await widthInput().fill('900');
@@ -39,7 +42,8 @@ await page.waitForTimeout(400);
 console.log('Szafka 2 szer =', await widthInput().inputValue(), '(oczekiwane 900)');
 
 // zmien nazwe szafki 2
-await nameInput().fill('Górna');
+await (await nameInput()).fill('Górna');
+await (await nameInput()).press('Enter');
 await page.waitForTimeout(400);
 const hasGorna = await page.evaluate(() => [...document.querySelectorAll('button')].some(b => b.textContent.trim() === 'Górna'));
 console.log('Zakladka pokazuje "Górna":', hasGorna);
