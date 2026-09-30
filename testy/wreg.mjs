@@ -46,7 +46,7 @@ for (const l of ['Szafka', 'Z góry']) {
   const x = page.getByText(l, { exact: true }).first();
   if (await x.count()) { await x.click(); await page.waitForTimeout(600); }
 }
-const hdf = await page.evaluate(() => [...document.querySelectorAll('svg rect')]
+const hdf = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg rect')]
   .map((r) => ({ x: +r.getAttribute('x'), y: +r.getAttribute('y'), w: +r.getAttribute('width'), h: +r.getAttribute('height') }))
   .filter((r) => r.h === 3 && r.w > 500));
 ok('HDF na y = 0 (tył korpusu), nie za nim', hdf.some((r) => r.y === 0), JSON.stringify(hdf));

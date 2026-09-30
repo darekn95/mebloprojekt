@@ -12,7 +12,7 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1500);
 
 const card = (t) => page.locator('section').filter({ has: page.locator('h2', { hasText: new RegExp('^' + t + '$') }) }).first();
-const svgTxt = () => page.evaluate(() => [...document.querySelectorAll('svg text')].map(t => t.textContent.trim()).join(' | '));
+const svgTxt = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map(t => t.textContent.trim()).join(' | '));
 
 // --- 1. fix "gora" = 60 ma dawac formatke 60 ---
 await card('Struktura wnętrza').getByText('góra', { exact: true }).first().click();
@@ -29,7 +29,7 @@ console.log('Fix "góra" ustawiony na 60 → formatka:');
 fixRows.forEach(r => console.log('  ', r));
 console.log('  oczekiwane: 60 x 600');
 await page.evaluate(() => window.scrollTo(0, 0));
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-fix60.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-fix60.png' }); } catch (e) {}
 
 // wroc do braku fixu
 await card('Struktura wnętrza').getByText('brak', { exact: true }).first().click();
@@ -48,7 +48,7 @@ await clickView('Zamk.');
 let t = await svgTxt();
 console.log('\nWidok ZAMKNIĘTY — "szer." w rysunku:', /szer\./.test(t) ? 'BLAD (jest)' : 'ok (brak)');
 console.log('  Widok ZAMKNIĘTY — stare "światło":', /światło/.test(t) ? 'BLAD (jest)' : 'ok (brak)');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-drw-closed.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-drw-closed.png' }); } catch (e) {}
 
 await clickView('Otw.');
 t = await svgTxt();
@@ -57,7 +57,7 @@ const odDna = (t.match(/\d+ od dna/g) || []);
 console.log('\nWidok OTWARTY — wymiary "szer.":', szer.length ? szer.join(', ') : 'BRAK');
 console.log('  Widok OTWARTY — wymiary "od dna":', odDna.length ? odDna.join(', ') : 'BRAK');
 console.log('  liczba szer. == liczba od dna:', szer.length === odDna.length ? 'ok' : 'ROZNE');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-drw-open.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-drw-open.png' }); } catch (e) {}
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

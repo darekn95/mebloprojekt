@@ -39,7 +39,7 @@ for (const l of ['Szafka', 'Z góry']) {
   const btn = page.getByText(l, { exact: true }).first();
   if (await btn.count()) { await btn.click(); await page.waitForTimeout(800); }
 }
-const plyty = () => page.evaluate(() => [...document.querySelectorAll('svg rect')].map((r) => ({
+const plyty = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg rect')].map((r) => ({
   x: +r.getAttribute('x'), y: +r.getAttribute('y'),
   w: +r.getAttribute('width'), h: +r.getAttribute('height'),
 })).filter((r) => r.w > 0 && r.h > 0));

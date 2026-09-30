@@ -45,7 +45,7 @@ await page.evaluate(() => window.scrollTo(0, 0));
 await page.waitForTimeout(300);
 
 // zrzut samego rysunku (SVG)
-const svg = page.locator('svg').first();
+const svg = page.locator('#rysunek svg').first();
 try {
   await svg.screenshot({ path: OUT });
   console.log('zrzut SVG zapisany');

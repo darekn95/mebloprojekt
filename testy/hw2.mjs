@@ -101,7 +101,7 @@ ok('auto wraca do zawieszek', qty(await hwRows(), 'Zawieszka') === 2);
 console.log('\n== kołki na rysunku otwartym ==');
 await clickView('Otw.');
 const pins = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const cs = [...svg.querySelectorAll('circle')].filter(c => Math.round(+c.getAttribute('r')) === 5);
   const txt = [...svg.querySelectorAll('text')].map(t => t.textContent.trim());
   return { n: cs.length, ys: [...new Set(cs.map(c => Math.round(+c.getAttribute('cy'))))].sort((a,b)=>a-b), txt };
@@ -111,21 +111,21 @@ ok('kółka na 1 wysokości', pins.ys.length === 1, pins.ys.join(', '));
 
 // wysokosci otworow: polki dziela swiatlo rowno; sprawdz ze podpisy sa liczbami rosnacymi
 const shelfDims = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('text')]
     .map(t => t.textContent.trim())
     .filter(t => /^otw\. \d+$/.test(t));
 });
 console.log('  podpisy wysokości otworów:', shelfDims.join(', '));
 ok('podpisy wysokości otworów są', shelfDims.length === 1, shelfDims.join(', '));
-const legenda = await page.evaluate(() => [...document.querySelector('svg').querySelectorAll('text')]
+const legenda = await page.evaluate(() => [...document.querySelector('#rysunek svg').querySelectorAll('text')]
   .map(t => t.textContent.trim()).find(t => /^otw\. —/.test(t)) || null);
 ok('legenda opisuje bazę wymiaru', !!legenda, legenda);
 
 // wylacz okucia -> kolki znikaja
 await page.getByText('Ukryj okucia', { exact: true }).first().click().catch(()=>{});
 await page.waitForTimeout(600);
-const pins2 = await page.evaluate(() => [...document.querySelector('svg').querySelectorAll('circle')].filter(c => Math.round(+c.getAttribute('r')) === 5).length);
+const pins2 = await page.evaluate(() => [...document.querySelector('#rysunek svg').querySelectorAll('circle')].filter(c => Math.round(+c.getAttribute('r')) === 5).length);
 ok('kółka chowają się razem z okuciami', pins2 === 0, String(pins2));
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');

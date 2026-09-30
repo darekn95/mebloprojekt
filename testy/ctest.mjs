@@ -16,7 +16,7 @@ const wienAfter = await p.evaluate(()=>{
   return /Wieniec|Dno \/ wieniec/.test(document.body.innerText);
 });
 const hasDno = await p.evaluate(()=>/(^|\s)Dno(\s|$)/m.test(document.body.innerText));
-await p.locator('svg').first().screenshot({path:'./shot-brak.png'});
+await p.locator('#rysunek svg').first().screenshot({path:'./shot-brak.png'});
 console.log('Wieniec w formatkach PRZED:', wienBefore, '| PO brak:', wienAfter, '(oczekiwane false)');
 console.log('BLEDY:', errs.length?errs.join(' | '):'(brak)');
 await b.close();

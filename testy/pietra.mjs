@@ -52,7 +52,7 @@ for (const l of ['Dolny', 'Górny', 'Całość'])
   ok('jest podzakładka „' + l + '"', await page.getByText(l, { exact: true }).first().count() > 0);
 
 const fronty = () => page.evaluate(() =>
-  [...document.querySelectorAll('svg text')].map((t) => t.textContent.trim())
+  [...document.querySelectorAll('#rysunek svg text')].map((t) => t.textContent.trim())
     .filter((t) => /^\d+×\d+$/.test(t)).length);
 const wybierz = async (l) => {
   await page.getByText(l, { exact: true }).first().click();
@@ -105,7 +105,7 @@ for (const w of ['Zamk.', 'Otw.', 'Z góry', 'Z tyłu', '3D', '45°']) {
   if (!(await btn.count())) { ok('widok „' + w + '" jest', false); continue; }
   await btn.click();
   await page.waitForTimeout(800);
-  const n = await page.locator('svg').count();
+  const n = await page.locator('#rysunek svg').count();
   ok('widok „' + w + '" rysuje się', n > 0 && errors.length === 0, errors.join('; ').slice(0, 120));
 }
 

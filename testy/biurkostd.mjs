@@ -33,7 +33,7 @@ const dno = rows.find(r => /Dno|Wieniec|wieniec/.test(r)) || '';
 console.log('  dno/wieniec:', dno || '(brak — biurko nie ma dna)');
 
 const geo = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const rs = [...svg.querySelectorAll('rect')].map(r => ({
     x: Math.round(+r.getAttribute('x')), w: Math.round(+r.getAttribute('width')),
     y: Math.round(+r.getAttribute('y')), h: Math.round(+r.getAttribute('height')) }));
@@ -55,7 +55,7 @@ rows = await cutRows();
 const blat2 = rows.find(r => /^Blat/.test(r)) || '';
 ok('tryb "szerokość korpusu" daje blat 1300', cell(blat2, 2) === '1300', cell(blat2, 2));
 const geo2 = await page.evaluate(() => {
-  const rs = [...document.querySelector('svg').querySelectorAll('rect')].map(r => ({
+  const rs = [...document.querySelector('#rysunek svg').querySelectorAll('rect')].map(r => ({
     x: Math.round(+r.getAttribute('x')), w: Math.round(+r.getAttribute('width')), h: Math.round(+r.getAttribute('height')) }));
   return rs.filter(r => r.w === 18 && r.h > 500).map(r => r.x).sort((a,b)=>a-b);
 });
@@ -83,6 +83,6 @@ for (const v of ['Zamk.', 'Otw.', 'Z boku', 'Z góry', 'Z tyłu', '3D']) {
 }
 await page.getByText('Zamk.', { exact: true }).first().click();
 await page.waitForTimeout(700);
-await page.locator('svg').first().screenshot({ path: S + 'shot-biurko.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-biurko.png' });
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

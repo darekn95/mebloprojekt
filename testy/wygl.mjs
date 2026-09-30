@@ -37,14 +37,14 @@ await page.waitForTimeout(2500);
 await page.getByText('Z góry', { exact: true }).first().click();
 await page.waitForTimeout(900);
 const fills = await page.evaluate(() => {
-  const rs = [...document.querySelector('svg').querySelectorAll('rect')];
+  const rs = [...document.querySelector('#rysunek svg').querySelectorAll('rect')];
   const by = {};
   rs.forEach(r => { const f = r.getAttribute('fill'); if (/^#/.test(f)) by[f] = (by[f] || 0) + 1; });
   return by;
 });
 console.log('  wypełnienia:', JSON.stringify(fills));
 ok('zabudowa w kolorze korpusu (brak beżu półek przy shelfSameAsBoard)', !fills['#d0bb96'], JSON.stringify(fills));
-await page.locator('svg').first().screenshot({ path: S + 'shot-zabudowa.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-zabudowa.png' });
 
 console.log('\n== 2. etykieta płyty ==');
 const cut = card(/^Formatki do zamówienia$/);
@@ -79,10 +79,10 @@ await page.waitForTimeout(800);
 ok('wybór kształtu', await nogi.getByText('Okrągła', { exact: true }).count() === 1);
 ok('wzornik kolorów', await nogi.locator('button[title="Aluminium"]').count() === 1);
 const legFills = async () => page.evaluate(() =>
-  [...document.querySelector('svg').querySelectorAll('rect')]
+  [...document.querySelector('#rysunek svg').querySelectorAll('rect')]
     .filter(e => e.getAttribute('fill') === '#a1a1aa').length);
 const topLegs = async () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return { circles: svg.querySelectorAll('circle').length,
     legs: [...svg.querySelectorAll('rect')].filter(r => Math.round(+r.getAttribute('width')) === 40
       && Math.round(+r.getAttribute('height')) === 40).length };
@@ -94,7 +94,7 @@ console.log('  widok z góry:', JSON.stringify(tv));
 /* Z gory nozki widac tylko jako przerywany obrys pod dnem, pod „Pokaz okucia"
    (ustalone z uzytkownikiem) — bez okuc rzut jest czysty. Okragle to
    zaokraglony kwadrat, nie kolo. */
-const ileP = async () => page.evaluate(() => [...document.querySelector('svg').querySelectorAll('rect')]
+const ileP = async () => page.evaluate(() => [...document.querySelector('#rysunek svg').querySelectorAll('rect')]
   .filter((r) => Math.round(+r.getAttribute('width')) === 40 && r.getAttribute('stroke-dasharray') === '6 4').length);
 ok('z góry nóżki tylko jako przerywany obrys (pod okuciami)', tv.circles === 0 && tv.legs === 4 && (await ileP()) === 4,
   JSON.stringify(tv));
@@ -106,7 +106,7 @@ await page.waitForTimeout(600);
 await nogi.getByText('Okrągła', { exact: true }).click();
 await page.waitForTimeout(900);
 const tv2 = await topLegs();
-const okragle = await page.evaluate(() => [...document.querySelector('svg').querySelectorAll('rect')]
+const okragle = await page.evaluate(() => [...document.querySelector('#rysunek svg').querySelectorAll('rect')]
   .filter((r) => r.getAttribute('stroke-dasharray') === '6 4' && +r.getAttribute('rx') > 0).length);
 ok('okrągłe z góry: zaokrąglony obrys, nie koło', tv2.circles === 0 && okragle === 4, JSON.stringify({ ...tv2, okragle }));
 // kolor i ksztalt widac za to od czola
@@ -115,10 +115,10 @@ await page.waitForTimeout(900);
 await page.getByText('Zamk.', { exact: true }).first().click();
 await page.waitForTimeout(800);
 ok('kolor nóżek widać od czoła', await legFills() === 2, String(await legFills()));
-const rx = await page.evaluate(() => [...document.querySelector('svg').querySelectorAll('rect')]
+const rx = await page.evaluate(() => [...document.querySelector('#rysunek svg').querySelectorAll('rect')]
   .filter(r => r.getAttribute('fill') === '#a1a1aa').map(r => r.getAttribute('rx')));
 ok('okrągła nóżka rysowana z zaokrągleniem', rx.every(v => Number(v) > 0), rx.join(', '));
-await page.locator('svg').first().screenshot({ path: S + 'shot-nozki.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-nozki.png' });
 const hw = await card(/^Produkty do zamówienia/).innerText();
 ok('kształt w specyfikacji nóżki', /okrągła, wysokość/.test(hw), (hw.split('\n').find(l => /Nóżka/.test(l)) || ''));
 

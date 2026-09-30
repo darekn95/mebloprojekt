@@ -13,12 +13,12 @@ await page.waitForTimeout(1500);
 const clickView = async (v) => { await page.getByText(v, { exact: true }).first().click(); await page.waitForTimeout(700); };
 const struct = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Struktura wnętrza$/ }) }).first();
 const railsTop = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('rect')].filter(r => r.getAttribute('fill') === '#8b8b93')
     .map(r => 'y ' + Math.round(+r.getAttribute('y')) + '..' + Math.round(+r.getAttribute('y') + +r.getAttribute('height')));
 });
 const railsSide = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('rect')].filter(r => r.getAttribute('fill') === '#8b8b93')
     .map(r => 'x ' + Math.round(+r.getAttribute('x')) + '..' + Math.round(+r.getAttribute('x') + +r.getAttribute('width')));
 });
@@ -40,10 +40,10 @@ await page.waitForTimeout(900);
 await clickView('Z góry');
 console.log('\nWEWNĄTRZ (front 18 mm)');
 console.log('  z góry:', [...new Set(await railsTop())].join(', '), '(oczekiwane 32..482 — cofnięte o grubość frontu)');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-sb-top.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-sb-top.png' }); } catch (e) {}
 await clickView('Z boku');
 console.log('  z boku:', [...new Set(await railsSide())].join(', '), '(oczekiwane 32..482)');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-sb-side.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-sb-side.png' }); } catch (e) {}
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

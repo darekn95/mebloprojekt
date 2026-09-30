@@ -14,7 +14,7 @@ const clickView = async (v) => { await page.getByText(v, { exact: true }).first(
 const struct = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Struktura wnętrza$/ }) }).first();
 
 const dump = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const out = { hinges: [], boards: [] };
   [...svg.querySelectorAll('rect')].forEach((r) => {
     const f = r.getAttribute('fill');
@@ -41,6 +41,6 @@ d = await dump();
 console.log('zawiasy [x0..x1]:', d.hinges.map(h => h.x0 + '..' + h.x1).join(', '));
 console.log('pionowe płyty  :', d.boards.map(b => b.x0 + '..' + b.x1 + ' ' + b.fill).join(', '));
 console.log('   fix zajmuje 0..60, wspornik 42..60, światło zaczyna się na 60');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-hpos.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-hpos.png' }); } catch (e) {}
 console.log('BLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

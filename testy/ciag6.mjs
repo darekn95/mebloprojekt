@@ -22,8 +22,8 @@ const pick = async (label) => {
   await page.getByText(label, { exact: true }).first().click();
   await page.waitForTimeout(800);
 };
-const svgTexts = () => page.evaluate(() => [...document.querySelectorAll('svg text')].map((t) => t.textContent.trim()));
-const rects = () => page.evaluate(() => [...document.querySelectorAll('svg rect')].map((r) => ({
+const svgTexts = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map((t) => t.textContent.trim()));
+const rects = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg rect')].map((r) => ({
   x: Math.round(+r.getAttribute('x')), y: Math.round(+r.getAttribute('y')),
   w: Math.round(+r.getAttribute('width')), h: Math.round(+r.getAttribute('height')),
   dash: r.getAttribute('stroke-dasharray') || '',
@@ -31,7 +31,7 @@ const rects = () => page.evaluate(() => [...document.querySelectorAll('svg rect'
 /* Szafki stawia na miejsce transform, wiec surowe x/y prostokatow sa lokalne.
    Przeliczamy realne polozenie na ekranie z powrotem na milimetry rysunku. */
 const mmRects = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const vb = svg.getAttribute('viewBox').split(' ').map(Number);
   const box = svg.getBoundingClientRect();
   const s = box.width / vb[2];
@@ -47,7 +47,7 @@ const mmRects = () => page.evaluate(() => {
     };
   });
 });
-const vbox = () => page.evaluate(() => document.querySelector('svg').getAttribute('viewBox').split(' ').map(Number));
+const vbox = () => page.evaluate(() => document.querySelector('#rysunek svg').getAttribute('viewBox').split(' ').map(Number));
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 const PL = { on: true, height: 100, mode: 'under', setback: 0 };
@@ -124,9 +124,9 @@ ok('suma opisana jako zabudowa', tx.some((t) => /zabudowa$/.test(t)), tx.join(' 
 
 console.log('\n== wszystko mieści się w kadrze ==');
 const vb = await vbox();
-const yTexts = await page.evaluate(() => [...document.querySelectorAll('svg text')]
+const yTexts = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')]
   .map((t) => +t.getAttribute('y')));
-const xTexts = await page.evaluate(() => [...document.querySelectorAll('svg text')]
+const xTexts = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')]
   .map((t) => +t.getAttribute('x')));
 console.log('     viewBox ' + JSON.stringify(vb) + '  y: ' + Math.min(...yTexts) + '..' + Math.max(...yTexts));
 ok('żaden opis nie wypada pod kadr', Math.max(...yTexts) < vb[1] + vb[3], `${Math.max(...yTexts)} < ${vb[1] + vb[3]}`);
@@ -145,7 +145,7 @@ ok('górne przerywaną', dashed.length === 2, String(dashed.length));
 tx = await svgTexts();
 ok('nazwa ciągu górnego z wysokością', tx.some((t) => /Górne — 1450 nad podłogą/.test(t)), tx.join(' | '));
 ok('nazwa ciągu dolnego bez wysokości', tx.includes('Dolne'), tx.join(' | '));
-const xT = await page.evaluate(() => [...document.querySelectorAll('svg text')].map((t) => +t.getAttribute('x')));
+const xT = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map((t) => +t.getAttribute('x')));
 const vb2 = await vbox();
 ok('etykiety ciągów mieszczą się w kadrze', Math.max(...xT) < vb2[0] + vb2[2], `${Math.max(...xT)} < ${vb2[0] + vb2[2]}`);
 
@@ -159,7 +159,7 @@ ok('szafka 800 przeszła na prawo', t800.every((q) => q.x === 600), JSON.stringi
 
 console.log('\n== 3D zabudowy rysuje obie kondygnacje ==');
 await pick('3D');
-const poly = await page.evaluate(() => document.querySelectorAll('svg polygon').length);
+const poly = await page.evaluate(() => document.querySelectorAll('#rysunek svg polygon').length);
 console.log('     wielokątów: ' + poly);
 ok('bryła się narysowała', poly > 50, String(poly));
 ok('jest przełącznik otwarte/zamknięte',
@@ -167,13 +167,13 @@ ok('jest przełącznik otwarte/zamknięte',
 /* Sama liczba wielokatow nie zmienia sie przy otwarciu (te same bryly, tylko
    obrocone), wiec mierzymy obrys: otwarte fronty musza wyjsc poza korpus. */
 const szer = () => page.evaluate(() => {
-  const vb = document.querySelector('svg').getAttribute('viewBox').split(' ').map(Number);
+  const vb = document.querySelector('#rysunek svg').getAttribute('viewBox').split(' ').map(Number);
   return Math.round(vb[2]);
 });
 const przed = await szer();
 await page.getByRole('button', { name: /^(otwarte|zamknięte)$/ }).click();
 await page.waitForTimeout(900);
-const poly2 = await page.evaluate(() => document.querySelectorAll('svg polygon').length);
+const poly2 = await page.evaluate(() => document.querySelectorAll('#rysunek svg polygon').length);
 const po = await szer();
 console.log('     wielokąty ' + poly + ' → ' + poly2 + ', szerokość obrysu ' + przed + ' → ' + po);
 ok('otwarte fronty rozszerzają obrys bryły', po > przed, `${przed} → ${po}`);

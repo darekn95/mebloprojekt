@@ -16,7 +16,7 @@ const openings = async () => {
   await page.getByText('Otw.', { exact: true }).first().click();
   await page.waitForTimeout(800);
   return page.evaluate(() => {
-    const svg = document.querySelector('svg');
+    const svg = document.querySelector('#rysunek svg');
     return [...svg.querySelectorAll('text')].map(t => t.textContent.trim())
       .filter(t => /^\d+$/.test(t)).map(Number);
   });
@@ -77,7 +77,7 @@ const swiatlaOf = async (polek) => {
   const hide = page.getByText('Ukryj okucia', { exact: true });
   if (await hide.count()) { await hide.first().click(); await page.waitForTimeout(700); }
   return page.evaluate((n) => {
-    const svg = document.querySelector('svg');
+    const svg = document.querySelector('#rysunek svg');
     const by = new Map();
     [...svg.querySelectorAll('text')].forEach((t) => {
       const s = t.textContent.trim();

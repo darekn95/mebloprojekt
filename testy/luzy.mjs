@@ -34,7 +34,7 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(2200);
 
 const svgTexts = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('text')].map((t) => ({
     t: t.textContent.trim(), x: Math.round(+t.getAttribute('x')), y: Math.round(+t.getAttribute('y')),
     f: t.getAttribute('fill'), a: t.getAttribute('text-anchor'),
@@ -90,7 +90,7 @@ ok('światło poziomu po lewej, nic po prawej', lvl.some((t) => t.x < 0) && !lvl
   lvl.map((t) => t.x).join(', '));
 
 console.log('\n== wymiary blisko szafki, gdy nie ma długości boków ==');
-const vb = await page.evaluate(() => document.querySelector('svg').getAttribute('viewBox').split(' ').map(Number));
+const vb = await page.evaluate(() => document.querySelector('#rysunek svg').getAttribute('viewBox').split(' ').map(Number));
 ok('lewy margines rysunku rozsądny (< 500)', -vb[0] < 500, String(-vb[0]));
 const hMain = tx.find((t) => t.t === '720');
 ok('wymiar wysokości blisko obrysu (> -260)', hMain && hMain.x > -260, hMain && String(hMain.x));
@@ -117,7 +117,7 @@ ok('szuflady: przycisk zmniejszenia luzu', !!sHint && sHint.btns.some((b) => /^Z
 console.log('\n== przycisk faktycznie wyrównuje formatki ==');
 const hintSec = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi$/ }) }).first();
 const fronts = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('text')].map((t) => t.textContent.trim()).filter((t) => /^\d+×\d+$/.test(t));
 });
 await view('Zamk.');
@@ -128,7 +128,7 @@ const after = await fronts();
 console.log('     po:  ', after.join(', '));
 const doorSizes = after.filter((s) => Number(s.split('×')[0]) > 300);
 ok('drzwi mają identyczne formatki', new Set(doorSizes).size === 1, doorSizes.join(', '));
-await page.locator('svg').first().screenshot({ path: S + 'shot-luzy.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-luzy.png' });
 
 console.log('\n== za duzy luz miedzy drzwiami to blad, nie ostrzezenie ==');
 /* Granica to `maxGap` (pole „Ostrzegaj powyżej", domyślnie 5 mm). Przez taką

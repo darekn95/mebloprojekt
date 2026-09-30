@@ -69,8 +69,8 @@ ok('materiał zapisany przy szafce', st.items[0].cab.top.material === 'worktop',
   JSON.stringify(st.items[0].cab.top));
 
 console.log('\n== blat idzie do rozkroju na WŁASNYM arkuszu 4100 x 600 ==');
-await page.getByRole('button', { name: /Rozkrój/i }).first().click();
-await page.waitForTimeout(3500);
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
+await page.waitForTimeout(300);
 const plan = await page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')]
     .find((s) => /Rozkrój/i.test((s.querySelector('h2') || {}).textContent || ''));
@@ -90,14 +90,12 @@ const blatArk = plan.arkusze.filter((v) => {
 });
 ok('jest arkusz w proporcji blatu (długi i wąski)', blatArk.length >= 1, JSON.stringify(plan.arkusze));
 ok('bez błędów przy rozkroju', errors.length === 0, errors.join('; '));
-await page.getByRole('button', { name: /Zamknij/i }).first().click();
-await page.waitForTimeout(600);
 
 console.log('\n== kilka blatów widać jako kilka arkuszy ==');
 // 3 szafki po 1600 = 4800 + 40 = 4840 -> dwa kawalki, kazdy na swoim arkuszu
 await seed([1600, 1600, 1600], 'worktop', {}, false);
-await page.getByRole('button', { name: /Rozkrój/i }).first().click();
-await page.waitForTimeout(3500);
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
+await page.waitForTimeout(300);
 const ile = await page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')]
     .find((s) => /Rozkrój/i.test((s.querySelector('h2') || {}).textContent || ''));
@@ -105,8 +103,6 @@ const ile = await page.evaluate(() => {
 });
 console.log('     arkuszy w rozkroju: ' + ile);
 ok('rozkrój pokazuje więcej niż jeden arkusz', ile >= 2, String(ile));
-await page.getByRole('button', { name: /Zamknij/i }).first().click();
-await page.waitForTimeout(600);
 
 console.log('\n== za płytki blat: błąd z przyciskiem zmiany na 1200 ==');
 await page.evaluate(() => {
@@ -144,8 +140,8 @@ await seed([800], 'worktop', {}, false);
 /* Wycena arkuszy bierze sie z policzonego rozkroju, a zamkniecie okna rozkroju
    go kasuje — wiec czytamy wycene przy otwartym rozkroju. Karta wyceny jest
    zwinieta, wiec czytamy jej zawartosc wprost z DOM. */
-await page.getByRole('button', { name: /Rozkrój/i }).first().click();
-await page.waitForTimeout(3500);
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
+await page.waitForTimeout(300);
 // zwinieta karta w ogole nie renderuje tabeli — najpierw ja rozwijamy
 const rozwinWycene = async () => {
   await page.evaluate(() => {
@@ -172,8 +168,8 @@ await page.evaluate(() => {
 });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(2400);
-await page.getByRole('button', { name: /Rozkrój/i }).first().click();
-await page.waitForTimeout(3500);
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
+await page.waitForTimeout(300);
 await rozwinWycene();
 const cena1200 = await page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')].find((s) => /Wycena|Kosztorys/i.test((s.querySelector('h2') || {}).textContent || ''));

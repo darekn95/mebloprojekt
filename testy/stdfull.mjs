@@ -17,11 +17,11 @@ const body = () => page.evaluate(() => document.body.innerText);
 const clickView = async (v) => { await page.getByText(v, { exact: true }).first().click(); await page.waitForTimeout(700); };
 const struct = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Struktura wnętrza$/ }) }).first();
 const svgTexts = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('text')].map(t => t.textContent.trim());
 });
 const rects = (fill) => page.evaluate((f) => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('rect')].filter(r => r.getAttribute('fill') === f).length;
 }, fill);
 
@@ -75,7 +75,7 @@ const rail2 = (await svgTexts()).filter(t => /^szyna /.test(t));
 ok('tryb "wewnątrz" przelicza montaż', rail2.includes('szyna 0') && rail2.join() !== rail.join(), rail2.join(', '));
 await clickView('Z góry');
 const topRail = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const r = [...svg.querySelectorAll('rect')].find(x => x.getAttribute('fill') === '#8b8b93');
   return r ? Math.round(+r.getAttribute('y')) + '..' + Math.round(+r.getAttribute('y') + +r.getAttribute('height')) : null;
 });

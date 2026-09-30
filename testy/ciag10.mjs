@@ -14,7 +14,7 @@ const chip = (name) => page.locator('header div.rounded-full').filter({ hasText:
 /* Swiatla rysuje ten sam kod co w widoku pojedynczej szafki, kolorem DIMC.
    Bierzemy je razem z pozycja na ekranie, zeby sprawdzic, przy ktorej szafce
    wypadaja. */
-const dimy = (tylkoSzafki) => page.evaluate((wSzafce) => [...document.querySelectorAll('svg text')]
+const dimy = (tylkoSzafki) => page.evaluate((wSzafce) => [...document.querySelectorAll('#rysunek svg text')]
   .filter((t) => t.getAttribute('fill') === '#0369a1' && /^\d+$/.test(t.textContent.trim()))
   /* Wymiary szafki siedza w jej <g transform>, wymiary calego ciagu leza wprost
      w <svg> — po tym je rozrozniamy. */
@@ -22,7 +22,7 @@ const dimy = (tylkoSzafki) => page.evaluate((wSzafce) => [...document.querySelec
   .map((t) => ({ v: t.textContent.trim(), x: Math.round(t.getBoundingClientRect().x) })), tylkoSzafki);
 const swiatla = () => dimy(true);
 const wartosci = async () => (await swiatla()).map((q) => q.v).sort().join(',');
-const shapes = (sel) => page.evaluate((q) => [...document.querySelectorAll('svg ' + q)].map((r) => ({
+const shapes = (sel) => page.evaluate((q) => [...document.querySelectorAll('#rysunek svg ' + q)].map((r) => ({
   w: Math.round(+r.getAttribute('width')), h: Math.round(+r.getAttribute('height')),
   f: r.getAttribute('fill'), dash: r.getAttribute('stroke-dasharray') || '',
 })), sel);
@@ -118,12 +118,12 @@ ok('ścianki zabudowy narysowane', scianki.length >= 2, String(scianki.length));
 
 console.log('\n== zabudowa w 3D ==');
 await pick('3D');
-const poly = await page.evaluate(() => document.querySelectorAll('svg polygon').length);
+const poly = await page.evaluate(() => document.querySelectorAll('#rysunek svg polygon').length);
 console.log('     wielokątów z zabudową: ' + poly);
 await seed([ZWY('A', 800), ZWY('B', 600)]);
 await pick('Ciąg');
 await pick('3D');
-const polyBez = await page.evaluate(() => document.querySelectorAll('svg polygon').length);
+const polyBez = await page.evaluate(() => document.querySelectorAll('#rysunek svg polygon').length);
 console.log('     wielokątów bez zabudowy: ' + polyBez);
 ok('zabudowa dokłada bryły w 3D', poly > polyBez, `${polyBez} → ${poly}`);
 
@@ -145,9 +145,9 @@ for (const v of ['Zamk.', 'Otw.', 'Z góry', 'Z tyłu', '3D']) {
   ok(`wariant ${v}`, errors.length === before, errors.slice(before).join('; '));
 }
 await pick('Otw.');
-await page.locator('svg').first().screenshot({ path: S + 'shot-swiatla.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-swiatla.png' });
 await pick('Z góry');
-await page.locator('svg').first().screenshot({ path: S + 'shot-zabudowa.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-zabudowa.png' });
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

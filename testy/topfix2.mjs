@@ -44,6 +44,6 @@ console.log('  oczekiwane: wys. 62 (do wieńca), szer. ~436 = od 0 do prawej kra
 
 await page.evaluate(() => window.scrollTo(0, 0));
 await page.waitForTimeout(300);
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-topfix2.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-topfix2.png' }); } catch (e) {}
 console.log('BLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

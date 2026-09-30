@@ -30,16 +30,16 @@ await page.waitForTimeout(700);
 await clickView('Otw.');
 const hingeYs = () => page.evaluate(() => {
   const out = [];
-  document.querySelectorAll('svg rect').forEach((r) => {
+  document.querySelectorAll('#rysunek svg rect').forEach((r) => {
     if (r.getAttribute('fill') === '#71717a' && r.getAttribute('width') === '20') out.push(Math.round(+r.getAttribute('y')));
   });
   return out.sort((a, b) => a - b);
 });
-const hingeLabels = () => page.evaluate(() => [...document.querySelectorAll('svg text')].map(t => t.textContent.trim()));
+const hingeLabels = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map(t => t.textContent.trim()));
 console.log('A) H=2000, brak półek — prostokąty zawiasów (y w SVG):', JSON.stringify(await hingeYs()));
 console.log('   etykiety odległości:', (await hingeLabels()).filter(t => /^\d+$/.test(t)).join(', '));
 console.log('   uwagi:', (await notes()).join(' // ') || '(brak)');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-hinge-a.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-hinge-a.png' }); } catch (e) {}
 
 // --- B: półki wracają, sprawdzamy kolizję ---
 await shelvesInp.fill('3'); await shelvesInp.blur();
@@ -48,10 +48,10 @@ await clickView('Otw.');
 console.log('\nB) H=2000, 3 półki — uwagi:');
 (await notes()).forEach(n => console.log('   -', n));
 console.log('   etykiety odległości:', (await hingeLabels()).filter(t => /^\d+$/.test(t)).join(', '));
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-hinge-b.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-hinge-b.png' }); } catch (e) {}
 
 await clickView('Z boku');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-hinge-side.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-hinge-side.png' }); } catch (e) {}
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

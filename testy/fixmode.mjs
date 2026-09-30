@@ -52,6 +52,6 @@ await page.waitForTimeout(800);
 console.log('fix prawa w kolumnie ŚRODKOWEJ:     ', await fixPart(), '(oczekiwane ~716 x 60 — luzy zostają, bo nie dotyka boku)');
 
 await page.evaluate(() => window.scrollTo(0, 0));
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-fixmid.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-fixmid.png' }); } catch (e) {}
 console.log('BLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

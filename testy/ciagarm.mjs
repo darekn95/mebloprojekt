@@ -20,14 +20,14 @@ await page.evaluate(() => {
       C('B1',700,'c2')]}));
 });
 await page.reload({ waitUntil:'networkidle' }); await page.waitForTimeout(2400);
-const txt=()=>page.evaluate(()=>[...document.querySelectorAll('svg text')].map(t=>t.textContent.trim()));
+const txt=()=>page.evaluate(()=>[...document.querySelectorAll('#rysunek svg text')].map(t=>t.textContent.trim()));
 await page.getByText('Ciąg',{exact:true}).first().click(); await page.waitForTimeout(900);
 await page.getByText('Zamk.',{exact:true}).first().click(); await page.waitForTimeout(900);
 let t=await txt();
 ok('ramię widać w widoku ciągu', t.some(x=>/^ramię 500$/.test(x)), t.join(' | '));
-await page.locator('svg').first().screenshot({path:S+'ciag-arm.png'});
+await page.locator('#rysunek svg').first().screenshot({path:S+'ciag-arm.png'});
 // zawiasy tylko w otwartym
-const puszki=()=>page.evaluate(()=>[...document.querySelectorAll('svg rect')].filter(r=>r.getAttribute('fill')==='#a1a1aa').length);
+const puszki=()=>page.evaluate(()=>[...document.querySelectorAll('#rysunek svg rect')].filter(r=>r.getAttribute('fill')==='#a1a1aa').length);
 const zam=await puszki();
 await page.getByText('Otw.',{exact:true}).first().click(); await page.waitForTimeout(900);
 const otw=await puszki();

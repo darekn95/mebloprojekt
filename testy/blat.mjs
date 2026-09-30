@@ -61,7 +61,7 @@ for (const v of ['Zamk.', 'Otw.', 'Z boku', 'Z góry', 'Z tyłu', '3D']) {
 
 await clickView('Zamk.');
 const fr = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const vb = svg.getAttribute('viewBox').split(/\s+/).map(Number);
   const rs = [...svg.querySelectorAll('rect')];
   const wide = rs.find(r => Math.round(+r.getAttribute('width')) === 700 && Math.round(+r.getAttribute('height')) === 18);
@@ -69,12 +69,12 @@ const fr = await page.evaluate(() => {
 });
 ok('blat narysowany od -50 do 650', !!fr.blat && fr.blat.x === -50, fr.blat ? 'x=' + fr.blat.x : 'nie znaleziono');
 ok('kadr obejmuje wysunięcie', fr.vb[0] <= -50, 'viewBox x=' + fr.vb[0]);
-await page.locator('svg').first().screenshot({ path: S + 'shot-blat-front.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-blat-front.png' });
 
 await clickView('Z boku');
-await page.locator('svg').first().screenshot({ path: S + 'shot-blat-side.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-blat-side.png' });
 await clickView('Z góry');
-await page.locator('svg').first().screenshot({ path: S + 'shot-blat-top.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-blat-top.png' });
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

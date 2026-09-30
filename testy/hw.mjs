@@ -13,7 +13,7 @@ await page.waitForTimeout(1500);
 const clickView = async (v) => { await page.getByText(v, { exact: true }).first().click(); await page.waitForTimeout(700); };
 const struct = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Struktura wnętrza$/ }) }).first();
 const stat = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const rs = [...svg.querySelectorAll('rect')];
   const txt = [...svg.querySelectorAll('text')].map(t => t.textContent.trim());
   return {
@@ -24,7 +24,7 @@ const stat = () => page.evaluate(() => {
   };
 });
 const outOfView = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const vb = svg.getAttribute('viewBox').split(/\s+/).map(Number);
   const [vx, vy, vw, vh] = vb;
   const bad = [];
@@ -44,7 +44,7 @@ console.log('   zawiasy:', st.zawiasy, '(4 bryły)   etykiety odległości:', st
 let ov = await outOfView();
 console.log('   viewBox:', ov.vb);
 console.log('   napisy poza kadrem:', ov.bad.length ? ov.bad.join(' | ') : '(brak)');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-hw-doors.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-hw-doors.png' }); } catch (e) {}
 
 // --- B: przycisk okuc ---
 const btn = page.getByRole('button', { name: /Ukryj okucia|Pokaż okucia/ });
@@ -68,7 +68,7 @@ console.log('   wymiary "szyna":', st.szyna.join(', '));
 ov = await outOfView();
 console.log('   viewBox:', ov.vb);
 console.log('   napisy poza kadrem:', ov.bad.length ? ov.bad.join(' | ') : '(brak)');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-hw-railL.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-hw-railL.png' }); } catch (e) {}
 
 // --- D: kolumna srodkowa ---
 await page.locator('input[value="600"]').first().fill('1500');
@@ -94,7 +94,7 @@ st = await stat();
 console.log('   wymiary "szyna" (kolumna środkowa):', st.szyna.join(', '));
 ov = await outOfView();
 console.log('   napisy poza kadrem:', ov.bad.length ? ov.bad.join(' | ') : '(brak)');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-hw-railMid.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-hw-railMid.png' }); } catch (e) {}
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

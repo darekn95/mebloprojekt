@@ -13,7 +13,7 @@ await page.waitForTimeout(1500);
 const clickView = async (v) => { await page.getByText(v, { exact: true }).first().click(); await page.waitForTimeout(700); };
 const struct = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Struktura wnętrza$/ }) }).first();
 const gapVals = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('text')].map(t => t.textContent.trim()).filter(t => /^-?\d+$/.test(t) && Math.abs(+t) < 60);
 });
 const fronts = () => page.evaluate(() => {
@@ -50,7 +50,7 @@ await page.waitForTimeout(900);
 console.log('\nB) drzwi NAKŁADANE + szuflady WEWNĄTRZ');
 console.log('   szczeliny:', (await gapVals()).join(', '), '— wszystkie powinny być 2');
 console.log('   formatki:', (await fronts()).join(' | '), '— drzwi szersze niż w A o 8 mm (zakrywają całą przegrodę)');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-mix.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-mix.png' }); } catch (e) {}
 const notes = await page.evaluate(() => [...document.querySelectorAll('li')].map(l => l.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
 console.log('   uwagi:', notes.length ? notes.join(' // ') : '(brak)');
 

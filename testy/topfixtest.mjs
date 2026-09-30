@@ -43,7 +43,7 @@ console.log('"wspornik pionowy" widoczny przy fix "lewa":', await card('Struktur
 await card('Struktura wnętrza').getByText('góra', { exact: true }).first().click();
 await page.waitForTimeout(600);
 await page.evaluate(() => window.scrollTo(0, 0));
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-topfix.png' }); console.log('zrzut: shot-topfix.png'); } catch (e) { console.log('zrzut nieudany', e.message); }
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-topfix.png' }); console.log('zrzut: shot-topfix.png'); } catch (e) { console.log('zrzut nieudany', e.message); }
 
 // dwie kolumny — sprawdz ze srodkowa krawedz ma luz
 await card('Struktura wnętrza').locator('input[type=number]').first().fill('300');

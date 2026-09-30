@@ -24,7 +24,7 @@ const front = async () => {
   await page.getByText('Zamk.', { exact: true }).first().click();
   await page.waitForTimeout(800);
   return page.evaluate(() => {
-    const svg = document.querySelector('svg');
+    const svg = document.querySelector('#rysunek svg');
     const legs = [...svg.querySelectorAll('rect')]
       .filter(r => Math.round(+r.getAttribute('width')) === 40 && Math.round(+r.getAttribute('height')) >= 40)
       .map(r => ({ y: Math.round(+r.getAttribute('y')), h: Math.round(+r.getAttribute('height')),
@@ -43,7 +43,7 @@ console.log('  nóżki:', JSON.stringify(f.legs), '| podpisy:', f.total.join(', 
 ok('nóżka kończy się pod dnem, nie pod szafką', f.legs.length === 3 && f.legs.every((l) => l.y === 620), JSON.stringify(f.legs));
 ok('nóżka rysowana za cokołem (przygaszona)', f.legs.every(l => l.op === '0.5'), JSON.stringify(f.legs.map(l => l.op)));
 ok('całkowita wysokość zostaje 720', f.total.includes(720) && !f.total.includes(820), f.total.join(', '));
-await page.locator('svg').first().screenshot({ path: S + 'shot-nozki-obrys.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-nozki-obrys.png' });
 
 console.log('\n== cokół w obrysie 100 + nóżki 150 (wystają) ==');
 await setup('inbody', 100, 150);
@@ -74,6 +74,6 @@ for (const v of ['Zamk.', 'Otw.', 'Z boku', 'Z góry', 'Z tyłu', '3D']) {
 }
 await page.getByText('3D', { exact: true }).first().click();
 await page.waitForTimeout(900);
-await page.locator('svg').first().screenshot({ path: S + 'shot-nozki-3d.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-nozki-3d.png' });
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

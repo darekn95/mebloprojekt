@@ -13,7 +13,7 @@ await page.waitForTimeout(1500);
 const clickView = async (v) => { await page.getByText(v, { exact: true }).first().click(); await page.waitForTimeout(700); };
 const struct = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Struktura wnętrza$/ }) }).first();
 const szyna = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('text')].map(t => t.textContent.trim()).filter(t => /^szyna /.test(t));
 });
 const frontParts = () => page.evaluate(() => {
@@ -34,7 +34,7 @@ await clickView('Otw.');
 console.log('A) fronty "jak szafka" (na korpusie), reguła 16 mm');
 console.log('   wysokości montażu:', (await szyna()).join(', '), '— najniższa powinna być 0');
 console.log('   formatki frontów:', (await frontParts()).join(' | '));
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-dm-a.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-dm-a.png' }); } catch (e) {}
 
 const seg = struct.locator('div.flex.items-center.gap-2', { has: page.getByText('fronty', { exact: true }) });
 console.log('\nB) kontrolka "fronty" w kolumnie szuflad:', await seg.count());
@@ -45,7 +45,7 @@ await page.waitForTimeout(800);
 console.log('\nC) fronty szuflad WEWNĄTRZ (korpus dalej "na korpusie")');
 console.log('   wysokości montażu:', (await szyna()).join(', '));
 console.log('   formatki frontów:', (await frontParts()).join(' | '), '— powinny być węższe niż w A');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-dm-c.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-dm-c.png' }); } catch (e) {}
 
 await seg.getByText('Na korpusie', { exact: true }).click();
 await page.waitForTimeout(800);

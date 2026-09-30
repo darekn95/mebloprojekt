@@ -46,7 +46,7 @@ for (const btn of ['Dobuduj wspornik pionowy', 'Usuń kolidujące skrzydło']) {
   if (btn.startsWith('Dobuduj')) ok('jest formatka wspornika', parts.some((x) => /Wspornik/.test(x)), parts.join(' // '));
   ok(`${btn}: bez błędów strony`, errors.length === 0, errors.join('; '));
   await page.evaluate(() => window.scrollTo(0, 0));
-  try { await page.locator('svg').first().screenshot({ path: S + 'shot-btn-' + (btn.startsWith('Dobuduj') ? 'sup' : 'nodoor') + '.png' }); } catch (e) {}
+  try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-btn-' + (btn.startsWith('Dobuduj') ? 'sup' : 'nodoor') + '.png' }); } catch (e) {}
   console.log('BLEDY:', errors.length ? errors.join('\n') : '(brak)');
   await page.close();
 }

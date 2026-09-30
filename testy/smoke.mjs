@@ -47,7 +47,7 @@ for (const scope of ['Szafka', 'Ciąg', 'Zabudowa']) {
     const before = errs.length;
     await page.getByText(v, { exact: true }).first().click();
     await page.waitForTimeout(600);
-    const n = await page.evaluate(() => document.querySelectorAll('svg').length);
+    const n = await page.evaluate(() => document.querySelectorAll('#rysunek svg').length);
     console.log('   ', v.padEnd(7), 'svg:', n, errs.length > before ? 'BLAD: ' + errs.slice(before).join('; ') : '');
   }
 }
