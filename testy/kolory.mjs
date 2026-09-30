@@ -146,9 +146,7 @@ const formatki = () => page.evaluate(() => {
     .filter((r) => r.length > 3 && /^Płyta/.test(r[2])).map((r) => ({ nazwa: r[0], plyta: r[2] }));
 });
 const rozkroj = async () => {
-  await page.evaluate(() => { window.__audytRozkroj = null; });
-  const sec = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Formatki całego projektu/ }) }).first();
-  await sec.getByRole('button', { name: 'Rozkrój na płycie' }).click(); await page.waitForTimeout(1500);
+  await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
   return page.evaluate(() => (window.__audytRozkroj ? window.__audytRozkroj.groups.map((g) => g.matLabel) : null));
 };
 const wczytaj = async (flags, inne) => {

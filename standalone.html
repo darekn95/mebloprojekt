@@ -13108,7 +13108,6 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
   const [printing, setPrinting] = useState(false);
-  const [cutPlan, setCutPlan] = useState(null);
 
 
   // zestawienie renderujemy dopiero na zadanie, potem oddajemy je przegladarce
@@ -13846,19 +13845,17 @@ export default function App() {
     return () => clearTimeout(id);
   }, [rozkrojKlucz]); // eslint-disable-line react-hooks/exhaustive-deps
   const autoAktualny = !!autoPlan && autoPlan.key === rozkrojKlucz;
-
-  // okno „Rozkrój na płycie”: gdy rozkroj jest juz policzony w tle, pokazuje sie od razu
-  const makeCutPlan = useCallback((scope) => {
-    const groups = autoAktualny && autoPlan.scope === scope ? autoPlan.groups : buildCutPlan(wierszeRozkroju(scope));
-    // tylko dla testow (`testy/audytwycena.mjs`): gdy strona ma tablice, dostaje rozkroj
-    if (typeof window !== "undefined" && window.__audytRozkroj !== undefined) window.__audytRozkroj = { scope, groups };
-    setCutPlan({ scope, groups });
-  }, [autoAktualny, autoPlan, wierszeRozkroju]);
-  // otwarte okno odswieza sie razem z rozkrojem w tle
+  /* Karta „Rozkrój na płycie” jest cały czas i pokazuje ten rozkroj — zakres
+     zamowienia (caly projekt albo pomieszczenie; przy jednej szafce ona).
+     Recznego „Pokaż rozkrój” i „Rozkrój na płycie” juz nie ma (uzytkownik
+     2026-09-30). Tylko dla testow (`audytwycena`, `kolory`): ostatni policzony
+     rozkroj lezy w `window.__audytRozkroj` (z `aktualny`, gdy zgadza sie
+     z biezacymi formatkami). */
+  const pokazPlan = autoPlan;
   useEffect(() => {
-    if (autoPlan && cutPlan && cutPlan.scope === autoPlan.scope && cutPlan.groups !== autoPlan.groups)
-      setCutPlan({ scope: autoPlan.scope, groups: autoPlan.groups });
-  }, [autoPlan]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (typeof window !== "undefined")
+      window.__audytRozkroj = autoPlan ? { scope: autoPlan.scope, groups: autoPlan.groups, aktualny: autoAktualny } : null;
+  }, [autoPlan, autoAktualny]);
 
   // --- wycena: ceny trzyma projekt, ilosci biora sie z list i rozkroju ---
   const prices = project.prices || {};
@@ -13891,12 +13888,11 @@ export default function App() {
 
   // arkusze bierzemy z policzonego rozkroju — bez niego nie ma czego mnożyć
   const planSheets = useMemo(() => {
-    const plan = autoAktualny ? autoPlan : cutPlan;
-    if (!plan) return null;
+    if (!autoAktualny) return null;
     const by = {};
-    plan.groups.forEach((g) => { by[g.matLabel] = (by[g.matLabel] || 0) + g.sheets.length; });
+    autoPlan.groups.forEach((g) => { by[g.matLabel] = (by[g.matLabel] || 0) + g.sheets.length; });
     return by;
-  }, [cutPlan, autoPlan, autoAktualny]);
+  }, [autoPlan, autoAktualny]);
 
   /* Rozkroj grupuje arkusze po samej etykiecie materialu, a cena zalezy jeszcze
      od koloru — stad podreczna mapa etykieta → { kolor, rola }. */
@@ -13911,13 +13907,6 @@ export default function App() {
     return m;
   }, [project, ambig]);
 
-  /* Etykieta materialu niesie kolor, wiec zmiana koloru unieważnia policzony
-     wczesniej rozkroj — inaczej wycena trzymalaby arkusze pod nazwa, ktorej
-     juz nie ma, i liczyla je po zerowej cenie. */
-  useEffect(() => {
-    if (!cutPlan) return;
-    if (!cutPlan.groups.every((g) => matByLabel.has(g.matLabel))) setCutPlan(null);
-  }, [matByLabel, cutPlan]);
 
   const boardDefault = (label) => {
     const info = matByLabel.get(label);
@@ -16526,13 +16515,6 @@ export default function App() {
                   className="text-xs text-teal-700 hover:underline">
                   + dodatkowa formatka
                 </button>
-                {!zCaloscia && (
-                  <button onClick={() => makeCutPlan("cab")}
-                    title="Ułóż formatki na arkuszach i policz, ile płyt zamówić"
-                    className="text-xs font-medium text-teal-700 hover:underline">
-                    Rozkrój na płycie
-                  </button>
-                )}
               </div>
             }>
             <div className="overflow-x-auto">
@@ -16665,11 +16647,6 @@ export default function App() {
               : `Formatki całego projektu${project.name ? " — " + project.name : ""}`} collapsible
               right={
                 <div className="flex items-center gap-3">
-                  <button onClick={() => makeCutPlan("project")}
-                    title="Ułóż formatki całego projektu na arkuszach"
-                    className="text-xs font-medium text-teal-700 hover:underline">
-                    Rozkrój na płycie
-                  </button>
                   <span className="text-xs text-stone-400">{projZam.items.length} {plural(projZam.items.length, "szafka", "szafki", "szafek")}</span>
                 </div>
               }>
@@ -16747,13 +16724,10 @@ export default function App() {
             </Card>
           )}
 
-          {cutPlan && (
-            <Card title={`Rozkrój na płycie${cutPlan.scope === "project" ? (zamTylkoPokoj ? ` — pomieszczenie „${roomName(project, pokoj)}”` : " — cały projekt") : ""}`}
-              right={
-                <button onClick={() => setCutPlan(null)} className="text-xs text-stone-500 hover:underline">
-                  Zamknij
-                </button>
-              }>
+          {/* Rozkroj widac caly czas (uzytkownik 2026-09-30) — liczy sie sam w tle (`autoPlan`). */}
+          {pokazPlan && (
+            <Card id="rozkroj" title={`Rozkrój na płycie${pokazPlan.scope === "project" ? (zamTylkoPokoj ? ` — pomieszczenie „${roomName(project, pokoj)}”` : " — cały projekt") : pokazPlan.scope === "cab" && zCaloscia ? ` — szafka „${cab.name}”` : ""}`}
+              right={!autoAktualny ? <span className="text-xs text-stone-400">przelicza się…</span> : null}>
               <p className="text-xs text-stone-500">
                 Arkusz {fmt(SHEET_W)} × {fmt(SHEET_H)} mm, okrawany przed rozkrojem do
                 {" "}{fmt(USABLE_W)} × {fmt(USABLE_H)} mm, rzaz piły {KERF} mm. Układ jest
@@ -16764,7 +16738,7 @@ export default function App() {
                 największy użyteczny kawałek zamiast garści ścinków. Za użyteczne uznaje resztki
                 od {MIN_USEFUL} mm w obu wymiarach.
               </p>
-              {cutPlan.groups.map((g, gi) => (
+              {pokazPlan.groups.map((g, gi) => (
                 <div key={gi} className="space-y-3 border-t border-stone-200 pt-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="text-sm font-medium text-stone-800">{g.matLabel}</span>
@@ -16799,7 +16773,7 @@ export default function App() {
               <div className="border-t border-stone-200 pt-3 text-sm">
                 <span className="text-xs uppercase tracking-wider text-stone-500">Płyty do zamówienia</span>
                 <div className="mt-1 space-y-0.5 font-mono">
-                  {cutPlan.groups.map((g, i) => (
+                  {pokazPlan.groups.map((g, i) => (
                     <div key={i}>
                       {g.matLabel}: {g.sheets.length}{" "}
                       {plural(g.sheets.length, "arkusz", "arkusze", "arkuszy")} {fmt(SHEET_W)}×{fmt(SHEET_H)}
@@ -16888,16 +16862,7 @@ export default function App() {
           )}
 
           {/* wycena na koncu, pod produktami calego projektu (uzytkownik 2026-09-29) */}
-          <Card title="Wycena" collapsible defaultOpen={false}
-            right={
-              !cutPlan ? (
-                <button onClick={() => makeCutPlan(zCaloscia ? "project" : "cab")}
-                  title="Rozkrój liczy się sam po każdej zmianie formatek — tu otwierasz rysunek arkuszy"
-                  className="text-xs text-teal-700 hover:underline">
-                  Pokaż rozkrój
-                </button>
-              ) : null
-            }>
+          <Card title="Wycena" collapsible defaultOpen={false}>
             {roomsOf(project).length > 1 && (
               <p className="text-xs font-medium text-stone-600">
                 {zamTylkoPokoj

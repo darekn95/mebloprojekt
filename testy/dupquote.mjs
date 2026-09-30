@@ -54,8 +54,8 @@ await wy.locator('h2').click(); await page.waitForTimeout(500);
 // rozkroj liczy sie sam sekunde po zmianie formatek (2026-09-29) — plyta jest w wycenie bez klikania
 await page.waitForTimeout(1800);
 ok('płyta w wycenie bez klikania „Pokaż rozkrój”', /^Płyta /m.test(await wy.evaluate((s) => [...s.querySelectorAll('tbody tr')].map((tr) => tr.innerText.trim()).join('\n'))));
-await wy.getByText('Pokaż rozkrój', { exact: true }).click();
-await page.waitForTimeout(2500);
+// przycisku „Pokaż rozkrój” juz nie ma — karta rozkroju jest cały czas (2026-09-30)
+ok('bez przycisku „Pokaż rozkrój”', (await wy.getByText('Pokaż rozkrój', { exact: true }).count()) === 0);
 const rowsTxt = await wy.evaluate(s => [...s.querySelectorAll('tbody tr')].map(tr => [...tr.querySelectorAll('td')].map(td => td.innerText.trim().replace(/\n/g, ' ')).join(' | ')));
 console.log('  pozycje wyceny:'); rowsTxt.forEach(r => console.log('     ' + r));
 ok('płyta w wycenie', rowsTxt.some(r => /^Płyta /.test(r)));
@@ -84,8 +84,9 @@ await wy2.locator('h2').click(); await page.waitForTimeout(500);
 const stored = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('szafki:projekt')).prices; } catch { return null; } });
 ok('ceny zapisane w projekcie', !!stored && Object.values(stored).includes(200), JSON.stringify(stored));
 // po przeliczeniu rozkroju ceny wracaja do tabeli
-await wy2.getByText('Pokaż rozkrój', { exact: true }).click();
-await page.waitForTimeout(2500);
+// rozkroj liczy sie sam (bez przycisku, 2026-09-30)
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 });
+await page.waitForTimeout(500);
 const kept = await wy2.evaluate(s => [...s.querySelectorAll('tbody input')].map(i => i.value).filter(Boolean).join(','));
 ok('ceny wracają do tabeli po przeliczeniu', kept.includes('200'), kept || '(puste)');
 const sum2 = await wy2.evaluate(s => s.innerText.match(/RAZEM\s+([\d.,]+)/i)?.[1] || '');

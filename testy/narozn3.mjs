@@ -141,7 +141,7 @@ ok('wybór przechodzącego blatu zapisany', zapis[1] && zapis[1].top === 'self',
 
 console.log('\n== rozkroj liczy blaty razem z narożnikiem ==');
 await uklad({ cut: 'skos' });
-await page.getByRole('button', { name: 'Rozkrój na płycie', exact: true }).first().click();
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
 await page.waitForTimeout(1500);
 const plan = await page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')]

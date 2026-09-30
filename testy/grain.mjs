@@ -61,7 +61,7 @@ ok('wzór ma zawartość', painted && painted.kids >= 3, JSON.stringify(painted)
 
 console.log('\n== strzałka słojów w rozkroju ==');
 // bez grainMatters — rozkroj bez strzalek
-await card(/^Formatki do zamówienia$/).getByRole('button', { name: 'Rozkrój na płycie' }).click();
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
 await page.waitForTimeout(2000);
 const arrowsOff = await page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')].find(s => /^Rozkrój na płycie/.test((s.querySelector('h2') || {}).textContent || ''));
@@ -71,7 +71,7 @@ ok('bez usłojenia brak strzałek', arrowsOff && !arrowsOff.txt, JSON.stringify(
 
 await plyty.getByText('Kierunek usłojenia ma znaczenie', { exact: true }).click();
 await page.waitForTimeout(700);
-await card(/^Formatki do zamówienia$/).getByRole('button', { name: 'Rozkrój na płycie' }).click();
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
 await page.waitForTimeout(2500);
 const arrowsOn = await page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')].find(s => /^Rozkrój na płycie/.test((s.querySelector('h2') || {}).textContent || ''));
