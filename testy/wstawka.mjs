@@ -158,5 +158,27 @@ ok('przy szafce w L pola wstawki nie ma', await page.locator('[data-el="wstawka-
 proj = await tabela(/^Formatki całego projektu/);
 ok('przy szafce w L formatki wstawki nie ma', !proj.some((l) => /Wstawka w rogu/.test(l)));
 
+console.log('\n== wstawka z tej samej płyty co drzwi (zgłoszenie 2026-09-30) ==');
+/* Szafka z „Fronty z tej samej plyty co korpus” (domyslnie) robi drzwi z plyty
+   korpusu — wstawka to front tej szafki, wiec idzie z tej samej plyty. Po
+   odznaczeniu — obie z plyty frontowej. Plyty rozne kolorem, zeby bylo widac. */
+const MAT = { board: { name: 'Płyta', thickness: 18, color: '#d8c3a0' }, front: { name: 'Płyta', thickness: 18, color: '#3b82f6' },
+  back: { name: 'HDF', thickness: 3, color: '#e7e5e4' } };
+const plytaWierszy = async (same) => {
+  await page.evaluate(([p]) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(p)); }, [{
+    name: 'W', active: 1, prices: {},
+    runs: [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0, wstawka: { typ: 'plaska', w: 60 } } })],
+    items: [CAB('A1', 600, 'c1'), CAB('A2', 600, 'c1'), CAB('rog', 1000, 'c2', USTAWIONA), CAB('B2', 600, 'c2')]
+      .map((it) => ({ ...it, mat: MAT, cab: { ...it.cab, frontSameAsBoard: same } })) }]);
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
+  const rows = await tabela(/^Formatki do zamówienia/);
+  const plyta = (re) => ((rows.find((l) => re.test(l)) || '').split(' | ').find((x) => /^Płyta/.test(x)) || '');
+  return { drzwi: plyta(/^Drzwi/), wstawka: plyta(/^Wstawka w rogu/), rows };
+};
+let pw1 = await plytaWierszy(true);
+ok('fronty z płyty korpusu → wstawka z tej samej płyty co drzwi', !!pw1.wstawka && pw1.wstawka === pw1.drzwi, `drzwi „${pw1.drzwi}”, wstawka „${pw1.wstawka}”`);
+pw1 = await plytaWierszy(false);
+ok('fronty z płyty frontowej → wstawka też z frontowej', !!pw1.wstawka && pw1.wstawka === pw1.drzwi, `drzwi „${pw1.drzwi}”, wstawka „${pw1.wstawka}”`);
+
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

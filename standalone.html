@@ -6291,7 +6291,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
                 w licu drzwi — tu widac, o ile odsuwa ciag od frontu w rogu. */}
             {((full.info.get(g.run.id) || n).wstawki || []).map((w, i) => (
               <rect key={"ws" + i} data-el="wstawka" x={w.u0} y={w.v0} width={w.u1 - w.u0} height={w.v1 - w.v0}
-                fill={w.cab.mat.front.color} stroke={INK} strokeWidth="1.5" />
+                fill={w.cab.frontColor} stroke={INK} strokeWidth="1.5" />
             ))}
           </g>
         );
@@ -7937,7 +7937,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
       {/* wstawka w rogu przy boku — od tylu tez ja widac (lustro w poziomie) */}
       {wstawkiSzafki(wstawki, geo).map((w, k) => (
         <rect key={"ws" + k} data-el="wstawka" x={mx(w.x0, w.x1 - w.x0)} y={fy(w.H)} width={w.x1 - w.x0} height={w.H}
-          fill={mat.front.color} stroke={INK} strokeWidth="2" />
+          fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="2" />
       ))}
     </svg>
   );
@@ -8019,7 +8019,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
       {/* wstawka w rogu: przy boku, konczy sie w licu drzwi */}
       {wstawkiSzafki(wstawki, geo).map((w, i) => (
         <rect key={"ws" + i} data-el="wstawka" x={w.x0} y={cd + frontExtra - w.gl} width={w.x1 - w.x0} height={w.gl}
-          fill={mat.front.color} stroke={INK} strokeWidth="1.5" />
+          fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="1.5" />
       ))}
       {/* Ramie szafki naroznej: biegnie wzdluz drugiej sciany, wiec w ukladzie
           tej szafki idzie w bok od jej lica. `v` to glebokosc ramienia od tamtej
@@ -8864,7 +8864,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
           jego przednie `gl` mm na cala wysokosc korpusu */}
       {wstawkiSzafki(wstawki, geo).filter((w) => w.lewa !== sideRight).map((w, k) => (
         <rect key={"ws" + k} data-el="wstawka" x={frontFace - w.gl} y={fy(w.H)} width={w.gl} height={w.H}
-          fill={mat.front.color} stroke={INK} strokeWidth="2" opacity="0.9" />
+          fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="2" opacity="0.9" />
       ))}
     </svg>
   );
@@ -10409,12 +10409,19 @@ const armShelfYs = (side, levels) => {
    przodu, na trojkatach po obu stronach (2 na strone przy 720). Plaska ma
    oklejona krawedz przednia i dolna, szeroka tylko dolna (ustalone
    z uzytkownikiem 2026-09-27/28). */
+/* Plyta, z ktorej ida fronty szafki: przy „Fronty z tej samej plyty co korpus”
+   (domyslnie) — plyta korpusu, jak w `computeGeo` (`sameBoard`). Wstawka w rogu
+   i fronty ramienia to tez fronty tej szafki — wczesniej szly zawsze z plyty
+   frontowej i na liscie, w rozkroju i na rysunku mialy inny kolor niz drzwi
+   (zgloszenie uzytkownika 2026-09-30). */
+const plytaFrontu = (cab) => (cab && cab.frontSameAsBoard === false ? "front" : "board");
 const wstawkaParts = (ws) => {
   const H = Math.round(ws.H);
   const plaska = ws.typ === "plaska";
   /* Szeroka stoi licem do przodu, a jej boki stykaja sie z bokami szafek —
      widac tylko dolna krawedz (ustalone 2026-09-28). */
-  const panels = [{ name: "Wstawka w rogu", qty: 1, a: H, b: plaska ? ws.gl : ws.u, matKey: "front",
+  const panels = [{ name: "Wstawka w rogu", qty: 1, a: H, b: plaska ? ws.gl : ws.u,
+    matKey: plytaFrontu(ws.cab && ws.cab.cab),
     edges: plaska ? { a1: true, a2: false, b1: true, b2: false } : { a1: false, a2: false, b1: true, b2: false },
     note: plaska
       ? "płasko przy boku szafki, licuje się z drzwiami — krawędź przednia i dolna"
