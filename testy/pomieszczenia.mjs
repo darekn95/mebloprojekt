@@ -174,5 +174,16 @@ await pokojBtn('Łazienka').click(); await page.waitForTimeout(500);
 await page.getByRole('button', { name: '+ pomieszczenie' }).click(); await page.waitForTimeout(500);
 ok('w pomieszczeniu z jedną szafką nie ma „Usuń szafkę”', (await page.locator('header button[title="Usuń szafkę"]').count()) === 0);
 
+console.log('\n== pasek pomieszczeń zwija się (uzytkownik 2026-09-30) ==');
+await pasek().getByRole('button', { name: /^▼\s*Pomieszczenia/ }).click(); await page.waitForTimeout(300);
+const zw = await pasek().innerText();
+ok('zwinięty: bez kafelków i „+ pomieszczenie”, z podsumowaniem', (await pasek().locator('[data-pokoj]').count()) === 0
+  && !/\+ pomieszczenie/.test(zw) && /3 pomieszczenia, aktywne: „Pomieszczenie \d+”/.test(zw), zw.replace(/\n/g, ' | '));
+ok('stan pamiętany w przeglądarce', (await page.evaluate(() => localStorage.getItem('mp-pokoje-zwiniete'))) === '1');
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
+ok('po przeładowaniu dalej zwinięty', (await pasek().locator('[data-pokoj]').count()) === 0);
+await pasek().getByRole('button', { name: /Pomieszczenia/ }).first().click(); await page.waitForTimeout(300);
+ok('drugie kliknięcie rozwija', (await pasek().locator('[data-pokoj]').count()) === 3);
+
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

@@ -13125,6 +13125,10 @@ export default function App() {
   const [pasekZwiniety, setPasekZwiniety] = useState(() => {
     try { return localStorage.getItem("mp-pasek-zwiniety") === "1"; } catch (e) { return false; }
   });
+  // pasek pomieszczen tez da sie zwinac (uzytkownik 2026-09-30); pamieta przegladarka
+  const [pokojeZwiniete, setPokojeZwiniete] = useState(() => {
+    try { return localStorage.getItem("mp-pokoje-zwiniete") === "1"; } catch (e) { return false; }
+  });
   // szafki wolnostojace tego pomieszczenia
   const wolneWPokoju = useMemo(() => runItems(project, null).filter(({ it }) => roomOfItem(project, it) === pokoj),
     [project, pokoj]);
@@ -14071,7 +14075,22 @@ export default function App() {
         {/* pomieszczenia: Projekt → Pomieszczenie → ciagi → szafki (uzytkownik 2026-09-29) */}
         <div className="border-t border-stone-200 bg-white/70" data-pasek="pomieszczenia">
           <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-1.5 px-4 py-1.5">
-            <span className="mr-1 shrink-0 text-xs font-medium text-stone-400">Pomieszczenia</span>
+            <button onClick={() => {
+              const v = !pokojeZwiniete; setPokojeZwiniete(v);
+              try { localStorage.setItem("mp-pokoje-zwiniete", v ? "1" : "0"); } catch (e) { /* bez pamieci */ }
+            }}
+              title={pokojeZwiniete ? "Pokaż pomieszczenia" : "Zwiń pasek pomieszczeń"}
+              className="mr-1 flex shrink-0 items-center gap-1.5 text-[11px] text-stone-500 hover:text-stone-800">
+              <span className={`text-[10px] transition-transform ${pokojeZwiniete ? "-rotate-90" : ""}`}>▼</span>
+              Pomieszczenia
+              {pokojeZwiniete && (
+                <span className="text-stone-400">
+                  — {roomsOf(project).length} {plural(roomsOf(project).length, "pomieszczenie", "pomieszczenia", "pomieszczeń")}, aktywne: „{roomName(project, pokoj) || "Pomieszczenie"}”
+                  {innePokojeNotes.length > 0 && <span style={{ color: innePokojeNotes.some((x) => x.err) ? ERRC : WARNC }}> ●</span>}
+                </span>
+              )}
+            </button>
+            {!pokojeZwiniete && (<>
             {roomsOf(project).map((r) => {
               const akt = r.id === pokoj;
               const uw = innePokojeNotes.find((x) => x.id === r.id);
@@ -14138,6 +14157,7 @@ export default function App() {
                   options={[{ v: "projekt", l: "Cały projekt" }, { v: "pomieszczenie", l: "To pomieszczenie" }]} />
               </div>
             )}
+            </>)}
           </div>
         </div>
         <div className="border-t border-stone-200 bg-stone-50/60">
