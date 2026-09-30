@@ -3097,7 +3097,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   }
 
   if (cab.topFiller?.on && cab.topFiller.height > 0) {
-    P({ name: "Blenda nad szafką", qty: 1, a: W, b: Math.round(cab.topFiller.height), matKey: "board",
+    // stoi w licu drzwi i ja widac — plyta jak fronty (uzytkownik 2026-09-30)
+    P({ name: "Blenda nad szafką", qty: 1, a: W, b: Math.round(cab.topFiller.height), matKey: "front",
         edges: { a1: true, a2: false, b1: true, b2: true },
         note: "maskownica nad szafką — krawędź górna i oba końce oklejane" });
   }
@@ -5015,7 +5016,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
       )}
       {cab.topFiller?.on && cab.topFiller.height > 0 && (
         <rect x="0" y={-cab.topFiller.height} width={W} height={cab.topFiller.height}
-          fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
+          fill={ff} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
       {cab.legs?.on && geo.legs.xs.map((lx, li) => (
         <rect key={"noga" + li} x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
@@ -5790,7 +5791,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                         fill="none" stroke={INK} strokeWidth="1.8" opacity="0.5" />
                       <rect x={zl ? lx : lx + lw - a.cab.geo.tf}
                         y={fy(pf.y0 + pf.h)} width={a.cab.geo.tf} height={pf.h}
-                        fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
+                        fill={frontRamienia(a).kolor} stroke={INK} strokeWidth="2" />
                     </g>
                   ) : (
                     /* Od tylu ramie pokazuje plecy, a nie front — i to na calej
@@ -5798,7 +5799,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                        maskownicy katownika. */
                     <rect x={rear ? ax : lx} y={fy(rear ? a.cab.base + a.cab.cab.H : pf.y0 + pf.h)}
                       width={rear ? a.len : lw} height={rear ? a.cab.cab.H : pf.h}
-                      fill={rear ? a.cab.mat.back.color : a.cab.frontColor}
+                      fill={rear ? a.cab.mat.back.color : frontRamienia(a).kolor}
                       stroke={INK} strokeWidth="2" />
                   )}
                   {a.cab.plinthH > 0 && (
@@ -5856,7 +5857,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                   {open && !rear && armShelfYs(a.side, a.cab.geo.levels).map((sy, k) => (
                     <rect key={"apo" + k} x={ax} y={fy(a.cab.base + sy + a.cab.geo.ts)}
                       width={a.len} height={a.cab.geo.ts}
-                      fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" />
+                      fill={shelfColorOf(a.cab.cab, a.cab.mat)} stroke={INK} strokeWidth="2" />
                   ))}
                   {/* Front ramienia to zwykle drzwi, wiec musi miec uchwyt i
                       zawiasy — inaczej na elewacji wyglada jak zaslepka.
@@ -6093,7 +6094,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
             <rect x={a.outerAtEnd ? fp.odRogu : a.len - fp.odRogu - fp.w}
               y={armInset(a) ? a.depth - a.cab.geo.tf : a.depth}
               width={fp.w} height={a.cab.geo.tf}
-              fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
+              fill={frontRamienia(a).kolor} stroke={INK} strokeWidth="2" />
           );
         })()}
         {/* Plecy i wzmocnienia ramienia. Plecy i tylne wzmocnienie ida
@@ -6291,7 +6292,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
                 w licu drzwi — tu widac, o ile odsuwa ciag od frontu w rogu. */}
             {((full.info.get(g.run.id) || n).wstawki || []).map((w, i) => (
               <rect key={"ws" + i} data-el="wstawka" x={w.u0} y={w.v0} width={w.u1 - w.u0} height={w.v1 - w.v0}
-                fill={w.cab.mat.front.color} stroke={INK} strokeWidth="1.5" />
+                fill={w.cab.frontColor} stroke={INK} strokeWidth="1.5" />
             ))}
           </g>
         );
@@ -6574,7 +6575,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           handleBar(d, -tf - out, null);
           skrzynkaBryly(d, t, -out).forEach(([a0, b0, c0, a1, b1, c1, r]) =>
             box(c.x + a0, c.base + b0, c0, c.x + a1, c.base + b1, c1,
-              r === "metal" ? "#8b8b93" : bf, null, 1, false, 0, r === "metal" ? "skrzynka-bok" : null));
+              r === "metal" ? "#8b8b93" : shelfColorOf(c.cab, c.mat), null, 1, false, 0, r === "metal" ? "skrzynka-bok" : null));
           return;
         }
         if (d.type === "klapa") {
@@ -6702,14 +6703,14 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         box(hcx - 6, hcy - hh, -tfA - uchwytA, hcx + 6, hcy + hh, -tfA, "#3f3f46", rot, 1, false, 400, "uchwyt");
       };
       if (!otwiera) {
-        box(x0 + fu0, fy0, -tfA, x0 + fu0 + fw, fy1, 0, c.frontColor, null, 1, true);
+        box(x0 + fu0, fy0, -tfA, x0 + fu0 + fw, fy1, 0, frontRamienia(a).kolor, null, 1, true);
         uchwytBox(null);
       } else {
         const ang = (angle * Math.PI) / 180;
         const left = !przyKoncu;                      // zawias po stronie dalszej od rogu
         const ox = x0 + (left ? fu0 : fu0 + fw);
         const rot = (p) => rotAboutY(p, (left ? -1 : 1) * ang, ox, -tfA);
-        box(x0 + fu0, fy0, -tfA, x0 + fu0 + fw, fy1, 0, c.frontColor, rot, 0.85, true);
+        box(x0 + fu0, fy0, -tfA, x0 + fu0 + fw, fy1, 0, frontRamienia(a).kolor, rot, 0.85, true);
         uchwytBox(rot);
       }
       /* Cztery plyty katownika liczy `bracketPlan` — ta sama funkcja co w rzucie
@@ -7041,7 +7042,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             })()}
             {open && armShelfYs(arm.side, geo.levels).map((sy, k) => (
               <rect key={"aps" + k} x={ax0} y={fy(sy + geo.ts)} width={armLen} height={geo.ts}
-                fill={bf} stroke={INK} strokeWidth="2" />
+                fill={shelfColorOf(cab, mat)} stroke={INK} strokeWidth="2" />
             ))}
             {/* Bok zamykajacy ramie na wolnym koncu — ta sama plyta, ktora
                 w rzucie z gory konczy ramie. Rysowany przed frontem, bo front
@@ -7050,7 +7051,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               fill={bf} stroke={INK} strokeWidth="2" />
             {!open && (
               <rect x={fx} y={pY} width={fw} height={pH}
-                fill={ff} stroke={INK} strokeWidth="2" />
+                fill={frontRamienia(arm, !!cab.realColors).kolor} stroke={INK} strokeWidth="2" />
             )}
             {/* Front ramienia to zwykle drzwi: zawias na koncu dalszym od rogu,
                 uchwyt przy rogu. Po otwarciu zostaje obrys skrzydla, plyta
@@ -7127,7 +7128,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       )}
       {cab.topFiller?.on && cab.topFiller.height > 0 && (
         <rect x="0" y={-cab.topFiller.height} width={W} height={cab.topFiller.height}
-          fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
+          fill={ff} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
       {cab.legs?.on && geo.legs.xs.map((lx, li) => (
         <rect key={"noga" + li} x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
@@ -7937,7 +7938,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
       {/* wstawka w rogu przy boku — od tylu tez ja widac (lustro w poziomie) */}
       {wstawkiSzafki(wstawki, geo).map((w, k) => (
         <rect key={"ws" + k} data-el="wstawka" x={mx(w.x0, w.x1 - w.x0)} y={fy(w.H)} width={w.x1 - w.x0} height={w.H}
-          fill={mat.front.color} stroke={INK} strokeWidth="2" />
+          fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="2" />
       ))}
     </svg>
   );
@@ -8019,7 +8020,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
       {/* wstawka w rogu: przy boku, konczy sie w licu drzwi */}
       {wstawkiSzafki(wstawki, geo).map((w, i) => (
         <rect key={"ws" + i} data-el="wstawka" x={w.x0} y={cd + frontExtra - w.gl} width={w.x1 - w.x0} height={w.gl}
-          fill={mat.front.color} stroke={INK} strokeWidth="1.5" />
+          fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="1.5" />
       ))}
       {/* Ramie szafki naroznej: biegnie wzdluz drugiej sciany, wiec w ukladzie
           tej szafki idzie w bok od jej lica. `v` to glebokosc ramienia od tamtej
@@ -8060,12 +8061,12 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
               return (
                 <rect x={ax(cab.frontMode === "inset" ? vLico - geo.tf : vLico, geo.tf)}
                   y={ay(fp.odRogu)} width={geo.tf} height={fp.w}
-                  fill={mat.front.color} stroke={INK} strokeWidth="2" />
+                  fill={frontRamienia(arm, !!cab.realColors).kolor} stroke={INK} strokeWidth="2" />
               );
             })()}
             {bracketPlan(arm, true).map((r, k) => (
               <rect key={"kat" + k} x={ax(r.v, r.h)} y={ay(r.u)} width={r.h} height={r.w}
-                fill={r.front ? mat.front.color : bf} stroke={INK} strokeWidth="2" />
+                fill={r.front ? (cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color) : bf} stroke={INK} strokeWidth="2" />
             ))}
             {/* Uchwyt i zawias frontu ramienia — uchwyt po stronie rogu przed
                 licem, zawias przy wolnym koncu na wewnetrznym licu boku. */}
@@ -8708,11 +8709,11 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
                 <rect x={x0} y={fy(dr.rail.y0 + hS)} width={sk.nl} height={hS}
                   fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="10 6" opacity="0.6" />
                 <rect x={x0 + 2 + geo.t} y={fy(dnoY + geo.t)} width={sk.dno[1]} height={geo.t}
-                  fill={bf} stroke={INK} strokeWidth="1" opacity="0.7" />
+                  fill={shc} stroke={INK} strokeWidth="1" opacity="0.7" />
                 {/* tyl szuflady na koncu bokow od strony plecow korpusu (x0), od
                     `tylOd` nad dolem boku — dno dochodzi do niego (instrukcja V-BOX) */}
                 <rect x={x0 + 2} y={fy(dr.rail.y0 + tylOd + sk.tyl[1])} width={geo.t} height={sk.tyl[1]}
-                  fill={bf} stroke={INK} strokeWidth="1" opacity="0.7" />
+                  fill={shc} stroke={INK} strokeWidth="1" opacity="0.7" />
               </g>
             );
           })))}
@@ -8864,7 +8865,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
           jego przednie `gl` mm na cala wysokosc korpusu */}
       {wstawkiSzafki(wstawki, geo).filter((w) => w.lewa !== sideRight).map((w, k) => (
         <rect key={"ws" + k} data-el="wstawka" x={frontFace - w.gl} y={fy(w.H)} width={w.gl} height={w.H}
-          fill={mat.front.color} stroke={INK} strokeWidth="2" opacity="0.9" />
+          fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="2" opacity="0.9" />
       ))}
     </svg>
   );
@@ -9295,7 +9296,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
       handleBar(d, z0 - pull, null);
       // skrzynka jest w szafce i przy zamknietej — rysunki z gory i z boku ja pokazuja
       skrzynkaBryly(d, t, z1 - pull).forEach(([a0, b0, c0, a1, b1, c1, r]) =>
-        box(a0, b0, c0, a1, b1, c1, r === "metal" ? "#8b8b93" : bf, null, 1, false));
+        box(a0, b0, c0, a1, b1, c1, r === "metal" ? "#8b8b93" : shelfColorOf(cab, mat), null, 1, false));
       return;
     }
     const col = d.mirror ? mat.mirror.color : ff;
@@ -9521,11 +9522,16 @@ const Check = ({ checked, onChange, label }) => (
    i najczesciej sie o niego pyta, HDF na dole, bo to drobiazg. Reszta zostaje
    w kolejnosci, w jakiej powstaje geometria. */
 const MAT_ORDER = { worktop: 0, front: 1, board: 2, shelf: 2, mirror: 3, back: 4 };
+/* Plyta formatki. Zwykle z materialow szafki po `matKey`, ale front ramienia
+   szafki w L moze isc z plyty sasiedniej sciany (`zPlyty`, uzytkownik
+   2026-09-30) — wtedy formatka niesie wlasny material. */
+const plytaFormatki = (p, mat) => p.zPlyty || (mat || {})[p.matKey];
 const groupPanels = (panels) => {
   const map = new Map();
   panels.forEach((p) => {
     const e = p.edges;
-    const key = [p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name].join("|");
+    const z = p.zPlyty ? [p.zPlyty.name, p.zPlyty.color, p.zPlyty.thickness, p.zPlyty.decor].join("/") : "";
+    const key = [p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name, z].join("|");
     if (map.has(key)) map.get(key).qty += p.qty;
     else map.set(key, { ...p });
   });
@@ -10409,12 +10415,19 @@ const armShelfYs = (side, levels) => {
    przodu, na trojkatach po obu stronach (2 na strone przy 720). Plaska ma
    oklejona krawedz przednia i dolna, szeroka tylko dolna (ustalone
    z uzytkownikiem 2026-09-27/28). */
+/* Plyta, z ktorej ida fronty szafki: przy „Fronty z tej samej plyty co korpus”
+   (domyslnie) — plyta korpusu, jak w `computeGeo` (`sameBoard`). Wstawka w rogu
+   i fronty ramienia to tez fronty tej szafki — wczesniej szly zawsze z plyty
+   frontowej i na liscie, w rozkroju i na rysunku mialy inny kolor niz drzwi
+   (zgloszenie uzytkownika 2026-09-30). */
+const plytaFrontu = (cab) => (cab && cab.frontSameAsBoard === false ? "front" : "board");
 const wstawkaParts = (ws) => {
   const H = Math.round(ws.H);
   const plaska = ws.typ === "plaska";
   /* Szeroka stoi licem do przodu, a jej boki stykaja sie z bokami szafek —
      widac tylko dolna krawedz (ustalone 2026-09-28). */
-  const panels = [{ name: "Wstawka w rogu", qty: 1, a: H, b: plaska ? ws.gl : ws.u, matKey: "front",
+  const panels = [{ name: "Wstawka w rogu", qty: 1, a: H, b: plaska ? ws.gl : ws.u,
+    matKey: plytaFrontu(ws.cab && ws.cab.cab),
     edges: plaska ? { a1: true, a2: false, b1: true, b2: false } : { a1: false, a2: false, b1: true, b2: false },
     note: plaska
       ? "płasko przy boku szafki, licuje się z drzwiami — krawędź przednia i dolna"
@@ -10443,6 +10456,26 @@ const wstawkiSzafki = (ws, geo) => (ws || []).map((w) => ({
    naroznych — bo w calosci nie da sie ich ani okleic, ani wnieść. */
 // glebokosc korpusu ramienia: od plecow (przy scianie) do lica
 const armKorpus = (a) => Math.max(0, Math.round(a.depth - armPlan(a).tb));
+/* Szafka sasiedniej sciany stojaca przy ramieniu. Ramie lezy przy poczatku
+   tamtego ciagu, gdy wychodzi na prawo (`outerAtEnd`), inaczej przy koncu. */
+const sasiadRamienia = (a) => {
+  const cabs = a && a.other && a.other.g ? a.other.g.cabs : [];
+  if (!cabs.length) return null;
+  return a.outerAtEnd ? cabs[0] : cabs[cabs.length - 1];
+};
+/* Front ramienia stoi w licu sasiedniej sciany: gdy ta ma inne fronty, idzie
+   z jej plyty frontow, inaczej z plyty szafki w rogu (uzytkownik 2026-09-30).
+   Zwraca { key, plyta } do formatek i kolor do rysunkow (`real` = realne
+   kolory rysunku: wtedy fronty z plyty korpusu maja jej kolor). */
+const frontRamienia = (a, real) => {
+  const zr = sasiadRamienia(a) || a.cab;
+  if (real === undefined) real = !!zr.cab.realColors;
+  const key = plytaFrontu(zr.cab);
+  const plyta = (zr.rawMat || zr.mat)[key];
+  const m = zr.mat || zr.rawMat;
+  const kolor = real && zr.cab.frontSameAsBoard !== false ? m.board.color : m.front.color;
+  return { key, plyta, kolor };
+};
 const cornerArmParts = (a) => {
   const geo = a.cab.geo;
   const cab = a.cab.cab;
@@ -10503,7 +10536,7 @@ const cornerArmParts = (a) => {
      koncu ramienia — `armFrontPlan` ma to juz policzone, tak samo jak rysunki. */
   panels.push({ name: fix ? "Fix ramienia" : "Front ramienia", qty: 1,
     a: armFrontPlan(a).w,
-    b: d0 ? Math.round(d0.h) : H, matKey: "front",
+    b: d0 ? Math.round(d0.h) : H, matKey: frontRamienia(a).key, zPlyty: frontRamienia(a).plyta,
     edges: { a1: true, a2: true, b1: true, b2: true }, note: "cztery krawędzie" });
   /* Katownik trzyma kat prosty i daje obu skrzydlom o co sie oprzec przy
      zamknieciu. Cztery plyty na cala wysokosc: dwie w srodku i dwie na czole,
@@ -10521,9 +10554,9 @@ const cornerArmParts = (a) => {
     panels.push({ name: "Kątownik narożnika — doczołowy", qty: 1, a: w, b: inner, matKey: "board",
       edges: { a1: false, a2: false, b1: true, b2: false },
       note: "krawędź pionowa od strony wnętrza — druga wchodzi w styk" });
-    panels.push({ name: "Maskownica kątownika — nachodząca", qty: 1, a: w, b: hM, matKey: "front",
+    panels.push({ name: "Maskownica kątownika — nachodząca", qty: 1, a: w, b: hM, matKey: plytaFrontu(cab),
       edges: { a1: true, a2: true, b1: true, b2: false }, note: "krawędź pionowa oraz góra i dół" });
-    panels.push({ name: "Maskownica kątownika — doczołowa", qty: 1, a: w, b: hM, matKey: "front",
+    panels.push({ name: "Maskownica kątownika — doczołowa", qty: 1, a: w, b: hM, matKey: plytaFrontu(cab),
       edges: { a1: true, a2: true, b1: true, b2: false }, note: "krawędź pionowa oraz góra i dół" });
   }
   /* Polki w ramieniu ida osobno, tak jak plyty poziome — w calosci w L nikt ich
@@ -10533,7 +10566,9 @@ const cornerArmParts = (a) => {
   const polek = armShelfYs(a.side, geo.levels).length;
   if (polek > 0)
     // za katownikiem naroznika w licu ramienia (gdy jest) — jak polka korpusu
-    panels.push({ name: "Półka ramienia", qty: polek, a: len - t, b: a.depth - (geo.tb || t) - (a.bracket ? t : 0), matKey: "board",
+    // z plyty polek jak polki korpusu („Półki z tej samej płyty co korpus”)
+    panels.push({ name: "Półka ramienia", qty: polek, a: len - t, b: a.depth - (geo.tb || t) - (a.bracket ? t : 0),
+      matKey: cab.shelfSameAsBoard === false ? "shelf" : "board",
       edges: { a1: true, a2: false, b1: false, b2: false }, note: "krawędź przednia" });
   // cokol idzie dalej pod ramieniem — to osobny kawalek wzdluz drugiej sciany
   if (a.cab.plinthH > 0)
@@ -10783,11 +10818,11 @@ const projectParts = (project) => {
       if (!n.arm) return;
       const { panels, hardware } = cornerArmParts(n.arm);
       if (!panels.length) return;
-      /* Front ramienia stoi w licu tej sciany, w ktorej pasie lezy — wiec bierze
-         plyte frontowa stamtad. Gdy tamten ciag jest jeszcze pusty, zostaje
-         material szafki naroznej. */
-      const sasiad = n.arm.other && n.arm.other.g ? n.arm.other.g.cabs[0] : null;
-      const armMat = sasiad ? sasiad.rawMat : n.arm.cab.rawMat;
+      /* Ramie to czesc szafki w rogu — jej plyty. Tylko front ramienia niesie
+         wlasna plyte (`zPlyty`, `frontRamienia`): z sasiedniej sciany, gdy ta
+         ma inne fronty (uzytkownik 2026-09-30). Wczesniej cale ramie bralo
+         material sasiada, a karta szafki — szafki w rogu. */
+      const armMat = n.arm.cab.rawMat;
       arms.push({ mat: armMat, grainMatters: n.arm.cab.cab.grainMatters,
         name: `Narożnik — ${(n.arm.cab.cab.name || "").trim() || "szafka w rogu"}`,
         panels, hardware });
@@ -12170,7 +12205,7 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
             {panels.map((p, i) => (
               <tr key={i}>
                 <td>{p.name}</td>
-                <td>{matLabelOf(mat[p.matKey], p.matKey, ambig)}</td>
+                <td>{matLabelOf(plytaFormatki(p, mat), p.matKey, ambig)}</td>
                 <td className="num">{fmt(p.a)}</td>
                 <td className="num">{fmt(p.b)}</td>
                 <td className="num">{p.qty}</td>
@@ -12338,7 +12373,7 @@ function ReportCutPlan({ project, projectName }) {
           a: p.a,
           b: p.b,
           rotatable: p.matKey === "back" || !part.grainMatters,
-          matLabel: matLabelOf(part.mat[p.matKey], p.matKey, ambig),
+          matLabel: matLabelOf(plytaFormatki(p, part.mat), p.matKey, ambig),
           // blat roboczy uklada sie na wlasnym arkuszu, nie na plycie meblowej
           sheet: p.matKey === "worktop"
             ? { w: WORKTOP_LEN, h: worktopDepth(part.mat) } : null,
@@ -12412,7 +12447,7 @@ function ReportProjectSheet({ project, projectName, tytul = null, tytulProduktow
     projectParts(project).forEach((part) => {
       const cabName = part.name;
       part.panels.forEach((p) => {
-        const m = part.mat[p.matKey] || {};
+        const m = plytaFormatki(p, part.mat) || {};
         const e = p.edges;
         const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name].join("|");
         if (map.has(key)) {
@@ -12861,6 +12896,10 @@ export default function App() {
   const [usuwanyPokoj, setUsuwanyPokoj] = useState(null);
   // nazwa pomieszczenia w trakcie zmiany (pole zamiast przycisku)
   const [nazwaPokoju, setNazwaPokoju] = useState(null);
+  /* Nazwa szafki: drugie klikniecie w aktywna szafke na pasku otwiera pole
+     (trzyma nazwe sprzed edycji — Esc do niej wraca); null = bez edycji. */
+  const [nazwaSzafki, setNazwaSzafki] = useState(null);
+  useEffect(() => { setNazwaSzafki(null); }, [project.active]);
   /* Formatki, produkty, rozkroj i wycena: domyslnie caly projekt — to jedno
      zamowienie (uzytkownik 2026-09-29); podglad samego pomieszczenia osobno. */
   const [zakresZam, setZakresZam] = useState("projekt");
@@ -13069,7 +13108,6 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
   const [printing, setPrinting] = useState(false);
-  const [cutPlan, setCutPlan] = useState(null);
 
 
   // zestawienie renderujemy dopiero na zadanie, potem oddajemy je przegladarce
@@ -13137,6 +13175,10 @@ export default function App() {
   // zwiniety pasek ciagow i szafek — wygoda jednego widza, pamieta przegladarka
   const [pasekZwiniety, setPasekZwiniety] = useState(() => {
     try { return localStorage.getItem("mp-pasek-zwiniety") === "1"; } catch (e) { return false; }
+  });
+  // pasek pomieszczen tez da sie zwinac (uzytkownik 2026-09-30); pamieta przegladarka
+  const [pokojeZwiniete, setPokojeZwiniete] = useState(() => {
+    try { return localStorage.getItem("mp-pokoje-zwiniete") === "1"; } catch (e) { return false; }
   });
   // szafki wolnostojace tego pomieszczenia
   const wolneWPokoju = useMemo(() => runItems(project, null).filter(({ it }) => roomOfItem(project, it) === pokoj),
@@ -13711,7 +13753,7 @@ export default function App() {
     projectParts(projZam).forEach((part) => {
       const cabName = part.name;
       part.panels.forEach((p) => {
-        const m = part.mat[p.matKey] || {};
+        const m = plytaFormatki(p, part.mat) || {};
         const e = p.edges;
         const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name, !!part.grainMatters].join("|");
         if (map.has(key)) {
@@ -13782,7 +13824,7 @@ export default function App() {
         a: p.a,
         b: p.b,
         rotatable: p.matKey === "back" || !cab.grainMatters,
-        matLabel: matLabelOf(mat[p.matKey], p.matKey, ambig),
+        matLabel: matLabelOf(plytaFormatki(p, mat), p.matKey, ambig),
         sheet: p.matKey === "worktop"
           ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
       }))), [cutList, projectCutList, cab.grainMatters, mat, ambig]);
@@ -13803,19 +13845,17 @@ export default function App() {
     return () => clearTimeout(id);
   }, [rozkrojKlucz]); // eslint-disable-line react-hooks/exhaustive-deps
   const autoAktualny = !!autoPlan && autoPlan.key === rozkrojKlucz;
-
-  // okno „Rozkrój na płycie”: gdy rozkroj jest juz policzony w tle, pokazuje sie od razu
-  const makeCutPlan = useCallback((scope) => {
-    const groups = autoAktualny && autoPlan.scope === scope ? autoPlan.groups : buildCutPlan(wierszeRozkroju(scope));
-    // tylko dla testow (`testy/audytwycena.mjs`): gdy strona ma tablice, dostaje rozkroj
-    if (typeof window !== "undefined" && window.__audytRozkroj !== undefined) window.__audytRozkroj = { scope, groups };
-    setCutPlan({ scope, groups });
-  }, [autoAktualny, autoPlan, wierszeRozkroju]);
-  // otwarte okno odswieza sie razem z rozkrojem w tle
+  /* Karta „Rozkrój na płycie” jest cały czas i pokazuje ten rozkroj — zakres
+     zamowienia (caly projekt albo pomieszczenie; przy jednej szafce ona).
+     Recznego „Pokaż rozkrój” i „Rozkrój na płycie” juz nie ma (uzytkownik
+     2026-09-30). Tylko dla testow (`audytwycena`, `kolory`): ostatni policzony
+     rozkroj lezy w `window.__audytRozkroj` (z `aktualny`, gdy zgadza sie
+     z biezacymi formatkami). */
+  const pokazPlan = autoPlan;
   useEffect(() => {
-    if (autoPlan && cutPlan && cutPlan.scope === autoPlan.scope && cutPlan.groups !== autoPlan.groups)
-      setCutPlan({ scope: autoPlan.scope, groups: autoPlan.groups });
-  }, [autoPlan]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (typeof window !== "undefined")
+      window.__audytRozkroj = autoPlan ? { scope: autoPlan.scope, groups: autoPlan.groups, aktualny: autoAktualny } : null;
+  }, [autoPlan, autoAktualny]);
 
   // --- wycena: ceny trzyma projekt, ilosci biora sie z list i rozkroju ---
   const prices = project.prices || {};
@@ -13848,12 +13888,11 @@ export default function App() {
 
   // arkusze bierzemy z policzonego rozkroju — bez niego nie ma czego mnożyć
   const planSheets = useMemo(() => {
-    const plan = autoAktualny ? autoPlan : cutPlan;
-    if (!plan) return null;
+    if (!autoAktualny) return null;
     const by = {};
-    plan.groups.forEach((g) => { by[g.matLabel] = (by[g.matLabel] || 0) + g.sheets.length; });
+    autoPlan.groups.forEach((g) => { by[g.matLabel] = (by[g.matLabel] || 0) + g.sheets.length; });
     return by;
-  }, [cutPlan, autoPlan, autoAktualny]);
+  }, [autoPlan, autoAktualny]);
 
   /* Rozkroj grupuje arkusze po samej etykiecie materialu, a cena zalezy jeszcze
      od koloru — stad podreczna mapa etykieta → { kolor, rola }. */
@@ -13868,13 +13907,6 @@ export default function App() {
     return m;
   }, [project, ambig]);
 
-  /* Etykieta materialu niesie kolor, wiec zmiana koloru unieważnia policzony
-     wczesniej rozkroj — inaczej wycena trzymalaby arkusze pod nazwa, ktorej
-     juz nie ma, i liczyla je po zerowej cenie. */
-  useEffect(() => {
-    if (!cutPlan) return;
-    if (!cutPlan.groups.every((g) => matByLabel.has(g.matLabel))) setCutPlan(null);
-  }, [matByLabel, cutPlan]);
 
   const boardDefault = (label) => {
     const info = matByLabel.get(label);
@@ -13971,9 +14003,10 @@ export default function App() {
     <div className="min-h-screen bg-stone-100 text-stone-900">
       <header className="print-hide sticky top-0 z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
-          {/* obie nazwy w jednej linii — w waskim oknie naglowek zawijal sie
-              na trzy rzedy i zjadal wysokosc potrzebna rysunkowi */}
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+          {/* Nazwa projektu. Nazwa szafki zmienia sie juz na pasku szafek, wiec
+              pole projektu dostaje co najmniej 16rem — przy waskim oknie reszta
+              przyciskow zawija sie pod nie, zamiast sciskac nazwe do kilku pikseli. */}
+          <div className="flex min-w-[16rem] flex-1 items-center gap-3">
             <label className="flex min-w-0 flex-1 items-center gap-1.5"
               title="Nazwa całego projektu — kliknij i wpisz dowolną">
               <span aria-hidden="true" className="shrink-0 text-sm text-stone-400">✎</span>
@@ -13982,13 +14015,8 @@ export default function App() {
                 placeholder={DEFAULT_PROJECT_NAME}
                 className="min-w-0 flex-1 border-b border-stone-300 bg-transparent px-0.5 text-base font-semibold tracking-tight hover:border-stone-400 focus:border-teal-700 focus:outline-none" />
             </label>
-            <label className="flex min-w-0 flex-1 items-center gap-1.5"
-              title="Nazwa tej szafki — kliknij i wpisz dowolną">
-              <span className="shrink-0 text-[11px] uppercase tracking-wide text-stone-400">szafka</span>
-              <input value={cab.name} onChange={(e) => set({ name: e.target.value })}
-                placeholder="Nazwa szafki"
-                className="min-w-0 flex-1 border-b border-stone-200 bg-transparent px-0.5 text-sm text-stone-700 hover:border-stone-400 focus:border-teal-700 focus:outline-none" />
-            </label>
+            {/* nazwe szafki zmienia sie na pasku szafek: drugie klikniecie w aktywna
+                (uzytkownik 2026-09-30 — pole w gornym pasku bylo zbedne) */}
           </div>
           <span className="font-mono text-xs text-stone-400">{saved}</span>
           <div className="flex items-center gap-1">
@@ -14088,7 +14116,22 @@ export default function App() {
         {/* pomieszczenia: Projekt → Pomieszczenie → ciagi → szafki (uzytkownik 2026-09-29) */}
         <div className="border-t border-stone-200 bg-white/70" data-pasek="pomieszczenia">
           <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-1.5 px-4 py-1.5">
-            <span className="mr-1 shrink-0 text-xs font-medium text-stone-400">Pomieszczenia</span>
+            <button onClick={() => {
+              const v = !pokojeZwiniete; setPokojeZwiniete(v);
+              try { localStorage.setItem("mp-pokoje-zwiniete", v ? "1" : "0"); } catch (e) { /* bez pamieci */ }
+            }}
+              title={pokojeZwiniete ? "Pokaż pomieszczenia" : "Zwiń pasek pomieszczeń"}
+              className="mr-1 flex shrink-0 items-center gap-1.5 text-[11px] text-stone-500 hover:text-stone-800">
+              <span className={`text-[10px] transition-transform ${pokojeZwiniete ? "-rotate-90" : ""}`}>▼</span>
+              Pomieszczenia
+              {pokojeZwiniete && (
+                <span className="text-stone-400">
+                  — {roomsOf(project).length} {plural(roomsOf(project).length, "pomieszczenie", "pomieszczenia", "pomieszczeń")}, aktywne: „{roomName(project, pokoj) || "Pomieszczenie"}”
+                  {innePokojeNotes.length > 0 && <span style={{ color: innePokojeNotes.some((x) => x.err) ? ERRC : WARNC }}> ●</span>}
+                </span>
+              )}
+            </button>
+            {!pokojeZwiniete && (<>
             {roomsOf(project).map((r) => {
               const akt = r.id === pokoj;
               const uw = innePokojeNotes.find((x) => x.id === r.id);
@@ -14155,6 +14198,7 @@ export default function App() {
                   options={[{ v: "projekt", l: "Cały projekt" }, { v: "pomieszczenie", l: "To pomieszczenie" }]} />
               </div>
             )}
+            </>)}
           </div>
         </div>
         <div className="border-t border-stone-200 bg-stone-50/60">
@@ -14204,9 +14248,24 @@ export default function App() {
                               style={{ color: n.err ? (activeTab ? "#fecaca" : ERRC) : (activeTab ? "#fde68a" : WARNC) }}>●</span>
                           );
                         })()}
-                        <button onClick={() => switchCabinet(i)} className="max-w-[180px] truncate">
-                          {it.cab.name || `Szafka ${i + 1}`}
-                        </button>
+                        {activeTab && nazwaSzafki != null ? (
+                          <input autoFocus value={cab.name} placeholder="Nazwa szafki" aria-label="Nazwa szafki"
+                            onChange={(e) => set({ name: e.target.value })}
+                            onFocus={(e) => e.currentTarget.select()}
+                            onBlur={() => setNazwaSzafki(null)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") e.currentTarget.blur();
+                              // Esc wraca do nazwy sprzed edycji
+                              if (e.key === "Escape") { set({ name: nazwaSzafki }); setNazwaSzafki(null); }
+                            }}
+                            className="w-40 rounded-sm bg-white px-1 text-xs text-stone-900 focus:outline-none" />
+                        ) : (
+                          <button onClick={() => (activeTab ? setNazwaSzafki(cab.name || "") : switchCabinet(i))}
+                            title={activeTab ? "Kliknij, aby zmienić nazwę szafki" : undefined}
+                            className={"max-w-[180px] truncate" + (activeTab ? " cursor-text" : "")}>
+                            {it.cab.name || `Szafka ${i + 1}`}
+                          </button>
+                        )}
                         {grp.id && list.length > 1 && k < list.length - 1 && (
                           <button onClick={() => moveCabinet(i, 1)} title="Przesuń w prawo w ciągu"
                             className={arrow}>›</button>
@@ -16456,13 +16515,6 @@ export default function App() {
                   className="text-xs text-teal-700 hover:underline">
                   + dodatkowa formatka
                 </button>
-                {!zCaloscia && (
-                  <button onClick={() => makeCutPlan("cab")}
-                    title="Ułóż formatki na arkuszach i policz, ile płyt zamówić"
-                    className="text-xs font-medium text-teal-700 hover:underline">
-                    Rozkrój na płycie
-                  </button>
-                )}
               </div>
             }>
             <div className="overflow-x-auto">
@@ -16482,7 +16534,7 @@ export default function App() {
                   {cutList.map((p, i) => (
                     <tr key={i} className="border-b border-stone-100">
                       <td className="py-2 pr-3 font-sans">{p.name}</td>
-                      <td className="py-2 pr-3 font-sans text-stone-500">{matLabelOf(mat[p.matKey], p.matKey, ambig)}</td>
+                      <td className="py-2 pr-3 font-sans text-stone-500">{matLabelOf(plytaFormatki(p, mat), p.matKey, ambig)}</td>
                       <td className="py-2 pr-3 text-right">{fmt(p.a)}</td>
                       <td className="py-2 pr-3 text-right">{fmt(p.b)}</td>
                       <td className="py-2 pr-3 text-right">{p.qty}</td>
@@ -16595,11 +16647,6 @@ export default function App() {
               : `Formatki całego projektu${project.name ? " — " + project.name : ""}`} collapsible
               right={
                 <div className="flex items-center gap-3">
-                  <button onClick={() => makeCutPlan("project")}
-                    title="Ułóż formatki całego projektu na arkuszach"
-                    className="text-xs font-medium text-teal-700 hover:underline">
-                    Rozkrój na płycie
-                  </button>
                   <span className="text-xs text-stone-400">{projZam.items.length} {plural(projZam.items.length, "szafka", "szafki", "szafek")}</span>
                 </div>
               }>
@@ -16677,13 +16724,10 @@ export default function App() {
             </Card>
           )}
 
-          {cutPlan && (
-            <Card title={`Rozkrój na płycie${cutPlan.scope === "project" ? (zamTylkoPokoj ? ` — pomieszczenie „${roomName(project, pokoj)}”` : " — cały projekt") : ""}`}
-              right={
-                <button onClick={() => setCutPlan(null)} className="text-xs text-stone-500 hover:underline">
-                  Zamknij
-                </button>
-              }>
+          {/* Rozkroj widac caly czas (uzytkownik 2026-09-30) — liczy sie sam w tle (`autoPlan`). */}
+          {pokazPlan && (
+            <Card id="rozkroj" title={`Rozkrój na płycie${pokazPlan.scope === "project" ? (zamTylkoPokoj ? ` — pomieszczenie „${roomName(project, pokoj)}”` : " — cały projekt") : pokazPlan.scope === "cab" && zCaloscia ? ` — szafka „${cab.name}”` : ""}`}
+              right={!autoAktualny ? <span className="text-xs text-stone-400">przelicza się…</span> : null}>
               <p className="text-xs text-stone-500">
                 Arkusz {fmt(SHEET_W)} × {fmt(SHEET_H)} mm, okrawany przed rozkrojem do
                 {" "}{fmt(USABLE_W)} × {fmt(USABLE_H)} mm, rzaz piły {KERF} mm. Układ jest
@@ -16694,7 +16738,7 @@ export default function App() {
                 największy użyteczny kawałek zamiast garści ścinków. Za użyteczne uznaje resztki
                 od {MIN_USEFUL} mm w obu wymiarach.
               </p>
-              {cutPlan.groups.map((g, gi) => (
+              {pokazPlan.groups.map((g, gi) => (
                 <div key={gi} className="space-y-3 border-t border-stone-200 pt-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="text-sm font-medium text-stone-800">{g.matLabel}</span>
@@ -16729,7 +16773,7 @@ export default function App() {
               <div className="border-t border-stone-200 pt-3 text-sm">
                 <span className="text-xs uppercase tracking-wider text-stone-500">Płyty do zamówienia</span>
                 <div className="mt-1 space-y-0.5 font-mono">
-                  {cutPlan.groups.map((g, i) => (
+                  {pokazPlan.groups.map((g, i) => (
                     <div key={i}>
                       {g.matLabel}: {g.sheets.length}{" "}
                       {plural(g.sheets.length, "arkusz", "arkusze", "arkuszy")} {fmt(SHEET_W)}×{fmt(SHEET_H)}
@@ -16818,16 +16862,7 @@ export default function App() {
           )}
 
           {/* wycena na koncu, pod produktami calego projektu (uzytkownik 2026-09-29) */}
-          <Card title="Wycena" collapsible defaultOpen={false}
-            right={
-              !cutPlan ? (
-                <button onClick={() => makeCutPlan(zCaloscia ? "project" : "cab")}
-                  title="Rozkrój liczy się sam po każdej zmianie formatek — tu otwierasz rysunek arkuszy"
-                  className="text-xs text-teal-700 hover:underline">
-                  Pokaż rozkrój
-                </button>
-              ) : null
-            }>
+          <Card title="Wycena" collapsible defaultOpen={false}>
             {roomsOf(project).length > 1 && (
               <p className="text-xs font-medium text-stone-600">
                 {zamTylkoPokoj

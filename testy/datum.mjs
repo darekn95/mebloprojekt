@@ -14,7 +14,7 @@ await page.waitForTimeout(1500);
 const card = (re) => page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
 const hw = () => card(/^Produkty do zamówienia/).innerText();
 const svgInfo = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const ts = [...svg.querySelectorAll('text')].map(t => t.textContent.trim());
   return { otw: ts.filter(t => /^otw\. \d+$/.test(t)).map(t => t.replace('otw. ', '')),
     legenda: ts.find(t => /^otw\. —/.test(t)) || null,
@@ -65,7 +65,7 @@ console.log('  od krawędzi boku:', a.otw.join(', '));
 console.log('  legenda:', a.legenda);
 ok('legenda opisuje bazę "od boku"', /dolnej krawędzi boku/.test(a.legenda || ''), a.legenda);
 ok('wysokości otworów opisane', a.otw.length >= 1, a.otw.join(', '));
-await page.locator('svg').first().screenshot({ path: S + 'shot-datum-panel.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-datum-panel.png' });
 
 await mont.getByText('Dna szafki', { exact: true }).click();
 await page.waitForTimeout(900);
@@ -77,7 +77,7 @@ ok('wartości mniejsze o grubość dna (18)',
   a.otw.every((v, i) => Number(v) - Number(b.otw[i]) === 18),
   a.otw.join(',') + ' → ' + b.otw.join(','));
 ok('kadr zrobił miejsce na legendę', b.vbH > 720 + 120, String(b.vbH));
-await page.locator('svg').first().screenshot({ path: S + 'shot-datum-bottom.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-datum-bottom.png' });
 ok('spec kołków wspomina bazę', /liczone od dna/.test(await hw()), (await hw()).split('\n').find(l => /Kołek/.test(l)) || '');
 
 // brak dna -> od 0

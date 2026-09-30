@@ -7,7 +7,7 @@ p.on('console',m=>{if(m.type()==='error'&&!/favicon/.test(m.text()))errs.push(m.
 await p.goto('http://127.0.0.1:5205/mebloprojekt-app.html',{waitUntil:'networkidle'});
 await p.evaluate(()=>{try{localStorage.clear()}catch(e){}}); await p.reload({waitUntil:'networkidle'});
 await p.waitForTimeout(1200);
-await p.locator('svg').first().screenshot({path:'./shot-doordim.png'});
+await p.locator('#rysunek svg').first().screenshot({path:'./shot-doordim.png'});
 console.log('renderuje:', await p.evaluate(()=>document.body.innerText.includes('Korpus')));
 console.log('BLEDY:', errs.length?errs.join(' | '):'(brak)');
 await b.close();

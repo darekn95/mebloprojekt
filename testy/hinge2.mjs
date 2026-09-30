@@ -29,11 +29,11 @@ async function setAfterLabel(label, val) {
 }
 const notes = () => page.evaluate(() => [...document.querySelectorAll('li')].map(l => l.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean));
 const hingeLabels = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('text')].map(t => t.textContent.trim()).filter(t => /^\d+(\.\d)?$/.test(t));
 });
 const hingeCount = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('rect')].filter(r => r.getAttribute('fill') === '#71717a' && r.getAttribute('width') === '20').length;
 });
 const clickView = async (v) => { await page.getByText(v, { exact: true }).first().click(); await page.waitForTimeout(600); };
@@ -48,7 +48,7 @@ console.log('\nA) H=1600, 1 skrzydło, bez półek');
 console.log('   zawiasów narysowanych:', await hingeCount(), '(oczekiwane 3)');
 console.log('   odległości od dołu frontu:', (await hingeLabels()).join(', '), '(oczekiwane 100 / ~798 / ~1496)');
 console.log('   uwagi:', (await notes()).join(' // ') || '(brak)');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-h2-a.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-h2-a.png' }); } catch (e) {}
 
 // polka dokladnie w miejscu srodkowego zawiasu
 console.log('\nB) półka wchodząca w środkowy zawias');
@@ -60,9 +60,9 @@ console.log('   zawiasów:', await hingeCount());
 console.log('   odległości:', (await hingeLabels()).join(', '));
 console.log('   uwagi:');
 (await notes()).forEach(n => console.log('     -', n));
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-h2-b.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-h2-b.png' }); } catch (e) {}
 
 await clickView('Z boku');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-h2-side.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-h2-side.png' }); } catch (e) {}
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

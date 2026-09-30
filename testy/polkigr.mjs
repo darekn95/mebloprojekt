@@ -43,9 +43,9 @@ const seed = async (shelfSame, shelfTh) => {
   await page.waitForTimeout(2200);
 };
 
-const dims = () => page.evaluate(() => [...document.querySelectorAll('svg text')].map((t) => t.textContent.trim()));
+const dims = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map((t) => t.textContent.trim()));
 // polki w kolumnie: prostokaty szerokosci kolumny, niskie
-const shelfRects = () => page.evaluate(() => [...document.querySelectorAll('svg rect')]
+const shelfRects = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg rect')]
   .map((r) => ({ w: Math.round(+r.getAttribute('width')), h: Math.round(+r.getAttribute('height')) }))
   .filter((r) => r.w > 400 && r.w < 700 && r.h > 0 && r.h < 40).map((r) => r.h));
 const cutRows = () => card(/^Formatki do zamówienia$/).evaluate((sec) =>
@@ -111,7 +111,7 @@ for (const v of ['Zamk.', 'Otw.', 'Z boku', 'Z góry', 'Z tyłu', '3D']) {
   ok(`widok ${v}`, errors.length === n, errors.slice(n).join('; '));
 }
 await view('Otw.');
-await page.locator('svg').first().screenshot({ path: S + 'shot-polkigr.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-polkigr.png' });
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

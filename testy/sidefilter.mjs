@@ -13,7 +13,7 @@ await page.waitForTimeout(1500);
 const clickView = async (v) => { await page.getByText(v, { exact: true }).first().click(); await page.waitForTimeout(700); };
 const struct = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Struktura wnętrza$/ }) }).first();
 const counts = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const rs = [...svg.querySelectorAll('rect')];
   return {
     zawiasy: rs.filter(r => r.getAttribute('fill') === '#71717a').length,
@@ -40,17 +40,17 @@ await page.waitForTimeout(700);
 
 await clickView('Otw.');
 console.log('\nWIDOK OTWARTY (wszystko widoczne):', JSON.stringify(await counts()));
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-sf-open.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-sf-open.png' }); } catch (e) {}
 
 await clickView('Z boku');
 console.log('WIDOK Z LEWEJ :', JSON.stringify(await counts()), '— oczekiwane: zawiasy > 0 (kol.1 przy lewym boku), prowadnice 0 (za przegrodą)');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-sf-left.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-sf-left.png' }); } catch (e) {}
 
 // przelacz na prawy bok
 await page.getByText('Pokaż prawy bok', { exact: true }).first().click();
 await page.waitForTimeout(800);
 console.log('WIDOK Z PRAWEJ:', JSON.stringify(await counts()), '— oczekiwane: zawiasy 0 (za przegrodą), prowadnice > 0 (kol.2 przy prawym boku)');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-sf-right.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-sf-right.png' }); } catch (e) {}
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

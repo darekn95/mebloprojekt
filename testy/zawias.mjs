@@ -16,7 +16,7 @@ const seed = async (hinge) => {
 };
 // uchwyt rysuje sie po stronie przeciwnej do zawiasow
 const uchwyt = () => page.evaluate(() => {
-  const r = [...document.querySelectorAll('svg rect')].filter(q => +q.getAttribute('width') < 30 && +q.getAttribute('height') > 60 && +q.getAttribute('height') < 200);
+  const r = [...document.querySelectorAll('#rysunek svg rect')].filter(q => +q.getAttribute('width') < 30 && +q.getAttribute('height') > 60 && +q.getAttribute('height') < 200);
   return r.map(q => Math.round(+q.getAttribute('x')));
 });
 await seed('auto'); const a = await uchwyt();

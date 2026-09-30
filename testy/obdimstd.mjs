@@ -24,7 +24,7 @@ const seed = async (cab) => {
   await page.waitForTimeout(2200);
   await page.getByText('Z góry', { exact: true }).first().click();
   await page.waitForTimeout(900);
-  return page.evaluate(() => [...document.querySelector('svg').querySelectorAll('text')]
+  return page.evaluate(() => [...document.querySelector('#rysunek svg').querySelectorAll('text')]
     .map(t => ({ s: t.textContent.trim(), x: Math.round(+t.getAttribute('x')), fill: t.getAttribute('fill') })));
 };
 const has = (d, v) => d.some(t => t.s === String(v));
@@ -41,7 +41,7 @@ ok('zabudowa bryły ma wymiar do lica (500 − 80 − 18 = 402)', has(d, 402), '
 const w402 = d.find(t => t.s === '402');
 const w422 = d.find(t => t.s === '422');
 ok('wymiar bryły po jej stronie szafki', w402 && w422 && w402.x > w422.x, `422 @x=${w422?.x}, 402 @x=${w402?.x}`);
-await page.locator('svg').first().screenshot({ path: S + 'shot-obdim.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-obdim.png' });
 
 console.log('\n== bryła w środku kolumny (działało wcześniej — ma działać dalej) ==');
 d = await seed({ name: 'T', W: 800, H: 720, D: 500,

@@ -24,7 +24,7 @@ await page.waitForTimeout(2500);
 await page.getByText('Otw.', { exact: true }).first().click();
 await page.waitForTimeout(1000);
 const info = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const cs = [...svg.querySelectorAll('circle')].filter(c => Math.round(+c.getAttribute('r')) === 5)
     .map(c => ({ x: Math.round(+c.getAttribute('cx')), y: Math.round(+c.getAttribute('cy')) }));
   const ys = [...new Set(cs.map(c => c.y))];
@@ -44,6 +44,6 @@ const vals = Object.values(byX);
 ok('lewa kolumna: 2 wysokości', vals.some(v => v.length === 2), JSON.stringify(vals));
 ok('prawa kolumna: 3 wysokości', vals.some(v => v.length === 3), JSON.stringify(vals));
 ok('wszystkie wysokości w zakresie korpusu', info.labels.every(l => +l.s > 0 && +l.s < 720), JSON.stringify(byX));
-await page.locator('svg').first().screenshot({ path: './shot-pins.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: './shot-pins.png' });
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

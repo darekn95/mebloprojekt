@@ -47,7 +47,7 @@ console.log('Zabudowa (prawy) w liscie:', body.includes('Zabudowa wycięcia (pra
 await page.evaluate(() => window.scrollTo(0, 0));
 await clickText('Z tyłu');
 await page.waitForTimeout(400);
-try { await page.locator('svg').first().screenshot({ path: OUT }); console.log('zrzut zapisany'); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: OUT }); console.log('zrzut zapisany'); } catch (e) {}
 
 console.log('\nBLEDY (' + errors.length + '):', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

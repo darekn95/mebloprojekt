@@ -16,12 +16,12 @@ const btn = (n) => page.getByRole('button', { name: n, exact: true });
 const planCard = () => page.locator('section').filter({ has: page.locator('h2', { hasText: /^Rozkrój na płycie/ }) }).first();
 
 // --- jedna szafka ---
-ok('przycisk "Rozkrój na płycie" przy formatkach', await btn('Rozkrój na płycie').count() === 1);
-ok('karta rozkroju ukryta przed kliknięciem', await planCard().count() === 0);
+ok('bez przycisku "Rozkrój na płycie" — karta rozkroju jest cały czas', await btn('Rozkrój na płycie').count() === 0);
 
 const t0 = Date.now();
-await btn('Rozkrój na płycie').first().click();
-await page.waitForTimeout(1200);
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
+await page.waitForTimeout(300);
+ok('karta rozkroju widoczna bez klikania', await planCard().count() === 1);
 console.log('  (czas do wyniku: ' + (Date.now() - t0) + ' ms)');
 ok('karta rozkroju się pojawiła', await planCard().count() === 1);
 
@@ -86,18 +86,21 @@ else {
 await planCard().scrollIntoViewIfNeeded();
 await page.screenshot({ path: S + 'shot-plan1.png', clip: await planCard().boundingBox().then(b => ({ x: b.x, y: Math.max(0, b.y), width: b.width, height: Math.min(900, b.height) })) });
 
-// zamkniecie
-await btn('Zamknij').first().click();
-await page.waitForTimeout(500);
-ok('przycisk Zamknij chowa kartę', await planCard().count() === 0);
+// karta rozkroju jest cały czas (uzytkownik 2026-09-30) — bez „Zamknij”
+ok('karta rozkroju zostaje, bez przycisku Zamknij', (await planCard().count()) === 1 && (await btn('Zamknij').count()) === 0);
 
 // --- caly projekt ---
 await page.getByText('+ szafka', { exact: true }).click();
 await page.waitForTimeout(900);
 const cnt = await btn('Rozkrój na płycie').count();
-ok('przy 2 szafkach przycisk tylko przy liście projektu', cnt === 1, cnt + ' przycisk(ów)');
+ok('przy 2 szafkach też bez przycisku rozkroju', cnt === 0, cnt + ' przycisk(ów)');
+// karta rozkroju pokazuje sie sama, bez klikania (uzytkownik 2026-09-30)
+await page.waitForTimeout(1800);
+const sam = await page.evaluate(() => [...document.querySelectorAll('section h2')].map((h) => h.textContent).find((t) => /^Rozkrój na płycie/.test(t)) || '');
+ok('rozkrój całego projektu widać bez klikania', /cały projekt/.test(sam), sam);
+ok('w wycenie nie ma przycisku „Pokaż rozkrój”', (await btn('Pokaż rozkrój').count()) === 0);
 const t1 = Date.now();
-await btn('Rozkrój na płycie').first().click();
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
 await page.waitForTimeout(1500);
 console.log('  (czas dla projektu: ' + (Date.now() - t1) + ' ms)');
 const txt2 = await page.evaluate(() => {

@@ -15,7 +15,7 @@ const klik = async (l) => {
 };
 /* Najwiekszy rysunek na stronie to ten, ktory wlasnie ogladamy. */
 const plyty = () => page.evaluate(() => {
-  const s = [...document.querySelectorAll('svg')].sort((a, b) =>
+  const s = [...document.querySelectorAll('#rysunek svg')].sort((a, b) =>
     b.getBoundingClientRect().width * b.getBoundingClientRect().height
     - a.getBoundingClientRect().width * a.getBoundingClientRect().height)[0];
   return {

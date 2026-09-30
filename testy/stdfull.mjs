@@ -17,11 +17,11 @@ const body = () => page.evaluate(() => document.body.innerText);
 const clickView = async (v) => { await page.getByText(v, { exact: true }).first().click(); await page.waitForTimeout(700); };
 const struct = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Struktura wnętrza$/ }) }).first();
 const svgTexts = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('text')].map(t => t.textContent.trim());
 });
 const rects = (fill) => page.evaluate((f) => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('rect')].filter(r => r.getAttribute('fill') === f).length;
 }, fill);
 
@@ -75,7 +75,7 @@ const rail2 = (await svgTexts()).filter(t => /^szyna /.test(t));
 ok('tryb "wewnątrz" przelicza montaż', rail2.includes('szyna 0') && rail2.join() !== rail.join(), rail2.join(', '));
 await clickView('Z góry');
 const topRail = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const r = [...svg.querySelectorAll('rect')].find(x => x.getAttribute('fill') === '#8b8b93');
   return r ? Math.round(+r.getAttribute('y')) + '..' + Math.round(+r.getAttribute('y') + +r.getAttribute('height')) : null;
 });
@@ -87,7 +87,8 @@ const projInp = page.locator('input[placeholder="Projekt bez nazwy"]').first();
 ok('pole nazwy projektu', await projInp.count() === 1);
 await projInp.fill('Kuchnia testowa');
 await page.waitForTimeout(600);
-ok('pole nazwy szafki obok', await page.locator('input[placeholder="Nazwa szafki"]').count() === 1);
+// nazwa szafki zmienia sie na pasku szafek, nie w gornym pasku (2026-09-30)
+ok('bez pola nazwy szafki w górnym pasku', await page.locator('input[placeholder="Nazwa szafki"]').count() === 0);
 
 const hb = (n) => page.getByRole('button', { name: n, exact: true });
 ok('"Zapisz do pliku"', await hb('Zapisz do pliku').count() === 1);

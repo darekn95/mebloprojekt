@@ -56,7 +56,7 @@ ok('bok 2800 odrzucony', !!big, n.join(' // '));
 
 console.log('\n== rozkrój układa na okrojonym arkuszu ==');
 await seed({ W: 900, H: 720, D: 500 });
-await card(/^Formatki do zamówienia$/).getByRole('button', { name: 'Rozkrój na płycie' }).click();
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
 await page.waitForTimeout(2500);
 const plan = await page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')].find((s) => /^Rozkrój na płycie/.test((s.querySelector('h2') || {}).textContent || ''));

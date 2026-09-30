@@ -15,7 +15,7 @@ const stan = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:p
 /* Odcisk rysunku: ile czego jest na obrazku. Porownujemy pojedyncza szafke
    z ta sama szafka w ciagu — w ciagu nie moze brakowac zadnego elementu. */
 const fingerprint = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const n = (sel) => svg.querySelectorAll(sel).length;
   const rects = [...svg.querySelectorAll('rect')];
   return {
@@ -87,7 +87,7 @@ await pick('Ciąg');
 await pick('Zamk.');
 /* Szafki stoja na miejscu przez transform, wiec surowy atrybut x jest lokalny —
    pozycje trzeba czytac z realnego polozenia na ekranie. */
-const nozki = await page.evaluate(() => [...document.querySelectorAll('svg rect')]
+const nozki = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg rect')]
   .filter((r) => r.getAttribute('fill') === '#3f3f46')
   .map((r) => ({ x: Math.round(r.getBoundingClientRect().x), w: Math.round(+r.getAttribute('width')) })));
 console.log('     ' + JSON.stringify(nozki));
@@ -123,7 +123,7 @@ await seed([{ id: 'c1', name: 'S', wallW: null, gap: 0, mountY: 0, H: 720, D: 50
    { cab: { name: 'B', W: 600, H: 720, D: 500, plinth: PL }, runId: 'c1' }]);
 await pick('Ciąg');
 await pick('Z tyłu');
-let r = await page.evaluate(() => [...document.querySelectorAll('svg rect')].map((q) => ({
+let r = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg rect')].map((q) => ({
   x: Math.round(q.getBoundingClientRect().x), w: Math.round(+q.getAttribute('width')),
   h: Math.round(+q.getAttribute('height')), f: q.getAttribute('fill'),
 })));
@@ -132,7 +132,7 @@ ok('cokół widać także od tyłu', cokol.length === 1, JSON.stringify(cokol));
 const plecy = r.filter((q) => q.f === '#9c7b56');
 console.log('     plecy: ' + JSON.stringify(plecy.map((q) => q.w)));
 ok('plecy obu szafek', plecy.length === 2, String(plecy.length));
-const dash = await page.evaluate(() => [...document.querySelectorAll('svg line')]
+const dash = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg line')]
   .filter((l) => (l.getAttribute('stroke-dasharray') || '') === '10 8').length);
 ok('brak linii frontów od tyłu', dash === 0, String(dash));
 
@@ -151,14 +151,14 @@ await pick('Ciąg');
 for (const v of ['Zamk.', 'Otw.', 'Z góry', 'Z tyłu', '3D']) {
   const before = errors.length;
   await pick(v);
-  const svg = await page.evaluate(() => document.querySelectorAll('svg').length);
+  const svg = await page.evaluate(() => document.querySelectorAll('#rysunek svg').length);
   ok(`wariant ${v}`, errors.length === before && svg === 1, errors.slice(before).join('; '));
 }
 await pick('Zamk.');
 /* Szafka na nozkach stoi NA nich — nozka nie moze przebijac linii podlogi.
    Pierwsza wersja elewacji stawiala korpus na 0 i nozki wychodzily pod spod. */
 const podloga = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const linie = [...svg.querySelectorAll('line')]
     .filter((l) => l.getAttribute('stroke-width') === '2' && Math.abs(+l.getAttribute('y1') - +l.getAttribute('y2')) < 1);
   const y = Math.max(...linie.map((l) => l.getBoundingClientRect().y));
@@ -170,7 +170,7 @@ console.log('     ' + JSON.stringify(podloga));
 ok('nóżki nie przebijają linii podłogi',
   podloga.spodNozek !== null && podloga.spodNozek <= podloga.podloga + 2,
   JSON.stringify(podloga));
-await page.locator('svg').first().screenshot({ path: S + 'shot-parytet.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-parytet.png' });
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

@@ -11,11 +11,11 @@ page.on('console', (m) => { if (m.type() === 'error' && !/favicon|404/.test(m.te
 const ok = (l, c, e = '') => console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : ''));
 const pick = async (label) => { await page.getByText(label, { exact: true }).first().click(); await page.waitForTimeout(800); };
 const card = (re) => page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
-const svgTexts = () => page.evaluate(() => [...document.querySelectorAll('svg text')].map((t) => t.textContent.trim()));
+const svgTexts = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map((t) => t.textContent.trim()));
 /* Pozycje czytamy przeliczone z ekranu na milimetry rysunku — szafki stawia
    na miejsce transform, wiec surowe x/y sa lokalne. */
 const mmShapes = (sel) => page.evaluate((s) => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const vb = svg.getAttribute('viewBox').split(' ').map(Number);
   const box = svg.getBoundingClientRect();
   const k = box.width / vb[2];
@@ -93,7 +93,7 @@ ok('oba boki narysowane', boki.length >= 2, String(boki.length));
 const fronty = sh.filter((q) => q.h === 18 && q.w > 100);
 console.log('     fronty: ' + JSON.stringify(fronty.map((q) => q.w)));
 ok('fronty widać jako pas przy licu', fronty.length >= 1, JSON.stringify(fronty.map((q) => q.w)));
-const przekr = await page.evaluate(() => [...document.querySelectorAll('svg line')]
+const przekr = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg line')]
   .filter((l) => Math.abs(+l.getAttribute('x1') - +l.getAttribute('x2')) > 20
     && Math.abs(+l.getAttribute('y1') - +l.getAttribute('y2')) > 5).length);
 ok('maskownica przekreślona jak w widoku szafki', przekr >= 2, String(przekr));
@@ -114,7 +114,7 @@ for (const [v, opis] of [['Zamk.', 'zamknięty'], ['Otw.', 'otwarty'], ['Z góry
   ok(`element kolizyjny widać w widoku ${opis}`, zazn.length >= 1, String(zazn.length));
 }
 await pick('3D');
-const bryly = await page.evaluate(() => [...document.querySelectorAll('svg polygon')]
+const bryly = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg polygon')]
   .filter((p) => (p.getAttribute('fill') || '').startsWith('rgb(') && +p.getAttribute('fill-opacity') < 0.4).length);
 console.log('     3D: ' + bryly + ' ścianek półprzezroczystych');
 ok('element kolizyjny widać w 3D', bryly >= 6, String(bryly));
@@ -153,7 +153,7 @@ for (const v of ['Zamk.', 'Otw.', 'Z góry', 'Z tyłu', '3D']) {
   ok(`wariant ${v}`, errors.length === before, errors.slice(before).join('; '));
 }
 await pick('Z góry');
-await page.locator('svg').first().screenshot({ path: S + 'shot-top2.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-top2.png' });
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

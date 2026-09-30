@@ -7,7 +7,7 @@
    2. wycena: arkusze = rozkroj (na material), formatowanie = suma arkuszy,
       obrzeze = suma oklejanych krawedzi z listy formatek do 1 mm + 90 mm na kazdy oklejany bok, oklejanie = w gore
       do pelnego metra, okucia = lista okuc projektu, suma = suma pozycji.
-   Rozkroj czyta hook `window.__audytRozkroj` (makeCutPlan). */
+   Rozkroj czyta hook `window.__audytRozkroj` (rozkroj liczony w tle, `aktualny`). */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
@@ -63,11 +63,9 @@ const scenariusz = async (tytul, p, { grain = false } = {}) => {
   let hw = await tabela(/^Produkty całego projektu/);
   if (!hw) hw = await tabela(/^Produkty do zamówienia/);
   // karta „Wycena” jest zwinieta — otwieramy i liczymy rozkroj
-  await page.evaluate(() => { window.__audytRozkroj = null; });
   const wyc = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Wycena/ }) }).first();
   await wyc.locator('h2').first().click(); await page.waitForTimeout(300);
-  await page.getByRole('button', { name: 'Pokaż rozkrój', exact: true }).first().click();
-  await page.waitForTimeout(1500);
+  await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
   const rk = await page.evaluate(() => window.__audytRozkroj);
   ok('rozkrój policzony', !!rk && rk.groups.length > 0, JSON.stringify(rk).slice(0, 80));
   if (!rk) return;

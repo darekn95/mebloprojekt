@@ -11,11 +11,11 @@ page.on('console', (m) => { if (m.type() === 'error' && !/favicon|404/.test(m.te
 const ok = (l, c, e = '') => console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : ''));
 const pick = async (label) => { await page.getByText(label, { exact: true }).first().click(); await page.waitForTimeout(800); };
 const card = (re) => page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
-const svgTexts = () => page.evaluate(() => [...document.querySelectorAll('svg text')].map((t) => t.textContent.trim()));
+const svgTexts = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map((t) => t.textContent.trim()));
 /* Obrocony ciag ma w atrybutach dalej swoje wlasne wspolrzedne — dopiero
    getBoundingClientRect pokazuje, gdzie naprawde wyladowal. */
 const mmShapes = (sel) => page.evaluate((s) => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const vb = svg.getAttribute('viewBox').split(' ').map(Number);
   const box = svg.getBoundingClientRect();
   const k = box.width / vb[2];
@@ -90,7 +90,7 @@ ok('lico ciągu B jest po stronie pokoju',
   JSON.stringify(pionowe.map((q) => ({ x: q.x, kon: q.x + q.w }))));
 let tx = await svgTexts();
 ok('strata w rogu opisana na rysunku', tx.includes('600'), tx.join(' | '));
-await page.locator('svg').first().screenshot({ path: S + 'shot-narozn-top.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-narozn-top.png' });
 
 console.log('\n== przelaczenie: to ten ciag wjezdza w rog ==');
 await seed(
@@ -153,7 +153,7 @@ ok('trzecia ściana wraca równolegle do pierwszej',
   JSON.stringify(k.map((q) => q.rot)));
 const [g1, g3] = k.filter((q) => q.rot !== 90).sort((p, q) => p.y - q.y);
 ok('trzecia ściana leży niżej — pod pierwszą', g3.y > g1.y, `${g1.y} vs ${g3.y}`);
-await page.locator('svg').first().screenshot({ path: S + 'shot-narozn-u.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-narozn-u.png' });
 
 console.log('\n== elewacja jako rozwiniecie scian ==');
 await seed(
@@ -171,7 +171,7 @@ console.log('     ' + JSON.stringify(kor.map((q) => ({ x: q.x, w: q.w }))));
 ok('szafki dwóch ścian nie leżą na sobie',
   kor.length === 2 && Math.abs(kor[0].x - kor[1].x) > 800,
   JSON.stringify(kor.map((q) => q.x)));
-await page.locator('svg').first().screenshot({ path: S + 'shot-narozn-elew.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-narozn-elew.png' });
 
 console.log('\n== uwaga o narozniku w karcie ==');
 const uw = card(/Uwagi/);
@@ -208,7 +208,7 @@ uwagi = await card(/Uwagi/).innerText();
 console.log('     ' + uwagi.replace(/\n+/g, ' / ').slice(0, 260));
 ok('to jest błąd, nie podpowiedź', /chowa się w całości/.test(uwagi), uwagi.slice(0, 200));
 ok('podpowiedź, do ilu poszerzyć (651 + 200)', /851 mm/.test(uwagi), uwagi.slice(0, 260));
-await page.locator('svg').first().screenshot({ path: S + 'shot-narozn-slepa.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-narozn-slepa.png' });
 
 console.log('\n== karta ciagu: ustawienie naroznika z UI ==');
 await seed([RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B')],
@@ -250,7 +250,7 @@ for (const v of ['Zamk.', 'Otw.', 'Z góry', 'Z tyłu', '3D']) {
   ok(`wariant ${v}`, errors.length === before, errors.slice(before).join('; '));
 }
 await pick('3D');
-await page.locator('svg').first().screenshot({ path: S + 'shot-narozn-3d.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-narozn-3d.png' });
 
 console.log('\n== bez naroznika nic sie nie zmienia ==');
 await seed([RUN('c1', 'Ściana A')], [CAB('A1', 800, 600, 'c1'), CAB('A2', 600, 600, 'c1')]);

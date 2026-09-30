@@ -51,7 +51,10 @@ console.log('  wiersz wieńca 564 (tylko szafka 1):', w600);
 ok('unikalna formatka bez mnożnika', w600 && !/×/.test(w600.split('|')[1] || ''), w600.split('|')[1]);
 
 // zmiana nazwy szafki przechodzi do tabeli
-await page.locator('input[placeholder="Szafka 1"], input[value="Szafka 2"]').first().fill('Pod zlew');
+// nazwa szafki zmienia sie na pasku szafek: drugie klikniecie w aktywna (2026-09-30)
+await page.locator('header button[title="Kliknij, aby zmienić nazwę szafki"]').first().click(); await page.waitForTimeout(200);
+await page.locator('input[placeholder="Nazwa szafki"]').first().fill('Pod zlew');
+await page.locator('input[placeholder="Nazwa szafki"]').first().press('Enter');
 await page.waitForTimeout(900);
 const rows2 = await proj.evaluate((s) => [...s.querySelectorAll('tbody tr')].map(tr =>
   [...tr.querySelectorAll('td')].map(td => td.innerText.trim()).join(' | ')));

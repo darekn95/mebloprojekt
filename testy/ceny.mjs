@@ -34,7 +34,7 @@ ok('obrzeże 22 × 2 mm — domyślna 3,38 brutto', find(/Obrzeże/)?.ph === '3.
 ok('oklejanie — domyślna 8,86 brutto', find(/Oklejanie/)?.ph === '8.86', JSON.stringify(find(/Oklejanie/)));
 
 // policz rozkroj -> plyta + formatowanie
-await wyc.getByRole('button', { name: 'Pokaż rozkrój' }).click();
+// rozkroj liczy sie sam (karta rozkroju cały czas, bez „Pokaż rozkrój” — 2026-09-30)
 await page.waitForTimeout(2500);
 d = await dump();
 console.log('\n  po rozkroju:');
@@ -107,6 +107,8 @@ const hwRow = (re) => d.rows.find(r => re.test(r.label));
 ok('zaślepki liczone w blistrach po 25', /op\./.test(hwRow(/^Zaślepka/)?.qty || ''), hwRow(/^Zaślepka/)?.qty);
 ok('suma podana brutto', d.zlSuffix);
 
+// karta rozkroju stoi teraz stale nad wycena — wycena bywa ponizej ekranu
+await card(/^Wycena$/).scrollIntoViewIfNeeded(); await page.waitForTimeout(300);
 const bb = await card(/^Wycena$/).boundingBox();
 if (bb) await page.screenshot({ path: S + 'shot-ceny.png', clip: { x: bb.x, y: Math.max(0, bb.y), width: bb.width, height: Math.min(760, bb.height) } });
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');

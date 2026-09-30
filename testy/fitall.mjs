@@ -46,7 +46,7 @@ const hide = page.getByText('Ukryj okucia', { exact: true });
 if (await hide.count()) { await hide.first().click(); await page.waitForTimeout(700); }
 const sw = await page.evaluate((k) => {
   const by = new Map();
-  [...document.querySelector('svg').querySelectorAll('text')].forEach((t) => {
+  [...document.querySelector('#rysunek svg').querySelectorAll('text')].forEach((t) => {
     const s = t.textContent.trim();
     if (!/^\d+$/.test(s)) return;
     const x = Math.round(+t.getAttribute('x'));

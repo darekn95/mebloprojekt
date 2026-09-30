@@ -63,7 +63,7 @@ ok('uchwyty zniknęły z zamówienia', !hw.some((r) => /^Uchwyt/.test(r)),
 
 console.log('\n== prowadnice nie drgnęły ==');
 await view('Otw.');
-const szyny = await page.evaluate(() => [...document.querySelectorAll('svg text')]
+const szyny = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')]
   .map((t) => t.textContent.trim()).filter((x) => /^szyna/.test(x)));
 console.log('     ' + szyny.join(', '));
 ok('dolna szyna dalej na 0', szyny.includes('szyna 0'), szyny.join(', '));
@@ -119,7 +119,7 @@ for (const v of ['Zamk.', 'Otw.', 'Z boku', 'Z góry', 'Z tyłu', '3D']) {
   ok(`widok ${v}`, errors.length === k, errors.slice(k).join('; '));
 }
 await view('Zamk.');
-await page.locator('svg').first().screenshot({ path: S + 'shot-palce.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-palce.png' });
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

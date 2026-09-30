@@ -33,7 +33,7 @@ await page.waitForTimeout(700);
 await page.getByText('Otw.', { exact: true }).first().click();
 await page.waitForTimeout(900);
 const pins = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return {
     circles: [...svg.querySelectorAll('circle')].filter(c => Math.round(+c.getAttribute('r')) === 5).length,
     otw: [...svg.querySelectorAll('text')].map(t => t.textContent.trim()).filter(t => /^otw\. \d+$/.test(t)),
@@ -47,7 +47,7 @@ ok('legenda bazy wymiaru', /dolnej krawędzi boku/.test(pins.legenda || ''), pin
 await mont.getByText('Dna szafki', { exact: true }).click();
 await page.waitForTimeout(900);
 const pins2 = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const ts = [...svg.querySelectorAll('text')].map(t => t.textContent.trim());
   return { otw: ts.filter(t => /^otw\. \d+$/.test(t)), legenda: ts.find(t => /^otw\. —/.test(t)) || null };
 });
@@ -81,14 +81,14 @@ await page.waitForTimeout(400);
 await plyty.getByText('Rysuj strukturę słojów zamiast gładkiego koloru').click();
 await page.waitForTimeout(900);
 const tex = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return { pat: svg.querySelectorAll('pattern').length,
     urls: [...svg.querySelectorAll('rect')].filter(r => /^url\(/.test(r.getAttribute('fill') || '')).length };
 });
 ok('struktura słojów renderuje się', tex.pat > 0 && tex.urls > 0, JSON.stringify(tex));
 await plyty.getByText('Kierunek usłojenia ma znaczenie', { exact: true }).click();
 await page.waitForTimeout(700);
-await card(/^Formatki do zamówienia$/).getByRole('button', { name: 'Rozkrój na płycie' }).click();
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
 await page.waitForTimeout(2500);
 const plan = await page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')].find(s => /^Rozkrój na płycie/.test((s.querySelector('h2') || {}).textContent || ''));

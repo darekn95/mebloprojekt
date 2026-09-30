@@ -51,7 +51,7 @@ console.log('UWAGI:'); notes.forEach((n) => console.log('  -', n));
 const clickView = async (v) => { await page.getByText(v, { exact: true }).first().click(); await page.waitForTimeout(600); };
 for (const [v, f] of [['Zamk.', 'v-closed'], ['Otw.', 'v-open'], ['Z boku', 'v-side'], ['Z góry', 'v-top'], ['3D', 'v-3d']]) {
   await clickView(v);
-  try { await page.locator('svg').first().screenshot({ path: S + 'shot-' + f + '.png' }); } catch (e) { console.log('zrzut', v, 'nieudany'); }
+  try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-' + f + '.png' }); } catch (e) { console.log('zrzut', v, 'nieudany'); }
 }
 console.log('BLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

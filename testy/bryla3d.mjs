@@ -41,7 +41,7 @@ await seed([CAB('A1', 600), CAB('A2', 600),
 /* Punkty wewnatrz wielokata (siatka na jego czterech rogach, z dala od
    krawedzi) i to, co przegladarka widzi w nich na wierzchu. */
 const naWierzchu = (tag, siatka) => page.evaluate(({ tag, siatka }) => {
-  const svg = [...document.querySelectorAll('svg')].find((s) => s.querySelector('polygon[data-b]'));
+  const svg = [...document.querySelectorAll('#rysunek svg')].find((s) => s.querySelector('polygon[data-b]'));
   const m = svg.getScreenCTM();
   const pt = svg.createSVGPoint();
   const ekran = (x, y) => { pt.x = x; pt.y = y; const q = pt.matrixTransform(m); return [q.x, q.y]; };
@@ -104,7 +104,7 @@ ok('każdy uchwyt jest na wierzchu (2 + 2 + narożna + ramię)',
    ile razy trzeba bylo przerwac cykl — przy zamknietych drzwiach ma byc zero,
    z kazdej strony, z ktorej da sie obejrzec zabudowe w „3D". */
 const cykle = () => page.evaluate(() => Number(
-  [...document.querySelectorAll('svg[data-cykle]')].map((s) => s.dataset.cykle)[0] ?? -1));
+  [...document.querySelectorAll('#rysunek svg[data-cykle]')].map((s) => s.dataset.cykle)[0] ?? -1));
 ok('45°: kolejność bez wymuszeń', (await cykle()) === 0, String(await cykle()));
 await pick('3D');
 const zKatow = [];
@@ -167,7 +167,7 @@ console.log('\n== elewacja szafki narożnej: nóżki ramienia jak w zamówieniu 
    i pod wolnym koncem. Wczesniej ten widok rysowal oba konce bez srodka. */
 await pick('Szafka');
 await pick('Zamk.');
-const nogiElew = await page.evaluate(() => [...document.querySelector('svg').querySelectorAll('rect')]
+const nogiElew = await page.evaluate(() => [...document.querySelector('#rysunek svg').querySelectorAll('rect')]
   .filter((r) => (r.getAttribute('fill') || '').toLowerCase() === '#3f3f46')
   .map((r) => Math.round(+r.getAttribute('x'))).sort((a, c) => a - c));
 const nogiRam = nogiElew.filter((x) => x >= 900);

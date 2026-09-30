@@ -13,7 +13,7 @@ await page.waitForTimeout(1500);
 const clickView = async (v) => { await page.getByText(v, { exact: true }).first().click(); await page.waitForTimeout(700); };
 const struct = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Struktura wnętrza$/ }) }).first();
 const gapVals = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return [...svg.querySelectorAll('text')].map(t => t.textContent.trim()).filter(t => /^-?\d+$/.test(t) && +t < 60);
 });
 
@@ -33,17 +33,17 @@ await clickView('Zamk.');
 await page.getByText('Pokaż szczeliny', { exact: true }).first().click();
 await page.waitForTimeout(700);
 console.log('A) szuflady NAKŁADANE — szczeliny:', (await gapVals()).join(', '));
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-gap-a.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-gap-a.png' }); } catch (e) {}
 
 await struct.locator('div.flex.items-center.gap-2', { has: page.getByText('fronty', { exact: true }) })
   .getByText('Wewnątrz', { exact: true }).click();
 await page.waitForTimeout(900);
 console.log('B) szuflady WEWNĄTRZ — szczeliny:', (await gapVals()).join(', '), '— nie powinno być 22, tylko 2 od przegrody');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-gap-b.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-gap-b.png' }); } catch (e) {}
 
 await clickView('Z góry');
 const topFronts = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const vb = svg.getAttribute('viewBox').split(/\s+/).map(Number);
   return [...svg.querySelectorAll('rect')]
     .filter(r => +r.getAttribute('height') > 15 && +r.getAttribute('height') < 22 && +r.getAttribute('width') > 100)
@@ -51,7 +51,7 @@ const topFronts = await page.evaluate(() => {
 });
 console.log('\nC) widok z góry — pasy frontów:', topFronts.join(' | '));
 console.log('   korpus 900 głęb. 500: front nakładany na y=500, wpuszczony na y=482');
-try { await page.locator('svg').first().screenshot({ path: S + 'shot-gap-top.png' }); } catch (e) {}
+try { await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-gap-top.png' }); } catch (e) {}
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

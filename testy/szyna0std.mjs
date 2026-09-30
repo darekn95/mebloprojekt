@@ -10,7 +10,7 @@ const card = (re) => page.locator('section').filter({ has: page.locator('h2', { 
 const rails = async () => {
   await page.getByText('Otw.', { exact: true }).first().click();
   await page.waitForTimeout(800);
-  return page.evaluate(() => [...document.querySelector('svg').querySelectorAll('text')]
+  return page.evaluate(() => [...document.querySelector('#rysunek svg').querySelectorAll('text')]
     .map(t => t.textContent.trim()).filter(t => /^szyna /.test(t)).map(t => Number(t.replace('szyna ', ''))));
 };
 const setup = async (gapBottom, thickness, mode) => {

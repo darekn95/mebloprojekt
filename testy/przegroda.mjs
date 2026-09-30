@@ -35,9 +35,9 @@ const seed = async (patch = {}) => {
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2200);
 };
-const gaps = () => page.evaluate(() => [...document.querySelectorAll('svg text')]
+const gaps = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')]
   .filter((t) => t.getAttribute('fill') === '#0f766e').map((t) => t.textContent.trim()));
-const dims = () => page.evaluate(() => [...document.querySelectorAll('svg text')].map((t) => t.textContent.trim()));
+const dims = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map((t) => t.textContent.trim()));
 
 console.log('== luzy przy dwóch poziomach ==');
 await seed();
@@ -100,7 +100,7 @@ for (const v of ['Zamk.', 'Otw.', 'Z boku', 'Z góry', 'Z tyłu', '3D']) {
   ok(`widok ${v}`, errors.length === k, errors.slice(k).join('; '));
 }
 await view('Zamk.');
-await page.locator('svg').first().screenshot({ path: S + 'shot-przegroda.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-przegroda.png' });
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

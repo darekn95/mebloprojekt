@@ -58,7 +58,7 @@ const mb2 = await mbOf();
 ok('oklejanie boku dolicza 2 × 600 mm', Math.abs(mb2 - mb1 - 1.2) < 0.15, mb1 + ' → ' + mb2 + ' mb');
 
 // rozkroj uwzglednia dodatkowa formatke
-await page.getByRole('button', { name: 'Rozkrój na płycie', exact: true }).first().click();
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
 await page.waitForTimeout(1500);
 const plan = await page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')].find(s => /^Rozkrój na płycie/.test((s.querySelector('h2') || {}).textContent || ''));

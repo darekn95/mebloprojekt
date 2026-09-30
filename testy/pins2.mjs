@@ -27,7 +27,7 @@ await page.waitForTimeout(900);
 await page.getByText('Otw.', { exact: true }).first().click();
 await page.waitForTimeout(900);
 const info = await page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const cs = [...svg.querySelectorAll('circle')].filter(c => Math.round(+c.getAttribute('r')) === 5)
     .map(c => ({ x: Math.round(+c.getAttribute('cx')), y: Math.round(+c.getAttribute('cy')) }));
   const labels = [...svg.querySelectorAll('text')].map(t => ({ x: Math.round(+t.getAttribute('x')), y: Math.round(+t.getAttribute('y')), s: t.textContent.trim() }));
@@ -41,6 +41,6 @@ const near = info.labels.filter((l) => /^otw\. \d+$/.test(l.s)).map((l) => ({ ..
 console.log('  etykiety przy kołkach:', near.map(l => l.v + '@' + l.x).join(', '));
 ok('etykiety w obu kolumnach', new Set(near.map(l => l.x)).size === 2, [...new Set(near.map(l=>l.x))].join(', '));
 ok('etykiety liczą od dołu przegrody/boku', near.length > 0 && near.every(l => l.v > 0 && l.v < 720), near.map(l=>l.v).join(','));
-await page.locator('svg').first().screenshot({ path: './shot-pins.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: './shot-pins.png' });
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

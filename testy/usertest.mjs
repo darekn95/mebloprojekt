@@ -35,7 +35,7 @@ await clickLabel('Nóżki pod szafką');
 await page.waitForTimeout(500);
 await page.evaluate(() => window.scrollTo(0, 0));
 await page.waitForTimeout(300);
-try { await page.locator('svg').first().screenshot({ path: OUT }); console.log('zrzut rysunku zapisany'); }
+try { await page.locator('#rysunek svg').first().screenshot({ path: OUT }); console.log('zrzut rysunku zapisany'); }
 catch (e) { await page.screenshot({ path: OUT }); }
 
 // TEST 2: pole "Szerokosc frezu" = 16 po wlaczeniu "We frezie"

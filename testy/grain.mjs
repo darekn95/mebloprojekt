@@ -22,7 +22,7 @@ await page.waitForTimeout(400);
 ok('checkbox struktury jest', await plyty.getByText('Rysuj strukturę słojów zamiast gładkiego koloru').count() === 1);
 
 const fills = async () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   return {
     // wzory slojow — bez kreskowania „przejscia do ramienia" i sciany, ktore nie sa struktura
     patterns: [...svg.querySelectorAll('pattern')].filter((q) => !['mp-przejscie', 'sciana-kreski'].includes(q.id)).length,
@@ -50,7 +50,7 @@ for (const v of ['Otw.', 'Z boku', 'Z góry', 'Z tyłu', '3D', 'Zamk.']) {
     JSON.stringify(f));
 }
 await clickView('Zamk.');
-await page.locator('svg').first().screenshot({ path: S + 'shot-texture.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-texture.png' });
 
 // widoczne czy pattern faktycznie sie renderuje (nie pusty)
 const painted = await page.evaluate(() => {
@@ -61,7 +61,7 @@ ok('wzór ma zawartość', painted && painted.kids >= 3, JSON.stringify(painted)
 
 console.log('\n== strzałka słojów w rozkroju ==');
 // bez grainMatters — rozkroj bez strzalek
-await card(/^Formatki do zamówienia$/).getByRole('button', { name: 'Rozkrój na płycie' }).click();
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
 await page.waitForTimeout(2000);
 const arrowsOff = await page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')].find(s => /^Rozkrój na płycie/.test((s.querySelector('h2') || {}).textContent || ''));
@@ -71,7 +71,7 @@ ok('bez usłojenia brak strzałek', arrowsOff && !arrowsOff.txt, JSON.stringify(
 
 await plyty.getByText('Kierunek usłojenia ma znaczenie', { exact: true }).click();
 await page.waitForTimeout(700);
-await card(/^Formatki do zamówienia$/).getByRole('button', { name: 'Rozkrój na płycie' }).click();
+await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); // rozkroj cały czas, bez przycisku (2026-09-30)
 await page.waitForTimeout(2500);
 const arrowsOn = await page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')].find(s => /^Rozkrój na płycie/.test((s.querySelector('h2') || {}).textContent || ''));

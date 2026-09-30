@@ -14,8 +14,9 @@ for (const w of [1440, 1100, 900, 700]) {
   await page.waitForTimeout(1500);
 
   const proj = page.locator('input[placeholder="Projekt bez nazwy"]').first();
-  const cabi = page.locator('input[placeholder="Nazwa szafki"]').first();
   await proj.fill('Kuchnia Kowalscy — zabudowa');
+  // nazwa szafki zmienia sie na pasku szafek (drugie klikniecie w aktywna, 2026-09-30)
+  const cabi = await (async () => { if (!(await page.locator('input[placeholder="Nazwa szafki"]').count())) { await page.locator('header button[title="Kliknij, aby zmienić nazwę szafki"]').first().click(); await page.waitForTimeout(200); } return page.locator('input[placeholder="Nazwa szafki"]').first(); })();
   await cabi.fill('Dolna pod zlewozmywak');
   await page.waitForTimeout(600);
 

@@ -22,7 +22,7 @@ await page.waitForTimeout(2500);
 await page.getByText('Otw.', { exact: true }).first().click();
 await page.waitForTimeout(900);
 const info = await page.evaluate(() => {
-  const ts = [...document.querySelector('svg').querySelectorAll('text')].map(t => t.textContent.trim());
+  const ts = [...document.querySelector('#rysunek svg').querySelectorAll('text')].map(t => t.textContent.trim());
   return { otw: ts.filter(t => /^otw\. \d+$/.test(t)).map(t => t.replace('otw. ', '')),
     legenda: ts.find(t => /^otw\. —/.test(t)) || null };
 });
@@ -31,6 +31,6 @@ console.log('  legenda:', info.legenda);
 ok('legenda mówi o spodzie wnętrza (brak dna)', /spodu wnętrza/.test(info.legenda || ''), info.legenda);
 ok('są dwie wysokości', info.otw.length === 2, info.otw.join(', '));
 ok('liczone od 0: (702-36)/3 = 222', Number(info.otw[0]) === 222 && Number(info.otw[1]) === 462, info.otw.join(', '));
-await page.locator('svg').first().screenshot({ path: './shot-nobot.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: './shot-nobot.png' });
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

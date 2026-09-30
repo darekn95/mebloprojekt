@@ -25,7 +25,7 @@ await wiersz('Ściana 1').getByRole('button', { name: '+ szafka' }).click();
 await page.waitForTimeout(1200);
 
 const BLAT = '#8d7b68';
-const plyty = () => page.evaluate((kol) => [...document.querySelectorAll('svg rect')]
+const plyty = () => page.evaluate((kol) => [...document.querySelectorAll('#rysunek svg rect')]
   .filter((r) => (r.getAttribute('fill') || '').toLowerCase() === kol)
   .map((r) => ({ x: +r.getAttribute('x'), y: +r.getAttribute('y'),
     w: +r.getAttribute('width'), h: +r.getAttribute('height') })), BLAT);
@@ -55,9 +55,9 @@ console.log('\n== blat w bryle ==');
    scian nie liczymy, bo rysowane sa tylko te zwrocone do widza. */
 await klik('3D');
 const scian = () => page.evaluate(() =>
-  new Set([...document.querySelectorAll('svg polygon[data-b]')].map((p) => p.dataset.b)).size);
+  new Set([...document.querySelectorAll('#rysunek svg polygon[data-b]')].map((p) => p.dataset.b)).size);
 const blatow = () => page.evaluate(() =>
-  new Set([...document.querySelectorAll('svg polygon[data-el="blat"]')].map((p) => p.dataset.b)).size);
+  new Set([...document.querySelectorAll('#rysunek svg polygon[data-el="blat"]')].map((p) => p.dataset.b)).size);
 const blatyZ = await blatow();
 const zBlatem = await scian();
 await page.evaluate(() => {
@@ -91,7 +91,7 @@ await klik('Ciąg');
 await klik('Całość');
 await klik('Zamk.');
 const opisy = await page.evaluate(() =>
-  [...document.querySelectorAll('svg text')].map((t) => t.textContent.trim()));
+  [...document.querySelectorAll('#rysunek svg text')].map((t) => t.textContent.trim()));
 console.log('   opisy: ' + opisy.filter((t) => /^\d+$/.test(t)).join(' '));
 /* Lico dolnej szafki to cokol 100 + korpus 720, blat 38, a przeswit 500. */
 ok('prześwit 500 jest na rysunku', opisy.includes('500'), opisy.slice(0, 12).join(' | '));

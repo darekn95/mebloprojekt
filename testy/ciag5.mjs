@@ -10,17 +10,17 @@ page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error' && !/favicon|404/.test(m.text())) errors.push('[console] ' + m.text()); });
 const ok = (l, c, e = '') => console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : ''));
 const view = async (v) => { await page.getByText(v, { exact: true }).first().click(); await page.waitForTimeout(900); };
-const svgTexts = () => page.evaluate(() => [...document.querySelectorAll('svg text')].map((t) => ({
+const svgTexts = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map((t) => ({
   t: t.textContent.trim(), x: Math.round(+t.getAttribute('x')), y: Math.round(+t.getAttribute('y')), f: t.getAttribute('fill'),
 })));
-const rects = () => page.evaluate(() => [...document.querySelectorAll('svg rect')].map((r) => ({
+const rects = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg rect')].map((r) => ({
   x: Math.round(+r.getAttribute('x')), y: Math.round(+r.getAttribute('y')),
   w: Math.round(+r.getAttribute('width')), h: Math.round(+r.getAttribute('height')),
 })));
 /* Szafki stawia na miejsce transform, wiec surowe x/y prostokatow sa lokalne.
    Przeliczamy realne polozenie na ekranie z powrotem na milimetry rysunku. */
 const mmRects = () => page.evaluate(() => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const vb = svg.getAttribute('viewBox').split(' ').map(Number);
   const box = svg.getBoundingClientRect();
   const s = box.width / vb[2];
@@ -36,7 +36,7 @@ const mmRects = () => page.evaluate(() => {
     };
   });
 });
-const vbox = () => page.evaluate(() => document.querySelector('svg').getAttribute('viewBox').split(' ').map(Number));
+const vbox = () => page.evaluate(() => document.querySelector('#rysunek svg').getAttribute('viewBox').split(' ').map(Number));
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 const seed = async (cabs, run = {}) => {
@@ -117,7 +117,7 @@ ok('suma z luzami 1810', tx.some((t) => t.t === '1810 ciąg'), tx.map((t) => t.t
 console.log('\n== szew cokołu narysowany w miejscu cięcia ==');
 await seed([800, 800, 800, 800, 800].map((w, i) => K('S' + i, { W: w })));
 await view('Ciąg');
-const linie = await page.evaluate(() => [...document.querySelectorAll('svg line')]
+const linie = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg line')]
   // kreski wewnatrz <pattern> (kreskowanie „przejscia do ramienia") to nie szwy
   .filter((l) => l.getAttribute('stroke-width') === '3' && !l.closest('pattern'))
   .map((l) => Math.round(+l.getAttribute('x1'))));
@@ -127,7 +127,7 @@ ok('jeden szew na styku 2400', linie.length === 1 && linie[0] === 2400, JSON.str
 console.log('\n== linie frontów ciągną się przez cały ciąg ==');
 await seed([K('A'), K('B'), K('C')]);
 await view('Ciąg');
-const prowad = await page.evaluate(() => [...document.querySelectorAll('svg line')]
+const prowad = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg line')]
   .filter((l) => (l.getAttribute('stroke-dasharray') || '') === '10 8')
   .map((l) => ({ x1: Math.round(+l.getAttribute('x1')), x2: Math.round(+l.getAttribute('x2')) })));
 console.log('     linii frontów: ' + prowad.length + ' ' + JSON.stringify(prowad[0]));
@@ -137,7 +137,7 @@ const rowne = prowad.length;
 // szafka z innym podzialem frontow dokłada linie — widac rozjazd
 await seed([K('A'), K('B', { H: 900 }), K('C')]);
 await view('Ciąg');
-const prowad2 = await page.evaluate(() => [...document.querySelectorAll('svg line')]
+const prowad2 = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg line')]
   .filter((l) => (l.getAttribute('stroke-dasharray') || '') === '10 8').length);
 console.log('     linii po rozjeździe: ' + prowad2);
 ok('rozjazd frontów dokłada linie', prowad2 > rowne, `${rowne} → ${prowad2}`);
@@ -163,6 +163,6 @@ ok('bez błędów', errors.length === 0, errors.join('; '));
 
 await seed([K('A'), K('B'), K('C')], { gap: 3, wallW: 2000 });
 await view('Ciąg');
-await page.locator('svg').first().screenshot({ path: S + 'shot-ciag5.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-ciag5.png' });
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

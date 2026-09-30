@@ -68,7 +68,7 @@ ok('plecy sięgają do kątownika w narożniku',
 
 console.log('\n== rzut z góry całej zabudowy ==');
 for (const l of ['Zabudowa', 'Z góry']) await klik(l);
-const pasy = await page.evaluate(() => [...document.querySelectorAll('svg rect')].map((r) => ({
+const pasy = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg rect')].map((r) => ({
   x: +r.getAttribute('x'), y: +r.getAttribute('y'),
   w: +r.getAttribute('width'), h: +r.getAttribute('height'),
 })).filter((r) => r.w > 0 && r.h > 0 && r.x < 0));
@@ -79,7 +79,7 @@ console.log('\n== ramię widać w elewacji samej szafki ==');
 await klik('Szafka');
 await klik('Zamk.');
 const podpisy = async () => page.evaluate(() =>
-  [...document.querySelectorAll('svg text')].map((t) => t.textContent.trim()));
+  [...document.querySelectorAll('#rysunek svg text')].map((t) => t.textContent.trim()));
 let tks = await podpisy();
 ok('podpis ramienia jest', tks.some((t) => t === 'ramię ' + ramie), tks.slice(0, 6).join(' | '));
 await klik('Otw.');

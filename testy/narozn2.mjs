@@ -11,9 +11,9 @@ page.on('console', (m) => { if (m.type() === 'error' && !/favicon|404/.test(m.te
 const ok = (l, c, e = '') => console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : ''));
 const pick = async (label) => { await page.getByText(label, { exact: true }).first().click(); await page.waitForTimeout(800); };
 const card = (re) => page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
-const svgTexts = () => page.evaluate(() => [...document.querySelectorAll('svg text')].map((t) => t.textContent.trim()));
+const svgTexts = () => page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map((t) => t.textContent.trim()));
 const mmShapes = (sel) => page.evaluate((s) => {
-  const svg = document.querySelector('svg');
+  const svg = document.querySelector('#rysunek svg');
   const vb = svg.getAttribute('viewBox').split(' ').map(Number);
   const box = svg.getBoundingClientRect();
   const k = box.width / vb[2];
@@ -91,7 +91,7 @@ ok('ramię narysowane w obróconym ciągu', front.length >= 1, String(front.leng
 ok('ramię stoi między rogiem a szafką B',
   front.every((q) => q.y >= 603 && q.y + q.h <= 1103 + 1),
   JSON.stringify(front.map((q) => ({ y: q.y, kon: q.y + q.h }))));
-await page.locator('svg').first().screenshot({ path: S + 'shot-L-top.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-L-top.png' });
 
 console.log('\n== uwagi opisuja szafke narozna ==');
 let uw = await card(/Uwagi/).innerText();
@@ -324,9 +324,9 @@ for (const v of ['Zamk.', 'Otw.', 'Z góry', 'Z tyłu', '3D']) {
 await pick('Zamk.');
 tx = await svgTexts();
 ok('ramię widać też w elewacji', tx.some((t) => /^ramię 500$/.test(t)), tx.join(' | '));
-await page.locator('svg').first().screenshot({ path: S + 'shot-L-elew.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-L-elew.png' });
 await pick('3D');
-await page.locator('svg').first().screenshot({ path: S + 'shot-L-3d.png' });
+await page.locator('#rysunek svg').first().screenshot({ path: S + 'shot-L-3d.png' });
 
 console.log('\n== bez ramienia nic sie nie zmienia ==');
 await uklad(0);
