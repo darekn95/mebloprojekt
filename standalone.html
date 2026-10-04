@@ -249,6 +249,10 @@ const uchwytOut = (d, cab) => {
    i tylnej krawedzi plyty, reszta rowno pomiedzy (uzytkownik 2026-09-29). Ta
    sama liczba idzie do okuc i do planu wiercen. */
 const KONF_OD_KRAWEDZI = 50;
+/* Wspornik pionowy fixu bez plyty nad soba (pod blatem) idzie na trojkaty:
+   do fixa co ok. 300 mm, min. 2 (decyzja uzytkownika 2026-10-04). */
+const WSPORNIK_TROJKAT_CO = 300;
+const wspornikTrojkaty = (h) => Math.max(2, Math.ceil(Math.max(0, h) / WSPORNIK_TROJKAT_CO));
 const konfirmatyNaStyk = (len) => Math.max(2, Math.ceil((len || 0) / 200));
 const konfirmatyPoz = (len, od = 0) => {
   const n = konfirmatyNaStyk(len);
@@ -944,6 +948,10 @@ const nextRunId = (runs) => {
   return "c" + n;
 };
 
+/* Glebokosc pierwszej szafki w pustym ciagu dolnym, gdy w pomieszczeniu nie ma
+   innego ciagu — jak szablon szafki stojacej (plecy za korpusem + 560 = blat 600). */
+const SZAFKA_KUCHENNA_D = 560;
+
 const makeRun = (runs, roomId = null) => {
   /* Numer sciany liczymy w obrebie pomieszczenia — kazde zaczyna od „Ściana 1”.
      Id ciagu jest wspolne dla calego projektu, wiec liczy sie ze wszystkich. */
@@ -1025,7 +1033,8 @@ const utworzCiagZRogiem = (p, o) => {
        sciany jednej kuchni dostawaly rozny blat i cokol (audyt zabudowy). */
     const wzor = cel.H != null ? cel : inny.H != null ? inny : cel;
     if (wzor.H != null) cab.H = wzor.H;
-    if (wzor.D != null && !L) cab.D = wzor.D;
+    // szafka w L tez — glebokosc sasiedniej sciany (decyzja uzytkownika 2026-10-04)
+    if (wzor.D != null) cab.D = wzor.D;
     if (wzor.plinth) cab.plinth = { ...wzor.plinth };
     cab.legs = { ...(cab.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true };
     cab.hangerMode = cel.hangerMode || "listwa";
@@ -1040,7 +1049,7 @@ const utworzCiagZRogiem = (p, o) => {
     active = at;
   }
   // szafka w L potrzebuje glebokosci drugiego ciagu od razu (jak szablon)
-  const nowyD = L && o.owner !== "self" ? { ...nowy, D: nowy.D || CORNER_L_D } : nowy;
+  const nowyD = L && o.owner !== "self" ? { ...nowy, D: nowy.D || rodzic.D || CORNER_L_D } : nowy;
   const wynik = { ...p, runs: [...runs, nowyD], items, active };
   // ciag bez wymiarow przejmuje je od pierwszej szafki (jak withRunDefaults)
   wynik.runs = wynik.runs.map((r) => {
@@ -1569,6 +1578,10 @@ function computeGeoLiczy(cab, mat, ctx) {
   // blat roboczy ma swoja grubosc — wieniec z plyty zostaje przy grubosci plyty
   const isWorktop = isBlat && rawTop.material === "worktop";
   const tTop = isWorktop ? ((mat.worktop && mat.worktop.thickness) || 38) : t;
+  /* Grubosc gornej plyty w wysokosci H: wieniec — plyta, blat na bokach — blat.
+     H to wysokosc calej szafki razem z gorna plyta, takze z blatem roboczym 38
+     (decyzja uzytkownika 2026-10-04) — boki sa krotsze o grubosc blatu. */
+  const tW = isBlat ? tTop : t;
   const blat = isBlat
     ? { overL: ov(rawTop.overL), overR: ov(rawTop.overR), overFront: ov(rawTop.overFront), overBack: ov(rawTop.overBack) }
     : null;
@@ -1651,8 +1664,8 @@ function computeGeoLiczy(cab, mat, ctx) {
 
   const topOverL = isBlat || topL === "over";
   const topOverR = isBlat || topR === "over";
-  const leftLen = H - (topOverL ? t : 0) - (botL === "over" ? t : 0);
-  const rightLen = H - (topOverR ? t : 0) - (botR === "over" ? t : 0);
+  const leftLen = H - (topOverL ? (isBlat ? tW : t) : 0) - (botL === "over" ? t : 0);
+  const rightLen = H - (topOverR ? (isBlat ? tW : t) : 0) - (botR === "over" ? t : 0);
   const leftY0 = botL === "over" ? t : 0;
   const rightY0 = botR === "over" ? t : 0;
   /* Po stronie ramienia nie ma boku, a katownik stoi miedzy dnem a wiencem —
@@ -1691,7 +1704,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       + ` — przy tej szerokości środek dna nie ma podpory. Dołóż nóżkę na środku`
       + ` albo parę na środku.|legs:${zalecaneNozki - 1}|legs:${zalecaneNozki}`);
 
-  const interior = { x0: t, x1: W - t, y0: hasBot ? bottomY + t : bottomY, y1: hasTop ? H - t : H };
+  const interior = { x0: t, x1: W - t, y0: hasBot ? bottomY + t : bottomY, y1: hasTop ? H - tW : H };
   const innerW = interior.x1 - interior.x0;
   const innerH = interior.y1 - interior.y0;
 
@@ -1964,7 +1977,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           : Math.round(sepShelves[lv.i - 1].y + t - divOv);
       hi =
         lv.i === levels.length - 1
-          ? H - (isBlat ? t : 0) - g.top
+          ? H - (isBlat ? tW : 0) - g.top
           : Math.round(sepShelves[lv.i].y + divOv);
     } else {
       lo = lv.y0 + g.inset;
@@ -2022,7 +2035,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         // z gora korpusu (bez luzu nad soba), zachowujac zadana wysokosc
         const flushTop = cab.frontMode === "overlay" && lv.i === levels.length - 1;
         // przy blacie maskownica konczy sie pod nim, a nie na jego licu
-        const tfTop = flushTop ? H - (isBlat ? t : 0) : chi;
+        const tfTop = flushTop ? H - (isBlat ? tW : 0) : chi;
         topFixGeo = { y: tfTop - topFixW, w: topFixW };
         chi = tfTop - topFixW - g.between;
       }
@@ -2169,7 +2182,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           ? lv.y1 - g.inset
           : ovl && lv.i === levels.length - 1 && chi === hi
           // przy blacie na bokach fix konczy sie pod nim, jak drzwi (audyt 2026-10-04)
-          ? H - (isBlat ? t : 0)
+          ? H - (isBlat ? tW : 0)
           : chi;
         const fH = Math.round(fTop - fLo);
         const fx = fixInset
@@ -2222,7 +2235,14 @@ function computeGeoLiczy(cab, mat, ctx) {
             const srodek = (lv.y0 + lv.y1) / 2;
             const sy0 = Math.max(lv.y0, ...wDrodze.filter((r) => r.y1 <= srodek).map((r) => r.y1));
             const sy1 = Math.min(lv.y1, ...wDrodze.filter((r) => r.y0 >= srodek).map((r) => r.y0));
-            supportParts.push({ h: Math.round(sy1 - sy0), d: sd });
+            /* Plyta nad wspornikiem: wieniec (nie blat na bokach — ten lezy na
+               wierzchu i przykreca sie od spodu) albo polka przelotowa. Bez niej
+               wspornik idzie na trojkaty meblowe: jeden do plyty pod soba i co
+               ok. 300 mm (min. 2) do fixa (decyzja uzytkownika 2026-10-04). */
+            const nadPlyta = lv.i < L - 1 || (hasTop && !isBlat);
+            const podPlyta = lv.i > 0 || hasBot;
+            supportParts.push({ h: Math.round(sy1 - sy0), d: sd, nad: nadPlyta, pod: podPlyta,
+              trojkatyFix: nadPlyta ? 0 : wspornikTrojkaty(sy1 - sy0) });
             /* Fix w swietle korpusu (wpuszczany, albo w szafce z frontami
                wpuszczanymi) zajmuje pierwsze `tf` od lica — wspornik stoi za nim.
                Od lica wchodzil w fix na cala jego grubosc (audyt 2026-10-04). */
@@ -2767,7 +2787,16 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (d.tallBack) {
           const wanted = num(d.backHeight);
           backH = wanted === null ? Math.max(stdBack, Math.min(doFrontu - BACK_CLEAR, maxBack)) : Math.max(0, Math.round(wanted));
-          if (backH > doFrontu)
+          /* „auto” przy froncie za niskim na podniesienie: zostaje zwykly tyl
+             (gora rowno z bokami) — wczesniej aplikacja sama go wybierala, a potem
+             zglaszala jako blad „siega wyzej niz front” (audyt macierzowy,
+             blat 38 na bokach, 2026-10-04). */
+          const zaNiskiFront = wanted === null && doFrontu - BACK_CLEAR < stdBack;
+          if (zaNiskiFront)
+            add("warn",
+              `${where}, szuflada ${i + 1}: front ${fmt(fh)} mm jest za niski na podniesiony tył (potrzeba ${BACK_CLEAR} mm luzu pod jego górną krawędzią) — zostaje zwykły tył ${stdBack} mm, z górą równo z bokami.`
+              + `|tylstd:${lv.i}:${j}:${i}`);
+          else if (backH > doFrontu)
             add(
               "error",
               `${where}, szuflada ${i + 1}: tył ${fmt(backH)} mm sięga wyżej niż górna krawędź frontu szuflady — najwyżej ${fmt(doFrontu)} mm, lepiej niżej.` +
@@ -2785,7 +2814,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           /* Standardowy tyl ma gore rowno z bokami — miesci sie tam, gdzie
              skrzynka (to pilnuje kontrola bokow). Luz BACK_CLEAR dotyczy tylko
              tylu podniesionego ponad boki. */
-          if (railY0 + hClass <= ceilY && maxBack < stdBack) {
+          if (!zaNiskiFront && railY0 + hClass <= ceilY && maxBack < stdBack) {
             /* Nad bokami nie ma miejsca na podniesienie — sam tyl nie pomoze.
                Przyciski: nizszy bok (tyl podniesie sie nad niego) albo zwykly
                tyl (uzytkownik 2026-10-04: „miał być przycisk, który zmniejsza
@@ -3859,6 +3888,18 @@ function computeGeoLiczy(cab, mat, ctx) {
     levels.forEach((lv) => lv.cols.forEach((c) => {
       if (!c.support || !c.fix) return;
       const x = Math.round((c.fix.side === "left" ? c.fix.x + c.fix.w - t : c.fix.x) + t / 2 - interior.x0);
+      if (!nad(lv.i)) {
+        /* bez plyty nad soba — trojkaty: jeden do plyty pod spodem, reszta do fixa
+           (polozenie od dolnej krawedzi fixu, od wnetrza, przy wsporniku) */
+        if (pod(lv.i)) doPlyty(pod(lv.i), "trójkąt meblowy — wspornik pionowy", x,
+          "1 szt. przy wsporniku, od wnętrza; położenie od wewnętrznej strony lewego boku");
+        const n = wspornikTrojkaty(c.support.h);
+        const lo = c.support.y0 - c.fix.y, hi = lo + c.support.h;
+        const ys = n <= 1 ? [(lo + hi) / 2] : [...Array(n)].map((_, i) => lo + KONF_OD_KRAWEDZI + ((hi - lo - 2 * KONF_OD_KRAWEDZI) * i) / (n - 1));
+        ys.forEach((y) => doPlyty("Element stały (fix)", "trójkąt meblowy — wspornik pionowy", y,
+          "od wnętrza, w kącie fix–wspornik; położenie od dolnej krawędzi fixu"));
+        return;
+      }
       const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(carcassDepth))} mm od przedniej krawędzi; w czole wspornika ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
       [nad(lv.i), pod(lv.i)].filter(Boolean).forEach((pl) => doPlyty(pl, "konfirmat — wspornik pionowy", x, note));
     }));
@@ -4087,7 +4128,20 @@ function computeGeoLiczy(cab, mat, ctx) {
   }
   joint(dividers.length * 2, dividerDepth, "przegrody");
   joint(sepShelves.length * 2, shelfDepth, "półki przelotowe");
-  joint(supportParts.length * 2, carcassDepth, "wsporniki");
+  // wspornik z plyta nad soba — konfirmaty do plyt, ktore sa; bez niej trojkaty (nizej)
+  joint(supportParts.filter((f) => f.nad).reduce((n, f) => n + 1 + (f.pod ? 1 : 0), 0), carcassDepth, "wsporniki");
+  const wspNaTrojkatach = supportParts.filter((f) => !f.nad);
+  if (wspNaTrojkatach.length) {
+    const doPod = wspNaTrojkatach.filter((f) => f.pod).length;
+    const doFix = wspNaTrojkatach.reduce((n, f) => n + f.trojkatyFix, 0);
+    hardware.push({
+      name: "Trójkąt meblarski",
+      use: "wspornik pionowy fixu bez płyty nad sobą (pod blatem): do dna i do fixa",
+      spec: `wspornik pionowy na trójkątach: ${doPod ? `${doPod} do dna, ` : ""}${doFix} do fixa (co ok. ${WSPORNIK_TROJKAT_CO} mm, min. 2 na wspornik)`,
+      qty: doPod + doFix,
+      unit: "szt.",
+    });
+  }
 
   const shelfPins = mocowaniePolek(cab) === "pins";
   let colShelves = 0;
@@ -4273,7 +4327,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
     postSide, postW, postBack, postTyp, postRects, zawieszki,
-    isBlat, isWorktop, tTop, blat, blatDepth, blatInside, W, drillPlan,
+    isBlat, isWorktop, tTop, tW, blat, blatDepth, blatInside, W, drillPlan,
     topX0, topX1, botX0, botX1, divOv,
   };
 }
@@ -4387,10 +4441,7 @@ const tierMountY = (project, run) => {
      jeszcze plyta blatu i to ona wyznacza poziom, od ktorego liczy sie odstep. */
   const blat = dolny.worktop
     ? ((lista[0].it.mat.worktop || {}).thickness || 38)
-    : Math.max(0, ...lista.map(({ it }) => {
-        const g = computeGeo(it.cab, it.mat);
-        return g.isBlat ? g.tTop : 0;
-      }));
+    : 0; // blat na bokach szafki miesci sie w jej H (decyzja uzytkownika 2026-10-04)
   return Math.round((dolny.mountY || 0) + lico + blat
     + Math.max(0, Math.round(run.clearance ?? 500)));
 };
@@ -5181,7 +5232,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
       {geo.postSide !== "right" && side("r", mx(W - t, t), fy(geo.rightY0 + geo.rightLen), geo.rightLen,
         geo.topR === "between", geo.botR === "between")}
       {geo.hasTop && (
-        <rect x={mx(geo.topX0, geo.topX1 - geo.topX0)} y={fy(H)} width={geo.topX1 - geo.topX0} height={t}
+        <rect x={mx(geo.topX0, geo.topX1 - geo.topX0)} y={fy(H)} width={geo.topX1 - geo.topX0} height={geo.tW || t}
           fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
       )}
       {geo.hasBot && (
@@ -5389,7 +5440,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
           {side("r2", mx(W - t, t), fy(geo.rightY0 + geo.rightLen), geo.rightLen,
             geo.topR === "between", geo.botR === "between")}
           {geo.hasTop && (
-            <rect x={mx(geo.topX0, geo.topX1 - geo.topX0)} y={fy(H)} width={geo.topX1 - geo.topX0} height={t}
+            <rect x={mx(geo.topX0, geo.topX1 - geo.topX0)} y={fy(H)} width={geo.topX1 - geo.topX0} height={geo.tW || t}
               fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
           )}
           {geo.hasBot && (
@@ -6693,7 +6744,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         /* z = 0 to lico korpusu, plecy przy z = cd — wysuniecie przednie idzie
            w minus, tylne za cd (bylo odwrotnie: blat biurka wystawal w 3D do
            tylu i wchodzil w plecy — audyt macierzowy 2026-10-04) */
-        box(c.x + c.geo.topX0, y1 - t, c.geo.isBlat ? -c.geo.blat.overFront : 0,
+        box(c.x + c.geo.topX0, y1 - (c.geo.tW || t), c.geo.isBlat ? -c.geo.blat.overFront : 0,
           c.x + c.geo.topX1, y1, c.geo.isBlat ? cd + c.geo.blat.overBack : cd, bf);
       {
         const pb = plecyBryla(c.cab, c.geo);
@@ -7136,7 +7187,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         </g>
       )}
       {geo.hasTop && (
-        <rect x={geo.topX0} y={topY} width={geo.topX1 - geo.topX0} height={t}
+        <rect x={geo.topX0} y={topY} width={geo.topX1 - geo.topX0} height={geo.tW || t}
           fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
       )}
       {geo.hasBot && (
@@ -8018,7 +8069,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
       ))}
       {/* wieniec */}
       {geo.hasTop && (
-        <rect x={W - geo.topX1} y="0" width={geo.topX1 - geo.topX0} height={t}
+        <rect x={W - geo.topX1} y="0" width={geo.topX1 - geo.topX0} height={geo.tW || t}
           fill={bf} stroke={INK} strokeWidth="2" />
       )}
       {/* dno */}
@@ -8787,7 +8838,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
         );
       })()}
       <rect x={geo.isBlat ? xC - sOvB : xC} y="0"
-        width={geo.isBlat ? geo.blatDepth : cd} height={geo.t}
+        width={geo.isBlat ? geo.blatDepth : cd} height={geo.tW || geo.t}
         fill={bf} stroke={INK} strokeWidth="2" />
       <rect x={xC} y={fy(geo.bottomY + geo.t)} width={cd} height={geo.t} fill={bf} stroke={INK} strokeWidth="2" />
 
@@ -9369,7 +9420,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
   if (geo.hasTop)
     box(
       // z = 0 to lico korpusu: wysuniecie przednie w minus, tylne za plecami (cd)
-      geo.topX0, H - t, geo.isBlat ? -geo.blat.overFront : 0,
+      geo.topX0, H - (geo.tW || t), geo.isBlat ? -geo.blat.overFront : 0,
       geo.topX1, H, geo.isBlat ? cd + geo.blat.overBack : cd, bf
     );
 
@@ -12838,9 +12889,19 @@ export default function App() {
     /* ...i jego wymiary: wysokosc, glebokosc i cokol, gdy ciag je juz ma.
        Domyslna szafka ma 500 w glab, wiec w ciagu 570 (albo gornym 300) od razu
        wyskakiwalo ostrzezenie o rozjezdzie, ktory zrobila sama aplikacja. */
+    /* Pusty ciag dolny nie ma jeszcze glebokosci (przejmuje ja od pierwszej
+       szafki) — wtedy bierzemy glebokosc innego ciagu dolnego w tym pomieszczeniu,
+       a gdy go nie ma, 560 jak szablon stojacej. Wczesniej szla glebokosc szafki
+       domyslnej (500) i blat 600 od razu „wystawal” (decyzja uzytkownika 2026-10-04). */
+    const glebPustego = run && run.D == null && run.tier !== "gorny" ? (() => {
+      const pokojRun = roomOfRun(p, run);
+      const inny = (p.runs || []).find((r) => r.id !== run.id && r.tier !== "gorny" && r.D != null
+        && roomOfRun(p, r) === pokojRun);
+      return inny ? inny.D : SZAFKA_KUCHENNA_D;
+    })() : null;
     const wymiaryCiagu = run && !tplId ? {
       ...(run.H != null ? { H: run.H } : {}),
-      ...(run.D != null ? { D: run.D } : {}),
+      ...(run.D != null ? { D: run.D } : glebPustego != null ? { D: glebPustego } : {}),
       ...(run.plinth ? { plinth: { ...run.plinth } } : {}),
     } : {};
     const roomId = run ? roomOfRun(p, run) : activeRoomOf(p);

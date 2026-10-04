@@ -18,6 +18,10 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-04 | podniesiony tył „auto” przy niskim froncie (`audytmacierz`, nowa konstrukcja „blat roboczy 38 na bokach”) | gdy front był za niski na podniesienie, „auto” brał zwykły tył, a zaraz potem zgłaszał go jako błąd „sięga wyżej niż górna krawędź frontu” — bez przycisku. Teraz ostrzeżenie „front za niski na podniesiony tył — zostaje zwykły tył” z „Wyłącz podniesiony tył” | (ten commit) |
+| 2026-10-04 | wspornik pionowy fixu bez płyty nad sobą (decyzja użytkownika) | okucia liczyły 2 konfirmaty na wspornik (do wieńca i dna) także pod blatem, gdzie wieńca nie ma, a plan wierceń miał tylko dno. Teraz bez płyty nad sobą: trójkąty — 1 do dna i co ok. 300 mm (min. 2) do fixa (`wspornikTrojkaty`), w okuciach i w planie wierceń; z płytą nad sobą konfirmaty tylko do płyt, które są | (ten commit) |
+| 2026-10-04 | blat roboczy 38 na bokach (decyzja użytkownika: H z blatem) | geometria liczyła blat na bokach jak płytę 18 w H (boki, wnętrze, 3D), a wysokość górnego ciągu dokładała jeszcze 38 nad H. Teraz H obejmuje blat: boki i wnętrze krótsze o grubość blatu (`tW`), rysunki i 3D z płytą 38, górny ciąg liczy prześwit od H | (ten commit) |
+| 2026-10-04 | „+ szafka” w pustym ciągu dolnym (decyzja użytkownika) | szafka brała głębokość szafki domyślnej (`defaultCab`, 500 — z czasów przed szablonem 560), a blat 600 od razu „wystawał 77 mm”. Teraz głębokość innego ciągu dolnego w pomieszczeniu, a bez niego 560 (`SZAFKA_KUCHENNA_D`); szafka w L z kreatora też bierze głębokość sąsiedniej ściany | (ten commit) |
 | 2026-10-04 | kreator rogu (audyt zabudowy `audytzabudowa`) | „+ szafka” w pierwszym ciągu daje szafkę 500 bez cokołu (`defaultCab`), a kreator stawiał w pustym nowym ciągu szafkę z szablonu (560, cokół) — dwie ściany jednej kuchni miały różny blat i cokół i od razu ostrzeżenie „Blat tej ściany ma 533, a sąsiedniej 600”. Teraz pusty nowy ciąg bierze H, D i cokół z sąsiedniej ściany (szafka w L zostaje przy głębokości szablonu — pytanie do użytkownika) | 15edb05 |
 | 2026-10-04 | szafka pod blatem — wspornik fixu (audyt macierzowy `audytmacierz`) | wspornik pionowy fixu szedł na całą wysokość światła i wchodził w płaskie wzmocnienie pod blatem; teraz `c.support.y0/y1` kończą się na wzmocnieniach w jego drodze, a rysunki (przód, bok, góra, 3D) biorą `support.y1/h` | 6fb1814 |
 | 2026-10-04 | fix wpuszczany / fronty wpuszczane — wspornik (`audytmacierz`) | wspornik stał od lica korpusu (z = 0) i nachodził na fix wpuszczony w korpus; teraz cofa się o grubość fixu (`support.z0`), półka skraca się o tyle samo (`shFront`) | 6fb1814 |
@@ -122,6 +126,10 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   jednym podnośniku, cena 10 zł, gęstość 680) już wprowadzone. Braki spisane w `AI_NOTES.md` ([AI-TODO] Klapy).
 
 ## Ustalone — nie ruszać
+
+- **Wysokość H** (2026-10-04): H to wysokość szafki razem z górną płytą — z wieńcem 18 i tak samo z blatem roboczym 38 położonym na bokach (boki krótsze o grubość blatu). Blat ciągu (szafki pod blatem, bez wieńca) leży nad H.
+- **Wspornik pionowy pod blatem** (2026-10-04): bez płyty nad sobą — na trójkątach meblowych: 1 do dna i do fixa co ok. 300 mm, min. 2.
+- **Głębokość nowej szafki w ciągu** (2026-10-04): głębokość ciągu; pusty ciąg dolny — głębokość innego ciągu dolnego w pomieszczeniu, a bez niego 560. Kreator rogu (ślepa i L) — głębokość sąsiedniej ściany.
 
 - **Wycięcie w narożniku a formatka boku** (2026-09-29): wycięcie na całą wysokość boku → zamawiamy krótszą formatkę (zmienia rozkrój); wycięcie tylko na części wysokości (jeden poziom wysokiej szafki) → bok w całości, bez zmiany rozkroju (`registerCorner`, `fullHeight`).
 - **Scalanie do `main`** tylko na wyraźną prośbę użytkownika (AGENTS.md).

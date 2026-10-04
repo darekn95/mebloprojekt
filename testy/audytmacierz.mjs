@@ -56,6 +56,10 @@ const KONSTRUKCJE = [
   ['fronty wpuszczane', (c) => ({ ...c, frontMode: 'inset' }), false],
   ['blat na bokach', (c) => ({ ...c, top: { mode: 'blat', widthMode: 'inside', overL: 0, overR: 0, overFront: 20, overBack: 0 },
     joints: { ...(c.joints || {}), topL: 'over', topR: 'over' } }), false],
+  /* blat roboczy 38 miesci sie w H (decyzja uzytkownika 2026-10-04): boki krotsze
+     o 38, wysuniecie z tylu — HDF konczy sie pod nim */
+  ['blat roboczy 38 na bokach', (c) => ({ ...c, top: { mode: 'blat', material: 'worktop', widthMode: 'outside', overL: 10, overR: 10, overFront: 20, overBack: 20 },
+    joints: { ...(c.joints || {}), topL: 'over', topR: 'over' } }), false],
   ['bez dna (na nóżkach)', (c) => ({ ...c, plinth: { ...PL, on: false }, joints: { ...(c.joints || {}), botL: 'none', botR: 'none' } }), false],
 ];
 const szuf = (n, o = {}) => Array.from({ length: n }, () => ({ h: 'auto', front: null, handle: true, ...o }));
