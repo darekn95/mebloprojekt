@@ -61,6 +61,10 @@ const porownaj = (sol, parts, luzCokol = false) => {
       /* Cokol ciagu zamawia sie w jednym kawalku (albo kilku do dlugosci
          arkusza), a rysuje odcinkami pod szafkami — odcinek musi sie w nim zmiescic. */
       || parts.find((p) => /^Cokół ciągu/.test(p.name) && Math.abs(p.b - q) <= 3 && p.a >= r - 3)
+      /* Blat ciagu nad szafka (widok samej szafki pokazuje jego odcinek od
+         2026-10-04) — zamawia sie go w calosci, w formatkach projektu: odcinek
+         ma te sama glebokosc i miesci sie w dlugosci. */
+      || (s.tag === 'blat' && parts.find((p) => /^Blat/.test(p.name) && ((Math.abs(p.b - q) <= 3 && p.a >= r - 3) || (Math.abs(p.b - r) <= 3 && p.a >= q - 3))))
       /* Widok samej szafki naroznej nie ma ramienia, wiec jej cokol rysuje sie
          na cala szerokosc — w zamowieniu to cokol ciagu plus cokol ramienia. */
       || (luzCokol && parts.find((p) => /^Cokół/.test(p.name) && Math.abs(p.b - q) <= 3));

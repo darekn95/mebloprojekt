@@ -6784,7 +6784,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         }
         if (d.type === "drawer") {
           // szuflada wyjezdza do przodu, front zostaje rownolegly do korpusu
-          const out = Math.min(d.h * 1.6, cd * 0.75);
+          const out = wysuwSzuflady(d);
           box(c.x + d.x, c.base + d.y, -tf - out, c.x + d.x + d.w, c.base + d.y + d.h, -out,
             col, null, 0.9, true);
           handleBar(d, -tf - out, null);
@@ -7022,7 +7022,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
   );
 }
 
-function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware, arm, wstawki }) {
+function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware, arm, wstawki, blat }) {
   const wsL = wstawkiSzafki(wstawki, geo);
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
@@ -7169,6 +7169,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             fill={shc} stroke={INK} strokeWidth="2" />
         </g>
       )}
+      {blat && blat.roboczy && blat.th > 0 && blat.korpus.map((b, k) => (
+        <rect key={"blat" + k} data-el="blat" x={b.x} y={topY - blat.th} width={b.w} height={blat.th}
+          fill={blat.kolor} stroke={INK} strokeWidth="2" />
+      ))}
       {geo.hasTop && (
         <rect x={geo.topX0} y={topY} width={geo.topX1 - geo.topX0} height={geo.tW || t}
           fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
@@ -7968,7 +7972,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   );
 }
 
-function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
+function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const { H } = cab;
@@ -8051,6 +8055,10 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki }) {
           fill={shc} stroke={INK} strokeWidth="2" />
       ))}
       {/* wieniec */}
+      {blat && blat.roboczy && blat.th > 0 && blat.korpus.map((b, k) => (
+        <rect key={"blat" + k} data-el="blat" x={mx(b.x, b.w)} y={-blat.th} width={b.w} height={blat.th}
+          fill={blat.kolor} stroke={INK} strokeWidth="2" />
+      ))}
       {geo.hasTop && (
         <rect x={W - geo.topX1} y="0" width={geo.topX1 - geo.topX0} height={geo.tW || t}
           fill={bf} stroke={INK} strokeWidth="2" />
@@ -8172,10 +8180,16 @@ const blatNadSzafka = (project, full, index, arm) => {
   const kolorOf = (rt) => (rt.worktop
     ? (rt.mat.worktop || {}).color || "#8d7b68"
     : (rt.mat.board || {}).color || "#d8c3a0");
-  const out = { korpus: [], ramie: [], kolor: null };
+  const out = { korpus: [], ramie: [], kolor: null, th: 0, roboczy: false };
   const rt = runTop(project, run);
   if (rt) {
     out.kolor = kolorOf(rt);
+    /* grubosc i to, czy to blat ciagu lezacy NAD szafka (szafki pod blatem) —
+       blat lezacy na bokach szafka rysuje sama, wiec widoki przod/bok/tyl/3D
+       dokladaja tylko blat roboczy ciagu (uzytkownik 2026-10-04: „w widoku
+       szafki nie ma blatu”) */
+    out.th = rt.th;
+    out.roboczy = !!run.worktop;
     const gs = wallGapOf(run, null);
     const tyl = n.depth - c.geo.carcassDepth + c.offset;   // tyl korpusu od sciany
     const v0 = Math.max(0, gs.bottom - gs.top);
@@ -8369,7 +8383,37 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           height={geo.dividerDepth} fill={bf} stroke={INK} strokeWidth="2" />
       ))}
 
-      {/* fronty widziane z gory jako cienki pas przy przedniej krawedzi */}
+      {/* Fronty z gory: kazdy osobno (drzwi, szuflady, klapy, blendy ze wszystkich
+          poziomow), polaczone tylko tam, gdzie sie stykaja — szczeliny miedzy
+          drzwiami obok siebie maja byc widac (uzytkownik 2026-10-04: z boku i z
+          gory fronty zlewaly sie w jeden pas). Wpuszczony lezy w korpusie. Fix
+          rysuje sie nizej osobno. */}
+      {(() => {
+        const ffc = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
+        const maskK = arm && arm.bracket ? arm.bracket.odKorpusu - arm.bracket.luz : 0;
+        const licoOd = arm ? (arm.side === "right" ? 0 : W - arm.free + maskK) : 0;
+        const licoDo = arm ? (arm.side === "right" ? arm.free - maskK : W) : W;
+        const plaszczyzny = new Map();
+        geo.doors.filter((d) => d.type !== "fix" && d.w > 0).forEach((d) => {
+          const a = Math.max(d.x, licoOd), b = Math.min(d.x + d.w, licoDo);
+          if (b <= a) return;
+          const z0 = d.inset ? cd - geo.tf : cd;
+          if (!plaszczyzny.has(z0)) plaszczyzny.set(z0, []);
+          plaszczyzny.get(z0).push([a, b]);
+        });
+        return [...plaszczyzny.entries()].flatMap(([z0, odc]) => {
+          const pasy = [];
+          odc.sort((p, q) => p[0] - q[0]).forEach(([a, b]) => {
+            const ost = pasy[pasy.length - 1];
+            if (ost && a <= ost[1] + 0.5) ost[1] = Math.max(ost[1], b); else pasy.push([a, b]);
+          });
+          return pasy.map(([a, b], k) => (
+            <rect key={`fz${z0}-${k}`} data-el="front-gora" x={a} y={z0} width={b - a} height={geo.tf}
+              fill={ffc} stroke={INK} strokeWidth="2" />
+          ));
+        });
+      })()}
+      {/* skrzynki szuflad widziane z gory */}
       {(() => {
         // bierzemy dolny poziom jako reprezentatywny (z gory widac tylko przednia plaszczyzne)
         const cols = geo.levels[0]?.cols || [];
@@ -8406,11 +8450,6 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           const skX1 = c.x0 + (dr0?.skrzynka?.LW ?? (c.x1 - c.x0)) - 4;
           return (
             <g key={"fr" + c.j}>
-              {Math.min(x1, licoDo) > Math.max(x0, licoOd) && (
-                <rect x={Math.max(x0, licoOd)} y={z0}
-                  width={Math.min(x1, licoDo) - Math.max(x0, licoOd)} height={geo.tf}
-                  fill={ffc} stroke={INK} strokeWidth="2" />
-              )}
               {isDrawer && nl > 0 && (
                 <>
                   <rect data-el="skrzynka-obrys" x={skX0} y={boxBack} width={skX1 - skX0}
@@ -8744,7 +8783,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
   );
 }
 
-function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap, wstawki }) {
+function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap, wstawki, blat }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const sideRight = which === "right";
@@ -8820,10 +8859,21 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
             fill={bf} stroke={INK} strokeWidth="2" opacity="0.35" />
         );
       })()}
-      <rect x={geo.isBlat ? xC - sOvB : xC} y="0"
-        width={geo.isBlat ? geo.blatDepth : cd} height={geo.tW || geo.t}
-        fill={bf} stroke={INK} strokeWidth="2" />
-      <rect x={xC} y={fy(geo.bottomY + geo.t)} width={cd} height={geo.t} fill={bf} stroke={INK} strokeWidth="2" />
+      {/* wieniec i dno tylko wtedy, gdy sa — pod blatem roboczym wienca nie ma,
+          a widok z boku i tak rysowal plyte na cala glebokosc (2026-10-04) */}
+      {geo.hasTop && (
+        <rect x={geo.isBlat ? xC - sOvB : xC} y="0"
+          width={geo.isBlat ? geo.blatDepth : cd} height={geo.tW || geo.t}
+          fill={bf} stroke={INK} strokeWidth="2" />
+      )}
+      {geo.hasBot && (
+        <rect x={xC} y={fy(geo.bottomY + geo.t)} width={cd} height={geo.t} fill={bf} stroke={INK} strokeWidth="2" />
+      )}
+      {/* blat ciagu nad szafka — od sciany po wysiegniecie przed front (jak w rzucie z gory) */}
+      {blat && blat.roboczy && blat.th > 0 && blat.korpus.map((b, k) => (
+        <rect key={"blat" + k} data-el="blat" x={xC + b.y} y={-blat.th} width={b.h} height={blat.th}
+          fill={blat.kolor} stroke={INK} strokeWidth="2" />
+      ))}
 
       {cab.plinth.on && geo.plinthInBody && (
         <rect x={D - geo.t - (cab.plinth.setback || 0)} y={fy(geo.plinthH)}
@@ -8886,13 +8936,24 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
         );
       })()}
 
-      {geo.levels
-        .filter((lv) => lv.cols.some((c) => c.count > 0))
-        .map((lv) => (
-          <rect key={lv.i} x={cab.frontMode === "overlay" ? D : D - geo.tf}
-            y={fy(lv.frontHi)} width={geo.tf} height={Math.max(0, lv.frontHi - lv.frontLo)}
+      {/* Fronty z boku: kazdy osobno, a nie jeden pas na poziom — szczeliny
+          miedzy szufladami byly niewidoczne (uzytkownik 2026-10-04). Z boku
+          widac wszystkie kolumny naraz, wiec laczymy odcinki wysokosci: przerwa
+          zostaje tam, gdzie na tej wysokosci nie ma frontu w zadnej kolumnie. */}
+      {(() => {
+        const odc = geo.doors.filter((d) => d.h > 0).map((d) => [d.y, d.y + d.h]).sort((a, b) => a[0] - b[0]);
+        const pasy = [];
+        odc.forEach(([a, b]) => {
+          const ost = pasy[pasy.length - 1];
+          if (ost && a <= ost[1] + 0.5) ost[1] = Math.max(ost[1], b);
+          else pasy.push([a, b]);
+        });
+        return pasy.map(([a, b], k) => (
+          <rect key={"front" + k} data-el="front-bok" x={cab.frontMode === "overlay" ? D : D - geo.tf}
+            y={fy(b)} width={geo.tf} height={b - a}
             fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="2" />
-        ))}
+        ));
+      })()}
 
       {/* Uchwyty wystaja przed fronty, wiec z boku widac je wszystkie — ten sam
           obrys co w bryle (`uchwytObrys`), wysuniecie z `uchwytOut`. */}
@@ -9112,6 +9173,12 @@ const QUADS = [
    plaszczyzna frontu szuflady po wysunieciu. Zwraca liste bryl
    [x0, y0, z0, x1, y1, z1, rodzaj]. Wczesniej po otwarciu widac bylo sam
    front — dna i tylu szuflady nie bylo na zadnym rysunku (audyt 2026-09-28). */
+/* V-BOX ma pelny wysuw (folder, str. 4): skrzynka wyjezdza na cala dlugosc NL —
+   tyle samo bierze kontrola kolizji (`wysuwHit`). Wczesniej 3D wysuwal o
+   min(220, 0,6 NL), a zabudowa o 1,6 wysokosci frontu (uzytkownik 2026-10-04:
+   „szuflady sie za malo wysuwaja”). */
+const wysuwSzuflady = (d) => Math.max(0, Number(d.nl) || (d.dr && d.dr.skrzynka && d.dr.skrzynka.nl) || 400);
+
 const skrzynkaBryly = (d, t, zFront) => {
   const sk = d.dr && d.dr.skrzynka;
   if (!sk) return [];
@@ -9368,7 +9435,7 @@ const ulozSciany = (solids, proj) => {
   return faces;
 };
 
-function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
+function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki, blat }) {
   const t = geo.t;
   const cd = geo.carcassDepth;
   const { H } = cab;
@@ -9379,12 +9446,17 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
 
   /* --- lista bryl --- */
   const solids = [];
-  const box = (x0, y0, z0, x1, y1, z1, color, transform, alpha, bold) => {
+  const box = (x0, y0, z0, x1, y1, z1, color, transform, alpha, bold, tag = null) => {
     let v = VERTS(x0, y0, z0, x1, y1, z1);
     if (transform) v = v.map(transform);
-    audytBryly(x0, y0, z0, x1, y1, z1, color, null, v, alpha);
+    audytBryly(x0, y0, z0, x1, y1, z1, color, tag, v, alpha);
     solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold });
   };
+
+  /* Blat ciagu nad szafka (pod blatem roboczym) — ten sam odcinek co w rzucie
+     z gory: y tam liczony od tylu korpusu w strone frontu, tu z = cd - y. */
+  if (blat && blat.roboczy && blat.th > 0)
+    blat.korpus.forEach((b) => box(b.x, H, cd - b.y - b.h, b.x + b.w, H + blat.th, cd - b.y, blat.kolor, null, 1, true, "blat"));
 
   // boki skrocone przy narozniku (w 3D z=cd to tyl, wiec ucinamy od strony cd)
   const cutSL = geo.cornerCut?.sideLeftDepth || 0;
@@ -9509,7 +9581,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki }) {
     const z0 = cab.frontMode === "overlay" ? -tf : 0;
     const z1 = z0 + tf;
     if (d.type === "drawer") {
-      const pull = open ? Math.min(220, (d.nl || 400) * 0.6) : 0;
+      const pull = open ? wysuwSzuflady(d) : 0;
       box(d.x, d.y, z0 - pull, d.x + d.w, d.y + d.h, z1 - pull, ff, null, 1, true);
       handleBar(d, z0 - pull, null);
       // skrzynka jest w szafce i przy zamknietej — rysunki z gory i z boku ja pokazuja
@@ -13620,6 +13692,12 @@ export default function App() {
     });
     return found;
   }, [projLayout, project]);
+  /* Blat nad aktywna szafka — jeden wynik dla wszystkich widokow samej szafki
+     (z gory, z przodu, z boku, z tylu, 3D). `blatSzafki0` niezaleznie od
+     przelacznika: po nim poznajemy, czy pokazac „Ukryj blat”. */
+  const blatSzafki0 = useMemo(() => blatNadSzafka(project, projLayout, project.active, cornerNode && cornerNode.arm),
+    [project, projLayout, cornerNode]);
+  const blatSzafki = showBlat ? blatSzafki0 : null;
 
   /* Do narożnika mozna wskazac kazdy inny ciag oprocz tych, ktore same wisza
      na naszym — inaczej powstalby pierscien scian bez poczatku. */
@@ -16438,7 +16516,7 @@ export default function App() {
                     {showLabels ? "Ukryj oznaczenia" : "Oznacz pola"}
                   </button>
                 )}
-                {view === "top" && (scopeRuns || runInfo) && (
+                {((view === "top" && scopeRuns) || (!scopeRuns && blatSzafki0)) && (
                   <button onClick={() => setShowBlat((s) => !s)}
                     className="text-xs text-teal-700 hover:underline">
                     {showBlat ? "Ukryj blat" : "Pokaż blat"}
@@ -16567,7 +16645,8 @@ export default function App() {
                     onPointerUp={() => (drag.current = null)}
                     onPointerCancel={() => (drag.current = null)}
                   >
-                    <Scene3D cab={cab} geo={geo} mat={mat} open={open3d} yaw={yaw} pitch={pitch} angle={angle3d} wstawki={wstawkiAktywnej} />
+                    <Scene3D cab={cab} geo={geo} mat={mat} open={open3d} yaw={yaw} pitch={pitch} angle={angle3d} wstawki={wstawkiAktywnej}
+                      blat={blatSzafki} />
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <MiniBtn onClick={() => setYaw((v) => v - Math.PI / 4)}>◀ 45°</MiniBtn>
@@ -16592,18 +16671,18 @@ export default function App() {
                 </div>
               ) : view === "side" ? (
                 <SideView cab={cab} geo={geo} mat={mat} showDims={showDims} which={sideWhich}
-                  showHardware={showHardware} wstawki={wstawkiAktywnej}
+                  showHardware={showHardware} wstawki={wstawkiAktywnej} blat={blatSzafki}
                   wallGap={runInfo && showWall ? wallGapOf(runInfo.run, project.items[project.active]) : null} />
               ) : view === "top" ? (
                 <TopView cab={cab} geo={geo} mat={mat} showDims={showDims} showShelves={showShelves}
                   showHardware={showHardware} arm={cornerNode && cornerNode.arm} wstawki={wstawkiAktywnej}
-                  blat={showBlat ? blatNadSzafka(project, projLayout, project.active, cornerNode && cornerNode.arm) : null} />
+                  blat={blatSzafki} />
               ) : view === "rear" ? (
-                <RearView cab={cab} geo={geo} mat={mat} showDims={showDims} wstawki={wstawkiAktywnej} />
+                <RearView cab={cab} geo={geo} mat={mat} showDims={showDims} wstawki={wstawkiAktywnej} blat={blatSzafki} />
               ) : (
                 <FrontView cab={cab} geo={geo} mat={mat} open={view === "open"} showDims={showDims}
                   showGaps={showGaps} showLabels={showLabels} showHardware={showHardware}
-                  arm={cornerNode && cornerNode.arm} wstawki={wstawkiAktywnej} />
+                  arm={cornerNode && cornerNode.arm} wstawki={wstawkiAktywnej} blat={blatSzafki} />
               )}
             </ZoomBox>
             {/* Podpis pod rysunkiem: co za blat na nim widac. W rogu to nigdy
