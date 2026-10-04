@@ -131,5 +131,33 @@ p = await zapis();
 const l = p.items.find((it) => it.cab.corner && it.cab.corner.on);
 ok('szafka w L ma 570 jak sąsiednia ściana', l && l.cab.D === 570, l && String(l.cab.D));
 
+console.log('\n== 5. pełny wysuw szuflad (V-BOX, folder str. 4) ==');
+{
+  const MK = { ...MAT, board: { ...MAT.board, color: '#cc2222' }, front: { ...MAT.front, color: '#2222cc' } };
+  await wczytaj({ name: 'S', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'S', W: 600, H: 720, D: 560, plinth: PL, frontSameAsBoard: false,
+    levels: [{ h: null, cols: [{ kind: 'drawers', doors: 2, w: null, drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] }, mat: MK, offset: 0 }] });
+  const dno = (await sekcja(/^Formatki do zamówienia/)).find((r) => /^Dno szuflady/.test(r[0]));
+  // dno szuflady = NL - 24 (instrukcja V-BOX) — z niego NL
+  const nl = dno ? Math.max(...dno.slice(1).map((x) => Number(x) || 0).filter((x) => x > 300)) + 24 : null;
+  await click('Szafka'); await click('Zamk.');
+  await page.evaluate(() => { window.__audytBryl = []; }); await click('3D');
+  const zam = await page.evaluate(() => (window.__audytBryl || []).filter((s) => s.p && s.color.toLowerCase() === '#2222cc'));
+  await page.evaluate(() => { window.__audytBryl = []; }); await click('zamknięte'); await page.waitForTimeout(400);
+  const otw = await page.evaluate(() => (window.__audytBryl || []).filter((s) => s.p && s.color.toLowerCase() === '#2222cc'));
+  const wysuw = zam.map((f) => { const o = otw.find((q) => Math.abs(q.p[1] - f.p[1]) < 1 && Math.abs(q.p[0] - f.p[0]) < 1); return o ? Math.round(f.p[2] - o.p[2]) : null; });
+  ok(`3D: każda szuflada wysuwa się na całą NL (${nl} mm)`, !!nl && wysuw.length === 3 && wysuw.every((w) => w === nl), `wysuw ${wysuw.join(', ')}`);
+}
+
+console.log('\n== 6. różne NL w jednej kolumnie — informacja ==');
+{
+  // szafka pod blatem z aplikacji, 3 szuflady: gorna przed tylnym wzmocnieniem dostaje krotsza NL
+  const z3 = { ...podBlat, cab: { ...podBlat.cab, levels: podBlat.cab.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, kind: 'drawers',
+    drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] })) })) } };
+  await wczytaj({ name: 'N', active: 0, prices: {}, runs: p.runs, items: [z3] });
+  const u = await page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || '');
+  ok('informacja o różnych długościach prowadnic w kolumnie', /szuflady mają różne długości prowadnic — szuflada 3: NL 500, pozostałe NL 550/.test(u),
+    (u.split('\n').find((l) => /różne długości/.test(l)) || '(brak)').slice(0, 160));
+}
+
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

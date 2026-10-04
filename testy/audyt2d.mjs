@@ -93,7 +93,7 @@ const przesuniecie = (rz, rs) => {
 const zasloniety = (a, rz) => {
   const przed = rz.filter((q) => q !== a && q.dal <= a.glab + 0.5);
   const st = (lo, hi) => { const n = Math.max(2, Math.ceil((hi - lo) / 4)); return [...Array(n + 1)].map((_, i) => lo + 0.3 + (hi - lo - 0.6) * i / n); };
-  return st(a.x0, a.x1).every((x) => st(a.y0, a.y1).every((y) => przed.some((q) => x >= q.x0 - 1.6 && x <= q.x1 + 1.6 && y >= q.y0 - 1.6 && y <= q.y1 + 1.6)));
+  return st(a.x0, a.x1).every((x) => st(a.y0, a.y1).every((y) => przed.some((q) => x >= q.x0 - 3.1 && x <= q.x1 + 3.1 && y >= q.y0 - 3.1 && y <= q.y1 + 3.1)));
 };
 /* Obrys przerywany (skrzynka szuflady, strefa) to obwiednia kilku bryl — pasuje,
    gdy bryly lezace w nim maja razem dokladnie taki obrys (±2,5 mm). */
@@ -166,7 +166,8 @@ const scenariusz = async (tytul, cab) => {
     /* Z przodu plecy sa tlem wnetrza (jasny prostokat korpusu) — przy
        otwartych drzwiach widac je przez caly otwor, ale rysunek nie maluje ich
        osobno. Plecy = najdalej w glebi, cienkie w glab. */
-    const zMax = Math.max(...baza.map((q) => q.p[5]));
+    // najglebiej wsrod bryl wysokich — blat wysuniety do tylu lezy glebiej niz plecy
+    const zMax = Math.max(...baza.filter((q) => q.p[4] - q.p[1] > 100).map((q) => q.p[5]));
     const plecy = (q) => q.p[5] >= zMax - 0.5 && q.p[5] - q.p[2] <= 18.5 && (q.p[3] - q.p[0]) > 100 && (q.p[4] - q.p[1]) > 100;
     const rz = baza.filter((q) => !(w.X[0] === 0 && w.Y[0] === 1 && w.blizej[1] < 0 && plecy(q))).map((s) => rzut(s, w));
     const rzZamk = zamk.map((s) => rzut(s, w));
@@ -205,6 +206,13 @@ await scenariusz('pod blatem w ciągu: drzwi', wCiagu((c) => ({ levels: kolPB(c,
 await scenariusz('pod blatem w ciągu: 3 szuflady', wCiagu((c) => ({ levels: kolPB(c, { kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }) })));
 await scenariusz('pod blatem w ciągu: fix ze wspornikiem', wCiagu((c) => ({ levels: kolPB(c, { kind: 'doors', doors: 1, hinge: 'right',
   fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 100 } }) })));
+await scenariusz('pod blatem w ciągu: dwa poziomy (szuflady pod drzwiami)', wCiagu((c) => ({ levels: [
+  { h: 300, cols: [{ ...c.levels[c.levels.length - 1].cols[0], kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }] }] },
+  { h: null, cols: [{ ...c.levels[c.levels.length - 1].cols[0], kind: 'doors', doors: 2 }] }] })));
+await scenariusz('bez dna (na nóżkach)', szafka('BD', { joints: { topL: 'between', topR: 'between', botL: 'none', botR: 'none' } }));
+await scenariusz('blat roboczy 38 na bokach', szafka('BR', { top: { mode: 'blat', material: 'worktop', widthMode: 'outside', overL: 10, overR: 10, overFront: 20, overBack: 20 },
+  joints: { topL: 'over', topR: 'over', botL: 'between', botR: 'between' } }));
+await scenariusz('szuflady wpuszczane', szafka('SW', { frontMode: 'inset', levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] }));
 await scenariusz('drzwi i półki', szafka('D'));
 await scenariusz('szuflady', szafka('S', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] }));
 await scenariusz('szuflady z podniesionym tyłem', szafka('ST', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto', tallBack: true }, { h: 'auto', tallBack: true }] }] }] }));

@@ -697,3 +697,18 @@ frontu od korpusu i zwraca 0 szuflad (patrz `audytzabudowa`, ustawianie `mat`).
 [AI-TODO] Szafka w L z kreatora zostaje przy glebokosci szablonu, a pierwsza
 sciana z „+ szafka” ma 500 — pytanie do uzytkownika o domyslna glebokosc szafki
 pod blatem (500 vs 560) i blat roboczy 38 mm na bokach (czy H obejmuje blat).
+
+[AI-INFO] Druga runda braków kontroli (2026-10-04, zgłoszenie użytkownika: brak blatu
+w widoku szafki, zlane fronty z boku, wysuw, tył szuflady). Wnioski:
+- audyt porównujący 2D z 3D nic nie da, jeśli obie strony mają ten sam brak (blat nie
+  istniał ani w 2D, ani w 3D samej szafki) — dlatego `audyt2d` sprawdza też wprost,
+  że blat ciągu jest w 3D szafki pod blatem;
+- tolerancje w audytach chowały błędy: „pas frontów ze szczelinami do 4 mm” przepuszczał
+  zlane fronty — przy nowej tolerancji zawsze napisz, jaki błąd mogłaby schować;
+- scenariusze audytów brały szafkę wolnostojącą z wieńcem; szafka, którą robi
+  użytkownik (pod blatem, z parą wzmocnień), musi być w każdym audycie — wzór bierz
+  z aplikacji („+ ciąg”, „+ szafka”), nie składaj ręcznie;
+- test losowych edycji (`losowe`) znajduje kombinacje, których nikt nie wypisał
+  (HDF we frezie × pod blatem) — przy nowej opcji dopisz ją do `ZMIANY` w `losowe.mjs`.
+[AI-TODO] Geometria skrzynki V-BOX w pionie (dno, tył, bok względem prowadnicy) —
+czeka na decyzję użytkownika (BLEDY.md „Do decyzji”).

@@ -1592,6 +1592,10 @@ function computeGeoLiczy(cab, mat, ctx) {
      srodka o wysuniecia. Reszta silnika liczy jak zwykle od szerokosci
      korpusu, wiec wystarczy podmienic ja tutaj. */
   const blatInside = isBlat && rawTop.widthMode === "inside";
+  /* Plecy za korpusem (HDF przybijany, plyta na zewnatrz) pod blatem lezacym na
+     bokach i wysunietym do tylu koncza sie pod nim — blat lezy na bokach, a nie
+     na plecach (HDF: audyt macierzowy; plyta: test losowych edycji 2026-10-04). */
+  const plecyPodBlat = isBlat && blat.overBack > 0 ? tTop : 0;
   const W = blatInside ? cab.W - blat.overL - blat.overR : cab.W;
   const g = cab.gaps;
   const msgs = [];
@@ -1697,6 +1701,16 @@ function computeGeoLiczy(cab, mat, ctx) {
      Od 900 mm automat stawia pare posrodku; jedna nozka na srodku dna tez
      wystarcza — dlatego podpowiedz odzywa sie dopiero ponizej tego, i od razu
      proponuje obie wersje. To nie blad: pod spodem moze stac cos nosnego. */
+  /* Cokol na nozkach wpina sie klipsami w przedni rzad nozek (LEG_INSET od lica),
+     wiec stoi przed nimi. Cofniety dalej wchodzi w nozki — dotad nic tego nie
+     pilnowalo (test losowych edycji 2026-10-04). */
+  if (cab.plinth.on && legH > 0) {
+    const cofMax = Math.max(0, LEG_INSET - t);
+    const sb = cab.plinth.setback || 0;
+    // plyta cokolu w pasie przedniego rzedu nozek (od LEG_INSET do LEG_INSET + LEG_W)
+    if (sb > cofMax && sb < LEG_INSET + LEG_W)
+      add("error", `Cokół cofnięty o ${fmt(cab.plinth.setback)} mm wchodzi w nóżki — przedni rząd stoi ${LEG_INSET} mm od lica, a cokół na nóżkach wpina się w nie klipsami, więc stoi przed nimi: najwyżej ${fmt(cofMax)} mm cofnięcia.|cokolcof:${cofMax}`);
+  }
   const zalecaneNozki = autoLegs(W);
   if (cab.legs && cab.legs.on && Number(cab.legs.count) > 0
       && zalecaneNozki >= 6 && legs.ile <= zalecaneNozki - 2)
@@ -1707,6 +1721,14 @@ function computeGeoLiczy(cab, mat, ctx) {
   const interior = { x0: t, x1: W - t, y0: hasBot ? bottomY + t : bottomY, y1: hasTop ? H - tW : H };
   const innerW = interior.x1 - interior.x0;
   const innerH = interior.y1 - interior.y0;
+  /* HDF we frezie wchodzi we frez tylko w plytach, ktore sa: bez wienca (pod
+     blatem roboczym) albo pod blatem lezacym na bokach (blatu sie nie frezuje)
+     konczy sie 1 mm pod gora, bez dna — 1 mm nad dolem. Wczesniej zawsze
+     „wchodzil w wieniec i dno” i pod blatem wystawal 15 mm ponad szafke
+     (test losowych edycji 2026-10-04). Jedno miejsce dla formatki, bryly i rysunku. */
+  const frezGrab = grDep - grPlay;
+  const frezY0 = hasBot ? interior.y0 - frezGrab : interior.y0 + 1;
+  const frezY1 = hasTop && !isBlat ? interior.y1 + frezGrab : interior.y1 - 1;
 
   // przy plecach we frezie polka musi zatrzymac sie przed HDF
   /* Polka i przegroda koncza sie przed plecami, ktore siedza w glebokosci
@@ -2073,8 +2095,11 @@ function computeGeoLiczy(cab, mat, ctx) {
            je dociagamy — inaczej zostawalaby szpara na grubosc plecow. */
         const zaKatownikiem = postSide && przyTyle
           ? Math.max(backIntrusion, cab.back !== "none" ? tb : 0) + t : 0;
+        /* Przy plecach we frezie (albo z plyty wewnatrz) tylne wzmocnienie stoi
+           przed nimi — wczesniej wchodzilo w HDF na jego grubosc (test losowych
+           edycji 2026-10-04). */
         const z0 = przyTyle
-          ? Math.max(0, carcassDepth - Math.max(rAt, zaKatownikiem) - zLen) : rAt;
+          ? Math.max(0, carcassDepth - Math.max(rAt, zaKatownikiem, backIntrusion) - zLen) : rAt;
         const cw = c.x1 - c.x0;
         /* Od strony ramienia wzmocnienie konczy sie na wewnetrznym licu
            katownika, a nie na plaszczyznie boku — katownik jest jeszcze cofniety
@@ -2848,6 +2873,17 @@ function computeGeoLiczy(cab, mat, ctx) {
         }
         y += fhFull + drGap;
       });
+      /* Rozne NL w jednej kolumnie (np. gorna 500 przed wzmocnieniem przy plecach,
+         reszta 550) — dziala, ale to rozne komplety prowadnic w zamowieniu, wiec
+         mowimy o tym wprost (uzytkownik 2026-10-04). */
+      const nlKol = c.drawers.map((dr) => dr.nl).filter((v) => v != null);
+      if (new Set(nlKol).size > 1) {
+        const najdl = Math.max(...nlKol);
+        const krotsze = c.drawers.filter((dr) => dr.nl != null && dr.nl < najdl);
+        add("info", `${where}: szuflady mają różne długości prowadnic — `
+          + `${krotsze.map((dr) => `szuflada ${dr.i + 1}: NL ${dr.nl}`).join(", ")}, pozostałe NL ${najdl}. `
+          + "Krótsza wynika z przeszkody za nią (np. wzmocnienia przy plecach) albo z ręcznie wpisanej NL — w zamówieniu to osobne komplety.");
+      }
     });
   });
 
@@ -3366,10 +3402,11 @@ function computeGeoLiczy(cab, mat, ctx) {
     const grab = grDep - grPlay; // ile plecow wchodzi w kazdy wreg
     const gx0 = Math.max(interior.x0 - grab, cornerCut.backLeftX ?? (interior.x0 - grab));
     const gx1 = Math.min(interior.x1 + grab, cornerCut.backRightX ?? (interior.x1 + grab));
+    const wCzym = ["bokach", ...(hasTop && !isBlat ? ["wieńcu"] : []), ...(hasBot ? ["dnie"] : [])];
     P({ name: "Plecy HDF we frezie", qty: 1,
-        a: gx1 - gx0, b: innerH + 2 * grab, matKey: "back",
+        a: gx1 - gx0, b: Math.round(frezY1 - frezY0), matKey: "back",
         edges: { a1: false, a2: false, b1: false, b2: false },
-        note: `wchodzi ${fmt(grab)} mm we frez w bokach, wieńcu i dnie (${grDep} mm frezu minus ${grPlay} mm luzu)` });
+        note: `wchodzi ${fmt(grab)} mm we frez w ${wCzym.length > 1 ? wCzym.slice(0, -1).join(", ") + " i " + wCzym[wCzym.length - 1] : wCzym[0]} (${grDep} mm frezu minus ${grPlay} mm luzu)` });
   } else if (cab.back === "hdf") {
     const x0 = (cornerCut.backLeftX ?? 0) + 1;
     const x1 = (cornerCut.backRightX ?? W) - 1;
@@ -3391,7 +3428,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     if (backPos === "outside") {
       const x0 = cornerCut.backLeftX ?? 0;
       const x1 = cornerCut.backRightX ?? W;
-      P({ name: "Plecy z płyty (na zewnątrz)", qty: 1, a: x1 - x0, b: H, matKey: backMat,
+      P({ name: "Plecy z płyty (na zewnątrz)", qty: 1, a: x1 - x0, b: H - plecyPodBlat, matKey: backMat,
           edges: { a1: false, a2: false, b1: false, b2: false }, note: "na całą tylną płaszczyznę korpusu" + cutInfo });
     } else {
       const x0 = Math.max(interior.x0, cornerCut.backLeftX ?? interior.x0);
@@ -4327,7 +4364,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
     postSide, postW, postBack, postTyp, postRects, zawieszki,
-    isBlat, isWorktop, tTop, tW, blat, blatDepth, blatInside, W, drillPlan,
+    isBlat, isWorktop, tTop, tW, frezY0, frezY1, plecyPodBlat, blat, blatDepth, blatInside, W, drillPlan,
     topX0, topX1, botX0, botX1, divOv,
   };
 }
@@ -6794,43 +6831,46 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       };
       c.geo.doors.filter((d) => d.w > 0 && d.h > 0).forEach((d) => {
         const col = d.type === "blenda" ? bf : c.frontColor;
+        /* front wpuszczany siedzi w swietle korpusu (z od 0 do tf), nakladany przed
+           nim — wczesniej zabudowa rysowala kazdy front jak nakladany (2026-10-04) */
+        const zf = d.inset ? 0 : -tf;
         if (!open) {
-          box(c.x + d.x, c.base + d.y, -tf, c.x + d.x + d.w, c.base + d.y + d.h, 0, col, null, 1, true);
-          if (d.type !== "fix" && d.type !== "blenda") handleBar(d, -tf, null);
+          box(c.x + d.x, c.base + d.y, zf, c.x + d.x + d.w, c.base + d.y + d.h, zf + tf, col, null, 1, true);
+          if (d.type !== "fix" && d.type !== "blenda") handleBar(d, zf, null);
           return;
         }
         if (d.type === "drawer") {
           // szuflada wyjezdza do przodu, front zostaje rownolegly do korpusu
           const out = wysuwSzuflady(d);
-          box(c.x + d.x, c.base + d.y, -tf - out, c.x + d.x + d.w, c.base + d.y + d.h, -out,
+          box(c.x + d.x, c.base + d.y, zf - out, c.x + d.x + d.w, c.base + d.y + d.h, zf + tf - out,
             col, null, 0.9, true);
-          handleBar(d, -tf - out, null);
-          skrzynkaBryly(d, t, -out).forEach(([a0, b0, c0, a1, b1, c1, r]) =>
+          handleBar(d, zf - out, null);
+          skrzynkaBryly(d, t, zf + tf - out).forEach(([a0, b0, c0, a1, b1, c1, r]) =>
             box(c.x + a0, c.base + b0, c0, c.x + a1, c.base + b1, c1,
               r === "metal" ? "#8b8b93" : shelfColorOf(c.cab, c.mat), null, 1, false, 0, r === "metal" ? "skrzynka-bok" : null));
           return;
         }
         if (d.type === "klapa") {
-          const obr = klapaObrot(d, angle, -tf);
+          const obr = klapaObrot(d, angle, zf);
           const rot = (p) => obr({ ...p, y: p.y - c.base });
           const rotB = (p) => { const q = rot(p); return { ...q, y: q.y + c.base }; };
-          box(c.x + d.x, c.base + d.y, -tf, c.x + d.x + d.w, c.base + d.y + d.h, 0,
+          box(c.x + d.x, c.base + d.y, zf, c.x + d.x + d.w, c.base + d.y + d.h, zf + tf,
             col, rotB, 0.85, true);
-          handleBar(d, -tf, rotB);
+          handleBar(d, zf, rotB);
           return;
         }
         if (d.type === "door") {
           const ang = (angle * Math.PI) / 180;
           const left = d.hingeSide === "left";
           const ox = c.x + (left ? d.x : d.x + d.w);
-          const rot = (p) => rotAboutY(p, (left ? -1 : 1) * ang, ox, -tf);
-          box(c.x + d.x, c.base + d.y, -tf, c.x + d.x + d.w, c.base + d.y + d.h, 0,
+          const rot = (p) => rotAboutY(p, (left ? -1 : 1) * ang, ox, zf);
+          box(c.x + d.x, c.base + d.y, zf, c.x + d.x + d.w, c.base + d.y + d.h, zf + tf,
             col, rot, 0.85, true);
-          handleBar(d, -tf, rot);
+          handleBar(d, zf, rot);
           return;
         }
-        box(c.x + d.x, c.base + d.y, -tf, c.x + d.x + d.w, c.base + d.y + d.h, 0, col, null, 1, true);
-        if (d.type !== "fix" && d.type !== "blenda") handleBar(d, -tf, null);
+        box(c.x + d.x, c.base + d.y, zf, c.x + d.x + d.w, c.base + d.y + d.h, zf + tf, col, null, 1, true);
+        if (d.type !== "fix" && d.type !== "blenda") handleBar(d, zf, null);
       });
       /* Wyciecia i elementy kolizyjne w bryle — bez nich zabudowa wygladalaby
          na gotowa tam, gdzie w rzeczywistosci cos przeszkadza. */
@@ -8012,7 +8052,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
     label = "brak pleców";
   } else if (cab.back === "board") {
     if (geo.backPos === "outside") {
-      bx = 0; by = 0; bw = W; bh = H;
+      bx = 0; by = 0; bw = W; bh = H - (geo.plecyPodBlat || 0);
       label = "plecy z płyty na zewnątrz — cała tylna płaszczyzna";
     } else {
       bx = geo.interior.x0; by = geo.interior.y0;
@@ -8021,12 +8061,14 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
     }
   } else if (geo.grooved) {
     bx = geo.interior.x0 - grab;
-    by = geo.interior.y0 - grab;
+    by = geo.frezY0;
     bw = geo.innerW + 2 * grab;
-    bh = geo.innerH + 2 * grab;
-    label = `HDF we frezie, wchodzi ${fmt(grab)} mm w boki, wieniec i dno`;
+    bh = geo.frezY1 - geo.frezY0;
+    label = `HDF we frezie, wchodzi ${fmt(grab)} mm w boki${geo.hasTop && !geo.isBlat ? ", wieniec" : ""}${geo.hasBot ? " i dno" : ""}`;
   } else {
-    bx = 1; by = 1; bw = W - 2; bh = H - 2;
+    // pod blatem lezacym na bokach i wysunietym do tylu plecy sa krotsze o jego grubosc (jak bryla)
+    const pb = plecyBryla(cab, geo);
+    bx = 1; by = 1; bw = W - 2; bh = pb ? pb.y1 - pb.y0 : H - 2;
     label = "HDF przybijane, luz 1 mm z każdej strony";
   }
   // przyciecie plecow do granic narożnika
@@ -8871,8 +8913,10 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
       )}
       {(() => {
         const cut = (sideRight ? geo.cornerCut?.sideRightDepth : geo.cornerCut?.sideLeftDepth) || 0;
+        // bok ma swoja dlugosc: krotszy o blat lezacy na nim (H z blatem) albo o wieniec/dno „na boku”
+        const by0 = sideRight ? geo.rightY0 : geo.leftY0, bLen = sideRight ? geo.rightLen : geo.leftLen;
         return (
-          <rect x={xC + cut} y="0" width={cd - cut} height={H}
+          <rect x={xC + cut} y={fy(by0 + bLen)} width={cd - cut} height={bLen}
             fill={bf} stroke={INK} strokeWidth="2" opacity="0.35" />
         );
       })()}
@@ -8936,19 +8980,13 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
         /* tyl po lewej (xC). Plyta wewnatrz przy xC; HDF przybijany i plyta na
            zewnatrz za korpusem (`plecyZa`) — HDF przybijany stal tu wczesniej
            w korpusie, choc w bryle i rzucie z gory jest za nim (audyt 2D). */
-        const px = geo.grooved
-          ? xC + geo.grOff - geo.tb
-          : geo.plecyZa
-          ? xC - geo.plecyZa
-          : xC;
-        // HDF we frezie ma wysokosc swiatla plus to, co wchodzi we frez w wiencu i dnie
-        const grab = geo.grooved ? geo.grDep - geo.grPlay : 0;
-        const py = geo.backIsBoard && geo.backPos === "inside" ? fy(geo.interior.y1)
-          : geo.grooved ? fy(geo.interior.y1 + grab) : 0;
-        const ph = geo.backIsBoard && geo.backPos === "inside" ? geo.innerH
-          : geo.grooved ? geo.innerH + 2 * grab : H;
+        /* Plecy z tej samej funkcji co bryla 3D (`plecyBryla`): z = 0 lico,
+           x rysunku = D - z. Wczesniej liczone tu osobno — HDF szedl na cala
+           wysokosc, takze pod blatem wysunietym do tylu (audyt 2D 2026-10-04). */
+        const pb = plecyBryla(cab, geo);
+        if (!pb) return null;
         return (
-          <rect x={px} y={py} width={geo.tb} height={ph}
+          <rect x={D - pb.z1} y={fy(pb.y1)} width={pb.z1 - pb.z0} height={pb.y1 - pb.y0}
             fill={bcol} stroke={INK} strokeWidth="2" />
         );
       })()}
@@ -9201,7 +9239,11 @@ const skrzynkaBryly = (d, t, zFront) => {
   if (!sk) return [];
   const x0 = d.colX0, x1 = d.colX0 + sk.LW;
   const y0 = d.dr.rail.y0;
-  const z0 = zFront + (d.dr.rail.setback || 0), z1 = z0 + sk.nl;
+  /* Skrzynka zaczyna sie tuz za frontem. Cofniecie prowadnicy przy froncie
+     wpuszczanym (`rail.setback`) to wlasnie grubosc frontu, ktory juz siedzi
+     w korpusie — doliczane drugi raz wpychalo skrzynke 18 mm za gleboko
+     (audyt 2D, szuflady wpuszczane, 2026-10-04). */
+  const z0 = zFront, z1 = z0 + sk.nl;
   const bokW = 13;          // bok metalowy V-BOX, stoi na prowadnicy przy boku korpusu
   const dnoY = y0 + 12;     // dno wpuszczone w bok nad szyna
   const xm = (x0 + x1) / 2;
@@ -9224,12 +9266,12 @@ const plecyBryla = (cab, geo) => {
   if (cab.back === "board") {
     const wew = geo.backPos !== "outside";
     x0 = wew ? geo.interior.x0 : 0; x1 = wew ? geo.interior.x1 : W;
-    y0 = wew ? geo.interior.y0 : 0; y1 = wew ? geo.interior.y1 : H;
+    y0 = wew ? geo.interior.y0 : 0; y1 = wew ? geo.interior.y1 : H - (geo.plecyPodBlat || 0);
     z0 = wew ? cd - geo.tb : cd;
   } else if (geo.grooved) {
     const grab = geo.grDep - geo.grPlay;
     x0 = geo.interior.x0 - grab; x1 = geo.interior.x1 + grab;
-    y0 = geo.interior.y0 - grab; y1 = geo.interior.y1 + grab;
+    y0 = geo.frezY0; y1 = geo.frezY1;
     z0 = cd - geo.grOff;
   } else {
     // blat na bokach wysuniety do tylu przykrywa krawedz plecow — plecy pod nim
@@ -9595,7 +9637,8 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki, blat }) {
   };
 
   geo.doors.forEach((d) => {
-    const z0 = cab.frontMode === "overlay" ? -tf : 0;
+    // kazdy front wg wlasnego montazu (kolumna szuflad moze miec inny niz szafka)
+    const z0 = d.inset ? 0 : -tf;
     const z1 = z0 + tf;
     if (d.type === "drawer") {
       const pull = open ? wysuwSzuflady(d) : 0;
@@ -9943,7 +9986,7 @@ const Card = ({ title, children, right, collapsible = true, defaultOpen = true, 
   );
 };
 
-const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editItemCab, cab, setGap, runFix, setMatDepth, setLegs }) => {
+const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editItemCab, cab, setGap, runFix, setMatDepth, setLegs, setPlinthSb }) => {
   const [txt, ...actions] = text.split("|");
   const btns = actions.map((action) => {
     if (action.startsWith("worktop:")) {
@@ -9996,6 +10039,10 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         label: `Ustaw tył na ${val} mm`,
         run: () => editLevels((L) => (L[+li].cols[+j].drawers[+k].backHeight = +val)),
       };
+    }
+    if (action.startsWith("cokolcof:")) {
+      const mm = Math.max(0, Math.round(Number(action.split(":")[1]) || 0));
+      return { label: `Cofnij cokół o ${mm} mm (przed nóżkami)`, run: () => setPlinthSb && setPlinthSb(mm) };
     }
     if (action.startsWith("legs:")) {
       const ile = Math.max(2, Math.round(Number(action.split(":")[1]) || 0));
@@ -13787,6 +13834,7 @@ export default function App() {
   const setGap = (k, v) => setCab((c) => ({ ...c, gaps: { ...c.gaps, [k]: v } }));
   // liczba nozek z przycisku w Uwagach — reszta ustawien nozek zostaje
   const setLegs = (ile) => setCab((c) => ({ ...c, legs: { ...(c.legs || {}), on: true, count: ile } }));
+  const setPlinthSb = (mm) => setCab((c) => ({ ...c, plinth: { ...c.plinth, setback: mm } }));
 
   /* --- edycja struktury --- */
   const editLevels = (fn) =>
@@ -16755,14 +16803,14 @@ export default function App() {
                   <NoteLine key={(czyt ? "wp" : "w") + i} text={m.text} color={WARNC} icon="!"
                     przed={znacznik(m.text, czyt)}
                     editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab}
-                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} />
+                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} setPlinthSb={setPlinthSb} />
                 );
                 return (
                   <>
                     {(errors.length > 0 || warnsNowe.length > 0) && (
                       <ul className="space-y-2">
                         {errors.map((m, i) => (
-                          <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} />
+                          <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} setPlinthSb={setPlinthSb} />
                         ))}
                         {warnsNowe.map((m, i) => linia(m, i, false))}
                       </ul>
@@ -16792,7 +16840,7 @@ export default function App() {
                   <NoteLine key={(czyt ? "p" : "i") + i} text={m.text} color="#78716c" icon="i"
                     przed={znacznik(m.text, czyt)}
                     editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab}
-                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} />
+                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} setPlinthSb={setPlinthSb} />
                 );
                 return (
                   <div className={(errors.length || warns.length) ? "border-t border-stone-100 pt-3" : ""}>

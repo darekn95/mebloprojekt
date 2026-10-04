@@ -127,7 +127,9 @@ const pasuje = (p, s) => { const [, q, r] = [...s.d].sort((x, y) => x - y).map(M
 const bezPlyty = (parts, sol) => { const pl = plyty(sol);
   return parts.filter((p) => !/^(Cokół|Blat)/.test(p.name)).map((p) => ({ p, ile: pl.filter((s) => pasuje(p, s)).length }))
     .filter((x) => x.ile < x.p.qty).map((x) => `${x.p.name} ${x.p.a}×${x.p.b}: ${x.ile} z ${x.p.qty}`); };
-const bezFormatki = (parts, sol) => plyty(sol).filter((s) => !parts.some((p) => pasuje(p, s)
+/* blat ciagu nad szafka (widok samej szafki pokazuje jego odcinek) zamawia sie
+   w calosci w formatkach projektu — pilnuje go `formatki`, tu go pomijamy */
+const bezFormatki = (parts, sol) => plyty(sol).filter((s) => s.tag !== 'blat' && !parts.some((p) => pasuje(p, s)
   || (/^Cokół/.test(p.name) && Math.abs(p.b - [...s.d].sort((x, y) => x - y)[1]) <= 3))).map(opis);
 const uwagi = () => page.evaluate(() => {
   const sec = [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''));

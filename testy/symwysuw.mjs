@@ -20,8 +20,12 @@ export const symuluj = (bryly, { H, blat = false, nl = [] } = {}) => {
   const szuflady = fronty.map((f, i) => ({ i, front: f, czesci: [f] }));
   const doKtorej = (s) => {
     // skrzynka i uchwyt naleza do szuflady, w ktorej pasie frontu lezy ich dol
+    // i w pasie jego szerokosci — przy dwoch kolumnach szuflad na tej samej wysokosci
+    // czesci prawej kolumny trafialy do szuflady z lewej (test losowych edycji 2026-10-04)
     const y = s.color === UCHWYT ? (s.p[1] + s.p[4]) / 2 : s.p[1];
-    return szuflady.find((d) => y >= d.front.p[1] - 1 && y <= d.front.p[4] + 1);
+    const xm = (s.p[0] + s.p[3]) / 2;
+    return szuflady.find((d) => y >= d.front.p[1] - 1 && y <= d.front.p[4] + 1
+      && xm >= d.front.p[0] - 15 && xm <= d.front.p[3] + 15);
   };
   const stale = [];
   bryly.forEach((s) => {

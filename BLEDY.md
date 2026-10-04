@@ -18,6 +18,14 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-04 | widoki samej szafki — blat (zgłoszenie użytkownika) | szafka pod blatem roboczym ciągu nie miała blatu w żadnym widoku samej szafki (przód, bok, tył, 3D — tylko „z góry”). Teraz `blatNadSzafka` (z grubością) idzie do wszystkich widoków; audyt 2D ma scenariusze szafki pod blatem w ciągu i sprawdza blat w 3D. Nie wyszło wcześniej, bo audyt 2D sprawdzał tylko szafki wolnostojące z wieńcem | (ten commit) |
+| 2026-10-04 | widok z boku — szczeliny frontów (zgłoszenie użytkownika) | fronty z boku i z góry rysowały się jednym pasem na poziom/kolumnę — szczelin między szufladami i drzwiami nie było. Teraz każdy front osobno, łączone tylko tam, gdzie się stykają. Audyt 2D miał tolerancję „pas frontów ze szczelinami do 4 mm” — zdjęta (pas tylko przy styku ≤ 0,5 mm) | (ten commit) |
+| 2026-10-04 | widok z boku — wieniec i dno, których nie ma | widok z boku zawsze rysował wieniec i dno (pod blatem roboczym — płyta na całą głębokość, której nie ma); teraz tylko `hasTop`/`hasBot` | (ten commit) |
+| 2026-10-04 | wysuw szuflad w 3D (zgłoszenie użytkownika) | 3D szafki wysuwał szufladę o min(220, 0,6 NL), zabudowa o 1,6 wysokości frontu; V-BOX ma pełny wysuw (folder str. 4) — teraz `wysuwSzuflady` = NL wszędzie (jak kontrola kolizji) | (ten commit) |
+| 2026-10-04 | szuflady wpuszczane w 3D, fronty wpuszczane w zabudowie (audyt 2D) | skrzynka szuflady za frontem wpuszczanym cofnięta drugi raz o grubość frontu (18 mm za głęboko); zabudowa 3D rysowała każdy front jak nakładany, przed korpusem | (ten commit) |
+| 2026-10-04 | blat 38 na bokach w 2D (audyt 2D) | widok z boku rysował bok na całe H (bez blatu w H), a plecy z boku i z tyłu liczone osobno od bryły — teraz bok z `leftLen/rightLen`, plecy z `plecyBryla` | (ten commit) |
+| 2026-10-04 | plecy HDF we frezie pod blatem (test losowych edycji) | plecy zawsze „wchodziły we frez w wieńcu i dnie” — pod blatem roboczym (bez wieńca) wystawały 15 mm ponad szafkę, formatka za wysoka; tylne wzmocnienie stało w HDF. Teraz `frezY0/frezY1` (frez tylko w płytach, które są) dla formatki, bryły i rysunku, a wzmocnienie przy plecach staje przed nimi (`backIntrusion`) | (ten commit) |
+| 2026-10-04 | plan wierceń — ścisły audyt | `audytwierc` dopasowywał „Wieniec” do dowolnej formatki z wieńcem albo dnem — przepuściłby wiercenia w nieistniejącym wieńcu; teraz po nazwie dokładnie, trójkąty wszystkich rodzajów, scenariusze pod blatem | (ten commit) |
 | 2026-10-04 | podniesiony tył „auto” przy niskim froncie (`audytmacierz`, nowa konstrukcja „blat roboczy 38 na bokach”) | gdy front był za niski na podniesienie, „auto” brał zwykły tył, a zaraz potem zgłaszał go jako błąd „sięga wyżej niż górna krawędź frontu” — bez przycisku. Teraz ostrzeżenie „front za niski na podniesiony tył — zostaje zwykły tył” z „Wyłącz podniesiony tył” | (ten commit) |
 | 2026-10-04 | wspornik pionowy fixu bez płyty nad sobą (decyzja użytkownika) | okucia liczyły 2 konfirmaty na wspornik (do wieńca i dna) także pod blatem, gdzie wieńca nie ma, a plan wierceń miał tylko dno. Teraz bez płyty nad sobą: trójkąty — 1 do dna i co ok. 300 mm (min. 2) do fixa (`wspornikTrojkaty`), w okuciach i w planie wierceń; z płytą nad sobą konfirmaty tylko do płyt, które są | (ten commit) |
 | 2026-10-04 | blat roboczy 38 na bokach (decyzja użytkownika: H z blatem) | geometria liczyła blat na bokach jak płytę 18 w H (boki, wnętrze, 3D), a wysokość górnego ciągu dokładała jeszcze 38 nad H. Teraz H obejmuje blat: boki i wnętrze krótsze o grubość blatu (`tW`), rysunki i 3D z płytą 38, górny ciąg liczy prześwit od H | (ten commit) |
@@ -103,6 +111,17 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 | 2026-09-27 | `luzy` | podpowiedź o luzie pojawia się przy nierównym podziale; test ustawia luz 3 mm wprost | 3d2690b |
 
 ## Do decyzji użytkownika
+
+- **Skrzynka V-BOX w pionie: tył, dno i bok względem prowadnicy** (2026-10-04,
+  zgłoszenie: „tył nie może schodzić poniżej dna”). Teraz: bok od dołu prowadnicy
+  (`rail.y0`) na `hClass`, dno 12–30 mm nad nim, tył od `tylOd` (bok − tył, 9–10 mm)
+  do góry boku — tył schodzi 20 mm poniżej wierzchu dna. Stała `RAIL_TO_BOTTOM` = 26
+  (legenda planu wierceń: wierzch dna 44 mm nad prowadnicą) nie zgadza się z bryłą.
+  Folder (str. 6): „min. 44 / 33” to otwory prowadnicy w boku szafki; „min. 95 / 110 /
+  142 / 192 / 223 / 253” — potrzebne światło nad dnem szafki dla boków 80–238 (bok +
+  ok. 15 mm), a sprawdzamy tylko `rail.y0 + bok`. Pytanie do użytkownika: gdzie leży
+  dno skrzynki i czy tył stoi na dnie; od odpowiedzi zależy bryła, rysunek z boku
+  i kontrola miejsca nad szufladą.
 
 - **Przycinanie albo zawieszanie po zmianach — pierwszy podejrzany: automatyczny
   rozkrój** (2026-09-29). Liczy się sam 1 s po zmianie formatek (powyżej 40 szafek
