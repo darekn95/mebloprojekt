@@ -2727,7 +2727,8 @@ function computeGeoLiczy(cab, mat, ctx) {
             // nizszy bok ma sens tylko wtedy, gdy podniesiony tyl wyjdzie wyzszy niz zwykly teraz
             const warto = nizszyBok && tylPrzy(nizszyBok) > stdBack;
             add("warn",
-              `${where}, szuflada ${i + 1}: podniesionego tyłu nie ma gdzie podnieść — nad bokami ${hClass} mm zostaje do tego, co wyżej (${coNad}), za mało miejsca na luz ${BACK_CLEAR} mm, więc tył zostaje zwykły ${stdBack} mm. `
+              `${where}, szuflada ${i + 1}: skrzynka się mieści — nad bokami ${hClass} mm zostaje ${fmt(Math.round(ceilY - railY0 - hClass))} mm do tego, co wyżej (${coNad}). `
+              + `Podniesiony tył potrzebuje nad sobą ${BACK_CLEAR} mm luzu, więc nie ma go gdzie podnieść — zostaje zwykły tył ${stdBack} mm, z górą równo z bokami. `
               + (warto ? `Zmniejsz bok skrzynki do ${nizszyBok} mm (tył podniesie się do ${fmt(tylPrzy(nizszyBok))} mm) albo wyłącz podniesiony tył.`
                 : `Wyłącz podniesiony tył — wyżej się tu nie da, a niższy bok dałby niższy tył.`)
               + (warto ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : "") + `|tylstd:${lv.i}:${j}:${i}`);

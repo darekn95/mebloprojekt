@@ -11,6 +11,7 @@
      ani we wzmocnienia (pod blatem: plaskie z przodu, stojace przy plecach).
    Kazda rola plyty ma swoj kolor, zeby po kolorze odroznic korpus od szuflady. */
 import pw from './pw.mjs';
+import { symuluj } from './symwysuw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
 const ok = (l, c, e = '') => console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : ''));
@@ -113,9 +114,59 @@ for (const [opis, wzorCab, wRun] of [['z wieńcem', zWiencem, false], ['pod blat
         fr.forEach((s) => kz.forEach((k) => { if (nachodzi(s, k)) kolF.push(`front ${JSON.stringify(s.p)} × korpus ${JSON.stringify(k.p)}`); }));
         if (!fr.length) bledy.push('brak frontów w 3D');
         if (kolF.length) bledy.push(`front nachodzi na korpus/wzmocnienie (${kolF.length}): ${kolF[0]}`);
-        ok(nazwa, bledy.length === 0, bledy.join(' | ') || `fronty ${fronty.join('/')}`);
+        /* 4. wlasna symulacja wysuwu (symwysuw.mjs): kazda szuflada osobno na
+           pelna NL, reszta zamknieta, z blatem nad szafka pod blatem */
+        const sym = symuluj(zamkniete, { H: 720, blat: wRun });
+        sym.forEach((x) => { if (x.kolizje.length) bledy.push(`wysuw szuflady ${x.szuflada}: ${x.kolizje[0]}`); });
+        if (sym.some((x) => x.luzBoki != null && x.luzBoki < 0)) bledy.push('boki ponad sufitem: ' + JSON.stringify(sym.map((x) => x.luzBoki)));
+        ok(nazwa, bledy.length === 0, bledy.join(' | ') || `fronty ${fronty.join('/')}, luz nad bokami ${sym.map((x) => x.luzBoki).join('/')} mm`);
         wynik.push({ nazwa, uwagi: r.uwagi.split('\n').filter((l) => /szuflada \d+:/.test(l)) });
       }
+    }
+  }
+}
+
+/* Uklady dodatkowe: szuflady pod polka przelotowa (drzwi wyzej), obok drzwi
+   za przegroda, inne wysokosci i plytsza szafka — dla kazdego symulacja
+   wysuwu i brak „nie wysunie się”. */
+console.log('\n== układy dodatkowe ==');
+const kolD = (o = {}) => ({ kind: 'doors', doors: 1, w: null, shelfTargets: [null], ...o });
+const dodatkowe = [
+  // wzmocnienia spod blatu zostaja w gornym poziomie (drzwi), szuflady na dole bez nich
+  ['szuflady pod półką, drzwi nad nimi', (c) => ({ ...c, levels: [{ h: 420, cols: [{ ...c.levels[0].cols[0], rails: [] }] },
+    { h: null, cols: [kolD({ rails: c.levels[0].cols[0].rails || [] })] }] })],
+  ['szuflady obok drzwi (przegroda)', (c) => ({ ...c, W: 900, levels: [{ h: null, cols: [{ ...c.levels[0].cols[0], w: 450 },
+    kolD({ rails: c.levels[0].cols[0].rails || [] })] }] })],
+  ['wysokość 820', (c) => ({ ...c, H: 820 })],
+  ['wysokość 600, 2 szuflady', (c) => ({ ...c, H: 600, levels: [{ h: null, cols: [{ ...c.levels[0].cols[0], drawers: c.levels[0].cols[0].drawers.slice(0, 2) }] }] })],
+  ['płytsza szafka 500', (c) => ({ ...c, D: 500 })],
+];
+for (const [opis, wzorCab, wRun] of [['z wieńcem', zWiencem, false], ['pod blatem', podBlatem, true]]) {
+  for (const tall of [false, true]) {
+    for (const [nazwaD, zmien] of dodatkowe) {
+      const cab = zmien(zSzufladami(wzorCab, 3, tall));
+      const H = cab.H;
+      const runH = wRun ? { ...run, roomId: 'p1', H } : null;
+      await page.evaluate((q) => { localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
+        { name: 'Szuflady', active: 0, prices: {}, rooms: [{ id: 'p1', name: 'Pomieszczenie 1' }], runs: runH ? [runH] : [],
+          items: [{ cab, mat: MAT, runId: runH ? run.id : null, roomId: 'p1', offset: 0 }] });
+      await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
+      const r = await czytaj();
+      await bryly();
+      const sym = symuluj(zamkniete, { H, blat: wRun });
+      const bl = [];
+      if (/nie wysunie się/.test(r.uwagi)) bl.push('„nie wysunie się”');
+      sym.forEach((x) => { if (x.kolizje.length) bl.push(`wysuw szuflady ${x.szuflada}: ${x.kolizje[0]}`); });
+      if (!sym.length) bl.push('brak szuflad w bryle');
+      const fr = zamkniete.filter((s2) => (s2.color || '').toLowerCase() === F);
+      const kz = zamkniete.filter((s2) => (s2.color || '').toLowerCase() === K);
+      fr.forEach((s2) => kz.forEach((k) => { if (nachodzi(s2, k)) bl.push(`front ${JSON.stringify(s2.p)} × korpus ${JSON.stringify(k.p)}`); }));
+      // kolizja z symulacji bez bledu w uwagach to blad kontroli aplikacji
+      sym.filter((x) => x.kolizje.length).forEach((x) => {
+        if (!new RegExp(`szuflada ${x.szuflada}: (boki skrzynki|NL \\d+ wjeżdża)`).test(r.uwagi)) bl.push(`kolizja szuflady ${x.szuflada} niezgłoszona w uwagach`);
+      });
+      ok(`${opis}${tall ? ', podniesiony tył' : ''}: ${nazwaD}`, bl.length === 0,
+        bl.slice(0, 2).join(' | ') || `luz nad bokami ${sym.map((x) => x.luzBoki).join('/')} mm`);
     }
   }
 }
@@ -140,9 +191,30 @@ if (ile) {
   r = await czytaj();
   const st = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
   ok('po kliknięciu tył zwykły i jedna uwaga mniej',
-    st.items[0].cab.levels[0].cols[0].drawers.filter((d) => !d.tallBack).length === 1 && (r.uwagi.match(/podniesionego tyłu/g) || []).length === ile - 1,
+    st.items[0].cab.levels[0].cols[0].drawers.filter((d) => !d.tallBack).length === 1 && (r.uwagi.match(/Podniesiony tył potrzebuje/g) || []).length === ile - 1,
     JSON.stringify(st.items[0].cab.levels[0].cols[0].drawers.map((d) => d.tallBack)));
 }
+
+/* Kontrola symulacji: tam, gdzie kolizja jest naprawde, symulacja musi ja
+   znalezc — inaczej zielony wynik niczego by nie dowodzil. */
+console.log('\n== symulacja wykrywa kolizje (próby kontrolne) ==');
+const proba = async (opis, zmien, oczek) => {
+  const c = zSzufladami(podBlatem, 3, false);
+  zmien(c.levels[0].cols[0].drawers);
+  await page.evaluate((q) => { localStorage.setItem('szafki:projekt', JSON.stringify(q)); }, { ...p3, items: [{ ...p3.items[0], cab: c }] });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
+  await bryly();
+  const sym = symuluj(zamkniete, { H: 720, blat: true });
+  const kol = sym.flatMap((x) => x.kolizje.map((k) => `szuflada ${x.szuflada}: ${k}`));
+  const uw = (await czytaj()).uwagi;
+  ok(opis, kol.some((k) => oczek.test(k)), kol.slice(0, 3).join(' | ') || '(brak kolizji)');
+  return uw;
+};
+let uw = await proba('NL 550 w górnej szufladzie → skrzynka we wzmocnieniu przy plecach', (d) => { d[2].nl = 550; }, /szuflada 3: (bok skrzynki|dno\/tył) × korpus/);
+ok('… i aplikacja zgłasza to z przyciskiem NL 500', /wjeżdża tyłem skrzynki we wzmocnienie[^\n]*\n?.*Zmień głębokość prowadnic do NL 500/s.test(uw), (uw.match(/[^\n]*wjeżdża[^\n]*/) || ['(brak)'])[0].slice(0, 160));
+// gorny front 255 (min. dla boku 238 to 253): bok konczy sie na 705, a wzmocnienie zaczyna na 702
+uw = await proba('bok 238 w górnej szufladzie → skrzynka we wzmocnieniu pod blatem', (d) => { d[2].h = 238; d[0].front = 228; d[1].front = 227; }, /szuflada 3: bok skrzynki × korpus/);
+ok('… i aplikacja zgłasza to z przyciskiem niższego boku', /boki skrzynki 238 mm nie zmieszczą się[^\n]*Zmień bok szuflady na 210/.test(uw.replace(/\n/g, ' ')), (uw.match(/[^\n]*boki skrzynki[^\n]*/) || ['(brak)'])[0].slice(0, 160));
 
 /* Drzwi wpuszczane pod blatem: tez nie wchodza w plaskie wzmocnienie przy licu. */
 console.log('\n== drzwi wpuszczane pod blatem ==');
