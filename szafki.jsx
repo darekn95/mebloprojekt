@@ -1127,13 +1127,13 @@ const samePlinth = (a, b) => {
   if (!a || !b) return !a === !b;
   if (!a.on || !b.on) return !a.on === !b.on;
   return Math.round(a.height || 0) === Math.round(b.height || 0)
-    && (a.mode || "inbody") === (b.mode || "inbody")
+    && (a.mode || "under") === (b.mode || "under")
     && Math.round(a.setback || 0) === Math.round(b.setback || 0);
 };
 
 const plinthText = (p) => {
   if (!p || !p.on) return "bez cokołu";
-  const gdzie = (p.mode || "inbody") === "inbody" ? "w bryle" : "pod korpusem";
+  const gdzie = (p.mode || "under") === "inbody" ? "w bryle" : "pod korpusem";
   return `cokół ${fmt(p.height)} mm ${gdzie}` + (p.setback > 0 ? `, cofnięty ${fmt(p.setback)} mm` : "");
 };
 
@@ -1921,12 +1921,17 @@ function computeGeoLiczy(cab, mat, ctx) {
     /* Fronty szuflad nie trzymaja luzu do korpusu, tylko go zakrywaja: dolny
        zachodzi na dno, gorny na wieniec, a nad przegroda dwa sasiednie fronty
        nakladaja sie po `divOverlay` i zostawiaja miedzy soba szczeline. */
+    /* Bez wienca (szafka pod blatem roboczym — same wzmocnienia) albo z blatem
+       na bokach front nie ma na co zachodzic: konczy sie jak drzwi, `g.top` pod
+       gora korpusu. Liczony od swiatla + `overTop` wychodzil 15 mm ponad korpus,
+       w blat — i kontrola otwierania mowila, ze szuflada sie nie wysunie
+       (zgloszenie uzytkownika 2026-10-04). Tak samo na dole bez dna. */
     if (cab.frontMode === "overlay") {
       lv.drawLo = lv.i === 0
-        ? lv.y0 - Math.max(0, Math.round(num(g.overBottom) ?? 15))
+        ? (hasBot ? lv.y0 - Math.max(0, Math.round(num(g.overBottom) ?? 15)) : lo)
         : Math.round(sepShelves[lv.i - 1].y + t - divOv);
       lv.drawHi = lv.i === levels.length - 1
-        ? lv.y1 + Math.max(0, Math.round(num(g.overTop) ?? 15))
+        ? (hasTop && !isBlat ? lv.y1 + Math.max(0, Math.round(num(g.overTop) ?? 15)) : hi)
         : Math.round(sepShelves[lv.i].y + divOv);
     } else {
       lv.drawLo = lo;
@@ -2028,6 +2033,21 @@ function computeGeoLiczy(cab, mat, ctx) {
         return { orient: "front", przyTyle: !!r.fromBack,
           x0: rx0, x1: rx1, y0: ry1 - rh, y1: ry1, z0, zLen: t, a: rw, b: rh };
       });
+
+      /* Front wpuszczany siedzi w otworze, w plaszczyznie lica. Wzmocnienie,
+         ktore tam lezy (pod blatem roboczym: plaskie na gorze przy licu), jest
+         dla niego jak wieniec — front konczy sie luz pod nim, a nie pod gora
+         korpusu (audyt szuflad 2026-10-04: wchodzil w nie 16 mm). Tak samo
+         z dolu i dla drzwi wpuszczanych. */
+      const wLicu = (c.rails || []).filter((r) => r.orient !== "vertical" && !r.przyTyle && r.z0 < tf);
+      const srodekPoz = (lv.y0 + lv.y1) / 2;
+      const insLo = Math.max(lv.y0 + g.inset, ...wLicu.filter((r) => r.y0 < srodekPoz).map((r) => r.y1 + g.inset));
+      const insHi = Math.min(lv.y1 - g.inset, ...wLicu.filter((r) => r.y0 >= srodekPoz).map((r) => r.y0 - g.inset));
+      if (cab.frontMode !== "overlay") {
+        clo = Math.max(clo, insLo);
+        chi = Math.min(chi, insHi);
+        cbandH = Math.round(chi - clo);
+      }
 
       // sasiad z frontem wpuszczanym nie zakryje swojej polowy przegrody,
       // wiec front nakladany bierze ja w calosci i zostawia normalny luz
@@ -2429,8 +2449,8 @@ function computeGeoLiczy(cab, mat, ctx) {
       const dInsetExtra = dIn ? tf : 0;
       const dsx0 = dIn ? insX0 : ovlX0;
       const dsx1 = dIn ? insX1 : ovlX1;
-      const dlo = dIn ? lv.y0 + g.inset : cab.frontMode === "overlay" ? lv.drawLo : lo;
-      const dhi = dIn ? lv.y1 - g.inset : cab.frontMode === "overlay" ? lv.drawHi : hi;
+      const dlo = dIn ? insLo : cab.frontMode === "overlay" ? lv.drawLo : lo;
+      const dhi = dIn ? insHi : cab.frontMode === "overlay" ? lv.drawHi : hi;
       const dbandH = Math.round(dhi - dlo);
 
       const LW = c.w;
@@ -2489,15 +2509,39 @@ function computeGeoLiczy(cab, mat, ctx) {
           .filter((hc) => VBOX.minFront[dMode][hc] <= fh)
           .pop();
         let hClass;
+        let wyzszyBok = null;
         if (d.h === "auto" || d.h == null) {
           hClass = fitH || VBOX.heights[0];
         } else {
           hClass = VBOX.heights.includes(Number(d.h)) ? Number(d.h) : 127;
           // bok wybrany recznie — front moze uniesc wyzszy, wiec to podpowiadamy
-          if (fitH && fitH > hClass)
-            add("info", `${where}, szuflada ${i + 1}: front uniesie wyższy bok ${fitH} mm zamiast ${hClass}.|fixh:${lv.i}:${j}:${i}:${fitH}`);
+          if (fitH && fitH > hClass) wyzszyBok = fitH;
         }
-        const nl = num(d.nl) ?? colNl; // NL tej konkretnej szuflady
+        /* Prowadnica najnizszej szuflady siada rowno na dnie albo na przegrodzie
+           tego poziomu — to ona wyznacza wysokosc, a front sie do niej
+           dostosowuje. Wyzsze szuflady nie maja na czym usiasc, wiec ich front
+           schodzi ponizej szyny o staly, ustawialny wymiar. */
+        const railY0 = i === 0
+          ? lv.y0
+          : y + Math.max(0, Math.round(num(g.underRail) ?? 5));
+        /* Wzmocnienie stojace przy plecach (szafka pod blatem) na wysokosci
+           skrzynki skraca prowadnice: skrzynka NL 550 w korpusie 560 wjezdzala
+           w nie tylem (audyt szuflad 2026-10-04). Automatyczna NL bierze
+           najdluzsza, ktora przed nim sie konczy (4 mm luzu, jak przy innych
+           przeszkodach z tylu). */
+        const zaSkrzynka = (c.rails || []).filter((r) => r.z0 > 0 && r.y0 < railY0 + hClass && r.y1 > railY0
+          && r.x1 > dsx0 && r.x0 < dsx1);
+        const limTyl = zaSkrzynka.length ? Math.min(...zaSkrzynka.map((r) => r.z0)) : null;
+        const nlTyl = limTyl === null ? null
+          : ([...VBOX.nl].reverse().find((v) => v + 4 + dInsetExtra <= limTyl) ?? null);
+        const nlMaxTu = limTyl === null ? colMaxNL
+          : colMaxNL === null ? null : nlTyl === null ? null : Math.min(colMaxNL, nlTyl);
+        const nlAuto = num(rawCol.nl) ?? nlMaxTu;
+        const nl = num(d.nl) ?? nlAuto; // NL tej konkretnej szuflady
+        if (nl !== null && limTyl !== null && nl + 4 + dInsetExtra > limTyl)
+          add("error",
+            `${where}, szuflada ${i + 1}: NL ${nl} wjeżdża tyłem skrzynki we wzmocnienie przy plecach — do niego jest ${fmt(limTyl)} mm od lica.`
+            + (nlTyl ? `|fixnl:${lv.i}:${j}:${i}:${nlTyl}` : ""));
         if (nl !== null) {
           const need = nl + 3 + dInsetExtra;
           if (need > carcassDepth) {
@@ -2511,16 +2555,9 @@ function computeGeoLiczy(cab, mat, ctx) {
                 (fitNl ? `|fixnl:${lv.i}:${j}:${i}:${fitNl}` : "")
             );
           }
-          else if (colMaxNL && nl < colMaxNL)
-            add("info", `${where}, szuflada ${i + 1}: zmieści się głębsza NL ${colMaxNL}.|fixnl:${lv.i}:${j}:${i}:${colMaxNL}`);
+          else if (nlMaxTu && nl < nlMaxTu)
+            add("info", `${where}, szuflada ${i + 1}: zmieści się głębsza NL ${nlMaxTu}.|fixnl:${lv.i}:${j}:${i}:${nlMaxTu}`);
         }
-        /* Prowadnica najnizszej szuflady siada rowno na dnie albo na przegrodzie
-           tego poziomu — to ona wyznacza wysokosc, a front sie do niej
-           dostosowuje. Wyzsze szuflady nie maja na czym usiasc, wiec ich front
-           schodzi ponizej szyny o staly, ustawialny wymiar. */
-        const railY0 = i === 0
-          ? lv.y0
-          : y + Math.max(0, Math.round(num(g.underRail) ?? 5));
         const dr = {
           i,
           y,
@@ -2602,8 +2639,38 @@ function computeGeoLiczy(cab, mat, ctx) {
         /* Podniesiony tyl jedzie razem ze skrzynka i musi przejsc pod tym, co
            jest nad szuflada — frontem wyzej albo gora swiatla poziomu — a do
            tego zostawic luz, zeby o nic nie zawadzal. */
-        const ceilY = i + 1 < ds.length ? y + fhFull + drGap : lv.y1;
+        /* Nad najwyzsza szuflada stoi gora swiatla — a pod blatem roboczym, bez
+           wienca, takze plaskie wzmocnienie przy licu: skrzynka przejezdza pod
+           nim przy kazdym wysuwie, wiec to ono jest sufitem (zgloszenie
+           uzytkownika 2026-10-04 — liczone do gory korpusu tyl „miescil sie”
+           o grubosc wzmocnienia wiecej). Liczy sie wszystko, co lezy nad
+           szuflada na drodze skrzynki: od lica do konca prowadnicy. */
+        const drogaZ = (nl || 0) + 3 + dInsetExtra;
+        const nadSzuflada = (c.rails || []).filter((r) => r.y0 >= railY0 && r.z0 < drogaZ
+          && r.x1 > dsx0 && r.x0 < dsx1 && !zaSkrzynka.includes(r));
+        const ceilY = i + 1 < ds.length ? y + fhFull + drGap
+          : Math.min(lv.y1, ...nadSzuflada.map((r) => r.y0));
+        const coNad = i + 1 < ds.length ? "front szuflady wyżej"
+          : nadSzuflada.some((r) => r.y0 < lv.y1) ? "wzmocnienie pod blatem" : "góra korpusu";
         const maxBack = Math.max(0, Math.round(ceilY - tylY0) - BACK_CLEAR);
+        /* Najwyzszy bok, przy ktorym skrzynka (i podniesiony tyl, jesli jest)
+           zmiesci sie pod tym, co wyzej — do przycisku „zmniejsz bok”. */
+        const miesciSie = (hc) => railY0 + hc <= ceilY
+          && (!d.tallBack || VBOX.backH[hc] <= Math.round(ceilY - (railY0 + hc - VBOX.backH[hc])) - BACK_CLEAR)
+          && VBOX.minFront[dMode][hc] <= fh;
+        const nizszyBok = [...VBOX.heights].filter((hc) => hc < hClass && miesciSie(hc)).pop();
+        // bok wybrany recznie, a front uniesie wyzszy — podpowiadamy tylko taki, ktory sie zmiesci
+        if (wyzszyBok) {
+          const lepszy = [...VBOX.heights].filter((hc) => hc > hClass && hc <= wyzszyBok && miesciSie(hc)).pop();
+          if (lepszy)
+            add("info", `${where}, szuflada ${i + 1}: front uniesie wyższy bok ${lepszy} mm zamiast ${hClass}.|fixh:${lv.i}:${j}:${i}:${lepszy}`);
+        }
+        /* Boki skrzynki jada razem z nia — gdy sa wyzsze niz miejsce pod tym,
+           co wyzej, szuflada sie nie wsunie. Wczesniej tego nie sprawdzalismy. */
+        if (railY0 + hClass > ceilY)
+          add("error",
+            `${where}, szuflada ${i + 1}: boki skrzynki ${hClass} mm nie zmieszczą się pod tym, co jest wyżej (${coNad}) — mieści się ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
+            + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : ""));
         /* Tyl nigdy wyzej niz gorna krawedz frontu tej szuflady, a najlepiej
            nizej (uzytkownik 2026-09-28) — domyslny podniesiony tyl konczy sie
            o BACK_CLEAR ponizej niej. */
@@ -2624,11 +2691,34 @@ function computeGeoLiczy(cab, mat, ctx) {
               `${where}, szuflada ${i + 1}: tył ${fmt(backH)} mm jest niższy niż bok skrzynki (${stdBack} mm).` +
                 `|fixback:${lv.i}:${j}:${i}:${stdBack}`
             );
-          if (backH > maxBack)
+          /* Gdy nie miesci sie nawet tyl standardowy, sam tyl nie pomoze —
+             przycisk zmniejsza bok skrzynki (a z nim tyl) do najwyzszego, ktory
+             przejdzie (uzytkownik 2026-10-04). */
+          /* Standardowy tyl ma gore rowno z bokami — miesci sie tam, gdzie
+             skrzynka (to pilnuje kontrola bokow). Luz BACK_CLEAR dotyczy tylko
+             tylu podniesionego ponad boki. */
+          if (railY0 + hClass <= ceilY && maxBack < stdBack) {
+            /* Nad bokami nie ma miejsca na podniesienie — sam tyl nie pomoze.
+               Przyciski: nizszy bok (tyl podniesie sie nad niego) albo zwykly
+               tyl (uzytkownik 2026-10-04: „miał być przycisk, który zmniejsza
+               wysokość i tył”). */
+            const tylPrzy = (hc) => {
+              const od = railY0 + hc - VBOX.backH[hc];
+              const mb = Math.max(0, Math.round(ceilY - od) - BACK_CLEAR);
+              return Math.max(VBOX.backH[hc], Math.min(Math.max(0, Math.round(y + fh - od)) - BACK_CLEAR, mb));
+            };
+            // nizszy bok ma sens tylko wtedy, gdy podniesiony tyl wyjdzie wyzszy niz zwykly teraz
+            const warto = nizszyBok && tylPrzy(nizszyBok) > stdBack;
+            add("warn",
+              `${where}, szuflada ${i + 1}: podniesionego tyłu nie ma gdzie podnieść — nad bokami ${hClass} mm zostaje do tego, co wyżej (${coNad}), za mało miejsca na luz ${BACK_CLEAR} mm, więc tył zostaje zwykły ${stdBack} mm. `
+              + (warto ? `Zmniejsz bok skrzynki do ${nizszyBok} mm (tył podniesie się do ${fmt(tylPrzy(nizszyBok))} mm) albo wyłącz podniesiony tył.`
+                : `Wyłącz podniesiony tył — wyżej się tu nie da, a niższy bok dałby niższy tył.`)
+              + (warto ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : "") + `|tylstd:${lv.i}:${j}:${i}`);
+          } else if (backH > Math.max(maxBack, stdBack))
             add(
               "warn",
-              `${where}, szuflada ${i + 1}: tył ${fmt(backH)} mm nie przejdzie pod tym, co jest wyżej — mieści się ${fmt(maxBack)} mm.` +
-                (maxBack >= stdBack ? `|fixback:${lv.i}:${j}:${i}:${maxBack}` : "")
+              `${where}, szuflada ${i + 1}: tył ${fmt(backH)} mm nie przejdzie pod tym, co jest wyżej (${coNad}) — mieści się ${fmt(maxBack)} mm.` +
+                `|fixback:${lv.i}:${j}:${i}:${maxBack}`
             );
         }
         if (nl !== null && LW > 0) {
@@ -9799,7 +9889,21 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     }
     if (action.startsWith("fixh:")) {
       const [, li, j, k, val] = action.split(":");
-      return { label: `Zmień bok szuflady na ${val} mm`, run: () => editLevels((L) => (L[+li].cols[+j].drawers[+k].h = +val)) };
+      /* Podniesiony tyl wpisany recznie liczyl sie do starego boku — przy
+         zmianie boku wraca na automatyczny, zeby zmalal razem z nim. */
+      return { label: `Zmień bok szuflady na ${val} mm`, run: () => editLevels((L) => {
+        const d = L[+li].cols[+j].drawers[+k];
+        d.h = +val;
+        if (d.tallBack) d.backHeight = null;
+      }) };
+    }
+    if (action.startsWith("tylstd:")) {
+      const [, li, j, k] = action.split(":");
+      return { label: "Wyłącz podniesiony tył", run: () => editLevels((L) => {
+        const d = L[+li].cols[+j].drawers[+k];
+        d.tallBack = false;
+        d.backHeight = null;
+      }) };
     }
     if (action.startsWith("fixnl:")) {
       const [, li, j, k, val] = action.split(":");
@@ -15901,7 +16005,7 @@ export default function App() {
                   ? "Boki schodzą do podłogi, dno siedzi na cokole. Oklejana krawędź dolna."
                   : "Cały korpus stoi na cokole."}>
                   <Seg value={geo.pMode} onChange={(v) => set({ plinth: { ...cab.plinth, mode: v } })}
-                    options={[{ v: "inbody", l: "Pod dnem, w obrysie" }, { v: "under", l: "Pod korpusem" }]} />
+                    options={[{ v: "under", l: "Pod korpusem" }, { v: "inbody", l: "Pod dnem, w obrysie" }]} />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Wysokość">
