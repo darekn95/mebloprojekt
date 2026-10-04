@@ -134,6 +134,11 @@ const uwagi = () => page.evaluate(() => {
   return { err, warn };
 });
 
+/* Uklady, ktore naprawde nie maja sensu — aplikacja ma je zglosic bledem
+   (i to jest tu sprawdzane, a nie przepuszczane). */
+const OCZEKIWANE = {
+  'bez dna (na nóżkach) × klapa w dół': /klapa w dół nie ma w czym zawiesić zawiasów/,
+};
 const podsumowanie = [];
 for (const [kNazwa, kZmien, wCiagu] of KONSTRUKCJE) {
   for (const [wNazwa, wZmien] of WNETRZA) {
@@ -157,14 +162,17 @@ for (const [kNazwa, kZmien, wCiagu] of KONSTRUKCJE) {
     const razem = [...zam, ...otw.filter((q) => !zam.some((x) => x.p.join() === q.p.join()))];
     const bp = bezPlyty(f, razem);
     if (bp.length) bl.push(`formatka bez płyty: ${bp.slice(0, 2).join('; ')}`);
-    const bf = bezFormatki(f, zam);
+    // cokol i blat ciagu sa na liscie calego projektu, nie szafki
+    const fProj = wCiagu ? formatki(await tabela(/^Formatki całego projektu/)).filter((r) => /ciągu/.test(r.name)) : [];
+    const bf = bezFormatki([...f, ...fProj.map((r) => ({ ...r, name: 'Cokół ciągu' }))], zam);
     if (bf.length) bl.push(`płyta bez formatki: ${[...new Set(bf)].slice(0, 3).join('; ')}`);
     // 3. fronty w obrysie korpusu (szerokosc, od dolu korpusu do gory, pod blatem 1 mm ponizej gory)
     const korpus = zam.filter((s) => s.color === K);
     if (korpus.length) {
       const kx0 = Math.min(...korpus.map((s) => s.p[0])), kx1 = Math.max(...korpus.map((s) => s.p[3]));
       const ky0 = Math.min(...korpus.filter((s) => s.p[1] >= -1).map((s) => s.p[1])), ky1 = Math.max(...korpus.map((s) => s.p[4]));
-      const gora = wCiagu ? H - 1 : ky1 + 0.5;
+      // nic nie wychodzi ponad korpus (pod blatem: w blat); elementy stale moga dojsc do samej gory
+      const gora = ky1 + 0.5;
       zam.filter((s) => s.color === F).forEach((s) => {
         if (s.p[0] < kx0 - 0.5 || s.p[3] > kx1 + 0.5 || s.p[4] > gora || s.p[1] < ky0 - 0.5)
           bl.push(`front poza obrysem: ${JSON.stringify(s.p.map(Math.round))} (korpus x ${kx0}–${kx1}, y ${ky0}–${gora})`);
@@ -173,7 +181,70 @@ for (const [kNazwa, kZmien, wCiagu] of KONSTRUKCJE) {
     // 4. szuflady: symulacja wysuwu
     const sym = symuluj(zam, { H, blat: wCiagu });
     sym.forEach((x) => { if (x.kolizje.length) bl.push(`wysuw szuflady ${x.szuflada}: ${x.kolizje[0]}`); });
-    // 5. bledy w uwagach
+    /* 5. plan wiercen (PDF): kazda plyta z planu jest w formatkach — scisle:
+       „Wieniec” tylko, gdy jest wieniec, „Dno” tylko, gdy jest dno (stara
+       kontrola w `audytwierc` laczyla je i przepuszczala zawiasy klapy
+       w nieistniejacym wiencu) */
+    await page.evaluate(() => { window.__plan = null; window.print = () => {
+      const t = [...document.querySelectorAll('.print-only table')].find((x) => /Otwory pod/.test(x.querySelector('thead')?.textContent || ''));
+      const fm = [...document.querySelectorAll('.print-only table')].find((x) => /Długość/.test(x.querySelector('thead')?.textContent || ''));
+      window.__plan = { rows: t ? [...t.querySelectorAll('tbody tr')].map((tr) => tr.children[0].textContent.trim()).filter(Boolean) : [],
+        fm: fm ? [...fm.querySelectorAll('tbody tr')].map((tr) => tr.children[0].textContent.trim()) : [] };
+    }; });
+    await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click(); await page.waitForTimeout(900);
+    const plan = await page.evaluate(() => window.__plan) || { rows: [], fm: [] };
+    const nazwyF = [...plan.fm, ...f.map((r) => r.name)];
+    const jest = (panel) => {
+      const n = panel.replace(/^Poziom \d+ — /, '');
+      const re = /^Bok (lewy|prawy)$/.test(n) ? /^Bok/ : /^Wieniec$/.test(n) ? /wieniec|Wieniec/ : /^Dno$/.test(n) ? /^Dno(?! szuflady)/
+        : /^Przegroda/.test(n) ? /^Przegroda/ : /^Wspornik/.test(n) ? /^Wspornik pionowy/
+        : /^Półka przelotowa/.test(n) ? /^Półka przelotowa/ : new RegExp('^' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      return nazwyF.some((x) => re.test(x));
+    };
+    [...new Set(plan.rows)].filter((pnl) => !jest(pnl)).forEach((pnl) => bl.push(`plan wierceń w płycie spoza formatek: „${pnl}”`));
+    // 6. bledy w uwagach
+    const u = await uwagi();
+    const oczek = OCZEKIWANE[nazwa];
+    if (oczek && !u.err.some((e) => oczek.test(e))) bl.push(`brak oczekiwanego błędu ${oczek}`);
+    u.err.filter((e) => !(oczek && oczek.test(e))).forEach((e) => bl.push(`błąd w uwagach: ${e.slice(0, 140)}`));
+    if (u.warn.length) info(`${nazwa}: ostrzeżenia: ${u.warn.map((w) => w.slice(0, 90)).join(' | ')}`);
+    ok(nazwa, bl.length === 0, [...new Set(bl)].slice(0, 4).join(' | '));
+    podsumowanie.push({ nazwa, bl });
+  }
+}
+/* Wymiary skrajne — kazdy z nich na zwyklej konstrukcji i pod blatem. */
+const SKRAJNE = [
+  ['wąska 300, jedne drzwi', (c) => ({ ...c, W: 300, levels: [{ h: null, cols: [kol({ doors: 1 })] }] })],
+  ['szeroka 1200, dwoje drzwi', (c) => ({ ...c, W: 1200 })],
+  ['wąska 450, 3 szuflady', (c) => ({ ...c, W: 450, levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: szuf(3) }] }] })],
+  ['płytka 350, 2 szuflady', (c) => ({ ...c, D: 350, levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: szuf(2) }] }] })],
+  ['niska 400, 2 szuflady', (c) => ({ ...c, H: 400, levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: szuf(2) }] }] })],
+  ['słupek 2100, 3 poziomy', (c) => ({ ...c, H: 2100, levels: [{ h: 700, cols: [{ ...kol(), kind: 'drawers', drawers: szuf(3) }] }, { h: 700, cols: [kol()] }, { h: null, cols: [kol()] }] })],
+];
+for (const [kNazwa, kZmien, wCiagu] of KONSTRUKCJE.filter(([n]) => n === 'stojąca' || n === 'pod blatem')) {
+  for (const [wNazwa, wZmien] of SKRAJNE) {
+    const nazwa = `${kNazwa} × ${wNazwa}`;
+    if (TYLKO && !TYLKO.test(nazwa)) continue;
+    const cab = kZmien(wZmien(baza()));
+    const H = cab.H;
+    const p = { name: 'Macierz', active: 0, prices: {}, rooms: [{ id: 'p1', name: 'Pomieszczenie 1' }],
+      runs: wCiagu ? [{ ...RUN, H, D: cab.D }] : [], items: [{ cab, mat: MAT, runId: wCiagu ? 'c1' : null, roomId: 'p1', offset: 0 }] };
+    await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); }, p);
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(800);
+    const bl = [];
+    const f = formatki(await tabela(/^Formatki do zamówienia/));
+    const zam = await brylyZamk();
+    const otw = await brylyOtw();
+    const n = nachodzi(zam);
+    if (n.length) bl.push(`nachodzi: ${n.slice(0, 2).join('; ')}`);
+    const razem = [...zam, ...otw.filter((q) => !zam.some((x) => x.p.join() === q.p.join()))];
+    const bp = bezPlyty(f, razem);
+    if (bp.length) bl.push(`formatka bez płyty: ${bp.slice(0, 2).join('; ')}`);
+    const fProj = wCiagu ? formatki(await tabela(/^Formatki całego projektu/)).filter((r) => /ciągu/.test(r.name)) : [];
+    const bf = bezFormatki([...f, ...fProj.map((r) => ({ ...r, name: 'Cokół ciągu' }))], zam);
+    if (bf.length) bl.push(`płyta bez formatki: ${[...new Set(bf)].slice(0, 3).join('; ')}`);
+    const sym = symuluj(zam, { H, blat: wCiagu });
+    sym.forEach((x) => { if (x.kolizje.length) bl.push(`wysuw szuflady ${x.szuflada}: ${x.kolizje[0]}`); });
     const u = await uwagi();
     u.err.forEach((e) => bl.push(`błąd w uwagach: ${e.slice(0, 140)}`));
     if (u.warn.length) info(`${nazwa}: ostrzeżenia: ${u.warn.map((w) => w.slice(0, 90)).join(' | ')}`);
@@ -181,6 +252,7 @@ for (const [kNazwa, kZmien, wCiagu] of KONSTRUKCJE) {
     podsumowanie.push({ nazwa, bl });
   }
 }
+
 const zle = podsumowanie.filter((x) => x.bl.length);
 console.log(`\nUkładów: ${podsumowanie.length}, z problemem: ${zle.length}`);
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
