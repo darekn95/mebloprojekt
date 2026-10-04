@@ -1002,10 +1002,14 @@ const utworzCiagZRogiem = (p, o) => {
         return { ...lv, cols };
       });
     }
-    // wymiary i sposob stania ciagu docelowego, jak przy „+ szafka”
-    if (cel.H != null) cab.H = cel.H;
-    if (cel.D != null && !L) cab.D = cel.D;
-    if (cel.plinth) cab.plinth = { ...cel.plinth };
+    /* wymiary i sposob stania ciagu docelowego, jak przy „+ szafka”. Nowy ciag
+       jest jeszcze pusty — wtedy bierzemy je z sasiedniej sciany: szablon ma
+       560 i cokol, a „+ szafka” w pierwszym ciagu 500 bez cokolu, wiec dwie
+       sciany jednej kuchni dostawaly rozny blat i cokol (audyt zabudowy). */
+    const wzor = cel.H != null ? cel : inny.H != null ? inny : cel;
+    if (wzor.H != null) cab.H = wzor.H;
+    if (wzor.D != null && !L) cab.D = wzor.D;
+    if (wzor.plinth) cab.plinth = { ...wzor.plinth };
     cab.legs = { ...(cab.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true };
     cab.hangerMode = cel.hangerMode || "listwa";
     if (cel.worktop) Object.assign(cab, bezWienca(cab, defaultMaterials.front.thickness));
