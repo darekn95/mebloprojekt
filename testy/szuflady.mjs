@@ -94,9 +94,10 @@ for (const [opis, wzorCab, wRun] of [['z wieńcem', zWiencem, false], ['pod blat
           const suma = fronty.reduce((a, v) => a + v, 0) + 2 * (n - 1);
           if (fronty.length !== n || Math.abs(suma - (720 - 6)) > 1) bledy.push(`fronty ${fronty.join('+')} + luzy = ${suma}, a ma być ${720 - 6}`);
         } else if (fronty.length !== n || fronty.some((v) => !(v > 0))) bledy.push(`fronty wpuszczane: ${fronty.join(', ')}`);
-        // 2. nic sie nie blokuje, a kazda uwaga szuflady ma przycisk
+        // 2. nic sie nie blokuje, a kazda uwaga szuflady ma przycisk (poza czystymi informacjami,
+        //    np. „różne długości prowadnic” — uzytkownik 2026-10-04: sama informacja)
         if (/nie wysunie się/.test(r.uwagi)) bledy.push('„nie wysunie się”: ' + (r.uwagi.match(/[^\n]*nie wysunie się[^\n]*/) || [''])[0].slice(0, 120));
-                const bezPrzycisku = r.uwagi.split('\n').filter((l) => /szuflada \d+:/.test(l) && !/front uniesie|zmieści się głębsza|reling/.test(l))
+                const bezPrzycisku = r.uwagi.split('\n').filter((l) => /szuflada \d+:/.test(l) && !/front uniesie|zmieści się głębsza|reling|różne długości prowadnic/.test(l))
           .filter((l) => !r.zPrzyciskami.some((z) => z.t.includes(l.slice(0, 60)) && z.btn.length));
         if (bezPrzycisku.length) bledy.push('uwaga bez przycisku: ' + bezPrzycisku[0].slice(0, 140));
         // 3. bryla: skrzynka nie wchodzi w korpus ani we wzmocnienia

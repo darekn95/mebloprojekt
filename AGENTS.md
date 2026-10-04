@@ -42,7 +42,7 @@
 - Gdy coś potrwa dłużej niż ok. 3 minuty (pełny przebieg testów, duży build,
   seria zrzutów), napisz o tym **przed** startem, z przybliżonym czasem —
   np. „Testy lecą (~5 min)” — i co w tym czasie robisz albo na co czekasz.
-  Pełny przebieg obu buildów (117 suit, po 5 naraz; stan 2026-10-04) to ok. 9 min, pojedyncza
+  Pełny przebieg obu buildów (119 suit, po 5 naraz; stan 2026-10-04) to ok. 13 min, pojedyncza
   suita 5–30 s. Czasy sprawdzaj z logów, nie z pamięci.
 - **Kiedy jakie testy i kiedy git** (ustalone z użytkownikiem):
   - po zmianie tylko suity z tego obszaru (2–5 suit, ok. 1 min; spis w `SLOWNIK.md`);
@@ -52,7 +52,9 @@
     prośbę użytkownika** w danej chwili, także gdy testy są zielone (zasada ogólna,
     2026-09-29). Zgoda na jedno scalenie nie obejmuje następnych. Zmiany czekają
     na gałęzi roboczej; nowego PR też nie otwieraj bez prośby;
-  - pełny przebieg testów — na żądanie użytkownika albo przed scaleniem;
+  - pełny przebieg testów — na żądanie użytkownika albo przed scaleniem; razem z nim
+    idzie test losowych edycji (`testy/losowe.mjs`) — nie po każdej zmianie, tylko przed
+    wrzuceniem na git/scaleniem (ustalone z użytkownikiem 2026-10-04);
   - pełny przebieg to `bash testy/pelny.sh`: wszystko szybko, a wolno (`PW_WOLNO=1`)
     powtarza tylko suity z błędem i mówi, czy to prawdziwy błąd, czy fałszywy
     alarm z czekania (ten poprawia się w `testy/pw.mjs`, nie w aplikacji);
