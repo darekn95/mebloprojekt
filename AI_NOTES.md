@@ -682,3 +682,18 @@ Zabudowa/rogi/kolizje/blaty tylko w obrebie pomieszczenia (`drawableRuns`,
 uwagi pomieszczenia + licznik bledow w innych, PDF z rozdzialami na pomieszczenia
 i zbiorczym zamowieniem, nowa suita, migracja starych projektow. Nazwa w UI:
 „Pomieszczenie” („Zabudowa” zajeta przez widok).
+
+[AI-INFO] Analiza brakow kontroli (2026-10-04). Wczesniejsze audyty sprawdzaly
+konstrukcje i wnetrza osobno, na szafkach wpisanych recznie z wiencem i dnem —
+bledy wychodzily na skrzyzowaniach (szuflady pod blatem bez wienca, wspornik pod
+wzmocnieniem, NL przy plecach z plyty, klapa bez wienca). Stad dwa nowe audyty:
+`audytmacierz` (konstrukcja × wnetrze × skrajne wymiary) i `audytzabudowa`
+(kuchnia skladana przyciskami, tak jak robi to uzytkownik). Zasada na przyszlosc:
+nowa konstrukcja albo nowy rodzaj wnetrza = nowy wiersz w `KONSTRUKCJE`/`WNETRZA`
+w `audytmacierz.mjs`, a nie osobny test na jednej szafce. Oczekiwane bledy (np.
+klapa w dol bez dna) idą do mapy `OCZEKIWANE`, nie do wyjatkow w sprawdzeniach.
+Pomocnik `symwysuw.mjs` wymaga kolorow rol plyt (K/F/P) — bez nich nie odrozni
+frontu od korpusu i zwraca 0 szuflad (patrz `audytzabudowa`, ustawianie `mat`).
+[AI-TODO] Szafka w L z kreatora zostaje przy glebokosci szablonu, a pierwsza
+sciana z „+ szafka” ma 500 — pytanie do uzytkownika o domyslna glebokosc szafki
+pod blatem (500 vs 560) i blat roboczy 38 mm na bokach (czy H obejmuje blat).
