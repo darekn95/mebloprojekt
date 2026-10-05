@@ -187,7 +187,10 @@ const scenariusz = async (tytul, cabLubProjekt, { spr = {} } = {}) => {
     const bokL = pPlan.filter((r) => r.panel === 'Bok lewy');
     const d0 = dolPlyty('Bok lewy');
     const ys = bokL.flatMap((r) => r.ys).sort((a, c) => a - c);
-    const zBryly = metal.filter((q) => q.p[0] < W / 2).map((q) => Math.round(q.p[1] - d0)).sort((a, c) => a - c);
+    /* prowadnica = dol prowadnicy; bok metalowy stoi na niej (min. front − bok:
+       13–15 mm wyzej, folder V-BOX str. 6, decyzja uzytkownika 2026-10-05) */
+    const NAD = { 80: 15, 95: 15, 127: 15, 178: 14, 210: 13, 238: 15 };
+    const zBryly = metal.filter((q) => q.p[0] < W / 2).map((q) => Math.round(q.p[1] - d0 - (NAD[Math.round(q.p[4] - q.p[1])] ?? 0))).sort((a, c) => a - c);
     ok('prowadnice na wysokości dołu skrzynek z bryły', JSON.stringify(ys) === JSON.stringify(zBryly), `plan ${ys.join(',')} / bryła ${zBryly.join(',')}`);
     const OTW = { 250: '37, 133', 270: '37, 133', 300: '37, 165', 350: '37, 165', 400: '37, 229', 450: '37, 261', 500: '37, 261', 550: '37, 261', 600: '37, 261, 389' };
     const zle = pPlan.filter((r) => { const nl = Number((r.note.match(/NL (\d+)/) || [])[1]); const sb = Number((r.note.match(/cofnięta o (\d+)/) || [])[1] || 0);

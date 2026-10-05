@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-05 | skrzynka V-BOX w pionie (zgłoszenie użytkownika: „tył nie może schodzić poniżej dna”; analiza folderu) | bok rysowany i liczony od samego dołu prowadnicy, dno 12–30 mm, tył od 10 mm (2 mm pod spodem dna); kontrola miejsca nad szufladą o 13–15 mm za łagodna. Teraz wg tabeli z folderu: dół prowadnicy → góra boku = min. front nakładany, bok 13–15 mm nad prowadnicą, spód dna = spód tyłu; bryła, rysunek z boku i z przodu, auto bok, błąd „skrzynka z bokiem X potrzebuje Y mm od dołu prowadnicy” z przyciskiem niższego boku | (ten commit) |
 | 2026-10-05 | widok z przodu — wysokość z blatem (prośba użytkownika) | wymiar 820 nie liczył blatu ciągu; dodany drugi wymiar „858 z blatem” | (ten commit) |
 | 2026-10-04 | widoki samej szafki — blat (zgłoszenie użytkownika) | szafka pod blatem roboczym ciągu nie miała blatu w żadnym widoku samej szafki (przód, bok, tył, 3D — tylko „z góry”). Teraz `blatNadSzafka` (z grubością) idzie do wszystkich widoków; audyt 2D ma scenariusze szafki pod blatem w ciągu i sprawdza blat w 3D. Nie wyszło wcześniej, bo audyt 2D sprawdzał tylko szafki wolnostojące z wieńcem | (ten commit) |
 | 2026-10-04 | widok z boku — szczeliny frontów (zgłoszenie użytkownika) | fronty z boku i z góry rysowały się jednym pasem na poziom/kolumnę — szczelin między szufladami i drzwiami nie było. Teraz każdy front osobno, łączone tylko tam, gdzie się stykają. Audyt 2D miał tolerancję „pas frontów ze szczelinami do 4 mm” — zdjęta (pas tylko przy styku ≤ 0,5 mm) | (ten commit) |
@@ -113,18 +114,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-- **Skrzynka V-BOX w pionie: tył, dno i bok względem prowadnicy** (2026-10-04,
-  zgłoszenie: „tył nie może schodzić poniżej dna”). Teraz: bok od dołu prowadnicy
-  (`rail.y0`) na `hClass`, dno 12–30 mm nad nim, tył od `tylOd` (bok − tył, 9–10 mm)
-  do góry boku — tył schodzi 20 mm poniżej wierzchu dna. Stała `RAIL_TO_BOTTOM` = 26
-  (legenda planu wierceń: wierzch dna 44 mm nad prowadnicą) nie zgadza się z bryłą.
-  Folder (str. 6): „min. 44 / 33” to otwory prowadnicy w boku szafki; „min. 95 / 110 /
-  142 / 192 / 223 / 253” to minimalne wysokości frontu (te same co w „Wymiarach
-  montażowych frontu”, już w `VBOX.minFront`). Dno NL − 24 kończy się na przedniej
-  płaszczyźnie tyłu (6 + NL − 24 + 18 = NL), więc tył nie stoi na dnie; tył ma górę
-  równo z bokiem, dół 9–10 mm nad dołem boku. Wysokości dna folder nie podaje —
-  pytanie do użytkownika (propozycja: spód dna równo z dołem tyłu).
-
 - **Przycinanie albo zawieszanie po zmianach — pierwszy podejrzany: automatyczny
   rozkrój** (2026-09-29). Liczy się sam 1 s po zmianie formatek (powyżej 40 szafek
   — 5 s). Pomiar: 40 szafek niezauważalnie, 100 szafek jedno przytrzymanie ok.
@@ -147,6 +136,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   jednym podnośniku, cena 10 zł, gęstość 680) już wprowadzone. Braki spisane w `AI_NOTES.md` ([AI-TODO] Klapy).
 
 ## Ustalone — nie ruszać
+
+- **Skrzynka V-BOX w pionie** (2026-10-05, wg tabeli z folderu): od dołu prowadnicy do góry boku = min. front nakładany (95/110/142/192/223/253), bok zaczyna się 13–15 mm nad prowadnicą, tył ma górę równo z bokiem, spód dna = spód tyłu (tył nie schodzi poniżej dna), dno NL−24 kończy się na tyle. Rysunki w folderze poza otworami frontu są schematyczne — nie mierzyć z nich milimetrów.
 
 - **Wysokość H** (2026-10-04): H to wysokość szafki razem z górną płytą — z wieńcem 18 i tak samo z blatem roboczym 38 położonym na bokach (boki krótsze o grubość blatu). Blat ciągu (szafki pod blatem, bez wieńca) leży nad H.
 - **Wspornik pionowy pod blatem** (2026-10-04): bez płyty nad sobą — na trójkątach meblowych: 1 do dna i do fixa co ok. 300 mm, min. 2.

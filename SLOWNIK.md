@@ -245,7 +245,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `armKorpus(a)` | głębokość korpusu ramienia szafki w L: głębokość sąsiada od ściany bez pleców ramienia (bok, dno ramienia) |
 | `c.shFront`, `c.shD` | półka przy wsporniku pionowym fixu: o ile zaczyna się dalej od lica (za wspornikiem) i jej głębokość; formatki grupują półki po `shW|shD` |
 | pusty ciąg (`runFrontDepth`) | bez szafek: `run.D` + domyślne plecy HDF + odstęp od ściany — ramię szafki w L stoi tak daleko od ściany jak szafki obok |
-| `skrzynkaBryly(d, t, zFront)` | skrzynka szuflady w 3D po otwarciu (boki metalowe, dno, tył) z `dr.skrzynka` (te same wymiary co formatki); na widoku z boku kontur `data-el="skrzynka"` |
+| `skrzynkaBryly(d, t, zFront)` | skrzynka szuflady w 3D (boki metalowe od `bokOd`, dno i tył od `tylOd` nad dołem prowadnicy) z `dr.skrzynka` (te same wymiary co formatki); zaczyna się tuż za frontem; na widoku z boku kontur `data-el="skrzynka"` |
 | `okuciaSzafki(geo, { bezListwy, arm, wstawki })` | okucia jednej szafki — ekran i PDF: bez listwy wspólnej ciągu, z okuciami ramienia szafki w L i wstawki (jak `formatkiSzafki`) |
 | wymiar „N z wstawką” | rzut z góry ciągu/zabudowy: wstawka jako odcinek w łańcuchu wymiarów i wymiar całości z nią (`data-el="wymiar-wstawki"`) |
 | `wstawkiSzafki(wstawki, geo)` | wstawka w rogu w układzie samej szafki (lewy bok, gdy szafka zaczyna ciąg od rogu, inaczej prawy) — dla `FrontView`, `TopView`, `SideView` (bok od strony wstawki), `RearView`, `Scene3D` i arkusza PDF; `data-el="wstawka"` |
@@ -302,7 +302,7 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `HINGE_PLAY` | 2 | luz między korpusem a drzwiami przy zawiasach — tylko do głębokości blatu, nie do rysunków |
 | `SCIANA_GR` / `ScianaDefs` | 100 | ściana na rysunkach: pas 100 mm z szarym kreskowaniem (`url(#sciana-kreski)`) — rzut z góry (z nazwą ściany i ciągu górnego) i widok z boku; zasięg w rzucie liczy `scianaZasieg` (róg: do narożnika muru, wolny koniec: koniec ciągu albo „Długość ściany”); przełącznik „Ukryj / Pokaż ścianę” (`showWall`) |
 | `BACK_CLEAR` | 20 | luz nad podniesionym tyłem szuflady (tylko podniesionym — zwykły tył ma górę równo z bokami i mieści się tam, gdzie skrzynka). Sufit nad najwyższą szufladą: góra światła albo płaskie wzmocnienie przy licu (szafka pod blatem); boki skrzynki muszą się pod nim zmieścić (błąd z przyciskiem `fixh`). Brak miejsca na podniesienie → ostrzeżenie z przyciskami `fixh` (niższy bok, gdy da wyższy tył) i `tylstd` („Wyłącz podniesiony tył”) |
-| `VBOX` | — | dane katalogowe Sevroll V-BOX 3D Slim, **dla płyty 18 mm** (instrukcja: `instrukcje/Folder-Szuflada-V-BOX-18mm-online.pdf`); tył od `tylOd` = bok − tył nad dołem boku |
+| `VBOX` | — | dane katalogowe Sevroll V-BOX 3D Slim, **dla płyty 18 mm** (instrukcja: `instrukcje/Folder-Szuflada-V-BOX-18mm-online.pdf`). Pion skrzynki od dołu prowadnicy (2026-10-05): `vboxGora(bok)` = min. front nakładany (do góry boku), `vboxOdProw(bok)` = dół boku (13–15), `vboxDno(bok)` = spód dna i tyłu (23–24); kontrola miejsca nad szufladą i auto bok liczą `rail.y0 + vboxGora` |
 
 Rozstawy okuć (wzorzec `max(2, ceil(długość / skok))`): konfirmat co 200 mm,
 wkręt 4 × 30 do kątownika co 200 mm, trójkąt pod cokołem co 300 mm, trójkąt

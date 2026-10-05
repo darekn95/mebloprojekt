@@ -191,8 +191,9 @@ if (ile) {
   await przycisk.first().click(); await page.waitForTimeout(1600);   // zapis do przegladarki z opoznieniem
   r = await czytaj();
   const st = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
+  // przycisk stoi przy „Podniesiony tył potrzebuje…” albo „front … za niski na podniesiony tył” — liczymy przyciski
   ok('po kliknięciu tył zwykły i jedna uwaga mniej',
-    st.items[0].cab.levels[0].cols[0].drawers.filter((d) => !d.tallBack).length === 1 && (r.uwagi.match(/Podniesiony tył potrzebuje/g) || []).length === ile - 1,
+    st.items[0].cab.levels[0].cols[0].drawers.filter((d) => !d.tallBack).length === 1 && (await przycisk.count()) === ile - 1,
     JSON.stringify(st.items[0].cab.levels[0].cols[0].drawers.map((d) => d.tallBack)));
 }
 
@@ -215,7 +216,8 @@ let uw = await proba('NL 550 w górnej szufladzie → skrzynka we wzmocnieniu pr
 ok('… i aplikacja zgłasza to z przyciskiem NL 500', /wjeżdża tyłem skrzynki we wzmocnienie[^\n]*\n?.*Zmień głębokość prowadnic do NL 500/s.test(uw), (uw.match(/[^\n]*wjeżdża[^\n]*/) || ['(brak)'])[0].slice(0, 160));
 // gorny front 255 (min. dla boku 238 to 253): bok konczy sie na 705, a wzmocnienie zaczyna na 702
 uw = await proba('bok 238 w górnej szufladzie → skrzynka we wzmocnieniu pod blatem', (d) => { d[2].h = 238; d[0].front = 228; d[1].front = 227; }, /szuflada 3: bok skrzynki × korpus/);
-ok('… i aplikacja zgłasza to z przyciskiem niższego boku', /boki skrzynki 238 mm nie zmieszczą się[^\n]*Zmień bok szuflady na 210/.test(uw.replace(/\n/g, ' ')), (uw.match(/[^\n]*boki skrzynki[^\n]*/) || ['(brak)'])[0].slice(0, 160));
+// od 2026-10-05 skrzynka liczona od dolu prowadnicy: bok 238 potrzebuje 253 mm (min. front z instrukcji)
+ok('… i aplikacja zgłasza to z przyciskiem niższego boku', /skrzynka z bokiem 238 mm potrzebuje 253 mm od dołu prowadnicy[^\n]*Zmień bok szuflady na 210/.test(uw.replace(/\n/g, ' ')), (uw.match(/[^\n]*skrzynka z bokiem[^\n]*/) || ['(brak)'])[0].slice(0, 200));
 
 /* Drzwi wpuszczane pod blatem: tez nie wchodza w plaskie wzmocnienie przy licu. */
 console.log('\n== drzwi wpuszczane pod blatem ==');

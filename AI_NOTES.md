@@ -712,3 +712,11 @@ w widoku szafki, zlane fronty z boku, wysuw, tył szuflady). Wnioski:
   (HDF we frezie × pod blatem) — przy nowej opcji dopisz ją do `ZMIANY` w `losowe.mjs`.
 [AI-TODO] Geometria skrzynki V-BOX w pionie (dno, tył, bok względem prowadnicy) —
 czeka na decyzję użytkownika (BLEDY.md „Do decyzji”).
+
+[AI-INFO] Skrzynka V-BOX w pionie (2026-10-05). Rysunki w folderze V-BOX są
+schematyczne: pomiar wektorów dał 22,5–32,5 mm dla tej samej wielkości — nie mierz
+z nich. W skali są tylko otwory frontu (32 / 47,5) na rysunku „Front do szuflady
+80 mm” i tam góra boku wypada 95 mm nad dołem prowadnicy = min. front. Stąd
+`vboxGora/vboxOdProw/vboxDno` liczone z tabel `VBOX.minFront.overlay` i `VBOX.backH`.
+Użytkownik sam zwrócił uwagę, że bok stoi na górnej części prowadnicy — przy
+wątpliwościach co do okuć pytaj o pomiar prawdziwej szuflady.

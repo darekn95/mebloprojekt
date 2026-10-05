@@ -417,6 +417,17 @@ const VBOX = {
   nl: [250, 270, 300, 350, 400, 450, 500, 550, 600],
 };
 
+/* Skrzynka V-BOX w pionie, od dolu prowadnicy (decyzja uzytkownika 2026-10-05, wg
+   tabeli z folderu, str. 6): bok stoi na gornej czesci prowadnicy, nie przy jej
+   dole. Od dolu prowadnicy do gory boku jest tyle, co minimalny front nakladany
+   (95 / 110 / 142 / 192 / 223 / 253) — na rysunku „Front do szuflady 80 mm” gora
+   boku wypada dokladnie 95 mm nad dolem prowadnicy. Wiec bok zaczyna sie
+   13–15 mm nad nia. Tyl ma gore rowno z bokiem, a spod dna jest rowno ze spodem
+   tylu (tyl zakrywa czolo dna i nie schodzi ponizej — uzytkownik 2026-10-04). */
+const vboxGora = (hc) => VBOX.minFront.overlay[hc] ?? hc + 15;   // dol prowadnicy → gora boku
+const vboxOdProw = (hc) => vboxGora(hc) - hc;                     // dol prowadnicy → dol boku
+const vboxDno = (hc) => vboxGora(hc) - (VBOX.backH[hc] ?? hc - 9); // dol prowadnicy → spod dna i tylu
+
 /* polska odmiana liczebnikow: 1 blad, 2-4 bledy, 5+ bledow (12-14 tez bledow) */
 const plural = (n, one, few, many) => {
   const a = Math.abs(n) % 100;
@@ -508,9 +519,6 @@ function autoHinges(h, w) {
 const DRAW_MAX_H = "min(180vh, 2000px)";
 
 const RUNNER_W = 21; // szerokosc prowadnicy przy boku
-/* Od spodu prowadnicy do spodu dna skrzynki — wymiar okucia, niezalezny od
-   wysokosci boku szuflady. Nad nim lezy jeszcze grubosc samego dna. */
-const RAIL_TO_BOTTOM = 26;
 /* Luz nad podniesionym tylem szuflady — tyl nie moze siegac dokladnie do frontu
    wyzej ani do wienca, bo bedzie o nie zawadzal przy wysuwaniu. */
 const BACK_CLEAR = 20;
@@ -2648,7 +2656,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         let hClass;
         let wyzszyBok = null;
         if (d.h === "auto" || d.h == null) {
-          const wchodzi = [...VBOX.heights].filter((hc) => VBOX.minFront[dMode][hc] <= fh && railY0 + hc <= sufitPrzod).pop();
+          const wchodzi = [...VBOX.heights].filter((hc) => VBOX.minFront[dMode][hc] <= fh && railY0 + vboxGora(hc) <= sufitPrzod).pop();
           hClass = wchodzi || fitH || VBOX.heights[0];
         } else {
           hClass = VBOX.heights.includes(Number(d.h)) ? Number(d.h) : 127;
@@ -2660,7 +2668,7 @@ function computeGeoLiczy(cab, mat, ctx) {
            w nie tylem (audyt szuflad 2026-10-04). Automatyczna NL bierze
            najdluzsza, ktora przed nim sie konczy (4 mm luzu, jak przy innych
            przeszkodach z tylu). */
-        const zaSkrzynka = (c.rails || []).filter((r) => r.z0 > 0 && r.y0 < railY0 + hClass && r.y1 > railY0
+        const zaSkrzynka = (c.rails || []).filter((r) => r.z0 > 0 && r.y0 < railY0 + vboxGora(hClass) && r.y1 > railY0
           && r.x1 > dsx0 && r.x0 < dsx1);
         const limTyl = zaSkrzynka.length ? Math.min(...zaSkrzynka.map((r) => r.z0)) : null;
         const nlTyl = limTyl === null ? null
@@ -2767,8 +2775,10 @@ function computeGeoLiczy(cab, mat, ctx) {
            „Wymiary montazowe scianki tylnej”): standardowy tyl ma gore rowno
            z gora boku, a dol `tylOd` nad dolem boku; dno dochodzi do niego.
            Podniesiony tyl rosnie od tego samego dolu. */
-        const tylOd = hClass - stdBack;
+        // od dolu prowadnicy: spod tylu = spod dna (gora tylu = gora boku)
+        const tylOd = vboxDno(hClass);
         const tylY0 = railY0 + tylOd;
+        const goraBoku = railY0 + vboxGora(hClass);
         /* Podniesiony tyl jedzie razem ze skrzynka i musi przejsc pod tym, co
            jest nad szuflada — frontem wyzej albo gora swiatla poziomu — a do
            tego zostawic luz, zeby o nic nie zawadzal. */
@@ -2788,8 +2798,8 @@ function computeGeoLiczy(cab, mat, ctx) {
         const maxBack = Math.max(0, Math.round(ceilY - tylY0) - BACK_CLEAR);
         /* Najwyzszy bok, przy ktorym skrzynka (i podniesiony tyl, jesli jest)
            zmiesci sie pod tym, co wyzej — do przycisku „zmniejsz bok”. */
-        const miesciSie = (hc) => railY0 + hc <= ceilY
-          && (!d.tallBack || VBOX.backH[hc] <= Math.round(ceilY - (railY0 + hc - VBOX.backH[hc])) - BACK_CLEAR)
+        const miesciSie = (hc) => railY0 + vboxGora(hc) <= ceilY
+          && (!d.tallBack || VBOX.backH[hc] <= Math.round(ceilY - (railY0 + vboxDno(hc))) - BACK_CLEAR)
           && VBOX.minFront[dMode][hc] <= fh;
         const nizszyBok = [...VBOX.heights].filter((hc) => hc < hClass && miesciSie(hc)).pop();
         // bok wybrany recznie, a front uniesie wyzszy — podpowiadamy tylko taki, ktory sie zmiesci
@@ -2800,9 +2810,9 @@ function computeGeoLiczy(cab, mat, ctx) {
         }
         /* Boki skrzynki jada razem z nia — gdy sa wyzsze niz miejsce pod tym,
            co wyzej, szuflada sie nie wsunie. Wczesniej tego nie sprawdzalismy. */
-        if (railY0 + hClass > ceilY)
+        if (goraBoku > ceilY)
           add("error",
-            `${where}, szuflada ${i + 1}: boki skrzynki ${hClass} mm nie zmieszczą się pod tym, co jest wyżej (${coNad}) — mieści się ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
+            `${where}, szuflada ${i + 1}: skrzynka z bokiem ${hClass} mm potrzebuje ${vboxGora(hClass)} mm od dołu prowadnicy (bok stoi ${vboxOdProw(hClass)} mm nad nim), a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
             + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : ""));
         /* Tyl nigdy wyzej niz gorna krawedz frontu tej szuflady, a najlepiej
            nizej (uzytkownik 2026-09-28) — domyslny podniesiony tyl konczy sie
@@ -2839,20 +2849,20 @@ function computeGeoLiczy(cab, mat, ctx) {
           /* Standardowy tyl ma gore rowno z bokami — miesci sie tam, gdzie
              skrzynka (to pilnuje kontrola bokow). Luz BACK_CLEAR dotyczy tylko
              tylu podniesionego ponad boki. */
-          if (!zaNiskiFront && railY0 + hClass <= ceilY && maxBack < stdBack) {
+          if (!zaNiskiFront && goraBoku <= ceilY && maxBack < stdBack) {
             /* Nad bokami nie ma miejsca na podniesienie — sam tyl nie pomoze.
                Przyciski: nizszy bok (tyl podniesie sie nad niego) albo zwykly
                tyl (uzytkownik 2026-10-04: „miał być przycisk, który zmniejsza
                wysokość i tył”). */
             const tylPrzy = (hc) => {
-              const od = railY0 + hc - VBOX.backH[hc];
+              const od = railY0 + vboxDno(hc);
               const mb = Math.max(0, Math.round(ceilY - od) - BACK_CLEAR);
               return Math.max(VBOX.backH[hc], Math.min(Math.max(0, Math.round(y + fh - od)) - BACK_CLEAR, mb));
             };
             // nizszy bok ma sens tylko wtedy, gdy podniesiony tyl wyjdzie wyzszy niz zwykly teraz
             const warto = nizszyBok && tylPrzy(nizszyBok) > stdBack;
             add("warn",
-              `${where}, szuflada ${i + 1}: skrzynka się mieści — nad bokami ${hClass} mm zostaje ${fmt(Math.round(ceilY - railY0 - hClass))} mm do tego, co wyżej (${coNad}). `
+              `${where}, szuflada ${i + 1}: skrzynka się mieści — nad bokami ${hClass} mm zostaje ${fmt(Math.round(ceilY - goraBoku))} mm do tego, co wyżej (${coNad}). `
               + `Podniesiony tył potrzebuje nad sobą ${BACK_CLEAR} mm luzu, więc nie ma go gdzie podnieść — zostaje zwykły tył ${stdBack} mm, z górą równo z bokami. `
               + (warto ? `Zmniejsz bok skrzynki do ${nizszyBok} mm (tył podniesie się do ${fmt(tylPrzy(nizszyBok))} mm) albo wyłącz podniesiony tył.`
                 : `Wyłącz podniesiony tył — wyżej się tu nie da, a niższy bok dałby niższy tył.`)
@@ -2866,7 +2876,8 @@ function computeGeoLiczy(cab, mat, ctx) {
         }
         if (nl !== null && LW > 0) {
           // skrzynka do rysunku — te same wymiary co formatki dna i tylu
-          dr.skrzynka = { LW, nl, bok: hClass, dno: [LW - 75, nl - 24], tyl: [LW - 87, backH], tylOd };
+          // bokOd / tylOd — od dolu prowadnicy (dol boku; spod dna = spod tylu)
+          dr.skrzynka = { LW, nl, bok: hClass, dno: [LW - 75, nl - 24], tyl: [LW - 87, backH], tylOd, bokOd: vboxOdProw(hClass) };
           drawerParts.push({ kind: "front", a: fh, b: dsx1 - dsx0 });
           drawerParts.push({ kind: "dno", a: LW - 75, b: nl - 24 });
           drawerParts.push({ kind: "tyl", a: LW - 87, b: backH });
@@ -5340,7 +5351,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
               c.drawers.flatMap((dr) =>
                 [c.x0, c.x1 - RUNNER_W].map((rx, si) => (
                   <rect key={`rn${lv.i}-${c.j}-${dr.i}-${si}`}
-                    x={mx(rx, RUNNER_W)} y={fy(dr.rail.y0 + dr.rail.h)} width={RUNNER_W} height={dr.rail.h}
+                    x={mx(rx, RUNNER_W)} y={fy(dr.rail.y0 + vboxGora(dr.rail.h))} width={RUNNER_W} height={vboxGora(dr.rail.h)}
                     fill="#8b8b93" stroke={INK} strokeWidth="1.5" />
                 ))
               )
@@ -7494,7 +7505,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {drawerLegend && (
         <text x={W / 2} y={belowY + (hasBase ? 160 : 150) + (pinLegend ? 34 : 0)}
           textAnchor="middle" fontSize="19" fill={DIMC} fontFamily="ui-monospace, monospace">
-          od dna — górne lico dna szuflady, {RAIL_TO_BOTTOM} + {fmt(geo.ts)} mm nad prowadnicą
+          od dna — górne lico dna szuflady, 23–24 mm (spód dna) + {fmt(geo.ts)} mm nad dołem prowadnicy
         </text>
       )}
 
@@ -7953,7 +7964,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             .flatMap((c) => {
               const ds = [...c.drawers].sort((a, b) => a.y - b.y);
               return ds.map((dr, i) => {
-                const bottom = dr.rail.y0 + RAIL_TO_BOTTOM + geo.ts;
+                const bottom = dr.rail.y0 + vboxDno(dr.hClass) + geo.ts;
                 const top = i + 1 < ds.length ? ds[i + 1].y : lv.y1;
                 const val = Math.round(top - bottom);
                 if (val < 30) return null;
@@ -7975,7 +7986,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               c.drawers.flatMap((dr) =>
                 [c.x0, c.x1 - RUNNER_W].map((rx, s) => (
                   <rect key={`rn${lv.i}-${c.j}-${dr.i}-${s}`}
-                    x={rx} y={fy(dr.rail.y0 + dr.rail.h)} width={RUNNER_W} height={dr.rail.h}
+                    x={rx} y={fy(dr.rail.y0 + vboxGora(dr.rail.h))} width={RUNNER_W} height={vboxGora(dr.rail.h)}
                     fill="#8b8b93" stroke={INK} strokeWidth="1.5" />
                 ))
               )
@@ -9041,18 +9052,20 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
           .map((dr) => {
             const sk = dr.skrzynka;
             const x0 = D - (dr.rail.setback || 0) - sk.nl;
-            const dnoY = dr.rail.y0 + 12;
+            // od dolu prowadnicy: bok od `bokOd`, spod dna i tylu od `tylOd` (vboxDno)
             const tylOd = sk.tylOd || 0;
-            const hS = Math.max(sk.bok, tylOd + sk.tyl[1]);
+            const bokY = dr.rail.y0 + (sk.bokOd ?? 0);
+            const dnoY = dr.rail.y0 + tylOd;
+            const gora = Math.max(bokY + sk.bok, dnoY + sk.tyl[1]);
             return (
               <g key={`skr${lv.i}-${j}-${dr.i}`} data-el="skrzynka">
-                <rect x={x0} y={fy(dr.rail.y0 + hS)} width={sk.nl} height={hS}
+                <rect x={x0} y={fy(gora)} width={sk.nl} height={gora - bokY}
                   fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="10 6" opacity="0.6" />
                 <rect x={x0 + 2 + geo.t} y={fy(dnoY + geo.t)} width={sk.dno[1]} height={geo.t}
                   fill={shc} stroke={INK} strokeWidth="1" opacity="0.7" />
                 {/* tyl szuflady na koncu bokow od strony plecow korpusu (x0), od
                     `tylOd` nad dolem boku — dno dochodzi do niego (instrukcja V-BOX) */}
-                <rect x={x0 + 2} y={fy(dr.rail.y0 + tylOd + sk.tyl[1])} width={geo.t} height={sk.tyl[1]}
+                <rect x={x0 + 2} y={fy(dnoY + sk.tyl[1])} width={geo.t} height={sk.tyl[1]}
                   fill={shc} stroke={INK} strokeWidth="1" opacity="0.7" />
               </g>
             );
@@ -9072,10 +9085,10 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
               const rx0 = D - (dr.rail.setback || 0) - dr.rail.d;
               out.push(
                 <g key={`srn${k}`}>
-                  <rect x={rx0} y={fy(dr.rail.y0 + dr.rail.h)}
-                    width={dr.rail.d} height={dr.rail.h}
+                  <rect x={rx0} y={fy(dr.rail.y0 + vboxGora(dr.rail.h))}
+                    width={dr.rail.d} height={vboxGora(dr.rail.h)}
                     fill="#8b8b93" fillOpacity="0.45" stroke={INK} strokeWidth="1.5" />
-                  <text x={rx0 + 12} y={fy(dr.rail.y0 + dr.rail.h / 2) + 6}
+                  <text x={rx0 + 12} y={fy(dr.rail.y0 + vboxGora(dr.rail.h) / 2) + 6}
                     fontSize="18" fill={INK} opacity="0.75" fontFamily="ui-monospace, monospace">
                     prowadnica NL {fmt(dr.rail.d)} / bok {fmt(dr.rail.h)}
                   </text>
@@ -9253,13 +9266,14 @@ const skrzynkaBryly = (d, t, zFront) => {
      w korpusie — doliczane drugi raz wpychalo skrzynke 18 mm za gleboko
      (audyt 2D, szuflady wpuszczane, 2026-10-04). */
   const z0 = zFront, z1 = z0 + sk.nl;
-  const bokW = 13;          // bok metalowy V-BOX, stoi na prowadnicy przy boku korpusu
-  const dnoY = y0 + 12;     // dno wpuszczone w bok nad szyna
+  const bokW = 13;          // bok metalowy V-BOX, stoi na gornej czesci prowadnicy
+  const bokY = y0 + (sk.bokOd ?? 0);          // dol boku nad dolem prowadnicy
+  const dnoY = y0 + (sk.tylOd || 0);          // spod dna = spod tylu (tyl zakrywa czolo dna)
   const xm = (x0 + x1) / 2;
   const [dA, dB] = sk.dno, [tA, tH] = sk.tyl;
   return [
-    [x0 + 4, y0, z0, x0 + 4 + bokW, y0 + sk.bok, z1 - 2, "metal"],
-    [x1 - 4 - bokW, y0, z0, x1 - 4, y0 + sk.bok, z1 - 2, "metal"],
+    [x0 + 4, bokY, z0, x0 + 4 + bokW, bokY + sk.bok, z1 - 2, "metal"],
+    [x1 - 4 - bokW, bokY, z0, x1 - 4, bokY + sk.bok, z1 - 2, "metal"],
     /* Wg instrukcji V-BOX: tyl na koncu bokow, od `tylOd` nad dolem boku
        (standardowy konczy sie rowno z gora boku), dno dochodzi do tylu. Wczesniej
        tyl stal na dnie i przy gornej szufladzie wchodzil w wieniec. */
