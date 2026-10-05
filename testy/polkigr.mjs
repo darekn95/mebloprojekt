@@ -59,9 +59,9 @@ let d = await dims();
 ok('światła dzielone grubością korpusu', d.includes('183') && d.includes('182'),
   d.filter((x) => /^1[78][0-9]$/.test(x)).join(', '));
 ok('półki rysowane grubością 18', (await shelfRects()).every((h) => h === 18), (await shelfRects()).join(', '));
-// szyna dolna 0: 118 + 26 + 18 = 162, sufit 412 -> 250
+// szyna dolna 0: 118 + 23 (spód dna nad prowadnicą, V-BOX 2026-10-05) + 18 = 159, sufit 412 -> 253
 // gorna szyna to front + 5 (nie 15), czyli 417 + 44 = 461, sufit 702 -> 241
-ok('światło szuflad 250 / 241', d.includes('250 od dna') && d.includes('241 od dna'),
+ok('światło szuflad 253 / 244', d.includes('253 od dna') && d.includes('244 od dna'),
   d.filter((x) => /od dna/.test(x)).join(', '));
 let rows = await cutRows();
 ok('dno szuflady z płyty korpusu, gdy półki są z korpusu',
@@ -79,15 +79,15 @@ ok('nie zostało światło liczone dla 18 mm', !d.includes('183'), d.filter((x) 
 const rects = await shelfRects();
 ok('półki rysowane grubością 12', rects.length > 0 && rects.every((h) => h === 12), rects.join(', '));
 // dno 12 zamiast 18 -> swiatlo wieksze o 6
-ok('światło szuflad reaguje na grubość dna (256 / 247)',
-  d.includes('256 od dna') && d.includes('247 od dna'),
+ok('światło szuflad reaguje na grubość dna (259 / 250)',
+  d.includes('259 od dna') && d.includes('250 od dna'),
   d.filter((x) => /od dna/.test(x)).join(', '));
 
 // sama liczba nie mowi, od czego jest mierzona — legenda musi to dopowiedziec
 const legenda = (await dims()).find((x) => /^od dna —/.test(x)) || '';
 console.log('     legenda:', legenda);
-ok('legenda tłumaczy bazę światła', /górne lico dna szuflady/.test(legenda) && /nad prowadnicą/.test(legenda), legenda);
-ok('legenda podaje aktualną grubość dna', /26 \+ 12 mm/.test(legenda), legenda);
+ok('legenda tłumaczy bazę światła', /górne lico dna szuflady/.test(legenda) && /nad dołem prowadnicy/.test(legenda), legenda);
+ok('legenda podaje aktualną grubość dna', /23 \+ 12 mm/.test(legenda), legenda);
 
 console.log('\n== formatki dna i tyłu szuflady z płyty półek ==');
 rows = await cutRows();

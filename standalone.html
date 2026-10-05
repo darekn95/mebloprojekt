@@ -7505,7 +7505,11 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {drawerLegend && (
         <text x={W / 2} y={belowY + (hasBase ? 160 : 150) + (pinLegend ? 34 : 0)}
           textAnchor="middle" fontSize="19" fill={DIMC} fontFamily="ui-monospace, monospace">
-          od dna — górne lico dna szuflady, 23–24 mm (spód dna) + {fmt(geo.ts)} mm nad dołem prowadnicy
+          od dna — górne lico dna szuflady, {(() => {
+            // spod dna nad dolem prowadnicy zalezy od boku (vboxDno: 23–24 mm) — piszemy te, ktore sa
+            const w = [...new Set(geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.drawers || []).map((d) => vboxDno(d.hClass)))))].sort((a, b) => a - b);
+            return w.length ? w.map(fmt).join(" / ") : "23";
+          })()} + {fmt(geo.ts)} mm nad dołem prowadnicy
         </text>
       )}
 
