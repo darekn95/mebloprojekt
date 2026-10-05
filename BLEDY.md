@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-05 | widok z przodu — wysokość z blatem (prośba użytkownika) | wymiar 820 nie liczył blatu ciągu; dodany drugi wymiar „858 z blatem” | (ten commit) |
 | 2026-10-04 | widoki samej szafki — blat (zgłoszenie użytkownika) | szafka pod blatem roboczym ciągu nie miała blatu w żadnym widoku samej szafki (przód, bok, tył, 3D — tylko „z góry”). Teraz `blatNadSzafka` (z grubością) idzie do wszystkich widoków; audyt 2D ma scenariusze szafki pod blatem w ciągu i sprawdza blat w 3D. Nie wyszło wcześniej, bo audyt 2D sprawdzał tylko szafki wolnostojące z wieńcem | (ten commit) |
 | 2026-10-04 | widok z boku — szczeliny frontów (zgłoszenie użytkownika) | fronty z boku i z góry rysowały się jednym pasem na poziom/kolumnę — szczelin między szufladami i drzwiami nie było. Teraz każdy front osobno, łączone tylko tam, gdzie się stykają. Audyt 2D miał tolerancję „pas frontów ze szczelinami do 4 mm” — zdjęta (pas tylko przy styku ≤ 0,5 mm) | (ten commit) |
 | 2026-10-04 | widok z boku — wieniec i dno, których nie ma | widok z boku zawsze rysował wieniec i dno (pod blatem roboczym — płyta na całą głębokość, której nie ma); teraz tylko `hasTop`/`hasBot` | (ten commit) |
@@ -118,10 +119,11 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   do góry boku — tył schodzi 20 mm poniżej wierzchu dna. Stała `RAIL_TO_BOTTOM` = 26
   (legenda planu wierceń: wierzch dna 44 mm nad prowadnicą) nie zgadza się z bryłą.
   Folder (str. 6): „min. 44 / 33” to otwory prowadnicy w boku szafki; „min. 95 / 110 /
-  142 / 192 / 223 / 253” — potrzebne światło nad dnem szafki dla boków 80–238 (bok +
-  ok. 15 mm), a sprawdzamy tylko `rail.y0 + bok`. Pytanie do użytkownika: gdzie leży
-  dno skrzynki i czy tył stoi na dnie; od odpowiedzi zależy bryła, rysunek z boku
-  i kontrola miejsca nad szufladą.
+  142 / 192 / 223 / 253” to minimalne wysokości frontu (te same co w „Wymiarach
+  montażowych frontu”, już w `VBOX.minFront`). Dno NL − 24 kończy się na przedniej
+  płaszczyźnie tyłu (6 + NL − 24 + 18 = NL), więc tył nie stoi na dnie; tył ma górę
+  równo z bokiem, dół 9–10 mm nad dołem boku. Wysokości dna folder nie podaje —
+  pytanie do użytkownika (propozycja: spód dna równo z dołem tyłu).
 
 - **Przycinanie albo zawieszanie po zmianach — pierwszy podejrzany: automatyczny
   rozkrój** (2026-09-29). Liczy się sam 1 s po zmianie formatek (powyżej 40 szafek

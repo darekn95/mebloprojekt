@@ -33,6 +33,9 @@
   „Wyślij do Claude” (tylko tam — nie na GitHub Pages ani w standalone).
   Odczyt: `ArtifactData`, dokument `projekt/biezacy`, pole `json`. Trzymaj go
   w scratchpadzie; do repozytorium tylko za zgodą użytkownika.
+  **Każdy wysłany projekt przepuść przez audyt** (ustalone 2026-10-04):
+  `PROJEKT=<plik ze scratchpadu> node testy/audytprojektu.mjs` — uwagi, nachodzenie,
+  formatki ↔ bryła, wysuw szuflad, zabudowa; wynik opisz użytkownikowi.
 - **Komentarze w artefakcie** (ustalone z użytkownikiem 2026-09-29): komentarz
   wysłany do Claude z artefaktu **nie jest realizowany od razu** — tylko krótko
   potwierdź przyjęcie. Wszystkie zebrane komentarze realizuj dopiero na polecenie

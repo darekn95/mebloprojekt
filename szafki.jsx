@@ -7141,6 +7141,11 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const dimDrawerX = hasDrawerDims ? takeR(90) : rxCur; // wysokosci frontow szuflad
   const dimHMainX = takeL(100);
   const dimHTotalX = hasBaseDim ? takeL(100) : dimHMainX;
+  // wysokosc razem z blatem ciagu nad szafka (uzytkownik 2026-10-04) — najdalej z lewej
+  const zBlatem = showDims && blat && blat.roboczy && blat.th > 0;
+  // podstawa pod korpusem (cokol pod spodem albo nozki) — bez marginesow na opisy
+  const podstawaH = Math.max(geo.legBelow, cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0);
+  const dimBlatX = zBlatem ? takeL(100) : null;
   const leftExtra = Math.max(0, baseL - lxCur - 40);
   // "nóżki 100" to szeroki opis — rezerwujemy mu miejsce po prawej
   const rightExtraF = Math.max(0, rxCur - baseR - 26) + (hasBase ? 140 : 0);
@@ -7798,6 +7803,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             );
           })()}
           <DimV y1={0} y2={H} x={dimHMainX} label={`${fmt(H)}`} />
+          {zBlatem && (
+            <DimV y1={-blat.th} y2={H + podstawaH} x={dimBlatX}
+              label={`${fmt(H + podstawaH + blat.th)} z blatem`} c={LINE} />
+          )}
           {showSideLengthDims && (
             <>
               <DimV y1={leftTopY} y2={leftBottomY} x={dimSideLX}
