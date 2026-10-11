@@ -659,13 +659,13 @@ boku ramienia) albo analogicznie obie w czesci „szafki”.
 [AI-INFO] Slupek (szablon) zostaje 600 w glab (uzytkownik 2026-09-28); glebsza
 szafka w ciagu daje ostrzezenie, ze reszta odsunie sie od sciany (`runCabMsgs`).
 
-[AI-TODO] Audyt 2D rogu (`audyt2d`, `tylkoInfo`): szafka w L w rogu juz scisle
-(front i maskownica ramienia w pasie drzwi `pasFrontu`, uchwyt ramienia z
-`UCHWYT_OD_KRAWEDZI`). Jako INFO zostaja roznice sposobu rysowania: w slepym
-rogu elewacja ciagu nie pokazuje uchwytu szafki sasiada wystajacego z
-przekroju; w U i gornych w L sasiad za rogiem jest na elewacji przekrojem
-z krzyzem (bryla 3D „Ciąg” jest poprawna — sprawdzone zrzutem 2026-09-29).
-Szafka w L sama z gory: rog bez boku odslania ~15 mm cokolu (ZNANE).
+[AI-TODO] Audyt 2D rogu (`audyt2d`, `tylkoInfo`), stan 2026-10-11: slepy rog i szafka
+w L w rogu przechodza scisle; „szafka w L sama z gory — 15 mm cokolu” juz nie wystepuje
+(wyjatek ZNANE zdjety). Zostaje tylko widok „Ciąg” (elewacja jednej sciany), gdy szafka
+z sasiedniej sciany stoi przed koncem tej sciany (rog „wjezdza” sasiad: U z trzech
+scian, gorne ciagi w L): elewacja jej nie rysuje (gorne w L) albo rysuje przekrojem
+z krzyzem (U) — bez jej boku, uchwytu i nozek. Bryla 3D „Ciąg”, rzut zabudowy, formatki,
+okucia i kontrola kolizji sa poprawne; to tylko rysunek elewacji.
 
 [AI-INFO] Rozkroj automatyczny (2026-09-29): `autoPlan` liczy `buildCutPlan` po
 `ROZKROJ_ZWLOKA` (1 s; powyzej `ROZKROJ_DUZY` = 40 szafek — 5 s) od ostatniej zmiany

@@ -144,7 +144,8 @@ const opisB = (a) => `${a.s.color} ${[...a.s.d].map(Math.round).join('×')} @${M
    i przy gornej szufladzie wchodzi w wieniec — uzytkownik przysle instrukcje
    V-BOX (2026-09-28). Wypisujemy jako INFO, nie BLAD. */
 // szafka w L sama: z gory w rogu bez boku widac ~15 mm cokolu (w ciagu zakrywa go ramie) — drobne, do decyzji
-const ZNANE = [/^#d8c3a0 900×100×18 @0,-18$/];
+// (2026-10-11: wyjatek „szafka w L sama z gory — 15 mm cokolu” juz nie wystepuje, zdjety)
+const ZNANE = [];
 const info = (l) => console.log('  INFO ' + l);
 const scenariusz = async (tytul, cab) => {
   console.log(`\n== ${tytul} ==`);
