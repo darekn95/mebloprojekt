@@ -137,6 +137,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Ustalone — nie ruszać
 
+- **Rysunek „Ciąg” w rogu bez szafki sąsiada** (2026-10-11, decyzja użytkownika): elewacja jednej ściany nie dorysowuje szafki z sąsiedniej ściany stojącej przed jej końcem (U, górne w L). Zostaje tak — róg widać w 3D i w rzucie zabudowy, a formatki, okucia, wiercenia i kontrola kolizji są poprawne. Wrócić tylko na prośbę użytkownika.
+
 - **Skrzynka V-BOX w pionie** (2026-10-05, wg tabeli z folderu): od dołu prowadnicy do góry boku = min. front nakładany (95/110/142/192/223/253), bok zaczyna się 13–15 mm nad prowadnicą, tył ma górę równo z bokiem, spód dna = spód tyłu (tył nie schodzi poniżej dna), dno NL−24 kończy się na tyle. Rysunki w folderze poza otworami frontu są schematyczne — nie mierzyć z nich milimetrów.
 
 - **Wysokość H** (2026-10-04): H to wysokość szafki razem z górną płytą — z wieńcem 18 i tak samo z blatem roboczym 38 położonym na bokach (boki krótsze o grubość blatu). Blat ciągu (szafki pod blatem, bez wieńca) leży nad H.

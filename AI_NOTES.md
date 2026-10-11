@@ -659,7 +659,7 @@ boku ramienia) albo analogicznie obie w czesci „szafki”.
 [AI-INFO] Slupek (szablon) zostaje 600 w glab (uzytkownik 2026-09-28); glebsza
 szafka w ciagu daje ostrzezenie, ze reszta odsunie sie od sciany (`runCabMsgs`).
 
-[AI-TODO] Audyt 2D rogu (`audyt2d`, `tylkoInfo`), stan 2026-10-11: slepy rog i szafka
+[AI-INFO] Audyt 2D rogu (`audyt2d`, `tylkoInfo`), stan 2026-10-11 — zostaje tak (decyzja użytkownika, BLEDY.md „Ustalone”): slepy rog i szafka
 w L w rogu przechodza scisle; „szafka w L sama z gory — 15 mm cokolu” juz nie wystepuje
 (wyjatek ZNANE zdjety). Zostaje tylko widok „Ciąg” (elewacja jednej sciany), gdy szafka
 z sasiedniej sciany stoi przed koncem tej sciany (rog „wjezdza” sasiad: U z trzech
