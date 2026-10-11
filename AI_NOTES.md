@@ -40,6 +40,16 @@ Znaczniki `<<<<<<<`, `=======`, `>>>>>>>` nie są naszym systemem oznaczania. To
 w `.gitignore`, więc w świeżym środowisku trzeba go założyć:
 `cd testy/vendorpkg && npm init -y && npm i @babel/standalone react@18 react-dom@18 @tailwindcss/browser`.
 Ścieżkę można nadpisać zmienną `VENDOR`.
+[AI-INFO] Po restarcie kontenera (2026-10-11) znikają `testy/vendorpkg`, `testy/cdn`
+i zbudowane strony. CDN-y (unpkg, cdn.tailwindcss.com) są zablokowane przez proxy —
+`testy/cdn/*.js` kopiuje się z `vendorpkg/node_modules`: `react/umd/react.development.js`
+→ `react.js`, `react-dom/umd/react-dom.development.js` → `react-dom.js`,
+`@babel/standalone/babel.min.js` → `babel.min.js`, `@tailwindcss/browser/dist/index.global.js`
+→ `tailwind.js`. Serwer 5205 potrafi nie wystartować albo paść — przed pełnym
+przebiegiem sprawdź oba porty (`curl …/mebloprojekt-app.html`, `…/standalone-local.html`)
+i odpalaj go w pętli: `setsid nohup bash -c 'while true; do python3 -m http.server 5205;
+sleep 1; done' &` (z katalogu `testy`). Masowe „name: 'Error'” w pełnym przebiegu =
+`ERR_CONNECTION_REFUSED`, nie błąd aplikacji.
 
 [AI-INFO] Od kiedy `szafki.jsx` przekroczył 500 KB, Babel drukuje „code generator has
 deoptimised the styling" i przestaje formatować wynik. Artefakt testowy jest przez to
@@ -694,9 +704,9 @@ w `audytmacierz.mjs`, a nie osobny test na jednej szafce. Oczekiwane bledy (np.
 klapa w dol bez dna) idą do mapy `OCZEKIWANE`, nie do wyjatkow w sprawdzeniach.
 Pomocnik `symwysuw.mjs` wymaga kolorow rol plyt (K/F/P) — bez nich nie odrozni
 frontu od korpusu i zwraca 0 szuflad (patrz `audytzabudowa`, ustawianie `mat`).
-[AI-TODO] Szafka w L z kreatora zostaje przy glebokosci szablonu, a pierwsza
-sciana z „+ szafka” ma 500 — pytanie do uzytkownika o domyslna glebokosc szafki
-pod blatem (500 vs 560) i blat roboczy 38 mm na bokach (czy H obejmuje blat).
+[AI-INFO] Zrobione 2026-10-04 (decyzje uzytkownika): szafka w L z kreatora bierze
+glebokosc sasiedniej sciany, pusty ciag dolny — glebokosc ciagu obok albo 560,
+blat roboczy 38 na bokach miesci sie w H (BLEDY.md „Ustalone”).
 
 [AI-INFO] Druga runda braków kontroli (2026-10-04, zgłoszenie użytkownika: brak blatu
 w widoku szafki, zlane fronty z boku, wysuw, tył szuflady). Wnioski:
@@ -710,8 +720,7 @@ w widoku szafki, zlane fronty z boku, wysuw, tył szuflady). Wnioski:
   z aplikacji („+ ciąg”, „+ szafka”), nie składaj ręcznie;
 - test losowych edycji (`losowe`) znajduje kombinacje, których nikt nie wypisał
   (HDF we frezie × pod blatem) — przy nowej opcji dopisz ją do `ZMIANY` w `losowe.mjs`.
-[AI-TODO] Geometria skrzynki V-BOX w pionie (dno, tył, bok względem prowadnicy) —
-czeka na decyzję użytkownika (BLEDY.md „Do decyzji”).
+[AI-INFO] Geometria skrzynki V-BOX w pionie — zrobione 2026-10-05 (niżej).
 
 [AI-INFO] Skrzynka V-BOX w pionie (2026-10-05). Rysunki w folderze V-BOX są
 schematyczne: pomiar wektorów dał 22,5–32,5 mm dla tej samej wielkości — nie mierz
