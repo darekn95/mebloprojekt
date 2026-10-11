@@ -546,6 +546,12 @@ const RUNNER_W = 21; // szerokosc prowadnicy przy boku
 /* Luz nad podniesionym tylem szuflady — tyl nie moze siegac dokladnie do frontu
    wyzej ani do wienca, bo bedzie o nie zawadzal przy wysuwaniu. */
 const BACK_CLEAR = 20;
+/* Zapas nad skrzynka V-BOX ponad minimum z katalogu (uzytkownik 2026-10-11):
+   katalog daje od dolu prowadnicy do tego, co wyzej, dokladnie gore boku
+   (238 → 253), czyli 0 mm. Auto bierze bok z co najmniej takim zapasem,
+   a bok na styk (wybrany recznie albo gdy nic innego nie wchodzi) dostaje
+   ostrzezenie. */
+const SZUFLADA_ZAPAS = 5;
 
 /* gabaryty zawiasu widziane od przodu (puszka + ramie na boku) */
 const HINGE_H = 55; // wysokosc
@@ -2688,8 +2694,18 @@ function computeGeoLiczy(cab, mat, ctx) {
         let hClass;
         let wyzszyBok = null;
         if (d.h === "auto" || d.h == null) {
-          const wchodzi = [...VBOX.heights].filter((hc) => VBOX.minFront[dMode][hc] <= fh && railY0 + vboxGora(hc) <= sufitPrzod).pop();
-          hClass = wchodzi || fitH || VBOX.heights[0];
+          /* Sufit liczony jak w kontroli nizej: wszystko nad droga skrzynki, takze
+             wzmocnienie przy plecach (pod blatem), pod ktorym skrzynka przejezdza —
+             samo `sufitPrzod` dawalo bok 238 na styk z nim (zgloszenie uzytkownika
+             2026-10-11). Wzmocnienie nizej niz gora boku skraca NL — to nie sufit. */
+          const droga = (colMaxNL ?? Math.max(...VBOX.nl)) + 3 + dInsetExtra;
+          const sufitDla = (hc) => (i + 1 < ds.length ? sufitPrzod
+            : Math.min(sufitPrzod, ...(c.rails || []).filter((r) => r.y0 >= railY0 + vboxGora(hc) && r.z0 < droga
+              && r.x1 > dsx0 && r.x0 < dsx1).map((r) => r.y0)));
+          // najpierw z zapasem nad skrzynka, gdy zaden nie wchodzi — na styk
+          const wchodzi = (zapas) => [...VBOX.heights]
+            .filter((hc) => VBOX.minFront[dMode][hc] <= fh && railY0 + vboxGora(hc) + zapas <= sufitDla(hc)).pop();
+          hClass = wchodzi(SZUFLADA_ZAPAS) || wchodzi(0) || fitH || VBOX.heights[0];
         } else {
           hClass = VBOX.heights.includes(Number(d.h)) ? Number(d.h) : 127;
           // bok wybrany recznie — front moze uniesc wyzszy, wiec to podpowiadamy
@@ -2834,9 +2850,10 @@ function computeGeoLiczy(cab, mat, ctx) {
           && (!d.tallBack || VBOX.backH[hc] <= Math.round(ceilY - (railY0 + vboxDno(hc))) - BACK_CLEAR)
           && VBOX.minFront[dMode][hc] <= fh;
         const nizszyBok = [...VBOX.heights].filter((hc) => hc < hClass && miesciSie(hc)).pop();
-        // bok wybrany recznie, a front uniesie wyzszy — podpowiadamy tylko taki, ktory sie zmiesci
+        const zZapasem = (hc) => miesciSie(hc) && railY0 + vboxGora(hc) + SZUFLADA_ZAPAS <= ceilY;
+        // bok wybrany recznie, a front uniesie wyzszy — podpowiadamy tylko taki, ktory sie zmiesci (z zapasem)
         if (wyzszyBok) {
-          const lepszy = [...VBOX.heights].filter((hc) => hc > hClass && hc <= wyzszyBok && miesciSie(hc)).pop();
+          const lepszy = [...VBOX.heights].filter((hc) => hc > hClass && hc <= wyzszyBok && zZapasem(hc)).pop();
           if (lepszy)
             add("info", `${where}, szuflada ${i + 1}: front uniesie wyższy bok ${lepszy} mm zamiast ${hClass}.|fixh:${lv.i}:${j}:${i}:${lepszy}`);
         }
@@ -2846,6 +2863,13 @@ function computeGeoLiczy(cab, mat, ctx) {
           add("error",
             `${where}, szuflada ${i + 1}: skrzynka z bokiem ${hClass} mm potrzebuje ${vboxGora(hClass)} mm od dołu prowadnicy (bok stoi ${vboxOdProw(hClass)} mm nad nim), a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
             + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : ""));
+        else if (ceilY - goraBoku < SZUFLADA_ZAPAS) {
+          const nizszyZZapasem = [...VBOX.heights].filter((hc) => hc < hClass && zZapasem(hc)).pop();
+          add("warn",
+            `${where}, szuflada ${i + 1}: skrzynka z bokiem ${hClass} mm mieści się na styk — od dołu prowadnicy do tego, co jest wyżej (${coNad}), `
+            + `jest ${fmt(Math.round(ceilY - railY0))} mm, a katalog V-BOX wymaga ${vboxGora(hClass)} mm (zapas ${fmt(Math.max(0, Math.round(ceilY - goraBoku)))} mm, zalecane min. ${SZUFLADA_ZAPAS} mm).`
+            + (nizszyZZapasem ? `|fixh:${lv.i}:${j}:${i}:${nizszyZZapasem}` : ""));
+        }
         /* Tyl nigdy wyzej niz gorna krawedz frontu tej szuflady, a najlepiej
            nizej (uzytkownik 2026-09-28) — domyslny podniesiony tyl konczy sie
            o BACK_CLEAR ponizej niej. */
