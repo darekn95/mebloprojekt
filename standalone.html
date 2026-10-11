@@ -5888,7 +5888,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                 {/* W rogu cokol konczy sie na cokole prostopadlej sciany, a nie
                     na koncu szafki naroznej — `rp.total` ma to juz policzone.
                     Rysowany na cala dlugosc ciagu wystawal w powietrze. */}
-                <rect x={mx(ox, rp.total)} y={fy(g.mount + plinthH)} width={rp.total} height={plinthH}
+                <rect x={mx(ox + (rp.x0 || 0), rp.total)} y={fy(g.mount + plinthH)} width={rp.total} height={plinthH}
                   fill={plyta(g)} stroke={INK} strokeWidth="2" opacity="0.75" />
                 {rp.cuts.map((c) => (
                   <line key={"pc" + c} x1={mx(ox + c, 0)} y1={fy(g.mount + plinthH)}
@@ -6759,7 +6759,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     if (rp && rp.h > 0 && g.cabs.length) {
       const cokT = g.cabs[0].geo.t;
       const cokZ = Math.max(0, Math.round(rp.setback || 0));
-      box(0, g.mount, cokZ, rp.total, g.mount + rp.h, cokZ + cokT,
+      box(rp.x0 || 0, g.mount, cokZ, (rp.x0 || 0) + rp.total, g.mount + rp.h, cokZ + cokT,
         g.cabs[0].mat.board.color, null, 0.95);
     }
     g.cabs.forEach((c) => {
@@ -9805,7 +9805,7 @@ const SplitPicker = ({ label, what, s, onToggle, onAuto, onWlasne }) => {
   const wl = s.wlasne || [];
   const dodaj = () => {
     const v = Math.round(Number(nowe));
-    if (!(v > 0 && v < s.total) || !onWlasne) return;
+    if (!(v > (s.x0 || 0) && v < (s.x0 || 0) + s.total) || !onWlasne) return;
     onWlasne([...new Set([...wl, v])].sort((a, b) => a - b));
     setNowe("");
   };
@@ -10558,8 +10558,9 @@ const runPlinth = (project, run) => {
      za drugi — inaczej stalyby obok siebie i jeden wystawalby w powietrze.
      Cokol tej sciany konczy sie wiec na TYLE cokolu prostopadlego, a nie na
      koncu szafki naroznej: reszta jej lica jest juz zaslonieta ramieniem. */
-  let dl = total;
-  const n = projectLayout(project).info.get(run.id);
+  let dl = total, start0 = 0;
+  const LP = projectLayout(project);
+  const n = LP.info.get(run.id);
   const arm = n && n.pair && n.pair.wchodzi.id === run.id ? n.arm || null : null;
   const mojeRamie = arm || [...projectLayout(project).info.values()]
     .map((k) => k.arm).find((a) => a && a.run.id === run.id);
@@ -10569,11 +10570,63 @@ const runPlinth = (project, run) => {
     /* Koniec cokolu: lico ramienia plus grubosc jego cokolu i jeszcze grubosc
        plyty, na ktora ma zachodzic. Cokoly obu scian nie stykaja sie w rogu
        czolami — jeden idzie na zakladke po drugim. */
-    const koniec = Math.round(c.x + mojeRamie.free + 2 * t);
-    if (koniec > 0 && koniec < total) dl = koniec;
+    /* Rog moze byc na koncu albo na poczatku ciagu (kreator stawia szafke w L
+       na poczatku nowego ciagu). Wczesniej zawsze obcinalismy KONIEC — przy
+       rogu na poczatku zostawal sam kawalek cokolu przy rogu (355 mm), a reszta
+       sciany nie miala cokolu wcale (audyt zabudowy 2026-10-11). */
+    if (mojeRamie.outerAtEnd) {
+      const koniec = Math.round(c.x + mojeRamie.free + 2 * t);
+      if (koniec > 0 && koniec < total) dl = koniec;
+    } else {
+      const poczatek = Math.round(c.x + c.geo.W - mojeRamie.free - 2 * t);
+      if (poczatek > 0 && poczatek < total) start0 = poczatek;
+    }
   }
-  return { total: dl, h,
-    ...splitAtJoints(dl, joints.filter((j) => j < dl), run.plinthCuts, USABLE_W, run.plinthCutsWlasne),
+  /* Slepy rog (bez szafki w L) — ta sama zasada „na zakladke” (zgloszenie
+     uzytkownika 2026-10-11: „wrocil blad ze zbyt dlugim cokolem”; zasada
+     z L nie obejmowala slepego rogu):
+     - ciag, ktory wjezdza w rog (stoi w nim szafka narozna), ma cokol konczacy
+       sie na LICU cokolu sasiada (dochodzi do niego czolem) — wczesniej szedl az
+       do sciany, przez cokol sasiada i za niego (widoczny w bryle, za dlugi
+       w zamowieniu);
+     - ciag, ktory sie odsuwa, ma cokol przedluzony za ostatnia szafke do lica
+       cokolu sasiada i jeszcze o jego grubosc (zachodzi na jego koniec) —
+       wczesniej konczyl sie z szafka i w rogu zostawala szpara (front szafki
+       w rogu + wstawka + luz).
+     `x0` — poczatek cokolu w ukladzie ciagu (od lewej krawedzi pierwszej szafki). */
+  let a = start0, e = dl;
+  const maCokol = (r) => {
+    const li = runItems(project, r.id);
+    const pp = r.plinth || (li.length ? li[0].it.cab.plinth : null);
+    return !!(pp && pp.on && pp.height > 0);
+  };
+  LP.info.forEach((k) => {
+    const pr = k.pair;
+    if (!pr || pr.armLen || !pr.rogowa || k.run.tier === "gorny") return;
+    const { wchodzi: w, ustepuje: u } = pr;
+    if (w.id !== run.id && u.id !== run.id) return;
+    const tW = (w.g.cabs[0] && w.g.cabs[0].geo.t) || 18;
+    if (w.id === run.id && maCokol(u.run)) {
+      /* lico cokolu sasiada, liczone od sciany, przy ktorej stoi szafka w rogu
+         (cokol ciagu stoi przy licu korpusu) — rog przykrywa cokol sasiada */
+      const doLica = Math.round(u.depth);
+      if (pr.przyStarcie) a = Math.max(a, Math.min(e - 1, doLica - w.lead));
+      else e = Math.min(e, Math.max(a + 1, Math.round(total + w.tail - doLica)));
+    }
+    if (u.id === run.id && maCokol(w.run)) {
+      // od ostatniej szafki do lica cokolu sasiada (front szafki w rogu, luz, wstawka) i na zakladke o jego grubosc
+      const ext = Math.round((pr.frontRog || 0) + (k.corner.clear || 0) + (pr.wstawka ? pr.wstawka.u : 0) + tW);
+      const naStarcie = k.corner.at === "end" ? u === k : u !== k;
+      if (naStarcie) a -= ext; else e += ext;
+    }
+  });
+  dl = e - a;
+  const sp = splitAtJoints(dl, joints.map((j) => j - a).filter((j) => j > 0 && j < dl),
+    Array.isArray(run.plinthCuts) ? run.plinthCuts.map((c) => c - a) : run.plinthCuts, USABLE_W,
+    (run.plinthCutsWlasne || []).map((c) => c - a));
+  // styki i ciecia zostaja w ukladzie ciagu (tak je zapisuje i pokazuje „Podział cokołu”)
+  return { total: dl, x0: a, h, ...sp,
+    cuts: sp.cuts.map((c) => c + a), joints: sp.joints.map((j) => j + a), wlasne: sp.wlasne.map((c) => c + a),
     mat: list[0].it.mat, grainMatters: list[0].it.cab.grainMatters, name: run.name };
 };
 

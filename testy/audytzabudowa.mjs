@@ -110,6 +110,12 @@ const buduj = async (szafka, gorne) => {
     s1[1].mat = { ...s1[1].mat, board: { ...s1[1].mat.board, color: K }, front: { ...s1[1].mat.front, color: F },
       shelf: { ...s1[1].mat.shelf, color: P } };
   }
+  /* cokol pod korpusem w ciagach dolnych (domyslnie wylaczony) — bez niego nie ma
+     czego sprawdzac w rogu; nozki zostaja (cokol wpina sie w nie klipsami) */
+  const PLC = { on: true, height: 100, mode: 'under', setback: 0 };
+  p = { ...p, runs: p.runs.map((r) => (r.tier === 'gorny' ? r : { ...r, plinth: { ...PLC } })),
+    items: p.items.map((it) => { const r = p.runs.find((x) => x.id === it.runId);
+      return r && r.tier !== 'gorny' ? { ...it, cab: { ...it.cab, plinth: { ...PLC } } } : it; }) };
   return { ...p, active: 0 };
 };
 
@@ -138,6 +144,47 @@ for (const [opis2, szafka, gorne] of [['ślepy róg z wstawką', 'slepa', false]
   const sol = await page.evaluate(() => (window.__audytBryl || []).filter((s) => s.p));
   const n = nachodzi(sol);
   ok(`${opis2}: w bryle zabudowy nic na nic nie nachodzi`, !n.length, n.slice(0, 4).join('; '));
+  /* Cokoly w rogu (zgloszenie uzytkownika 2026-10-11 — cokol za dlugi, wystawal
+     za rog): dwa prostopadle cokoly maja sie spotkac na zakladke — koniec
+     kazdego lezy w plaszczyznie lica albo tylu drugiego. Nachodzenia ani
+     formatki tego nie lapaly: bryla i zamowienie byly zle tak samo. */
+  const cokoly = sol.filter((q) => { const dx = q.p[3] - q.p[0], dz = q.p[5] - q.p[2];
+    return Math.abs(q.p[4] - q.p[1] - 100) < 1.5 && q.p[1] < 1 && Math.min(dx, dz) <= 19 && Math.max(dx, dz) > 100 && q.tag !== 'noga'; });
+  const zle = [];
+  for (const A of cokoly) for (const B of cokoly) {
+    if (A === B) continue;
+    const aX = A.p[3] - A.p[0] > A.p[5] - A.p[2];           // A wzdluz x
+    const bX = B.p[3] - B.p[0] > B.p[5] - B.p[2];
+    if (aX === bX) continue;                                    // tylko prostopadle
+    // czy sa przy sobie (rog), a nie w roznych koncach kuchni
+    const gap = [0, 2].map((k) => Math.max(B.p[k] - A.p[k + 3], A.p[k] - B.p[k + 3], 0));
+    if (Math.max(...gap) > 150) continue;
+    // A wzdluz osi d (0 = x, 2 = z); jego koniec przy B ma lezec w plaszczyznie lica albo tylu B
+    const d = aX ? 0 : 2;
+    const sB = [B.p[d], B.p[d + 3]];                            // grubosc B wzdluz tej osi
+    const srodekB = (sB[0] + sB[1]) / 2;
+    const koniecA = Math.abs(A.p[d] - srodekB) < Math.abs(A.p[d + 3] - srodekB) ? A.p[d] : A.p[d + 3];
+    if (!sB.some((v) => Math.abs(v - koniecA) <= 1))
+      zle.push(`cokół ${Math.round(Math.max(A.p[3] - A.p[0], A.p[5] - A.p[2]))} kończy się na ${Math.round(koniecA)}, a cokół obok ma płaszczyzny ${sB.map(Math.round).join('/')}`);
+  }
+  /* ...i dochodzi do konca szafek swojej sciany (przy szafce w L z kreatora
+     zostawal sam kawalek przy rogu, 355 mm — reszta sciany bez cokolu). Boki
+     korpusow, ktore stoja licem nad cokolem, wyznaczaja, skad dokad on ma isc;
+     koniec, ktory nie siega boku skrajnej szafki, musi lezec w rogu, na
+     plaszczyznie cokolu prostopadlego. */
+  for (const A of cokoly) {
+    const k = A.p[3] - A.p[0] > A.p[5] - A.p[2] ? 2 : 0;     // os grubosci cokolu
+    const d = k === 2 ? 0 : 2;                                // os dlugosci
+    const boki = sol.filter((q) => q.p[4] - q.p[1] > 500 && q.p[1] >= 50 && q.p[d + 3] - q.p[d] <= 19 && q.p[k + 3] - q.p[k] > 250
+      && (Math.abs(q.p[k] - A.p[k]) <= 25 || Math.abs(q.p[k + 3] - A.p[k + 3]) <= 25));
+    if (!boki.length) continue;
+    const kmin = Math.min(...boki.map((q) => q.p[d])), kmax = Math.max(...boki.map((q) => q.p[d + 3]));
+    const naRogu = (v) => cokoly.some((B) => B !== A && [B.p[d], B.p[d + 3]].some((w) => Math.abs(w - v) <= 1));
+    if (A.p[d] > kmin + 1 && !naRogu(A.p[d])) zle.push(`cokół ${Math.round(A.p[d + 3] - A.p[d])} zaczyna się na ${Math.round(A.p[d])}, a szafki od ${Math.round(kmin)}`);
+    if (A.p[d + 3] < kmax - 1 && !naRogu(A.p[d + 3])) zle.push(`cokół ${Math.round(A.p[d + 3] - A.p[d])} kończy się na ${Math.round(A.p[d + 3])}, a szafki do ${Math.round(kmax)}`);
+  }
+  ok(`${opis2}: cokoły w rogu na zakładkę i pod wszystkimi szafkami (nie za długie, nie za krótkie)`, cokoly.length >= 2 && !zle.length,
+    `${cokoly.length} cokołów; ${[...new Set(zle)].slice(0, 3).join('; ')}`);
   const bf = bezFormatki(pf, sol);
   ok(`${opis2}: każda płyta z bryły ma formatkę`, !bf.length, [...new Set(bf)].slice(0, 6).join('; '));
   const bp = bezPlyty(pf, sol);
