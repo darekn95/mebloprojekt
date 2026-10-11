@@ -75,7 +75,10 @@ const nachodzi = (sol) => {
   }
   return [...new Set(out)];
 };
+/* Wstawka (i jej listwa) wezsza niz 60 mm idzie do zamowienia jako 60 i docina
+   sie ja recznie (uzytkownik 2026-10-11) — formatka 60 pasuje do bryly ponizej 60. */
 const pasuje = (p, s) => { const [, q, r] = [...s.d].sort((x, y) => x - y).map(Math.round);
+  if (/^(Wstawka w rogu|Listwa wstawki)/.test(p.name) && Math.min(p.a, p.b) === 60 && q < 60 && Math.abs(Math.max(p.a, p.b) - r) <= 3) return true;
   return (Math.abs(p.a - q) <= 3 && Math.abs(p.b - r) <= 3) || (Math.abs(p.a - r) <= 3 && Math.abs(p.b - q) <= 3); };
 const bezPlyty = (parts, sol) => { const pl = plyty(sol);
   return parts.filter((p) => !/^(Cokół|Blat)/.test(p.name)).map((p) => ({ p, ile: pl.filter((s) => pasuje(p, s)).length }))

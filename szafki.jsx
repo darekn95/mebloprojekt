@@ -1117,7 +1117,10 @@ const migrateCorner = (c) => {
       ? { typ: c.wstawka.typ, w: Math.max(20, Math.round(Number(c.wstawka.w) || WSTAWKA_W)),
         // tylko szeroka ma wybor mocowania; plaska zawsze na wkrety
         ...(c.wstawka.typ === "szeroka"
-          ? { mocowanie: WSTAWKA_MOCOWANIA.includes(c.wstawka.mocowanie) ? c.wstawka.mocowanie : "trojkaty" } : {}) } : null,
+          ? { mocowanie: WSTAWKA_MOCOWANIA.includes(c.wstawka.mocowanie) ? c.wstawka.mocowanie : "trojkaty" } : {}),
+        /* Wezsza niz MIN_PART: uzytkownik potwierdzil, ze tyle ma byc, i dotnie
+           ja sam — zapamietana szerokosc, przy innej pytamy znowu. */
+        ...(Number(c.wstawka.dociac) > 0 ? { dociac: Math.round(Number(c.wstawka.dociac)) } : {}) } : null,
   };
 };
 
@@ -10084,6 +10087,16 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         : (toRun ? `Ustaw cały ciąg na ${val} mm` : `Wyrównaj tę szafkę do ciągu (${val} mm)`);
       return { label, run: () => runFix && runFix(action) };
     }
+    if (action.startsWith("wstawkaw:")) {
+      // „wstawkaw:<ciag z narożnikiem>:<mm>" — szerokosc wstawki (z uwagi o zbyt waskiej formatce)
+      const mm = Number(action.split(":")[2]);
+      return { label: `Popraw na ${fmt(mm)} mm`, run: () => runFix && runFix(action) };
+    }
+    if (action.startsWith("wstawkadociac:")) {
+      // „wstawkadociac:<ciag z narożnikiem>:<mm>" — tak ma byc, docinam recznie
+      const mm = Number(action.split(":")[2]);
+      return { label: `Tak, ${fmt(mm)} mm — docinam ręcznie`, run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("wstawka:")) {
       // „wstawka:<ciag z narożnikiem>:<plaska|szeroka>:<ile mm widac od przodu>:<ok|kat po wstawce>"
       const [, , typ, ile, wynik] = action.split(":");
@@ -10933,7 +10946,13 @@ const wstawkaParts = (ws) => {
   /* Szeroka stoi licem do przodu, a jej boki stykaja sie z bokami szafek —
      widac tylko dolna krawedz (ustalone 2026-09-28). Tak samo cofnieta do
      linii korpusu (na konfirmatach) i z listwa za soba. */
-  const panels = [{ name: "Wstawka w rogu", qty: 1, a: H, b: plaska ? ws.gl : ws.u,
+  /* Firma nie tnie formatek wezszych niz MIN_PART (uzytkownik 2026-10-11):
+     do zamowienia idzie MIN_PART, a do wlasciwej szerokosci docina sie recznie
+     po odbiorze. Rysunek i odsuniecie ciagu zostaja przy wlasciwej. */
+  const szer = Math.round(plaska ? ws.gl : ws.u);
+  const zamow = Math.max(MIN_PART, szer);
+  const dotnij = zamow > szer ? ` — zamówiona ${fmt(zamow)} mm, dociąć ręcznie do ${fmt(szer)} mm` : "";
+  const panels = [{ name: "Wstawka w rogu", qty: 1, a: H, b: zamow,
     matKey: plytaFrontu(ws.cab && ws.cab.cab),
     edges: plaska ? { a1: true, a2: false, b1: true, b2: false } : { a1: false, a2: false, b1: true, b2: false },
     note: plaska
@@ -10943,12 +10962,13 @@ const wstawkaParts = (ws) => {
       : moc === "listwa"
       ? "licem do przodu, w licu drzwi, przykręcona do listwy — oklejona tylko dolna krawędź"
       : "licem do przodu, na trójkątach — oklejona tylko dolna krawędź (boki stykają się z szafkami)" }];
+  panels[0].note += dotnij;
   /* Listwa za wstawka: z plyty korpusu (nie widac jej), szerokosc wstawki,
      w linii korpusu — krawedzia przy boku szafki, w ktora ida konfirmaty. */
   if (moc === "listwa")
-    panels.push({ name: "Listwa wstawki", qty: 1, a: H, b: ws.u, matKey: "board",
+    panels.push({ name: "Listwa wstawki", qty: 1, a: H, b: zamow, matKey: "board",
       edges: { a1: false, a2: false, b1: false, b2: false },
-      note: "za wstawką w rogu, w linii korpusu — krawędzią przy boku szafki (konfirmaty przez bok), wstawka przykręcona od tyłu" });
+      note: "za wstawką w rogu, w linii korpusu — krawędzią przy boku szafki (konfirmaty przez bok), wstawka przykręcona od tyłu" + dotnij });
   const konfirmaty = (w) => ({ name: "Konfirmat 7 × 50",
     use: `wstawka w rogu — od środka szafki przez bok w krawędź ${w}, co ok. ${WSTAWKA_KONF_CO} mm`,
     spec: `wstawka w rogu: ${nKonf} szt. co ok. ${WSTAWKA_KONF_CO} mm`, qty: nKonf, unit: "szt." });
@@ -10966,6 +10986,23 @@ const wstawkaParts = (ws) => {
         qty: 2 * Math.max(2, Math.ceil(H / 400)), unit: "szt." }];
   return { panels, hardware };
 };
+/* Wstawka wezsza niz MIN_PART (uzytkownik 2026-10-11): blad z pytaniem, czy
+   tak ma byc — „Popraw na 60 mm” albo „Tak — docinam recznie”; po potwierdzeniu
+   (`dociac` = ta szerokosc) zostaje ostrzezenie, ze formatka idzie 60 mm
+   i trzeba ja dociac. Uwaga nalezy do szafki, do ktorej wstawka jest przykrecona. */
+const wstawkaMsgs = (layout, idx) => wstawkiOf(layout).filter((w) => w.cab.index === idx).flatMap((w) => {
+  const szer = Math.round(w.w);
+  if (!(szer < MIN_PART)) return [];
+  const H = Math.round(w.H);
+  const czego = w.listwa ? "wstawki i listwy" : "wstawki";
+  const popraw = `|wstawkaw:${w.rogRun}:${MIN_PART}`;
+  if (w.dociac === szer)
+    return [{ level: "warn", text: `Wstawka w rogu ${fmt(szer)} mm: firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm, `
+      + `więc w zamówieniu formatka ${czego} ${fmt(H)} × ${fmt(MIN_PART)} mm — do ${fmt(szer)} mm dociąć ręcznie po odbiorze.` + popraw }];
+  return [{ level: "error", text: `Wstawka w rogu ma ${fmt(szer)} mm, a firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm. `
+    + `Czy wstawka faktycznie ma mieć ${fmt(szer)} mm? Jeśli tak — w zamówieniu zostanie formatka ${czego} ${fmt(H)} × ${fmt(MIN_PART)} mm, `
+    + `a do ${fmt(szer)} mm trzeba ją dociąć ręcznie po odbiorze.` + popraw + `|wstawkadociac:${w.rogRun}:${szer}` }];
+});
 const wstawkiOf = (layout) => [...layout.info.values()].flatMap((n) => n.wstawki || []);
 /* Wstawka w ukladzie samej szafki (widoki „Szafka”): przy lewym boku, gdy
    szafka zaczyna ciag od rogu, inaczej przy prawym. Wysokosc korpusu, w licu
@@ -13964,7 +14001,7 @@ export default function App() {
       /* Odhaczone ostrzezenia znikaja tez z listy „w innych szafkach" i z paska
          nad projektem — inaczej to samo zdanie, raz przeczytane, dalej wolalo
          o sobie z drugiego konca ekranu. Bledy licza sie zawsze. */
-      const msgs = [...runCabMsgs(c && c.run, it.cab), ...geos[i].msgs];
+      const msgs = [...runCabMsgs(c && c.run, it.cab), ...geos[i].msgs, ...wstawkaMsgs(projLayoutGeo, i)];
       return {
         i,
         name: (it.cab.name || "").trim() || `Szafka ${i + 1}`,
@@ -14052,6 +14089,14 @@ export default function App() {
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    if (action.startsWith("wstawkaw:") || action.startsWith("wstawkadociac:")) {
+      const [kind, id, mm] = action.split(":");
+      const r = (project.runs || []).find((x) => x.id === id);
+      if (!r || !r.corner || !r.corner.wstawka) return;
+      const { dociac, ...ws } = r.corner.wstawka;
+      setCorner(id, r.corner.of, { wstawka: kind === "wstawkaw" ? { ...ws, w: Number(mm) } : { ...ws, dociac: Number(mm) } });
+      return;
+    }
     if (action.startsWith("wstawka:")) {
       const [, id, typ] = action.split(":");
       const r = (project.runs || []).find((x) => x.id === id);
@@ -14631,7 +14676,8 @@ export default function App() {
   }, [planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, prices, matByLabel]);
 
   // uwagi ciagu ida przed uwagami szafki — dotycza calej sciany, wiec sa nadrzedne
-  const allMsgs = useMemo(() => [...runMsgs, ...geo.msgs], [runMsgs, geo]);
+  const allMsgs = useMemo(() => [...runMsgs, ...geo.msgs, ...wstawkaMsgs(projLayout, project.active)],
+    [runMsgs, geo, projLayout, project.active]);
   const errors = allMsgs.filter((m) => m.level === "error");
   const warns = allMsgs.filter((m) => m.level === "warn");
   const infos = allMsgs.filter((m) => m.level === "info");
