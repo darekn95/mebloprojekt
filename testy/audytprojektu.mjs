@@ -75,11 +75,11 @@ const nachodzi = (sol) => {
   }
   return [...new Set(out)];
 };
-/* Wstawka (i jej listwa) wezsza niz 60 mm idzie do zamowienia jako 60 i docina
-   sie ja recznie (uzytkownik 2026-10-11) — formatka 60 pasuje do bryly ponizej 60. */
+/* Formatka wezsza niz 60 mm idzie do zamowienia jako 60 i docina sie ja recznie
+   (uzytkownik 2026-10-11) — bok 60 w formatce pasuje do bryly ponizej 60. */
+const bok = (f, b) => Math.abs(f - b) <= 3 || (f === 60 && b < 60);
 const pasuje = (p, s) => { const [, q, r] = [...s.d].sort((x, y) => x - y).map(Math.round);
-  if (/^(Wstawka w rogu|Listwa wstawki)/.test(p.name) && Math.min(p.a, p.b) === 60 && q < 60 && Math.abs(Math.max(p.a, p.b) - r) <= 3) return true;
-  return (Math.abs(p.a - q) <= 3 && Math.abs(p.b - r) <= 3) || (Math.abs(p.a - r) <= 3 && Math.abs(p.b - q) <= 3); };
+  return (bok(p.a, q) && bok(p.b, r)) || (bok(p.a, r) && bok(p.b, q)); };
 const bezPlyty = (parts, sol) => { const pl = plyty(sol);
   return parts.filter((p) => !/^(Cokół|Blat)/.test(p.name)).map((p) => ({ p, ile: pl.filter((s) => pasuje(p, s)).length }))
     .filter((x) => x.ile < x.p.qty).map((x) => `${x.p.name} ${x.p.a}×${x.p.b}: ${x.ile} z ${x.p.qty}`); };

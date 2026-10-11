@@ -309,6 +309,37 @@ const CORNER_LG_W = 650;
 const CORNER_LG_ARM = 350;
 // ponizej tego boku formatki nie utnie sie na pile formatowej
 const MIN_PART = 60;
+/* Formatka do zamowienia (uzytkownik 2026-10-11): firma nie tnie bokow ponizej
+   MIN_PART, wiec mniejszy bok idzie jako MIN_PART, a `dociac` pamieta wlasciwy
+   wymiar do recznego dociecia po odbiorze. Uwaga przy takiej formatce to blad
+   z pytaniem (moze to pomylka przy wpisywaniu), po potwierdzeniu — ostrzezenie.
+   Potwierdzone klucze leza w `cab.dociac` (szafka, ramie) albo `run.dociac` (cokol). */
+const malaFormatka = (p) => Math.min(p.a, p.b) > 0 && Math.min(p.a, p.b) < MIN_PART;
+const naZamowienie = (p) => (malaFormatka(p)
+  ? { ...p, a: Math.max(MIN_PART, p.a), b: Math.max(MIN_PART, p.b), dociac: { a: p.a, b: p.b } } : p);
+const kluczDociecia = (name, a, b) => encodeURIComponent(`${name}|${Math.round(a)}x${Math.round(b)}`);
+/* W ciagu z cokolem (blatem) ciagu wlasny cokol (blat) szafki nie idzie do
+   zamowienia (`formatkiSzafki` z `bezCokolu`/`bezBlatu`) — uwaga o jego
+   docieciu bylaby druga o tym samym, obok uwagi o cokole ciagu. */
+const bezWspolnychFormatek = (msgs, cokol, blat) => msgs.filter((m) =>
+  !(cokol && m.text.startsWith("Formatka „Cokół” ")) && !(blat && m.text.startsWith("Formatka „Blat” ")));
+// `cel`: „@” — aktywna szafka, inaczej id ciagu (dla `runFix`)
+const maleFormatkiMsgs = (panels, potwierdzone, cel) => {
+  const byly = new Set();
+  return (panels || []).filter((p) => p.dociac).flatMap((p) => {
+    const k = kluczDociecia(p.name, p.dociac.a, p.dociac.b);
+    if (byly.has(k)) return [];
+    byly.add(k);
+    const wym = `${fmt(p.dociac.a)} × ${fmt(p.dociac.b)} mm`;
+    const wymZ = `${fmt(p.a)} × ${fmt(p.b)} mm`;
+    if ((potwierdzone || []).includes(k))
+      return [{ level: "warn", text: `Formatka „${p.name}” ${wym} do ręcznego docięcia: firma nie tnie formatek węższych niż `
+        + `${fmt(MIN_PART)} mm, więc w zamówieniu ${wymZ} — docięcie po odbiorze.` }];
+    return [{ level: "error", text: `Formatka „${p.name}” ma ${wym}, a firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm. `
+      + `Czy to nie pomyłka przy wpisywaniu wymiaru? Jeśli tak ma być — w zamówieniu zostanie ${wymZ}, `
+      + `a do ${wym} trzeba ją dociąć ręcznie po odbiorze.|dociacpanel:${cel}:${k}` }];
+  });
+};
 /* Ponizej tego front robi sie waski — nie blad, bo czasem inaczej sie nie da,
    ale warto rzucic okiem, zanim pojdzie do ciecia. */
 const WASKI_FRONT = 250;
@@ -1203,6 +1234,8 @@ const migrateRun = (r) => ({
   wallGap: migrateWallGap(r.wallGap) || { bottom: 0, top: null },
   // blat: true = docięty na wymiar, false = caly arkusz, null = dobiera sam
   topCut: r.topCut === true ? true : r.topCut === false ? false : null,
+  // formatki ciagu (cokol) wezsze niz MIN_PART potwierdzone do recznego dociecia (`kluczDociecia`)
+  dociac: Array.isArray(r.dociac) ? r.dociac.map(String) : [],
 });
 
 // cokol porownujemy po wszystkich czterech polach — cofniecie tez psuje lico ciagu
@@ -4375,18 +4408,15 @@ function computeGeoLiczy(cab, mat, ctx) {
   }
 
   /* Najmniejszy bok formatki. Ponizej tego piła formatowa nie ma czego trzymac
-     — takiego kawalka nikt nie wytnie z plyty na maszynie. */
-  const male = panels.filter((q) => Math.min(q.a, q.b) > 0 && Math.min(q.a, q.b) < MIN_PART);
-  if (male.length)
-    add("warn", `${male.length === 1 ? "Formatka" : "Formatki"} `
-      + listPl([...new Set(male.map((q) => `${q.name} ${fmt(q.a)} × ${fmt(q.b)} mm`))])
-      + ` ${male.length === 1 ? "ma bok" : "mają bok"} poniżej ${fmt(MIN_PART)} mm — `
-      + "na formatówce się tego nie utnie, trzeba dociąć ręcznie z większego kawałka.");
+     — takiego kawalka nikt nie wytnie z plyty na maszynie. Do zamowienia idzie
+     MIN_PART, a docina sie recznie (uzytkownik 2026-10-11: `naZamowienie`). */
+  const panelsZam = panels.map(naZamowienie);
+  maleFormatkiMsgs(panelsZam, cab.dociac, "@").forEach((m) => add(m.level, m.text));
 
   return {
     hardware,
     t, tf, tb, ts, carcassDepth, plecyZa, glebOdSciany, hasBack, interior, innerW, innerH,
-    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels, msgs, maxNL,
+    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, msgs, maxNL,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
@@ -10104,6 +10134,10 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         : (toRun ? `Ustaw cały ciąg na ${val} mm` : `Wyrównaj tę szafkę do ciągu (${val} mm)`);
       return { label, run: () => runFix && runFix(action) };
     }
+    if (action.startsWith("dociacpanel:")) {
+      // „dociacpanel:<@ albo id ciagu>:<klucz>" — formatka wezsza niz MIN_PART, tak ma byc
+      return { label: "Tak, docinam ręcznie", run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("wstawkaw:")) {
       // „wstawkaw:<ciag z narożnikiem>:<mm>" — szerokosc wstawki (z uwagi o zbyt waskiej formatce)
       const mm = Number(action.split(":")[2]);
@@ -10922,7 +10956,7 @@ const runPlinthPanels = (rp) => {
   if (!rp) return [];
   const map = new Map();
   rp.lens.forEach((len) => map.set(len, (map.get(len) || 0) + 1));
-  return [...map.entries()].map(([len, qty]) => ({
+  return [...map.entries()].map(([len, qty]) => naZamowienie({
     name: "Cokół ciągu", qty, a: len, b: rp.h, matKey: "board",
     edges: { a1: false, a2: true, b1: true, b2: true },
     note: rp.n > 1 ? "krawędź dolna oraz oba końce, w tym łączenie" : "krawędź dolna oraz oba końce",
@@ -11234,7 +11268,7 @@ const cornerArmParts = (a) => {
       use: "drugie skrzydło szafki narożnej, spięte z pierwszym",
       spec: "spina drugie skrzydło z pierwszym — pierwsze wisi na boku na zawiasie 165°",
       qty: zawiasow, unit: "szt." });
-  return { panels, hardware };
+  return { panels: panels.map(naZamowienie), hardware };
 };
 
 /* Plan wiercen tego, co nie jest w geometrii samej szafki (uzytkownik
@@ -14011,14 +14045,18 @@ export default function App() {
       const list = runItems(project, r.id);
       const total = list.reduce((s, { i }) => s + geos[i].W, 0)
         + Math.max(0, list.length - 1) * (r.gap || 0);
-      ctx.set(r.id, { run: r, total, rp: runPlinth(project, r) });
+      ctx.set(r.id, { run: r, total, rp: runPlinth(project, r), rt: runTop(project, r) });
     });
     return project.items.map((it, i) => {
       const c = ctx.get(it.runId || null);
       /* Odhaczone ostrzezenia znikaja tez z listy „w innych szafkach" i z paska
          nad projektem — inaczej to samo zdanie, raz przeczytane, dalej wolalo
          o sobie z drugiego konca ekranu. Bledy licza sie zawsze. */
-      const msgs = [...runCabMsgs(c && c.run, it.cab), ...geos[i].msgs, ...wstawkaMsgs(projLayoutGeo, i)];
+      const ramie = [...projLayoutGeo.info.values()].map((n) => n.arm)
+        .find((a) => a && a.len > 0 && a.cab && a.cab.index === i);
+      const msgs = [...runCabMsgs(c && c.run, it.cab), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
+        ...wstawkaMsgs(projLayoutGeo, i),
+        ...(ramie ? maleFormatkiMsgs(cornerArmParts(ramie).panels, it.cab.dociac, "@") : [])];
       return {
         i,
         name: (it.cab.name || "").trim() || `Szafka ${i + 1}`,
@@ -14101,11 +14139,29 @@ export default function App() {
       ...runCornerMsgs(node, !!runTp),
       /* Kolizje otwierania sa sprawa calej zabudowy, a nie tego jednego ciagu —
          dlatego lecimy po calym rozmieszczeniu i pokazujemy wszystkie. */
-      ...openingMsgs(projLayout.pokoje.get(pokoj), project)];
+      ...openingMsgs(projLayout.pokoje.get(pokoj), project),
+      // cokol ciagu wezszy niz MIN_PART (np. bardzo niski) — do zamowienia 60, dociac recznie
+      ...maleFormatkiMsgs(runPlinthPanels(runPl), runInfo.run.dociac, runInfo.run.id)];
   }, [project, runInfo, runPl, runTp, projLayout, pokoj]);
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    if (action.startsWith("dociacpanel:")) {
+      const [, cel, klucz] = action.split(":");
+      const dopisz = (lista) => [...(lista || []).filter((k) => k !== klucz), klucz];
+      if (cel === "@") setProject((p) => {
+        const items = p.items.slice();
+        const it = items[p.active];
+        if (!it) return p;
+        items[p.active] = { ...it, cab: { ...it.cab, dociac: dopisz(it.cab.dociac) } };
+        return { ...p, items };
+      });
+      else {
+        const r = (project.runs || []).find((x) => x.id === cel);
+        if (r) setRun(cel, { dociac: dopisz(r.dociac) });
+      }
+      return;
+    }
     if (action.startsWith("wstawkaw:") || action.startsWith("wstawkadociac:")) {
       const [kind, id, mm] = action.split(":");
       const r = (project.runs || []).find((x) => x.id === id);
@@ -14693,8 +14749,11 @@ export default function App() {
   }, [planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, prices, matByLabel]);
 
   // uwagi ciagu ida przed uwagami szafki — dotycza calej sciany, wiec sa nadrzedne
-  const allMsgs = useMemo(() => [...runMsgs, ...geo.msgs, ...wstawkaMsgs(projLayout, project.active)],
-    [runMsgs, geo, projLayout, project.active]);
+  const allMsgs = useMemo(() => [...runMsgs, ...bezWspolnychFormatek(geo.msgs, !!runPl, !!runTp), ...wstawkaMsgs(projLayout, project.active),
+    // ramie szafki w L: jego formatki naleza do tej szafki
+    ...(cornerNode && cornerNode.arm && cornerNode.arm.len > 0
+      ? maleFormatkiMsgs(cornerArmParts(cornerNode.arm).panels, cab.dociac, "@") : [])],
+    [runMsgs, geo, projLayout, project.active, cornerNode, cab, runPl, runTp]);
   const errors = allMsgs.filter((m) => m.level === "error");
   const warns = allMsgs.filter((m) => m.level === "warn");
   const infos = allMsgs.filter((m) => m.level === "info");

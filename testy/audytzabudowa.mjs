@@ -49,8 +49,11 @@ const nachodzi = (sol) => {
   }
   return [...new Set(out)];
 };
+/* Formatka wezsza niz 60 mm idzie do zamowienia jako 60 i docina sie ja recznie
+   (uzytkownik 2026-10-11) — bok 60 w formatce pasuje do bryly ponizej 60. */
+const bok = (f, b) => Math.abs(f - b) <= 3 || (f === 60 && b < 60);
 const pasuje = (p, s) => { const [, q, r] = [...s.d].sort((x, y) => x - y).map(Math.round);
-  return (Math.abs(p.a - q) <= 3 && Math.abs(p.b - r) <= 3) || (Math.abs(p.a - r) <= 3 && Math.abs(p.b - q) <= 3); };
+  return (bok(p.a, q) && bok(p.b, r)) || (bok(p.a, r) && bok(p.b, q)); };
 const czesci = (parts) => parts.flatMap((p) => {
   const m = /wycięty tylny róg (\d+) × (\d+)/.exec(p.name);
   if (!m) return [p];
@@ -60,7 +63,7 @@ const czesci = (parts) => parts.flatMap((p) => {
 /* cokol ciagu dluzszy niz arkusz jest w formatkach w kawalkach, a w bryle w calosci —
    kawalek pasuje do bryly o tej samej wysokosci i nie krotszej */
 const pasujeCokol = (p, s) => { const [, q, r] = [...s.d].sort((x, y) => x - y).map(Math.round);
-  return /^Cokół/.test(p.name) && Math.abs(p.b - q) <= 3 && r >= p.a - 3; };
+  return /^Cokół/.test(p.name) && bok(p.b, q) && r >= p.a - 3; };
 const bezPlyty = (parts, sol) => { const pl = plyty(sol);
   return czesci(parts).map((p) => ({ p, ile: pl.filter((s) => pasuje(p, s)).length || (pl.some((s) => pasujeCokol(p, s)) ? p.qty : 0) }))
     .filter((x) => x.ile < x.p.qty && !/^(Front szuflady|Dno szuflady|Tył szuflady)/.test(x.p.name)).map((x) => `${x.p.name} ${x.p.a}×${x.p.b}: ${x.ile} z ${x.p.qty}`); };
