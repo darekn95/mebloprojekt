@@ -67,7 +67,9 @@ ok('blat ciągu w zestawieniu', !!blat, String(rs.length));
 /* Glebokosc blatu to wymiar rzeczywisty: plecy HDF 3 za korpusem (od
    2026-09-28) + korpus 500 + 2 mm luzu przy zawiasach + front 18 + 10 mm
    wysiegu. Arkusz 600 wystawalby 77 mm, wiec blat idzie na wymiar. */
-ok('głębokość blatu 533 mm', !!blat && / 533 /.test(blat.replace(/\|/g, ' ')), blat || '');
+// „+ szafka” w pustym ciagu daje 560 (decyzja 2026-10-04): 3 + 560 + 2 + 18 = 583 do lica,
+// arkusz 600 wystaje 17 mm (<= 30), wiec idzie caly arkusz bez docinania
+ok('głębokość blatu 600 mm (cały arkusz)', !!blat && / 600 /.test(blat.replace(/\|/g, ' ')), blat || '');
 
 console.log('\n== słupek: blat kończy się przy nim, bez błędu ==');
 await seed([RUN('c1', 'Ściana 1')], [CAB('A', 720, 'c1'), CAB('Słupek', 2000, 'c1')]);

@@ -140,7 +140,7 @@ ok('ciąg zapisany', Array.isArray(st.runs) && st.runs.length === 1, JSON.string
 ok('nazwa i ściana w zapisie', st.runs[0].name === 'Ściana kuchenna' && st.runs[0].wallW === 2400 && st.runs[0].gap === 5,
   JSON.stringify(st.runs[0]));
 // ciag zapamietuje tez wymiary wspolne, przejete od pierwszej szafki
-ok('wymiary wspólne w zapisie', st.runs[0].H === 720 && st.runs[0].D === 500, JSON.stringify(st.runs[0]));
+ok('wymiary wspólne w zapisie', st.runs[0].H === 720 && st.runs[0].D === 560, JSON.stringify(st.runs[0]));
 ok('przynależność przy szafce, nie w cab',
   st.items.filter((it) => it.runId === st.runs[0].id).length === 2 && !('runId' in st.items[0].cab),
   st.items.map((it) => it.runId).join());

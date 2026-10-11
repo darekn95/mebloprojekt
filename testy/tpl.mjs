@@ -63,7 +63,7 @@ ok('drugi ciąg ma zadaną głębokość', !!drugi && Number(drugi.D) > 0, Strin
 const uwagi = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi$/ }) }).first();
 const tekst = (await uwagi.count()) ? await uwagi.innerText() : '';
 ok('układ z szablonu jest od razu poprawny',
-  !/nie ma się jak otworzyć/.test(tekst) && !/za dużo, granica/.test(tekst),
+  !/nie otworzy się (do końca|wcale)/.test(tekst) && !/za dużo, granica/.test(tekst),
   tekst.replace(/\n+/g, ' / ').slice(0, 240));
 const okienko = page.getByText(/Ta szafka jest częścią narożnika/);
 ok('karta mówi, że szafka jest częścią narożnika', await okienko.count() > 0,

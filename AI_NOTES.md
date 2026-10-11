@@ -40,6 +40,16 @@ Znaczniki `<<<<<<<`, `=======`, `>>>>>>>` nie są naszym systemem oznaczania. To
 w `.gitignore`, więc w świeżym środowisku trzeba go założyć:
 `cd testy/vendorpkg && npm init -y && npm i @babel/standalone react@18 react-dom@18 @tailwindcss/browser`.
 Ścieżkę można nadpisać zmienną `VENDOR`.
+[AI-INFO] Po restarcie kontenera (2026-10-11) znikają `testy/vendorpkg`, `testy/cdn`
+i zbudowane strony. CDN-y (unpkg, cdn.tailwindcss.com) są zablokowane przez proxy —
+`testy/cdn/*.js` kopiuje się z `vendorpkg/node_modules`: `react/umd/react.development.js`
+→ `react.js`, `react-dom/umd/react-dom.development.js` → `react-dom.js`,
+`@babel/standalone/babel.min.js` → `babel.min.js`, `@tailwindcss/browser/dist/index.global.js`
+→ `tailwind.js`. Serwer 5205 potrafi nie wystartować albo paść — przed pełnym
+przebiegiem sprawdź oba porty (`curl …/mebloprojekt-app.html`, `…/standalone-local.html`)
+i odpalaj go w pętli: `setsid nohup bash -c 'while true; do python3 -m http.server 5205;
+sleep 1; done' &` (z katalogu `testy`). Masowe „name: 'Error'” w pełnym przebiegu =
+`ERR_CONNECTION_REFUSED`, nie błąd aplikacji.
 
 [AI-INFO] Od kiedy `szafki.jsx` przekroczył 500 KB, Babel drukuje „code generator has
 deoptimised the styling" i przestaje formatować wynik. Artefakt testowy jest przez to
@@ -73,6 +83,22 @@ w układzie całej zabudowy (`projectLayout`), a nie pojedynczej szafki. Skrzyd�
 korpusy, ramiona, fronty zamknięte, fronty szuflad wysunięte na długość prowadnicy
 i uchwyty. Pole „wysunięcie z lica" jest tylko pozycją szafki — sprzęt wystający poza
 lico dostanie osobną opcję i wtedy dołoży się tu jako kolejna bryła.
+
+[AI-INFO] Od 2026-10-11 miarą kolizji skrzydła jest **kąt pierwszego styku**
+(`swingKat`), a nie „ile mm wchodzi w przeszkodę” — ta odwracała ocenę (uchwyt
+przy zawiasie: „brakuje 534 mm” przy otwarciu do 74°; uchwyt przed wolną krawędzią:
+„mało”, a drzwi stają po 6°). Uwaga mówi o przeszkodzie, w którą skrzydło uderza
+najwcześniej (`swingStop`). Przyciski (zawiasy, wstawka 18, wstawka 60, zawiasy + wstawka — lista opcji z wynikiem) są tylko, gdy pomagają
+(`wynikPoprawki`: kolizja znika albo kąt rośnie o `POPRAWKA_KAT`); wstawkę
+sprawdza się na kopii projektu z ustawioną wstawką (`zWstawka` w `openingMsgs`).
+
+[AI-INFO] Wstawka w rogu (2026-10-11): pole jest w Strukturze wnętrza szafki
+przy rogu (`rogWstawki` w App, `n.pair.przyRogu` w `runLayout`), ale dane zostały
+w `run.corner.wstawka` ciągu z narożnikiem — z nich liczy się odsunięcie ciągu,
+próba wstawki w kontroli kolizji (`zWstawka`) i kreator rogu. Gdy zmieni się
+kolejność szafek, wstawka przechodzi na szafkę, która stanie przy rogu.
+Szeroka: `mocowanie` (`trojkaty` / `konf` / `listwa`) przesuwa ją w głąb
+(`odLica`) albo dokłada listwę (`listwa` w obiekcie z układu, rysunki i bryły).
 
 [AI-INFO] Jeśli terminal agenta nie może pobrać aktualnego `claude-zmiany.txt` z GitHuba, można użyć workflow `Promote Claude Changes`. Workflow działa na GitHubie: kopiuje `claude-zmiany.txt` do `szafki.jsx`, uruchamia build Vite jako walidację, regeneruje `standalone.html`, commituje wynik na gałąź i od razu publikuje GitHub Pages. To jest potrzebne, bo push wykonany przez `GITHUB_TOKEN` nie uruchamia kolejnego workflowu Pages automatycznie.
 
@@ -649,13 +675,13 @@ boku ramienia) albo analogicznie obie w czesci „szafki”.
 [AI-INFO] Slupek (szablon) zostaje 600 w glab (uzytkownik 2026-09-28); glebsza
 szafka w ciagu daje ostrzezenie, ze reszta odsunie sie od sciany (`runCabMsgs`).
 
-[AI-TODO] Audyt 2D rogu (`audyt2d`, `tylkoInfo`): szafka w L w rogu juz scisle
-(front i maskownica ramienia w pasie drzwi `pasFrontu`, uchwyt ramienia z
-`UCHWYT_OD_KRAWEDZI`). Jako INFO zostaja roznice sposobu rysowania: w slepym
-rogu elewacja ciagu nie pokazuje uchwytu szafki sasiada wystajacego z
-przekroju; w U i gornych w L sasiad za rogiem jest na elewacji przekrojem
-z krzyzem (bryla 3D „Ciąg” jest poprawna — sprawdzone zrzutem 2026-09-29).
-Szafka w L sama z gory: rog bez boku odslania ~15 mm cokolu (ZNANE).
+[AI-INFO] Audyt 2D rogu (`audyt2d`, `tylkoInfo`), stan 2026-10-11 — zostaje tak (decyzja użytkownika, BLEDY.md „Ustalone”): slepy rog i szafka
+w L w rogu przechodza scisle; „szafka w L sama z gory — 15 mm cokolu” juz nie wystepuje
+(wyjatek ZNANE zdjety). Zostaje tylko widok „Ciąg” (elewacja jednej sciany), gdy szafka
+z sasiedniej sciany stoi przed koncem tej sciany (rog „wjezdza” sasiad: U z trzech
+scian, gorne ciagi w L): elewacja jej nie rysuje (gorne w L) albo rysuje przekrojem
+z krzyzem (U) — bez jej boku, uchwytu i nozek. Bryla 3D „Ciąg”, rzut zabudowy, formatki,
+okucia i kontrola kolizji sa poprawne; to tylko rysunek elewacji.
 
 [AI-INFO] Rozkroj automatyczny (2026-09-29): `autoPlan` liczy `buildCutPlan` po
 `ROZKROJ_ZWLOKA` (1 s; powyzej `ROZKROJ_DUZY` = 40 szafek — 5 s) od ostatniej zmiany
@@ -682,3 +708,40 @@ Zabudowa/rogi/kolizje/blaty tylko w obrebie pomieszczenia (`drawableRuns`,
 uwagi pomieszczenia + licznik bledow w innych, PDF z rozdzialami na pomieszczenia
 i zbiorczym zamowieniem, nowa suita, migracja starych projektow. Nazwa w UI:
 „Pomieszczenie” („Zabudowa” zajeta przez widok).
+
+[AI-INFO] Analiza brakow kontroli (2026-10-04). Wczesniejsze audyty sprawdzaly
+konstrukcje i wnetrza osobno, na szafkach wpisanych recznie z wiencem i dnem —
+bledy wychodzily na skrzyzowaniach (szuflady pod blatem bez wienca, wspornik pod
+wzmocnieniem, NL przy plecach z plyty, klapa bez wienca). Stad dwa nowe audyty:
+`audytmacierz` (konstrukcja × wnetrze × skrajne wymiary) i `audytzabudowa`
+(kuchnia skladana przyciskami, tak jak robi to uzytkownik). Zasada na przyszlosc:
+nowa konstrukcja albo nowy rodzaj wnetrza = nowy wiersz w `KONSTRUKCJE`/`WNETRZA`
+w `audytmacierz.mjs`, a nie osobny test na jednej szafce. Oczekiwane bledy (np.
+klapa w dol bez dna) idą do mapy `OCZEKIWANE`, nie do wyjatkow w sprawdzeniach.
+Pomocnik `symwysuw.mjs` wymaga kolorow rol plyt (K/F/P) — bez nich nie odrozni
+frontu od korpusu i zwraca 0 szuflad (patrz `audytzabudowa`, ustawianie `mat`).
+[AI-INFO] Zrobione 2026-10-04 (decyzje uzytkownika): szafka w L z kreatora bierze
+glebokosc sasiedniej sciany, pusty ciag dolny — glebokosc ciagu obok albo 560,
+blat roboczy 38 na bokach miesci sie w H (BLEDY.md „Ustalone”).
+
+[AI-INFO] Druga runda braków kontroli (2026-10-04, zgłoszenie użytkownika: brak blatu
+w widoku szafki, zlane fronty z boku, wysuw, tył szuflady). Wnioski:
+- audyt porównujący 2D z 3D nic nie da, jeśli obie strony mają ten sam brak (blat nie
+  istniał ani w 2D, ani w 3D samej szafki) — dlatego `audyt2d` sprawdza też wprost,
+  że blat ciągu jest w 3D szafki pod blatem;
+- tolerancje w audytach chowały błędy: „pas frontów ze szczelinami do 4 mm” przepuszczał
+  zlane fronty — przy nowej tolerancji zawsze napisz, jaki błąd mogłaby schować;
+- scenariusze audytów brały szafkę wolnostojącą z wieńcem; szafka, którą robi
+  użytkownik (pod blatem, z parą wzmocnień), musi być w każdym audycie — wzór bierz
+  z aplikacji („+ ciąg”, „+ szafka”), nie składaj ręcznie;
+- test losowych edycji (`losowe`) znajduje kombinacje, których nikt nie wypisał
+  (HDF we frezie × pod blatem) — przy nowej opcji dopisz ją do `ZMIANY` w `losowe.mjs`.
+[AI-INFO] Geometria skrzynki V-BOX w pionie — zrobione 2026-10-05 (niżej).
+
+[AI-INFO] Skrzynka V-BOX w pionie (2026-10-05). Rysunki w folderze V-BOX są
+schematyczne: pomiar wektorów dał 22,5–32,5 mm dla tej samej wielkości — nie mierz
+z nich. W skali są tylko otwory frontu (32 / 47,5) na rysunku „Front do szuflady
+80 mm” i tam góra boku wypada 95 mm nad dołem prowadnicy = min. front. Stąd
+`vboxGora/vboxOdProw/vboxDno` liczone z tabel `VBOX.minFront.overlay` i `VBOX.backH`.
+Użytkownik sam zwrócił uwagę, że bok stoi na górnej części prowadnicy — przy
+wątpliwościach co do okuć pytaj o pomiar prawdziwej szuflady.

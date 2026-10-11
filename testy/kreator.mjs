@@ -41,8 +41,9 @@ ok('nowy ciąg ma narożnik do „Ściana 1”, za nim, sam w róg, z płaską w
     && c2.corner.wstawka && c2.corner.wstawka.typ === 'plaska', JSON.stringify(c2 && c2.corner));
 const rog = p.items.find((it) => it.runId === (c2 || {}).id);
 const kol = rog && rog.cab.levels[0].cols[0];
-// szablon stojacej ma od 2026-09-28 560 w glab
-ok('szafka w rogu 1000 × 560 w nowym ciągu', rog && rog.cab.W === 1000 && rog.cab.D === 560, rog && `${rog.cab.W}×${rog.cab.D}`);
+// nowy ciag jest pusty — glebokosc z sasiedniej sciany (570), nie z szablonu (560):
+// inaczej dwie sciany jednej kuchni mialy rozny blat (audyt zabudowy 2026-10-04)
+ok('szafka w rogu 1000 × 570 (jak sąsiednia ściana) w nowym ciągu', rog && rog.cab.W === 1000 && rog.cab.D === 570, rog && `${rog.cab.W}×${rog.cab.D}`);
 ok('fix 621 przy rogu (od lewej), jedne drzwi, zawias od zewnątrz (prawy)',
   kol && kol.fix.side === 'left' && kol.fix.w === 621 && kol.doors === 1 && kol.hinge === 'right', JSON.stringify(kol && { fix: kol.fix, doors: kol.doors, hinge: kol.hinge }));
 let u = await uwagi();
@@ -75,7 +76,7 @@ await seed({ name: 'K', active: 3, prices: {}, runs: [RUN('c1', 'Ściana 1'), RU
 u = await uwagi();
 ok('na górze blok „Ślepy narożnik — szafka w rogu do ustawienia”', /szafka w rogu do ustawienia/.test(u));
 // kontrola kolizji nigdy nie jest wstrzymywana (uzytkownik 2026-09-28) — kolizje stoja obok bloku
-ok('kolizje w rogu widać od razu, obok bloku', /nie ma się jak otworzyć/.test(u), u.split('\n').filter((l) => /otworzyć/.test(l)).join(' / '));
+ok('kolizje w rogu widać od razu, obok bloku', /nie otworzy się (do końca|wcale)/.test(u), u.split('\n').filter((l) => /otworzy się/.test(l)).join(' / '));
 await card(/^Uwagi/).getByRole('button', { name: /Ustaw szafkę w rogu: fix 621 mm \+ drzwi \+ wstawka 18 mm/ }).click();
 await page.waitForTimeout(1500);
 p = await zapis();

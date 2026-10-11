@@ -87,8 +87,11 @@ const nachodzi = (sol) => {
   return [...new Set(out)];
 };
 // 2. formatki ↔ plyty: ile plyt o wymiarach formatki (±3 mm, dowolnie obrocone)
+/* Formatka wezsza niz 60 mm idzie do zamowienia jako 60 i docina sie ja recznie
+   (uzytkownik 2026-10-11) — bok 60 w formatce pasuje do bryly ponizej 60. */
+const bok = (f, b) => Math.abs(f - b) <= 3 || (f === 60 && b < 60);
 const pasuje = (p, s) => { const [, q, r] = [...s.d].sort((x, y) => x - y).map(Math.round);
-  return (Math.abs(p.a - q) <= 3 && Math.abs(p.b - r) <= 3) || (Math.abs(p.a - r) <= 3 && Math.abs(p.b - q) <= 3); };
+  return (bok(p.a, q) && bok(p.b, r)) || (bok(p.a, r) && bok(p.b, q)); };
 /* Polka z wycietym tylnym rogiem (wzmocnienie tylne B w szafce w L) to w bryle
    dwa prostopadlosciany: pas na cala szerokosc i reszta obok wyciecia. */
 const czesci = (parts) => parts.flatMap((p) => {

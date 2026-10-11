@@ -37,9 +37,10 @@ for (const l of ['Ciąg', 'Z góry']) await klik(l);
 let bl = await plyty();
 console.log('   ' + JSON.stringify(bl));
 ok('blat jest w rzucie', bl.length === 1, String(bl.length));
-/* Dwie szafki po 600 to jedna plyta 1200, glebokosc HDF 3 + 500 + luz 2 + front 18 + wysieg 10. */
+/* Dwie szafki po 600 to jedna plyta 1200, glebokosc HDF 3 + 560 (pusty ciag, decyzja 2026-10-04) + luz 2 + front 18 = 583 do lica — arkusz 600
+   wystaje 17 mm (<= 30), wiec rysunek pokazuje caly arkusz 600. */
 ok('idzie przez obie szafki', bl.length === 1 && bl[0].w === 1200, bl[0] && String(bl[0].w));
-ok('głębokość to wymiar rzeczywisty', bl.length === 1 && bl[0].h === 533, bl[0] && String(bl[0].h));
+ok('głębokość to wymiar rzeczywisty', bl.length === 1 && bl[0].h === 600, bl[0] && String(bl[0].h));
 
 console.log('\n== blat w elewacji ==');
 await klik('Zamk.');

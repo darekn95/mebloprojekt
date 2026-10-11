@@ -37,16 +37,16 @@ const seed = async (runs, items) => {
 const kolizje = async () => {
   const c = page.locator('section').filter({ has: page.locator('h2', { hasText: /Uwagi/ }) }).first();
   if (!(await c.count())) return [];
-  return (await c.innerText()).split('\n').filter((l) => /nie ma się jak otworzyć/.test(l));
+  return (await c.innerText()).split('\n').filter((l) => /nie otworzy się (do końca|wcale)/.test(l));
 };
 /* Uwagi rozroznia sie ikona: „×" to blad, „!" ostrzezenie, „i" podpowiedz.
    Bierzemy ikony wszystkich linii o kolizji otwierania. */
 const ikonyKolizji = async () => page.evaluate(() => {
   const t = [...document.querySelectorAll('section')]
-    .map((s) => s.innerText).find((x) => /nie ma się jak otworzyć/.test(x)) || '';
+    .map((s) => s.innerText).find((x) => /nie otworzy się (do końca|wcale)/.test(x)) || '';
   const linie = t.split('\n').map((l) => l.trim());
   return linie.flatMap((l, i) =>
-    /nie ma się jak otworzyć/.test(l) ? [(linie[i - 1] || '').trim()] : []);
+    /nie otworzy się (do końca|wcale)/.test(l) ? [(linie[i - 1] || '').trim()] : []);
 });
 const skrot = (xs) => xs.map((l) => l.slice(0, 90)).join(' / ');
 /* Szafka w slepym rogu juz ustawiona tak, jak robi to „Ustaw szafkę w rogu”:
@@ -85,10 +85,17 @@ ok('kolizja zgłoszona jako błąd, nie ostrzeżenie',
   ikony.length > 0 && ikony.every((z) => z === '×'), JSON.stringify(ikony));
 ok('kolizja idzie przez granicę ścian', k.some((l) => /Ściana B/.test(l) && /Ściana A/.test(l)),
   skrot(k));
-ok('podane, o ile brakuje', k.some((l) => /brakuje \d+ mm/.test(l)), skrot(k));
-/* Po ustawieniu rogu skrzydlo B1 uderza w fix — zostaloby 4 mm, wiec rady
-   „zwez front” juz nie ma (tylko >= 200 mm); zostaja zawiasy i odsuniecie. */
-ok('podpowiedziane zawiasy', k.some((l) => /Przełóż zawiasy/.test(l)), skrot(k));
+// kat zamiast „brakuje N mm” (uzytkownik 2026-10-11 — milimetry nic nie mowily)
+ok('podany kąt, do którego skrzydło się otworzy', k.some((l) => /otworzy się tylko do ok\. \d+°|nie otworzy się wcale/.test(l)), skrot(k));
+ok('bez „brakuje N mm”', !k.some((l) => /brakuje \d+ mm/.test(l)), skrot(k));
+/* B1 ma zawias przy rogu: uchwyt szafki w rogu stoi przy samym zawiasie,
+   skrzydlo dochodzi do ok. 73°. Po drugiej stronie uderzyloby po kilku
+   stopniach, wiec rady o zawiasach nie ma (od 2026-10-11 — przyciski tylko
+   wtedy, gdy pomagaja); jest przycisk wstawki, ktora kolizje usuwa. */
+ok('B1: kąt ok. 70–80°', k.some((l) => /„B1"/.test(l) && /do ok\. (7\d|80)°/.test(l)), skrot(k));
+ok('B1: bez rady „przełóż zawiasy” (po drugiej stronie gorzej)', !k.some((l) => /„B1"/.test(l) && /Przełóż zawiasy/.test(l)), skrot(k));
+ok('przycisk „Dodaj wstawkę 18 mm — bez kolizji”',
+  await page.getByRole('button', { name: 'Dodaj wstawkę 18 mm — bez kolizji' }).count() >= 1);
 
 console.log('\n== waska szafka w slepym rogu: tylko wykonalne rady ==');
 /* Szafka 600 w rogu, drugi ciag glebokosci 600: zostaje 0–30 mm frontu. Rada
@@ -137,6 +144,12 @@ await seed(LRUNY(), [CAB('A1', 600, 'c1'), ROGOWA(900), SZUF('B1', 700, 'c2')]);
 k = await kolizje();
 console.log('     ' + k.join('\n     '));
 ok('szuflady zza rogu wchodzą do sprawdzenia', k.length > 0, String(k.length));
+/* Szuflada wysuwa sie na pol metra przed skrzydlo — zadna wstawka tego nie
+   naprawi (po probie skrzydlo dalej staje po kilku stopniach), wiec przycisku
+   wstawki ma nie byc (uzytkownik 2026-10-11: tylko gdy pomaga). */
+ok('wstawka nie pomaga — bez przycisku wstawki',
+  await page.getByRole('button', { name: /wstawk|Wstawka/i }).count() === 0,
+  (await page.getByRole('button', { name: /wstawk|Wstawka/i }).allInnerTexts()).join(' / '));
 
 console.log('\n== luz w rogu rozsuwa ciagi ==');
 /* Im wiekszy luz w rogu, tym dalej stoi drugi ciag — kolizji ma byc mniej. */

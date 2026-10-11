@@ -1,6 +1,7 @@
 /* Zmiana strony zawiasow (prosba uzytkownika 2026-09-28):
    - przy kolizji otwierania przycisk „Przełóż zawiasy na …” tylko wtedy, gdy
-     przelozenie zmniejsza kolizje, z informacja, ile jej zostanie,
+     przelozenie pomaga, z informacja, jak sie wtedy otworzy (bez kolizji albo
+     do ok. N° — od 2026-10-11 kat zamiast „zostaje N mm”),
    - przelacznik „zawias” przy kolumnie z jednymi drzwiami w Strukturze wnetrza.
    Uklad jak u uzytkownika: sciana 1 konczy sie szafka z jednymi drzwiami przy
    rogu, w rog wjezdza sciana 2 ze slepa szafka 1000 (fix 618, uchwyt przy
@@ -18,36 +19,75 @@ const PL = { on: true, height: 100, mode: 'under', setback: 0 };
 const CAB = (name, W, runId, col) => ({ cab: { name, W, H: 720, D: 570, plinth: PL, legs: { on: true, height: 100 },
   levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, ...col }] }] }, runId, offset: 0 });
 const RUN = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 570, plinth: PL, worktop: true, corner: null, ...o });
-const seed = async (hingeA3) => {
+const seed = async (hingeA3, uchwytR) => {
   await page.evaluate((p) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(p)); }, {
     name: 'Z', active: 2, prices: {},
     runs: [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
     items: [CAB('A1', 600, 'c1'), CAB('A2', 600, 'c1'), CAB('A3', 600, 'c1', { doors: 1, hinge: hingeA3 }),
-      CAB('R', 1000, 'c2', { doors: 1, fix: { side: 'left', w: 618, mode: 'overlay', support: false }, hinge: 'right' })] });
+      CAB('R', 1000, 'c2', { doors: 1, fix: { side: 'left', w: 618, mode: 'overlay', support: false }, hinge: 'right' })]
+      .map((it) => (it.cab.name === 'R' && uchwytR != null ? { ...it, cab: { ...it.cab, handleOut: uchwytR } } : it)) });
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(800);
 };
 const card = (re) => page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
 const kolizje = async () => (await card(/^Uwagi/).count() ? await card(/^Uwagi/).innerText() : '')
-  .split('\n').filter((l) => /nie ma się jak otworzyć/.test(l));
+  .split('\n').filter((l) => /nie otworzy się (do końca|wcale)/.test(l));
 const zapis = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
 
-console.log('== zawias z lewej (dalej od rogu): mała kolizja, przełożenie byłoby gorsze ==');
+/* Od 2026-10-11 kolizje mierzy kat, przy ktorym skrzydlo pierwszy raz uderza
+   (wczesniej „ile mm wchodzi w przeszkode”, co odwracalo ocene). Zawias dalej
+   od rogu: wolna krawedz stoi tuz przy uchwycie szafki w rogu, wiec skrzydlo
+   staje po kilku stopniach. Zawias w rogu: uchwyt jest przy samym zawiasie
+   i skrzydlo dochodzi do ok. 73°. Przelozenie z lewej na prawa pomaga, odwrotnie nie. */
+console.log('== zawias z lewej (dalej od rogu): staje po kilku stopniach, przycisk na prawą ==');
 await seed('left');
 let k = await kolizje();
 console.log('     ' + k.join('\n     '));
 ok('kolizja A3 z uchwytem szafki w rogu', k.some((l) => /„A3"/.test(l) && /uchwyt/.test(l)));
-ok('bez przycisku przełożenia (gorzej po drugiej stronie)',
-  await card(/^Uwagi/).getByRole('button', { name: /Przełóż zawiasy na prawą/ }).count() === 0);
+const kat = (l) => Number((l.match(/otworzy się tylko do ok\. (\d+)°/) || [])[1]);
+const katL = kat(k.find((l) => /„A3"/.test(l)) || '');
+ok('komunikat podaje kąt, do którego skrzydło się otworzy', katL >= 0 && katL < 20, k.join(' / '));
+const przycisk = card(/^Uwagi/).getByRole('button', { name: /Przełóż zawiasy na prawą — (bez kolizji|otworzy się do ok\. \d+°)/ });
+ok('przycisk „Przełóż zawiasy na prawą — … do ok. N°” (pomaga)', await przycisk.count() === 1,
+  (await card(/^Uwagi/).getByRole('button').allInnerTexts()).filter((t) => /zawias/.test(t)).join(' / '));
+await przycisk.first().click(); await page.waitForTimeout(1500);
+let p = await zapis();
+ok('po kliknięciu zawias A3 z prawej', p.items[2].cab.levels[0].cols[0].hinge === 'right', p.items[2].cab.levels[0].cols[0].hinge);
 
-console.log('\n== zawias z prawej (w róg): duża kolizja, przycisk na lewą ==');
+console.log('\n== zawias z prawej (w róg): otworzy się do ok. 73°, przełożenie byłoby gorsze ==');
 await seed('right');
 k = await kolizje();
 console.log('     ' + k.join('\n     '));
-const przycisk = card(/^Uwagi/).getByRole('button', { name: /Przełóż zawiasy na lewą — zostaje \d+ mm/ });
-ok('przycisk „Przełóż zawiasy na lewą — zostaje N mm”', await przycisk.count() === 1);
-await przycisk.first().click(); await page.waitForTimeout(1500);
-let p = await zapis();
-ok('po kliknięciu zawias A3 z lewej', p.items[2].cab.levels[0].cols[0].hinge === 'left', p.items[2].cab.levels[0].cols[0].hinge);
+const katP = kat(k.find((l) => /„A3"/.test(l)) || '');
+ok('skrzydło dochodzi dalej niż przy zawiasie z lewej', katP > katL + 20, `${katL}° → ${katP}°`);
+ok('bez przycisku przełożenia (gorzej po drugiej stronie)',
+  await card(/^Uwagi/).getByRole('button', { name: /Przełóż zawiasy na lewą/ }).count() === 0);
+ok('bez rady „przełóż zawiasy”, skoro nie pomaga', !k.some((l) => /Przełóż zawiasy/.test(l)), k.join(' / '));
+ok('przycisk wstawki, która usuwa kolizję', await card(/^Uwagi/).getByRole('button', { name: 'Dodaj wstawkę 18 mm — bez kolizji' }).count() === 1);
+
+/* Uzytkownik 2026-10-11: przy problemie rozne opcje, kazda z wynikiem —
+   zawiasy, wstawka 18, wstawka 60, zawiasy + wstawka. */
+console.log('\n== różne opcje naprawy, każda z wynikiem ==');
+await seed('left');
+const opcje = async () => (await card(/^Uwagi/).getByRole('button').allInnerTexts()).filter((t) => /awias|stawk/.test(t));
+let o = await opcje();
+console.log('     ' + o.join(' ; '));
+ok('uchwyt 20: zawiasy (do ok. N°), wstawka 18 i wstawka 60 (obie bez kolizji)',
+  o.some((t) => /^Przełóż zawiasy na prawą — otworzy się do ok\. \d+°$/.test(t))
+  && o.includes('Dodaj wstawkę 18 mm — bez kolizji') && o.includes('Wstawka 60 mm (na trójkątach) — bez kolizji'), o.join(' ; '));
+ok('bez „zawiasy + wstawka”, gdy sama wstawka wystarcza', !o.some((t) => /^Zawiasy na .* \+ wstawka/.test(t)), o.join(' ; '));
+await seed('left', 80);
+o = await opcje();
+console.log('     uchwyt 80: ' + o.join(' ; '));
+const razem = card(/^Uwagi/).getByRole('button', { name: /^Zawiasy na prawą \+ wstawka 60 mm \(na trójkątach\) — (bez kolizji|otworzy się do ok\. \d+°)$/ });
+ok('uchwyt 80: „Zawiasy na prawą + wstawka 60 mm” — więcej niż każda z tych zmian osobno', await razem.count() === 1, o.join(' ; '));
+await razem.first().click(); await page.waitForTimeout(1500);
+p = await zapis();
+ok('po kliknięciu: zawias A3 z prawej i szeroka wstawka 60 w narożniku',
+  p.items[2].cab.levels[0].cols[0].hinge === 'right' && JSON.stringify(p.runs[1].corner.wstawka) === JSON.stringify({ typ: 'szeroka', w: 60, mocowanie: 'trojkaty' }),
+  p.items[2].cab.levels[0].cols[0].hinge + ' ' + JSON.stringify(p.runs[1].corner.wstawka));
+await seed('right', 120);
+o = await opcje();
+ok('uchwyt 120 przy zawiasie od rogu: nic nie pomaga — bez przycisków', o.length === 0, o.join(' ; '));
 
 console.log('\n== przełącznik przy kolumnie ==');
 await seed('auto');
