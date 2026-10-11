@@ -88,7 +88,7 @@ lico dostanie osobną opcję i wtedy dołoży się tu jako kolejna bryła.
 (`swingKat`), a nie „ile mm wchodzi w przeszkodę” — ta odwracała ocenę (uchwyt
 przy zawiasie: „brakuje 534 mm” przy otwarciu do 74°; uchwyt przed wolną krawędzią:
 „mało”, a drzwi stają po 6°). Uwaga mówi o przeszkodzie, w którą skrzydło uderza
-najwcześniej (`swingStop`). Przyciski zawiasów i wstawki są tylko, gdy pomagają
+najwcześniej (`swingStop`). Przyciski (zawiasy, wstawka 18, wstawka 60, zawiasy + wstawka — lista opcji z wynikiem) są tylko, gdy pomagają
 (`wynikPoprawki`: kolizja znika albo kąt rośnie o `POPRAWKA_KAT`); wstawkę
 sprawdza się na kopii projektu z ustawioną wstawką (`zWstawka` w `openingMsgs`).
 

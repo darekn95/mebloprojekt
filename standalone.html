@@ -10013,6 +10013,9 @@ const Card = ({ title, children, right, collapsible = true, defaultOpen = true, 
   );
 };
 
+// dopisek przycisku poprawki kolizji: „ok” — bez kolizji, liczba — kat po poprawce
+const poPoprawce = (wynik) => (wynik === "ok" ? " — bez kolizji" : wynik ? ` — otworzy się do ok. ${wynik}°` : "");
+
 const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editItemCab, cab, setGap, runFix, setMatDepth, setLegs, setPlinthSb }) => {
   const [txt, ...actions] = text.split("|");
   const btns = actions.map((action) => {
@@ -10050,9 +10053,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("wstawka:")) {
       // „wstawka:<ciag z narożnikiem>:<plaska|szeroka>:<ile mm widac od przodu>:<ok|kat po wstawce>"
       const [, , typ, ile, wynik] = action.split(":");
-      const reszta = wynik === "ok" ? " — bez kolizji" : wynik ? ` — otworzy się do ok. ${wynik}°` : "";
       return {
-        label: (typ === "szeroka" ? `Wstawka ${fmt(Number(ile))} mm (na trójkątach)` : `Dodaj wstawkę ${fmt(Number(ile))} mm`) + reszta,
+        label: (typ === "szeroka" ? `Wstawka ${fmt(Number(ile))} mm (na trójkątach)` : `Dodaj wstawkę ${fmt(Number(ile))} mm`) + poPoprawce(wynik),
         run: () => runFix && runFix(action),
       };
     }
@@ -10119,10 +10121,22 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("hingeflipcab:")) {
       // „hingeflipcab:<nr szafki>:<poziom>:<kolumna>:<strona>:<ok|kat po przelozeniu>" — z uwagi o kolizji
       const [, idx, li, j, side, wynik] = action.split(":");
-      const reszta = wynik === "ok" ? " — bez kolizji" : ` — otworzy się do ok. ${wynik}°`;
       return {
-        label: `Przełóż zawiasy na ${side === "left" ? "lewą" : "prawą"}${reszta}`,
+        label: `Przełóż zawiasy na ${side === "left" ? "lewą" : "prawą"}${poPoprawce(wynik)}`,
         run: () => editItemLevels(Number(idx), (L) => { L[+li].cols[+j].hinge = side; }),
+      };
+    }
+    if (action.startsWith("hingewstawka:")) {
+      /* „hingewstawka:<nr szafki>:<poziom>:<kolumna>:<strona>:<ciag z narożnikiem>:<typ>:<mm>:<ok|kat>"
+         — zawiasy na druga strone i wstawka w rogu naraz (z uwagi o kolizji) */
+      const [, idx, li, j, side, rogId, typ, ile, wynik] = action.split(":");
+      const wst = typ === "szeroka" ? `wstawka ${fmt(Number(ile))} mm (na trójkątach)` : `wstawka ${fmt(Number(ile))} mm`;
+      return {
+        label: `Zawiasy na ${side === "left" ? "lewą" : "prawą"} + ${wst}${poPoprawce(wynik)}`,
+        run: () => {
+          editItemLevels(Number(idx), (L) => { L[+li].cols[+j].hinge = side; });
+          if (runFix) runFix(`wstawka:${rogId}:${typ}:${ile}`);
+        },
       };
     }
     if (action.startsWith("wspornikoff:")) {
@@ -12251,7 +12265,7 @@ const openingMsgs = (L, project) => {
     const czyje = g.b.id === s.id ? "tej samej szafki" : `szafki „${g.b.cab}" ${gdzie}`;
     const zostaje = Math.max(0, Math.round(s.szer - g.ile));
     /* Przycisk przelozenia zawiasow — tylko gdy po przelozeniu jest lepiej;
-       podpis mowi, jak sie wtedy otworzy. */
+       podpis mowi, jak sie wtedy otworzy (pierwszy z listy opcji). */
     let akcjaFlip = "";
     if (s.alt && s.flip) {
       const po = wynikPoprawki(g, swingStop({ ...s.alt, klucz: s.klucz, id: s.id }, bryly));
@@ -12268,12 +12282,13 @@ const openingMsgs = (L, project) => {
     if (g.b.run !== s.run) rady.push("odsuń ciągi w rogu (karta ciągu → Narożnik → „Luz w rogu”)");
     const rada = rady.length > 1
       ? rady.slice(0, -1).join(", ") + " albo " + rady[rady.length - 1] : (rady[0] || "zmień układ w rogu");
-    /* Kolizja miedzy dwoma ciagami w rogu bez szafki w L: przycisk wstawki —
-       plaskiej (grubosc plyty), a gdy ta nie wystarcza albo juz jest,
-       szerokiej 60 mm na trojkatach. Tylko taki, ktory po probie pomaga:
-       najpierw ten, przy ktorym kolizja znika, inaczej ten, przy ktorym
-       skrzydlo otwiera sie najdalej. Ustawienie siedzi w narozniku ciagu,
-       ktory go ma (tego z `corner.of`). */
+    /* Kolizja miedzy dwoma ciagami w rogu bez szafki w L: przyciski wstawki —
+       plaskiej (grubosc plyty) i szerokiej 60 mm na trojkatach — oraz zawiasow
+       razem z wstawka. Uzytkownik 2026-10-11: przy problemie rozne opcje, kazda
+       z wynikiem („bez kolizji” albo „do ok. N°”), np. wstawka 18 i wstawka 60
+       obie, gdy obie pomagaja. Kazda sprawdzona na probe; zawiasy + wstawka tylko
+       wtedy, gdy razem daja wiecej niz kazda z tych zmian osobno. Ustawienie
+       siedzi w narozniku ciagu, ktory go ma (tego z `corner.of`). */
     let akcja = "";
     const rA = s.id.split("#")[0], rB = g.b.id.split("#")[0];
     if (rA !== rB) {
@@ -12287,18 +12302,26 @@ const openingMsgs = (L, project) => {
         const tf = tfPrzyRogu(rog);
         const typy = !ws ? [["plaska", tf], ["szeroka", WSTAWKA_W]]
           : ws.typ === "plaska" ? [["szeroka", WSTAWKA_W]] : [];
-        let best = null;
+        const katPo = (po) => (po ? po.kat : Infinity);   // Infinity = bez kolizji
+        const samFlip = s.alt && s.flip ? katPo(swingStop({ ...s.alt, klucz: s.klucz, id: s.id }, bryly)) : null;
+        const razem = [];
         for (const [typ, ile] of typy) {
           const sb = zWstawka(rog, typ);
           const s2 = sb && sb.skrzydla.find((x) => x.klucz === s.klucz);
           if (!s2) continue;
           const po = swingStop(s2, sb.bryly);
           const wynik = wynikPoprawki(g, po);
-          if (!wynik) continue;
-          if (!best || (best.po && (!po || po.kat > best.po.kat))) best = { typ, ile, po, wynik };
-          if (!po) break;
+          if (wynik) akcja += `|wstawka:${rog.id}:${typ}:${ile}:${wynik}`;
+          if (samFlip == null || !s2.alt) continue;
+          const poF = swingStop({ ...s2.alt, klucz: s.klucz, id: s.id }, sb.bryly);
+          const wynikF = wynikPoprawki(g, poF);
+          const lepszeOsobno = Math.max(samFlip, katPo(po));
+          const dodaje = katPo(poF) === Infinity ? lepszeOsobno !== Infinity
+            : katPo(poF) >= lepszeOsobno + POPRAWKA_KAT;
+          if (wynikF && dodaje)
+            razem.push(`|hingewstawka:${s.flip.idx}:${s.flip.lvl}:${s.flip.col}:${s.flip.side}:${rog.id}:${typ}:${ile}:${wynikF}`);
         }
-        if (best) akcja = `|wstawka:${rog.id}:${best.typ}:${best.ile}:${best.wynik}`;
+        akcja += razem.join("");
       }
     }
     /* Kat zamiast „brakuje N mm” (uzytkownik 2026-10-11): ile milimetrow
