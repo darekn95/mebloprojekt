@@ -292,6 +292,19 @@ const USTr = { W: 1000, levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 
 await zRogiem('ślepy róg z wstawką szeroką (trójkąty wstawki)', [RUNr('c1', 'Ściana 1'), RUNr('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0, wstawka: { typ: 'szeroka', w: 60 } } })],
   [[szafka('A1'), 'c1'], [szafka('A2'), 'c1'], [szafka('R', USTr), 'c2']], 1,
   [['wstawka szeroka na trójkątach', /^Wstawka w rogu \| trójkąt meblowy/]]);
+/* Szeroka na konfirmatach (uzytkownik 2026-10-11, do wyboru): od srodka szafki
+   przez jej bok (prawy — A2 konczy sciane 1 przy rogu) w krawedz wstawki albo
+   listwy za nia; co ok. 300 mm, min. 2. */
+const zWstawka = (moc) => [RUNr('c1', 'Ściana 1'), RUNr('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0,
+  wstawka: { typ: 'szeroka', w: 60, mocowanie: moc } } })];
+await zRogiem('ślepy róg z wstawką szeroką na konfirmatach (w linii korpusu)', zWstawka('konf'),
+  [[szafka('A1'), 'c1'], [szafka('A2'), 'c1'], [szafka('R', USTr), 'c2']], 1,
+  [['konfirmaty wstawki w boku szafki od rogu', /^Bok prawy \| konfirmat — wstawka w rogu/],
+   ['otwory w krawędzi wstawki', /^Wstawka w rogu \| konfirmat — bok szafki/]]);
+await zRogiem('ślepy róg z wstawką szeroką i listwą (konfirmaty w listwę)', zWstawka('listwa'),
+  [[szafka('A1'), 'c1'], [szafka('A2'), 'c1'], [szafka('R', USTr), 'c2']], 1,
+  [['konfirmaty listwy w boku szafki od rogu', /^Bok prawy \| konfirmat — wstawka w rogu/],
+   ['otwory w krawędzi listwy', /^Listwa wstawki \| konfirmat — bok szafki/]]);
 
 console.log('\n== półki na trójkątach meblowych (trzecia opcja mocowania) ==');
 /* Uzytkownik 2026-09-29: obok kolkow i konfirmatow — trojkaty. Po 2 z kazdej

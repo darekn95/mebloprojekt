@@ -83,7 +83,7 @@ ok('uchwyt 80: „Zawiasy na prawą + wstawka 60 mm” — więcej niż każda z
 await razem.first().click(); await page.waitForTimeout(1500);
 p = await zapis();
 ok('po kliknięciu: zawias A3 z prawej i szeroka wstawka 60 w narożniku',
-  p.items[2].cab.levels[0].cols[0].hinge === 'right' && JSON.stringify(p.runs[1].corner.wstawka) === JSON.stringify({ typ: 'szeroka', w: 60 }),
+  p.items[2].cab.levels[0].cols[0].hinge === 'right' && JSON.stringify(p.runs[1].corner.wstawka) === JSON.stringify({ typ: 'szeroka', w: 60, mocowanie: 'trojkaty' }),
   p.items[2].cab.levels[0].cols[0].hinge + ' ' + JSON.stringify(p.runs[1].corner.wstawka));
 await seed('right', 120);
 o = await opcje();

@@ -318,6 +318,16 @@ const SZEROKI_FRONT = 600;
 /* Wstawka w rogu: 60 mm to najwezsza formatka, jaka da sie jeszcze okleic —
    tyle ma plaska w glab, a szeroka licem do przodu (ustalone z uzytkownikiem). */
 const WSTAWKA_W = 60;
+/* Szeroka wstawka — jak ja trzymac (uzytkownik 2026-10-11, do wyboru):
+   „trojkaty” — w licu drzwi, trojkaty meblowe do bokow sasiednich szafek (jak dotad);
+   „konf” — w linii korpusu (cofnieta o grubosc frontu), krawedzia przy boku szafki
+   od rogu, konfirmaty od srodka szafki przez bok w jej krawedz;
+   „listwa” — w licu drzwi, za nia listwa z plyty korpusu w linii korpusu
+   (wkrety od tylu), listwa konfirmatami przez bok szafki w jej krawedz.
+   Konfirmaty co ok. 300 mm, min. 2 (jak trojkaty wspornika). */
+const WSTAWKA_MOCOWANIA = ["trojkaty", "konf", "listwa"];
+const WSTAWKA_KONF_CO = 300;
+const wstawkaKonfIle = (H) => Math.max(2, Math.ceil(H / WSTAWKA_KONF_CO));
 /* Slepy narożnik: zaslonieta czesc frontu szafki w rogu konczy sie nie na
    korpusie sasiada, tylko na jego licu (korpus + front) i jeszcze dalej —
    fix w slepej czesci robi sie szerszy, zeby drzwi nie zahaczaly o uchwyt na
@@ -1121,7 +1131,10 @@ const migrateCorner = (c) => {
        plyty w poprzek, `w` (60) w glab, przykrecona wkretami; „szeroka" — `w`
        licem do przodu, na trojkatach. Odsuwa ciag o to, co widac od przodu. */
     wstawka: c.wstawka && (c.wstawka.typ === "plaska" || c.wstawka.typ === "szeroka")
-      ? { typ: c.wstawka.typ, w: Math.max(20, Math.round(Number(c.wstawka.w) || WSTAWKA_W)) } : null,
+      ? { typ: c.wstawka.typ, w: Math.max(20, Math.round(Number(c.wstawka.w) || WSTAWKA_W)),
+        // tylko szeroka ma wybor mocowania; plaska zawsze na wkrety
+        ...(c.wstawka.typ === "szeroka"
+          ? { mocowanie: WSTAWKA_MOCOWANIA.includes(c.wstawka.mocowanie) ? c.wstawka.mocowanie : "trojkaty" } : {}) } : null,
   };
 };
 
@@ -4925,11 +4938,25 @@ const runLayout = (groups, ref = null) => {
        nie ma — tam rog zamyka ramie. */
     const ustNaStarcie = n.corner.at === "end" ? ustepuje === n : ustepuje === p;
     const ws = !armLen && n.corner.wstawka ? n.corner.wstawka : null;
-    const przyRogu = ws && ustepuje.g.cabs.length
+    /* Szafka od rogu zawsze, takze bez wstawki — w jej Strukturze wnetrza jest
+       pole wstawki (uzytkownik 2026-10-11: „powinna byc w strukturze szafki”). */
+    const szafkaOdRogu = !armLen && ustepuje.g.cabs.length
       ? ustepuje.g.cabs[ustNaStarcie ? 0 : ustepuje.g.cabs.length - 1] : null;
+    n.pair.przyRogu = szafkaOdRogu;
+    const przyRogu = ws ? szafkaOdRogu : null;
     const wsU = przyRogu ? (ws.typ === "szeroka" ? ws.w : przyRogu.geo.tf) : 0;
-    if (przyRogu) n.pair.wstawka = { ...ws, cab: przyRogu, run: ustepuje, naStarcie: ustNaStarcie,
-      u: wsU, gl: ws.typ === "szeroka" ? przyRogu.geo.tf : ws.w };
+    if (przyRogu) {
+      const szeroka = ws.typ === "szeroka";
+      const moc = szeroka ? ws.mocowanie || "trojkaty" : null;
+      /* `odLica` — o ile lico wstawki stoi za licem drzwi: przy „konf” w linii
+         korpusu (front nakladany: o grubosc frontu), zeby jej krawedz dotykala
+         boku szafki. Przy „listwa” za wstawka stoi listwa z plyty korpusu. */
+      const liniaKorpusu = przyRogu.cab.frontMode === "inset" ? 0 : przyRogu.geo.tf;
+      n.pair.wstawka = { ...ws, cab: przyRogu, run: ustepuje, naStarcie: ustNaStarcie,
+        u: wsU, gl: szeroka ? przyRogu.geo.tf : ws.w, liniaKorpusu,
+        odLica: moc === "konf" ? liniaKorpusu : 0,
+        listwa: moc === "listwa" ? { gl: przyRogu.geo.t, odLica: przyRogu.geo.tf } : null };
+    }
     /* Slepy rog: drugi ciag staje bokiem przed licem szafki w rogu, czyli
        za jej frontem (fix / drzwi w zaslonietej czesci), a nie za korpusem.
        Bez tego bok sasiada i fix zajmowaly to samo miejsce, a wstawka
@@ -5038,7 +5065,9 @@ const runLayout = (groups, ref = null) => {
       const c0 = wsp.cab;
       const u0 = wsp.naStarcie ? wsp.run.lead + c0.x - wsp.u : wsp.run.lead + c0.x + c0.geo.W;
       const lico = wsp.run.depth + c0.offset + (c0.cab.frontMode === "inset" ? 0 : c0.geo.tf);
-      wsp.run.wstawki.push({ ...wsp, u0, u1: u0 + wsp.u, v0: lico - wsp.gl, v1: lico,
+      const v1 = lico - (wsp.odLica || 0);
+      wsp.run.wstawki.push({ ...wsp, u0, u1: u0 + wsp.u, v0: v1 - wsp.gl, v1,
+        listwa: wsp.listwa ? { ...wsp.listwa, v0: lico - wsp.listwa.odLica - wsp.listwa.gl, v1: lico - wsp.listwa.odLica } : null,
         z0: c0.base, z1: c0.base + c0.cab.H, H: c0.cab.H, rogRun: n.run.id });
     }
     if (!armLen) { n.blind = z; w.zones.push(z); return; }
@@ -6568,8 +6597,15 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
             {/* Wstawka w rogu: listwa z plyty frontowej przy boku pierwszej szafki,
                 w licu drzwi — tu widac, o ile odsuwa ciag od frontu w rogu. */}
             {((full.info.get(g.run.id) || n).wstawki || []).map((w, i) => (
-              <rect key={"ws" + i} data-el="wstawka" x={w.u0} y={w.v0} width={w.u1 - w.u0} height={w.v1 - w.v0}
-                fill={w.cab.frontColor} stroke={INK} strokeWidth="1.5" />
+              <g key={"ws" + i}>
+                <rect data-el="wstawka" x={w.u0} y={w.v0} width={w.u1 - w.u0} height={w.v1 - w.v0}
+                  fill={w.cab.frontColor} stroke={INK} strokeWidth="1.5" />
+                {/* szeroka na konfirmatach z listwa: listwa z plyty korpusu za wstawka */}
+                {w.listwa && (
+                  <rect data-el="wstawka-listwa" x={w.u0} y={w.listwa.v0} width={w.u1 - w.u0} height={w.listwa.v1 - w.listwa.v0}
+                    fill={(w.cab.mat.board || {}).color || "#d8c3a0"} stroke={INK} strokeWidth="1.5" />
+                )}
+              </g>
             ))}
           </g>
         );
@@ -6753,6 +6789,8 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     ((full.info.get(g.run.id) || n).wstawki || []).forEach((w) => {
       box(w.u0 - n.lead, w.z0, n.depth - w.v1, w.u1 - n.lead, w.z1, n.depth - w.v0,
         w.cab.frontColor, null, 1, true, 0, "wstawka");
+      if (w.listwa) box(w.u0 - n.lead, w.z0, n.depth - w.listwa.v1, w.u1 - n.lead, w.z1, n.depth - w.listwa.v0,
+        (w.cab.mat.board || {}).color || "#d8c3a0", null, 1, true, 0, "wstawka-listwa");
     });
     /* Cokol to plyta stojaca pod frontami, a nie pelna kostka — rysowany na cala
        glebokosc pokazywal plyte tam, gdzie jej nie ma: przy bokach i z tylu. */
@@ -8331,8 +8369,14 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
       <rect x="0" y="0" width={W} height={cd} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
       {/* wstawka w rogu: przy boku, konczy sie w licu drzwi */}
       {wstawkiSzafki(wstawki, geo).map((w, i) => (
-        <rect key={"ws" + i} data-el="wstawka" x={w.x0} y={cd + frontExtra - w.gl} width={w.x1 - w.x0} height={w.gl}
-          fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="1.5" />
+        <g key={"ws" + i}>
+          <rect data-el="wstawka" x={w.x0} y={cd + frontExtra - w.odLica - w.gl} width={w.x1 - w.x0} height={w.gl}
+            fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="1.5" />
+          {w.listwa && (
+            <rect data-el="wstawka-listwa" x={w.x0} y={cd + frontExtra - w.listwa.odLica - w.listwa.gl} width={w.x1 - w.x0}
+              height={w.listwa.gl} fill={mat.board.color} stroke={INK} strokeWidth="1.5" />
+          )}
+        </g>
       ))}
       {/* Ramie szafki naroznej: biegnie wzdluz drugiej sciany, wiec w ukladzie
           tej szafki idzie w bok od jej lica. `v` to glebokosc ramienia od tamtej
@@ -9221,8 +9265,14 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
       {/* wstawka w rogu stoi na zewnatrz tego boku, w licu drzwi — zaslania
           jego przednie `gl` mm na cala wysokosc korpusu */}
       {wstawkiSzafki(wstawki, geo).filter((w) => w.lewa !== sideRight).map((w, k) => (
-        <rect key={"ws" + k} data-el="wstawka" x={frontFace - w.gl} y={fy(w.H)} width={w.gl} height={w.H}
-          fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="2" opacity="0.9" />
+        <g key={"ws" + k}>
+          <rect data-el="wstawka" x={frontFace - w.odLica - w.gl} y={fy(w.H)} width={w.gl} height={w.H}
+            fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="2" opacity="0.9" />
+          {w.listwa && (
+            <rect data-el="wstawka-listwa" x={frontFace - w.listwa.odLica - w.listwa.gl} y={fy(w.H)} width={w.listwa.gl} height={w.H}
+              fill={mat.board.color} stroke={INK} strokeWidth="2" opacity="0.9" />
+          )}
+        </g>
       ))}
     </svg>
   );
@@ -9701,7 +9751,8 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki, blat }) {
   // wstawka w rogu przy boku szafki: od lica drzwi `gl` w glab
   wstawkiSzafki(wstawki, geo).forEach((w) => {
     const zL = cab.frontMode === "overlay" ? -tf : 0;
-    box(w.x0, 0, zL, w.x1, w.H, zL + w.gl, ff, null, 1, true);
+    box(w.x0, 0, zL + w.odLica, w.x1, w.H, zL + w.odLica + w.gl, ff, null, 1, true);
+    if (w.listwa) box(w.x0, 0, zL + w.listwa.odLica, w.x1, w.H, zL + w.listwa.odLica + w.listwa.gl, bf, null, 1, true);
   });
 
   /* --- rzut --- */
@@ -10894,18 +10945,39 @@ const plytaFrontu = (cab) => (cab && cab.frontSameAsBoard === false ? "front" : 
 const wstawkaParts = (ws) => {
   const H = Math.round(ws.H);
   const plaska = ws.typ === "plaska";
+  const moc = plaska ? null : ws.mocowanie || "trojkaty";
+  const nKonf = wstawkaKonfIle(H);
   /* Szeroka stoi licem do przodu, a jej boki stykaja sie z bokami szafek —
-     widac tylko dolna krawedz (ustalone 2026-09-28). */
+     widac tylko dolna krawedz (ustalone 2026-09-28). Tak samo cofnieta do
+     linii korpusu (na konfirmatach) i z listwa za soba. */
   const panels = [{ name: "Wstawka w rogu", qty: 1, a: H, b: plaska ? ws.gl : ws.u,
     matKey: plytaFrontu(ws.cab && ws.cab.cab),
     edges: plaska ? { a1: true, a2: false, b1: true, b2: false } : { a1: false, a2: false, b1: true, b2: false },
     note: plaska
       ? "płasko przy boku szafki, licuje się z drzwiami — krawędź przednia i dolna"
+      : moc === "konf"
+      ? "licem do przodu, w linii korpusu (za licem drzwi), krawędzią przy boku szafki — oklejona tylko dolna krawędź"
+      : moc === "listwa"
+      ? "licem do przodu, w licu drzwi, przykręcona do listwy — oklejona tylko dolna krawędź"
       : "licem do przodu, na trójkątach — oklejona tylko dolna krawędź (boki stykają się z szafkami)" }];
+  /* Listwa za wstawka: z plyty korpusu (nie widac jej), szerokosc wstawki,
+     w linii korpusu — krawedzia przy boku szafki, w ktora ida konfirmaty. */
+  if (moc === "listwa")
+    panels.push({ name: "Listwa wstawki", qty: 1, a: H, b: ws.u, matKey: "board",
+      edges: { a1: false, a2: false, b1: false, b2: false },
+      note: "za wstawką w rogu, w linii korpusu — krawędzią przy boku szafki (konfirmaty przez bok), wstawka przykręcona od tyłu" });
+  const konfirmaty = (w) => ({ name: "Konfirmat 7 × 50",
+    use: `wstawka w rogu — od środka szafki przez bok w krawędź ${w}, co ok. ${WSTAWKA_KONF_CO} mm`,
+    spec: `wstawka w rogu: ${nKonf} szt. co ok. ${WSTAWKA_KONF_CO} mm`, qty: nKonf, unit: "szt." });
+  const wkretyIle = Math.max(2, Math.ceil(H / 200));
   const hardware = plaska
     ? [{ name: "Wkręt 4 × 30", use: "wstawka w rogu — od środka szafki przez bok, co ok. 200 mm",
-        spec: `wstawka w rogu: ${Math.max(2, Math.ceil(H / 200))} szt. co ok. 200 mm`,
-        qty: Math.max(2, Math.ceil(H / 200)), unit: "szt." }]
+        spec: `wstawka w rogu: ${wkretyIle} szt. co ok. 200 mm`,
+        qty: wkretyIle, unit: "szt." }]
+    : moc === "konf" ? [konfirmaty("wstawki")]
+    : moc === "listwa" ? [konfirmaty("listwy"),
+      { name: "Wkręt 4 × 30", use: "wstawka w rogu — od tyłu przez listwę we wstawkę, co ok. 200 mm",
+        spec: `listwa wstawki: ${wkretyIle} szt. co ok. 200 mm`, qty: wkretyIle, unit: "szt." }]
     : [{ name: "Trójkąt meblarski", use: "wstawka w rogu — po obu jej stronach, co ok. 400 mm",
         spec: `wstawka w rogu: 2 × ${Math.max(2, Math.ceil(H / 400))} szt. (po obu stronach)`,
         qty: 2 * Math.max(2, Math.ceil(H / 400)), unit: "szt." }];
@@ -10919,7 +10991,9 @@ const wstawkiOf = (layout) => [...layout.info.values()].flatMap((n) => n.wstawki
    uzytkownika 2026-09-28). */
 const wstawkiSzafki = (ws, geo) => (ws || []).map((w) => ({
   x0: w.naStarcie ? -w.u : geo.W, x1: w.naStarcie ? 0 : geo.W + w.u,
-  u: w.u, gl: w.gl, H: w.H, typ: w.typ, lewa: !!w.naStarcie }));
+  u: w.u, gl: w.gl, H: w.H, typ: w.typ, lewa: !!w.naStarcie,
+  // lico wstawki za licem drzwi (szeroka na konfirmatach) i listwa za nia
+  odLica: w.odLica || 0, listwa: w.listwa && w.listwa.gl ? { gl: w.listwa.gl, odLica: w.listwa.odLica } : null }));
 
 /* Formatki ramienia szafki naroznej. Plyty poziome i plecy sa osobnymi
    kawalkami dostawionymi na kolki do korpusu — tak jak w kupnych szafkach
@@ -11172,9 +11246,27 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
       wiersz("Bok ramienia", "zawieszka", [geo.hasTop ? H - t : H], zawieszkaNote(ZAWIESZKA_OD_PLECOW + (geo.backIntrusion || 0), 1));
   }
   (wstawki || []).filter((w) => w.typ !== "plaska").forEach((w) => {
-    const H = Math.round(w.H), n = Math.max(2, Math.ceil(H / 400));
-    wiersz("Wstawka w rogu", "trójkąt meblowy", rowno(KONF_OD_KRAWEDZI, H - KONF_OD_KRAWEDZI, n),
-      "2 rzędy — po obu jej stronach, do boków sąsiednich szafek; położenie od dołu wstawki");
+    const H = Math.round(w.H);
+    const moc = w.mocowanie || "trojkaty";
+    if (moc === "trojkaty") {
+      const n = Math.max(2, Math.ceil(H / 400));
+      wiersz("Wstawka w rogu", "trójkąt meblowy", rowno(KONF_OD_KRAWEDZI, H - KONF_OD_KRAWEDZI, n),
+        "2 rzędy — po obu jej stronach, do boków sąsiednich szafek; położenie od dołu wstawki");
+      return;
+    }
+    /* Konfirmaty od srodka szafki przez jej bok (ten od rogu) w krawedz wstawki
+       albo listwy — na srodku ich grubosci, liczac od przedniej krawedzi boku. */
+    const ys = rowno(KONF_OD_KRAWEDZI, H - KONF_OD_KRAWEDZI, wstawkaKonfIle(H));
+    const el = moc === "listwa" ? w.listwa : w;
+    const nazwa = moc === "listwa" ? "Listwa wstawki" : "Wstawka w rogu";
+    const odPrzodu = Math.round((el.odLica || 0) + el.gl / 2 - (w.liniaKorpusu || 0));
+    const geo = w.cab.geo;
+    const lewy = !!w.naStarcie;
+    const y0 = (lewy ? geo.leftY0 : geo.rightY0) || 0;
+    wiersz(lewy ? "Bok lewy" : "Bok prawy", "konfirmat — wstawka w rogu", ys.map((y) => y - y0),
+      `⌀7 przez bok od środka szafki, ${fmt(odPrzodu)} mm od przedniej krawędzi boku; położenie od dołu boku`);
+    wiersz(nazwa, "konfirmat — bok szafki", ys,
+      `w krawędzi przy boku szafki ⌀5 × 50, na środku grubości; położenie od dołu ${moc === "listwa" ? "listwy" : "wstawki"}`);
   });
   return out;
 };
@@ -14290,6 +14382,19 @@ export default function App() {
   const wstawkiAktywnej = useMemo(
     () => wstawkiOf(projLayout).filter((w) => w.cab.index === project.active),
     [projLayout, project.active]);
+  /* Rog (bez szafki w L), przy ktorym stoi ta szafka bokiem — wtedy w jej
+     Strukturze wnetrza jest pole wstawki (uzytkownik 2026-10-11: wstawka
+     nalezy do szafki, nie do ciagu). Ustawienie dalej siedzi w narozniku
+     ciagu z `corner` — z niego liczy sie odsuniecie ciagu. */
+  const rogWstawki = useMemo(() => {
+    for (const n of projLayout.info.values()) {
+      const pr = n.pair;
+      if (n.corner && pr && !pr.armLen && pr.przyRogu && pr.przyRogu.index === project.active)
+        return { id: n.id, of: n.corner.of, ws: n.corner.wstawka, lewy: n.corner.at === "end" ? pr.ustepuje === n : pr.ustepuje !== n,
+          tf: Math.round(pr.przyRogu.geo.tf), sasiad: pr.wchodzi.run.name };
+    }
+    return null;
+  }, [projLayout, project.active]);
   // okucia szafki: bez listwy wspolnej dla ciagu, z ramieniem i wstawka (jak formatki)
   const cabHardware = useMemo(
     () => okuciaSzafki(geo, { bezListwy: !!runRl, arm: armAktywnej, wstawki: wstawkiAktywnej }),
@@ -15109,33 +15214,14 @@ export default function App() {
                               onChange={(v) => setCorner(runInfo.run.id, runInfo.run.corner.of,
                                 { clear: Math.max(0, Math.round(Number(v) || 0)) })} />
                           </label>
-                          {/* Wstawka tylko przy zwyklych szafkach — szafke w L zamyka ramie. */}
-                          {!(runNode && runNode.pair && runNode.pair.armLen) && (
-                            <div className="flex items-end gap-2" data-el="wstawka-pole">
-                              <label className="block flex-1">
-                                <span className="mb-1 block text-[11px] text-stone-400">Wstawka w rogu</span>
-                                <select value={(runInfo.run.corner.wstawka || {}).typ || ""}
-                                  title="Listwa z płyty frontowej na boku pierwszej szafki ciągu, który nie wjeżdża w róg — odsuwa jego drzwi od frontu w rogu"
-                                  onChange={(e) => setCorner(runInfo.run.id, runInfo.run.corner.of, {
-                                    wstawka: e.target.value
-                                      ? { typ: e.target.value, w: (runInfo.run.corner.wstawka || {}).w || WSTAWKA_W } : null })}
-                                  className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-teal-600 focus:outline-none">
-                                  <option value="">brak</option>
-                                  <option value="plaska">płaska — grubość płyty, na wkręty</option>
-                                  <option value="szeroka">szeroka — licem do przodu, na trójkąty</option>
-                                </select>
-                              </label>
-                              {runInfo.run.corner.wstawka && (
-                                <label className="block w-24">
-                                  <span className="mb-1 block text-[11px] text-stone-400">
-                                    {runInfo.run.corner.wstawka.typ === "szeroka" ? "szerokość" : "w głąb"}
-                                  </span>
-                                  <Num value={runInfo.run.corner.wstawka.w} min={20}
-                                    onChange={(v) => setCorner(runInfo.run.id, runInfo.run.corner.of, {
-                                      wstawka: { ...runInfo.run.corner.wstawka, w: Math.max(20, Math.round(Number(v) || WSTAWKA_W)) } })} />
-                                </label>
-                              )}
-                            </div>
+                          {/* Wstawka nalezy do szafki (uzytkownik 2026-10-11) — ustawia sie
+                              w Strukturze wnetrza szafki przy rogu; tu tylko gdzie jej szukac. */}
+                          {runNode && runNode.pair && !runNode.pair.armLen && runNode.pair.przyRogu && (
+                            <p className="text-[11px] text-stone-500" data-el="wstawka-gdzie">
+                              Wstawka w rogu: {runInfo.run.corner.wstawka
+                                ? `${runInfo.run.corner.wstawka.typ === "szeroka" ? "szeroka" : "płaska"} ${fmt(runInfo.run.corner.wstawka.w)} mm` : "brak"}
+                              {" "}— ustawiasz w szafce „{(runNode.pair.przyRogu.cab.name || "").trim() || `Szafka ${runNode.pair.przyRogu.index + 1}`}" → Struktura wnętrza.
+                            </p>
                           )}
                           {runTp && (
                             <>
@@ -15439,6 +15525,56 @@ export default function App() {
               Poziomy rozdziela półka na całą szerokość. W poziomie możesz postawić przegrodę
               i podzielić go na kolumny. Puste pole wymiaru znaczy „podziel resztę równo".
             </p>
+
+            {rogWstawki && (
+              <Group label="Wstawka w rogu"
+                hint={`Listwa z płyty frontowej przy ${rogWstawki.lewy ? "lewym" : "prawym"} boku tej szafki, od strony rogu z ciągiem „${rogWstawki.sasiad}". Odsuwa drzwi od frontu szafki w rogu; ciąg odsuwa się o to, co widać od przodu.`}>
+                <div className="space-y-2" data-el="wstawka-szafki">
+                  <div className="flex items-end gap-2">
+                    <label className="block flex-1">
+                      <span className="mb-1 block text-[11px] text-stone-400">Wstawka</span>
+                      <select value={(rogWstawki.ws || {}).typ || ""}
+                        onChange={(e) => setCorner(rogWstawki.id, rogWstawki.of, {
+                          wstawka: e.target.value
+                            ? { ...(rogWstawki.ws || {}), typ: e.target.value, w: (rogWstawki.ws || {}).w || WSTAWKA_W } : null })}
+                        className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-teal-600 focus:outline-none">
+                        <option value="">brak</option>
+                        <option value="plaska">płaska — {rogWstawki.tf} mm od przodu, na wkręty</option>
+                        <option value="szeroka">szeroka — licem do przodu</option>
+                      </select>
+                    </label>
+                    {rogWstawki.ws && (
+                      <label className="block w-24">
+                        <span className="mb-1 block text-[11px] text-stone-400">
+                          {rogWstawki.ws.typ === "szeroka" ? "szerokość" : "w głąb"}
+                        </span>
+                        <Num value={rogWstawki.ws.w} min={20}
+                          onChange={(v) => setCorner(rogWstawki.id, rogWstawki.of, {
+                            wstawka: { ...rogWstawki.ws, w: Math.max(20, Math.round(Number(v) || WSTAWKA_W)) } })} />
+                      </label>
+                    )}
+                  </div>
+                  {rogWstawki.ws && rogWstawki.ws.typ === "szeroka" && (
+                    <label className="block">
+                      <span className="mb-1 block text-[11px] text-stone-400">Mocowanie</span>
+                      <select value={rogWstawki.ws.mocowanie || "trojkaty"} data-el="wstawka-mocowanie"
+                        onChange={(e) => setCorner(rogWstawki.id, rogWstawki.of, {
+                          wstawka: { ...rogWstawki.ws, mocowanie: e.target.value } })}
+                        className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-teal-600 focus:outline-none">
+                        <option value="trojkaty">trójkąty — w licu drzwi</option>
+                        <option value="konf">konfirmaty — w linii korpusu</option>
+                        <option value="listwa">konfirmaty z listwą — w licu drzwi</option>
+                      </select>
+                      <span className="mt-1 block text-[11px] text-stone-500">
+                        {{ trojkaty: "Trójkąty meblowe z tyłu wstawki do boków sąsiednich szafek.",
+                          konf: `Wstawka cofnięta o grubość frontu, krawędzią przy boku tej szafki — konfirmaty od środka szafki przez bok w jej krawędź, co ok. ${WSTAWKA_KONF_CO} mm.`,
+                          listwa: `Za wstawką listwa z płyty korpusu (wstawka przykręcona do niej od tyłu) — konfirmaty od środka szafki przez bok w krawędź listwy, co ok. ${WSTAWKA_KONF_CO} mm.` }[rogWstawki.ws.mocowanie || "trojkaty"]}
+                      </span>
+                    </label>
+                  )}
+                </div>
+              </Group>
+            )}
 
             {cornerNode && (
               <Group label="Ramię narożnika"

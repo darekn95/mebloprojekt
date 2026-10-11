@@ -92,6 +92,14 @@ najwcześniej (`swingStop`). Przyciski (zawiasy, wstawka 18, wstawka 60, zawiasy
 (`wynikPoprawki`: kolizja znika albo kąt rośnie o `POPRAWKA_KAT`); wstawkę
 sprawdza się na kopii projektu z ustawioną wstawką (`zWstawka` w `openingMsgs`).
 
+[AI-INFO] Wstawka w rogu (2026-10-11): pole jest w Strukturze wnętrza szafki
+przy rogu (`rogWstawki` w App, `n.pair.przyRogu` w `runLayout`), ale dane zostały
+w `run.corner.wstawka` ciągu z narożnikiem — z nich liczy się odsunięcie ciągu,
+próba wstawki w kontroli kolizji (`zWstawka`) i kreator rogu. Gdy zmieni się
+kolejność szafek, wstawka przechodzi na szafkę, która stanie przy rogu.
+Szeroka: `mocowanie` (`trojkaty` / `konf` / `listwa`) przesuwa ją w głąb
+(`odLica`) albo dokłada listwę (`listwa` w obiekcie z układu, rysunki i bryły).
+
 [AI-INFO] Jeśli terminal agenta nie może pobrać aktualnego `claude-zmiany.txt` z GitHuba, można użyć workflow `Promote Claude Changes`. Workflow działa na GitHubie: kopiuje `claude-zmiany.txt` do `szafki.jsx`, uruchamia build Vite jako walidację, regeneruje `standalone.html`, commituje wynik na gałąź i od razu publikuje GitHub Pages. To jest potrzebne, bo push wykonany przez `GITHUB_TOKEN` nie uruchamia kolejnego workflowu Pages automatycznie.
 
 ## Narożnik w L — co jest z czego liczone

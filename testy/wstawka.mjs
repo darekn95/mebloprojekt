@@ -110,14 +110,85 @@ ok('wymiar ciągu z wstawką: 1218', tPl.includes('1218 z wstawką'), tPl.filter
 ok('płaska odsuwa ciąg o 18 (609)', tPl.includes('609'), tPl.filter((t) => /^[56]\d\d$/.test(t)).join(','));
 ok('szeroka odsuwa ciąg o 60 (651)', tSz.includes('651'), tSz.filter((t) => /^6\d\d$/.test(t)).join(','));
 
-console.log('\n== pole w karcie ciągu ==');
+console.log('\n== pole wstawki w Strukturze wnętrza szafki przy rogu (2026-10-11) ==');
+/* Uzytkownik 2026-10-11: wstawka nalezy do szafki, do ktorej jest przykrecona —
+   pole w jej Strukturze wnetrza, a z karty ciagu znika (zostaje wskazowka). */
 await seed(null, 3);
-await page.getByText('Narożnik', { exact: true }).first().scrollIntoViewIfNeeded().catch(() => {});
-const pole = page.locator('[data-el="wstawka-pole"] select');
-ok('pole „Wstawka w rogu” w sekcji Narożnik', await pole.count() === 1);
+ok('karta ciągu: pola nie ma', await page.locator('[data-el="wstawka-pole"]').count() === 0);
+const gdzie = page.locator('[data-el="wstawka-gdzie"]');
+ok('karta ciągu: wskazówka „ustawiasz w szafce „A2" → Struktura wnętrza”',
+  await gdzie.count() === 1 && /ustawiasz w szafce „A2" → Struktura wnętrza/.test(await gdzie.innerText()), await gdzie.count() ? await gdzie.innerText() : '');
+ok('szafka w drugim ciągu: bez pola wstawki', await page.locator('[data-el="wstawka-szafki"]').count() === 0);
+await seed(null, 0);
+ok('szafka nie przy rogu (A1): bez pola wstawki', await page.locator('[data-el="wstawka-szafki"]').count() === 0);
+await seed(null, 1);
+const pole = page.locator('[data-el="wstawka-szafki"] select').first();
+ok('szafka przy rogu (A2): pole „Wstawka” w Strukturze wnętrza', await pole.count() === 1);
 await pole.selectOption('plaska'); await page.waitForTimeout(1500);
 p = await zapis();
-ok('wybór w polu zapisuje płaską wstawkę', p.runs[1].corner.wstawka && p.runs[1].corner.wstawka.typ === 'plaska');
+ok('wybór w polu zapisuje płaską wstawkę w narożniku', JSON.stringify(p.runs[1].corner.wstawka) === JSON.stringify({ typ: 'plaska', w: 60 }),
+  JSON.stringify(p.runs[1].corner.wstawka));
+ok('płaska: bez wyboru mocowania', await page.locator('[data-el="wstawka-mocowanie"]').count() === 0);
+await page.locator('[data-el="wstawka-szafki"] select').first().selectOption('szeroka'); await page.waitForTimeout(1500);
+const moc = page.locator('[data-el="wstawka-mocowanie"]');
+ok('szeroka: wybór mocowania, domyślnie trójkąty', await moc.count() === 1 && await moc.inputValue() === 'trojkaty');
+await moc.selectOption('konf'); await page.waitForTimeout(1500);
+p = await zapis();
+ok('mocowanie zapisane w narożniku', JSON.stringify(p.runs[1].corner.wstawka) === JSON.stringify({ typ: 'szeroka', w: 60, mocowanie: 'konf' }),
+  JSON.stringify(p.runs[1].corner.wstawka));
+
+console.log('\n== szeroka: trójkąty, konfirmaty, konfirmaty z listwą ==');
+/* Konfirmaty co ok. 300 mm, min. 2 — przy 720 trzy. Na konfirmatach wstawka
+   stoi w linii korpusu (za licem drzwi o grubosc frontu); z listwa — w licu
+   drzwi, a listwa z plyty korpusu za nia. */
+const zGory = async () => {
+  await pick('Szafka'); await pick('Z góry');
+  return page.evaluate(() => Object.fromEntries(['wstawka', 'wstawka-listwa'].map((k) => [k,
+    [...document.querySelectorAll(`#rysunek [data-el="${k}"]`)].map((r) => ({ y: Math.round(+r.getAttribute('y')), h: Math.round(+r.getAttribute('height')), w: Math.round(+r.getAttribute('width')) }))])));
+};
+const bryly3d = async () => {
+  await page.evaluate(() => { window.__audytBryl = []; }); await pick('3D');
+  return page.evaluate(() => (window.__audytBryl || []).filter((b) => b.p).map((b) => ({ d: [...b.d].sort((x, y) => x - y).map(Math.round).join('×'), p: b.p })));
+};
+const wynikiMoc = {};
+for (const m of ['trojkaty', 'konf', 'listwa']) {
+  await seed({ typ: 'szeroka', w: 60, mocowanie: m }, 1);
+  const f = await tabela(/^Formatki do zamówienia/);
+  const o = await tabela(/^Produkty do zamówienia/);
+  const g = await zGory();
+  const br = await bryly3d();
+  wynikiMoc[m] = { f, o, g, br };
+  console.log(`     ${m}: z góry ${JSON.stringify(g)}`);
+}
+const ma = (m, re) => wynikiMoc[m].o.some((l) => re.test(l));
+ok('trójkąty: 4 trójkąty, bez konfirmatów wstawki', ma('trojkaty', /^Trójkąt meblarski .*wstawka w rogu.*\| 4 szt\./) && !ma('trojkaty', /^Konfirmat .*wstawka w rogu/),
+  wynikiMoc.trojkaty.o.filter((l) => /wstawk/.test(l)).join(' / '));
+ok('konfirmaty: 3 szt. (co ok. 300 mm przy 720), bez trójkątów wstawki', ma('konf', /^Konfirmat 7 × 50 .*wstawka w rogu: 3 szt\./) && !ma('konf', /^Trójkąt meblarski .*wstawka w rogu/),
+  wynikiMoc.konf.o.filter((l) => /wstawk/.test(l)).join(' / '));
+ok('z listwą: 3 konfirmaty i wkręty listwy', ma('listwa', /^Konfirmat 7 × 50 .*wstawka w rogu: 3 szt\./) && ma('listwa', /^Wkręt 4 × 30 .*listwa wstawki/),
+  wynikiMoc.listwa.o.filter((l) => /wstawk/.test(l)).join(' / '));
+ok('formatka „Listwa wstawki” 720 × 60 tylko przy listwie',
+  wynikiMoc.listwa.f.some((l) => /^Listwa wstawki \|/.test(l) && /\| 720 \| 60 \|/.test(l)) && !wynikiMoc.konf.f.some((l) => /^Listwa wstawki/.test(l)) && !wynikiMoc.trojkaty.f.some((l) => /^Listwa wstawki/.test(l)),
+  wynikiMoc.listwa.f.filter((l) => /Wstawka|Listwa/.test(l)).join(' / '));
+const wy = (m) => (wynikiMoc[m].g.wstawka[0] || {}).y;
+ok('z góry: na konfirmatach wstawka cofnięta o grubość frontu (18 mm)', wy('konf') - wy('trojkaty') === -18 || wy('konf') - wy('trojkaty') === 18,
+  `trójkąty y=${wy('trojkaty')}, konfirmaty y=${wy('konf')}`);
+ok('z góry: z listwą wstawka w licu drzwi jak na trójkątach', wy('listwa') === wy('trojkaty'), `${wy('listwa')} / ${wy('trojkaty')}`);
+const li = wynikiMoc.listwa.g['wstawka-listwa'];
+ok('z góry: listwa za wstawką, 18 mm', li.length === 1 && li[0].h === 18 && Math.abs(li[0].y - wy('listwa')) === 18, JSON.stringify(li));
+const plyty60 = (m) => wynikiMoc[m].br.filter((b) => b.d === '18×60×720');
+ok('3D: wstawka 18 × 60 × 720 (trójkąty 1, konfirmaty 1, z listwą 2)',
+  plyty60('trojkaty').length === 1 && plyty60('konf').length === 1 && plyty60('listwa').length === 2,
+  ['trojkaty', 'konf', 'listwa'].map((m) => `${m} ${plyty60(m).length}`).join(', '));
+// konfirmaty: krawedz wstawki dotyka boku szafki (zakres w glab nachodzi na bok)
+const bokPrawy = (m) => wynikiMoc[m].br.filter((b) => b.d === '18×560×702' || /^18×5\d\d×7\d\d$/.test(b.d));
+const styka = (m, i = 0) => {
+  const w = plyty60(m)[i]; if (!w) return false;
+  return bokPrawy(m).some((b) => Math.abs(b.p[3] - w.p[0]) <= 1 && Math.min(b.p[5], w.p[5]) - Math.max(b.p[2], w.p[2]) >= 17);
+};
+ok('3D: na konfirmatach krawędź wstawki przylega do boku szafki (18 mm w głąb)', styka('konf'), JSON.stringify(plyty60('konf').map((b) => b.p.map(Math.round))));
+ok('3D: na trójkątach wstawka stoi przed bokiem (w licu drzwi)', !styka('trojkaty'));
+ok('3D: z listwą — listwa przylega do boku szafki', styka('listwa', 0) || styka('listwa', 1));
 
 console.log('\n== widok samej szafki z wstawką (zgłoszenie 2026-09-28) ==');
 // A2 to ostatnia szafka sciany 1 — wstawka przykreca sie do jej prawego boku
@@ -154,7 +225,8 @@ ok('pierwsza szafka ściany 1 (nie przy rogu): bez wstawki', await wRys() === 0)
 
 console.log('\n== szafka w L: wstawki nie ma ==');
 await seed({ typ: 'plaska', w: 60 }, 3, { corner: { on: true, arm: 600 } });
-ok('przy szafce w L pola wstawki nie ma', await page.locator('[data-el="wstawka-pole"]').count() === 0);
+ok('przy szafce w L pola wstawki nie ma (ani wskazówki w karcie ciągu)', await page.locator('[data-el="wstawka-szafki"]').count() === 0
+  && await page.locator('[data-el="wstawka-gdzie"]').count() === 0);
 proj = await tabela(/^Formatki całego projektu/);
 ok('przy szafce w L formatki wstawki nie ma', !proj.some((l) => /Wstawka w rogu/.test(l)));
 
