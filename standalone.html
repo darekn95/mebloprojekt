@@ -13568,6 +13568,10 @@ export default function App() {
   const [pitch, setPitch] = useState(0.28);
   const [open3d, setOpen3d] = useState(false);
   const [angle3d, setAngle3d] = useState(90);
+  /* Kazde otwarcie w 3D zaczyna od 90° — po „zamknięte” → „otwarte” wracal
+     ostatni kat z suwaka (np. 0°: drzwi wygladaly na zamkniete, a szuflady
+     byly wysuniete; prosba uzytkownika 2026-10-11). */
+  const przelaczOtwarcie3d = () => { if (!open3d) setAngle3d(90); setOpen3d((v) => !v); };
   const drag = useRef(null);
   const [saved, setSaved] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -16705,7 +16709,7 @@ export default function App() {
                     <Assembly3D project={project} runs={scope3dRuns} open={open3d}
                       yaw={-Math.PI / 4} pitch={-0.45} angle={angle3d} rpOf={rpOf} />
                     <div className="flex flex-wrap items-center gap-2">
-                      <MiniBtn tone={open3d ? "on" : "plain"} onClick={() => setOpen3d((v) => !v)}>
+                      <MiniBtn tone={open3d ? "on" : "plain"} onClick={przelaczOtwarcie3d}>
                         {open3d ? "otwarte" : "zamknięte"}
                       </MiniBtn>
                       {open3d && (
@@ -16744,7 +16748,7 @@ export default function App() {
                       <MiniBtn onClick={() => setYaw((v) => v - Math.PI / 4)}>◀ 45°</MiniBtn>
                       <MiniBtn onClick={() => { setYaw(-0.55); setPitch(0.28); }}>reset</MiniBtn>
                       <MiniBtn onClick={() => setYaw((v) => v + Math.PI / 4)}>45° ▶</MiniBtn>
-                      <MiniBtn tone={open3d ? "on" : "plain"} onClick={() => setOpen3d((v) => !v)}>
+                      <MiniBtn tone={open3d ? "on" : "plain"} onClick={przelaczOtwarcie3d}>
                         {open3d ? "otwarte" : "zamknięte"}
                       </MiniBtn>
                       {open3d && (
@@ -16797,7 +16801,7 @@ export default function App() {
                     <MiniBtn onClick={() => setYaw((v) => v - Math.PI / 4)}>◀ 45°</MiniBtn>
                     <MiniBtn onClick={() => { setYaw(-0.55); setPitch(0.28); }}>reset</MiniBtn>
                     <MiniBtn onClick={() => setYaw((v) => v + Math.PI / 4)}>45° ▶</MiniBtn>
-                    <MiniBtn tone={open3d ? "on" : "plain"} onClick={() => setOpen3d((v) => !v)}>
+                    <MiniBtn tone={open3d ? "on" : "plain"} onClick={przelaczOtwarcie3d}>
                       {open3d ? "otwarte" : "zamknięte"}
                     </MiniBtn>
                     {open3d && (
