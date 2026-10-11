@@ -36,7 +36,7 @@ const napisyZGory = async () => {
 };
 const kolizje = async () => {
   const c = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi/ }) }).first();
-  return (await c.count() ? await c.innerText() : '').split('\n').filter((l) => /nie ma się jak otworzyć/.test(l));
+  return (await c.count() ? await c.innerText() : '').split('\n').filter((l) => /nie otworzy się (do końca|wcale)/.test(l));
 };
 const dolne = [dol('D1', 600, 'c1'), dol('D2', 600, 'c1'), dol('D3', 1000, 'c1'), dol('D4', 600, 'c2')];
 

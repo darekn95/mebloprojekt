@@ -47,7 +47,7 @@ const wstawkaZGory = async () => {
 console.log('== bez wstawki: kolizja w rogu podpowiada wstawkę ==');
 await seed(null);
 let uw = await uwagi();
-ok('kolizja otwierania w rogu jest zgłoszona', /nie ma się jak otworzyć/.test(uw));
+ok('kolizja otwierania w rogu jest zgłoszona', /nie otworzy się (do końca|wcale)/.test(uw));
 const przycisk18 = card(/^Uwagi/).getByRole('button', { name: /Dodaj wstawkę 18 mm/ }).first();
 ok('przycisk „Dodaj wstawkę 18 mm”', await przycisk18.count() === 1);
 await przycisk18.click(); await page.waitForTimeout(1500);
@@ -72,7 +72,7 @@ ok('elewacja: pasek 18 × 720', el.length === 1 && el[0].w === 18 && el[0].h ===
 console.log('\n== szeroka: 60 mm na trójkątach ==');
 uw = await uwagi();
 const przycisk60 = card(/^Uwagi/).getByRole('button', { name: /Wstawka 60 mm \(na trójkątach\)/ }).first();
-if (/nie ma się jak otworzyć/.test(uw)) {
+if (/nie otworzy się (do końca|wcale)/.test(uw)) {
   ok('gdy 18 mm nie wystarcza: przycisk „Wstawka 60 mm (na trójkątach)”', await przycisk60.count() === 1);
   await przycisk60.click(); await page.waitForTimeout(1500);
 } else {

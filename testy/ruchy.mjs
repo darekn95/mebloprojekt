@@ -31,7 +31,7 @@ const uwagi = async () => {
   const c = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi/ }) }).first();
   return (await c.count()) ? (await c.innerText()).split('\n').filter((l) => l.length > 20) : [];
 };
-const ruchy = async () => (await uwagi()).filter((l) => /nie wysunie się|nie otworzy się|nie ma się jak otworzyć/.test(l));
+const ruchy = async () => (await uwagi()).filter((l) => /nie wysunie się|nie otworzy się/.test(l));
 const skrot = (a) => a.map((l) => l.slice(0, 150)).join(' // ') || '(brak)';
 
 console.log('== prosty ciąg: szuflady i klapy bez kolizji ==');

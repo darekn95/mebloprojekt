@@ -64,7 +64,7 @@ const wiercenia = async (nr) => {
 const zawieszkiW = (plan) => plan.filter((r) => r.kind === 'zawieszka').map((r) => r.panel);
 const okuciaT = () => tabela(/^Produkty do zamówienia/);
 const listwy = (h) => h.filter((r) => /^Listwa montażowa/.test(r[0])).map((r) => r[1]);
-const kolizje = (u) => u.filter((l) => /nie ma się jak otworzyć|nie otworzy się|nie wysunie się/.test(l) && /„G/.test(l));
+const kolizje = (u) => u.filter((l) => /nie otworzy się|nie wysunie się/.test(l) && /„G/.test(l));
 
 console.log('== szablon w górnym ciągu ściany 1 (róg na jego końcu) ==');
 await seed([RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } }),

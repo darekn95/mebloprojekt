@@ -76,7 +76,7 @@ await seed({ name: 'K', active: 3, prices: {}, runs: [RUN('c1', 'Ściana 1'), RU
 u = await uwagi();
 ok('na górze blok „Ślepy narożnik — szafka w rogu do ustawienia”', /szafka w rogu do ustawienia/.test(u));
 // kontrola kolizji nigdy nie jest wstrzymywana (uzytkownik 2026-09-28) — kolizje stoja obok bloku
-ok('kolizje w rogu widać od razu, obok bloku', /nie ma się jak otworzyć/.test(u), u.split('\n').filter((l) => /otworzyć/.test(l)).join(' / '));
+ok('kolizje w rogu widać od razu, obok bloku', /nie otworzy się (do końca|wcale)/.test(u), u.split('\n').filter((l) => /otworzy się/.test(l)).join(' / '));
 await card(/^Uwagi/).getByRole('button', { name: /Ustaw szafkę w rogu: fix 621 mm \+ drzwi \+ wstawka 18 mm/ }).click();
 await page.waitForTimeout(1500);
 p = await zapis();

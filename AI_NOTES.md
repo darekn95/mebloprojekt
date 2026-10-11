@@ -84,6 +84,14 @@ korpusy, ramiona, fronty zamknięte, fronty szuflad wysunięte na długość pro
 i uchwyty. Pole „wysunięcie z lica" jest tylko pozycją szafki — sprzęt wystający poza
 lico dostanie osobną opcję i wtedy dołoży się tu jako kolejna bryła.
 
+[AI-INFO] Od 2026-10-11 miarą kolizji skrzydła jest **kąt pierwszego styku**
+(`swingKat`), a nie „ile mm wchodzi w przeszkodę” — ta odwracała ocenę (uchwyt
+przy zawiasie: „brakuje 534 mm” przy otwarciu do 74°; uchwyt przed wolną krawędzią:
+„mało”, a drzwi stają po 6°). Uwaga mówi o przeszkodzie, w którą skrzydło uderza
+najwcześniej (`swingStop`). Przyciski zawiasów i wstawki są tylko, gdy pomagają
+(`wynikPoprawki`: kolizja znika albo kąt rośnie o `POPRAWKA_KAT`); wstawkę
+sprawdza się na kopii projektu z ustawioną wstawką (`zWstawka` w `openingMsgs`).
+
 [AI-INFO] Jeśli terminal agenta nie może pobrać aktualnego `claude-zmiany.txt` z GitHuba, można użyć workflow `Promote Claude Changes`. Workflow działa na GitHubie: kopiuje `claude-zmiany.txt` do `szafki.jsx`, uruchamia build Vite jako walidację, regeneruje `standalone.html`, commituje wynik na gałąź i od razu publikuje GitHub Pages. To jest potrzebne, bo push wykonany przez `GITHUB_TOKEN` nie uruchamia kolejnego workflowu Pages automatycznie.
 
 ## Narożnik w L — co jest z czego liczone

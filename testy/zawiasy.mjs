@@ -1,6 +1,7 @@
 /* Zmiana strony zawiasow (prosba uzytkownika 2026-09-28):
    - przy kolizji otwierania przycisk „Przełóż zawiasy na …” tylko wtedy, gdy
-     przelozenie zmniejsza kolizje, z informacja, ile jej zostanie,
+     przelozenie pomaga, z informacja, jak sie wtedy otworzy (bez kolizji albo
+     do ok. N° — od 2026-10-11 kat zamiast „zostaje N mm”),
    - przelacznik „zawias” przy kolumnie z jednymi drzwiami w Strukturze wnetrza.
    Uklad jak u uzytkownika: sciana 1 konczy sie szafka z jednymi drzwiami przy
    rogu, w rog wjezdza sciana 2 ze slepa szafka 1000 (fix 618, uchwyt przy
@@ -28,26 +29,39 @@ const seed = async (hingeA3) => {
 };
 const card = (re) => page.locator('section').filter({ has: page.locator('h2', { hasText: re }) }).first();
 const kolizje = async () => (await card(/^Uwagi/).count() ? await card(/^Uwagi/).innerText() : '')
-  .split('\n').filter((l) => /nie ma się jak otworzyć/.test(l));
+  .split('\n').filter((l) => /nie otworzy się (do końca|wcale)/.test(l));
 const zapis = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
 
-console.log('== zawias z lewej (dalej od rogu): mała kolizja, przełożenie byłoby gorsze ==');
+/* Od 2026-10-11 kolizje mierzy kat, przy ktorym skrzydlo pierwszy raz uderza
+   (wczesniej „ile mm wchodzi w przeszkode”, co odwracalo ocene). Zawias dalej
+   od rogu: wolna krawedz stoi tuz przy uchwycie szafki w rogu, wiec skrzydlo
+   staje po kilku stopniach. Zawias w rogu: uchwyt jest przy samym zawiasie
+   i skrzydlo dochodzi do ok. 73°. Przelozenie z lewej na prawa pomaga, odwrotnie nie. */
+console.log('== zawias z lewej (dalej od rogu): staje po kilku stopniach, przycisk na prawą ==');
 await seed('left');
 let k = await kolizje();
 console.log('     ' + k.join('\n     '));
 ok('kolizja A3 z uchwytem szafki w rogu', k.some((l) => /„A3"/.test(l) && /uchwyt/.test(l)));
-ok('bez przycisku przełożenia (gorzej po drugiej stronie)',
-  await card(/^Uwagi/).getByRole('button', { name: /Przełóż zawiasy na prawą/ }).count() === 0);
+const kat = (l) => Number((l.match(/otworzy się tylko do ok\. (\d+)°/) || [])[1]);
+const katL = kat(k.find((l) => /„A3"/.test(l)) || '');
+ok('komunikat podaje kąt, do którego skrzydło się otworzy', katL >= 0 && katL < 20, k.join(' / '));
+const przycisk = card(/^Uwagi/).getByRole('button', { name: /Przełóż zawiasy na prawą — (bez kolizji|otworzy się do ok\. \d+°)/ });
+ok('przycisk „Przełóż zawiasy na prawą — … do ok. N°” (pomaga)', await przycisk.count() === 1,
+  (await card(/^Uwagi/).getByRole('button').allInnerTexts()).filter((t) => /zawias/.test(t)).join(' / '));
+await przycisk.first().click(); await page.waitForTimeout(1500);
+let p = await zapis();
+ok('po kliknięciu zawias A3 z prawej', p.items[2].cab.levels[0].cols[0].hinge === 'right', p.items[2].cab.levels[0].cols[0].hinge);
 
-console.log('\n== zawias z prawej (w róg): duża kolizja, przycisk na lewą ==');
+console.log('\n== zawias z prawej (w róg): otworzy się do ok. 73°, przełożenie byłoby gorsze ==');
 await seed('right');
 k = await kolizje();
 console.log('     ' + k.join('\n     '));
-const przycisk = card(/^Uwagi/).getByRole('button', { name: /Przełóż zawiasy na lewą — zostaje \d+ mm/ });
-ok('przycisk „Przełóż zawiasy na lewą — zostaje N mm”', await przycisk.count() === 1);
-await przycisk.first().click(); await page.waitForTimeout(1500);
-let p = await zapis();
-ok('po kliknięciu zawias A3 z lewej', p.items[2].cab.levels[0].cols[0].hinge === 'left', p.items[2].cab.levels[0].cols[0].hinge);
+const katP = kat(k.find((l) => /„A3"/.test(l)) || '');
+ok('skrzydło dochodzi dalej niż przy zawiasie z lewej', katP > katL + 20, `${katL}° → ${katP}°`);
+ok('bez przycisku przełożenia (gorzej po drugiej stronie)',
+  await card(/^Uwagi/).getByRole('button', { name: /Przełóż zawiasy na lewą/ }).count() === 0);
+ok('bez rady „przełóż zawiasy”, skoro nie pomaga', !k.some((l) => /Przełóż zawiasy/.test(l)), k.join(' / '));
+ok('przycisk wstawki, która usuwa kolizję', await card(/^Uwagi/).getByRole('button', { name: 'Dodaj wstawkę 18 mm — bez kolizji' }).count() === 1);
 
 console.log('\n== przełącznik przy kolumnie ==');
 await seed('auto');

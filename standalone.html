@@ -10048,10 +10048,11 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return { label, run: () => runFix && runFix(action) };
     }
     if (action.startsWith("wstawka:")) {
-      // „wstawka:<ciag z narożnikiem>:<plaska|szeroka>:<ile mm widac od przodu>"
-      const [, , typ, ile] = action.split(":");
+      // „wstawka:<ciag z narożnikiem>:<plaska|szeroka>:<ile mm widac od przodu>:<ok|kat po wstawce>"
+      const [, , typ, ile, wynik] = action.split(":");
+      const reszta = wynik === "ok" ? " — bez kolizji" : wynik ? ` — otworzy się do ok. ${wynik}°` : "";
       return {
-        label: typ === "szeroka" ? `Wstawka ${fmt(Number(ile))} mm (na trójkątach)` : `Dodaj wstawkę ${fmt(Number(ile))} mm`,
+        label: (typ === "szeroka" ? `Wstawka ${fmt(Number(ile))} mm (na trójkątach)` : `Dodaj wstawkę ${fmt(Number(ile))} mm`) + reszta,
         run: () => runFix && runFix(action),
       };
     }
@@ -10116,9 +10117,9 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       };
     }
     if (action.startsWith("hingeflipcab:")) {
-      // „hingeflipcab:<nr szafki>:<poziom>:<kolumna>:<strona>:<ile zostaje>" — z uwagi o kolizji
-      const [, idx, li, j, side, zostaje] = action.split(":");
-      const reszta = Number(zostaje) > 0 ? ` — zostaje ${fmt(Number(zostaje))} mm` : " — bez kolizji";
+      // „hingeflipcab:<nr szafki>:<poziom>:<kolumna>:<strona>:<ok|kat po przelozeniu>" — z uwagi o kolizji
+      const [, idx, li, j, side, wynik] = action.split(":");
+      const reszta = wynik === "ok" ? " — bez kolizji" : ` — otworzy się do ok. ${wynik}°`;
       return {
         label: `Przełóż zawiasy na ${side === "left" ? "lewą" : "prawą"}${reszta}`,
         run: () => editItemLevels(Number(idx), (L) => { L[+li].cols[+j].hinge = side; }),
@@ -11941,6 +11942,8 @@ const swingLeaf = (n, hu, hv, sideSign, r, z0, z1, meta) => {
   return {
     hx: h.x, hy: h.y, r, z0, z1,
     sx: f.ux * sideSign + f.vx, sy: f.uy * sideSign + f.vy,
+    // osobno oba kierunki: a — wzdluz zamknietego frontu, b — przed lico (do kata styku)
+    ax: f.ux * sideSign, ay: f.uy * sideSign, bx: f.vx, by: f.vy,
     ...meta,
   };
 };
@@ -11957,6 +11960,46 @@ const swingHit = (s, b) => {
   const cy = Math.min(Math.max(s.hy, y0), y1);
   const d = Math.hypot(cx - s.hx, cy - s.hy);
   return d < s.r - SWING_TOL ? s.r - d : 0;
+};
+
+/* Kat, przy ktorym skrzydlo pierwszy raz dotyka bryly (0° = zamkniete); null,
+   gdy sie mijaja. Uzytkownik 2026-10-11: „brakuje 534 mm” bylo mylace —
+   brakowalo wstawki, a nie pol metra. W ukladzie skrzydla (a wzdluz
+   zamknietego frontu od zawiasu, b przed lico) skrzydlo otwarte o kat t
+   zamiata wycinek kola od 0 do t, wiec pierwszy styk to punkt pudelka w kole
+   o najmniejszym atan2(b, a): najnizsze b i przy nim najdalsze a. */
+const swingKat = (s, b) => {
+  if (!(swingHit(s, b) > 0)) return null;
+  const pa = [], pb = [];
+  [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1]].forEach(([x, y]) => {
+    pa.push((x - s.hx) * s.ax + (y - s.hy) * s.ay);
+    pb.push((x - s.hx) * s.bx + (y - s.hy) * s.by);
+  });
+  const a0 = Math.max(0, Math.min(...pa)), a1 = Math.max(...pa);
+  const b0 = Math.max(0, Math.min(...pb));
+  const r = s.r - SWING_TOL;
+  if (b0 >= r) return null;
+  const a = Math.min(a1, Math.sqrt(r * r - b0 * b0));
+  if (a < a0) return null;
+  return (Math.atan2(b0, a) * 180) / Math.PI;
+};
+
+/* Pierwsza przeszkoda skrzydla: ta, w ktora uderza przy najmniejszym kacie.
+   `ile` — najglebsze wejscie w cokolwiek (do rady „zwez front”). */
+const swingStop = (s, bryly) => {
+  let g = null;
+  let ile = 0;
+  bryly.forEach((b) => {
+    // wlasny front, wlasny uchwyt i wlasny korpus to nie przeszkoda
+    if (b.klucz === s.klucz || (b.id === s.id && b.co === "korpus")) return;
+    // szuflade obok skrzydlo widzi wysunieta (to pudelko zawiera zamknieta)
+    if (b.zamknieta) return;
+    const kat = swingKat(s, b);
+    if (kat == null) return;
+    ile = Math.max(ile, swingHit(s, b));
+    if (!g || kat < g.kat) g = { b, kat };
+  });
+  return g && { ...g, ile };
 };
 
 /* Pudelko z ukladu pokoju z powrotem we wspolrzednych ciagu (u wzdluz
@@ -12167,38 +12210,52 @@ const swingBodies = (L, project) => {
   return { bryly, skrzydla, ruchy };
 };
 
+/* Wynik poprawki dla przycisku: „ok”, gdy kolizja znika, kat po poprawce,
+   gdy skrzydlo otwiera sie wyraznie dalej (o 20°+), albo null — nie pomaga.
+   Prog, zeby nie bylo przyciskow w rodzaju „otworzy sie do ok. 6°” zamiast 0°. */
+const POPRAWKA_KAT = 20;
+const wynikPoprawki = (przed, po) => !po ? "ok"
+  : po.kat >= przed.kat + POPRAWKA_KAT ? String(Math.round(po.kat)) : null;
+
 /* Kolizja otwierania jako blad. Na jedno skrzydlo zostawiamy jedna uwage —
-   tego, w co wchodzi najglebiej — bo lista rzeczy do poprawy ma byc krotka,
+   o tym, w co uderza najwczesniej — bo lista rzeczy do poprawy ma byc krotka,
    a poprawka i tak jest ta sama. */
 const openingMsgs = (L, project) => {
   const out = [];
   if (!L || !L.info) return out;
   const { bryly, skrzydla, ruchy } = swingBodies(L, project);
+  /* Czy wstawka w rogu pomoze, sprawdzamy na probe: ten sam projekt z wstawka
+     ustawiona tak jak zrobi to przycisk, nowe rozmieszczenie i te same skrzydla
+     jeszcze raz (uzytkownik 2026-10-11: przycisk wstawki tylko wtedy, gdy
+     pomaga). Jedna proba na rog i rodzaj wstawki. */
+  const proby = new Map();
+  const zWstawka = (rog, typ) => {
+    const k = `${rog.id}|${typ}`;
+    if (proby.has(k)) return proby.get(k);
+    let wynik = null;
+    const run = project && (project.runs || []).find((r) => r.id === rog.id);
+    if (run && run.corner) {
+      const w = (run.corner.wstawka && run.corner.wstawka.w) || WSTAWKA_W;
+      const p2 = { ...project, runs: project.runs.map((r) => (r !== run ? r
+        : { ...r, corner: migrateCorner({ ...r.corner, wstawka: { typ, w } }) })) };
+      const L2 = [...projectLayout(p2).pokoje.values()].find((x) => x.info.has(rog.id));
+      if (L2) wynik = swingBodies(L2, p2);
+    }
+    proby.set(k, wynik);
+    return wynik;
+  };
   skrzydla.forEach((s) => {
-    let g = null;
-    bryly.forEach((b) => {
-      // wlasny front, wlasny uchwyt i wlasny korpus to nie przeszkoda
-      if (b.klucz === s.klucz || (b.id === s.id && b.co === "korpus")) return;
-      // szuflade obok skrzydlo widzi wysunieta (to pudelko zawiera zamknieta)
-      if (b.zamknieta) return;
-      const ile = swingHit(s, b);
-      if (ile > 0 && (!g || ile > g.ile)) g = { b, ile };
-    });
+    const g = swingStop(s, bryly);
     if (!g) return;
     const gdzie = g.b.run === s.run ? "w tym samym ciągu" : `z ciągu „${g.b.run}"`;
     const czyje = g.b.id === s.id ? "tej samej szafki" : `szafki „${g.b.cab}" ${gdzie}`;
     const zostaje = Math.max(0, Math.round(s.szer - g.ile));
-    /* Przycisk przelozenia zawiasow — tylko gdy po przelozeniu kolizja maleje;
-       podpis mowi, ile jej zostanie. */
+    /* Przycisk przelozenia zawiasow — tylko gdy po przelozeniu jest lepiej;
+       podpis mowi, jak sie wtedy otworzy. */
     let akcjaFlip = "";
     if (s.alt && s.flip) {
-      let altIle = 0;
-      bryly.forEach((b) => {
-        if (b.klucz === s.klucz || (b.id === s.id && b.co === "korpus")) return;
-        altIle = Math.max(altIle, swingHit(s.alt, b));
-      });
-      if (altIle < g.ile - 5)
-        akcjaFlip = `|hingeflipcab:${s.flip.idx}:${s.flip.lvl}:${s.flip.col}:${s.flip.side}:${Math.round(altIle)}`;
+      const po = wynikPoprawki(g, swingStop({ ...s.alt, klucz: s.klucz, id: s.id }, bryly));
+      if (po) akcjaFlip = `|hingeflipcab:${s.flip.idx}:${s.flip.lvl}:${s.flip.col}:${s.flip.side}:${po}`;
     }
     /* Rady tylko wykonalne: front wezszy niz najwezsza sensowna kolumna to juz
        nie drzwi (wychodzilo „zwez front do 0 mm”), a odsuniecie ciagow ma
@@ -12211,10 +12268,12 @@ const openingMsgs = (L, project) => {
     if (g.b.run !== s.run) rady.push("odsuń ciągi w rogu (karta ciągu → Narożnik → „Luz w rogu”)");
     const rada = rady.length > 1
       ? rady.slice(0, -1).join(", ") + " albo " + rady[rady.length - 1] : (rady[0] || "zmień układ w rogu");
-    /* Kolizja miedzy dwoma ciagami w rogu bez szafki w L: od razu przycisk
-       wstawki — najpierw plaskiej (grubosc plyty), a gdy juz jest i nie
-       wystarcza, szerokiej 60 mm na trojkatach. Ustawienie siedzi w narozniku
-       ciagu, ktory go ma (tego z `corner.of`). */
+    /* Kolizja miedzy dwoma ciagami w rogu bez szafki w L: przycisk wstawki —
+       plaskiej (grubosc plyty), a gdy ta nie wystarcza albo juz jest,
+       szerokiej 60 mm na trojkatach. Tylko taki, ktory po probie pomaga:
+       najpierw ten, przy ktorym kolizja znika, inaczej ten, przy ktorym
+       skrzydlo otwiera sie najdalej. Ustawienie siedzi w narozniku ciagu,
+       ktory go ma (tego z `corner.of`). */
     let akcja = "";
     const rA = s.id.split("#")[0], rB = g.b.id.split("#")[0];
     if (rA !== rB) {
@@ -12226,13 +12285,29 @@ const openingMsgs = (L, project) => {
       if (rog) {
         const ws = rog.corner.wstawka;
         const tf = tfPrzyRogu(rog);
-        if (!ws) akcja = `|wstawka:${rog.id}:plaska:${tf}`;
-        else if (ws.typ === "plaska") akcja = `|wstawka:${rog.id}:szeroka:${WSTAWKA_W}`;
+        const typy = !ws ? [["plaska", tf], ["szeroka", WSTAWKA_W]]
+          : ws.typ === "plaska" ? [["szeroka", WSTAWKA_W]] : [];
+        let best = null;
+        for (const [typ, ile] of typy) {
+          const sb = zWstawka(rog, typ);
+          const s2 = sb && sb.skrzydla.find((x) => x.klucz === s.klucz);
+          if (!s2) continue;
+          const po = swingStop(s2, sb.bryly);
+          const wynik = wynikPoprawki(g, po);
+          if (!wynik) continue;
+          if (!best || (best.po && (!po || po.kat > best.po.kat))) best = { typ, ile, po, wynik };
+          if (!po) break;
+        }
+        if (best) akcja = `|wstawka:${rog.id}:${best.typ}:${best.ile}:${best.wynik}`;
       }
     }
+    /* Kat zamiast „brakuje N mm” (uzytkownik 2026-10-11): ile milimetrow
+       skrzydla wchodzi w przeszkode, nic nie mowi o tym, czego brakuje. */
+    const wcale = g.kat < 2;
     out.push({ level: "error", text:
-      `${s.ramie ? "Front ramienia" : "Skrzydło"} szafki „${s.cab}" (ciąg „${s.run}") nie ma się jak `
-      + `otworzyć: po drodze stoi ${g.b.co} ${czyje} — brakuje ${fmt(Math.round(g.ile))} mm. `
+      `${s.ramie ? "Front ramienia" : "Skrzydło"} szafki „${s.cab}" (ciąg „${s.run}") nie otworzy się `
+      + `${wcale ? "wcale: tuż przed nim" : "do końca: po drodze"} stoi ${g.b.co} ${czyje}`
+      + (wcale ? ". " : ` — otworzy się tylko do ok. ${Math.round(g.kat)}°. `)
       + rada.charAt(0).toUpperCase() + rada.slice(1) + "." + akcjaFlip + akcja });
   });
   /* Szuflady i klapy (uzytkownik 2026-09-28: kontrola ma objac wszystko, co

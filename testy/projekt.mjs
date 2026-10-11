@@ -46,9 +46,9 @@ for (let i = 0; i < p.items.length; i++) {
   const linie = t.split('\n').map((l) => l.trim()).filter(Boolean);
   const podp = linie.indexOf('PODPOWIEDZI — NIC NIE TRZEBA POPRAWIAĆ');
   const glowne = (podp >= 0 ? linie.slice(0, podp) : linie).filter((l) => l.length > 3 && l !== 'Uwagi');
-  const kol = glowne.filter((l) => /nie ma się jak otworzyć/.test(l));
+  const kol = glowne.filter((l) => /nie otworzy się (do końca|wcale)/.test(l));
   if (!kolizje) kolizje = kol;
-  const reszta = glowne.filter((l) => !/nie ma się jak otworzyć/.test(l) && !/^DO SPRAWDZENIA/.test(l) && !/— \d+ (ostrzeż|błęd)/.test(l));
+  const reszta = glowne.filter((l) => !/nie otworzy się (do końca|wcale)/.test(l) && !/^DO SPRAWDZENIA/.test(l) && !/— \d+ (ostrzeż|błęd)/.test(l));
   const ilePodp = podp >= 0 ? linie.slice(podp + 1).filter((l) => l.length > 3 && !/^DO SPRAWDZENIA/.test(l)).length : 0;
   console.log(`  [${i}] ${p.items[i].cab.name}: ${reszta.length ? '' : 'bez błędów i ostrzeżeń'} (podpowiedzi: ${ilePodp})`);
   reszta.forEach((l) => console.log('      ' + l.slice(0, 220)));

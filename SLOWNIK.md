@@ -234,7 +234,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `migrateCab(cab, mat)` / `migrateRun` / `migrateCorner` | podnoszenie starych projektów do bieżącego formatu |
 | `splitAtJoints` | dzieli wspólny cokół/blat na odcinki |
 | `buildCutPlan` / `packSheets` / `nestPass` | rozkrój na arkusze |
-| `swingBodies` / `openingMsgs` | kontrola otwierania: skrzydła (`swingHit`), szuflady (`wysuwHit`), klapy (`klapaHit`, kąt co 1°) przeciw korpusom, frontom, uchwytom, wstawkom, ramionom i blatowi |
+| `swingBodies` / `openingMsgs` | kontrola otwierania: skrzydła (`swingHit` — czy wchodzi; `swingKat` — kąt pierwszego styku; `swingStop` — przeszkoda, w którą uderza najwcześniej; komunikat „otworzy się tylko do ok. N°”), szuflady (`wysuwHit`), klapy (`klapaHit`, kąt co 1°) przeciw korpusom, frontom, uchwytom, wstawkom, ramionom i blatowi |
 | `wallGapOf(run, item)` / `migrateWallGap` | odsunięcie od ściany szafki: własne albo z ciągu; `{ bottom, top }` (`top` = pod blatem, domyślnie jak `bottom`) |
 | `cudzeRamiona` (w `AssemblyTopView`) | ramię szafki w L, którego ściany nie rysujemy (zakres „Ciąg”) — przeniesione macierzą na swoje prawdziwe miejsce, z kawałkiem ściany i blatem |
 | `cornerSpan(n)` / `SZEROKI_FRONT` (600) | ile szafka w L zajmuje od rogu wzdłuż obu ścian (odstęp + głębokość korpusu + ramię; odstęp + szerokość korpusu) i ostrzeżenie o froncie ramienia szerszym niż 600 mm |
@@ -362,9 +362,9 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `hingeflip:<lv>:<col>:<side>` | przekłada zawiasy na drugą stronę |
 | `parablat:<poziom>:<kolumna>` | „Dodaj parę wzmocnień pod blat” — przy otwartej górze kolumny (bez wieńca i wzmocnienia) i przy klapie do góry bez czego zawiesić zawiasy |
 | `tylstd:<poziom>:<kolumna>:<szuflada>` | „Wyłącz podniesiony tył” — gdy nad skrzynką nie ma 20 mm na podniesienie |
-| `hingeflipcab:<nr szafki>:<lv>:<col>:<side>:<ile zostaje>` | w uwadze o kolizji otwierania: „Przełóż zawiasy na lewą/prawą — zostaje N mm / bez kolizji”; tylko pojedyncze drzwi i tylko gdy przełożenie zmniejsza kolizję (liczone w `swingBodies` → `s.alt`); gdy nie pomaga, rady o zawiasach nie ma |
+| `hingeflipcab:<nr szafki>:<lv>:<col>:<side>:<ok\|kąt>` | w uwadze o kolizji otwierania: „Przełóż zawiasy na lewą/prawą — bez kolizji / otworzy się do ok. N°”; tylko pojedyncze drzwi i tylko gdy przełożenie pomaga (kolizja znika albo kąt rośnie o `POPRAWKA_KAT` = 20°; `wynikPoprawki`, liczone w `swingBodies` → `s.alt`); gdy nie pomaga, rady o zawiasach nie ma |
 | `slepyrog:<nr szafki>:<strona fixu>:<fix mm>:<ciąg z narożnikiem albo ->` | „Ustaw szafkę w rogu”: w każdym poziomie kolumna od rogu dostaje fix na zasłoniętą część, jedne drzwi i zawias od zewnątrz (uchwyt przy fixie), a narożnik — płaską wstawkę; blok „Szafka w rogu do ustawienia” (`cornerPairMsgs`) pokazuje się, dopóki `slepyUstawiony(z)` nie jest spełnione, a kolizje otwierania w tym rogu czekają |
-| `wstawka:<ciąg z narożnikiem>:<plaska\|szeroka>:<mm>` | przy kolizji otwierania między ciągami w rogu (bez szafki w L): „Dodaj wstawkę 18 mm”, a gdy płaska już jest — „Wstawka 60 mm (na trójkątach)”; obsługa w `runFix` przez `setCorner` |
+| `wstawka:<ciąg z narożnikiem>:<plaska\|szeroka>:<mm>:<ok\|kąt>` | przy kolizji otwierania między ciągami w rogu (bez szafki w L): „Dodaj wstawkę 18 mm — bez kolizji”, a gdy płaska nie wystarcza albo już jest — „Wstawka 60 mm (na trójkątach) — …”; tylko gdy pomaga — sprawdzane na próbę w `openingMsgs` (`zWstawka`: projekt z wstawką → `projectLayout` → to samo skrzydło); obsługa w `runFix` przez `setCorner` |
 | `onedoor:<lv>:<col>:<szer>:<side>` | dwoje wąskich drzwi (każde < `WASKI_FRONT`, jedne ≤ `SZEROKI_FRONT`) zamienia na jedne z zawiasami z lewej/prawej; podpowiedź „dwoje wąskich drzwi” w `computeGeo` (nie w szafce narożnej ani przy rogu) |
 | `cornerdoor:<w>:<idx>` | ustawia jedne drzwi szafki narożnej na podaną szerokość |
 | `noTop:<idx>` | zamienia wieniec na parę wzmocnień |
