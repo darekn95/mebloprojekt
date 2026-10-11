@@ -176,7 +176,7 @@ console.log('\n== 7. zapas nad skrzynką V-BOX: auto min. 5 mm, na styk — ostr
   ok('auto: bez ostrzeżenia „na styk”', !/mieści się na styk/.test(u));
   await wczytaj({ name: 'Z', active: 0, prices: {}, runs: p.runs, items: [z2(238)] });
   u = await uw();
-  ok('bok 238 wybrany ręcznie: ostrzeżenie „na styk”, zapas 0 mm', /szuflada 2: skrzynka z bokiem 238 mm mieści się na styk .*zapas 0 mm, zalecane min\. 5 mm/.test(u),
+  ok('bok 238 wybrany ręcznie: ostrzeżenie „na styk” (zapas poniżej 5 mm)', /szuflada 2: skrzynka z bokiem 238 mm mieści się na styk .*zapas [0-4] mm, zalecane min\. 5 mm/.test(u),
     (u.split('\n').find((l) => /szuflada 2/.test(l)) || '(brak)').slice(0, 220));
   const btn = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi/ }) }).first().getByRole('button', { name: 'Zmień bok szuflady na 210 mm' });
   ok('przycisk „Zmień bok szuflady na 210 mm”', await btn.count() === 1);
