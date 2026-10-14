@@ -159,5 +159,62 @@ console.log('\n== 6. różne NL w jednej kolumnie — informacja ==');
     (u.split('\n').find((l) => /różne długości/.test(l)) || '(brak)').slice(0, 160));
 }
 
+console.log('\n== 7. luz nad skrzynką V-BOX min. 5 mm; reling — albo zostaw bez ==');
+/* Uzytkownik 2026-10-11/14 (Szafka 5): gorna z dwoch szuflad pod blatem dostawala
+   bok 238 rowno ze spodem wzmocnienia przy plecach — dokladnie minimum z katalogu,
+   0 mm luzu. „Musi byc luz przynajmniej 5 mm”: auto bierze bok z takim luzem,
+   liczac sufit z calej drogi skrzynki; mniejszy luz to blad z przyciskiem.
+   Przy froncie > 140 mm ponad bokiem — reling albo „Zostaw bez relingu”. */
+{
+  const z2 = (h2) => ({ ...podBlat, cab: { ...podBlat.cab, levels: podBlat.cab.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, kind: 'drawers',
+    drawers: [{ h: 'auto' }, { h: h2 }] })) })) } });
+  const uw = () => page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || '');
+  const ikona = (re) => page.evaluate((src) => { const sec = [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''));
+    const l = (sec ? sec.innerText : '').split('\n').map((x) => x.trim()); const i = l.findIndex((x) => new RegExp(src).test(x)); return i > 0 ? l[i - 1] : null; }, re.source);
+  const karta = () => page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi/ }) }).first();
+  const tyly = async () => (await sekcja(/^Formatki do zamówienia/)).filter((r) => /^Tył szuflady/.test(r[0])).map((r) => r.join(' | '));
+  await wczytaj({ name: 'Z', active: 0, prices: {}, runs: p.runs, items: [z2('auto')] });
+  let t = await tyly();
+  ok('auto: górna szuflada dostaje bok 210 (tył 200), a nie 238 bez luzu pod wzmocnieniem', t.some((l) => /\| 200 \|/.test(l)), t.join(' / '));
+  let u = await uw();
+  ok('auto: bez błędu o luzie nad bokiem', !/luzu do tego, co jest wyżej/.test(u));
+  ok('front 145 mm ponad bokiem: ostrzeżenie o relingu z „albo zostaw bez relingu”', /szuflada 2: front wystaje \d+ mm ponad bok szuflady — zastosuj reling boczny albo zostaw bez relingu/.test(u));
+  await karta().getByRole('button', { name: 'Zostaw bez relingu' }).first().click();
+  let zp = await zapis();
+  ok('„Zostaw bez relingu” zapisuje decyzję w szufladzie', zp.items[0].cab.levels[0].cols[0].drawers[1].bezRelingu === true);
+  u = await uw();
+  ok('po decyzji: informacja „bez relingu (tak wybrane)”, bez ostrzeżenia', /bez relingu \(tak wybrane\)/.test(u) && !/zastosuj reling boczny/.test(u)
+    && await ikona(/bez relingu \(tak wybrane\)/) === 'i');
+  await karta().getByRole('button', { name: 'Wróć do ostrzeżenia o relingu' }).first().click();
+  zp = await zapis();
+  ok('„Wróć do ostrzeżenia o relingu” cofa decyzję', zp.items[0].cab.levels[0].cols[0].drawers[1].bezRelingu === false);
+  // „Dodaj reling”: do zamowienia, komplet na szuflade, domyslnie 30 zl bez wzgledu na dlugosc (2026-10-14)
+  await karta().getByRole('button', { name: 'Dodaj reling' }).first().click();
+  zp = await zapis();
+  ok('„Dodaj reling” zapisuje reling w szufladzie', zp.items[0].cab.levels[0].cols[0].drawers[1].reling === true);
+  const prod = await okucia();
+  ok('reling w produktach: 1 kpl. na szufladę', prod.some((l) => /^Reling boczny do szuflady \|.*komplet na szufladę.*\| 1 kpl\./.test(l)), prod.filter((l) => /Reling/.test(l)).join(' / ') || prod.slice(0, 3).join(' / '));
+  const wyc = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Wycena/ }) }).first();
+  await wyc.locator('h2').first().click(); await page.waitForTimeout(400);
+  const cena = await page.evaluate(() => { const sec = [...document.querySelectorAll('section')].find((x) => /^Wycena/.test(x.querySelector('h2')?.textContent || ''));
+    const tr = sec && [...sec.querySelectorAll('tr')].find((r) => /Reling boczny do szuflady/.test(r.textContent));
+    return tr ? [...tr.querySelectorAll('input')].map((i) => i.value).join(' ') + ' ' + tr.textContent : null; });
+  ok('wycena: reling 30 zł', !!cena && /(^|\D)30([,.]00)?(\D|$)/.test(cena), cena);
+  u = await uw();
+  ok('informacja „z relingiem bocznym (w zamówieniu)”', /z relingiem bocznym \(w zamówieniu\)/.test(u) && !/zastosuj reling boczny/.test(u));
+  await karta().getByRole('button', { name: 'Usuń reling' }).first().click();
+  zp = await zapis();
+  ok('„Usuń reling” zdejmuje reling', zp.items[0].cab.levels[0].cols[0].drawers[1].reling === false && !(await okucia()).some((l) => /^Reling/.test(l)));
+  await wczytaj({ name: 'Z', active: 0, prices: {}, runs: p.runs, items: [z2(238)] });
+  u = await uw();
+  ok('bok 238 wybrany ręcznie: błąd — za mały luz nad bokiem (min. 5 mm)', /szuflada 2: nad bokiem skrzynki 238 mm zostaje [0-4] mm luzu do tego, co jest wyżej .* potrzeba min\. 5 mm/.test(u)
+    && await ikona(/nad bokiem skrzynki 238 mm zostaje/) === '×', (u.split('\n').find((l) => /szuflada 2: nad/.test(l)) || '(brak)').slice(0, 220));
+  const btn = karta().getByRole('button', { name: 'Zmień bok szuflady na 210 mm' });
+  ok('przycisk „Zmień bok szuflady na 210 mm”', await btn.count() === 1);
+  await btn.first().click();
+  zp = await zapis();
+  ok('po kliknięciu bok 210', zp.items[0].cab.levels[0].cols[0].drawers[1].h === 210, JSON.stringify(zp.items[0].cab.levels[0].cols[0].drawers[1]));
+}
+
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();
