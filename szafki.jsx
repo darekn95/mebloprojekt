@@ -188,6 +188,8 @@ const DEFAULT_HW_PRICES = {
   // klapy — cena standardowa ustalona z uzytkownikiem (2026-09-28)
   "Podnośnik gazowy do klapy": 10,
   "Amortyzator do klapy opadanej": 10,
+  // komplet na szuflade, bez wzgledu na dlugosc (uzytkownik 2026-10-14)
+  "Reling boczny do szuflady": 30,
 };
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
@@ -1972,6 +1974,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   let hingeCount = 0;
   const klapy = [];   // podnosniki klapy do okuc i uwag
   const slideGroups = new Map();
+  const relingGroups = new Map();   // NL → ile szuflad z relingiem bocznym
   const supportParts = [];
   const insetExtra = cab.frontMode === "inset" ? tf : 0;
   // czy fronty danej kolumny siedza w swietle korpusu — potrzebne sasiadom,
@@ -2796,6 +2799,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           const kk = `${hClass}|${nl}`;
           slideGroups.set(kk, (slideGroups.get(kk) || 0) + 1);
         }
+        if (d.reling) relingGroups.set(nl ?? 0, (relingGroups.get(nl ?? 0) || 0) + 1);
 
         const minF = VBOX.minFront[dMode][hClass];
         if (fh < minF) {
@@ -2810,12 +2814,15 @@ function computeGeoLiczy(cab, mat, ctx) {
           );
         }
         /* Front wysoko ponad bokiem: katalog radzi reling boczny. Uzytkownik
-           (2026-10-14) chce tez mozliwosc zostawienia bez relingu — wtedy zostaje
-           tylko informacja z mozliwoscia powrotu. */
-        if (fh - hClass > 140)
-          add(d.bezRelingu ? "info" : "warn", d.bezRelingu
-            ? `${where}, szuflada ${i + 1}: front wystaje ${fmt(fh - hClass)} mm ponad bok szuflady — bez relingu (tak wybrane).|reling:${lv.i}:${j}:${i}:1`
-            : `${where}, szuflada ${i + 1}: front wystaje ${fmt(fh - hClass)} mm ponad bok szuflady — zastosuj reling boczny albo zostaw bez relingu.|reling:${lv.i}:${j}:${i}:0`);
+           (2026-10-14): do wyboru „Dodaj reling” (idzie do zamowienia, 30 zl za
+           komplet) albo „Zostaw bez relingu” — po decyzji zostaje informacja
+           z mozliwoscia cofniecia. */
+        if (fh - hClass > 140) {
+          const ponad = `${where}, szuflada ${i + 1}: front wystaje ${fmt(fh - hClass)} mm ponad bok szuflady`;
+          if (d.reling) add("info", `${ponad} — z relingiem bocznym (w zamówieniu).|relingusun:${lv.i}:${j}:${i}`);
+          else if (d.bezRelingu) add("info", `${ponad} — bez relingu (tak wybrane).|reling:${lv.i}:${j}:${i}:1`);
+          else add("warn", `${ponad} — zastosuj reling boczny albo zostaw bez relingu.|relingdodaj:${lv.i}:${j}:${i}|reling:${lv.i}:${j}:${i}:0`);
+        }
 
         /* Tyl szuflady bywa podnoszony do wysokosci frontu, zeby rzeczy nie
            wypadaly ponad burte. Nizej niz standardowy tyl zejsc nie moze —
@@ -4110,6 +4117,15 @@ function computeGeoLiczy(cab, mat, ctx) {
     hardware.push({
       name: `Prowadnica Sevroll V-BOX 3D Slim ${h} mm`,
       spec: `NL ${nl} mm`,
+      qty,
+      unit: "kpl.",
+    });
+  });
+  // reling boczny: komplet na szuflade, cena jedna bez wzgledu na dlugosc
+  relingGroups.forEach((qty, nlR) => {
+    hardware.push({
+      name: "Reling boczny do szuflady",
+      spec: nlR ? `NL ${nlR} mm — komplet na szufladę` : "komplet na szufladę",
       qty,
       unit: "kpl.",
     });
@@ -10315,6 +10331,15 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         run: () => setGap("divOverlay", val),
       };
     }
+    if (action.startsWith("relingdodaj:") || action.startsWith("relingusun:")) {
+      // „relingdodaj:<poziom>:<kolumna>:<szuflada>" — reling boczny do zamowienia; „relingusun:…" — bez niego
+      const [kind, li, j, k] = action.split(":");
+      const dodaj = kind === "relingdodaj";
+      return {
+        label: dodaj ? "Dodaj reling" : "Usuń reling",
+        run: () => editLevels((L) => { const d = L[+li].cols[+j].drawers[+k]; d.reling = dodaj; if (dodaj) d.bezRelingu = false; }),
+      };
+    }
     if (action.startsWith("reling:")) {
       // „reling:<poziom>:<kolumna>:<szuflada>:<0|1>" — 0: zostaw bez relingu, 1: wroc do ostrzezenia
       const [, li, j, k, juz] = action.split(":");
@@ -16363,6 +16388,14 @@ export default function App() {
                                     onChange={(e) => setDrawer(lv.i, c.j, dr.i, { tallBack: e.target.checked })}
                                     className="h-3.5 w-3.5 accent-teal-700" />
                                   <span className="text-[11px] text-stone-500">tył</span>
+                                </label>
+                                <label className="flex shrink-0 items-center gap-1 cursor-pointer"
+                                  title="Reling boczny — do zamówienia, komplet na szufladę (domyślnie 30 zł bez względu na długość)">
+                                  <input type="checkbox"
+                                    checked={!!rawCol.drawers[dr.i]?.reling}
+                                    onChange={(e) => setDrawer(lv.i, c.j, dr.i, e.target.checked ? { reling: true, bezRelingu: false } : { reling: false })}
+                                    className="h-3.5 w-3.5 accent-teal-700" />
+                                  <span className="text-[11px] text-stone-500">reling</span>
                                 </label>
                                 {rawCol.drawers[dr.i]?.tallBack && (
                                   <div className="w-20 shrink-0">
