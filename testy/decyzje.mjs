@@ -159,29 +159,43 @@ console.log('\n== 6. różne NL w jednej kolumnie — informacja ==');
     (u.split('\n').find((l) => /różne długości/.test(l)) || '(brak)').slice(0, 160));
 }
 
-console.log('\n== 7. zapas nad skrzynką V-BOX: auto min. 5 mm, na styk — ostrzeżenie ==');
-/* Uzytkownik 2026-10-11 (Szafka 5): gorna z dwoch szuflad pod blatem dostawala
+console.log('\n== 7. luz nad skrzynką V-BOX min. 5 mm; reling — albo zostaw bez ==');
+/* Uzytkownik 2026-10-11/14 (Szafka 5): gorna z dwoch szuflad pod blatem dostawala
    bok 238 rowno ze spodem wzmocnienia przy plecach — dokladnie minimum z katalogu,
-   0 mm zapasu. Auto bierze bok z co najmniej 5 mm zapasu, liczac sufit z calej
-   drogi skrzynki; bok na styk wybrany recznie daje ostrzezenie z przyciskiem. */
+   0 mm luzu. „Musi byc luz przynajmniej 5 mm”: auto bierze bok z takim luzem,
+   liczac sufit z calej drogi skrzynki; mniejszy luz to blad z przyciskiem.
+   Przy froncie > 140 mm ponad bokiem — reling albo „Zostaw bez relingu”. */
 {
   const z2 = (h2) => ({ ...podBlat, cab: { ...podBlat.cab, levels: podBlat.cab.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, kind: 'drawers',
     drawers: [{ h: 'auto' }, { h: h2 }] })) })) } });
   const uw = () => page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || '');
+  const ikona = (re) => page.evaluate((src) => { const sec = [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''));
+    const l = (sec ? sec.innerText : '').split('\n').map((x) => x.trim()); const i = l.findIndex((x) => new RegExp(src).test(x)); return i > 0 ? l[i - 1] : null; }, re.source);
+  const karta = () => page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi/ }) }).first();
   const tyly = async () => (await sekcja(/^Formatki do zamówienia/)).filter((r) => /^Tył szuflady/.test(r[0])).map((r) => r.join(' | '));
   await wczytaj({ name: 'Z', active: 0, prices: {}, runs: p.runs, items: [z2('auto')] });
   let t = await tyly();
-  ok('auto: górna szuflada dostaje bok 210 (tył 200), a nie 238 na styk ze wzmocnieniem', t.some((l) => /\| 200 \|/.test(l)), t.join(' / '));
+  ok('auto: górna szuflada dostaje bok 210 (tył 200), a nie 238 bez luzu pod wzmocnieniem', t.some((l) => /\| 200 \|/.test(l)), t.join(' / '));
   let u = await uw();
-  ok('auto: bez ostrzeżenia „na styk”', !/mieści się na styk/.test(u));
+  ok('auto: bez błędu o luzie nad bokiem', !/luzu do tego, co jest wyżej/.test(u));
+  ok('front 145 mm ponad bokiem: ostrzeżenie o relingu z „albo zostaw bez relingu”', /szuflada 2: front wystaje \d+ mm ponad bok szuflady — zastosuj reling boczny albo zostaw bez relingu/.test(u));
+  await karta().getByRole('button', { name: 'Zostaw bez relingu' }).first().click();
+  let zp = await zapis();
+  ok('„Zostaw bez relingu” zapisuje decyzję w szufladzie', zp.items[0].cab.levels[0].cols[0].drawers[1].bezRelingu === true);
+  u = await uw();
+  ok('po decyzji: informacja „bez relingu (tak wybrane)”, bez ostrzeżenia', /bez relingu \(tak wybrane\)/.test(u) && !/zastosuj reling boczny/.test(u)
+    && await ikona(/bez relingu \(tak wybrane\)/) === 'i');
+  await karta().getByRole('button', { name: 'Wróć do ostrzeżenia o relingu' }).first().click();
+  zp = await zapis();
+  ok('„Wróć do ostrzeżenia o relingu” cofa decyzję', zp.items[0].cab.levels[0].cols[0].drawers[1].bezRelingu === false);
   await wczytaj({ name: 'Z', active: 0, prices: {}, runs: p.runs, items: [z2(238)] });
   u = await uw();
-  ok('bok 238 wybrany ręcznie: ostrzeżenie „na styk” (zapas poniżej 5 mm)', /szuflada 2: skrzynka z bokiem 238 mm mieści się na styk .*zapas [0-4] mm, zalecane min\. 5 mm/.test(u),
-    (u.split('\n').find((l) => /szuflada 2/.test(l)) || '(brak)').slice(0, 220));
-  const btn = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi/ }) }).first().getByRole('button', { name: 'Zmień bok szuflady na 210 mm' });
+  ok('bok 238 wybrany ręcznie: błąd — za mały luz nad bokiem (min. 5 mm)', /szuflada 2: nad bokiem skrzynki 238 mm zostaje [0-4] mm luzu do tego, co jest wyżej .* potrzeba min\. 5 mm/.test(u)
+    && await ikona(/nad bokiem skrzynki 238 mm zostaje/) === '×', (u.split('\n').find((l) => /szuflada 2: nad/.test(l)) || '(brak)').slice(0, 220));
+  const btn = karta().getByRole('button', { name: 'Zmień bok szuflady na 210 mm' });
   ok('przycisk „Zmień bok szuflady na 210 mm”', await btn.count() === 1);
   await btn.first().click();
-  const zp = await zapis();
+  zp = await zapis();
   ok('po kliknięciu bok 210', zp.items[0].cab.levels[0].cols[0].drawers[1].h === 210, JSON.stringify(zp.items[0].cab.levels[0].cols[0].drawers[1]));
 }
 
