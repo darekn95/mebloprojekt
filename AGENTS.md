@@ -23,7 +23,8 @@
   odpisania — użytkownik woli kliknąć niż wpisywać odpowiedź.
 - **Dwie wersje aplikacji, dwie role** (ustalone z użytkownikiem):
   - **Artefakt na claude.ai** służy do pokazywania i testów na projekcie
-    użytkownika. **Musi** mieć przycisk „Wyślij do Claude”. **Nie potrzebuje**
+    użytkownika. **Musi** mieć przycisk „Wyślij do Claude” (i „Wczytaj wysłany
+    do Claude” — na innym komputerze wczytuje ostatnio wysłany projekt). **Nie potrzebuje**
     pobierania plików — „Zapisz do pliku” może tam zostać przy obecnym
     zastępstwie (tekst do skopiowania), nie dokładaj do tego zdolności `downloads`.
   - **GitHub Pages / `standalone.html`** to wersja do pracy. Tu działa zapis do

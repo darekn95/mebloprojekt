@@ -13778,6 +13778,24 @@ export default function App() {
     }
   };
 
+  /* „Wczytaj wyslany do Claude” — tez tylko w artefakcie. Projekt siedzi
+     w przegladarce, wiec na innym komputerze artefakt otwieral projekt startowy
+     (zgloszenie uzytkownika 2026-10-15: „jakis stary projekt mi sie wczytal”).
+     Ostatnio wyslany lezy we wspolnym magazynie — stad da sie go wczytac na
+     kazdym komputerze. Najpierw pytamy, bo zastepuje otwarty projekt. */
+  const [wyslanyDoWczytania, setWyslanyDoWczytania] = useState(null);
+  const pobierzOdClaude = async () => {
+    if (!dbClaude) return;
+    try {
+      const snap = await dbClaude.doc(PROJEKT_DLA_CLAUDE).get();
+      const d = snap && snap.exists ? snap.data() : null;
+      if (!d || typeof d.json !== "string") { setSaved("w artefakcie nie ma wysłanego projektu"); return; }
+      setWyslanyDoWczytania({ json: d.json, nazwa: d.nazwa || "", szafek: d.szafek, wyslano: d.wyslano || null });
+    } catch (e) {
+      setSaved("nie udało się pobrać projektu — spróbuj jeszcze raz");
+    }
+  };
+
   const exportProject = () => {
     const json = JSON.stringify(
       { name: project.name, prices: project.prices, rooms: roomsOf(project), items: project.items, runs: project.runs, active: project.active },
@@ -14901,6 +14919,24 @@ export default function App() {
             <button onClick={wyslijDoClaude}
               title="Tylko w artefakcie na claude.ai: zapisuje bieżący projekt we wspólnym magazynie, z którego Claude go odczyta"
               className="text-xs font-medium text-teal-700 hover:underline">Wyślij do Claude</button>
+          )}
+          {dbClaude && (
+            <button onClick={pobierzOdClaude} data-el="wczytaj-od-claude"
+              title="Tylko w artefakcie na claude.ai: wczytuje projekt ostatnio wysłany do Claude — także na innym komputerze"
+              className="text-xs text-teal-700 hover:underline">Wczytaj wysłany do Claude</button>
+          )}
+          {wyslanyDoWczytania && (
+            <span className="flex flex-wrap items-center gap-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900"
+              data-el="wczytaj-od-claude-pytanie">
+              Wczytać projekt wysłany do Claude
+              {wyslanyDoWczytania.wyslano ? ` ${new Date(wyslanyDoWczytania.wyslano).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}
+              {wyslanyDoWczytania.nazwa ? ` („${wyslanyDoWczytania.nazwa}”` : " ("}
+              {wyslanyDoWczytania.szafek != null ? `${wyslanyDoWczytania.nazwa ? ", " : ""}${wyslanyDoWczytania.szafek} szafek)` : ")"}? Zastąpi otwarty projekt.
+              <button onClick={() => { applyImportText(wyslanyDoWczytania.json); setWyslanyDoWczytania(null); }}
+                className="rounded bg-teal-700 px-2 py-0.5 font-medium text-white hover:bg-teal-800">Wczytaj</button>
+              <button onClick={() => setWyslanyDoWczytania(null)}
+                className="rounded border border-stone-300 bg-white px-2 py-0.5 text-stone-700 hover:bg-stone-50">Anuluj</button>
+            </span>
           )}
           <label className="cursor-pointer text-xs text-teal-700 hover:underline">
             Wczytaj plik
