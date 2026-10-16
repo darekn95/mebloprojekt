@@ -103,8 +103,7 @@ Szeroka: `mocowanie` (`trojkaty` / `konf` / `listwa`) przesuwa ją w głąb
 [AI-INFO] Liczba zawiasow drzwi wg wagi frontu — zrobione 2026-10-16 z katalogu GTV
 2023 (`instrukcje/Katalog-produktow-2023-...pdf`, s. 68 = PDF 70): `ZAWIASY_GTV`,
 `zawiasyGtv`, `autoHinges(h, w, grub, szeroki)`. Klapa zostaje 2 / 3 od 900 mm.
-[AI-TODO] Do ustalenia z uzytkownikiem: zlacza blatow na laczeniach kawalkow w
-prostym ciagu (`rt.n > 1`) — teraz tylko styk w rogu (`runTopZlacza`).
+Zlacza blatow (`runTopZlacza`): rog i laczenia kawalkow w prostym ciagu (ustalone).
 
 [AI-INFO] Audyt GPT (2026-10-16, galaz `gpt/audyt-2026-10-16`, plik `AUDYT_GPT.md`):
 B1, B2, B3 odtworzone i poprawione, U1 poprawione; U2 (waski podglad) — nie ruszane.

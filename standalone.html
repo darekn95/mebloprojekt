@@ -627,6 +627,7 @@ function hingePositions(y0, h, n, obstacles) {
   const moved = [];
   base.forEach((want) => {
     let y = Math.min(hi, Math.max(lo, want));
+    let co = null;
     for (let pass = 0; pass < 4; pass++) {
       const hit = obstacles.find(
         (o) => y + half + HINGE_CLR > o.y0 && y - half - HINGE_CLR < o.y1
@@ -642,9 +643,10 @@ function hingePositions(y0, h, n, obstacles) {
       else if (okA) ny = above;
       if (ny === null) break; // nie ma gdzie uciec — zostawiamy i tak jest ostrzezenie
       y = ny;
+      co = hit.what || co;
     }
     const yr = Math.round(y);
-    if (Math.abs(yr - Math.round(want)) >= 1) moved.push({ from: Math.round(want), to: yr });
+    if (Math.abs(yr - Math.round(want)) >= 1) moved.push({ from: Math.round(want), to: yr, co });
     pts.push(yr);
   });
   return { pts, moved };
@@ -2009,6 +2011,10 @@ function computeGeoLiczy(cab, mat, ctx) {
       );
   }
   const doors = [];
+  /* Zawiasy przesuniete przez polke lub wzmocnienie — do notatki montazowej
+     na stronie szafki w PDF (uzytkownik 2026-10-16: „zeby miec pozniej
+     pewnosc, ze zawias dobrze wypadnie”). */
+  const zawiasyMontaz = [];
   const drawerParts = [];
   const fixParts = [];
   const blendaParts = [];
@@ -2625,14 +2631,20 @@ function computeGeoLiczy(cab, mat, ctx) {
             d.hingeSide === "left"
               ? Math.max(carrierL, d.x + tf)
               : Math.min(carrierR, d.x + dw - tf) - HINGE_W;
-          hp.moved.forEach((m) =>
+          /* Ostrzezenie zostaje (uzytkownik 2026-10-16), a do tego linia w
+             notatce montazowej PDF i przycisk, ktory dopisuje ja do notatki szafki. */
+          hp.moved.forEach((m) => {
+            const notatka = `${where}, skrzydło ${i + 1}: zawias ${fmt(m.to - d.y)} mm od dołu frontu (nie ${fmt(m.from - d.y)})`
+              + ` — przesunięty przez kolizję z ${m.co || "półką lub wzmocnieniem"}, ${HINGE_CLR} mm luzu.`;
+            zawiasyMontaz.push(notatka);
             add(
               "warn",
               `${where}, skrzydło ${i + 1}: zawias przesunięty z ${fmt(m.from - d.y)} na ${fmt(
                 m.to - d.y
               )} mm od dołu frontu — kolizja z półką lub wzmocnieniem, zostawiony luz ${HINGE_CLR} mm.`
-            )
-          );
+              + `|notatka:${encodeURIComponent(notatka)}`
+            );
+          });
           doors.push(d);
           c.doors.push(d);
           dx += dw + colGap;
@@ -4510,7 +4522,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   return {
     hardware,
     t, tf, tb, ts, carcassDepth, plecyZa, glebOdSciany, hasBack, interior, innerW, innerH,
-    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, msgs, maxNL,
+    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, msgs, maxNL, zawiasyMontaz,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
@@ -10275,6 +10287,12 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         run: () => setLegs && setLegs(ile),
       };
     }
+    if (action.startsWith("notatka:")) {
+      // „notatka:<tekst>" — dopisuje linie do notatki montazowej szafki; juz dopisana — bez przycisku
+      const t = decodeURIComponent(action.slice("notatka:".length));
+      if (((cab && cab.note) || "").includes(t)) return null;
+      return { label: "Dopisz do notatki montażowej", run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("zawiasy:")) {
       // „zawiasy:<poziom>:<kolumna>:<skrzydlo>:<ile>" — liczba zawiasow skrzydla albo klapy
       const [, li, j, k, ile] = action.split(":");
@@ -11501,19 +11519,32 @@ const runTopPanels = (rt) => {
   }));
 };
 
-/* Zlacza do blatow srubowe (GTV EM-SBL, katalog 2023 s. 246) na styku blatow
-   roboczych w rogu — na styk i na lyzwe (uzytkownik 2026-10-16): 2 szt. przy
-   blacie 600, 3 przy 1200. Rog liczy ciag, ktory go trzyma (`run.corner`), zeby
-   styk nie wszedl do zamowienia dwa razy. Blat z plyty 18 mm — bez zlaczy. */
+/* Zlacza do blatow srubowe (GTV EM-SBL, katalog 2023 s. 246) na kazdym styku
+   blatow roboczych (uzytkownik 2026-10-16): w rogu — na styk i na lyzwe — i na
+   laczeniu kawalkow w prostym ciagu; 2 szt. przy blacie 600, 3 przy 1200. Rog
+   liczy ciag, ktory go trzyma (`run.corner`), zeby styk nie wszedl do
+   zamowienia dwa razy. Blat z plyty 18 mm — bez zlaczy. */
 const ZLACZE_BLATU = "Złącze do blatów śrubowe";
+const zlaczNaStyk = (gl) => (gl > WORKTOP_DEPTHS[0] ? 3 : 2);
+// [{ qty, gl, use, opis }] — jedna pozycja na rodzaj styku
 const runTopZlacza = (project, run) => {
-  if (!run || !run.corner) return null;
-  const n = projectLayout(project).info.get(run.id);
-  if (!n || !n.pair || !n.parent) return null;
-  const a = runTop(project, run), b = runTop(project, n.parent.run);
-  if (!a || !b || a.matKey !== "worktop" || b.matKey !== "worktop") return null;
-  const gl = Math.max(a.arkusz || a.depth, b.arkusz || b.depth);
-  return { qty: gl > WORKTOP_DEPTHS[0] ? 3 : 2, gl, skos: (n.corner || {}).cut === "skos", z: n.parent.run.name };
+  const a = run ? runTop(project, run) : null;
+  if (!a || a.matKey !== "worktop") return [];
+  const out = [];
+  const lacz = (a.lens || []).length - 1;
+  if (lacz > 0) {
+    const gl = a.arkusz || a.depth;
+    out.push({ qty: lacz * zlaczNaStyk(gl), gl, use: "łączenie kawałków blatu w ciągu",
+      opis: `łączenia kawałków blatu w ciągu: ${lacz} × ${zlaczNaStyk(gl)} szt.` });
+  }
+  const n = run.corner ? projectLayout(project).info.get(run.id) : null;
+  const b = n && n.pair && n.parent ? runTop(project, n.parent.run) : null;
+  if (b && b.matKey === "worktop") {
+    const gl = Math.max(a.arkusz || a.depth, b.arkusz || b.depth);
+    out.push({ qty: zlaczNaStyk(gl), gl, use: "styk blatów roboczych w rogu",
+      opis: `róg z blatem „${n.parent.run.name}”, ${(n.corner || {}).cut === "skos" ? "łyżwa 45°" : "na styk"} — ${zlaczNaStyk(gl)} szt.` });
+  }
+  return out;
 };
 
 /* Listwa do zawieszek biegnie przez caly ciag jednym odcinkiem, a nie kawalkiem
@@ -11576,12 +11607,11 @@ const projectParts = (project) => {
       grainMatters: (rp || rt || {}).grainMatters };
     if (rp) runs.push({ ...base, mat: rp.mat, name: `Cokół — ${run.name}`,
       panels: runPlinthPanels(rp), hardware: [] });
-    const zl = rt ? runTopZlacza(project, r0) : null;
     if (rt) runs.push({ ...base, mat: rt.mat, name: `Blat — ${run.name}`,
       panels: runTopPanels(rt),
-      hardware: zl ? [{ name: ZLACZE_BLATU, use: "styk blatów roboczych w rogu",
-        spec: `róg z blatem „${zl.z}”, ${zl.skos ? "łyżwa 45°" : "na styk"}, blat ${fmt(zl.gl)} mm — ${zl.qty} szt.; GTV EM-SBL 65 / 100 / 150 (długość śruby do wyboru)`,
-        qty: zl.qty, unit: "szt." }] : [] });
+      hardware: runTopZlacza(project, r0).map((z) => ({ name: ZLACZE_BLATU, use: z.use,
+        spec: `${z.opis}, blat ${fmt(z.gl)} mm; GTV EM-SBL 65 / 100 / 150 (długość śruby do wyboru)`,
+        qty: z.qty, unit: "szt." })) });
     if (rr) runs.push({ ...base, name: `Listwa — ${run.name}`, panels: [],
       hardware: [{ name: RAIL_NAME, use: "pod zawieszki szafek wiszących",
         spec: `jeden odcinek ${fmt(rr.len)} mm na ciąg`,
@@ -13018,6 +13048,13 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
           <strong>Uwagi:</strong> {cab.note}
         </div>
       )}
+      {/* liczone z geometrii — zawsze aktualne, niezaleznie od notatki wpisanej recznie */}
+      {(geo.zawiasyMontaz || []).length > 0 && (
+        <div data-el="notatka-zawiasy" style={{ fontSize: "9pt", marginTop: 3 }}>
+          <strong>Zawiasy przesunięte:</strong>{" "}
+          {geo.zawiasyMontaz.join(" ")}
+        </div>
+      )}
     </div>
   );
 
@@ -14312,6 +14349,18 @@ export default function App() {
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    if (action.startsWith("notatka:")) {
+      const t = decodeURIComponent(action.slice("notatka:".length));
+      setProject((p) => {
+        const items = p.items.slice();
+        const it = items[p.active];
+        if (!it || (it.cab.note || "").includes(t)) return p;
+        const stara = (it.cab.note || "").replace(/\s+$/, "");
+        items[p.active] = { ...it, cab: { ...it.cab, note: stara ? `${stara}\n${t}` : t } };
+        return { ...p, items };
+      });
+      return;
+    }
     if (action.startsWith("dociacpanel:")) {
       const [, cel, klucz] = action.split(":");
       const dopisz = (lista) => [...(lista || []).filter((k) => k !== klucz), klucz];

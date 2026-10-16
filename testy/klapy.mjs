@@ -193,6 +193,31 @@ await seed(DRZWI(500, 2700));
 hw = await okucia(); u = await uwagi();
 ok('drzwi 2694 mm (ponad 2500): 5 zawiasów i „poza tabelą”', ilosc(hw, /^Zawias/) === 5 && /poza tabelą zawiasów GTV/.test(u), `zamówienie ${ilosc(hw, /^Zawias/)}; ${linieZaw(u)}`);
 
+console.log('\n== zawias przesunięty przez półkę: ostrzeżenie + notatka montażowa ==');
+/* Uzytkownik 2026-10-16: ostrzezenie zostaje, a do tego notatka montazowa —
+   linia sama w PDF na stronie szafki i przycisk „Dopisz do notatki montażowej”. */
+await seed({ name: 'N', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'N', W: 600, H: 900, D: 500,
+  plinth: { on: true, height: 100, mode: 'under', setback: 0 } }, offset: 0 }] });
+u = await uwagi();
+ok('drzwi 894 mm: 3 zawiasy, środkowy przesunięty przez półkę — ostrzeżenie zostaje', /skrzydło 1: zawias przesunięty z 447 na 381 mm od dołu frontu/.test(u), linieZaw(u));
+const btnNot = card(/^Uwagi/).getByRole('button', { name: 'Dopisz do notatki montażowej' });
+ok('przycisk „Dopisz do notatki montażowej” przy każdym przesuniętym zawiasie', (await btnNot.count()) === 2, String(await btnNot.count()));
+await btnNot.first().click(); await page.waitForTimeout(800);
+let notatka = (await zapis()).items[0].cab.note || '';
+ok('kliknięcie dopisuje linię do notatki szafki', /skrzydło 1: zawias 381 mm od dołu frontu \(nie 447\) — przesunięty przez kolizję z półką, 30 mm luzu\./.test(notatka), notatka);
+ok('po dopisaniu ten przycisk znika, drugi zostaje', (await btnNot.count()) === 1, String(await btnNot.count()));
+await btnNot.first().click(); await page.waitForTimeout(800);
+notatka = (await zapis()).items[0].cab.note || '';
+ok('drugi dopisuje się w nowej linii', notatka.split('\n').length === 2 && /skrzydło 2/.test(notatka.split('\n')[1]), JSON.stringify(notatka));
+await page.evaluate(() => { window.print = () => { window.__notZaw = [...document.querySelectorAll('[data-el="notatka-zawiasy"]')].map((x) => x.textContent); }; });
+await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click(); await page.waitForTimeout(1000);
+const pdfZaw = (await page.evaluate(() => window.__notZaw)) || [];
+ok('PDF: na stronie szafki „Zawiasy przesunięte” z oboma skrzydłami (bez klikania)', new Set(pdfZaw).size === 1 && /381 mm od dołu frontu \(nie 447\)/.test(pdfZaw[0]) && /skrzydło 2/.test(pdfZaw[0]), pdfZaw.join(' / '));
+await seed(DRZWI(500, 720));
+await page.evaluate(() => { window.print = () => { window.__notZaw = [...document.querySelectorAll('[data-el="notatka-zawiasy"]')].map((x) => x.textContent); }; });
+await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click(); await page.waitForTimeout(1000);
+ok('PDF: bez przesuniętych zawiasów — bez tej linii', !((await page.evaluate(() => window.__notZaw)) || []).length);
+
 console.log('\n== klapa w 3D do wybranego kąta (audyt GPT U1) ==');
 /* Uzytkownik 2026-10-16: bryla klapy otwiera sie do wybranego kata (75/90/100°),
    a nie zawsze do 90°. */

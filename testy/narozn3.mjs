@@ -190,6 +190,13 @@ await seed([RUN('c1', 'Ściana A', { D: 700 }), RUN('c2', 'Ściana B', { D: 700,
   [CABg('A1', 800, 'c1'), CABg('A2', 900, 'c1'), CABg('B1', 900, 'c2')]);
 zl = await zlacza();
 ok('blat z arkusza 1200: 3 złącza', ileZl([...new Set(zl)]) === 3, zl.join(' | '));
+// prosty ciag dluzszy niz arkusz blatu (4100) — blat w dwoch kawalkach, jedno laczenie
+await seed([RUN('c1', 'Ściana A')], [CAB('A1', 900, 'c1'), CAB('A2', 900, 'c1'), CAB('A3', 900, 'c1'), CAB('A4', 900, 'c1'), CAB('A5', 900, 'c1')]);
+b = await blaty();
+zl = await zlacza();
+ok('prosty ciąg 4500 mm: blat w 2 kawałkach, 2 złącza na łączeniu', b.length >= 1 && ileZl([...new Set(zl)]) === 2, `${b.join(' | ')} // ${zl.join(' | ')}`);
+await seed([RUN('c1', 'Ściana A')], [CAB('A1', 900, 'c1'), CAB('A2', 600, 'c1')]);
+ok('prosty ciąg z jednego kawałka: bez złączy', !(await zlacza()).length, (await zlacza()).join(' | '));
 // wycena: 9 zl za sztuke
 await uklad({});
 const wyc = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Wycena/ }) }).first();

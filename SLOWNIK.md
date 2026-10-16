@@ -82,7 +82,8 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Cokół ciągu / Cokół pod szafkami / Podział cokołu | `run.plinth`, `runPlinth`, `runPlinthPanels` |
 | Blat roboczy / Blat ciągu / Podział blatu | `run.worktop`, `runTop`, `worktopSpans`, `runTopPanels` |
 | Blat w narożniku (przechodzi / dojeżdża / łyżwa) | `run.corner.top`, `run.corner.cut`; `projectLayout` → `topSpan.przez0/przez1` (czyj blat idzie przez róg); `runTop` skraca dojeżdżający do głębokości przechodzącego (`rt.depth`, z docinką arkusza) |
-| Złącze do blatów śrubowe (produkt) | `runTopZlacza(project, run)` w `projectParts` → okucie pozycji „Blat — ciąg” ciągu, który trzyma róg (`run.corner`): oba blaty robocze (`matKey` „worktop”), 2 szt. przy blacie 600, 3 przy głębszym (arkusz 1200); styk i łyżwa; `ZLACZE_BLATU`, cena `DEFAULT_HW_PRICES` 9 zł |
+| Złącze do blatów śrubowe (produkt) | `runTopZlacza(project, run)` w `projectParts` → okucia pozycji „Blat — ciąg”: łączenia kawałków blatu w ciągu (`rt.lens.length − 1`) i róg — liczy go ciąg, który trzyma róg (`run.corner`), gdy oba blaty robocze (`matKey` „worktop”); na styk `zlaczNaStyk(gl)`: 2 szt. przy blacie 600, 3 przy głębszym (arkusz 1200); styk i łyżwa; `ZLACZE_BLATU`, cena `DEFAULT_HW_PRICES` 9 zł |
+| „Zawiasy przesunięte” (PDF) / „Dopisz do notatki montażowej” | `geo.zawiasyMontaz` (z `hingePositions(...).moved`, `co` = z czym kolizja) → linia na stronie szafki w `ReportSheet` (`data-el="notatka-zawiasy"`); przy ostrzeżeniu „zawias przesunięty” akcja `notatka:<tekst w encodeURIComponent>` → `runFix` dopisuje do `cab.note` (już dopisana — bez przycisku) |
 | Wieszanie ciągu | `run.hangerMode` („listwa" / „haczyki") |
 
 ### Karta „Korpus" (`cab`)
@@ -405,7 +406,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 |---|---|
 | `narozn` | dwa ciągi pod kątem prostym, kto wjeżdża w róg, luz w rogu, lustrzane L, U z trzech ścian |
 | `narozn2` | ramię odsuwa drugi ciąg, formatki ramienia, cztery warianty drzwi, za wąski korpus |
-| `narozn3` | blat w narożniku: na styk, przełączenie, łyżwa, U; złącza do blatów (2 / 3, U, płyta 18 bez, wycena 9 zł) |
+| `narozn3` | blat w narożniku: na styk, przełączenie, łyżwa, U; złącza do blatów (2 / 3, U, prosty ciąg w 2 kawałkach, płyta 18 bez, wycena 9 zł) |
 | `narkat` | kątownik w tylnym narożniku: bok znika, ramiona regulowane |
 | `rogplecy` | plecy z płyty w narożniku, osobno od każdej ściany |
 | `ramplec` / `ramkarta` | wzmocnienia i plecy ramienia; karta ustawień ramienia |
