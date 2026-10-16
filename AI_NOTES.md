@@ -100,6 +100,13 @@ kolejność szafek, wstawka przechodzi na szafkę, która stanie przy rogu.
 Szeroka: `mocowanie` (`trojkaty` / `konf` / `listwa`) przesuwa ją w głąb
 (`odLica`) albo dokłada listwę (`listwa` w obiekcie z układu, rysunki i bryły).
 
+[AI-TODO] Liczba zawiasow wg wagi frontu (prosba uzytkownika 2026-10-16): czeka na
+karte/instrukcje zawiasu (PDF) od uzytkownika — wtedy do `instrukcje/` i SPIS.md,
+a liczba z nosnosci zawiasu i wysokosci frontu zamiast samej wysokosci (`autoHinges`).
+
+[AI-INFO] Audyt GPT (2026-10-16, galaz `gpt/audyt-2026-10-16`, plik `AUDYT_GPT.md`):
+B1, B2, B3 odtworzone i poprawione, U1 poprawione; U2 (waski podglad) — nie ruszane.
+
 [AI-INFO] Jeśli terminal agenta nie może pobrać aktualnego `claude-zmiany.txt` z GitHuba, można użyć workflow `Promote Claude Changes`. Workflow działa na GitHubie: kopiuje `claude-zmiany.txt` do `szafki.jsx`, uruchamia build Vite jako walidację, regeneruje `standalone.html`, commituje wynik na gałąź i od razu publikuje GitHub Pages. To jest potrzebne, bo push wykonany przez `GITHUB_TOKEN` nie uruchamia kolejnego workflowu Pages automatycznie.
 
 ## Narożnik w L — co jest z czego liczone
@@ -608,8 +615,9 @@ tabela `GTV_PD_G00`. Suita `testy/klapy.mjs`.
 do tego czasu nie rozbudowywac bez pytania. PDF amortyzatora (PD-ECGDL)
 dotarl i jest w `GTV_PD_ECGDL`. Karta PD-ECGDL podaje zgodny zawias barkowy
 PD-MD-ZB, ale uzytkownik chce zwyklych zawiasow jak przy skrzydlach.
-[AI-TODO] Klapy — czego jeszcze nie ma: plan wiercen dla zawiasow klapy
-(na wiencu/dnie) i mocowan podnosnika na boku; kolizja otwartej klapy do gory
+[AI-INFO] (2026-10-16) Plan wiercen dla zawiasow klapy JEST („zawias klapy” w wiencu/
+wzmocnieniu albo w dnie) — poprzedni wpis byl nieaktualny (wytknal to audyt GPT).
+[AI-TODO] Klapy — czego jeszcze nie ma: mocowan podnosnika na boku w planie wiercen; kolizja otwartej klapy do gory
 z gorna szafka/sufitem i opadanej z blatem; wsparcie klapy w szafce z kilkoma
 poziomami w kontroli otwierania. Do omowienia z uzytkownikiem, gdy zacznie
 uzywac klap na projekcie.

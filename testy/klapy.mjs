@@ -125,6 +125,66 @@ const pick = async (l) => { const x = page.getByRole('button', { name: l, exact:
 await pick('3D'); await pick('Otw.');
 ok('3D z otwartą klapą bez błędów strony', errors.length === 0, errors.join('; '));
 
+console.log('\n== zawiasy klapy: ręcznie 2–4, tyle punktów co w zamówieniu (audyt GPT B2) ==');
+/* Uzytkownik 2026-10-16: 2, 3 albo 4 zawiasy, rozstaw jak w drzwiach (100 mm od
+   krawedzi, reszta rowno); przy 3+ zawiasach i odstepie ponizej 600 mm —
+   ostrzezenie „za duzo zawiasow” z przyciskiem. Wczesniej 4 wpisane dawaly
+   4 w zamowieniu i 3 punkty, 1 wpisany — 1 w zamowieniu i 2 punkty. */
+const wierceniaKlapy = async () => {
+  await page.evaluate(() => { window.__rep = null; window.print = () => {
+    const t = [...document.querySelectorAll('.print-only table')].find((x) => /Otwory pod/.test(x.querySelector('thead')?.textContent || ''));
+    window.__rep = t ? [...t.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent.trim())) : []; }; });
+  await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click(); await page.waitForTimeout(1000);
+  return ((await page.evaluate(() => window.__rep)) || []).filter((r) => /zawias klapy/.test(r[1]))
+    .reduce((a, r) => a + r[2].split(',').filter((x) => x.trim()).length, 0);
+};
+for (const [n, zam] of [[1, 2], [2, 2], [3, 3], [4, 4], [5, 4]]) {
+  await seed(GORNA(1300, { klapa: 'gora', hinges: [n] }));
+  hw = await okucia();
+  const pkt = await wierceniaKlapy();
+  ok(`wpisano ${n}: zamówienie ${zam}, plan wierceń ${zam} pkt`, ilosc(hw, /^Zawias/) === zam && pkt === zam, `zamówienie ${ilosc(hw, /^Zawias/)}, punkty ${pkt}`);
+  if (n === 1 || n === 5) {
+    u = await uwagi();
+    ok(`wpisano ${n}: błąd „klapa ma ${n === 1 ? 'co najmniej 2' : 'najwyżej 4'} zawiasy”`, new RegExp(`klapa ma ${n === 1 ? 'co najmniej 2' : 'najwyżej 4'} zawiasy, a wpisano ${n}`).test(u));
+  }
+}
+await seed(GORNA(1300, { klapa: 'gora', hinges: [4] }));
+u = await uwagi();
+ok('klapa ok. 1300 z 4 zawiasami (co ok. 365 mm): ostrzeżenie „za dużo zawiasów”, wystarczą 3', /za dużo zawiasów — klapa \d+ mm ma 4 zawiasy co ok\. \d+ mm.*wystarczą 3/.test(u),
+  u.split('\n').filter((l) => /zawias/.test(l)).join(' / ').slice(0, 240));
+await card(/^Uwagi/).getByRole('button', { name: 'Ustaw 3 zawiasy' }).first().click(); await page.waitForTimeout(1200);
+const zp = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
+ok('„Ustaw 3 zawiasy” zapisuje 3', (zp.items[0].cab.levels[0].cols[0].hinges || [])[0] === 3, JSON.stringify(zp.items[0].cab.levels[0].cols[0].hinges));
+await seed(GORNA(600, { klapa: 'gora' }));
+ok('klapa 600 z automatu (2 zawiasy): bez ostrzeżenia o odstępie', !/za dużo zawiasów/.test(await uwagi()));
+// drzwi: to samo ostrzezenie (wysokosc 720, 3 zawiasy co 260 mm)
+await seed({ name: 'D', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'D', W: 500, H: 720, D: 560, plinth: { on: true, height: 100, mode: 'under', setback: 0 },
+  levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, hinges: [3] }] }] }, offset: 0 }] });
+u = await uwagi();
+ok('drzwi z 3 zawiasami na niskim froncie: ostrzeżenie „za dużo zawiasów”, wystarczą 2', /skrzydło 1: za dużo zawiasów — 3 zawiasy co ok\. \d+ mm na drzwiach \d+ mm.*wystarczą 2/.test(u),
+  u.split('\n').filter((l) => /zawias/.test(l)).join(' / ').slice(0, 240));
+await seed({ name: 'D', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'D', W: 500, H: 2100, D: 560, plinth: { on: true, height: 100, mode: 'under', setback: 0 },
+  levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null }] }] }, offset: 0 }] });
+ok('wysokie drzwi z automatu (3–4 zawiasy): bez ostrzeżenia o odstępie', !/za dużo zawiasów/.test(await uwagi()));
+
+console.log('\n== klapa w 3D do wybranego kąta (audyt GPT U1) ==');
+/* Uzytkownik 2026-10-16: bryla klapy otwiera sie do wybranego kata (75/90/100°),
+   a nie zawsze do 90°. */
+// suwak 3D na 110° — klapa idzie za nim, ale najwyzej do swojego kata
+const frontKlapy = async (kat) => {
+  await seed(GORNA(600, { klapa: 'gora', katKlapy: kat }));
+  await pick('Szafka'); await pick('Zamk.'); await pick('3D');
+  await pick('zamknięte');   // przelacznik: otwiera (od 90°)
+  const suwak = page.locator('input[type=range][max="110"]').first();
+  await page.evaluate(() => { window.__audytBryl = []; });
+  if (await suwak.count()) await suwak.fill('110');
+  await page.waitForTimeout(400);
+  return page.evaluate(() => (window.__audytBryl || []).filter((b) => b.p && b.tag !== 'uchwyt').map((b) => b.p.map(Math.round).join(',')));
+};
+const b90 = await frontKlapy(90), b100 = await frontKlapy(100);
+const tylko100 = b100.filter((x) => !b90.includes(x));
+ok('suwak 110°: klapa ustawiona na 100° otwiera się dalej niż ustawiona na 90°', tylko100.length > 0, `${tylko100.length} brył różnych z ${b100.length}`);
+
 console.log('\n== zabudowa: klapa w ciągu górnym, bryła otwarta ==');
 const RUN = (id, o = {}) => ({ id, name: 'Górne', wallW: null, gap: 0, mountY: 1358, H: 360, D: 300, plinth: null, worktop: false, corner: null, ...o });
 await seed({ name: 'Z', active: 0, prices: {}, runs: [RUN('c1', { tier: 'gorny' })],

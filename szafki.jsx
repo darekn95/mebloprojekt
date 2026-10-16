@@ -560,6 +560,14 @@ const HINGE_H = 55; // wysokosc
 const HINGE_W = 20; // szerokosc na boku
 const HINGE_D = 80; // glebokosc zabudowy
 const HINGE_REF = 100; // referencyjny odstep srodka od krawedzi frontu
+/* 3. i kolejny zawias dokladamy dopiero, gdy odstep miedzy srodkami
+   przekracza tyle (uzytkownik 2026-10-16) — tak wychodzi z automatu drzwi:
+   3 zawiasy od 1400 mm, 4 od 2000 mm. Przy 3+ zawiasach gesciej — ostrzezenie
+   „za duzo zawiasow”, dla drzwi i klap. Liczone na rozstawie nominalnym
+   (HINGE_REF od krawedzi, reszta rowno), nie po przesunieciu przy polce. */
+const ZAWIAS_MAX_ODSTEP = 600;
+// ile zawiasow wystarczy na krawedzi `dl` przy odstepie do ZAWIAS_MAX_ODSTEP
+const zawiasowWystarczy = (dl) => Math.max(2, Math.ceil((dl - 2 * HINGE_REF) / ZAWIAS_MAX_ODSTEP) + 1);
 const HINGE_CLR = 30; // wymagany luz od polki czy wzmocnienia
 
 /* Srodek skrajnych zawiasow 100 mm od gory i dolu frontu, kolejne rozlozone
@@ -2455,9 +2463,21 @@ function computeGeoLiczy(cab, mat, ctx) {
           const dw = dws.sizes[i];
           if (klapa) {
             /* Klapa: zawiasy na krawedzi gornej (do gory) albo dolnej (w dol),
-               rozstawione wzdluz szerokosci — 2 szt., powyzej 900 mm 3 szt. */
-            const nZaw = num((rawCol.hinges || [])[0]) ?? (dw > 900 ? 3 : 2);
-            const xs = nZaw >= 3 ? [dx + 100, dx + dw / 2, dx + dw - 100] : [dx + 100, dx + dw - 100];
+               rozstawione wzdluz szerokosci — 2 szt., powyzej 900 mm 3 szt.
+               Recznie 2–4 (uzytkownik 2026-10-16), rozstaw jak w drzwiach:
+               HINGE_REF od krawedzi, reszta rowno — dokladnie tyle punktow, ile
+               zawiasow w zamowieniu (wczesniej 4 wpisane dawaly 3 punkty, 1 — dwa). */
+            const wpisane = num((rawCol.hinges || [])[0]);
+            const nZaw = wpisane === null ? (dw > 900 ? 3 : 2) : Math.min(4, Math.max(2, Math.round(wpisane)));
+            const xs = Array.from({ length: nZaw }, (_, k) => dx + HINGE_REF + ((dw - 2 * HINGE_REF) * k) / (nZaw - 1));
+            if (wpisane !== null && nZaw !== Math.round(wpisane))
+              add("error", `${where}: klapa ma ${nZaw === 2 ? "co najmniej 2" : "najwyżej 4"} zawiasy, a wpisano ${fmt(wpisane)} — liczę ${nZaw}.`
+                + `|zawiasy:${lv.i}:${j}:0:${nZaw}`);
+            const odstepK = (dw - 2 * HINGE_REF) / (nZaw - 1);
+            if (nZaw >= 3 && odstepK < ZAWIAS_MAX_ODSTEP)
+              add("warn", `${where}: za dużo zawiasów — klapa ${fmt(dw)} mm ma ${nZaw} zawiasy co ok. ${fmt(Math.round(odstepK))} mm, `
+                + `a kolejny dokłada się dopiero przy odstępie ponad ${ZAWIAS_MAX_ODSTEP} mm (wystarczą ${zawiasowWystarczy(dw)}).`
+                + `|zawiasy:${lv.i}:${j}:0:${zawiasowWystarczy(dw)}`);
             const d = { lvl: lv.i, key: `d${lv.i}-${j}-0`, type: "klapa", klapa, colKey: `${lv.i}-${j}`,
               x: dx, y: clo, w: dw, h: cbandH, iInGroup: 0, groupN: 1,
               inset: cab.frontMode === "inset", gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
@@ -2542,6 +2562,11 @@ function computeGeoLiczy(cab, mat, ctx) {
           ];
           const hp = hingePositions(d.y, d.h, d.hinges, hObs);
           d.hingePts = hp.pts;
+          const odstepD = d.hinges >= 3 ? (d.h - 2 * HINGE_REF) / (d.hinges - 1) : Infinity;
+          if (odstepD < ZAWIAS_MAX_ODSTEP)
+            add("warn", `${where}, skrzydło ${i + 1}: za dużo zawiasów — ${d.hinges} zawiasy co ok. ${fmt(Math.round(odstepD))} mm `
+              + `na drzwiach ${fmt(Math.round(d.h))} mm, a kolejny dokłada się dopiero przy odstępie ponad ${ZAWIAS_MAX_ODSTEP} mm (wystarczą ${zawiasowWystarczy(d.h)}).`
+              + `|zawiasy:${lv.i}:${j}:${i}:${zawiasowWystarczy(d.h)}`);
           d.colJ = j;
           d.colLast = j === lv.cols.length - 1;
           // zawias siedzi w swietle kolumny, przy licu tego, co go niesie:
@@ -2802,17 +2827,6 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (d.reling) relingGroups.set(nl ?? 0, (relingGroups.get(nl ?? 0) || 0) + 1);
 
         const minF = VBOX.minFront[dMode][hClass];
-        if (fh < minF) {
-          // najwyzszy bok, ktory zmiesci sie w tak skroconym froncie
-          const fitLower = [...VBOX.heights].filter((hc) => VBOX.minFront[dMode][hc] <= fh).pop();
-          add(
-            "error",
-            `${where}, szuflada ${i + 1}: front ${fmt(fh)} mm, a minimum dla wysokości ${hClass} mm przy froncie ${
-              dIn ? "wpuszczanym" : "na korpusie"
-            } to ${minF} mm.` +
-              (fitLower ? `|fixh:${lv.i}:${j}:${i}:${fitLower}` : "")
-          );
-        }
         /* Front wysoko ponad bokiem: katalog radzi reling boczny. Uzytkownik
            (2026-10-14): do wyboru „Dodaj reling” (idzie do zamowienia, 30 zl za
            komplet) albo „Zostaw bez relingu” — po decyzji zostaje informacja
@@ -2868,15 +2882,27 @@ function computeGeoLiczy(cab, mat, ctx) {
         }
         /* Boki skrzynki jada razem z nia — gdy sa wyzsze niz miejsce pod tym,
            co wyzej, szuflada sie nie wsunie. Wczesniej tego nie sprawdzalismy. */
+        /* Front za niski na ten bok. Proponowany nizszy bok musi spelnic
+           wszystko naraz — front i luz nad skrzynka (`miesciSie`): wczesniej
+           brany byl tylko z frontu i po kliknieciu 210 zostawal blad luzu,
+           a dopiero drugi przycisk dawal 178 (audyt GPT 2026-10-16, B1). Gdy
+           oba bledy sa naraz, przycisk stoi przy pierwszym. */
+        const frontZaNiski = fh < minF;
+        if (frontZaNiski)
+          add("error",
+            `${where}, szuflada ${i + 1}: front ${fmt(fh)} mm, a minimum dla wysokości ${hClass} mm przy froncie ${
+              dIn ? "wpuszczanym" : "na korpusie"
+            } to ${minF} mm.` + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : ""));
+        const przyciskLuzu = nizszyBok && !frontZaNiski ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : "";
         if (goraBoku > ceilY)
           add("error",
             `${where}, szuflada ${i + 1}: skrzynka z bokiem ${hClass} mm potrzebuje ${vboxGora(hClass)} mm od dołu prowadnicy (bok stoi ${vboxOdProw(hClass)} mm nad nim) i min. ${SZUFLADA_ZAPAS} mm luzu nad bokiem, a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
-            + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : ""));
+            + przyciskLuzu);
         else if (ceilY - goraBoku < SZUFLADA_ZAPAS)
           add("error",
             `${where}, szuflada ${i + 1}: nad bokiem skrzynki ${hClass} mm zostaje ${fmt(Math.round(ceilY - goraBoku))} mm luzu do tego, co jest wyżej (${coNad}) — `
             + `potrzeba min. ${SZUFLADA_ZAPAS} mm (katalog V-BOX liczy ${vboxGora(hClass)} mm od dołu prowadnicy bez żadnego luzu).`
-            + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : ""));
+            + przyciskLuzu);
         /* Tyl nigdy wyzej niz gorna krawedz frontu tej szuflady, a najlepiej
            nizej (uzytkownik 2026-09-28) — domyslny podniesiony tyl konczy sie
            o BACK_CLEAR ponizej niej. */
@@ -9429,9 +9455,11 @@ const rotAboutX = (p, ang, oy, oz) => {
   const dy = p.y - oy, dz = p.z - oz;
   return { x: p.x, y: oy + dy * c - dz * s2, z: oz + dy * s2 + dz * c };
 };
-// klapa otwarta w bryle: do gory do poziomu, opadana troche ponizej
+/* Klapa otwarta w bryle: tak jak suwak, ale najwyzej do kata wybranego
+   przy klapie (75/90/100°, `d.kat`) — wczesniej zawsze stop na 90°, choc
+   dobor podnosnika dopuszcza 100° (uzytkownik 2026-10-16: „do wybranego kata”). */
 const klapaObrot = (d, angle, oz) => {
-  const ang = (Math.min(90, angle) * Math.PI) / 180;
+  const ang = (Math.min(d.kat || 90, angle) * Math.PI) / 180;
   return d.klapa === "gora"
     ? (p) => rotAboutX(p, ang, d.y + d.h, oz)
     : (p) => rotAboutX(p, -ang, d.y, oz);
@@ -10200,6 +10228,18 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: `${ile} nóżek — ${ile % 2 ? "jedna na środku" : "para na środku"}`,
         run: () => setLegs && setLegs(ile),
+      };
+    }
+    if (action.startsWith("zawiasy:")) {
+      // „zawiasy:<poziom>:<kolumna>:<skrzydlo>:<ile>" — liczba zawiasow skrzydla albo klapy
+      const [, li, j, k, ile] = action.split(":");
+      return {
+        label: `Ustaw ${ile} zawiasy`,
+        run: () => editLevels((L) => {
+          const col = L[+li].cols[+j];
+          col.hinges = [...(col.hinges || [])];
+          col.hinges[+k] = +ile;
+        }),
       };
     }
     if (action.startsWith("hingeflip:")) {
@@ -12764,6 +12804,8 @@ function buildCutPlan(rows) {
     const sh = list.find((r) => r.sheet);
     return {
       matLabel,
+      // arkusz do zamowienia — blat ma swoj (4100 × 600/1200), plyta 2800 × 2100
+      arkusz: sh ? { w: sh.sheet.w, h: sh.sheet.h } : { w: SHEET_W, h: SHEET_H },
       ...packSheets(list, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {}),
     };
   });
@@ -13180,7 +13222,9 @@ function ReportCutPlan({ project, projectName }) {
       </table>
       {groups.map((g, gi) => (
         <div key={gi} style={{ marginTop: 10 }}>
-          <div style={{ fontSize: "10pt", fontWeight: 600, marginBottom: 4 }}>{g.matLabel}</div>
+          <div style={{ fontSize: "10pt", fontWeight: 600, marginBottom: 4 }}>
+            {g.matLabel}{g.arkusz ? ` — arkusz ${fmt(g.arkusz.w)} × ${fmt(g.arkusz.h)} mm` : ""}
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             {g.sheets.map((sh, i) => (
               <div key={i} className="rp-keep" style={{ border: "1px solid #e7e5e4", padding: 6 }}>
@@ -17677,7 +17721,7 @@ export default function App() {
                   {pokazPlan.groups.map((g, i) => (
                     <div key={i}>
                       {g.matLabel}: {g.sheets.length}{" "}
-                      {plural(g.sheets.length, "arkusz", "arkusze", "arkuszy")} {fmt(SHEET_W)}×{fmt(SHEET_H)}
+                      {plural(g.sheets.length, "arkusz", "arkusze", "arkuszy")} {fmt((g.arkusz || {}).w || SHEET_W)}×{fmt((g.arkusz || {}).h || SHEET_H)}
                       {g.biggestRect && (
                         <span className="text-stone-500">
                           {/* zrzut podajemy w pelnych milimetrach — na dziesiatych

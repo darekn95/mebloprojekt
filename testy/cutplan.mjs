@@ -110,5 +110,23 @@ const txt2 = await page.evaluate(() => {
 ok('rozkrój dla całego projektu', !!txt2 && /cały projekt/.test(txt2.title), txt2 ? txt2.title : 'brak');
 ok('więcej formatek → arkusze', !!txt2 && txt2.svgs > 0, txt2 ? txt2.svgs + ' arkuszy' : '');
 
+// --- blat roboczy: w „Płytach do zamówienia” jego arkusz, nie 2800 × 2100 (audyt GPT B3) ---
+{
+  const PL = { on: true, height: 100, mode: 'under', setback: 0 };
+  const cab = (n) => ({ cab: { name: n, W: 600, H: 720, D: 560, plinth: PL, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null }] }] }, runId: 'c1', offset: 0 });
+  await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); }, { name: 'B3', active: 0, prices: {},
+    runs: [{ id: 'c1', name: 'Ściana 1', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null }], items: [cab('A'), cab('B')] });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 });
+  await page.waitForTimeout(400);
+  const linie = await page.evaluate(() => { const sec = document.getElementById('rozkroj'); if (!sec) return [];
+    const t = sec.innerText; const i = t.indexOf('PŁYTY DO ZAMÓWIENIA') >= 0 ? t.indexOf('PŁYTY DO ZAMÓWIENIA') : t.indexOf('Płyty do zamówienia');
+    return i < 0 ? [] : t.slice(i).split('\n').slice(1).filter(Boolean); });
+  const blat = linie.find((l) => /^Blat roboczy:/.test(l)) || '';
+  const plyta = linie.find((l) => !/^Blat roboczy:|^HDF/.test(l)) || '';
+  ok('blat roboczy w zamówieniu: arkusze 4100×600', /arkusz\S* 4100×600/.test(blat), blat || linie.join(' / '));
+  ok('płyta meblowa dalej 2800×2100', /arkusz\S* 2800×2100/.test(plyta), plyta);
+}
+
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();
