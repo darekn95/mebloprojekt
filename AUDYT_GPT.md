@@ -1,3 +1,48 @@
+# Aktualizacja po reteście i kontroli PDF — 16.10.2026
+
+Ta sekcja zastępuje statusy starszego audytu poniżej.
+
+- B1: poprawiony w reteście — jedna propozycja boku 178 mm; po zastosowaniu błąd luzu znika.
+- B2: poprawiony w reteście — zamówienie i wiercenia zgodne dla 2/3/4 zawiasów, wartości spoza zakresu walidowane.
+- B3: opis zamówienia w UI poprawiony; w PDF pozostaje mylący ogólny nagłówek rozkroju, opisany niżej.
+- U1: poprawiony w reteście zakresów 75/90/100 stopni.
+- U2: uwaga o dużym nagłówku na wąskim ekranie pozostaje.
+- N1 [P3]: nieaktualny tooltip automatycznej liczby zawiasów nadal opisuje stare progi; test frontu 596 × 894 mm daje już 3 zawiasy.
+- Szafka testowa H900: automatycznie 3 zawiasy, środkowy przesunięty z 447 do 381 mm względem frontu; przycisk dopisania notatki działa. PDF tej szafki nadal wymaga sprawdzenia.
+- Złącza blatów w UI: 2 szt. × 9 zł = 18 zł; cena 0 wyklucza je z sumy.
+- 24 warianty obliczeń bez wykrytych rozbieżności liczby zawiasów/geometrii ani niefinitywnych lub ujemnych wymiarów. To testy celowane, nie pełna suita repozytorium.
+
+# Kontrola PDF - 16.10.2026
+
+Źródło: PDF przekazany przez użytkownika, wygenerowany 16.10.2026 o 20:18; 16 stron, 6 szafek. Kontrola tekstu wszystkich stron i renderów; szczegółowy podgląd stron 12, 14, 15, 16. Jest to wynik dla przesłanego dokumentu, bez potwierdzenia wersji kodu użytej do jego wygenerowania.
+
+## Ustalenia
+
+- P2, strona 14: w tabeli „Produkty całego projektu” brak złączy blatów. Projekt ma dwa blaty w narożniku (1799 x 600 i 2300 x 600). W poprzednim teście interfejs pokazywał 2 złącza za 18 zł. Należy porównać eksport z aktualnym interfejsem dla dokładnie tego samego zapisu; możliwe pominięcie eksportu lub starsza wersja strony. Sam PDF nie rozstrzyga przyczyny.
+- P3, strona 15: ogólny nagłówek rozkroju podaje arkusz 2800 x 2100 mm, również nad tabelą zawierającą blat roboczy. Rysunki blatów na stronie 16 poprawnie podają 4100 x 600 mm. Dodać format arkusza do każdego wiersza tabeli lub rozdzielić nagłówki materiałów. Poprzedniego B3 nie należy uznawać za w pełni zamknięty dla PDF.
+- P3, strony 15-16: nagłówek „HDF” pozostaje na samym dole strony 15, a jego rysunek zaczyna stronę 16. Utrzymać nagłówek wraz z pierwszym rysunkiem (reguły podziału strony).
+- Drobna redakcja, strona 13: „6 szafki” -> „6 szafek”.
+- Czytelność: podpisy w rozkroju, zwłaszcza przy wąskich listwach, są bardzo małe w wydruku A4. Warto dodać większy wariant wydruku pojedynczego arkusza / legendę z numerami formatek.
+
+## Co wygląda poprawnie
+
+- Brak pustych stron i widocznych poważnych ucięć tabel. Rysunki szafek zachowują proporcje, polskie znaki renderują się prawidłowo.
+- Każda szafka ma stronę z czterema widokami i stronę tabel z formatkami, okuciami oraz wierceniami.
+- Szafka 5: zamówienie zawiera prowadnice o bokach 238 i 210 mm, po jednym komplecie NL 550. Wysokości prowadnic 18/367 mm w tabeli odpowiadają 0/349 względem górnego lica dna, różnica 18 mm. Nie jest to samo w sobie sprzeczność wymiarów.
+- Wstawka narożna 720 x 60 mm występuje w tabeli szafki i zestawieniu projektu.
+- Blaty są rozrysowane na dwóch arkuszach 4100 x 600 mm, ze zrzutami 1797 i 2298 mm.
+
+## Zakres, którego ten dokument nie sprawdza
+
+Wszystkie korpusy mają 720 mm wysokości. Nie ma testowej szafki z frontem około 900 mm i trzema zawiasami; PDF nie pozwala potwierdzić jej ostrzeżenia, przesunięcia zawiasu ani notatki montażowej. Nie ma również klap ani testu opcjonalnego relingu. Brak tych elementów w tym dokumencie nie jest automatycznie błędem aplikacji.
+
+Uwagi dopisane do AUDYT_GPT.md na gałęzi raportu; nie zmieniano kodu aplikacji.
+
+
+---
+
+# Archiwum pierwszego audytu — poniższe statusy są historyczne
+
 # Audyt GPT — MebloProjekt, 16.10.2026
 
 Przeprowadzono testy interfejsu GitHub Pages oraz lokalny audyt obliczeń na przekazanym projekcie: 6 szafek, 2 ciągi, 1 pomieszczenie. Znaleziono trzy potwierdzone błędy oraz dwie uwagi do wizualizacji. Główne przypadki ze zrzutu użytkownika działają.
