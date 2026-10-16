@@ -100,9 +100,11 @@ kolejność szafek, wstawka przechodzi na szafkę, która stanie przy rogu.
 Szeroka: `mocowanie` (`trojkaty` / `konf` / `listwa`) przesuwa ją w głąb
 (`odLica`) albo dokłada listwę (`listwa` w obiekcie z układu, rysunki i bryły).
 
-[AI-TODO] Liczba zawiasow wg wagi frontu (prosba uzytkownika 2026-10-16): czeka na
-karte/instrukcje zawiasu (PDF) od uzytkownika — wtedy do `instrukcje/` i SPIS.md,
-a liczba z nosnosci zawiasu i wysokosci frontu zamiast samej wysokosci (`autoHinges`).
+[AI-INFO] Liczba zawiasow drzwi wg wagi frontu — zrobione 2026-10-16 z katalogu GTV
+2023 (`instrukcje/Katalog-produktow-2023-...pdf`, s. 68 = PDF 70): `ZAWIASY_GTV`,
+`zawiasyGtv`, `autoHinges(h, w, grub, szeroki)`. Klapa zostaje 2 / 3 od 900 mm.
+[AI-TODO] Do ustalenia z uzytkownikiem: zlacza blatow na laczeniach kawalkow w
+prostym ciagu (`rt.n > 1`) — teraz tylko styk w rogu (`runTopZlacza`).
 
 [AI-INFO] Audyt GPT (2026-10-16, galaz `gpt/audyt-2026-10-16`, plik `AUDYT_GPT.md`):
 B1, B2, B3 odtworzone i poprawione, U1 poprawione; U2 (waski podglad) — nie ruszane.
@@ -437,7 +439,7 @@ koncach plus jedna sztuka co ustalony odcinek, czyli
 trojkat pod cokolem co 300 mm, trojkat pod blatem co 400 mm w dwoch rzedach,
 trojkat pod fixem ramienia co 400 mm w dwoch rzedach, wkret 4 x 30 do
 katownika co 200 mm, konfirmat co 200 mm. Zawiasy (takze 165 stopni i lamane
-90 stopni) licza sie przez `autoHinges(wysokosc, szerokosc)` — kazde skrzydlo
+90 stopni) licza sie przez `autoHinges(wysokosc, szerokosc, grubosc)` — kazde skrzydlo
 ze SWOJEJ wielkosci, wiec skrzydlo przy boku i skrzydlo na ramieniu moga miec
 rozna liczbe zawiasow. Nogi licza sie przez `legPlan`, a klipsy cokolu to
 `legs.xs.length`, czyli nozki przedniego rzedu.

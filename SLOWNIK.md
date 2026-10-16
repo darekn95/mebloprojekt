@@ -82,6 +82,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Cokół ciągu / Cokół pod szafkami / Podział cokołu | `run.plinth`, `runPlinth`, `runPlinthPanels` |
 | Blat roboczy / Blat ciągu / Podział blatu | `run.worktop`, `runTop`, `worktopSpans`, `runTopPanels` |
 | Blat w narożniku (przechodzi / dojeżdża / łyżwa) | `run.corner.top`, `run.corner.cut`; `projectLayout` → `topSpan.przez0/przez1` (czyj blat idzie przez róg); `runTop` skraca dojeżdżający do głębokości przechodzącego (`rt.depth`, z docinką arkusza) |
+| Złącze do blatów śrubowe (produkt) | `runTopZlacza(project, run)` w `projectParts` → okucie pozycji „Blat — ciąg” ciągu, który trzyma róg (`run.corner`): oba blaty robocze (`matKey` „worktop”), 2 szt. przy blacie 600, 3 przy głębszym (arkusz 1200); styk i łyżwa; `ZLACZE_BLATU`, cena `DEFAULT_HW_PRICES` 9 zł |
 | Wieszanie ciągu | `run.hangerMode` („listwa" / „haczyki") |
 
 ### Karta „Korpus" (`cab`)
@@ -215,7 +216,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `legPlan(cab, W)` / `autoLegs(W)` | rozstaw i liczba nóżek |
 | `armLegPlan(arm)` | nóżki ramienia narożnika jak w szafce tej długości (`legPlan`): przy rogu, pod końcem, od 900 mm na środku; `us` od rogu, `vs` od ściany — jedno źródło dla zamówienia, elewacji i bryły |
 | `ulozSciany(solids, proj)` | kolejność rysowania i cieniowanie w obu widokach 3D (zabudowa i szafka) |
-| `autoHinges(h, w)` | liczba zawiasów na skrzydło |
+| `autoHinges(h, w, grub, szeroki)` / `zawiasyGtv` / `ZAWIASY_GTV` | liczba zawiasów na skrzydło wg tabeli GTV (katalog 2023 s. 68): większa z liczb z wysokości frontu (750 / 1500 / 2100 / 2500 mm) i jego wagi (`wagaFrontu`; 6 / 12 / 17 / 20 kg), front do 600 mm; `szeroki` (skrzydło szafki narożnej na zawiasie 165°) — 4,5 / 9 / 12,5 / 15 kg, front do 450 mm; `zawiasyGtv` zwraca też `kg` i `poza` (ponad tabelę: wysokość, waga albo szerokość) |
 | `autoShelves(innerH, t)` | liczba półek przy automacie |
 | `distribute` / `evenGapOptions` | podział pasma na fronty + propozycja luzu bez resztek |
 | `bezWienca(cab, tf)` | zamiana wieńca na parę wzmocnień (szafka pod blatem) |
@@ -369,7 +370,8 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `reling:<poziom>:<kolumna>:<szuflada>:<0\|1>` | przy froncie > 140 mm ponad bokiem: 0 — „Zostaw bez relingu” (`drawer.bezRelingu = true`, ostrzeżenie → informacja), 1 — „Wróć do ostrzeżenia o relingu” |
 | `relingdodaj:` / `relingusun:<poziom>:<kolumna>:<szuflada>` | „Dodaj reling” / „Usuń reling”: `drawer.reling` (też pole „reling” w wierszu szuflady) → produkt „Reling boczny do szuflady” (`relingGroups` w `computeGeo`, komplet na szufladę, NL w specyfikacji), cena `DEFAULT_HW_PRICES` 30 zł bez względu na długość |
 | „Wczytaj wysłany do Claude” (tylko artefakt) | `pobierzOdClaude` → `dbClaude.doc(PROJEKT_DLA_CLAUDE).get()` → pytanie `data-el="wczytaj-od-claude-pytanie"` → `applyImportText(json)`; na innym komputerze wczytuje ostatnio wysłany projekt zamiast projektu startowego |
-| `ZAWIAS_MAX_ODSTEP` = 600, `zawiasowWystarczy(dl)` | ostrzeżenie „za dużo zawiasów” przy 3+ zawiasach drzwi (wysokość) i klapy (szerokość), gdy nominalny odstęp środków (`HINGE_REF` od krawędzi, reszta równo) < 600 mm; przycisk `zawiasy:<poziom>:<kolumna>:<skrzydło>:<ile>` („Ustaw N zawiasy”, `col.hinges[skrzydło]`) |
+| `ZAWIAS_MAX_ODSTEP` = 600, `zawiasowWystarczy(dl)` | tylko klapa: ostrzeżenie „za dużo zawiasów” przy 3+ zawiasach, gdy nominalny odstęp środków (`HINGE_REF` od krawędzi, reszta równo) < 600 mm; przycisk `zawiasy:<poziom>:<kolumna>:<skrzydło>:<ile>` („Ustaw N zawiasy”, `col.hinges[skrzydło]`) |
+| drzwi — zawiasy wpisane ręcznie (`col.hinges[i]`) | inna liczba niż `zawiasyGtv` — ostrzeżenie „za dużo / za mało zawiasów wg tabeli GTV — N zamiast M (front szer. × wys. mm, ok. X kg)” z tym samym przyciskiem `zawiasy:`; front ponad tabelę — ostrzeżenie „poza tabelą zawiasów GTV … liczba orientacyjna” |
 | klapa — zawiasy (`klapaZawiasy`) | ręcznie 2–4 (`col.hinges[0]`), poza zakresem błąd + `zawiasy:`; punkty = liczba w zamówieniu; 3D: `klapaObrot` do `min(d.kat, suwak)` |
 | `dociacpanel:<@ albo id ciągu>:<klucz>` | „Tak, docinam ręcznie” przy formatce węższej niż `MIN_PART` (60): klucz `kluczDociecia(nazwa, a, b)` (właściwy wymiar) dopisany do `cab.dociac` aktywnej szafki (`@`, też ramię szafki w L) albo `run.dociac` (cokół ciągu); uwagi `maleFormatkiMsgs` — błąd z pytaniem, po potwierdzeniu ostrzeżenie; do zamówienia `naZamowienie` (bok 60, `p.dociac` = właściwy wymiar) w `computeGeo` (`panels`), `cornerArmParts`, `runPlinthPanels`; własny cokół/blat szafki w ciągu z cokołem/blatem ciągu — `bezWspolnychFormatek` |
 | `wstawkaw:<ciąg z narożnikiem>:<mm>` / `wstawkadociac:<ciąg z narożnikiem>:<mm>` | przy wstawce węższej niż `MIN_PART` (60): „Popraw na 60 mm” (zmienia `w`, kasuje `dociac`) / „Tak, 50 mm — docinam ręcznie” (`corner.wstawka.dociac` = ta szerokość; inna szerokość — znowu pytanie); uwagi `wstawkaMsgs(layout, nr szafki)` — błąd, po potwierdzeniu ostrzeżenie; do zamówienia (`wstawkaParts`) wstawka i listwa min. 60 |
@@ -403,7 +405,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 |---|---|
 | `narozn` | dwa ciągi pod kątem prostym, kto wjeżdża w róg, luz w rogu, lustrzane L, U z trzech ścian |
 | `narozn2` | ramię odsuwa drugi ciąg, formatki ramienia, cztery warianty drzwi, za wąski korpus |
-| `narozn3` | blat w narożniku: na styk, przełączenie, łyżwa, U |
+| `narozn3` | blat w narożniku: na styk, przełączenie, łyżwa, U; złącza do blatów (2 / 3, U, płyta 18 bez, wycena 9 zł) |
 | `narkat` | kątownik w tylnym narożniku: bok znika, ramiona regulowane |
 | `rogplecy` | plecy z płyty w narożniku, osobno od każdej ściany |
 | `ramplec` / `ramkarta` | wzmocnienia i plecy ramienia; karta ustawień ramienia |

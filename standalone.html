@@ -207,6 +207,8 @@ const DEFAULT_HW_PRICES = {
   "Amortyzator do klapy opadanej": 10,
   // komplet na szuflade, bez wzgledu na dlugosc (uzytkownik 2026-10-14)
   "Reling boczny do szuflady": 30,
+  // GTV EM-SBL na styku blatow w rogu (uzytkownik 2026-10-16)
+  "Złącze do blatów śrubowe": 9,
 };
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
@@ -544,12 +546,28 @@ const num = (v) =>
     ? null
     : Math.round(Number(v));
 
-/* zawiasy: dwa w standardzie, wiecej dopiero przy duzym i szerokim skrzydle */
-function autoHinges(h, w) {
-  if (w <= 500) return 2;
-  if (h > 2000) return 4;
-  if (h > 1400) return 3;
-  return 2;
+/* Liczba zawiasow puszkowych wg katalogu GTV 2023, s. 68 (instrukcje/
+   Katalog-produktow-2023-...pdf, strona PDF 70) — decyzja uzytkownika
+   2026-10-16: wieksza z liczb z wysokosci i z wagi frontu. Progi wysokosci
+   odczytane z wykresu (750 i 2100 mm leza miedzy liniami siatki), wagi
+   podane w katalogu. Tabela standardowa dla frontu do 600 mm szerokosci;
+   zawiasy o szerokim kacie (165°) maja nizsze wagi i front do 450 mm.
+   Wczesniej: 2 do 1400 mm, 3 do 2000, 4 wyzej (i zawsze 2 przy szerokosci
+   do 500) — drzwi 900 mm dostawaly 2 zawiasy, a wg GTV potrzebuja 3. */
+const ZAWIASY_GTV = {
+  standard: { szer: 600, progi: [{ n: 2, h: 750, kg: 6 }, { n: 3, h: 1500, kg: 12 }, { n: 4, h: 2100, kg: 17 }, { n: 5, h: 2500, kg: 20 }] },
+  szeroki: { szer: 450, progi: [{ n: 2, h: 750, kg: 4.5 }, { n: 3, h: 1500, kg: 9 }, { n: 4, h: 2100, kg: 12.5 }, { n: 5, h: 2500, kg: 15 }] },
+};
+// { n, kg, poza, szer } — `poza`: wysokosc, waga albo szerokosc ponad tabele
+// (n = ostatni pasujacy wiersz, a przy wysokosci/wadze ponad tabele — ostatni)
+function zawiasyGtv(h, w, grub = 18, szeroki = false) {
+  const t = szeroki ? ZAWIASY_GTV.szeroki : ZAWIASY_GTV.standard;
+  const kg = wagaFrontu(w, h, grub);
+  const p = t.progi.find((q) => h <= q.h && kg <= q.kg);
+  return { n: p ? p.n : t.progi[t.progi.length - 1].n, kg, poza: !p || w > t.szer, szer: t.szer };
+}
+function autoHinges(h, w, grub = 18, szeroki = false) {
+  return zawiasyGtv(h, w, grub, szeroki).n;
 }
 
 /* prowadnice szuflad: 21 mm na stronę (razem ze ścianką skrzynki) */
@@ -2476,6 +2494,8 @@ function computeGeoLiczy(cab, mat, ctx) {
         c.doorH = cbandH;
         let dx = sx0;
         const klapa = cnt === 1 && (rawCol.klapa === "gora" || rawCol.klapa === "dol") ? rawCol.klapa : null;
+        // szafka narozna ze skrzydlami lamanymi wisi na zawiasach 165° — tabela GTV dla szerokiego kata
+        const zawiasSzeroki = !!(cab.corner || {}).on && (cab.corner || {}).doors === "lamane";
         for (let i = 0; i < cnt; i++) {
           const dw = dws.sizes[i];
           if (klapa) {
@@ -2533,7 +2553,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
             bandLo: lv.i === 0 ? null : clo, bandHi: lv.i === L - 1 ? null : chi,
             mirror: !!(rawCol.mirrors || [])[i],
-            hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw),
+            hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw, tf, zawiasSzeroki),
             handle: (rawCol.handles || [])[i] !== false,
             handleOut: num((rawCol.handleOuts || [])[i]),
             handlePos: (rawCol.handlePos || [])[i] === "gora" ? "gora" : "bok",
@@ -2579,11 +2599,19 @@ function computeGeoLiczy(cab, mat, ctx) {
           ];
           const hp = hingePositions(d.y, d.h, d.hinges, hObs);
           d.hingePts = hp.pts;
-          const odstepD = d.hinges >= 3 ? (d.h - 2 * HINGE_REF) / (d.hinges - 1) : Infinity;
-          if (odstepD < ZAWIAS_MAX_ODSTEP)
-            add("warn", `${where}, skrzydło ${i + 1}: za dużo zawiasów — ${d.hinges} zawiasy co ok. ${fmt(Math.round(odstepD))} mm `
-              + `na drzwiach ${fmt(Math.round(d.h))} mm, a kolejny dokłada się dopiero przy odstępie ponad ${ZAWIAS_MAX_ODSTEP} mm (wystarczą ${zawiasowWystarczy(d.h)}).`
-              + `|zawiasy:${lv.i}:${j}:${i}:${zawiasowWystarczy(d.h)}`);
+          /* Liczba zawiasow wpisana recznie wobec tabeli GTV (uzytkownik
+             2026-10-16: „za duzo” i „za malo” wg tabeli, z przyciskiem). Front
+             ponad tabele (wysokosc / waga) — ostrzezenie, ze liczba orientacyjna. */
+          {
+            const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki);
+            const opis = `front ${fmt(Math.round(dw))} × ${fmt(Math.round(d.h))} mm, ok. ${gtv.kg.toFixed(1).replace(".", ",")} kg`;
+            const wpis = num((rawCol.hinges || [])[i]);
+            if (wpis !== null && wpis !== gtv.n)
+              add("warn", `${where}, skrzydło ${i + 1}: ${wpis > gtv.n ? "za dużo" : "za mało"} zawiasów wg tabeli GTV — ${wpis} zamiast ${gtv.n} (${opis}).`
+                + `|zawiasy:${lv.i}:${j}:${i}:${gtv.n}`);
+            if (gtv.poza)
+              add("warn", `${where}, skrzydło ${i + 1}: ${opis} — poza tabelą zawiasów GTV (front do ${gtv.szer} mm szerokości, 2500 mm wysokości i ${zawiasSzeroki ? 15 : 20} kg), liczba zawiasów orientacyjna.`);
+          }
           d.colJ = j;
           d.colLast = j === lv.cols.length - 1;
           // zawias siedzi w swietle kolumny, przy licu tego, co go niesie:
@@ -2612,7 +2640,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           if ((rawCol.mirrors || [])[i] && dw > 1 && cbandH > 1)
             mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
           if ((rawCol.handles || [])[i] !== false) handleCount += 1;
-          const autoH = autoHinges(cbandH, dw);
+          const autoH = autoHinges(cbandH, dw, tf, zawiasSzeroki);
           const ovH = num((rawCol.hinges || [])[i]);
           hingeCount += ovH !== null ? ovH : autoH;
         }
@@ -4212,7 +4240,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       spec: skrzydlaLamane
         ? "skrzydło przy boku szafki narożnej — otwiera się na tyle, żeby drugie skrzydło się złożyło"
         : (cab.frontMode === "overlay" ? "nakładany" : "wpuszczany") +
-          ", 2 szt. na skrzydło poza szerokimi i wysokimi"
+          ", liczba wg tabeli GTV (wysokość i waga frontu)"
           + (klapy.length ? "; klapa: te same zawiasy, 2 szt. na górnej lub dolnej krawędzi, powyżej 900 mm 3" : ""),
       qty: hingeCount,
       unit: "szt.",
@@ -11294,7 +11322,7 @@ const cornerArmParts = (a) => {
      czterech. Zawiasow tyle, ile wychodzi z wysokosci i szerokosci skrzydla —
      tak samo jak przy drzwiach szafki. */
   const trojkatow = 2 * Math.max(2, Math.ceil(inner / 400));
-  const zawiasow = autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w);
+  const zawiasow = autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w, a.cab.geo.tf);
   /* Skrzydla lamane: drugie skrzydlo wisi na pierwszym, a nie na korpusie,
      wiec zwyklych zawiasow do niego nie ma — sa tylko lamane. */
   const hardware = fix
@@ -11404,7 +11432,7 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
       wiersz("Fix ramienia", "trójkąt meblowy", rowno(KONF_OD_KRAWEDZI, inner - KONF_OD_KRAWEDZI, n),
         "od środka, 2 rzędy — położenie od dołu fixu");
     } else if (a.doors !== "lamane") {
-      const n = autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w);
+      const n = autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w, geo.tf);
       const dRef = (geo.doors || []).find((d) => d.h > 0 && d.type === "door" && (d.hingePts || []).length === n);
       const hys = dRef ? dRef.hingePts : d0 ? hingePositions(d0.y, d0.h, n, []).pts : rowno(100, H - 100, n);
       wiersz("Bok ramienia", "zawias", hys, "oś zawiasu frontu ramienia — puszka ⌀35 we froncie, prowadnik na wewnętrznym licu boku");
@@ -11473,6 +11501,21 @@ const runTopPanels = (rt) => {
   }));
 };
 
+/* Zlacza do blatow srubowe (GTV EM-SBL, katalog 2023 s. 246) na styku blatow
+   roboczych w rogu — na styk i na lyzwe (uzytkownik 2026-10-16): 2 szt. przy
+   blacie 600, 3 przy 1200. Rog liczy ciag, ktory go trzyma (`run.corner`), zeby
+   styk nie wszedl do zamowienia dwa razy. Blat z plyty 18 mm — bez zlaczy. */
+const ZLACZE_BLATU = "Złącze do blatów śrubowe";
+const runTopZlacza = (project, run) => {
+  if (!run || !run.corner) return null;
+  const n = projectLayout(project).info.get(run.id);
+  if (!n || !n.pair || !n.parent) return null;
+  const a = runTop(project, run), b = runTop(project, n.parent.run);
+  if (!a || !b || a.matKey !== "worktop" || b.matKey !== "worktop") return null;
+  const gl = Math.max(a.arkusz || a.depth, b.arkusz || b.depth);
+  return { qty: gl > WORKTOP_DEPTHS[0] ? 3 : 2, gl, skos: (n.corner || {}).cut === "skos", z: n.parent.run.name };
+};
+
 /* Listwa do zawieszek biegnie przez caly ciag jednym odcinkiem, a nie kawalkiem
    pod kazda szafka — inaczej szafki wisialyby kazda na swoim kawalku i nic by
    ich nie trzymalo w jednej linii. */
@@ -11533,8 +11576,12 @@ const projectParts = (project) => {
       grainMatters: (rp || rt || {}).grainMatters };
     if (rp) runs.push({ ...base, mat: rp.mat, name: `Cokół — ${run.name}`,
       panels: runPlinthPanels(rp), hardware: [] });
+    const zl = rt ? runTopZlacza(project, r0) : null;
     if (rt) runs.push({ ...base, mat: rt.mat, name: `Blat — ${run.name}`,
-      panels: runTopPanels(rt), hardware: [] });
+      panels: runTopPanels(rt),
+      hardware: zl ? [{ name: ZLACZE_BLATU, use: "styk blatów roboczych w rogu",
+        spec: `róg z blatem „${zl.z}”, ${zl.skos ? "łyżwa 45°" : "na styk"}, blat ${fmt(zl.gl)} mm — ${zl.qty} szt.; GTV EM-SBL 65 / 100 / 150 (długość śruby do wyboru)`,
+        qty: zl.qty, unit: "szt." }] : [] });
     if (rr) runs.push({ ...base, name: `Listwa — ${run.name}`, panels: [],
       hardware: [{ name: RAIL_NAME, use: "pod zawieszki szafek wiszących",
         spec: `jeden odcinek ${fmt(rr.len)} mm na ciąg`,

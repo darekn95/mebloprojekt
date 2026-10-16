@@ -157,15 +157,41 @@ const zp = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:pro
 ok('„Ustaw 3 zawiasy” zapisuje 3', (zp.items[0].cab.levels[0].cols[0].hinges || [])[0] === 3, JSON.stringify(zp.items[0].cab.levels[0].cols[0].hinges));
 await seed(GORNA(600, { klapa: 'gora' }));
 ok('klapa 600 z automatu (2 zawiasy): bez ostrzeżenia o odstępie', !/za dużo zawiasów/.test(await uwagi()));
-// drzwi: to samo ostrzezenie (wysokosc 720, 3 zawiasy co 260 mm)
-await seed({ name: 'D', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'D', W: 500, H: 720, D: 560, plinth: { on: true, height: 100, mode: 'under', setback: 0 },
-  levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, hinges: [3] }] }] }, offset: 0 }] });
+console.log('\n== drzwi: liczba zawiasów wg tabeli GTV (katalog 2023 s. 68) ==');
+/* Uzytkownik 2026-10-16: liczba z automatu wg tabeli GTV — wieksza z liczb z
+   wysokosci (750 / 1500 / 2100 / 2500 mm) i wagi frontu (6 / 12 / 17 / 20 kg),
+   front do 600 mm szerokosci. Wpisana recznie inna niz w tabeli — „za duzo” /
+   „za malo zawiasow wg tabeli GTV” z przyciskiem. Front ponad tabele —
+   ostrzezenie, ze liczba orientacyjna. */
+const DRZWI = (W, H, col = {}) => ({ name: 'D', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'D', W, H, D: 560,
+  plinth: { on: true, height: 100, mode: 'under', setback: 0 },
+  levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, ...col }] }] }, offset: 0 }] });
+const linieZaw = (t) => t.split('\n').filter((l) => /zawias/i.test(l)).join(' / ').slice(0, 300);
+// front drzwi = wysokosc szafki − 6 mm (cokol pod szafka nie zjada frontu)
+for (const [H, zaw, opis] of [[720, 2, 'front 714 mm'], [1000, 3, 'front 994 mm (dawniej 2)'],
+  [1700, 4, 'front 1694 mm'], [2100, 4, 'front 2094 mm'], [2200, 5, 'front 2194 mm']]) {
+  await seed(DRZWI(500, H));
+  hw = await okucia(); u = await uwagi();
+  ok(`drzwi ${opis}: ${zaw} zawiasy z automatu, bez ostrzeżenia o zawiasach`, ilosc(hw, /^Zawias/) === zaw && !/zawiasów wg tabeli GTV|poza tabelą zawiasów/.test(u),
+    `zamówienie ${ilosc(hw, /^Zawias/)}; ${linieZaw(u)}`);
+}
+await seed(DRZWI(500, 720, { hinges: [3] }));
 u = await uwagi();
-ok('drzwi z 3 zawiasami na niskim froncie: ostrzeżenie „za dużo zawiasów”, wystarczą 2', /skrzydło 1: za dużo zawiasów — 3 zawiasy co ok\. \d+ mm na drzwiach \d+ mm.*wystarczą 2/.test(u),
-  u.split('\n').filter((l) => /zawias/.test(l)).join(' / ').slice(0, 240));
-await seed({ name: 'D', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'D', W: 500, H: 2100, D: 560, plinth: { on: true, height: 100, mode: 'under', setback: 0 },
-  levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null }] }] }, offset: 0 }] });
-ok('wysokie drzwi z automatu (3–4 zawiasy): bez ostrzeżenia o odstępie', !/za dużo zawiasów/.test(await uwagi()));
+ok('drzwi 714 mm z 3 zawiasami: „za dużo zawiasów wg tabeli GTV — 3 zamiast 2 (front 496 × 714 mm, ok. 4,3 kg)”', /skrzydło 1: za dużo zawiasów wg tabeli GTV — 3 zamiast 2 \(front 496 × 714 mm, ok\. 4,3 kg\)/.test(u), linieZaw(u));
+await card(/^Uwagi/).getByRole('button', { name: 'Ustaw 2 zawiasy' }).first().click(); await page.waitForTimeout(1200);
+ok('„Ustaw 2 zawiasy” zapisuje 2', ((await zapis()).items[0].cab.levels[0].cols[0].hinges || [])[0] === 2,
+  JSON.stringify((await zapis()).items[0].cab.levels[0].cols[0].hinges));
+await seed(DRZWI(500, 1000, { hinges: [2] }));
+u = await uwagi();
+ok('drzwi 994 mm z 2 zawiasami: „za mało zawiasów wg tabeli GTV — 2 zamiast 3”', /skrzydło 1: za mało zawiasów wg tabeli GTV — 2 zamiast 3/.test(u), linieZaw(u));
+await seed(DRZWI(500, 1700, { hinges: [4] }));
+ok('drzwi 1694 mm z 4 zawiasami: bez ostrzeżenia (dawniej „za dużo” przy 600 mm)', !/zawiasów wg tabeli GTV|za dużo zawiasów/.test(await uwagi()), linieZaw(await uwagi()));
+await seed(DRZWI(704, 720));
+u = await uwagi();
+ok('drzwi szersze niż 600 mm: „poza tabelą zawiasów GTV”, liczba orientacyjna', /skrzydło 1: front 700 × 714 mm, ok\. 6,1 kg — poza tabelą zawiasów GTV \(front do 600 mm szerokości/.test(u), linieZaw(u));
+await seed(DRZWI(500, 2700));
+hw = await okucia(); u = await uwagi();
+ok('drzwi 2694 mm (ponad 2500): 5 zawiasów i „poza tabelą”', ilosc(hw, /^Zawias/) === 5 && /poza tabelą zawiasów GTV/.test(u), `zamówienie ${ilosc(hw, /^Zawias/)}; ${linieZaw(u)}`);
 
 console.log('\n== klapa w 3D do wybranego kąta (audyt GPT U1) ==');
 /* Uzytkownik 2026-10-16: bryla klapy otwiera sie do wybranego kata (75/90/100°),
