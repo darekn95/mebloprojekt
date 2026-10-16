@@ -122,8 +122,9 @@ const lamane = async (H, arm = 500) => {
   return wynik;
 };
 const l720 = await lamane(720);
-/* Reguly sa te same, co przy zwyklych zawiasach: waskie skrzydlo zawsze dwa,
-   trzeci dopiero przy szerokosci ponad 500 i wysokosci ponad 1400 mm. */
+/* Reguly sa te same, co przy zwyklych zawiasach: tabela GTV (uzytkownik
+   2026-10-16) — z wysokosci i wagi frontu; skrzydlo przy boku na 165° z tabeli
+   dla szerokiego kata. Wczesniej waskie skrzydlo zostawalo przy dwoch. */
 const l2000 = await lamane(2000, 700);
 ok('skrzydlo przy boku dostaje zawias 165 stopni', l720.s === 2, String(l720.s));
 ok('drugie skrzydlo na zawiasie lamanym', l720.l === 2, String(l720.l));
@@ -131,7 +132,7 @@ ok('drugie skrzydlo na zawiasie lamanym', l720.l === 2, String(l720.l));
    przy boku jest wezsze od tego na ramieniu — wiec liczby nie musza byc rowne.
    Wazne, ze obie ida za wymiarem, a nie stoja na sztywno. */
 ok('szerokie skrzydlo ramienia dostaje trzeci zawias lamany', l2000.l > 2, String(l2000.l));
-ok('waskie skrzydlo przy boku zostaje przy dwoch', l2000.s === 2, String(l2000.s));
+ok('skrzydlo przy boku ok. 2000 mm: 4 zawiasy 165° wg tabeli GTV (wysokosc do 2100)', l2000.s === 4, String(l2000.s));
 /* Drugie skrzydlo wisi na pierwszym, wiec zwyklych zawiasow do ramienia nie ma
    — kiedys liczyly sie podwojnie. */
 const rsL = await projRows();
