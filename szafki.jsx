@@ -190,6 +190,8 @@ const DEFAULT_HW_PRICES = {
   "Amortyzator do klapy opadanej": 10,
   // komplet na szuflade, bez wzgledu na dlugosc (uzytkownik 2026-10-14)
   "Reling boczny do szuflady": 30,
+  // GTV EM-SBL na styku blatow w rogu (uzytkownik 2026-10-16)
+  "Złącze do blatów śrubowe": 9,
 };
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
@@ -527,12 +529,28 @@ const num = (v) =>
     ? null
     : Math.round(Number(v));
 
-/* zawiasy: dwa w standardzie, wiecej dopiero przy duzym i szerokim skrzydle */
-function autoHinges(h, w) {
-  if (w <= 500) return 2;
-  if (h > 2000) return 4;
-  if (h > 1400) return 3;
-  return 2;
+/* Liczba zawiasow puszkowych wg katalogu GTV 2023, s. 68 (instrukcje/
+   Katalog-produktow-2023-...pdf, strona PDF 70) — decyzja uzytkownika
+   2026-10-16: wieksza z liczb z wysokosci i z wagi frontu. Progi wysokosci
+   odczytane z wykresu (750 i 2100 mm leza miedzy liniami siatki), wagi
+   podane w katalogu. Tabela standardowa dla frontu do 600 mm szerokosci;
+   zawiasy o szerokim kacie (165°) maja nizsze wagi i front do 450 mm.
+   Wczesniej: 2 do 1400 mm, 3 do 2000, 4 wyzej (i zawsze 2 przy szerokosci
+   do 500) — drzwi 900 mm dostawaly 2 zawiasy, a wg GTV potrzebuja 3. */
+const ZAWIASY_GTV = {
+  standard: { szer: 600, progi: [{ n: 2, h: 750, kg: 6 }, { n: 3, h: 1500, kg: 12 }, { n: 4, h: 2100, kg: 17 }, { n: 5, h: 2500, kg: 20 }] },
+  szeroki: { szer: 450, progi: [{ n: 2, h: 750, kg: 4.5 }, { n: 3, h: 1500, kg: 9 }, { n: 4, h: 2100, kg: 12.5 }, { n: 5, h: 2500, kg: 15 }] },
+};
+// { n, kg, poza, szer } — `poza`: wysokosc, waga albo szerokosc ponad tabele
+// (n = ostatni pasujacy wiersz, a przy wysokosci/wadze ponad tabele — ostatni)
+function zawiasyGtv(h, w, grub = 18, szeroki = false) {
+  const t = szeroki ? ZAWIASY_GTV.szeroki : ZAWIASY_GTV.standard;
+  const kg = wagaFrontu(w, h, grub);
+  const p = t.progi.find((q) => h <= q.h && kg <= q.kg);
+  return { n: p ? p.n : t.progi[t.progi.length - 1].n, kg, poza: !p || w > t.szer, szer: t.szer };
+}
+function autoHinges(h, w, grub = 18, szeroki = false) {
+  return zawiasyGtv(h, w, grub, szeroki).n;
 }
 
 /* prowadnice szuflad: 21 mm na stronę (razem ze ścianką skrzynki) */
@@ -560,6 +578,14 @@ const HINGE_H = 55; // wysokosc
 const HINGE_W = 20; // szerokosc na boku
 const HINGE_D = 80; // glebokosc zabudowy
 const HINGE_REF = 100; // referencyjny odstep srodka od krawedzi frontu
+/* 3. i kolejny zawias dokladamy dopiero, gdy odstep miedzy srodkami
+   przekracza tyle (uzytkownik 2026-10-16) — tak wychodzi z automatu drzwi:
+   3 zawiasy od 1400 mm, 4 od 2000 mm. Przy 3+ zawiasach gesciej — ostrzezenie
+   „za duzo zawiasow”, dla drzwi i klap. Liczone na rozstawie nominalnym
+   (HINGE_REF od krawedzi, reszta rowno), nie po przesunieciu przy polce. */
+const ZAWIAS_MAX_ODSTEP = 600;
+// ile zawiasow wystarczy na krawedzi `dl` przy odstepie do ZAWIAS_MAX_ODSTEP
+const zawiasowWystarczy = (dl) => Math.max(2, Math.ceil((dl - 2 * HINGE_REF) / ZAWIAS_MAX_ODSTEP) + 1);
 const HINGE_CLR = 30; // wymagany luz od polki czy wzmocnienia
 
 /* Srodek skrajnych zawiasow 100 mm od gory i dolu frontu, kolejne rozlozone
@@ -584,6 +610,7 @@ function hingePositions(y0, h, n, obstacles) {
   const moved = [];
   base.forEach((want) => {
     let y = Math.min(hi, Math.max(lo, want));
+    let co = null;
     for (let pass = 0; pass < 4; pass++) {
       const hit = obstacles.find(
         (o) => y + half + HINGE_CLR > o.y0 && y - half - HINGE_CLR < o.y1
@@ -599,9 +626,10 @@ function hingePositions(y0, h, n, obstacles) {
       else if (okA) ny = above;
       if (ny === null) break; // nie ma gdzie uciec — zostawiamy i tak jest ostrzezenie
       y = ny;
+      co = hit.what || co;
     }
     const yr = Math.round(y);
-    if (Math.abs(yr - Math.round(want)) >= 1) moved.push({ from: Math.round(want), to: yr });
+    if (Math.abs(yr - Math.round(want)) >= 1) moved.push({ from: Math.round(want), to: yr, co });
     pts.push(yr);
   });
   return { pts, moved };
@@ -1966,6 +1994,10 @@ function computeGeoLiczy(cab, mat, ctx) {
       );
   }
   const doors = [];
+  /* Zawiasy przesuniete przez polke lub wzmocnienie — do notatki montazowej
+     na stronie szafki w PDF (uzytkownik 2026-10-16: „zeby miec pozniej
+     pewnosc, ze zawias dobrze wypadnie”). */
+  const zawiasyMontaz = [];
   const drawerParts = [];
   const fixParts = [];
   const blendaParts = [];
@@ -2451,13 +2483,27 @@ function computeGeoLiczy(cab, mat, ctx) {
         c.doorH = cbandH;
         let dx = sx0;
         const klapa = cnt === 1 && (rawCol.klapa === "gora" || rawCol.klapa === "dol") ? rawCol.klapa : null;
+        // szafka narozna ze skrzydlami lamanymi wisi na zawiasach 165° — tabela GTV dla szerokiego kata
+        const zawiasSzeroki = !!(cab.corner || {}).on && (cab.corner || {}).doors === "lamane";
         for (let i = 0; i < cnt; i++) {
           const dw = dws.sizes[i];
           if (klapa) {
             /* Klapa: zawiasy na krawedzi gornej (do gory) albo dolnej (w dol),
-               rozstawione wzdluz szerokosci — 2 szt., powyzej 900 mm 3 szt. */
-            const nZaw = num((rawCol.hinges || [])[0]) ?? (dw > 900 ? 3 : 2);
-            const xs = nZaw >= 3 ? [dx + 100, dx + dw / 2, dx + dw - 100] : [dx + 100, dx + dw - 100];
+               rozstawione wzdluz szerokosci — 2 szt., powyzej 900 mm 3 szt.
+               Recznie 2–4 (uzytkownik 2026-10-16), rozstaw jak w drzwiach:
+               HINGE_REF od krawedzi, reszta rowno — dokladnie tyle punktow, ile
+               zawiasow w zamowieniu (wczesniej 4 wpisane dawaly 3 punkty, 1 — dwa). */
+            const wpisane = num((rawCol.hinges || [])[0]);
+            const nZaw = wpisane === null ? (dw > 900 ? 3 : 2) : Math.min(4, Math.max(2, Math.round(wpisane)));
+            const xs = Array.from({ length: nZaw }, (_, k) => dx + HINGE_REF + ((dw - 2 * HINGE_REF) * k) / (nZaw - 1));
+            if (wpisane !== null && nZaw !== Math.round(wpisane))
+              add("error", `${where}: klapa ma ${nZaw === 2 ? "co najmniej 2" : "najwyżej 4"} zawiasy, a wpisano ${fmt(wpisane)} — liczę ${nZaw}.`
+                + `|zawiasy:${lv.i}:${j}:0:${nZaw}`);
+            const odstepK = (dw - 2 * HINGE_REF) / (nZaw - 1);
+            if (nZaw >= 3 && odstepK < ZAWIAS_MAX_ODSTEP)
+              add("warn", `${where}: za dużo zawiasów — klapa ${fmt(dw)} mm ma ${nZaw} zawiasy co ok. ${fmt(Math.round(odstepK))} mm, `
+                + `a kolejny dokłada się dopiero przy odstępie ponad ${ZAWIAS_MAX_ODSTEP} mm (wystarczą ${zawiasowWystarczy(dw)}).`
+                + `|zawiasy:${lv.i}:${j}:0:${zawiasowWystarczy(dw)}`);
             const d = { lvl: lv.i, key: `d${lv.i}-${j}-0`, type: "klapa", klapa, colKey: `${lv.i}-${j}`,
               x: dx, y: clo, w: dw, h: cbandH, iInGroup: 0, groupN: 1,
               inset: cab.frontMode === "inset", gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
@@ -2496,7 +2542,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
             bandLo: lv.i === 0 ? null : clo, bandHi: lv.i === L - 1 ? null : chi,
             mirror: !!(rawCol.mirrors || [])[i],
-            hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw),
+            hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw, tf, zawiasSzeroki),
             handle: (rawCol.handles || [])[i] !== false,
             handleOut: num((rawCol.handleOuts || [])[i]),
             handlePos: (rawCol.handlePos || [])[i] === "gora" ? "gora" : "bok",
@@ -2542,6 +2588,19 @@ function computeGeoLiczy(cab, mat, ctx) {
           ];
           const hp = hingePositions(d.y, d.h, d.hinges, hObs);
           d.hingePts = hp.pts;
+          /* Liczba zawiasow wpisana recznie wobec tabeli GTV (uzytkownik
+             2026-10-16: „za duzo” i „za malo” wg tabeli, z przyciskiem). Front
+             ponad tabele (wysokosc / waga) — ostrzezenie, ze liczba orientacyjna. */
+          {
+            const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki);
+            const opis = `front ${fmt(Math.round(dw))} × ${fmt(Math.round(d.h))} mm, ok. ${gtv.kg.toFixed(1).replace(".", ",")} kg`;
+            const wpis = num((rawCol.hinges || [])[i]);
+            if (wpis !== null && wpis !== gtv.n)
+              add("warn", `${where}, skrzydło ${i + 1}: ${wpis > gtv.n ? "za dużo" : "za mało"} zawiasów wg tabeli GTV — ${wpis} zamiast ${gtv.n} (${opis}).`
+                + `|zawiasy:${lv.i}:${j}:${i}:${gtv.n}`);
+            if (gtv.poza)
+              add("warn", `${where}, skrzydło ${i + 1}: ${opis} — poza tabelą zawiasów GTV (front do ${gtv.szer} mm szerokości, 2500 mm wysokości i ${zawiasSzeroki ? 15 : 20} kg), liczba zawiasów orientacyjna.`);
+          }
           d.colJ = j;
           d.colLast = j === lv.cols.length - 1;
           // zawias siedzi w swietle kolumny, przy licu tego, co go niesie:
@@ -2555,14 +2614,20 @@ function computeGeoLiczy(cab, mat, ctx) {
             d.hingeSide === "left"
               ? Math.max(carrierL, d.x + tf)
               : Math.min(carrierR, d.x + dw - tf) - HINGE_W;
-          hp.moved.forEach((m) =>
+          /* Ostrzezenie zostaje (uzytkownik 2026-10-16), a do tego linia w
+             notatce montazowej PDF i przycisk, ktory dopisuje ja do notatki szafki. */
+          hp.moved.forEach((m) => {
+            const notatka = `${where}, skrzydło ${i + 1}: zawias ${fmt(m.to - d.y)} mm od dołu frontu (nie ${fmt(m.from - d.y)})`
+              + ` — przesunięty przez kolizję z ${m.co || "półką lub wzmocnieniem"}, ${HINGE_CLR} mm luzu.`;
+            zawiasyMontaz.push(notatka);
             add(
               "warn",
               `${where}, skrzydło ${i + 1}: zawias przesunięty z ${fmt(m.from - d.y)} na ${fmt(
                 m.to - d.y
               )} mm od dołu frontu — kolizja z półką lub wzmocnieniem, zostawiony luz ${HINGE_CLR} mm.`
-            )
-          );
+              + `|notatka:${encodeURIComponent(notatka)}`
+            );
+          });
           doors.push(d);
           c.doors.push(d);
           dx += dw + colGap;
@@ -2570,7 +2635,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           if ((rawCol.mirrors || [])[i] && dw > 1 && cbandH > 1)
             mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
           if ((rawCol.handles || [])[i] !== false) handleCount += 1;
-          const autoH = autoHinges(cbandH, dw);
+          const autoH = autoHinges(cbandH, dw, tf, zawiasSzeroki);
           const ovH = num((rawCol.hinges || [])[i]);
           hingeCount += ovH !== null ? ovH : autoH;
         }
@@ -2802,17 +2867,6 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (d.reling) relingGroups.set(nl ?? 0, (relingGroups.get(nl ?? 0) || 0) + 1);
 
         const minF = VBOX.minFront[dMode][hClass];
-        if (fh < minF) {
-          // najwyzszy bok, ktory zmiesci sie w tak skroconym froncie
-          const fitLower = [...VBOX.heights].filter((hc) => VBOX.minFront[dMode][hc] <= fh).pop();
-          add(
-            "error",
-            `${where}, szuflada ${i + 1}: front ${fmt(fh)} mm, a minimum dla wysokości ${hClass} mm przy froncie ${
-              dIn ? "wpuszczanym" : "na korpusie"
-            } to ${minF} mm.` +
-              (fitLower ? `|fixh:${lv.i}:${j}:${i}:${fitLower}` : "")
-          );
-        }
         /* Front wysoko ponad bokiem: katalog radzi reling boczny. Uzytkownik
            (2026-10-14): do wyboru „Dodaj reling” (idzie do zamowienia, 30 zl za
            komplet) albo „Zostaw bez relingu” — po decyzji zostaje informacja
@@ -2868,15 +2922,27 @@ function computeGeoLiczy(cab, mat, ctx) {
         }
         /* Boki skrzynki jada razem z nia — gdy sa wyzsze niz miejsce pod tym,
            co wyzej, szuflada sie nie wsunie. Wczesniej tego nie sprawdzalismy. */
+        /* Front za niski na ten bok. Proponowany nizszy bok musi spelnic
+           wszystko naraz — front i luz nad skrzynka (`miesciSie`): wczesniej
+           brany byl tylko z frontu i po kliknieciu 210 zostawal blad luzu,
+           a dopiero drugi przycisk dawal 178 (audyt GPT 2026-10-16, B1). Gdy
+           oba bledy sa naraz, przycisk stoi przy pierwszym. */
+        const frontZaNiski = fh < minF;
+        if (frontZaNiski)
+          add("error",
+            `${where}, szuflada ${i + 1}: front ${fmt(fh)} mm, a minimum dla wysokości ${hClass} mm przy froncie ${
+              dIn ? "wpuszczanym" : "na korpusie"
+            } to ${minF} mm.` + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : ""));
+        const przyciskLuzu = nizszyBok && !frontZaNiski ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : "";
         if (goraBoku > ceilY)
           add("error",
             `${where}, szuflada ${i + 1}: skrzynka z bokiem ${hClass} mm potrzebuje ${vboxGora(hClass)} mm od dołu prowadnicy (bok stoi ${vboxOdProw(hClass)} mm nad nim) i min. ${SZUFLADA_ZAPAS} mm luzu nad bokiem, a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
-            + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : ""));
+            + przyciskLuzu);
         else if (ceilY - goraBoku < SZUFLADA_ZAPAS)
           add("error",
             `${where}, szuflada ${i + 1}: nad bokiem skrzynki ${hClass} mm zostaje ${fmt(Math.round(ceilY - goraBoku))} mm luzu do tego, co jest wyżej (${coNad}) — `
             + `potrzeba min. ${SZUFLADA_ZAPAS} mm (katalog V-BOX liczy ${vboxGora(hClass)} mm od dołu prowadnicy bez żadnego luzu).`
-            + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : ""));
+            + przyciskLuzu);
         /* Tyl nigdy wyzej niz gorna krawedz frontu tej szuflady, a najlepiej
            nizej (uzytkownik 2026-09-28) — domyslny podniesiony tyl konczy sie
            o BACK_CLEAR ponizej niej. */
@@ -4169,7 +4235,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       spec: skrzydlaLamane
         ? "skrzydło przy boku szafki narożnej — otwiera się na tyle, żeby drugie skrzydło się złożyło"
         : (cab.frontMode === "overlay" ? "nakładany" : "wpuszczany") +
-          ", 2 szt. na skrzydło poza szerokimi i wysokimi"
+          ", liczba wg tabeli GTV (wysokość i waga frontu)"
           + (klapy.length ? "; klapa: te same zawiasy, 2 szt. na górnej lub dolnej krawędzi, powyżej 900 mm 3" : ""),
       qty: hingeCount,
       unit: "szt.",
@@ -4439,7 +4505,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   return {
     hardware,
     t, tf, tb, ts, carcassDepth, plecyZa, glebOdSciany, hasBack, interior, innerW, innerH,
-    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, msgs, maxNL,
+    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, msgs, maxNL, zawiasyMontaz,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
@@ -9429,9 +9495,11 @@ const rotAboutX = (p, ang, oy, oz) => {
   const dy = p.y - oy, dz = p.z - oz;
   return { x: p.x, y: oy + dy * c - dz * s2, z: oz + dy * s2 + dz * c };
 };
-// klapa otwarta w bryle: do gory do poziomu, opadana troche ponizej
+/* Klapa otwarta w bryle: tak jak suwak, ale najwyzej do kata wybranego
+   przy klapie (75/90/100°, `d.kat`) — wczesniej zawsze stop na 90°, choc
+   dobor podnosnika dopuszcza 100° (uzytkownik 2026-10-16: „do wybranego kata”). */
 const klapaObrot = (d, angle, oz) => {
-  const ang = (Math.min(90, angle) * Math.PI) / 180;
+  const ang = (Math.min(d.kat || 90, angle) * Math.PI) / 180;
   return d.klapa === "gora"
     ? (p) => rotAboutX(p, ang, d.y + d.h, oz)
     : (p) => rotAboutX(p, -ang, d.y, oz);
@@ -10200,6 +10268,24 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: `${ile} nóżek — ${ile % 2 ? "jedna na środku" : "para na środku"}`,
         run: () => setLegs && setLegs(ile),
+      };
+    }
+    if (action.startsWith("notatka:")) {
+      // „notatka:<tekst>" — dopisuje linie do notatki montazowej szafki; juz dopisana — bez przycisku
+      const t = decodeURIComponent(action.slice("notatka:".length));
+      if (((cab && cab.note) || "").includes(t)) return null;
+      return { label: "Dopisz do notatki montażowej", run: () => runFix && runFix(action) };
+    }
+    if (action.startsWith("zawiasy:")) {
+      // „zawiasy:<poziom>:<kolumna>:<skrzydlo>:<ile>" — liczba zawiasow skrzydla albo klapy
+      const [, li, j, k, ile] = action.split(":");
+      return {
+        label: `Ustaw ${ile} zawiasy`,
+        run: () => editLevels((L) => {
+          const col = L[+li].cols[+j];
+          col.hinges = [...(col.hinges || [])];
+          col.hinges[+k] = +ile;
+        }),
       };
     }
     if (action.startsWith("hingeflip:")) {
@@ -11237,7 +11323,7 @@ const cornerArmParts = (a) => {
      czterech. Zawiasow tyle, ile wychodzi z wysokosci i szerokosci skrzydla —
      tak samo jak przy drzwiach szafki. */
   const trojkatow = 2 * Math.max(2, Math.ceil(inner / 400));
-  const zawiasow = autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w);
+  const zawiasow = autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w, a.cab.geo.tf);
   /* Skrzydla lamane: drugie skrzydlo wisi na pierwszym, a nie na korpusie,
      wiec zwyklych zawiasow do niego nie ma — sa tylko lamane. */
   const hardware = fix
@@ -11347,7 +11433,7 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
       wiersz("Fix ramienia", "trójkąt meblowy", rowno(KONF_OD_KRAWEDZI, inner - KONF_OD_KRAWEDZI, n),
         "od środka, 2 rzędy — położenie od dołu fixu");
     } else if (a.doors !== "lamane") {
-      const n = autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w);
+      const n = autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w, geo.tf);
       const dRef = (geo.doors || []).find((d) => d.h > 0 && d.type === "door" && (d.hingePts || []).length === n);
       const hys = dRef ? dRef.hingePts : d0 ? hingePositions(d0.y, d0.h, n, []).pts : rowno(100, H - 100, n);
       wiersz("Bok ramienia", "zawias", hys, "oś zawiasu frontu ramienia — puszka ⌀35 we froncie, prowadnik na wewnętrznym licu boku");
@@ -11416,6 +11502,34 @@ const runTopPanels = (rt) => {
   }));
 };
 
+/* Zlacza do blatow srubowe (GTV EM-SBL, katalog 2023 s. 246) na kazdym styku
+   blatow roboczych (uzytkownik 2026-10-16): w rogu — na styk i na lyzwe — i na
+   laczeniu kawalkow w prostym ciagu; 2 szt. przy blacie 600, 3 przy 1200. Rog
+   liczy ciag, ktory go trzyma (`run.corner`), zeby styk nie wszedl do
+   zamowienia dwa razy. Blat z plyty 18 mm — bez zlaczy. */
+const ZLACZE_BLATU = "Złącze do blatów śrubowe";
+const zlaczNaStyk = (gl) => (gl > WORKTOP_DEPTHS[0] ? 3 : 2);
+// [{ qty, gl, use, opis }] — jedna pozycja na rodzaj styku
+const runTopZlacza = (project, run) => {
+  const a = run ? runTop(project, run) : null;
+  if (!a || a.matKey !== "worktop") return [];
+  const out = [];
+  const lacz = (a.lens || []).length - 1;
+  if (lacz > 0) {
+    const gl = a.arkusz || a.depth;
+    out.push({ qty: lacz * zlaczNaStyk(gl), gl, use: "łączenie kawałków blatu w ciągu",
+      opis: `łączenia kawałków blatu w ciągu: ${lacz} × ${zlaczNaStyk(gl)} szt.` });
+  }
+  const n = run.corner ? projectLayout(project).info.get(run.id) : null;
+  const b = n && n.pair && n.parent ? runTop(project, n.parent.run) : null;
+  if (b && b.matKey === "worktop") {
+    const gl = Math.max(a.arkusz || a.depth, b.arkusz || b.depth);
+    out.push({ qty: zlaczNaStyk(gl), gl, use: "styk blatów roboczych w rogu",
+      opis: `róg z blatem „${n.parent.run.name}”, ${(n.corner || {}).cut === "skos" ? "łyżwa 45°" : "na styk"} — ${zlaczNaStyk(gl)} szt.` });
+  }
+  return out;
+};
+
 /* Listwa do zawieszek biegnie przez caly ciag jednym odcinkiem, a nie kawalkiem
    pod kazda szafka — inaczej szafki wisialyby kazda na swoim kawalku i nic by
    ich nie trzymalo w jednej linii. */
@@ -11477,7 +11591,10 @@ const projectParts = (project) => {
     if (rp) runs.push({ ...base, mat: rp.mat, name: `Cokół — ${run.name}`,
       panels: runPlinthPanels(rp), hardware: [] });
     if (rt) runs.push({ ...base, mat: rt.mat, name: `Blat — ${run.name}`,
-      panels: runTopPanels(rt), hardware: [] });
+      panels: runTopPanels(rt),
+      hardware: runTopZlacza(project, r0).map((z) => ({ name: ZLACZE_BLATU, use: z.use,
+        spec: `${z.opis}, blat ${fmt(z.gl)} mm; GTV EM-SBL 65 / 100 / 150 (długość śruby do wyboru)`,
+        qty: z.qty, unit: "szt." })) });
     if (rr) runs.push({ ...base, name: `Listwa — ${run.name}`, panels: [],
       hardware: [{ name: RAIL_NAME, use: "pod zawieszki szafek wiszących",
         spec: `jeden odcinek ${fmt(rr.len)} mm na ciąg`,
@@ -12764,6 +12881,8 @@ function buildCutPlan(rows) {
     const sh = list.find((r) => r.sheet);
     return {
       matLabel,
+      // arkusz do zamowienia — blat ma swoj (4100 × 600/1200), plyta 2800 × 2100
+      arkusz: sh ? { w: sh.sheet.w, h: sh.sheet.h } : { w: SHEET_W, h: SHEET_H },
       ...packSheets(list, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {}),
     };
   });
@@ -12910,6 +13029,13 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
       {(cab.note || "").trim() && (
         <div style={{ fontSize: "9pt", marginTop: 3, whiteSpace: "pre-wrap" }}>
           <strong>Uwagi:</strong> {cab.note}
+        </div>
+      )}
+      {/* liczone z geometrii — zawsze aktualne, niezaleznie od notatki wpisanej recznie */}
+      {(geo.zawiasyMontaz || []).length > 0 && (
+        <div data-el="notatka-zawiasy" style={{ fontSize: "9pt", marginTop: 3 }}>
+          <strong>Zawiasy przesunięte:</strong>{" "}
+          {geo.zawiasyMontaz.join(" ")}
         </div>
       )}
     </div>
@@ -13180,7 +13306,9 @@ function ReportCutPlan({ project, projectName }) {
       </table>
       {groups.map((g, gi) => (
         <div key={gi} style={{ marginTop: 10 }}>
-          <div style={{ fontSize: "10pt", fontWeight: 600, marginBottom: 4 }}>{g.matLabel}</div>
+          <div style={{ fontSize: "10pt", fontWeight: 600, marginBottom: 4 }}>
+            {g.matLabel}{g.arkusz ? ` — arkusz ${fmt(g.arkusz.w)} × ${fmt(g.arkusz.h)} mm` : ""}
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             {g.sheets.map((sh, i) => (
               <div key={i} className="rp-keep" style={{ border: "1px solid #e7e5e4", padding: 6 }}>
@@ -13761,6 +13889,24 @@ export default function App() {
     }
   };
 
+  /* „Wczytaj wyslany do Claude” — tez tylko w artefakcie. Projekt siedzi
+     w przegladarce, wiec na innym komputerze artefakt otwieral projekt startowy
+     (zgloszenie uzytkownika 2026-10-15: „jakis stary projekt mi sie wczytal”).
+     Ostatnio wyslany lezy we wspolnym magazynie — stad da sie go wczytac na
+     kazdym komputerze. Najpierw pytamy, bo zastepuje otwarty projekt. */
+  const [wyslanyDoWczytania, setWyslanyDoWczytania] = useState(null);
+  const pobierzOdClaude = async () => {
+    if (!dbClaude) return;
+    try {
+      const snap = await dbClaude.doc(PROJEKT_DLA_CLAUDE).get();
+      const d = snap && snap.exists ? snap.data() : null;
+      if (!d || typeof d.json !== "string") { setSaved("w artefakcie nie ma wysłanego projektu"); return; }
+      setWyslanyDoWczytania({ json: d.json, nazwa: d.nazwa || "", szafek: d.szafek, wyslano: d.wyslano || null });
+    } catch (e) {
+      setSaved("nie udało się pobrać projektu — spróbuj jeszcze raz");
+    }
+  };
+
   const exportProject = () => {
     const json = JSON.stringify(
       { name: project.name, prices: project.prices, rooms: roomsOf(project), items: project.items, runs: project.runs, active: project.active },
@@ -14186,6 +14332,18 @@ export default function App() {
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    if (action.startsWith("notatka:")) {
+      const t = decodeURIComponent(action.slice("notatka:".length));
+      setProject((p) => {
+        const items = p.items.slice();
+        const it = items[p.active];
+        if (!it || (it.cab.note || "").includes(t)) return p;
+        const stara = (it.cab.note || "").replace(/\s+$/, "");
+        items[p.active] = { ...it, cab: { ...it.cab, note: stara ? `${stara}\n${t}` : t } };
+        return { ...p, items };
+      });
+      return;
+    }
     if (action.startsWith("dociacpanel:")) {
       const [, cel, klucz] = action.split(":");
       const dopisz = (lista) => [...(lista || []).filter((k) => k !== klucz), klucz];
@@ -14884,6 +15042,24 @@ export default function App() {
             <button onClick={wyslijDoClaude}
               title="Tylko w artefakcie na claude.ai: zapisuje bieżący projekt we wspólnym magazynie, z którego Claude go odczyta"
               className="text-xs font-medium text-teal-700 hover:underline">Wyślij do Claude</button>
+          )}
+          {dbClaude && (
+            <button onClick={pobierzOdClaude} data-el="wczytaj-od-claude"
+              title="Tylko w artefakcie na claude.ai: wczytuje projekt ostatnio wysłany do Claude — także na innym komputerze"
+              className="text-xs text-teal-700 hover:underline">Wczytaj wysłany do Claude</button>
+          )}
+          {wyslanyDoWczytania && (
+            <span className="flex flex-wrap items-center gap-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900"
+              data-el="wczytaj-od-claude-pytanie">
+              Wczytać projekt wysłany do Claude
+              {wyslanyDoWczytania.wyslano ? ` ${new Date(wyslanyDoWczytania.wyslano).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}
+              {wyslanyDoWczytania.nazwa ? ` („${wyslanyDoWczytania.nazwa}”` : " ("}
+              {wyslanyDoWczytania.szafek != null ? `${wyslanyDoWczytania.nazwa ? ", " : ""}${wyslanyDoWczytania.szafek} szafek)` : ")"}? Zastąpi otwarty projekt.
+              <button onClick={() => { applyImportText(wyslanyDoWczytania.json); setWyslanyDoWczytania(null); }}
+                className="rounded bg-teal-700 px-2 py-0.5 font-medium text-white hover:bg-teal-800">Wczytaj</button>
+              <button onClick={() => setWyslanyDoWczytania(null)}
+                className="rounded border border-stone-300 bg-white px-2 py-0.5 text-stone-700 hover:bg-stone-50">Anuluj</button>
+            </span>
           )}
           <label className="cursor-pointer text-xs text-teal-700 hover:underline">
             Wczytaj plik
@@ -17641,7 +17817,7 @@ export default function App() {
                   {pokazPlan.groups.map((g, i) => (
                     <div key={i}>
                       {g.matLabel}: {g.sheets.length}{" "}
-                      {plural(g.sheets.length, "arkusz", "arkusze", "arkuszy")} {fmt(SHEET_W)}×{fmt(SHEET_H)}
+                      {plural(g.sheets.length, "arkusz", "arkusze", "arkuszy")} {fmt((g.arkusz || {}).w || SHEET_W)}×{fmt((g.arkusz || {}).h || SHEET_H)}
                       {g.biggestRect && (
                         <span className="text-stone-500">
                           {/* zrzut podajemy w pelnych milimetrach — na dziesiatych

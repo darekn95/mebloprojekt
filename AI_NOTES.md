@@ -100,6 +100,14 @@ kolejność szafek, wstawka przechodzi na szafkę, która stanie przy rogu.
 Szeroka: `mocowanie` (`trojkaty` / `konf` / `listwa`) przesuwa ją w głąb
 (`odLica`) albo dokłada listwę (`listwa` w obiekcie z układu, rysunki i bryły).
 
+[AI-INFO] Liczba zawiasow drzwi wg wagi frontu — zrobione 2026-10-16 z katalogu GTV
+2023 (`instrukcje/Katalog-produktow-2023-...pdf`, s. 68 = PDF 70): `ZAWIASY_GTV`,
+`zawiasyGtv`, `autoHinges(h, w, grub, szeroki)`. Klapa zostaje 2 / 3 od 900 mm.
+Zlacza blatow (`runTopZlacza`): rog i laczenia kawalkow w prostym ciagu (ustalone).
+
+[AI-INFO] Audyt GPT (2026-10-16, galaz `gpt/audyt-2026-10-16`, plik `AUDYT_GPT.md`):
+B1, B2, B3 odtworzone i poprawione, U1 poprawione; U2 (waski podglad) — nie ruszane.
+
 [AI-INFO] Jeśli terminal agenta nie może pobrać aktualnego `claude-zmiany.txt` z GitHuba, można użyć workflow `Promote Claude Changes`. Workflow działa na GitHubie: kopiuje `claude-zmiany.txt` do `szafki.jsx`, uruchamia build Vite jako walidację, regeneruje `standalone.html`, commituje wynik na gałąź i od razu publikuje GitHub Pages. To jest potrzebne, bo push wykonany przez `GITHUB_TOKEN` nie uruchamia kolejnego workflowu Pages automatycznie.
 
 ## Narożnik w L — co jest z czego liczone
@@ -430,7 +438,7 @@ koncach plus jedna sztuka co ustalony odcinek, czyli
 trojkat pod cokolem co 300 mm, trojkat pod blatem co 400 mm w dwoch rzedach,
 trojkat pod fixem ramienia co 400 mm w dwoch rzedach, wkret 4 x 30 do
 katownika co 200 mm, konfirmat co 200 mm. Zawiasy (takze 165 stopni i lamane
-90 stopni) licza sie przez `autoHinges(wysokosc, szerokosc)` — kazde skrzydlo
+90 stopni) licza sie przez `autoHinges(wysokosc, szerokosc, grubosc)` — kazde skrzydlo
 ze SWOJEJ wielkosci, wiec skrzydlo przy boku i skrzydlo na ramieniu moga miec
 rozna liczbe zawiasow. Nogi licza sie przez `legPlan`, a klipsy cokolu to
 `legs.xs.length`, czyli nozki przedniego rzedu.
@@ -608,8 +616,9 @@ tabela `GTV_PD_G00`. Suita `testy/klapy.mjs`.
 do tego czasu nie rozbudowywac bez pytania. PDF amortyzatora (PD-ECGDL)
 dotarl i jest w `GTV_PD_ECGDL`. Karta PD-ECGDL podaje zgodny zawias barkowy
 PD-MD-ZB, ale uzytkownik chce zwyklych zawiasow jak przy skrzydlach.
-[AI-TODO] Klapy — czego jeszcze nie ma: plan wiercen dla zawiasow klapy
-(na wiencu/dnie) i mocowan podnosnika na boku; kolizja otwartej klapy do gory
+[AI-INFO] (2026-10-16) Plan wiercen dla zawiasow klapy JEST („zawias klapy” w wiencu/
+wzmocnieniu albo w dnie) — poprzedni wpis byl nieaktualny (wytknal to audyt GPT).
+[AI-TODO] Klapy — czego jeszcze nie ma: mocowan podnosnika na boku w planie wiercen; kolizja otwartej klapy do gory
 z gorna szafka/sufitem i opadanej z blatem; wsparcie klapy w szafce z kilkoma
 poziomami w kontroli otwierania. Do omowienia z uzytkownikiem, gdy zacznie
 uzywac klap na projekcie.

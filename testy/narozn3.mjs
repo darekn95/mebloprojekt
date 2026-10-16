@@ -161,5 +161,55 @@ await seed(
 uw = await card(/Uwagi/).innerText();
 ok('bez blatu brak uwagi o blacie w rogu', !/Blat w narożniku/.test(uw), uw.slice(0, 200));
 
+console.log('\n== złącza do blatów w rogu (GTV EM-SBL) ==');
+/* Uzytkownik 2026-10-16: zlacza srubowe na kazdym styku blatow roboczych w
+   rogu — na styk i na lyzwe; 2 szt. przy blacie 600, 3 przy 1200; 9 zl za szt.
+   Liczy je ciag, ktory trzyma rog — styk nie wchodzi do zamowienia dwa razy. */
+const zlacza = () => page.evaluate(() => [...document.querySelectorAll('tr')]
+  .filter((tr) => /^Złącze do blatów śrubowe/.test(tr.innerText.trim()))
+  .map((tr) => tr.innerText.replace(/\s+/g, ' ').trim()));
+const ileZl = (rows) => rows.reduce((a, t) => a + Number((/(\d+) szt\.\s*$/.exec(t) || [])[1] || 0), 0);
+/* Lista produktow sumuje pozycje o tej samej nazwie — liczy sie wiec suma
+   sztuk; opis styku (na styk / lyzwa, z ktorym blatem) jest w specyfikacji. */
+await uklad({});
+let zl = await zlacza();
+console.log('     ' + zl.join('  //  '));
+ok('róg na styk, blat 600: 2 złącza', ileZl([...new Set(zl)]) === 2, zl.join(' | '));
+await uklad({ cut: 'skos' });
+zl = await zlacza();
+ok('łyżwa: też 2 złącza', ileZl([...new Set(zl)]) === 2, zl.join(' | '));
+await seed(
+  [RUN('c1', 'A'), RUN('c2', 'B', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } }),
+    RUN('c3', 'C', { corner: { of: 'c2', at: 'end', owner: 'of', clear: 0 } })],
+  [CAB('A1', 900, 'c1'), CAB('B1', 900, 'c2'), CAB('C1', 900, 'c3')]);
+zl = await zlacza();
+ok('U: dwa rogi — 4 złącza (po 2 na róg, żaden styk podwójnie)', ileZl([...new Set(zl)]) === 4, [...new Set(zl)].join(' | '));
+// blat glebszy niz 600 (z arkusza 1200) — 3 zlacza
+const CABg = (name, W, runId) => { const c = CAB(name, W, runId); c.cab.D = 700; return c; };
+await seed([RUN('c1', 'Ściana A', { D: 700 }), RUN('c2', 'Ściana B', { D: 700, corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })],
+  [CABg('A1', 800, 'c1'), CABg('A2', 900, 'c1'), CABg('B1', 900, 'c2')]);
+zl = await zlacza();
+ok('blat z arkusza 1200: 3 złącza', ileZl([...new Set(zl)]) === 3, zl.join(' | '));
+// prosty ciag dluzszy niz arkusz blatu (4100) — blat w dwoch kawalkach, jedno laczenie
+await seed([RUN('c1', 'Ściana A')], [CAB('A1', 900, 'c1'), CAB('A2', 900, 'c1'), CAB('A3', 900, 'c1'), CAB('A4', 900, 'c1'), CAB('A5', 900, 'c1')]);
+b = await blaty();
+zl = await zlacza();
+ok('prosty ciąg 4500 mm: blat w 2 kawałkach, 2 złącza na łączeniu', b.length >= 1 && ileZl([...new Set(zl)]) === 2, `${b.join(' | ')} // ${zl.join(' | ')}`);
+await seed([RUN('c1', 'Ściana A')], [CAB('A1', 900, 'c1'), CAB('A2', 600, 'c1')]);
+ok('prosty ciąg z jednego kawałka: bez złączy', !(await zlacza()).length, (await zlacza()).join(' | '));
+// wycena: 9 zl za sztuke
+await uklad({});
+const wyc = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Wycena/ }) }).first();
+if (await wyc.count()) { await wyc.locator('h2').first().click(); await page.waitForTimeout(400); }
+const cenaZl = await page.evaluate(() => { const sec = [...document.querySelectorAll('section')].find((x) => /^Wycena/.test(x.querySelector('h2')?.textContent || ''));
+  const tr = sec && [...sec.querySelectorAll('tr')].find((r) => /Złącze do blatów śrubowe/.test(r.textContent));
+  return tr ? [...tr.querySelectorAll('input')].map((i) => i.value).join(' ') + ' ' + tr.textContent : null; });
+ok('wycena: 2 złącza po 9 zł = 18 zł', !!cenaZl && /2 szt\.\s*18[,.]00/.test(cenaZl), cenaZl);
+// blat z plyty 18 mm — bez zlaczy
+const CAB18 = (name, W, runId) => { const c = CAB(name, W, runId); c.cab.top.material = 'board'; return c; };
+await seed([RUN('c1', 'Ściana A'), RUN('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })],
+  [CAB18('A1', 800, 'c1'), CAB18('B1', 900, 'c2')]);
+ok('blat z płyty 18 mm: bez złączy do blatów', !(await zlacza()).length, (await zlacza()).join(' | '));
+
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

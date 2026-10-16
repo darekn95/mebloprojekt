@@ -247,5 +247,25 @@ await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
 r = await czytaj();
 console.log('   ' + r.uwagi.split('\n').filter((l) => /szuflada/.test(l)).join('\n   ').slice(0, 400));
 
+console.log('\n== za niski front i za mało luzu naraz: jeden przycisk, który usuwa oba błędy (audyt GPT B1) ==');
+/* 600 × 720 × 560, wieniec, 3 szuflady, dolna recznie 238: front 237 jest za niski
+   na 238, a nad skrzynka brakuje luzu. Przycisk „za niski front” dawal 210,
+   po ktorym zostawal blad luzu (1 mm) — teraz obie uwagi biora bok, ktory
+   spelnia wszystko (178), a przycisk jest jeden. */
+{
+  const cab = { name: 'S', W: 600, H: 720, D: 560, plinth: { on: true, height: 100, mode: 'under', setback: 0 }, legs: { on: true, height: 100 },
+    levels: [{ h: null, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 238 }, { h: 'auto' }, { h: 'auto' }] }] }] };
+  await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
+    { name: 'B1', active: 0, prices: {}, runs: [], items: [{ cab, offset: 0 }] });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
+  const karta = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi/ }) }).first();
+  const przyciski = await karta.getByRole('button', { name: /^Zmień bok szuflady na \d+ mm$/ }).allInnerTexts();
+  ok('jeden przycisk niższego boku: 178 mm (nie 210)', przyciski.length === 1 && przyciski[0] === 'Zmień bok szuflady na 178 mm', przyciski.join(' / '));
+  await karta.getByRole('button', { name: 'Zmień bok szuflady na 178 mm' }).first().click(); await page.waitForTimeout(1500);
+  const u = await karta.innerText();
+  ok('po kliknięciu: żadnego błędu przy szufladzie 1', !/szuflada 1: (front \d+ mm, a minimum|skrzynka z bokiem|nad bokiem skrzynki)/.test(u),
+    u.split('\n').filter((l) => /szuflada 1:/.test(l)).join(' / ').slice(0, 240));
+}
+
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

@@ -124,8 +124,9 @@ f = await cutRows(/^Formatki do zamówienia$/);
 ok('wolnostojąca ma własny cokół', f.some((r) => /^Cokół \|/.test(r)), f.filter((r) => /Cokół/.test(r)).join(' // '));
 
 console.log('\n== 3. uwagi z innych szafek widać z bieżącej ==');
-// B ma inną wysokość — ostrzeżenie siedzi przy B, patrzymy z A
-await seed([K('A'), K('B', { H: 900 })], { H: 720, D: 500, plinth: PL() });
+// B ma inną wysokość — ostrzeżenie siedzi przy B, patrzymy z A. 740, nie 900:
+// front 900 ma wg tabeli GTV 3 zawiasy, a srodkowy trafia w polke (osobne ostrzezenie)
+await seed([K('A'), K('B', { H: 740 })], { H: 720, D: 500, plinth: PL() });
 n = await notes();
 ok('przy A nie ma ostrzeżenia o wysokości', !n.some((x) => /Wysokość .* nie zgadza/.test(x.txt)),
   n.map((x) => x.txt.slice(0, 40)).join(' // '));
@@ -149,7 +150,7 @@ console.log('\n== klik w uwagę przełącza na tamtą szafkę ==');
 await card(/^Uwagi$/).getByRole('button', { name: /B —/ }).click();
 await page.waitForTimeout(1100);
 n = await notes();
-ok('jesteśmy w B i widzimy jej ostrzeżenie', n.some((x) => /Wysokość 900 mm nie zgadza/.test(x.txt)),
+ok('jesteśmy w B i widzimy jej ostrzeżenie', n.some((x) => /Wysokość 740 mm nie zgadza/.test(x.txt)),
   n.map((x) => x.txt.slice(0, 40)).join(' // '));
 ok('teraz sekcja pokazuje brak uwag gdzie indziej', !n.some((x) => /^[×!]\s*A\s*—/.test(x.txt.replace(/\s+/g, ' '))),
   n.map((x) => x.txt.slice(0, 40)).join(' // '));
