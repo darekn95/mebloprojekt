@@ -83,6 +83,8 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Blat roboczy / Blat ciągu / Podział blatu | `run.worktop`, `runTop`, `worktopSpans`, `runTopPanels` |
 | Blat w narożniku (przechodzi / dojeżdża / łyżwa) | `run.corner.top`, `run.corner.cut`; `projectLayout` → `topSpan.przez0/przez1` (czyj blat idzie przez róg); `runTop` skraca dojeżdżający do głębokości przechodzącego (`rt.depth`, z docinką arkusza) |
 | Złącze do blatów śrubowe (produkt) | `runTopZlacza(project, run)` w `projectParts` → okucia pozycji „Blat — ciąg”: łączenia kawałków blatu w ciągu (`rt.lens.length − 1`) i róg — liczy go ciąg, który trzyma róg (`run.corner`), gdy oba blaty robocze (`matKey` „worktop”); na styk `zlaczNaStyk(gl)`: 2 szt. przy blacie 600, 3 przy głębszym (arkusz 1200); styk i łyżwa; `ZLACZE_BLATU`, cena `DEFAULT_HW_PRICES` 9 zł |
+| PDF rozkrój — „Arkusz (do rozkroju)” | `ReportCutPlan`: nagłówek strony tylko z rzazem (`KERF`), format arkusza każdego materiału `arkuszOpis(g)` (`g.arkusz` do zamówienia, `g.sheetW/sheetH` po okrawaniu) w tabeli i nad rysunkami; nagłówek materiału z pierwszym rzędem arkuszy w jednym `rp-keep` (`data-el="rozkroj-material"`) |
+| dymek pola „zawiasy” | `ZAWIASY_ZASADA` — opis tabeli GTV i zasady klapy; zmieniasz progi `ZAWIASY_GTV` — popraw i jego |
 | „Zawiasy przesunięte” (PDF) / „Dopisz do notatki montażowej” | `geo.zawiasyMontaz` (z `hingePositions(...).moved`, `co` = z czym kolizja) → linia na stronie szafki w `ReportSheet` (`data-el="notatka-zawiasy"`); przy ostrzeżeniu „zawias przesunięty” akcja `notatka:<tekst w encodeURIComponent>` → `runFix` dopisuje do `cab.note` (już dopisana — bez przycisku) |
 | Wieszanie ciągu | `run.hangerMode` („listwa" / „haczyki") |
 
@@ -454,7 +456,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `otwier` | kolizje przy otwieraniu skrzydeł |
 | `uwagiptak` | odhaczanie uwag |
 | `migr` / `reload` | migracja starych projektów, przeładowanie |
-| `arkusz` / `cutplan` / `fit` / `fitall` | mieszczenie się w arkuszu i rozkrój |
+| `arkusz` / `cutplan` / `fit` / `fitall` | mieszczenie się w arkuszu i rozkrój; `cutplan` też PDF rozkroju (nagłówek, kolumna arkusza, nagłówek materiału z rysunkiem, „N szafek”, złącza blatu w produktach projektu) |
 | `drobne` | luzy domyślne, nazwa uchwytu, dekor, wkręt do pleców |
 | `stdfull` / `stdnew` | wersja standalone (ścieżka GitHub Pages) |
 

@@ -123,7 +123,8 @@ const ROZKROJ_ZWLOKA_DUZY = 5000;
 const ROZKROJ_DUZY = 40;
 
 // zasada liczby zawiasow — podpowiedz przy polu „zawiasy” drzwi (przeniesiona z listy produktow)
-const ZAWIASY_ZASADA = "Liczba zawiasów — puste liczy automatycznie: dwa na skrzydło, trzy dopiero przy szerokości powyżej 500 mm i wysokości powyżej 1400 mm, cztery powyżej 2000 mm; wąskie drzwi zawsze dwa.";
+// opis w dymku pola „zaw.” — te same progi co `ZAWIASY_GTV` (audyt GPT 2026-10-16, N1: zostal stary opis)
+const ZAWIASY_ZASADA = "Liczba zawiasów — puste liczy automatycznie wg tabeli GTV: większa z liczb z wysokości frontu (2 do 750 mm, 3 do 1500, 4 do 2100, 5 do 2500) i z jego wagi (do 6 / 12 / 17 / 20 kg), front do 600 mm szerokości. Klapa: 2, powyżej 900 mm szerokości 3.";
 // powierzchnia w podsumowaniach: mala (np. wstawka 720 × 60 = 0,04 m²) z dwoma miejscami, zero pomijamy
 const m2Fmt = (v) => (v < 1 ? (Math.round(v * 100) / 100).toFixed(2).replace(/0$/, "") : fmt(v));
 
@@ -595,11 +596,11 @@ const HINGE_H = 55; // wysokosc
 const HINGE_W = 20; // szerokosc na boku
 const HINGE_D = 80; // glebokosc zabudowy
 const HINGE_REF = 100; // referencyjny odstep srodka od krawedzi frontu
-/* 3. i kolejny zawias dokladamy dopiero, gdy odstep miedzy srodkami
-   przekracza tyle (uzytkownik 2026-10-16) — tak wychodzi z automatu drzwi:
-   3 zawiasy od 1400 mm, 4 od 2000 mm. Przy 3+ zawiasach gesciej — ostrzezenie
-   „za duzo zawiasow”, dla drzwi i klap. Liczone na rozstawie nominalnym
-   (HINGE_REF od krawedzi, reszta rowno), nie po przesunieciu przy polce. */
+/* Klapa: 3. i kolejny zawias ma sens dopiero, gdy odstep miedzy srodkami
+   przekracza tyle (uzytkownik 2026-10-16). Przy 3+ zawiasach gesciej —
+   ostrzezenie „za duzo zawiasow”. Liczone na rozstawie nominalnym (HINGE_REF
+   od krawedzi, reszta rowno), nie po przesunieciu przy polce. Drzwi licza sie
+   z tabeli GTV (`zawiasyGtv`) i z nia porownuja liczbe wpisana recznie. */
 const ZAWIAS_MAX_ODSTEP = 600;
 // ile zawiasow wystarczy na krawedzi `dl` przy odstepie do ZAWIAS_MAX_ODSTEP
 const zawiasowWystarczy = (dl) => Math.max(2, Math.ceil((dl - 2 * HINGE_REF) / ZAWIAS_MAX_ODSTEP) + 1);
@@ -13259,6 +13260,14 @@ function PrintReport({ project }) {
   );
 }
 
+/* format arkusza grupy rozkroju: do zamowienia i — gdy inne — po okrawaniu */
+const arkuszOpis = (g) => {
+  const a = g.arkusz || { w: SHEET_W, h: SHEET_H };
+  const uzyt = g.sheetW && (Math.round(g.sheetW) !== Math.round(a.w) || Math.round(g.sheetH) !== Math.round(a.h))
+    ? ` (po okrawaniu ${fmt(g.sheetW)} × ${fmt(g.sheetH)} mm)` : "";
+  return `${fmt(a.w)} × ${fmt(a.h)} mm${uzyt}`;
+};
+
 /* rozkroj na arkuszach — ostatnie strony zestawienia */
 function ReportCutPlan({ project, projectName }) {
   const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
@@ -13294,15 +13303,18 @@ function ReportCutPlan({ project, projectName }) {
     <section className="rp-page">
       <div style={{ borderBottom: "2px solid #292524", marginBottom: 8, paddingBottom: 4 }}>
         <strong style={{ fontSize: "13pt" }}>{projectName}</strong>
+        {/* Kazdy material ma swoj arkusz (blat 4100 × 600/1200) — format idzie do
+            wiersza tabeli i nad rysunki, a nie do wspolnego naglowka (audyt GPT
+            2026-10-16: naglowek „2800 × 2100” stal tez nad blatem). */}
         <div style={{ fontSize: "9pt", color: "#57534e" }}>
-          Rozkrój na płycie — arkusz {fmt(SHEET_W)} × {fmt(SHEET_H)} mm, po okrawaniu
-          {" "}{fmt(USABLE_W)} × {fmt(USABLE_H)} mm, rzaz {KERF} mm
+          Rozkrój na płycie — rzaz {KERF} mm; arkusz każdego materiału w tabeli
         </div>
       </div>
       <table className="rp-tbl">
         <thead>
           <tr>
             <th>Płyta</th>
+            <th>Arkusz (do rozkroju)</th>
             <th className="num">Arkuszy</th>
             <th className="num">Wykorzystanie</th>
             <th className="num">Cięć</th>
@@ -13313,6 +13325,7 @@ function ReportCutPlan({ project, projectName }) {
           {groups.map((g, i) => (
             <tr key={i}>
               <td>{g.matLabel}</td>
+              <td>{arkuszOpis(g)}</td>
               <td className="num">{g.sheets.length}</td>
               <td className="num">{fmt(g.usedPct)}%</td>
               <td className="num">{g.cuts}</td>
@@ -13321,21 +13334,31 @@ function ReportCutPlan({ project, projectName }) {
           ))}
         </tbody>
       </table>
-      {groups.map((g, gi) => (
-        <div key={gi} style={{ marginTop: 10 }}>
-          <div style={{ fontSize: "10pt", fontWeight: 600, marginBottom: 4 }}>
-            {g.matLabel}{g.arkusz ? ` — arkusz ${fmt(g.arkusz.w)} × ${fmt(g.arkusz.h)} mm` : ""}
+      {groups.map((g, gi) => {
+        const rysunek = (sh, i) => (
+          <div key={i} className="rp-keep" style={{ border: "1px solid #e7e5e4", padding: 6 }}>
+            <SheetPlan sheet={sh} sheetW={g.sheetW} sheetH={g.sheetH}
+              index={i} total={g.sheets.length} />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {g.sheets.map((sh, i) => (
-              <div key={i} className="rp-keep" style={{ border: "1px solid #e7e5e4", padding: 6 }}>
-                <SheetPlan sheet={sh} sheetW={g.sheetW} sheetH={g.sheetH}
-                  index={i} total={g.sheets.length} />
+        );
+        const siatka = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 };
+        /* Naglowek materialu w jednym bloku z pierwszym rzedem rysunkow — inaczej
+           zostawal sam na dole strony, a jego arkusze zaczynaly nastepna
+           (audyt GPT 2026-10-16: „HDF” na koncu strony 15). */
+        return (
+          <div key={gi} style={{ marginTop: 10 }}>
+            <div className="rp-keep" data-el="rozkroj-material">
+              <div style={{ fontSize: "10pt", fontWeight: 600, marginBottom: 4 }}>
+                {g.matLabel} — arkusz {arkuszOpis(g)}
               </div>
-            ))}
+              <div style={siatka}>{g.sheets.slice(0, 2).map((sh, i) => rysunek(sh, i))}</div>
+            </div>
+            {g.sheets.length > 2 && (
+              <div style={{ ...siatka, marginTop: 8 }}>{g.sheets.slice(2).map((sh, i) => rysunek(sh, i + 2))}</div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </section>
   );
 }
@@ -13383,7 +13406,7 @@ function ReportProjectSheet({ project, projectName, tytul = null, tytulProduktow
       <div style={{ borderBottom: "2px solid #292524", marginBottom: 8, paddingBottom: 4 }}>
         <strong style={{ fontSize: "13pt" }}>{projectName}</strong>
         <div style={{ fontSize: "9pt", color: "#57534e" }}>
-          {tytul || `Formatki całego projektu — ${project.items.length} szafki`}
+          {tytul || `Formatki całego projektu — ${project.items.length} ${plural(project.items.length, "szafka", "szafki", "szafek")}`}
         </div>
       </div>
       <table className="rp-tbl">

@@ -126,6 +126,52 @@ ok('więcej formatek → arkusze', !!txt2 && txt2.svgs > 0, txt2 ? txt2.svgs + '
   const plyta = linie.find((l) => !/^Blat roboczy:|^HDF/.test(l)) || '';
   ok('blat roboczy w zamówieniu: arkusze 4100×600', /arkusz\S* 4100×600/.test(blat), blat || linie.join(' / '));
   ok('płyta meblowa dalej 2800×2100', /arkusz\S* 2800×2100/.test(plyta), plyta);
+
+  /* PDF (audyt GPT, kontrola PDF 2026-10-16): naglowek rozkroju bez wspolnego
+     „arkusz 2800 × 2100” — format w wierszu kazdego materialu; naglowek
+     materialu w jednym bloku z pierwszymi rysunkami (nie zostaje sam na dole
+     strony); „N szafek”; zlacza blatu w produktach calego projektu. */
+  await page.evaluate(() => { window.__pdf = null; window.print = () => {
+    const root = document.querySelector('.print-only');
+    const secs = [...root.querySelectorAll('section.rp-page')].map((s) => s.innerText);
+    const rozSec = [...root.querySelectorAll('section.rp-page')].find((x) => /Rozkrój na płycie/.test(x.textContent));
+    const roz = rozSec ? rozSec.firstElementChild.textContent : '';
+    const tab = [...root.querySelectorAll('table')].find((t) => /Arkuszy/.test(t.querySelector('thead')?.textContent || ''));
+    window.__pdf = { secs, roz,
+      wiersze: tab ? [...tab.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent.trim())) : [],
+      bloki: [...root.querySelectorAll('[data-el="rozkroj-material"]')].map((b) => ({ tytul: b.firstElementChild.textContent, rysunki: b.querySelectorAll('svg').length })) }; }; });
+  await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click(); await page.waitForTimeout(1200);
+  const pdf = (await page.evaluate(() => window.__pdf)) || { secs: [], roz: '', wiersze: [], bloki: [] };
+  const naglowek = pdf.roz;
+  ok('PDF: nagłówek rozkroju bez wspólnego „arkusz 2800 × 2100”', !!naglowek && !/2800 × 2100/.test(naglowek), naglowek);
+  const wBlat = pdf.wiersze.find((r) => /^Blat roboczy/.test(r[0])) || [], wPlyta = pdf.wiersze.find((r) => !/^Blat roboczy|^HDF/.test(r[0])) || [];
+  ok('PDF: w tabeli blat roboczy z arkuszem 4100 × 600 mm', wBlat[1] === '4100 × 600 mm', JSON.stringify(wBlat));
+  ok('PDF: płyta z arkuszem 2800 × 2100 mm (po okrawaniu …)', /^2800 × 2100 mm \(po okrawaniu [\d.,]+ × [\d.,]+ mm\)$/.test(wPlyta[1] || ''), JSON.stringify(wPlyta));
+  ok('PDF: nagłówek każdego materiału w bloku z pierwszym rysunkiem', pdf.bloki.length === pdf.wiersze.length && pdf.bloki.every((b) => b.rysunki >= 1 && / — arkusz \d/.test(b.tytul)),
+    JSON.stringify(pdf.bloki));
+  const zbior = pdf.secs.find((t) => /Formatki całego projektu/.test(t)) || '';
+  ok('PDF: „Formatki całego projektu — 2 szafki”', /Formatki całego projektu — 2 szafki/.test(zbior), (/Formatki całego projektu — [^E]*/.exec(zbior) || [''])[0]);
+}
+
+// PDF: zlacza blatu w „Produkty całego projektu” (kontrola PDF: P2 — w obecnym kodzie sa)
+{
+  const PL = { on: true, height: 100, mode: 'under', setback: 0 };
+  const cab = (n, runId, W = 900) => ({ cab: { name: n, W, H: 720, D: 560, plinth: PL, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null }] }] }, runId, offset: 0 });
+  const RUN = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null, ...o });
+  await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); }, { name: 'P2', active: 0, prices: {},
+    runs: [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })],
+    items: [cab('A1', 'c1'), cab('A2', 'c1'), cab('A3', 'c1'), cab('A4', 'c1'), cab('A5', 'c1'), cab('B1', 'c2')] });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1500);
+  await page.evaluate(() => { window.__prod = null; window.print = () => {
+    const sec = [...document.querySelectorAll('.print-only section.rp-page')].find((s) => /Produkty całego projektu/.test(s.innerText));
+    const tabs = sec ? [...sec.querySelectorAll('table')] : [];
+    window.__prod = tabs.length ? [...tabs[tabs.length - 1].querySelectorAll('tbody tr')].map((tr) => tr.innerText.replace(/\s+/g, ' ').trim()) : []; }; });
+  await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click(); await page.waitForTimeout(1200);
+  const prod = (await page.evaluate(() => window.__prod)) || [];
+  const zl = prod.filter((r) => /^Złącze do blatów śrubowe/.test(r));
+  // rog: 2 szt.; Sciana 1 ma 4500 mm blatu — 2 kawalki, jedno laczenie: 2 szt.
+  const suma = zl.reduce((a, r) => a + Number((/(\d+) szt\.$/.exec(r) || [])[1] || 0), 0);
+  ok('PDF: złącza do blatów w „Produkty całego projektu” (róg 2 + łączenie w ciągu 2)', suma === 4, zl.join(' / ') || prod.slice(0, 4).join(' / '));
 }
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');

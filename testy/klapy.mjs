@@ -175,6 +175,9 @@ for (const [H, zaw, opis] of [[720, 2, 'front 714 mm'], [1000, 3, 'front 994 mm 
   ok(`drzwi ${opis}: ${zaw} zawiasy z automatu, bez ostrzeżenia o zawiasach`, ilosc(hw, /^Zawias/) === zaw && !/zawiasów wg tabeli GTV|poza tabelą zawiasów/.test(u),
     `zamówienie ${ilosc(hw, /^Zawias/)}; ${linieZaw(u)}`);
 }
+// dymek pola „zawiasy” opisuje te same progi (audyt GPT N1: zostal stary opis 1400 / 2000 mm)
+const dymek = await page.evaluate(() => [...document.querySelectorAll('[title^="Liczba zawiasów"]')].map((x) => x.getAttribute('title')));
+ok('dymek „Liczba zawiasów” mówi o tabeli GTV, bez starych progów 1400 / 2000 mm', dymek.length > 0 && dymek.every((t) => /tabeli GTV/.test(t) && /750/.test(t) && !/1400|2000 mm|zawsze dwa/.test(t)), dymek.join(' / '));
 await seed(DRZWI(500, 720, { hinges: [3] }));
 u = await uwagi();
 ok('drzwi 714 mm z 3 zawiasami: „za dużo zawiasów wg tabeli GTV — 3 zamiast 2 (front 496 × 714 mm, ok. 4,3 kg)”', /skrzydło 1: za dużo zawiasów wg tabeli GTV — 3 zamiast 2 \(front 496 × 714 mm, ok\. 4,3 kg\)/.test(u), linieZaw(u));
