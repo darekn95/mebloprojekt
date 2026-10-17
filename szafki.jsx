@@ -5580,24 +5580,27 @@ const runLayout = (groups, ref = null) => {
     const c = n.corner;
     const przez = c.top === "self" ? n : c.top === "of" ? p : n.pair.wchodzi;
     const skos = c.cut === "skos";
-    const ust = (r, atStart) => {
+    const ust = (r, atStart, drugi) => {
       // na lyzwe oba kawalki dochodza do rogu, na styk tylko ten przechodzacy
       const d = skos || r === przez ? 0 : przez.depth;
       /* Dojezdzajacy blat konczy sie na krawedzi przechodzacego, a ten jest
          glebszy od szafek o front, wysieg i docinke arkusza. Te glebokosc zna
          dopiero `runTop`, wiec zostawiamy mu, czyj blat idzie przez rog. */
       const przezId = d ? przez.id : null;
-      if (atStart) { r.top.s = d; r.top.skosS = skos; r.top.corS = true; r.top.przezS = przezId; }
-      else { r.top.e = r.len - d; r.top.skosE = skos; r.top.corE = true; r.top.przezE = przezId; }
+      // na lyzwe — z kim (glebokosc drugiego blatu wyznacza, gdzie konczy sie skos przy licu)
+      const zKim = skos ? drugi.id : null;
+      if (atStart) { r.top.s = d; r.top.skosS = skos; r.top.corS = true; r.top.przezS = przezId; r.top.skosZS = zKim; }
+      else { r.top.e = r.len - d; r.top.skosE = skos; r.top.corE = true; r.top.przezE = przezId; r.top.skosZE = zKim; }
     };
-    ust(n, c.at === "end");
-    ust(p, c.at !== "end");
+    ust(n, c.at === "end", p);
+    ust(p, c.at !== "end", n);
   });
   // ten sam odcinek, ale liczony od lewej krawedzi pierwszej szafki ciagu
   info.forEach((n) => {
     n.topSpan = { x0: n.top.s - n.lead, x1: n.top.e - n.lead,
       skos0: n.top.skosS, skos1: n.top.skosE, cor0: n.top.corS, cor1: n.top.corE,
       przez0: n.top.przezS || null, przez1: n.top.przezE || null,
+      skosZ0: n.top.skosZS || null, skosZ1: n.top.skosZE || null,
       glPrzez0: n.top.s, glPrzez1: n.len - n.top.e };
   });
 
@@ -7605,7 +7608,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         const skL = rt.skos0 && Math.abs(s.x0 - rt.x0) <= 1;
         const skP = rt.skos1 && Math.abs(s.x1 - (rt.x0 + rt.total)) <= 1;
         if (skL || skP)
-          plytaSkos(s.x0 + (skL ? rt.depth : 0), s.x1 - (skP ? rt.depth : 0), s.x0, s.x1,
+          plytaSkos(s.x0 + (skL ? rt.skosGl0 ?? rt.depth : 0), s.x1 - (skP ? rt.skosGl1 ?? rt.depth : 0), s.x0, s.x1,
             g.mount + rt.y, g.mount + rt.y + rt.th, przyScianie - rt.depth, przyScianie,
             kolB, true, Math.round(rt.depth / 2), "blat");
         else
@@ -11621,6 +11624,11 @@ const runTopLiczy = (project, run, bezRogu = false) => {
       : ramiona.length ? cabTopY(ramiona[0].cab.cab, ramiona[0].cab.geo) : 0,
     // konce ciete na 45 stopni — na formatce trzeba je zaznaczyc
     skos0: !!(ext && ext.skos0), skos1: !!(ext && ext.skos1),
+    /* Lyzwa przy licu konczy sie tam, gdzie zaczyna sie front drugiego blatu —
+       o jego glebokosc od rogu (przy roznych glebokosciach nie 45°, ale szew
+       sie schodzi). */
+    skosGl0: ext && ext.skos0 && ext.skosZ0 && !bezRogu ? (() => { const r2 = (project.runs || []).find((x) => x.id === ext.skosZ0); const t2 = r2 ? runTop(project, r2, true) : null; return t2 ? t2.depth : null; })() : null,
+    skosGl1: ext && ext.skos1 && ext.skosZ1 && !bezRogu ? (() => { const r2 = (project.runs || []).find((x) => x.id === ext.skosZ1); const t2 = r2 ? runTop(project, r2, true) : null; return t2 ? t2.depth : null; })() : null,
     /* Koniec blatu wolny = widoczny, do oklejenia (uzytkownik 2026-09-29: blat
        oklejany od zewnetrznej strony). Nie jest wolny w rogu (styk z drugim
        blatem albo sciana, do ktorej dochodzi przechodzacy) ani przy wyzszej
@@ -12478,19 +12486,26 @@ const worktopMsgs = (project, run) => {
           ? computeGeo(project.items[0].cab, project.items[0].mat).tf
           : defaultMaterials.front.thickness);
     // pas z samym ramieniem glebokosc bierze z ustawienia ciagu
+    // glebokosc samych korpusow (pole „Głębokość”) — wysuniecie z lica liczone osobno nizej
     const glebokosc = lvl && lvl.pod.length
-      ? Math.max(...lvl.pod.map((c) => Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0))))
+      ? Math.max(...lvl.pod.map((c) => Math.round(c.geo.carcassDepth)))
       : Math.max(0, Math.round(Number(run.D) || 0));
     // glebokosc szafek, przy ktorej arkusz 600 wystaje przed drzwi standardowe 10 mm
     const plecySz = lvl && lvl.pod.length ? Math.max(...lvl.pod.map((c) => c.geo.plecyZa || 0)) : 0;
     // front wpuszczany nie wychodzi przed korpus (audyt GPT N48)
-    const sugerowana = WORKTOP_DEPTHS[0] - WORKTOP_OVERHANG - (rt.przed ?? HINGE_PLAY + tf) - (rt.odSciany || 0) - plecySz;
+    /* Szafka wysunieta z lica wychodzi o tyle dalej od sciany — sugerowana
+       glebokosc dotyczy wszystkich szafek naraz, wiec odejmujemy najwieksze
+       wysuniecie (blat musi siegnac przed nia). */
+    const plecySz0 = lvl && lvl.pod.length ? Math.max(...lvl.pod.map((c) => c.geo.plecyZa || 0)) : 0;
+    const wysuniecie = Math.max(0, Math.round(rt.doLica - (rt.odSciany || 0) - plecySz0 - glebokosc - (rt.przed ?? HINGE_PLAY + tf)));
+    const sugerowana = WORKTOP_DEPTHS[0] - WORKTOP_OVERHANG - (rt.przed ?? HINGE_PLAY + tf) - (rt.odSciany || 0) - plecySz - wysuniecie;
     out.push({ level: "warn", text:
       `Blat wychodzi ${fmt(rt.depth)} mm — o ${fmt(nadmiar)} mm za dużo na arkusz `
       + `${fmt(WORKTOP_DEPTHS[0])} mm, a z arkusza ${fmt(WORKTOP_DEPTHS[1])} mm zostaje pas odpadu. `
       + `Szafki są za głębokie: przy ${fmt(sugerowana)} mm arkusz ${fmt(WORKTOP_DEPTHS[0])} mm `
       + `wystaje przed drzwi ${fmt(WORKTOP_OVERHANG)} mm`
       + (rt.odSciany ? ` (razem z odstępem ${fmt(rt.odSciany)} mm od ściany)` : "")
+      + (wysuniecie ? ` i z wysunięciem szafki o ${fmt(wysuniecie)} mm` : "")
       + `. Można też świadomie wziąć szerszy arkusz.`
       + (glebokosc > sugerowana ? `|rundepth:${sugerowana}` : "")
       + `|worktop:${WORKTOP_DEPTHS[1]}` });
@@ -12504,16 +12519,20 @@ const worktopMsgs = (project, run) => {
   if (naArkusz600) {
     const w = rt.wysiegArkusza;
     const gl = lvl && lvl.pod.length
-      ? Math.max(...lvl.pod.map((c) => Math.round(c.geo.carcassDepth - (Number(c.it.offset) || 0))))
+      ? Math.max(...lvl.pod.map((c) => Math.round(c.geo.carcassDepth)))
       : Math.max(0, Math.round(Number(run.D) || 0));
     // plecy przybijane stoja za korpusem i odsuwaja go od sciany (2026-09-28)
     const plecy = lvl && lvl.pod.length ? Math.max(...lvl.pod.map((c) => c.geo.plecyZa || 0)) : 0;
     const front = rt.doLica - (rt.odSciany || 0) - gl - plecy - HINGE_PLAY;
+    // szafka wysunieta z lica: blat siega do jej frontu — skladnik „wysunięcie” w wyliczeniu
+    const przedK = rt.przed ?? (HINGE_PLAY + (lvl && lvl.pod.length ? lvl.pod[0].geo.tf : 18));
+    const wysun = Math.max(0, Math.round(rt.doLica - (rt.odSciany || 0) - gl - plecy - przedK));
     const sklad = (rt.odSciany ? `${fmt(rt.odSciany)} mm od ściany + ` : "")
       + (plecy ? `plecy ${fmt(plecy)} + ` : "")
+      + (wysun ? `wysunięcie ${fmt(wysun)} + ` : "")
       + (rt.przed === 0
         ? `korpus ${fmt(gl)} (fronty wpuszczane, w obrysie korpusu) `
-        : `korpus ${fmt(gl)} + ${fmt(HINGE_PLAY)} mm luzu przy zawiasach + front ${fmt(front)} `)
+        : `korpus ${fmt(gl)} + ${fmt(HINGE_PLAY)} mm luzu przy zawiasach + front ${fmt(front - wysun)} `)
       + `= ${fmt(rt.doLica)} mm do lica drzwi`;
     // glebokosc szafek, przy ktorej arkusz wystaje przed drzwi dokladnie 10 mm
     const cel = gl + w - WORKTOP_OVERHANG;
