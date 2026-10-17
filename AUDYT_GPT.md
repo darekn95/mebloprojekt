@@ -1,3 +1,17 @@
+# Audyt godzinny — N66, 17.10.2026
+
+## N66 [P2] Blaty na różnych wysokościach dostają złącza i opis nieistniejącego styku
+
+**Odtworzenie:** dwa prostopadłe ciągi z blatami600×38 mm, cokół100; pierwszy H720/W1200 z prawidłowo ustawionym ślepym rogiem (fix611 przy rogu, jedne drzwi na resztę), drugi H720/W600. Następnie podnieść drugi korpus oraz wysokość jego ciągu do1000 mm. W obu szafkach brak wieńca i wzmocnienia pod blatem.
+
+**Wynik:** pierwszy blat w3D ma zakres Y820..858, drugi Y1100..1138. Różnica spodów280 mm, brak wspólnej krawędzi na tej samej wysokości. Zamówienie mimo to zawiera2 „Złącza do blatów śrubowe”, opis „róg z blatem C1, na styk —2 szt.”. `worktopMsgs` dla obu ciągów zwraca pustą listę. `runCornerMsgs` nie ostrzega o różnicy wysokości i zapewnia, że drugi blat dojeżdża do przedniej krawędzi pierwszego. Wariant kontrolny obu H720 ma rzeczywisty styk i te same2 złącza prawidłowo.
+
+**Oczekiwane:** złącza dodawać do rzeczywistych styków. Jeśli blaty mają się łączyć, wskazać niezgodność poziomów i możliwość wyrównania. Jeśli różne poziomy są zamierzone, nie opisywać ich jako jednego styku i nie doliczać do niego złączy. `runTopZlacza` sprawdza istnienie obu blatów i narożnika, ale nie ich położenie w pionie.
+
+Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Dowód lokalny `audit-hour-worktop-heights.json`, dwie wysokości, bryły, produkty i uwagi. Odrębne od B3 (wcześniejszy brak złączy): teraz występują mimo braku styku. Bez zmian aplikacji i projektu użytkownika.
+
+---
+
 # Audyt godzinny — N65, 17.10.2026
 
 ## N65 [P3] Blaty łączone na45° pozostają w3D pełnymi prostokątami i nakładają się na siebie
