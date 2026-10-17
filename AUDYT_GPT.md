@@ -1,3 +1,19 @@
+# Audyt godzinny — N67, 17.10.2026
+
+## N67 [P2] Indywidualny luz między szufladami może przekroczyć limit bez żadnej uwagi
+
+**Odtworzenie:** W600/H720/D560, dwie szuflady, bez wcięcia na palce, globalny `maxGap=5`. W kolumnie ustawić własny luz `gapBetween=100` zamiast2 mm.
+
+**Wynik:** fronty mają kolejno Y3/H307 iY410/H307, czyli między nimi faktycznie100 mm otwartego pasma. `computeGeo.msgs=[]`. Wariant kontrolny2 mm ma fronty Y3/H356 iY361/H356, bez uwag prawidłowo. Dodatkowa kontrola: zwykłe dwoje drzwi z własnym luzem100 przy tym samym maxGap5 daje błąd „między drzwi a drzwi jest100 mm luzu — o95 mm za dużo, granica5 mm”.
+
+**Przyczyna:** przy szufladach sprawdzany jest tylko luz<=0 i1 mm. Ogólna kontrola nadmiernego odstępu szuka następnego frontu na prawo i nie obejmuje frontów ułożonych pionowo. Kontrola globalnych pól gaps również nie obejmuje indywidualnego `rawCol.gapBetween`.
+
+**Oczekiwane:** przekroczenie przyjętego limitu luzu zgłaszać także między szufladami. Odróżnić celowy dostęp na palce (`fingerGrip`) od dodatkowego pustego pasma wynikającego z wpisanego luzu. To nie N31 (fałszywe zgłoszenie nad przegrodą) ani N38 (montaż wpuszczany per kolumna).
+
+Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Dowody lokalne `audit-hour-drawer-gap.json` i `audit-hour-door-gap-control.json`. Bez zmian aplikacji i projektu użytkownika.
+
+---
+
 # Audyt godzinny — N66, 17.10.2026
 
 ## N66 [P2] Blaty na różnych wysokościach dostają złącza i opis nieistniejącego styku
@@ -68,7 +84,7 @@ Odrębne od N62: tam wizualizacja3D pomija przesunięcie; tutaj zamówienie i de
 
 **Przyczyna:** transformacja `Assembly3D` używa `n.depth-p.z`, a bryły poszczególnych szafek nie dostają `c.offset`. Rzut z góry używa `n.depth-cd+c.offset`, kontrola otwierania `cdV1=n.depth+c.offset`. Należy uzgodnić położenie całej szafki (korpusu, wnętrza, frontów i okuć) we wszystkich widokach i kontrolach. Nie wystarczy przesunąć sam front.
 
-Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Dowód lokalny `audit-hour-offset3d.json`: trzy warianty i porównanie brył wizualizacji z bryłami kontroli kolizji. Bez zmian aplikacji i projektu użytkownika.
+Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Dowód lokalny `audit-hour-offset3d.json`: trzy warianty i porównanie brył wizualizacji z bryłami kontroli kolizji. Dodatkowo potwierdzono w działającym UI na Szafce5 projektu użytkownika: po zmianie offset0→100 cały SVG zabudowy3D pozostał identyczny (81558 znaków). Cofnięto zmianę do0 i przywrócono widok Szafka/Zamk. Dowód lokalny `N62-UI-offset-svg.json` zawiera oba odczyty rysunku. Bez zmian aplikacji i projektu użytkownika.
 
 ---
 
