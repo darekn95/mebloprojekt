@@ -1,3 +1,61 @@
+# Kolejna seria 10-minutowa — N49–N54, 17.10.2026
+
+Start 12:16:24 czasu polskiego, limit 10 minut. Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Pominięto N1–N48 i znane wpisy BLEDY.md. Sześć nowych zgłoszeń odtworzonych na rzeczywistych funkcjach źródłowych, na lokalnych wariantach projektu. To testy geometrii, zamówienia i planów wierceń; nie pełny przebieg UI/PDF. Projekt użytkownika i kod aplikacji nie były zmieniane.
+
+Wspólna baza odtworzenia: przez `utworzCiagZRogiem` utworzyć narożnik L, W900/H720, długość ramienia 640 mm, płyty 18 mm, plecy HDF 3 mm, jedną półkę w polu przy ramieniu. Szczegóły wariantów poniżej. Nie załączono prywatnego JSON projektu.
+
+## N49 [P2] Półka ramienia na konfirmatach nie ma przypisanych mocowań ani wierceń
+
+**Odtworzenie:** wybrać mocowanie półek `confirmat`; porównać z kołkami podporowymi i trójkątami.
+
+**Wynik:** `cornerArmParts` zamawia jedną półkę ramienia, ale konfirmaty ramienia obejmują tylko wieniec i dno do boku (6 szt.). Nie ma pozycji mocowania półki. `wierceniaDodatkowe` nie generuje jej otworów. Przy kołkach/trójkątach pojawiają się osobne 4 mocowania i odpowiedni plan. Dodatkowo zwykły plan korpusu zawiera „Bok prawy”, „konfirmat — półka”, Y360, głębokości 50/270/489, chociaż `postSide=right` usuwa prawy bok z formatek korpusu: istnieje tylko „Bok lewy”. Nie przypisujemy tych otworów do dowolnej innej płyty bez określenia rzeczywistego połączenia.
+
+**Oczekiwane:** określić i policzyć wykonalne mocowanie obu części półki L; wiercenia przypisać wyłącznie istniejącym płytom. Źródło: `cornerArmParts` (11220+) obsługuje półki tylko na pins/trojkaty; `wierceniaDodatkowe` (11405+).
+
+## N50 [P2] Uchwyt frontu ramienia jest rysowany, lecz nie trafia do zamówienia
+
+**Odtworzenie:** narożnik z otwieranym frontem ramienia i włączonymi uchwytami, zwykły front sąsiedniej szafki dwuskrzydłowy.
+
+**Wynik:** zamknięte `Assembly3D` ma 4 bryły oznaczone `uchwyt`: dwa uchwyty sąsiedniej szafki, jeden frontu korpusu narożnego i jeden ramienia. Zsumowane produkty całego projektu zawierają tylko 3 uchwyty. `cornerArmParts` dodaje front ramienia i zawiasy, lecz nie uchwyt.
+
+**Oczekiwane:** uchwyt ramienia uwzględniać w produktach i wycenie zgodnie z jego konfiguracją. To brak produktu, odrębny od N36 dotyczącego wysunięcia uchwytu klapy.
+
+## N51 [P2] Usunięte dno ramienia pozostaje w formatkach i planie wierceń
+
+**Odtworzenie:** zachować wieniec, ustawić oba połączenia dna na `none`.
+
+**Wynik:** `geo.hasBot=false`; w 3D znika dolna płyta ramienia. Pozostaje jedna płyta 622×18×560 mm zamiast dwóch. Zamówienie nadal zawiera „Wieniec i dno ramienia”, ilość 2, 622×560 mm. Plan nadal zawiera „konfirmat — dno ramienia” na Y9. Półka 622×542 mm była liczona osobno, nie została omyłkowo uznana za dno.
+
+**Oczekiwane:** formatki, połączenia i wiercenia ramienia respektują `hasBot` tak jak rysunek. `cornerArmParts` uzależnia ilość płyt wyłącznie od `armTop`; nie sprawdza dna. To odrębna ścieżka od N44, które dotyczyło mocowań pionowych przegród korpusu.
+
+## N52 [P2] Pełne plecy ramienia kolidują z półką; ich wysokość różni się między 3D a zamówieniem
+
+**Odtworzenie:** przy HDF 3 mm korpusu włączyć pełną płytę pleców ramienia (`corner.backBoard=true`), pozostałe płyty 18 mm.
+
+**Wynik:** półka nadal ma 622×542 mm, tak jak przy HDF. Bryła półki ma zakres Z od −545 do −3, pełne plecy od −18 do 0: zachodzenie na siebie na 15 mm, na całej szerokości półki 622 mm. Grubość pełnych pleców nie zastępuje `geo.tb` w głębokości półki. Dodatkowo zamówione plecy mają 1197×684 mm, lecz 3D pokazuje 1197×720×18 mm: różnica wysokości 36 mm.
+
+**Oczekiwane:** półka mieści się przed faktycznymi plecami; ta sama definicja wysokości pleców obowiązuje w 3D i formatkach. Nie jest to N27: tutaj wszystkie płyty mają 18 mm, a problem uruchamia osobna opcja pełnych pleców ramienia.
+
+## N53 [P2] Front ramienia z materiału sąsiedniej ściany ma w 3D złą grubość
+
+**Odtworzenie:** w obu szafkach wyłączyć „front z tej samej płyty co korpus”. Front korpusu narożnego 18 mm, front dawcy z sąsiedniej ściany kolejno 10, 12 i 16 mm; różne kolory ułatwiają identyfikację.
+
+**Wynik:** `frontRamienia` prawidłowo wybiera materiał sąsiada. Formatka ramienia 558×714 mm ma kolejno grubość 10/12/16 mm i właściwy kolor. Bryła frontu ramienia ma w każdym wariancie 558×714×18 mm. Kontrola z frontem dawcy 18 mm daje zgodność. `Assembly3D` używa `const tfA = c.geo.tf` (7086), czyli grubości frontu korpusu, zamiast wybranego materiału ramienia.
+
+**Oczekiwane:** grubość bryły i związana z nią geometria ramienia odpowiadają materiałowi zamawianej formatki. To nie powtórzenie N7: żadna z szafek nie ma włączonego `frontSameAsBoard`; błąd dotyczy pobrania materiału sąsiedniej ściany.
+
+## N54 [P3] Fronty „Skręcone 90°” nie zachowują sztywnego połączenia podczas otwierania
+
+**Odtworzenie:** ustawić narożnik „Skręcone 90°”, otwierać 3D do 30°, 60°, 90°. Wariant jest opisany w aplikacji jako dwa fronty skręcone na stałe pod kątem 90°, na zawiasach z jednej strony.
+
+**Wynik:** odległość środków obu płyt wynosi przy zamknięciu 352,765 mm, przy 30° 269,147 mm, przy 60° 322,227 mm, a przy 90° 451,611 mm. Środki obliczono z zakresów brył świata, osobno identyfikując front korpusu i ramienia kolorami oraz wymiarami. W sztywnym zespole odległość między dowolnymi dwoma punktami płyt musi być stała. Model obraca fronty niezależnie wokół różnych osi i nie odwzorowuje deklarowanego zespołu.
+
+**Oczekiwane:** dla skręconych frontów zastosować wspólny ruch sztywnego zespołu; nie kopiować niezależnego ruchu skrzydeł. Wniosek dotyczy wizualizacji ruchu. Na tej podstawie nie stwierdzamy wymaganej katalogowej liczby zawiasów ani rzeczywistego kąta kolizji.
+
+**Dowody lokalne tej serii:** `audit-corner-new-results.json`, `audit-corner-front-material-results.json`, `audit-corner-coupled-results.json`. Zachowano pełne wyniki wariantów oraz bryły do porównania. Poprzednie wpisy poniżej pozostają bez zmian.
+
+---
+
 # Kolejna seria 10-minutowa — N44–N48, 17.10.2026
 
 Start 11:46:03 czasu polskiego, limit 10 minut. Ponownie sprawdzony main: `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Pominięto znane N1–N43 i wpisy BLEDY.md. Pięć nowych zgłoszeń. Testy rzeczywistych funkcji źródłowych na lokalnych kopiach danych; bez zmian projektu użytkownika, nowych PDF i bez pełnego przebiegu testów UI. N45 dotyczy wykonalności planu połączeń i wymaga szczególnej weryfikacji montażowej przy poprawce.
