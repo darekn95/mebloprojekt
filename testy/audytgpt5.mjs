@@ -217,5 +217,38 @@ console.log('\n== N68: brak miejsca na prowadnicę ==');
   ok('oba fronty zostają w formatkach', /Front szuflady \| [^|]+ \| 356 \| 596 \| 2/.test((await rows(/^Formatki do zamówienia/)).join(' / ')));
 }
 
+console.log('\n== N38: kontrola otwierania wg montażu frontu szuflady ==');
+{
+  const ROG = { name: 'R', W: 1000, H: 720, D: 560, plinth: PL, handleOut: 30, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, fix: { side: 'right', w: 608, mode: 'overlay', support: false }, hinge: 'left' }] }] };
+  const kat = {};
+  for (const [k, fm, dm] of [['nakladana', 'overlay', 'inherit'], ['kolumnaWp', 'overlay', 'inset'], ['wpuszczana', 'inset', 'inherit']]) {
+    const B = { name: 'B', W: 600, H: 720, D: 560, plinth: PL, frontMode: fm, handleOut: 30, levels: [{ h: null, cols: [{ kind: 'drawers', drawerMode: dm, w: null, drawers: [{ h: null }, { h: null }] }] }] };
+    await seed(proj([{ cab: ROG, runId: 'c1' }, { cab: B, runId: 'c2' }], [RUN('c1', { worktop: false }), RUN('c2', { worktop: false, corner: { of: 'c1', at: 'end', owner: 'of', clear: 26 } })]));
+    await page.waitForTimeout(1500);
+    const m = (await uwagi()).match(/otworzy się tylko do ok\. (\d+)°/);
+    kat[k] = m ? Number(m[1]) : null;
+  }
+  ok('kolumna szuflad wpuszczana w szafce nakładanej liczy się jak wpuszczana', kat.kolumnaWp !== null && kat.kolumnaWp === kat.wpuszczana && kat.kolumnaWp !== kat.nakladana, JSON.stringify(kat));
+}
+
+console.log('\n== łyżwa przy blatach o różnej głębokości ==');
+{
+  const runs = [RUN('c1'), RUN('c2', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0, cut: 'skos' } })];
+  await seed(proj([{ cab: cab({ name: 'A', W: 900 }), runId: 'c1' }, { cab: cab({ name: 'B', W: 900, D: 400 }), runId: 'c2' }], runs));
+  await pick('Całość');
+  const bl = (await bryly('Ciąg')).filter((x) => x.tag === 'blat');
+  // dlugosc przedniej krawedzi kazdego blatu (przy licu): rozne konce skosu przy roznych glebokosciach
+  const przody = bl.map((x) => { const zf = Math.min(...x.v.map((q) => q.z)); const xs = x.v.filter((q) => Math.abs(q.z - zf) <= 1).map((q) => q.x);
+    const zs2 = x.v.filter((q) => Math.abs(q.z - zf) <= 1).map((q) => q.x); return Math.round(Math.max(...xs) - Math.min(...zs2)); });
+  ok('dwa blaty ścięte, szew się schodzi (krawędzie przy licu skrócone o głębokość drugiego)', bl.length === 2, JSON.stringify(przody));
+}
+
+console.log('\n== blat przy wysuniętej szafce: liczby w podpowiedzi ==');
+{
+  await seed(proj([{ cab: cab({ name: 'A' }), runId: 'c1' }, { cab: cab({ name: 'B' }), runId: 'c1', offset: 100 }], [RUN('c1')]));
+  const u = await uwagi();
+  ok('sugerowana głębokość uwzględnia wysunięcie (467 mm)', /przy 467 mm arkusz 600 mm wystaje przed drzwi 10 mm i z wysunięciem szafki o 100 mm/.test(u), linie(u, /Szafki są za głębokie/));
+}
+
 console.log('\nBLEDY STRONY:', errors.join(' | ') || '(brak)');
 await b.close();

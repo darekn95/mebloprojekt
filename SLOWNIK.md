@@ -36,7 +36,7 @@ narożnika przy froncie**, a nie wzmocnienie. To nie to samo co:
 | **blenda** | wąska płyta wypełniająca lukę | formatki „Blenda", „Blenda nad szafką" (`cab.topFiller`) |
 | **ciąg** | rząd szafek wzdłuż jednej ściany | `project.runs[]`, `runLayout`, `projectLayout` |
 | **piętro / tier** | dolny albo górny ciąg na tej samej ścianie | `run.tier`, `run.mountY`; w układzie górny ma `n.dolny` i **ramkę oraz numer ściany swojego dolnego**; w rogu górny ciąg, który się tam zaczyna, odsuwa się o głębokość górnego ciągu ściany wjeżdżającej (gdy ten sięga rogu) |
-| **łyżwa** | blat cięty na 45° w rogu | `rt.skos0`, `rt.skos1` |
+| **łyżwa** | blat cięty na 45° w rogu | `rt.skos0`, `rt.skos1`; głębokość drugiego blatu (do skosu w 3D) `rt.skosGl0`, `rt.skosGl1` |
 
 ---
 
@@ -95,7 +95,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | `rawCol.shelfMount` / `mocowanieKolumny(cab, rawCol)` / `c.shelfMount` | mocowanie półek kolumny: własne (`pins` / `confirmat` / `trojkaty`) albo jak szafka — pole „mocowanie” w kolumnie; plan wierceń, okucia i kołki na rysunkach per kolumna (N45) |
 | `polkimont:<poziom>:<kolumna>:<trojkaty\|pins>` / `przegrtr:<poziom>:<kolumna>` / `rawCol.divDolMount` | przyciski przy błędzie krzyżowych konfirmatów: półki kolumny na trójkątach / kołkach; dół przegrody (z prawej kolumny) na trójkątach — pole „przegroda z prawej: dół na trójkątach” |
 | `fixdel:<poziom>:<kolumna>` / `fixsup:<poziom>:<kolumna>[:<mm>]` | „Usuń element stały” / „Dobuduj wspornik pionowy” (4. pole — głębokość, przy szufladach długość NL); błąd fixu w kolumnie szuflad bez wspornika (N42) |
-| „→ poziom” (poziom zamiast półki) / „klapy zamiast drzwi” pod polem drzwi (`polkiNaPoziomy(i, ks, naKlapy)`, `data-el="polki-na-klapy"`) | półka staje się przelotową granicą poziomów (poziom z jedną kolumną); klapy — każda półka → nowy poziom, w każdym klapa do góry (komentarze 2026-10-17) |
+| „→ poziom” (poziom zamiast półki) / „klapy zamiast drzwi” pod polem drzwi (`polkiNaPoziomy(i, j, ks, naKlapy)`, `daSiePodzielic(lv)`, `data-el="polki-na-klapy"`) | półka kolumny `j` staje się przelotową granicą poziomów — dzieli cały poziom, inne kolumny dostają tyle półek, ile wypadło w paśmie; nie ma go w poziomie z kolumną szuflad; klapy (tylko jedna kolumna) — każda półka → nowy poziom, w każdym klapa do góry (komentarze 2026-10-17) |
 | `podswietl` / `kluczeFormatki(nazwa)` / `PODSWIETL` (`data-el="formatka-nazwa"`, `data-el="podswietlona"`) | klik w nazwę formatki w „Formatki do zamówienia” — widok 3D szafki, płyty tej formatki na niebiesko; drugi klik zdejmuje (komentarz 2026-10-17) |
 | `uwagiRozkroju(g)` / `PROG_ODPADU` (15 %) / `BLAT_BRAKUJE` (200 mm), `data-el="rozkroj-odpad"` | ostrzeżenia w „Rozkrój”: blat na arkusz za dużo, a brakuje do 200 mm; arkusz płyty wykorzystany poniżej 15 % (komentarze 2026-10-17) |
 | `SplitPicker` — `data-el="podzial-cokół"` / `"podzial-blat"` | podział cokołu i blatu zwinięty za polem wyboru, z podsumowaniem cięć; rozwinięty sam przy ręcznych cięciach (komentarz 2026-10-17) |
@@ -486,8 +486,8 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `audytgpt2` | audyt GPT 2026-10-17 N5–N21 i U3: HDF w kolorach, oklejanie wstawki, front z płyty korpusu, nóżki < 50, warianty nóżek i zawiasów, „Cokół”/„Blat” dodatkowe, plecy kolumn w 3D, dno szuflady 25, HDF przy wycięciu, blenda w 3D, kołki, kolor blatu, zawiasy w jednym miejscu, NL spoza listy, lustra, listwa i zawieszki w ciągu, nagłówek „Rysunek” |
 | `audytgpt3` | audyt GPT 2026-10-17 N22–N33 i podpowiedzi → ostrzeżenia: NL przy przeszkodzie, blat przy słupku, zabudowa przeszkody 3D (48 wariantów), głębokość z plecami / frontem, plecy z płyty półek, usunięcie szafki, cena okucia, nóżki i konfirmaty w płytkiej szafce, szczelina nad przegrodą, grubość ≤ 0 |
 | `audytgpt4` | audyt GPT 2026-10-17 N34–N48 (bez N45): lustro w masie frontu, wczytanie bieżącego zapisu, uchwyt klapy, przeszkoda przy zawiasach, montaż frontów szuflad w kolumnie, konfirmaty wspornika / półki / przegrody, wspornik a plecy, fix przy szufladach, kolory zabudowy 3D, górny ciąg nad słupkiem, rozwiązanie ciągu z górnym, blat przy frontach wpuszczanych, brak pola „Kąt otwarcia” |
-| `audytgpt5` | audyt GPT 2026-10-17 N42 (wspornik), N45, N49–N68: krzyżowe konfirmaty, fix w kolumnie szuflad, szafka w L (półki, uchwyt, dno, plecy, cokół), cofnięty cokół 3D, kolory półek 3D, wysunięta szafka (3D, blat), ciągi od prawej, blaty na łyżwę, złącza blatów a wysokość, luz szuflad, brak NL |
-| `komentarze1` | komentarze z artefaktu 2026-10-17: kolejność kart, podświetlenie formatki, półka → poziom / klapy, podział zwinięty, zużycie blatu i odpad arkusza, opis „Luz w rogu” |
+| `audytgpt5` | audyt GPT 2026-10-17 N38 (kąt w rogu przy luzie 26), N42 (wspornik), N45, N49–N68, łyżwa przy różnych głębokościach, podpowiedź blatu z wysunięciem szafki: krzyżowe konfirmaty, fix w kolumnie szuflad, szafka w L (półki, uchwyt, dno, plecy, cokół), cofnięty cokół 3D, kolory półek 3D, wysunięta szafka (3D, blat), ciągi od prawej, blaty na łyżwę, złącza blatów a wysokość, luz szuflad, brak NL |
+| `komentarze1` | komentarze z artefaktu 2026-10-17: kolejność kart, podświetlenie formatki, półka → poziom / klapy (też poziom z dwiema kolumnami; z szufladami — bez), podział zwinięty, zużycie blatu i odpad arkusza, opis „Luz w rogu” |
 | `drobne` | luzy domyślne, nazwa uchwytu, dekor, wkręt do pleców |
 | `stdfull` / `stdnew` | wersja standalone (ścieżka GitHub Pages) |
 

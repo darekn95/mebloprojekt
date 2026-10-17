@@ -15540,35 +15540,52 @@ export default function App() {
      kolumna — w kilku kolumnach polki innych kolumn nie dziela sie jednoznacznie.
      Ponizsze poziomy dostaja stala wysokosc swiatla (do spodu polki), ostatni
      zostaje jak byl. `naKlapy` — w kazdym nowym poziomie klapa do gory. */
-  const polkiNaPoziomy = (i, ks, naKlapy = false) => {
+  /* Polka -> granica poziomow (komentarze uzytkownika 2026-10-17). `j` — kolumna,
+     w ktorej kliknieto polke. Przy kilku kolumnach dzieli sie caly poziom na
+     tej wysokosci: inne kolumny dostaja swoje polki ponizej/powyzej (rowno),
+     a polka lezaca na tej samej wysokosci znika w przelotowej. Kolumna szuflad
+     nie da sie podzielic — wtedy przycisku nie ma (`daSiePodzielic`).
+     Nizsze poziomy dostaja stala wysokosc swiatla (do spodu polki), ostatni
+     zostaje jak byl. `naKlapy` — w kazdym nowym poziomie klapa do gory
+     (tylko poziom z jedna kolumna). */
+  const daSiePodzielic = (lvG) => !!lvG && lvG.cols.every((c) => c.kind !== "drawers");
+  const polkiNaPoziomy = (i, j, ks, naKlapy = false) => {
     const lvG = geo.levels[i];
-    if (!lvG || lvG.cols.length !== 1) return;
-    const cG = lvG.cols[0];
-    const ksS = [...new Set(ks)].filter((k) => cG.shelves[k]).sort((a, b) => a - b);
-    if (!ksS.length && !naKlapy) return;
+    if (!daSiePodzielic(lvG) || (naKlapy && lvG.cols.length !== 1)) return;
+    const cG = lvG.cols[j];
+    const ksS = [...new Set(ks)].filter((k) => cG && cG.shelves[k]).sort((a, b) => a - b);
+    if (!ksS.length) return;
+    const cieciaY = ksS.map((k) => cG.shelves[k].y);   // spod polek, ktore staja sie przelotowe
     editLevels((L) => {
       const raw = L[i];
-      const col = raw.cols[0];
-      const tg = col.shelfTargets || [null];
-      const granice = [-1, ...ksS, tg.length - 1];
-      let dol = lvG.y0;
-      const nowe = granice.slice(1).map((k, m) => {
-        const kp = granice[m];
-        const c2 = JSON.parse(JSON.stringify(col));
-        c2.shelfTargets = tg.slice(kp + 1, k + 1);
-        if (!c2.shelfTargets.length) c2.shelfTargets = [null];
-        const ostatni = m === granice.length - 2;
-        // wzmocnienia: dolne w najnizszym, reszta w najwyzszym; fix u gory tylko w najwyzszym
-        c2.rails = (col.rails || []).filter((r) => (r.pos === "bottom" ? m === 0 : ostatni));
-        if (col.fix && col.fix.side === "top" && !ostatni) delete c2.fix;
-        if (naKlapy) {
-          c2.kind = "doors"; c2.doors = 1; c2.klapa = "gora";
-          c2.shelfTargets = [null]; c2.hinges = []; c2.doorWidths = [];
-        }
-        const sh = ostatni ? null : cG.shelves[k];
-        const h = ostatni ? null : Math.round(sh.y - dol);
-        if (sh) dol = sh.y + geo.t;
-        return { ...JSON.parse(JSON.stringify({ ...raw, cols: [] })), h, cols: [c2] };
+      const n = cieciaY.length + 1;   // tyle nowych poziomow
+      const pasma = [...Array(n)].map((_, m) => [m === 0 ? lvG.y0 : cieciaY[m - 1] + geo.t, m === n - 1 ? lvG.y1 : cieciaY[m]]);
+      const nowe = pasma.map(([y0, y1], m) => {
+        const ostatni = m === n - 1;
+        const cols = raw.cols.map((col, jj) => {
+          const c2 = JSON.parse(JSON.stringify(col));
+          const cg = lvG.cols[jj];
+          if (jj === j) {
+            const tg = col.shelfTargets || [null];
+            const granice = [-1, ...ksS, tg.length - 1];
+            c2.shelfTargets = tg.slice(granice[m] + 1, granice[m + 1] + 1);
+          } else {
+            // polki innych kolumn w tym pasmie (te na wysokosci ciecia znikaja w przelotowej)
+            const ile = (cg.shelves || []).filter((s2) => s2.y >= y0 - 1 && s2.y + geo.ts <= y1 + 1
+              && !cieciaY.some((cy) => Math.abs(s2.y - cy) < geo.t)).length;
+            c2.shelfTargets = Array(ile + 1).fill(null);
+          }
+          if (!c2.shelfTargets.length) c2.shelfTargets = [null];
+          // wzmocnienia: dolne w najnizszym, reszta w najwyzszym; fix u gory tylko w najwyzszym
+          c2.rails = (col.rails || []).filter((r) => (r.pos === "bottom" ? m === 0 : ostatni));
+          if (col.fix && col.fix.side === "top" && !ostatni) delete c2.fix;
+          if (naKlapy) {
+            c2.kind = "doors"; c2.doors = 1; c2.klapa = "gora";
+            c2.shelfTargets = [null]; c2.hinges = []; c2.doorWidths = [];
+          }
+          return c2;
+        });
+        return { ...JSON.parse(JSON.stringify({ ...raw, cols: [] })), h: ostatni ? null : Math.round(y1 - y0), cols };
       });
       // ostatni: swiatlo jak bylo, jesli bylo stale (minus to, co zabraly nizsze i przelotowe)
       if (raw.h != null) {
@@ -17371,7 +17388,7 @@ export default function App() {
                             drzwi, poziom zamiast polki — tylko w poziomie z jedna kolumna */}
                         {c.kind === "doors" && lv.cols.length === 1 && nS > 0 && (
                           <div className="text-xs" data-el="polki-na-klapy">
-                            <MiniBtn onClick={() => polkiNaPoziomy(lv.i, c.shelves.map((_, k) => k), true)}>klapy zamiast drzwi</MiniBtn>
+                            <MiniBtn onClick={() => polkiNaPoziomy(lv.i, c.j, c.shelves.map((_, k) => k), true)}>klapy zamiast drzwi</MiniBtn>
                             <span className="ml-2 text-[11px] text-stone-400">każda półka → nowy poziom, w każdym klapa do góry</span>
                           </div>
                         )}
@@ -17660,9 +17677,9 @@ export default function App() {
                                   <MiniBtn onClick={() => removeShelfAt(lv.i, c.j, o.k)}
                                     title="Usuń półkę przy tym świetle">×</MiniBtn>
                                 )}
-                                {/* polka nad tym swiatlem -> granica poziomow (tylko poziom z jedna kolumna) */}
-                                {lv.cols.length === 1 && o.k < c.openings.length - 1 && (
-                                  <MiniBtn onClick={() => polkiNaPoziomy(lv.i, [o.k])}
+                                {/* polka nad tym swiatlem -> granica poziomow (caly poziom; bez kolumn szuflad) */}
+                                {daSiePodzielic(lv) && o.k < c.openings.length - 1 && (
+                                  <MiniBtn onClick={() => polkiNaPoziomy(lv.i, c.j, [o.k])}
                                     title="Poziom zamiast półki: półka nad tym światłem staje się przelotowa — nowy poziom nad nią, z tym samym frontem">→ poziom</MiniBtn>
                                 )}
                               </div>

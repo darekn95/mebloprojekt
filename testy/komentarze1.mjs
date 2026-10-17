@@ -55,6 +55,15 @@ lv = (await zapis()).items[0].cab.levels;
 ok('dolna półka → poziom: niżej 0 półek, wyżej 1', lv.length === 2 && lv[0].cols[0].shelfTargets.length === 1 && lv[1].cols[0].shelfTargets.length === 2 && lv[0].cols[0].doors === 1 && lv[1].cols[0].doors === 1,
   JSON.stringify(lv.map((l) => ({ h: l.h, s: l.cols[0].shelfTargets.length - 1 }))));
 
+// kilka kolumn: dzieli sie caly poziom, inne kolumny zachowuja swoje polki ponizej/powyzej
+await seed(proj([{ cab: cab({ W: 800, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null] }] }] }) }]));
+ok('„→ poziom” także w poziomie z dwiema kolumnami', (await page.getByRole('button', { name: '→ poziom', exact: true }).count()) === 3);
+await page.getByRole('button', { name: '→ poziom', exact: true }).last().click(); await page.waitForTimeout(1500);
+lv = (await zapis()).items[0].cab.levels;
+ok('dwa poziomy po dwie kolumny, drzwi w obu', lv.length === 2 && lv.every((l) => l.cols.length === 2 && l.cols.every((c) => c.doors === 1)), JSON.stringify(lv.map((l) => ({ h: l.h, s: l.cols.map((c) => c.shelfTargets.length - 1) }))));
+await seed(proj([{ cab: cab({ W: 800, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }, { kind: 'drawers', w: null, drawers: [{ h: null }, { h: null }] }] }] }) }]));
+ok('z kolumną szuflad — bez „→ poziom”', (await page.getByRole('button', { name: '→ poziom', exact: true }).count()) === 0);
+
 console.log('\n== podział cokołu i blatu zwinięty ==');
 await seed(proj([1200, 1200, 1200, 900].map((W) => ({ cab: cab({ W }), runId: 'c1' })), [RUN('c1')]));
 const zw = await page.evaluate(() => [...document.querySelectorAll('label[data-el^="podzial-"]')].map((e) => e.textContent.trim()));

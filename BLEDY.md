@@ -18,6 +18,10 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-17 | uproszczenie: „→ poziom” tylko w poziomie z jedną kolumną | `polkiNaPoziomy` dzieli cały poziom (wszystkie kolumny) na wysokości wybranej półki; pozostałe kolumny dostają tyle półek, ile wypadło w każdym paśmie; poziom z kolumną szuflad nie ma „→ poziom” (`daSiePodzielic`); „klapy zamiast drzwi” nadal tylko przy jednej kolumnie | (ten commit) |
+| 2026-10-17 | uproszczenie: łyżwa w 3D cięta pod głębokość własnego blatu, choć drugi blat w rogu jest płytszy/głębszy | skos liczony z głębokości blatu drugiego ciągu (`rt.skosGl0/1` z `runTop` partnera); test w `audytgpt5` (D 560 i 400) | cf2131c |
+| 2026-10-17 | uproszczenie: podpowiedź głębokości blatu i „skład” nie znały wysunięcia szafki | `worktopMsgs` odejmuje wysunięcie szafki od podpowiadanej głębokości („… i z wysunięciem szafki o X mm”), w składzie osobna pozycja „wysunięcie X”; test w `audytgpt5` (wysunięcie 100 → 467 mm) | cf2131c |
+| 2026-10-17 | N38 bez testu (kąt otwarcia narożnika przy luzie 26 mm) | test w `audytgpt5`: szafka w rogu z fixem 608 i szufladami obok — kąt dla drzwi wpuszczanych w kolumnę równy kątowi szafki wpuszczanej, inny niż nakładanej | (ten commit) |
 | 2026-10-17 | komentarz z artefaktu: wzmocnienie płaskie / pionowe bez oklejenia, choć widać je po otwarciu | każde wzmocnienie ma oklejoną jedną długą (przednią) krawędź; przy okazji bok ramienia oklejony jak bok korpusu (czoło, góra, dół) | (ten commit) |
 | 2026-10-17 | komentarz z artefaktu: „półki → poziomy z klapami” daleko od drzwi | przycisk „klapy zamiast drzwi” zaraz pod polem drzwi, z krótkim opisem; „→ poziom” z podpowiedzią „poziom zamiast półki” | (ten commit) |
 | 2026-10-17 | `wyslij` przy `STD=1`: „pasek mówi, że wysłano” | błąd testu: w standalone pierwszy autozapis po wczytaniu (kompilacja w przeglądarce trwa dłużej) wypadał po kliknięciu i nadpisywał komunikat; test czeka na pierwszy „zapisano” | (ten commit) |
