@@ -1,3 +1,82 @@
+# Seria 10 nowych ustaleń N12-N21 - 17.10.2026
+
+Limit użytkownika: 10 nowych błędów albo10 minut. Rozpoczęto10:38:36 czasu polskiego. Znaleziono10 różnych ustaleń w lokalnych testach kodu; nie są jednakowej wagi. N13 i N20 to drobne różnice wymiaru/precyzji, N19 dotyczy importowanego JSON. Nie przedstawiać ich jako dziesięciu krytycznych awarii w standardowym projekcie.
+
+Źródło main ponownie sprawdzone: szafki.jsx blob688b93c92636d6e5909979d68a8ce9bf5f4e6732. Odczytano BLEDY.md, pominięto N1-N11. Testy: wyodrębnione computeGeo/Scene3D/projectParts/scalOkucia/buildCutPlan oraz odczyt DOM strony dla komentarza użytkownika. Macierz45 konstrukcji/wnętrz i216 wariantów położenia zawiasów, celowane próby wartości granicznych. Nie wykonano pełnej suity Playwright ani wszystkich kliknięć UI. Raport nie jest potwierdzeniem fizycznego montażu ani katalogów producenta.
+
+## N12 [P2] Dno i tył szuflady: materiał25 mm w zamówieniu, bryła18 mm
+
+Odtworzenie: korpus18, osobna płyta półek25, shelfSameAsBoard=false, dwie szuflady. Formatki dna489 x526 i tyłu477 x230 mają matKey shelf, czyli grubość25. Scene3D tworzy dno489 x18 x526 i tył477 x230 x18. Obie szuflady: cztery rozbieżne płyty. Kolor poprawnie pochodzi z płyty półek, grubość pozostaje korpusowa18. To inny kod niż N7 (fronty).
+
+Ostrzeżenie o katalogu18 mm istnieje, ale nie usuwa sprzeczności rysunek - zamawiany materiał. Naprawić wspólną geometrię skrzynki albo jawnie ograniczyć dopuszczalny materiał; nie tylko kolor. Regresje: shelf12/18/25 przy korpusie18, a następnie korpus25/półki18; bryła szafki i zabudowy, dno/tył, wysokość skrzynki. Odtworzono Scene3D, nie testowano całego montażu25 mm.
+
+## N13 [P3] HDF po wycięciu tylnego narożnika różni się o1 mm między formatką i bryłą
+
+Szafka600 x720 x560, HDF przybijany, lewe wycięcie100 x100 przez całą wysokość z maskownicą. Formatka HDF498 x718 x3, bryła499 x718 x3. Przy W800:698 kontra699. Powtórzone z drzwiami, szufladami, klapą, fixem i dwiema kolumnami. Bez błędów w uwagach tych prób.
+
+Formatka odejmuje1 mm także przy krawędzi wycięcia, plecyBryla ustawia tę krawędź bez tego odsunięcia. Różnica mała; audyt z tolerancją3 mm jej nie wykryje. Wymaga ujednolicenia konwencji luzu, nie deklaracji awarii montażu.
+
+## N14 [P2] Blenda nad szafką jest zamawiana i pokazana z przodu, ale nie ma jej w bryle3D
+
+topFiller.on=true, height80, W600: formatka „Blenda nad szafką”600 x80 z frontu18. Pełna lista płyt wygenerowana przez Scene3D nie zawiera tej sztuki. Wariant W800 również bez blendy. Występuje z drzwiami, szufladami, klapą, fixem i kolumnami. Kod FrontView/CabFront ma prostokąt blendy, Scene3D nie dodaje odpowiadającej bryły. Sprawdzono wszystkie płyty w tej funkcji, nie tylko widoczne piksele.
+
+Regresja: porównanie formatek z trzema wymiarami bryły przy on/off, osobne płyty frontów, nawis blatu i zakres zabudowy. Dodatkowe formatki ręczne mogą celowo nie mieć pozycji; topFiller jest elementem geometrycznym i nie jest takim przypadkiem.
+
+## N15 [P2] Poprawny długi blat roboczy szafki dostaje błąd arkusza płyty meblowej
+
+Szafka W600, blat na bokach worktop38, wysunięcie w prawo2500, pozostałe0. Formatka blatu3100 x560 mieści się na handlowym4100 x600. computeGeo dodaje jednak błąd „Blat3100 x560 nie mieści się na arkuszu ...2761.2 x2061.2”. P() waliduje każdą formatkę na USABLE_W/H, nie uwzględniając matKey worktop, mimo osobnej późniejszej kontroli WORKTOP_LEN/depth.
+
+Duży nawis może wymagać osobnych podpór; nie twierdzimy, że ta konstrukcja jest gotowa do montażu. Zgłoszenie dotyczy fałszywego powodu odrzucenia materiału. To nie N2: tam gubiony był format blatu ciągu w rozkroju, tutaj błędna walidacja pojedynczej szafki.
+
+## N16 [P2] Plan wierceń może podawać otwory poza płytą bez błędu
+
+Szafka D560 z półką, shelfPin.dFront=700, dBack=700. Plan dla obu boków: „700 i -140 mm od przedniej krawędzi płyty”. Uwagi puste; brak kontroli przedziału0..głębokość płyty. Num tych pól nie ogranicza max do rozmiaru półki.
+
+Niepoprawne dane powinny dać jawny błąd przed zamówieniem/wydrukiem. Regresje: ujemne wartości, poza głębokością, front/back zamienione, dwie osie w jednym punkcie i ograniczenia przy krótszej półce za wspornikiem. Odtworzono niepoprawne współrzędne planu, nie wykonano fizycznych wierceń.
+
+## N17 [P3] Własny blat roboczy na bokach ma w3D kolor korpusu
+
+Realne kolory włączone. Korpus czerwony#ff0000, worktop niebieski#0000ff, blat600 x570 x38. Zamówienie matKey worktop, bryła600 x38 x570 ma color#ff0000. Scene3D rysuje górną płytę przez bf=mat.board.color niezależnie od geo.isWorktop. Złącza/dane handlowe nie są tu kwestionowane.
+
+Naprawa: materiał górnej płyty według jej roli; regresje wieniec/18 mm blat/worktop38, kolory realne w3D szafki/zabudowy. Potwierdzono Scene3D; nie twierdzić, że wszystkie inne widoki mają ten sam błąd.
+
+## N18 [P2] Automatyczne przesuwanie zawiasów może nałożyć je na jeden punkt
+
+Szafka H250, jedne drzwi, pięć półek, liczba zawiasów automatyczna2. hingePts=[115,115] od dołu korpusu. Program zamawia dwa zawiasy w tej samej osi i opisuje przesunięcie z zachowanym luzem30 mm; brak błędu o niemożliwym montażu. Są ostrzeżenia o małych światłach półek, ale nie o zduplikowanych zawiasach. H150/pięć półek również [120,120].
+
+Przeszukanie216 kombinacji H/shelves/hn wykryło44 warianty z powtarzającymi się osiami (część ma dodatkowe błędy, dlatego przykłady wyżej wybrano bez error). hingePositions nie traktuje już ustawionych zawiasów jako przeszkód i po czterech próbach nie weryfikuje końcowego rozwiązania.
+
+Regresja musi sprawdzać unikalność osi, odstępy i końcowe kolizje; jeżeli brak miejsca, zgłosić błąd zamiast tworzyć niemożliwy plan. To inny problem niż B2 (liczba zawiasów klapy) i N7 (grubość frontu).
+
+## N19 [P3] Import przyjmuje nieobsługiwaną długość prowadnicy i tworzy produkt NL325
+
+Tylko ścieżka danych/importu: w JSON kolumna szuflad nl325. computeGeo tworzy prowadnicę V-BOX Slim238 z spec „NL325 mm”, dno489 x301 i sugeruje jedynie głębszą NL550. Brak błędu, że325 nie występuje w wewnętrznej liście VBOX.nl=[250,270,300,350,400,450,500,550,600].
+
+Zwykły selektor UI oferuje wyłącznie długości z listy, więc tego nie przedstawiać jako standardowego błędu wyboru z listy. Import może pochodzić z ręcznej edycji/innej wersji. Regresja walidacji danych:325 oraz inne wartości spoza listy, zgodność kolumny i pojedynczej szuflady. Nie weryfikowano oferty producenta - niespójność z własną tabelą aplikacji wystarcza do zgłoszenia.
+
+## N20 [P3] Zbyt wczesne zaokrąglanie powierzchni luster zaniża sumę
+
+Trzy osobne szafki, każda front596 x714 i lustro595 x713. Rzeczywista powierzchnia jednego0.424235 m², razem1.272705. computeGeo wpisuje qty0.42 na szafkę; scalOkucia sumuje1.26 m². Nawet po zaokrągleniu dopiero końcowej sumy do2 miejsc wyszłoby1.27. Wbudowana cena200 zł/m² daje różnicę2.541 zł przed zaokrągleniem kwoty.
+
+To błąd precyzji wyceny. Nie zmienia wymiarów poszczególnych luster podanych w spec. Ponadto scalony tekst nadal zawiera „x1 szt.” mimo trzech identycznych luster - w ramach tego samego zgłoszenia o agregacji. Przechować dokładną powierzchnię i liczbę sztuk, formatować dopiero sumę.
+
+## N21 [P2] Wyłączenie zawieszek we wszystkich szafkach nie usuwa wspólnej listwy do zawieszek
+
+Dwie szafki600 w jednym ciągu wiszącym, bez nóg i cokołu, run.hangerMode=listwa, cab.hangers=never dla obu. Każda lista szafki poprawnie nie zawiera zawieszek. projectParts mimo to dodaje „Listwa montażowa do zawieszek”, spec1160 mm, qty1.2 mb. runRail sprawdza nogi/cokół i tryb ciągu, lecz nie sprawdza, czy którakolwiek szafka faktycznie korzysta z zawieszek.
+
+Użytkownik jawnie wyłączył system zawieszenia, a nie zamówił samodzielnej listwy. Potrzebna spójna reguła wieszania i zamówienia, również dla częściowego wyłączenia zawieszek. Nie zgłaszano tu oddzielnie zaokrąglenia1160 mm do1.2 mb: może być zamierzoną jednostką zakupu.
+
+## U3 [P3] Komentarz użytkownika: znika nagłówek „Rysunek”
+
+Potwierdzone dodatkowo w bieżącym DOM: viewport714 px, szerokość nagłówka sekcji665.6 px, h2.textContent=Rysunek, h2.width=0 px, scrollWidth51 px. Zrzut użytkownika pokazuje samą strzałkę bez napisu. Card ma przycisk flex-1/min-w-0 i h2.truncate; toolbar zabiera dostępną szerokość. Przenieść toolbar do kolejnego wiersza lub zapewnić minimalną szerokość tytułu. To obserwacja użytkownika, poza dziesięcioma nowymi przypadkami wyżej; odrębna przyczyna od U2 (wysokość przyklejonego nagłówka).
+
+## Zakres dalszej weryfikacji
+
+Wyniki są odtworzone w funkcjach aktualnego kodu, nie pełnym teście UI. Najpierw potwierdzić N12/N14/N16/N18, następnie pozostałe; nie naprawiać zasad katalogowych na wyczucie. Testy regresji powinny sprawdzać trzy wymiary, materiał i liczbę sztuk, nie tylko dopasowanie wymiarów z tolerancją3 mm. Nie publikowano JSON użytkownika ani zmian aplikacji.
+
+
+---
+
 # N11 [P2] Plecy ustawiane w kolumnie zmieniają formatki, lecz bryła 3D ignoruje to ustawienie
 
 Stan main ponownie zweryfikowany17.10.2026: szafki.jsx blob688b93c92636d6e5909979d68a8ce9bf5f4e6732. Odtworzono lokalnie w aktualnych funkcjach computeGeo i Scene3D na wariantach Szafki1 użytkownika. Nie wykonano testu kliknięć ani wszystkich rysunków2D; nie zmieniano aplikacji.
