@@ -1,3 +1,21 @@
+# Audyt godzinny — N68, 17.10.2026
+
+## N68 [P2] Brak miejsca na najkrótszą prowadnicę usuwa szufladę z zamówienia bez błędu
+
+**Odtworzenie:** W600/H720/D560, dwie szuflady z automatycznym bokiem i NL, płyty18. Wzmocnienie stojące przy plecach, przy dnie: orient=front, pos=bottom, h100, fromBack=true. Porównać odsunięcie `atDepth=0` i350 mm.
+
+**Kontrola0:** wzmocnienie zajmuje Z542..560. Dolna szuflada ma NL500, górna550. Zamówienie obejmuje2 fronty356×596, dwa dna, dwa tyły i2 komplety prowadnic, z informacją o różnych NL.
+
+**Wynik350:** wzmocnienie zajmuje Z192..210, Y18..118 i blokuje dolną skrzynkę. Auto nie znajduje żadnej prowadnicy: dolna ma `nl=null`, rail.d=0, brak `skrzynka`. `computeGeo.msgs=[]`. Z formatek znika jej front, dno i tył, z okuć prowadnica. Pozostaje tylko1 front356×596 i komplet NL550 górnej szuflady, ale nadal2 uchwyty. W geometrii frontów nadal istnieją oba fronty.
+
+**Przyczyna:** brak dopasowania do tylnego wzmocnienia ustawia `nlMaxTu=null` po wcześniejszej kontroli `colNl`. Kolejne błędy są warunkowane `nl!==null`, więc nie zgłaszają braku żadnej pasującej długości. Dodawanie wszystkich trzech formatek, także samego frontu, jest wewnątrz warunku `nl!==null && LW>0`.
+
+**Oczekiwane:** jednoznaczny błąd „nie mieści się żadna prowadnica” ze wskazaniem wzmocnienia. Nie przedstawiać niekompletnego zamówienia jako poprawnego i nie usuwać niezależnej formatki frontu tylko dlatego, że nie dobrano prowadnicy. Użytkownik musi móc poprawić wzmocnienie/układ i widzieć brak dopasowania. To nie N22 (niepotrzebne skrócenie NL przez przeszkodę poniżej szuflady): tutaj przeszkoda rzeczywiście koliduje, a brak dopasowania jest przemilczany.
+
+Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Dowód lokalny `audit-hour-no-fit-drawer.json`, dwa warianty z szufladami, formatekami, okuciami i komunikatami. Bez zmian aplikacji i projektu użytkownika.
+
+---
+
 # Audyt godzinny — N67, 17.10.2026
 
 ## N67 [P2] Indywidualny luz między szufladami może przekroczyć limit bez żadnej uwagi
