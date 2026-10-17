@@ -1,3 +1,77 @@
+# Kolejne nowe ustalenia N5-N6 - 17.10.2026
+
+Źródło szafki.jsx: blob 688b93c92636d6e5909979d68a8ce9bf5f4e6732. Testy wyodrębnionych funkcji obliczeniowych; nie pełny przebieg UI. Nie zmieniano aplikacji.
+
+## N5 [P2] Różne kolory HDF są łączone na jednym arkuszu rozkroju
+
+Przypadek: dwie szafki z plecami HDF 3 mm, jedna biała, druga czarna, ta sama nazwa materiału HDF. Zmiana koloru jest dostępna w karcie Płyty (paleta obejmuje także plecy).
+
+matLabelOf uwzględnia kolor tylko dla board/front/shelf. Dla obu materiałów back daje „HDF”. buildCutPlan grupuje po tej etykiecie. Dwie formatki 598 x 718 mm różnych kolorów układa na jednym arkuszu HDF: wynik 1 arkusz, 2 sztuki. Oddzielne grupy kolorów wymagają w tym teście dwóch arkuszy, po jednym na kolor. Identyczna cena HDF dla różnych kolorów nie uprawnia do wspólnego rozkroju.
+
+Skutek: niewłaściwa liczba kupowanych arkuszy i formatowania; zamówienie tekstowe nie rozróżnia koloru pleców. Formatki projektu mają color w kluczu, lecz ich etykiety są jednakowe, a rozkrój ponownie je łączy. To nowy problem identyfikacji materiału, niezależny od arkuszy blatów N2-N4.
+
+Naprawa: klucz grupowania musi zachować rolę, kolor/dekor i grubość materiału; opis HDF powinien jednoznacznie wskazywać kolor. Test: białe/czarne HDF z tą samą nazwą i grubością, ekran/PDF/rozkrój/wycena.
+
+## N6 [P2] Ręczne oklejanie wstawki narożnej jest ignorowane
+
+Przypadek z projektu użytkownika: płaska wstawka w rogu Szafki 3, 720 x 60 mm. W tabeli formatek używana jest wspólna kontrolka EdgeChips, która przy kliknięciu zapisuje cab.edgeOverrides według nazwy formatki. Dla wstawki zapis trafia do „Wstawka w rogu”.
+
+Test: cab.edgeOverrides = { „Wstawka w rogu”: { a1:false, b1:false, b2:true } }. projectParts nadal zwraca edges { a1:true, a2:false, b1:true, b2:false }, dokładnie jak przed zmianą. wstawkaParts ustawia obrzeża na sztywno, nie odczytuje overrides. formatkiSzafki również tylko dokłada jej wynik; brak zastosowania ręcznej zmiany w tej ścieżce.
+
+Skutek: kontrolka oferuje zmianę oklejania, ale lista i zamówienie pozostają przy automacie. Nie interpretować tego jako potwierdzenia niewłaściwego domyślnego oklejania; problem dotyczy nieskutecznej ręcznej zmiany.
+
+Naprawa: albo stosować overrides także do dodatkowych elementów przypisanych szafce, albo jawnie zablokować kontrolkę, jeżeli zmiana jest niedozwolona. Test: kliknięcie, zapis JSON, ponowne wczytanie, formatki szafki/projektu/PDF i metry obrzeża. Sprawdzić osobno płyty ramienia L i listwę wstawki; ich nie uznano automatycznie za potwierdzone dodatkowe błędy.
+
+
+---
+
+# Nowe błędy - 17.10.2026
+
+Wyłącznie nowe ustalenia, bez powtarzania zgłoszeń z 16.10. Źródło: szafki.jsx, blob 688b93c92636d6e5909979d68a8ce9bf5f4e6732 na main. Odtworzono lokalnie na wyodrębnionych funkcjach aktualnego kodu; nie wykonano pełnej suity ani wizualnej reprodukcji tych wariantów w przeglądarce. Nie zmieniano aplikacji. Zapisano w AUDYT_GPT.md na gałęzi audytu.
+
+## N2 [P2] Głęboki blat ciągu gubi właściwy format arkusza
+
+Przypadek: jeden dolny ciąg, szafka W600 H720 D650, blat roboczy włączony, domyślny materiał blatu depth600, pilnowanie słojów włączone. runTop prawidłowo wylicza blat 600 x 683 mm z arkusza 4100 x 1200. projectParts pozostawia jednak part.mat.worktop.depth=600. ReportCutPlan (około 13246) bierze sheet z worktopDepth(part.mat), a ekran rozkroju (około 14802) z materiału aktywnej szafki.
+
+Test funkcji: wejście z arkuszem 600 odrzuca tę formatkę, 0 arkuszy i 0 ułożonych sztuk. Po przekazaniu prawidłowego arkusza 1200: 1 arkusz, 1 sztuka, brak odrzuceń. Przy wyłączonej kontroli słojów niektóre krótkie blaty mogą zostać obrócone i zmieścić się w pasie600; to nie naprawia utraty formatu i wymaga osobnego ustalenia zasad profilu.
+
+Wpływ: poprawna formatka istnieje w zamówieniu, ale może zniknąć z rozkroju i liczby kupowanych arkuszy; planSheets sumuje same sheets.length. ReportCutPlan nie wypisuje listy rejected. To błąd danych, nie znany wcześniej mylący nagłówek B3.
+
+Naprawa: przenosić rzeczywisty arkusz rt.arkusz z blatu ciągu do jego pozycji rozkroju; nie ustalać go na podstawie aktywnej szafki. W przypadku rejected jawnie pokazać niekompletny rozkrój/wycenę.
+
+## N3 [P2] Dwa formaty arkusza blatu są łączone według samej etykiety; wynik zależy od kolejności
+
+buildCutPlan (około 12871) grupuje tylko po matLabel, a arkusz bierze z pierwszego elementu mającego sheet. Ten sam dekor/nazwa/kolor/grubość może mieć format600 i1200; matLabelOf nie uwzględnia głębokości arkusza.
+
+Test wejścia: Blat A 3000 x 600 z arkusza4100x600 oraz Blat B 3000 x1000 z arkusza4100x1200, identyczny matLabel, bez obrotu.
+
+- A przed B: jeden arkusz600, jedna formatka ułożona, B odrzucony.
+- B przed A: dwa arkusze1200, obie formatki ułożone.
+
+Kolejność pozycji nie może decydować o utracie formatki. Reguła wyboru materiału handlowego powinna być jawna: osobne grupy formatów albo świadoma wspólna optymalizacja na szerszym arkuszu. Dotyczy także ścieżki PDF, która ma własne łączenie wierszy bez sheet w kluczu.
+
+## N4 [P2] Domyślna cena wszystkich blatów zależy od aktywnej szafki
+
+boardDefault (około 14890) zwraca dla każdej pozycji worktop WORKTOP_PRICES[worktopDepth(mat)], gdzie mat to aktywna szafka, a nie materiał wycenianej pozycji. matByLabel zapisuje tylko color/key, gubiąc depth. Wiersze rozkroju całego projektu również korzystają z tego aktywnego mat.
+
+Test dokładnego fragmentu boardDefault z kodu, dwie różne etykiety blatów:
+
+- aktywny materiał depth600: obie ceny 563,99 zł/arkusz;
+- aktywny materiał depth1200: obie ceny 1128,22 zł/arkusz.
+
+W projekcie z różnymi blatami jedna z tych cen jest niewłaściwa; zmiana oglądanej szafki może zmieniać wycenę bez zmiany zamówienia. Różnica jednostkowa 564,23 zł. Odtworzenie dotyczy funkcji; pełnej reakcji komponentu UI i opóźnionego przeliczenia nie testowano.
+
+Naprawa: cena i format muszą wynikać z pozycji/grupy arkusza. Zachować oddzielne klucze cen formatów600/1200, aby ręczna cena też nie łączyła różnych produktów.
+
+## Zalecane regresje
+
+Głęboki ciąg D650 z materiałem depth600 i kontrolą słojów; dwa ciągi z różnymi arkuszami i tą samą etykietą materiału w obu kolejnościach; dwa różne dekory/formaty i zmiana aktywnej szafki. W każdym porównać liczbę formatek wejściowych z ułożonymi + rejected, PDF/ekran, format arkusza, ilość, cenę i niezmienność sumy przy zmianie aktywnej szafki.
+
+N2-N4 są powiązane przez brak tożsamości formatu handlowego, ale wymagają kontroli trzech miejsc: wejścia rozkroju, grupowania i cennika.
+
+
+---
+
 # Aktualizacja po reteście i kontroli PDF — 16.10.2026
 
 Ta sekcja zastępuje statusy starszego audytu poniżej.
