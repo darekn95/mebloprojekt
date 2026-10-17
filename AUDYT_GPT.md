@@ -1,3 +1,17 @@
+# Audyt godzinny — N65, 17.10.2026
+
+## N65 [P3] Blaty łączone na45° pozostają w3D pełnymi prostokątami i nakładają się na siebie
+
+**Odtworzenie:** dwa prostopadłe ciągi, po jednej szafce600×720×560, cokół100, blat600×38. Narożnik at=end, owner=of. Porównać połączenie „Blat na styk” i „Na45° (łyżwa)”.
+
+**Wynik:** na styk bryły blatów mają600×38×600 i581×38×600 mm; ich zakresy kończą/zaczynają się na Z−600 i nie przenikają. Po wybraniu45° zamówienie prawidłowo dopisuje „łyżwa45° — jeden koniec”, a długości zmieniają się na600 i1181 mm. Bryły3D pozostają jednak pełnymi prostokątami: pierwszy zakres X0..600/Y820..858/Z−600..0, drugi X0..600/Y820..858/Z−1181..0. Nakładanie600×38×600 mm. Nie ma ukośnego podziału narożnika.
+
+**Oczekiwane:** model3D odcina naroża według deklarowanego połączenia i pokazuje rzeczywisty styk45°, zamiast dwóch pełnych płyt w tym samym miejscu. Flagi skos0/skos1 trafiają do nazwy formatki, ale nie zmieniają brył `Assembly3D`. Sprawdzić też rzut z góry i dokumentację cięcia; w tym zgłoszeniu bezpośrednio potwierdzono bryły3D i opis zamówienia.
+
+Wniosek dotyczy wizualizacji kształtu, nie braku opisu obróbki w zamówieniu: opis45° istnieje. Nie mylić z N23 (nieciągłość blatu przy słupku). Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Dowód lokalny `audit-hour-worktop-mitre.json`, dwa warianty z bryłami i formatkami. Bez zmian aplikacji i projektu użytkownika.
+
+---
+
 # Audyt godzinny — N64, 17.10.2026
 
 ## N64 [P2] Ciągi ustawione od prawej krawędzi ściany są rysowane ze wspólnym lewym początkiem
