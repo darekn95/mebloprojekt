@@ -1,3 +1,19 @@
+# Audyt godzinny — N58, 17.10.2026
+
+## N58 [P3] Licznik cięć rozkroju pomija docięcie przy ścinku węższym od rzazu
+
+**Odtworzenie:** `packSheets([{name:'Panel',qty:1,a:2760,b:2000,rotatable:false}])`, standardowy arkusz użytkowy2761,2×2061,2 mm, rzaz3 mm. To samo można uzyskać dodatkową formatką i rozkrojem projektu.
+
+**Wynik:** panel mieści się poprawnie, ale `cuts=1`. Do uzyskania2760×2000 z2761,2×2061,2 trzeba dociąć obie osie: dwa cięcia. Po długości pozostaje1,2 mm, więc cięcie jest potrzebne mimo braku użytecznej resztki. Przy panelu2700×2000 kontrola zwraca prawidłowo2.
+
+**Przyczyna:** `sheet.cuts += pieces.length` liczy liczbę wolnych prostokątów zwróconych po odjęciu rzazu, a nie liczbę wykonanych cięć. Gdy różnica wymiarów wynosi od0 do rzazu, resztka nie powstaje, lecz docięcie nadal jest konieczne. Dotyczy pola „cięć” w rozkroju ekranowym i PDF. Nie stwierdzamy na tej podstawie błędnej opłaty za formatowanie: obecna wycena tej usługi jest za arkusz, nie za tę liczbę cięć.
+
+**Oczekiwane:** liczyć osobno operacje docięcia i pozostałe pola. Dla dokładnego wymiaru arkusza nie doliczać cięcia, dla dodatniego nadmiaru doliczać je również wtedy, gdy odpadem jest tylko wąski ścinek/pył.
+
+Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`, `nestPass`12780. Dowód lokalny: `audit-hour-cutcount.json`, pięć prób porównawczych. Nie zmieniano aplikacji ani projektu użytkownika.
+
+---
+
 # Audyt godzinny od 12:37:06 — N57, 17.10.2026
 
 Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`; test funkcji na lokalnym wariancie, bez zmian aplikacji i danych użytkownika.
