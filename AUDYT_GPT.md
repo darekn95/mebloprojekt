@@ -1,3 +1,19 @@
+# Audyt godzinny — N60, 17.10.2026
+
+## N60 [P3] Widoki 3D przypisują półkom inny materiał niż zamówienie
+
+**Odtworzenie:** zwykła szafka W600/H1000/D560, korpus i półki18 mm w różnych dekorach, „Półki z tej samej płyty co korpus” wyłączone, realne kolory. Jedna półka w kolumnie; następnie dwa poziomy z jedną półką w każdym. Bez narożnika i frontów.
+
+**Wynik A:** zamawiana „Półka”564×560 mm ma `matKey=shelf`. W `Scene3D` zwykła półka na Y491..509 ma kolor korpusu. W `Assembly3D` ta sama półka ma prawidłowy dekor półek.
+
+**Wynik B:** przy dwóch poziomach „Półka przelotowa” jest konstrukcyjna i ma `matKey=board` (także grubość korpusu). W `Assembly3D` płyta na Y491..509 dostaje jednak `shelfColorOf`, więc wygląda jak materiał półek. `Scene3D` rysuje ją prawidłowo z korpusu, lecz dwie zwykłe półki na Y246..264 i737..755 nadal mają błędny kolor korpusu.
+
+**Oczekiwane:** zwykłe półki korzystają z materiału półek, przelotowa przegroda pozioma z korpusu, jednakowo w obu widokach i zamówieniu. Jedno zgłoszenie dla niespójnego przypisywania materiałów półkom, a nie osobny błąd na każdą płytę. Grubości i wymiary w tej próbie są zgodne; nie stwierdzamy brakujących formatek.
+
+Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. `Scene3D` zwykłe półki rysuje z `bf`; `Assembly3D` półki przelotowe z `shc3`. Dowód lokalny `audit-hour-shelf-material.json`, dwa układy i oba widoki. Odrębne od N59 — tutaj zwykła szafka bez kątowników. Bez zmian aplikacji i projektu użytkownika.
+
+---
+
 # Audyt godzinny — N59, 17.10.2026
 
 ## N59 [P2] Materiał wewnętrznego kątownika narożnika różni się w 3D i zamówieniu
