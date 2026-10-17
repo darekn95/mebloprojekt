@@ -1,3 +1,19 @@
+# Audyt godzinny — N61, 17.10.2026
+
+## N61 [P2] Cokół ramienia nie ma doliczanych mocowań
+
+**Odtworzenie:** narożnik L W900/H720, ramię640, cokół pod korpusem100. Porównać nóżki włączone i wyłączone w obu szafkach.
+
+**Wynik z nóżkami:** zamówienie ramienia zawiera „Cokół ramienia”640×100 oraz4 nóżki, ale ani jednej „Złączki do cokołu”. Dwa przednie miejsca z `armLegPlan` nie dodają klipsów. W całym projekcie jest14 nóżek (10 korpusów +4 ramienia), a5 klipsów pochodzi wyłącznie z korpusów:2 +3. Zasada aplikacji dla korpusu to jeden klips na każdą nóżkę przedniego rzędu; ramię jest pominięte w tej regule. Nie przypisujemy automatycznie klipsów innych płaszczyzn do cokołu ramienia.
+
+**Wynik bez nóżek:** „Cokół ramienia” nadal jest zamawiany, lecz ramię nie dostaje mocowań cokołu. Łącznie9 trójkątów w zamówieniu to dokładnie4 +5 naliczone do cokołów korpusów600 i900 mm. Okucia ramienia obejmują półkę, zawiasy, konfirmaty dna oraz wkręty do wzmocnień/kątownika; nie obejmują cokołu. To jedna luka w kompletności mocowań ramienia dla dwóch sposobów montażu.
+
+**Oczekiwane:** określić i doliczyć mocowania faktycznego odcinka cokołu ramienia: klipsy do przednich nóżek albo mocowania przykręcanego cokołu. Sprawdzić ich pozycje po przycięciu cokołów w rogu, zamiast zakładać, że nadmiar innego odcinka pokrywa brak. Nie mylić z N55/N56 dotyczącymi położenia brył.
+
+Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Dowód lokalny `audit-hour-arm-plinth-fixings.json`: oddzielne okucia ramienia, korpusów i suma projektu dla obu wariantów. Bez zmian aplikacji i projektu użytkownika.
+
+---
+
 # Audyt godzinny — N60, 17.10.2026
 
 ## N60 [P3] Widoki 3D przypisują półkom inny materiał niż zamówienie
