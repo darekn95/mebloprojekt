@@ -103,6 +103,7 @@ await page.evaluate(() => {
       pages: rep.querySelectorAll('.rp-page').length,
       svgs: rep.querySelectorAll('svg').length,
       tables: rep.querySelectorAll('table.rp-tbl').length,
+      arkusze: rep.querySelectorAll('[data-el="rozkroj-material"]').length,
       formatki: rep.innerText.includes('Formatki do zam'),
       produkty: rep.innerText.includes('Produkty do zam'),
       nazwa: rep.innerText.includes('Kuchnia testowa'),
@@ -114,7 +115,7 @@ await page.waitForTimeout(1500);
 const snap = await page.evaluate(() => window.__snap);
 ok('zestawienie zbudowane', !!snap, snap ? snap.pages + ' stron, ' + snap.svgs + ' rysunków, ' + snap.tables + ' tabel' : 'brak');
 if (snap) {
-  ok('zestawienie: 2 strony na szafkę + rozkrój', snap.pages === 3, String(snap.pages));
+  ok('zestawienie: 2 strony na szafkę + rozkrój + po stronie na arkusz', snap.arkusze > 0 && snap.pages === 3 + snap.arkusze, `${snap.pages} (arkuszy ${snap.arkusze})`);
   ok('zestawienie: 4 widoki + arkusze rozkroju', snap.svgs >= 5, String(snap.svgs));
   ok('zestawienie: formatki i produkty', snap.formatki && snap.produkty);
   ok('zestawienie: nazwa projektu w nagłówku', snap.nazwa);
