@@ -1,3 +1,72 @@
+# Kolejna seria 10-minutowa — N44–N48, 17.10.2026
+
+Start 11:46:03 czasu polskiego, limit 10 minut. Ponownie sprawdzony main: `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Pominięto znane N1–N43 i wpisy BLEDY.md. Pięć nowych zgłoszeń. Testy rzeczywistych funkcji źródłowych na lokalnych kopiach danych; bez zmian projektu użytkownika, nowych PDF i bez pełnego przebiegu testów UI. N45 dotyczy wykonalności planu połączeń i wymaga szczególnej weryfikacji montażowej przy poprawce.
+
+## N44 [P2] Zamówienie liczy mocowania obu końców przegrody także bez dna lub wieńca
+
+**Odtworzenie:** W800/H1200/D560, dwa pola w jednym poziomie, jedna pionowa przegroda, bez półek, pleców i frontów. Porównać pełne dno/wieniec, brak jednej z płyt oraz blat roboczy na bokach.
+
+**Wynik:** pełny korpus ma 18 konfirmatów: 6 do wieńca, 6 do dna, 6 do obu końców przegrody. Po wyłączeniu wieńca albo dna zamówienie ma 12 konfirmatów, lecz plan przewiduje tylko 9 rzeczywistych pozycji: 6 do pozostałej płyty i 3 do jednego końca przegrody. Po wyłączeniu obu płyt zostaje 6 konfirmatów „przegrody 2×3”, mimo że plan nie ma żadnego połączenia końców przegrody z płytą poziomą. Dla blatu roboczego na bokach i pełnego dna program również liczy 12, choć plan nie przewiduje konfirmatów przez lico blatu: zostaje 9 pozycji.
+
+Kod bezwarunkowo wykonuje `joint(dividers.length * 2, dividerDepth, "przegrody")`; plan wierceń filtruje nieistniejące podpory i blat prawidłowo. Powoduje to także nadmiar zaślepek.
+
+**Oczekiwane:** liczba połączeń przegrody wynika z faktycznych płyt nad i pod nią oraz sposobu mocowania. Jeśli potrzebne jest inne podparcie wolnego końca, należy je określić osobno. Przy wariancie bez wieńca aplikacja zgłasza ogólną uwagę o otwartym korpusie — ten raport nie twierdzi, że uwag nie ma; zgłoszenie dotyczy nadal niezgodnego zamówienia i planu.
+
+Dowód: `audit-next-levels-results.json`, sekcja contacts, sześć wariantów. Nie jest to N40: tam błędna była głębokość mocowania wspornika i półki, tutaj liczba istniejących styków pionowej przegrody.
+
+## N45 [P2, wykonalność planu] Konfirmaty z przeciwnych stron wspólnej płyty trafiają w te same osie
+
+**Próba A:** W800/H1200/D560, jedna pionowa przegroda, po jednej półce z lewej i prawej na tej samej wysokości; mocowanie półek na konfirmatach. Brak pleców i innych wzmocnień.
+
+Plan „Przegroda 1” ma dwa osobne wpisy, od kolumny 1 i 2. Oba podają wysokość 582 mm od dołu przegrody i identyczne pozycje od przodu 50, 280, 510 mm. Program zamawia niezależne konfirmaty 7×50 dla obu półek, bez rozsunięcia otworów, ostrzeżenia ani innego rozwiązania połączenia w tym miejscu. W geometrii obie półki rzeczywiście są naprzeciw siebie: spód Y591, przegroda X391–409.
+
+**Próba B:** dwa poziomy, dolny 300 mm, pionowe przegrody jedna nad drugą przy X391, między nimi ta sama półka przelotowa Y318–336. Jej plan pojawia się jako „nad poziomem 1” oraz „pod poziomem 2”; obydwa wpisy wskazują X382 od wewnętrznego lewego boku i pozycje głębokości 50, 280, 510 mm, lecz w przeciwnych kierunkach w identycznych osiach. Zamówienie znów traktuje je jako dwa niezależne komplety.
+
+**Oczekiwane:** jawnie rozwiązać połączenia w kształcie krzyża: rozsunąć wzór mocowań w wykonalny sposób albo dobrać inny sposób łączenia. Nie można traktować dwóch przeciwnych mocowań w identycznej osi jako niezależnych bez określenia konstrukcji. Przy poprawce zweryfikować także dostęp do łbów i kolejność montażu. Same osobne wpisy „od kolumny” nie rozwiązują konfliktu. Nie wyznaczano z tego audytu nowego rozstawu ani nie zastępowano konsultacji montażowej.
+
+Warianty A/B liczyć jako jeden błąd obsługi przeciwległych połączeń. To nie N33 (powtórzenie punktu przy małej głębokości): korpus ma standardową głębokość 560 mm. Znane rozsuwanie otworów kołków i trójkątów nie obejmuje tu konfirmatów.
+
+Dowód: `audit-next-opposed-results.json`; w obu próbach lista uwag jest pusta. Przejrzeć gałęzie planu konfirmatów półek oraz pionowych przegród.
+
+## N46 [P2] Słupek podnosi górną szafkę stojącą nad inną częścią blatu
+
+**Odtworzenie:** dolny ciąg: trzy szafki po 600 mm, cokół pod korpusem 100 mm, H720, wspólny blat 38 mm; jedna górna szafka szerokości 600 mm nad lewą szafką, przesunięcie 0, „Prześwit nad blatem” 500 mm. Następnie podwyższyć tylko skrajną prawą dolną szafkę do H2000 (słupek poza zakresem górnej).
+
+**Wynik:** przed zmianą górna szafka zaczyna się na 1358 mm. Po dodaniu słupka jej spód idzie na 2638 mm. Tymczasem `runTop` nadal pokazuje blat nad dwiema niskimi szafkami X0–1200 na poziomie 820 mm + 38 mm grubości. Górna szafka zajmuje tylko X0–600, więc nie jest nad słupkiem. Faktyczny prześwit nad blatem wynosi 1780 zamiast wpisanych 500 mm.
+
+**Przyczyna:** `tierMountY` bierze najwyższe lico dowolnej szafki dolnego ciągu (`Math.max`), następnie dokłada grubość blatu i prześwit. Nie korzysta z rzeczywistej wysokości wybranego odcinka blatu ani zakresu górnej szafki. Kontrola sufitu również dostaje tę błędną wysokość.
+
+**Oczekiwane:** dla górnej zabudowy nad niskimi szafkami prześwit mierzony od rzeczywistego blatu, zgodnie z nazwą pola; ewentualne zderzenie górnych ze słupkiem rozpatrywać przestrzennie, a nie podnosić cały ciąg bez względu na jego zakres. To nie N23 (zamawianie blatu przez przerwę): słupek jest na końcu, a blat ma prawidłowo dwa niskie pola.
+
+Dowód: `audit-next-upper-results.json`, tall720/tall2000; `upperSpan` X0/W600, `runTop.y` w obu próbach 820.
+
+## N47 [P2] Rozwiązanie dolnego ciągu zostawia górny z nieistniejącym rodzicem i dawną wysokością
+
+**Odtworzenie:** utworzyć górny ciąg nad dolnym, początkowo H720 + cokół100 + blat38 + prześwit500 — zapisany `mountY` górnego wynosi 1358. Potem zwiększyć wszystkie dolne szafki do H800: aktualne położenie górnego liczy się na 1438 mm. Wybrać „Rozwiąż ciąg — szafki zostają, wracają na wolnostojące” dla dolnego.
+
+**Wynik:** szafki pozostają (4 przed i po operacji), ale dolny ciąg c1 znika. Górny nadal ma `tier: gorny`, `wall: c1`, choć c1 nie istnieje. `tierMountY` przechodzi na dawny zapis `mountY:1358`, więc górny samoczynnie przesuwa się w dół o 80 mm. Zmienia się również podstawa wyliczania szerokości ściany i powiązań pięter.
+
+**Oczekiwane:** operacja musi jawnie rozwiązać zależne piętro albo zachować je jako niezależny ciąg z aktualną wysokością i poprawnymi referencjami. Nie pozostawiać odwołania do nieistniejącego ciągu. Sposób docelowego rozłączenia wymaga decyzji projektowej; potwierdzone są osierocone `wall` i zmiana położenia, nie wskazanie jednej obowiązkowej implementacji.
+
+Dowód: `audit-next-dissolve-results.json`. Test wykonał dokładny kod obiektu stanu z callbacku `removeRun`, wyodrębniony z aktualnego źródła; nie uruchamiano rozwiązywania ciągu w projekcie użytkownika. To osobny mechanizm od N46: tutaj wszystkie dolne szafki mają jednakową wysokość, problem powstaje po usunięciu relacji.
+
+## N48 [P2] Blat przy frontach wpuszczanych bez potrzeby wymaga arkusza 1200 mm
+
+**Odtworzenie:** pojedyncza szafka w ciągu z blatem roboczym, D580, HDF przybijany 3 mm, front 18 mm wpuszczany; głębokość nie obejmuje frontu ani pleców. Bez odsunięcia od ściany. Porównać z frontem nałożonym.
+
+**Wynik:** rzeczywiste lico frontu wpuszczanego jest 583 mm od ściany. Arkusz 600 mm wystaje przed nim o 17 mm, czyli mieści się w przyjętym przez aplikację zakresie wysięgu 10–30 mm. Mimo to `runTop` liczy lico 603 mm i potrzebną głębokość 613 mm: dodaje 18 mm frontu oraz 2 mm luzu dla frontu nałożonego, choć front jest w obrysie. Dostajemy wybór arkusza 1200 i komunikat „szafki są za głębokie”, z propozycją zmniejszenia D580 do 567 mm. Dla obu trybów frontu wychodzi identyczny blat 613 mm, chociaż rzeczywiste lico różni się o 18 mm.
+
+**Oczekiwane:** potrzebna głębokość i dobór arkusza zależą od rzeczywistego lica frontów. Nie wymuszać droższego, szerszego pasa ani zwężenia szafki tam, gdzie standardowy blat 600 mm daje prawidłowy wysięg. Próba dotyczy globalnego, jednolitego montażu wpuszczanego; to nie N38 (indywidualny montaż szuflad w kontroli ruchu). To także nie N2: tutaj pierwotnie błędna jest sama potrzebna głębokość, a nie metadane arkusza dla rzeczywiście głębokiego blatu.
+
+Dowód: `audit-next-inset-top-results.json`, tryby overlay/inset; `runTop` tworzy odcinek jako korpus + HDF + `HINGE_PLAY` + `geo.tf` + wysięg niezależnie od montażu frontu. Wartości 583/601 mm rzeczywistego lica wyliczono z geometrii i położenia ciągu; 603 mm pochodzi z wyniku `runTop`.
+
+## Próby odrzucone jako nowe błędy
+
+Sprawdzono rozdzielenie planów wierceń przegród na różnych poziomach: mają prawidłowe prefiksy „Poziom 1”/„Poziom 2”, więc nie zgłoszono domniemanego zlania tych planów. Nie doliczano kolejnych odmian grubości i materiałów ani znanych usterek fixów, szuflad i maskownic.
+
+
+---
+
 # Dalsza kontynuacja — N43, 17.10.2026
 
 Po dodatkowym poleceniu „kontynuuj” sprawdzono jeszcze zgodność wykończenia frontów między widokami. Źródło: `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Jedno nowe zgłoszenie, dwa warianty tej samej linii renderowania zabudowy. Pozostałe znane usterki pominięte.
