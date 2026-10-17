@@ -19,6 +19,27 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-17 | audyt GPT N45: konfirmaty z obu stron jednej płyty w tej samej osi (półki naprzeciw przy przegrodzie, przegrody nad i pod półką przelotową) | błąd z wyborem mocowania drugiej strony: „Półki kolumny … na trójkątach / na kołkach” (`polkimont:`, `rawCol.shelfMount`), „Dół przegrody na trójkątach” (`przegrtr:`, `rawCol.divDolMount`); zmiana później w kolumnie („mocowanie”, „przegroda z prawej: dół na trójkątach”) — decyzja użytkownika | (ten commit) |
+| 2026-10-17 | audyt GPT N42 (wspornik): fix w kolumnie szuflad — skrzynka na całą szerokość uderzała w fix, wspornika nie było | bez wspornika błąd z „Usuń element stały” / „Dobuduj wspornik pionowy” (na długość NL); ze wspornikiem szuflada między nim a drugim bokiem, prowadnica na wsporniku (plan wierceń), wspornik w formatkach i 3D — decyzja użytkownika | (ten commit) |
+| 2026-10-17 | audyt GPT N49: półki szafki w L na konfirmatach — plan w nieistniejącym „Boku prawym”, półka ramienia bez mocowania | półka korpusu przy rogu konfirmatem w płytę kątownika przy plecach; półka ramienia konfirmatami w boku ramienia, przy rogu 2 kołki (po drugiej stronie płyty konfirmat półki korpusu) — decyzja użytkownika | (ten commit) |
+| 2026-10-17 | audyt GPT N50: uchwyt frontu ramienia rysowany, a nie zamawiany | `cornerArmParts` dolicza uchwyt frontu ramienia (bez fixu) | (ten commit) |
+| 2026-10-17 | audyt GPT N51: dno ramienia zostawało w formatkach i planie bez dna w korpusie | dno ramienia tylko przy `hasBot` („Wieniec ramienia” / „Dno ramienia” / oba) | (ten commit) |
+| 2026-10-17 | audyt GPT N52: pełne plecy ramienia — półka w nie wchodziła, plecy w 3D 720 zamiast 684 | głębokość półki ramienia od grubości pleców ramienia (`armPlan(a).tb`); plecy z płyty w 3D między dnem a górą, HDF H − 2 | (ten commit) |
+| 2026-10-17 | audyt GPT N53 / N57: front ramienia w 3D z grubością frontu szafki i zawsze nakładany | grubość z płyty frontu ramienia (`frontRamienia(a).plyta`), wpuszczany w obrysie ramienia | (ten commit) |
+| 2026-10-17 | audyt GPT N54: fronty „Skręcone 90°” obracały się każdy wokół swojej osi | front ramienia obraca się w układzie zabudowy wokół zawiasu frontu korpusu (`poPlace`) | (ten commit) |
+| 2026-10-17 | audyt GPT N55: cofnięty cokół w 3D zabudowy w licu | `runPlinth` zwraca `setback`, w rogu styk przesunięty o cofnięcie sąsiada; cokół ramienia cofnięty i o tyle krótszy przy rogu | (ten commit) |
+| 2026-10-17 | audyt GPT N56: dno ramienia przy cokole w obrysie 100 mm za nisko, cokołu ramienia nie było | dno ramienia na `geo.bottomY`; cokół ramienia także w obrysie (3D, formatka) | (ten commit) |
+| 2026-10-17 | audyt GPT N58: licznik cięć pomijał docięcie przy ścinku węższym od rzazu | cięcie po każdej osi, na której pole jest większe od formatki | (ten commit) |
+| 2026-10-17 | audyt GPT N59: kątownik narożnika w 3D w kolorze płyty półek | 3D z płyty korpusu, jak zamówienie i rysunki 2D (ustalone 2026-09-30, „Płyty elementów”) | (ten commit) |
+| 2026-10-17 | audyt GPT N60: półki w 3D: zwykłe z korpusu (szafka), przelotowe z płyty półek (zabudowa) | zwykłe półki z płyty półek, przelotowe z korpusu — w obu widokach | (ten commit) |
+| 2026-10-17 | audyt GPT N61: cokół ramienia bez mocowań | klipsy na nóżki przedniego rzędu ramienia albo trójkąty po obwodzie, jak cokół korpusu | (ten commit) |
+| 2026-10-17 | audyt GPT N62 / N63: wysunięta szafka w 3D zabudowy w licu ciągu, blat nad nią za płytki | `Assembly3D` przesuwa bryłę o `offset` (`wysun`); blat liczy lico od najgłębszej szafki plus wysunięcie | (ten commit) |
+| 2026-10-17 | audyt GPT N64: ciągi „od prawej” zaczynały się przy lewej krawędzi | `runLayout` liczy `lead` od długości ściany (górny bez niej — od końca dolnego); `tierMsgs` z tego samego | (ten commit) |
+| 2026-10-17 | audyt GPT N65: blaty na łyżwę w 3D jako nakładające się prostokąty | koniec przy rogu ścięty (`plytaSkos`) | (ten commit) |
+| 2026-10-17 | audyt GPT N66: złącza blatów w rogu przy blatach na różnych wysokościach | złącza tylko przy tej samej wysokości wierzchu; inaczej ostrzeżenie z różnicą (z obu ciągów) i bez opisu styku | (ten commit) |
+| 2026-10-17 | audyt GPT N67: za duży luz między szufladami bez uwagi | błąd powyżej „Ostrzegaj powyżej” z „Zmniejsz luz” | (ten commit) |
+| 2026-10-17 | audyt GPT N68: brak miejsca na prowadnicę usuwał szufladę z zamówienia | błąd „nie mieści się żadna prowadnica”; front zostaje w formatkach | (ten commit) |
+| 2026-10-17 | komentarze z artefaktu: „Luzy drzwi” nad „Strukturą”, opis „Luz w rogu”, podział cokołu/blatu zwinięty, podświetlenie formatki w 3D, półka → poziom / klapy, zużycie blatu (brakuje ≤ 200 mm) i odpad arkusza (< 15 %) | suita `komentarze1`; testy `ciag4`, `ciag7`, `podzial` rozwijają podział przed klikaniem | (ten commit) |
 | 2026-10-17 | audyt GPT N34: lustro nie zwiększało masy frontu przy doborze zawiasów i podnośników | `wagaLustra` (szkło 2500 kg/m³, grubość z materiału lustra) dodawana w `zawiasyGtv` / `autoHinges` drzwi i w masie klapy | (ten commit) |
 | 2026-10-17 | audyt GPT N35: wczytanie bieżącego projektu kasowało własne ceny równe dawnym netto i prostowało ręczne wzmocnienia | zapis niesie `wersja: 2` (projekt) i `version: 5` (szafka); prostowanie cen i wzmocnień tylko dla zapisów sprzed tych wersji | (ten commit) |
 | 2026-10-17 | audyt GPT N36: własne wystawanie uchwytu nie działało na klapie | klapa dostaje `handleOut` z `handleOuts[0]` jak skrzydło | (ten commit) |
@@ -27,7 +48,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 | 2026-10-17 | audyt GPT N39: pole „Kąt otwarcia — do widoku 3D” niczego nie zmieniało | pole usunięte (decyzja użytkownika); 3D ma swój suwak od 90° | (ten commit) |
 | 2026-10-17 | audyt GPT N40: konfirmaty wspornika i płytszej półki z pełnej głębokości korpusu | plan i zamówienie z głębokości wspornika (od `z0` za fixem) i półki (`c.shD`) | (ten commit) |
 | 2026-10-17 | audyt GPT N41: wspornik fixu przecinał plecy albo wystawał za korpus bez błędu | błąd, gdy `z0 + głębokość` > głębokość przegrody (do pleców), z „Wspornik na … mm głębokości” (`wspgl:`) | (ten commit) |
-| 2026-10-17 | audyt GPT N42: fix w kolumnie szuflad nie zmniejszał ich frontów | pasmo frontów szuflad zabiera fix boczny i górny jak drzwiom; wspornik przy szufladach — do decyzji | (ten commit) |
+| 2026-10-17 | audyt GPT N42: fix w kolumnie szuflad nie zmniejszał ich frontów | pasmo frontów szuflad zabiera fix boczny i górny jak drzwiom (wspornik — wiersz wyżej) | d631789 |
 | 2026-10-17 | audyt GPT N43: zabudowa 3D — lustro i blenda w innym kolorze niż w szafce | `Assembly3D`: lustro w kolorze lustra, blenda z materiału frontu | (ten commit) |
 | 2026-10-17 | audyt GPT N44: konfirmaty obu końców przegrody bez dna / wieńca / przy blacie na bokach | liczba z płyt, które są nad i pod przegrodą — jak w planie wierceń | (ten commit) |
 | 2026-10-17 | audyt GPT N46: słupek na końcu ciągu podnosił cały ciąg górny (prześwit 1780 zamiast 500) | `tierMountY` od lica szafek pod blatem (`worktopLevel`); górna nad wyższą szafką — błąd kolizji w `tierMsgs` | (ten commit) |
