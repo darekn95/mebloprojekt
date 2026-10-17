@@ -22,17 +22,19 @@ const rowsOf = (re) => card(re).evaluate((sec) =>
 const stan = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt') || '{}'));
 // kafelki podzialu danej sekcji
 // podzial: styki jako pola do zaznaczenia „2420 mm” (od 2026-09-29, wczesniej kafelki)
-const cutBtns = (label) => cs().evaluate((sec, lab) => {
+// podzial cokolu / blatu zwiniety za polem wyboru (komentarz uzytkownika 2026-10-17) — rozwijamy
+const rozwin = async () => { await page.evaluate(() => document.querySelectorAll('label[data-el^="podzial-"] input').forEach((i) => i.click())); await page.waitForTimeout(250); };
+const cutBtns = async (label) => { await rozwin(); return cs().evaluate((sec, lab) => {
   const f = [...sec.querySelectorAll('div')].find((l) => new RegExp('^' + lab).test((l.textContent || '').trim()));
   return f ? [...f.querySelectorAll('label')].filter((l) => l.querySelector('input[type=checkbox]')).map((l) => ({
     t: l.textContent.trim().replace(/ mm$/, ''), on: l.querySelector('input').checked,
   })) : [];
-}, label);
-const klik = (lab, t) => cs().evaluate((sec, [lab, t]) => {
+}, label); };
+const klik = async (lab, t) => { await rozwin(); return cs().evaluate((sec, [lab, t]) => {
   const f = [...sec.querySelectorAll('div')].find((l) => new RegExp('^' + lab).test((l.textContent || '').trim()));
   const l = [...f.querySelectorAll('label')].find((x) => x.textContent.trim() === t + ' mm');
   l.querySelector('input').click();
-}, [lab, t]);
+}, [lab, t]); };
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 const BLAT = { mode: 'blat', widthMode: 'outside', overL: 20, overR: 20, overFront: 30, overBack: 0 };

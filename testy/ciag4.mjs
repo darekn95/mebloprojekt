@@ -21,17 +21,19 @@ const cutRows = (re) => card(re).evaluate((sec) =>
   [...sec.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.trim()).join(' | ')));
 const stan = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt') || '{}'));
 // podzial: styki jako pola do zaznaczenia „800 mm” (od 2026-09-29, wczesniej kafelki)
-const jointBtns = () => cs().evaluate((sec) => {
+// podzial cokolu / blatu zwiniety za polem wyboru (komentarz uzytkownika 2026-10-17) — rozwijamy
+const rozwin = async () => { await page.evaluate(() => document.querySelectorAll('label[data-el^="podzial-"] input').forEach((i) => i.click())); await page.waitForTimeout(250); };
+const jointBtns = async () => { await rozwin(); return cs().evaluate((sec) => {
   const f = [...sec.querySelectorAll('div')].find((l) => /^Podział cokołu/.test((l.textContent || '').trim()));
   return f ? [...f.querySelectorAll('label')].filter((l) => l.querySelector('input[type=checkbox]')).map((l) => ({
     t: l.textContent.trim().replace(/ mm$/, ''), on: l.querySelector('input').checked,
   })) : [];
-});
-const klik = (t) => cs().evaluate((sec, t) => {
+}); };
+const klik = async (t) => { await rozwin(); return cs().evaluate((sec, t) => {
   const f = [...sec.querySelectorAll('div')].find((l) => /^Podział cokołu/.test((l.textContent || '').trim()));
   const l = [...f.querySelectorAll('label')].find((x) => x.textContent.trim() === t + ' mm');
   l.querySelector('input').click();
-}, t);
+}, t); };
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 const seed = async (widths, run = {}) => {
@@ -80,6 +82,7 @@ console.log('     ' + JSON.stringify(j));
 ok('zaznaczony dokładnie styk 2400', j.filter((x) => x.on).length === 1 && j.find((x) => x.on).t === '2400', JSON.stringify(j));
 
 console.log('\n== jedno kliknięcie to jedno przełączenie ==');
+await rozwin();
 const hits = await cs().evaluate((sec) => {
   const f = [...sec.querySelectorAll('div')].find((l) => /^Podział cokołu/.test((l.textContent || '').trim()));
   window.__hits = [];

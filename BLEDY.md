@@ -185,17 +185,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-- **Audyt GPT N45 — konfirmaty z przeciwnych stron jednej płyty** (2026-10-17).
-  Półki na konfirmatach po obu stronach przegrody na tej samej wysokości (albo
-  przegrody nad i pod półką przelotową) dostają konfirmaty w tych samych osiach.
-  Wcześniejsza decyzja „druga strona o 32 mm” rozsuwa otwory, ale nie rozwiązuje
-  dostępu do łbów: łeb drugiej strony siedzi pod czołem już przykręconej płyty.
-  Do ustalenia, czym łączyć drugą stronę (pytanie z opcjami po serii N34–N48).
-
-- **Audyt GPT N42 — wspornik przy fixie w kolumnie szuflad** (2026-10-17). Fronty
-  już omijają fix; wspornik pod prowadnicę nie powstaje (szuflada musiałaby być
-  węższa o fix i wspornik). Do decyzji: obsłużyć czy zgłaszać „nieobsługiwane”.
-
 - **Przycinanie albo zawieszanie po zmianach — pierwszy podejrzany: automatyczny
   rozkrój** (2026-09-29). Liczy się sam 1 s po zmianie formatek (powyżej 40 szafek
   — 5 s). Pomiar: 40 szafek niezauważalnie, 100 szafek jedno przytrzymanie ok.
@@ -224,6 +213,9 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 - **Nóżki** (2026-10-17, decyzja użytkownika po audycie GPT N8): najniższe regulowane w katalogu GTV to MLA-50 (50–75 mm) — poniżej 50 mm (też 0) błąd z „Ustaw 50 / 100 mm”.
 - **Blat roboczy w rozkroju** (2026-10-17, decyzja użytkownika): nigdy nie obracany — przód z fabrycznym profilem, długość zawsze wzdłuż 4100, głębokość wzdłuż 600 / 1200; słoje go nie dotyczą. Arkusz (600 / 1200) z samej formatki.
 - **Zawieszki w ciągu** (2026-10-17, decyzja użytkownika po N21): jeśli choć jedna szafka wisi na listwie, pozostałe domyślnie też; wyjątek (haczyki albo bez zawieszek) dopuszczalny z ostrzeżeniem i wyborem listwa / haczyki. Żadna na listwie — listwy nie ma; listwa przez cały ciąg.
+- **Konfirmaty z przeciwnych stron jednej płyty** (2026-10-17, decyzja użytkownika po N45): półki na konfirmatach po obu stronach przegrody na tej samej wysokości (albo przegrody nad i pod półką przelotową) — błąd; przyciskami wybiera się mocowanie drugiej strony: trójkąty albo kołki (przegroda nad półką: trójkąty), z możliwością późniejszej zmiany w kolumnie. Samo rozsunięcie o 32 mm nie wystarcza — łeb drugiego konfirmatu wypada pod czołem pierwszej płyty.
+- **Fix w kolumnie szuflad** (2026-10-17, decyzja użytkownika po N42): bez wspornika — błąd z wyborem „usuń fix” albo „dodaj wspornik pionowy” wzdłuż prowadnicy; ze wspornikiem szuflada automatycznie węższa (między wspornikiem a drugim bokiem), prowadnica na wsporniku.
+- **Półki szafki w L przy rogu** (2026-10-17, decyzja użytkownika po N49): konfirmaty tam, gdzie jest bok (korpus, bok ramienia), a przy rogu — do kątownika przy plecach (wzmocnienie pionowe), jeśli jest (usztywnia szafkę); bez niego kołki. Półki na kołkach albo trójkątach — przy rogu tak samo, w płytach kątownika.
 - **Ciąg górny nad rozwiązywanym dolnym** (2026-10-17, decyzja użytkownika po N47): zostaje samodzielnym ciągiem wiszącym na wysokości, na której wisiał, z długością ściany dolnego; przed rozwiązaniem wyraźne ostrzeżenie z potwierdzeniem.
 - **Pole „Kąt otwarcia”** (2026-10-17, decyzja użytkownika po N39): usunięte — kąt w 3D ustawia suwak, każde otwarcie od 90°.
 - **Płytka szafka** (2026-10-17, decyzje użytkownika po N30 / N33): na styku krótszym niż 132 mm jeden konfirmat w połowie + ostrzeżenie z „Popraw głębokość”; nóżki przy głębokości < 160 mm — samo ostrzeżenie, liczba bez zmian.
