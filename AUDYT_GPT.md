@@ -1,3 +1,63 @@
+# Seria 20-minutowa — nowe ustalenia N34–N37, 17.10.2026
+
+Start: 11:13:03 czasu polskiego; limit wyszukiwania 20 minut. Sprawdzono aktualny main: `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`, bez zmian względem poprzedniej serii. Pominięto N1–N33 oraz znane wpisy z BLEDY.md. Cztery nowe ustalenia poniżej; nie powielają wcześniejszych testów grubości, maskownic i blatów.
+
+Metoda: odtworzenia na kopiach danych w rzeczywistych funkcjach `computeGeo`, `Scene3D`, `loadProject`, `uchwytOut`, `projectLayout`, `openingMsgs`. Bez edycji projektu użytkownika i bez zmian kodu aplikacji. Próba otwarcia izolowanej kopii standalone przez przeglądarkę zakończyła się timeoutem po około 11 minutach; nie uznawać jej za test UI. Czas oczekiwania wchodzi w limit sesji. Wyniki poniżej są potwierdzone testami funkcji źródłowych, nie kliknięciami ani oględzinami nowego PDF.
+
+## N34 [P2] Lustro nie zwiększa masy frontu używanej do doboru okuć
+
+**Odtworzenie:** jedna klapa, W800/H400, płyta frontu 18 mm, automatyczna siła i dwa siłowniki. Włączyć lustro na froncie. Rzeczywisty front ma 796×394 mm, a do zamówienia dochodzi lustro 795×393 mm. Porównać masę i okucia przed oraz po włączeniu lustra.
+
+**Wynik:** w obu przypadkach masa pozostaje około 3,84 kg. Klapa do góry nadal dostaje 2×100 N, a klapa w dół 2×150 N. Także zwykłe drzwi W600/H1450 pozostają przy trzech zawiasach po dodaniu lustra. `wagaFrontu` oraz wywołania `zawiasyGtv` uwzględniają tylko płytę frontu; masa zamawianego lustra jest pomijana.
+
+**Oczekiwane:** doliczyć masę lustra (oraz jawnie ustalone dodatki), zanim program porówna obciążenie z tabelą. Nie wpisywać z tego raportu arbitralnej nowej siły: konkretny dobór wymaga przyjęcia parametrów lustra i ponownego sprawdzenia katalogu. Błędem potwierdzonym tutaj jest niezmienna masa mimo dodania fizycznego elementu, nie twierdzenie o konkretnym wymaganym modelu podnośnika.
+
+Dowód: `audit20-fronts-results.json`; kod ok. linii 383, 546–553, 2519–2526 i 2598–2602.
+
+## N35 [P2] Wczytanie bieżącego projektu zmienia ręczne dane jak przy migracji starego pliku
+
+**Odtworzenie A:** projekt z aktualnym `cab.version: 4`, zwykła szafka; górne pionowe wzmocnienie przy plecach, odsunięcie od tyłu ręcznie 18 mm. Zapisać JSON i wczytać go przez `loadProject`.
+
+**Wynik A:** odsunięcie zmienia się z 18 na 0 mm. Przy szafce narożnej ręczna wysokość takiego wzmocnienia 100 mm zmienia się na 60 mm. Kod migracji rozpoznaje wartości jako dawny domyślny układ bez rozróżnienia nowego projektu i świadomej edycji użytkownika.
+
+**Odtworzenie B:** w bieżącym projekcie ustawić własne ceny: formatowanie 42, obrzeże 2,75, oklejanie 7,20. Zapisać i ponownie wczytać.
+
+**Wynik B:** wszystkie trzy własne wpisy znikają z `prices`, bo są równe historycznym cenom netto. Przy następnym przeliczeniu zastępują je aktualne ceny domyślne. Zmiana następuje bez informacji o utracie własnych ustawień.
+
+**Oczekiwane:** zapis–odczyt bieżącego projektu zachowuje świadomie ustawione wymiary i ceny. Migracja potrzebuje identyfikacji wersji/wykonania albo innego rozróżnienia dawnych wartości od nowych danych. A i B traktować jako jedno zgłoszenie niebezpiecznej migracji bieżących danych, nie kilka nowych błędów. To osobny mechanizm od N29: tam cena gubiła się po zmianie ilości, tutaj przy samym wczytaniu niezmienionego JSON.
+
+Dowód: `audit20-roundtrip-results.json`; `migrateCab` ok. 955–976, `loadProject` ok. 1382–1387. Próby na lokalnych kopiach, niczego nie podmieniono w otwartym projekcie.
+
+## N36 [P2] Indywidualne wystawanie uchwytu jest ignorowane dla klap
+
+**Odtworzenie:** uchwyt szafki wystaje globalnie 20 mm. Na jednych drzwiach ustawić osobne wystawanie uchwytu na 0 albo 45 mm, a następnie zmienić front na klapę do góry lub w dół. Pole uchwytu jest dostępne również dla klapy w tym samym wierszu drzwi.
+
+**Wynik:** zwykłe skrzydło respektuje 0 i 45 mm; obie klapy w obu próbach nadal mają 20 mm. Dla wartości 0 bryła nadal zawiera uchwyt 240×12×20 mm, a dla 45 mm głębokość nadal wynosi 20 mm. Obiekt klapy nie przenosi `rawCol.handleOuts[0]` do `d.handleOut`, więc `uchwytOut` bierze wartość całej szafki. Tę samą błędną wartość dostaje kontrola kolizji.
+
+**Oczekiwane:** indywidualny wymiar uchwytu wpływa na klapę w geometrii, rysunkach i kontroli otwierania, tak jak na zwykłe skrzydło. Nie mylić tego z naprawionym U1 dotyczącym maksymalnego kąta klapy.
+
+Dowód: `audit20-handles-results.json`, sekcja `handles`; konstrukcja klapy ok. 2507–2513 i zwykłych drzwi ok. 2545–2555.
+
+## N37 [P2, brak kontroli] Przeszkoda zajmuje miejsce zawiasów, lecz brak ostrzeżenia o tej kolizji
+
+**Odtworzenie:** standardowa szafka W600/H720/D560, jedne lewe drzwi, bez półek i wzmocnień. Przeszkoda wewnętrzna: szerokość 80, głębokość 80, wysokość 684 mm; z lewej, od boku 18, od tyłu 480, od dołu 0; maskowanie wyłączone. Pełne dno i wieniec między bokami.
+
+**Wynik:** przeszkoda zajmuje X18–98 i Y18–702 mm, a po przeliczeniu osi głębokości leży w przednim pasie Z0–80 mm. Zawiasy mają X20 oraz środki Y103 i Y617 mm. Ich gabaryt przyjmowany przez samą aplikację (`HINGE_W=20`, `HINGE_H=55`, `HINGE_D=80`) przecina tę przeszkodę przy obu zawiasach. Nie następuje przełożenie/przesunięcie ani zgłoszenie kolizji. Jest tylko ogólna uwaga „Element kolizyjny nie ma zabudowy…”, a `openingMsgs` zwraca pustą listę.
+
+**Oczekiwane:** kontrolować miejsce zajmowane przez zawiasy i inne okucia w odniesieniu do przeszkód albo jasno wskazać, że ten zakres nie jest sprawdzany. Ogólna uwaga o niezabudowaniu przeszkody nie informuje, że nie ma miejsca na zawias. To brak kontroli okuć we wnętrzu, odrębny od N22 dotyczącego niepotrzebnego skracania górnej szuflady przez dolną przeszkodę. Gabaryty pochodzą z modelu aplikacji, nie z nowej weryfikacji katalogowej producenta.
+
+Dowód: `audit20-handles-results.json`, sekcja `obstacle`; `hObs` ok. 2571–2580 nie zawiera przeszkód geometrycznych.
+
+## Próby bez nowego zgłoszenia
+
+- 350 powtarzalnych, pseudolosowych zestawów rozkroju: ilość elementów, granice arkuszy i nakładanie prostokątów. Nie znaleziono utraty ilości, wyjścia poza arkusz ani nałożenia formatek (`audit20-cutcheck-results.json`). To nie dowodzi optymalności rozkroju i nie obejmuje znanych błędów grupowania materiałów.
+- Sprawdzono rozstaw wierceń klap przy różnych podporach. Współrzędnych odnoszących się jawnie do wewnętrznej strony boku nie uznano automatycznie za błędne współrzędne lokalne formatki; brak dostatecznej podstawy do nowego zgłoszenia liczbowego.
+
+Pełne wyniki i skrypty pozostały lokalnie w katalogu audytu. Na GitHub trafia opis odtworzenia, bez prywatnego JSON projektu. Poprawki i regresje powinny być wykonane przez Claude; ten raport nie potwierdza pełnej zgodności wszystkich zamawianych elementów z rysunkami.
+
+
+---
+
 # Kolejna seria audytu: N22–N33 — 17.10.2026
 
 Źródło: main, szafki.jsx blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Sesja rozpoczęta 11:02:09 czasu polskiego, limit 10 minut. Cel 30 nowych ustaleń nie został osiągnięty; poniżej 12 odrębnych ustaleń, w tym przypadki graniczne. Są to odtworzenia w lokalnie wyodrębnionych funkcjach źródłowych, nie pełne testy interfejsu ani potwierdzenie montażu. Nie zmieniano projektu użytkownika ani kodu aplikacji.
