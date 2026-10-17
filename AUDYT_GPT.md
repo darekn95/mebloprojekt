@@ -1,3 +1,66 @@
+# Przedłużenie audytu — N38–N42, 17.10.2026
+
+Użytkownik przedłużył testy o 10 minut od ok. 11:30:40 czasu polskiego. Źródło niezmienione: `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Pięć nowych zgłoszeń, odrębnych od N1–N37. Próby funkcji źródłowych na kopiach danych; N39 dodatkowo potwierdzono w działającym interfejsie. W teście UI zmieniono wyłącznie pole kąta, cofnięto zmianę do 90°, cofnięto wybór szafki i przywrócono Szafkę 5 oraz wcześniejszy widok zamknięty.
+
+## N38 [P2] Indywidualny montaż frontów szuflad nie jest spójny z kontrolą kolizji i pasmem pionowym
+
+**Próba A:** jedna szafka W600/H720/D560, HDF 3 mm, pełne dno i wieniec, dwie szuflady. Cała szafka: fronty na korpusie; kolumna szuflad: fronty wpuszczane. Porównać z konfiguracją, gdzie cała szafka i kolumna mają fronty wpuszczane.
+
+W obu wariantach powstają identyczne fronty: X20, W560, Y20/H338 oraz Y362/H338, `inset: true`, NL500. Jednak `swingBodies` umieszcza zamknięte fronty i uchwyty według `cab.frontMode`, pomijając `d.inset`: w pierwszym wariancie fronty zajmują głębokość 563–581 mm od ściany, w drugim 545–563 mm. Kontrola kolizji pierwszego wariantu przesuwa je o 18 mm względem rzeczywistego montażu. Ruch zaczyna się odpowiednio na 581 zamiast 563 mm.
+
+**Próba B:** cała szafka: fronty wpuszczane; kolumna: nakładane. Fronty mają prawidłową szerokość nakładaną 596 mm, ale zachowują pionowe pasmo wpuszczane Y20/H338 zamiast Y3/H355 z wariantu nakładanego. Indywidualna opcja montażu działa inaczej w poziomie i pionie. To dwie obserwacje jednego niepełnego wdrożenia montażu per kolumna, nie dwa liczone osobno błędy.
+
+**Oczekiwane:** położenie frontu, wysokość pasma, uchwytu i strefy ruchu wynikają konsekwentnie z montażu konkretnego frontu. Nie mylić z wcześniej naprawionym rysowaniem szuflad wpuszczanych w 3D — zgłoszenie dotyczy kontroli otwierania i mieszanego montażu.
+
+Dowód: `audit20-drawermode-results.json`; obliczenia pasma ok. 2682–2695, kontrola `swingBodies` ok. 12420–12454. Dodatkowo 244 porównania układów narożnika: w pięciu przypadkach identyczne fronty dają różny wynik komunikatu o otwieraniu. Przykład: luz rogu 26 mm, dwie wpuszczane szuflady w Szafce 3, zawias lewy Szafki 1 c2; komunikat zmienia ok. 5° na 6° tylko po zmianie globalnej opcji, choć montaż i wymiary szuflad pozostają identyczne (`audit20-drawermode-collision-results.json`). Nie znaleziono w tej próbie potwierdzenia zmiany „brak kolizji” na „kolizja”; potwierdzono zmianę geometrii kontroli i raportowanego kąta.
+
+## N39 [P3, potwierdzone w UI] Pole „Kąt otwarcia — do widoku 3D” nie steruje rysunkiem
+
+**Odtworzenie:** Szafka 3, otwarty widok 3D. Pole w „Luzy drzwi”: „Kąt otwarcia”, podpowiedź „do widoku 3D”. Zmienić 90° na 30°.
+
+**Wynik:** pole pokazuje 30°, suwak rysunku nadal 90°. Wszystkie 48 wielokątów SVG zachowują identyczne współrzędne przed i po zmianie. `cab.openAngle` zapisuje się w projekcie, ale nie jest używane przez widoki; przekazują one niezależne `angle3d`.
+
+**Oczekiwane:** usunąć martwe pole albo uzgodnić jego działanie z suwakiem. Zachować przy tym wcześniejszą decyzję użytkownika, że każde nowe otwarcie 3D zaczyna się od 90° — ten raport nie proponuje cofnięcia tej decyzji.
+
+Dowód: `audit20-angle-live.json`, `kat-30-suwak-90-2026-10-17.png`, dodatkowo `audit20-angle-results.json`. Po próbie pole przywrócono przez Cofnij do 90°, a aktywną szafkę do Szafki 5. Kod: pole ok. 16761–16763, niezależny stan ok. 14017–14021, przekazanie kąta do widoków ok. 17273–17374.
+
+## N40 [P2] Konfirmaty wspornika i skróconej półki liczone z pełnej głębokości korpusu
+
+**Odtworzenie:** W600/H720/D560, bez pleców, dno i wieniec między bokami, lewy fix 100 mm na korpusie, pionowy wspornik głębokości 300 mm, jedna półka na konfirmatach, brak innych wzmocnień.
+
+**Wynik:** zamówienie ma wspornik 684×300 mm i półkę 564×260 mm, lecz plan zleca mocowanie wspornika do dna/wieńca w punktach 50, 280, 510 mm od przodu. Punkt 510 mm wypada 210 mm poza głębokością wspornika. Liczba konfirmatów wspornika także bierze D560. Dodatkowo półka ma w planie po dwa punkty na stronę (350, 510 mm w korpusie), natomiast okucia liczą po trzy na stronę. Zamówienie sumuje 24 konfirmaty: 12 korpusu + 6 wspornika + 6 półki. Z własnej reguły programu dla rzeczywistych głębokości wynika 12+4+4=20. Ostateczny rozstaw powinien być sprawdzony po korekcie; ten raport nie zastępuje planu montażu.
+
+**Oczekiwane:** korzystać z głębokości i odsunięcia każdej płyty, nie z globalnego `carcassDepth`/`shelfDepth`. Liczba okuć musi odpowiadać planowi i rzeczywistym stykom. To nie N16 (ręczne odległości kołków) ani N33 (duplikaty przy bardzo płytkiej szafce).
+
+Dowód: `audit20-support-results.json`, wariant depth300. Plan wspornika ok. 4079, ilości wspornika i półek ok. 4318 i 4335.
+
+## N41 [P2] Wspornik fixu może przecinać plecy lub wystawać za korpus bez błędu
+
+**Odtworzenie:** W600/H720/D560, plecy z płyty korpusu 18 mm wewnątrz, jedne drzwi, bez półek i innych wzmocnień; lewy fix 100 mm ze wspornikiem głębokości 550 mm. Sprawdzić fix nałożony i wpuszczany.
+
+**Wynik:** w wariancie nałożonym wspornik zajmuje Z0–550, a plecy Z542–560 mm: fizyczne przecięcie wynosi 8 mm. W wariancie wpuszczanym wspornik zajmuje Z18–568, przecina całe plecy i wystaje 8 mm za korpus. W X i Y bryły również zachodzą. Obie konfiguracje nie mają błędu kolizji. Do zamówienia trafia wspornik 684×550 mm, bez wycięcia rozwiązującego konflikt. Walidacja sprawdza tylko `supportDepth > carcassDepth`, pomijając odsunięcie wspornika i plecy.
+
+**Oczekiwane:** ograniczyć głębokość do rzeczywiście wolnego miejsca albo zgłosić kolizję i zaproponować poprawny wymiar. To nie N27 dotyczące grubości materiału pleców — tutaj oba elementy są z prawidłowej płyty 18 mm.
+
+Dowód: `audit20-support-limit-results.json`, kind doors/back board; zapisane bryły: wspornik nałożony `[82,18,0,100,702,550]`, plecy `[18,18,542,582,702,560]`; wspornik wpuszczany `[102,18,18,120,702,568]`.
+
+## N42 [P2] Fix w kolumnie szuflad nie zmniejsza ich frontów, a włączony wspornik znika
+
+**Odtworzenie:** jedna szafka W600/H720/D560, dwie automatyczne szuflady, fix 100 mm po lewej, po prawej albo u góry. Przy bocznym fixie włączyć pionowy wspornik 550 mm (wystarcza na wybraną NL550). Pełne dno/wieniec, bez pleców i innych wzmocnień.
+
+**Wynik:** boczny fix zajmuje X0–100 albo X500–600, lecz oba fronty pozostają X2–598 i zachodzą na fix po 98 mm. Górny fix zajmuje Y620–720, ale górny front nadal dochodzi do Y717. Aplikacja zgłasza własny konflikt frontów zamiast uwzględnić wybrane pole stałe przy ich doborze. Dla porównania zwykłe drzwi w tej samej konfiguracji są odpowiednio pomniejszane.
+
+W bocznym wariancie z zaznaczonym wspornikiem `c.support` pozostaje puste; wspornika nie ma w formatkach ani w bryle. Gałąź `kind === "drawers"` jedynie sprawdza długość pod prowadnicą i pomija utworzenie płyty. Nie przedstawiać tego jako braku ostrzeżenia o nachodzeniu frontów: ostrzeżenie jest, lecz poprawnie wybrane ustawienia generują nieobsługiwany układ.
+
+**Oczekiwane:** fix zabiera dostępne pasmo także szufladom, a zamówione podparcie prowadnicy istnieje w formatach i geometrii. Jeśli dana kombinacja nie jest wspierana, opcje powinny to jasno komunikować. Boczne/górne odmiany i brak wspornika liczyć jako jedno zgłoszenie obsługi fixa w kolumnie szuflad.
+
+Dowód: `audit20-fix-drawers-results.json`, `audit20-support-limit-results.json`, kind drawers. Kod fixa ok. 2270–2390; gałąź wspornika ok. 2328–2342; szuflady zaczynają się ponownie od bazowych `dsx0/dsx1` ok. 2685–2690.
+
+Te zgłoszenia uzupełniają serię N34–N37. Dowody poza N39 pochodzą z testów funkcji źródłowych; nie wykonano pełnej suity UI, nowych wydruków PDF ani katalogowej certyfikacji okuć.
+
+
+---
+
 # Seria 20-minutowa — nowe ustalenia N34–N37, 17.10.2026
 
 Start: 11:13:03 czasu polskiego; limit wyszukiwania 20 minut. Sprawdzono aktualny main: `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`, bez zmian względem poprzedniej serii. Pominięto N1–N33 oraz znane wpisy z BLEDY.md. Cztery nowe ustalenia poniżej; nie powielają wcześniejszych testów grubości, maskownic i blatów.
