@@ -579,14 +579,20 @@ const ZAWIASY_GTV = {
 };
 // { n, kg, poza, szer } — `poza`: wysokosc, waga albo szerokosc ponad tabele
 // (n = ostatni pasujacy wiersz, a przy wysokosci/wadze ponad tabele — ostatni)
-function zawiasyGtv(h, w, grub = 18, szeroki = false) {
+/* Lustro na froncie: szklo 2500 kg/m3 o grubosci z materialu „Lustro” (4 mm ≈
+   10 kg/m2), na wymiar lustra (front minus 0,5 mm z kazdej strony). Dolicza sie
+   do masy frontu przy doborze zawiasow i podnosnikow (audyt GPT N34). */
+const GESTOSC_SZKLA = 2500;
+const wagaLustra = (w, h, mat) => (Math.max(0, w - 1) / 1000) * (Math.max(0, h - 1) / 1000)
+  * ((((mat || {}).mirror || {}).thickness || 4) / 1000) * GESTOSC_SZKLA;
+function zawiasyGtv(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
   const t = szeroki ? ZAWIASY_GTV.szeroki : ZAWIASY_GTV.standard;
-  const kg = wagaFrontu(w, h, grub);
+  const kg = wagaFrontu(w, h, grub) + dodatekKg;
   const p = t.progi.find((q) => h <= q.h && kg <= q.kg);
   return { n: p ? p.n : t.progi[t.progi.length - 1].n, kg, poza: !p || w > t.szer, szer: t.szer };
 }
-function autoHinges(h, w, grub = 18, szeroki = false) {
-  return zawiasyGtv(h, w, grub, szeroki).n;
+function autoHinges(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
+  return zawiasyGtv(h, w, grub, szeroki, dodatekKg).n;
 }
 
 /* prowadnice szuflad: 21 mm na stronę (razem ze ścianką skrzynki) */
@@ -2603,7 +2609,9 @@ function computeGeoLiczy(cab, mat, ctx) {
               inset: cab.frontMode === "inset", gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
               bandLo: lv.i === 0 ? null : clo, bandHi: lv.i === L - 1 ? null : chi,
               mirror: !!(rawCol.mirrors || [])[0], hinges: nZaw, hingePts: [], klapaZawiasy: xs,
-              handle: (rawCol.handles || [])[0] !== false, colJ: j, colLast: j === lv.cols.length - 1 };
+              handle: (rawCol.handles || [])[0] !== false, colJ: j, colLast: j === lv.cols.length - 1,
+              // wlasne wystawanie uchwytu, jak przy skrzydle — dotad klapa brala to z calej szafki (audyt GPT N36)
+              handleOut: num((rawCol.handleOuts || [])[0]) };
             doors.push(d);
             c.doors.push(d);
             hingeCount += nZaw;
@@ -2611,7 +2619,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             if (d.mirror && dw > 1 && cbandH > 1) mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
             // podnosnik: 1, powyzej 600 mm szerokosci domyslnie 2
             const ile = rawCol.silowniki === 1 || rawCol.silowniki === 2 ? rawCol.silowniki : (dw > 600 ? 2 : 1);
-            const kg = wagaFrontu(dw, cbandH, tf);
+            const kg = wagaFrontu(dw, cbandH, tf) + (d.mirror ? wagaLustra(dw, cbandH, mat) : 0);
             const kat = klapa === "gora" && [75, 90, 100].includes(Number(rawCol.katKlapy)) ? Number(rawCol.katKlapy) : 90;
             d.kat = kat;   // kontrola otwierania liczy luk klapy do tego kata
             const recznie = num(rawCol.silaN);
@@ -2636,7 +2644,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
             bandLo: lv.i === 0 ? null : clo, bandHi: lv.i === L - 1 ? null : chi,
             mirror: !!(rawCol.mirrors || [])[i],
-            hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw, tf, zawiasSzeroki),
+            hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0),
             handle: (rawCol.handles || [])[i] !== false,
             handleOut: num((rawCol.handleOuts || [])[i]),
             handlePos: (rawCol.handlePos || [])[i] === "gora" ? "gora" : "bok",
@@ -2696,7 +2704,7 @@ function computeGeoLiczy(cab, mat, ctx) {
              2026-10-16: „za duzo” i „za malo” wg tabeli, z przyciskiem). Front
              ponad tabele (wysokosc / waga) — ostrzezenie, ze liczba orientacyjna. */
           {
-            const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki);
+            const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
             const opis = `front ${fmt(Math.round(dw))} × ${fmt(Math.round(d.h))} mm, ok. ${gtv.kg.toFixed(1).replace(".", ",")} kg`;
             const wpis = num((rawCol.hinges || [])[i]);
             if (wpis !== null && wpis !== gtv.n)
@@ -2739,7 +2747,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           if ((rawCol.mirrors || [])[i] && dw > 1 && cbandH > 1)
             mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
           if ((rawCol.handles || [])[i] !== false) handleCount += 1;
-          const autoH = autoHinges(cbandH, dw, tf, zawiasSzeroki);
+          const autoH = autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0);
           const ovH = num((rawCol.hinges || [])[i]);
           hingeCount += ovH !== null ? ovH : autoH;
         }
@@ -7173,7 +7181,8 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           "#3f3f46", transform, 1, false, 0, "uchwyt");
       };
       c.geo.doors.filter((d) => d.w > 0 && d.h > 0).forEach((d) => {
-        const col = d.type === "blenda" ? bf : c.frontColor;
+        // jak w 3D szafki: lustro w kolorze lustra, blenda z plyty frontow (audyt GPT N43)
+        const col = d.mirror ? c.mat.mirror.color : c.frontColor;
         /* front wpuszczany siedzi w swietle korpusu (z od 0 do tf), nakladany przed
            nim — wczesniej zabudowa rysowala kazdy front jak nakladany (2026-10-04) */
         const zf = d.inset ? 0 : -tf;
@@ -17108,9 +17117,8 @@ export default function App() {
                   onChange={(v) => set({ hinge: v })}
                   options={[{ v: "auto", l: "Auto" }, { v: "left", l: "Z lewej" }, { v: "right", l: "Z prawej" }]} />
               </Group>
-              <Field label="Kąt otwarcia" hint="do widoku 3D">
-                <Num value={cab.openAngle ?? 90} onChange={(v) => set({ openAngle: v })} suffix="°" />
-              </Field>
+              {/* pole „Kąt otwarcia — do widoku 3D” usuniete: nic go nie czytalo, kat
+                  ustawia suwak w 3D (audyt GPT N39, decyzja uzytkownika 2026-10-17) */}
               <Field label="Dodatkowe cofnięcie półki"
                 hint={cab.frontMode === "inset"
                   ? `Drzwi wewnątrz — półka jest już krótsza o ${fmt(geo.tf + 5)} mm.`
