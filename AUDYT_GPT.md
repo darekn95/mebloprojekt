@@ -1,3 +1,19 @@
+# Audyt godzinny — N64, 17.10.2026
+
+## N64 [P2] Ciągi ustawione od prawej krawędzi ściany są rysowane ze wspólnym lewym początkiem
+
+**Odtworzenie:** jedna ściana2400 mm, dolny ciąg z dwiema szafkami600 (razem1200), powiązany górny z jedną600. W obu `offsetFrom=right`, `offset=100`, `wallW=2400`. Bez narożnika.
+
+**Oczekiwany układ:** oba kończą się100 mm przed prawą krawędzią: dolny zajmuje1100..2300 mm od lewej ściany, górny1700..2300. Niezależnie od przyjętego wspólnego początku świata górny powinien zaczynać się600 mm na prawo od dolnego i mieć ten sam prawy koniec.
+
+**Wynik:** `runLayout` dolny ma lead0/tail100/len1300, górny lead0/tail100/len700; oba dostają tę samą ramkę dolnej ściany. `Assembly3D` pokazuje dolne korpusy X0..1200 i górny X0..600. Prawy koniec górnego jest600 mm za wcześnie. `tierMsgs` nie zgłasza problemu, ponieważ oblicza zakresy od prawej z użyciem2400 mm, czyli inne niż layout. Przełączenie obu na offsetFrom=left daje prawidłową wspólną lewą krawędź X100 i końce1300/700.
+
+**Przyczyna:** wybór „od prawej” ustawia wyłącznie `tail`; nie przelicza początku krótszego ciągu w tej samej ramce ściany. Uzgodnić wspólny układ współrzędnych ściany dla rysunku, górnego piętra i kontroli zakresów. Sprawdzić przy tym kontrolę otwierania, która korzysta z layoutu.
+
+Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Dowód lokalny `audit-hour-right-alignment.json`, warianty left/right, węzły layoutu, bryły i uwagi. To nie N46/N47 (wysokość montażu lub usunięty rodzic); oba piętra istnieją, błędne jest poziome wyrównanie. Bez zmian aplikacji i projektu użytkownika.
+
+---
+
 # Audyt godzinny — N63, 17.10.2026
 
 ## N63 [P2] Wysunięta szafka dostaje za płytki blat bez ostrzeżenia
