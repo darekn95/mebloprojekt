@@ -83,6 +83,10 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Blat roboczy / Blat ciągu / Podział blatu | `run.worktop`, `runTop`, `worktopSpans`, `runTopPanels` |
 | Blat w narożniku (przechodzi / dojeżdża / łyżwa) | `run.corner.top`, `run.corner.cut`; `projectLayout` → `topSpan.przez0/przez1` (czyj blat idzie przez róg); `runTop` skraca dojeżdżający do głębokości przechodzącego (`rt.depth`, z docinką arkusza) |
 | Złącze do blatów śrubowe (produkt) | `runTopZlacza(project, run)` w `projectParts` → okucia pozycji „Blat — ciąg”: łączenia kawałków blatu w ciągu (`rt.lens.length − 1`) i róg — liczy go ciąg, który trzyma róg (`run.corner`), gdy oba blaty robocze (`matKey` „worktop”); na styk `zlaczNaStyk(gl)`: 2 szt. przy blacie 600, 3 przy głębszym (arkusz 1200); styk i łyżwa; `ZLACZE_BLATU`, cena `DEFAULT_HW_PRICES` 9 zł |
+| `kawalkiBlatu(rt)`, `rt.wysokie` | kawałki blatu ciągu do zamówienia: podział na długość arkusza minus miejsca słupków (wyższych szafek); `b1`/`b2` wolne końce, `lacz` — styki kawałek-kawałek (złącza) |
+| `geoOb.maskWalls` (`buildEnclosure` → `sciany`) | ścianki zabudowy przeszkody z położeniem `{x0, x1, z0, z1 (od tyłu), y0, y1}` — te same co formatki; 3D szafki i zabudowy rysuje je (tag „zabudowa”) |
+| `KONF_DWA_OD` = 132, `pole:<nazwa>` | konfirmaty: krótszy styk — jeden w połowie; ostrzeżenie „Szafka płytka” z przyciskiem „Popraw głębokość” → `mp-karta` {id: "korpus"} rozwija kartę i ustawia kursor w `[data-el="pole-glebokosc"]` |
+| klucz ceny okucia | `okucie:<nazwa>|<wariant>` (+ opis produktu dla pozycji bez `use`) — bez ilości; `priceOf` przy braku bierze jedyną cenę zapisaną pod starym kluczem `okucie:<nazwa>|…` |
 | blat roboczy — arkusz i obrót | `arkuszBlatu(p, mat)` (formatka niesie `arkusz`: blat ciągu z `rt.arkusz`, własny blat szafki z `worktopDepth(mat)`), `etykietaBlatu` (arkusz 1200 → „… · arkusz 1200”, `bezArkusza` tam, gdzie format stoi obok), `wierszBlatu` (`rotatable: false`, `sheet`) — rozkrój ekranowy szafki i projektu, PDF; `buildCutPlan` grupuje po etykiecie i formacie; `boardDefault` cena z formatu w etykiecie |
 | `NOZKA_MIN` = 50, `nozki:<mm>` | najniższa nóżka regulowana (GTV MLA-50, 50–75 mm); poniżej — błąd z „Ustaw 50 mm / Ustaw 100 mm” (`runFix` → `cab.legs.height`); specyfikacja nóżki z `legH` |
 | `kolki:<od przodu>:<od tyłu>` | błąd „Kołki półek … nie mieszczą się na półce” (przód + tył ≥ głębokość najpłytszej półki albo ujemne) → „Ustaw 37 / 37 mm” (`cab.shelfPin`) |
@@ -466,6 +470,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `migr` / `reload` | migracja starych projektów, przeładowanie |
 | `arkusz` / `cutplan` / `fit` / `fitall` | mieszczenie się w arkuszu i rozkrój; `cutplan` też PDF rozkroju (nagłówek, kolumna arkusza, nagłówek materiału z rysunkiem, „N szafek”, złącza blatu w produktach projektu); prawdziwy wydruk rozkroju do PDF — 1 strona tabeli + dokładnie 1 strona na arkusz; „6 szafek” |
 | `audytgpt2` | audyt GPT 2026-10-17 N5–N21 i U3: HDF w kolorach, oklejanie wstawki, front z płyty korpusu, nóżki < 50, warianty nóżek i zawiasów, „Cokół”/„Blat” dodatkowe, plecy kolumn w 3D, dno szuflady 25, HDF przy wycięciu, blenda w 3D, kołki, kolor blatu, zawiasy w jednym miejscu, NL spoza listy, lustra, listwa i zawieszki w ciągu, nagłówek „Rysunek” |
+| `audytgpt3` | audyt GPT 2026-10-17 N22–N33 i podpowiedzi → ostrzeżenia: NL przy przeszkodzie, blat przy słupku, zabudowa przeszkody 3D (48 wariantów), głębokość z plecami / frontem, plecy z płyty półek, usunięcie szafki, cena okucia, nóżki i konfirmaty w płytkiej szafce, szczelina nad przegrodą, grubość ≤ 0 |
 | `drobne` | luzy domyślne, nazwa uchwytu, dekor, wkręt do pleców |
 | `stdfull` / `stdnew` | wersja standalone (ścieżka GitHub Pages) |
 

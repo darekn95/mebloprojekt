@@ -19,6 +19,19 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-17 | audyt GPT N22: przeszkoda poniżej szuflady skracała jej prowadnicę (NL 550 → 450) | `backBlocks` mają zakres wysokości (wycięcie: poziom albo cała szafka; przeszkoda: `fromBottom` + `h`), `maxNlFor` liczy tylko te na wysokości poziomu szuflad | (ten commit) |
+| 2026-10-17 | audyt GPT N23: blat ciągu 1800 w jednym kawałku nad 720 / 2000 / 720 | `rt.wysokie` (słupki w układzie płyty) i `kawalkiBlatu` — kawałki bez miejsc słupków, koniec przy słupku bez oklejania; złącza tylko na stykach kawałków | (ten commit) |
+| 2026-10-17 | audyt GPT N24: ścianki zabudowy przeszkody w 3D inne niż w zamówieniu (80 z 96 wariantów) | `buildEnclosure` zwraca ścianki z położeniem (`sciany` → `geoOb.maskWalls`), 3D szafki i zabudowy rysuje dokładnie je; macierz 144 wariantów zgodna | (ten commit) |
+| 2026-10-17 | audyt GPT N25: „głębokość obejmuje plecy” skracała korpus także przy plecach wewnątrz | odejmujemy tylko plecy na zewnątrz (HDF przybijany, płyta na zewnątrz) | (ten commit) |
+| 2026-10-17 | audyt GPT N26: „głębokość obejmuje front” pomijała blendę i sam fix | `anyFront` liczy blendę nakładaną i fix nakładany | (ten commit) |
+| 2026-10-17 | audyt GPT N27: plecy z płyty półek: w 3D grubość i kolor korpusu | `tb` z płyty, z której plecy są zamawiane (`plecyZPolek`); `plecyBryly` → `zPolek` (kolor półek) | (ten commit) |
+| 2026-10-17 | audyt GPT N28: usunięcie wcześniejszej szafki przełączało aktywną na następną | `removeCabinet` zmniejsza indeks aktywnej, gdy usuwana jest przed nią | (ten commit) |
+| 2026-10-17 | audyt GPT N29: własna cena okucia znikała po zmianie ilości (klucz z opisem ilości) | klucz ceny `okucie:<nazwa>|<wariant>` (bez opisu zastosowań z ilością); `priceOf` bierze cenę zapisaną pod starym kluczem tej nazwy, gdy jest jedna | (ten commit) |
+| 2026-10-17 | audyt GPT N30: nóżki przedniego i tylnego rzędu nachodzą na siebie w płytkiej szafce, bez uwagi | ostrzeżenie poniżej 2 × (LEG_INSET + LEG_W) = 160 mm z „Popraw głębokość”; liczba bez zmian (decyzja użytkownika) | (ten commit) |
+| 2026-10-17 | audyt GPT N31: błąd szczeliny nad nieistniejącą przegrodą (płyta 10 / 12 mm) | sprawdzane tylko, gdy poziom ma więcej niż jedną kolumnę | (ten commit) |
+| 2026-10-17 | audyt GPT N32: grubość płyty 0 / ujemna przyjmowana bez błędu | błąd „grubość płyty … musi być większa od zera” | (ten commit) |
+| 2026-10-17 | audyt GPT N33: dwa konfirmaty w tym samym otworze na krótkim styku | `konfirmatyNaStyk`: poniżej `KONF_DWA_OD` (132 mm) jeden, w połowie styku; ostrzeżenie o płytkiej szafce z „Popraw głębokość” (`pole:glebokosc` → karta Korpus, `mp-karta`) — decyzja użytkownika | (ten commit) |
+| 2026-10-17 | podpowiedzi (i), które każą coś poprawić — „drzwi / fronty szuflad różnią się o 1 mm”, środek dna bez nóżki, dwoje wąskich drzwi, blat wystaje za mało, „zmieści się głębsza NL”, „front uniesie wyższy bok” | ostrzeżenia (!) — decyzja użytkownika 2026-10-17 | (ten commit) |
 | 2026-10-17 | audyt GPT N2: głęboki blat ciągu (600 × 683 z arkusza 1200) wypadał z rozkroju | format arkusza idzie z formatką (`arkusz` z `rt.arkusz` / materiału szafki, `arkuszBlatu`), nie z materiału aktywnej szafki | (ten commit) |
 | 2026-10-17 | audyt GPT N3: dwa formaty blatu o tej samej etykiecie w jednej grupie rozkroju | `buildCutPlan` grupuje po etykiecie i formacie arkusza; blat z arkusza 1200 ma etykietę „… · arkusz 1200” (`etykietaBlatu`) | (ten commit) |
 | 2026-10-17 | audyt GPT N4: cena arkusza blatu z materiału aktywnej szafki | `boardDefault` bierze format z etykiety grupy (600 → 563,99, 1200 → 1128,22) | (ten commit) |
@@ -186,6 +199,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 - **Nóżki** (2026-10-17, decyzja użytkownika po audycie GPT N8): najniższe regulowane w katalogu GTV to MLA-50 (50–75 mm) — poniżej 50 mm (też 0) błąd z „Ustaw 50 / 100 mm”.
 - **Blat roboczy w rozkroju** (2026-10-17, decyzja użytkownika): nigdy nie obracany — przód z fabrycznym profilem, długość zawsze wzdłuż 4100, głębokość wzdłuż 600 / 1200; słoje go nie dotyczą. Arkusz (600 / 1200) z samej formatki.
 - **Zawieszki w ciągu** (2026-10-17, decyzja użytkownika po N21): jeśli choć jedna szafka wisi na listwie, pozostałe domyślnie też; wyjątek (haczyki albo bez zawieszek) dopuszczalny z ostrzeżeniem i wyborem listwa / haczyki. Żadna na listwie — listwy nie ma; listwa przez cały ciąg.
+- **Płytka szafka** (2026-10-17, decyzje użytkownika po N30 / N33): na styku krótszym niż 132 mm jeden konfirmat w połowie + ostrzeżenie z „Popraw głębokość”; nóżki przy głębokości < 160 mm — samo ostrzeżenie, liczba bez zmian.
+- **Ostrzeżenie, a nie podpowiedź** (2026-10-17): uwaga, która każe coś poprawić albo proponuje lepsze ustawienie z przyciskiem, jest ostrzeżeniem (!); podpowiedź (i) tylko opisuje.
 - **Dno i tył szuflady** (2026-10-17): z płyty półek — w praktyce 18, ewentualnie 16 / 12 / 10 mm (użytkownik); 3D rysuje je w grubości z zamówienia.
 - **Zawias przesunięty przez półkę** (2026-10-16): zostaje ostrzeżenie (!); do tego linia „Zawiasy przesunięte” w PDF i przycisk „Dopisz do notatki montażowej”.
 - **Luz nad skrzynką V-BOX** (2026-10-11/14, decyzja użytkownika: „musi być luz przynajmniej 5 mm”): od góry boku do tego, co wyżej (cała droga skrzynki, też wzmocnienie przy plecach) min. 5 mm ponad minimum z katalogu; auto bierze tylko taki bok, mniejszy luz to błąd. Front > 140 mm ponad bokiem: „Dodaj reling” (do zamówienia, 30 zł za komplet na szufladę bez względu na długość) albo „Zostaw bez relingu”.

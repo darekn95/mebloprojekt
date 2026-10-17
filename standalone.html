@@ -2077,8 +2077,9 @@ function computeGeoLiczy(cab, mat, ctx) {
   const half = g.between / 2;
   const divOv = Math.max(0, Math.round(g.divOverlay ?? 8));
   const divGap = t - 2 * divOv; // szczelina miedzy frontami nad przegroda
-  // tylko gdy jest przegroda miedzy kolumnami — inaczej nie ma czego sprawdzac (audyt GPT N31)
-  const saPrzegrody = levels.some((lv) => lv.cols.length > 1);
+  /* tylko gdy jest przegroda — pionowa miedzy kolumnami albo pozioma miedzy
+     poziomami; jedno pole bez przegrod nie ma czego sprawdzac (audyt GPT N31) */
+  const saPrzegrody = levels.length > 1 || levels.some((lv) => lv.cols.length > 1);
   if (cab.frontMode === "overlay" && saPrzegrody) {
     if (divGap < 2)
       add(
