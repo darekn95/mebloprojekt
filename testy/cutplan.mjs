@@ -139,7 +139,8 @@ ok('więcej formatek → arkusze', !!txt2 && txt2.svgs > 0, txt2 ? txt2.svgs + '
     const tab = [...root.querySelectorAll('table')].find((t) => /Arkuszy/.test(t.querySelector('thead')?.textContent || ''));
     window.__pdf = { secs, roz,
       wiersze: tab ? [...tab.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent.trim())) : [],
-      bloki: [...root.querySelectorAll('[data-el="rozkroj-material"]')].map((b) => ({ tytul: b.firstElementChild.textContent, rysunki: b.querySelectorAll('svg').length })) }; }; });
+      bloki: [...root.querySelectorAll('[data-el="rozkroj-material"]')].map((b) => ({ tytul: b.firstElementChild.textContent, rysunki: b.querySelectorAll('svg').length,
+        strona: b.matches('section.rp-page') })) }; }; });
   await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click(); await page.waitForTimeout(1200);
   const pdf = (await page.evaluate(() => window.__pdf)) || { secs: [], roz: '', wiersze: [], bloki: [] };
   const naglowek = pdf.roz;
@@ -147,8 +148,10 @@ ok('więcej formatek → arkusze', !!txt2 && txt2.svgs > 0, txt2 ? txt2.svgs + '
   const wBlat = pdf.wiersze.find((r) => /^Blat roboczy/.test(r[0])) || [], wPlyta = pdf.wiersze.find((r) => !/^Blat roboczy|^HDF/.test(r[0])) || [];
   ok('PDF: w tabeli blat roboczy z arkuszem 4100 × 600 mm', wBlat[1] === '4100 × 600 mm', JSON.stringify(wBlat));
   ok('PDF: płyta z arkuszem 2800 × 2100 mm (po okrawaniu …)', /^2800 × 2100 mm \(po okrawaniu [\d.,]+ × [\d.,]+ mm\)$/.test(wPlyta[1] || ''), JSON.stringify(wPlyta));
-  ok('PDF: nagłówek każdego materiału w bloku z pierwszym rysunkiem', pdf.bloki.length === pdf.wiersze.length && pdf.bloki.every((b) => b.rysunki >= 1 && / — arkusz \d/.test(b.tytul)),
-    JSON.stringify(pdf.bloki));
+  // kazdy arkusz na wlasnej stronie, z naglowkiem materialu (uzytkownik 2026-10-17: „Arkusz na całą stronę”)
+  const arkuszy = pdf.wiersze.reduce((acc, r) => acc + Number(r[2] || 0), 0);
+  ok('PDF: każdy arkusz rozkroju na swojej stronie, z nagłówkiem materiału i jednym rysunkiem', arkuszy > 0 && pdf.bloki.length === arkuszy
+    && pdf.bloki.every((b) => b.rysunki === 1 && / — arkusz \d/.test(b.tytul) && b.strona), JSON.stringify(pdf.bloki).slice(0, 300));
   const zbior = pdf.secs.find((t) => /Formatki całego projektu/.test(t)) || '';
   ok('PDF: „Formatki całego projektu — 2 szafki”', /Formatki całego projektu — 2 szafki/.test(zbior), (/Formatki całego projektu — [^E]*/.exec(zbior) || [''])[0]);
 }

@@ -12890,7 +12890,7 @@ function buildCutPlan(rows) {
 }
 
 /* rysunek jednego arkusza z ulozonymi formatkami */
-function SheetPlan({ sheet, sheetW, sheetH, index, total }) {
+function SheetPlan({ sheet, sheetW, sheetH, index, total, maxH = 420 }) {
   const pad = 40;
   const vb = `${-pad} ${-pad} ${sheetW + 2 * pad} ${sheetH + 2 * pad + 60}`;
   const used = sheet.parts.reduce((s, p) => s + p.w * p.h, 0);
@@ -12920,7 +12920,7 @@ function SheetPlan({ sheet, sheetW, sheetH, index, total }) {
           {sheet.parts.length} szt. · wykorzystane {fmt(pct)}%
         </span>
       </div>
-      <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: 420 }}>
+      <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: maxH }}>
         <rect x="0" y="0" width={sheetW} height={sheetH} fill="#fafaf9" stroke={INK} strokeWidth="6" />
         {sheet.parts.map((p, i) => (
           <g key={i}>
@@ -12988,6 +12988,12 @@ const PRINT_CSS = `
   .rp-page { break-after: page; page-break-after: always; }
   .rp-page:last-child { break-after: auto; page-break-after: auto; }
   .rp-keep { break-inside: avoid; page-break-inside: avoid; }
+  /* Arkusz rozkroju na cala strone, obrocony o 90° (czyta sie jak strone
+     w poziomie). Nazwane strony „A4 landscape” Chromium dzielil: naglowek na
+     jednej, rysunek na nastepnej — obrot na stronie pionowej jest pewny. */
+  .rp-arkusz { position: relative; height: 270mm; overflow: hidden; break-inside: avoid; }
+  .rp-obrot { position: absolute; top: 0; left: 0; width: 268mm; height: 186mm;
+    transform-origin: top left; transform: translateX(188mm) rotate(90deg); }
   .rp-tbl { width: 100%; border-collapse: collapse; font-size: 9pt; }
   .rp-tbl th, .rp-tbl td { border: 1px solid #d6d3d1; padding: 3px 5px; text-align: left; }
   .rp-tbl th { background: #f5f5f4; font-weight: 600; }
@@ -13283,6 +13289,7 @@ function ReportCutPlan({ project, projectName }) {
 
   if (!groups.length) return null;
   return (
+    <>
     <section className="rp-page">
       <div style={{ borderBottom: "2px solid #292524", marginBottom: 8, paddingBottom: 4 }}>
         <strong style={{ fontSize: "13pt" }}>{projectName}</strong>
@@ -13290,7 +13297,7 @@ function ReportCutPlan({ project, projectName }) {
             wiersza tabeli i nad rysunki, a nie do wspolnego naglowka (audyt GPT
             2026-10-16: naglowek „2800 × 2100” stal tez nad blatem). */}
         <div style={{ fontSize: "9pt", color: "#57534e" }}>
-          Rozkrój na płycie — rzaz {KERF} mm; arkusz każdego materiału w tabeli
+          Rozkrój na płycie — rzaz {KERF} mm; arkusz każdego materiału w tabeli, rysunki arkuszy na kolejnych stronach
         </div>
       </div>
       <table className="rp-tbl">
@@ -13317,32 +13324,24 @@ function ReportCutPlan({ project, projectName }) {
           ))}
         </tbody>
       </table>
-      {groups.map((g, gi) => {
-        const rysunek = (sh, i) => (
-          <div key={i} className="rp-keep" style={{ border: "1px solid #e7e5e4", padding: 6 }}>
-            <SheetPlan sheet={sh} sheetW={g.sheetW} sheetH={g.sheetH}
-              index={i} total={g.sheets.length} />
-          </div>
-        );
-        const siatka = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 };
-        /* Naglowek materialu w jednym bloku z pierwszym rzedem rysunkow — inaczej
-           zostawal sam na dole strony, a jego arkusze zaczynaly nastepna
-           (audyt GPT 2026-10-16: „HDF” na koncu strony 15). */
-        return (
-          <div key={gi} style={{ marginTop: 10 }}>
-            <div className="rp-keep" data-el="rozkroj-material">
-              <div style={{ fontSize: "10pt", fontWeight: 600, marginBottom: 4 }}>
-                {g.matLabel} — arkusz {arkuszOpis(g)}
-              </div>
-              <div style={siatka}>{g.sheets.slice(0, 2).map((sh, i) => rysunek(sh, i))}</div>
-            </div>
-            {g.sheets.length > 2 && (
-              <div style={{ ...siatka, marginTop: 8 }}>{g.sheets.slice(2).map((sh, i) => rysunek(sh, i + 2))}</div>
-            )}
-          </div>
-        );
-      })}
     </section>
+    {/* Kazdy arkusz na wlasnej stronie, w poziomie (uzytkownik 2026-10-17, po
+        audycie GPT: podpisy w rozkroju na pol strony byly za male). Naglowek
+        z materialem i formatem arkusza na tej samej stronie co rysunek. */}
+    {groups.map((g, gi) => g.sheets.map((sh, i) => (
+      <section key={`${gi}-${i}`} className="rp-page rp-arkusz" data-el="rozkroj-material">
+        <div className="rp-obrot">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline",
+            borderBottom: "1px solid #a8a29e", marginBottom: 4, paddingBottom: 2 }}>
+            <span style={{ fontSize: "11pt", fontWeight: 600 }}>{g.matLabel} — arkusz {arkuszOpis(g)}</span>
+            <span style={{ fontSize: "9pt", color: "#57534e" }}>{projectName} · rzaz {KERF} mm</span>
+          </div>
+          <SheetPlan sheet={sh} sheetW={g.sheetW} sheetH={g.sheetH}
+            index={i} total={g.sheets.length} maxH="168mm" />
+        </div>
+      </section>
+    )))}
+    </>
   );
 }
 
