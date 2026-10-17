@@ -1,3 +1,19 @@
+# Audyt godzinny — N62, 17.10.2026
+
+## N62 [P2] Wysunięcie szafki z lica jest pomijane w 3D zabudowy
+
+**Odtworzenie:** dwie szafki W600/H720/D560 w jednym prostym ciągu, HDF3; pierwsza `offset=0`, drugą ustawić kolejno na−100,0,+100 mm w polu wysunięcia z lica. Różne kolory korpusów ułatwiają identyfikację.
+
+**Wynik +100:** głębokość odniesienia ciągu563. `swingBodies` prawidłowo przesuwa drugi korpus: odległość od ściany103..663 mm, pierwszy3..563. `Assembly3D` rysuje obie szafki w tym samym pasie Z−563..−3: druga nie wystaje o100 mm.
+
+**Wynik −100:** odniesienie ciągu rośnie do663. Kontrola kolizji ma pierwszy korpus103..663, drugi3..563. `Assembly3D` ponownie rysuje oba identycznie, tym razem Z−663..−103. Druga szafka nie cofa się względem pierwszej. Kontrola0 daje zgodność.
+
+**Przyczyna:** transformacja `Assembly3D` używa `n.depth-p.z`, a bryły poszczególnych szafek nie dostają `c.offset`. Rzut z góry używa `n.depth-cd+c.offset`, kontrola otwierania `cdV1=n.depth+c.offset`. Należy uzgodnić położenie całej szafki (korpusu, wnętrza, frontów i okuć) we wszystkich widokach i kontrolach. Nie wystarczy przesunąć sam front.
+
+Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Dowód lokalny `audit-hour-offset3d.json`: trzy warianty i porównanie brył wizualizacji z bryłami kontroli kolizji. Bez zmian aplikacji i projektu użytkownika.
+
+---
+
 # Audyt godzinny — N61, 17.10.2026
 
 ## N61 [P2] Cokół ramienia nie ma doliczanych mocowań
