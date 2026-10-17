@@ -19,6 +19,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-17 | `wygl`, `wyglstd`: „brak przycisków oklejania przy HDF” — 1 przycisk | błąd testu: liczył też nowy przycisk z nazwą formatki (podświetlenie w 3D); liczy teraz bez `data-el="formatka-nazwa"` | (ten commit) |
 | 2026-10-17 | audyt GPT N45: konfirmaty z obu stron jednej płyty w tej samej osi (półki naprzeciw przy przegrodzie, przegrody nad i pod półką przelotową) | błąd z wyborem mocowania drugiej strony: „Półki kolumny … na trójkątach / na kołkach” (`polkimont:`, `rawCol.shelfMount`), „Dół przegrody na trójkątach” (`przegrtr:`, `rawCol.divDolMount`); zmiana później w kolumnie („mocowanie”, „przegroda z prawej: dół na trójkątach”) — decyzja użytkownika | (ten commit) |
 | 2026-10-17 | audyt GPT N42 (wspornik): fix w kolumnie szuflad — skrzynka na całą szerokość uderzała w fix, wspornika nie było | bez wspornika błąd z „Usuń element stały” / „Dobuduj wspornik pionowy” (na długość NL); ze wspornikiem szuflada między nim a drugim bokiem, prowadnica na wsporniku (plan wierceń), wspornik w formatkach i 3D — decyzja użytkownika | (ten commit) |
 | 2026-10-17 | audyt GPT N49: półki szafki w L na konfirmatach — plan w nieistniejącym „Boku prawym”, półka ramienia bez mocowania | półka korpusu przy rogu konfirmatem w płytę kątownika przy plecach; półka ramienia konfirmatami w boku ramienia, przy rogu 2 kołki (po drugiej stronie płyty konfirmat półki korpusu) — decyzja użytkownika | (ten commit) |
