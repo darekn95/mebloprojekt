@@ -1,3 +1,17 @@
+# Audyt godzinny — N59, 17.10.2026
+
+## N59 [P2] Materiał wewnętrznego kątownika narożnika różni się w 3D i zamówieniu
+
+**Odtworzenie:** narożnik L W900/H720, ramię640, wsporniki, płyty18. Ustawić inny dekor płyty półek i korpusu, wyłączyć „Półki z tej samej płyty co korpus”. W teście korpus niebieski, półki magenta.
+
+**Wynik:** `cornerArmParts` zamawia „Kątownik narożnika — nachodzący” i „— doczołowy”, po jednej formatce60×684 mm, obie `matKey=board`: materiał korpusu. `Assembly3D` rysuje te same dwie płyty z kolorem `shelfColorOf`, czyli z płyty półek. Bryły oznaczone `katownik`:18×684×60 i60×684×18. W wariancie kontrolnym „półki z korpusu” rysunek i zamówienie są zgodne; po rozdzieleniu materiałów zmienia się wyłącznie rysunek kątownika.
+
+**Oczekiwane:** ustalić materiał konstrukcyjny kątownika i korzystać z niego zarówno w bryłach, jak i formatkach/rozkroju. Komentarz `cornerBracket` mówi o dwóch wewnętrznych płytach półkowych, lecz `cornerArmParts` zamawia korpusowe; nawet jeśli właściwym wyborem jest korpus, wizualizacja nie może pokazywać innego materiału.
+
+Nie mylić z N43 dotyczącym blend ani N53 dotyczącym frontu ramienia z materiału sąsiada. Tu chodzi o dwie wewnętrzne płyty konstrukcyjne, przy jednakowej grubości18 mm. Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Dowód lokalny: `audit-hour-bracket-material.json`, dwa warianty z pozycjami zamówienia i bryłami. Bez zmian aplikacji i projektu użytkownika.
+
+---
+
 # Audyt godzinny — N58, 17.10.2026
 
 ## N58 [P3] Licznik cięć rozkroju pomija docięcie przy ścinku węższym od rzazu
