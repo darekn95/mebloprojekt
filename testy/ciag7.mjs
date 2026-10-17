@@ -141,7 +141,13 @@ ok('żadnej uwagi o wieszaniu na starcie',
   (await notes()).map((x) => x.txt.slice(0, 45)).join(' // '));
 
 console.log('\n== listwa jedna na cały ciąg ==');
-await seed([600, 600, 600]);
+/* Szafki na listwie, jak przy dodawaniu do ciagu w aplikacji. Od 2026-10-17
+   listwa jest tylko wtedy, gdy choc jedna szafka na niej wisi (audyt GPT N21,
+   decyzja uzytkownika) — surowe dane bez `hangerMode` to domyslne haczyki. */
+await seed([600, 600, 600], {}, { hangerMode: 'haczyki' });
+ok('wszystkie szafki na haczykach: bez listwy w projekcie', !(await rowsOf(/Produkty całego projektu/)).some((r) => /^Listwa/.test(r)),
+  (await rowsOf(/Produkty całego projektu/)).filter((r) => /Listwa/.test(r)).join(' // '));
+await seed([600, 600, 600], {}, { hangerMode: 'listwa' });
 let hw = await hwCab();
 console.log('     szafka: ' + hw.filter((r) => /Listwa/.test(r)).join(' // '));
 ok('szafka w ciągu nie liczy własnej listwy', !hw.some((r) => /^Listwa/.test(r)),
