@@ -6,7 +6,9 @@
    - sila klapy do gory z tabeli GTV PD-G00 (waga frontu na jeden podnosnik,
      wysokosc frontu, kat), klapy w dol z tabeli amortyzatora GTV PD-ECGDL,
    - UI: najpierw „skrzydło / klapa”, dopiero przy klapie „do góry / w dół”,
-   - formatka „Klapa” zamiast „Drzwi”, klapa na rysunku i w bryle. */
+   - formatka „Klapa” zamiast „Drzwi”, klapa na rysunku i w bryle,
+   - (2026-10-17) strona jednego podnosnika, polka na drodze podnosnika,
+     zawias polnakladany osobno (klapa pod polka, drzwi na przegrodzie). */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
@@ -255,6 +257,62 @@ await seed({ name: 'Z', active: 0, prices: {}, runs: [RUN('c1', { tier: 'gorny' 
   items: [{ ...GORNA(600, { klapa: 'gora' }).items[0], runId: 'c1' }, { ...GORNA(800, { klapa: 'dol' }).items[0], runId: 'c1' }] });
 await pick('Zabudowa'); await pick('3D'); await pick('zamknięte');
 ok('bryła zabudowy z otwartymi klapami bez błędów strony', errors.length === 0, errors.join('; '));
+
+/* Decyzje uzytkownika 2026-10-17: jeden podnosnik — strona do wyboru przy
+   klapie (domyslnie lewa); polka przy podnosniku min. 50 mm za frontem tylko
+   wtedy, gdy naprawde stoi tam, gdzie podnosnik (od plytki na boku do mocowania
+   na klapie); zawias polnakladany osobna pozycja, gdzie dwa fronty dziela plyte. */
+const wierc = async () => {
+  await page.evaluate(() => { window.__rep = null; window.print = () => {
+    const t = [...document.querySelectorAll('.print-only .rp-page table')].find((x) => /Otwory pod/.test(x.querySelector('thead')?.textContent || ''));
+    window.__rep = t ? [...t.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent.trim())) : [];
+  }; });
+  await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click(); await page.waitForTimeout(1000);
+  let panel = '';
+  return ((await page.evaluate(() => window.__rep)) || []).map((r) => { if (r[0]) panel = r[0]; return { panel, kind: r[1], note: r[3] }; });
+};
+const SZAFKA = (cab) => ({ name: 'K', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'K', W: 600, H: 720, D: 560,
+  plinth: { on: true, height: 100, mode: 'under', setback: 0 }, ...cab }, offset: 0 }] });
+
+console.log('\n== jeden podnośnik: strona do wyboru ==');
+await seed(GORNA(600, { klapa: 'gora' }));
+let wr = (await wierc()).filter((r) => r.kind === 'podnośnik klapy');
+ok('domyślnie na lewym boku', wr.some((r) => r.panel === 'Bok lewy') && !wr.some((r) => r.panel === 'Bok prawy'), wr.map((r) => r.panel).join(', '));
+await page.locator('[data-el="klapa-strona"]').getByRole('button', { name: 'na prawym' }).click(); await page.waitForTimeout(900);
+ok('zapis: podnosnikStrona = right', (await zapis()).items[0].cab.levels[0].cols[0].podnosnikStrona === 'right');
+wr = (await wierc()).filter((r) => r.kind === 'podnośnik klapy');
+ok('„na prawym”: płytka na prawym boku, mocowanie od prawej krawędzi klapy',
+  wr.some((r) => r.panel === 'Bok prawy') && !wr.some((r) => r.panel === 'Bok lewy') && wr.some((r) => r.panel === 'Klapa' && /od prawej krawędzi/.test(r.note)),
+  wr.map((r) => `${r.panel}: ${r.note.slice(0, 50)}`).join(' | '));
+await seed(GORNA(800, { klapa: 'gora' }));
+ok('dwa podnośniki: bez pola strony', await page.locator('[data-el="klapa-strona"]').count() === 0);
+
+console.log('\n== półka na drodze podnośnika ==');
+const naDrodze = async () => (await uwagi()).split('\n').filter((l) => /na drodze (podnośnika|amortyzatora)/.test(l));
+await seed(SZAFKA({ levels: [{ h: null, cols: [{ w: null, kind: 'doors', doors: 1, klapa: 'gora', shelfTargets: [null, null] }] }] }));
+ok('półka w połowie (pod płytką podnośnika) — bez uwagi', !(await naDrodze()).length, (await naDrodze()).join(' // '));
+await seed(SZAFKA({ levels: [{ h: null, cols: [{ w: null, kind: 'doors', doors: 1, klapa: 'gora', shelfTargets: [null, null, null] }] }] }));
+let nd = await naDrodze();
+ok('druga z dwóch półek w zasięgu podnośnika — uwaga', nd.length === 1 && /półka 2 \(od dołu\) stoi na drodze podnośnika/.test(nd[0]) && /co najmniej 50 mm/.test(nd[0]), nd.join(' // '));
+await card(/^Uwagi/).getByRole('button', { name: 'Dodatkowe cofnięcie półek 50 mm' }).click(); await page.waitForTimeout(900);
+ok('przycisk: cofnięcie półek 50 mm, uwaga znika', (await zapis()).items[0].cab.shelfExtraSetback === 50 && !(await naDrodze()).length, (await naDrodze()).join(' // '));
+await seed(SZAFKA({ levels: [{ h: null, cols: [{ w: null, kind: 'doors', doors: 1, klapa: 'dol', shelfTargets: [null, null, null] }] }] }));
+nd = await naDrodze();
+ok('klapa w dół: dolna półka w zasięgu amortyzatora', nd.length === 1 && /półka 1 \(od dołu\) stoi na drodze amortyzatora/.test(nd[0]), nd.join(' // '));
+
+console.log('\n== zawias półnakładany ==');
+const zaw = (rows) => ({ n: ilosc(rows, /^Zawias \| nakładany/), p: ilosc(rows, /^Zawias \| półnakładany/) });
+await seed(SZAFKA({ W: 900, levels: [{ h: null, cols: [{ w: null, kind: 'doors', doors: 1, hinge: 'left' }, { w: null, kind: 'doors', doors: 1, hinge: 'left' }] }] }));
+let z = zaw(await okucia());
+ok('drzwi drugiej kolumny na przegrodzie: 2 nakładane + 2 półnakładane', z.n === 2 && z.p === 2, JSON.stringify(z));
+await seed(SZAFKA({ W: 900, levels: [{ h: null, cols: [{ w: null, kind: 'doors', doors: 1, hinge: 'left' }, { w: null, kind: 'doors', doors: 1, hinge: 'right' }] }] }));
+z = zaw(await okucia());
+ok('obie na bokach: 4 nakładane, bez półnakładanych', z.n === 4 && z.p === null, JSON.stringify(z));
+await seed(SZAFKA({ H: 1400, levels: [{ h: 400, cols: [{ w: null, kind: 'doors', doors: 1, klapa: 'gora' }] }, { h: null, cols: [{ w: null, kind: 'doors', doors: 1 }] }] }));
+z = zaw(await okucia());
+ok('klapa pod półką, drzwi nad nią: zawiasy klapy półnakładane (2), drzwi nakładane (3)', z.n === 3 && z.p === 2, JSON.stringify(z));
+wr = (await wierc()).filter((r) => r.kind === 'podnośnik klapy' && /^Poziom 1 — Bok/.test(r.panel));
+ok('podnośnik tej klapy z wiersza „bliźniaczy” (242 mm)', wr.length === 1 && /bliźniaczy.*242 mm/.test(wr[0].note), wr.map((r) => r.note.slice(0, 120)).join(' | '));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

@@ -128,9 +128,11 @@ const scenariusz = async (tytul, cabLubProjekt, { spr = {} } = {}) => {
     || r.ys.every((y) => zr.some((z) => Math.abs(z.y - (y + d0)) <= 1)); });
   ok('zawiasy na tych samych wysokościach co na rysunku', zawOk,
     zPlan.map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | ') + ' // rys: ' + zr.map((z) => Math.round(z.y)).join(','));
-  const hw = okucia.find((r) => /^Zawias/.test(r[0]) && !/klap/.test(r[0]));
+  // nakladany i polnakladany to dwa wiersze (2026-10-17) — liczy sie suma
+  const hws = okucia.filter((r) => /^Zawias/.test(r[0]) && !/klap/.test(r[0]));
+  const hw = hws[0];
   if (spr.zawiasyOkucia !== false && hw) {
-    const q = num(hw[hw.length - 1].split(' ')[0]);
+    const q = hws.reduce((s, r) => s + num(r[r.length - 1].split(' ')[0]), 0);
     const nKlap = plan.filter((r) => r.kind === 'zawias klapy').reduce((s, r) => s + r.ys.length, 0);
     ok(`liczba zawiasów w okuciach (${q}) = otwory w planie (${nPlan + nKlap})`, q === nPlan + nKlap, hw.join(' | '));
   }
@@ -280,7 +282,8 @@ const zRogiem = async (tytul, runs, items, aktywna, oczek) => {
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
   const plan = await wiercenia(aktywna + 1);
   const okucia = await tabela(/^Produkty do zamówienia/);
-  const q = (re) => { const r = okucia.find((x) => re.test(x[0])); return r ? num(r[r.length - 1].split(' ')[0]) : 0; };
+  // suma po wierszach tej samej nazwy (np. zawias nakladany i polnakladany)
+  const q = (re) => okucia.filter((x) => re.test(x[0])).reduce((s, r) => s + num(r[r.length - 1].split(' ')[0]), 0);
   const ileWNocie = (note) => ((note.match(/,\s*([\d.]+(?:, [\d.]+)*) mm od przedniej/) || [])[1] || '').split(', ').filter(Boolean).length;
   const kon = plan.filter((r) => /^konfirmat/.test(r.kind)).reduce((a, r) => a + r.ys.length * ileWNocie(r.note), 0);
   const tr = plan.filter((r) => r.kind === 'trójkąt meblowy').reduce((a, r) => a + r.ys.length * (/2 rzędy/.test(r.note) ? 2 : 1) + (/po 1 na każdym krótkim boku/.test(r.note) ? 2 : 0), 0);

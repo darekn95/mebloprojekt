@@ -2131,6 +2131,12 @@ function computeGeoLiczy(cab, mat, ctx) {
   const mirrorParts = [];
   let handleCount = 0;
   let hingeCount = 0;
+  /* Z tego zawiasy polnakladane (blizniacze): front nachodzi na plyte z zawiasem
+     najwyzej na polowe grubosci, bo z drugiej strony stoi drugi front — przegroda
+     miedzy kolumnami albo polka miedzy poziomami pod klapa. Osobna pozycja
+     w zamowieniu (decyzja uzytkownika 2026-10-17). */
+  let hingePol = 0;
+  const polnakladany = (naCzolo, grubPlyty) => cab.frontMode === "overlay" && naCzolo <= grubPlyty / 2 + 2;
   const klapy = [];   // podnosniki klapy do okuc i uwag
   const slideGroups = new Map();
   const relingGroups = new Map();   // NL → ile szuflad z relingiem bocznym
@@ -2812,6 +2818,12 @@ function computeGeoLiczy(cab, mat, ctx) {
           const autoH = autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0);
           const ovH = num((rawCol.hinges || [])[i]);
           hingeCount += ovH !== null ? ovH : autoH;
+          /* Na ile front zachodzi na czolo boku albo przegrody, ktora niesie
+             zawias; wspornik przy elemencie stalym zostaje jak byl (front fixu
+             przed nim) — tam wariant szafki. */
+          if (!(c.fix && c.fix.side === d.hingeSide)
+              && polnakladany(d.hingeSide === "left" ? carrierL - d.x : d.x + dw - carrierR, t))
+            hingePol += ovH !== null ? ovH : autoH;
         }
         if (cbandH <= 0) add("error", `${where}: wysokość drzwi zero lub mniej.`);
         /* Dwa waskie skrzydla tam, gdzie zmiesci sie jedno (np. 2 x 148 w szafce
@@ -4278,7 +4290,8 @@ function computeGeoLiczy(cab, mat, ctx) {
         const plytaY = gora ? (szyna ? szyna.y0 : lv.y1) : lv.y0;
         const plytaT = gora && ostatni ? (szyna ? szyna.y1 - szyna.y0 : tW) : t;
         const nf = gora ? d.y + d.h - plytaY : plytaY - d.y;
-        const typ = d.inset ? "wpuszczane" : nf > plytaT / 2 + 2 ? "nakladane" : "blizniacze";
+        const typ = d.inset ? "wpuszczane" : polnakladany(nf, plytaT) ? "blizniacze" : "nakladane";
+        if (typ === "blizniacze") hingePol += (d.klapaZawiasy || []).length;
         const kat = gora && PODNOSNIK_L[d.kat] ? d.kat : 90;
         const plytkaY = gora ? plytaY - PODNOSNIK_H[typ][kat] : plytaY + AMORTYZATOR_H;
         const mocY = gora ? [plytaY - PODNOSNIK_L[kat], plytaY - PODNOSNIK_L[kat] - KLAPA_MOC_ROZSTAW]
@@ -4580,7 +4593,8 @@ function computeGeoLiczy(cab, mat, ctx) {
      stad zawias 165 stopni zamiast zwyklego. Drugie skrzydlo wisi juz na tym
      pierwszym, na zawiasie lamanym, i liczy sie przy ramieniu. */
   const skrzydlaLamane = !!(cab.corner || {}).on && (cab.corner || {}).doors === "lamane";
-  if (hingeCount)
+  const polSzt = skrzydlaLamane ? 0 : Math.min(hingePol, hingeCount);
+  if (hingeCount - polSzt > 0)
     hardware.push({
       name: skrzydlaLamane ? "Zawias 165°" : "Zawias",
       use: skrzydlaLamane
@@ -4593,7 +4607,17 @@ function computeGeoLiczy(cab, mat, ctx) {
         : (cab.frontMode === "overlay" ? "nakładany" : "wpuszczany") +
           ", liczba wg tabeli GTV (wysokość i waga frontu)"
           + (klapy.length ? "; klapa: te same zawiasy, 2 szt. na górnej lub dolnej krawędzi, powyżej 900 mm 3" : ""),
-      qty: hingeCount,
+      qty: hingeCount - polSzt,
+      unit: "szt.",
+    });
+  if (polSzt > 0)
+    hardware.push({
+      name: "Zawias",
+      use: "drzwi szafki",
+      wariant: "półnakładany",
+      spec: "półnakładany (bliźniaczy) — dwa fronty na jednej płycie: przegroda między kolumnami albo półka między poziomami pod klapą"
+        + ", liczba wg tabeli GTV (wysokość i waga frontu)",
+      qty: polSzt,
       unit: "szt.",
     });
   /* Klapy: podnosnik gazowy (do gory, tabela GTV PD-G00) albo amortyzator

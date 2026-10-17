@@ -637,12 +637,11 @@ podnosnika / amortyzatora w planie wiercen (stale `PODNOSNIK_*`, `AMORTYZATOR_*`
 w kontroli otwierania. Gorna szafka i blat juz byly przeszkoda (gorna jest plytsza,
 klapa dolnej otwiera sie przed nia); klapa w szafce z kilkoma poziomami dziala
 (kazda klapa to osobny ruch, fronty i uchwyty innych poziomow to przeszkody).
-[AI-TODO] Klapy — do decyzji uzytkownika: (1) jeden podnosnik — na ktorym boku
-(teraz lewy); (2) instrukcja PD-G00: polka przy podnosniku min. 50 mm za frontem —
-ostrzezenie czy cofanie polek; (3) amortyzator przy frontach wpuszczanych — karta
-PD-ECGDL nie podaje, przyjete 25 + grubosc frontu jak w PD-G00; (4) zawias klapy
-pod polka przelotowa to w praktyce polnakladany (blizniaczy), a zamowienie ma
-jeden wariant na szafke.
+[AI-INFO] (2026-10-17) Decyzje uzytkownika o klapach — w BLEDY.md „Ustalone”
+(„Montaz podnosnika i amortyzatora”, „Zawias polnakladany”): strona jednego
+podnosnika `col.podnosnikStrona`, polka na drodze podnosnika tylko w jego
+zasiegu (akcja `polkicof:`), wpuszczana 25 + grubosc frontu, zawias polnakladany
+osobno (`hingePol`). Wspornik przy fixie zostaje z wariantem szafki.
 
 [AI-INFO] Audyt calosci: `testy/audyt.mjs` (ok. 4 min, sekwencyjnie). Hook
 `audytBryly` zapisuje teraz tez obrys bryly na miejscu (`p`, po obrocie

@@ -18,6 +18,9 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-17 | decyzja użytkownika: jeden podnośnik — strona do wyboru | pole „na lewym / na prawym” przy klapie (`col.podnosnikStrona`), plan wierceń na wybranym boku; test w `klapy` | (ten commit) |
+| 2026-10-17 | decyzja użytkownika: półka na drodze podnośnika (instrukcja: min. 50 mm za frontem) | ostrzeżenie tylko przy półce w zasięgu podnośnika (od płytki do mocowania na klapie) z przyciskiem „Dodatkowe cofnięcie półek N mm” (`polkicof:`); test w `klapy` | (ten commit) |
+| 2026-10-17 | decyzja użytkownika: zawias półnakładany w zamówieniu | front zachodzi na płytę z zawiasem najwyżej na pół grubości (przegroda, półka pod klapą) → „Zawias — półnakładany” osobną pozycją; `audytwierc` sumuje oba wiersze; test w `klapy` | (ten commit) |
 | 2026-10-17 | klapy — braki (AI_NOTES): podnośnik / amortyzator bez mocowań w planie wierceń | plan wierceń ma płytkę na boku (albo przegrodzie / wsporniku) i mocowanie na klapie wg instrukcji GTV: PD-G00 — H pod spodem płyty z zawiasami z tabeli (kąt 75/90/100°, front nakładany / bliźniaczy / wpuszczany), 25 mm od przedniej krawędzi (wpuszczany 25 + grubość frontu), na klapie L (72/62/52) pod tą płytą i 24 mm niżej, 12 mm od wewnętrznej strony boku; PD-ECGDL — 245 mm nad płytą pod klapą, na klapie 62 i 86 mm; jeden — po lewej, dwa — po obu stronach; test w `audytwierc` | (ten commit) |
 | 2026-10-17 | klapy — braki (AI_NOTES): klapa do góry otwierana ponad 90° nie widziała sufitu | sufit z ciągu górnego (`ceiling`) jest przeszkodą w kontroli otwierania (`swingBodies`): „po drodze stoi sufit na N mm” z radą „kąt 90° albo 75°” albo „więcej miejsca pod sufitem”; górna szafka i blat już były przeszkodą (górna płytsza — klapa otwiera się przed nią); test w `ruchy` | (ten commit) |
 | 2026-10-17 | uproszczenie: „→ poziom” tylko w poziomie z jedną kolumną | `polkiNaPoziomy` dzieli cały poziom (wszystkie kolumny) na wysokości wybranej półki; pozostałe kolumny dostają tyle półek, ile wypadło w każdym paśmie; poziom z kolumną szuflad nie ma „→ poziom” (`daSiePodzielic`); „klapy zamiast drzwi” nadal tylko przy jednej kolumnie | (ten commit) |
@@ -236,10 +239,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   formatka „Klapa”, rysunki i bryła 3D. Poprawki po pierwszym spojrzeniu
   (wybór w dwóch krokach, amortyzator z tabeli PD-ECGDL, ostrzeżenie przy
   jednym podnośniku, cena 10 zł, gęstość 680) już wprowadzone. Braki spisane w `AI_NOTES.md` ([AI-TODO] Klapy).
-  2026-10-17: mocowania podnośnika / amortyzatora w planie wierceń i sufit w kontroli otwierania zrobione; do decyzji:
-  jeden podnośnik — który bok (teraz lewy); półka przy podnośniku min. 50 mm za frontem (instrukcja PD-G00) — ostrzeżenie
-  czy cofanie półek; amortyzator przy frontach wpuszczanych (karta nie podaje — przyjęte 25 + grubość frontu);
-  zawias klapy pod półką przelotową w praktyce półnakładany, a zamówienie ma jeden wariant na szafkę.
+  2026-10-17: mocowania podnośnika / amortyzatora w planie wierceń i sufit w kontroli otwierania zrobione,
+  decyzje o stronie podnośnika, półce na jego drodze, froncie wpuszczanym i zawiasie półnakładanym — w „Ustalone”.
 
 ## Ustalone — nie ruszać
 
@@ -349,6 +350,21 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   45° (dlatego uwaga o kącie przy za ciężkiej klapie w dół). Cena standardowa
   podnośnika i amortyzatora: 10 zł. Strona Kornera (waga płyty) zablokowana
   przez sieć kontenera — gęstość od użytkownika.
+- **Montaż podnośnika i amortyzatora** (2026-10-17, decyzje użytkownika):
+  wymiary z instrukcji GTV (PD-G00 i PD-ECGDL, s. 3). Jeden podnośnik —
+  strona do wyboru przy klapie („na lewym / na prawym”), domyślnie lewa; dwa —
+  po jednym na bok. Przy frontach wpuszczanych płytka 25 + grubość frontu od
+  przedniej krawędzi boku — także przy amortyzatorze, choć jego karta podaje
+  tylko 25. Półka min. 50 mm za frontem (instrukcja) — ostrzeżenie tylko wtedy,
+  gdy półka naprawdę stoi tam, gdzie podnośnik: od płytki na boku do mocowania
+  na klapie; nad nim, pod nim albo przy pustej przestrzeni — nic. Przycisk
+  ustawia „Dodatkowe cofnięcie półki”.
+- **Zawias półnakładany** (2026-10-17, decyzja użytkownika): osobna pozycja
+  w zamówieniu tam, gdzie front zachodzi na płytę z zawiasem najwyżej na pół
+  grubości, bo obok stoi drugi front — drzwi zawieszone na przegrodzie i klapa
+  pod półką między poziomami. Drzwi na boku zostają nakładane, przy frontach
+  wpuszczanych bez zmian; drzwi przy elemencie stałym (zawias na wsporniku) —
+  wariant szafki jak dotąd.
 
 - Artefakt na claude.ai **nie** potrzebuje pobierania plików (tylko wersja na
   GitHubie). „Wyślij do Claude” jest **tylko** w artefakcie. Szczegóły w `AGENTS.md`.
