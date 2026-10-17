@@ -1,3 +1,30 @@
+# Nowe ustalenia N9-N10 - 17.10.2026
+
+Źródło szafki.jsx blob 688b93c92636d6e5909979d68a8ce9bf5f4e6732. Odtworzono na lokalnych funkcjach computeGeo/projectParts/scalOkucia aktualnego kodu. Bez pełnej suity i testu kliknięć. Nie zmieniano aplikacji.
+
+## N9 [P2] Różne warianty nóżek tracą specyfikację w zbiorczym zamówieniu
+
+Dwie szafki: pierwsza ma cztery nóżki kwadratowe100 mm, druga cztery okrągłe150 mm. projectParts daje dwie poprawne pozycje z odrębną specyfikacją. scalOkucia daje jeden wiersz: „Nóżka regulowana”, qty8, spec „pod szafką”. Znika wysokość i kształt, a kolor nie był zawarty już w specyfikacji pojedynczej nóżki.
+
+Przyczyna: klucz scalOkucia pomija spec, jeżeli h.use istnieje. Po scaleniu spec jest zastępowany opisem zastosowań. Pozycje o różnych cechach handlowych nie mogą być traktowane jako ten sam produkt tylko dlatego, że służą do tego samego.
+
+Skutek: zbiorcze zamówienie i PDF nie mówią, ile kupić każdego rodzaju. Wycena używa jednej pozycji zamiast umożliwiać osobne ceny wariantów. Potwierdzono utratę height/shape; ceny wariantów nie są w aplikacji odrębnie katalogowane i nie zakładano ich wartości.
+
+Naprawa: osobny stabilny klucz produktu obejmujący wariant handlowy (wysokość/kształt/kolor/model), oddzielny od tekstu zastosowania. Sumować zastosowania tylko w obrębie identycznego produktu. Sprawdzić również inne okucia z use, np. odmiany zawiasów - nie uznano ich tu automatycznie za dodatkowe błędy.
+
+## N10 [P2] Dodatkowa formatka znika po nadaniu nazwy „Cokół” lub „Blat” w ciągu ze wspólnym elementem
+
+Odtworzenie na kopii projektu użytkownika: Szafka1 w ciągu ze wspólnym cokołem. Dopisać dodatkową formatkę z nazwą „Cokół”, wymiarami999 x123, qty1. computeGeo.panels zawiera ją poprawnie z note „formatka dopisana ręcznie”. projectParts usuwa ją całkowicie. Zmiana nazwy na „Cokół dodatkowy” przywraca tę samą formatkę do projectParts.
+
+Przyczyna: drop/projectParts filtruje wszystkie p.name === „Cokół”, jeżeli ciąg ma wspólny cokół, a analogicznie „Blat” dla wspólnego blatu. formatkiSzafki stosuje ten sam filtr nazw. Dodatkowa ręczna formatka nie ma identyfikatora odróżniającego ją od automatycznego elementu korpusu.
+
+Skutek: formatka wypada z listy zamówienia, rozkroju i wyceny oraz z listy szafki po zastosowaniu sharedPlinth/sharedTop. Testem obliczeniowym potwierdzono przypadek „Cokół”; „Blat” wynika z identycznego filtra, do osobnej regresji UI.
+
+Naprawa: oznaczać pochodzenie/rolę elementu i usuwać jedynie automatyczny cokół/blat szafki zastępowany wspólnym. Nie używać edytowalnej nazwy jako identyfikatora. Regresje: nazwy „Cokół”, „Blat”, „Dno”, nazwa pusta i dowolna; z ciągiem i bez; suma ilości i obecność w rozkroju oraz PDF.
+
+
+---
+
 # Nowe ustalenia N7-N8 - 17.10.2026
 
 Źródło szafki.jsx blob 688b93c92636d6e5909979d68a8ce9bf5f4e6732. Testy lokalnych funkcji computeGeo i Scene3D, bez końcowego renderowania SVG i pełnego testu kliknięć. Nie zmieniano kodu aplikacji.
