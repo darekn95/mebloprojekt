@@ -1,3 +1,34 @@
+# Nowe ustalenia N7-N8 - 17.10.2026
+
+Źródło szafki.jsx blob 688b93c92636d6e5909979d68a8ce9bf5f4e6732. Testy lokalnych funkcji computeGeo i Scene3D, bez końcowego renderowania SVG i pełnego testu kliknięć. Nie zmieniano kodu aplikacji.
+
+## N7 [P2] Front z płyty korpusu ma w geometrii grubość ukrytego materiału frontów
+
+Odtworzenie: korpus 25 mm, osobny materiał frontów 18 mm, zaznaczone „Fronty z tej samej płyty co korpus”. Lista formatek daje Drzwi nakładane z matKey board, czyli materiał 25 mm. computeGeoLiczy ustawia jednak tf = mat.front.thickness bez uwzględnienia flagi. Bryła zamkniętych drzwi Scene3D ma 18 mm grubości.
+
+W drugą stronę: korpus18, zachowany osobny front25, frontSameAsBoard=true: zamówienie board18, geometryT i grubość bryły25. Ukryty materiał może pozostać po odznaczeniu i ponownym zaznaczeniu przełącznika albo po zmianie grubości korpusu; setMat/setCab nie synchronizują tych grubości.
+
+Macierz: flaga true/false x korpus18/25 x materiał frontu12/18/25 (12 przypadków). Przy false geometria odpowiada materiałowi frontów. Przy true wszystkie cztery warianty o różnych grubościach są niespójne. Dodatkowo pojawia się ostrzeżenie o nieużywanym materiale frontów12/25.
+
+Skutek: bezpośrednia rozbieżność rysunek 3D - zamawiana grubość. tf jest też używane w głębokościach, drzwiach wpuszczanych i kontroli ruchów; ich wszystkich nie przetestowano w tym zgłoszeniu, więc to potencjalny dalszy wpływ, nie oddzielne potwierdzone błędy.
+
+Naprawa: efektywny materiał frontu ustalać raz, zgodnie z frontSameAsBoard; na jego podstawie liczyć grubość, masę, geometrię i zamówienie. Zachować możliwość powrotu do osobnego materiału frontów. Regresje: zmiana grubości korpusu przy zaznaczonej fladze oraz zaznaczenie flagi po wcześniejszym osobnym froncie; overlay/inset, drzwi/klapa/szuflada/fix.
+
+## N8 [P3] Nóżki wysokości 0 mają geometrię 0, a w zamówieniu 100 mm
+
+W polu wysokości nóżek można zapisać 0. computeGeo liczy legH=0 i nie zgłasza dla tego przypadku uwagi. Hardware spec używa cab.legs.height || 100, więc daje „kwadratowa, wysokość 100 mm”, qty4. Geometria stosuje num(height) ?? 100, traktując 0 jako rzeczywistą wartość. Ta sama alternatywa ||100 występuje w okuciach ramienia.
+
+Odtworzone na Szafce1 z projektu: legH0, hardware100, messages[]. To błąd wartości granicznej, nie deklaracja, że nóżka0 jest prawidłowym produktem.
+
+Naprawa: uzgodnić dozwolone minimum wysokości; nieprawidłowe0 jawnie odrzucić lub zamienić na jedną wspólną wartość. Wymiar geometrii, pole i specyfikacja zamówienia muszą być zgodne. Regresje: 0, puste, dodatnia wartość; szafka i ramię.
+
+## Ograniczenie wcześniejszego testu 61/61
+
+N7 wyjaśnia, dlaczego zgodność dwóch wymiarów i ilości formatek nie wystarcza do potwierdzenia materiału i grubości. W oryginalnym JSON płyty miały po18 mm, więc ten błąd nie ujawniał się tam. Testy pełnej zgodności powinny obejmować trzeci wymiar i tożsamość materiału.
+
+
+---
+
 # Kolejne nowe ustalenia N5-N6 - 17.10.2026
 
 Źródło szafki.jsx: blob 688b93c92636d6e5909979d68a8ce9bf5f4e6732. Testy wyodrębnionych funkcji obliczeniowych; nie pełny przebieg UI. Nie zmieniano aplikacji.
