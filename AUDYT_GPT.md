@@ -1,3 +1,19 @@
+# Seria 3-minutowa — N55, 17.10.2026
+
+Start 12:31:03 czasu polskiego, limit 3 minut. Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Jeden nowy potwierdzony problem; bez powtarzania N1–N54. Testy funkcji źródłowych na kopiach danych.
+
+## N55 [P2] Cofnięcie cokołu jest ignorowane w 3D zabudowy
+
+**Odtworzenie:** ciąg z cokołem pod korpusem H100, grubość płyty18; porównać `cab.plinth.setback=0` oraz20 mm we wszystkich szafkach. W próbie narożnik L W900/H720, ramię640. Wywołać `Assembly3D` z `rpOf: r => runPlinth(project,r)`.
+
+**Wynik:** `runPlinth` nie zwraca pola `setback`. `Assembly3D` (6921) odczytuje `rp.setback || 0`, więc zawsze rysuje cokół bez cofnięcia. Zmiana 0→20 mm nie zmienia żadnej bryły cokołu: dla odcinka600 mm zakres świata nadal X0..600, Y0..100, Z−563..−545. Cokół ramienia640 mm również pozostaje X600..1240, Y0..100, Z−563..−545; jego bryła osobno ma cofnięcie wpisane na sztywno jako0. Także drugi odcinek355 mm pozostaje w tym samym miejscu.
+
+**Oczekiwane:** przesunięcie cokołu w głąb odpowiedniego ciągu o ustawione20 mm, z poprawnym domknięciem narożnika. Widok boczny pojedynczej szafki odczytuje `cab.plinth.setback` (9130–9136), a `Scene3D` również korzysta z tego parametru (9772+). Należy uzgodnić z nimi widok zabudowy i ramię. Nie jest to ponowne zgłoszenie wcześniejszego styku cokołów przy zerowym cofnięciu; tutaj dowodem jest brak reakcji na edytowalny parametr.
+
+**Dowód lokalny:** `audit-arm-plinth-setback-results.json`, warianty0/20 mm wraz z bryłami i wynikami `runPlinth`. Nie zmieniano projektu użytkownika ani kodu aplikacji.
+
+---
+
 # Kolejna seria 10-minutowa — N49–N54, 17.10.2026
 
 Start 12:16:24 czasu polskiego, limit 10 minut. Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Pominięto N1–N48 i znane wpisy BLEDY.md. Sześć nowych zgłoszeń odtworzonych na rzeczywistych funkcjach źródłowych, na lokalnych wariantach projektu. To testy geometrii, zamówienia i planów wierceń; nie pełny przebieg UI/PDF. Projekt użytkownika i kod aplikacji nie były zmieniane.
