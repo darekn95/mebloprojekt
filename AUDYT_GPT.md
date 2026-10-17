@@ -1,3 +1,19 @@
+# Audyt godzinny od 12:37:06 — N57, 17.10.2026
+
+Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`; test funkcji na lokalnym wariancie, bez zmian aplikacji i danych użytkownika.
+
+## N57 [P2] Front ramienia pozostaje nakładany po wybraniu frontów wpuszczanych
+
+**Odtworzenie:** narożnik L W900/H720, ramię640, płyty18, HDF3; przełączyć `frontMode` szafki narożnej z overlay na inset. Porównać zamknięte bryły frontu ramienia i maskownicy w `Assembly3D`.
+
+**Wynik:** dla overlay front ramienia558×714×18 i maskownica mają Z−581..−563. Po przełączeniu inset wysokość frontu zmienia się na698, lecz front ramienia nadal zajmuje Z−581..−563. Maskownica prawidłowo przechodzi na Z−563..−545. W efekcie front ramienia jest wysunięty o18 mm względem maskownicy, zamiast być wpuszczony w obrys. Front samego korpusu narożnego zmienia swoją płaszczyznę prawidłowo.
+
+**Przyczyna:** `armInset`/`bracketPlan` uwzględniają montaż wpuszczany, natomiast bryła frontu ramienia i jej oś obrotu używają na sztywno zakresu od `-tfA` do0. Należy wspólnie wyznaczać położenie ramienia, maskownic i uchwytu dla obu trybów. Sprawdzić też szerokość i luzy frontu wpuszczanego przy boku ramienia; w tej próbie szerokość nadal558 mm, ale nie liczymy tego jako osobnego błędu.
+
+**Odrębność:** to nie N53 (grubość materiału dawcy): tutaj wszystkie fronty mają18 mm. To nie N48 (dobór blatu) ani N38 (indywidualny montaż szuflad). Dowód lokalny: `audit-hour-arm-inset.json`.
+
+---
+
 # Nowy błąd N56 — 17.10.2026
 
 Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Test rzeczywistych funkcji na lokalnym wariancie danych, z pominięciem N1–N55.
