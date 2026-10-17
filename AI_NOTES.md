@@ -105,6 +105,10 @@ Szeroka: `mocowanie` (`trojkaty` / `konf` / `listwa`) przesuwa ją w głąb
 `zawiasyGtv`, `autoHinges(h, w, grub, szeroki)`. Klapa zostaje 2 / 3 od 900 mm.
 Zlacza blatow (`runTopZlacza`): rog i laczenia kawalkow w prostym ciagu (ustalone).
 
+[AI-INFO] Audyt GPT 2026-10-17 (ta sama galaz, N2–N21 i U3): wszystkie odtworzone
+w aplikacji i poprawione (BLEDY.md, „Naprawione”); testy: `cutplan` (blat N2–N4, N15),
+`audytgpt2` (reszta). Skrypt odtwarzajacy z przegladarki byl w scratchpadzie — wzorzec
+w `testy/audytgpt2.mjs` (bryly przez `window.__audytBryl`, uwagi, tabele).
 [AI-INFO] Audyt GPT (2026-10-16, galaz `gpt/audyt-2026-10-16`, plik `AUDYT_GPT.md`):
 B1, B2, B3 odtworzone i poprawione, U1 poprawione; U2 (waski podglad) — nie ruszane.
 

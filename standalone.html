@@ -118,7 +118,10 @@ const ambiguousThickness = (mats) => {
 const matLabelOf = (m, key, ambiguous) => {
   const parts = [((m && m.name) || "").trim() || key];
   if (COLORED_KEYS.includes(key)) parts.push(colorLabel(m));
-  else if (key === "back" && ambiguous && ambiguous.has("kolor:" + (((m && m.name) || "").trim()))) parts.push(colorLabel(m));
+  /* kolor spoza palety to u wszystkich „kolor wlasny” — przy plecach w kilku
+     kolorach wtedy kod koloru, inaczej dwa rozne HDF dalej szly razem */
+  else if (key === "back" && ambiguous && ambiguous.has("kolor:" + (((m && m.name) || "").trim())))
+    parts.push(((m.decor || "").trim()) || paletteName(m.color) || `kolor ${String(m.color || "").toLowerCase()}`);
   if (ambiguous && ambiguous.has(((m && m.name) || "").trim())) parts.push(String(m.thickness));
   return parts.join(" ");
 };
@@ -11854,7 +11857,8 @@ const runCabMsgs = (run, c, inne = []) => {
      zamiast cichej zmiany ustawienia. Szafki stojacej to nie dotyczy: nic nie
      wiesza, wiec sposob wieszania jest jej obojetny. */
   const wisi = !(c.legs && c.legs.on) && !(c.plinth && c.plinth.on);
-  if (wisi && (run.hangerMode || "listwa") !== (c.hangerMode || "listwa"))
+  // szafka bez zawieszek nie wiesza sie wcale — o niej mowi uwaga wyzej
+  if (wisi && maZawieszki(c) && (run.hangerMode || "listwa") !== (c.hangerMode || "listwa"))
     out.push({ level: "warn", text:
       `Ta szafka wiesza się ${c.hangerMode === "haczyki" ? "na haczykach" : "na listwie"}, `
       + `a ciąg ${run.hangerMode === "haczyki" ? "na haczykach" : "na listwie"} — w ciągu listwa trzyma wszystkie szafki w jednej linii.`

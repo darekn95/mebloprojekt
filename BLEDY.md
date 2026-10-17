@@ -13,33 +13,33 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 | Suita | Objaw | Przyczyna / stan |
 |---|---|---|
 | — | wszystkie znane usterki z listy naprawione 2026-09-27; nowe dopisywać tutaj | |
-| audyt GPT N2 | głęboki blat ciągu (np. 600 × 683 z arkusza 1200) przy pilnowaniu słojów wypada z rozkroju (0 arkuszy, 1 odrzucony) | potwierdzone 2026-10-17: arkusz blatu brany z `mat.worktop.depth` (600) zamiast z `rt.arkusz` ciągu |
-| audyt GPT N3 | dwa formaty blatu (600 / 1200) o tej samej etykiecie łączą się w jedną grupę rozkroju — wynik zależy od kolejności | potwierdzone w kodzie (`buildCutPlan` grupuje po `matLabel`, arkusz z pierwszej pozycji) |
-| audyt GPT N4 | cena arkusza blatu w wycenie z materiału aktywnej szafki | potwierdzone w kodzie (`boardDefault`: `worktopDepth(mat)`; też ekranowy rozkrój) |
-| audyt GPT N5 | HDF w dwóch kolorach na jednym arkuszu rozkroju | potwierdzone 2026-10-17 (biały + czarny: 1 arkusz, 2 szt.); `matLabelOf` bez koloru dla pleców |
-| audyt GPT N6 | ręczne oklejanie wstawki w rogu (`edgeOverrides`) pomijane | potwierdzone 2026-10-17 (`wstawkaParts` ma obrzeża na sztywno) |
-| audyt GPT N7 | „fronty z płyty korpusu”: zamówienie z grubością korpusu, bryła z grubością ukrytego materiału frontów | potwierdzone 2026-10-17 (korpus 25 / front 18: formatka 25, bryła 18; i odwrotnie) |
-| audyt GPT N8 | nóżki wysokość 0: geometria 0, zamówienie 100 mm, bez uwagi | potwierdzone 2026-10-17 (`legs.height \|\| 100`) |
-| audyt GPT N9 | zbiorcze zamówienie łączy różne nóżki (100 kwadratowa + 150 okrągła → „pod szafką 8 szt.”) | potwierdzone 2026-10-17 (`scalOkucia`: klucz bez specyfikacji przy `use`) |
-| audyt GPT N10 | dodatkowa formatka nazwana „Cokół” / „Blat” znika w ciągu ze wspólnym cokołem / blatem | potwierdzone 2026-10-17 (filtr po nazwie w `projectParts` i `formatkiSzafki`) |
-| audyt GPT N11 | plecy ustawione w kolumnie: zamówienie je uwzględnia, bryła 3D nie | potwierdzone 2026-10-17 (HDF/brak, brak/HDF, HDF/płyta — 3D rysuje plecy całej szafki) |
-| audyt GPT N12 | dno i tył szuflady z płyty półek 25 mm: zamówienie 25, bryła 18 | potwierdzone 2026-10-17 |
-| audyt GPT N13 | HDF przy wycięciu narożnika: formatka 498, bryła 499 | potwierdzone 2026-10-17 (różnica 1 mm, konwencja luzu) |
-| audyt GPT N14 | blenda nad szafką w zamówieniu i na rysunku, brak w 3D | potwierdzone 2026-10-17 |
-| audyt GPT N15 | własny blat roboczy szafki 3100 × 560 dostaje błąd arkusza płyty 2761 × 2061 | potwierdzone 2026-10-17 (`P()` sprawdza `USABLE_W/H` także dla blatu) |
-| audyt GPT N16 | kołki półki 700 / 700 mm przy półce 560: plan „700 i −140 mm”, bez błędu | potwierdzone 2026-10-17 |
-| audyt GPT N17 | własny blat roboczy w 3D w kolorze korpusu | potwierdzone 2026-10-17 |
-| audyt GPT N18 | dwa zawiasy przesunięte w ten sam punkt (H250 / H150, 5 półek) — bez błędu | potwierdzone 2026-10-17 (oba na 112 / 117 mm od dołu frontu) |
-| audyt GPT N19 | NL spoza listy V-BOX (np. 325 z importu) przyjmowane bez błędu | potwierdzone 2026-10-17 |
-| audyt GPT N20 | lustra: powierzchnia zaokrąglana na szafkę (3 × 0,42 = 1,26 zamiast 1,27 m²), „× 1 szt.” po scaleniu | potwierdzone 2026-10-17 |
-| audyt GPT N21 | wszystkie szafki ciągu bez zawieszek — listwa do zawieszek dalej w zamówieniu | potwierdzone 2026-10-17 (`runRail` nie patrzy na `cab.hangers`) |
-| audyt GPT U3 | nagłówek „Rysunek” znika przy wąskim oknie (714 px: szerokość 0) | potwierdzone 2026-10-17 |
 | `wyslij` przy `STD=1` | w standalone nie przechodzi „pasek mówi, że wysłano” (tak samo na kodzie sprzed 2026-10-15) | do sprawdzenia: komunikat po zapisie w atrapie magazynu nie pojawia się w tekście strony w wersji standalone; w pełnym przebiegu `wyslij` idzie tylko na buildzie artefaktu, gdzie przechodzi |
 
 ## Naprawione
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-17 | audyt GPT N2: głęboki blat ciągu (600 × 683 z arkusza 1200) wypadał z rozkroju | format arkusza idzie z formatką (`arkusz` z `rt.arkusz` / materiału szafki, `arkuszBlatu`), nie z materiału aktywnej szafki | (ten commit) |
+| 2026-10-17 | audyt GPT N3: dwa formaty blatu o tej samej etykiecie w jednej grupie rozkroju | `buildCutPlan` grupuje po etykiecie i formacie arkusza; blat z arkusza 1200 ma etykietę „… · arkusz 1200” (`etykietaBlatu`) | (ten commit) |
+| 2026-10-17 | audyt GPT N4: cena arkusza blatu z materiału aktywnej szafki | `boardDefault` bierze format z etykiety grupy (600 → 563,99, 1200 → 1128,22) | (ten commit) |
+| 2026-10-17 | audyt GPT N5: HDF w dwóch kolorach na jednym arkuszu | przy plecach w kilku kolorach etykieta z kolorem (`ambiguousThickness` → „kolor:<nazwa>”, kod koloru spoza palety); jeden kolor — dalej „HDF” | (ten commit) |
+| 2026-10-17 | audyt GPT N6: ręczne oklejanie wstawki w rogu pomijane | `wstawkaParts` stosuje `edgeOverrides` szafki (wstawka i listwa) | (ten commit) |
+| 2026-10-17 | audyt GPT N7: „fronty z płyty korpusu”: bryła z grubością ukrytego materiału frontów | `tf` = grubość korpusu przy `frontSameAsBoard` (jak `ts` dla półek) | (ten commit) |
+| 2026-10-17 | audyt GPT N8: nóżki 0 mm: rysunek 0, zamówienie 100 | poniżej `NOZKA_MIN` (50 mm, GTV MLA-50) błąd z „Ustaw 50 / 100 mm”; specyfikacja z `legH` (tej samej co rysunek) | (ten commit) |
+| 2026-10-17 | audyt GPT N9: różne nóżki zlewały się w zbiorczym zamówieniu | pole `wariant` (kształt, wysokość, kolor nóżki; zawias nakładany / wpuszczany) w kluczu `scalOkucia` | (ten commit) |
+| 2026-10-17 | audyt GPT N10: dodatkowa formatka „Cokół” / „Blat” znikała przy wspólnym cokole / blacie | filtr po roli (`rola: "cokol" / "blat"`) zamiast po nazwie — `projectParts`, `formatkiSzafki` | (ten commit) |
+| 2026-10-17 | audyt GPT N11: plecy kolumn: zamówienie tak, bryła nie | `geo.plecyKolumn` (płyty z położeniem i grubością) → `plecyBryly` w 3D szafki i zabudowy; `plecyBryla` (2D) — obrys | (ten commit) |
+| 2026-10-17 | audyt GPT N12: dno i tył szuflady z płyty 25 mm rysowane jako 18 | `dr.skrzynka.grub` = `ts` → `skrzynkaBryly` | (ten commit) |
+| 2026-10-17 | audyt GPT N13: HDF przy wycięciu: formatka 498, bryła 499 | bryła z luzem 1 mm także przy krawędzi wycięcia (jak formatka) | (ten commit) |
+| 2026-10-17 | audyt GPT N14: blendy nad szafką nie było w 3D | bryła blendy w licu drzwi w 3D szafki i zabudowy (`tag: "blenda"`) | (ten commit) |
+| 2026-10-17 | audyt GPT N15: własny blat roboczy 3100 × 560 dostawał błąd arkusza płyty | `P()` nie sprawdza blatu roboczego na `USABLE_W/H` (ma własną kontrolę długości i głębokości) | (ten commit) |
+| 2026-10-17 | audyt GPT N16: kołki półki poza płytą bez błędu | błąd „kołki … nie mieszczą się na półce” z „Ustaw 37 / 37 mm” (`kolki:`) | (ten commit) |
+| 2026-10-17 | audyt GPT N17: własny blat roboczy w 3D w kolorze korpusu | kolor `mat.worktop.color` przy `geo.isWorktop` (3D szafki i zabudowy) | (ten commit) |
+| 2026-10-17 | audyt GPT N18: dwa zawiasy w jednym miejscu bez błędu | błąd, gdy po ominięciu półek środki zawiasów bliżej niż `HINGE_H` | (ten commit) |
+| 2026-10-17 | audyt GPT N19: NL spoza tabeli V-BOX przyjmowane | błąd z listą `VBOX.nl` i przyciskiem najbliższej krótszej NL (`fixnl:`) | (ten commit) |
+| 2026-10-17 | audyt GPT N20: lustra: powierzchnia zaokrąglana na szafkę, „× 1 szt.” po scaleniu | powierzchnia dokładna (zaokrąglenie w `hwQty`), `sztuk` + `specSzt` sumowane w `scalOkucia` | (ten commit) |
+| 2026-10-17 | audyt GPT N21: listwa do zawieszek mimo braku zawieszek | `runRail` tylko gdy choć jedna szafka wisi na listwie (`naListwie`); szafka bez zawieszek w takim ciągu — ostrzeżenie z „Zawieszki na listwie / na haczykach” (`zawieszki:`); decyzja użytkownika | (ten commit) |
+| 2026-10-17 | audyt GPT U3: nagłówek „Rysunek” znikał w wąskim oknie | nagłówek karty zawija pasek narzędzi do drugiego wiersza, tytuł min. 112 px | (ten commit) |
 | 2026-10-16 | dymek pola „zawiasy” ze starymi progami (audyt GPT, retest N1; potwierdzone) | `ZAWIASY_ZASADA` dalej mówił „trzy przy szerokości powyżej 500 mm i wysokości powyżej 1400 mm … wąskie zawsze dwa”, choć liczba szła już z tabeli GTV. Teraz opis tabeli GTV (wysokość i waga) i zasady klapy | (ten commit) |
 | 2026-10-16 | PDF, rozkrój: ogólny nagłówek „arkusz 2800 × 2100 mm” nad blatem roboczym (audyt GPT, kontrola PDF P3; potwierdzone) | nagłówek strony wpisywał format płyty meblowej dla wszystkich materiałów. Teraz nagłówek mówi tylko o rzazie, a format każdego materiału jest w kolumnie „Arkusz (do rozkroju)” (`arkuszOpis`) i nad jego rysunkami | (ten commit) |
 | 2026-10-16 | PDF, rozkrój: nagłówek „HDF” sam na dole strony, rysunek na następnej (audyt GPT, kontrola PDF P3; potwierdzone na projekcie użytkownika) | nagłówek materiału i siatka arkuszy były osobnymi blokami. Od 2026-10-17 każdy arkusz ma własną stronę z nagłówkiem materiału (`data-el="rozkroj-material"`) | 90f00bc, (ten commit) |
@@ -183,6 +183,10 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 - **Zawiasy drzwi i klap** (2026-10-16, decyzje użytkownika): drzwi z automatu wg tabeli GTV (katalog 2023 s. 68) — większa z liczb z wysokości (2 do 750 / 3 do 1500 / 4 do 2100 / 5 do 2500 mm) i wagi frontu (6 / 12 / 17 / 20 kg; skrzydło na 165° — 4,5 / 9 / 12,5 / 15 kg), front do 600 mm (165°: 450); ręcznie inna liczba — ostrzeżenie „za dużo / za mało wg tabeli GTV”; ponad tabelę — „poza tabelą, liczba orientacyjna”. Klapa: 2 / 3 od 900 mm szerokości (bez tabeli — trzyma ją podnośnik), ręcznie 2–4, przy 3+ zawiasach i odstępie poniżej 600 mm — „za dużo zawiasów”. Rozstaw: 100 mm od krawędzi, reszta równo.
 - **Złącza do blatów** (2026-10-16): GTV EM-SBL, 2 szt. na styk blatów roboczych przy blacie 600, 3 przy 1200 — w rogu (na styk i łyżwa) i na łączeniu kawałków w prostym ciągu; 9 zł za szt.
+- **Nóżki** (2026-10-17, decyzja użytkownika po audycie GPT N8): najniższe regulowane w katalogu GTV to MLA-50 (50–75 mm) — poniżej 50 mm (też 0) błąd z „Ustaw 50 / 100 mm”.
+- **Blat roboczy w rozkroju** (2026-10-17, decyzja użytkownika): nigdy nie obracany — przód z fabrycznym profilem, długość zawsze wzdłuż 4100, głębokość wzdłuż 600 / 1200; słoje go nie dotyczą. Arkusz (600 / 1200) z samej formatki.
+- **Zawieszki w ciągu** (2026-10-17, decyzja użytkownika po N21): jeśli choć jedna szafka wisi na listwie, pozostałe domyślnie też; wyjątek (haczyki albo bez zawieszek) dopuszczalny z ostrzeżeniem i wyborem listwa / haczyki. Żadna na listwie — listwy nie ma; listwa przez cały ciąg.
+- **Dno i tył szuflady** (2026-10-17): z płyty półek — w praktyce 18, ewentualnie 16 / 12 / 10 mm (użytkownik); 3D rysuje je w grubości z zamówienia.
 - **Zawias przesunięty przez półkę** (2026-10-16): zostaje ostrzeżenie (!); do tego linia „Zawiasy przesunięte” w PDF i przycisk „Dopisz do notatki montażowej”.
 - **Luz nad skrzynką V-BOX** (2026-10-11/14, decyzja użytkownika: „musi być luz przynajmniej 5 mm”): od góry boku do tego, co wyżej (cała droga skrzynki, też wzmocnienie przy plecach) min. 5 mm ponad minimum z katalogu; auto bierze tylko taki bok, mniejszy luz to błąd. Front > 140 mm ponad bokiem: „Dodaj reling” (do zamówienia, 30 zł za komplet na szufladę bez względu na długość) albo „Zostaw bez relingu”.
 - **Formatki węższe niż 60 mm** (2026-10-11, decyzja użytkownika): firma nie tnie boków < 60 mm — do zamówienia zawsze 60, w Uwagach błąd z pytaniem (może to pomyłka przy wpisywaniu) i przyciskiem „Tak, docinam ręcznie”; po potwierdzeniu ostrzeżenie o ręcznym docięciu po odbiorze. Na liście formatek i w PDF bez dopisku — tylko 60 (firma nie może przeczytać tego jako polecenia cięcia na mniej).
