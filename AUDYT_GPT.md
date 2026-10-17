@@ -1,3 +1,65 @@
+# Kolejna seria audytu: N22–N33 — 17.10.2026
+
+Źródło: main, szafki.jsx blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Sesja rozpoczęta 11:02:09 czasu polskiego, limit 10 minut. Cel 30 nowych ustaleń nie został osiągnięty; poniżej 12 odrębnych ustaleń, w tym przypadki graniczne. Są to odtworzenia w lokalnie wyodrębnionych funkcjach źródłowych, nie pełne testy interfejsu ani potwierdzenie montażu. Nie zmieniano projektu użytkownika ani kodu aplikacji.
+
+## Korekta przykładów grubości w N7 i N12
+
+25 mm było wartością próby technicznej, nie wymaganiem materiałowym projektu. Powtórzono próby dla wskazanych przez użytkownika 10, 12 i 16 mm. N7 nadal występuje: przy „front jak korpus”, korpusie 18 mm i zapisanej osobnej grubości frontu 10/12/16 mm zamówienie używa 18 mm, a geometria ukrytej grubości frontu. N12 także nadal występuje: dno/tył szuflady z materiału 10/12/16 mm rysowane są jako 18 mm. Nie liczyć tych retestów jako nowych błędów.
+
+## N22 [P2] Przeszkoda poniżej szuflady niepotrzebnie skraca prowadnicę
+
+Próba: H1200, dolne pole 500 mm, szuflada w górnym polu. Przeszkoda przy plecach 80×80×100 mm, od dołu 0, bez pełnej wysokości. Jej zakres Y to 18–118 mm; szuflada zaczyna się powyżej 529 mm. Mimo braku przecięcia wysokości prowadnica zmienia się z NL550 na NL450, a dno z 489×526 na 489×426 mm. `maxNlFor` uwzględnia blokadę głębokości bez zakresu Y. Oczekiwane: skracać wyłącznie kolidującą szufladę.
+
+## N23 [P2] Przerwa na wysoką szafkę znika w zamówieniu blatu
+
+Trzy szafki po 600 mm w jednym ciągu, wysokości 720/2000/720, wspólny blat. `runTop.spans` i 3D pokazują odcinki 0–600 oraz 1200–1800 mm, czyli dwa blaty po 600 mm. Formatki zamawiają jeden „Blat ciągu” 1800×600 mm. Oczekiwane: zamówienie i krawędzie odpowiadają rzeczywistym odcinkom, bez materiału w miejscu wysokiej szafki.
+
+## N24 [P2] Maskownice przeszkód L/U mają inne formatki niż bryły 3D
+
+Macierz 96 wariantów: strona, typ auto/L/U, front nałożony/wpuszczany, narożnik poziomy/pionowy oraz odsunięcia od boku i pleców. W 80 wariantach co najmniej jedna bryła nie odpowiada formatce. Przykład: W800/H1000/D560, przeszkoda lewa 100×100×200, od dołu 100, przy boku i plecach, maskowanie auto/L, front nałożony. Zamówiona płyta 18×100×200 mm nie ma odpowiednika, a 3D zawiera 18×200×118 mm. Wszystkie odmiany traktować jako jeden problem budowy maskownic, nie 80 błędów. Ujednolicić konstrukcję i opcje między obliczeniami a 3D.
+
+## N25 [P2] „Głębokość obejmuje plecy” skraca korpus także przy plecach wewnętrznych
+
+D560, plecy z płyty 18 mm wewnątrz. Bez opcji korpus ma 560 mm; po zaznaczeniu ma 542 mm i nadal odejmowane jest 18 mm zajęcia wnętrza. Plecy wewnętrzne nie zwiększają zewnętrznej głębokości, więc podany wymiar 560 mm nie powinien zmieniać się na 542 mm. Odejmowanie grubości wymaga rozróżnienia pleców wewnętrznych i zewnętrznych.
+
+## N26 [P2] „Głębokość obejmuje front” pomija blendę i pole z samym fixem
+
+D560, bez pleców, front nałożony 18 mm. Dla zwykłych drzwi korpus ma 542 mm. Dla pola typu blenda albo pola bez drzwi z nałożonym fixem korpus nadal ma 560 mm, więc z płytą przednią całość ma 578 mm. Próba nie zalicza uchwytów do głębokości frontu. Wykrywanie `anyFront` powinno obejmować również te elementy.
+
+## N27 [P2] Plecy z materiału półek mają grubość i kolor korpusu w 3D
+
+Korpus 18 mm czerwony, niezależny materiał półek zielony 10/12/16 mm, plecy z płyty z materiału półek. Zamówienie poprawnie wskazuje `shelf`, lecz `geo.tb` oraz bryła pleców mają 18 mm i kolor korpusu. Potwierdzono plecy wewnętrzne i zewnętrzne. To osobny element od N11 (tryb pleców kolumny) i N12 (skrzynka szuflady). Obliczenia zajęcia wnętrza także muszą używać rzeczywistego materiału pleców.
+
+## N28 [P3] Usunięcie wcześniejszej szafki przełącza aktywną na inną
+
+Lokalne wywołanie dokładnego callbacku `removeCabinet` na kopii projektu: aktywna „Szafka 1 c2”, usuwana wcześniejsza „Szafka 1”. Po operacji aktywna staje się „Szafka 4”. Indeks aktywnej szafki nie jest zmniejszany po usunięciu poprzedzającego elementu. Zachować aktywność przez ID lub skorygować indeks. Nie usuwano szafek w projekcie użytkownika.
+
+## N29 [P2] Zmiana ilości wkrętów gubi ręcznie wpisaną cenę jednostkową
+
+Klucz ceny okucia zawiera `name|spec`, a spec zawiera wyliczone ilości. W kopii projektu usunięcie jednego wzmocnienia zmienia Wkręt 4×30 z 52 na 48 szt., w tym opis „48 szt.” na „44 szt.”. Powstaje inny klucz ceny; wcześniejsza własna cena nie jest odszukiwana i wraca cena domyślna. To samo okucie powinno zachowywać cenę niezależnie od potrzebnej ilości. Użyć stabilnego identyfikatora produktu, nie opisów ilości montażowych.
+
+## N30 [P3, przypadek graniczny] Nogi nakładają się przy małej głębokości
+
+D100: przednie i tylne nogi nakładają się na 20 mm. D120: obie pary zajmują identyczne miejsca, mimo czterech nóg w zamówieniu. D150: przecięcie 10 mm. Brak komunikatu o tej kolizji. Jeśli taka płytka konstrukcja nie jest wspierana, potrzebna walidacja; w przeciwnym razie dostosować rozstaw. Nie przedstawiać jako awarii standardowej szafki D560.
+
+## N31 [P2] Błąd szczeliny nad nieistniejącą przegrodą dla płyt 10/12 mm
+
+Jedno pole, jeden poziom, jedna kolumna i jedne drzwi; brak przegrody rozdzielającej fronty. Dla korpusu 10 mm pojawia się błąd szczeliny −4 mm, dla 12 mm −2 mm. Walidacja `divGap` działa bezwarunkowo przy frontach nałożonych, nawet bez odpowiedniej przegrody. Ostrzeżenie katalogowe o grubości innej niż 18 mm jest osobną, zasadną informacją; tutaj błędem jest dodatkowy komunikat o nieistniejącym styku frontów.
+
+## N32 [P3, walidacja danych] Dopuszczona zerowa i ujemna grubość płyty
+
+Przy froncie wpuszczanym, korpusie 0 albo −1 mm obliczenia generują formatki bez błędu wymiaru; widoczne jest tylko ogólne ostrzeżenie „inna niż 18 mm”. Pole grubości nie ustala dodatniego minimum. Oczekiwane: jednoznaczny błąd i brak akceptacji niepoprawnej grubości; sprawdzać również dane importowane.
+
+## N33 [P3, przypadek graniczny] Dwa konfirmaty trafiają w ten sam otwór
+
+D60/80/100, pełne dno i wieniec między bokami. `konfirmatyPoz` daje dwukrotnie 50 mm od przodu; plan wierceń wypisuje „50, 50 mm”, a zamówienie liczy oba mocowania. Nie ma błędu nakładania. Zredukować liczbę/zmienić rozmieszczenie w dopuszczalnym zakresie albo odrzucić zbyt płytką konstrukcję.
+
+Dowody: lokalne wyniki `audit30-new-results.json`, `audit30-obstacle-results.json`, `audit30-depth-results.json`, `audit30-hardware-results.json`, `audit30-delete-results.json`, `audit30-validation-results.json`, `audit30-limit-results.json`; retesty grubości i macierzy osobno. Przed poprawką wykonać test UI i dodać właściwą regresję. Priorytety są oceną audytu, nie potwierdzeniem wymagań katalogowych.
+
+
+
+---
+
 # Seria 10 nowych ustaleń N12-N21 - 17.10.2026
 
 Limit użytkownika: 10 nowych błędów albo10 minut. Rozpoczęto10:38:36 czasu polskiego. Znaleziono10 różnych ustaleń w lokalnych testach kodu; nie są jednakowej wagi. N13 i N20 to drobne różnice wymiaru/precyzji, N19 dotyczy importowanego JSON. Nie przedstawiać ich jako dziesięciu krytycznych awarii w standardowym projekcie.
