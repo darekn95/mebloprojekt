@@ -109,6 +109,12 @@ Zlacza blatow (`runTopZlacza`): rog i laczenia kawalkow w prostym ciagu (ustalon
 w aplikacji i poprawione (BLEDY.md, „Naprawione”); testy: `cutplan` (blat N2–N4, N15),
 `audytgpt2` (reszta). Skrypt odtwarzajacy z przegladarki byl w scratchpadzie — wzorzec
 w `testy/audytgpt2.mjs` (bryly przez `window.__audytBryl`, uwagi, tabele).
+[AI-INFO] Audyt GPT N22–N33 i N34–N48 (2026-10-17): suity `audytgpt3`, `audytgpt4`.
+N45 (konfirmaty z przeciwnych stron jednej plyty) i wspornik przy fixie w kolumnie
+szuflad (druga polowa N42) czekaja na decyzje (BLEDY.md, „Do decyzji”). Po zmianie
+wysokosci zapisu: projekt ma `wersja` (PROJEKT_WERSJA), szafka `version` 5 — test
+seedujacy bez nich dostaje dawne prostowanie (ceny netto, wzmocnienia), jak stary plik.
+[AI-TODO] N49–N68 z `AUDYT_GPT.md` (pobrane przy 4df3b31) — po N34–N48.
 [AI-INFO] Audyt GPT (2026-10-16, galaz `gpt/audyt-2026-10-16`, plik `AUDYT_GPT.md`):
 B1, B2, B3 odtworzone i poprawione, U1 poprawione; U2 (waski podglad) — nie ruszane.
 

@@ -19,6 +19,20 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-17 | audyt GPT N34: lustro nie zwiększało masy frontu przy doborze zawiasów i podnośników | `wagaLustra` (szkło 2500 kg/m³, grubość z materiału lustra) dodawana w `zawiasyGtv` / `autoHinges` drzwi i w masie klapy | (ten commit) |
+| 2026-10-17 | audyt GPT N35: wczytanie bieżącego projektu kasowało własne ceny równe dawnym netto i prostowało ręczne wzmocnienia | zapis niesie `wersja: 2` (projekt) i `version: 5` (szafka); prostowanie cen i wzmocnień tylko dla zapisów sprzed tych wersji | (ten commit) |
+| 2026-10-17 | audyt GPT N36: własne wystawanie uchwytu nie działało na klapie | klapa dostaje `handleOut` z `handleOuts[0]` jak skrzydło | (ten commit) |
+| 2026-10-17 | audyt GPT N37: przeszkoda w strefie zawiasu bez żadnej uwagi | krótka przeszkoda bliżej lica niż 80 mm (przy wpuszczanych + tf) — zawias ją omija jak półkę (ostrzeżenie + notatka); bez miejsca — błąd z „Przełóż zawiasy” | (ten commit) |
+| 2026-10-17 | audyt GPT N38: kolumna szuflad z własnym montażem — kontrola otwierania i pasmo pionowe wg montażu całej szafki | `swingBodies` bierze `d.inset` frontu; pasmo frontu nakładanego (`lv.ovlDrawLo/Hi`) liczone zawsze | (ten commit) |
+| 2026-10-17 | audyt GPT N39: pole „Kąt otwarcia — do widoku 3D” niczego nie zmieniało | pole usunięte (decyzja użytkownika); 3D ma swój suwak od 90° | (ten commit) |
+| 2026-10-17 | audyt GPT N40: konfirmaty wspornika i płytszej półki z pełnej głębokości korpusu | plan i zamówienie z głębokości wspornika (od `z0` za fixem) i półki (`c.shD`) | (ten commit) |
+| 2026-10-17 | audyt GPT N41: wspornik fixu przecinał plecy albo wystawał za korpus bez błędu | błąd, gdy `z0 + głębokość` > głębokość przegrody (do pleców), z „Wspornik na … mm głębokości” (`wspgl:`) | (ten commit) |
+| 2026-10-17 | audyt GPT N42: fix w kolumnie szuflad nie zmniejszał ich frontów | pasmo frontów szuflad zabiera fix boczny i górny jak drzwiom; wspornik przy szufladach — do decyzji | (ten commit) |
+| 2026-10-17 | audyt GPT N43: zabudowa 3D — lustro i blenda w innym kolorze niż w szafce | `Assembly3D`: lustro w kolorze lustra, blenda z materiału frontu | (ten commit) |
+| 2026-10-17 | audyt GPT N44: konfirmaty obu końców przegrody bez dna / wieńca / przy blacie na bokach | liczba z płyt, które są nad i pod przegrodą — jak w planie wierceń | (ten commit) |
+| 2026-10-17 | audyt GPT N46: słupek na końcu ciągu podnosił cały ciąg górny (prześwit 1780 zamiast 500) | `tierMountY` od lica szafek pod blatem (`worktopLevel`); górna nad wyższą szafką — błąd kolizji w `tierMsgs` | (ten commit) |
+| 2026-10-17 | audyt GPT N47: rozwiązanie dolnego ciągu zostawiało górny z `wall` do nieistniejącego i dawną wysokością | górny zostaje samodzielnym ciągiem wiszącym na obecnej wysokości z długością ściany dolnego; przed rozwiązaniem ostrzeżenie z „Rozwiąż mimo to / Anuluj” (decyzja użytkownika); stary zapis bez dolnego — bez odwołania | (ten commit) |
+| 2026-10-17 | audyt GPT N48: blat przy frontach wpuszczanych liczony jak przy nakładanych (613 zamiast 600) | `runTop`: przed korpus wychodzi luz i front tylko przy frontach nakładanych (`rt.przed`), też w uwagach o wysięgu | (ten commit) |
 | 2026-10-17 | audyt GPT N22: przeszkoda poniżej szuflady skracała jej prowadnicę (NL 550 → 450) | `backBlocks` mają zakres wysokości (wycięcie: poziom albo cała szafka; przeszkoda: `fromBottom` + `h`), `maxNlFor` liczy tylko te na wysokości poziomu szuflad | (ten commit) |
 | 2026-10-17 | audyt GPT N23: blat ciągu 1800 w jednym kawałku nad 720 / 2000 / 720 | `rt.wysokie` (słupki w układzie płyty) i `kawalkiBlatu` — kawałki bez miejsc słupków, koniec przy słupku bez oklejania; złącza tylko na stykach kawałków | (ten commit) |
 | 2026-10-17 | audyt GPT N24: ścianki zabudowy przeszkody w 3D inne niż w zamówieniu (80 z 96 wariantów) | `buildEnclosure` zwraca ścianki z położeniem (`sciany` → `geoOb.maskWalls`), 3D szafki i zabudowy rysuje dokładnie je; macierz 144 wariantów zgodna | (ten commit) |
@@ -171,6 +185,17 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
+- **Audyt GPT N45 — konfirmaty z przeciwnych stron jednej płyty** (2026-10-17).
+  Półki na konfirmatach po obu stronach przegrody na tej samej wysokości (albo
+  przegrody nad i pod półką przelotową) dostają konfirmaty w tych samych osiach.
+  Wcześniejsza decyzja „druga strona o 32 mm” rozsuwa otwory, ale nie rozwiązuje
+  dostępu do łbów: łeb drugiej strony siedzi pod czołem już przykręconej płyty.
+  Do ustalenia, czym łączyć drugą stronę (pytanie z opcjami po serii N34–N48).
+
+- **Audyt GPT N42 — wspornik przy fixie w kolumnie szuflad** (2026-10-17). Fronty
+  już omijają fix; wspornik pod prowadnicę nie powstaje (szuflada musiałaby być
+  węższa o fix i wspornik). Do decyzji: obsłużyć czy zgłaszać „nieobsługiwane”.
+
 - **Przycinanie albo zawieszanie po zmianach — pierwszy podejrzany: automatyczny
   rozkrój** (2026-09-29). Liczy się sam 1 s po zmianie formatek (powyżej 40 szafek
   — 5 s). Pomiar: 40 szafek niezauważalnie, 100 szafek jedno przytrzymanie ok.
@@ -199,6 +224,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 - **Nóżki** (2026-10-17, decyzja użytkownika po audycie GPT N8): najniższe regulowane w katalogu GTV to MLA-50 (50–75 mm) — poniżej 50 mm (też 0) błąd z „Ustaw 50 / 100 mm”.
 - **Blat roboczy w rozkroju** (2026-10-17, decyzja użytkownika): nigdy nie obracany — przód z fabrycznym profilem, długość zawsze wzdłuż 4100, głębokość wzdłuż 600 / 1200; słoje go nie dotyczą. Arkusz (600 / 1200) z samej formatki.
 - **Zawieszki w ciągu** (2026-10-17, decyzja użytkownika po N21): jeśli choć jedna szafka wisi na listwie, pozostałe domyślnie też; wyjątek (haczyki albo bez zawieszek) dopuszczalny z ostrzeżeniem i wyborem listwa / haczyki. Żadna na listwie — listwy nie ma; listwa przez cały ciąg.
+- **Ciąg górny nad rozwiązywanym dolnym** (2026-10-17, decyzja użytkownika po N47): zostaje samodzielnym ciągiem wiszącym na wysokości, na której wisiał, z długością ściany dolnego; przed rozwiązaniem wyraźne ostrzeżenie z potwierdzeniem.
+- **Pole „Kąt otwarcia”** (2026-10-17, decyzja użytkownika po N39): usunięte — kąt w 3D ustawia suwak, każde otwarcie od 90°.
 - **Płytka szafka** (2026-10-17, decyzje użytkownika po N30 / N33): na styku krótszym niż 132 mm jeden konfirmat w połowie + ostrzeżenie z „Popraw głębokość”; nóżki przy głębokości < 160 mm — samo ostrzeżenie, liczba bez zmian.
 - **Ostrzeżenie, a nie podpowiedź** (2026-10-17): uwaga, która każe coś poprawić albo proponuje lepsze ustawienie z przyciskiem, jest ostrzeżeniem (!); podpowiedź (i) tylko opisuje.
 - **Dno i tył szuflady** (2026-10-17): z płyty półek — w praktyce 18, ewentualnie 16 / 12 / 10 mm (użytkownik); 3D rysuje je w grubości z zamówienia.

@@ -260,6 +260,11 @@ const LEGACY_NET_PRICES = {
   obrzeze: 2.75,
   oklejanie: 7.2,
 };
+/* Wersja zapisu projektu. Prostowanie starych danych (ceny netto wyzej,
+   wzmocnienia w `migrateCab`) idzie tylko dla zapisow sprzed niej — dotad
+   szlo przy kazdym wczytaniu i kasowalo swiadomie wpisane takie same liczby
+   (audyt GPT N35). Szafka ma swoja wersje w `defaultCab.version`. */
+const PROJEKT_WERSJA = 2;
 
 const MIN_COL = 200; // najwezsza sensowna kolumna
 /* Wystawanie uchwytu przed lico frontu. Jedno miejsce dla rysunku 3D i dla
@@ -596,14 +601,20 @@ const ZAWIASY_GTV = {
 };
 // { n, kg, poza, szer } — `poza`: wysokosc, waga albo szerokosc ponad tabele
 // (n = ostatni pasujacy wiersz, a przy wysokosci/wadze ponad tabele — ostatni)
-function zawiasyGtv(h, w, grub = 18, szeroki = false) {
+/* Lustro na froncie: szklo 2500 kg/m3 o grubosci z materialu „Lustro” (4 mm ≈
+   10 kg/m2), na wymiar lustra (front minus 0,5 mm z kazdej strony). Dolicza sie
+   do masy frontu przy doborze zawiasow i podnosnikow (audyt GPT N34). */
+const GESTOSC_SZKLA = 2500;
+const wagaLustra = (w, h, mat) => (Math.max(0, w - 1) / 1000) * (Math.max(0, h - 1) / 1000)
+  * ((((mat || {}).mirror || {}).thickness || 4) / 1000) * GESTOSC_SZKLA;
+function zawiasyGtv(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
   const t = szeroki ? ZAWIASY_GTV.szeroki : ZAWIASY_GTV.standard;
-  const kg = wagaFrontu(w, h, grub);
+  const kg = wagaFrontu(w, h, grub) + dodatekKg;
   const p = t.progi.find((q) => h <= q.h && kg <= q.kg);
   return { n: p ? p.n : t.progi[t.progi.length - 1].n, kg, poza: !p || w > t.szer, szer: t.szer };
 }
-function autoHinges(h, w, grub = 18, szeroki = false) {
-  return zawiasyGtv(h, w, grub, szeroki).n;
+function autoHinges(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
+  return zawiasyGtv(h, w, grub, szeroki, dodatekKg).n;
 }
 
 /* prowadnice szuflad: 21 mm na stronę (razem ze ścianką skrzynki) */
@@ -894,7 +905,7 @@ const newLevel = (doors = 2, shelves = 3) => ({
 });
 
 const defaultCab = {
-  version: 4,
+  version: 5,   // 5: od tej wersji wczytanie nie prostuje juz wzmocnien (audyt GPT N35)
   name: "Szafka 1",
   W: 600,
   H: 720,
@@ -1000,6 +1011,7 @@ const defaultCab = {
    gruboscia plyty z projektu, a nie liczba wpisana na sztywno. */
 const migrateCab = (rawCab, mat) => {
   const merged = { ...defaultCab, ...(rawCab || {}), version: defaultCab.version };
+  const stara = !((Number((rawCab || {}).version) || 0) >= 5);
   if (!merged.top || typeof merged.top !== "object")
     merged.top = { mode: "wieniec", widthMode: "outside", overL: 0, overR: 0, overFront: 0, overBack: 0 };
   if (!Array.isArray(merged.extraParts)) merged.extraParts = [];
@@ -1023,7 +1035,7 @@ const migrateCab = (rawCab, mat) => {
      gdy stoi na jednej z naszych wartosci, zeby nie kasowac recznych ustawien. */
   const wRogu = !!(merged.corner || {}).on;
   const tPlyty = Math.max(1, Math.round(Number(((mat || defaultMaterials).board || {}).thickness) || 18));
-  (merged.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => {
+  if (stara) (merged.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => {
     (c.rails || []).forEach((r) => {
       if (r.orient === "front" && r.fromBack && r.pos === "top") {
         const at = Number(r.atDepth) || 0;
@@ -1415,6 +1427,11 @@ const loadProject = (d) => {
   const runs = (Array.isArray(d.runs) ? d.runs : []).filter((r) => r && r.id != null).map(migrateRun);
   // ciag mogl wypasc z zapisu — szafka po nim wraca na wolnostojaca, nie zostaje sierota
   items.forEach((it) => { if (!runs.some((r) => r.id === it.runId)) it.runId = null; });
+  /* Gorny ciag bez swojego dolnego wisi dalej na zapisanej wysokosci, jako
+     samodzielny — bez odwolania do ciagu, ktorego nie ma (audyt GPT N47). */
+  runs.forEach((r) => {
+    if (r.tier === "gorny" && r.wall && !runs.some((q) => q.id === r.wall && q.tier !== "gorny")) { r.tier = "dolny"; r.wall = null; }
+  });
   /* Narożnik wskazujacy na skasowany ciag, na samego siebie albo zapetlony
      rozwiazujemy — inaczej rozmieszczenie ciagow nie mialoby konca. */
   runs.forEach((r) => {
@@ -1451,9 +1468,10 @@ const loadProject = (d) => {
   const active = Math.min(Math.max(0, Math.round(d.active || 0)), items.length - 1);
   // trzymamy wylacznie ceny wpisane recznie; domyslne siedza przy pozycjach
   const prices = { ...(d.prices && typeof d.prices === "object" ? d.prices : {}) };
-  Object.entries(LEGACY_NET_PRICES).forEach(([k, v]) => {
-    if (prices[k] === v) delete prices[k];
-  });
+  if (!(Number(d.wersja) >= PROJEKT_WERSJA))
+    Object.entries(LEGACY_NET_PRICES).forEach(([k, v]) => {
+      if (prices[k] === v) delete prices[k];
+    });
   /* Etykieta materialu nosi teraz kolor, wiec recznie wpisana cena zapisana
      pod stara nazwa zostalaby sierota — przenosimy ja na nowy klucz. */
   const ambig = ambiguousThickness(items.map((it) => it.mat));
@@ -2179,19 +2197,19 @@ function computeGeoLiczy(cab, mat, ctx) {
 
   levels.forEach((lv) => {
     let lo, hi;
+    /* Nad przegroda fronty nakladaja sie po `divOverlay` z kazdej strony —
+       tak samo drzwi jak i fronty szuflad. Dotad drzwi dzielilo pol grubosci
+       plus pol luzu, przez co zachodzily 8 mm z dolu i 7 z gory, a pole
+       „nalozenie na przegrode" nie mialo na nie zadnego wplywu. */
+    const ovlLo = lv.i === 0
+      ? bottomY + g.bottom
+      : Math.round(sepShelves[lv.i - 1].y + t - divOv);
+    const ovlHi = lv.i === levels.length - 1
+      ? H - (isBlat ? tW : 0) - g.top
+      : Math.round(sepShelves[lv.i].y + divOv);
     if (cab.frontMode === "overlay") {
-      /* Nad przegroda fronty nakladaja sie po `divOverlay` z kazdej strony —
-         tak samo drzwi jak i fronty szuflad. Dotad drzwi dzielilo pol grubosci
-         plus pol luzu, przez co zachodzily 8 mm z dolu i 7 z gory, a pole
-         „nalozenie na przegrode" nie mialo na nie zadnego wplywu. */
-      lo =
-        lv.i === 0
-          ? bottomY + g.bottom
-          : Math.round(sepShelves[lv.i - 1].y + t - divOv);
-      hi =
-        lv.i === levels.length - 1
-          ? H - (isBlat ? tW : 0) - g.top
-          : Math.round(sepShelves[lv.i].y + divOv);
+      lo = ovlLo;
+      hi = ovlHi;
     } else {
       lo = lv.y0 + g.inset;
       hi = lv.y1 - g.inset;
@@ -2206,17 +2224,10 @@ function computeGeoLiczy(cab, mat, ctx) {
        gora korpusu. Liczony od swiatla + `overTop` wychodzil 15 mm ponad korpus,
        w blat — i kontrola otwierania mowila, ze szuflada sie nie wysunie
        (zgloszenie uzytkownika 2026-10-04). Tak samo na dole bez dna. */
-    if (cab.frontMode === "overlay") {
-      lv.drawLo = lv.i === 0
-        ? (hasBot ? lv.y0 - Math.max(0, Math.round(num(g.overBottom) ?? 15)) : lo)
-        : Math.round(sepShelves[lv.i - 1].y + t - divOv);
-      lv.drawHi = lv.i === levels.length - 1
-        ? (hasTop && !isBlat ? lv.y1 + Math.max(0, Math.round(num(g.overTop) ?? 15)) : hi)
-        : Math.round(sepShelves[lv.i].y + divOv);
-    } else {
-      lv.drawLo = lo;
-      lv.drawHi = hi;
-    }
+    /* Pasmo frontu szuflady nakladanej — liczone zawsze, bo kolumna moze miec
+       fronty nakladane w szafce z wpuszczanymi (audyt GPT N38). */
+    lv.ovlDrawLo = lv.i === 0 && hasBot ? lv.y0 - Math.max(0, Math.round(num(g.overBottom) ?? 15)) : ovlLo;
+    lv.ovlDrawHi = lv.i === levels.length - 1 && hasTop && !isBlat ? lv.y1 + Math.max(0, Math.round(num(g.overTop) ?? 15)) : ovlHi;
     const bandH = Math.round(hi - lo);
 
     lv.cols.forEach((c, j) => {
@@ -2431,9 +2442,19 @@ function computeGeoLiczy(cab, mat, ctx) {
         });
         if (rawFix.support) {
           const sd = Math.max(0, Math.round(rawFix.supportDepth || 0));
+          /* Fix w swietle korpusu (wpuszczany, albo w szafce z frontami
+             wpuszczanymi) zajmuje pierwsze `tf` od lica — wspornik stoi za nim.
+             Od lica wchodzil w fix na cala jego grubosc (audyt 2026-10-04). */
+          const zaFixem = rawFix.mode === "inset" || cab.frontMode !== "overlay" ? tf : 0;
+          /* Za wspornikiem sa plecy (we wregu albo plyta wewnatrz) — wolne jest
+             tyle co przegroda, minus fix przed nim. Sprawdzalo sie tylko „glebszy
+             niz korpus”: 550 mm przecinalo plyte plecow albo wystawalo za tyl
+             (audyt GPT N41). */
+          const sdMax = Math.max(0, dividerDepth - zaFixem);
           if (sd <= 0) add("error", `${where}: wspornik pionowy ma zerową głębokość.`);
-          else if (sd > carcassDepth)
-            add("error", `${where}: wspornik pionowy głębszy niż korpus.`);
+          else if (sd > sdMax)
+            add("error", `${where}: wspornik pionowy ma ${fmt(sd)} mm głębokości, a za fixem do pleców jest tylko ${fmt(sdMax)} mm — `
+              + `${zaFixem + sd > carcassDepth ? "wystaje za korpus" : "wchodzi w plecy"}. Daj najwyżej ${fmt(sdMax)} mm.|wspgl:${lv.i}:${j}:${sdMax}`);
           else if (kind === "drawers") {
             const needNl = num(rawCol.nl) ?? maxNL;
             if (needNl && sd < needNl)
@@ -2459,11 +2480,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             const podPlyta = lv.i > 0 || hasBot;
             supportParts.push({ h: Math.round(sy1 - sy0), d: sd, nad: nadPlyta, pod: podPlyta,
               trojkatyFix: nadPlyta ? 0 : wspornikTrojkaty(sy1 - sy0) });
-            /* Fix w swietle korpusu (wpuszczany, albo w szafce z frontami
-               wpuszczanymi) zajmuje pierwsze `tf` od lica — wspornik stoi za nim.
-               Od lica wchodzil w fix na cala jego grubosc (audyt 2026-10-04). */
-            const zaFixem = rawFix.mode === "inset" || cab.frontMode !== "overlay" ? tf : 0;
-            c.support = { d: sd, z0: zaFixem, side: rawFix.side, y0: sy0, y1: sy1, h: Math.round(sy1 - sy0) };
+            c.support ={ d: sd, z0: zaFixem, side: rawFix.side, y0: sy0, y1: sy1, h: Math.round(sy1 - sy0) };
             /* Polka nie przejdzie przez wspornik, a nikt nie wycina w niej „U”
                na niego — jest plytsza: na cala szerokosc, ale zaczyna sie za
                wspornikiem i lezy na zwyklych kolkach w bokach (ustalone
@@ -2620,7 +2637,9 @@ function computeGeoLiczy(cab, mat, ctx) {
               inset: cab.frontMode === "inset", gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
               bandLo: lv.i === 0 ? null : clo, bandHi: lv.i === L - 1 ? null : chi,
               mirror: !!(rawCol.mirrors || [])[0], hinges: nZaw, hingePts: [], klapaZawiasy: xs,
-              handle: (rawCol.handles || [])[0] !== false, colJ: j, colLast: j === lv.cols.length - 1 };
+              handle: (rawCol.handles || [])[0] !== false, colJ: j, colLast: j === lv.cols.length - 1,
+              // wlasne wystawanie uchwytu, jak przy skrzydle — dotad klapa brala to z calej szafki (audyt GPT N36)
+              handleOut: num((rawCol.handleOuts || [])[0]) };
             doors.push(d);
             c.doors.push(d);
             hingeCount += nZaw;
@@ -2628,7 +2647,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             if (d.mirror && dw > 1 && cbandH > 1) mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
             // podnosnik: 1, powyzej 600 mm szerokosci domyslnie 2
             const ile = rawCol.silowniki === 1 || rawCol.silowniki === 2 ? rawCol.silowniki : (dw > 600 ? 2 : 1);
-            const kg = wagaFrontu(dw, cbandH, tf);
+            const kg = wagaFrontu(dw, cbandH, tf) + (d.mirror ? wagaLustra(dw, cbandH, mat) : 0);
             const kat = klapa === "gora" && [75, 90, 100].includes(Number(rawCol.katKlapy)) ? Number(rawCol.katKlapy) : 90;
             d.kat = kat;   // kontrola otwierania liczy luk klapy do tego kata
             const recznie = num(rawCol.silaN);
@@ -2653,7 +2672,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
             bandLo: lv.i === 0 ? null : clo, bandHi: lv.i === L - 1 ? null : chi,
             mirror: !!(rawCol.mirrors || [])[i],
-            hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw, tf, zawiasSzeroki),
+            hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0),
             handle: (rawCol.handles || [])[i] !== false,
             handleOut: num((rawCol.handleOuts || [])[i]),
             handlePos: (rawCol.handlePos || [])[i] === "gora" ? "gora" : "bok",
@@ -2697,6 +2716,25 @@ function computeGeoLiczy(cab, mat, ctx) {
             ...(c.rails || []).filter((r) => !r.przyTyle && r.z0 < 100)
               .map((r) => ({ y0: r.y0, y1: r.y1, what: "wzmocnieniem" })),
           ];
+          // zawias siedzi w swietle kolumny, przy licu tego, co go niesie:
+          // boku, przegrody albo wspornika przy elemencie stalym. Dodatkowo
+          // odsuwamy go za lico otwartego skrzydla, zeby sie nie nakladaly.
+          const carrierL =
+            c.fix && c.fix.side === "left" ? Math.max(c.x0, c.fix.x + c.fix.w) : c.x0;
+          const carrierR =
+            c.fix && c.fix.side === "right" ? Math.min(c.x1, c.fix.x) : c.x1;
+          d.hingeX =
+            d.hingeSide === "left"
+              ? Math.max(carrierL, d.x + tf)
+              : Math.min(carrierR, d.x + dw - tf) - HINGE_W;
+          /* Przeszkoda (rura, wyciecie) w strefie zawiasu: przy boku, blizej lica
+             niz zabudowa zawiasu (HINGE_D, przy frontach wpuszczanych dalej o tf).
+             Krotka — zawias ja omija jak polke; na cala wysokosc albo bez miejsca
+             obok — blad nizej (audyt GPT N37: nie bylo zadnej uwagi). */
+          const zawiasD = HINGE_D + (cab.frontMode === "inset" ? tf : 0);
+          const wStrefie = backBlocks.filter((b) => b.free < zawiasD && b.x0 < d.hingeX + HINGE_W && b.x1 > d.hingeX);
+          wStrefie.filter((b) => Number.isFinite(b.y0) && Number.isFinite(b.y1))
+            .forEach((b) => hObs.push({ y0: b.y0, y1: b.y1, what: "przeszkodą" }));
           const hp = hingePositions(d.y, d.h, d.hinges, hObs);
           d.hingePts = hp.pts;
           /* Po ominieciu polek dwa zawiasy moga trafic w to samo miejsce albo na
@@ -2713,7 +2751,7 @@ function computeGeoLiczy(cab, mat, ctx) {
              2026-10-16: „za duzo” i „za malo” wg tabeli, z przyciskiem). Front
              ponad tabele (wysokosc / waga) — ostrzezenie, ze liczba orientacyjna. */
           {
-            const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki);
+            const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
             const opis = `front ${fmt(Math.round(dw))} × ${fmt(Math.round(d.h))} mm, ok. ${gtv.kg.toFixed(1).replace(".", ",")} kg`;
             const wpis = num((rawCol.hinges || [])[i]);
             if (wpis !== null && wpis !== gtv.n)
@@ -2722,19 +2760,20 @@ function computeGeoLiczy(cab, mat, ctx) {
             if (gtv.poza)
               add("warn", `${where}, skrzydło ${i + 1}: ${opis} — poza tabelą zawiasów GTV (front do ${gtv.szer} mm szerokości, 2500 mm wysokości i ${zawiasSzeroki ? 15 : 20} kg), liczba zawiasów orientacyjna.`);
           }
+          {
+            const half = HINGE_H / 2;
+            const naPrzeszkodzie = hp.pts.filter((y) => wStrefie.some((b) => y + half > b.y0 && y - half < b.y1));
+            if (naPrzeszkodzie.length) {
+              const wolne = Math.max(0, Math.min(...wStrefie.map((b) => b.free)));
+              const druga = d.hingeSide === "left" ? "right" : "left";
+              add("error", `${where}, skrzydło ${i + 1}: zawias ${naPrzeszkodzie.map((y) => fmt(Math.round(y - d.y))).join(", ")} mm od dołu frontu wypada na przeszkodzie — `
+                + `od przedniej krawędzi korpusu do niej jest ${fmt(wolne)} mm, a zawias przy ${d.hingeSide === "left" ? "lewym" : "prawym"} boku potrzebuje ${fmt(zawiasD)} mm. `
+                + (cnt === 1 ? "Przełóż zawiasy na drugą stronę albo przesuń przeszkodę." : "Przesuń przeszkodę albo zmień podział drzwi.")
+                + (cnt === 1 ? `|hingeflip:${lv.i}:${j}:${druga}` : ""));
+            }
+          }
           d.colJ = j;
           d.colLast = j === lv.cols.length - 1;
-          // zawias siedzi w swietle kolumny, przy licu tego, co go niesie:
-          // boku, przegrody albo wspornika przy elemencie stalym. Dodatkowo
-          // odsuwamy go za lico otwartego skrzydla, zeby sie nie nakladaly.
-          const carrierL =
-            c.fix && c.fix.side === "left" ? Math.max(c.x0, c.fix.x + c.fix.w) : c.x0;
-          const carrierR =
-            c.fix && c.fix.side === "right" ? Math.min(c.x1, c.fix.x) : c.x1;
-          d.hingeX =
-            d.hingeSide === "left"
-              ? Math.max(carrierL, d.x + tf)
-              : Math.min(carrierR, d.x + dw - tf) - HINGE_W;
           /* Ostrzezenie zostaje (uzytkownik 2026-10-16), a do tego linia w
              notatce montazowej PDF i przycisk, ktory dopisuje ja do notatki szafki. */
           hp.moved.forEach((m) => {
@@ -2745,7 +2784,7 @@ function computeGeoLiczy(cab, mat, ctx) {
               "warn",
               `${where}, skrzydło ${i + 1}: zawias przesunięty z ${fmt(m.from - d.y)} na ${fmt(
                 m.to - d.y
-              )} mm od dołu frontu — kolizja z półką lub wzmocnieniem, zostawiony luz ${HINGE_CLR} mm.`
+              )} mm od dołu frontu — kolizja z ${m.co || "półką lub wzmocnieniem"}, zostawiony luz ${HINGE_CLR} mm.`
               + `|notatka:${encodeURIComponent(notatka)}`
             );
           });
@@ -2756,7 +2795,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           if ((rawCol.mirrors || [])[i] && dw > 1 && cbandH > 1)
             mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
           if ((rawCol.handles || [])[i] !== false) handleCount += 1;
-          const autoH = autoHinges(cbandH, dw, tf, zawiasSzeroki);
+          const autoH = autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0);
           const ovH = num((rawCol.hinges || [])[i]);
           hingeCount += ovH !== null ? ovH : autoH;
         }
@@ -2804,10 +2843,20 @@ function computeGeoLiczy(cab, mat, ctx) {
       c.drawerMode = dMode;
       const dIn = dMode === "inset";
       const dInsetExtra = dIn ? tf : 0;
-      const dsx0 = dIn ? insX0 : ovlX0;
-      const dsx1 = dIn ? insX1 : ovlX1;
-      const dlo = dIn ? insLo : cab.frontMode === "overlay" ? lv.drawLo : lo;
-      const dhi = dIn ? insHi : cab.frontMode === "overlay" ? lv.drawHi : hi;
+      /* Element staly zabiera pasmo takze frontom szuflad — jak drzwiom: boczny
+         od strony fixu, gorny od gory. Dotad fronty szly na cala kolumne i
+         zachodzily na fix (audyt GPT N42). */
+      let dsx0 = dIn ? insX0 : ovlX0;
+      let dsx1 = dIn ? insX1 : ovlX1;
+      if (c.fix) {
+        if (c.fix.side === "left") dsx0 = Math.max(dsx0, c.fix.x + c.fix.w + g.between);
+        else dsx1 = Math.min(dsx1, c.fix.x - g.between);
+      }
+      /* Front nakladany w szafce z frontami wpuszczanymi bierze pasmo nakladane
+         takze w pionie — dotad tylko w poziomie (audyt GPT N38). */
+      const dlo = dIn ? insLo : lv.ovlDrawLo;
+      let dhi = dIn ? insHi : lv.ovlDrawHi;
+      if (topFixGeo) dhi = Math.min(dhi, topFixGeo.y - g.between);
       const dbandH = Math.round(dhi - dlo);
 
       const LW = c.w;
@@ -4252,7 +4301,8 @@ function computeGeoLiczy(cab, mat, ctx) {
           "od wnętrza, w kącie fix–wspornik; położenie od dolnej krawędzi fixu"));
         return;
       }
-      const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(carcassDepth))} mm od przedniej krawędzi; w czole wspornika ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
+      // wspornik zaczyna sie za fixem (z0) i ma wlasna glebokosc — nie cala glebokosc korpusu (audyt GPT N40)
+      const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(c.support.d, c.support.z0))} mm od przedniej krawędzi; w czole wspornika ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
       [nad(lv.i), pod(lv.i)].filter(Boolean).forEach((pl) => doPlyty(pl, "konfirmat — wspornik pionowy", x, note));
     }));
     // polki na konfirmatach (zamiast kolkow) — przez boki/przegrody w osi polki
@@ -4496,10 +4546,14 @@ function computeGeoLiczy(cab, mat, ctx) {
     const n = (hasTop && !isBlat ? 1 : 0) + (hasBot ? 1 : 0);
     if (n) { confQty += 2 * n; jointNotes.push(`${hasTop && !isBlat && hasBot ? "wieniec i dno" : hasBot ? "dno" : "wieniec"} do kątownika przy ramieniu ${n}×2`); }
   }
-  joint(dividers.length * 2, dividerDepth, "przegrody");
+  // przegroda dostaje konfirmat tylko od plyty, ktora nad/pod nia jest (bez wienca pod blatem, bez dna) — jak w planie wiercen
+  const lvTop = levels.length - 1;
+  joint(dividers.reduce((n, dv) => n + (dv.level === lvTop ? (hasTop && !isBlat ? 1 : 0) : 1) + (dv.level === 0 ? (hasBot ? 1 : 0) : 1), 0),
+    dividerDepth, "przegrody");
   joint(sepShelves.length * 2, shelfDepth, "półki przelotowe");
   // wspornik z plyta nad soba — konfirmaty do plyt, ktore sa; bez niej trojkaty (nizej)
-  joint(supportParts.filter((f) => f.nad).reduce((n, f) => n + 1 + (f.pod ? 1 : 0), 0), carcassDepth, "wsporniki");
+  // ...na glebokosci samego wspornika, nie korpusu (audyt GPT N40)
+  supportParts.filter((f) => f.nad).forEach((f) => joint(1 + (f.pod ? 1 : 0), f.d, "wsporniki"));
   const wspNaTrojkatach = supportParts.filter((f) => !f.nad);
   if (wspNaTrojkatach.length) {
     const doPod = wspNaTrojkatach.filter((f) => f.pod).length;
@@ -4514,9 +4568,16 @@ function computeGeoLiczy(cab, mat, ctx) {
   }
 
   const shelfPins = mocowaniePolek(cab) === "pins";
+  /* Polka plytsza (za wspornikiem fixu) ma mniej konfirmatow niz pelna — liczone
+     z jej glebokosci, jak w planie wiercen (audyt GPT N40). */
+  const polkiWgGl = new Map();
   let colShelves = 0;
-  levels.forEach((lv) => lv.cols.forEach((c) => { colShelves += (c.shelves || []).length; }));
-  if (mocowaniePolek(cab) === "confirmat") joint(colShelves * 2, shelfDepth, "półki");
+  levels.forEach((lv) => lv.cols.forEach((c) => {
+    colShelves += (c.shelves || []).length;
+    const n = (c.shelves || []).length;
+    if (n) polkiWgGl.set(c.shD ?? shelfDepth, (polkiWgGl.get(c.shD ?? shelfDepth) || 0) + n);
+  }));
+  if (mocowaniePolek(cab) === "confirmat") polkiWgGl.forEach((n, gl) => joint(n * 2, gl, "półki"));
 
   if (confQty)
     hardware.push({
@@ -4803,7 +4864,12 @@ const tierMountY = (project, run) => {
   if (!dolny) return wlasny;
   const lista = runItems(project, dolny.id);
   if (!lista.length) return wlasny;
-  const lico = Math.max(...lista.map(({ it }) => cabTopY(it.cab, computeGeo(it.cab, it.mat))));
+  /* Lico szafek pod blatem — tych, nad ktorymi lezy blat (`worktopLevel`), nie
+     najwyzszej w ciagu: slupek na koncu podnosil caly gorny ciag, takze tam,
+     gdzie wisi nad niskimi szafkami (audyt GPT N46: przeswit 1780 zamiast 500).
+     Gorna szafka nad slupkiem to kolizja — mowi o niej `tierMsgs`. */
+  const lvl = worktopLevel(project, dolny);
+  const lico = lvl ? lvl.y : Math.max(...lista.map(({ it }) => cabTopY(it.cab, computeGeo(it.cab, it.mat))));
   /* Przeswit mierzy sie od blatu, a nie od lica korpusu — nad szafkami lezy
      jeszcze plyta blatu i to ona wyznacza poziom, od ktorego liczy sie odstep. */
   const blat = dolny.worktop
@@ -7190,7 +7256,8 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           "#3f3f46", transform, 1, false, 0, "uchwyt");
       };
       c.geo.doors.filter((d) => d.w > 0 && d.h > 0).forEach((d) => {
-        const col = d.type === "blenda" ? bf : c.frontColor;
+        // jak w 3D szafki: lustro w kolorze lustra, blenda z plyty frontow (audyt GPT N43)
+        const col = d.mirror ? c.mat.mirror.color : c.frontColor;
         /* front wpuszczany siedzi w swietle korpusu (z od 0 do tf), nakladany przed
            nim — wczesniej zabudowa rysowala kazdy front jak nakladany (2026-10-04) */
         const zf = d.inset ? 0 : -tf;
@@ -10704,6 +10771,13 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         }),
       };
     }
+    if (action.startsWith("wspgl:")) {
+      const [, li, j, val] = action.split(":");
+      return {
+        label: `Wspornik na ${val} mm głębokości`,
+        run: () => editLevels((L) => { const f = L[+li].cols[+j].fix; if (f) f.supportDepth = +val; }),
+      };
+    }
     if (action.startsWith("fixnodoor:")) {
       const [, li, j] = action.split(":");
       return {
@@ -11199,8 +11273,14 @@ const runTopLiczy = (project, run, bezRogu = false) => {
       // od sciany do lica korpusu razem z plecami przybijanymi (szafka stoi o nie dalej)
       const gl = Math.round((c.geo.glebOdSciany ?? c.geo.carcassDepth) - (Number(c.it.offset) || 0));
       const odSciany = wallGapOf(run, c.it).top;
+      /* Front wpuszczany siedzi w obrysie korpusu — przed korpus nie wychodzi
+         ani on, ani szczelina przy zawiasach. Liczone zawsze jak nakladany,
+         blat 600 przy D580 robil sie 1200 (audyt GPT N48). Kolumna szuflad
+         z frontem nakladanym w szafce z wpuszczanymi wystaje jak nakladany. */
+      const przed = c.it.cab.frontMode === "inset"
+        && !(c.geo.doors || []).some((d) => d.type === "drawer" && !d.inset) ? 0 : HINGE_PLAY + c.geo.tf;
       spans.push({ x0: c.x0, x1: c.x1,
-        depth: odSciany + gl + HINGE_PLAY + c.geo.tf + WORKTOP_OVERHANG,
+        depth: odSciany + gl + przed + WORKTOP_OVERHANG, przed,
         odSciany, worktop: true, rear: c.it.cab.back !== "none" });
     });
   }
@@ -11211,7 +11291,8 @@ const runTopLiczy = (project, run, bezRogu = false) => {
     const odSciany = wallGapOf(run, null).top;
     ramiona.forEach((a) => {
       spans.push({ x0: a.u0 - (n.lead || 0), x1: a.u0 - (n.lead || 0) + a.len,
-        depth: odSciany + a.depth + HINGE_PLAY + a.cab.geo.tf + WORKTOP_OVERHANG,
+        depth: odSciany + a.depth + (armInset(a) ? 0 : HINGE_PLAY + a.cab.geo.tf) + WORKTOP_OVERHANG,
+        przed: armInset(a) ? 0 : HINGE_PLAY + a.cab.geo.tf,
         odSciany,
         // grubosc frontu ramienia — pas z samym ramieniem nie ma jej skad wziac
         tf: a.cab.geo.tf,
@@ -11296,6 +11377,8 @@ const runTopLiczy = (project, run, bezRogu = false) => {
         odSciany: Math.max(0, ...spans.map((s) => s.odSciany || 0)) };
     })(),
     rear: spans.some((s) => s.rear),
+    // ile przed korpus wychodzi luz przy zawiasach i front (0 przy wpuszczanych; null — nie wiadomo)
+    przed: spans.some((s) => s.przed != null) ? Math.max(...spans.filter((s) => s.przed != null).map((s) => s.przed)) : null,
     /* Wyzsze szafki (slupki) w srodku ciagu przerywaja blat — w ukladzie plyty,
        dla `kawalkiBlatu` (audyt GPT N23: blat 1800 nad 720/2000/720 szedl jednym
        kawalkiem). Luka bez szafki (np. na zmywarke) blatu nie przerywa. */
@@ -12060,7 +12143,8 @@ const worktopMsgs = (project, run) => {
       : Math.max(0, Math.round(Number(run.D) || 0));
     // glebokosc szafek, przy ktorej arkusz 600 wystaje przed drzwi standardowe 10 mm
     const plecySz = lvl && lvl.pod.length ? Math.max(...lvl.pod.map((c) => c.geo.plecyZa || 0)) : 0;
-    const sugerowana = WORKTOP_DEPTHS[0] - WORKTOP_OVERHANG - HINGE_PLAY - tf - (rt.odSciany || 0) - plecySz;
+    // front wpuszczany nie wychodzi przed korpus (audyt GPT N48)
+    const sugerowana = WORKTOP_DEPTHS[0] - WORKTOP_OVERHANG - (rt.przed ?? HINGE_PLAY + tf) - (rt.odSciany || 0) - plecySz;
     out.push({ level: "warn", text:
       `Blat wychodzi ${fmt(rt.depth)} mm — o ${fmt(nadmiar)} mm za dużo na arkusz `
       + `${fmt(WORKTOP_DEPTHS[0])} mm, a z arkusza ${fmt(WORKTOP_DEPTHS[1])} mm zostaje pas odpadu. `
@@ -12087,7 +12171,9 @@ const worktopMsgs = (project, run) => {
     const front = rt.doLica - (rt.odSciany || 0) - gl - plecy - HINGE_PLAY;
     const sklad = (rt.odSciany ? `${fmt(rt.odSciany)} mm od ściany + ` : "")
       + (plecy ? `plecy ${fmt(plecy)} + ` : "")
-      + `korpus ${fmt(gl)} + ${fmt(HINGE_PLAY)} mm luzu przy zawiasach + front ${fmt(front)} `
+      + (rt.przed === 0
+        ? `korpus ${fmt(gl)} (fronty wpuszczane, w obrysie korpusu) `
+        : `korpus ${fmt(gl)} + ${fmt(HINGE_PLAY)} mm luzu przy zawiasach + front ${fmt(front)} `)
       + `= ${fmt(rt.doLica)} mm do lica drzwi`;
     // glebokosc szafek, przy ktorej arkusz wystaje przed drzwi dokladnie 10 mm
     const cel = gl + w - WORKTOP_OVERHANG;
@@ -12217,6 +12303,36 @@ const tierMsgs = (project, run) => {
         + (zLewej > 0 && zPrawej > 0 ? " i" : "")
         + (zPrawej > 0 ? ` o ${fmt(zPrawej)} mm z prawej` : "")
         + ". Górna szafka wisi wtedy nad pustym miejscem — przesuń ciąg albo wyrównaj długości." });
+  }
+  /* Slupek (szafka wyzsza od tych pod blatem) pod gornym ciagiem: gorny wisi
+     na wysokosci liczonej od blatu, wiec nad slupkiem wchodzi w niego (audyt
+     GPT N46 — wczesniej caly gorny ciag szedl nad najwyzsza szafke). */
+  {
+    const lvl = worktopLevel(project, dolny);
+    const gl = runJoints(project, gorny).list;
+    if (lvl && lvl.poza.length && gl.length && g.total > 0) {
+      const mount = tierMountY(project, gorny);
+      const dz = zakres(dolny, false);
+      const gap = Math.max(0, Math.round(gorny.gap || 0));
+      let x = g.start;
+      const gorne = gl.map(({ it, i }) => {
+        const W = computeGeo(it.cab, it.mat).W;
+        const o = { x0: x, x1: x + W, nazwa: (it.cab.name || "").trim() || `szafka ${i + 1}` };
+        x += W + gap;
+        return o;
+      });
+      lvl.poza.forEach((c) => {
+        const gora = Math.round((dolny.mountY || 0) + c.y);
+        if (gora <= mount) return;
+        const s0 = dz.start + c.x0, s1 = dz.start + c.x1;
+        const nad = gorne.filter((u) => u.x0 < s1 - 1 && u.x1 > s0 + 1);
+        if (!nad.length) return;
+        const nazwa = (c.it.cab.name || "").trim() || `szafka ${c.idx + 1}`;
+        out.push({ level: "error", text:
+          `„${nazwa}” w ciągu dolnym sięga ${fmt(gora)} mm, a szafki górne nad nią (${nad.map((u) => `„${u.nazwa}”`).join(", ")}) `
+          + `zaczynają się na ${fmt(mount)} mm — wchodzą w nią o ${fmt(gora - mount)} mm. Przesuń ciąg górny albo zostaw nad wysoką szafką przerwę.` });
+      });
+    }
   }
   if (gorny.ceiling != null) {
     const { list } = runJoints(project, gorny);
@@ -12708,7 +12824,6 @@ const swingBodies = (L, project) => {
       bryly.push(roomBox(n, u0, u0 + geo.W, cdV0, cdV1, zBase, zBase + c.cab.H,
         { ...kto, co: "korpus", klucz: `${kto.id}|korpus` }));
       const overlay = c.cab.frontMode !== "inset";
-      const lico = overlay ? cdV1 + geo.tf : cdV1;     // przed czym otwiera sie skrzydlo
       // uchwyt wystaje przed lico i to on styka sie pierwszy — dla drzwi i szuflad tak samo
       (geo.doors || []).forEach((d) => {
         if (!(d.w > 0) || !(d.h > 0)) return;
@@ -12716,7 +12831,12 @@ const swingBodies = (L, project) => {
         const klucz = `${kto.id}|${d.key}`;
         const z0 = zBase + d.y;
         const z1 = zBase + d.y + d.h;
-        const fv0 = overlay ? cdV1 : cdV1 - geo.tf;
+        /* Front w obrysie korpusu albo na nim — wg montazu tego frontu: kolumna
+           szuflad moze miec wlasny (audyt GPT N38: kontrola brala montaz calej
+           szafki i przesuwala fronty o grubosc). */
+        const wObrysie = d.inset === true || (d.type !== "drawer" && !overlay);
+        const lico = wObrysie ? cdV1 : cdV1 + geo.tf;   // przed czym otwiera sie skrzydlo
+        const fv0 = lico - geo.tf;
         /* Uchwyt tam, gdzie naprawde jest (bok/gora drzwi, srodek szuflady
            i klapy) — pasek przez caly front zglaszal klape otwarta na 100°
            jako uderzajaca w uchwyt drzwi nad nia, stojacy daleko z boku. */
@@ -13762,6 +13882,8 @@ export default function App() {
   const pokoj = activeRoomOf(project);
   const histRef = useRef({ past: [], future: [] });
   const [histLen, setHistLen] = useState({ undo: 0, redo: 0 });
+  // ciag, ktorego rozwiazanie czeka na potwierdzenie (wisi nad nim ciag gorny)
+  const [rozwiazPyt, setRozwiazPyt] = useState(null);
 
   // kazda zmiana projektu przechodzi tu — zapisuje poprzedni stan do historii
   const setProject = useCallback((next) => {
@@ -14025,11 +14147,19 @@ export default function App() {
     items: p.items.map((it) => ((it.runId || null) === id ? { ...it, cab: { ...it.cab, ...patch } } : it)),
   })), [setProject]);
 
+  /* Gorny ciag nad rozwiazywanym dolnym zostaje samodzielnym ciagiem wiszacym
+     na wysokosci, na ktorej wisi teraz, z dlugoscia sciany dolnego. Dotad
+     zostawal z `wall` do nieistniejacego ciagu i spadal na dawny zapis
+     `mountY` (audyt GPT N47; uzytkownik 2026-10-17: tak, z wyraznym
+     ostrzezeniem przed rozwiazaniem — przy przycisku). */
   const removeRun = useCallback((id) => setProject((p) => ({
     ...p,
     // narożnik wskazujacy na skasowany ciag przestaje cokolwiek znaczyc
     runs: (p.runs || []).filter((r) => r.id !== id)
-      .map((r) => (r.corner && r.corner.of === id ? { ...r, corner: null } : r)),
+      .map((r) => (r.corner && r.corner.of === id ? { ...r, corner: null } : r))
+      .map((r) => (r.tier === "gorny" && r.wall === id
+        ? { ...r, tier: "dolny", wall: null, mountY: tierMountY(p, r), wallW: runWallW(p, r) }
+        : r)),
     // rozwiazanie ciagu nie kasuje szafek — wracaja miedzy wolnostojace tego pomieszczenia
     items: p.items.map((it) => ((it.runId || null) === id
       ? { ...it, runId: null, roomId: roomOfItem(p, it) } : it)),
@@ -14182,7 +14312,7 @@ export default function App() {
   }, []);
   const wyslijDoClaude = async () => {
     if (!dbClaude) return;
-    const json = JSON.stringify({ name: project.name, prices: project.prices, rooms: roomsOf(project),
+    const json = JSON.stringify({ wersja: PROJEKT_WERSJA, name: project.name, prices: project.prices, rooms: roomsOf(project),
       items: project.items, runs: project.runs, active: project.active });
     // dokument w magazynie ma limit 256 KiB — zostawiamy zapas na opis
     if (new Blob([json]).size > 240 * 1024) {
@@ -14223,7 +14353,7 @@ export default function App() {
 
   const exportProject = () => {
     const json = JSON.stringify(
-      { name: project.name, prices: project.prices, rooms: roomsOf(project), items: project.items, runs: project.runs, active: project.active },
+      { wersja: PROJEKT_WERSJA, name: project.name, prices: project.prices, rooms: roomsOf(project), items: project.items, runs: project.runs, active: project.active },
       null,
       2
     );
@@ -14382,7 +14512,7 @@ export default function App() {
       try {
         await projectStore.set(
           "szafki:projekt",
-          JSON.stringify({ name: project.name, prices: project.prices, rooms: roomsOf(project), items: project.items, runs: project.runs, active: project.active })
+          JSON.stringify({ wersja: PROJEKT_WERSJA, name: project.name, prices: project.prices, rooms: roomsOf(project), items: project.items, runs: project.runs, active: project.active })
         );
         setSaved("zapisano " + new Date().toLocaleTimeString("pl-PL"));
       } catch (e) {
@@ -15753,10 +15883,37 @@ export default function App() {
               {runInfo && (
                 <CardPart title={`Cały ciąg „${runInfo.run.name}"`}
                   note={`Zmiany tutaj dotyczą wszystkich szafek tego ciągu (${runInfo.count}).`}>
-                  <button onClick={() => removeRun(runInfo.run.id)}
-                    className="text-xs text-stone-500 hover:text-stone-800 hover:underline">
-                    Rozwiąż ciąg — szafki zostają, wracają na wolnostojące
-                  </button>
+                  {(() => {
+                    const id = runInfo.run.id;
+                    const gornyNad = (project.runs || []).find((r) => r.tier === "gorny" && r.wall === id);
+                    if (gornyNad && rozwiazPyt === id)
+                      return (
+                        <div data-el="rozwiaz-ostrzezenie" className="space-y-2 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+                          <div>
+                            <b>Nad tym ciągiem wisi ciąg górny „{gornyNad.name}”.</b> Po rozwiązaniu dolnego górny
+                            zostanie samodzielnym ciągiem wiszącym na obecnej wysokości{" "}
+                            <span className="font-mono">{fmt(tierMountY(project, gornyNad))} mm</span> — nie będzie już
+                            liczony od blatu ani od wysokości szafek dolnych. Długość ściany przejdzie na niego.
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button onClick={() => { removeRun(id); setRozwiazPyt(null); }}
+                              className="rounded border border-amber-400 bg-white px-2 py-1 font-medium text-amber-900 hover:bg-amber-100">
+                              Rozwiąż mimo to
+                            </button>
+                            <button onClick={() => setRozwiazPyt(null)}
+                              className="rounded border border-stone-300 bg-white px-2 py-1 text-stone-700 hover:bg-stone-50">
+                              Anuluj
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    return (
+                      <button onClick={() => (gornyNad ? setRozwiazPyt(id) : removeRun(id))}
+                        className="text-xs text-stone-500 hover:text-stone-800 hover:underline">
+                        Rozwiąż ciąg — szafki zostają, wracają na wolnostojące
+                      </button>
+                    );
+                  })()}
                   <CardSub title="Ściana">
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Nazwa ciągu">
@@ -17125,9 +17282,8 @@ export default function App() {
                   onChange={(v) => set({ hinge: v })}
                   options={[{ v: "auto", l: "Auto" }, { v: "left", l: "Z lewej" }, { v: "right", l: "Z prawej" }]} />
               </Group>
-              <Field label="Kąt otwarcia" hint="do widoku 3D">
-                <Num value={cab.openAngle ?? 90} onChange={(v) => set({ openAngle: v })} suffix="°" />
-              </Field>
+              {/* pole „Kąt otwarcia — do widoku 3D” usuniete: nic go nie czytalo, kat
+                  ustawia suwak w 3D (audyt GPT N39, decyzja uzytkownika 2026-10-17) */}
               <Field label="Dodatkowe cofnięcie półki"
                 hint={cab.frontMode === "inset"
                   ? `Drzwi wewnątrz — półka jest już krótsza o ${fmt(geo.tf + 5)} mm.`

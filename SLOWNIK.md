@@ -91,6 +91,8 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | `NOZKA_MIN` = 50, `nozki:<mm>` | najniższa nóżka regulowana (GTV MLA-50, 50–75 mm); poniżej — błąd z „Ustaw 50 mm / Ustaw 100 mm” (`runFix` → `cab.legs.height`); specyfikacja nóżki z `legH` |
 | `kolki:<od przodu>:<od tyłu>` | błąd „Kołki półek … nie mieszczą się na półce” (przód + tył ≥ głębokość najpłytszej półki albo ujemne) → „Ustaw 37 / 37 mm” (`cab.shelfPin`) |
 | `maZawieszki(cab)` / `naListwie(cab)`, `zawieszki:<listwa\|haczyki>` | `runRail` — listwa tylko gdy choć jedna szafka ciągu wisi na listwie; `runCabMsgs(run, c, inne)` — szafka bez zawieszek przy innych na listwie: ostrzeżenie „Zawieszki na listwie / na haczykach” (`hangers: "auto"`, `hangerMode`) |
+| `wspgl:<poziom>:<kolumna>:<mm>` | przycisk „Wspornik na … mm głębokości” przy błędzie za głębokiego wspornika fixu (do pleców za fixem: `dividerDepth − z0`; audyt GPT N41) |
+| „Rozwiąż ciąg” przy ciągu z górnym (`rozwiazPyt`, `data-el="rozwiaz-ostrzezenie"`) | ostrzeżenie z „Rozwiąż mimo to / Anuluj”; `removeRun` zamienia górny na samodzielny ciąg wiszący (`mountY` = obecne `tierMountY`, `wallW` dolnego; audyt GPT N47) |
 | `geo.plecyKolumn`, `plecyBryly(cab, geo)` | plecy ustawione w kolumnach (`col.backMode`): lista płyt `{x0, x1, y0, y1, mode, grub}` z `computeGeo` — formatki i bryła 3D (szafka, zabudowa) z tej samej listy; `plecyBryla` (rysunki 2D) — ich obrys |
 | `wariant` (okucie) | cecha handlowa w kluczu `scalOkucia` — nóżka (`nozkaWariant`: kształt, wysokość, kolor), zawias nakładany / wpuszczany; inny wariant = osobny wiersz zbiorczego zamówienia |
 | `sztuk` / `specSzt` (lustro) | liczba luster i opis z `{n}` — sumowane przy scalaniu; powierzchnia dokładna, zaokrąglenie dopiero w `hwQty` |
@@ -232,6 +234,8 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `armLegPlan(arm)` | nóżki ramienia narożnika jak w szafce tej długości (`legPlan`): przy rogu, pod końcem, od 900 mm na środku; `us` od rogu, `vs` od ściany — jedno źródło dla zamówienia, elewacji i bryły |
 | `ulozSciany(solids, proj)` | kolejność rysowania i cieniowanie w obu widokach 3D (zabudowa i szafka) |
 | `autoHinges(h, w, grub, szeroki)` / `zawiasyGtv` / `ZAWIASY_GTV` | liczba zawiasów na skrzydło wg tabeli GTV (katalog 2023 s. 68): większa z liczb z wysokości frontu (750 / 1500 / 2100 / 2500 mm) i jego wagi (`wagaFrontu`; 6 / 12 / 17 / 20 kg), front do 600 mm; `szeroki` (skrzydło szafki narożnej na zawiasie 165°) — 4,5 / 9 / 12,5 / 15 kg, front do 450 mm; `zawiasyGtv` zwraca też `kg` i `poza` (ponad tabelę: wysokość, waga albo szerokość) |
+| `wagaLustra(w, h, mat)` / `GESTOSC_SZKLA` | masa lustra na froncie (szkło 2500 kg/m³, grubość z materiału lustra) — dodatek `dodatekKg` w `zawiasyGtv` / `autoHinges` i w masie klapy (audyt GPT N34) |
+| `PROJEKT_WERSJA` / `cab.version` (5) | wersja zapisu projektu i szafki — prostowanie dawnych cen netto (`LEGACY_NET_PRICES`) i wzmocnień w `migrateCab` tylko dla zapisów starszych (audyt GPT N35) |
 | `autoShelves(innerH, t)` | liczba półek przy automacie |
 | `distribute` / `evenGapOptions` | podział pasma na fronty + propozycja luzu bez resztek |
 | `bezWienca(cab, tf)` | zamiana wieńca na parę wzmocnień (szafka pod blatem) |
@@ -307,6 +311,7 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `WORKTOP_LEN` | 4100 | długość pasa blatu |
 | `WORKTOP_DEPTHS` / `WORKTOP_PRICES` | 600, 1200 / 563,99, 1128,22 | głębokości i ceny blatu brutto (obie z faktur użytkownika) |
 | `KONF_OD_KRAWEDZI` / `konfirmatyNaStyk` / `konfirmatyPoz` | 50 mm / co 200, min. 2 | konfirmaty: liczba na styk (okucia i plan wierceń) i ich położenia od przedniej krawędzi |
+| `rt.przed` | ile przed korpus wychodzi luz przy zawiasach i front (0 przy frontach wpuszczanych) — głębokość blatu ciągu i uwagi o wysięgu (audyt GPT N48) |
 | PDF „Wiercenia” (kartka szafki) | `geo.drillPlan` + `wierceniaDodatkowe(arm, wstawki)` | plan wierceń korpusu (`computeGeo`) i dokładka: „Bok ramienia” szafki w L (konfirmaty dna/wieńca ramienia, kołki półek ramienia, zawiasy frontu ramienia), „Fix ramienia” i „Wstawka w rogu” (trójkąty); wiersz bez wysokości (frez pod HDF) ma „—” |
 | `KOLEK_PRZESUN` | 20 mm | kołki po drugiej stronie przegrody, gdy półki na tej samej wysokości |
 | `DEFAULT_PRICES.obrzezeBlat` / `.oklejanieBlat` | 6,68 / 11,81 zł | obrzeże ABS 43 × 2 na końce blatu roboczego (za mb) i usługa „oklejanie PCV > 23 mm” (za rozpoczęty mb); końce blatu wolne = `rt.wolny0/wolny1` |
@@ -471,6 +476,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `arkusz` / `cutplan` / `fit` / `fitall` | mieszczenie się w arkuszu i rozkrój; `cutplan` też PDF rozkroju (nagłówek, kolumna arkusza, nagłówek materiału z rysunkiem, „N szafek”, złącza blatu w produktach projektu); prawdziwy wydruk rozkroju do PDF — 1 strona tabeli + dokładnie 1 strona na arkusz; „6 szafek” |
 | `audytgpt2` | audyt GPT 2026-10-17 N5–N21 i U3: HDF w kolorach, oklejanie wstawki, front z płyty korpusu, nóżki < 50, warianty nóżek i zawiasów, „Cokół”/„Blat” dodatkowe, plecy kolumn w 3D, dno szuflady 25, HDF przy wycięciu, blenda w 3D, kołki, kolor blatu, zawiasy w jednym miejscu, NL spoza listy, lustra, listwa i zawieszki w ciągu, nagłówek „Rysunek” |
 | `audytgpt3` | audyt GPT 2026-10-17 N22–N33 i podpowiedzi → ostrzeżenia: NL przy przeszkodzie, blat przy słupku, zabudowa przeszkody 3D (48 wariantów), głębokość z plecami / frontem, plecy z płyty półek, usunięcie szafki, cena okucia, nóżki i konfirmaty w płytkiej szafce, szczelina nad przegrodą, grubość ≤ 0 |
+| `audytgpt4` | audyt GPT 2026-10-17 N34–N48 (bez N45): lustro w masie frontu, wczytanie bieżącego zapisu, uchwyt klapy, przeszkoda przy zawiasach, montaż frontów szuflad w kolumnie, konfirmaty wspornika / półki / przegrody, wspornik a plecy, fix przy szufladach, kolory zabudowy 3D, górny ciąg nad słupkiem, rozwiązanie ciągu z górnym, blat przy frontach wpuszczanych, brak pola „Kąt otwarcia” |
 | `drobne` | luzy domyślne, nazwa uchwytu, dekor, wkręt do pleców |
 | `stdfull` / `stdnew` | wersja standalone (ścieżka GitHub Pages) |
 
