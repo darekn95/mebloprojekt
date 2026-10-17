@@ -15872,8 +15872,12 @@ export default function App() {
   const allMsgs = useMemo(() => [...runMsgs, ...bezWspolnychFormatek(geo.msgs, !!runPl, !!runTp), ...wstawkaMsgs(projLayout, project.active),
     // ramie szafki w L: jego formatki naleza do tej szafki
     ...(cornerNode && cornerNode.arm && cornerNode.arm.len > 0
-      ? maleFormatkiMsgs(cornerArmParts(cornerNode.arm).panels, cab.dociac, "@") : [])],
-    [runMsgs, geo, projLayout, project.active, cornerNode, cab, runPl, runTp]);
+      ? maleFormatkiMsgs(cornerArmParts(cornerNode.arm).panels, cab.dociac, "@") : []),
+    /* Zuzycie blatu i odpad arkusza z rozkroju — takze w Uwagach, nie tylko
+       w karcie „Rozkrój” (komentarz uzytkownika 2026-10-17). */
+    ...(pokazPlan ? pokazPlan.groups.flatMap((g) => uwagiRozkroju(g).map((t) => ({ level: "warn",
+      text: `Rozkrój — ${bezArkusza(g.matLabel)}: ${t.replace(/^Blat: /, "")}` }))) : [])],
+    [runMsgs, geo, projLayout, project.active, cornerNode, cab, runPl, runTp, pokazPlan]);
   const errors = allMsgs.filter((m) => m.level === "error");
   const warns = allMsgs.filter((m) => m.level === "warn");
   const infos = allMsgs.filter((m) => m.level === "info");

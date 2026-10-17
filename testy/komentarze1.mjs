@@ -66,11 +66,15 @@ console.log('\n== kontrola zużycia blatu i odpadu arkusza ==');
 await seed(proj([1200, 1200, 1200, 600].map((W) => ({ cab: cab({ W }), runId: 'c1' })), [RUN('c1')]));
 let o = await odpad();
 ok('blat 4200: brakuje 103 mm do jednego arkusza', o.some((t) => /brakuje 103 mm/.test(t) && /3600 → 3497/.test(t)), o.join(' // '));
+// to samo w karcie „Uwagi” (komentarz uzytkownika 2026-10-17: „czemu tego nie ma w ostrzezeniach?”)
+const uw = await page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || '');
+ok('…i w „Uwagach” jako ostrzeżenie', /Rozkrój — [^\n]*do zmieszczenia na jednym arkuszu zamiast 2 brakuje 103 mm/.test(uw), uw.split('\n').filter((l) => /Rozkrój/.test(l)).join(' / '));
 await seed(proj([1200, 1200, 1200, 1000].map((W) => ({ cab: cab({ W }), runId: 'c1' })), [RUN('c1')]));
 ok('blat 4600 (brakuje ponad 200 mm) — bez ostrzeżenia', !(await odpad()).some((t) => /^! Blat/.test(t)));
 await seed(proj([{ cab: cab({ W: 300, H: 400, D: 300, plinth: { on: false }, back: 'none', extraParts: [{ name: 'Duża', a: 2700, b: 2000, qty: 1, matKey: 'board' }] }) }]));
 o = await odpad();
 ok('arkusz 2 z 2 wykorzystany poniżej 15% — ostrzeżenie', o.some((t) => /Arkusz 2 z 2 wykorzystany tylko w/.test(t)), o.join(' // '));
+ok('…i w „Uwagach”', /Rozkrój — [^\n]*Arkusz 2 z 2 wykorzystany tylko w/.test(await page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || '')));
 
 console.log('\n== opis „Luz w rogu” ==');
 await seed(proj([{ cab: cab({ name: 'A' }), runId: 'c1' }, { cab: cab({ name: 'B' }), runId: 'c2' }],
