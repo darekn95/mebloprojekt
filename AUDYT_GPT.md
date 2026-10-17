@@ -1,3 +1,25 @@
+# Dalsza kontynuacja — N43, 17.10.2026
+
+Po dodatkowym poleceniu „kontynuuj” sprawdzono jeszcze zgodność wykończenia frontów między widokami. Źródło: `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Jedno nowe zgłoszenie, dwa warianty tej samej linii renderowania zabudowy. Pozostałe znane usterki pominięte.
+
+## N43 [P3] Zabudowa 3D gubi właściwe wykończenie blend i frontów z lustrem
+
+**Odtworzenie:** jedna szafka w ciągu, „Realne kolory” włączone, fronty z osobnej płyty. Dla czytelnej próby korpus czerwony, płyta frontowa zielona. Porównać zamknięty widok 3D pojedynczej szafki z widokiem 3D ciągu/zabudowy.
+
+- Zwykłe drzwi bez lustra są zielone w obu widokach — próba kontrolna przechodzi.
+- Po zaznaczeniu lustra pojedyncza szafka pokazuje kolor lustra `#c3d0d6`, lecz zabudowa nadal pokazuje zieloną płytę frontu `#00ff00`.
+- Po zmianie pola na blendę pojedyncza szafka poprawnie pokazuje zieloną płytę frontową, a zabudowa czerwony korpus `#ff0000`. Zamówienie blendy używa materiału frontu, nie korpusu.
+
+**Przyczyna:** w `Assembly3D` kolor ustawiany jest jako `d.type === "blenda" ? bf : c.frontColor`; pomija flagę `d.mirror` i podstawia blendzie materiał korpusu. `Scene3D` ma inne przypisanie. W efekcie użytkownik widzi inne wykończenie zależnie od zakresu rysunku.
+
+**Oczekiwane:** wspólne ustalanie wykończenia każdego frontu dla szafki i zabudowy, zgodne z jego zamawianą płytą oraz lustrem. Dwa warianty liczyć jako jeden błąd renderowania wykończenia, nie dwa. To inne zgłoszenie niż N34 (masa lustra w doborze okuć) i N17 (kolor samodzielnego blatu).
+
+Dowód: `audit20-finishes-results.json`, porównanie brył odpowiadających dokładnie wymiarom frontu. Próby funkcji `Scene3D`/`Assembly3D`, bez zmiany projektu użytkownika. Kod: `Assembly3D`, linia 7004 aktualnego źródła. Nie zmieniano kodu aplikacji.
+
+
+
+---
+
 # Przedłużenie audytu — N38–N42, 17.10.2026
 
 Użytkownik przedłużył testy o 10 minut od ok. 11:30:40 czasu polskiego. Źródło niezmienione: `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Pięć nowych zgłoszeń, odrębnych od N1–N37. Próby funkcji źródłowych na kopiach danych; N39 dodatkowo potwierdzono w działającym interfejsie. W teście UI zmieniono wyłącznie pole kąta, cofnięto zmianę do 90°, cofnięto wybór szafki i przywrócono Szafkę 5 oraz wcześniejszy widok zamknięty.
