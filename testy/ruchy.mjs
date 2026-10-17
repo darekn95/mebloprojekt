@@ -5,7 +5,9 @@
      rogu, w zaslonietej czesci, trafia w korpus sasiedniego ciagu,
    - klapa do gory w szafce pod blatem uderza w blat, bez blatu jest wolna,
    - klapa w dol w szafce gornej nad pusta sciana jest wolna,
-   - prosty ciag z szufladami i klapami nie ma zadnej kolizji. */
+   - prosty ciag z szufladami i klapami nie ma zadnej kolizji,
+   - klapa do gory na 100° w szafce gornej uderza w sufit (wysokosc pomieszczenia
+     z ciagu gornego), przy 90° albo wyzszym suficie — wolna. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
@@ -89,6 +91,24 @@ await seed([RUN('c1', 'Ściana A', { worktop: false }),
     { kind: 'doors', doors: 1, w: 640 }, { ...SZUF, w: null }] }] }, runId: 'c2', offset: 0 }]);
 r = await ruchy();
 ok('szuflady obok fixu wysuwają się', !r.some((l) => /Szuflada szafki „R"/.test(l)), skrot(r));
+
+console.log('\n== klapa do góry w szafce górnej pod sufitem ==');
+/* Sufit z ciagu gornego (wysokosc pomieszczenia): klapa otwierana na 100°
+   wychodzi nad szafke — przy 22 mm do sufitu sie nie miesci, przy 90° tak. */
+const GORNY = (ceiling) => RUN('g1', 'Ściana A', { tier: 'gorny', wall: 'c1', D: 300, H: 360, plinth: null, worktop: false, clearance: 500, ceiling });
+const G1 = (o) => ({ cab: { name: 'G1', W: 600, H: 360, D: 300, plinth: { on: false }, legs: { on: false }, hangerMode: 'listwa',
+  levels: [{ h: null, cols: [{ w: null, kind: 'doors', doors: 1, klapa: 'gora', ...o }] }] }, runId: 'g1', offset: 0 });
+await seed([RUN('c1', 'Ściana A'), GORNY(1740)], [CAB('D1', 600, 'c1', DRZWI), G1({ katKlapy: 100 })]);
+r = await ruchy();
+const su = r.find((l) => /Klapa do góry szafki „G1"/.test(l));
+ok('100°, 22 mm do sufitu: klapa uderza w sufit', !!su && /po drodze stoi sufit na 1740 mm — otworzy się tylko na ok\. \d+°/.test(su), skrot(r));
+ok('rada: kąt 90° albo 75°', !!su && /Ustaw kąt otwarcia 90° albo 75°/.test(su), su || '');
+await seed([RUN('c1', 'Ściana A'), GORNY(1740)], [CAB('D1', 600, 'c1', DRZWI), G1({})]);
+r = await ruchy();
+ok('90° pod tym samym sufitem: wolna', !r.some((l) => /Klapa/.test(l)), skrot(r));
+await seed([RUN('c1', 'Ściana A'), GORNY(1920)], [CAB('D1', 600, 'c1', DRZWI), G1({ katKlapy: 100 })]);
+r = await ruchy();
+ok('100°, 200 mm do sufitu: wolna', !r.some((l) => /Klapa/.test(l)), skrot(r));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

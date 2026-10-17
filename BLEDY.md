@@ -18,6 +18,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-17 | klapy — braki (AI_NOTES): podnośnik / amortyzator bez mocowań w planie wierceń | plan wierceń ma płytkę na boku (albo przegrodzie / wsporniku) i mocowanie na klapie wg instrukcji GTV: PD-G00 — H pod spodem płyty z zawiasami z tabeli (kąt 75/90/100°, front nakładany / bliźniaczy / wpuszczany), 25 mm od przedniej krawędzi (wpuszczany 25 + grubość frontu), na klapie L (72/62/52) pod tą płytą i 24 mm niżej, 12 mm od wewnętrznej strony boku; PD-ECGDL — 245 mm nad płytą pod klapą, na klapie 62 i 86 mm; jeden — po lewej, dwa — po obu stronach; test w `audytwierc` | (ten commit) |
+| 2026-10-17 | klapy — braki (AI_NOTES): klapa do góry otwierana ponad 90° nie widziała sufitu | sufit z ciągu górnego (`ceiling`) jest przeszkodą w kontroli otwierania (`swingBodies`): „po drodze stoi sufit na N mm” z radą „kąt 90° albo 75°” albo „więcej miejsca pod sufitem”; górna szafka i blat już były przeszkodą (górna płytsza — klapa otwiera się przed nią); test w `ruchy` | (ten commit) |
 | 2026-10-17 | uproszczenie: „→ poziom” tylko w poziomie z jedną kolumną | `polkiNaPoziomy` dzieli cały poziom (wszystkie kolumny) na wysokości wybranej półki; pozostałe kolumny dostają tyle półek, ile wypadło w każdym paśmie; poziom z kolumną szuflad nie ma „→ poziom” (`daSiePodzielic`); „klapy zamiast drzwi” nadal tylko przy jednej kolumnie | (ten commit) |
 | 2026-10-17 | uproszczenie: łyżwa w 3D cięta pod głębokość własnego blatu, choć drugi blat w rogu jest płytszy/głębszy | skos liczony z głębokości blatu drugiego ciągu (`rt.skosGl0/1` z `runTop` partnera); test w `audytgpt5` (D 560 i 400) | cf2131c |
 | 2026-10-17 | uproszczenie: podpowiedź głębokości blatu i „skład” nie znały wysunięcia szafki | `worktopMsgs` odejmuje wysunięcie szafki od podpowiadanej głębokości („… i z wysunięciem szafki o X mm”), w składzie osobna pozycja „wysunięcie X”; test w `audytgpt5` (wysunięcie 100 → 467 mm) | cf2131c |
@@ -234,6 +236,10 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   formatka „Klapa”, rysunki i bryła 3D. Poprawki po pierwszym spojrzeniu
   (wybór w dwóch krokach, amortyzator z tabeli PD-ECGDL, ostrzeżenie przy
   jednym podnośniku, cena 10 zł, gęstość 680) już wprowadzone. Braki spisane w `AI_NOTES.md` ([AI-TODO] Klapy).
+  2026-10-17: mocowania podnośnika / amortyzatora w planie wierceń i sufit w kontroli otwierania zrobione; do decyzji:
+  jeden podnośnik — który bok (teraz lewy); półka przy podnośniku min. 50 mm za frontem (instrukcja PD-G00) — ostrzeżenie
+  czy cofanie półek; amortyzator przy frontach wpuszczanych (karta nie podaje — przyjęte 25 + grubość frontu);
+  zawias klapy pod półką przelotową w praktyce półnakładany, a zamówienie ma jeden wariant na szafkę.
 
 ## Ustalone — nie ruszać
 

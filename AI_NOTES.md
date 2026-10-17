@@ -631,10 +631,18 @@ dotarl i jest w `GTV_PD_ECGDL`. Karta PD-ECGDL podaje zgodny zawias barkowy
 PD-MD-ZB, ale uzytkownik chce zwyklych zawiasow jak przy skrzydlach.
 [AI-INFO] (2026-10-16) Plan wiercen dla zawiasow klapy JEST („zawias klapy” w wiencu/
 wzmocnieniu albo w dnie) — poprzedni wpis byl nieaktualny (wytknal to audyt GPT).
-[AI-TODO] Klapy — czego jeszcze nie ma: mocowan podnosnika na boku w planie wiercen; kolizja otwartej klapy do gory
-z gorna szafka/sufitem i opadanej z blatem; wsparcie klapy w szafce z kilkoma
-poziomami w kontroli otwierania. Do omowienia z uzytkownikiem, gdy zacznie
-uzywac klap na projekcie.
+[AI-INFO] (2026-10-17) Klapy — braki z poprzedniego wpisu zrobione: mocowania
+podnosnika / amortyzatora w planie wiercen (stale `PODNOSNIK_*`, `AMORTYZATOR_*`,
+`KLAPA_*` wg instrukcji GTV, s. 3 obu PDF), sufit z ciagu gornego jako przeszkoda
+w kontroli otwierania. Gorna szafka i blat juz byly przeszkoda (gorna jest plytsza,
+klapa dolnej otwiera sie przed nia); klapa w szafce z kilkoma poziomami dziala
+(kazda klapa to osobny ruch, fronty i uchwyty innych poziomow to przeszkody).
+[AI-TODO] Klapy — do decyzji uzytkownika: (1) jeden podnosnik — na ktorym boku
+(teraz lewy); (2) instrukcja PD-G00: polka przy podnosniku min. 50 mm za frontem —
+ostrzezenie czy cofanie polek; (3) amortyzator przy frontach wpuszczanych — karta
+PD-ECGDL nie podaje, przyjete 25 + grubosc frontu jak w PD-G00; (4) zawias klapy
+pod polka przelotowa to w praktyce polnakladany (blizniaczy), a zamowienie ma
+jeden wariant na szafke.
 
 [AI-INFO] Audyt calosci: `testy/audyt.mjs` (ok. 4 min, sekwencyjnie). Hook
 `audytBryly` zapisuje teraz tez obrys bryly na miejscu (`p`, po obrocie

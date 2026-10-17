@@ -419,6 +419,18 @@ const GTV_PD_G00 = {
     100: [2.6, 1.9, 1.6, 1.3], 120: [3.1, 2.3, 1.9, 1.6], 150: [3.5, 2.6, 2.2, 1.9] },
 };
 const GTV_PD_ECGDL = { 60: [1.8, 1.3, 1.1, 0.9], 80: [2.4, 1.8, 1.4, 1.2], 150: [4.1, 3.2, 2.3, 2.1] };
+/* Montaz na boku wg instrukcji GTV PD-G00 (s. 3, „Planowanie”): plytka do
+   korpusu H mm pod spodem plyty z zawiasami i 25 mm od przedniej krawedzi boku
+   (przy zawiasach wpuszczanych 25 + grubosc frontu); mocowanie frontu L mm pod
+   spodem tej plyty i 12 mm od wewnetrznej strony boku, dwa wkrety co 24 mm.
+   H zalezy od kata i nalozenia frontu, L tylko od kata. Amortyzator klapy w dol
+   (karta PD-ECGDL, s. 3): plytka 245 mm nad plyta pod klapa, mocowanie frontu
+   62 mm nad nia, te same 25, 12 i 24 mm. */
+const PODNOSNIK_H = { wpuszczane: { 75: 276, 90: 250, 100: 241 }, blizniacze: { 75: 268, 90: 242, 100: 233 },
+  nakladane: { 75: 260, 90: 234, 100: 225 } };
+const PODNOSNIK_L = { 75: 72, 90: 62, 100: 52 };
+const AMORTYZATOR_H = 245, AMORTYZATOR_L = 62;
+const KLAPA_PLYTKA_OD_KRAWEDZI = 25, KLAPA_MOC_OD_BOKU = 12, KLAPA_MOC_ROZSTAW = 24;
 /* Gestosc robocza plyty frontu od uzytkownika: 660–680 kg/m3 — bierzemy
    gorna granice, zeby podnosnik nie wyszedl za slaby (18 mm ≈ 12,2 kg/m2). */
 const GESTOSC_FRONTU = 680;
@@ -4246,6 +4258,49 @@ function computeGeoLiczy(cab, mat, ctx) {
           if (!drillMap.has(key)) drillMap.set(key, { panel: key, holes: [] });
           drillMap.get(key).holes.push({ kind: "zawias klapy", y: Math.round(hx - interior.x0),
             note: "oś zawiasu od wewnętrznej strony lewego boku — puszka ⌀35 w klapie, prowadnik na płycie" });
+        });
+        /* Podnosnik / amortyzator: plytka na boku kolumny i mocowanie na klapie
+           (stale `PODNOSNIK_*`, `AMORTYZATOR_*`). Liczone od plyty z zawiasami:
+           spodu tej nad klapa do gory, wierzchu tej pod klapa w dol. Nalozenie
+           frontu na te plyte wybiera wiersz tabeli: wpuszczana, nakladana albo
+           „blizniacza” — polowa grubosci, gdy nad klapa jest jeszcze front
+           nastepnego poziomu. Jeden podnosnik idzie na lewy bok. */
+        const k = klapy.find((q) => q.colKey === d.colKey);
+        const ostatni = lv.i === levels.length - 1;
+        const szyna = gora && ostatni && !hasTop
+          ? (c.rails || []).filter((r) => r.orient === "shelf" && r.y0 >= (lv.y0 + lv.y1) / 2).sort((a, b) => a.y0 - b.y0)[0] : null;
+        const plytaY = gora ? (szyna ? szyna.y0 : lv.y1) : lv.y0;
+        const plytaT = gora && ostatni ? (szyna ? szyna.y1 - szyna.y0 : tW) : t;
+        const nf = gora ? d.y + d.h - plytaY : plytaY - d.y;
+        const typ = d.inset ? "wpuszczane" : nf > plytaT / 2 + 2 ? "nakladane" : "blizniacze";
+        const kat = gora && PODNOSNIK_L[d.kat] ? d.kat : 90;
+        const plytkaY = gora ? plytaY - PODNOSNIK_H[typ][kat] : plytaY + AMORTYZATOR_H;
+        const mocY = gora ? [plytaY - PODNOSNIK_L[kat], plytaY - PODNOSNIK_L[kat] - KLAPA_MOC_ROZSTAW]
+          : [plytaY + AMORTYZATOR_L, plytaY + AMORTYZATOR_L + KLAPA_MOC_ROZSTAW];
+        const odPrzodu = KLAPA_PLYTKA_OD_KRAWEDZI + (d.inset ? tf : 0);
+        const co = gora ? "podnośnik klapy" : "amortyzator klapy";
+        const p = panelsOfCol(lv, c);
+        // szafka w L: od strony ramienia boku nie ma, a katownik stoi z tylu
+        const bezBoku = (s) => (s === "left" ? postSide === "left" && c.j === 0 : postSide === "right" && c.j === lv.cols.length - 1);
+        let strony = (k && k.ile === 2 ? ["left", "right"] : ["left"]).filter((s) => !bezBoku(s));
+        if (k && k.ile === 1 && !strony.length) strony = ["right"];
+        if (k && k.ile === 2 && strony.length < 2)
+          add("warn", `Poziom ${lv.i + 1}, kolumna ${d.colJ + 1}: drugi ${gora ? "podnośnik" : "amortyzator"} nie ma boku do przykręcenia — po stronie ramienia boku nie ma. Daj jeden mocniejszy.`);
+        const opis = gora ? `GTV PD-G00, kąt ${kat}°, front ${typ === "blizniacze" ? "bliźniaczy (półnakładany)" : typ === "wpuszczane" ? "wpuszczany" : "nakładany"}: `
+          + `${fmt(PODNOSNIK_H[typ][kat])} mm pod spodem płyty z zawiasami`
+          : `GTV PD-ECGDL: ${fmt(AMORTYZATOR_H)} mm nad płytą z zawiasami`;
+        const klapaNazwa = lv.cols.length > 1 ? `Klapa — kolumna ${d.colJ + 1}` : "Klapa";
+        strony.forEach((s) => {
+          const naWsporniku = c.fix && c.support && c.fix.side === s;
+          const side = naWsporniku
+            ? { name: lv.cols.length > 1 ? `Wspornik pionowy — kolumna ${c.j + 1}` : "Wspornik pionowy", base: lv.y0, strona: "" }
+            : p[s];
+          drillAdd(lv.i, side.name, side.base, co, plytkaY,
+            `płytka do korpusu — środek ${fmt(odPrzodu)} mm od przedniej krawędzi płyty, 3 wkręty ⌀4×16 (górny 10 mm nad środkiem); ${opis}`
+            + (strony.length === 1 ? `; jeden ${gora ? "podnośnik" : "amortyzator"} — tylko po ${s === "left" ? "lewej" : "prawej"} stronie klapy` : "") + (side.strona || ""));
+          const odKrawedzi = s === "left" ? c.x0 - d.x + KLAPA_MOC_OD_BOKU : d.x + d.w - c.x1 + KLAPA_MOC_OD_BOKU;
+          mocY.forEach((y) => drillAdd(lv.i, klapaNazwa, d.y, co, y,
+            `mocowanie frontu — 2 wkręty ⌀4×16 od wewnętrznej strony klapy, ${fmt(Math.round(odKrawedzi))} mm od ${s === "left" ? "lewej" : "prawej"} krawędzi`));
         });
         return;
       }
@@ -13311,6 +13366,14 @@ const swingBodies = (L, project) => {
           { cab: "blat", run: n.run.name, id: `${n.id}#blat`, co: "blat", klucz: `${n.id}|blat${i}`, blat: true }));
       });
     }
+    /* Sufit (wysokosc pomieszczenia z ciagu gornego tej sciany): klapa do gory
+       otwierana ponad 90° wychodzi nad szafke i pod sufitem moze sie nie zmiescic. */
+    const gornyCiag = n.run.tier === "gorny" ? n.run
+      : ((project && project.runs) || []).find((r) => r.tier === "gorny" && r.wall === n.id);
+    const sufit = gornyCiag && Number(gornyCiag.ceiling) > 0 ? Math.round(Number(gornyCiag.ceiling)) : null;
+    if (sufit != null)
+      bryly.push(roomBox(n, 0, n.lead + n.total + n.tail, 0, 5000, sufit, sufit + 1000,
+        { cab: "sufit", run: n.run.name, id: `${n.id}#sufit`, co: "sufit", klucz: `${n.id}|sufit`, sufit }));
   });
   return { bryly, skrzydla, ruchy };
 };
@@ -13443,7 +13506,7 @@ const openingMsgs = (L, project) => {
     });
     if (!g) return;
     const gdzie = g.b.run === m.run ? "w tym samym ciągu" : `z ciągu „${g.b.run}"`;
-    const czyje = g.b.blat ? `ciągu „${g.b.run}"` : g.b.id === m.id ? "tej samej szafki" : `szafki „${g.b.cab}" ${gdzie}`;
+    const czyje = g.b.sufit ? `na ${fmt(g.b.sufit)} mm` : g.b.blat ? `ciągu „${g.b.run}"` : g.b.id === m.id ? "tej samej szafki" : `szafki „${g.b.cab}" ${gdzie}`;
     if (m.typ === "szuflada") {
       const zostaje = Math.max(0, Math.round(m.szer - g.ile));
       out.push({ level: "error", text:
@@ -13454,6 +13517,8 @@ const openingMsgs = (L, project) => {
       return;
     }
     const rada = g.b.blat ? "Pod blatem klapa do góry się nie otworzy — zrób szufladę albo drzwi."
+      : g.b.sufit ? (m.kat > 90 && g.kat >= 90 ? "Ustaw kąt otwarcia 90° albo 75° — wtedy klapa nie wychodzi nad szafkę."
+        : "Zostaw więcej miejsca pod sufitem (niższe szafki albo mniejszy prześwit nad blatem) albo zrób klapę w dół.")
       : m.gora && g.kat >= 75 && m.kat > 75 ? "Ustaw mniejszy kąt otwarcia (75°) albo zmień układ."
       : m.gora ? "Zrób klapę w dół albo drzwi." : "Zrób klapę do góry albo drzwi.";
     out.push({ level: "error", text:
