@@ -1,3 +1,36 @@
+# N11 [P2] Plecy ustawiane w kolumnie zmieniają formatki, lecz bryła 3D ignoruje to ustawienie
+
+Stan main ponownie zweryfikowany17.10.2026: szafki.jsx blob688b93c92636d6e5909979d68a8ce9bf5f4e6732. Odtworzono lokalnie w aktualnych funkcjach computeGeo i Scene3D na wariantach Szafki1 użytkownika. Nie wykonano testu kliknięć ani wszystkich rysunków2D; nie zmieniano aplikacji.
+
+## Odtworzenie i wyniki
+
+Szafka600 x720 x560, jedna kolumna, plecy poza korpusem. Ustawienie całej szafki cab.back oraz ustawienie „plecy” kolumny col.backMode.
+
+| Cała szafka | Kolumna | Zamówienie | Bryła3D |
+|---|---|---|---|
+| HDF | brak | brak pleców | HDF598 x718 x3 nadal narysowany |
+| brak | HDF | HDF598 x718 x3 | brak pleców |
+| HDF | płyta | płyta598 x718 x18 | HDF598 x718 x3 |
+| płyta | HDF | HDF598 x718 x3 | płyta600 x720 x18 |
+| płyta | brak | brak pleców | płyta600 x720 x18 |
+| brak | płyta | płyta598 x718 x18 | brak pleców |
+| płyta | płyta (jawnie) | płyta598 x718 x18 | płyta600 x720 x18 |
+
+Macierz3 x3: globalnie HDF/brak/płyta, kolumna HDF/brak/płyta. Zgodne dwa przypadki HDF/HDF i brak/brak; w pozostałych siedmiu różni się obecność, materiał/grubość lub wymiar. Jawne wybranie płyty w kolumnie uruchamia inną gałąź niż dziedziczenie.
+
+## Przyczyna
+
+computeGeo ma backOverride i generuje panele osobno dla poziomów/kolumn, uwzględniając rawCol.backMode. plecyBryla(cab,geo) sprawdza wyłącznie cab.back i zwraca jeden pełny prostokąt. Scene3D oraz Assembly3D używają tego pomocnika bez rozpisania pleców kolumn. W kodzie Assembly3D potwierdzono tę samą ścieżkę; osobny test całej zabudowy dla tych wariantów nie był wykonywany.
+
+## Wpływ i naprawa
+
+To bezpośrednia niezgodność rysowanych i zamawianych elementów, niezależna od N5 (kolory HDF w rozkroju). Może pozostać niewidoczna przy testowaniu tylko domyślnych pleców całej szafki. Nie uznawano automatycznie wyników kolizji i okuć za błędne; trzeba je osobno przetestować.
+
+Geometria powinna zwracać wspólną listę płyt pleców z położeniem, grubością i materiałem, używaną przez formatki, bryły i rysunki2D. Regresje: macierz3x3, dwie kolumny z różnymi plecami, kilka poziomów, frez HDF, plecy wewnątrz/na zewnątrz, szafka z blatem na bokach i wycięciem. Sprawdzić także zamówienie PDF oraz rzeczywistą głębokość półek/szuflad przy takim nadpisaniu.
+
+
+---
+
 # Nowe ustalenia N9-N10 - 17.10.2026
 
 Źródło szafki.jsx blob 688b93c92636d6e5909979d68a8ce9bf5f4e6732. Odtworzono na lokalnych funkcjach computeGeo/projectParts/scalOkucia aktualnego kodu. Bez pełnej suity i testu kliknięć. Nie zmieniano aplikacji.
