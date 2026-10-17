@@ -431,6 +431,10 @@ const PODNOSNIK_H = { wpuszczane: { 75: 276, 90: 250, 100: 241 }, blizniacze: { 
 const PODNOSNIK_L = { 75: 72, 90: 62, 100: 52 };
 const AMORTYZATOR_H = 245, AMORTYZATOR_L = 62;
 const KLAPA_PLYTKA_OD_KRAWEDZI = 25, KLAPA_MOC_OD_BOKU = 12, KLAPA_MOC_ROZSTAW = 24;
+/* Polka przy podnosniku co najmniej 50 mm za frontem (PD-G00 s. 3, PD-ECGDL
+   s. 3: „min. 50”). Zakres wysokosci podnosnika: plytka ⌀29 (promien ok. 15)
+   i mocowanie frontu (ok. 10 mm poza otwor) — wymiary produktu z tych stron. */
+const KLAPA_POLKA_ZA_FRONTEM = 50, KLAPA_PLYTKA_R = 15, KLAPA_MOC_ZAPAS = 10;
 /* Gestosc robocza plyty frontu od uzytkownika: 660–680 kg/m3 — bierzemy
    gorna granice, zeby podnosnik nie wyszedl za slaby (18 mm ≈ 12,2 kg/m2). */
 const GESTOSC_FRONTU = 680;
@@ -2661,7 +2665,9 @@ function computeGeoLiczy(cab, mat, ctx) {
             const recznie = num(rawCol.silaN);
             const dobor = dobierzPodnosnik(cbandH, kg / ile, kat, klapa);
             const sila = recznie ?? (dobor ? dobor.sila : null);
-            klapy.push({ klapa, colKey: `${lv.i}-${j}`, w: dw, h: cbandH, kg, ile, kat, sila, recznie: recznie != null, dobor, where });
+            // jeden podnosnik: strona do wyboru przy klapie, domyslnie lewa (uzytkownik 2026-10-17)
+            const strona = rawCol.podnosnikStrona === "right" ? "right" : "left";
+            klapy.push({ klapa, colKey: `${lv.i}-${j}`, w: dw, h: cbandH, kg, ile, kat, sila, recznie: recznie != null, dobor, where, strona });
             dx += dw + colGap;
             continue;
           }
@@ -4264,7 +4270,7 @@ function computeGeoLiczy(cab, mat, ctx) {
            spodu tej nad klapa do gory, wierzchu tej pod klapa w dol. Nalozenie
            frontu na te plyte wybiera wiersz tabeli: wpuszczana, nakladana albo
            „blizniacza” — polowa grubosci, gdy nad klapa jest jeszcze front
-           nastepnego poziomu. Jeden podnosnik idzie na lewy bok. */
+           nastepnego poziomu. Jeden podnosnik — po stronie wybranej przy klapie. */
         const k = klapy.find((q) => q.colKey === d.colKey);
         const ostatni = lv.i === levels.length - 1;
         const szyna = gora && ostatni && !hasTop
@@ -4279,11 +4285,30 @@ function computeGeoLiczy(cab, mat, ctx) {
           : [plytaY + AMORTYZATOR_L, plytaY + AMORTYZATOR_L + KLAPA_MOC_ROZSTAW];
         const odPrzodu = KLAPA_PLYTKA_OD_KRAWEDZI + (d.inset ? tf : 0);
         const co = gora ? "podnośnik klapy" : "amortyzator klapy";
+        /* Polka na drodze podnosnika (instrukcja PD-G00: polka min. 50 mm za
+           frontem). Uzytkownik 2026-10-17: liczy sie tylko polka, ktora naprawde
+           stoi tam, gdzie jest podnosnik — od plytki na boku do mocowania na
+           klapie (z zapasem na plytke i okucie); nad nim i pod nim jest wolne.
+           Zamkniety stoi najglebiej, przy otwieraniu wychodzi przed korpus. */
+        {
+          const [lo, hi] = gora ? [plytkaY - KLAPA_PLYTKA_R, mocY[0] + KLAPA_MOC_ZAPAS]
+            : [mocY[0] - KLAPA_MOC_ZAPAS, plytkaY + KLAPA_PLYTKA_R];
+          const zaFrontem = frontCut + (c.shFront || 0) - (d.inset ? tf : 0);
+          const naDrodze = (c.shelves || []).map((s, i) => ({ ...s, i })).filter((s) => s.y < hi && s.y + ts > lo);
+          if (naDrodze.length && zaFrontem < KLAPA_POLKA_ZA_FRONTEM) {
+            const brak = Math.ceil(KLAPA_POLKA_ZA_FRONTEM - zaFrontem);
+            add("warn", `Poziom ${lv.i + 1}, kolumna ${d.colJ + 1}: ${naDrodze.length > 1 ? `półki ${naDrodze.map((s) => s.i + 1).join(" i ")}` : `półka ${naDrodze[0].i + 1}`} (od dołu) `
+              + `${naDrodze.length > 1 ? "stoją" : "stoi"} na drodze ${gora ? "podnośnika" : "amortyzatora"} klapy — przy boku zajmuje on wysokość ${fmt(Math.round(lo - lv.y0))}–${fmt(Math.round(hi - lv.y0))} mm od dołu poziomu, `
+              + `a półka jest ${fmt(Math.round(zaFrontem))} mm za frontem; instrukcja GTV: co najmniej ${KLAPA_POLKA_ZA_FRONTEM} mm. `
+              + `Cofnij półki o ${fmt(brak)} mm albo przestaw półkę nad lub pod ten zakres.|polkicof:${(cab.shelfExtraSetback || 0) + brak}`);
+          }
+        }
         const p = panelsOfCol(lv, c);
         // szafka w L: od strony ramienia boku nie ma, a katownik stoi z tylu
         const bezBoku = (s) => (s === "left" ? postSide === "left" && c.j === 0 : postSide === "right" && c.j === lv.cols.length - 1);
-        let strony = (k && k.ile === 2 ? ["left", "right"] : ["left"]).filter((s) => !bezBoku(s));
-        if (k && k.ile === 1 && !strony.length) strony = ["right"];
+        const jedna = k && k.strona === "right" ? "right" : "left";
+        let strony = (k && k.ile === 2 ? ["left", "right"] : [jedna]).filter((s) => !bezBoku(s));
+        if (k && k.ile === 1 && !strony.length) strony = [jedna === "left" ? "right" : "left"];
         if (k && k.ile === 2 && strony.length < 2)
           add("warn", `Poziom ${lv.i + 1}, kolumna ${d.colJ + 1}: drugi ${gora ? "podnośnik" : "amortyzator"} nie ma boku do przykręcenia — po stronie ramienia boku nie ma. Daj jeden mocniejszy.`);
         const opis = gora ? `GTV PD-G00, kąt ${kat}°, front ${typ === "blizniacze" ? "bliźniaczy (półnakładany)" : typ === "wpuszczane" ? "wpuszczany" : "nakładany"}: `
@@ -10844,6 +10869,11 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const tryb = action.split(":")[1];
       return { label: tryb === "haczyki" ? "Zawieszki na haczykach" : "Zawieszki na listwie", run: () => runFix && runFix(action) };
     }
+    if (action.startsWith("polkicof:")) {
+      // „polkicof:<mm>" — cofniecie polek calej szafki (pole „cofnięcie półek”), np. przed podnosnikiem klapy
+      const mm = Math.round(Number(action.split(":")[1]) || 0);
+      return { label: `Dodatkowe cofnięcie półek ${fmt(mm)} mm`, run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("kolki:")) {
       // „kolki:<od przodu>:<od tylu>" — polozenie otworow pod kolki polek
       const [, f, t] = action.split(":");
@@ -15258,6 +15288,17 @@ export default function App() {
       });
       return;
     }
+    if (action.startsWith("polkicof:")) {
+      const mm = Math.max(0, Math.round(Number(action.split(":")[1]) || 0));
+      setProject((p) => {
+        const items = p.items.slice();
+        const it = items[p.active];
+        if (!it) return p;
+        items[p.active] = { ...it, cab: { ...it.cab, shelfExtraSetback: mm } };
+        return { ...p, items };
+      });
+      return;
+    }
     if (action.startsWith("kolki:")) {
       const [, f, t] = action.split(":").map(Number);
       setProject((p) => {
@@ -17492,6 +17533,13 @@ export default function App() {
                                   <Seg value={rawCol.silowniki === 1 || rawCol.silowniki === 2 ? String(rawCol.silowniki) : "auto"}
                                     onChange={(v) => ustaw("silowniki", v === "auto" ? null : Number(v))}
                                     options={[{ v: "auto", l: `auto (${info.w > 600 ? 2 : 1})` }, { v: "1", l: "1" }, { v: "2", l: "2" }]} />
+                                  {/* jeden podnosnik: na ktorym boku (plan wiercen), uzytkownik 2026-10-17 */}
+                                  {info.ile === 1 && (
+                                    <span data-el="klapa-strona">
+                                      <Seg value={info.strona} onChange={(v) => ustaw("podnosnikStrona", v === "left" ? null : v)}
+                                        options={[{ v: "left", l: "na lewym" }, { v: "right", l: "na prawym" }]} />
+                                    </span>
+                                  )}
                                   <span className="text-stone-500">siła N</span>
                                   <span data-el="klapa-sila" className="w-20">
                                     <AutoNum value={rawCol.silaN}
