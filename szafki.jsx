@@ -2858,6 +2858,12 @@ function computeGeoLiczy(cab, mat, ctx) {
           add("error", `${where}: luz między szufladami ${fmt(drGap)} mm — fronty się stykają, potrzeba minimum 2 mm.`);
         else if (drGap === 1)
           add("warn", `${where}: luz między szufladami tylko 1 mm — zalecane 2 mm, żeby fronty się nie ocierały.`);
+        /* Za duzy luz miedzy szufladami — jak miedzy drzwiami w kolumnie: blad,
+           o ile za duzo. Wciecie na palce skraca sam front i tu sie nie liczy
+           (audyt GPT N67: 100 mm przechodzilo bez slowa). */
+        else if (drGap > cab.maxGap)
+          add("error", `${where}: luz między szufladami ${fmt(drGap)} mm — o ${fmt(drGap - cab.maxGap)} mm za dużo, granica to ${fmt(cab.maxGap)} mm.`
+            + `|fixgap:${lv.i}:${j}:${Math.min(g.between, cab.maxGap)}:down`);
       }
       const avail = dbandH - (ds.length - 1) * drGap;
       const fr = distribute(avail, ds.map((d) => d.front));
@@ -2954,6 +2960,12 @@ function computeGeoLiczy(cab, mat, ctx) {
           add("error", `${where}, szuflada ${i + 1}: prowadnice NL ${nl} — nie ma takiej długości w V-BOX (${VBOX.nl.join(", ")}).`
             + (zTabeli ? `|fixnl:${lv.i}:${j}:${i}:${zTabeli}` : ""));
         }
+        /* Za skrzynka stoi cos tak blisko, ze nie wchodzi nawet najkrotsza
+           prowadnica — dotad szuflada po cichu znikala z zamowienia (audyt GPT
+           N68). Brak glebokosci calej kolumny zglasza `colNl === null` wyzej. */
+        if (nl === null && colNl !== null && limTyl !== null)
+          add("error", `${where}, szuflada ${i + 1}: nie mieści się żadna prowadnica — wzmocnienie przy plecach stoi ${fmt(limTyl)} mm od lica, `
+            + `a najkrótsza NL ${VBOX.nl[0]} potrzebuje ${fmt(VBOX.nl[0] + 4 + dInsetExtra)} mm. Odsuń wzmocnienie dalej, przenieś je wyżej albo przesuń szufladę.`);
         if (nl !== null && limTyl !== null && nl + 4 + dInsetExtra > limTyl)
           add("error",
             `${where}, szuflada ${i + 1}: NL ${nl} wjeżdża tyłem skrzynki we wzmocnienie przy plecach — do niego jest ${fmt(limTyl)} mm od lica.`
@@ -3164,12 +3176,13 @@ function computeGeoLiczy(cab, mat, ctx) {
                 `|fixback:${lv.i}:${j}:${i}:${maxBack}`
             );
         }
+        // front jest niezaleznie od tego, czy dobrano prowadnice (audyt GPT N68)
+        if (fh > 0 && dsx1 - dsx0 > 0) drawerParts.push({ kind: "front", a: fh, b: dsx1 - dsx0 });
         if (nl !== null && LW > 0) {
           // skrzynka do rysunku — te same wymiary co formatki dna i tylu
           // bokOd / tylOd — od dolu prowadnicy (dol boku; spod dna = spod tylu)
           // `grub` — dno i tyl skrzynki sa z plyty polek (formatki `shelf`); bryla rysowala je z korpusu (audyt GPT N12)
           dr.skrzynka = { LW, nl, bok: hClass, dno: [LW - 75, nl - 24], tyl: [LW - 87, backH], tylOd, bokOd: vboxOdProw(hClass), grub: ts };
-          drawerParts.push({ kind: "front", a: fh, b: dsx1 - dsx0 });
           drawerParts.push({ kind: "dno", a: LW - 75, b: nl - 24 });
           drawerParts.push({ kind: "tyl", a: LW - 87, b: backH });
         }
@@ -5343,6 +5356,20 @@ const runLayout = (groups, ref = null) => {
     n.tail = rn.tail;
   });
   info.forEach((n) => { n.len = n.lead + n.total + n.tail; });
+  /* Ciag ustawiony od prawej krawedzi sciany konczy sie `offset` przed nia —
+     przy znanej dlugosci sciany zaczyna sie wiec od `sciana − offset − dlugosc`.
+     Samo `tail` zostawialo poczatek przy lewej krawedzi: dolny 1200 i gorny 600
+     „od prawej” zaczynaly sie razem po lewej (audyt GPT N64). Gorny bez
+     dlugosci sciany liczy sie od konca ramki dolnego. Najpierw dolne. */
+  [false, true].forEach((gorne) => info.forEach((n) => {
+    if (n.run.offsetFrom !== "right" || (n.run.tier === "gorny") !== gorne) return;
+    const dol = gorne && n.run.wall ? info.get(n.run.wall) : null;
+    const sciana = dol ? dol.run.wallW ?? n.run.wallW : n.run.wallW;
+    const koniec = sciana != null ? sciana : dol ? dol.len : null;
+    if (koniec == null) return;
+    n.lead = Math.max(n.lead, Math.round(koniec - n.tail - n.total));
+    n.len = n.lead + n.total + n.tail;
+  }));
   /* Gorna szafka w L musi wisiec w samym rogu, inaczej jej ramie (liczone od
      rogu, w ramce sasiada) rozjezdza sie z korpusem. Gorny ciag, ktory konczy
      sie w rogu, jest zwykle krotszy od dolnego — dosuwamy go do rogu, czyli do
@@ -7132,11 +7159,27 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     audytBryly(x0, y0, z0, x1, y1, z1, color, tag, v, alpha);
     solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold, bias: bias || 0, tag });
   };
+  /* Plyta o koncach scietych w rzucie (blat na lyzwe): x konca inne przy licu
+     (z0) i przy scianie (z1). Wierzcholki w kolejnosci `VERTS`, wiec sciany
+     licza sie tak samo jak przy pudelku. */
+  const plytaSkos = (x0f, x1f, x0b, x1b, y0, y1, z0, z1, color, bold, bias, tag) => {
+    let v = [
+      { x: x0f, y: y0, z: z0 }, { x: x1f, y: y0, z: z0 }, { x: x1f, y: y1, z: z0 }, { x: x0f, y: y1, z: z0 },
+      { x: x0b, y: y0, z: z1 }, { x: x1b, y: y0, z: z1 }, { x: x1b, y: y1, z: z1 }, { x: x0b, y: y1, z: z1 },
+    ];
+    if (place) v = v.map(place);
+    audytBryly(Math.min(x0f, x0b), y0, z0, Math.max(x1f, x1b), y1, z1, color, tag, v, 1);
+    solids.push({ v, color, alpha: 1, bold: !!bold, bias: bias || 0, tag });
+  };
 
+  /* Wysuniecie (+) albo cofniecie (-) biezacej szafki z lica ciagu — cala jej
+     bryla stoi o tyle dalej od sciany, jak w rzucie i w kontroli otwierania
+     (audyt GPT N62: 3D rysowalo wszystkie szafki w licu ciagu). */
+  let wysun = 0;
   groups.forEach((g) => {
     const n = L.info.get(g.run.id);
     place = (p) => {
-      const q = n.at(n.lead + p.x, n.depth - p.z);
+      const q = n.at(n.lead + p.x, n.depth + wysun - p.z);
       return { x: q.x, y: p.y, z: -q.y };
     };
     const rp = rpOf ? rpOf(g.run) : null;
@@ -7156,6 +7199,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         g.cabs[0].mat.board.color, null, 0.95);
     }
     g.cabs.forEach((c) => {
+      wysun = c.offset || 0;
       const cd = c.geo.carcassDepth;
       const t = c.geo.t;
       const bf = c.mat.board.color;
@@ -7215,9 +7259,10 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
          i przy takim styku polka potrafila przebic sie na wierzch zamknietych
          drzwi — odsuwamy ja od widza o pol glebokosci szafki. */
       const wGlab = -Math.round(cd / 2);
+      // polka przelotowa jest konstrukcyjna, z plyty korpusu — jak w zamowieniu (audyt GPT N60)
       (c.geo.sepShelves || []).forEach((sh) => box(
         c.x + c.geo.interior.x0, c.base + sh.y, zPolki[0],
-        c.x + c.geo.interior.x1, c.base + sh.y + t, zPolki[1], shc3,
+        c.x + c.geo.interior.x1, c.base + sh.y + t, zPolki[1], bf,
         null, 1, false, wGlab));
       (c.geo.dividers || []).forEach((d) => box(
         c.x + d.x, c.base + d.y0, cd - (c.geo.backIntrusion + c.geo.dividerDepth),
@@ -7308,6 +7353,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         (o.maskWalls || []).forEach((w) => box(c.x + w.x0, c.base + w.y0, cd - w.z1, c.x + w.x1, c.base + w.y1, cd - w.z0, smat));
       });
     });
+    wysun = 0;
     /* Ramie szafki naroznej stoi w tym ciagu, ale nalezy do sasiedniego —
         w bryle to ono domyka rog. */
     n.arms.forEach((a) => {
@@ -7350,8 +7396,13 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           apBack.plyta ? bA : c.mat.back.color, null, 0.95);
       }
       // cokol ramienia to plyta pod frontem, nie kloc na cala glebokosc
-      if (c.plinthH > 0)
-        box(x0, y0 - c.plinthH, 0, x0 + a.len, y0, tA, c.mat.board.color, null, 0.95);
+      /* Cofniety jak cokol szafki — i o tyle krotszy od strony rogu, gdzie
+         dochodzi do cofnietego cokolu korpusu (audyt GPT N55). */
+      if (c.plinthH > 0) {
+        const sbA = Math.max(0, Math.round((c.cab.plinth || {}).setback || 0));
+        const u0 = x0 + (przyKoncuBok ? sbA : 0), u1 = x0 + a.len - (przyKoncuBok ? 0 : sbA);
+        box(u0, y0 - c.plinthH, sbA, u1, y0, sbA + tA, c.mat.board.color, null, 0.95);
+      }
       /* Front ramienia to zwykle drzwi: konczy sie na maskownicy katownika,
          zawias ma na koncu dalszym od naroza i otwiera sie razem z reszta. */
       const przyKoncu = a.outerAtEnd;                 // rog przy poczatku ramienia
@@ -7429,8 +7480,18 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
            nia, wiec bez przyciagniecia do widza przebijaly sie przez wierzch.
            Polowa glebokosci wystarcza, zeby wygrac z tym, co lezy pod blatem,
            i jest wyraznie mniejsza od przeswitu do szafek gornych. */
-        box(s.x0, g.mount + rt.y, przyScianie - rt.depth, s.x1, g.mount + rt.y + rt.th, przyScianie,
-          kolB, null, 1, true, Math.round(rt.depth / 2), "blat");
+        /* Koniec na lyzwe (45°) w rogu: przy scianie blat siega rogu, przy licu
+           konczy sie o swoja glebokosc wczesniej — dwa pelne prostokaty nakladaly
+           sie na calym kwadracie rogu (audyt GPT N65). */
+        const skL = rt.skos0 && Math.abs(s.x0 - rt.x0) <= 1;
+        const skP = rt.skos1 && Math.abs(s.x1 - (rt.x0 + rt.total)) <= 1;
+        if (skL || skP)
+          plytaSkos(s.x0 + (skL ? rt.depth : 0), s.x1 - (skP ? rt.depth : 0), s.x0, s.x1,
+            g.mount + rt.y, g.mount + rt.y + rt.th, przyScianie - rt.depth, przyScianie,
+            kolB, true, Math.round(rt.depth / 2), "blat");
+        else
+          box(s.x0, g.mount + rt.y, przyScianie - rt.depth, s.x1, g.mount + rt.y + rt.th, przyScianie,
+            kolB, null, 1, true, Math.round(rt.depth / 2), "blat");
       });
     }
   });
@@ -10015,8 +10076,9 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki, blat }) {
   geo.levels.forEach((lv) =>
     lv.cols.forEach((c) => {
       c.shelves.forEach((sh) =>
+        // zwykla polka z plyty polek (`shelfColorOf`), nie korpusu (audyt GPT N60)
         polkaCzesci(c, zPolki[0] + (c.shFront || 0), zPolki[1], cd).forEach(([x0, z0, x1, z1]) =>
-          box(x0, sh.y, z0, x1, sh.y + geo.ts, z1, bf))
+          box(x0, sh.y, z0, x1, sh.y + geo.ts, z1, shc))
       );
       if (c.support && c.fix) {
         const sx = c.fix.side === "left" ? c.fix.x + c.fix.w - t : c.fix.x;
@@ -11080,6 +11142,15 @@ const runPlinth = (project, run) => {
   if (!p || !p.on) return null;
   const h = Math.max(0, Math.round(p.height || 0));
   if (!(h > 0)) return null;
+  /* Cofniecie cokolu od lica — 3D zabudowy rysowalo go zawsze w licu (audyt
+     GPT N55). W rogu cofniety cokol sasiada lezy o tyle glebiej, wiec styk na
+     zakladke przesuwa sie razem z nim. */
+  const cofOf = (r) => {
+    const li = runItems(project, r.id);
+    const pp = r.plinth || (li.length ? li[0].it.cab.plinth : null);
+    return Math.max(0, Math.round((pp && pp.setback) || 0));
+  };
+  const setback = Math.max(0, Math.round(p.setback || 0));
   /* W rogu cokoly obu scian spotykaja sie pod katem prostym i jeden musi zajsc
      za drugi — inaczej stalyby obok siebie i jeden wystawalby w powietrze.
      Cokol tej sciany konczy sie wiec na TYLE cokolu prostopadlego, a nie na
@@ -11100,11 +11171,13 @@ const runPlinth = (project, run) => {
        na poczatku nowego ciagu). Wczesniej zawsze obcinalismy KONIEC — przy
        rogu na poczatku zostawal sam kawalek cokolu przy rogu (355 mm), a reszta
        sciany nie miala cokolu wcale (audyt zabudowy 2026-10-11). */
+    // cokol ramienia jest cofniety tak samo (ta sama szafka) — styk glebiej o tyle
+    const sbR = Math.max(0, Math.round(((c.cab.plinth || {}).setback) || 0));
     if (mojeRamie.outerAtEnd) {
-      const koniec = Math.round(c.x + mojeRamie.free + 2 * t);
+      const koniec = Math.round(c.x + mojeRamie.free + 2 * t + sbR);
       if (koniec > 0 && koniec < total) dl = koniec;
     } else {
-      const poczatek = Math.round(c.x + c.geo.W - mojeRamie.free - 2 * t);
+      const poczatek = Math.round(c.x + c.geo.W - mojeRamie.free - 2 * t - sbR);
       if (poczatek > 0 && poczatek < total) start0 = poczatek;
     }
   }
@@ -11135,13 +11208,13 @@ const runPlinth = (project, run) => {
     if (w.id === run.id && maCokol(u.run)) {
       /* lico cokolu sasiada, liczone od sciany, przy ktorej stoi szafka w rogu
          (cokol ciagu stoi przy licu korpusu) — rog przykrywa cokol sasiada */
-      const doLica = Math.round(u.depth);
+      const doLica = Math.round(u.depth) - cofOf(u.run);
       if (pr.przyStarcie) a = Math.max(a, Math.min(e - 1, doLica - w.lead));
       else e = Math.min(e, Math.max(a + 1, Math.round(total + w.tail - doLica)));
     }
     if (u.id === run.id && maCokol(w.run)) {
       // od ostatniej szafki do lica cokolu sasiada (front szafki w rogu, luz, wstawka) i na zakladke o jego grubosc
-      const ext = Math.round((pr.frontRog || 0) + (k.corner.clear || 0) + (pr.wstawka ? pr.wstawka.u : 0) + tW);
+      const ext = Math.round((pr.frontRog || 0) + (k.corner.clear || 0) + (pr.wstawka ? pr.wstawka.u : 0) + tW + cofOf(w.run));
       const naStarcie = k.corner.at === "end" ? u === k : u !== k;
       if (naStarcie) a -= ext; else e += ext;
     }
@@ -11151,7 +11224,7 @@ const runPlinth = (project, run) => {
     Array.isArray(run.plinthCuts) ? run.plinthCuts.map((c) => c - a) : run.plinthCuts, USABLE_W,
     (run.plinthCutsWlasne || []).map((c) => c - a));
   // styki i ciecia zostaja w ukladzie ciagu (tak je zapisuje i pokazuje „Podział cokołu”)
-  return { total: dl, x0: a, h, ...sp,
+  return { total: dl, x0: a, h, setback, ...sp,
     cuts: sp.cuts.map((c) => c + a), joints: sp.joints.map((j) => j + a), wlasne: sp.wlasne.map((c) => c + a),
     mat: list[0].it.mat, grainMatters: list[0].it.cab.grainMatters, name: run.name };
 };
@@ -11252,9 +11325,15 @@ const runTopLiczy = (project, run, bezRogu = false) => {
   /* Blat liczy sie od sciany na wysokosci blatu: odstep od niej, korpus,
      szczelina przy zawiasach, front i wysieg przed fronty. */
   if (lvl && lvl.pod.length) {
+    /* Lico ciagu stoi tam, gdzie wypada najglebsza szafka (jak w rozmieszczeniu:
+       glebokosc minus wysuniecie), a kazda szafka wysunieta stoi o swoje
+       wysuniecie dalej. Odejmowanie wysuniecia od glebokosci tej szafki dawalo
+       blat o tyle PLYTSZY nad szafka wysunieta (audyt GPT N63: 81 mm przed frontem). */
+    const glOd = (c) => c.geo.glebOdSciany ?? c.geo.carcassDepth;
+    const licoCiagu = Math.max(...lvl.cabs.map((c) => glOd(c) - (Number(c.it.offset) || 0)));
     lvl.pod.forEach((c) => {
       // od sciany do lica korpusu razem z plecami przybijanymi (szafka stoi o nie dalej)
-      const gl = Math.round((c.geo.glebOdSciany ?? c.geo.carcassDepth) - (Number(c.it.offset) || 0));
+      const gl = Math.round(licoCiagu + (Number(c.it.offset) || 0));
       const odSciany = wallGapOf(run, c.it).top;
       /* Front wpuszczany siedzi w obrysie korpusu — przed korpus nie wychodzi
          ani on, ani szczelina przy zawiasach. Liczone zawsze jak nakladany,
@@ -11549,9 +11628,14 @@ const cornerArmParts = (a) => {
      `a.depth` to glebokosc sasiedniego ciagu od sciany razem z jego plecami
      (od 2026-09-28), wiec bok i dno ramienia sa o plecy krotsze. */
   const korpusR = armKorpus(a);
-  panels.push({ name: armTop ? "Wieniec i dno ramienia" : "Dno ramienia", qty: armTop ? 2 : 1,
-    a: Math.max(0, len - t), b: korpusR, matKey: "board",
-    edges: { a1: true, a2: false, b1: true, b2: false }, note: "czoło i koniec przy wsporniku" });
+  /* Dno ramienia tylko wtedy, gdy korpus ma dno — tak jak rysuje je 3D (audyt
+     GPT N51: dno bez dna w korpusie zostawalo w formatkach i wierceniach). */
+  const armBot = geo.hasBot;
+  const poziome = (armTop ? 1 : 0) + (armBot ? 1 : 0);
+  if (poziome)
+    panels.push({ name: armTop && armBot ? "Wieniec i dno ramienia" : armTop ? "Wieniec ramienia" : "Dno ramienia", qty: poziome,
+      a: Math.max(0, len - t), b: korpusR, matKey: "board",
+      edges: { a1: true, a2: false, b1: true, b2: false }, note: "czoło i koniec przy wsporniku" });
   /* Wzmocnienia ramienia nie sa juz jedna pozycja na dwie sztuki: czolowe
      konczy sie na katowniku przy drzwiach, a tylne idzie dalej — az do
      katownika w tylnym narozniku, bo tam ma sie czego trzymac. */
@@ -11599,9 +11683,12 @@ const cornerArmParts = (a) => {
   if (a.bracket) {
     const w = a.bracket.w;
     const hM = d0 ? Math.round(d0.h) : H;
-    panels.push({ name: "Kątownik narożnika — nachodzący", qty: 1, a: w, b: inner, matKey: "board",
+    /* Dwie plyty w srodku — z plyty polek, jak opisuje `cornerBracket` i jak
+       rysuje je 3D; zamowienie bralo korpus (audyt GPT N59). */
+    const katMat = cab.shelfSameAsBoard === false ? "shelf" : "board";
+    panels.push({ name: "Kątownik narożnika — nachodzący", qty: 1, a: w, b: inner, matKey: katMat,
       edges: { a1: false, a2: false, b1: true, b2: true }, note: "obie krawędzie pionowe" });
-    panels.push({ name: "Kątownik narożnika — doczołowy", qty: 1, a: w, b: inner, matKey: "board",
+    panels.push({ name: "Kątownik narożnika — doczołowy", qty: 1, a: w, b: inner, matKey: katMat,
       edges: { a1: false, a2: false, b1: true, b2: false },
       note: "krawędź pionowa od strony wnętrza — druga wchodzi w styk" });
     panels.push({ name: "Maskownica kątownika — nachodząca", qty: 1, a: w, b: hM, matKey: plytaFrontu(cab),
@@ -11621,8 +11708,9 @@ const cornerArmParts = (a) => {
       matKey: cab.shelfSameAsBoard === false ? "shelf" : "board",
       edges: { a1: true, a2: false, b1: false, b2: false }, note: "krawędź przednia" });
   // cokol idzie dalej pod ramieniem — to osobny kawalek wzdluz drugiej sciany
+  // cofniety cokol konczy sie przy rogu na cofnietym cokole korpusu — krotszy o cofniecie (jak w 3D)
   if (a.cab.plinthH > 0)
-    panels.push({ name: "Cokół ramienia", qty: 1, a: len, b: a.cab.plinthH, matKey: "board",
+    panels.push({ name: "Cokół ramienia", qty: 1, a: Math.max(0, len - Math.max(0, Math.round(((cab.plinth || {}).setback) || 0))), b: a.cab.plinthH, matKey: "board",
       edges: { a1: false, a2: true, b1: true, b2: true }, note: "krawędź dolna oraz oba końce" });
   /* Fix nie ma zawiasow — trzyma sie na zlaczkach od srodka, zeby z zewnatrz
      nie bylo nic widac. */
@@ -11648,11 +11736,11 @@ const cornerArmParts = (a) => {
   /* Ramie liczy okucia tak samo jak szafka: konfirmaty na stykach plyt
      poziomych z bokiem, kolki pod polke, wkrety do wzmocnien i katownika,
      nozki pod wolnym koncem. Bez tego zamowienie mowilo tylko o zawiasach. */
-  const konfQty = (armTop ? 2 : 1) * konfirmatyNaStyk(korpusR);
+  const konfQty = poziome * konfirmatyNaStyk(korpusR);
   if (konfQty)
     hardware.push({ name: "Konfirmat 7 × 50",
       use: "złącza ramienia szafki narożnej, co ok. 200 mm styku",
-      spec: `ramię szafki narożnej: ${armTop ? "wieniec i dno" : "dno"} do boku ramienia`,
+      spec: `ramię szafki narożnej: ${armTop && armBot ? "wieniec i dno" : armTop ? "wieniec" : "dno"} do boku ramienia`,
       qty: konfQty, unit: "szt." });
   /* Zawieszki w czesci ramienia wisza na drugiej scianie — pod nimi odcinek
      listwy (domyslnie) albo hak: `corner.armHanger` (uzytkownik 2026-09-29).
@@ -11698,6 +11786,22 @@ const cornerArmParts = (a) => {
         + `${lp.us.length} pary — przy rogu, ${lp.us.length > 2 ? "na środku i " : ""}pod wolnym końcem`,
       qty: lp.ile, unit: "szt." });
   }
+  /* Cokol ramienia trzyma sie tak samo jak cokol korpusu: na nozkach klips na
+     kazda nozke przedniego rzedu, bez nozek trojkaty po obwodzie co ok. 300 mm
+     (audyt GPT N61 — ramie nie mialo zadnego mocowania cokolu). */
+  if (a.cab.plinthH > 0) {
+    const lenC = Math.max(0, len - Math.max(0, Math.round(((cab.plinth || {}).setback) || 0)));
+    if (cab.legs && cab.legs.on) {
+      const przod = armLegPlan(a).us.length;
+      hardware.push({ name: "Złączka do cokołu", use: "cokół wpinany w nóżki przedniego rzędu",
+        spec: `cokół ramienia szafki narożnej: klips na każdą nóżkę przedniego rzędu (${przod})`, qty: przod, unit: "szt." });
+    } else {
+      const wzdluz = Math.max(2, Math.ceil(lenC / 300));
+      hardware.push({ name: "Trójkąt meblarski", use: "cokół skręcany do korpusu (bez nóżek), po obwodzie co ok. 300 mm",
+        spec: `cokół ramienia szafki narożnej bez nóżek: po 1 na każdy krótki bok + ${wzdluz} wzdłuż ${fmt(lenC)} mm (co ok. 300 mm)`,
+        qty: 2 + wzdluz, unit: "szt." });
+    }
+  }
   /* Zawiasow lamanych tyle samo, co zwyklych na tej wysokosci — spinaja
      skrzydla na calej dlugosci styku, wiec przy wysokim froncie dwa to za malo. */
   if (a.doors === "lamane")
@@ -11723,7 +11827,7 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
     const korpusR = armKorpus(a);
     const lista = (xs) => xs.map((v) => fmt(v)).join(", ");
     const kon = `⌀7 w boku ramienia, ${lista(konfirmatyPoz(korpusR))} mm od przedniej krawędzi; w czole płyty ⌀5 × 50`;
-    wiersz("Bok ramienia", "konfirmat — dno ramienia", [geo.bottomY + t / 2], kon);
+    if (geo.hasBot) wiersz("Bok ramienia", "konfirmat — dno ramienia", [geo.bottomY + t / 2], kon);
     if (geo.hasTop) wiersz("Bok ramienia", "konfirmat — wieniec ramienia", [H - t / 2], kon);
     const ys = armShelfYs(a.side, geo.levels);
     if (ys.length && mocowaniePolek(cab) !== "confirmat") {
@@ -11843,6 +11947,10 @@ const runTopPanels = (rt) => {
 const ZLACZE_BLATU = "Złącze do blatów śrubowe";
 const zlaczNaStyk = (gl) => (gl > WORKTOP_DEPTHS[0] ? 3 : 2);
 // [{ qty, gl, use, opis }] — jedna pozycja na rodzaj styku
+/* Wierzch blatu nad podloga: wysokosc montazu ciagu + lico szafek + grubosc.
+   Dwa blaty w rogu stykaja sie tylko wtedy, gdy leza na tej samej wysokosci. */
+const wierzchBlatu = (run, rt) => Math.round((run.mountY || 0) + (rt.y || 0) + (rt.th || 0));
+const blatyRoznaWys = (r1, t1, r2, t2) => Math.abs(wierzchBlatu(r1, t1) - wierzchBlatu(r2, t2)) > 1;
 const runTopZlacza = (project, run) => {
   const a = run ? runTop(project, run) : null;
   if (!a || a.matKey !== "worktop") return [];
@@ -11856,7 +11964,8 @@ const runTopZlacza = (project, run) => {
   }
   const n = run.corner ? projectLayout(project).info.get(run.id) : null;
   const b = n && n.pair && n.parent ? runTop(project, n.parent.run) : null;
-  if (b && b.matKey === "worktop") {
+  // blaty na roznych wysokosciach nie maja wspolnego styku — bez zlaczy (audyt GPT N66, uwaga w `worktopMsgs`)
+  if (b && b.matKey === "worktop" && !blatyRoznaWys(run, a, n.parent.run, b)) {
     const gl = Math.max(a.arkusz || a.depth, b.arkusz || b.depth);
     out.push({ qty: zlaczNaStyk(gl), gl, use: "styk blatów roboczych w rogu",
       opis: `róg z blatem „${n.parent.run.name}”, ${(n.corner || {}).cut === "skos" ? "łyżwa 45°" : "na styk"} — ${zlaczNaStyk(gl)} szt.` });
@@ -12095,6 +12204,15 @@ const worktopMsgs = (project, run) => {
      naroznika z sasiedniej sciany. Wtedy `lvl` jest pusty, ale sprawdzic
      szerokosc blatu i tak trzeba. */
   const lvl = worktopLevel(project, run);
+  /* Blat w rogu na innej wysokosci niz blat ciagu, do ktorego sie dostawiamy —
+     nie ma styku, wiec nie ma zlaczy; mowimy o tym wprost (audyt GPT N66). */
+  {
+    const nn = run.corner ? projectLayout(project).info.get(run.id) : null;
+    const rb = nn && nn.pair && nn.parent ? runTop(project, nn.parent.run) : null;
+    if (rt && rt.worktop && rb && rb.worktop && blatyRoznaWys(run, rt, nn.parent.run, rb))
+      out.push({ level: "warn", text: `Blat ciągu „${run.name}” leży na ${fmt(wierzchBlatu(run, rt))} mm, a blat „${nn.parent.run.name}” w rogu na ${fmt(wierzchBlatu(nn.parent.run, rb))} mm — `
+        + `różnica ${fmt(Math.abs(wierzchBlatu(run, rt) - wierzchBlatu(nn.parent.run, rb)))} mm, blaty się nie stykają i złączy do blatów w rogu nie liczymy. Jeśli mają się łączyć, wyrównaj wysokość szafek.` });
+  }
   (lvl ? lvl.poza : []).forEach((c) => {
     const nazwa = (c.it.cab.name || "").trim() || "szafka";
     const roznica = Math.abs(c.y - lvl.y);
@@ -12269,8 +12387,9 @@ const tierMsgs = (project, run) => {
     const rogL = n && odLewej ? Math.max(0, Math.round(n.lead - off)) : 0;
     const rogP = n && odLewej ? Math.max(0, Math.round(n.tail)) : 0;
     const sciana = runWallW(project, r);
+    // od prawej — tam, gdzie postawilo go rozmieszczenie (audyt GPT N64)
     const start = odLewej ? off
-      : sciana != null ? Math.max(0, sciana - off - total) : 0;
+      : n ? Math.round(n.lead) : sciana != null ? Math.max(0, sciana - off - total) : 0;
     return zRogiem ? { start, koniec: start + rogL + total + rogP, total }
       : { start: start + rogL, koniec: start + rogL + total, total };
   };
@@ -12572,7 +12691,10 @@ const cornerPairMsgs = (n, blat) => {
   if (blat) {
     const przez = n.corner.top === "self" ? n : n.corner.top === "of" ? p : n.pair.wchodzi;
     const drugi = przez === n ? p : n;
-    if (n.corner.cut === "skos")
+    // blaty na roznych wysokosciach nie maja styku — mowi o tym `worktopMsgs` (audyt GPT N66)
+    const licoG = (q) => Math.max(0, ...q.g.cabs.map((c) => Math.round(c.base + c.cab.H)));
+    if (n.g.cabs.length && p.g.cabs.length && Math.abs(licoG(n) - licoG(p)) > 1) { /* bez opisu styku */ }
+    else if (n.corner.cut === "skos")
       out.push({ level: "info", text:
         `Blat w narożniku na łyżwę: oba kawałki dochodzą do rogu i są cięte pod 45°. `
         + "Tnij je z jednego arkusza i z tej samej partii — po skosie każda różnica koloru i grubości rzuca się w oczy." });
@@ -13168,7 +13290,10 @@ function nestPass(parts, sheetW, sheetH, mode, rule) {
       sheet.parts.push({ name: p.name, x: r.x, y: r.y, w: hit.w, h: hit.h, rot: hit.rot,
         grain: p.rotatable ? false : true });
       const pieces = splitFreeRect(r, hit.w, hit.h, mode);
-      sheet.cuts += pieces.length;
+      /* Ciecie trzeba zrobic po kazdej osi, na ktorej pole jest wieksze od
+         formatki — takze gdy zostaje sam scinek wezszy od rzazu (audyt GPT N58:
+         2760 z 2761,2 liczylo sie bez ciecia). Rowny wymiar — bez ciecia. */
+      sheet.cuts += (r.w - hit.w > 1e-6 ? 1 : 0) + (r.h - hit.h > 1e-6 ? 1 : 0);
       sheet.free.splice(hit.i, 1, ...pieces);
       left.splice(k, 1);
       placedAny = true;
