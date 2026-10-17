@@ -1,3 +1,21 @@
+# Nowy błąd N56 — 17.10.2026
+
+Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Test rzeczywistych funkcji na lokalnym wariancie danych, z pominięciem N1–N55.
+
+## N56 [P2] Dno ramienia przy cokole wewnątrz korpusu jest 100 mm poniżej własnych wierceń
+
+**Odtworzenie:** utworzyć narożnik L przez `utworzCiagZRogiem`, W900/H720, ramię 640 mm, płyty 18 mm, HDF 3 mm. W szafkach i ciągach ustawić cokół H100, `mode=inbody`, cofnięcie 0. Porównać z `mode=under`.
+
+**Wynik:** `geo.plinthInBody=true`, `geo.bottomY=100`, baza szafki 0. Plan dodatkowych wierceń ramienia podaje „konfirmat — dno ramienia” na Y109, czyli środek dna na wysokości 100–118 mm. Tymczasem `Assembly3D` rysuje dno ramienia 622×18×560 mm w zakresie świata Y0..18. Środek narysowanej płyty jest na Y9: wiercenia mijają ją o 100 mm. Dno ramienia nie jest na poziomie dna korpusu, mimo że tworzą wspólne wnętrze.
+
+**Kontrola:** przy cokole pod korpusem `bottomY=0`, baza100; dno ramienia leży na Y100..118, a lokalne wiercenia Y9 po dodaniu bazy wypadają prawidłowo na światowym Y109. Problem pojawia się po zmianie trybu cokołu, przy zachowaniu jego wysokości i zerowym cofnięciu.
+
+**Przyczyna:** bryła dna ramienia używa `box(...,y0,...,y0+tA,...)`, pomijając `geo.bottomY`. Plan wierceń poprawnie używa `geo.bottomY+t/2`. Należy uzgodnić konstrukcję ramienia, położenie jego dna i cokołu wewnątrz obrysu ze wspólną geometrią korpusu. To odrębne od N55: tutaj cofnięcie wynosi0, a błędna jest wysokość dna po zmianie trybu.
+
+**Dowód lokalny:** `audit-arm-plinth-inside-results.json`, warianty under/inbody, zakresy brył i plan wierceń. Nie zmieniano kodu aplikacji ani projektu użytkownika.
+
+---
+
 # Seria 3-minutowa — N55, 17.10.2026
 
 Start 12:31:03 czasu polskiego, limit 3 minut. Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Jeden nowy potwierdzony problem; bez powtarzania N1–N54. Testy funkcji źródłowych na kopiach danych.
