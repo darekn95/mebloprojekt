@@ -4,7 +4,7 @@
    - opis pola „Luz w rogu”;
    - podzial cokolu i blatu zwiniety za polem wyboru;
    - klikniecie nazwy formatki podswietla ja na rysunku 3D;
-   - polka -> nowy poziom, „półki → poziomy z klapami”;
+   - polka -> nowy poziom, „klapy zamiast drzwi” (pod polem drzwi);
    - kontrola zuzycia blatu (brakuje do 200 mm) i duzy odpad arkusza (< 15%). */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -44,7 +44,7 @@ ok('drugi klik zdejmuje podświetlenie', (await page.locator('[data-el="podswiet
 
 console.log('\n== półka → poziom, półki → klapy ==');
 await seed(proj([{ cab: cab({ levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null] }] }] }) }]));
-await page.getByRole('button', { name: 'półki → poziomy z klapami' }).first().click(); await page.waitForTimeout(1500);
+await page.getByRole('button', { name: 'klapy zamiast drzwi' }).first().click(); await page.waitForTimeout(1500);
 let lv = (await zapis()).items[0].cab.levels;
 ok('dwa poziomy, w każdym klapa do góry, bez półek', lv.length === 2 && lv.every((l) => l.cols[0].klapa === 'gora' && l.cols[0].doors === 1 && l.cols[0].shelfTargets.length === 1)
   && lv[0].h > 0 && lv[1].h === null, JSON.stringify(lv.map((l) => ({ h: l.h, k: l.cols[0].klapa }))));
@@ -75,6 +75,23 @@ await seed(proj([{ cab: cab({ W: 300, H: 400, D: 300, plinth: { on: false }, bac
 o = await odpad();
 ok('arkusz 2 z 2 wykorzystany poniżej 15% — ostrzeżenie', o.some((t) => /Arkusz 2 z 2 wykorzystany tylko w/.test(t)), o.join(' // '));
 ok('…i w „Uwagach”', /Rozkrój — [^\n]*Arkusz 2 z 2 wykorzystany tylko w/.test(await page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || '')));
+
+console.log('\n== oklejanie: wzmocnienia i bok ramienia ==');
+// szafka pod blatem roboczym bez wienca — para wzmocnien (plaskie z przodu, stojace z tylu)
+const okl = async (re) => page.evaluate((src) => { const r = new RegExp(src);
+  return [...document.querySelectorAll('section')].filter((s) => /^Formatki/.test(s.querySelector('h2')?.textContent || ''))
+    .flatMap((s) => [...s.querySelectorAll('tbody tr')]).filter((tr) => r.test(tr.children[0].innerText))
+    .map((tr) => tr.children[0].innerText.trim() + ': ' + [...tr.querySelectorAll('button[title]')].filter((x) => /Oklejona/.test(x.title)).map((x) => x.innerText.trim()).join(', ')); }, re.source);
+await seed(proj([{ cab: cab({ joints: { topL: 'none', topR: 'none' }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null,
+  rails: [{ orient: 'shelf', pos: 'top', depth: 100 }, { orient: 'front', pos: 'top', h: 100, fromBack: true, atDepth: 0 }, { orient: 'vertical', side: 'left', pos: 'top', h: 200, depth: 300 }] }] }] }) }]));
+const w = await okl(/^Wzmocnienie/);
+ok('wzmocnienie poziome i pionowe — oklejona przednia krawędź', w.some((t) => /^Wzmocnienie poziome: przód/.test(t)) && w.some((t) => /^Wzmocnienie pionowe: przód/.test(t)), w.join(' / '));
+await seed(proj([{ cab: cab({ name: 'L', W: 900, corner: { on: true, arm: 640, doors: 'wsporniki' } }), runId: 'c1' }, { cab: cab({ name: 'B' }), runId: 'c2' }],
+  [RUN('c1', { worktop: false }), RUN('c2', { worktop: false, corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })]));
+const br = await page.evaluate(() => { const sec = [...document.querySelectorAll('section')].find((s) => /^Formatki całego projektu/.test(s.querySelector('h2')?.textContent || ''));
+  const tr = sec && [...sec.querySelectorAll('tbody tr')].find((x) => /^Bok ramienia/.test(x.children[0].innerText.trim()));
+  return tr ? tr.innerText : ''; });
+ok('bok ramienia — czoło oraz góra i dół, jak bok korpusu', /przód 720, bok 560, bok 560/.test(br), br.replace(/\s+/g, ' '));
 
 console.log('\n== opis „Luz w rogu” ==');
 await seed(proj([{ cab: cab({ name: 'A' }), runId: 'c1' }, { cab: cab({ name: 'B' }), runId: 'c2' }],

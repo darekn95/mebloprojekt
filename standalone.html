@@ -3732,9 +3732,12 @@ function computeGeoLiczy(cab, mat, ctx) {
     const name = r.orient === "front"
       ? (r.przyTyle ? "Wzmocnienie tylne" : "Wzmocnienie czołowe")
       : r.orient === "shelf" ? "Wzmocnienie poziome" : "Wzmocnienie pionowe";
+    /* Kazde wzmocnienie ma jedna dluga krawedz widoczna po otwarciu szafki —
+       plaskie i pionowe przednia (komentarz uzytkownika 2026-10-17: „przecież
+       jest widoczny po otwarciu i nie styka się z niczym”). */
     P({ name, qty: 1, a: Math.round(r.a), b: Math.round(r.b), matKey: "board",
-        edges: { a1: r.orient === "front", a2: false, b1: false, b2: false },
-        note: r.orient === "front" ? undefined : "element niewidoczny — bez oklejania" });
+        edges: { a1: true, a2: false, b1: false, b2: false },
+        note: r.orient === "front" ? undefined : "krawędź przednia — widoczna po otwarciu" });
   })));
 
   const backOverride = levels.some((lv) =>
@@ -11869,8 +11872,9 @@ const cornerArmParts = (a) => {
       ? "stojące przy plecach, od kątownika w narożniku po bok ramienia"
       : (r.stojace ? "stojące" : "na płask") + " pod blatem, od kątownika przy drzwiach po bok ramienia",
   }));
+  // jak bok korpusu: czolo oraz gora i dol — wieniec i dno ramienia stoja miedzy bokami (2026-10-17)
   panels.push({ name: "Bok ramienia", qty: 1, a: H, b: korpusR, matKey: "board",
-    edges: { a1: true, a2: false, b1: false, b2: false }, note: "czoło" });
+    edges: { a1: true, a2: false, b1: true, b2: true }, note: "czoło oraz góra i dół" });
   /* Plecy ramienia siegaja poza samo ramie: wzdluz drugiej sciany biegna dalej,
      az do katownika w tylnym narozniku — inaczej zostawal tam goly kawalek. */
   if (plan.back)
@@ -17361,6 +17365,14 @@ export default function App() {
                             )}
                           </div>
                         )}
+                        {/* zaraz pod drzwiami (komentarz uzytkownika 2026-10-17): klapy zamiast
+                            drzwi, poziom zamiast polki — tylko w poziomie z jedna kolumna */}
+                        {c.kind === "doors" && lv.cols.length === 1 && nS > 0 && (
+                          <div className="text-xs" data-el="polki-na-klapy">
+                            <MiniBtn onClick={() => polkiNaPoziomy(lv.i, c.shelves.map((_, k) => k), true)}>klapy zamiast drzwi</MiniBtn>
+                            <span className="ml-2 text-[11px] text-stone-400">każda półka → nowy poziom, w każdym klapa do góry</span>
+                          </div>
+                        )}
 
                         {/* Strona zawiasow pojedynczych drzwi — przy kolumnie, a nie tylko
                             w zwinietej karcie „Luzy drzwi” (prosba uzytkownika 2026-09-28).
@@ -17649,19 +17661,11 @@ export default function App() {
                                 {/* polka nad tym swiatlem -> granica poziomow (tylko poziom z jedna kolumna) */}
                                 {lv.cols.length === 1 && o.k < c.openings.length - 1 && (
                                   <MiniBtn onClick={() => polkiNaPoziomy(lv.i, [o.k])}
-                                    title="Półka nad tym światłem staje się półką przelotową — nowy poziom nad nią, z tym samym frontem">→ poziom</MiniBtn>
+                                    title="Poziom zamiast półki: półka nad tym światłem staje się przelotowa — nowy poziom nad nią, z tym samym frontem">→ poziom</MiniBtn>
                                 )}
                               </div>
                             ))}
-                            {lv.cols.length === 1 && c.kind === "doors" && (
-                              <div className="pt-1" data-el="polki-na-klapy">
-                                <MiniBtn onClick={() => polkiNaPoziomy(lv.i, c.shelves.map((_, k) => k), true)}>półki → poziomy z klapami</MiniBtn>
-                                <p className="mt-0.5 text-[11px] text-stone-400">
-                                  Każda półka staje się przelotową granicą poziomu, a w każdym poziomie zamiast drzwi jest klapa do góry.
-                                  Pojedynczą półkę zamienisz na poziom przyciskiem „→ poziom” przy świetle.
-                                </p>
-                              </div>
-                            )}
+
                             {/* mocowanie polek tej kolumny — wlasne albo jak cala szafka (N45, 2026-10-17) */}
                             <div className="flex items-center gap-2 text-xs" data-el="mocowanie-kolumny">
                               <span className="w-20 shrink-0 text-stone-500">mocowanie</span>

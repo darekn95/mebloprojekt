@@ -13,12 +13,14 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 | Suita | Objaw | Przyczyna / stan |
 |---|---|---|
 | — | wszystkie znane usterki z listy naprawione 2026-09-27; nowe dopisywać tutaj | |
-| `wyslij` przy `STD=1` | w standalone nie przechodzi „pasek mówi, że wysłano” (tak samo na kodzie sprzed 2026-10-15) | do sprawdzenia: komunikat po zapisie w atrapie magazynu nie pojawia się w tekście strony w wersji standalone; w pełnym przebiegu `wyslij` idzie tylko na buildzie artefaktu, gdzie przechodzi |
 
 ## Naprawione
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-17 | komentarz z artefaktu: wzmocnienie płaskie / pionowe bez oklejenia, choć widać je po otwarciu | każde wzmocnienie ma oklejoną jedną długą (przednią) krawędź; przy okazji bok ramienia oklejony jak bok korpusu (czoło, góra, dół) | (ten commit) |
+| 2026-10-17 | komentarz z artefaktu: „półki → poziomy z klapami” daleko od drzwi | przycisk „klapy zamiast drzwi” zaraz pod polem drzwi, z krótkim opisem; „→ poziom” z podpowiedzią „poziom zamiast półki” | (ten commit) |
+| 2026-10-17 | `wyslij` przy `STD=1`: „pasek mówi, że wysłano” | błąd testu: w standalone pierwszy autozapis po wczytaniu (kompilacja w przeglądarce trwa dłużej) wypadał po kliknięciu i nadpisywał komunikat; test czeka na pierwszy „zapisano” | (ten commit) |
 | 2026-10-17 | komentarz z artefaktu: ostrzeżenia rozkroju (zużycie blatu, odpad arkusza) tylko w karcie „Rozkrój” | te same ostrzeżenia także w „Uwagach” („Rozkrój — <płyta>: …”) | (ten commit) |
 | 2026-10-17 | `wygl`, `wyglstd`: „brak przycisków oklejania przy HDF” — 1 przycisk | błąd testu: liczył też nowy przycisk z nazwą formatki (podświetlenie w 3D); liczy teraz bez `data-el="formatka-nazwa"` | (ten commit) |
 | 2026-10-17 | audyt GPT N45: konfirmaty z obu stron jednej płyty w tej samej osi (półki naprzeciw przy przegrodzie, przegrody nad i pod półką przelotową) | błąd z wyborem mocowania drugiej strony: „Półki kolumny … na trójkątach / na kołkach” (`polkimont:`, `rawCol.shelfMount`), „Dół przegrody na trójkątach” (`przegrtr:`, `rawCol.divDolMount`); zmiana później w kolumnie („mocowanie”, „przegroda z prawej: dół na trójkątach”) — decyzja użytkownika | (ten commit) |
