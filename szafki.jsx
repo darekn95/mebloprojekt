@@ -33,6 +33,8 @@ const colorLabel = (m) => ((m && m.decor) || "").trim() || paletteName(m && m.co
 const COLORED_KEYS = ["board", "front", "shelf"];
 
 /* Nozki: kolor z palety okuc i ksztalt — kwadratowa albo okragla. */
+// najnizsza nozka regulowana w katalogu GTV 2023 (MLA-50, 50–75 mm) — instrukcje/SPIS.md
+const NOZKA_MIN = 50;
 const LEG_COLORS = [
   ["Czarny", "#2b2a28"],
   ["Grafit", "#3f3f46"],
@@ -43,6 +45,14 @@ const LEG_COLORS = [
 ];
 const legColorOf = (cab) => (cab.legs && cab.legs.color) || "#3f3f46";
 const legRound = (cab) => (cab.legs || {}).shape === "round";
+/* Wariant handlowy nozki — ksztalt, wysokosc, kolor. Zbiorcze zamowienie laczy
+   tylko te same warianty (audyt GPT N9: 100 kwadratowa i 150 okragla szly
+   w jeden wiersz „pod szafka 8 szt.”). */
+const nozkaWariant = (cab, h) => {
+  const hex = String(legColorOf(cab)).toLowerCase();
+  const kol = (LEG_COLORS.find(([, x]) => x.toLowerCase() === hex) || [])[0] || paletteName(hex) || "kolor własny";
+  return `${legRound(cab) ? "okrągła" : "kwadratowa"}, ${fmt(h)} mm, ${kol.toLowerCase()}`;
+};
 const LEG_W = 40;      // kwadrat nozki na rysunku
 const LEG_INSET = 40;  // odsuniecie od krawedzi korpusu
 /* Nozki liczy szerokosc: para na kazdy rog, a od 900 mm dochodzi para posrodku —
@@ -66,20 +76,32 @@ const legPlan = (cab, W) => {
 // zbior nazw, ktore w podanych zestawach materialow maja wiecej niz jedna grubosc
 const ambiguousThickness = (mats) => {
   const by = new Map();
+  /* Plecy nie maja koloru w etykiecie („HDF”), wiec dwa kolory HDF w projekcie
+     szly na jeden arkusz rozkroju (audyt GPT N5). Gdy pod ta sama nazwa sa plecy
+     w kilku kolorach, etykieta dostaje kolor — znacznik „kolor:<nazwa>”. */
+  const kolory = new Map();
   mats.forEach((mm) =>
-    Object.values(mm || {}).forEach((m) => {
+    Object.entries(mm || {}).forEach(([key, m]) => {
       if (!m || !m.name) return;
       const k = m.name.trim();
       if (!by.has(k)) by.set(k, new Set());
       by.get(k).add(m.thickness);
+      if (key === "back") {
+        if (!kolory.has(k)) kolory.set(k, new Set());
+        kolory.get(k).add(String(m.color || "").toLowerCase());
+      }
     })
   );
-  return new Set([...by.entries()].filter(([, set]) => set.size > 1).map(([k]) => k));
+  return new Set([
+    ...[...by.entries()].filter(([, set]) => set.size > 1).map(([k]) => k),
+    ...[...kolory.entries()].filter(([, set]) => set.size > 1).map(([k]) => "kolor:" + k),
+  ]);
 };
 
 const matLabelOf = (m, key, ambiguous) => {
   const parts = [((m && m.name) || "").trim() || key];
   if (COLORED_KEYS.includes(key)) parts.push(colorLabel(m));
+  else if (key === "back" && ambiguous && ambiguous.has("kolor:" + (((m && m.name) || "").trim()))) parts.push(colorLabel(m));
   if (ambiguous && ambiguous.has(((m && m.name) || "").trim())) parts.push(String(m.thickness));
   return parts.join(" ");
 };
@@ -474,7 +496,8 @@ const fmt = (n) => {
 
 /* Okucia sprzedawane w opakowaniach trzymamy w sztukach az do wyswietlenia —
    inaczej suma z kilku szafek zaokraglalaby sie w gore w kazdej z osobna. */
-const hwQty = (h) => (h.pack ? Math.ceil(h.qty / h.pack) : h.qty);
+// ilosci liczone dokladnie (np. m2 luster) zaokraglamy dopiero tu, przy pokazaniu i wycenie
+const hwQty = (h) => (h.pack ? Math.ceil(h.qty / h.pack) : Math.round(h.qty * 1000) / 1000);
 const hwUnit = (h) => (h.pack ? "op." : h.unit);
 const hwNote = (h) => (h.pack ? ` (${h.qty} szt.)` : "");
 
@@ -488,13 +511,15 @@ const hwNote = (h) => (h.pack ? ` (${h.qty} szt.)` : "");
 const scalOkucia = (lista) => {
   const map = new Map();
   lista.forEach((h) => {
-    const k = `${h.name}|${h.unit}|${h.pack || 0}|${h.use ? "" : h.spec}`;
+    // `wariant` — cecha handlowa (ksztalt i wysokosc nozki, typ zawiasu): inny wariant to inny wiersz
+    const k = `${h.name}|${h.unit}|${h.pack || 0}|${h.wariant || ""}|${h.use ? "" : h.specSzt || h.spec}`;
     const e = map.get(k);
     if (!e) {
       map.set(k, { ...h, uzycia: h.use ? [{ use: h.use, qty: h.qty }] : null });
       return;
     }
     e.qty += h.qty;
+    if (h.sztuk) { e.sztuk = (e.sztuk || 0) + h.sztuk; e.spec = (e.specSzt || "").replace("{n}", e.sztuk); }
     if (!e.uzycia) return;
     const u = e.uzycia.find((x) => x.use === h.use);
     if (u) u.qty += h.qty;
@@ -507,7 +532,7 @@ const scalOkucia = (lista) => {
     const opis = uzycia.length === 1
       ? uzycia[0].use
       : uzycia.map((u) => `${u.use} — ${qtyFmt(u.qty)} ${h.unit}`).join("; ");
-    return { ...h, spec: opis };
+    return { ...h, spec: h.wariant ? `${h.wariant} — ${opis}` : opis };
   });
 };
 
@@ -693,6 +718,23 @@ const WORKTOP_PRICES = { 600: 563.99, 1200: 1128.22 };
 const worktopDepth = (mat) => {
   const d = Math.round(Number((mat.worktop || {}).depth) || 600);
   return WORKTOP_DEPTHS.includes(d) ? d : 600;
+};
+/* Arkusz blatu (600 / 1200) idzie z sama formatka: blat ciagu niesie `rt.arkusz`,
+   wlasny blat szafki — material tej szafki. Wczesniej rozkroj i wycena braly go
+   z materialu szafki aktywnej albo pierwszej w ciagu — blat 683 z arkusza 1200
+   wypadal z rozkroju, a cena zalezala od oglądanej szafki (audyt GPT N2–N4). */
+const arkuszBlatu = (p, mat) => p.arkusz || WORKTOP_DEPTHS.find((d) => d >= p.b) || worktopDepth(mat || defaultMaterials);
+// blat z arkusza 1200 to inny produkt niz z 600 — osobna grupa rozkroju i cena
+const BLAT_ARKUSZ_SUFIKS = / · arkusz (\d+)$/;
+// tam, gdzie format arkusza stoi obok, etykieta bez dopisku o nim
+const bezArkusza = (label) => String(label || "").replace(BLAT_ARKUSZ_SUFIKS, "");
+const etykietaBlatu = (label, h) => (h && h !== WORKTOP_DEPTHS[0] ? `${label} · arkusz ${h}` : label);
+/* Blat roboczy nie obraca sie w rozkroju: przod ma fabryczny profil, wiec dlugosc
+   zawsze wzdluz 4100, glebokosc wzdluz 600 / 1200 — uslojenie go nie dotyczy
+   (uzytkownik 2026-10-17). */
+const wierszBlatu = (p, mat, matLabel) => {
+  const h = arkuszBlatu(p, mat);
+  return { rotatable: false, matLabel: etykietaBlatu(matLabel, h), sheet: { w: WORKTOP_LEN, h } };
 };
 
 // element wzmacniajacy w kolumnie (moze byc wiele)
@@ -1626,7 +1668,10 @@ function computeGeo(cab, mat, ctx) {
 }
 function computeGeoLiczy(cab, mat, ctx) {
   const t = mat.board.thickness;
-  const tf = mat.front.thickness;
+  /* „Fronty z tej samej plyty co korpus” — zamowienie bierze wtedy plyte korpusu,
+     wiec i grubosc frontu w geometrii (bryla, glebokosci, ruchy) jest z niej.
+     Dotad brana byla grubosc ukrytego materialu frontow (audyt GPT N7). */
+  const tf = cab.frontSameAsBoard !== false ? t : mat.front.thickness;
   // polki w kolumnach (i dno/tyl szuflady) moga byc z innej plyty niz korpus;
   // przegrody i polki przelotowe zostaja konstrukcyjne, czyli z plyty korpusu
   const ts = cab.shelfSameAsBoard !== false ? t : ((mat.shelf && mat.shelf.thickness) || t);
@@ -1770,6 +1815,13 @@ function computeGeoLiczy(cab, mat, ctx) {
      wiec nozka miesci sie w tej przestrzeni i nie podnosi szafki — podnosi ja
      dopiero o tyle, o ile jest wyzsza od cokolu. */
   const legH = cab.legs && cab.legs.on ? Math.max(0, Math.round(num(cab.legs.height) ?? 100)) : 0;
+  /* Najnizsze nozki regulowane w katalogu GTV 2023 (s. 481: MLA-50, regulacja
+     50–75 mm). Nizsze (tez 0) to blad — dotad rysunek bral 0, a zamowienie
+     100 mm (audyt GPT N8; uzytkownik 2026-10-17: blad z przyciskiem). Rysunek,
+     cokol i zamowienie biora te sama liczbe `legH`. */
+  if (cab.legs && cab.legs.on && legH < NOZKA_MIN)
+    add("error", `Nóżki ${fmt(legH)} mm — najniższe regulowane nóżki w katalogu GTV to MLA-50 (regulacja 50–75 mm).`
+      + `|nozki:${NOZKA_MIN}|nozki:100`);
   const legTop = plinthInBody ? bottomY : 0;
   const legBelow = Math.max(0, legH - legTop);
   // rozstaw i liczba nozek — jedno miejsce dla rysunkow i dla zamowienia
@@ -2589,6 +2641,16 @@ function computeGeoLiczy(cab, mat, ctx) {
           ];
           const hp = hingePositions(d.y, d.h, d.hinges, hObs);
           d.hingePts = hp.pts;
+          /* Po ominieciu polek dwa zawiasy moga trafic w to samo miejsce albo na
+             siebie (niska szafka, gesto polek) — takiego planu nie da sie
+             zamontowac (audyt GPT N18). Odstep srodkow ponizej wysokosci zawiasu = blad. */
+          {
+            const ys = [...hp.pts].sort((p1, p2) => p1 - p2);
+            const zaBlisko = ys.some((y, k) => k > 0 && y - ys[k - 1] < HINGE_H);
+            if (zaBlisko)
+              add("error", `${where}, skrzydło ${i + 1}: ${d.hinges} zawiasy nie mieszczą się między półkami — po ich ominięciu wypadają `
+                + `w jednym miejscu (${ys.map((y) => fmt(Math.round(y - d.y))).join(", ")} mm od dołu frontu). Przesuń półki albo zmniejsz liczbę zawiasów.`);
+          }
           /* Liczba zawiasow wpisana recznie wobec tabeli GTV (uzytkownik
              2026-10-16: „za duzo” i „za malo” wg tabeli, z przyciskiem). Front
              ponad tabele (wysokosc / waga) — ostrzezenie, ze liczba orientacyjna. */
@@ -2794,6 +2856,14 @@ function computeGeoLiczy(cab, mat, ctx) {
           : colMaxNL === null ? null : nlTyl === null ? null : Math.min(colMaxNL, nlTyl);
         const nlAuto = num(rawCol.nl) ?? nlMaxTu;
         const nl = num(d.nl) ?? nlAuto; // NL tej konkretnej szuflady
+        /* NL spoza tabeli V-BOX (np. 325 z recznie poprawionego JSON) — selektor
+           takiej nie poda, ale import ja przyjmowal i zamowienie mowilo „NL 325”
+           (audyt GPT N19). Przycisk: najblizsza krotsza z tabeli, ktora sie miesci. */
+        if (nl !== null && !VBOX.nl.includes(nl)) {
+          const zTabeli = [...VBOX.nl].reverse().find((v) => v <= nl && (nlMaxTu == null || v <= nlMaxTu));
+          add("error", `${where}, szuflada ${i + 1}: prowadnice NL ${nl} — nie ma takiej długości w V-BOX (${VBOX.nl.join(", ")}).`
+            + (zTabeli ? `|fixnl:${lv.i}:${j}:${i}:${zTabeli}` : ""));
+        }
         if (nl !== null && limTyl !== null && nl + 4 + dInsetExtra > limTyl)
           add("error",
             `${where}, szuflada ${i + 1}: NL ${nl} wjeżdża tyłem skrzynki we wzmocnienie przy plecach — do niego jest ${fmt(limTyl)} mm od lica.`
@@ -3007,7 +3077,8 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (nl !== null && LW > 0) {
           // skrzynka do rysunku — te same wymiary co formatki dna i tylu
           // bokOd / tylOd — od dolu prowadnicy (dol boku; spod dna = spod tylu)
-          dr.skrzynka = { LW, nl, bok: hClass, dno: [LW - 75, nl - 24], tyl: [LW - 87, backH], tylOd, bokOd: vboxOdProw(hClass) };
+          // `grub` — dno i tyl skrzynki sa z plyty polek (formatki `shelf`); bryla rysowala je z korpusu (audyt GPT N12)
+          dr.skrzynka = { LW, nl, bok: hClass, dno: [LW - 75, nl - 24], tyl: [LW - 87, backH], tylOd, bokOd: vboxOdProw(hClass), grub: ts };
           drawerParts.push({ kind: "front", a: fh, b: dsx1 - dsx0 });
           drawerParts.push({ kind: "dno", a: LW - 75, b: nl - 24 });
           drawerParts.push({ kind: "tyl", a: LW - 87, b: backH });
@@ -3180,7 +3251,9 @@ function computeGeoLiczy(cab, mat, ctx) {
     // plecy z HDF wolno obracac zawsze — uslojenie ich nie dotyczy
     const rot = key === "back" || !cab.grainMatters;
     const fits = laysOn(o.a, o.b) || (rot && laysOn(o.b, o.a));
-    if (o.a > 0 && o.b > 0 && !fits)
+    /* Blat roboczy ma wlasny arkusz (4100 × 600/1200) i wlasna kontrole dlugosci
+       i glebokosci nizej — arkusz plyty meblowej go nie dotyczy (audyt GPT N15). */
+    if (o.a > 0 && o.b > 0 && !fits && key !== "worktop")
       add(
         "error",
         `${o.name} ${fmt(o.a)} × ${fmt(o.b)} mm nie mieści się na arkuszu — po okrawaniu zostaje ${fmt(USABLE_W)} × ${fmt(USABLE_H)} mm.`
@@ -3283,10 +3356,14 @@ function computeGeoLiczy(cab, mat, ctx) {
     : isBlat
     ? {
         name: "Blat",
+        // rola, a nie nazwa: wspolny blat ciagu zastepuje te formatke, a nie
+        // dodatkowa nazwana „Blat” (audyt GPT N10)
+        rola: "blat",
         qty: 1,
         a: topX1 - topX0,
         b: blatDepth,
         matKey: rawTop.material === "worktop" ? "worktop" : "board",
+        ...(rawTop.material === "worktop" ? { arkusz: worktopDepth(mat) } : {}),
         // blat jest widoczny dookola, wiec czoło i oba końce zawsze oklejane,
         // tył tylko gdy wystaje poza korpus albo szafka stoi wolno; blat roboczy
         // ma przod z fabrycznym profilem — oklejamy konce (uzytkownik 2026-09-29)
@@ -3457,7 +3534,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   if (cab.plinth.on) {
     if (plinthH < 50)
       add("warn", `Cokół ma ${fmt(plinthH)} mm — poniżej rozsądnego minimum 50 mm.`);
-    P({ name: "Cokół", qty: 1, a: plinthInBody ? innerW : W, b: plinthH, matKey: "board",
+    P({ name: "Cokół", rola: "cokol", qty: 1, a: plinthInBody ? innerW : W, b: plinthH, matKey: "board",
         edges: plinthInBody
           ? { a1: false, a2: true, b1: false, b2: false }
           : { a1: false, a2: true, b1: true, b2: true },
@@ -3512,6 +3589,10 @@ function computeGeoLiczy(cab, mat, ctx) {
     (rawLevels[lv.i].cols || []).some((c) => c.backMode && c.backMode !== "inherit")
   );
 
+  /* Plecy ustawione w kolumnach — kazda plyta z polozeniem i gruboscia, ta sama
+     lista dla formatek i dla bryly (audyt GPT N11: bryla rysowala plecy calej
+     szafki, a zamowienie — kolumn). */
+  const plecyKolumn = backOverride ? [] : null;
   if (backOverride) {
     if (grooved)
       add(
@@ -3528,6 +3609,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         const x1 = j === lv.cols.length - 1 ? W - 1 : c.x1 + hh;
         const y0 = lv.i === 0 ? 1 : lv.y0 - hh;
         const y1 = lv.i === levels.length - 1 ? H - 1 : lv.y1 + hh;
+        plecyKolumn.push({ x0, x1, y0, y1, mode, grub: mode === "hdf" ? (mat.back || {}).thickness || 3 : t });
         P({
           name: mode === "hdf" ? "Plecy HDF" : "Plecy z płyty",
           qty: 1,
@@ -3897,6 +3979,16 @@ function computeGeoLiczy(cab, mat, ctx) {
   {
     const pin = cab.shelfPin || {};
     const pinF = num(pin.dFront) ?? 37, pinB = num(pin.dBack) ?? 37;
+    /* Otwory musza lezec na polce i nie wpasc na siebie: przod < tyl. Dotad
+       plan pisal np. „700 i −140 mm od przedniej krawedzi” bez zadnej uwagi
+       (audyt GPT N16). Sprawdzamy na najplytszej polce na kolkach. */
+    if (mocowaniePolek(cab) === "pins") {
+      const glPolek = levels.flatMap((lv) => lv.cols.filter((c) => (c.shelves || []).length).map((c) => c.shD ?? shelfDepth));
+      const gl = glPolek.length ? Math.min(...glPolek) : null;
+      if (gl !== null && (pinF < 0 || pinB < 0 || pinF + pinB >= gl))
+        add("error", `Kołki półek ${fmt(pinF)} mm od przodu i ${fmt(pinB)} mm od tyłu nie mieszczą się na półce głębokości ${fmt(Math.round(gl))} mm — `
+          + `otwory wypadłyby poza płytą albo na siebie.|kolki:37:37`);
+    }
     levels.forEach((lv) =>
       lv.cols.forEach((c) => {
         const p = panelsOfCol(lv, c);
@@ -4204,11 +4296,17 @@ function computeGeoLiczy(cab, mat, ctx) {
   });
   miGroups.forEach((qty, k) => {
     const [a2, b2] = k.split("|").map(Number);
+    /* Powierzchnia dokladna — zaokragla sie dopiero suma przy wyswietlaniu;
+       zaokraglona na szafce zanizala zbiorcza (3 × 0,42 zamiast 1,27 m²).
+       Liczba sztuk sumuje sie przy scalaniu (`sztuk` + `specSzt`) — wczesniej
+       zbiorcze mowilo „× 1 szt.” przy trzech lustrach (audyt GPT N20). */
+    const specSzt = `${fmt(b2)} × ${fmt(a2)} mm × {n} szt. — luz 0,5 mm na każdą stronę drzwi`;
     hardware.push({
       name: "Lustro na drzwiach",
       // lustro kupuje sie na metry, wiec podajemy powierzchnie, nie sztuki
-      spec: `${fmt(b2)} × ${fmt(a2)} mm × ${qty} szt. — luz 0,5 mm na każdą stronę drzwi`,
-      qty: Math.round((a2 * b2 * qty) / 1e6 * 100) / 100,
+      spec: specSzt.replace("{n}", qty),
+      specSzt, sztuk: qty,
+      qty: (a2 * b2 * qty) / 1e6,
       unit: "m²",
     });
   });
@@ -4233,6 +4331,8 @@ function computeGeoLiczy(cab, mat, ctx) {
       use: skrzydlaLamane
         ? "pierwsze skrzydło szafki narożnej, na boku"
         : "drzwi szafki",
+      // nakladany i wpuszczany to rozne zawiasy do kupienia — nie sumujemy ich razem
+      ...(skrzydlaLamane ? {} : { wariant: cab.frontMode === "overlay" ? "nakładany" : "wpuszczany" }),
       spec: skrzydlaLamane
         ? "skrzydło przy boku szafki narożnej — otwiera się na tyle, żeby drugie skrzydło się złożyło"
         : (cab.frontMode === "overlay" ? "nakładany" : "wpuszczany") +
@@ -4287,7 +4387,8 @@ function computeGeoLiczy(cab, mat, ctx) {
     hardware.push({
       name: "Nóżka regulowana",
       use: "pod szafką",
-      spec: `${(cab.legs || {}).shape === "round" ? "okrągła" : "kwadratowa"}, wysokość ${fmt(cab.legs.height || 100)} mm`
+      wariant: nozkaWariant(cab, legH),
+      spec: `${(cab.legs || {}).shape === "round" ? "okrągła" : "kwadratowa"}, wysokość ${fmt(legH)} mm`
         + (legs.srodek ? ", w tym jedna podpora na środku dna" : ""),
       // tyle, ile ich stoi na rysunku — para na rog plus para na kazde 900 mm
       qty: legs.ile,
@@ -4506,7 +4607,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   return {
     hardware,
     t, tf, tb, ts, carcassDepth, plecyZa, glebOdSciany, hasBack, interior, innerW, innerH,
-    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, msgs, maxNL, zawiasyMontaz,
+    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, msgs, maxNL, zawiasyMontaz, plecyKolumn,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
@@ -6954,11 +7055,16 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
            w minus, tylne za cd (bylo odwrotnie: blat biurka wystawal w 3D do
            tylu i wchodzil w plecy — audyt macierzowy 2026-10-04) */
         box(c.x + c.geo.topX0, y1 - (c.geo.tW || t), c.geo.isBlat ? -c.geo.blat.overFront : 0,
-          c.x + c.geo.topX1, y1, c.geo.isBlat ? cd + c.geo.blat.overBack : cd, bf);
-      {
-        const pb = plecyBryla(c.cab, c.geo);
-        if (pb) box(c.x + pb.x0, c.base + pb.y0, pb.z0, c.x + pb.x1, c.base + pb.y1, pb.z1,
-          c.cab.back === "board" ? bf : c.mat.back.color);
+          c.x + c.geo.topX1, y1, c.geo.isBlat ? cd + c.geo.blat.overBack : cd,
+          // wlasny blat roboczy w kolorze blatu, nie korpusu (audyt GPT N17)
+          c.geo.isWorktop ? (c.mat.worktop || {}).color || bf : bf);
+      plecyBryly(c.cab, c.geo).forEach((pb) => box(c.x + pb.x0, c.base + pb.y0, pb.z0, c.x + pb.x1, c.base + pb.y1, pb.z1,
+        pb.plyta ? bf : c.mat.back.color));
+      /* Blenda nad szafka — w zamowieniu i na rysunku z przodu byla, w bryle nie
+         (audyt GPT N14). Stoi w licu drzwi nad korpusem. */
+      if (c.cab.topFiller?.on && c.cab.topFiller.height > 0) {
+        const zb = c.cab.frontMode === "inset" ? 0 : -c.geo.tf;
+        box(c.x, y1, zb, c.x + c.geo.W, y1 + Math.round(c.cab.topFiller.height), zb + c.geo.tf, c.frontColor, null, 1, false, "blenda");
       }
       /* Wzmocnienia: pod blatem to one zastepuja wieniec, wiec bez nich bryla
          calej zabudowy pokazywala korpus otwarty od gory. */
@@ -9448,6 +9554,7 @@ const skrzynkaBryly = (d, t, zFront) => {
   const dnoY = y0 + (sk.tylOd || 0);          // spod dna = spod tylu (tyl zakrywa czolo dna)
   const xm = (x0 + x1) / 2;
   const [dA, dB] = sk.dno, [tA, tH] = sk.tyl;
+  t = sk.grub || t; // dno i tyl z plyty polek — ta sama grubosc co w zamowieniu
   return [
     [x0 + 4, bokY, z0, x0 + 4 + bokW, bokY + sk.bok, z1 - 2, "metal"],
     [x1 - 4 - bokW, bokY, z0, x1 - 4, bokY + sk.bok, z1 - 2, "metal"],
@@ -9460,6 +9567,14 @@ const skrzynkaBryly = (d, t, zFront) => {
 };
 
 const plecyBryla = (cab, geo) => {
+  // plecy w kolumnach: rysunki 2D biora ich obrys (bryla 3D — kazda plyte, `plecyBryly`)
+  if (geo.plecyKolumn) {
+    const k = geo.plecyKolumn;
+    if (!k.length) return null;
+    const z0 = geo.carcassDepth;
+    return { x0: Math.min(...k.map((p) => p.x0)), y0: Math.min(...k.map((p) => p.y0)), z0,
+      x1: Math.max(...k.map((p) => p.x1)), y1: Math.max(...k.map((p) => p.y1)), z1: z0 + Math.max(...k.map((p) => p.grub)) };
+  }
   if (cab.back === "none") return null;
   const cd = geo.carcassDepth, W = geo.W, H = cab.H;
   let x0, x1, y0, y1, z0;
@@ -9476,11 +9591,22 @@ const plecyBryla = (cab, geo) => {
   } else {
     // blat na bokach wysuniety do tylu przykrywa krawedz plecow — plecy pod nim
     const podBlatemTyl = geo.isBlat && geo.blat.overBack > 0 ? (geo.tTop || geo.t) : 0;
-    x0 = 1; x1 = W - 1; y0 = 1; y1 = H - 1 - podBlatemTyl; z0 = cd;
+    /* luz 1 mm z kazdej strony — takze przy krawedzi wyciecia narozinka, jak
+       w formatce (audyt GPT N13: formatka 498, bryla 499) */
+    x0 = (geo.cornerCut?.backLeftX ?? 0) + 1; x1 = (geo.cornerCut?.backRightX ?? W) - 1;
+    y0 = 1; y1 = H - 1 - podBlatemTyl; z0 = cd;
   }
   x0 = Math.max(x0, geo.cornerCut?.backLeftX ?? x0);
   x1 = Math.min(x1, geo.cornerCut?.backRightX ?? x1);
   return { x0, y0, z0, x1, y1, z1: z0 + geo.tb };
+};
+// plyty plecow do bryly 3D: { x0..z1, plyta } — przy plecach w kolumnach kazda osobno
+const plecyBryly = (cab, geo) => {
+  if (geo.plecyKolumn)
+    return geo.plecyKolumn.map((p) => ({ x0: p.x0, y0: p.y0, x1: p.x1, y1: p.y1,
+      z0: geo.carcassDepth, z1: geo.carcassDepth + p.grub, plyta: p.mode !== "hdf" }));
+  const pb = plecyBryla(cab, geo);
+  return pb ? [{ ...pb, plyta: cab.back === "board" }] : [];
 };
 
 const rotAboutY = (p, ang, ox, oz) => {
@@ -9737,12 +9863,16 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki, blat }) {
     box(
       // z = 0 to lico korpusu: wysuniecie przednie w minus, tylne za plecami (cd)
       geo.topX0, H - (geo.tW || t), geo.isBlat ? -geo.blat.overFront : 0,
-      geo.topX1, H, geo.isBlat ? cd + geo.blat.overBack : cd, bf
+      geo.topX1, H, geo.isBlat ? cd + geo.blat.overBack : cd,
+      // wlasny blat roboczy w kolorze blatu, nie korpusu (audyt GPT N17)
+      geo.isWorktop ? (mat.worktop || {}).color || bf : bf
     );
 
-  {
-    const pb = plecyBryla(cab, geo);
-    if (pb) box(pb.x0, pb.y0, pb.z0, pb.x1, pb.y1, pb.z1, cab.back === "board" ? bf : mat.back.color);
+  plecyBryly(cab, geo).forEach((pb) => box(pb.x0, pb.y0, pb.z0, pb.x1, pb.y1, pb.z1, pb.plyta ? bf : mat.back.color));
+  // blenda nad szafka w licu drzwi (audyt GPT N14)
+  if (cab.topFiller?.on && cab.topFiller.height > 0) {
+    const zb = cab.frontMode === "inset" ? 0 : -geo.tf;
+    box(0, H, zb, W, H + Math.round(cab.topFiller.height), zb + geo.tf, ff, null, 1, false, "blenda");
   }
 
   /* Glebokosci polek i przegrod `geo` liczy od plecow, a tu os z idzie od
@@ -10099,8 +10229,10 @@ const groupPanels = (panels) => {
    nie ma. Ramie szafki naroznej nalezy do niej: jego plyty sa tu razem
    z korpusem — wczesniej trafialy tylko do listy calego projektu. */
 const formatkiSzafki = (geo, { bezCokolu = false, bezBlatu = false, arm = null, wstawki = [] } = {}) => {
-  const gone = [...(bezCokolu ? ["Cokół"] : []), ...(bezBlatu ? ["Blat"] : [])];
-  const wlasne = gone.length ? geo.panels.filter((p) => !gone.includes(p.name)) : geo.panels;
+  /* Wspolny cokol / blat ciagu zastepuje formatke szafki o tej roli. Po nazwie
+     znikala tez dodatkowa formatka nazwana „Cokół” albo „Blat” (audyt GPT N10). */
+  const gone = [...(bezCokolu ? ["cokol"] : []), ...(bezBlatu ? ["blat"] : [])];
+  const wlasne = gone.length ? geo.panels.filter((p) => !gone.includes(p.rola)) : geo.panels;
   // wstawka w rogu przykreca sie do tej szafki, wiec idzie na jej liste
   return groupPanels([...wlasne, ...(arm ? cornerArmParts(arm).panels : []),
     ...wstawki.flatMap((w) => wstawkaParts(w).panels)]);
@@ -10166,21 +10298,23 @@ const Card = ({ title, children, right, collapsible = true, defaultOpen = true, 
     <section id={id} className="rounded-lg border border-stone-200 bg-white"
       // gorny pasek jest przyklejony — bez odstepu zaslanialby naglowek karty
       style={id ? { scrollMarginTop: 120 } : undefined}>
+      {/* Pasek narzedzi (`right`) przechodzi do drugiego wiersza, zamiast sciskac
+          tytul do zera — przy oknie 714 px „Rysunek” mial 0 px (audyt GPT U3). */}
       <header
-        className={`flex items-center justify-between gap-2 px-4 py-2.5 ${
+        className={`flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 ${
           shown ? "border-b border-stone-200" : ""
         }`}>
         {collapsible ? (
           <button type="button" onClick={() => setOpen(!open)}
             title={open ? "Zwiń sekcję" : "Rozwiń sekcję"}
-            className="flex min-w-0 flex-1 items-center gap-2 text-left">
+            className="flex flex-1 items-center gap-2 text-left" style={{ minWidth: 112 }}>
             <span className={`text-[10px] leading-none text-stone-400 transition-transform ${open ? "" : "-rotate-90"}`}>
               ▼
             </span>
             <h2 className="truncate text-sm font-semibold tracking-tight text-stone-800">{title}</h2>
           </button>
         ) : (
-          <h2 className="min-w-0 truncate text-sm font-semibold tracking-tight text-stone-800">{title}</h2>
+          <h2 className="truncate text-sm font-semibold tracking-tight text-stone-800" style={{ minWidth: 112 }}>{title}</h2>
         )}
         {right}
       </header>
@@ -10270,6 +10404,21 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         label: `${ile} nóżek — ${ile % 2 ? "jedna na środku" : "para na środku"}`,
         run: () => setLegs && setLegs(ile),
       };
+    }
+    if (action.startsWith("zawieszki:")) {
+      // „zawieszki:<listwa|haczyki>" — szafka bez zawieszek w ciagu wieszanym na listwie
+      const tryb = action.split(":")[1];
+      return { label: tryb === "haczyki" ? "Zawieszki na haczykach" : "Zawieszki na listwie", run: () => runFix && runFix(action) };
+    }
+    if (action.startsWith("kolki:")) {
+      // „kolki:<od przodu>:<od tylu>" — polozenie otworow pod kolki polek
+      const [, f, t] = action.split(":");
+      return { label: `Ustaw ${fmt(Number(f))} / ${fmt(Number(t))} mm`, run: () => runFix && runFix(action) };
+    }
+    if (action.startsWith("nozki:")) {
+      // „nozki:<mm>" — wysokosc nozek szafki (z bledu o zbyt niskich)
+      const mm = Math.round(Number(action.split(":")[1]) || 0);
+      return { label: `Ustaw ${fmt(mm)} mm`, run: () => runFix && runFix(action) };
     }
     if (action.startsWith("notatka:")) {
       // „notatka:<tekst>" — dopisuje linie do notatki montazowej szafki; juz dopisana — bez przycisku
@@ -11147,6 +11296,14 @@ const wstawkaParts = (ws) => {
     panels.push({ name: "Listwa wstawki", qty: 1, a: H, b: zamow, matKey: "board",
       edges: { a1: false, a2: false, b1: false, b2: false },
       note: "za wstawką w rogu, w linii korpusu — krawędzią przy boku szafki (konfirmaty przez bok), wstawka przykręcona od tyłu" + dotnij });
+  /* Oklejanie zmienione recznie w tabeli formatek szafki (`edgeOverrides` po
+     nazwie formatki) — tak samo jak dla jej wlasnych plyt. Wczesniej obrzeza
+     wstawki byly na sztywno i klikniecie nic nie zmienialo (audyt GPT N6). */
+  const eo = ((ws.cab && ws.cab.cab) || {}).edgeOverrides || {};
+  panels.forEach((p) => {
+    const o = eo[p.name];
+    if (o) { p.edges = { ...p.edges, ...o }; p.note = "oklejanie ustawione ręcznie" + dotnij; }
+  });
   const konfirmaty = (w) => ({ name: "Konfirmat 7 × 50",
     use: `wstawka w rogu — od środka szafki przez bok w krawędź ${w}, co ok. ${WSTAWKA_KONF_CO} mm`,
     spec: `wstawka w rogu: ${nKonf} szt. co ok. ${WSTAWKA_KONF_CO} mm`, qty: nKonf, unit: "szt." });
@@ -11334,6 +11491,7 @@ const cornerArmParts = (a) => {
     : a.doors === "lamane"
       ? []
       : [{ name: "Zawias", use: "front ramienia szafki narożnej",
+          wariant: cab.frontMode === "overlay" ? "nakładany" : "wpuszczany",
           spec: "front ramienia szafki narożnej",
           qty: zawiasow, unit: "szt." }];
   /* Ramie liczy okucia tak samo jak szafka: konfirmaty na stykach plyt
@@ -11384,7 +11542,8 @@ const cornerArmParts = (a) => {
     const lp = armLegPlan(a);
     hardware.push({ name: "Nóżka regulowana",
       use: "pod ramieniem szafki narożnej",
-      spec: `pod ramieniem szafki narożnej, wysokość ${fmt(cab.legs.height || 100)} mm: `
+      wariant: nozkaWariant(cab, geo.legH),
+      spec: `pod ramieniem szafki narożnej, wysokość ${fmt(geo.legH)} mm: `
         + `${lp.us.length} pary — przy rogu, ${lp.us.length > 2 ? "na środku i " : ""}pod wolnym końcem`,
       qty: lp.ile, unit: "szt." });
   }
@@ -11497,7 +11656,7 @@ const runTopPanels = (rt) => {
     map.get(key).qty += 1;
   });
   return [...map.values()].map((g) => ({
-    name, qty: g.qty, a: g.len, b: rt.depth, matKey: rt.matKey,
+    name, qty: g.qty, a: g.len, b: rt.depth, matKey: rt.matKey, arkusz: rt.arkusz || null,
     edges: { a1: false, a2: false, b1: g.b1, b2: g.b2 },
     note: g.b1 && g.b2 ? "oba końce (przód z profilem)" : g.b1 || g.b2 ? "jeden koniec (przód z profilem)" : "bez oklejania — końce przy rogu, słupku albo łączeniu",
   }));
@@ -11535,10 +11694,21 @@ const runTopZlacza = (project, run) => {
    pod kazda szafka — inaczej szafki wisialyby kazda na swoim kawalku i nic by
    ich nie trzymalo w jednej linii. */
 const RAIL_NAME = "Listwa montażowa do zawieszek";
+/* Szafka wisi na zawieszkach — ta sama regula co w `computeGeo` (`wantHangers`). */
+const maZawieszki = (cab) => {
+  const stoi = (cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on);
+  return cab.hangers === "always" || (cab.hangers !== "never" && !stoi);
+};
+// ...i wisi na listwie (a nie na haczykach)
+const naListwie = (cab) => maZawieszki(cab) && cab.hangerMode !== "haczyki";
 const runRail = (project, run) => {
   const { total, list } = runJoints(project, run);
   if (list.length < 2) return null;
   if ((run.hangerMode || "listwa") !== "listwa") return null;
+  /* Listwa jest wtedy, gdy choc jedna szafka ciagu naprawde na niej wisi —
+     wszystkie bez zawieszek albo na haczykach to brak listwy (audyt GPT N21).
+     Wtedy idzie przez caly ciag (szafki na haczykach to wyjatek z ostrzezeniem). */
+  if (!list.some(({ it }) => naListwie(it.cab))) return null;
   // liczy sie tylko dla ciagu wiszacego — stojacy nie ma czego wieszac
   if (!list.every(({ it }) => !(it.cab.legs && it.cab.legs.on) && !(it.cab.plinth && it.cab.plinth.on)))
     return null;
@@ -11560,8 +11730,8 @@ const projectParts = (project) => {
     const s = shared.get(id);
     if (!s) return null;
     const names = [];
-    if (s.rp) names.push("Cokół");
-    if (s.rt) names.push("Blat");
+    if (s.rp) names.push("cokol");
+    if (s.rt) names.push("blat");
     return names;
   };
   // szafka narozna liczy sie z kontekstem rogu — inaczej jej wzmocnienia sa za dlugie
@@ -11574,7 +11744,7 @@ const projectParts = (project) => {
       mat: it.mat,
       grainMatters: it.cab.grainMatters,
       name: (it.cab.name || "").trim() || `Szafka ${ci + 1}`,
-      panels: gone ? g.panels.filter((p) => !gone.includes(p.name)) : g.panels,
+      panels: gone ? g.panels.filter((p) => !gone.includes(p.rola)) : g.panels,
       hardware: s && s.rr ? g.hardware.filter((h) => h.name !== RAIL_NAME) : g.hardware,
     };
   });
@@ -11631,9 +11801,17 @@ const projectParts = (project) => {
 /* Uwagi ciagu w jednym miejscu, bo czyta je i karta aktywnej szafki, i licznik
    uwag przy pozostalych szafkach na pasku — teksty nie moga sie rozjechac.
    runCabMsgs dotyczy jednej szafki, runWideMsgs calego ciagu. */
-const runCabMsgs = (run, c) => {
+const runCabMsgs = (run, c, inne = []) => {
   const out = [];
   if (!run) return out;
+  /* Szafka bez zawieszek w ciagu, w ktorym inne wisza na listwie — domyslnie
+     powinna wisiec tak samo; wyjatek dopuszczalny, ale z ostrzezeniem i
+     wyborem listwa / haczyki (uzytkownik 2026-10-17). */
+  const wisiTa = !(c.legs && c.legs.on) && !(c.plinth && c.plinth.on);
+  if (wisiTa && !maZawieszki(c) && inne.some(naListwie))
+    out.push({ level: "warn", text:
+      `Ta szafka jest bez zawieszek, a inne szafki ciągu „${run.name}" wiszą na zawieszkach na listwie — powieś ją tak samo albo na haczykach.`
+      + `|zawieszki:listwa|zawieszki:haczyki` });
   if (run.H != null && Math.round(c.H) !== run.H)
     out.push({ level: "warn", text:
       `Wysokość ${fmt(c.H)} mm nie zgadza się z ciągiem „${run.name}" (${fmt(run.H)} mm) — fronty nie staną w jednej linii.`
@@ -12871,17 +13049,20 @@ function packSheets(input, { sheetW = USABLE_W, sheetH = USABLE_H } = {}) {
 /* dzieli formatki na grupy materialowe i liczy rozkroj dla kazdej */
 function buildCutPlan(rows) {
   const groups = new Map();
+  /* Grupa to etykieta i format arkusza — ten sam dekor z arkusza 600 i 1200 to
+     dwa rozne produkty; dotad grupa brala arkusz z pierwszej pozycji i wynik
+     zalezal od kolejnosci (audyt GPT N3). */
   rows.forEach((r) => {
-    const k = r.matLabel;
+    const k = r.sheet ? `${r.matLabel}|${r.sheet.w}×${r.sheet.h}` : r.matLabel;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(r);
   });
   /* Kazdy material moze miec inny arkusz — plyta meblowa 2761 x 2061 po
      okrawaniu, blat roboczy 4100 x 600 albo 4100 x 1200. */
-  return [...groups.entries()].map(([matLabel, list]) => {
+  return [...groups.values()].map((list) => {
     const sh = list.find((r) => r.sheet);
     return {
-      matLabel,
+      matLabel: list[0].matLabel,
       // arkusz do zamowienia — blat ma swoj (4100 × 600/1200), plyta 2800 × 2100
       arkusz: sh ? { w: sh.sheet.w, h: sh.sheet.h } : { w: SHEET_W, h: SHEET_H },
       ...packSheets(list, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {}),
@@ -13271,9 +13452,9 @@ function ReportCutPlan({ project, projectName }) {
           b: p.b,
           rotatable: p.matKey === "back" || !part.grainMatters,
           matLabel: matLabelOf(plytaFormatki(p, part.mat), p.matKey, ambig),
-          // blat roboczy uklada sie na wlasnym arkuszu, nie na plycie meblowej
-          sheet: p.matKey === "worktop"
-            ? { w: WORKTOP_LEN, h: worktopDepth(part.mat) } : null,
+          sheet: null,
+          // blat roboczy uklada sie na wlasnym arkuszu (z formatki), bez obracania
+          ...(p.matKey === "worktop" ? wierszBlatu(p, part.mat, matLabelOf(plytaFormatki(p, part.mat), p.matKey, ambig)) : {}),
         });
       });
     });
@@ -13314,7 +13495,7 @@ function ReportCutPlan({ project, projectName }) {
         <tbody>
           {groups.map((g, i) => (
             <tr key={i}>
-              <td>{g.matLabel}</td>
+              <td>{bezArkusza(g.matLabel)}</td>
               <td>{arkuszOpis(g)}</td>
               <td className="num">{g.sheets.length}</td>
               <td className="num">{fmt(g.usedPct)}%</td>
@@ -13333,7 +13514,7 @@ function ReportCutPlan({ project, projectName }) {
         <div className="rp-obrot">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline",
             borderBottom: "1px solid #a8a29e", marginBottom: 4, paddingBottom: 2 }}>
-            <span style={{ fontSize: "11pt", fontWeight: 600 }}>{g.matLabel} — arkusz {arkuszOpis(g)}</span>
+            <span style={{ fontSize: "11pt", fontWeight: 600 }}>{bezArkusza(g.matLabel)} — arkusz {arkuszOpis(g)}</span>
             <span style={{ fontSize: "9pt", color: "#57534e" }}>{projectName} · rzaz {KERF} mm</span>
           </div>
           <SheetPlan sheet={sh} sheetW={g.sheetW} sheetH={g.sheetH}
@@ -14262,7 +14443,8 @@ export default function App() {
          o sobie z drugiego konca ekranu. Bledy licza sie zawsze. */
       const ramie = [...projLayoutGeo.info.values()].map((n) => n.arm)
         .find((a) => a && a.len > 0 && a.cab && a.cab.index === i);
-      const msgs = [...runCabMsgs(c && c.run, it.cab), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
+      const inne = c ? runItems(project, c.run.id).filter((x) => x.i !== i).map((x) => x.it.cab) : [];
+      const msgs = [...runCabMsgs(c && c.run, it.cab, inne), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
         ...wstawkaMsgs(projLayoutGeo, i),
         ...(ramie ? maleFormatkiMsgs(cornerArmParts(ramie).panels, it.cab.dociac, "@") : [])];
       return {
@@ -14339,7 +14521,8 @@ export default function App() {
     if (!runInfo) return [];
     const c = project.items[project.active].cab;
     const node = projLayout.info.get(runInfo.run.id);
-    return [...runCabMsgs(runInfo.run, c),
+    const inne = runItems(project, runInfo.run.id).filter((x) => x.i !== project.active).map((x) => x.it.cab);
+    return [...runCabMsgs(runInfo.run, c, inne),
       ...runWideMsgs(runInfo.run, runInfo.total, runPl, runTp, node ? node.len : 0),
       ...wallGapMsgs(project, runInfo.run),
       ...worktopMsgs(project, runInfo.run),
@@ -14354,6 +14537,39 @@ export default function App() {
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    if (action.startsWith("zawieszki:")) {
+      const tryb = action.split(":")[1] === "haczyki" ? "haczyki" : "listwa";
+      setProject((p) => {
+        const items = p.items.slice();
+        const it = items[p.active];
+        if (!it) return p;
+        items[p.active] = { ...it, cab: { ...it.cab, hangers: "auto", hangerMode: tryb } };
+        return { ...p, items };
+      });
+      return;
+    }
+    if (action.startsWith("kolki:")) {
+      const [, f, t] = action.split(":").map(Number);
+      setProject((p) => {
+        const items = p.items.slice();
+        const it = items[p.active];
+        if (!it) return p;
+        items[p.active] = { ...it, cab: { ...it.cab, shelfPin: { ...(it.cab.shelfPin || {}), dFront: f, dBack: t } } };
+        return { ...p, items };
+      });
+      return;
+    }
+    if (action.startsWith("nozki:")) {
+      const mm = Math.round(Number(action.split(":")[1]) || 0);
+      setProject((p) => {
+        const items = p.items.slice();
+        const it = items[p.active];
+        if (!it) return p;
+        items[p.active] = { ...it, cab: { ...it.cab, legs: { ...(it.cab.legs || {}), height: mm } } };
+        return { ...p, items };
+      });
+      return;
+    }
     if (action.startsWith("notatka:")) {
       const t = decodeURIComponent(action.slice("notatka:".length));
       setProject((p) => {
@@ -14756,13 +14972,15 @@ export default function App() {
       part.panels.forEach((p) => {
         const m = plytaFormatki(p, part.mat) || {};
         const e = p.edges;
-        const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name, !!part.grainMatters].join("|");
+        const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name, !!part.grainMatters,
+          p.matKey === "worktop" ? arkuszBlatu(p, part.mat) : ""].join("|");
         if (map.has(key)) {
           const g2 = map.get(key);
           g2.qty += p.qty;
           g2.from.set(cabName, (g2.from.get(cabName) || 0) + p.qty);
         } else {
           map.set(key, { ...p, matName: matLabelOf(m, p.matKey, ambig), matColor: m.color,
+            ...(p.matKey === "worktop" ? { arkusz: arkuszBlatu(p, part.mat) } : {}),
             from: new Map([[cabName, p.qty]]),
             rotatable: p.matKey === "back" || !part.grainMatters });
         }
@@ -14816,8 +15034,8 @@ export default function App() {
         b: p.b,
         rotatable: p.rotatable !== false,
         matLabel: p.matName,
-        // blat roboczy w projekcie jest jeden, wiec jego arkusz bierzemy z materialow
-        sheet: p.matKey === "worktop" ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
+        sheet: null,
+        ...(p.matKey === "worktop" ? wierszBlatu(p, mat, p.matName) : {}),
       }))
     : cutList.map((p) => ({
         name: p.name,
@@ -14826,8 +15044,8 @@ export default function App() {
         b: p.b,
         rotatable: p.matKey === "back" || !cab.grainMatters,
         matLabel: matLabelOf(plytaFormatki(p, mat), p.matKey, ambig),
-        sheet: p.matKey === "worktop"
-          ? { w: WORKTOP_LEN, h: worktopDepth(mat) } : null,
+        sheet: null,
+        ...(p.matKey === "worktop" ? wierszBlatu(p, mat, matLabelOf(plytaFormatki(p, mat), p.matKey, ambig)) : {}),
       }))), [cutList, projectCutList, cab.grainMatters, mat, ambig]);
   const autoScope = zCaloscia ? "project" : "cab";
   const rozkrojWejscie = useMemo(() => wierszeRozkroju(autoScope), [wierszeRozkroju, autoScope]);
@@ -14910,11 +15128,15 @@ export default function App() {
 
 
   const boardDefault = (label) => {
-    const info = matByLabel.get(label);
+    const info = matByLabel.get(label) || matByLabel.get(label.replace(BLAT_ARKUSZ_SUFIKS, ""));
     if (!info) return 0;
     if (info.key === "back") return DEFAULT_PRICES.hdf;
-    // blat roboczy ma cene za arkusz, taka sama niezaleznie od koloru
-    if (info.key === "worktop") return WORKTOP_PRICES[worktopDepth(mat)] || WORKTOP_PRICES[600];
+    /* blat roboczy ma cene za arkusz, taka sama niezaleznie od koloru — format
+       z etykiety grupy rozkroju, nie z materialu aktywnej szafki (audyt GPT N4) */
+    if (info.key === "worktop") {
+      const m = BLAT_ARKUSZ_SUFIKS.exec(label);
+      return WORKTOP_PRICES[m ? Number(m[1]) : WORKTOP_DEPTHS[0]] || WORKTOP_PRICES[600];
+    }
     return isWhiteBoard(info.color) ? DEFAULT_PRICES.plytaBiala : DEFAULT_PRICES.plytaKolor;
   };
 
@@ -16785,7 +17007,7 @@ export default function App() {
               </Field>
               <Field label="Dodatkowe cofnięcie półki"
                 hint={cab.frontMode === "inset"
-                  ? `Drzwi wewnątrz — półka jest już krótsza o ${fmt(mat.front.thickness + 5)} mm.`
+                  ? `Drzwi wewnątrz — półka jest już krótsza o ${fmt(geo.tf + 5)} mm.`
                   : "Drzwi na korpusie — półka na pełną głębokość."}>
                 <Num value={cab.shelfExtraSetback || 0} onChange={(v) => set({ shelfExtraSetback: v })} />
               </Field>
@@ -17838,7 +18060,7 @@ export default function App() {
                 <div className="mt-1 space-y-0.5 font-mono">
                   {pokazPlan.groups.map((g, i) => (
                     <div key={i}>
-                      {g.matLabel}: {g.sheets.length}{" "}
+                      {bezArkusza(g.matLabel)}: {g.sheets.length}{" "}
                       {plural(g.sheets.length, "arkusz", "arkusze", "arkuszy")} {fmt((g.arkusz || {}).w || SHEET_W)}×{fmt((g.arkusz || {}).h || SHEET_H)}
                       {g.biggestRect && (
                         <span className="text-stone-500">

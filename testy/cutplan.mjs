@@ -177,6 +177,54 @@ ok('więcej formatek → arkusze', !!txt2 && txt2.svgs > 0, txt2 ? txt2.svgs + '
   ok('PDF: złącza do blatów w „Produkty całego projektu” (róg 2 + łączenie w ciągu 2)', suma === 4, zl.join(' / ') || prod.slice(0, 4).join(' / '));
 }
 
+/* Blat roboczy: format arkusza (600 / 1200) idzie z formatka, blatu nie
+   obracamy (przod z profilem — uzytkownik 2026-10-17), format i cena nie
+   zaleza od aktywnej szafki (audyt GPT N2–N4); wlasny dlugi blat szafki bez
+   bledu arkusza plyty (N15). */
+{
+  const PL = { on: true, height: 100, mode: 'under', setback: 0 };
+  const cabR = (n, runId, D, o = {}) => ({ cab: { name: n, W: 600, H: 720, D, plinth: PL, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null }] }], ...o }, runId, offset: 0 });
+  const RUN = (id, name, D) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D, plinth: PL, worktop: true, corner: null });
+  const grupyBlatu = () => page.evaluate(() => (window.__audytRozkroj?.groups || []).filter((g) => /Blat/.test(g.matLabel))
+    .map((g) => ({ label: g.matLabel, ark: g.sheets.length, h: g.arkusz && g.arkusz.h, uloz: g.sheets.reduce((a, x) => a + x.parts.length, 0), odrz: (g.rejected || []).length })));
+  const poRozkroju = async () => { await page.waitForFunction(() => window.__audytRozkroj && window.__audytRozkroj.aktualny, null, { timeout: 15000 }); await page.waitForTimeout(300); };
+  // ciag D650 — blat 600 × 683 z arkusza 1200; ze slojami i bez nich (obracany trafial na arkusz 600)
+  for (const grain of [true, false]) {
+    await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
+      { name: 'N2', active: 0, prices: {}, runs: [RUN('c1', 'Ściana', 650)], items: [cabR('A', 'c1', 650, { grainMatters: grain })] });
+    await page.reload({ waitUntil: 'networkidle' }); await poRozkroju();
+    const g = await grupyBlatu();
+    ok(`blat 600 × 683 (ciąg D650, słoje ${grain ? 'tak' : 'nie'}): arkusz 4100 × 1200, ułożony, nic odrzuconego`,
+      g.length === 1 && g[0].h === 1200 && g[0].ark === 1 && g[0].uloz === 1 && g[0].odrz === 0, JSON.stringify(g));
+  }
+  // dwa ciagi: D560 (arkusz 600) i D650 (arkusz 1200) — osobne grupy i ceny, niezaleznie od aktywnej szafki
+  const ceny = async () => {
+    const w = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Wycena/ }) }).first();
+    if ((await w.innerText()).split('\n').length < 4) { await w.locator('h2').first().click(); await page.waitForTimeout(400); }
+    return page.evaluate(() => [...([...document.querySelectorAll('section')].find((s) => /^Wycena/.test(s.querySelector('h2')?.textContent || ''))?.querySelectorAll('tr') || [])]
+      .filter((tr) => /Blat roboczy/.test(tr.textContent)).map((tr) => tr.innerText.replace(/\s+/g, ' ').trim()));
+  };
+  const wyniki = [];
+  for (const act of [0, 1]) {
+    await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
+      { name: 'N3', active: act, prices: {}, runs: [RUN('c1', 'A', 560), RUN('c2', 'B', 650)], items: [cabR('płytka', 'c1', 560), cabR('głęboka', 'c2', 650)] });
+    await page.reload({ waitUntil: 'networkidle' }); await poRozkroju();
+    wyniki.push({ g: await grupyBlatu(), c: await ceny() });
+  }
+  const [w0, w1] = wyniki;
+  ok('dwa formaty blatu: osobne grupy rozkroju 600 i 1200, po 1 arkuszu', w0.g.length === 2 && w0.g.some((g) => g.h === 600 && g.ark === 1) && w0.g.some((g) => g.h === 1200 && g.ark === 1 && /arkusz 1200/.test(g.label)), JSON.stringify(w0.g));
+  ok('wycena: arkusz 600 — 563.99 zł, arkusz 1200 — 1128.22 zł', w0.c.some((r) => /^Blat roboczy 1 ark\. 563[.,]99/.test(r)) && w0.c.some((r) => /arkusz 1200 1 ark\. 1128[.,]22/.test(r)), w0.c.join(' / '));
+  ok('format i cena blatu nie zależą od aktywnej szafki', JSON.stringify(w0) === JSON.stringify(w1), `${JSON.stringify(w0.c)} vs ${JSON.stringify(w1.c)}`);
+  // wlasny blat roboczy szafki 3100 × 560 — miesci sie na 4100 × 600, bez bledu arkusza plyty
+  await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
+    { name: 'N15', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'S', W: 600, H: 720, D: 560, plinth: PL,
+      top: { mode: 'blat', material: 'worktop', widthMode: 'outside', overL: 0, overR: 2500, overFront: 0, overBack: 0 },
+      levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null }] }] }, offset: 0 }] });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+  const uw15 = await page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || '');
+  ok('własny blat roboczy 3100 × 560: bez błędu „nie mieści się na arkuszu” płyty', !/Blat 3[\s ]?100 × 560 mm nie mieści się na arkuszu/.test(uw15), uw15.split('\n').filter((l) => /arkusz/.test(l)).join(' / '));
+}
+
 /* „N szafek” — odmiana przy 5+ (kontrola PDF: „6 szafki”); przy 2 stara i nowa
    wersja pisaly tak samo, wiec sprawdzamy na 6. Na koniec prawdziwy wydruk
    rozkroju do PDF: kazdy arkusz to dokladnie jedna strona (Chromium przy
