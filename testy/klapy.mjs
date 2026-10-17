@@ -189,6 +189,16 @@ u = await uwagi();
 ok('drzwi 994 mm z 2 zawiasami: „za mało zawiasów wg tabeli GTV — 2 zamiast 3”', /skrzydło 1: za mało zawiasów wg tabeli GTV — 2 zamiast 3/.test(u), linieZaw(u));
 await seed(DRZWI(500, 1700, { hinges: [4] }));
 ok('drzwi 1694 mm z 4 zawiasami: bez ostrzeżenia (dawniej „za dużo” przy 600 mm)', !/zawiasów wg tabeli GTV|za dużo zawiasów/.test(await uwagi()), linieZaw(await uwagi()));
+// trzeci zawias z samej wagi: front 25 mm, 596 × 714 mm — ok. 7,2 kg (> 6 kg), choc wysokosc ponizej 750
+{
+  const ciezki = DRZWI(600, 720); ciezki.items[0].mat = { front: { thickness: 25 } }; ciezki.items[0].cab.frontSameAsBoard = false;
+  await seed(ciezki);
+  hw = await okucia(); u = await uwagi();
+  const lekki = DRZWI(600, 720); lekki.items[0].cab.levels[0].cols[0].hinges = [3];
+  ok('front 596 × 714 mm z płyty 25 mm (ok. 7,2 kg): 3 zawiasy z samej wagi, bez ostrzeżenia', ilosc(hw, /^Zawias/) === 3 && !/zawiasów wg tabeli GTV|poza tabelą/.test(u), `zamówienie ${ilosc(hw, /^Zawias/)}; ${linieZaw(u)}`);
+  await seed(lekki);
+  ok('ten sam front z płyty 18 mm (ok. 5,2 kg) i 3 wpisane: „za dużo … 3 zamiast 2”', /za dużo zawiasów wg tabeli GTV — 3 zamiast 2 \(front 596 × 714 mm, ok\. 5,2 kg\)/.test(await uwagi()), linieZaw(await uwagi()));
+}
 await seed(DRZWI(704, 720));
 u = await uwagi();
 ok('drzwi szersze niż 600 mm: „poza tabelą zawiasów GTV”, liczba orientacyjna', /skrzydło 1: front 700 × 714 mm, ok\. 6,1 kg — poza tabelą zawiasów GTV \(front do 600 mm szerokości/.test(u), linieZaw(u));

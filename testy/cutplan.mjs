@@ -177,5 +177,36 @@ ok('więcej formatek → arkusze', !!txt2 && txt2.svgs > 0, txt2 ? txt2.svgs + '
   ok('PDF: złącza do blatów w „Produkty całego projektu” (róg 2 + łączenie w ciągu 2)', suma === 4, zl.join(' / ') || prod.slice(0, 4).join(' / '));
 }
 
+/* „N szafek” — odmiana przy 5+ (kontrola PDF: „6 szafki”); przy 2 stara i nowa
+   wersja pisaly tak samo, wiec sprawdzamy na 6. Na koniec prawdziwy wydruk
+   rozkroju do PDF: kazdy arkusz to dokladnie jedna strona (Chromium przy
+   nazwanych stronach „A4 landscape” dzielil arkusz na dwie). */
+{
+  const PL = { on: true, height: 100, mode: 'under', setback: 0 };
+  const cab = (n) => ({ cab: { name: n, W: 600, H: 720, D: 560, plinth: PL, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null }] }] }, runId: 'c1', offset: 0 });
+  await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); }, { name: 'Sześć', active: 0, prices: {},
+    runs: [{ id: 'c1', name: 'Ściana 1', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null }],
+    items: ['A', 'B', 'C', 'D', 'E', 'F'].map(cab) });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1500);
+  await page.evaluate(() => { window.__html = null; window.print = () => { window.__html = document.querySelector('.print-only').outerHTML; }; });
+  await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click(); await page.waitForTimeout(1500);
+  const html = await page.evaluate(() => window.__html) || '';
+  const tyt = (/Formatki całego projektu — \d+ \S+/.exec(html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')) || [''])[0];
+  ok('PDF: „Formatki całego projektu — 6 szafek”', tyt === 'Formatki całego projektu — 6 szafek', tyt);
+  // w dokumencie zostaje sam rozkroj: strona z tabela + strony arkuszy
+  const ark = await page.evaluate(() => {
+    document.body.innerHTML = window.__html;
+    const root = document.querySelector('.print-only');
+    [...root.querySelectorAll('section.rp-page')].forEach((s) => { if (!/Rozkrój na płycie/.test(s.textContent) && !s.matches('.rp-arkusz')) s.remove(); });
+    return root.querySelectorAll('section.rp-arkusz').length;
+  });
+  await page.emulateMedia({ media: 'print' });
+  const buf = await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
+  await page.emulateMedia({ media: 'screen' });
+  const stron = (buf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+  ok('wydruk PDF: rozkrój = 1 strona tabeli + dokładnie 1 strona na arkusz', ark >= 3 && stron === 1 + ark, `${stron} stron, arkuszy ${ark}`);
+  await page.reload({ waitUntil: 'networkidle' });
+}
+
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

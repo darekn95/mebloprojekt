@@ -414,7 +414,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `ramplec` / `ramkarta` | wzmocnienia i plecy ramienia; karta ustawień ramienia |
 | `rysrog` | rysunki narożnika: front na bok z luzem, zawiasy, rzut z góry, tył, nóżki ramienia |
 | `blatrog` / `blatrys` / `blat` / `blatciag` | blat roboczy: róg, rysunki, ciąg, wieniec |
-| `okucia3` | liczby okuc z wymiaru: klipsy, trójkąty, fix, zawiasy 165°/90° |
+| `okucia3` | liczby okuc z wymiaru: klipsy, trójkąty, fix, zawiasy 165°/90°; tabela GTV dla 165° (skrzydło 579 × 1994 mm: 5, na zwykłym zawiasie 4) |
 | `bryla3d` | co widać na wierzchu w 45° i 3D: blat, maskownice, uchwyty; nóżki; zero wymuszeń kolejności z ośmiu stron |
 | `wyslij` | przycisk „Wyślij do Claude”: bez magazynu go nie ma, z atrapą zapisuje pełny projekt |
 | `opisy` | żaden napis na rysunku nie jest przykryty płytą, nóżką ani blatem — wszystkie zakresy i widoki szafki narożnej |
@@ -446,7 +446,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `wreg` | plecy „We frezie” jako frez 16 × 3 na krawędzi: HDF W−6 × H−6, półka o 3 mm płytsza, HDF w rzucie na tyle korpusu, pola 16/3/1, ostrzeżenie przy frezie płytszym niż HDF, migracja starego {16, 4} |
 | `wspornik` | półka przy wsporniku fixu płytsza (564 × 460 zamiast 564 × 560), ostrzeżenie, oba warianty przycisku, kołki półki w bokach w planie wierceń (PDF) |
 | `uchwyt` | wiersz okuć skrzydła (zawiasy, uchwyt, lustro), wysunięcie i położenie uchwytu per skrzydło — zapis, rysunek z przodu, bryła 3D |
-| `klapy` | klapa do góry: siła z tabeli GTV (test liczy ją sam), waga frontu (680 kg/m³), 1 podnośnik przy 600, 2 przy 900, ręcznie 1 → ostrzeżenie; zawiasy 2 / 3 powyżej 900; formatka „Klapa”; UI „skrzydło / klapa”, potem „do góry / w dół”; klapa w dół: amortyzator z tabeli PD-ECGDL, po wpisaniu 80 N pozycja w okuciach; klapa użytkownika 560 × 750 — poza tabelą i za ciężka, z uwagą o kącie 45°; ostrzeżenia >600 mm i <290 mm; bryła otwarta szafki i ciągu bez błędów |
+| `klapy` | klapa do góry: siła z tabeli GTV (test liczy ją sam), waga frontu (680 kg/m³), 1 podnośnik przy 600, 2 przy 900, ręcznie 1 → ostrzeżenie; zawiasy 2 / 3 powyżej 900; formatka „Klapa”; UI „skrzydło / klapa”, potem „do góry / w dół”; klapa w dół: amortyzator z tabeli PD-ECGDL, po wpisaniu 80 N pozycja w okuciach; klapa użytkownika 560 × 750 — poza tabelą i za ciężka, z uwagą o kącie 45°; ostrzeżenia >600 mm i <290 mm; bryła otwarta szafki i ciągu bez błędów; drzwi wg tabeli GTV (wysokości, „za dużo / za mało”, „poza tabelą”, trzeci zawias z samej wagi przy froncie 25 mm), dymek „Liczba zawiasów”, notatka montażowa zawiasu (przycisk i linia w PDF) |
 | `zawiasy` | przycisk przełożenia zawiasów przy kolizji tylko, gdy pomaga (17 mm z lewej → bez przycisku; 564 z prawej → „na lewą — zostaje 17 mm”), przełącznik „zawias” przy kolumnie z jednymi drzwiami |
 | `odsuniecie` | odsunięcie od ściany: głębokość blatu, wysięg przed drzwi (10 / <10 uwaga / >30 ostrzeżenie), krzywa ściana w widoku z boku, róg przesunięty o odstęp, wyjątek jednej szafki |
 | `hw2` / `cokol` / `cokolstd` / `ceny` / `ceny2` | okucia, cokół, cennik |
@@ -456,7 +456,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `otwier` | kolizje przy otwieraniu skrzydeł |
 | `uwagiptak` | odhaczanie uwag |
 | `migr` / `reload` | migracja starych projektów, przeładowanie |
-| `arkusz` / `cutplan` / `fit` / `fitall` | mieszczenie się w arkuszu i rozkrój; `cutplan` też PDF rozkroju (nagłówek, kolumna arkusza, nagłówek materiału z rysunkiem, „N szafek”, złącza blatu w produktach projektu) |
+| `arkusz` / `cutplan` / `fit` / `fitall` | mieszczenie się w arkuszu i rozkrój; `cutplan` też PDF rozkroju (nagłówek, kolumna arkusza, nagłówek materiału z rysunkiem, „N szafek”, złącza blatu w produktach projektu); prawdziwy wydruk rozkroju do PDF — 1 strona tabeli + dokładnie 1 strona na arkusz; „6 szafek” |
 | `drobne` | luzy domyślne, nazwa uchwytu, dekor, wkręt do pleców |
 | `stdfull` / `stdnew` | wersja standalone (ścieżka GitHub Pages) |
 

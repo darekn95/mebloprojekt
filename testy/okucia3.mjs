@@ -140,5 +140,37 @@ ok('ramie nie dostaje juz zwyklych zawiasow',
   !rsL.some((r) => /^Zawias \|/.test(r) && /front ramienia/.test(r)),
   JSON.stringify(rsL.filter((r) => /^Zawias/.test(r))));
 
+
+/* Tabela dla szerokiego kata (165°) ma nizsze wagi niz zwykla: skrzydlo
+   579 × 1994 mm, ok. 14,1 kg — zwykla tabela 4 (do 17 kg), 165° juz 5 (do 12,5
+   kg 4, do 15 kg 5). Ta sama wielkosc frontu na zwyklych drzwiach — 4. */
+const rogowa = async (W) => {
+  await page.evaluate(({ W }) => {
+    const PL = { on: true, height: 100, mode: 'under', setback: 0 };
+    localStorage.clear();
+    localStorage.setItem('szafki:projekt', JSON.stringify({ name: 'T', active: 1, prices: {},
+      runs: [{ id: 'c1', name: 'A', wallW: null, gap: 0, mountY: 0, H: 2000, D: 600, plinth: PL, corner: null },
+        { id: 'c2', name: 'B', wallW: null, gap: 0, mountY: 0, H: 2000, D: 600, plinth: PL, corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } }],
+      items: [{ cab: { name: 'A1', W: 600, H: 2000, D: 600, plinth: PL, corner: null, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null }] }] }, runId: 'c1', offset: 0 },
+        { cab: { name: 'rogowa', W, H: 2000, D: 600, plinth: PL, corner: { on: true, arm: 700, doors: 'lamane' },
+          levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null }] }] }, runId: 'c1', offset: 0 }] }));
+  }, { W });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2000);
+};
+await rogowa(1200);
+const drzwiRog = ((await wiersze(/^Formatki do zamówienia/)).find((r) => /^Drzwi/.test(r)) || '');
+const z165 = qty(await hwRows(), 'Zawias 165');
+ok('skrzydło 579 × 1994 mm (ok. 14,1 kg) na 165°: 5 zawiasów — tabela szerokiego kąta, nie zwykła', /1994 \| 579/.test(drzwiRog) && z165 === 5, `${drzwiRog.split('|').slice(0, 5).join('|')} → ${z165}`);
+await page.evaluate(() => {
+  localStorage.clear();
+  localStorage.setItem('szafki:projekt', JSON.stringify({ name: 'T', active: 0, prices: {}, runs: [],
+    items: [{ cab: { name: 'D', W: 583, H: 2000, D: 600, plinth: { on: true, height: 100, mode: 'under', setback: 0 },
+      levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null }] }] }, offset: 0 }] }));
+});
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1500);
+const drzwiZw = ((await wiersze(/^Formatki do zamówienia/)).find((r) => /^Drzwi/.test(r)) || '');
+const zZw = qty(await hwRows(), 'Zawias');
+ok('te same drzwi 579 × 1994 mm na zwykłym zawiasie: 4', /1994 \| 579/.test(drzwiZw) && zZw === 4, `${drzwiZw.split('|').slice(0, 5).join('|')} → ${zZw}`);
+
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();
