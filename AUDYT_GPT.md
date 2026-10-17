@@ -1,3 +1,17 @@
+# Audyt godzinny — N63, 17.10.2026
+
+## N63 [P2] Wysunięta szafka dostaje za płytki blat bez ostrzeżenia
+
+**Odtworzenie:** dwie szafki W600/H720/D560, HDF3, fronty nakładane18 mm, wspólny blat roboczy. Brak wieńców, poprawne wzmocnienia czołowe i tylne. Pierwsza szafka offset0; drugą wysunąć z lica o100 mm.
+
+**Wynik:** rzut/kontrola przestrzenna lokują lico drugiego frontu681 mm od ściany (korpus do663, front18). `runTop` nadal zwraca blat głębokości600, `doLica=583`, `wysieg=17`. Zamówienie to „Blat ciągu”1200×600 mm. Blat kończy się więc81 mm PRZED frontem drugiej szafki, zamiast wystawać ponad nim. `worktopMsgs` zwraca pustą listę. Wariant kontrolny offset0 ma taki sam blat, ale fronty581 mm od ściany i pokrycie jest prawidłowe.
+
+**Przyczyna:** dla wysuniętej szafki `runTopLiczy` odejmuje offset od `glebOdSciany`: wymagana głębokość pasa spada593→493 mm. Rzut i kontrola kolizji przeciwnie dodają offset do lica ciągu. Dobór blatu musi korzystać z faktycznych położeń szafek w jednym układzie odniesienia, a uwagi porównywać jego krawędź z każdym frontem.
+
+Odrębne od N62: tam wizualizacja3D pomija przesunięcie; tutaj zamówienie i deklarowany wysięg są błędne nawet po poprawieniu wizualizacji. Nie jest to N48 — wszystkie fronty są nakładane. Źródło `szafki.jsx` blob `688b93c92636d6e5909979d68a8ce9bf5f4e6732`. Dowód lokalny `audit-hour-offset-worktop.json`, warianty0/+100 z formatkami, położeniami frontów i uwagami. Bez zmian aplikacji i projektu użytkownika.
+
+---
+
 # Audyt godzinny — N62, 17.10.2026
 
 ## N62 [P2] Wysunięcie szafki z lica jest pomijane w 3D zabudowy
