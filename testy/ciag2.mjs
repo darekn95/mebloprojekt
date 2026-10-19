@@ -57,7 +57,7 @@ await page.waitForTimeout(2000);
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(2000);
-await page.getByRole('button', { name: '+ ciąg' }).click();
+await page.getByRole('button', { name: '+ nowy ciąg' }).click();
 await page.waitForTimeout(600);
 await page.locator('header .space-y-1 > div').filter({ hasText: 'Ściana 1' })
   .getByRole('button', { name: '+ szafka' }).click();

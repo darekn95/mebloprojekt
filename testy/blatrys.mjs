@@ -17,7 +17,7 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1800);
-await page.getByRole('button', { name: '+ ciąg' }).click();
+await page.getByRole('button', { name: '+ nowy ciąg' }).click();
 await page.waitForTimeout(800);
 await wiersz('Ściana 1').getByRole('button', { name: '+ szafka' }).click();
 await page.waitForTimeout(1000);
@@ -100,7 +100,7 @@ ok('wysokość zawieszenia też', opisy.includes('1358'), opisy.slice(0, 12).joi
 
 console.log('\n== kasowanie ciągu ==');
 const przed = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
-const kasuj = wiersz('Ściana 1 — ciąg dolny').getByRole('button', { name: '× ciąg' });
+const kasuj = wiersz('Ściana 1 — ciąg dolny').getByRole('button', { name: '× usuń ciąg' });
 ok('przycisk kasowania jest', await kasuj.count() === 1, String(await kasuj.count()));
 await kasuj.first().click();
 await page.waitForTimeout(1400);

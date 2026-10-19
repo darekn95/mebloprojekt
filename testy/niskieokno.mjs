@@ -18,6 +18,7 @@ const PROJ = { name: 'U2', active: 0, prices: {}, runs: [RUN('c1', 'Ściana A'),
   items: [CAB('A1', 'c1'), CAB('A2', 'c1'), CAB('B1', 'c2')] };
 const otworz = async (width, height) => {
   const ctx = await b.newContext({ viewport: { width, height } });
+  await ctx.addInitScript(() => { window.__mpBezZwijania = false; });   // pw.mjs wylacza je innym testom
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(URL, { waitUntil: 'networkidle' });

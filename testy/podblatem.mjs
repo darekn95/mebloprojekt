@@ -19,7 +19,7 @@ const stan = async () => { await page.waitForTimeout(1600); return page.evaluate
 const para = (c) => (c.rails || []).filter((r) => r.pos === 'top' && ((r.orient === 'shelf' && !r.fromBack) || (r.orient === 'front' && r.fromBack))).length;
 const uwagi = () => page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || '');
 
-await page.getByRole('button', { name: '+ ciąg', exact: true }).first().click(); await page.waitForTimeout(500);
+await page.getByRole('button', { name: '+ nowy ciąg', exact: true }).first().click(); await page.waitForTimeout(500);
 await page.locator('header .space-y-1 > div').filter({ hasText: /^Ściana 1/ }).first().getByRole('button', { name: '+ szafka', exact: true }).click();
 let st = await stan();
 let cab = st.items.find((it) => it.runId).cab;

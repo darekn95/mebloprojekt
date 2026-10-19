@@ -1105,6 +1105,11 @@ const DEFAULT_PROJECT_NAME = "Projekt bez nazwy";
    a gorny pasek nie jest przyklejony, gdy zajmuje wiecej niz ten ulamek okna. */
 const NISKIE_OKNO = 640;
 const NAGLOWEK_MAX = 0.4;
+/* Przewijanie w dol zwija paski pomieszczen oraz ciagow i szafek (uzytkownik
+   2026-10-19); recznie rozwiniety zostaje rozwiniety przez minute, na samej gorze
+   strony (do `PRZEWIN_GORA` px) paski wracaja do zwyklego stanu. */
+const RECZNIE_ROZWINIETY_MS = 60000;
+const PRZEWIN_GORA = 8;
 /* Dokument we wspolnym magazynie artefaktu na claude.ai, do ktorego przycisk
    „Wyslij do Claude" zapisuje biezacy projekt (pole `json`) — Claude czyta go
    stamtad. Poza artefaktem na claude.ai nieuzywany. */
@@ -15108,6 +15113,67 @@ export default function App() {
     naglowekRO.current = ro;
   }, []);
   const przyklejony = !(wysNaglowka > wysOkna * NAGLOWEK_MAX);
+  /* Zwijanie przy przewijaniu w dol: tylko na czas przewijania, bez zapisu.
+     Zwijamy dopiero za wysokoscia paska — przegladarka, trzymajac tresc w
+     miejscu, cofa wtedy strone o to, o ile pasek zmalal, i nie dochodzi do samej
+     gory (inaczej paski rozwijalyby sie i zwijaly na zmiane). Wracaja dopiero,
+     gdy uzytkownik sam przewinie do gory. */
+  const [autoPokoje, setAutoPokoje] = useState(false);
+  const [autoPasek, setAutoPasek] = useState(false);
+  const recznie = useRef({ pokoje: 0, pasek: 0 });
+  const wysNaglowkaRef = useRef(0);
+  wysNaglowkaRef.current = wysNaglowka;
+  const zwinPrzyPrzewijaniu = useCallback(() => {
+    // testy klikajace pasek po przewinieciu strony wylaczaja to (testy/pw.mjs)
+    if (window.__mpBezZwijania) return;
+    const t = Date.now();
+    if (t > recznie.current.pokoje) setAutoPokoje(true);
+    if (t > recznie.current.pasek) setAutoPasek(true);
+  }, []);
+  useEffect(() => {
+    let ostatni = window.scrollY;
+    const f = () => {
+      const y = window.scrollY;
+      if (y <= PRZEWIN_GORA && y < ostatni) { setAutoPokoje(false); setAutoPasek(false); }
+      else if (y > ostatni && y > wysNaglowkaRef.current) zwinPrzyPrzewijaniu();
+      ostatni = y;
+    };
+    window.addEventListener("scroll", f, { passive: true });
+    return () => window.removeEventListener("scroll", f);
+  }, [zwinPrzyPrzewijaniu]);
+  const pokojeWidokZw = pokojeZwiniete || autoPokoje;
+  const pasekWidokZw = pasekZw || autoPasek;
+  // klikniecie w zwiniety (takze sam przy przewijaniu) rozwija go na minute
+  const przelaczPokoje = () => {
+    if (pokojeWidokZw) {
+      setAutoPokoje(false);
+      recznie.current.pokoje = Date.now() + RECZNIE_ROZWINIETY_MS;
+      if (!pokojeZwiniete) return;
+    }
+    const v = !pokojeZwiniete; setPokojeZwiniete(v);
+    try { localStorage.setItem("mp-pokoje-zwiniete", v ? "1" : "0"); } catch (e) { /* bez pamieci */ }
+  };
+  const przelaczPasek = () => {
+    if (pasekWidokZw) {
+      setAutoPasek(false);
+      recznie.current.pasek = Date.now() + RECZNIE_ROZWINIETY_MS;
+      if (!pasekZw) return;
+    }
+    // w niskim oknie bez zapamietywania — po powrocie do duzego wraca zwykly stan
+    if (niskieOkno) { setPasekNisko(!pasekZw); return; }
+    const v = !pasekZwiniety; setPasekZwiniety(v);
+    try { localStorage.setItem("mp-pasek-zwiniety", v ? "1" : "0"); } catch (e) { /* bez pamieci */ }
+  };
+  /* Nazwa sciany na pasku ciagow — klikniecie zmienia ja w miejscu (uzytkownik
+     2026-10-19). Nazwa sciany to nazwa ciagu dolnego; gorny, ktory nosi te sama
+     nazwe, zmienia sie razem z nim. */
+  const [nazwaSciany, setNazwaSciany] = useState(null);   // { wiersz, stara } — pole tylko w kliknietym wierszu
+  const zmienNazweSciany = useCallback((id, name) => setProject((p) => {
+    const dol = (p.runs || []).find((r) => r.id === id);
+    if (!dol) return p;
+    return { ...p, runs: p.runs.map((r) => (r.id === id || (r.tier === "gorny" && r.wall === id && r.name === dol.name)
+      ? { ...r, name } : r)) };
+  }), [setProject]);
   // szafki wolnostojace tego pomieszczenia
   const wolneWPokoju = useMemo(() => runItems(project, null).filter(({ it }) => roomOfItem(project, it) === pokoj),
     [project, pokoj]);
@@ -15116,6 +15182,7 @@ export default function App() {
     /* Sciana z dwoma pietrami pokazuje je osobno i podpisuje, ktore jest ktore —
        samo „Ściana 1" przestaje wystarczac. */
     const rows = runs.map((r) => ({ id: r.id, label: runLabel(runs, r), tier: r.tier,
+      sciana: r.tier === "gorny" && r.wall ? r.wall : r.id,   // ciag dolny — jego nazwa to nazwa sciany
       maGorny: runs.some((q) => q.tier === "gorny" && q.wall === r.id) }));
     if (!runs.length) rows.push({ id: null, label: "Szafki:" });
     else if (wolneWPokoju.length) rows.push({ id: null, label: "Wolnostojące" });
@@ -16168,15 +16235,20 @@ export default function App() {
           <button onClick={() => {
             /* pod przyklejony gorny pasek — jego wysokosc sie zmienia (zwijany pasek
                ciagow, szerokosc okna), wiec liczymy ja przy kazdym kliknieciu */
-            const karta = document.getElementById("rysunek");
-            const pasek = document.querySelector("header.sticky");   // nieprzyklejony (niskie okno) nie zaslania
-            const nad = pasek ? pasek.getBoundingClientRect().bottom : 0;
-            /* Niskie okno (audyt GPT U2): pod paskiem nie miesci sie nawet poczatek
-               rysunku po przelacznikach widokow — przewijamy prosto do niego. */
-            const svg = karta && karta.querySelector("svg");
-            const el = niskieOkno && svg ? svg : karta;
-            if (el) window.scrollTo({ behavior: "smooth",
-              top: el.getBoundingClientRect().top + window.scrollY - nad - (el === karta ? 8 : 0) });
+            /* Przewijanie w dol i tak zwinie paski — zwijamy je od razu, a miejsce
+               liczymy po zwinieciu (inaczej rysunek wjezdzal pod pasek o roznice). */
+            zwinPrzyPrzewijaniu();
+            setTimeout(() => {
+              const karta = document.getElementById("rysunek");
+              const pasek = document.querySelector("header.sticky");   // nieprzyklejony (niskie okno) nie zaslania
+              const nad = pasek ? pasek.getBoundingClientRect().bottom : 0;
+              /* Niskie okno (audyt GPT U2): pod paskiem nie miesci sie nawet poczatek
+                 rysunku po przelacznikach widokow — przewijamy prosto do niego. */
+              const svg = karta && karta.querySelector("svg");
+              const el = niskieOkno && svg ? svg : karta;
+              if (el) window.scrollTo({ behavior: "smooth",
+                top: el.getBoundingClientRect().top + window.scrollY - nad - (el === karta ? 8 : 0) });
+            }, 80);
           }}
             title="Przewiń do karty „Rysunek”"
             className="rounded border border-teal-600 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-50">
@@ -16264,22 +16336,19 @@ export default function App() {
         {/* pomieszczenia: Projekt → Pomieszczenie → ciagi → szafki (uzytkownik 2026-09-29) */}
         <div className="border-t border-stone-200 bg-white/70" data-pasek="pomieszczenia">
           <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-1.5 px-4 py-1.5">
-            <button onClick={() => {
-              const v = !pokojeZwiniete; setPokojeZwiniete(v);
-              try { localStorage.setItem("mp-pokoje-zwiniete", v ? "1" : "0"); } catch (e) { /* bez pamieci */ }
-            }}
-              title={pokojeZwiniete ? "Pokaż pomieszczenia" : "Zwiń pasek pomieszczeń"}
+            <button data-el="pasek-pokoi" onClick={przelaczPokoje}
+              title={pokojeWidokZw ? "Pokaż pomieszczenia" : "Zwiń pasek pomieszczeń"}
               className="mr-1 flex shrink-0 items-center gap-1.5 text-[11px] text-stone-500 hover:text-stone-800">
-              <span className={`text-[10px] transition-transform ${pokojeZwiniete ? "-rotate-90" : ""}`}>▼</span>
+              <span className={`text-[10px] transition-transform ${pokojeWidokZw ? "-rotate-90" : ""}`}>▼</span>
               Pomieszczenia
-              {pokojeZwiniete && (
+              {pokojeWidokZw && (
                 <span className="text-stone-400">
                   — {roomsOf(project).length} {plural(roomsOf(project).length, "pomieszczenie", "pomieszczenia", "pomieszczeń")}, aktywne: „{roomName(project, pokoj) || "Pomieszczenie"}”
                   {innePokojeNotes.length > 0 && <span style={{ color: innePokojeNotes.some((x) => x.err) ? ERRC : WARNC }}> ●</span>}
                 </span>
               )}
             </button>
-            {!pokojeZwiniete && (<>
+            {!pokojeWidokZw && (<>
             {roomsOf(project).map((r) => {
               const akt = r.id === pokoj;
               const uw = innePokojeNotes.find((x) => x.id === r.id);
@@ -16351,30 +16420,43 @@ export default function App() {
         </div>
         <div className="border-t border-stone-200 bg-stone-50/60">
           <div className="mx-auto max-w-[1700px] px-4 pt-1">
-            <button data-el="pasek-ciagow" onClick={() => {
-              // w niskim oknie bez zapamietywania — po powrocie do duzego wraca zwykly stan
-              if (niskieOkno) { setPasekNisko(!pasekZw); return; }
-              const v = !pasekZwiniety; setPasekZwiniety(v);
-              try { localStorage.setItem("mp-pasek-zwiniety", v ? "1" : "0"); } catch (e) { /* bez pamieci */ }
-            }}
-              title={pasekZw ? "Pokaż ciągi i szafki" : "Zwiń pasek ciągów i szafek"}
+            <button data-el="pasek-ciagow" onClick={przelaczPasek}
+              title={pasekWidokZw ? "Pokaż ciągi i szafki" : "Zwiń pasek ciągów i szafek"}
               className="flex items-center gap-1.5 text-[11px] text-stone-500 hover:text-stone-800">
-              <span className={`text-[10px] transition-transform ${pasekZw ? "-rotate-90" : ""}`}>▼</span>
+              <span className={`text-[10px] transition-transform ${pasekWidokZw ? "-rotate-90" : ""}`}>▼</span>
               Ciągi i szafki
-              {pasekZw && (
+              {pasekWidokZw && (
                 <span className="text-stone-400">
                   — {itemsInRoom(project, pokoj).length} {plural(itemsInRoom(project, pokoj).length, "szafka", "szafki", "szafek")}, aktywna: „{cab.name}”
                 </span>
               )}
             </button>
           </div>
-          {!pasekZw && (
+          {!pasekWidokZw && (
           <div data-el="pasek-ciagow-lista" className="mx-auto max-w-[1700px] space-y-1 px-4 py-2">
             {groupBar.map((grp) => {
               const list = grp.id ? runItems(project, grp.id) : wolneWPokoju;
               return (
                 <div key={grp.id || "free"} className="flex flex-wrap items-center gap-1.5">
-                  <span className="mr-1 shrink-0 text-xs font-medium text-stone-400">{grp.label}</span>
+                  {grp.id && nazwaSciany && nazwaSciany.wiersz === grp.id ? (
+                    <input autoFocus value={(project.runs.find((r) => r.id === grp.sciana) || {}).name ?? ""}
+                      aria-label="Nazwa ściany" data-el="nazwa-sciany-pole"
+                      onChange={(e) => zmienNazweSciany(grp.sciana, e.target.value)}
+                      onFocus={(e) => e.currentTarget.select()}
+                      onBlur={(e) => { if (!e.currentTarget.value.trim()) zmienNazweSciany(grp.sciana, nazwaSciany.stara); setNazwaSciany(null); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                        // Esc wraca do nazwy sprzed edycji
+                        if (e.key === "Escape") { zmienNazweSciany(grp.sciana, nazwaSciany.stara); setNazwaSciany(null); }
+                      }}
+                      className="mr-1 w-32 rounded-sm border border-teal-600 bg-white px-1 text-xs text-stone-900 focus:outline-none" />
+                  ) : grp.id ? (
+                    <button data-el="nazwa-sciany" title="Kliknij, aby zmienić nazwę ściany"
+                      onClick={() => setNazwaSciany({ wiersz: grp.id, stara: (project.runs.find((r) => r.id === grp.sciana) || {}).name || "" })}
+                      className="mr-1 shrink-0 rounded-sm text-xs font-medium text-stone-400 hover:text-stone-700 hover:underline">{grp.label}</button>
+                  ) : (
+                    <span className="mr-1 shrink-0 text-xs font-medium text-stone-400">{grp.label}</span>
+                  )}
                   {list.map(({ it, i }, k) => {
                     const activeTab = i === project.active;
                     const arrow = "px-0.5 leading-none " +
@@ -16461,7 +16543,7 @@ export default function App() {
                       title={"Usuń ten ciąg razem z jego szafkami"
                         + (grp.maGorny ? " i z górnym piętrem tej ściany" : "")}
                       className="rounded-full border border-dashed border-stone-300 px-3 py-1 text-xs font-medium text-stone-400 hover:border-red-400 hover:text-red-600">
-                      × ciąg
+                      × usuń ciąg
                     </button>
                   )}
                 </div>
@@ -16470,7 +16552,7 @@ export default function App() {
             <div className="flex flex-wrap items-center gap-1.5">
               <button onClick={otworzKreator} title="Nowy ciąg — szafki stojące obok siebie przy jednej ścianie; przy kolejnym ciągu kreator zapyta o narożnik"
                 className="rounded-full border border-dashed border-stone-400 px-3 py-1 text-xs font-medium text-stone-500 hover:border-stone-500 hover:text-stone-700">
-                + ciąg
+                + nowy ciąg
               </button>
             </div>
           </div>

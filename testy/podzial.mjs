@@ -91,13 +91,13 @@ ok('własne cięcie da się usunąć', (st.runs[0].topCutsWlasne || []).length =
 void grupa;
 
 console.log('\n== pasek ciągów i szafek zwija się ==');
-const przed = await page.getByRole('button', { name: /^\+ ciąg$/ }).count();
+const przed = await page.getByRole('button', { name: /^\+ nowy ciąg$/ }).count();
 await page.getByRole('button', { name: /^▼\s*Ciągi i szafki/ }).first().click(); await page.waitForTimeout(400);
-const po = await page.getByRole('button', { name: /^\+ ciąg$/ }).count();
+const po = await page.getByRole('button', { name: /^\+ nowy ciąg$/ }).count();
 const pamieta = await page.evaluate(() => localStorage.getItem('mp-pasek-zwiniety'));
 ok('zwinięty pasek chowa ciągi i szafki (i pamięta to)', przed > 0 && po === 0 && pamieta === '1', `przed ${przed}, po ${po}, pamięć ${pamieta}`);
 await page.getByRole('button', { name: /Ciągi i szafki/ }).first().click(); await page.waitForTimeout(400);
-ok('po drugim kliknięciu pasek wraca', (await page.getByRole('button', { name: /^\+ ciąg$/ }).count()) > 0);
+ok('po drugim kliknięciu pasek wraca', (await page.getByRole('button', { name: /^\+ nowy ciąg$/ }).count()) > 0);
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

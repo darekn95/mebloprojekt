@@ -59,7 +59,14 @@ const przyspiesz = (page) => {
   return page;
 };
 
+/* Paski u gory zwijaja sie przy przewijaniu w dol (2026-10-19). Testy klikaja
+   kafelki szafek po przewinieciu strony do kart nizej — domyslnie bez tego;
+   suity, ktore to sprawdzaja (`przewijanie`, `niskieokno`), wlaczaja je
+   wlasnym `addInitScript(() => { window.__mpBezZwijania = false; })`. */
+const BEZ_ZWIJANIA = () => { window.__mpBezZwijania = true; };
+
 const kontekst = async (ctx) => {
+  await ctx.addInitScript(BEZ_ZWIJANIA);
   if (!WOLNO) await ctx.addInitScript(SLEDZ_ZEGARY);
   const nowa = ctx.newPage.bind(ctx);
   ctx.newPage = async (...a) => przyspiesz(await nowa(...a));

@@ -114,6 +114,11 @@ komentarze z artefaktu — `komentarze1` (uzytkownik pozwolil robic je od razu, 
 dopiero na „realizuj komentarze”). Decyzje N42/N45/N49 w BLEDY.md („Ustalone”).
 Zapis projektu ma `wersja` (PROJEKT_WERSJA), szafka `version` 5 — test seedujacy bez
 nich dostaje dawne prostowanie (ceny netto, wzmocnienia), jak stary plik.
+[AI-INFO] (2026-10-19) Paski u gory zwijaja sie przy przewijaniu w dol. `testy/pw.mjs`
+wylacza to wszystkim testom (`window.__mpBezZwijania = true` w init script) — inaczej
+klikniecie kafelka szafki po przewinieciu do karty nizej trafia w zwiniety pasek.
+Test, ktory to sprawdza, wlacza je swoim `ctx.addInitScript` (jak `przewijanie`).
+Nazwa sciany na pasku to przycisk `data-el="nazwa-sciany"` (nie `span`).
 [AI-INFO] Podzial cokolu/blatu jest zwiniety za polem wyboru: testy klikajace styki
 musza go najpierw rozwinac (`label[data-el^="podzial-"] input`, jak w `ciag4`).
 [AI-INFO] `window.__audytBryl` ma teraz takze `v` (wierzcholki, zaokraglone) — do brył

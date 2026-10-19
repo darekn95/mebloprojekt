@@ -196,7 +196,7 @@ const scenariusz = async (tytul, cab) => {
    rysowal nieistniejacy wieniec i dno, a blatu nad szafka nie bylo w zadnym
    widoku samej szafki (uzytkownik 2026-10-04). */
 await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
-await click('+ ciąg');
+await click('+ nowy ciąg');
 await page.locator('header .space-y-1 > div').filter({ hasText: /^Ściana 1/ }).first().getByRole('button', { name: '+ szafka', exact: true }).click();
 await page.waitForTimeout(1500);
 const wzor = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));

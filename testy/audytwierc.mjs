@@ -241,7 +241,7 @@ const scenariusz = async (tytul, cabLubProjekt, { spr = {} } = {}) => {
    Tych scenariuszy nie bylo: wspornik liczyl konfirmaty do nieistniejacego
    wienca, a klapa wieszala zawiasy w wiencu, ktorego nie ma (2026-10-04). */
 await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
-await click('+ ciąg');
+await click('+ nowy ciąg');
 await page.locator('header .space-y-1 > div').filter({ hasText: /^Ściana 1/ }).first().getByRole('button', { name: '+ szafka', exact: true }).click();
 await page.waitForTimeout(1500);
 const wzorPB = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));

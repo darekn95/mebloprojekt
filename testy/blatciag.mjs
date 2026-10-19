@@ -37,7 +37,7 @@ console.log('== nowy ciąg dostaje blat, a szafka w nim traci wieniec ==');
 await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1600);
-await page.getByRole('button', { name: '+ ciąg' }).click();
+await page.getByRole('button', { name: '+ nowy ciąg' }).click();
 await page.waitForTimeout(700);
 await page.locator('header .space-y-1 > div').filter({ hasText: 'Ściana 1' })
   .getByRole('button', { name: '+ szafka' }).click();

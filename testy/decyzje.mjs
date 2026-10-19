@@ -78,7 +78,7 @@ ok('górny ciąg wisi 500 nad szafką z blatem na bokach (100 + 720 + 500 = 1320
 console.log('\n== 2. wspornik pod blatem na trójkątach ==');
 // szafka pod blatem prosto z aplikacji: „+ ciąg”, „+ szafka” (bez wienca, para wzmocnien)
 await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
-await click('+ ciąg');
+await click('+ nowy ciąg');
 await wiersz(/^Ściana 1/).getByRole('button', { name: '+ szafka', exact: true }).click();
 let p = await zapis();
 const podBlat = p.items.find((it) => it.runId);
@@ -104,7 +104,7 @@ ok('z wieńcem: konfirmaty wspornika (wieniec i dno), bez trójkątów', /wsporn
 
 console.log('\n== 3. „+ szafka” w pustym ciągu dolnym ==');
 await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
-await click('+ ciąg');
+await click('+ nowy ciąg');
 await wiersz(/^Ściana 1/).getByRole('button', { name: '+ szafka', exact: true }).click();
 p = await zapis();
 const pierwsza = p.items.find((it) => it.runId);
@@ -123,7 +123,7 @@ console.log('\n== 4. szafka w L z kreatora: głębokość sąsiedniej ściany ==
 const RUN = { id: 'c1', name: 'Ściana 1', wallW: null, gap: 0, mountY: 0, H: 720, D: 570, plinth: PL, worktop: true, corner: null };
 await wczytaj({ name: 'K', active: 0, prices: {}, runs: [RUN],
   items: ['S1', 'S2'].map((n) => ({ cab: { name: n, W: 600, H: 720, D: 570, plinth: PL, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null }] }] }, mat: MAT, runId: 'c1', offset: 0 })) });
-await click('+ ciąg');
+await click('+ nowy ciąg');
 const kreator = page.locator('[data-el="kreator-rogu"]');
 await kreator.locator('select').nth(1).selectOption('L'); await page.waitForTimeout(200);
 await kreator.getByRole('button', { name: 'Utwórz ciąg' }).click(); await page.waitForTimeout(1500);
