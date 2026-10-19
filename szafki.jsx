@@ -454,8 +454,11 @@ const dobierzPodnosnik = (hFrontu, kgNaJeden, kat, kierunek = "gora") => {
   const udzwig = (f) => tab[f][i] + (tab[f][i + 1] - tab[f][i]) * t;
   const sila = sily.find((f) => udzwig(f) >= kgNaJeden);
   const max = sily[sily.length - 1];
+  /* Lista do wyboru przy klapie (uzytkownik 2026-10-19: „z listy, jak prowadnice”):
+     tylko sily z karty producenta, kazda z udzwigiem przy tej klapie. */
+  const opcje = sily.map((f) => ({ f, udzwig: udzwig(f), starczy: udzwig(f) >= kgNaJeden }));
   return { sila: sila || null, poza: hFrontu > KLAPA_WYS[KLAPA_WYS.length - 1],
-    udzwig: sila ? udzwig(sila) : udzwig(max), max,
+    udzwig: sila ? udzwig(sila) : udzwig(max), max, opcje,
     tabela: kierunek === "dol" ? "GTV PD-ECGDL" : "GTV PD-G00" };
 };
 
@@ -2684,10 +2687,12 @@ function computeGeoLiczy(cab, mat, ctx) {
             d.kat = kat;   // kontrola otwierania liczy luk klapy do tego kata
             const recznie = num(rawCol.silaN);
             const dobor = dobierzPodnosnik(cbandH, kg / ile, kat, klapa);
+            // przy jednym: co dalby drugi (przycisk „Dołóż drugi” przy za slabym)
+            const dobor2 = ile === 1 ? dobierzPodnosnik(cbandH, kg / 2, kat, klapa) : null;
             const sila = recznie ?? (dobor ? dobor.sila : null);
             // jeden podnosnik: strona do wyboru przy klapie, domyslnie lewa (uzytkownik 2026-10-17)
             const strona = rawCol.podnosnikStrona === "right" ? "right" : "left";
-            klapy.push({ klapa, colKey: `${lv.i}-${j}`, w: dw, h: cbandH, kg, ile, kat, sila, recznie: recznie != null, dobor, where, strona });
+            klapy.push({ klapa, colKey: `${lv.i}-${j}`, w: dw, h: cbandH, kg, ile, kat, sila, recznie: recznie != null, dobor, dobor2, where, strona });
             dx += dw + colGap;
             continue;
           }
@@ -4638,6 +4643,7 @@ function computeGeoLiczy(cab, mat, ctx) {
      klapy opadanej (w dol, tabela GTV PD-ECGDL). Sila z tabeli albo wpisana
      recznie. Grupujemy po kierunku i sile — jedna pozycja na rodzaj. */
   const klapyGrupy = new Map();
+  const lvJ = (k) => k.colKey.replace("-", ":");   // „poziom:kolumna” do akcji przyciskow
   klapy.forEach((k) => {
     const opis = `${fmt(k.w)} × ${fmt(k.h)} mm, ok. ${k.kg.toFixed(1).replace(".", ",")} kg`;
     const gora = k.klapa === "gora";
@@ -4646,14 +4652,33 @@ function computeGeoLiczy(cab, mat, ctx) {
     if (gora && k.h < KLAPA_MIN_KORPUS)
       add("warn", `${k.where}: klapa do góry ma tylko ${fmt(k.h)} mm wysokości — podnośnik GTV potrzebuje co najmniej ${KLAPA_MIN_KORPUS} mm korpusu na boku.`);
     if (!k.recznie && k.dobor.poza)
-      add("warn", `${k.where}: klapa ${fmt(k.h)} mm jest wyższa niż 600 mm — poza tabelą ${k.dobor.tabela}. Siłę ${k.sila ? `${k.sila} N ` : ""}przyjęto jak dla 600 mm; sprawdź u producenta albo wpisz ją ręcznie.`);
+      add("warn", `${k.where}: klapa ${fmt(k.h)} mm jest wyższa niż 600 mm — poza tabelą ${k.dobor.tabela}. Siłę ${k.sila ? `${k.sila} N ` : ""}przyjęto jak dla 600 mm; sprawdź u producenta albo wybierz ją z listy przy klapie.`);
     if (!k.recznie && !k.dobor.sila)
       add("warn", `${k.where}: klapa (${opis}) jest za ciężka — nawet ${k.dobor.max} N utrzyma ok. ${kg1(k.dobor.udzwig)} kg na ${co}. `
-        + (k.ile < 2 ? `Daj dwa ${gora ? "podnośniki" : "amortyzatory"}, lżejszy front albo wpisz siłę ręcznie.` : "Daj lżejszy front albo wpisz siłę ręcznie.")
-        + (gora ? "" : " Tabela jest dla otwarcia 90° — klapa otwierana na mniejszy kąt (np. 45°) zwykle pracuje na słabszym."));
-    else if (k.sila)
+        + (k.ile < 2 ? `Daj dwa ${gora ? "podnośniki" : "amortyzatory"}, lżejszy front albo wybierz siłę z listy.` : "Daj lżejszy front albo wybierz siłę z listy.")
+        + (gora ? "" : " Tabela jest dla otwarcia 90° — klapa otwierana na mniejszy kąt (np. 45°) zwykle pracuje na słabszym.")
+        + (k.ile === 1 && k.dobor2 && k.dobor2.sila ? `|klapa2:${lvJ(k)}:auto:${k.dobor2.sila}` : ""));
+    /* Sila wybrana z listy slabsza niz z tabeli — ostrzezenie z przyciskiem
+       powrotu do auto (uzytkownik 2026-10-19). Mocniejsza zostaje bez uwagi. */
+    if (k.recznie && k.sila && (k.dobor.sila == null || k.sila < k.dobor.sila)) {
+      const op = (k.dobor.opcje || []).find((o) => o.f === k.sila);
+      add("warn", `${k.where}: ${co} ${k.sila} N jest za słaby na tę klapę (${opis}, ${k.ile} szt.)`
+        + (op ? ` — wg tabeli ${k.dobor.tabela} utrzyma ok. ${kg1(op.udzwig)} kg na sztukę, a potrzeba ok. ${kg1(k.kg / k.ile)} kg.` : ".")
+        + (k.dobor.sila ? ` Z tabeli wychodzi ${k.dobor.sila} N.` : "")
+        + (gora ? "" : " Tabela jest dla otwarcia 90° — klapa otwierana na mniejszy kąt zwykle pracuje na słabszym.")
+        + (k.dobor.sila ? `|silaauto:${lvJ(k)}:${k.dobor.sila}` : "")
+        /* albo drugi podnosnik (uzytkownik 2026-10-19: „dołóż drugi albo zwiększ
+           siłę”): ta sama sila, gdy przy dwoch wystarczy, inaczej dobor dla dwoch */
+        + (() => {
+          if (k.ile !== 1 || !k.dobor2) return "";
+          const op2 = (k.dobor2.opcje || []).find((o) => o.f === k.sila);
+          if (op2 && op2.starczy) return `|klapa2:${lvJ(k)}:keep:${k.sila}`;
+          return k.dobor2.sila ? `|klapa2:${lvJ(k)}:auto:${k.dobor2.sila}` : "";
+        })());
+    }
+    if (k.sila)
       add("info", `${k.where}: klapa ${gora ? "do góry" : "w dół"} ${opis} — ${k.ile} × ${co} ${k.sila} N`
-        + (k.recznie ? " (siła wpisana ręcznie)." : ` (tabela ${k.dobor.tabela}, kąt ${k.kat}°, udźwig ok. ${kg1(k.dobor.udzwig)} kg na sztukę).`));
+        + (k.recznie ? " (siła wybrana z listy)." : ` (tabela ${k.dobor.tabela}, kąt ${k.kat}°, udźwig ok. ${kg1(k.dobor.udzwig)} kg na sztukę).`));
     if (k.ile === 1 && k.w > 600)
       add("warn", `${k.where}: klapa ma ${fmt(k.w)} mm szerokości, a jeden ${co} — przy szerokości ponad 600 mm dają się dwa, po jednym na bok.`);
     const key = `${k.klapa}|${k.sila || 0}`;
@@ -10872,6 +10897,20 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         label: (typ === "szeroka" ? `Wstawka ${fmt(Number(ile))} mm (na trójkątach)` : `Dodaj wstawkę ${fmt(Number(ile))} mm`) + poPoprawce(wynik),
         run: () => runFix && runFix(action),
       };
+    }
+    if (action.startsWith("silaauto:")) {
+      // „silaauto:<poziom>:<kolumna>:<N z tabeli>" — sila klapy wraca do doboru z tabeli
+      const [, li, j, n] = action.split(":");
+      return { label: `Zwiększ siłę do ${n} N`, run: () => editLevels((L) => { delete L[+li].cols[+j].silaN; }) };
+    }
+    if (action.startsWith("klapa2:")) {
+      // „klapa2:<poziom>:<kolumna>:<keep|auto>:<N>" — drugi podnosnik; keep — ta sama sila, auto — z tabeli dla dwoch
+      const [, li, j, tryb, n] = action.split(":");
+      return { label: `Dołóż drugi — 2 × ${n} N`, run: () => editLevels((L) => {
+        const col = L[+li].cols[+j];
+        col.silowniki = 2;
+        if (tryb === "auto") delete col.silaN;
+      }) };
     }
     if (action.startsWith("fixgap:")) {
       const [, li, j, val, dir] = action.split(":");
@@ -17701,17 +17740,33 @@ export default function App() {
                                   )}
                                   {/* podpis i pole razem — samo pole zawijalo sie pod „kąt” bez opisu
                                       (uzytkownik 2026-10-19: „dziwne pole przy kącie”) */}
+                                  {/* sila z listy — tylko te z karty producenta, jak NL prowadnic
+                                      (uzytkownik 2026-10-19); auto = najslabsza, ktora uniesie klape */}
                                   <span className="flex items-center gap-1.5 whitespace-nowrap"
-                                    title={`Siła ${kl === "gora" ? "podnośnika" : "amortyzatora"} w niutonach — puste = z tabeli GTV`}>
+                                    title={`Siła ${kl === "gora" ? "podnośnika" : "amortyzatora"} — z karty ${info.dobor.tabela}; auto: najsłabszy, który uniesie tę klapę (wysokość, waga na sztukę${kl === "gora" ? ", kąt" : ""})`}>
                                     <span className="text-stone-500">siła</span>
-                                    <span data-el="klapa-sila" className="w-20">
-                                      <AutoNum value={rawCol.silaN}
-                                        placeholder={info.dobor && info.dobor.sila ? String(info.dobor.sila) : "?"}
-                                        fixed={num(rawCol.silaN) !== null}
-                                        warn={!info.sila}
-                                        onChange={(v) => ustaw("silaN", v === "" ? null : Number(v))} />
-                                    </span>
-                                    <span className="text-stone-500">N</span>
+                                    {(() => {
+                                      const wpis = num(rawCol.silaN);
+                                      const opcje = info.dobor.opcje || [];
+                                      const kg1 = (v) => v.toFixed(1).replace(".", ",");
+                                      return (
+                                        <select data-el="klapa-sila" value={wpis == null ? "" : String(wpis)}
+                                          onChange={(e) => ustaw("silaN", e.target.value === "" ? null : Number(e.target.value))}
+                                          className={"rounded border bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none "
+                                            + (!info.sila || (wpis != null && opcje.some((o) => o.f === wpis && !o.starczy)) ? "border-amber-500" : "border-stone-300")}>
+                                          <option value="">auto ({info.dobor.sila ? `${info.dobor.sila} N` : "żaden nie uniesie"})</option>
+                                          {opcje.map((o) => (
+                                            <option key={o.f} value={String(o.f)}>
+                                              {o.f} N — do ok. {kg1(o.udzwig)} kg{o.starczy ? "" : " (za słaby)"}
+                                            </option>
+                                          ))}
+                                          {/* starsze projekty: sila wpisana recznie spoza listy */}
+                                          {wpis != null && !opcje.some((o) => o.f === wpis) && (
+                                            <option value={String(wpis)}>{wpis} N (wpisane, spoza karty)</option>
+                                          )}
+                                        </select>
+                                      );
+                                    })()}
                                   </span>
                                   {kl === "gora" && (
                                     <span className="flex items-center gap-1.5 whitespace-nowrap">

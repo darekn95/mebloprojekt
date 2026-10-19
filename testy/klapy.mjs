@@ -78,10 +78,11 @@ console.log('     ' + (md ? md[0] : '(brak uwagi o amortyzatorze)'));
 ok('klapa w dół: siła z tabeli PD-ECGDL', md && Number(md[4]) === oczekiwana(Number(md[2]), Number(md[3].replace(',', '.')), ECGDL), md && md[4]);
 hw = await okucia();
 ok('okucia: „Amortyzator do klapy opadanej N N” × 1', ilosc(hw, /^Amortyzator do klapy opadanej \d+ N/) === 1, hw.filter((r) => /Amortyzator/.test(r)).join(' / '));
-await pole.locator('[data-el="klapa-sila"] input').fill('80'); await page.waitForTimeout(1500);
+// sila z listy (2026-10-19), jak NL prowadnic — tylko te z karty producenta
+await pole.locator('select[data-el="klapa-sila"]').selectOption('80'); await page.waitForTimeout(1500);
 hw = await okucia();
-ok('po wpisaniu 80 → „Amortyzator do klapy opadanej 80 N” × 1', ilosc(hw, /^Amortyzator do klapy opadanej 80 N/) === 1, hw.filter((r) => /Amortyzator/.test(r)).join(' / '));
-ok('uwaga mówi o sile wpisanej ręcznie', /amortyzator 80 N \(siła wpisana ręcznie\)/.test(await uwagi()));
+ok('po wybraniu 80 → „Amortyzator do klapy opadanej 80 N” × 1', ilosc(hw, /^Amortyzator do klapy opadanej 80 N/) === 1, hw.filter((r) => /Amortyzator/.test(r)).join(' / '));
+ok('uwaga mówi o sile wybranej z listy', /amortyzator 80 N \(siła wybrana z listy\)/.test(await uwagi()));
 await pole.getByText('skrzydło', { exact: true }).click(); await page.waitForTimeout(1500);
 p = await zapis();
 ok('„skrzydło” usuwa klapę, wraca przełącznik zawiasu, znika wybór kierunku', !p.items[0].cab.levels[0].cols[0].klapa
@@ -352,6 +353,52 @@ ok('w dół: uchwyt domyślnie na górze', !!uy && uy.el === 'uchwyt-klapy-gora'
 await pick('Z boku');
 const boki = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map((t) => t.textContent));
 ok('z boku: „z klapą”, nie „z drzwiami”', boki.some((t) => /^z klapą \d+/.test(t)) && !boki.some((t) => /z drzwiami/.test(t)), boki.join(' · '));
+
+/* Sila z listy (uzytkownik 2026-10-19: „jak prowadnice szuflad”): tylko sily
+   z karty producenta — PD-G00 50/60/80/100/120/150 N, PD-ECGDL 60/80/150 N;
+   auto = najslabsza, ktora uniesie klape; przy kazdej udzwig i „za słaby”;
+   slabsza od tabeli — ostrzezenie z przyciskiem powrotu do auto. */
+console.log('\n== siła z listy ==');
+await seed(GORNA(600, { klapa: 'gora' }));
+const lista = async () => page.locator('select[data-el="klapa-sila"] option').evaluateAll((o) => o.map((x) => ({ v: x.value, t: x.textContent.trim() })));
+let ls = await lista();
+ok('do góry: auto + 50, 60, 80, 100, 120, 150 N', ls.length === 7 && ls.slice(1).map((o) => o.v).join() === '50,60,80,100,120,150', ls.map((o) => o.t).join(' | '));
+const autoN = Number((/auto \((\d+) N\)/.exec(ls[0].t) || [])[1]);
+const um = /klapa do góry (\d+) × (\d+) mm, ok\. ([\d,]+) kg/.exec(await uwagi());
+ok(`auto = siła z tabeli GTV (${autoN} N)`, !!um && autoN === oczekiwana(Number(um[2]), Number(um[3].replace(',', '.'))), ls[0].t);
+ok('słabsze od auto oznaczone „za słaby”, auto i mocniejsze bez', ls.slice(1).every((o) => (Number(o.v) < autoN) === /za słaby/.test(o.t)) && ls.slice(1).every((o) => /do ok\. [\d,]+ kg/.test(o.t)),
+  ls.map((o) => o.t).join(' | '));
+const slaby = ls.slice(1).find((o) => /za słaby/.test(o.t));
+if (slaby) {
+  await page.locator('select[data-el="klapa-sila"]').selectOption(slaby.v); await page.waitForTimeout(1200);
+  u = await uwagi();
+  ok(`wybrany ${slaby.v} N: ostrzeżenie „za słaby”`, new RegExp(`podnośnik ${slaby.v} N jest za słaby na tę klapę`).test(u) && new RegExp(`Z tabeli wychodzi ${autoN} N`).test(u), u.slice(0, 300));
+  // „dołóż drugi albo zwiększ siłę” (uzytkownik 2026-10-19)
+  const dolozBtn = card(/^Uwagi/).getByRole('button', { name: /^Dołóż drugi — 2 × \d+ N$/ });
+  ok('przy za słabym: „Zwiększ siłę do … N” i „Dołóż drugi — 2 × … N”',
+    await card(/^Uwagi/).getByRole('button', { name: `Zwiększ siłę do ${autoN} N` }).count() === 1 && await dolozBtn.count() === 1,
+    (await card(/^Uwagi/).getByRole('button').allInnerTexts()).filter((t) => /Zwiększ|Dołóż/.test(t)).join(' | '));
+  const dolozT = await dolozBtn.innerText();
+  await dolozBtn.click(); await page.waitForTimeout(1200);
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.levels[0].cols[0].silowniki === 2, null, { timeout: 5000 }).catch(() => {});
+  let col0 = (await zapis()).items[0].cab.levels[0].cols[0];
+  hw = await okucia();
+  const n2 = Number((/2 × (\d+) N/.exec(dolozT) || [])[1]);
+  ok(`„${dolozT}”: dwa podnośniki ${n2} N w okuciach, bez „za słaby”`, col0.silowniki === 2 && ilosc(hw, new RegExp(`^Podnośnik gazowy ${n2} N`)) === 2 && !/jest za słaby/.test(await uwagi()),
+    JSON.stringify(col0) + ' / ' + hw.filter((r) => /Podnośnik/.test(r)).join(' / '));
+  await seed(GORNA(600, { klapa: 'gora', silaN: Number(slaby.v) }));
+  await card(/^Uwagi/).getByRole('button', { name: `Zwiększ siłę do ${autoN} N` }).click(); await page.waitForTimeout(1200);
+  await page.waitForFunction(() => !('silaN' in JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.levels[0].cols[0]), null, { timeout: 5000 }).catch(() => {});
+  ok('przycisk „Auto”: siła wraca do tabeli, ostrzeżenie znika', !('silaN' in (await zapis()).items[0].cab.levels[0].cols[0]) && !/jest za słaby/.test(await uwagi()));
+}
+await page.locator('select[data-el="klapa-sila"]').selectOption('150'); await page.waitForTimeout(1200);
+ok('mocniejszy (150 N): bez ostrzeżenia, w okuciach 150 N', !/jest za słaby/.test(await uwagi()) && ilosc(await okucia(), /^Podnośnik gazowy 150 N/) === 1);
+await seed(GORNA(600, { klapa: 'dol' }));
+ls = await lista();
+ok('w dół: auto + 60, 80, 150 N (PD-ECGDL)', ls.length === 4 && ls.slice(1).map((o) => o.v).join() === '60,80,150', ls.map((o) => o.t).join(' | '));
+await seed(GORNA(600, { klapa: 'gora', silaN: 90 }));
+ls = await lista();
+ok('starsza siła spoza karty (90 N) zostaje widoczna na liście', ls.some((o) => o.v === '90' && /spoza karty/.test(o.t)) && await page.locator('select[data-el="klapa-sila"]').inputValue() === '90', ls.map((o) => o.t).join(' | '));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

@@ -147,7 +147,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | zaw. | `col.hinges[]` (puste = `autoHinges`) |
 | front: skrzydło / klapa, a przy klapie „otwierana: do góry / w dół” | `col.klapa` = brak / `"gora"` / `"dol"` (samo „klapa” zaczyna od `"gora"`) — tylko przy 1 drzwiach w kolumnie (`data-el="klapa-kolumny"`); w geometrii front typu `"klapa"` z `klapaZawiasy` (x zawiasów), lista `geo.klapy[]` |
 | podnośniki (do góry) / amortyzatory (w dół): auto / 1 / 2 | `col.silowniki` (puste = 1, powyżej 600 mm szerokości 2; jeden przy ponad 600 mm — ostrzeżenie) |
-| siła N | `col.silaN` (puste = z tabeli: PD-G00 do góry, PD-ECGDL w dół) — `data-el="klapa-sila"` |
+| siła (lista, `select data-el="klapa-sila"`) | `col.silaN` (puste = auto z tabeli: PD-G00 do góry, PD-ECGDL w dół); opcje `dobierzPodnosnik().opcje` (siła, udźwig, „za słaby”); za słaby — przyciski `silaauto:` („Zwiększ siłę do …”) i `klapa2:` („Dołóż drugi”, `col.silowniki` = 2, `geo.klapy[].dobor2`) |
 | kąt 75° / 90° / 100° (klapa do góry) | `col.katKlapy` (puste = 90) |
 | uchwyt klapy: na dole / na górze (`data-el="klapa-uchwyt"`) | `col.klapaUchwyt` (`"dol"` / `"gora"`, puste = wolna krawędź: klapa do góry — dół, w dół — góra); w geometrii `d.uchwytKrawedz`, rysunek `klapaUchwytY`, `uchwytObrys` (`data-el="uchwyt-klapy-dol|gora"`) |
 | jeden podnośnik / amortyzator: na lewym / na prawym | `col.podnosnikStrona` (puste = lewa, `"right"`) — tylko przy jednym (`data-el="klapa-strona"`); `geo.klapy[].strona`, plan wierceń |
