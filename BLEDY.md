@@ -12,13 +12,14 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Suita | Objaw | Przyczyna / stan |
 |---|---|---|
-| — (audyt GPT U2, sprawdzone 2026-10-19) | w niskim oknie (600 × 495) przyklejony nagłówek zajmuje 391 px z 495; po „Pokaż rysunek” i przewinięciu rysunek chowa się pod nagłówkiem — widać 0 px | nagłówek `sticky` z paskami pomieszczeń i ciągów rośnie z liczbą ciągów; czeka na decyzję użytkownika, jak naprawić |
-| — | pozostałe znane usterki naprawione; nowe dopisywać tutaj | |
+| — | wszystkie znane usterki naprawione; nowe dopisywać tutaj | |
 
 ## Naprawione
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-19 | audyt GPT U2 (potwierdzone): w oknie 600 × 495 przyklejony nagłówek zajmował 391 px, rysunek chował się pod nim (widać 0 px) | decyzja użytkownika „oba naraz”: poniżej 640 px wysokości pasek „Ciągi i szafki” zwija się sam (kliknięcie rozwija, bez zapamiętywania), nagłówek przyklejony tylko, gdy zajmuje najwyżej 40% okna, „Pokaż rysunek” w niskim oknie przewija prosto do rysunku; teraz 159 px nagłówka i 337 px rysunku; suita `niskieokno` | (ten commit) |
+| 2026-10-19 | uwaga użytkownika: zamknięte pole „+ z szablonu…” szerokie na najdłuższy szablon | pole ma szerokość napisu (7,5 rem), rozwinięta lista dalej na najdłuższą pozycję; przy oknie 600 px pasek ciągów niższy (nagłówek 391 → 295 px rozwinięty) | (ten commit) |
 | 2026-10-17 | decyzja użytkownika: jeden podnośnik — strona do wyboru | pole „na lewym / na prawym” przy klapie (`col.podnosnikStrona`), plan wierceń na wybranym boku; test w `klapy` | (ten commit) |
 | 2026-10-17 | decyzja użytkownika: półka na drodze podnośnika (instrukcja: min. 50 mm za frontem) | ostrzeżenie tylko przy półce w zasięgu podnośnika (od płytki do mocowania na klapie) z przyciskiem „Dodatkowe cofnięcie półek N mm” (`polkicof:`); test w `klapy` | (ten commit) |
 | 2026-10-17 | decyzja użytkownika: zawias półnakładany w zamówieniu | front zachodzi na płytę z zawiasem najwyżej na pół grubości (przegroda, półka pod klapą) → „Zawias — półnakładany” osobną pozycją; `audytwierc` sumuje oba wiersze; test w `klapy` | (ten commit) |

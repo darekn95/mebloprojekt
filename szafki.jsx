@@ -1084,6 +1084,10 @@ const migrateMat = (rawMat) => {
 };
 // buduje stan projektu z wczytanych danych: obsluguje stary {cab,mat} i nowy {items,active}
 const DEFAULT_PROJECT_NAME = "Projekt bez nazwy";
+/* Niskie okno (audyt GPT U2): ponizej tej wysokosci pasek ciagow zwija sie sam,
+   a gorny pasek nie jest przyklejony, gdy zajmuje wiecej niz ten ulamek okna. */
+const NISKIE_OKNO = 640;
+const NAGLOWEK_MAX = 0.4;
 /* Dokument we wspolnym magazynie artefaktu na claude.ai, do ktorego przycisk
    „Wyslij do Claude" zapisuje biezacy projekt (pole `json`) — Claude czyta go
    stamtad. Poza artefaktem na claude.ai nieuzywany. */
@@ -15063,6 +15067,30 @@ export default function App() {
   const [pokojeZwiniete, setPokojeZwiniete] = useState(() => {
     try { return localStorage.getItem("mp-pokoje-zwiniete") === "1"; } catch (e) { return false; }
   });
+  /* Niskie okno (audyt GPT U2, decyzja uzytkownika 2026-10-19 — „oba naraz”):
+     pasek ciagow sam sie zwija do jednej linii (klikniecie go rozwija, bez
+     zapamietywania), a gorny pasek przestaje byc przyklejony, gdy i tak zajmuje
+     wiecej niz `NAGLOWEK_MAX` wysokosci okna — inaczej zaslanial rysunek. */
+  const [wysOkna, setWysOkna] = useState(() => (typeof window !== "undefined" ? window.innerHeight : 1000));
+  useEffect(() => {
+    const f = () => setWysOkna(window.innerHeight);
+    window.addEventListener("resize", f);
+    return () => window.removeEventListener("resize", f);
+  }, []);
+  const niskieOkno = wysOkna < NISKIE_OKNO;
+  const [pasekNisko, setPasekNisko] = useState(null);   // zwiniety w niskim oknie; null = sam (zwiniety)
+  const pasekZw = niskieOkno ? (pasekNisko ?? true) : pasekZwiniety;
+  // wysokosc gornego paska — ref jako funkcja, bo pasek pojawia sie dopiero po wczytaniu
+  const [wysNaglowka, setWysNaglowka] = useState(0);
+  const naglowekRO = useRef(null);
+  const naglowekRef = useCallback((el) => {
+    if (naglowekRO.current) { naglowekRO.current.disconnect(); naglowekRO.current = null; }
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setWysNaglowka(el.getBoundingClientRect().height));
+    ro.observe(el);
+    naglowekRO.current = ro;
+  }, []);
+  const przyklejony = !(wysNaglowka > wysOkna * NAGLOWEK_MAX);
   // szafki wolnostojace tego pomieszczenia
   const wolneWPokoju = useMemo(() => runItems(project, null).filter(({ it }) => roomOfItem(project, it) === pokoj),
     [project, pokoj]);
@@ -16080,7 +16108,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900">
-      <header className="print-hide sticky top-0 z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur">
+      <header ref={naglowekRef} data-el="naglowek"
+        className={`print-hide ${przyklejony ? "sticky top-0" : "relative"} z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur`}>
         <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
           {/* Nazwa projektu. Nazwa szafki zmienia sie juz na pasku szafek, wiec
               pole projektu dostaje co najmniej 16rem — przy waskim oknie reszta
@@ -16122,10 +16151,15 @@ export default function App() {
           <button onClick={() => {
             /* pod przyklejony gorny pasek — jego wysokosc sie zmienia (zwijany pasek
                ciagow, szerokosc okna), wiec liczymy ja przy kazdym kliknieciu */
-            const el = document.getElementById("rysunek");
-            const pasek = document.querySelector("header.sticky");
+            const karta = document.getElementById("rysunek");
+            const pasek = document.querySelector("header.sticky");   // nieprzyklejony (niskie okno) nie zaslania
+            const nad = pasek ? pasek.getBoundingClientRect().bottom : 0;
+            /* Niskie okno (audyt GPT U2): pod paskiem nie miesci sie nawet poczatek
+               rysunku po przelacznikach widokow — przewijamy prosto do niego. */
+            const svg = karta && karta.querySelector("svg");
+            const el = niskieOkno && svg ? svg : karta;
             if (el) window.scrollTo({ behavior: "smooth",
-              top: el.getBoundingClientRect().top + window.scrollY - (pasek ? pasek.getBoundingClientRect().bottom : 0) - 8 });
+              top: el.getBoundingClientRect().top + window.scrollY - nad - (el === karta ? 8 : 0) });
           }}
             title="Przewiń do karty „Rysunek”"
             className="rounded border border-teal-600 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-50">
@@ -16300,23 +16334,25 @@ export default function App() {
         </div>
         <div className="border-t border-stone-200 bg-stone-50/60">
           <div className="mx-auto max-w-[1700px] px-4 pt-1">
-            <button onClick={() => {
+            <button data-el="pasek-ciagow" onClick={() => {
+              // w niskim oknie bez zapamietywania — po powrocie do duzego wraca zwykly stan
+              if (niskieOkno) { setPasekNisko(!pasekZw); return; }
               const v = !pasekZwiniety; setPasekZwiniety(v);
               try { localStorage.setItem("mp-pasek-zwiniety", v ? "1" : "0"); } catch (e) { /* bez pamieci */ }
             }}
-              title={pasekZwiniety ? "Pokaż ciągi i szafki" : "Zwiń pasek ciągów i szafek"}
+              title={pasekZw ? "Pokaż ciągi i szafki" : "Zwiń pasek ciągów i szafek"}
               className="flex items-center gap-1.5 text-[11px] text-stone-500 hover:text-stone-800">
-              <span className={`text-[10px] transition-transform ${pasekZwiniety ? "-rotate-90" : ""}`}>▼</span>
+              <span className={`text-[10px] transition-transform ${pasekZw ? "-rotate-90" : ""}`}>▼</span>
               Ciągi i szafki
-              {pasekZwiniety && (
+              {pasekZw && (
                 <span className="text-stone-400">
                   — {itemsInRoom(project, pokoj).length} {plural(itemsInRoom(project, pokoj).length, "szafka", "szafki", "szafek")}, aktywna: „{cab.name}”
                 </span>
               )}
             </button>
           </div>
-          {!pasekZwiniety && (
-          <div className="mx-auto max-w-[1700px] space-y-1 px-4 py-2">
+          {!pasekZw && (
+          <div data-el="pasek-ciagow-lista" className="mx-auto max-w-[1700px] space-y-1 px-4 py-2">
             {groupBar.map((grp) => {
               const list = grp.id ? runItems(project, grp.id) : wolneWPokoju;
               return (
@@ -16378,9 +16414,12 @@ export default function App() {
                       </div>
                     );
                   })}
-                  <select value="" title="Dodaj szafkę z gotowego szablonu"
+                  {/* zamkniete pole na sam napis (uzytkownik 2026-10-19) — bez tego mialo
+                      szerokosc najdluzszego szablonu; rozwinieta lista i tak siega
+                      najdluzszej pozycji */}
+                  <select value="" title="Dodaj szafkę z gotowego szablonu" data-el="z-szablonu"
                     onChange={(e) => { if (e.target.value) addCabinet(e.target.value, grp.id); e.target.value = ""; }}
-                    className="rounded-full border border-dashed border-teal-500 bg-white px-2 py-1 text-xs text-teal-700 focus:border-teal-700 focus:outline-none">
+                    className="w-[7.5rem] shrink-0 rounded-full border border-dashed border-teal-500 bg-white px-2 py-1 text-xs text-teal-700 focus:border-teal-700 focus:outline-none">
                     <option value="">+ z szablonu…</option>
                     {/* narożnik dolny zaklada nowy ciag — w gornym nie ma sensu; gorna
                         narożna nie ma czego szukac w dolnym ciagu */}

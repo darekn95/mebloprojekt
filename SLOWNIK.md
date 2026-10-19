@@ -285,7 +285,10 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `TopHardware` | okucia w widoku z góry (szafka i zabudowa, pod „Pokaż okucia”): uchwyty przed frontem, zawiasy przy boku od frontu, nóżki przerywane; `data-el="okucia-gora"` |
 | `worktopMsgs` / `runCornerMsgs` / `cornerPairMsgs` / `tierMsgs` | uwagi na poziomie ciągu i narożnika |
 | `hwDefaultPrice(h)` | cena okucia — klucz to `h.pk` albo `h.name` |
-| „Pokaż rysunek” (górny pasek) | przewija do karty `Card id="rysunek"` (`scrollMarginTop` pod przyklejony pasek) — przycisk roboczy |
+| „Pokaż rysunek” (górny pasek) | przewija do karty `Card id="rysunek"` (`scrollMarginTop` pod przyklejony pasek) — przycisk roboczy; w niskim oknie (`niskieOkno`) prosto do samego rysunku (`svg`) |
+| górny pasek (`header data-el="naglowek"`) przyklejony / nie | `przyklejony` = wysokość paska ≤ `NAGLOWEK_MAX` (0,4) wysokości okna (`wysNaglowka` z `ResizeObserver`); inaczej przewija się ze stroną (audyt GPT U2) |
+| „Ciągi i szafki” — zwijanie paska (`data-el="pasek-ciagow"`, lista `pasek-ciagow-lista`) | `pasekZwiniety` (pamięta `localStorage` „mp-pasek-zwiniety”); w oknie niższym niż `NISKIE_OKNO` (640 px) — `pasekNisko`, domyślnie zwinięty, kliknięcie bez zapamiętywania; razem `pasekZw` |
+| „+ z szablonu…” (`data-el="z-szablonu"`) | pole szerokości napisu (7,5 rem), rozwinięta lista na najdłuższą pozycję; `TEMPLATES` |
 | `ZoomBox` / `ZOOM_KROKI` | powiększanie rysunku: „− / % / + / Dopasuj” nad rysunkiem, przeciąganie przesuwa (w 3D z Shiftem); każdy rysunek (`resetKey` = zakres | widok | szafka) pamięta powiększenie, przewinięcie i szerokość przy 100% w `ZOOM_PAMIEC` (do przeładowania strony), nowy startuje od „Dopasuj”; Ctrl + kółko nad rysunkiem przybliża w miejscu kursora; „Pełny ekran” (`pelnyRys`, Esc zamyka) |
 | `wyslijDoClaude` / `PROJEKT_DLA_CLAUDE` | przycisk „Wyślij do Claude” — **tylko w artefakcie na claude.ai**: zapis projektu do wspólnego magazynu (`projekt/biezacy`, pole `json`) |
 
@@ -492,6 +495,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `audytgpt3` | audyt GPT 2026-10-17 N22–N33 i podpowiedzi → ostrzeżenia: NL przy przeszkodzie, blat przy słupku, zabudowa przeszkody 3D (48 wariantów), głębokość z plecami / frontem, plecy z płyty półek, usunięcie szafki, cena okucia, nóżki i konfirmaty w płytkiej szafce, szczelina nad przegrodą, grubość ≤ 0 |
 | `audytgpt4` | audyt GPT 2026-10-17 N34–N48 (bez N45): lustro w masie frontu, wczytanie bieżącego zapisu, uchwyt klapy, przeszkoda przy zawiasach, montaż frontów szuflad w kolumnie, konfirmaty wspornika / półki / przegrody, wspornik a plecy, fix przy szufladach, kolory zabudowy 3D, górny ciąg nad słupkiem, rozwiązanie ciągu z górnym, blat przy frontach wpuszczanych, brak pola „Kąt otwarcia” |
 | `audytgpt5` | audyt GPT 2026-10-17 N38 (kąt w rogu przy luzie 26), N42 (wspornik), N45, N49–N68, łyżwa przy różnych głębokościach, podpowiedź blatu z wysunięciem szafki: krzyżowe konfirmaty, fix w kolumnie szuflad, szafka w L (półki, uchwyt, dno, plecy, cokół), cofnięty cokół 3D, kolory półek 3D, wysunięta szafka (3D, blat), ciągi od prawej, blaty na łyżwę, złącza blatów a wysokość, luz szuflad, brak NL |
+| `niskieokno` | audyt GPT U2: okno 600 × 495 — pasek ciągów zwinięty sam, nagłówek ≤ 40% i przyklejony, „Pokaż rysunek” tuż pod paskiem, rozwinięcie kliknięciem (bez zapamiętywania) odkleja nagłówek; 640 × 300 — nieprzyklejony; 1500 × 1000 bez zmian, zmniejszenie i powiększenie okna |
 | `komentarze1` | komentarze z artefaktu 2026-10-17: kolejność kart, podświetlenie formatki, półka → poziom / klapy (też poziom z dwiema kolumnami; z szufladami — bez), podział zwinięty, zużycie blatu i odpad arkusza, opis „Luz w rogu” |
 | `drobne` | luzy domyślne, nazwa uchwytu, dekor, wkręt do pleców |
 | `stdfull` / `stdnew` | wersja standalone (ścieżka GitHub Pages) |
