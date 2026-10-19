@@ -234,6 +234,20 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   przenieść liczenie do Web Workera. Decyzja użytkownika: tak zostaje, dopóki nie
   będzie źle.
 
+- **Szafka narożna skośna (front pod kątem 45°) — na później** (użytkownik 2026-10-19,
+  zdjęcia kuchni: dolna pod zlewem i górna wisząca). Szkic projektu w `AI_NOTES.md`
+  ([AI-TODO] Szafka narozna SKOSNA). Przed robotą do ustalenia:
+  1. wymiary dolnej i górnej: A i B wzdłuż ścian, głębokości (np. 900 × 900 × 560
+     i 600 × 600 × 300 — zmierzyć istniejące);
+  2. jak front łączy się z bokami: zawias kątowy 45° na boku (GTV HCKT / KT),
+     wąskie maskownice pod kątem (jak na zdjęciach) czy ścięte czoła boków;
+  3. plecy: HDF na obie ściany czy płyta (od tego zależy, czy półka może leżeć
+     na kołkach w plecach);
+  4. półki pięciokątne: na czym leżą (kołki w bokach + w plecach, listwy);
+  5. blat na rogu: jeden kawałek ze skosem czy dwa (styk / łyżwa) + skos;
+  6. front ramiakowy: w aplikacji front to płyta — zostawić, czy dodać „front
+     zamawiany” (tylko wymiar i liczba).
+
 - **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
   się kategoria „sprzęty” (lodówka, piekarnik, mikrofala) — dołożyć je jako

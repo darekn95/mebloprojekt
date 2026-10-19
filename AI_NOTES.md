@@ -664,6 +664,29 @@ prostokat klapy z gruboscia frontu obracany co 1° wokol wewnetrznej krawedzi
 — zwraca ostatni wolny kat). Przeszkody w `swingBodies`: korpusy, fronty,
 uchwyty (`uchwytObrys`), wstawki, ramiona, maskownice, blat ciagu. Szuflady
 i klapy nie sprawdzaja sie przeciw innym ruchom (nie otwiera sie naraz).
+[AI-TODO] (2026-10-19, na pozniej — prosba uzytkownika ze zdjeciami kuchni) Szafka
+narozna SKOSNA: front pod katem 45° w rogu, dolna (pod zlewem) i gorna (wiszaca).
+Ze zdjec: obrys korpusu to pieciokat; jedne drzwi ramiakowe na skosie (dolna —
+uchwyt na gornej ramie, gorna — na dolnej); po obu stronach drzwi waskie paski
+w kolorze frontow pod katem 135° (czola bokow albo maskownice); blat ma na rogu
+odcinek przedniej krawedzi pod 45°, zlew okragly z ociekaczem w rogu; cokol idzie
+skosem; obok z lewej kolumna 3 szuflad, z prawej drzwi; gorna od spodu — dno
+pieciokatne, widoczny bok przy okapie.
+Projekt (szkic): nowy rodzaj narożnika ciagu obok „szafki w L” i slepego rogu.
+Pola: A (wzdluz sciany 1), B (wzdluz sciany 2), glebokosci D1/D2 (z ciagow: 560
+dolne, 300 gorne). Obrys (0,0) (A,0) (A,D1) (D2,B) (0,B); skos z (A,D1) do (D2,B),
+dlugosc √((A−D2)² + (B−D1)²) — 900×900×560 → ok. 481 mm, 600×600×300 → ok. 424 mm.
+Ciagi zaczynaja sie za A i za B (jak przy szafce w L). Formatki: dno, wieniec/
+wzmocnienia i polki — pieciokat zamawiany jako prostokat A×B ze scietym rogiem
+(A−D2)×(B−D1), oklejany na skosie; 2 boki D×H; plecy na obie sciany (A i B − t);
+1 front na skos; cokol — odcinek skosny z polaczeniami 135°; blat — skos przedniej
+krawedzi na rogu, oklejenie skosu. Okucia: zawias katowy 45° GTV (HCKT hydrauliczny
+kat. s. 79–80, KT kat. s. 90) na boku, jesli drzwi wisza na boku pod 135°.
+Bryla 3D i rzut z gory: pryzmy z wierzcholkow (`v` w `__audytBryl`, jak `plytaSkos`
+przy lyzwie). Kontrola otwierania: `swingLeaf` dziala na osiach — dla skosu trzeba
+cwiartki obroconej o 45° (uchwyty szuflad obok — realna kolizja). Pytania do
+uzytkownika w BLEDY.md („Do decyzji” — Szafka narozna skosna). Zdjecia byly
+w uploads sesji 2026-10-19 (poza repozytorium).
 [AI-TODO] Sprzety w zabudowie (lodowka, piekarnik, mikrofala): gdy powstanie
 kategoria „sprzety”, dolozyc ich bryly i drzwi do `swingBodies` — prosba
 uzytkownika, zeby wrocic. Szafka luzem (bez ciagu) nie ma kontroli
