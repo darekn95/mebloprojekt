@@ -685,8 +685,8 @@ kat. s. 79–80, KT kat. s. 90) na boku, jesli drzwi wisza na boku pod 135°.
 Bryla 3D i rzut z gory: pryzmy z wierzcholkow (`v` w `__audytBryl`, jak `plytaSkos`
 przy lyzwie). Kontrola otwierania: `swingLeaf` dziala na osiach — dla skosu trzeba
 cwiartki obroconej o 45° (uchwyty szuflad obok — realna kolizja). Pytania do
-uzytkownika w BLEDY.md („Do decyzji” — Szafka narozna skosna). Zdjecia byly
-w uploads sesji 2026-10-19 (poza repozytorium).
+uzytkownika w BLEDY.md („Do decyzji” — Szafka narozna skosna). Zdjecia (za zgoda
+uzytkownika): `zdjecia/naroznik-skosny/` z opisem `OPIS.md`.
 [AI-TODO] Sprzety w zabudowie (lodowka, piekarnik, mikrofala): gdy powstanie
 kategoria „sprzety”, dolozyc ich bryly i drzwi do `swingBodies` — prosba
 uzytkownika, zeby wrocic. Szafka luzem (bez ciagu) nie ma kontroli
