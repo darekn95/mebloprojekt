@@ -31,6 +31,10 @@ const otworz = async (zAtrapa) => {
   await page.evaluate((p) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(p)); }, PROJ);
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2000);
+  /* Pierwszy autozapis po wczytaniu (800 ms po starcie) pisze w pasku „zapisano …”.
+     Standalone kompiluje sie w przegladarce dluzej i ten zapis wypadal juz po
+     kliknieciu „Wyślij” — nadpisywal komunikat i test padal (BLEDY.md). */
+  await page.waitForFunction(() => /zapisano/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
   return { page, errors, ctx };
 };
 const przycisk = (page) => page.getByRole('button', { name: 'Wyślij do Claude' });

@@ -54,7 +54,7 @@ let naPasku = await szafkiNaPasku();
 ok('w nowym pomieszczeniu tylko jego szafka startowa', naPasku.length === 1 && !naPasku.includes('A1'), naPasku.join(', '));
 ok('ciągi pierwszego pomieszczenia nie są na pasku', !(await page.locator('header').first().innerText()).includes('Ściana 2'));
 // nowy ciag w pomieszczeniu 2 nazywa sie znow „Ściana 1” (bez kreatora rogu — tu nie ma innych scian)
-await page.getByRole('button', { name: '+ ciąg', exact: true }).click(); await page.waitForTimeout(600);
+await page.getByRole('button', { name: '+ nowy ciąg', exact: true }).click(); await page.waitForTimeout(600);
 st = await stan();
 const nowy = st.runs.find((r) => r.roomId === 'p2');
 ok('„+ ciąg” w pomieszczeniu 2 → „Ściana 1” z roomId p2', !!nowy && nowy.name === 'Ściana 1', JSON.stringify(nowy && { id: nowy.id, name: nowy.name, roomId: nowy.roomId }));

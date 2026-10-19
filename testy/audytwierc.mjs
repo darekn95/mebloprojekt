@@ -102,6 +102,8 @@ const scenariusz = async (tytul, cabLubProjekt, { spr = {} } = {}) => {
     const re = /^Bok (lewy|prawy)$/.test(n) ? new RegExp(`^(Bok|${n})$`) : /^Przegroda/.test(n) ? /^Przegroda/ : /^Wspornik/.test(n) ? /^Wspornik pionowy/
       : n === 'Wieniec' ? /^(Wieniec|Dno \/ wieniec)$/ : n === 'Dno' ? /^(Dno|Dno \/ wieniec)$/
       : /^Półka przelotowa/.test(n) ? /^Półka przelotowa/
+      // mocowanie podnosnika na klapie; w kilku kolumnach „Klapa — kolumna N”, formatka jedna
+      : /^Klapa/.test(n) ? /^Klapa$/
       : /^Cokół/.test(n) ? /Cokół/ : new RegExp('^' + esc(n) + '$');
     return formatki.some((f) => re.test(f)) || (/^Cokół/.test(n) && wCiagu);
   };
@@ -126,9 +128,11 @@ const scenariusz = async (tytul, cabLubProjekt, { spr = {} } = {}) => {
     || r.ys.every((y) => zr.some((z) => Math.abs(z.y - (y + d0)) <= 1)); });
   ok('zawiasy na tych samych wysokościach co na rysunku', zawOk,
     zPlan.map((r) => `${r.panel}: ${r.ys.join(',')}`).join(' | ') + ' // rys: ' + zr.map((z) => Math.round(z.y)).join(','));
-  const hw = okucia.find((r) => /^Zawias/.test(r[0]) && !/klap/.test(r[0]));
+  // nakladany i polnakladany to dwa wiersze (2026-10-17) — liczy sie suma
+  const hws = okucia.filter((r) => /^Zawias/.test(r[0]) && !/klap/.test(r[0]));
+  const hw = hws[0];
   if (spr.zawiasyOkucia !== false && hw) {
-    const q = num(hw[hw.length - 1].split(' ')[0]);
+    const q = hws.reduce((s, r) => s + num(r[r.length - 1].split(' ')[0]), 0);
     const nKlap = plan.filter((r) => r.kind === 'zawias klapy').reduce((s, r) => s + r.ys.length, 0);
     ok(`liczba zawiasów w okuciach (${q}) = otwory w planie (${nPlan + nKlap})`, q === nPlan + nKlap, hw.join(' | '));
   }
@@ -208,6 +212,28 @@ const scenariusz = async (tytul, cabLubProjekt, { spr = {} } = {}) => {
     const xs = kl.flatMap((r) => r.ys).sort((a, c) => a - c);
     const xr = zk.map((z) => Math.round(z.x - t)).sort((a, c) => a - c);
     ok('zawiasy klapy tam, gdzie na rysunku', JSON.stringify(xs) === JSON.stringify(xr), `plan ${xs.join(',')} / rysunek ${xr.join(',')}`);
+    /* Podnosnik / amortyzator wg instrukcji GTV (PD-G00 s. 3, PD-ECGDL s. 3):
+       plytka na boku 234 mm pod spodem wienca (90°, front nakladany) albo 245 mm
+       nad dnem, mocowanie na klapie 62 mm pod wiencem / nad dnem i 24 mm dalej.
+       Wieniec, dno, boki i klapa — z bryly. Ponad 600 mm szerokosci dwa, po
+       jednym na bok, inaczej jeden po lewej. */
+    const gora = spr.klapa === 'gora';
+    const poz = sol.filter((q) => Math.abs((q.p[4] - q.p[1]) - t) < 0.6 && q.p[3] - q.p[0] > W - 2 * t - 2 && q.color === '#d8c3a0' && q.p[2] >= -0.5);
+    const plyta = gora ? [...poz].sort((a, c) => c.p[4] - a.p[4])[0] : [...poz].sort((a, c) => a.p[1] - c.p[1])[0];
+    const front = sol.find((q) => q.p[5] <= 0.5 && q.p[5] - q.p[2] > 10 && q.p[3] - q.p[0] > W - 20 && q.p[4] - q.p[1] > 100);
+    const pl = gora ? plyta.p[1] : plyta.p[4];
+    const co = gora ? 'podnośnik klapy' : 'amortyzator klapy';
+    const boki = plan.filter((r) => r.kind === co && /^Bok/.test(r.panel));
+    const naBok = gora ? pl - 234 : pl + 245;
+    ok(`${co}: płytka na ${W > 600 ? 'obu bokach' : 'lewym boku'}, ${gora ? '234 mm pod wieńcem' : '245 mm nad dnem'} (${Math.round(naBok)})`,
+      boki.length === (W > 600 ? 2 : 1) && (W > 600 || boki[0].panel === 'Bok lewy')
+      && boki.every((r) => r.ys.length === 1 && Math.abs(r.ys[0] + dolPlyty(r.panel) - naBok) <= 1) && boki.every((r) => /25 mm od przedniej krawędzi/.test(r.note)),
+      boki.map((r) => `${r.panel}: ${r.ys.join(',')} — ${r.note.slice(0, 60)}`).join(' | ') || '(brak)');
+    const moc = plan.filter((r) => r.kind === co && /^Klapa/.test(r.panel));
+    const naKlapie = (gora ? [pl - 62 - 24, pl - 62] : [pl + 62, pl + 86]).map((y) => Math.round(y - front.p[1]));
+    ok(`${co}: mocowanie na klapie ${naKlapie.join(' i ')} mm od dołu klapy`,
+      moc.length === (W > 600 ? 2 : 1) && moc.every((r) => JSON.stringify(r.ys) === JSON.stringify(naKlapie)),
+      moc.map((r) => `${r.panel}: ${r.ys.join(',')} — ${r.note.slice(0, 70)}`).join(' | ') || '(brak)');
   }
 };
 
@@ -215,7 +241,7 @@ const scenariusz = async (tytul, cabLubProjekt, { spr = {} } = {}) => {
    Tych scenariuszy nie bylo: wspornik liczyl konfirmaty do nieistniejacego
    wienca, a klapa wieszala zawiasy w wiencu, ktorego nie ma (2026-10-04). */
 await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
-await click('+ ciąg');
+await click('+ nowy ciąg');
 await page.locator('header .space-y-1 > div').filter({ hasText: /^Ściana 1/ }).first().getByRole('button', { name: '+ szafka', exact: true }).click();
 await page.waitForTimeout(1500);
 const wzorPB = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
@@ -256,7 +282,8 @@ const zRogiem = async (tytul, runs, items, aktywna, oczek) => {
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
   const plan = await wiercenia(aktywna + 1);
   const okucia = await tabela(/^Produkty do zamówienia/);
-  const q = (re) => { const r = okucia.find((x) => re.test(x[0])); return r ? num(r[r.length - 1].split(' ')[0]) : 0; };
+  // suma po wierszach tej samej nazwy (np. zawias nakladany i polnakladany)
+  const q = (re) => okucia.filter((x) => re.test(x[0])).reduce((s, r) => s + num(r[r.length - 1].split(' ')[0]), 0);
   const ileWNocie = (note) => ((note.match(/,\s*([\d.]+(?:, [\d.]+)*) mm od przedniej/) || [])[1] || '').split(', ').filter(Boolean).length;
   const kon = plan.filter((r) => /^konfirmat/.test(r.kind)).reduce((a, r) => a + r.ys.length * ileWNocie(r.note), 0);
   const tr = plan.filter((r) => r.kind === 'trójkąt meblowy').reduce((a, r) => a + r.ys.length * (/2 rzędy/.test(r.note) ? 2 : 1) + (/po 1 na każdym krótkim boku/.test(r.note) ? 2 : 0), 0);

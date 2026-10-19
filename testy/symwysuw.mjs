@@ -24,8 +24,12 @@ export const symuluj = (bryly, { H, blat = false, nl = [] } = {}) => {
     // czesci prawej kolumny trafialy do szuflady z lewej (test losowych edycji 2026-10-04)
     const y = s.color === UCHWYT ? (s.p[1] + s.p[4]) / 2 : s.p[1];
     const xm = (s.p[0] + s.p[3]) / 2;
+    /* ...i nie jest wyzsza od frontu: plecy wewnetrzne z plyty polek (od
+       2026-10-17 w jej kolorze, jak w zamowieniu — audyt GPT N27) maja ten sam
+       kolor co dno i tyl skrzynki, ale stoja na cala wysokosc i sa nieruchome. */
     return szuflady.find((d) => y >= d.front.p[1] - 1 && y <= d.front.p[4] + 1
-      && xm >= d.front.p[0] - 15 && xm <= d.front.p[3] + 15);
+      && xm >= d.front.p[0] - 15 && xm <= d.front.p[3] + 15
+      && s.p[4] - s.p[1] <= d.front.p[4] - d.front.p[1] + 1);
   };
   const stale = [];
   bryly.forEach((s) => {

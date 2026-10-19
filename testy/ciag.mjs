@@ -16,12 +16,13 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 const bar = () => page.evaluate(() => {
   const rows = [...document.querySelectorAll('header .space-y-1 > div')];
   return rows.map((r) => ({
-    label: (r.querySelector('span') || {}).textContent || '',
+    // nazwa sciany to przycisk (zmiana nazwy kliknieciem, 2026-10-19), wolnostojace — napis
+    label: (r.querySelector('[data-el="nazwa-sciany"], span') || {}).textContent || '',
     // w kafelku sa tez przyciski sterujace — nazwa to ten, ktory nie jest ikona
     chips: [...r.querySelectorAll('div.rounded-full')].map((c) =>
       [...c.querySelectorAll('button')].map((b) => b.textContent.trim())
         .find((t) => !['‹', '›', '⧉', '×'].includes(t)) || ''),
-    btns: [...r.querySelectorAll(':scope > button')].map((b) => b.textContent.trim()),
+    btns: [...r.querySelectorAll(':scope > button:not([data-el="nazwa-sciany"])')].map((b) => b.textContent.trim()),
   })).filter((r) => r.label || r.chips.length || r.btns.length);
 });
 const seedProject = async (data) => {
@@ -30,7 +31,7 @@ const seedProject = async (data) => {
   await page.waitForTimeout(2000);
 };
 const cab = (name, W) => ({ cab: { name, W, H: 720, D: 500 }, mat: undefined });
-const addRun = () => page.getByRole('button', { name: '+ ciąg' }).click();
+const addRun = () => page.getByRole('button', { name: '+ nowy ciąg' }).click();
 const stan = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt') || '{}'));
 /* Pola karty adresujemy po etykiecie, nie po kolejnosci — kazde nowe pole
    przesuwa indeksy i test zaczyna wpisywac liczby nie tam. .last() bierze
@@ -47,7 +48,7 @@ ok('jeden wiersz szafek', b.filter((r) => r.chips.length).length === 1, JSON.str
 ok('etykieta jak dotąd', b[0].label === 'Szafki:', b[0].label);
 ok('obie szafki na pasku', b[0].chips.join() === 'A,B', b[0].chips.join());
 ok('brak karty ciągu, gdy nie ma ciągów', await card(/^Ciąg meblowy$/).count() === 0);
-ok('przycisk + ciąg jest', await page.getByRole('button', { name: '+ ciąg' }).count() === 1);
+ok('przycisk + ciąg jest', await page.getByRole('button', { name: '+ nowy ciąg' }).count() === 1);
 
 console.log('\n== nowy ciąg to osobny wiersz, szafki zostają wolnostojące ==');
 await addRun();

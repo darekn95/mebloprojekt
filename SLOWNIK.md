@@ -36,7 +36,7 @@ narożnika przy froncie**, a nie wzmocnienie. To nie to samo co:
 | **blenda** | wąska płyta wypełniająca lukę | formatki „Blenda", „Blenda nad szafką" (`cab.topFiller`) |
 | **ciąg** | rząd szafek wzdłuż jednej ściany | `project.runs[]`, `runLayout`, `projectLayout` |
 | **piętro / tier** | dolny albo górny ciąg na tej samej ścianie | `run.tier`, `run.mountY`; w układzie górny ma `n.dolny` i **ramkę oraz numer ściany swojego dolnego**; w rogu górny ciąg, który się tam zaczyna, odsuwa się o głębokość górnego ciągu ściany wjeżdżającej (gdy ten sięga rogu) |
-| **łyżwa** | blat cięty na 45° w rogu | `rt.skos0`, `rt.skos1` |
+| **łyżwa** | blat cięty na 45° w rogu | `rt.skos0`, `rt.skos1`; głębokość drugiego blatu (do skosu w 3D) `rt.skosGl0`, `rt.skosGl1` |
 
 ---
 
@@ -83,6 +83,29 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Blat roboczy / Blat ciągu / Podział blatu | `run.worktop`, `runTop`, `worktopSpans`, `runTopPanels` |
 | Blat w narożniku (przechodzi / dojeżdża / łyżwa) | `run.corner.top`, `run.corner.cut`; `projectLayout` → `topSpan.przez0/przez1` (czyj blat idzie przez róg); `runTop` skraca dojeżdżający do głębokości przechodzącego (`rt.depth`, z docinką arkusza) |
 | Złącze do blatów śrubowe (produkt) | `runTopZlacza(project, run)` w `projectParts` → okucia pozycji „Blat — ciąg”: łączenia kawałków blatu w ciągu (`rt.lens.length − 1`) i róg — liczy go ciąg, który trzyma róg (`run.corner`), gdy oba blaty robocze (`matKey` „worktop”); na styk `zlaczNaStyk(gl)`: 2 szt. przy blacie 600, 3 przy głębszym (arkusz 1200); styk i łyżwa; `ZLACZE_BLATU`, cena `DEFAULT_HW_PRICES` 9 zł |
+| `kawalkiBlatu(rt)`, `rt.wysokie` | kawałki blatu ciągu do zamówienia: podział na długość arkusza minus miejsca słupków (wyższych szafek); `b1`/`b2` wolne końce, `lacz` — styki kawałek-kawałek (złącza) |
+| `geoOb.maskWalls` (`buildEnclosure` → `sciany`) | ścianki zabudowy przeszkody z położeniem `{x0, x1, z0, z1 (od tyłu), y0, y1}` — te same co formatki; 3D szafki i zabudowy rysuje je (tag „zabudowa”) |
+| `KONF_DWA_OD` = 132, `pole:<nazwa>` | konfirmaty: krótszy styk — jeden w połowie; ostrzeżenie „Szafka płytka” z przyciskiem „Popraw głębokość” → `mp-karta` {id: "korpus"} rozwija kartę i ustawia kursor w `[data-el="pole-glebokosc"]` |
+| klucz ceny okucia | `okucie:<nazwa>|<wariant>` (+ opis produktu dla pozycji bez `use`) — bez ilości; `priceOf` przy braku bierze jedyną cenę zapisaną pod starym kluczem `okucie:<nazwa>|…` |
+| blat roboczy — arkusz i obrót | `arkuszBlatu(p, mat)` (formatka niesie `arkusz`: blat ciągu z `rt.arkusz`, własny blat szafki z `worktopDepth(mat)`), `etykietaBlatu` (arkusz 1200 → „… · arkusz 1200”, `bezArkusza` tam, gdzie format stoi obok), `wierszBlatu` (`rotatable: false`, `sheet`) — rozkrój ekranowy szafki i projektu, PDF; `buildCutPlan` grupuje po etykiecie i formacie; `boardDefault` cena z formatu w etykiecie |
+| `NOZKA_MIN` = 50, `nozki:<mm>` | najniższa nóżka regulowana (GTV MLA-50, 50–75 mm); poniżej — błąd z „Ustaw 50 mm / Ustaw 100 mm” (`runFix` → `cab.legs.height`); specyfikacja nóżki z `legH` |
+| `kolki:<od przodu>:<od tyłu>` | błąd „Kołki półek … nie mieszczą się na półce” (przód + tył ≥ głębokość najpłytszej półki albo ujemne) → „Ustaw 37 / 37 mm” (`cab.shelfPin`) |
+| `maZawieszki(cab)` / `naListwie(cab)`, `zawieszki:<listwa\|haczyki>` | `runRail` — listwa tylko gdy choć jedna szafka ciągu wisi na listwie; `runCabMsgs(run, c, inne)` — szafka bez zawieszek przy innych na listwie: ostrzeżenie „Zawieszki na listwie / na haczykach” (`hangers: "auto"`, `hangerMode`) |
+| `wspgl:<poziom>:<kolumna>:<mm>` | przycisk „Wspornik na … mm głębokości” przy błędzie za głębokiego wspornika fixu (do pleców za fixem: `dividerDepth − z0`; audyt GPT N41) |
+| `rawCol.shelfMount` / `mocowanieKolumny(cab, rawCol)` / `c.shelfMount` | mocowanie półek kolumny: własne (`pins` / `confirmat` / `trojkaty`) albo jak szafka — pole „mocowanie” w kolumnie; plan wierceń, okucia i kołki na rysunkach per kolumna (N45) |
+| `polkimont:<poziom>:<kolumna>:<trojkaty\|pins>` / `przegrtr:<poziom>:<kolumna>` / `rawCol.divDolMount` | przyciski przy błędzie krzyżowych konfirmatów: półki kolumny na trójkątach / kołkach; dół przegrody (z prawej kolumny) na trójkątach — pole „przegroda z prawej: dół na trójkątach” |
+| `fixdel:<poziom>:<kolumna>` / `fixsup:<poziom>:<kolumna>[:<mm>]` | „Usuń element stały” / „Dobuduj wspornik pionowy” (4. pole — głębokość, przy szufladach długość NL); błąd fixu w kolumnie szuflad bez wspornika (N42) |
+| „→ poziom” (poziom zamiast półki) / „klapy zamiast drzwi” pod polem drzwi (`polkiNaPoziomy(i, j, ks, naKlapy)`, `daSiePodzielic(lv)`, `data-el="polki-na-klapy"`) | półka kolumny `j` staje się przelotową granicą poziomów — dzieli cały poziom, inne kolumny dostają tyle półek, ile wypadło w paśmie; nie ma go w poziomie z kolumną szuflad; klapy (tylko jedna kolumna) — każda półka → nowy poziom, w każdym klapa do góry (komentarze 2026-10-17) |
+| `podswietl` / `kluczeFormatki(nazwa)` / `PODSWIETL` (`data-el="formatka-nazwa"`, `data-el="podswietlona"`) | klik w nazwę formatki w „Formatki do zamówienia” — widok 3D szafki, płyty tej formatki na niebiesko; drugi klik zdejmuje (komentarz 2026-10-17) |
+| `uwagiRozkroju(g)` / `PROG_ODPADU` (15 %) / `BLAT_BRAKUJE` (200 mm), `data-el="rozkroj-odpad"` | ostrzeżenia w „Rozkrój”: blat na arkusz za dużo, a brakuje do 200 mm; arkusz płyty wykorzystany poniżej 15 % (komentarze 2026-10-17) |
+| `SplitPicker` — `data-el="podzial-cokół"` / `"podzial-blat"` | podział cokołu i blatu zwinięty za polem wyboru, z podsumowaniem cięć; rozwinięty sam przy ręcznych cięciach (komentarz 2026-10-17) |
+| „Rozwiąż ciąg” przy ciągu z górnym (`rozwiazPyt`, `data-el="rozwiaz-ostrzezenie"`) | ostrzeżenie z „Rozwiąż mimo to / Anuluj”; `removeRun` zamienia górny na samodzielny ciąg wiszący (`mountY` = obecne `tierMountY`, `wallW` dolnego; audyt GPT N47) |
+| `geo.plecyKolumn`, `plecyBryly(cab, geo)` | plecy ustawione w kolumnach (`col.backMode`): lista płyt `{x0, x1, y0, y1, mode, grub}` z `computeGeo` — formatki i bryła 3D (szafka, zabudowa) z tej samej listy; `plecyBryla` (rysunki 2D) — ich obrys |
+| `wariant` (okucie) | cecha handlowa w kluczu `scalOkucia` — nóżka (`nozkaWariant`: kształt, wysokość, kolor), zawias nakładany / wpuszczany; inny wariant = osobny wiersz zbiorczego zamówienia |
+| `sztuk` / `specSzt` (lustro) | liczba luster i opis z `{n}` — sumowane przy scalaniu; powierzchnia dokładna, zaokrąglenie dopiero w `hwQty` |
+| `rola: "cokol" / "blat"` (formatka) | automatyczny cokół / blat szafki — tylko je zastępuje wspólny cokół / blat ciągu (`projectParts`, `formatkiSzafki`); dodatkowa formatka o tej nazwie zostaje |
+| PDF rozkrój — „Arkusz (do rozkroju)” | `ReportCutPlan`: nagłówek strony tylko z rzazem (`KERF`), format arkusza każdego materiału `arkuszOpis(g)` (`g.arkusz` do zamówienia, `g.sheetW/sheetH` po okrawaniu) w tabeli i nad rysunkami; każdy arkusz na własnej stronie (`section.rp-page.rp-arkusz`, `data-el="rozkroj-material"`), obrócony o 90° (`.rp-obrot` w `PRINT_CSS`) — `SheetPlan` z `maxH="168mm"` (na ekranie domyślnie 420) |
+| dymek pola „zawiasy” | `ZAWIASY_ZASADA` — opis tabeli GTV i zasady klapy; zmieniasz progi `ZAWIASY_GTV` — popraw i jego |
 | „Zawiasy przesunięte” (PDF) / „Dopisz do notatki montażowej” | `geo.zawiasyMontaz` (z `hingePositions(...).moved`, `co` = z czym kolizja) → linia na stronie szafki w `ReportSheet` (`data-el="notatka-zawiasy"`); przy ostrzeżeniu „zawias przesunięty” akcja `notatka:<tekst w encodeURIComponent>` → `runFix` dopisuje do `cab.note` (już dopisana — bez przycisku) |
 | Wieszanie ciągu | `run.hangerMode` („listwa" / „haczyki") |
 
@@ -124,8 +147,12 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | zaw. | `col.hinges[]` (puste = `autoHinges`) |
 | front: skrzydło / klapa, a przy klapie „otwierana: do góry / w dół” | `col.klapa` = brak / `"gora"` / `"dol"` (samo „klapa” zaczyna od `"gora"`) — tylko przy 1 drzwiach w kolumnie (`data-el="klapa-kolumny"`); w geometrii front typu `"klapa"` z `klapaZawiasy` (x zawiasów), lista `geo.klapy[]` |
 | podnośniki (do góry) / amortyzatory (w dół): auto / 1 / 2 | `col.silowniki` (puste = 1, powyżej 600 mm szerokości 2; jeden przy ponad 600 mm — ostrzeżenie) |
-| siła N | `col.silaN` (puste = z tabeli: PD-G00 do góry, PD-ECGDL w dół) — `data-el="klapa-sila"` |
+| siła (lista, `select data-el="klapa-sila"`) | `col.silaN` (puste = auto z tabeli: PD-G00 do góry, PD-ECGDL w dół); opcje `dobierzPodnosnik().opcje` (siła, udźwig, „za słaby”); za słaby — przyciski `silaauto:` („Zwiększ siłę do …”) i `klapa2:` („Dołóż drugi”, `col.silowniki` = 2, `geo.klapy[].dobor2`) |
 | kąt 75° / 90° / 100° (klapa do góry) | `col.katKlapy` (puste = 90) |
+| uchwyt klapy: na dole / na górze (`data-el="klapa-uchwyt"`) | `col.klapaUchwyt` (`"dol"` / `"gora"`, puste = wolna krawędź: klapa do góry — dół, w dół — góra); w geometrii `d.uchwytKrawedz`, rysunek `klapaUchwytY`, `uchwytObrys` (`data-el="uchwyt-klapy-dol|gora"`) |
+| jeden podnośnik / amortyzator: na lewym / na prawym | `col.podnosnikStrona` (puste = lewa, `"right"`) — tylko przy jednym (`data-el="klapa-strona"`); `geo.klapy[].strona`, plan wierceń |
+| uwaga „półka … stoi na drodze podnośnika” / przycisk „Dodatkowe cofnięcie półek N mm” | w `computeGeo` przy wierceniach klapy: półka w zasięgu podnośnika (płytka `KLAPA_PLYTKA_R`, mocowanie `KLAPA_MOC_ZAPAS`) bliżej frontu niż `KLAPA_POLKA_ZA_FRONTEM` (50); akcja `polkicof:<mm>` ustawia `cab.shelfExtraSetback` |
+| „Zawias — półnakładany” w okuciach | `hingePol`, `polnakladany(naCzolo, grubPlyty)` w `computeGeo`: front na płycie z zawiasem ≤ pół grubości + 2 mm (przegroda, półka pod klapą); reszta „nakładany” |
 | uchwyt / lustro | `col.handles[]`, `col.mirrors[]` — w wierszu okuć pod szerokością skrzydła (`data-el="drzwi-okucia"`): zawiasy, uchwyt, lustro |
 | uchwyt: … mm, na boku / górze | `col.handleOuts[]` (puste = `cab.handleOut`, 20), `col.handlePos[]` (`"bok"` / `"gora"`); liczy `uchwytOut(d, cab)` i `uchwytObrys(d)` — rysunek z przodu (`data-el="uchwyt-bok|gora"`), 3D, rzut z góry, kontrola otwierania |
 | własny luz między drzwiami | `col.gapBetween` |
@@ -218,6 +245,8 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `armLegPlan(arm)` | nóżki ramienia narożnika jak w szafce tej długości (`legPlan`): przy rogu, pod końcem, od 900 mm na środku; `us` od rogu, `vs` od ściany — jedno źródło dla zamówienia, elewacji i bryły |
 | `ulozSciany(solids, proj)` | kolejność rysowania i cieniowanie w obu widokach 3D (zabudowa i szafka) |
 | `autoHinges(h, w, grub, szeroki)` / `zawiasyGtv` / `ZAWIASY_GTV` | liczba zawiasów na skrzydło wg tabeli GTV (katalog 2023 s. 68): większa z liczb z wysokości frontu (750 / 1500 / 2100 / 2500 mm) i jego wagi (`wagaFrontu`; 6 / 12 / 17 / 20 kg), front do 600 mm; `szeroki` (skrzydło szafki narożnej na zawiasie 165°) — 4,5 / 9 / 12,5 / 15 kg, front do 450 mm; `zawiasyGtv` zwraca też `kg` i `poza` (ponad tabelę: wysokość, waga albo szerokość) |
+| `wagaLustra(w, h, mat)` / `GESTOSC_SZKLA` | masa lustra na froncie (szkło 2500 kg/m³, grubość z materiału lustra) — dodatek `dodatekKg` w `zawiasyGtv` / `autoHinges` i w masie klapy (audyt GPT N34) |
+| `PROJEKT_WERSJA` / `cab.version` (5) | wersja zapisu projektu i szafki — prostowanie dawnych cen netto (`LEGACY_NET_PRICES`) i wzmocnień w `migrateCab` tylko dla zapisów starszych (audyt GPT N35) |
 | `autoShelves(innerH, t)` | liczba półek przy automacie |
 | `distribute` / `evenGapOptions` | podział pasma na fronty + propozycja luzu bez resztek |
 | `bezWienca(cab, tf)` | zamiana wieńca na parę wzmocnień (szafka pod blatem) |
@@ -257,7 +286,14 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `TopHardware` | okucia w widoku z góry (szafka i zabudowa, pod „Pokaż okucia”): uchwyty przed frontem, zawiasy przy boku od frontu, nóżki przerywane; `data-el="okucia-gora"` |
 | `worktopMsgs` / `runCornerMsgs` / `cornerPairMsgs` / `tierMsgs` | uwagi na poziomie ciągu i narożnika |
 | `hwDefaultPrice(h)` | cena okucia — klucz to `h.pk` albo `h.name` |
-| „Pokaż rysunek” (górny pasek) | przewija do karty `Card id="rysunek"` (`scrollMarginTop` pod przyklejony pasek) — przycisk roboczy |
+| „Pokaż rysunek” (górny pasek) | przewija do karty `Card id="rysunek"` (`scrollMarginTop` pod przyklejony pasek) — przycisk roboczy; w niskim oknie (`niskieOkno`) prosto do samego rysunku (`svg`) |
+| górny pasek (`header data-el="naglowek"`) przyklejony / nie | `przyklejony` = wysokość paska ≤ `NAGLOWEK_MAX` (0,4) wysokości okna (`wysNaglowka` z `ResizeObserver`); inaczej przewija się ze stroną (audyt GPT U2) |
+| „Ciągi i szafki” — zwijanie paska (`data-el="pasek-ciagow"`, lista `pasek-ciagow-lista`) | `pasekZwiniety` (pamięta `localStorage` „mp-pasek-zwiniety”); w oknie niższym niż `NISKIE_OKNO` (640 px) — `pasekNisko`, domyślnie zwinięty, kliknięcie bez zapamiętywania; razem `pasekZw` |
+| widok „Z tyłu”: podpisy półek, półek przelotowych i przegród (`data-el="tyl-polka"`, `tyl-polka-przelotowa`, `tyl-przegroda`) | wysokość od dołu korpusu: półka — spód (`sh.y`, jak w planie wierceń), przegroda — od–do (`d.y0`, `d.y1`), podpis w największej przerwie między półkami |
+| zwijanie pasków przy przewijaniu w dół | `autoPokoje`, `autoPasek`, `zwinPrzyPrzewijaniu()`; widok: `pokojeWidokZw`, `pasekWidokZw`; ręcznie rozwinięty — `recznie.current` + `RECZNIE_ROZWINIETY_MS` (60 s); powrót na górze (`PRZEWIN_GORA`); przyciski `data-el="pasek-pokoi"` / `"pasek-ciagow"` (`przelaczPokoje`, `przelaczPasek`); w testach wyłączone (`window.__mpBezZwijania`, `testy/pw.mjs`) |
+| nazwa ściany na pasku ciągów (`data-el="nazwa-sciany"`, pole `nazwa-sciany-pole`) | `nazwaSciany` ({ wiersz, stara }), `zmienNazweSciany(id, name)` — nazwa ciągu dolnego (`grp.sciana`) i górnego o tej samej nazwie |
+| „+ nowy ciąg” / „× usuń ciąg” (pasek ciągów) | `otworzKreator` / `deleteRun(id)` |
+| „+ z szablonu…” (`data-el="z-szablonu"`) | pole szerokości napisu (7,5 rem), rozwinięta lista na najdłuższą pozycję; `TEMPLATES` |
 | `ZoomBox` / `ZOOM_KROKI` | powiększanie rysunku: „− / % / + / Dopasuj” nad rysunkiem, przeciąganie przesuwa (w 3D z Shiftem); każdy rysunek (`resetKey` = zakres | widok | szafka) pamięta powiększenie, przewinięcie i szerokość przy 100% w `ZOOM_PAMIEC` (do przeładowania strony), nowy startuje od „Dopasuj”; Ctrl + kółko nad rysunkiem przybliża w miejscu kursora; „Pełny ekran” (`pelnyRys`, Esc zamyka) |
 | `wyslijDoClaude` / `PROJEKT_DLA_CLAUDE` | przycisk „Wyślij do Claude” — **tylko w artefakcie na claude.ai**: zapis projektu do wspólnego magazynu (`projekt/biezacy`, pole `json`) |
 
@@ -293,6 +329,11 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `WORKTOP_LEN` | 4100 | długość pasa blatu |
 | `WORKTOP_DEPTHS` / `WORKTOP_PRICES` | 600, 1200 / 563,99, 1128,22 | głębokości i ceny blatu brutto (obie z faktur użytkownika) |
 | `KONF_OD_KRAWEDZI` / `konfirmatyNaStyk` / `konfirmatyPoz` | 50 mm / co 200, min. 2 | konfirmaty: liczba na styk (okucia i plan wierceń) i ich położenia od przedniej krawędzi |
+| `rt.przed` | ile przed korpus wychodzi luz przy zawiasach i front (0 przy frontach wpuszczanych) — głębokość blatu ciągu i uwagi o wysięgu (audyt GPT N48) |
+| Plan wierceń: „podnośnik klapy” / „amortyzator klapy” (`PODNOSNIK_H`, `PODNOSNIK_L`, `AMORTYZATOR_H`, `AMORTYZATOR_L`, `KLAPA_PLYTKA_OD_KRAWEDZI`, `KLAPA_MOC_OD_BOKU`, `KLAPA_MOC_ROZSTAW`) | w `computeGeo`, wiercenia klapy: płytka na boku kolumny (bok, przegroda, wspornik) i mocowanie na klapie („Klapa” / „Klapa — kolumna N”, od dołu klapy); wiersz tabeli H wg nałożenia klapy na płytę z zawiasami; jeden podnośnik — lewa strona |
+| Sufit w kontroli otwierania (`swingBodies`, bryła `co: "sufit"`) | wysokość pomieszczenia z ciągu górnego tej ściany (`run.ceiling`); przeszkoda dla klapy do góry otwieranej ponad 90° |
+| `wierzchBlatu(run, rt)` / `blatyRoznaWys` | wierzch blatu nad podłogą (montaż ciągu + lico + grubość); złącza w rogu tylko przy tej samej wysokości, inaczej ostrzeżenie w `worktopMsgs` (N66) |
+| `plytaSkos` (Assembly3D) / `wysun` / `poPlace` | blat na łyżwę ścięty w 3D (N65); wysunięcie szafki z lica w 3D zabudowy (N62); front ramienia „Skręcone 90°” obracany wokół zawiasu frontu korpusu (N54) |
 | PDF „Wiercenia” (kartka szafki) | `geo.drillPlan` + `wierceniaDodatkowe(arm, wstawki)` | plan wierceń korpusu (`computeGeo`) i dokładka: „Bok ramienia” szafki w L (konfirmaty dna/wieńca ramienia, kołki półek ramienia, zawiasy frontu ramienia), „Fix ramienia” i „Wstawka w rogu” (trójkąty); wiersz bez wysokości (frez pod HDF) ma „—” |
 | `KOLEK_PRZESUN` | 20 mm | kołki po drugiej stronie przegrody, gdy półki na tej samej wysokości |
 | `DEFAULT_PRICES.obrzezeBlat` / `.oklejanieBlat` | 6,68 / 11,81 zł | obrzeże ABS 43 × 2 na końce blatu roboczego (za mb) i usługa „oklejanie PCV > 23 mm” (za rozpoczęty mb); końce blatu wolne = `rt.wolny0/wolny1` |
@@ -412,7 +453,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `ramplec` / `ramkarta` | wzmocnienia i plecy ramienia; karta ustawień ramienia |
 | `rysrog` | rysunki narożnika: front na bok z luzem, zawiasy, rzut z góry, tył, nóżki ramienia |
 | `blatrog` / `blatrys` / `blat` / `blatciag` | blat roboczy: róg, rysunki, ciąg, wieniec |
-| `okucia3` | liczby okuc z wymiaru: klipsy, trójkąty, fix, zawiasy 165°/90° |
+| `okucia3` | liczby okuc z wymiaru: klipsy, trójkąty, fix, zawiasy 165°/90°; tabela GTV dla 165° (skrzydło 579 × 1994 mm: 5, na zwykłym zawiasie 4) |
 | `bryla3d` | co widać na wierzchu w 45° i 3D: blat, maskownice, uchwyty; nóżki; zero wymuszeń kolejności z ośmiu stron |
 | `wyslij` | przycisk „Wyślij do Claude”: bez magazynu go nie ma, z atrapą zapisuje pełny projekt |
 | `opisy` | żaden napis na rysunku nie jest przykryty płytą, nóżką ani blatem — wszystkie zakresy i widoki szafki narożnej |
@@ -438,13 +479,13 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `podblatem` | szafka pod blatem przy zmianach struktury: „+ poziom” przenosi parę wzmocnień do najwyższego poziomu, „+ przegroda i kolumna” daje nowej kolumnie parę, otwarta góra → ostrzeżenie z przyciskiem `parablat`, ręcznie usunięta para nie wraca sama |
 | `symwysuw.mjs` | (pomocnik, nie suita) `symuluj(bryly, { H, blat, nl })` — wysuw każdej szuflady co 5 mm na pełną NL; zwraca luzy nad bokami i tyłem oraz kolizje; używają `szuflady`, `audytmacierz`, `audytzabudowa` |
 | `audytwycena` | rozkrój i wycena na 7 projektach (hook `window.__audytRozkroj` = ostatni `autoPlan` z `aktualny`): każda formatka na arkuszach tyle razy, ile zamawiamy, nic odrzuconego, bez nachodzenia, rzaz 3 mm, słoje; arkusze = rozkrój, formatowanie, obrzeże 22 mm = suma krawędzi płyty, blat osobno, oklejanie w górę, okucia = lista, wartość = ilość × cena, Razem = suma |
-| `audytwierc` | plan wierceń z PDF vs rysunek i bryła na 12 konfiguracjach: zawiasy (ile, wysokości, na wsporniku po stronie fixu, klapy w wieńcu/dnie), kołki (wysokość spodu półki, odległości od przedniej krawędzi płyty), prowadnice (wysokość, otwory wg NL z instrukcji V-BOX), płyty z planu w formatkach, zawiasy = okucia; konfirmaty i trójkąty = okucia; szafka w L i wstawka w rogu (kartka aktywnej szafki); frez pod HDF |
+| `audytwierc` | plan wierceń z PDF vs rysunek i bryła na 12 konfiguracjach: zawiasy (ile, wysokości, na wsporniku po stronie fixu, klapy w wieńcu/dnie), podnośnik / amortyzator klapy (płytka na boku i mocowanie na klapie wg instrukcji GTV), kołki (wysokość spodu półki, odległości od przedniej krawędzi płyty), prowadnice (wysokość, otwory wg NL z instrukcji V-BOX), płyty z planu w formatkach, zawiasy = okucia; konfirmaty i trójkąty = okucia; szafka w L i wstawka w rogu (kartka aktywnej szafki); frez pod HDF |
 | `audyt2d` | rysunki 2D = rzut bryły 3D, w obie strony, dla widoków szafki (z przodu zamkn./otw., z góry, z boku, z tyłu) na 23 konfiguracjach — także szafka pod blatem w ciągu (wzór z aplikacji: drzwi, szuflady, fix ze wspornikiem, dwa poziomy; blat w 3D obowiązkowy), bez dna, blat 38 na bokach, szuflady wpuszczane; szuka przesunięcia układu sam; **ściśle**: kilka brył jednym prostokątem tylko przy styku ≤ 0,5 mm (fronty ze szczelinami muszą być osobno), obrysy przerywane = obwiednia kilku brył, zasłonięte bryły pomija (szczeliny do 3 mm). Trwa ok. 3 min |
-| `ruchy` | kontrola otwierania szuflad i klap: prosty ciąg bez kolizji, klapa do góry pod blatem (otworzy się na kilkanaście stopni), klapa w dół w górnej wolna, szuflada w zasłoniętej części ślepego rogu trafia w korpus sąsiada, drzwi w zasłoniętej części i szuflady obok — wolne |
+| `ruchy` | kontrola otwierania szuflad i klap: prosty ciąg bez kolizji, klapa do góry pod blatem (otworzy się na kilkanaście stopni), klapa w dół w górnej wolna, szuflada w zasłoniętej części ślepego rogu trafia w korpus sąsiada, drzwi w zasłoniętej części i szuflady obok — wolne; klapa na 100° pod sufitem (sufit z ciągu górnego) |
 | `wreg` | plecy „We frezie” jako frez 16 × 3 na krawędzi: HDF W−6 × H−6, półka o 3 mm płytsza, HDF w rzucie na tyle korpusu, pola 16/3/1, ostrzeżenie przy frezie płytszym niż HDF, migracja starego {16, 4} |
 | `wspornik` | półka przy wsporniku fixu płytsza (564 × 460 zamiast 564 × 560), ostrzeżenie, oba warianty przycisku, kołki półki w bokach w planie wierceń (PDF) |
 | `uchwyt` | wiersz okuć skrzydła (zawiasy, uchwyt, lustro), wysunięcie i położenie uchwytu per skrzydło — zapis, rysunek z przodu, bryła 3D |
-| `klapy` | klapa do góry: siła z tabeli GTV (test liczy ją sam), waga frontu (680 kg/m³), 1 podnośnik przy 600, 2 przy 900, ręcznie 1 → ostrzeżenie; zawiasy 2 / 3 powyżej 900; formatka „Klapa”; UI „skrzydło / klapa”, potem „do góry / w dół”; klapa w dół: amortyzator z tabeli PD-ECGDL, po wpisaniu 80 N pozycja w okuciach; klapa użytkownika 560 × 750 — poza tabelą i za ciężka, z uwagą o kącie 45°; ostrzeżenia >600 mm i <290 mm; bryła otwarta szafki i ciągu bez błędów |
+| `klapy` | klapa do góry: siła z tabeli GTV (test liczy ją sam), waga frontu (680 kg/m³), 1 podnośnik przy 600, 2 przy 900, ręcznie 1 → ostrzeżenie; zawiasy 2 / 3 powyżej 900; formatka „Klapa”; UI „skrzydło / klapa”, potem „do góry / w dół”; klapa w dół: amortyzator z tabeli PD-ECGDL, po wpisaniu 80 N pozycja w okuciach; klapa użytkownika 560 × 750 — poza tabelą i za ciężka, z uwagą o kącie 45°; ostrzeżenia >600 mm i <290 mm; bryła otwarta szafki i ciągu bez błędów; drzwi wg tabeli GTV (wysokości, „za dużo / za mało”, „poza tabelą”, trzeci zawias z samej wagi przy froncie 25 mm), dymek „Liczba zawiasów”, notatka montażowa zawiasu (przycisk i linia w PDF); strona jednego podnośnika, półka na drodze podnośnika (z przyciskiem), zawias półnakładany (przegroda, klapa pod półką) |
 | `zawiasy` | przycisk przełożenia zawiasów przy kolizji tylko, gdy pomaga (17 mm z lewej → bez przycisku; 564 z prawej → „na lewą — zostaje 17 mm”), przełącznik „zawias” przy kolumnie z jednymi drzwiami |
 | `odsuniecie` | odsunięcie od ściany: głębokość blatu, wysięg przed drzwi (10 / <10 uwaga / >30 ostrzeżenie), krzywa ściana w widoku z boku, róg przesunięty o odstęp, wyjątek jednej szafki |
 | `hw2` / `cokol` / `cokolstd` / `ceny` / `ceny2` | okucia, cokół, cennik |
@@ -454,7 +495,14 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `otwier` | kolizje przy otwieraniu skrzydeł |
 | `uwagiptak` | odhaczanie uwag |
 | `migr` / `reload` | migracja starych projektów, przeładowanie |
-| `arkusz` / `cutplan` / `fit` / `fitall` | mieszczenie się w arkuszu i rozkrój |
+| `arkusz` / `cutplan` / `fit` / `fitall` | mieszczenie się w arkuszu i rozkrój; `cutplan` też PDF rozkroju (nagłówek, kolumna arkusza, nagłówek materiału z rysunkiem, „N szafek”, złącza blatu w produktach projektu); prawdziwy wydruk rozkroju do PDF — 1 strona tabeli + dokładnie 1 strona na arkusz; „6 szafek” |
+| `audytgpt2` | audyt GPT 2026-10-17 N5–N21 i U3: HDF w kolorach, oklejanie wstawki, front z płyty korpusu, nóżki < 50, warianty nóżek i zawiasów, „Cokół”/„Blat” dodatkowe, plecy kolumn w 3D, dno szuflady 25, HDF przy wycięciu, blenda w 3D, kołki, kolor blatu, zawiasy w jednym miejscu, NL spoza listy, lustra, listwa i zawieszki w ciągu, nagłówek „Rysunek” |
+| `audytgpt3` | audyt GPT 2026-10-17 N22–N33 i podpowiedzi → ostrzeżenia: NL przy przeszkodzie, blat przy słupku, zabudowa przeszkody 3D (48 wariantów), głębokość z plecami / frontem, plecy z płyty półek, usunięcie szafki, cena okucia, nóżki i konfirmaty w płytkiej szafce, szczelina nad przegrodą, grubość ≤ 0 |
+| `audytgpt4` | audyt GPT 2026-10-17 N34–N48 (bez N45): lustro w masie frontu, wczytanie bieżącego zapisu, uchwyt klapy, przeszkoda przy zawiasach, montaż frontów szuflad w kolumnie, konfirmaty wspornika / półki / przegrody, wspornik a plecy, fix przy szufladach, kolory zabudowy 3D, górny ciąg nad słupkiem, rozwiązanie ciągu z górnym, blat przy frontach wpuszczanych, brak pola „Kąt otwarcia” |
+| `audytgpt5` | audyt GPT 2026-10-17 N38 (kąt w rogu przy luzie 26), N42 (wspornik), N45, N49–N68, łyżwa przy różnych głębokościach, podpowiedź blatu z wysunięciem szafki: krzyżowe konfirmaty, fix w kolumnie szuflad, szafka w L (półki, uchwyt, dno, plecy, cokół), cofnięty cokół 3D, kolory półek 3D, wysunięta szafka (3D, blat), ciągi od prawej, blaty na łyżwę, złącza blatów a wysokość, luz szuflad, brak NL |
+| `przewijanie` | paski zwijają się przy przewijaniu w dół i nie skaczą, ręcznie rozwinięty zostaje minutę (zegar Playwrighta), powrót na górze, „Pokaż rysunek”, nazwa ściany (Enter, Esc, pusta, wiersz górny), „+ nowy ciąg”, „× usuń ciąg” |
+| `niskieokno` | audyt GPT U2: okno 600 × 495 — pasek ciągów zwinięty sam, nagłówek ≤ 40% i przyklejony, „Pokaż rysunek” tuż pod paskiem, rozwinięcie kliknięciem (bez zapamiętywania) odkleja nagłówek; 640 × 300 — nieprzyklejony; 1500 × 1000 bez zmian, zmniejszenie i powiększenie okna |
+| `komentarze1` | komentarze z artefaktu 2026-10-17: kolejność kart, podświetlenie formatki, półka → poziom / klapy (też poziom z dwiema kolumnami; z szufladami — bez), podział zwinięty, zużycie blatu i odpad arkusza, opis „Luz w rogu” |
 | `drobne` | luzy domyślne, nazwa uchwytu, dekor, wkręt do pleców |
 | `stdfull` / `stdnew` | wersja standalone (ścieżka GitHub Pages) |
 

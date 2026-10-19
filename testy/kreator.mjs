@@ -26,7 +26,7 @@ const uwagi = async () => (await card(/^Uwagi/).count() ? await card(/^Uwagi/).i
 const sciana1 = () => ({ name: 'K', active: 0, prices: {}, runs: [RUN('c1', 'Ściana 1')],
   items: [CAB('S1', 600, 'c1'), CAB('S2', 600, 'c1'), CAB('S3', 600, 'c1')] });
 const kreator = page.locator('[data-el="kreator-rogu"]');
-const otworz = async () => { await page.getByRole('button', { name: '+ ciąg', exact: true }).click(); await page.waitForTimeout(300); };
+const otworz = async () => { await page.getByRole('button', { name: '+ nowy ciąg', exact: true }).click(); await page.waitForTimeout(300); };
 const utworz = async () => { await kreator.getByRole('button', { name: 'Utwórz ciąg' }).click(); await page.waitForTimeout(1500); };
 
 console.log('== kreator: ślepa szafka z fixem, nowy ciąg w róg ==');

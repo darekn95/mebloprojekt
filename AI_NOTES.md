@@ -105,6 +105,24 @@ Szeroka: `mocowanie` (`trojkaty` / `konf` / `listwa`) przesuwa ją w głąb
 `zawiasyGtv`, `autoHinges(h, w, grub, szeroki)`. Klapa zostaje 2 / 3 od 900 mm.
 Zlacza blatow (`runTopZlacza`): rog i laczenia kawalkow w prostym ciagu (ustalone).
 
+[AI-INFO] Audyt GPT 2026-10-17 (ta sama galaz, N2–N21 i U3): wszystkie odtworzone
+w aplikacji i poprawione (BLEDY.md, „Naprawione”); testy: `cutplan` (blat N2–N4, N15),
+`audytgpt2` (reszta). Skrypt odtwarzajacy z przegladarki byl w scratchpadzie — wzorzec
+w `testy/audytgpt2.mjs` (bryly przez `window.__audytBryl`, uwagi, tabele).
+[AI-INFO] Audyt GPT N22–N68 (2026-10-17): suity `audytgpt3`, `audytgpt4`, `audytgpt5`;
+komentarze z artefaktu — `komentarze1` (uzytkownik pozwolil robic je od razu, nie
+dopiero na „realizuj komentarze”). Decyzje N42/N45/N49 w BLEDY.md („Ustalone”).
+Zapis projektu ma `wersja` (PROJEKT_WERSJA), szafka `version` 5 — test seedujacy bez
+nich dostaje dawne prostowanie (ceny netto, wzmocnienia), jak stary plik.
+[AI-INFO] (2026-10-19) Paski u gory zwijaja sie przy przewijaniu w dol. `testy/pw.mjs`
+wylacza to wszystkim testom (`window.__mpBezZwijania = true` w init script) — inaczej
+klikniecie kafelka szafki po przewinieciu do karty nizej trafia w zwiniety pasek.
+Test, ktory to sprawdza, wlacza je swoim `ctx.addInitScript` (jak `przewijanie`).
+Nazwa sciany na pasku to przycisk `data-el="nazwa-sciany"` (nie `span`).
+[AI-INFO] Podzial cokolu/blatu jest zwiniety za polem wyboru: testy klikajace styki
+musza go najpierw rozwinac (`label[data-el^="podzial-"] input`, jak w `ciag4`).
+[AI-INFO] `window.__audytBryl` ma teraz takze `v` (wierzcholki, zaokraglone) — do brył
+nieprostopadlosciennych (blat na lyzwe).
 [AI-INFO] Audyt GPT (2026-10-16, galaz `gpt/audyt-2026-10-16`, plik `AUDYT_GPT.md`):
 B1, B2, B3 odtworzone i poprawione, U1 poprawione; U2 (waski podglad) — nie ruszane.
 
@@ -618,10 +636,17 @@ dotarl i jest w `GTV_PD_ECGDL`. Karta PD-ECGDL podaje zgodny zawias barkowy
 PD-MD-ZB, ale uzytkownik chce zwyklych zawiasow jak przy skrzydlach.
 [AI-INFO] (2026-10-16) Plan wiercen dla zawiasow klapy JEST („zawias klapy” w wiencu/
 wzmocnieniu albo w dnie) — poprzedni wpis byl nieaktualny (wytknal to audyt GPT).
-[AI-TODO] Klapy — czego jeszcze nie ma: mocowan podnosnika na boku w planie wiercen; kolizja otwartej klapy do gory
-z gorna szafka/sufitem i opadanej z blatem; wsparcie klapy w szafce z kilkoma
-poziomami w kontroli otwierania. Do omowienia z uzytkownikiem, gdy zacznie
-uzywac klap na projekcie.
+[AI-INFO] (2026-10-17) Klapy — braki z poprzedniego wpisu zrobione: mocowania
+podnosnika / amortyzatora w planie wiercen (stale `PODNOSNIK_*`, `AMORTYZATOR_*`,
+`KLAPA_*` wg instrukcji GTV, s. 3 obu PDF), sufit z ciagu gornego jako przeszkoda
+w kontroli otwierania. Gorna szafka i blat juz byly przeszkoda (gorna jest plytsza,
+klapa dolnej otwiera sie przed nia); klapa w szafce z kilkoma poziomami dziala
+(kazda klapa to osobny ruch, fronty i uchwyty innych poziomow to przeszkody).
+[AI-INFO] (2026-10-17) Decyzje uzytkownika o klapach — w BLEDY.md „Ustalone”
+(„Montaz podnosnika i amortyzatora”, „Zawias polnakladany”): strona jednego
+podnosnika `col.podnosnikStrona`, polka na drodze podnosnika tylko w jego
+zasiegu (akcja `polkicof:`), wpuszczana 25 + grubosc frontu, zawias polnakladany
+osobno (`hingePol`). Wspornik przy fixie zostaje z wariantem szafki.
 
 [AI-INFO] Audyt calosci: `testy/audyt.mjs` (ok. 4 min, sekwencyjnie). Hook
 `audytBryly` zapisuje teraz tez obrys bryly na miejscu (`p`, po obrocie

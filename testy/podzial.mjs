@@ -44,12 +44,16 @@ ok('„1800 ciąg”, bez „2399 ciąg”', napisy.includes('1800 ciąg') && !n
 
 console.log('\n== podział blatu: pola do zaznaczenia i własne cięcie ==');
 const grupa = (lab) => cs().locator('div').filter({ hasText: new RegExp('^' + lab) }).first();
+// podzial cokolu / blatu zwiniety za polem wyboru (komentarz uzytkownika 2026-10-17) — rozwijamy
+const rozwin = async () => { await page.evaluate(() => document.querySelectorAll('label[data-el^="podzial-"] input').forEach((i) => i.click())); await page.waitForTimeout(250); };
+await rozwin();
 const pola = await cs().evaluate((sec) => {
   const f = [...sec.querySelectorAll('div')].find((l) => /^Podział blatu/.test((l.textContent || '').trim()));
   return f ? { chk: [...f.querySelectorAll('input[type=checkbox]')].length, pole: !!f.querySelector('input[type=number]') } : null;
 });
 ok('styki jako pola do zaznaczenia + pole na własny wymiar', !!pola && pola.chk >= 2 && pola.pole, JSON.stringify(pola));
 const wpisz = async (lab, v) => {
+  await rozwin();
   await cs().evaluate((sec, [lab, v]) => {
     const f = [...sec.querySelectorAll('div')].find((l) => new RegExp('^' + lab).test((l.textContent || '').trim()));
     const inp = f.querySelector('input[type=number]');
@@ -76,6 +80,7 @@ await wpisz('Podział cokołu', 700);
 st = await stan();
 ok('własne cięcie cokołu zapisane (plinthCutsWlasne = [700])', JSON.stringify(st.runs[0].plinthCutsWlasne) === '[700]', JSON.stringify(st.runs[0].plinthCutsWlasne));
 // usuniecie wlasnego ciecia
+await rozwin();
 await cs().evaluate((sec) => {
   const f = [...sec.querySelectorAll('div')].find((l) => /^Podział blatu/.test((l.textContent || '').trim()));
   f.querySelector('button[title="Usuń to cięcie"]').click();
@@ -86,13 +91,13 @@ ok('własne cięcie da się usunąć', (st.runs[0].topCutsWlasne || []).length =
 void grupa;
 
 console.log('\n== pasek ciągów i szafek zwija się ==');
-const przed = await page.getByRole('button', { name: /^\+ ciąg$/ }).count();
+const przed = await page.getByRole('button', { name: /^\+ nowy ciąg$/ }).count();
 await page.getByRole('button', { name: /^▼\s*Ciągi i szafki/ }).first().click(); await page.waitForTimeout(400);
-const po = await page.getByRole('button', { name: /^\+ ciąg$/ }).count();
+const po = await page.getByRole('button', { name: /^\+ nowy ciąg$/ }).count();
 const pamieta = await page.evaluate(() => localStorage.getItem('mp-pasek-zwiniety'));
 ok('zwinięty pasek chowa ciągi i szafki (i pamięta to)', przed > 0 && po === 0 && pamieta === '1', `przed ${przed}, po ${po}, pamięć ${pamieta}`);
 await page.getByRole('button', { name: /Ciągi i szafki/ }).first().click(); await page.waitForTimeout(400);
-ok('po drugim kliknięciu pasek wraca', (await page.getByRole('button', { name: /^\+ ciąg$/ }).count()) > 0);
+ok('po drugim kliknięciu pasek wraca', (await page.getByRole('button', { name: /^\+ nowy ciąg$/ }).count()) > 0);
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

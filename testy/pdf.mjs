@@ -58,6 +58,7 @@ await page.evaluate(() => {
       pages: rep.querySelectorAll('.rp-page').length,
       svgs: rep.querySelectorAll('svg').length,
       tables: rep.querySelectorAll('table.rp-tbl').length,
+      arkusze: rep.querySelectorAll('[data-el="rozkroj-material"]').length,
       hasFormatki: rep.innerText.includes('Formatki do zam'),
       hasProdukty: rep.innerText.includes('Produkty do zam'),
       hasZbiorcza: rep.innerText.includes('Formatki całego projektu'),
@@ -75,7 +76,8 @@ const m = await page.evaluate(() => {
 if (!m) { ok('raport w DOM w chwili druku', false); }
 else {
   ok('raport w DOM w chwili druku', true, Math.round(m.htmlLen / 1024) + ' KB HTML');
-  ok('strony: 2 szafki x 2 + zbiorcza + rozkrój = 6', m.pages === 6, String(m.pages));
+  // rozkroj: strona z tabela + kazdy arkusz na swojej stronie (2026-10-17)
+  ok('strony: 2 szafki x 2 + zbiorcza + rozkrój + po stronie na arkusz', m.arkusze > 0 && m.pages === 6 + m.arkusze, `${m.pages} (arkuszy ${m.arkusze})`);
   ok('rysunki: 4 widoki x 2 szafki + arkusze rozkroju', m.svgs >= 8, String(m.svgs));
   ok('tabele: (formatki + produkty + wiercenia) x 2 + zbiorcze + rozkrój = 9', m.tables === 9, String(m.tables));
   ok('zbiorcza lista projektu', m.hasZbiorcza);

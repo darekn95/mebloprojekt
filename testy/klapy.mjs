@@ -6,7 +6,9 @@
    - sila klapy do gory z tabeli GTV PD-G00 (waga frontu na jeden podnosnik,
      wysokosc frontu, kat), klapy w dol z tabeli amortyzatora GTV PD-ECGDL,
    - UI: najpierw „skrzydło / klapa”, dopiero przy klapie „do góry / w dół”,
-   - formatka „Klapa” zamiast „Drzwi”, klapa na rysunku i w bryle. */
+   - formatka „Klapa” zamiast „Drzwi”, klapa na rysunku i w bryle,
+   - (2026-10-17) strona jednego podnosnika, polka na drodze podnosnika,
+     zawias polnakladany osobno (klapa pod polka, drzwi na przegrodzie). */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
@@ -76,10 +78,11 @@ console.log('     ' + (md ? md[0] : '(brak uwagi o amortyzatorze)'));
 ok('klapa w dół: siła z tabeli PD-ECGDL', md && Number(md[4]) === oczekiwana(Number(md[2]), Number(md[3].replace(',', '.')), ECGDL), md && md[4]);
 hw = await okucia();
 ok('okucia: „Amortyzator do klapy opadanej N N” × 1', ilosc(hw, /^Amortyzator do klapy opadanej \d+ N/) === 1, hw.filter((r) => /Amortyzator/.test(r)).join(' / '));
-await pole.locator('[data-el="klapa-sila"] input').fill('80'); await page.waitForTimeout(1500);
+// sila z listy (2026-10-19), jak NL prowadnic — tylko te z karty producenta
+await pole.locator('select[data-el="klapa-sila"]').selectOption('80'); await page.waitForTimeout(1500);
 hw = await okucia();
-ok('po wpisaniu 80 → „Amortyzator do klapy opadanej 80 N” × 1', ilosc(hw, /^Amortyzator do klapy opadanej 80 N/) === 1, hw.filter((r) => /Amortyzator/.test(r)).join(' / '));
-ok('uwaga mówi o sile wpisanej ręcznie', /amortyzator 80 N \(siła wpisana ręcznie\)/.test(await uwagi()));
+ok('po wybraniu 80 → „Amortyzator do klapy opadanej 80 N” × 1', ilosc(hw, /^Amortyzator do klapy opadanej 80 N/) === 1, hw.filter((r) => /Amortyzator/.test(r)).join(' / '));
+ok('uwaga mówi o sile wybranej z listy', /amortyzator 80 N \(siła wybrana z listy\)/.test(await uwagi()));
 await pole.getByText('skrzydło', { exact: true }).click(); await page.waitForTimeout(1500);
 p = await zapis();
 ok('„skrzydło” usuwa klapę, wraca przełącznik zawiasu, znika wybór kierunku', !p.items[0].cab.levels[0].cols[0].klapa
@@ -175,6 +178,9 @@ for (const [H, zaw, opis] of [[720, 2, 'front 714 mm'], [1000, 3, 'front 994 mm 
   ok(`drzwi ${opis}: ${zaw} zawiasy z automatu, bez ostrzeżenia o zawiasach`, ilosc(hw, /^Zawias/) === zaw && !/zawiasów wg tabeli GTV|poza tabelą zawiasów/.test(u),
     `zamówienie ${ilosc(hw, /^Zawias/)}; ${linieZaw(u)}`);
 }
+// dymek pola „zawiasy” opisuje te same progi (audyt GPT N1: zostal stary opis 1400 / 2000 mm)
+const dymek = await page.evaluate(() => [...document.querySelectorAll('[title^="Liczba zawiasów"]')].map((x) => x.getAttribute('title')));
+ok('dymek „Liczba zawiasów” mówi o tabeli GTV, bez starych progów 1400 / 2000 mm', dymek.length > 0 && dymek.every((t) => /tabeli GTV/.test(t) && /750/.test(t) && !/1400|2000 mm|zawsze dwa/.test(t)), dymek.join(' / '));
 await seed(DRZWI(500, 720, { hinges: [3] }));
 u = await uwagi();
 ok('drzwi 714 mm z 3 zawiasami: „za dużo zawiasów wg tabeli GTV — 3 zamiast 2 (front 496 × 714 mm, ok. 4,3 kg)”', /skrzydło 1: za dużo zawiasów wg tabeli GTV — 3 zamiast 2 \(front 496 × 714 mm, ok\. 4,3 kg\)/.test(u), linieZaw(u));
@@ -186,6 +192,16 @@ u = await uwagi();
 ok('drzwi 994 mm z 2 zawiasami: „za mało zawiasów wg tabeli GTV — 2 zamiast 3”', /skrzydło 1: za mało zawiasów wg tabeli GTV — 2 zamiast 3/.test(u), linieZaw(u));
 await seed(DRZWI(500, 1700, { hinges: [4] }));
 ok('drzwi 1694 mm z 4 zawiasami: bez ostrzeżenia (dawniej „za dużo” przy 600 mm)', !/zawiasów wg tabeli GTV|za dużo zawiasów/.test(await uwagi()), linieZaw(await uwagi()));
+// trzeci zawias z samej wagi: front 25 mm, 596 × 714 mm — ok. 7,2 kg (> 6 kg), choc wysokosc ponizej 750
+{
+  const ciezki = DRZWI(600, 720); ciezki.items[0].mat = { front: { thickness: 25 } }; ciezki.items[0].cab.frontSameAsBoard = false;
+  await seed(ciezki);
+  hw = await okucia(); u = await uwagi();
+  const lekki = DRZWI(600, 720); lekki.items[0].cab.levels[0].cols[0].hinges = [3];
+  ok('front 596 × 714 mm z płyty 25 mm (ok. 7,2 kg): 3 zawiasy z samej wagi, bez ostrzeżenia', ilosc(hw, /^Zawias/) === 3 && !/zawiasów wg tabeli GTV|poza tabelą/.test(u), `zamówienie ${ilosc(hw, /^Zawias/)}; ${linieZaw(u)}`);
+  await seed(lekki);
+  ok('ten sam front z płyty 18 mm (ok. 5,2 kg) i 3 wpisane: „za dużo … 3 zamiast 2”', /za dużo zawiasów wg tabeli GTV — 3 zamiast 2 \(front 596 × 714 mm, ok\. 5,2 kg\)/.test(await uwagi()), linieZaw(await uwagi()));
+}
 await seed(DRZWI(704, 720));
 u = await uwagi();
 ok('drzwi szersze niż 600 mm: „poza tabelą zawiasów GTV”, liczba orientacyjna', /skrzydło 1: front 700 × 714 mm, ok\. 6,1 kg — poza tabelą zawiasów GTV \(front do 600 mm szerokości/.test(u), linieZaw(u));
@@ -242,6 +258,147 @@ await seed({ name: 'Z', active: 0, prices: {}, runs: [RUN('c1', { tier: 'gorny' 
   items: [{ ...GORNA(600, { klapa: 'gora' }).items[0], runId: 'c1' }, { ...GORNA(800, { klapa: 'dol' }).items[0], runId: 'c1' }] });
 await pick('Zabudowa'); await pick('3D'); await pick('zamknięte');
 ok('bryła zabudowy z otwartymi klapami bez błędów strony', errors.length === 0, errors.join('; '));
+
+/* Decyzje uzytkownika 2026-10-17: jeden podnosnik — strona do wyboru przy
+   klapie (domyslnie lewa); polka przy podnosniku min. 50 mm za frontem tylko
+   wtedy, gdy naprawde stoi tam, gdzie podnosnik (od plytki na boku do mocowania
+   na klapie); zawias polnakladany osobna pozycja, gdzie dwa fronty dziela plyte. */
+const wierc = async () => {
+  await page.evaluate(() => { window.__rep = null; window.print = () => {
+    const t = [...document.querySelectorAll('.print-only .rp-page table')].find((x) => /Otwory pod/.test(x.querySelector('thead')?.textContent || ''));
+    window.__rep = t ? [...t.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent.trim())) : [];
+  }; });
+  await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click(); await page.waitForTimeout(1000);
+  let panel = '';
+  return ((await page.evaluate(() => window.__rep)) || []).map((r) => { if (r[0]) panel = r[0]; return { panel, kind: r[1], note: r[3] }; });
+};
+const SZAFKA = (cab) => ({ name: 'K', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'K', W: 600, H: 720, D: 560,
+  plinth: { on: true, height: 100, mode: 'under', setback: 0 }, ...cab }, offset: 0 }] });
+
+console.log('\n== jeden podnośnik: strona do wyboru ==');
+await seed(GORNA(600, { klapa: 'gora' }));
+let wr = (await wierc()).filter((r) => r.kind === 'podnośnik klapy');
+ok('domyślnie na lewym boku', wr.some((r) => r.panel === 'Bok lewy') && !wr.some((r) => r.panel === 'Bok prawy'), wr.map((r) => r.panel).join(', '));
+await page.locator('[data-el="klapa-strona"]').getByRole('button', { name: 'na prawym' }).click(); await page.waitForTimeout(900);
+ok('zapis: podnosnikStrona = right', (await zapis()).items[0].cab.levels[0].cols[0].podnosnikStrona === 'right');
+wr = (await wierc()).filter((r) => r.kind === 'podnośnik klapy');
+ok('„na prawym”: płytka na prawym boku, mocowanie od prawej krawędzi klapy',
+  wr.some((r) => r.panel === 'Bok prawy') && !wr.some((r) => r.panel === 'Bok lewy') && wr.some((r) => r.panel === 'Klapa' && /od prawej krawędzi/.test(r.note)),
+  wr.map((r) => `${r.panel}: ${r.note.slice(0, 50)}`).join(' | '));
+await seed(GORNA(800, { klapa: 'gora' }));
+ok('dwa podnośniki: bez pola strony', await page.locator('[data-el="klapa-strona"]').count() === 0);
+
+console.log('\n== półka na drodze podnośnika ==');
+const naDrodze = async () => (await uwagi()).split('\n').filter((l) => /na drodze (podnośnika|amortyzatora)/.test(l));
+await seed(SZAFKA({ levels: [{ h: null, cols: [{ w: null, kind: 'doors', doors: 1, klapa: 'gora', shelfTargets: [null, null] }] }] }));
+ok('półka w połowie (pod płytką podnośnika) — bez uwagi', !(await naDrodze()).length, (await naDrodze()).join(' // '));
+await seed(SZAFKA({ levels: [{ h: null, cols: [{ w: null, kind: 'doors', doors: 1, klapa: 'gora', shelfTargets: [null, null, null] }] }] }));
+let nd = await naDrodze();
+ok('druga z dwóch półek w zasięgu podnośnika — uwaga', nd.length === 1 && /półka 2 \(od dołu\) stoi na drodze podnośnika/.test(nd[0]) && /co najmniej 50 mm/.test(nd[0]), nd.join(' // '));
+await card(/^Uwagi/).getByRole('button', { name: 'Dodatkowe cofnięcie półek 50 mm' }).click(); await page.waitForTimeout(900);
+ok('przycisk: cofnięcie półek 50 mm, uwaga znika', (await zapis()).items[0].cab.shelfExtraSetback === 50 && !(await naDrodze()).length, (await naDrodze()).join(' // '));
+await seed(SZAFKA({ levels: [{ h: null, cols: [{ w: null, kind: 'doors', doors: 1, klapa: 'dol', shelfTargets: [null, null, null] }] }] }));
+nd = await naDrodze();
+ok('klapa w dół: dolna półka w zasięgu amortyzatora', nd.length === 1 && /półka 1 \(od dołu\) stoi na drodze amortyzatora/.test(nd[0]), nd.join(' // '));
+
+console.log('\n== zawias półnakładany ==');
+const zaw = (rows) => ({ n: ilosc(rows, /^Zawias \| nakładany/), p: ilosc(rows, /^Zawias \| półnakładany/) });
+await seed(SZAFKA({ W: 900, levels: [{ h: null, cols: [{ w: null, kind: 'doors', doors: 1, hinge: 'left' }, { w: null, kind: 'doors', doors: 1, hinge: 'left' }] }] }));
+let z = zaw(await okucia());
+ok('drzwi drugiej kolumny na przegrodzie: 2 nakładane + 2 półnakładane', z.n === 2 && z.p === 2, JSON.stringify(z));
+await seed(SZAFKA({ W: 900, levels: [{ h: null, cols: [{ w: null, kind: 'doors', doors: 1, hinge: 'left' }, { w: null, kind: 'doors', doors: 1, hinge: 'right' }] }] }));
+z = zaw(await okucia());
+ok('obie na bokach: 4 nakładane, bez półnakładanych', z.n === 4 && z.p === null, JSON.stringify(z));
+await seed(SZAFKA({ H: 1400, levels: [{ h: 400, cols: [{ w: null, kind: 'doors', doors: 1, klapa: 'gora' }] }, { h: null, cols: [{ w: null, kind: 'doors', doors: 1 }] }] }));
+z = zaw(await okucia());
+ok('klapa pod półką, drzwi nad nią: zawiasy klapy półnakładane (2), drzwi nakładane (3)', z.n === 3 && z.p === 2, JSON.stringify(z));
+wr = (await wierc()).filter((r) => r.kind === 'podnośnik klapy' && /^Poziom 1 — Bok/.test(r.panel));
+ok('podnośnik tej klapy z wiersza „bliźniaczy” (242 mm)', wr.length === 1 && /bliźniaczy.*242 mm/.test(wr[0].note), wr.map((r) => r.note.slice(0, 120)).join(' | '));
+
+/* Opisy przy klapie (uzytkownik 2026-10-19): uchwyt „na dole / na górze” (nie
+   „na boku”), „klapa” zamiast „drzwi 1”, „fronty” zamiast „drzwi”, siła z polem
+   w jednej linii (pole bez opisu przy kącie), z boku „z klapą”. */
+console.log('\n== opisy przy klapie ==');
+await seed(GORNA(600, { klapa: 'gora' }));
+const kolumna = card(/^Struktura wnętrza/);
+const tekst = await kolumna.innerText();
+ok('„fronty” i „klapa” zamiast „drzwi” / „drzwi 1”', /\bfronty\b/.test(tekst) && /\nklapa\n/.test(tekst) && !/drzwi 1/.test(tekst), tekst.replace(/\n/g, ' | ').slice(0, 300));
+const ku = page.locator('[data-el="klapa-uchwyt"]');
+ok('uchwyt klapy: „dole / górze”, bez „boku”', (await ku.innerText()).replace(/\s+/g, ' ').trim() === 'dole górze' && !/boku/.test(await page.locator('[data-el="drzwi-uchwyt"]').innerText()),
+  await ku.innerText());
+const liniaSily = await page.evaluate(() => {
+  const pole = document.querySelector('[data-el="klapa-sila"]').getBoundingClientRect();
+  const etyk = [...document.querySelectorAll('[data-el="klapa-kolumny"] span')].find((x) => x.textContent.trim() === 'siła').getBoundingClientRect();
+  return Math.abs((pole.top + pole.bottom) / 2 - (etyk.top + etyk.bottom) / 2);
+});
+ok('„siła” i jej pole w jednej linii', liniaSily < 6, String(liniaSily));
+await pick('Szafka'); await pick('Zamk.');
+const uchY = async () => page.evaluate(() => { const r = document.querySelector('#rysunek [data-el^="uchwyt-klapy-"]'); if (!r) return null;
+  const b = r.getBoundingClientRect(), f = r.ownerSVGElement.getBoundingClientRect(); return { el: r.getAttribute('data-el'), wzgl: (b.top - f.top) / f.height }; });
+let uy = await uchY();
+ok('do góry: uchwyt domyślnie na dole', !!uy && uy.el === 'uchwyt-klapy-dol' && uy.wzgl > 0.5, JSON.stringify(uy));
+await ku.getByRole('button', { name: 'górze' }).click(); await page.waitForTimeout(700);
+uy = await uchY();
+ok('„na górze”: uchwyt na górnej krawędzi', !!uy && uy.el === 'uchwyt-klapy-gora' && uy.wzgl < 0.5, JSON.stringify(uy));
+// autozapis przychodzi z opoznieniem — czekamy na niego
+await page.waitForFunction(() => JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.levels[0].cols[0].klapaUchwyt === 'gora', null, { timeout: 5000 }).catch(() => {});
+ok('zapis: klapaUchwyt = gora', (await zapis()).items[0].cab.levels[0].cols[0].klapaUchwyt === 'gora');
+await ku.getByRole('button', { name: 'dole' }).click(); await page.waitForTimeout(700);
+await page.waitForFunction(() => !('klapaUchwyt' in JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.levels[0].cols[0]), null, { timeout: 5000 }).catch(() => {});
+ok('powrót do domyślnej krawędzi nie zostawia pola w zapisie', !('klapaUchwyt' in (await zapis()).items[0].cab.levels[0].cols[0]));
+await seed(GORNA(600, { klapa: 'dol' }));
+await pick('Szafka'); await pick('Zamk.');
+uy = await uchY();
+ok('w dół: uchwyt domyślnie na górze', !!uy && uy.el === 'uchwyt-klapy-gora' && uy.wzgl < 0.5, JSON.stringify(uy));
+await pick('Z boku');
+const boki = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map((t) => t.textContent));
+ok('z boku: „z klapą”, nie „z drzwiami”', boki.some((t) => /^z klapą \d+/.test(t)) && !boki.some((t) => /z drzwiami/.test(t)), boki.join(' · '));
+
+/* Sila z listy (uzytkownik 2026-10-19: „jak prowadnice szuflad”): tylko sily
+   z karty producenta — PD-G00 50/60/80/100/120/150 N, PD-ECGDL 60/80/150 N;
+   auto = najslabsza, ktora uniesie klape; przy kazdej udzwig i „za słaby”;
+   slabsza od tabeli — ostrzezenie z przyciskiem powrotu do auto. */
+console.log('\n== siła z listy ==');
+await seed(GORNA(600, { klapa: 'gora' }));
+const lista = async () => page.locator('select[data-el="klapa-sila"] option').evaluateAll((o) => o.map((x) => ({ v: x.value, t: x.textContent.trim() })));
+let ls = await lista();
+ok('do góry: auto + 50, 60, 80, 100, 120, 150 N', ls.length === 7 && ls.slice(1).map((o) => o.v).join() === '50,60,80,100,120,150', ls.map((o) => o.t).join(' | '));
+const autoN = Number((/auto \((\d+) N\)/.exec(ls[0].t) || [])[1]);
+const um = /klapa do góry (\d+) × (\d+) mm, ok\. ([\d,]+) kg/.exec(await uwagi());
+ok(`auto = siła z tabeli GTV (${autoN} N)`, !!um && autoN === oczekiwana(Number(um[2]), Number(um[3].replace(',', '.'))), ls[0].t);
+ok('słabsze od auto oznaczone „za słaby”, auto i mocniejsze bez', ls.slice(1).every((o) => (Number(o.v) < autoN) === /za słaby/.test(o.t)) && ls.slice(1).every((o) => /do ok\. [\d,]+ kg/.test(o.t)),
+  ls.map((o) => o.t).join(' | '));
+const slaby = ls.slice(1).find((o) => /za słaby/.test(o.t));
+if (slaby) {
+  await page.locator('select[data-el="klapa-sila"]').selectOption(slaby.v); await page.waitForTimeout(1200);
+  u = await uwagi();
+  ok(`wybrany ${slaby.v} N: ostrzeżenie „za słaby”`, new RegExp(`podnośnik ${slaby.v} N jest za słaby na tę klapę`).test(u) && new RegExp(`Z tabeli wychodzi ${autoN} N`).test(u), u.slice(0, 300));
+  // „dołóż drugi albo zwiększ siłę” (uzytkownik 2026-10-19)
+  const dolozBtn = card(/^Uwagi/).getByRole('button', { name: /^Dołóż drugi — 2 × \d+ N$/ });
+  ok('przy za słabym: „Zwiększ siłę do … N” i „Dołóż drugi — 2 × … N”',
+    await card(/^Uwagi/).getByRole('button', { name: `Zwiększ siłę do ${autoN} N` }).count() === 1 && await dolozBtn.count() === 1,
+    (await card(/^Uwagi/).getByRole('button').allInnerTexts()).filter((t) => /Zwiększ|Dołóż/.test(t)).join(' | '));
+  const dolozT = await dolozBtn.innerText();
+  await dolozBtn.click(); await page.waitForTimeout(1200);
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.levels[0].cols[0].silowniki === 2, null, { timeout: 5000 }).catch(() => {});
+  let col0 = (await zapis()).items[0].cab.levels[0].cols[0];
+  hw = await okucia();
+  const n2 = Number((/2 × (\d+) N/.exec(dolozT) || [])[1]);
+  ok(`„${dolozT}”: dwa podnośniki ${n2} N w okuciach, bez „za słaby”`, col0.silowniki === 2 && ilosc(hw, new RegExp(`^Podnośnik gazowy ${n2} N`)) === 2 && !/jest za słaby/.test(await uwagi()),
+    JSON.stringify(col0) + ' / ' + hw.filter((r) => /Podnośnik/.test(r)).join(' / '));
+  await seed(GORNA(600, { klapa: 'gora', silaN: Number(slaby.v) }));
+  await card(/^Uwagi/).getByRole('button', { name: `Zwiększ siłę do ${autoN} N` }).click(); await page.waitForTimeout(1200);
+  await page.waitForFunction(() => !('silaN' in JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.levels[0].cols[0]), null, { timeout: 5000 }).catch(() => {});
+  ok('przycisk „Auto”: siła wraca do tabeli, ostrzeżenie znika', !('silaN' in (await zapis()).items[0].cab.levels[0].cols[0]) && !/jest za słaby/.test(await uwagi()));
+}
+await page.locator('select[data-el="klapa-sila"]').selectOption('150'); await page.waitForTimeout(1200);
+ok('mocniejszy (150 N): bez ostrzeżenia, w okuciach 150 N', !/jest za słaby/.test(await uwagi()) && ilosc(await okucia(), /^Podnośnik gazowy 150 N/) === 1);
+await seed(GORNA(600, { klapa: 'dol' }));
+ls = await lista();
+ok('w dół: auto + 60, 80, 150 N (PD-ECGDL)', ls.length === 4 && ls.slice(1).map((o) => o.v).join() === '60,80,150', ls.map((o) => o.t).join(' | '));
+await seed(GORNA(600, { klapa: 'gora', silaN: 90 }));
+ls = await lista();
+ok('starsza siła spoza karty (90 N) zostaje widoczna na liście', ls.some((o) => o.v === '90' && /spoza karty/.test(o.t)) && await page.locator('select[data-el="klapa-sila"]').inputValue() === '90', ls.map((o) => o.t).join(' | '));
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

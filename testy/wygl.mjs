@@ -64,7 +64,8 @@ ok('"Biały mat" został', await plyty.locator('button[title="Biały mat"]').cou
 console.log('\n== 4. HDF bez oklejania ==');
 const hdfRow = await cut.evaluate((s) => {
   const tr = [...s.querySelectorAll('tbody tr')].find(t => /HDF/.test(t.querySelectorAll('td')[1].innerText));
-  return tr ? { txt: tr.innerText.replace(/\s+/g, ' '), btns: tr.querySelectorAll('button').length } : null;
+  // przycisk z nazwa formatki (podswietlenie w 3D) to nie oklejanie
+  return tr ? { txt: tr.innerText.replace(/\s+/g, ' '), btns: tr.querySelectorAll('button:not([data-el="formatka-nazwa"])').length } : null;
 });
 console.log('  wiersz HDF:', JSON.stringify(hdfRow));
 ok('brak przycisków oklejania przy HDF', hdfRow && hdfRow.btns === 0, JSON.stringify(hdfRow));

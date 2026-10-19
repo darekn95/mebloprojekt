@@ -76,7 +76,10 @@ await page.evaluate(() => {
     window.__snap = {
       pages: pages.length,
       lastTxt: (pages[pages.length - 1] || {}).innerText?.replace(/\s+/g, ' ') || '',
-      hasPlanSvg: (pages[pages.length - 1] || document).querySelectorAll('svg').length,
+      // od 2026-10-17 rozkroj to strona z tabela, a po niej kazdy arkusz na swojej stronie
+      ostatniArkusz: !!(pages[pages.length - 1] || { matches: () => false }).matches('[data-el="rozkroj-material"]'),
+      rozTxt: (pages.find((p) => /Rozkrój na płycie/.test(p.textContent)) || {}).innerText?.replace(/\s+/g, ' ') || '',
+      hasPlanSvg: [...rep.querySelectorAll('[data-el="rozkroj-material"]')].reduce((a, p) => a + p.querySelectorAll('svg').length, 0),
       txt: rep.innerText.replace(/\s+/g, ' '),
     };
   };
@@ -86,9 +89,9 @@ await page.waitForTimeout(2000);
 const snap = await page.evaluate(() => window.__snap);
 ok('zestawienie zbudowane', !!snap, snap ? snap.pages + ' stron' : 'brak');
 if (snap) {
-  ok('ostatnia strona to rozkrój', /Rozkrój na płycie/.test(snap.lastTxt), snap.lastTxt.slice(0, 80));
+  ok('na końcu rozkrój: strona z tabelą, potem arkusze (ostatnia strona to arkusz)', !!snap.rozTxt && snap.ostatniArkusz, snap.lastTxt.slice(0, 80));
   ok('rozkrój ma rysunki arkuszy', snap.hasPlanSvg > 0, snap.hasPlanSvg + ' rysunków');
-  ok('rozkrój ma tabelę podsumowania', /Największy zrzut/.test(snap.lastTxt));
+  ok('rozkrój ma tabelę podsumowania', /Największy zrzut/.test(snap.rozTxt));
   ok('dodatkowa formatka w zestawieniu', /Blat roboczy/.test(snap.txt));
 }
 

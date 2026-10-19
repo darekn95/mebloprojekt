@@ -14,7 +14,7 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1800);
 
 const wiersz = (txt) => page.locator('header .space-y-1 > div').filter({ hasText: txt });
-await page.getByRole('button', { name: '+ ciąg' }).click();
+await page.getByRole('button', { name: '+ nowy ciąg' }).click();
 await page.waitForTimeout(800);
 await wiersz('Ściana 1').getByRole('button', { name: '+ szafka' }).click();
 await page.waitForTimeout(1000);
@@ -37,7 +37,7 @@ ok('wysokość montażu 1358', !!g && g.mountY === 1358, g && String(g.mountY));
 ok('drugiego górnego już nie dołożysz', await page.getByRole('button', { name: '+ ciąg górny' }).count() === 0);
 
 const etykiety = await page.evaluate(() =>
-  [...document.querySelectorAll('header .space-y-1 > div span')].map((e) => e.textContent.trim()).filter(Boolean));
+  [...document.querySelectorAll('header .space-y-1 > div span, header .space-y-1 > div [data-el="nazwa-sciany"]')].map((e) => e.textContent.trim()).filter(Boolean));
 ok('podpisy mówią o piętrze', etykiety.some((t) => /ciąg dolny/.test(t)) && etykiety.some((t) => /ciąg górny/.test(t)),
   etykiety.slice(0, 4).join(' | '));
 

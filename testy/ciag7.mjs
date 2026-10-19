@@ -22,17 +22,19 @@ const rowsOf = (re) => card(re).evaluate((sec) =>
 const stan = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt') || '{}'));
 // kafelki podzialu danej sekcji
 // podzial: styki jako pola do zaznaczenia „2420 mm” (od 2026-09-29, wczesniej kafelki)
-const cutBtns = (label) => cs().evaluate((sec, lab) => {
+// podzial cokolu / blatu zwiniety za polem wyboru (komentarz uzytkownika 2026-10-17) — rozwijamy
+const rozwin = async () => { await page.evaluate(() => document.querySelectorAll('label[data-el^="podzial-"] input').forEach((i) => i.click())); await page.waitForTimeout(250); };
+const cutBtns = async (label) => { await rozwin(); return cs().evaluate((sec, lab) => {
   const f = [...sec.querySelectorAll('div')].find((l) => new RegExp('^' + lab).test((l.textContent || '').trim()));
   return f ? [...f.querySelectorAll('label')].filter((l) => l.querySelector('input[type=checkbox]')).map((l) => ({
     t: l.textContent.trim().replace(/ mm$/, ''), on: l.querySelector('input').checked,
   })) : [];
-}, label);
-const klik = (lab, t) => cs().evaluate((sec, [lab, t]) => {
+}, label); };
+const klik = async (lab, t) => { await rozwin(); return cs().evaluate((sec, [lab, t]) => {
   const f = [...sec.querySelectorAll('div')].find((l) => new RegExp('^' + lab).test((l.textContent || '').trim()));
   const l = [...f.querySelectorAll('label')].find((x) => x.textContent.trim() === t + ' mm');
   l.querySelector('input').click();
-}, [lab, t]);
+}, [lab, t]); };
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 const BLAT = { mode: 'blat', widthMode: 'outside', overL: 20, overR: 20, overFront: 30, overBack: 0 };
@@ -141,7 +143,13 @@ ok('żadnej uwagi o wieszaniu na starcie',
   (await notes()).map((x) => x.txt.slice(0, 45)).join(' // '));
 
 console.log('\n== listwa jedna na cały ciąg ==');
-await seed([600, 600, 600]);
+/* Szafki na listwie, jak przy dodawaniu do ciagu w aplikacji. Od 2026-10-17
+   listwa jest tylko wtedy, gdy choc jedna szafka na niej wisi (audyt GPT N21,
+   decyzja uzytkownika) — surowe dane bez `hangerMode` to domyslne haczyki. */
+await seed([600, 600, 600], {}, { hangerMode: 'haczyki' });
+ok('wszystkie szafki na haczykach: bez listwy w projekcie', !(await rowsOf(/Produkty całego projektu/)).some((r) => /^Listwa/.test(r)),
+  (await rowsOf(/Produkty całego projektu/)).filter((r) => /Listwa/.test(r)).join(' // '));
+await seed([600, 600, 600], {}, { hangerMode: 'listwa' });
 let hw = await hwCab();
 console.log('     szafka: ' + hw.filter((r) => /Listwa/.test(r)).join(' // '));
 ok('szafka w ciągu nie liczy własnej listwy', !hw.some((r) => /^Listwa/.test(r)),

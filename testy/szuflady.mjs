@@ -33,7 +33,7 @@ const MAT = {
    i ta, ktora dostaje sie „+ szafka” w ciagu z blatem (bez wienca, wzmocnienia). */
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
-await page.getByRole('button', { name: '+ ciąg', exact: true }).first().click(); await page.waitForTimeout(500);
+await page.getByRole('button', { name: '+ nowy ciąg', exact: true }).first().click(); await page.waitForTimeout(500);
 const wiersz = page.locator('header .space-y-1 > div').filter({ hasText: /^Ściana 1/ }).first();
 await wiersz.getByRole('button', { name: '+ szafka', exact: true }).click(); await page.waitForTimeout(1800);
 const wzor = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));

@@ -88,9 +88,9 @@ const dodajSzafke = async (re, ile = 1) => { for (let k = 0; k < ile; k++) { awa
 /* buduje zabudowe przyciskami; `szafka` = 'slepa' | 'L' (kreator rogu) */
 const buduj = async (szafka, gorne) => {
   await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(900);
-  await click('+ ciąg');
+  await click('+ nowy ciąg');
   await dodajSzafke(/^Ściana 1/, 3);
-  await click('+ ciąg');
+  await click('+ nowy ciąg');
   const kreator = page.locator('[data-el="kreator-rogu"]');
   if (szafka === 'L') { await kreator.locator('select').nth(1).selectOption('L'); await page.waitForTimeout(200); }
   await kreator.getByRole('button', { name: 'Utwórz ciąg' }).click(); await page.waitForTimeout(1200);
