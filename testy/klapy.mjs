@@ -314,5 +314,44 @@ ok('klapa pod półką, drzwi nad nią: zawiasy klapy półnakładane (2), drzwi
 wr = (await wierc()).filter((r) => r.kind === 'podnośnik klapy' && /^Poziom 1 — Bok/.test(r.panel));
 ok('podnośnik tej klapy z wiersza „bliźniaczy” (242 mm)', wr.length === 1 && /bliźniaczy.*242 mm/.test(wr[0].note), wr.map((r) => r.note.slice(0, 120)).join(' | '));
 
+/* Opisy przy klapie (uzytkownik 2026-10-19): uchwyt „na dole / na górze” (nie
+   „na boku”), „klapa” zamiast „drzwi 1”, „fronty” zamiast „drzwi”, siła z polem
+   w jednej linii (pole bez opisu przy kącie), z boku „z klapą”. */
+console.log('\n== opisy przy klapie ==');
+await seed(GORNA(600, { klapa: 'gora' }));
+const kolumna = card(/^Struktura wnętrza/);
+const tekst = await kolumna.innerText();
+ok('„fronty” i „klapa” zamiast „drzwi” / „drzwi 1”', /\bfronty\b/.test(tekst) && /\nklapa\n/.test(tekst) && !/drzwi 1/.test(tekst), tekst.replace(/\n/g, ' | ').slice(0, 300));
+const ku = page.locator('[data-el="klapa-uchwyt"]');
+ok('uchwyt klapy: „dole / górze”, bez „boku”', (await ku.innerText()).replace(/\s+/g, ' ').trim() === 'dole górze' && !/boku/.test(await page.locator('[data-el="drzwi-uchwyt"]').innerText()),
+  await ku.innerText());
+const liniaSily = await page.evaluate(() => {
+  const pole = document.querySelector('[data-el="klapa-sila"]').getBoundingClientRect();
+  const etyk = [...document.querySelectorAll('[data-el="klapa-kolumny"] span')].find((x) => x.textContent.trim() === 'siła').getBoundingClientRect();
+  return Math.abs((pole.top + pole.bottom) / 2 - (etyk.top + etyk.bottom) / 2);
+});
+ok('„siła” i jej pole w jednej linii', liniaSily < 6, String(liniaSily));
+await pick('Szafka'); await pick('Zamk.');
+const uchY = async () => page.evaluate(() => { const r = document.querySelector('#rysunek [data-el^="uchwyt-klapy-"]'); if (!r) return null;
+  const b = r.getBoundingClientRect(), f = r.ownerSVGElement.getBoundingClientRect(); return { el: r.getAttribute('data-el'), wzgl: (b.top - f.top) / f.height }; });
+let uy = await uchY();
+ok('do góry: uchwyt domyślnie na dole', !!uy && uy.el === 'uchwyt-klapy-dol' && uy.wzgl > 0.5, JSON.stringify(uy));
+await ku.getByRole('button', { name: 'górze' }).click(); await page.waitForTimeout(700);
+uy = await uchY();
+ok('„na górze”: uchwyt na górnej krawędzi', !!uy && uy.el === 'uchwyt-klapy-gora' && uy.wzgl < 0.5, JSON.stringify(uy));
+// autozapis przychodzi z opoznieniem — czekamy na niego
+await page.waitForFunction(() => JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.levels[0].cols[0].klapaUchwyt === 'gora', null, { timeout: 5000 }).catch(() => {});
+ok('zapis: klapaUchwyt = gora', (await zapis()).items[0].cab.levels[0].cols[0].klapaUchwyt === 'gora');
+await ku.getByRole('button', { name: 'dole' }).click(); await page.waitForTimeout(700);
+await page.waitForFunction(() => !('klapaUchwyt' in JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.levels[0].cols[0]), null, { timeout: 5000 }).catch(() => {});
+ok('powrót do domyślnej krawędzi nie zostawia pola w zapisie', !('klapaUchwyt' in (await zapis()).items[0].cab.levels[0].cols[0]));
+await seed(GORNA(600, { klapa: 'dol' }));
+await pick('Szafka'); await pick('Zamk.');
+uy = await uchY();
+ok('w dół: uchwyt domyślnie na górze', !!uy && uy.el === 'uchwyt-klapy-gora' && uy.wzgl < 0.5, JSON.stringify(uy));
+await pick('Z boku');
+const boki = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg text')].map((t) => t.textContent));
+ok('z boku: „z klapą”, nie „z drzwiami”', boki.some((t) => /^z klapą \d+/.test(t)) && !boki.some((t) => /z drzwiami/.test(t)), boki.join(' · '));
+
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

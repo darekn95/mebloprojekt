@@ -2665,6 +2665,11 @@ function computeGeoLiczy(cab, mat, ctx) {
               bandLo: lv.i === 0 ? null : clo, bandHi: lv.i === L - 1 ? null : chi,
               mirror: !!(rawCol.mirrors || [])[0], hinges: nZaw, hingePts: [], klapaZawiasy: xs,
               handle: (rawCol.handles || [])[0] !== false, colJ: j, colLast: j === lv.cols.length - 1,
+              /* uchwyt klapy na dolnej albo gornej krawedzi (uzytkownik 2026-10-19: „na
+                 dole / na górze”, nie „na boku”); domyslnie wolna krawedz — przy klapie
+                 do gory dol, w dol gora */
+              uchwytKrawedz: rawCol.klapaUchwyt === "dol" || rawCol.klapaUchwyt === "gora"
+                ? rawCol.klapaUchwyt : (klapa === "gora" ? "dol" : "gora"),
               // wlasne wystawanie uchwytu, jak przy skrzydle — dotad klapa brala to z calej szafki (audyt GPT N36)
               handleOut: num((rawCol.handleOuts || [])[0]) };
             doors.push(d);
@@ -5803,7 +5808,7 @@ const pasFrontu = (c) => {
 function UchwytElewacja({ d, fy, dx = 0 }) {
   const ob = uchwytObrys(d);
   return (
-    <rect data-el={d.type === "door" ? `uchwyt-${d.handlePos}` : undefined}
+    <rect data-el={d.type === "door" ? `uchwyt-${d.handlePos}` : d.type === "klapa" ? `uchwyt-klapy-${d.uchwytKrawedz || "dol"}` : undefined}
       x={ob.x0 + dx} y={fy(ob.y1)} width={ob.x1 - ob.x0} height={ob.y1 - ob.y0}
       rx="5" fill="#52525b" opacity="0.9" />
   );
@@ -9866,7 +9871,11 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
         <>
           <DimH x1={0} x2={D} y={-50} label={`${fmt(D)}`} />
           {hasFront && (
-            <DimH x1={0} x2={frontFace} y={-110} label={`z drzwiami ${fmt(frontFace)}`} c={LINE} />
+            <DimH x1={0} x2={frontFace} y={-110} c={LINE} label={`${(() => {
+              // podpis wg frontow: przy samej klapie nie „z drzwiami” (uzytkownik 2026-10-19)
+              const typy = new Set((geo.doors || []).map((d) => d.type));
+              return typy.has("door") ? "z drzwiami" : typy.has("klapa") ? "z klapą" : "z frontem";
+            })()} ${fmt(frontFace)}`} />
           )}
           <DimH x1={xC} x2={xC + geo.shelfDepth} y={H + 70} label={`półka ${fmt(geo.shelfDepth)}`} above={false} />
           <DimV y1={0} y2={H} x={xWysokosc} label={`${fmt(H)}`} />
@@ -10056,8 +10065,8 @@ const klapaObrot = (d, angle, oz) => {
 };
 // uchwyt klapy lezy poziomo przy wolnej krawedzi — jak w szufladzie, tylko
 // przy klapie do gory na dole frontu
-const klapaUchwytY = (d) => d.klapa === "gora"
-  ? d.y + Math.min(50, d.h / 2) : d.y + d.h - Math.min(50, d.h / 2);
+const klapaUchwytY = (d) => ((d.uchwytKrawedz || (d.klapa === "gora" ? "dol" : "gora")) === "dol"
+  ? d.y + Math.min(50, d.h / 2) : d.y + d.h - Math.min(50, d.h / 2));
 
 /* Kolejnosc rysowania bryl w rzucie 3D — wspolna dla bryly calej zabudowy
    i pojedynczej szafki. Malowanie scian po ich sredniej glebokosci mylilo sie
@@ -13351,7 +13360,9 @@ const swingBodies = (L, project) => {
              Promien to wysokosc klapy, a z uchwytem przy wolnej krawedzi —
              przekatna do jego czola. */
           const gora = d.klapa === "gora";
-          const r = d.handle && uchwyt > 0 ? Math.hypot(d.h, uchwyt) : d.h;
+          // uchwyt przy krawedzi zawiasow obraca sie blisko osi — nie wydluza klapy
+          const naWolnej = (d.uchwytKrawedz || (gora ? "dol" : "gora")) === (gora ? "dol" : "gora");
+          const r = d.handle && uchwyt > 0 && naWolnej ? Math.hypot(d.h, uchwyt) : d.h;
           ruchy.push({ ...kto, klucz, n, typ: "klapa", gora, kat: d.kat || 90, r, tf: geo.tf, szer: d.h,
             u0: u0 + d.x, u1: u0 + d.x + d.w, hv: lico, hz: gora ? z1 : z0 });
           return;
@@ -17620,7 +17631,10 @@ export default function App() {
 
                         {c.kind === "doors" && (
                           <div className="flex items-center gap-2 text-xs">
-                            <span className="text-stone-500">drzwi</span>
+                            {/* przy klapie to nie „drzwi” — liczba frontow; klapa jest tylko przy jednym */}
+                            {rawCol.doors === 1 && (rawCol.klapa === "gora" || rawCol.klapa === "dol")
+                              ? <span className="text-stone-500" title="Klapa jest tylko przy jednym froncie — przy dwóch i więcej będą drzwi">fronty</span>
+                              : <span className="text-stone-500">drzwi</span>}
                             <input type="number" min={0} step={1} value={rawCol.doors}
                               onChange={(e) => setColDoors(lv.i, c.j, e.target.value)}
                               className="w-14 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none" />
@@ -17685,20 +17699,26 @@ export default function App() {
                                         options={[{ v: "left", l: "na lewym" }, { v: "right", l: "na prawym" }]} />
                                     </span>
                                   )}
-                                  <span className="text-stone-500">siła N</span>
-                                  <span data-el="klapa-sila" className="w-20">
-                                    <AutoNum value={rawCol.silaN}
-                                      placeholder={info.dobor && info.dobor.sila ? String(info.dobor.sila) : "?"}
-                                      fixed={num(rawCol.silaN) !== null}
-                                      warn={!info.sila}
-                                      onChange={(v) => ustaw("silaN", v === "" ? null : Number(v))} />
+                                  {/* podpis i pole razem — samo pole zawijalo sie pod „kąt” bez opisu
+                                      (uzytkownik 2026-10-19: „dziwne pole przy kącie”) */}
+                                  <span className="flex items-center gap-1.5 whitespace-nowrap"
+                                    title={`Siła ${kl === "gora" ? "podnośnika" : "amortyzatora"} w niutonach — puste = z tabeli GTV`}>
+                                    <span className="text-stone-500">siła</span>
+                                    <span data-el="klapa-sila" className="w-20">
+                                      <AutoNum value={rawCol.silaN}
+                                        placeholder={info.dobor && info.dobor.sila ? String(info.dobor.sila) : "?"}
+                                        fixed={num(rawCol.silaN) !== null}
+                                        warn={!info.sila}
+                                        onChange={(v) => ustaw("silaN", v === "" ? null : Number(v))} />
+                                    </span>
+                                    <span className="text-stone-500">N</span>
                                   </span>
                                   {kl === "gora" && (
-                                    <>
+                                    <span className="flex items-center gap-1.5 whitespace-nowrap">
                                       <span className="text-stone-500">kąt</span>
                                       <Seg value={String(info.kat)} onChange={(v) => ustaw("katKlapy", v === "90" ? null : Number(v))}
                                         options={[{ v: "75", l: "75°" }, { v: "90", l: "90°" }, { v: "100", l: "100°" }]} />
-                                    </>
+                                    </span>
                                   )}
                                   <span className="ml-auto font-mono text-stone-500">
                                     ok. {info.kg.toFixed(1).replace(".", ",")} kg
@@ -17720,13 +17740,15 @@ export default function App() {
                           </div>
                         )}
 
-                        {c.kind === "doors" && rawCol.doors > 0 && (
+                        {c.kind === "doors" && rawCol.doors > 0 && (() => {
+                          const jestKlapa = rawCol.doors === 1 && (rawCol.klapa === "gora" || rawCol.klapa === "dol");
+                          return (
                           <div className="space-y-1">
                             {(c.doorWs || []).map((w, k) => (
                               <div key={k} className="space-y-1">
                               <div className="flex items-center gap-2">
                                 <span className="w-20 shrink-0 text-[11px] text-stone-400">
-                                  drzwi {k + 1}
+                                  {jestKlapa ? "klapa" : `drzwi ${k + 1}`}
                                 </span>
                                 <AutoNum value={(rawCol.doorWidths || [])[k]} placeholder={fmt(w)}
                                   fixed={num((rawCol.doorWidths || [])[k]) !== null}
@@ -17766,8 +17788,22 @@ export default function App() {
                                               e.target.value === "" ? null : Math.max(0, Math.round(Number(e.target.value))))}
                                             className={"w-12 " + pole} />
                                           <span className="text-[11px] text-stone-400">mm, na</span>
-                                          <Seg value={poz} onChange={(v) => setDoorFlag(lv.i, c.j, k, "handlePos", v)}
-                                            options={[{ v: "bok", l: "boku" }, { v: "gora", l: "górze" }]} />
+                                          {/* klapa: uchwyt na dolnej albo gornej krawedzi, nie na boku
+                                              (uzytkownik 2026-10-19); domyslnie wolna krawedz */}
+                                          {jestKlapa ? (
+                                            <span data-el="klapa-uchwyt">
+                                              <Seg value={((c.doors || [])[0] || {}).uchwytKrawedz || (rawCol.klapa === "gora" ? "dol" : "gora")}
+                                                onChange={(v) => editLevels((L) => {
+                                                  const col = L[lv.i].cols[c.j];
+                                                  // domyslna (wolna krawedz) nie zostaje zapisana
+                                                  if (v === (col.klapa === "gora" ? "dol" : "gora")) delete col.klapaUchwyt; else col.klapaUchwyt = v;
+                                                })}
+                                                options={[{ v: "dol", l: "dole" }, { v: "gora", l: "górze" }]} />
+                                            </span>
+                                          ) : (
+                                            <Seg value={poz} onChange={(v) => setDoorFlag(lv.i, c.j, k, "handlePos", v)}
+                                              options={[{ v: "bok", l: "boku" }, { v: "gora", l: "górze" }]} />
+                                          )}
                                         </>
                                       )}
                                     </span>
@@ -17812,7 +17848,8 @@ export default function App() {
                               </div>
                             )}
                           </div>
-                        )}
+                          );
+                        })()}
 
                         <div className="flex items-center gap-2 text-xs">
                           <span className="w-16 shrink-0 text-stone-500">plecy</span>

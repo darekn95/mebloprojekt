@@ -149,6 +149,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | podnośniki (do góry) / amortyzatory (w dół): auto / 1 / 2 | `col.silowniki` (puste = 1, powyżej 600 mm szerokości 2; jeden przy ponad 600 mm — ostrzeżenie) |
 | siła N | `col.silaN` (puste = z tabeli: PD-G00 do góry, PD-ECGDL w dół) — `data-el="klapa-sila"` |
 | kąt 75° / 90° / 100° (klapa do góry) | `col.katKlapy` (puste = 90) |
+| uchwyt klapy: na dole / na górze (`data-el="klapa-uchwyt"`) | `col.klapaUchwyt` (`"dol"` / `"gora"`, puste = wolna krawędź: klapa do góry — dół, w dół — góra); w geometrii `d.uchwytKrawedz`, rysunek `klapaUchwytY`, `uchwytObrys` (`data-el="uchwyt-klapy-dol|gora"`) |
 | jeden podnośnik / amortyzator: na lewym / na prawym | `col.podnosnikStrona` (puste = lewa, `"right"`) — tylko przy jednym (`data-el="klapa-strona"`); `geo.klapy[].strona`, plan wierceń |
 | uwaga „półka … stoi na drodze podnośnika” / przycisk „Dodatkowe cofnięcie półek N mm” | w `computeGeo` przy wierceniach klapy: półka w zasięgu podnośnika (płytka `KLAPA_PLYTKA_R`, mocowanie `KLAPA_MOC_ZAPAS`) bliżej frontu niż `KLAPA_POLKA_ZA_FRONTEM` (50); akcja `polkicof:<mm>` ustawia `cab.shelfExtraSetback` |
 | „Zawias — półnakładany” w okuciach | `hingePol`, `polnakladany(naCzolo, grubPlyty)` w `computeGeo`: front na płycie z zawiasem ≤ pół grubości + 2 mm (przegroda, półka pod klapą); reszta „nakładany” |
