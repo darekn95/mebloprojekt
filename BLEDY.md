@@ -12,7 +12,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Suita | Objaw | Przyczyna / stan |
 |---|---|---|
-| — | wszystkie znane usterki z listy naprawione 2026-09-27; nowe dopisywać tutaj | |
+| — (audyt GPT U2, sprawdzone 2026-10-19) | w niskim oknie (600 × 495) przyklejony nagłówek zajmuje 391 px z 495; po „Pokaż rysunek” i przewinięciu rysunek chowa się pod nagłówkiem — widać 0 px | nagłówek `sticky` z paskami pomieszczeń i ciągów rośnie z liczbą ciągów; czeka na decyzję użytkownika, jak naprawić |
+| — | pozostałe znane usterki naprawione; nowe dopisywać tutaj | |
 
 ## Naprawione
 
