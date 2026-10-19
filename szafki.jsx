@@ -8870,24 +8870,6 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
           fill={bf} stroke={INK} strokeWidth="2" />
       )}
 
-      {/* polki i przegrody widoczne pod pleckami */}
-      {geo.sepShelves.map((sh, i) => (
-        <rect key={"s" + i} x={geo.interior.x0} y={fy(sh.y + t)} width={geo.innerW} height={t}
-          fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
-      ))}
-      {geo.dividers.map((d, i) => (
-        <rect key={"d" + i} x={mx(d.x, t)} y={fy(d.y1)} width={t} height={d.h}
-          fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
-      ))}
-      {geo.levels.map((lv) =>
-        lv.cols.map((c) =>
-          c.shelves.map((sh, k) => (
-            <rect key={`p${lv.i}-${c.j}-${k}`} x={mx(c.shX0 ?? c.x0, c.shW ?? c.w)} y={fy(sh.y + geo.ts)}
-              width={c.shW ?? c.w} height={geo.ts} fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
-          ))
-        )
-      )}
-
       {/* plecy */}
       {cab.back !== "none" && (
         <rect x={mx(bx, bw)} y={fy(by + bh)} width={bw} height={bh}
@@ -8906,13 +8888,72 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
             width={r.x1 - r.x0} height={r.y1 - r.y0}
             fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
           {showDims && r.x1 - r.x0 > 220 && (
-            <text x={mx(r.x0, r.x1 - r.x0) + (r.x1 - r.x0) / 2} y={fy(r.y0) - 8}
+            // plaskie (cieńsze niz podpis) — podpis pod nim, w srodku przekreslala go kreska
+            <text x={mx(r.x0, r.x1 - r.x0) + (r.x1 - r.x0) / 2} y={r.y1 - r.y0 < 40 ? fy(r.y0) + 20 : fy(r.y0) - 8}
               textAnchor="middle" fontSize="17" fill={LINE} fontFamily="ui-monospace, monospace">
               {r.przyTyle ? "wzmocnienie tylne" : "wzmocnienie czołowe"} {fmt(r.x1 - r.x0)}
             </text>
           )}
         </g>
       ))))}
+
+      {/* Polki, polki przelotowe i przegrody za plecami — kreska na wierzchu pleców
+          jak wzmocnienia (spod pleców z plyty ich nie bylo widac) i podpis z wysokoscia
+          od dolu korpusu (uzytkownik 2026-10-19). Polka: do spodu, jak w planie wiercen;
+          przegroda: jej wysokosc i gdzie sie zaczyna. */}
+      {geo.sepShelves.map((sh, i) => (
+        <g key={"s" + i} data-el="tyl-polka-przelotowa">
+          <rect x={geo.interior.x0} y={fy(sh.y + t)} width={geo.innerW} height={t}
+            fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
+          {showDims && (
+            <text x={geo.interior.x0 + geo.innerW / 2} y={fy(sh.y + t) - 8}
+              textAnchor="middle" fontSize="17" fill={LINE} fontFamily="ui-monospace, monospace">
+              {geo.innerW > 360 ? `półka przelotowa ${fmt(geo.innerW)} · spód ${fmt(Math.round(sh.y))} od dołu` : `półka przel. · ${fmt(Math.round(sh.y))}`}
+            </text>
+          )}
+        </g>
+      ))}
+      {geo.dividers.map((d, i) => (
+        <g key={"d" + i} data-el="tyl-przegroda">
+          <rect x={mx(d.x, t)} y={fy(d.y1)} width={t} height={d.h}
+            fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
+          {showDims && (() => {
+            /* podpis w najwiekszej przerwie miedzy polkami po obu stronach przegrody —
+               na srodku wypadal na polce i nachodzil na jej podpis */
+            const lvP = geo.levels[d.level];
+            const ys = [d.y0, ...[d.j, d.j + 1].flatMap((j) => ((lvP && lvP.cols[j]) || {}).shelves || [])
+              .flatMap((sh) => [sh.y, sh.y + geo.ts]).filter((y) => y > d.y0 && y < d.y1), d.y1].sort((a, b) => a - b);
+            let g = { a: d.y0, b: d.y1, len: 0 };
+            for (let k = 0; k + 1 < ys.length; k++) if (ys[k + 1] - ys[k] > g.len) g = { a: ys[k], b: ys[k + 1], len: ys[k + 1] - ys[k] };
+            const pelny = `przegroda ${fmt(d.h)} · od ${fmt(Math.round(d.y0))} do ${fmt(Math.round(d.y1))}`;
+            const txt = g.len > 320 ? pelny : g.len > 160 ? `przegroda ${fmt(d.h)}` : null;
+            return txt && (
+              <text transform={`translate(${mx(d.x, t) - 8} ${fy((g.a + g.b) / 2)}) rotate(-90)`}
+                textAnchor="middle" fontSize="17" fill={LINE} fontFamily="ui-monospace, monospace">{txt}</text>
+            );
+          })()}
+        </g>
+      ))}
+      {geo.levels.map((lv) =>
+        lv.cols.map((c) =>
+          c.shelves.map((sh, k) => {
+            const w = c.shW ?? c.w;
+            const x = mx(c.shX0 ?? c.x0, w);
+            return (
+              <g key={`p${lv.i}-${c.j}-${k}`} data-el="tyl-polka">
+                <rect x={x} y={fy(sh.y + geo.ts)} width={w} height={geo.ts}
+                  fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
+                {showDims && w > 160 && (
+                  <text x={x + w / 2} y={fy(sh.y + geo.ts) - 8}
+                    textAnchor="middle" fontSize="17" fill={LINE} fontFamily="ui-monospace, monospace">
+                    {w > 320 ? `półka ${fmt(w)} · spód ${fmt(Math.round(sh.y))} od dołu` : `półka · ${fmt(Math.round(sh.y))}`}
+                  </text>
+                )}
+              </g>
+            );
+          })
+        )
+      )}
 
       {/* wyciecie w narozniku — widziane od tylu */}
       {geo.geoCuts.map((gc, ci) => {

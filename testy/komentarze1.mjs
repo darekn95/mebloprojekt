@@ -107,5 +107,22 @@ await seed(proj([{ cab: cab({ name: 'A' }), runId: 'c1' }, { cab: cab({ name: 'B
   [RUN('c1'), RUN('c2', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })], { active: 1 }));
 ok('pod polem jest opis', /Dodatkowa przerwa w rogu/.test(await page.evaluate(() => document.querySelector('[data-el="luz-w-rogu-opis"]')?.textContent || '')));
 
+/* Uwaga uzytkownika 2026-10-19: z tylu podpisane wzmocnienia, a polki i przegrody
+   nie — teraz kazda z nazwa i wysokoscia od dolu korpusu (polka do spodu, jak w planie
+   wiercen; przegroda od–do), podpis przegrody w wolnym miejscu miedzy polkami. */
+console.log('\n== widok z tyłu: półki i przegroda podpisane ==');
+await seed(proj([{ cab: cab({ W: 900, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }] }] }) }]));
+for (const n of ['Szafka', 'Z tyłu']) { const x = page.getByRole('button', { name: n, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(500); } }
+const tyl = await page.evaluate(() => [...document.querySelectorAll('#rysunek [data-el^="tyl-"] text')].map((t) => t.textContent.trim()));
+ok('dwie półki „półka … · spód … od dołu”', tyl.filter((t) => /^półka \d+ · spód \d+ od dołu$/.test(t)).length === 2, tyl.join(' | '));
+ok('przegroda „przegroda … · od … do …”', tyl.some((t) => /^przegroda \d+ · od \d+ do \d+$/.test(t)), tyl.join(' | '));
+const naklad = await page.evaluate(() => {
+  const r = (el) => el.getBoundingClientRect();
+  const pp = [...document.querySelectorAll('#rysunek [data-el="tyl-przegroda"] text')].map(r);
+  const pl = [...document.querySelectorAll('#rysunek [data-el="tyl-polka"] text')].map(r);
+  return pp.some((a) => pl.some((b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom));
+});
+ok('podpis przegrody nie nachodzi na podpisy półek', !naklad);
+
 console.log('\nBLEDY STRONY:', errors.join(' | ') || '(brak)');
 await b.close();
