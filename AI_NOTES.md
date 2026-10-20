@@ -687,6 +687,18 @@ przy lyzwie). Kontrola otwierania: `swingLeaf` dziala na osiach — dla skosu tr
 cwiartki obroconej o 45° (uchwyty szuflad obok — realna kolizja). Pytania do
 uzytkownika w BLEDY.md („Do decyzji” — Szafka narozna skosna). Zdjecia (za zgoda
 uzytkownika): `zdjecia/naroznik-skosny/` z opisem `OPIS.md`.
+[AI-TODO] (2026-10-20, na pozniej — prosba uzytkownika) Szuflady na prowadnicach
+dolnego montazu, obok V-BOX. Szkic: przy kolumnie szuflad wybor systemu („V-BOX” /
+„dolny montaż”); skrzynka z plyty — formatki boki, przod, tyl, dno (oklejanie
+gornych krawedzi), wymiary wg karty prowadnicy (szerokosc skrzynki = swiatlo minus
+luz z karty, dno wpuszczone, tyl skrocony / z wycieciem, otwory na zaczepy); okucia:
+komplet prowadnic + zaczepy na szuflade; NL z listy dlugosci z karty (jak `VBOX.nl`);
+plan wiercen: prowadnica na boku korpusu (otwory od dolnej krawedzi i od przodu),
+skrzynka (wyciecie i otwor w tyle); kontrola wysuwu i luzu nad skrzynka jak przy
+V-BOX; bryla 3D i rysunki skrzynki z plyty. Katalog GTV (kat. s. 128–135):
+Modern Slide Pro, 0SHX-18 3D, 0SHX, GCHX18-H, push to open (Modern Slide Pro, 0FPO18),
+G10HX-H — pytania w BLEDY.md („Do decyzji”), przed liczbami z karty sprawdz, czy
+instrukcja montazu jest w `instrukcje/`.
 [AI-TODO] Sprzety w zabudowie (lodowka, piekarnik, mikrofala): gdy powstanie
 kategoria „sprzety”, dolozyc ich bryly i drzwi do `swingBodies` — prosba
 uzytkownika, zeby wrocic. Szafka luzem (bez ciagu) nie ma kontroli
