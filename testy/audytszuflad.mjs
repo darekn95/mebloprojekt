@@ -101,14 +101,16 @@ const tabela = (re) => page.evaluate((src) => {
 }, re.source);
 const klik = async (l) => { const x = przycisk(l); if (await x.count()) { await x.first().click(); await poczekaj(300); return true; } return false; };
 let zamkniete = [];
+// kolejny render sceny (w standalone React liczy ja dwa razy) dopisuje te same bryly jeszcze raz
+const bezPowtorzen = (lista) => { const byl = new Set(); return lista.filter((s) => { const k = JSON.stringify([s.p, s.color, s.tag]); if (byl.has(k)) return false; byl.add(k); return true; }); };
 const bryly = async () => {
   await klik('Szafka'); await klik('Zamk.');
   await page.evaluate(() => { window.__audytBryl = []; });
   await klik('3D'); await poczekaj(300);
-  zamkniete = await page.evaluate(() => (window.__audytBryl || []).filter((s) => s.p));
+  zamkniete = bezPowtorzen(await page.evaluate(() => (window.__audytBryl || []).filter((s) => s.p)));
   await page.evaluate(() => { window.__audytBryl = []; });
   await klik('zamknięte'); await poczekaj(400);
-  const otw = await page.evaluate(() => { const x = window.__audytBryl || []; window.__audytBryl = null; return x.filter((s) => s.p); });
+  const otw = bezPowtorzen(await page.evaluate(() => { const x = window.__audytBryl || []; window.__audytBryl = null; return x.filter((s) => s.p); }));
   await klik('otwarte'); await klik('Zamk.');
   return otw;
 };

@@ -18779,7 +18779,7 @@ export default function App() {
                                   <label className="flex shrink-0 items-center gap-1" data-el="dxs-bok"
                                     title="Wysokość boku skrzynki z płyty (mm) — puste: najwyższy z luzem 5 mm pod tym, co wyżej">
                                     <span className="text-[11px] text-stone-500">bok</span>
-                                    <div className="w-24">
+                                    <div className="w-28">
                                       <AutoNum value={num(rawCol.drawers[dr.i]?.h)} placeholder={`auto ${fmt(dr.hClass)}`}
                                         fixed={num(rawCol.drawers[dr.i]?.h) !== null}
                                         onChange={(v) => setDrawer(lv.i, c.j, dr.i, { h: v === "" ? "auto" : Math.round(Number(v)) })} />
@@ -18825,7 +18825,7 @@ export default function App() {
                                   <label className="flex shrink-0 items-center gap-1" data-el="dxs-tyl"
                                     title="Wysokość tyłu skrzynki (mm) — puste: bok − 10, góra równo z bokami">
                                     <span className="text-[11px] text-stone-500">tył</span>
-                                    <div className="w-24">
+                                    <div className="w-28">
                                       <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={`auto ${fmt(dr.skrzynka ? dr.skrzynka.tyl[1] : Math.max(0, dr.hClass - DXS.bokPodDnem))}`}
                                         fixed={num(rawCol.drawers[dr.i]?.backHeight) !== null}
                                         onChange={(v) => setDrawer(lv.i, c.j, dr.i, { backHeight: v === "" ? null : Math.round(Number(v)) })} />
