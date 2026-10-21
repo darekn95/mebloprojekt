@@ -21,7 +21,7 @@ Aktualizacja: 21.10.2026. Lista obejmuje potwierdzone uwagi pozostałe po reteś
 
 
 
-## Nowy audyt 21.10.2026 — N69–N71
+## Nowy audyt 21.10.2026 — N69–N79
 
 Sprawdzona wersja: main `21b31ce1db3e2f0a5b1afe748e1a8e71f3e6c8c6`, plik `szafki.jsx` (blob `b2d4271da583cc43c47ba41681a1a65f99445562`). Poniższe przypadki potwierdzono przez wykonanie funkcji obliczeń i generowania brył z tej wersji oraz analizę odpowiadających im miejsc w kodzie. Testy syntetyczne, bez zmiany projektu użytkownika. Nie jest to deklaracja przetestowania wszystkich ekranów ani nowy audyt PDF.
 
@@ -180,9 +180,25 @@ Zamówienie projektu zawiera tylko jedną płytę „Blat ciągu” 600 × 560 m
 **Kryterium naprawy:** dla własnych blatów w ciągu ustalić właściwą wysokość i rysować jednokrotnie to, co zamawia projekt. Sprawdzić jedną/dwie szafki, płyty 18 mm i blat roboczy 38 mm, wysunięcia, różne wysokości szafek oraz ciąg podniesiony nad podłogę. Nie usuwać właściwego blatu, zostawiając tylko płytę na wysokości 0.
 
 
+### N79 [P2] Własny blat szafki przejmuje materiał pierwszej szafki ciągu, która nie ma blatu
+
+**Odtworzenie:** prosty ciąg dwóch szafek 600 × 720 × 560 mm; wspólny blat roboczy wyłączony. Pierwsza szafka ma zwykły wieniec i korpus „Dąb sonoma” 18 mm. Druga ma własny blat z płyty korpusu „Antracyt” 12 mm, bez wysunięć.
+
+**Wynik:** obliczenia samej drugiej szafki prawidłowo wskazują jej własny blat 600 × 560 mm z antracytowej płyty 12 mm. Jednak `projectParts` usuwa go z pozycji szafki i zastępuje pozycją „Blat — C”, która bierze **płytę Dąb sonoma 18 mm z pierwszej szafki**. Pierwsza szafka nie ma własnego blatu i nie wnosi żadnego odcinka do tej powierzchni.
+
+**Kontrola:** po samej zamianie kolejności szafek, bez zmiany materiałów ani ustawień blatu, zamówienie prawidłowo przechodzi na Antracyt 12 mm. Przy obu grubościach równych 18 mm nadal zmienia się błędnie kolor — ten wariant nie ma żadnych uwag. Przy płycie 12 mm jest wyłącznie ogólne ostrzeżenie o wymiarach katalogowych okuć dla 18 mm; nie dotyczy ono zamiany materiału blatu.
+
+**Przyczyna:** `runTop` buduje odcinki z szafek mających `geo.isBlat`, ale potem wybiera `mat0 = list[0].it.mat` z pierwszej szafki całego ciągu (okolice 11817), zamiast z elementu będącego źródłem blatu. Z tej błędnej płyty bierze grubość i materiał zamówienia; `projectParts` filtruje już oryginalny blat szafki.
+
+**Wpływ:** rzeczywiste zamówienie i rozkrój otrzymują niewłaściwą płytę, kolor oraz grubość. Wynik zależy od kolejności szafek, które w ogóle nie uczestniczą w tym blacie. To osobny problem od N78: N78 dotyczy dodatkowej bryły i wysokości w 3D, a N79 błędnego materiału faktycznie zamawianego.
+
+**Kryterium naprawy:** blat pochodzący z konkretnej szafki zachowuje jej wybrany materiał, niezależnie od tego, jaka szafka stoi wcześniej w ciągu. Sprawdzić brak blatu w pierwszej szafce, różne kolory i grubości, przestawienie kolejności oraz kilka własnych blatów z różnymi materiałami. Nie scalać różnych materiałów bez jawnej reguły i informacji dla użytkownika. Nie zmieniać przy tym celowo wybranego wspólnego blatu roboczego.
+
+
 ---
 
-Nowe otwarte zgłoszenia: N69–N78; PDF-1 pozostaje. N74–N76 potwierdzono w funkcjach obliczeń i generowanej geometrii aktualnego źródła (blob `b2d4271da583cc43c47ba41681a1a65f99445562`), na konfiguracjach syntetycznych. Projekt użytkownika pozostał bez zmian. Test rozkroju 886 650 zestawów nie wykazał naruszeń sprawdzanych własności: liczby/wymiarów formatek, obrotu przy zakazie, granic arkusza, nakładania i odstępów rzazu. Nie jest to gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
+Nowe otwarte zgłoszenia: N69–N79; PDF-1 pozostaje. N74–N76 potwierdzono w funkcjach obliczeń i generowanej geometrii aktualnego źródła (blob `b2d4271da583cc43c47ba41681a1a65f99445562`), na konfiguracjach syntetycznych. Projekt użytkownika pozostał bez zmian. Test rozkroju 886 650 zestawów nie wykazał naruszeń sprawdzanych własności: liczby/wymiarów formatek, obrotu przy zakazie, granic arkusza, nakładania i odstępów rzazu. Nie jest to gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
+
 
 
 
