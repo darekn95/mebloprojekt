@@ -1,3 +1,30 @@
+# Uzupełnienie weryfikacji bez PDF — 21.10.2026
+
+**W odtworzonych wcześniejszych przypadkach poza PDF nie potwierdzono powrotu błędów.** Poniżej domknięcie B1/B2/B3 (część ekranowa), U1/U2 oraz brakujących prób z pierwotnej listy. Wyniki N1–N68 z poprzedniej sekcji pozostają aktualne: źródło ponownie sprawdzone, blob nadal `b2d4271da583cc43c47ba41681a1a65f99445562`.
+
+| Punkt | Sprawdzenie i wynik |
+|---|---|
+| B1 — propozycja boku szuflady | Aktualne obliczenia dla trzech szuflad proponują178, a nie nieskuteczne210. Po178 znika błąd luzu. Dodatkowo w UI Szafki5 wymuszenie238 daje0mm luzu i jedną poprawkę210; jej kliknięcie usuwa błąd. Przypadek trzech szuflad sprawdzony obliczeniowo, przycisk210 Szafki5 kliknięty w UI. |
+| B2 — liczba zawiasów klapy | 14 prób: góra/dół × wpisane0/1/2/3/4/5/2,5. Liczba zamawianych zawiasów = liczba osi klapy = liczba punktów „zawias klapy” w planie wierceń.0/1 dają błąd i2 zawiasy;5 daje błąd i4;2,5 normalizuje się do3. Dla4 w UI są4 zawiasy w produktach. |
+| B3 — format arkusza | Ekran projektu pokazuje blat4100×600, oddzielnie zwykłą płytę2800×2100. Dobór formatu1200 i rozdzielanie formatów pokryte wcześniejszymi N2–N4. Część PDF B3 nadal odłożona. |
+| U1 — kąt klapy | 12 prób geometrii: limity75/90/100 × suwak75/90/100/110. Przy limicie100 bryła100 różni się od90; ponad limit jest ograniczana. W UI również zmieniają się wielokąty po przekroczeniu90. Zamknięcie i ponowne otwarcie resetuje suwak do90. |
+| U2 — małe okno | Rzeczywisty test600×495. Po „Pokaż rysunek” nagłówek ma148,2px, a widoczny obszar rysunku346,8px; dawne niemal całkowite zasłonięcie nie występuje. Tymczasowy rozmiar przywrócony. Nie jest to macierz wszystkich urządzeń. |
+| Reling — obie odpowiedzi | UI: „Zostaw bez relingu” zapisuje wybór i pozwala wrócić do pytania. „Dodaj reling” daje1 komplet NL550 w szafce i całym projekcie, wycena30,00zł. |
+| Wstawka40 | UI: „Popraw na60” ustawia60 i usuwa błąd. „Tak,40 — docinam ręcznie” zostawia ostrzeżenie, a zamówienie ma720×60. |
+| Wstawka szeroka | UI ma trójkąty, konfirmaty i konfirmaty z listwą. Wariant konfirmatów dolicza3szt.; wariant z listwą dodaje formatkę „Listwa wstawki”720×60 i wkręty. |
+| Drzwi w rogu | UI: po usunięciu wstawki i wyborze prawego zawiasu ograniczenie około74°, propozycje18 i60 opisane „bez kolizji”. Kliknięcie18 usuwa komunikat kolizji. |
+| Wąskie formatki | UI W90: dno54×560 zamawiane jako60×560. Kliknięcie „Tak, docinam ręcznie” usuwa błąd tej formatki, zamówienie nadal60. Pozostałe wąskie elementy wymagają własnych potwierdzeń. |
+| H900 i notatka | UI: ostrzeżenie o przesunięciu środkowego zawiasu447→390mm dla sprawdzonej szafki z jej wzmocnieniami. „Dopisz do notatki montażowej” zapisuje właściwą treść w `cab.note`; potwierdzone w pobranym JSON. |
+| Klapy — siła i półka | UI klapy596×400: auto1×150N; wybór50 daje propozycje zwiększenia do150 albo2×80. Oba przyciski działają; drugi daje2×80N w produktach i20zł. „Dodatkowe cofnięcie półek50” usuwa ostrzeżenie o półce na drodze podnośnika. Przełączenie w dół daje amortyzator PD-ECGDL zamiast podnośnika. |
+
+**Ochrona projektu:** przed próbami zapisano JSON. Wszystkie zmiany testowe cofnięto. Po ostatnim teście ponownie pobrano projekt: porównanie całego JSON sprzed i po dało identyczność, bez różnych pól. Nie opublikowano prywatnego projektu ani nie zmieniano kodu aplikacji.
+
+**Co pozostaje na później:** wyłącznie zlecona osobno weryfikacja PDF z wcześniejszej listy (złącza, opisy arkuszy, podział stron, podpisy i czytelność). Nie oznaczono tych usterek jako zamkniętych. Nie wykonywano pełnego `pelny.sh`, każdej kombinacji konstrukcji ani ponownego audytu wszystkich katalogów producentów. Test importu przez wybór pliku nie został zaliczony — mechanizm wyboru pliku narzędzia sterującego nie zadziałał; nie zgłaszamy tego jako błędu aplikacji. Zapis JSON działa.
+
+Dowody i wyniki lokalnie: `reverify21-completion/core.json`, `checks.json`, `U2-male-okno.png`. Niniejsza sekcja zastępuje wcześniejsze zastrzeżenie, że B1/B2/U1/U2 nie dostały jeszcze nowego retestu. Nie rozszerza potwierdzenia na PDF.
+
+---
+
 # Weryfikacja poprawek GPT — 21.10.2026
 
 **Aktualny status N1–N68: poprawki potwierdzone w odtworzonych przypadkach testowych. W tym reteście nie potwierdzono ponownego wystąpienia tych zgłoszeń.** Nie oznacza to sprawdzenia każdej możliwej konfiguracji ani całego eksportu PDF.
@@ -970,4 +997,5 @@ Przy oknie około 600×495 px nagłówek z paskami obu ciągów zajmuje około 3
 4. Przy zmianie `szafki.jsx` wygenerować ponownie `standalone.html`. Pełny przebieg zgodnie z zasadami repozytorium przed wyraźnie zleconym scaleniem. Sam raport nie jest zgodą na modyfikację ani publikację.
 
 Wyniki liczbowe `wyniki-obliczen.json` oraz skrypty audytu pozostają lokalnie. Ten plik na GitHubie zawiera opis wyników i kroki odtworzenia; nie wymaga tych załączników do zrozumienia zgłoszonych błędów.
+
 
