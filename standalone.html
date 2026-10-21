@@ -10956,6 +10956,12 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         run: () => runFix && runFix(action),
       };
     }
+    if (action.startsWith("blatwys:")) {
+      // „blatwys:<ciag>:<cokol|h>:<roznica mm>:<nowy cokol / nowa wysokosc>" — wyrownanie blatu ciagu
+      const [, , co, , nowy] = action.split(":");
+      return { label: co === "h" ? `Wyrównaj wysokością szafek (${fmt(Number(nowy))} mm)` : `Wyrównaj cokołem i nóżkami (${fmt(Number(nowy))} mm)`,
+        run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("silaauto:")) {
       // „silaauto:<poziom>:<kolumna>:<N z tabeli>" — sila klapy wraca do doboru z tabeli
       const [, li, j, n] = action.split(":");
@@ -12416,6 +12422,27 @@ const zlaczNaStyk = (gl) => (gl > WORKTOP_DEPTHS[0] ? 3 : 2);
    Dwa blaty w rogu stykaja sie tylko wtedy, gdy leza na tej samej wysokosci. */
 const wierzchBlatu = (run, rt) => Math.round((run.mountY || 0) + (rt.y || 0) + (rt.th || 0));
 const blatyRoznaWys = (r1, t1, r2, t2) => Math.abs(wierzchBlatu(r1, t1) - wierzchBlatu(r2, t2)) > 1;
+/* Przyciski wyrownania blatu tego ciagu do wysokosci `cel` (wierzch blatu nad
+   podloga), uzytkownik 2026-10-21: cokolem i nozkami razem (o te sama roznice —
+   nozki nie zawisna nad podloga) albo wysokoscia szafek pod blatem (slupki zostaja).
+   Tylko wykonalne: cokol co najmniej MIN_PART, nozki co najmniej NOZKA_MIN;
+   cokol w obrysie korpusu nie podnosi blatu, wiec przy nim tylko wysokosc. */
+const wyrownajBlatAkcje = (run, rt, lvl, cel) => {
+  const delta = Math.round(cel - wierzchBlatu(run, rt));
+  if (!delta || !lvl || !lvl.pod.length) return "";
+  const pod = lvl.pod.map((c) => c.it.cab);
+  const cokolPod = (c) => !!(c.plinth && c.plinth.on && c.plinth.mode !== "inbody");
+  const nozki = (c) => !!(c.legs && c.legs.on);
+  const wysNozek = (c) => num(c.legs.height) ?? 100;
+  let akcje = "";
+  if (pod.every((c) => (cokolPod(c) || nozki(c)) && !(c.plinth && c.plinth.on && c.plinth.mode === "inbody"))
+      && pod.every((c) => (!cokolPod(c) || c.plinth.height + delta >= MIN_PART) && (!nozki(c) || wysNozek(c) + delta >= NOZKA_MIN))) {
+    const ref = pod[0];
+    akcje += `|blatwys:${run.id}:cokol:${delta}:${cokolPod(ref) ? ref.plinth.height + delta : wysNozek(ref) + delta}`;
+  }
+  if (Math.round(pod[0].H) + delta > 0) akcje += `|blatwys:${run.id}:h:${delta}:${Math.round(pod[0].H) + delta}`;
+  return akcje;
+};
 const runTopZlacza = (project, run) => {
   const a = run ? runTop(project, run) : null;
   if (!a || a.matKey !== "worktop") return [];
@@ -12681,8 +12708,31 @@ const worktopMsgs = (project, run) => {
       const rb = runTop(project, r2);
       if (rt && rt.worktop && rb && rb.worktop && blatyRoznaWys(run, rt, r2, rb))
         out.push({ level: "warn", text: `Blat ciągu „${run.name}” leży na ${fmt(wierzchBlatu(run, rt))} mm, a blat „${r2.name}” w rogu na ${fmt(wierzchBlatu(r2, rb))} mm — `
-          + `różnica ${fmt(Math.abs(wierzchBlatu(run, rt) - wierzchBlatu(r2, rb)))} mm, blaty się nie stykają i złączy do blatów w rogu nie liczymy. Jeśli mają się łączyć, wyrównaj wysokość szafek.` });
+          + `różnica ${fmt(Math.abs(wierzchBlatu(run, rt) - wierzchBlatu(r2, rb)))} mm, blaty się nie stykają i złączy do blatów w rogu nie liczymy. Jeśli mają się łączyć, wyrównaj wysokość szafek.`
+          + wyrownajBlatAkcje(run, rt, lvl, wierzchBlatu(r2, rb)) });
     });
+  }
+  /* Ciagi tego samego pomieszczenia bez wspolnego rogu (np. przeciwlegle sciany):
+     blaty sie nie stykaja, ale w jednej kuchni zwykle leza na jednej wysokosci —
+     uzytkownik 2026-10-21: „żeby blat nie przesunął się o 1–2 cm”. Rog ma wlasna
+     uwage wyzej, wiec ciagi polaczone rogiem (cala grupa) pomijamy. */
+  if (rt && rt.worktop && run.tier !== "gorny") {
+    const grupa = grupaCiagow(project.runs || [], run.id);
+    const inne = runsInRoom(project, roomOfRun(project, run))
+      .filter((r) => !grupa.has(r.id) && r.tier !== "gorny")
+      .map((r) => ({ r, t: runTop(project, r) }))
+      .filter(({ r, t }) => t && t.worktop && blatyRoznaWys(run, rt, r, t));
+    if (inne.length) {
+      const moj = wierzchBlatu(run, rt);
+      // wyrownujemy do wysokosci, na ktorej lezy najwiecej pozostalych blatow
+      const ile = new Map();
+      inne.forEach(({ r, t }) => ile.set(wierzchBlatu(r, t), (ile.get(wierzchBlatu(r, t)) || 0) + 1));
+      const cel = [...ile.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+      out.push({ level: "warn", text: `Blat ciągu „${run.name}” leży na ${fmt(moj)} mm, a w tym pomieszczeniu `
+        + inne.map(({ r, t }) => `blat „${r.name}” na ${fmt(wierzchBlatu(r, t))} mm (różnica ${fmt(Math.abs(moj - wierzchBlatu(r, t)))} mm)`).join(", ")
+        + ` — blaty się nie stykają, ale w jednej kuchni zwykle są na jednej wysokości. Jeśli to nie celowe, wyrównaj do ${fmt(cel)} mm.`
+        + wyrownajBlatAkcje(run, rt, lvl, cel) });
+    }
   }
   (lvl ? lvl.poza : []).forEach((c) => {
     const nazwa = (c.it.cab.name || "").trim() || "szafka";
@@ -15504,6 +15554,32 @@ export default function App() {
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    /* Wyrownanie blatu ciagu do innego (rog albo to samo pomieszczenie): szafki
+       pod blatem tego ciagu (bez slupkow) i sam ciag dostaja cokol i nozki albo
+       wysokosc wieksze o roznice (uzytkownik 2026-10-21). */
+    if (action.startsWith("blatwys:")) {
+      const [, id, co, d] = action.split(":");
+      const delta = Math.round(Number(d) || 0);
+      setProject((p) => {
+        const run = (p.runs || []).find((r) => r.id === id);
+        const lvl = run && worktopLevel(p, run);
+        if (!run || !lvl || !delta) return p;
+        const pod = new Set(lvl.pod.map((c) => c.idx));
+        const items = p.items.map((it, i) => {
+          if (!pod.has(i)) return it;
+          const c = it.cab;
+          if (co === "h") return { ...it, cab: { ...c, H: Math.round(c.H) + delta } };
+          return { ...it, cab: { ...c,
+            ...(c.plinth && c.plinth.on ? { plinth: { ...c.plinth, height: c.plinth.height + delta } } : {}),
+            ...(c.legs && c.legs.on ? { legs: { ...c.legs, height: (num(c.legs.height) ?? 100) + delta } } : {}) } };
+        });
+        const runs = p.runs.map((r) => (r.id !== id ? r
+          : co === "h" ? { ...r, ...(r.H != null ? { H: r.H + delta } : {}) }
+          : { ...r, ...(r.plinth && r.plinth.on ? { plinth: { ...r.plinth, height: r.plinth.height + delta } } : {}) }));
+        return { ...p, runs, items };
+      });
+      return;
+    }
     if (action.startsWith("zawieszki:")) {
       const tryb = action.split(":")[1] === "haczyki" ? "haczyki" : "listwa";
       setProject((p) => {
