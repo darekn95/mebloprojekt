@@ -699,6 +699,10 @@ V-BOX; bryla 3D i rysunki skrzynki z plyty. Katalog GTV (kat. s. 128–135):
 Modern Slide Pro, 0SHX-18 3D, 0SHX, GCHX18-H, push to open (Modern Slide Pro, 0FPO18),
 G10HX-H — pytania w BLEDY.md („Do decyzji”), przed liczbami z karty sprawdz, czy
 instrukcja montazu jest w `instrukcje/`.
+[AI-INFO] (2026-10-21) Uzytkownik wybral Sevroll DXS-3D Synchro (miekki domyk) —
+instrukcja montazu w `instrukcje/Katalog-Akcesoria_PL_2026_online-skompresowany (1).pdf`,
+s. 112 (rysunek obrazem 144 dpi, liczby warstwa tekstu: `pdftotext -f 112 -l 112 -layout`),
+wyciag w `instrukcje/SPIS.md`.
 [AI-TODO] Sprzety w zabudowie (lodowka, piekarnik, mikrofala): gdy powstanie
 kategoria „sprzety”, dolozyc ich bryly i drzwi do `swingBodies` — prosba
 uzytkownika, zeby wrocic. Szafka luzem (bez ciagu) nie ma kontroli

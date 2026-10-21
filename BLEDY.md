@@ -251,13 +251,14 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 - **Szuflady na prowadnicach dolnego montażu — na później** (użytkownik 2026-10-20).
   Dziś są tylko szuflady V-BOX (boki metalowe). Dolny montaż to skrzynka z płyty
-  (boki, przód, tył, dno) na prowadnicach pod dnem. W katalogu GTV z `instrukcje/`:
-  kat. s. 128–135 (Modern Slide Pro, 0SHX-18 3D, 0SHX, GCHX18-H, push to open
-  Modern Slide Pro i 0FPO18, G10HX-H). Szkic w `AI_NOTES.md` ([AI-TODO] Szuflady
-  dolnego montazu). Przed robotą do ustalenia:
-  1. który model prowadnicy (cichy domyk czy push to open) i czy jest do niego
-     instrukcja montażu z wymiarami (szerokość skrzynki względem światła, wpuszczenie
-     dna, wycięcie w tyle, otwory na zaczepy) — z samego katalogu może nie wystarczyć;
+  (boki, przód, tył, dno) na prowadnicach pod dnem. **Model wybrany (2026-10-21):
+  Sevroll DXS-3D Synchro z miękkim domykiem** — instrukcja montażu w katalogu
+  Sevroll 2026 (`instrukcje/Katalog-Akcesoria_PL_2026…pdf`, s. 110–113, opis
+  w `instrukcje/SPIS.md`; czytelna: liczby są tekstem). Szkic w `AI_NOTES.md`
+  ([AI-TODO] Szuflady dolnego montazu). Przed robotą do ustalenia:
+  1. jak czytać przekrój (37 / 27 / 2 min.), front wpuszczany (X, 22, 2) i które
+     otwory z tabeli „Mocowanie prowadnicy” wiercić przy każdym NL; czy przy boku
+     16 / 19 mm też SKW = LW − 49;
   2. z czego skrzynka: płyta 16 czy 18 mm, dno z płyty czy HDF;
   3. czy do wyboru przy kolumnie (V-BOX albo dolny montaż), czy na całą szafkę.
 
