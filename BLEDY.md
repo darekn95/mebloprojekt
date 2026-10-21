@@ -257,11 +257,16 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   Sevroll 2026 (`instrukcje/Katalog-Akcesoria_PL_2026…pdf`, s. 110–113, opis
   w `instrukcje/SPIS.md`; czytelna: liczby są tekstem). Szkic w `AI_NOTES.md`
   ([AI-TODO] Szuflady dolnego montazu). Przed robotą do ustalenia:
-  1. jak czytać przekrój (37 / 27 / 2 min.), front wpuszczany (X, 22, 2) i które
-     otwory z tabeli „Mocowanie prowadnicy” wiercić przy każdym NL; czy przy boku
-     16 / 19 mm też SKW = LW − 49;
-  2. z czego skrzynka: płyta 16 czy 18 mm, dno z płyty czy HDF;
-  3. czy do wyboru przy kolumnie (V-BOX albo dolny montaż), czy na całą szafkę.
+  1. z rysunku niepewne (odczyt 2026-10-21 w `AI_NOTES.md`): „37” w przekroju
+     (wierzch dna czy górny rząd wkrętów), które otwory prowadnicy przykręcać
+     i ile wkrętów, otwory dla krótszych NL (rysunek bez liczb), front wpuszczany
+     (22 / X / 2), tył skrzynki (⌀6 × 10, 11 i 7; 33 i max 12), zaczep przedni
+     (min. 75), co jest w komplecie; czy przy boku 16 / 19 mm SKW = LW − 45 / − 51;
+  2. czego w instrukcji nie ma: luz nad skrzynką, front względem prowadnicy
+     (ile poniżej spodu prowadnicy schodzi front nakładany);
+  3. z czego skrzynka: płyta 16 czy 18 mm, przód i tył między bokami czy boki
+     między nimi, dno z płyty czy HDF/sklejki i jak trzymane (wpust, wkręty);
+  4. czy do wyboru przy kolumnie (V-BOX albo dolny montaż), czy na całą szafkę.
 
 - **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi

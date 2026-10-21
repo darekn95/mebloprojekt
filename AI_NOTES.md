@@ -703,6 +703,23 @@ instrukcja montazu jest w `instrukcje/`.
 instrukcja montazu w `instrukcje/Katalog-Akcesoria_PL_2026_online-skompresowany (1).pdf`,
 s. 112 (rysunek obrazem 144 dpi, liczby warstwa tekstu: `pdftotext -f 112 -l 112 -layout`),
 wyciag w `instrukcje/SPIS.md`.
+[AI-INFO] (2026-10-21) DXS-3D — odczyt rysunku s. 112 (powiekszenia: `pdftoppm -r 400 -x … -y …`;
+obraz ma 144 dpi, wiec wiecej szczegolow nie bedzie). Pewne z liczb na rysunku:
+bok szuflady 18, od boku korpusu do wnetrza szuflady 24,5 → miedzy bokiem szuflady
+a bokiem korpusu 6,5; prowadnica pod dnem szuflady, przy boku, przykrecona katownikiem
+do boku korpusu (dwa rzedy wkretow co 12); dno szuflady miedzy bokami, 10–12 nad ich
+dolna krawedzia; 27 = od spodu prowadnicy do spodu dna; 2 (min.) = od dna korpusu do
+spodu prowadnicy. Tabela A/B: A = dlugosc czesci na korpusie (250…380 — przy NL 600
+tylko 380!), B = wysuw (200…570). Otwory prowadnicy NL 600 od krawedzi korpusu:
+10, 19, 28, 37 | 60, 69 | 165 | 243, 252, 261 | 275, 284 | 339 (z wymiarow 4, 37, 9, 32,
+128, 96, 64, 78), przod prowadnicy 4 mm za krawedzia. Niepewne: 37 (do wierzchu dna albo
+do gornego rzedu wkretow — na rysunku ta sama wysokosc; jesli wierzch dna, to dno 10 mm),
+ktore otwory przykrecac i ile wkretow, otwory dla krotszych NL (tylko rysunek bez liczb),
+front wpuszczany (22 / X / 2), tyl skrzynki (⌀6 × 10, 11 i 7 — od ktorych krawedzi;
+33 i max 12), zaczep przedni (min. 75 — od czego), otwory ⌀2 pod sprzegla (s. 113, bez
+wymiarow), bok 16 / 19 (SKW = LW − 45 / − 51 to tylko wniosek z 6,5 mm luzu), co jest
+w komplecie. Brak w instrukcji: luz nad skrzynka, z czego i jak skrzynka (przod/tyl
+miedzy bokami?, grubosc i mocowanie dna), polozenie frontu wzgledem prowadnicy.
 [AI-TODO] Sprzety w zabudowie (lodowka, piekarnik, mikrofala): gdy powstanie
 kategoria „sprzety”, dolozyc ich bryly i drzwi do `swingBodies` — prosba
 uzytkownika, zeby wrocic. Szafka luzem (bez ciagu) nie ma kontroli
