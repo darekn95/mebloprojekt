@@ -19,7 +19,55 @@ Aktualizacja: 21.10.2026. Lista obejmuje potwierdzone uwagi pozostałe po reteś
 
 **Kryterium odbioru:** na wydruku A4 w skali 100% można odczytać wymiary i jednoznacznie przypisać opisy do elementów; brak nakładania i obcinania podpisów. Sprawdzić zwykłą szafkę, szuflady oraz arkusz zawierający listwy 100 mm.
 
+
+
+## Nowy audyt 21.10.2026 — N69–N71
+
+Sprawdzona wersja: main `21b31ce1db3e2f0a5b1afe748e1a8e71f3e6c8c6`, plik `szafki.jsx` (blob `b2d4271da583cc43c47ba41681a1a65f99445562`). Poniższe przypadki potwierdzono przez wykonanie funkcji obliczeń i generowania brył z tej wersji oraz analizę odpowiadających im miejsc w kodzie. Testy syntetyczne, bez zmiany projektu użytkownika. Nie jest to deklaracja przetestowania wszystkich ekranów ani nowy audyt PDF.
+
+### N69 [P2] Blat przesunięty przy większym odstępie od ściany u góry niż u dołu
+
+**Odtworzenie:** jeden ciąg z szafką 600 × 720 × 560 mm, HDF 3 mm, wspólny blat; odstęp od ściany: dół 0 mm, góra 100 mm. Różnica reprezentuje ścianę odsuwającą się od pleców szafki ku górze.
+
+**Wynik:** `runTop` poprawnie zwiększa głębokość blatu do 693 mm, lecz `Assembly3D` umieszcza go od płaszczyzny 0 zamiast od −100 mm względem tylnej płaszczyzny przy podłodze. Blat jest przesunięty o 100 mm do przodu: nie dochodzi do ściany na wysokości blatu, a jego przedni wysięg jest o 100 mm za duży. Podobne ograniczenie występuje w rzucie z góry.
+
+**Przyczyna:** położenie korzysta z `Math.max(0, gs.bottom - gs.top)`; dla 0−100 znika potrzebne ujemne przesunięcie. W `Assembly3D` okolice linii 7741, w rzutach z góry analogiczna reguła.
+
+**Wpływ:** poprawnie policzona formatka jest narysowana w złym miejscu; widoki nie przedstawiają rzeczywistego dopasowania blatu do ściany.
+
+**Kontrola:** dół/góra 0/0 oraz 100/0 nie wykazują tej utraty przesunięcia.
+
+**Kryterium naprawy:** zachować znak różnicy odstępów w położeniu blatu, spójnie w 2D i 3D. Przy 0/100 tylna krawędź dochodzi do ściany na górze, a wysięg przed front nie zwiększa się o dodatkowe 100 mm. Nie zmieniać poprawnej głębokości zamówienia.
+
+### N70 [P2] Tylne wzmocnienie szafki L ma grubość korpusu na rysunku, a płyty półek w zamówieniu
+
+**Odtworzenie:** szafka L 900 × 720 × 560 mm, tylne wzmocnienie 150 mm, wariant A albo B; korpus 18 mm; wyłączyć „Półki z tej samej płyty co korpus”, ustawić płytę półek 12 mm. Jedne drzwi z zawiasem po stronie pełnego boku, bez błędów konfiguracji.
+
+**Wynik:** obie pozycje „Kątownik przy ramieniu — bok/plecy” zamawiane są jako 150 × 684 × **12 mm**. Prostokąty `postRects`, bryła szafki i zabudowy nadal używają **18 mm**. To tylne wzmocnienie, nie przedni kątownik narożnika z dawnego N59.
+
+**Przyczyna:** `postRects` w `computeGeo` (okolice 1957–1965) używa `t`, chociaż formatki tych płyt (3520–3523) mają materiał `shelf`. Sama zmiana koloru nie rozwiązuje grubości.
+
+**Wpływ:** położenie styku płyt, podparcie i wizualizacja nie odpowiadają elementom zamówionym do wykonania.
+
+**Kontrola:** potwierdzone A i B, korpus 12/18 mm oraz półki 12/16/18 mm; przy równej grubości rozbieżność znika. Minimalne przypadki nie mają komunikatów błędu.
+
+**Kryterium naprawy:** wzmocnienie z rzeczywistej płyty półek; wspólna grubość i położenie dla formatek, rzutów, obu widoków 3D oraz zależnych mocowań. Sprawdzić obie strony ramienia.
+
+### N71 [P2] Zabudowa przeszkody liczy styki i bryłę grubością korpusu zamiast swojej płyty
+
+**Odtworzenie:** korpus 800 × 1000 × 560 mm, płyta korpusu 12 mm, osobna płyta półek 18 mm; bez półek/drzwi. Przeszkoda 100 × 150 mm na pełną wysokość wnętrza, zabudowa L przy lewym boku albo U odsunięta o 200 mm od boku; czoło przed bokami.
+
+**Wynik:** formatki zabudowy mają materiał półek **18 mm**, lecz jej ścianki w 3D szafki i zabudowy mają **12 mm**. W wariancie U zamówione czoło ma szerokość **124 mm** (=100+2×12), choć powinno przykrywać dwa boki 18 mm, czyli mieć **136 mm**. To również błąd wymiaru formatki, nie tylko wyglądu.
+
+**Przyczyna:** `buildEnclosure` wybiera `smat = shelfMat`, ale grubość ścianek, naddatki i odsunięcia nadal liczy przez `t` korpusu (okolice 3870–3940). Poprawka dawnego N24 ujednoliciła bryły z pozycjami ścianek, lecz nie obejmuje osobnej grubości ich materiału.
+
+**Kontrola:** L i U, płyta półek 12/16/18 mm przy korpusie 12 mm; zgodność dla 12/12, rozbieżność dla 12/16 i 12/18; bez błędów konfiguracji.
+
+**Wpływ:** zamówiona zabudowa nie składa się według przedstawionego styku; przy U czoło jest o 12 mm za wąskie w powyższym przykładzie.
+
+**Kryterium naprawy:** używać grubości faktycznego materiału zabudowy przy obliczaniu ścianek i ich styków. Uwzględnić, że grubość istniejącego boku korpusu pozostaje niezależna. Sprawdzić L/U, obie strony, czoło przed/między bokami, a także zabudowy wycięć korzystające z tej funkcji.
+
 ---
 
-Nie ma obecnie innych potwierdzonych, otwartych błędów z dotychczasowej listy w sprawdzonych przypadkach. Eksport klap i szafki H900 nie został objęty przekazanym PDF; brak takiego testu nie jest zgłoszeniem błędu.
+Nie dopisano niepotwierdzonych podejrzeń do liczby 20. W tej serii potwierdzono trzy nowe przypadki; pozostała uwaga PDF-1 pozostaje aktualna. Brak rozbieżności w pozostałych badanych konfiguracjach nie stanowi gwarancji poprawności wszystkich możliwych projektów.
 
