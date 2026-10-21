@@ -100,7 +100,24 @@ Sprawdzona wersja: main `21b31ce1db3e2f0a5b1afe748e1a8e71f3e6c8c6`, plik `szafki
 
 **Kryterium naprawy:** wyznaczać zajętą głębokość z rzeczywistego kompletu pleców, w tym maksymalnej grubości pleców przybijanych w kolumnach. Sprawdzić mieszane HDF/płyta/brak, kolumny i poziomy, „głębokość obejmuje plecy”, układ przy ścianie, blat i róg. Gdy wszystkie kolumny mają „brak”, nie dodawać grubości nieistniejących globalnych pleców.
 
+
+### N74 [P2] Niska klapa opuszczana zamawia amortyzator z mocowaniem poza bokiem
+
+**Sprawdzona wersja:** `szafki.jsx`, blob `b2d4271da583cc43c47ba41681a1a65f99445562`. Potwierdzone wykonaniem obliczeń i planu wierceń, bez zmiany projektu użytkownika.
+
+**Odtworzenie:** szafka 400 × 200 × 350 mm, płyta 18 mm, zwykły wieniec i dno między bokami, jedna kolumna bez półek. Jedne drzwi przestawić na klapę opuszczaną w dół; amortyzator automatyczny, jedna sztuka po lewej.
+
+**Wynik:** jedyny komunikat to informacja o poprawnym doborze: front 396 × 194 mm, ok. 0,9 kg, amortyzator 60 N. Produkt trafia do zamówienia. Plan wierceń dla „Bok lewy” wskazuje środek płytki **263 mm od dołu płyty**, choć bok ma tylko **200 mm** wysokości. Mocowanie wypada **63 mm poza płytą**. Nie ma błędu ani ostrzeżenia o braku miejsca na montaż.
+
+**Kontrola:** przy H250 środek nadal jest na 263 mm (13 mm poza płytą), bez uwagi. Przy H300 i H400 jest w obrębie boku. Przypadki nie mają innych błędów konfiguracji. Sam dobór siły z masy klapy nie sprawdza możliwości przykręcenia okucia.
+
+**Przyczyna:** mocowanie amortyzatora wyliczane jest jako `plytaY + AMORTYZATOR_H` (245 mm od płyty z zawiasami; tutaj 18+245=263), bez sprawdzenia zakresu płyty niosącej mocowanie. Kontrola minimalnej wysokości w części zamówienia dotyczy wyłącznie klapy do góry.
+
+**Wpływ:** projekt podaje niewykonalne wiercenie i zamawia okucie, którego nie da się zamontować według własnego planu.
+
+**Kryterium naprawy:** sprawdzać obrys płytki i otwory względem rzeczywistego boku/przegrody/wspornika przy obu kierunkach klapy; zgłaszać brak miejsca zamiast samej informacji o sile. Sprawdzić jedną/dwie sztuki, obie strony, kilka poziomów oraz różne połączenia dna i wieńca. Nie przesuwać mocowania dowolnie — zmienione wymiary muszą wynikać z instrukcji danego okucia.
+
 ---
 
-Aktualne nowe zgłoszenia: N69–N73. PDF-1 pozostaje otwartą uwagą. Testy N72–N73 wykonano na konfiguracjach syntetycznych w obliczeniach i generowanej geometrii; nie zmieniano projektu użytkownika.
+Nowe otwarte zgłoszenia: N69–N74. PDF-1 pozostaje otwartą uwagą. Seria 21.10: test planu wierceń (100 000 konfiguracji) wskazał kandydatów, z których N74 uproszczono i potwierdzono osobno. Nie doliczano jako nowych błędów przypadków klap do góry już ostrzeganych jako zbyt niskie. Test rozkroju: 886 650 zestawów syntetycznych; brak wykrytych naruszeń badanego zakresu (liczba i wymiary formatek, obrót przy zakazie, wyjście poza arkusz, nakładanie i odstępy rzazu). To kontrola tych własności, nie gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
 
