@@ -720,6 +720,13 @@ front wpuszczany (22 / X / 2), tyl skrzynki (⌀6 × 10, 11 i 7 — od ktorych k
 wymiarow), bok 16 / 19 (SKW = LW − 45 / − 51 to tylko wniosek z 6,5 mm luzu), co jest
 w komplecie. Brak w instrukcji: luz nad skrzynka, z czego i jak skrzynka (przod/tyl
 miedzy bokami?, grubosc i mocowanie dna), polozenie frontu wzgledem prowadnicy.
+[AI-INFO] (2026-10-21) DXS-3D — odpowiedzi uzytkownika na powyzsze sa w BLEDY.md
+(„Ustalone” → Szuflady DXS-3D Synchro): „37” = gorny rzad wkretow, X = grubosc frontu,
+tyl do spodu dna (bok − 10), dno na konfirmaty przez boki, 33 = szerokosc prowadnicy,
+75 od boku dna wolne, komplet = wszystko. Najwazniejsze dla planu wiercen: kreska
+spodu prowadnicy na boku + odsuniecie od czola (4 / X + 4), bez otworow.
+Zrzut z zaznaczonym „37” byl w scratchpadzie sesji (pdftoppm s. 112, -r 300,
+-x 150 -y 950, opisy ImageMagick `convert -draw/-annotate`).
 [AI-TODO] Sprzety w zabudowie (lodowka, piekarnik, mikrofala): gdy powstanie
 kategoria „sprzety”, dolozyc ich bryly i drzwi do `swingBodies` — prosba
 uzytkownika, zeby wrocic. Szafka luzem (bez ciagu) nie ma kontroli

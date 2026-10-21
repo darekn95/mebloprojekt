@@ -257,16 +257,9 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   Sevroll 2026 (`instrukcje/Katalog-Akcesoria_PL_2026…pdf`, s. 110–113, opis
   w `instrukcje/SPIS.md`; czytelna: liczby są tekstem). Szkic w `AI_NOTES.md`
   ([AI-TODO] Szuflady dolnego montazu). Przed robotą do ustalenia:
-  1. z rysunku niepewne (odczyt 2026-10-21 w `AI_NOTES.md`): „37” w przekroju
-     (wierzch dna czy górny rząd wkrętów), które otwory prowadnicy przykręcać
-     i ile wkrętów, otwory dla krótszych NL (rysunek bez liczb), front wpuszczany
-     (22 / X / 2), tył skrzynki (⌀6 × 10, 11 i 7; 33 i max 12), zaczep przedni
-     (min. 75), co jest w komplecie; czy przy boku 16 / 19 mm SKW = LW − 45 / − 51;
-  2. czego w instrukcji nie ma: luz nad skrzynką, front względem prowadnicy
-     (ile poniżej spodu prowadnicy schodzi front nakładany);
-  3. z czego skrzynka: płyta 16 czy 18 mm, przód i tył między bokami czy boki
-     między nimi, dno z płyty czy HDF/sklejki i jak trzymane (wpust, wkręty);
-  4. czy do wyboru przy kolumnie (V-BOX albo dolny montaż), czy na całą szafkę.
+  ustalenia z 2026-10-21 — w „Ustalone” (Szuflady DXS-3D Synchro). Zostało do
+  sprawdzenia przy budowie: położenie otworu zaczepu w tyle (38 mm nad spodem
+  prowadnicy przy tyle równo ze spodem dna) względem tylnego końca prowadnicy.
 
 - **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
@@ -285,6 +278,17 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Ustalone — nie ruszać
 
+- **Szuflady DXS-3D Synchro — ustalenia do budowy** (2026-10-21, odpowiedzi użytkownika na listę „co wiemy, czego nie”; liczby z instrukcji w `instrukcje/SPIS.md`, odczyt rysunku w `AI_NOTES.md`):
+  - **prowadnica na boku korpusu** — przykłada się do zaznaczonej kreski (spód prowadnicy) i przykręca bez nawiercania, 3 wkręty na prowadnicę. Plan wierceń ma więc podawać **wysokość spodu prowadnicy** od dolnej krawędzi boku (jak „szyna N” przy V-BOX) i **odsunięcie od czoła boku**: 4 mm za krawędzią korpusu przy froncie nakładanym, przy wpuszczanym + X. Wymiar „37” = górny rząd wkrętów (dolny 12 niżej), nie wierzch dna;
+  - **X = grubość frontu** (front wpuszczany: LT = NL + X + 3, szuflada NL + X − 10);
+  - **otwory dla krótszych NL** — z rysunku, 1 mm dokładności wystarczy; przy wątpliwości głębiej niż płycej (za płytko — nie domknie się);
+  - **skrzynka z płyty 18**: boki na zewnątrz, dno i tył między bokami; dno z płyty, dochodzi do tyłu, na konfirmaty przez boki od zewnątrz; boki schodzą 10 mm poniżej dna (z 10–12 bierzemy 10); tył niższy od boków o 10 mm (dolną krawędzią równo ze spodem dna) — dokładnie do przeliczenia przy budowie z otworem zaczepu;
+  - **tył skrzynki**: otwór ⌀6 × 10 pod tylny zaczep, 11 mm od dolnej krawędzi tyłu w górę i 7 mm od boku tyłu w stronę środka; „33” — najpewniej szerokość prowadnicy (na przekroju ok. 33 mm), „max 12” — opuszczenie boków poniżej dna;
+  - **zaczep przedni**: 75 mm od boku dna wolne od innych elementów (miejsce na zaczep łączący front z dnem);
+  - **komplet** to wszystko — nic nie trzeba dokupić (jedna pozycja na szufladę);
+  - **wysokość**: front musi sięgać co najmniej 27 mm poniżej spodu dna (zakrywa prowadnicę); dolna prowadnica 2 mm nad dnem szafki. Luz nad skrzynką jak przy V-BOX; wysokość boków i tyłu domyślnie max − luz, z możliwością zmiany ręcznie; front liczony jak przy innych szufladach;
+  - **front**: nakładany jak inne nakładane (szerszy od skrzynki); wpuszczany jak inne wpuszczane — światło minus „Dookoła drzwi” (domyślnie 2 mm), boki skrzynki chowają się za nim;
+  - **wybór systemu przy każdej szufladzie** (V-BOX / DXS-3D), domyślnie ten sam w szafce, a nawet w ciągu i pomieszczeniu; inny — ostrzeżenie z przyciskami „popraw” / „zostaw”.
 - **Zawiasy drzwi i klap** (2026-10-16, decyzje użytkownika): drzwi z automatu wg tabeli GTV (katalog 2023 s. 68) — większa z liczb z wysokości (2 do 750 / 3 do 1500 / 4 do 2100 / 5 do 2500 mm) i wagi frontu (6 / 12 / 17 / 20 kg; skrzydło na 165° — 4,5 / 9 / 12,5 / 15 kg), front do 600 mm (165°: 450); ręcznie inna liczba — ostrzeżenie „za dużo / za mało wg tabeli GTV”; ponad tabelę — „poza tabelą, liczba orientacyjna”. Klapa: 2 / 3 od 900 mm szerokości (bez tabeli — trzyma ją podnośnik), ręcznie 2–4, przy 3+ zawiasach i odstępie poniżej 600 mm — „za dużo zawiasów”. Rozstaw: 100 mm od krawędzi, reszta równo.
 - **Złącza do blatów** (2026-10-16): GTV EM-SBL, 2 szt. na styk blatów roboczych przy blacie 600, 3 przy 1200 — w rogu (na styk i łyżwa) i na łączeniu kawałków w prostym ciągu; 9 zł za szt.
 - **Nóżki** (2026-10-17, decyzja użytkownika po audycie GPT N8): najniższe regulowane w katalogu GTV to MLA-50 (50–75 mm) — poniżej 50 mm (też 0) błąd z „Ustaw 50 / 100 mm”.
