@@ -146,7 +146,23 @@ Sprawdzona wersja: main `21b31ce1db3e2f0a5b1afe748e1a8e71f3e6c8c6`, plik `szafki
 
 **Kryterium naprawy:** wykrywać rzeczywiste przecięcie wspornika i wzmocnienia; dopasować styk wraz z wymiarami formatek albo zgłosić niewykonalność i podać możliwe przesunięcie. Sprawdzić oba boki, górę/dół, fix nakładany/wpuszczany i położenie wzmocnienia od lica/tyłu.
 
+### N77 [P2] Ilość listwy montażowej zaokrąglana w dół poniżej potrzebnej długości
+
+**Odtworzenie:** wisząca szafka szerokości 680 mm, na zawieszkach z listwą; bez nóżek i cokołu. Alternatywnie ciąg dwóch takich wiszących szafek po 340 mm, bez szczeliny, ze wspólną listwą.
+
+**Wynik:** opis produktu prawidłowo podaje odcinek **640 mm** (szerokość minus 40 mm), ale ilość do zamówienia wynosi **0,6 mb = 600 mm**. Brakuje 40 mm w stosunku do własnej specyfikacji. Wycena korzysta z tej zaniżonej ilości. Powtarzanie takich odcinków sumuje błąd, bo zaokrąglenie zachodzi przed scaleniem zamówienia.
+
+**Kontrola:** W640 daje odcinek 600 mm i prawidłowe 0,6 mb. W700 daje odcinek 660 mm, ale ilość 0,7 mb. To zaokrąglanie do najbliższych 10 cm, nie przeliczenie długości na metry. Wariant pojedynczy i wspólna listwa ciągu potwierdzone niezależnie, bez innych komunikatów błędu.
+
+**Przyczyna:** `Math.round(dlugosc / 100) / 10` zamiast dokładnego `dlugosc / 1000`. Dotyczy listwy szafki (okolice 4917), ramienia narożnego (12181) i wspólnej listwy ciągu w `projectParts` (12503). Wyświetlanie ilości już obsługuje trzy miejsca po przecinku.
+
+**Wpływ:** ilość i cena nie odpowiadają długości opisanej w zamówieniu; zakup dokładnie według ilości może nie wystarczyć do podanego odcinka.
+
+**Kryterium naprawy:** przechowywać i sumować dokładną długość w mb; ewentualny zakup w odcinkach handlowych lub skokach 0,1 mb zaokrąglać dopiero zgodnie z regułą sprzedaży i zawsze tak, aby nie zabrakło materiału. Nie przyjmować długości odcinka handlowego bez ustalenia. Sprawdzić wiele osobnych szafek, ciąg oraz ramię L.
+
+
 ---
 
-Nowe otwarte zgłoszenia: N69–N76; PDF-1 pozostaje. N74–N76 potwierdzono w funkcjach obliczeń i generowanej geometrii aktualnego źródła (blob `b2d4271da583cc43c47ba41681a1a65f99445562`), na konfiguracjach syntetycznych. Projekt użytkownika pozostał bez zmian. Test rozkroju 886 650 zestawów nie wykazał naruszeń sprawdzanych własności: liczby/wymiarów formatek, obrotu przy zakazie, granic arkusza, nakładania i odstępów rzazu. Nie jest to gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
+Nowe otwarte zgłoszenia: N69–N77; PDF-1 pozostaje. N74–N76 potwierdzono w funkcjach obliczeń i generowanej geometrii aktualnego źródła (blob `b2d4271da583cc43c47ba41681a1a65f99445562`), na konfiguracjach syntetycznych. Projekt użytkownika pozostał bez zmian. Test rozkroju 886 650 zestawów nie wykazał naruszeń sprawdzanych własności: liczby/wymiarów formatek, obrotu przy zakazie, granic arkusza, nakładania i odstępów rzazu. Nie jest to gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
+
 
