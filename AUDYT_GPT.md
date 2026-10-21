@@ -21,7 +21,7 @@ Aktualizacja: 21.10.2026. Lista obejmuje potwierdzone uwagi pozostałe po reteś
 
 
 
-## Nowy audyt 21.10.2026 — N69–N79
+## Nowy audyt 21.10.2026 — N69–N80
 
 Sprawdzona wersja: main `21b31ce1db3e2f0a5b1afe748e1a8e71f3e6c8c6`, plik `szafki.jsx` (blob `b2d4271da583cc43c47ba41681a1a65f99445562`). Poniższe przypadki potwierdzono przez wykonanie funkcji obliczeń i generowania brył z tej wersji oraz analizę odpowiadających im miejsc w kodzie. Testy syntetyczne, bez zmiany projektu użytkownika. Nie jest to deklaracja przetestowania wszystkich ekranów ani nowy audyt PDF.
 
@@ -195,9 +195,25 @@ Zamówienie projektu zawiera tylko jedną płytę „Blat ciągu” 600 × 560 m
 **Kryterium naprawy:** blat pochodzący z konkretnej szafki zachowuje jej wybrany materiał, niezależnie od tego, jaka szafka stoi wcześniej w ciągu. Sprawdzić brak blatu w pierwszej szafce, różne kolory i grubości, przestawienie kolejności oraz kilka własnych blatów z różnymi materiałami. Nie scalać różnych materiałów bez jawnej reguły i informacji dla użytkownika. Nie zmieniać przy tym celowo wybranego wspólnego blatu roboczego.
 
 
+### N80 [P2] Zamówienie luster pomija grubość i scala lustra 4 oraz 6 mm
+
+**Odtworzenie:** dwie szafki 600 × 900 mm, po jednym skrzydle z lustrem, bez innych różnic. W karcie „Płyty” ustawić „Lustro — Grubość” na 4 mm dla jednej szafki i 6 mm dla drugiej.
+
+**Wynik:** obie szafki generują identyczną pozycję „Lustro na drzwiach” z opisem **595 × 893 mm × 1 szt.**, bez grubości. W zbiorczym zamówieniu powstaje jeden wiersz **595 × 893 mm × 2 szt., 1,06267 m²**. Nie można z niego ustalić, że jedna tafla ma mieć 4 mm, a druga 6 mm.
+
+**Kontrola:** grubość jest rzeczywiście używana przez silnik: w tym samym przykładzie lustro 4 mm daje 3 zawiasy, a 6 mm — 4 zawiasy, ze względu na inną masę. Obie konfiguracje nie mają uwag. Powierzchnia i liczba tafli są poprawne; to nie powrót dawnego N20 dotyczącego ich zaokrąglania.
+
+**Przyczyna:** przy generowaniu pozycji lustra (okolice 4580–4600) nie jest przenoszona `mat.mirror.thickness` ani wariant handlowy. `scalOkucia` scala oba produkty, bo nazwa, jednostka i specyfikacja są identyczne. Tą samą ścieżką idą ekran, wycena oraz zestawienie produktów w PDF.
+
+**Wpływ:** opis do zakupu jest niepełny i łączy różne materiały, mimo że grubość wpływa na działanie i dobór okuć projektu.
+
+**Kryterium naprawy:** przekazywać grubość lustra do jego specyfikacji i klucza wariantu zamówienia; lustra 4 i 6 mm muszą pozostać rozróżnione. Lustra tej samej grubości nadal sumować prawidłowo według rozmiarów i powierzchni. Zachować poprawki liczby tafli i dokładnej powierzchni z N20.
+
+
 ---
 
-Nowe otwarte zgłoszenia: N69–N79; PDF-1 pozostaje. N74–N76 potwierdzono w funkcjach obliczeń i generowanej geometrii aktualnego źródła (blob `b2d4271da583cc43c47ba41681a1a65f99445562`), na konfiguracjach syntetycznych. Projekt użytkownika pozostał bez zmian. Test rozkroju 886 650 zestawów nie wykazał naruszeń sprawdzanych własności: liczby/wymiarów formatek, obrotu przy zakazie, granic arkusza, nakładania i odstępów rzazu. Nie jest to gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
+Nowe otwarte zgłoszenia: N69–N80; PDF-1 pozostaje. N74–N76 potwierdzono w funkcjach obliczeń i generowanej geometrii aktualnego źródła (blob `b2d4271da583cc43c47ba41681a1a65f99445562`), na konfiguracjach syntetycznych. Projekt użytkownika pozostał bez zmian. Test rozkroju 886 650 zestawów nie wykazał naruszeń sprawdzanych własności: liczby/wymiarów formatek, obrotu przy zakazie, granic arkusza, nakładania i odstępów rzazu. Nie jest to gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
+
 
 
 
