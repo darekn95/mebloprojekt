@@ -1,3 +1,27 @@
+# Kontrola aktualnego PDF — 21.10.2026, wydruk14:37
+
+Sprawdzono przekazany plik „MebloProjekt — podgląd standalone.pdf”:21 stron,6 szafek, data utworzenia w metadanych21.10.2026 12:37:59UTC. Przeczytano tekst wszystkich stron, obejrzano rendery wszystkich21 stron oraz powiększenie rozkroju strony18. Pliku nie zmieniano.
+
+**Wynik: wcześniejsze konkretne błędy tego PDF nie występują w dostarczonej wersji.**
+
+| Wcześniejszy problem | Wynik |
+|---|---|
+| Brak złączy blatów w produktach projektu | Naprawione: str.14 „Złącze do blatów śrubowe”, styk blatów roboczych w rogu,2szt. |
+| B3 — ogólny błędny arkusz2800×2100 nad blatami | Naprawione: str.15 tabela podaje format oddzielnie dla materiału. Płyta iHDF2800×2100 (po okrawaniu2761,2×2061,2), blat4100×600. Także str.20–21 mają właściwy format blatu. |
+| NagłówekHDF oddzielony od rysunku podziałem strony | Naprawione: HDF z nagłówkiem i rysunkiem na własnej str.19. |
+| „6 szafki” | Naprawione: str.13 „Formatki całego projektu —6 szafek”. |
+| Czytelność rozkroju | Poprawiona: każdy arkusz ma oddzielną stronę16–21. Przy długich wąskich listwach tekst nadal drobny; nie stwierdzono obcięcia formatek ani znikania ich opisów. Drobne wymiary i opisy na rysunkach szafek1–12 warto jeszcze powiększyć dla wygodnego wydrukuA4. To uwaga do czytelności, nie stwierdzona rozbieżność zamówienia. |
+
+**Kontrola spójności:** automatycznie porównano nazwy, materiały, oba wymiary i ilości formatek z tabel każdej szafki (str.2/4/6/8/10/12) ze zbiorczą tabelą13–14. Wynik:57 formatek szafek +4 wspólne (2 cokoły,2 blaty) =61; zero brakujących i zero nadmiarowych pozycji. Wstawka720×60 jest w tabeli Szafki3 oraz w zestawieniu, bez podwójnego naliczenia. Arkusze rozkroju mają16+17+20 elementów płyty,6HDF i2blaty — również61.
+
+**Szafka5:** dwie prowadnice NL550, boki238 i210, dwa dna489×526 oraz tyły477×230 i477×200; fronty356×596 i355×596. Te same elementy występują w jej tabeli i zbiorczym zestawieniu. Nie stwierdzono pustych stron, uciętych tabel ani brakujących polskich znaków na renderach.
+
+**Zakres:** dokument ma wyłącznie szafkiH720; nie ma klap ani testowej szafkiH900, więc nie potwierdza ich eksportu PDF. Pozytywny wynik dotyczy tego dostarczonego dokumentu, nie wszystkich wariantów generatora ani samodzielnej certyfikacji katalogów okuć. Obrót rysunków rozkroju o90° jest widoczny na stronach16–21, lecz całość pozostaje w granicach strony.
+
+Dowody lokalnie: `pdf-2026-10-21/tekst.txt`, `kontrola-sum.json`, rendery stron. Nie publikowano prywatnego PDF ani projektuJSON. Ta sekcja zastępuje ustalenia „Kontrola PDF —16.10.2026” dotyczące wymienionych problemów.
+
+---
+
 # Uzupełnienie weryfikacji bez PDF — 21.10.2026
 
 **W odtworzonych wcześniejszych przypadkach poza PDF nie potwierdzono powrotu błędów.** Poniżej domknięcie B1/B2/B3 (część ekranowa), U1/U2 oraz brakujących prób z pierwotnej listy. Wyniki N1–N68 z poprzedniej sekcji pozostają aktualne: źródło ponownie sprawdzone, blob nadal `b2d4271da583cc43c47ba41681a1a65f99445562`.
@@ -997,5 +1021,6 @@ Przy oknie około 600×495 px nagłówek z paskami obu ciągów zajmuje około 3
 4. Przy zmianie `szafki.jsx` wygenerować ponownie `standalone.html`. Pełny przebieg zgodnie z zasadami repozytorium przed wyraźnie zleconym scaleniem. Sam raport nie jest zgodą na modyfikację ani publikację.
 
 Wyniki liczbowe `wyniki-obliczen.json` oraz skrypty audytu pozostają lokalnie. Ten plik na GitHubie zawiera opis wyników i kroki odtworzenia; nie wymaga tych załączników do zrozumienia zgłoszonych błędów.
+
 
 
