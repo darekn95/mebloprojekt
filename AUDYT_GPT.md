@@ -161,8 +161,28 @@ Sprawdzona wersja: main `21b31ce1db3e2f0a5b1afe748e1a8e71f3e6c8c6`, plik `szafki
 **Kryterium naprawy:** przechowywać i sumować dokładną długość w mb; ewentualny zakup w odcinkach handlowych lub skokach 0,1 mb zaokrąglać dopiero zgodnie z regułą sprzedaży i zawsze tak, aby nie zabrakło materiału. Nie przyjmować długości odcinka handlowego bez ustalenia. Sprawdzić wiele osobnych szafek, ciąg oraz ramię L.
 
 
+### N78 [P2] Szafka z własnym blatem w ciągu dostaje dodatkowy blat na podłodze w 3D
+
+**Odtworzenie:** jedna szafka 600 × 720 × 560 mm, bez nóżek i cokołu, jedna pusta kolumna. „Wieniec” przełączyć na „Blat”, materiał z płyty meblowej 18 mm, bez wysunięć. Szafka należy do prostego ciągu; wspólny „Blat roboczy na całym ciągu” wyłączony.
+
+**Wynik:** w `Assembly3D` występują dwie bryły 600 × 18 × 560 mm:
+- właściwy blat szafki na wysokości **702…720 mm**;
+- dodatkowa bryła oznaczona `tag: blat` na wysokości **0…18 mm**, przy podłodze, dodatkowo przesunięta o 3 mm względem własnego blatu przy HDF.
+
+Zamówienie projektu zawiera tylko jedną płytę „Blat ciągu” 600 × 560 mm. Rysunek przedstawia więc dodatkowy element, którego nie zamawiamy. `worktopMsgs`, `runWideMsgs` i kontrola otwierania nie zgłaszają problemu w tym wariancie z płyty.
+
+**Kontrola:** przy dwóch szafkach w ciągu widać dwa indywidualne blaty na górze i dodatkową płytę 1200 × 18 × 560 mm przy podłodze; zamówienie scala blaty w jedną płytę 1200 × 560 mm. Dla własnego blatu roboczego 38 mm dodatkowa bryła jest na 0…38 mm, podczas gdy właściwe blaty są na 682…720 mm. Poza ciągiem zamówienie zachowuje własny blat szafki.
+
+**Przyczyna:** `runTop` tworzy wynik również z własnych blatów szafek przy wyłączonym `run.worktop`, ale wysokość `y` bierze tylko z `worktopLevel` albo ramienia narożnego; zwykły przypadek trafia w domyślne **0** (okolice 11830). `Assembly3D` najpierw rysuje własne blaty szafek, a potem dodatkowo wynik `runTop` (okolice 7733–7761).
+
+**Wpływ:** fałszywy element na podłodze, niespójna liczba/położenie blatów między rysunkiem i zamówieniem; przy wysunięciach indywidualnych blatów dochodzi również do nakładania ich brył.
+
+**Kryterium naprawy:** dla własnych blatów w ciągu ustalić właściwą wysokość i rysować jednokrotnie to, co zamawia projekt. Sprawdzić jedną/dwie szafki, płyty 18 mm i blat roboczy 38 mm, wysunięcia, różne wysokości szafek oraz ciąg podniesiony nad podłogę. Nie usuwać właściwego blatu, zostawiając tylko płytę na wysokości 0.
+
+
 ---
 
-Nowe otwarte zgłoszenia: N69–N77; PDF-1 pozostaje. N74–N76 potwierdzono w funkcjach obliczeń i generowanej geometrii aktualnego źródła (blob `b2d4271da583cc43c47ba41681a1a65f99445562`), na konfiguracjach syntetycznych. Projekt użytkownika pozostał bez zmian. Test rozkroju 886 650 zestawów nie wykazał naruszeń sprawdzanych własności: liczby/wymiarów formatek, obrotu przy zakazie, granic arkusza, nakładania i odstępów rzazu. Nie jest to gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
+Nowe otwarte zgłoszenia: N69–N78; PDF-1 pozostaje. N74–N76 potwierdzono w funkcjach obliczeń i generowanej geometrii aktualnego źródła (blob `b2d4271da583cc43c47ba41681a1a65f99445562`), na konfiguracjach syntetycznych. Projekt użytkownika pozostał bez zmian. Test rozkroju 886 650 zestawów nie wykazał naruszeń sprawdzanych własności: liczby/wymiarów formatek, obrotu przy zakazie, granic arkusza, nakładania i odstępów rzazu. Nie jest to gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
+
 
 
