@@ -687,7 +687,19 @@ przy lyzwie). Kontrola otwierania: `swingLeaf` dziala na osiach — dla skosu tr
 cwiartki obroconej o 45° (uchwyty szuflad obok — realna kolizja). Pytania do
 uzytkownika w BLEDY.md („Do decyzji” — Szafka narozna skosna). Zdjecia (za zgoda
 uzytkownika): `zdjecia/naroznik-skosny/` z opisem `OPIS.md`.
-[AI-TODO] (2026-10-20, na pozniej — prosba uzytkownika) Szuflady na prowadnicach
+[AI-INFO] (2026-10-21) ZROBIONE ponizsze TODO — szuflady DXS-3D Synchro. Jak to dziala:
+`drawer.system === "dxs"` (bez pola = V-BOX); w `computeGeo` kolumna szuflad woła dla
+takiej szuflady `szufladaDxs` (zamiast galezi V-BOX) — wspolne zostaja fronty, pas,
+luzy i NL z przeszkod (`maxNlFor(..., lista)`). `dr.bokOd/dnoOd/gora` sa w obu
+systemach i z nich korzystaja rysunki (nie `vboxGora(dr.rail.h)` — tego nie dodawaj
+w nowych miejscach). Rysunki prowadnic: `szufladaOdCzola`, `szufladaZGory`,
+`szerWnetrzaSzuflady`; bryla: `skrzynkaBryly` (galaz `sk.system === "dxs"`); wysuw:
+`wysuwSzuflady` (B z `DXS.wysuw`). Zmiana systemu: `zmienSystemSzuflady` /
+`naSystemSzuflad`; uwagi: w `computeGeo` (dwa systemy w szafce) i `szufladyMsgs`
+(ciag/pomieszczenie), akcje `szufsys:` itd. przez `runFix`. `audytwierc` ma
+scenariusze tylko V-BOX (sprawdza otwory i boki metalowe) — plan wiercen DXS
+sprawdza suita `dxs`.
+[AI-INFO] (2026-10-20, szkic sprzed budowy — zrobione 2026-10-21, wyzej) Szuflady na prowadnicach
 dolnego montazu, obok V-BOX. Szkic: przy kolumnie szuflad wybor systemu („V-BOX” /
 „dolny montaż”); skrzynka z plyty — formatki boki, przod, tyl, dno (oklejanie
 gornych krawedzi), wymiary wg karty prowadnicy (szerokosc skrzynki = swiatlo minus

@@ -4577,17 +4577,18 @@ function computeGeoLiczy(cab, mat, ctx) {
                w tyle otwory pod tylne zaczepy prowadnic, pod dnem przy przodzie
                zaczepy frontu (instrukcja s. 112–113, uzytkownik 2026-10-21).
                Na boku liczone od dolnej i przedniej krawedzi boku. */
-            const nazwa = `Szuflada ${dr.i + 1}${lv.cols.length > 1 ? ` (kolumna ${c.j + 1})` : ""}`;
+            // nazwa jak formatka („Bok szuflady”) + ktora szuflada
+            const ktora = `szuflada ${dr.i + 1}${lv.cols.length > 1 ? `, kolumna ${c.j + 1}` : ""}`;
             const dnoY = DXS.bokPodDnem + sk.grub / 2;
             const przodDna = konfirmatyPoz(sk.dno[1]).map((z) => fmt(z)).join(", ");
-            drillAdd(lv.i, `${nazwa} — boki skrzynki (2 szt., lustrzanie)`, 0, "konfirmat — dno", dnoY,
+            drillAdd(lv.i, `Bok szuflady — ${ktora} (2 szt., lustrzanie)`, 0, "konfirmat — dno", dnoY,
               `oś dna (spód dna ${DXS.bokPodDnem} mm nad dołem boku); ${przodDna} mm od przedniej krawędzi boku; od zewnątrz`);
             const zTylu = sk.bokDl - sk.grub / 2;
-            konfirmatyPoz(sk.tyl[1]).forEach((yT) => drillAdd(lv.i, `${nazwa} — boki skrzynki (2 szt., lustrzanie)`, 0,
+            konfirmatyPoz(sk.tyl[1]).forEach((yT) => drillAdd(lv.i, `Bok szuflady — ${ktora} (2 szt., lustrzanie)`, 0,
               "konfirmat — tył", DXS.bokPodDnem + yT, `oś tyłu: ${fmt(zTylu)} mm od przedniej krawędzi boku; od zewnątrz`));
-            drillAdd(lv.i, `${nazwa} — tył skrzynki`, 0, "zaczep prowadnicy ⌀6 × 10", DXS.zaczepY,
+            drillAdd(lv.i, `Tył szuflady — ${ktora}`, 0, "zaczep prowadnicy ⌀6 × 10", DXS.zaczepY,
               `od tylnej strony, ${DXS.zaczepX} mm od lewej i od prawej krawędzi (2 otwory)`);
-            drillAdd(lv.i, `${nazwa} — dno skrzynki`, null, "zaczep frontu (sprzęgło)", null,
+            drillAdd(lv.i, `Dno szuflady — ${ktora}`, null, "zaczep frontu (sprzęgło)", null,
               `pod dnem przy przedniej krawędzi, z obu stron — wkręty wg przyrządu Sevroll 20415 (wiertło ⌀2); ${DXS.wolneOdBoku} mm od boku nic innego`);
           }
           // po stronie elementu stalego prowadnica idzie na wspornik (audyt GPT N42)

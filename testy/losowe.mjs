@@ -126,6 +126,9 @@ const ZMIANY = [
   ['drzwi', (c, r) => { const n = 1 + Math.floor(r() * 2); return [nowaKolumna(c, { kind: 'doors', doors: n, fix: undefined, klapa: undefined }), `${n} drzwi`]; }],
   ['szuflady', (c, r) => { const n = 1 + Math.floor(r() * 4); const tall = r() < 0.3;
     return [nowaKolumna(c, { kind: 'drawers', drawers: Array.from({ length: n }, () => ({ h: 'auto', handle: true, tallBack: tall })) }), `${n} szuflady${tall ? ', podniesiony tył' : ''}`]; }],
+  // szuflady DXS-3D (skrzynka z plyty, prowadnice dolnego montazu — 2026-10-21)
+  ['szuflady DXS-3D', (c, r) => { const n = 1 + Math.floor(r() * 4);
+    return [nowaKolumna(c, { kind: 'drawers', drawers: Array.from({ length: n }, () => ({ h: 'auto', handle: true, system: 'dxs' })) }), `${n} szuflady DXS-3D`]; }],
   ['klapa', (c, r) => { const kl = r() < 0.5 ? 'gora' : 'dol'; return [nowaKolumna({ ...c, H: Math.min(c.H, 600) }, { kind: 'doors', doors: 1, klapa: kl, fix: undefined }), `klapa ${kl}, H ≤ 600`]; }],
   ['fix', (c, r) => { const side = ['left', 'right', 'top'][Math.floor(r() * 3)]; const support = side !== 'top' && r() < 0.6;
     return [nowaKolumna({ ...c, W: Math.max(c.W, 600) }, { kind: 'doors', doors: 1, hinge: side === 'left' ? 'right' : 'left', klapa: undefined,

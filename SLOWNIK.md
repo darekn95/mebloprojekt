@@ -160,6 +160,11 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | światło 1 / światło 2 … | `col.shelfTargets[]` |
 | Wcięcie na palce zamiast uchwytu | `col.gripDepth` |
 | tył (przy szufladzie) | `drawer.tallBack`, `drawer.backHeight` |
+| system szuflady: V-BOX / DXS-3D (pierwsze pole wiersza, `select data-el="szuflada-system"`) | `drawer.system` (`"dxs"`; brak = V-BOX) — `systemSzuflady(d)`; zmiana: `setDrawerSystem` → `zmienSystemSzuflady` (bok i tył wracają na auto, reling i podniesiony tył zdjęte, NL spoza listy systemu → auto) |
+| bok (DXS-3D, mm; `data-el="dxs-bok"`) | `drawer.h` — liczba (V-BOX: z listy `VBOX.heights`), `"auto"` = najwyższy z luzem `SZUFLADA_ZAPAS` pod tym, co wyżej |
+| tył (DXS-3D, mm; `data-el="dxs-tyl"`) | `drawer.backHeight` (puste = bok − 10, góra równo z bokami) |
+| NL szuflady / głębokość NL kolumny | `drawer.nl` / `col.nl` — lista z systemu (`nlSystemu`: V-BOX z 270, DXS-3D bez) |
+| nowa szuflada („+ szuflada”, kolumna → „Szuflady”) | system z `systemKontekstu(project, idx, col)`: kolumna → szafka → ciąg → pomieszczenie → V-BOX |
 | Wzmocnienia korpusu: Wysokość / Głębokość / Położenie / Przy boku / Liczone od tyłu / Skraca drzwi | `rail.h`, `rail.depth`, `rail.pos`, `rail.side`, `rail.fromBack`, `rail.reducesDoor` |
 
 ### Karta „Luzy drzwi" (`cab.gaps`)
@@ -225,6 +230,9 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `projectLayout(project)` | rozstawia ciągi w rzucie z góry, liczy rogi — **osobno w każdym pomieszczeniu** (`.pokoje` = Map pomieszczenie → układ, `.info` = wszystkie ciągi); kolizje otwierania biorą układ pomieszczenia |
 | `plytaFrontu(cab)` | płyta frontów szafki: `"board"` przy „Fronty z tej samej płyty co korpus” (domyślnie), inaczej `"front"` — dla elementów poza `computeGeo` (wstawka w rogu, front ramienia, maskownice kątownika); w `computeGeo` robi to `P()` (`sameBoard`) |
 | `frontRamienia(a, real)` / `sasiadRamienia(a)` | front ramienia szafki L: płyta i kolor frontów szafki sąsiedniej ściany stojącej przy ramieniu (inne fronty → z niej), inaczej szafki w rogu. Formatka niesie własną płytę w `zPlyty`, a listy czytają ją przez `plytaFormatki(p, mat)` |
+| `szufladaDxs` (w `computeGeo`, kolumna szuflad) | szuflada DXS-3D: kreska prowadnicy (`rail.y0`), bok auto/ręcznie, NL z `DXS.nl` (wzmocnienie przy plecach skraca NL), tył, kontrole z przyciskami (`fixh`, `fixback`, `fixnl`), `dr.skrzynka` (`system: "dxs"`, `bokDl`, `bokT`, `szer` = SKW, `dno`, `tyl`), formatki (bok ×2, dno, tył), `dxsGroups` (komplety), `dxsKonf` (konfirmaty dna i tyłu przez boki — do wiersza konfirmatów korpusu) |
+| `szufladaOdCzola(c, dr)` / `szufladaZGory(c, dr)` / `szerWnetrzaSzuflady(c, dr)` | prowadnice (V-BOX: pas 21 mm; DXS: 33 × 27 pod dnem) i boki skrzynki DXS do rysunków z przodu (szafka, ciąg) i z góry; światło szerokości szuflady (V-BOX c.w − 42, DXS SKW). Pion: `dr.bokOd`, `dr.dnoOd`, `dr.gora` (oba systemy) |
+| `systemKontekstu` / `naSystemSzuflad` / `szufladyMsgs` | system nowej szuflady z kontekstu; wszystkie szuflady szafki na jeden system; uwaga ciągu „szuflady tej szafki są na X, a w ciągu / pomieszczeniu na Y” |
 | `shelfColorOf(cab, mat)` | kolor płyty półek na rysunkach: półki, półka ramienia, kątownik w tylnym narożniku L, dno i tył szuflady |
 | `projektPomieszczenia(project, roomId)` | wycinek projektu z jednym pomieszczeniem — listy „To pomieszczenie” i rozdziały PDF |
 | `formatkiSzafki(geo, { bezCokolu, bezBlatu, arm })` | lista formatek jednej szafki — **ta sama** w karcie „Formatki do zamówienia” i na wydruku; cokół i blat wspólne dla ciągu wypadają (są w liście projektu), ramię szafki w L dochodzi (`cornerArmParts`) |
@@ -348,6 +356,7 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `HINGE_PLAY` | 2 | luz między korpusem a drzwiami przy zawiasach — tylko do głębokości blatu, nie do rysunków |
 | `SCIANA_GR` / `ScianaDefs` | 100 | ściana na rysunkach: pas 100 mm z szarym kreskowaniem (`url(#sciana-kreski)`) — rzut z góry (z nazwą ściany i ciągu górnego) i widok z boku; zasięg w rzucie liczy `scianaZasieg` (róg: do narożnika muru, wolny koniec: koniec ciągu albo „Długość ściany”); przełącznik „Ukryj / Pokaż ścianę” (`showWall`) |
 | `BACK_CLEAR` | 20 | luz nad podniesionym tyłem szuflady (tylko podniesionym — zwykły tył ma górę równo z bokami i mieści się tam, gdzie skrzynka). Sufit nad najwyższą szufladą: góra światła albo płaskie wzmocnienie przy licu (szafka pod blatem); boki skrzynki muszą się pod nim zmieścić (błąd z przyciskiem `fixh`). Brak miejsca na podniesienie → ostrzeżenie z przyciskami `fixh` (niższy bok, gdy da wyższy tył) i `tylstd` („Wyłącz podniesiony tył”) |
+| `DXS` / `dxsBokOd` | — | Sevroll DXS-3D Synchro (katalog 2026 s. 110–113; ustalenia w BLEDY.md „Ustalone”): `nl` 250–600 co 50, `indeks` kompletów, `wysuw` (B) i `dlKorpus` (A) z tabeli, `odBoku` 6,5, `dnoOd` 27 (spód prowadnicy → spód dna i tyłu), `bokPodDnem` 10 (`dxsBokOd` = 17: spód prowadnicy → dół boku), `nadDnem` 2, `odCzola` 4, `krotsza` 10 (skrzynka NL − 10), `zaTylem` 3, `wkretGora` 37, `zaczepY`/`zaczepX` 11/7, `wolneOdBoku` 75, `szerProw` 33, `minTyl` 20 |
 | `VBOX` | — | dane katalogowe Sevroll V-BOX 3D Slim, **dla płyty 18 mm** (instrukcja: `instrukcje/Folder-Szuflada-V-BOX-18mm-online.pdf`). Pion skrzynki od dołu prowadnicy (2026-10-05): `vboxGora(bok)` = min. front nakładany (do góry boku), `vboxOdProw(bok)` = dół boku (13–15), `vboxDno(bok)` = spód dna i tyłu (23–24); kontrola miejsca nad szufladą i auto bok liczą `rail.y0 + vboxGora` |
 
 Rozstawy okuć (wzorzec `max(2, ceil(długość / skok))`): konfirmat co 200 mm,
@@ -371,7 +380,7 @@ co do znaku (łącznie ze spacjami wokół „×").
 **Formatki:** Bok · Bok lewy · Bok prawy · Dno / wieniec · Blat · Blat roboczy ·
 Półka · Półka przelotowa · Przegroda pionowa · Wspornik pionowy · Blenda ·
 Blenda nad szafką · Klapa · Cokół · Cokół ciągu · Element stały (fix) ·
-Front szuflady · Dno szuflady · Tył szuflady · Plecy HDF · Plecy HDF we frezie ·
+Front szuflady · Dno szuflady · Tył szuflady · Bok szuflady (DXS-3D) · Plecy HDF · Plecy HDF we frezie ·
 Plecy z płyty (na zewnątrz) · Plecy z płyty (wewnątrz) ·
 Kątownik przy ramieniu — bok · Kątownik przy ramieniu — plecy ·
 Bok ramienia · Półka ramienia · Cokół ramienia · Front ramienia · Fix ramienia ·
@@ -389,7 +398,8 @@ Wkręt 4 × 30 (0,08) · Wkręt 3,5 × 30 do pleców (0,05) ·
 Zszywka / gwoździk do pleców (0,05) · Lustro na drzwiach (200/m²) ·
 Podnośnik gazowy N N / Podnośnik gazowy — siła do dobrania (cena po `pk` „Podnośnik gazowy do klapy”, 10) ·
 Amortyzator do klapy opadanej N N (`pk` „Amortyzator do klapy opadanej”, 10) ·
-Prowadnica Sevroll V-BOX 3D Slim … mm (`SLIDE_PRICES` wg NL)
+Prowadnica Sevroll V-BOX 3D Slim … mm (`SLIDE_PRICES` wg NL) ·
+Prowadnica Sevroll DXS-3D Synchro (50 za komplet bez względu na NL; NL i indeks w specyfikacji)
 
 ---
 
@@ -412,6 +422,7 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `wstawka:<ciąg z narożnikiem>:<plaska\|szeroka>:<mm>:<ok\|kąt>` | przy kolizji otwierania między ciągami w rogu (bez szafki w L): „Dodaj wstawkę 18 mm — bez kolizji” i „Wstawka 60 mm (na trójkątach) — …” (każda, która pomaga — obie naraz, gdy obie pomagają; przy płaskiej już ustawionej tylko szeroka); tylko gdy pomaga — sprawdzane na próbę w `openingMsgs` (`zWstawka`: projekt z wstawką → `projectLayout` → to samo skrzydło); obsługa w `runFix` przez `setCorner` |
 | `SZUFLADA_ZAPAS` = 5 | luz nad bokiem skrzynki V-BOX ponad minimum z katalogu (`vboxGora`) — wymóg: auto bok tylko z nim (sufit `sufitDla(hc)` z całej drogi skrzynki, też wzmocnienie przy plecach), `miesciSie` z nim; mniejszy luz — błąd „nad bokiem skrzynki X mm zostaje N mm luzu… potrzeba min. 5 mm” z `fixh:` |
 | `reling:<poziom>:<kolumna>:<szuflada>:<0\|1>` | przy froncie > 140 mm ponad bokiem: 0 — „Zostaw bez relingu” (`drawer.bezRelingu = true`, ostrzeżenie → informacja), 1 — „Wróć do ostrzeżenia o relingu” |
+| `szufsys:<vbox\|dxs>` / `szufmix` / `szufmixnie` / `szufinne` / `szufinnenie` | „Wszystkie szuflady szafki na V-BOX / DXS-3D” (`naSystemSzuflad`), „Zostaw różne systemy” (`cab.szufladyMieszane`, uwaga szafki), „Zostaw tak” (`cab.szufladyInne`, uwaga ciągu), „Wróć do ostrzeżenia” — wykonuje `runFix` (aktywna szafka) |
 | `relingdodaj:` / `relingusun:<poziom>:<kolumna>:<szuflada>` | „Dodaj reling” / „Usuń reling”: `drawer.reling` (też pole „reling” w wierszu szuflady) → produkt „Reling boczny do szuflady” (`relingGroups` w `computeGeo`, komplet na szufladę, NL w specyfikacji), cena `DEFAULT_HW_PRICES` 30 zł bez względu na długość |
 | „Wczytaj wysłany do Claude” (tylko artefakt) | `pobierzOdClaude` → `dbClaude.doc(PROJEKT_DLA_CLAUDE).get()` → pytanie `data-el="wczytaj-od-claude-pytanie"` → `applyImportText(json)`; na innym komputerze wczytuje ostatnio wysłany projekt zamiast projektu startowego |
 | `ZAWIAS_MAX_ODSTEP` = 600, `zawiasowWystarczy(dl)` | tylko klapa: ostrzeżenie „za dużo zawiasów” przy 3+ zawiasach, gdy nominalny odstęp środków (`HINGE_REF` od krawędzi, reszta równo) < 600 mm; przycisk `zawiasy:<poziom>:<kolumna>:<skrzydło>:<ile>` („Ustaw N zawiasy”, `col.hinges[skrzydło]`) |
@@ -505,6 +516,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `blatwys` | wysokość blatów: narożnik (cokół 110, wysokość 735 — przyciski wyrównania, cokół i nóżki razem), to samo pomieszczenie bez rogu (ostrzeżenie z obu stron, wyrównanie), słupek bez zmian, inne pomieszczenie bez uwagi |
 | `przewijanie` | paski zwijają się przy przewijaniu w dół i nie skaczą, ręcznie rozwinięty zostaje minutę (zegar Playwrighta), powrót na górze, „Pokaż rysunek”, nazwa ściany (Enter, Esc, pusta, wiersz górny), „+ nowy ciąg”, „× usuń ciąg” |
 | `niskieokno` | audyt GPT U2: okno 600 × 495 — pasek ciągów zwinięty sam, nagłówek ≤ 40% i przyklejony, „Pokaż rysunek” tuż pod paskiem, rozwinięcie kliknięciem (bez zapamiętywania) odkleja nagłówek; 640 × 300 — nieprzyklejony; 1500 × 1000 bez zmian, zmniejszenie i powiększenie okna |
+| `dxs` | szuflady DXS-3D: liczby z instrukcji liczone w teście (SKW = LW − 49, boki NL − 10, dno do tyłu, tył bok − 10, NL + 3 / + front wpuszczany), kreski prowadnic (2 mm nad dnem, front + 5), bok auto z luzem 5, zamówienie (komplet z indeksem, konfirmaty i zaślepki, cena 50), plan wierceń (kreska, odsunięcie 4 / 22, konfirmaty skrzynki, otwór zaczepu, sprzęgła), 3D (wysuw B, skrzynka 6,5 od boku, bez kolizji), przyciski bok / tył / NL 270, wybór systemu, „+ szuflada”, różne systemy w szafce i w ciągu, V-BOX bez zmian. DXS jest też w `formatki`, `audyt2d` i `losowe` |
 | `pdfczytelnosc` | czytelność rysunków szafki w PDF (audyt GPT PDF-1): okno 190 mm, media „print”, 13 typów szafek (drzwi, szuflady, klapa, 1100 z fixem, 300, L w prawo i w lewo, słupek 2000, 2 i 3 kolumny, wpuszczane z frezem, blenda) + ciąg z blatem: 4 widoki na szafkę, wymiary ≥ 2,3 mm, każdy napis ≥ 1,8 mm, napisy nie nachodzą na siebie i nie wychodzą poza pole widoku; `PROJEKT=plik` dokłada projekt użytkownika, `SZCZEGOLY=1` wypisuje skalę i najmniejsze napisy |
 | `komentarze1` | komentarze z artefaktu 2026-10-17: kolejność kart, podświetlenie formatki, półka → poziom / klapy (też poziom z dwiema kolumnami; z szufladami — bez), podział zwinięty, zużycie blatu i odpad arkusza, opis „Luz w rogu” |
 | `drobne` | luzy domyślne, nazwa uchwytu, dekor, wkręt do pleców |
