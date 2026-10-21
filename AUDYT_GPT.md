@@ -67,7 +67,40 @@ Sprawdzona wersja: main `21b31ce1db3e2f0a5b1afe748e1a8e71f3e6c8c6`, plik `szafki
 
 **Kryterium naprawy:** używać grubości faktycznego materiału zabudowy przy obliczaniu ścianek i ich styków. Uwzględnić, że grubość istniejącego boku korpusu pozostaje niezależna. Sprawdzić L/U, obie strony, czoło przed/między bokami, a także zabudowy wycięć korzystające z tej funkcji.
 
+
+### N72 [P2] Ręczne wzmocnienia mogą wychodzić poza korpus bez komunikatu
+
+**Stan:** potwierdzony w funkcjach aktualnej wersji `szafki.jsx`, blob `b2d4271da583cc43c47ba41681a1a65f99445562`.
+
+**Odtworzenie:** szafka 600 × 720 × 560 mm, jedna pusta kolumna, bez zawieszek. W „Wzmocnieniach” dodać wzmocnienie poziome: głębokość 200 mm, „Głębokość od lica” 500 mm, położenie u góry. Drugi przykład: pionowe albo czołowe wzmocnienie o wysokości 800 mm w tym samym korpusie.
+
+**Wynik:** pierwsze wzmocnienie zajmuje głębokość od 500 do 700 mm, czyli wychodzi 140 mm za korpus 560 mm. Drugie zajmuje wysokość od −98 do 702 mm: przechodzi przez dno i wystaje poniżej szafki. Obliczenia zwracają w tych przykładach pustą listę uwag, a niewłaściwe formatki trafiają do zamówienia.
+
+**Kontrola granicy:** poziome 200 mm przy odsunięciu 360 mm kończy się poprawnie na 560 mm. Przy 361 mm jest już 1 mm poza korpusem, nadal bez uwagi. Sprawdzono orientacje pozioma/pionowa/czołowa; duża wysokość dotyczy dwóch ostatnich. Nie traktować nieużywanego pola wysokości wzmocnienia poziomego jako błędu.
+
+**Przyczyna:** tworzenie `c.rails` w `computeGeo` (okolice 2311–2354) nie sprawdza zawierania wzmocnienia w świetle kolumny i dopuszczalnej głębokości. Formularz ma pola bez ograniczenia, a `setRail` przekazuje wartości bez korekty. Kontrola rozmiaru arkusza nie zastępuje kontroli montażu.
+
+**Wpływ:** projekt bez uwag może zamawiać wzmocnienie, którego nie da się zamontować w podanym położeniu.
+
+**Kryterium naprawy:** błąd przy wyjściu wzmocnienia poza dostępną przestrzeń, z podaniem maksymalnej wysokości/głębokości/odsunięcia. Uwzględnić plecy i poziom, liczenie od lica/tyłu oraz każdą orientację. Nie zmieniać ustawień użytkownika po cichu.
+
+### N73 [P2] Plecy ustawione osobno w kolumnach nie są uwzględnione w odsunięciu szafki od ściany
+
+**Stan:** potwierdzony w tej samej wersji, oddzielny problem od dawnego N11 (wymiary/obecność płyt) i N27 (materiał pełnych pleców).
+
+**Odtworzenie:** korpus głębokości 560 mm, dla całej szafki „Plecy: brak”; dwie kolumny, w pierwszej „Plecy z płyty”, w drugiej „Brak”. Płyta korpusu 18 mm. Umieścić szafkę w ciągu bez odstępu od ściany.
+
+**Wynik:** `plecyKolumn` poprawnie zawiera płytę 18 mm przybitą za korpusem, ale `geo.glebOdSciany` i głębokość ciągu nadal wynoszą **560 mm**, zamiast **578 mm**. W bryle zabudowy plecy zajmują zakres **0…18 mm za płaszczyzną ściany**; powinny kończyć się na ścianie, a korpus stać przed nimi. Przy HDF w kolumnie analogiczna różnica wynosi 3 mm. Przy globalnym HDF 3 mm i płycie 18 mm w kolumnie pomijane jest dodatkowe 15 mm.
+
+**Przyczyna:** `plecyZa` i `glebOdSciany` (okolice 1817–1826) wynikają z globalnego `cab.back`, a nie z faktycznych płyt tylnych po uwzględnieniu ustawień kolumn. `plecyBryly` rysuje płyty kolumn za korpusem, więc ich geometria nie zgadza się z układem ciągu.
+
+**Kontrola:** globalne HDF + kolumna HDF daje poprawne 563 mm; globalna płyta + kolumna z tą płytą daje 578 mm. Zmiana materiału pleców tylko w kolumnie nie aktualizuje tego wymiaru. Przypadki nie mają komunikatów błędu.
+
+**Wpływ:** błędne ustawienie względem ściany i głębokość zabudowy. Zaniżony wymiar trafia też do obliczeń zależnych od głębokości ciągu, m.in. blatu i odsunięcia w rogu. Po zmianie materiału pleców projekt może fizycznie wymagać większej głębokości niż pokazuje układ.
+
+**Kryterium naprawy:** wyznaczać zajętą głębokość z rzeczywistego kompletu pleców, w tym maksymalnej grubości pleców przybijanych w kolumnach. Sprawdzić mieszane HDF/płyta/brak, kolumny i poziomy, „głębokość obejmuje plecy”, układ przy ścianie, blat i róg. Gdy wszystkie kolumny mają „brak”, nie dodawać grubości nieistniejących globalnych pleców.
+
 ---
 
-Nie dopisano niepotwierdzonych podejrzeń do liczby 20. W tej serii potwierdzono trzy nowe przypadki; pozostała uwaga PDF-1 pozostaje aktualna. Brak rozbieżności w pozostałych badanych konfiguracjach nie stanowi gwarancji poprawności wszystkich możliwych projektów.
+Aktualne nowe zgłoszenia: N69–N73. PDF-1 pozostaje otwartą uwagą. Testy N72–N73 wykonano na konfiguracjach syntetycznych w obliczeniach i generowanej geometrii; nie zmieniano projektu użytkownika.
 
