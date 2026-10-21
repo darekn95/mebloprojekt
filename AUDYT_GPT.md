@@ -1,3 +1,34 @@
+# Weryfikacja poprawek GPT — 21.10.2026
+
+**Aktualny status N1–N68: poprawki potwierdzone w odtworzonych przypadkach testowych. W tym reteście nie potwierdzono ponownego wystąpienia tych zgłoszeń.** Nie oznacza to sprawdzenia każdej możliwej konfiguracji ani całego eksportu PDF.
+
+Sprawdzony main: commit `21b31ce1db3e2f0a5b1afe748e1a8e71f3e6c8c6`, źródło `szafki.jsx` blob `b2d4271da583cc43c47ba41681a1a65f99445562`. Otwarta karta aplikacji początkowo miała starszą wersję; po odświeżeniu pojawił się nowy interfejs i migracja zapisanego projektu. Poprzednie poszukiwanie nowych błędów zostało anulowane.
+
+| Zgłoszenia | Wynik ponownego sprawdzenia |
+|---|---|
+| N1–N4 | Poprawny opis progów zawiasów i 3 zawiasy przy H900. Głęboki blat korzysta z arkusza1200; formaty600/1200 są oddzielone niezależnie od kolejności. Ceny563,99/1128,22 zależą od formatu grupy. |
+| N5–N12 | Oddzielne kolory HDF; ręczne oklejanie wstawki; grubość frontu z właściwego materiału; błąd nóżki0; warianty nóg rozdzielone; dodatkowy „Cokół” pozostaje. Macierz9 kombinacji pleców kolumn jest zgodna z3D. Dno/tył szuflady sprawdzone dodatkowo przy półkach16mm. |
+| N13–N17 | Wymiary formatek i brył zgodne w macierzy45 konstrukcji/wnętrz. Długi blat bez błędu arkusza meblowego; kołki700/700 poza płytą dają błąd z akcją37/37; własny blat ma właściwy kolor. |
+| N18–N21 | Zbieżne zawiasy zgłaszają błąd; nietabelaryczna NL ma akcję korekty; powierzchnie luster zachowują dokładność; po wyłączeniu zawieszek nie pozostaje wspólna listwa. |
+| N22–N27 | Niska przeszkoda nie skraca górnej szuflady; słupek rozdziela zamówienie blatu. Macierz192 maskownic bez różnic wymiarów formatek/3D. Plecy wewnętrzne nie skracają korpusu, fix/blenda wchodzą do rachunku głębokości, plecy z płyty półek mają jej grubość i kolor. |
+| N28–N33 | Aktywna szafka zachowana po usunięciu wcześniejszej. Cena wkrętu0,79 zachowana przy52→48szt., również ze starego klucza ceny. Płytkie nogi zgłaszają ostrzeżenie; płyty10/12/16 bez fałszywego błędu nieistniejącej przegrody; grubość≤0 zgłasza błąd; płytki styk dostaje1 konfirmat na połączenie. |
+| N34–N39 | Lustro zwiększa masę klapy3,839→6,963kg i zmienia dobór. Bieżący zapis wersja2/szafka5 zachowuje ceny i wzmocnienie. Wystawanie uchwytów klap0/45 działa; przeszkoda przy zawiasie daje błąd. W rogu montaż szuflad w kolumnie daje ten sam kąt co globalny wpuszczany:7°, nakładany4°. Nieużywane pole kąta usunięte zgodnie z decyzją; w działającym UI otwarcie3D startuje od90°. |
+| N40–N48 | Mocowania wspornika/półki zależą od rzeczywistej głębokości; za głęboki wspornik zgłasza błąd. Fix bez potrzebnego wspornika jest zgłaszany; z poprawnym wspornikiem fronty są węższe. Kolory/lustra zgodne między3D szafki i zabudowy. Brak dna/wieńca zmniejsza liczbę mocowań. Konflikt konfirmatów zgłasza błąd; wybór trójkątów usuwa konflikt i daje24 konfirmaty+4 trójkąty. Słupek nie podnosi całego ciągu górnego; rozwiązanie dolnego zachowuje1358mm i usuwa zależność od niego. Front wpuszczany pozwala użyć arkusza600. |
+| N49–N57 | Mocowania i wiercenia półki ramienia obecne, z kołkami od strony rogu zgodnie z ustaleniem. Uchwyt doliczony. Brak dna usuwa formatkę i wiercenia. Pełne plecy684 i półka527 zgodne z bryłami. Grubości frontu ramienia10/12/16/18 zgodne. Skręcone90° zachowują połączenie (różnica pomiaru<0,1mm przy zaokrąglaniu brył). Cofnięcie cokołu20 widoczne; dno w cokole wewnętrznym na100mm; front ramienia reaguje na montaż wpuszczany. |
+| N58–N68 | Dwa cięcia przy panelu2760×2000. Materiały kątownika/półek zgodne z zamówieniem. Ramię ma2 klipsy lub5 trójkątów cokołu. Wysunięcie100 uwzględnione w3D i blacie693 z arkusza1200. Wyrównanie od prawej poprawne. Skos45° sprawdzony po wierzchołkach: wnętrza wielokątów nie nakładają się. Różne wysokości blatów usuwają złącza i zgłaszają ostrzeżenie. Luz100 szuflad daje błąd. Przy braku miejsca na NL pozostają2 fronty i pojawia się jednoznaczny błąd. |
+| U3 — nagłówek „Rysunek” | Potwierdzony w działającym UI po odświeżeniu: nagłówek widoczny nad przyciskami. |
+
+**Metoda:** ponowne wykonanie wcześniejszych scenariuszy na aktualnych funkcjach źródłowych oraz dodatkowe asercje. Z kodu usunięto import React i zastąpiono JSX przez null; obliczenia i budowa brył pozostały oryginalne. Funkcje obsługi usuwania i cen pobrano z aktualnego AST, nie ze starych kopii. Bieżący format zapisu testowany osobno od celowej migracji starych plików. Testy uruchamiano na lokalnych kopiach danych; prywatnego projektu JSON nie publikowano. W UI przywrócono widok zamknięty.
+
+**Granice potwierdzenia:** nie uruchamiano pełnego `pelny.sh`, nie weryfikowano ponownie całego PDF, całej responsywności U2 ani wszystkich kliknięć przycisków korekty. Historyczne B1/B2/B3/U1 i uwagi PDF poniżej nie otrzymują tu nowego statusu „naprawione” wyłącznie na podstawie wpisów Claude. Ostrzeżenie projektu o brakujących2mm do wspólnego arkusza blatu jest komunikatem optymalizacji rozkroju, nie nowym zgłoszeniem błędu. Test nie jest potwierdzeniem fizycznego montażu wszystkich wariantów.
+
+Wyniki szczegółowe `reverify21/checks.json` oraz skrypty pozostają lokalnie. Nie zmieniano kodu aplikacji.
+
+---
+
+# Historia audytów — poniższe opisy usterek są archiwalne
+Statusy N1–N68 na górze zastępują poniższe opisy stanu sprzed napraw.
+
 # Audyt godzinny — N68, 17.10.2026
 
 ## N68 [P2] Brak miejsca na najkrótszą prowadnicę usuwa szufladę z zamówienia bez błędu
@@ -939,3 +970,4 @@ Przy oknie około 600×495 px nagłówek z paskami obu ciągów zajmuje około 3
 4. Przy zmianie `szafki.jsx` wygenerować ponownie `standalone.html`. Pełny przebieg zgodnie z zasadami repozytorium przed wyraźnie zleconym scaleniem. Sam raport nie jest zgodą na modyfikację ani publikację.
 
 Wyniki liczbowe `wyniki-obliczen.json` oraz skrypty audytu pozostają lokalnie. Ten plik na GitHubie zawiera opis wyników i kroki odtworzenia; nie wymaga tych załączników do zrozumienia zgłoszonych błędów.
+
