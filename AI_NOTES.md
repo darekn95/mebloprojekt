@@ -869,3 +869,18 @@ skalę napisów `kz` (`drukKUkladu`); CSS `PRINT_CSS` powiększa każdy `<text>`
 - sprawdzenie: `node testy/pdfczytelnosc.mjs` (z `PROJEKT=` na projekcie użytkownika),
   podgląd zrzutów widoków z druku — pomocnik w scratchpadzie sesji (`pdfzrzut.mjs`:
   wydruk przechwycony w `window.print`, `.print-only` wklejone w body, zrzut `.rp-widok`).
+
+[AI-INFO] Audyt szuflad przez interfejs (2026-10-21, zgłoszenie użytkownika po
+DXS-3D). `testy/audytszuflad.mjs` klika jak użytkownik i po każdym kroku sprawdza
+Uwagi, formatki ↔ 3D, kolizje skrzynek i frontów, wysuw (`symwysuw`), wzmocnienia
+spod blatu i resztki ustawień klapy. Cały przebieg ok. 5 min — przy poprawkach
+puszczaj wybrane scenariusze: `TYLKO=D,O PELNE=1 node testy/audytszuflad.mjs`.
+Na co uważać przy pisaniu nowych scenariuszy:
+- poziomy w Strukturze są od góry (`[...geo.levels].reverse()`), kolumny od lewej —
+  `wStrukturze(nazwa, odDolu, title, odGory)` liczy od końca albo od początku listy;
+- dane wpisane wprost do localStorage (`doZapisu`) omijają `editLevels`, więc para
+  wzmocnień spod blatu nie przechodzi sama do górnego poziomu — buduj poziomy z nią
+  w górnym albo klikaj przyciski;
+- „błąd” w audycie przy ręcznie ustawionym układzie, który zawsze jest zły (np. 3 V-BOX
+  w połowie szafki pod blatem), to poprawna uwaga aplikacji, nie błąd — taki stan
+  albo testuj jako oczekiwany błąd, albo nie ustawiaj go.

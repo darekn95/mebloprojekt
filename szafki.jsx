@@ -917,6 +917,8 @@ const newColumn = (doors = 1, shelves = 0) => ({
 });
 
 const newDrawer = (h = "auto") => ({ h, front: null, handle: true });
+// pola kolumny, ktore opisuja klape (kierunek, uchwyt, podnosniki) — znikaja przy zmianie na szuflady / blende
+const POLA_KLAPY = ["klapa", "klapaUchwyt", "silowniki", "silaN", "katKlapy", "podnosnikStrona"];
 
 /* Para wzmocnien zamiast wienca: z przodu plyta na plask, do ktorej przykreca
    sie blat, z tylu stojaca, ktora trzyma korpus w kacie prostym. */
@@ -1124,6 +1126,10 @@ const migrateCab = (rawCab, mat) => {
      lica katownika w rogu. Po drodze bylo raz tak, raz tak, wiec prostujemy to
      przy wczytaniu — ale tylko dla plyty z tej pary (stojaca, u gory) i tylko
      gdy stoi na jednej z naszych wartosci, zeby nie kasowac recznych ustawien. */
+  // ustawienia klapy zostawaly w kolumnie po „klapa” → Szuflady / Blenda (do 2026-10-21) — przy drzwiach wrocilyby jako klapa
+  (merged.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => {
+    if (c && c.kind && c.kind !== "doors") POLA_KLAPY.forEach((k) => delete c[k]);
+  }));
   const wRogu = !!(merged.corner || {}).on;
   const tPlyty = Math.max(1, Math.round(Number(((mat || defaultMaterials).board || {}).thickness) || 18));
   if (stara) (merged.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => {
@@ -2128,9 +2134,9 @@ function computeGeoLiczy(cab, mat, ctx) {
   if (lev.diff !== 0)
     add(
       "error",
-      lev.diff < 0
+      (lev.diff < 0
         ? `Zadane wysokości poziomów przekraczają wnętrze o ${fmt(-lev.diff)} mm.`
-        : `Zadane wysokości poziomów nie wypełniają wnętrza — brakuje ${fmt(lev.diff)} mm.`
+        : `Zadane wysokości poziomów nie wypełniają wnętrza — brakuje ${fmt(lev.diff)} mm.`) + "|levauto"
     );
 
   const levels = [];
@@ -11748,6 +11754,15 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         })),
       };
     }
+    if (action === "levauto") {
+      // gorny poziom z wpisana wysokoscia bierze reszte; gdy juz jest auto, a nizsze i tak sie nie mieszcza — wszystkie po rowno
+      const L0 = (cab && cab.levels) || [];
+      const gornyStaly = L0.length > 0 && L0[L0.length - 1].h != null;
+      return {
+        label: gornyStaly ? "Górny poziom na auto" : "Podziel poziomy równo",
+        run: () => editLevels((L) => { if (gornyStaly) L[L.length - 1].h = null; else L.forEach((lv) => { lv.h = null; }); }),
+      };
+    }
     if (action.startsWith("fixcolauto:")) {
       const li = Number(action.split(":")[1]);
       return {
@@ -16366,7 +16381,20 @@ export default function App() {
   }), [setProject]);
 
   const addLevel = () => editLevels((L) => L.push(newLevel(L[0]?.cols[0]?.doors ?? 1, 0)));
-  const removeLevel = (i) => editLevels((L) => L.length > 1 && L.splice(i, 1));
+  /* Usuniety poziom (kolumna) zwalnia miejsce. Gdy wszystkie pozostale maja wpisany
+     wymiar, nikt go nie bierze: po „klapy zamiast drzwi” → Szuflady i usunieciu
+     poziomu z klapa zostawal poziom 342 mm — „brakuje 360 mm”, para wzmocnien spod
+     blatu w polowie szafki, skrzynka 0 mm (zgloszenie uzytkownika 2026-10-21).
+     Kolumna szuflad tez musi siegac boku, bo do niego przykreca sie prowadnice.
+     Miejsce bierze sasiad usunietego (ten nad nim, a przy gornym — ten pod nim). */
+  const zwolnijMiejsce = (lista, i, pole) => {
+    if (lista.length && lista.every((x) => x[pole] != null)) lista[Math.min(i, lista.length - 1)][pole] = null;
+  };
+  const removeLevel = (i) => editLevels((L) => {
+    if (L.length < 2) return;
+    L.splice(i, 1);
+    zwolnijMiejsce(L, i, "h");
+  });
   const setLevelH = (i, v) => editLevels((L) => {
     L[i].h = v === "" ? null : Math.round(Number(v));
     // po wypelnieniu ostatniego poziomu dodaj automatycznie kolejny (pusty),
@@ -16380,7 +16408,11 @@ export default function App() {
   });
 
   const addCol = (i) => editLevels((L) => L[i].cols.push(newColumn(1, 0)));
-  const removeCol = (i, j) => editLevels((L) => L[i].cols.length > 1 && L[i].cols.splice(j, 1));
+  const removeCol = (i, j) => editLevels((L) => {
+    if (L[i].cols.length < 2) return;
+    L[i].cols.splice(j, 1);
+    zwolnijMiejsce(L[i].cols, j, "w");
+  });
   const setColW = (i, j, v) => editLevels((L) => {
     const cols = L[i].cols;
     cols[j].w = v === "" ? null : Math.round(Number(v));
@@ -16404,11 +16436,27 @@ export default function App() {
     editLevels((L) => (L[i].cols[j].shelfTargets[k] = v === "" ? null : Math.round(Number(v))));
   const setColKind = (i, j, v) =>
     editLevels((L) => {
-      L[i].cols[j].kind = v;
-      if (v === "drawers" && !(L[i].cols[j].drawers || []).length) {
+      const col = L[i].cols[j];
+      col.kind = v;
+      // ustawienia klapy maja sens tylko przy drzwiach — po „klapa” → Szuflady zostawal `klapa: "gora"`
+      if (v !== "doors") POLA_KLAPY.forEach((k) => delete col[k]);
+      if (v === "drawers" && !(col.drawers || []).length) {
         // system z szafki / ciagu / pomieszczenia (domyslnie V-BOX)
         const sys = systemKontekstu(project, project.active);
-        L[i].cols[j].drawers = [newDrawer(), newDrawer(), newDrawer()].map((d) => (sys === "dxs" ? { ...d, system: "dxs" } : d));
+        const nowa = () => (sys === "dxs" ? { ...newDrawer(), system: "dxs" } : newDrawer());
+        /* Trzy szuflady, chyba ze sie nie mieszcza: w niskim poziomie pod blatem
+           (np. po „klapy zamiast drzwi”) gorna V-BOX nie wchodzila pod wzmocnienie —
+           blad zaraz po kliknieciu „Szuflady” (zgloszenie uzytkownika 2026-10-21).
+           Bierzemy najwiecej szuflad (3, 2, 1), przy ktorych szafka ma najmniej bledow. */
+        const ctxG = armCtxOf(projLayoutGeo, project.active);
+        const bledy = (n) => {
+          const L2 = JSON.parse(JSON.stringify(L));
+          L2[i].cols[j].drawers = [...Array(n)].map(nowa);
+          const g = computeGeo({ ...cab, levels: utrzymajPodBlat(cab, L2) }, mat, ctxG);
+          return g.msgs.filter((m) => m.level === "error").length;
+        };
+        const ile = [3, 2, 1].map((n) => [n, bledy(n)]).reduce((a, b) => (b[1] < a[1] ? b : a))[0];
+        col.drawers = [...Array(ile)].map(nowa);
       }
     });
   const setFixSide = (i, j, v) =>
@@ -18731,8 +18779,8 @@ export default function App() {
                                   <label className="flex shrink-0 items-center gap-1" data-el="dxs-bok"
                                     title="Wysokość boku skrzynki z płyty (mm) — puste: najwyższy z luzem 5 mm pod tym, co wyżej">
                                     <span className="text-[11px] text-stone-500">bok</span>
-                                    <div className="w-16">
-                                      <AutoNum value={num(rawCol.drawers[dr.i]?.h)} placeholder={fmt(dr.hClass)}
+                                    <div className="w-24">
+                                      <AutoNum value={num(rawCol.drawers[dr.i]?.h)} placeholder={`auto ${fmt(dr.hClass)}`}
                                         fixed={num(rawCol.drawers[dr.i]?.h) !== null}
                                         onChange={(v) => setDrawer(lv.i, c.j, dr.i, { h: v === "" ? "auto" : Math.round(Number(v)) })} />
                                     </div>
@@ -18777,8 +18825,8 @@ export default function App() {
                                   <label className="flex shrink-0 items-center gap-1" data-el="dxs-tyl"
                                     title="Wysokość tyłu skrzynki (mm) — puste: bok − 10, góra równo z bokami">
                                     <span className="text-[11px] text-stone-500">tył</span>
-                                    <div className="w-16">
-                                      <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={fmt(dr.skrzynka ? dr.skrzynka.tyl[1] : Math.max(0, dr.hClass - DXS.bokPodDnem))}
+                                    <div className="w-24">
+                                      <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={`auto ${fmt(dr.skrzynka ? dr.skrzynka.tyl[1] : Math.max(0, dr.hClass - DXS.bokPodDnem))}`}
                                         fixed={num(rawCol.drawers[dr.i]?.backHeight) !== null}
                                         onChange={(v) => setDrawer(lv.i, c.j, dr.i, { backHeight: v === "" ? null : Math.round(Number(v)) })} />
                                     </div>
