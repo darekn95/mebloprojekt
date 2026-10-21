@@ -117,7 +117,36 @@ Sprawdzona wersja: main `21b31ce1db3e2f0a5b1afe748e1a8e71f3e6c8c6`, plik `szafki
 
 **Kryterium naprawy:** sprawdzać obrys płytki i otwory względem rzeczywistego boku/przegrody/wspornika przy obu kierunkach klapy; zgłaszać brak miejsca zamiast samej informacji o sile. Sprawdzić jedną/dwie sztuki, obie strony, kilka poziomów oraz różne połączenia dna i wieńca. Nie przesuwać mocowania dowolnie — zmienione wymiary muszą wynikać z instrukcji danego okucia.
 
+
+### N75 [P2] Automatyczne przesunięcie kołków tworzy zbieżne otwory
+
+**Odtworzenie:** korpus 800 × 720 × 240 mm, bez pleców i zawieszek; jeden poziom z dwiema kolumnami, po jednej półce na tej samej wysokości. Kołki podporowe, otwór od przodu 100 mm, od tyłu 100 mm.
+
+**Wynik:** po stronie kolumny 1 przegroda ma otwory na 100 i 140 mm od przedniej krawędzi. Po stronie kolumny 2 mechanizm unikania kolizji przesuwa je o 20 mm do środka i plan podaje **120 i 120 mm** na tej samej wysokości (333 mm od dołu przegrody). Dwa kołki po jednej stronie wymagają więc jednego, identycznego otworu. Zamówienie nadal przewiduje cztery kołki na każdą półkę, bez ostrzeżenia.
+
+**Drugi wariant:** przy głębokości 220 mm plan podaje po jednej stronie 100/120, a po przeciwnej 120/100 mm — oba otwory nadal są naprzeciw siebie. Przesunięcie mające uniknąć kolizji tylko zamienia miejscami dwa otwory.
+
+**Przyczyna:** `pinNoteL` (okolice 4212) dodaje/odejmuje stałe 20 mm. Kontrola `pinF + pinB < gl` sprawdza parametry przed przesunięciem, nie końcowe pary otworów po obu stronach. To nowy przypadek automatycznej korekty, nie dawne N16 dotyczące wejściowych odległości poza półką.
+
+**Kontrola:** głębokość 280 mm daje różne pozycje 120/160; przestawienie drugiej półki na 250 mm usuwa potrzebę przesunięcia i przywraca 100/140 dla D240. Wszystkie opisane konfiguracje zwracają pustą listę uwag.
+
+**Kryterium naprawy:** sprawdzać końcowe pozycje i rozstaw otworów, zarówno na jednej stronie, jak i naprzeciwko po drugiej stronie przegrody. Gdy stałe 20 mm nie rozwiązuje kolizji, dobrać wykonalny rozstaw albo zgłosić błąd z konkretną radą. Objąć analogiczne przesunięcia trójkątów.
+
+### N76 [P2] Wspornik fixu i poziome wzmocnienie przecinają się bez uwagi
+
+**Odtworzenie:** korpus 600 × 720 × 560 mm, płyta 18 mm, jedna pusta kolumna, bez zawieszek. Fix po lewej, szerokość 60 mm, **wpuszczany**, wspornik pionowy o głębokości 100 mm. Dodać wzmocnienie poziome na dole, głębokość 100 mm, 100 mm od lica.
+
+**Wynik:** wspornik ma obrys x=62…80, y=18…702, głębokość od lica 18…118 mm. Wzmocnienie ma obrys x=18…582, y=18…36, głębokość 100…200 mm. Bryły przecinają się w obszarze **18 × 18 × 18 mm**. Formatki obu pełnych płyt są zamawiane; nie ma uwagi o kolizji. Zarówno `computeGeo().msgs`, jak i `openingMsgs` są puste.
+
+**Kontrola:** to samo występuje przy wzmocnieniu na górze. Odsunięcie wzmocnienia do 200 mm usuwa przecięcie. Przy fixie nakładanym i odsunięciu 100 mm płyty tylko dochodzą do siebie (wspornik kończy się na 100 mm), więc tego wariantu nie zgłaszać jako kolizji.
+
+**Przyczyna:** wspornik i ręczne wzmocnienie są liczone niezależnie. Kontrole głębokości wspornika i ograniczeń korpusu nie sprawdzają ich wspólnej objętości wewnątrz kolumny. To inny problem niż N72, w którym wzmocnienie wychodzi poza korpus.
+
+**Wpływ:** zamówionych formatek nie da się złożyć w przedstawionym położeniu bez dodatkowego skrócenia lub wycięcia, którego projekt nie opisuje.
+
+**Kryterium naprawy:** wykrywać rzeczywiste przecięcie wspornika i wzmocnienia; dopasować styk wraz z wymiarami formatek albo zgłosić niewykonalność i podać możliwe przesunięcie. Sprawdzić oba boki, górę/dół, fix nakładany/wpuszczany i położenie wzmocnienia od lica/tyłu.
+
 ---
 
-Nowe otwarte zgłoszenia: N69–N74. PDF-1 pozostaje otwartą uwagą. Seria 21.10: test planu wierceń (100 000 konfiguracji) wskazał kandydatów, z których N74 uproszczono i potwierdzono osobno. Nie doliczano jako nowych błędów przypadków klap do góry już ostrzeganych jako zbyt niskie. Test rozkroju: 886 650 zestawów syntetycznych; brak wykrytych naruszeń badanego zakresu (liczba i wymiary formatek, obrót przy zakazie, wyjście poza arkusz, nakładanie i odstępy rzazu). To kontrola tych własności, nie gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
+Nowe otwarte zgłoszenia: N69–N76; PDF-1 pozostaje. N74–N76 potwierdzono w funkcjach obliczeń i generowanej geometrii aktualnego źródła (blob `b2d4271da583cc43c47ba41681a1a65f99445562`), na konfiguracjach syntetycznych. Projekt użytkownika pozostał bez zmian. Test rozkroju 886 650 zestawów nie wykazał naruszeń sprawdzanych własności: liczby/wymiarów formatek, obrotu przy zakazie, granic arkusza, nakładania i odstępów rzazu. Nie jest to gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
 
