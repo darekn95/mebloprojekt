@@ -818,3 +818,18 @@ z nich. W skali są tylko otwory frontu (32 / 47,5) na rysunku „Front do szufl
 `vboxGora/vboxOdProw/vboxDno` liczone z tabel `VBOX.minFront.overlay` i `VBOX.backH`.
 Użytkownik sam zwrócił uwagę, że bok stoi na górnej części prowadnicy — przy
 wątpliwościach co do okuć pytaj o pomiar prawdziwej szuflady.
+
+[AI-INFO] Napisy rysunków szafki w PDF (2026-10-21, audyt GPT PDF-1). W druku
+`FrontView`/`RearView`/`TopView` dostają `druk` (szerokość widoku w mm) i liczą
+skalę napisów `kz` (`drukKUkladu`); CSS `PRINT_CSS` powiększa każdy `<text>` w
+`.rp-widok` o `--k` od jego zaczepienia. Zasady przy nowym napisie w tych widokach:
+- **nie dawaj `transform` na `<text>`** — w druku CSS `transform` go nadpisuje
+  (obrót znikał); obróć grupę `<g transform=…>`, a napis zostaw bez atrybutu;
+- napis w środku płyty/frontu: `style={kz > 1 ? { "--k": kNapisu(kz, txt, fs, wolneMiejsce) } : undefined}`,
+  drobny (16–18): `kMaly`; opis wymiaru z innym powiększeniem: `DimH`/`DimV` `kd`;
+- nowa kolumna wymiarów przy szafce: `kolumnaDruk(szerEkranu, liczbaZnakow, kz)`
+  w `uklad(kz)`, inaczej w druku wejdzie na sąsiednią;
+- na ekranie `kz === 1` i każda zmiana układu ma iść gałęzią `kz > 1`;
+- sprawdzenie: `node testy/pdfczytelnosc.mjs` (z `PROJEKT=` na projekcie użytkownika),
+  podgląd zrzutów widoków z druku — pomocnik w scratchpadzie sesji (`pdfzrzut.mjs`:
+  wydruk przechwycony w `window.print`, `.print-only` wklejone w body, zrzut `.rp-widok`).
