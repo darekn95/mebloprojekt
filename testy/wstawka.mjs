@@ -191,26 +191,27 @@ ok('3D: na trójkątach wstawka stoi przed bokiem (w licu drzwi)', !styka('trojk
 ok('3D: z listwą — listwa przylega do boku szafki', styka('listwa', 0) || styka('listwa', 1));
 
 console.log('\n== wstawka węższa niż 60 mm (2026-10-11) ==');
-/* Firma nie tnie formatek wezszych niz 60 mm: blad z pytaniem, „Popraw na 60 mm”
-   albo „Tak — docinam recznie”; w zamowieniu zawsze 60, rysunek zostaje przy 50. */
+/* Firma nie tnie formatek wezszych niz 60 mm: 30–60 ostrzezenie, „Popraw na 60 mm”
+   albo „Tak — docinam recznie” (od 2026-10-21; ponizej 30 blad); w zamowieniu
+   zawsze 60, rysunek zostaje przy 50. */
 await seed({ typ: 'plaska', w: 50 }, 1);
 uw = await uwagi();
-ok('błąd: firma nie tnie węższych niż 60 mm, pytanie, czy ma być 50', /Wstawka w rogu ma 50 mm, a firma nie tnie formatek węższych niż 60 mm\. Czy wstawka faktycznie ma mieć 50 mm\?/.test(uw), uw.split('\n').filter((l) => /50 mm/.test(l)).join(' / '));
+ok('ostrzeżenie: firma nie tnie węższych niż 60 mm, dociąć ręcznie do 50', /Wstawka w rogu ma 50 mm, a firma nie tnie i nie okleja formatek węższych niż 60 mm — w zamówieniu zostanie formatka wstawki 720 × 60 mm, a do 50 mm trzeba ją dociąć ręcznie/.test(uw), uw.split('\n').filter((l) => /50 mm/.test(l)).join(' / '));
 lista = await tabela(/^Formatki do zamówienia/);
 ok('do zamówienia formatka 720 × 60 (nie 50)', lista.some((l) => /^Wstawka w rogu \|/.test(l) && /\| 720 \| 60 \|/.test(l)), lista.filter((l) => /Wstawka/.test(l)).join(' / '));
 wg = await wstawkaZGory();
 ok('rysunek z góry dalej 18 × 50', wg.length === 1 && wg[0].w === 18 && wg[0].h === 50, JSON.stringify(wg));
 await seed({ typ: 'plaska', w: 50 }, 0);
-ok('inna szafka: licznik „A2 — 1 błąd”', /A2 — 1 błąd/.test(await page.evaluate(() => document.body.innerText)));
+ok('inna szafka: licznik „A2 — 1 ostrzeżenie”', /A2 — 1 ostrzeżenie/.test(await page.evaluate(() => document.body.innerText)));
 await seed({ typ: 'plaska', w: 50 }, 1);
 await card(/^Uwagi/).getByRole('button', { name: 'Tak, 50 mm — docinam ręcznie' }).click(); await page.waitForTimeout(1500);
 p = await zapis();
 ok('„Tak” zapamiętuje 50 mm do docięcia', JSON.stringify(p.runs[1].corner.wstawka) === JSON.stringify({ typ: 'plaska', w: 50, dociac: 50 }), JSON.stringify(p.runs[1].corner.wstawka));
 uw = await uwagi();
-ok('po „Tak”: ostrzeżenie „dociąć ręcznie po odbiorze”, bez błędu', /do 50 mm dociąć ręcznie po odbiorze/.test(uw) && !/Czy wstawka faktycznie/.test(uw));
+ok('po „Tak”: informacja „do ręcznego docięcia (potwierdzone)”', /Wstawka w rogu 50 mm do ręcznego docięcia \(potwierdzone\)/.test(uw) && !/trzeba ją dociąć ręcznie/.test(uw));
 await page.locator('[data-el="wstawka-szafki"] input').first().fill('45'); await page.locator('[data-el="wstawka-szafki"] input').first().blur(); await page.waitForTimeout(1500);
 uw = await uwagi();
-ok('inna szerokość (45) — znowu pytanie', /Czy wstawka faktycznie ma mieć 45 mm\?/.test(uw), uw.split('\n').filter((l) => /45/.test(l)).join(' / '));
+ok('inna szerokość (45) — znowu ostrzeżenie', /Wstawka w rogu ma 45 mm, a firma nie tnie/.test(uw), uw.split('\n').filter((l) => /45/.test(l)).join(' / '));
 await card(/^Uwagi/).getByRole('button', { name: 'Popraw na 60 mm' }).first().click(); await page.waitForTimeout(1500);
 p = await zapis();
 ok('„Popraw na 60 mm”: wstawka 60, bez uwagi', JSON.stringify(p.runs[1].corner.wstawka) === JSON.stringify({ typ: 'plaska', w: 60 }) && !/firma nie tnie/.test(await uwagi()),

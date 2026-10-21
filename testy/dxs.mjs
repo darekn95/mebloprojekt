@@ -173,6 +173,7 @@ ok('wpuszczane: boki 490 mm (NL − 10)', (await tabela(/^Formatki do zamówieni
 console.log('\n== bok skrzynki ręcznie ==');
 await seed(projekt([[szafka('R', { levels: [{ h: null, cols: [szuf([DX({ h: 230 }), DX(), DX()])] }] })]]));
 let u = await uwagi();
+let z;
 ok('bok 230 nad dolną szufladą: błąd „sięga … nad spód prowadnicy”', /szuflada 1: skrzynka z bokiem 230 mm sięga 247 mm nad spód prowadnicy/.test(u), u.split('\n').filter((l) => /szuflada 1/.test(l)).join(' / ').slice(0, 220));
 const przycisk = boki.length ? `Zmień bok szuflady na ${boki[0]} mm` : 'Zmień bok szuflady';
 ok(`przycisk „${przycisk}”`, await page.getByRole('button', { name: przycisk, exact: true }).count() === 1);
@@ -191,6 +192,25 @@ u = await uwagi();
 ok('NL 270 (tylko V-BOX): błąd „nie ma takiej długości w DXS-3D” z przyciskiem NL 250', /szuflada 1: prowadnice NL 270 — nie ma takiej długości w DXS-3D/.test(u)
   && await page.getByRole('button', { name: 'Zmień głębokość prowadnic do NL 250', exact: true }).count() === 1, u.slice(0, 200));
 
+/* ===== niski bok: ogolna regula formatek (uzytkownik 2026-10-21) — ponizej 30 mm
+   blad, 30–60 ostrzezenie „dociac recznie” albo „Zwiększ do 60 mm” ===== */
+console.log('\n== niski bok skrzynki (formatka < 60 mm) ==');
+await seed(projekt([[szafka('B50', { levels: [{ h: null, cols: [szuf([DX({ h: 50 }), DX(), DX()])] }] })]]));
+u = await uwagi();
+ok('bok 50: ostrzeżenie „Bok szuflady 540 × 50 … dociąć ręcznie”', /Formatka „Bok szuflady” ma 540 × 50 mm, a firma nie tnie i nie okleja formatek węższych niż 60 mm/.test(u), u.split('\n').filter((l) => /Bok szuflady/.test(l)).join(' / ').slice(0, 220));
+const zw = page.getByRole('button', { name: 'Zwiększ do 60 mm', exact: true });
+ok('przyciski „Zwiększ do 60 mm” (bok i tył 40) i „Tak, docinam ręcznie”', await zw.count() === 2 && await page.getByRole('button', { name: 'Tak, docinam ręcznie', exact: true }).count() >= 1, String(await zw.count()));
+if (await zw.count()) {
+  await zw.first().click(); await page.waitForTimeout(800);
+  await czekajZapis(() => JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.levels[0].cols[0].drawers[0].h === 60);
+  z = await zapis();
+  ok('„Zwiększ do 60 mm” — bok 60, uwaga o boku znika', z.items[0].cab.levels[0].cols[0].drawers[0].h === 60 && !/„Bok szuflady” ma 540 × 50/.test(await uwagi()), String(z.items[0].cab.levels[0].cols[0].drawers[0].h));
+}
+await seed(projekt([[szafka('B25', { levels: [{ h: null, cols: [szuf([DX({ h: 25 }), DX(), DX()])] }] })]]));
+u = await uwagi();
+ok('bok 25: błąd „węższej niż 30 mm nie da się dociąć ręcznie” z „Zwiększ do 60 mm”', /Formatka „Bok szuflady” ma 540 × 25 mm — węższej niż 30 mm nie da się dociąć ręcznie/.test(u)
+  && await page.getByRole('button', { name: 'Zwiększ do 60 mm', exact: true }).count() >= 1, u.split('\n').filter((l) => /szuflady/.test(l)).join(' / ').slice(0, 220));
+
 /* ===== wybor systemu w Strukturze wnetrza ===== */
 console.log('\n== wybór systemu ==');
 const vb = (o = {}) => ({ h: 'auto', front: null, handle: true, ...o });
@@ -199,7 +219,7 @@ ok('wiersz szuflady ma wybór systemu (domyślnie V-BOX)', await page.locator('[
   && (await page.locator('[data-el="szuflada-system"]').first().inputValue()) === 'vbox');
 await page.locator('[data-el="szuflada-system"]').first().selectOption('dxs'); await page.waitForTimeout(600);
 await czekajZapis(() => JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.levels[0].cols[0].drawers.some((d) => d.system === 'dxs'));
-let z = await zapis();
+z = await zapis();
 ok('zmiana na DXS-3D zapisuje system jednej szuflady', z.items[0].cab.levels[0].cols[0].drawers.filter((d) => d.system === 'dxs').length === 1, JSON.stringify(z.items[0].cab.levels[0].cols[0].drawers.map((d) => d.system || 'vbox')));
 u = await uwagi();
 ok('różne systemy w szafce: ostrzeżenie z przyciskami', /W szafce są szuflady V-BOX \(1\) i DXS-3D \(1\)/.test(u)

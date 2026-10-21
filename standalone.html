@@ -356,13 +356,18 @@ const CORNER_L_ARM = CORNER_L_TOTAL - CORNER_L_D;
    glebokosci 300 — oba fronty ponad 250 mm, przy obu scianach ok. 650. */
 const CORNER_LG_W = 650;
 const CORNER_LG_ARM = 350;
-// ponizej tego boku formatki nie utnie sie na pile formatowej
+// ponizej tego boku formatki nie utnie sie na pile formatowej (i nie okleji)
 const MIN_PART = 60;
+/* Recznie da sie dociac formatke do 30 mm (uzytkownik 2026-10-21): wezsza — blad,
+   30–60 — ostrzezenie „docinam recznie” (zamowiona MIN_PART) albo „Zwieksz do 60 mm”. */
+const MIN_DOCIECIE = 30;
 /* Formatka do zamowienia (uzytkownik 2026-10-11): firma nie tnie bokow ponizej
    MIN_PART, wiec mniejszy bok idzie jako MIN_PART, a `dociac` pamieta wlasciwy
-   wymiar do recznego dociecia po odbiorze. Uwaga przy takiej formatce to blad
-   z pytaniem (moze to pomylka przy wpisywaniu), po potwierdzeniu — ostrzezenie.
-   Potwierdzone klucze leza w `cab.dociac` (szafka, ramie) albo `run.dociac` (cokol). */
+   wymiar do recznego dociecia po odbiorze. Od 2026-10-21 (uzytkownik): ponizej
+   MIN_DOCIECIE blad (recznie sie nie dotnie), 30–60 ostrzezenie z „Tak, docinam
+   recznie” i — gdzie wiadomo, ktore pole zmienic (`p.zw60`, skrzynka DXS) —
+   „Zwieksz do 60 mm”; po potwierdzeniu informacja. Potwierdzone klucze leza
+   w `cab.dociac` (szafka, ramie) albo `run.dociac` (cokol). */
 const malaFormatka = (p) => Math.min(p.a, p.b) > 0 && Math.min(p.a, p.b) < MIN_PART;
 const naZamowienie = (p) => (malaFormatka(p)
   ? { ...p, a: Math.max(MIN_PART, p.a), b: Math.max(MIN_PART, p.b), dociac: { a: p.a, b: p.b } } : p);
@@ -381,12 +386,15 @@ const maleFormatkiMsgs = (panels, potwierdzone, cel) => {
     byly.add(k);
     const wym = `${fmt(p.dociac.a)} × ${fmt(p.dociac.b)} mm`;
     const wymZ = `${fmt(p.a)} × ${fmt(p.b)} mm`;
+    const zw = p.zw60 ? `|zwieksz60:${p.zw60}` : "";
+    if (Math.min(p.dociac.a, p.dociac.b) < MIN_DOCIECIE)
+      return [{ level: "error", text: `Formatka „${p.name}” ma ${wym} — węższej niż ${fmt(MIN_DOCIECIE)} mm nie da się dociąć ręcznie, `
+        + `a firma nie tnie i nie okleja formatek węższych niż ${fmt(MIN_PART)} mm. Popraw wymiar.` + zw }];
     if ((potwierdzone || []).includes(k))
-      return [{ level: "warn", text: `Formatka „${p.name}” ${wym} do ręcznego docięcia: firma nie tnie formatek węższych niż `
+      return [{ level: "info", text: `Formatka „${p.name}” ${wym} do ręcznego docięcia (potwierdzone): firma nie tnie formatek węższych niż `
         + `${fmt(MIN_PART)} mm, więc w zamówieniu ${wymZ} — docięcie po odbiorze.` }];
-    return [{ level: "error", text: `Formatka „${p.name}” ma ${wym}, a firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm. `
-      + `Czy to nie pomyłka przy wpisywaniu wymiaru? Jeśli tak ma być — w zamówieniu zostanie ${wymZ}, `
-      + `a do ${wym} trzeba ją dociąć ręcznie po odbiorze.|dociacpanel:${cel}:${k}` }];
+    return [{ level: "warn", text: `Formatka „${p.name}” ma ${wym}, a firma nie tnie i nie okleja formatek węższych niż ${fmt(MIN_PART)} mm — `
+      + `w zamówieniu zostanie ${wymZ}, a do ${wym} trzeba ją dociąć ręcznie po odbiorze.${zw}|dociacpanel:${cel}:${k}` }];
   });
 };
 /* Ponizej tego front robi sie waski — nie blad, bo czasem inaczej sie nie da,
@@ -561,7 +569,7 @@ const DXS = {
   zaczepY: 11, zaczepX: 7, // otwor ⌀6 × 10 w tyle: od jego dolnej krawedzi i od boku
   wolneOdBoku: 75, // pod dnem przy przodzie: miejsce na zaczep frontu
   szerProw: 33,    // prowadnica pod dnem, przy boku
-  minTyl: 20,      // nizszy tyl — nie ma gdzie wywiercic otworu zaczepu (11 + ⌀6)
+  minTyl: MIN_DOCIECIE, // nizszy tyl: ani otworu zaczepu (11 + ⌀6), ani recznego dociecia
 };
 const dxsBokOd = DXS.dnoOd - DXS.bokPodDnem; // spod prowadnicy → dol boku (17)
 /* System szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty na
@@ -3198,10 +3206,9 @@ function computeGeoLiczy(cab, mat, ctx) {
         const bokFit = Math.floor(ceilY - SZUFLADA_ZAPAS - bokY0); // najwyzszy bok z luzem
         const minBok = DXS.minTyl + DXS.bokPodDnem;
         const przyciskBoku = bokFit >= minBok && bokFit !== hBok ? `|fixh:${lv.i}:${j}:${i}:${bokFit}` : "";
-        if (hBok < minBok)
-          add("error", `${where2}: bok skrzynki ${fmt(hBok)} mm — za niski: tył (bok − ${DXS.bokPodDnem}) musi mieć min. ${DXS.minTyl} mm na otwór zaczepu prowadnicy.`
-            + (recznyBok === null ? "" : przyciskBoku));
-        else if (goraBoku > ceilY)
+        /* Za niski bok i tyl zglasza ogolna regula formatek (ponizej 30 mm blad,
+           30–60 ostrzezenie z „Zwieksz do 60 mm”) — tu tylko brak miejsca. */
+        if (goraBoku > ceilY)
           add("error", `${where2}: skrzynka z bokiem ${fmt(hBok)} mm sięga ${fmt(goraBoku - railY0)} mm nad spód prowadnicy (bok zaczyna się ${dxsBokOd} mm nad nim), a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
             + przyciskBoku);
         else if (ceilY - goraBoku < SZUFLADA_ZAPAS)
@@ -3214,9 +3221,6 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (recznyTyl !== null && backH > tylAuto)
           add("warn", `${where2}: tył ${fmt(backH)} mm wystaje ${fmt(backH - tylAuto)} mm ponad boki skrzynki (dół tyłu jest równo ze spodem dna, ${DXS.bokPodDnem} mm nad dołem boków).`
             + (tylAuto >= DXS.minTyl ? `|fixback:${lv.i}:${j}:${i}:${tylAuto}` : ""));
-        if (backH < DXS.minTyl && hBok >= minBok)
-          add("error", `${where2}: tył ${fmt(backH)} mm — za niski na otwór zaczepu prowadnicy (⌀6, ${DXS.zaczepY} mm od dolnej krawędzi), min. ${DXS.minTyl} mm.`
-            + `|fixback:${lv.i}:${j}:${i}:${tylAuto}`);
         const skw = Math.round((LW - 2 * (DXS.odBoku + tbok)) * 10) / 10; // wnetrze skrzynki: LW − 49 przy bokach 18
         if (skw <= 0) add("error", `${where2}: kolumna ${fmt(LW)} mm za wąska na skrzynkę DXS-3D (boki ${fmt(tbok)} mm + ${DXS.odBoku} mm luzu z każdej strony).`);
         if (![16, 18, 19].includes(Math.round(tbok)))
@@ -3242,9 +3246,11 @@ function computeGeoLiczy(cab, mat, ctx) {
           const dnoGl = Math.max(0, bokDl - tbok);       // dno do tylu
           dr.skrzynka = { system: "dxs", LW, nl, bok: hBok, bokDl, bokT: tbok, szer: skw, odBoku: DXS.odBoku,
             dno: [skw, dnoGl], tyl: [skw, backH], tylOd: DXS.dnoOd, bokOd: dxsBokOd, grub: ts };
-          drawerParts.push({ kind: "bok", a: bokDl, b: hBok }, { kind: "bok", a: bokDl, b: hBok });
+          // bok / tyl wezszy niz MIN_PART: przycisk „Zwieksz do 60 mm” zmienia pole tej szuflady
+          const zwB = hBok < MIN_PART ? `b:${lv.i}:${j}:${i}` : null, zwT = backH < MIN_PART ? `t:${lv.i}:${j}:${i}` : null;
+          drawerParts.push({ kind: "bok", a: bokDl, b: hBok, zw60: zwB }, { kind: "bok", a: bokDl, b: hBok, zw60: zwB });
           drawerParts.push({ kind: "dno", a: skw, b: dnoGl });
-          drawerParts.push({ kind: "tyl", a: skw, b: backH });
+          drawerParts.push({ kind: "tyl", a: skw, b: backH, zw60: zwT });
           dxsGroups.set(nl, (dxsGroups.get(nl) || 0) + 1);
           // konfirmaty przez boki od zewnatrz: dno wzdluz boku i tyl na jego wysokosci, z obu stron
           dxsKonf += 2 * (konfirmatyNaStyk(dnoGl) + konfirmatyNaStyk(backH));
@@ -3974,9 +3980,11 @@ function computeGeoLiczy(cab, mat, ctx) {
   });
 
   const dpGroups = new Map();
+  const dpZw60 = new Map(); // grupa → szuflady, ktorym „Zwieksz do 60 mm” zmienia bok / tyl
   drawerParts.forEach((d) => {
     const k = `${d.kind}|${Math.round(d.a)}|${Math.round(d.b)}`;
     dpGroups.set(k, (dpGroups.get(k) || 0) + 1);
+    if (d.zw60) dpZw60.set(k, [...new Set([...(dpZw60.get(k) || []), d.zw60])]);
   });
   dpGroups.forEach((qty, k) => {
     const [kind, a, b] = k.split("|");
@@ -4007,7 +4015,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         note: "oklejona krawędź górna",
       },
     }[kind];
-    P({ ...meta, qty, a: Number(a), b: Number(b) });
+    P({ ...meta, qty, a: Number(a), b: Number(b), ...(dpZw60.has(k) ? { zw60: dpZw60.get(k).join(",") } : {}) });
   });
 
   /* Blat roboczy ma stala glebokosc arkusza. Formatka glebsza niz on po prostu
@@ -11807,6 +11815,15 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       }) };
     }
     // system szuflad aktywnej szafki — wykonuje `runFix` (cala szafka, z historia)
+    // „zwieksz60:b:<poz>:<kol>:<szuf>,t:…” — bok (b) / tyl (t) skrzynki DXS na 60 mm (MIN_PART)
+    if (action.startsWith("zwieksz60:")) {
+      const lista = action.slice("zwieksz60:".length).split(",").map((x) => x.split(":"));
+      return { label: `Zwiększ do ${fmt(MIN_PART)} mm`, run: () => editLevels((L) => lista.forEach(([co, li, j, k]) => {
+        const d = (((L[+li] || {}).cols || [])[+j] || {}).drawers?.[+k];
+        if (!d) return;
+        if (co === "b") d.h = MIN_PART; else d.backHeight = MIN_PART;
+      })) };
+    }
     if (action.startsWith("szufsys:")) {
       const sys = action.split(":")[1] === "dxs" ? "dxs" : "vbox";
       return { label: `Wszystkie szuflady szafki na ${SYSTEMY_SZUFLAD[sys]}`, run: () => runFix && runFix(action) };
@@ -12609,12 +12626,16 @@ const wstawkaMsgs = (layout, idx) => wstawkiOf(layout).filter((w) => w.cab.index
   const H = Math.round(w.H);
   const czego = w.listwa ? "wstawki i listwy" : "wstawki";
   const popraw = `|wstawkaw:${w.rogRun}:${MIN_PART}`;
+  // jak kazda formatka (2026-10-21): ponizej 30 blad, 30–60 ostrzezenie, po potwierdzeniu informacja
+  if (szer < MIN_DOCIECIE)
+    return [{ level: "error", text: `Wstawka w rogu ma ${fmt(szer)} mm — węższej niż ${fmt(MIN_DOCIECIE)} mm nie da się dociąć ręcznie, `
+      + `a firma nie tnie i nie okleja formatek węższych niż ${fmt(MIN_PART)} mm.` + popraw }];
   if (w.dociac === szer)
-    return [{ level: "warn", text: `Wstawka w rogu ${fmt(szer)} mm: firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm, `
+    return [{ level: "info", text: `Wstawka w rogu ${fmt(szer)} mm do ręcznego docięcia (potwierdzone): firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm, `
       + `więc w zamówieniu formatka ${czego} ${fmt(H)} × ${fmt(MIN_PART)} mm — do ${fmt(szer)} mm dociąć ręcznie po odbiorze.` + popraw }];
-  return [{ level: "error", text: `Wstawka w rogu ma ${fmt(szer)} mm, a firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm. `
-    + `Czy wstawka faktycznie ma mieć ${fmt(szer)} mm? Jeśli tak — w zamówieniu zostanie formatka ${czego} ${fmt(H)} × ${fmt(MIN_PART)} mm, `
-    + `a do ${fmt(szer)} mm trzeba ją dociąć ręcznie po odbiorze.` + popraw + `|wstawkadociac:${w.rogRun}:${szer}` }];
+  return [{ level: "warn", text: `Wstawka w rogu ma ${fmt(szer)} mm, a firma nie tnie i nie okleja formatek węższych niż ${fmt(MIN_PART)} mm — `
+    + `w zamówieniu zostanie formatka ${czego} ${fmt(H)} × ${fmt(MIN_PART)} mm, a do ${fmt(szer)} mm trzeba ją dociąć ręcznie po odbiorze.`
+    + popraw + `|wstawkadociac:${w.rogRun}:${szer}` }];
 });
 const wstawkiOf = (layout) => [...layout.info.values()].flatMap((n) => n.wstawki || []);
 /* Wstawka w ukladzie samej szafki (widoki „Szafka”): przy lewym boku, gdy
