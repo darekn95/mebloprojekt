@@ -6,7 +6,9 @@ szafki albo ciągu — po niej szuka się w pliku.
 
 **Zasada: zmieniasz etykietę, pole albo nazwę formatki — dopisz tu wiersz.**
 Ten plik jest wart tyle, ile jego aktualność. `AI_NOTES.md` mówi *dlaczego*
-coś jest zrobione tak, a nie inaczej; ten plik mówi *jak się to nazywa*.
+coś jest zrobione tak, a nie inaczej; ten plik mówi *jak się to nazywa*;
+`opisy/` (spis `opisy/SPIS.md`) mówi *jak to działa* — zasady i liczby jednego obszaru
+(szuflady, klapy, …) w kilku akapitach.
 
 ---
 

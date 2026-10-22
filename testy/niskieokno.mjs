@@ -37,7 +37,11 @@ let { ctx, page } = await otworz(600, 495);
 let s = await stan(page);
 ok('pasek ciągów zwinięty sam', !s.rozwiniety, JSON.stringify(s));
 ok('nagłówek najwyżej 40% okna i przyklejony', s.wys <= 0.4 * s.okno && s.poz === 'sticky', JSON.stringify(s));
-await page.getByRole('button', { name: 'Pokaż rysunek' }).click(); await page.waitForTimeout(1200);
+await page.getByRole('button', { name: 'Pokaż rysunek' }).click();
+// przewijanie jest płynne — przy kilku suitach naraz 1200 ms nie starczało (fałszywy alarm 2026-10-22)
+await page.waitForFunction(() => { const svg = document.querySelector('#rysunek svg'); const h = document.querySelector('header[data-el="naglowek"]');
+  return svg && h && Math.abs(svg.getBoundingClientRect().top - h.getBoundingClientRect().bottom) <= 3; }, null, { timeout: 6000 }).catch(() => {});
+await page.waitForTimeout(300);
 const r = await page.evaluate(() => { const svg = document.querySelector('#rysunek svg').getBoundingClientRect();
   const dol = document.querySelector('header[data-el="naglowek"]').getBoundingClientRect().bottom;
   return { svgTop: Math.round(svg.top), pasek: Math.round(dol), widac: Math.round(Math.min(innerHeight, svg.bottom) - Math.max(dol, svg.top)) }; });
