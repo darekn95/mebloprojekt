@@ -3211,7 +3211,9 @@ function computeGeoLiczy(cab, mat, ctx) {
           : nadSzuflada.some((r) => r.y0 < lv.y1) ? "wzmocnienie pod blatem" : "góra korpusu";
         const bokFit = Math.floor(ceilY - SZUFLADA_ZAPAS - bokY0); // najwyzszy bok z luzem
         const minBok = DXS.minTyl + DXS.bokPodDnem;
-        const przyciskBoku = bokFit >= minBok && bokFit !== hBok ? `|fixh:${lv.i}:${j}:${i}:${bokFit}` : "";
+        /* Gdy zaden bok sie nie zmiesci, App dokleja „Zmniejsz do N szuflad” (`szufbrak:`,
+           `przyciskiSzuflad`) — decyzja uzytkownika 2026-10-22. */
+        const przyciskBoku = bokFit >= minBok && bokFit !== hBok ? `|fixh:${lv.i}:${j}:${i}:${bokFit}` : `|szufbrak:${lv.i}:${j}`;
         /* Za niski bok i tyl zglasza ogolna regula formatek (ponizej 30 mm blad,
            30–60 ostrzezenie z „Zwieksz do 60 mm”) — tu tylko brak miejsca. */
         if (goraBoku > ceilY)
@@ -3220,6 +3222,12 @@ function computeGeoLiczy(cab, mat, ctx) {
         else if (ceilY - goraBoku < SZUFLADA_ZAPAS)
           add("error", `${where2}: nad bokiem skrzynki ${fmt(hBok)} mm zostaje ${fmt(Math.round(ceilY - goraBoku))} mm luzu do tego, co jest wyżej (${coNad}) — potrzeba min. ${SZUFLADA_ZAPAS} mm.`
             + przyciskBoku);
+        /* Bok auto schodzil do kilkunastu mm (6 szuflad w niskim poziomie) — dno wystawalo
+           nad bok i wchodzilo we wzmocnienie, a bledu miejsca nie bylo, tylko formatki
+           < 30 mm. Najnizsza sensowna skrzynka: tyl MIN_DOCIECIE + 10 pod dnem (audyt
+           szuflad 2026-10-22). */
+        else if (recznyBok === null && bokFit < minBok)
+          add("error", `${where2}: nie ma miejsca na skrzynkę DXS-3D — najniższa (bok ${minBok} mm, tył ${DXS.minTyl} mm) potrzebuje ${dxsBokOd + minBok + SZUFLADA_ZAPAS} mm od spodu prowadnicy razem z luzem ${SZUFLADA_ZAPAS} mm, a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.|szufbrak:${lv.i}:${j}`);
         // tyl: dol rowno ze spodem dna, domyslnie gora rowno z bokami (bok − 10); recznie nizej
         const tylAuto = hBok - DXS.bokPodDnem;
         const recznyTyl = num(d.backHeight);
@@ -3253,7 +3261,9 @@ function computeGeoLiczy(cab, mat, ctx) {
           dr.skrzynka = { system: "dxs", LW, nl, bok: hBok, bokDl, bokT: tbok, szer: skw, odBoku: DXS.odBoku,
             dno: [skw, dnoGl], tyl: [skw, backH], tylOd: DXS.dnoOd, bokOd: dxsBokOd, grub: ts };
           // bok / tyl wezszy niz MIN_PART: przycisk „Zwieksz do 60 mm” zmienia pole tej szuflady
-          const zwB = hBok < MIN_PART ? `b:${lv.i}:${j}:${i}` : null, zwT = backH < MIN_PART ? `t:${lv.i}:${j}:${i}` : null;
+          // tylko gdy bok 60 mm sie zmiesci — inaczej przycisk dawalby blad miejsca
+          const jest60 = bokFit >= MIN_PART;
+          const zwB = jest60 && hBok < MIN_PART ? `b:${lv.i}:${j}:${i}` : null, zwT = jest60 && backH < MIN_PART ? `t:${lv.i}:${j}:${i}` : null;
           drawerParts.push({ kind: "bok", a: bokDl, b: hBok, zw60: zwB }, { kind: "bok", a: bokDl, b: hBok, zw60: zwB });
           drawerParts.push({ kind: "dno", a: skw, b: dnoGl });
           drawerParts.push({ kind: "tyl", a: skw, b: backH, zw60: zwT });
@@ -3480,8 +3490,11 @@ function computeGeoLiczy(cab, mat, ctx) {
           add("error",
             `${where}, szuflada ${i + 1}: front ${fmt(fh)} mm, a minimum dla wysokości ${hClass} mm przy froncie ${
               dIn ? "wpuszczanym" : "na korpusie"
-            } to ${minF} mm.` + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : ""));
-        const przyciskLuzu = nizszyBok && !frontZaNiski ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : "";
+            } to ${minF} mm.` + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : `|szufbrak:${lv.i}:${j}`));
+        /* Bez nizszego boku, ktory sie zmiesci, App dokleja „Zmniejsz do N szuflad” / „Zmień na
+           DXS-3D” (`szufbrak:`, `przyciskiSzuflad`) — decyzja uzytkownika 2026-10-22. */
+        const przyciskLuzu = nizszyBok ? (frontZaNiski ? "" : `|fixh:${lv.i}:${j}:${i}:${nizszyBok}`)
+          : (frontZaNiski ? "" : `|szufbrak:${lv.i}:${j}`);
         if (goraBoku > ceilY)
           add("error",
             `${where}, szuflada ${i + 1}: skrzynka z bokiem ${hClass} mm potrzebuje ${vboxGora(hClass)} mm od dołu prowadnicy (bok stoi ${vboxOdProw(hClass)} mm nad nim) i min. ${SZUFLADA_ZAPAS} mm luzu nad bokiem, a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
@@ -11839,6 +11852,22 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         if (co === "b") d.h = MIN_PART; else d.backHeight = MIN_PART;
       })) };
     }
+    // „szufmniej:<poziom>:<kolumna>:<n>” — zostaja dolne szuflady, fronty dziela pasmo od nowa
+    if (action.startsWith("szufmniej:")) {
+      const [, li, j, n] = action.split(":");
+      return { label: `Zmniejsz do ${n} ${+n === 1 ? "szuflady" : "szuflad"}`, run: () => editLevels((L) => {
+        const col = L[+li].cols[+j];
+        col.drawers = (col.drawers || []).slice(0, +n).map((d) => ({ ...d, front: null }));
+      }) };
+    }
+    // „szufdxs:<poziom>:<kolumna>” — szuflady kolumny na DXS-3D (bok dobiera sie do miejsca)
+    if (action.startsWith("szufdxs:")) {
+      const [, li, j] = action.split(":");
+      return { label: "Zmień na DXS-3D", run: () => editLevels((L) => {
+        const col = L[+li].cols[+j];
+        col.drawers = (col.drawers || []).map((d) => zmienSystemSzuflady(d, "dxs"));
+      }) };
+    }
     if (action.startsWith("szufsys:")) {
       const sys = action.split(":")[1] === "dxs" ? "dxs" : "vbox";
       return { label: `Wszystkie szuflady szafki na ${SYSTEMY_SZUFLAD[sys]}`, run: () => runFix && runFix(action) };
@@ -17023,8 +17052,40 @@ export default function App() {
     return { rows, sum };
   }, [planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, prices, matByLabel]);
 
+  /* Szuflada bez miejsca na zadna skrzynke (`|szufbrak:<poziom>:<kolumna>` z `computeGeo`):
+     „Zmniejsz do N szuflad” i „Zmień na DXS-3D” — kazdy tylko wtedy, gdy po nim kolumna
+     nie ma bledow, i tylko przy pierwszej takiej uwadze kolumny (decyzja uzytkownika
+     2026-10-22: oba przyciski). Liczone na probe, jak liczba nowych szuflad w `setColKind`. */
+  const przyciskiSzuflad = (msgs) => {
+    const ctxG = armCtxOf(projLayoutGeo, project.active);
+    const byly = new Set();
+    const czysto = (li, j, zmien) => {
+      const L = JSON.parse(JSON.stringify(cab.levels));
+      zmien(L[li].cols[j]);
+      const pref = `Poziom ${li + 1}, kolumna ${j + 1}`;
+      return !computeGeo({ ...cab, levels: L }, mat, ctxG).msgs.some((m) => m.level === "error"
+        && (m.text.startsWith(pref + ",") || m.text.startsWith(pref + ":")));
+    };
+    return msgs.map((m) => {
+      const r = /\|szufbrak:(\d+):(\d+)/.exec(m.text);
+      if (!r) return m;
+      const li = +r[1], j = +r[2];
+      const ds = ((((cab.levels || [])[li] || {}).cols || [])[j] || {}).drawers || [];
+      let akcje = "";
+      if (!byly.has(`${li}:${j}`) && ds.length) {
+        byly.add(`${li}:${j}`);
+        for (let n = ds.length - 1; n >= 1; n--) {
+          if (czysto(li, j, (c) => { c.drawers = c.drawers.slice(0, n).map((d) => ({ ...d, front: null })); })) { akcje += `|szufmniej:${li}:${j}:${n}`; break; }
+        }
+        if (ds.some((d) => systemSzuflady(d) !== "dxs")
+          && czysto(li, j, (c) => { c.drawers = c.drawers.map((d) => zmienSystemSzuflady(d, "dxs")); })) akcje += `|szufdxs:${li}:${j}`;
+      }
+      return { ...m, text: m.text.replace(r[0], akcje) };
+    });
+  };
+
   // uwagi ciagu ida przed uwagami szafki — dotycza calej sciany, wiec sa nadrzedne
-  const allMsgs = useMemo(() => [...runMsgs, ...bezWspolnychFormatek(geo.msgs, !!runPl, !!runTp), ...wstawkaMsgs(projLayout, project.active),
+  const allMsgs = useMemo(() => [...runMsgs, ...bezWspolnychFormatek(przyciskiSzuflad(geo.msgs), !!runPl, !!runTp), ...wstawkaMsgs(projLayout, project.active),
     // ramie szafki w L: jego formatki naleza do tej szafki
     ...(cornerNode && cornerNode.arm && cornerNode.arm.len > 0
       ? maleFormatkiMsgs(cornerArmParts(cornerNode.arm).panels, cab.dociac, "@") : []),
@@ -17032,7 +17093,7 @@ export default function App() {
        w karcie „Rozkrój” (komentarz uzytkownika 2026-10-17). */
     ...(pokazPlan ? pokazPlan.groups.flatMap((g) => uwagiRozkroju(g).map((t) => ({ level: "warn",
       text: `Rozkrój — ${bezArkusza(g.matLabel)}: ${t.replace(/^Blat: /, "")}` }))) : [])],
-    [runMsgs, geo, projLayout, project.active, cornerNode, cab, runPl, runTp, pokazPlan]);
+    [runMsgs, geo, projLayout, project.active, cornerNode, cab, mat, projLayoutGeo, runPl, runTp, pokazPlan]);
   const errors = allMsgs.filter((m) => m.level === "error");
   const warns = allMsgs.filter((m) => m.level === "warn");
   const infos = allMsgs.filter((m) => m.level === "info");

@@ -452,6 +452,38 @@ ok('Q4 po kliknięciu wszystkie poziomy auto', q.items[q.active].cab.levels.ever
 await sprawdz('Q5 poziomy po równo');
 }
 
+/* ===== R. za duzo szuflad w niskim poziomie — „Zmniejsz do N szuflad” / „Zmień na DXS-3D” (decyzja 2026-10-22) ===== */
+if (wybrany('R')) {
+console.log('\n== R. za dużo szuflad: przyciski w Uwagach ==');
+const przyciskiR = async () => ({ mniej: await page.getByRole('button', { name: /^Zmniejsz do \d+ szuflad/ }).allInnerTexts(),
+  dxs: await przycisk('Zmień na DXS-3D').count() });
+await nowyProjekt(); await nowaSzafkaWCiagu();
+await wStrukturze('klapy zamiast drzwi').kliknij();
+await wStrukturze('Szuflady', 0, false, 0).kliknij();
+await poKliku(() => przycisk('+ szuflada').first().click());
+let bR = await uwagiBledy(), pR = await przyciskiR();
+ok('R1 trzecia V-BOX pod blatem — błąd z „Zmniejsz do 2 szuflad” i „Zmień na DXS-3D”',
+  bR.length > 0 && pR.mniej.join() === 'Zmniejsz do 2 szuflad' && pR.dxs === 1, `${bR.join(' // ').slice(0, 160)} | ${JSON.stringify(pR)}`);
+await poKliku(() => przycisk('Zmień na DXS-3D').first().click());
+await sprawdz('R2 po „Zmień na DXS-3D”');
+q = await zapis();
+ok('R2 trzy szuflady DXS', q.items[q.active].cab.levels[1].cols[0].drawers.length === 3 && q.items[q.active].cab.levels[1].cols[0].drawers.every((d) => d.system === 'dxs'));
+// z powrotem V-BOX recznie — blad wraca, „Zmniejsz do 2”
+for (let k = 0; k < 3; k++) await poKliku(() => page.locator('[data-el="szuflada-system"]').nth(k).selectOption('vbox'));
+pR = await przyciskiR();
+ok('R3 z powrotem V-BOX — znów „Zmniejsz do 2 szuflad”', pR.mniej.join() === 'Zmniejsz do 2 szuflad', JSON.stringify(pR));
+if (pR.mniej.length) await poKliku(() => page.getByRole('button', { name: /^Zmniejsz do \d+ szuflad/ }).first().click());
+await sprawdz('R4 po „Zmniejsz do 2 szuflad”');
+// DXS: szesc szuflad w tym samym poziomie — tylko „Zmniejsz”, bez „Zmień na DXS-3D”
+await naDxs();
+for (let k = 0; k < 4; k++) await poKliku(() => przycisk('+ szuflada').first().click());
+await naDxs();
+bR = await uwagiBledy(); pR = await przyciskiR();
+ok('R5 sześć DXS — błąd z „Zmniejsz do N”, bez „Zmień na DXS-3D”', bR.length > 0 && pR.mniej.length === 1 && pR.dxs === 0, `${bR.join(' // ').slice(0, 160)} | ${JSON.stringify(pR)}`);
+if (pR.mniej.length) await poKliku(() => page.getByRole('button', { name: /^Zmniejsz do \d+ szuflad/ }).first().click());
+await sprawdz(`R6 po „${pR.mniej[0] || '—'}”`);
+}
+
 const zle = wyniki.filter((w) => w.bl.length);
 console.log(`\nPODSUMOWANIE: ${wyniki.length} stanów, z błędami ${zle.length}`);
 console.log('BLEDY STRONY:', errors.join(' | ') || '(brak)');
