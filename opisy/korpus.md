@@ -28,6 +28,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - **brak**.
   - Kolumna może mieć własne plecy („jak szafka / HDF / płyta / brak”).
   - Plecy w środku albo we frezie skracają głębokość półek, przegród i szuflad.
+  - Plecy ustawione w kolumnach są zawsze przybijane za korpusem: szafka stoi od ściany o najgrubsze z nich (płyta 18 w jednej kolumnie → 578 mm przy korpusie 560), wszystkie „brak” — przy samej ścianie; zszywki do HDF i wkręty do płyty liczone z obwodu każdej płyty (audyt GPT N73, N81).
 - **Konfirmaty na styku płyt**: jeden w połowie, gdy styk jest krótszy niż 132 mm; dłuższy — co ok. 200 mm, min. 2, po 50 mm od krawędzi.
 - **Wieniec lub blat z płyty** (`top.mode`): z wysunięciami w lewo / prawo / do przodu / do tyłu; „podana szerokość to” — korpus albo całość z wysunięciami.
 - **Blat roboczy** (ciąg z blatem albo własny blat szafki):
@@ -47,7 +48,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - wysokość lub głębokość, odsunięcie od lica albo od tyłu;
   - „skraca drzwi”.
 - **Wycięcie tylnego narożnika** (lewego i prawego osobno): szerokość, głębokość, na całą wysokość albo w jednym poziomie, maskownica.
-- **Element kolizyjny** (rura, słup): wymiary i położenie, zabudowa z maskownicą.
+- **Element kolizyjny** (rura, słup): wymiary i położenie, zabudowa z maskownicą. Ścianki zabudowy (też wycięcia) są z płyty półek — jej grubość liczy styki, czoło („przed bokami” = element + 2 × płyta zabudowy), rzuty i 3D (`maskWalls`, audyt GPT N71).
 - **Płyty**: grubości i dekory korpusu, frontów, półek, pleców, lustra; arkusz blatu 600 / 1200; „fronty / półki z tej samej płyty co korpus”; usłojenie.
 
 ## Kontrole i przyciski
@@ -65,6 +66,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - na styku mieści się jeden konfirmat (poniżej 132 mm) — ostrzeżenie z „Popraw głębokość”;
   - dwa rzędy nóżek nachodzą na siebie — ostrzeżenie.
 - **Kolumna otwarta od góry** (bez wieńca i wzmocnienia) — ostrzeżenie z „Dodaj parę wzmocnień pod blat”.
+- **Wzmocnienie poza korpusem** (ręcznie wpisana wysokość większa niż poziom, głębokość z odsunięciem większa niż korpus do pleców) — błąd z największą wysokością / głębokością / odsunięciem; ustawień program nie zmienia (audyt GPT N72).
 - **Szafka pod blatem ciągu z wieńcem** albo bez wieńca i bez wzmocnień — ostrzeżenie z „Dołóż parę wzmocnień” (wieniec znika, dochodzi para).
 - **Płyta inna niż 18 mm** — ostrzeżenie (liczby katalogowe szuflad są dla 18).
 - **Blat roboczy**: kontrola wysokości blatów w rogu i w pomieszczeniu („odstaje o N mm”) z przyciskami wyrównania, zużycie arkusza (brakuje do 200 mm), odpad — opisane w `opisy/ciagi.md` i `opisy/rozkroj.md`.

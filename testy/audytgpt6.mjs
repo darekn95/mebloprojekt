@@ -26,6 +26,8 @@ const rows = (re) => page.evaluate((src) => { const r = new RegExp(src);
   return sec ? [...sec.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.innerText.trim().replace(/\s+/g, ' ')).join(' | ')) : []; }, re.source);
 const uwagi = async () => (await page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || ''));
 const linie = (t, re) => t.split('\n').filter((l) => re.test(l)).join(' / ');
+// standalone rysuje bryle 3D dwa razy (StrictMode) — te same bryly liczymy raz (jak `audytszuflad`)
+const bezPowtorzen = (lista) => { const byl = new Set(); return lista.filter((s) => { const k = JSON.stringify([s.p, s.color, s.tag]); if (byl.has(k)) return false; byl.add(k); return true; }); };
 
 console.log('== N77: listwa montażowa — odcinki 1 m / 2 m, jedna na ciąg ==');
 {
@@ -88,7 +90,7 @@ console.log('\n== N69: blat przy ścianie dalej u góry niż u dołu ==');
     await pick('Szafka'); await pick('Zamk.');
     await page.evaluate(() => { window.__audytBryl = []; });
     await pick('3D'); await page.waitForTimeout(300);
-    const a = await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; });
+    const a = bezPowtorzen(await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; }));
     await pick('Front');
     return a.filter((q) => q.tag === 'blat').map((q) => q.p.map(Math.round));
   };
@@ -110,13 +112,131 @@ console.log('\n== N70: kątownik szafki w L z płyty półek 12 mm ==');
     await pick('Szafka'); await pick('Zamk.');
     await page.evaluate(() => { window.__audytBryl = []; });
     await pick('3D'); await page.waitForTimeout(300);
-    const a = await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; });
+    const a = bezPowtorzen(await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; }));
     await pick('Front');
     const kat = a.map((q) => [...q.d].map(Math.round).sort((x, y) => x - y).join('×')).filter((d) => /^\d+×150×684$/.test(d));
     const f = (await rows(/^Formatki do zamówienia/)).filter((r) => /^Kątownik przy ramieniu/.test(r));
     ok(`${typ}, ${side === 'right' ? 'z prawej' : 'z lewej'}: płyty kątownika w 3D 12 mm jak w zamówieniu (płyta półek)`,
       kat.length === 2 && kat.every((d) => d === '12×150×684') && f.length === 2 && f.every((r) => /12 mm|× 12|12$/.test(r) || /\b12\b/.test(r)), `3D: ${kat.join(', ')} | ${f.join(' / ')}`);
   }
+}
+
+console.log('\n== N71: zabudowa przeszkody z płyty 18 mm w korpusie 12 mm ==');
+{
+  const pick = async (l) => { const x = page.getByRole('button', { name: l, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(300); } };
+  for (const [typ, fs, czolo] of [['U', 200, 136], ['L', 0, 106]]) {
+    await seed(proj([{ cab: cab({ name: 'Z', W: 800, H: 1000, plinth: { on: false }, legs: { on: false }, shelfSameAsBoard: false,
+      obstacles: [{ on: true, w: 100, d: 150, h: 0, side: 'left', fromSide: fs, fromBack: 0, fromBottom: 0, fullHeight: true, mask: true, maskType: typ, maskFront: 'over' }],
+      levels: [{ h: null, cols: [{ kind: 'doors', doors: 0, w: null, shelfTargets: [null] }] }] }), mat: { board: { thickness: 12 }, shelf: { thickness: 18 } } }]));
+    await pick('Szafka'); await pick('Zamk.');
+    await page.evaluate(() => { window.__audytBryl = []; });
+    await pick('3D'); await page.waitForTimeout(300);
+    const a = bezPowtorzen(await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; }));
+    await pick('Front');
+    // scianki zabudowy: wysokosc 976 (wnetrze 1000 − 2 × 12), jedna z grubosci 18
+    const sc = a.map((q) => [...q.d].map(Math.round).sort((x, y) => x - y)).filter((d) => d[2] === 976 && d[0] <= 20).map((d) => d.join('×'));
+    const f = (await rows(/^Formatki do zamówienia/)).filter((r) => /^Zabudowa/.test(r));
+    ok(`${typ}: ścianki w 3D 18 mm, czoło ${czolo} mm w zamówieniu (płyta zabudowy, nie korpusu)`,
+      sc.length === (typ === 'U' ? 3 : 2) && sc.every((d) => /^18×/.test(d)) && f.some((r) => /czoło|czołowa/.test(r) && new RegExp(`\\| ${czolo} \\|`).test(r)), `3D: ${sc.join(', ')} | ${f.join(' / ')}`);
+  }
+}
+
+const pick = async (l) => { const x = page.getByRole('button', { name: l, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(300); } };
+const bryly = async (widok = 'Szafka') => {
+  await pick(widok); await pick('Zamk.');
+  await page.evaluate(() => { window.__audytBryl = []; });
+  await pick('3D'); await page.waitForTimeout(300);
+  const a = bezPowtorzen(await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; }));
+  await pick('Front');
+  return a.filter((q) => q.p);
+};
+const kolumna = (o = {}) => ({ kind: 'doors', doors: 0, w: null, shelfTargets: [null], ...o });
+
+console.log('\n== N72: ręczne wzmocnienie poza korpusem ==');
+for (const [opis, rail, re] of [
+  ['poziome 200 mm, 500 od lica', { orient: 'shelf', depth: 200, atDepth: 500, pos: 'top' }, /wzmocnienie 1 \(poziome\) sięga 700 mm w głąb, a korpus ma 560 mm — wychodzi o 140 mm poza korpus\. Popraw: przy 500 mm od lica głębokość najwyżej 60 mm, a przy głębokości 200 mm — najwyżej 360 mm od lica/],
+  ['czołowe 800 mm', { orient: 'front', h: 800, atDepth: 0, pos: 'top' }, /wzmocnienie 1 \(czołowe\) ma 800 mm wysokości, a poziom ma 684 mm — wychodzi poza korpus\. Najwyżej 684 mm/],
+  ['poziome 200 mm, 360 od lica (do tyłu korpusu)', { orient: 'shelf', depth: 200, atDepth: 360, pos: 'top' }, null]]) {
+  await seed(proj([{ cab: cab({ plinth: { on: false }, legs: { on: true, height: 100 }, hangers: 'never', levels: [{ h: null, cols: [kolumna({ rails: [rail] })] }] }) }]));
+  const u = await uwagi();
+  ok(`${opis}: ${re ? 'błąd z największym wymiarem' : 'bez uwagi (mieści się)'}`, re ? re.test(u) : !/wzmocnienie 1 .*poza korpus/.test(u), linie(u, /wzmocnienie 1/));
+}
+
+console.log('\n== N73: plecy tylko w kolumnie — szafka dalej od ściany ==');
+{
+  const R = [{ id: 'c1', name: 'Ściana 1', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null }];
+  await seed(proj([{ cab: cab({ name: 'P', back: 'none', levels: [{ h: null, cols: [kolumna({ backMode: 'board' }), kolumna({ backMode: 'none' })] }] }), runId: 'c1' }], R));
+  const a = await bryly();
+  const blat = a.filter((q) => q.tag === 'blat');
+  const plecy = a.filter((q) => Math.round(q.p[5] - q.p[2]) === 18 && Math.round(q.p[4] - q.p[1]) >= 700 && q.p[2] >= 559);
+  ok('plecy z płyty 18 w kolumnie za korpusem 560…578, blat dochodzi do ściany za nimi (578)',
+    plecy.length === 1 && Math.round(plecy[0].p[5]) === 578 && blat.length === 1 && Math.round(blat[0].p[5]) === 578,
+    `plecy z: ${plecy.map((q) => `${Math.round(q.p[2])}…${Math.round(q.p[5])}`).join(', ')}; blat z: ${blat.map((q) => `${Math.round(q.p[2])}…${Math.round(q.p[5])}`).join(', ')}`);
+}
+
+console.log('\n== N74: niska klapa w dół — płytka amortyzatora poza bokiem ==');
+for (const [H, zle] of [[200, true], [250, true], [300, false]]) {
+  await seed(proj([{ cab: cab({ W: 400, H, D: 350, plinth: { on: false }, legs: { on: true, height: 100 }, hangers: 'never',
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], klapa: 'dol', silowniki: 1 }] }] }) }]));
+  const u = await uwagi();
+  const re = /płytka amortyzatora GTV PD-ECGDL wypada poza płytą: jej środek jest 245 mm nad płytą pod klapą, a do góry poziomu jest \d+ mm\. Potrzeba co najmniej 260 mm/;
+  ok(`H${H}: ${zle ? 'błąd „płytka poza płytą” z radą' : 'płytka na boku — bez błędu'}`, zle ? re.test(u) : !/wypada poza płytą/.test(u), linie(u, /płytka|amortyzator/));
+}
+
+console.log('\n== N76: wspornik fixu wpuszczanego a wzmocnienie 100 mm od lica ==');
+for (const [mode, h] of [['inset', 666], ['overlay', 684]]) {
+  await seed(proj([{ cab: cab({ plinth: { on: false }, legs: { on: true, height: 100 }, hangers: 'never', levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null],
+    fix: { side: 'left', w: 60, mode, support: true, supportDepth: 100 }, rails: [{ orient: 'shelf', depth: 100, atDepth: 100, pos: 'bottom' }] }] }] }) }]));
+  const w = (await rows(/^Formatki do zamówienia/)).filter((r) => /^Wspornik/.test(r));
+  const a = await bryly();
+  const wsp = a.filter((q) => Math.round(q.p[3] - q.p[0]) === 18 && Math.round(q.p[5] - q.p[2]) === 100 && Math.round(q.p[4] - q.p[1]) > 600);
+  const wzm = a.filter((q) => Math.round(q.p[4] - q.p[1]) === 18 && Math.round(q.p[5] - q.p[2]) === 100 && Math.round(q.p[3] - q.p[0]) > 500);
+  const prz = wsp.flatMap((A) => wzm.map((B) => [0, 1, 2].map((k) => Math.min(A.p[k + 3], B.p[k + 3]) - Math.max(A.p[k], B.p[k])))).filter((d) => d.every((x) => x > 0.5));
+  ok(`fix ${mode === 'inset' ? 'wpuszczany' : 'nakładany'}: wspornik ${h} mm, w 3D nie przecina wzmocnienia`, w.some((r) => new RegExp(`\\| ${h} \\|`).test(r)) && wsp.length === 1 && !prz.length,
+    `${w.join(' / ')} | przecięcia: ${prz.map((d) => d.map(Math.round).join('×')).join(', ') || 'brak'}`);
+}
+
+console.log('\n== N78 / N79: własne blaty szafek w ciągu bez blatu roboczego ==');
+{
+  const R = [{ id: 'c1', name: 'C', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: null, worktop: false, corner: null }];
+  const blat = { mode: 'blat', material: 'board', overL: 0, overR: 0, overFront: 0, overBack: 0 };
+  const c2 = (n, o = {}) => cab({ name: n, plinth: { on: false }, legs: { on: false }, levels: [{ h: null, cols: [kolumna()] }], ...o });
+  const dab = { board: { name: 'Dąb sonoma', color: '#b08a5a', thickness: 18 } }, ant = { board: { name: 'Antracyt', color: '#333333', thickness: 12 } };
+  await seed(proj([{ cab: c2('A'), mat: dab, runId: 'c1' }, { cab: c2('B', { top: blat }), mat: ant, runId: 'c1' }], R));
+  let a = await bryly('Ciąg');
+  const naPodlodze = a.filter((q) => q.p[1] < 5 && q.p[4] - q.p[1] < 40 && q.p[3] - q.p[0] >= 590 && q.p[5] - q.p[2] >= 550);
+  ok('N78: bez dodatkowej płyty blatu przy podłodze w 3D zabudowy', !naPodlodze.length, naPodlodze.map((q) => q.p.map(Math.round).join(',')).join(' / '));
+  let f = (await rows(/^Formatki całego projektu/)).filter((r) => /^Blat/.test(r));
+  // grubosci tabela nie pokazuje — material z nazwy (grubosc 12 sprawdza harness runTop: th 12, y 708)
+  ok('N79: blat ciągu z płyty szafki B (Antracyt), nie z pierwszej szafki (Dąb)', f.length === 1 && /Antracyt/.test(f[0]) && !/Dąb/.test(f[0]), f.join(' / '));
+  await seed(proj([{ cab: c2('A', { top: blat }), mat: dab, runId: 'c1' }, { cab: c2('B', { top: blat }), mat: ant, runId: 'c1' }], R));
+  f = (await rows(/^Formatki całego projektu/)).filter((r) => /^Blat/.test(r));
+  const u = await uwagi();
+  ok('N79: dwa własne blaty z różnych płyt — każdy ze swoją szafką, z informacją', f.length === 2 && f.some((r) => /Dąb/.test(r)) && f.some((r) => /Antracyt/.test(r))
+    && /Własne blaty szafek ciągu „C" \(„A" i „B"\) są z różnych płyt/.test(u), `${f.join(' / ')} | ${linie(u, /Własne blaty/)}`);
+  await seed(proj([{ cab: c2('A', { top: blat }), mat: dab, runId: 'c1' }, { cab: c2('B', { top: blat }), mat: dab, runId: 'c1' }], R));
+  f = (await rows(/^Formatki całego projektu/)).filter((r) => /^Blat/.test(r));
+  ok('ta sama płyta: jeden blat ciągu 1200 × 560', f.length === 1 && /Blat ciągu/.test(f[0]) && /1200/.test(f[0]), f.join(' / '));
+}
+
+console.log('\n== N80: lustra 4 i 6 mm ==');
+{
+  const lc = () => cab({ H: 900, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, mirrors: [true] }] }] });
+  await seed(proj([{ cab: lc(), mat: { mirror: { thickness: 4 } } }, { cab: lc(), mat: { mirror: { thickness: 6 } } }]));
+  const l = (await rows(/^Produkty całego projektu/)).filter((r) => /^Lustro/.test(r));
+  ok('dwa wiersze: 4 mm i 6 mm', l.length === 2 && l.some((r) => /4 mm, 595 × 893 mm × 1 szt\./.test(r)) && l.some((r) => /6 mm, 595 × 893 mm × 1 szt\./.test(r)), l.join(' / '));
+  await seed(proj([{ cab: lc(), mat: { mirror: { thickness: 4 } } }, { cab: lc(), mat: { mirror: { thickness: 4 } } }]));
+  const l2 = (await rows(/^Produkty całego projektu/)).filter((r) => /^Lustro/.test(r));
+  ok('ta sama grubość: jeden wiersz × 2 szt.', l2.length === 1 && /4 mm, 595 × 893 mm × 2 szt\./.test(l2[0]), l2.join(' / '));
+}
+
+console.log('\n== N81: mocowania pleców w kolumnach ==');
+for (const [opis, back, a, bb, hdf, wk] of [['brak, HDF w kolumnie 1', 'none', 'hdf', 'none', 21, 0], ['HDF, płyta + HDF', 'hdf', 'board', 'hdf', 21, 21], ['HDF, obie „brak”', 'hdf', 'none', 'none', 0, 0], ['HDF zwykłe', 'hdf', null, null, 27, 0]]) {
+  await seed(proj([{ cab: cab({ back, hangers: 'never', levels: [{ h: null, cols: [kolumna(a ? { backMode: a } : {}), kolumna(bb ? { backMode: bb } : {})] }] }) }]));
+  const pr = await rows(/^Produkty do zamówienia/);
+  const ile = (re) => { const r = pr.find((x) => re.test(x)); return r ? Number((/(\d+) szt\./.exec(r.split(' | ').slice(-1)[0]) || [])[1] || (/\| (\d+) szt/.exec(r) || [])[1] || -1) : 0; };
+  const z = ile(/^Zszywka/), w = ile(/^Wkręt 3,5/);
+  ok(`${opis}: zszywki ${hdf}, wkręty do pleców ${wk}`, z === hdf && w === wk, pr.filter((r) => /pleców/.test(r)).join(' / ') || '(brak)');
 }
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');

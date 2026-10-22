@@ -14,6 +14,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - szuflady dostaje w systemie z kontekstu (szafka → ciąg → pomieszczenie).
 - **Cokół ciągu**: jedna płaszczyzna przez cały ciąg, podzielona na formatki; w rogu cokoły na zakładkę (`opisy/cokol.md`).
 - **Blat ciągu** (`opisy/korpus.md`): kawałki o długości arkusza z miejscem na słupki.
+  - Ciąg bez blatu roboczego, a szafki z własnym blatem („Blat” zamiast wieńca): blaty z tej samej płyty łączą się w zamówieniu w jedną płytę ciągu — z płyty szafki, która blat ma (nie pierwszej w ciągu); w 3D każda szafka rysuje swój. Blaty z różnych płyt zostają przy swoich szafkach — informacja w Uwagach (audyt GPT N78, N79).
   - Głębokość: od ściany do lica frontów plus wysunięcie przed drzwi (domyślnie 10 mm).
   - Odsunięcie od ściany inne na dole i na wysokości blatu: blat zaczyna się przy ścianie na wysokości blatu — gdy tam jest dalej (dół 0, blat 100), blat sięga 100 mm za linię ściany przy podłodze, a wysięg z przodu zostaje zwykły (rysunki i 3D, audyt GPT N69).
   - Z arkusza 600 albo 1200 — szersze zamawia się docięte.

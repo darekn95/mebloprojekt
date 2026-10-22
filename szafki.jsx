@@ -651,7 +651,8 @@ const listwaWiersz = (pozycje) => {
   const ile = LISTWA_ODCINKI.map((d) => [d, z.sztangi.filter((q) => q.dl === d).length]).filter(([, n]) => n).reverse();
   const ciecie = z.sztangi.map((q) => `${q.dl / 1000} m → `
     + q.kawalki.map((k) => `${k.dl === q.dl ? "cały" : fmt(k.dl)}${k.gdzie ? ` (${k.gdzie})` : ""}`).join(" + ")).join("; ");
-  return { name: RAIL_NAME, unit: "mb", qty: z.zakup / 1000,
+  // `specSzt` — staly klucz ceny (opis zmienia sie z kazda dlugoscia, cena wpisana ma zostac)
+  return { name: RAIL_NAME, unit: "mb", qty: z.zakup / 1000, specSzt: "odcinki 1 m / 2 m",
     spec: `kupić ${ile.map(([d, n]) => `${n} × ${d / 1000} m`).join(" + ")}: potrzeba ${fmt(z.potrzeba)} mm, odpad ${fmt(z.odpad)} mm. Cięcie: ${ciecie}` };
 };
 
@@ -2041,8 +2042,19 @@ function computeGeoLiczy(cab, mat, ctx) {
      samo wysuwa sie jej lico (ustalone z uzytkownikiem 2026-09-28). HDF we
      frezie i plyta wewnatrz chowaja sie w glebokosci korpusu. `glebOdSciany`
      to glebokosc od sciany do lica korpusu — tej uzywa uklad ciagu. */
-  const plecyZa = grooved ? Math.max(0, tb - grOff)   // wreg plytszy niz HDF: wystaje z tylu
-    : hasBack && !(cab.back === "board" && backPos === "inside") ? tb : 0;
+  /* Plecy ustawione w kolumnach (`plecyKolumn` nizej) sa zawsze przybijane za
+     korpusem — za nim siedzi najgrubsza z nich, a wszystkie „brak” to nic za
+     korpusem, choc globalnie sa plecy (audyt GPT N73: zostawalo 0 albo HDF 3 mm
+     przy plycie 18 w kolumnie — szafka wchodzila plecami w sciane). */
+  const kolumnyCab = (cab.levels || []).flatMap((lv) => lv.cols || []);
+  const plecyKolumnZa = kolumnyCab.some((c) => c.backMode && c.backMode !== "inherit")
+    ? Math.max(0, ...kolumnyCab.map((c) => {
+      const m = c.backMode && c.backMode !== "inherit" ? c.backMode : cab.back;
+      return m === "none" ? 0 : m === "hdf" ? (mat.back || {}).thickness || 3 : t;
+    }))
+    : null;
+  const plecyZa = plecyKolumnZa ?? (grooved ? Math.max(0, tb - grOff)   // wreg plytszy niz HDF: wystaje z tylu
+    : hasBack && !(cab.back === "board" && backPos === "inside") ? tb : 0);
   const glebOdSciany = carcassDepth + plecyZa;
 
   if (grooved) {
@@ -2403,7 +2415,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       const cwv = Math.round(cu.w || 0), cdv = Math.round(cu.d || 0);
       if (cwv > 0 && cdv > 0) {
         // zabudowa zabiera dodatkowo grubosc plyty czola
-        const maskT = cu.mask !== false ? t : 0;
+        const maskT = cu.mask !== false ? ts : 0;
         // wysokosc wyciecia: cala szafka albo jeden poziom — jak w `processCutout`
         const li = Math.min(Math.max(0, Math.round(cu.levelIndex || 0)), levels.length - 1);
         const pelne = cu.fullHeight !== false || levels.length <= 1;
@@ -2420,7 +2432,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       const fs = Math.round(obs.fromSide || 0), fb = Math.round(obs.fromBack || 0);
       if (ow > 0 && od > 0) {
         const x0 = obs.side === "left" ? fs : W - fs - ow;
-        const maskT = obs.mask ? t : 0;
+        const maskT = obs.mask ? ts : 0;
         // zakres wysokosci elementu — jak `oy0`/`oy1` nizej (zabudowa do gory elementu)
         const pelny = obs.fullHeight !== false;
         const y0 = pelny ? -Infinity : Math.round(obs.fromBottom || 0) + interior.y0;
@@ -2597,6 +2609,35 @@ function computeGeoLiczy(cab, mat, ctx) {
         return { orient: "front", przyTyle: !!r.fromBack,
           x0: rx0, x1: rx1, y0: ry1 - rh, y1: ry1, z0, zLen: t, a: rw, b: rh };
       });
+      /* Recznie wpisane wzmocnienie wychodzace poza korpus (audyt GPT N72): poziome
+         200 mm 500 mm od lica w korpusie 560 konczylo sie 140 mm za tylem, czolowe
+         800 mm w szafce 720 przechodzilo przez dno — bez uwagi, a formatka szla
+         do zamowienia. Blad z najwiekszym wymiarem, ustawien nie zmieniamy. */
+      const RODZAJ_WZM = { front: "czołowe", shelf: "poziome", vertical: "pionowe" };
+      rawRails.forEach((r, k) => {
+        const g2 = c.rails[k];
+        if (!g2) return;
+        const nr = (rawCol.rails || []).indexOf(r) + 1;
+        const co = `${where}: wzmocnienie ${nr} (${RODZAJ_WZM[r.orient] || r.orient})`;
+        const wys = lv.y1 - lv.y0;
+        const rh = Math.max(0, Math.round(r.h || 0));
+        if (r.orient !== "shelf" && rh > wys + 0.5)
+          add("error", `${co} ma ${fmt(rh)} mm wysokości, a poziom ma ${fmt(Math.round(wys))} mm — wychodzi poza korpus. Najwyżej ${fmt(Math.round(wys))} mm.`);
+        const rAt = Math.max(0, Math.round(r.atDepth || 0));
+        const gleb = r.orient === "front" ? t : Math.max(0, Math.round(r.depth || 0));
+        /* Od lica — do plecow (w srodku albo we frezie zabieraja glebokosc); od tylu
+           wzmocnienie i tak stoi przed nimi (`z0` wyzej), wiec liczy sie cala glebokosc. */
+        const odTylu = Math.max(rAt, r.fromBack ? backIntrusion : 0);
+        const dost = Math.round(carcassDepth - (r.fromBack ? 0 : backIntrusion));
+        const potrzeba = odTylu + gleb;
+        if (potrzeba > dost + 0.5) {
+          const od = r.fromBack ? "od tyłu" : "od lica";
+          const rada = r.orient === "front"
+            ? `głębokość ${od} najwyżej ${fmt(Math.max(0, dost - gleb))} mm`
+            : `przy ${fmt(rAt)} mm ${od} głębokość najwyżej ${fmt(Math.max(0, dost - odTylu))} mm, a przy głębokości ${fmt(gleb)} mm — najwyżej ${fmt(Math.max(0, dost - gleb))} mm ${od}`;
+          add("error", `${co} sięga ${fmt(potrzeba)} mm w głąb, a korpus ma ${fmt(dost)} mm${!r.fromBack && backIntrusion ? " do pleców" : ""} — wychodzi o ${fmt(potrzeba - dost)} mm poza korpus. Popraw: ${rada}.`);
+        }
+      });
 
       /* Front wpuszczany siedzi w otworze, w plaszczyznie lica. Wzmocnienie,
          ktore tam lezy (pod blatem roboczym: plaskie na gorze przy licu), jest
@@ -2742,7 +2783,11 @@ function computeGeoLiczy(cab, mat, ctx) {
                (bez wienca) na gorze lezy plaskie wzmocnienie przy licu, a wspornik
                zaczyna sie od lica: konczy sie pod nim (audyt macierzowy
                2026-10-04 — wchodzil w nie 18 mm). Tak samo z dolu. */
-            const wDrodze = (c.rails || []).filter((r) => r.orient !== "vertical" && r.z0 < sd);
+            /* Wspornik zajmuje glebokosc zaFixem … zaFixem + sd — przy fixie wpuszczanym
+               zaczyna sie za nim, wiec wzmocnienie 100 mm od lica wchodzilo w niego
+               18 mm, a liczylo sie tylko `z0 < sd` (audyt GPT N76). */
+            const wDrodze = (c.rails || []).filter((r) => r.orient !== "vertical"
+              && r.z0 < zaFixem + sd - 0.5 && r.z0 + (r.zLen || 0) > zaFixem + 0.5);
             const srodek = (lv.y0 + lv.y1) / 2;
             const sy0 = Math.max(lv.y0, ...wDrodze.filter((r) => r.y1 <= srodek).map((r) => r.y1));
             const sy1 = Math.min(lv.y1, ...wDrodze.filter((r) => r.y0 >= srodek).map((r) => r.y0));
@@ -4301,6 +4346,9 @@ function computeGeoLiczy(cab, mat, ctx) {
     }
     const front = opts.maskFront === "between" ? "between" : "over";
     const smat = shelfMat;
+    /* Scianki sa z plyty polek — ich grubosc `ts` liczy styki, naddatki i bryle;
+       bok korpusu (`farSideThickness`) zostaje swoj (audyt GPT N71). */
+    const t = ts;
     let count = 0;
     /* Scianki z polozeniem (x, z od tylu, y) — te same wymiary co formatki;
        bryla 3D rysuje dokladnie je. Dotad 3D mialo wlasna regule i w 80 z 96
@@ -4399,7 +4447,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         });
         if (c.drawers && c.drawers.length) {
           // wneka od tyłu zabiera glebokosc; szuflada nie miesci sie, gdy jej NL siega wneki
-          const maskT = cut.mask !== false ? t : 0; // zabudowa zabiera dodatkowa plyte
+          const maskT = cut.mask !== false ? ts : 0; // zabudowa zabiera dodatkowa plyte (z plyty polek)
           const freeDepth = onBack ? carcassDepth - cdp - maskT : carcassDepth;
           c.drawers.forEach((dr) => {
             const drNl = dr.nl || 0;
@@ -4430,6 +4478,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         { maskType: "L", maskFront: cut.maskFront, maskCorner: cut.maskCorner, farSideThickness: t });
       geoCut.maskChosen = r.type;
       geoCut.maskVisible = r.visible;
+      geoCut.maskWalls = r.sciany || [];
     } else {
       add("warn", `Wycięcie narożnika (${side}) nie ma zabudowy — otwór zostanie odsłonięty. Włącz maskownicę, jeśli ma być zakryty.`);
     }
@@ -4513,7 +4562,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           c.drawers.forEach((dr) => {
             const drNl = dr.nl || 0;
             if (!hitY(dr.y, dr.y + dr.h)) return;
-            const freeDepth = carcassDepth - oz1 - (ob.mask ? t : 0);
+            const freeDepth = carcassDepth - oz1 - (ob.mask ? ts : 0);
             const gap = Math.round(freeDepth - drNl);
             if (gap >= 4) return;
             const maxNlFit = [600, 550, 500, 450, 400, 350, 300, 270, 250]
@@ -4806,6 +4855,17 @@ function computeGeoLiczy(cab, mat, ctx) {
           : [plytaY + AMORTYZATOR_L, plytaY + AMORTYZATOR_L + KLAPA_MOC_ROZSTAW];
         const odPrzodu = KLAPA_PLYTKA_OD_KRAWEDZI + (d.inset ? tf : 0);
         const co = gora ? "podnośnik klapy" : "amortyzator klapy";
+        /* Plytka musi lezec na plycie w tym poziomie (bok, przegroda, wspornik) — nizej
+           albo wyzej jest juz plyta miedzy poziomami albo koniec boku. Klapa w dol
+           H200: srodek 263 mm, a bok ma 200 (audyt GPT N74); zamowienie bez uwagi. */
+        const potrzeba = (gora ? PODNOSNIK_H[typ][kat] : AMORTYZATOR_H) + KLAPA_PLYTKA_R;
+        const jest = Math.round(gora ? plytaY - lv.y0 : lv.y1 - plytaY);
+        if (jest < potrzeba) {
+          if (k) k.plytkaPoza = true;
+          add("error", `Poziom ${lv.i + 1}, kolumna ${d.colJ + 1}: klapa ${gora ? "do góry" : "w dół"} — płytka ${gora ? "podnośnika GTV PD-G00" : "amortyzatora GTV PD-ECGDL"} `
+            + `wypada poza płytą: jej środek jest ${fmt(gora ? PODNOSNIK_H[typ][kat] : AMORTYZATOR_H)} mm ${gora ? "pod płytą z zawiasami" : "nad płytą pod klapą"}, `
+            + `a do ${gora ? "dołu" : "góry"} poziomu jest ${fmt(jest)} mm. Potrzeba co najmniej ${fmt(potrzeba)} mm (z płytką) — podwyższ poziom o ${fmt(potrzeba - jest)} mm albo daj drzwi.`);
+        }
         /* Polka na drodze podnosnika (instrukcja PD-G00: polka min. 50 mm za
            frontem). Uzytkownik 2026-10-17: liczy sie tylko polka, ktora naprawde
            stoi tam, gdzie jest podnosnik — od plytki na boku do mocowania na
@@ -5085,9 +5145,13 @@ function computeGeoLiczy(cab, mat, ctx) {
        zaokraglona na szafce zanizala zbiorcza (3 × 0,42 zamiast 1,27 m²).
        Liczba sztuk sumuje sie przy scalaniu (`sztuk` + `specSzt`) — wczesniej
        zbiorcze mowilo „× 1 szt.” przy trzech lustrach (audyt GPT N20). */
-    const specSzt = `${fmt(b2)} × ${fmt(a2)} mm × {n} szt. — luz 0,5 mm na każdą stronę drzwi`;
+    /* Grubosc lustra (4 / 6 mm) to inny produkt — zmienia mase frontu i liczbe
+       zawiasow, wiec w zamowieniu osobny wiersz (audyt GPT N80: 4 i 6 mm scalaly sie). */
+    const grLustra = fmt((mat.mirror || {}).thickness || 4);
+    const specSzt = `${grLustra} mm, ${fmt(b2)} × ${fmt(a2)} mm × {n} szt. — luz 0,5 mm na każdą stronę drzwi`;
     hardware.push({
       name: "Lustro na drzwiach",
+      wariant: `${grLustra} mm`,
       // lustro kupuje sie na metry, wiec podajemy powierzchnie, nie sztuki
       spec: specSzt.replace("{n}", qty),
       specSzt, sztuk: qty,
@@ -5147,7 +5211,8 @@ function computeGeoLiczy(cab, mat, ctx) {
     const gora = k.klapa === "gora";
     const co = gora ? "podnośnik" : "amortyzator";
     const kg1 = (v) => v.toFixed(1).replace(".", ",");
-    if (gora && k.h < KLAPA_MIN_KORPUS)
+    // plytka poza plyta — juz jest blad przy planie wiercen
+    if (gora && k.h < KLAPA_MIN_KORPUS && !k.plytkaPoza)
       add("warn", `${k.where}: klapa do góry ma tylko ${fmt(k.h)} mm wysokości — podnośnik GTV potrzebuje co najmniej ${KLAPA_MIN_KORPUS} mm korpusu na boku.`);
     if (!k.recznie && k.dobor.poza)
       add("warn", `${k.where}: klapa ${fmt(k.h)} mm jest wyższa niż 600 mm — poza tabelą ${k.dobor.tabela}. Siłę ${k.sila ? `${k.sila} N ` : ""}przyjęto jak dla 600 mm; sprawdź u producenta albo wybierz ją z listy przy klapie.`);
@@ -5456,6 +5521,18 @@ function computeGeoLiczy(cab, mat, ctx) {
 
   // wkretow do zawiasow i prowadnic nie liczymy — ida w komplecie z okuciem
 
+  /* Plecy w kolumnach (`plecyKolumn`) — kazda plyta przybijana po swoim obwodzie:
+     HDF zszywkami, plyta wkretami; brak plyt — brak mocowan. Dotad liczylo sie
+     z globalnych pleców i obwodu szafki (audyt GPT N81: HDF w kolumnie bez
+     zszywek, globalne HDF i kolumny „brak” — 27 zszywek do niczego). */
+  if (plecyKolumn) {
+    [["hdf", "Zszywka / gwoździk do pleców"], ["board", "Wkręt 3,5 × 30 do pleców"]].forEach(([mode, name]) => {
+      const ile = plecyKolumn.filter((p) => p.mode === mode)
+        .reduce((n, p) => n + Math.ceil((2 * ((p.x1 - p.x0) + (p.y1 - p.y0))) / 100), 0);
+      if (ile) hardware.push({ name, use: "plecy przybijane po obwodzie, co ok. 100 mm",
+        spec: "co ok. 100 mm po obwodzie (plecy w kolumnach)", qty: ile, unit: "szt." });
+    });
+  } else
   // plecy przybijane — we frezie trzymaja sie same
   if (hasBack && !grooved) {
     const per = 2 * (W + H);
@@ -6703,57 +6780,15 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
 /* Zabudowa wyciecia i bryly kolizyjnej w rzucie z gory. Te same scianki ida na
    formatki, wiec musza byc widoczne i przy pojedynczej szafce, i w rzucie ciagu
    czy calej zabudowy — dlatego rysunek siedzi w jednym miejscu. */
-const CutMaskTop = ({ gc, t, color }) => {
-  if (!gc.mask) return null;
-  const rx = gc.bx0, ry = gc.bz0;
-  const rw = gc.bx1 - gc.bx0, rh = gc.bz1 - gc.bz0;
-  const vVisible = gc.maskVisible === "vertical";
-  // scianki NA ZEWNATRZ otworu; czolo dochodzi do lica boku
-  const sideFace = gc.onLeft ? rx + t : rx + rw - t;
-  const vx = gc.onLeft ? rx + rw : rx - t;
-  const hy = gc.onBack ? ry + rh : ry - t;
-  const vy = vVisible ? (gc.onBack ? ry : ry - t) : ry;
-  const vh = vVisible ? rh + t : rh;
-  const hx0 = gc.onLeft ? sideFace : (vVisible ? rx : rx - t);
-  const hx1 = gc.onLeft ? (vVisible ? rx + rw : rx + rw + t) : sideFace;
-  const hx = Math.min(hx0, hx1);
-  const hw = Math.abs(hx1 - hx0);
-  return (
-    <>
-      <rect x={vx} y={vy} width={t} height={vh} fill={color} stroke={INK} strokeWidth="2" />
-      <rect x={hx} y={hy} width={hw} height={t} fill={color} stroke={INK} strokeWidth="2" />
-    </>
-  );
-};
-
-const ObsMaskTop = ({ o, t, W, color }) => {
-  if (!o.mask || !o.maskChosen) return null;
-  const rx = o.ox0, ry = o.oz0, rw = o.ow, rh = o.od;
-  const needL = !o.touchLeft, needR = !o.touchRight;
-  const needBack = !o.touchBack, needFront = !o.touchFront;
-  const vVisible = o.maskVisible === "vertical";
-  const isU = o.maskChosen === "U";
-  const frontBetween = o.maskFront === "between";
-  // czolo konczy sie na licu boku, gdy bryla dotyka boku
-  const hx0 = o.touchLeft ? (o.boundL ?? t)
-    : isU ? (frontBetween ? rx : rx - t)
-    : (needL && !vVisible ? rx - t : rx);
-  const hx1 = o.touchRight ? (o.boundR ?? W - t)
-    : isU ? (frontBetween ? rx + rw : rx + rw + t)
-    : (needR && !vVisible ? rx + rw + t : rx + rw);
-  // przy czole miedzy bokami scianki wychodza przed nie o jego grubosc
-  const eB = needBack && (isU ? frontBetween : vVisible) ? t : 0;
-  const eF = needFront && (isU ? frontBetween : vVisible) ? t : 0;
-  const walls = [];
-  if (needL) walls.push({ x: rx - t, y: ry - eB, w: t, h: rh + eB + eF });
-  if (needR) walls.push({ x: rx + rw, y: ry - eB, w: t, h: rh + eB + eF });
-  if (needBack) walls.push({ x: hx0, y: ry - t, w: hx1 - hx0, h: t });
-  if (needFront) walls.push({ x: hx0, y: ry + rh, w: hx1 - hx0, h: t });
-  return walls.map((w, i) => (
-    <rect key={"ow" + i} x={w.x} y={w.y} width={w.w} height={w.h}
-      fill={color} stroke={INK} strokeWidth="2" />
-  ));
-};
+/* Scianki to dokladnie te z formatek (`maskWalls` z `buildEnclosure`: x, z od tylu)
+   — z grubosci plyty zabudowy; wczesniej rzut mial wlasna regule z grubosci
+   korpusu (audyt GPT N71). */
+const ScianyZabudowyTop = ({ walls, color }) => (walls || []).map((w, i) => (
+  <rect key={"ow" + i} x={w.x0} y={w.z0} width={w.x1 - w.x0} height={w.z1 - w.z0}
+    fill={color} stroke={INK} strokeWidth="2" />
+));
+const CutMaskTop = ({ gc, color }) => (gc.mask ? <ScianyZabudowyTop walls={gc.maskWalls} color={color} /> : null);
+const ObsMaskTop = ({ o, color }) => (o.mask && o.maskChosen ? <ScianyZabudowyTop walls={o.maskWalls} color={color} /> : null);
 
 /* Okucia widziane z gory — to, co pokazuje „Pokaz okucia" w rzucie szafki
    i zabudowy: uchwyty wystajace przed front, zawiasy na boku przy froncie
@@ -6996,7 +7031,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
             fill={ERRC} opacity="0.15" stroke={ERRC} strokeWidth="1.5" strokeDasharray="6 4" />
           {/* scianki zabudowy wyciecia — ida na formatki, wiec musza byc widoczne
               tak samo jak przy bryle kolizyjnej nizej */}
-          <CutMaskTop gc={gc} t={t} color={shc} />
+          <CutMaskTop gc={gc} color={shc} />
         </g>
       ))}
       {(geo.geoObs || []).map((o, oi) => (
@@ -7004,7 +7039,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
           <rect x={o.ox0} y={o.oz0} width={o.ow} height={o.od}
             fill="#7c3aed" opacity="0.28" stroke="#6d28d9" strokeWidth="1.5" strokeDasharray="5 4" />
           {/* scianki zabudowy — to one ida na formatki, wiec musza byc widoczne */}
-          <ObsMaskTop o={o} t={t} W={W} color={shc} />
+          <ObsMaskTop o={o} color={shc} />
           {o.name && o.ow > 120 && (
             <text x={o.ox0 + o.ow / 2} y={o.oz0 + o.od / 2 + 6} textAnchor="middle"
               fontSize="17" fill="#6d28d9" fontFamily="ui-monospace, monospace">{o.name}</text>
@@ -8288,7 +8323,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     /* Blat ciagu — plyta lezaca na wszystkim, co pod nia stoi, takze na ramieniu
        w rogu. W ukladzie ciagu z = 0 to lico, wiec blat wychodzi przed nie. */
     const rt = runTop(project, g.run);
-    if (rt) {
+    if (rt && !rt.zWlasnych) {
       const kolB = rt.worktop
         ? (rt.mat.worktop || {}).color || "#8d7b68"
         : (rt.mat.board || {}).color || "#d8c3a0";
@@ -9704,12 +9739,13 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
         // od tylu obraz jest lustrzany: mx(x, w)
         const xw = mx(gc.bx0, gc.bx1 - gc.bx0);
         // scianka pionowa stoi na zewnatrz otworu, po stronie wnetrza
-        const wallX = gc.onLeft ? gc.bx1 : gc.bx0 - t;
+        const te = geo.ts || t;   // plyta zabudowy (audyt GPT N71)
+        const wallX = gc.onLeft ? gc.bx1 : gc.bx0 - te;
         return (
           <g key={"cut" + ci}>
             <rect x={xw} y={fy(gc.cy1)} width={gc.bx1 - gc.bx0} height={gc.cutH}
               fill={ERRC} opacity="0.14" stroke={ERRC} strokeWidth="1.5" strokeDasharray="6 4" />
-            <rect x={mx(wallX, t)} y={fy(gc.cy1)} width={t} height={gc.cutH}
+            <rect x={mx(wallX, te)} y={fy(gc.cy1)} width={te} height={gc.cutH}
               fill={shc} stroke={INK} strokeWidth="2" opacity="0.9" />
             <text x={xw + (gc.bx1 - gc.bx0) / 2} y={fy((gc.cy0 + gc.cy1) / 2)} textAnchor="middle"
               style={kz > 1 ? { "--k": kMaly(kz, 18, `wycięcie ${fmt(gc.cw)}×${fmt(gc.cdp)}`, gc.bx1 - gc.bx0 - 10) } : undefined}
@@ -10191,7 +10227,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           <g key={"cut" + ci}>
             <rect x={rx} y={ry} width={rw} height={rh}
               fill={ERRC} opacity="0.15" stroke={ERRC} strokeWidth="1.5" strokeDasharray="6 4" />
-            <CutMaskTop gc={gc} t={t} color={smat} />
+            <CutMaskTop gc={gc} color={smat} />
             {showDims && (
               <>
                 {/* szerokosc na zewnatrz otworu: przy tylnej scianie gdy otwor z tyłu, inaczej przy licu */}
@@ -10204,7 +10240,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
                   label={`${fmt(gc.cdp)}`} left={gc.onLeft} c={ERRC} />
                 {/* wolna glebokosc od czola zabudowy do lica */}
                 {(() => {
-                  const mt = gc.mask ? t : 0;
+                  const mt = gc.mask ? geo.ts || t : 0;
                   const zEnd = gc.bz1 + mt;
                   const free = Math.round(cd - zEnd);
                   if (free < 20) return null;
@@ -10225,7 +10261,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           <g key={"ob" + obIx}>
             <rect x={o.ox0} y={o.oz0} width={o.ow} height={o.od}
               fill="#7c3aed" opacity="0.28" stroke="#6d28d9" strokeWidth="1.5" strokeDasharray="5 4" />
-            <ObsMaskTop o={o} t={t} W={W} color={shc} />
+            <ObsMaskTop o={o} color={shc} />
             <text x={o.ox0 + o.ow / 2} y={o.oz0 + o.od / 2 + 6} textAnchor="middle"
               style={kz > 1 ? { "--k": kMaly(kz, 18, `${fmt(o.ow)}×${fmt(o.od)}`, o.ow - 10) } : undefined}
               fontSize="18" fill="#6d28d9" fontFamily="ui-monospace, monospace">
@@ -10294,7 +10330,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
         const cols = geo.levels[0]?.cols || [];
         const blockers = [];
         geo.geoCuts.forEach((gc) => {
-          const mt = gc.mask ? t : 0;
+          const mt = gc.mask ? geo.ts || t : 0;
           blockers.push({
             l: gc.onLeft ? gc.bx0 : gc.bx0 - mt,
             r: gc.onLeft ? gc.bx1 + mt : gc.bx1,
@@ -10302,7 +10338,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           });
         });
         (geo.geoObs || []).forEach((q) => {
-          const mt = q.mask ? t : 0;
+          const mt = q.mask ? geo.ts || t : 0;
           blockers.push({
             l: q.ox0 - (q.touchLeft ? 0 : mt),
             r: q.ox1 + (q.touchRight ? 0 : mt),
@@ -10748,7 +10784,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
             fill={ERRC} opacity="0.14" stroke={ERRC} strokeWidth="1.5" strokeDasharray="6 4" />
           {/* maskownica pozioma zamyka wneke */}
           {gc.mask && (
-            <rect x={xC + gc.cdp - geo.t} y={fy(gc.cy1)} width={geo.t} height={gc.cutH}
+            <rect x={xC + gc.cdp - geo.ts} y={fy(gc.cy1)} width={geo.ts} height={gc.cutH}
               fill={shc} stroke={INK} strokeWidth="2" opacity="0.9" />
           )}
         </g>
@@ -10761,11 +10797,11 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
             <rect x={xC + o.oz0} y={fy(o.oy1)} width={o.od} height={o.oy1 - o.oy0}
               fill="#7c3aed" opacity="0.3" stroke="#6d28d9" strokeWidth="1.5" strokeDasharray="5 4" />
             {o.mask && !o.touchFront && (
-              <rect x={xC + o.oz1} y={fy(o.maskTop ?? o.oy1)} width={geo.t} height={(o.maskTop ?? o.oy1) - o.oy0}
+              <rect x={xC + o.oz1} y={fy(o.maskTop ?? o.oy1)} width={geo.ts} height={(o.maskTop ?? o.oy1) - o.oy0}
                 fill={shc} stroke={INK} strokeWidth="2" />
             )}
             {o.mask && !o.touchBack && (
-              <rect x={xC + o.oz0 - geo.t} y={fy(o.maskTop ?? o.oy1)} width={geo.t} height={(o.maskTop ?? o.oy1) - o.oy0}
+              <rect x={xC + o.oz0 - geo.ts} y={fy(o.maskTop ?? o.oy1)} width={geo.ts} height={(o.maskTop ?? o.oy1) - o.oy0}
                 fill={shc} stroke={INK} strokeWidth="2" />
             )}
           </g>
@@ -11283,24 +11319,9 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki, blat, podswi
     // w 3D z=cd to tyl, a geometria bryly ma tyl przy oz=0 — odwracamy
     box(o.ox0, o.oy0, cd - o.oz1, o.ox1, o.oy1, cd - o.oz0, "#7c3aed", null, 0.45);
   });
-  geo.geoCuts.filter((gc) => gc.mask).forEach((gc) => {
-    const smat = shc;
-    // w 3D z=cd to TYL, geometria wneki ma tyl przy z=0 -> odwracamy: z3d = cd - z
-    const zf = (z) => cd - z;
-    const rx = gc.bx0, rw = gc.bx1 - gc.bx0;
-    const ry = gc.bz0, rh = gc.bz1 - gc.bz0;
-    const vVisible = gc.maskVisible === "vertical";
-    const sideFace = gc.onLeft ? rx + t : rx + rw - t; // lico boku od wnetrza
-    const vx0 = gc.onLeft ? rx + rw : rx - t;
-    const vz0 = vVisible ? (gc.onBack ? ry : ry - t) : ry;
-    const vz1 = vz0 + (vVisible ? rh + t : rh);
-    box(vx0, gc.cy0, zf(vz1), vx0 + t, gc.cy1, zf(vz0), smat);
-    // czolo — dochodzi do lica boku
-    const hz0 = gc.onBack ? ry + rh : ry - t;
-    const a0 = gc.onLeft ? sideFace : (vVisible ? rx : rx - t);
-    const a1 = gc.onLeft ? (vVisible ? rx + rw : rx + rw + t) : sideFace;
-    box(Math.min(a0, a1), gc.cy0, zf(hz0 + t), Math.max(a0, a1), gc.cy1, zf(hz0), smat);
-  });
+  // scianki zabudowy wyciecia — te z formatek (`maskWalls`), grubosc plyty zabudowy (audyt GPT N71)
+  geo.geoCuts.filter((gc) => gc.mask).forEach((gc) =>
+    (gc.maskWalls || []).forEach((w) => box(w.x0, w.y0, cd - w.z1, w.x1, w.y1, cd - w.z0, shc)));
   // scianki zabudowy elementu — dokladnie te z formatek (`maskWalls` z `buildEnclosure`)
   (geo.geoObs || []).filter((o) => o.mask && o.maskChosen).forEach((o) =>
     (o.maskWalls || []).forEach((w) => box(w.x0, w.y0, cd - w.z1, w.x1, w.y1, cd - w.z0, shc, null, 1, false, "zabudowa")));
@@ -12653,18 +12674,25 @@ const runTopLiczy = (project, run, bezRogu = false) => {
         worktop: true, rear: a.cab.cab.back !== "none" });
     });
   }
+  // szafki z wlasnym blatem — z nich material, grubosc i wysokosc blatu ciagu (audyt GPT N78, N79)
+  const zrodla = [];
   if (!(lvl && lvl.pod.length)) {
   list.forEach(({ it }, k) => {
     const geo = computeGeo(it.cab, it.mat);
-    if (geo.isBlat)
+    if (geo.isBlat) {
       spans.push({ x0: x + geo.topX0, x1: x + geo.topX1, depth: geo.blatDepth,
         worktop: geo.isWorktop,
         rear: it.cab.back !== "none" || geo.blat.overBack > 0 });
+      zrodla.push({ it, geo });
+    }
     x += geo.W;
     if (k < list.length - 1) x += gap;
   });
   }
   if (!spans.length) return null;
+  /* Wlasne blaty z roznych plyt (kolor, grubosc) nie lacza sie w jedna plyte —
+     kazda szafka zamawia swoj (uwaga w `worktopMsgs`). */
+  if (zrodla.length && !ramiona.length && new Set(zrodla.map(blatSzafkiKlucz)).size > 1) return null;
   /* Przy narożniku o koncu blatu decyduje rog, a nie wysuniecie blatu szafki:
      albo blat idzie nad rogiem, albo konczy sie przy boku sasiada. */
   const ext = (project.runs || []).some((r) => r.corner)
@@ -12690,20 +12718,27 @@ const runTopLiczy = (project, run, bezRogu = false) => {
   /* Blat roboczy tnie sie z gotowego odcinka, wiec jego granica jest dlugosc
      handlowa, a nie formatka plyty. */
   const worktop = spans.some((s) => s.worktop);
-  const mat0 = list.length ? list[0].it.mat : ramiona[0].cab.rawMat;
+  /* Blat roboczy ciagu — material pierwszej szafki ciagu (jak dotad); blat z wlasnych
+     blatow — szafki, ktora go ma, a nie pierwszej w ciagu (audyt GPT N79). */
+  const mat0 = zrodla.length ? zrodla[0].it.mat : list.length ? list[0].it.mat : ramiona[0].cab.rawMat;
+  const th = Math.round(worktop
+    ? (mat0.worktop || {}).thickness || 38
+    : (mat0.board || {}).thickness || 18);
   return {
     total, x0, worktop,
     /* Odcinki, ktore blat naprawde zakrywa — rysunek bierze je wprost, zeby
        plaszczyzna konczyla sie tam, gdzie konczy sie mebel pod nia. */
     spans: spans.map((s) => ({
       x0: Math.round(s.x0), x1: Math.round(s.x1), depth: Math.round(s.depth) })),
-    th: Math.round(worktop
-      ? (mat0.worktop || {}).thickness || 38
-      : (mat0.board || {}).thickness || 18),
+    th,
     /* Wysokosc lica, na ktorym blat lezy — elewacja rysuje go wlasnie stad.
-       Pas z samym ramieniem bierze ja z szafki, do ktorej ramie nalezy. */
+       Pas z samym ramieniem bierze ja z szafki, do ktorej ramie nalezy. Wlasny
+       blat jest w wysokosci szafki — lezy pod jej gora (bylo 0: blat na podlodze, N78). */
     y: lvl && lvl.pod.length ? lvl.y
-      : ramiona.length ? cabTopY(ramiona[0].cab.cab, ramiona[0].cab.geo) : 0,
+      : ramiona.length ? cabTopY(ramiona[0].cab.cab, ramiona[0].cab.geo)
+      : zrodla.length ? cabTopY(zrodla[0].it.cab, zrodla[0].geo) - th : 0,
+    // z wlasnych blatow szafek — te rysuja je same (3D), plyta ciagu tylko w zamowieniu
+    zWlasnych: zrodla.length > 0 && !ramiona.length,
     // konce ciete na 45 stopni — na formatce trzeba je zaznaczyc
     skos0: !!(ext && ext.skos0), skos1: !!(ext && ext.skos1),
     /* Lyzwa przy licu konczy sie tam, gdzie zaczyna sie front drugiego blatu —
@@ -12749,9 +12784,15 @@ const runTopLiczy = (project, run, bezRogu = false) => {
     /* Pas z samym ramieniem nie ma wlasnych szafek — material bierze wtedy
        od tej, do ktorej ramie nalezy. */
     mat: mat0,
-    grainMatters: list.length ? list[0].it.cab.grainMatters : ramiona[0].cab.cab.grainMatters,
+    grainMatters: zrodla.length ? zrodla[0].it.cab.grainMatters : list.length ? list[0].it.cab.grainMatters : ramiona[0].cab.cab.grainMatters,
     name: run.name,
   };
+};
+// plyta wlasnego blatu szafki: rodzaj (roboczy / z plyty), kolor i grubosc — rozne nie lacza sie w jedna
+const blatSzafkiKlucz = ({ it, geo }) => {
+  const mk = geo.isWorktop ? "worktop" : "board";
+  const m = migrateMat(it.mat)[mk] || {};
+  return `${mk}|${m.color || ""}|${m.thickness || ""}|${m.name || ""}`;
 };
 
 // rowne kawalki lacza sie w jedna pozycje zamowienia
@@ -13545,6 +13586,14 @@ const wallGapMsgs = (project, run) => {
 const worktopMsgs = (project, run) => {
   const out = [];
   if (!run) return out;
+  /* Wlasne blaty szafek w ciagu bez blatu roboczego lacza sie w jedna plyte ciagu —
+     ale tylko z tej samej plyty; rozne zostaja przy swoich szafkach (audyt GPT N79). */
+  if (!run.worktop) {
+    const wlasne = runJoints(project, run).list.map(({ it }) => ({ it, geo: computeGeo(it.cab, it.mat) })).filter((q) => q.geo.isBlat);
+    if (new Set(wlasne.map(blatSzafkiKlucz)).size > 1)
+      out.push({ level: "info", text: `Własne blaty szafek ciągu „${run.name}" (${listPl(wlasne.map((q) => `„${(q.it.cab.name || "").trim() || "bez nazwy"}"`))}) są z różnych płyt — `
+        + `każdy idzie do zamówienia ze swoją szafką, nie łączymy ich w jedną płytę ciągu.` });
+  }
   /* Pas za rogiem sam blatu nie ma wlaczonego, a mimo to lezy na nim blat nad
      ramieniem naroznika — jego szerokosc trzeba sprawdzic tak samo. */
   const rt = runTop(project, run);

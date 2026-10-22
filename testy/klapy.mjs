@@ -118,9 +118,13 @@ console.log('\n== ograniczenia z instrukcji GTV ==');
 await seed({ ...GORNA(600, { klapa: 'gora' }), items: [{ ...GORNA(600).items[0], cab: { ...GORNA(600, { klapa: 'gora' }).items[0].cab, H: 720 } }] });
 u = await uwagi();
 ok('klapa wyższa niż 600 → ostrzeżenie „poza tabelą GTV”', /poza tabelą GTV/.test(u));
-await seed({ ...GORNA(600, { klapa: 'gora' }), items: [{ ...GORNA(600).items[0], cab: { ...GORNA(600, { klapa: 'gora' }).items[0].cab, H: 250 } }] });
+await seed({ ...GORNA(600, { klapa: 'gora' }), items: [{ ...GORNA(600).items[0], cab: { ...GORNA(600, { klapa: 'gora' }).items[0].cab, H: 285 } }] });
 u = await uwagi();
 ok('klapa niższa niż 290 → ostrzeżenie o miejscu na podnośnik', /co najmniej 290 mm/.test(u));
+// H250: plytka podnosnika wypada pod bokiem — blad zamiast ostrzezenia (audyt GPT N74)
+await seed({ ...GORNA(600, { klapa: 'gora' }), items: [{ ...GORNA(600).items[0], cab: { ...GORNA(600, { klapa: 'gora' }).items[0].cab, H: 250 } }] });
+u = await uwagi();
+ok('klapa 250: płytka podnośnika poza płytą → błąd z radą, bez ostrzeżenia 290', /płytka podnośnika GTV PD-G00 wypada poza płytą/.test(u) && /podwyższ poziom o \d+ mm/.test(u) && !/co najmniej 290 mm/.test(u));
 
 console.log('\n== bryła 3D otwarta ==');
 await seed(GORNA(600, { klapa: 'gora' }));

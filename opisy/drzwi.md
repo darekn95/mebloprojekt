@@ -44,6 +44,7 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
   - z lewej, z prawej albo u góry, o szerokości w mm;
   - na korpusie albo wpuszczany;
   - opcjonalnie z wspornikiem pionowym (głębokość w mm), na którym wiszą zawiasy albo prowadnica.
+    - Wspornik stoi za fixem wpuszczanym (od grubości frontu w głąb); wzmocnienie leżące u góry albo u dołu, które wchodzi w jego głębokość, skraca go — wspornik stoi na nim / pod nim (formatka krótsza, audyt GPT N76).
 - **Blenda**: kolumna-wypełnienie bez drzwi, na korpusie albo wpuszczana.
 
 ## Kontrole i przyciski
