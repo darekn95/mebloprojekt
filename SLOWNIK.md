@@ -384,7 +384,7 @@ co do znaku (łącznie ze spacjami wokół „×").
 
 **Formatki:** Bok · Bok lewy · Bok prawy · Dno / wieniec · Blat · Blat roboczy ·
 Półka · Półka przelotowa · Przegroda pionowa · Wspornik pionowy · Blenda ·
-Blenda nad szafką · Klapa · Cokół · Cokół ciągu · Element stały (fix) ·
+Blenda nad szafką · Drzwi nakładane · Drzwi wpuszczane · Klapa · Cokół · Cokół ciągu · Element stały (fix) ·
 Front szuflady · Dno szuflady · Tył szuflady · Bok szuflady (DXS-3D) · Plecy HDF · Plecy HDF we frezie ·
 Plecy z płyty (na zewnątrz) · Plecy z płyty (wewnątrz) ·
 Kątownik przy ramieniu — bok · Kątownik przy ramieniu — plecy ·
