@@ -36,11 +36,11 @@ Liczby katalogowe obu systemów są dla płyty 18 mm.
 
 ### Kontrole i przyciski
 - **Luz między frontami**:
-  - 0 lub mniej — błąd;
-  - 1 mm — ostrzeżenie;
+  - 0 lub mniej — błąd z „Zwiększ luz do 2 mm”;
+  - 1 mm — ostrzeżenie z tym samym przyciskiem;
   - więcej niż „Ostrzegaj powyżej” (5 mm) — błąd z przyciskiem;
   - przy równym podziale fronty różniące się o 1–2 mm — ostrzeżenie z przyciskami zmiany luzu.
-- **Fronty nie wypełniają pasma** (wpisane ręcznie) — błąd.
+- **Fronty nie wypełniają pasma** (wpisane ręcznie) — błąd z „Podziel fronty równo” (wpisane wysokości wracają na auto).
 - **Szuflada się nie mieści** (żadna wysokość skrzynki nie wchodzi) — błąd z przyciskami „Zmniejsz do N szuflad” (zostają dolne, fronty dzielą się od nowa) i „Zmień na DXS-3D”. Każdy przycisk pokazuje się tylko wtedy, gdy usuwa błąd.
 - **Za mało luzu nad bokiem** (< 5 mm) — błąd z przyciskiem niższego boku, jeśli taki się zmieści.
 - **NL**:
@@ -127,4 +127,4 @@ Liczby katalogowe obu systemów są dla płyty 18 mm.
 - **Obliczenia**: `computeGeo`, kolumna szuflad (gałąź V-BOX, `szufladaDxs`); stałe `VBOX`, `DXS`, `SZUFLADA_ZAPAS`, `BACK_CLEAR`, `MIN_DOCIECIE`.
 - **Interfejs**: `setColKind`, `addDrawer`, `setDrawerSystem`; przyciski w `NoteLine` (`fixh`, `fixnl`, `fixback`, `szufmniej`, `szufdxs`, `szufsys`, `reling…`, `zwieksz60`) i `przyciskiSzuflad` w `App`.
 - **Rysunki i 3D**: `szufladaOdCzola`, `szufladaZGory`, `szerWnetrzaSzuflady`; bryła 3D `skrzynkaBryly`, wysuw `wysuwSzuflady`.
-- **Testy**: `szuflady`, `dxs`, `audytszuflad` (klikane jak użytkownik), `tylkol`, `bokszuf`, `audytwierc` (plan wierceń V-BOX), `ruchy`, `audytmacierz`.
+- **Testy**: `macierzszuflad` (317 układów, każdy przycisk naprawy sprawdzany), `szuflady`, `dxs`, `audytszuflad` (klikane jak użytkownik), `tylkol`, `bokszuf`, `audytwierc` (plan wierceń V-BOX), `ruchy`, `audytmacierz`.

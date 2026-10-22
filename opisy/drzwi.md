@@ -18,6 +18,7 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
   - Tabela obowiązuje dla frontu do 600 mm szerokości. Szafka narożna ze skrzydłami łamanymi ma ostrzejszą tabelę (do 450 mm, do 15 kg).
   - Waga: płyta frontu 680 kg/m³ plus lustro (szkło 2500 kg/m³).
 - **Rozstaw zawiasów**: środek 100 mm od górnej i dolnej krawędzi frontu, reszta równo.
+  - Gdy przy 100 mm zawiasy wypadłyby bliżej niż ich wysokość (55 mm) — przy dwóch zawiasach front niższy niż ok. 255 mm — rozkładają się na całą wysokość frontu (środek 27,5 mm od krawędzi).
   - Zawias, który trafia na półkę albo wzmocnienie przy licu, jest przesuwany nad nią lub pod nią z luzem 30 mm.
   - Przesunięte zawiasy idą do notatki montażowej w PDF.
 - **Strona zawiasów** przy jednych drzwiach, po kolei:

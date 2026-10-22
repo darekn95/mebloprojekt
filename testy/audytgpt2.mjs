@@ -137,9 +137,14 @@ await seed(proj([{ cab: cab({ realColors: true, top: { mode: 'blat', material: '
 }
 
 console.log('\n== N18: dwa zawiasy w jednym miejscu ==');
-await seed(proj([{ cab: cab({ H: 250, plinth: { on: false }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: Array(6).fill(null) }] }] }) }]));
+/* H250 z 5 polkami bylo tu dawniej: dwa zawiasy staly 100 mm od krawedzi i 45 mm od siebie.
+   Od 2026-10-22 front 201–254 mm rozklada je na cala wysokosc (jak front do 200) i tam
+   sie mieszcza — przyklad bledu to teraz H300 z 6 polkami (macierz szuflad). */
+await seed(proj([{ cab: cab({ H: 300, plinth: { on: false }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: Array(7).fill(null) }] }] }) }]));
 u = await uwagi();
-ok('H250, 5 półek: błąd „zawiasy nie mieszczą się między półkami”', /skrzydło 1: 2 zawiasy nie mieszczą się między półkami — po ich ominięciu wypadają w jednym miejscu/.test(u), linie(u, /zawias/));
+ok('H300, 6 półek: błąd „zawiasy nie mieszczą się między półkami”', /skrzydło 1: 2 zawiasy nie mieszczą się między półkami — po ich ominięciu wypadają w jednym miejscu/.test(u), linie(u, /zawias/));
+await seed(proj([{ cab: cab({ H: 250, plinth: { on: false }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }) }]));
+ok('front ok. 245 mm bez półek: dwa zawiasy na całej wysokości, bez tego błędu', !/nie mieszczą się między półkami/.test(await uwagi()));
 await seed(proj([{ cab: cab({ levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null] }] }] }) }]));
 ok('zwykła szafka 720 z 2 półkami: bez tego błędu', !/nie mieszczą się między półkami/.test(await uwagi()));
 

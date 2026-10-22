@@ -18,6 +18,9 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - W szafce narożnej przednie jest pionowe i cofnięte o grubość frontu, a tylne odsunięte o grubość płyty — dochodzi do kątownika.
   - Para zawsze siedzi w najwyższym poziomie, także po zmianach struktury.
 - **Wzmocnienie stojące przy plecach** na wysokości szuflady skraca jej NL; to przy licu — wysokość boku skrzynki.
+- **Tylne wzmocnienie przy wycięciu i rurze** (decyzja użytkownika 2026-10-22):
+  - wycięcie tylnego narożnika — wzmocnienie jest krótsze i kończy się na ściance wycięcia;
+  - element kolizyjny (rura) — wzmocnienie stoi przed nim i dalej idzie od boku do boku.
 - **Plecy**:
   - **HDF** nabijany z tyłu — zszywki / gwoździki;
   - **HDF we frezie** — wręg od tyłu w bokach, wieńcu i dnie, domyślnie 16 × 3 mm, zlicowany z tyłem;

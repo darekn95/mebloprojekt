@@ -754,8 +754,11 @@ function hingePositions(y0, h, n, obstacles) {
   const hi = y0 + h - half;
   let b = y0 + HINGE_REF;
   let t = y0 + h - HINGE_REF;
-  if (t <= b) {
-    // front za niski na referencyjne 100 mm — rozkladamy na calej wysokosci
+  /* Front za niski na referencyjne 100 mm — rozkladamy na calej wysokosci. Takze
+     wtedy, gdy przy 100 mm zawiasy wypadlyby blizej niz ich wysokosc: front
+     201–254 mm dostawal dwa zawiasy 1–54 mm od siebie i blad „wypadaja w jednym
+     miejscu”, a 200 mm byl w porzadku (macierz szuflad 2026-10-22). */
+  if (n > 1 ? (t - b) / (n - 1) < HINGE_H : t <= b) {
     b = lo;
     t = hi;
   }
@@ -2333,8 +2336,9 @@ function computeGeoLiczy(cab, mat, ctx) {
         // wysokosc wyciecia: cala szafka albo jeden poziom — jak w `processCutout`
         const li = Math.min(Math.max(0, Math.round(cu.levelIndex || 0)), levels.length - 1);
         const pelne = cu.fullHeight !== false || levels.length <= 1;
+        // `sciana` — scianka boczna zabudowy stoi tuz za krawedzia wyciecia (x cw … cw + t)
         backBlocks.push({ x0: onL ? 0 : W - cwv, x1: onL ? cwv : W, free: carcassDepth - cdv - maskT,
-          y0: pelne ? -Infinity : levels[li].y0, y1: pelne ? Infinity : levels[li].y1 });
+          y0: pelne ? -Infinity : levels[li].y0, y1: pelne ? Infinity : levels[li].y1, rodzaj: "wyciecie", sciana: maskT });
       }
     });
     const preList = (Array.isArray(cab.obstacles) && cab.obstacles.length
@@ -2350,7 +2354,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         const pelny = obs.fullHeight !== false;
         const y0 = pelny ? -Infinity : Math.round(obs.fromBottom || 0) + interior.y0;
         backBlocks.push({ x0, x1: x0 + ow, free: carcassDepth - (fb + od) - maskT,
-          y0, y1: pelny ? Infinity : y0 + Math.max(0, Math.round(obs.h || 0)) });
+          y0, y1: pelny ? Infinity : y0 + Math.max(0, Math.round(obs.h || 0)), rodzaj: "element" });
       }
     });
   }
@@ -2478,7 +2482,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         /* Przy plecach we frezie (albo z plyty wewnatrz) tylne wzmocnienie stoi
            przed nimi — wczesniej wchodzilo w HDF na jego grubosc (test losowych
            edycji 2026-10-04). */
-        const z0 = przyTyle
+        let z0 = przyTyle
           ? Math.max(0, carcassDepth - Math.max(rAt, zaKatownikiem, backIntrusion) - zLen) : rAt;
         const cw = c.x1 - c.x0;
         /* Od strony ramienia wzmocnienie konczy sie na wewnetrznym licu
@@ -2486,10 +2490,27 @@ function computeGeoLiczy(cab, mat, ctx) {
            o grubosc plecow. */
         const doKatownika = postSide === "right" ? W - t - postBack : null;
         const odKatownika = postSide === "left" ? t + postBack : null;
-        const rx0 = przyTyle
+        let rx0 = przyTyle
           ? Math.max(c.x0, odKatownika ?? c.x0) : Math.max(c.x0, licoOd);
-        const rx1 = przyTyle
+        let rx1 = przyTyle
           ? Math.min(c.x1, doKatownika ?? c.x1) : Math.min(c.x1, licoDo);
+        /* Wyciecie tylnego naroznika i element kolizyjny (rura) na drodze tylnego
+           wzmocnienia (szafka pod blatem) — dotad szlo przez nie na cala szerokosc.
+           Decyzja uzytkownika 2026-10-22: przy wycieciu krotsze, do jego scianki;
+           przy elemencie — przed nim, dalej od boku do boku. */
+        if (przyTyle) {
+          const ryA = r.orient === "shelf" ? (r.pos === "bottom" ? kLo : kHi - t) : (r.pos === "bottom" ? kLo : kHi - rh);
+          const ryB = r.orient === "shelf" ? ryA + t : ryA + rh;
+          const naDrodze = (b) => Math.min(b.x1, rx1) - Math.max(b.x0, rx0) > 0
+            && Math.min(b.y1 ?? Infinity, ryB) - Math.max(b.y0 ?? -Infinity, ryA) > 0 && z0 + zLen > b.free;
+          backBlocks.filter((b) => b.rodzaj === "wyciecie" && naDrodze(b)).forEach((b) => {
+            if (b.x0 <= rx0 + 1) rx0 = Math.max(rx0, b.x1 + b.sciana);
+            else rx1 = Math.min(rx1, b.x0 - b.sciana);
+          });
+          backBlocks.filter((b) => b.rodzaj === "element" && naDrodze(b)).forEach((b) => {
+            z0 = Math.max(0, Math.min(z0, b.free - zLen));
+          });
+        }
         const rw = Math.max(0, rx1 - rx0);
         if (r.orient === "shelf") {
           const ry = r.pos === "bottom" ? kLo : kHi - t;
@@ -3082,10 +3103,12 @@ function computeGeoLiczy(cab, mat, ctx) {
       const drGap = num(rawCol.gapBetween) ?? g.between;
       c.gapBetween = drGap;
       if (ds.length > 1) {
+        // przycisk: luz jak w karcie „Luzy drzwi” (min. 2 mm) — macierz szuflad 2026-10-22, bylo bez przycisku
+        const luz2 = `|fixgap:${lv.i}:${j}:${Math.max(2, Math.min(g.between, cab.maxGap))}:up`;
         if (drGap <= 0)
-          add("error", `${where}: luz między szufladami ${fmt(drGap)} mm — fronty się stykają, potrzeba minimum 2 mm.`);
+          add("error", `${where}: luz między szufladami ${fmt(drGap)} mm — fronty się stykają, potrzeba minimum 2 mm.${luz2}`);
         else if (drGap === 1)
-          add("warn", `${where}: luz między szufladami tylko 1 mm — zalecane 2 mm, żeby fronty się nie ocierały.`);
+          add("warn", `${where}: luz między szufladami tylko 1 mm — zalecane 2 mm, żeby fronty się nie ocierały.${luz2}`);
         /* Za duzy luz miedzy szufladami — jak miedzy drzwiami w kolumnie: blad,
            o ile za duzo. Wciecie na palce skraca sam front i tu sie nie liczy
            (audyt GPT N67: 100 mm przechodzilo bez slowa). */
@@ -3098,7 +3121,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       if (fr.diff !== 0)
         add(
           "error",
-          `${where}: wysokości frontów szuflad nie zgadzają się o ${fmt(Math.abs(fr.diff))} mm.`
+          `${where}: wysokości frontów szuflad nie zgadzają się o ${fmt(Math.abs(fr.diff))} mm.|frontyauto:${lv.i}:${j}`
         );
       // podpowiedz wyrownania, gdy rowny podzial daje rozne fronty o 1-2 mm
       const autoFronts = ds.filter((d) => num(d.front) === null).length;
@@ -11586,6 +11609,13 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const [, li, j, val, dir] = action.split(":");
       const verb = dir === "down" ? "Zmniejsz" : "Zwiększ";
       return { label: `${verb} luz do ${val} mm`, run: () => editLevels((L) => (L[+li].cols[+j].gapBetween = +val)) };
+    }
+    // „frontyauto:<poziom>:<kolumna>” — wpisane wysokosci frontow szuflad nie wypelniaja pasma: wszystkie na auto
+    if (action.startsWith("frontyauto:")) {
+      const [, li, j] = action.split(":");
+      return { label: "Podziel fronty równo", run: () => editLevels((L) => {
+        (L[+li].cols[+j].drawers || []).forEach((d) => { d.front = null; });
+      }) };
     }
     if (action.startsWith("fixback:")) {
       const [, li, j, k, val] = action.split(":");
