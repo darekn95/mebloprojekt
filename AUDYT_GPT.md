@@ -21,7 +21,7 @@ Aktualizacja: 21.10.2026. Lista obejmuje potwierdzone uwagi pozostałe po reteś
 
 
 
-## Nowy audyt 21.10.2026 — N69–N80
+## Nowy audyt 21.10.2026 — N69–N81
 
 Sprawdzona wersja: main `21b31ce1db3e2f0a5b1afe748e1a8e71f3e6c8c6`, plik `szafki.jsx` (blob `b2d4271da583cc43c47ba41681a1a65f99445562`). Poniższe przypadki potwierdzono przez wykonanie funkcji obliczeń i generowania brył z tej wersji oraz analizę odpowiadających im miejsc w kodzie. Testy syntetyczne, bez zmiany projektu użytkownika. Nie jest to deklaracja przetestowania wszystkich ekranów ani nowy audyt PDF.
 
@@ -210,9 +210,29 @@ Zamówienie projektu zawiera tylko jedną płytę „Blat ciągu” 600 × 560 m
 **Kryterium naprawy:** przekazywać grubość lustra do jego specyfikacji i klucza wariantu zamówienia; lustra 4 i 6 mm muszą pozostać rozróżnione. Lustra tej samej grubości nadal sumować prawidłowo według rozmiarów i powierzchni. Zachować poprawki liczby tafli i dokładnej powierzchni z N20.
 
 
+### N81 [P2] Mocowania pleców ignorują ustawienia kolumn
+
+**Sprawdzona wersja:** 22.10.2026, `szafki.jsx` nadal blob `b2d4271da583cc43c47ba41681a1a65f99445562`. Potwierdzone wykonaniem `computeGeo`, `projectParts` i `scalOkucia` na syntetycznych konfiguracjach.
+
+**Odtworzenie:** szafka 600 × 720 mm, dwie puste kolumny, bez zawieszek. Globalnie „Plecy: brak”, w pierwszej kolumnie wybrać HDF, w drugiej pozostawić brak.
+
+**Wynik:** zamówiona jest formatka „Plecy HDF” 299 × 718 mm, opisana jako przybijana, ale w zamówieniu nie ma żadnych gwoździków/zszywek do jej zamocowania. Analogicznie przy płycie w kolumnie nie ma wkrętów do pleców. Oba przypadki nie mają uwag.
+
+**Dodatkowe kontrole tego samego błędu:**
+- Globalne HDF, w kolumnach płyta + HDF: zamawiane jest 27 gwoździków/zszywek, lecz brak wkrętów do rzeczywistej płyty.
+- Globalne HDF, obie kolumny „brak”: nie ma żadnej formatki pleców, mimo to zamawiane jest 27 gwoździków/zszywek.
+- Kontrola: zwykłe pełne HDF bez nadpisania kolumn ma formatkę i 27 mocowań.
+
+**Przyczyna:** lista `plecyKolumn` i formatki respektują `backMode` kolumn (okolice 3775–3813), ale generowanie mocowań (okolice 4957–4966) korzysta wyłącznie z globalnych `hasBack`, `backIsBoard`, `grooved` oraz obwodu całej szafki. Nie liczy istniejących płyt kolumn i ich materiału.
+
+**Wpływ:** produkty do zakupu nie odpowiadają zamawianym plecom: brakuje właściwych mocowań albo kupowane są mocowania do nieistniejącego elementu. To problem kompletności zamówienia, odrębny od N73 dotyczącego zajętej głębokości i ustawienia przy ścianie.
+
+**Kryterium naprawy:** liczyć typ i ilość mocowań z rzeczywistych płyt pleców oraz ich sposobu montażu, w tym nadpisań kolumn i poziomów. Płyta wymaga właściwych wkrętów, HDF odpowiednich mocowań, brak płyt oznacza brak mocowań. Sprawdzić także globalny frez z dzielonymi plecami przybijanymi; nie przyjmować nowego rozstawu montażowego bez uzgodnienia.
+
+
 ---
 
-Nowe otwarte zgłoszenia: N69–N80; PDF-1 pozostaje. N74–N76 potwierdzono w funkcjach obliczeń i generowanej geometrii aktualnego źródła (blob `b2d4271da583cc43c47ba41681a1a65f99445562`), na konfiguracjach syntetycznych. Projekt użytkownika pozostał bez zmian. Test rozkroju 886 650 zestawów nie wykazał naruszeń sprawdzanych własności: liczby/wymiarów formatek, obrotu przy zakazie, granic arkusza, nakładania i odstępów rzazu. Nie jest to gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
+Nowe otwarte zgłoszenia: N69–N81; PDF-1 pozostaje. N74–N76 potwierdzono w funkcjach obliczeń i generowanej geometrii aktualnego źródła (blob `b2d4271da583cc43c47ba41681a1a65f99445562`), na konfiguracjach syntetycznych. Projekt użytkownika pozostał bez zmian. Test rozkroju 886 650 zestawów nie wykazał naruszeń sprawdzanych własności: liczby/wymiarów formatek, obrotu przy zakazie, granic arkusza, nakładania i odstępów rzazu. Nie jest to gwarancja optymalnego rozkroju ani pełnej poprawności aplikacji.
 
 
 
