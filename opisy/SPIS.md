@@ -18,9 +18,9 @@ Zmieniasz zasadę albo liczbę opisaną tutaj, popraw opis w tej samej zmianie.
 |---|---|---|
 | [szuflady.md](szuflady.md) | szuflady V-BOX i DXS-3D: fronty, boki, NL, skrzynki, kontrole, zamówienie, plan wierceń | 2026-10-22 |
 | [klapy.md](klapy.md) | klapy do góry i w dół: zawiasy, podnośnik / amortyzator, siła, uchwyt, otwieranie, plan wierceń | 2026-10-22 |
-| drzwi i zawiasy | liczba zawiasów (tabela GTV), strona, rozstaw, luzy, fix | do napisania |
-| poziomy, kolumny, półki | podział wnętrza, „→ poziom”, usuwanie, półki i ich mocowanie | do napisania |
-| korpus, wzmocnienia, blat | wieniec / wzmocnienia, para pod blat, blat roboczy, plecy | do napisania |
+| [drzwi.md](drzwi.md) | drzwi i zawiasy: liczba (tabela GTV), strona, rozstaw, luzy, fix, blenda, otwieranie | 2026-10-22 |
+| [poziomy.md](poziomy.md) | poziomy, kolumny, półki: podział wnętrza, „→ poziom”, usuwanie, głębokość i mocowanie półek | 2026-10-22 |
+| [korpus.md](korpus.md) | korpus, złącza, wzmocnienia (para pod blat), plecy i frez, wieniec / blat z płyty, blat roboczy | 2026-10-22 |
 | ciągi i narożniki | ciąg, ślepy róg, szafka w L, wstawka, górny ciąg | do napisania |
 | cokół i nóżki | cokół ciągu i szafki, nóżki | do napisania |
 | formatki i oklejanie | nazwy, wymiary, reguła 60 / 30 mm, okleina | do napisania |

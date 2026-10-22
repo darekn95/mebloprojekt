@@ -52,7 +52,7 @@ Liczby katalogowe obu systemów są dla płyty 18 mm.
 - **Różne systemy**:
   - w szafce — ostrzeżenie z „Wszystkie szuflady szafki na …” / „Zostaw różne systemy”;
   - szafka inna niż ciąg / pomieszczenie — ostrzeżenie z „Zostaw tak”.
-- **Wysuw** (kontrola ruchu w zabudowie): wysunięta szuflada nie może trafić w blat, korpus sąsiada (ślepy róg) ani inny front.
+- **Wysuw** (błąd, kontrola ruchu w zabudowie): wysunięta szuflada nie może trafić w blat, korpus sąsiada (ślepy róg) ani inny front → „nie wysunie się do końca … wysunie się tylko N z M mm”.
 - **Poziomy** po zmianach struktury nie wypełniają wnętrza — błąd z „Górny poziom na auto” / „Podziel poziomy równo”.
 
 ## V-BOX
