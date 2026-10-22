@@ -104,6 +104,8 @@ const scenariusz = async (tytul, cabLubProjekt, { spr = {} } = {}) => {
       : /^Półka przelotowa/.test(n) ? /^Półka przelotowa/
       // mocowanie podnosnika na klapie; w kilku kolumnach „Klapa — kolumna N”, formatka jedna
       : /^Klapa/.test(n) ? /^Klapa$/
+      // skrzynka DXS-3D: „Bok szuflady — szuflada 1 …” to formatka „Bok szuflady”
+      : /^(Bok|Tył|Dno) szuflady — /.test(n) ? new RegExp('^' + esc(n.split(' — ')[0]) + '$')
       : /^Cokół/.test(n) ? /Cokół/ : new RegExp('^' + esc(n) + '$');
     return formatki.some((f) => re.test(f)) || (/^Cokół/.test(n) && wCiagu);
   };

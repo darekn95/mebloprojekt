@@ -216,6 +216,8 @@ const DEFAULT_HW_PRICES = {
   "Amortyzator do klapy opadanej": 10,
   // komplet na szuflade, bez wzgledu na dlugosc (uzytkownik 2026-10-14)
   "Reling boczny do szuflady": 30,
+  // komplet prowadnic DXS-3D na szuflade, bez wzgledu na NL (uzytkownik 2026-10-21)
+  "Prowadnica Sevroll DXS-3D Synchro": 50,
   // GTV EM-SBL na styku blatow w rogu (uzytkownik 2026-10-16)
   "Złącze do blatów śrubowe": 9,
 };
@@ -337,13 +339,18 @@ const CORNER_L_ARM = CORNER_L_TOTAL - CORNER_L_D;
    glebokosci 300 — oba fronty ponad 250 mm, przy obu scianach ok. 650. */
 const CORNER_LG_W = 650;
 const CORNER_LG_ARM = 350;
-// ponizej tego boku formatki nie utnie sie na pile formatowej
+// ponizej tego boku formatki nie utnie sie na pile formatowej (i nie okleji)
 const MIN_PART = 60;
+/* Recznie da sie dociac formatke do 30 mm (uzytkownik 2026-10-21): wezsza — blad,
+   30–60 — ostrzezenie „docinam recznie” (zamowiona MIN_PART) albo „Zwieksz do 60 mm”. */
+const MIN_DOCIECIE = 30;
 /* Formatka do zamowienia (uzytkownik 2026-10-11): firma nie tnie bokow ponizej
    MIN_PART, wiec mniejszy bok idzie jako MIN_PART, a `dociac` pamieta wlasciwy
-   wymiar do recznego dociecia po odbiorze. Uwaga przy takiej formatce to blad
-   z pytaniem (moze to pomylka przy wpisywaniu), po potwierdzeniu — ostrzezenie.
-   Potwierdzone klucze leza w `cab.dociac` (szafka, ramie) albo `run.dociac` (cokol). */
+   wymiar do recznego dociecia po odbiorze. Od 2026-10-21 (uzytkownik): ponizej
+   MIN_DOCIECIE blad (recznie sie nie dotnie), 30–60 ostrzezenie z „Tak, docinam
+   recznie” i — gdzie wiadomo, ktore pole zmienic (`p.zw60`, skrzynka DXS) —
+   „Zwieksz do 60 mm”; po potwierdzeniu informacja. Potwierdzone klucze leza
+   w `cab.dociac` (szafka, ramie) albo `run.dociac` (cokol). */
 const malaFormatka = (p) => Math.min(p.a, p.b) > 0 && Math.min(p.a, p.b) < MIN_PART;
 const naZamowienie = (p) => (malaFormatka(p)
   ? { ...p, a: Math.max(MIN_PART, p.a), b: Math.max(MIN_PART, p.b), dociac: { a: p.a, b: p.b } } : p);
@@ -362,12 +369,15 @@ const maleFormatkiMsgs = (panels, potwierdzone, cel) => {
     byly.add(k);
     const wym = `${fmt(p.dociac.a)} × ${fmt(p.dociac.b)} mm`;
     const wymZ = `${fmt(p.a)} × ${fmt(p.b)} mm`;
+    const zw = p.zw60 ? `|zwieksz60:${p.zw60}` : "";
+    if (Math.min(p.dociac.a, p.dociac.b) < MIN_DOCIECIE)
+      return [{ level: "error", text: `Formatka „${p.name}” ma ${wym} — węższej niż ${fmt(MIN_DOCIECIE)} mm nie da się dociąć ręcznie, `
+        + `a firma nie tnie i nie okleja formatek węższych niż ${fmt(MIN_PART)} mm. Popraw wymiar.` + zw }];
     if ((potwierdzone || []).includes(k))
-      return [{ level: "warn", text: `Formatka „${p.name}” ${wym} do ręcznego docięcia: firma nie tnie formatek węższych niż `
+      return [{ level: "info", text: `Formatka „${p.name}” ${wym} do ręcznego docięcia (potwierdzone): firma nie tnie formatek węższych niż `
         + `${fmt(MIN_PART)} mm, więc w zamówieniu ${wymZ} — docięcie po odbiorze.` }];
-    return [{ level: "error", text: `Formatka „${p.name}” ma ${wym}, a firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm. `
-      + `Czy to nie pomyłka przy wpisywaniu wymiaru? Jeśli tak ma być — w zamówieniu zostanie ${wymZ}, `
-      + `a do ${wym} trzeba ją dociąć ręcznie po odbiorze.|dociacpanel:${cel}:${k}` }];
+    return [{ level: "warn", text: `Formatka „${p.name}” ma ${wym}, a firma nie tnie i nie okleja formatek węższych niż ${fmt(MIN_PART)} mm — `
+      + `w zamówieniu zostanie ${wymZ}, a do ${wym} trzeba ją dociąć ręcznie po odbiorze.${zw}|dociacpanel:${cel}:${k}` }];
   });
 };
 /* Ponizej tego front robi sie waski — nie blad, bo czasem inaczej sie nie da,
@@ -518,6 +528,41 @@ const vboxGora = (hc) => VBOX.minFront.overlay[hc] ?? hc + 15;   // dol prowadni
 const vboxOdProw = (hc) => vboxGora(hc) - hc;                     // dol prowadnicy → dol boku
 const vboxDno = (hc) => vboxGora(hc) - (VBOX.backH[hc] ?? hc - 9); // dol prowadnicy → spod dna i tylu
 
+/* Sevroll DXS-3D Synchro — prowadnice dolnego montazu z miekkim domykiem
+   (instrukcja: katalog Sevroll 2026 s. 110–113, wyciag w `instrukcje/SPIS.md`;
+   ustalenia z uzytkownikiem 2026-10-21 w BLEDY.md „Ustalone”). Skrzynka z plyty
+   polek: boki na zewnatrz, dno i tyl miedzy nimi, na konfirmaty przez boki.
+   Prowadnice przyklada sie do kreski (spod prowadnicy) i przykreca bez
+   nawiercania — w planie wiercen wysokosc kreski i odsuniecie od czola. Pion
+   liczony od spodu prowadnicy. */
+const DXS = {
+  nl: [250, 300, 350, 400, 450, 500, 550, 600],
+  indeks: { 250: "05569", 300: "05407", 350: "05408", 400: "05409", 450: "05410", 500: "05411", 550: "05412", 600: "05626" },
+  // tabela „Wymiary prowadnic”: B — wysuw szuflady, A — dlugosc czesci na boku korpusu
+  wysuw: { 250: 200, 300: 270, 350: 320, 400: 370, 450: 420, 500: 470, 550: 520, 600: 570 },
+  dlKorpus: { 250: 250, 300: 280, 350: 280, 400: 295, 450: 320, 500: 355, 550: 380, 600: 380 },
+  odBoku: 6.5,     // bok korpusu → bok szuflady (24,5 do wnetrza minus bok 18)
+  dnoOd: 27,       // spod prowadnicy → spod dna (i dol tylu)
+  bokPodDnem: 10,  // boki schodza ponizej dna (instrukcja 10–12, uzytkownik: 10)
+  nadDnem: 2,      // dolna prowadnica min. 2 mm nad dnem szafki
+  odCzola: 4,      // przod prowadnicy za krawedzia korpusu (+ grubosc frontu wpuszczanego)
+  krotsza: 10,     // skrzynka ma NL − 10
+  zaTylem: 3,      // glebokosc wnetrza min. NL + 3
+  wkretGora: 37,   // gorny rzad wkretow nad spodem prowadnicy (dolny 12 nizej)
+  zaczepY: 11, zaczepX: 7, // otwor ⌀6 × 10 w tyle: od jego dolnej krawedzi i od boku
+  wolneOdBoku: 75, // pod dnem przy przodzie: miejsce na zaczep frontu
+  szerProw: 33,    // prowadnica pod dnem, przy boku
+  minTyl: MIN_DOCIECIE, // nizszy tyl: ani otworu zaczepu (11 + ⌀6), ani recznego dociecia
+};
+const dxsBokOd = DXS.dnoOd - DXS.bokPodDnem; // spod prowadnicy → dol boku (17)
+/* System szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty na
+   prowadnicach dolnego montazu) — `drawer.system`, bez niego V-BOX
+   (uzytkownik 2026-10-21: przy kazdej szufladzie, domyslnie V-BOX). */
+const SYSTEMY_SZUFLAD = { vbox: "V-BOX", dxs: "DXS-3D" };
+const systemSzuflady = (d) => (d && d.system === "dxs" ? "dxs" : "vbox");
+// lista dlugosci prowadnic systemu
+const nlSystemu = (sys) => (sys === "dxs" ? DXS.nl : VBOX.nl);
+
 /* polska odmiana liczebnikow: 1 blad, 2-4 bledy, 5+ bledow (12-14 tez bledow) */
 const plural = (n, one, few, many) => {
   const a = Math.abs(n) % 100;
@@ -634,6 +679,45 @@ function autoHinges(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
 const DRAW_MAX_H = "min(180vh, 2000px)";
 
 const RUNNER_W = 21; // szerokosc prowadnicy przy boku
+/* Prowadnice szuflady (i boki skrzynki DXS) do rysunkow — w ukladzie szafki:
+   x od lewego boku, y od dolu, z od lica korpusu w glab. V-BOX: pas 21 mm przy
+   kazdym boku kolumny na wysokosc boku metalowego, na dlugosc NL. DXS-3D: boki
+   skrzynki z plyty (6,5 mm od boku korpusu, NL − 10) i prowadnice pod dnem
+   (33 × 27) — od czola widac przekroj, z gory boki skrzynki i jej tyl. */
+const szufladaOdCzola = (c, dr) => {
+  if (dr.system !== "dxs")
+    return [c.x0, c.x1 - RUNNER_W].map((x) => ({ x, y: dr.rail.y0, w: RUNNER_W, h: dr.gora ?? vboxGora(dr.rail.h), rodzaj: "prowadnica" }));
+  const sk = dr.skrzynka;
+  const x0 = dr.bx0 ?? c.x0, x1 = x0 + (sk ? sk.LW : c.x1 - c.x0);
+  const tb = sk ? sk.bokT : 18, ob = DXS.odBoku;
+  return [
+    ...(sk ? [{ x: x0 + ob, y: dr.rail.y0 + sk.bokOd, w: tb, h: sk.bok, rodzaj: "bok" },
+      { x: x1 - ob - tb, y: dr.rail.y0 + sk.bokOd, w: tb, h: sk.bok, rodzaj: "bok" }] : []),
+    { x: x0 + ob + tb, y: dr.rail.y0, w: DXS.szerProw, h: DXS.dnoOd, rodzaj: "prowadnica" },
+    { x: x1 - ob - tb - DXS.szerProw, y: dr.rail.y0, w: DXS.szerProw, h: DXS.dnoOd, rodzaj: "prowadnica" },
+  ];
+};
+// swiatlo szerokosci szuflady: V-BOX — kolumna minus 2 × 21, DXS-3D — wnetrze skrzynki (LW − 49)
+const szerWnetrzaSzuflady = (c, dr) => {
+  if (dr && dr.system === "dxs" && dr.skrzynka) {
+    const x0 = (dr.bx0 ?? c.x0) + DXS.odBoku + dr.skrzynka.bokT;
+    return { x0, x1: x0 + dr.skrzynka.szer, clear: dr.skrzynka.szer };
+  }
+  return { x0: c.x0 + 21, x1: c.x1 - 21, clear: Math.round(c.w - 42) };
+};
+const szufladaZGory = (c, dr) => {
+  const sb = dr.rail.setback || 0;
+  if (dr.system !== "dxs")
+    return [c.x0, c.x1 - RUNNER_W].map((x) => ({ x, z: sb, w: RUNNER_W, d: dr.rail.d, rodzaj: "prowadnica" }));
+  const sk = dr.skrzynka;
+  if (!sk) return [];
+  const x0 = dr.bx0 ?? c.x0, x1 = x0 + sk.LW, tb = sk.bokT, ob = DXS.odBoku;
+  return [
+    { x: x0 + ob, z: sb, w: tb, d: sk.bokDl, rodzaj: "bok" },
+    { x: x1 - ob - tb, z: sb, w: tb, d: sk.bokDl, rodzaj: "bok" },
+    { x: x0 + ob + tb, z: sb + sk.bokDl - tb, w: sk.szer, d: tb, rodzaj: "tyl" },
+  ];
+};
 /* Luz nad podniesionym tylem szuflady — tyl nie moze siegac dokladnie do frontu
    wyzej ani do wienca, bo bedzie o nie zawadzal przy wysuwaniu. */
 const BACK_CLEAR = 20;
@@ -833,6 +917,8 @@ const newColumn = (doors = 1, shelves = 0) => ({
 });
 
 const newDrawer = (h = "auto") => ({ h, front: null, handle: true });
+// pola kolumny, ktore opisuja klape (kierunek, uchwyt, podnosniki) — znikaja przy zmianie na szuflady / blende
+const POLA_KLAPY = ["klapa", "klapaUchwyt", "silowniki", "silaN", "katKlapy", "podnosnikStrona"];
 
 /* Para wzmocnien zamiast wienca: z przodu plyta na plask, do ktorej przykreca
    sie blat, z tylu stojaca, ktora trzyma korpus w kacie prostym. */
@@ -1040,6 +1126,10 @@ const migrateCab = (rawCab, mat) => {
      lica katownika w rogu. Po drodze bylo raz tak, raz tak, wiec prostujemy to
      przy wczytaniu — ale tylko dla plyty z tej pary (stojaca, u gory) i tylko
      gdy stoi na jednej z naszych wartosci, zeby nie kasowac recznych ustawien. */
+  // ustawienia klapy zostawaly w kolumnie po „klapa” → Szuflady / Blenda (do 2026-10-21) — przy drzwiach wrocilyby jako klapa
+  (merged.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => {
+    if (c && c.kind && c.kind !== "doors") POLA_KLAPY.forEach((k) => delete c[k]);
+  }));
   const wRogu = !!(merged.corner || {}).on;
   const tPlyty = Math.max(1, Math.round(Number(((mat || defaultMaterials).board || {}).thickness) || 18));
   if (stara) (merged.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => {
@@ -1394,6 +1484,66 @@ const roomOfItem = (project, it) => {
 // pomieszczenie, ktore ogladamy = to, w ktorym stoi aktywna szafka
 const activeRoomOf = (project) => roomOfItem(project, project.items[project.active]);
 const runsInRoom = (project, roomId) => (project.runs || []).filter((r) => roomOfRun(project, r) === roomId);
+
+/* System szuflad w kontekscie (uzytkownik 2026-10-21): przy kazdej szufladzie
+   wybor V-BOX / DXS-3D, ale domyslnie ten sam w szafce, a dalej w ciagu
+   i w pomieszczeniu. Nowa szuflada bierze system kolumny, szafki, ciagu,
+   pomieszczenia — a bez zadnych szuflad V-BOX. Inny niz reszta — ostrzezenie
+   z przyciskami „zmien” / „zostaw” (`szufladyMsgs`, `geo` — w samej szafce). */
+const systemyWSzafce = (cab) => ((cab && cab.levels) || []).flatMap((lv) => (lv.cols || [])
+  .flatMap((c) => (c.kind === "drawers" ? (c.drawers || []).map(systemSzuflady) : [])));
+// przewazajacy system (remis — pierwszy z listy); null, gdy szuflad nie ma
+const przewazajacySystem = (arr) => {
+  if (!arr.length) return null;
+  const n = arr.filter((v) => v === "dxs").length;
+  return n * 2 > arr.length ? "dxs" : n * 2 < arr.length ? "vbox" : arr[0];
+};
+const systemKontekstu = (project, idx, col = null) => {
+  const zKol = przewazajacySystem(col && col.kind === "drawers" ? (col.drawers || []).map(systemSzuflady) : []);
+  if (zKol) return zKol;
+  const items = (project && project.items) || [];
+  const it = items[idx];
+  const zSzafki = it ? przewazajacySystem(systemyWSzafce(it.cab)) : null;
+  if (zSzafki) return zSzafki;
+  const inne = items.filter((x, k) => k !== idx);
+  const runId = it ? it.runId || null : null;
+  const zCiagu = runId ? przewazajacySystem(inne.filter((x) => x.runId === runId).flatMap((x) => systemyWSzafce(x.cab))) : null;
+  if (zCiagu) return zCiagu;
+  const pok = it ? roomOfItem(project, it) : null;
+  const zPom = pok ? przewazajacySystem(inne.filter((x) => roomOfItem(project, x) === pok).flatMap((x) => systemyWSzafce(x.cab))) : null;
+  return zPom || "vbox";
+};
+/* Wszystkie szuflady szafki na jeden system. Przy zmianie wracaja pola, ktore
+   ten system liczy inaczej: bok (V-BOX z listy, DXS w mm), tyl, reling. */
+const naSystemSzuflad = (cab, sys) => ({ ...cab, szufladyMieszane: undefined, szufladyInne: undefined,
+  levels: (cab.levels || []).map((lv) => ({ ...lv, cols: (lv.cols || []).map((c) => (c.kind !== "drawers" ? c
+    : { ...c, nl: c.nl != null && !nlSystemu(sys).includes(Number(c.nl)) ? null : c.nl,
+      drawers: (c.drawers || []).map((d) => (systemSzuflady(d) === sys ? d : zmienSystemSzuflady(d, sys))) })) })) });
+const zmienSystemSzuflady = (d, sys) => {
+  const out = { ...d, h: "auto", backHeight: null, tallBack: false };
+  if (sys === "dxs") { out.system = "dxs"; out.reling = false; out.bezRelingu = false; } else delete out.system;
+  if (out.nl != null && !nlSystemu(sys).includes(Number(out.nl))) out.nl = null;
+  return out;
+};
+/* Szafka na innym systemie niz reszta ciagu / pomieszczenia — ostrzezenie
+   z przyciskiem zmiany albo „zostaw” (`cab.szufladyInne`, wtedy informacja). */
+const szufladyMsgs = (project, idx) => {
+  const it = project.items[idx];
+  const moj = it ? przewazajacySystem(systemyWSzafce(it.cab)) : null;
+  if (!moj) return [];
+  const inne = project.items.filter((x, k) => k !== idx);
+  const runId = it.runId || null;
+  const run = runId ? (project.runs || []).find((r) => r.id === runId) : null;
+  const wCiagu = runId ? przewazajacySystem(inne.filter((x) => x.runId === runId).flatMap((x) => systemyWSzafce(x.cab))) : null;
+  const pok = roomOfItem(project, it);
+  const wPom = przewazajacySystem(inne.filter((x) => roomOfItem(project, x) === pok).flatMap((x) => systemyWSzafce(x.cab)));
+  const cel = wCiagu || wPom;
+  if (!cel || cel === moj) return [];
+  const gdzie = wCiagu ? `w ciągu „${(run && run.name) || "—"}”` : "w tym pomieszczeniu";
+  const tekst = `Szuflady tej szafki są na ${SYSTEMY_SZUFLAD[moj]}, a ${gdzie} na ${SYSTEMY_SZUFLAD[cel]}`;
+  if (it.cab.szufladyInne) return [{ level: "info", text: `${tekst} — zostawione tak (wybrane).|szufinnenie` }];
+  return [{ level: "warn", text: `${tekst} — zwykle jeden system w całej zabudowie.|szufsys:${cel}|szufinne` }];
+};
 const itemsInRoom = (project, roomId) =>
   project.items.map((it, i) => ({ it, i })).filter(({ it }) => roomOfItem(project, it) === roomId);
 const roomName = (project, roomId) => {
@@ -1984,9 +2134,9 @@ function computeGeoLiczy(cab, mat, ctx) {
   if (lev.diff !== 0)
     add(
       "error",
-      lev.diff < 0
+      (lev.diff < 0
         ? `Zadane wysokości poziomów przekraczają wnętrze o ${fmt(-lev.diff)} mm.`
-        : `Zadane wysokości poziomów nie wypełniają wnętrza — brakuje ${fmt(lev.diff)} mm.`
+        : `Zadane wysokości poziomów nie wypełniają wnętrza — brakuje ${fmt(lev.diff)} mm.`) + "|levauto"
     );
 
   const levels = [];
@@ -2152,6 +2302,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   const klapy = [];   // podnosniki klapy do okuc i uwag
   const slideGroups = new Map();
   const relingGroups = new Map();   // NL → ile szuflad z relingiem bocznym
+  const dxsGroups = new Map();      // NL → ile kompletow DXS-3D
+  let dxsKonf = 0;                  // konfirmaty skrzynek DXS (dno i tyl przez boki)
   const supportParts = [];
   const insetExtra = cab.frontMode === "inset" ? tf : 0;
   // czy fronty danej kolumny siedza w swietle korpusu — potrzebne sasiadom,
@@ -2204,7 +2356,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   }
   /* najglebsze NL, jakie zmiesci sie w danym pasmie szerokosci i wysokosci —
      przeszkoda ponizej albo powyzej szuflad ich nie skraca (audyt GPT N22) */
-  const maxNlFor = (x0, x1, extra = insetExtra, y0 = -Infinity, y1 = Infinity) => {
+  const maxNlFor = (x0, x1, extra = insetExtra, y0 = -Infinity, y1 = Infinity, lista = VBOX.nl) => {
     let blocked = false;
     const lim = backBlocks.reduce((acc, b) => {
       if (Math.min(b.x1, x1) - Math.max(b.x0, x0) > 0 && Math.min(b.y1 ?? Infinity, y1) - Math.max(b.y0 ?? -Infinity, y0) > 0) {
@@ -2218,7 +2370,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     }, carcassDepth - backIntrusion);
     // przy przeszkodzie wymagamy 4 mm luzu miedzy szuflada a zabudowa
     const margin = blocked ? 4 : 3;
-    return [...VBOX.nl].reverse().find((v) => v + margin + extra <= lim) ?? null;
+    return [...lista].reverse().find((v) => v + margin + extra <= lim) ?? null;
   };
 
   levels.forEach((lv) => {
@@ -2923,7 +3075,8 @@ function computeGeoLiczy(cab, mat, ctx) {
       c.nl = colNl;
       if (colNl === null)
         add("error", `${where}: korpus za płytki na najkrótszą szufladę (potrzeba ${250 + 3 + dInsetExtra} mm).`);
-      if (LW > 600)
+      // katownik pod dno to element V-BOX — skrzynka DXS ma dno z plyty miedzy bokami
+      if (LW > 600 && ds.some((d) => systemSzuflady(d) === "vbox"))
         add("warn", `${where}: szuflada szersza niż 600 mm — wzmocnij dno kątownikiem (Sevroll 40343).`);
 
       const drGap = num(rawCol.gapBetween) ?? g.between;
@@ -2970,10 +3123,147 @@ function computeGeoLiczy(cab, mat, ctx) {
         ? Math.max(0, Math.round(num(rawCol.gripDepth) ?? 18))
         : 0;
       c.fingerGrip = grip;
+      /* --- szuflada DXS-3D: skrzynka z plyty na prowadnicach dolnego montazu ---
+         Pion od spodu prowadnicy: dol boku +17, spod dna i tylu +27, boki 10 mm
+         ponizej dna. Najnizsza prowadnica 2 mm nad dnem szafki (przegroda), ale
+         nie nizej niz dol frontu wpuszczanego; wyzsza — dol frontu + „Front
+         ponizej prowadnicy” (jak V-BOX). Front zawsze siega do spodu prowadnicy,
+         czyli 27 mm ponizej spodu dna — zakrywa ja (uzytkownik 2026-10-21). */
+      const szufladaDxs = (d, i, fhFull, fh) => {
+        const where2 = `${where}, szuflada ${i + 1}`;
+        const railY0 = i === 0 ? Math.max(lv.y0 + DXS.nadDnem, y)
+          : y + Math.max(0, Math.round(num(g.underRail) ?? 5));
+        const bokY0 = railY0 + dxsBokOd;
+        const tbok = ts; // boki, dno i tyl z plyty polek
+        const colMaxDxs = maxNlFor(dsx0, dsx1, dInsetExtra, lv.y0, lv.y1, DXS.nl);
+        const wPasie = (r) => r.x1 > dsx0 && r.x0 < dsx1;
+        // co jest nad szuflada z przodu: front wyzej albo gora swiatla / wzmocnienie przy licu
+        const sufitPrzod = i + 1 < ds.length ? y + fhFull + drGap
+          : Math.min(lv.y1, ...(c.rails || []).filter((r) => r.y0 >= railY0 && r.z0 < 100 && wPasie(r)).map((r) => r.y0));
+        const droga = (colMaxDxs ?? Math.max(...DXS.nl)) + DXS.zaTylem + dInsetExtra;
+        const sufitDla = (gora) => (i + 1 < ds.length ? sufitPrzod
+          : Math.min(sufitPrzod, ...(c.rails || []).filter((r) => r.y0 >= gora && r.z0 < droga && wPasie(r)).map((r) => r.y0)));
+        /* Bok „auto”: najwyzszy z luzem SZUFLADA_ZAPAS pod tym, co nad droga
+           skrzynki (jak V-BOX); wzmocnienie przy plecach nizej niz gora boku
+           skraca NL, nie bok. Recznie — dowolna wysokosc w mm. */
+        let bokMax = Math.floor(sufitPrzod - SZUFLADA_ZAPAS - bokY0);
+        for (let k = 0; k < 4 && bokMax > 0; k++) {
+          const sf = sufitDla(bokY0 + bokMax);
+          if (bokY0 + bokMax + SZUFLADA_ZAPAS <= sf) break;
+          bokMax = Math.floor(sf - SZUFLADA_ZAPAS - bokY0);
+        }
+        const recznyBok = num(d.h);
+        const hBok = Math.max(0, recznyBok !== null ? Math.round(recznyBok) : bokMax);
+        const goraBoku = bokY0 + hBok;
+        // wzmocnienie przy plecach na wysokosci skrzynki skraca prowadnice (4 mm luzu)
+        const zaSkrzynka = (c.rails || []).filter((r) => r.z0 > 0 && r.y0 < goraBoku && r.y1 > railY0 && wPasie(r));
+        const limTyl = zaSkrzynka.length ? Math.min(...zaSkrzynka.map((r) => r.z0)) : null;
+        const nlTyl = limTyl === null ? null : ([...DXS.nl].reverse().find((v) => v + 4 + dInsetExtra <= limTyl) ?? null);
+        const nlMaxTu = limTyl === null ? colMaxDxs
+          : colMaxDxs === null ? null : nlTyl === null ? null : Math.min(colMaxDxs, nlTyl);
+        const nlAuto = num(rawCol.nl) ?? nlMaxTu;
+        const nl = num(d.nl) ?? nlAuto;
+        if (colMaxDxs === null)
+          add("error", `${where2}: korpus za płytki na najkrótszą prowadnicę DXS-3D (potrzeba ${DXS.nl[0] + DXS.zaTylem + dInsetExtra} mm).`);
+        if (nl !== null && !DXS.nl.includes(nl)) {
+          const zTabeli = [...DXS.nl].reverse().find((v) => v <= nl && (nlMaxTu == null || v <= nlMaxTu));
+          add("error", `${where2}: prowadnice NL ${nl} — nie ma takiej długości w DXS-3D (${DXS.nl.join(", ")}).`
+            + (zTabeli ? `|fixnl:${lv.i}:${j}:${i}:${zTabeli}` : ""));
+        }
+        if (nl === null && colMaxDxs !== null && limTyl !== null)
+          add("error", `${where2}: nie mieści się żadna prowadnica — wzmocnienie przy plecach stoi ${fmt(limTyl)} mm od lica, `
+            + `a najkrótsza NL ${DXS.nl[0]} potrzebuje ${fmt(DXS.nl[0] + 4 + dInsetExtra)} mm. Odsuń wzmocnienie dalej, przenieś je wyżej albo przesuń szufladę.`);
+        if (nl !== null && limTyl !== null && nl + 4 + dInsetExtra > limTyl)
+          add("error", `${where2}: NL ${nl} wjeżdża tyłem skrzynki we wzmocnienie przy plecach — do niego jest ${fmt(limTyl)} mm od lica.`
+            + (nlTyl ? `|fixnl:${lv.i}:${j}:${i}:${nlTyl}` : ""));
+        if (nl !== null) {
+          const need = nl + DXS.zaTylem + dInsetExtra;
+          const glWnetrza = carcassDepth - backIntrusion;
+          if (need > glWnetrza) {
+            const fitNl = [...DXS.nl].reverse().find((v) => v + DXS.zaTylem + dInsetExtra <= glWnetrza && (colMaxDxs == null || v <= colMaxDxs));
+            add("error", `${where2}: NL ${nl} wymaga ${need} mm głębokości do pleców (DXS-3D: NL + 3${dInsetExtra ? " + grubość frontu" : ""}), a jest ${fmt(glWnetrza)} mm.`
+              + (fitNl ? `|fixnl:${lv.i}:${j}:${i}:${fitNl}` : ""));
+          } else if (nlMaxTu && nl < nlMaxTu)
+            add("warn", `${where2}: zmieści się głębsza NL ${nlMaxTu}.|fixnl:${lv.i}:${j}:${i}:${nlMaxTu}`);
+        }
+        // to, co nad skrzynka na calej jej drodze (front wyzej, gora swiatla, wzmocnienie pod blatem)
+        const drogaZ = (nl || 0) + DXS.zaTylem + dInsetExtra;
+        const nadSzuflada = (c.rails || []).filter((r) => r.y0 >= railY0 && r.z0 < drogaZ && wPasie(r) && !zaSkrzynka.includes(r));
+        const ceilY = i + 1 < ds.length ? y + fhFull + drGap : Math.min(lv.y1, ...nadSzuflada.map((r) => r.y0));
+        const coNad = i + 1 < ds.length ? "front szuflady wyżej"
+          : nadSzuflada.some((r) => r.y0 < lv.y1) ? "wzmocnienie pod blatem" : "góra korpusu";
+        const bokFit = Math.floor(ceilY - SZUFLADA_ZAPAS - bokY0); // najwyzszy bok z luzem
+        const minBok = DXS.minTyl + DXS.bokPodDnem;
+        /* Gdy zaden bok sie nie zmiesci, App dokleja „Zmniejsz do N szuflad” (`szufbrak:`,
+           `przyciskiSzuflad`) — decyzja uzytkownika 2026-10-22. */
+        const przyciskBoku = bokFit >= minBok && bokFit !== hBok ? `|fixh:${lv.i}:${j}:${i}:${bokFit}` : `|szufbrak:${lv.i}:${j}`;
+        /* Za niski bok i tyl zglasza ogolna regula formatek (ponizej 30 mm blad,
+           30–60 ostrzezenie z „Zwieksz do 60 mm”) — tu tylko brak miejsca. */
+        if (goraBoku > ceilY)
+          add("error", `${where2}: skrzynka z bokiem ${fmt(hBok)} mm sięga ${fmt(goraBoku - railY0)} mm nad spód prowadnicy (bok zaczyna się ${dxsBokOd} mm nad nim), a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
+            + przyciskBoku);
+        else if (ceilY - goraBoku < SZUFLADA_ZAPAS)
+          add("error", `${where2}: nad bokiem skrzynki ${fmt(hBok)} mm zostaje ${fmt(Math.round(ceilY - goraBoku))} mm luzu do tego, co jest wyżej (${coNad}) — potrzeba min. ${SZUFLADA_ZAPAS} mm.`
+            + przyciskBoku);
+        /* Bok auto schodzil do kilkunastu mm (6 szuflad w niskim poziomie) — dno wystawalo
+           nad bok i wchodzilo we wzmocnienie, a bledu miejsca nie bylo, tylko formatki
+           < 30 mm. Najnizsza sensowna skrzynka: tyl MIN_DOCIECIE + 10 pod dnem (audyt
+           szuflad 2026-10-22). */
+        else if (recznyBok === null && bokFit < minBok)
+          add("error", `${where2}: nie ma miejsca na skrzynkę DXS-3D — najniższa (bok ${minBok} mm, tył ${DXS.minTyl} mm) potrzebuje ${dxsBokOd + minBok + SZUFLADA_ZAPAS} mm od spodu prowadnicy razem z luzem ${SZUFLADA_ZAPAS} mm, a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.|szufbrak:${lv.i}:${j}`);
+        // tyl: dol rowno ze spodem dna, domyslnie gora rowno z bokami (bok − 10); recznie nizej
+        const tylAuto = hBok - DXS.bokPodDnem;
+        const recznyTyl = num(d.backHeight);
+        const backH = Math.max(0, recznyTyl !== null ? Math.round(recznyTyl) : tylAuto);
+        if (recznyTyl !== null && backH > tylAuto)
+          add("warn", `${where2}: tył ${fmt(backH)} mm wystaje ${fmt(backH - tylAuto)} mm ponad boki skrzynki (dół tyłu jest równo ze spodem dna, ${DXS.bokPodDnem} mm nad dołem boków).`
+            + (tylAuto >= DXS.minTyl ? `|fixback:${lv.i}:${j}:${i}:${tylAuto}` : ""));
+        const skw = Math.round((LW - 2 * (DXS.odBoku + tbok)) * 10) / 10; // wnetrze skrzynki: LW − 49 przy bokach 18
+        if (skw <= 0) add("error", `${where2}: kolumna ${fmt(LW)} mm za wąska na skrzynkę DXS-3D (boki ${fmt(tbok)} mm + ${DXS.odBoku} mm luzu z każdej strony).`);
+        if (![16, 18, 19].includes(Math.round(tbok)))
+          add("warn", `${where2}: DXS-3D jest na skrzynkę z płyty 16–19 mm (instrukcja liczy 18), a płyta półek ma ${fmt(tbok)} mm — sprawdź szerokość skrzynki.`);
+        const dr = {
+          i, y, h: fh, x: dsx0, w: dsx1 - dsx0, system: "dxs", hClass: hBok, nl, fixed: num(d.front) !== null, bx0,
+          // od spodu prowadnicy: dol boku, spod dna i tylu, gora boku — wspolne dla rysunkow i kontroli
+          bokOd: dxsBokOd, dnoOd: DXS.dnoOd, gora: dxsBokOd + hBok,
+          rail: { y0: railY0, h: hBok, d: nl || 0, setback: dInsetExtra },
+        };
+        c.drawers.push(dr);
+        doors.push({
+          lvl: lv.i, key: `x${lv.i}-${j}-${i}`, type: "drawer", colKey: `${lv.i}-${j}`,
+          x: dsx0, y, w: dsx1 - dsx0, h: fh, colW: LW, colX0: bx0, dr, nl,
+          handle: d.handle !== false, iInGroup: 0, groupN: 1, inset: dIn,
+          gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
+          bandLo: lv.i === 0 ? null : dlo, bandHi: lv.i === L - 1 ? null : dhi,
+        });
+        if (d.handle !== false) handleCount += 1;
+        if (fh > 0 && dsx1 - dsx0 > 0) drawerParts.push({ kind: "front", a: fh, b: dsx1 - dsx0 });
+        if (nl !== null && skw > 0 && hBok > 0) {
+          const bokDl = nl - DXS.krotsza;              // skrzynka NL − 10
+          const dnoGl = Math.max(0, bokDl - tbok);       // dno do tylu
+          dr.skrzynka = { system: "dxs", LW, nl, bok: hBok, bokDl, bokT: tbok, szer: skw, odBoku: DXS.odBoku,
+            dno: [skw, dnoGl], tyl: [skw, backH], tylOd: DXS.dnoOd, bokOd: dxsBokOd, grub: ts };
+          // bok / tyl wezszy niz MIN_PART: przycisk „Zwieksz do 60 mm” zmienia pole tej szuflady
+          // tylko gdy bok 60 mm sie zmiesci — inaczej przycisk dawalby blad miejsca
+          const jest60 = bokFit >= MIN_PART;
+          const zwB = jest60 && hBok < MIN_PART ? `b:${lv.i}:${j}:${i}` : null, zwT = jest60 && backH < MIN_PART ? `t:${lv.i}:${j}:${i}` : null;
+          drawerParts.push({ kind: "bok", a: bokDl, b: hBok, zw60: zwB }, { kind: "bok", a: bokDl, b: hBok, zw60: zwB });
+          drawerParts.push({ kind: "dno", a: skw, b: dnoGl });
+          drawerParts.push({ kind: "tyl", a: skw, b: backH, zw60: zwT });
+          dxsGroups.set(nl, (dxsGroups.get(nl) || 0) + 1);
+          // konfirmaty przez boki od zewnatrz: dno wzdluz boku i tyl na jego wysokosci, z obu stron
+          dxsKonf += 2 * (konfirmatyNaStyk(dnoGl) + konfirmatyNaStyk(backH));
+        }
+      };
       let y = dlo;
       ds.forEach((d, i) => {
         const fhFull = fr.sizes[i];
         const fh = Math.max(0, fhFull - grip);
+        if (systemSzuflady(d) === "dxs") {
+          szufladaDxs(d, i, fhFull, fh);
+          y += fhFull + drGap;
+          return;
+        }
         // wysokosc boku V-BOX: auto dobiera najwyzszy bok mieszczacy sie w froncie
         const fitH = [...VBOX.heights]
           .filter((hc) => VBOX.minFront[dMode][hc] <= fh)
@@ -3072,6 +3362,9 @@ function computeGeoLiczy(cab, mat, ctx) {
           hClass,
           nl,
           fixed: num(d.front) !== null,
+          system: "vbox", bx0,
+          // od dolu prowadnicy: dol boku, spod dna i tylu, gora boku — wspolne z DXS dla rysunkow
+          bokOd: vboxOdProw(hClass), dnoOd: vboxDno(hClass), gora: vboxGora(hClass),
           // prowadnica: 21 mm szerokosci przy kazdym boku, wysokosc z boku
           // skrzynki, glebokosc z NL. Front nakladany -> dol szyny o reszte
           // grubosci dna nad dolem frontu, front wpuszczany -> o luz
@@ -3180,8 +3473,11 @@ function computeGeoLiczy(cab, mat, ctx) {
           add("error",
             `${where}, szuflada ${i + 1}: front ${fmt(fh)} mm, a minimum dla wysokości ${hClass} mm przy froncie ${
               dIn ? "wpuszczanym" : "na korpusie"
-            } to ${minF} mm.` + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : ""));
-        const przyciskLuzu = nizszyBok && !frontZaNiski ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : "";
+            } to ${minF} mm.` + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : `|szufbrak:${lv.i}:${j}`));
+        /* Bez nizszego boku, ktory sie zmiesci, App dokleja „Zmniejsz do N szuflad” / „Zmień na
+           DXS-3D” (`szufbrak:`, `przyciskiSzuflad`) — decyzja uzytkownika 2026-10-22. */
+        const przyciskLuzu = nizszyBok ? (frontZaNiski ? "" : `|fixh:${lv.i}:${j}:${i}:${nizszyBok}`)
+          : (frontZaNiski ? "" : `|szufbrak:${lv.i}:${j}`);
         if (goraBoku > ceilY)
           add("error",
             `${where}, szuflada ${i + 1}: skrzynka z bokiem ${hClass} mm potrzebuje ${vboxGora(hClass)} mm od dołu prowadnicy (bok stoi ${vboxOdProw(hClass)} mm nad nim) i min. ${SZUFLADA_ZAPAS} mm luzu nad bokiem, a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
@@ -3276,6 +3572,19 @@ function computeGeoLiczy(cab, mat, ctx) {
       }
     });
   });
+
+  /* Szuflady V-BOX i DXS-3D w jednej szafce — dziala, ale zwykle to pomylka
+     (uzytkownik 2026-10-21: „domyslnie ten sam typ na szafke”). Przyciski:
+     wszystkie na jeden system albo zostaw (`cab.szufladyMieszane`). */
+  {
+    const sys = levels.flatMap((lv) => lv.cols.flatMap((c) => (c.drawers || []).map((dr) => dr.system)));
+    const nV = sys.filter((v) => v === "vbox").length, nD = sys.filter((v) => v === "dxs").length;
+    if (nV && nD) {
+      const tekst = `W szafce są szuflady V-BOX (${nV}) i DXS-3D (${nD})`;
+      if (cab.szufladyMieszane) add("info", `${tekst} — zostawione tak (wybrane).|szufmixnie`);
+      else add("warn", `${tekst} — zwykle jeden system na szafkę.|szufsys:vbox|szufsys:dxs|szufmix`);
+    }
+  }
 
   /* --- suma kontrolna: sasiadujace fronty nie moga na siebie wchodzic --- */
   const nameOf = (d) =>
@@ -3673,9 +3982,11 @@ function computeGeoLiczy(cab, mat, ctx) {
   });
 
   const dpGroups = new Map();
+  const dpZw60 = new Map(); // grupa → szuflady, ktorym „Zwieksz do 60 mm” zmienia bok / tyl
   drawerParts.forEach((d) => {
     const k = `${d.kind}|${Math.round(d.a)}|${Math.round(d.b)}`;
     dpGroups.set(k, (dpGroups.get(k) || 0) + 1);
+    if (d.zw60) dpZw60.set(k, [...new Set([...(dpZw60.get(k) || []), d.zw60])]);
   });
   dpGroups.forEach((qty, k) => {
     const [kind, a, b] = k.split("|");
@@ -3698,8 +4009,15 @@ function computeGeoLiczy(cab, mat, ctx) {
         edges: { a1: true, a2: false, b1: false, b2: false },
         note: "oklejona krawędź górna",
       },
+      // skrzynka DXS-3D: boki z plyty polek, oklejona gora (uzytkownik 2026-10-21)
+      bok: {
+        name: "Bok szuflady",
+        matKey: "shelf",
+        edges: { a1: true, a2: false, b1: false, b2: false },
+        note: "oklejona krawędź górna",
+      },
     }[kind];
-    P({ ...meta, qty, a: Number(a), b: Number(b) });
+    P({ ...meta, qty, a: Number(a), b: Number(b), ...(dpZw60.has(k) ? { zw60: dpZw60.get(k).join(",") } : {}) });
   });
 
   /* Blat roboczy ma stala glebokosc arkusza. Formatka glebsza niz on po prostu
@@ -4253,11 +4571,36 @@ function computeGeoLiczy(cab, mat, ctx) {
           if (!dr.rail) return;
           /* Otwory wg instrukcji V-BOX (instrukcje/…V-BOX…pdf, str. 6): 37 mm od
              krawedzi korpusu i dalej wg NL; przy frontach wpuszczanych prowadnica
-             cofnieta o grubosc frontu. */
+             cofnieta o grubosc frontu. DXS-3D przyklada sie do kreski i przykreca
+             bez nawiercania (uzytkownik 2026-10-21) — wysokosc kreski i odsuniecie. */
           const sb = dr.rail.setback || 0;
           const otw = prowadnicaOtwory(dr.rail.d).map((x) => fmt(x + sb)).join(", ");
-          const note = `dolna krawędź prowadnicy, NL ${fmt(dr.rail.d)}; otwory ${otw} mm od przedniej krawędzi`
+          const note = dr.system === "dxs"
+            ? `kreska — spód prowadnicy DXS-3D, NL ${fmt(dr.rail.d)}; przód prowadnicy ${fmt(DXS.odCzola + sb)} mm za przednią krawędzią`
+              + (sb ? ` (${DXS.odCzola} + grubość frontu ${fmt(sb)})` : "")
+              + `; 3 wkręty w otwory prowadnicy, bez nawiercania (górny rząd ${DXS.wkretGora} mm nad kreską)`
+            : `dolna krawędź prowadnicy, NL ${fmt(dr.rail.d)}; otwory ${otw} mm od przedniej krawędzi`
             + (sb ? ` (cofnięta o ${fmt(sb)} mm)` : "");
+          const sk = dr.skrzynka;
+          if (dr.system === "dxs" && sk) {
+            /* Skrzynka DXS: dno i tyl na konfirmaty przez boki od zewnatrz,
+               w tyle otwory pod tylne zaczepy prowadnic, pod dnem przy przodzie
+               zaczepy frontu (instrukcja s. 112–113, uzytkownik 2026-10-21).
+               Na boku liczone od dolnej i przedniej krawedzi boku. */
+            // nazwa jak formatka („Bok szuflady”) + ktora szuflada
+            const ktora = `szuflada ${dr.i + 1}${lv.cols.length > 1 ? `, kolumna ${c.j + 1}` : ""}`;
+            const dnoY = DXS.bokPodDnem + sk.grub / 2;
+            const przodDna = konfirmatyPoz(sk.dno[1]).map((z) => fmt(z)).join(", ");
+            drillAdd(lv.i, `Bok szuflady — ${ktora} (2 szt., lustrzanie)`, 0, "konfirmat — dno", dnoY,
+              `oś dna (spód dna ${DXS.bokPodDnem} mm nad dołem boku); ${przodDna} mm od przedniej krawędzi boku; od zewnątrz`);
+            const zTylu = sk.bokDl - sk.grub / 2;
+            konfirmatyPoz(sk.tyl[1]).forEach((yT) => drillAdd(lv.i, `Bok szuflady — ${ktora} (2 szt., lustrzanie)`, 0,
+              "konfirmat — tył", DXS.bokPodDnem + yT, `oś tyłu: ${fmt(zTylu)} mm od przedniej krawędzi boku; od zewnątrz`));
+            drillAdd(lv.i, `Tył szuflady — ${ktora}`, 0, "zaczep prowadnicy ⌀6 × 10", DXS.zaczepY,
+              `od tylnej strony, ${DXS.zaczepX} mm od lewej i od prawej krawędzi (2 otwory)`);
+            drillAdd(lv.i, `Dno szuflady — ${ktora}`, null, "zaczep frontu (sprzęgło)", null,
+              `pod dnem przy przedniej krawędzi, z obu stron — wkręty wg przyrządu Sevroll 20415 (wiertło ⌀2); ${DXS.wolneOdBoku} mm od boku nic innego`);
+          }
           // po stronie elementu stalego prowadnica idzie na wspornik (audyt GPT N42)
           const wsp = c.fix && c.support
             ? { name: lv.cols.length > 1 ? `Wspornik pionowy — kolumna ${c.j + 1}` : "Wspornik pionowy", base: lv.y0, strona: "" } : null;
@@ -4567,6 +4910,15 @@ function computeGeoLiczy(cab, mat, ctx) {
       unit: "kpl.",
     });
   });
+  // DXS-3D: komplet na szuflade (prowadnice, zaczepy przednie i tylne)
+  [...dxsGroups.entries()].sort((a2, b2) => a2[0] - b2[0]).forEach(([nlD, qty]) => {
+    hardware.push({
+      name: "Prowadnica Sevroll DXS-3D Synchro",
+      spec: `NL ${nlD} mm${DXS.indeks[nlD] ? `, ind. ${DXS.indeks[nlD]}` : ""} — komplet na szufladę`,
+      qty,
+      unit: "kpl.",
+    });
+  });
   // reling boczny: komplet na szuflade, cena jedna bez wzgledu na dlugosc
   relingGroups.forEach((qty, nlR) => {
     hardware.push({
@@ -4802,6 +5154,10 @@ function computeGeoLiczy(cab, mat, ctx) {
   }));
   polkiWgGl.forEach((n, gl) => joint(n, gl, "półki"));
   joint(doKatownika, postW, "półki do kątownika");
+  /* Skrzynki DXS-3D: dno i tyl na konfirmaty przez boki od zewnatrz
+     (uzytkownik 2026-10-21) — lby widac przy wysunietej szufladzie, wiec
+     tez zaslepki; ten sam wiersz co zlacza korpusu. */
+  if (dxsKonf) { confQty += dxsKonf; jointNotes.push(`skrzynki szuflad DXS-3D (dno i tył przez boki) ${dxsKonf}`); }
 
   if (confQty)
     hardware.push({
@@ -5049,23 +5405,73 @@ const texMat = (mat, on, dir) => {
   return out;
 };
 
-const DimH = ({ x1, x2, y, label, c = DIMC, above = true }) => (
+/* Czytelnosc wydruku (audyt GPT PDF-1, decyzja uzytkownika 2026-10-21: 4 widoki
+   na stronie zostaja, napisy wieksze, bez nachodzenia). Widok w PDF ma ok. 90 mm
+   szerokosci, a napisy sa w jednostkach rysunku — przy szafce 600 wymiar 22
+   jednostek wychodzil 1,3 mm. W druku kazdy napis rosnie wokol swojego miejsca
+   (CSS `--k`, PRINT_CSS) tak, zeby wymiar mial ok. DRUK_PISMO_MM. */
+const DRUK_PISMO_MM = 2.6, DRUK_K_MAX = 3;
+// szerokosc widoku w siatce 2 × 2 na A4 (190 mm tresci) — zmierzona w PDF
+const DRUK_WIDOK_MM = 90;
+const drukK = (vb, mmSzer) => {
+  if (!mmSzer) return 1;
+  const vbW = typeof vb === "number" ? vb : Number(String(vb).trim().split(/\s+/)[2]) || 0;
+  if (!(vbW > 0)) return 1;
+  return Math.max(1, Math.min(DRUK_K_MAX, DRUK_PISMO_MM / (22 * mmSzer / vbW)));
+};
+/* Uklad w druku liczymy z rozmiaru powiekszonych napisow. ui-monospace: znak
+   ma ok. 0,6 wysokosci pisma, pole napisu ok. 1,16 (0,93 nad linia bazowa,
+   0,24 pod nia) — tak liczy przegladarka, a napisy rosna od srodka tego pola. */
+const ZNAK_EM = 0.6, POLE_EM = 1.164, NAD_BAZA_EM = 0.346;
+const szerNapisu = (txt, fs, k = 1) => String(txt).length * ZNAK_EM * fs * k;
+// szerokosc kolumny wymiaru pionowego, gdy opis ma `n` znakow (na ekranie bez zmian)
+const kolumnaDruk = (w, n, k) => (k > 1 ? Math.max(w, n * ZNAK_EM * 22 * k + 26) : w);
+/* Dlugie opisy kolumn („przegroda 1318/1336”, „nóżki 100”) w druku rosna mniej
+   niz liczby — inaczej rozpychaja rysunek tak, ze szafka robi sie malutka. */
+const DRUK_DLUGIE = 0.8;
+const kDlugie = (k) => (k > 1 ? Math.max(1, k * DRUK_DLUGIE) : 1);
+// powiekszenie napisu, ktory musi sie zmiescic w `max` jednostkach (front, polka, legenda)
+const kNapisu = (k, txt, fs, max) => (k > 1 ? Math.max(1, Math.min(k, max / szerNapisu(txt, fs))) : 1);
+// drobne opisy (16–18) w druku dociagamy do wielkosci opisow szczelin (20), jesli sie mieszcza
+const kMaly = (k, fs, txt, max) => (k > 1 ? kNapisu(k * Math.max(1, 20 / fs), txt, fs, max) : 1);
+// skala z ekranu na druk z rysunku o szerokosci vbW; uklad zalezy od skali, wiec kilka przejsc
+const drukKUkladu = (szer, mmSzer) => {
+  if (!mmSzer) return 1;
+  let k = drukK(szer(1), mmSzer);
+  for (let i = 0; i < 4; i++) k = drukK(szer(k), mmSzer);
+  return k;
+};
+/* Legendy pod rysunkiem w druku: linia jest mniejsza tylko wtedy, gdy nie
+   miesci sie w szerokosci rysunku, i stoi pod poprzednia wedlug powiekszonej
+   wysokosci. `gora` — najwyzszy punkt pierwszej linii. Zwraca linie bazowe. */
+const ulozLegendy = (linie, gora, k, maxW) => {
+  let y = gora;
+  return linie.map((l) => {
+    const kk = kNapisu(k, l.txt, l.fs, maxW);
+    const pol = (POLE_EM * l.fs * kk) / 2;
+    const srodek = y + pol;
+    y = srodek + pol + 8;
+    return { ...l, k: kk, y: srodek + NAD_BAZA_EM * l.fs, dol: srodek + pol };
+  });
+};
+// kd — powiekszenie tego opisu w druku, gdy ma byc inne niz reszty rysunku (dlugie opisy)
+const DimH = ({ x1, x2, y, label, c = DIMC, above = true, kd }) => (
   <g>
     <line x1={x1} y1={y} x2={x2} y2={y} stroke={c} strokeWidth="1.5" />
     <line x1={x1} y1={y - 8} x2={x1} y2={y + 8} stroke={c} strokeWidth="1.5" />
     <line x1={x2} y1={y - 8} x2={x2} y2={y + 8} stroke={c} strokeWidth="1.5" />
-    <text x={(x1 + x2) / 2} y={above ? y - 8 : y + 22} textAnchor="middle"
-      fontSize="22" fill={c} fontFamily="ui-monospace, monospace">{label}</text>
+    <text x={(x1 + x2) / 2} y={above ? y - 8 : y + 22} textAnchor="middle" className={above ? "wym-nad" : "wym-pod"}
+      style={kd ? { "--k": kd } : undefined} fontSize="22" fill={c} fontFamily="ui-monospace, monospace">{label}</text>
   </g>
 );
 
-const DimV = ({ y1, y2, x, label, c = DIMC, left = true, labelY = null }) => (
+const DimV = ({ y1, y2, x, label, c = DIMC, left = true, labelY = null, kd }) => (
   <g>
     <line x1={x} y1={y1} x2={x} y2={y2} stroke={c} strokeWidth="1.5" />
     <line x1={x - 8} y1={y1} x2={x + 8} y2={y1} stroke={c} strokeWidth="1.5" />
     <line x1={x - 8} y1={y2} x2={x + 8} y2={y2} stroke={c} strokeWidth="1.5" />
     <text x={left ? x - 8 : x + 8} y={(labelY == null ? (y1 + y2) / 2 : labelY) + 7}
-      textAnchor={left ? "end" : "start"} fontSize="22" fill={c}
+      textAnchor={left ? "end" : "start"} fontSize="22" fill={c} style={kd ? { "--k": kd } : undefined}
       fontFamily="ui-monospace, monospace">{label}</text>
   </g>
 );
@@ -5991,10 +6397,10 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
             .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
             .flatMap((c) =>
               c.drawers.flatMap((dr) =>
-                [c.x0, c.x1 - RUNNER_W].map((rx, si) => (
+                szufladaOdCzola(c, dr).map((q, si) => (
                   <rect key={`rn${lv.i}-${c.j}-${dr.i}-${si}`}
-                    x={mx(rx, RUNNER_W)} y={fy(dr.rail.y0 + vboxGora(dr.rail.h))} width={RUNNER_W} height={vboxGora(dr.rail.h)}
-                    fill="#8b8b93" stroke={INK} strokeWidth="1.5" />
+                    x={mx(q.x, q.w)} y={fy(q.y + q.h)} width={q.w} height={q.h}
+                    fill={q.rodzaj === "bok" ? shelfColorOf(cab, mat) : "#8b8b93"} stroke={INK} strokeWidth="1.5" />
                 ))
               )
             )
@@ -6376,12 +6782,12 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
       {showHardware && cols
         .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
         .flatMap((c) => {
-          const nl = Math.max(...c.drawers.map((d) => d.rail.d || 0));
-          if (!nl) return [];
-          const sb = c.drawers[0]?.rail.setback || 0;
-          return [c.x0, c.x1 - RUNNER_W].map((rx, si) => (
-            <rect key={`trn${c.j}-${si}`} x={rx} y={cd - sb - nl} width={RUNNER_W} height={nl}
-              fill="#8b8b93" stroke={INK} strokeWidth="1.5" opacity="0.85" />
+          // z gory widac szuflade o najdluzszej prowadnicy (V-BOX: pasy prowadnic, DXS: boki i tyl skrzynki)
+          const dr = c.drawers.reduce((m, d) => ((d.rail.d || 0) > (m.rail.d || 0) ? d : m), c.drawers[0]);
+          if (!dr || !dr.rail.d) return [];
+          return szufladaZGory(c, dr).map((q, si) => (
+            <rect key={`trn${c.j}-${si}`} x={q.x} y={cd - q.z - q.d} width={q.w} height={q.d}
+              fill={q.rodzaj === "prowadnica" ? "#8b8b93" : shelfColorOf(cab, mat)} stroke={INK} strokeWidth="1.5" opacity="0.85" />
           ));
         })}
 
@@ -7539,7 +7945,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           handleBar(d, zf - out, null);
           skrzynkaBryly(d, t, zf + tf - out).forEach(([a0, b0, c0, a1, b1, c1, r]) =>
             box(c.x + a0, c.base + b0, c0, c.x + a1, c.base + b1, c1,
-              r === "metal" ? "#8b8b93" : shelfColorOf(c.cab, c.mat), null, 1, false, 0, r === "metal" ? "skrzynka-bok" : null));
+              r === "metal" ? "#8b8b93" : shelfColorOf(c.cab, c.mat), null, 1, false, 0, r === "metal" || r === "bok" ? "skrzynka-bok" : null));
           return;
         }
         if (d.type === "klapa") {
@@ -7807,7 +8213,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
   );
 }
 
-function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware, arm, wstawki, blat }) {
+function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware, arm, wstawki, blat, druk }) {
   const wsL = wstawkiSzafki(wstawki, geo);
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
@@ -7871,33 +8277,12 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const armLenD = arm ? Math.max(0, arm.len) : 0;
   const baseL = (arm && arm.side === "left" ? -armLenD : 0) - wsL.filter((w) => w.lewa).reduce((a, w) => a + w.u, 0);
   const baseR = W + (arm && arm.side !== "left" ? armLenD : 0) + wsL.filter((w) => !w.lewa).reduce((a, w) => a + w.u, 0);
-  let lxCur = baseL + (gapLabels ? -26 - 70 : -26);
-  const takeL = (w) => { const x = lxCur; lxCur -= w; return x; };
-  let rxCur = baseR + (gapLabels ? 26 + 70 : 26);
-  const takeR = (w) => { const x = rxCur; rxCur += w; return x; };
-  const dimRailLX = hasRailL ? takeL(180) : baseL - 26;
-  const dimRailRX = hasRailR ? takeR(150) : baseR + 26;
-  const dimSideLX = showSideLengthDims ? takeL(150) : baseL - 26;
-  const dimSideRX = showSideLengthDims ? takeR(150) : baseR + 26;
-  // przegrody poziome: gdzie wiercic konfirmaty, liczone od spodu boku
-  const hasSepDims = showDims && geo.sepShelves.length > 0;
-  const dimSepX = hasSepDims ? takeR(240) : baseR + 26;
-  const dimDoorX = hasDoorDims ? takeL(90) : lxCur; // wysokosci drzwi po lewej
-  const dimLevelX = hasLevelDims ? takeL(90) : lxCur; // swiatlo poziomow po lewej
-  const dimDrawerX = hasDrawerDims ? takeR(90) : rxCur; // wysokosci frontow szuflad
-  const dimHMainX = takeL(100);
-  const dimHTotalX = hasBaseDim ? takeL(100) : dimHMainX;
   // wysokosc razem z blatem ciagu nad szafka (uzytkownik 2026-10-04) — najdalej z lewej
   const zBlatem = showDims && blat && blat.roboczy && blat.th > 0;
   // podstawa pod korpusem (cokol pod spodem albo nozki) — bez marginesow na opisy
   const podstawaH = Math.max(geo.legBelow, cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0);
-  const dimBlatX = zBlatem ? takeL(100) : null;
-  const leftExtra = Math.max(0, baseL - lxCur - 40);
-  // "nóżki 100" to szeroki opis — rezerwujemy mu miejsce po prawej
-  const rightExtraF = Math.max(0, rxCur - baseR - 26) + (hasBase ? 140 : 0);
-  // cokol pod lewym wymiarem boku, nozki pod prawym — tuz przy szafce
-  const dimCokolX = baseL - 26;
-  const dimNozkiX = baseR + 26;
+  // przegrody poziome: gdzie wiercic konfirmaty, liczone od spodu boku
+  const hasSepDims = showDims && geo.sepShelves.length > 0;
   const blOvL = geo.isBlat ? geo.blat.overL : 0;
   const blOvR = geo.isBlat ? geo.blat.overR : 0;
   /* Szafka narozna nie konczy sie na korpusie: ramie idzie wzdluz drugiej
@@ -7905,7 +8290,97 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
      naroza — bo inaczej z rysunku znika polowa mebla. */
   const armLen = arm ? Math.max(0, arm.len) : 0;
   const armL = !!arm && arm.side === "left";
-  const vb = `${-pad - leftExtra - blOvL - (armL ? armLen : 0)} ${-pad} ${W + armLen + blOvL + blOvR + 2 * pad + leftExtra + rightExtraF} ${H + pad + belowExtra + 60}`;
+  /* Druk (PDF-1): napisy rosna o kz, wiec kolumna wymiarow musi pomiescic
+     powiekszony opis, a nie tylko ten z ekranu. Liczba znakow — z opisow,
+     ktore naprawde rysujemy. Na ekranie kz = 1 i szerokosci sa jak byly. */
+  const zn = (arr) => arr.reduce((m, x) => Math.max(m, String(x).length), 0);
+  const plHd = cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
+  const znaki = {
+    railL: zn(railDimCols.filter((r) => r.where === "left").flatMap(({ c }) => c.drawers.map((dr) => `szyna ${fmt(Math.round(dr.rail.y0 - geo.interior.y0))}`))),
+    railR: zn(railDimCols.filter((r) => r.where === "right").flatMap(({ c }) => c.drawers.map((dr) => `szyna ${fmt(Math.round(dr.rail.y0 - geo.interior.y0))}`))),
+    bokL: `bok L ${fmt(geo.leftLen)}`.length, bokP: `bok P ${fmt(geo.rightLen)}`.length,
+    sep: zn(geo.sepShelves.map((sh) => `przegroda ${fmt(Math.round(sh.y))}/${fmt(Math.round(sh.y + geo.t))}`)),
+    door: zn((geo.doors || []).filter((d) => d.type === "door" || d.type === "klapa").map((d) => fmt(d.h))),
+    level: zn(geo.levels.map((lv) => fmt(lv.h))),
+    drawer: zn((geo.doors || []).filter((d) => d.type === "drawer").map((d) => fmt(d.h))),
+    h: fmt(H).length, hTotal: fmt(H + Math.max(plHd, geo.legBelow)).length,
+    blat: zBlatem ? `${fmt(H + podstawaH + blat.th)} z blatem`.length : 0,
+    nozki: `nóżki ${fmt(geo.legH)}`.length, cokol: `cokół ${fmt(plHd)}`.length,
+  };
+  const uklad = (kz) => {
+    const kol = (w, n) => kolumnaDruk(w, n, kz);
+    const kolD = (w, n) => kolumnaDruk(w, n, kDlugie(kz));
+    // opisy szczelin z boku (np. „2”) siedza miedzy obrysem a pierwsza kolumna
+    const luzOp = !gapLabels ? 0 : kz > 1 ? Math.max(70, szerNapisu("00", 20, kz) + 44) : 70;
+    let lxCur = baseL - 26 - luzOp;
+    const takeL = (w) => { const x = lxCur; lxCur -= w; return x; };
+    let rxCur = baseR + 26 + luzOp;
+    const takeR = (w) => { const x = rxCur; rxCur += w; return x; };
+    const u = {};
+    u.dimRailLX = hasRailL ? takeL(kolD(180, znaki.railL)) : baseL - 26;
+    u.dimRailRX = hasRailR ? takeR(kolD(150, znaki.railR)) : baseR + 26;
+    u.dimSideLX = showSideLengthDims ? takeL(kolD(150, znaki.bokL)) : baseL - 26;
+    u.dimSideRX = showSideLengthDims ? takeR(kolD(150, znaki.bokP)) : baseR + 26;
+    u.dimSepX = hasSepDims ? takeR(kolD(240, znaki.sep)) : baseR + 26;
+    u.dimDoorX = hasDoorDims ? takeL(kol(90, znaki.door)) : lxCur; // wysokosci drzwi po lewej
+    u.dimLevelX = hasLevelDims ? takeL(kol(90, znaki.level)) : lxCur; // swiatlo poziomow po lewej
+    u.dimDrawerX = hasDrawerDims ? takeR(kol(90, znaki.drawer)) : rxCur; // wysokosci frontow szuflad
+    u.dimHMainX = takeL(kol(100, znaki.h));
+    u.dimHTotalX = hasBaseDim ? takeL(kol(100, znaki.hTotal)) : u.dimHMainX;
+    u.dimBlatX = zBlatem ? takeL(kolD(100, znaki.blat)) : null;
+    const leftExtra = Math.max(0, baseL - lxCur - 40);
+    // "nóżki 100" to szeroki opis — rezerwujemy mu miejsce po prawej
+    const rightExtraF = Math.max(0, rxCur - baseR - 26) + (hasBase ? 140 : 0);
+    u.vbX = -pad - leftExtra - blOvL - (armL ? armLen : 0);
+    u.vbW = W + armLen + blOvL + blOvR + 2 * pad + leftExtra + rightExtraF;
+    if (kz > 1) {
+      /* W druku obrys liczymy z zasiegu napisow (kolumny, „cokół” przy lewym
+         boku, „nóżki” przy prawym), bez zapasu z ekranu — kazdy milimetr
+         szerokosci to wieksza szafka na kartce. */
+      const lewo = Math.min(lxCur, plHd > 0 ? baseL - 34 - znaki.cokol * ZNAK_EM * 22 * kDlugie(kz) : lxCur) - 30 - blOvL;
+      const prawo = Math.max(rxCur, hasBase ? baseR + 34 + znaki.nozki * ZNAK_EM * 22 * kDlugie(kz) : rxCur) + 30 + blOvR;
+      u.vbX = lewo; u.vbW = prawo - lewo;
+    }
+    return u;
+  };
+  const kz = drukKUkladu((k) => uklad(k).vbW, druk);
+  const kDl = kDlugie(kz) === 1 ? undefined : kDlugie(kz);
+  const { dimRailLX, dimRailRX, dimSideLX, dimSideRX, dimSepX, dimDoorX, dimLevelX, dimDrawerX,
+    dimHMainX, dimHTotalX, dimBlatX, vbX, vbW } = uklad(kz);
+  // cokol pod lewym wymiarem boku, nozki pod prawym — tuz przy szafce
+  const dimCokolX = baseL - 26;
+  const dimNozkiX = baseR + 26;
+  // wymiar szerokosci u gory, nad nim szerokosc blatu; w druku wyzej o urosly napis
+  const wyTop = cab.topFiller?.on && cab.topFiller.height > 0 ? -(cab.topFiller.height + 40) : -50;
+  const wyBlat = kz > 1 ? wyTop - 34 - POLE_EM * 22 * kz : wyTop - 60;
+  const zBlatSzer = geo.isBlat && (geo.blat.overL > 0 || geo.blat.overR > 0);
+  const padTop = kz > 1 ? Math.max(pad, 16 - (zBlatSzer ? wyBlat : wyTop) + POLE_EM * 22 * kz) : pad;
+  // legendy pod rysunkiem; w druku pod wierszem szerokosci frontow, kazda pod poprzednia
+  const legendy = [
+    pinLegend && { key: "pin", fs: 19, txt: `otw. — oś otworu ⌀5 pod kołek, od ${pinFromBottom
+      ? (geo.hasBot ? "górnego lica dna" : "spodu wnętrza") : "dolnej krawędzi boku / przegrody"}` },
+    drawerLegend && { key: "szuf", fs: 19, txt: `od dna — górne lico dna szuflady, ${(() => {
+      // spod dna nad dolem prowadnicy zalezy od boku (vboxDno: 23–24 mm) — piszemy te, ktore sa
+      const w = [...new Set(geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.drawers || []).map((d) => d.dnoOd ?? vboxDno(d.hClass)))))].sort((a, b) => a - b);
+      return w.length ? w.map(fmt).join(" / ") : "23";
+    })()} + ${fmt(geo.ts)} mm nad dołem prowadnicy` },
+  ].filter(Boolean);
+  const wierszDol = belowY + 90; // szerokosci frontow / kolumn pod szafka
+  // druk: swiatlo szerokosci szuflad — wiersz pod szerokosciami kolumn
+  const wierszSzuf = wierszDol + (open && geo.levels[0] && geo.levels[0].cols.length > 1 ? 30 + POLE_EM * 22 * kz : 0);
+  const szerSzuflad = !(open && showDims && kz > 1) ? [] : geo.levels.flatMap((lv) => lv.cols
+    .filter((c) => c.kind === "drawers" && (c.drawers || []).length && c.w > 42 + 60)
+    .map((c) => ({ lvl: lv.i, j: c.j, ...szerWnetrzaSzuflady(c, c.drawers[0]) })))
+    // kilka poziomow z szufladami: kazdy w swoim wierszu, zeby sie nie nakladaly
+    .map((q, i, a) => ({ ...q, y: wierszSzuf + (a.slice(0, i).some((p) => p.x1 > q.x0 && p.x0 < q.x1) ? (30 + POLE_EM * 22 * kz) * a.slice(0, i).filter((p) => p.x1 > q.x0 && p.x0 < q.x1).length : 0) }));
+  const dolWierszy = Math.max(wierszDol, ...szerSzuflad.map((q) => q.y));
+  const legendyU = kz > 1
+    ? ulozLegendy(legendy, dolWierszy + 14 + POLE_EM * 22 * kz, kz, vbW - 40).map((l) => ({ ...l, x: vbX + vbW / 2 }))
+    : legendy.map((l, i) => ({ ...l, k: 1, x: W / 2, y: belowY + (hasBase ? 160 : 150) + (i ? 34 : 0) }));
+  const belowDruk = kz > 1
+    ? Math.max(belowExtra, (legendyU.length ? legendyU[legendyU.length - 1].dol : dolWierszy + POLE_EM * 22 * kz) + 20 - H - 60)
+    : belowExtra;
+  const vb = `${vbX} ${-padTop} ${vbW} ${H + padTop + belowDruk + 60}`;
   const fy = (y) => H - y;
   const bf = mat.board.color;
   const ff = frontColor;
@@ -7915,7 +8390,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // gdy widac okucia, odsuwamy je dalej, zeby nie wchodzily na opisy zawiasow
   const dimColX = (c) =>
     (c.fix && c.fix.side === "left" ? Math.max(c.x0, c.fix.x + c.fix.w) : c.x0)
-    + (open && showHardware ? 116 : 46);
+    + (open && showHardware ? 116 : 46)
+    // w druku opis zawiasu (np. „262”) jest wiekszy i siega dalej w swiatlo
+    + (open && showHardware && kz > 1 ? 3 * ZNAK_EM * 20 * (kz - 1) + 20 : 0);
   // baza wymiarowania otworow pod kolki. Domyslnie dolna krawedz elementu,
   // w ktory wiercimy (lewy bok dla pierwszej kolumny, inaczej przegroda po jej
   // lewej stronie) — tak sie mierzy plyte lezaca na stole. W trybie "od dna"
@@ -7976,7 +8453,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   );
 
   return (
-    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H, "--k": kz }}>
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       <PrzejscieDefs />
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke="#e7e5e4" strokeWidth="1" />
@@ -8202,6 +8679,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 <circle cx={(c.shX1 ?? c.x1) - 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
                 {showDims && (
                   <text x={(c.x0 + c.x1) / 2} y={fy(s.y) + 24} textAnchor="middle" fontSize="17"
+                    style={kz > 1 ? { "--k": kMaly(kz, 17, `otw. ${fmt(s.y - pinRef(c))}`, c.w - 40) } : undefined}
                     fill={DIMC} fontFamily="ui-monospace, monospace">
                     otw. {fmt(s.y - pinRef(c))}
                   </text>
@@ -8212,24 +8690,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         )}
 
       {/* legenda — bez niej sama liczba nie mowi, od czego jest mierzona */}
-      {pinLegend && (
-        <text x={W / 2} y={belowY + (hasBase ? 160 : 150)} textAnchor="middle"
-          fontSize="19" fill={DIMC} fontFamily="ui-monospace, monospace">
-          otw. — oś otworu ⌀5 pod kołek, od {pinFromBottom
-            ? (geo.hasBot ? "górnego lica dna" : "spodu wnętrza")
-            : "dolnej krawędzi boku / przegrody"}
-        </text>
-      )}
-      {drawerLegend && (
-        <text x={W / 2} y={belowY + (hasBase ? 160 : 150) + (pinLegend ? 34 : 0)}
-          textAnchor="middle" fontSize="19" fill={DIMC} fontFamily="ui-monospace, monospace">
-          od dna — górne lico dna szuflady, {(() => {
-            // spod dna nad dolem prowadnicy zalezy od boku (vboxDno: 23–24 mm) — piszemy te, ktore sa
-            const w = [...new Set(geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.drawers || []).map((d) => vboxDno(d.hClass)))))].sort((a, b) => a - b);
-            return w.length ? w.map(fmt).join(" / ") : "23";
-          })()} + {fmt(geo.ts)} mm nad dołem prowadnicy
-        </text>
-      )}
+      {legendyU.map((l) => (
+        <text key={"leg-" + l.key} x={l.x} y={l.y} textAnchor="middle" style={l.k !== kz ? { "--k": l.k } : undefined}
+          fontSize={l.fs} fill={DIMC} fontFamily="ui-monospace, monospace">{l.txt}</text>
+      ))}
 
       {/* wsporniki pionowe za elementem stalym */}
       {geo.levels.flatMap((lv) =>
@@ -8259,11 +8723,14 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             <rect x={x0} y={fy(y0 + hy)} width={wM} height={hy}
               fill={frontColor} stroke={INK} strokeWidth="2.5" />
             {showDims && hy > 170 && (
-              <text x={x0 + wM / 2} y={fy(y0 + hy / 2) + 7} textAnchor="middle"
-                fontSize="18" fill={INK} opacity="0.75"
-                fontFamily="ui-monospace, monospace" transform={`rotate(-90 ${x0 + wM / 2} ${fy(y0 + hy / 2)})`}>
-                kątownik {fmt(arm.bracket.w)}
-              </text>
+              // obrot w grupie: w druku napis dostaje wlasny transform (powiekszenie)
+              <g transform={`rotate(-90 ${x0 + wM / 2} ${fy(y0 + hy / 2)})`}>
+                <text x={x0 + wM / 2} y={fy(y0 + hy / 2) + 7} textAnchor="middle"
+                  fontSize="18" fill={INK} opacity="0.75" style={kz > 1 ? { "--k": kNapisu(kz, `kątownik ${fmt(arm.bracket.w)}`, 18, hy - 20) } : undefined}
+                  fontFamily="ui-monospace, monospace">
+                  kątownik {fmt(arm.bracket.w)}
+                </text>
+              </g>
             )}
           </g>
         );
@@ -8296,16 +8763,17 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               </text>
             )}
             {showDims && ((d.w > 170 && d.h > 40) || (d.w > 40 && d.h > 170)) && (
-              <text
-                x={d.x + d.w / 2}
-                y={fy(d.y + d.h / 2) + 7}
-                textAnchor="middle" fontSize="20" fill={INK} opacity="0.75"
-                fontFamily="ui-monospace, monospace"
-                transform={d.w <= 170
-                  ? `rotate(-90 ${d.x + d.w / 2} ${fy(d.y + d.h / 2) + 7})`
-                  : undefined}>
-                {fmt(d.w)}×{fmt(d.h)}
-              </text>
+              // obrot w grupie: w druku napis dostaje wlasny transform (powiekszenie)
+              <g transform={d.w <= 170 ? `rotate(-90 ${d.x + d.w / 2} ${fy(d.y + d.h / 2) + 7})` : undefined}>
+                <text
+                  x={d.x + d.w / 2}
+                  y={fy(d.y + d.h / 2) + 7}
+                  textAnchor="middle" fontSize="20" fill={INK} opacity="0.75"
+                  style={kz > 1 ? { "--k": kNapisu(kz, `${fmt(d.w)}×${fmt(d.h)}`, 20, (d.w <= 170 ? d.h : d.w) - 16) } : undefined}
+                  fontFamily="ui-monospace, monospace">
+                  {fmt(d.w)}×{fmt(d.h)}
+                </text>
+              </g>
             )}
           </g>
         ) : open ? (
@@ -8321,10 +8789,14 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                     y2={fy(d.y + d.h - Math.min(50, d.h / 2))}
                     stroke={INK} strokeWidth="5" opacity="0.5" />
                 )}
-                <text x={d.x + d.w / 2} y={fy(d.y + d.h * 0.42)} textAnchor="middle"
-                  fontSize="19" fill={INK} opacity="0.8" fontFamily="ui-monospace, monospace">
-                  szuflada
-                </text>
+                {/* w druku przy prawej krawedzi, i tylko gdy obok powiekszonego
+                    wymiaru „od dna” (z lewej) jest na niego miejsce */}
+                {(kz === 1 || d.w > 110 + szerNapisu("000 od dna", 22, kz) + szerNapisu("szuflada", 19, kz)) && (
+                  <text x={kz > 1 ? d.x + d.w - 40 : d.x + d.w / 2} y={fy(d.y + d.h * 0.42)} textAnchor={kz > 1 ? "end" : "middle"}
+                    fontSize="19" fill={INK} opacity="0.8" fontFamily="ui-monospace, monospace">
+                    szuflada
+                  </text>
+                )}
               </>
             ) : (
               <>
@@ -8358,7 +8830,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                       <text
                         x={d.hingeSide === "left" ? d.hingeX + HINGE_W + 8 : d.hingeX - 8}
                         textAnchor={d.hingeSide === "left" ? "start" : "end"}
-                        y={fy(hy) + 6} fontSize="17"
+                        y={fy(hy) + 6} fontSize="17" style={kz > 1 ? { "--k": kMaly(kz, 17, "0000", 200) } : undefined}
                         fill={DIMC} fontFamily="ui-monospace, monospace">
                         {fmt(hy - d.y)}
                       </text>
@@ -8388,6 +8860,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               <text x={d.x + d.w / 2}
                 y={d.type === "drawer" ? fy(d.y + d.h * 0.3) : fy(d.y + d.h / 2) + 7}
                 textAnchor="middle" fontSize="20" fill={INK} opacity="0.75"
+                style={kz > 1 ? { "--k": kNapisu(kz, `${fmt(d.w)}×${fmt(d.h)}`, 20, d.w - 16) } : undefined}
                 fontFamily="ui-monospace, monospace">
                 {fmt(d.w)}×{fmt(d.h)}
               </text>
@@ -8405,10 +8878,38 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             .filter((d) => d.lvl === lv.i && d.w > 0)
             .sort((a, b) => a.x - b.x);
           const out = [];
+          /* kilka szuflad obok wysokich drzwi daje ten sam styk u gory drzwi —
+             jeden znacznik, a nie kilka takich samych jeden na drugim */
+          const byly = new Set();
+          /* szczelina gorna, dolna i miedzy frontami jeden nad drugim: na ekranie na
+             srodku frontu, w druku z boku — na srodku stoi powiekszony opis frontu.
+             Dolna z prawej, zeby nad przegroda nie trafila na gorna frontu pod nia;
+             gorna i szczelina do frontu wyzej maja kropke w tym samym miejscu,
+             wiec opis gornej idzie na prawo, a tej drugiej na lewo. */
+          // z lewej: za opisem szczeliny miedzy frontami (od styku) i przed nia opis do frontu wyzej
+          const odStyku = 30 + 4 * ZNAK_EM * 20 * kz;
+          const xSzcz = (d, prawa) => (kz === 1 ? d.x + d.w / 2
+            : prawa ? d.x + d.w - Math.min(d.w / 2, Math.max(60, d.w * 0.2)) + 12 + 2 * ZNAK_EM * 20 * kz
+              : d.x + Math.min(d.w / 2, Math.max(odStyku, d.w * 0.2)));
           // pionowa szczelina (miedzy frontami, gora, dol) — kropka na krawedzi, etykieta wyprowadzona krotka kreska
-          const marker = (key, xMid, yTop, val, up) => {
+          const marker = (key, xMid, yTop, val, up, naPrawo = false) => {
+            const miejsce = `${Math.round(xMid)}|${Math.round(yTop)}|${val}`;
+            if (byly.has(miejsce)) return;
+            byly.add(miejsce);
             const col = val < 2 ? ERRC : ACC;
             const dir = up ? -1 : 1;
+            /* W druku napis jest wiekszy i wyprowadzony nad krawedz wchodzil na
+               wymiar szerokosci i opis frontu — stawiamy go obok kropki. */
+            if (kz > 1) {
+              out.push(
+                <g key={key}>
+                  <circle cx={xMid} cy={fy(yTop)} r="6" fill={col} />
+                  <text x={naPrawo ? xMid + 12 : xMid - 12} y={fy(yTop) + 7} textAnchor={naPrawo ? "start" : "end"}
+                    fontSize="20" fill={col} fontFamily="ui-monospace, monospace">{fmt(val)}</text>
+                </g>
+              );
+              return;
+            }
             out.push(
               <g key={key}>
                 <circle cx={xMid} cy={fy(yTop)} r="6" fill={col} />
@@ -8422,8 +8923,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             );
           };
           // boczna szczelina (lewy/prawy bok korpusu) — etykieta wyprowadzona poza obrys
-          const sideMarker = (key, xMid, yMid, val, toLeft) => {
+          const sideMarker = (key, xMid, yMid0, val, toLeft, d) => {
             const col = val < 2 ? ERRC : ACC;
+            // w druku wyzej niz srodek — tam stoi opis frontu obok (np. fix)
+            const yMid = kz > 1 && d ? d.y + d.h * 0.75 : yMid0;
             const lx = toLeft ? xMid - 34 : xMid + 34;
             out.push(
               <g key={key}>
@@ -8473,7 +8976,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               (b) => b.lvl === d.lvl && x0 >= b.x0 - 0.5 && x1 <= b.x1 + 0.5 && x1 > x0);
             // luz z lewej rysujemy tylko gdy nie ma sasiada (bok/przegroda) — sasiad da luz z prawej
             if (!leftNb && !zabud(leftWall, d.x))
-              sideMarker(`gl${d.key}`, (leftWall + d.x) / 2, yMid, Math.round(d.x - leftWall), true);
+              sideMarker(`gl${d.key}`, (leftWall + d.x) / 2, yMid, Math.round(d.x - leftWall), true, d);
 
             // luz z prawej: do najblizszego sasiada w pionie albo do sciany
             let nb = null;
@@ -8486,9 +8989,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             if (nb) {
               const val = Math.round(nb.x - (d.x + d.w));
               // kropka na styku frontow u gory, kreska i opis wyprowadzone nad krawedz
-              marker(`gm${d.key}`, (d.x + d.w + nb.x) / 2, Math.max(yTop, nb.y + nb.h), val, true);
+              // w druku opis na prawo od kropki, przed szczelina gorna sasiada (xSzcz)
+              marker(`gm${d.key}`, (d.x + d.w + nb.x) / 2, Math.max(yTop, nb.y + nb.h), val, true, true);
             } else if (!zabud(d.x + d.w, rightWall)) {
-              sideMarker(`gr${d.key}`, (d.x + d.w + rightWall) / 2, yMid, Math.round(rightWall - (d.x + d.w)), false);
+              sideMarker(`gr${d.key}`, (d.x + d.w + rightWall) / 2, yMid, Math.round(rightWall - (d.x + d.w)), false, d);
             }
             // luz gorny liczymy tylko dla najwyzszego frontu kolumny, dolny dla najnizszego
             /* Luz gorny i dolny mierzymy do krawedzi pasma frontow TEGO poziomu.
@@ -8499,9 +9003,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             const botRef = d.inset ? d.colY0 : d.bandLo != null ? d.bandLo
               : cab.frontMode === "overlay" ? geo.bottomY : geo.interior.y0;
             if (colTop[d.colKey] === d && (d.inset || d.bandHi == null))
-              marker(`gt${d.key}`, d.x + d.w / 2, topRef, Math.round(topRef - (d.y + d.h)), true);
+              // w druku opis na prawo od kropki: na lewo stoi szczelina do frontu nad nim
+              marker(`gt${d.key}`, xSzcz(d), topRef, Math.round(topRef - (d.y + d.h)), true, true);
             if (colBot[d.colKey] === d && (d.inset || d.bandLo == null))
-              marker(`gb${d.key}`, d.x + d.w / 2, d.y, Math.round(d.y - botRef), false);
+              marker(`gb${d.key}`, xSzcz(d, true), d.y, Math.round(d.y - botRef), false);
 
             // luz pionowy do frontu bezposrednio nad tym w tej samej kolumnie
             /* Nad przegroda spotykaja sie fronty z dwoch poziomow, wiec sasiada
@@ -8520,8 +9025,18 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               /* Opis wyprowadzamy pionowo nad kropke, a nie w prawo — wyprowadzony
                  w bok ladowal dokladnie tam, gdzie opis szczeliny miedzy sasiednimi
                  frontami, i oba robily sie nieczytelne. */
-              const cxm = d.x + d.w / 2;
+              const cxm = xSzcz(d);
               const yv = fy(d.y + d.h);
+              if (kz > 1) {
+                out.push(
+                  <g key={`gv${d.key}`}>
+                    <circle cx={cxm} cy={yv} r="6" fill={col} />
+                    <text x={cxm - 12} y={yv + 7} textAnchor="end" fontSize="20"
+                      fill={col} fontFamily="ui-monospace, monospace">{fmt(val)}</text>
+                  </g>
+                );
+                return;
+              }
               out.push(
                 <g key={`gv${d.key}`}>
                   <circle cx={cxm} cy={yv} r="6" fill={col} />
@@ -8540,29 +9055,22 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
 
       {showDims && (
         <>
-          {(() => {
-            const wy = cab.topFiller?.on && cab.topFiller.height > 0 ? -(cab.topFiller.height + 40) : -50;
-            return (
-              <>
-                <DimH x1={0} x2={W} y={wy} label={`${fmt(W)}`} />
-                {geo.isBlat && (geo.blat.overL > 0 || geo.blat.overR > 0) && (
-                  <DimH x1={geo.topX0} x2={geo.topX1} y={wy - 60}
-                    label={`blat ${fmt(geo.topX1 - geo.topX0)}`} c={LINE} />
-                )}
-              </>
-            );
-          })()}
+          <DimH x1={0} x2={W} y={wyTop} label={`${fmt(W)}`} />
+          {zBlatSzer && (
+            <DimH x1={geo.topX0} x2={geo.topX1} y={wyBlat}
+              label={`blat ${fmt(geo.topX1 - geo.topX0)}`} c={LINE} />
+          )}
           <DimV y1={0} y2={H} x={dimHMainX} label={`${fmt(H)}`} />
           {zBlatem && (
             <DimV y1={-blat.th} y2={H + podstawaH} x={dimBlatX}
-              label={`${fmt(H + podstawaH + blat.th)} z blatem`} c={LINE} />
+              label={`${fmt(H + podstawaH + blat.th)} z blatem`} c={LINE} kd={kDl} />
           )}
           {showSideLengthDims && (
             <>
               <DimV y1={leftTopY} y2={leftBottomY} x={dimSideLX}
-                label={`bok L ${fmt(geo.leftLen)}`} c={LINE} />
+                label={`bok L ${fmt(geo.leftLen)}`} c={LINE} kd={kDl} />
               <DimV y1={rightTopY} y2={rightBottomY} x={dimSideRX}
-                label={`bok P ${fmt(geo.rightLen)}`} left={false} c={LINE} />
+                label={`bok P ${fmt(geo.rightLen)}`} left={false} c={LINE} kd={kDl} />
             </>
           )}
           {(cab.legs?.on || cab.plinth.on) && (() => {
@@ -8583,12 +9091,12 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 {/* cokol: mierzony przy prawej krawedzi korpusu (cokol jest szerokosci szafki) */}
                 {plH > 0 && (
                   <DimV y1={H} y2={H + plH} x={dimCokolX} label={`cokół ${fmt(plH)}`}
-                    c={LINE} />
+                    c={LINE} kd={kDl} />
                 )}
                 {/* nozki: mierzone znacznie dalej w prawo, zeby opis sie nie nakladal */}
                 {legH > 0 && (
                   <DimV y1={H - geo.legTop} y2={H - geo.legTop + legH} x={dimNozkiX}
-                    label={`nóżki ${fmt(legH)}`} left={false} c={LINE} />
+                    label={`nóżki ${fmt(legH)}`} left={false} c={LINE} kd={kDl} />
                 )}
               </>
             );
@@ -8603,7 +9111,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               return (
                 <DimV key={"sep" + i} y1={fy(lo)} y2={fy(0)} x={dimSepX}
                   labelY={fy(lo)} label={`przegroda ${fmt(lo)}/${fmt(hi)}`}
-                  left={false} c={LINE} />
+                  left={false} c={LINE} kd={kDl} />
               );
             })}
           {hasLevelDims &&
@@ -8615,6 +9123,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           {!open &&
             geo.doors
               .filter((d) => d.type === "drawer")
+              // dwie kolumny szuflad tej samej wysokosci: jeden wymiar, nie dwa na sobie
+              .filter((d, i, a) => a.findIndex((e) => Math.round(e.y) === Math.round(d.y) && Math.round(e.h) === Math.round(d.h)) === i)
               .map((d) => (
                 <DimV key={"dr" + d.key} y1={fy(d.y + d.h)} y2={fy(d.y)} x={dimDrawerX}
                   label={`${fmt(d.h)}`} left={false} c={DIMC} />
@@ -8623,6 +9133,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           {!open &&
             geo.doors
               .filter((d) => d.type === "door" || d.type === "klapa")
+              // dwoje drzwi obok siebie: jeden wymiar wysokosci, nie dwa na sobie
+              .filter((d, i, a) => a.findIndex((e) => Math.round(e.y) === Math.round(d.y) && Math.round(e.h) === Math.round(d.h)) === i)
               .map((d) => (
                 <DimV key={"door" + d.key} y1={fy(d.y + d.h)} y2={fy(d.y)} x={dimDoorX}
                   label={`${fmt(d.h)}`} c={DIMC} />
@@ -8686,13 +9198,22 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             .flatMap((c) => {
               const ds = [...c.drawers].sort((a, b) => a.y - b.y);
               return ds.map((dr, i) => {
-                const bottom = dr.rail.y0 + vboxDno(dr.hClass) + geo.ts;
+                const bottom = dr.rail.y0 + (dr.dnoOd ?? vboxDno(dr.hClass)) + geo.ts;
                 const top = i + 1 < ds.length ? ds[i + 1].y : lv.y1;
                 const val = Math.round(top - bottom);
                 if (val < 30) return null;
+                /* W druku opis przy gornym koncu wymiaru, nad opisem szyny przy dnie
+                   (szerokosc szuflady idzie w druku pod szafke). Gdy malo miejsca —
+                   mniejszy. */
+                // w kolumnie miedzy przegrodami u gory stoi opis szyny szuflady wyzej
+                const szynaNad = showHardware && c.j > 0 && c.j < lv.cols.length - 1 && i + 1 < ds.length
+                  ? 5 + (POLE_EM * 22 * kDlugie(kz)) / 2 + 8 : 4;
+                const miejsce = top - dr.y - szynaNad - 20 - (POLE_EM * 22 * kz) / 2;
+                const kOd = kz > 1 ? Math.max(1, Math.min(kz, miejsce / (POLE_EM * 22))) : undefined;
                 return (
                   <DimV key={`du${lv.i}-${c.j}-${i}`}
                     y1={fy(top)} y2={fy(bottom)} x={c.x0 + 46}
+                    labelY={kz > 1 ? fy(top) + szynaNad + (POLE_EM * 22 * kOd) / 2 : null} kd={kOd}
                     label={`${fmt(val)} od dna`} left={false} c={DIMC} />
                 );
               });
@@ -8706,10 +9227,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
             .flatMap((c) =>
               c.drawers.flatMap((dr) =>
-                [c.x0, c.x1 - RUNNER_W].map((rx, s) => (
-                  <rect key={`rn${lv.i}-${c.j}-${dr.i}-${s}`}
-                    x={rx} y={fy(dr.rail.y0 + vboxGora(dr.rail.h))} width={RUNNER_W} height={vboxGora(dr.rail.h)}
-                    fill="#8b8b93" stroke={INK} strokeWidth="1.5" />
+                szufladaOdCzola(c, dr).map((q, s) => (
+                  <rect key={`rn${lv.i}-${c.j}-${dr.i}-${s}`} data-el={q.rodzaj === "bok" ? "skrzynka-bok-dxs" : undefined}
+                    x={q.x} y={fy(q.y + q.h)} width={q.w} height={q.h}
+                    fill={q.rodzaj === "bok" ? shc : "#8b8b93"} stroke={INK} strokeWidth="1.5" />
                 ))
               )
             )
@@ -8729,25 +9250,32 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                od kreski i przy kilku szufladach nie dalo sie ich powiazac */
             <DimV key={`rh${lvl}-${c.j}-${i}`} y1={fy(dr.rail.y0)} y2={fy(geo.interior.y0)} x={x}
               labelY={fy(dr.rail.y0)}
-              label={`szyna ${fmt(val)}`} left={where !== "right"} c={DIMC} />
+              label={`szyna ${fmt(val)}`} left={where !== "right"} c={DIMC} kd={where === "in" ? undefined : kDl} />
           );
         })
       )}
 
-      {/* swiatlo szerokosci szuflady: swiatlo kolumny minus 2 x 21 mm (prowadnica + bok) */}
-      {open && showDims &&
+      {/* swiatlo szerokosci szuflady: swiatlo kolumny minus 2 x 21 mm (prowadnica + bok).
+          W druku jeden wymiar na kolumne, w wierszu pod szafka — w srodku szuflady
+          powiekszony wchodzil na wymiary szyny i swiatla w pionie. */}
+      {open && showDims && kz > 1 &&
+        szerSzuflad.map((q) => (
+          <DimH key={`dws${q.lvl}-${q.j}`} x1={q.x0} x2={q.x1} y={q.y}
+            label={`${fmt(q.clear)} szer.`} above={false} c={DIMC} />
+        ))}
+      {open && showDims && kz === 1 &&
         geo.levels.flatMap((lv) =>
           lv.cols
             .filter((c) => c.kind === "drawers" && (c.drawers || []).length && c.w > 42 + 60)
             .flatMap((c) => {
-              const clear = Math.round(c.w - 42);
-              return c.drawers.map((dr, i) =>
-                dr.h < 46 ? null : (
+              return c.drawers.map((dr, i) => {
+                const q = szerWnetrzaSzuflady(c, dr);
+                return dr.h < 46 ? null : (
                   <DimH key={`dw${lv.i}-${c.j}-${i}`}
-                    x1={c.x0 + 21} x2={c.x1 - 21} y={fy(dr.y + 16)}
-                    label={`${fmt(clear)} szer.`} c={DIMC} />
-                )
-              );
+                    x1={q.x0} x2={q.x1} y={fy(dr.y + 16)}
+                    label={`${fmt(q.clear)} szer.`} c={DIMC} />
+                );
+              });
             })
         )}
 
@@ -8771,7 +9299,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   );
 }
 
-function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
+function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const { H } = cab;
@@ -8781,7 +9309,6 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
     geo.legBelow,
     cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0
   );
-  const vb = `${-pad} ${-pad} ${W + 2 * pad} ${H + 2 * pad + 40 + rBelow}`;
   const fy = (y) => H - y;
   const mx = (x, w) => W - x - w; // patrzymy od tylu, wiec lustro w poziomie
   const bf = mat.board.color;
@@ -8825,9 +9352,24 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
       label += ", docięte przy narożniku";
     }
   }
+  /* Druk (PDF-1): obrys z zasiegu powiekszonych napisow — z lewej wymiar
+     wysokosci plecow, pod spodem dwie linie opisu jedna pod druga. */
+  const wymDim = showDims && cab.back !== "none";
+  const lewoDruk = (k) => (wymDim ? -55 - 8 - szerNapisu(fmt(bh), 22, k) : 0) - 30;
+  const kz = drukKUkladu((k) => W + 40 - lewoDruk(k), druk);
+  const vbX = kz > 1 ? lewoDruk(kz) : -pad;
+  const vbW = kz > 1 ? W + 40 - vbX : W + 2 * pad;
+  const vbY = kz > 1 ? Math.min(-40, wymDim ? -55 - 3 - POLE_EM * 22 * kz - 16 : -40) : -pad;
+  const opisy = [{ key: "plecy", fs: 22, txt: label }, { key: "kier", fs: 20, txt: "widok od tyłu — lewy bok szafki po prawej" }];
+  const opisyU = kz > 1
+    ? ulozLegendy(opisy, Math.max(H + rBelow + 20, wymDim && geo.grooved ? H + 60 + 14 + POLE_EM * 22 * kz : 0), kz, vbW - 40)
+      .map((l) => ({ ...l, x: vbX + vbW / 2 }))
+    : opisy.map((l, i) => ({ ...l, k: kz, x: W / 2, y: H + rBelow + (i ? 150 : 120) }));
+  const vbDol = kz > 1 ? opisyU[opisyU.length - 1].dol + 20 : H + pad + 40 + rBelow;
+  const vb = `${vbX} ${vbY} ${vbW} ${vbDol - vbY}`;
 
   return (
-    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H, "--k": kz }}>
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       {/* korpus widziany od tylu */}
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
@@ -8890,6 +9432,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
           {showDims && r.x1 - r.x0 > 220 && (
             // plaskie (cieńsze niz podpis) — podpis pod nim, w srodku przekreslala go kreska
             <text x={mx(r.x0, r.x1 - r.x0) + (r.x1 - r.x0) / 2} y={r.y1 - r.y0 < 40 ? fy(r.y0) + 20 : fy(r.y0) - 8}
+              style={kz > 1 ? { "--k": kMaly(kz, 17, `wzmocnienie czołowe ${fmt(r.x1 - r.x0)}`, r.x1 - r.x0 - 10) } : undefined}
               textAnchor="middle" fontSize="17" fill={LINE} fontFamily="ui-monospace, monospace">
               {r.przyTyle ? "wzmocnienie tylne" : "wzmocnienie czołowe"} {fmt(r.x1 - r.x0)}
             </text>
@@ -8907,6 +9450,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
             fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
           {showDims && (
             <text x={geo.interior.x0 + geo.innerW / 2} y={fy(sh.y + t) - 8}
+              style={kz > 1 ? { "--k": kMaly(kz, 17, geo.innerW > 360 ? `półka przelotowa ${fmt(geo.innerW)} · spód ${fmt(Math.round(sh.y))} od dołu` : `półka przel. · ${fmt(Math.round(sh.y))}`, geo.innerW - 10) } : undefined}
               textAnchor="middle" fontSize="17" fill={LINE} fontFamily="ui-monospace, monospace">
               {geo.innerW > 360 ? `półka przelotowa ${fmt(geo.innerW)} · spód ${fmt(Math.round(sh.y))} od dołu` : `półka przel. · ${fmt(Math.round(sh.y))}`}
             </text>
@@ -8926,10 +9470,16 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
             let g = { a: d.y0, b: d.y1, len: 0 };
             for (let k = 0; k + 1 < ys.length; k++) if (ys[k + 1] - ys[k] > g.len) g = { a: ys[k], b: ys[k + 1], len: ys[k + 1] - ys[k] };
             const pelny = `przegroda ${fmt(d.h)} · od ${fmt(Math.round(d.y0))} do ${fmt(Math.round(d.y1))}`;
-            const txt = g.len > 320 ? pelny : g.len > 160 ? `przegroda ${fmt(d.h)}` : null;
+            const krotki = `przegroda ${fmt(d.h)}`;
+            // w druku napis jest wiekszy — pelny tylko wtedy, gdy sie miesci w powiekszeniu
+            const miesci = (t) => kz === 1 || szerNapisu(t, 17, kz * 20 / 17) + 20 <= g.len;
+            const txt = g.len > 320 && miesci(pelny) ? pelny : g.len > 160 ? krotki : null;
+            // obrot w grupie: w druku napis dostaje wlasny transform (powiekszenie)
             return txt && (
-              <text transform={`translate(${mx(d.x, t) - 8} ${fy((g.a + g.b) / 2)}) rotate(-90)`}
-                textAnchor="middle" fontSize="17" fill={LINE} fontFamily="ui-monospace, monospace">{txt}</text>
+              <g transform={`translate(${mx(d.x, t) - 8} ${fy((g.a + g.b) / 2)}) rotate(-90)`}>
+                <text textAnchor="middle" fontSize="17" fill={LINE} fontFamily="ui-monospace, monospace"
+                  style={kz > 1 ? { "--k": kMaly(kz, 17, txt, g.len - 20) } : undefined}>{txt}</text>
+              </g>
             );
           })()}
         </g>
@@ -8943,12 +9493,18 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
               <g key={`p${lv.i}-${c.j}-${k}`} data-el="tyl-polka">
                 <rect x={x} y={fy(sh.y + geo.ts)} width={w} height={geo.ts}
                   fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 6" />
-                {showDims && w > 160 && (
-                  <text x={x + w / 2} y={fy(sh.y + geo.ts) - 8}
-                    textAnchor="middle" fontSize="17" fill={LINE} fontFamily="ui-monospace, monospace">
-                    {w > 320 ? `półka ${fmt(w)} · spód ${fmt(Math.round(sh.y))} od dołu` : `półka · ${fmt(Math.round(sh.y))}`}
-                  </text>
-                )}
+                {showDims && w > 160 && (() => {
+                  const pelny = `półka ${fmt(w)} · spód ${fmt(Math.round(sh.y))} od dołu`, krotki = `półka · ${fmt(Math.round(sh.y))}`;
+                  // w druku pelny tylko wtedy, gdy sie miesci w powiekszeniu
+                  const txt = w > 320 && (kz === 1 || szerNapisu(pelny, 17, kz * 20 / 17) + 10 <= w) ? pelny : krotki;
+                  return (
+                    <text x={x + w / 2} y={fy(sh.y + geo.ts) - 8}
+                      style={kz > 1 ? { "--k": kMaly(kz, 17, txt, w - 10) } : undefined}
+                      textAnchor="middle" fontSize="17" fill={LINE} fontFamily="ui-monospace, monospace">
+                      {txt}
+                    </text>
+                  );
+                })()}
               </g>
             );
           })
@@ -8968,6 +9524,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
             <rect x={mx(wallX, t)} y={fy(gc.cy1)} width={t} height={gc.cutH}
               fill={shc} stroke={INK} strokeWidth="2" opacity="0.9" />
             <text x={xw + (gc.bx1 - gc.bx0) / 2} y={fy((gc.cy0 + gc.cy1) / 2)} textAnchor="middle"
+              style={kz > 1 ? { "--k": kMaly(kz, 18, `wycięcie ${fmt(gc.cw)}×${fmt(gc.cdp)}`, gc.bx1 - gc.bx0 - 10) } : undefined}
               fontSize="18" fill={ERRC} fontFamily="ui-monospace, monospace">
               wycięcie {fmt(gc.cw)}×{fmt(gc.cdp)}
             </text>
@@ -8996,10 +9553,10 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat }) {
           )}
         </>
       )}
-      <text x={W / 2} y={H + 120 + rBelow} textAnchor="middle" fontSize="22" fill={LINE}
-        fontFamily="ui-monospace, monospace">{label}</text>
-      <text x={W / 2} y={H + 150 + rBelow} textAnchor="middle" fontSize="20" fill={LINE}
-        fontFamily="ui-monospace, monospace">widok od tyłu — lewy bok szafki po prawej</text>
+      {opisyU.map((l) => (
+        <text key={l.key} x={l.x} y={l.y} textAnchor="middle" fontSize={l.fs} fill={LINE}
+          style={l.k !== kz ? { "--k": l.k } : undefined} fontFamily="ui-monospace, monospace">{l.txt}</text>
+      ))}
       {/* wstawka w rogu przy boku — od tylu tez ja widac (lustro w poziomie) */}
       {wstawkiSzafki(wstawki, geo).map((w, k) => (
         <rect key={"ws" + k} data-el="wstawka" x={mx(w.x0, w.x1 - w.x0)} y={fy(w.H)} width={w.x1 - w.x0} height={w.H}
@@ -9060,7 +9617,7 @@ const blatNadSzafka = (project, full, index, arm) => {
   return out.kolor ? out : null;
 };
 
-function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, arm, blat, wstawki }) {
+function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, arm, blat, wstawki, druk }) {
   const mat = texMat(matIn, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const { D } = cab;
@@ -9078,13 +9635,41 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
   // po stronie ramienia ida jeszcze dwa wymiary: samo ramie i calosc z nim
   const armDimL = arm && arm.side === "left" && showDims ? 240 : 0;
   const armDimR = arm && arm.side !== "left" && showDims ? 240 : 0;
-  const vb = `${-pad - tOvL - armDimL} ${-pad - tOvB} ${W + tOvL + tOvR + 2 * pad + 120 + armDimL + armDimR} ${D + tOvB + tOvF + 2 * pad + 100 + frontExtra + armLen}`;
   const bf = mat.board.color;
   const t = geo.t;
   const cd = geo.carcassDepth;
+  /* Druk (PDF-1): kolumny wymiarow z prawej (glebokosc, polka) i przy ramieniu
+     szersze o powiekszony opis, obrys z ich zasiegu, podpis pod wymiarami
+     szerokosci kolumn. Na ekranie kz = 1 i wszystko jak bylo. */
+  const polkaDim = showDims && geo.shelfDepth < cd - geo.backIntrusion;
+  const opisGl = fmt(cd - geo.backIntrusion), opisPolki = `półka ${fmt(geo.shelfDepth)}`;
+  const opisRam1 = arm ? `ramię ${fmt(arm.len)}` : "", opisRam2 = arm ? `${fmt(cd + arm.len)} z ramieniem` : "";
+  const ukladT = (k) => {
+    const xPolki = W + 55 + kolumnaDruk(60, opisGl.length, k);
+    const ram2 = arm ? kolumnaDruk(arm.side === "left" ? 200 : 190, opisRam1.length, k) : 0;
+    let lewo = Math.min(-tOvL, showDims ? -50 - 8 - szerNapisu(fmt(cd), 22, k) : 0);
+    let prawo = Math.max(W + tOvR, showDims ? (polkaDim ? xPolki + 8 + szerNapisu(opisPolki, 22, k) : W + 63 + szerNapisu(opisGl, 22, k)) : W);
+    if (showDims && arm && arm.side === "left") lewo = Math.min(lewo, -50 - ram2 - 8 - szerNapisu(opisRam2, 22, k));
+    if (showDims && arm && arm.side !== "left") prawo = Math.max(prawo, W + 55 + ram2 + 8 + szerNapisu(opisRam2, 22, k));
+    return { xPolki, ram2, vbX: lewo - 30, vbW: prawo - lewo + 60 };
+  };
+  const kz = drukKUkladu((k) => ukladT(k).vbW, druk);
+  const uT = ukladT(kz);
+  const xPolki = kz > 1 ? uT.xPolki : W + 115;
+  const vbX = kz > 1 ? uT.vbX : -pad - tOvL - armDimL;
+  const vbW = kz > 1 ? uT.vbW : W + tOvL + tOvR + 2 * pad + 120 + armDimL + armDimR;
+  const vbY = kz > 1 ? Math.min(-tOvB - 30, showDims ? -50 - 3 - POLE_EM * 22 * kz - 16 : -30) : -pad - tOvB;
+  const podpis = { key: "podpis", fs: 22, txt: "widok z góry — tył u góry, przód u dołu" };
+  const kolumnyDol = showDims && (geo.levels[0]?.cols || []).length > 1;
+  const podpisU = kz > 1
+    ? ulozLegendy([podpis], Math.max(cd + 150 + (arm ? arm.len : 0) - 0.93 * 22, kolumnyDol ? cd + 90 + 14 + POLE_EM * 22 * kz : 0), kz, vbW - 40)
+      .map((l) => ({ ...l, x: vbX + vbW / 2 }))[0]
+    : { ...podpis, k: 1, x: W / 2, y: cd + 150 + (arm ? arm.len : 0) };
+  const vbDol = kz > 1 ? podpisU.dol + 20 : D + tOvF + pad + 100 + frontExtra + armLen;
+  const vb = `${vbX} ${vbY} ${vbW} ${vbDol - vbY}`;
 
   return (
-    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H, "--k": kz }}>
       <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
       {/* obrys korpusu z gory */}
       <rect x="0" y="0" width={W} height={cd} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
@@ -9218,6 +9803,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
               ))}
               <text x={(c.x0 + c.x1) / 2} y={geo.shelfBack + geo.shelfDepth - 14}
                 textAnchor="middle" fontSize="17" fill={INK} opacity="0.75"
+                style={kz > 1 ? { "--k": kMaly(kz, 17, `${n} półki ${fmt(c.shW ?? c.w)}×${fmt(c.shD ?? geo.shelfDepth)}`, c.w - 10) } : undefined}
                 fontFamily="ui-monospace, monospace">
                 {n} {n === 1 ? "półka" : "półki"} {fmt(c.shW ?? c.w)}×{fmt(c.shD ?? geo.shelfDepth)}
               </text>
@@ -9292,10 +9878,12 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
              na boki) — tak jak w bryle 3D: od boku o 4 mm, cofnieta o setback
              prowadnicy. Wczesniej obrys wchodzil w boki korpusu (audyt 2D). */
           const sb = dr0?.rail?.setback || 0;
+          // DXS-3D: skrzynka NL − 10, boki 6,5 mm od boku korpusu
+          const dxs = dr0 && dr0.system === "dxs";
           const boxFront = cd - sb;
-          const boxBack = Math.max(geo.backIntrusion, cd - sb - nl);
-          const skX0 = c.x0 + 4;
-          const skX1 = c.x0 + (dr0?.skrzynka?.LW ?? (c.x1 - c.x0)) - 4;
+          const boxBack = Math.max(geo.backIntrusion, cd - sb - (dxs ? nl - DXS.krotsza : nl));
+          const skX0 = (dxs ? dr0.bx0 ?? c.x0 : c.x0) + (dxs ? DXS.odBoku : 4);
+          const skX1 = (dxs ? dr0.bx0 ?? c.x0 : c.x0) + (dr0?.skrzynka?.LW ?? (c.x1 - c.x0)) - (dxs ? DXS.odBoku : 4);
           return (
             <g key={"fr" + c.j}>
               {isDrawer && nl > 0 && (
@@ -9304,6 +9892,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
                     height={boxFront - boxBack}
                     fill="none" stroke={LINE} strokeWidth="1" strokeDasharray="5 4" opacity="0.6" />
                   <text x={(x0 + x1) / 2} y={(boxBack + boxFront) / 2 + 6} textAnchor="middle"
+                    style={kz > 1 ? { "--k": kMaly(kz, 16, `NL ${fmt(nl)}`, x1 - x0 - 120) } : undefined}
                     fontSize="16" fill={LINE} fontFamily="ui-monospace, monospace">
                     NL {fmt(nl)}
                   </text>
@@ -9325,12 +9914,12 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
       {showHardware && (geo.levels[0]?.cols || [])
         .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
         .flatMap((c) => {
-          const nl = Math.max(...c.drawers.map((d) => d.rail.d || 0));
-          if (!nl) return [];
-          const sb = c.drawers[0]?.rail.setback || 0;
-          return [c.x0, c.x1 - RUNNER_W].map((rx, s) => (
-            <rect key={`trn${c.j}-${s}`} x={rx} y={cd - sb - nl} width={RUNNER_W} height={nl}
-              fill="#8b8b93" stroke={INK} strokeWidth="1.5" opacity="0.85" />
+          // z gory widac szuflade o najdluzszej prowadnicy (V-BOX: pasy prowadnic, DXS: boki i tyl skrzynki)
+          const dr = c.drawers.reduce((m, d) => ((d.rail.d || 0) > (m.rail.d || 0) ? d : m), c.drawers[0]);
+          if (!dr || !dr.rail.d) return [];
+          return szufladaZGory(c, dr).map((q, s) => (
+            <rect key={`trn${c.j}-${s}`} x={q.x} y={cd - q.z - q.d} width={q.w} height={q.d}
+              fill={q.rodzaj === "prowadnica" ? "#8b8b93" : shelfColorOf(cab, mat)} stroke={INK} strokeWidth="1.5" opacity="0.85" />
           ));
         })}
 
@@ -9449,6 +10038,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
               fill="#7c3aed" opacity="0.28" stroke="#6d28d9" strokeWidth="1.5" strokeDasharray="5 4" />
             <ObsMaskTop o={o} t={t} W={W} color={shc} />
             <text x={o.ox0 + o.ow / 2} y={o.oz0 + o.od / 2 + 6} textAnchor="middle"
+              style={kz > 1 ? { "--k": kMaly(kz, 18, `${fmt(o.ow)}×${fmt(o.od)}`, o.ow - 10) } : undefined}
               fontSize="18" fill="#6d28d9" fontFamily="ui-monospace, monospace">
               {fmt(o.ow)}×{fmt(o.od)}
             </text>
@@ -9582,9 +10172,9 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           <DimV y1={geo.backIntrusion} y2={cd} x={W + 55}
             label={`${fmt(cd - geo.backIntrusion)}`} left={false} c={DIMC} />
           {/* glebokosc polki, jesli krotsza niz swiatlo */}
-          {geo.shelfDepth < cd - geo.backIntrusion && (
-            <DimV y1={geo.shelfBack} y2={geo.shelfBack + geo.shelfDepth} x={W + 115}
-              label={`półka ${fmt(geo.shelfDepth)}`} left={false} c={LINE} />
+          {polkaDim && (
+            <DimV y1={geo.shelfBack} y2={geo.shelfBack + geo.shelfDepth} x={xPolki}
+              label={opisPolki} left={false} c={LINE} />
           )}
         </>
       )}
@@ -9615,7 +10205,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
       {showDims && arm && (() => {
         const left = arm.side === "left";
         const x1 = left ? -50 : W + 55;
-        const x2 = left ? -250 : W + 245;
+        const x2 = kz > 1 ? (left ? x1 - uT.ram2 : x1 + uT.ram2) : left ? -250 : W + 245;
         return (
           <g data-el="wymiary-ramienia">
             <DimV y1={cd} y2={cd + arm.len} x={x1} left={left} label={`ramię ${fmt(arm.len)}`} />
@@ -9625,8 +10215,8 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
       })()}
 
       {/* podpis pod calym rysunkiem — przy szafce w L pod ramieniem */}
-      <text x={W / 2} y={cd + 150 + (arm ? arm.len : 0)} textAnchor="middle" fontSize="22" fill={LINE}
-        fontFamily="ui-monospace, monospace">widok z góry — tył u góry, przód u dołu</text>
+      <text x={podpisU.x} y={podpisU.y} textAnchor="middle" fontSize="22" fill={LINE}
+        style={podpisU.k !== kz ? { "--k": podpisU.k } : undefined} fontFamily="ui-monospace, monospace">{podpisU.txt}</text>
     </svg>
   );
 }
@@ -9820,7 +10410,10 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
           .filter((dr) => dr.skrzynka)
           .map((dr) => {
             const sk = dr.skrzynka;
-            const x0 = D - (dr.rail.setback || 0) - sk.nl;
+            // DXS-3D: skrzynka NL − 10, tyl na koncu bokow, dno do tylu
+            const dxs = sk.system === "dxs";
+            const dlS = dxs ? sk.bokDl : sk.nl;
+            const x0 = D - (dr.rail.setback || 0) - dlS;
             // od dolu prowadnicy: bok od `bokOd`, spod dna i tylu od `tylOd` (vboxDno)
             const tylOd = sk.tylOd || 0;
             const bokY = dr.rail.y0 + (sk.bokOd ?? 0);
@@ -9828,13 +10421,13 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
             const gora = Math.max(bokY + sk.bok, dnoY + sk.tyl[1]);
             return (
               <g key={`skr${lv.i}-${j}-${dr.i}`} data-el="skrzynka">
-                <rect x={x0} y={fy(gora)} width={sk.nl} height={gora - bokY}
+                <rect x={x0} y={fy(gora)} width={dlS} height={gora - bokY}
                   fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="10 6" opacity="0.6" />
-                <rect x={x0 + 2 + geo.t} y={fy(dnoY + geo.t)} width={sk.dno[1]} height={geo.t}
+                <rect x={x0 + (dxs ? sk.grub : 2 + geo.t)} y={fy(dnoY + (dxs ? sk.grub : geo.t))} width={sk.dno[1]} height={dxs ? sk.grub : geo.t}
                   fill={shc} stroke={INK} strokeWidth="1" opacity="0.7" />
                 {/* tyl szuflady na koncu bokow od strony plecow korpusu (x0), od
                     `tylOd` nad dolem boku — dno dochodzi do niego (instrukcja V-BOX) */}
-                <rect x={x0 + 2} y={fy(dnoY + sk.tyl[1])} width={geo.t} height={sk.tyl[1]}
+                <rect x={x0 + (dxs ? 0 : 2)} y={fy(dnoY + sk.tyl[1])} width={dxs ? sk.grub : geo.t} height={sk.tyl[1]}
                   fill={shc} stroke={INK} strokeWidth="1" opacity="0.7" />
               </g>
             );
@@ -9851,15 +10444,20 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
               const k = `${Math.round(dr.rail.y0)}|${dr.rail.h}|${dr.rail.d}`;
               if (seen.has(k) || !dr.rail.d) return;
               seen.add(k);
-              const rx0 = D - (dr.rail.setback || 0) - dr.rail.d;
+              /* DXS-3D: na boku korpusu czesc prowadnicy o dlugosci A z tabeli
+                 (przy NL 600 — 380), od 4 mm za krawedzia, 27 mm wysokosci nad kreska */
+              const dxs = dr.system === "dxs";
+              const dlP = dxs ? DXS.dlKorpus[dr.rail.d] ?? dr.rail.d : dr.rail.d;
+              const hP = dxs ? DXS.dnoOd : vboxGora(dr.rail.h);
+              const rx0 = D - (dr.rail.setback || 0) - (dxs ? DXS.odCzola : 0) - dlP;
               out.push(
-                <g key={`srn${k}`}>
-                  <rect x={rx0} y={fy(dr.rail.y0 + vboxGora(dr.rail.h))}
-                    width={dr.rail.d} height={vboxGora(dr.rail.h)}
+                <g key={`srn${k}`} data-el={dxs ? "prowadnica-dxs" : undefined}>
+                  <rect x={rx0} y={fy(dr.rail.y0 + hP)}
+                    width={dlP} height={hP}
                     fill="#8b8b93" fillOpacity="0.45" stroke={INK} strokeWidth="1.5" />
-                  <text x={rx0 + 12} y={fy(dr.rail.y0 + vboxGora(dr.rail.h) / 2) + 6}
+                  <text x={rx0 + 12} y={fy(dr.rail.y0 + hP / 2) + 6}
                     fontSize="18" fill={INK} opacity="0.75" fontFamily="ui-monospace, monospace">
-                    prowadnica NL {fmt(dr.rail.d)} / bok {fmt(dr.rail.h)}
+                    {dxs ? `DXS-3D NL ${fmt(dr.rail.d)} / bok ${fmt(dr.rail.h)}` : `prowadnica NL ${fmt(dr.rail.d)} / bok ${fmt(dr.rail.h)}`}
                   </text>
                 </g>
               );
@@ -10033,7 +10631,11 @@ const QUADS = [
    tyle samo bierze kontrola kolizji (`wysuwHit`). Wczesniej 3D wysuwal o
    min(220, 0,6 NL), a zabudowa o 1,6 wysokosci frontu (uzytkownik 2026-10-04:
    „szuflady sie za malo wysuwaja”). */
-const wysuwSzuflady = (d) => Math.max(0, Number(d.nl) || (d.dr && d.dr.skrzynka && d.dr.skrzynka.nl) || 400);
+const wysuwSzuflady = (d) => {
+  const nl = Math.max(0, Number(d.nl) || (d.dr && d.dr.skrzynka && d.dr.skrzynka.nl) || 400);
+  // DXS-3D wysuwa sie o B z tabeli instrukcji (np. NL 550 → 520), nie o cala NL
+  return d.dr && d.dr.system === "dxs" ? (DXS.wysuw[nl] ?? nl - 30) : nl;
+};
 
 const skrzynkaBryly = (d, t, zFront) => {
   const sk = d.dr && d.dr.skrzynka;
@@ -10044,6 +10646,27 @@ const skrzynkaBryly = (d, t, zFront) => {
      wpuszczanym (`rail.setback`) to wlasnie grubosc frontu, ktory juz siedzi
      w korpusie — doliczane drugi raz wpychalo skrzynke 18 mm za gleboko
      (audyt 2D, szuflady wpuszczane, 2026-10-04). */
+  if (sk.system === "dxs") {
+    /* DXS-3D: boki z plyty na zewnatrz (6,5 mm od boku korpusu), dno i tyl
+       miedzy nimi, spod dna i tylu 27 mm nad spodem prowadnicy, boki 10 mm
+       nizej; skrzynka NL − 10. Prowadnica pod dnem przy boku (33 × 27),
+       czesc na korpusie o dlugosci A z tabeli — jedzie z szuflada tylko
+       w rysunku (pokazujemy ja przy skrzynce). */
+    const tb = sk.bokT || t;
+    const z1d = zFront + sk.bokDl;
+    const xa = x0 + sk.odBoku, xb = x1 - sk.odBoku;   // zewnetrzne lica bokow
+    const bokY0 = y0 + sk.bokOd, dnoY0 = y0 + sk.tylOd;
+    const [, tH] = sk.tyl;
+    const g = sk.grub || t;
+    return [
+      [xa, bokY0, zFront, xa + tb, bokY0 + sk.bok, z1d, "bok"],
+      [xb - tb, bokY0, zFront, xb, bokY0 + sk.bok, z1d, "bok"],
+      [xa + tb, dnoY0, zFront, xb - tb, dnoY0 + g, z1d - g, "dno"],
+      [xa + tb, dnoY0, z1d - g, xb - tb, dnoY0 + tH, z1d, "tyl"],
+      [xa + tb, y0, zFront + DXS.odCzola, xa + tb + DXS.szerProw, dnoY0, zFront + DXS.odCzola + sk.nl - DXS.krotsza, "metal"],
+      [xb - tb - DXS.szerProw, y0, zFront + DXS.odCzola, xb - tb, dnoY0, zFront + DXS.odCzola + sk.nl - DXS.krotsza, "metal"],
+    ];
+  }
   const z0 = zFront, z1 = z0 + sk.nl;
   const bokW = 13;          // bok metalowy V-BOX, stoi na gornej czesci prowadnicy
   const bokY = y0 + (sk.bokOd ?? 0);          // dol boku nad dolem prowadnicy
@@ -10508,7 +11131,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki, blat, podswi
       handleBar(d, z0 - pull, null);
       // skrzynka jest w szafce i przy zamknietej — rysunki z gory i z boku ja pokazuja
       skrzynkaBryly(d, t, z1 - pull).forEach(([a0, b0, c0, a1, b1, c1, r]) => {
-        fk = r === "metal" ? null : r === "tyl" ? "Tył szuflady" : "Dno szuflady";
+        fk = r === "metal" ? null : r === "tyl" ? "Tył szuflady" : r === "bok" ? "Bok szuflady" : "Dno szuflady";
         box(a0, b0, c0, a1, b1, c1, r === "metal" ? "#8b8b93" : shelfColorOf(cab, mat), null, 1, false);
       });
       fk = null;
@@ -10939,6 +11562,12 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         run: () => runFix && runFix(action),
       };
     }
+    if (action.startsWith("blatwys:")) {
+      // „blatwys:<ciag>:<cokol|h>:<roznica mm>:<nowy cokol / nowa wysokosc>" — wyrownanie blatu ciagu
+      const [, , co, , nowy] = action.split(":");
+      return { label: co === "h" ? `Wyrównaj wysokością szafek (${fmt(Number(nowy))} mm)` : `Wyrównaj cokołem i nóżkami (${fmt(Number(nowy))} mm)`,
+        run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("silaauto:")) {
       // „silaauto:<poziom>:<kolumna>:<N z tabeli>" — sila klapy wraca do doboru z tabeli
       const [, li, j, n] = action.split(":");
@@ -11138,6 +11767,15 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         })),
       };
     }
+    if (action === "levauto") {
+      // gorny poziom z wpisana wysokoscia bierze reszte; gdy juz jest auto, a nizsze i tak sie nie mieszcza — wszystkie po rowno
+      const L0 = (cab && cab.levels) || [];
+      const gornyStaly = L0.length > 0 && L0[L0.length - 1].h != null;
+      return {
+        label: gornyStaly ? "Górny poziom na auto" : "Podziel poziomy równo",
+        run: () => editLevels((L) => { if (gornyStaly) L[L.length - 1].h = null; else L.forEach((lv) => { lv.h = null; }); }),
+      };
+    }
     if (action.startsWith("fixcolauto:")) {
       const li = Number(action.split(":")[1]);
       return {
@@ -11187,6 +11825,38 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         c.rails = [...(c.rails || []), ...railPair()];
       }) };
     }
+    // system szuflad aktywnej szafki — wykonuje `runFix` (cala szafka, z historia)
+    // „zwieksz60:b:<poz>:<kol>:<szuf>,t:…” — bok (b) / tyl (t) skrzynki DXS na 60 mm (MIN_PART)
+    if (action.startsWith("zwieksz60:")) {
+      const lista = action.slice("zwieksz60:".length).split(",").map((x) => x.split(":"));
+      return { label: `Zwiększ do ${fmt(MIN_PART)} mm`, run: () => editLevels((L) => lista.forEach(([co, li, j, k]) => {
+        const d = (((L[+li] || {}).cols || [])[+j] || {}).drawers?.[+k];
+        if (!d) return;
+        if (co === "b") d.h = MIN_PART; else d.backHeight = MIN_PART;
+      })) };
+    }
+    // „szufmniej:<poziom>:<kolumna>:<n>” — zostaja dolne szuflady, fronty dziela pasmo od nowa
+    if (action.startsWith("szufmniej:")) {
+      const [, li, j, n] = action.split(":");
+      return { label: `Zmniejsz do ${n} ${+n === 1 ? "szuflady" : "szuflad"}`, run: () => editLevels((L) => {
+        const col = L[+li].cols[+j];
+        col.drawers = (col.drawers || []).slice(0, +n).map((d) => ({ ...d, front: null }));
+      }) };
+    }
+    // „szufdxs:<poziom>:<kolumna>” — szuflady kolumny na DXS-3D (bok dobiera sie do miejsca)
+    if (action.startsWith("szufdxs:")) {
+      const [, li, j] = action.split(":");
+      return { label: "Zmień na DXS-3D", run: () => editLevels((L) => {
+        const col = L[+li].cols[+j];
+        col.drawers = (col.drawers || []).map((d) => zmienSystemSzuflady(d, "dxs"));
+      }) };
+    }
+    if (action.startsWith("szufsys:")) {
+      const sys = action.split(":")[1] === "dxs" ? "dxs" : "vbox";
+      return { label: `Wszystkie szuflady szafki na ${SYSTEMY_SZUFLAD[sys]}`, run: () => runFix && runFix(action) };
+    }
+    if (action === "szufmix" || action === "szufinne") return { label: action === "szufmix" ? "Zostaw różne systemy" : "Zostaw tak", run: () => runFix && runFix(action) };
+    if (action === "szufmixnie" || action === "szufinnenie") return { label: "Wróć do ostrzeżenia", run: () => runFix && runFix(action) };
     if (action.startsWith("tylstd:")) {
       const [, li, j, k] = action.split(":");
       return { label: "Wyłącz podniesiony tył", run: () => editLevels((L) => {
@@ -11983,12 +12653,16 @@ const wstawkaMsgs = (layout, idx) => wstawkiOf(layout).filter((w) => w.cab.index
   const H = Math.round(w.H);
   const czego = w.listwa ? "wstawki i listwy" : "wstawki";
   const popraw = `|wstawkaw:${w.rogRun}:${MIN_PART}`;
+  // jak kazda formatka (2026-10-21): ponizej 30 blad, 30–60 ostrzezenie, po potwierdzeniu informacja
+  if (szer < MIN_DOCIECIE)
+    return [{ level: "error", text: `Wstawka w rogu ma ${fmt(szer)} mm — węższej niż ${fmt(MIN_DOCIECIE)} mm nie da się dociąć ręcznie, `
+      + `a firma nie tnie i nie okleja formatek węższych niż ${fmt(MIN_PART)} mm.` + popraw }];
   if (w.dociac === szer)
-    return [{ level: "warn", text: `Wstawka w rogu ${fmt(szer)} mm: firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm, `
+    return [{ level: "info", text: `Wstawka w rogu ${fmt(szer)} mm do ręcznego docięcia (potwierdzone): firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm, `
       + `więc w zamówieniu formatka ${czego} ${fmt(H)} × ${fmt(MIN_PART)} mm — do ${fmt(szer)} mm dociąć ręcznie po odbiorze.` + popraw }];
-  return [{ level: "error", text: `Wstawka w rogu ma ${fmt(szer)} mm, a firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm. `
-    + `Czy wstawka faktycznie ma mieć ${fmt(szer)} mm? Jeśli tak — w zamówieniu zostanie formatka ${czego} ${fmt(H)} × ${fmt(MIN_PART)} mm, `
-    + `a do ${fmt(szer)} mm trzeba ją dociąć ręcznie po odbiorze.` + popraw + `|wstawkadociac:${w.rogRun}:${szer}` }];
+  return [{ level: "warn", text: `Wstawka w rogu ma ${fmt(szer)} mm, a firma nie tnie i nie okleja formatek węższych niż ${fmt(MIN_PART)} mm — `
+    + `w zamówieniu zostanie formatka ${czego} ${fmt(H)} × ${fmt(MIN_PART)} mm, a do ${fmt(szer)} mm trzeba ją dociąć ręcznie po odbiorze.`
+    + popraw + `|wstawkadociac:${w.rogRun}:${szer}` }];
 });
 const wstawkiOf = (layout) => [...layout.info.values()].flatMap((n) => n.wstawki || []);
 /* Wstawka w ukladzie samej szafki (widoki „Szafka”): przy lewym boku, gdy
@@ -12399,6 +13073,27 @@ const zlaczNaStyk = (gl) => (gl > WORKTOP_DEPTHS[0] ? 3 : 2);
    Dwa blaty w rogu stykaja sie tylko wtedy, gdy leza na tej samej wysokosci. */
 const wierzchBlatu = (run, rt) => Math.round((run.mountY || 0) + (rt.y || 0) + (rt.th || 0));
 const blatyRoznaWys = (r1, t1, r2, t2) => Math.abs(wierzchBlatu(r1, t1) - wierzchBlatu(r2, t2)) > 1;
+/* Przyciski wyrownania blatu tego ciagu do wysokosci `cel` (wierzch blatu nad
+   podloga), uzytkownik 2026-10-21: cokolem i nozkami razem (o te sama roznice —
+   nozki nie zawisna nad podloga) albo wysokoscia szafek pod blatem (slupki zostaja).
+   Tylko wykonalne: cokol co najmniej MIN_PART, nozki co najmniej NOZKA_MIN;
+   cokol w obrysie korpusu nie podnosi blatu, wiec przy nim tylko wysokosc. */
+const wyrownajBlatAkcje = (run, rt, lvl, cel) => {
+  const delta = Math.round(cel - wierzchBlatu(run, rt));
+  if (!delta || !lvl || !lvl.pod.length) return "";
+  const pod = lvl.pod.map((c) => c.it.cab);
+  const cokolPod = (c) => !!(c.plinth && c.plinth.on && c.plinth.mode !== "inbody");
+  const nozki = (c) => !!(c.legs && c.legs.on);
+  const wysNozek = (c) => num(c.legs.height) ?? 100;
+  let akcje = "";
+  if (pod.every((c) => (cokolPod(c) || nozki(c)) && !(c.plinth && c.plinth.on && c.plinth.mode === "inbody"))
+      && pod.every((c) => (!cokolPod(c) || c.plinth.height + delta >= MIN_PART) && (!nozki(c) || wysNozek(c) + delta >= NOZKA_MIN))) {
+    const ref = pod[0];
+    akcje += `|blatwys:${run.id}:cokol:${delta}:${cokolPod(ref) ? ref.plinth.height + delta : wysNozek(ref) + delta}`;
+  }
+  if (Math.round(pod[0].H) + delta > 0) akcje += `|blatwys:${run.id}:h:${delta}:${Math.round(pod[0].H) + delta}`;
+  return akcje;
+};
 const runTopZlacza = (project, run) => {
   const a = run ? runTop(project, run) : null;
   if (!a || a.matKey !== "worktop") return [];
@@ -12664,8 +13359,31 @@ const worktopMsgs = (project, run) => {
       const rb = runTop(project, r2);
       if (rt && rt.worktop && rb && rb.worktop && blatyRoznaWys(run, rt, r2, rb))
         out.push({ level: "warn", text: `Blat ciągu „${run.name}” leży na ${fmt(wierzchBlatu(run, rt))} mm, a blat „${r2.name}” w rogu na ${fmt(wierzchBlatu(r2, rb))} mm — `
-          + `różnica ${fmt(Math.abs(wierzchBlatu(run, rt) - wierzchBlatu(r2, rb)))} mm, blaty się nie stykają i złączy do blatów w rogu nie liczymy. Jeśli mają się łączyć, wyrównaj wysokość szafek.` });
+          + `różnica ${fmt(Math.abs(wierzchBlatu(run, rt) - wierzchBlatu(r2, rb)))} mm, blaty się nie stykają i złączy do blatów w rogu nie liczymy. Jeśli mają się łączyć, wyrównaj wysokość szafek.`
+          + wyrownajBlatAkcje(run, rt, lvl, wierzchBlatu(r2, rb)) });
     });
+  }
+  /* Ciagi tego samego pomieszczenia bez wspolnego rogu (np. przeciwlegle sciany):
+     blaty sie nie stykaja, ale w jednej kuchni zwykle leza na jednej wysokosci —
+     uzytkownik 2026-10-21: „żeby blat nie przesunął się o 1–2 cm”. Rog ma wlasna
+     uwage wyzej, wiec ciagi polaczone rogiem (cala grupa) pomijamy. */
+  if (rt && rt.worktop && run.tier !== "gorny") {
+    const grupa = grupaCiagow(project.runs || [], run.id);
+    const inne = runsInRoom(project, roomOfRun(project, run))
+      .filter((r) => !grupa.has(r.id) && r.tier !== "gorny")
+      .map((r) => ({ r, t: runTop(project, r) }))
+      .filter(({ r, t }) => t && t.worktop && blatyRoznaWys(run, rt, r, t));
+    if (inne.length) {
+      const moj = wierzchBlatu(run, rt);
+      // wyrownujemy do wysokosci, na ktorej lezy najwiecej pozostalych blatow
+      const ile = new Map();
+      inne.forEach(({ r, t }) => ile.set(wierzchBlatu(r, t), (ile.get(wierzchBlatu(r, t)) || 0) + 1));
+      const cel = [...ile.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+      out.push({ level: "warn", text: `Blat ciągu „${run.name}” leży na ${fmt(moj)} mm, a w tym pomieszczeniu `
+        + inne.map(({ r, t }) => `blat „${r.name}” na ${fmt(wierzchBlatu(r, t))} mm (różnica ${fmt(Math.abs(moj - wierzchBlatu(r, t)))} mm)`).join(", ")
+        + ` — blaty się nie stykają, ale w jednej kuchni zwykle są na jednej wysokości. Jeśli to nie celowe, wyrównaj do ${fmt(cel)} mm.`
+        + wyrownajBlatAkcje(run, rt, lvl, cel) });
+    }
   }
   (lvl ? lvl.poza : []).forEach((c) => {
     const nazwa = (c.it.cab.name || "").trim() || "szafka";
@@ -14025,6 +14743,14 @@ const PRINT_CSS = `
   .rp-arkusz { position: relative; height: 270mm; overflow: hidden; break-inside: avoid; }
   .rp-obrot { position: absolute; top: 0; left: 0; width: 268mm; height: 186mm;
     transform-origin: top left; transform: translateX(188mm) rotate(90deg); }
+  /* napisy rysunkow szafki wieksze w druku (drukK) — kazdy rosnie od swojego
+     zaczepienia: nad kreska wymiaru w gore, pod nia w dol, z boku od kreski */
+  .rp-widok svg { overflow: visible; }
+  .rp-widok svg text { transform-box: fill-box; transform-origin: center; transform: scale(var(--k, 1)); }
+  .rp-widok svg text[text-anchor="end"] { transform-origin: right center; }
+  .rp-widok svg text[text-anchor="start"] { transform-origin: left center; }
+  .rp-widok svg text.wym-nad { transform-origin: center bottom; }
+  .rp-widok svg text.wym-pod { transform-origin: center top; }
   .rp-tbl { width: 100%; border-collapse: collapse; font-size: 9pt; }
   .rp-tbl th, .rp-tbl td { border: 1px solid #d6d3d1; padding: 3px 5px; text-align: left; }
   .rp-tbl th { background: #f5f5f4; font-weight: 600; }
@@ -14080,7 +14806,7 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
   );
 
   const box = (title, node) => (
-    <div className="rp-keep" style={{ border: "1px solid #e7e5e4", padding: 6 }}>
+    <div className="rp-keep rp-widok" style={{ border: "1px solid #e7e5e4", padding: 6 }}>
       <div style={{ fontSize: "8.5pt", fontWeight: 600, marginBottom: 3, color: "#44403c" }}>{title}</div>
       {node}
     </div>
@@ -14093,14 +14819,14 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {box("Widok zamknięty — wymiary, szczeliny, kolory",
             <FrontView cab={realCab} geo={geo} mat={mat} open={false} showDims showGaps
-              showLabels={false} showHardware={false} arm={arm} wstawki={wstawki} />)}
+              showLabels={false} showHardware={false} arm={arm} wstawki={wstawki} druk={DRUK_WIDOK_MM} />)}
           {box("Widok otwarty — wymiary i okucia",
             <FrontView cab={cab} geo={geo} mat={mat} open showDims showGaps={false}
-              showLabels={false} showHardware arm={arm} wstawki={wstawki} />)}
+              showLabels={false} showHardware arm={arm} wstawki={wstawki} druk={DRUK_WIDOK_MM} />)}
           {box("Widok z góry — wymiary i okucia",
-            <TopView cab={cab} geo={geo} mat={mat} showDims showShelves showHardware arm={arm} wstawki={wstawki} />)}
+            <TopView cab={cab} geo={geo} mat={mat} showDims showShelves showHardware arm={arm} wstawki={wstawki} druk={DRUK_WIDOK_MM} />)}
           {box("Widok z tyłu — wymiary",
-            <RearView cab={cab} geo={geo} mat={mat} showDims wstawki={wstawki} />)}
+            <RearView cab={cab} geo={geo} mat={mat} showDims wstawki={wstawki} druk={DRUK_WIDOK_MM} />)}
         </div>
       </section>
 
@@ -15473,6 +16199,7 @@ export default function App() {
     const node = projLayout.info.get(runInfo.run.id);
     const inne = runItems(project, runInfo.run.id).filter((x) => x.i !== project.active).map((x) => x.it.cab);
     return [...runCabMsgs(runInfo.run, c, inne),
+      ...szufladyMsgs(project, project.active),
       ...runWideMsgs(runInfo.run, runInfo.total, runPl, runTp, node ? node.len : 0),
       ...wallGapMsgs(project, runInfo.run),
       ...worktopMsgs(project, runInfo.run),
@@ -15487,6 +16214,46 @@ export default function App() {
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    // system szuflad aktywnej szafki (uwagi szafki i ciagu)
+    if (action.startsWith("szufsys:") || ["szufmix", "szufmixnie", "szufinne", "szufinnenie"].includes(action)) {
+      setProject((p) => {
+        const items = p.items.slice();
+        const it = items[p.active];
+        const c = it.cab;
+        const nowa = action.startsWith("szufsys:") ? naSystemSzuflad(c, action.split(":")[1] === "dxs" ? "dxs" : "vbox")
+          : { ...c, ...(action === "szufmix" ? { szufladyMieszane: true } : action === "szufmixnie" ? { szufladyMieszane: undefined }
+            : action === "szufinne" ? { szufladyInne: true } : { szufladyInne: undefined }) };
+        items[p.active] = { ...it, cab: nowa };
+        return { ...p, items };
+      });
+      return;
+    }
+    /* Wyrownanie blatu ciagu do innego (rog albo to samo pomieszczenie): szafki
+       pod blatem tego ciagu (bez slupkow) i sam ciag dostaja cokol i nozki albo
+       wysokosc wieksze o roznice (uzytkownik 2026-10-21). */
+    if (action.startsWith("blatwys:")) {
+      const [, id, co, d] = action.split(":");
+      const delta = Math.round(Number(d) || 0);
+      setProject((p) => {
+        const run = (p.runs || []).find((r) => r.id === id);
+        const lvl = run && worktopLevel(p, run);
+        if (!run || !lvl || !delta) return p;
+        const pod = new Set(lvl.pod.map((c) => c.idx));
+        const items = p.items.map((it, i) => {
+          if (!pod.has(i)) return it;
+          const c = it.cab;
+          if (co === "h") return { ...it, cab: { ...c, H: Math.round(c.H) + delta } };
+          return { ...it, cab: { ...c,
+            ...(c.plinth && c.plinth.on ? { plinth: { ...c.plinth, height: c.plinth.height + delta } } : {}),
+            ...(c.legs && c.legs.on ? { legs: { ...c.legs, height: (num(c.legs.height) ?? 100) + delta } } : {}) } };
+        });
+        const runs = p.runs.map((r) => (r.id !== id ? r
+          : co === "h" ? { ...r, ...(r.H != null ? { H: r.H + delta } : {}) }
+          : { ...r, ...(r.plinth && r.plinth.on ? { plinth: { ...r.plinth, height: r.plinth.height + delta } } : {}) }));
+        return { ...p, runs, items };
+      });
+      return;
+    }
     if (action.startsWith("zawieszki:")) {
       const tryb = action.split(":")[1] === "haczyki" ? "haczyki" : "listwa";
       setProject((p) => {
@@ -15643,7 +16410,20 @@ export default function App() {
   }), [setProject]);
 
   const addLevel = () => editLevels((L) => L.push(newLevel(L[0]?.cols[0]?.doors ?? 1, 0)));
-  const removeLevel = (i) => editLevels((L) => L.length > 1 && L.splice(i, 1));
+  /* Usuniety poziom (kolumna) zwalnia miejsce. Gdy wszystkie pozostale maja wpisany
+     wymiar, nikt go nie bierze: po „klapy zamiast drzwi” → Szuflady i usunieciu
+     poziomu z klapa zostawal poziom 342 mm — „brakuje 360 mm”, para wzmocnien spod
+     blatu w polowie szafki, skrzynka 0 mm (zgloszenie uzytkownika 2026-10-21).
+     Kolumna szuflad tez musi siegac boku, bo do niego przykreca sie prowadnice.
+     Miejsce bierze sasiad usunietego (ten nad nim, a przy gornym — ten pod nim). */
+  const zwolnijMiejsce = (lista, i, pole) => {
+    if (lista.length && lista.every((x) => x[pole] != null)) lista[Math.min(i, lista.length - 1)][pole] = null;
+  };
+  const removeLevel = (i) => editLevels((L) => {
+    if (L.length < 2) return;
+    L.splice(i, 1);
+    zwolnijMiejsce(L, i, "h");
+  });
   const setLevelH = (i, v) => editLevels((L) => {
     L[i].h = v === "" ? null : Math.round(Number(v));
     // po wypelnieniu ostatniego poziomu dodaj automatycznie kolejny (pusty),
@@ -15657,7 +16437,11 @@ export default function App() {
   });
 
   const addCol = (i) => editLevels((L) => L[i].cols.push(newColumn(1, 0)));
-  const removeCol = (i, j) => editLevels((L) => L[i].cols.length > 1 && L[i].cols.splice(j, 1));
+  const removeCol = (i, j) => editLevels((L) => {
+    if (L[i].cols.length < 2) return;
+    L[i].cols.splice(j, 1);
+    zwolnijMiejsce(L[i].cols, j, "w");
+  });
   const setColW = (i, j, v) => editLevels((L) => {
     const cols = L[i].cols;
     cols[j].w = v === "" ? null : Math.round(Number(v));
@@ -15681,9 +16465,28 @@ export default function App() {
     editLevels((L) => (L[i].cols[j].shelfTargets[k] = v === "" ? null : Math.round(Number(v))));
   const setColKind = (i, j, v) =>
     editLevels((L) => {
-      L[i].cols[j].kind = v;
-      if (v === "drawers" && !(L[i].cols[j].drawers || []).length)
-        L[i].cols[j].drawers = [newDrawer(), newDrawer(), newDrawer()];
+      const col = L[i].cols[j];
+      col.kind = v;
+      // ustawienia klapy maja sens tylko przy drzwiach — po „klapa” → Szuflady zostawal `klapa: "gora"`
+      if (v !== "doors") POLA_KLAPY.forEach((k) => delete col[k]);
+      if (v === "drawers" && !(col.drawers || []).length) {
+        // system z szafki / ciagu / pomieszczenia (domyslnie V-BOX)
+        const sys = systemKontekstu(project, project.active);
+        const nowa = () => (sys === "dxs" ? { ...newDrawer(), system: "dxs" } : newDrawer());
+        /* Trzy szuflady, chyba ze sie nie mieszcza: w niskim poziomie pod blatem
+           (np. po „klapy zamiast drzwi”) gorna V-BOX nie wchodzila pod wzmocnienie —
+           blad zaraz po kliknieciu „Szuflady” (zgloszenie uzytkownika 2026-10-21).
+           Bierzemy najwiecej szuflad (3, 2, 1), przy ktorych szafka ma najmniej bledow. */
+        const ctxG = armCtxOf(projLayoutGeo, project.active);
+        const bledy = (n) => {
+          const L2 = JSON.parse(JSON.stringify(L));
+          L2[i].cols[j].drawers = [...Array(n)].map(nowa);
+          const g = computeGeo({ ...cab, levels: utrzymajPodBlat(cab, L2) }, mat, ctxG);
+          return g.msgs.filter((m) => m.level === "error").length;
+        };
+        const ile = [3, 2, 1].map((n) => [n, bledy(n)]).reduce((a, b) => (b[1] < a[1] ? b : a))[0];
+        col.drawers = [...Array(ile)].map(nowa);
+      }
     });
   const setFixSide = (i, j, v) =>
     editLevels((L) => {
@@ -15761,7 +16564,15 @@ export default function App() {
       col.fingerGrip = v;
       (col.drawers || []).forEach((d) => { d.handle = !v; });
     });
-  const addDrawer = (i, j) => editLevels((L) => L[i].cols[j].drawers.push(newDrawer()));
+  // nowa szuflada: system kolumny, szafki, ciagu albo pomieszczenia (domyslnie V-BOX)
+  const addDrawer = (i, j) => editLevels((L) => {
+    const sys = systemKontekstu(project, project.active, L[i].cols[j]);
+    L[i].cols[j].drawers.push(sys === "dxs" ? { ...newDrawer(), system: "dxs" } : newDrawer());
+  });
+  const setDrawerSystem = (i, j, k, sys) => editLevels((L) => {
+    const col = L[i].cols[j];
+    col.drawers[k] = zmienSystemSzuflady(col.drawers[k], sys);
+  });
   const removeDrawer = (i, j, k) => editLevels((L) => L[i].cols[j].drawers.splice(k, 1));
   const addRail = (i, j) => editLevels((L) => { if (!Array.isArray(L[i].cols[j].rails)) L[i].cols[j].rails = []; L[i].cols[j].rails.push(newRail()); });
   /* Szafka bez wienca musi sie czyms usztywnic, a pod blatem robi sie to zawsze
@@ -16224,8 +17035,40 @@ export default function App() {
     return { rows, sum };
   }, [planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, prices, matByLabel]);
 
+  /* Szuflada bez miejsca na zadna skrzynke (`|szufbrak:<poziom>:<kolumna>` z `computeGeo`):
+     „Zmniejsz do N szuflad” i „Zmień na DXS-3D” — kazdy tylko wtedy, gdy po nim kolumna
+     nie ma bledow, i tylko przy pierwszej takiej uwadze kolumny (decyzja uzytkownika
+     2026-10-22: oba przyciski). Liczone na probe, jak liczba nowych szuflad w `setColKind`. */
+  const przyciskiSzuflad = (msgs) => {
+    const ctxG = armCtxOf(projLayoutGeo, project.active);
+    const byly = new Set();
+    const czysto = (li, j, zmien) => {
+      const L = JSON.parse(JSON.stringify(cab.levels));
+      zmien(L[li].cols[j]);
+      const pref = `Poziom ${li + 1}, kolumna ${j + 1}`;
+      return !computeGeo({ ...cab, levels: L }, mat, ctxG).msgs.some((m) => m.level === "error"
+        && (m.text.startsWith(pref + ",") || m.text.startsWith(pref + ":")));
+    };
+    return msgs.map((m) => {
+      const r = /\|szufbrak:(\d+):(\d+)/.exec(m.text);
+      if (!r) return m;
+      const li = +r[1], j = +r[2];
+      const ds = ((((cab.levels || [])[li] || {}).cols || [])[j] || {}).drawers || [];
+      let akcje = "";
+      if (!byly.has(`${li}:${j}`) && ds.length) {
+        byly.add(`${li}:${j}`);
+        for (let n = ds.length - 1; n >= 1; n--) {
+          if (czysto(li, j, (c) => { c.drawers = c.drawers.slice(0, n).map((d) => ({ ...d, front: null })); })) { akcje += `|szufmniej:${li}:${j}:${n}`; break; }
+        }
+        if (ds.some((d) => systemSzuflady(d) !== "dxs")
+          && czysto(li, j, (c) => { c.drawers = c.drawers.map((d) => zmienSystemSzuflady(d, "dxs")); })) akcje += `|szufdxs:${li}:${j}`;
+      }
+      return { ...m, text: m.text.replace(r[0], akcje) };
+    });
+  };
+
   // uwagi ciagu ida przed uwagami szafki — dotycza calej sciany, wiec sa nadrzedne
-  const allMsgs = useMemo(() => [...runMsgs, ...bezWspolnychFormatek(geo.msgs, !!runPl, !!runTp), ...wstawkaMsgs(projLayout, project.active),
+  const allMsgs = useMemo(() => [...runMsgs, ...bezWspolnychFormatek(przyciskiSzuflad(geo.msgs), !!runPl, !!runTp), ...wstawkaMsgs(projLayout, project.active),
     // ramie szafki w L: jego formatki naleza do tej szafki
     ...(cornerNode && cornerNode.arm && cornerNode.arm.len > 0
       ? maleFormatkiMsgs(cornerArmParts(cornerNode.arm).panels, cab.dociac, "@") : []),
@@ -16233,7 +17076,7 @@ export default function App() {
        w karcie „Rozkrój” (komentarz uzytkownika 2026-10-17). */
     ...(pokazPlan ? pokazPlan.groups.flatMap((g) => uwagiRozkroju(g).map((t) => ({ level: "warn",
       text: `Rozkrój — ${bezArkusza(g.matLabel)}: ${t.replace(/^Blat: /, "")}` }))) : [])],
-    [runMsgs, geo, projLayout, project.active, cornerNode, cab, runPl, runTp, pokazPlan]);
+    [runMsgs, geo, projLayout, project.active, cornerNode, cab, mat, projLayoutGeo, runPl, runTp, pokazPlan]);
   const errors = allMsgs.filter((m) => m.level === "error");
   const warns = allMsgs.filter((m) => m.level === "warn");
   const infos = allMsgs.filter((m) => m.level === "info");
@@ -17969,7 +18812,8 @@ export default function App() {
                                 onChange={(e) => setColNL(lv.i, c.j, e.target.value)}
                                 className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none">
                                 <option value="">auto {geo.maxNL ? `(${geo.maxNL})` : ""}</option>
-                                {VBOX.nl.map((v) => (
+                                {/* dlugosci systemow szuflad tej kolumny (V-BOX ma tez 270, DXS-3D nie) */}
+                                {[...new Set((c.drawers || []).flatMap((dr) => nlSystemu(dr.system)))].sort((a, b) => a - b).map((v) => (
                                   <option key={v} value={v}>{v}</option>
                                 ))}
                               </select>
@@ -17982,25 +18826,54 @@ export default function App() {
                             {[...(c.drawers || [])].reverse().map((dr) => (
                               // wiersz szuflady ma sporo pol — przy waskim panelu
                               // zawija sie na dwie linie zamiast wystawac poza karte
-                              <div key={dr.i} className="flex flex-wrap items-center gap-2">
-                                <select value={rawCol.drawers[dr.i]?.h ?? "auto"}
-                                  title="Wysokość boku V-BOX — auto dobiera najwyższy mieszczący się w froncie"
-                                  onChange={(e) => setDrawerH(lv.i, c.j, dr.i, e.target.value)}
-                                  className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none">
-                                  <option value="auto">auto {dr.hClass}</option>
-                                  {VBOX.heights.map((v) => (
-                                    <option key={v} value={v}>{v} mm</option>
-                                  ))}
+                              <div key={dr.i} className="flex flex-wrap items-center gap-2" data-el="szuflada-wiersz">
+                                {/* system szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty
+                                    na prowadnicach dolnego montazu) — uzytkownik 2026-10-21 */}
+                                <select value={dr.system || "vbox"} data-el="szuflada-system"
+                                  title="System szuflady: V-BOX — boki metalowe, DXS-3D — skrzynka z płyty na prowadnicach pod dnem"
+                                  onChange={(e) => setDrawerSystem(lv.i, c.j, dr.i, e.target.value)}
+                                  className="rounded border border-stone-300 bg-white px-1 py-1 text-[11px] focus:border-teal-600 focus:outline-none">
+                                  <option value="vbox">V-BOX</option>
+                                  <option value="dxs">DXS-3D</option>
                                 </select>
-                                <div className="w-20 shrink-0">
-                                  <AutoNum value={rawCol.drawers[dr.i]?.front} placeholder={fmt(dr.h)}
-                                    fixed={dr.fixed} warn={dr.h < VBOX.minFront[c.drawerMode || cab.frontMode][dr.hClass]}
-                                    onChange={(v) => setDrawerFront(lv.i, c.j, dr.i, v)} />
-                                </div>
-                                <span className="w-12 shrink-0 text-right font-mono text-[11px]"
-                                  style={{ color: dr.h < VBOX.minFront[c.drawerMode || cab.frontMode][dr.hClass] ? ERRC : "#a8a29e" }}>
-                                  {fmt(dr.h)}
-                                </span>
+                                {dr.system === "dxs" ? (
+                                  <label className="flex shrink-0 items-center gap-1" data-el="dxs-bok"
+                                    title="Wysokość boku skrzynki z płyty (mm) — puste: najwyższy z luzem 5 mm pod tym, co wyżej">
+                                    <span className="text-[11px] text-stone-500">bok</span>
+                                    <div className="w-28">
+                                      <AutoNum value={num(rawCol.drawers[dr.i]?.h)} placeholder={`auto ${fmt(dr.hClass)}`}
+                                        fixed={num(rawCol.drawers[dr.i]?.h) !== null}
+                                        onChange={(v) => setDrawer(lv.i, c.j, dr.i, { h: v === "" ? "auto" : Math.round(Number(v)) })} />
+                                    </div>
+                                  </label>
+                                ) : (
+                                  <select value={rawCol.drawers[dr.i]?.h ?? "auto"}
+                                    title="Wysokość boku V-BOX — auto dobiera najwyższy mieszczący się w froncie"
+                                    onChange={(e) => setDrawerH(lv.i, c.j, dr.i, e.target.value)}
+                                    className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none">
+                                    <option value="auto">auto {dr.hClass}</option>
+                                    {VBOX.heights.map((v) => (
+                                      <option key={v} value={v}>{v} mm</option>
+                                    ))}
+                                  </select>
+                                )}
+                                {(() => {
+                                  // V-BOX ma minimalny front dla boku; DXS-3D — front zawsze siega do spodu prowadnicy
+                                  const zaNiski = dr.system !== "dxs" && dr.h < VBOX.minFront[c.drawerMode || cab.frontMode][dr.hClass];
+                                  return (
+                                    <>
+                                      <div className="w-20 shrink-0">
+                                        <AutoNum value={rawCol.drawers[dr.i]?.front} placeholder={fmt(dr.h)}
+                                          fixed={dr.fixed} warn={zaNiski}
+                                          onChange={(v) => setDrawerFront(lv.i, c.j, dr.i, v)} />
+                                      </div>
+                                      <span className="w-12 shrink-0 text-right font-mono text-[11px]"
+                                        style={{ color: zaNiski ? ERRC : "#a8a29e" }}>
+                                        {fmt(dr.h)}
+                                      </span>
+                                    </>
+                                  );
+                                })()}
                                 <label className="flex shrink-0 items-center gap-1 cursor-pointer"
                                   title="Uchwyt na tym froncie">
                                   <input type="checkbox"
@@ -18009,34 +18882,48 @@ export default function App() {
                                     className="h-3.5 w-3.5 accent-teal-700" />
                                   <span className="text-[11px] text-stone-500">uchwyt</span>
                                 </label>
-                                <label className="flex shrink-0 items-center gap-1 cursor-pointer"
-                                  title="Tył podniesiony do wysokości frontu, żeby rzeczy nie wypadały">
-                                  <input type="checkbox"
-                                    checked={!!rawCol.drawers[dr.i]?.tallBack}
-                                    onChange={(e) => setDrawer(lv.i, c.j, dr.i, { tallBack: e.target.checked })}
-                                    className="h-3.5 w-3.5 accent-teal-700" />
-                                  <span className="text-[11px] text-stone-500">tył</span>
-                                </label>
-                                <label className="flex shrink-0 items-center gap-1 cursor-pointer"
-                                  title="Reling boczny — do zamówienia, komplet na szufladę (domyślnie 30 zł bez względu na długość)">
-                                  <input type="checkbox"
-                                    checked={!!rawCol.drawers[dr.i]?.reling}
-                                    onChange={(e) => setDrawer(lv.i, c.j, dr.i, e.target.checked ? { reling: true, bezRelingu: false } : { reling: false })}
-                                    className="h-3.5 w-3.5 accent-teal-700" />
-                                  <span className="text-[11px] text-stone-500">reling</span>
-                                </label>
-                                {rawCol.drawers[dr.i]?.tallBack && (
-                                  <div className="w-20 shrink-0">
-                                    <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={fmt(dr.h)}
-                                      onChange={(v) => setDrawer(lv.i, c.j, dr.i, { backHeight: v === "" ? null : Math.round(Number(v)) })} />
-                                  </div>
+                                {dr.system === "dxs" ? (
+                                  <label className="flex shrink-0 items-center gap-1" data-el="dxs-tyl"
+                                    title="Wysokość tyłu skrzynki (mm) — puste: bok − 10, góra równo z bokami">
+                                    <span className="text-[11px] text-stone-500">tył</span>
+                                    <div className="w-28">
+                                      <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={`auto ${fmt(dr.skrzynka ? dr.skrzynka.tyl[1] : Math.max(0, dr.hClass - DXS.bokPodDnem))}`}
+                                        fixed={num(rawCol.drawers[dr.i]?.backHeight) !== null}
+                                        onChange={(v) => setDrawer(lv.i, c.j, dr.i, { backHeight: v === "" ? null : Math.round(Number(v)) })} />
+                                    </div>
+                                  </label>
+                                ) : (
+                                  <>
+                                    <label className="flex shrink-0 items-center gap-1 cursor-pointer"
+                                      title="Tył podniesiony do wysokości frontu, żeby rzeczy nie wypadały">
+                                      <input type="checkbox"
+                                        checked={!!rawCol.drawers[dr.i]?.tallBack}
+                                        onChange={(e) => setDrawer(lv.i, c.j, dr.i, { tallBack: e.target.checked })}
+                                        className="h-3.5 w-3.5 accent-teal-700" />
+                                      <span className="text-[11px] text-stone-500">tył</span>
+                                    </label>
+                                    <label className="flex shrink-0 items-center gap-1 cursor-pointer"
+                                      title="Reling boczny — do zamówienia, komplet na szufladę (domyślnie 30 zł bez względu na długość)">
+                                      <input type="checkbox"
+                                        checked={!!rawCol.drawers[dr.i]?.reling}
+                                        onChange={(e) => setDrawer(lv.i, c.j, dr.i, e.target.checked ? { reling: true, bezRelingu: false } : { reling: false })}
+                                        className="h-3.5 w-3.5 accent-teal-700" />
+                                      <span className="text-[11px] text-stone-500">reling</span>
+                                    </label>
+                                    {rawCol.drawers[dr.i]?.tallBack && (
+                                      <div className="w-20 shrink-0">
+                                        <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={fmt(dr.h)}
+                                          onChange={(v) => setDrawer(lv.i, c.j, dr.i, { backHeight: v === "" ? null : Math.round(Number(v)) })} />
+                                      </div>
+                                    )}
+                                  </>
                                 )}
                                 <select value={rawCol.drawers[dr.i]?.nl ?? ""}
                                   title="Głębokość NL tej szuflady — puste bierze głębokość kolumny"
                                   onChange={(e) => setDrawerNL(lv.i, c.j, dr.i, e.target.value)}
                                   className="shrink-0 rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none">
-                                  <option value="">NL {c.nl ?? "auto"}</option>
-                                  {VBOX.nl.map((v) => (
+                                  <option value="">NL {dr.nl ?? c.nl ?? "auto"}</option>
+                                  {nlSystemu(dr.system).map((v) => (
                                     <option key={v} value={v}>{v}</option>
                                   ))}
                                 </select>
@@ -18046,8 +18933,9 @@ export default function App() {
                               </div>
                             ))}
                             <p className="text-[11px] text-stone-400">
-                              Lewe pole to wysokość boku V-BOX, prawe to wysokość frontu.
-                              Puste = podziel pasmo równo.
+                              {(c.drawers || []).some((dr) => dr.system === "dxs")
+                                ? "System, wysokość boku (V-BOX z listy, DXS-3D w mm), wysokość frontu. Puste = auto / podziel pasmo równo."
+                                : "Lewe pole to wysokość boku V-BOX, prawe to wysokość frontu. Puste = podziel pasmo równo."}
                             </p>
                           </div>
                         )}

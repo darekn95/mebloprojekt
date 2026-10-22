@@ -1,6 +1,7 @@
 /* Formatki wezsze niz 60 mm (MIN_PART). Uzytkownik 2026-10-11: firma nie tnie
-   wezszych — do zamowienia idzie 60, a uwaga to blad z pytaniem (moze to pomylka
-   przy wpisywaniu); po „Tak, docinam ręcznie” — ostrzezenie o recznym docieciu.
+   wezszych — do zamowienia idzie 60. Od 2026-10-21: ponizej 30 mm (MIN_DOCIECIE)
+   blad — recznie sie nie dotnie; 30–60 ostrzezenie z „Tak, docinam ręcznie”,
+   po potwierdzeniu informacja o recznym docieciu.
    Dotyczy formatek szafki, ramienia szafki w L, cokolu ciagu i wstawki w rogu. */
 import pw from './pw.mjs';
 const b = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
@@ -15,7 +16,7 @@ const seed=(W)=>wczytaj({name:'T',active:0,prices:{},runs:[],
     items:[{cab:{name:'A',W,H:720,D:600,levels:[{h:null,cols:[{kind:'doors',doors:1,w:null}]}]},mat:null,runId:null,offset:0}]});
 const uwagi=async()=>await card(/^Uwagi/).count()? await card(/^Uwagi/).innerText():'';
 const ikony=()=>page.evaluate(()=>{ const sec=[...document.querySelectorAll('section')].find((s)=>/^Uwagi/.test(s.querySelector('h2')?.textContent||''));
-  const l=(sec?sec.innerText:'').split('\n').map((x)=>x.trim()); return l.flatMap((x,i)=>/firma nie tnie formatek/.test(x)?[l[i-1]]:[]); });
+  const l=(sec?sec.innerText:'').split('\n').map((x)=>x.trim()); return l.flatMap((x,i)=>/firma nie tnie (i nie okleja )?formatek/.test(x)?[l[i-1]]:[]); });
 const tabela=(re)=>page.evaluate((src)=>{ const sec=[...document.querySelectorAll('section')].find((s)=>new RegExp(src).test(s.querySelector('h2')?.textContent||''));
   if(!sec) return []; const t=sec.querySelector('table'); if(!t) return [];
   const th=[...t.querySelectorAll('thead th')].map((x)=>x.textContent.trim());
@@ -28,8 +29,8 @@ ok('normalna szafka bez uwagi o formatce', !/firma nie tnie formatek/.test(uw), 
 await seed(90);  // waska szafka: wieniec/dno wychodza ok. 54 mm
 uw = await uwagi();
 console.log('   '+uw.split('\n').filter((l)=>/firma nie tnie/.test(l)).join(' / ').slice(0,300));
-ok('wąska formatka zgłoszona jako błąd', (await ikony()).length > 0 && (await ikony()).every((i)=>i==='×'), JSON.stringify(await ikony()));
-ok('pytanie, czy to nie pomyłka, i mowa o ręcznym docinaniu', /Czy to nie pomyłka przy wpisywaniu wymiaru\?/.test(uw) && /dociąć ręcznie/.test(uw), uw.slice(0,220));
+ok('formatka 30–60 mm zgłoszona jako ostrzeżenie', (await ikony()).length > 0 && (await ikony()).every((i)=>i==='!'), JSON.stringify(await ikony()));
+ok('mowa o ręcznym docinaniu i zamówieniu 60', /trzeba ją dociąć ręcznie po odbiorze/.test(uw) && /w zamówieniu zostanie 60 × /.test(uw), uw.slice(0,220));
 let f = await tabela(/^Formatki do zamówienia/);
 const wezsze = f.filter((r)=>r['Długość']!=null && Math.min(num(r['Długość']),num(r['Szerokość']))>0 && Math.min(num(r['Długość']),num(r['Szerokość']))<60);
 ok('w zamówieniu żadna formatka węższa niż 60 mm', !wezsze.length && f.length>0, wezsze.map((r)=>`${r.Element} ${r['Długość']}×${r['Szerokość']}`).join(', '));
@@ -38,23 +39,28 @@ const ile = await przyciski.count();
 ok('przycisk „Tak, docinam ręcznie” przy każdej wąskiej formatce', ile > 0, String(ile));
 for (let k = 0; k < ile; k++) { await card(/^Uwagi/).getByRole('button', { name: 'Tak, docinam ręcznie' }).first().click(); await page.waitForTimeout(800); }
 uw = await uwagi();
-ok('po potwierdzeniu: bez błędu, ostrzeżenie „do ręcznego docięcia”', !/Czy to nie pomyłka/.test(uw) && /do ręcznego docięcia/.test(uw), uw.split('\n').filter((l)=>/docięcia|pomyłka/.test(l)).join(' / ').slice(0,300));
+ok('po potwierdzeniu: informacja „do ręcznego docięcia (potwierdzone)”, bez ostrzeżenia', /do ręcznego docięcia \(potwierdzone\)/.test(uw) && !/trzeba ją dociąć ręcznie po odbiorze/.test(uw), uw.split('\n').filter((l)=>/docięcia|dociąć/.test(l)).join(' / ').slice(0,300));
 const zapis = await page.evaluate(()=>JSON.parse(localStorage.getItem('szafki:projekt')));
 ok('potwierdzenie zapisane w szafce', (zapis.items[0].cab.dociac||[]).length === ile, JSON.stringify(zapis.items[0].cab.dociac));
+await seed(60);  // wieniec/dno ok. 24 mm — ponizej 30 recznie sie nie dotnie
+uw = await uwagi();
+// (drzwi 56 mm w tej szafce to osobne ostrzezenie 30–60 — z przyciskiem)
+ok('formatka poniżej 30 mm: błąd „nie da się dociąć ręcznie”, bez „docinam ręcznie”', /Formatka „Dno \/ wieniec” ma 24 × 600 mm — węższej niż 30 mm nie da się dociąć ręcznie[^\n]*Popraw wymiar\.\n/.test(uw + '\n')
+  && (await ikony()).includes('×'), uw.split('\n').filter((l)=>/30 mm|dociąć/.test(l)).join(' / ').slice(0,300));
 
 console.log('\n== cokół ciągu 50 mm ==');
 const PL = { on: true, height: 50, mode: 'under', setback: 0 };
 await wczytaj({ name:'T', active:0, prices:{}, runs:[{ id:'c1', name:'Ściana 1', wallW:null, gap:0, mountY:0, H:720, D:570, plinth:PL, worktop:false, corner:null }],
   items:[0,1].map((i)=>({ cab:{ name:'A'+i, W:600, H:720, D:570, plinth:PL, legs:{on:true,height:50}, levels:[{h:null,cols:[{kind:'doors',doors:2,w:null}]}] }, runId:'c1', offset:0 })) });
 uw = await uwagi();
-ok('cokół 50 mm: błąd z pytaniem', /Formatka „Cokół ciągu” ma \d+ × 50 mm, a firma nie tnie/.test(uw), uw.split('\n').filter((l)=>/Cokół/.test(l)).join(' / ').slice(0,300));
+ok('cokół 50 mm: ostrzeżenie z „docinam ręcznie”', /Formatka „Cokół ciągu” ma \d+ × 50 mm, a firma nie tnie i nie okleja/.test(uw), uw.split('\n').filter((l)=>/Cokół/.test(l)).join(' / ').slice(0,300));
 const proj = await tabela(/^Formatki całego projektu/);
 const cok = proj.filter((r)=>/^Cokół/.test(r.Element||''));
 ok('w zamówieniu cokół o wysokości 60', cok.length>0 && cok.every((r)=>Math.min(num(r['Długość']),num(r['Szerokość']))===60), cok.map((r)=>`${r['Długość']}×${r['Szerokość']}`).join(', '));
 await card(/^Uwagi/).getByRole('button', { name: 'Tak, docinam ręcznie' }).first().click(); await page.waitForTimeout(800);
 const z2 = await page.evaluate(()=>JSON.parse(localStorage.getItem('szafki:projekt')));
 ok('potwierdzenie cokołu zapisane w ciągu', (z2.runs[0].dociac||[]).length === 1, JSON.stringify(z2.runs[0].dociac));
-ok('cokół: po potwierdzeniu ostrzeżenie', /Cokół ciągu” \d+ × 50 mm do ręcznego docięcia/.test(await uwagi()));
+ok('cokół: po potwierdzeniu informacja', /Cokół ciągu” \d+ × 50 mm do ręcznego docięcia \(potwierdzone\)/.test(await uwagi()));
 console.log('BLEDY:', err.length?err.join('; '):'(brak)');
 ok('strona bez błędów', !err.length, err.join('; '));
 await b.close();

@@ -104,6 +104,9 @@ const scenariusz = async (tytul, p, { zabudowa = false } = {}) => {
 
 await scenariusz('drzwi i półka', projekt([[szafka('D')]]));
 await scenariusz('szuflady', projekt([[szafka('S', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] })]]));
+// szuflady DXS-3D: boki, dno i tyl skrzynki z plyty (uzytkownik 2026-10-21)
+await scenariusz('szuflady DXS-3D', projekt([[szafka('SD', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto', system: 'dxs' }, { h: 'auto', system: 'dxs' }, { h: 'auto', system: 'dxs' }] }] }] })]]));
+await scenariusz('szuflady DXS-3D obok drzwi', projekt([[szafka('SDD', { W: 900, levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', w: 450, drawers: [{ h: 'auto', system: 'dxs' }, { h: 'auto', system: 'dxs' }] }, kol({ doors: 1 })] }] })]]));
 await scenariusz('fix z boku ze wspornikiem', projekt([[szafka('F', { levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] })]]));
 await scenariusz('fix u góry', projekt([[szafka('FG', { levels: [{ h: null, cols: [kol({ fix: { side: 'top', w: 100, mode: 'overlay' } })] }] })]]));
 await scenariusz('blenda w kolumnie', projekt([[szafka('B', { W: 800, levels: [{ h: null, cols: [kol({ doors: 1 }), { ...kol(), kind: 'blenda', w: 100 }] }] })]]));

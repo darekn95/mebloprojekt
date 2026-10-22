@@ -216,6 +216,11 @@ await scenariusz('blat roboczy 38 na bokach', szafka('BR', { top: { mode: 'blat'
 await scenariusz('szuflady wpuszczane', szafka('SW', { frontMode: 'inset', levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] }));
 await scenariusz('drzwi i półki', szafka('D'));
 await scenariusz('szuflady', szafka('S', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] }));
+// szuflady DXS-3D (skrzynka z plyty na prowadnicach dolnego montazu, uzytkownik 2026-10-21)
+const DXS3 = [{ h: 'auto', system: 'dxs' }, { h: 'auto', system: 'dxs' }, { h: 'auto', system: 'dxs' }];
+await scenariusz('szuflady DXS-3D', szafka('SD', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: DXS3 }] }] }));
+await scenariusz('szuflady DXS-3D wpuszczane', szafka('SDW', { frontMode: 'inset', levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: DXS3 }] }] }));
+await scenariusz('pod blatem w ciągu: 3 szuflady DXS-3D', wCiagu((c) => ({ levels: kolPB(c, { kind: 'drawers', drawers: DXS3 }) })));
 await scenariusz('szuflady z podniesionym tyłem', szafka('ST', { levels: [{ h: null, cols: [{ ...kol(), kind: 'drawers', drawers: [{ h: 'auto', tallBack: true }, { h: 'auto', tallBack: true }] }] }] }));
 await scenariusz('fix ze wspornikiem + drzwi', szafka('F', { levels: [{ h: null, cols: [kol({ doors: 1, fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 100 } })] }] }));
 await scenariusz('blenda w kolumnie + drzwi', szafka('B', { W: 800, levels: [{ h: null, cols: [kol({ doors: 1 }), { ...kol(), kind: 'blenda', w: 100 }] }] }));

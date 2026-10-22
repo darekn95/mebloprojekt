@@ -664,6 +664,81 @@ prostokat klapy z gruboscia frontu obracany co 1° wokol wewnetrznej krawedzi
 — zwraca ostatni wolny kat). Przeszkody w `swingBodies`: korpusy, fronty,
 uchwyty (`uchwytObrys`), wstawki, ramiona, maskownice, blat ciagu. Szuflady
 i klapy nie sprawdzaja sie przeciw innym ruchom (nie otwiera sie naraz).
+[AI-TODO] (2026-10-19, na pozniej — prosba uzytkownika ze zdjeciami kuchni) Szafka
+narozna SKOSNA: front pod katem 45° w rogu, dolna (pod zlewem) i gorna (wiszaca).
+Ze zdjec: obrys korpusu to pieciokat; jedne drzwi ramiakowe na skosie (dolna —
+uchwyt na gornej ramie, gorna — na dolnej); po obu stronach drzwi waskie paski
+w kolorze frontow pod katem 135° (czola bokow albo maskownice); blat ma na rogu
+odcinek przedniej krawedzi pod 45°, zlew okragly z ociekaczem w rogu; cokol idzie
+skosem; obok z lewej kolumna 3 szuflad, z prawej drzwi; gorna od spodu — dno
+pieciokatne, widoczny bok przy okapie.
+Projekt (szkic): nowy rodzaj narożnika ciagu obok „szafki w L” i slepego rogu.
+Pola: A (wzdluz sciany 1), B (wzdluz sciany 2), glebokosci D1/D2 (z ciagow: 560
+dolne, 300 gorne). Obrys (0,0) (A,0) (A,D1) (D2,B) (0,B); skos z (A,D1) do (D2,B),
+dlugosc √((A−D2)² + (B−D1)²) — 900×900×560 → ok. 481 mm, 600×600×300 → ok. 424 mm.
+Ciagi zaczynaja sie za A i za B (jak przy szafce w L). Formatki: dno, wieniec/
+wzmocnienia i polki — pieciokat zamawiany jako prostokat A×B ze scietym rogiem
+(A−D2)×(B−D1), oklejany na skosie; 2 boki D×H; plecy na obie sciany (A i B − t);
+1 front na skos; cokol — odcinek skosny z polaczeniami 135°; blat — skos przedniej
+krawedzi na rogu, oklejenie skosu. Okucia: zawias katowy 45° GTV (HCKT hydrauliczny
+kat. s. 79–80, KT kat. s. 90) na boku, jesli drzwi wisza na boku pod 135°.
+Bryla 3D i rzut z gory: pryzmy z wierzcholkow (`v` w `__audytBryl`, jak `plytaSkos`
+przy lyzwie). Kontrola otwierania: `swingLeaf` dziala na osiach — dla skosu trzeba
+cwiartki obroconej o 45° (uchwyty szuflad obok — realna kolizja). Pytania do
+uzytkownika w BLEDY.md („Do decyzji” — Szafka narozna skosna). Zdjecia (za zgoda
+uzytkownika): `zdjecia/naroznik-skosny/` z opisem `OPIS.md`.
+[AI-INFO] (2026-10-21) ZROBIONE ponizsze TODO — szuflady DXS-3D Synchro. Jak to dziala:
+`drawer.system === "dxs"` (bez pola = V-BOX); w `computeGeo` kolumna szuflad woła dla
+takiej szuflady `szufladaDxs` (zamiast galezi V-BOX) — wspolne zostaja fronty, pas,
+luzy i NL z przeszkod (`maxNlFor(..., lista)`). `dr.bokOd/dnoOd/gora` sa w obu
+systemach i z nich korzystaja rysunki (nie `vboxGora(dr.rail.h)` — tego nie dodawaj
+w nowych miejscach). Rysunki prowadnic: `szufladaOdCzola`, `szufladaZGory`,
+`szerWnetrzaSzuflady`; bryla: `skrzynkaBryly` (galaz `sk.system === "dxs"`); wysuw:
+`wysuwSzuflady` (B z `DXS.wysuw`). Zmiana systemu: `zmienSystemSzuflady` /
+`naSystemSzuflad`; uwagi: w `computeGeo` (dwa systemy w szafce) i `szufladyMsgs`
+(ciag/pomieszczenie), akcje `szufsys:` itd. przez `runFix`. `audytwierc` ma
+scenariusze tylko V-BOX (sprawdza otwory i boki metalowe) — plan wiercen DXS
+sprawdza suita `dxs`.
+[AI-INFO] (2026-10-20, szkic sprzed budowy — zrobione 2026-10-21, wyzej) Szuflady na prowadnicach
+dolnego montazu, obok V-BOX. Szkic: przy kolumnie szuflad wybor systemu („V-BOX” /
+„dolny montaż”); skrzynka z plyty — formatki boki, przod, tyl, dno (oklejanie
+gornych krawedzi), wymiary wg karty prowadnicy (szerokosc skrzynki = swiatlo minus
+luz z karty, dno wpuszczone, tyl skrocony / z wycieciem, otwory na zaczepy); okucia:
+komplet prowadnic + zaczepy na szuflade; NL z listy dlugosci z karty (jak `VBOX.nl`);
+plan wiercen: prowadnica na boku korpusu (otwory od dolnej krawedzi i od przodu),
+skrzynka (wyciecie i otwor w tyle); kontrola wysuwu i luzu nad skrzynka jak przy
+V-BOX; bryla 3D i rysunki skrzynki z plyty. Katalog GTV (kat. s. 128–135):
+Modern Slide Pro, 0SHX-18 3D, 0SHX, GCHX18-H, push to open (Modern Slide Pro, 0FPO18),
+G10HX-H — pytania w BLEDY.md („Do decyzji”), przed liczbami z karty sprawdz, czy
+instrukcja montazu jest w `instrukcje/`.
+[AI-INFO] (2026-10-21) Uzytkownik wybral Sevroll DXS-3D Synchro (miekki domyk) —
+instrukcja montazu w `instrukcje/Katalog-Akcesoria_PL_2026_online-skompresowany (1).pdf`,
+s. 112 (rysunek obrazem 144 dpi, liczby warstwa tekstu: `pdftotext -f 112 -l 112 -layout`),
+wyciag w `instrukcje/SPIS.md`.
+[AI-INFO] (2026-10-21) DXS-3D — odczyt rysunku s. 112 (powiekszenia: `pdftoppm -r 400 -x … -y …`;
+obraz ma 144 dpi, wiec wiecej szczegolow nie bedzie). Pewne z liczb na rysunku:
+bok szuflady 18, od boku korpusu do wnetrza szuflady 24,5 → miedzy bokiem szuflady
+a bokiem korpusu 6,5; prowadnica pod dnem szuflady, przy boku, przykrecona katownikiem
+do boku korpusu (dwa rzedy wkretow co 12); dno szuflady miedzy bokami, 10–12 nad ich
+dolna krawedzia; 27 = od spodu prowadnicy do spodu dna; 2 (min.) = od dna korpusu do
+spodu prowadnicy. Tabela A/B: A = dlugosc czesci na korpusie (250…380 — przy NL 600
+tylko 380!), B = wysuw (200…570). Otwory prowadnicy NL 600 od krawedzi korpusu:
+10, 19, 28, 37 | 60, 69 | 165 | 243, 252, 261 | 275, 284 | 339 (z wymiarow 4, 37, 9, 32,
+128, 96, 64, 78), przod prowadnicy 4 mm za krawedzia. Niepewne: 37 (do wierzchu dna albo
+do gornego rzedu wkretow — na rysunku ta sama wysokosc; jesli wierzch dna, to dno 10 mm),
+ktore otwory przykrecac i ile wkretow, otwory dla krotszych NL (tylko rysunek bez liczb),
+front wpuszczany (22 / X / 2), tyl skrzynki (⌀6 × 10, 11 i 7 — od ktorych krawedzi;
+33 i max 12), zaczep przedni (min. 75 — od czego), otwory ⌀2 pod sprzegla (s. 113, bez
+wymiarow), bok 16 / 19 (SKW = LW − 45 / − 51 to tylko wniosek z 6,5 mm luzu), co jest
+w komplecie. Brak w instrukcji: luz nad skrzynka, z czego i jak skrzynka (przod/tyl
+miedzy bokami?, grubosc i mocowanie dna), polozenie frontu wzgledem prowadnicy.
+[AI-INFO] (2026-10-21) DXS-3D — odpowiedzi uzytkownika na powyzsze sa w BLEDY.md
+(„Ustalone” → Szuflady DXS-3D Synchro): „37” = gorny rzad wkretow, X = grubosc frontu,
+tyl do spodu dna (bok − 10), dno na konfirmaty przez boki, 33 = szerokosc prowadnicy,
+75 od boku dna wolne, komplet = wszystko. Najwazniejsze dla planu wiercen: kreska
+spodu prowadnicy na boku + odsuniecie od czola (4 / X + 4), bez otworow.
+Zrzut z zaznaczonym „37” byl w scratchpadzie sesji (pdftoppm s. 112, -r 300,
+-x 150 -y 950, opisy ImageMagick `convert -draw/-annotate`).
 [AI-TODO] Sprzety w zabudowie (lodowka, piekarnik, mikrofala): gdy powstanie
 kategoria „sprzety”, dolozyc ich bryly i drzwi do `swingBodies` — prosba
 uzytkownika, zeby wrocic. Szafka luzem (bez ciagu) nie ma kontroli
@@ -779,3 +854,33 @@ z nich. W skali są tylko otwory frontu (32 / 47,5) na rysunku „Front do szufl
 `vboxGora/vboxOdProw/vboxDno` liczone z tabel `VBOX.minFront.overlay` i `VBOX.backH`.
 Użytkownik sam zwrócił uwagę, że bok stoi na górnej części prowadnicy — przy
 wątpliwościach co do okuć pytaj o pomiar prawdziwej szuflady.
+
+[AI-INFO] Napisy rysunków szafki w PDF (2026-10-21, audyt GPT PDF-1). W druku
+`FrontView`/`RearView`/`TopView` dostają `druk` (szerokość widoku w mm) i liczą
+skalę napisów `kz` (`drukKUkladu`); CSS `PRINT_CSS` powiększa każdy `<text>` w
+`.rp-widok` o `--k` od jego zaczepienia. Zasady przy nowym napisie w tych widokach:
+- **nie dawaj `transform` na `<text>`** — w druku CSS `transform` go nadpisuje
+  (obrót znikał); obróć grupę `<g transform=…>`, a napis zostaw bez atrybutu;
+- napis w środku płyty/frontu: `style={kz > 1 ? { "--k": kNapisu(kz, txt, fs, wolneMiejsce) } : undefined}`,
+  drobny (16–18): `kMaly`; opis wymiaru z innym powiększeniem: `DimH`/`DimV` `kd`;
+- nowa kolumna wymiarów przy szafce: `kolumnaDruk(szerEkranu, liczbaZnakow, kz)`
+  w `uklad(kz)`, inaczej w druku wejdzie na sąsiednią;
+- na ekranie `kz === 1` i każda zmiana układu ma iść gałęzią `kz > 1`;
+- sprawdzenie: `node testy/pdfczytelnosc.mjs` (z `PROJEKT=` na projekcie użytkownika),
+  podgląd zrzutów widoków z druku — pomocnik w scratchpadzie sesji (`pdfzrzut.mjs`:
+  wydruk przechwycony w `window.print`, `.print-only` wklejone w body, zrzut `.rp-widok`).
+
+[AI-INFO] Audyt szuflad przez interfejs (2026-10-21, zgłoszenie użytkownika po
+DXS-3D). `testy/audytszuflad.mjs` klika jak użytkownik i po każdym kroku sprawdza
+Uwagi, formatki ↔ 3D, kolizje skrzynek i frontów, wysuw (`symwysuw`), wzmocnienia
+spod blatu i resztki ustawień klapy. Cały przebieg ok. 5 min — przy poprawkach
+puszczaj wybrane scenariusze: `TYLKO=D,O PELNE=1 node testy/audytszuflad.mjs`.
+Na co uważać przy pisaniu nowych scenariuszy:
+- poziomy w Strukturze są od góry (`[...geo.levels].reverse()`), kolumny od lewej —
+  `wStrukturze(nazwa, odDolu, title, odGory)` liczy od końca albo od początku listy;
+- dane wpisane wprost do localStorage (`doZapisu`) omijają `editLevels`, więc para
+  wzmocnień spod blatu nie przechodzi sama do górnego poziomu — buduj poziomy z nią
+  w górnym albo klikaj przyciski;
+- „błąd” w audycie przy ręcznie ustawionym układzie, który zawsze jest zły (np. 3 V-BOX
+  w połowie szafki pod blatem), to poprawna uwaga aplikacji, nie błąd — taki stan
+  albo testuj jako oczekiwany błąd, albo nie ustawiaj go.

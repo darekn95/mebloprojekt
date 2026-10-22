@@ -15,6 +15,10 @@
   `instrukcje/` i dopisuj każdy plik do `instrukcje/SPIS.md` (co to, co z niego
   bierzemy, gdzie w kodzie). Zanim zmienisz liczbę z katalogu (okucia, szuflady,
   podnośniki), sprawdź, czy instrukcja jest w tym folderze.
+- Jak działa dana część programu (zasady, liczby, kontrole, skąd liczby) — zwięzłe
+  opisy w `opisy/` (spis: `opisy/SPIS.md`). Przeczytaj opis obszaru przed zmianą,
+  a zmieniasz zasadę albo liczbę — popraw opis w tej samej zmianie. Na pytania
+  użytkownika „jak to działa” odpowiadaj z opisu (i sprawdź w kodzie, gdy wątpliwe).
 - Zanim zaczniesz szukać po całym `szafki.jsx`, zajrzyj do `SLOWNIK.md`:
   wiąże etykietę z interfejsu ze ścieżką w danych i funkcją, która to liczy.
   Dokładasz nowe pole albo nazwę formatki — dopisz tam wiersz w tej samej zmianie.
