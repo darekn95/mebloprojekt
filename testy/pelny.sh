@@ -11,12 +11,20 @@ L=${1:-/tmp/pelny}; shift 2>/dev/null
 rm -rf "$L" && mkdir -p "$L"
 if [ $# -gt 0 ]; then printf '%s\n' "$@" > "$L/lista.txt"
 else grep -l "'  OK   '" *.mjs | sed 's/\.mjs$//' | grep -v '^pw$\|^build-artifact$\|^runner$' > "$L/lista.txt"; fi
+# dlugie suity na czesci (SHARD): macierzszuflad (317 ukladow) w calosci przekracza 600 s przy 5 naraz
+for d in macierzszuflad:4; do
+  s=${d%:*}; k=${d#*:}
+  grep -qx "$s" "$L/lista.txt" || continue
+  grep -vx "$s" "$L/lista.txt" > "$L/lista2.txt"
+  for i in $(seq 0 $((k - 1))); do echo "$s@$i-$k" >> "$L/lista2.txt"; done
+  mv "$L/lista2.txt" "$L/lista.txt"
+done
 n=$(wc -l < "$L/lista.txt")
 
 zly() { grep -qE '^  BLAD|Error:|TimeoutError|triggerUncaughtException' "$1" || ! grep -q '  OK' "$1"; }
 
 t0=$(date +%s)
-xargs -P 5 -I{} sh -c "timeout 600 node {}.mjs > '$L/{}.log' 2>&1" < "$L/lista.txt"
+xargs -P 5 -I{} sh jedna.sh {} "$L/{}.log" 600 < "$L/lista.txt"
 t1=$(date +%s)
 : > "$L/bledy.txt"
 while read -r s; do zly "$L/$s.log" && echo "$s" >> "$L/bledy.txt"; done < "$L/lista.txt"
@@ -25,7 +33,7 @@ echo "Szybko: $n suit w $((t1 - t0)) s, $ok OK, z bledem: $(wc -l < "$L/bledy.tx
 
 [ -s "$L/bledy.txt" ] || { echo "WSZYSTKO ZIELONE"; exit 0; }
 echo "Powtorka wolno (PW_WOLNO=1): $(tr '\n' ' ' < "$L/bledy.txt")"
-xargs -P 5 -I{} sh -c "PW_WOLNO=1 timeout 900 node {}.mjs > '$L/{}.wolno.log' 2>&1" < "$L/bledy.txt"
+PW_WOLNO=1 xargs -P 5 -I{} sh jedna.sh {} "$L/{}.wolno.log" 900 < "$L/bledy.txt"
 prawdziwe=0
 while read -r s; do
   if zly "$L/$s.wolno.log"; then

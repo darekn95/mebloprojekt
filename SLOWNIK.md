@@ -560,5 +560,7 @@ open('testy/standalone-local.html','w').write(s)"
 # każdej padającej suity „PRAWDZIWY BLAD” (pada też wolno — naprawić) lub
 # „FALSZYWY ALARM” (wolno przechodzi — poprawić czekanie w pw.mjs). Kod wyjścia 1
 # tylko przy prawdziwym błędzie. Logi: <katalog>/<suita>.log i .wolno.log.
+# Długie suity idą w częściach (SHARD przez `jedna.sh`, lista w pelny.sh):
+# macierzszuflad → macierzszuflad@0-4 … @3-4 (w całości ponad 600 s przy 5 naraz).
 cd testy && bash pelny.sh /tmp/pelny            # albo: bash pelny.sh /tmp/p narozn2 zoom
 ```
