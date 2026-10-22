@@ -12,6 +12,8 @@ zamówienia: „Cały projekt” albo „To pomieszczenie”.
   - **konfirmaty 7 × 50 i zaślepki** (też skrzynek DXS), **kołki podporowe ⌀5**, **trójkąty**;
   - **nóżki** (wariant: kształt, wysokość, kolor), **złączki do cokołu**;
   - **zawieszki, listwa montażowa** (za metr), **haki**;
+    - listwa: w sklepie odcinki 1 m i 2 m, tnie się na dokładne długości. Jedna listwa na cały ciąg (za wszystkimi szafkami, długość ciągu − 40 mm; dłuższa niż 2 m — pełne odcinki 2 m i reszta), osobna szafka — W − 40, ramię szafki w L — swój odcinek przy drugiej ścianie;
+    - zakup (`listwaZakup`): najmniej metrów, docinki idą na krótsze kawałki (3 × 640 z jednego 2 m zamiast 3 × 1 m), przy remisie najmniej cięć. Wiersz podaje „kupić N × 2 m + N × 1 m”, potrzebną długość, odpad i plan cięcia; ilość w mb = kupione metry (audyt GPT N77, decyzja użytkownika 2026-10-22);
   - **wkręty / zszywki do pleców**, **lustro** (za m²), **złącza do blatów**.
 - **Zestawienie projektu**: jeden wiersz na produkt i wariant (nakładany i wpuszczany zawias to dwa wiersze, nóżka 100 kwadratowa i 150 okrągła też). Ilości się sumują.
 - **Wycena** (ceny brutto, każdą można nadpisać, 0 zeruje pozycję):

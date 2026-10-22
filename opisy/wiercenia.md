@@ -14,7 +14,11 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
 - **Kołki półek** ⌀5:
   - po dwa na stronę półki, domyślnie 37 mm od przedniej i tylnej krawędzi („Otwór od przodu / od tyłu”);
   - wysokość = spód półki, liczona od dolnej krawędzi boku albo od dna („Wysokość otworów liczona od”);
-  - na przegrodzie kołki z obu stron na tej samej wysokości są przesunięte o 20 mm do środka półki.
+  - na przegrodzie, gdy po obu stronach półki są na tej samej wysokości, otwory jednej strony (od kolumny z prawej) przesuwa się tak, żeby były co najmniej 20 mm od siebie i od otworów po drugiej stronie i co najmniej 10 mm od krawędzi półki (`KOLEK_OD_KRAWEDZI`):
+    - najpierw 20 mm do środka półki (zwykle wystarcza — tylko w planie wierceń);
+    - gdy nie wystarcza (płytka półka, np. 240 mm z otworami 100 / 100: 120 i 120) — 20 mm na zewnątrz (80 i 160), potem oba w tył / w przód, potem 40 mm; takie przesunięcie ma informację w Uwagach z „Półki kolumny N na trójkątach”;
+    - nic nie pasuje — błąd „przesuń półkę o 10 mm albo zamień kołki na trójkąty”.
+  - Trójkąty pod półką tak samo (50 mm od krawędzi półki, przesunięcie jak wyżej).
 - **Trójkąty meblowe**: półki na trójkątach, wspornik pionowy bez płyty nad sobą (co 300 mm, min. 2), cokół bez nóżek.
 - **Zawiasy drzwi**: oś zawiasu na boku, przegrodzie albo wsporniku — puszka ⌀35 we froncie, prowadnik na płycie. Wysokości po ominięciu półek i wzmocnień (`opisy/drzwi.md`).
 - **Zawiasy i podnośniki klap**: `opisy/klapy.md`.
@@ -35,13 +39,14 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
 ## Kontrole i przyciski
 
 - **Kołki nie mieszczą się na półce** (przód + tył ≥ głębokość najpłytszej) — błąd z „Ustaw 37 / 37 mm”.
+- **Kołki / trójkąty po obu stronach przegrody** trafiłyby w siebie: przesunięte inaczej niż 20 mm do środka — informacja z „Półki kolumny N na trójkątach”; nie da się rozsunąć — błąd z radą (audyt GPT N75, decyzja użytkownika 2026-10-22).
 - **Konfirmaty z obu stron jednej płyty w tej samej osi** — błąd z wyborem mocowania drugiej strony (`opisy/poziomy.md`).
 - **Zawiasy w jednym miejscu** albo na przeszkodzie — błąd (`opisy/drzwi.md`).
 - **Zawiasy przesunięte** przez półkę lub wzmocnienie — notatka montażowa w PDF.
 
 ## Skąd liczby
 
-- **Konfirmaty, kołki i trójkąty**: zasady robocze ustalone z użytkownikiem (2026-09-29: łączenia korpusu w planie wierceń, mocowanie półek).
+- **Konfirmaty, kołki i trójkąty**: zasady robocze ustalone z użytkownikiem (2026-09-29: łączenia korpusu w planie wierceń, mocowanie półek; 2026-10-22: kołki na zewnątrz, gdy do środka się nie da, z podpowiedzią o trójkątach).
 - **Zawieszka**: karta ZK-ZAW-R0-10 (`instrukcje/`).
 - **Podnośniki GTV i prowadnice DXS-3D**: instrukcje w `instrukcje/` (patrz opisy klap i szuflad).
 

@@ -15,12 +15,13 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 - **Cokół ciągu**: jedna płaszczyzna przez cały ciąg, podzielona na formatki; w rogu cokoły na zakładkę (`opisy/cokol.md`).
 - **Blat ciągu** (`opisy/korpus.md`): kawałki o długości arkusza z miejscem na słupki.
   - Głębokość: od ściany do lica frontów plus wysunięcie przed drzwi (domyślnie 10 mm).
+  - Odsunięcie od ściany inne na dole i na wysokości blatu: blat zaczyna się przy ścianie na wysokości blatu — gdy tam jest dalej (dół 0, blat 100), blat sięga 100 mm za linię ściany przy podłodze, a wysięg z przodu zostaje zwykły (rysunki i 3D, audyt GPT N69).
   - Z arkusza 600 albo 1200 — szersze zamawia się docięte.
 - **Narożnik** — kto wjeżdża w róg (`owner`) i z jakim luzem w rogu.
   - **Ślepy róg**: szafka ciągu wjeżdżającego ma zasłoniętą część frontu (głębokość sąsiada + jego front + 30 mm zapasu). Na zasłoniętą część robi się fix, na resztę jedne drzwi z zawiasem od zewnątrz, czyli uchwyt przy fixie.
   - **Szafka w L**: korpus z ramieniem wzdłuż drugiej ściany.
     - Drzwi w narożniku: na wspornikach, łamane (zawias 165° + łamany 90°), skręcone albo fix.
-    - Kątownik w tylnym narożniku: ramiona 150 mm; półki kończą się przed nim.
+    - Kątownik w tylnym narożniku: ramiona 150 mm, z płyty półek (jej grubość w zamówieniu, rysunkach, 3D, stykach i wzmocnieniach — audyt GPT N70); półki kończą się przed nim.
   - **Wstawka w rogu** między ciągami (bez szafki w L):
     - płaska 18 mm w głąb albo szeroka 60 mm licem do przodu;
     - szeroka na trójkątach, na konfirmatach (w linii korpusu) albo na listwie;
@@ -28,6 +29,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - **Blat w rogu**: jeden przechodzi, drugi dojeżdża do jego przedniej krawędzi (styk ze złączem) albo oba na łyżwę (cięte pod 45°).
 - **Górny ciąg**: wysokość montażu = blat + prześwit nad blatem (domyślnie 500 mm).
   - Wieszanie na listwie montażowej z zawieszkami albo na haczykach.
+  - Listwa jedna na cały ciąg, za wszystkimi szafkami (nie tniemy jej pod szafki); zakup w odcinkach 1 / 2 m — `opisy/zamowienie.md`. Szafka bez zawieszek w ciągu na listwie — ostrzeżenie (listwa i tak za nią przechodzi, może to być pomyłka).
   - Górna szafka w L (szablon) robi się na wzór dolnej, gdy przy rogu stoi szafka w L.
 - **Kontrola otwierania w całej zabudowie**: skrzydła, klapy i szuflady sprawdzane względem sąsiadów, ramion, blatu i sufitu (`opisy/drzwi.md`, `opisy/klapy.md`, `opisy/szuflady.md`).
 

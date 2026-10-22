@@ -162,7 +162,8 @@ ok('projekt ma jedną listwę', listwa.length === 1, ph.filter((r) => /Listwa/.t
 /* Od scalania okuc zestawienie projektu podaje listwe jednym wierszem w metrach
    biezacych (1760 mm → 1.8 mb), a „jedna listwa 1760 mm na caly ciag" mowi
    karta ciagu. */
-ok('listwa w zestawieniu: 1.8 mb', /1[.,]8 mb/.test(listwa[0]), listwa[0]);
+// zakup w odcinkach 1 / 2 m, cala listwa ciagu z jednego (uzytkownik 2026-10-22, audyt GPT N77)
+ok('listwa w zestawieniu: 1 × 2 m na 1760 mm ciągu', /kupić 1 × 2 m: potrzeba 1760 mm, odpad 240 mm/.test(listwa[0]) && /\| 2 mb$/.test(listwa[0]), listwa[0]);
 ok('karta ciągu: jedna listwa 1760 mm na cały ciąg',
   /Jedna listwa 1760 mm na cały ciąg/.test(await page.evaluate(() => document.body.innerText)));
 
