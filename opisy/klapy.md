@@ -53,7 +53,7 @@ z jedną kolumną. Dolne poziomy dostają wpisaną wysokość, górny jest auto.
   - do góry niższa niż 290 mm — ostrzeżenie: podnośnik potrzebuje co najmniej 290 mm korpusu na boku;
   - szersza niż 600 mm z jednym podnośnikiem — ostrzeżenie „dają się dwa”.
 - **Półka na drodze podnośnika** (bliżej frontu niż 50 mm, w zasięgu od płytki do mocowania na klapie) — ostrzeżenie z „Dodatkowe cofnięcie półek N mm”.
-- **Otwieranie**: łuk klapy do jej kąta. Przeszkody to blat, górna szafka, sufit z górnego ciągu, fronty i uchwyty innych poziomów → „otworzy się tylko do ok. N°”.
+- **Otwieranie** (błąd): łuk klapy do jej kąta, sprawdzany co 1°. Przeszkody to blat, górna szafka, sufit z górnego ciągu, fronty i uchwyty innych poziomów → „nie otworzy się na 90°: po drodze stoi … — otworzy się tylko na ok. N°”. Pod blatem klapa do góry dostaje radę „zrób szufladę albo drzwi”.
 - **Informacja** z wynikiem: „klapa do góry / w dół W × H — N × podnośnik X N”.
 
 ## Plan wierceń

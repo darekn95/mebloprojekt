@@ -18,12 +18,12 @@ Zmieniasz zasadę albo liczbę opisaną tutaj, popraw opis w tej samej zmianie.
 |---|---|---|
 | [szuflady.md](szuflady.md) | szuflady V-BOX i DXS-3D: fronty, boki, NL, skrzynki, kontrole, zamówienie, plan wierceń | 2026-10-22 |
 | [klapy.md](klapy.md) | klapy do góry i w dół: zawiasy, podnośnik / amortyzator, siła, uchwyt, otwieranie, plan wierceń | 2026-10-22 |
-| drzwi i zawiasy | liczba zawiasów (tabela GTV), strona, rozstaw, luzy, fix | do napisania |
-| poziomy, kolumny, półki | podział wnętrza, „→ poziom”, usuwanie, półki i ich mocowanie | do napisania |
-| korpus, wzmocnienia, blat | wieniec / wzmocnienia, para pod blat, blat roboczy, plecy | do napisania |
-| ciągi i narożniki | ciąg, ślepy róg, szafka w L, wstawka, górny ciąg | do napisania |
-| cokół i nóżki | cokół ciągu i szafki, nóżki | do napisania |
-| formatki i oklejanie | nazwy, wymiary, reguła 60 / 30 mm, okleina | do napisania |
-| zamówienie i wycena | okucia, ceny, konfirmaty | do napisania |
-| plan wierceń | otwory i kreski | do napisania |
-| rozkrój i PDF | arkusze, blat, wydruk | do napisania |
+| [drzwi.md](drzwi.md) | drzwi i zawiasy: liczba (tabela GTV), strona, rozstaw, luzy, fix, blenda, otwieranie | 2026-10-22 |
+| [poziomy.md](poziomy.md) | poziomy, kolumny, półki: podział wnętrza, „→ poziom”, usuwanie, głębokość i mocowanie półek | 2026-10-22 |
+| [korpus.md](korpus.md) | korpus, złącza, wzmocnienia (para pod blat), plecy i frez, wieniec / blat z płyty, blat roboczy | 2026-10-22 |
+| [ciagi.md](ciagi.md) | ciągi, narożniki (ślepy róg, szafka w L, wstawka, blat w rogu), górny ciąg, uwagi ciągu | 2026-10-22 |
+| [cokol.md](cokol.md) | cokół szafki i ciągu (pod korpusem / w obrysie), nóżki, mocowanie cokołu | 2026-10-22 |
+| [formatki.md](formatki.md) | formatki: nazwy, materiały, okleina, usłojenie, reguła 60 / 30 mm | 2026-10-22 |
+| [zamowienie.md](zamowienie.md) | okucia, zestawienie projektu, wycena i ceny domyślne | 2026-10-22 |
+| [wiercenia.md](wiercenia.md) | plan wierceń: konfirmaty, kołki, trójkąty, zawiasy, prowadnice, zawieszki, frez | 2026-10-22 |
+| [rozkroj.md](rozkroj.md) | rozkrój (arkusze, rzaz, usłojenie, blat), ostrzeżenia zużycia i odpadu, zestawienie PDF | 2026-10-22 |
