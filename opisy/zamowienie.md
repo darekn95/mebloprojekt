@@ -16,7 +16,8 @@ zamówienia: „Cały projekt” albo „To pomieszczenie”.
     - **lustro**: grubość (4 / 6 mm) w opisie i wariancie — różne grubości to osobne wiersze (audyt GPT N80);
     - **mocowania pleców w kolumnach** z obwodu każdej płyty (HDF — zszywki, płyta — wkręty), bez płyt — bez mocowań (audyt GPT N81);
     - zakup listwy (`listwaZakup`): najmniej metrów, docinki idą na krótsze kawałki (3 × 660 z jednego 2 m zamiast 3 × 1 m), przy remisie najmniej cięć. Listwa może być krótsza najwyżej o 10 mm (`LISTWA_SKROT`), ale tylko wtedy, gdy dzięki temu kupuje się mniej (3 × 670 = 2010 → jeden odcinek 2 m, jedna 660; za plecami cofniętymi bez skracania). Wiersz podaje „kupić N × 2 m + N × 1 m”, potrzebną długość, odpad i plan cięcia; ilość w mb = kupione metry (audyt GPT N77, decyzja użytkownika 2026-10-22);
-  - **wkręty / zszywki do pleców**, **lustro** (za m²), **złącza do blatów**.
+  - **wkręty / zszywki do pleców**, **lustro** (za m²), **złącza do blatów**;
+  - **rura na wieszaki ⌀25** (za metr, docięta: światło kolumny − 2 mm) i **rozety** (2 na rurę) — ceny orientacyjne 20 zł/mb i 2 zł/szt. do potwierdzenia.
 - **Zestawienie projektu**: jeden wiersz na produkt i wariant (nakładany i wpuszczany zawias to dwa wiersze, nóżka 100 kwadratowa i 150 okrągła też). Ilości się sumują.
 - **Wycena** (ceny brutto, każdą można nadpisać, 0 zeruje pozycję):
   - **arkusze płyty** — liczba z rozkroju, cena wg materiału: biała 223,10 zł, w kolorze 240 zł (2800 × 2100 × 18), HDF 70 zł;

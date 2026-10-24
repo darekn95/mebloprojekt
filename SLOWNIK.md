@@ -165,6 +165,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | jeden podnośnik / amortyzator: na lewym / na prawym | `col.podnosnikStrona` (puste = lewa, `"right"`) — tylko przy jednym (`data-el="klapa-strona"`); `geo.klapy[].strona`, plan wierceń |
 | uwaga „półka … stoi na drodze podnośnika” / przycisk „Dodatkowe cofnięcie półek N mm” | w `computeGeo` przy wierceniach klapy: półka w zasięgu podnośnika (płytka `KLAPA_PLYTKA_R`, mocowanie `KLAPA_MOC_ZAPAS`) bliżej frontu niż `KLAPA_POLKA_ZA_FRONTEM` (50); akcja `polkicof:<mm>` ustawia `cab.shelfExtraSetback` |
 | „Zawias — półnakładany” w okuciach | `hingePol`, `polnakladany(naCzolo, grubPlyty)` w `computeGeo`: front na płycie z zawiasem ≤ pół grubości + 2 mm (przegroda, półka pod klapą); reszta „nakładany” |
+| rura na wieszaki: światło N (`data-el="rura-wieszaki-opcja"`), podpowiedź „Dodaj rurę na wieszaki” / „Usuń rurę” (`drazek:<poziom>:<kolumna>:<światło>:<1/0>`) | `col.drazki[]` (numery świateł od dołu), `setDrazek`; w `computeGeo` `c.drazki = [{ k, y, z, len, pod, swiatlo }]`, stałe `DRAZEK_*`; okucia `DRAZEK_NAME`, `ROZETA_NAME`; rysunki `data-el="rura-wieszaki"`, bryła 3D tag `rura-wieszaki` (kolor metalu) |
 | uchwyt / lustro | `col.handles[]`, `col.mirrors[]` — w wierszu okuć pod szerokością skrzydła (`data-el="drzwi-okucia"`): zawiasy, uchwyt, lustro |
 | uchwyt: … mm, na boku / górze | `col.handleOuts[]` (puste = `cab.handleOut`, 20), `col.handlePos[]` (`"bok"` / `"gora"`); liczy `uchwytOut(d, cab)` i `uchwytObrys(d)` — rysunek z przodu (`data-el="uchwyt-bok|gora"`), 3D, rzut z góry, kontrola otwierania |
 | własny luz między drzwiami | `col.gapBetween` |
@@ -429,7 +430,8 @@ Zszywka / gwoździk do pleców (0,05) · Lustro na drzwiach (200/m²) ·
 Podnośnik gazowy N N / Podnośnik gazowy — siła do dobrania (cena po `pk` „Podnośnik gazowy do klapy”, 10) ·
 Amortyzator do klapy opadanej N N (`pk` „Amortyzator do klapy opadanej”, 10) ·
 Prowadnica Sevroll V-BOX 3D Slim … mm (`SLIDE_PRICES` wg NL) ·
-Prowadnica Sevroll DXS-3D Synchro (50 za komplet bez względu na NL; NL i indeks w specyfikacji)
+Prowadnica Sevroll DXS-3D Synchro (50 za komplet bez względu na NL; NL i indeks w specyfikacji) ·
+Rura na wieszaki ⌀25 (20/mb, orientacyjnie) · Rozeta do rury ⌀25 (2, orientacyjnie)
 
 ---
 
@@ -513,6 +515,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `gornaL` | górna szafka w L: szablon tylko w górnym ciągu, staje przy rogu (koniec/początek ciągu), zakłada górny ciąg drugiej ściany, ramię po właściwej stronie, dosunięcie do rogu, bez kolizji i bez „wystaje poza dolny”, formatki ramienia z wieńcem, 2 zawieszki; górny ślepy róg bez szafki w L po staremu |
 | `zwijanie` | karty (rysunek, notatka, formatki i produkty szafki i projektu) zwijają się i rozwijają; „Uwagi” bez zwijania; kolejność: notatka pod rysunkiem, wycena pod produktami całego projektu, bez „Kontrola frontów” |
 | `szuflady` | audyt szuflad (z symulacją wysuwu `testy/symwysuw.mjs`: każda szuflada osobno co 5 mm na pełną NL, reszta zamknięta, blat nad szafką; tabela luzów nad bokami i tyłem; każda kolizja z symulacji musi być zgłoszona w uwagach; 2 próby kontrolne, w których kolizja jest naprawdę — NL 550 przy tylnym wzmocnieniu, bok 238 pod płaskim; układy dodatkowe: szuflady pod półką z drzwiami nad nimi, obok drzwi za przegrodą, H 820 i 600, D 500): 1–4 szuflady × szafka z wieńcem / pod blatem × podniesiony tył × fronty nakładane i wpuszczane — pas frontów 3 mm od dołu i od góry (nie w blat), bez „nie wysunie się”, każda uwaga z przyciskiem, w 3D skrzynka (otwarta) i fronty (zamknięte) nie wchodzą w korpus ani wzmocnienia; NL górnej szuflady przed tylnym wzmocnieniem; przycisk „Wyłącz podniesiony tył”; drzwi wpuszczane pod blatem |
+| `rura` | rura na wieszaki: podpowiedź przy świetle 1546 mm, opcja tylko przy świetle ≥ 800, dodanie przyciskiem, zamówienie (962 mm, 2 rozety), plan wierceń (oba boki), rysunki (otwarty, z boku), bryła 3D 25 × 25 × 962 w kolorze metalu, odznaczenie, kontrole: pod rurą < 1000, wnętrze 470 (ostrzeżenie) i 380 (błąd z „Usuń rurę”), podpowiedź z płaszczami |
 | `scalanie` | „Scal szafki w jedną…”: start z aktywną i sąsiadem, „Nie da się scalić” (różna wysokość, przerwa), S2 + S3 + S4 → jedna szafka 1800 z kolumnami drzwi / szuflady / drzwi (573 / 582 / auto), 2 przegrody, boki podwójne → wspólny wieniec i dno ciągu, widoki |
 | `wspolnywieniec` | wspólny wieniec i dno ciągu (salon: ciąg 1600 od wysokiej szafki, trzy po 900): „Ustaw cały ciąg na 900 mm, wyższe jako słupki”, wieniec równo z frontami, słupek przy swoim, „Wieniec ciągu” 1800 × 520, nowa szafka, wyłączenie, blat roboczy wyklucza wieniec, słupek w środku przerywa (2 × 600), „Dno ciągu” 2400 + 600, karta szafki bez dna, widoki |
 | `kolory2` | zmiana koloru w 4 szafkach ciągu (sonoma → biały): pytanie o ciąg / pomieszczenie / projekt, fronty w odcieniu korpusu, „Realne kolory” dla całego projektu, nowa szafka z płytami sąsiedniej, osobne fronty, ciemny korpus, słoje w ciągu i 3D |

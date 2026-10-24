@@ -191,6 +191,16 @@ const SLIDE_PRICES = {
 
 /* Okucia dopasowujemy po samej nazwie — specyfikacja bywa zmienna
    (np. zawias nakladany kontra wpuszczany), a cena i tak jest ta sama. */
+/* Rura na wieszaki (uzytkownik 2026-10-24): okragla ⌀25 na dwoch rozetach, os
+   70 mm pod plyta nad swiatlem (wygodnie zawiesic wieszak), w polowie glebokosci
+   wnetrza, dlugosc = swiatlo kolumny − 2 mm. Pod rura ok. 1000 mm na koszule
+   (plaszcze ok. 1600 — poradniki). Glebokosc wnetrza od 400 mm (wieszaki pod
+   skosem), ponizej 500 ostrzezenie. Opcja przy swietle od 800 mm. */
+const DRAZEK_FI = 25, DRAZEK_POD_PLYTA = 70, DRAZEK_KROTSZY = 2;
+const DRAZEK_MIN_POD = 1000, DRAZEK_DLUGIE = 1600, DRAZEK_SWIATLO_OPCJA = 800;
+const DRAZEK_GL_MIN = 400, DRAZEK_GL_DOBRA = 500;
+const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀25";
+
 const DEFAULT_HW_PRICES = {
   Zawias: 3,
   "Nóżka regulowana": 2.3,
@@ -220,6 +230,9 @@ const DEFAULT_HW_PRICES = {
   "Prowadnica Sevroll DXS-3D Synchro": 50,
   // GTV EM-SBL na styku blatow w rogu (uzytkownik 2026-10-16)
   "Złącze do blatów śrubowe": 9,
+  // rura na wieszaki (za metr) i rozety — ceny orientacyjne, do potwierdzenia przez uzytkownika
+  [DRAZEK_NAME]: 20,
+  [ROZETA_NAME]: 2,
 };
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
@@ -2447,6 +2460,30 @@ function computeGeoLiczy(cab, mat, ctx) {
       }
 
       c.noDiv = !!rawCols[j].noDiv;
+      /* Rura na wieszaki w swietle `k` (kolumna z drzwiami albo otwarta) — `DRAZEK_*`. */
+      c.drazki = rawCols[j].kind === "doors" || !rawCols[j].kind
+        ? [...new Set((rawCols[j].drazki || []).map(Number))].filter((k) => c.openings[k]).sort((a, b) => a - b)
+          .map((k) => {
+            const o = c.openings[k];
+            const y = o.to - DRAZEK_POD_PLYTA;
+            return { k, y, z: Math.round(dividerDepth / 2), len: Math.max(0, Math.round(w - DRAZEK_KROTSZY)), pod: Math.round(y - o.from), swiatlo: Math.round(o.h) };
+          })
+        : [];
+      c.drazki.forEach((dr) => {
+        const gdzie = `Poziom ${lv.i + 1}, kolumna ${j + 1}, rura na wieszaki`;
+        if (dr.pod < DRAZEK_MIN_POD)
+          add("warn", `${gdzie}: pod rurą tylko ${fmt(dr.pod)} mm — na koszule i marynarki potrzeba ok. ${fmt(DRAZEK_MIN_POD)} mm (płaszcze ok. ${fmt(DRAZEK_DLUGIE)}). Rura ${DRAZEK_POD_PLYTA} mm pod półką, światło ${fmt(dr.swiatlo)} mm.`);
+        if (dividerDepth < DRAZEK_GL_MIN)
+          add("error", `${gdzie}: wnętrze ma ${fmt(dividerDepth)} mm w głąb — za płytko na wieszaki (najmniej ok. ${DRAZEK_GL_MIN} mm, wieszak pod skosem).|drazek:${lv.i}:${j}:${dr.k}:0`);
+        else if (dividerDepth < DRAZEK_GL_DOBRA)
+          add("warn", `${gdzie}: wnętrze ma ${fmt(dividerDepth)} mm w głąb — płytko, wieszaki zmieszczą się tylko pod skosem (prosto ok. ${DRAZEK_GL_DOBRA} mm).`);
+      });
+      /* Podpowiedz: wysokie swiatlo bez rury — zmiesci sie rura (koszule, plaszcze). */
+      if ((rawCols[j].kind === "doors" || !rawCols[j].kind) && !c.drazki.length && dividerDepth >= DRAZEK_GL_MIN) {
+        const o = [...c.openings].reverse().find((q) => q.h - DRAZEK_POD_PLYTA >= DRAZEK_MIN_POD);
+        if (o)
+          add("info", `Poziom ${lv.i + 1}, kolumna ${j + 1}: światło ${fmt(o.h)} mm — zmieści się rura na wieszaki (pod nią ${fmt(o.h - DRAZEK_POD_PLYTA)} mm: koszule${o.h - DRAZEK_POD_PLYTA >= DRAZEK_DLUGIE ? ", płaszcze i sukienki" : ""}).|drazek:${lv.i}:${j}:${o.k}:1`);
+      }
       c.shelfMount = mocowanieKolumny(cab, rawCols[j]);
       // dolny koniec przegrody z prawej tej kolumny na trojkatach (krzyz z przegroda pod polka, N45)
       c.divDolMount = rawCols[j].divDolMount === "trojkaty" ? "trojkaty" : null;
@@ -4815,6 +4852,13 @@ function computeGeoLiczy(cab, mat, ctx) {
       right: { name: c.j === last ? "Bok prawy" : `Przegroda ${c.j + 1}`, base: c.j === last ? rightY0 : lv.y0, strona: c.j === last ? "" : strona },
     };
   };
+  // rozety rury na wieszaki: 2 wkrety na boku / przegrodzie na wysokosci osi rury
+  levels.forEach((lv) => lv.cols.forEach((c) => (c.drazki || []).forEach((dr) => {
+    const p = panelsOfCol(lv, c);
+    const opis = `rozeta rury ⌀${DRAZEK_FI}: oś ${fmt(dr.z)} mm od przedniej krawędzi, ${DRAZEK_POD_PLYTA} mm pod półką, 2 wkręty 3,5 × 16`;
+    drillAdd(lv.i, p.left.name, p.left.base, "rura na wieszaki", dr.y, opis + p.left.strona);
+    drillAdd(lv.i, p.right.name, p.right.base, "rura na wieszaki", dr.y, opis + p.right.strona);
+  })));
   {
     const pin = cab.shelfPin || {};
     const pinF = num(pin.dFront) ?? 50, pinB = num(pin.dBack) ?? 50;
@@ -5638,6 +5682,17 @@ function computeGeoLiczy(cab, mat, ctx) {
       qty: pinShelves * 4,
       unit: "szt.",
     });
+  }
+  // rura na wieszaki: dlugosci docinane, rozety po 2 na rure (`DRAZEK_*`)
+  {
+    const dr = levels.flatMap((lv) => lv.cols.flatMap((c) => c.drazki || []));
+    if (dr.length) {
+      hardware.push({ name: DRAZEK_NAME, use: "drążek na wieszaki w szafie",
+        spec: `docięta: ${dr.map((d) => fmt(d.len)).join(" + ")} mm (światło kolumny − ${DRAZEK_KROTSZY} mm), oś ${DRAZEK_POD_PLYTA} mm pod półką, w połowie głębokości`,
+        qty: Math.round(dr.reduce((a, d) => a + d.len, 0)) / 1000, unit: "mb" });
+      hardware.push({ name: ROZETA_NAME, use: "uchwyt rury na boku / przegrodzie",
+        spec: "2 na rurę, wkręty 3,5 × 16", qty: 2 * dr.length, unit: "szt." });
+    }
   }
   if (trShelves)
     hardware.push({
@@ -8337,6 +8392,11 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         c.x + d.x, c.base + d.y0, cd - (c.geo.backIntrusion + c.geo.dividerDepth),
         c.x + d.x + t, c.base + d.y1, cd - c.geo.backIntrusion, bf,
         null, 1, false, wGlab));
+      // rura na wieszaki (okucie, kolor metalu)
+      c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.drazki || []).forEach((dr) => box(
+        c.x + col.x0 + DRAZEK_KROTSZY / 2, c.base + dr.y - DRAZEK_FI / 2, dr.z - DRAZEK_FI / 2,
+        c.x + col.x0 + DRAZEK_KROTSZY / 2 + dr.len, c.base + dr.y + DRAZEK_FI / 2, dr.z + DRAZEK_FI / 2, "#8b8b93",
+        null, 1, false, wGlab, "rura-wieszaki"))));
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.shelves || []).forEach((sh) => {
         polkaCzesci(col, zPolki[0] + (col.shFront || 0), zPolki[1], cd).forEach(([x0, z0, x1, z1]) =>
           box(c.x + x0, c.base + sh.y, z0, c.x + x1, c.base + sh.y + c.geo.ts, z1, shc3,
@@ -9099,6 +9159,11 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           ))
         )
       )}
+      {/* rura na wieszaki ⌀25 — os 70 mm pod plyta nad swiatlem */}
+      {geo.levels.map((lv) => lv.cols.map((c) => (c.drazki || []).map((dr) => (
+        <rect key={`dr${lv.i}-${c.j}-${dr.k}`} data-el="rura-wieszaki" x={c.x0 + DRAZEK_KROTSZY / 2} y={fy(dr.y + DRAZEK_FI / 2)}
+          width={dr.len} height={DRAZEK_FI} rx={DRAZEK_FI / 2} fill="#a1a1aa" stroke={INK} strokeWidth="1.5" />
+      ))))}
 
       {/* Podpis przejscia do ramienia idzie dopiero tutaj, nad polkami
           i wzmocnieniami — pod nimi byl zaslaniany i puste lico czytalo sie
@@ -10257,6 +10322,10 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
       ))))}
 
       {/* polki widziane z gory — obrys glebokosci polki w kolumnach, ktore je maja */}
+      {showShelves && geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.drazki || []).map((dr) => (
+        <rect key={`dr${lv.i}-${c.j}-${dr.k}`} data-el="rura-wieszaki" x={c.x0 + DRAZEK_KROTSZY / 2} y={cd - dr.z - DRAZEK_FI / 2}
+          width={dr.len} height={DRAZEK_FI} fill="#a1a1aa" fillOpacity="0.5" stroke={INK} strokeWidth="1.2" strokeDasharray="6 4" />
+      ))))}
       {showShelves &&
         (geo.levels[0]?.cols || []).map((c) => {
           if (c.kind === "drawers" || c.kind === "blenda") return null;
@@ -10814,6 +10883,11 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
         <rect key={i} x={xC + geo.shelfBack} y={fy(s.y + s.th)}
           width={s.d} height={s.th} fill={bf} stroke={INK} strokeWidth="2" />
       ))}
+      {/* rura na wieszaki — przekroj ⌀25 w polowie glebokosci */}
+      {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.drazki || []).map((dr) => (
+        <circle key={`dr${lv.i}-${c.j}-${dr.k}`} data-el="rura-wieszaki" cx={xC + cd - dr.z} cy={fy(dr.y)} r={DRAZEK_FI / 2}
+          fill="#a1a1aa" stroke={INK} strokeWidth="1.5" />
+      ))))}
 
       {/* wsporniki pionowe przy elementach stalych */}
       {geo.levels.flatMap((lv) =>
@@ -11525,6 +11599,10 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
         polkaCzesci(c, zPolki[0] + (c.shFront || 0), zPolki[1], cd).forEach(([x0, z0, x1, z1]) =>
           box(x0, sh.y, z0, x1, sh.y + geo.ts, z1, shc))
       );
+      // rura na wieszaki (okucie, w kolorze metalu — nie formatka)
+      fk = null;
+      (c.drazki || []).forEach((dr) => box(c.x0 + DRAZEK_KROTSZY / 2, dr.y - DRAZEK_FI / 2, dr.z - DRAZEK_FI / 2,
+        c.x0 + DRAZEK_KROTSZY / 2 + dr.len, dr.y + DRAZEK_FI / 2, dr.z + DRAZEK_FI / 2, "#8b8b93", null, 1, false, "rura-wieszaki"));
       if (c.support && c.fix) {
         const sx = c.fix.side === "left" ? c.fix.x + c.fix.w - t : c.fix.x;
         fk = "Wspornik pionowy";
@@ -12136,6 +12214,20 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
           const col = L[+li].cols[+j];
           const n = Math.max(1, Math.round(Number(col.doors) || 1), (col.hinges || []).length);
           col.hinges = Array.from({ length: n }, () => +ile);
+        }),
+      };
+    }
+    if (action.startsWith("drazek:")) {
+      // „drazek:<poziom>:<kolumna>:<swiatlo>:<1 dodaj / 0 usun>" — rura na wieszaki
+      const [, li, j, k, on] = action.split(":");
+      return {
+        label: on === "1" ? "Dodaj rurę na wieszaki" : "Usuń rurę",
+        run: () => editLevels((L) => {
+          const col = L[+li] && L[+li].cols[+j];
+          if (!col) return;
+          const zb = new Set((col.drazki || []).map(Number));
+          if (on === "1") zb.add(+k); else zb.delete(+k);
+          if (zb.size) col.drazki = [...zb].sort((a, b) => a - b); else delete col.drazki;
         }),
       };
     }
@@ -17569,6 +17661,13 @@ export default function App() {
     });
   };
 
+  // rura na wieszaki w swietle k kolumny (`col.drazki` — numery swiatel od dolu)
+  const setDrazek = (i, j, k, on) => editLevels((L) => {
+    const col = L[i].cols[j];
+    const zb = new Set((col.drazki || []).map(Number));
+    if (on) zb.add(k); else zb.delete(k);
+    if (zb.size) col.drazki = [...zb].sort((a, b) => a - b); else delete col.drazki;
+  });
   // jedna klapa na cala kolumne — polki zostaja w srodku
   const jednaKlapa = (i, j, op = {}) => editLevels((L) => {
     const col = L[i].cols[j];
@@ -19635,6 +19734,26 @@ export default function App() {
                                 )}
                                 <MiniBtn onClick={() => setKreatorKlap(null)}>Anuluj</MiniBtn>
                               </div>
+                            </div>
+                          );
+                        })()}
+                        {/* Rura na wieszaki (uzytkownik 2026-10-24) — w swietle od 800 mm */}
+                        {c.kind === "doors" && (() => {
+                          const wysokie = (c.openings || []).filter((o) => o.h >= DRAZEK_SWIATLO_OPCJA);
+                          if (!wysokie.length) return null;
+                          const ma = (rawCol.drazki || []).map(Number);
+                          return (
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" data-el="rura-wieszaki-opcja">
+                              <span className="text-stone-500">rura na wieszaki</span>
+                              {wysokie.map((o) => (
+                                <label key={o.k} className="flex items-center gap-1">
+                                  <input type="checkbox" checked={ma.includes(o.k)}
+                                    onChange={(e) => setDrazek(lv.i, c.j, o.k, e.target.checked)}
+                                    className="h-3.5 w-3.5 accent-teal-700" />
+                                  <span>{c.openings.length > 1 ? `światło ${o.k + 1} (${fmt(o.h)} mm)` : `${fmt(o.h)} mm`}</span>
+                                </label>
+                              ))}
+                              <span className="text-[11px] text-stone-400">⌀25, {DRAZEK_POD_PLYTA} mm pod półką; pod rurą ok. 1000 mm na koszule, 1600 na płaszcze</span>
                             </div>
                           );
                         })()}

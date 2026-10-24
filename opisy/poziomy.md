@@ -38,11 +38,16 @@ Każda kolumna jest „Półki i drzwi”, „Szuflady” albo „Blenda”. Lis
 - **Zamiana półek**:
   - „→ poziom” — półka staje się półką przelotową;
   - „klapy zamiast drzwi…” — kreator: ile klap i na których półkach granice (te półki → poziomy), otwieranie, front, podnośniki (tylko poziom z jedną kolumną; `opisy/klapy.md`).
+- **Rura na wieszaki** (użytkownik 2026-10-24): w kolumnie z drzwiami albo otwartej, przy świetle od 800 mm — „rura na wieszaki: światło N (… mm)”. Okrągła ⌀25 na 2 rozetach, oś 70 mm pod płytą nad światłem (wygodnie zawiesić wieszak), w połowie głębokości wnętrza, długość = światło kolumny − 2 mm (`DRAZEK_*`, `col.drazki`).
 - **Mocowanie i kołki**: mocowanie półek, a przy przegrodzie „dół na trójkątach”; „Otwór od przodu / od tyłu” kołków półek.
 - **Plecy kolumny**: jak szafka / HDF / płyta / brak.
 
 ## Kontrole i przyciski
 
+- **Rura na wieszaki**:
+  - światło, pod którym zmieści się ≥ 1000 mm — podpowiedź „zmieści się rura na wieszaki (pod nią N mm: koszule[, płaszcze i sukienki od 1600])” z „Dodaj rurę na wieszaki”;
+  - pod rurą mniej niż 1000 mm — ostrzeżenie (koszule ok. 1000, płaszcze ok. 1600 — poradniki);
+  - wnętrze płytsze niż 500 mm — ostrzeżenie „wieszaki tylko pod skosem”; płytsze niż 400 — błąd z „Usuń rurę” (użytkownik: 43 cm wystarcza, wieszaki pod skosem).
 - **Poziomy**:
   - nie wypełniają wnętrza albo je przekraczają — błąd z „Górny poziom na auto” / „Podziel poziomy równo”;
   - poziom niższy niż 60 mm — ostrzeżenie; ujemny — błąd.

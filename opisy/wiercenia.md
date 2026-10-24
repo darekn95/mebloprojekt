@@ -27,6 +27,7 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
   - V-BOX: kreska na boku, przegrodzie albo wsporniku;
   - DXS-3D: kreska spodu prowadnicy i odsunięcie od czoła, przykręcane bez nawiercania;
   - skrzynka DXS: konfirmaty w bokach, zaczep ⌀6 × 10 w tyle, sprzęgła frontu w dnie.
+- **Rura na wieszaki**: rozeta na boku / przegrodzie po obu stronach kolumny — wysokość osi rury, oś w połowie głębokości wnętrza, 2 wkręty 3,5 × 16 („rura na wieszaki”).
 - **Zawieszki** (szafki wiszące): bez wiercenia — przykręcane wkrętami 4 × 30 od wnętrza, górna krawędź pod wieńcem, 1 cm od pleców (ZK-ZAW-R0-10).
 - **Frez pod HDF**: w bokach, wieńcu i dnie, gdy plecy są we frezie.
 - **Szafka w L**: dokładka „Bok ramienia” — konfirmaty dna / wieńca ramienia, kołki półek ramienia, zawiasy frontu ramienia; kątownik przy ramieniu ma kołki zamiast boku.
