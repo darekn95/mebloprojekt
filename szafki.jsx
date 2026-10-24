@@ -325,6 +325,19 @@ const mocowaniePolek = (cab) => (cab.shelfMount === "confirmat" ? "confirmat"
    (uzytkownik 2026-10-17 po audycie GPT N45). Puste = jak cala szafka. */
 const MOCOWANIA_POLEK = ["pins", "confirmat", "trojkaty"];
 const mocowanieKolumny = (cab, rawCol) => (MOCOWANIA_POLEK.includes((rawCol || {}).shelfMount) ? rawCol.shelfMount : mocowaniePolek(cab));
+/* Kolumna z podzialem frontow (`col.podzial`, `col.segmenty`): bez granicy na
+   polce k odcinki nad i pod nia lacza sie — zostaja ustawienia dolnego. */
+const usunGranice = (col, k) => {
+  const gr = (col.podzial || []).map(Number);
+  const poz = gr.indexOf(k);
+  if (poz < 0) return;
+  if (col.segmenty) {
+    col.segmenty.splice(poz + 1, 1);
+    if (!col.segmenty.some(Boolean)) delete col.segmenty;
+  }
+  col.podzial = gr.filter((x) => x !== k);
+  if (!col.podzial.length) { delete col.podzial; delete col.segmenty; }
+};
 const UCHWYT_OD_KRAWEDZI = 36;   // os uchwytu pionowego od wolnej krawedzi skrzydla
 const uchwytObrys = (d) => {
   if (d.type === "drawer" || d.type === "klapa") {
@@ -2578,7 +2591,7 @@ function computeGeoLiczy(cab, mat, ctx) {
      przegrode (szczelina 2 mm na srodku), wpuszczane trzymaja luz od niej. */
   const pasmaPodzialu = (rawCol, c, lv, clo, chi) => {
     const ks = [...new Set((rawCol.podzial || []).map(Number))].filter((k) => c.shelves && c.shelves[k]).sort((a, b) => a - b);
-    if (!ks.length) return [{ lo: clo, hi: chi, y0: lv.y0, y1: lv.y1, seg: null, pierwszy: true, ostatni: true }];
+    if (!ks.length) return [{ lo: clo, hi: chi, y0: lv.y0, y1: lv.y1, seg: null, pierwszy: true, ostatni: true, raw: rawCol }];
     const ovl = cab.frontMode === "overlay";
     const ovS = Math.max(0, Math.min(divOv, Math.floor((ts - 2) / 2)));
     return [...ks, null].map((k, nr) => {
@@ -2588,7 +2601,11 @@ function computeGeoLiczy(cab, mat, ctx) {
       return { lo: pod === null ? clo : ovl ? ys0 - ovS : ys0 + g.inset,
         hi: k === null ? chi : ovl ? ys1 + ovS : ys1 - g.inset,
         y0: ys0, y1: ys1, pierwszy: nr === 0, ostatni: k === null,
-        seg: { nr, polkaPod: pod, polkaNad: k, y0: ys0, y1: ys1 } };
+        seg: { nr, polkaPod: pod, polkaNad: k, y0: ys0, y1: ys1 },
+        /* wlasne ustawienia frontu odcinka (`rawCol.segmenty[nr]`: liczba frontow,
+           klapa i jej podnosniki, zawiasy, uchwyty, lustra) nad ustawieniami kolumny —
+           kazda klapa osobno (uzytkownik 2026-10-24: „dolną w dół”) */
+        raw: { ...rawCol, ...((rawCol.segmenty || [])[nr] || {}) } };
     });
   };
   /* tylko gdy jest przegroda — pionowa miedzy kolumnami albo pozioma miedzy
@@ -3132,6 +3149,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         const clo = ps.lo, chi = ps.hi, cbandH = Math.round(ps.hi - ps.lo);
         const where = ps.seg ? `${whereKol}, odcinek ${ps.seg.nr + 1}` : whereKol;
         const jKey = ps.seg ? `${j}s${ps.seg.nr}` : `${j}`;
+        const rawCol = ps.raw;
           const cnt = Math.max(0, Math.round(rawCol.doors ?? 0));
           c.count = cnt;
           if (cnt <= 0) return;
@@ -11872,7 +11890,8 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
        jeszcze jedna podpore na srodku dna — tak samo jak w elewacji. */
     const miejsca = geo.legs.xs.flatMap((lx) => [[lx, ins], [lx, cd - ins - lw]]);
     if (geo.legs.srodek) miejsca.push([(W - lw) / 2, (cd - lw) / 2]);
-    miejsca.forEach(([lx, lz]) => box(lx, top - lh, lz, lx + lw, top, lz + lw, legColorOf(cab)));
+    // tag „noga”: nozka to produkt, nie formatka (audyt bryly — czarne nozki brala za plyte)
+    miejsca.forEach(([lx, lz]) => box(lx, top - lh, lz, lx + lw, top, lz + lw, legColorOf(cab), undefined, undefined, undefined, "noga"));
   }
 
   (geo.geoObs || []).forEach((o) => {
@@ -18000,8 +18019,14 @@ export default function App() {
      graniczne niosa zawiasy klap, wiec kolumna na kolkach idzie na konfirmaty. */
   const podzielKolumne = (i, j, ks, naKlapy = null) => editLevels((L) => {
     const col = L[i].cols[j];
-    const zb = new Set([...(col.podzial || []).map(Number), ...ks.map(Number)]);
-    col.podzial = [...zb].sort((a, b) => a - b);
+    // nowa granica dzieli odcinek na dwa — oba dostaja jego ustawienia
+    [...new Set(ks.map(Number))].sort((a, b) => a - b).forEach((k) => {
+      const gr = (col.podzial || []).map(Number);
+      if (gr.includes(k)) return;
+      const poz = gr.filter((x) => x < k).length;
+      if (col.segmenty) col.segmenty.splice(poz + 1, 0, col.segmenty[poz] ? { ...col.segmenty[poz] } : null);
+      col.podzial = [...gr, k].sort((a, b) => a - b);
+    });
     if (mocowanieKolumny(cab, col) === "pins") col.shelfMount = "confirmat";
     if (naKlapy) {
       col.kind = "doors"; col.doors = 1; col.klapa = naKlapy.kier === "dol" ? "dol" : "gora";
@@ -18009,11 +18034,115 @@ export default function App() {
       col.hinges = []; col.doorWidths = [];
     }
   });
-  const scalPodzial = (i, j, k) => editLevels((L) => {
+  const scalPodzial = (i, j, k) => editLevels((L) => usunGranice(L[i].cols[j], k));
+  /* Ustawienia frontu odcinka kolumny z podzialem — `col.segmenty[nr]` nad
+     ustawieniami kolumny (null to wartosc: „auto” / bez klapy; undefined — jak kolumna). */
+  const ustawOdcinek = (i, j, nr, patch) => editLevels((L) => {
     const col = L[i].cols[j];
-    col.podzial = (col.podzial || []).map(Number).filter((x) => x !== k);
-    if (!col.podzial.length) delete col.podzial;
+    const seg = [...(col.segmenty || [])];
+    while (seg.length <= nr) seg.push(null);
+    const o = { ...(seg[nr] || {}) };
+    Object.entries(patch).forEach(([k2, v]) => { if (v === undefined) delete o[k2]; else o[k2] = v; });
+    seg[nr] = Object.keys(o).length ? o : null;
+    if (seg.some(Boolean)) col.segmenty = seg; else delete col.segmenty;
   });
+  const odcinkiKolumny = (lv, c, rawCol) => {
+    const odcinki = [...new Set((c.doors || []).filter((d) => d.seg).map((d) => d.seg.nr))].sort((a, b) => b - a);
+    const pole = "rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none";
+    return (
+      <div className="space-y-2" data-el="odcinki-kolumny">
+        {odcinki.map((nr) => {
+          const raw = { ...rawCol, ...((rawCol.segmenty || [])[nr] || {}) };
+          const ustaw = (patch) => ustawOdcinek(lv.i, c.j, nr, patch);
+          const dd = c.doors.filter((d) => d.seg && d.seg.nr === nr);
+          const ile = Math.max(0, Math.round(raw.doors ?? 0));
+          const kl = ile === 1 && (raw.klapa === "gora" || raw.klapa === "dol") ? raw.klapa : null;
+          const info = kl && (geo.klapy || []).find((k) => k.key === (dd[0] || {}).key);
+          const tablica = (pole2, k, v) => { const a = [...(raw[pole2] || [])]; while (a.length <= k) a.push(null); a[k] = v; ustaw({ [pole2]: a }); };
+          return (
+            <div key={nr} className="space-y-1.5 rounded border border-stone-200 bg-white p-2 text-xs" data-el="odcinek-kolumny">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-stone-700">odcinek {nr + 1}</span>
+                <span className="text-stone-400">od dołu</span>
+                {dd[0] && <span className="font-mono text-stone-400">{fmt(Math.round(dd[0].h))} wys.</span>}
+                <span className="ml-2 text-stone-500">fronty</span>
+                <input type="number" min={1} step={1} value={ile} data-el="odcinek-fronty"
+                  onChange={(e) => ustaw({ doors: Math.max(1, Math.round(Number(e.target.value) || 1)), doorWidths: [] })}
+                  className={"w-12 " + pole} />
+                {ile === 1 && (
+                  <Seg value={kl ? "klapa" : "skrzydlo"} onChange={(v) => ustaw({ klapa: v === "skrzydlo" ? null : (kl || "gora") })}
+                    options={[{ v: "skrzydlo", l: "skrzydło" }, { v: "klapa", l: "klapa" }]} />
+                )}
+                {kl && (
+                  <Seg value={kl} onChange={(v) => ustaw({ klapa: v, klapaUchwyt: undefined })}
+                    options={[{ v: "gora", l: "do góry" }, { v: "dol", l: "w dół" }]} />
+                )}
+                {ile === 1 && !kl && (
+                  <Seg value={raw.hinge === "left" || raw.hinge === "right" ? raw.hinge : "auto"}
+                    onChange={(v) => ustaw({ hinge: v === "auto" ? null : v })}
+                    options={[{ v: "auto", l: `zawias auto (${(dd[0] || {}).hingeSide === "right" ? "P" : "L"})` }, { v: "left", l: "z lewej" }, { v: "right", l: "z prawej" }]} />
+                )}
+              </div>
+              {info && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-stone-500">{kl === "gora" ? "podnośniki" : "amortyzatory"}</span>
+                  <Seg value={raw.silowniki === 1 || raw.silowniki === 2 ? String(raw.silowniki) : "auto"}
+                    onChange={(v) => ustaw({ silowniki: v === "auto" ? null : Number(v) })}
+                    options={[{ v: "auto", l: `auto (${info.w > 600 ? 2 : 1})` }, { v: "1", l: "1" }, { v: "2", l: "2" }]} />
+                  {info.ile === 1 && (
+                    <Seg value={info.strona} onChange={(v) => ustaw({ podnosnikStrona: v === "left" ? null : v })}
+                      options={[{ v: "left", l: "na lewym" }, { v: "right", l: "na prawym" }]} />
+                  )}
+                  <span className="flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="text-stone-500">siła</span>
+                    <select value={num(raw.silaN) == null ? "" : String(num(raw.silaN))}
+                      onChange={(e) => ustaw({ silaN: e.target.value === "" ? null : Number(e.target.value) })}
+                      className={"rounded border bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none " + (!info.sila ? "border-amber-500" : "border-stone-300")}>
+                      <option value="">auto ({info.dobor && info.dobor.sila ? `${info.dobor.sila} N` : "żaden nie uniesie"})</option>
+                      {((info.dobor && info.dobor.opcje) || []).map((o) => (
+                        <option key={o.f} value={String(o.f)}>{o.f} N — do ok. {o.udzwig.toFixed(1).replace(".", ",")} kg{o.starczy ? "" : " (za słaby)"}</option>
+                      ))}
+                    </select>
+                  </span>
+                  {kl === "gora" && (
+                    <Seg value={String(info.kat)} onChange={(v) => ustaw({ katKlapy: v === "90" ? null : Number(v) })}
+                      options={[{ v: "75", l: "75°" }, { v: "90", l: "90°" }, { v: "100", l: "100°" }]} />
+                  )}
+                  <span className="ml-auto font-mono text-stone-500">ok. {info.kg.toFixed(1).replace(".", ",")} kg</span>
+                </div>
+              )}
+              {dd.map((d, k) => (
+                <div key={k} className="flex flex-wrap items-center gap-x-3 gap-y-1" data-el="odcinek-front">
+                  <span className="w-16 text-[11px] text-stone-400">{kl ? "klapa" : `drzwi ${k + 1}`} {fmt(Math.round(d.w))}</span>
+                  <label className="flex items-center gap-1" title={ZAWIASY_ZASADA}>
+                    <span className="text-[11px] text-stone-500">zawiasy</span>
+                    <input type="number" min={0} step={1} value={(raw.hinges || [])[k] ?? ""} placeholder={String(d.hinges ?? 2)}
+                      onChange={(e) => tablica("hinges", k, e.target.value === "" ? null : Math.round(Number(e.target.value)))}
+                      className={"w-12 " + pole} />
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input type="checkbox" checked={(raw.handles || [])[k] !== false}
+                      onChange={(e) => tablica("handles", k, e.target.checked)} className="h-3.5 w-3.5 accent-teal-700" />
+                    <span className="text-[11px] text-stone-500">uchwyt</span>
+                  </label>
+                  {kl && (raw.handles || [])[k] !== false && (
+                    <Seg value={d.uchwytKrawedz || (kl === "gora" ? "dol" : "gora")}
+                      onChange={(v) => ustaw({ klapaUchwyt: v === (kl === "gora" ? "dol" : "gora") ? null : v })}
+                      options={[{ v: "dol", l: "na dole" }, { v: "gora", l: "na górze" }]} />
+                  )}
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input type="checkbox" checked={!!(raw.mirrors || [])[k]}
+                      onChange={(e) => tablica("mirrors", k, e.target.checked)} className="h-3.5 w-3.5 accent-teal-700" />
+                    <span className="text-[11px] text-stone-500">lustro</span>
+                  </label>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
   const naPoziom = (i, j, ks) => {
     const lvG = geo.levels[i];
     if (lvG && lvG.cols.length > 1) podzielKolumne(i, j, ks);
@@ -18062,8 +18191,8 @@ export default function App() {
       const polka = Math.min(k, st.length - 2);
       st.splice(k, 1);
       if (col.podzial) {
-        col.podzial = col.podzial.map(Number).filter((x) => x !== polka).map((x) => (x > polka ? x - 1 : x));
-        if (!col.podzial.length) delete col.podzial;
+        usunGranice(col, polka);
+        if (col.podzial) col.podzial = col.podzial.map((x) => (x > polka ? x - 1 : x));
       }
     });
 
@@ -20050,6 +20179,14 @@ export default function App() {
 
                         {c.kind === "doors" && (
                           <div className="flex items-center gap-2 text-xs">
+                            {(rawCol.podzial || []).length > 0 ? (
+                              /* kolumna z podzialem: fronty licza sie w odcinkach nizej (uzytkownik
+                                 2026-10-24: „mamy 1 fronty, a to nieprawda”) */
+                              <span className="text-stone-500" data-el="fronty-kolumny">
+                                fronty <span className="font-mono text-stone-700">{(c.doors || []).filter((d) => d.type === "door" || d.type === "klapa").length}</span>
+                                {" "}w {new Set((c.doors || []).filter((d) => d.seg).map((d) => d.seg.nr)).size} odcinkach
+                              </span>
+                            ) : (<>
                             {/* przy klapie to nie „drzwi” — liczba frontow; klapa jest tylko przy jednym */}
                             {rawCol.doors === 1 && (rawCol.klapa === "gora" || rawCol.klapa === "dol")
                               ? <span className="text-stone-500" title="Klapa jest tylko przy jednym froncie — przy dwóch i więcej będą drzwi">fronty</span>
@@ -20057,11 +20194,12 @@ export default function App() {
                             <input type="number" min={0} step={1} value={rawCol.doors}
                               onChange={(e) => setColDoors(lv.i, c.j, e.target.value)}
                               className="w-14 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none" />
+                            </>)}
                             <span className="text-stone-500">półki</span>
                             <input type="number" min={0} step={1} value={nS}
                               onChange={(e) => setColShelfCount(lv.i, c.j, e.target.value)}
                               className="w-14 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none" />
-                            {c.count > 0 && (
+                            {c.count > 0 && !(rawCol.podzial || []).length && (
                               <span className="ml-auto font-mono text-stone-500">
                                 {fmt(c.doorH)} wys.
                               </span>
@@ -20203,7 +20341,7 @@ export default function App() {
                         {/* Klapa zamiast skrzydla — tylko przy jednych drzwiach w kolumnie.
                             Zawiasy na gornej (do gory) albo dolnej krawedzi (w dol),
                             do tego podnosnik gazowy; sila z tabeli GTV albo recznie. */}
-                        {c.kind === "doors" && rawCol.doors === 1 && (() => {
+                        {c.kind === "doors" && rawCol.doors === 1 && !(rawCol.podzial || []).length && (() => {
                           const kl = rawCol.klapa === "gora" || rawCol.klapa === "dol" ? rawCol.klapa : null;
                           const info = (geo.klapy || []).find((k) => k.colKey === `${lv.i}-${c.j}`);
                           const ustaw = (pole, v) => editLevels((L) => {
@@ -20284,7 +20422,7 @@ export default function App() {
                           );
                         })()}
 
-                        {c.kind === "doors" && rawCol.doors === 1 && !(rawCol.klapa === "gora" || rawCol.klapa === "dol") && (
+                        {c.kind === "doors" && rawCol.doors === 1 && !(rawCol.podzial || []).length && !(rawCol.klapa === "gora" || rawCol.klapa === "dol") && (
                           <div className="flex items-center gap-2 text-xs" data-el="zawias-kolumny">
                             <span className="text-stone-500">zawias</span>
                             <Seg value={rawCol.hinge === "left" || rawCol.hinge === "right" ? rawCol.hinge : "auto"}
@@ -20295,7 +20433,9 @@ export default function App() {
                           </div>
                         )}
 
-                        {c.kind === "doors" && rawCol.doors > 0 && (() => {
+                        {c.kind === "doors" && (rawCol.podzial || []).length > 0 && odcinkiKolumny(lv, c, rawCol)}
+
+                        {c.kind === "doors" && rawCol.doors > 0 && !(rawCol.podzial || []).length && (() => {
                           const jestKlapa = rawCol.doors === 1 && (rawCol.klapa === "gora" || rawCol.klapa === "dol");
                           return (
                           <div className="space-y-1">

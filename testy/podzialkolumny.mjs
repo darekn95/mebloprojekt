@@ -69,6 +69,41 @@ console.log('\n== kreator klap w kolumnie 2 z 3 ==');
   }
 }
 
+console.log('\n== każdy odcinek osobno (użytkownik 2026-10-24: „dolną w dół”, „1 fronty to nieprawda”) ==');
+{
+  await seed({ ...SZAFA(), levels: [{ h: null, cols: [kol({ doors: 2, shelfTargets: [null] }),
+    kol({ klapa: 'gora', podzial: [0, 1, 2], shelfMount: 'confirmat' }), kol({ shelfTargets: [null] })] }] });
+  const k2 = kolumna(2);
+  ok('kolumna: „fronty 4 w 4 odcinkach” (nie pole z 1)', /fronty 4 w 4 odcinkach/.test(await k2.locator('[data-el="fronty-kolumny"]').innerText().catch(() => '')),
+    await k2.locator('[data-el="fronty-kolumny"]').innerText().catch(() => ''));
+  const odc = k2.locator('[data-el="odcinek-kolumny"]');
+  ok('4 odcinki z własnymi ustawieniami', (await odc.count()) === 4);
+  const dolny = odc.filter({ hasText: 'odcinek 1' });
+  await dolny.getByRole('button', { name: 'w dół', exact: true }).click(); await page.waitForTimeout(500);
+  let c = await zap();
+  ok('odcinek 1: klapa w dół, wyższe dalej do góry', c.levels[0].cols[1].segmenty[0].klapa === 'dol' && c.levels[0].cols[1].klapa === 'gora',
+    JSON.stringify(c.levels[0].cols[1].segmenty));
+  ok('odcinek 1: „amortyzatory” (klapa w dół)', /amortyzatory/.test(await dolny.innerText()));
+  const drugi = odc.filter({ hasText: 'odcinek 2' });
+  await drugi.getByRole('button', { name: 'skrzydło', exact: true }).click(); await page.waitForTimeout(400);
+  await drugi.locator('[data-el="odcinek-fronty"]').fill('2'); await page.waitForTimeout(500);
+  c = await zap();
+  ok('odcinek 2: dwoje drzwi zamiast klapy', c.levels[0].cols[1].segmenty[1].doors === 2 && c.levels[0].cols[1].segmenty[1].klapa === null, JSON.stringify(c.levels[0].cols[1].segmenty[1]));
+  ok('kolumna liczy „fronty 5 w 4 odcinkach”', /fronty 5 w 4 odcinkach/.test(await k2.locator('[data-el="fronty-kolumny"]').innerText()));
+  const u = await uwagi();
+  ok('bez błędów (×) w Uwagach', !/^×/m.test(u), u.split('\n').filter((l) => /^×/.test(l)).join(' / '));
+  // scal najwyzsza granice: odcinki 3 i 4 lacza sie, ustawienia nizszych zostaja
+  await k2.locator('[data-el="granica-frontow"]').first().getByRole('button', { name: 'scal', exact: true }).click(); await page.waitForTimeout(400);
+  c = await zap();
+  ok('„scal” górnej granicy: 3 odcinki, dolny w dół i drugi z drzwiami zostają', JSON.stringify(c.levels[0].cols[1].podzial) === '[0,1]'
+    && c.levels[0].cols[1].segmenty[0].klapa === 'dol' && c.levels[0].cols[1].segmenty[1].doors === 2, JSON.stringify([c.levels[0].cols[1].podzial, c.levels[0].cols[1].segmenty]));
+  for (const v of ['Zamk.', 'Otw.', 'Z boku', '3D']) {
+    const k = errors.length;
+    const x = page.getByRole('button', { name: v, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(300); }
+    ok(`odcinki — widok ${v}`, errors.length === k, errors.slice(k).join('; '));
+  }
+}
+
 console.log('\n== jedna kolumna: „→ poziom” jak dotąd (poziom) ==');
 {
   await seed({ name: 'S', W: 600, H: 1600, D: 560, levels: [{ h: null, cols: [kol()] }] });
