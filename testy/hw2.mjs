@@ -30,6 +30,12 @@ const cokChk = cokKarta.locator('input[type=checkbox]').first();
 if (await cokChk.isChecked()) { await cokChk.click(); await page.waitForTimeout(900); }
 await cokKarta.locator('h2').click();
 await page.waitForTimeout(400);
+// od 2026-10-24 nowa szafka stoi na nozkach („nóżki wszędzie”) — zdejmujemy je tez
+const nogi = card(/^Nóżki$/);
+await nogi.locator('h2').click();
+await page.waitForTimeout(300);
+const nogiChk = nogi.locator('label', { hasText: 'Nóżki pod szafką' }).locator('input');
+if (await nogiChk.isChecked()) { await nogiChk.click(); await page.waitForTimeout(900); }
 
 console.log('== domyślna szafka 600×720×500, 2 drzwi, 1 półka (auto), bez nóżek/cokołu ==');
 let rows = await hwRows();
@@ -55,9 +61,6 @@ ok('wkręty 4 × 30 tylko do zawieszek: 2 × 2', qty(rows, 'Wkręt') === 4, Stri
 ok('zszywki do pleców', qty(rows, 'Zszywka') > 0, String(qty(rows, 'Zszywka')));
 
 console.log('\n== włączam nóżki -> zawieszki mają zniknąć ==');
-const nogi = card(/^Nóżki$/);
-await nogi.locator('h2').click();
-await page.waitForTimeout(300);
 await nogi.getByText('Nóżki pod szafką', { exact: true }).click();
 await page.waitForTimeout(800);
 rows = await hwRows();
