@@ -13,6 +13,9 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - obok innych bierze wymiary sąsiedniej;
   - pod blatem dostaje parę wzmocnień zamiast wieńca;
   - szuflady dostaje w systemie z kontekstu (szafka → ciąg → pomieszczenie).
+- **Wspólny wieniec** (opcja ciągu, zamiast blatu roboczego; użytkownik 2026-10-24, szafki RTV): jedna płyta korpusu na bokach szafek w najczęstszej wysokości ciągu (`wysokoscWienca`; wyższy słupek i szafka w L zostają przy swoim wieńcu), równo z frontami (nakładane: 2 mm luzu + grubość frontu), przykręcana od spodu na trójkątach. W szafce to „Blat z płyty” oznaczony `top.zCiagu` (`wieniecZCiagu`), wyłączenie wraca do wieńca. W zamówieniu „Wieniec ciągu” (pozycja „Wieniec — ciąg”), dzielony na stykach przy arkuszu 2800, przerywany słupkiem.
+- **Wspólne dno** (opcja ciągu): szafki stoją bokami na jednej płycie — dno każdej pod bokami (`dnoZCiagu`, poprzednie złącza wracają po wyłączeniu); w zamówieniu „Dno ciągu” (pozycja „Dno — ciąg”), dzielone na stykach. Różna głębokość / płyta dna albo szafka w L — dna zostają przy szafkach (informacja w karcie ciągu, `runBottom`).
+- **Nowa szafka** i szafka przeniesiona do ciągu dostają wspólny wieniec / dno ciągu (`wedlugCiagu`); wyjęta z ciągu — je oddaje.
 - **Cokół ciągu**: jedna płaszczyzna przez cały ciąg, podzielona na formatki; w rogu cokoły na zakładkę (`opisy/cokol.md`).
 - **Blat ciągu** (`opisy/korpus.md`): kawałki o długości arkusza z miejscem na słupki.
   - Ciąg bez blatu roboczego, a szafki z własnym blatem („Blat” zamiast wieńca): blaty z tej samej płyty łączą się w zamówieniu w jedną płytę ciągu — z płyty szafki, która blat ma (nie pierwszej w ciągu); w 3D każda szafka rysuje swój. Blaty z różnych płyt zostają przy swoich szafkach — informacja w Uwagach (audyt GPT N78, N79).
@@ -41,7 +44,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - **Ściana**: nazwa, długość, położenie, odsunięcie od ściany (dół / blat).
   - **Wymiary i montaż**: wysokość i głębokość szafek, luz między korpusami, poziom montażu, prześwit nad blatem, wysokość pomieszczenia.
   - **Narożnik**: z którym ciągiem, kto wjeżdża, luz w rogu, wstawka.
-  - **Cokół, blat, wieszanie**.
+  - **Cokół, blat (roboczy albo wspólny wieniec z płyty), wspólne dno, wieszanie**.
 - **Karta „Ciąg meblowy”, ta szafka**: przynależność do ciągu, wysunięcie z lica, odsunięcie od ściany.
 - **Kreator rogu** („+ ciąg” przy istniejącym ciągu):
   - do którego ciągu, za nim czy przed nim, kto w róg;
@@ -53,6 +56,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 
 - **Szafka inna niż ciąg**:
   - inna wysokość (fronty nie w linii) — ostrzeżenie z „Wyrównaj tę szafkę do ciągu” / „Ustaw cały ciąg”, a przy wyższej także „To słupek — wyjątek w ciągu” (`cab.slupek`): zostaje informacja, wspólna wysokość ciągu słupka nie zmienia, „To jednak zwykła szafka” cofa (użytkownik 2026-10-24);
+  - niższa szafka, gdy ciąg ma wysokość od wyższej (salon: ciąg 1600 od pierwszej szafki, reszta 900) — też „Ustaw cały ciąg na 900 mm, wyższe jako słupki” (`ciagslupki:`);
   - inna głębokość — ostrzeżenie: lico zostaje w linii, cofa się tył, blat liczony na najgłębszą;
   - inny cokół (cokół idzie jedną płaszczyzną) — ostrzeżenie;
   - inny sposób wieszania (bez zawieszek przy innych na listwie, listwa / haczyki) — ostrzeżenie z przyciskami.

@@ -1129,6 +1129,62 @@ const bezParyPodBlat = (levels) => (levels || []).map((lv) => ({ ...lv,
 const zWiencem = (cab, joints = { topL: "between", topR: "between" }) => ({
   joints: { ...(cab.joints || {}), ...joints }, levels: bezParyPodBlat(cab.levels) });
 
+/* Wspolny wieniec z plyty przez ciag (uzytkownik 2026-10-24, szafki RTV): plyta
+   lezy na bokach szafek w wysokosci ciagu — slupek (wyzszy) i szafka w L zostaja
+   przy swoim — rowno z frontami (front nakladany: luz przy zawiasach + grubosc
+   frontu), na trojkatach. W szafce to „Blat z płyty” oznaczony `top.zCiagu`;
+   w zamowieniu jedna formatka „Wieniec ciągu” (`runTop`, wlasne blaty). */
+const podWspolnymWiencem = (cab, h) => !cab.slupek && !(cab.corner && cab.corner.on)
+  && (h == null || Math.round(cab.H) === Math.round(h));
+/* Wysokosc, na ktorej lezy wspolny wieniec: najczestsza wysokosc szafek ciagu
+   (bez slupkow); przy remisie — wysokosc ciagu. W salonie ciag mial H 1600 od
+   pierwszej, wysokiej szafki, a trzy pozostale 900. */
+const wysokoscWienca = (items, run) => {
+  const hs = items.filter((it) => (it.runId || null) === run.id && !it.cab.slupek).map((it) => Math.round(it.cab.H));
+  if (!hs.length) return run.H;
+  const ile = new Map();
+  hs.forEach((h) => ile.set(h, (ile.get(h) || 0) + 1));
+  const max = Math.max(...ile.values());
+  const naj = [...ile].filter(([, n]) => n === max).map(([h]) => h);
+  return naj.includes(Math.round(run.H)) ? Math.round(run.H) : Math.min(...naj);
+};
+const wieniecZCiagu = (cab, mat) => {
+  const m = migrateMat(mat);
+  const tf = cab.frontSameAsBoard !== false ? m.board.thickness : m.front.thickness;
+  const przod = cab.frontMode === "inset" ? 0 : 2 + Math.round(Number(tf) || 18);
+  const J = cab.joints || {};
+  return { ...cab,
+    joints: { ...J, topL: J.topL === "none" || !J.topL ? "over" : J.topL, topR: J.topR === "none" || !J.topR ? "over" : J.topR },
+    top: { ...(cab.top || {}), mode: "blat", material: "board", widthMode: "outside",
+      overL: 0, overR: 0, overFront: przod, overBack: 0, zCiagu: true },
+    levels: bezParyPodBlat(cab.levels) };
+};
+// wylaczenie: szafka wraca do wienca (tylko ta, ktorej blat ustawil ciag)
+const bezWiencaCiagu = (cab) => (cab.top && cab.top.zCiagu
+  ? { ...cab, top: { ...cab.top, mode: "wieniec", zCiagu: false } } : cab);
+/* Wspolne dno: dno kazdej szafki pod bokami (na nim stoja), w zamowieniu jedna
+   plyta „Dno ciągu” (`runBottom`). Poprzednie zlacza zapamietane — wylaczenie
+   je przywraca. */
+const dnoZCiagu = (cab) => {
+  const J = cab.joints || {};
+  return { ...cab, joints: { ...J, botL: "over", botR: "over" },
+    dnoZCiagu: cab.dnoZCiagu || { botL: J.botL || null, botR: J.botR || null } };
+};
+const bezDnaCiagu = (cab) => {
+  if (!cab.dnoZCiagu) return cab;
+  const J = cab.joints || {};
+  const { dnoZCiagu: stare, ...reszta } = cab;
+  return { ...reszta, joints: { ...J, botL: stare.botL || "between", botR: stare.botR || "between" } };
+};
+// szafka w ciagu z opcjami wspolnego wienca / dna — przy wlaczeniu i przy dodaniu nowej
+const wedlugCiagu = (cab, mat, run, h = run && run.H) => {
+  let c = cab;
+  if (run && run.wspolnyWieniec && !run.worktop) c = podWspolnymWiencem(c, h) ? wieniecZCiagu(c, mat) : bezWiencaCiagu(c);
+  else c = bezWiencaCiagu(c);
+  c = run && run.wspolneDno && !(c.corner && c.corner.on) ? dnoZCiagu(c) : bezDnaCiagu(c);
+  return c;
+};
+
 const newLevel = (doors = 2, shelves = 3) => ({
   h: null,
   cols: [newColumn(doors, shelves)],
@@ -1562,6 +1618,10 @@ const migrateRun = (r) => ({
     ? r.topCutsWlasne.map((n) => Math.round(Number(n))).filter((n) => n > 0).sort((a, b) => a - b) : [],
   // blat roboczy przez caly ciag; w starych projektach pola nie ma, wiec zostaje wylaczony
   worktop: r.worktop === true,
+  /* Wspolny wieniec z plyty i wspolne dno przez ciag (uzytkownik 2026-10-24,
+     szafki RTV) — opcje jak blat roboczy; `wieniecZCiagu` / `dnoZCiagu`. */
+  wspolnyWieniec: r.wspolnyWieniec === true && r.worktop !== true,
+  wspolneDno: r.wspolneDno === true,
   // ciag wiesza sie na listwie; pojedyncza szafka na haczykach
   hangerMode: r.hangerMode === "haczyki" ? "haczyki" : "listwa",
   // wysokosc spodu korpusu nad podloga: 0 = ciag stoi, wiecej = ciag wisi
@@ -4113,8 +4173,9 @@ function computeGeoLiczy(cab, mat, ctx) {
         edges: { a1: rawTop.material !== "worktop", a2: rear || blat.overBack > 0, b1: true, b2: true },
       }
     : horiz("Wieniec", topL, topR, topX0, topX1);
-  const dno = hasBot ? horiz("Dno", botL, botR, botX0, botX1) : null;
-  if (wien && dno && !isBlat && same(wien, dno)) P({ ...dno, name: "Dno / wieniec", qty: 2, note: noteOf(dno.edges, "horiz") });
+  // rola „dno” — wspolne dno ciagu zastepuje te formatke (`formatkiSzafki`, `projectParts`)
+  const dno = hasBot ? { ...horiz("Dno", botL, botR, botX0, botX1), rola: "dno" } : null;
+  if (wien && dno && !isBlat && same(wien, dno)) P({ ...dno, name: "Dno / wieniec", rola: "dno+wieniec", qty: 2, note: noteOf(dno.edges, "horiz") });
   else {
     if (dno) P({ ...dno, note: noteOf(dno.edges, "horiz") });
     if (wien) P({ ...wien, note: noteOf(wien.edges, "horiz") });
@@ -11807,11 +11868,11 @@ const groupPanels = (panels) => {
    wspolne dla ciagu ida jego pozycja (w formatkach calego projektu), wiec tu ich
    nie ma. Ramie szafki naroznej nalezy do niej: jego plyty sa tu razem
    z korpusem — wczesniej trafialy tylko do listy calego projektu. */
-const formatkiSzafki = (geo, { bezCokolu = false, bezBlatu = false, arm = null, wstawki = [] } = {}) => {
+const formatkiSzafki = (geo, { bezCokolu = false, bezBlatu = false, bezDna = false, arm = null, wstawki = [] } = {}) => {
   /* Wspolny cokol / blat ciagu zastepuje formatke szafki o tej roli. Po nazwie
      znikala tez dodatkowa formatka nazwana „Cokół” albo „Blat” (audyt GPT N10). */
   const gone = [...(bezCokolu ? ["cokol"] : []), ...(bezBlatu ? ["blat"] : [])];
-  const wlasne = gone.length ? geo.panels.filter((p) => !gone.includes(p.rola)) : geo.panels;
+  const wlasne = bezPlytCiagu(gone.length ? geo.panels.filter((p) => !gone.includes(p.rola)) : geo.panels, bezDna);
   // wstawka w rogu przykreca sie do tej szafki, wiec idzie na jej liste
   return groupPanels([...wlasne, ...(arm ? cornerArmParts(arm).panels : []),
     ...wstawki.flatMap((w) => wstawkaParts(w).panels)]);
@@ -11822,6 +11883,11 @@ const formatkiSzafki = (geo, { bezCokolu = false, bezBlatu = false, arm = null, 
    pozycja, a okucia ramienia szafki w L i wstawki w rogu naleza do szafki,
    do ktorej sie przykrecaja (wczesniej byly tylko w liscie projektu, choc ich
    formatki byly juz na liscie szafki). Te same nazwy sumujemy w jednej pozycji. */
+/* Wspolne dno ciagu (`runBottom`) zastepuje dno szafki; „Dno / wieniec” (2 szt.)
+   zostaje samym wiencem. */
+const bezPlytCiagu = (panels, bezDna) => (!bezDna ? panels : panels.flatMap((p) => (p.rola === "dno" ? []
+  : p.rola === "dno+wieniec" ? [{ ...p, name: "Wieniec", rola: null, qty: p.qty - 1 }] : [p])));
+
 const okuciaSzafki = (geo, { bezListwy = false, arm = null, wstawki = [] } = {}) => {
   const out = (bezListwy ? geo.hardware.filter((h) => h.name !== RAIL_NAME || h.wewnatrz) : geo.hardware).map((h) => ({ ...h }));
   const dodaj = (h) => {
@@ -11935,6 +12001,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     }
     if (action.startsWith("slupek:"))
       return { label: action === "slupek:1" ? "To słupek — wyjątek w ciągu" : "To jednak zwykła szafka", run: () => runFix && runFix(action) };
+    if (action.startsWith("ciagslupki:"))
+      return { label: `Ustaw cały ciąg na ${fmt(Number(action.split(":")[1]))} mm, wyższe jako słupki`, run: () => runFix && runFix(action) };
     // rozjazd z ciagiem da sie naprawic z dwoch stron — szafka albo caly ciag
     if (action.startsWith("runcab:") || action.startsWith("runrun:")) {
       const [kind, field, val] = action.split(":");
@@ -12896,6 +12964,8 @@ const runTopLiczy = (project, run, bezRogu = false) => {
   }
   // szafki z wlasnym blatem — z nich material, grubosc i wysokosc blatu ciagu (audyt GPT N78, N79)
   const zrodla = [];
+  // szafki bez wlasnego blatu miedzy tymi z blatem (slupek) przerywaja plyte
+  const bezWlasnego = [];
   if (!(lvl && lvl.pod.length)) {
   list.forEach(({ it }, k) => {
     const geo = computeGeo(it.cab, it.mat);
@@ -12904,7 +12974,7 @@ const runTopLiczy = (project, run, bezRogu = false) => {
         worktop: geo.isWorktop,
         rear: it.cab.back !== "none" || geo.blat.overBack > 0 });
       zrodla.push({ it, geo });
-    }
+    } else bezWlasnego.push({ x0: x, x1: x + geo.W });
     x += geo.W;
     if (k < list.length - 1) x += gap;
   });
@@ -12996,8 +13066,10 @@ const runTopLiczy = (project, run, bezRogu = false) => {
     /* Wyzsze szafki (slupki) w srodku ciagu przerywaja blat — w ukladzie plyty,
        dla `kawalkiBlatu` (audyt GPT N23: blat 1800 nad 720/2000/720 szedl jednym
        kawalkiem). Luka bez szafki (np. na zmywarke) blatu nie przerywa. */
-    wysokie: lvl ? lvl.poza.map((c) => ({ x0: Math.round(c.x0 - x0), x1: Math.round(c.x1 - x0) }))
-      .filter((c) => c.x1 > 2 && c.x0 < total - 2) : [],
+    wysokie: (lvl ? lvl.poza : zrodla.length ? bezWlasnego : []).map((c) => ({ x0: Math.round(c.x0 - x0), x1: Math.round(c.x1 - x0) }))
+      .filter((c) => c.x1 > 2 && c.x0 < total - 2),
+    // wspolny wieniec z plyty (opcja ciagu) — w zamowieniu „Wieniec ciągu”
+    wieniec: !!run.wspolnyWieniec && zrodla.length > 0 && !worktop,
     // styki przeliczamy na uklad samej plyty, zeby ciecia liczyly sie od jej konca
     ...splitAtJoints(total, joints.filter((j) => j > x0 && j < x1).map((j) => Math.round(j - x0)),
       run.topCuts, worktop ? WORKTOP_LEN : USABLE_W, run.topCutsWlasne),
@@ -13475,6 +13547,39 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
    miejsca wysokich szafek. `b1`/`b2` — wolny koniec (do oklejenia): tylko
    poczatek i koniec calego blatu; koniec przy slupku dolega do niego. `lacz` —
    ile styku kawalek-kawalek (nie liczac przerw na slupki) — dla zlaczy blatu. */
+/* Wspolne dno ciagu (uzytkownik 2026-10-24, szafki RTV): szafki stoja bokami na
+   jednej plycie — w szafce dno „pod bokami” (`dnoZCiagu`), w zamowieniu „Dno
+   ciągu” na cala dlugosc, dzielone na stykach korpusow przy dlugosci arkusza.
+   Rozne glebokosci albo plyty dna, szafka w L — kazda szafka zostaje przy
+   swoim dnie (`powod` do informacji w karcie ciagu). */
+const runBottom = (project, run) => {
+  if (!run || !run.wspolneDno) return null;
+  const { joints, total, list } = runJoints(project, run);
+  if (list.length < 2) return null;
+  const odp = (powod) => ({ brak: true, powod });
+  if (list.some(({ it }) => it.cab.corner && it.cab.corner.on)) return odp("w ciągu jest szafka narożna");
+  const geos = list.map(({ it }) => computeGeo(cabDoGeo(project, it), it.mat));
+  const dna = geos.map((g) => g.panels.find((p) => p.rola === "dno" || p.rola === "dno+wieniec"));
+  if (dna.some((d) => !d || !d.edges.b1 || !d.edges.b2)) return odp("nie każda szafka ma dno pod bokami");
+  const gl = [...new Set(dna.map((d) => Math.round(d.b)))];
+  if (gl.length > 1) return odp(`szafki mają dno różnej głębokości (${listPl(gl.map(fmt))} mm)`);
+  const kl = [...new Set(list.map(({ it }) => { const m = migrateMat(it.mat).board || {}; return `${m.color}|${m.thickness}|${m.name}`; }))];
+  if (kl.length > 1) return odp("szafki mają korpusy z różnych płyt");
+  const sp = splitAtJoints(total, joints, run.bottomCuts, USABLE_W, run.bottomCutsWlasne);
+  return { ...sp, total, depth: gl[0], rear: dna.some((d) => d.edges.a2), mat: list[0].it.mat,
+    grainMatters: list[0].it.cab.grainMatters, name: run.name };
+};
+const runBottomPanels = (rb) => {
+  if (!rb || rb.brak) return [];
+  const map = new Map();
+  rb.lens.forEach((len) => map.set(len, (map.get(len) || 0) + 1));
+  return [...map.entries()].map(([len, qty]) => naZamowienie({
+    name: "Dno ciągu", qty, a: len, b: rb.depth, matKey: "board",
+    edges: { a1: true, a2: rb.rear, b1: true, b2: true },
+    note: rb.n > 1 ? "czoło i oba końce, w tym łączenie" : "czoło i oba końce",
+  }));
+};
+
 const kawalkiBlatu = (rt) => {
   const total = rt.lens.reduce((a, l) => a + l, 0);
   const przerwy = (rt.wysokie || []).map((w) => [Math.max(0, w.x0), Math.min(total, w.x1)]).filter(([a, b]) => b - a > 2)
@@ -13500,7 +13605,7 @@ const runTopPanels = (rt) => {
   /* Lyzwa zmienia sposob ciecia, wiec musi byc widoczna w samej nazwie —
      kolumna z oklejaniem mowi tylko o krawedziach. */
   const skos = (rt.skos0 ? 1 : 0) + (rt.skos1 ? 1 : 0);
-  const name = skos ? `Blat ciągu (łyżwa 45° — ${skos === 2 ? "oba końce" : "jeden koniec"})` : "Blat ciągu";
+  const name = skos ? `Blat ciągu (łyżwa 45° — ${skos === 2 ? "oba końce" : "jeden koniec"})` : rt.wieniec ? "Wieniec ciągu" : "Blat ciągu";
   if (rt.matKey !== "worktop") {
     // blat z plyty 18 mm: czolo i oba konce jak dotad
     const map = new Map();
@@ -13648,7 +13753,9 @@ const projectParts = (project) => {
     const rp = runPlinth(project, r);
     const rt = runTop(project, r);
     const rr = runRail(project, r);
-    if (rp || rt || rr) shared.set(r.id, { run: r, rp, rt, rr });
+    const rbx = runBottom(project, r);
+    const rb = rbx && !rbx.brak ? rbx : null;
+    if (rp || rt || rr || rb) shared.set(r.id, { run: r, rp, rt, rr, rb });
   });
   const drop = (id) => {
     const s = shared.get(id);
@@ -13668,7 +13775,7 @@ const projectParts = (project) => {
       mat: it.mat,
       grainMatters: it.cab.grainMatters,
       name: (it.cab.name || "").trim() || `Szafka ${ci + 1}`,
-      panels: gone ? g.panels.filter((p) => !gone.includes(p.rola)) : g.panels,
+      panels: bezPlytCiagu(gone ? g.panels.filter((p) => !gone.includes(p.rola)) : g.panels, !!(s && s.rb)),
       hardware: (s && s.rr ? g.hardware.filter((h) => h.name !== RAIL_NAME || h.wewnatrz) : g.hardware)
         .map((h) => (h.name === RAIL_NAME ? { ...h, gdzie: (it.cab.name || "").trim() || `Szafka ${ci + 1}` } : h)),
     };
@@ -13677,7 +13784,7 @@ const projectParts = (project) => {
   /* W kilku pomieszczeniach „Ściana 1” jest w kazdym — pozycja ciagu niesie
      wiec nazwe pomieszczenia, zeby w zbiorczym zamowieniu dalo sie je odroznic. */
   const wielePokoi = roomsOf(project).length > 1;
-  shared.forEach(({ run: r0, rp, rt, rr }) => {
+  shared.forEach(({ run: r0, rp, rt, rr, rb }) => {
     const run = wielePokoi ? { ...r0, name: `${roomName(project, roomOfRun(project, r0))}, ${r0.name}` } : r0;
     /* Sam ciag (listwa, cokol, blat) moze zostac bez szafek — wtedy nie ma od
        kogo pozyczyc materialu i siegniecie po items[0] wywracalo aplikacje. */
@@ -13686,11 +13793,13 @@ const projectParts = (project) => {
       grainMatters: (rp || rt || {}).grainMatters };
     if (rp) runs.push({ ...base, mat: rp.mat, name: `Cokół — ${run.name}`,
       panels: runPlinthPanels(rp), hardware: [] });
-    if (rt) runs.push({ ...base, mat: rt.mat, name: `Blat — ${run.name}`,
+    if (rt) runs.push({ ...base, mat: rt.mat, name: `${rt.wieniec ? "Wieniec" : "Blat"} — ${run.name}`,
       panels: runTopPanels(rt),
       hardware: runTopZlacza(project, r0).map((z) => ({ name: ZLACZE_BLATU, use: z.use,
         spec: `${z.opis}, blat ${fmt(z.gl)} mm; GTV EM-SBL 65 / 100 / 150 (długość śruby do wyboru)`,
         qty: z.qty, unit: "szt." })) });
+    if (rb) runs.push({ ...base, mat: rb.mat, grainMatters: rb.grainMatters, name: `Dno — ${run.name}`,
+      panels: runBottomPanels(rb), hardware: [] });
     if (rr) runs.push({ ...base, name: `Listwa — ${run.name}`, panels: [],
       hardware: rr.odcinki.map((o) => ({ name: RAIL_NAME, use: "pod zawieszki szafek wiszących",
         spec: `jedna listwa ${fmt(o.len)} mm przez ciąg`,
@@ -13755,7 +13864,10 @@ const runCabMsgs = (run, c, inne = []) => {
     else
       out.push({ level: "warn", text:
         `Wysokość ${fmt(c.H)} mm nie zgadza się z ciągiem „${run.name}" (${fmt(run.H)} mm) — fronty nie staną w jednej linii.`
-        + `|runcab:H:${run.H}|runrun:H:${Math.round(c.H)}` + (wyzsza ? "|slupek:1" : "") });
+        + `|runcab:H:${run.H}|runrun:H:${Math.round(c.H)}` + (wyzsza ? "|slupek:1" : "")
+        /* nizsza szafka, a ciag ma wysokosc od wyzszej (salon: ciag 1600 od pierwszej
+           szafki, reszta 900) — caly ciag na te wysokosc, wyzsze zostaja slupkami */
+        + (!wyzsza && inne.some((x) => Math.round(x.H) > Math.round(c.H)) ? `|ciagslupki:${Math.round(c.H)}` : "") });
   }
   /* Plytsza szafka w ciagu to normalny zabieg, gdy z tylu cos przeszkadza: lico
      zostaje w linii, cofa sie sam tyl. Dlatego mowimy o tym wprost, zamiast
@@ -15284,14 +15396,14 @@ const PRINT_CSS = `
 /* `ctx` i `arm` przychodza z ukladu calego projektu: bez nich kartka szafki
    naroznej liczyla front przez cala szerokosc korpusu i nie pokazywala ramienia,
    czyli wydruk mowil co innego niz aplikacja i niz lista formatek. */
-function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, sharedTop, sharedRail, ctx, arm, wstawki = [], rozdzial = null }) {
+function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, sharedTop, sharedBottom = false, sharedRail, ctx, arm, wstawki = [], rozdzial = null }) {
   const ambig = useMemo(() => ambiguousThickness([mat]), [mat]);
   const geo = useMemo(() => computeGeo(cab, mat, ctx), [cab, mat, ctx]);
   const hardware = useMemo(() => okuciaSzafki(geo, { bezListwy: sharedRail, arm, wstawki }), [geo, sharedRail, arm, wstawki]);
   // cokol i blat ciagu sa wspolne — na kartce szafki ich nie ma, ida osobna pozycja
   const panels = useMemo(
-    () => formatkiSzafki(geo, { bezCokolu: sharedPlinth, bezBlatu: sharedTop, arm, wstawki }),
-    [geo, sharedPlinth, sharedTop, arm, wstawki]
+    () => formatkiSzafki(geo, { bezCokolu: sharedPlinth, bezBlatu: sharedTop, bezDna: sharedBottom, arm, wstawki }),
+    [geo, sharedPlinth, sharedTop, sharedBottom, arm, wstawki]
   );
   const realCab = useMemo(() => ({ ...cab, realColors: true }), [cab]);
   // plan wiercen szafki + ramie szafki w L i wstawki w rogu (tego nie ma w geometrii samej szafki)
@@ -15467,6 +15579,12 @@ function PrintReport({ project }) {
     (project.runs || []).forEach((r) => { if (runTop(project, r)) s.add(r.id); });
     return s;
   }, [project]);
+  // ciagi ze wspolnym dnem — na kartce szafki jej dna nie ma (idzie „Dno ciągu”)
+  const runsWithBottom = useMemo(() => {
+    const s = new Set();
+    (project.runs || []).forEach((r) => { const rb = runBottom(project, r); if (rb && !rb.brak) s.add(r.id); });
+    return s;
+  }, [project]);
   // ciagi ze wspolna listwa montazowa — na kartce szafki listwy nie ma, jak w aplikacji
   const runsWithRail = useMemo(() => {
     const s = new Set();
@@ -15487,6 +15605,7 @@ function PrintReport({ project }) {
       ctx={armCtxOf(layout, i)} arm={armOf.get(i)}
       sharedPlinth={!!runsWithPlinth.has(it.runId || null)}
       sharedTop={!!runsWithTop.has(it.runId || null)}
+      sharedBottom={!!runsWithBottom.has(it.runId || null)}
       sharedRail={!!runsWithRail.has(it.runId || null)}
       wstawki={wstawkiOf(layout).filter((w) => w.cab.index === i)} />
   );
@@ -15920,6 +16039,8 @@ export default function App() {
     const last = p.items.reduce((acc, it, k) => ((it.runId || null) === runId
       && (runId || roomOfItem(p, it) === roomId) ? k : acc), -1);
     const at = last >= 0 ? last + 1 : p.items.length;
+    // wspolny wieniec / dno ciagu obejmuje tez nowa szafke
+    if (run && (run.wspolnyWieniec || run.wspolneDno)) fresh.cab = wedlugCiagu(fresh.cab, fresh.mat, run, wysokoscWienca(p.items, run));
     const items = [...p.items.slice(0, at), fresh, ...p.items.slice(at)];
     /* Szablon narożnika składa cały układ, a nie samą szafkę: za rogiem staje
        drugi ciąg pod kątem prostym. Szafek w nim nie zakładamy — dokłada się je
@@ -16065,9 +16186,18 @@ export default function App() {
     return items.indexOf(p.items[p.active]) >= 0 ? q : wejdzDoPokoju(q, activeRoomOf(p));
   }), [setProject]);
 
-  const setRun = useCallback((id, patch) => setProject((p) => ({
-    ...p, runs: (p.runs || []).map((r) => (r.id === id ? { ...r, ...patch } : r)),
-  })), [setProject]);
+  const setRun = useCallback((id, patch) => setProject((p) => {
+    const runs = (p.runs || []).map((r) => (r.id === id ? { ...r, ...patch,
+      // blat roboczy i wspolny wieniec wykluczaja sie
+      ...(patch.worktop ? { wspolnyWieniec: false } : {}), ...(patch.wspolnyWieniec ? { worktop: false } : {}) } : r));
+    /* Wspolny wieniec / dno (i blat roboczy, ktory wylacza wieniec) przestawiaja
+       szafki ciagu od razu — jak blat roboczy ich wzmocnienia. */
+    if (!("wspolnyWieniec" in patch) && !("wspolneDno" in patch) && !("worktop" in patch && patch.worktop)) return { ...p, runs };
+    const run = runs.find((r) => r.id === id);
+    const h = wysokoscWienca(p.items, run);
+    return { ...p, runs, items: p.items.map((it) => ((it.runId || null) === id
+      ? { ...it, cab: wedlugCiagu(it.cab, it.mat, run, h) } : it)) };
+  }), [setProject]);
 
   /* Przelaczenie styku przechodzi z podzialu automatycznego na reczny — od tego
      momentu ciag trzyma sie dokladnie tych ciec, ktore wskazales. */
@@ -16131,7 +16261,9 @@ export default function App() {
     if (!cur || (cur.runId || null) === (runId || null)) return p;
     const items = p.items.slice();
     const run = runId && (p.runs || []).find((r) => r.id === runId);
-    items[i] = { ...cur, runId: runId || null, roomId: run ? roomOfRun(p, run) : roomOfItem(p, cur) };
+    // wspolny wieniec / dno: szafka przyjmuje ustawienia nowego ciagu albo je oddaje
+    items[i] = { ...cur, cab: run ? wedlugCiagu(cur.cab, cur.mat, run, wysokoscWienca(p.items, run)) : bezDnaCiagu(bezWiencaCiagu(cur.cab)),
+      runId: runId || null, roomId: run ? roomOfRun(p, run) : roomOfItem(p, cur) };
     const next = { ...p, items, active: p.active === i ? i : p.active };
     const last = items.reduce((acc, it, k) => (k !== i && (it.runId || null) === (runId || null) ? k : acc), -1);
     if (last < 0) return withRunDefaults({ ...next, active: i }, runId);
@@ -16605,6 +16737,8 @@ export default function App() {
      ciag, wiec ich formatki i metry pokazujemy przy ciagu, a nie przy szafce. */
   const runPl = useMemo(() => (runInfo ? runPlinth(project, runInfo.run) : null), [project, runInfo]);
   const runTp = useMemo(() => (runInfo ? runTop(project, runInfo.run) : null), [project, runInfo]);
+  // wspolne dno ciagu; `brak` — opcja wlaczona, ale dno zostaje przy szafkach (`powod`)
+  const runBt = useMemo(() => (runInfo ? runBottom(project, runInfo.run) : null), [project, runInfo]);
   const runRl = useMemo(() => (runInfo ? runRail(project, runInfo.run) : null), [project, runInfo]);
   /* Ciag albo wisi, albo stoi — i tylko jedno z dwoch ustawien ma wtedy sens.
      Stojacy nie potrzebuje zawieszek, wiszacy nie ma na czym postawic cokolu. */
@@ -16965,6 +17099,17 @@ export default function App() {
       return;
     }
     if (action.startsWith("slupek:")) { setCab((cur) => ({ ...cur, slupek: action === "slupek:1" })); return; }
+    if (action.startsWith("ciagslupki:")) {
+      // caly ciag na wysokosc tej szafki; wyzsze szafki zostaja przy swojej jako slupki
+      const h = Math.round(Number(action.split(":")[1]));
+      const id = runInfo.run.id;
+      setProject((p) => ({ ...p,
+        runs: (p.runs || []).map((r) => (r.id === id ? { ...r, H: h } : r)),
+        items: p.items.map((it) => ((it.runId || null) !== id ? it
+          : Math.round(it.cab.H) > h ? { ...it, cab: { ...it.cab, slupek: true } }
+          : { ...it, cab: { ...it.cab, H: h } })) }));
+      return;
+    }
     const [kind, field] = action.split(":");
     if (!RUN_SHARED.includes(field)) return;
     const { run } = runInfo;
@@ -16975,7 +17120,7 @@ export default function App() {
       : field === "hangerMode" ? (run.hangerMode || "listwa") : run[field];
     if (kind === "runrun") setRunShared(run.id, { [field]: fromCab });
     else setCab((cur) => ({ ...cur, [field]: fromRun }));
-  }, [project, runInfo, setRunShared, setCab, setRun, setCorner]);
+  }, [project, runInfo, setRunShared, setCab, setRun, setCorner, setProject]);
 
   const set = useCallback((patch) => setCab((c) => ({ ...c, ...patch })), [setCab]);
   // szerszy arkusz blatu — zmienia material, wiec dotyczy calego projektu
@@ -17423,8 +17568,8 @@ export default function App() {
     [geo, runRl, armAktywnej, wstawkiAktywnej]
   );
   const cutList = useMemo(
-    () => formatkiSzafki(geo, { bezCokolu: !!runPl, bezBlatu: !!runTp, arm: armAktywnej, wstawki: wstawkiAktywnej }),
-    [geo, runPl, runTp, armAktywnej, wstawkiAktywnej]);
+    () => formatkiSzafki(geo, { bezCokolu: !!runPl, bezBlatu: !!runTp, bezDna: !!(runBt && !runBt.brak), arm: armAktywnej, wstawki: wstawkiAktywnej }),
+    [geo, runPl, runTp, runBt, armAktywnej, wstawkiAktywnej]);
   const zCaloscia = useMemo(() => calyProjekt(project), [project]);
 
   const edgeMeters = useMemo(() => {
@@ -18456,6 +18601,27 @@ export default function App() {
                         onChange={(v) => setRun(runInfo.run.id, { worktop: v })} />
                     </Field>
                   )}
+                  {/* Wspolny wieniec i dno z plyty (uzytkownik 2026-10-24, szafki RTV) — jak blat roboczy */}
+                  <Field label="Wspólny wieniec"
+                    hint="Jedna płyta korpusu na bokach szafek w wysokości ciągu (wyższy słupek zostaje przy swoim wieńcu), równo z frontami, przykręcana od spodu na trójkątach. Zamiast blatu roboczego.">
+                    <Check checked={!!runInfo.run.wspolnyWieniec} label="Wspólny wieniec z płyty na całym ciągu"
+                      onChange={(v) => setRun(runInfo.run.id, { wspolnyWieniec: v })} />
+                  </Field>
+                  <Field label="Wspólne dno"
+                    hint="Szafki stoją bokami na jednej płycie przez cały ciąg (dno pod bokami każdej szafki).">
+                    <Check checked={!!runInfo.run.wspolneDno} label="Wspólne dno na całym ciągu"
+                      onChange={(v) => setRun(runInfo.run.id, { wspolneDno: v })} />
+                    {runBt && runBt.brak && (
+                      <p className="mt-1 text-xs text-amber-700" data-el="dno-ciagu">Dno zostaje przy szafkach: {runBt.powod}.</p>
+                    )}
+                    {runBt && !runBt.brak && (
+                      <p className="mt-1 text-xs text-stone-500" data-el="dno-ciagu">
+                        Dno ciągu: {runBt.n === 1
+                          ? <>jedna formatka <span className="font-mono text-stone-700">{fmt(runBt.total)} × {fmt(runBt.depth)} mm</span>.</>
+                          : <>{runBt.n} części po <span className="font-mono text-stone-700">{listPl(runBt.lens.map(fmt))} mm</span>, cięte na styku korpusów.</>}
+                      </p>
+                    )}
+                  </Field>
                   {runTp && (() => {
                     /* W rogu blat nigdy nie jest jednym kawalkiem: kazda sciana
                        ma swoj odcinek i tnie sie je osobno. Karta mowi o swoim,
@@ -18468,7 +18634,7 @@ export default function App() {
                       .map((r) => ({ r, rt: runTop(project, r) }))
                       .filter((o) => o.rt);
                     return (
-                      <Field label="Blat ciągu"
+                      <Field label={runTp.wieniec ? "Wieniec ciągu" : "Blat ciągu"}
                         hint={rogi.length
                           ? "Blat tej ściany. W narożniku styka się z blatem sąsiedniej — to osobne odcinki."
                           : "Blat idzie nad całym ciągiem jedną płaszczyzną."}>
