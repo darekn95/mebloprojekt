@@ -819,7 +819,11 @@ const powodZawiasow = (gtv, wpis) => {
   if (gtv.zWys > wpis) cz.push(`wysokość wymaga ${gtv.zWys} (${wpis} ${zaw(wpis)} do ${fmt(r.h)} mm)`);
   if (gtv.zWagi > wpis) cz.push(`waga — ${gtv.zWagi} (${wpis} ${zaw(wpis)} do ${kgTxt(r.kg)} kg)`);
   if (!cz.length) return "";
-  const t = cz.join(", ");
+  /* kryterium spelnione tez nazywamy (uzytkownik 2026-10-24: „czy kryterium wagi
+     jest spełnione?”) — widac, ze liczbe wymusza tylko drugie */
+  const ok = gtv.zWys <= wpis ? `wysokość — ${wpis} ${zaw(wpis)} wystarczą (do ${fmt(r.h)} mm)`
+    : gtv.zWagi <= wpis ? `waga ok. ${kgTxt(Math.round(gtv.kg * 10) / 10)} kg — ${wpis} ${zaw(wpis)} wystarczą (do ${kgTxt(r.kg)} kg)` : null;
+  const t = cz.join(", ") + (ok ? `; ${ok}` : "");
   return ` ${t[0].toUpperCase()}${t.slice(1)}`;
 };
 function autoHinges(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
@@ -18104,16 +18108,40 @@ export default function App() {
     });
   };
 
+  /* Uwagi z rozkroju calego projektu dotycza plyt (grup materialu). W ogladanym
+     pomieszczeniu zostaja tylko te o plytach, ktore ono ma; reszta schodzi do
+     „Do sprawdzenia w innych pomieszczeniach” (uzytkownik 2026-10-24: w salonie
+     ostrzezenie o blacie roboczym kuchni). Przy jednym pomieszczeniu albo zakresie
+     „To pomieszczenie” wszystko zostaje. */
+  const rozkrojUwagi = useMemo(() => {
+    const wszystkie = pokazPlan ? pokazPlan.groups.flatMap((g) => uwagiRozkroju(g).map((t) => ({ level: "warn", mat: g.matLabel,
+      text: `Rozkrój — ${bezArkusza(g.matLabel)}: ${t.replace(/^Blat: /, "")}` }))) : [];
+    const pokoje = roomsOf(project);
+    if (pokoje.length < 2 || zamTylkoPokoj || !wszystkie.length) return { tu: wszystkie, inne: [] };
+    const maty = (roomId) => {
+      const zb = new Set();
+      projectParts(projektPomieszczenia(project, roomId)).forEach((part) => part.panels.forEach((q) =>
+        zb.add(matLabelOf(plytaFormatki(q, part.mat) || {}, q.matKey, ambig))));
+      return zb;
+    };
+    const tutaj = maty(pokoj);
+    const inneP = pokoje.filter((r) => r.id !== pokoj).map((r) => ({ r, maty: maty(r.id) }));
+    return {
+      tu: wszystkie.filter((m) => tutaj.has(m.mat)),
+      inne: wszystkie.filter((m) => !tutaj.has(m.mat)).map((m) => ({ ...m,
+        pokoje: inneP.filter((q) => q.maty.has(m.mat)).map((q) => q.r) })),
+    };
+  }, [pokazPlan, project, pokoj, zamTylkoPokoj, ambig]);
+
   // uwagi ciagu ida przed uwagami szafki — dotycza calej sciany, wiec sa nadrzedne
   const allMsgs = useMemo(() => [...runMsgs, ...bezWspolnychFormatek(przyciskiSzuflad(geo.msgs), !!runPl, !!runTp), ...wstawkaMsgs(projLayout, project.active),
     // ramie szafki w L: jego formatki naleza do tej szafki
     ...(cornerNode && cornerNode.arm && cornerNode.arm.len > 0
       ? maleFormatkiMsgs(cornerArmParts(cornerNode.arm).panels, cab.dociac, "@") : []),
     /* Zuzycie blatu i odpad arkusza z rozkroju — takze w Uwagach, nie tylko
-       w karcie „Rozkrój” (komentarz uzytkownika 2026-10-17). */
-    ...(pokazPlan ? pokazPlan.groups.flatMap((g) => uwagiRozkroju(g).map((t) => ({ level: "warn",
-      text: `Rozkrój — ${bezArkusza(g.matLabel)}: ${t.replace(/^Blat: /, "")}` }))) : [])],
-    [runMsgs, geo, projLayout, project.active, cornerNode, cab, mat, projLayoutGeo, runPl, runTp, pokazPlan]);
+       w karcie „Rozkrój” (komentarz uzytkownika 2026-10-17); tylko plyty tego pomieszczenia. */
+    ...rozkrojUwagi.tu.map(({ level, text }) => ({ level, text }))],
+    [runMsgs, geo, projLayout, project.active, cornerNode, cab, mat, projLayoutGeo, runPl, runTp, rozkrojUwagi]);
   const errors = allMsgs.filter((m) => m.level === "error");
   const warns = allMsgs.filter((m) => m.level === "warn");
   const infos = allMsgs.filter((m) => m.level === "info");
@@ -21046,7 +21074,7 @@ export default function App() {
               className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
           </Card>
 
-          {(errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0) && (
+          {(errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0 || rozkrojUwagi.inne.length > 0) && (
             <div ref={notesRef} className="scroll-mt-24">
             {/* uwagi zawsze na wierzchu — bez zwijania (uzytkownik 2026-09-29) */}
             <Card title="Uwagi" collapsible={false}>
@@ -21120,8 +21148,29 @@ export default function App() {
                   </div>
                 );
               })()}
+              {rozkrojUwagi.inne.length > 0 && (
+                <div className={(errors.length || warns.length || infos.length) ? "border-t border-stone-100 pt-3" : ""} data-el="uwagi-inne-pomieszczenia">
+                  <div className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">
+                    Do sprawdzenia w innych pomieszczeniach
+                  </div>
+                  <ul className="space-y-1.5">
+                    {rozkrojUwagi.inne.map((m, k) => (
+                      <li key={k} className="text-sm" style={{ color: WARNC }}>
+                        <span className="font-mono">!</span>{" "}
+                        {m.pokoje.map((r, q) => (
+                          <span key={r.id}>
+                            {q > 0 && ", "}
+                            <button onClick={() => switchRoom(r.id)} className="font-medium hover:underline">{r.name}</button>
+                          </span>
+                        ))}
+                        <span className="text-stone-500"> — {m.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {otherNotes.length > 0 && (
-                <div className={(errors.length || warns.length || infos.length) ? "border-t border-stone-100 pt-3" : ""}>
+                <div className={(errors.length || warns.length || infos.length || rozkrojUwagi.inne.length) ? "border-t border-stone-100 pt-3" : ""}>
                   <div className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">
                     Do sprawdzenia w innych szafkach
                   </div>

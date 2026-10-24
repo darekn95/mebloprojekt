@@ -41,6 +41,7 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 
 - **Formatka większa niż arkusz po okrawaniu** — błąd z jej nazwą i wymiarem; blat dłuższy niż arkusz — błąd z podziałem (`opisy/ciagi.md`).
 - **Zużycie blatu**: gdy do zmieszczenia na jednym arkuszu mniej brakuje najwyżej 200 mm — ostrzeżenie „brakuje N mm … nie trzeba kupować kolejnego blatu”, z przykładem skrócenia najdłuższego kawałka.
+- **Uwagi z rozkroju a pomieszczenia** (użytkownik 2026-10-24): przy kilku pomieszczeniach i zakresie „Cały projekt” uwaga o płycie (grupie rozkroju) jest w Uwagach tylko tam, gdzie ta płyta jest; w innych pomieszczeniach — niżej, „Do sprawdzenia w innych pomieszczeniach”, z nazwą pomieszczenia do kliknięcia (`rozkrojUwagi`, `data-el="uwagi-inne-pomieszczenia"`).
 - **Odpad arkusza**: arkusz płyty wykorzystany poniżej 15% przy kilku arkuszach — ostrzeżenie „duży odpad, po niewielkiej zmianie wszystko może się zmieścić na N − 1”.
 - **Ostrzeżenia rozkroju** są też w Uwagach („Rozkrój — <płyta>: …”).
 

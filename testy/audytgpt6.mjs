@@ -444,5 +444,26 @@ console.log('\n== szafka bez nóżek w stojącym ciągu stoi na podłodze — be
   ok('ten sam ciąg zawieszony 300 mm nad podłogą: uwaga o haczykach przy listwie ciągu i zawieszki w zamówieniu', /wiesza się na haczykach, a ciąg na listwie/.test(u) && z.some((r) => /^Zawieszka/.test(r)), `${linie(u, /wiesza/)} | ${z.join(' / ')}`);
 }
 
+console.log('\n== uwagi z rozkroju w swoim pomieszczeniu (użytkownik 2026-10-24) ==');
+{
+  const R = [{ id: 'k1', name: 'Ściana 1', roomId: 'p1', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null },
+    { id: 's1', name: 'Ściana tv', roomId: 'p2', wallW: null, gap: 0, mountY: 0, H: 900, D: 500, plinth: PL, worktop: false, corner: null }];
+  const kuchnia = [...Array(7)].map((_, k) => ({ cab: cab({ name: 'K' + (k + 1) }), runId: 'k1' }));
+  const salon = [{ cab: cab({ name: 'T1', H: 900, D: 500 }), runId: 's1' }, { cab: cab({ name: 'T2', H: 900, D: 500 }), runId: 's1' }];
+  const pr = (active) => proj([...kuchnia, ...salon], R, { active, rooms: [{ id: 'p1', name: 'Kuchnia' }, { id: 'p2', name: 'Salon' }] });
+  const blat = (t) => /Rozkrój — Blat roboczy: do zmieszczenia na jednym arkuszu zamiast 2 brakuje/.test(t);
+  await seed(pr(0)); await page.waitForTimeout(1500);
+  let u = await uwagi();
+  ok('kuchnia (blat 4200): uwaga „Rozkrój — Blat roboczy … brakuje” w Uwagach', blat(u), linie(u, /Rozkrój/));
+  await seed(pr(7)); await page.waitForTimeout(1500);
+  u = await uwagi();
+  const inne = await page.locator('[data-el="uwagi-inne-pomieszczenia"]').innerText().catch(() => '');
+  ok('salon (bez blatu): uwagi o blacie nie ma wśród ostrzeżeń, jest niżej „Do sprawdzenia w innych pomieszczeniach” — Kuchnia',
+    blat(inne) && /Kuchnia/.test(inne) && /DO SPRAWDZENIA W INNYCH POMIESZCZENIACH|Do sprawdzenia w innych pomieszczeniach/i.test(inne)
+    && !blat(u.replace(inne, '')), `${linie(u, /Rozkrój/)} || ${inne}`);
+  await page.locator('[data-el="uwagi-inne-pomieszczenia"] button', { hasText: 'Kuchnia' }).first().click(); await page.waitForTimeout(1500);
+  ok('klik „Kuchnia” przechodzi do kuchni (uwaga znów w Uwagach)', blat(await uwagi()) && !(await page.locator('[data-el="uwagi-inne-pomieszczenia"]').count()));
+}
+
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await b.close();
