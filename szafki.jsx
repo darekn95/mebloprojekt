@@ -1958,11 +1958,14 @@ const TEMPLATES = [
     /* 560 w glab: z HDF przybijanym 563 od sciany, z drzwiami 581 — blat 600
        ma zapas na krzywa sciane; lepiej dociac tyl blatu niz zeby zabraklo
        (ustalone z uzytkownikiem 2026-09-28, wczesniej 570). */
-    hint: "600 × 720 × 560, cokół, dwoje drzwi",
+    hint: "600 × 720 × 560, nóżki 100 mm, dwoje drzwi",
+    /* Na nozkach, bez cokolu — tak samo nowy projekt i nowe pomieszczenie
+       (decyzja uzytkownika 2026-10-24: „nóżki wszędzie”). Cokol wlacza sie
+       w karcie „Cokół” albo w karcie ciagu. */
     make: () => ({
       W: 600, H: 720, D: 560,
-      plinth: { on: true, height: 100, mode: "under", setback: 0 },
-      // cokol pod korpusem nie zjada swiatla — korpus stoi na nim caly
+      plinth: { on: false, height: 100, mode: "under", setback: 0 },
+      legs: { on: true, height: 100, color: "#3f3f46", shape: "box", count: null },
       levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
     }),
   },
