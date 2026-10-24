@@ -306,6 +306,10 @@ const konfirmatyPoz = (len, od = 0) => {
 /* Kolki (i trojkaty) z obu stron przegrody na tej samej wysokosci: o tyle przesuwamy
    jedna strone i tyle musza sie mijac otwory (uzytkownik 2026-10-24: 10 mm wystarczy). */
 const KOLEK_PRZESUN = 10;
+/* Promienie otworow w przegrodzie — kolek ⌀5 (i wkret trojkata), konfirmat ⌀7 przez
+   plyte — i najmniejsza scianka miedzy otworami z obu stron (kolek–kolek: 10 mm
+   miedzy srodkami, jak KOLEK_PRZESUN; uzytkownik 2026-10-24). */
+const KOLEK_R = 2.5, KONF_R = 3.5, OTW_SCIANKA = 5;
 // przesuniety otwor kolka / trojkata zostaje co najmniej tyle od krawedzi polki (uzytkownik 2026-10-24)
 const KOLEK_OD_KRAWEDZI = 20;
 // polka do tej glebokosci jest „waska” — tam kolki przesuwamy najpierw na zewnatrz (do 40 mm od krawedzi)
@@ -4730,25 +4734,30 @@ function computeGeoLiczy(cab, mat, ctx) {
            idą o KOLEK_PRZESUN blizej srodka polki, polki zostaja na swoich
            wysokosciach (uzytkownik 2026-09-29). */
         const sasiadL = c.j > 0 ? lv.cols[c.j - 1] : null;
-        const kolidujeL = (y) => !!sasiadL && (sasiadL.shelves || []).some((q) => Math.abs(q.y - y) < 10);
+        /* Prawa strona przesuwa sie tylko przed konfirmatami sasiada — te stoja w miejscu;
+           kolki i trojkaty sasiada z prawej omija on sam (to jego lewa strona). */
+        const sasiadP = c.j < lv.cols.length - 1 && lv.cols[c.j + 1].shelfMount === "confirmat" ? lv.cols[c.j + 1] : null;
         /* Audyt GPT N75: stale „20 mm do srodka” na plytkiej polce dawalo zbiezne
            otwory (D240: 120 i 120) albo tylko zamienialo je miejscami (D220).
            Sprawdzamy koncowe pozycje: otwory tej strony co najmniej KOLEK_PRZESUN
-           od siebie i od otworow po drugiej stronie przegrody, na polce (min.
-           KOLEK_OD_KRAWEDZI od jej krawedzi). Uzytkownik 2026-10-24: kolki jak
-           trojkaty 50 mm od krawedzi, mijaja sie o 10 mm — na glebokiej polce
-           do srodka (60), na waskiej (do POLKA_WASKA) na zewnatrz (40); gdy ten
-           kierunek nie wychodzi — drugi, potem oba w tyl / w przod, potem o 20 mm;
-           nic nie pasuje — blad. Inne niz zwykle przesuniecie — podpowiedz
-           „kolki przesuniete albo zamien na trojkaty” (2026-10-22). */
-        const otworyKol = (k) => {
+           od siebie, od otworow po drugiej stronie przegrody scianka min.
+           OTW_SCIANKA (kolek ⌀5 obok kolka — 10 mm miedzy srodkami, obok konfirmatu
+           ⌀7 przez przegrode w osi polki — 11), na polce (min. KOLEK_OD_KRAWEDZI od
+           jej krawedzi). Uzytkownik 2026-10-24: kolki jak trojkaty 50 mm od krawedzi,
+           mijaja sie o 10 mm — na glebokiej polce do srodka (60), na waskiej (do
+           POLKA_WASKA) na zewnatrz (40); gdy ten kierunek nie wychodzi — drugi, potem
+           oba w tyl / w przod, potem o 20 mm; nic nie pasuje — blad. Inne niz zwykle
+           przesuniecie — podpowiedz: przesuniete albo trojkaty / konfirmaty. */
+        const otworySasiada = (k, y) => (k ? (k.shelves || []).flatMap((q) => {
           const pk = frontCut + (k.shFront || 0), gk = k.shD ?? shelfDepth;
-          return k.shelfMount === "trojkaty" ? [pk + KONF_OD_KRAWEDZI, pk + gk - KONF_OD_KRAWEDZI]
+          if (k.shelfMount === "confirmat") return konfirmatyPoz(gk, pk).map((z) => ({ z, y: q.y + ts / 2, r: KONF_R }));
+          const zs = k.shelfMount === "trojkaty" ? [pk + KONF_OD_KRAWEDZI, pk + gk - KONF_OD_KRAWEDZI]
             : k.shelfMount === "pins" ? [pk + pinF, pk + gk - pinB] : [];
-        };
-        const rozsun = ([a, b], y) => {
-          const obce = sasiadL && kolidujeL(y) ? otworyKol(sasiadL) : [];
-          const wolne = (x) => obce.every((q) => Math.abs(x - q) >= KOLEK_PRZESUN - 0.5);
+          return zs.map((z) => ({ z, y: q.y, r: KOLEK_R }));
+        }).filter((h) => Math.abs(h.y - y) < KOLEK_R + KONF_R + OTW_SCIANKA + 1) : []);
+        const rozsun = ([a, b], y, sasiad) => {
+          const obce = otworySasiada(sasiad, y);
+          const wolne = (x) => obce.every((h) => Math.hypot(x - h.z, y - h.y) >= KOLEK_R + h.r + OTW_SCIANKA - 0.5);
           if (wolne(a) && wolne(b)) return { o: [a, b], kier: null };
           const D = KOLEK_PRZESUN;
           const doSr = [D, -D, "do środka"], naZew = [-D, D, "na zewnątrz"];
@@ -4761,13 +4770,15 @@ function computeGeoLiczy(cab, mat, ctx) {
           return null;
         };
         const przesuniete = [], nieDaSie = [];
-        const pinNoteL = (y) => {
-          const r = rozsun([przod + pinF, przod + gl - pinB], y);
+        const coPoDrugiej = (k) => (k && k.shelfMount === "confirmat"
+          ? "po drugiej stronie konfirmaty półki z sąsiedniej kolumny" : "po drugiej stronie półka na tej samej wysokości");
+        const pinNoteS = (y, sasiad) => {
+          const r = rozsun([przod + pinF, przod + gl - pinB], y, sasiad);
           if (!r) { nieDaSie.push(y); return pinNote; }
           if (!r.kier) return pinNote;
           przesuniete.push({ y, ...r });
           return `⌀5, ${fmt(r.o[0])} i ${fmt(r.o[1])} mm od przedniej krawędzi płyty; `
-            + `wysokość = spód półki; przesunięte o ${r.ile} mm ${r.kier} — po drugiej stronie półka na tej samej wysokości`;
+            + `wysokość = spód półki; przesunięte o ${r.ile} mm ${r.kier} — ${coPoDrugiej(sasiad)}`;
         };
         /* Szafka w L: po stronie ramienia boku nie ma — polka lezy tam na
            kolkach (albo trojkatach) we wzmocnieniu tylnym, po jednym w kazdej
@@ -4785,22 +4796,22 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (c.shelfMount === "pins")
           (c.shelves || []).forEach((s) => {
             if (przyKatL) katownikKolki(s.y);
-            else drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, (kolidujeL(s.y) ? pinNoteL(s.y) : pinNote) + p.left.strona);
+            else drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, pinNoteS(s.y, sasiadL) + p.left.strona);
             if (przyKatP) katownikKolki(s.y);
-            else drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNote + p.right.strona);
+            else drillAdd(lv.i, p.right.name, p.right.base, "kołek półki", s.y, pinNoteS(s.y, sasiadP) + p.right.strona);
           });
         /* Polka na trojkatach: dwa pod polka z kazdej strony, przy jej przedniej
            i tylnej krawedzi. Z obu stron przegrody na tej samej wysokosci wkrety
            trafilyby w siebie — jak przy kolkach, ta strona o KOLEK_PRZESUN blizej
            srodka polki. Po stronie ramienia szafki w L — w plytach wzmocnienia. */
         if (c.shelfMount === "trojkaty") {
-          const trNote = (y) => {
-            const r = y == null ? { o: [przod + KONF_OD_KRAWEDZI, przod + gl - KONF_OD_KRAWEDZI], kier: null }
-              : rozsun([przod + KONF_OD_KRAWEDZI, przod + gl - KONF_OD_KRAWEDZI], y);
+          const trNote = (y, sasiad) => {
+            const r = rozsun([przod + KONF_OD_KRAWEDZI, przod + gl - KONF_OD_KRAWEDZI], y, sasiad);
             if (!r) nieDaSie.push(y);
+            if (r && r.kier) przesuniete.push({ y, ...r });
             const [x, z] = r ? r.o : [przod + KONF_OD_KRAWEDZI, przod + gl - KONF_OD_KRAWEDZI];
             return `2 rzędy — pod półką, przy jej przedniej i tylnej krawędzi: ${fmt(x)} i ${fmt(z)} mm od przedniej krawędzi płyty; wysokość = spód półki`
-              + (r && r.kier ? `; przesunięte o ${r.ile} mm ${r.kier} — po drugiej stronie półka na tej samej wysokości` : "");
+              + (r && r.kier ? `; przesunięte o ${r.ile} mm ${r.kier} — ${coPoDrugiej(sasiad)}` : "");
           };
           const katownikTr = (y) => {
             drillAdd(lv.i, "Kątownik przy ramieniu — bok", interior.y0, "trójkąt meblowy", y, "pod półką, zamiast boku; wysokość = spód półki");
@@ -4808,25 +4819,31 @@ function computeGeoLiczy(cab, mat, ctx) {
           };
           (c.shelves || []).forEach((s) => {
             if (przyKatL) katownikTr(s.y);
-            else drillAdd(lv.i, p.left.name, p.left.base, "trójkąt meblowy", s.y, trNote(kolidujeL(s.y) ? s.y : null) + p.left.strona);
+            else drillAdd(lv.i, p.left.name, p.left.base, "trójkąt meblowy", s.y, trNote(s.y, sasiadL) + p.left.strona);
             if (przyKatP) katownikTr(s.y);
-            else drillAdd(lv.i, p.right.name, p.right.base, "trójkąt meblowy", s.y, trNote(null) + p.right.strona);
+            else drillAdd(lv.i, p.right.name, p.right.base, "trójkąt meblowy", s.y, trNote(s.y, sasiadP) + p.right.strona);
           });
         }
         const wys = (lista) => listPl([...new Set(lista.map((y) => fmt(Math.round(y - lv.y0))))]);
         const coTo = c.shelfMount === "trojkaty" ? "Trójkąty" : "Kołki";
+        /* Inne mocowanie tej kolumny (uzytkownik 2026-10-24: przesunac, trojkaty albo
+           konfirmaty). Konfirmatow nie podsuwamy, gdy sasiad jest juz na konfirmatach —
+           dwa konfirmaty w jednej osi przegrody to blad (N45). */
+        const konfObok = [sasiadL, lv.cols[c.j + 1]].some((k) => k && k.shelfMount === "confirmat");
+        const inneMoc = [...(c.shelfMount === "pins" ? ["trojkaty"] : ["pins"]), ...(konfObok ? [] : ["confirmat"])];
+        const nazwyMoc = { pins: "kołki", trojkaty: "trójkąty", confirmat: "konfirmaty" };
+        const przyciskiMoc = inneMoc.map((m) => `|polkimont:${lv.i}:${c.j}:${m}`).join("");
         if (nieDaSie.length)
-          add("error", `${coTo} półek kolumny ${c.j + 1} na wysokości ${wys(nieDaSie)} mm trafiają w otwory po drugiej stronie przegrody `
-            + `(tam półka na tej samej wysokości), a przesunięcie o ${KOLEK_PRZESUN} albo ${2 * KOLEK_PRZESUN} mm nie mieści się na półce — `
-            + `przesuń półkę o co najmniej 10 mm${c.shelfMount === "pins" ? " albo zamień kołki na trójkąty" : ""}.`
-            + (c.shelfMount === "pins" ? `|polkimont:${lv.i}:${c.j}:trojkaty` : ""));
+          add("error", `${coTo} półek kolumny ${c.j + 1} na wysokości ${wys(nieDaSie)} mm trafiają w otwory po drugiej stronie przegrody, `
+            + `a przesunięcie o ${KOLEK_PRZESUN} albo ${2 * KOLEK_PRZESUN} mm nie mieści się na półce — `
+            + `przesuń półkę o co najmniej 10 mm albo zmień mocowanie na ${listPl(inneMoc.map((m) => nazwyMoc[m])).replace(/ i /, " albo ")}.` + przyciskiMoc);
         // zwykle przesuniecie (do srodka, a na waskiej polce na zewnatrz) idzie tylko do planu wiercen; inne — z podpowiedzia
         const zwykle = gl <= POLKA_WASKA ? "na zewnątrz" : "do środka";
         const nietypowe = przesuniete.filter((q) => !(q.kier === zwykle && q.ile === KOLEK_PRZESUN));
         if (!nieDaSie.length && nietypowe.length && c.shelfMount === "pins")
           add("info", `Kołki półek kolumny ${c.j + 1} na wysokości ${wys(nietypowe.map((q) => q.y))} mm przesunięte `
-            + `${listPl([...new Set(nietypowe.map((q) => `o ${q.ile} mm ${q.kier}`))])} (plan wierceń) — po drugiej stronie przegrody półka `
-            + `na tej samej wysokości i otwory trafiłyby w siebie. Możesz też zamienić kołki na trójkąty.|polkimont:${lv.i}:${c.j}:trojkaty`);
+            + `${listPl([...new Set(nietypowe.map((q) => `o ${q.ile} mm ${q.kier}`))])} (plan wierceń) — po drugiej stronie przegrody `
+            + `otwory trafiłyby w siebie. Możesz też zmienić mocowanie na ${listPl(inneMoc.map((m) => nazwyMoc[m])).replace(/ i /, " albo ")}.` + przyciskiMoc);
         (c.drawers || []).forEach((dr) => {
           if (!dr.rail) return;
           /* Otwory wg instrukcji V-BOX (instrukcje/…V-BOX…pdf, str. 6): 37 mm od
@@ -12180,8 +12197,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("polkimont:")) {
       const [, li, j, m] = action.split(":");
       return {
-        label: `Półki kolumny ${+j + 1} na ${m === "pins" ? "kołkach" : "trójkątach"}`,
-        run: () => editLevels((L) => { L[+li].cols[+j].shelfMount = m === "pins" ? "pins" : "trojkaty"; }),
+        label: `Półki kolumny ${+j + 1} na ${m === "pins" ? "kołkach" : m === "confirmat" ? "konfirmatach" : "trójkątach"}`,
+        run: () => editLevels((L) => { L[+li].cols[+j].shelfMount = m === "pins" || m === "confirmat" ? m : "trojkaty"; }),
       };
     }
     if (action.startsWith("przegrtr:")) {

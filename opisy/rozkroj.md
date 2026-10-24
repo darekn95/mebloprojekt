@@ -12,7 +12,7 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 - **Układ**: formatki układane tak, żeby dało się je wyciąć prostymi cięciami piły panelowej.
   - Formatka obraca się, chyba że „Kierunek usłojenia ma znaczenie” — wtedy słoje biegną wzdłuż dłuższego boku arkusza.
   - Plecy z HDF obracają się zawsze.
-- **Blat roboczy**: własny arkusz 4100 × 600 albo 4100 × 1200 mm, nigdy nie obracany (fabryczny profil z przodu).
+- **Blat roboczy**: własny arkusz 4100 × 600 albo 4100 × 1200 mm, nigdy nie obracany (fabryczny profil z przodu). Rzaz 3 mm liczy się tak samo jak na płycie: kawałki 2300 + 1799 = 4099 mm z rzazem to 4102 — nie wejdą w jeden arkusz 4100 (ostrzeżenie „brakuje 2 mm”).
 - **Przeliczanie** samo: 1 s po ostatniej zmianie formatek, przy ponad 40 szafkach 5 s.
 - **Liczba arkuszy** idzie do wyceny („arkusze płyty”, „formatowanie”).
 

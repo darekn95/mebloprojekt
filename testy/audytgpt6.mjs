@@ -93,6 +93,21 @@ console.log('\n== N75: kołki po obu stronach przegrody — końcowe pozycje otw
   await para(240, { dFront: 100, dBack: 100 }, 'pins', /100 i 140 mm/, /90 i 150 mm.*na zewnątrz/, 'D240, otwory 100 / 100 (przypadek GPT N75): 90 i 150 — bez zbieżnych otworów', false);
   await para(560, { dFront: 270, dBack: 270 }, 'pins', /270 i 290 mm/, /(do tyłu|do przodu|na zewnątrz)/, 'D560, otwory 270 / 270: do środka się nie da — inne przesunięcie z podpowiedzią o trójkątach', true);
   await para(240, {}, 'trojkaty', /50 i 190 mm/, /40 i 200 mm.*na zewnątrz/, 'trójkąty D240: kolumna 2 40 i 200 (na zewnątrz)', false);
+  /* Uzytkownik 2026-10-24: przy nachodzeniu — przesunac, trojkaty albo konfirmaty; przy konfirmatach
+     sprawdzic, czy otwory nie nachodza (konfirmat ⌀7 przez przegrode w osi polki, kolek ⌀5 pod nia). */
+  const mieszane = (m1, m2) => cab({ W: 800, D: 560, back: 'none', hangers: 'never', plinth: { on: false }, legs: { on: true, height: 100 },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 0, w: null, shelfTargets: [null, null], shelfMount: m1 }, { kind: 'doors', doors: 0, w: null, shelfTargets: [null, null], shelfMount: m2 }] }] });
+  for (const [m1, m2] of [['pins', 'confirmat'], ['confirmat', 'pins']]) {
+    await seed(proj([{ cab: mieszane(m1, m2) }]));
+    const w = (await wiercenia()).filter((r) => /Przegroda/.test(r));
+    const k = w.find((r) => /kołek półki/.test(r)) || '';
+    ok(`${m1 === 'pins' ? 'kołki | konfirmaty' : 'konfirmaty | kołki'}: kołki przy przegrodzie 60 i 500 (o 10 mm od konfirmatów 50 / 510)`,
+      /60 i 500 mm.*konfirmaty półki z sąsiedniej kolumny/.test(k), w.join(' // ').slice(0, 300));
+  }
+  await seed(proj([{ cab: k2(560, { dFront: 270, dBack: 270 }, 'pins') }]));
+  await page.getByRole('button', { name: 'Półki kolumny 2 na konfirmatach' }).first().click(); await page.waitForTimeout(800);
+  const zp = JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt')));
+  ok('przycisk „Półki kolumny 2 na konfirmatach” zmienia mocowanie kolumny', zp.items[0].cab.levels[0].cols[1].shelfMount === 'confirmat', JSON.stringify(zp.items[0].cab.levels[0].cols.map((c) => c.shelfMount)));
 }
 
 console.log('\n== N69: blat przy ścianie dalej u góry niż u dołu ==');
