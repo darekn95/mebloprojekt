@@ -97,5 +97,27 @@ const suma = sw ? sw.vals.reduce((a, b) => a + b, 0) : 0;
 ok('druga półka zeszłaby poniżej 250', sw && (suma - 18) / (sw.vals.length + 1) < 250,
   sw ? String(Math.round((suma - 18) / (sw.vals.length + 1))) : '');
 
+console.log('\n== światło nie może być ujemne (użytkownik 2026-10-24) ==');
+{
+  const zapisz = async (st) => {
+    await page.evaluate((st) => { localStorage.clear();
+      const cab = { name: 'T', W: 600, H: 720, D: 500, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: st }] }] };
+      localStorage.setItem('szafki:projekt', JSON.stringify({ name: 'T', active: 0, prices: {}, items: [{ cab }] })); }, st);
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1500);
+  };
+  const zap = async () => { await page.waitForTimeout(1000); return page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.levels[0].cols[0].shelfTargets); };
+  await zapisz([null, null]);
+  const sw2 = page.getByText('światło 2', { exact: true }).locator('xpath=following-sibling::input[1]');
+  await sw2.fill('-9'); await page.waitForTimeout(300);
+  ok('wpisane −9: światło wraca do auto', (await zap())[1] === null, JSON.stringify(await zap()));
+  ok('pole ma min 1 (strzałką nie zejdzie poniżej)', (await sw2.getAttribute('min')) === '1');
+  await zapisz([-9, null]);
+  const u = await card(/^Uwagi$/).innerText();
+  ok('stary zapis −9: błąd „światło 1 ma -9 mm — musi być większe od zera” z „Wróć do auto”',
+    /światło 1 ma -9 mm — musi być większe od zera/.test(u) && /Wróć do auto/.test(u), u.split('\n').filter((l) => /światło/.test(l)).join(' / '));
+  await card(/^Uwagi$/).getByRole('button', { name: 'Wróć do auto' }).first().click(); await page.waitForTimeout(300);
+  ok('„Wróć do auto” zdejmuje −9', (await zap())[0] === null, JSON.stringify(await zap()));
+}
+
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await browser.close();

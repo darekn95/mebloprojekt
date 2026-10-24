@@ -2470,6 +2470,12 @@ function computeGeoLiczy(cab, mat, ctx) {
         rawCols[j].kind === "drawers" ? [null] : rawCols[j].shelfTargets || [null];
       const nS = Math.max(0, st.length - 1);
       const shFree = lv.h - nS * ts;
+      /* Swiatlo ujemne albo zero nie ma sensu — dawalo polke pod polka i zadnej
+         uwagi (zgloszenie uzytkownika 2026-10-24: „światło 2: −9”). */
+      st.forEach((v, k) => {
+        if (num(v) !== null && num(v) <= 0)
+          add("error", `Poziom ${lv.i + 1}, kolumna ${j + 1}: światło ${k + 1} ma ${fmt(num(v))} mm — musi być większe od zera.|swiatloauto:${lv.i}:${j}:${k}`);
+      });
       const sh = distribute(shFree, st);
       if (sh.diff !== 0)
         add(
@@ -11946,8 +11952,8 @@ const Num = ({ value, onChange, min, max, suffix = "mm" }) => (
   </div>
 );
 
-const AutoNum = ({ value, placeholder, onChange, fixed, warn }) => (
-  <input type="number" step={1} value={value ?? ""} placeholder={placeholder}
+const AutoNum = ({ value, placeholder, onChange, fixed, warn, min }) => (
+  <input type="number" step={1} min={min} value={value ?? ""} placeholder={placeholder}
     onChange={(e) => onChange(e.target.value)}
     className={
       "w-full rounded border px-2 py-1.5 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-teal-600 " +
@@ -12444,6 +12450,13 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: gornyStaly ? "Górny poziom na auto" : "Podziel poziomy równo",
         run: () => editLevels((L) => { if (gornyStaly) L[L.length - 1].h = null; else L.forEach((lv) => { lv.h = null; }); }),
+      };
+    }
+    if (action.startsWith("swiatloauto:")) {
+      const [, li, j, k] = action.split(":").map(Number);
+      return {
+        label: "Wróć do auto",
+        run: () => editLevels((L) => { const st = L[li].cols[j].shelfTargets; if (st) st[k] = null; }),
       };
     }
     if (action.startsWith("fixcolauto:")) {
@@ -17505,8 +17518,9 @@ export default function App() {
       const n = Math.max(0, Math.round(Number(v) || 0));
       L[i].cols[j].shelfTargets = Array(n + 1).fill(null);
     });
+  // swiatlo ujemne albo zero wraca do auto (uzytkownik 2026-10-24: „nie może być ujemna wartość światła”)
   const setColOpening = (i, j, k, v) =>
-    editLevels((L) => (L[i].cols[j].shelfTargets[k] = v === "" ? null : Math.round(Number(v))));
+    editLevels((L) => (L[i].cols[j].shelfTargets[k] = v === "" || !(Number(v) > 0) ? null : Math.round(Number(v))));
   const setColKind = (i, j, v) =>
     editLevels((L) => {
       const col = L[i].cols[j];
@@ -20316,11 +20330,11 @@ export default function App() {
                                 <span className="w-20 shrink-0 text-[11px] text-stone-400">
                                   światło {o.k + 1}
                                 </span>
-                                <AutoNum value={rawCol.shelfTargets[o.k]} placeholder={fmt(o.h)}
-                                  fixed={o.fixed} warn={o.h > 0 && o.h < 50}
+                                <AutoNum value={rawCol.shelfTargets[o.k]} placeholder={fmt(o.h)} min={1}
+                                  fixed={o.fixed} warn={o.h < 50}
                                   onChange={(v) => setColOpening(lv.i, c.j, o.k, v)} />
                                 <span className="w-12 shrink-0 text-right font-mono text-[11px]"
-                                  style={{ color: o.h > 0 && o.h < 50 ? WARNC : "#a8a29e" }}>{fmt(o.h)}</span>
+                                  style={{ color: o.h <= 0 ? ERRC : o.h < 50 ? WARNC : "#a8a29e" }}>{fmt(o.h)}</span>
                                 {c.openings.length > 1 && (
                                   <MiniBtn onClick={() => removeShelfAt(lv.i, c.j, o.k)}
                                     title="Usuń półkę przy tym świetle">×</MiniBtn>
