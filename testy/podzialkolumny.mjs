@@ -38,7 +38,8 @@ console.log('== „→ poziom” w kolumnie 2: tylko ta kolumna ==');
     && JSON.stringify(cols[1].podzial) === '[0,1,2]' && !cols[0].podzial && !cols[2].podzial
     && cols.every((k) => k.shelfTargets.length === 4), JSON.stringify(cols.map((k) => [k.podzial || null, k.shelfTargets.length])));
   ok('rura kolumny 1 zostaje jedna, w swoim świetle', JSON.stringify(cols[0].drazki) === '[3]', JSON.stringify(cols[0].drazki));
-  ok('półki kolumny 2 na konfirmatach (granice niosą fronty)', cols[1].shelfMount === 'confirmat', String(cols[1].shelfMount));
+  // przy drzwiach polki zostaja na kolkach — nie wisza na nich klapy (uzytkownik 2026-10-24)
+  ok('drzwi: półki kolumny 2 zostają jak szafka (kołki), bez konfirmatów', !cols[1].shelfMount, String(cols[1].shelfMount));
   ok('w Strukturze 3 × „granica frontów” z „scal”', (await kolumna(2).locator('[data-el="granica-frontow"]').count()) === 3);
   const f = await fronty();
   ok('formatki: drzwi kolumn 1 i 3 na całą wysokość + 4 niższe w kolumnie 2', f.length >= 2, f.join(' / '));
@@ -102,6 +103,22 @@ console.log('\n== każdy odcinek osobno (użytkownik 2026-10-24: „dolną w dó
     const x = page.getByRole('button', { name: v, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(300); }
     ok(`odcinki — widok ${v}`, errors.length === k, errors.slice(k).join('; '));
   }
+}
+
+console.log('\n== klapa na półce na kołkach: ostrzeżenie z konfirmatami ==');
+{
+  await seed({ ...SZAFA(), levels: [{ h: null, cols: [kol({ shelfTargets: [null] }), kol({ podzial: [0] }), kol({ shelfTargets: [null] })] }] });
+  const k2 = kolumna(2);
+  const poz2 = k2.locator('[data-el="odcinek-kolumny"]').filter({ hasText: 'poziom kolumny 2' });
+  await poz2.getByRole('button', { name: 'klapa', exact: true }).click(); await page.waitForTimeout(500);
+  let u = await uwagi();
+  ok('klapa do góry w poziomie 2 wisi na wieńcu — bez ostrzeżenia o kołkach', !/na kołkach — półka z zawiasami/.test(u), u.split('\n').filter((l) => /kołkach/.test(l)).join(' / '));
+  await poz2.getByRole('button', { name: 'w dół', exact: true }).click(); await page.waitForTimeout(500);
+  u = await uwagi();
+  ok('klapa w dół na półce na kołkach: ostrzeżenie z „Półki kolumny 2 na konfirmatach”', /klapa w dół wisi na półce 1 \(pod nią\), a półki tej kolumny są na kołkach/.test(u) && /Półki kolumny 2 na konfirmatach/.test(u),
+    u.split('\n').filter((l) => /kołkach/.test(l)).join(' / '));
+  await page.getByRole('button', { name: 'Półki kolumny 2 na konfirmatach' }).first().click(); await page.waitForTimeout(600);
+  ok('przycisk: kolumna 2 na konfirmatach, ostrzeżenie znika', (await zap()).levels[0].cols[1].shelfMount === 'confirmat' && !/na kołkach — półka z zawiasami/.test(await uwagi()));
 }
 
 console.log('\n== półki w poziomie kolumny (użytkownik 2026-10-24) ==');
