@@ -10,7 +10,7 @@
      B: realne kolory, fronty i polki z wlasnych plyt — kazda formatka ma plyte
         swojej roli (front / polka / korpus), a rysunki pokazuja wszystkie trzy;
      C: „Rozróżnij fronty” (schemat), fronty i polki z korpusu — na rysunkach
-        fronty w kolorze wyroznienia, ale formatki i rozkroj z korpusu, a koloru
+        fronty w odcieniu korpusu (KF; ukrytego koloru plyty frontow nie ma), ale formatki i rozkroj z korpusu, a koloru
         polek nie ma nigdzie.
    Uklad w dwoch pomieszczeniach: kuchnia z szafka w L (ramie, katownik w tylnym
    narozniku, katownik narożnika z maskownicami), szufladami, blenda, klapa
@@ -25,6 +25,9 @@ const errors = []; page.on('pageerror', (e) => errors.push(e.message));
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 const K = '#cc2222', F = '#2222cc', P = '#22aa22';
+// „Rozróżnij fronty” przy frontach z plyty korpusu: odcien korpusu (2026-10-24),
+// a nie ukryty kolor plyty frontow F
+const KF = '#d75353';
 const MAT = {
   board: { name: 'Płyta', thickness: 18, color: K, decor: 'KORPUS' },
   front: { name: 'Płyta', thickness: 18, color: F, decor: 'FRONT' },
@@ -170,7 +173,7 @@ const rolaOf = (n) => (ROLA.find(([re]) => re.test(n)) || [null, 'KORPUS'])[1];
 for (const [nazwa, flags, dozwolone, rolaFormatki] of [
   ['A: realne kolory, fronty i półki z płyty korpusu', { realColors: true, frontSameAsBoard: true, shelfSameAsBoard: true }, [K], () => 'KORPUS'],
   ['B: realne kolory, fronty i półki z własnych płyt', { realColors: true, frontSameAsBoard: false, shelfSameAsBoard: false }, [K, F, P], rolaOf],
-  ['C: „Rozróżnij fronty”, fronty i półki z płyty korpusu', { realColors: false, frontSameAsBoard: true, shelfSameAsBoard: true }, [K, F], () => 'KORPUS'],
+  ['C: „Rozróżnij fronty”, fronty i półki z płyty korpusu', { realColors: false, frontSameAsBoard: true, shelfSameAsBoard: true }, [K, KF], () => 'KORPUS'],
 ]) {
   console.log(`\n== ${nazwa} ==`);
   await wczytaj(flags);
@@ -181,7 +184,7 @@ for (const [nazwa, flags, dozwolone, rolaFormatki] of [
     const g = gdzieKolor(zeb, c);
     ok(`rysunki: brak koloru ${c === F ? 'frontu' : 'półek'} (${c})`, g.length === 0, g.slice(0, 12).join(' | ') + (g.length > 12 ? ` … (+${g.length - 12})` : ''));
   });
-  dozwolone.forEach((c) => ok(`rysunki: kolor ${c === K ? 'korpusu' : c === F ? 'frontu' : 'półek'} jest (${c})`, wszystkie.has(c)));
+  dozwolone.forEach((c) => ok(`rysunki: kolor ${c === K ? 'korpusu' : c === F ? 'frontu' : c === KF ? 'frontów (odcień korpusu)' : 'półek'} jest (${c})`, wszystkie.has(c)));
   // skrzynka szuflady (z boku): dno i tyl z plyty polek — jak w formatkach
   const skr = zeb.filter((z) => /A1 \/ Z boku$/.test(z.gdzie)).flatMap((z) => Object.keys(z.kolory).filter((k) => /\[skrzynka\]/.test(k)).map((k) => k.slice(0, 7)));
   const pol = flags.shelfSameAsBoard ? K : P;
@@ -215,7 +218,7 @@ for (const [nazwa, flags, dozwolone, rolaFormatki] of [
   // PDF: realne kolory (wydruk zawsze w realnych) — zakazane jak w A/B
   const p = await pdf();
   // wydruk: widok zamkniety w realnych kolorach, reszta jak ustawienie szafki
-  const zakPdf = [K, F, P].filter((c) => !(flags.frontSameAsBoard ? (flags.realColors ? [K] : [K, F]) : [K, F, P]).includes(c));
+  const zakPdf = [K, F, P].filter((c) => !(flags.frontSameAsBoard ? (flags.realColors ? [K] : [K, KF]) : [K, F, P]).includes(c));
   zakPdf.forEach((c) => ok(`PDF: brak koloru ${c === F ? 'frontu' : 'półek'}`, !!p && !p.kolory[c], p ? `×${p.kolory[c] || 0}` : 'brak wydruku'));
 }
 

@@ -16,7 +16,11 @@ Każda kolumna jest „Półki i drzwi”, „Szuflady” albo „Blenda”. Lis
 - **Nowy poziom / kolumna**:
   - wpisanie wymiaru ostatniemu dokłada nowy pusty (auto), jeśli zostaje co najmniej 100 mm (poziom) albo 200 mm (kolumna);
   - „+ poziom” i „+ przegroda i kolumna” dokładają ręcznie.
-- **Usunięcie poziomu / kolumny**: gdy wszystkie pozostałe mają wpisany wymiar, sąsiad usuniętego wraca na auto i bierze miejsce. Kolumna szuflad musi sięgać boku, bo tam idą prowadnice.
+- **Usunięcie poziomu / kolumny**: miejsce bierze sąsiad usuniętego (ten nad nim / na prawo, przy ostatnim — pod nim / na lewo), reszta szafki zostaje na swoim miejscu (użytkownik 2026-10-24):
+  - usunięty z wpisanym wymiarem i sąsiad z wpisanym — sąsiad rośnie o usunięty i płytę między nimi (klapy 303 / 303 / 302 / auto, usuwasz drugą → 303 / 623 / auto);
+  - sąsiad auto — bierze miejsce sam; gdy wszystkie pozostałe mają wpisany wymiar, a usunięty był auto — sąsiad wraca na auto;
+  - został jeden — auto. Kolumna szuflad sięga wtedy boku, bo tam idą prowadnice.
+- **„Klapy zamiast drzwi”**: gdy klapy wyjdą niższe, niż potrzebuje podnośnik GTV (płytka pod płytą z zawiasami + 15 mm), przy przycisku ostrzeżenie z wysokościami (np. 216 mm przy 257).
 - **Para wzmocnień pod blat** (szafka pod blatem) zawsze trzyma się najwyższego poziomu i każdej jego kolumny — przy każdej zmianie struktury.
 - **Głębokość półki i przegrody**: głębokość korpusu minus plecy w środku albo we frezie.
   - Półka dodatkowo minus „dodatkowe cofnięcie półek”.
@@ -32,13 +36,19 @@ Każda kolumna jest „Półki i drzwi”, „Szuflady” albo „Blenda”. Lis
 - **Wymiary**: wysokość poziomu (× — wróć do równego podziału) i szerokość kolumny („auto”).
 - **Kolumna**: rodzaj (Półki i drzwi / Szuflady / Blenda), liczba półek i wysokość każdego światła.
 - **Zamiana półek**:
-  - „→ poziom” — półka staje się półką przelotową;
-  - „klapy zamiast drzwi” — każda półka → nowy poziom z klapą (tylko poziom z jedną kolumną).
+  - „→ poziom” — przy jednej kolumnie półka staje się półką przelotową (nowy poziom); **przy kilku kolumnach dzieli tylko tę kolumnę** (2026-10-24): półka zostaje półką tej kolumny (`col.podzial`; na konfirmaty przechodzi tylko kolumna z klap z kreatora — przy drzwiach półki zostają na kołkach; klapa na półce na kołkach — ostrzeżenie z „Półki kolumny N na konfirmatach”), a front dzieli się na niej — każdy odcinek ma swoje drzwi albo klapę, inne kolumny bez zmian; w Strukturze „granica frontów” z „scal”; **każdy poziom kolumny ma własne ustawienia frontu** (`col.segmenty[nr]` nad ustawieniami kolumny): liczba frontów, skrzydło / klapa, do góry / w dół, podnośniki, siła, kąt, zawiasy, uchwyt, lustro — kolumna pokazuje „fronty N w M poziomach kolumny”; **półki ustawia się w każdym poziomie kolumny** (pole „półki” przy „fronty”) — granice zostają na miejscu: światła innych poziomów dostają obecne wymiary na stałe, światła tego poziomu idą na auto (`ustawPolkiPoziomuKolumny`), rura przesuwa się razem ze swoim światłem; „scal” zostawia ustawienia dolnego odcinka, nowa granica kopiuje ustawienia dzielonego; można też obok kolumny szuflad; rura na wieszaki zostaje tylko w swoim poziomie;
+  - „klapy zamiast drzwi…” — kreator: ile klap i na których półkach granice, otwieranie, front, podnośniki (`opisy/klapy.md`); przy jednej kolumnie granice → poziomy, przy kilku — granice frontów tylko w tej kolumnie (zawiasy i podnośnik w półce stałej).
+- **Rura na wieszaki** (użytkownik 2026-10-24): w kolumnie z drzwiami albo otwartej, przy świetle od 800 mm — „rura na wieszaki: światło N (… mm)”. Okrągła ⌀25 na 2 rozetach, oś 70 mm pod płytą nad światłem (wygodnie zawiesić wieszak), w połowie głębokości wnętrza, długość = światło kolumny − 2 mm (`DRAZEK_*`, `col.drazki`).
 - **Mocowanie i kołki**: mocowanie półek, a przy przegrodzie „dół na trójkątach”; „Otwór od przodu / od tyłu” kołków półek.
 - **Plecy kolumny**: jak szafka / HDF / płyta / brak.
 
 ## Kontrole i przyciski
 
+- **Światło zero lub ujemne** (2026-10-24): pole nie przyjmuje takiej wartości (wraca do auto, strzałką nie zejdzie poniżej 1); stary zapis daje błąd „światło N ma … mm — musi być większe od zera” z „Wróć do auto”.
+- **Rura na wieszaki**:
+  - światło, pod którym zmieści się ≥ 1000 mm — podpowiedź „zmieści się rura na wieszaki (pod nią N mm: koszule[, płaszcze i sukienki od 1600])” z „Dodaj rurę na wieszaki”;
+  - pod rurą mniej niż 1000 mm — ostrzeżenie (koszule ok. 1000, płaszcze ok. 1600 — poradniki) z „Usuń rurę” i „Przenieś do światła N” (najwyższe światło bez rury, pod którym zmieszczą się koszule; gdy takiego nie ma — najwyższe od 800 mm); światło z rurą zostaje w Strukturze, nawet gdy zmalało poniżej 800 mm (2026-10-24);
+  - wnętrze płytsze niż 500 mm — ostrzeżenie „wieszaki tylko pod skosem”; płytsze niż 400 — błąd z „Usuń rurę” (użytkownik: 43 cm wystarcza, wieszaki pod skosem).
 - **Poziomy**:
   - nie wypełniają wnętrza albo je przekraczają — błąd z „Górny poziom na auto” / „Podziel poziomy równo”;
   - poziom niższy niż 60 mm — ostrzeżenie; ujemny — błąd.
@@ -50,7 +60,7 @@ Każda kolumna jest „Półki i drzwi”, „Szuflady” albo „Blenda”. Lis
   - wpisane nie zgadzają się z kolumną — błąd;
   - światło niższe niż 50 mm — ostrzeżenie.
 - **Głębokość półki** zero lub mniej — błąd.
-- **Kołki półek** nie mieszczą się na najpłytszej półce — błąd z „Ustaw 37 / 37 mm”.
+- **Kołki półek** nie mieszczą się na najpłytszej półce — błąd z „Ustaw 50 / 50 mm” (domyślnie kołki 50 mm od krawędzi, jak trójkąty).
 - **Szczelina nad przegrodą** (fronty nakładane):
   - poniżej 2 mm — błąd;
   - powyżej 5 mm — ostrzeżenie z przyciskami zmiany nałożenia.

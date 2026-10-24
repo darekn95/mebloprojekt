@@ -29,6 +29,7 @@ Liczby katalogowe obu systemów są dla płyty 18 mm.
 - **Bok**: V-BOX z listy, DXS-3D w mm.
 - **Front**: wysokość frontu każdej szuflady.
 - **Uchwyt**: włączany osobno na każdym froncie.
+- **Wcięcie na palce (podfrez) zamiast uchwytu** — w kolumnie, przy frontach wpuszczanych i nakładanych (nakładane od 2026-10-24, decyzja użytkownika): każdy front niższy od góry o podaną głębokość (domyślnie 18 mm), prowadnice i podział pasma bez zmian, uchwyty kolumny znikają (pojedynczy można włączyć z powrotem); wyłączenie oddaje uchwyty. W szczelinie nad frontem widać skrzynkę. **Górny front nakładany** zachodzi na płytę nad sobą (wieniec, przegroda, wzmocnienie przy licu), więc jego wcięcie liczy się od spodu tej płyty: front kończy się podaną głębokość pod nią, a nie pod swoją dawną górą (2026-10-24 — przy 18 mm zostawały palcom 3 mm). Przy wpuszczanych i niższych frontach wystarcza głębokość od góry frontu. Niższy górny front może dostać niższy bok skrzynki (np. 189 mm → 127 zamiast 178). Na rysunkach front z podfrezem nie ma kreski, którą oznaczamy szufladę bez uchwytu — wyglądała jak uchwyt.
 - **Tył**: V-BOX — podniesiony, DXS-3D — wysokość w mm.
 - **NL**: dla całej kolumny albo dla jednej szuflady.
 - **Luz między frontami**: wspólny z drzwiami, domyślnie 2 mm.
@@ -36,11 +37,11 @@ Liczby katalogowe obu systemów są dla płyty 18 mm.
 
 ### Kontrole i przyciski
 - **Luz między frontami**:
-  - 0 lub mniej — błąd;
-  - 1 mm — ostrzeżenie;
+  - 0 lub mniej — błąd z „Zwiększ luz do 2 mm”;
+  - 1 mm — ostrzeżenie z tym samym przyciskiem;
   - więcej niż „Ostrzegaj powyżej” (5 mm) — błąd z przyciskiem;
   - przy równym podziale fronty różniące się o 1–2 mm — ostrzeżenie z przyciskami zmiany luzu.
-- **Fronty nie wypełniają pasma** (wpisane ręcznie) — błąd.
+- **Fronty nie wypełniają pasma** (wpisane ręcznie) — błąd z „Podziel fronty równo” (wpisane wysokości wracają na auto).
 - **Szuflada się nie mieści** (żadna wysokość skrzynki nie wchodzi) — błąd z przyciskami „Zmniejsz do N szuflad” (zostają dolne, fronty dzielą się od nowa) i „Zmień na DXS-3D”. Każdy przycisk pokazuje się tylko wtedy, gdy usuwa błąd.
 - **Za mało luzu nad bokiem** (< 5 mm) — błąd z przyciskiem niższego boku, jeśli taki się zmieści.
 - **NL**:
@@ -127,4 +128,7 @@ Liczby katalogowe obu systemów są dla płyty 18 mm.
 - **Obliczenia**: `computeGeo`, kolumna szuflad (gałąź V-BOX, `szufladaDxs`); stałe `VBOX`, `DXS`, `SZUFLADA_ZAPAS`, `BACK_CLEAR`, `MIN_DOCIECIE`.
 - **Interfejs**: `setColKind`, `addDrawer`, `setDrawerSystem`; przyciski w `NoteLine` (`fixh`, `fixnl`, `fixback`, `szufmniej`, `szufdxs`, `szufsys`, `reling…`, `zwieksz60`) i `przyciskiSzuflad` w `App`.
 - **Rysunki i 3D**: `szufladaOdCzola`, `szufladaZGory`, `szerWnetrzaSzuflady`; bryła 3D `skrzynkaBryly`, wysuw `wysuwSzuflady`.
-- **Testy**: `szuflady`, `dxs`, `audytszuflad` (klikane jak użytkownik), `tylkol`, `bokszuf`, `audytwierc` (plan wierceń V-BOX), `ruchy`, `audytmacierz`.
+  - Z przodu (otwarte) skrzynka DXS ma boki, tył i dno; przy uchwycie frezowanym skrzynkę widać też przy zamkniętych frontach (pod frezem).
+  - Kolumny szuflad o innym podziale mają osobne kolumny wymiarów (`grupySzuflad`); kolumny o tym samym podziale — wspólną.
+  - Z boku i z góry każdy front rysuje się wg swojego montażu (`d.inset`) — front szuflad na korpusie w szafce wpuszczanej stoi przed korpusem; obrys skrzynki z góry od `dr.bx0` (np. za wspornikiem fixu).
+- **Testy**: `macierzszuflad` (317 układów, każdy przycisk naprawy sprawdzany), `audyt2d` (rysunki = rzut brył 3D; pełna lista szuflad z `SZUF2D=1`), `szuflady`, `dxs`, `audytszuflad` (klikane jak użytkownik), `tylkol`, `bokszuf`, `audytwierc` (plan wierceń V-BOX), `ruchy`, `audytmacierz`.

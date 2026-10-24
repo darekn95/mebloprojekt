@@ -1,0 +1,471 @@
+/* Audyt GPT 2026-10-21, ustalenia N69–N81 (`AUDYT_GPT.md` na galezi gpt/audyt-2026-10-16).
+   Decyzje uzytkownika 2026-10-22:
+   - N77 listwa: w sklepie odcinki 1 m i 2 m, tniemy na dokladne dlugosci; jedna
+     listwa na caly ciag (za wszystkimi szafkami), zakup z jak najmniejszym odpadem —
+     docinki na krotsze kawalki, czasem lepiej 2 m niz dwa razy 1 m;
+   - N75 kolki: gdy przesuniecie do srodka nie rozdziela otworow — na zewnatrz,
+     z podpowiedzia „kolki przesuniete albo zamien na trojkaty”. */
+import pw from './pw.mjs';
+const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
+  : 'http://127.0.0.1:5205/mebloprojekt-app.html';
+const ok = (l, c, e = '') => console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : ''));
+const b = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await (await b.newContext({ viewport: { width: 1500, height: 1300 } })).newPage();
+const errors = []; page.on('pageerror', (e) => errors.push(e.message));
+await page.goto(URL, { waitUntil: 'networkidle' });
+
+const PL = { on: true, height: 100, mode: 'under', setback: 0 };
+const cab = (o = {}) => ({ name: 'S', W: 600, H: 720, D: 560, plinth: PL, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null }] }], ...o });
+const proj = (items, runs = [], extra = {}) => ({ name: 'A', active: 0, prices: {}, runs, items: items.map((it) => ({ offset: 0, runId: null, ...it })), ...extra });
+const seed = async (p) => {
+  await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); }, p);
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
+};
+const rows = (re) => page.evaluate((src) => { const r = new RegExp(src);
+  const sec = [...document.querySelectorAll('section')].find((s) => r.test(s.querySelector('h2')?.textContent || ''));
+  return sec ? [...sec.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.innerText.trim().replace(/\s+/g, ' ')).join(' | ')) : []; }, re.source);
+const uwagi = async () => (await page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || ''));
+const linie = (t, re) => t.split('\n').filter((l) => re.test(l)).join(' / ');
+// standalone rysuje bryle 3D dwa razy (StrictMode) — te same bryly liczymy raz (jak `audytszuflad`)
+const bezPowtorzen = (lista) => { const byl = new Set(); return lista.filter((s) => { const k = JSON.stringify([s.p, s.color, s.tag]); if (byl.has(k)) return false; byl.add(k); return true; }); };
+
+console.log('== N77: listwa montażowa — odcinki 1 m / 2 m, jedna na ciąg ==');
+/* Uzytkownik 2026-10-24: listwa na wymiar szafki / ciagu (nie −40), najwyzej 10 mm krotsza,
+   gdy to oszczedza odcinek; skrajna szafka bez zawieszek — listwa konczy sie przed nia;
+   plecy cofniete — listwa w szafce, szerokosc plecow − 2 × 5 mm. */
+{
+  const wisz = (n, W, o = {}) => cab({ name: n, W, D: 300, plinth: { on: false }, legs: { on: false }, hangerMode: 'listwa', ...o });
+  const listwa = async () => (await rows(/^Produkty całego projektu/)).filter((r) => /^Listwa/.test(r));
+  await seed(proj([{ cab: wisz('A', 680) }]));
+  // jedna szafka — lista szafki jest zamowieniem
+  let l = (await rows(/^Produkty do zamówienia/)).filter((r) => /^Listwa/.test(r));
+  ok('szafka 680: listwa 680 mm (na wymiar) z odcinka 1 m', l.length === 1 && /kupić 1 × 1 m: potrzeba 680 mm, odpad 320 mm/.test(l[0]) && /\| 1 mb$/.test(l[0]), l.join(' / '));
+  await seed(proj([{ cab: wisz('A', 660) }, { cab: wisz('B', 660) }, { cab: wisz('C', 660) }]));
+  l = await listwa();
+  ok('trzy osobne szafki 660: 3 × 660 z jednego odcinka 2 m (a nie 3 × 1 m)', l.length === 1 && /kupić 1 × 2 m: potrzeba 1980 mm, odpad 20 mm/.test(l[0]) && /\| 2 mb$/.test(l[0]), l.join(' / '));
+  await seed(proj([{ cab: wisz('A', 670) }, { cab: wisz('B', 670) }, { cab: wisz('C', 670) }]));
+  l = await listwa();
+  ok('trzy szafki 670 (2010 mm): jedna listwa krótsza o 10 mm — 1 × 2 m zamiast 3 m', l.length === 1 && /kupić 1 × 2 m: potrzeba 2000 mm, odpad 0 mm \(skrócona o 10 mm/.test(l[0]) && /660 \(C, −10 mm\)/.test(l[0]), l.join(' / '));
+  const R = [{ id: 'c1', name: 'Ściana', wallW: null, gap: 0, mountY: 1400, H: 720, D: 300, plinth: null, worktop: false, hangerMode: 'listwa', corner: null }];
+  await seed(proj([...['A', 'B', 'C', 'D'].map((n) => ({ cab: wisz(n, 800), runId: 'c1' })), { cab: wisz('X', 680) }], R));
+  l = await listwa();
+  ok('ciąg 4 × 800 + osobna 680: listwa ciągu 3200 (2 m cały + 1200), docinek na szafkę X — razem 2 × 2 m',
+    l.length === 1 && /kupić 2 × 2 m: potrzeba 3880 mm, odpad 120 mm/.test(l[0]) && /2 m → cały \(Ściana\)/.test(l[0]) && /1200 \(Ściana\) \+ 680 \(X\)/.test(l[0]) && /\| 4 mb$/.test(l[0]), l.join(' / '));
+  await seed(proj([{ cab: wisz('A', 600, { hangers: 'never' }), runId: 'c1' }, { cab: wisz('B', 600), runId: 'c1' }, { cab: wisz('C', 600), runId: 'c1' }], R));
+  l = await listwa();
+  ok('skrajna szafka bez zawieszek: listwa kończy się przed nią (1200, nie 1800)', l.length === 1 && /potrzeba 1200 mm/.test(l[0]) && /1200 \(Ściana\)/.test(l[0]), l.join(' / '));
+  await seed(proj([{ cab: wisz('A', 600), runId: 'c1' }, { cab: wisz('B', 600, { hangers: 'never' }), runId: 'c1' }, { cab: wisz('C', 600), runId: 'c1' }], R, { active: 1 }));
+  l = await listwa();
+  const u = await uwagi();
+  ok('środkowa bez zawieszek: listwa przechodzi (1800) i ostrzeżenie „może być pomyłka”', l.length === 1 && /potrzeba 1800 mm/.test(l[0]) && /bez zawieszek.*to może być pomyłka/.test(u), `${l.join(' / ')} | ${linie(u, /bez zawieszek/)}`);
+  const cof = { back: 'board', backPos: 'inside', backRecess: 10 };
+  await seed(proj([{ cab: wisz('A', 600), runId: 'c1' }, { cab: wisz('B', 600, cof), runId: 'c1' }, { cab: wisz('C', 600), runId: 'c1' }], R));
+  l = await listwa();
+  ok('środkowa z plecami cofniętymi 10 mm: listwa w niej 600 − 2 × 18 − 10 = 554, ciąg w dwóch odcinkach 600', l.length === 1 && /554 \(B\)/.test(l[0]) && (l[0].match(/600 \(Ściana\)/g) || []).length === 2, l.join(' / '));
+}
+
+console.log('\n== N75: kołki po obu stronach przegrody — końcowe pozycje otworów ==');
+/* Uzytkownik 2026-10-24: kolki jak trojkaty 50 mm od krawedzi, otwory mijaja sie o 10 mm;
+   na glebokiej polce druga strona 10 mm do srodka, na waskiej (do 300) — na zewnatrz (40). */
+{
+  // plan wiercen z wydruku (PDF): wiersze tabeli „Otwory pod…”
+  const wiercenia = async () => {
+    await page.evaluate(() => { window.__rep = null; window.print = () => {
+      const t = [...document.querySelectorAll('.print-only .rp-page table')].find((x) => /Otwory pod/.test(x.querySelector('thead')?.textContent || ''));
+      window.__rep = t ? [...t.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent.trim()).join(' | ')) : [];
+    }; });
+    await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).first().click();
+    await page.waitForTimeout(1000);
+    return ((await page.evaluate(() => window.__rep)) || []).filter((r) => /kołek|trójkąt/.test(r));
+  };
+  const k2 = (D, pin, mount = 'pins') => cab({ W: 800, D, back: 'none', hangers: 'never', plinth: { on: false }, legs: { on: true, height: 100 }, shelfMount: mount, shelfPin: pin,
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 0, w: null, shelfTargets: [null, null] }, { kind: 'doors', doors: 0, w: null, shelfTargets: [null, null] }] }] });
+  const para = async (D, pin, mount, k1re, k2re, opis, podpowiedz) => {
+    await seed(proj([{ cab: k2(D, pin, mount) }]));
+    const w = await wiercenia();
+    const r1 = w.find((r) => /od kolumny 1/.test(r)) || '', r2 = w.find((r) => /od kolumny 2/.test(r)) || '';
+    const u = await uwagi();
+    ok(opis, k1re.test(r1) && k2re.test(r2) && (podpowiedz ? /Kołki półek kolumny 2 na wysokości \d+ mm przesunięte/.test(u) && /Półki kolumny 2 na trójkątach/.test(u) : !/Kołki półek kolumny/.test(u)),
+      `${r1.slice(0, 90)} // ${r2.slice(0, 140)} | ${linie(u, /Kołki półek/)}`);
+  };
+  await para(560, {}, 'pins', /50 i 510 mm/, /60 i 500 mm.*przesunięte o 10 mm do środka/, 'D560 domyślne 50 / 50: kolumna 2 10 mm do środka (60 i 500), bez podpowiedzi', false);
+  await para(240, {}, 'pins', /50 i 190 mm/, /40 i 200 mm.*przesunięte o 10 mm na zewnątrz/, 'D240 (wąska): kolumna 2 10 mm na zewnątrz (40 i 200), bez podpowiedzi', false);
+  await para(240, { dFront: 100, dBack: 100 }, 'pins', /100 i 140 mm/, /90 i 150 mm.*na zewnątrz/, 'D240, otwory 100 / 100 (przypadek GPT N75): 90 i 150 — bez zbieżnych otworów', false);
+  await para(560, { dFront: 270, dBack: 270 }, 'pins', /270 i 290 mm/, /(do tyłu|do przodu|na zewnątrz)/, 'D560, otwory 270 / 270: do środka się nie da — inne przesunięcie z podpowiedzią o trójkątach', true);
+  await para(240, {}, 'trojkaty', /50 i 190 mm/, /40 i 200 mm.*na zewnątrz/, 'trójkąty D240: kolumna 2 40 i 200 (na zewnątrz)', false);
+  /* Uzytkownik 2026-10-24: przy nachodzeniu — przesunac, trojkaty albo konfirmaty; przy konfirmatach
+     sprawdzic, czy otwory nie nachodza (konfirmat ⌀7 przez przegrode w osi polki, kolek ⌀5 pod nia). */
+  const mieszane = (m1, m2) => cab({ W: 800, D: 560, back: 'none', hangers: 'never', plinth: { on: false }, legs: { on: true, height: 100 },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 0, w: null, shelfTargets: [null, null], shelfMount: m1 }, { kind: 'doors', doors: 0, w: null, shelfTargets: [null, null], shelfMount: m2 }] }] });
+  for (const [m1, m2] of [['pins', 'confirmat'], ['confirmat', 'pins']]) {
+    await seed(proj([{ cab: mieszane(m1, m2) }]));
+    const w = (await wiercenia()).filter((r) => /Przegroda/.test(r));
+    const k = w.find((r) => /kołek półki/.test(r)) || '';
+    ok(`${m1 === 'pins' ? 'kołki | konfirmaty' : 'konfirmaty | kołki'}: kołki przy przegrodzie 60 i 500 (o 10 mm od konfirmatów 50 / 510)`,
+      /60 i 500 mm.*konfirmaty półki z sąsiedniej kolumny/.test(k), w.join(' // ').slice(0, 300));
+  }
+  await seed(proj([{ cab: k2(560, { dFront: 270, dBack: 270 }, 'pins') }]));
+  await page.getByRole('button', { name: 'Półki kolumny 2 na konfirmatach' }).first().click(); await page.waitForTimeout(800);
+  const zp = JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt')));
+  ok('przycisk „Półki kolumny 2 na konfirmatach” zmienia mocowanie kolumny', zp.items[0].cab.levels[0].cols[1].shelfMount === 'confirmat', JSON.stringify(zp.items[0].cab.levels[0].cols.map((c) => c.shelfMount)));
+}
+
+console.log('\n== N69: blat przy ścianie dalej u góry niż u dołu ==');
+{
+  const pick = async (l) => { const x = page.getByRole('button', { name: l, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(300); } };
+  const blat3d = async (wallGap) => {
+    const R = [{ id: 'c1', name: 'Ściana 1', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null, wallGap }];
+    await seed(proj([{ cab: cab({ name: 'A' }), runId: 'c1' }], R));
+    await pick('Szafka'); await pick('Zamk.');
+    await page.evaluate(() => { window.__audytBryl = []; });
+    await pick('3D'); await page.waitForTimeout(300);
+    const a = bezPowtorzen(await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; }));
+    await pick('Front');
+    return a.filter((q) => q.tag === 'blat').map((q) => q.p.map(Math.round));
+  };
+  const b0 = await blat3d({ bottom: 0, top: null }), b1 = await blat3d({ bottom: 0, top: 100 });
+  const z = (b) => (b.length ? `${b[0][2]}…${b[0][5]}` : '(brak)');
+  /* z: od lica w glab — tyl blatu dochodzi do sciany na wysokosci blatu (100 mm dalej).
+     Przod: wysieg zwykly (0/0 — 37 mm, bo blat 600 z arkusza 600; 0/100 — 693 mm z arkusza
+     1200, wysieg 30), a nie 130 mm jak przed poprawka (blat od linii sciany przy podlodze). */
+  ok('dół 0 / góra 100: tył blatu 100 mm dalej, wysięg z przodu zwykły (do 40 mm, nie 130)',
+    b0.length === 1 && b1.length === 1 && b1[0][5] === b0[0][5] + 100 && b1[0][2] >= -40 && b1[0][2] < 0, `0/0: ${z(b0)}, 0/100: ${z(b1)}`);
+}
+
+console.log('\n== N70: kątownik szafki w L z płyty półek 12 mm ==');
+{
+  const pick = async (l) => { const x = page.getByRole('button', { name: l, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(300); } };
+  for (const typ of ['A', 'B']) for (const side of ['right', 'left']) {
+    await seed(proj([{ cab: cab({ name: 'L', W: 900, shelfSameAsBoard: false, corner: { on: true, side, arm: 640, doors: 'wsporniki', post: { on: true, w: 150, typ } },
+      levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }] }] }), mat: { shelf: { thickness: 12 } } }]));
+    await pick('Szafka'); await pick('Zamk.');
+    await page.evaluate(() => { window.__audytBryl = []; });
+    await pick('3D'); await page.waitForTimeout(300);
+    const a = bezPowtorzen(await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; }));
+    await pick('Front');
+    const kat = a.map((q) => [...q.d].map(Math.round).sort((x, y) => x - y).join('×')).filter((d) => /^\d+×150×684$/.test(d));
+    const f = (await rows(/^Formatki do zamówienia/)).filter((r) => /^Kątownik przy ramieniu/.test(r));
+    ok(`${typ}, ${side === 'right' ? 'z prawej' : 'z lewej'}: płyty kątownika w 3D 12 mm jak w zamówieniu (płyta półek)`,
+      kat.length === 2 && kat.every((d) => d === '12×150×684') && f.length === 2 && f.every((r) => /12 mm|× 12|12$/.test(r) || /\b12\b/.test(r)), `3D: ${kat.join(', ')} | ${f.join(' / ')}`);
+  }
+}
+
+console.log('\n== N71: zabudowa przeszkody z płyty 18 mm w korpusie 12 mm ==');
+{
+  const pick = async (l) => { const x = page.getByRole('button', { name: l, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(300); } };
+  for (const [typ, fs, czolo] of [['U', 200, 136], ['L', 0, 106]]) {
+    await seed(proj([{ cab: cab({ name: 'Z', W: 800, H: 1000, plinth: { on: false }, legs: { on: false }, shelfSameAsBoard: false,
+      obstacles: [{ on: true, w: 100, d: 150, h: 0, side: 'left', fromSide: fs, fromBack: 0, fromBottom: 0, fullHeight: true, mask: true, maskType: typ, maskFront: 'over' }],
+      levels: [{ h: null, cols: [{ kind: 'doors', doors: 0, w: null, shelfTargets: [null] }] }] }), mat: { board: { thickness: 12 }, shelf: { thickness: 18 } } }]));
+    await pick('Szafka'); await pick('Zamk.');
+    await page.evaluate(() => { window.__audytBryl = []; });
+    await pick('3D'); await page.waitForTimeout(300);
+    const a = bezPowtorzen(await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; }));
+    await pick('Front');
+    // scianki zabudowy: wysokosc 976 (wnetrze 1000 − 2 × 12), jedna z grubosci 18
+    const sc = a.map((q) => [...q.d].map(Math.round).sort((x, y) => x - y)).filter((d) => d[2] === 976 && d[0] <= 20).map((d) => d.join('×'));
+    const f = (await rows(/^Formatki do zamówienia/)).filter((r) => /^Zabudowa/.test(r));
+    ok(`${typ}: ścianki w 3D 18 mm, czoło ${czolo} mm w zamówieniu (płyta zabudowy, nie korpusu)`,
+      sc.length === (typ === 'U' ? 3 : 2) && sc.every((d) => /^18×/.test(d)) && f.some((r) => /czoło|czołowa/.test(r) && new RegExp(`\\| ${czolo} \\|`).test(r)), `3D: ${sc.join(', ')} | ${f.join(' / ')}`);
+  }
+}
+
+const pick = async (l) => { const x = page.getByRole('button', { name: l, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(300); } };
+const bryly = async (widok = 'Szafka') => {
+  await pick(widok); await pick('Zamk.');
+  await page.evaluate(() => { window.__audytBryl = []; });
+  await pick('3D'); await page.waitForTimeout(300);
+  const a = bezPowtorzen(await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; }));
+  await pick('Front');
+  return a.filter((q) => q.p);
+};
+const kolumna = (o = {}) => ({ kind: 'doors', doors: 0, w: null, shelfTargets: [null], ...o });
+
+console.log('\n== N72: ręczne wzmocnienie poza korpusem ==');
+for (const [opis, rail, re] of [
+  ['poziome 200 mm, 500 od lica', { orient: 'shelf', depth: 200, atDepth: 500, pos: 'top' }, /wzmocnienie 1 \(poziome\) sięga 700 mm w głąb, a korpus ma 560 mm — wychodzi o 140 mm poza korpus\. Popraw: przy 500 mm od lica głębokość najwyżej 60 mm, a przy głębokości 200 mm — najwyżej 360 mm od lica/],
+  ['czołowe 800 mm', { orient: 'front', h: 800, atDepth: 0, pos: 'top' }, /wzmocnienie 1 \(czołowe\) ma 800 mm wysokości, a poziom ma 684 mm — wychodzi poza korpus\. Najwyżej 684 mm/],
+  ['poziome 200 mm, 360 od lica (do tyłu korpusu)', { orient: 'shelf', depth: 200, atDepth: 360, pos: 'top' }, null]]) {
+  await seed(proj([{ cab: cab({ plinth: { on: false }, legs: { on: true, height: 100 }, hangers: 'never', levels: [{ h: null, cols: [kolumna({ rails: [rail] })] }] }) }]));
+  const u = await uwagi();
+  ok(`${opis}: ${re ? 'błąd z największym wymiarem' : 'bez uwagi (mieści się)'}`, re ? re.test(u) : !/wzmocnienie 1 .*poza korpus/.test(u), linie(u, /wzmocnienie 1/));
+}
+
+console.log('\n== N73: plecy tylko w kolumnie — szafka dalej od ściany ==');
+{
+  const R = [{ id: 'c1', name: 'Ściana 1', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null }];
+  await seed(proj([{ cab: cab({ name: 'P', back: 'none', levels: [{ h: null, cols: [kolumna({ backMode: 'board' }), kolumna({ backMode: 'none' })] }] }), runId: 'c1' }], R));
+  const a = await bryly();
+  const blat = a.filter((q) => q.tag === 'blat');
+  const plecy = a.filter((q) => Math.round(q.p[5] - q.p[2]) === 18 && Math.round(q.p[4] - q.p[1]) >= 700 && q.p[2] >= 559);
+  ok('plecy z płyty 18 w kolumnie za korpusem 560…578, blat dochodzi do ściany za nimi (578)',
+    plecy.length === 1 && Math.round(plecy[0].p[5]) === 578 && blat.length === 1 && Math.round(blat[0].p[5]) === 578,
+    `plecy z: ${plecy.map((q) => `${Math.round(q.p[2])}…${Math.round(q.p[5])}`).join(', ')}; blat z: ${blat.map((q) => `${Math.round(q.p[2])}…${Math.round(q.p[5])}`).join(', ')}`);
+}
+
+console.log('\n== N74: niska klapa w dół — płytka amortyzatora poza bokiem ==');
+for (const [H, zle] of [[200, true], [250, true], [300, false]]) {
+  await seed(proj([{ cab: cab({ W: 400, H, D: 350, plinth: { on: false }, legs: { on: true, height: 100 }, hangers: 'never',
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], klapa: 'dol', silowniki: 1 }] }] }) }]));
+  const u = await uwagi();
+  const re = /płytka amortyzatora GTV PD-ECGDL wypada poza płytą: jej środek jest 245 mm nad płytą pod klapą, a do góry poziomu jest \d+ mm\. Potrzeba co najmniej 260 mm/;
+  ok(`H${H}: ${zle ? 'błąd „płytka poza płytą” z radą' : 'płytka na boku — bez błędu'}`, zle ? re.test(u) : !/wypada poza płytą/.test(u), linie(u, /płytka|amortyzator/));
+}
+
+console.log('\n== N76: wspornik fixu wpuszczanego a wzmocnienie 100 mm od lica ==');
+for (const [mode, h] of [['inset', 666], ['overlay', 684]]) {
+  await seed(proj([{ cab: cab({ plinth: { on: false }, legs: { on: true, height: 100 }, hangers: 'never', levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null],
+    fix: { side: 'left', w: 60, mode, support: true, supportDepth: 100 }, rails: [{ orient: 'shelf', depth: 100, atDepth: 100, pos: 'bottom' }] }] }] }) }]));
+  const w = (await rows(/^Formatki do zamówienia/)).filter((r) => /^Wspornik/.test(r));
+  const a = await bryly();
+  const wsp = a.filter((q) => Math.round(q.p[3] - q.p[0]) === 18 && Math.round(q.p[5] - q.p[2]) === 100 && Math.round(q.p[4] - q.p[1]) > 600);
+  const wzm = a.filter((q) => Math.round(q.p[4] - q.p[1]) === 18 && Math.round(q.p[5] - q.p[2]) === 100 && Math.round(q.p[3] - q.p[0]) > 500);
+  const prz = wsp.flatMap((A) => wzm.map((B) => [0, 1, 2].map((k) => Math.min(A.p[k + 3], B.p[k + 3]) - Math.max(A.p[k], B.p[k])))).filter((d) => d.every((x) => x > 0.5));
+  ok(`fix ${mode === 'inset' ? 'wpuszczany' : 'nakładany'}: wspornik ${h} mm, w 3D nie przecina wzmocnienia`, w.some((r) => new RegExp(`\\| ${h} \\|`).test(r)) && wsp.length === 1 && !prz.length,
+    `${w.join(' / ')} | przecięcia: ${prz.map((d) => d.map(Math.round).join('×')).join(', ') || 'brak'}`);
+}
+
+console.log('\n== N78 / N79: własne blaty szafek w ciągu bez blatu roboczego ==');
+{
+  const R = [{ id: 'c1', name: 'C', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: null, worktop: false, corner: null }];
+  const blat = { mode: 'blat', material: 'board', overL: 0, overR: 0, overFront: 0, overBack: 0 };
+  const c2 = (n, o = {}) => cab({ name: n, plinth: { on: false }, legs: { on: false }, levels: [{ h: null, cols: [kolumna()] }], ...o });
+  const dab = { board: { name: 'Dąb sonoma', color: '#b08a5a', thickness: 18 } }, ant = { board: { name: 'Antracyt', color: '#333333', thickness: 12 } };
+  await seed(proj([{ cab: c2('A'), mat: dab, runId: 'c1' }, { cab: c2('B', { top: blat }), mat: ant, runId: 'c1' }], R));
+  let a = await bryly('Ciąg');
+  const naPodlodze = a.filter((q) => q.p[1] < 5 && q.p[4] - q.p[1] < 40 && q.p[3] - q.p[0] >= 590 && q.p[5] - q.p[2] >= 550);
+  ok('N78: bez dodatkowej płyty blatu przy podłodze w 3D zabudowy', !naPodlodze.length, naPodlodze.map((q) => q.p.map(Math.round).join(',')).join(' / '));
+  let f = (await rows(/^Formatki całego projektu/)).filter((r) => /^Blat/.test(r));
+  // grubosci tabela nie pokazuje — material z nazwy (grubosc 12 sprawdza harness runTop: th 12, y 708)
+  ok('N79: blat ciągu z płyty szafki B (Antracyt), nie z pierwszej szafki (Dąb)', f.length === 1 && /Antracyt/.test(f[0]) && !/Dąb/.test(f[0]), f.join(' / '));
+  await seed(proj([{ cab: c2('A', { top: blat }), mat: dab, runId: 'c1' }, { cab: c2('B', { top: blat }), mat: ant, runId: 'c1' }], R));
+  f = (await rows(/^Formatki całego projektu/)).filter((r) => /^Blat/.test(r));
+  const u = await uwagi();
+  ok('N79: dwa własne blaty z różnych płyt — każdy ze swoją szafką, z informacją', f.length === 2 && f.some((r) => /Dąb/.test(r)) && f.some((r) => /Antracyt/.test(r))
+    && /Własne blaty szafek ciągu „C" \(„A" i „B"\) są z różnych płyt/.test(u), `${f.join(' / ')} | ${linie(u, /Własne blaty/)}`);
+  await seed(proj([{ cab: c2('A', { top: blat }), mat: dab, runId: 'c1' }, { cab: c2('B', { top: blat }), mat: dab, runId: 'c1' }], R));
+  f = (await rows(/^Formatki całego projektu/)).filter((r) => /^Blat/.test(r));
+  ok('ta sama płyta: jeden blat ciągu 1200 × 560', f.length === 1 && /Blat ciągu/.test(f[0]) && /1200/.test(f[0]), f.join(' / '));
+}
+
+console.log('\n== N80: lustra 4 i 6 mm ==');
+{
+  const lc = () => cab({ H: 900, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, mirrors: [true] }] }] });
+  await seed(proj([{ cab: lc(), mat: { mirror: { thickness: 4 } } }, { cab: lc(), mat: { mirror: { thickness: 6 } } }]));
+  const l = (await rows(/^Produkty całego projektu/)).filter((r) => /^Lustro/.test(r));
+  ok('dwa wiersze: 4 mm i 6 mm', l.length === 2 && l.some((r) => /4 mm, 595 × 893 mm × 1 szt\./.test(r)) && l.some((r) => /6 mm, 595 × 893 mm × 1 szt\./.test(r)), l.join(' / '));
+  await seed(proj([{ cab: lc(), mat: { mirror: { thickness: 4 } } }, { cab: lc(), mat: { mirror: { thickness: 4 } } }]));
+  const l2 = (await rows(/^Produkty całego projektu/)).filter((r) => /^Lustro/.test(r));
+  ok('ta sama grubość: jeden wiersz × 2 szt.', l2.length === 1 && /4 mm, 595 × 893 mm × 2 szt\./.test(l2[0]), l2.join(' / '));
+}
+
+console.log('\n== N81: mocowania pleców w kolumnach ==');
+for (const [opis, back, a, bb, hdf, wk] of [['brak, HDF w kolumnie 1', 'none', 'hdf', 'none', 21, 0], ['HDF, płyta + HDF', 'hdf', 'board', 'hdf', 21, 21], ['HDF, obie „brak”', 'hdf', 'none', 'none', 0, 0], ['HDF zwykłe', 'hdf', null, null, 27, 0]]) {
+  await seed(proj([{ cab: cab({ back, hangers: 'never', levels: [{ h: null, cols: [kolumna(a ? { backMode: a } : {}), kolumna(bb ? { backMode: bb } : {})] }] }) }]));
+  const pr = await rows(/^Produkty do zamówienia/);
+  const ile = (re) => { const r = pr.find((x) => re.test(x)); return r ? Number((/(\d+) szt\./.exec(r.split(' | ').slice(-1)[0]) || [])[1] || (/\| (\d+) szt/.exec(r) || [])[1] || -1) : 0; };
+  const z = ile(/^Zszywka/), w = ile(/^Wkręt 3,5/);
+  ok(`${opis}: zszywki ${hdf}, wkręty do pleców ${wk}`, z === hdf && w === wk, pr.filter((r) => /pleców/.test(r)).join(' / ') || '(brak)');
+}
+
+console.log('\n== plecy z płyty cofnięte (opcja, użytkownik 2026-10-24) ==');
+for (const rec of [0, 10]) {
+  await seed(proj([{ cab: cab({ back: 'board', backPos: 'inside', backRecess: rec, hangers: 'never', levels: [{ h: null, cols: [kolumna({ shelfTargets: [null, null] })] }] }) }]));
+  const a = await bryly();
+  // plecy wewnatrz: plyta 18, wysoka; polka: plyta pozioma 18 na szerokosc wnetrza
+  const plecy = a.filter((q) => Math.round(q.p[5] - q.p[2]) === 18 && q.p[4] - q.p[1] > 600 && q.p[3] - q.p[0] > 500);
+  const polki = a.filter((q) => Math.round(q.p[4] - q.p[1]) === 18 && q.p[1] > 100 && q.p[1] < 600 && q.p[3] - q.p[0] > 500);
+  const f = (await rows(/^Formatki do zamówienia/)).filter((r) => /^Plecy z płyty/.test(r));
+  const zp = plecy.map((q) => `${Math.round(q.p[2])}…${Math.round(q.p[5])}`).join(', '), zs = polki.map((q) => `${Math.round(q.p[2])}…${Math.round(q.p[5])}`).join(', ');
+  // formatka plecow bez zmian (564 × 684) — cofa sie tylko polozenie
+  ok(`cofnięcie ${rec}: plecy ${560 - 18 - rec}…${560 - rec}, półka kończy się przed nimi, formatka pleców 564 × 684`,
+    plecy.length === 1 && Math.round(plecy[0].p[5]) === 560 - rec && polki.length === 1 && Math.round(polki[0].p[5]) <= 560 - 18 - rec
+      && f.length === 1 && /\| 564 \| 684 \|/.test(f[0]), `plecy z ${zp}; półka z ${zs} | ${f.join(' / ')}`);
+}
+
+console.log('\n== wieniec po wyłączeniu blatu ciągu — wzmocnienia pod blat znikają (użytkownik 2026-10-24) ==');
+{
+  const R = (worktop) => [{ id: 'c1', name: 'Ściana 1', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop, corner: null }];
+  const para = [{ orient: 'shelf', pos: 'top', depth: 100, atDepth: 0, fromBack: false, side: 'left', h: 100 },
+    { orient: 'front', pos: 'top', h: 100, depth: 100, atDepth: 0, fromBack: true, side: 'left' }];
+  const podBlat = () => cab({ name: 'A', joints: { topL: 'none', topR: 'none', botL: 'between', botR: 'between' },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], rails: para }] }] });
+  const zap = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt'))).items[0].cab;
+  await seed(proj([{ cab: podBlat(), runId: 'c1' }], R(true)));
+  ok('pod blatem roboczym: bez uwagi o wieńcu', !/nie ma blatu roboczego/.test(await uwagi()));
+  await seed(proj([{ cab: podBlat(), runId: 'c1' }], R(false)));
+  let u = await uwagi();
+  ok('ciąg bez blatu: ostrzeżenie z przyciskiem „Wieniec zamiast wzmocnień”', /nie ma blatu roboczego, a ta szafka jest bez wieńca, z parą wzmocnień pod blat/.test(u) && /Wieniec zamiast wzmocnień/.test(u), linie(u, /blatu roboczego/));
+  await page.getByRole('button', { name: 'Wieniec zamiast wzmocnień' }).first().click(); await page.waitForTimeout(800);
+  let c = await zap();
+  ok('po przycisku: wieniec między bokami, pary wzmocnień nie ma, uwaga znika', c.joints.topL === 'between' && c.joints.topR === 'between'
+    && !(c.levels[0].cols[0].rails || []).length && !/nie ma blatu roboczego/.test(await uwagi()), JSON.stringify([c.joints, c.levels[0].cols[0].rails]));
+  // ręcznie w karcie Korpus: „między” przy wieńcu
+  await seed(proj([{ cab: podBlat(), runId: 'c1' }], R(false)));
+  const korpus = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Korpus$/ }) }).first();
+  await korpus.getByRole('button', { name: 'między', exact: true }).first().click(); await page.waitForTimeout(800);
+  c = await zap();
+  ok('karta Korpus, wieniec „między”: para wzmocnień pod blat znika sama', c.joints.topL === 'between' && !(c.levels[0].cols[0].rails || []).length,
+    JSON.stringify([c.joints, c.levels[0].cols[0].rails]));
+}
+
+console.log('\n== „Zostaw 3 zawiasy” i słupek w ciągu (użytkownik 2026-10-24) ==');
+{
+  const zap = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt')));
+  // front 596 × 1594 ok. 11,6 kg — z wagi 3 zawiasy (uzytkownik 2026-10-24: liczbe wyznacza waga)
+  await seed(proj([{ cab: cab({ H: 1600, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null, null], hinges: [2] }] }] }) }]));
+  let u = await uwagi();
+  ok('2 zawiasy przy froncie ok. 1594 mm (11,6 kg): ostrzeżenie z „Ustaw 3 zawiasy” i „Zostaw 2 zawiasy”', /za mało zawiasów wg tabeli GTV — 2 zamiast 3/.test(u) && /Ustaw 3 zawiasy/.test(u) && /Zostaw 2 zawiasy/.test(u), linie(u, /zawias/));
+  await page.getByRole('button', { name: 'Zostaw 2 zawiasy' }).first().click(); await page.waitForTimeout(800);
+  u = await uwagi();
+  const c = (await zap()).items[0].cab;
+  ok('po „Zostaw 2 zawiasy”: informacja „zostawione celowo”, bez przycisku „Zostaw”', /2 zamiast 3 \(.*\) — zostawione celowo/.test(u) && !/Zostaw 2 zawiasy/.test(u)
+    && JSON.stringify(c.levels[0].cols[0].hingesOk) === '[2]', `${linie(u, /zawias/)} | ${JSON.stringify(c.levels[0].cols[0].hingesOk)}`);
+  const R = [{ id: 'c1', name: 'Ściana', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: false, corner: null }];
+  await seed(proj([{ cab: cab({ name: 'A' }), runId: 'c1' }, { cab: cab({ name: 'S', H: 1600 }), runId: 'c1' }], R, { active: 1 }));
+  u = await uwagi();
+  ok('szafka 1600 w ciągu 720: ostrzeżenie z „To słupek — wyjątek w ciągu”', /Wysokość 1600 mm nie zgadza się z ciągiem/.test(u) && /To słupek — wyjątek w ciągu/.test(u), linie(u, /1600/));
+  await page.getByRole('button', { name: 'To słupek — wyjątek w ciągu' }).first().click(); await page.waitForTimeout(800);
+  u = await uwagi();
+  ok('po kliknięciu: informacja „Słupek … wyjątek”, bez ostrzeżenia o wysokości', /Słupek: 1600 mm, wyższy niż ciąg/.test(u) && !/Wysokość 1600 mm nie zgadza się/.test(u) && (await zap()).items[1].cab.slupek === true, linie(u, /1600/));
+  // wspolna wysokosc ciagu nie rusza slupka
+  const p0 = await zap();
+  p0.items.push({ cab: { ...p0.items[0].cab, name: 'B', H: 700 }, runId: 'c1', offset: 0 }); p0.active = 2;
+  await seed(p0);
+  await page.getByRole('button', { name: 'Ustaw cały ciąg na 700 mm' }).first().click(); await page.waitForTimeout(800);
+  const p1 = await zap();
+  ok('„Ustaw cały ciąg na 700 mm”: szafki 700, słupek zostaje 1600', p1.runs[0].H === 700 && p1.items[0].cab.H === 700 && p1.items[1].cab.H === 1600,
+    JSON.stringify([p1.runs[0].H, ...p1.items.map((x) => x.cab.H)]));
+}
+
+console.log('\n== zawiasy wpisane ręcznie: cała kolumna, różne kolumny tej samej wysokości (użytkownik 2026-10-24) ==');
+{
+  const zap = async () => { await page.waitForTimeout(1000); return JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt'))); };
+  const dwa = (o = {}) => ({ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null], ...o });
+  await seed(proj([{ cab: cab({ W: 1200, H: 1700, levels: [{ h: null, cols: [dwa(), dwa()] }] }) }]));
+  let u = await uwagi();
+  // skrzydla 297 × 1694 ok. 6,2 kg — z wagi 3 zawiasy
+  ok('dwie kolumny po 2 skrzydła 1694 mm, auto (3 z wagi): bez ostrzeżenia o różnej liczbie', !/różną liczbę zawiasów/.test(u), linie(u, /zawias/));
+  const pole = page.locator('[data-el="drzwi-okucia"] input[type="number"]').first();
+  await pole.fill('2'); await page.waitForTimeout(600);
+  let c = (await zap()).items[0].cab;
+  ok('wpis 2 w pierwszym skrzydle → oba skrzydła kolumny 1 mają 2', JSON.stringify(c.levels[0].cols[0].hinges) === '[2,2]', JSON.stringify(c.levels[0].cols[0].hinges));
+  u = await uwagi();
+  ok('kolumna 2 z 3 zawiasami tej samej wysokości: ostrzeżenie z „Wszędzie 2 zawiasy” i „Wszędzie 3 zawiasy”',
+    /Drzwi tej samej wysokości \(\d+ mm\) mają różną liczbę zawiasów: poziom 1, kolumna 1 — 2; poziom 1, kolumna 2 — 3/.test(u) && /Wszędzie 2 zawiasy/.test(u) && /Wszędzie 3 zawiasy/.test(u), linie(u, /zawias/));
+  await page.getByRole('button', { name: 'Wszędzie 2 zawiasy' }).first().click(); await page.waitForTimeout(600);
+  c = (await zap()).items[0].cab;
+  u = await uwagi();
+  ok('„Wszędzie 2 zawiasy”: obie kolumny [2,2], ostrzeżenie znika (zostaje uwaga GTV „za mało”)', JSON.stringify(c.levels[0].cols.map((k) => k.hinges)) === '[[2,2],[2,2]]' && !/różną liczbę zawiasów/.test(u) && /za mało zawiasów wg tabeli GTV/.test(u),
+    `${JSON.stringify(c.levels[0].cols.map((k) => k.hinges))} | ${linie(u, /zawias/)}`);
+  await page.getByRole('button', { name: 'Ustaw 3 zawiasy' }).first().click(); await page.waitForTimeout(600);
+  c = (await zap()).items[0].cab;
+  ok('„Ustaw 3 zawiasy” z tabeli GTV: cała kolumna 1 [3,3] — i znowu różnica z kolumną 2', JSON.stringify(c.levels[0].cols[0].hinges) === '[3,3]' && /różną liczbę zawiasów/.test(await uwagi()), JSON.stringify(c.levels[0].cols.map((k) => k.hinges)));
+  await seed(proj([{ cab: cab({ W: 1200, H: 1700, levels: [{ h: 400, cols: [dwa({ hinges: [2, 2] })] }, { h: null, cols: [dwa()] }] }) }]));
+  u = await uwagi();
+  ok('drzwi różnej wysokości (2 i 3 zawiasy): bez ostrzeżenia o różnej liczbie', !/różną liczbę zawiasów/.test(u), linie(u, /zawias/));
+  // „czy 2 zawiasy nie mogą mieć takiej wagi czy wymiarów?” — Uwagi mówią, co decyduje
+  await seed(proj([{ cab: cab({ H: 950, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], hinges: [2] }] }] }) }]));
+  u = await uwagi();
+  ok('front ok. 596 × 944 mm, 2 zawiasy: powód — waga (2 zawiasy do 6 kg)', /2 zamiast 3 \(front 596 × \d+ mm, ok\. ([\d,]+) kg\)\. Waga ok\. \1 kg wymaga 3 \(2 zawiasy do 6 kg\)\./.test(u), linie(u, /zamiast/));
+  await seed(proj([{ cab: cab({ H: 720, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], hinges: [3] }] }] }) }]));
+  u = await uwagi();
+  ok('front 714 mm, 3 zawiasy: „Waga ok. 5,2 kg — wystarczą 2 (do 6 kg)”', /3 zamiast 2 \(front .*\)\. Waga ok\. 5,2 kg — wystarczą 2 \(do 6 kg\)\./.test(u), linie(u, /zamiast/));
+}
+
+console.log('\n== usunięcie poziomu / kolumny z wpisanym wymiarem — miejsce bierze sąsiad (użytkownik 2026-10-24) ==');
+{
+  const zap = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt')));
+  await seed(proj([{ cab: cab({ H: 1300, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null, null] }] }] }) }]));
+  ok('słupek 1300 z 3 półkami: bez ostrzeżenia przy „klapy zamiast drzwi” (klapy ok. 300 mm)', (await page.locator('[data-el="klapy-za-niskie"]').count()) === 0);
+  await page.getByRole('button', { name: 'klapy zamiast drzwi…', exact: true }).first().click(); await page.waitForTimeout(400);
+  await page.getByRole('button', { name: 'Zrób 4 klapy', exact: true }).first().click(); await page.waitForTimeout(800);
+  let L = (await zap()).items[0].cab.levels.map((l) => l.h);
+  // lista poziomow w Strukturze idzie od gory: usun nr 2 od dolu
+  const usun = page.getByRole('button', { name: 'usuń', exact: true });
+  await usun.nth((await usun.count()) - 2).click(); await page.waitForTimeout(800);
+  const L2 = (await zap()).items[0].cab.levels.map((l) => l.h);
+  ok('klapy 303 / 303 / 302 / auto, usunięta druga od dołu → 303 / 623 / auto (sąsiad nad nią bierze miejsce + płytę)',
+    JSON.stringify(L) === '[303,303,302,null]' && JSON.stringify(L2) === '[303,623,null]', `${JSON.stringify(L)} → ${JSON.stringify(L2)}`);
+  await seed(proj([{ cab: cab({ W: 900, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: 200, shelfTargets: [null] }, { kind: 'doors', doors: 1, w: 200, shelfTargets: [null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }) }]));
+  await page.getByRole('button', { name: '×', exact: true }).and(page.locator('[title="Usuń kolumnę"]')).first().click(); await page.waitForTimeout(800);
+  const W2 = (await zap()).items[0].cab.levels[0].cols.map((k) => k.w);
+  ok('kolumny 200 / 200 / auto, usunięta pierwsza → 418 / auto', JSON.stringify(W2) === '[418,null]', JSON.stringify(W2));
+}
+
+console.log('\n== kreator klap: ile klap, granice, otwieranie, front, podnośniki (użytkownik 2026-10-24) ==');
+{
+  const zap = async () => { await page.waitForTimeout(1000); return JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt'))); };
+  const kr = () => page.locator('[data-el="kreator-klap"]');
+  const wynik = async () => (await kr().locator('[data-el="klapy-wynik"] li').allInnerTexts()).join(' / ');
+  await seed(proj([{ cab: cab({ levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null] }] }] }) }]));
+  ok('przy drzwiach bez ostrzeżenia o klapach — tylko „klapy zamiast drzwi…” z opisem', (await page.locator('[data-el="klapy-za-niskie"]').count()) === 0
+    && (await page.getByRole('button', { name: 'klapy zamiast drzwi…', exact: true }).count()) === 1);
+  await page.getByRole('button', { name: 'klapy zamiast drzwi…', exact: true }).click(); await page.waitForTimeout(400);
+  ok('szafka 720 z 2 półkami: kreator startuje od jednej klapy (684 mm ✓), granice odznaczone', /klapa 1 \(od dołu\): poziom 684 mm ✓/.test(await wynik())
+    && (await kr().locator('[data-el="klapy-granice"] input:checked').count()) === 0, await wynik());
+  await kr().getByRole('button', { name: '3', exact: true }).click(); await page.waitForTimeout(300);
+  const nds = (await kr().locator('[data-el="klapy-nie-da-sie"]').count()) ? await kr().locator('[data-el="klapy-nie-da-sie"]').innerText() : '';
+  ok('3 klapy (po 216 mm): „Nie da się …” i bez przycisku „Zrób”', /Nie da się: klapa 1 ma 216 mm, klapa 2 ma 216 mm, klapa 3 ma 216 mm/.test(nds)
+    && !(await kr().getByRole('button', { name: /^Zrób/ }).count()), `${nds} | ${await wynik()}`);
+  await kr().getByRole('button', { name: '1', exact: true }).first().click(); await page.waitForTimeout(200);
+  await kr().getByRole('button', { name: 'w dół', exact: true }).click(); await page.waitForTimeout(200);
+  await kr().getByRole('button', { name: 'Zrób jedną klapę', exact: true }).click(); await page.waitForTimeout(600);
+  let c = (await zap()).items[0].cab;
+  const k0 = c.levels[0].cols[0];
+  ok('„Zrób jedną klapę” w dół: kolumna z klapą w dół, 1 front, półki zostają (3 pasma)', c.levels.length === 1 && k0.klapa === 'dol' && k0.doors === 1 && k0.shelfTargets.length === 3, JSON.stringify(k0));
+  await seed(proj([{ cab: cab({ H: 1300, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null, null, null, null] }] }] }) }]));
+  await page.getByRole('button', { name: 'klapy zamiast drzwi…', exact: true }).click(); await page.waitForTimeout(400);
+  ok('szafka 1300 z 5 półkami (pasma ok. 196): kreator proponuje 3 klapy (granice na półkach 2 i 4)', /klapa 3/.test(await wynik()) && !/klapa 4/.test(await wynik())
+    && JSON.stringify(await kr().locator('[data-el="klapy-granice"] input').evaluateAll((xs) => xs.map((x) => x.checked))) === '[false,true,false,true,false]', await wynik());
+  // wlasne granice: tylko polka 3 → 2 klapy po ok. 624 mm
+  const gr = kr().locator('[data-el="klapy-granice"] input');
+  await gr.nth(1).uncheck(); await gr.nth(3).uncheck(); await gr.nth(2).check(); await page.waitForTimeout(200);
+  await kr().getByRole('button', { name: 'wpuszczany', exact: true }).click();
+  await kr().getByRole('button', { name: '2 (po bokach)', exact: true }).click(); await page.waitForTimeout(200);
+  ok('granica na półce 3: dwie klapy ✓', /klapa 1 \(od dołu\): poziom \d+ mm ✓ \/ klapa 2 \(od dołu\): poziom \d+ mm ✓$/.test(await wynik()), await wynik());
+  await kr().getByRole('button', { name: 'Zrób 2 klapy', exact: true }).click(); await page.waitForTimeout(700);
+  c = (await zap()).items[0].cab;
+  ok('„Zrób 2 klapy”: 2 poziomy z klapą do góry, w każdym 2 półki, 2 podnośniki, fronty wpuszczane', c.levels.length === 2 && c.levels.every((l) => l.cols[0].klapa === 'gora' && l.cols[0].shelfTargets.length === 3 && l.cols[0].silowniki === 2) && c.frontMode === 'inset',
+    JSON.stringify([c.frontMode, ...c.levels.map((l) => [l.h, l.cols[0].klapa, l.cols[0].shelfTargets.length, l.cols[0].silowniki])]));
+}
+
+console.log('\n== szafka bez nóżek w stojącym ciągu stoi na podłodze — bez zawieszek (użytkownik 2026-10-24, salon) ==');
+{
+  const BEZ = { on: false, height: 100, mode: 'under', setback: 0 };
+  const rtv = (n) => cab({ name: n, W: 600, H: 900, D: 500, plinth: BEZ, legs: { on: false, height: 100 }, hangerMode: 'haczyki' });
+  const R = (o) => [{ id: 'c3', name: 'Ściana tv', wallW: null, gap: 0, mountY: 0, H: 900, D: 500, plinth: BEZ, worktop: false, hangerMode: 'listwa', corner: null, ...o }];
+  const zaw = async () => (await rows(/^Produkty całego projektu/)).filter((r) => /^Zawieszka|^Hak|^Listwa/.test(r));
+  await seed(proj([{ cab: rtv('A'), runId: 'c3' }, { cab: rtv('B'), runId: 'c3' }], R({}), { active: 1 }));
+  let u = await uwagi();
+  let z = await zaw();
+  ok('ciąg stojący (montaż 0), szafki bez nóżek i cokołu: bez uwagi o wieszaniu i bez zawieszek / haków / listwy', !/wiesza się/.test(u) && !z.length, `${linie(u, /wiesza/)} | ${z.join(' / ')}`);
+  await seed(proj([{ cab: rtv('A'), runId: 'c3' }, { cab: rtv('B'), runId: 'c3' }], R({ mountY: 300 }), { active: 1 }));
+  u = await uwagi();
+  z = await zaw();
+  ok('ten sam ciąg zawieszony 300 mm nad podłogą: uwaga o haczykach przy listwie ciągu i zawieszki w zamówieniu', /wiesza się na haczykach, a ciąg na listwie/.test(u) && z.some((r) => /^Zawieszka/.test(r)), `${linie(u, /wiesza/)} | ${z.join(' / ')}`);
+}
+
+console.log('\n== uwagi z rozkroju w swoim pomieszczeniu (użytkownik 2026-10-24) ==');
+{
+  const R = [{ id: 'k1', name: 'Ściana 1', roomId: 'p1', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null },
+    { id: 's1', name: 'Ściana tv', roomId: 'p2', wallW: null, gap: 0, mountY: 0, H: 900, D: 500, plinth: PL, worktop: false, corner: null }];
+  const kuchnia = [...Array(7)].map((_, k) => ({ cab: cab({ name: 'K' + (k + 1) }), runId: 'k1' }));
+  const salon = [{ cab: cab({ name: 'T1', H: 900, D: 500 }), runId: 's1' }, { cab: cab({ name: 'T2', H: 900, D: 500 }), runId: 's1' }];
+  const pr = (active) => proj([...kuchnia, ...salon], R, { active, rooms: [{ id: 'p1', name: 'Kuchnia' }, { id: 'p2', name: 'Salon' }] });
+  const blat = (t) => /Rozkrój — Blat roboczy: do zmieszczenia na jednym arkuszu zamiast 2 brakuje/.test(t);
+  await seed(pr(0)); await page.waitForTimeout(1500);
+  let u = await uwagi();
+  ok('kuchnia (blat 4200): uwaga „Rozkrój — Blat roboczy … brakuje” w Uwagach', blat(u), linie(u, /Rozkrój/));
+  await seed(pr(7)); await page.waitForTimeout(1500);
+  u = await uwagi();
+  const inne = await page.locator('[data-el="uwagi-inne-pomieszczenia"]').innerText().catch(() => '');
+  ok('salon (bez blatu): uwagi o blacie nie ma wśród ostrzeżeń, jest niżej „Do sprawdzenia w innych pomieszczeniach” — Kuchnia',
+    blat(inne) && /Kuchnia/.test(inne) && /DO SPRAWDZENIA W INNYCH POMIESZCZENIACH|Do sprawdzenia w innych pomieszczeniach/i.test(inne)
+    && !blat(u.replace(inne, '')), `${linie(u, /Rozkrój/)} || ${inne}`);
+  await page.locator('[data-el="uwagi-inne-pomieszczenia"] button', { hasText: 'Kuchnia' }).first().click(); await page.waitForTimeout(1500);
+  ok('klik „Kuchnia” przechodzi do kuchni (uwaga znów w Uwagach)', blat(await uwagi()) && !(await page.locator('[data-el="uwagi-inne-pomieszczenia"]').count()));
+}
+
+console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
+await b.close();

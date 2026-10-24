@@ -47,8 +47,16 @@ let d = await plyty();
 // ramie idzie w prawo od korpusu: bok na wolnym koncu, front tuz przed nim
 const konieC = W + ramie;
 const bok = d.rect.find((r) => r.x + r.w === konieC && r.w === 18 && r.h > 600);
-const frontKol = ((proj.items.find((i) => i.cab.corner && i.cab.corner.on).mat
-  || {}).front || {}).color;
+/* Kolor frontu bierzemy z rysunku: przy „Rozróżnij fronty” front z plyty korpusu
+   rysuje sie jej odcieniem, nie kolorem z materialu (2026-10-24). To ten kolor,
+   ktorym narysowane sa wysokie prostokaty poza tlem, korpusem i przejsciem. */
+const plytaKol = ((proj.items.find((i) => i.cab.corner && i.cab.corner.on).mat || {}).board || {}).color;
+const frontKol = (() => {
+  const ile = new Map();
+  d.rect.filter((r) => r.h > 600 && r.f && r.f !== '#fafaf9' && r.f !== plytaKol && !/^url/.test(r.f))
+    .forEach((r) => ile.set(r.f, (ile.get(r.f) || 0) + r.w));
+  return [...ile.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+})();
 const front = d.rect.filter((r) => r.x > W && r.f === frontKol && r.h > 600)
   .sort((a, b) => b.w - a.w)[0];
 ok('bok ramienia jest', !!bok, JSON.stringify(bok));

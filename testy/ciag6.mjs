@@ -88,13 +88,13 @@ ok('domyślnie zakres Szafka', rows[0].find((b) => b.t === 'Szafka').on, JSON.st
 ok('warianty pełne przy szafce', rows[1].map((b) => b.t).join() === 'Zamk.,Otw.,Z boku,Z góry,Z tyłu,3D',
   rows[1].map((b) => b.t).join());
 
-console.log('\n== zakres Ciąg zabiera „Z boku" ==');
+console.log('\n== zakres Ciąg: „Z boku” zostaje (ciąg z boku, użytkownik 2026-10-24) ==');
 await pick('Ciąg');
 rows = await segRows();
 console.log('     ' + JSON.stringify(rows[1].map((b) => b.t)));
-ok('bok znika przy ciągu', !rows[1].some((b) => b.t === 'Z boku'), rows[1].map((b) => b.t).join());
+ok('bok zostaje przy ciągu (przekrój ściany)', rows[1].some((b) => b.t === 'Z boku'), rows[1].map((b) => b.t).join());
 // przy ciagu dochodzi jeszcze staly widok 3/4 („45°")
-ok('reszta wariantów zostaje', rows[1].map((b) => b.t).join() === 'Zamk.,Otw.,Z góry,Z tyłu,3D,45°',
+ok('warianty ciągu z „45°”', rows[1].map((b) => b.t).join() === 'Zamk.,Otw.,Z boku,Z góry,Z tyłu,3D,45°',
   rows[1].map((b) => b.t).join());
 
 console.log('\n== dwa ciągi: dochodzi Zabudowa ==');

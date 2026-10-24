@@ -12,12 +12,12 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
   - u góry i u dołu 3 mm;
   - dookoła frontu wpuszczanego 2 mm;
   - nałożenie na przegrodę 7 mm z każdej strony.
-- **Liczba zawiasów** (tabela GTV, `ZAWIASY_GTV`): większa z dwóch liczb.
-  - Z wysokości frontu: 2 do 750 mm, 3 do 1500, 4 do 2100, 5 do 2500.
-  - Z wagi frontu: 2 do 6 kg, 3 do 12, 4 do 17, 5 do 20 kg.
+- **Liczba zawiasów** (tabela GTV, `ZAWIASY_GTV`): z wagi frontu — 2 do 6 kg, 3 do 12, 4 do 17, 5 do 20 kg.
+  - Wysokość nie dokłada zawiasów, gdy waga mieści się w mniejszej liczbie (użytkownik 2026-10-24: „nie ma sensu dawać 3 zawiasów, jak z wagi 2 wystarczą”). Wysokość (do 2500 mm) zostaje granicą tabeli — wyżej „liczba orientacyjna”.
   - Tabela obowiązuje dla frontu do 600 mm szerokości. Szafka narożna ze skrzydłami łamanymi ma ostrzejszą tabelę (do 450 mm, do 15 kg).
   - Waga: płyta frontu 680 kg/m³ plus lustro (szkło 2500 kg/m³).
 - **Rozstaw zawiasów**: środek 100 mm od górnej i dolnej krawędzi frontu, reszta równo.
+  - Gdy przy 100 mm zawiasy wypadłyby bliżej niż ich wysokość (55 mm) — przy dwóch zawiasach front niższy niż ok. 255 mm — rozkładają się na całą wysokość frontu (środek 27,5 mm od krawędzi).
   - Zawias, który trafia na półkę albo wzmocnienie przy licu, jest przesuwany nad nią lub pod nią z luzem 30 mm.
   - Przesunięte zawiasy idą do notatki montażowej w PDF.
 - **Strona zawiasów** przy jednych drzwiach, po kolei:
@@ -43,12 +43,15 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
   - z lewej, z prawej albo u góry, o szerokości w mm;
   - na korpusie albo wpuszczany;
   - opcjonalnie z wspornikiem pionowym (głębokość w mm), na którym wiszą zawiasy albo prowadnica.
+    - Wspornik stoi za fixem wpuszczanym (od grubości frontu w głąb); wzmocnienie leżące u góry albo u dołu, które wchodzi w jego głębokość, skraca go — wspornik stoi na nim / pod nim (formatka krótsza, audyt GPT N76).
 - **Blenda**: kolumna-wypełnienie bez drzwi, na korpusie albo wpuszczana.
 
 ## Kontrole i przyciski
 
 - **Liczba zawiasów**:
-  - wpisana inaczej niż tabela GTV — ostrzeżenie „za dużo / za mało zawiasów wg tabeli GTV” z „Ustaw N zawiasy”;
+  - wpis w jednym skrzydle przechodzi na wszystkie skrzydła kolumny („Ustaw N zawiasy” też całą kolumnę) — użytkownik 2026-10-24;
+  - wpisana inaczej niż tabela GTV — ostrzeżenie „za dużo / za mało zawiasów wg tabeli GTV” z powodem (`powodZawiasow`, zawsze z wagi: „Waga ok. 6,9 kg wymaga 3 (2 zawiasy do 6 kg)” albo „Waga ok. 5,2 kg — wystarczą 2 (do 6 kg)”), z „Ustaw N zawiasy” i „Zostaw M zawiasy”; po „Zostaw” — informacja „zostawione celowo” (`rawCol.hingesOk`), zmiana liczby przywraca ostrzeżenie (użytkownik 2026-10-24);
+  - drzwi tej samej wysokości w szafce (inne kolumny, też z tabeli) z różną liczbą — ostrzeżenie z „Wszędzie N zawiasy” dla każdej występującej liczby (użytkownik 2026-10-24);
   - front poza tabelą (szerszy, wyższy, cięższy) — ostrzeżenie „liczba orientacyjna”.
 - **Zawiasy nie mieszczą się** między półkami (po ominięciu wypadają w jednym miejscu) — błąd.
 - **Zawias na przeszkodzie** (rura, wycięcie bliżej lica niż 80 mm zabudowy zawiasu; przy wpuszczanych + grubość frontu) — błąd; przy jednych drzwiach z „Przełóż zawiasy na drugą stronę”.

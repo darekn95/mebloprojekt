@@ -30,6 +30,14 @@ const cokChk = cokKarta.locator('input[type=checkbox]').first();
 if (await cokChk.isChecked()) { await cokChk.click(); await page.waitForTimeout(800); }
 await cokKarta.locator('h2').click();
 await page.waitForTimeout(300);
+// od 2026-10-24 nowa szafka stoi na nozkach — tez je zdejmujemy, zeby wisiala
+const nogiKarta = card(/^Nóżki$/);
+await nogiKarta.locator('h2').click();
+await page.waitForTimeout(300);
+const nogiChk = nogiKarta.locator('label', { hasText: 'Nóżki pod szafką' }).locator('input');
+if (await nogiChk.isChecked()) { await nogiChk.click(); await page.waitForTimeout(800); }
+await nogiKarta.locator('h2').click();
+await page.waitForTimeout(300);
 
 console.log('== zawieszki: listwa vs haczyki ==');
 let h = await hw();

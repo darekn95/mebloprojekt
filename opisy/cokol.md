@@ -1,6 +1,6 @@
 # Cokół i nóżki
 
-Karty „Cokół” i „Nóżki” szafki oraz podsekcja „Cokół” w karcie ciągu.
+Karty „Cokół” i „Nóżki” szafki oraz podsekcje „Cokół” i „Nóżki” w karcie ciągu.
 
 ## Co program liczy sam
 
@@ -25,6 +25,9 @@ Karty „Cokół” i „Nóżki” szafki oraz podsekcja „Cokół” w karcie
 
 - **Cokół** (szafka i ciąg): włączony, montaż, wysokość, cofnięcie; podział cokołu ciągu.
 - **Nóżki**: włączone, kształt (kwadratowa / okrągła), kolor (czarny, grafit, aluminium, chrom, biały, złoty), wysokość, liczba.
+- **Nóżki ciągu** (karta ciągu, ciąg stojący; 2026-10-24): „Nóżki pod wszystkimi szafkami” daje wszystkim szafkom ciągu nóżki aktywnej szafki (albo pierwszej z nóżkami), pole wysokości zmienia ją wszystkim. Liczba nóżek zostaje przy każdej szafce (z jej szerokości). Gdy część szafek ma nóżki — „Nóżki ma N z M szafek”.
+- **Zmiana nóżek w szafce ciągu** (włączenie, kształt, kolor, wysokość) pyta „Takie same nóżki w całym ciągu?” (albo „Zdjąć nóżki w całym ciągu?”) z „Cały ciąg — N szafek” / „Tylko ta szafka”.
+- **Nowy projekt, nowe pomieszczenie i szablon „Szafka stojąca”** — szafka na nóżkach 100 mm, bez cokołu (decyzja użytkownika 2026-10-24: „nóżki wszędzie”). Cokół włącza się w karcie „Cokół” szafki albo w karcie ciągu.
 
 ## Kontrole i przyciski
 

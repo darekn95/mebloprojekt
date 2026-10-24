@@ -222,7 +222,7 @@ await sprawdz('C3 → DXS-3D');
 if (wybrany('D')) {
 console.log('\n== D. pod blatem: klapy zamiast drzwi → szuflady, usunięcie poziomu ==');
 await nowyProjekt(); await nowaSzafkaWCiagu();
-await wStrukturze('klapy zamiast drzwi').kliknij();
+await wStrukturze('klapy zamiast drzwi…').kliknij(); await wStrukturze('Zrób 2 klapy').kliknij();
 await sprawdz('D1 klapy zamiast drzwi');
 await wStrukturze('Szuflady', 0).kliknij();
 await sprawdz('D2 dolny poziom → Szuflady');
@@ -241,7 +241,7 @@ await sprawdz('D4 → DXS-3D');
 if (wybrany("D'")) {
 console.log('\n== D\'. pod blatem: klapy zamiast drzwi → górny poziom szuflady, usunięcie dolnego ==');
 await nowyProjekt(); await nowaSzafkaWCiagu();
-await wStrukturze('klapy zamiast drzwi').kliknij();
+await wStrukturze('klapy zamiast drzwi…').kliknij(); await wStrukturze('Zrób 2 klapy').kliknij();
 await wStrukturze('Szuflady', 0, false, 0).kliknij();
 await sprawdz('D\'1 górny poziom → Szuflady (pod blatem)');
 await naDxs();
@@ -402,7 +402,7 @@ await sprawdz('N4 usunięty górny poziom (zostały szuflady)');
 if (wybrany('O')) {
 console.log('\n== O. stojąca: klapy zamiast drzwi → szuflady ==');
 await nowyProjekt();
-await wStrukturze('klapy zamiast drzwi').kliknij();
+await wStrukturze('klapy zamiast drzwi…').kliknij(); await wStrukturze('Zrób 2 klapy').kliknij();
 await wStrukturze('Szuflady', 0, false, 0).kliknij();
 await sprawdz('O1 górny poziom → Szuflady');
 await naDxs();
@@ -458,7 +458,7 @@ console.log('\n== R. za dużo szuflad: przyciski w Uwagach ==');
 const przyciskiR = async () => ({ mniej: await page.getByRole('button', { name: /^Zmniejsz do \d+ szuflad/ }).allInnerTexts(),
   dxs: await przycisk('Zmień na DXS-3D').count() });
 await nowyProjekt(); await nowaSzafkaWCiagu();
-await wStrukturze('klapy zamiast drzwi').kliknij();
+await wStrukturze('klapy zamiast drzwi…').kliknij(); await wStrukturze('Zrób 2 klapy').kliknij();
 await wStrukturze('Szuflady', 0, false, 0).kliknij();
 await poKliku(() => przycisk('+ szuflada').first().click());
 let bR = await uwagiBledy(), pR = await przyciskiR();

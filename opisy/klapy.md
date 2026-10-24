@@ -3,9 +3,18 @@
 Front uchylny zamiast skrzydła — tylko przy **jednych drzwiach w kolumnie**:
 „front: skrzydło / klapa”, a przy klapie „otwierana: do góry / w dół”.
 
-**„klapy zamiast drzwi”** (pod polem drzwi) zamienia każdą półkę kolumny w granicę
-poziomów, a w każdym nowym poziomie stawia klapę do góry. Działa tylko w poziomie
-z jedną kolumną. Dolne poziomy dostają wpisaną wysokość, górny jest auto.
+**„klapy zamiast drzwi…”** (pod polem drzwi, poziom z jedną kolumną) otwiera kreator
+(użytkownik 2026-10-24): **ile klap** (1 … liczba pasm; zmiana dzieli równo),
+**granice** — które półki stają się poziomami (płyta przez całą szafkę; półki to półki,
+a poziomy to poziomy — pozostałe półki zostają w środku klapy), **otwierane** do góry /
+w dół, **front** nakładany / wpuszczany (dla całej szafki — klapy nie mają frontu na
+kolumnę) i **podnośniki / amortyzatory** auto / 1 / 2. Pod spodem wysokość każdej klapy
+z ✓ albo „za nisko, podnośnik potrzebuje ok. N mm” (wpuszczane 265, bliźniacze 257,
+górna nakładana 249, amortyzator 260); gdy któraś za niska — „Nie da się …” i bez
+przycisku „Zrób”. Na start: najwięcej klap, które się mieszczą. Dolne poziomy dostają
+wpisaną wysokość, górny jest auto. Gdy nawet jedna klapa na całą kolumnę jest za niska —
+szary przycisk z dopiskiem „za nisko na klapy” (liczby w dymku), bez ostrzeżenia przy
+wybranych drzwiach.
 
 ## Co program liczy sam
 
@@ -51,6 +60,7 @@ z jedną kolumną. Dolne poziomy dostają wpisaną wysokość, górny jest auto.
 - **Wymiary klapy**:
   - wyższa niż 600 mm — ostrzeżenie „poza tabelą”: siła liczona jak dla 600, do sprawdzenia u producenta;
   - do góry niższa niż 290 mm — ostrzeżenie: podnośnik potrzebuje co najmniej 290 mm korpusu na boku;
+  - płytka podnośnika / amortyzatora wypada poza płytą w tym poziomie (do góry: H z tabeli pod płytą z zawiasami, w dół: 245 mm nad płytą pod klapą, plus 15 mm płytki) — błąd „podwyższ poziom o N mm albo daj drzwi” (audyt GPT N74; wtedy bez ostrzeżenia o 290 mm);
   - szersza niż 600 mm z jednym podnośnikiem — ostrzeżenie „dają się dwa”.
 - **Półka na drodze podnośnika** (bliżej frontu niż 50 mm, w zasięgu od płytki do mocowania na klapie) — ostrzeżenie z „Dodatkowe cofnięcie półek N mm”.
 - **Otwieranie** (błąd): łuk klapy do jej kąta, sprawdzany co 1°. Przeszkody to blat, górna szafka, sufit z górnego ciągu, fronty i uchwyty innych poziomów → „nie otworzy się na 90°: po drodze stoi … — otworzy się tylko na ok. N°”. Pod blatem klapa do góry dostaje radę „zrób szufladę albo drzwi”.

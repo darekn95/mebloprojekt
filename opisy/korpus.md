@@ -18,13 +18,18 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - W szafce narożnej przednie jest pionowe i cofnięte o grubość frontu, a tylne odsunięte o grubość płyty — dochodzi do kątownika.
   - Para zawsze siedzi w najwyższym poziomie, także po zmianach struktury.
 - **Wzmocnienie stojące przy plecach** na wysokości szuflady skraca jej NL; to przy licu — wysokość boku skrzynki.
+- **Tylne wzmocnienie przy wycięciu i rurze** (decyzja użytkownika 2026-10-22):
+  - wycięcie tylnego narożnika — wzmocnienie jest krótsze i kończy się na ściance wycięcia;
+  - element kolizyjny (rura) — wzmocnienie stoi przed nim i dalej idzie od boku do boku.
 - **Plecy**:
   - **HDF** nabijany z tyłu — zszywki / gwoździki;
   - **HDF we frezie** — wręg od tyłu w bokach, wieńcu i dnie, domyślnie 16 × 3 mm, zlicowany z tyłem;
   - **płyta** w środku między bokami albo na zewnątrz — wkręty 3,5 × 30;
   - **brak**.
   - Kolumna może mieć własne plecy („jak szafka / HDF / płyta / brak”).
+  - **Cofnięcie pleców** (płyta wewnątrz, opcja do specjalnego zastosowania, domyślnie 0 — równo z bokami): płyta cofnięta o N mm od tyłu boków, półki, przegrody i szuflady o tyle płytsze; za plecami w każdej szafce listwa montażowa (`opisy/zamowienie.md`). Za duże (z płytą ≥ głębokość korpusu) — błąd (użytkownik 2026-10-24).
   - Plecy w środku albo we frezie skracają głębokość półek, przegród i szuflad.
+  - Plecy ustawione w kolumnach są zawsze przybijane za korpusem: szafka stoi od ściany o najgrubsze z nich (płyta 18 w jednej kolumnie → 578 mm przy korpusie 560), wszystkie „brak” — przy samej ścianie; zszywki do HDF i wkręty do płyty liczone z obwodu każdej płyty (audyt GPT N73, N81).
 - **Konfirmaty na styku płyt**: jeden w połowie, gdy styk jest krótszy niż 132 mm; dłuższy — co ok. 200 mm, min. 2, po 50 mm od krawędzi.
 - **Wieniec lub blat z płyty** (`top.mode`): z wysunięciami w lewo / prawo / do przodu / do tyłu; „podana szerokość to” — korpus albo całość z wysunięciami.
 - **Blat roboczy** (ciąg z blatem albo własny blat szafki):
@@ -44,7 +49,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - wysokość lub głębokość, odsunięcie od lica albo od tyłu;
   - „skraca drzwi”.
 - **Wycięcie tylnego narożnika** (lewego i prawego osobno): szerokość, głębokość, na całą wysokość albo w jednym poziomie, maskownica.
-- **Element kolizyjny** (rura, słup): wymiary i położenie, zabudowa z maskownicą.
+- **Element kolizyjny** (rura, słup): wymiary i położenie, zabudowa z maskownicą. Ścianki zabudowy (też wycięcia) są z płyty półek — jej grubość liczy styki, czoło („przed bokami” = element + 2 × płyta zabudowy), rzuty i 3D (`maskWalls`, audyt GPT N71).
 - **Płyty**: grubości i dekory korpusu, frontów, półek, pleców, lustra; arkusz blatu 600 / 1200; „fronty / półki z tej samej płyty co korpus”; usłojenie.
 
 ## Kontrole i przyciski
@@ -62,7 +67,9 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - na styku mieści się jeden konfirmat (poniżej 132 mm) — ostrzeżenie z „Popraw głębokość”;
   - dwa rzędy nóżek nachodzą na siebie — ostrzeżenie.
 - **Kolumna otwarta od góry** (bez wieńca i wzmocnienia) — ostrzeżenie z „Dodaj parę wzmocnień pod blat”.
+- **Wzmocnienie poza korpusem** (ręcznie wpisana wysokość większa niż poziom, głębokość z odsunięciem większa niż korpus do pleców) — błąd z największą wysokością / głębokością / odsunięciem; ustawień program nie zmienia (audyt GPT N72).
 - **Szafka pod blatem ciągu z wieńcem** albo bez wieńca i bez wzmocnień — ostrzeżenie z „Dołóż parę wzmocnień” (wieniec znika, dochodzi para).
+- **Ciąg bez blatu roboczego, a szafka bez wieńca z parą wzmocnień pod blat** (np. po wyłączeniu blatu) — ostrzeżenie z „Wieniec zamiast wzmocnień”. Wieniec włączony w „Złączach korpusu” (z „brak” na „między” / „na boku”) sam zdejmuje parę wzmocnień pod blat (`zWiencem`; użytkownik 2026-10-24).
 - **Płyta inna niż 18 mm** — ostrzeżenie (liczby katalogowe szuflad są dla 18).
 - **Blat roboczy**: kontrola wysokości blatów w rogu i w pomieszczeniu („odstaje o N mm”) z przyciskami wyrównania, zużycie arkusza (brakuje do 200 mm), odpad — opisane w `opisy/ciagi.md` i `opisy/rozkroj.md`.
 

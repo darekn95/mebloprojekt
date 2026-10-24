@@ -12,7 +12,7 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 - **Układ**: formatki układane tak, żeby dało się je wyciąć prostymi cięciami piły panelowej.
   - Formatka obraca się, chyba że „Kierunek usłojenia ma znaczenie” — wtedy słoje biegną wzdłuż dłuższego boku arkusza.
   - Plecy z HDF obracają się zawsze.
-- **Blat roboczy**: własny arkusz 4100 × 600 albo 4100 × 1200 mm, nigdy nie obracany (fabryczny profil z przodu).
+- **Blat roboczy**: własny arkusz 4100 × 600 albo 4100 × 1200 mm, nigdy nie obracany (fabryczny profil z przodu). Rzaz 3 mm liczy się tak samo jak na płycie: kawałki 2300 + 1799 = 4099 mm z rzazem to 4102 — nie wejdą w jeden arkusz 4100 (ostrzeżenie „brakuje 2 mm”).
 - **Przeliczanie** samo: 1 s po ostatniej zmianie formatek, przy ponad 40 szafkach 5 s.
 - **Liczba arkuszy** idzie do wyceny („arkusze płyty”, „formatowanie”).
 
@@ -41,6 +41,7 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 
 - **Formatka większa niż arkusz po okrawaniu** — błąd z jej nazwą i wymiarem; blat dłuższy niż arkusz — błąd z podziałem (`opisy/ciagi.md`).
 - **Zużycie blatu**: gdy do zmieszczenia na jednym arkuszu mniej brakuje najwyżej 200 mm — ostrzeżenie „brakuje N mm … nie trzeba kupować kolejnego blatu”, z przykładem skrócenia najdłuższego kawałka.
+- **Uwagi z rozkroju a pomieszczenia** (użytkownik 2026-10-24): przy kilku pomieszczeniach i zakresie „Cały projekt” uwaga o płycie (grupie rozkroju) jest w Uwagach tylko tam, gdzie ta płyta jest; w innych pomieszczeniach — niżej, „Do sprawdzenia w innych pomieszczeniach”, z nazwą pomieszczenia do kliknięcia (`rozkrojUwagi`, `data-el="uwagi-inne-pomieszczenia"`).
 - **Odpad arkusza**: arkusz płyty wykorzystany poniżej 15% przy kilku arkuszach — ostrzeżenie „duży odpad, po niewielkiej zmianie wszystko może się zmieścić na N − 1”.
 - **Ostrzeżenia rozkroju** są też w Uwagach („Rozkrój — <płyta>: …”).
 
@@ -57,3 +58,11 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 - **Rozkrój**: `buildCutPlan`, `autoPlan`, `uwagiRozkroju`, `arkuszBlatu`, `wierszBlatu`; stałe `SHEET_W/H`, `USABLE_W/H`, `KERF`, `PROG_ODPADU`, `BLAT_BRAKUJE`, `ROZKROJ_ZWLOKA*`.
 - **PDF**: `ReportSheet` (strona szafki, klasy `rp-page`, `rp-widok`), strony rozkroju `rp-arkusz`, `PRINT_CSS`; skala napisów `drukKUkladu`, `kolumnaDruk`, `ulozLegendy`.
 - **Testy**: `cutplan`, `arkusz`, `arkuszstd`, `fit`, `fitall`, `fitstd`, `fitallstd`, `audytwycena`, `pdf`, `pdfczytelnosc`, `grain`.
+
+## Własne płyty (2026-10-24)
+
+W karcie „Płyty” przy kolorach płyty jest kwadrat „+”: płyta spoza wzornika (np. Egger na zamówienie) z własną nazwą, grubością, wymiarem arkusza (domyślnie 2800 × 2070), ceną za arkusz i kolorem na rysunkach. Lista jest w projekcie (`project.plyty`), pod wzornikiem w osobnym rzędzie „Własne płyty” (ramka przerywana, znak „W”). Szafka wskazuje płytę (`mat[k].plyta`) — rozkrój układa jej formatki na jej arkuszu (okrawanym jak zwykły, po 19,4 mm z każdej strony), wycena bierze jej cenę. Zmiana płyty (✎) przechodzi do wszystkich szafek z nią; kolor z wzornika, własny kolor, nazwa albo grubość wpisane ręcznie odpinają szafkę od płyty; usunięcie płyty z listy zostawia szafkom jej nazwę i kolor.
+
+## Własne kawałki płyty (2026-10-24)
+
+Przy każdej płycie w rozkroju jest „+ mam własny kawałek tej płyty” (długość, szerokość, sztuki; `project.resztki`). Rozkrój najpierw kładzie formatki na własne kawałki (większe najpierw, bez okrawania — wpisujesz wymiar użyteczny), resztę na arkusze do kupienia. W „Płyty do zamówienia” i w wycenie liczą się tylko kupowane arkusze („+ N z własnych kawałków”), formatowanie liczy także własne kawałki. Rysunek własnego kawałka ma podpis „własny kawałek … — nie kupujesz”; ostrzeżenie o dużym odpadzie dotyczy tylko kupowanych arkuszy.

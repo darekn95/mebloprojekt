@@ -124,9 +124,10 @@ await seed(proj([{ cab: cab({ topFiller: { on: true, height: 80 } }) }]));
 console.log('\n== N16: kołki półki poza płytą ==');
 await seed(proj([{ cab: cab({ shelfPin: { dFront: 700, dBack: 700 }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }] }] }) }]));
 u = await uwagi();
-ok('700 / 700 mm na półce 560: błąd z przyciskiem „Ustaw 37 / 37 mm”', /Kołki półek 700 mm od przodu i 700 mm od tyłu nie mieszczą się na półce głębokości 560 mm/.test(u) && /Ustaw 37 \/ 37 mm/.test(u), linie(u, /Kołki/));
-await page.getByRole('button', { name: 'Ustaw 37 / 37 mm' }).first().click(); await page.waitForTimeout(800);
-ok('po przycisku 37 / 37 i bez błędu', JSON.stringify((await zapis()).items[0].cab.shelfPin) === '{"dFront":37,"dBack":37}' && !/Kołki półek/.test(await uwagi()));
+// domyslne kolki 50 / 50 jak trojkaty (uzytkownik 2026-10-24)
+ok('700 / 700 mm na półce 560: błąd z przyciskiem „Ustaw 50 / 50 mm”', /Kołki półek 700 mm od przodu i 700 mm od tyłu nie mieszczą się na półce głębokości 560 mm/.test(u) && /Ustaw 50 \/ 50 mm/.test(u), linie(u, /Kołki/));
+await page.getByRole('button', { name: 'Ustaw 50 / 50 mm' }).first().click(); await page.waitForTimeout(800);
+ok('po przycisku 50 / 50 i bez błędu', JSON.stringify((await zapis()).items[0].cab.shelfPin) === '{"dFront":50,"dBack":50}' && !/Kołki półek/.test(await uwagi()));
 
 console.log('\n== N17: własny blat roboczy w kolorze blatu ==');
 await seed(proj([{ cab: cab({ realColors: true, top: { mode: 'blat', material: 'worktop', widthMode: 'outside', overL: 0, overR: 0, overFront: 0, overBack: 0 } }),
@@ -137,9 +138,14 @@ await seed(proj([{ cab: cab({ realColors: true, top: { mode: 'blat', material: '
 }
 
 console.log('\n== N18: dwa zawiasy w jednym miejscu ==');
-await seed(proj([{ cab: cab({ H: 250, plinth: { on: false }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: Array(6).fill(null) }] }] }) }]));
+/* H250 z 5 polkami bylo tu dawniej: dwa zawiasy staly 100 mm od krawedzi i 45 mm od siebie.
+   Od 2026-10-22 front 201–254 mm rozklada je na cala wysokosc (jak front do 200) i tam
+   sie mieszcza — przyklad bledu to teraz H300 z 6 polkami (macierz szuflad). */
+await seed(proj([{ cab: cab({ H: 300, plinth: { on: false }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: Array(7).fill(null) }] }] }) }]));
 u = await uwagi();
-ok('H250, 5 półek: błąd „zawiasy nie mieszczą się między półkami”', /skrzydło 1: 2 zawiasy nie mieszczą się między półkami — po ich ominięciu wypadają w jednym miejscu/.test(u), linie(u, /zawias/));
+ok('H300, 6 półek: błąd „zawiasy nie mieszczą się między półkami”', /skrzydło 1: 2 zawiasy nie mieszczą się między półkami — po ich ominięciu wypadają w jednym miejscu/.test(u), linie(u, /zawias/));
+await seed(proj([{ cab: cab({ H: 250, plinth: { on: false }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }) }]));
+ok('front ok. 245 mm bez półek: dwa zawiasy na całej wysokości, bez tego błędu', !/nie mieszczą się między półkami/.test(await uwagi()));
 await seed(proj([{ cab: cab({ levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null] }] }] }) }]));
 ok('zwykła szafka 720 z 2 półkami: bez tego błędu', !/nie mieszczą się między półkami/.test(await uwagi()));
 

@@ -6,21 +6,31 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 
 ## Co program liczy sam
 
+- **Stoi czy wisi**: ciąg dolny z poziomem montażu 0 stoi na podłodze — także szafki bez nóżek i cokołu (np. RTV): bez zawieszek, haków, listwy i uwag o wieszaniu (`ciagStoi`, `cabDoGeo` → `cab.naPodlodze`; użytkownik 2026-10-24). Ciąg wiszący (także dolny, np. szafki RTV na ścianie) — poziom montażu > 0.
 - **Ustawienie**: szafki stoją jedna za drugą od położenia na ścianie, z luzem między korpusami. Wysunięcie z lica i odsunięcie od ściany można ustawić całemu ciągowi albo jednej szafce.
 - **Nowa szafka** („+ szafka”):
   - w pustym ciągu ma 560 mm głębokości;
   - obok innych bierze wymiary sąsiedniej;
   - pod blatem dostaje parę wzmocnień zamiast wieńca;
   - szuflady dostaje w systemie z kontekstu (szafka → ciąg → pomieszczenie).
+- **Wspólny wieniec** (opcja ciągu, zamiast blatu roboczego; użytkownik 2026-10-24, szafki RTV): jedna płyta korpusu na bokach szafek w najczęstszej wysokości ciągu (`wysokoscWienca`; wyższy słupek i szafka w L zostają przy swoim wieńcu), równo z frontami (nakładane: 2 mm luzu + grubość frontu), przykręcana od spodu na trójkątach. W szafce to „Blat z płyty” oznaczony `top.zCiagu` (`wieniecZCiagu`), wyłączenie wraca do wieńca. W zamówieniu „Wieniec ciągu” (pozycja „Wieniec — ciąg”), dzielony na stykach przy arkuszu 2800, przerywany słupkiem.
+- **Wspólne dno** (opcja ciągu): szafki stoją bokami na jednej płycie — dno każdej pod bokami (`dnoZCiagu`, poprzednie złącza wracają po wyłączeniu); w zamówieniu „Dno ciągu” (pozycja „Dno — ciąg”), dzielone na stykach. Jak wieniec — tylko pod szafkami w wysokości ciągu: wyższy słupek i szafka w L mają swoje dno, słupek w środku dzieli dno na odcinki (użytkownik 2026-10-24). Różna głębokość / płyta dna — dna zostają przy szafkach (informacja w karcie ciągu, `runBottom`, `idxs` — szafki na wspólnym dnie).
+- **„⊞ Scal szafki w jedną…”** (przycisk w karcie ciągu, „Cały ciąg”, albo znaczek ⊞ przy szafce na pasku — obok ⧉ duplikowania, z dymkiem „Scal z szafką obok w jedną”; użytkownik 2026-10-24): wybór szafek ciągu stojących obok siebie i boków na stykach. Znaczek zaznacza tę szafkę i sąsiada z prawej, rozwija kartę ciągu i przewija do okienka.
+  - **Pojedyncze** — jedna szafka (nazwa „S2 + S3 + S4”, szerokość = suma korpusów i luzów) z przegrodami, wspólnym wieńcem i dnem; kolumny i ich wnętrza (półki, drzwi, szuflady, zawiasy) bez zmian; wymiar zewnętrzny zostaje (3 × 600 → 1800), a to, co zwolnił drugi bok i luz między korpusami, dzieli się równo na kolumny, w proporcji do ich szerokości (salon: 564 → 576 / 576 / 576); ostatnia kolumna auto (`scalSzafki`, użytkownik 2026-10-24).
+  - Warunki (`scalenieBlad`, „Nie da się scalić: …”): obok siebie w jednym ciągu, ta sama wysokość, głębokość i podział na poziomy, bez szafki w L, wycięć i przeszkód.
+  - **Podwójne** — szafki zostają osobne, skręcone bokami; „wspólny wieniec z płyty” i „wspólne dno” włączają opcje całego ciągu.
+- **Nowa szafka** i szafka przeniesiona do ciągu dostają wspólny wieniec / dno ciągu (`wedlugCiagu`); wyjęta z ciągu — je oddaje.
 - **Cokół ciągu**: jedna płaszczyzna przez cały ciąg, podzielona na formatki; w rogu cokoły na zakładkę (`opisy/cokol.md`).
 - **Blat ciągu** (`opisy/korpus.md`): kawałki o długości arkusza z miejscem na słupki.
+  - Ciąg bez blatu roboczego, a szafki z własnym blatem („Blat” zamiast wieńca): blaty z tej samej płyty łączą się w zamówieniu w jedną płytę ciągu — z płyty szafki, która blat ma (nie pierwszej w ciągu); w 3D każda szafka rysuje swój. Blaty z różnych płyt zostają przy swoich szafkach — informacja w Uwagach (audyt GPT N78, N79).
   - Głębokość: od ściany do lica frontów plus wysunięcie przed drzwi (domyślnie 10 mm).
+  - Odsunięcie od ściany inne na dole i na wysokości blatu: blat zaczyna się przy ścianie na wysokości blatu — gdy tam jest dalej (dół 0, blat 100), blat sięga 100 mm za linię ściany przy podłodze, a wysięg z przodu zostaje zwykły (rysunki i 3D, audyt GPT N69).
   - Z arkusza 600 albo 1200 — szersze zamawia się docięte.
 - **Narożnik** — kto wjeżdża w róg (`owner`) i z jakim luzem w rogu.
   - **Ślepy róg**: szafka ciągu wjeżdżającego ma zasłoniętą część frontu (głębokość sąsiada + jego front + 30 mm zapasu). Na zasłoniętą część robi się fix, na resztę jedne drzwi z zawiasem od zewnątrz, czyli uchwyt przy fixie.
   - **Szafka w L**: korpus z ramieniem wzdłuż drugiej ściany.
     - Drzwi w narożniku: na wspornikach, łamane (zawias 165° + łamany 90°), skręcone albo fix.
-    - Kątownik w tylnym narożniku: ramiona 150 mm; półki kończą się przed nim.
+    - Kątownik w tylnym narożniku: ramiona 150 mm, z płyty półek (jej grubość w zamówieniu, rysunkach, 3D, stykach i wzmocnieniach — audyt GPT N70); półki kończą się przed nim.
   - **Wstawka w rogu** między ciągami (bez szafki w L):
     - płaska 18 mm w głąb albo szeroka 60 mm licem do przodu;
     - szeroka na trójkątach, na konfirmatach (w linii korpusu) albo na listwie;
@@ -28,6 +38,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - **Blat w rogu**: jeden przechodzi, drugi dojeżdża do jego przedniej krawędzi (styk ze złączem) albo oba na łyżwę (cięte pod 45°).
 - **Górny ciąg**: wysokość montażu = blat + prześwit nad blatem (domyślnie 500 mm).
   - Wieszanie na listwie montażowej z zawieszkami albo na haczykach.
+  - Listwa jedna przez ciąg, na wymiar (nie tniemy jej pod szafki), od pierwszej do ostatniej szafki z zawieszkami; zakup w odcinkach 1 / 2 m — `opisy/zamowienie.md`. Szafka bez zawieszek w ciągu na listwie — ostrzeżenie „może to być pomyłka” (w środku listwa przechodzi za nią, na końcu kończy się przed nią). Szafka z plecami cofniętymi ma listwę w sobie — listwa ciągu kończy się przy niej.
   - Górna szafka w L (szablon) robi się na wzór dolnej, gdy przy rogu stoi szafka w L.
 - **Kontrola otwierania w całej zabudowie**: skrzydła, klapy i szuflady sprawdzane względem sąsiadów, ramion, blatu i sufitu (`opisy/drzwi.md`, `opisy/klapy.md`, `opisy/szuflady.md`).
 
@@ -37,7 +48,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - **Ściana**: nazwa, długość, położenie, odsunięcie od ściany (dół / blat).
   - **Wymiary i montaż**: wysokość i głębokość szafek, luz między korpusami, poziom montażu, prześwit nad blatem, wysokość pomieszczenia.
   - **Narożnik**: z którym ciągiem, kto wjeżdża, luz w rogu, wstawka.
-  - **Cokół, blat, wieszanie**.
+  - **Cokół, blat (roboczy albo wspólny wieniec z płyty), wspólne dno, wieszanie**.
 - **Karta „Ciąg meblowy”, ta szafka**: przynależność do ciągu, wysunięcie z lica, odsunięcie od ściany.
 - **Kreator rogu** („+ ciąg” przy istniejącym ciągu):
   - do którego ciągu, za nim czy przed nim, kto w róg;
@@ -48,7 +59,8 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 ## Kontrole i przyciski
 
 - **Szafka inna niż ciąg**:
-  - inna wysokość (fronty nie w linii) — ostrzeżenie;
+  - inna wysokość (fronty nie w linii) — ostrzeżenie z „Wyrównaj tę szafkę do ciągu” / „Ustaw cały ciąg”, a przy wyższej także „To słupek — wyjątek w ciągu” (`cab.slupek`): zostaje informacja, wspólna wysokość ciągu słupka nie zmienia, „To jednak zwykła szafka” cofa (użytkownik 2026-10-24);
+  - niższa szafka, gdy ciąg ma wysokość od wyższej (salon: ciąg 1600 od pierwszej szafki, reszta 900) — też „Ustaw cały ciąg na 900 mm, wyższe jako słupki” (`ciagslupki:`);
   - inna głębokość — ostrzeżenie: lico zostaje w linii, cofa się tył, blat liczony na najgłębszą;
   - inny cokół (cokół idzie jedną płaszczyzną) — ostrzeżenie;
   - inny sposób wieszania (bez zawieszek przy innych na listwie, listwa / haczyki) — ostrzeżenie z przyciskami.
@@ -102,3 +114,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 - **Układ**: `projectLayout`, `runLayout`, `runFrontDepth`, `wallGapOf`; róg — `run.corner`, `cornerPairMsgs`, `armCtxOf`, `cornerSpan`, `wstawkiOf`, `wstawkaMsgs`.
 - **Uwagi ciągu**: `runCabMsgs`, `wallGapMsgs`, `worktopMsgs`, `openingMsgs`, `szufladyMsgs`; cokół / blat ciągu: `runPlinth`, `runTop`.
 - **Testy**: `ciag`…`ciag10`, `ciagarm`, `pietra`, `gorne`, `gornaL`, `narozn`, `narozn2`, `narozn3`, `narjedne`, `narkat`, `rogplecy`, `rysrog`, `wstawka`, `blatrog`, `blatwys`, `otwier`, `audytzabudowa`, `kreator`, `odsuniecie`, `pomieszczenia`.
+
+## Rysunek ciągu z boku (2026-10-24)
+
+Zakres „Ciąg” ma widok „Z boku” — przekrój ściany: od ściany głębokość, od podłogi wysokość. Każdy inny profil szafki (głębokość, wysokość, zawieszenie) rysuje się raz, wyższe pod spodem; szafki stoją licem równo (lico ciągu jak przy blacie), fronty nakładane 2 mm przed korpusem. Do tego cokół, nóżki, blat roboczy, ciąg górny i ściana (przełączniki „Ukryj blat” / „Ukryj ścianę”). Wymiary: „z frontem” każdego piętra, „blat N (M przed frontem)”, łańcuch wysokości i wysokość całkowita. Zabudowa z rogami tego widoku nie ma (nie ma jednego boku).

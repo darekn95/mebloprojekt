@@ -28,8 +28,10 @@ projektu” (wszystkie szafki plus cokół i blat ciągów).
   - **tył szuflady i bok skrzynki DXS**: krawędź górna; dno szuflady: bez okleiny;
   - **plecy HDF**: bez okleiny.
   - Metry okleiny liczy zamówienie — osobno okleina płyty i blatu.
+- **Kolory płyt** (karta „Płyty”) są w każdej szafce osobno. Po zmianie koloru program pyta: „Zmienić ten kolor także w innych szafkach?” — cały ciąg, całe pomieszczenie, cały projekt albo tylko ta szafka. Kopiuje kolor i dekor tam, gdzie ta płyta jest używana (fronty i półki — tylko w szafkach z osobną płytą). Nowa szafka w ciągu bierze płyty ostatniej szafki ciągu, poza ciągiem — aktywnej (użytkownik 2026-10-24).
+- **Kolory na rysunkach**: „Realne kolory” / „Rozróżnij fronty” przełącza wszystkie szafki projektu naraz. Fronty z płyty korpusu w „Rozróżnij fronty” mają odcień korpusu (jasna płyta ciemniej, ciemna jaśniej), a nie ukryty kolor płyty frontów. PDF zawsze w realnych kolorach. Struktura słojów — wzory każdej szafki także na rysunku ciągu; 3D słojów nie rysuje, tylko kolor płyty.
 - **Usłojenie**: gdy „Kierunek usłojenia ma znaczenie”, formatka nie obraca się w rozkroju; plecy i bez usłojenia — mogą.
-- **W ciągu z cokołem / blatem ciągu** własny cokół i blat szafki nie idą do zamówienia — zastępuje je wspólna formatka ciągu.
+- **W ciągu z cokołem / blatem ciągu** własny cokół i blat szafki nie idą do zamówienia — zastępuje je wspólna formatka ciągu. Tak samo wspólny wieniec („Wieniec ciągu” zamiast blatów z płyty szafek) i wspólne dno („Dno ciągu” zamiast den; „Dno / wieniec” 2 szt. zostaje samym wieńcem — `bezPlytCiagu`).
 - **Dodatkowe formatki** (karta „Dodatkowe formatki”): wpisane ręcznie, z własną nazwą (puste — „Dodatkowa formatka N”), materiałem i okleiną.
 
 ## Wąskie formatki (reguła 60 / 30 mm)

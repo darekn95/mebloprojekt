@@ -136,6 +136,9 @@ await page.waitForTimeout(900);
 // przy odstepie 0 sciana tez jest — szafka po prostu do niej dostaje — ale bez podpisow
 ok('bez odstępu ściana jest, bez podpisów odstępu', await page.locator('g[data-el="sciana"]').count() === 1
   && (await page.locator('g[data-el="sciana"] text').allTextContents()).every((t) => !/↔/.test(t)));
+// wymiar blatu z boku (uzytkownik 2026-10-24): arkusz 600 od sciany, 10 mm przed drzwiami
+const wb = await page.locator('#rysunek svg [data-el="wymiar-blatu"] text').allTextContents();
+ok('z boku wymiar blatu „blat 600 (10 przed frontem)”', wb.length === 1 && wb[0] === 'blat 600 (10 przed frontem)', wb.join(' | '));
 
 console.log('\n== zakres „Ciąg", z góry: ramię obrócone wzdłuż drugiej ściany ==');
 /* Druga sciana nie jest tu rysowana — ramie stoi mimo to na swoim miejscu,

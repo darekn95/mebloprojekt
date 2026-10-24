@@ -28,10 +28,19 @@ await page.waitForTimeout(1800);
 console.log('== klipsy cokolu ida za nozkami przedniego rzedu ==');
 /* Klipsy sa tylko przy nozkach — swiezo zalozona szafka stoi bez nich, wiec
    najpierw je wlaczamy. */
+/* Od 2026-10-24 nowa szafka stoi na nozkach bez cokolu („nóżki wszędzie”) —
+   ustawiamy stan, a nie klikamy na oslep: nozki i cokol wlaczone. */
 const nogi = card(/^Nóżki$/);
 await nogi.locator('h2').click();
 await page.waitForTimeout(400);
-await nogi.getByText('Nóżki pod szafką', { exact: true }).click();
+const nogiChk = nogi.locator('label', { hasText: 'Nóżki pod szafką' }).locator('input');
+if (!(await nogiChk.isChecked())) await nogiChk.click();
+await page.waitForTimeout(900);
+const cokKarta = card(/^Cokół$/);
+await cokKarta.locator('h2').click();
+await page.waitForTimeout(400);
+const cokChk = cokKarta.locator('input[type=checkbox]').first();
+if (!(await cokChk.isChecked())) await cokChk.click();
 await page.waitForTimeout(900);
 const korpus = card(/^Korpus$/);
 const szerPole = korpus.locator('label').filter({ hasText: /Szerokość/ }).locator('input').first();
@@ -132,7 +141,8 @@ ok('drugie skrzydlo na zawiasie lamanym', l720.l === 2, String(l720.l));
    przy boku jest wezsze od tego na ramieniu — wiec liczby nie musza byc rowne.
    Wazne, ze obie ida za wymiarem, a nie stoja na sztywno. */
 ok('szerokie skrzydlo ramienia dostaje trzeci zawias lamany', l2000.l > 2, String(l2000.l));
-ok('skrzydlo przy boku ok. 2000 mm: 4 zawiasy 165° wg tabeli GTV (wysokosc do 2100)', l2000.s === 4, String(l2000.s));
+// liczba z wagi skrzydla (uzytkownik 2026-10-24) — waskie skrzydlo przy boku jest lekkie: 3 (tabela szerokiego kata do 9 kg)
+ok('skrzydlo przy boku ok. 2000 mm: 3 zawiasy 165° z wagi (tabela szerokiego kąta, do 9 kg)', l2000.s === 3, String(l2000.s));
 /* Drugie skrzydlo wisi na pierwszym, wiec zwyklych zawiasow do ramienia nie ma
    — kiedys liczyly sie podwojnie. */
 const rsL = await projRows();

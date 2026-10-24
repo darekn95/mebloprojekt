@@ -22,6 +22,12 @@
 - Zanim zaczniesz szukać po całym `szafki.jsx`, zajrzyj do `SLOWNIK.md`:
   wiąże etykietę z interfejsu ze ścieżką w danych i funkcją, która to liczy.
   Dokładasz nowe pole albo nazwę formatki — dopisz tam wiersz w tej samej zmianie.
+- **Najpierw robota, pytania na koniec** (ustalone z użytkownikiem 2026-10-24):
+  gdy na liście jest kilka zadań, rób wszystko, co się da bez użytkownika.
+  Zadanie, które wymaga decyzji, zatrzymaj w miejscu, gdzie potrzebna jest
+  odpowiedź, zapisz pytanie i przejdź do następnego zadania z listy. Wszystkie
+  zebrane pytania zadaj razem na samym końcu (narzędziem pytań z opcjami),
+  a nie po jednym w trakcie — użytkownik nie czeka wtedy na każde zadanie.
 - Gdy pytasz o decyzję, która sprowadza się do kilku opcji, dawaj pytanie
   z przyciskami do kliknięcia (narzędzie pytań z opcjami), a nie tekst do
   odpisania — użytkownik woli kliknąć niż wpisywać odpowiedź.
@@ -50,7 +56,7 @@
 - Gdy coś potrwa dłużej niż ok. 3 minuty (pełny przebieg testów, duży build,
   seria zrzutów), napisz o tym **przed** startem, z przybliżonym czasem —
   np. „Testy lecą (~5 min)” — i co w tym czasie robisz albo na co czekasz.
-  Pełny przebieg obu buildów (126 suit, po 5 naraz; stan 2026-10-19) to ok. 11 min, pojedyncza
+  Pełny przebieg obu buildów (141 suit + macierz szuflad w 4 częściach, po 5 naraz; stan 2026-10-24) to ok. 22 min, pojedyncza
   suita 5–30 s. Czasy sprawdzaj z logów, nie z pamięci.
 - **Kiedy jakie testy i kiedy git** (ustalone z użytkownikiem):
   - po zmianie tylko suity z tego obszaru (2–5 suit, ok. 1 min; spis w `SLOWNIK.md`);

@@ -132,7 +132,8 @@ ok('zawieszka pod wieńcem, 1 cm od pleców, bez wiercenia', plan.filter((r) => 
 let hw = await okuciaT();
 ok('wkręty 4 × 30 także do zawieszek (2 × 2)', hw.some((r) => /^Wkręt 4 × 30/.test(r[0]) && /zawieszki 2×2/.test(r[1])), hw.filter((r) => /^Wkręt/.test(r[0])).map((r) => r.join(' ')).join(''));
 // listwa pod korpusem w ciagu to wspolna listwa ciagu — na karcie szafki jest tylko odcinek pod ramieniem
-ok('A: odcinek listwy pod ramieniem 310 mm (przy drugiej ścianie)', listwy(hw).length === 1 && /ramię.*310 mm/.test(listwy(hw)[0]), listwy(hw).join(' | '));
+// na wymiar ramienia 350 (uzytkownik 2026-10-24: listwa nie krotsza o 40)
+ok('A: odcinek listwy pod ramieniem 350 mm (przy drugiej ścianie)', listwy(hw).length === 1 && /350 \(ramię, przy drugiej ścianie\)/.test(listwy(hw)[0]), listwy(hw).join(' | '));
 ok('A: dwie zawieszki', hw.some((r) => /^Zawieszka/.test(r[0]) && /^2 szt/.test(r[r.length - 1])), hw.filter((r) => /^Zawieszka/.test(r[0])).map((r) => r.join(' ')).join(''));
 
 await seed(RUNY4, [...DOLNE, gor('G1', 600, 'c3'), GL({ on: true, w: 150, typ: 'B' }), gor('G4', 600, 'c4')], 4);
@@ -144,7 +145,7 @@ ok('B w części ramienia (domyślnie): płyta wzmocnienia przy plecach i bok ra
 ok('B: kołki półki w płytach wzmocnienia', plan.some((r) => /^Kątownik przy ramieniu — bok$/.test(r.panel) && r.kind === 'kołek półki')
   && plan.some((r) => /^Kątownik przy ramieniu — plecy$/.test(r.panel) && r.kind === 'kołek półki'), [...new Set(plan.map((r) => r.panel + '|' + r.kind))].join(' / '));
 hw = await okuciaT();
-ok('B w części ramienia: listwa przy ścianie ramienia od płyty wzmocnienia do boku ramienia', listwy(hw).length === 1 && /ramię.*odcinek (\d+)/.test(listwy(hw)[0]) && Number(/odcinek (\d+)/.exec(listwy(hw)[0])[1]) > 400, listwy(hw).join(' | '));
+ok('B w części ramienia: listwa przy ścianie ramienia od płyty wzmocnienia do boku ramienia', listwy(hw).length === 1 && /(\d+) \(ramię/.test(listwy(hw)[0]) && Number(/(\d+) \(ramię/.exec(listwy(hw)[0])[1]) > 400, listwy(hw).join(' | '));
 // przelacznik „W części szafki” w karcie szafki narożnej
 await page.getByRole('button', { name: 'W części szafki', exact: true }).first().click(); await page.waitForTimeout(900);
 plan = await wiercenia(5);

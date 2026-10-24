@@ -67,7 +67,8 @@ await page.waitForTimeout(1200);
 st = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
 const tpl = st.items[st.items.length - 1].cab;
 console.log('     ' + JSON.stringify(tpl.plinth));
-ok('szablon stojąca ma cokół pod korpusem', tpl.plinth.mode === 'under' && tpl.plinth.on, JSON.stringify(tpl.plinth));
+// od 2026-10-24 (decyzja uzytkownika „nóżki wszędzie”) szablon stoi na nozkach, cokol wylaczony — tryb dalej „pod korpusem”
+ok('szablon stojąca: nóżki, cokół wyłączony (tryb pod korpusem)', tpl.plinth.mode === 'under' && !tpl.plinth.on && tpl.legs && tpl.legs.on, JSON.stringify([tpl.plinth, tpl.legs]));
 
 console.log('\n== 2. cokół ciągu to jedna formatka na całą długość ==');
 await seed([K('A'), K('B'), K('C')], { H: 720, D: 500, plinth: PL() });

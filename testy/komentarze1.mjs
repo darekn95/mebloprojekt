@@ -44,7 +44,9 @@ ok('drugi klik zdejmuje podświetlenie', (await page.locator('[data-el="podswiet
 
 console.log('\n== półka → poziom, półki → klapy ==');
 await seed(proj([{ cab: cab({ levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null] }] }] }) }]));
-await page.getByRole('button', { name: 'klapy zamiast drzwi' }).first().click(); await page.waitForTimeout(1500);
+// od 2026-10-24 kreator: ile klap, granice, otwieranie — domyslnie klapa na kazdej polce, gdy sie miesci
+await page.getByRole('button', { name: 'klapy zamiast drzwi…' }).first().click(); await page.waitForTimeout(500);
+await page.getByRole('button', { name: 'Zrób 2 klapy', exact: true }).first().click(); await page.waitForTimeout(1500);
 let lv = (await zapis()).items[0].cab.levels;
 ok('dwa poziomy, w każdym klapa do góry, bez półek', lv.length === 2 && lv.every((l) => l.cols[0].klapa === 'gora' && l.cols[0].doors === 1 && l.cols[0].shelfTargets.length === 1)
   && lv[0].h > 0 && lv[1].h === null, JSON.stringify(lv.map((l) => ({ h: l.h, k: l.cols[0].klapa }))));
@@ -59,10 +61,13 @@ ok('dolna półka → poziom: niżej 0 półek, wyżej 1', lv.length === 2 && lv
 await seed(proj([{ cab: cab({ W: 800, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null] }] }] }) }]));
 ok('„→ poziom” także w poziomie z dwiema kolumnami', (await page.getByRole('button', { name: '→ poziom', exact: true }).count()) === 3);
 await page.getByRole('button', { name: '→ poziom', exact: true }).last().click(); await page.waitForTimeout(1500);
+// przy kilku kolumnach „→ poziom” dzieli tylko te kolumne (uzytkownik 2026-10-24) — suita `podzialkolumny`
 lv = (await zapis()).items[0].cab.levels;
-ok('dwa poziomy po dwie kolumny, drzwi w obu', lv.length === 2 && lv.every((l) => l.cols.length === 2 && l.cols.every((c) => c.doors === 1)), JSON.stringify(lv.map((l) => ({ h: l.h, s: l.cols.map((c) => c.shelfTargets.length - 1) }))));
+ok('kilka kolumn: jeden poziom, granica frontów tylko w tej kolumnie', lv.length === 1 && lv[0].cols.filter((c) => (c.podzial || []).length === 1).length === 1,
+  JSON.stringify(lv.map((l) => l.cols.map((c) => c.podzial || null))));
 await seed(proj([{ cab: cab({ W: 800, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }, { kind: 'drawers', w: null, drawers: [{ h: null }, { h: null }] }] }] }) }]));
-ok('z kolumną szuflad — bez „→ poziom”', (await page.getByRole('button', { name: '→ poziom', exact: true }).count()) === 0);
+// obok kolumny szuflad „→ poziom” dzieli tylko kolumne z drzwiami — szuflady zostaja (2026-10-24)
+ok('z kolumną szuflad — „→ poziom” przy półce kolumny z drzwiami', (await page.getByRole('button', { name: '→ poziom', exact: true }).count()) === 1);
 
 console.log('\n== podział cokołu i blatu zwinięty ==');
 await seed(proj([1200, 1200, 1200, 900].map((W) => ({ cab: cab({ W }), runId: 'c1' })), [RUN('c1')]));

@@ -94,7 +94,8 @@ const li = find(rows, /^Listwa montażowa/);
 console.log('  listwa:', JSON.stringify(li));
 ok('listwa liczona w mb', li && /mb$/.test(li.qty), li && li.qty);
 ok('listwa 9 zł/m', li && li.ph === '9', li && li.ph);
-ok('0,6 mb × 9 = 5,40 (mb z dokładnością do 0,1)', li && li.wart === '5.40', li && li.wart);
+// listwa w sklepie: odcinki 1 m i 2 m — odcinek pod szafke (W − 40) miesci sie w 1 m (uzytkownik 2026-10-22, audyt GPT N77)
+ok('kupiony 1 m × 9 = 9,00 (odcinki 1 / 2 m)', li && li.wart === '9.00' && /^1 mb$/.test(li.qty), li && `${li.qty} ${li.wart}`);
 
 console.log('\n== prowadnice wg cennika ==');
 const struct = card(/^Struktura wnętrza$/);

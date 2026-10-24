@@ -90,8 +90,8 @@ const przesuniecie = (rz, rs) => {
 };
 // czy prostokat `a` zaslaniaja w calosci (szczeliny miedzy frontami do 3 mm pomijamy)
 // inne rzuty lezace blizej patrzacego (probkowanie co 4 mm)
-const zasloniety = (a, rz) => {
-  const przed = rz.filter((q) => q !== a && q.dal <= a.glab + 0.5);
+const zasloniety = (a, rz, oslony = []) => {
+  const przed = [...rz.filter((q) => q !== a && q.dal <= a.glab + 0.5), ...oslony];
   const st = (lo, hi) => { const n = Math.max(2, Math.ceil((hi - lo) / 4)); return [...Array(n + 1)].map((_, i) => lo + 0.3 + (hi - lo - 0.6) * i / n); };
   return st(a.x0, a.x1).every((x) => st(a.y0, a.y1).every((y) => przed.some((q) => x >= q.x0 - 3.1 && x <= q.x1 + 3.1 && y >= q.y0 - 3.1 && y <= q.y1 + 3.1)));
 };
@@ -136,6 +136,7 @@ const styk = (r, rz, dx, dy) => {
 const wStyku = (a, r, rz, dx, dy) => wPasie(a, r, dx, dy) && styk(r, rz, dx, dy);
 // zawiasy (#71717a) i prowadnice (#8b8b93, z opacity) — okucia rysowane tylko na plasko
 const OKUCIA_2D = new Set(['#71717a']);
+const ZNACZNIKI_2D = new Set(['#b91c1c']);
 const prowadnica = (r) => r.f === '#8b8b93' && (r.op < 1 || r.el === '' && r.s === '#1c1917');
 const opisR = (r) => `${Math.round(r.x0)},${Math.round(r.y0)}–${Math.round(r.x1)},${Math.round(r.y1)}${r.el ? ' ' + r.el : ''}${r.f && r.f !== 'none' ? ' ' + r.f : ' kontur'}`;
 const opisB = (a) => `${a.s.color} ${[...a.s.d].map(Math.round).join('×')} @${Math.round(a.x0)},${Math.round(a.y0)}`;
@@ -161,7 +162,11 @@ const scenariusz = async (tytul, cab) => {
   for (const [nazwa, w] of Object.entries(WIDOKI)) {
     if (!(await click(nazwa))) continue;
     const wszystkie = await prostokaty();
-    const rs = wszystkie.filter((r) => r.f !== '#fafaf9' && !OKUCIA_2D.has(r.f) && !prowadnica(r)
+    /* Znacznik wyciecia / przeszkody (czerwone pole) to oznaczenie, nie bryla — nie
+       porownujemy go, a bryla w calosci pod nim (np. scianka zabudowy widziana od tylu
+       przez wyciecie) jest nim przedstawiona (szuflady z wycieciem 2026-10-22). */
+    const znaczniki = wszystkie.filter((r) => ZNACZNIKI_2D.has(r.f));
+    const rs = wszystkie.filter((r) => r.f !== '#fafaf9' && !OKUCIA_2D.has(r.f) && !ZNACZNIKI_2D.has(r.f) && !prowadnica(r)
       && !(r.f === 'none' && (!r.s || r.s === 'none')));
     const baza = w.otwarte ? otw : zamk;
     /* Z przodu plecy sa tlem wnetrza (jasny prostokat korpusu) — przy
@@ -178,7 +183,9 @@ const scenariusz = async (tytul, cab) => {
        2026-10-04). Z boku i z gory front jest osobny, gdy jego obrys rozni sie
        od sasiada — wspolna krawedz przechodzi tylko wtedy, gdy bryly sie
        stykaja (pas = suma bryl stykajacych sie bez szczeliny). */
-    const brak = rz.filter((a) => !rs.some((r) => rowny(a, r, dx, dy) || (SCISLE ? wStyku(a, r, rz, dx, dy) : wPasie(a, r, dx, dy))) && !zasloniety(a, rz));
+    // znacznik zaslania jak bryla blizej patrzacego (scianka zabudowy wyciecia od tylu: czesc pod znacznikiem, reszta za bokiem zabudowy)
+    const oslony = znaczniki.map((r) => ({ x0: r.x0 - dx, x1: r.x1 - dx, y0: r.y0 - dy, y1: r.y1 - dy }));
+    const brak = rz.filter((a) => !rs.some((r) => rowny(a, r, dx, dy) || (SCISLE ? wStyku(a, r, rz, dx, dy) : wPasie(a, r, dx, dy))) && !zasloniety(a, rz, oslony));
     // prostokat rysunku moze byc rzutem bryly otwartej albo (kontur drzwi) zamknietej
     const obce = rs.filter((r) => !rz.some((a) => rowny(a, r, dx, dy)) && !(SCISLE ? styk(r, rz, dx, dy) : pasem(r, rz, dx, dy)) && !obwiednia(r, rz, dx, dy)
       && !(w.otwarte && (rzZamk.some((a) => rowny(a, r, dx, dy)) || (SCISLE ? styk(r, rzZamk, dx, dy) : pasem(r, rzZamk, dx, dy)))));
@@ -313,6 +320,37 @@ await zabudowa('górne ciągi w L', PRJ([[szafka('D1'), 'c1'], [szafka('D2'), 'c
   [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: ROG({ owner: 'of' }) }),
    RUN('c3', 'Ściana 1', { tier: 'gorny', wall: 'c1', D: 300, mountY: 1358, worktop: false, plinth: null }),
    RUN('c4', 'Ściana 2', { tier: 'gorny', wall: 'c2', D: 300, mountY: 1358, worktop: false, plinth: null })]), { tylkoInfo: true });
+
+/* Szuflady z macierzy (`macierzszuflad`) — rysunki 2D w obu systemach (2026-10-22).
+   Kilka wariantow zawsze, cala lista z SZUF2D=1 (ok. 3 min). */
+{
+  const sz = (n, sys, o = {}) => Array.from({ length: n }, () => ({ h: 'auto', front: null, handle: true, ...(sys === 'dxs' ? { system: 'dxs' } : {}), ...o }));
+  const ks = (drawers, o = {}) => ({ ...kol(), kind: 'drawers', drawers, ...o });
+  const lista = (S) => [
+    ['fix z lewej, wspornik 550', szafka('F', { W: 700, levels: [{ h: null, cols: [ks(sz(3, S), { fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: 550 } })] }] }), true],
+    ['dwie kolumny szuflad', szafka('K', { W: 900, levels: [{ h: null, cols: [ks(sz(3, S)), ks(sz(2, S))] }] }), true],
+    ['szuflady nad drzwiami', szafka('N', { levels: [{ h: 340, cols: [kol({ doors: 1 })] }, { h: null, cols: [ks(sz(2, S))] }] })],
+    ['fix u góry', szafka('T', { levels: [{ h: null, cols: [ks(sz(2, S), { fix: { side: 'top', w: 100, mode: 'overlay' } })] }] })],
+    ['fronty szuflad na korpusie w szafce wpuszczanej', szafka('M', { frontMode: 'inset', levels: [{ h: null, cols: [ks(sz(3, S), { drawerMode: 'overlay' })] }] })],
+    ['uchwyt frezowany', szafka('G', { frontMode: 'inset', levels: [{ h: null, cols: [ks(sz(3, S), { fingerGrip: true, gripDepth: 18 })] }] }), true],
+    ['wycięcie tylnego narożnika', szafka('W', { cutoutR: { on: true, w: 100, d: 100, fullHeight: true, levelIndex: 0, mask: true, maskType: 'auto', maskFront: 'over' }, levels: [{ h: null, cols: [ks(sz(3, S))] }] })],
+    ['5 szuflad, bez uchwytów', szafka('5', { levels: [{ h: null, cols: [ks(sz(5, S, { handle: false }))] }] })],
+    ['słupek: szuflady w dolnym poziomie', szafka('S', { H: 2100, levels: [{ h: 700, cols: [ks(sz(3, S))] }, { h: null, cols: [kol({ shelfTargets: [null, null, null] })] }] })],
+    ['szeroka 1000', szafka('1', { W: 1000, levels: [{ h: null, cols: [ks(sz(3, S))] }] })],
+    ['wisząca 350', wisz('H', { D: 350, levels: [{ h: null, cols: [ks(sz(2, S))] }] })],
+  ];
+  const wszystko = !!process.env.SZUF2D;
+  for (const S of ['vbox', 'dxs']) for (const [n, cab, zawsze] of lista(S)) {
+    if (!wszystko && !(zawsze && S === 'dxs')) continue;
+    await scenariusz(`${S === 'dxs' ? 'DXS-3D' : 'V-BOX'}: ${n}`, cab);
+  }
+  if (wszystko) for (const S of ['vbox', 'dxs']) {
+    await scenariusz(`pod blatem w ciągu: ${S === 'dxs' ? 'DXS-3D' : 'V-BOX'} dwie kolumny`, wCiagu((c) => ({ W: 900, levels: [{ h: null, cols: [
+      { ...c.levels[c.levels.length - 1].cols[0], kind: 'drawers', drawers: sz(3, S) }, { ...c.levels[c.levels.length - 1].cols[0], kind: 'drawers', drawers: sz(2, S) }] }] })));
+    await scenariusz(`pod blatem w ciągu: ${S === 'dxs' ? 'DXS-3D' : 'V-BOX'} rura przy plecach`, wCiagu((c) => ({ obstacles: [{ on: true, w: 60, d: 60, h: 0, side: 'right', fromSide: 40, fromBack: 0, fromBottom: 0, fullHeight: true, mask: false, maskType: 'auto', maskFront: 'over' }],
+      levels: kolPB(c, { kind: 'drawers', drawers: sz(3, S) }) })));
+  }
+}
 
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();
