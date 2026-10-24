@@ -247,9 +247,9 @@ const DEFAULT_HW_PRICES = {
   "Prowadnica Sevroll DXS-3D Synchro": 50,
   // GTV EM-SBL na styku blatow w rogu (uzytkownik 2026-10-16)
   "Złącze do blatów śrubowe": 9,
-  // rura na wieszaki (za metr) i rozety — ceny orientacyjne, do potwierdzenia przez uzytkownika
-  [DRAZEK_NAME]: 20,
-  [ROZETA_NAME]: 2,
+  // rura na wieszaki (za metr) i rozety — ceny uzytkownika (2026-10-24)
+  [DRAZEK_NAME]: 15,
+  [ROZETA_NAME]: 1,
 };
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
@@ -643,10 +643,10 @@ const LISTWA_ODCINKI = [1000, 2000];
 const LISTWA_SKROT = 10;
 // listwa za plecami cofnietymi: od plecow (bokow) po 5 mm z kazdej strony (uzytkownik 2026-10-24)
 const LISTWA_OD_PLECOW = 5;
-const listwaZakup = (kawalki) => {
-  const MAX = LISTWA_ODCINKI[LISTWA_ODCINKI.length - 1];
+const listwaZakup = (kawalki, ODC = LISTWA_ODCINKI) => {
+  const MAX = ODC[ODC.length - 1];
   // odcinek dobrany do zaladunku: najkrotszy, na ktory starczy
-  const odcinek = (zal) => LISTWA_ODCINKI.find((d) => zal <= d);
+  const odcinek = (zal) => ODC.find((d) => zal <= d);
   const koszt = (grupy) => grupy.reduce((s, g) => s + odcinek(g.zal), 0);
   /* Pakowanie kawalkow w odcinki, kazdy kawalek dlugosci `ile` (pelnej albo
      najkrotszej dopuszczalnej); `pelna` — do ilu wolno go potem wydluzyc. */
@@ -719,10 +719,32 @@ const listwaWiersz = (pozycje) => {
       + (z.skrot ? ` (skrócona o ${fmt(z.skrot)} mm — dzięki temu mniej odcinków)` : "") + `. Cięcie: ${ciecie}` };
 };
 
+/* Rura na wieszaki (uzytkownik 2026-10-24): zamawiana w odcinkach 0,5 / 1 / 1,5 /
+   2 / 2,5 / 3 m i docinana — zakup jak listwa (najmniej metrow, docinki na krotsze
+   rury), najchetniej odcinki do 2 m; 2,5 i 3 m tylko dla rury dluzszej niz 2 m.
+   Rury nie skracamy (dlugosc = swiatlo − 2 mm). */
+const RURA_ODCINKI = [500, 1000, 1500, 2000, 2500, 3000];
+const RURA_ODCINEK_MAX = 2000;
+const ruraWiersz = (pozycje) => {
+  const kaw = pozycje.map((h) => ({ dl: h.odcinek ?? h.qty * 1000, gdzie: h.gdzie || "" }));
+  const najdl = Math.max(...kaw.map((k) => k.dl));
+  const odc = RURA_ODCINKI.filter((d) => d <= Math.max(RURA_ODCINEK_MAX, RURA_ODCINKI.find((x) => x >= najdl) || najdl));
+  const z = listwaZakup(kaw, odc);
+  const m = (d) => String(d / 1000).replace(".", ",");
+  const ile = odc.map((d) => [d, z.sztangi.filter((q) => q.dl === d).length]).filter(([, n]) => n).reverse();
+  const ciecie = z.sztangi.map((q) => `${m(q.dl)} m → `
+    + q.kawalki.map((k) => `${k.dl === q.dl ? "cały" : fmt(k.dl)}${k.gdzie ? ` (${k.gdzie})` : ""}`).join(" + ")).join("; ");
+  return { name: DRAZEK_NAME, unit: "mb", qty: z.zakup / 1000, specSzt: "odcinki 0,5–3 m",
+    use: "drążek na wieszaki w szafie",
+    spec: `kupić ${ile.map(([d, n]) => `${n} × ${m(d)} m`).join(" + ")}: potrzeba ${fmt(z.potrzeba)} mm, odpad ${fmt(z.odpad)} mm. Cięcie: ${ciecie}` };
+};
+
 const scalOkucia = (lista) => {
   const map = new Map();
   const listwy = lista.filter((h) => h.name === RAIL_NAME && h.unit === "mb");
   if (listwy.length) lista = [...lista.filter((h) => !listwy.includes(h)), listwaWiersz(listwy)];
+  const rury = lista.filter((h) => h.name === DRAZEK_NAME && h.odcinek != null);
+  if (rury.length) lista = [...lista.filter((h) => !rury.includes(h)), ruraWiersz(rury)];
   lista.forEach((h) => {
     // `wariant` — cecha handlowa (ksztalt i wysokosc nozki, typ zawiasu): inny wariant to inny wiersz
     const k = `${h.name}|${h.unit}|${h.pack || 0}|${h.wariant || ""}|${h.use ? "" : h.specSzt || h.spec}`;
@@ -1211,7 +1233,8 @@ const wedlugCiagu = (cab, mat, run, h = run && run.H) => {
   let c = cab;
   if (run && run.wspolnyWieniec && !run.worktop) c = podWspolnymWiencem(c, h) ? wieniecZCiagu(c, mat) : bezWiencaCiagu(c);
   else c = bezWiencaCiagu(c);
-  c = run && run.wspolneDno && !(c.corner && c.corner.on) ? dnoZCiagu(c) : bezDnaCiagu(c);
+  // wspolne dno — jak wieniec: bez slupka i szafki w L (uzytkownik 2026-10-24)
+  c = run && run.wspolneDno && podWspolnymWiencem(c, h) ? dnoZCiagu(c) : bezDnaCiagu(c);
   return c;
 };
 
@@ -5704,9 +5727,10 @@ function computeGeoLiczy(cab, mat, ctx) {
   {
     const dr = levels.flatMap((lv) => lv.cols.flatMap((c) => c.drazki || []));
     if (dr.length) {
-      hardware.push({ name: DRAZEK_NAME, use: "drążek na wieszaki w szafie",
-        spec: `docięta: ${dr.map((d) => fmt(d.len)).join(" + ")} mm (światło kolumny − ${DRAZEK_KROTSZY} mm), oś ${DRAZEK_POD_PLYTA} mm pod półką, w połowie głębokości`,
-        qty: Math.round(dr.reduce((a, d) => a + d.len, 0)) / 1000, unit: "mb" });
+      // kazda rura osobno (`odcinek`) — zakup w odcinkach liczy `ruraWiersz`
+      dr.forEach((d) => hardware.push({ name: DRAZEK_NAME, use: "drążek na wieszaki w szafie",
+        spec: `docięta na ${fmt(d.len)} mm (światło kolumny − ${DRAZEK_KROTSZY} mm), oś ${DRAZEK_POD_PLYTA} mm pod półką, w połowie głębokości`,
+        qty: d.len / 1000, odcinek: d.len, unit: "mb" }));
       hardware.push({ name: ROZETA_NAME, use: "uchwyt rury na boku / przegrodzie",
         spec: "2 na rurę, wkręty 3,5 × 16", qty: 2 * dr.length, unit: "szt." });
     }
@@ -11992,10 +12016,13 @@ const okuciaSzafki = (geo, { bezListwy = false, arm = null, wstawki = [] } = {})
     if (h.spec && h.spec !== jest.spec) jest.spec = jest.spec ? `${jest.spec}; ${h.spec}` : h.spec;
   };
   // listwa: kawalek szafki i ramienia — zakup w odcinkach 1 / 2 m jak w zestawieniu projektu (`listwaWiersz`)
+  const rury = out.filter((h) => h.name === DRAZEK_NAME && h.odcinek != null);
   const listwy = out.filter((h) => h.name === RAIL_NAME && h.unit === "mb");
   if (arm) cornerArmParts(arm).hardware.forEach((h) => (h.name === RAIL_NAME && h.unit === "mb" ? listwy.push({ ...h, gdzie: "ramię, przy drugiej ścianie" }) : dodaj(h)));
   wstawki.forEach((w) => wstawkaParts(w).hardware.forEach(dodaj));
-  return listwy.length ? [...out.filter((h) => !listwy.includes(h)), listwaWiersz(listwy)] : out;
+  const bez = out.filter((h) => !listwy.includes(h) && !rury.includes(h));
+  // rura na wieszaki: zakup w odcinkach 0,5–3 m (`ruraWiersz`)
+  return [...bez, ...(listwy.length ? [listwaWiersz(listwy)] : []), ...(rury.length ? [ruraWiersz(rury)] : [])];
 };
 
 /* Czy projekt ma cos poza lista jednej szafki: druga szafke, wspolny cokol albo
@@ -13663,20 +13690,46 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
    swoim dnie (`powod` do informacji w karcie ciagu). */
 const runBottom = (project, run) => {
   if (!run || !run.wspolneDno) return null;
-  const { joints, total, list } = runJoints(project, run);
+  const list = runItems(project, run.id);
   if (list.length < 2) return null;
   const odp = (powod) => ({ brak: true, powod });
-  if (list.some(({ it }) => it.cab.corner && it.cab.corner.on)) return odp("w ciągu jest szafka narożna");
-  const geos = list.map(({ it }) => computeGeo(cabDoGeo(project, it), it.mat));
-  const dna = geos.map((g) => g.panels.find((p) => p.rola === "dno" || p.rola === "dno+wieniec"));
-  if (dna.some((d) => !d || !d.edges.b1 || !d.edges.b2)) return odp("nie każda szafka ma dno pod bokami");
-  const gl = [...new Set(dna.map((d) => Math.round(d.b)))];
+  /* Dno ciagu jak wieniec: tylko pod szafkami w wysokosci ciagu — slupek i szafka
+     w L maja swoje (uzytkownik 2026-10-24). Slupek w srodku dzieli dno na odcinki. */
+  const h = wysokoscWienca(project.items, run);
+  const gap = Math.max(0, Math.round(run.gap || 0));
+  let x = 0;
+  const segs = [];
+  let seg = null;
+  const ujete = [];
+  list.forEach(({ it, i }, k) => {
+    const g = computeGeo(cabDoGeo(project, it), it.mat);
+    const x0 = x, x1 = x + g.W;
+    x = x1 + (k < list.length - 1 ? gap : 0);
+    if (!podWspolnymWiencem(it.cab, h)) { seg = null; return; }
+    const d = g.panels.find((p) => p.rola === "dno" || p.rola === "dno+wieniec");
+    ujete.push({ it, i, d });
+    if (!seg) { seg = { x0, x1, joints: [], ileSzafek: 0 }; segs.push(seg); } else seg.joints.push(Math.round(x0 - seg.x0));
+    seg.x1 = x1;
+    seg.ileSzafek += 1;
+  });
+  if (ujete.length < 2) return odp("pod wspólnym dnem musi stać co najmniej dwie szafki tej samej wysokości");
+  if (ujete.some(({ d }) => !d || !d.edges.b1 || !d.edges.b2)) return odp("nie każda szafka ma dno pod bokami");
+  const gl = [...new Set(ujete.map(({ d }) => Math.round(d.b)))];
   if (gl.length > 1) return odp(`szafki mają dno różnej głębokości (${listPl(gl.map(fmt))} mm)`);
-  const kl = [...new Set(list.map(({ it }) => { const m = migrateMat(it.mat).board || {}; return `${m.color}|${m.thickness}|${m.name}`; }))];
+  const kl = [...new Set(ujete.map(({ it }) => { const m = migrateMat(it.mat).board || {}; return `${m.color}|${m.thickness}|${m.name}`; }))];
   if (kl.length > 1) return odp("szafki mają korpusy z różnych płyt");
-  const sp = splitAtJoints(total, joints, run.bottomCuts, USABLE_W, run.bottomCutsWlasne);
-  return { ...sp, total, depth: gl[0], rear: dna.some((d) => d.edges.a2), mat: list[0].it.mat,
-    grainMatters: list[0].it.cab.grainMatters, name: run.name };
+  // odcinek z jedna szafka (np. miedzy slupkami) zostaje przy jej wlasnym dnie
+  const pas = segs.filter((q) => q.ileSzafek > 1);
+  const lens = pas.flatMap((q) => splitAtJoints(Math.round(q.x1 - q.x0), q.joints, null, USABLE_W).lens);
+  const naDnie = new Set();
+  let xx = 0;
+  list.forEach(({ it, i }, k) => {
+    const g = computeGeo(cabDoGeo(project, it), it.mat);
+    if (pas.some((q) => xx >= q.x0 - 1 && xx + g.W <= q.x1 + 1) && podWspolnymWiencem(it.cab, h)) naDnie.add(i);
+    xx += g.W + (k < list.length - 1 ? gap : 0);
+  });
+  return { lens, n: lens.length, total: lens.reduce((a, l) => a + l, 0), depth: gl[0], rear: ujete.some(({ d }) => d.edges.a2),
+    mat: ujete[0].it.mat, grainMatters: ujete[0].it.cab.grainMatters, name: run.name, idxs: [...naDnie] };
 };
 const runBottomPanels = (rb) => {
   if (!rb || rb.brak) return [];
@@ -13884,9 +13937,9 @@ const projectParts = (project) => {
       mat: it.mat,
       grainMatters: it.cab.grainMatters,
       name: (it.cab.name || "").trim() || `Szafka ${ci + 1}`,
-      panels: bezPlytCiagu(gone ? g.panels.filter((p) => !gone.includes(p.rola)) : g.panels, !!(s && s.rb)),
+      panels: bezPlytCiagu(gone ? g.panels.filter((p) => !gone.includes(p.rola)) : g.panels, !!(s && s.rb && s.rb.idxs.includes(ci))),
       hardware: (s && s.rr ? g.hardware.filter((h) => h.name !== RAIL_NAME || h.wewnatrz) : g.hardware)
-        .map((h) => (h.name === RAIL_NAME ? { ...h, gdzie: (it.cab.name || "").trim() || `Szafka ${ci + 1}` } : h)),
+        .map((h) => (h.name === RAIL_NAME || h.name === DRAZEK_NAME ? { ...h, gdzie: (it.cab.name || "").trim() || `Szafka ${ci + 1}` } : h)),
     };
   });
   const runs = [];
@@ -15688,10 +15741,10 @@ function PrintReport({ project }) {
     (project.runs || []).forEach((r) => { if (runTop(project, r)) s.add(r.id); });
     return s;
   }, [project]);
-  // ciagi ze wspolnym dnem — na kartce szafki jej dna nie ma (idzie „Dno ciągu”)
-  const runsWithBottom = useMemo(() => {
+  // szafki na wspolnym dnie ciagu — na ich kartce dna nie ma (idzie „Dno ciągu”)
+  const cabsOnBottom = useMemo(() => {
     const s = new Set();
-    (project.runs || []).forEach((r) => { const rb = runBottom(project, r); if (rb && !rb.brak) s.add(r.id); });
+    (project.runs || []).forEach((r) => { const rb = runBottom(project, r); if (rb && !rb.brak) rb.idxs.forEach((i) => s.add(i)); });
     return s;
   }, [project]);
   // ciagi ze wspolna listwa montazowa — na kartce szafki listwy nie ma, jak w aplikacji
@@ -15714,7 +15767,7 @@ function PrintReport({ project }) {
       ctx={armCtxOf(layout, i)} arm={armOf.get(i)}
       sharedPlinth={!!runsWithPlinth.has(it.runId || null)}
       sharedTop={!!runsWithTop.has(it.runId || null)}
-      sharedBottom={!!runsWithBottom.has(it.runId || null)}
+      sharedBottom={cabsOnBottom.has(i)}
       sharedRail={!!runsWithRail.has(it.runId || null)}
       wstawki={wstawkiOf(layout).filter((w) => w.cab.index === i)} />
   );
@@ -16043,18 +16096,21 @@ const scalSzafki = (project, idxsIn) => {
   const its = idxs.map((i) => project.items[i]);
   const geos = its.map((it) => computeGeo(cabDoGeo(project, it), it.mat));
   const t = geos[0].t;
-  const wolne = t + gap;   // na kazdym styku: drugi bok i luz miedzy korpusami
+  // na kazdym styku zwalnia sie drugi bok i luz miedzy korpusami
+  const wolne = (its.length - 1) * (t + gap);
+  // wymiar zewnetrzny zostaje (3 × 600 → 1800, uzytkownik 2026-10-24)
   const W = geos.reduce((a, g) => a + g.W, 0) + (its.length - 1) * gap;
   const levels = its[0].cab.levels.map((lv0, li) => {
     const cols = [];
-    its.forEach((it, k) => {
-      const surowe = it.cab.levels[li].cols || [];
-      surowe.forEach((col, j) => {
+    const szer = its.flatMap((it, k) => (it.cab.levels[li].cols || []).map((_, j) => ((geos[k].levels[li] || {}).cols || [])[j]?.w || 0));
+    const suma = szer.reduce((a, w) => a + w, 0) || 1;
+    let n = 0;
+    its.forEach((it) => {
+      (it.cab.levels[li].cols || []).forEach((col) => {
         const c2 = JSON.parse(JSON.stringify(col));
-        let w = Math.round(((geos[k].levels[li] || {}).cols || [])[j]?.w || 0);
-        if (j === 0 && k > 0) w += Math.ceil(wolne / 2);
-        if (j === surowe.length - 1 && k < its.length - 1) w += Math.floor(wolne / 2);
-        c2.w = w;
+        // zwolnione miejsce rowno, w proporcji do szerokosci kolumn (rowne zostaja rowne)
+        c2.w = Math.round(szer[n] + (wolne * szer[n]) / suma);
+        n += 1;
         delete c2.noDiv;
         cols.push(c2);
       });
@@ -17753,8 +17809,8 @@ export default function App() {
     [geo, runRl, armAktywnej, wstawkiAktywnej]
   );
   const cutList = useMemo(
-    () => formatkiSzafki(geo, { bezCokolu: !!runPl, bezBlatu: !!runTp, bezDna: !!(runBt && !runBt.brak), arm: armAktywnej, wstawki: wstawkiAktywnej }),
-    [geo, runPl, runTp, runBt, armAktywnej, wstawkiAktywnej]);
+    () => formatkiSzafki(geo, { bezCokolu: !!runPl, bezBlatu: !!runTp, bezDna: !!(runBt && !runBt.brak && runBt.idxs.includes(project.active)), arm: armAktywnej, wstawki: wstawkiAktywnej }),
+    [geo, runPl, runTp, runBt, project.active, armAktywnej, wstawkiAktywnej]);
   const zCaloscia = useMemo(() => calyProjekt(project), [project]);
 
   const edgeMeters = useMemo(() => {

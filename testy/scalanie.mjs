@@ -57,7 +57,8 @@ console.log('\n== boki pojedyncze: jedna szafka z przegrodami ==');
   const c = p.items[p.active].cab;
   const kol = c.levels[0].cols;
   ok('2 szafki w projekcie, aktywna scalona „S2 + S3 + S4” 1800 × 900', p.items.length === 2 && c.name === 'S2 + S3 + S4' && c.W === 1800 && c.H === 900, `${p.items.length} ${c.name} ${c.W}`);
-  ok('kolumny: drzwi / szuflady / drzwi, szerokości 573 / 582 / auto (564 + zwolniony bok po połowie)', JSON.stringify(kol.map((k) => [k.kind, k.w])) === '[["doors",573],["drawers",582],["doors",null]]', JSON.stringify(kol.map((k) => [k.kind, k.w])));
+  // zwolnione 2 × 18 mm rowno na kolumny (uzytkownik 2026-10-24): 564 + 12
+  ok('kolumny: drzwi / szuflady / drzwi, szerokości 576 / 576 / auto', JSON.stringify(kol.map((k) => [k.kind, k.w])) === '[["doors",576],["drawers",576],["doors",null]]', JSON.stringify(kol.map((k) => [k.kind, k.w])));
   const f = await rows(/^Formatki do zamówienia$/);
   ok('formatki: 2 przegrody pionowe, boki szafki, dno / wieniec 1764 (między bokami) × 2', f.some((r) => /^Przegroda pionowa .*\| 2 \|/.test(r)) && f.some((r) => /^Bok/.test(r)) && f.some((r) => /^Dno \/ wieniec .*\| 1764 \| 500 \| 2 \|/.test(r)),
     f.filter((r) => /Przegroda|Bok|Dno|Wieniec/.test(r)).join(' / '));

@@ -95,12 +95,14 @@ console.log('\n== wspólne dno ==');
   await zaznacz('Wspólne dno na całym ciągu');
   const proj = await rows(/^Formatki całego projektu/);
   const dno = proj.filter((r) => /^Dno ciągu/.test(r));
-  ok('zamówienie: „Dno ciągu” 3000 mm w dwóch częściach (2400 + 600) × 500', dno.length === 2 && dno.some((r) => /\| 2400 \| 500 \| 1 \|/.test(r)) && dno.some((r) => /\| 600 \| 500 \| 1 \|/.test(r)), dno.join(' / '));
-  ok('bez „Dno” szafek w zamówieniu projektu', !proj.some((r) => /^Dno \|/.test(r) || /^Dno \/ wieniec/.test(r)), proj.filter((r) => /^Dno/.test(r)).join(' / '));
+  // dno ciagu jak wieniec: bez wyzszego slupka S1 (uzytkownik 2026-10-24)
+  ok('zamówienie: „Dno ciągu” 1800 × 500 pod S2–S4 (bez słupka S1)', dno.length === 1 && /\| 1800 \| 500 \| 1 \|/.test(dno[0]), dno.join(' / '));
+  ok('S1 (1600) zostaje przy swoim dnie, szafki S2–S4 bez własnego', proj.some((r) => /^Dno \/ wieniec .*\| 1164 \| 500 \| 2 \|/.test(r) || /^Dno .*\| 1200 \| 500 \|/.test(r)) && !proj.some((r) => /^Dno.*\| (564|600) \| 500 \|/.test(r)),
+    proj.filter((r) => /^Dno|^Wieniec/.test(r)).join(' / '));
   const karta = await rows(/^Formatki do zamówienia$/);
   ok('karta S2: bez dna, wieniec zostaje', !karta.some((r) => /^Dno/.test(r)) && karta.some((r) => /^Wieniec \|/.test(r)), karta.filter((r) => /Dno|Wieniec/.test(r)).join(' / '));
   const opis = await page.locator('[data-el="dno-ciagu"]').first().innerText().catch(() => '');
-  ok('karta ciągu: „Dno ciągu: 2 części po 2400 i 600 mm”', /Dno ciągu: 2 części po 2400 i 600 mm/.test(opis), opis);
+  ok('karta ciągu: „Dno ciągu: jedna formatka 1800 × 500 mm”', /Dno ciągu: jedna formatka 1800 × 500 mm/.test(opis), opis);
   await zaznacz('Wspólne dno na całym ciągu');
   const p = await zap();
   ok('wyłączenie: złącza dna wracają, bez „Dno ciągu”', p.items.every((it) => !it.cab.dnoZCiagu) && !(await rows(/^Formatki całego projektu/)).some((r) => /^Dno ciągu/.test(r)));

@@ -38,7 +38,8 @@ console.log('== podpowiedź i dodanie rury ==');
   u = await uwagi();
   ok('po dodaniu: bez podpowiedzi i bez ostrzeżeń o rurze', !/rur/.test(u), linie(u, /rur/));
   const hw = await rows(/^Produkty do zamówienia/);
-  ok('zamówienie: rura ⌀25 docięta 962 mm (0,962 mb) i 2 rozety', hw.some((r) => /^Rura na wieszaki ⌀25 .*docięta: 962 mm/.test(r) && /0[.,]962 mb/.test(r)) && hw.some((r) => /^Rozeta do rury ⌀25 .*\| 2 szt\./.test(r)),
+  // zakup w odcinkach 0,5–3 m (uzytkownik 2026-10-24): 962 mm z odcinka 1 m
+  ok('zamówienie: rura 962 mm — „kupić 1 × 1 m: potrzeba 962 mm, odpad 38 mm”, 1 mb, i 2 rozety', hw.some((r) => /^Rura na wieszaki ⌀25 .*kupić 1 × 1 m: potrzeba 962 mm, odpad 38 mm/.test(r) && /\| 1 mb$/.test(r)) && hw.some((r) => /^Rozeta do rury ⌀25 .*\| 2 szt\./.test(r)),
     hw.filter((r) => /Rura|Rozeta/.test(r)).join(' / '));
   // plan wiercen jest w zestawieniu PDF (jak w `wierc`)
   await page.evaluate(() => {
