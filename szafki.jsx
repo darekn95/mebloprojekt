@@ -17792,6 +17792,19 @@ export default function App() {
             c2.shelfTargets = Array(ile + 1).fill(null);
           }
           if (!c2.shelfTargets.length) c2.shelfTargets = [null];
+          /* Rura na wieszaki idzie tylko do poziomu, w ktorym jest (wisi 70 mm pod
+             plyta swojego swiatla) — kopia kolumny dawala rure w kazdym poziomie
+             (zgloszenie uzytkownika 2026-10-24, szafa 3 kolumny). Numer swiatla
+             w nowym poziomie = polki tej kolumny w pasmie ponizej rury. */
+          const rury = [...new Set((col.drazki || []).map(Number).flatMap((k) => {
+            const o = cg && cg.openings && cg.openings[k];
+            if (!o) return [];
+            const yr = o.to - DRAZEK_POD_PLYTA;
+            if (yr < y0 || yr > y1) return [];
+            return [(cg.shelves || []).filter((s2) => s2.y >= y0 - 1 && s2.y < yr
+              && !cieciaY.some((cy) => Math.abs(s2.y - cy) < geo.t)).length];
+          }))];
+          if (rury.length) c2.drazki = rury.sort((a, b) => a - b); else delete c2.drazki;
           // wzmocnienia: dolne w najnizszym, reszta w najwyzszym; fix u gory tylko w najwyzszym
           c2.rails = (col.rails || []).filter((r) => (r.pos === "bottom" ? m === 0 : ostatni));
           if (col.fix && col.fix.side === "top" && !ostatni) delete c2.fix;
@@ -17815,6 +17828,16 @@ export default function App() {
       }
       L.splice(i, 1, ...nowe);
     });
+  };
+
+  /* Poziom jest na cala szerokosc szafki — przy kilku kolumnach dzieli tez
+     ich drzwi i polki. Najpierw pytamy (zgloszenie uzytkownika 2026-10-24:
+     „półki na poziomy w kolumnie 2 pod klapy — masakra w całej szafie”). */
+  const [podzialPoziomu, setPodzialPoziomu] = useState(null);
+  const naPoziom = (i, j, ks) => {
+    const lvG = geo.levels[i];
+    if (lvG && lvG.cols.length > 1) setPodzialPoziomu({ idx: project.active, i, j, ks });
+    else polkiNaPoziomy(i, j, ks);
   };
 
   // rura na wieszaki w swietle k kolumny (`col.drazki` — numery swiatel od dolu)
@@ -20365,11 +20388,34 @@ export default function App() {
                                 )}
                                 {/* polka nad tym swiatlem -> granica poziomow (caly poziom; bez kolumn szuflad) */}
                                 {daSiePodzielic(lv) && o.k < c.openings.length - 1 && (
-                                  <MiniBtn onClick={() => polkiNaPoziomy(lv.i, c.j, [o.k])}
+                                  <MiniBtn onClick={() => naPoziom(lv.i, c.j, [o.k])}
                                     title="Poziom zamiast półki: półka nad tym światłem staje się przelotowa — nowy poziom nad nią, z tym samym frontem">→ poziom</MiniBtn>
                                 )}
                               </div>
                             ))}
+
+                            {podzialPoziomu && podzialPoziomu.idx === project.active && podzialPoziomu.i === lv.i && podzialPoziomu.j === c.j && (() => {
+                              const inne = lv.cols.filter((c3) => c3.j !== c.j);
+                              const drzwi = inne.filter((c3) => c3.kind === "doors" && c3.count > 0);
+                              return (
+                                <div data-el="poziom-cala-szafka" className="rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-stone-700">
+                                  Poziom idzie przez całą szerokość szafki — półka staje się przelotowa także w
+                                  {" "}{inne.length === 1 ? "kolumnie" : "kolumnach"} {inne.map((c3) => c3.j + 1).join(", ")}
+                                  {drzwi.length ? <>, a {drzwi.length === 1 ? "jej drzwi dzielą się" : "ich drzwi dzielą się"} na dwie części na tej wysokości</> : null}.
+                                  {" "}Klapy tylko w tej kolumnie tak się nie zrobi.
+                                  <div className="mt-1 flex flex-wrap gap-1">
+                                    <button onClick={() => { polkiNaPoziomy(podzialPoziomu.i, podzialPoziomu.j, podzialPoziomu.ks); setPodzialPoziomu(null); }}
+                                      className="rounded bg-amber-700 px-2 py-0.5 text-white hover:bg-amber-800">
+                                      Podziel całą szafkę
+                                    </button>
+                                    <button onClick={() => setPodzialPoziomu(null)}
+                                      className="rounded border border-stone-300 bg-white px-2 py-0.5 hover:bg-stone-50">
+                                      Anuluj
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })()}
 
                             {/* mocowanie polek tej kolumny — wlasne albo jak cala szafka (N45, 2026-10-17) */}
                             <div className="flex items-center gap-2 text-xs" data-el="mocowanie-kolumny">

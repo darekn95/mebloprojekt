@@ -36,7 +36,7 @@ Każda kolumna jest „Półki i drzwi”, „Szuflady” albo „Blenda”. Lis
 - **Wymiary**: wysokość poziomu (× — wróć do równego podziału) i szerokość kolumny („auto”).
 - **Kolumna**: rodzaj (Półki i drzwi / Szuflady / Blenda), liczba półek i wysokość każdego światła.
 - **Zamiana półek**:
-  - „→ poziom” — półka staje się półką przelotową;
+  - „→ poziom” — półka staje się półką przelotową; przy kilku kolumnach najpierw ostrzeżenie, że poziom dzieli całą szafkę (półki i drzwi innych kolumn) — „Podziel całą szafkę” / „Anuluj” (2026-10-24); rura na wieszaki zostaje tylko w poziomie, w którym wisi;
   - „klapy zamiast drzwi…” — kreator: ile klap i na których półkach granice (te półki → poziomy), otwieranie, front, podnośniki (tylko poziom z jedną kolumną; `opisy/klapy.md`).
 - **Rura na wieszaki** (użytkownik 2026-10-24): w kolumnie z drzwiami albo otwartej, przy świetle od 800 mm — „rura na wieszaki: światło N (… mm)”. Okrągła ⌀25 na 2 rozetach, oś 70 mm pod płytą nad światłem (wygodnie zawiesić wieszak), w połowie głębokości wnętrza, długość = światło kolumny − 2 mm (`DRAZEK_*`, `col.drazki`).
 - **Mocowanie i kołki**: mocowanie półek, a przy przegrodzie „dół na trójkątach”; „Otwór od przodu / od tyłu” kołków półek.

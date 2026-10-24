@@ -60,9 +60,26 @@ ok('dolna półka → poziom: niżej 0 półek, wyżej 1', lv.length === 2 && lv
 // kilka kolumn: dzieli sie caly poziom, inne kolumny zachowuja swoje polki ponizej/powyzej
 await seed(proj([{ cab: cab({ W: 800, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null] }] }] }) }]));
 ok('„→ poziom” także w poziomie z dwiema kolumnami', (await page.getByRole('button', { name: '→ poziom', exact: true }).count()) === 3);
-await page.getByRole('button', { name: '→ poziom', exact: true }).last().click(); await page.waitForTimeout(1500);
+await page.getByRole('button', { name: '→ poziom', exact: true }).last().click(); await page.waitForTimeout(600);
+// przy kilku kolumnach najpierw ostrzezenie, ze poziom dzieli cala szafke (uzytkownik 2026-10-24)
+const ostrz = page.locator('[data-el="poziom-cala-szafka"]');
+ok('kilka kolumn: najpierw „Poziom idzie przez całą szerokość szafki… kolumnie 1… drzwi dzielą się”, bez zmian w projekcie',
+  /Poziom idzie przez całą szerokość szafki/.test(await ostrz.innerText().catch(() => '')) && /kolumnie 1/.test(await ostrz.innerText())
+  && /drzwi dzielą się/.test(await ostrz.innerText()) && (await zapis()).items[0].cab.levels.length === 1, await ostrz.innerText().catch(() => ''));
+await ostrz.getByRole('button', { name: 'Anuluj', exact: true }).click(); await page.waitForTimeout(400);
+ok('„Anuluj”: jeden poziom, ostrzeżenie znika', (await zapis()).items[0].cab.levels.length === 1 && (await ostrz.count()) === 0);
+await page.getByRole('button', { name: '→ poziom', exact: true }).last().click(); await page.waitForTimeout(400);
+await ostrz.getByRole('button', { name: 'Podziel całą szafkę', exact: true }).click(); await page.waitForTimeout(1500);
 lv = (await zapis()).items[0].cab.levels;
 ok('dwa poziomy po dwie kolumny, drzwi w obu', lv.length === 2 && lv.every((l) => l.cols.length === 2 && l.cols.every((c) => c.doors === 1)), JSON.stringify(lv.map((l) => ({ h: l.h, s: l.cols.map((c) => c.shelfTargets.length - 1) }))));
+// rura w kolumnie obok idzie tylko do poziomu, w ktorym wisi (uzytkownik 2026-10-24: rura w kazdym poziomie)
+await seed(proj([{ cab: cab({ W: 1200, H: 2000, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null] },
+  { kind: 'doors', doors: 1, w: null, shelfTargets: [400, null], drazki: [1] }] }] }) }]));
+await page.getByRole('button', { name: '→ poziom', exact: true }).first().click(); await page.waitForTimeout(400);
+await page.locator('[data-el="poziom-cala-szafka"]').getByRole('button', { name: 'Podziel całą szafkę', exact: true }).click(); await page.waitForTimeout(1500);
+lv = (await zapis()).items[0].cab.levels;
+ok('rura kolumny 2 tylko w jednym poziomie (tym, w którym wisi)', lv.filter((l) => (l.cols[1].drazki || []).length).length === 1,
+  JSON.stringify(lv.map((l) => l.cols[1].drazki || null)));
 await seed(proj([{ cab: cab({ W: 800, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }, { kind: 'drawers', w: null, drawers: [{ h: null }, { h: null }] }] }] }) }]));
 ok('z kolumną szuflad — bez „→ poziom”', (await page.getByRole('button', { name: '→ poziom', exact: true }).count()) === 0);
 
