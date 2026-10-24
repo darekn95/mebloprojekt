@@ -66,6 +66,14 @@ const cokChk = cok.locator('input[type=checkbox]').first();
 if (await cokChk.isChecked()) { await cokChk.click(); await page.waitForTimeout(800); }
 await cok.locator('h2').click();
 await page.waitForTimeout(300);
+// od 2026-10-24 nowa szafka stoi na nozkach — zdejmujemy je, zeby wisiala
+const nogiK = card(/^Nóżki$/);
+await nogiK.locator('h2').click();
+await page.waitForTimeout(300);
+const nogiChk = nogiK.locator('label', { hasText: 'Nóżki pod szafką' }).locator('input');
+if (await nogiChk.isChecked()) { await nogiChk.click(); await page.waitForTimeout(800); }
+await nogiK.locator('h2').click();
+await page.waitForTimeout(300);
 // zawieszki na haczykach
 await mont.getByText('Na haczykach', { exact: true }).click();
 await page.waitForTimeout(800);
