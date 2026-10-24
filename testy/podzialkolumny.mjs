@@ -104,6 +104,33 @@ console.log('\n== każdy odcinek osobno (użytkownik 2026-10-24: „dolną w dó
   }
 }
 
+console.log('\n== półki w poziomie kolumny (użytkownik 2026-10-24) ==');
+{
+  // kolumna 3: granica nad swiatlem 1 (poziom 1 = 1 swiatlo), poziom 2 = 3 swiatla
+  await seed({ ...SZAFA(), levels: [{ h: null, cols: [kol({ shelfTargets: [null] }), kol({ shelfTargets: [null] }),
+    kol({ doors: 2, podzial: [0], shelfMount: 'confirmat' })] }] });
+  const k3 = kolumna(3);
+  const poz = (n) => k3.locator('[data-el="odcinek-kolumny"]').filter({ hasText: `poziom kolumny ${n}` });
+  ok('pole „półki” w każdym poziomie kolumny: 0 i 2', (await poz(1).locator('[data-el="odcinek-polki"]').inputValue()) === '0'
+    && (await poz(2).locator('[data-el="odcinek-polki"]').inputValue()) === '2');
+  const yGranicy = async () => page.evaluate(() => 0);
+  let c = await zap();
+  await poz(1).locator('[data-el="odcinek-polki"]').fill('1'); await page.waitForTimeout(500);
+  c = await zap();
+  let k = c.levels[0].cols[2];
+  ok('poziom 1: 1 półka (2 światła), granica przesunięta w danych na półkę 1', k.shelfTargets.length === 5 && JSON.stringify(k.podzial) === '[1]'
+    && k.shelfTargets[0] === null && k.shelfTargets[1] === null, JSON.stringify([k.shelfTargets, k.podzial]));
+  ok('poziom 2 bez zmian: 2 półki, światła na stałe (granica na miejscu)', (await poz(2).locator('[data-el="odcinek-polki"]').inputValue()) === '2'
+    && k.shelfTargets.slice(2).every((v) => v > 300), JSON.stringify(k.shelfTargets));
+  const f = await fronty();
+  ok('fronty poziomu 1 dalej ok. 400 mm (granica na miejscu)', f.some((r) => /\| (39\d|40\d) \|/.test(r)), f.join(' / '));
+  await poz(2).locator('[data-el="odcinek-polki"]').fill('0'); await page.waitForTimeout(500);
+  c = await zap(); k = c.levels[0].cols[2];
+  ok('poziom 2: 0 półek — 3 światła w kolumnie, granica na półce 1', k.shelfTargets.length === 3 && JSON.stringify(k.podzial) === '[1]', JSON.stringify([k.shelfTargets, k.podzial]));
+  const u = await uwagi();
+  ok('bez błędów (×) w Uwagach', !/^×/m.test(u), u.split('\n').filter((l) => /^×/.test(l)).join(' / '));
+}
+
 console.log('\n== jedna kolumna: „→ poziom” jak dotąd (poziom) ==');
 {
   await seed({ name: 'S', W: 600, H: 1600, D: 560, levels: [{ h: null, cols: [kol()] }] });

@@ -18108,6 +18108,35 @@ export default function App() {
     seg[nr] = Object.keys(o).length ? o : null;
     if (seg.some(Boolean)) col.segmenty = seg; else delete col.segmenty;
   });
+  /* Polki w poziomie kolumny (uzytkownik 2026-10-24: „poza ilością drzwi opcja półek
+     w poziomie kolumny”): zmienia liczbe swiatel tylko miedzy granicami tego poziomu.
+     Granice zostaja na miejscu — swiatla innych poziomow dostaja swoje obecne wymiary
+     na stale, a swiatla tego poziomu ida na auto i dziela go rowno. */
+  const ustawPolkiPoziomuKolumny = (lv, c, nr, n) => editLevels((L) => {
+    const col = L[lv.i].cols[c.j];
+    const gr = (col.podzial || []).map(Number).sort((a, b) => a - b);
+    const st = [...(col.shelfTargets || [null])];
+    const lo = nr === 0 ? -1 : gr[nr - 1];
+    const hiOp = nr === gr.length ? st.length - 1 : gr[nr];
+    const m = hiOp - lo - 1;
+    const d = Math.max(0, Math.round(n)) - m;
+    if (!d) return;
+    // obecne swiatla na stale (poza tym poziomem)
+    const wym = st.map((v, k) => (k > lo && k <= hiOp ? null : Math.round(((c.openings || [])[k] || {}).h ?? num(v) ?? 0) || v));
+    let rury = (col.drazki || []).map(Number);
+    if (d > 0) {
+      wym.splice(hiOp + 1, 0, ...Array(d).fill(null));
+      col.podzial = gr.map((x) => (x >= hiOp ? x + d : x));
+      rury = rury.map((x) => (x > hiOp ? x + d : x));
+    } else {
+      const usun = -d;
+      wym.splice(hiOp - usun + 1, usun);
+      col.podzial = gr.map((x) => (x >= hiOp ? x - usun : x));
+      rury = rury.map((x) => (x > hiOp ? x - usun : x > hiOp - usun ? hiOp - usun : x));
+    }
+    col.shelfTargets = wym;
+    if (rury.length) col.drazki = [...new Set(rury)].sort((a, b) => a - b);
+  });
   const odcinkiKolumny = (lv, c, rawCol) => {
     const odcinki = [...new Set((c.doors || []).filter((d) => d.seg).map((d) => d.seg.nr))].sort((a, b) => b - a);
     const pole = "rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none";
@@ -18131,6 +18160,19 @@ export default function App() {
                 <input type="number" min={1} step={1} value={ile} data-el="odcinek-fronty"
                   onChange={(e) => ustaw({ doors: Math.max(1, Math.round(Number(e.target.value) || 1)), doorWidths: [] })}
                   className={"w-12 " + pole} />
+                {(() => {
+                  const gr = (rawCol.podzial || []).map(Number).sort((a, b) => a - b);
+                  const lo = nr === 0 ? -1 : gr[nr - 1];
+                  const hiOp = nr === gr.length ? (rawCol.shelfTargets || [null]).length - 1 : gr[nr];
+                  return (
+                    <>
+                      <span className="text-stone-500">półki</span>
+                      <input type="number" min={0} step={1} value={hiOp - lo - 1} data-el="odcinek-polki"
+                        onChange={(e) => e.target.value !== "" && ustawPolkiPoziomuKolumny(lv, c, nr, Number(e.target.value))}
+                        className={"w-12 " + pole} />
+                    </>
+                  );
+                })()}
                 {ile === 1 && (
                   <Seg value={kl ? "klapa" : "skrzydlo"} onChange={(v) => ustaw({ klapa: v === "skrzydlo" ? null : (kl || "gora") })}
                     options={[{ v: "skrzydlo", l: "skrzydło" }, { v: "klapa", l: "klapa" }]} />
@@ -20305,10 +20347,15 @@ export default function App() {
                               onChange={(e) => setColDoors(lv.i, c.j, e.target.value)}
                               className="w-14 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none" />
                             </>)}
+                            {/* przy poziomach kolumny polki ustawia sie w kazdym poziomie (nizej) */}
+                            {(rawCol.podzial || []).length > 0 ? (
+                              <span className="text-stone-500">półki <span className="font-mono text-stone-700">{nS}</span></span>
+                            ) : (<>
                             <span className="text-stone-500">półki</span>
                             <input type="number" min={0} step={1} value={nS}
                               onChange={(e) => setColShelfCount(lv.i, c.j, e.target.value)}
                               className="w-14 rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none" />
+                            </>)}
                             {c.count > 0 && !(rawCol.podzial || []).length && (
                               <span className="ml-auto font-mono text-stone-500">
                                 {fmt(c.doorH)} wys.
