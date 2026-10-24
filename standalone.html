@@ -7997,7 +7997,7 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
       const wpuszczony = (d) => d.inset ?? c.cab.frontMode === "inset";
       const fronty = [...new Map(c.geo.doors.filter((d) => d.w > 0 && d.h > 0 && !wpuszczony(d))
         .map((d) => [`${Math.round(d.y)}|${Math.round(d.h)}`, { y: y0 + d.y, h: d.h }])).values()];
-      const klucz = [back, front, y0, y1, c.mount, fronty.map((f) => `${Math.round(f.y)}/${Math.round(f.h)}`).join(",")].map((v) => (typeof v === "number" ? Math.round(v) : v)).join("|");
+      const klucz = [back, front, y0, y1, g.mount, fronty.map((f) => `${Math.round(f.y)}/${Math.round(f.h)}`).join(",")].map((v) => (typeof v === "number" ? Math.round(v) : v)).join("|");
       const p = profile.get(klucz);
       if (p) { p.nazwy.push(c.name); return; }
       profile.set(klucz, { c, g, back, front, y0, y1, fronty, nazwy: [c.name],
@@ -8010,7 +8010,7 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
       const y = Math.max(...(pod.length ? pod : g.cabs).map((c) => c.base + c.cab.H));
       const gs = wallGapOf(g.run, null);
       blaty.push({ x0: gs.bottom - gs.top, x1: gs.bottom - gs.top + rt.depth, y, th: rt.th,
-        kolor: (rt.mat.worktop || {}).color || "#8d7b68", lico: Math.max(...pod.map((c) => profile.size && c ? 0 : 0), 0) });
+        kolor: (rt.mat.worktop || {}).color || "#8d7b68" });
       yBlat = yBlat == null ? y : Math.max(yBlat, y);
     }
   });
@@ -8018,7 +8018,6 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
   const maxX = Math.max(...lista.map((p) => p.lico), ...blaty.map((b) => b.x1));
   const top = Math.max(...lista.map((p) => p.y1), ...blaty.map((b) => b.y + b.th));
   const fy = (y) => top - y;
-  const sc = (h) => (h ? `url(#sciana-kreski)` : "none");
   /* sciana: przy krzywej scianie ukos od podlogi do wysokosci blatu (jak w widoku szafki) */
   const dol = groups.find((g) => g.run.tier !== "gorny") || groups[0];
   const gsD = wallGapOf(dol.run, null);
@@ -8039,7 +8038,7 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
       {showWall && (
         <g data-el="sciana">
           <polygon points={`${scianaX(yN)},${fy(yN)} ${scianaX(0)},${fy(0)} ${scianaX(0) - SCIANA_GR},${fy(0)} ${scianaX(yN) - SCIANA_GR},${fy(yN)}`}
-            fill={sc(true)} />
+            fill="url(#sciana-kreski)" />
           <line x1={scianaX(yN)} y1={fy(yN)} x2={scianaX(0)} y2={fy(0)} stroke={INK} strokeWidth="3" />
         </g>
       )}
@@ -8063,11 +8062,17 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
               <rect key={"n" + li} x={x} y={fy(p.y0 + c.geo.legTop)} width={40} height={c.geo.legH}
                 rx={legRound(c.cab) ? 20 : 0} fill={legColorOf(c.cab)} stroke={INK} strokeWidth="1.5" />
             ))}
-            {p.y1 - p.y0 > 120 && (
-              <text x={p.back + 14} y={fy(p.y1) + 30} fontSize="20" fill={INK} opacity="0.7" fontFamily="ui-monospace, monospace">
-                {p.nazwy.length > 2 ? `${p.nazwy[0]} i ${p.nazwy.length - 1} inne` : p.nazwy.join(", ")}
-              </text>
-            )}
+            {p.y1 - p.y0 > 120 && (() => {
+              // podpis miesci sie w profilu — dluzszy ucinamy (ok. 12 jednostek na znak przy 20)
+              const pelny = p.nazwy.length > 2 ? `${p.nazwy[0]} i ${p.nazwy.length - 1} inne` : p.nazwy.join(", ");
+              const ile = Math.max(4, Math.floor((p.front - p.back - 28) / 12));
+              return (
+                <text x={p.back + 14} y={fy(p.y1) + 30} fontSize="20" fill={INK} opacity="0.7" fontFamily="ui-monospace, monospace">
+                  <title>{p.nazwy.join(", ")}</title>
+                  {pelny.length > ile ? pelny.slice(0, ile - 1) + "…" : pelny}
+                </text>
+              );
+            })()}
           </g>
         );
       })}
@@ -17303,7 +17308,8 @@ export default function App() {
     const base = [
       { v: "closed", l: "Zamk." },
       { v: "open", l: "Otw." },
-      ...(scopeRuns ? [] : [{ v: "side", l: "Z boku" }]),
+      // ciag z boku (uzytkownik 2026-10-24) — przekroj jednej sciany; zabudowa z rogami nie ma jednego boku
+      ...(scopeRuns && scope === "all" ? [] : [{ v: "side", l: "Z boku" }]),
       { v: "top", l: "Z góry" },
       { v: "rear", l: "Z tyłu" },
       { v: "3d", l: "3D" },
@@ -17313,7 +17319,7 @@ export default function App() {
       ...(scopeRuns ? [{ v: "iso", l: "45°" }] : []),
     ];
     return base;
-  }, [scopeRuns]);
+  }, [scopeRuns, scope]);
 
   useEffect(() => {
     if (!viewOpts.some((o) => o.v === view)) setView("closed");
@@ -21215,7 +21221,7 @@ export default function App() {
                   className="text-xs text-teal-700 hover:underline">
                   {cab.realColors ? "Rozróżnij fronty" : "Realne kolory"}
                 </button>
-                {view === "side" && (
+                {view === "side" && !scopeRuns && (
                   <button onClick={() => setSideWhich((s) => (s === "left" ? "right" : "left"))}
                     className="text-xs text-teal-700 hover:underline">
                     {sideWhich === "left" ? "Pokaż prawy bok" : "Pokaż lewy bok"}
@@ -21233,7 +21239,7 @@ export default function App() {
                     {showLabels ? "Ukryj oznaczenia" : "Oznacz pola"}
                   </button>
                 )}
-                {((view === "top" && scopeRuns) || (!scopeRuns && blatSzafki0)) && (
+                {(((view === "top" || view === "side") && scopeRuns) || (!scopeRuns && blatSzafki0)) && (
                   <button onClick={() => setShowBlat((s) => !s)}
                     className="text-xs text-teal-700 hover:underline">
                     {showBlat ? "Ukryj blat" : "Pokaż blat"}
@@ -21333,6 +21339,9 @@ export default function App() {
                       </span>
                     </div>
                   </div>
+                ) : view === "side" ? (
+                  <AssemblySideView project={project} runs={scopeRuns} showDims={showDims}
+                    showWall={showWall} showBlat={showBlat} />
                 ) : view === "top" ? (
                   <AssemblyTopView project={project} runs={scopeRuns} showDims={showDims}
                     showShelves={showShelves} showHardware={showHardware} showWall={showWall}

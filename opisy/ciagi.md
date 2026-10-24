@@ -114,3 +114,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 - **Układ**: `projectLayout`, `runLayout`, `runFrontDepth`, `wallGapOf`; róg — `run.corner`, `cornerPairMsgs`, `armCtxOf`, `cornerSpan`, `wstawkiOf`, `wstawkaMsgs`.
 - **Uwagi ciągu**: `runCabMsgs`, `wallGapMsgs`, `worktopMsgs`, `openingMsgs`, `szufladyMsgs`; cokół / blat ciągu: `runPlinth`, `runTop`.
 - **Testy**: `ciag`…`ciag10`, `ciagarm`, `pietra`, `gorne`, `gornaL`, `narozn`, `narozn2`, `narozn3`, `narjedne`, `narkat`, `rogplecy`, `rysrog`, `wstawka`, `blatrog`, `blatwys`, `otwier`, `audytzabudowa`, `kreator`, `odsuniecie`, `pomieszczenia`.
+
+## Rysunek ciągu z boku (2026-10-24)
+
+Zakres „Ciąg” ma widok „Z boku” — przekrój ściany: od ściany głębokość, od podłogi wysokość. Każdy inny profil szafki (głębokość, wysokość, zawieszenie) rysuje się raz, wyższe pod spodem; szafki stoją licem równo (lico ciągu jak przy blacie), fronty nakładane 2 mm przed korpusem. Do tego cokół, nóżki, blat roboczy, ciąg górny i ściana (przełączniki „Ukryj blat” / „Ukryj ścianę”). Wymiary: „z frontem” każdego piętra, „blat N (M przed frontem)”, łańcuch wysokości i wysokość całkowita. Zabudowa z rogami tego widoku nie ma (nie ma jednego boku).
