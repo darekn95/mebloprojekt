@@ -90,5 +90,26 @@ console.log('\n== kontrole ==');
   ok('światło ok. 2164 mm: podpowiedź z „płaszcze i sukienki”', /zmieści się rura na wieszaki \(pod nią \d+ mm: koszule, płaszcze i sukienki\)/.test(u), linie(u, /rur/));
 }
 
+console.log('\n== światło zmniejszone po dodaniu rury (użytkownik 2026-10-24) ==');
+{
+  // rura w swietle 1, ktore zmalalo do 300 mm — dalej da sie ja zdjac albo przeniesc wyzej
+  await seed(szafa({}, { shelfTargets: [300, null], drazki: [0] }));
+  let u = await uwagi();
+  ok('ostrzeżenie „pod rurą tylko 230 mm” z „Przenieś do światła 2 (1646 mm)” i „Usuń rurę”',
+    /pod rurą tylko 230 mm/.test(u) && /Przenieś do światła 2 \(1646 mm\)/.test(u) && /Usuń rurę/.test(u), linie(u, /rur|Przenieś/));
+  const opcja = page.locator('[data-el="rura-wieszaki-opcja"]');
+  ok('w Strukturze zostaje „światło 1 (300 mm)” z zaznaczeniem — da się odznaczyć', /światło 1 \(300 mm\)/.test(await opcja.innerText())
+    && (await opcja.locator('label', { hasText: 'światło 1' }).locator('input').isChecked()), await opcja.innerText().catch(() => ''));
+  await page.getByRole('button', { name: 'Przenieś do światła 2 (1646 mm)' }).first().click(); await page.waitForTimeout(600);
+  let c = (await zap()).items[0].cab;
+  ok('„Przenieś…”: rura w świetle 2', JSON.stringify(c.levels[0].cols[0].drazki) === '[1]', JSON.stringify(c.levels[0].cols[0].drazki));
+  u = await uwagi();
+  ok('po przeniesieniu bez ostrzeżeń o rurze', !/pod rurą tylko/.test(u), linie(u, /rur/));
+  await seed(szafa({}, { shelfTargets: [300, null], drazki: [0] }));
+  await page.locator('[data-el="rura-wieszaki-opcja"] label', { hasText: 'światło 1' }).locator('input').uncheck(); await page.waitForTimeout(600);
+  c = (await zap()).items[0].cab;
+  ok('odznaczenie w Strukturze zdejmuje rurę z małego światła', !c.levels[0].cols[0].drazki, JSON.stringify(c.levels[0].cols[0].drazki));
+}
+
 ok('bez błędów strony', !errors.length, errors.join(' / '));
 await b.close();

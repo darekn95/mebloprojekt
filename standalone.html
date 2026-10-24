@@ -2526,8 +2526,17 @@ function computeGeoLiczy(cab, mat, ctx) {
         : [];
       c.drazki.forEach((dr) => {
         const gdzie = `Poziom ${lv.i + 1}, kolumna ${j + 1}, rura na wieszaki`;
-        if (dr.pod < DRAZEK_MIN_POD)
-          add("warn", `${gdzie}: pod rurą tylko ${fmt(dr.pod)} mm — na koszule i marynarki potrzeba ok. ${fmt(DRAZEK_MIN_POD)} mm (płaszcze ok. ${fmt(DRAZEK_DLUGIE)}). Rura ${DRAZEK_POD_PLYTA} mm pod półką, światło ${fmt(dr.swiatlo)} mm.`);
+        /* Swiatlo zmniejszone po dodaniu rury (uzytkownik 2026-10-24: „nie ma opcji
+           usunięcia rurki — albo usunąć, albo przestawić na wyższą półkę”): przyciski
+           „Usuń rurę” i „Przenieś do światła N” — najwyzszego, pod ktorym zmieszcza
+           sie koszule, a gdy takiego nie ma — najwyzszego od 800 mm, wyzszego niz to. */
+        if (dr.pod < DRAZEK_MIN_POD) {
+          const wolne = c.openings.filter((o) => o.k !== dr.k && !c.drazki.some((q) => q.k === o.k));
+          const cel = [...wolne].reverse().find((o) => o.h - DRAZEK_POD_PLYTA >= DRAZEK_MIN_POD)
+            || [...wolne].filter((o) => o.h >= DRAZEK_SWIATLO_OPCJA && o.h > dr.swiatlo).sort((a, b) => b.h - a.h)[0];
+          add("warn", `${gdzie}: pod rurą tylko ${fmt(dr.pod)} mm — na koszule i marynarki potrzeba ok. ${fmt(DRAZEK_MIN_POD)} mm (płaszcze ok. ${fmt(DRAZEK_DLUGIE)}). Rura ${DRAZEK_POD_PLYTA} mm pod półką, światło ${fmt(dr.swiatlo)} mm.`
+            + (cel ? `|drazekprzenies:${lv.i}:${j}:${dr.k}:${cel.k}:${Math.round(cel.h)}` : "") + `|drazek:${lv.i}:${j}:${dr.k}:0`);
+        }
         if (dividerDepth < DRAZEK_GL_MIN)
           add("error", `${gdzie}: wnętrze ma ${fmt(dividerDepth)} mm w głąb — za płytko na wieszaki (najmniej ok. ${DRAZEK_GL_MIN} mm, wieszak pod skosem).|drazek:${lv.i}:${j}:${dr.k}:0`);
         else if (dividerDepth < DRAZEK_GL_DOBRA)
@@ -12318,6 +12327,20 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         }),
       };
     }
+    if (action.startsWith("drazekprzenies:")) {
+      // „drazekprzenies:<poziom>:<kolumna>:<z swiatla>:<do swiatla>:<jego wysokosc>"
+      const [, li, j, z, na, h] = action.split(":");
+      return {
+        label: `Przenieś do światła ${+na + 1} (${h} mm)`,
+        run: () => editLevels((L) => {
+          const col = L[+li] && L[+li].cols[+j];
+          if (!col) return;
+          const zb = new Set((col.drazki || []).map(Number));
+          zb.delete(+z); zb.add(+na);
+          col.drazki = [...zb].sort((a, b) => a - b);
+        }),
+      };
+    }
     if (action.startsWith("zawiasywszedzie:")) {
       // „zawiasywszedzie:<ile>:<poziom-kolumna,…>" — ta sama liczba we wszystkich skrzydlach tych kolumn
       const [, ile, lista] = action.split(":");
@@ -19958,9 +19981,10 @@ export default function App() {
                         })()}
                         {/* Rura na wieszaki (uzytkownik 2026-10-24) — w swietle od 800 mm */}
                         {c.kind === "doors" && (() => {
-                          const wysokie = (c.openings || []).filter((o) => o.h >= DRAZEK_SWIATLO_OPCJA);
-                          if (!wysokie.length) return null;
                           const ma = (rawCol.drazki || []).map(Number);
+                          // swiatlo z rura zostaje na liscie, nawet gdy zmalalo — inaczej nie ma jak jej zdjac
+                          const wysokie = (c.openings || []).filter((o) => o.h >= DRAZEK_SWIATLO_OPCJA || ma.includes(o.k));
+                          if (!wysokie.length) return null;
                           return (
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" data-el="rura-wieszaki-opcja">
                               <span className="text-stone-500">rura na wieszaki</span>

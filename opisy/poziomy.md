@@ -47,7 +47,7 @@ Każda kolumna jest „Półki i drzwi”, „Szuflady” albo „Blenda”. Lis
 - **Światło zero lub ujemne** (2026-10-24): pole nie przyjmuje takiej wartości (wraca do auto, strzałką nie zejdzie poniżej 1); stary zapis daje błąd „światło N ma … mm — musi być większe od zera” z „Wróć do auto”.
 - **Rura na wieszaki**:
   - światło, pod którym zmieści się ≥ 1000 mm — podpowiedź „zmieści się rura na wieszaki (pod nią N mm: koszule[, płaszcze i sukienki od 1600])” z „Dodaj rurę na wieszaki”;
-  - pod rurą mniej niż 1000 mm — ostrzeżenie (koszule ok. 1000, płaszcze ok. 1600 — poradniki);
+  - pod rurą mniej niż 1000 mm — ostrzeżenie (koszule ok. 1000, płaszcze ok. 1600 — poradniki) z „Usuń rurę” i „Przenieś do światła N” (najwyższe światło bez rury, pod którym zmieszczą się koszule; gdy takiego nie ma — najwyższe od 800 mm); światło z rurą zostaje w Strukturze, nawet gdy zmalało poniżej 800 mm (2026-10-24);
   - wnętrze płytsze niż 500 mm — ostrzeżenie „wieszaki tylko pod skosem”; płytsze niż 400 — błąd z „Usuń rurę” (użytkownik: 43 cm wystarcza, wieszaki pod skosem).
 - **Poziomy**:
   - nie wypełniają wnętrza albo je przekraczają — błąd z „Górny poziom na auto” / „Podziel poziomy równo”;
