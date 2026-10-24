@@ -62,6 +62,11 @@ const LEG_COLORS = [
 ];
 const legColorOf = (cab) => (cab.legs && cab.legs.color) || "#3f3f46";
 const legRound = (cab) => (cab.legs || {}).shape === "round";
+/* Te same nozki (wlaczenie, wysokosc, ksztalt, kolor) — liczba idzie z szerokosci
+   kazdej szafki, wiec jej nie porownujemy (nozki ciagu, uzytkownik 2026-10-24). */
+const nozkiJak = (a, b) => !!(a.legs && a.legs.on) === !!(b.legs && b.legs.on)
+  && (!(a.legs && a.legs.on) || (Math.round(Number(a.legs.height ?? 100)) === Math.round(Number(b.legs.height ?? 100))
+    && legRound(a) === legRound(b) && legColorOf(a).toLowerCase() === legColorOf(b).toLowerCase()));
 /* Wariant handlowy nozki — ksztalt, wysokosc, kolor. Zbiorcze zamowienie laczy
    tylko te same warianty (audyt GPT N9: 100 kwadratowa i 150 okragla szly
    w jeden wiersz „pod szafka 8 szt.”). */
@@ -2050,7 +2055,12 @@ const wejdzDoPokoju = (p, roomId) => {
   const tu = itemsInRoom(p, roomId);
   if (tu.length) return { ...p, active: tu[0].i };
   const nums = p.items.map((it) => { const m = /^Szafka (\d+)$/.exec((it.cab.name || "").trim()); return m ? Number(m[1]) : 0; });
-  const cab = { ...makeFromTemplate(START_TEMPLATE), name: `Szafka ${Math.max(0, ...nums) + 1}` };
+  /* Pierwsza szafka nowego pomieszczenia stoi na nozkach, bez cokolu (uzytkownik
+     2026-10-24: „nowe pomieszczenie — szafka z cokołem bez nóżek, powinna być
+     z nóżkami bez cokołu”). */
+  const wzor = makeFromTemplate(START_TEMPLATE);
+  const cab = { ...wzor, name: `Szafka ${Math.max(0, ...nums) + 1}`,
+    plinth: { ...wzor.plinth, on: false }, legs: { ...defaultCab.legs, ...(wzor.legs || {}), on: true } };
   return { ...p, items: [...p.items, { cab, mat: defaultMaterials, runId: null, roomId }], active: p.items.length };
 };
 
@@ -16249,6 +16259,16 @@ export default function App() {
       : { ...it, mat: { ...it.mat, [k]: { ...it.mat[k], color: src.color, decor: src.decor || "" } } })) };
   }), [setProject]);
 
+  /* Nozki w ciagu (uzytkownik 2026-10-24): po zmianie nozek szafki pytamy, czy tak
+     samo w calym ciagu; karta ciagu ustawia je od razu wszystkim. `patch` — pola
+     `legs` do nadpisania; liczba zostaje przy szafce (z jej szerokosci). */
+  const [zmianaNozek, setZmianaNozek] = useState(null);
+  const nozkiDlaInnych = useCallback((idxs, patch) => setProject((p) => {
+    const zbior = new Set(idxs);
+    return { ...p, items: p.items.map((it, i) => (!zbior.has(i) ? it
+      : { ...it, cab: { ...it.cab, legs: { ...(it.cab.legs || { height: 100 }), ...patch } } })) };
+  }), [setProject]);
+
   // zastepuje caly projekt (wczytanie / nowy) i czysci historie
   const replaceProject = useCallback((proj) => {
     histRef.current = { past: [], future: [] };
@@ -18974,6 +18994,36 @@ export default function App() {
                       onAuto={() => setRun(runInfo.run.id, { plinthCuts: null, plinthCutsWlasne: [] })} />
                   )}
                   </CardSub>
+                  {/* nozki ciagu jak cokol ciagu (uzytkownik 2026-10-24: „w zakładce ciąg jest
+                      cokół, a nóżek nie ma”) — wisiacy ciag nie stoi, wiec nie ma ich gdzie dac */}
+                  <CardSub title="Nóżki">
+                  {!ciagWisi && (() => {
+                    const idxs = project.items.map((_, i) => i).filter((i) => project.items[i].runId === runInfo.run.id);
+                    const zN = idxs.filter((i) => (project.items[i].cab.legs || {}).on);
+                    const wszystkie = zN.length === idxs.length;
+                    const wz = (cab.legs || {}).on ? cab.legs : zN.length ? project.items[zN[0]].cab.legs : { height: 100 };
+                    const rozne = zN.length > 1 && zN.some((i) => !nozkiJak(project.items[i].cab, project.items[zN[0]].cab));
+                    return (
+                      <Field label="Nóżki ciągu"
+                        hint="Wysokość, kształt i kolor dla wszystkich szafek ciągu; liczba nóżek zostaje z szerokości każdej szafki (karta „Nóżki” szafki).">
+                        <div data-el="nozki-ciagu" className="space-y-2">
+                          <Check checked={wszystkie} label="Nóżki pod wszystkimi szafkami"
+                            onChange={(v) => nozkiDlaInnych(idxs, v ? { on: true, height: wz.height ?? 100, shape: wz.shape, color: wz.color } : { on: false })} />
+                          {zN.length > 0 && !wszystkie && (
+                            <p className="text-xs text-amber-700">Nóżki ma {zN.length} z {idxs.length} {plural(idxs.length, "szafki", "szafek", "szafek")} — zaznacz, żeby dać je wszystkim.</p>
+                          )}
+                          {wszystkie && (
+                            <Num value={wz.height ?? 100}
+                              onChange={(v) => nozkiDlaInnych(idxs, { height: v })} />
+                          )}
+                          {wszystkie && rozne && (
+                            <p className="text-xs text-amber-700">Szafki mają różne nóżki (wysokość, kształt albo kolor) — wysokość ustawiona tutaj trafi do wszystkich.</p>
+                          )}
+                        </div>
+                      </Field>
+                    );
+                  })()}
+                  </CardSub>
                   <CardSub title="Blat">
                   {!ciagWisi && (
                     <Field label="Blat roboczy"
@@ -20621,20 +20671,20 @@ export default function App() {
 
           <Card title="Nóżki" collapsible defaultOpen={false}>
             <Check checked={!!cab.legs?.on}
-              onChange={(v) => set({ legs: { ...(cab.legs || { height: 100 }), on: v } })}
+              onChange={(v) => { set({ legs: { ...(cab.legs || { height: 100 }), on: v } }); setZmianaNozek(project.active); }}
               label="Nóżki pod szafką" />
             {cab.legs?.on && (
               <>
               <Field label="Kształt nóżki">
                 <Seg value={legRound(cab) ? "round" : "box"}
-                  onChange={(v) => set({ legs: { ...(cab.legs || {}), shape: v } })}
+                  onChange={(v) => { set({ legs: { ...(cab.legs || {}), shape: v } }); setZmianaNozek(project.active); }}
                   options={[{ v: "box", l: "Kwadratowa" }, { v: "round", l: "Okrągła" }]} />
               </Field>
               <Field label="Kolor nóżki" hint="widać go na rysunkach i w 3D">
                 <div className="flex flex-wrap items-center gap-1">
                   {LEG_COLORS.map(([nazwa, hex]) => (
                     <button key={hex} title={nazwa}
-                      onClick={() => set({ legs: { ...(cab.legs || {}), color: hex } })}
+                      onClick={() => { set({ legs: { ...(cab.legs || {}), color: hex } }); setZmianaNozek(project.active); }}
                       className={"h-6 w-6 rounded border transition-transform hover:scale-110 " +
                         (legColorOf(cab).toLowerCase() === hex.toLowerCase()
                           ? "border-teal-700 ring-1 ring-teal-700"
@@ -20642,7 +20692,7 @@ export default function App() {
                       style={{ background: hex }} />
                   ))}
                   <input type="color" value={legColorOf(cab)}
-                    onChange={(e) => set({ legs: { ...(cab.legs || {}), color: e.target.value } })}
+                    onChange={(e) => { set({ legs: { ...(cab.legs || {}), color: e.target.value } }); setZmianaNozek(project.active); }}
                     className="h-6 w-8 cursor-pointer rounded border border-stone-300 bg-white" />
                 </div>
               </Field>
@@ -20655,7 +20705,7 @@ export default function App() {
                     ? ` — nóżki mieszczą się w świetle cokołu (${fmt(geo.plinthH)} mm)`
                     : "")}>
                 <Num value={cab.legs.height ?? 100}
-                  onChange={(v) => set({ legs: { ...cab.legs, height: v } })} />
+                  onChange={(v) => { set({ legs: { ...cab.legs, height: v } }); setZmianaNozek(project.active); }} />
               </Field>
             )}
             {cab.legs?.on && (
@@ -20669,6 +20719,27 @@ export default function App() {
                     count: v === "" || v == null ? null : Math.max(2, Math.round(Number(v) || 0)) } })} />
               </Field>
             )}
+            {zmianaNozek === project.active && runInfo && (() => {
+              const inne = project.items.map((_, i) => i).filter((i) => i !== project.active
+                && project.items[i].runId === runInfo.run.id && !nozkiJak(project.items[i].cab, cab));
+              if (!inne.length) return null;
+              const l = cab.legs || {};
+              return (
+                <div data-el="nozki-dla-ciagu" className="rounded border border-teal-200 bg-teal-50 px-2 py-1.5 text-xs text-stone-700">
+                  {l.on ? "Takie same nóżki w całym ciągu?" : "Zdjąć nóżki w całym ciągu?"}
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <button onClick={() => { nozkiDlaInnych(inne, l.on ? { on: true, height: l.height ?? 100, shape: l.shape, color: l.color } : { on: false }); setZmianaNozek(null); }}
+                      className="rounded bg-teal-700 px-2 py-0.5 text-white hover:bg-teal-800">
+                      Cały ciąg „{runInfo.run.name || "ciąg"}” — {inne.length} {plural(inne.length, "szafka", "szafki", "szafek")}
+                    </button>
+                    <button onClick={() => setZmianaNozek(null)}
+                      className="rounded border border-stone-300 bg-white px-2 py-0.5 hover:bg-stone-50">
+                      Tylko ta szafka
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </Card>
 
           <Card title="Montaż półek i zawieszenie" collapsible defaultOpen={false}>
