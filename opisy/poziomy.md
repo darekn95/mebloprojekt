@@ -16,7 +16,11 @@ Każda kolumna jest „Półki i drzwi”, „Szuflady” albo „Blenda”. Lis
 - **Nowy poziom / kolumna**:
   - wpisanie wymiaru ostatniemu dokłada nowy pusty (auto), jeśli zostaje co najmniej 100 mm (poziom) albo 200 mm (kolumna);
   - „+ poziom” i „+ przegroda i kolumna” dokładają ręcznie.
-- **Usunięcie poziomu / kolumny**: gdy wszystkie pozostałe mają wpisany wymiar, sąsiad usuniętego wraca na auto i bierze miejsce. Kolumna szuflad musi sięgać boku, bo tam idą prowadnice.
+- **Usunięcie poziomu / kolumny**: miejsce bierze sąsiad usuniętego (ten nad nim / na prawo, przy ostatnim — pod nim / na lewo), reszta szafki zostaje na swoim miejscu (użytkownik 2026-10-24):
+  - usunięty z wpisanym wymiarem i sąsiad z wpisanym — sąsiad rośnie o usunięty i płytę między nimi (klapy 303 / 303 / 302 / auto, usuwasz drugą → 303 / 623 / auto);
+  - sąsiad auto — bierze miejsce sam; gdy wszystkie pozostałe mają wpisany wymiar, a usunięty był auto — sąsiad wraca na auto;
+  - został jeden — auto. Kolumna szuflad sięga wtedy boku, bo tam idą prowadnice.
+- **„Klapy zamiast drzwi”**: gdy klapy wyjdą niższe, niż potrzebuje podnośnik GTV (płytka pod płytą z zawiasami + 15 mm), przy przycisku ostrzeżenie z wysokościami (np. 216 mm przy 257).
 - **Para wzmocnień pod blat** (szafka pod blatem) zawsze trzyma się najwyższego poziomu i każdej jego kolumny — przy każdej zmianie struktury.
 - **Głębokość półki i przegrody**: głębokość korpusu minus plecy w środku albo we frezie.
   - Półka dodatkowo minus „dodatkowe cofnięcie półek”.

@@ -337,5 +337,28 @@ console.log('\n== „Zostaw 3 zawiasy” i słupek w ciągu (użytkownik 2026-10
     JSON.stringify([p1.runs[0].H, ...p1.items.map((x) => x.cab.H)]));
 }
 
+console.log('\n== usunięcie poziomu / kolumny z wpisanym wymiarem — miejsce bierze sąsiad (użytkownik 2026-10-24) ==');
+{
+  const zap = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt')));
+  await seed(proj([{ cab: cab({ H: 1300, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null, null] }] }] }) }]));
+  ok('słupek 1300 z 3 półkami: bez ostrzeżenia przy „klapy zamiast drzwi” (klapy ok. 300 mm)', (await page.locator('[data-el="klapy-za-niskie"]').count()) === 0);
+  await page.getByRole('button', { name: 'klapy zamiast drzwi', exact: true }).first().click(); await page.waitForTimeout(800);
+  let L = (await zap()).items[0].cab.levels.map((l) => l.h);
+  // lista poziomow w Strukturze idzie od gory: usun nr 2 od dolu
+  const usun = page.getByRole('button', { name: 'usuń', exact: true });
+  await usun.nth((await usun.count()) - 2).click(); await page.waitForTimeout(800);
+  const L2 = (await zap()).items[0].cab.levels.map((l) => l.h);
+  ok('klapy 303 / 303 / 302 / auto, usunięta druga od dołu → 303 / 623 / auto (sąsiad nad nią bierze miejsce + płytę)',
+    JSON.stringify(L) === '[303,303,302,null]' && JSON.stringify(L2) === '[303,623,null]', `${JSON.stringify(L)} → ${JSON.stringify(L2)}`);
+  await seed(proj([{ cab: cab({ W: 900, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: 200, shelfTargets: [null] }, { kind: 'doors', doors: 1, w: 200, shelfTargets: [null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }) }]));
+  await page.getByRole('button', { name: '×', exact: true }).and(page.locator('[title="Usuń kolumnę"]')).first().click(); await page.waitForTimeout(800);
+  const W2 = (await zap()).items[0].cab.levels[0].cols.map((k) => k.w);
+  ok('kolumny 200 / 200 / auto, usunięta pierwsza → 418 / auto', JSON.stringify(W2) === '[418,null]', JSON.stringify(W2));
+  await seed(proj([{ cab: cab({ levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null] }] }] }) }]));
+  const ostrz = page.locator('[data-el="klapy-za-niskie"]');
+  const t = (await ostrz.count()) ? await ostrz.first().innerText() : '';
+  ok('szafka 720 z 2 półkami: przy „klapy zamiast drzwi” ostrzeżenie „klapy wyjdą po 216, 216 i 216 mm … ok. 257 mm”', /klapy wyjdą po 216, 216 i 216 mm — podnośnik GTV potrzebuje ok\. 257 mm/.test(t), t);
+}
+
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await b.close();

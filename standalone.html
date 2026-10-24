@@ -16836,14 +16836,22 @@ export default function App() {
      poziomu z klapa zostawal poziom 342 mm — „brakuje 360 mm”, para wzmocnien spod
      blatu w polowie szafki, skrzynka 0 mm (zgloszenie uzytkownika 2026-10-21).
      Kolumna szuflad tez musi siegac boku, bo do niego przykreca sie prowadnice.
-     Miejsce bierze sasiad usunietego (ten nad nim, a przy gornym — ten pod nim). */
-  const zwolnijMiejsce = (lista, i, pole) => {
-    if (lista.length && lista.every((x) => x[pole] != null)) lista[Math.min(i, lista.length - 1)][pole] = null;
+     Miejsce bierze sasiad usunietego (ten nad nim, a przy gornym — ten pod nim).
+     Usuniety z wpisanym wymiarem oddaje go sasiadowi razem z plyta miedzy nimi —
+     inaczej bral go poziom auto gdzies dalej (w slupku z klapami gorna klapa rosla
+     z 316 do 645 mm, a reszta sie przesuwala; uzytkownik 2026-10-24: „bierze sasiad”). */
+  const zwolnijMiejsce = (lista, i, pole, usuniety) => {
+    if (!lista.length) return;
+    const sasiad = lista[Math.min(i, lista.length - 1)];
+    // jeden zostal — i tak wypelnia calosc, wiec auto (nadazy za zmiana wymiaru szafki)
+    if (lista.length === 1) sasiad[pole] = null;
+    else if (usuniety && usuniety[pole] != null && sasiad[pole] != null) sasiad[pole] = Math.round(sasiad[pole] + usuniety[pole] + geo.t);
+    else if (lista.every((x) => x[pole] != null)) sasiad[pole] = null;
   };
   const removeLevel = (i) => editLevels((L) => {
     if (L.length < 2) return;
-    L.splice(i, 1);
-    zwolnijMiejsce(L, i, "h");
+    const [usuniety] = L.splice(i, 1);
+    zwolnijMiejsce(L, i, "h", usuniety);
   });
   const setLevelH = (i, v) => editLevels((L) => {
     L[i].h = v === "" ? null : Math.round(Number(v));
@@ -16860,8 +16868,8 @@ export default function App() {
   const addCol = (i) => editLevels((L) => L[i].cols.push(newColumn(1, 0)));
   const removeCol = (i, j) => editLevels((L) => {
     if (L[i].cols.length < 2) return;
-    L[i].cols.splice(j, 1);
-    zwolnijMiejsce(L[i].cols, j, "w");
+    const [usunieta] = L[i].cols.splice(j, 1);
+    zwolnijMiejsce(L[i].cols, j, "w", usunieta);
   });
   const setColW = (i, j, v) => editLevels((L) => {
     const cols = L[i].cols;
@@ -19008,6 +19016,20 @@ export default function App() {
                           <div className="text-xs" data-el="polki-na-klapy">
                             <MiniBtn onClick={() => polkiNaPoziomy(lv.i, c.j, c.shelves.map((_, k) => k), true)}>klapy zamiast drzwi</MiniBtn>
                             <span className="ml-2 text-[11px] text-stone-400">każda półka → nowy poziom, w każdym klapa do góry</span>
+                            {(() => {
+                              /* Klapy po podziale za niskie na podnosnik GTV (plytka pod plyta z zawiasami
+                                 plus jej promien) — ostrzezenie przy przycisku (uzytkownik 2026-10-24). */
+                              const ys = [lv.y0, ...c.shelves.flatMap((s2) => [s2.y, s2.y + geo.t]), lv.y1];
+                              const pasma = [...Array(ys.length / 2)].map((_, m) => Math.round(ys[2 * m + 1] - ys[2 * m]));
+                              const potrzeba = (m) => (cab.frontMode !== "overlay" ? PODNOSNIK_H.wpuszczane[90]
+                                : m === pasma.length - 1 ? PODNOSNIK_H.nakladane[90] : PODNOSNIK_H.blizniacze[90]) + KLAPA_PLYTKA_R;
+                              const za = pasma.map((h, m) => ({ h, min: potrzeba(m) })).filter((q) => q.h < q.min);
+                              return za.length ? (
+                                <p className="mt-1 text-[11px] text-amber-700" data-el="klapy-za-niskie">
+                                  ! klapy wyjdą po {listPl(pasma.map((h) => fmt(h)))} mm — podnośnik GTV potrzebuje ok. {fmt(Math.max(...za.map((q) => q.min)))} mm wysokości poziomu; zmniejsz liczbę półek albo zostaw drzwi.
+                                </p>
+                              ) : null;
+                            })()}
                           </div>
                         )}
 
