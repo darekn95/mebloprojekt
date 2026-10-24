@@ -2590,6 +2590,24 @@ function computeGeoLiczy(cab, mat, ctx) {
   const half = g.between / 2;
   const divOv = Math.max(0, Math.round(g.divOverlay ?? 8));
   const divGap = t - 2 * divOv; // szczelina miedzy frontami nad przegroda
+  /* Pasma frontow kolumny podzielonej na polkach (`rawCol.podzial`, uzytkownik
+     2026-10-24) — na polce granicznej fronty nakladane zachodza na nia jak na
+     przegrode (szczelina 2 mm na srodku), wpuszczane trzymaja luz od niej. */
+  const pasmaPodzialu = (rawCol, c, lv, clo, chi) => {
+    const ks = [...new Set((rawCol.podzial || []).map(Number))].filter((k) => c.shelves && c.shelves[k]).sort((a, b) => a - b);
+    if (!ks.length) return [{ lo: clo, hi: chi, y0: lv.y0, y1: lv.y1, seg: null, pierwszy: true, ostatni: true }];
+    const ovl = cab.frontMode === "overlay";
+    const ovS = Math.max(0, Math.min(divOv, Math.floor((ts - 2) / 2)));
+    return [...ks, null].map((k, nr) => {
+      const pod = nr === 0 ? null : ks[nr - 1];
+      const ys0 = pod === null ? lv.y0 : c.shelves[pod].y + ts;
+      const ys1 = k === null ? lv.y1 : c.shelves[k].y;
+      return { lo: pod === null ? clo : ovl ? ys0 - ovS : ys0 + g.inset,
+        hi: k === null ? chi : ovl ? ys1 + ovS : ys1 - g.inset,
+        y0: ys0, y1: ys1, pierwszy: nr === 0, ostatni: k === null,
+        seg: { nr, polkaPod: pod, polkaNad: k, y0: ys0, y1: ys1 } };
+    });
+  };
   /* tylko gdy jest przegroda — pionowa miedzy kolumnami albo pozioma miedzy
      poziomami; jedno pole bez przegrod nie ma czego sprawdzac (audyt GPT N31) */
   const saPrzegrody = levels.length > 1 || levels.some((lv) => lv.cols.length > 1);
@@ -2740,6 +2758,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         rawCol.kind === "drawers" || rawCol.kind === "blenda" ? rawCol.kind : "doors";
       c.kind = kind;
       const where = `Poziom ${lv.i + 1}, kolumna ${j + 1}`;
+      const whereKol = where;
 
       // --- elementy wzmacniajace kolumny ---
       /* Plecy z plyty trzymaja korpus w kacie prostym tak samo jak stojace
@@ -3120,291 +3139,302 @@ function computeGeoLiczy(cab, mat, ctx) {
       }
 
       if (kind === "doors") {
-        const cnt = Math.max(0, Math.round(rawCol.doors ?? 0));
-        c.count = cnt;
-        if (cnt <= 0) return;
-        // luz miedzy drzwiami: wlasny dla kolumny albo globalny
-        const colGap = num(rawCol.gapBetween) ?? g.between;
-        c.gapBetween = colGap;
-        const availW = Math.round(sx1 - sx0 - (cnt - 1) * colGap);
-        const wTargets = [];
-        for (let i = 0; i < cnt; i++) wTargets.push((rawCol.doorWidths || [])[i]);
-        /* Jedne drzwi w kolumnie przy rogu maja wypelnic lico az do maskownicy
-           katownika — innej szerokosci nie ma tam po co ustawiac. Starsze
-           projekty maja ja wpisana na sztywno (tak robil szablon) i po zmianie
-           glebokosci sasiada zostawala szpara, wiec taka liczbe pomijamy. */
-        const przyRogu = ctx && ctx.armFront > 0
-          && (ctx.armSide === "right" ? j === lv.cols.length - 1 : j === 0);
-        if (przyRogu && cnt === 1) wTargets[0] = null;
-        const dws = distribute(availW, wTargets);
-        /* W szafce naroznej front celowo nie siega konca korpusu — nad
-           ramieniem nie ma czego zaslaniac, wiec to nie jest blad. */
-        const narozna = !!(cab.corner && cab.corner.on);
-        if (dws.diff !== 0 && !narozna)
-          add(
-            "error",
-            `${where}: zadane szerokości drzwi nie wypełniają pasma — różnica ${fmt(Math.abs(dws.diff))} mm.`
-          );
-        c.doorWs = dws.sizes;
-        // gdy dzielimy rowno, a wychodza rozne szerokosci o 1-2 mm — podpowiedz,
-        // jakim luzem (w gore albo w dol) pasmo podzieli sie bez resztek
-        const autoCnt = wTargets.filter((v) => num(v) === null).length;
-        const fixedW = wTargets.reduce((s2, v) => s2 + (num(v) ?? 0), 0);
-        if (autoCnt > 1) {
-          const uniq = [...new Set(dws.sizes.map((v) => Math.round(v)))];
-          if (uniq.length > 1) {
-            const spread = Math.max(...uniq) - Math.min(...uniq);
-            if (spread <= 2) {
-              const opt = evenGapOptions(sx1 - sx0, cnt, fixedW, autoCnt, colGap);
-              const acts = [opt.up, opt.down]
-                .filter((v) => v !== null)
-                .map((v) => `|fixgap:${lv.i}:${j}:${v}:${v > colGap ? "up" : "down"}`)
-                .join("");
-              // ostrzezenie: formatki do wyrownania (uzytkownik 2026-10-17)
-              add("warn", `${where}: przy równym podziale drzwi różnią się o ${fmt(spread)} mm. Zmień luz między drzwiami, żeby formatki były identyczne.${acts}`);
-            }
-          }
-        }
-        c.doorW = dws.sizes[0];
-        c.doorH = cbandH;
-        let dx = sx0;
-        const klapa = cnt === 1 && (rawCol.klapa === "gora" || rawCol.klapa === "dol") ? rawCol.klapa : null;
-        // szafka narozna ze skrzydlami lamanymi wisi na zawiasach 165° — tabela GTV dla szerokiego kata
-        const zawiasSzeroki = !!(cab.corner || {}).on && (cab.corner || {}).doors === "lamane";
-        for (let i = 0; i < cnt; i++) {
-          const dw = dws.sizes[i];
-          if (klapa) {
-            /* Klapa: zawiasy na krawedzi gornej (do gory) albo dolnej (w dol),
-               rozstawione wzdluz szerokosci — 2 szt., powyzej 900 mm 3 szt.
-               Recznie 2–4 (uzytkownik 2026-10-16), rozstaw jak w drzwiach:
-               HINGE_REF od krawedzi, reszta rowno — dokladnie tyle punktow, ile
-               zawiasow w zamowieniu (wczesniej 4 wpisane dawaly 3 punkty, 1 — dwa). */
-            const wpisane = num((rawCol.hinges || [])[0]);
-            const nZaw = wpisane === null ? (dw > 900 ? 3 : 2) : Math.min(4, Math.max(2, Math.round(wpisane)));
-            const xs = Array.from({ length: nZaw }, (_, k) => dx + HINGE_REF + ((dw - 2 * HINGE_REF) * k) / (nZaw - 1));
-            if (wpisane !== null && nZaw !== Math.round(wpisane))
-              add("error", `${where}: klapa ma ${nZaw === 2 ? "co najmniej 2" : "najwyżej 4"} zawiasy, a wpisano ${fmt(wpisane)} — liczę ${nZaw}.`
-                + `|zawiasy:${lv.i}:${j}:0:${nZaw}`);
-            const odstepK = (dw - 2 * HINGE_REF) / (nZaw - 1);
-            if (nZaw >= 3 && odstepK < ZAWIAS_MAX_ODSTEP)
-              add("warn", `${where}: za dużo zawiasów — klapa ${fmt(dw)} mm ma ${nZaw} zawiasy co ok. ${fmt(Math.round(odstepK))} mm, `
-                + `a kolejny dokłada się dopiero przy odstępie ponad ${ZAWIAS_MAX_ODSTEP} mm (wystarczą ${zawiasowWystarczy(dw)}).`
-                + `|zawiasy:${lv.i}:${j}:0:${zawiasowWystarczy(dw)}`);
-            const d = { lvl: lv.i, key: `d${lv.i}-${j}-0`, type: "klapa", klapa, colKey: `${lv.i}-${j}`,
-              x: dx, y: clo, w: dw, h: cbandH, iInGroup: 0, groupN: 1,
-              inset: cab.frontMode === "inset", gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
-              bandLo: lv.i === 0 ? null : clo, bandHi: lv.i === L - 1 ? null : chi,
-              mirror: !!(rawCol.mirrors || [])[0], hinges: nZaw, hingePts: [], klapaZawiasy: xs,
-              handle: (rawCol.handles || [])[0] !== false, colJ: j, colLast: j === lv.cols.length - 1,
-              /* uchwyt klapy na dolnej albo gornej krawedzi (uzytkownik 2026-10-19: „na
-                 dole / na górze”, nie „na boku”); domyslnie wolna krawedz — przy klapie
-                 do gory dol, w dol gora */
-              uchwytKrawedz: rawCol.klapaUchwyt === "dol" || rawCol.klapaUchwyt === "gora"
-                ? rawCol.klapaUchwyt : (klapa === "gora" ? "dol" : "gora"),
-              // wlasne wystawanie uchwytu, jak przy skrzydle — dotad klapa brala to z calej szafki (audyt GPT N36)
-              handleOut: num((rawCol.handleOuts || [])[0]) };
-            doors.push(d);
-            c.doors.push(d);
-            hingeCount += nZaw;
-            if (d.handle) handleCount += 1;
-            if (d.mirror && dw > 1 && cbandH > 1) mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
-            // podnosnik: 1, powyzej 600 mm szerokosci domyslnie 2
-            const ile = rawCol.silowniki === 1 || rawCol.silowniki === 2 ? rawCol.silowniki : (dw > 600 ? 2 : 1);
-            const kg = wagaFrontu(dw, cbandH, tf) + (d.mirror ? wagaLustra(dw, cbandH, mat) : 0);
-            const kat = klapa === "gora" && [75, 90, 100].includes(Number(rawCol.katKlapy)) ? Number(rawCol.katKlapy) : 90;
-            d.kat = kat;   // kontrola otwierania liczy luk klapy do tego kata
-            const recznie = num(rawCol.silaN);
-            const dobor = dobierzPodnosnik(cbandH, kg / ile, kat, klapa);
-            // przy jednym: co dalby drugi (przycisk „Dołóż drugi” przy za slabym)
-            const dobor2 = ile === 1 ? dobierzPodnosnik(cbandH, kg / 2, kat, klapa) : null;
-            const sila = recznie ?? (dobor ? dobor.sila : null);
-            // jeden podnosnik: strona do wyboru przy klapie, domyslnie lewa (uzytkownik 2026-10-17)
-            const strona = rawCol.podnosnikStrona === "right" ? "right" : "left";
-            klapy.push({ klapa, colKey: `${lv.i}-${j}`, w: dw, h: cbandH, kg, ile, kat, sila, recznie: recznie != null, dobor, dobor2, where, strona });
-            dx += dw + colGap;
-            continue;
-          }
-          const d = {
-            lvl: lv.i,
-            key: `d${lv.i}-${j}-${i}`,
-            type: "door",
-          colKey: `${lv.i}-${j}`,
-            x: dx,
-            y: clo,
-            w: dw,
-            h: cbandH,
-            iInGroup: i,
-            groupN: cnt,
-            inset: cab.frontMode === "inset",
-            gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
-            bandLo: lv.i === 0 ? null : clo, bandHi: lv.i === L - 1 ? null : chi,
-            mirror: !!(rawCol.mirrors || [])[i],
-            hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0),
-            handle: (rawCol.handles || [])[i] !== false,
-            handleOut: num((rawCol.handleOuts || [])[i]),
-            handlePos: (rawCol.handlePos || [])[i] === "gora" ? "gora" : "bok",
-            hingeSide:
-              cnt === 1
-                ? rawCol.hinge === "left" || rawCol.hinge === "right"
-                  ? rawCol.hinge
-                  : cab.hinge === "left" || cab.hinge === "right"
-                  ? cab.hinge
-                  : hasFix && rawFix.side === "left"
-                  ? "right"
-                  /* szafka w L: drzwi korpusu wisza na jego boku, z dala od
-                     ramienia — od strony ramienia boku nie ma (uzytkownik 2026-09-29) */
-                  : postSide && (postSide === "left" ? j === 0 : j === lv.cols.length - 1)
-                  ? (postSide === "left" ? "right" : "left")
-                  : "left"
-                : i < cnt / 2
-                ? "left"
-                : "right",
-          };
-          /* Zawias musi miec do czego sie przykrecic: bok szafki albo przegrode.
-             Tam, gdzie kolumny stykaja sie bez przegrody (przelot do ramienia
-             szafki naroznej), plyty nie ma i drzwi wisialyby w powietrzu. */
-          const kolumny = rawLevels[lv.i].cols;
-          const wPowietrzu = d.hingeSide === "left"
-            ? (j > 0 && !!kolumny[j - 1].noDiv) || (postSide === "left" && j === 0)
-            : (j < kolumny.length - 1 && !!kolumny[j].noDiv) || (postSide === "right" && j === kolumny.length - 1);
-          if (wPowietrzu) {
-            const druga = d.hingeSide === "left" ? "right" : "left";
-            add("error", `${where}: zawiasy wypadają od strony przelotu — nie ma tam płyty, `
-              + `do której da się je przykręcić. Przełóż je na ${druga === "left" ? "lewą" : "prawą"} stronę.`
-              + `|hingeflip:${lv.i}:${j}:${druga}`);
-          }
-          // rozstaw zawiasow + kolizje z polkami i wzmocnieniami w tej kolumnie
-          const hObs = [
-            ...c.shelves.map((s) => ({ y0: s.y, y1: s.y + ts, what: "półką" })),
-            /* Tylko wzmocnienia przy licu — zawias siedzi z przodu, a stojace
-               przy plecach (szafka pod blatem) jest 500 mm dalej. Liczone wszystkie
-               przesuwaly gorny zawias z 614 na 560 w kazdej szafce pod blatem
-               (audyt macierzowy 2026-10-04). */
-            ...(c.rails || []).filter((r) => !r.przyTyle && r.z0 < 100)
-              .map((r) => ({ y0: r.y0, y1: r.y1, what: "wzmocnieniem" })),
-          ];
-          // zawias siedzi w swietle kolumny, przy licu tego, co go niesie:
-          // boku, przegrody albo wspornika przy elemencie stalym. Dodatkowo
-          // odsuwamy go za lico otwartego skrzydla, zeby sie nie nakladaly.
-          const carrierL =
-            c.fix && c.fix.side === "left" ? Math.max(c.x0, c.fix.x + c.fix.w) : c.x0;
-          const carrierR =
-            c.fix && c.fix.side === "right" ? Math.min(c.x1, c.fix.x) : c.x1;
-          d.hingeX =
-            d.hingeSide === "left"
-              ? Math.max(carrierL, d.x + tf)
-              : Math.min(carrierR, d.x + dw - tf) - HINGE_W;
-          /* Przeszkoda (rura, wyciecie) w strefie zawiasu: przy boku, blizej lica
-             niz zabudowa zawiasu (HINGE_D, przy frontach wpuszczanych dalej o tf).
-             Krotka — zawias ja omija jak polke; na cala wysokosc albo bez miejsca
-             obok — blad nizej (audyt GPT N37: nie bylo zadnej uwagi). */
-          const zawiasD = HINGE_D + (cab.frontMode === "inset" ? tf : 0);
-          const wStrefie = backBlocks.filter((b) => b.free < zawiasD && b.x0 < d.hingeX + HINGE_W && b.x1 > d.hingeX);
-          wStrefie.filter((b) => Number.isFinite(b.y0) && Number.isFinite(b.y1))
-            .forEach((b) => hObs.push({ y0: b.y0, y1: b.y1, what: "przeszkodą" }));
-          const hp = hingePositions(d.y, d.h, d.hinges, hObs);
-          d.hingePts = hp.pts;
-          /* Po ominieciu polek dwa zawiasy moga trafic w to samo miejsce albo na
-             siebie (niska szafka, gesto polek) — takiego planu nie da sie
-             zamontowac (audyt GPT N18). Odstep srodkow ponizej wysokosci zawiasu = blad. */
-          {
-            const ys = [...hp.pts].sort((p1, p2) => p1 - p2);
-            const zaBlisko = ys.some((y, k) => k > 0 && y - ys[k - 1] < HINGE_H);
-            if (zaBlisko)
-              add("error", `${where}, skrzydło ${i + 1}: ${d.hinges} zawiasy nie mieszczą się między półkami — po ich ominięciu wypadają `
-                + `w jednym miejscu (${ys.map((y) => fmt(Math.round(y - d.y))).join(", ")} mm od dołu frontu). Przesuń półki albo zmniejsz liczbę zawiasów.`);
-          }
-          /* Liczba zawiasow wpisana recznie wobec tabeli GTV (uzytkownik
-             2026-10-16: „za duzo” i „za malo” wg tabeli, z przyciskiem). Front
-             ponad tabele (wysokosc / waga) — ostrzezenie, ze liczba orientacyjna. */
-          {
-            const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
-            const opis = `front ${fmt(Math.round(dw))} × ${fmt(Math.round(d.h))} mm, ok. ${gtv.kg.toFixed(1).replace(".", ",")} kg`;
-            const wpis = num((rawCol.hinges || [])[i]);
-            /* „Zostaw N zawiasy” (uzytkownik 2026-10-24) — liczba inna niz w tabeli
-               przyjeta swiadomie: zostaje informacja, a przycisk tabeli dalej jest. */
-            const zostawione = wpis !== null && num((rawCol.hingesOk || [])[i]) === wpis;
-            if (wpis !== null && wpis !== gtv.n) {
-              const powod = powodZawiasow(gtv, wpis).replace(/\.$/, "");
-              add(zostawione ? "info" : "warn", `${where}, skrzydło ${i + 1}: ${wpis > gtv.n ? "za dużo" : "za mało"} zawiasów wg tabeli GTV — ${wpis} zamiast ${gtv.n} (${opis})`
-                + (powod ? "." + powod : "")
-                + (zostawione ? " — zostawione celowo." : ".")
-                + `|zawiasy:${lv.i}:${j}:${i}:${gtv.n}` + (zostawione ? "" : `|zawiasyzostaw:${lv.i}:${j}:${i}:${wpis}`));
-            }
-            if (gtv.poza)
-              add("warn", `${where}, skrzydło ${i + 1}: ${opis} — poza tabelą zawiasów GTV (front do ${gtv.szer} mm szerokości, 2500 mm wysokości i ${zawiasSzeroki ? 15 : 20} kg), liczba zawiasów orientacyjna.`);
-          }
-          {
-            const half = HINGE_H / 2;
-            const naPrzeszkodzie = hp.pts.filter((y) => wStrefie.some((b) => y + half > b.y0 && y - half < b.y1));
-            if (naPrzeszkodzie.length) {
-              const wolne = Math.max(0, Math.min(...wStrefie.map((b) => b.free)));
-              const druga = d.hingeSide === "left" ? "right" : "left";
-              add("error", `${where}, skrzydło ${i + 1}: zawias ${naPrzeszkodzie.map((y) => fmt(Math.round(y - d.y))).join(", ")} mm od dołu frontu wypada na przeszkodzie — `
-                + `od przedniej krawędzi korpusu do niej jest ${fmt(wolne)} mm, a zawias przy ${d.hingeSide === "left" ? "lewym" : "prawym"} boku potrzebuje ${fmt(zawiasD)} mm. `
-                + (cnt === 1 ? "Przełóż zawiasy na drugą stronę albo przesuń przeszkodę." : "Przesuń przeszkodę albo zmień podział drzwi.")
-                + (cnt === 1 ? `|hingeflip:${lv.i}:${j}:${druga}` : ""));
-            }
-          }
-          d.colJ = j;
-          d.colLast = j === lv.cols.length - 1;
-          /* Ostrzezenie zostaje (uzytkownik 2026-10-16), a do tego linia w
-             notatce montazowej PDF i przycisk, ktory dopisuje ja do notatki szafki. */
-          hp.moved.forEach((m) => {
-            const notatka = `${where}, skrzydło ${i + 1}: zawias ${fmt(m.to - d.y)} mm od dołu frontu (nie ${fmt(m.from - d.y)})`
-              + ` — przesunięty przez kolizję z ${m.co || "półką lub wzmocnieniem"}, ${HINGE_CLR} mm luzu.`;
-            zawiasyMontaz.push(notatka);
-            add(
-              "warn",
-              `${where}, skrzydło ${i + 1}: zawias przesunięty z ${fmt(m.from - d.y)} na ${fmt(
-                m.to - d.y
-              )} mm od dołu frontu — kolizja z ${m.co || "półką lub wzmocnieniem"}, zostawiony luz ${HINGE_CLR} mm.`
-              + `|notatka:${encodeURIComponent(notatka)}`
-            );
-          });
-          doors.push(d);
-          c.doors.push(d);
-          dx += dw + colGap;
-          if (dw <= 0) add("error", `${where}: drzwi ${i + 1} mają szerokość zero lub mniej.`);
-          if ((rawCol.mirrors || [])[i] && dw > 1 && cbandH > 1)
-            mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
-          if ((rawCol.handles || [])[i] !== false) handleCount += 1;
-          const autoH = autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0);
-          const ovH = num((rawCol.hinges || [])[i]);
-          hingeCount += ovH !== null ? ovH : autoH;
-          /* Na ile front zachodzi na czolo boku albo przegrody, ktora niesie
-             zawias; wspornik przy elemencie stalym zostaje jak byl (front fixu
-             przed nim) — tam wariant szafki. */
-          if (!(c.fix && c.fix.side === d.hingeSide)
-              && polnakladany(d.hingeSide === "left" ? carrierL - d.x : d.x + dw - carrierR, t))
-            hingePol += ovH !== null ? ovH : autoH;
-        }
-        if (cbandH <= 0) add("error", `${where}: wysokość drzwi zero lub mniej.`);
-        /* Dwa waskie skrzydla tam, gdzie zmiesci sie jedno (np. 2 x 148 w szafce
-           300) — czesto zostaje tak z szablonu, a czasem klient tak chce, wiec to
-           tylko informacja. Przyciski pytaja od razu o strone zawiasow. Szafki
-           naroznej i drzwi przy rogu to nie dotyczy — tam sa wlasne zasady. */
-        const jedne = Math.round(sx1 - sx0);
-        if (cnt === 2 && !narozna && !przyRogu && jedne <= SZEROKI_FRONT
-            && dws.sizes.every((v) => v > 0 && v < WASKI_FRONT))
-          add("warn", `${where}: dwoje wąskich drzwi po ${fmt(Math.round(dws.sizes[0]))} mm `
-            + `(poniżej ${fmt(WASKI_FRONT)} mm). Jedne drzwi miałyby ${fmt(jedne)} mm — `
-            + "zostaw dwoje, jeśli tak ma być."
-            + `|onedoor:${lv.i}:${j}:${jedne}:left|onedoor:${lv.i}:${j}:${jedne}:right`);
-
-        if (hasFix && fixW > 0) {
-          const auto = rawFix.side === "left" ? "right" : "left";
-          const hinge =
-            rawCol.hinge === "left" || rawCol.hinge === "right" ? rawCol.hinge : auto;
-          c.hinge = cnt >= 2 ? "obie" : hinge;
-          const sides = cnt >= 2 ? ["left", "right"] : [hinge];
-          if (sides.includes(rawFix.side) && !rawFix.support)
+        /* Podzial frontow w kolumnie (uzytkownik 2026-10-24: „półki na poziomy
+           tylko w tej kolumnie, a nie w całej szafie”) — wybrane polki tej kolumny
+           (`rawCol.podzial`, numery polek od dolu) sa granicami: kazdy odcinek
+           miedzy nimi dostaje swoj front (drzwi albo klape) jak osobny poziom,
+           a polka zostaje polka stala tej kolumny. Inne kolumny bez zmian. */
+        const pasmaDrzwi = pasmaPodzialu(rawCol, c, lv, clo, chi);
+        pasmaDrzwi.forEach((ps) => {
+        const clo = ps.lo, chi = ps.hi, cbandH = Math.round(ps.hi - ps.lo);
+        const where = ps.seg ? `${whereKol}, odcinek ${ps.seg.nr + 1}` : whereKol;
+        const jKey = ps.seg ? `${j}s${ps.seg.nr}` : `${j}`;
+          const cnt = Math.max(0, Math.round(rawCol.doors ?? 0));
+          c.count = cnt;
+          if (cnt <= 0) return;
+          // luz miedzy drzwiami: wlasny dla kolumny albo globalny
+          const colGap = num(rawCol.gapBetween) ?? g.between;
+          c.gapBetween = colGap;
+          const availW = Math.round(sx1 - sx0 - (cnt - 1) * colGap);
+          const wTargets = [];
+          for (let i = 0; i < cnt; i++) wTargets.push((rawCol.doorWidths || [])[i]);
+          /* Jedne drzwi w kolumnie przy rogu maja wypelnic lico az do maskownicy
+             katownika — innej szerokosci nie ma tam po co ustawiac. Starsze
+             projekty maja ja wpisana na sztywno (tak robil szablon) i po zmianie
+             glebokosci sasiada zostawala szpara, wiec taka liczbe pomijamy. */
+          const przyRogu = ctx && ctx.armFront > 0
+            && (ctx.armSide === "right" ? j === lv.cols.length - 1 : j === 0);
+          if (przyRogu && cnt === 1) wTargets[0] = null;
+          const dws = distribute(availW, wTargets);
+          /* W szafce naroznej front celowo nie siega konca korpusu — nad
+             ramieniem nie ma czego zaslaniac, wiec to nie jest blad. */
+          const narozna = !!(cab.corner && cab.corner.on);
+          if (dws.diff !== 0 && !narozna)
             add(
               "error",
-              `${where}: zawias wypada na elemencie stałym — nie ma go w co przykręcić, tych drzwi fizycznie nie da się zamontować.` +
-                `|fixsup:${lv.i}:${j}|fixnodoor:${lv.i}:${j}`
+              `${where}: zadane szerokości drzwi nie wypełniają pasma — różnica ${fmt(Math.abs(dws.diff))} mm.`
             );
-        }
+          c.doorWs = dws.sizes;
+          // gdy dzielimy rowno, a wychodza rozne szerokosci o 1-2 mm — podpowiedz,
+          // jakim luzem (w gore albo w dol) pasmo podzieli sie bez resztek
+          const autoCnt = wTargets.filter((v) => num(v) === null).length;
+          const fixedW = wTargets.reduce((s2, v) => s2 + (num(v) ?? 0), 0);
+          if (autoCnt > 1) {
+            const uniq = [...new Set(dws.sizes.map((v) => Math.round(v)))];
+            if (uniq.length > 1) {
+              const spread = Math.max(...uniq) - Math.min(...uniq);
+              if (spread <= 2) {
+                const opt = evenGapOptions(sx1 - sx0, cnt, fixedW, autoCnt, colGap);
+                const acts = [opt.up, opt.down]
+                  .filter((v) => v !== null)
+                  .map((v) => `|fixgap:${lv.i}:${j}:${v}:${v > colGap ? "up" : "down"}`)
+                  .join("");
+                // ostrzezenie: formatki do wyrownania (uzytkownik 2026-10-17)
+                add("warn", `${where}: przy równym podziale drzwi różnią się o ${fmt(spread)} mm. Zmień luz między drzwiami, żeby formatki były identyczne.${acts}`);
+              }
+            }
+          }
+          c.doorW = dws.sizes[0];
+          c.doorH = cbandH;
+          let dx = sx0;
+          const klapa = cnt === 1 && (rawCol.klapa === "gora" || rawCol.klapa === "dol") ? rawCol.klapa : null;
+          // szafka narozna ze skrzydlami lamanymi wisi na zawiasach 165° — tabela GTV dla szerokiego kata
+          const zawiasSzeroki = !!(cab.corner || {}).on && (cab.corner || {}).doors === "lamane";
+          for (let i = 0; i < cnt; i++) {
+            const dw = dws.sizes[i];
+            if (klapa) {
+              /* Klapa: zawiasy na krawedzi gornej (do gory) albo dolnej (w dol),
+                 rozstawione wzdluz szerokosci — 2 szt., powyzej 900 mm 3 szt.
+                 Recznie 2–4 (uzytkownik 2026-10-16), rozstaw jak w drzwiach:
+                 HINGE_REF od krawedzi, reszta rowno — dokladnie tyle punktow, ile
+                 zawiasow w zamowieniu (wczesniej 4 wpisane dawaly 3 punkty, 1 — dwa). */
+              const wpisane = num((rawCol.hinges || [])[0]);
+              const nZaw = wpisane === null ? (dw > 900 ? 3 : 2) : Math.min(4, Math.max(2, Math.round(wpisane)));
+              const xs = Array.from({ length: nZaw }, (_, k) => dx + HINGE_REF + ((dw - 2 * HINGE_REF) * k) / (nZaw - 1));
+              if (wpisane !== null && nZaw !== Math.round(wpisane))
+                add("error", `${where}: klapa ma ${nZaw === 2 ? "co najmniej 2" : "najwyżej 4"} zawiasy, a wpisano ${fmt(wpisane)} — liczę ${nZaw}.`
+                  + `|zawiasy:${lv.i}:${j}:0:${nZaw}`);
+              const odstepK = (dw - 2 * HINGE_REF) / (nZaw - 1);
+              if (nZaw >= 3 && odstepK < ZAWIAS_MAX_ODSTEP)
+                add("warn", `${where}: za dużo zawiasów — klapa ${fmt(dw)} mm ma ${nZaw} zawiasy co ok. ${fmt(Math.round(odstepK))} mm, `
+                  + `a kolejny dokłada się dopiero przy odstępie ponad ${ZAWIAS_MAX_ODSTEP} mm (wystarczą ${zawiasowWystarczy(dw)}).`
+                  + `|zawiasy:${lv.i}:${j}:0:${zawiasowWystarczy(dw)}`);
+              const d = { lvl: lv.i, key: `d${lv.i}-${jKey}-0`, type: "klapa", klapa, colKey: `${lv.i}-${j}`,
+                x: dx, y: clo, w: dw, h: cbandH, iInGroup: 0, groupN: 1,
+                inset: cab.frontMode === "inset", gWallL: gwL, gWallR: gwR, colY0: ps.y0, colY1: ps.y1, seg: ps.seg,
+                bandLo: ps.pierwszy && lv.i === 0 ? null : clo, bandHi: ps.ostatni && lv.i === L - 1 ? null : chi,
+                mirror: !!(rawCol.mirrors || [])[0], hinges: nZaw, hingePts: [], klapaZawiasy: xs,
+                handle: (rawCol.handles || [])[0] !== false, colJ: j, colLast: j === lv.cols.length - 1,
+                /* uchwyt klapy na dolnej albo gornej krawedzi (uzytkownik 2026-10-19: „na
+                   dole / na górze”, nie „na boku”); domyslnie wolna krawedz — przy klapie
+                   do gory dol, w dol gora */
+                uchwytKrawedz: rawCol.klapaUchwyt === "dol" || rawCol.klapaUchwyt === "gora"
+                  ? rawCol.klapaUchwyt : (klapa === "gora" ? "dol" : "gora"),
+                // wlasne wystawanie uchwytu, jak przy skrzydle — dotad klapa brala to z calej szafki (audyt GPT N36)
+                handleOut: num((rawCol.handleOuts || [])[0]) };
+              doors.push(d);
+              c.doors.push(d);
+              hingeCount += nZaw;
+              if (d.handle) handleCount += 1;
+              if (d.mirror && dw > 1 && cbandH > 1) mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
+              // podnosnik: 1, powyzej 600 mm szerokosci domyslnie 2
+              const ile = rawCol.silowniki === 1 || rawCol.silowniki === 2 ? rawCol.silowniki : (dw > 600 ? 2 : 1);
+              const kg = wagaFrontu(dw, cbandH, tf) + (d.mirror ? wagaLustra(dw, cbandH, mat) : 0);
+              const kat = klapa === "gora" && [75, 90, 100].includes(Number(rawCol.katKlapy)) ? Number(rawCol.katKlapy) : 90;
+              d.kat = kat;   // kontrola otwierania liczy luk klapy do tego kata
+              const recznie = num(rawCol.silaN);
+              const dobor = dobierzPodnosnik(cbandH, kg / ile, kat, klapa);
+              // przy jednym: co dalby drugi (przycisk „Dołóż drugi” przy za slabym)
+              const dobor2 = ile === 1 ? dobierzPodnosnik(cbandH, kg / 2, kat, klapa) : null;
+              const sila = recznie ?? (dobor ? dobor.sila : null);
+              // jeden podnosnik: strona do wyboru przy klapie, domyslnie lewa (uzytkownik 2026-10-17)
+              const strona = rawCol.podnosnikStrona === "right" ? "right" : "left";
+              klapy.push({ klapa, colKey: `${lv.i}-${j}`, key: d.key, w: dw, h: cbandH, kg, ile, kat, sila, recznie: recznie != null, dobor, dobor2, where, strona });
+              dx += dw + colGap;
+              continue;
+            }
+            const d = {
+              lvl: lv.i,
+              key: `d${lv.i}-${jKey}-${i}`,
+              type: "door",
+            colKey: `${lv.i}-${j}`,
+              x: dx,
+              y: clo,
+              w: dw,
+              h: cbandH,
+              iInGroup: i,
+              groupN: cnt,
+              inset: cab.frontMode === "inset",
+              gWallL: gwL, gWallR: gwR, colY0: ps.y0, colY1: ps.y1, seg: ps.seg,
+              bandLo: ps.pierwszy && lv.i === 0 ? null : clo, bandHi: ps.ostatni && lv.i === L - 1 ? null : chi,
+              mirror: !!(rawCol.mirrors || [])[i],
+              hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0),
+              handle: (rawCol.handles || [])[i] !== false,
+              handleOut: num((rawCol.handleOuts || [])[i]),
+              handlePos: (rawCol.handlePos || [])[i] === "gora" ? "gora" : "bok",
+              hingeSide:
+                cnt === 1
+                  ? rawCol.hinge === "left" || rawCol.hinge === "right"
+                    ? rawCol.hinge
+                    : cab.hinge === "left" || cab.hinge === "right"
+                    ? cab.hinge
+                    : hasFix && rawFix.side === "left"
+                    ? "right"
+                    /* szafka w L: drzwi korpusu wisza na jego boku, z dala od
+                       ramienia — od strony ramienia boku nie ma (uzytkownik 2026-09-29) */
+                    : postSide && (postSide === "left" ? j === 0 : j === lv.cols.length - 1)
+                    ? (postSide === "left" ? "right" : "left")
+                    : "left"
+                  : i < cnt / 2
+                  ? "left"
+                  : "right",
+            };
+            /* Zawias musi miec do czego sie przykrecic: bok szafki albo przegrode.
+               Tam, gdzie kolumny stykaja sie bez przegrody (przelot do ramienia
+               szafki naroznej), plyty nie ma i drzwi wisialyby w powietrzu. */
+            const kolumny = rawLevels[lv.i].cols;
+            const wPowietrzu = d.hingeSide === "left"
+              ? (j > 0 && !!kolumny[j - 1].noDiv) || (postSide === "left" && j === 0)
+              : (j < kolumny.length - 1 && !!kolumny[j].noDiv) || (postSide === "right" && j === kolumny.length - 1);
+            if (wPowietrzu) {
+              const druga = d.hingeSide === "left" ? "right" : "left";
+              add("error", `${where}: zawiasy wypadają od strony przelotu — nie ma tam płyty, `
+                + `do której da się je przykręcić. Przełóż je na ${druga === "left" ? "lewą" : "prawą"} stronę.`
+                + `|hingeflip:${lv.i}:${j}:${druga}`);
+            }
+            // rozstaw zawiasow + kolizje z polkami i wzmocnieniami w tej kolumnie
+            const hObs = [
+              ...c.shelves.map((s) => ({ y0: s.y, y1: s.y + ts, what: "półką" })),
+              /* Tylko wzmocnienia przy licu — zawias siedzi z przodu, a stojace
+                 przy plecach (szafka pod blatem) jest 500 mm dalej. Liczone wszystkie
+                 przesuwaly gorny zawias z 614 na 560 w kazdej szafce pod blatem
+                 (audyt macierzowy 2026-10-04). */
+              ...(c.rails || []).filter((r) => !r.przyTyle && r.z0 < 100)
+                .map((r) => ({ y0: r.y0, y1: r.y1, what: "wzmocnieniem" })),
+            ];
+            // zawias siedzi w swietle kolumny, przy licu tego, co go niesie:
+            // boku, przegrody albo wspornika przy elemencie stalym. Dodatkowo
+            // odsuwamy go za lico otwartego skrzydla, zeby sie nie nakladaly.
+            const carrierL =
+              c.fix && c.fix.side === "left" ? Math.max(c.x0, c.fix.x + c.fix.w) : c.x0;
+            const carrierR =
+              c.fix && c.fix.side === "right" ? Math.min(c.x1, c.fix.x) : c.x1;
+            d.hingeX =
+              d.hingeSide === "left"
+                ? Math.max(carrierL, d.x + tf)
+                : Math.min(carrierR, d.x + dw - tf) - HINGE_W;
+            /* Przeszkoda (rura, wyciecie) w strefie zawiasu: przy boku, blizej lica
+               niz zabudowa zawiasu (HINGE_D, przy frontach wpuszczanych dalej o tf).
+               Krotka — zawias ja omija jak polke; na cala wysokosc albo bez miejsca
+               obok — blad nizej (audyt GPT N37: nie bylo zadnej uwagi). */
+            const zawiasD = HINGE_D + (cab.frontMode === "inset" ? tf : 0);
+            const wStrefie = backBlocks.filter((b) => b.free < zawiasD && b.x0 < d.hingeX + HINGE_W && b.x1 > d.hingeX);
+            wStrefie.filter((b) => Number.isFinite(b.y0) && Number.isFinite(b.y1))
+              .forEach((b) => hObs.push({ y0: b.y0, y1: b.y1, what: "przeszkodą" }));
+            const hp = hingePositions(d.y, d.h, d.hinges, hObs);
+            d.hingePts = hp.pts;
+            /* Po ominieciu polek dwa zawiasy moga trafic w to samo miejsce albo na
+               siebie (niska szafka, gesto polek) — takiego planu nie da sie
+               zamontowac (audyt GPT N18). Odstep srodkow ponizej wysokosci zawiasu = blad. */
+            {
+              const ys = [...hp.pts].sort((p1, p2) => p1 - p2);
+              const zaBlisko = ys.some((y, k) => k > 0 && y - ys[k - 1] < HINGE_H);
+              if (zaBlisko)
+                add("error", `${where}, skrzydło ${i + 1}: ${d.hinges} zawiasy nie mieszczą się między półkami — po ich ominięciu wypadają `
+                  + `w jednym miejscu (${ys.map((y) => fmt(Math.round(y - d.y))).join(", ")} mm od dołu frontu). Przesuń półki albo zmniejsz liczbę zawiasów.`);
+            }
+            /* Liczba zawiasow wpisana recznie wobec tabeli GTV (uzytkownik
+               2026-10-16: „za duzo” i „za malo” wg tabeli, z przyciskiem). Front
+               ponad tabele (wysokosc / waga) — ostrzezenie, ze liczba orientacyjna. */
+            {
+              const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
+              const opis = `front ${fmt(Math.round(dw))} × ${fmt(Math.round(d.h))} mm, ok. ${gtv.kg.toFixed(1).replace(".", ",")} kg`;
+              const wpis = num((rawCol.hinges || [])[i]);
+              /* „Zostaw N zawiasy” (uzytkownik 2026-10-24) — liczba inna niz w tabeli
+                 przyjeta swiadomie: zostaje informacja, a przycisk tabeli dalej jest. */
+              const zostawione = wpis !== null && num((rawCol.hingesOk || [])[i]) === wpis;
+              if (wpis !== null && wpis !== gtv.n) {
+                const powod = powodZawiasow(gtv, wpis).replace(/\.$/, "");
+                add(zostawione ? "info" : "warn", `${where}, skrzydło ${i + 1}: ${wpis > gtv.n ? "za dużo" : "za mało"} zawiasów wg tabeli GTV — ${wpis} zamiast ${gtv.n} (${opis})`
+                  + (powod ? "." + powod : "")
+                  + (zostawione ? " — zostawione celowo." : ".")
+                  + `|zawiasy:${lv.i}:${j}:${i}:${gtv.n}` + (zostawione ? "" : `|zawiasyzostaw:${lv.i}:${j}:${i}:${wpis}`));
+              }
+              if (gtv.poza)
+                add("warn", `${where}, skrzydło ${i + 1}: ${opis} — poza tabelą zawiasów GTV (front do ${gtv.szer} mm szerokości, 2500 mm wysokości i ${zawiasSzeroki ? 15 : 20} kg), liczba zawiasów orientacyjna.`);
+            }
+            {
+              const half = HINGE_H / 2;
+              const naPrzeszkodzie = hp.pts.filter((y) => wStrefie.some((b) => y + half > b.y0 && y - half < b.y1));
+              if (naPrzeszkodzie.length) {
+                const wolne = Math.max(0, Math.min(...wStrefie.map((b) => b.free)));
+                const druga = d.hingeSide === "left" ? "right" : "left";
+                add("error", `${where}, skrzydło ${i + 1}: zawias ${naPrzeszkodzie.map((y) => fmt(Math.round(y - d.y))).join(", ")} mm od dołu frontu wypada na przeszkodzie — `
+                  + `od przedniej krawędzi korpusu do niej jest ${fmt(wolne)} mm, a zawias przy ${d.hingeSide === "left" ? "lewym" : "prawym"} boku potrzebuje ${fmt(zawiasD)} mm. `
+                  + (cnt === 1 ? "Przełóż zawiasy na drugą stronę albo przesuń przeszkodę." : "Przesuń przeszkodę albo zmień podział drzwi.")
+                  + (cnt === 1 ? `|hingeflip:${lv.i}:${j}:${druga}` : ""));
+              }
+            }
+            d.colJ = j;
+            d.colLast = j === lv.cols.length - 1;
+            /* Ostrzezenie zostaje (uzytkownik 2026-10-16), a do tego linia w
+               notatce montazowej PDF i przycisk, ktory dopisuje ja do notatki szafki. */
+            hp.moved.forEach((m) => {
+              const notatka = `${where}, skrzydło ${i + 1}: zawias ${fmt(m.to - d.y)} mm od dołu frontu (nie ${fmt(m.from - d.y)})`
+                + ` — przesunięty przez kolizję z ${m.co || "półką lub wzmocnieniem"}, ${HINGE_CLR} mm luzu.`;
+              zawiasyMontaz.push(notatka);
+              add(
+                "warn",
+                `${where}, skrzydło ${i + 1}: zawias przesunięty z ${fmt(m.from - d.y)} na ${fmt(
+                  m.to - d.y
+                )} mm od dołu frontu — kolizja z ${m.co || "półką lub wzmocnieniem"}, zostawiony luz ${HINGE_CLR} mm.`
+                + `|notatka:${encodeURIComponent(notatka)}`
+              );
+            });
+            doors.push(d);
+            c.doors.push(d);
+            dx += dw + colGap;
+            if (dw <= 0) add("error", `${where}: drzwi ${i + 1} mają szerokość zero lub mniej.`);
+            if ((rawCol.mirrors || [])[i] && dw > 1 && cbandH > 1)
+              mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
+            if ((rawCol.handles || [])[i] !== false) handleCount += 1;
+            const autoH = autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0);
+            const ovH = num((rawCol.hinges || [])[i]);
+            hingeCount += ovH !== null ? ovH : autoH;
+            /* Na ile front zachodzi na czolo boku albo przegrody, ktora niesie
+               zawias; wspornik przy elemencie stalym zostaje jak byl (front fixu
+               przed nim) — tam wariant szafki. */
+            if (!(c.fix && c.fix.side === d.hingeSide)
+                && polnakladany(d.hingeSide === "left" ? carrierL - d.x : d.x + dw - carrierR, t))
+              hingePol += ovH !== null ? ovH : autoH;
+          }
+          if (cbandH <= 0) add("error", `${where}: wysokość drzwi zero lub mniej.`);
+          /* Dwa waskie skrzydla tam, gdzie zmiesci sie jedno (np. 2 x 148 w szafce
+             300) — czesto zostaje tak z szablonu, a czasem klient tak chce, wiec to
+             tylko informacja. Przyciski pytaja od razu o strone zawiasow. Szafki
+             naroznej i drzwi przy rogu to nie dotyczy — tam sa wlasne zasady. */
+          const jedne = Math.round(sx1 - sx0);
+          if (cnt === 2 && !narozna && !przyRogu && jedne <= SZEROKI_FRONT
+              && dws.sizes.every((v) => v > 0 && v < WASKI_FRONT))
+            add("warn", `${where}: dwoje wąskich drzwi po ${fmt(Math.round(dws.sizes[0]))} mm `
+              + `(poniżej ${fmt(WASKI_FRONT)} mm). Jedne drzwi miałyby ${fmt(jedne)} mm — `
+              + "zostaw dwoje, jeśli tak ma być."
+              + `|onedoor:${lv.i}:${j}:${jedne}:left|onedoor:${lv.i}:${j}:${jedne}:right`);
+
+          if (hasFix && fixW > 0) {
+            const auto = rawFix.side === "left" ? "right" : "left";
+            const hinge =
+              rawCol.hinge === "left" || rawCol.hinge === "right" ? rawCol.hinge : auto;
+            c.hinge = cnt >= 2 ? "obie" : hinge;
+            const sides = cnt >= 2 ? ["left", "right"] : [hinge];
+            if (sides.includes(rawFix.side) && !rawFix.support)
+              add(
+                "error",
+                `${where}: zawias wypada na elemencie stałym — nie ma go w co przykręcić, tych drzwi fizycznie nie da się zamontować.` +
+                  `|fixsup:${lv.i}:${j}|fixnodoor:${lv.i}:${j}`
+              );
+          }
+        });
         return;
       }
 
@@ -5129,7 +5159,11 @@ function computeGeoLiczy(cab, mat, ctx) {
            w blat; bez dna klapy w dol nie ma w co zawiesic (analiza 2026-10-04:
            plan wiercil w „Wieniec”, ktorego nie bylo w formatkach). */
         const plaskieNad = (c.rails || []).some((r) => r.orient === "shelf" && r.y0 >= (lv.y0 + lv.y1) / 2);
-        const nazwa = gora
+        // klapa w kolumnie podzielonej na polkach: zawiasy w polce granicznej (stalej)
+        const segNad = gora && d.seg && d.seg.polkaNad != null, segPod = !gora && d.seg && d.seg.polkaPod != null;
+        const nazwa = segNad || segPod
+          ? `Półka ${(segNad ? d.seg.polkaNad : d.seg.polkaPod) + 1} kolumny ${d.colJ + 1} (stała, ${segNad ? "nad" : "pod"} klapą)`
+          : gora
           ? (lv.i === levels.length - 1
             ? (isBlat ? "Blat" : hasTop ? "Wieniec" : plaskieNad ? "Wzmocnienie poziome" : null)
             : `Półka przelotowa nad poziomem ${lv.i + 1}`)
@@ -5151,12 +5185,12 @@ function computeGeoLiczy(cab, mat, ctx) {
            frontu na te plyte wybiera wiersz tabeli: wpuszczana, nakladana albo
            „blizniacza” — polowa grubosci, gdy nad klapa jest jeszcze front
            nastepnego poziomu. Jeden podnosnik — po stronie wybranej przy klapie. */
-        const k = klapy.find((q) => q.colKey === d.colKey);
-        const ostatni = lv.i === levels.length - 1;
+        const k = klapy.find((q) => (q.key ? q.key === d.key : q.colKey === d.colKey));
+        const ostatni = lv.i === levels.length - 1 && !segNad;
         const szyna = gora && ostatni && !hasTop
           ? (c.rails || []).filter((r) => r.orient === "shelf" && r.y0 >= (lv.y0 + lv.y1) / 2).sort((a, b) => a.y0 - b.y0)[0] : null;
-        const plytaY = gora ? (szyna ? szyna.y0 : lv.y1) : lv.y0;
-        const plytaT = gora && ostatni ? (szyna ? szyna.y1 - szyna.y0 : tW) : t;
+        const plytaY = segNad ? d.seg.y1 : segPod ? d.seg.y0 : gora ? (szyna ? szyna.y0 : lv.y1) : lv.y0;
+        const plytaT = segNad || segPod ? ts : gora && ostatni ? (szyna ? szyna.y1 - szyna.y0 : tW) : t;
         const nf = gora ? d.y + d.h - plytaY : plytaY - d.y;
         const typ = d.inset ? "wpuszczane" : polnakladany(nf, plytaT) ? "blizniacze" : "nakladane";
         if (typ === "blizniacze") hingePol += (d.klapaZawiasy || []).length;
@@ -5170,7 +5204,7 @@ function computeGeoLiczy(cab, mat, ctx) {
            albo wyzej jest juz plyta miedzy poziomami albo koniec boku. Klapa w dol
            H200: srodek 263 mm, a bok ma 200 (audyt GPT N74); zamowienie bez uwagi. */
         const potrzeba = (gora ? PODNOSNIK_H[typ][kat] : AMORTYZATOR_H) + KLAPA_PLYTKA_R;
-        const jest = Math.round(gora ? plytaY - lv.y0 : lv.y1 - plytaY);
+        const jest = Math.round(gora ? plytaY - (d.seg ? d.seg.y0 : lv.y0) : (d.seg ? d.seg.y1 : lv.y1) - plytaY);
         if (jest < potrzeba) {
           if (k) k.plytkaPoza = true;
           add("error", `Poziom ${lv.i + 1}, kolumna ${d.colJ + 1}: klapa ${gora ? "do góry" : "w dół"} — płytka ${gora ? "podnośnika GTV PD-G00" : "amortyzatora GTV PD-ECGDL"} `
@@ -7941,6 +7975,127 @@ const ScianaDefs = () => (
     </pattern>
   </defs>
 );
+
+/* Ciag z boku (uzytkownik 2026-10-24: „nie ma rzutu ciąg z boku”) — przekroj
+   sciany: od sciany w prawo glebokosc, od podlogi w gore wysokosc. Kazdy inny
+   profil szafki (glebokosc, wysokosc, zawieszenie) rysujemy raz, najwyzsze pod
+   spodem; do tego fronty, cokol, nozki, blat roboczy i ciag gorny. Szafki ciagu
+   stoja licem rowno (lico = najglebsza szafka od sciany, jak `runFrontDepth`),
+   wysuniecie szafki przesuwa jej lico. */
+function AssemblySideView({ project, runs, showDims, showWall = true, showBlat = true }) {
+  const full = projectLayout(project);
+  const groups = assemblyParts(project, runs, full).filter((g) => g.cabs.length);
+  if (!groups.length) return null;
+  const profile = new Map();
+  let yBlat = null;
+  const blaty = [];
+  groups.forEach((g) => {
+    const lico = Math.max(...g.cabs.map((c) => (c.wallGap ? c.wallGap.bottom : 0) + c.geo.glebOdSciany - c.offset));
+    g.cabs.forEach((c) => {
+      const front = lico + c.offset, back = front - c.geo.carcassDepth;
+      const y0 = c.base, y1 = c.base + c.cab.H;
+      const wpuszczony = (d) => d.inset ?? c.cab.frontMode === "inset";
+      const fronty = [...new Map(c.geo.doors.filter((d) => d.w > 0 && d.h > 0 && !wpuszczony(d))
+        .map((d) => [`${Math.round(d.y)}|${Math.round(d.h)}`, { y: y0 + d.y, h: d.h }])).values()];
+      const klucz = [back, front, y0, y1, c.mount, fronty.map((f) => `${Math.round(f.y)}/${Math.round(f.h)}`).join(",")].map((v) => (typeof v === "number" ? Math.round(v) : v)).join("|");
+      const p = profile.get(klucz);
+      if (p) { p.nazwy.push(c.name); return; }
+      profile.set(klucz, { c, g, back, front, y0, y1, fronty, nazwy: [c.name],
+        lico: front + (fronty.length ? HINGE_PLAY + c.geo.tf : 0) });
+    });
+    // blat roboczy ciagu — od sciany na wysokosci blatu (jak w widoku szafki)
+    const rt = g.run.worktop && g.run.tier !== "gorny" ? runTop(project, g.run) : null;
+    if (rt && rt.th > 0 && showBlat) {
+      const pod = g.cabs.filter((c) => !c.cab.slupek);
+      const y = Math.max(...(pod.length ? pod : g.cabs).map((c) => c.base + c.cab.H));
+      const gs = wallGapOf(g.run, null);
+      blaty.push({ x0: gs.bottom - gs.top, x1: gs.bottom - gs.top + rt.depth, y, th: rt.th,
+        kolor: (rt.mat.worktop || {}).color || "#8d7b68", lico: Math.max(...pod.map((c) => profile.size && c ? 0 : 0), 0) });
+      yBlat = yBlat == null ? y : Math.max(yBlat, y);
+    }
+  });
+  const lista = [...profile.values()].sort((a, b) => (b.y1 - b.y0) - (a.y1 - a.y0));
+  const maxX = Math.max(...lista.map((p) => p.lico), ...blaty.map((b) => b.x1));
+  const top = Math.max(...lista.map((p) => p.y1), ...blaty.map((b) => b.y + b.th));
+  const fy = (y) => top - y;
+  const sc = (h) => (h ? `url(#sciana-kreski)` : "none");
+  /* sciana: przy krzywej scianie ukos od podlogi do wysokosci blatu (jak w widoku szafki) */
+  const dol = groups.find((g) => g.run.tier !== "gorny") || groups[0];
+  const gsD = wallGapOf(dol.run, null);
+  const yRef = yBlat ?? Math.max(...dol.cabs.map((c) => c.base + c.cab.H));
+  const scianaX = (y) => (yRef > 0 ? ((gsD.bottom - gsD.top) * y) / yRef : 0);
+  const yN = top + 60;
+  // wysokosci do wymiarow z prawej: podloga, spody i gory profili, blat, ciag gorny
+  const punkty = [...new Set([0, ...lista.flatMap((p) => [p.y0, p.y1, p.g.mount]), ...blaty.flatMap((b) => [b.y + b.th])]
+    .map((v) => Math.round(v)))].sort((a, b) => a - b);
+  const odcinki = punkty.slice(1).map((v, k) => [punkty[k], v]).filter(([a, b]) => b - a >= 5);
+  const padL = SCIANA_GR + (showDims ? 60 : 30), padR = showDims ? 260 : 60, padT = showDims ? 60 + 60 * (groups.length + blaty.length) : 80;
+  const vb = `${-padL} ${-padT} ${maxX + padL + padR} ${top + padT + 120}`;
+  const wym = (k) => -40 - 60 * k;
+  return (
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }} data-el="ciag-z-boku">
+      <ScianaDefs />
+      <line x1={-60} y1={fy(0)} x2={maxX + 60} y2={fy(0)} stroke={LINE} strokeWidth="2" />
+      {showWall && (
+        <g data-el="sciana">
+          <polygon points={`${scianaX(yN)},${fy(yN)} ${scianaX(0)},${fy(0)} ${scianaX(0) - SCIANA_GR},${fy(0)} ${scianaX(yN) - SCIANA_GR},${fy(yN)}`}
+            fill={sc(true)} />
+          <line x1={scianaX(yN)} y1={fy(yN)} x2={scianaX(0)} y2={fy(0)} stroke={INK} strokeWidth="3" />
+        </g>
+      )}
+      {lista.map((p, k) => {
+        const { c } = p;
+        const bf = c.mat.board.color;
+        const plecy = c.geo.plecyZa || 0;
+        return (
+          <g key={k} data-el="profil-szafki" data-nazwy={p.nazwy.join(", ")}>
+            {plecy > 0 && <rect x={p.back - plecy} y={fy(p.y1)} width={plecy} height={p.y1 - p.y0} fill={bf} stroke={INK} strokeWidth="1" opacity="0.6" />}
+            <rect x={p.back} y={fy(p.y1)} width={p.front - p.back} height={p.y1 - p.y0} fill={bf} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
+            {p.fronty.map((f, fi) => (
+              <rect key={fi} x={p.front + HINGE_PLAY} y={fy(f.y + f.h)} width={c.geo.tf} height={f.h} fill={c.frontColor} stroke={INK} strokeWidth="1.5" />
+            ))}
+            {/* cokol pod korpusem — plyta cofnieta od lica */}
+            {c.plinthH > 0 && (
+              <rect x={p.front - (c.cab.plinth.setback || 0) - c.geo.t} y={fy(p.y0)} width={c.geo.t} height={c.plinthH}
+                fill={bf} stroke={INK} strokeWidth="1.5" />
+            )}
+            {c.cab.legs && c.cab.legs.on && c.geo.legH > 0 && [p.back + 40, p.front - 80].map((x, li) => (
+              <rect key={"n" + li} x={x} y={fy(p.y0 + c.geo.legTop)} width={40} height={c.geo.legH}
+                rx={legRound(c.cab) ? 20 : 0} fill={legColorOf(c.cab)} stroke={INK} strokeWidth="1.5" />
+            ))}
+            {p.y1 - p.y0 > 120 && (
+              <text x={p.back + 14} y={fy(p.y1) + 30} fontSize="20" fill={INK} opacity="0.7" fontFamily="ui-monospace, monospace">
+                {p.nazwy.length > 2 ? `${p.nazwy[0]} i ${p.nazwy.length - 1} inne` : p.nazwy.join(", ")}
+              </text>
+            )}
+          </g>
+        );
+      })}
+      {blaty.map((b, k) => (
+        <rect key={"b" + k} data-el="blat" x={b.x0} y={fy(b.y + b.th)} width={b.x1 - b.x0} height={b.th} fill={b.kolor} stroke={INK} strokeWidth="2" />
+      ))}
+      {showDims && (
+        <g data-el="wymiary-ciagu-z-boku">
+          {groups.map((g, k) => {
+            const lico = Math.max(...lista.filter((p) => p.g === g).map((p) => p.lico));
+            return <DimH key={g.run.id} x1={0} x2={lico} y={wym(k)} c={LINE}
+              label={`${groups.length > 1 ? (g.run.tier === "gorny" ? "górny: " : "dolny: ") : ""}z frontem ${fmt(lico)}`} />;
+          })}
+          {blaty.map((b, k) => {
+            const lico = Math.max(...lista.filter((p) => p.y1 <= b.y + 1).map((p) => p.lico), 0);
+            const przed = Math.round(b.x1 - lico);
+            return <DimH key={"bd" + k} x1={b.x0} x2={b.x1} y={wym(groups.length + k)} c={LINE}
+              label={`blat ${fmt(b.x1 - b.x0)}${przed > 0 && lico ? ` (${fmt(przed)} przed frontem)` : ""}`} />;
+          })}
+          {odcinki.map(([a, b2]) => (
+            <DimV key={a} y1={fy(b2)} y2={fy(a)} x={maxX + 70} left={false} label={fmt(b2 - a)} />
+          ))}
+          {lista.length > 0 && <DimV y1={fy(top)} y2={fy(0)} x={maxX + 190} left={false} label={fmt(top)} />}
+        </g>
+      )}
+    </svg>
+  );
+}
 
 function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, showWall = true, showBlat = true }) {
   const full = projectLayout(project);
@@ -17850,10 +18005,29 @@ export default function App() {
   /* Poziom jest na cala szerokosc szafki — przy kilku kolumnach dzieli tez
      ich drzwi i polki. Najpierw pytamy (zgloszenie uzytkownika 2026-10-24:
      „półki na poziomy w kolumnie 2 pod klapy — masakra w całej szafie”). */
-  const [podzialPoziomu, setPodzialPoziomu] = useState(null);
+  /* Przy kilku kolumnach „→ poziom” dzieli tylko te kolumne: polka zostaje
+     polka stala, a front dzieli sie na niej (`col.podzial`; uzytkownik
+     2026-10-24: „natychmiast napraw półki na poziomy dla kolumny”). Polki
+     graniczne niosa zawiasy klap, wiec kolumna na kolkach idzie na konfirmaty. */
+  const podzielKolumne = (i, j, ks, naKlapy = null) => editLevels((L) => {
+    const col = L[i].cols[j];
+    const zb = new Set([...(col.podzial || []).map(Number), ...ks.map(Number)]);
+    col.podzial = [...zb].sort((a, b) => a - b);
+    if (mocowanieKolumny(cab, col) === "pins") col.shelfMount = "confirmat";
+    if (naKlapy) {
+      col.kind = "doors"; col.doors = 1; col.klapa = naKlapy.kier === "dol" ? "dol" : "gora";
+      if (naKlapy.sil === 1 || naKlapy.sil === 2) col.silowniki = naKlapy.sil; else delete col.silowniki;
+      col.hinges = []; col.doorWidths = [];
+    }
+  });
+  const scalPodzial = (i, j, k) => editLevels((L) => {
+    const col = L[i].cols[j];
+    col.podzial = (col.podzial || []).map(Number).filter((x) => x !== k);
+    if (!col.podzial.length) delete col.podzial;
+  });
   const naPoziom = (i, j, ks) => {
     const lvG = geo.levels[i];
-    if (lvG && lvG.cols.length > 1) setPodzialPoziomu({ idx: project.active, i, j, ks });
+    if (lvG && lvG.cols.length > 1) podzielKolumne(i, j, ks);
     else polkiNaPoziomy(i, j, ks);
   };
 
@@ -17880,6 +18054,8 @@ export default function App() {
       set({ frontMode: kk.front });
     const op = { kier: kk.kier, sil: kk.sil };
     if (!kk.granice.length) jednaKlapa(i, j, op);
+    // kilka kolumn: klapy tylko w tej kolumnie — granice to polki stale, nie poziomy
+    else if (geo.levels[i] && geo.levels[i].cols.length > 1) podzielKolumne(i, j, kk.granice, op);
     else polkiNaPoziomy(i, j, kk.granice, op);
     setKreatorKlap(null);
   };
@@ -17890,8 +18066,16 @@ export default function App() {
   // usuwa polke przy wskazanym swietle — dwa swiatla lacza sie w jedno
   const removeShelfAt = (i, j, k) =>
     editLevels((L) => {
-      const st = L[i].cols[j].shelfTargets;
-      if (st.length > 1) st.splice(k, 1);
+      const col = L[i].cols[j];
+      const st = col.shelfTargets;
+      if (st.length <= 1) return;
+      // znika polka nad swiatlem k (przy najwyzszym — ta pod nim); granice frontow za nia przesuwaja sie
+      const polka = Math.min(k, st.length - 2);
+      st.splice(k, 1);
+      if (col.podzial) {
+        col.podzial = col.podzial.map(Number).filter((x) => x !== polka).map((x) => (x > polka ? x - 1 : x));
+        if (!col.podzial.length) delete col.podzial;
+      }
     });
 
   const toggleEdge = (name, key, cur) =>
@@ -19897,7 +20081,7 @@ export default function App() {
                         )}
                         {/* zaraz pod drzwiami (komentarz uzytkownika 2026-10-17): klapy zamiast
                             drzwi, poziom zamiast polki — tylko w poziomie z jedna kolumna */}
-                        {c.kind === "doors" && lv.cols.length === 1 && nS > 0 && (() => {
+                        {c.kind === "doors" && nS > 0 && !(rawCol.podzial || []).length && (() => {
                           const ys = [lv.y0, ...c.shelves.flatMap((s2) => [s2.y, s2.y + geo.t]), lv.y1];
                           const pasma = [...Array(ys.length / 2)].map((_, m) => Math.round(ys[2 * m + 1] - ys[2 * m]));
                           /* najnizszy poziom pod klape: plytka pod plyta z zawiasami (podnosnik GTV wg
@@ -20403,36 +20587,22 @@ export default function App() {
                                   <MiniBtn onClick={() => removeShelfAt(lv.i, c.j, o.k)}
                                     title="Usuń półkę przy tym świetle">×</MiniBtn>
                                 )}
-                                {/* polka nad tym swiatlem -> granica poziomow (caly poziom; bez kolumn szuflad) */}
-                                {daSiePodzielic(lv) && o.k < c.openings.length - 1 && (
+                                {/* polka nad tym swiatlem -> granica poziomow (jedna kolumna: caly poziom;
+                                    kilka kolumn: podzial frontu tylko w tej kolumnie) */}
+                                {o.k < c.openings.length - 1 && (rawCol.podzial || []).map(Number).includes(o.k) ? (
+                                  <span className="flex items-center gap-1" data-el="granica-frontow">
+                                    <span className="text-[11px] text-teal-700">granica frontów</span>
+                                    <MiniBtn onClick={() => scalPodzial(lv.i, c.j, o.k)}
+                                      title="Front przechodzi przez tę półkę — półka zostaje półką, fronty nad i pod nią łączą się">scal</MiniBtn>
+                                  </span>
+                                ) : (lv.cols.length > 1 || daSiePodzielic(lv)) && o.k < c.openings.length - 1 && (
                                   <MiniBtn onClick={() => naPoziom(lv.i, c.j, [o.k])}
-                                    title="Poziom zamiast półki: półka nad tym światłem staje się przelotowa — nowy poziom nad nią, z tym samym frontem">→ poziom</MiniBtn>
+                                    title={lv.cols.length > 1
+                                      ? "Tylko w tej kolumnie: półka nad tym światłem zostaje półką stałą, a front dzieli się na niej (inne kolumny bez zmian)"
+                                      : "Poziom zamiast półki: półka nad tym światłem staje się przelotowa — nowy poziom nad nią, z tym samym frontem"}>→ poziom</MiniBtn>
                                 )}
                               </div>
                             ))}
-
-                            {podzialPoziomu && podzialPoziomu.idx === project.active && podzialPoziomu.i === lv.i && podzialPoziomu.j === c.j && (() => {
-                              const inne = lv.cols.filter((c3) => c3.j !== c.j);
-                              const drzwi = inne.filter((c3) => c3.kind === "doors" && c3.count > 0);
-                              return (
-                                <div data-el="poziom-cala-szafka" className="rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-stone-700">
-                                  Poziom idzie przez całą szerokość szafki — półka staje się przelotowa także w
-                                  {" "}{inne.length === 1 ? "kolumnie" : "kolumnach"} {inne.map((c3) => c3.j + 1).join(", ")}
-                                  {drzwi.length ? <>, a {drzwi.length === 1 ? "jej drzwi dzielą się" : "ich drzwi dzielą się"} na dwie części na tej wysokości</> : null}.
-                                  {" "}Klapy tylko w tej kolumnie tak się nie zrobi.
-                                  <div className="mt-1 flex flex-wrap gap-1">
-                                    <button onClick={() => { polkiNaPoziomy(podzialPoziomu.i, podzialPoziomu.j, podzialPoziomu.ks); setPodzialPoziomu(null); }}
-                                      className="rounded bg-amber-700 px-2 py-0.5 text-white hover:bg-amber-800">
-                                      Podziel całą szafkę
-                                    </button>
-                                    <button onClick={() => setPodzialPoziomu(null)}
-                                      className="rounded border border-stone-300 bg-white px-2 py-0.5 hover:bg-stone-50">
-                                      Anuluj
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })()}
 
                             {/* mocowanie polek tej kolumny — wlasne albo jak cala szafka (N45, 2026-10-17) */}
                             <div className="flex items-center gap-2 text-xs" data-el="mocowanie-kolumny">
