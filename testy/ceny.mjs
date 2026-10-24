@@ -96,7 +96,9 @@ console.log('\n  == okucia ==');
 const nogi = card(/^Nóżki$/);
 await nogi.locator('h2').click();
 await page.waitForTimeout(300);
-await nogi.getByText('Nóżki pod szafką', { exact: true }).click();
+// od 2026-10-24 nowa szafka stoi juz na nozkach — wlaczamy tylko, gdy wylaczone
+if (!(await nogi.locator('label', { hasText: 'Nóżki pod szafką' }).locator('input').isChecked()))
+  await nogi.getByText('Nóżki pod szafką', { exact: true }).click();
 await page.waitForTimeout(1000);
 d = await dump();
 const hwRow = (re) => d.rows.find(r => re.test(r.label));
