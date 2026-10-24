@@ -283,6 +283,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `wysuwSzuflady(d)` | pełny wysuw V-BOX: NL szuflady — 3D szafki i zabudowy (jak `wysuwHit`) |
 | `blatNadSzafka(project, layout, index, arm)` / `blatSzafki` | odcinek blatu ciągu nad aktywną szafką (`korpus`, `ramie`, `kolor`, `th`, `roboczy`) — widok z góry, z przodu, z boku, z tyłu i 3D samej szafki (`data-el="blat"`, w 3D tag `blat`); przełącznik „Ukryj blat” |
 | `frezY0` / `frezY1` (`computeGeo`) | dół i góra HDF we frezie: frez tylko w płytach, które są (bez wieńca / pod blatem na bokach — 1 mm pod górą; bez dna — 1 mm nad dołem); formatka, `plecyBryla`, widok z tyłu |
+| `wymiar-blatu` (`data-el`) | widok szafki z boku: wymiar „blat N (M przed frontem)” — blat roboczy ciągu nad szafką (`blatSzafki`) albo blat z płyty na bokach (`geo.blatDepth`); „przed frontem” liczone z luzem zawiasów 2 mm (`HINGE_PLAY`) jak w uwagach o wysięgu |
 | `front-bok` / `front-gora` (`data-el`) | fronty w widoku z boku / z góry — każdy osobno, łączone tylko przy styku, żeby było widać szczeliny |
 | `tW` (`computeGeo`) | grubość górnej płyty w H: wieniec — płyta (18), blat na bokach — blat (`tTop`, roboczy 38); boki, wnętrze, rysunki i 3D liczą od niej |
 | `wspornikTrojkaty(h)` / `WSPORNIK_TROJKAT_CO` | wspornik pionowy fixu bez płyty nad sobą: trójkąty do fixa co 300 mm, min. 2 (+1 do dna); `supportParts[].nad/pod/trojkatyFix` |

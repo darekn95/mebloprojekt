@@ -11126,6 +11126,22 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
           )}
           <DimH x1={xC} x2={xC + geo.shelfDepth} y={H + 70} label={`półka ${fmt(geo.shelfDepth)}`} above={false} />
           <DimV y1={0} y2={H} x={xWysokosc} label={`${fmt(H)}`} />
+          {/* glebokosc blatu i wysuniecie przed front — blat roboczy ciagu albo blat
+              z plyty na bokach (uzytkownik 2026-10-24: „z boku nie ma wymiaru blatu”) */}
+          {(() => {
+            const odc = blat && blat.roboczy && blat.th > 0 && blat.korpus.length
+              ? [Math.min(...blat.korpus.map((b) => xC + b.y)), Math.max(...blat.korpus.map((b) => xC + b.y + b.h))]
+              : geo.isBlat && geo.hasTop ? [xC - sOvB, xC - sOvB + geo.blatDepth] : null;
+            if (!odc) return null;
+            // front nakladany stoi 2 mm przed korpusem (luz zawiasow) — jak w uwagach o wysiegu blatu
+            const przed = Math.round(odc[1] - (hasFront ? frontFace + (rightExtra ? HINGE_PLAY : 0) : D));
+            return (
+              <g data-el="wymiar-blatu">
+                <DimH x1={odc[0]} x2={odc[1]} y={-170} c={LINE}
+                  label={`blat ${fmt(odc[1] - odc[0])}${przed > 0 ? ` (${fmt(przed)} przed ${hasFront ? "frontem" : "korpusem"})` : ""}`} />
+              </g>
+            );
+          })()}
         </>
       )}
       {geo.geoCuts.filter((gc) => gc.onBack && (gc.onLeft !== sideRight)).map((gc, ci) => (
