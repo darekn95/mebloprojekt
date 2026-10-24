@@ -62,3 +62,7 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 ## Własne płyty (2026-10-24)
 
 W karcie „Płyty” przy kolorach płyty jest kwadrat „+”: płyta spoza wzornika (np. Egger na zamówienie) z własną nazwą, grubością, wymiarem arkusza (domyślnie 2800 × 2070), ceną za arkusz i kolorem na rysunkach. Lista jest w projekcie (`project.plyty`), pod wzornikiem w osobnym rzędzie „Własne płyty” (ramka przerywana, znak „W”). Szafka wskazuje płytę (`mat[k].plyta`) — rozkrój układa jej formatki na jej arkuszu (okrawanym jak zwykły, po 19,4 mm z każdej strony), wycena bierze jej cenę. Zmiana płyty (✎) przechodzi do wszystkich szafek z nią; kolor z wzornika, własny kolor, nazwa albo grubość wpisane ręcznie odpinają szafkę od płyty; usunięcie płyty z listy zostawia szafkom jej nazwę i kolor.
+
+## Własne kawałki płyty (2026-10-24)
+
+Przy każdej płycie w rozkroju jest „+ mam własny kawałek tej płyty” (długość, szerokość, sztuki; `project.resztki`). Rozkrój najpierw kładzie formatki na własne kawałki (większe najpierw, bez okrawania — wpisujesz wymiar użyteczny), resztę na arkusze do kupienia. W „Płyty do zamówienia” i w wycenie liczą się tylko kupowane arkusze („+ N z własnych kawałków”), formatowanie liczy także własne kawałki. Rysunek własnego kawałka ma podpis „własny kawałek … — nie kupujesz”; ostrzeżenie o dużym odpadzie dotyczy tylko kupowanych arkuszy.

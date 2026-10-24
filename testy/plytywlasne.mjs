@@ -83,5 +83,32 @@ console.log('\n== mały arkusz własnej płyty ==');
     (await rk.innerText()).split('\n').filter((l) => /Resztka|1000|800/.test(l)).slice(0, 4).join(' / ') + errors.join(' / '));
 }
 
+console.log('\n== własne kawałki płyty w rozkroju (użytkownik 2026-10-24: „mam własną płytę”) ==');
+{
+  const duza = (name) => ({ name, W: 1200, H: 2000, D: 600, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null, null] }] }] });
+  await seed({ name: 'P', active: 0, prices: {}, items: [{ cab: duza('A') }, { cab: duza('B') }] });
+  const plan = async () => { await page.waitForTimeout(1600); return page.evaluate(() => (window.__audytRozkroj || { groups: [] }).groups.map((g) => ({ m: g.matLabel, n: g.sheets.length, kupic: g.kupic, wl: g.zWlasnych }))); };
+  let p0 = (await plan()).find((g) => /Płyta/.test(g.m));
+  const rk = await otworz(/^Rozkrój/);
+  ok('przycisk „+ mam własny kawałek tej płyty” przy grupie', (await rk.getByRole('button', { name: '+ mam własny kawałek tej płyty' }).count()) >= 1);
+  const grupa = rk.locator('[data-el="resztki"]').first();
+  await grupa.getByRole('button', { name: '+ mam własny kawałek tej płyty' }).click(); await page.waitForTimeout(300);
+  const f = rk.locator('[data-el="resztka-formularz"]');
+  await f.locator('input[title="długość"]').fill('2700'); await f.locator('input[title="szerokość"]').fill('2000');
+  await f.getByRole('button', { name: 'Dodaj', exact: true }).click();
+  const p1 = (await plan()).find((g) => g.m === p0.m);
+  ok(`kawałek 2700 × 2000: kupujesz ${p0.kupic} → ${p1.kupic} arkuszy, 1 z własnych`, p1.kupic === p0.kupic - 1 && p1.wl === 1, JSON.stringify([p0, p1]));
+  ok('rysunek: „własny kawałek 2700 × 2000 mm — nie kupujesz”', /własny kawałek 2700 × 2000 mm — nie kupujesz/.test(await rk.innerText()));
+  const wy = await otworz(/^Wycena/);
+  ok(`wycena: ${p1.kupic} ark. tej płyty`, (await wy.innerText()).split('\n').some((l) => l.startsWith(p0.m) && new RegExp(`\\b${p1.kupic} ark\\.`).test(l)),
+    (await wy.innerText()).split('\n').filter((l) => /ark\./.test(l)).join(' / '));
+  ok('formatowanie: 4 ark. „w tym 1 własny kawałek”', /w tym 1 własny kawałek/.test(await wy.innerText()), (await wy.innerText()).split('\n').filter((l) => /Formatowanie/.test(l)).join(' / '));
+  const pz = await zap();
+  ok('kawałek zapisany w projekcie', (pz.resztki || []).length === 1 && pz.resztki[0].w === 2700, JSON.stringify(pz.resztki));
+  await rk.locator('[data-el="resztka"]').first().getByTitle('Usuń ten kawałek').click();
+  const p2 = (await plan()).find((g) => g.m === p0.m);
+  ok('× usuwa kawałek: znów wszystko z kupowanych', p2.kupic === p0.kupic && !p2.wl, JSON.stringify(p2));
+}
+
 ok('bez błędów strony', !errors.length, errors.join(' / '));
 await b.close();

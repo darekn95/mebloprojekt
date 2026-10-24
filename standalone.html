@@ -16587,6 +16587,17 @@ export default function App() {
     items: p.items.map((it) => (COLORED_KEYS.some((k2) => it.mat[k2] && it.mat[k2].plyta === id)
       ? { ...it, mat: Object.fromEntries(Object.entries(it.mat).map(([k2, v]) => [k2, v && v.plyta === id ? bezPlyty(v) : v])) } : it)) })), [setProject]);
 
+  /* Wlasne kawalki plyty do rozkroju (`project.resztki`) — formularz w karcie rozkroju. */
+  const [formResztki, setFormResztki] = useState(null);
+  const dodajResztke = useCallback((f) => {
+    const w = Math.round(Number(f.w) || 0), h = Math.round(Number(f.h) || 0);
+    if (w < 10 || h < 10) return;
+    setProject((p) => ({ ...p, resztki: [...(p.resztki || []), { id: `rk${Date.now().toString(36)}`, matLabel: f.matLabel,
+      w: Math.max(w, h), h: Math.min(w, h), qty: Math.max(1, Math.round(Number(f.qty) || 1)) }] }));
+    setFormResztki(null);
+  }, [setProject]);
+  const usunResztke = useCallback((id) => setProject((p) => ({ ...p, resztki: (p.resztki || []).filter((q) => q.id !== id) })), [setProject]);
+
   // zastepuje caly projekt (wczytanie / nowy) i czysci historie
   const replaceProject = useCallback((proj) => {
     histRef.current = { past: [], future: [] };
@@ -18649,7 +18660,7 @@ export default function App() {
     return isWhiteBoard(info.color) ? DEFAULT_PRICES.plytaBiala : DEFAULT_PRICES.plytaKolor;
   };
 
-  const wycenaZ = (planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware) => {
+  const wycenaZ = (planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, wlasneKawalki = 0) => {
     const rows = [];
     // kazda pozycja niesie swoja cene domyslna, wiec dziala tez dla materialow
     // i okuc, ktorych nie da sie z gory wypisac w stalej
@@ -18659,9 +18670,10 @@ export default function App() {
         const k = "plyta:" + matLabel;
         add({ key: k, label: matLabel, qty: n, unit: "ark.", def: boardDefault(matLabel) });
       });
-    const sheetsTotal = planSheets ? Object.values(planSheets).reduce((a, b) => a + b, 0) : 0;
+    // wlasne kawalki plyty tez ida pod pile — liczone do formatowania, nie do zakupu
+    const sheetsTotal = planSheets ? Object.values(planSheets).reduce((a, b) => a + b, 0) + wlasneKawalki : 0;
     if (sheetsTotal)
-      add({ key: "ciecie", label: "Formatowanie płyty", spec: "cięcie arkusza na formatki",
+      add({ key: "ciecie", label: "Formatowanie płyty", spec: wlasneKawalki ? `cięcie arkusza na formatki (w tym ${wlasneKawalki} ${plural(wlasneKawalki, "własny kawałek", "własne kawałki", "własnych kawałków")})` : "cięcie arkusza na formatki",
         qty: sheetsTotal, unit: "ark.", def: DEFAULT_PRICES.ciecie });
     /* Material obrzeza: do 1 mm, a do kazdego oklejanego boku OBRZEZE_ZAPAS —
        oklejarka wypuszcza okleine z przodu i z tylu i potem ja odcina
@@ -18701,14 +18713,16 @@ export default function App() {
     const sum = rows.reduce((a, r) => a + r.qty * r.price, 0);
     return { rows, sum };
   };
-  const quote = useMemo(() => wycenaZ(planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware),
-    [planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, prices, matByLabel]); // eslint-disable-line react-hooks/exhaustive-deps
+  const planWlasne = autoAktualny ? autoPlan.groups.reduce((a, g) => a + (g.zWlasnych || 0), 0) : 0;
+  const quote = useMemo(() => wycenaZ(planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, planWlasne),
+    [planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, prices, matByLabel, planWlasne]); // eslint-disable-line react-hooks/exhaustive-deps
   // wycena samej szafki (karta „Wycena” na „Szafka”): jej arkusze, obrzeze i okucia
   const quoteSzafki = (() => {
     if (!naSzafke("wycena")) return null;
     const by = planSzafki ? {} : null;
     if (planSzafki) planSzafki.groups.forEach((g) => { by[g.matLabel] = (by[g.matLabel] || 0) + (g.kupic ?? g.sheets.length); });
-    return wycenaZ(by, krawedzieMb(cutList, false), krawedzieMb(cutList, true), krawedzieBoki(cutList, false), krawedzieBoki(cutList, true), cabHardware);
+    return wycenaZ(by, krawedzieMb(cutList, false), krawedzieMb(cutList, true), krawedzieBoki(cutList, false), krawedzieBoki(cutList, true), cabHardware,
+      planSzafki ? planSzafki.groups.reduce((a, g) => a + (g.zWlasnych || 0), 0) : 0);
   })();
   const qW = quoteSzafki || quote;
 
@@ -22272,6 +22286,32 @@ export default function App() {
                       {[...new Set(g.rejected.map((r) => `${r.name} ${fmt(r.w)}×${fmt(r.h)}`))].join(", ")}
                     </p>
                   )}
+                  {/* wlasne kawalki tej plyty — rozkroj kladzie na nie formatki przed kupnem
+                      arkusza (uzytkownik 2026-10-24: „mam własną płytę”) */}
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs" data-el="resztki">
+                    {(project.resztki || []).filter((q) => q.matLabel === g.matLabel).map((q) => (
+                      <span key={q.id} data-el="resztka" className="flex items-center gap-1 rounded border border-dashed border-teal-600 bg-teal-50 px-1.5 py-0.5 font-mono text-[11px] text-teal-900">
+                        własny kawałek {fmt(q.w)} × {fmt(q.h)}{q.qty > 1 ? ` × ${q.qty} szt.` : ""}
+                        <button onClick={() => usunResztke(q.id)} title="Usuń ten kawałek" className="text-stone-400 hover:text-red-700">×</button>
+                      </span>
+                    ))}
+                    {formResztki && formResztki.matLabel === g.matLabel ? (
+                      <span className="flex flex-wrap items-center gap-1" data-el="resztka-formularz">
+                        {[["w", "długość"], ["h", "szerokość"], ["qty", "szt."]].map(([kl, op]) => (
+                          <input key={kl} type="number" min={1} step={1} placeholder={op} value={formResztki[kl] ?? ""} title={op}
+                            onChange={(e) => setFormResztki({ ...formResztki, [kl]: e.target.value })}
+                            className={(kl === "qty" ? "w-14" : "w-20") + " rounded border border-stone-300 bg-white px-1 py-0.5 font-mono text-[11px] focus:border-teal-600 focus:outline-none"} />
+                        ))}
+                        <button onClick={() => dodajResztke(formResztki)} className="rounded bg-teal-700 px-2 py-0.5 text-white hover:bg-teal-800">Dodaj</button>
+                        <button onClick={() => setFormResztki(null)} className="rounded border border-stone-300 bg-white px-2 py-0.5 hover:bg-stone-50">Anuluj</button>
+                      </span>
+                    ) : (
+                      <MiniBtn onClick={() => setFormResztki({ matLabel: g.matLabel, w: "", h: "", qty: 1 })}
+                        title="Kawałek tej płyty, który już masz — rozkrój najpierw położy formatki na nim, dopiero resztę na arkuszach do kupienia">
+                        + mam własny kawałek tej płyty
+                      </MiniBtn>
+                    )}
+                  </div>
                   {uwagiRozkroju(g).map((u, ui) => (
                     <p key={"odp" + ui} data-el="rozkroj-odpad" className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-900">
                       ! {u}
