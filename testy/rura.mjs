@@ -106,7 +106,8 @@ console.log('\n== światło zmniejszone po dodaniu rury (użytkownik 2026-10-24)
   u = await uwagi();
   ok('po przeniesieniu bez ostrzeżeń o rurze', !/pod rurą tylko/.test(u), linie(u, /rur/));
   await seed(szafa({}, { shelfTargets: [300, null], drazki: [0] }));
-  await page.locator('[data-el="rura-wieszaki-opcja"] label', { hasText: 'światło 1' }).locator('input').uncheck(); await page.waitForTimeout(600);
+  // klik, nie uncheck: po odznaczeniu swiatlo 300 mm znika z listy (ponizej 800), wiec stanu nie ma czym sprawdzic
+  await page.locator('[data-el="rura-wieszaki-opcja"] label', { hasText: 'światło 1' }).locator('input').click(); await page.waitForTimeout(600);
   c = (await zap()).items[0].cab;
   ok('odznaczenie w Strukturze zdejmuje rurę z małego światła', !c.levels[0].cols[0].drazki, JSON.stringify(c.levels[0].cols[0].drazki));
 }
