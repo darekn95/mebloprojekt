@@ -3577,7 +3577,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         doors.push({
           lvl: lv.i, key: `x${lv.i}-${j}-${i}`, type: "drawer", colKey: `${lv.i}-${j}`,
           x: dsx0, y, w: dsx1 - dsx0, h: fh, colW: LW, colX0: bx0, dr, nl,
-          handle: d.handle !== false, iInGroup: 0, groupN: 1, inset: dIn,
+          handle: d.handle !== false, podfrez: grip > 0, iInGroup: 0, groupN: 1, inset: dIn,
           gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
           bandLo: lv.i === 0 ? null : dlo, bandHi: lv.i === L - 1 ? null : dhi,
         });
@@ -3748,6 +3748,8 @@ function computeGeoLiczy(cab, mat, ctx) {
           dr,
           nl,
           handle: d.handle !== false,
+          // podfrez: front bez uchwytu i bez kreski-symbolu — palce lapia za gorna krawedz
+          podfrez: grip > 0,
           iInGroup: 0,
           groupN: 1,
           inset: dIn,
@@ -6987,8 +6989,8 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
               <rect x={X} y={fy(d.y + d.h)} width={d.w} height={d.h}
                 fill={ff} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
               {/* jak w widoku samej szafki: uchwyt, a bez uchwytu kreska */}
-              {d.handle && uchwytOut(d, cab) > 0 ? <UchwytElewacja d={d} fy={fy} dx={X - d.x} /> : (
-                <line x1={X + d.w * 0.25} x2={X + d.w * 0.75}
+              {d.handle && uchwytOut(d, cab) > 0 ? <UchwytElewacja d={d} fy={fy} dx={X - d.x} /> : !d.podfrez && (
+                <line data-el="szuflada-kreska" x1={X + d.w * 0.25} x2={X + d.w * 0.75}
                   y1={fy(d.y + d.h - Math.min(50, d.h / 2))} y2={fy(d.y + d.h - Math.min(50, d.h / 2))}
                   stroke={INK} strokeWidth="5" opacity="0.5" />
               )}
@@ -7017,8 +7019,8 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         return (
           <g key={d.key}>
             <rect x={X} y={fy(d.y + d.h)} width={d.w} height={d.h} fill={ff} stroke={INK} strokeWidth="2.5" />
-            {d.type === "drawer" && !d.handle && (
-              <line x1={X + d.w * 0.3} x2={X + d.w * 0.7}
+            {d.type === "drawer" && !d.handle && !d.podfrez && (
+              <line data-el="szuflada-kreska" x1={X + d.w * 0.3} x2={X + d.w * 0.7}
                 y1={fy(d.y + d.h * 0.78)} y2={fy(d.y + d.h * 0.78)}
                 stroke={INK} strokeWidth="4" opacity="0.45" />
             )}
@@ -9344,8 +9346,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 {/* front szuflady zostaje na miejscu, tylko przygaszony */}
                 <rect x={d.x} y={fy(d.y + d.h)} width={d.w} height={d.h}
                   fill={ff} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
-                {d.handle && uchwytOut(d, cab) > 0 ? <UchwytElewacja d={d} fy={fy} /> : (
-                  <line x1={d.x + d.w * 0.25} x2={d.x + d.w * 0.75}
+                {/* przy podfrezie bez kreski — wygladala jak uchwyt (uzytkownik 2026-10-24) */}
+                {d.handle && uchwytOut(d, cab) > 0 ? <UchwytElewacja d={d} fy={fy} /> : !d.podfrez && (
+                  <line data-el="szuflada-kreska" x1={d.x + d.w * 0.25} x2={d.x + d.w * 0.75}
                     y1={fy(d.y + d.h - Math.min(50, d.h / 2))}
                     y2={fy(d.y + d.h - Math.min(50, d.h / 2))}
                     stroke={INK} strokeWidth="5" opacity="0.5" />
@@ -9405,8 +9408,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           <g key={d.key}>
             <rect x={d.x} y={fy(d.y + d.h)} width={d.w} height={d.h}
               fill={ff} stroke={INK} strokeWidth="2.5" />
-            {d.type === "drawer" && !d.handle && (
-              <line x1={d.x + d.w * 0.3} x2={d.x + d.w * 0.7}
+            {d.type === "drawer" && !d.handle && !d.podfrez && (
+              <line data-el="szuflada-kreska" x1={d.x + d.w * 0.3} x2={d.x + d.w * 0.7}
                 y1={fy(d.y + d.h * 0.78)} y2={fy(d.y + d.h * 0.78)}
                 stroke={INK} strokeWidth="4" opacity="0.45" />
             )}

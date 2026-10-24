@@ -170,6 +170,30 @@ await page.evaluate(() => {
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1500);
 ok('kolumna z drzwiami: bez checkboxa podfrezu', (await page.getByText('Wcięcie na palce (podfrez) zamiast uchwytu', { exact: true }).count()) === 0);
 
+console.log('\n== podfrez: bez kreski „uchwytu” na rysunkach (użytkownik 2026-10-24) ==');
+// szafka w ciagu — zeby byl tez widok „Ciąg”
+await page.evaluate(() => {
+  localStorage.clear();
+  const cab = { name: 'T', W: 600, H: 720, D: 500, frontMode: 'overlay',
+    levels: [{ h: null, cols: [{ kind: 'drawers', w: null, drawerMode: 'overlay', fingerGrip: true,
+      drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: false })) }] }] };
+  localStorage.setItem('szafki:projekt', JSON.stringify({ name: 'T', active: 0, prices: {},
+    runs: [{ id: 'c1', name: 'Ściana', mountY: 0, H: 720, D: 500, gap: 0 }], items: [{ cab, runId: 'c1', offset: 0 }] }));
+});
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2200);
+for (const [w, v] of [['Szafka', 'Otw.'], ['Szafka', 'Zamk.'], ['Ciąg', 'Otw.'], ['Ciąg', 'Zamk.']]) {
+  for (const l of [w, v]) { await page.getByRole('button', { name: l, exact: true }).first().click(); await page.waitForTimeout(400); }
+  const n = await page.locator('#rysunek svg [data-el="szuflada-kreska"]').count();
+  const sz = await page.locator('#rysunek svg').first().evaluate((s) => s.querySelectorAll('rect').length);
+  ok(`${w} / ${v}: bez kreski na szufladach z podfrezem`, n === 0 && sz > 5, `${n} kresek, ${sz} prostokątów`);
+}
+await page.getByRole('button', { name: 'Szafka', exact: true }).first().click();
+await seed({ drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: false })) }, 'overlay');
+await view('Otw.');
+const nk = await page.locator('#rysunek svg [data-el="szuflada-kreska"]').count();
+ok('bez podfrezu i bez uchwytu kreska zostaje (symbol szuflady)', nk === 3, String(nk));
+await view('Zamk.');
+
 console.log('\n== widoki bez błędów ==');
 await seed({ fingerGrip: true });
 for (const v of ['Zamk.', 'Otw.', 'Z boku', 'Z góry', 'Z tyłu', '3D']) {
