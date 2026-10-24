@@ -150,6 +150,26 @@ f = await fronts();
 // swiatlo poziomu 18–618, przegroda nad nim: gorny front od 315 do 618 − 18 = 600
 ok('przegroda nad szufladami: górny front 285 mm (do 600 = spód przegrody − 18)', f.some((r) => Number(r.split('|')[2].trim()) === 285), f.join(' / '));
 
+console.log('\n== wąskie okno (użytkownik 2026-10-24) ==');
+await seed({ fingerGrip: true }, 'overlay');
+await page.setViewportSize({ width: 1100, height: 1200 });
+await page.waitForTimeout(500);
+const wiersz = page.locator('[data-el="szuflada-wiersz"]').first();
+const yUch = (await wiersz.getByText('uchwyt', { exact: true }).boundingBox()).y;
+const yTyl = (await wiersz.getByText('tył', { exact: true }).boundingBox()).y;
+const ySys = (await wiersz.locator('select').first().boundingBox()).y;
+ok('„uchwyt” w jednej linii z „tył” i „reling”, pod systemem szuflady', Math.abs(yUch - yTyl) < 3 && yUch > ySys + 10, `uchwyt ${Math.round(yUch)}, tył ${Math.round(yTyl)}, system ${Math.round(ySys)}`);
+const wPf = (await page.locator('[data-el="podfrez"] input[type=number]').first().boundingBox()).width;
+ok('pole „front niższy o” ma szerokość na liczbę (≥ 60 px)', wPf >= 60, String(Math.round(wPf)));
+await page.setViewportSize({ width: 1500, height: 1200 });
+await page.evaluate(() => {
+  localStorage.clear();
+  const cab = { name: 'T', W: 600, H: 720, D: 500, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null }] }] };
+  localStorage.setItem('szafki:projekt', JSON.stringify({ name: 'T', active: 0, prices: {}, items: [{ cab }] }));
+});
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1500);
+ok('kolumna z drzwiami: bez checkboxa podfrezu', (await page.getByText('Wcięcie na palce (podfrez) zamiast uchwytu', { exact: true }).count()) === 0);
+
 console.log('\n== widoki bez błędów ==');
 await seed({ fingerGrip: true });
 for (const v of ['Zamk.', 'Otw.', 'Z boku', 'Z góry', 'Z tyłu', '3D']) {

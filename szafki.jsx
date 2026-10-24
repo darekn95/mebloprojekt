@@ -19627,18 +19627,24 @@ export default function App() {
                             </div>
                           </div>
                         )}
-                        <div className="flex items-center gap-2 text-xs">
-                          <Check checked={!!rawCol.fingerGrip}
-                            onChange={(v) => setFingerGrip(lv.i, c.j, v)}
-                            label="Wcięcie na palce (podfrez) zamiast uchwytu" />
-                          {rawCol.fingerGrip && <span className="text-stone-500">front niższy o</span>}
-                          {rawCol.fingerGrip && (
-                            <div className="w-20">
-                              <Num value={rawCol.gripDepth ?? 18}
-                                onChange={(v) => setCol(lv.i, c.j, { gripDepth: v })} />
-                            </div>
-                          )}
-                        </div>
+                        {/* tylko kolumna szuflad; przy waskim oknie pole glebokosci schodzi
+                            pod checkbox w calosci, zamiast sciskac sie do zera (uzytkownik 2026-10-24) */}
+                        {c.kind === "drawers" && (
+                          <div className="flex flex-wrap items-center gap-2 text-xs" data-el="podfrez">
+                            <Check checked={!!rawCol.fingerGrip}
+                              onChange={(v) => setFingerGrip(lv.i, c.j, v)}
+                              label="Wcięcie na palce (podfrez) zamiast uchwytu" />
+                            {rawCol.fingerGrip && (
+                              <span className="flex shrink-0 items-center gap-2">
+                                <span className="text-stone-500">front niższy o</span>
+                                <div className="w-24 shrink-0">
+                                  <Num value={rawCol.gripDepth ?? 18}
+                                    onChange={(v) => setCol(lv.i, c.j, { gripDepth: v })} />
+                                </div>
+                              </span>
+                            )}
+                          </div>
+                        )}
 
                         <div className="space-y-2 rounded border border-stone-200 bg-white p-2">
                           <div className="flex items-center gap-2 text-xs">
@@ -20164,6 +20170,9 @@ export default function App() {
                                     </>
                                   );
                                 })()}
+                                {/* uchwyt, tyl i reling zawijaja sie razem — przy waskim oknie
+                                    „uchwyt” schodzi do drugiej linii z „tył” i „reling” (uzytkownik 2026-10-24) */}
+                                <div className="flex shrink-0 items-center gap-2" data-el="szuflada-opcje">
                                 <label className="flex shrink-0 items-center gap-1 cursor-pointer"
                                   title="Uchwyt na tym froncie">
                                   <input type="checkbox"
@@ -20208,6 +20217,7 @@ export default function App() {
                                     )}
                                   </>
                                 )}
+                                </div>
                                 <select value={rawCol.drawers[dr.i]?.nl ?? ""}
                                   title="Głębokość NL tej szuflady — puste bierze głębokość kolumny"
                                   onChange={(e) => setDrawerNL(lv.i, c.j, dr.i, e.target.value)}
