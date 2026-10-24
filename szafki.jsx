@@ -132,7 +132,7 @@ const ROZKROJ_DUZY = 40;
 
 // zasada liczby zawiasow — podpowiedz przy polu „zawiasy” drzwi (przeniesiona z listy produktow)
 // opis w dymku pola „zaw.” — te same progi co `ZAWIASY_GTV` (audyt GPT 2026-10-16, N1: zostal stary opis)
-const ZAWIASY_ZASADA = "Liczba zawiasów — puste liczy automatycznie wg tabeli GTV: większa z liczb z wysokości frontu (2 do 750 mm, 3 do 1500, 4 do 2100, 5 do 2500) i z jego wagi (do 6 / 12 / 17 / 20 kg), front do 600 mm szerokości. Klapa: 2, powyżej 900 mm szerokości 3.";
+const ZAWIASY_ZASADA = "Liczba zawiasów — puste liczy automatycznie wg tabeli GTV: większa z liczb z wysokości frontu (2 do 750 mm, 3 do 1500, 4 do 2100, 5 do 2500) i z jego wagi (do 6 / 12 / 17 / 20 kg), front do 600 mm szerokości. Klapa: 2, powyżej 900 mm szerokości 3. Wpis przechodzi na wszystkie skrzydła kolumny.";
 // powierzchnia w podsumowaniach: mala (np. wstawka 720 × 60 = 0,04 m²) z dwoma miejscami, zero pomijamy
 const m2Fmt = (v) => (v < 1 ? (Math.round(v * 100) / 100).toFixed(2).replace(/0$/, "") : fmt(v));
 
@@ -762,8 +762,31 @@ function zawiasyGtv(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
   const t = szeroki ? ZAWIASY_GTV.szeroki : ZAWIASY_GTV.standard;
   const kg = wagaFrontu(w, h, grub) + dodatekKg;
   const p = t.progi.find((q) => h <= q.h && kg <= q.kg);
-  return { n: p ? p.n : t.progi[t.progi.length - 1].n, kg, poza: !p || w > t.szer, szer: t.szer };
+  const ost = t.progi[t.progi.length - 1].n;
+  // osobno z wysokosci i z wagi — do wyjasnienia w Uwagach, ktora decyduje
+  const zWys = (t.progi.find((q) => h <= q.h) || { n: ost }).n;
+  const zWagi = (t.progi.find((q) => kg <= q.kg) || { n: ost }).n;
+  return { n: p ? p.n : ost, kg, poza: !p || w > t.szer, szer: t.szer, zWys, zWagi, progi: t.progi };
 }
+/* Skad liczba z tabeli GTV (uzytkownik 2026-10-24: „czy 2 zawiasy nie moga miec
+   takiej wagi czy wymiarow?”): przy za malej liczbie — co jej nie pozwala
+   (wysokosc, waga), przy za duzej — do czego wystarcza liczba z tabeli. */
+const powodZawiasow = (gtv, wpis) => {
+  const kgTxt = (v) => String(v).replace(".", ",");
+  const zaw = (n) => plural(n, "zawias", "zawiasy", "zawiasów");
+  if (wpis > gtv.n) {
+    const r = gtv.progi.find((q) => q.n === gtv.n);
+    return r ? ` Wystarczą ${gtv.n} — do ${fmt(r.h)} mm wysokości i ${kgTxt(r.kg)} kg.` : "";
+  }
+  const r = gtv.progi.find((q) => q.n === wpis);
+  if (!r) return ` Najmniej ${gtv.progi[0].n} zawiasy.`;
+  const cz = [];
+  if (gtv.zWys > wpis) cz.push(`wysokość wymaga ${gtv.zWys} (${wpis} ${zaw(wpis)} do ${fmt(r.h)} mm)`);
+  if (gtv.zWagi > wpis) cz.push(`waga — ${gtv.zWagi} (${wpis} ${zaw(wpis)} do ${kgTxt(r.kg)} kg)`);
+  if (!cz.length) return "";
+  const t = cz.join(", ");
+  return ` ${t[0].toUpperCase()}${t.slice(1)}`;
+};
 function autoHinges(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
   return zawiasyGtv(h, w, grub, szeroki, dodatekKg).n;
 }
@@ -3140,10 +3163,13 @@ function computeGeoLiczy(cab, mat, ctx) {
             /* „Zostaw N zawiasy” (uzytkownik 2026-10-24) — liczba inna niz w tabeli
                przyjeta swiadomie: zostaje informacja, a przycisk tabeli dalej jest. */
             const zostawione = wpis !== null && num((rawCol.hingesOk || [])[i]) === wpis;
-            if (wpis !== null && wpis !== gtv.n)
+            if (wpis !== null && wpis !== gtv.n) {
+              const powod = powodZawiasow(gtv, wpis).replace(/\.$/, "");
               add(zostawione ? "info" : "warn", `${where}, skrzydło ${i + 1}: ${wpis > gtv.n ? "za dużo" : "za mało"} zawiasów wg tabeli GTV — ${wpis} zamiast ${gtv.n} (${opis})`
-                + (zostawione ? ` — zostawione celowo.` : ".")
+                + (powod ? "." + powod : "")
+                + (zostawione ? " — zostawione celowo." : ".")
                 + `|zawiasy:${lv.i}:${j}:${i}:${gtv.n}` + (zostawione ? "" : `|zawiasyzostaw:${lv.i}:${j}:${i}:${wpis}`));
+            }
             if (gtv.poza)
               add("warn", `${where}, skrzydło ${i + 1}: ${opis} — poza tabelą zawiasów GTV (front do ${gtv.szer} mm szerokości, 2500 mm wysokości i ${zawiasSzeroki ? 15 : 20} kg), liczba zawiasów orientacyjna.`);
           }
@@ -3784,6 +3810,30 @@ function computeGeoLiczy(cab, mat, ctx) {
       if (cab.szufladyMieszane) add("info", `${tekst} — zostawione tak (wybrane).|szufmixnie`);
       else add("warn", `${tekst} — zwykle jeden system na szafkę.|szufsys:vbox|szufsys:dxs|szufmix`);
     }
+  }
+
+  /* Drzwi tej samej wysokosci z rozna liczba zawiasow (uzytkownik 2026-10-24):
+     wpis przechodzi na skrzydla tej kolumny, a gdy inna kolumna ma drzwi tej
+     wysokosci z inna liczba — ostrzezenie z przyciskami „Wszędzie N zawiasy”. */
+  {
+    const grupy = new Map();
+    doors.filter((d) => d.type === "door").forEach((d) => {
+      const k = Math.round(d.h);
+      if (!grupy.has(k)) grupy.set(k, []);
+      grupy.get(k).push(d);
+    });
+    grupy.forEach((ds, h) => {
+      const liczby = [...new Set(ds.map((d) => d.hinges))].sort((a, b) => a - b);
+      if (liczby.length < 2) return;
+      const kolumny = [...new Set(ds.map((d) => d.colKey))];
+      const opis = kolumny.map((ck) => {
+        const [li, j] = ck.split("-").map(Number);
+        const n = [...new Set(ds.filter((d) => d.colKey === ck).map((d) => d.hinges))].join(" i ");
+        return `poziom ${li + 1}, kolumna ${j + 1} — ${n}`;
+      }).join("; ");
+      add("warn", `Drzwi tej samej wysokości (${fmt(h)} mm) mają różną liczbę zawiasów: ${opis}.`
+        + liczby.map((n) => `|zawiasywszedzie:${n}:${kolumny.join(",")}`).join(""));
+    });
   }
 
   /* --- suma kontrolna: sasiadujace fronty nie moga na siebie wchodzic --- */
@@ -12009,15 +12059,30 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return { label: "Dopisz do notatki montażowej", run: () => runFix && runFix(action) };
     }
     if (action.startsWith("zawiasy:")) {
-      // „zawiasy:<poziom>:<kolumna>:<skrzydlo>:<ile>" — liczba zawiasow skrzydla albo klapy
-      const [, li, j, k, ile] = action.split(":");
+      // „zawiasy:<poziom>:<kolumna>:<skrzydlo>:<ile>" — liczba zawiasow skrzydel kolumny albo klapy
+      // (wszystkie skrzydla kolumny maja te sama liczbe — uzytkownik 2026-10-24)
+      const [, li, j, , ile] = action.split(":");
       return {
         label: `Ustaw ${ile} zawiasy`,
         run: () => editLevels((L) => {
           const col = L[+li].cols[+j];
-          col.hinges = [...(col.hinges || [])];
-          col.hinges[+k] = +ile;
+          const n = Math.max(1, Math.round(Number(col.doors) || 1), (col.hinges || []).length);
+          col.hinges = Array.from({ length: n }, () => +ile);
         }),
+      };
+    }
+    if (action.startsWith("zawiasywszedzie:")) {
+      // „zawiasywszedzie:<ile>:<poziom-kolumna,…>" — ta sama liczba we wszystkich skrzydlach tych kolumn
+      const [, ile, lista] = action.split(":");
+      return {
+        label: `Wszędzie ${ile} ${plural(+ile, "zawias", "zawiasy", "zawiasów")}`,
+        run: () => editLevels((L) => lista.split(",").forEach((ck) => {
+          const [li, j] = ck.split("-").map(Number);
+          const col = L[li] && L[li].cols[j];
+          if (!col) return;
+          const n = Math.max(1, Math.round(Number(col.doors) || 1), (col.hinges || []).length);
+          col.hinges = Array.from({ length: n }, () => +ile);
+        })),
       };
     }
     if (action.startsWith("zawiasyzostaw:")) {
@@ -12029,6 +12094,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
           const col = L[+li].cols[+j];
           col.hingesOk = [...(col.hingesOk || [])];
           col.hingesOk[+k] = +ile;
+          // skrzydla kolumny z ta sama liczba — tez zostawione
+          (col.hinges || []).forEach((v, m) => { if (v === +ile) col.hingesOk[m] = +ile; });
         }),
       };
     }
@@ -15659,6 +15726,30 @@ function ReportProjectSheet({ project, projectName, tytul = null, tytulProduktow
 
 /* ---------- aplikacja ---------- */
 
+/* Warianty „klapy zamiast drzwi” (uzytkownik 2026-10-24: klapa nie musi byc na
+   kazdej polce — moze byc jedna na kolumne albo jedna na dwie polki). `pasma` —
+   swiatla miedzy polkami od dolu, `t` — grubosc polki, `potrzeba(m, k)` —
+   najnizszy poziom pod podnosnik klapy m z k. Dla kazdej liczby klap k (od
+   jednej na polke do jednej na kolumne) pasma dziela sie rowno (wiecej nizej):
+   wysokosci poziomow, polki-granice (staja sie przelotowe) i czy sie miesci. */
+const wariantyKlap = (pasma, t, potrzeba) => {
+  const nb = pasma.length;
+  return [...Array(nb)].map((_, q) => nb - q).map((k) => {
+    const baza = Math.floor(nb / k), reszta = nb % k;
+    const grupy = [...Array(k)].map((_, m) => baza + (m < reszta ? 1 : 0));
+    let od = 0;
+    const wys = grupy.map((g) => {
+      const h = pasma.slice(od, od + g).reduce((a, b) => a + b, 0) + (g - 1) * t;
+      od += g;
+      return Math.round(h);
+    });
+    const granice = [];
+    grupy.slice(0, -1).reduce((cum, g) => { granice.push(cum + g - 1); return cum + g; }, 0);
+    const min = wys.map((_, m) => potrzeba(m, k));
+    return { k, wys, granice, min, miesci: wys.every((h, m) => h >= min[m]) };
+  });
+};
+
 /* Ktore szafki uzywaja plyty `k`: fronty i polki z wlasnej plyty tylko przy
    odznaczonym „z tej samej płyty co korpus”. */
 const uzywaPlyty = (cab, k) => (k === "front" ? cab.frontSameAsBoard === false
@@ -17018,6 +17109,14 @@ export default function App() {
       a[k] = v;
       L[i].cols[j][key] = a;
     });
+  /* Zawiasy wpisane recznie przechodza na wszystkie skrzydla kolumny
+     (uzytkownik 2026-10-24); puste — cala kolumna wraca na tabele GTV. */
+  const setColHinges = (i, j, v) =>
+    editLevels((L) => {
+      const col = L[i].cols[j];
+      const n = Math.max(1, Math.round(Number(col.doors) || 1), (col.hinges || []).length);
+      col.hinges = Array.from({ length: n }, () => v);
+    });
   const setDrawerHandle = (i, j, k, v) =>
     editLevels((L) => (L[i].cols[j].drawers[k].handle = v));
   const setColBack = (i, j, v) => editLevels((L) => (L[i].cols[j].backMode = v));
@@ -17208,7 +17307,9 @@ export default function App() {
           if (col.fix && col.fix.side === "top" && !ostatni) delete c2.fix;
           if (naKlapy) {
             c2.kind = "doors"; c2.doors = 1; c2.klapa = "gora";
-            c2.shelfTargets = [null]; c2.hinges = []; c2.doorWidths = [];
+            c2.hinges = []; c2.doorWidths = [];
+            // klapa na kilka pasm (wariant „N klapy”) — polki w srodku zostaja
+            if (c2.shelfTargets.length <= 1) c2.shelfTargets = [null];
           }
           return c2;
         });
@@ -17222,6 +17323,13 @@ export default function App() {
       L.splice(i, 1, ...nowe);
     });
   };
+
+  // jedna klapa na cala kolumne — polki zostaja w srodku
+  const jednaKlapa = (i, j) => editLevels((L) => {
+    const col = L[i].cols[j];
+    col.kind = "doors"; col.doors = 1; col.klapa = "gora";
+    col.hinges = []; col.doorWidths = [];
+  });
 
   // liczba polek = liczba swiatel minus 1, wiec dodanie polki to dodanie swiatla
   const addShelf = (i, j) =>
@@ -19082,26 +19190,50 @@ export default function App() {
                         )}
                         {/* zaraz pod drzwiami (komentarz uzytkownika 2026-10-17): klapy zamiast
                             drzwi, poziom zamiast polki — tylko w poziomie z jedna kolumna */}
-                        {c.kind === "doors" && lv.cols.length === 1 && nS > 0 && (
-                          <div className="text-xs" data-el="polki-na-klapy">
-                            <MiniBtn onClick={() => polkiNaPoziomy(lv.i, c.j, c.shelves.map((_, k) => k), true)}>klapy zamiast drzwi</MiniBtn>
-                            <span className="ml-2 text-[11px] text-stone-400">każda półka → nowy poziom, w każdym klapa do góry</span>
-                            {(() => {
-                              /* Klapy po podziale za niskie na podnosnik GTV (plytka pod plyta z zawiasami
-                                 plus jej promien) — ostrzezenie przy przycisku (uzytkownik 2026-10-24). */
-                              const ys = [lv.y0, ...c.shelves.flatMap((s2) => [s2.y, s2.y + geo.t]), lv.y1];
-                              const pasma = [...Array(ys.length / 2)].map((_, m) => Math.round(ys[2 * m + 1] - ys[2 * m]));
-                              const potrzeba = (m) => (cab.frontMode !== "overlay" ? PODNOSNIK_H.wpuszczane[90]
-                                : m === pasma.length - 1 ? PODNOSNIK_H.nakladane[90] : PODNOSNIK_H.blizniacze[90]) + KLAPA_PLYTKA_R;
-                              const za = pasma.map((h, m) => ({ h, min: potrzeba(m) })).filter((q) => q.h < q.min);
-                              return za.length ? (
-                                <p className="mt-1 text-[11px] text-amber-700" data-el="klapy-za-niskie">
-                                  ! klapy wyjdą po {listPl(pasma.map((h) => fmt(h)))} mm — podnośnik GTV potrzebuje ok. {fmt(Math.max(...za.map((q) => q.min)))} mm wysokości poziomu; zmniejsz liczbę półek albo zostaw drzwi.
-                                </p>
-                              ) : null;
-                            })()}
-                          </div>
-                        )}
+                        {c.kind === "doors" && lv.cols.length === 1 && nS > 0 && (() => {
+                          /* Klapa na kazdej polce za niska na podnosnik GTV (plytka pod plyta
+                             z zawiasami plus jej promien) — szary przycisk z dopiskiem, bez
+                             ostrzezenia przy wybranych drzwiach (uzytkownik 2026-10-24). Obok
+                             warianty z mniejsza liczba klap, ktore sie mieszcza. */
+                          const ys = [lv.y0, ...c.shelves.flatMap((s2) => [s2.y, s2.y + geo.t]), lv.y1];
+                          const pasma = [...Array(ys.length / 2)].map((_, m) => Math.round(ys[2 * m + 1] - ys[2 * m]));
+                          const potrzeba = (m, k) => (cab.frontMode !== "overlay" ? PODNOSNIK_H.wpuszczane[90]
+                            : m === k - 1 ? PODNOSNIK_H.nakladane[90] : PODNOSNIK_H.blizniacze[90]) + KLAPA_PLYTKA_R;
+                          const wr = wariantyKlap(pasma, geo.t, potrzeba);
+                          const kazda = wr[0];
+                          const pasujace = wr.slice(1).filter((w) => w.miesci);
+                          const jedna = pasujace.find((w) => w.k === 1);
+                          const pokaz = kazda.miesci ? [jedna] : [pasujace[0], jedna];
+                          const warianty = [...new Set(pokaz.filter(Boolean))];
+                          return (
+                            <div className="text-xs" data-el="polki-na-klapy">
+                              {kazda.miesci ? (
+                                <>
+                                  <MiniBtn onClick={() => polkiNaPoziomy(lv.i, c.j, c.shelves.map((_, k) => k), true)}>klapy zamiast drzwi</MiniBtn>
+                                  <span className="ml-2 text-[11px] text-stone-400">każda półka → nowy poziom, w każdym klapa do góry</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="cursor-not-allowed rounded border border-stone-200 px-1.5 py-0.5 text-[11px] text-stone-400"
+                                    title={`Klapy na każdej półce wyszłyby po ${listPl(kazda.wys.map((h) => fmt(h)))} mm — podnośnik GTV potrzebuje ok. ${fmt(Math.max(...kazda.min))} mm wysokości poziomu.`}>
+                                    klapy zamiast drzwi
+                                  </span>
+                                  <span className="ml-2 text-[11px] text-stone-400" data-el="klapy-za-niskie">za nisko na klapy na każdej półce</span>
+                                </>
+                              )}
+                              {warianty.map((w) => (
+                                <div key={w.k} className="mt-1" data-el="klapy-wariant">
+                                  <MiniBtn onClick={() => (w.k === 1 ? jednaKlapa(lv.i, c.j) : polkiNaPoziomy(lv.i, c.j, w.granice, true))}>
+                                    {w.k === 1 ? "jedna klapa zamiast drzwi" : `${w.k} ${plural(w.k, "klapa", "klapy", "klap")} zamiast drzwi`}
+                                  </MiniBtn>
+                                  <span className="ml-2 text-[11px] text-stone-400">
+                                    {w.k === 1 ? "na całą kolumnę, półki zostają" : `poziomy po ${listPl(w.wys.map((h) => fmt(h)))} mm, półki w środku zostają`}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
 
                         {/* Strona zawiasow pojedynczych drzwi — przy kolumnie, a nie tylko
                             w zwinietej karcie „Luzy drzwi” (prosba uzytkownika 2026-09-28).
@@ -19229,7 +19361,7 @@ export default function App() {
                                       <input type="number" min={0} step={1}
                                         value={(rawCol.hinges || [])[k] ?? ""}
                                         placeholder={String((c.doors[k] || {}).hinges ?? 2)}
-                                        onChange={(e) => setDoorFlag(lv.i, c.j, k, "hinges",
+                                        onChange={(e) => setColHinges(lv.i, c.j,
                                           e.target.value === "" ? null : Math.round(Number(e.target.value)))}
                                         className={"w-12 " + pole} />
                                     </label>

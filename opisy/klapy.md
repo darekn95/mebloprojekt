@@ -6,6 +6,12 @@ Front uchylny zamiast skrzydła — tylko przy **jednych drzwiach w kolumnie**:
 **„klapy zamiast drzwi”** (pod polem drzwi) zamienia każdą półkę kolumny w granicę
 poziomów, a w każdym nowym poziomie stawia klapę do góry. Działa tylko w poziomie
 z jedną kolumną. Dolne poziomy dostają wpisaną wysokość, górny jest auto.
+Gdy klapa na każdej półce byłaby niższa, niż potrzebuje podnośnik (wpuszczane 265,
+bliźniacze 257, górna nakładana 249 mm), przycisk jest szary z dopiskiem „za nisko
+na klapy na każdej półce” (liczby w dymku) — bez ostrzeżenia przy wybranych drzwiach.
+Obok warianty z mniejszą liczbą klap, które się mieszczą (`wariantyKlap`): „N klapy
+zamiast drzwi” (pasma dzielone równo, półki w środku zostają) i „jedna klapa zamiast
+drzwi” (cała kolumna, półki zostają) — użytkownik 2026-10-24.
 
 ## Co program liczy sam
 

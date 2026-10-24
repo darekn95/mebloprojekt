@@ -337,6 +337,40 @@ console.log('\n== „Zostaw 3 zawiasy” i słupek w ciągu (użytkownik 2026-10
     JSON.stringify([p1.runs[0].H, ...p1.items.map((x) => x.cab.H)]));
 }
 
+console.log('\n== zawiasy wpisane ręcznie: cała kolumna, różne kolumny tej samej wysokości (użytkownik 2026-10-24) ==');
+{
+  const zap = async () => { await page.waitForTimeout(1000); return JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt'))); };
+  const dwa = (o = {}) => ({ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null], ...o });
+  await seed(proj([{ cab: cab({ W: 1200, H: 1700, levels: [{ h: null, cols: [dwa(), dwa()] }] }) }]));
+  let u = await uwagi();
+  ok('dwie kolumny po 2 skrzydła 1650 mm, auto (4 wg GTV): bez ostrzeżenia o różnej liczbie', !/różną liczbę zawiasów/.test(u), linie(u, /zawias/));
+  const pole = page.locator('[data-el="drzwi-okucia"] input[type="number"]').first();
+  await pole.fill('3'); await page.waitForTimeout(600);
+  let c = (await zap()).items[0].cab;
+  ok('wpis 3 w pierwszym skrzydle → oba skrzydła kolumny 1 mają 3', JSON.stringify(c.levels[0].cols[0].hinges) === '[3,3]', JSON.stringify(c.levels[0].cols[0].hinges));
+  u = await uwagi();
+  ok('kolumna 2 z 4 zawiasami tej samej wysokości: ostrzeżenie z „Wszędzie 3 zawiasy” i „Wszędzie 4 zawiasy”',
+    /Drzwi tej samej wysokości \(\d+ mm\) mają różną liczbę zawiasów: poziom 1, kolumna 1 — 3; poziom 1, kolumna 2 — 4/.test(u) && /Wszędzie 3 zawiasy/.test(u) && /Wszędzie 4 zawiasy/.test(u), linie(u, /zawias/));
+  await page.getByRole('button', { name: 'Wszędzie 3 zawiasy' }).first().click(); await page.waitForTimeout(600);
+  c = (await zap()).items[0].cab;
+  u = await uwagi();
+  ok('„Wszędzie 3 zawiasy”: obie kolumny [3,3], ostrzeżenie znika (zostaje uwaga GTV „za mało”)', JSON.stringify(c.levels[0].cols.map((k) => k.hinges)) === '[[3,3],[3,3]]' && !/różną liczbę zawiasów/.test(u) && /za mało zawiasów wg tabeli GTV/.test(u),
+    `${JSON.stringify(c.levels[0].cols.map((k) => k.hinges))} | ${linie(u, /zawias/)}`);
+  await page.getByRole('button', { name: 'Ustaw 4 zawiasy' }).first().click(); await page.waitForTimeout(600);
+  c = (await zap()).items[0].cab;
+  ok('„Ustaw 4 zawiasy” z tabeli GTV: cała kolumna 1 [4,4] — i znowu różnica z kolumną 2', JSON.stringify(c.levels[0].cols[0].hinges) === '[4,4]' && /różną liczbę zawiasów/.test(await uwagi()), JSON.stringify(c.levels[0].cols.map((k) => k.hinges)));
+  await seed(proj([{ cab: cab({ W: 1200, H: 1700, levels: [{ h: 400, cols: [dwa({ hinges: [2, 2] })] }, { h: null, cols: [dwa()] }] }) }]));
+  u = await uwagi();
+  ok('drzwi różnej wysokości (2 i 4 zawiasy): bez ostrzeżenia o różnej liczbie', !/różną liczbę zawiasów/.test(u), linie(u, /zawias/));
+  // „czy 2 zawiasy nie mogą mieć takiej wagi czy wymiarów?” — Uwagi mówią, co decyduje
+  await seed(proj([{ cab: cab({ H: 950, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], hinges: [2] }] }] }) }]));
+  u = await uwagi();
+  ok('front ok. 596 × 944 mm, 2 zawiasy: powód — wysokość (2 do 750 mm) i waga (2 do 6 kg)', /2 zamiast 3 \(front 596 × \d+ mm, ok\. [\d,]+ kg\)\. Wysokość wymaga 3 \(2 zawiasy do 750 mm\), waga — 3 \(2 zawiasy do 6 kg\)\./.test(u), linie(u, /zamiast/));
+  await seed(proj([{ cab: cab({ H: 720, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], hinges: [3] }] }] }) }]));
+  u = await uwagi();
+  ok('front 714 mm, 3 zawiasy: „Wystarczą 2 — do 750 mm wysokości i 6 kg”', /3 zamiast 2 \(front .*\)\. Wystarczą 2 — do 750 mm wysokości i 6 kg\./.test(u), linie(u, /zamiast/));
+}
+
 console.log('\n== usunięcie poziomu / kolumny z wpisanym wymiarem — miejsce bierze sąsiad (użytkownik 2026-10-24) ==');
 {
   const zap = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt')));
@@ -354,10 +388,31 @@ console.log('\n== usunięcie poziomu / kolumny z wpisanym wymiarem — miejsce b
   await page.getByRole('button', { name: '×', exact: true }).and(page.locator('[title="Usuń kolumnę"]')).first().click(); await page.waitForTimeout(800);
   const W2 = (await zap()).items[0].cab.levels[0].cols.map((k) => k.w);
   ok('kolumny 200 / 200 / auto, usunięta pierwsza → 418 / auto', JSON.stringify(W2) === '[418,null]', JSON.stringify(W2));
+}
+
+console.log('\n== „klapy zamiast drzwi”: za nisko — szary przycisk, warianty z mniejszą liczbą klap (użytkownik 2026-10-24) ==');
+{
+  const zap = async () => { await page.waitForTimeout(1000); return JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt'))); };
   await seed(proj([{ cab: cab({ levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null] }] }] }) }]));
-  const ostrz = page.locator('[data-el="klapy-za-niskie"]');
-  const t = (await ostrz.count()) ? await ostrz.first().innerText() : '';
-  ok('szafka 720 z 2 półkami: przy „klapy zamiast drzwi” ostrzeżenie „klapy wyjdą po 216, 216 i 216 mm … ok. 257 mm”', /klapy wyjdą po 216, 216 i 216 mm — podnośnik GTV potrzebuje ok\. 257 mm/.test(t), t);
+  const dop = page.locator('[data-el="klapy-za-niskie"]');
+  const t = (await dop.count()) ? await dop.first().innerText() : '';
+  const tytul = (await dop.count()) ? await page.locator('[data-el="polki-na-klapy"] span[title]').first().getAttribute('title') : '';
+  ok('szafka 720 z 2 półkami (pasma 216): szary „klapy zamiast drzwi” z dopiskiem „za nisko…”, liczby w dymku, bez pomarańczowego ostrzeżenia',
+    t === 'za nisko na klapy na każdej półce' && /po 216, 216 i 216 mm — podnośnik GTV potrzebuje ok\. 257 mm/.test(tytul || '')
+    && (await page.getByRole('button', { name: 'klapy zamiast drzwi', exact: true }).count()) === 0 && !(await page.locator('[data-el="polki-na-klapy"] .text-amber-700').count()), `${t} | ${tytul}`);
+  const war = await page.locator('[data-el="klapy-wariant"]').allInnerTexts();
+  ok('wariant: tylko „jedna klapa zamiast drzwi” (2 klapy: górna 216 mm też za niska)', war.length === 1 && /^jedna klapa zamiast drzwi/.test(war[0]), war.join(' / '));
+  await page.getByRole('button', { name: 'jedna klapa zamiast drzwi', exact: true }).click(); await page.waitForTimeout(600);
+  let c = (await zap()).items[0].cab;
+  const k0 = c.levels[0].cols[0];
+  ok('„jedna klapa”: kolumna z klapą do góry, 1 front, półki zostają (3 pasma)', c.levels.length === 1 && k0.klapa === 'gora' && k0.doors === 1 && k0.shelfTargets.length === 3, JSON.stringify(k0));
+  await seed(proj([{ cab: cab({ H: 1300, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null, null, null, null] }] }] }) }]));
+  const war2 = await page.locator('[data-el="klapy-wariant"]').allInnerTexts();
+  ok('szafka 1300 z 5 półkami (pasma ok. 196): warianty „3 klapy” (poziomy po ok. 410) i „jedna klapa”', war2.length === 2 && /^3 klapy zamiast drzwi/.test(war2[0]) && /poziomy po \d+, \d+ i \d+ mm/.test(war2[0]) && /^jedna klapa/.test(war2[1]), war2.join(' / '));
+  await page.getByRole('button', { name: '3 klapy zamiast drzwi', exact: true }).click(); await page.waitForTimeout(600);
+  c = (await zap()).items[0].cab;
+  ok('„3 klapy”: trzy poziomy z klapą, w każdym jedna półka (2 pasma)', c.levels.length === 3 && c.levels.every((l) => l.cols[0].klapa === 'gora' && l.cols[0].shelfTargets.length === 2),
+    JSON.stringify(c.levels.map((l) => [l.h, l.cols[0].klapa, l.cols[0].shelfTargets.length])));
 }
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');

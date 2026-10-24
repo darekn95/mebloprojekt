@@ -37,7 +37,7 @@ Każda kolumna jest „Półki i drzwi”, „Szuflady” albo „Blenda”. Lis
 - **Kolumna**: rodzaj (Półki i drzwi / Szuflady / Blenda), liczba półek i wysokość każdego światła.
 - **Zamiana półek**:
   - „→ poziom” — półka staje się półką przelotową;
-  - „klapy zamiast drzwi” — każda półka → nowy poziom z klapą (tylko poziom z jedną kolumną).
+  - „klapy zamiast drzwi” — każda półka → nowy poziom z klapą (tylko poziom z jedną kolumną); za nisko — szary przycisk i warianty „N klapy” / „jedna klapa” (`opisy/klapy.md`).
 - **Mocowanie i kołki**: mocowanie półek, a przy przegrodzie „dół na trójkątach”; „Otwór od przodu / od tyłu” kołków półek.
 - **Plecy kolumny**: jak szafka / HDF / płyta / brak.
 
