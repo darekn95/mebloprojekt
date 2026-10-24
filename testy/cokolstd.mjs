@@ -30,6 +30,17 @@ const cokol = async (want) => {
   if (await chk.isChecked() !== want) await chk.click();
   await page.waitForTimeout(1000);
 };
+/* Od 2026-10-24 nowa szafka stoi na nozkach („nóżki wszędzie”) — do trojkatow
+   je zdejmujemy, do klipsow wlaczamy z powrotem. */
+const nogi = card(/^Nóżki$/);
+await nogi.locator('h2').click();
+await page.waitForTimeout(400);
+const nozki = async (want) => {
+  const chk = nogi.locator('label', { hasText: 'Nóżki pod szafką' }).locator('input');
+  if (await chk.isChecked() !== want) await chk.click();
+  await page.waitForTimeout(1000);
+};
+await nozki(false);
 await cokol(true);
 rs = await rows();
 console.log('    ', (rs.find(r => /Trójkąt|Złączka/.test(r)) || '(brak)'));
@@ -48,11 +59,7 @@ console.log('    ', (rs.find(r => /Trójkąt/.test(r)) || '(brak)'));
 ok('1800 mm → 8 trójkątów (co ok. 300 mm)', qty(rs, 'Trójkąt') === 8, String(qty(rs, 'Trójkąt')));
 
 console.log('\n== z nóżkami: wracają klipsy ==');
-const nogi = card(/^Nóżki$/);
-await nogi.locator('h2').click();
-await page.waitForTimeout(400);
-await nogi.getByText('Nóżki pod szafką', { exact: true }).click();
-await page.waitForTimeout(1000);
+await nozki(true);
 rs = await rows();
 console.log('    ', (rs.find(r => /Trójkąt|Złączka/.test(r)) || '(brak)'));
 /* Klipsow jest tyle, ile nozek w przednim rzedzie — przy 1800 mm szafka ma
