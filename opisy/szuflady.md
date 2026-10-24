@@ -29,6 +29,7 @@ Liczby katalogowe obu systemów są dla płyty 18 mm.
 - **Bok**: V-BOX z listy, DXS-3D w mm.
 - **Front**: wysokość frontu każdej szuflady.
 - **Uchwyt**: włączany osobno na każdym froncie.
+- **Wcięcie na palce (podfrez) zamiast uchwytu** — w kolumnie, przy frontach wpuszczanych i nakładanych (nakładane od 2026-10-24, decyzja użytkownika): każdy front niższy od góry o podaną głębokość (domyślnie 18 mm), prowadnice i podział pasma bez zmian, uchwyty kolumny znikają (pojedynczy można włączyć z powrotem); wyłączenie oddaje uchwyty. W szczelinie nad frontem widać skrzynkę.
 - **Tył**: V-BOX — podniesiony, DXS-3D — wysokość w mm.
 - **NL**: dla całej kolumny albo dla jednej szuflady.
 - **Luz między frontami**: wspólny z drzwiami, domyślnie 2 mm.

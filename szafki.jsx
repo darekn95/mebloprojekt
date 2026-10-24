@@ -3314,10 +3314,12 @@ function computeGeoLiczy(cab, mat, ctx) {
         }
       }
 
-      /* Wciecie na palce: front wpuszczany skracamy od gory, zeby zamiast
-         uchwytu zahaczyc palcami o jego gorna krawedz. Podzial pasma i pozycje
-         prowadnic zostaja bez zmian — skraca sie sama formatka frontu. */
-      const grip = dIn && rawCol.fingerGrip
+      /* Wciecie na palce: front skracamy od gory, zeby zamiast uchwytu
+         zahaczyc palcami o jego gorna krawedz. Podzial pasma i pozycje
+         prowadnic zostaja bez zmian — skraca sie sama formatka frontu.
+         Wpuszczany i nakladany tak samo (uzytkownik 2026-10-24: „podfrez na
+         dłoń” w szufladach nakladanych). */
+      const grip = rawCol.fingerGrip
         ? Math.max(0, Math.round(num(rawCol.gripDepth) ?? 18))
         : 0;
       c.fingerGrip = grip;
@@ -18962,19 +18964,18 @@ export default function App() {
                             </div>
                           </div>
                         )}
-                        {c.drawerMode === "inset" && (
-                          <div className="flex items-center gap-2 text-xs">
-                            <Check checked={!!rawCol.fingerGrip}
-                              onChange={(v) => setFingerGrip(lv.i, c.j, v)}
-                              label="Wcięcie na palce zamiast uchwytu" />
-                            {rawCol.fingerGrip && (
-                              <div className="w-20">
-                                <Num value={rawCol.gripDepth ?? 18}
-                                  onChange={(v) => setCol(lv.i, c.j, { gripDepth: v })} />
-                              </div>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2 text-xs">
+                          <Check checked={!!rawCol.fingerGrip}
+                            onChange={(v) => setFingerGrip(lv.i, c.j, v)}
+                            label="Wcięcie na palce (podfrez) zamiast uchwytu" />
+                          {rawCol.fingerGrip && <span className="text-stone-500">front niższy o</span>}
+                          {rawCol.fingerGrip && (
+                            <div className="w-20">
+                              <Num value={rawCol.gripDepth ?? 18}
+                                onChange={(v) => setCol(lv.i, c.j, { gripDepth: v })} />
+                            </div>
+                          )}
+                        </div>
 
                         <div className="space-y-2 rounded border border-stone-200 bg-white p-2">
                           <div className="flex items-center gap-2 text-xs">

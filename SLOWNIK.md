@@ -163,7 +163,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | uchwyt: … mm, na boku / górze | `col.handleOuts[]` (puste = `cab.handleOut`, 20), `col.handlePos[]` (`"bok"` / `"gora"`); liczy `uchwytOut(d, cab)` i `uchwytObrys(d)` — rysunek z przodu (`data-el="uchwyt-bok|gora"`), 3D, rzut z góry, kontrola otwierania |
 | własny luz między drzwiami | `col.gapBetween` |
 | światło 1 / światło 2 … | `col.shelfTargets[]` |
-| Wcięcie na palce zamiast uchwytu | `col.gripDepth` |
+| Wcięcie na palce (podfrez) zamiast uchwytu — front niższy o (wpuszczane i nakładane) | `col.fingerGrip`, `col.gripDepth` (domyślnie 18) → `c.fingerGrip` w `computeGeo` |
 | tył (przy szufladzie) | `drawer.tallBack`, `drawer.backHeight` |
 | system szuflady: V-BOX / DXS-3D (pierwsze pole wiersza, `select data-el="szuflada-system"`) | `drawer.system` (`"dxs"`; brak = V-BOX) — `systemSzuflady(d)`; zmiana: `setDrawerSystem` → `zmienSystemSzuflady` (bok i tył wracają na auto, reling i podniesiony tył zdjęte, NL spoza listy systemu → auto) |
 | bok (DXS-3D, mm; `data-el="dxs-bok"`) | `drawer.h` — liczba (V-BOX: z listy `VBOX.heights`), `"auto"` = najwyższy z luzem `SZUFLADA_ZAPAS` pod tym, co wyżej |
