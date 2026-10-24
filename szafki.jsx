@@ -15897,6 +15897,73 @@ const wysKlap = (pasma, t, granice) => {
   });
 };
 
+/* Scalanie szafek ciagu w jedna (uzytkownik 2026-10-24: „rysować szafki osobno,
+   a później scalić”, np. salon szafki 2, 3, 4). Boki na stykach pojedyncze — jedna
+   szafka z przegrodami, wspolnym wiencem i dnem; kolumny i ich wnetrza bez zmian.
+   Kolumna dostaje szerokosc, jaka miala, plus to, co zwolnil drugi bok (i luz
+   miedzy korpusami) — po polowie dla kolumn przy styku; ostatnia jest auto.
+   Boki podwojne — szafki zostaja osobno (wspolny wieniec / dno to opcje ciagu).
+   Warunki: szafki obok siebie w jednym ciagu, ta sama wysokosc, glebokosc
+   i podzial na poziomy, bez szafki w L, wyciec i przeszkod. */
+const scalenieBlad = (project, idxs) => {
+  if (idxs.length < 2) return "zaznacz co najmniej dwie szafki";
+  const runId = project.items[idxs[0]].runId || null;
+  if (!runId) return "scalać można szafki ciągu";
+  const lista = runItems(project, runId).map(({ i }) => i);
+  const poz = idxs.map((i) => lista.indexOf(i)).sort((a, b) => a - b);
+  if (poz.some((q) => q < 0)) return "szafki muszą być w jednym ciągu";
+  if (poz.some((q, k) => k > 0 && q !== poz[k - 1] + 1)) return "szafki muszą stać obok siebie";
+  const cabs = idxs.map((i) => project.items[i].cab);
+  if (cabs.some((c) => c.corner && c.corner.on)) return "szafka w L nie scala się z innymi";
+  if (cabs.some((c) => (c.cutout && c.cutout.on) || (c.cutoutR && c.cutoutR.on) || (c.obstacles || []).some((o) => o && o.on !== false)))
+    return "szafka z wycięciem albo przeszkodą — zdejmij je przed scaleniem";
+  const hs = [...new Set(cabs.map((c) => Math.round(c.H)))].sort((a, b) => a - b);
+  if (hs.length > 1) return `różna wysokość (${listPl(hs.map(fmt))} mm)`;
+  const ds = [...new Set(cabs.map((c) => Math.round(c.D)))].sort((a, b) => a - b);
+  if (ds.length > 1) return `różna głębokość (${listPl(ds.map(fmt))} mm)`;
+  if (new Set(cabs.map((c) => JSON.stringify((c.levels || []).map((lv) => lv.h ?? null)))).size > 1)
+    return "różny podział na poziomy — wyrównaj poziomy albo scalaj szafki z jednym poziomem";
+  return null;
+};
+const scalSzafki = (project, idxsIn) => {
+  const runId = project.items[idxsIn[0]].runId;
+  const lista = runItems(project, runId).map(({ i }) => i);
+  const idxs = [...idxsIn].sort((a, b) => lista.indexOf(a) - lista.indexOf(b));
+  const run = (project.runs || []).find((r) => r.id === runId);
+  const gap = Math.max(0, Math.round((run && run.gap) || 0));
+  const its = idxs.map((i) => project.items[i]);
+  const geos = its.map((it) => computeGeo(cabDoGeo(project, it), it.mat));
+  const t = geos[0].t;
+  const wolne = t + gap;   // na kazdym styku: drugi bok i luz miedzy korpusami
+  const W = geos.reduce((a, g) => a + g.W, 0) + (its.length - 1) * gap;
+  const levels = its[0].cab.levels.map((lv0, li) => {
+    const cols = [];
+    its.forEach((it, k) => {
+      const surowe = it.cab.levels[li].cols || [];
+      surowe.forEach((col, j) => {
+        const c2 = JSON.parse(JSON.stringify(col));
+        let w = Math.round(((geos[k].levels[li] || {}).cols || [])[j]?.w || 0);
+        if (j === 0 && k > 0) w += Math.ceil(wolne / 2);
+        if (j === surowe.length - 1 && k < its.length - 1) w += Math.floor(wolne / 2);
+        c2.w = w;
+        delete c2.noDiv;
+        cols.push(c2);
+      });
+    });
+    cols[cols.length - 1].w = null;   // ostatnia kolumna bierze reszte (zaokraglenia)
+    return { ...JSON.parse(JSON.stringify(lv0)), cols };
+  });
+  const c0 = its[0].cab;
+  const scalona = { ...c0, name: its.map((it) => (it.cab.name || "").trim()).filter(Boolean).join(" + "),
+    W: Math.round(W), levels,
+    top: c0.top && c0.top.widthMode === "inside" ? { ...c0.top, widthMode: "outside" } : c0.top,
+    legs: c0.legs ? { ...c0.legs, count: null } : c0.legs };
+  const znikaja = new Set(idxs.slice(1));
+  const nowa = { ...project.items[idxs[0]], cab: scalona };
+  const items = project.items.map((it, i) => (i === idxs[0] ? nowa : it)).filter((_, i) => !znikaja.has(i));
+  return { ...project, items, active: items.indexOf(nowa) };
+};
+
 /* Ktore szafki uzywaja plyty `k`: fronty i polki z wlasnej plyty tylko przy
    odznaczonym „z tej samej płyty co korpus”. */
 const uzywaPlyty = (cab, k) => (k === "front" ? cab.frontSameAsBoard === false
@@ -15916,6 +15983,8 @@ export default function App() {
   const [histLen, setHistLen] = useState({ undo: 0, redo: 0 });
   // ciag, ktorego rozwiazanie czeka na potwierdzenie (wisi nad nim ciag gorny)
   const [rozwiazPyt, setRozwiazPyt] = useState(null);
+  // okienko „Scal szafki…” w karcie ciagu: { runId, idxs, boki, wieniec, dno }
+  const [scalanie, setScalanie] = useState(null);
 
   // kazda zmiana projektu przechodzi tu — zapisuje poprzedni stan do historii
   const setProject = useCallback((next) => {
@@ -18363,6 +18432,70 @@ export default function App() {
                         className="text-xs text-stone-500 hover:text-stone-800 hover:underline">
                         Rozwiąż ciąg — szafki zostają, wracają na wolnostojące
                       </button>
+                    );
+                  })()}
+                  {runInfo.count > 1 && (() => {
+                    const id = runInfo.run.id;
+                    const lista = runItems(project, id);
+                    const sc = scalanie && scalanie.runId === id ? scalanie : null;
+                    if (!sc) {
+                      // na start: aktywna i jej sasiad z prawej (albo z lewej, gdy jest ostatnia)
+                      const poz = lista.findIndex(({ i }) => i === project.active);
+                      const obok = lista[poz + 1] || lista[poz - 1];
+                      return (
+                        <div>
+                          <button data-el="scal-otworz" onClick={() => setScalanie({ runId: id, idxs: [project.active, obok.i], boki: "pojedyncze",
+                            wieniec: !!runInfo.run.wspolnyWieniec, dno: !!runInfo.run.wspolneDno })}
+                            className="text-xs text-teal-700 hover:underline">
+                            Scal szafki w jedną…
+                          </button>
+                        </div>
+                      );
+                    }
+                    const zmien = (patch) => setScalanie({ ...sc, ...patch });
+                    const blad = sc.boki === "pojedyncze" ? scalenieBlad(project, sc.idxs) : null;
+                    const W = sc.idxs.reduce((a, i) => a + computeGeo(cabDoGeo(project, project.items[i]), project.items[i].mat).W, 0)
+                      + (sc.idxs.length - 1) * Math.max(0, Math.round(runInfo.run.gap || 0));
+                    const zastosuj = () => {
+                      if (sc.boki === "pojedyncze") setProject((p) => scalSzafki(p, sc.idxs));
+                      else setRun(id, { wspolnyWieniec: sc.wieniec, wspolneDno: sc.dno });
+                      setScalanie(null);
+                    };
+                    return (
+                      <div className="space-y-2 rounded border border-teal-200 bg-teal-50 p-2 text-xs" data-el="scalanie">
+                        <div className="font-medium text-stone-700">Scal szafki w jedną</div>
+                        <div className="flex flex-col gap-0.5">
+                          {lista.map(({ it, i }) => (
+                            <label key={i} className="flex items-center gap-1">
+                              <input type="checkbox" checked={sc.idxs.includes(i)}
+                                onChange={(e) => zmien({ idxs: e.target.checked ? [...sc.idxs, i] : sc.idxs.filter((x) => x !== i) })}
+                                className="h-3.5 w-3.5 accent-teal-700" />
+                              <span>{(it.cab.name || "").trim() || `Szafka ${i + 1}`} — {fmt(it.cab.W)} × {fmt(it.cab.H)} mm</span>
+                            </label>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-24 shrink-0 text-stone-500">boki na stykach</span>
+                          <Seg value={sc.boki} onChange={(v) => zmien({ boki: v })}
+                            options={[{ v: "pojedyncze", l: "pojedyncze" }, { v: "podwojne", l: "podwójne" }]} />
+                        </div>
+                        {sc.boki === "pojedyncze" ? (
+                          <p className="text-[11px] text-stone-500">
+                            Jedna szafka {fmt(W)} mm: przegrody zamiast podwójnych boków, wspólny wieniec i dno, wnętrza kolumn bez zmian.
+                          </p>
+                        ) : (
+                          <div className="space-y-1">
+                            <p className="text-[11px] text-stone-500">Szafki zostają osobne, skręcone bokami. Wspólna płyta — dla całego ciągu:</p>
+                            <Check checked={sc.wieniec} onChange={(v) => zmien({ wieniec: v })} label="wspólny wieniec z płyty" />
+                            <Check checked={sc.dno} onChange={(v) => zmien({ dno: v })} label="wspólne dno" />
+                          </div>
+                        )}
+                        {blad && <p className="text-[11px] text-red-700" data-el="scal-blad">Nie da się scalić: {blad}.</p>}
+                        <div className="flex gap-2">
+                          {!blad && <MiniBtn tone="on" onClick={zastosuj}>{sc.boki === "pojedyncze" ? "Scal" : "Zastosuj"}</MiniBtn>}
+                          <MiniBtn onClick={() => setScalanie(null)}>Anuluj</MiniBtn>
+                        </div>
+                      </div>
                     );
                   })()}
                   <CardSub title="Ściana">

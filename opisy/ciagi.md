@@ -15,6 +15,10 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - szuflady dostaje w systemie z kontekstu (szafka → ciąg → pomieszczenie).
 - **Wspólny wieniec** (opcja ciągu, zamiast blatu roboczego; użytkownik 2026-10-24, szafki RTV): jedna płyta korpusu na bokach szafek w najczęstszej wysokości ciągu (`wysokoscWienca`; wyższy słupek i szafka w L zostają przy swoim wieńcu), równo z frontami (nakładane: 2 mm luzu + grubość frontu), przykręcana od spodu na trójkątach. W szafce to „Blat z płyty” oznaczony `top.zCiagu` (`wieniecZCiagu`), wyłączenie wraca do wieńca. W zamówieniu „Wieniec ciągu” (pozycja „Wieniec — ciąg”), dzielony na stykach przy arkuszu 2800, przerywany słupkiem.
 - **Wspólne dno** (opcja ciągu): szafki stoją bokami na jednej płycie — dno każdej pod bokami (`dnoZCiagu`, poprzednie złącza wracają po wyłączeniu); w zamówieniu „Dno ciągu” (pozycja „Dno — ciąg”), dzielone na stykach. Różna głębokość / płyta dna albo szafka w L — dna zostają przy szafkach (informacja w karcie ciągu, `runBottom`).
+- **„Scal szafki w jedną…”** (karta ciągu, użytkownik 2026-10-24): wybór szafek ciągu stojących obok siebie i boków na stykach.
+  - **Pojedyncze** — jedna szafka (nazwa „S2 + S3 + S4”, szerokość = suma korpusów i luzów) z przegrodami, wspólnym wieńcem i dnem; kolumny i ich wnętrza (półki, drzwi, szuflady, zawiasy) bez zmian, szerokość kolumny jak była plus połowa tego, co zwolnił drugi bok i luz między korpusami; ostatnia kolumna auto (`scalSzafki`).
+  - Warunki (`scalenieBlad`, „Nie da się scalić: …”): obok siebie w jednym ciągu, ta sama wysokość, głębokość i podział na poziomy, bez szafki w L, wycięć i przeszkód.
+  - **Podwójne** — szafki zostają osobne, skręcone bokami; „wspólny wieniec z płyty” i „wspólne dno” włączają opcje całego ciągu.
 - **Nowa szafka** i szafka przeniesiona do ciągu dostają wspólny wieniec / dno ciągu (`wedlugCiagu`); wyjęta z ciągu — je oddaje.
 - **Cokół ciągu**: jedna płaszczyzna przez cały ciąg, podzielona na formatki; w rogu cokoły na zakładkę (`opisy/cokol.md`).
 - **Blat ciągu** (`opisy/korpus.md`): kawałki o długości arkusza z miejscem na słupki.

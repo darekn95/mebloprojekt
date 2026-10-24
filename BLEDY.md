@@ -18,6 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-24 | prośba użytkownika: „opcja scal szafki w jedną — rysować osobno, potem scalić (salon szafki 2, 3, 4); przy podwójnych bokach pytanie: zostawiamy czy pojedyncze, wspólny wieniec i dno” | „Scal szafki w jedną…” w karcie ciągu: pojedyncze boki — jedna szafka z przegrodami; podwójne — szafki zostają, wspólny wieniec / dno ciągu (decyzja użytkownika: na razie bez podwójnej przegrody i przegrody przelotowej w jednej szafce); suita `scalanie` | (ten commit) |
 | 2026-10-24 | prośby użytkownika: „szafki RTV — brakuje opcji wspólny wieniec”; „jeden wspólny wieniec i dno przez całość jako opcja jak blat roboczy” | opcje ciągu „Wspólny wieniec z płyty” i „Wspólne dno” (w zamówieniu „Wieniec ciągu”, „Dno ciągu”); przy okazji: blat z płyty szafek łączył się w jedną płytę także nad wyższym słupkiem w środku ciągu — teraz słupek przerywa; ciąg z wysokością od wysokiej szafki — „Ustaw cały ciąg na N mm, wyższe jako słupki”; suita `wspolnywieniec` | (ten commit) |
 | 2026-10-24 | zgłoszenie użytkownika (projekt z salonem): „nowa szafka w ciągu dolnym ma ostrzeżenia o wieszaniu — nie powinna mieć wieszaków, bo stoi na ziemi” | szafka bez nóżek i cokołu liczyła się jako wisząca także w ciągu stojącym (montaż 0): ostrzeżenie „wiesza się na haczykach, a ciąg na listwie” i 2 zawieszki + 2 haki na szafkę w zamówieniu; teraz ciąg dolny na 0 stoi (`ciagStoi`, `cabDoGeo`); `ciag7` zawiesza swoje ciągi z listwą na 1400 mm; suity `audytgpt6`, `ciag7` | (ten commit) |
 | 2026-10-24 | `wierc` | test oczekiwał kołków 37 mm od krawędzi — od 2026-10-24 jest 50 | (ten commit) |
@@ -443,6 +444,11 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   GitHubie). „Wyślij do Claude” jest **tylko** w artefakcie. Szczegóły w `AGENTS.md`.
 
 ## Pomysły / optymalizacja
+
+- **Na później (użytkownik 2026-10-24): scalanie z podwójną przegrodą albo przegrodą
+  przelotową** — w jednej szafce dwie płyty obok siebie na styku albo przegroda przez
+  wieniec i dno (wieniec / dno w kawałkach). Dziś scalanie robi przegrodę pojedynczą
+  ze wspólnym wieńcem i dnem; boki podwójne zostawiają osobne szafki (`opisy/ciagi.md`).
 
 - **Zrobione 2026-09-28: wstawka w rogu** (`run.corner.wstawka`, suita `wstawka`) —
   płaska 18 × 60 na wkręty i szeroka 60 na trójkąty, przy pierwszej szafce ciągu,
