@@ -7,6 +7,14 @@ Kolumna w „Strukturze wnętrza” → **Szuflady**. Każda szuflada ma swój s
 
 Liczby katalogowe obu systemów są dla płyty 18 mm.
 
+Szuflady mogą też stać w **jednym poziomie kolumny** (kolumna podzielona na
+półkach — „granica frontów”; w karcie „poziom kolumny N” → **Szuflady**,
+2026-10-24). Liczą się tak samo, tylko w paśmie tego poziomu: najniższa
+prowadnica siada na półce granicznej pod nim (albo na dnie), skrzynka, podniesiony
+tył i podfrez kończą się pod półką nad nim, a front nakładany zachodzi na półkę
+graniczną jak na przegrodę. Uwagi mówią „Poziom P, kolumna K, poziom kolumny N,
+szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
+
 ## Wspólne dla obu systemów
 
 ### Co program liczy sam

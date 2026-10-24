@@ -148,6 +148,71 @@ console.log('\n== półki w poziomie kolumny (użytkownik 2026-10-24) ==');
   ok('bez błędów (×) w Uwagach', !/^×/m.test(u), u.split('\n').filter((l) => /^×/.test(l)).join(' / '));
 }
 
+console.log('\n== poziom kolumny jak osobna kolumna: szuflady i blenda (użytkownik 2026-10-24) ==');
+{
+  // kolumna 2: granica na polce 0 — poziom 1 = swiatlo 600 na dole, poziom 2 = 2 polki nad nim
+  await seed({ ...SZAFA(), H: 2000, levels: [{ h: null, cols: [kol(), kol({ shelfTargets: [600, null, null, null], podzial: [0] }), kol()] }] });
+  const k2 = kolumna(2);
+  const poz = (n) => k2.locator('[data-el="odcinek-kolumny"]').filter({ hasText: `poziom kolumny ${n}` });
+  const rodzaj = (n, co) => poz(n).locator('[data-el="odcinek-rodzaj"]').getByRole('button', { name: co, exact: true });
+  ok('w każdym poziomie kolumny wybór „Półki i drzwi / Szuflady / Blenda”',
+    (await poz(1).locator('[data-el="odcinek-rodzaj"] button').allInnerTexts()).join('|') === 'Półki i drzwi|Szuflady|Blenda'
+    && (await poz(2).locator('[data-el="odcinek-rodzaj"] button').count()) === 3);
+  await rodzaj(1, 'Szuflady').click(); await page.waitForTimeout(900);
+  let c = await zap(); let k = c.levels[0].cols[1];
+  const ileSzuf = ((k.segmenty || [])[0] || {}).drawers?.length || 0;
+  ok('poziom 1 → szuflady tylko w nim: kolumna dalej „Półki i drzwi”, inne kolumny bez zmian', k.kind === 'doors' && k.segmenty[0].kind === 'drawers'
+    && ileSzuf >= 1 && c.levels[0].cols[0].kind === 'doors' && !c.levels[0].cols[0].segmenty, JSON.stringify(k.segmenty));
+  ok('granica i półki poziomu 2 na miejscu', JSON.stringify(k.podzial) === '[0]' && k.shelfTargets.length === 4, JSON.stringify([k.podzial, k.shelfTargets]));
+  ok('w poziomie 1 lista szuflad (wiersze) i „+ szuflada”', (await poz(1).locator('[data-el="szuflada-wiersz"]').count()) === ileSzuf
+    && (await poz(1).getByRole('button', { name: '+ szuflada', exact: true }).count()) === 1);
+  let f = await fronty();
+  ok(`formatki: ${ileSzuf} fronty szuflad + drzwi poziomu 2`, f.filter((r) => /^Front szuflady/.test(r)).length >= 1 && f.some((r) => /^Drzwi/.test(r)), f.join(' / '));
+  let u = await uwagi();
+  ok('bez błędów (×) w Uwagach', !/^×/m.test(u), u.split('\n').filter((l) => /^×/.test(l)).join(' / '));
+  // + szuflada w poziomie kolumny trafia do segmentu
+  await poz(1).getByRole('button', { name: '+ szuflada', exact: true }).click(); await page.waitForTimeout(700);
+  k = (await zap()).levels[0].cols[1];
+  ok('„+ szuflada” dokłada w poziomie kolumny, nie w kolumnie', k.segmenty[0].drawers.length === ileSzuf + 1 && !(k.drawers || []).length, JSON.stringify(k.segmenty[0].drawers.length));
+  // usun ostatnia (×) — wraca do stanu
+  await poz(1).locator('[data-el="szuflada-wiersz"]').first().getByRole('button', { name: '×', exact: true }).click(); await page.waitForTimeout(700);
+  k = (await zap()).levels[0].cols[1];
+  ok('× usuwa szufladę z poziomu kolumny', k.segmenty[0].drawers.length === ileSzuf, String(k.segmenty[0].drawers.length));
+  // rysunek: prowadnice szuflad w poziomie kolumny (widok „Otw.”)
+  await page.getByText('Otw.', { exact: true }).first().click(); await page.waitForTimeout(700);
+  const prow = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg rect')].filter((r) => /^rn0-1-/.test(r.getAttribute('data-key') || '') || r.getAttribute('fill') === '#8b8b93').length);
+  ok('widok „Otw.”: prowadnice szuflad poziomu kolumny na rysunku', prow >= 2, String(prow));
+  await page.getByText('Zamkn.', { exact: true }).first().click().catch(() => {}); await page.waitForTimeout(400);
+
+  // poziom 2 → blenda: polki z niego znikaja, granica zostaje
+  await rodzaj(2, 'Blenda').click(); await page.waitForTimeout(900);
+  c = await zap(); k = c.levels[0].cols[1];
+  ok('poziom 2 → blenda: półki tego poziomu zdjęte, granica na półce 0', k.segmenty[1] && k.segmenty[1].kind === 'blenda'
+    && k.shelfTargets.length === 2 && JSON.stringify(k.podzial) === '[0]', JSON.stringify([k.segmenty, k.shelfTargets, k.podzial]));
+  const wiersze = await page.evaluate(() => {
+    const sec = [...document.querySelectorAll('section')].find((s) => /^Formatki do zamówienia$/.test(s.querySelector('h2')?.textContent || ''));
+    return sec ? [...sec.querySelectorAll('tbody tr')].map((tr) => tr.innerText.trim().split('\n')[0]) : [];
+  });
+  ok('formatki: blenda zamiast drzwi w kolumnie 2', wiersze.some((r) => /^Blenda/i.test(r)), wiersze.join(' / '));
+  ok('„fronty N w 2 poziomach kolumny”', /w 2 poziomach kolumny/.test(await k2.locator('[data-el="fronty-kolumny"]').innerText()));
+  // z powrotem na drzwi
+  await rodzaj(2, 'Półki i drzwi').click(); await page.waitForTimeout(700);
+  k = (await zap()).levels[0].cols[1];
+  ok('„Półki i drzwi” — poziom 2 znów z drzwiami (bez rodzaju w segmencie)', !(k.segmenty[1] || {}).kind, JSON.stringify(k.segmenty[1]));
+}
+
+console.log('\n== półka w środku poziomu z szufladami: błąd z przyciskiem ==');
+{
+  await seed({ ...SZAFA(), H: 2000, levels: [{ h: null, cols: [kol(), kol({ shelfTargets: [300, 300, null, null], podzial: [1],
+    segmenty: [{ kind: 'drawers', drawers: [{ h: 'auto', front: null, handle: true }, { h: 'auto', front: null, handle: true }] }, null] }), kol()] }] });
+  const u = await uwagi();
+  ok('błąd „szuflady i półka w tym samym poziomie kolumny”', /szuflady i półka w tym samym poziomie kolumny/.test(u), u.slice(0, 300));
+  await page.getByRole('button', { name: 'Usuń półki z tego poziomu', exact: true }).first().click(); await page.waitForTimeout(800);
+  const k = (await zap()).levels[0].cols[1];
+  ok('„Usuń półki z tego poziomu”: granica na półce 0, półki poziomu 2 zostają', JSON.stringify(k.podzial) === '[0]' && k.shelfTargets.length === 3, JSON.stringify([k.podzial, k.shelfTargets]));
+  ok('błąd znika', !/szuflady i półka w tym samym poziomie kolumny/.test(await uwagi()));
+}
+
 console.log('\n== jedna kolumna: „→ poziom” jak dotąd (poziom) ==');
 {
   await seed({ name: 'S', W: 600, H: 1600, D: 560, levels: [{ h: null, cols: [kol()] }] });
