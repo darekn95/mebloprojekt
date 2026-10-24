@@ -415,5 +415,21 @@ console.log('\n== „klapy zamiast drzwi”: za nisko — szary przycisk, warian
     JSON.stringify(c.levels.map((l) => [l.h, l.cols[0].klapa, l.cols[0].shelfTargets.length])));
 }
 
+console.log('\n== szafka bez nóżek w stojącym ciągu stoi na podłodze — bez zawieszek (użytkownik 2026-10-24, salon) ==');
+{
+  const BEZ = { on: false, height: 100, mode: 'under', setback: 0 };
+  const rtv = (n) => cab({ name: n, W: 600, H: 900, D: 500, plinth: BEZ, legs: { on: false, height: 100 }, hangerMode: 'haczyki' });
+  const R = (o) => [{ id: 'c3', name: 'Ściana tv', wallW: null, gap: 0, mountY: 0, H: 900, D: 500, plinth: BEZ, worktop: false, hangerMode: 'listwa', corner: null, ...o }];
+  const zaw = async () => (await rows(/^Produkty całego projektu/)).filter((r) => /^Zawieszka|^Hak|^Listwa/.test(r));
+  await seed(proj([{ cab: rtv('A'), runId: 'c3' }, { cab: rtv('B'), runId: 'c3' }], R({}), { active: 1 }));
+  let u = await uwagi();
+  let z = await zaw();
+  ok('ciąg stojący (montaż 0), szafki bez nóżek i cokołu: bez uwagi o wieszaniu i bez zawieszek / haków / listwy', !/wiesza się/.test(u) && !z.length, `${linie(u, /wiesza/)} | ${z.join(' / ')}`);
+  await seed(proj([{ cab: rtv('A'), runId: 'c3' }, { cab: rtv('B'), runId: 'c3' }], R({ mountY: 300 }), { active: 1 }));
+  u = await uwagi();
+  z = await zaw();
+  ok('ten sam ciąg zawieszony 300 mm nad podłogą: uwaga o haczykach przy listwie ciągu i zawieszki w zamówieniu', /wiesza się na haczykach, a ciąg na listwie/.test(u) && z.some((r) => /^Zawieszka/.test(r)), `${linie(u, /wiesza/)} | ${z.join(' / ')}`);
+}
+
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await b.close();

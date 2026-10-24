@@ -142,14 +142,17 @@ ok('żadnej uwagi o wieszaniu na starcie',
   !(await notes()).some((x) => /wiesza się na/.test(x.txt)),
   (await notes()).map((x) => x.txt.slice(0, 45)).join(' // '));
 
+/* Listwa i zawieszki tylko w ciagu wiszacym (poziom montazu > 0): ciag dolny na 0
+   stoi na podlodze takze bez nozek i cokolu (uzytkownik 2026-10-24, szafki RTV). */
+const WISI = { mountY: 1400 };
 console.log('\n== listwa jedna na cały ciąg ==');
 /* Szafki na listwie, jak przy dodawaniu do ciagu w aplikacji. Od 2026-10-17
    listwa jest tylko wtedy, gdy choc jedna szafka na niej wisi (audyt GPT N21,
    decyzja uzytkownika) — surowe dane bez `hangerMode` to domyslne haczyki. */
-await seed([600, 600, 600], {}, { hangerMode: 'haczyki' });
+await seed([600, 600, 600], WISI, { hangerMode: 'haczyki' });
 ok('wszystkie szafki na haczykach: bez listwy w projekcie', !(await rowsOf(/Produkty całego projektu/)).some((r) => /^Listwa/.test(r)),
   (await rowsOf(/Produkty całego projektu/)).filter((r) => /Listwa/.test(r)).join(' // '));
-await seed([600, 600, 600], {}, { hangerMode: 'listwa' });
+await seed([600, 600, 600], WISI, { hangerMode: 'listwa' });
 let hw = await hwCab();
 console.log('     szafka: ' + hw.filter((r) => /Listwa/.test(r)).join(' // '));
 ok('szafka w ciągu nie liczy własnej listwy', !hw.some((r) => /^Listwa/.test(r)),
@@ -166,7 +169,7 @@ ok('karta ciągu: jedna listwa 1800 mm przez ciąg',
   /Jedna listwa 1800 mm przez ciąg/.test(await page.evaluate(() => document.body.innerText)));
 
 console.log('\n== ciąg domyślnie na listwie, szafka na haczykach dostaje uwagę ==');
-await seed([600, 600], {}, { hangerMode: 'haczyki' });
+await seed([600, 600], WISI, { hangerMode: 'haczyki' });
 n = await notes();
 const wiesz = n.find((x) => /wiesza się na haczykach/.test(x.txt));
 console.log('     ' + (wiesz ? wiesz.txt + '  →  [' + wiesz.btns.join(' | ') + ']' : '(brak)'));
@@ -184,7 +187,7 @@ ok('uwaga znikła dla tej szafki',
   (await notes()).map((x) => x.txt.slice(0, 40)).join(' // '));
 
 console.log('\n== „tak ma wisieć cały ciąg" przestawia wszystkie ==');
-await seed([600, 600], {}, { hangerMode: 'haczyki' });
+await seed([600, 600], WISI, { hangerMode: 'haczyki' });
 await uwagi().getByRole('button', { name: 'Tak ma wisieć cały ciąg' }).first().click();
 await page.waitForTimeout(1100);
 st = await stan();
@@ -196,6 +199,11 @@ console.log('\n== ciąg stojący nie liczy listwy ==');
 await seed([600, 600], {}, { plinth: { on: true, height: 100, mode: 'under', setback: 0 } });
 ok('stojący ciąg bez listwy', !(await rowsOf(/Produkty całego projektu/)).some((r) => /^Listwa/.test(r)),
   (await rowsOf(/Produkty całego projektu/)).filter((r) => /Listwa|Zawieszka|Hak/.test(r)).join(' // '));
+// ciag na 0 bez nozek i cokolu tez stoi — bez listwy, zawieszek, hakow i uwagi o wieszaniu
+await seed([600, 600], {}, { hangerMode: 'haczyki' });
+ok('ciąg na podłodze, szafki bez nóżek: bez listwy, zawieszek i haków', !(await rowsOf(/Produkty całego projektu/)).some((r) => /^Listwa|^Zawieszka|^Hak/.test(r)),
+  (await rowsOf(/Produkty całego projektu/)).filter((r) => /Listwa|Zawieszka|Hak/.test(r)).join(' // '));
+ok('…i bez uwagi o wieszaniu', !(await notes()).some((x) => /wiesza się/.test(x.txt)));
 
 console.log('\n== wolnostojąca szafka bez zmian ==');
 await page.evaluate(() => {

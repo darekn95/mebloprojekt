@@ -5202,7 +5202,7 @@ function computeGeoLiczy(cab, mat, ctx) {
      boku). Bok ramienia dopisuje `wierceniaDodatkowe`. */
   const zawieszki = (() => {
     const wisi = cab.hangers === "always"
-      || (cab.hangers !== "never" && !((cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on)));
+      || (cab.hangers !== "never" && !((cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on) || cab.naPodlodze));
     /* Szafka od ZAWIESZKA_SZEROKA wzwyz dostaje dodatkowe zawieszki na
        przegrodach pionowych siegajacych wienca — po jednej na przegrode, najwyzej
        dwie; dwie na tej samej przegrodzie nie wejda, bo wkrety z obu stron
@@ -5605,7 +5605,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     });
 
   // szafka wisząca: brak nozek i cokolu = musi byc na czym powiesic
-  const floorStanding = (cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on);
+  const floorStanding = (cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on) || cab.naPodlodze;
   const wantHangers = cab.hangers === "always" || (cab.hangers !== "never" && !floorStanding);
   if (wantHangers) {
     const nH = zawieszki.n;
@@ -5976,7 +5976,7 @@ const assemblyParts = (project, runs, ref) =>
     const mount = tierMountY(project, run);
     let x = 0;
     const cabs = runItems(project, run.id).map(({ it, i: index }, i, arr) => {
-      const geo = computeGeo(it.cab, it.mat, armCtxOf(ref, index));
+      const geo = computeGeo(cabDoGeo(project, it), it.mat, armCtxOf(ref, index));
       const mat = texMat(matRysunku(it.cab, it.mat), it.cab.texture, it.cab.textureDir);
       /* Cokol pod korpusem podnosi szafke, cokol w obrysie siedzi juz w H.
          Nozki podnosza tak samo, ale schowane w cokole nie dokladaja nic —
@@ -13604,8 +13604,22 @@ const runTopZlacza = (project, run) => {
    ich nie trzymalo w jednej linii. */
 const RAIL_NAME = "Listwa montażowa do zawieszek";
 /* Szafka wisi na zawieszkach — ta sama regula co w `computeGeo` (`wantHangers`). */
+/* Szafka w stojacym ciagu (dolny, poziom montazu 0) stoi na podlodze takze bez
+   nozek i cokolu — nie dostaje zawieszek ani uwag o wieszaniu (uzytkownik
+   2026-10-24: szafki RTV w salonie bez nozek „nie powinny mieć wieszaków, bo
+   stoją na ziemi”). computeGeo widzi to jako `cab.naPodlodze`; kopia szafki
+   jest zapamietana, zeby pamiec geometrii (geoCache) dalej trafiala. */
+const ciagStoi = (run) => !!run && run.tier !== "gorny" && !(Number(run.mountY) > 0);
+const NA_PODLODZE = new WeakMap();
+const cabDoGeo = (project, it) => {
+  if (!it || !it.cab) return it && it.cab;
+  const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
+  if (!ciagStoi(run) || it.cab.naPodlodze) return it.cab;
+  if (!NA_PODLODZE.has(it.cab)) NA_PODLODZE.set(it.cab, { ...it.cab, naPodlodze: true });
+  return NA_PODLODZE.get(it.cab);
+};
 const maZawieszki = (cab) => {
-  const stoi = (cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on);
+  const stoi = (cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on) || cab.naPodlodze;
   return cab.hangers === "always" || (cab.hangers !== "never" && !stoi);
 };
 // ...i wisi na listwie (a nie na haczykach)
@@ -13614,6 +13628,8 @@ const runRail = (project, run) => {
   const { list } = runJoints(project, run);
   if (list.length < 2) return null;
   if ((run.hangerMode || "listwa") !== "listwa") return null;
+  // ciag stojacy (dolny, poziom montazu 0) nie wisi — takze szafki bez nozek
+  if (ciagStoi(run)) return null;
   /* Listwa jest wtedy, gdy choc jedna szafka ciagu naprawde na niej wisi —
      wszystkie bez zawieszek albo na haczykach to brak listwy (audyt GPT N21).
      Wtedy idzie przez caly ciag (szafki na haczykach to wyjatek z ostrzezeniem). */
@@ -13662,7 +13678,7 @@ const projectParts = (project) => {
   // szafka narozna liczy sie z kontekstem rogu — inaczej jej wzmocnienia sa za dlugie
   const layout = projectLayout(project);
   const cabs = project.items.map((it, ci) => {
-    const g = computeGeo(it.cab, it.mat, armCtxOf(layout, ci));
+    const g = computeGeo(cabDoGeo(project, it), it.mat, armCtxOf(layout, ci));
     const gone = drop(it.runId || null);
     const s = shared.get(it.runId || null);
     return {
@@ -13778,7 +13794,7 @@ const runCabMsgs = (run, c, inne = []) => {
      ciag startuje z listwa, a szafka, ktora zostala na haczykach, dostaje uwage
      zamiast cichej zmiany ustawienia. Szafki stojacej to nie dotyczy: nic nie
      wiesza, wiec sposob wieszania jest jej obojetny. */
-  const wisi = !(c.legs && c.legs.on) && !(c.plinth && c.plinth.on);
+  const wisi = !(c.legs && c.legs.on) && !(c.plinth && c.plinth.on) && !ciagStoi(run);
   // szafka bez zawieszek nie wiesza sie wcale — o niej mowi uwaga wyzej
   if (wisi && maZawieszki(c) && (run.hangerMode || "listwa") !== (c.hangerMode || "listwa"))
     out.push({ level: "warn", text:
@@ -15483,7 +15499,7 @@ function PrintReport({ project }) {
     return m;
   }, [layout]);
   const arkusz = (it, i, nr, rozdzial) => (
-    <ReportSheet key={i} cab={it.cab} mat={it.mat} projectName={name}
+    <ReportSheet key={i} cab={cabDoGeo(project, it)} mat={it.mat} projectName={name}
       index={nr} total={project.items.length} rozdzial={rozdzial}
       ctx={armCtxOf(layout, i)} arm={armOf.get(i)}
       sharedPlinth={!!runsWithPlinth.has(it.runId || null)}
@@ -16464,8 +16480,8 @@ export default function App() {
      bylyby dluzsze niz lico, ktore im zostaje. */
   const projLayoutGeo = useMemo(() => projectLayout(project), [project]);
   const geo = useMemo(
-    () => computeGeo(cab, mat, armCtxOf(projLayoutGeo, project.active)),
-    [cab, mat, projLayoutGeo, project.active]
+    () => computeGeo(cabDoGeo(project, project.items[project.active]), mat, armCtxOf(projLayoutGeo, project.active)),
+    [project, mat, projLayoutGeo]
   );
 
   /* wiersze paska szafek: kazdy ciag osobno, wolnostojace na koncu. Gdy nie ma
@@ -16693,7 +16709,7 @@ export default function App() {
     /* Szafka narozna liczy sie z kontekstem rogu — bez niego jej uwagi mowily
        o froncie przez cala szerokosc korpusu, czyli o czyms, czego nie ma. */
     const geos = project.items.map((it, i) =>
-      computeGeo(it.cab, it.mat, armCtxOf(projLayoutGeo, i)));
+      computeGeo(cabDoGeo(project, it), it.mat, armCtxOf(projLayoutGeo, i)));
     const ctx = new Map();
     (project.runs || []).forEach((r) => {
       const list = runItems(project, r.id);
