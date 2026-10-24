@@ -28,10 +28,19 @@ await page.waitForTimeout(1800);
 console.log('== klipsy cokolu ida za nozkami przedniego rzedu ==');
 /* Klipsy sa tylko przy nozkach — swiezo zalozona szafka stoi bez nich, wiec
    najpierw je wlaczamy. */
+/* Od 2026-10-24 nowa szafka stoi na nozkach bez cokolu („nóżki wszędzie”) —
+   ustawiamy stan, a nie klikamy na oslep: nozki i cokol wlaczone. */
 const nogi = card(/^Nóżki$/);
 await nogi.locator('h2').click();
 await page.waitForTimeout(400);
-await nogi.getByText('Nóżki pod szafką', { exact: true }).click();
+const nogiChk = nogi.locator('label', { hasText: 'Nóżki pod szafką' }).locator('input');
+if (!(await nogiChk.isChecked())) await nogiChk.click();
+await page.waitForTimeout(900);
+const cokKarta = card(/^Cokół$/);
+await cokKarta.locator('h2').click();
+await page.waitForTimeout(400);
+const cokChk = cokKarta.locator('input[type=checkbox]').first();
+if (!(await cokChk.isChecked())) await cokChk.click();
 await page.waitForTimeout(900);
 const korpus = card(/^Korpus$/);
 const szerPole = korpus.locator('label').filter({ hasText: /Szerokość/ }).locator('input').first();
