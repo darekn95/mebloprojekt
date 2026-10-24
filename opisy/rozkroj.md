@@ -58,3 +58,7 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 - **Rozkrój**: `buildCutPlan`, `autoPlan`, `uwagiRozkroju`, `arkuszBlatu`, `wierszBlatu`; stałe `SHEET_W/H`, `USABLE_W/H`, `KERF`, `PROG_ODPADU`, `BLAT_BRAKUJE`, `ROZKROJ_ZWLOKA*`.
 - **PDF**: `ReportSheet` (strona szafki, klasy `rp-page`, `rp-widok`), strony rozkroju `rp-arkusz`, `PRINT_CSS`; skala napisów `drukKUkladu`, `kolumnaDruk`, `ulozLegendy`.
 - **Testy**: `cutplan`, `arkusz`, `arkuszstd`, `fit`, `fitall`, `fitstd`, `fitallstd`, `audytwycena`, `pdf`, `pdfczytelnosc`, `grain`.
+
+## Własne płyty (2026-10-24)
+
+W karcie „Płyty” przy kolorach płyty jest kwadrat „+”: płyta spoza wzornika (np. Egger na zamówienie) z własną nazwą, grubością, wymiarem arkusza (domyślnie 2800 × 2070), ceną za arkusz i kolorem na rysunkach. Lista jest w projekcie (`project.plyty`), pod wzornikiem w osobnym rzędzie „Własne płyty” (ramka przerywana, znak „W”). Szafka wskazuje płytę (`mat[k].plyta`) — rozkrój układa jej formatki na jej arkuszu (okrawanym jak zwykły, po 19,4 mm z każdej strony), wycena bierze jej cenę. Zmiana płyty (✎) przechodzi do wszystkich szafek z nią; kolor z wzornika, własny kolor, nazwa albo grubość wpisane ręcznie odpinają szafkę od płyty; usunięcie płyty z listy zostawia szafkom jej nazwę i kolor.

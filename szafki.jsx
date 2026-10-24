@@ -31,6 +31,24 @@ const paletteName = (hex) => PALETA_BY_HEX.get(String(hex || "").toLowerCase()) 
 // bezuzyteczne "kolor wlasny"
 const colorLabel = (m) => ((m && m.decor) || "").trim() || paletteName(m && m.color) || "kolor własny";
 const COLORED_KEYS = ["board", "front", "shelf"];
+/* Wlasne plyty projektu (uzytkownik 2026-10-24: „plus w kwadracie do dodania nowej
+   płyty — własna nazwa, wymiar arkusza, grubość i cena, np. Egger na zamówienie”):
+   `project.plyty = [{ id, nazwa, kolor, grubosc, arkusz: { w, h }, cena }]`. Material
+   szafki wskazuje ja przez `plyta: id` — nazwa, grubosc i kolor sa w nim skopiowane,
+   arkusz i cene rozkroj i wycena biora z listy projektu. */
+const PLYTA_WLASNA_ARKUSZ = { w: 2800, h: 2070 };
+const plytaWlasna = (project, id) => (id && ((project && project.plyty) || []).find((q) => q.id === id)) || null;
+const matZPlyty = (pl, m) => ({ ...m, name: pl.nazwa, thickness: pl.grubosc, color: pl.kolor, decor: pl.nazwa, plyta: pl.id });
+const bezPlyty = (m) => { const o = { ...m }; delete o.plyta; return o; };
+/* wiersz rozkroju z wlasnej plyty: jej arkusz, okrawany jak arkusz z wzornika */
+const arkuszWlasnej = (project, m) => {
+  const pl = plytaWlasna(project, m && m.plyta);
+  if (!pl) return {};
+  const okr = (SHEET_W - USABLE_W) / 2;
+  const w = Math.max(200, Math.round(Number((pl.arkusz || {}).w) || SHEET_W));
+  const h = Math.max(200, Math.round(Number((pl.arkusz || {}).h) || SHEET_H));
+  return { sheet: { w: w - 2 * okr, h: h - 2 * okr, zakup: { w, h } } };
+};
 
 /* Nozki: kolor z palety okuc i ksztalt — kwadratowa albo okragla. */
 // najnizsza nozka regulowana w katalogu GTV 2023 (MLA-50, 50–75 mm) — instrukcje/SPIS.md
@@ -104,6 +122,11 @@ const ambiguousThickness = (mats) => {
 };
 
 const matLabelOf = (m, key, ambiguous) => {
+  // wlasna plyta ma wlasna nazwe — bez dopisku koloru (to ona jest dekorem)
+  if (m && m.plyta) {
+    const n = (m.name || "").trim() || key;
+    return ambiguous && ambiguous.has(n) ? `${n} ${m.thickness}` : n;
+  }
   const parts = [((m && m.name) || "").trim() || key];
   if (COLORED_KEYS.includes(key)) parts.push(colorLabel(m));
   /* kolor spoza palety to u wszystkich „kolor wlasny” — przy plecach w kilku
@@ -1912,7 +1935,13 @@ const loadProject = (d) => {
     })
   );
   const name = typeof d.name === "string" && d.name.trim() ? d.name : DEFAULT_PROJECT_NAME;
-  return { name, rooms, items, runs, active, prices };
+  // wlasne plyty projektu (nazwa, kolor, grubosc, arkusz, cena)
+  const plyty = (Array.isArray(d.plyty) ? d.plyty : []).filter((q) => q && q.id != null)
+    .map((q) => ({ id: String(q.id), nazwa: String(q.nazwa || "Płyta własna"), kolor: q.kolor || "#d8c3a0",
+      grubosc: Math.max(1, Math.round(Number(q.grubosc) || 18)),
+      arkusz: { w: Math.max(200, Math.round(Number((q.arkusz || {}).w) || PLYTA_WLASNA_ARKUSZ.w)), h: Math.max(200, Math.round(Number((q.arkusz || {}).h) || PLYTA_WLASNA_ARKUSZ.h)) },
+      cena: Math.max(0, Number(q.cena) || 0) }));
+  return { name, rooms, items, runs, active, prices, plyty };
 };
 
 /* ---------- szablony startowe ----------
@@ -15631,7 +15660,7 @@ function buildCutPlan(rows) {
     return {
       matLabel: list[0].matLabel,
       // arkusz do zamowienia — blat ma swoj (4100 × 600/1200), plyta 2800 × 2100
-      arkusz: sh ? { w: sh.sheet.w, h: sh.sheet.h } : { w: SHEET_W, h: SHEET_H },
+      arkusz: sh ? (sh.sheet.zakup || { w: sh.sheet.w, h: sh.sheet.h }) : { w: SHEET_W, h: SHEET_H },
       ...packSheets(list, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {}),
     };
   });
@@ -16071,6 +16100,7 @@ function ReportCutPlan({ project, projectName }) {
           rotatable: p.matKey === "back" || !part.grainMatters,
           matLabel: matLabelOf(plytaFormatki(p, part.mat), p.matKey, ambig),
           sheet: null,
+          ...arkuszWlasnej(project, plytaFormatki(p, part.mat)),
           // blat roboczy uklada sie na wlasnym arkuszu (z formatki), bez obracania
           ...(p.matKey === "worktop" ? wierszBlatu(p, part.mat, matLabelOf(plytaFormatki(p, part.mat), p.matKey, ambig)) : {}),
         });
@@ -16079,7 +16109,7 @@ function ReportCutPlan({ project, projectName }) {
     // te same pozycje z roznych szafek lacza sie w jedna
     const merged = new Map();
     rows.forEach((r) => {
-      const k = [r.matLabel, r.a, r.b, r.name, r.rotatable].join("|");
+      const k = [r.matLabel, r.a, r.b, r.name, r.rotatable, r.sheet ? `${r.sheet.w}x${r.sheet.h}` : ""].join("|");
       if (merged.has(k)) merged.get(k).qty += r.qty;
       else merged.set(k, { ...r });
     });
@@ -16372,7 +16402,8 @@ const scalSzafki = (project, idxsIn) => {
 const uzywaPlyty = (cab, k) => (k === "front" ? cab.frontSameAsBoard === false
   : k === "shelf" ? cab.shelfSameAsBoard === false : true);
 const tenSamKolor = (a, b) => String((a || {}).color || "").toLowerCase() === String((b || {}).color || "").toLowerCase()
-  && String((a || {}).decor || "").trim() === String((b || {}).decor || "").trim();
+  && String((a || {}).decor || "").trim() === String((b || {}).decor || "").trim()
+  && ((a || {}).plyta || null) === ((b || {}).plyta || null);
 
 export default function App() {
   /* projekt = lista szafek (kazda ma swoj cab i mat) + aktywny indeks; runs to
@@ -16457,7 +16488,9 @@ export default function App() {
     const src = p.items[p.active].mat[k];
     const zbior = new Set(idxs);
     return { ...p, items: p.items.map((it, i) => (!zbior.has(i) ? it
-      : { ...it, mat: { ...it.mat, [k]: { ...it.mat[k], color: src.color, decor: src.decor || "" } } })) };
+      // wlasna plyta idzie w calosci (nazwa, grubosc, arkusz), kolor z wzornika ja zdejmuje
+      : { ...it, mat: { ...it.mat, [k]: src.plyta ? { ...it.mat[k], color: src.color, decor: src.decor || "", plyta: src.plyta, name: src.name, thickness: src.thickness }
+        : { ...bezPlyty(it.mat[k]), color: src.color, decor: src.decor || "" } } })) };
   }), [setProject]);
 
   /* Nozki w ciagu (uzytkownik 2026-10-24): po zmianie nozek szafki pytamy, czy tak
@@ -16469,6 +16502,32 @@ export default function App() {
     return { ...p, items: p.items.map((it, i) => (!zbior.has(i) ? it
       : { ...it, cab: { ...it.cab, legs: { ...(it.cab.legs || { height: 100 }), ...patch } } })) };
   }), [setProject]);
+
+  /* Wlasne plyty (`project.plyty`): formularz „+” przy kolorach, zapis i usuwanie.
+     Zmiana plyty przechodzi do wszystkich szafek, ktore jej uzywaja. */
+  const [formPlyty, setFormPlyty] = useState(null);
+  const zapiszPlyte = useCallback((f) => {
+    const id = f.id || `pw${Date.now().toString(36)}`;
+    const pl = { id, nazwa: String(f.nazwa || "").trim() || "Płyta własna", kolor: f.kolor || "#d8c3a0",
+      grubosc: Math.max(1, Math.round(Number(f.grubosc) || 18)),
+      arkusz: { w: Math.max(200, Math.round(Number(f.w) || PLYTA_WLASNA_ARKUSZ.w)), h: Math.max(200, Math.round(Number(f.h) || PLYTA_WLASNA_ARKUSZ.h)) },
+      cena: Math.max(0, Number(f.cena) || 0) };
+    setProject((p) => ({ ...p,
+      plyty: [...(p.plyty || []).filter((q) => q.id !== id), pl],
+      items: p.items.map((it, i) => {
+        let m2 = it.mat, zm = false;
+        COLORED_KEYS.forEach((k2) => { if (m2[k2] && m2[k2].plyta === id) { m2 = { ...m2, [k2]: matZPlyty(pl, m2[k2]) }; zm = true; } });
+        if (i === p.active && f.k) { m2 = { ...m2, [f.k]: matZPlyty(pl, m2[f.k]) }; zm = true; }
+        return zm ? { ...it, mat: m2 } : it;
+      }) }));
+    setFormPlyty(null);
+    if (f.k) setZmianaKoloru({ idx: project.active, k: f.k });
+  }, [setProject, project.active]);
+  // szafki z usunieta plyta zostaja z jej nazwa, grubością i kolorem — bez arkusza i ceny z listy
+  const usunPlyte = useCallback((id) => setProject((p) => ({ ...p,
+    plyty: (p.plyty || []).filter((q) => q.id !== id),
+    items: p.items.map((it) => (COLORED_KEYS.some((k2) => it.mat[k2] && it.mat[k2].plyta === id)
+      ? { ...it, mat: Object.fromEntries(Object.entries(it.mat).map(([k2, v]) => [k2, v && v.plyta === id ? bezPlyty(v) : v])) } : it)) })), [setProject]);
 
   // zastepuje caly projekt (wczytanie / nowy) i czysci historie
   const replaceProject = useCallback((proj) => {
@@ -16889,7 +16948,7 @@ export default function App() {
   }, []);
   const wyslijDoClaude = async () => {
     if (!dbClaude) return;
-    const json = JSON.stringify({ wersja: PROJEKT_WERSJA, name: project.name, prices: project.prices, rooms: roomsOf(project),
+    const json = JSON.stringify({ wersja: PROJEKT_WERSJA, name: project.name, prices: project.prices, plyty: project.plyty || [], rooms: roomsOf(project),
       items: project.items, runs: project.runs, active: project.active });
     // dokument w magazynie ma limit 256 KiB — zostawiamy zapas na opis
     if (new Blob([json]).size > 240 * 1024) {
@@ -16930,7 +16989,7 @@ export default function App() {
 
   const exportProject = () => {
     const json = JSON.stringify(
-      { wersja: PROJEKT_WERSJA, name: project.name, prices: project.prices, rooms: roomsOf(project), items: project.items, runs: project.runs, active: project.active },
+      { wersja: PROJEKT_WERSJA, name: project.name, prices: project.prices, plyty: project.plyty || [], rooms: roomsOf(project), items: project.items, runs: project.runs, active: project.active },
       null,
       2
     );
@@ -17091,7 +17150,7 @@ export default function App() {
       try {
         await projectStore.set(
           "szafki:projekt",
-          JSON.stringify({ wersja: PROJEKT_WERSJA, name: project.name, prices: project.prices, rooms: roomsOf(project), items: project.items, runs: project.runs, active: project.active })
+          JSON.stringify({ wersja: PROJEKT_WERSJA, name: project.name, prices: project.prices, plyty: project.plyty || [], rooms: roomsOf(project), items: project.items, runs: project.runs, active: project.active })
         );
         setSaved("zapisano " + new Date().toLocaleTimeString("pl-PL"));
       } catch (e) {
@@ -18300,14 +18359,14 @@ export default function App() {
       part.panels.forEach((p) => {
         const m = plytaFormatki(p, part.mat) || {};
         const e = p.edges;
-        const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name, !!part.grainMatters,
+        const key = [m.name, m.thickness, m.color, m.plyta || "", p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name, !!part.grainMatters,
           p.matKey === "worktop" ? arkuszBlatu(p, part.mat) : ""].join("|");
         if (map.has(key)) {
           const g2 = map.get(key);
           g2.qty += p.qty;
           g2.from.set(cabName, (g2.from.get(cabName) || 0) + p.qty);
         } else {
-          map.set(key, { ...p, matName: matLabelOf(m, p.matKey, ambig), matColor: m.color,
+          map.set(key, { ...p, matName: matLabelOf(m, p.matKey, ambig), matColor: m.color, plytaM: m.plyta ? m : null,
             ...(p.matKey === "worktop" ? { arkusz: arkuszBlatu(p, part.mat) } : {}),
             from: new Map([[cabName, p.qty]]),
             rotatable: p.matKey === "back" || !part.grainMatters });
@@ -18363,6 +18422,7 @@ export default function App() {
         rotatable: p.rotatable !== false,
         matLabel: p.matName,
         sheet: null,
+        ...arkuszWlasnej(project, p.plytaM),
         ...(p.matKey === "worktop" ? wierszBlatu(p, mat, p.matName) : {}),
       }))
     : cutList.map((p) => ({
@@ -18373,8 +18433,9 @@ export default function App() {
         rotatable: p.matKey === "back" || !cab.grainMatters,
         matLabel: matLabelOf(plytaFormatki(p, mat), p.matKey, ambig),
         sheet: null,
+        ...arkuszWlasnej(project, plytaFormatki(p, mat)),
         ...(p.matKey === "worktop" ? wierszBlatu(p, mat, matLabelOf(plytaFormatki(p, mat), p.matKey, ambig)) : {}),
-      }))), [cutList, projectCutList, cab.grainMatters, mat, ambig]);
+      }))), [cutList, projectCutList, cab.grainMatters, mat, ambig, project]);
   const autoScope = zCaloscia ? "project" : "cab";
   const rozkrojWejscie = useMemo(() => wierszeRozkroju(autoScope), [wierszeRozkroju, autoScope]);
   const rozkrojKlucz = useMemo(() => autoScope + "|" + JSON.stringify(rozkrojWejscie), [autoScope, rozkrojWejscie]);
@@ -18461,7 +18522,7 @@ export default function App() {
     project.items.forEach((it) => {
       Object.entries(it.mat || {}).forEach(([key, v]) => {
         const label = matLabelOf(v, key, ambig);
-        if (v && !m.has(label)) m.set(label, { color: v.color, key });
+        if (v && !m.has(label)) m.set(label, { color: v.color, key, plyta: v.plyta || null });
       });
     });
     return m;
@@ -18471,6 +18532,9 @@ export default function App() {
   const boardDefault = (label) => {
     const info = matByLabel.get(label) || matByLabel.get(label.replace(BLAT_ARKUSZ_SUFIKS, ""));
     if (!info) return 0;
+    // wlasna plyta — cena za arkusz wpisana przy niej
+    const pl = plytaWlasna(project, info.plyta);
+    if (pl && Number(pl.cena) > 0) return Number(pl.cena);
     if (info.key === "back") return DEFAULT_PRICES.hdf;
     /* blat roboczy ma cene za arkusz, taka sama niezaleznie od koloru — format
        z etykiety grupy rozkroju, nie z materialu aktywnej szafki (audyt GPT N4) */
@@ -21259,7 +21323,7 @@ export default function App() {
                 }>
                   <input value={mat[k].name} placeholder="Płyta"
                     title={`Nazwa w zestawieniach: ${matLabelOf(mat[k], k, ambig)}`}
-                    onChange={(e) => setMat({ ...mat, [k]: { ...mat[k], name: e.target.value } })}
+                    onChange={(e) => setMat({ ...mat, [k]: { ...bezPlyty(mat[k]), name: e.target.value } })}
                     className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
                   <span className="mt-1 block font-mono text-[11px] text-stone-400">
                     {matLabelOf(mat[k], k, ambig)}
@@ -21269,7 +21333,7 @@ export default function App() {
                 <div className="w-20">
                 <Field label="Grubość">
                   <Num value={mat[k].thickness}
-                    onChange={(v) => setMat({ ...mat, [k]: { ...mat[k], thickness: v } })} suffix="" />
+                    onChange={(v) => setMat({ ...mat, [k]: { ...bezPlyty(mat[k]), thickness: v } })} suffix="" />
                 </Field>
                 </div>
                 {k === "mirror" ? (
@@ -21278,11 +21342,11 @@ export default function App() {
                     title="Kolor lustra jest stały" />
                 ) : (
                   <input type="color" value={mat[k].color}
-                    onChange={(e) => { setMat({ ...mat, [k]: { ...mat[k], color: e.target.value } }); setZmianaKoloru({ idx: project.active, k }); }}
+                    onChange={(e) => { setMat({ ...mat, [k]: { ...bezPlyty(mat[k]), color: e.target.value } }); setZmianaKoloru({ idx: project.active, k }); }}
                     className="h-9 w-11 cursor-pointer rounded border border-stone-300 bg-white" />
                 )}
                 </div>
-                {COLORED_KEYS.includes(k) && !paletteName(mat[k].color) && (
+                {COLORED_KEYS.includes(k) && !paletteName(mat[k].color) && !mat[k].plyta && (
                   <Field label="Nazwa dekoru"
                     hint="kolor spoza wzornika — bez nazwy do zamówienia poszłoby „kolor własny”">
                     <input value={mat[k].decor || ""} placeholder="np. Dąb halifax naturalny"
@@ -21294,15 +21358,81 @@ export default function App() {
                   <div className="flex flex-wrap gap-1">
                     {PALETA.map(([nazwa, hex]) => (
                       <button key={hex} title={nazwa}
-                        onClick={() => { setMat({ ...mat, [k]: { ...mat[k], color: hex, decor: "" } }); setZmianaKoloru({ idx: project.active, k }); }}
+                        onClick={() => { setMat({ ...mat, [k]: { ...bezPlyty(mat[k]), color: hex, decor: "" } }); setZmianaKoloru({ idx: project.active, k }); }}
                         className={"h-6 w-6 rounded border transition-transform hover:scale-110 " +
-                          (mat[k].color.toLowerCase() === hex.toLowerCase()
+                          (mat[k].color.toLowerCase() === hex.toLowerCase() && !mat[k].plyta
                             ? "border-teal-700 ring-1 ring-teal-700"
                             : "border-stone-300")}
                         style={{ background: hex }} />
                     ))}
+                    {COLORED_KEYS.includes(k) && (
+                      <button data-el="plyta-dodaj"
+                        onClick={() => setFormPlyty({ k, nazwa: "", kolor: mat[k].color, grubosc: mat[k].thickness || 18, w: PLYTA_WLASNA_ARKUSZ.w, h: PLYTA_WLASNA_ARKUSZ.h, cena: "" })}
+                        title="Dodaj własną płytę — inna nazwa, wymiar arkusza, grubość i cena (np. Egger na zamówienie)"
+                        className="flex h-6 w-6 items-center justify-center rounded border border-dashed border-teal-600 text-sm leading-none text-teal-700 hover:bg-teal-50">+</button>
+                    )}
                   </div>
                 )}
+                {/* wlasne plyty — osobny rzad pod wzornikiem, z ramka przerywana i znakiem „W”,
+                    zeby bylo widac, ze to inna plyta (inny arkusz, grubosc, cena) */}
+                {COLORED_KEYS.includes(k) && (project.plyty || []).length > 0 && (
+                  <div className="space-y-1" data-el="plyty-wlasne">
+                    <span className="block text-[11px] font-semibold uppercase tracking-wider text-teal-800">Własne płyty</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {project.plyty.map((pl) => (
+                        <span key={pl.id} data-el="plyta-wlasna"
+                          className={"flex items-center gap-1 rounded border px-1 py-0.5 " + (mat[k].plyta === pl.id ? "border-teal-700 ring-1 ring-teal-700" : "border-dashed border-stone-400")}>
+                          <button onClick={() => { setMat({ ...mat, [k]: matZPlyty(pl, mat[k]) }); setZmianaKoloru({ idx: project.active, k }); }}
+                            title={`${pl.nazwa} — ${pl.grubosc} mm, arkusz ${pl.arkusz.w} × ${pl.arkusz.h} mm${pl.cena ? `, ${pl.cena} zł brutto za arkusz` : ""}`}
+                            className="flex items-center gap-1">
+                            <span className="relative h-5 w-5 rounded-sm border border-stone-400" style={{ background: pl.kolor }}>
+                              <span className="absolute -right-1.5 -top-1.5 rounded-full bg-teal-700 px-[3px] text-[8px] font-bold leading-3 text-white">W</span>
+                            </span>
+                            <span className="text-[11px] text-stone-700">{pl.nazwa}</span>
+                            <span className="font-mono text-[10px] text-stone-400">{pl.grubosc} · {pl.arkusz.w}×{pl.arkusz.h}</span>
+                          </button>
+                          <button onClick={() => setFormPlyty({ k, id: pl.id, nazwa: pl.nazwa, kolor: pl.kolor, grubosc: pl.grubosc, w: pl.arkusz.w, h: pl.arkusz.h, cena: pl.cena || "" })}
+                            title="Zmień tę płytę (we wszystkich szafkach)" className="px-0.5 text-[11px] text-teal-700 hover:underline">✎</button>
+                          <button onClick={() => usunPlyte(pl.id)} title="Usuń z listy własnych płyt — szafki zostają z jej nazwą i kolorem"
+                            className="px-0.5 text-[11px] text-stone-400 hover:text-red-700">×</button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {formPlyty && formPlyty.k === k && (() => {
+                  const f = formPlyty;
+                  const pole = (nazwa, klucz, typ = "number", szer = "w-full") => (
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-[11px] text-stone-500">{nazwa}</span>
+                      <input type={typ} value={f[klucz] ?? ""} onChange={(e) => setFormPlyty({ ...f, [klucz]: e.target.value })}
+                        className={szer + " rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none"} />
+                    </label>
+                  );
+                  return (
+                    <div data-el="plyta-formularz" className="space-y-2 rounded border border-teal-200 bg-teal-50 p-2 text-xs">
+                      <div className="font-medium text-stone-700">{f.id ? "Zmień własną płytę" : "Nowa płyta spoza wzornika"}</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="col-span-2">{pole("Nazwa (do zamówienia)", "nazwa", "text")}</div>
+                        {pole("Grubość, mm", "grubosc")}
+                        {pole("Cena za arkusz, zł brutto", "cena")}
+                        {pole("Arkusz — długość, mm", "w")}
+                        {pole("Arkusz — szerokość, mm", "h")}
+                        <label className="flex items-center gap-2">
+                          <span className="text-[11px] text-stone-500">Kolor na rysunkach</span>
+                          <input type="color" value={f.kolor || "#d8c3a0"} onChange={(e) => setFormPlyty({ ...f, kolor: e.target.value })}
+                            className="h-7 w-10 cursor-pointer rounded border border-stone-300 bg-white" />
+                        </label>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => zapiszPlyte(f)} className="rounded bg-teal-700 px-2 py-0.5 text-white hover:bg-teal-800">
+                          {f.id ? "Zapisz" : "Dodaj i użyj"}
+                        </button>
+                        <button onClick={() => setFormPlyty(null)} className="rounded border border-stone-300 bg-white px-2 py-0.5 hover:bg-stone-50">Anuluj</button>
+                      </div>
+                    </div>
+                  );
+                })()}
                 {zmianaKoloru && zmianaKoloru.idx === project.active && zmianaKoloru.k === k && (() => {
                   const inne = (f) => project.items.map((_, i) => i).filter((i) => {
                     const it = project.items[i];

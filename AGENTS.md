@@ -56,7 +56,7 @@
 - Gdy coś potrwa dłużej niż ok. 3 minuty (pełny przebieg testów, duży build,
   seria zrzutów), napisz o tym **przed** startem, z przybliżonym czasem —
   np. „Testy lecą (~5 min)” — i co w tym czasie robisz albo na co czekasz.
-  Pełny przebieg obu buildów (140 suit + macierz szuflad w 4 częściach, po 5 naraz; stan 2026-10-24) to ok. 22 min, pojedyncza
+  Pełny przebieg obu buildów (141 suit + macierz szuflad w 4 częściach, po 5 naraz; stan 2026-10-24) to ok. 22 min, pojedyncza
   suita 5–30 s. Czasy sprawdzaj z logów, nie z pamięci.
 - **Kiedy jakie testy i kiedy git** (ustalone z użytkownikiem):
   - po zmianie tylko suity z tego obszaru (2–5 suit, ok. 1 min; spis w `SLOWNIK.md`);
