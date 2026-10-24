@@ -73,7 +73,7 @@ console.log('\n== N35: wczytanie bieżącego zapisu nie prostuje ręcznych danyc
   let z = await zapis();
   ok('bieżący zapis: własne ceny zostają', JSON.stringify(z.prices) === JSON.stringify(ceny), JSON.stringify(z.prices));
   ok('bieżący zapis: odsunięcie wzmocnienia 18 mm zostaje', z.items[0].cab.levels[0].cols[0].rails[0].atDepth === 18);
-  ok('zapis niesie wersję projektu i szafki', z.wersja === 2 && z.items[0].cab.version === 5, `${z.wersja} / ${z.items[0].cab.version}`);
+  ok('zapis niesie wersję projektu i szafki', z.wersja === 2 && z.items[0].cab.version === 6, `${z.wersja} / ${z.items[0].cab.version}`);
   await seed(p(false));
   z = await zapis();
   ok('stary zapis (bez wersji): dawne ceny netto ustępują, wzmocnienie prostowane', JSON.stringify(z.prices) === '{}' && z.items[0].cab.levels[0].cols[0].rails[0].atDepth === 0,

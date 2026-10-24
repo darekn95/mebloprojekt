@@ -5680,30 +5680,74 @@ const TEX_KEYS = ["board", "front", "shelf"];
 const grainId = (hex, dir) =>
   "gr" + (dir === "h" ? "h" : "v") + String(hex || "").replace(/[^0-9a-fA-F]/g, "").toLowerCase();
 
+/* 3D nie rysuje slojow: kolor plyty ze wzorem `url(#grv<hex>)` zamienia sie
+   z powrotem na jej hex (nazwa wzoru go niesie). Wczesniej 3D ciagu ze
+   struktura slojow malowalo takie plyty na czarno. */
+const hexKoloru = (c) => {
+  const m = /^url\(#gr[hv]([0-9a-f]{6})\)$/i.exec(String(c || ""));
+  return m ? "#" + m[1] : c;
+};
+
+/* „Rozróżnij fronty” przy frontach z plyty korpusu: fronty w odcieniu koloru
+   korpusu — jasna plyta ciemniej o 14 %, ciemna jasniej — zeby je bylo widac.
+   Wczesniej szedl kolor ukrytej plyty frontow (bez): po zmianie korpusu na bialy
+   fronty zostawaly bezowe (uzytkownik 2026-10-24). */
+const odcienFrontu = (hex) => {
+  const m = /^#([0-9a-f]{6})$/i.exec(String(hex || ""));
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const jasnosc = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+  const f = jasnosc > 110 ? (c) => c * 0.86 : (c) => c + (255 - c) * 0.22;
+  return "#" + rgb.map((c) => Math.round(f(c)).toString(16).padStart(2, "0")).join("");
+};
+/* Materialy do rysunku: fronty z plyty korpusu maja kolor korpusu („Realne
+   kolory”) albo jego odcien („Rozróżnij fronty”). Fronty z osobnej plyty
+   zawsze maja jej kolor. Zamowienie i rozkroj biora materialy szafki wprost. */
+const matRysunku = (cab, mat) => {
+  if (!mat || !cab || cab.frontSameAsBoard === false || !mat.board) return mat;
+  const color = cab.realColors ? mat.board.color : odcienFrontu(mat.board.color);
+  return { ...mat, front: { ...(mat.front || mat.board), color } };
+};
+
+const WzorSlojow = ({ c, dir }) => (
+  <pattern id={grainId(c, dir)} width="160" height="54"
+    patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse"
+    patternTransform={dir === "h" ? undefined : "rotate(90)"}>
+    <rect x="0" y="0" width="160" height="54" fill={c} />
+    <g fill="none" stroke="#000" strokeWidth="2.2" strokeOpacity="0.09">
+      <path d="M0 8 q40 -6 80 0 t80 0" />
+      <path d="M0 20 q30 5 60 0 t60 -3 t40 3" />
+      <path d="M0 33 q50 -7 100 0 t60 2" />
+      <path d="M0 46 q35 4 70 0 t90 -2" />
+    </g>
+    <g fill="none" stroke="#fff" strokeWidth="1.6" strokeOpacity="0.18">
+      <path d="M0 14 q45 -5 90 0 t70 1" />
+      <path d="M0 39 q40 5 80 0 t80 -2" />
+    </g>
+  </pattern>
+);
+
 const GrainDefs = ({ mat, on, dir }) => {
   if (!on) return null;
   const cols = [...new Set(TEX_KEYS.map((k) => (mat[k] || {}).color).filter(Boolean))];
-  return (
-    <defs>
-      {cols.map((c) => (
-        <pattern key={c} id={grainId(c, dir)} width="160" height="54"
-          patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse"
-          patternTransform={dir === "h" ? undefined : "rotate(90)"}>
-          <rect x="0" y="0" width="160" height="54" fill={c} />
-          <g fill="none" stroke="#000" strokeWidth="2.2" strokeOpacity="0.09">
-            <path d="M0 8 q40 -6 80 0 t80 0" />
-            <path d="M0 20 q30 5 60 0 t60 -3 t40 3" />
-            <path d="M0 33 q50 -7 100 0 t60 2" />
-            <path d="M0 46 q35 4 70 0 t90 -2" />
-          </g>
-          <g fill="none" stroke="#fff" strokeWidth="1.6" strokeOpacity="0.18">
-            <path d="M0 14 q45 -5 90 0 t70 1" />
-            <path d="M0 39 q40 5 80 0 t80 -2" />
-          </g>
-        </pattern>
-      ))}
-    </defs>
-  );
+  return <defs>{cols.map((c) => <WzorSlojow key={c} c={c} dir={dir} />)}</defs>;
+};
+/* Wzory slojow wszystkich szafek projektu, ktore je rysuja — kazda ze swoimi
+   kolorami i kierunkiem. Rysunek ciagu bral wzory tylko z pierwszej szafki
+   i szafka w innym kolorze zostawala bez wypelnienia. */
+const GrainDefsProjektu = ({ project }) => {
+  const wz = new Map();
+  (project.items || []).forEach(({ cab, mat }) => {
+    if (!cab || !cab.texture || !mat) return;
+    const m = matRysunku(cab, mat);
+    TEX_KEYS.forEach((k) => {
+      const c = (m[k] || {}).color;
+      if (c) wz.set(grainId(c, cab.textureDir), [c, cab.textureDir]);
+    });
+  });
+  if (!wz.size) return null;
+  return <defs>{[...wz].map(([id, [c, dir]]) => <WzorSlojow key={id} c={c} dir={dir} />)}</defs>;
 };
 
 /* Lico szafki naroznej za maskownica katownika jest otwarte — tamtedy siega sie
@@ -5881,7 +5925,7 @@ const assemblyParts = (project, runs, ref) =>
     let x = 0;
     const cabs = runItems(project, run.id).map(({ it, i: index }, i, arr) => {
       const geo = computeGeo(it.cab, it.mat, armCtxOf(ref, index));
-      const mat = texMat(it.mat, it.cab.texture, it.cab.textureDir);
+      const mat = texMat(matRysunku(it.cab, it.mat), it.cab.texture, it.cab.textureDir);
       /* Cokol pod korpusem podnosi szafke, cokol w obrysie siedzi juz w H.
          Nozki podnosza tak samo, ale schowane w cokole nie dokladaja nic —
          dlatego bierzemy to, co wyzsze, a nie sume. */
@@ -7202,7 +7246,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
       {/* jeden zestaw wzorow slojow na cala elewacje — id wzoru bierze sie
           z koloru, wiec powtarzanie ich przy kazdej szafce dalo by duplikaty */}
-      <GrainDefs mat={wzor.rawMat} on={wzor.cab.texture} dir={wzor.cab.textureDir} />
+      <GrainDefsProjektu project={project} />
       <PrzejscieDefs />
       <line x1={-20} y1={fy(0)} x2={total + 20} y2={fy(0)} stroke={LINE} strokeWidth="2" />
 
@@ -7840,7 +7884,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
   });
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
-      <GrainDefs mat={wzor.rawMat} on={wzor.cab.texture} dir={wzor.cab.textureDir} />
+      <GrainDefsProjektu project={project} />
       <ScianaDefs />
       {groups.map((g, gi) => {
         const n = L.info.get(g.run.id);
@@ -8049,7 +8093,8 @@ const audytBryly = (x0, y0, z0, x1, y1, z1, color, tag, v, alpha) => {
   /* `p` to obrys bryly juz na swoim miejscu (po obrocie skrzydla i po
      ustawieniu ciagu w rogu) — po nim test szuka bryl nachodzacych na siebie. */
   const r = (k, f) => Math.round(f(...(v || []).map((q) => q[k])) * 10) / 10;
-  A.push({ d: [Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)], color, tag: tag || null,
+  // kolor taki, jak go rysuje 3D (wzor slojow — jego hex)
+  A.push({ d: [Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)], color: hexKoloru(color), tag: tag || null,
     p: v ? [r("x", Math.min), r("y", Math.min), r("z", Math.min), r("x", Math.max), r("y", Math.max), r("z", Math.max)] : null,
     // wierzcholki — plyta scieta (blat na lyzwe) nie jest prostopadloscianem
     v: v ? v.map((q) => ({ x: Math.round(q.x), y: Math.round(q.y), z: Math.round(q.z) })) : null,
@@ -8479,7 +8524,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
   const pad = 60;
   const vb = `${minX - pad} ${minY - pad} ${mX - minX + 2 * pad} ${mY - minY + 2 * pad}`;
   const tint = (hex, f) => {
-    const n = parseInt(String(hex).replace("#", ""), 16);
+    const n = parseInt(String(hexKoloru(hex)).replace("#", ""), 16);
     const r = Math.min(255, Math.round(((n >> 16) & 255) * f));
     const g2 = Math.min(255, Math.round(((n >> 8) & 255) * f));
     const b = Math.min(255, Math.round((n & 255) * f));
@@ -8500,7 +8545,8 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
 
 function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware, arm, wstawki, blat, druk }) {
   const wsL = wstawkiSzafki(wstawki, geo);
-  const mat = texMat(matIn, cab.texture, cab.textureDir);
+  const matR = matRysunku(cab, matIn);
+  const mat = texMat(matR, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   // tryb wizualizacji: gdy fronty z tej samej plyty, pokaz realny kolor korpusu
   const frontColor = cab.realColors && cab.frontSameAsBoard !== false
@@ -8759,7 +8805,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
 
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H, "--k": kz }}>
-      <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
+      <GrainDefs mat={matR} on={cab.texture} dir={cab.textureDir} />
       <PrzejscieDefs />
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke="#e7e5e4" strokeWidth="1" />
 
@@ -9623,7 +9669,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
 }
 
 function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
-  const mat = texMat(matIn, cab.texture, cab.textureDir);
+  const matR = matRysunku(cab, matIn);
+  const mat = texMat(matR, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const { H } = cab;
   const W = geo.W;
@@ -9693,7 +9740,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
 
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H, "--k": kz }}>
-      <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
+      <GrainDefs mat={matR} on={cab.texture} dir={cab.textureDir} />
       {/* korpus widziany od tylu */}
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
       {/* Bez plecow przez tyl widac fronty od srodka (audyt 2D: w bryle sa,
@@ -9942,7 +9989,8 @@ const blatNadSzafka = (project, full, index, arm) => {
 };
 
 function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, arm, blat, wstawki, druk }) {
-  const mat = texMat(matIn, cab.texture, cab.textureDir);
+  const matR = matRysunku(cab, matIn);
+  const mat = texMat(matR, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const { D } = cab;
   const W = geo.W;
@@ -9994,7 +10042,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
 
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H, "--k": kz }}>
-      <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
+      <GrainDefs mat={matR} on={cab.texture} dir={cab.textureDir} />
       {/* obrys korpusu z gory */}
       <rect x="0" y="0" width={W} height={cd} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
       {/* wstawka w rogu: przy boku, konczy sie w licu drzwi */}
@@ -10547,7 +10595,8 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
 }
 
 function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap, wstawki, blat }) {
-  const mat = texMat(matIn, cab.texture, cab.textureDir);
+  const matR = matRysunku(cab, matIn);
+  const mat = texMat(matR, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
   const sideRight = which === "right";
   const { H, D } = cab;
@@ -10598,7 +10647,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
 
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}>
-      <GrainDefs mat={matIn} on={cab.texture} dir={cab.textureDir} />
+      <GrainDefs mat={matR} on={cab.texture} dir={cab.textureDir} />
       {sciana && <ScianaDefs />}
       <rect x="0" y="0" width={D} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 8" />
       {sciana && (
@@ -11294,7 +11343,8 @@ const nazwaWzmocnienia = (r) => (r.orient === "front"
   ? (r.przyTyle ? "Wzmocnienie tylne" : "Wzmocnienie czołowe")
   : r.orient === "shelf" ? "Wzmocnienie poziome" : "Wzmocnienie pionowe");
 
-function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki, blat, podswietl = null }) {
+function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat, podswietl = null }) {
+  const mat = matRysunku(cab, matIn);
   const t = geo.t;
   const cd = geo.carcassDepth;
   const { H } = cab;
@@ -11509,7 +11559,7 @@ function Scene3D({ cab, geo, mat, open, yaw, pitch, angle, wstawki, blat, podswi
   const vb = `${minX - pad} ${minY - pad} ${maxX - minX + 2 * pad} ${maxY - minY + 2 * pad}`;
 
   const tint = (hex, f) => {
-    const n = parseInt(hex.replace("#", ""), 16);
+    const n = parseInt(String(hexKoloru(hex)).replace("#", ""), 16);
     const r = Math.min(255, Math.round(((n >> 16) & 255) * f));
     const g2 = Math.min(255, Math.round(((n >> 8) & 255) * f));
     const b2 = Math.min(255, Math.round((n & 255) * f));
@@ -15624,6 +15674,13 @@ function ReportProjectSheet({ project, projectName, tytul = null, tytulProduktow
 
 /* ---------- aplikacja ---------- */
 
+/* Ktore szafki uzywaja plyty `k`: fronty i polki z wlasnej plyty tylko przy
+   odznaczonym „z tej samej płyty co korpus”. */
+const uzywaPlyty = (cab, k) => (k === "front" ? cab.frontSameAsBoard === false
+  : k === "shelf" ? cab.shelfSameAsBoard === false : true);
+const tenSamKolor = (a, b) => String((a || {}).color || "").toLowerCase() === String((b || {}).color || "").toLowerCase()
+  && String((a || {}).decor || "").trim() === String((b || {}).decor || "").trim();
+
 export default function App() {
   /* projekt = lista szafek (kazda ma swoj cab i mat) + aktywny indeks; runs to
      ciagi, a szafka wskazuje swoj ciag przez runId (null = wolnostojaca) */
@@ -15674,6 +15731,24 @@ export default function App() {
     });
   }, [setProject]);
 
+  /* „Realne kolory” / „Rozróżnij fronty” — dla wszystkich szafek naraz: ciag
+     i zabudowa rysuja kazda szafke wg jej przelacznika, wiec przelaczona jedna
+     dawala w 3D mieszanke (uzytkownik 2026-10-24). */
+  const setRealColors = useCallback((v) => setProject((p) => ({ ...p,
+    items: p.items.map((it) => (!!it.cab.realColors === v ? it : { ...it, cab: { ...it.cab, realColors: v } })) })), [setProject]);
+
+  /* Po zmianie koloru plyty pytamy, czy zmienic go tez w innych szafkach —
+     ciagu, pomieszczenia albo projektu (uzytkownik 2026-10-24: „żeby później nie
+     robić tego po kolei dla każdej szafki osobno”). Kopiuje kolor i dekor,
+     tylko tam, gdzie ta plyta jest uzywana. Pytanie znika po zmianie szafki. */
+  const [zmianaKoloru, setZmianaKoloru] = useState(null);
+  const kolorDlaInnych = useCallback((k, idxs) => setProject((p) => {
+    const src = p.items[p.active].mat[k];
+    const zbior = new Set(idxs);
+    return { ...p, items: p.items.map((it, i) => (!zbior.has(i) ? it
+      : { ...it, mat: { ...it.mat, [k]: { ...it.mat[k], color: src.color, decor: src.decor || "" } } })) };
+  }), [setProject]);
+
   // zastepuje caly projekt (wczytanie / nowy) i czysci historie
   const replaceProject = useCallback((proj) => {
     histRef.current = { past: [], future: [] };
@@ -15719,11 +15794,22 @@ export default function App() {
       ...(run.plinth ? { plinth: { ...run.plinth } } : {}),
     } : {};
     const roomId = run ? roomOfRun(p, run) : activeRoomOf(p);
-    const fresh = { cab: { ...base, name: `Szafka ${next}`, ...wymiaryCiagu,
+    /* Plyty i wyglad rysunku bierze od ostatniej szafki ciagu, a poza ciagiem —
+       od aktywnej. Z domyslnymi plytami nowa szafka w bialym ciagu wychodzila
+       w sonomie (uzytkownik 2026-10-24). „Realne kolory” sa dla calego projektu. */
+    const sasiad = runId ? [...p.items].reverse().find((it) => it.runId === runId) : null;
+    const wzorPlyt = sasiad || p.items[p.active] || null;
+    const matNowej = wzorPlyt ? wzorPlyt.mat : defaultMaterials;
+    const aktywna = p.items[p.active];
+    const wyglad = {
+      ...(aktywna ? { realColors: !!aktywna.cab.realColors } : {}),
+      ...(wzorPlyt ? { texture: !!wzorPlyt.cab.texture, textureDir: wzorPlyt.cab.textureDir || "v" } : {}),
+    };
+    const fresh = { cab: { ...base, name: `Szafka ${next}`, ...wymiaryCiagu, ...wyglad,
       ...(run ? { hangerMode: run.hangerMode || "listwa" } : {}),
-      ...(podBlat ? bezWienca(base, defaultMaterials.front.thickness) : {}),
+      ...(podBlat ? bezWienca(base, matNowej.front.thickness) : {}),
       ...(stoi ? { legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } } : {}) },
-      mat: defaultMaterials, runId, roomId };
+      mat: matNowej, runId, roomId };
     /* Nowa szafka ciagu ma stanac na jego koncu, a nie na koncu calego projektu —
        inaczej kolejnosc przy scianie zalezalaby od tego, w jakiej kolejnosci
        dokladano szafki do roznych ciagow. */
@@ -19894,7 +19980,7 @@ export default function App() {
                     title="Kolor lustra jest stały" />
                 ) : (
                   <input type="color" value={mat[k].color}
-                    onChange={(e) => setMat({ ...mat, [k]: { ...mat[k], color: e.target.value } })}
+                    onChange={(e) => { setMat({ ...mat, [k]: { ...mat[k], color: e.target.value } }); setZmianaKoloru({ idx: project.active, k }); }}
                     className="h-9 w-11 cursor-pointer rounded border border-stone-300 bg-white" />
                 )}
                 </div>
@@ -19902,7 +19988,7 @@ export default function App() {
                   <Field label="Nazwa dekoru"
                     hint="kolor spoza wzornika — bez nazwy do zamówienia poszłoby „kolor własny”">
                     <input value={mat[k].decor || ""} placeholder="np. Dąb halifax naturalny"
-                      onChange={(e) => setMat({ ...mat, [k]: { ...mat[k], decor: e.target.value } })}
+                      onChange={(e) => { setMat({ ...mat, [k]: { ...mat[k], decor: e.target.value } }); setZmianaKoloru({ idx: project.active, k }); }}
                       className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
                   </Field>
                 )}
@@ -19910,7 +19996,7 @@ export default function App() {
                   <div className="flex flex-wrap gap-1">
                     {PALETA.map(([nazwa, hex]) => (
                       <button key={hex} title={nazwa}
-                        onClick={() => setMat({ ...mat, [k]: { ...mat[k], color: hex, decor: "" } })}
+                        onClick={() => { setMat({ ...mat, [k]: { ...mat[k], color: hex, decor: "" } }); setZmianaKoloru({ idx: project.active, k }); }}
                         className={"h-6 w-6 rounded border transition-transform hover:scale-110 " +
                           (mat[k].color.toLowerCase() === hex.toLowerCase()
                             ? "border-teal-700 ring-1 ring-teal-700"
@@ -19919,6 +20005,38 @@ export default function App() {
                     ))}
                   </div>
                 )}
+                {zmianaKoloru && zmianaKoloru.idx === project.active && zmianaKoloru.k === k && (() => {
+                  const inne = (f) => project.items.map((_, i) => i).filter((i) => {
+                    const it = project.items[i];
+                    return i !== project.active && f(it) && uzywaPlyty(it.cab, k) && !tenSamKolor(it.mat[k], mat[k]);
+                  });
+                  const ciag = runInfo ? inne((it) => it.runId === runInfo.run.id) : [];
+                  const pok = inne((it) => roomOfItem(project, it) === pokoj);
+                  const wszystkie = inne(() => true);
+                  const opcje = [
+                    ...(ciag.length ? [[`Cały ciąg „${runInfo.run.name || "ciąg"}”`, ciag]] : []),
+                    ...(pok.length > ciag.length ? [["Całe pomieszczenie", pok]] : []),
+                    ...(wszystkie.length > pok.length ? [["Cały projekt", wszystkie]] : []),
+                  ];
+                  if (!opcje.length) return null;
+                  return (
+                    <div data-el="kolor-dla-innych" className="rounded border border-teal-200 bg-teal-50 px-2 py-1.5 text-xs text-stone-700">
+                      Zmienić ten kolor także w innych szafkach?
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {opcje.map(([l, idxs]) => (
+                          <button key={l} onClick={() => kolorDlaInnych(k, idxs)}
+                            className="rounded bg-teal-700 px-2 py-0.5 text-white hover:bg-teal-800">
+                            {l} — {idxs.length} {plural(idxs.length, "szafka", "szafki", "szafek")}
+                          </button>
+                        ))}
+                        <button onClick={() => setZmianaKoloru(null)}
+                          className="rounded border border-stone-300 bg-white px-2 py-0.5 hover:bg-stone-50">
+                          Tylko ta szafka
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             ))}
             {geo.isWorktop && (
@@ -19969,7 +20087,8 @@ export default function App() {
                     {showGaps ? "Ukryj szczeliny" : "Pokaż szczeliny"}
                   </button>
                 )}
-                <button onClick={() => set({ realColors: !cab.realColors })}
+                <button onClick={() => setRealColors(!cab.realColors)}
+                  title="Dotyczy wszystkich szafek projektu — rysunków szafki, ciągu i zabudowy"
                   className="text-xs text-teal-700 hover:underline">
                   {cab.realColors ? "Rozróżnij fronty" : "Realne kolory"}
                 </button>
