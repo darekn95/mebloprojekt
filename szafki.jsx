@@ -3149,7 +3149,8 @@ function computeGeoLiczy(cab, mat, ctx) {
         const pasmaDrzwi = pasmaPodzialu(rawCol, c, lv, clo, chi);
         pasmaDrzwi.forEach((ps) => {
         const clo = ps.lo, chi = ps.hi, cbandH = Math.round(ps.hi - ps.lo);
-        const where = ps.seg ? `${whereKol}, odcinek ${ps.seg.nr + 1}` : whereKol;
+        // „poziom kolumny” (uzytkownik 2026-10-24: „odcinek źle brzmi”)
+        const where = ps.seg ? `${whereKol}, poziom kolumny ${ps.seg.nr + 1}` : whereKol;
         const jKey = ps.seg ? `${j}s${ps.seg.nr}` : `${j}`;
         const rawCol = ps.raw;
           const cnt = Math.max(0, Math.round(rawCol.doors ?? 0));
@@ -18064,7 +18065,7 @@ export default function App() {
           return (
             <div key={nr} className="space-y-1.5 rounded border border-stone-200 bg-white p-2 text-xs" data-el="odcinek-kolumny">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium text-stone-700">odcinek {nr + 1}</span>
+                <span className="font-medium text-stone-700">poziom kolumny {nr + 1}</span>
                 <span className="text-stone-400">od dołu</span>
                 {dd[0] && <span className="font-mono text-stone-400">{fmt(Math.round(dd[0].h))} wys.</span>}
                 <span className="ml-2 text-stone-500">fronty</span>
@@ -20229,7 +20230,7 @@ export default function App() {
                                  2026-10-24: „mamy 1 fronty, a to nieprawda”) */
                               <span className="text-stone-500" data-el="fronty-kolumny">
                                 fronty <span className="font-mono text-stone-700">{(c.doors || []).filter((d) => d.type === "door" || d.type === "klapa").length}</span>
-                                {" "}w {new Set((c.doors || []).filter((d) => d.seg).map((d) => d.seg.nr)).size} odcinkach
+                                {" "}w {new Set((c.doors || []).filter((d) => d.seg).map((d) => d.seg.nr)).size} poziomach kolumny
                               </span>
                             ) : (<>
                             {/* przy klapie to nie „drzwi” — liczba frontow; klapa jest tylko przy jednym */}
