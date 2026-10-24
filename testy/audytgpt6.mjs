@@ -283,5 +283,31 @@ for (const rec of [0, 10]) {
       && f.length === 1 && /\| 564 \| 684 \|/.test(f[0]), `plecy z ${zp}; półka z ${zs} | ${f.join(' / ')}`);
 }
 
+console.log('\n== wieniec po wyłączeniu blatu ciągu — wzmocnienia pod blat znikają (użytkownik 2026-10-24) ==');
+{
+  const R = (worktop) => [{ id: 'c1', name: 'Ściana 1', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop, corner: null }];
+  const para = [{ orient: 'shelf', pos: 'top', depth: 100, atDepth: 0, fromBack: false, side: 'left', h: 100 },
+    { orient: 'front', pos: 'top', h: 100, depth: 100, atDepth: 0, fromBack: true, side: 'left' }];
+  const podBlat = () => cab({ name: 'A', joints: { topL: 'none', topR: 'none', botL: 'between', botR: 'between' },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], rails: para }] }] });
+  const zap = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt'))).items[0].cab;
+  await seed(proj([{ cab: podBlat(), runId: 'c1' }], R(true)));
+  ok('pod blatem roboczym: bez uwagi o wieńcu', !/nie ma blatu roboczego/.test(await uwagi()));
+  await seed(proj([{ cab: podBlat(), runId: 'c1' }], R(false)));
+  let u = await uwagi();
+  ok('ciąg bez blatu: ostrzeżenie z przyciskiem „Wieniec zamiast wzmocnień”', /nie ma blatu roboczego, a ta szafka jest bez wieńca, z parą wzmocnień pod blat/.test(u) && /Wieniec zamiast wzmocnień/.test(u), linie(u, /blatu roboczego/));
+  await page.getByRole('button', { name: 'Wieniec zamiast wzmocnień' }).first().click(); await page.waitForTimeout(800);
+  let c = await zap();
+  ok('po przycisku: wieniec między bokami, pary wzmocnień nie ma, uwaga znika', c.joints.topL === 'between' && c.joints.topR === 'between'
+    && !(c.levels[0].cols[0].rails || []).length && !/nie ma blatu roboczego/.test(await uwagi()), JSON.stringify([c.joints, c.levels[0].cols[0].rails]));
+  // ręcznie w karcie Korpus: „między” przy wieńcu
+  await seed(proj([{ cab: podBlat(), runId: 'c1' }], R(false)));
+  const korpus = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Korpus$/ }) }).first();
+  await korpus.getByRole('button', { name: 'między', exact: true }).first().click(); await page.waitForTimeout(800);
+  c = await zap();
+  ok('karta Korpus, wieniec „między”: para wzmocnień pod blat znika sama', c.joints.topL === 'between' && !(c.levels[0].cols[0].rails || []).length,
+    JSON.stringify([c.joints, c.levels[0].cols[0].rails]));
+}
+
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await b.close();

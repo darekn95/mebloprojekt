@@ -1096,6 +1096,16 @@ const utrzymajPodBlat = (cab, levels) => {
   }) }));
 };
 
+/* Odwrotnie do `bezWienca`: szafka dostaje wieniec (miedzy bokami), a para
+   wzmocnien pod blat znika — przy wiencu jest zbedna (uzytkownik 2026-10-24:
+   „przy wylaczeniu blatu i wlaczeniu wienca program powinien sam usunac
+   wzmocnienia pod blat”). Inne wzmocnienia zostaja. */
+const maParePodBlat = (cab) => (cab.levels || []).some((lv) => (lv.cols || []).some((c) => (c.rails || []).some(jestParaPodBlat)));
+const bezParyPodBlat = (levels) => (levels || []).map((lv) => ({ ...lv,
+  cols: (lv.cols || []).map((c) => ({ ...c, rails: (c.rails || []).filter((r) => !jestParaPodBlat(r)) })) }));
+const zWiencem = (cab, joints = { topL: "between", topR: "between" }) => ({
+  joints: { ...(cab.joints || {}), ...joints }, levels: bezParyPodBlat(cab.levels) });
+
 const newLevel = (doors = 2, shelves = 3) => ({
   h: null,
   cols: [newColumn(doors, shelves)],
@@ -11910,6 +11920,10 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         }, 80);
       } };
     }
+    if (action === "wieniec") {
+      // szafka bez wienca z para pod blat w ciagu bez blatu roboczego (`zWiencem`)
+      return { label: "Wieniec zamiast wzmocnień", run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("zawieszki:")) {
       // „zawieszki:<listwa|haczyki>" — szafka bez zawieszek w ciagu wieszanym na listwie
       const tryb = action.split(":")[1];
@@ -13562,6 +13576,13 @@ const projectParts = (project) => {
 const runCabMsgs = (run, c, inne = []) => {
   const out = [];
   if (!run) return out;
+  /* Ciag bez blatu roboczego, a szafka bez wienca z para wzmocnien pod blat —
+     zwykle zostalo po wylaczeniu blatu (uzytkownik 2026-10-24). */
+  const J = c.joints || {};
+  if (!run.worktop && J.topL === "none" && J.topR === "none" && maParePodBlat(c))
+    out.push({ level: "warn", text:
+      `Ciąg „${run.name}" nie ma blatu roboczego, a ta szafka jest bez wieńca, z parą wzmocnień pod blat — od góry jest otwarta. `
+      + `Jeśli blatu nie będzie, daj wieniec (wzmocnienia pod blat znikną).|wieniec` });
   /* Szafka bez zawieszek w ciagu, w ktorym inne wisza na listwie — domyslnie
      powinna wisiec tak samo; wyjatek dopuszczalny, ale z ostrzezeniem i
      wyborem listwa / haczyki (uzytkownik 2026-10-17). */
@@ -16594,6 +16615,16 @@ export default function App() {
       });
       return;
     }
+    if (action === "wieniec") {
+      setProject((p) => {
+        const items = p.items.slice();
+        const it = items[p.active];
+        if (!it) return p;
+        items[p.active] = { ...it, cab: { ...it.cab, ...zWiencem(it.cab) } };
+        return { ...p, items };
+      });
+      return;
+    }
     if (action.startsWith("zawieszki:")) {
       const tryb = action.split(":")[1] === "haczyki" ? "haczyki" : "listwa";
       setProject((p) => {
@@ -18223,7 +18254,9 @@ export default function App() {
                               const sib = key === kl ? kr : kl;
                               if (v === "none") { cur[key] = "none"; cur[sib] = "none"; }
                               else { cur[key] = v; if (cur[sib] === "none") cur[sib] = v; }
-                              set({ joints: { ...(cab.joints || {}), ...cur } });
+                              // wieniec wraca — para wzmocnien pod blat jest juz niepotrzebna (zWiencem)
+                              const wraca = kl === "topL" && v !== "none" && geo.topL === "none" && geo.topR === "none";
+                              set(wraca ? zWiencem(cab, cur) : { joints: { ...(cab.joints || {}), ...cur } });
                             }}
                             options={[{ v: "between", l: "między" }, { v: "over", l: "na boku" }, { v: "none", l: "brak" }]} />
                         </div>

@@ -69,6 +69,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
 - **Kolumna otwarta od góry** (bez wieńca i wzmocnienia) — ostrzeżenie z „Dodaj parę wzmocnień pod blat”.
 - **Wzmocnienie poza korpusem** (ręcznie wpisana wysokość większa niż poziom, głębokość z odsunięciem większa niż korpus do pleców) — błąd z największą wysokością / głębokością / odsunięciem; ustawień program nie zmienia (audyt GPT N72).
 - **Szafka pod blatem ciągu z wieńcem** albo bez wieńca i bez wzmocnień — ostrzeżenie z „Dołóż parę wzmocnień” (wieniec znika, dochodzi para).
+- **Ciąg bez blatu roboczego, a szafka bez wieńca z parą wzmocnień pod blat** (np. po wyłączeniu blatu) — ostrzeżenie z „Wieniec zamiast wzmocnień”. Wieniec włączony w „Złączach korpusu” (z „brak” na „między” / „na boku”) sam zdejmuje parę wzmocnień pod blat (`zWiencem`; użytkownik 2026-10-24).
 - **Płyta inna niż 18 mm** — ostrzeżenie (liczby katalogowe szuflad są dla 18).
 - **Blat roboczy**: kontrola wysokości blatów w rogu i w pomieszczeniu („odstaje o N mm”) z przyciskami wyrównania, zużycie arkusza (brakuje do 200 mm), odpad — opisane w `opisy/ciagi.md` i `opisy/rozkroj.md`.
 
