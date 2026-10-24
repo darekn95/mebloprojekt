@@ -303,10 +303,13 @@ const konfirmatyPoz = (len, od = 0) => {
   // jeden (krotki styk) — w polowie styku
   return [...Array(n)].map((_, i) => Math.round(od + (n === 1 ? len / 2 : a + ((b - a) * i) / (n - 1))));
 };
-// kolki z obu stron przegrody na tej samej wysokosci: o tyle przesuwamy jedna strone do srodka polki
-const KOLEK_PRZESUN = 20;
-// przesuniety otwor kolka / trojkata zostaje tyle od krawedzi polki (audyt GPT N75)
-const KOLEK_OD_KRAWEDZI = 10;
+/* Kolki (i trojkaty) z obu stron przegrody na tej samej wysokosci: o tyle przesuwamy
+   jedna strone i tyle musza sie mijac otwory (uzytkownik 2026-10-24: 10 mm wystarczy). */
+const KOLEK_PRZESUN = 10;
+// przesuniety otwor kolka / trojkata zostaje co najmniej tyle od krawedzi polki (uzytkownik 2026-10-24)
+const KOLEK_OD_KRAWEDZI = 20;
+// polka do tej glebokosci jest „waska” — tam kolki przesuwamy najpierw na zewnatrz (do 40 mm od krawedzi)
+const POLKA_WASKA = 300;
 /* Mocowanie polek w kolumnach: kolki podporowe (przestawne), konfirmaty albo
    trojkaty meblowe (uzytkownik 2026-09-29) — po dwa na strone polki, przy jej
    przedniej i tylnej krawedzi, KONF_OD_KRAWEDZI od nich. */
@@ -615,62 +618,88 @@ const hwNote = (h) => (h.pack ? ` (${h.qty} szt.)` : "");
    sa odcinki 1 m i 2 m, a listwe sie tnie — kupujemy tyle, zeby starczylo na
    dokladne dlugosci, z jak najmniejszym odpadem. Docinki ida na krotsze kawalki
    (osobne szafki, ramie L), wiec czasem lepiej kupic 2 m niz dwa razy 1 m.
-   Kawalek dluzszy niz 2 m (listwa calego ciagu) to pelne odcinki 2 m i reszta. */
+   Kawalek dluzszy niz 2 m (listwa calego ciagu) to pelne odcinki 2 m i reszta.
+   Listwa ma wymiar szafki / ciagu; najwyzej o LISTWA_SKROT krotsza, ale tylko
+   gdy dzieki temu kupuje sie mniej (2026-10-24: „ewentualnie trochę krótsza,
+   jeśli by to miało pomóc w ilości szyn”) — kawalek ma wtedy `min`. Rzazu nie liczymy. */
 const LISTWA_ODCINKI = [1000, 2000];
+const LISTWA_SKROT = 10;
+// listwa za plecami cofnietymi: od plecow (bokow) po 5 mm z kazdej strony (uzytkownik 2026-10-24)
+const LISTWA_OD_PLECOW = 5;
 const listwaZakup = (kawalki) => {
   const MAX = LISTWA_ODCINKI[LISTWA_ODCINKI.length - 1];
-  const sztangi = [], reszty = [];
-  kawalki.forEach((k) => {
-    let dl = Math.max(0, Math.round(k.dl));
-    for (; dl > MAX; dl -= MAX) sztangi.push({ dl: MAX, kawalki: [{ dl: MAX, gdzie: k.gdzie }] });
-    if (dl > 0) reszty.push({ dl, gdzie: k.gdzie });
-  });
-  reszty.sort((a, b) => b.dl - a.dl);
   // odcinek dobrany do zaladunku: najkrotszy, na ktory starczy
   const odcinek = (zal) => LISTWA_ODCINKI.find((d) => zal <= d);
   const koszt = (grupy) => grupy.reduce((s, g) => s + odcinek(g.zal), 0);
-  let najlepsze = null;
-  if (reszty.length <= 9) {
-    /* malo kawalkow — sprawdzamy kazdy podzial: najmniej metrow, przy remisie najmniej
-       ciec (1000 + 1000 to dwa odcinki 1 m bez ciecia, a nie 2 m na pol), potem najmniej odcinkow */
-    const ciec = (grupy) => grupy.reduce((s, g) => s + g.kawalki.length - (g.zal === odcinek(g.zal) ? 1 : 0), 0);
-    const grupy = [];
-    const szukaj = (i) => {
-      if (i === reszty.length) {
-        const c = koszt(grupy), t = ciec(grupy);
-        if (!najlepsze || c < najlepsze.c || (c === najlepsze.c && (t < najlepsze.t || (t === najlepsze.t && grupy.length < najlepsze.g.length))))
-          najlepsze = { c, t, g: grupy.map((g) => ({ zal: g.zal, kawalki: [...g.kawalki] })) };
-        return;
-      }
-      if (najlepsze && koszt(grupy) > najlepsze.c) return;
-      const k = reszty[i];
-      grupy.forEach((g) => {
-        if (g.zal + k.dl > MAX) return;
-        g.zal += k.dl; g.kawalki.push(k); szukaj(i + 1); g.kawalki.pop(); g.zal -= k.dl;
-      });
-      grupy.push({ zal: k.dl, kawalki: [k] }); szukaj(i + 1); grupy.pop();
-    };
-    szukaj(0);
-  } else {
-    // duzo kawalkow — pierwszy pasujacy, od najdluzszych
-    const g = [];
-    reszty.forEach((k) => { const x = g.find((q) => q.zal + k.dl <= MAX); if (x) { x.zal += k.dl; x.kawalki.push(k); } else g.push({ zal: k.dl, kawalki: [k] }); });
-    najlepsze = { g };
-  }
-  (najlepsze ? najlepsze.g : []).forEach((g) => sztangi.push({ dl: odcinek(g.zal), kawalki: g.kawalki }));
-  const potrzeba = kawalki.reduce((s, k) => s + Math.max(0, Math.round(k.dl)), 0);
-  const zakup = sztangi.reduce((s, q) => s + q.dl, 0);
-  return { sztangi, potrzeba, zakup, odpad: zakup - potrzeba };
+  /* Pakowanie kawalkow w odcinki, kazdy kawalek dlugosci `ile` (pelnej albo
+     najkrotszej dopuszczalnej); `pelna` — do ilu wolno go potem wydluzyc. */
+  const pakuj = (krotsze) => {
+    const sztangi = [], reszty = [];
+    kawalki.forEach((k) => {
+      const pelna = Math.max(0, Math.round(k.dl));
+      const mn = Math.max(0, Math.round(Math.min(pelna, k.min ?? pelna)));
+      const ile = krotsze ? mn : pelna;
+      const calych = ile > MAX ? Math.floor(ile / MAX) - (ile % MAX === 0 ? 1 : 0) : 0;
+      for (let i = 0; i < calych; i++) sztangi.push({ dl: MAX, kawalki: [{ dl: MAX, gdzie: k.gdzie, skrot: 0 }] });
+      const r = ile - calych * MAX;
+      if (r > 0) reszty.push({ dl: r, pelna: pelna - calych * MAX, gdzie: k.gdzie });
+    });
+    reszty.sort((a, b) => b.dl - a.dl);
+    let najlepsze = null;
+    if (reszty.length <= 9) {
+      /* malo kawalkow — sprawdzamy kazdy podzial: najmniej metrow, przy remisie najmniej
+         ciec (1000 + 1000 to dwa odcinki 1 m bez ciecia, a nie 2 m na pol), potem najmniej odcinkow */
+      const ciec = (grupy) => grupy.reduce((s, g) => s + g.kawalki.length - (g.zal === odcinek(g.zal) ? 1 : 0), 0);
+      const grupy = [];
+      const szukaj = (i) => {
+        if (i === reszty.length) {
+          const c = koszt(grupy), t = ciec(grupy);
+          if (!najlepsze || c < najlepsze.c || (c === najlepsze.c && (t < najlepsze.t || (t === najlepsze.t && grupy.length < najlepsze.g.length))))
+            najlepsze = { c, t, g: grupy.map((g) => ({ zal: g.zal, kawalki: [...g.kawalki] })) };
+          return;
+        }
+        if (najlepsze && koszt(grupy) > najlepsze.c) return;
+        const k = reszty[i];
+        grupy.forEach((g) => {
+          if (g.zal + k.dl > MAX) return;
+          g.zal += k.dl; g.kawalki.push(k); szukaj(i + 1); g.kawalki.pop(); g.zal -= k.dl;
+        });
+        grupy.push({ zal: k.dl, kawalki: [k] }); szukaj(i + 1); grupy.pop();
+      };
+      szukaj(0);
+    } else {
+      // duzo kawalkow — pierwszy pasujacy, od najdluzszych
+      const g = [];
+      reszty.forEach((k) => { const x = g.find((q) => q.zal + k.dl <= MAX); if (x) { x.zal += k.dl; x.kawalki.push(k); } else g.push({ zal: k.dl, kawalki: [k] }); });
+      najlepsze = { g };
+    }
+    (najlepsze ? najlepsze.g : []).forEach((g) => {
+      const dl = odcinek(g.zal);
+      // skrocone kawalki wracaja do pelnej dlugosci, ile pozwala odcinek
+      let zapas = dl - g.zal;
+      const kaw = g.kawalki.map((k) => { const dod = Math.min(k.pelna - k.dl, zapas); zapas -= dod; return { dl: k.dl + dod, gdzie: k.gdzie, skrot: k.pelna - k.dl - dod }; });
+      sztangi.push({ dl, kawalki: kaw });
+    });
+    return sztangi;
+  };
+  const dokladnie = pakuj(false);
+  const zakupOf = (q) => q.reduce((s, x) => s + x.dl, 0);
+  const krocej = kawalki.some((k) => k.min != null && k.min < k.dl) ? pakuj(true) : null;
+  const sztangi = krocej && zakupOf(krocej) < zakupOf(dokladnie) ? krocej : dokladnie;
+  const potrzeba = sztangi.reduce((s, q) => s + q.kawalki.reduce((a, k) => a + k.dl, 0), 0);
+  const zakup = zakupOf(sztangi);
+  return { sztangi, potrzeba, zakup, odpad: zakup - potrzeba, skrot: sztangi.reduce((s, q) => s + q.kawalki.reduce((a, k) => a + k.skrot, 0), 0) };
 };
 // jeden wiersz zamowienia: ilosc to kupione metry, opis — odcinki i plan ciecia
 const listwaWiersz = (pozycje) => {
-  const z = listwaZakup(pozycje.map((h) => ({ dl: h.odcinek ?? h.qty * 1000, gdzie: h.gdzie || "" })));
+  const z = listwaZakup(pozycje.map((h) => ({ dl: h.odcinek ?? h.qty * 1000, min: h.min, gdzie: h.gdzie || "" })));
   const ile = LISTWA_ODCINKI.map((d) => [d, z.sztangi.filter((q) => q.dl === d).length]).filter(([, n]) => n).reverse();
   const ciecie = z.sztangi.map((q) => `${q.dl / 1000} m → `
-    + q.kawalki.map((k) => `${k.dl === q.dl ? "cały" : fmt(k.dl)}${k.gdzie ? ` (${k.gdzie})` : ""}`).join(" + ")).join("; ");
+    + q.kawalki.map((k) => `${k.dl === q.dl ? "cały" : fmt(k.dl)}${k.gdzie || k.skrot ? ` (${[k.gdzie, k.skrot ? `−${fmt(k.skrot)} mm` : ""].filter(Boolean).join(", ")})` : ""}`).join(" + ")).join("; ");
   // `specSzt` — staly klucz ceny (opis zmienia sie z kazda dlugoscia, cena wpisana ma zostac)
   return { name: RAIL_NAME, unit: "mb", qty: z.zakup / 1000, specSzt: "odcinki 1 m / 2 m",
-    spec: `kupić ${ile.map(([d, n]) => `${n} × ${d / 1000} m`).join(" + ")}: potrzeba ${fmt(z.potrzeba)} mm, odpad ${fmt(z.odpad)} mm. Cięcie: ${ciecie}` };
+    spec: `kupić ${ile.map(([d, n]) => `${n} × ${d / 1000} m`).join(" + ")}: potrzeba ${fmt(z.potrzeba)} mm, odpad ${fmt(z.odpad)} mm`
+      + (z.skrot ? ` (skrócona o ${fmt(z.skrot)} mm — dzięki temu mniej odcinków)` : "") + `. Cięcie: ${ciecie}` };
 };
 
 const scalOkucia = (lista) => {
@@ -1086,7 +1115,7 @@ const newLevel = (doors = 2, shelves = 3) => ({
 });
 
 const defaultCab = {
-  version: 5,   // 5: od tej wersji wczytanie nie prostuje juz wzmocnien (audyt GPT N35)
+  version: 6,   // 5: wczytanie nie prostuje juz wzmocnien (audyt GPT N35); 6: kolki 50 / 50 zamiast 37 / 37
   name: "Szafka 1",
   W: 600,
   H: 720,
@@ -1165,7 +1194,8 @@ const defaultCab = {
   // polki w kolumnach: na kolkach podporowych czy skrecane konfirmatami
   shelfMount: "pins",
   // odsuniecie osi otworu pod kolek od przedniej i tylnej krawedzi polki
-  shelfPin: { dFront: 37, dBack: 37 },
+  // jak trojkaty — 50 mm od krawedzi polki, miejsce na przesuniecie w obie strony (uzytkownik 2026-10-24)
+  shelfPin: { dFront: 50, dBack: 50 },
   // od czego liczymy wysokosc otworu: "panel" = dolna krawedz boku/przegrody
   // (tak sie mierzy plyte na stole), "bottom" = dno szafki
   pinDatum: "panel",
@@ -1193,6 +1223,9 @@ const defaultCab = {
 const migrateCab = (rawCab, mat) => {
   const merged = { ...defaultCab, ...(rawCab || {}), version: defaultCab.version };
   const stara = !((Number((rawCab || {}).version) || 0) >= 5);
+  /* Kolki 37 / 37 to dawne domyslne — od 2026-10-24 kolki ida 50 mm od krawedzi
+     jak trojkaty (uzytkownik). Inne wpisane liczby zostaja. */
+  const przedKolkami50 = !((Number((rawCab || {}).version) || 0) >= 6);
   if (!merged.top || typeof merged.top !== "object")
     merged.top = { mode: "wieniec", widthMode: "outside", overL: 0, overR: 0, overFront: 0, overBack: 0 };
   if (!Array.isArray(merged.extraParts)) merged.extraParts = [];
@@ -1200,6 +1233,8 @@ const migrateCab = (rawCab, mat) => {
     if (defaultCab[k] && typeof defaultCab[k] === "object")
       merged[k] = { ...defaultCab[k], ...((rawCab && rawCab[k]) || {}) };
   });
+  if (przedKolkami50 && Number(merged.shelfPin.dFront) === 37 && Number(merged.shelfPin.dBack) === 37)
+    merged.shelfPin = { ...merged.shelfPin, dFront: 50, dBack: 50 };
   /* Stare domyslne frezu (16 od tylu, 4 w plyte) liczyly sie jak rowek
      odsuniety od tylu — zamieniamy na wreg 16 × 3 zlicowany z tylem. Wpisane
      recznie liczby zostaja: pola „Szerokość”/„Głębokość” juz wtedy znaczyly to,
@@ -1979,6 +2014,10 @@ function computeGeoLiczy(cab, mat, ctx) {
      tej samej scianie — konstrukcja jest wtedy sztywna bez niego. */
   const plecyUsztywniaja = !!(cab.corner || {}).on && backIsBoard;
   const backPos = cab.backPos === "outside" ? "outside" : "inside";
+  /* Plyta pleców wewnatrz cofnieta od tylu bokow (uzytkownik 2026-10-24: opcja do
+     specjalnego zastosowania, domyslnie 0 — rowno z bokami). Za nia w kazdej szafce
+     miesci sie listwa montazowa (`zawieszki`, listwa „wewnątrz”). */
+  const backRecess = cab.back === "board" && backPos === "inside" ? Math.max(0, Math.round(Number(cab.backRecess) || 0)) : 0;
   /* Plecy z plyty sa z tej plyty, z ktorej je zamawiamy: wewnatrz zawsze z plyty
      polek, na zewnatrz — wg `backBoardMat`. Dotad grubosc (i bryla) byla zawsze
      korpusu, choc formatka szla z plyty polek (audyt GPT N27). HDF — swoja. */
@@ -2192,7 +2231,9 @@ function computeGeoLiczy(cab, mat, ctx) {
      korpusu: HDF we wregu (jego lico grOff od tylu) albo plyta wewnatrz miedzy
      bokami. Plyty wewnatrz wczesniej nie odejmowalismy — polka wchodzila
      18 mm w plecy (audyt 2026-09-28). */
-  const backIntrusion = grooved ? grOff : backIsBoard && backPos === "inside" && cab.back !== "none" ? tb : 0;
+  const backIntrusion = grooved ? grOff : backIsBoard && backPos === "inside" && cab.back !== "none" ? tb + backRecess : 0;
+  if (backRecess && backRecess + tb >= carcassDepth)
+    add("error", `Plecy cofnięte o ${fmt(backRecess)} mm razem z płytą ${fmt(tb)} mm nie mieszczą się w głębokości korpusu ${fmt(carcassDepth)} mm.`);
   /* Wzmocnienie tylne szafki w L (katownik w tylnym narozniku), dwie plyty na
      wysokosc wnetrza. Rzut z gory: x wzdluz szerokosci, v od tylnej plaszczyzny.
      A — kat w zewnetrznym narozniku: plyta w plaszczyznie boku i plyta przy
@@ -4318,7 +4359,8 @@ function computeGeoLiczy(cab, mat, ctx) {
       const x0 = Math.max(interior.x0, cornerCut.backLeftX ?? interior.x0);
       const x1 = Math.min(interior.x1, cornerCut.backRightX ?? interior.x1);
       P({ name: "Plecy z płyty (wewnątrz)", qty: 1, a: x1 - x0, b: innerH, matKey: backMat,
-          edges: { a1: false, a2: false, b1: false, b2: false }, note: "między bokami, wieńcem i dnem" + cutInfo });
+          edges: { a1: false, a2: false, b1: false, b2: false },
+          note: "między bokami, wieńcem i dnem" + (backRecess ? `, cofnięte ${fmt(backRecess)} mm od tyłu boków` : "") + cutInfo });
     }
   }
 
@@ -4661,16 +4703,18 @@ function computeGeoLiczy(cab, mat, ctx) {
   };
   {
     const pin = cab.shelfPin || {};
-    const pinF = num(pin.dFront) ?? 37, pinB = num(pin.dBack) ?? 37;
+    const pinF = num(pin.dFront) ?? 50, pinB = num(pin.dBack) ?? 50;
     /* Otwory musza lezec na polce i nie wpasc na siebie: przod < tyl. Dotad
        plan pisal np. „700 i −140 mm od przedniej krawedzi” bez zadnej uwagi
        (audyt GPT N16). Sprawdzamy na najplytszej polce na kolkach. */
     if (levels.some((lv) => lv.cols.some((c) => c.shelfMount === "pins" && (c.shelves || []).length))) {
       const glPolek = levels.flatMap((lv) => lv.cols.filter((c) => c.shelfMount === "pins" && (c.shelves || []).length).map((c) => c.shD ?? shelfDepth));
       const gl = glPolek.length ? Math.min(...glPolek) : null;
+      // przycisk: 50 / 50, a na plytkiej polce tyle, ile sie zmiesci (otwory min. KOLEK_PRZESUN od siebie)
+      const zal = Math.min(50, Math.floor((gl - KOLEK_PRZESUN) / 2));
       if (gl !== null && (pinF < 0 || pinB < 0 || pinF + pinB >= gl))
         add("error", `Kołki półek ${fmt(pinF)} mm od przodu i ${fmt(pinB)} mm od tyłu nie mieszczą się na półce głębokości ${fmt(Math.round(gl))} mm — `
-          + `otwory wypadłyby poza płytą albo na siebie.|kolki:37:37`);
+          + `otwory wypadłyby poza płytą albo na siebie.` + (zal > 0 ? `|kolki:${zal}:${zal}` : ""));
     }
     levels.forEach((lv) =>
       lv.cols.forEach((c) => {
@@ -4691,10 +4735,12 @@ function computeGeoLiczy(cab, mat, ctx) {
            otwory (D240: 120 i 120) albo tylko zamienialo je miejscami (D220).
            Sprawdzamy koncowe pozycje: otwory tej strony co najmniej KOLEK_PRZESUN
            od siebie i od otworow po drugiej stronie przegrody, na polce (min.
-           KOLEK_OD_KRAWEDZI od jej krawedzi). Do srodka nie wychodzi — na zewnatrz,
-           potem oba w tyl / w przod, potem o 40 mm; nic nie pasuje — blad
-           (uzytkownik 2026-10-22: przesuniete na zewnatrz, z podpowiedzia
-           „kolki przesuniete albo zamien na trojkaty”). */
+           KOLEK_OD_KRAWEDZI od jej krawedzi). Uzytkownik 2026-10-24: kolki jak
+           trojkaty 50 mm od krawedzi, mijaja sie o 10 mm — na glebokiej polce
+           do srodka (60), na waskiej (do POLKA_WASKA) na zewnatrz (40); gdy ten
+           kierunek nie wychodzi — drugi, potem oba w tyl / w przod, potem o 20 mm;
+           nic nie pasuje — blad. Inne niz zwykle przesuniecie — podpowiedz
+           „kolki przesuniete albo zamien na trojkaty” (2026-10-22). */
         const otworyKol = (k) => {
           const pk = frontCut + (k.shFront || 0), gk = k.shD ?? shelfDepth;
           return k.shelfMount === "trojkaty" ? [pk + KONF_OD_KRAWEDZI, pk + gk - KONF_OD_KRAWEDZI]
@@ -4705,7 +4751,8 @@ function computeGeoLiczy(cab, mat, ctx) {
           const wolne = (x) => obce.every((q) => Math.abs(x - q) >= KOLEK_PRZESUN - 0.5);
           if (wolne(a) && wolne(b)) return { o: [a, b], kier: null };
           const D = KOLEK_PRZESUN;
-          for (const [df, db, kier] of [[D, -D, "do środka"], [-D, D, "na zewnątrz"], [D, D, "do tyłu"], [-D, -D, "do przodu"],
+          const doSr = [D, -D, "do środka"], naZew = [-D, D, "na zewnątrz"];
+          for (const [df, db, kier] of [...(gl <= POLKA_WASKA ? [naZew, doSr] : [doSr, naZew]), [D, D, "do tyłu"], [-D, -D, "do przodu"],
             [2 * D, -2 * D, "do środka"], [-2 * D, 2 * D, "na zewnątrz"]]) {
             const x = a + df, z = b + db;
             if (x >= przod + KOLEK_OD_KRAWEDZI && z <= przod + gl - KOLEK_OD_KRAWEDZI && z - x >= D - 0.5 && wolne(x) && wolne(z))
@@ -4773,8 +4820,9 @@ function computeGeoLiczy(cab, mat, ctx) {
             + `(tam półka na tej samej wysokości), a przesunięcie o ${KOLEK_PRZESUN} albo ${2 * KOLEK_PRZESUN} mm nie mieści się na półce — `
             + `przesuń półkę o co najmniej 10 mm${c.shelfMount === "pins" ? " albo zamień kołki na trójkąty" : ""}.`
             + (c.shelfMount === "pins" ? `|polkimont:${lv.i}:${c.j}:trojkaty` : ""));
-        // zwykle 20 mm do srodka (2026-09-29) idzie tylko do planu wiercen; inne przesuniecie — z podpowiedzia
-        const nietypowe = przesuniete.filter((q) => !(q.kier === "do środka" && q.ile === KOLEK_PRZESUN));
+        // zwykle przesuniecie (do srodka, a na waskiej polce na zewnatrz) idzie tylko do planu wiercen; inne — z podpowiedzia
+        const zwykle = gl <= POLKA_WASKA ? "na zewnątrz" : "do środka";
+        const nietypowe = przesuniete.filter((q) => !(q.kier === zwykle && q.ile === KOLEK_PRZESUN));
         if (!nieDaSie.length && nietypowe.length && c.shelfMount === "pins")
           add("info", `Kołki półek kolumny ${c.j + 1} na wysokości ${wys(nietypowe.map((q) => q.y))} mm przesunięte `
             + `${listPl([...new Set(nietypowe.map((q) => `o ${q.ile} mm ${q.kier}`))])} (plan wierceń) — po drugiej stronie przegrody półka `
@@ -5458,7 +5506,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     hardware.push({
       name: "Kołek podporowy ⌀5",
       use: "półki szafki, po cztery na półkę",
-      spec: `4 szt. na półkę, otwory ⌀5 — ${fmt(num(pin.dFront) ?? 37)} mm od przodu i ${fmt(num(pin.dBack) ?? 37)} mm od tyłu półki, wysokości na widoku otwartym liczone od ${
+      spec: `4 szt. na półkę, otwory ⌀5 — ${fmt(num(pin.dFront) ?? 50)} mm od przodu i ${fmt(num(pin.dBack) ?? 50)} mm od tyłu półki, wysokości na widoku otwartym liczone od ${
         cab.pinDatum === "bottom" ? "dna" : "dolnej krawędzi boku"}`,
       qty: pinShelves * 4,
       unit: "szt.",
@@ -5493,13 +5541,17 @@ function computeGeoLiczy(cab, mat, ctx) {
        W szafce w L listwa pod korpusem tylko wtedy, gdy wisi tam zawieszka;
        odcinek pod ramieniem liczy `cornerArmParts`. */
     if (cab.hangerMode !== "haczyki") {
+      /* Na wymiar szafki (uzytkownik 2026-10-24; zakup w odcinkach 1 / 2 m — `listwaZakup`,
+         ktory moze ja skrocic najwyzej o LISTWA_SKROT, gdy to oszczedza odcinek). Za plecami
+         cofnietymi listwa siedzi w szafce: szerokosc plecow − 2 × 5 mm, bez skracania. */
+      const wewnatrz = backRecess > 0;
+      const dlL = wewnatrz ? Math.max(0, Math.round(innerW - 2 * LISTWA_OD_PLECOW)) : W;
       if (zawieszki.naKorpusie)
         hardware.push({
           name: "Listwa montażowa do zawieszek",
           use: "pod zawieszki szafek wiszących",
-          spec: `odcinek ${fmt(Math.max(0, W - 40))} mm na szafkę`,
-          // dokladnie — zakup w odcinkach 1 / 2 m dobiera zestawienie projektu (`listwaZakup`, audyt GPT N77)
-          qty: Math.max(0, W - 40) / 1000, odcinek: Math.max(0, W - 40),
+          spec: wewnatrz ? `odcinek ${fmt(dlL)} mm w szafce, za plecami cofniętymi ${fmt(backRecess)} mm` : `odcinek ${fmt(dlL)} mm na szafkę`,
+          qty: dlL / 1000, odcinek: dlL, min: wewnatrz ? dlL : dlL - LISTWA_SKROT, wewnatrz,
           unit: "mb",
         });
     } else
@@ -5570,7 +5622,7 @@ function computeGeoLiczy(cab, mat, ctx) {
 
   return {
     hardware,
-    t, tf, tb, ts, carcassDepth, plecyZa, glebOdSciany, hasBack, interior, innerW, innerH,
+    t, tf, tb, ts, carcassDepth, plecyZa, glebOdSciany, hasBack, interior, innerW, innerH, backRecess,
     shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, msgs, maxNL, zawiasyMontaz, plecyKolumn,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
@@ -7029,7 +7081,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
           ? (cab.backPos === "outside" && cab.backBoardMat !== "shelf" ? mat.board.color : shc)
           : mat.back.color;
         // przybijany HDF i plyta na zewnatrz siedza za korpusem (`plecyZa`)
-        const py = geo.grooved ? geo.grOff - geo.tb : geo.plecyZa ? -geo.tb : outside ? -geo.tb : 0;
+        const py = geo.grooved ? geo.grOff - geo.tb : geo.plecyZa ? -geo.tb : outside ? -geo.tb : geo.backRecess || 0;
         const inside = geo.grooved || (geo.backIsBoard && geo.backPos === "inside");
         // HDF we frezie wchodzi w boki na szerokosc frezu minus luz — jak w bryle i formatce
         const grab = geo.grooved ? geo.grDep - geo.grPlay : 0;
@@ -10217,7 +10269,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
         // z gory: y=0 to tyl. Plecy wewnatrz siedza tuz przy tyle, na zewnatrz za korpusem
         const outside = geo.backIsBoard && geo.backPos === "outside";
         // przybijany HDF i plyta na zewnatrz siedza za korpusem (`plecyZa`)
-        const py = geo.grooved ? geo.grOff - geo.tb : geo.plecyZa ? -geo.tb : outside ? -geo.tb : 0;
+        const py = geo.grooved ? geo.grOff - geo.tb : geo.plecyZa ? -geo.tb : outside ? -geo.tb : geo.backRecess || 0;
         const inside = geo.grooved || (geo.backIsBoard && geo.backPos === "inside");
         // HDF we frezie wchodzi w boki na szerokosc frezu minus luz — jak w bryle i formatce
         const grab = geo.grooved ? geo.grDep - geo.grPlay : 0;
@@ -10950,7 +11002,7 @@ const plecyBryla = (cab, geo) => {
     const wew = geo.backPos !== "outside";
     x0 = wew ? geo.interior.x0 : 0; x1 = wew ? geo.interior.x1 : W;
     y0 = wew ? geo.interior.y0 : 0; y1 = wew ? geo.interior.y1 : H - (geo.plecyPodBlat || 0);
-    z0 = wew ? cd - geo.tb : cd;
+    z0 = wew ? cd - geo.tb - (geo.backRecess || 0) : cd;
   } else if (geo.grooved) {
     const grab = geo.grDep - geo.grPlay;
     x0 = geo.interior.x0 - grab; x1 = geo.interior.x1 + grab;
@@ -11655,7 +11707,7 @@ const formatkiSzafki = (geo, { bezCokolu = false, bezBlatu = false, arm = null, 
    do ktorej sie przykrecaja (wczesniej byly tylko w liscie projektu, choc ich
    formatki byly juz na liscie szafki). Te same nazwy sumujemy w jednej pozycji. */
 const okuciaSzafki = (geo, { bezListwy = false, arm = null, wstawki = [] } = {}) => {
-  const out = (bezListwy ? geo.hardware.filter((h) => h.name !== RAIL_NAME) : geo.hardware).map((h) => ({ ...h }));
+  const out = (bezListwy ? geo.hardware.filter((h) => h.name !== RAIL_NAME || h.wewnatrz) : geo.hardware).map((h) => ({ ...h }));
   const dodaj = (h) => {
     const jest = out.find((x) => x.name === h.name && (x.unit || "") === (h.unit || ""));
     if (!jest) { out.push({ ...h }); return; }
@@ -13112,10 +13164,10 @@ const cornerArmParts = (a) => {
         spec: "pod zawieszką w części ramienia — po jednym na zawieszkę", qty: zw.naRamieniu, unit: "szt." });
     else {
       const wzm = (geo.postRects || []).find((q) => q.nazwa === "plecy");
-      const dl = Math.max(0, Math.round(zw.gdzie === "ramie" && wzm ? len + geo.carcassDepth - wzm.v0 - 40 : len - 40));
+      const dl = Math.max(0, Math.round(zw.gdzie === "ramie" && wzm ? len + geo.carcassDepth - wzm.v0 : len));
       hardware.push({ name: "Listwa montażowa do zawieszek", use: "pod zawieszki szafek wiszących",
         spec: `ramię szafki narożnej: odcinek ${fmt(dl)} mm przy drugiej ścianie`,
-        qty: dl / 1000, odcinek: dl, unit: "mb" });
+        qty: dl / 1000, odcinek: dl, min: dl - LISTWA_SKROT, unit: "mb" });
     }
   }
   if (polek > 0 && mocowaniePolek(cab) === "pins")
@@ -13218,7 +13270,7 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
     if (ys.length && mocowaniePolek(cab) !== "confirmat") {
       const przod = a.bracket ? t : 0, gl = a.depth - (armPlan(a).tb > 0 ? armPlan(a).tb : (geo.tb || t)) - (a.bracket ? t : 0);
       const pin = cab.shelfPin || {};
-      const pf = num(pin.dFront) ?? 37, pb = num(pin.dBack) ?? 37;
+      const pf = num(pin.dFront) ?? 50, pb = num(pin.dBack) ?? 50;
       if (mocowaniePolek(cab) === "trojkaty")
         wiersz("Bok ramienia", "trójkąt meblowy", ys,
           `2 rzędy — pod półką ramienia, przy jej przedniej i tylnej krawędzi: ${fmt(przod + KONF_OD_KRAWEDZI)} i ${fmt(przod + gl - KONF_OD_KRAWEDZI)} mm od przedniej krawędzi płyty; wysokość = spód półki; tu 2 z 4`);
@@ -13391,7 +13443,7 @@ const maZawieszki = (cab) => {
 // ...i wisi na listwie (a nie na haczykach)
 const naListwie = (cab) => maZawieszki(cab) && cab.hangerMode !== "haczyki";
 const runRail = (project, run) => {
-  const { total, list } = runJoints(project, run);
+  const { list } = runJoints(project, run);
   if (list.length < 2) return null;
   if ((run.hangerMode || "listwa") !== "listwa") return null;
   /* Listwa jest wtedy, gdy choc jedna szafka ciagu naprawde na niej wisi —
@@ -13401,8 +13453,24 @@ const runRail = (project, run) => {
   // liczy sie tylko dla ciagu wiszacego — stojacy nie ma czego wieszac
   if (!list.every(({ it }) => !(it.cab.legs && it.cab.legs.on) && !(it.cab.plinth && it.cab.plinth.on)))
     return null;
-  const len = Math.max(0, total - 40);
-  return { len, name: run.name };
+  /* Jedna listwa przez ciag, na wymiar (uzytkownik 2026-10-24): od pierwszej do
+     ostatniej szafki, ktora na niej wisi — skrajna bez zawieszek jej nie potrzebuje,
+     a taka w srodku listwy nie przerywa (obie z ostrzezeniem w `runCabMsgs`). Szafka
+     z plecami cofnietymi ma listwe w sobie, wiec listwa ciagu konczy sie przy niej. */
+  const gap = run.gap || 0;
+  const odcinki = [];
+  let x = 0, biez = null;
+  list.forEach(({ it }, k) => {
+    const g = computeGeo(it.cab, it.mat);
+    const x0 = x, x1 = x + g.W;
+    x = x1 + (k < list.length - 1 ? gap : 0);
+    if (naListwie(it.cab) && g.backRecess > 0) { biez = null; return; }
+    if (!biez) { biez = { od: null, do: null }; odcinki.push(biez); }
+    if (naListwie(it.cab)) { if (biez.od == null) biez.od = x0; biez.do = x1; }
+  });
+  const odc = odcinki.filter((o) => o.od != null).map((o) => ({ od: Math.round(o.od), do: Math.round(o.do), len: Math.round(o.do - o.od) }));
+  if (!odc.length) return null;
+  return { odcinki: odc, len: odc.reduce((s, o) => s + o.len, 0), name: run.name };
 };
 
 /* Zestawienia calego projektu: szafka nalezaca do ciagu oddaje swoje formatki
@@ -13434,7 +13502,7 @@ const projectParts = (project) => {
       grainMatters: it.cab.grainMatters,
       name: (it.cab.name || "").trim() || `Szafka ${ci + 1}`,
       panels: gone ? g.panels.filter((p) => !gone.includes(p.rola)) : g.panels,
-      hardware: (s && s.rr ? g.hardware.filter((h) => h.name !== RAIL_NAME) : g.hardware)
+      hardware: (s && s.rr ? g.hardware.filter((h) => h.name !== RAIL_NAME || h.wewnatrz) : g.hardware)
         .map((h) => (h.name === RAIL_NAME ? { ...h, gdzie: (it.cab.name || "").trim() || `Szafka ${ci + 1}` } : h)),
     };
   });
@@ -13457,9 +13525,9 @@ const projectParts = (project) => {
         spec: `${z.opis}, blat ${fmt(z.gl)} mm; GTV EM-SBL 65 / 100 / 150 (długość śruby do wyboru)`,
         qty: z.qty, unit: "szt." })) });
     if (rr) runs.push({ ...base, name: `Listwa — ${run.name}`, panels: [],
-      hardware: [{ name: RAIL_NAME, use: "pod zawieszki szafek wiszących",
-        spec: `jeden odcinek ${fmt(rr.len)} mm na ciąg`,
-        qty: rr.len / 1000, odcinek: rr.len, gdzie: run.name, unit: "mb" }] });
+      hardware: rr.odcinki.map((o) => ({ name: RAIL_NAME, use: "pod zawieszki szafek wiszących",
+        spec: `jedna listwa ${fmt(o.len)} mm przez ciąg`,
+        qty: o.len / 1000, odcinek: o.len, min: o.len - LISTWA_SKROT, gdzie: run.name, unit: "mb" })) });
   });
   /* Ramie szafki naroznej to osobna pozycja: formatki ida na te sama plyte, co
      szafka, ale latwiej je rozpoznac przy montazu, gdy stoja osobno. */
@@ -13500,7 +13568,7 @@ const runCabMsgs = (run, c, inne = []) => {
   const wisiTa = !(c.legs && c.legs.on) && !(c.plinth && c.plinth.on);
   if (wisiTa && !maZawieszki(c) && inne.some(naListwie))
     out.push({ level: "warn", text:
-      `Ta szafka jest bez zawieszek, a inne szafki ciągu „${run.name}" wiszą na zawieszkach na listwie — listwa i tak przechodzi za nią (jedna na cały ciąg), więc to może być pomyłka. Powieś ją tak samo albo na haczykach.`
+      `Ta szafka jest bez zawieszek, a inne szafki ciągu „${run.name}" wiszą na zawieszkach na listwie — to może być pomyłka. W środku ciągu listwa przechodzi za nią, na końcu ciągu kończy się przed nią. Powieś ją tak samo albo na haczykach.`
       + `|zawieszki:listwa|zawieszki:haczyki` });
   if (run.H != null && Math.round(c.H) !== run.H)
     out.push({ level: "warn", text:
@@ -18118,7 +18186,9 @@ export default function App() {
                   {ciagWisi && (
                     <Field label="Wieszanie ciągu"
                       hint={runRl
-                        ? `Jedna listwa ${fmt(runRl.len)} mm na cały ciąg — szafki wiszą w jednej linii.`
+                        ? (runRl.odcinki.length === 1
+                          ? `Jedna listwa ${fmt(runRl.len)} mm przez ciąg — szafki wiszą w jednej linii.`
+                          : `Listwy ${listPl(runRl.odcinki.map((o) => fmt(o.len)))} mm — szafki z plecami cofniętymi mają listwę w sobie.`)
                         : "Zawieszki dobiorą się, gdy szafki będą tego potrzebować."}>
                       <Seg value={(runInfo.run.hangerMode || "listwa") === "haczyki" ? "haczyki" : "listwa"}
                         onChange={(v) => setRunShared(runInfo.run.id, { hangerMode: v })}
@@ -18270,6 +18340,11 @@ export default function App() {
                     onChange={(v) => set({ backPos: v })}
                     options={[{ v: "inside", l: "Wewnątrz" }, { v: "outside", l: "Na zewnątrz" }]} />
                 </Field>
+                {cab.backPos !== "outside" && (
+                  <Field label="Cofnięcie pleców" hint="od tyłu boków, mm — zwykle 0 (równo z bokami); np. 10, gdy za plecami w każdej szafce ma być listwa montażowa">
+                    <Num value={cab.backRecess || 0} onChange={(v) => set({ backRecess: Math.max(0, Math.round(Number(v) || 0)) })} />
+                  </Field>
+                )}
                 {cab.backPos === "outside" && (
                   <Field label="Materiał pleców" hint="wewnątrz zawsze z płyty półek">
                     <Seg value={cab.backBoardMat === "shelf" ? "shelf" : "board"}
@@ -19623,11 +19698,11 @@ export default function App() {
               <>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Otwór od przodu">
-                    <Num value={cab.shelfPin?.dFront ?? 37}
+                    <Num value={cab.shelfPin?.dFront ?? 50}
                       onChange={(v) => set({ shelfPin: { ...(cab.shelfPin || {}), dFront: v } })} />
                   </Field>
                   <Field label="Otwór od tyłu">
-                    <Num value={cab.shelfPin?.dBack ?? 37}
+                    <Num value={cab.shelfPin?.dBack ?? 50}
                       onChange={(v) => set({ shelfPin: { ...(cab.shelfPin || {}), dBack: v } })} />
                   </Field>
                 </div>

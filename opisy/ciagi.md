@@ -30,7 +30,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - **Blat w rogu**: jeden przechodzi, drugi dojeżdża do jego przedniej krawędzi (styk ze złączem) albo oba na łyżwę (cięte pod 45°).
 - **Górny ciąg**: wysokość montażu = blat + prześwit nad blatem (domyślnie 500 mm).
   - Wieszanie na listwie montażowej z zawieszkami albo na haczykach.
-  - Listwa jedna na cały ciąg, za wszystkimi szafkami (nie tniemy jej pod szafki); zakup w odcinkach 1 / 2 m — `opisy/zamowienie.md`. Szafka bez zawieszek w ciągu na listwie — ostrzeżenie (listwa i tak za nią przechodzi, może to być pomyłka).
+  - Listwa jedna przez ciąg, na wymiar (nie tniemy jej pod szafki), od pierwszej do ostatniej szafki z zawieszkami; zakup w odcinkach 1 / 2 m — `opisy/zamowienie.md`. Szafka bez zawieszek w ciągu na listwie — ostrzeżenie „może to być pomyłka” (w środku listwa przechodzi za nią, na końcu kończy się przed nią). Szafka z plecami cofniętymi ma listwę w sobie — listwa ciągu kończy się przy niej.
   - Górna szafka w L (szablon) robi się na wzór dolnej, gdy przy rogu stoi szafka w L.
 - **Kontrola otwierania w całej zabudowie**: skrzydła, klapy i szuflady sprawdzane względem sąsiadów, ramion, blatu i sufitu (`opisy/drzwi.md`, `opisy/klapy.md`, `opisy/szuflady.md`).
 

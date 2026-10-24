@@ -158,14 +158,12 @@ let ph = await rowsOf(/Produkty całego projektu/);
 const listwa = ph.filter((r) => /^Listwa/.test(r));
 console.log('     projekt: ' + listwa.join(' // '));
 ok('projekt ma jedną listwę', listwa.length === 1, ph.filter((r) => /Listwa/.test(r)).join(' // '));
-// 1800 - 40 = 1760 mm = 17,6 mb
-/* Od scalania okuc zestawienie projektu podaje listwe jednym wierszem w metrach
-   biezacych (1760 mm → 1.8 mb), a „jedna listwa 1760 mm na caly ciag" mowi
-   karta ciagu. */
-// zakup w odcinkach 1 / 2 m, cala listwa ciagu z jednego (uzytkownik 2026-10-22, audyt GPT N77)
-ok('listwa w zestawieniu: 1 × 2 m na 1760 mm ciągu', /kupić 1 × 2 m: potrzeba 1760 mm, odpad 240 mm/.test(listwa[0]) && /\| 2 mb$/.test(listwa[0]), listwa[0]);
-ok('karta ciągu: jedna listwa 1760 mm na cały ciąg',
-  /Jedna listwa 1760 mm na cały ciąg/.test(await page.evaluate(() => document.body.innerText)));
+/* Zestawienie projektu podaje listwe jednym wierszem: zakup w odcinkach 1 / 2 m
+   (uzytkownik 2026-10-22, audyt GPT N77), listwa na wymiar ciagu 1800 mm (2026-10-24,
+   wczesniej −40); karta ciagu mowi „jedna listwa 1800 mm przez ciąg”. */
+ok('listwa w zestawieniu: 1 × 2 m na 1800 mm ciągu', /kupić 1 × 2 m: potrzeba 1800 mm, odpad 200 mm/.test(listwa[0]) && /\| 2 mb$/.test(listwa[0]), listwa[0]);
+ok('karta ciągu: jedna listwa 1800 mm przez ciąg',
+  /Jedna listwa 1800 mm przez ciąg/.test(await page.evaluate(() => document.body.innerText)));
 
 console.log('\n== ciąg domyślnie na listwie, szafka na haczykach dostaje uwagę ==');
 await seed([600, 600], {}, { hangerMode: 'haczyki' });

@@ -27,6 +27,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - **płyta** w środku między bokami albo na zewnątrz — wkręty 3,5 × 30;
   - **brak**.
   - Kolumna może mieć własne plecy („jak szafka / HDF / płyta / brak”).
+  - **Cofnięcie pleców** (płyta wewnątrz, opcja do specjalnego zastosowania, domyślnie 0 — równo z bokami): płyta cofnięta o N mm od tyłu boków, półki, przegrody i szuflady o tyle płytsze; za plecami w każdej szafce listwa montażowa (`opisy/zamowienie.md`). Za duże (z płytą ≥ głębokość korpusu) — błąd (użytkownik 2026-10-24).
   - Plecy w środku albo we frezie skracają głębokość półek, przegród i szuflad.
   - Plecy ustawione w kolumnach są zawsze przybijane za korpusem: szafka stoi od ściany o najgrubsze z nich (płyta 18 w jednej kolumnie → 578 mm przy korpusie 560), wszystkie „brak” — przy samej ścianie; zszywki do HDF i wkręty do płyty liczone z obwodu każdej płyty (audyt GPT N73, N81).
 - **Konfirmaty na styku płyt**: jeden w połowie, gdy styk jest krótszy niż 132 mm; dłuższy — co ok. 200 mm, min. 2, po 50 mm od krawędzi.

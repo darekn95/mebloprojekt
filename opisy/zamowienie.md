@@ -12,10 +12,10 @@ zamówienia: „Cały projekt” albo „To pomieszczenie”.
   - **konfirmaty 7 × 50 i zaślepki** (też skrzynek DXS), **kołki podporowe ⌀5**, **trójkąty**;
   - **nóżki** (wariant: kształt, wysokość, kolor), **złączki do cokołu**;
   - **zawieszki, listwa montażowa** (za metr), **haki**;
-    - listwa: w sklepie odcinki 1 m i 2 m, tnie się na dokładne długości. Jedna listwa na cały ciąg (za wszystkimi szafkami, długość ciągu − 40 mm; dłuższa niż 2 m — pełne odcinki 2 m i reszta), osobna szafka — W − 40, ramię szafki w L — swój odcinek przy drugiej ścianie;
+    - listwa: w sklepie odcinki 1 m i 2 m, tnie się na wymiar (rzazu nie liczymy). Jedna listwa przez ciąg — od pierwszej do ostatniej szafki, która na niej wisi (skrajna bez zawieszek jej nie dostaje, środkowa nie przerywa; obie z ostrzeżeniem); dłuższa niż 2 m — pełne odcinki 2 m i reszta. Osobna szafka — W, ramię szafki w L — swój odcinek przy drugiej ścianie. Plecy z płyty cofnięte (opcja) — listwa w szafce za plecami: szerokość pleców − 2 × 5 mm (`LISTWA_OD_PLECOW`), a listwa ciągu kończy się przy tej szafce (decyzje użytkownika 2026-10-24);
     - **lustro**: grubość (4 / 6 mm) w opisie i wariancie — różne grubości to osobne wiersze (audyt GPT N80);
     - **mocowania pleców w kolumnach** z obwodu każdej płyty (HDF — zszywki, płyta — wkręty), bez płyt — bez mocowań (audyt GPT N81);
-    - zakup listwy (`listwaZakup`): najmniej metrów, docinki idą na krótsze kawałki (3 × 640 z jednego 2 m zamiast 3 × 1 m), przy remisie najmniej cięć. Wiersz podaje „kupić N × 2 m + N × 1 m”, potrzebną długość, odpad i plan cięcia; ilość w mb = kupione metry (audyt GPT N77, decyzja użytkownika 2026-10-22);
+    - zakup listwy (`listwaZakup`): najmniej metrów, docinki idą na krótsze kawałki (3 × 660 z jednego 2 m zamiast 3 × 1 m), przy remisie najmniej cięć. Listwa może być krótsza najwyżej o 10 mm (`LISTWA_SKROT`), ale tylko wtedy, gdy dzięki temu kupuje się mniej (3 × 670 = 2010 → jeden odcinek 2 m, jedna 660; za plecami cofniętymi bez skracania). Wiersz podaje „kupić N × 2 m + N × 1 m”, potrzebną długość, odpad i plan cięcia; ilość w mb = kupione metry (audyt GPT N77, decyzja użytkownika 2026-10-22);
   - **wkręty / zszywki do pleców**, **lustro** (za m²), **złącza do blatów**.
 - **Zestawienie projektu**: jeden wiersz na produkt i wariant (nakładany i wpuszczany zawias to dwa wiersze, nóżka 100 kwadratowa i 150 okrągła też). Ilości się sumują.
 - **Wycena** (ceny brutto, każdą można nadpisać, 0 zeruje pozycję):

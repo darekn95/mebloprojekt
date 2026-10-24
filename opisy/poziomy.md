@@ -50,7 +50,7 @@ Każda kolumna jest „Półki i drzwi”, „Szuflady” albo „Blenda”. Lis
   - wpisane nie zgadzają się z kolumną — błąd;
   - światło niższe niż 50 mm — ostrzeżenie.
 - **Głębokość półki** zero lub mniej — błąd.
-- **Kołki półek** nie mieszczą się na najpłytszej półce — błąd z „Ustaw 37 / 37 mm”.
+- **Kołki półek** nie mieszczą się na najpłytszej półce — błąd z „Ustaw 50 / 50 mm” (domyślnie kołki 50 mm od krawędzi, jak trójkąty).
 - **Szczelina nad przegrodą** (fronty nakładane):
   - poniżej 2 mm — błąd;
   - powyżej 5 mm — ostrzeżenie z przyciskami zmiany nałożenia.

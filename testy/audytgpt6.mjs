@@ -30,24 +30,43 @@ const linie = (t, re) => t.split('\n').filter((l) => re.test(l)).join(' / ');
 const bezPowtorzen = (lista) => { const byl = new Set(); return lista.filter((s) => { const k = JSON.stringify([s.p, s.color, s.tag]); if (byl.has(k)) return false; byl.add(k); return true; }); };
 
 console.log('== N77: listwa montażowa — odcinki 1 m / 2 m, jedna na ciąg ==');
+/* Uzytkownik 2026-10-24: listwa na wymiar szafki / ciagu (nie −40), najwyzej 10 mm krotsza,
+   gdy to oszczedza odcinek; skrajna szafka bez zawieszek — listwa konczy sie przed nia;
+   plecy cofniete — listwa w szafce, szerokosc plecow − 2 × 5 mm. */
 {
   const wisz = (n, W, o = {}) => cab({ name: n, W, D: 300, plinth: { on: false }, legs: { on: false }, hangerMode: 'listwa', ...o });
   const listwa = async () => (await rows(/^Produkty całego projektu/)).filter((r) => /^Listwa/.test(r));
   await seed(proj([{ cab: wisz('A', 680) }]));
   // jedna szafka — lista szafki jest zamowieniem
   let l = (await rows(/^Produkty do zamówienia/)).filter((r) => /^Listwa/.test(r));
-  ok('szafka 680: odcinek 640 mm z jednego odcinka 1 m (nie 0,6 mb)', l.length === 1 && /kupić 1 × 1 m: potrzeba 640 mm, odpad 360 mm/.test(l[0]) && /\| 1 mb$/.test(l[0]), l.join(' / '));
-  await seed(proj([{ cab: wisz('A', 680) }, { cab: wisz('B', 680) }, { cab: wisz('C', 680) }]));
+  ok('szafka 680: listwa 680 mm (na wymiar) z odcinka 1 m', l.length === 1 && /kupić 1 × 1 m: potrzeba 680 mm, odpad 320 mm/.test(l[0]) && /\| 1 mb$/.test(l[0]), l.join(' / '));
+  await seed(proj([{ cab: wisz('A', 660) }, { cab: wisz('B', 660) }, { cab: wisz('C', 660) }]));
   l = await listwa();
-  ok('trzy osobne szafki 680: 3 × 640 z jednego odcinka 2 m (a nie 3 × 1 m)', l.length === 1 && /kupić 1 × 2 m: potrzeba 1920 mm, odpad 80 mm/.test(l[0]) && /\| 2 mb$/.test(l[0]), l.join(' / '));
+  ok('trzy osobne szafki 660: 3 × 660 z jednego odcinka 2 m (a nie 3 × 1 m)', l.length === 1 && /kupić 1 × 2 m: potrzeba 1980 mm, odpad 20 mm/.test(l[0]) && /\| 2 mb$/.test(l[0]), l.join(' / '));
+  await seed(proj([{ cab: wisz('A', 670) }, { cab: wisz('B', 670) }, { cab: wisz('C', 670) }]));
+  l = await listwa();
+  ok('trzy szafki 670 (2010 mm): jedna listwa krótsza o 10 mm — 1 × 2 m zamiast 3 m', l.length === 1 && /kupić 1 × 2 m: potrzeba 2000 mm, odpad 0 mm \(skrócona o 10 mm/.test(l[0]) && /660 \(C, −10 mm\)/.test(l[0]), l.join(' / '));
   const R = [{ id: 'c1', name: 'Ściana', wallW: null, gap: 0, mountY: 1400, H: 720, D: 300, plinth: null, worktop: false, hangerMode: 'listwa', corner: null }];
   await seed(proj([...['A', 'B', 'C', 'D'].map((n) => ({ cab: wisz(n, 800), runId: 'c1' })), { cab: wisz('X', 680) }], R));
   l = await listwa();
-  ok('ciąg 4 × 800 + osobna 680: listwa ciągu 3160 (2 m cały + 1160), docinek 2 m na szafkę X — razem 2 × 2 m',
-    l.length === 1 && /kupić 2 × 2 m: potrzeba 3800 mm, odpad 200 mm/.test(l[0]) && /2 m → cały \(Ściana\)/.test(l[0]) && /1160 \(Ściana\) \+ 640 \(X\)/.test(l[0]) && /\| 4 mb$/.test(l[0]), l.join(' / '));
+  ok('ciąg 4 × 800 + osobna 680: listwa ciągu 3200 (2 m cały + 1200), docinek na szafkę X — razem 2 × 2 m',
+    l.length === 1 && /kupić 2 × 2 m: potrzeba 3880 mm, odpad 120 mm/.test(l[0]) && /2 m → cały \(Ściana\)/.test(l[0]) && /1200 \(Ściana\) \+ 680 \(X\)/.test(l[0]) && /\| 4 mb$/.test(l[0]), l.join(' / '));
+  await seed(proj([{ cab: wisz('A', 600, { hangers: 'never' }), runId: 'c1' }, { cab: wisz('B', 600), runId: 'c1' }, { cab: wisz('C', 600), runId: 'c1' }], R));
+  l = await listwa();
+  ok('skrajna szafka bez zawieszek: listwa kończy się przed nią (1200, nie 1800)', l.length === 1 && /potrzeba 1200 mm/.test(l[0]) && /1200 \(Ściana\)/.test(l[0]), l.join(' / '));
+  await seed(proj([{ cab: wisz('A', 600), runId: 'c1' }, { cab: wisz('B', 600, { hangers: 'never' }), runId: 'c1' }, { cab: wisz('C', 600), runId: 'c1' }], R, { active: 1 }));
+  l = await listwa();
+  const u = await uwagi();
+  ok('środkowa bez zawieszek: listwa przechodzi (1800) i ostrzeżenie „może być pomyłka”', l.length === 1 && /potrzeba 1800 mm/.test(l[0]) && /bez zawieszek.*to może być pomyłka/.test(u), `${l.join(' / ')} | ${linie(u, /bez zawieszek/)}`);
+  const cof = { back: 'board', backPos: 'inside', backRecess: 10 };
+  await seed(proj([{ cab: wisz('A', 600), runId: 'c1' }, { cab: wisz('B', 600, cof), runId: 'c1' }, { cab: wisz('C', 600), runId: 'c1' }], R));
+  l = await listwa();
+  ok('środkowa z plecami cofniętymi 10 mm: listwa w niej 600 − 2 × 18 − 10 = 554, ciąg w dwóch odcinkach 600', l.length === 1 && /554 \(B\)/.test(l[0]) && (l[0].match(/600 \(Ściana\)/g) || []).length === 2, l.join(' / '));
 }
 
 console.log('\n== N75: kołki po obu stronach przegrody — końcowe pozycje otworów ==');
+/* Uzytkownik 2026-10-24: kolki jak trojkaty 50 mm od krawedzi, otwory mijaja sie o 10 mm;
+   na glebokiej polce druga strona 10 mm do srodka, na waskiej (do 300) — na zewnatrz (40). */
 {
   // plan wiercen z wydruku (PDF): wiersze tabeli „Otwory pod…”
   const wiercenia = async () => {
@@ -61,24 +80,19 @@ console.log('\n== N75: kołki po obu stronach przegrody — końcowe pozycje otw
   };
   const k2 = (D, pin, mount = 'pins') => cab({ W: 800, D, back: 'none', hangers: 'never', plinth: { on: false }, legs: { on: true, height: 100 }, shelfMount: mount, shelfPin: pin,
     levels: [{ h: null, cols: [{ kind: 'doors', doors: 0, w: null, shelfTargets: [null, null] }, { kind: 'doors', doors: 0, w: null, shelfTargets: [null, null] }] }] });
-  for (const [D, przed, po] of [[240, '100 i 140', '80 i 160'], [220, '100 i 120', '80 i 140']]) {
-    await seed(proj([{ cab: k2(D, { dFront: 100, dBack: 100 }) }]));
+  const para = async (D, pin, mount, k1re, k2re, opis, podpowiedz) => {
+    await seed(proj([{ cab: k2(D, pin, mount) }]));
     const w = await wiercenia();
-    const k1 = w.find((r) => /od kolumny 1/.test(r)) || '', k2r = w.find((r) => /od kolumny 2/.test(r)) || '';
-    ok(`D${D}: kolumna 1 ${przed}, kolumna 2 przesunięta na zewnątrz ${po} (bez zbieżnych otworów)`,
-      new RegExp(`${przed} mm`).test(k1) && new RegExp(`${po} mm.*przesunięte o 20 mm na zewnątrz`).test(k2r), `${k1} // ${k2r}`);
+    const r1 = w.find((r) => /od kolumny 1/.test(r)) || '', r2 = w.find((r) => /od kolumny 2/.test(r)) || '';
     const u = await uwagi();
-    ok(`D${D}: podpowiedź „przesunięte … albo trójkąty” z przyciskiem`, /Kołki półek kolumny 2 na wysokości \d+ mm przesunięte o 20 mm na zewnątrz/.test(u) && /Półki kolumny 2 na trójkątach/.test(u), linie(u, /Kołki półek/));
-  }
-  await seed(proj([{ cab: k2(280, { dFront: 100, dBack: 100 }) }]));
-  let w = await wiercenia();
-  ok('D280: zwykłe 20 mm do środka (120 i 160), bez podpowiedzi', w.some((r) => /od kolumny 2/.test(r) && /120 i 160 mm.*do środka/.test(r)) && !/Kołki półek kolumny/.test(await uwagi()), w.join(' // '));
-  await seed(proj([{ cab: k2(560, {}) }]));
-  w = await wiercenia();
-  ok('D560 domyślne 37/37: kolumna 2 57 i 503 (do środka)', w.some((r) => /od kolumny 2/.test(r) && /57 i 503 mm/.test(r)), w.join(' // '));
-  await seed(proj([{ cab: k2(240, {}, 'trojkaty') }]));
-  w = await wiercenia();
-  ok('trójkąty D240: kolumna 2 70 i 170 (do środka), kolumna 1 50 i 190', w.some((r) => /od kolumny 2/.test(r) && /70 i 170 mm/.test(r)) && w.some((r) => /od kolumny 1/.test(r) && /50 i 190 mm/.test(r)), w.join(' // '));
+    ok(opis, k1re.test(r1) && k2re.test(r2) && (podpowiedz ? /Kołki półek kolumny 2 na wysokości \d+ mm przesunięte/.test(u) && /Półki kolumny 2 na trójkątach/.test(u) : !/Kołki półek kolumny/.test(u)),
+      `${r1.slice(0, 90)} // ${r2.slice(0, 140)} | ${linie(u, /Kołki półek/)}`);
+  };
+  await para(560, {}, 'pins', /50 i 510 mm/, /60 i 500 mm.*przesunięte o 10 mm do środka/, 'D560 domyślne 50 / 50: kolumna 2 10 mm do środka (60 i 500), bez podpowiedzi', false);
+  await para(240, {}, 'pins', /50 i 190 mm/, /40 i 200 mm.*przesunięte o 10 mm na zewnątrz/, 'D240 (wąska): kolumna 2 10 mm na zewnątrz (40 i 200), bez podpowiedzi', false);
+  await para(240, { dFront: 100, dBack: 100 }, 'pins', /100 i 140 mm/, /90 i 150 mm.*na zewnątrz/, 'D240, otwory 100 / 100 (przypadek GPT N75): 90 i 150 — bez zbieżnych otworów', false);
+  await para(560, { dFront: 270, dBack: 270 }, 'pins', /270 i 290 mm/, /(do tyłu|do przodu|na zewnątrz)/, 'D560, otwory 270 / 270: do środka się nie da — inne przesunięcie z podpowiedzią o trójkątach', true);
+  await para(240, {}, 'trojkaty', /50 i 190 mm/, /40 i 200 mm.*na zewnątrz/, 'trójkąty D240: kolumna 2 40 i 200 (na zewnątrz)', false);
 }
 
 console.log('\n== N69: blat przy ścianie dalej u góry niż u dołu ==');
@@ -237,6 +251,21 @@ for (const [opis, back, a, bb, hdf, wk] of [['brak, HDF w kolumnie 1', 'none', '
   const ile = (re) => { const r = pr.find((x) => re.test(x)); return r ? Number((/(\d+) szt\./.exec(r.split(' | ').slice(-1)[0]) || [])[1] || (/\| (\d+) szt/.exec(r) || [])[1] || -1) : 0; };
   const z = ile(/^Zszywka/), w = ile(/^Wkręt 3,5/);
   ok(`${opis}: zszywki ${hdf}, wkręty do pleców ${wk}`, z === hdf && w === wk, pr.filter((r) => /pleców/.test(r)).join(' / ') || '(brak)');
+}
+
+console.log('\n== plecy z płyty cofnięte (opcja, użytkownik 2026-10-24) ==');
+for (const rec of [0, 10]) {
+  await seed(proj([{ cab: cab({ back: 'board', backPos: 'inside', backRecess: rec, hangers: 'never', levels: [{ h: null, cols: [kolumna({ shelfTargets: [null, null] })] }] }) }]));
+  const a = await bryly();
+  // plecy wewnatrz: plyta 18, wysoka; polka: plyta pozioma 18 na szerokosc wnetrza
+  const plecy = a.filter((q) => Math.round(q.p[5] - q.p[2]) === 18 && q.p[4] - q.p[1] > 600 && q.p[3] - q.p[0] > 500);
+  const polki = a.filter((q) => Math.round(q.p[4] - q.p[1]) === 18 && q.p[1] > 100 && q.p[1] < 600 && q.p[3] - q.p[0] > 500);
+  const f = (await rows(/^Formatki do zamówienia/)).filter((r) => /^Plecy z płyty/.test(r));
+  const zp = plecy.map((q) => `${Math.round(q.p[2])}…${Math.round(q.p[5])}`).join(', '), zs = polki.map((q) => `${Math.round(q.p[2])}…${Math.round(q.p[5])}`).join(', ');
+  // formatka plecow bez zmian (564 × 684) — cofa sie tylko polozenie
+  ok(`cofnięcie ${rec}: plecy ${560 - 18 - rec}…${560 - rec}, półka kończy się przed nimi, formatka pleców 564 × 684`,
+    plecy.length === 1 && Math.round(plecy[0].p[5]) === 560 - rec && polki.length === 1 && Math.round(polki[0].p[5]) <= 560 - 18 - rec
+      && f.length === 1 && /\| 564 \| 684 \|/.test(f[0]), `plecy z ${zp}; półka z ${zs} | ${f.join(' / ')}`);
 }
 
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');

@@ -12,11 +12,11 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
   - otwór ⌀7 w płycie, w czole łączonej płyty ⌀5 × 50;
   - po 50 mm od krawędzi, co ok. 200 mm, a styk krótszy niż 132 mm — jeden w połowie.
 - **Kołki półek** ⌀5:
-  - po dwa na stronę półki, domyślnie 37 mm od przedniej i tylnej krawędzi („Otwór od przodu / od tyłu”);
+  - po dwa na stronę półki, domyślnie 50 mm od przedniej i tylnej krawędzi, jak trójkąty („Otwór od przodu / od tyłu”; do 2026-10-24 było 37 — stare 37 / 37 przy wczytaniu zmienia się na 50 / 50, inne wpisane liczby zostają);
   - wysokość = spód półki, liczona od dolnej krawędzi boku albo od dna („Wysokość otworów liczona od”);
-  - na przegrodzie, gdy po obu stronach półki są na tej samej wysokości, otwory jednej strony (od kolumny z prawej) przesuwa się tak, żeby były co najmniej 20 mm od siebie i od otworów po drugiej stronie i co najmniej 10 mm od krawędzi półki (`KOLEK_OD_KRAWEDZI`):
-    - najpierw 20 mm do środka półki (zwykle wystarcza — tylko w planie wierceń);
-    - gdy nie wystarcza (płytka półka, np. 240 mm z otworami 100 / 100: 120 i 120) — 20 mm na zewnątrz (80 i 160), potem oba w tył / w przód, potem 40 mm; takie przesunięcie ma informację w Uwagach z „Półki kolumny N na trójkątach”;
+  - na przegrodzie, gdy po obu stronach półki są na tej samej wysokości, otwory jednej strony (od kolumny z prawej) przesuwa się tak, żeby mijały się co najmniej o 10 mm — między sobą i z otworami po drugiej stronie (`KOLEK_PRZESUN`) — i były co najmniej 20 mm od krawędzi półki (`KOLEK_OD_KRAWEDZI`):
+    - zwykle o 10 mm: na półce głębszej niż 300 mm do środka (50 → 60), na wąskiej (do 300 mm, `POLKA_WASKA`) na zewnątrz (50 → 40) — tylko w planie wierceń;
+    - gdy ten kierunek nie wychodzi — drugi, potem oba w tył / w przód, potem o 20 mm; takie przesunięcie ma informację w Uwagach z „Półki kolumny N na trójkątach”;
     - nic nie pasuje — błąd „przesuń półkę o 10 mm albo zamień kołki na trójkąty”.
   - Trójkąty pod półką tak samo (50 mm od krawędzi półki, przesunięcie jak wyżej).
 - **Trójkąty meblowe**: półki na trójkątach, wspornik pionowy bez płyty nad sobą (co 300 mm, min. 2), cokół bez nóżek.
@@ -38,7 +38,7 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
 
 ## Kontrole i przyciski
 
-- **Kołki nie mieszczą się na półce** (przód + tył ≥ głębokość najpłytszej) — błąd z „Ustaw 37 / 37 mm”.
+- **Kołki nie mieszczą się na półce** (przód + tył ≥ głębokość najpłytszej) — błąd z „Ustaw 50 / 50 mm” (na płytkiej półce mniej — tyle, ile się zmieści).
 - **Kołki / trójkąty po obu stronach przegrody** trafiłyby w siebie: przesunięte inaczej niż 20 mm do środka — informacja z „Półki kolumny N na trójkątach”; nie da się rozsunąć — błąd z radą (audyt GPT N75, decyzja użytkownika 2026-10-22).
 - **Konfirmaty z obu stron jednej płyty w tej samej osi** — błąd z wyborem mocowania drugiej strony (`opisy/poziomy.md`).
 - **Zawiasy w jednym miejscu** albo na przeszkodzie — błąd (`opisy/drzwi.md`).
@@ -46,7 +46,7 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
 
 ## Skąd liczby
 
-- **Konfirmaty, kołki i trójkąty**: zasady robocze ustalone z użytkownikiem (2026-09-29: łączenia korpusu w planie wierceń, mocowanie półek; 2026-10-22: kołki na zewnątrz, gdy do środka się nie da, z podpowiedzią o trójkątach).
+- **Konfirmaty, kołki i trójkąty**: zasady robocze ustalone z użytkownikiem (2026-09-29: łączenia korpusu w planie wierceń, mocowanie półek; 2026-10-22: kołki na zewnątrz, gdy do środka się nie da, z podpowiedzią o trójkątach; 2026-10-24: kołki 50 mm od krawędzi jak trójkąty, mijają się o 10 mm, wąska półka — na zewnątrz do 40 mm).
 - **Zawieszka**: karta ZK-ZAW-R0-10 (`instrukcje/`).
 - **Podnośniki GTV i prowadnice DXS-3D**: instrukcje w `instrukcje/` (patrz opisy klap i szuflad).
 

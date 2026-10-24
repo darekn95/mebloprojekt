@@ -154,10 +154,10 @@ const scenariusz = async (tytul, cabLubProjekt, { spr = {} } = {}) => {
       const lewe = polki.filter((q) => q.p[0] <= t + 1).map((q) => Math.round(q.p[1] - d0)).sort((a, c) => a - c);
       ok('kołki w boku lewym na wysokości spodu półek', JSON.stringify([...bokL.ys].sort((a, c) => a - c)) === JSON.stringify(lewe),
         `plan ${bokL.ys.join(',')} / bryła ${lewe.join(',')}`);
-      // odleglosci od przedniej krawedzi plyty: przod polki z bryly + 37 i tyl - 37
+      // odleglosci od przedniej krawedzi plyty: przod polki z bryly + 50 i tyl - 50 (kolki jak trojkaty, 2026-10-24)
       const q0 = polki.find((q) => q.p[0] <= t + 1);
       const [a1, a2] = (bokL.note.match(/([\d.]+) i ([\d.]+) mm od przedniej krawędzi/) || []).slice(1).map(Number);
-      ok('kołki: odległości od przedniej krawędzi płyty jak półka w bryle', !!q0 && Math.abs(a1 - (q0.p[2] + 37)) <= 1 && Math.abs(a2 - (q0.p[5] - 37)) <= 1,
+      ok('kołki: odległości od przedniej krawędzi płyty jak półka w bryle', !!q0 && Math.abs(a1 - (q0.p[2] + 50)) <= 1 && Math.abs(a2 - (q0.p[5] - 50)) <= 1,
         `${bokL.note} / półka z ${q0 && q0.p[2]} do ${q0 && q0.p[5]}`);
     }
   }
@@ -174,14 +174,14 @@ const scenariusz = async (tytul, cabLubProjekt, { spr = {} } = {}) => {
   ok(`trójkąty: w planie ${trPlan}, w okuciach ${trHwN}`,
     trPlan === trHwN, plan.filter((r) => /^trójkąt meblowy/.test(r.kind)).map((r) => `${r.panel} ${r.kind}: ${r.ys.join(',')}`).join(' | '));
 
-  // 3b. przegroda z polkami z obu stron na tej samej wysokosci: jedna strona o 20 mm do srodka
+  // 3b. przegroda z polkami z obu stron na tej samej wysokosci: jedna strona o 10 mm do srodka (glebokie polki; uzytkownik 2026-10-24)
   if (spr.przegrodaObie) {
     const pr = kPlan.filter((r) => /^Przegroda 1/.test(r.panel));
     const k1 = pr.find((r) => /od kolumny 1/.test(r.note)), k2 = pr.find((r) => /od kolumny 2/.test(r.note));
     const odl = (r) => ((r && r.note.match(/⌀5, ([\d.]+) i ([\d.]+) mm/)) || []).slice(1).map(Number);
     const [a1, b1] = odl(k1), [a2, b2] = odl(k2);
-    ok('przegroda: półki na tej samej wysokości — druga strona kołki o 20 mm bliżej środka',
-      !!k1 && !!k2 && a2 - a1 === 20 && b1 - b2 === 20 && /przesunięte o 20 mm/.test(k2.note), pr.map((r) => r.note).join(' | '));
+    ok('przegroda: półki na tej samej wysokości — druga strona kołki o 10 mm bliżej środka',
+      !!k1 && !!k2 && a2 - a1 === 10 && b1 - b2 === 10 && /przesunięte o 10 mm do środka/.test(k2.note), pr.map((r) => r.note).join(' | '));
   }
 
   // 4. prowadnice: wysokosc dolnej krawedzi = dol boku metalowego, otwory wg NL
@@ -349,7 +349,7 @@ const trOk = okT.find((r) => /^Trójkąt/.test(r[0]));
 const trPlan = planT.filter((r) => r.kind === 'trójkąt meblowy').reduce((a, r) => a + r.ys.length * (/2 rzędy/.test(r.note) ? 2 : 1), 0);
 ok(`trójkąty półek: plan ${trPlan} = okucia ${trOk ? num(trOk[trOk.length - 1].split(' ')[0]) : 0}`, !!trOk && trPlan === num(trOk[trOk.length - 1].split(' ')[0]), trOk ? trOk.join(' | ') : '(brak)');
 ok('bez kołków i bez konfirmatów półek', !planT.some((r) => r.kind === 'kołek półki' || r.kind === 'konfirmat — półka') && !okT.some((r) => /^Kołek/.test(r[0])), [...new Set(planT.map((r) => r.kind))].join(', '));
-ok('przy przegrodzie jedna strona przesunięta o 20 mm', planT.some((r) => r.kind === 'trójkąt meblowy' && /przesunięte o 20 mm/.test(r.note) && /od kolumny 2/.test(r.note)),
+ok('przy przegrodzie jedna strona przesunięta o 10 mm', planT.some((r) => r.kind === 'trójkąt meblowy' && /przesunięte o 10 mm/.test(r.note) && /od kolumny 2/.test(r.note)),
   planT.filter((r) => r.kind === 'trójkąt meblowy').map((r) => `${r.panel}: ${r.note}`).join(' / '));
 
 console.log('\n== frez pod HDF w planie ==');
