@@ -61,3 +61,7 @@ zamówienia: „Cały projekt” albo „To pomieszczenie”.
 - **Okucia szafki**: `computeGeo`, koniec (`hardware.push`); narożnik — `cornerArmParts`; ciąg — `projectParts`, `runTopZlacza`.
 - **Zestawienie**: `scalOkucia`, `projectHardware`; wycena — `useMemo` z `rows` w `App` (`DEFAULT_PRICES`, `DEFAULT_HW_PRICES`, `SLIDE_PRICES`, `WORKTOP_PRICES`, `OBRZEZE_ZAPAS`, `priceOf`).
 - **Testy**: `ceny`, `ceny2`, `ceny2std`, `audytwycena`, `hw`, `hw2`, `projhw`, `okucia3`, `audyt`.
+
+## Karty zamówienia (2026-10-24)
+
+Formatki, Rozkrój na płycie, Produkty do zamówienia i Wycena — po jednej karcie, pod tytułem przyciski **Szafka / Pomieszczenie / Projekt** (Pomieszczenie tylko przy kilku pomieszczeniach; przy jednej szafce w projekcie bez przycisków). Pomieszczenie / Projekt to wspólny zakres zamówienia (ten sam co „Zamówienie” na pasku pomieszczeń), „Szafka” wybiera się w każdej karcie osobno i przeglądarka to pamięta. Domyślnie: Formatki i Produkty — szafka, Rozkrój i Wycena — projekt. Rozkrój i wycena „Szafka” liczą arkusze, obrzeże i okucia samej szafki (bez elementów ciągu: cokołu, blatu, listwy).

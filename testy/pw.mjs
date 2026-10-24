@@ -63,7 +63,11 @@ const przyspiesz = (page) => {
    kafelki szafek po przewinieciu strony do kart nizej — domyslnie bez tego;
    suity, ktore to sprawdzaja (`przewijanie`, `niskieokno`), wlaczaja je
    wlasnym `addInitScript(() => { window.__mpBezZwijania = false; })`. */
-const BEZ_ZWIJANIA = () => { window.__mpBezZwijania = true; };
+/* Karty Formatki / Rozkroj / Produkty / Wycena sa od 2026-10-24 po jednej
+   z przelacznikiem Szafka / Pomieszczenie / Projekt. Suity sprzed tej zmiany
+   czytaja dawne osobne karty (szafki i projektu naraz) — dostaja je tu; suita
+   `karty` sprawdza nowy uklad z `window.__mpKartyOsobno = false`. */
+const BEZ_ZWIJANIA = () => { window.__mpBezZwijania = true; window.__mpKartyOsobno = true; };
 
 const kontekst = async (ctx) => {
   await ctx.addInitScript(BEZ_ZWIJANIA);

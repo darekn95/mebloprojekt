@@ -324,6 +324,8 @@ const mocowaniePolek = (cab) => (cab.shelfMount === "confirmat" ? "confirmat"
    rozwiazuje sie polki na konfirmatach po obu stronach jednej przegrody
    (uzytkownik 2026-10-17 po audycie GPT N45). Puste = jak cala szafka. */
 const MOCOWANIA_POLEK = ["pins", "confirmat", "trojkaty"];
+// karty zamowienia: ktore domyslnie pokazuja szafke (reszta — pomieszczenie / projekt)
+const KARTY_NA_SZAFKE = { formatki: true, produkty: true, rozkroj: false, wycena: false };
 const mocowanieKolumny = (cab, rawCol) => (MOCOWANIA_POLEK.includes((rawCol || {}).shelfMount) ? rawCol.shelfMount : mocowaniePolek(cab));
 /* Kolumna z podzialem frontow (`col.podzial`, `col.segmenty`): bez granicy na
    polce k odcinki nad i pod nia lacza sie — zostaja ustawienia dolnego. */
@@ -18261,6 +18263,35 @@ export default function App() {
   const zamTylkoPokoj = zakresZam === "pomieszczenie" && roomsOf(project).length > 1;
   const projZam = useMemo(() => (zamTylkoPokoj ? projektPomieszczenia(project, pokoj) : project),
     [project, pokoj, zamTylkoPokoj]);
+  /* Formatki, rozkroj, produkty i wycena — po jednej karcie z przyciskami
+     Szafka / Pomieszczenie / Projekt pod tytulem (uzytkownik 2026-10-24: „żeby
+     zmniejszyć ilość zakładek”). Pomieszczenie / Projekt to wspolny przelacznik
+     zamowienia (`zakresZam`), „Szafka” — osobno w kazdej karcie (pamietane
+     w przegladarce). Testy sprzed zmiany ogladaja dawne osobne karty
+     (`window.__mpKartyOsobno` z `testy/pw.mjs`). */
+  const kartyOsobno = typeof window !== "undefined" && !!window.__mpKartyOsobno;
+  const [kartySzafka, setKartySzafka] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("mp:kartySzafka") || "null") || {}; } catch (e) { return {}; }
+  });
+  const naSzafke = (k) => !kartyOsobno && zCaloscia && (kartySzafka[k] ?? KARTY_NA_SZAFKE[k]);
+  const ustawZakresKarty = (k, v) => {
+    const nowe = { ...kartySzafka, [k]: v === "szafka" };
+    setKartySzafka(nowe);
+    try { localStorage.setItem("mp:kartySzafka", JSON.stringify(nowe)); } catch (e) { /* bez pamieci w przegladarce */ }
+    if (v !== "szafka") setZakresZam(v === "pokoj" ? "pomieszczenie" : "projekt");
+  };
+  const zakresKarty = (k) => (kartyOsobno || !zCaloscia ? null : (
+    <div className="mb-3 flex flex-wrap items-center gap-2" data-el={`zakres-${k}`}>
+      <div className="w-72 max-w-full">
+        <Seg value={naSzafke(k) ? "szafka" : zamTylkoPokoj ? "pokoj" : "projekt"} onChange={(v) => ustawZakresKarty(k, v)}
+          options={[{ v: "szafka", l: "Szafka" }, ...(roomsOf(project).length > 1 ? [{ v: "pokoj", l: "Pomieszczenie" }] : []), { v: "projekt", l: "Projekt" }]} />
+      </div>
+      <span className="text-xs text-stone-500">
+        {naSzafke(k) ? `szafka „${(cab.name || "").trim() || "bez nazwy"}”`
+          : `${zamTylkoPokoj ? `pomieszczenie „${roomName(project, pokoj)}”` : "cały projekt"} — ${projZam.items.length} ${plural(projZam.items.length, "szafka", "szafki", "szafek")}`}
+      </span>
+    </div>
+  ));
   const projectCutList = useMemo(() => {
     const map = new Map();
     projectParts(projZam).forEach((part) => {
@@ -18360,13 +18391,17 @@ export default function App() {
     return () => clearTimeout(id);
   }, [rozkrojKlucz]); // eslint-disable-line react-hooks/exhaustive-deps
   const autoAktualny = !!autoPlan && autoPlan.key === rozkrojKlucz;
+  // rozkroj samej szafki — dla kart „Rozkrój” / „Wycena” na „Szafka” (jedna szafka liczy sie od razu)
+  const planSzafkiPotrzebny = naSzafke("rozkroj") || naSzafke("wycena");
+  const planSzafki = useMemo(() => (planSzafkiPotrzebny ? { key: "cab", scope: "cab", groups: buildCutPlan(wierszeRozkroju("cab")) } : null),
+    [planSzafkiPotrzebny, wierszeRozkroju]);
   /* Karta „Rozkrój na płycie” jest cały czas i pokazuje ten rozkroj — zakres
      zamowienia (caly projekt albo pomieszczenie; przy jednej szafce ona).
      Recznego „Pokaż rozkrój” i „Rozkrój na płycie” juz nie ma (uzytkownik
      2026-09-30). Tylko dla testow (`audytwycena`, `kolory`): ostatni policzony
      rozkroj lezy w `window.__audytRozkroj` (z `aktualny`, gdy zgadza sie
      z biezacymi formatkami). */
-  const pokazPlan = autoPlan;
+  const pokazPlan = naSzafke("rozkroj") ? planSzafki : autoPlan;
   useEffect(() => {
     if (typeof window !== "undefined")
       window.__audytRozkroj = autoPlan ? { scope: autoPlan.scope, groups: autoPlan.groups, aktualny: autoAktualny } : null;
@@ -18445,7 +18480,7 @@ export default function App() {
     return isWhiteBoard(info.color) ? DEFAULT_PRICES.plytaBiala : DEFAULT_PRICES.plytaKolor;
   };
 
-  const quote = useMemo(() => {
+  const wycenaZ = (planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware) => {
     const rows = [];
     // kazda pozycja niesie swoja cene domyslna, wiec dziala tez dla materialow
     // i okuc, ktorych nie da sie z gory wypisac w stalej
@@ -18496,7 +18531,17 @@ export default function App() {
     });
     const sum = rows.reduce((a, r) => a + r.qty * r.price, 0);
     return { rows, sum };
-  }, [planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, prices, matByLabel]);
+  };
+  const quote = useMemo(() => wycenaZ(planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware),
+    [planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, prices, matByLabel]); // eslint-disable-line react-hooks/exhaustive-deps
+  // wycena samej szafki (karta „Wycena” na „Szafka”): jej arkusze, obrzeze i okucia
+  const quoteSzafki = (() => {
+    if (!naSzafke("wycena")) return null;
+    const by = planSzafki ? {} : null;
+    if (planSzafki) planSzafki.groups.forEach((g) => { by[g.matLabel] = (by[g.matLabel] || 0) + g.sheets.length; });
+    return wycenaZ(by, krawedzieMb(cutList, false), krawedzieMb(cutList, true), krawedzieBoki(cutList, false), krawedzieBoki(cutList, true), cabHardware);
+  })();
+  const qW = quoteSzafki || quote;
 
   /* Szuflada bez miejsca na zadna skrzynke (`|szufbrak:<poziom>:<kolumna>` z `computeGeo`):
      „Zmniejsz do N szuflad” i „Zmień na DXS-3D” — kazdy tylko wtedy, gdy po nim kolumna
@@ -21708,7 +21753,8 @@ export default function App() {
           {/* „Kontrola frontów” (polozenia i luzy frontow) zdjeta z ekranu — uzytkownikowi
               niepotrzebna (2026-09-29); te same liczby sprawdzaja testy z `geo.doors`. */}
 
-          <Card title="Formatki do zamówienia" collapsible
+          {(kartyOsobno || !zCaloscia || naSzafke("formatki")) && (
+          <Card title={kartyOsobno || !zCaloscia ? "Formatki do zamówienia" : "Formatki"} collapsible
             right={
               <div className="flex items-center gap-3">
                 {Object.keys(cab.edgeOverrides || {}).length > 0 && (
@@ -21723,6 +21769,7 @@ export default function App() {
                 </button>
               </div>
             }>
+            {zakresKarty("formatki")}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
@@ -21861,15 +21908,17 @@ export default function App() {
               obrzeże, więc zamawiasz dokładnie te liczby.
             </p>
           </Card>
+          )}
 
-          {zCaloscia && (
-            <Card title={zamTylkoPokoj ? `Formatki pomieszczenia „${roomName(project, pokoj)}”`
+          {zCaloscia && (kartyOsobno || !naSzafke("formatki")) && (
+            <Card title={!kartyOsobno ? "Formatki" : zamTylkoPokoj ? `Formatki pomieszczenia „${roomName(project, pokoj)}”`
               : `Formatki całego projektu${project.name ? " — " + project.name : ""}`} collapsible
               right={
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-stone-400">{projZam.items.length} {plural(projZam.items.length, "szafka", "szafki", "szafek")}</span>
                 </div>
               }>
+              {zakresKarty("formatki")}
               <p className="mb-2 text-xs text-stone-500">
                 Suma formatek ze wszystkich szafek w projekcie — do zamówienia płyty na całość naraz.
                 Formatki o tych samych wymiarach i materiale są łączone; różne materiały liczone osobno.
@@ -21946,8 +21995,9 @@ export default function App() {
 
           {/* Rozkroj widac caly czas (uzytkownik 2026-09-30) — liczy sie sam w tle (`autoPlan`). */}
           {pokazPlan && (
-            <Card id="rozkroj" title={`Rozkrój na płycie${pokazPlan.scope === "project" ? (zamTylkoPokoj ? ` — pomieszczenie „${roomName(project, pokoj)}”` : " — cały projekt") : pokazPlan.scope === "cab" && zCaloscia ? ` — szafka „${cab.name}”` : ""}`}
-              right={!autoAktualny ? <span className="text-xs text-stone-400">przelicza się…</span> : null}>
+            <Card id="rozkroj" title={!kartyOsobno && zCaloscia ? "Rozkrój na płycie" : `Rozkrój na płycie${pokazPlan.scope === "project" ? (zamTylkoPokoj ? ` — pomieszczenie „${roomName(project, pokoj)}”` : " — cały projekt") : pokazPlan.scope === "cab" && zCaloscia ? ` — szafka „${cab.name}”` : ""}`}
+              right={!autoAktualny && !naSzafke("rozkroj") ? <span className="text-xs text-stone-400">przelicza się…</span> : null}>
+              {zakresKarty("rozkroj")}
               <p className="text-xs text-stone-500">
                 Arkusz {fmt(SHEET_W)} × {fmt(SHEET_H)} mm, okrawany przed rozkrojem do
                 {" "}{fmt(USABLE_W)} × {fmt(USABLE_H)} mm, rzaz piły {KERF} mm. Układ jest
@@ -22018,7 +22068,9 @@ export default function App() {
           )}
 
           {/* podpis mowi, czyje to okucia — przy kilku szafkach latwo pomylic karty */}
-          <Card title={`Produkty do zamówienia${(cab.name || "").trim() ? " — " + cab.name.trim() : ""}`} collapsible>
+          {(kartyOsobno || !zCaloscia || naSzafke("produkty")) && (
+          <Card title={!kartyOsobno && zCaloscia ? "Produkty do zamówienia" : `Produkty do zamówienia${(cab.name || "").trim() ? " — " + cab.name.trim() : ""}`} collapsible>
+            {zakresKarty("produkty")}
             {cabHardware.length === 0 ? (
               <p className="text-sm text-stone-400">
                 Brak okuć — dodaj szuflady, uchwyty albo nóżki.
@@ -22051,11 +22103,13 @@ export default function App() {
             {/* „Uchwyt wystaje przed front” i zasada liczby zawiasow sa przy drzwiach
                 (Struktura wnetrza) — tu byly zdublowane (komentarze uzytkownika 2026-09-29). */}
           </Card>
+          )}
 
-          {zCaloscia && (
-            <Card title={zamTylkoPokoj ? `Produkty pomieszczenia „${roomName(project, pokoj)}”`
+          {zCaloscia && (kartyOsobno || !naSzafke("produkty")) && (
+            <Card title={!kartyOsobno ? "Produkty do zamówienia" : zamTylkoPokoj ? `Produkty pomieszczenia „${roomName(project, pokoj)}”`
               : `Produkty całego projektu${project.name ? " — " + project.name : ""}`} collapsible
               right={<span className="text-xs text-stone-400">{projZam.items.length} {plural(projZam.items.length, "szafka", "szafki", "szafek")}</span>}>
+              {zakresKarty("produkty")}
               <p className="mb-2 text-xs text-stone-500">
                 Suma okuć ze wszystkich szafek w projekcie — do zamówienia na całość naraz.
                 Te same pozycje z różnych szafek są sumowane; różne rozmiary i specyfikacje
@@ -22088,7 +22142,8 @@ export default function App() {
 
           {/* wycena na koncu, pod produktami calego projektu (uzytkownik 2026-09-29) */}
           <Card title="Wycena" collapsible defaultOpen={false}>
-            {roomsOf(project).length > 1 && (
+            {zakresKarty("wycena")}
+            {kartyOsobno && roomsOf(project).length > 1 && (
               <p className="text-xs font-medium text-stone-600">
                 {zamTylkoPokoj
                   ? `Zakres: tylko pomieszczenie „${roomName(project, pokoj)}” — przełącznik „Zamówienie” na pasku pomieszczeń.`
@@ -22124,7 +22179,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {quote.rows.map((r) => (
+                  {qW.rows.map((r) => (
                     <tr key={r.key} className="border-b border-stone-100">
                       <td className="py-1.5 pr-3">
                         {r.label}
@@ -22151,7 +22206,7 @@ export default function App() {
             </div>
             <div className="flex items-baseline justify-between border-t border-stone-200 pt-3">
               <span className="text-xs uppercase tracking-wider text-stone-500">Razem</span>
-              <span className="font-mono text-lg">{zl(quote.sum)} zł brutto</span>
+              <span className="font-mono text-lg">{zl(qW.sum)} zł brutto</span>
             </div>
           </Card>
 
