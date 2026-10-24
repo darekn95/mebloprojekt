@@ -29,7 +29,7 @@ Liczby katalogowe obu systemów są dla płyty 18 mm.
 - **Bok**: V-BOX z listy, DXS-3D w mm.
 - **Front**: wysokość frontu każdej szuflady.
 - **Uchwyt**: włączany osobno na każdym froncie.
-- **Wcięcie na palce (podfrez) zamiast uchwytu** — w kolumnie, przy frontach wpuszczanych i nakładanych (nakładane od 2026-10-24, decyzja użytkownika): każdy front niższy od góry o podaną głębokość (domyślnie 18 mm), prowadnice i podział pasma bez zmian, uchwyty kolumny znikają (pojedynczy można włączyć z powrotem); wyłączenie oddaje uchwyty. W szczelinie nad frontem widać skrzynkę.
+- **Wcięcie na palce (podfrez) zamiast uchwytu** — w kolumnie, przy frontach wpuszczanych i nakładanych (nakładane od 2026-10-24, decyzja użytkownika): każdy front niższy od góry o podaną głębokość (domyślnie 18 mm), prowadnice i podział pasma bez zmian, uchwyty kolumny znikają (pojedynczy można włączyć z powrotem); wyłączenie oddaje uchwyty. W szczelinie nad frontem widać skrzynkę. **Górny front nakładany** zachodzi na płytę nad sobą (wieniec, przegroda, wzmocnienie przy licu), więc jego wcięcie liczy się od spodu tej płyty: front kończy się podaną głębokość pod nią, a nie pod swoją dawną górą (2026-10-24 — przy 18 mm zostawały palcom 3 mm). Przy wpuszczanych i niższych frontach wystarcza głębokość od góry frontu. Niższy górny front może dostać niższy bok skrzynki (np. 189 mm → 127 zamiast 178).
 - **Tył**: V-BOX — podniesiony, DXS-3D — wysokość w mm.
 - **NL**: dla całej kolumny albo dla jednej szuflady.
 - **Luz między frontami**: wspólny z drzwiami, domyślnie 2 mm.

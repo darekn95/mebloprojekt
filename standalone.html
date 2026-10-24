@@ -3620,7 +3620,16 @@ function computeGeoLiczy(cab, mat, ctx) {
       let y = dlo;
       ds.forEach((d, i) => {
         const fhFull = fr.sizes[i];
-        const fh = Math.max(0, fhFull - grip);
+        /* Gorny front nakladany zachodzi na plyte nad soba (wieniec, przegroda,
+           wzmocnienie przy licu) — podfrez od jego gory dalby palcom tylko
+           luz do spodu tej plyty. Skracamy go wiec o glebokosc podfrezu liczona
+           od spodu plyty, a nie od gory frontu (uzytkownik 2026-10-24). Nizsze
+           fronty maja nad soba szczeline do sasiedniej szuflady — wystarczy grip. */
+        const nadPlyta = grip && !dIn && i === ds.length - 1
+          ? Math.max(0, Math.round(y + fhFull - Math.min(lv.y1, ...(c.rails || [])
+            .filter((r) => r.y0 >= y && r.z0 < 100 && r.x1 > dsx0 && r.x0 < dsx1).map((r) => r.y0))))
+          : 0;
+        const fh = Math.max(0, fhFull - grip - nadPlyta);
         if (systemSzuflady(d) === "dxs") {
           szufladaDxs(d, i, fhFull, fh);
           y += fhFull + drGap;

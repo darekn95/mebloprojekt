@@ -122,6 +122,10 @@ await page.waitForTimeout(1200);
 f = await fronts();
 const hn1 = Number((f[0] || '').split('|')[2].trim());
 ok('front nakładany krótszy o 18 mm', hn1 === hn0 - 18, `${hn0} → ${hn1}`);
+/* Gorny front zachodzi 15 mm na wieniec — podfrez liczony od spodu wienca, nie
+   od gory frontu (uzytkownik 2026-10-24): 702 − 18 = 684, front od 481 → 203 mm. */
+const hGora = f.map((r) => Number(r.split('|')[2].trim()));
+ok('górny front 18 mm pod spodem wieńca (203 mm), niższe tylko o 18', hGora.includes(203) && hGora.includes(hn1), f.join(' / '));
 hw = await hwRows();
 ok('uchwyty zniknęły z zamówienia', !hw.some((r) => /^Uchwyt/.test(r)), hw.find((r) => /^Uchwyt/.test(r)));
 const nN = await notes();
@@ -132,6 +136,19 @@ for (const v of ['Zamk.', 'Z boku', '3D']) {
   ok(`nakładane, widok ${v}`, errors.length === k, errors.slice(k).join('; '));
 }
 await view('Zamk.');
+
+console.log('\n== nakładane pod przegrodą: górny front 18 mm pod nią ==');
+await page.evaluate(() => {
+  localStorage.clear();
+  const cab = { name: 'T', W: 600, H: 1400, D: 500, frontMode: 'overlay',
+    levels: [{ h: 600, cols: [{ kind: 'drawers', w: null, drawerMode: 'overlay', fingerGrip: true, drawers: [{ h: 'auto' }, { h: 'auto' }] }] },
+      { h: null, cols: [{ kind: 'doors', doors: 1, w: null }] }] };
+  localStorage.setItem('szafki:projekt', JSON.stringify({ name: 'T', active: 0, prices: {}, items: [{ cab }] }));
+});
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2200);
+f = await fronts();
+// swiatlo poziomu 18–618, przegroda nad nim: gorny front od 315 do 618 − 18 = 600
+ok('przegroda nad szufladami: górny front 285 mm (do 600 = spód przegrody − 18)', f.some((r) => Number(r.split('|')[2].trim()) === 285), f.join(' / '));
 
 console.log('\n== widoki bez błędów ==');
 await seed({ fingerGrip: true });
