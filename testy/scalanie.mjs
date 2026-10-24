@@ -47,6 +47,19 @@ console.log('== warunki scalenia ==');
   await page.getByRole('button', { name: 'Anuluj', exact: true }).first().click();
 }
 
+console.log('\n== znaczek ⊞ na pasku szafek (użytkownik 2026-10-24) ==');
+{
+  await seed(SALON(), 0);
+  const ikony = page.locator('[data-el="scal-z-paska"]');
+  ok('⊞ przy każdej szafce ciągu, z dymkiem „Scal z szafką obok w jedną”', (await ikony.count()) === 4 && (await ikony.first().getAttribute('title')) === 'Scal z szafką obok w jedną');
+  ok('w karcie ciągu większy przycisk „⊞ Scal szafki w jedną…”', /text-sm/.test(await page.locator('[data-el="scal-otworz"]').getAttribute('class')));
+  await ikony.nth(2).click(); await page.waitForTimeout(700);
+  const p = await zap();
+  ok('klik ⊞ przy S3: S3 aktywna, okienko z zaznaczonymi S3 i S4', p.active === 2 && (await panel().count()) === 1
+    && JSON.stringify(await panel().locator('input[type=checkbox]').evaluateAll((xs) => xs.map((x) => x.checked))) === '[false,false,true,true]', `aktywna ${p.active}`);
+  ok('okienko widoczne na ekranie (przewinięte)', await panel().isVisible());
+}
+
 console.log('\n== boki pojedyncze: jedna szafka z przegrodami ==');
 {
   await seed(SALON());

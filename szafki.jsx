@@ -16133,6 +16133,22 @@ export default function App() {
   const [rozwiazPyt, setRozwiazPyt] = useState(null);
   // okienko „Scal szafki…” w karcie ciagu: { runId, idxs, boki, wieniec, dno }
   const [scalanie, setScalanie] = useState(null);
+  /* ⊞ na pasku szafek: ta szafka i jej sasiad z prawej (z lewej, gdy ostatnia),
+     karta ciagu sie rozwija, a strona przewija do okienka. */
+  const otworzScalanie = (i, runId) => {
+    const lista = runItems(project, runId);
+    const poz = lista.findIndex((x) => x.i === i);
+    const obok = lista[poz + 1] || lista[poz - 1];
+    const run = (project.runs || []).find((r) => r.id === runId) || {};
+    if (!obok) return;
+    switchCabinet(i);
+    setScalanie({ runId, idxs: [i, obok.i], boki: "pojedyncze", wieniec: !!run.wspolnyWieniec, dno: !!run.wspolneDno });
+    window.dispatchEvent(new CustomEvent("mp-karta", { detail: { id: "ciag-meblowy" } }));
+    setTimeout(() => {
+      const el = document.querySelector('[data-el="scalanie"]');
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+  };
 
   // kazda zmiana projektu przechodzi tu — zapisuje poprzedni stan do historii
   const setProject = useCallback((next) => {
@@ -18444,6 +18460,13 @@ export default function App() {
                           className={arrow}>
                           ⧉
                         </button>
+                        {/* scalanie z szafka obok — to samo okienko co w karcie ciagu (uzytkownik 2026-10-24) */}
+                        {grp.id && list.length > 1 && (
+                          <button onClick={() => otworzScalanie(i, grp.id)} title="Scal z szafką obok w jedną"
+                            data-el="scal-z-paska" className={arrow}>
+                            ⊞
+                          </button>
+                        )}
                         {itemsInRoom(project, pokoj).length > 1 && (
                           <button onClick={() => removeCabinet(i)} title="Usuń szafkę"
                             className={"shrink-0 rounded-full px-1 leading-none " + (activeTab ? "hover:bg-teal-800" : "hover:bg-stone-200")}>×</button>
@@ -18501,7 +18524,7 @@ export default function App() {
       <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]">
         <div className="space-y-4">
           {runsInRoom(project, pokoj).length > 0 && (
-            <Card title="Ciąg meblowy" collapsible>
+            <Card title="Ciąg meblowy" collapsible id="ciag-meblowy">
               {/* Najpierw ta jedna szafka (kilka pol), pod nia caly ciag — zeby
                   bylo jasne, co zmienia tylko ja, a co wszystkie szafki ciagu. */}
               <CardPart title="Ta szafka w ciągu" first>
@@ -18599,10 +18622,12 @@ export default function App() {
                       const obok = lista[poz + 1] || lista[poz - 1];
                       return (
                         <div>
+                          {/* wiekszy napis (uzytkownik 2026-10-24) — to samo okienko otwiera ⊞ na pasku szafek */}
                           <button data-el="scal-otworz" onClick={() => setScalanie({ runId: id, idxs: [project.active, obok.i], boki: "pojedyncze",
                             wieniec: !!runInfo.run.wspolnyWieniec, dno: !!runInfo.run.wspolneDno })}
-                            className="text-xs text-teal-700 hover:underline">
-                            Scal szafki w jedną…
+                            title="Połącz szafki ciągu stojące obok siebie w jedną — wybór szafek i boków na stykach"
+                            className="rounded border border-teal-600 px-2 py-1 text-sm font-medium text-teal-700 hover:bg-teal-50">
+                            ⊞ Scal szafki w jedną…
                           </button>
                         </div>
                       );
