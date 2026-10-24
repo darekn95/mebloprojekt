@@ -3,15 +3,18 @@
 Front uchylny zamiast skrzydła — tylko przy **jednych drzwiach w kolumnie**:
 „front: skrzydło / klapa”, a przy klapie „otwierana: do góry / w dół”.
 
-**„klapy zamiast drzwi”** (pod polem drzwi) zamienia każdą półkę kolumny w granicę
-poziomów, a w każdym nowym poziomie stawia klapę do góry. Działa tylko w poziomie
-z jedną kolumną. Dolne poziomy dostają wpisaną wysokość, górny jest auto.
-Gdy klapa na każdej półce byłaby niższa, niż potrzebuje podnośnik (wpuszczane 265,
-bliźniacze 257, górna nakładana 249 mm), przycisk jest szary z dopiskiem „za nisko
-na klapy na każdej półce” (liczby w dymku) — bez ostrzeżenia przy wybranych drzwiach.
-Obok warianty z mniejszą liczbą klap, które się mieszczą (`wariantyKlap`): „N klapy
-zamiast drzwi” (pasma dzielone równo, półki w środku zostają) i „jedna klapa zamiast
-drzwi” (cała kolumna, półki zostają) — użytkownik 2026-10-24.
+**„klapy zamiast drzwi…”** (pod polem drzwi, poziom z jedną kolumną) otwiera kreator
+(użytkownik 2026-10-24): **ile klap** (1 … liczba pasm; zmiana dzieli równo),
+**granice** — które półki stają się poziomami (płyta przez całą szafkę; półki to półki,
+a poziomy to poziomy — pozostałe półki zostają w środku klapy), **otwierane** do góry /
+w dół, **front** nakładany / wpuszczany (dla całej szafki — klapy nie mają frontu na
+kolumnę) i **podnośniki / amortyzatory** auto / 1 / 2. Pod spodem wysokość każdej klapy
+z ✓ albo „za nisko, podnośnik potrzebuje ok. N mm” (wpuszczane 265, bliźniacze 257,
+górna nakładana 249, amortyzator 260); gdy któraś za niska — „Nie da się …” i bez
+przycisku „Zrób”. Na start: najwięcej klap, które się mieszczą. Dolne poziomy dostają
+wpisaną wysokość, górny jest auto. Gdy nawet jedna klapa na całą kolumnę jest za niska —
+szary przycisk z dopiskiem „za nisko na klapy” (liczby w dymku), bez ostrzeżenia przy
+wybranych drzwiach.
 
 ## Co program liczy sam
 

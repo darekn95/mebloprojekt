@@ -15783,6 +15783,18 @@ const wariantyKlap = (pasma, t, potrzeba) => {
   });
 };
 
+// wysokosci poziomow klap przy polkach-granicach `granice` (indeksy polek od dolu)
+const wysKlap = (pasma, t, granice) => {
+  const g = [...new Set(granice)].sort((a, b) => a - b);
+  const kon = [...g, pasma.length - 1];
+  let od = 0;
+  return kon.map((k) => {
+    const h = pasma.slice(od, k + 1).reduce((a, b) => a + b, 0) + (k - od) * t;
+    od = k + 1;
+    return Math.round(h);
+  });
+};
+
 /* Ktore szafki uzywaja plyty `k`: fronty i polki z wlasnej plyty tylko przy
    odznaczonym „z tej samej płyty co korpus”. */
 const uzywaPlyty = (cab, k) => (k === "front" ? cab.frontSameAsBoard === false
@@ -17339,7 +17351,10 @@ export default function App() {
           c2.rails = (col.rails || []).filter((r) => (r.pos === "bottom" ? m === 0 : ostatni));
           if (col.fix && col.fix.side === "top" && !ostatni) delete c2.fix;
           if (naKlapy) {
-            c2.kind = "doors"; c2.doors = 1; c2.klapa = "gora";
+            // z kreatora klap: kierunek i liczba podnosnikow / amortyzatorow
+            const op = typeof naKlapy === "object" ? naKlapy : {};
+            c2.kind = "doors"; c2.doors = 1; c2.klapa = op.kier === "dol" ? "dol" : "gora";
+            if (op.sil === 1 || op.sil === 2) c2.silowniki = op.sil; else delete c2.silowniki;
             c2.hinges = []; c2.doorWidths = [];
             // klapa na kilka pasm (wariant „N klapy”) — polki w srodku zostaja
             if (c2.shelfTargets.length <= 1) c2.shelfTargets = [null];
@@ -17358,11 +17373,24 @@ export default function App() {
   };
 
   // jedna klapa na cala kolumne — polki zostaja w srodku
-  const jednaKlapa = (i, j) => editLevels((L) => {
+  const jednaKlapa = (i, j, op = {}) => editLevels((L) => {
     const col = L[i].cols[j];
-    col.kind = "doors"; col.doors = 1; col.klapa = "gora";
+    col.kind = "doors"; col.doors = 1; col.klapa = op.kier === "dol" ? "dol" : "gora";
+    if (op.sil === 1 || op.sil === 2) col.silowniki = op.sil; else delete col.silowniki;
     col.hinges = []; col.doorWidths = [];
   });
+  /* Kreator klap (uzytkownik 2026-10-24): ile klap, na ktorych polkach granice
+     (te polki staja sie poziomami — polki to polki, a poziomy to poziomy), jak
+     otwierane, front nakladany / wpuszczany (cala szafka) i podnosniki. */
+  const [kreatorKlap, setKreatorKlap] = useState(null);
+  const zrobKlapy = (i, j, kk) => {
+    if ((kk.front === "inset" ? "inset" : "overlay") !== (cab.frontMode === "inset" ? "inset" : "overlay"))
+      set({ frontMode: kk.front });
+    const op = { kier: kk.kier, sil: kk.sil };
+    if (!kk.granice.length) jednaKlapa(i, j, op);
+    else polkiNaPoziomy(i, j, kk.granice, op);
+    setKreatorKlap(null);
+  };
 
   // liczba polek = liczba swiatel minus 1, wiec dodanie polki to dodanie swiatla
   const addShelf = (i, j) =>
@@ -19224,46 +19252,107 @@ export default function App() {
                         {/* zaraz pod drzwiami (komentarz uzytkownika 2026-10-17): klapy zamiast
                             drzwi, poziom zamiast polki — tylko w poziomie z jedna kolumna */}
                         {c.kind === "doors" && lv.cols.length === 1 && nS > 0 && (() => {
-                          /* Klapa na kazdej polce za niska na podnosnik GTV (plytka pod plyta
-                             z zawiasami plus jej promien) — szary przycisk z dopiskiem, bez
-                             ostrzezenia przy wybranych drzwiach (uzytkownik 2026-10-24). Obok
-                             warianty z mniejsza liczba klap, ktore sie mieszcza. */
                           const ys = [lv.y0, ...c.shelves.flatMap((s2) => [s2.y, s2.y + geo.t]), lv.y1];
                           const pasma = [...Array(ys.length / 2)].map((_, m) => Math.round(ys[2 * m + 1] - ys[2 * m]));
-                          const potrzeba = (m, k) => (cab.frontMode !== "overlay" ? PODNOSNIK_H.wpuszczane[90]
+                          /* najnizszy poziom pod klape: plytka pod plyta z zawiasami (podnosnik GTV wg
+                             nalozenia frontu, amortyzator przy klapie w dol) plus jej promien */
+                          const potrzeba = (m, k, kier, front) => (kier === "dol" ? AMORTYZATOR_H
+                            : front === "inset" ? PODNOSNIK_H.wpuszczane[90]
                             : m === k - 1 ? PODNOSNIK_H.nakladane[90] : PODNOSNIK_H.blizniacze[90]) + KLAPA_PLYTKA_R;
-                          const wr = wariantyKlap(pasma, geo.t, potrzeba);
-                          const kazda = wr[0];
-                          const pasujace = wr.slice(1).filter((w) => w.miesci);
-                          const jedna = pasujace.find((w) => w.k === 1);
-                          const pokaz = kazda.miesci ? [jedna] : [pasujace[0], jedna];
-                          const warianty = [...new Set(pokaz.filter(Boolean))];
+                          const frontSz = cab.frontMode === "inset" ? "inset" : "overlay";
+                          const kk = kreatorKlap && kreatorKlap.idx === project.active && kreatorKlap.li === lv.i && kreatorKlap.j === c.j ? kreatorKlap : null;
+                          const wr = wariantyKlap(pasma, geo.t, (m, k) => potrzeba(m, k, "gora", frontSz));
+                          const jakas = wr.find((w) => w.miesci);
+                          if (!kk) {
+                            const otworz = () => setKreatorKlap({ idx: project.active, li: lv.i, j: c.j,
+                              granice: (jakas || wr[wr.length - 1]).granice, kier: "gora", front: frontSz, sil: "auto" });
+                            return (
+                              <div className="text-xs" data-el="polki-na-klapy">
+                                {jakas ? (
+                                  <>
+                                    <MiniBtn onClick={otworz}>klapy zamiast drzwi…</MiniBtn>
+                                    <span className="ml-2 text-[11px] text-stone-400">zapyta: ile klap, na których półkach, jak otwierane i mocowane</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="cursor-not-allowed rounded border border-stone-200 px-1.5 py-0.5 text-[11px] text-stone-400"
+                                      title={`Nawet jedna klapa na całą kolumnę miałaby ${fmt(wr[wr.length - 1].wys[0])} mm — podnośnik GTV potrzebuje ok. ${fmt(wr[wr.length - 1].min[0])} mm wysokości poziomu.`}>
+                                      klapy zamiast drzwi
+                                    </span>
+                                    <span className="ml-2 text-[11px] text-stone-400" data-el="klapy-za-niskie">za nisko na klapy</span>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          }
+                          const zmien = (patch) => setKreatorKlap({ ...kk, ...patch });
+                          const k = kk.granice.length + 1;
+                          const wys = wysKlap(pasma, geo.t, kk.granice);
+                          const min = wys.map((_, m) => potrzeba(m, k, kk.kier, kk.front));
+                          const zaNiskie = wys.map((h, m) => ({ m, h, min: min[m] })).filter((q) => q.h < q.min);
+                          const ileOpcje = pasma.map((_, q) => ({ v: String(q + 1), l: String(q + 1) }));
+                          const wyrownaj = (n) => zmien({ granice: wr.find((w) => w.k === n).granice });
+                          const odDolu = (m) => Math.round(c.shelves[m].y - lv.y0);
                           return (
-                            <div className="text-xs" data-el="polki-na-klapy">
-                              {kazda.miesci ? (
-                                <>
-                                  <MiniBtn onClick={() => polkiNaPoziomy(lv.i, c.j, c.shelves.map((_, k) => k), true)}>klapy zamiast drzwi</MiniBtn>
-                                  <span className="ml-2 text-[11px] text-stone-400">każda półka → nowy poziom, w każdym klapa do góry</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="cursor-not-allowed rounded border border-stone-200 px-1.5 py-0.5 text-[11px] text-stone-400"
-                                    title={`Klapy na każdej półce wyszłyby po ${listPl(kazda.wys.map((h) => fmt(h)))} mm — podnośnik GTV potrzebuje ok. ${fmt(Math.max(...kazda.min))} mm wysokości poziomu.`}>
-                                    klapy zamiast drzwi
-                                  </span>
-                                  <span className="ml-2 text-[11px] text-stone-400" data-el="klapy-za-niskie">za nisko na klapy na każdej półce</span>
-                                </>
-                              )}
-                              {warianty.map((w) => (
-                                <div key={w.k} className="mt-1" data-el="klapy-wariant">
-                                  <MiniBtn onClick={() => (w.k === 1 ? jednaKlapa(lv.i, c.j) : polkiNaPoziomy(lv.i, c.j, w.granice, true))}>
-                                    {w.k === 1 ? "jedna klapa zamiast drzwi" : `${w.k} ${plural(w.k, "klapa", "klapy", "klap")} zamiast drzwi`}
-                                  </MiniBtn>
-                                  <span className="ml-2 text-[11px] text-stone-400">
-                                    {w.k === 1 ? "na całą kolumnę, półki zostają" : `poziomy po ${listPl(w.wys.map((h) => fmt(h)))} mm, półki w środku zostają`}
-                                  </span>
+                            <div className="space-y-2 rounded border border-teal-200 bg-teal-50 p-2 text-xs" data-el="kreator-klap">
+                              <div className="font-medium text-stone-700">Klapy zamiast drzwi</div>
+                              <p className="text-[11px] text-stone-500">
+                                Półki zaznaczone jako granice staną się poziomami (płyta przez całą szafkę) — w każdym poziomie jedna klapa.
+                                Pozostałe półki zostają półkami w środku klapy.
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <span className="w-24 shrink-0 text-stone-500">ile klap</span>
+                                <Seg value={String(k)} onChange={(v) => wyrownaj(Number(v))} options={ileOpcje} />
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <span className="w-24 shrink-0 text-stone-500">granice</span>
+                                <div className="flex flex-col-reverse gap-0.5" data-el="klapy-granice">
+                                  {c.shelves.map((_, m) => (
+                                    <label key={m} className="flex items-center gap-1">
+                                      <input type="checkbox" checked={kk.granice.includes(m)}
+                                        onChange={(e) => zmien({ granice: e.target.checked ? [...kk.granice, m].sort((a, b) => a - b) : kk.granice.filter((x) => x !== m) })}
+                                        className="h-3.5 w-3.5 accent-teal-700" />
+                                      <span>półka {m + 1} ({fmt(odDolu(m))} mm od dołu) → poziom</span>
+                                    </label>
+                                  ))}
                                 </div>
-                              ))}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-24 shrink-0 text-stone-500">otwierane</span>
+                                <Seg value={kk.kier} onChange={(v) => zmien({ kier: v })}
+                                  options={[{ v: "gora", l: "do góry" }, { v: "dol", l: "w dół" }]} />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-24 shrink-0 text-stone-500">front</span>
+                                <Seg value={kk.front} onChange={(v) => zmien({ front: v })}
+                                  options={[{ v: "overlay", l: "nakładany" }, { v: "inset", l: "wpuszczany" }]} />
+                                <span className="text-[11px] text-stone-400">dla całej szafki</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-24 shrink-0 text-stone-500">{kk.kier === "dol" ? "amortyzatory" : "podnośniki"}</span>
+                                <Seg value={String(kk.sil)} onChange={(v) => zmien({ sil: v === "auto" ? "auto" : Number(v) })}
+                                  options={[{ v: "auto", l: "auto" }, { v: "1", l: "1" }, { v: "2", l: "2 (po bokach)" }]} />
+                              </div>
+                              <ul className="space-y-0.5" data-el="klapy-wynik">
+                                {wys.map((h, m) => (
+                                  <li key={m} className={h < min[m] ? "text-red-700" : "text-stone-600"}>
+                                    klapa {m + 1} (od dołu): poziom {fmt(h)} mm {h < min[m] ? `— za nisko, ${kk.kier === "dol" ? "amortyzator" : "podnośnik"} potrzebuje ok. ${fmt(min[m])} mm` : "✓"}
+                                  </li>
+                                ))}
+                              </ul>
+                              {zaNiskie.length > 0 && (
+                                <p className="text-[11px] text-red-700" data-el="klapy-nie-da-sie">
+                                  Nie da się: {zaNiskie.map((q) => `klapa ${q.m + 1} ma ${fmt(q.h)} mm`).join(", ")} — zaznacz mniej granic albo zmniejsz liczbę klap.
+                                </p>
+                              )}
+                              <div className="flex gap-2">
+                                {zaNiskie.length === 0 && (
+                                  <MiniBtn tone="on" onClick={() => zrobKlapy(lv.i, c.j, kk)}>
+                                    {k === 1 ? "Zrób jedną klapę" : `Zrób ${k} ${plural(k, "klapę", "klapy", "klap")}`}
+                                  </MiniBtn>
+                                )}
+                                <MiniBtn onClick={() => setKreatorKlap(null)}>Anuluj</MiniBtn>
+                              </div>
                             </div>
                           );
                         })()}

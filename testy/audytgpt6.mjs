@@ -376,7 +376,8 @@ console.log('\n== usunięcie poziomu / kolumny z wpisanym wymiarem — miejsce b
   const zap = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt')));
   await seed(proj([{ cab: cab({ H: 1300, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null, null] }] }] }) }]));
   ok('słupek 1300 z 3 półkami: bez ostrzeżenia przy „klapy zamiast drzwi” (klapy ok. 300 mm)', (await page.locator('[data-el="klapy-za-niskie"]').count()) === 0);
-  await page.getByRole('button', { name: 'klapy zamiast drzwi', exact: true }).first().click(); await page.waitForTimeout(800);
+  await page.getByRole('button', { name: 'klapy zamiast drzwi…', exact: true }).first().click(); await page.waitForTimeout(400);
+  await page.getByRole('button', { name: 'Zrób 4 klapy', exact: true }).first().click(); await page.waitForTimeout(800);
   let L = (await zap()).items[0].cab.levels.map((l) => l.h);
   // lista poziomow w Strukturze idzie od gory: usun nr 2 od dolu
   const usun = page.getByRole('button', { name: 'usuń', exact: true });
@@ -390,29 +391,41 @@ console.log('\n== usunięcie poziomu / kolumny z wpisanym wymiarem — miejsce b
   ok('kolumny 200 / 200 / auto, usunięta pierwsza → 418 / auto', JSON.stringify(W2) === '[418,null]', JSON.stringify(W2));
 }
 
-console.log('\n== „klapy zamiast drzwi”: za nisko — szary przycisk, warianty z mniejszą liczbą klap (użytkownik 2026-10-24) ==');
+console.log('\n== kreator klap: ile klap, granice, otwieranie, front, podnośniki (użytkownik 2026-10-24) ==');
 {
   const zap = async () => { await page.waitForTimeout(1000); return JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt'))); };
+  const kr = () => page.locator('[data-el="kreator-klap"]');
+  const wynik = async () => (await kr().locator('[data-el="klapy-wynik"] li').allInnerTexts()).join(' / ');
   await seed(proj([{ cab: cab({ levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null] }] }] }) }]));
-  const dop = page.locator('[data-el="klapy-za-niskie"]');
-  const t = (await dop.count()) ? await dop.first().innerText() : '';
-  const tytul = (await dop.count()) ? await page.locator('[data-el="polki-na-klapy"] span[title]').first().getAttribute('title') : '';
-  ok('szafka 720 z 2 półkami (pasma 216): szary „klapy zamiast drzwi” z dopiskiem „za nisko…”, liczby w dymku, bez pomarańczowego ostrzeżenia',
-    t === 'za nisko na klapy na każdej półce' && /po 216, 216 i 216 mm — podnośnik GTV potrzebuje ok\. 257 mm/.test(tytul || '')
-    && (await page.getByRole('button', { name: 'klapy zamiast drzwi', exact: true }).count()) === 0 && !(await page.locator('[data-el="polki-na-klapy"] .text-amber-700').count()), `${t} | ${tytul}`);
-  const war = await page.locator('[data-el="klapy-wariant"]').allInnerTexts();
-  ok('wariant: tylko „jedna klapa zamiast drzwi” (2 klapy: górna 216 mm też za niska)', war.length === 1 && /^jedna klapa zamiast drzwi/.test(war[0]), war.join(' / '));
-  await page.getByRole('button', { name: 'jedna klapa zamiast drzwi', exact: true }).click(); await page.waitForTimeout(600);
+  ok('przy drzwiach bez ostrzeżenia o klapach — tylko „klapy zamiast drzwi…” z opisem', (await page.locator('[data-el="klapy-za-niskie"]').count()) === 0
+    && (await page.getByRole('button', { name: 'klapy zamiast drzwi…', exact: true }).count()) === 1);
+  await page.getByRole('button', { name: 'klapy zamiast drzwi…', exact: true }).click(); await page.waitForTimeout(400);
+  ok('szafka 720 z 2 półkami: kreator startuje od jednej klapy (684 mm ✓), granice odznaczone', /klapa 1 \(od dołu\): poziom 684 mm ✓/.test(await wynik())
+    && (await kr().locator('[data-el="klapy-granice"] input:checked').count()) === 0, await wynik());
+  await kr().getByRole('button', { name: '3', exact: true }).click(); await page.waitForTimeout(300);
+  const nds = (await kr().locator('[data-el="klapy-nie-da-sie"]').count()) ? await kr().locator('[data-el="klapy-nie-da-sie"]').innerText() : '';
+  ok('3 klapy (po 216 mm): „Nie da się …” i bez przycisku „Zrób”', /Nie da się: klapa 1 ma 216 mm, klapa 2 ma 216 mm, klapa 3 ma 216 mm/.test(nds)
+    && !(await kr().getByRole('button', { name: /^Zrób/ }).count()), `${nds} | ${await wynik()}`);
+  await kr().getByRole('button', { name: '1', exact: true }).first().click(); await page.waitForTimeout(200);
+  await kr().getByRole('button', { name: 'w dół', exact: true }).click(); await page.waitForTimeout(200);
+  await kr().getByRole('button', { name: 'Zrób jedną klapę', exact: true }).click(); await page.waitForTimeout(600);
   let c = (await zap()).items[0].cab;
   const k0 = c.levels[0].cols[0];
-  ok('„jedna klapa”: kolumna z klapą do góry, 1 front, półki zostają (3 pasma)', c.levels.length === 1 && k0.klapa === 'gora' && k0.doors === 1 && k0.shelfTargets.length === 3, JSON.stringify(k0));
+  ok('„Zrób jedną klapę” w dół: kolumna z klapą w dół, 1 front, półki zostają (3 pasma)', c.levels.length === 1 && k0.klapa === 'dol' && k0.doors === 1 && k0.shelfTargets.length === 3, JSON.stringify(k0));
   await seed(proj([{ cab: cab({ H: 1300, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null, null, null, null] }] }] }) }]));
-  const war2 = await page.locator('[data-el="klapy-wariant"]').allInnerTexts();
-  ok('szafka 1300 z 5 półkami (pasma ok. 196): warianty „3 klapy” (poziomy po ok. 410) i „jedna klapa”', war2.length === 2 && /^3 klapy zamiast drzwi/.test(war2[0]) && /poziomy po \d+, \d+ i \d+ mm/.test(war2[0]) && /^jedna klapa/.test(war2[1]), war2.join(' / '));
-  await page.getByRole('button', { name: '3 klapy zamiast drzwi', exact: true }).click(); await page.waitForTimeout(600);
+  await page.getByRole('button', { name: 'klapy zamiast drzwi…', exact: true }).click(); await page.waitForTimeout(400);
+  ok('szafka 1300 z 5 półkami (pasma ok. 196): kreator proponuje 3 klapy (granice na półkach 2 i 4)', /klapa 3/.test(await wynik()) && !/klapa 4/.test(await wynik())
+    && JSON.stringify(await kr().locator('[data-el="klapy-granice"] input').evaluateAll((xs) => xs.map((x) => x.checked))) === '[false,true,false,true,false]', await wynik());
+  // wlasne granice: tylko polka 3 → 2 klapy po ok. 624 mm
+  const gr = kr().locator('[data-el="klapy-granice"] input');
+  await gr.nth(1).uncheck(); await gr.nth(3).uncheck(); await gr.nth(2).check(); await page.waitForTimeout(200);
+  await kr().getByRole('button', { name: 'wpuszczany', exact: true }).click();
+  await kr().getByRole('button', { name: '2 (po bokach)', exact: true }).click(); await page.waitForTimeout(200);
+  ok('granica na półce 3: dwie klapy ✓', /klapa 1 \(od dołu\): poziom \d+ mm ✓ \/ klapa 2 \(od dołu\): poziom \d+ mm ✓$/.test(await wynik()), await wynik());
+  await kr().getByRole('button', { name: 'Zrób 2 klapy', exact: true }).click(); await page.waitForTimeout(700);
   c = (await zap()).items[0].cab;
-  ok('„3 klapy”: trzy poziomy z klapą, w każdym jedna półka (2 pasma)', c.levels.length === 3 && c.levels.every((l) => l.cols[0].klapa === 'gora' && l.cols[0].shelfTargets.length === 2),
-    JSON.stringify(c.levels.map((l) => [l.h, l.cols[0].klapa, l.cols[0].shelfTargets.length])));
+  ok('„Zrób 2 klapy”: 2 poziomy z klapą do góry, w każdym 2 półki, 2 podnośniki, fronty wpuszczane', c.levels.length === 2 && c.levels.every((l) => l.cols[0].klapa === 'gora' && l.cols[0].shelfTargets.length === 3 && l.cols[0].silowniki === 2) && c.frontMode === 'inset',
+    JSON.stringify([c.frontMode, ...c.levels.map((l) => [l.h, l.cols[0].klapa, l.cols[0].shelfTargets.length, l.cols[0].silowniki])]));
 }
 
 console.log('\n== szafka bez nóżek w stojącym ciągu stoi na podłodze — bez zawieszek (użytkownik 2026-10-24, salon) ==');

@@ -44,7 +44,9 @@ ok('drugi klik zdejmuje podświetlenie', (await page.locator('[data-el="podswiet
 
 console.log('\n== półka → poziom, półki → klapy ==');
 await seed(proj([{ cab: cab({ levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null] }] }] }) }]));
-await page.getByRole('button', { name: 'klapy zamiast drzwi' }).first().click(); await page.waitForTimeout(1500);
+// od 2026-10-24 kreator: ile klap, granice, otwieranie — domyslnie klapa na kazdej polce, gdy sie miesci
+await page.getByRole('button', { name: 'klapy zamiast drzwi…' }).first().click(); await page.waitForTimeout(500);
+await page.getByRole('button', { name: 'Zrób 2 klapy', exact: true }).first().click(); await page.waitForTimeout(1500);
 let lv = (await zapis()).items[0].cab.levels;
 ok('dwa poziomy, w każdym klapa do góry, bez półek', lv.length === 2 && lv.every((l) => l.cols[0].klapa === 'gora' && l.cols[0].doors === 1 && l.cols[0].shelfTargets.length === 1)
   && lv[0].h > 0 && lv[1].h === null, JSON.stringify(lv.map((l) => ({ h: l.h, k: l.cols[0].klapa }))));
