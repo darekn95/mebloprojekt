@@ -132,7 +132,7 @@ const ROZKROJ_DUZY = 40;
 
 // zasada liczby zawiasow — podpowiedz przy polu „zawiasy” drzwi (przeniesiona z listy produktow)
 // opis w dymku pola „zaw.” — te same progi co `ZAWIASY_GTV` (audyt GPT 2026-10-16, N1: zostal stary opis)
-const ZAWIASY_ZASADA = "Liczba zawiasów — puste liczy automatycznie wg tabeli GTV: większa z liczb z wysokości frontu (2 do 750 mm, 3 do 1500, 4 do 2100, 5 do 2500) i z jego wagi (do 6 / 12 / 17 / 20 kg), front do 600 mm szerokości. Klapa: 2, powyżej 900 mm szerokości 3. Wpis przechodzi na wszystkie skrzydła kolumny.";
+const ZAWIASY_ZASADA = "Liczba zawiasów — puste liczy automatycznie z wagi frontu wg tabeli GTV: 2 do 6 kg, 3 do 12, 4 do 17, 5 do 20 kg (wysokość nie dokłada zawiasów; tabela do 2500 mm wysokości i 600 mm szerokości). Klapa: 2, powyżej 900 mm szerokości 3. Wpis przechodzi na wszystkie skrzydła kolumny.";
 // powierzchnia w podsumowaniach: mala (np. wstawka 720 × 60 = 0,04 m²) z dwoma miejscami, zero pomijamy
 const m2Fmt = (v) => (v < 1 ? (Math.round(v * 100) / 100).toFixed(2).replace(/0$/, "") : fmt(v));
 
@@ -796,12 +796,14 @@ const wagaLustra = (w, h, mat) => (Math.max(0, w - 1) / 1000) * (Math.max(0, h -
 function zawiasyGtv(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
   const t = szeroki ? ZAWIASY_GTV.szeroki : ZAWIASY_GTV.standard;
   const kg = wagaFrontu(w, h, grub) + dodatekKg;
-  const p = t.progi.find((q) => h <= q.h && kg <= q.kg);
-  const ost = t.progi[t.progi.length - 1].n;
-  // osobno z wysokosci i z wagi — do wyjasnienia w Uwagach, ktora decyduje
-  const zWys = (t.progi.find((q) => h <= q.h) || { n: ost }).n;
-  const zWagi = (t.progi.find((q) => kg <= q.kg) || { n: ost }).n;
-  return { n: p ? p.n : ost, kg, poza: !p || w > t.szer, szer: t.szer, zWys, zWagi, progi: t.progi };
+  const ost = t.progi[t.progi.length - 1];
+  // osobno z wysokosci i z wagi — do wyjasnienia w Uwagach
+  const zWys = (t.progi.find((q) => h <= q.h) || ost).n;
+  const zWagi = (t.progi.find((q) => kg <= q.kg) || ost).n;
+  /* Liczbe wyznacza waga frontu: gdy waga miesci sie w mniejszej liczbie, wysokosc
+     z tabeli nie dokłada zawiasow (uzytkownik 2026-10-24: „nie ma sensu dawać
+     3 zawiasów, jak z wagi 2 wystarczą”). Wysokosc zostaje granica tabeli. */
+  return { n: zWagi, kg, poza: h > ost.h || kg > ost.kg || w > t.szer, szer: t.szer, zWys, zWagi, progi: t.progi };
 }
 /* Skad liczba z tabeli GTV (uzytkownik 2026-10-24: „czy 2 zawiasy nie moga miec
    takiej wagi czy wymiarow?”): przy za malej liczbie — co jej nie pozwala
@@ -809,22 +811,15 @@ function zawiasyGtv(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
 const powodZawiasow = (gtv, wpis) => {
   const kgTxt = (v) => String(v).replace(".", ",");
   const zaw = (n) => plural(n, "zawias", "zawiasy", "zawiasów");
+  const kgFr = kgTxt(Math.round(gtv.kg * 10) / 10);
+  // liczbe wyznacza waga (uzytkownik 2026-10-24) — powod to zawsze waga frontu
   if (wpis > gtv.n) {
     const r = gtv.progi.find((q) => q.n === gtv.n);
-    return r ? ` Wystarczą ${gtv.n} — do ${fmt(r.h)} mm wysokości i ${kgTxt(r.kg)} kg.` : "";
+    return r ? ` Waga ok. ${kgFr} kg — wystarczą ${gtv.n} (do ${kgTxt(r.kg)} kg).` : "";
   }
   const r = gtv.progi.find((q) => q.n === wpis);
   if (!r) return ` Najmniej ${gtv.progi[0].n} zawiasy.`;
-  const cz = [];
-  if (gtv.zWys > wpis) cz.push(`wysokość wymaga ${gtv.zWys} (${wpis} ${zaw(wpis)} do ${fmt(r.h)} mm)`);
-  if (gtv.zWagi > wpis) cz.push(`waga — ${gtv.zWagi} (${wpis} ${zaw(wpis)} do ${kgTxt(r.kg)} kg)`);
-  if (!cz.length) return "";
-  /* kryterium spelnione tez nazywamy (uzytkownik 2026-10-24: „czy kryterium wagi
-     jest spełnione?”) — widac, ze liczbe wymusza tylko drugie */
-  const ok = gtv.zWys <= wpis ? `wysokość — ${wpis} ${zaw(wpis)} wystarczą (do ${fmt(r.h)} mm)`
-    : gtv.zWagi <= wpis ? `waga ok. ${kgTxt(Math.round(gtv.kg * 10) / 10)} kg — ${wpis} ${zaw(wpis)} wystarczą (do ${kgTxt(r.kg)} kg)` : null;
-  const t = cz.join(", ") + (ok ? `; ${ok}` : "");
-  return ` ${t[0].toUpperCase()}${t.slice(1)}`;
+  return gtv.zWagi > wpis ? ` Waga ok. ${kgFr} kg wymaga ${gtv.zWagi} (${wpis} ${zaw(wpis)} do ${kgTxt(r.kg)} kg).` : "";
 };
 function autoHinges(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
   return zawiasyGtv(h, w, grub, szeroki, dodatekKg).n;

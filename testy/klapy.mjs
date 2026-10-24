@@ -175,8 +175,11 @@ const DRZWI = (W, H, col = {}) => ({ name: 'D', active: 0, prices: {}, runs: [],
   levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, ...col }] }] }, offset: 0 }] });
 const linieZaw = (t) => t.split('\n').filter((l) => /zawias/i.test(l)).join(' / ').slice(0, 300);
 // front drzwi = wysokosc szafki − 6 mm (cokol pod szafka nie zjada frontu)
-for (const [H, zaw, opis] of [[720, 2, 'front 714 mm'], [1000, 3, 'front 994 mm (dawniej 2)'],
-  [1700, 4, 'front 1694 mm'], [2100, 4, 'front 2094 mm'], [2200, 5, 'front 2194 mm']]) {
+/* Liczba z wagi frontu (uzytkownik 2026-10-24: „jak waga pozwala, nie dajemy wiecej
+   zawiasow, nawet gdy tabela wymiarow pokazuje wiecej”): 496 × 994 mm ok. 6,0 kg → 3,
+   1694 ok. 10,3 kg → 3, 2094 ok. 12,7 kg → 4, 2194 ok. 13,3 kg → 4. */
+for (const [H, zaw, opis] of [[720, 2, 'front 714 mm'], [1000, 3, 'front 994 mm (ok. 6 kg)'],
+  [1700, 3, 'front 1694 mm (ok. 10,3 kg)'], [2100, 4, 'front 2094 mm'], [2200, 4, 'front 2194 mm (ok. 13,3 kg)']]) {
   await seed(DRZWI(500, H));
   hw = await okucia(); u = await uwagi();
   ok(`drzwi ${opis}: ${zaw} zawiasy z automatu, bez ostrzeżenia o zawiasach`, ilosc(hw, /^Zawias/) === zaw && !/zawiasów wg tabeli GTV|poza tabelą zawiasów/.test(u),
@@ -184,7 +187,7 @@ for (const [H, zaw, opis] of [[720, 2, 'front 714 mm'], [1000, 3, 'front 994 mm 
 }
 // dymek pola „zawiasy” opisuje te same progi (audyt GPT N1: zostal stary opis 1400 / 2000 mm)
 const dymek = await page.evaluate(() => [...document.querySelectorAll('[title^="Liczba zawiasów"]')].map((x) => x.getAttribute('title')));
-ok('dymek „Liczba zawiasów” mówi o tabeli GTV, bez starych progów 1400 / 2000 mm', dymek.length > 0 && dymek.every((t) => /tabeli GTV/.test(t) && /750/.test(t) && !/1400|2000 mm|zawsze dwa/.test(t)), dymek.join(' / '));
+ok('dymek „Liczba zawiasów” mówi o tabeli GTV i wadze frontu, bez starych progów 1400 / 2000 mm', dymek.length > 0 && dymek.every((t) => /tabeli GTV/.test(t) && /z wagi frontu/.test(t) && /6 kg/.test(t) && !/1400|2000 mm|zawsze dwa/.test(t)), dymek.join(' / '));
 await seed(DRZWI(500, 720, { hinges: [3] }));
 u = await uwagi();
 ok('drzwi 714 mm z 3 zawiasami: „za dużo zawiasów wg tabeli GTV — 3 zamiast 2 (front 496 × 714 mm, ok. 4,3 kg)”', /skrzydło 1: za dużo zawiasów wg tabeli GTV — 3 zamiast 2 \(front 496 × 714 mm, ok\. 4,3 kg\)/.test(u), linieZaw(u));
@@ -195,7 +198,7 @@ await seed(DRZWI(500, 1000, { hinges: [2] }));
 u = await uwagi();
 ok('drzwi 994 mm z 2 zawiasami: „za mało zawiasów wg tabeli GTV — 2 zamiast 3”', /skrzydło 1: za mało zawiasów wg tabeli GTV — 2 zamiast 3/.test(u), linieZaw(u));
 await seed(DRZWI(500, 1700, { hinges: [4] }));
-ok('drzwi 1694 mm z 4 zawiasami: bez ostrzeżenia (dawniej „za dużo” przy 600 mm)', !/zawiasów wg tabeli GTV|za dużo zawiasów/.test(await uwagi()), linieZaw(await uwagi()));
+ok('drzwi 1694 mm (ok. 10,3 kg) z 4 zawiasami: „za dużo … 4 zamiast 3. Waga ok. 10,3 kg — wystarczą 3 (do 12 kg)”', /za dużo zawiasów wg tabeli GTV — 4 zamiast 3 \(front 496 × 1694 mm, ok\. 10,3 kg\)\. Waga ok\. 10,3 kg — wystarczą 3 \(do 12 kg\)/.test(await uwagi()), linieZaw(await uwagi()));
 // trzeci zawias z samej wagi: front 25 mm, 596 × 714 mm — ok. 7,2 kg (> 6 kg), choc wysokosc ponizej 750
 {
   const ciezki = DRZWI(600, 720); ciezki.items[0].mat = { front: { thickness: 25 } }; ciezki.items[0].cab.frontSameAsBoard = false;
@@ -211,12 +214,13 @@ u = await uwagi();
 ok('drzwi szersze niż 600 mm: „poza tabelą zawiasów GTV”, liczba orientacyjna', /skrzydło 1: front 700 × 714 mm, ok\. 6,1 kg — poza tabelą zawiasów GTV \(front do 600 mm szerokości/.test(u), linieZaw(u));
 await seed(DRZWI(500, 2700));
 hw = await okucia(); u = await uwagi();
-ok('drzwi 2694 mm (ponad 2500): 5 zawiasów i „poza tabelą”', ilosc(hw, /^Zawias/) === 5 && /poza tabelą zawiasów GTV/.test(u), `zamówienie ${ilosc(hw, /^Zawias/)}; ${linieZaw(u)}`);
+ok('drzwi 2694 mm (ponad 2500, ok. 16,4 kg): 4 zawiasy z wagi i „poza tabelą”', ilosc(hw, /^Zawias/) === 4 && /poza tabelą zawiasów GTV/.test(u), `zamówienie ${ilosc(hw, /^Zawias/)}; ${linieZaw(u)}`);
 
 console.log('\n== zawias przesunięty przez półkę: ostrzeżenie + notatka montażowa ==');
 /* Uzytkownik 2026-10-16: ostrzezenie zostaje, a do tego notatka montazowa —
    linia sama w PDF na stronie szafki i przycisk „Dopisz do notatki montażowej”. */
-await seed({ name: 'N', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'N', W: 600, H: 900, D: 500,
+// 1200 mm: dwa skrzydla po 597 mm (ok. 6,5 kg) — 3 zawiasy z wagi, srodkowy trafia w polke
+await seed({ name: 'N', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'N', W: 1200, H: 900, D: 500,
   plinth: { on: true, height: 100, mode: 'under', setback: 0 } }, offset: 0 }] });
 u = await uwagi();
 ok('drzwi 894 mm: 3 zawiasy, środkowy przesunięty przez półkę — ostrzeżenie zostaje', /skrzydło 1: zawias przesunięty z 447 na 381 mm od dołu frontu/.test(u), linieZaw(u));

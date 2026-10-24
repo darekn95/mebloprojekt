@@ -41,7 +41,7 @@ console.log('  zawiasy:', zaw && zaw[2]);
 ok('dwie wysokości zawiasów', zaw && zaw[2].split(',').length === 2, zaw && zaw[2]);
 ok('puszka ⌀35 wspomniana', zaw && /⌀35/.test(zaw[3]), zaw && zaw[3]);
 const kol = (d || []).find(r => r[1] === 'kołek półki');
-ok('kołek ⌀5 z odsunięciami', kol && /⌀5/.test(kol[3]) && /37/.test(kol[3]), kol && kol[3]);
+ok('kołek ⌀5 z odsunięciami', kol && /⌀5/.test(kol[3]) && /\b50 i \d+ mm od przedniej/.test(kol[3]), kol && kol[3]);
 
 console.log('\n== kolumna z szufladami ==');
 const struct = card(/^Struktura wnętrza$/);

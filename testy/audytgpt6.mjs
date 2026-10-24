@@ -312,14 +312,15 @@ console.log('\n== wieniec po wyłączeniu blatu ciągu — wzmocnienia pod blat 
 console.log('\n== „Zostaw 3 zawiasy” i słupek w ciągu (użytkownik 2026-10-24) ==');
 {
   const zap = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt')));
-  await seed(proj([{ cab: cab({ H: 1600, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null, null], hinges: [3] }] }] }) }]));
+  // front 596 × 1594 ok. 11,6 kg — z wagi 3 zawiasy (uzytkownik 2026-10-24: liczbe wyznacza waga)
+  await seed(proj([{ cab: cab({ H: 1600, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null, null], hinges: [2] }] }] }) }]));
   let u = await uwagi();
-  ok('3 zawiasy przy froncie ok. 1594 mm: ostrzeżenie z „Ustaw 4 zawiasy” i „Zostaw 3 zawiasy”', /za mało zawiasów wg tabeli GTV — 3 zamiast 4/.test(u) && /Ustaw 4 zawiasy/.test(u) && /Zostaw 3 zawiasy/.test(u), linie(u, /zawias/));
-  await page.getByRole('button', { name: 'Zostaw 3 zawiasy' }).first().click(); await page.waitForTimeout(800);
+  ok('2 zawiasy przy froncie ok. 1594 mm (11,6 kg): ostrzeżenie z „Ustaw 3 zawiasy” i „Zostaw 2 zawiasy”', /za mało zawiasów wg tabeli GTV — 2 zamiast 3/.test(u) && /Ustaw 3 zawiasy/.test(u) && /Zostaw 2 zawiasy/.test(u), linie(u, /zawias/));
+  await page.getByRole('button', { name: 'Zostaw 2 zawiasy' }).first().click(); await page.waitForTimeout(800);
   u = await uwagi();
   const c = (await zap()).items[0].cab;
-  ok('po „Zostaw 3 zawiasy”: informacja „zostawione celowo”, bez przycisku „Zostaw”', /3 zamiast 4 \(.*\) — zostawione celowo/.test(u) && !/Zostaw 3 zawiasy/.test(u)
-    && JSON.stringify(c.levels[0].cols[0].hingesOk) === '[3]', `${linie(u, /zawias/)} | ${JSON.stringify(c.levels[0].cols[0].hingesOk)}`);
+  ok('po „Zostaw 2 zawiasy”: informacja „zostawione celowo”, bez przycisku „Zostaw”', /2 zamiast 3 \(.*\) — zostawione celowo/.test(u) && !/Zostaw 2 zawiasy/.test(u)
+    && JSON.stringify(c.levels[0].cols[0].hingesOk) === '[2]', `${linie(u, /zawias/)} | ${JSON.stringify(c.levels[0].cols[0].hingesOk)}`);
   const R = [{ id: 'c1', name: 'Ściana', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: false, corner: null }];
   await seed(proj([{ cab: cab({ name: 'A' }), runId: 'c1' }, { cab: cab({ name: 'S', H: 1600 }), runId: 'c1' }], R, { active: 1 }));
   u = await uwagi();
@@ -343,32 +344,33 @@ console.log('\n== zawiasy wpisane ręcznie: cała kolumna, różne kolumny tej s
   const dwa = (o = {}) => ({ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null], ...o });
   await seed(proj([{ cab: cab({ W: 1200, H: 1700, levels: [{ h: null, cols: [dwa(), dwa()] }] }) }]));
   let u = await uwagi();
-  ok('dwie kolumny po 2 skrzydła 1650 mm, auto (4 wg GTV): bez ostrzeżenia o różnej liczbie', !/różną liczbę zawiasów/.test(u), linie(u, /zawias/));
+  // skrzydla 297 × 1694 ok. 6,2 kg — z wagi 3 zawiasy
+  ok('dwie kolumny po 2 skrzydła 1694 mm, auto (3 z wagi): bez ostrzeżenia o różnej liczbie', !/różną liczbę zawiasów/.test(u), linie(u, /zawias/));
   const pole = page.locator('[data-el="drzwi-okucia"] input[type="number"]').first();
-  await pole.fill('3'); await page.waitForTimeout(600);
+  await pole.fill('2'); await page.waitForTimeout(600);
   let c = (await zap()).items[0].cab;
-  ok('wpis 3 w pierwszym skrzydle → oba skrzydła kolumny 1 mają 3', JSON.stringify(c.levels[0].cols[0].hinges) === '[3,3]', JSON.stringify(c.levels[0].cols[0].hinges));
+  ok('wpis 2 w pierwszym skrzydle → oba skrzydła kolumny 1 mają 2', JSON.stringify(c.levels[0].cols[0].hinges) === '[2,2]', JSON.stringify(c.levels[0].cols[0].hinges));
   u = await uwagi();
-  ok('kolumna 2 z 4 zawiasami tej samej wysokości: ostrzeżenie z „Wszędzie 3 zawiasy” i „Wszędzie 4 zawiasy”',
-    /Drzwi tej samej wysokości \(\d+ mm\) mają różną liczbę zawiasów: poziom 1, kolumna 1 — 3; poziom 1, kolumna 2 — 4/.test(u) && /Wszędzie 3 zawiasy/.test(u) && /Wszędzie 4 zawiasy/.test(u), linie(u, /zawias/));
-  await page.getByRole('button', { name: 'Wszędzie 3 zawiasy' }).first().click(); await page.waitForTimeout(600);
+  ok('kolumna 2 z 3 zawiasami tej samej wysokości: ostrzeżenie z „Wszędzie 2 zawiasy” i „Wszędzie 3 zawiasy”',
+    /Drzwi tej samej wysokości \(\d+ mm\) mają różną liczbę zawiasów: poziom 1, kolumna 1 — 2; poziom 1, kolumna 2 — 3/.test(u) && /Wszędzie 2 zawiasy/.test(u) && /Wszędzie 3 zawiasy/.test(u), linie(u, /zawias/));
+  await page.getByRole('button', { name: 'Wszędzie 2 zawiasy' }).first().click(); await page.waitForTimeout(600);
   c = (await zap()).items[0].cab;
   u = await uwagi();
-  ok('„Wszędzie 3 zawiasy”: obie kolumny [3,3], ostrzeżenie znika (zostaje uwaga GTV „za mało”)', JSON.stringify(c.levels[0].cols.map((k) => k.hinges)) === '[[3,3],[3,3]]' && !/różną liczbę zawiasów/.test(u) && /za mało zawiasów wg tabeli GTV/.test(u),
+  ok('„Wszędzie 2 zawiasy”: obie kolumny [2,2], ostrzeżenie znika (zostaje uwaga GTV „za mało”)', JSON.stringify(c.levels[0].cols.map((k) => k.hinges)) === '[[2,2],[2,2]]' && !/różną liczbę zawiasów/.test(u) && /za mało zawiasów wg tabeli GTV/.test(u),
     `${JSON.stringify(c.levels[0].cols.map((k) => k.hinges))} | ${linie(u, /zawias/)}`);
-  await page.getByRole('button', { name: 'Ustaw 4 zawiasy' }).first().click(); await page.waitForTimeout(600);
+  await page.getByRole('button', { name: 'Ustaw 3 zawiasy' }).first().click(); await page.waitForTimeout(600);
   c = (await zap()).items[0].cab;
-  ok('„Ustaw 4 zawiasy” z tabeli GTV: cała kolumna 1 [4,4] — i znowu różnica z kolumną 2', JSON.stringify(c.levels[0].cols[0].hinges) === '[4,4]' && /różną liczbę zawiasów/.test(await uwagi()), JSON.stringify(c.levels[0].cols.map((k) => k.hinges)));
+  ok('„Ustaw 3 zawiasy” z tabeli GTV: cała kolumna 1 [3,3] — i znowu różnica z kolumną 2', JSON.stringify(c.levels[0].cols[0].hinges) === '[3,3]' && /różną liczbę zawiasów/.test(await uwagi()), JSON.stringify(c.levels[0].cols.map((k) => k.hinges)));
   await seed(proj([{ cab: cab({ W: 1200, H: 1700, levels: [{ h: 400, cols: [dwa({ hinges: [2, 2] })] }, { h: null, cols: [dwa()] }] }) }]));
   u = await uwagi();
-  ok('drzwi różnej wysokości (2 i 4 zawiasy): bez ostrzeżenia o różnej liczbie', !/różną liczbę zawiasów/.test(u), linie(u, /zawias/));
+  ok('drzwi różnej wysokości (2 i 3 zawiasy): bez ostrzeżenia o różnej liczbie', !/różną liczbę zawiasów/.test(u), linie(u, /zawias/));
   // „czy 2 zawiasy nie mogą mieć takiej wagi czy wymiarów?” — Uwagi mówią, co decyduje
   await seed(proj([{ cab: cab({ H: 950, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], hinges: [2] }] }] }) }]));
   u = await uwagi();
-  ok('front ok. 596 × 944 mm, 2 zawiasy: powód — wysokość (2 do 750 mm) i waga (2 do 6 kg)', /2 zamiast 3 \(front 596 × \d+ mm, ok\. [\d,]+ kg\)\. Wysokość wymaga 3 \(2 zawiasy do 750 mm\), waga — 3 \(2 zawiasy do 6 kg\)\./.test(u), linie(u, /zamiast/));
+  ok('front ok. 596 × 944 mm, 2 zawiasy: powód — waga (2 zawiasy do 6 kg)', /2 zamiast 3 \(front 596 × \d+ mm, ok\. ([\d,]+) kg\)\. Waga ok\. \1 kg wymaga 3 \(2 zawiasy do 6 kg\)\./.test(u), linie(u, /zamiast/));
   await seed(proj([{ cab: cab({ H: 720, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], hinges: [3] }] }] }) }]));
   u = await uwagi();
-  ok('front 714 mm, 3 zawiasy: „Wystarczą 2 — do 750 mm wysokości i 6 kg”', /3 zamiast 2 \(front .*\)\. Wystarczą 2 — do 750 mm wysokości i 6 kg\./.test(u), linie(u, /zamiast/));
+  ok('front 714 mm, 3 zawiasy: „Waga ok. 5,2 kg — wystarczą 2 (do 6 kg)”', /3 zamiast 2 \(front .*\)\. Waga ok\. 5,2 kg — wystarczą 2 \(do 6 kg\)\./.test(u), linie(u, /zamiast/));
 }
 
 console.log('\n== usunięcie poziomu / kolumny z wpisanym wymiarem — miejsce bierze sąsiad (użytkownik 2026-10-24) ==');
