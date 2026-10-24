@@ -3154,9 +3154,13 @@ function computeGeoLiczy(cab, mat, ctx) {
             const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
             const opis = `front ${fmt(Math.round(dw))} × ${fmt(Math.round(d.h))} mm, ok. ${gtv.kg.toFixed(1).replace(".", ",")} kg`;
             const wpis = num((rawCol.hinges || [])[i]);
+            /* „Zostaw N zawiasy” (uzytkownik 2026-10-24) — liczba inna niz w tabeli
+               przyjeta swiadomie: zostaje informacja, a przycisk tabeli dalej jest. */
+            const zostawione = wpis !== null && num((rawCol.hingesOk || [])[i]) === wpis;
             if (wpis !== null && wpis !== gtv.n)
-              add("warn", `${where}, skrzydło ${i + 1}: ${wpis > gtv.n ? "za dużo" : "za mało"} zawiasów wg tabeli GTV — ${wpis} zamiast ${gtv.n} (${opis}).`
-                + `|zawiasy:${lv.i}:${j}:${i}:${gtv.n}`);
+              add(zostawione ? "info" : "warn", `${where}, skrzydło ${i + 1}: ${wpis > gtv.n ? "za dużo" : "za mało"} zawiasów wg tabeli GTV — ${wpis} zamiast ${gtv.n} (${opis})`
+                + (zostawione ? ` — zostawione celowo.` : ".")
+                + `|zawiasy:${lv.i}:${j}:${i}:${gtv.n}` + (zostawione ? "" : `|zawiasyzostaw:${lv.i}:${j}:${i}:${wpis}`));
             if (gtv.poza)
               add("warn", `${where}, skrzydło ${i + 1}: ${opis} — poza tabelą zawiasów GTV (front do ${gtv.szer} mm szerokości, 2500 mm wysokości i ${zawiasSzeroki ? 15 : 20} kg), liczba zawiasów orientacyjna.`);
           }
@@ -11844,6 +11848,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         : `Zmniejsz głębokość szafek do ${fmt(Number(d))} mm`,
         run: () => runFix && runFix(action) };
     }
+    if (action.startsWith("slupek:"))
+      return { label: action === "slupek:1" ? "To słupek — wyjątek w ciągu" : "To jednak zwykła szafka", run: () => runFix && runFix(action) };
     // rozjazd z ciagiem da sie naprawic z dwoch stron — szafka albo caly ciag
     if (action.startsWith("runcab:") || action.startsWith("runrun:")) {
       const [kind, field, val] = action.split(":");
@@ -11976,6 +11982,18 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
           const col = L[+li].cols[+j];
           col.hinges = [...(col.hinges || [])];
           col.hinges[+k] = +ile;
+        }),
+      };
+    }
+    if (action.startsWith("zawiasyzostaw:")) {
+      // „zawiasyzostaw:<poziom>:<kolumna>:<skrzydlo>:<ile>" — liczba inna niz w tabeli GTV, swiadomie
+      const [, li, j, k, ile] = action.split(":");
+      return {
+        label: `Zostaw ${ile} ${plural(+ile, "zawias", "zawiasy", "zawiasów")}`,
+        run: () => editLevels((L) => {
+          const col = L[+li].cols[+j];
+          col.hingesOk = [...(col.hingesOk || [])];
+          col.hingesOk[+k] = +ile;
         }),
       };
     }
@@ -13608,10 +13626,19 @@ const runCabMsgs = (run, c, inne = []) => {
     out.push({ level: "warn", text:
       `Ta szafka jest bez zawieszek, a inne szafki ciągu „${run.name}" wiszą na zawieszkach na listwie — to może być pomyłka. W środku ciągu listwa przechodzi za nią, na końcu ciągu kończy się przed nią. Powieś ją tak samo albo na haczykach.`
       + `|zawieszki:listwa|zawieszki:haczyki` });
-  if (run.H != null && Math.round(c.H) !== run.H)
-    out.push({ level: "warn", text:
-      `Wysokość ${fmt(c.H)} mm nie zgadza się z ciągiem „${run.name}" (${fmt(run.H)} mm) — fronty nie staną w jednej linii.`
-      + `|runcab:H:${run.H}|runrun:H:${Math.round(c.H)}` });
+  /* Slupek — wyzszy niz reszta ciagu z zalozenia (uzytkownik 2026-10-24: „wyjątek
+     w ciągu”). Zaznaczony przyciskiem: zostaje informacja, a wspolna wysokosc ciagu
+     go nie zmienia (`setRunShared`). Blat konczy sie przy jego boku (`worktopLevel`). */
+  if (run.H != null && Math.round(c.H) !== run.H) {
+    const wyzsza = Math.round(c.H) > run.H;
+    if (c.slupek && wyzsza)
+      out.push({ level: "info", text:
+        `Słupek: ${fmt(c.H)} mm, wyższy niż ciąg „${run.name}" (${fmt(run.H)} mm) — wyjątek, wspólna wysokość ciągu go nie zmienia.|slupek:0` });
+    else
+      out.push({ level: "warn", text:
+        `Wysokość ${fmt(c.H)} mm nie zgadza się z ciągiem „${run.name}" (${fmt(run.H)} mm) — fronty nie staną w jednej linii.`
+        + `|runcab:H:${run.H}|runrun:H:${Math.round(c.H)}` + (wyzsza ? "|slupek:1" : "") });
+  }
   /* Plytsza szafka w ciagu to normalny zabieg, gdy z tylu cos przeszkadza: lico
      zostaje w linii, cofa sie sam tyl. Dlatego mowimy o tym wprost, zamiast
      kazac to "naprawiac". */
@@ -15869,7 +15896,12 @@ export default function App() {
   const setRunShared = useCallback((id, patch) => setProject((p) => ({
     ...p,
     runs: (p.runs || []).map((r) => (r.id === id ? { ...r, ...patch } : r)),
-    items: p.items.map((it) => ((it.runId || null) === id ? { ...it, cab: { ...it.cab, ...patch } } : it)),
+    // slupek (wyjatek w ciagu) zostaje przy swojej wysokosci
+    items: p.items.map((it) => {
+      if ((it.runId || null) !== id) return it;
+      const { H, ...bezH } = patch;
+      return { ...it, cab: { ...it.cab, ...(it.cab.slupek && H != null ? bezH : patch) } };
+    }),
   })), [setProject]);
 
   /* Gorny ciag nad rozwiazywanym dolnym zostaje samodzielnym ciagiem wiszacym
@@ -16742,6 +16774,7 @@ export default function App() {
       setRunShared(gdzie || runInfo.run.id, { D: d });
       return;
     }
+    if (action.startsWith("slupek:")) { setCab((cur) => ({ ...cur, slupek: action === "slupek:1" })); return; }
     const [kind, field] = action.split(":");
     if (!RUN_SHARED.includes(field)) return;
     const { run } = runInfo;

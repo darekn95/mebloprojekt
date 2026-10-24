@@ -309,5 +309,33 @@ console.log('\n== wieniec po wyłączeniu blatu ciągu — wzmocnienia pod blat 
     JSON.stringify([c.joints, c.levels[0].cols[0].rails]));
 }
 
+console.log('\n== „Zostaw 3 zawiasy” i słupek w ciągu (użytkownik 2026-10-24) ==');
+{
+  const zap = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('szafki:projekt')));
+  await seed(proj([{ cab: cab({ H: 1600, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null, null], hinges: [3] }] }] }) }]));
+  let u = await uwagi();
+  ok('3 zawiasy przy froncie ok. 1594 mm: ostrzeżenie z „Ustaw 4 zawiasy” i „Zostaw 3 zawiasy”', /za mało zawiasów wg tabeli GTV — 3 zamiast 4/.test(u) && /Ustaw 4 zawiasy/.test(u) && /Zostaw 3 zawiasy/.test(u), linie(u, /zawias/));
+  await page.getByRole('button', { name: 'Zostaw 3 zawiasy' }).first().click(); await page.waitForTimeout(800);
+  u = await uwagi();
+  const c = (await zap()).items[0].cab;
+  ok('po „Zostaw 3 zawiasy”: informacja „zostawione celowo”, bez przycisku „Zostaw”', /3 zamiast 4 \(.*\) — zostawione celowo/.test(u) && !/Zostaw 3 zawiasy/.test(u)
+    && JSON.stringify(c.levels[0].cols[0].hingesOk) === '[3]', `${linie(u, /zawias/)} | ${JSON.stringify(c.levels[0].cols[0].hingesOk)}`);
+  const R = [{ id: 'c1', name: 'Ściana', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: false, corner: null }];
+  await seed(proj([{ cab: cab({ name: 'A' }), runId: 'c1' }, { cab: cab({ name: 'S', H: 1600 }), runId: 'c1' }], R, { active: 1 }));
+  u = await uwagi();
+  ok('szafka 1600 w ciągu 720: ostrzeżenie z „To słupek — wyjątek w ciągu”', /Wysokość 1600 mm nie zgadza się z ciągiem/.test(u) && /To słupek — wyjątek w ciągu/.test(u), linie(u, /1600/));
+  await page.getByRole('button', { name: 'To słupek — wyjątek w ciągu' }).first().click(); await page.waitForTimeout(800);
+  u = await uwagi();
+  ok('po kliknięciu: informacja „Słupek … wyjątek”, bez ostrzeżenia o wysokości', /Słupek: 1600 mm, wyższy niż ciąg/.test(u) && !/Wysokość 1600 mm nie zgadza się/.test(u) && (await zap()).items[1].cab.slupek === true, linie(u, /1600/));
+  // wspolna wysokosc ciagu nie rusza slupka
+  const p0 = await zap();
+  p0.items.push({ cab: { ...p0.items[0].cab, name: 'B', H: 700 }, runId: 'c1', offset: 0 }); p0.active = 2;
+  await seed(p0);
+  await page.getByRole('button', { name: 'Ustaw cały ciąg na 700 mm' }).first().click(); await page.waitForTimeout(800);
+  const p1 = await zap();
+  ok('„Ustaw cały ciąg na 700 mm”: szafki 700, słupek zostaje 1600', p1.runs[0].H === 700 && p1.items[0].cab.H === 700 && p1.items[1].cab.H === 1600,
+    JSON.stringify([p1.runs[0].H, ...p1.items.map((x) => x.cab.H)]));
+}
+
 console.log('\nBLEDY:', errors.length ? errors.join('\n') : '(brak)');
 await b.close();

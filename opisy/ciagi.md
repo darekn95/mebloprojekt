@@ -51,7 +51,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 ## Kontrole i przyciski
 
 - **Szafka inna niż ciąg**:
-  - inna wysokość (fronty nie w linii) — ostrzeżenie;
+  - inna wysokość (fronty nie w linii) — ostrzeżenie z „Wyrównaj tę szafkę do ciągu” / „Ustaw cały ciąg”, a przy wyższej także „To słupek — wyjątek w ciągu” (`cab.slupek`): zostaje informacja, wspólna wysokość ciągu słupka nie zmienia, „To jednak zwykła szafka” cofa (użytkownik 2026-10-24);
   - inna głębokość — ostrzeżenie: lico zostaje w linii, cofa się tył, blat liczony na najgłębszą;
   - inny cokół (cokół idzie jedną płaszczyzną) — ostrzeżenie;
   - inny sposób wieszania (bez zawieszek przy innych na listwie, listwa / haczyki) — ostrzeżenie z przyciskami.
