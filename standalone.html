@@ -371,8 +371,9 @@ const mocowaniePolek = (cab) => (cab.shelfMount === "confirmat" ? "confirmat"
    rozwiazuje sie polki na konfirmatach po obu stronach jednej przegrody
    (uzytkownik 2026-10-17 po audycie GPT N45). Puste = jak cala szafka. */
 const MOCOWANIA_POLEK = ["pins", "confirmat", "trojkaty"];
-// karty zamowienia: ktore domyslnie pokazuja szafke (reszta — pomieszczenie / projekt)
-const KARTY_NA_SZAFKE = { formatki: true, produkty: true, rozkroj: false, wycena: false };
+/* Karty zamowienia na starcie: formatki — szafka, reszta — pomieszczenie; klikniecie
+   w jednej karcie zmienia zakres we wszystkich (uzytkownik 2026-10-25). */
+const KARTY_NA_SZAFKE = { formatki: true, produkty: false, rozkroj: false, wycena: false };
 const mocowanieKolumny = (cab, rawCol) => (MOCOWANIA_POLEK.includes((rawCol || {}).shelfMount) ? rawCol.shelfMount : mocowaniePolek(cab));
 /* Polka graniczna poziomu kolumny (`rawCol.podzial[poz]`) moze miec wlasne mocowanie
    (`rawCol.podzialMount[poz]`, uzytkownik 2026-10-25: „czy poziomy na kołki czy na
@@ -17157,9 +17158,19 @@ export default function App() {
      (trzyma nazwe sprzed edycji — Esc do niej wraca); null = bez edycji. */
   const [nazwaSzafki, setNazwaSzafki] = useState(null);
   useEffect(() => { setNazwaSzafki(null); }, [project.active]);
-  /* Formatki, produkty, rozkroj i wycena: domyslnie caly projekt — to jedno
-     zamowienie (uzytkownik 2026-09-29); podglad samego pomieszczenia osobno. */
-  const [zakresZam, setZakresZam] = useState("projekt");
+  /* Formatki, produkty, rozkroj i wycena: domyslnie pomieszczenie (uzytkownik
+     2026-10-25; wczesniej caly projekt — 2026-09-29). Dawne osobne karty (testy,
+     `window.__mpKartyOsobno`) zostaja przy calym projekcie. */
+  const [zakresZam, setZakresZam] = useState(() => {
+    if (typeof window !== "undefined" && window.__mpKartyOsobno) return "projekt";
+    try { const z = localStorage.getItem("mp:zakresZam"); if (z === "projekt" || z === "pomieszczenie") return z; } catch (e) { /* bez pamieci */ }
+    return "pomieszczenie";
+  });
+  // wybor pamietany w przegladarce, jak „Szafka” w kartach
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.__mpKartyOsobno) return;
+    try { localStorage.setItem("mp:zakresZam", zakresZam); } catch (e) { /* bez pamieci w przegladarce */ }
+  }, [zakresZam]);
 
   const undo = useCallback(() => {
     const h = histRef.current;
@@ -18941,19 +18952,20 @@ export default function App() {
     [project, pokoj, zamTylkoPokoj]);
   /* Formatki, rozkroj, produkty i wycena — po jednej karcie z przyciskami
      Szafka / Pomieszczenie / Projekt pod tytulem (uzytkownik 2026-10-24: „żeby
-     zmniejszyć ilość zakładek”). Pomieszczenie / Projekt to wspolny przelacznik
-     zamowienia (`zakresZam`), „Szafka” — osobno w kazdej karcie (pamietane
-     w przegladarce). Testy sprzed zmiany ogladaja dawne osobne karty
+     zmniejszyć ilość zakładek”). Przyciski sa w kazdej karcie, ale dzialaja wspolnie:
+     zmiana w jednej zmienia wszystkie (uzytkownik 2026-10-25); na starcie formatki —
+     szafka, reszta — pomieszczenie (`KARTY_NA_SZAFKE`, `zakresZam`). Wybor pamietany
+     w przegladarce. Testy sprzed zmiany ogladaja dawne osobne karty
      (`window.__mpKartyOsobno` z `testy/pw.mjs`). */
   const kartyOsobno = typeof window !== "undefined" && !!window.__mpKartyOsobno;
   const [kartySzafka, setKartySzafka] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("mp:kartySzafka") || "null") || {}; } catch (e) { return {}; }
+    try { return JSON.parse(localStorage.getItem("mp:kartyZakres") || "null") || {}; } catch (e) { return {}; }
   });
   const naSzafke = (k) => !kartyOsobno && zCaloscia && (kartySzafka[k] ?? KARTY_NA_SZAFKE[k]);
   const ustawZakresKarty = (k, v) => {
-    const nowe = { ...kartySzafka, [k]: v === "szafka" };
+    const nowe = Object.fromEntries(Object.keys(KARTY_NA_SZAFKE).map((x) => [x, v === "szafka"]));
     setKartySzafka(nowe);
-    try { localStorage.setItem("mp:kartySzafka", JSON.stringify(nowe)); } catch (e) { /* bez pamieci w przegladarce */ }
+    try { localStorage.setItem("mp:kartyZakres", JSON.stringify(nowe)); } catch (e) { /* bez pamieci w przegladarce */ }
     if (v !== "szafka") setZakresZam(v === "pokoj" ? "pomieszczenie" : "projekt");
   };
   const zakresKarty = (k) => (kartyOsobno || !zCaloscia ? null : (
