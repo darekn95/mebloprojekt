@@ -39,7 +39,8 @@ console.log('== „→ poziom” w kolumnie 2: tylko ta kolumna ==');
     && cols.every((k) => k.shelfTargets.length === 4), JSON.stringify(cols.map((k) => [k.podzial || null, k.shelfTargets.length])));
   ok('rura kolumny 1 zostaje jedna, w swoim świetle', JSON.stringify(cols[0].drazki) === '[3]', JSON.stringify(cols[0].drazki));
   // przy drzwiach polki zostaja na kolkach — nie wisza na nich klapy (uzytkownik 2026-10-24)
-  ok('drzwi: półki kolumny 2 zostają jak szafka (kołki), bez konfirmatów', !cols[1].shelfMount, String(cols[1].shelfMount));
+  // od 2026-10-25: zwykłe półki na kołkach (jak szafka), granice poziomów domyślnie na konfirmatach
+  ok('półki kolumny 2 jak szafka (kołki), granice bez wpisu (domyślnie konfirmaty)', !cols[1].shelfMount && !cols[1].podzialMount, String(cols[1].shelfMount));
   ok('w Strukturze 3 × „granica frontów” z „scal”', (await kolumna(2).locator('[data-el="granica-frontow"]').count()) === 3);
   const f = await fronty();
   ok('formatki: drzwi kolumn 1 i 3 na całą wysokość + 4 niższe w kolumnie 2', f.length >= 2, f.join(' / '));
@@ -107,7 +108,8 @@ console.log('\n== każdy odcinek osobno (użytkownik 2026-10-24: „dolną w dó
 
 console.log('\n== klapa na półce na kołkach: ostrzeżenie z konfirmatami ==');
 {
-  await seed({ ...SZAFA(), levels: [{ h: null, cols: [kol({ shelfTargets: [null] }), kol({ podzial: [0] }), kol({ shelfTargets: [null] })] }] });
+  // granica przestawiona ręcznie na kołki (domyślnie od 2026-10-25 jest na konfirmatach)
+  await seed({ ...SZAFA(), levels: [{ h: null, cols: [kol({ shelfTargets: [null] }), kol({ podzial: [0], podzialMount: ['pins'] }), kol({ shelfTargets: [null] })] }] });
   const k2 = kolumna(2);
   const poz2 = k2.locator('[data-el="odcinek-kolumny"]').filter({ hasText: 'poziom 2 kolumny 2' });
   await poz2.getByRole('button', { name: 'klapa', exact: true }).click(); await page.waitForTimeout(500);
@@ -120,7 +122,9 @@ console.log('\n== klapa na półce na kołkach: ostrzeżenie z konfirmatami ==')
     && /Półka 1 na konfirmatach/.test(u) && /Półki kolumny 2 na konfirmatach/.test(u),
     u.split('\n').filter((l) => /kołkach/.test(l)).join(' / '));
   await page.getByRole('button', { name: 'Półki kolumny 2 na konfirmatach' }).first().click(); await page.waitForTimeout(600);
-  ok('przycisk: kolumna 2 na konfirmatach, ostrzeżenie znika', (await zap()).levels[0].cols[1].shelfMount === 'confirmat' && !/na kołkach — półka z zawiasami/.test(await uwagi()));
+  const k2z = (await zap()).levels[0].cols[1];
+  ok('przycisk: kolumna 2 na konfirmatach (także granica), ostrzeżenie znika', k2z.shelfMount === 'confirmat' && JSON.stringify(k2z.podzialMount) === '["confirmat"]'
+    && !/ta półka jest na kołkach/.test(await uwagi()), JSON.stringify([k2z.shelfMount, k2z.podzialMount]));
 }
 
 console.log('\n== półki w poziomie kolumny (użytkownik 2026-10-24) ==');
@@ -227,12 +231,15 @@ console.log('\n== mocowanie półki granicznej poziomu kolumny (użytkownik 2026
     const qty = (re) => { const tr = sec && [...sec.querySelectorAll('tbody tr')].find((t) => re.test(t.innerText)); return tr ? tr.innerText.replace(/\s+/g, ' ') : ''; };
     return { kolki: qty(/^Kołek podporowy/), konf: qty(/^Konfirmat/), tr: qty(/^Trójkąt/) };
   });
+  const aktywny = async () => (await poz(2).locator('[data-el="granica-mocowanie"] button.bg-teal-700').allInnerTexts()).join('|');
+  ok('granica domyślnie na konfirmatach (bez wpisu), „domyślne” niewidoczne', (await aktywny()) === 'konfirmaty'
+    && (await poz(2).getByRole('button', { name: 'domyślne', exact: true }).count()) === 0, await aktywny());
   const przed = await produkty();
-  await poz(2).locator('[data-el="granica-mocowanie"]').getByRole('button', { name: 'konfirmaty', exact: true }).click(); await page.waitForTimeout(700);
+  await poz(2).locator('[data-el="granica-mocowanie"]').getByRole('button', { name: 'kołki', exact: true }).click(); await page.waitForTimeout(700);
   let k = (await zap()).levels[0].cols[1];
-  ok('konfirmaty: tylko ta granica (podzialMount), reszta półek kolumny jak była', JSON.stringify(k.podzialMount) === '["confirmat"]' && !k.shelfMount, JSON.stringify([k.podzialMount, k.shelfMount]));
+  ok('kołki: tylko ta granica (podzialMount), reszta półek kolumny jak była', JSON.stringify(k.podzialMount) === '["pins"]' && !k.shelfMount, JSON.stringify([k.podzialMount, k.shelfMount]));
   const po = await produkty();
-  ok('zamówienie: mniej kołków, więcej konfirmatów', po.kolki !== przed.kolki && po.konf !== przed.konf, JSON.stringify([przed, po]));
+  ok('zamówienie: więcej kołków, mniej konfirmatów', po.kolki !== przed.kolki && po.konf !== przed.konf, JSON.stringify([przed, po]));
   ok('przycisk „domyślne” przy wpisanym mocowaniu', (await poz(2).getByRole('button', { name: 'domyślne', exact: true }).count()) === 1);
   await poz(2).locator('[data-el="granica-mocowanie"]').getByRole('button', { name: 'trójkąty', exact: true }).click(); await page.waitForTimeout(700);
   ok('trójkąty w zamówieniu', /Trójkąt/.test((await produkty()).tr), JSON.stringify(await produkty()));

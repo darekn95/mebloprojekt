@@ -369,10 +369,13 @@ const KARTY_NA_SZAFKE = { formatki: true, produkty: true, rozkroj: false, wycena
 const mocowanieKolumny = (cab, rawCol) => (MOCOWANIA_POLEK.includes((rawCol || {}).shelfMount) ? rawCol.shelfMount : mocowaniePolek(cab));
 /* Polka graniczna poziomu kolumny (`rawCol.podzial[poz]`) moze miec wlasne mocowanie
    (`rawCol.podzialMount[poz]`, uzytkownik 2026-10-25: „czy poziomy na kołki czy na
-   konfirmaty”) — puste: jak polki kolumny. */
+   konfirmaty”). Domyslnie konfirmaty — „półki raczej na kołki, a poziomy raczej na
+   konfirmaty”, pod zawiasami klapy musi byc sztywno; przy samych drzwiach mozna
+   przestawic na kolki. */
+const GRANICA_MOCOWANIE = "confirmat";
 const mocowanieGranicy = (cab, rawCol, poz) => {
   const m = ((rawCol || {}).podzialMount || [])[poz];
-  return MOCOWANIA_POLEK.includes(m) ? m : mocowanieKolumny(cab, rawCol);
+  return MOCOWANIA_POLEK.includes(m) ? m : GRANICA_MOCOWANIE;
 };
 // mocowanie konkretnej polki kolumny z `computeGeo` (granica moze miec inne niz kolumna)
 const mocPolki = (c, s) => (s && s.mount) || c.shelfMount;
@@ -12952,8 +12955,12 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const [, li, j, m] = action.split(":");
       return {
         label: `Półki kolumny ${+j + 1} na ${m === "pins" ? "kołkach" : m === "confirmat" ? "konfirmatach" : "trójkątach"}`,
-        // wszystkie polki kolumny — takze granice poziomow z wlasnym mocowaniem
-        run: () => editLevels((L) => { const col = kolumnaW(L, li, j); col.shelfMount = m === "pins" || m === "confirmat" ? m : "trojkaty"; delete col.podzialMount; }),
+        // wszystkie polki kolumny — takze granice poziomow (domyslnie na konfirmatach)
+        run: () => editLevels((L) => {
+          const col = kolumnaW(L, li, j);
+          col.shelfMount = m === "pins" || m === "confirmat" ? m : "trojkaty";
+          if ((col.podzial || []).length) col.podzialMount = col.podzial.map(() => col.shelfMount); else delete col.podzialMount;
+        }),
       };
     }
     if (action.startsWith("granicamont:")) {
@@ -18302,10 +18309,9 @@ export default function App() {
       if (col.podzialMount) col.podzialMount.splice(poz, 0, null);
       col.podzial = [...gr, k].sort((a, b) => a - b);
     });
-    /* Konfirmaty tylko pod klapy — ich zawiasy siedza w polce granicznej. Przy drzwiach
-       polki zostaja na kolkach (uzytkownik 2026-10-24: „nie wiszą na nich klapy,
-       powinny być na kołkach”). */
-    if (naKlapy && mocowanieKolumny(cab, col) === "pins") col.shelfMount = "confirmat";
+    /* Polki graniczne sa domyslnie na konfirmatach (`mocowanieGranicy`) — kreator klap nie
+       przestawia juz calej kolumny; zwykle polki zostaja na kolkach (uzytkownik
+       2026-10-24 i 2026-10-25: „półki raczej na kołki, a poziomy na konfirmanty”). */
     if (naKlapy) {
       col.kind = "doors"; col.doors = 1; col.klapa = naKlapy.kier === "dol" ? "dol" : "gora";
       if (naKlapy.sil === 1 || naKlapy.sil === 2) col.silowniki = naKlapy.sil; else delete col.silowniki;
