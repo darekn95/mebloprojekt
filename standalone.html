@@ -1530,6 +1530,19 @@ const NAGLOWEK_MAX = 0.4;
    strony (do `PRZEWIN_GORA` px) paski wracaja do zwyklego stanu. */
 const RECZNIE_ROZWINIETY_MS = 60000;
 const PRZEWIN_GORA = 8;
+/* Rysunek „przypiety” (uzytkownik 2026-10-25): od tej szerokosci okna strona ma
+   dwie kolumny (Tailwind `lg`), a prawa stoi pod gornym paskiem z wlasnym
+   przewijaniem; odstep od paska i od dolu okna. */
+const SZEROKI_EKRAN = 1024;
+const PRZYPIETY_ODSTEP = 8;
+// element w przypietej kolumnie: przewija sie tylko ona, strona stoi; false — nie w niej
+const przewinWKolumnie = (el, odstep = 0) => {
+  const kol = el && el.closest('[data-el="prawa-kolumna"]');
+  if (!kol || getComputedStyle(kol).position !== "sticky") return false;
+  kol.scrollTo({ behavior: "smooth",
+    top: el.getBoundingClientRect().top - kol.getBoundingClientRect().top + kol.scrollTop - odstep });
+  return true;
+};
 /* Dokument we wspolnym magazynie artefaktu na claude.ai, do ktorego przycisk
    „Wyslij do Claude" zapisuje biezacy projekt (pole `json`) — Claude czyta go
    stamtad. Poza artefaktem na claude.ai nieuzywany. */
@@ -17595,6 +17608,34 @@ export default function App() {
     window.addEventListener("scroll", f, { passive: true });
     return () => window.removeEventListener("scroll", f);
   }, [zwinPrzyPrzewijaniu]);
+  /* Rysunek „przypiety” (uzytkownik 2026-10-25): na szerokim ekranie (dwie kolumny)
+     prawa kolumna — rysunek i karty pod nim — stoi pod gornym paskiem i ma wlasne
+     przewijanie. Przewijanie lewej (ustawienia szafki) nie zabiera rysunku z ekranu,
+     a karty pod rysunkiem przewija sie kolkiem nad prawa kolumna. Pelny ekran
+     rysunku ja odkleja — przyklejona kolumna jest osobna warstwa i nakladka bylaby
+     pod gornym paskiem. */
+  const [szeroki, setSzeroki] = useState(() => !!window.matchMedia
+    && window.matchMedia(`(min-width: ${SZEROKI_EKRAN}px)`).matches);
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mq = window.matchMedia(`(min-width: ${SZEROKI_EKRAN}px)`);
+    const f = () => setSzeroki(mq.matches);
+    f();
+    mq.addEventListener("change", f);
+    return () => mq.removeEventListener("change", f);
+  }, []);
+  const przypieta = szeroki && !pelnyRys;
+  const przypietaGora = (przyklejony ? wysNaglowka : 0) + PRZYPIETY_ODSTEP;
+  // przewijanie prawej kolumny zwija i rozwija paski u gory jak przewijanie strony
+  const prawaY = useRef(0);
+  const przewinPrawa = (e) => {
+    const y = e.currentTarget.scrollTop;
+    if (y > prawaY.current && y > PRZEWIN_GORA) zwinPrzyPrzewijaniu();
+    else if (y < prawaY.current && y <= PRZEWIN_GORA && window.scrollY <= PRZEWIN_GORA) {
+      setAutoPokoje(false); setAutoPasek(false);
+    }
+    prawaY.current = y;
+  };
   const pokojeWidokZw = pokojeZwiniete || autoPokoje;
   const pasekWidokZw = pasekZw || autoPasek;
   // klikniecie w zwiniety (takze sam przy przewijaniu) rozwija go na minute
@@ -19390,7 +19431,8 @@ export default function App() {
   const infosNowe = infos.filter((m) => !przeczytane.has(m.text));
   const notesRef = useRef(null);
   const scrollToNotes = () =>
-    notesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    przewinWKolumnie(notesRef.current, PRZYPIETY_ODSTEP)
+      || notesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   // HDF na plecy jest za cienki na obrzeze — nie dajemy nawet klikac
   const EdgeChips = ({ p }) =>
@@ -19456,8 +19498,10 @@ export default function App() {
             /* pod przyklejony gorny pasek — jego wysokosc sie zmienia (zwijany pasek
                ciagow, szerokosc okna), wiec liczymy ja przy kazdym kliknieciu */
             /* Przewijanie w dol i tak zwinie paski — zwijamy je od razu, a miejsce
-               liczymy po zwinieciu (inaczej rysunek wjezdzal pod pasek o roznice). */
-            zwinPrzyPrzewijaniu();
+               liczymy po zwinieciu (inaczej rysunek wjezdzal pod pasek o roznice).
+               Przypieta kolumna przewija sie sama, strona stoi — paskow nie ruszamy
+               (na gorze strony kolko nie rozwinieloby ich z powrotem). */
+            if (!przypieta) zwinPrzyPrzewijaniu();
             setTimeout(() => {
               const karta = document.getElementById("rysunek");
               const pasek = document.querySelector("header.sticky");   // nieprzyklejony (niskie okno) nie zaslania
@@ -19466,6 +19510,7 @@ export default function App() {
                  rysunku po przelacznikach widokow — przewijamy prosto do niego. */
               const svg = karta && karta.querySelector("svg");
               const el = niskieOkno && svg ? svg : karta;
+              if (przewinWKolumnie(el)) return;
               if (el) window.scrollTo({ behavior: "smooth",
                 top: el.getBoundingClientRect().top + window.scrollY - nad - (el === karta ? 8 : 0) });
             }, 80);
@@ -22036,7 +22081,10 @@ export default function App() {
           </Card>
         </div>
 
-        <div className="mt-4 space-y-4 lg:mt-0">
+        <div className="mt-4 lg:mt-0">
+        <div data-el="prawa-kolumna" onScroll={przypieta ? przewinPrawa : undefined}
+          className={`space-y-4 ${przypieta ? "sticky overflow-y-auto" : ""}`}
+          style={przypieta ? { top: przypietaGora, maxHeight: wysOkna - przypietaGora - PRZYPIETY_ODSTEP } : undefined}>
           {/* Pelny ekran: karta rysunku przykrywa cale okno, Esc wraca. */}
           {/* margines zerujemy — odstepy miedzy kartami dokladaly go i nakladka
               konczyla sie przed dolem okna, a spod niej wystawaly inne karty */}
@@ -22914,6 +22962,7 @@ export default function App() {
             </div>
           </Card>
 
+        </div>
         </div>
       </main>
 
