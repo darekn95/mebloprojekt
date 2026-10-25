@@ -382,10 +382,14 @@ const mocowanieKolumny = (cab, rawCol) => (MOCOWANIA_POLEK.includes((rawCol || {
    konfirmaty”). Domyslnie konfirmaty — „półki raczej na kołki, a poziomy raczej na
    konfirmaty”, pod zawiasami klapy musi byc sztywno; przy samych drzwiach mozna
    przestawic na kolki. */
+/* Mocowanie wybrane recznie dla calej kolumny (`rawCol.shelfMount`, np. „Półki kolumny 3
+   na kołkach” przy konfirmatach po drugiej stronie przegrody) obejmuje tez jej granice —
+   audyt projektu uzytkownika 2026-10-25: domyslne konfirmaty granic cofaly ten wybor. */
 const GRANICA_MOCOWANIE = "confirmat";
 const mocowanieGranicy = (cab, rawCol, poz) => {
   const m = ((rawCol || {}).podzialMount || [])[poz];
-  return MOCOWANIA_POLEK.includes(m) ? m : GRANICA_MOCOWANIE;
+  if (MOCOWANIA_POLEK.includes(m)) return m;
+  return MOCOWANIA_POLEK.includes((rawCol || {}).shelfMount) ? rawCol.shelfMount : GRANICA_MOCOWANIE;
 };
 // mocowanie konkretnej polki kolumny z `computeGeo` (granica moze miec inne niz kolumna)
 const mocPolki = (c, s) => (s && s.mount) || c.shelfMount;
