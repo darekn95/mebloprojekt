@@ -194,6 +194,24 @@ const nk = await page.locator('#rysunek svg [data-el="szuflada-kreska"]').count(
 ok('bez podfrezu i bez uchwytu kreska zostaje (symbol szuflady)', nk === 3, String(nk));
 await view('Zamk.');
 
+console.log('\n== DXS-3D z podfrezem: bok nie wyżej niż front (użytkownik 2026-10-25) ==');
+{
+  const dxs = { drawers: [0, 1, 2, 3].map(() => ({ h: 'auto', front: null, handle: false, system: 'dxs' })) };
+  await seed({ ...dxs }, 'overlay');
+  const boki0 = (await cutRows()).filter((r) => /^Bok szuflady/i.test(r));
+  await seed({ ...dxs, fingerGrip: true }, 'overlay');
+  const boki1 = (await cutRows()).filter((r) => /^Bok szuflady/i.test(r));
+  const wys = (rows) => rows.map((r) => Math.min(...r.split(' | ').slice(2, 4).map(Number).filter((v) => v > 0)));
+  ok('podfrez: boki skrzynek DXS niższe niż bez podfrezu', boki1.length > 0 && Math.max(...wys(boki1)) < Math.max(...wys(boki0)), JSON.stringify([wys(boki0), wys(boki1)]));
+  const u = await notes();
+  ok('bez uwag o boku wystającym ponad front', !u.some((n) => /wystaje .* ponad front obniżony/.test(n.txt)), u.map((n) => n.txt.slice(0, 80)).join(' / '));
+  // bok wpisany recznie wyzej niz front — ostrzezenie z przyciskiem
+  await seed({ ...dxs, fingerGrip: true, drawers: dxs.drawers.map((d, i) => (i === 1 ? { ...d, h: 150 } : d)) }, 'overlay');
+  const u2 = await notes();
+  const w = u2.find((n) => /szuflada 2: bok 150 mm wystaje \d+ mm ponad front obniżony podfrezem/.test(n.txt));
+  ok('ręczny bok 150 ponad front: ostrzeżenie z „Zmień bok szuflady na N mm”', !!w && w.btns.some((b) => /^Zmień bok szuflady na \d+ mm$/.test(b)), JSON.stringify(w || u2.map((n) => n.txt.slice(0, 90))));
+}
+
 console.log('\n== widoki bez błędów ==');
 await seed({ fingerGrip: true });
 for (const v of ['Zamk.', 'Otw.', 'Z boku', 'Z góry', 'Z tyłu', '3D']) {

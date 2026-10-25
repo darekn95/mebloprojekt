@@ -8,11 +8,11 @@ Kolumna w „Strukturze wnętrza” → **Szuflady**. Każda szuflada ma swój s
 Liczby katalogowe obu systemów są dla płyty 18 mm.
 
 Szuflady mogą też stać w **jednym poziomie kolumny** (kolumna podzielona na
-półkach — „granica frontów”; w karcie „poziom kolumny N” → **Szuflady**,
+półkach — „granica frontów”; w karcie „poziom N kolumny K” → **Szuflady**,
 2026-10-24). Liczą się tak samo, tylko w paśmie tego poziomu: najniższa
 prowadnica siada na półce granicznej pod nim (albo na dnie), skrzynka, podniesiony
 tył i podfrez kończą się pod półką nad nim, a front nakładany zachodzi na półkę
-graniczną jak na przegrodę. Uwagi mówią „Poziom P, kolumna K, poziom kolumny N,
+graniczną jak na przegrodę. Uwagi mówią „Poziom P, poziom N kolumny K,
 szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 
 ## Wspólne dla obu systemów
@@ -101,7 +101,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
   - spód dna i tyłu na +27 mm, więc boki schodzą 10 mm poniżej dna;
   - najniższa prowadnica stoi 2 mm nad dnem szafki;
   - front zawsze sięga spodu prowadnicy (27 mm poniżej spodu dna) i ją zasłania.
-- **Bok**: auto jak wyżej (najwyższy z luzem 5 mm) albo ręcznie w mm. Puste pole pokazuje „auto N”.
+- **Bok**: auto jak wyżej (najwyższy z luzem 5 mm) albo ręcznie w mm. Puste pole pokazuje „auto N”. Przy froncie obniżonym podfrezem (także górnym pod płytą) bok auto kończy się równo z górą frontu — nie wystaje w szczelinie nad nim (2026-10-25); ręcznie wpisany wyższy — ostrzeżenie z „Zmień bok szuflady na N mm”.
 - **Tył**: auto = bok − 10, góra równo z bokami. Ręcznie można niżej; wyżej daje ostrzeżenie z przyciskiem powrotu.
 - **Najniższa możliwa skrzynka**: bok 40 / tył 30 mm. Gdy auto nie mieści nawet takiej — błąd „nie ma miejsca na skrzynkę DXS-3D” z przyciskami „Zmniejsz do N szuflad” / „Zmień na DXS-3D”.
 - **Wąskie formatki skrzynki** (reguła wszystkich formatek):

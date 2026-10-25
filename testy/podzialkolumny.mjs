@@ -79,17 +79,17 @@ console.log('\n== każdy odcinek osobno (użytkownik 2026-10-24: „dolną w dó
     await k2.locator('[data-el="fronty-kolumny"]').innerText().catch(() => ''));
   const odc = k2.locator('[data-el="odcinek-kolumny"]');
   ok('4 odcinki z własnymi ustawieniami', (await odc.count()) === 4);
-  const dolny = odc.filter({ hasText: 'poziom kolumny 1' });
+  const dolny = odc.filter({ hasText: 'poziom 1 kolumny 2' });
   await dolny.getByRole('button', { name: 'w dół', exact: true }).click(); await page.waitForTimeout(500);
   let c = await zap();
-  ok('poziom kolumny 1: klapa w dół, wyższe dalej do góry', c.levels[0].cols[1].segmenty[0].klapa === 'dol' && c.levels[0].cols[1].klapa === 'gora',
+  ok('poziom 1 kolumny 2: klapa w dół, wyższe dalej do góry', c.levels[0].cols[1].segmenty[0].klapa === 'dol' && c.levels[0].cols[1].klapa === 'gora',
     JSON.stringify(c.levels[0].cols[1].segmenty));
-  ok('poziom kolumny 1: „amortyzatory” (klapa w dół)', /amortyzatory/.test(await dolny.innerText()));
-  const drugi = odc.filter({ hasText: 'poziom kolumny 2' });
+  ok('poziom 1 kolumny 2: „amortyzatory” (klapa w dół)', /amortyzatory/.test(await dolny.innerText()));
+  const drugi = odc.filter({ hasText: 'poziom 2 kolumny 2' });
   await drugi.getByRole('button', { name: 'skrzydło', exact: true }).click(); await page.waitForTimeout(400);
   await drugi.locator('[data-el="odcinek-fronty"]').fill('2'); await page.waitForTimeout(500);
   c = await zap();
-  ok('poziom kolumny 2: dwoje drzwi zamiast klapy', c.levels[0].cols[1].segmenty[1].doors === 2 && c.levels[0].cols[1].segmenty[1].klapa === null, JSON.stringify(c.levels[0].cols[1].segmenty[1]));
+  ok('poziom 2 kolumny 2: dwoje drzwi zamiast klapy', c.levels[0].cols[1].segmenty[1].doors === 2 && c.levels[0].cols[1].segmenty[1].klapa === null, JSON.stringify(c.levels[0].cols[1].segmenty[1]));
   ok('kolumna liczy „fronty 5 w 4 poziomach kolumny”', /fronty 5 w 4 poziomach kolumny/.test(await k2.locator('[data-el="fronty-kolumny"]').innerText()));
   const u = await uwagi();
   ok('bez błędów (×) w Uwagach', !/^×/m.test(u), u.split('\n').filter((l) => /^×/.test(l)).join(' / '));
@@ -109,13 +109,15 @@ console.log('\n== klapa na półce na kołkach: ostrzeżenie z konfirmatami ==')
 {
   await seed({ ...SZAFA(), levels: [{ h: null, cols: [kol({ shelfTargets: [null] }), kol({ podzial: [0] }), kol({ shelfTargets: [null] })] }] });
   const k2 = kolumna(2);
-  const poz2 = k2.locator('[data-el="odcinek-kolumny"]').filter({ hasText: 'poziom kolumny 2' });
+  const poz2 = k2.locator('[data-el="odcinek-kolumny"]').filter({ hasText: 'poziom 2 kolumny 2' });
   await poz2.getByRole('button', { name: 'klapa', exact: true }).click(); await page.waitForTimeout(500);
   let u = await uwagi();
   ok('klapa do góry w poziomie 2 wisi na wieńcu — bez ostrzeżenia o kołkach', !/na kołkach — półka z zawiasami/.test(u), u.split('\n').filter((l) => /kołkach/.test(l)).join(' / '));
   await poz2.getByRole('button', { name: 'w dół', exact: true }).click(); await page.waitForTimeout(500);
   u = await uwagi();
-  ok('klapa w dół na półce na kołkach: ostrzeżenie z „Półki kolumny 2 na konfirmatach”', /klapa w dół wisi na półce 1 \(pod nią\), a półki tej kolumny są na kołkach/.test(u) && /Półki kolumny 2 na konfirmatach/.test(u),
+  // od 2026-10-25 także „Półka 1 na konfirmatach” (tylko ta granica)
+  ok('klapa w dół na półce na kołkach: ostrzeżenie z „Półka 1 …” i „Półki kolumny 2 na konfirmatach”', /klapa w dół wisi na półce 1 \(pod nią\), a ta półka jest na kołkach/.test(u)
+    && /Półka 1 na konfirmatach/.test(u) && /Półki kolumny 2 na konfirmatach/.test(u),
     u.split('\n').filter((l) => /kołkach/.test(l)).join(' / '));
   await page.getByRole('button', { name: 'Półki kolumny 2 na konfirmatach' }).first().click(); await page.waitForTimeout(600);
   ok('przycisk: kolumna 2 na konfirmatach, ostrzeżenie znika', (await zap()).levels[0].cols[1].shelfMount === 'confirmat' && !/na kołkach — półka z zawiasami/.test(await uwagi()));
@@ -127,7 +129,7 @@ console.log('\n== półki w poziomie kolumny (użytkownik 2026-10-24) ==');
   await seed({ ...SZAFA(), levels: [{ h: null, cols: [kol({ shelfTargets: [null] }), kol({ shelfTargets: [null] }),
     kol({ doors: 2, podzial: [0], shelfMount: 'confirmat' })] }] });
   const k3 = kolumna(3);
-  const poz = (n) => k3.locator('[data-el="odcinek-kolumny"]').filter({ hasText: `poziom kolumny ${n}` });
+  const poz = (n) => k3.locator('[data-el="odcinek-kolumny"]').filter({ hasText: `poziom ${n} kolumny 3` });
   ok('pole „półki” w każdym poziomie kolumny: 0 i 2', (await poz(1).locator('[data-el="odcinek-polki"]').inputValue()) === '0'
     && (await poz(2).locator('[data-el="odcinek-polki"]').inputValue()) === '2');
   const yGranicy = async () => page.evaluate(() => 0);
@@ -153,7 +155,7 @@ console.log('\n== poziom kolumny jak osobna kolumna: szuflady i blenda (użytkow
   // kolumna 2: granica na polce 0 — poziom 1 = swiatlo 600 na dole, poziom 2 = 2 polki nad nim
   await seed({ ...SZAFA(), H: 2000, levels: [{ h: null, cols: [kol(), kol({ shelfTargets: [600, null, null, null], podzial: [0] }), kol()] }] });
   const k2 = kolumna(2);
-  const poz = (n) => k2.locator('[data-el="odcinek-kolumny"]').filter({ hasText: `poziom kolumny ${n}` });
+  const poz = (n) => k2.locator('[data-el="odcinek-kolumny"]').filter({ hasText: `poziom ${n} kolumny 2` });
   const rodzaj = (n, co) => poz(n).locator('[data-el="odcinek-rodzaj"]').getByRole('button', { name: co, exact: true });
   ok('w każdym poziomie kolumny wybór „Półki i drzwi / Szuflady / Blenda”',
     (await poz(1).locator('[data-el="odcinek-rodzaj"] button').allInnerTexts()).join('|') === 'Półki i drzwi|Szuflady|Blenda'
@@ -211,6 +213,39 @@ console.log('\n== półka w środku poziomu z szufladami: błąd z przyciskiem =
   const k = (await zap()).levels[0].cols[1];
   ok('„Usuń półki z tego poziomu”: granica na półce 0, półki poziomu 2 zostają', JSON.stringify(k.podzial) === '[0]' && k.shelfTargets.length === 3, JSON.stringify([k.podzial, k.shelfTargets]));
   ok('błąd znika', !/szuflady i półka w tym samym poziomie kolumny/.test(await uwagi()));
+}
+
+console.log('\n== mocowanie półki granicznej poziomu kolumny (użytkownik 2026-10-25) ==');
+{
+  await seed({ ...SZAFA(), H: 2000, levels: [{ h: null, cols: [kol(), kol({ podzial: [1] }), kol()] }] });
+  const k2 = kolumna(2);
+  const poz = (n) => k2.locator('[data-el="odcinek-kolumny"]').filter({ hasText: `poziom ${n} kolumny 2` });
+  ok('karta „poziom 2 kolumny 2”: „półka pod nim” kołki / konfirmaty / trójkąty; dolny poziom bez', (await poz(2).locator('[data-el="granica-mocowanie"] button').allInnerTexts()).join('|') === 'kołki|konfirmaty|trójkąty'
+    && (await poz(1).locator('[data-el="granica-mocowanie"]').count()) === 0);
+  const produkty = async () => page.evaluate(() => {
+    const sec = [...document.querySelectorAll('section')].find((x) => /^Produkty do zamówienia/.test(x.querySelector('h2')?.textContent || ''));
+    const qty = (re) => { const tr = sec && [...sec.querySelectorAll('tbody tr')].find((t) => re.test(t.innerText)); return tr ? tr.innerText.replace(/\s+/g, ' ') : ''; };
+    return { kolki: qty(/^Kołek podporowy/), konf: qty(/^Konfirmat/), tr: qty(/^Trójkąt/) };
+  });
+  const przed = await produkty();
+  await poz(2).locator('[data-el="granica-mocowanie"]').getByRole('button', { name: 'konfirmaty', exact: true }).click(); await page.waitForTimeout(700);
+  let k = (await zap()).levels[0].cols[1];
+  ok('konfirmaty: tylko ta granica (podzialMount), reszta półek kolumny jak była', JSON.stringify(k.podzialMount) === '["confirmat"]' && !k.shelfMount, JSON.stringify([k.podzialMount, k.shelfMount]));
+  const po = await produkty();
+  ok('zamówienie: mniej kołków, więcej konfirmatów', po.kolki !== przed.kolki && po.konf !== przed.konf, JSON.stringify([przed, po]));
+  ok('przycisk „domyślne” przy wpisanym mocowaniu', (await poz(2).getByRole('button', { name: 'domyślne', exact: true }).count()) === 1);
+  await poz(2).locator('[data-el="granica-mocowanie"]').getByRole('button', { name: 'trójkąty', exact: true }).click(); await page.waitForTimeout(700);
+  ok('trójkąty w zamówieniu', /Trójkąt/.test((await produkty()).tr), JSON.stringify(await produkty()));
+  await poz(2).getByRole('button', { name: 'domyślne', exact: true }).click(); await page.waitForTimeout(700);
+  k = (await zap()).levels[0].cols[1];
+  ok('„domyślne” zdejmuje wpis', !k.podzialMount, JSON.stringify(k.podzialMount));
+  // klapa nad granica na kolkach — ostrzezenie z przyciskiem tej jednej polki
+  await seed({ ...SZAFA(), H: 2000, levels: [{ h: null, cols: [kol(), kol({ podzial: [1], podzialMount: ['pins'], segmenty: [null, { doors: 1, klapa: 'dol' }] }), kol()] }] });
+  const u = await uwagi();
+  ok('klapa na granicy na kołkach: ostrzeżenie „ta półka jest na kołkach”', /ta półka jest na kołkach/.test(u), u.slice(0, 400));
+  await page.getByRole('button', { name: 'Półka 2 na konfirmatach', exact: true }).first().click(); await page.waitForTimeout(800);
+  k = (await zap()).levels[0].cols[1];
+  ok('„Półka 2 na konfirmatach” — tylko ta granica', JSON.stringify(k.podzialMount) === '["confirmat"]' && !/ta półka jest na kołkach/.test(await uwagi()), JSON.stringify(k.podzialMount));
 }
 
 console.log('\n== jedna kolumna: „→ poziom” jak dotąd (poziom) ==');

@@ -367,6 +367,15 @@ const MOCOWANIA_POLEK = ["pins", "confirmat", "trojkaty"];
 // karty zamowienia: ktore domyslnie pokazuja szafke (reszta — pomieszczenie / projekt)
 const KARTY_NA_SZAFKE = { formatki: true, produkty: true, rozkroj: false, wycena: false };
 const mocowanieKolumny = (cab, rawCol) => (MOCOWANIA_POLEK.includes((rawCol || {}).shelfMount) ? rawCol.shelfMount : mocowaniePolek(cab));
+/* Polka graniczna poziomu kolumny (`rawCol.podzial[poz]`) moze miec wlasne mocowanie
+   (`rawCol.podzialMount[poz]`, uzytkownik 2026-10-25: „czy poziomy na kołki czy na
+   konfirmaty”) — puste: jak polki kolumny. */
+const mocowanieGranicy = (cab, rawCol, poz) => {
+  const m = ((rawCol || {}).podzialMount || [])[poz];
+  return MOCOWANIA_POLEK.includes(m) ? m : mocowanieKolumny(cab, rawCol);
+};
+// mocowanie konkretnej polki kolumny z `computeGeo` (granica moze miec inne niz kolumna)
+const mocPolki = (c, s) => (s && s.mount) || c.shelfMount;
 /* Kolumna z podzialem frontow (`col.podzial`, `col.segmenty`): bez granicy na
    polce k odcinki nad i pod nia lacza sie — zostaja ustawienia dolnego. */
 /* Poziom kolumny z podzialem moze miec wlasna strukture jak cala kolumna
@@ -384,6 +393,9 @@ const kolumnaW = (L, li, j) => {
   while (seg.length <= +m[2]) seg.push(null);
   return seg[+m[2]] || (seg[+m[2]] = {});
 };
+/* Nazwa poziomu kolumny w uwagach (uzytkownik 2026-10-25: „poziom 4 kolumny 2”, nie
+   „poziom kolumny 4”) — przed nia poziom szafki, jak w innych uwagach. */
+const gdziePoziomKol = (li, j, nr) => `Poziom ${li + 1}, poziom ${nr + 1} kolumny ${j + 1}`;
 // adres szuflady w przyciskach: kolumna albo jej poziom („<kolumna>s<nr>”)
 const jSzuflady = (c, dr) => (dr && dr.seg ? `${c.j}s${dr.seg.nr}` : c.j);
 const usunGranice = (col, k) => {
@@ -394,8 +406,12 @@ const usunGranice = (col, k) => {
     col.segmenty.splice(poz + 1, 1);
     if (!col.segmenty.some(Boolean)) delete col.segmenty;
   }
+  if (col.podzialMount) {
+    col.podzialMount.splice(poz, 1);
+    if (!col.podzialMount.some(Boolean)) delete col.podzialMount;
+  }
   col.podzial = gr.filter((x) => x !== k);
-  if (!col.podzial.length) { delete col.podzial; delete col.segmenty; }
+  if (!col.podzial.length) { delete col.podzial; delete col.segmenty; delete col.podzialMount; }
 };
 const UCHWYT_OD_KRAWEDZI = 36;   // os uchwytu pionowego od wolnej krawedzi skrzydla
 const uchwytObrys = (d) => {
@@ -2620,6 +2636,13 @@ function computeGeoLiczy(cab, mat, ctx) {
           add("info", `Poziom ${lv.i + 1}, kolumna ${j + 1}: światło ${fmt(o.h)} mm — zmieści się rura na wieszaki (pod nią ${fmt(o.h - DRAZEK_POD_PLYTA)} mm: koszule${o.h - DRAZEK_POD_PLYTA >= DRAZEK_DLUGIE ? ", płaszcze i sukienki" : ""}).|drazek:${lv.i}:${j}:${o.k}:1`);
       }
       c.shelfMount = mocowanieKolumny(cab, rawCols[j]);
+      // polka graniczna poziomu kolumny — wlasne mocowanie (`mocowanieGranicy`), reszta jak kolumna
+      const grMoc = (rawCols[j].podzial || []).map(Number);
+      c.shelves.forEach((sh, k) => {
+        const poz = grMoc.indexOf(k);
+        sh.mount = poz >= 0 ? mocowanieGranicy(cab, rawCols[j], poz) : c.shelfMount;
+        if (poz >= 0) sh.granica = poz;
+      });
       // dolny koniec przegrody z prawej tej kolumny na trojkatach (krzyz z przegroda pod polka, N45)
       c.divDolMount = rawCols[j].divDolMount === "trojkaty" ? "trojkaty" : null;
       lv.cols.push(c);
@@ -3223,8 +3246,8 @@ function computeGeoLiczy(cab, mat, ctx) {
         const pasmaDrzwi = pasmaPodzialu(rawCol, c, lv, clo, chi);
         pasmaDrzwi.forEach((ps) => {
         const clo = ps.lo, chi = ps.hi, cbandH = Math.round(ps.hi - ps.lo);
-        // „poziom kolumny” (uzytkownik 2026-10-24: „odcinek źle brzmi”)
-        const where = ps.seg ? `${whereKol}, poziom kolumny ${ps.seg.nr + 1}` : whereKol;
+        // „poziom N kolumny M” (uzytkownik 2026-10-24: „odcinek źle brzmi”, 2026-10-25: numer przy poziomie)
+        const where = ps.seg ? gdziePoziomKol(lv.i, j, ps.seg.nr) : whereKol;
         const jKey = ps.seg ? `${j}s${ps.seg.nr}` : `${j}`;
         const rawCol = ps.raw;
         /* Poziom kolumny moze miec wlasna strukture jak cala kolumna (uzytkownik
@@ -3676,9 +3699,17 @@ function computeGeoLiczy(cab, mat, ctx) {
           if (bokY0 + bokMax + SZUFLADA_ZAPAS <= sf) break;
           bokMax = Math.floor(sf - SZUFLADA_ZAPAS - bokY0);
         }
+        /* Front nizszy od pasma (podfrez, gorny front pod plyta) — bok nie wystaje ponad
+           jego gore, bo widac go w szczelinie nad frontem (uzytkownik 2026-10-25: „jak
+           obniżamy front, to boki też niższe, żeby nie wystawały ponad front”). */
+        const bokPodFrontem = Math.floor(y + fh - bokY0);
+        if (fh < fhFull) bokMax = Math.min(bokMax, bokPodFrontem);
         const recznyBok = num(d.h);
         const hBok = Math.max(0, recznyBok !== null ? Math.round(recznyBok) : bokMax);
         const goraBoku = bokY0 + hBok;
+        if (recznyBok !== null && fh < fhFull && hBok > bokPodFrontem)
+          add("warn", `${where2}: bok ${fmt(hBok)} mm wystaje ${fmt(hBok - bokPodFrontem)} mm ponad front obniżony podfrezem — widać go w szczelinie nad frontem.`
+            + (bokPodFrontem >= DXS.minTyl + DXS.bokPodDnem ? `|fixh:${lv.i}:${j}:${i}:${bokPodFrontem}` : ""));
         // wzmocnienie przy plecach na wysokosci skrzynki skraca prowadnice (4 mm luzu)
         const zaSkrzynka = (c.rails || []).filter((r) => r.z0 > 0 && r.y0 < goraBoku && r.y1 > railY0 && wPasie(r));
         const limTyl = zaSkrzynka.length ? Math.min(...zaSkrzynka.map((r) => r.z0)) : null;
@@ -4117,7 +4148,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             ovlDrawLo: ps.pierwszy ? lv.ovlDrawLo : ps.y0 - ovS, ovlDrawHi: ps.ostatni ? lv.ovlDrawHi : ps.y1 + ovS,
             dolny: ps.pierwszy && lv.i === 0, gorny: ps.ostatni && lv.i === L - 1 };
           const cS = Object.create(c);
-          szufladyKolumny(ps.raw, cS, lvS, `${j}s${nr}`, j, `${whereKol}, poziom kolumny ${nr + 1}`,
+          szufladyKolumny(ps.raw, cS, lvS, `${j}s${nr}`, j, gdziePoziomKol(lv.i, j, nr),
             ps.pierwszy ? insLo : ps.y0 + g.inset, ps.ostatni ? insHi : ps.y1 - g.inset, ps.ostatni ? topFixGeo : null);
           (cS.drawers || []).forEach((dr) => { dr.seg = ps.seg; dr.mode = cS.drawerMode; dr.grip = cS.fingerGrip || 0; });
           c.drawers = [...(c.drawers || []), ...(cS.drawers || [])];
@@ -4900,7 +4931,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             const maxNlFit = [600, 550, 500, 450, 400, 350, 300, 270, 250]
               .find((v) => v + 4 <= freeDepth);
             const act = maxNlFit ? `|fixnl:${lv.i}:${jSzuflady(c, dr)}:${dr.i}:${maxNlFit}` : "";
-            const gdzie = `Poziom ${lv.i + 1}, kolumna ${c.j + 1}${dr.seg ? `, poziom kolumny ${dr.seg.nr + 1}` : ""}, szuflada ${dr.i + 1}`;
+            const gdzie = `${dr.seg ? gdziePoziomKol(lv.i, c.j, dr.seg.nr) : `Poziom ${lv.i + 1}, kolumna ${c.j + 1}`}, szuflada ${dr.i + 1}`;
             if (gap < 0) {
               const advice = maxNlFit
                 ? `zejdź z prowadnicą do NL ${maxNlFit}`
@@ -5012,7 +5043,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             const maxNlFit = [600, 550, 500, 450, 400, 350, 300, 270, 250]
               .find((v) => v + 4 <= freeDepth);
             const act = maxNlFit ? `|fixnl:${lv.i}:${jSzuflady(c, dr)}:${dr.i}:${maxNlFit}` : "";
-            const gdzie = `Poziom ${lv.i + 1}, kolumna ${c.j + 1}${dr.seg ? `, poziom kolumny ${dr.seg.nr + 1}` : ""}, szuflada ${dr.i + 1}`;
+            const gdzie = `${dr.seg ? gdziePoziomKol(lv.i, c.j, dr.seg.nr) : `Poziom ${lv.i + 1}, kolumna ${c.j + 1}`}, szuflada ${dr.i + 1}`;
             const co = ob.mask ? "zabudowy elementu" : "elementu";
             if (gap < 0) {
               const advice = maxNlFit
@@ -5099,8 +5130,9 @@ function computeGeoLiczy(cab, mat, ctx) {
     /* Otwory musza lezec na polce i nie wpasc na siebie: przod < tyl. Dotad
        plan pisal np. „700 i −140 mm od przedniej krawedzi” bez zadnej uwagi
        (audyt GPT N16). Sprawdzamy na najplytszej polce na kolkach. */
-    if (levels.some((lv) => lv.cols.some((c) => c.shelfMount === "pins" && (c.shelves || []).length))) {
-      const glPolek = levels.flatMap((lv) => lv.cols.filter((c) => c.shelfMount === "pins" && (c.shelves || []).length).map((c) => c.shD ?? shelfDepth));
+    const naKolkach = (c) => (c.shelves || []).some((s2) => mocPolki(c, s2) === "pins");
+    if (levels.some((lv) => lv.cols.some(naKolkach))) {
+      const glPolek = levels.flatMap((lv) => lv.cols.filter(naKolkach).map((c) => c.shD ?? shelfDepth));
       const gl = glPolek.length ? Math.min(...glPolek) : null;
       // przycisk: 50 / 50, a na plytkiej polce tyle, ile sie zmiesci (otwory min. KOLEK_PRZESUN od siebie)
       const zal = Math.min(50, Math.floor((gl - KOLEK_PRZESUN) / 2));
@@ -5124,7 +5156,9 @@ function computeGeoLiczy(cab, mat, ctx) {
         const sasiadL = c.j > 0 ? lv.cols[c.j - 1] : null;
         /* Prawa strona przesuwa sie tylko przed konfirmatami sasiada — te stoja w miejscu;
            kolki i trojkaty sasiada z prawej omija on sam (to jego lewa strona). */
-        const sasiadP = c.j < lv.cols.length - 1 && lv.cols[c.j + 1].shelfMount === "confirmat" ? lv.cols[c.j + 1] : null;
+        const kolP = c.j < lv.cols.length - 1 ? lv.cols[c.j + 1] : null;
+        const konfP = kolP ? (kolP.shelves || []).filter((q) => mocPolki(kolP, q) === "confirmat") : [];
+        const sasiadP = konfP.length ? { ...kolP, shelves: konfP } : null;
         /* Audyt GPT N75: stale „20 mm do srodka” na plytkiej polce dawalo zbiezne
            otwory (D240: 120 i 120) albo tylko zamienialo je miejscami (D220).
            Sprawdzamy koncowe pozycje: otwory tej strony co najmniej KOLEK_PRZESUN
@@ -5138,9 +5172,10 @@ function computeGeoLiczy(cab, mat, ctx) {
            przesuniecie — podpowiedz: przesuniete albo trojkaty / konfirmaty. */
         const otworySasiada = (k, y) => (k ? (k.shelves || []).flatMap((q) => {
           const pk = frontCut + (k.shFront || 0), gk = k.shD ?? shelfDepth;
-          if (k.shelfMount === "confirmat") return konfirmatyPoz(gk, pk).map((z) => ({ z, y: q.y + ts / 2, r: KONF_R }));
-          const zs = k.shelfMount === "trojkaty" ? [pk + KONF_OD_KRAWEDZI, pk + gk - KONF_OD_KRAWEDZI]
-            : k.shelfMount === "pins" ? [pk + pinF, pk + gk - pinB] : [];
+          const mq = mocPolki(k, q);
+          if (mq === "confirmat") return konfirmatyPoz(gk, pk).map((z) => ({ z, y: q.y + ts / 2, r: KONF_R }));
+          const zs = mq === "trojkaty" ? [pk + KONF_OD_KRAWEDZI, pk + gk - KONF_OD_KRAWEDZI]
+            : mq === "pins" ? [pk + pinF, pk + gk - pinB] : [];
           return zs.map((z) => ({ z, y: q.y, r: KOLEK_R }));
         }).filter((h) => Math.abs(h.y - y) < KOLEK_R + KONF_R + OTW_SCIANKA + 1) : []);
         const rozsun = ([a, b], y, sasiad) => {
@@ -5158,7 +5193,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           return null;
         };
         const przesuniete = [], nieDaSie = [];
-        const coPoDrugiej = (k) => (k && k.shelfMount === "confirmat"
+        const coPoDrugiej = (k, y) => (k && (k.shelves || []).some((q) => mocPolki(k, q) === "confirmat" && Math.abs(q.y - y) < ts + 10)
           ? "po drugiej stronie konfirmaty półki z sąsiedniej kolumny" : "po drugiej stronie półka na tej samej wysokości");
         const pinNoteS = (y, sasiad) => {
           const r = rozsun([przod + pinF, przod + gl - pinB], y, sasiad);
@@ -5166,7 +5201,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           if (!r.kier) return pinNote;
           przesuniete.push({ y, ...r });
           return `⌀5, ${fmt(r.o[0])} i ${fmt(r.o[1])} mm od przedniej krawędzi płyty; `
-            + `wysokość = spód półki; przesunięte o ${r.ile} mm ${r.kier} — ${coPoDrugiej(sasiad)}`;
+            + `wysokość = spód półki; przesunięte o ${r.ile} mm ${r.kier} — ${coPoDrugiej(sasiad, y)}`;
         };
         /* Szafka w L: po stronie ramienia boku nie ma — polka lezy tam na
            kolkach (albo trojkatach) we wzmocnieniu tylnym, po jednym w kazdej
@@ -5181,8 +5216,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           drillAdd(lv.i, "Kątownik przy ramieniu — plecy", interior.y0, "kołek półki", y,
             `⌀5 w licu od wnętrza, ${fmt(pinF)} mm od końca przy płycie bocznej; wysokość = spód półki; zamiast boku (albo trójkąt meblowy)`);
         };
-        if (c.shelfMount === "pins")
-          (c.shelves || []).forEach((s) => {
+        (c.shelves || []).filter((s) => mocPolki(c, s) === "pins").forEach((s) => {
             if (przyKatL) katownikKolki(s.y);
             else drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, pinNoteS(s.y, sasiadL) + p.left.strona);
             if (przyKatP) katownikKolki(s.y);
@@ -5192,20 +5226,20 @@ function computeGeoLiczy(cab, mat, ctx) {
            i tylnej krawedzi. Z obu stron przegrody na tej samej wysokosci wkrety
            trafilyby w siebie — jak przy kolkach, ta strona o KOLEK_PRZESUN blizej
            srodka polki. Po stronie ramienia szafki w L — w plytach wzmocnienia. */
-        if (c.shelfMount === "trojkaty") {
+        {
           const trNote = (y, sasiad) => {
             const r = rozsun([przod + KONF_OD_KRAWEDZI, przod + gl - KONF_OD_KRAWEDZI], y, sasiad);
             if (!r) nieDaSie.push(y);
             if (r && r.kier) przesuniete.push({ y, ...r });
             const [x, z] = r ? r.o : [przod + KONF_OD_KRAWEDZI, przod + gl - KONF_OD_KRAWEDZI];
             return `2 rzędy — pod półką, przy jej przedniej i tylnej krawędzi: ${fmt(x)} i ${fmt(z)} mm od przedniej krawędzi płyty; wysokość = spód półki`
-              + (r && r.kier ? `; przesunięte o ${r.ile} mm ${r.kier} — ${coPoDrugiej(sasiad)}` : "");
+              + (r && r.kier ? `; przesunięte o ${r.ile} mm ${r.kier} — ${coPoDrugiej(sasiad, y)}` : "");
           };
           const katownikTr = (y) => {
             drillAdd(lv.i, "Kątownik przy ramieniu — bok", interior.y0, "trójkąt meblowy", y, "pod półką, zamiast boku; wysokość = spód półki");
             drillAdd(lv.i, "Kątownik przy ramieniu — plecy", interior.y0, "trójkąt meblowy", y, "pod półką, w licu od wnętrza, zamiast boku; wysokość = spód półki");
           };
-          (c.shelves || []).forEach((s) => {
+          (c.shelves || []).filter((s) => mocPolki(c, s) === "trojkaty").forEach((s) => {
             if (przyKatL) katownikTr(s.y);
             else drillAdd(lv.i, p.left.name, p.left.base, "trójkąt meblowy", s.y, trNote(s.y, sasiadL) + p.left.strona);
             if (przyKatP) katownikTr(s.y);
@@ -5213,11 +5247,11 @@ function computeGeoLiczy(cab, mat, ctx) {
           });
         }
         const wys = (lista) => listPl([...new Set(lista.map((y) => fmt(Math.round(y - lv.y0))))]);
-        const coTo = c.shelfMount === "trojkaty" ? "Trójkąty" : "Kołki";
+        const coTo = (c.shelves || []).filter((s2) => nieDaSie.includes(s2.y)).every((s2) => mocPolki(c, s2) === "trojkaty") ? "Trójkąty" : "Kołki";
         /* Inne mocowanie tej kolumny (uzytkownik 2026-10-24: przesunac, trojkaty albo
            konfirmaty). Konfirmatow nie podsuwamy, gdy sasiad jest juz na konfirmatach —
            dwa konfirmaty w jednej osi przegrody to blad (N45). */
-        const konfObok = [sasiadL, lv.cols[c.j + 1]].some((k) => k && k.shelfMount === "confirmat");
+        const konfObok = [sasiadL, kolP].some((k) => k && (k.shelves || []).some((q) => mocPolki(k, q) === "confirmat"));
         const inneMoc = [...(c.shelfMount === "pins" ? ["trojkaty"] : ["pins"]), ...(konfObok ? [] : ["confirmat"])];
         const nazwyMoc = { pins: "kołki", trojkaty: "trójkąty", confirmat: "konfirmaty" };
         const przyciskiMoc = inneMoc.map((m) => `|polkimont:${lv.i}:${c.j}:${m}`).join("");
@@ -5315,9 +5349,14 @@ function computeGeoLiczy(cab, mat, ctx) {
            „blizniacza” — polowa grubosci, gdy nad klapa jest jeszcze front
            nastepnego poziomu. Jeden podnosnik — po stronie wybranej przy klapie. */
         // zawiasy klapy w polce granicznej — polka na kolkach by sie wysunela
-        if ((segNad || segPod) && c.shelfMount === "pins")
-          add("warn", `Poziom ${lv.i + 1}, kolumna ${d.colJ + 1}, poziom kolumny ${d.seg.nr + 1}: klapa ${gora ? "do góry" : "w dół"} wisi na półce ${(segNad ? d.seg.polkaNad : d.seg.polkaPod) + 1} `
-            + `(${segNad ? "nad nią" : "pod nią"}), a półki tej kolumny są na kołkach — półka z zawiasami klapy musi być stała.|polkimont:${lv.i}:${d.colJ}:confirmat`);
+        /* Polka z zawiasami klapy ma wlasne mocowanie (granica poziomu kolumny) — przyciski:
+           ta polka na konfirmatach albo wszystkie polki kolumny (uzytkownik 2026-10-25). */
+        const polkaKlapy = (segNad || segPod) ? c.shelves[segNad ? d.seg.polkaNad : d.seg.polkaPod] : null;
+        if (polkaKlapy && mocPolki(c, polkaKlapy) === "pins")
+          add("warn", `${gdziePoziomKol(lv.i, d.colJ, d.seg.nr)}: klapa ${gora ? "do góry" : "w dół"} wisi na półce ${(segNad ? d.seg.polkaNad : d.seg.polkaPod) + 1} `
+            + `(${segNad ? "nad nią" : "pod nią"}), a ta półka jest na kołkach — półka z zawiasami klapy musi być stała.`
+            + (polkaKlapy.granica != null ? `|granicamont:${lv.i}:${d.colJ}:${polkaKlapy.granica}:confirmat` : "")
+            + `|polkimont:${lv.i}:${d.colJ}:confirmat`);
         const k = klapy.find((q) => (q.key ? q.key === d.key : q.colKey === d.colKey));
         const ostatni = lv.i === levels.length - 1 && !segNad;
         const szyna = gora && ostatni && !hasTop
@@ -5485,13 +5524,13 @@ function computeGeoLiczy(cab, mat, ctx) {
        GPT N49). Plan wiercil dotad w „Boku prawym”, ktorego nie ma. */
     const katNote = `⌀7 w płycie kątownika, ${listaPoz(konfirmatyPoz(postW))} mm od jej przedniej krawędzi; w czole półki ⌀5 × 50 — zamiast boku`;
     levels.forEach((lv) => lv.cols.forEach((c) => {
-        if (c.shelfMount !== "confirmat") return;
+        if (!(c.shelves || []).some((s2) => mocPolki(c, s2) === "confirmat")) return;
         const p = panelsOfCol(lv, c);
         const gl = c.shD ?? shelfDepth, od = frontCut + (c.shFront || 0);
         const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(gl, od))} mm od przedniej krawędzi; w czole półki ⌀5 × 50`;
         const przyKatL = postSide === "left" && c.j === 0;
         const przyKatP = postSide === "right" && c.j === lv.cols.length - 1;
-        (c.shelves || []).forEach((s2) => {
+        (c.shelves || []).filter((s2) => mocPolki(c, s2) === "confirmat").forEach((s2) => {
           if (przyKatL) drillAdd(lv.i, "Kątownik przy ramieniu — bok", interior.y0, "konfirmat — półka", s2.y + ts / 2, katNote);
           else drillAdd(lv.i, p.left.name, p.left.base, "konfirmat — półka", s2.y + ts / 2, note + p.left.strona);
           if (przyKatP) drillAdd(lv.i, "Kątownik przy ramieniu — bok", interior.y0, "konfirmat — półka", s2.y + ts / 2, katNote);
@@ -5784,12 +5823,16 @@ function computeGeoLiczy(cab, mat, ctx) {
   dividers.forEach((dv) => {
     const lv = levels[dv.level];
     const cL = lv && lv.cols[dv.j], cR = lv && lv.cols[dv.j + 1];
-    if (cL && cR && cL.shelfMount === "confirmat" && cR.shelfMount === "confirmat") {
-      const naprzeciw = (cL.shelves || []).filter((sL) => (cR.shelves || []).some((sR) => Math.abs(sR.y - sL.y) < ts + 10));
+    if (cL && cR) {
+      const konfR = (cR.shelves || []).filter((sR) => mocPolki(cR, sR) === "confirmat");
+      const naprzeciw = (cL.shelves || []).filter((sL) => mocPolki(cL, sL) === "confirmat" && konfR.some((sR) => Math.abs(sR.y - sL.y) < ts + 10));
+      // po prawej granica poziomu kolumny z wlasnym mocowaniem — przyciski dla niej
+      const grR = konfR.find((sR) => sR.granica != null && naprzeciw.some((sL) => Math.abs(sR.y - sL.y) < ts + 10));
       if (naprzeciw.length)
         add("error", `Poziom ${lv.i + 1}: półki na konfirmatach po obu stronach przegrody ${dv.j + 1} na tej samej wysokości `
           + `(${naprzeciw.map((s2) => fmt(Math.round(s2.y - lv.y0))).join(", ")} mm od dołu poziomu) — drugiego konfirmatu nie da się wkręcić, `
           + `jego łeb wypada pod czołem półki z drugiej strony. Wybierz mocowanie półek kolumny ${dv.j + 2}.`
+          + (grR ? `|granicamont:${lv.i}:${dv.j + 1}:${grR.granica}:trojkaty|granicamont:${lv.i}:${dv.j + 1}:${grR.granica}:pins` : "")
           + `|polkimont:${lv.i}:${dv.j + 1}:trojkaty|polkimont:${lv.i}:${dv.j + 1}:pins`);
     }
     if (dv.level > 0 && !dv.dolTrojkaty && dividers.some((q) => q.level === dv.level - 1 && Math.abs(q.x - dv.x) < t + 10))
@@ -5823,8 +5866,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   const shelfPins = true;
   let pinShelves = 0, trShelves = 0;
   levels.forEach((lv) => lv.cols.forEach((c) => {
-    if (c.shelfMount === "pins") pinShelves += (c.shelves || []).length;
-    if (c.shelfMount === "trojkaty") trShelves += (c.shelves || []).length;
+    pinShelves += (c.shelves || []).filter((s2) => mocPolki(c, s2) === "pins").length;
+    trShelves += (c.shelves || []).filter((s2) => mocPolki(c, s2) === "trojkaty").length;
   }));
   /* Polka plytsza (za wspornikiem fixu) ma mniej konfirmatow niz pelna — liczone
      z jej glebokosci, jak w planie wiercen (audyt GPT N40). */
@@ -5834,7 +5877,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   let doKatownika = 0;
   levels.forEach((lv) => lv.cols.forEach((c) => {
     colShelves += (c.shelves || []).length;
-    const n = c.shelfMount === "confirmat" ? (c.shelves || []).length : 0;
+    const n = (c.shelves || []).filter((s2) => mocPolki(c, s2) === "confirmat").length;
     if (!n) return;
     // po stronie ramienia szafki w L koniec polki idzie w plyte katownika (styk na jej szerokosc)
     const przyKat = (postSide === "left" && c.j === 0) || (postSide === "right" && c.j === lv.cols.length - 1);
@@ -7241,8 +7284,8 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
 
       {/* kolki pod polki — po frontach, zeby otwarte skrzydlo ich nie zaslanialo */}
       {open && showHardware && !rear &&
-        geo.levels.flatMap((lv) => lv.cols.filter((c) => c.shelfMount === "pins").flatMap((c) =>
-          (c.shelves || []).map((s, k) => (
+        geo.levels.flatMap((lv) => lv.cols.flatMap((c) =>
+          (c.shelves || []).map((s, k) => mocPolki(c, s) === "pins" && (
             <g key={`pin${lv.i}-${c.j}-${k}`}>
               <circle cx={mx((c.shX0 ?? c.x0) + 7, 0)} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
               <circle cx={mx((c.shX1 ?? c.x1) - 7, 0)} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
@@ -9085,7 +9128,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // kolki per kolumna — kolumna moze miec wlasne mocowanie polek (N45)
   const showPins = open && showHardware;
   const pinFromBottom = cab.pinDatum === "bottom";
-  const anyPins = showPins && geo.levels.some((lv) => lv.cols.some((c) => c.shelfMount === "pins" && (c.shelves || []).length));
+  const anyPins = showPins && geo.levels.some((lv) => lv.cols.some((c) => (c.shelves || []).some((s) => mocPolki(c, s) === "pins")));
   const pinLegend = anyPins && showDims;
   // swiatlo szuflady liczymy od gory dna skrzynki — sama liczba tego nie mowi
   const drawerLegend = open && showDims
@@ -9754,8 +9797,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           frontach, bo otwarte skrzydlo przy boku zaslanialo kolki (uzytkownik 2026-10-24) */}
       {showPins &&
         geo.levels.flatMap((lv) =>
-          lv.cols.filter((c) => c.shelfMount === "pins").flatMap((c) =>
-            c.shelves.map((s, k) => (
+          lv.cols.flatMap((c) =>
+            c.shelves.map((s, k) => mocPolki(c, s) === "pins" && (
               <g key={`pin${lv.i}-${c.j}-${k}`}>
                 <circle cx={(c.shX0 ?? c.x0) + 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
                 <circle cx={(c.shX1 ?? c.x1) - 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
@@ -12909,7 +12952,18 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const [, li, j, m] = action.split(":");
       return {
         label: `Półki kolumny ${+j + 1} na ${m === "pins" ? "kołkach" : m === "confirmat" ? "konfirmatach" : "trójkątach"}`,
-        run: () => editLevels((L) => { kolumnaW(L, li, j).shelfMount = m === "pins" || m === "confirmat" ? m : "trojkaty"; }),
+        // wszystkie polki kolumny — takze granice poziomow z wlasnym mocowaniem
+        run: () => editLevels((L) => { const col = kolumnaW(L, li, j); col.shelfMount = m === "pins" || m === "confirmat" ? m : "trojkaty"; delete col.podzialMount; }),
+      };
+    }
+    if (action.startsWith("granicamont:")) {
+      // „granicamont:<poziom>:<kolumna>:<nr granicy>:<mocowanie>” — jedna polka graniczna poziomu kolumny
+      const [, li, j, poz, m] = action.split(":");
+      const gr = (((((cab || {}).levels || [])[+li] || {}).cols || [])[+j] || {}).podzial || [];
+      const nr = gr[+poz] != null ? Number(gr[+poz]) + 1 : +poz + 1;
+      return {
+        label: `Półka ${nr} na ${m === "pins" ? "kołkach" : m === "confirmat" ? "konfirmatach" : "trójkątach"}`,
+        run: () => editLevels((L) => { const col = L[+li].cols[+j]; const a = [...(col.podzialMount || [])]; while (a.length <= +poz) a.push(null); a[+poz] = m; col.podzialMount = a; }),
       };
     }
     if (action.startsWith("przegrtr:")) {
@@ -18245,6 +18299,7 @@ export default function App() {
       if (gr.includes(k)) return;
       const poz = gr.filter((x) => x < k).length;
       if (col.segmenty) col.segmenty.splice(poz + 1, 0, col.segmenty[poz] ? { ...col.segmenty[poz] } : null);
+      if (col.podzialMount) col.podzialMount.splice(poz, 0, null);
       col.podzial = [...gr, k].sort((a, b) => a - b);
     });
     /* Konfirmaty tylko pod klapy — ich zawiasy siedza w polce granicznej. Przy drzwiach
@@ -18491,6 +18546,15 @@ export default function App() {
     if (v === "doors") ustawOdcinek(lv.i, c.j, nr, { kind: undefined });
     else setColKind(lv.i, `${c.j}s${nr}`, v);
   };
+  /* Mocowanie polki granicznej poziomu kolumny (`col.podzialMount[poz]`, kolejnosc jak
+     `col.podzial`; null — domyslne, `mocowanieGranicy`). Uzytkownik 2026-10-25. */
+  const ustawMocowanieGranicy = (i, j, poz, m) => editLevels((L) => {
+    const col = L[i].cols[j];
+    const a = [...(col.podzialMount || [])];
+    while (a.length <= poz) a.push(null);
+    a[poz] = MOCOWANIA_POLEK.includes(m) ? m : null;
+    if (a.some(Boolean)) col.podzialMount = a; else delete col.podzialMount;
+  });
   const odcinkiKolumny = (lv, c, rawCol) => {
     const odcinki = (c.poziomyKol || []).map((p) => p.nr).sort((a, b) => b - a);
     const pole = "rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none";
@@ -18500,6 +18564,8 @@ export default function App() {
           const raw = { ...rawCol, ...((rawCol.segmenty || [])[nr] || {}) };
           const pk = c.poziomyKol.find((p) => p.nr === nr);
           const rodzaj = pk.kind;
+          const polkaPod = pk.polkaPod != null ? (c.shelves || [])[pk.polkaPod] : null;
+          const mocWpisane = nr > 0 && MOCOWANIA_POLEK.includes((rawCol.podzialMount || [])[nr - 1]);
           const ustaw = (patch) => ustawOdcinek(lv.i, c.j, nr, patch);
           const dd = c.doors.filter((d) => d.seg && d.seg.nr === nr);
           const ile = Math.max(0, Math.round(raw.doors ?? 0));
@@ -18508,13 +18574,27 @@ export default function App() {
           const tablica = (pole2, k, v) => { const a = [...(raw[pole2] || [])]; while (a.length <= k) a.push(null); a[k] = v; ustaw({ [pole2]: a }); };
           const naglowek = (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium text-stone-700">poziom kolumny {nr + 1}</span>
+              <span className="font-medium text-stone-700">poziom {nr + 1} kolumny {c.j + 1}</span>
               <span className="text-stone-400">od dołu</span>
               <span className="font-mono text-stone-400" title="Światło poziomu kolumny — między półkami granicznymi">{fmt(Math.round(pk.y1 - pk.y0))} światła</span>
               <div className="w-full" data-el="odcinek-rodzaj">
                 <Seg value={rodzaj} onChange={(v) => ustawRodzajPoziomu(lv, c, nr, v)}
                   options={[{ v: "doors", l: "Półki i drzwi" }, { v: "drawers", l: "Szuflady" }, { v: "blenda", l: "Blenda" }]} />
               </div>
+              {/* polka graniczna pod tym poziomem: kolki / konfirmaty / trojkaty (uzytkownik 2026-10-25) */}
+              {nr > 0 && polkaPod && (
+                <div className="flex w-full items-center gap-2" data-el="granica-mocowanie">
+                  <span className="shrink-0 text-stone-500" title="Półka graniczna między tym poziomem a poziomem niżej">półka pod nim</span>
+                  <div className="flex-1">
+                    <Seg value={polkaPod.mount} onChange={(v) => ustawMocowanieGranicy(lv.i, c.j, nr - 1, v)}
+                      options={[{ v: "pins", l: "kołki" }, { v: "confirmat", l: "konfirmaty" }, { v: "trojkaty", l: "trójkąty" }]} />
+                  </div>
+                  {mocWpisane && (
+                    <MiniBtn onClick={() => ustawMocowanieGranicy(lv.i, c.j, nr - 1, null)}
+                      title="Wróć do domyślnego mocowania półki granicznej">domyślne</MiniBtn>
+                  )}
+                </div>
+              )}
             </div>
           );
           if (rodzaj !== "doors")
@@ -19048,7 +19128,7 @@ export default function App() {
       const L = JSON.parse(JSON.stringify(cab.levels));
       zmien(kolumnaW(L, li, j));
       const m = /^(\d+)s(\d+)$/.exec(j);
-      const pref = m ? `Poziom ${li + 1}, kolumna ${+m[1] + 1}, poziom kolumny ${+m[2] + 1}` : `Poziom ${li + 1}, kolumna ${+j + 1}`;
+      const pref = m ? gdziePoziomKol(li, +m[1], +m[2]) : `Poziom ${li + 1}, kolumna ${+j + 1}`;
       return !computeGeo({ ...cab, levels: L }, mat, ctxG).msgs.some((m) => m.level === "error"
         && (m.text.startsWith(pref + ",") || m.text.startsWith(pref + ":")));
     };
