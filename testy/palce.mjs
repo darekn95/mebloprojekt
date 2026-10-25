@@ -246,6 +246,13 @@ console.log('\n== drzwi bez uchwytu: dłuższy od dołu / podfrez / tip-on (uży
   const hw = await hwRows();
   ok('tip-on: odbojnik GTV SALTO NOVA w zamówieniu, 1 szt.', hw.some((r) => /^Odbojnik tip-on GTV SALTO NOVA/.test(r) && /AM-SVN-DL-MG-30/.test(r) && /\b1 szt\./.test(r)), hw.filter((r) => /Odbojnik/.test(r)).join(' / '));
   ok('tip-on: drzwi bez zmiany wysokości', wys(await drzwiRows()) === wys(h0));
+  // cena odbojnika 7 zł (użytkownik 2026-10-25)
+  const cenaTip = async () => card(/^Wycena$/).evaluate((sec) => {
+    const tr = [...sec.querySelectorAll('tbody tr')].find((t) => /Odbojnik tip-on/.test(t.innerText));
+    return tr ? (tr.querySelector('input') || {}).placeholder : null;
+  });
+  if ((await cenaTip()) === null) { await card(/^Wycena$/).locator('h2').click(); await page.waitForTimeout(700); }
+  ok('tip-on: cena 7 zł w Wycenie', (await cenaTip()) === '7', String(await cenaTip()));
   ok('tip-on na rysunku (przerywany obrys przy wolnej krawędzi)', (await page.locator('#rysunek [data-el="tipon"]').count()) === 1);
   // szafka na nozkach: drzwi dluzsze o 95 mm siegaja podlogi — blad z przyciskami
   await drzwi({ handles: [false], otwieranie: ['dol'], otwieranieMm: [95] });

@@ -265,6 +265,8 @@ const DEFAULT_HW_PRICES = {
   "Prowadnica Sevroll DXS-3D Synchro": 50,
   // GTV EM-SBL na styku blatow w rogu (uzytkownik 2026-10-16)
   "Złącze do blatów śrubowe": 9,
+  // odbojnik tip-on przy drzwiach bez uchwytu — cena uzytkownika (2026-10-25)
+  [TIPON_NAME]: 7,
   // rura na wieszaki (za metr) i rozety — ceny uzytkownika (2026-10-24)
   [DRAZEK_NAME]: 15,
   [ROZETA_NAME]: 1,
