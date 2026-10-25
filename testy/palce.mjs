@@ -212,6 +212,54 @@ console.log('\n== DXS-3D z podfrezem: bok nie wyżej niż front (użytkownik 202
   ok('ręczny bok 150 ponad front: ostrzeżenie z „Zmień bok szuflady na N mm”', !!w && w.btns.some((b) => /^Zmień bok szuflady na \d+ mm$/.test(b)), JSON.stringify(w || u2.map((n) => n.txt.slice(0, 90))));
 }
 
+console.log('\n== drzwi bez uchwytu: dłuższy od dołu / podfrez / tip-on (użytkownik 2026-10-25) ==');
+{
+  const drzwi = async (o = {}) => {
+    await page.evaluate((o) => {
+      localStorage.clear();
+      const cab = { name: 'G', W: 600, H: 720, D: 320, frontMode: 'overlay', plinth: { on: false }, legs: { on: false },
+        levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null], ...o }] }] };
+      localStorage.setItem('szafki:projekt', JSON.stringify({ name: 'T', active: 0, prices: {}, items: [{ cab }] }));
+    }, o);
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2000);
+  };
+  const zap = async () => { await page.waitForTimeout(800); return page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.levels[0].cols[0]); };
+  const drzwiRows = async () => (await cutRows()).filter((r) => /^Drzwi/.test(r));
+  await drzwi();
+  const sel = page.locator('[data-el="drzwi-otwieranie"] select');
+  ok('z uchwytem — bez wyboru otwierania', (await sel.count()) === 0);
+  await page.locator('[data-el="drzwi-uchwyt"] input[type=checkbox]').first().uncheck(); await page.waitForTimeout(600);
+  ok('bez uchwytu — wybór otwierania (—, dłuższy od dołu, podfrez od góry, tip-on)', (await sel.count()) === 1
+    && (await sel.locator('option').allInnerTexts()).join('|') === 'otwieranie: —|front dłuższy od dołu|podfrez od góry|tip-on (GTV SALTO NOVA)');
+  const h0 = await drzwiRows();
+  await sel.selectOption('dol'); await page.waitForTimeout(700);
+  let c = await zap();
+  ok('„front dłuższy od dołu” zapisany przy skrzydle', JSON.stringify(c.otwieranie) === '["dol"]', JSON.stringify(c.otwieranie));
+  const h1 = await drzwiRows();
+  const wys = (rows) => Number((rows[0] || '').split(' | ')[2]);
+  ok('formatka drzwi o 20 mm dłuższa', wys(h1) === wys(h0) + 20, JSON.stringify([h0, h1]));
+  await page.locator('[data-el="drzwi-otwieranie-mm"]').fill('30'); await page.waitForTimeout(700);
+  ok('30 mm — formatka o 30 mm dłuższa', wys(await drzwiRows()) === wys(h0) + 30, JSON.stringify(await drzwiRows()));
+  await sel.selectOption('podfrez'); await page.waitForTimeout(700);
+  ok('podfrez od góry 30 mm — formatka o 30 mm krótsza', wys(await drzwiRows()) === wys(h0) - 30, JSON.stringify(await drzwiRows()));
+  await sel.selectOption('tipon'); await page.waitForTimeout(700);
+  const hw = await hwRows();
+  ok('tip-on: odbojnik GTV SALTO NOVA w zamówieniu, 1 szt.', hw.some((r) => /^Odbojnik tip-on GTV SALTO NOVA/.test(r) && /AM-SVN-DL-MG-30/.test(r) && /\b1 szt\./.test(r)), hw.filter((r) => /Odbojnik/.test(r)).join(' / '));
+  ok('tip-on: drzwi bez zmiany wysokości', wys(await drzwiRows()) === wys(h0));
+  ok('tip-on na rysunku (przerywany obrys przy wolnej krawędzi)', (await page.locator('#rysunek [data-el="tipon"]').count()) === 1);
+  // szafka na nozkach: drzwi dluzsze o 95 mm siegaja podlogi — blad z przyciskami
+  await drzwi({ handles: [false], otwieranie: ['dol'], otwieranieMm: [95] });
+  await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.items[0].cab.legs = { on: true, height: 100 }; localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2000);
+  const n = await notes();
+  const b = n.find((x) => /front dłuższy od dołu o 95 mm kończy się \d+ mm nad podłogą/.test(x.txt));
+  ok('nóżki 100, dłuższy o 95: błąd z „Podfrez od góry” / „Tip-on zamiast wydłużenia”', !!b && b.btns.includes('Podfrez od góry zamiast wydłużenia') && b.btns.includes('Tip-on zamiast wydłużenia'),
+    JSON.stringify(b || n.map((x) => x.txt.slice(0, 80))));
+  await page.getByRole('button', { name: 'Tip-on zamiast wydłużenia', exact: true }).click(); await page.waitForTimeout(800);
+  c = await zap();
+  ok('„Tip-on zamiast wydłużenia” zmienia otwieranie', JSON.stringify(c.otwieranie) === '["tipon"]', JSON.stringify(c.otwieranie));
+}
+
 console.log('\n== widoki bez błędów ==');
 await seed({ fingerGrip: true });
 for (const v of ['Zamk.', 'Otw.', 'Z boku', 'Z góry', 'Z tyłu', '3D']) {

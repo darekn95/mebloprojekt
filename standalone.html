@@ -246,6 +246,13 @@ const DRAZEK_MIN_POD = 1000, DRAZEK_DLUGIE = 1600, DRAZEK_SWIATLO_OPCJA = 800;
 const DRAZEK_GL_MIN = 400, DRAZEK_GL_DOBRA = 500;
 const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀25";
 
+/* Drzwi bez uchwytu (uzytkownik 2026-10-25): front dluzszy od dolu (gorne szafki —
+   chwyta sie go od spodu), nizszy od gory (podfrez, jak w szufladach) — oba domyslnie
+   o OTWIERANIE_MM — albo tip-on: odbojnik GTV SALTO NOVA dlugi nakladany z magnesem,
+   jeden na drzwi, zawiasy bez zmian (dziala z cichym domykiem — uzytkownik). */
+const OTWIERANIA = ["dol", "podfrez", "tipon"];
+const OTWIERANIE_MM = 20;
+const TIPON_NAME = "Odbojnik tip-on GTV SALTO NOVA";
 const DEFAULT_HW_PRICES = {
   Zawias: 3,
   "Nóżka regulowana": 2.3,
@@ -2736,6 +2743,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   const blendaParts = [];
   const mirrorParts = [];
   let handleCount = 0;
+  let tiponCount = 0;   // odbojniki tip-on (drzwi bez uchwytu)
   let hingeCount = 0;
   /* Z tego zawiasy polnakladane (blizniacze): front nachodzi na plyte z zawiasem
      najwyzej na polowe grubosci, bo z drugiej strony stoi drugi front — przegroda
@@ -3414,6 +3422,24 @@ function computeGeoLiczy(cab, mat, ctx) {
                   ? "left"
                   : "right",
             };
+            /* Otwieranie drzwi bez uchwytu (`rawCol.otwieranie[i]`, `otwieranieMm[i]`):
+               front dluzszy od dolu albo nizszy od gory (podfrez); tip-on — odbojnik. */
+            const otw = !d.handle && OTWIERANIA.includes((rawCol.otwieranie || [])[i]) ? rawCol.otwieranie[i] : null;
+            if (otw) {
+              d.otwieranie = otw;
+              if (otw !== "tipon") {
+                d.otwMm = Math.max(0, Math.round(num((rawCol.otwieranieMm || [])[i]) ?? OTWIERANIE_MM));
+                if (otw === "dol") d.y -= d.otwMm;
+                d.h += otw === "dol" ? d.otwMm : -d.otwMm;
+                if (num((rawCol.hinges || [])[i]) === null)
+                  d.hinges = autoHinges(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
+              } else {
+                tiponCount += 1;
+                // odbojnik przy wolnej krawedzi: u gory szafki stojacej, u dolu wiszacej (tam sie naciska)
+                const wisi = !(cab.plinth.on || (cab.legs && cab.legs.on));
+                d.tiponY = wisi ? d.y + 80 : d.y + d.h - 80;
+              }
+            }
             /* Zawias musi miec do czego sie przykrecic: bok szafki albo przegrode.
                Tam, gdzie kolumny stykaja sie bez przegrody (przelot do ramienia
                szafki naroznej), plyty nie ma i drzwi wisialyby w powietrzu. */
@@ -3520,10 +3546,11 @@ function computeGeoLiczy(cab, mat, ctx) {
             c.doors.push(d);
             dx += dw + colGap;
             if (dw <= 0) add("error", `${where}: drzwi ${i + 1} mają szerokość zero lub mniej.`);
-            if ((rawCol.mirrors || [])[i] && dw > 1 && cbandH > 1)
-              mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
+            if ((rawCol.mirrors || [])[i] && dw > 1 && d.h > 1)
+              mirrorParts.push({ a: d.h - 1, b: dw - 1 });
             if ((rawCol.handles || [])[i] !== false) handleCount += 1;
-            const autoH = autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0);
+            // wysokosc frontu po wydluzeniu / podfrezie (bez nich = pasmo)
+            const autoH = autoHinges(d.h, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, d.h, mat) : 0);
             const ovH = num((rawCol.hinges || [])[i]);
             hingeCount += ovH !== null ? ovH : autoH;
             /* Na ile front zachodzi na czolo boku albo przegrody, ktora niesie
@@ -4213,6 +4240,24 @@ function computeGeoLiczy(cab, mat, ctx) {
       ? "blenda"
       : "element stały";
 
+  /* Drzwi dluzsze od dolu: pod nimi nie moze byc innego frontu, a w szafce na nozkach
+     albo cokole front nie moze siegac podlogi (min. 10 mm nad nia). Przyciski: podfrez
+     od gory albo tip-on zamiast wydluzenia (uzytkownik 2026-10-25). */
+  // podloga pod szafka na nozkach albo cokole (y = 0 to spod korpusu z cokolem w obrysie); wiszaca — null
+  const podloga = cab.plinth.on || (cab.legs && cab.legs.on)
+    ? -Math.max(cab.plinth.on && !plinthInBody ? plinthH : 0, legBelow) : null;
+  doors.filter((d) => d.otwieranie === "dol").forEach((d) => {
+    const [li, jk, k] = d.key.slice(1).split("-");
+    const gdzie = `Poziom ${+li + 1}, ${/s/.test(jk) ? `poziom ${+jk.split("s")[1] + 1} kolumny ${+jk.split("s")[0] + 1}` : `kolumna ${+jk + 1}`}, drzwi ${+k + 1}`;
+    const zamiast = `|otwieranie:${li}:${jk}:${k}:podfrez|otwieranie:${li}:${jk}:${k}:tipon`;
+    const pod = doors.find((e) => e !== d && e.w > 0 && Math.min(e.x + e.w, d.x + d.w) - Math.max(e.x, d.x) > 0.5
+      && e.y < d.y && e.y + e.h > d.y - 2);
+    if (pod)
+      add("error", `${gdzie}: front dłuższy od dołu o ${fmt(d.otwMm)} mm wchodzi na ${nameOf(pod)} pod nim — wydłużenie ma sens tylko tam, gdzie pod drzwiami jest wolne miejsce (np. szafka wisząca).` + zamiast);
+    else if (podloga !== null && d.y < podloga + 10)
+      add("error", `${gdzie}: front dłuższy od dołu o ${fmt(d.otwMm)} mm kończy się ${fmt(Math.round(d.y - podloga))} mm nad podłogą — potrzeba min. 10 mm.` + zamiast);
+  });
+
   /* Odcinki lica zabudowane na staly. Tam, gdzie stoi plyta, nie ma szczeliny —
      i kontrola luzu nie moze tego kawalka liczyc. W szafce naroznej front konczy
      sie tam, gdzie zaczyna sie ramie: dalsza czesc lica idzie w druga sciane,
@@ -4282,6 +4327,8 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (k <= i) return;
         const ho = Math.min(a2.x + a2.w, b2.x + b2.w) - Math.max(a2.x, b2.x);
         const vo = Math.min(a2.y + a2.h, b2.y + b2.h) - Math.max(a2.y, b2.y);
+        // drzwi dluzsze od dolu na froncie pod nimi — osobny blad wyzej, z przyciskami
+        if ((a2.otwieranie === "dol" && a2.y > b2.y) || (b2.otwieranie === "dol" && b2.y > a2.y)) return;
         if (ho > 0 && vo > 0)
           add(
             "error",
@@ -5687,6 +5734,14 @@ function computeGeoLiczy(cab, mat, ctx) {
       use: "fronty z zaznaczonym uchwytem",
       spec: "na fronty z zaznaczonym uchwytem",
       qty: handleCount,
+      unit: "szt.",
+    });
+  if (tiponCount)
+    hardware.push({
+      name: TIPON_NAME,
+      use: "drzwi bez uchwytu — otwieranie przez naciśnięcie",
+      spec: "długi nakładany z magnesem, szary (AM-SVN-DL-MG-30), 1 na drzwi, przy wolnej krawędzi; min. 2,5 mm szczeliny między frontem a korpusem",
+      qty: tiponCount,
       unit: "szt.",
     });
   /* Szafka narozna ze skrzydlami lamanymi: pierwsze skrzydlo wisi na boku i
@@ -9779,6 +9834,11 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             {d.handle && d.w > 60 && d.h > 30 && (
               <UchwytElewacja d={d} fy={fy} dx={0} />
             )}
+            {/* tip-on: odbojnik za frontem przy wolnej krawedzi — przerywany obrys */}
+            {d.otwieranie === "tipon" && d.tiponY != null && (
+              <rect data-el="tipon" x={d.hingeSide === "left" ? d.x + d.w - 34 : d.x + 18} y={fy(d.tiponY + 30)} width={16} height={60}
+                rx="3" fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.7" />
+            )}
             {d.mirror && d.w > 2 && d.h > 2 && (
               <rect x={d.x + 0.5} y={fy(d.y + d.h) + 0.5} width={d.w - 1} height={d.h - 1}
                 fill={mat.mirror.color} stroke={INK} strokeWidth="1" opacity="0.85" />
@@ -12722,6 +12782,20 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         run: () => editLevels((L) => (kolumnaW(L, li, j).hinge = side)),
       };
     }
+    if (action.startsWith("otwieranie:")) {
+      // „otwieranie:<poziom>:<kolumna albo js<nr>>:<drzwi>:<dol|podfrez|tipon>” — drzwi bez uchwytu
+      const [, li, j, k, co] = action.split(":");
+      return {
+        label: co === "tipon" ? "Tip-on zamiast wydłużenia" : co === "podfrez" ? "Podfrez od góry zamiast wydłużenia" : "Front dłuższy od dołu",
+        run: () => editLevels((L) => {
+          const col = kolumnaW(L, li, j);
+          const a = [...(col.otwieranie || [])];
+          while (a.length <= +k) a.push(null);
+          a[+k] = co;
+          col.otwieranie = a;
+        }),
+      };
+    }
     if (action.startsWith("onedoor:")) {
       // „onedoor:<poziom>:<kolumna>:<szerokosc>:<strona zawiasow>" — dwoje waskich drzwi w jedne
       const [, li, j, w, side] = action.split(":");
@@ -13005,7 +13079,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
           // koliduje skrzydlo od strony elementu stalego — usuwamy tylko je
           const k = (col.fix || {}).side === "right" ? n - 1 : 0;
           col.doors = n - 1;
-          ["doorWidths", "mirrors", "handles", "hinges"].forEach((key) => {
+          ["doorWidths", "mirrors", "handles", "hinges", "otwieranie", "otwieranieMm"].forEach((key) => {
             if (Array.isArray(col[key]) && col[key].length > k) col[key].splice(k, 1);
           });
           // po usunieciu jednego z dwoch skrzydel zawias wraca na auto
@@ -18053,7 +18127,8 @@ export default function App() {
   const setDoorFlag = (i, j, k, key, v) =>
     editLevels((L) => {
       const a = kolumnaW(L, i, j)[key] || [];
-      while (a.length <= k) a.push(key === "handles" ? true : key === "hinges" || key === "handleOuts" || key === "handlePos" ? null : false);
+      while (a.length <= k) a.push(key === "handles" ? true
+        : ["hinges", "handleOuts", "handlePos", "otwieranie", "otwieranieMm"].includes(key) ? null : false);
       a[k] = v;
       kolumnaW(L, i, j)[key] = a;
     });
@@ -18552,6 +18627,35 @@ export default function App() {
     if (v === "doors") ustawOdcinek(lv.i, c.j, nr, { kind: undefined });
     else setColKind(lv.i, `${c.j}s${nr}`, v);
   };
+  /* Drzwi bez uchwytu — jak sie otwieraja (uzytkownik 2026-10-25): front dluzszy od dolu,
+     podfrez od gory (oba w mm, domyslnie OTWIERANIE_MM) albo tip-on. `jA` — kolumna albo
+     jej poziom („js<nr>”), `k` — skrzydlo. */
+  const uiOtwierania = (lv, rawCol, jA, k) => {
+    const otw = OTWIERANIA.includes((rawCol.otwieranie || [])[k]) ? rawCol.otwieranie[k] : "brak";
+    const pole = "rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none";
+    return (
+      <span className="flex items-center gap-1" data-el="drzwi-otwieranie">
+        <select value={otw} title="Jak otwierać drzwi bez uchwytu"
+          onChange={(e) => setDoorFlag(lv.i, jA, k, "otwieranie", e.target.value === "brak" ? null : e.target.value)}
+          className="rounded border border-stone-300 bg-white px-1 py-1 text-[11px] focus:border-teal-600 focus:outline-none">
+          <option value="brak">otwieranie: —</option>
+          <option value="dol">front dłuższy od dołu</option>
+          <option value="podfrez">podfrez od góry</option>
+          <option value="tipon">tip-on (GTV SALTO NOVA)</option>
+        </select>
+        {(otw === "dol" || otw === "podfrez") && (
+          <>
+            <input type="number" min={0} step={1} data-el="drzwi-otwieranie-mm"
+              title={otw === "dol" ? "O ile front schodzi poniżej szafki (mm)" : "O ile front jest niższy od góry (mm)"}
+              value={(rawCol.otwieranieMm || [])[k] ?? ""} placeholder={String(OTWIERANIE_MM)}
+              onChange={(e) => setDoorFlag(lv.i, jA, k, "otwieranieMm", e.target.value === "" ? null : Math.max(0, Math.round(Number(e.target.value))))}
+              className={"w-12 " + pole} />
+            <span className="text-[11px] text-stone-400">mm</span>
+          </>
+        )}
+      </span>
+    );
+  };
   /* Mocowanie polki granicznej poziomu kolumny (`col.podzialMount[poz]`, kolejnosc jak
      `col.podzial`; null — domyslne, `mocowanieGranicy`). Uzytkownik 2026-10-25. */
   const ustawMocowanieGranicy = (i, j, poz, m) => editLevels((L) => {
@@ -18698,6 +18802,7 @@ export default function App() {
                       onChange={(e) => tablica("handles", k, e.target.checked)} className="h-3.5 w-3.5 accent-teal-700" />
                     <span className="text-[11px] text-stone-500">uchwyt</span>
                   </label>
+                  {!kl && (raw.handles || [])[k] === false && uiOtwierania(lv, raw, `${c.j}s${nr}`, k)}
                   {kl && (raw.handles || [])[k] !== false && (
                     <Seg value={d.uchwytKrawedz || (kl === "gora" ? "dol" : "gora")}
                       onChange={(v) => ustaw({ klapaUchwyt: v === (kl === "gora" ? "dol" : "gora") ? null : v })}
@@ -21097,6 +21202,7 @@ export default function App() {
                                           )}
                                         </>
                                       )}
+                                      {!uchw && !jestKlapa && uiOtwierania(lv, rawCol, c.j, k)}
                                     </span>
                                     <label className="flex items-center gap-1 cursor-pointer" title="Lustro na tych drzwiach">
                                       <input type="checkbox"

@@ -37,6 +37,11 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
 
 - **W kolumnie**: liczba drzwi, liczba półek, szerokość każdego skrzydła.
 - **Przy skrzydle**: liczba zawiasów, uchwyt (wystawanie, na boku / na górze), lustro.
+- **Drzwi bez uchwytu — otwieranie** (2026-10-25, decyzje użytkownika): po odznaczeniu „uchwyt” wybór przy skrzydle (`col.otwieranie[i]`, mm w `col.otwieranieMm[i]`, domyślnie `OTWIERANIE_MM` = 20):
+  - **front dłuższy od dołu** — front schodzi o N mm poniżej pasma (górne szafki, chwyta się od spodu); formatka dłuższa, zawiasy liczone od nowej wysokości. Pod spodem nie może być innego frontu (błąd), a w szafce na nóżkach / cokole front kończy się min. 10 mm nad podłogą (błąd); przyciski „Podfrez od góry zamiast wydłużenia” / „Tip-on zamiast wydłużenia”;
+  - **podfrez od góry** — front niższy od góry o N mm (jak podfrez szuflad);
+  - **tip-on** — odbojnik GTV SALTO NOVA długi nakładany z magnesem, szary (AM-SVN-DL-MG-30; min. 2,5 mm szczeliny), 1 na drzwi, przy wolnej krawędzi — u góry szafki stojącej, u dołu wiszącej; w zamówieniu „Odbojnik tip-on GTV SALTO NOVA” (cenę wpisuje się w Wycenie), na rysunku przerywany obrys. Zawiasy bez zmian — tip-on działa z cichym domykiem (użytkownik).
+  Front wyższy od góry — nie (decyzja użytkownika: tylko dłuższy od dołu, podfrez, tip-on). Tak samo w poziomach kolumny.
 - **Strona zawiasów**: przy kolumnie z jednymi drzwiami albo dla całej szafki.
 - **Luzy i kąt otwarcia** (domyślnie 90°) w karcie „Luzy drzwi”; luz między drzwiami może też mieć sama kolumna.
 - **Element stały (fix)** zamiast części frontu:
