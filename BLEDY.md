@@ -12,12 +12,13 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Suita | Objaw | Przyczyna / stan |
 |---|---|---|
-| — | wszystkie znane usterki naprawione; nowe dopisywać tutaj | |
+| `pdfczytelnosc` (poza listą — sprawdzone osobno) | szafka 1600 mm (np. 3 kolumny, 900 wysokości): w PDF wymiary ok. 2,1 mm zamiast min. 2,3 (cztery widoki na stronie A4) — tak samo bez drzwi z podfrezem i z cokołem | granica układu 2 × 2 przy szerokich szafkach, nie regresja; do decyzji: szeroka szafka na osobnej stronie / dwa widoki na stronę albo zgoda na mniejsze napisy |
 
 ## Naprawione
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-25 | zgłoszenie użytkownika (zrzuty): „jakieś wymiary nachodzą na siebie — czy jest na to test / audyt?” — 894 na 874, szerokości frontów na nóżkach | wysokości drzwi miały jedną kolumnę wymiarów (różne wysokości w tym samym pasie na sobie) — teraz kolumny jak przy szufladach (`grupyDrzwi`); wiersz szerokości liczony od spodu korpusu, nie nóżek (`belowY` z `legBelow`); `pdfczytelnosc` sprawdza też napisy na nóżkach i znalazł jeszcze: szczelinę pod frontem („3”) — opis obok nóżki (`obokNog`), „szyna 0” — wyżej, „frez 15” z tyłu — pod nóżkami, ujemną szczelinę pod drzwiami dłuższymi od dołu — bez opisu; nowe przypadki w `pdfczytelnosc` | (ten commit) |
 | 2026-10-25 | zgłoszenie użytkownika: „dla drzwi ten sam błąd co dla szuflad — 20 mm powinno być poniżej wieńca, jeśli drzwi są do wieńca”; decyzja: klapy bez uchwytu z tym samym wyborem otwierania | podfrez drzwi liczony od góry frontu nakładanego, który zachodzi 15 mm na wieniec — palcom zostawało 5 mm; teraz od spodu płyty nad frontem (`otwieranieFrontu`, `d.podPlyta`); klapy: do góry dłuższa od dołu / tip-on, w dół podfrez / tip-on; suita `palce` | (ten commit) |
 | 2026-10-25 | pytanie użytkownika: „czy jak w jednym miejscu zmienia się szafka / pomieszczenie / projekt, to we wszystkich zakładkach z automatu?”; decyzja: przyciski w każdej karcie, ale działają wspólnie, na starcie formatki — szafka, reszta — pomieszczenie | „Szafka” była osobna w każdej karcie, a Pomieszczenie / Projekt wspólne — teraz jedna zmiana przestawia wszystkie karty; zakres zamówienia domyślnie „pomieszczenie” i pamiętany; suita `karty` | (ten commit) |
 | 2026-10-25 | prośba użytkownika: „jeśli nie mamy uchwytu, powinny być opcje otwierania drzwi — dłuższe drzwi (nad lub pod) i tip-on (GTV SALTO NOVA AM-SVN-DL-MG-30)”; decyzje: dłuższy od dołu, podfrez od góry, tip-on; 20 mm; 1 odbojnik na drzwi; zawiasy bez zmian | otwieranie drzwi bez uchwytu przy skrzydle (kolumna i poziom kolumny): formatka dłuższa / niższa, odbojnik w zamówieniu i na rysunku, błąd przy froncie pod spodem i przy podłodze z przyciskami; suita `palce` | (ten commit) |

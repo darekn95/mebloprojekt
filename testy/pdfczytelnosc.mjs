@@ -36,6 +36,13 @@ const SZAFKI = [
   szafka('Blenda nad szafką', { plinth: { ...PL, on: false }, legs: { on: false }, topFiller: { on: true, height: 80 } }),
   szafka('Narożna L w lewo', { W: 1000, corner: { on: true, arm: 1200, doors: 'wsporniki', side: 'left' }, levels: [{ h: null, cols: [kol({ doors: 1 })] }] }),
   szafka('Trzy kolumny', { W: 1200, levels: [{ h: null, cols: [kol({ doors: 1, w: 300 }), SZUF, kol({ doors: 2 })] }] }),
+  // zgloszenie uzytkownika 2026-10-25: drzwi 894 obok 874 (podfrez) — wymiary na sobie; szafka na samych
+  // nozkach — wiersz szerokosci frontow na nozkach
+  // 1200, nie 1600 jak u użytkownika: przy 1600 napisy w druku schodzą poniżej 2,3 mm także bez tej zmiany (BLEDY.md)
+  szafka('Na nóżkach, drzwi z podfrezem', { W: 1200, H: 900, plinth: { ...PL, on: false }, levels: [{ h: null, cols: [kol({ doors: 1 }),
+    kol({ doors: 1, handles: [false], otwieranie: ['podfrez'] }), kol({ kind: 'drawers', drawers: [0, 1, 2, 3].map(() => ({ h: 'auto' })) })] }] }),
+  szafka('Drzwi dłuższe od dołu obok zwykłych', { W: 900, plinth: { ...PL, on: false }, levels: [{ h: null, cols: [kol({ doors: 1 }),
+    kol({ doors: 1, handles: [false], otwieranie: ['dol'] })] }] }),
 ];
 // ciag z blatem: wymiar „z blatem”, dwie szafki w jednym projekcie
 const RUN = { id: 'c1', name: 'A', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null };
@@ -68,6 +75,10 @@ const pomiar = async (proj) => {
         const w = Math.min(a.x1, c.x1) - Math.max(a.x0, c.x0), h = Math.min(a.y1, c.y1) - Math.max(a.y0, c.y0);
         if (w > 1 && h > 1) naklady.push(`„${a.t}” × „${c.t}”`);
       }
+      // napis na nozce (wiersz szerokosci frontow lezal na nozkach — zgloszenie 2026-10-25)
+      [...svg.querySelectorAll('[data-el="noga"]')].map((n) => n.getBoundingClientRect()).forEach((r) => tx.forEach((a) => {
+        if (Math.min(a.x1, r.right) - Math.max(a.x0, r.left) > 1 && Math.min(a.y1, r.bottom) - Math.max(a.y0, r.top) > 1) naklady.push(`„${a.t}” × nóżka`);
+      }));
       const poza = tx.filter((q) => q.x0 < pole.left - 0.5 || q.x1 > pole.right + 0.5 || q.y0 < pole.top - 0.5 || q.y1 > pole.bottom + 0.5).map((q) => q.t);
       const wymiary = tx.filter((q) => q.wym).map((q) => q.h).sort((a, c) => a - c);
       const wszystkie = tx.map((q) => q.h).sort((a, c) => a - c);

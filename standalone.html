@@ -7223,7 +7223,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
           fill={ff} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
       {cab.legs?.on && geo.legs.xs.map((lx, li) => (
-        <rect key={"noga" + li} x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
+        <rect key={"noga" + li} data-el="noga" x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
           rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
           opacity={geo.legTop > 0 ? 0.5 : 1} />
       ))}
@@ -9212,7 +9212,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const hasBase = cab.legs?.on || cab.plinth.on;
   // wszystko rysowane pod szafka odmierzamy od jej realnego spodu — cokol
   // w obrysie siedzi juz w wysokosci H i niczego nie obniza
-  const belowY = H + (cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0);
+  /* …takze od spodu nozek: wiersz szerokosci frontow lezal 90 mm pod korpusem, czyli
+     na nozkach 100 mm (zgloszenie uzytkownika 2026-10-25 ze zrzutem). */
+  const belowY = H + Math.max(cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0, geo.legBelow);
   // wymiary rysowane tuz przy szafce (boki, cokol, nozki) wymuszaja odsuniecie
   // wymiarow wysokosci dalej w lewo, zeby etykiety sie nie nakladaly
   const showSideLengthDims = showDims && (geo.leftLen !== H || geo.rightLen !== H);
@@ -9246,6 +9248,20 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
      szuflady: 237 i 177 lezaly na sobie — macierz szuflad w PDF 2026-10-22). Te same
      fronty (ten sam y i wysokosc) i fronty bez wspolnego pasa (inny poziom) dziela
      jedna kolumne. Najblizej szafki — kolumna szuflad z prawej. */
+  /* Wysokosci drzwi i klap — kolumny wymiarow po lewej, jak szuflady: drzwi o innej
+     wysokosci w tym samym pasie (np. 894 obok 874 z podfrezem) dostaja wlasna kolumne,
+     bo napisy lezaly na sobie (zgloszenie uzytkownika 2026-10-25). Takie same drzwi
+     (ten sam y i wysokosc) — jeden wymiar. Najblizej szafki — drzwi najbardziej z lewej. */
+  const grupyDrzwi = (() => {
+    if (!hasDoorDims) return [];
+    const grupy = [];
+    (geo.doors || []).filter((d) => d.type === "door" || d.type === "klapa").sort((a, b) => a.x - b.x).forEach((d) => {
+      if (grupy.some((g) => g.some((e) => Math.round(e.y) === Math.round(d.y) && Math.round(e.h) === Math.round(d.h)))) return;
+      const g = grupy.find((x) => !x.some((e) => Math.min(d.y + d.h, e.y + e.h) - Math.max(d.y, e.y) > 1));
+      if (g) g.push(d); else grupy.push([d]);
+    });
+    return grupy;
+  })();
   const grupySzuflad = (() => {
     if (!hasDrawerDims) return [];
     const poKol = new Map();
@@ -9315,7 +9331,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
     u.dimSideLX = showSideLengthDims ? takeL(kolD(150, znaki.bokL)) : baseL - 26;
     u.dimSideRX = showSideLengthDims ? takeR(kolD(150, znaki.bokP)) : baseR + 26;
     u.dimSepX = hasSepDims ? takeR(kolD(240, znaki.sep)) : baseR + 26;
-    u.dimDoorX = hasDoorDims ? takeL(kol(90, znaki.door)) : lxCur; // wysokosci drzwi po lewej
+    // wysokosci drzwi po lewej — kolumna na kazda grupe `grupyDrzwi`
+    u.dimDoorXs = grupyDrzwi.map(() => takeL(kol(90, znaki.door)));
     u.dimLevelX = hasLevelDims ? takeL(kol(90, znaki.level)) : lxCur; // swiatlo poziomow po lewej
     // wysokosci frontow szuflad — kolumna na kazda grupe `grupySzuflad`
     u.dimDrawerXs = grupySzuflad.map(() => takeR(kol(90, znaki.drawer)));
@@ -9339,7 +9356,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   };
   const kz = drukKUkladu((k) => uklad(k).vbW, druk);
   const kDl = kDlugie(kz) === 1 ? undefined : kDlugie(kz);
-  const { dimRailLX, dimRailRX, dimSideLX, dimSideRX, dimSepX, dimDoorX, dimLevelX, dimDrawerXs,
+  const { dimRailLX, dimRailRX, dimSideLX, dimSideRX, dimSepX, dimDoorXs, dimLevelX, dimDrawerXs,
     dimHMainX, dimHTotalX, dimBlatX, vbX, vbW } = uklad(kz);
   // cokol pod lewym wymiarem boku, nozki pod prawym — tuz przy szafce
   const dimCokolX = baseL - 26;
@@ -9498,7 +9515,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 jak w zamowieniu i w bryle: `u` liczy sie od rogu, a rog lezy
                 przy korpusie. */}
             {cab.legs?.on && armLegPlan(arm).us.map((u) => (armL ? -u - LEG_W : ax0 + u)).map((lx, k) => (
-              <rect key={"anz" + k} x={lx} y={H - geo.legTop} width={40} height={geo.legH}
+              <rect key={"anz" + k} data-el="noga" x={lx} y={H - geo.legTop} width={40} height={geo.legH}
                 rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
                 opacity={geo.legTop > 0 ? 0.5 : 1} />
             ))}
@@ -9612,7 +9629,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           fill={ff} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
       {cab.legs?.on && geo.legs.xs.map((lx, li) => (
-        <rect key={"noga" + li} x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
+        <rect key={"noga" + li} data-el="noga" x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
           rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
           opacity={geo.legTop > 0 ? 0.5 : 1} />
       ))}
@@ -9919,6 +9936,22 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
              wiec opis gornej idzie na prawo, a tej drugiej na lewo. */
           // z lewej: za opisem szczeliny miedzy frontami (od styku) i przed nia opis do frontu wyzej
           const odStyku = 30 + 4 * ZNAK_EM * 20 * kz;
+          /* Opis szczeliny pod dolnym frontem lezal na nozce (kontrola napisow na nozkach,
+             2026-10-25) — kropka z opisem przesuwa sie obok nozki, w obrebie frontu. */
+          const nogiX = cab.legs?.on && geo.legBelow > 0 ? geo.legs.xs.map((lx) => [lx, lx + geo.legs.w]) : [];
+          const obokNog = (x, d, val) => {
+            if (d.y > 60) return x;
+            const dl = String(fmt(val)).length * ZNAK_EM * 20 * kz;
+            // zasieg opisu od kropki: na ekranie wysrodkowany pod nia, w druku na lewo od niej
+            const lewo = kz > 1 ? 12 + dl : dl / 2 + 4, prawo = kz > 1 ? 8 : dl / 2 + 4;
+            nogiX.forEach(([a, b]) => {
+              if (x + prawo > a - 4 && x - lewo < b + 4) {
+                const wPrawo = b + 4 + lewo, wLewo = a - 4 - prawo;
+                x = wPrawo <= d.x + d.w - 6 ? wPrawo : wLewo >= d.x + 6 ? wLewo : x;
+              }
+            });
+            return x;
+          };
           const xSzcz = (d, prawa) => (kz === 1 ? d.x + d.w / 2
             : prawa ? d.x + d.w - Math.min(d.w / 2, Math.max(60, d.w * 0.2)) + 12 + 2 * ZNAK_EM * 20 * kz
               : d.x + Math.min(d.w / 2, Math.max(odStyku, d.w * 0.2)));
@@ -10036,8 +10069,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             if (colTop[d.colKey] === d && (d.inset || d.bandHi == null))
               // w druku opis na prawo od kropki: na lewo stoi szczelina do frontu nad nim
               marker(`gt${d.key}`, xSzcz(d), topRef, Math.round(topRef - (d.y + d.h)), true, true);
-            if (colBot[d.colKey] === d && (d.inset || d.bandLo == null))
-              marker(`gb${d.key}`, xSzcz(d, true), d.y, Math.round(d.y - botRef), false);
+            // front dluzszy od dolu wychodzi pod szafke — szczeliny nie ma czego mierzyc
+            if (colBot[d.colKey] === d && (d.inset || d.bandLo == null) && d.otwieranie !== "dol")
+              marker(`gb${d.key}`, obokNog(xSzcz(d, true), d, Math.round(d.y - botRef)), d.y, Math.round(d.y - botRef), false);
 
             // luz pionowy do frontu bezposrednio nad tym w tej samej kolumnie
             /* Nad przegroda spotykaja sie fronty z dwoch poziomow, wiec sasiada
@@ -10157,15 +10191,12 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 label={`${fmt(d.h)}`} left={false} c={DIMC} />
             )))}
           {/* wysokosci drzwi przy lewej krawedzi */}
+          {/* dwoje takich samych drzwi obok siebie — jeden wymiar; inne wysokosci w tym samym pasie — osobne kolumny */}
           {!open &&
-            geo.doors
-              .filter((d) => d.type === "door" || d.type === "klapa")
-              // dwoje drzwi obok siebie: jeden wymiar wysokosci, nie dwa na sobie
-              .filter((d, i, a) => a.findIndex((e) => Math.round(e.y) === Math.round(d.y) && Math.round(e.h) === Math.round(d.h)) === i)
-              .map((d) => (
-                <DimV key={"door" + d.key} y1={fy(d.y + d.h)} y2={fy(d.y)} x={dimDoorX}
-                  label={`${fmt(d.h)}`} c={DIMC} />
-              ))}
+            grupyDrzwi.flatMap((g, gi) => g.map((d) => (
+              <DimV key={"door" + d.key} y1={fy(d.y + d.h)} y2={fy(d.y)} x={dimDoorXs[gi]}
+                label={`${fmt(d.h)}`} c={DIMC} />
+            )))}
           {open &&
             geo.levels[0] &&
             geo.levels[0].cols.length > 1 &&
@@ -10280,7 +10311,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             /* opis przy kresce tej prowadnicy — na srodku wymiaru odjechalby
                od kreski i przy kilku szufladach nie dalo sie ich powiazac */
             <DimV key={`rh${lvl}-${c.j}-${i}`} y1={fy(dr.rail.y0)} y2={fy(geo.interior.y0)} x={x}
-              labelY={fy(dr.rail.y0)}
+              /* „szyna 0” przy dnie — opis troche wyzej, inaczej w druku schodzil na nozki */
+              labelY={fy(dr.rail.y0 + (val < 40 ? 25 : 0))}
               label={`szyna ${fmt(val)}`} left={where !== "right"} c={DIMC}
               kd={where === "in" ? (kz > 1 ? kNapisu(kz, `szyna ${fmt(val)}`, 22, c.x1 - c.x0 - 2 * RUNNER_W - 38) : undefined) : kDl} />
           );
@@ -10395,7 +10427,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
   const vbY = kz > 1 ? Math.min(-40, wymDim ? -55 - 3 - POLE_EM * 22 * kz - 16 : -40) : -pad;
   const opisy = [{ key: "plecy", fs: 22, txt: label }, { key: "kier", fs: 20, txt: "widok od tyłu — lewy bok szafki po prawej" }];
   const opisyU = kz > 1
-    ? ulozLegendy(opisy, Math.max(H + rBelow + 20, wymDim && geo.grooved ? H + 60 + 14 + POLE_EM * 22 * kz : 0), kz, vbW - 40)
+    ? ulozLegendy(opisy, Math.max(H + rBelow + 20, wymDim && geo.grooved ? H + rBelow + 60 + 14 + POLE_EM * 22 * kz : 0), kz, vbW - 40)
       .map((l) => ({ ...l, x: vbX + vbW / 2 }))
     : opisy.map((l, i) => ({ ...l, k: kz, x: W / 2, y: H + rBelow + (i ? 150 : 120) }));
   const vbDol = kz > 1 ? opisyU[opisyU.length - 1].dol + 20 : H + pad + 40 + rBelow;
@@ -10572,7 +10604,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
           fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
       {cab.legs?.on && geo.legs.xs.map((lx, li) => (
-        <rect key={"noga" + li} x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
+        <rect key={"noga" + li} data-el="noga" x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
           rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
           opacity={geo.legTop > 0 ? 0.5 : 1} />
       ))}
@@ -10582,7 +10614,8 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
           <DimH x1={mx(bx, bw)} x2={mx(bx, bw) + bw} y={-55} label={`${fmt(bw)}`} />
           <DimV y1={fy(by + bh)} y2={fy(by)} x={-55} label={`${fmt(bh)}`} />
           {geo.grooved && (
-            <DimH x1={mx(bx, bw)} x2={mx(bx, bw) + grab} y={H + 60}
+            // pod nozkami / cokolem, nie na nich (kontrola napisow na nozkach, 2026-10-25)
+            <DimH x1={mx(bx, bw)} x2={mx(bx, bw) + grab} y={H + rBelow + 60}
               label={`frez ${fmt(grab)}`} above={false} c={WARNC} />
           )}
         </>
