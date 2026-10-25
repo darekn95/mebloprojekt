@@ -9169,7 +9169,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
   );
 }
 
-function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware, arm, wstawki, blat, druk }) {
+function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware, arm, wstawki, blat, druk, szczelinyNietypowe = false }) {
   const wsL = wstawkiSzafki(wstawki, geo);
   const matR = matRysunku(cab, matIn);
   const mat = texMat(matR, cab.texture, cab.textureDir);
@@ -9205,7 +9205,12 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // podnosi szafke — nozki schowane w swietle cokolu niczego nie zmieniaja
   const hasBaseDim =
     geo.legBelow > 0 || (cab.plinth.on && !geo.plinthInBody && geo.plinthH > 0);
-  const hasDoorDims = showDims && !open && (geo.doors || []).some((d) => d.type === "door" || d.type === "klapa");
+  /* Front z wymiarem w srodku (W×H) nie dostaje linii wymiarowych wysokosci i szerokosci
+     na widoku zamknietym (decyzja uzytkownika 2026-10-25: „tylko napis w froncie”);
+     front za maly na napis zostaje z liniami. Warunki jak przy rysowaniu napisu. */
+  const napisWFroncie = (d) => showDims && (d.type === "fix" || d.type === "blenda"
+    ? (d.w > 170 && d.h > 40) || (d.w > 40 && d.h > 170) : d.w > 90 && d.h > 40);
+  const hasDoorDims = showDims && !open && (geo.doors || []).some((d) => (d.type === "door" || d.type === "klapa") && !napisWFroncie(d));
   // wysokosc montazu prowadnic: kolumna przy boku -> wymiar poza szafka,
   // kolumna miedzy przegrodami -> w swietle obok prowadnicy
   const railDimCols = [];
@@ -9225,7 +9230,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // swiatlo poziomow opisujemy tylko w widoku otwartym i po lewej stronie —
   // w zamknietym powtarzaloby wysokosci frontow, ktore i tak sa wymiarowane
   const hasLevelDims = showDims && open && geo.levels.length > 0;
-  const hasDrawerDims = showDims && !open && (geo.doors || []).some((d) => d.type === "drawer");
+  const hasDrawerDims = showDims && !open && (geo.doors || []).some((d) => d.type === "drawer" && !napisWFroncie(d));
   /* Wysokosci frontow szuflad — kolumny wymiarow po prawej. Kolumna szuflad z innym
      podzialem niz sasiednia dostaje wlasna kolumne wymiarow (dwie kolumny 3 + 4
      szuflady: 237 i 177 lezaly na sobie — macierz szuflad w PDF 2026-10-22). Te same
@@ -9238,7 +9243,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const grupyDrzwi = (() => {
     if (!hasDoorDims) return [];
     const grupy = [];
-    (geo.doors || []).filter((d) => d.type === "door" || d.type === "klapa").sort((a, b) => a.x - b.x).forEach((d) => {
+    (geo.doors || []).filter((d) => (d.type === "door" || d.type === "klapa") && !napisWFroncie(d)).sort((a, b) => a.x - b.x).forEach((d) => {
       if (grupy.some((g) => g.some((e) => Math.round(e.y) === Math.round(d.y) && Math.round(e.h) === Math.round(d.h)))) return;
       const g = grupy.find((x) => !x.some((e) => Math.min(d.y + d.h, e.y + e.h) - Math.max(d.y, e.y) > 1));
       if (g) g.push(d); else grupy.push([d]);
@@ -9248,7 +9253,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const grupySzuflad = (() => {
     if (!hasDrawerDims) return [];
     const poKol = new Map();
-    (geo.doors || []).filter((d) => d.type === "drawer").forEach((d) => poKol.set(d.colKey, [...(poKol.get(d.colKey) || []), d]));
+    (geo.doors || []).filter((d) => d.type === "drawer" && !napisWFroncie(d)).forEach((d) => poKol.set(d.colKey, [...(poKol.get(d.colKey) || []), d]));
     const grupy = [];
     [...poKol.values()].sort((a, b) => Math.max(...b.map((d) => d.x)) - Math.max(...a.map((d) => d.x))).forEach((lista) => {
       const koliduje = (g) => lista.some((d) => g.some((e) => Math.min(d.y + d.h, e.y + e.h) - Math.max(d.y, e.y) > 1
@@ -9939,7 +9944,12 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             : prawa ? d.x + d.w - Math.min(d.w / 2, Math.max(60, d.w * 0.2)) + 12 + 2 * ZNAK_EM * 20 * kz
               : d.x + Math.min(d.w / 2, Math.max(odStyku, d.w * 0.2)));
           // pionowa szczelina (miedzy frontami, gora, dol) — kropka na krawedzi, etykieta wyprowadzona krotka kreska
+          /* PDF: tylko nietypowe szczeliny — ponizej 2 mm albo ponad granice ostrzezenia
+             (np. 38 nad podfrezem); zwykle 2–5 mm bez opisu. Na ekranie „Pokaż szczeliny”
+             pokazuje wszystkie (decyzja uzytkownika 2026-10-25). */
+          const zwykla = (val) => szczelinyNietypowe && val >= 2 && val <= cab.maxGap;
           const marker = (key, xMid, yTop, val, up, naPrawo = false) => {
+            if (zwykla(val)) return;
             const miejsce = `${Math.round(xMid)}|${Math.round(yTop)}|${val}`;
             if (byly.has(miejsce)) return;
             byly.add(miejsce);
@@ -9971,6 +9981,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           };
           // boczna szczelina (lewy/prawy bok korpusu) — etykieta wyprowadzona poza obrys
           const sideMarker = (key, xMid, yMid0, val, toLeft, d) => {
+            if (zwykla(val)) return;
             const col = val < 2 ? ERRC : ACC;
             // w druku wyzej niz srodek — tam stoi opis frontu obok (np. fix)
             const yMid = kz > 1 && d ? d.y + d.h * 0.75 : yMid0;
@@ -10066,8 +10077,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               if (Math.min(d.x + d.w, b2.x + b2.w) - Math.max(d.x, b2.x) <= 0) return;
               if (!above || b2.y < above.y) above = b2;
             });
-            if (above) {
-              const val = Math.round(above.y - (d.y + d.h));
+            const valNad = above ? Math.round(above.y - (d.y + d.h)) : null;
+            if (above && !zwykla(valNad)) {
+              const val = valNad;
               const col = val < 2 ? ERRC : ACC;
               // kropka na styku, kreska wyprowadzona az za prawa krawedz frontu
               /* Opis wyprowadzamy pionowo nad kropke, a nie w prawo — wyprowadzony
@@ -10195,7 +10207,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               const seen = new Set();
               const yLine = belowY + 90;
               return geo.doors
-                .filter((d) => d.lvl === 0 && d.w > 0)
+                .filter((d) => d.lvl === 0 && d.w > 0 && !napisWFroncie(d))
                 .filter((d) => {
                   const key = Math.round(d.x);
                   if (seen.has(key)) return false;
@@ -16193,7 +16205,7 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
         {head}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {box("Widok zamknięty — wymiary, szczeliny, kolory",
-            <FrontView cab={realCab} geo={geo} mat={mat} open={false} showDims showGaps
+            <FrontView cab={realCab} geo={geo} mat={mat} open={false} showDims showGaps szczelinyNietypowe
               showLabels={false} showHardware={false} arm={arm} wstawki={wstawki} druk={DRUK_WIDOK_MM} />)}
           {box("Widok otwarty — wymiary i okucia",
             <FrontView cab={cab} geo={geo} mat={mat} open showDims showGaps={false}

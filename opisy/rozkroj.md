@@ -20,6 +20,8 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 
 - **Strona szafki**:
   - 4 widoki w siatce 2 × 2: zamknięty (wymiary, szczeliny, kolory), otwarty (wymiary i okucia), z góry, z tyłu;
+  - widok zamknięty (2026-10-25, decyzje użytkownika): wymiar frontu tylko napisem w jego środku (W×H) — linie wysokości i szerokości frontów tylko przy froncie za małym na napis (także na ekranie); wymiary całości (szerokość, korpus, z nóżkami) zostają; szczeliny w PDF tylko nietypowe — poniżej 2 mm albo ponad „Ostrzegaj powyżej” (np. 38 nad podfrezem), zwykłe bez opisu; na ekranie „Pokaż szczeliny” pokazuje wszystkie;
+  - szeroka szafka (np. 1600 mm) ma w siatce 2 × 2 wymiary ok. 2,0 mm zamiast 2,3 — decyzja użytkownika 2026-10-25: może zostać;
   - lista formatek i okuć szafki;
   - notatka montażowa (np. zawiasy przesunięte przez półkę);
   - plan wierceń (`opisy/wiercenia.md`).
