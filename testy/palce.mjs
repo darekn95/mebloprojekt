@@ -241,7 +241,8 @@ console.log('\n== drzwi bez uchwytu: dłuższy od dołu / podfrez / tip-on (uży
   await page.locator('[data-el="drzwi-otwieranie-mm"]').fill('30'); await page.waitForTimeout(700);
   ok('30 mm — formatka o 30 mm dłuższa', wys(await drzwiRows()) === wys(h0) + 30, JSON.stringify(await drzwiRows()));
   await sel.selectOption('podfrez'); await page.waitForTimeout(700);
-  ok('podfrez od góry 30 mm — formatka o 30 mm krótsza', wys(await drzwiRows()) === wys(h0) - 30, JSON.stringify(await drzwiRows()));
+  // podfrez od spodu wieńca, na który front nakładany zachodzi 15 mm (zgłoszenie użytkownika 2026-10-25)
+  ok('podfrez od góry 30 mm — front kończy się 30 mm pod wieńcem (o 30 + 15 mm krótszy)', wys(await drzwiRows()) === wys(h0) - 30 - 15, JSON.stringify(await drzwiRows()));
   await sel.selectOption('tipon'); await page.waitForTimeout(700);
   const hw = await hwRows();
   ok('tip-on: odbojnik GTV SALTO NOVA w zamówieniu, 1 szt.', hw.some((r) => /^Odbojnik tip-on GTV SALTO NOVA/.test(r) && /AM-SVN-DL-MG-30/.test(r) && /\b1 szt\./.test(r)), hw.filter((r) => /Odbojnik/.test(r)).join(' / '));
@@ -265,6 +266,19 @@ console.log('\n== drzwi bez uchwytu: dłuższy od dołu / podfrez / tip-on (uży
   await page.getByRole('button', { name: 'Tip-on zamiast wydłużenia', exact: true }).click(); await page.waitForTimeout(800);
   c = await zap();
   ok('„Tip-on zamiast wydłużenia” zmienia otwieranie', JSON.stringify(c.otwieranie) === '["tipon"]', JSON.stringify(c.otwieranie));
+  // klapy: do góry — dłuższa od dołu / tip-on, w dół — podfrez od góry / tip-on
+  await drzwi({ klapa: 'gora', handles: [false] });
+  ok('klapa do góry: „front dłuższy od dołu” i tip-on, bez podfrezu', (await sel.locator('option').allInnerTexts()).join('|') === 'otwieranie: —|front dłuższy od dołu|tip-on (GTV SALTO NOVA)',
+    (await sel.locator('option').allInnerTexts()).join('|'));
+  const klapaRows = async () => (await cutRows()).filter((r) => /^Klapa/.test(r));
+  const k0 = Number(((await klapaRows())[0] || '').split(' | ')[2]);
+  await sel.selectOption('dol'); await page.waitForTimeout(700);
+  ok('klapa dłuższa od dołu o 20 mm', Number(((await klapaRows())[0] || '').split(' | ')[2]) === k0 + 20, JSON.stringify(await klapaRows()));
+  await drzwi({ klapa: 'dol', handles: [false] });
+  ok('klapa w dół: „podfrez od góry” i tip-on, bez wydłużenia', (await sel.locator('option').allInnerTexts()).join('|') === 'otwieranie: —|podfrez od góry|tip-on (GTV SALTO NOVA)',
+    (await sel.locator('option').allInnerTexts()).join('|'));
+  await sel.selectOption('tipon'); await page.waitForTimeout(700);
+  ok('klapa w dół z tip-on: odbojnik w zamówieniu i na rysunku', (await hwRows()).some((r) => /^Odbojnik tip-on/.test(r)) && (await page.locator('#rysunek [data-el="tipon"]').count()) === 1);
 }
 
 console.log('\n== widoki bez błędów ==');
