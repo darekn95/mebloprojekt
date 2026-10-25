@@ -1,9 +1,8 @@
 /* Karty zamowienia (uzytkownik 2026-10-24: „żeby zmniejszyć ilość zakładek —
    zakładka formatki i pod nią przyciski szafka, pomieszczenie, projekt; tak samo
    rozkrój, produkty do zamówienia i wycena”). Jedna karta na obszar, przelacznik
-   pod tytulem; Pomieszczenie / Projekt to wspolny zakres zamowienia, „Szafka”
-   osobno w kazdej karcie. Domyslnie: formatki i produkty — szafka, rozkroj
-   i wycena — projekt. */
+   pod tytulem; od 2026-10-25 przelacznik wspolny — zmiana w jednej karcie zmienia
+   wszystkie. Na starcie: formatki — szafka, reszta — pomieszczenie. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
   : 'http://127.0.0.1:5205/mebloprojekt-app.html';
@@ -38,21 +37,23 @@ console.log('== dwie szafki w jednym pomieszczeniu ==');
   await sekcja(/^Wycena/).locator('h2').click(); await page.waitForTimeout(800);   // wycena jest domyslnie zwinieta
   ok('przyciski Szafka / Projekt pod tytułem w 4 kartach (bez „Pomieszczenie” przy jednym)', (await zakres('formatki').count()) === 1 && (await zakres('rozkroj').count()) === 1 && (await zakres('produkty').count()) === 1 && (await zakres('wycena').count()) === 1
     && !(await zakres('formatki').innerText()).includes('Pomieszczenie'));
+  // od 2026-10-25: na starcie formatki — szafka, reszta — pomieszczenie (przy jednym = cały projekt)
   ok('formatki domyślnie: szafka „A”', /szafka „A”/.test(await zakres('formatki').innerText()), await zakres('formatki').innerText());
-  ok('rozkrój domyślnie: cały projekt — 2 szafki', /cały projekt — 2 szafki/.test(await zakres('rozkroj').innerText()), await zakres('rozkroj').innerText());
+  ok('rozkrój, produkty i wycena domyślnie: cały projekt — 2 szafki', (await Promise.all(['rozkroj', 'produkty', 'wycena'].map(async (k) => /cały projekt — 2 szafki/.test(await zakres(k).innerText())))).every(Boolean));
   await wybierz('formatki', 'Projekt');
   ok('Formatki → Projekt: suma formatek ze wszystkich szafek', /Suma formatek ze wszystkich szafek/.test(await sekcja(/^Formatki$/).innerText()));
-  await wybierz('formatki', 'Szafka');
-  ok('Formatki → Szafka: znów szafka „A”', /szafka „A”/.test(await zakres('formatki').innerText()) && !/Suma formatek/.test(await sekcja(/^Formatki$/).innerText()));
   const sumP = await sumaWyceny();
   await wybierz('wycena', 'Szafka');
+  ok('Wycena → Szafka: wszystkie karty na szafce „A” (wspólny przełącznik)', (await Promise.all(['formatki', 'rozkroj', 'produkty', 'wycena'].map(async (k) => /szafka „A”/.test(await zakres(k).innerText())))).every(Boolean)
+    && !/Suma formatek/.test(await sekcja(/^Formatki$/).innerText()));
   const sumS = await sumaWyceny();
-  ok('Wycena → Szafka: mniej niż cały projekt (sama szafka A)', sumS > 0 && sumS < sumP, `${sumS} < ${sumP}`);
-  await wybierz('rozkroj', 'Szafka');
-  ok('Rozkrój → Szafka: „szafka „A””', /szafka „A”/.test(await zakres('rozkroj').innerText()) && (await sekcja(/^Rozkrój na płycie/).locator('svg').count()) > 0);
+  ok('Wycena na szafce: mniej niż cały projekt (sama szafka A)', sumS > 0 && sumS < sumP, `${sumS} < ${sumP}`);
+  ok('Rozkrój na szafce: rysunek arkusza', (await sekcja(/^Rozkrój na płycie/).locator('svg').count()) > 0);
+  await wybierz('rozkroj', 'Projekt');
+  ok('Rozkrój → Projekt: formatki i produkty też cały projekt', /cały projekt — 2 szafki/.test(await zakres('formatki').innerText()) && /cały projekt — 2 szafki/.test(await zakres('produkty').innerText()));
   // wybor pamietany w przegladarce
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
-  ok('po przeładowaniu Rozkrój dalej na Szafka', /szafka „A”/.test(await zakres('rozkroj').innerText()));
+  ok('po przeładowaniu wszystkie dalej na całym projekcie', /cały projekt/.test(await zakres('formatki').innerText()) && /cały projekt/.test(await zakres('rozkroj').innerText()));
 }
 
 console.log('\n== dwa pomieszczenia: „Pomieszczenie” ==');
@@ -60,9 +61,12 @@ console.log('\n== dwa pomieszczenia: „Pomieszczenie” ==');
   await seed({ name: 'P', active: 0, prices: {}, rooms: [{ id: 'p1', name: 'Kuchnia' }, { id: 'p2', name: 'Salon' }],
     items: [{ cab: cab('A', 600), roomId: 'p1' }, { cab: cab('B', 1000), roomId: 'p1' }, { cab: cab('C', 800), roomId: 'p2' }] });
   ok('jest „Pomieszczenie”', (await zakres('produkty').getByRole('button', { name: 'Pomieszczenie', exact: true }).count()) === 1);
-  await wybierz('produkty', 'Pomieszczenie');
-  ok('Produkty → Pomieszczenie: „pomieszczenie „Kuchnia” — 2 szafki”', /pomieszczenie „Kuchnia” — 2 szafki/.test(await zakres('produkty').innerText()), await zakres('produkty').innerText());
-  ok('wspólny zakres: Formatki na Projekt pokazują teraz pomieszczenie', await (async () => { await wybierz('formatki', 'Projekt'); await wybierz('formatki', 'Pomieszczenie'); return /pomieszczenie „Kuchnia”/.test(await zakres('formatki').innerText()); })());
+  ok('produkty domyślnie: „pomieszczenie „Kuchnia” — 2 szafki”, formatki — szafka', /pomieszczenie „Kuchnia” — 2 szafki/.test(await zakres('produkty').innerText())
+    && /szafka „A”/.test(await zakres('formatki').innerText()), await zakres('produkty').innerText());
+  await wybierz('produkty', 'Projekt');
+  ok('Produkty → Projekt: formatki też „cały projekt — 3 szafki”', /cały projekt — 3 szafki/.test(await zakres('formatki').innerText()), await zakres('formatki').innerText());
+  await wybierz('formatki', 'Pomieszczenie');
+  ok('Formatki → Pomieszczenie: produkty i rozkrój też pomieszczenie „Kuchnia”', /pomieszczenie „Kuchnia”/.test(await zakres('produkty').innerText()) && /pomieszczenie „Kuchnia”/.test(await zakres('rozkroj').innerText()));
 }
 
 console.log('\n== jedna szafka: bez przełącznika ==');

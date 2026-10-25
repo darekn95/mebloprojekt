@@ -37,6 +37,11 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
 
 - **W kolumnie**: liczba drzwi, liczba półek, szerokość każdego skrzydła.
 - **Przy skrzydle**: liczba zawiasów, uchwyt (wystawanie, na boku / na górze), lustro.
+- **Drzwi bez uchwytu — otwieranie** (2026-10-25, decyzje użytkownika): po odznaczeniu „uchwyt” wybór przy skrzydle (`col.otwieranie[i]`, mm w `col.otwieranieMm[i]`, domyślnie `OTWIERANIE_MM` = 20):
+  - **front dłuższy od dołu** — front schodzi o N mm poniżej pasma (górne szafki, chwyta się od spodu); formatka dłuższa, zawiasy liczone od nowej wysokości. Pod spodem nie może być innego frontu (błąd), a w szafce na nóżkach / cokole front kończy się min. 10 mm nad podłogą (błąd); przyciski „Podfrez od góry zamiast wydłużenia” / „Tip-on zamiast wydłużenia”;
+  - **podfrez od góry** — front kończy się N mm pod płytą nad nim (wieniec, półka graniczna, wzmocnienie przy licu), jak podfrez szuflad: front nakładany, który na nią zachodzi, jest krótszy o N + nałożenie (np. 20 + 15 mm pod wieńcem; zgłoszenie użytkownika 2026-10-25 — od góry frontu zostawało palcom 5 mm), wpuszczany — o N;
+  - **tip-on** — odbojnik GTV SALTO NOVA długi nakładany z magnesem, szary (AM-SVN-DL-MG-30; min. 2,5 mm szczeliny), 1 na drzwi, przy wolnej krawędzi — u góry szafki stojącej, u dołu wiszącej; w zamówieniu „Odbojnik tip-on GTV SALTO NOVA” (7 zł/szt. — cena użytkownika 2026-10-25), na rysunku przerywany obrys. Zawiasy bez zmian — tip-on działa z cichym domykiem (użytkownik).
+  Front wyższy od góry — nie (decyzja użytkownika: tylko dłuższy od dołu, podfrez, tip-on). Tak samo w poziomach kolumny. **Klapy** (2026-10-25): do góry — dłuższa od dołu albo tip-on (przy górnej krawędzi zawiasy), w dół — podfrez od góry albo tip-on; waga i dobór podnośnika z nowej wysokości.
 - **Strona zawiasów**: przy kolumnie z jednymi drzwiami albo dla całej szafki.
 - **Luzy i kąt otwarcia** (domyślnie 90°) w karcie „Luzy drzwi”; luz między drzwiami może też mieć sama kolumna.
 - **Element stały (fix)** zamiast części frontu:

@@ -229,6 +229,13 @@ const DRAZEK_MIN_POD = 1000, DRAZEK_DLUGIE = 1600, DRAZEK_SWIATLO_OPCJA = 800;
 const DRAZEK_GL_MIN = 400, DRAZEK_GL_DOBRA = 500;
 const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀25";
 
+/* Drzwi bez uchwytu (uzytkownik 2026-10-25): front dluzszy od dolu (gorne szafki —
+   chwyta sie go od spodu), nizszy od gory (podfrez, jak w szufladach) — oba domyslnie
+   o OTWIERANIE_MM — albo tip-on: odbojnik GTV SALTO NOVA dlugi nakladany z magnesem,
+   jeden na drzwi, zawiasy bez zmian (dziala z cichym domykiem — uzytkownik). */
+const OTWIERANIA = ["dol", "podfrez", "tipon"];
+const OTWIERANIE_MM = 20;
+const TIPON_NAME = "Odbojnik tip-on GTV SALTO NOVA";
 const DEFAULT_HW_PRICES = {
   Zawias: 3,
   "Nóżka regulowana": 2.3,
@@ -258,6 +265,8 @@ const DEFAULT_HW_PRICES = {
   "Prowadnica Sevroll DXS-3D Synchro": 50,
   // GTV EM-SBL na styku blatow w rogu (uzytkownik 2026-10-16)
   "Złącze do blatów śrubowe": 9,
+  // odbojnik tip-on przy drzwiach bez uchwytu — cena uzytkownika (2026-10-25)
+  [TIPON_NAME]: 7,
   // rura na wieszaki (za metr) i rozety — ceny uzytkownika (2026-10-24)
   [DRAZEK_NAME]: 15,
   [ROZETA_NAME]: 1,
@@ -347,11 +356,48 @@ const mocowaniePolek = (cab) => (cab.shelfMount === "confirmat" ? "confirmat"
    rozwiazuje sie polki na konfirmatach po obu stronach jednej przegrody
    (uzytkownik 2026-10-17 po audycie GPT N45). Puste = jak cala szafka. */
 const MOCOWANIA_POLEK = ["pins", "confirmat", "trojkaty"];
-// karty zamowienia: ktore domyslnie pokazuja szafke (reszta — pomieszczenie / projekt)
-const KARTY_NA_SZAFKE = { formatki: true, produkty: true, rozkroj: false, wycena: false };
+/* Karty zamowienia na starcie: formatki — szafka, reszta — pomieszczenie; klikniecie
+   w jednej karcie zmienia zakres we wszystkich (uzytkownik 2026-10-25). */
+const KARTY_NA_SZAFKE = { formatki: true, produkty: false, rozkroj: false, wycena: false };
 const mocowanieKolumny = (cab, rawCol) => (MOCOWANIA_POLEK.includes((rawCol || {}).shelfMount) ? rawCol.shelfMount : mocowaniePolek(cab));
+/* Polka graniczna poziomu kolumny (`rawCol.podzial[poz]`) moze miec wlasne mocowanie
+   (`rawCol.podzialMount[poz]`, uzytkownik 2026-10-25: „czy poziomy na kołki czy na
+   konfirmaty”). Domyslnie konfirmaty — „półki raczej na kołki, a poziomy raczej na
+   konfirmaty”, pod zawiasami klapy musi byc sztywno; przy samych drzwiach mozna
+   przestawic na kolki. */
+/* Mocowanie wybrane recznie dla calej kolumny (`rawCol.shelfMount`, np. „Półki kolumny 3
+   na kołkach” przy konfirmatach po drugiej stronie przegrody) obejmuje tez jej granice —
+   audyt projektu uzytkownika 2026-10-25: domyslne konfirmaty granic cofaly ten wybor. */
+const GRANICA_MOCOWANIE = "confirmat";
+const mocowanieGranicy = (cab, rawCol, poz) => {
+  const m = ((rawCol || {}).podzialMount || [])[poz];
+  if (MOCOWANIA_POLEK.includes(m)) return m;
+  return MOCOWANIA_POLEK.includes((rawCol || {}).shelfMount) ? rawCol.shelfMount : GRANICA_MOCOWANIE;
+};
+// mocowanie konkretnej polki kolumny z `computeGeo` (granica moze miec inne niz kolumna)
+const mocPolki = (c, s) => (s && s.mount) || c.shelfMount;
 /* Kolumna z podzialem frontow (`col.podzial`, `col.segmenty`): bez granicy na
    polce k odcinki nad i pod nia lacza sie — zostaja ustawienia dolnego. */
+/* Poziom kolumny z podzialem moze miec wlasna strukture jak cala kolumna
+   (uzytkownik 2026-10-24: „kolumna jak odrębna szafka”) — `col.segmenty[nr].kind`
+   „drawers” albo „blenda” (bez — polki i drzwi). Szuflady leza wtedy w segmencie. */
+const zbiorySzuflad = (col) => (!col ? [] : col.kind === "drawers" ? [col]
+  : (col.segmenty || []).filter((sg, nr) => sg && sg.kind === "drawers" && nr <= (col.podzial || []).length));
+/* Adres kolumny w akcjach uwag i setterach: „j” — kolumna, „js<nr>” — jej poziom
+   (`col.segmenty[nr]`, tworzony przy pierwszym zapisie). */
+const kolumnaW = (L, li, j) => {
+  const m = /^(\d+)s(\d+)$/.exec(String(j));
+  const col = L[+li] && L[+li].cols[m ? +m[1] : +j];
+  if (!m || !col) return col;
+  const seg = col.segmenty || (col.segmenty = []);
+  while (seg.length <= +m[2]) seg.push(null);
+  return seg[+m[2]] || (seg[+m[2]] = {});
+};
+/* Nazwa poziomu kolumny w uwagach (uzytkownik 2026-10-25: „poziom 4 kolumny 2”, nie
+   „poziom kolumny 4”) — przed nia poziom szafki, jak w innych uwagach. */
+const gdziePoziomKol = (li, j, nr) => `Poziom ${li + 1}, poziom ${nr + 1} kolumny ${j + 1}`;
+// adres szuflady w przyciskach: kolumna albo jej poziom („<kolumna>s<nr>”)
+const jSzuflady = (c, dr) => (dr && dr.seg ? `${c.j}s${dr.seg.nr}` : c.j);
 const usunGranice = (col, k) => {
   const gr = (col.podzial || []).map(Number);
   const poz = gr.indexOf(k);
@@ -360,8 +406,12 @@ const usunGranice = (col, k) => {
     col.segmenty.splice(poz + 1, 1);
     if (!col.segmenty.some(Boolean)) delete col.segmenty;
   }
+  if (col.podzialMount) {
+    col.podzialMount.splice(poz, 1);
+    if (!col.podzialMount.some(Boolean)) delete col.podzialMount;
+  }
   col.podzial = gr.filter((x) => x !== k);
-  if (!col.podzial.length) { delete col.podzial; delete col.segmenty; }
+  if (!col.podzial.length) { delete col.podzial; delete col.segmenty; delete col.podzialMount; }
 };
 const UCHWYT_OD_KRAWEDZI = 36;   // os uchwytu pionowego od wolnej krawedzi skrzydla
 const uchwytObrys = (d) => {
@@ -1772,7 +1822,7 @@ const runsInRoom = (project, roomId) => (project.runs || []).filter((r) => roomO
    pomieszczenia — a bez zadnych szuflad V-BOX. Inny niz reszta — ostrzezenie
    z przyciskami „zmien” / „zostaw” (`szufladyMsgs`, `geo` — w samej szafce). */
 const systemyWSzafce = (cab) => ((cab && cab.levels) || []).flatMap((lv) => (lv.cols || [])
-  .flatMap((c) => (c.kind === "drawers" ? (c.drawers || []).map(systemSzuflady) : [])));
+  .flatMap((c) => zbiorySzuflad(c).flatMap((z) => (z.drawers || []).map(systemSzuflady))));
 // przewazajacy system (remis — pierwszy z listy); null, gdy szuflad nie ma
 const przewazajacySystem = (arr) => {
   if (!arr.length) return null;
@@ -1796,10 +1846,13 @@ const systemKontekstu = (project, idx, col = null) => {
 };
 /* Wszystkie szuflady szafki na jeden system. Przy zmianie wracaja pola, ktore
    ten system liczy inaczej: bok (V-BOX z listy, DXS w mm), tyl, reling. */
-const naSystemSzuflad = (cab, sys) => ({ ...cab, szufladyMieszane: undefined, szufladyInne: undefined,
-  levels: (cab.levels || []).map((lv) => ({ ...lv, cols: (lv.cols || []).map((c) => (c.kind !== "drawers" ? c
-    : { ...c, nl: c.nl != null && !nlSystemu(sys).includes(Number(c.nl)) ? null : c.nl,
-      drawers: (c.drawers || []).map((d) => (systemSzuflady(d) === sys ? d : zmienSystemSzuflady(d, sys))) })) })) });
+const naSystemSzuflad = (cab, sys) => {
+  const zmien = (c) => ({ ...c, nl: c.nl != null && !nlSystemu(sys).includes(Number(c.nl)) ? null : c.nl,
+    drawers: (c.drawers || []).map((d) => (systemSzuflady(d) === sys ? d : zmienSystemSzuflady(d, sys))) });
+  return { ...cab, szufladyMieszane: undefined, szufladyInne: undefined,
+    levels: (cab.levels || []).map((lv) => ({ ...lv, cols: (lv.cols || []).map((c) => (c.kind === "drawers" ? zmien(c)
+      : zbiorySzuflad(c).length ? { ...c, segmenty: c.segmenty.map((sg) => (sg && sg.kind === "drawers" ? zmien(sg) : sg)) } : c)) })) };
+};
 const zmienSystemSzuflady = (d, sys) => {
   const out = { ...d, h: "auto", backHeight: null, tallBack: false };
   if (sys === "dxs") { out.system = "dxs"; out.reling = false; out.bezRelingu = false; } else delete out.system;
@@ -2583,6 +2636,13 @@ function computeGeoLiczy(cab, mat, ctx) {
           add("info", `Poziom ${lv.i + 1}, kolumna ${j + 1}: światło ${fmt(o.h)} mm — zmieści się rura na wieszaki (pod nią ${fmt(o.h - DRAZEK_POD_PLYTA)} mm: koszule${o.h - DRAZEK_POD_PLYTA >= DRAZEK_DLUGIE ? ", płaszcze i sukienki" : ""}).|drazek:${lv.i}:${j}:${o.k}:1`);
       }
       c.shelfMount = mocowanieKolumny(cab, rawCols[j]);
+      // polka graniczna poziomu kolumny — wlasne mocowanie (`mocowanieGranicy`), reszta jak kolumna
+      const grMoc = (rawCols[j].podzial || []).map(Number);
+      c.shelves.forEach((sh, k) => {
+        const poz = grMoc.indexOf(k);
+        sh.mount = poz >= 0 ? mocowanieGranicy(cab, rawCols[j], poz) : c.shelfMount;
+        if (poz >= 0) sh.granica = poz;
+      });
       // dolny koniec przegrody z prawej tej kolumny na trojkatach (krzyz z przegroda pod polka, N45)
       c.divDolMount = rawCols[j].divDolMount === "trojkaty" ? "trojkaty" : null;
       lv.cols.push(c);
@@ -2673,6 +2733,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   const blendaParts = [];
   const mirrorParts = [];
   let handleCount = 0;
+  let tiponCount = 0;   // odbojniki tip-on (drzwi bez uchwytu)
   let hingeCount = 0;
   /* Z tego zawiasy polnakladane (blizniacze): front nachodzi na plyte z zawiasem
      najwyzej na polowe grubosci, bo z drugiej strony stoi drugi front — przegroda
@@ -3176,6 +3237,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         return;
       }
 
+      const segSzuflad = [];   // poziomy kolumny z szufladami — liczone nizej, jak kolumna szuflad
       if (kind === "doors") {
         /* Podzial frontow w kolumnie (uzytkownik 2026-10-24: „półki na poziomy
            tylko w tej kolumnie, a nie w całej szafie”) — wybrane polki tej kolumny
@@ -3185,10 +3247,56 @@ function computeGeoLiczy(cab, mat, ctx) {
         const pasmaDrzwi = pasmaPodzialu(rawCol, c, lv, clo, chi);
         pasmaDrzwi.forEach((ps) => {
         const clo = ps.lo, chi = ps.hi, cbandH = Math.round(ps.hi - ps.lo);
-        // „poziom kolumny” (uzytkownik 2026-10-24: „odcinek źle brzmi”)
-        const where = ps.seg ? `${whereKol}, poziom kolumny ${ps.seg.nr + 1}` : whereKol;
+        // „poziom N kolumny M” (uzytkownik 2026-10-24: „odcinek źle brzmi”, 2026-10-25: numer przy poziomie)
+        const where = ps.seg ? gdziePoziomKol(lv.i, j, ps.seg.nr) : whereKol;
         const jKey = ps.seg ? `${j}s${ps.seg.nr}` : `${j}`;
         const rawCol = ps.raw;
+        /* Otwieranie frontu bez uchwytu (`rawCol.otwieranie[i]`, `otwieranieMm[i]`;
+           uzytkownik 2026-10-25): dluzszy od dolu, podfrez od gory albo tip-on. Podfrez
+           frontu nakladanego liczy sie od spodu plyty nad nim (wieniec, polka graniczna,
+           wzmocnienie przy licu) — jak w szufladach; od gory frontu, ktory na nia
+           zachodzi, palcom zostawalo kilka mm (zgloszenie uzytkownika 2026-10-25).
+           Klapa do gory — dluzsza od dolu albo tip-on, w dol — podfrez albo tip-on
+           (przy drugiej krawedzi sa zawiasy). */
+        const otwieranieFrontu = (d, i, dozwolone) => {
+          const otw = !d.handle && dozwolone.includes((rawCol.otwieranie || [])[i]) ? rawCol.otwieranie[i] : null;
+          if (!otw) return;
+          d.otwieranie = otw;
+          if (otw === "tipon") {
+            tiponCount += 1;
+            // odbojnik przy wolnej krawedzi: drzwi — u gory szafki stojacej, u dolu wiszacej; klapa — przy wolnej krawedzi
+            const wisi = !(cab.plinth.on || (cab.legs && cab.legs.on));
+            const uDolu = d.type === "klapa" ? d.klapa === "gora" : wisi;
+            d.tiponY = uDolu ? d.y + 80 : d.y + d.h - 80;
+            return;
+          }
+          d.otwMm = Math.max(0, Math.round(num((rawCol.otwieranieMm || [])[i]) ?? OTWIERANIE_MM));
+          if (otw === "dol") { d.y -= d.otwMm; d.h += d.otwMm; return; }
+          const plyta = Math.min(ps.y1, ...(c.rails || []).filter((r) => r.y0 >= d.y && r.z0 < 100 && r.x1 > d.x && r.x0 < d.x + d.w).map((r) => r.y0));
+          d.podPlyta = Math.max(0, Math.round(d.y + d.h - plyta));
+          d.h -= d.otwMm + d.podPlyta;
+        };
+        /* Poziom kolumny moze miec wlasna strukture jak cala kolumna (uzytkownik
+           2026-10-24: „kolumna jak odrębna szafka”): szuflady — nizej, blenda — tu. */
+        if (ps.seg && (rawCol.kind === "drawers" || rawCol.kind === "blenda")) {
+          // polki w srodku takiego poziomu wchodza w szuflady / za blende (granice zostaja)
+          const wSrodku = (c.shelves || []).filter((sh) => sh.y > ps.y0 + 0.5 && sh.y + ts < ps.y1 - 0.5).length;
+          if (wSrodku)
+            add("error", `${where}: ${rawCol.kind === "drawers" ? "szuflady" : "blenda"} i ${wSrodku === 1 ? "półka" : `półki (${wSrodku})`} w tym samym poziomie kolumny — `
+              + `${rawCol.kind === "drawers" ? "skrzynki uderzą w półki" : "za blendą nie ma po co ich wieszać"}.|polkipoziomu:${lv.i}:${j}:${ps.seg.nr}`);
+          if (rawCol.kind === "drawers") { segSzuflad.push(ps); return; }
+          const bi = rawCol.blendaMode === "inset";
+          const bx0 = bi ? c.x0 + g.inset : sx0, bx1 = bi ? c.x1 - g.inset : sx1;
+          const by0 = bi ? ps.y0 + g.inset : clo, by1 = bi ? ps.y1 - g.inset : chi;
+          const bw = Math.round(bx1 - bx0), bh = Math.round(by1 - by0);
+          if (bw <= 0 || bh <= 0) { add("error", `${where}: blenda ma wymiar zero lub mniej.`); return; }
+          blendaParts.push({ h: bh, w: bw });
+          doors.push({ lvl: lv.i, key: `b${lv.i}-${jKey}`, type: "blenda", colKey: `${lv.i}-${j}`,
+            x: bx0, y: by0, w: bw, h: bh, iInGroup: 0, groupN: 1, inset: bi, seg: ps.seg,
+            gWallL: gwL, gWallR: gwR, colY0: ps.y0, colY1: ps.y1,
+            bandLo: ps.pierwszy && lv.i === 0 ? null : by0, bandHi: ps.ostatni && lv.i === L - 1 ? null : by1 });
+          return;
+        }
           const cnt = Math.max(0, Math.round(rawCol.doors ?? 0));
           c.count = cnt;
           if (cnt <= 0) return;
@@ -3227,7 +3335,7 @@ function computeGeoLiczy(cab, mat, ctx) {
                 const opt = evenGapOptions(sx1 - sx0, cnt, fixedW, autoCnt, colGap);
                 const acts = [opt.up, opt.down]
                   .filter((v) => v !== null)
-                  .map((v) => `|fixgap:${lv.i}:${j}:${v}:${v > colGap ? "up" : "down"}`)
+                  .map((v) => `|fixgap:${lv.i}:${jKey}:${v}:${v > colGap ? "up" : "down"}`)
                   .join("");
                 // ostrzezenie: formatki do wyrownania (uzytkownik 2026-10-17)
                 add("warn", `${where}: przy równym podziale drzwi różnią się o ${fmt(spread)} mm. Zmień luz między drzwiami, żeby formatki były identyczne.${acts}`);
@@ -3253,12 +3361,12 @@ function computeGeoLiczy(cab, mat, ctx) {
               const xs = Array.from({ length: nZaw }, (_, k) => dx + HINGE_REF + ((dw - 2 * HINGE_REF) * k) / (nZaw - 1));
               if (wpisane !== null && nZaw !== Math.round(wpisane))
                 add("error", `${where}: klapa ma ${nZaw === 2 ? "co najmniej 2" : "najwyżej 4"} zawiasy, a wpisano ${fmt(wpisane)} — liczę ${nZaw}.`
-                  + `|zawiasy:${lv.i}:${j}:0:${nZaw}`);
+                  + `|zawiasy:${lv.i}:${jKey}:0:${nZaw}`);
               const odstepK = (dw - 2 * HINGE_REF) / (nZaw - 1);
               if (nZaw >= 3 && odstepK < ZAWIAS_MAX_ODSTEP)
                 add("warn", `${where}: za dużo zawiasów — klapa ${fmt(dw)} mm ma ${nZaw} zawiasy co ok. ${fmt(Math.round(odstepK))} mm, `
                   + `a kolejny dokłada się dopiero przy odstępie ponad ${ZAWIAS_MAX_ODSTEP} mm (wystarczą ${zawiasowWystarczy(dw)}).`
-                  + `|zawiasy:${lv.i}:${j}:0:${zawiasowWystarczy(dw)}`);
+                  + `|zawiasy:${lv.i}:${jKey}:0:${zawiasowWystarczy(dw)}`);
               const d = { lvl: lv.i, key: `d${lv.i}-${jKey}-0`, type: "klapa", klapa, colKey: `${lv.i}-${j}`,
                 x: dx, y: clo, w: dw, h: cbandH, iInGroup: 0, groupN: 1,
                 inset: cab.frontMode === "inset", gWallL: gwL, gWallR: gwR, colY0: ps.y0, colY1: ps.y1, seg: ps.seg,
@@ -3272,24 +3380,26 @@ function computeGeoLiczy(cab, mat, ctx) {
                   ? rawCol.klapaUchwyt : (klapa === "gora" ? "dol" : "gora"),
                 // wlasne wystawanie uchwytu, jak przy skrzydle — dotad klapa brala to z calej szafki (audyt GPT N36)
                 handleOut: num((rawCol.handleOuts || [])[0]) };
+              otwieranieFrontu(d, 0, klapa === "gora" ? ["dol", "tipon"] : ["podfrez", "tipon"]);
               doors.push(d);
               c.doors.push(d);
               hingeCount += nZaw;
               if (d.handle) handleCount += 1;
-              if (d.mirror && dw > 1 && cbandH > 1) mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
+              if (d.mirror && dw > 1 && d.h > 1) mirrorParts.push({ a: d.h - 1, b: dw - 1 });
               // podnosnik: 1, powyzej 600 mm szerokosci domyslnie 2
               const ile = rawCol.silowniki === 1 || rawCol.silowniki === 2 ? rawCol.silowniki : (dw > 600 ? 2 : 1);
-              const kg = wagaFrontu(dw, cbandH, tf) + (d.mirror ? wagaLustra(dw, cbandH, mat) : 0);
+              // waga i dobor z wysokosci klapy po wydluzeniu / podfrezie
+              const kg = wagaFrontu(dw, d.h, tf) + (d.mirror ? wagaLustra(dw, d.h, mat) : 0);
               const kat = klapa === "gora" && [75, 90, 100].includes(Number(rawCol.katKlapy)) ? Number(rawCol.katKlapy) : 90;
               d.kat = kat;   // kontrola otwierania liczy luk klapy do tego kata
               const recznie = num(rawCol.silaN);
-              const dobor = dobierzPodnosnik(cbandH, kg / ile, kat, klapa);
+              const dobor = dobierzPodnosnik(d.h, kg / ile, kat, klapa);
               // przy jednym: co dalby drugi (przycisk „Dołóż drugi” przy za slabym)
-              const dobor2 = ile === 1 ? dobierzPodnosnik(cbandH, kg / 2, kat, klapa) : null;
+              const dobor2 = ile === 1 ? dobierzPodnosnik(d.h, kg / 2, kat, klapa) : null;
               const sila = recznie ?? (dobor ? dobor.sila : null);
               // jeden podnosnik: strona do wyboru przy klapie, domyslnie lewa (uzytkownik 2026-10-17)
               const strona = rawCol.podnosnikStrona === "right" ? "right" : "left";
-              klapy.push({ klapa, colKey: `${lv.i}-${j}`, key: d.key, w: dw, h: cbandH, kg, ile, kat, sila, recznie: recznie != null, dobor, dobor2, where, strona });
+              klapy.push({ klapa, colKey: `${lv.i}-${j}`, adres: `${lv.i}:${jKey}`, key: d.key, w: dw, h: d.h, kg, ile, kat, sila, recznie: recznie != null, dobor, dobor2, where, strona });
               dx += dw + colGap;
               continue;
             }
@@ -3329,6 +3439,9 @@ function computeGeoLiczy(cab, mat, ctx) {
                   ? "left"
                   : "right",
             };
+            otwieranieFrontu(d, i, OTWIERANIA);
+            if (d.otwMm && num((rawCol.hinges || [])[i]) === null)
+              d.hinges = autoHinges(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
             /* Zawias musi miec do czego sie przykrecic: bok szafki albo przegrode.
                Tam, gdzie kolumny stykaja sie bez przegrody (przelot do ramienia
                szafki naroznej), plyty nie ma i drzwi wisialyby w powietrzu. */
@@ -3340,7 +3453,7 @@ function computeGeoLiczy(cab, mat, ctx) {
               const druga = d.hingeSide === "left" ? "right" : "left";
               add("error", `${where}: zawiasy wypadają od strony przelotu — nie ma tam płyty, `
                 + `do której da się je przykręcić. Przełóż je na ${druga === "left" ? "lewą" : "prawą"} stronę.`
-                + `|hingeflip:${lv.i}:${j}:${druga}`);
+                + `|hingeflip:${lv.i}:${jKey}:${druga}`);
             }
             // rozstaw zawiasow + kolizje z polkami i wzmocnieniami w tej kolumnie
             const hObs = [
@@ -3398,7 +3511,7 @@ function computeGeoLiczy(cab, mat, ctx) {
                 add(zostawione ? "info" : "warn", `${where}, skrzydło ${i + 1}: ${wpis > gtv.n ? "za dużo" : "za mało"} zawiasów wg tabeli GTV — ${wpis} zamiast ${gtv.n} (${opis})`
                   + (powod ? "." + powod : "")
                   + (zostawione ? " — zostawione celowo." : ".")
-                  + `|zawiasy:${lv.i}:${j}:${i}:${gtv.n}` + (zostawione ? "" : `|zawiasyzostaw:${lv.i}:${j}:${i}:${wpis}`));
+                  + `|zawiasy:${lv.i}:${jKey}:${i}:${gtv.n}` + (zostawione ? "" : `|zawiasyzostaw:${lv.i}:${jKey}:${i}:${wpis}`));
               }
               if (gtv.poza)
                 add("warn", `${where}, skrzydło ${i + 1}: ${opis} — poza tabelą zawiasów GTV (front do ${gtv.szer} mm szerokości, 2500 mm wysokości i ${zawiasSzeroki ? 15 : 20} kg), liczba zawiasów orientacyjna.`);
@@ -3412,7 +3525,7 @@ function computeGeoLiczy(cab, mat, ctx) {
                 add("error", `${where}, skrzydło ${i + 1}: zawias ${naPrzeszkodzie.map((y) => fmt(Math.round(y - d.y))).join(", ")} mm od dołu frontu wypada na przeszkodzie — `
                   + `od przedniej krawędzi korpusu do niej jest ${fmt(wolne)} mm, a zawias przy ${d.hingeSide === "left" ? "lewym" : "prawym"} boku potrzebuje ${fmt(zawiasD)} mm. `
                   + (cnt === 1 ? "Przełóż zawiasy na drugą stronę albo przesuń przeszkodę." : "Przesuń przeszkodę albo zmień podział drzwi.")
-                  + (cnt === 1 ? `|hingeflip:${lv.i}:${j}:${druga}` : ""));
+                  + (cnt === 1 ? `|hingeflip:${lv.i}:${jKey}:${druga}` : ""));
               }
             }
             d.colJ = j;
@@ -3435,10 +3548,11 @@ function computeGeoLiczy(cab, mat, ctx) {
             c.doors.push(d);
             dx += dw + colGap;
             if (dw <= 0) add("error", `${where}: drzwi ${i + 1} mają szerokość zero lub mniej.`);
-            if ((rawCol.mirrors || [])[i] && dw > 1 && cbandH > 1)
-              mirrorParts.push({ a: cbandH - 1, b: dw - 1 });
+            if ((rawCol.mirrors || [])[i] && dw > 1 && d.h > 1)
+              mirrorParts.push({ a: d.h - 1, b: dw - 1 });
             if ((rawCol.handles || [])[i] !== false) handleCount += 1;
-            const autoH = autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0);
+            // wysokosc frontu po wydluzeniu / podfrezie (bez nich = pasmo)
+            const autoH = autoHinges(d.h, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, d.h, mat) : 0);
             const ovH = num((rawCol.hinges || [])[i]);
             hingeCount += ovH !== null ? ovH : autoH;
             /* Na ile front zachodzi na czolo boku albo przegrody, ktora niesie
@@ -3459,7 +3573,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             add("warn", `${where}: dwoje wąskich drzwi po ${fmt(Math.round(dws.sizes[0]))} mm `
               + `(poniżej ${fmt(WASKI_FRONT)} mm). Jedne drzwi miałyby ${fmt(jedne)} mm — `
               + "zostaw dwoje, jeśli tak ma być."
-              + `|onedoor:${lv.i}:${j}:${jedne}:left|onedoor:${lv.i}:${j}:${jedne}:right`);
+              + `|onedoor:${lv.i}:${jKey}:${jedne}:left|onedoor:${lv.i}:${jKey}:${jedne}:right`);
 
           if (hasFix && fixW > 0) {
             const auto = rawFix.side === "left" ? "right" : "left";
@@ -3475,10 +3589,17 @@ function computeGeoLiczy(cab, mat, ctx) {
               );
           }
         });
-        return;
+        // poziomy kolumny i ich rodzaj — do „Struktury wnętrza”
+        c.poziomyKol = pasmaDrzwi.filter((ps) => ps.seg).map((ps) => ({ ...ps.seg,
+          kind: ps.raw.kind === "drawers" || ps.raw.kind === "blenda" ? ps.raw.kind : "doors" }));
       }
 
       /* --- szuflady V-BOX --- */
+      /* Kolumna szuflad albo poziom kolumny z szufladami (`rawCol.segmenty[nr]`,
+         uzytkownik 2026-10-24) — wtedy `lv` to pasmo tego poziomu (y0/y1 miedzy
+         polkami granicznymi), `c` jego geometria (`c.poziomy[nr]`), `j` adres
+         „<kolumna>s<nr>” do przyciskow, `jKol` numer kolumny. */
+      const szufladyKolumny = (rawCol, c, lv, j, jKol, where, insLo, insHi, topFixGeo) => {
       const ds = rawCol.drawers && rawCol.drawers.length ? rawCol.drawers : [];
       c.count = ds.length;
       c.drawers = [];
@@ -3508,6 +3629,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       let dhi = dIn ? insHi : lv.ovlDrawHi;
       if (topFixGeo) dhi = Math.min(dhi, topFixGeo.y - g.between);
       const dbandH = Math.round(dhi - dlo);
+      c.dbandH = dbandH;   // pasmo frontow — „Dopasuj fronty” w poziomie kolumny
 
       /* Ze wspornikiem przy elemencie stalym szuflada stoi miedzy nim a drugim
          bokiem i jest o tyle wezsza; bez wspornika skrzynka na cala kolumne
@@ -3609,9 +3731,17 @@ function computeGeoLiczy(cab, mat, ctx) {
           if (bokY0 + bokMax + SZUFLADA_ZAPAS <= sf) break;
           bokMax = Math.floor(sf - SZUFLADA_ZAPAS - bokY0);
         }
+        /* Front nizszy od pasma (podfrez, gorny front pod plyta) — bok nie wystaje ponad
+           jego gore, bo widac go w szczelinie nad frontem (uzytkownik 2026-10-25: „jak
+           obniżamy front, to boki też niższe, żeby nie wystawały ponad front”). */
+        const bokPodFrontem = Math.floor(y + fh - bokY0);
+        if (fh < fhFull) bokMax = Math.min(bokMax, bokPodFrontem);
         const recznyBok = num(d.h);
         const hBok = Math.max(0, recznyBok !== null ? Math.round(recznyBok) : bokMax);
         const goraBoku = bokY0 + hBok;
+        if (recznyBok !== null && fh < fhFull && hBok > bokPodFrontem)
+          add("warn", `${where2}: bok ${fmt(hBok)} mm wystaje ${fmt(hBok - bokPodFrontem)} mm ponad front obniżony podfrezem — widać go w szczelinie nad frontem.`
+            + (bokPodFrontem >= DXS.minTyl + DXS.bokPodDnem ? `|fixh:${lv.i}:${j}:${i}:${bokPodFrontem}` : ""));
         // wzmocnienie przy plecach na wysokosci skrzynki skraca prowadnice (4 mm luzu)
         const zaSkrzynka = (c.rails || []).filter((r) => r.z0 > 0 && r.y0 < goraBoku && r.y1 > railY0 && wPasie(r));
         const limTyl = zaSkrzynka.length ? Math.min(...zaSkrzynka.map((r) => r.z0)) : null;
@@ -3687,11 +3817,11 @@ function computeGeoLiczy(cab, mat, ctx) {
         };
         c.drawers.push(dr);
         doors.push({
-          lvl: lv.i, key: `x${lv.i}-${j}-${i}`, type: "drawer", colKey: `${lv.i}-${j}`,
+          lvl: lv.i, key: `x${lv.i}-${j}-${i}`, type: "drawer", colKey: `${lv.i}-${jKol}`,
           x: dsx0, y, w: dsx1 - dsx0, h: fh, colW: LW, colX0: bx0, dr, nl,
           handle: d.handle !== false, podfrez: grip > 0, iInGroup: 0, groupN: 1, inset: dIn,
           gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
-          bandLo: lv.i === 0 ? null : dlo, bandHi: lv.i === L - 1 ? null : dhi,
+          bandLo: (lv.dolny ?? lv.i === 0) ? null : dlo, bandHi: (lv.gorny ?? lv.i === L - 1) ? null : dhi,
         });
         if (d.handle !== false) handleCount += 1;
         if (fh > 0 && dsx1 - dsx0 > 0) drawerParts.push({ kind: "front", a: fh, b: dsx1 - dsx0 });
@@ -3850,7 +3980,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           lvl: lv.i,
           key: `x${lv.i}-${j}-${i}`,
           type: "drawer",
-          colKey: `${lv.i}-${j}`,
+          colKey: `${lv.i}-${jKol}`,
           x: dsx0,
           y,
           w: dsx1 - dsx0,
@@ -3866,7 +3996,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           groupN: 1,
           inset: dIn,
           gWallL: gwL, gWallR: gwR, colY0: lv.y0, colY1: lv.y1,
-          bandLo: lv.i === 0 ? null : dlo, bandHi: lv.i === L - 1 ? null : dhi,
+          bandLo: (lv.dolny ?? lv.i === 0) ? null : dlo, bandHi: (lv.gorny ?? lv.i === L - 1) ? null : dhi,
         });
         if (d.handle !== false) handleCount += 1;
         if (nl !== null) {
@@ -4038,6 +4168,28 @@ function computeGeoLiczy(cab, mat, ctx) {
           + `${krotsze.map((dr) => `szuflada ${dr.i + 1}: NL ${dr.nl}`).join(", ")}, pozostałe NL ${najdl}. `
           + "Krótsza wynika z przeszkody za nią (np. wzmocnienia przy plecach) albo z ręcznie wpisanej NL — w zamówieniu to osobne komplety.");
       }
+      };
+      if (kind === "doors") {
+        /* Poziom kolumny z szufladami: pasmo miedzy polkami granicznymi — dolna
+           niesie najnizsza prowadnice, pod gorna konczy sie skrzynka, a front
+           nakladany zachodzi na nia jak na przegrode (szczelina na srodku). */
+        const ovS = Math.max(0, Math.min(divOv, Math.floor((ts - 2) / 2)));
+        segSzuflad.forEach((ps) => {
+          const nr = ps.seg.nr;
+          const lvS = { ...lv, y0: ps.y0, y1: ps.y1,
+            ovlDrawLo: ps.pierwszy ? lv.ovlDrawLo : ps.y0 - ovS, ovlDrawHi: ps.ostatni ? lv.ovlDrawHi : ps.y1 + ovS,
+            dolny: ps.pierwszy && lv.i === 0, gorny: ps.ostatni && lv.i === L - 1 };
+          const cS = Object.create(c);
+          szufladyKolumny(ps.raw, cS, lvS, `${j}s${nr}`, j, gdziePoziomKol(lv.i, j, nr),
+            ps.pierwszy ? insLo : ps.y0 + g.inset, ps.ostatni ? insHi : ps.y1 - g.inset, ps.ostatni ? topFixGeo : null);
+          (cS.drawers || []).forEach((dr) => { dr.seg = ps.seg; dr.mode = cS.drawerMode; dr.grip = cS.fingerGrip || 0; });
+          c.drawers = [...(c.drawers || []), ...(cS.drawers || [])];
+          (c.poziomy || (c.poziomy = {}))[nr] = cS;
+        });
+        if (c.poziomyKol) c.count = c.doors.length + (c.drawers || []).length + c.poziomyKol.filter((p) => p.kind === "blenda").length;
+        return;
+      }
+      szufladyKolumny(rawCol, c, lv, j, j, where, insLo, insHi, topFixGeo);
     });
   });
 
@@ -4089,6 +4241,25 @@ function computeGeoLiczy(cab, mat, ctx) {
       : d.type === "blenda"
       ? "blenda"
       : "element stały";
+
+  /* Drzwi dluzsze od dolu: pod nimi nie moze byc innego frontu, a w szafce na nozkach
+     albo cokole front nie moze siegac podlogi (min. 10 mm nad nia). Przyciski: podfrez
+     od gory albo tip-on zamiast wydluzenia (uzytkownik 2026-10-25). */
+  // podloga pod szafka na nozkach albo cokole (y = 0 to spod korpusu z cokolem w obrysie); wiszaca — null
+  const podloga = cab.plinth.on || (cab.legs && cab.legs.on)
+    ? -Math.max(cab.plinth.on && !plinthInBody ? plinthH : 0, legBelow) : null;
+  doors.filter((d) => d.otwieranie === "dol").forEach((d) => {
+    const [li, jk, k] = d.key.slice(1).split("-");
+    const gdzie = `Poziom ${+li + 1}, ${/s/.test(jk) ? `poziom ${+jk.split("s")[1] + 1} kolumny ${+jk.split("s")[0] + 1}` : `kolumna ${+jk + 1}`}, ${d.type === "klapa" ? "klapa" : `drzwi ${+k + 1}`}`;
+    // klapa do gory nie ma podfrezu od gory — tam sa zawiasy
+    const zamiast = (d.type === "klapa" ? "" : `|otwieranie:${li}:${jk}:${k}:podfrez`) + `|otwieranie:${li}:${jk}:${k}:tipon`;
+    const pod = doors.find((e) => e !== d && e.w > 0 && Math.min(e.x + e.w, d.x + d.w) - Math.max(e.x, d.x) > 0.5
+      && e.y < d.y && e.y + e.h > d.y - 2);
+    if (pod)
+      add("error", `${gdzie}: front dłuższy od dołu o ${fmt(d.otwMm)} mm wchodzi na ${nameOf(pod)} pod nim — wydłużenie ma sens tylko tam, gdzie pod drzwiami jest wolne miejsce (np. szafka wisząca).` + zamiast);
+    else if (podloga !== null && d.y < podloga + 10)
+      add("error", `${gdzie}: front dłuższy od dołu o ${fmt(d.otwMm)} mm kończy się ${fmt(Math.round(d.y - podloga))} mm nad podłogą — potrzeba min. 10 mm.` + zamiast);
+  });
 
   /* Odcinki lica zabudowane na staly. Tam, gdzie stoi plyta, nie ma szczeliny —
      i kontrola luzu nie moze tego kawalka liczyc. W szafce naroznej front konczy
@@ -4159,6 +4330,8 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (k <= i) return;
         const ho = Math.min(a2.x + a2.w, b2.x + b2.w) - Math.max(a2.x, b2.x);
         const vo = Math.min(a2.y + a2.h, b2.y + b2.h) - Math.max(a2.y, b2.y);
+        // drzwi dluzsze od dolu na froncie pod nimi — osobny blad wyzej, z przyciskami
+        if ((a2.otwieranie === "dol" && a2.y > b2.y) || (b2.otwieranie === "dol" && b2.y > a2.y)) return;
         if (ho > 0 && vo > 0)
           add(
             "error",
@@ -4810,8 +4983,8 @@ function computeGeoLiczy(cab, mat, ctx) {
             if (gap >= 4) return; // w porzadku
             const maxNlFit = [600, 550, 500, 450, 400, 350, 300, 270, 250]
               .find((v) => v + 4 <= freeDepth);
-            const act = maxNlFit ? `|fixnl:${lv.i}:${c.j}:${dr.i}:${maxNlFit}` : "";
-            const gdzie = `Poziom ${lv.i + 1}, kolumna ${c.j + 1}, szuflada ${dr.i + 1}`;
+            const act = maxNlFit ? `|fixnl:${lv.i}:${jSzuflady(c, dr)}:${dr.i}:${maxNlFit}` : "";
+            const gdzie = `${dr.seg ? gdziePoziomKol(lv.i, c.j, dr.seg.nr) : `Poziom ${lv.i + 1}, kolumna ${c.j + 1}`}, szuflada ${dr.i + 1}`;
             if (gap < 0) {
               const advice = maxNlFit
                 ? `zejdź z prowadnicą do NL ${maxNlFit}`
@@ -4922,8 +5095,8 @@ function computeGeoLiczy(cab, mat, ctx) {
             if (gap >= 4) return;
             const maxNlFit = [600, 550, 500, 450, 400, 350, 300, 270, 250]
               .find((v) => v + 4 <= freeDepth);
-            const act = maxNlFit ? `|fixnl:${lv.i}:${c.j}:${dr.i}:${maxNlFit}` : "";
-            const gdzie = `Poziom ${lv.i + 1}, kolumna ${c.j + 1}, szuflada ${dr.i + 1}`;
+            const act = maxNlFit ? `|fixnl:${lv.i}:${jSzuflady(c, dr)}:${dr.i}:${maxNlFit}` : "";
+            const gdzie = `${dr.seg ? gdziePoziomKol(lv.i, c.j, dr.seg.nr) : `Poziom ${lv.i + 1}, kolumna ${c.j + 1}`}, szuflada ${dr.i + 1}`;
             const co = ob.mask ? "zabudowy elementu" : "elementu";
             if (gap < 0) {
               const advice = maxNlFit
@@ -5010,8 +5183,9 @@ function computeGeoLiczy(cab, mat, ctx) {
     /* Otwory musza lezec na polce i nie wpasc na siebie: przod < tyl. Dotad
        plan pisal np. „700 i −140 mm od przedniej krawedzi” bez zadnej uwagi
        (audyt GPT N16). Sprawdzamy na najplytszej polce na kolkach. */
-    if (levels.some((lv) => lv.cols.some((c) => c.shelfMount === "pins" && (c.shelves || []).length))) {
-      const glPolek = levels.flatMap((lv) => lv.cols.filter((c) => c.shelfMount === "pins" && (c.shelves || []).length).map((c) => c.shD ?? shelfDepth));
+    const naKolkach = (c) => (c.shelves || []).some((s2) => mocPolki(c, s2) === "pins");
+    if (levels.some((lv) => lv.cols.some(naKolkach))) {
+      const glPolek = levels.flatMap((lv) => lv.cols.filter(naKolkach).map((c) => c.shD ?? shelfDepth));
       const gl = glPolek.length ? Math.min(...glPolek) : null;
       // przycisk: 50 / 50, a na plytkiej polce tyle, ile sie zmiesci (otwory min. KOLEK_PRZESUN od siebie)
       const zal = Math.min(50, Math.floor((gl - KOLEK_PRZESUN) / 2));
@@ -5035,7 +5209,9 @@ function computeGeoLiczy(cab, mat, ctx) {
         const sasiadL = c.j > 0 ? lv.cols[c.j - 1] : null;
         /* Prawa strona przesuwa sie tylko przed konfirmatami sasiada — te stoja w miejscu;
            kolki i trojkaty sasiada z prawej omija on sam (to jego lewa strona). */
-        const sasiadP = c.j < lv.cols.length - 1 && lv.cols[c.j + 1].shelfMount === "confirmat" ? lv.cols[c.j + 1] : null;
+        const kolP = c.j < lv.cols.length - 1 ? lv.cols[c.j + 1] : null;
+        const konfP = kolP ? (kolP.shelves || []).filter((q) => mocPolki(kolP, q) === "confirmat") : [];
+        const sasiadP = konfP.length ? { ...kolP, shelves: konfP } : null;
         /* Audyt GPT N75: stale „20 mm do srodka” na plytkiej polce dawalo zbiezne
            otwory (D240: 120 i 120) albo tylko zamienialo je miejscami (D220).
            Sprawdzamy koncowe pozycje: otwory tej strony co najmniej KOLEK_PRZESUN
@@ -5049,9 +5225,10 @@ function computeGeoLiczy(cab, mat, ctx) {
            przesuniecie — podpowiedz: przesuniete albo trojkaty / konfirmaty. */
         const otworySasiada = (k, y) => (k ? (k.shelves || []).flatMap((q) => {
           const pk = frontCut + (k.shFront || 0), gk = k.shD ?? shelfDepth;
-          if (k.shelfMount === "confirmat") return konfirmatyPoz(gk, pk).map((z) => ({ z, y: q.y + ts / 2, r: KONF_R }));
-          const zs = k.shelfMount === "trojkaty" ? [pk + KONF_OD_KRAWEDZI, pk + gk - KONF_OD_KRAWEDZI]
-            : k.shelfMount === "pins" ? [pk + pinF, pk + gk - pinB] : [];
+          const mq = mocPolki(k, q);
+          if (mq === "confirmat") return konfirmatyPoz(gk, pk).map((z) => ({ z, y: q.y + ts / 2, r: KONF_R }));
+          const zs = mq === "trojkaty" ? [pk + KONF_OD_KRAWEDZI, pk + gk - KONF_OD_KRAWEDZI]
+            : mq === "pins" ? [pk + pinF, pk + gk - pinB] : [];
           return zs.map((z) => ({ z, y: q.y, r: KOLEK_R }));
         }).filter((h) => Math.abs(h.y - y) < KOLEK_R + KONF_R + OTW_SCIANKA + 1) : []);
         const rozsun = ([a, b], y, sasiad) => {
@@ -5069,7 +5246,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           return null;
         };
         const przesuniete = [], nieDaSie = [];
-        const coPoDrugiej = (k) => (k && k.shelfMount === "confirmat"
+        const coPoDrugiej = (k, y) => (k && (k.shelves || []).some((q) => mocPolki(k, q) === "confirmat" && Math.abs(q.y - y) < ts + 10)
           ? "po drugiej stronie konfirmaty półki z sąsiedniej kolumny" : "po drugiej stronie półka na tej samej wysokości");
         const pinNoteS = (y, sasiad) => {
           const r = rozsun([przod + pinF, przod + gl - pinB], y, sasiad);
@@ -5077,7 +5254,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           if (!r.kier) return pinNote;
           przesuniete.push({ y, ...r });
           return `⌀5, ${fmt(r.o[0])} i ${fmt(r.o[1])} mm od przedniej krawędzi płyty; `
-            + `wysokość = spód półki; przesunięte o ${r.ile} mm ${r.kier} — ${coPoDrugiej(sasiad)}`;
+            + `wysokość = spód półki; przesunięte o ${r.ile} mm ${r.kier} — ${coPoDrugiej(sasiad, y)}`;
         };
         /* Szafka w L: po stronie ramienia boku nie ma — polka lezy tam na
            kolkach (albo trojkatach) we wzmocnieniu tylnym, po jednym w kazdej
@@ -5092,8 +5269,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           drillAdd(lv.i, "Kątownik przy ramieniu — plecy", interior.y0, "kołek półki", y,
             `⌀5 w licu od wnętrza, ${fmt(pinF)} mm od końca przy płycie bocznej; wysokość = spód półki; zamiast boku (albo trójkąt meblowy)`);
         };
-        if (c.shelfMount === "pins")
-          (c.shelves || []).forEach((s) => {
+        (c.shelves || []).filter((s) => mocPolki(c, s) === "pins").forEach((s) => {
             if (przyKatL) katownikKolki(s.y);
             else drillAdd(lv.i, p.left.name, p.left.base, "kołek półki", s.y, pinNoteS(s.y, sasiadL) + p.left.strona);
             if (przyKatP) katownikKolki(s.y);
@@ -5103,20 +5279,20 @@ function computeGeoLiczy(cab, mat, ctx) {
            i tylnej krawedzi. Z obu stron przegrody na tej samej wysokosci wkrety
            trafilyby w siebie — jak przy kolkach, ta strona o KOLEK_PRZESUN blizej
            srodka polki. Po stronie ramienia szafki w L — w plytach wzmocnienia. */
-        if (c.shelfMount === "trojkaty") {
+        {
           const trNote = (y, sasiad) => {
             const r = rozsun([przod + KONF_OD_KRAWEDZI, przod + gl - KONF_OD_KRAWEDZI], y, sasiad);
             if (!r) nieDaSie.push(y);
             if (r && r.kier) przesuniete.push({ y, ...r });
             const [x, z] = r ? r.o : [przod + KONF_OD_KRAWEDZI, przod + gl - KONF_OD_KRAWEDZI];
             return `2 rzędy — pod półką, przy jej przedniej i tylnej krawędzi: ${fmt(x)} i ${fmt(z)} mm od przedniej krawędzi płyty; wysokość = spód półki`
-              + (r && r.kier ? `; przesunięte o ${r.ile} mm ${r.kier} — ${coPoDrugiej(sasiad)}` : "");
+              + (r && r.kier ? `; przesunięte o ${r.ile} mm ${r.kier} — ${coPoDrugiej(sasiad, y)}` : "");
           };
           const katownikTr = (y) => {
             drillAdd(lv.i, "Kątownik przy ramieniu — bok", interior.y0, "trójkąt meblowy", y, "pod półką, zamiast boku; wysokość = spód półki");
             drillAdd(lv.i, "Kątownik przy ramieniu — plecy", interior.y0, "trójkąt meblowy", y, "pod półką, w licu od wnętrza, zamiast boku; wysokość = spód półki");
           };
-          (c.shelves || []).forEach((s) => {
+          (c.shelves || []).filter((s) => mocPolki(c, s) === "trojkaty").forEach((s) => {
             if (przyKatL) katownikTr(s.y);
             else drillAdd(lv.i, p.left.name, p.left.base, "trójkąt meblowy", s.y, trNote(s.y, sasiadL) + p.left.strona);
             if (przyKatP) katownikTr(s.y);
@@ -5124,11 +5300,11 @@ function computeGeoLiczy(cab, mat, ctx) {
           });
         }
         const wys = (lista) => listPl([...new Set(lista.map((y) => fmt(Math.round(y - lv.y0))))]);
-        const coTo = c.shelfMount === "trojkaty" ? "Trójkąty" : "Kołki";
+        const coTo = (c.shelves || []).filter((s2) => nieDaSie.includes(s2.y)).every((s2) => mocPolki(c, s2) === "trojkaty") ? "Trójkąty" : "Kołki";
         /* Inne mocowanie tej kolumny (uzytkownik 2026-10-24: przesunac, trojkaty albo
            konfirmaty). Konfirmatow nie podsuwamy, gdy sasiad jest juz na konfirmatach —
            dwa konfirmaty w jednej osi przegrody to blad (N45). */
-        const konfObok = [sasiadL, lv.cols[c.j + 1]].some((k) => k && k.shelfMount === "confirmat");
+        const konfObok = [sasiadL, kolP].some((k) => k && (k.shelves || []).some((q) => mocPolki(k, q) === "confirmat"));
         const inneMoc = [...(c.shelfMount === "pins" ? ["trojkaty"] : ["pins"]), ...(konfObok ? [] : ["confirmat"])];
         const nazwyMoc = { pins: "kołki", trojkaty: "trójkąty", confirmat: "konfirmaty" };
         const przyciskiMoc = inneMoc.map((m) => `|polkimont:${lv.i}:${c.j}:${m}`).join("");
@@ -5226,9 +5402,14 @@ function computeGeoLiczy(cab, mat, ctx) {
            „blizniacza” — polowa grubosci, gdy nad klapa jest jeszcze front
            nastepnego poziomu. Jeden podnosnik — po stronie wybranej przy klapie. */
         // zawiasy klapy w polce granicznej — polka na kolkach by sie wysunela
-        if ((segNad || segPod) && c.shelfMount === "pins")
-          add("warn", `Poziom ${lv.i + 1}, kolumna ${d.colJ + 1}, poziom kolumny ${d.seg.nr + 1}: klapa ${gora ? "do góry" : "w dół"} wisi na półce ${(segNad ? d.seg.polkaNad : d.seg.polkaPod) + 1} `
-            + `(${segNad ? "nad nią" : "pod nią"}), a półki tej kolumny są na kołkach — półka z zawiasami klapy musi być stała.|polkimont:${lv.i}:${d.colJ}:confirmat`);
+        /* Polka z zawiasami klapy ma wlasne mocowanie (granica poziomu kolumny) — przyciski:
+           ta polka na konfirmatach albo wszystkie polki kolumny (uzytkownik 2026-10-25). */
+        const polkaKlapy = (segNad || segPod) ? c.shelves[segNad ? d.seg.polkaNad : d.seg.polkaPod] : null;
+        if (polkaKlapy && mocPolki(c, polkaKlapy) === "pins")
+          add("warn", `${gdziePoziomKol(lv.i, d.colJ, d.seg.nr)}: klapa ${gora ? "do góry" : "w dół"} wisi na półce ${(segNad ? d.seg.polkaNad : d.seg.polkaPod) + 1} `
+            + `(${segNad ? "nad nią" : "pod nią"}), a ta półka jest na kołkach — półka z zawiasami klapy musi być stała.`
+            + (polkaKlapy.granica != null ? `|granicamont:${lv.i}:${d.colJ}:${polkaKlapy.granica}:confirmat` : "")
+            + `|polkimont:${lv.i}:${d.colJ}:confirmat`);
         const k = klapy.find((q) => (q.key ? q.key === d.key : q.colKey === d.colKey));
         const ostatni = lv.i === levels.length - 1 && !segNad;
         const szyna = gora && ostatni && !hasTop
@@ -5396,13 +5577,13 @@ function computeGeoLiczy(cab, mat, ctx) {
        GPT N49). Plan wiercil dotad w „Boku prawym”, ktorego nie ma. */
     const katNote = `⌀7 w płycie kątownika, ${listaPoz(konfirmatyPoz(postW))} mm od jej przedniej krawędzi; w czole półki ⌀5 × 50 — zamiast boku`;
     levels.forEach((lv) => lv.cols.forEach((c) => {
-        if (c.shelfMount !== "confirmat") return;
+        if (!(c.shelves || []).some((s2) => mocPolki(c, s2) === "confirmat")) return;
         const p = panelsOfCol(lv, c);
         const gl = c.shD ?? shelfDepth, od = frontCut + (c.shFront || 0);
         const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(gl, od))} mm od przedniej krawędzi; w czole półki ⌀5 × 50`;
         const przyKatL = postSide === "left" && c.j === 0;
         const przyKatP = postSide === "right" && c.j === lv.cols.length - 1;
-        (c.shelves || []).forEach((s2) => {
+        (c.shelves || []).filter((s2) => mocPolki(c, s2) === "confirmat").forEach((s2) => {
           if (przyKatL) drillAdd(lv.i, "Kątownik przy ramieniu — bok", interior.y0, "konfirmat — półka", s2.y + ts / 2, katNote);
           else drillAdd(lv.i, p.left.name, p.left.base, "konfirmat — półka", s2.y + ts / 2, note + p.left.strona);
           if (przyKatP) drillAdd(lv.i, "Kątownik przy ramieniu — bok", interior.y0, "konfirmat — półka", s2.y + ts / 2, katNote);
@@ -5558,6 +5739,14 @@ function computeGeoLiczy(cab, mat, ctx) {
       qty: handleCount,
       unit: "szt.",
     });
+  if (tiponCount)
+    hardware.push({
+      name: TIPON_NAME,
+      use: "drzwi bez uchwytu — otwieranie przez naciśnięcie",
+      spec: "długi nakładany z magnesem, szary (AM-SVN-DL-MG-30), 1 na drzwi, przy wolnej krawędzi; min. 2,5 mm szczeliny między frontem a korpusem",
+      qty: tiponCount,
+      unit: "szt.",
+    });
   /* Szafka narozna ze skrzydlami lamanymi: pierwsze skrzydlo wisi na boku i
      musi otworzyc sie szerzej niz zwykle, zeby drugie zdazylo sie zlozyc —
      stad zawias 165 stopni zamiast zwyklego. Drugie skrzydlo wisi juz na tym
@@ -5594,7 +5783,7 @@ function computeGeoLiczy(cab, mat, ctx) {
      klapy opadanej (w dol, tabela GTV PD-ECGDL). Sila z tabeli albo wpisana
      recznie. Grupujemy po kierunku i sile — jedna pozycja na rodzaj. */
   const klapyGrupy = new Map();
-  const lvJ = (k) => k.colKey.replace("-", ":");   // „poziom:kolumna” do akcji przyciskow
+  const lvJ = (k) => k.adres || k.colKey.replace("-", ":");   // „poziom:kolumna” do akcji przyciskow
   klapy.forEach((k) => {
     const opis = `${fmt(k.w)} × ${fmt(k.h)} mm, ok. ${k.kg.toFixed(1).replace(".", ",")} kg`;
     const gora = k.klapa === "gora";
@@ -5695,12 +5884,16 @@ function computeGeoLiczy(cab, mat, ctx) {
   dividers.forEach((dv) => {
     const lv = levels[dv.level];
     const cL = lv && lv.cols[dv.j], cR = lv && lv.cols[dv.j + 1];
-    if (cL && cR && cL.shelfMount === "confirmat" && cR.shelfMount === "confirmat") {
-      const naprzeciw = (cL.shelves || []).filter((sL) => (cR.shelves || []).some((sR) => Math.abs(sR.y - sL.y) < ts + 10));
+    if (cL && cR) {
+      const konfR = (cR.shelves || []).filter((sR) => mocPolki(cR, sR) === "confirmat");
+      const naprzeciw = (cL.shelves || []).filter((sL) => mocPolki(cL, sL) === "confirmat" && konfR.some((sR) => Math.abs(sR.y - sL.y) < ts + 10));
+      // po prawej granica poziomu kolumny z wlasnym mocowaniem — przyciski dla niej
+      const grR = konfR.find((sR) => sR.granica != null && naprzeciw.some((sL) => Math.abs(sR.y - sL.y) < ts + 10));
       if (naprzeciw.length)
         add("error", `Poziom ${lv.i + 1}: półki na konfirmatach po obu stronach przegrody ${dv.j + 1} na tej samej wysokości `
           + `(${naprzeciw.map((s2) => fmt(Math.round(s2.y - lv.y0))).join(", ")} mm od dołu poziomu) — drugiego konfirmatu nie da się wkręcić, `
           + `jego łeb wypada pod czołem półki z drugiej strony. Wybierz mocowanie półek kolumny ${dv.j + 2}.`
+          + (grR ? `|granicamont:${lv.i}:${dv.j + 1}:${grR.granica}:trojkaty|granicamont:${lv.i}:${dv.j + 1}:${grR.granica}:pins` : "")
           + `|polkimont:${lv.i}:${dv.j + 1}:trojkaty|polkimont:${lv.i}:${dv.j + 1}:pins`);
     }
     if (dv.level > 0 && !dv.dolTrojkaty && dividers.some((q) => q.level === dv.level - 1 && Math.abs(q.x - dv.x) < t + 10))
@@ -5734,8 +5927,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   const shelfPins = true;
   let pinShelves = 0, trShelves = 0;
   levels.forEach((lv) => lv.cols.forEach((c) => {
-    if (c.shelfMount === "pins") pinShelves += (c.shelves || []).length;
-    if (c.shelfMount === "trojkaty") trShelves += (c.shelves || []).length;
+    pinShelves += (c.shelves || []).filter((s2) => mocPolki(c, s2) === "pins").length;
+    trShelves += (c.shelves || []).filter((s2) => mocPolki(c, s2) === "trojkaty").length;
   }));
   /* Polka plytsza (za wspornikiem fixu) ma mniej konfirmatow niz pelna — liczone
      z jej glebokosci, jak w planie wiercen (audyt GPT N40). */
@@ -5745,7 +5938,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   let doKatownika = 0;
   levels.forEach((lv) => lv.cols.forEach((c) => {
     colShelves += (c.shelves || []).length;
-    const n = c.shelfMount === "confirmat" ? (c.shelves || []).length : 0;
+    const n = (c.shelves || []).filter((s2) => mocPolki(c, s2) === "confirmat").length;
     if (!n) return;
     // po stronie ramienia szafki w L koniec polki idzie w plyte katownika (styk na jej szerokosc)
     const przyKat = (postSide === "left" && c.j === 0) || (postSide === "right" && c.j === lv.cols.length - 1);
@@ -7017,7 +7210,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
           fill={ff} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
       {cab.legs?.on && geo.legs.xs.map((lx, li) => (
-        <rect key={"noga" + li} x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
+        <rect key={"noga" + li} data-el="noga" x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
           rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
           opacity={geo.legTop > 0 ? 0.5 : 1} />
       ))}
@@ -7056,7 +7249,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
       {open && showHardware && !rear &&
         geo.levels.flatMap((lv) =>
           lv.cols
-            .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
+            .filter((c) => (c.drawers || []).length)
             .flatMap((c) =>
               c.drawers.flatMap((dr) =>
                 szufladaOdCzola(c, dr).map((q, si) => (
@@ -7152,8 +7345,8 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
 
       {/* kolki pod polki — po frontach, zeby otwarte skrzydlo ich nie zaslanialo */}
       {open && showHardware && !rear &&
-        geo.levels.flatMap((lv) => lv.cols.filter((c) => c.shelfMount === "pins").flatMap((c) =>
-          (c.shelves || []).map((s, k) => (
+        geo.levels.flatMap((lv) => lv.cols.flatMap((c) =>
+          (c.shelves || []).map((s, k) => mocPolki(c, s) === "pins" && (
             <g key={`pin${lv.i}-${c.j}-${k}`}>
               <circle cx={mx((c.shX0 ?? c.x0) + 7, 0)} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
               <circle cx={mx((c.shX1 ?? c.x1) - 7, 0)} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
@@ -7377,8 +7570,9 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
         const licoDo = arm ? (arm.side === "right" ? arm.free - maskK : W) : W;
         return cols.map((c) => {
         if (!c.count) return null;
-        const isDrawer = c.kind === "drawers";
-        const cMode = isDrawer ? c.drawerMode || cab.frontMode : cab.frontMode;
+        // kolumna szuflad albo kolumna z poziomem szuflad (skrzynka z gory)
+        const isDrawer = (c.drawers || []).length > 0;
+        const cMode = c.kind === "drawers" ? c.drawerMode || cab.frontMode : cab.frontMode;
         const z0 = cMode === "overlay" ? cd : cd - geo.tf;
         const dr0 = isDrawer && c.drawers?.length ? c.drawers[0] : null;
         const x0 = dr0 ? dr0.x : c.frontX0 ?? c.x0;
@@ -7412,7 +7606,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
       {showHardware && <TopHardware cab={cab} geo={geo} cd={cd} />}
       {/* prowadnice szuflad */}
       {showHardware && cols
-        .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
+        .filter((c) => (c.drawers || []).length)
         .flatMap((c) => {
           // z gory widac szuflade o najdluzszej prowadnicy (V-BOX: pasy prowadnic, DXS: boki i tyl skrzynki)
           const dr = c.drawers.reduce((m, d) => ((d.rail.d || 0) > (m.rail.d || 0) ? d : m), c.drawers[0]);
@@ -8979,7 +9173,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
   );
 }
 
-function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware, arm, wstawki, blat, druk }) {
+function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware, arm, wstawki, blat, druk, szczelinyNietypowe = false }) {
   const wsL = wstawkiSzafki(wstawki, geo);
   const matR = matRysunku(cab, matIn);
   const mat = texMat(matR, cab.texture, cab.textureDir);
@@ -8995,7 +9189,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // kolki per kolumna — kolumna moze miec wlasne mocowanie polek (N45)
   const showPins = open && showHardware;
   const pinFromBottom = cab.pinDatum === "bottom";
-  const anyPins = showPins && geo.levels.some((lv) => lv.cols.some((c) => c.shelfMount === "pins" && (c.shelves || []).length));
+  const anyPins = showPins && geo.levels.some((lv) => lv.cols.some((c) => (c.shelves || []).some((s) => mocPolki(c, s) === "pins")));
   const pinLegend = anyPins && showDims;
   // swiatlo szuflady liczymy od gory dna skrzynki — sama liczba tego nie mowi
   const drawerLegend = open && showDims
@@ -9005,7 +9199,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   const hasBase = cab.legs?.on || cab.plinth.on;
   // wszystko rysowane pod szafka odmierzamy od jej realnego spodu — cokol
   // w obrysie siedzi juz w wysokosci H i niczego nie obniza
-  const belowY = H + (cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0);
+  /* …takze od spodu nozek: wiersz szerokosci frontow lezal 90 mm pod korpusem, czyli
+     na nozkach 100 mm (zgloszenie uzytkownika 2026-10-25 ze zrzutem). */
+  const belowY = H + Math.max(cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0, geo.legBelow);
   // wymiary rysowane tuz przy szafce (boki, cokol, nozki) wymuszaja odsuniecie
   // wymiarow wysokosci dalej w lewo, zeby etykiety sie nie nakladaly
   const showSideLengthDims = showDims && (geo.leftLen !== H || geo.rightLen !== H);
@@ -9013,14 +9209,19 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // podnosi szafke — nozki schowane w swietle cokolu niczego nie zmieniaja
   const hasBaseDim =
     geo.legBelow > 0 || (cab.plinth.on && !geo.plinthInBody && geo.plinthH > 0);
-  const hasDoorDims = showDims && !open && (geo.doors || []).some((d) => d.type === "door" || d.type === "klapa");
+  /* Front z wymiarem w srodku (W×H) nie dostaje linii wymiarowych wysokosci i szerokosci
+     na widoku zamknietym (decyzja uzytkownika 2026-10-25: „tylko napis w froncie”);
+     front za maly na napis zostaje z liniami. Warunki jak przy rysowaniu napisu. */
+  const napisWFroncie = (d) => showDims && (d.type === "fix" || d.type === "blenda"
+    ? (d.w > 170 && d.h > 40) || (d.w > 40 && d.h > 170) : d.w > 90 && d.h > 40);
+  const hasDoorDims = showDims && !open && (geo.doors || []).some((d) => (d.type === "door" || d.type === "klapa") && !napisWFroncie(d));
   // wysokosc montazu prowadnic: kolumna przy boku -> wymiar poza szafka,
   // kolumna miedzy przegrodami -> w swietle obok prowadnicy
   const railDimCols = [];
   if (open && showDims && showHardware)
     geo.levels.forEach((lv) =>
       lv.cols.forEach((c, j) => {
-        if (c.kind !== "drawers" || !(c.drawers || []).length) return;
+        if (!(c.drawers || []).length) return;
         railDimCols.push({
           c,
           lvl: lv.i,
@@ -9033,16 +9234,30 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // swiatlo poziomow opisujemy tylko w widoku otwartym i po lewej stronie —
   // w zamknietym powtarzaloby wysokosci frontow, ktore i tak sa wymiarowane
   const hasLevelDims = showDims && open && geo.levels.length > 0;
-  const hasDrawerDims = showDims && !open && (geo.doors || []).some((d) => d.type === "drawer");
+  const hasDrawerDims = showDims && !open && (geo.doors || []).some((d) => d.type === "drawer" && !napisWFroncie(d));
   /* Wysokosci frontow szuflad — kolumny wymiarow po prawej. Kolumna szuflad z innym
      podzialem niz sasiednia dostaje wlasna kolumne wymiarow (dwie kolumny 3 + 4
      szuflady: 237 i 177 lezaly na sobie — macierz szuflad w PDF 2026-10-22). Te same
      fronty (ten sam y i wysokosc) i fronty bez wspolnego pasa (inny poziom) dziela
      jedna kolumne. Najblizej szafki — kolumna szuflad z prawej. */
+  /* Wysokosci drzwi i klap — kolumny wymiarow po lewej, jak szuflady: drzwi o innej
+     wysokosci w tym samym pasie (np. 894 obok 874 z podfrezem) dostaja wlasna kolumne,
+     bo napisy lezaly na sobie (zgloszenie uzytkownika 2026-10-25). Takie same drzwi
+     (ten sam y i wysokosc) — jeden wymiar. Najblizej szafki — drzwi najbardziej z lewej. */
+  const grupyDrzwi = (() => {
+    if (!hasDoorDims) return [];
+    const grupy = [];
+    (geo.doors || []).filter((d) => (d.type === "door" || d.type === "klapa") && !napisWFroncie(d)).sort((a, b) => a.x - b.x).forEach((d) => {
+      if (grupy.some((g) => g.some((e) => Math.round(e.y) === Math.round(d.y) && Math.round(e.h) === Math.round(d.h)))) return;
+      const g = grupy.find((x) => !x.some((e) => Math.min(d.y + d.h, e.y + e.h) - Math.max(d.y, e.y) > 1));
+      if (g) g.push(d); else grupy.push([d]);
+    });
+    return grupy;
+  })();
   const grupySzuflad = (() => {
     if (!hasDrawerDims) return [];
     const poKol = new Map();
-    (geo.doors || []).filter((d) => d.type === "drawer").forEach((d) => poKol.set(d.colKey, [...(poKol.get(d.colKey) || []), d]));
+    (geo.doors || []).filter((d) => d.type === "drawer" && !napisWFroncie(d)).forEach((d) => poKol.set(d.colKey, [...(poKol.get(d.colKey) || []), d]));
     const grupy = [];
     [...poKol.values()].sort((a, b) => Math.max(...b.map((d) => d.x)) - Math.max(...a.map((d) => d.x))).forEach((lista) => {
       const koliduje = (g) => lista.some((d) => g.some((e) => Math.min(d.y + d.h, e.y + e.h) - Math.max(d.y, e.y) > 1
@@ -9108,7 +9323,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
     u.dimSideLX = showSideLengthDims ? takeL(kolD(150, znaki.bokL)) : baseL - 26;
     u.dimSideRX = showSideLengthDims ? takeR(kolD(150, znaki.bokP)) : baseR + 26;
     u.dimSepX = hasSepDims ? takeR(kolD(240, znaki.sep)) : baseR + 26;
-    u.dimDoorX = hasDoorDims ? takeL(kol(90, znaki.door)) : lxCur; // wysokosci drzwi po lewej
+    // wysokosci drzwi po lewej — kolumna na kazda grupe `grupyDrzwi`
+    u.dimDoorXs = grupyDrzwi.map(() => takeL(kol(90, znaki.door)));
     u.dimLevelX = hasLevelDims ? takeL(kol(90, znaki.level)) : lxCur; // swiatlo poziomow po lewej
     // wysokosci frontow szuflad — kolumna na kazda grupe `grupySzuflad`
     u.dimDrawerXs = grupySzuflad.map(() => takeR(kol(90, znaki.drawer)));
@@ -9132,7 +9348,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   };
   const kz = drukKUkladu((k) => uklad(k).vbW, druk);
   const kDl = kDlugie(kz) === 1 ? undefined : kDlugie(kz);
-  const { dimRailLX, dimRailRX, dimSideLX, dimSideRX, dimSepX, dimDoorX, dimLevelX, dimDrawerXs,
+  const { dimRailLX, dimRailRX, dimSideLX, dimSideRX, dimSepX, dimDoorXs, dimLevelX, dimDrawerXs,
     dimHMainX, dimHTotalX, dimBlatX, vbX, vbW } = uklad(kz);
   // cokol pod lewym wymiarem boku, nozki pod prawym — tuz przy szafce
   const dimCokolX = baseL - 26;
@@ -9156,7 +9372,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   // druk: swiatlo szerokosci szuflad — wiersz pod szerokosciami kolumn
   const wierszSzuf = wierszDol + (open && geo.levels[0] && geo.levels[0].cols.length > 1 ? 30 + POLE_EM * 22 * kz : 0);
   const szerSzuflad = !(open && showDims && kz > 1) ? [] : geo.levels.flatMap((lv) => lv.cols
-    .filter((c) => c.kind === "drawers" && (c.drawers || []).length && c.w > 42 + 60)
+    .filter((c) => (c.drawers || []).length && c.w > 42 + 60)
     .map((c) => ({ lvl: lv.i, j: c.j, ...szerWnetrzaSzuflady(c, c.drawers[0]) })))
     // kilka poziomow z szufladami: kazdy w swoim wierszu, zeby sie nie nakladaly
     .map((q, i, a) => ({ ...q, y: wierszSzuf + (a.slice(0, i).some((p) => p.x1 > q.x0 && p.x0 < q.x1) ? (30 + POLE_EM * 22 * kz) * a.slice(0, i).filter((p) => p.x1 > q.x0 && p.x0 < q.x1).length : 0) }));
@@ -9291,7 +9507,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 jak w zamowieniu i w bryle: `u` liczy sie od rogu, a rog lezy
                 przy korpusie. */}
             {cab.legs?.on && armLegPlan(arm).us.map((u) => (armL ? -u - LEG_W : ax0 + u)).map((lx, k) => (
-              <rect key={"anz" + k} x={lx} y={H - geo.legTop} width={40} height={geo.legH}
+              <rect key={"anz" + k} data-el="noga" x={lx} y={H - geo.legTop} width={40} height={geo.legH}
                 rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
                 opacity={geo.legTop > 0 ? 0.5 : 1} />
             ))}
@@ -9405,7 +9621,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           fill={ff} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
       {cab.legs?.on && geo.legs.xs.map((lx, li) => (
-        <rect key={"noga" + li} x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
+        <rect key={"noga" + li} data-el="noga" x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
           rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
           opacity={geo.legTop > 0 ? 0.5 : 1} />
       ))}
@@ -9519,9 +9735,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {!open &&
         geo.levels.flatMap((lv) =>
           lv.cols
-            .filter((c) => c.kind === "drawers" && c.fingerGrip > 0 && (c.drawers || []).length)
+            .filter((c) => (c.drawers || []).length)
             .flatMap((c) =>
-              c.drawers.flatMap((dr) =>
+              c.drawers.filter((dr) => (dr.grip ?? c.fingerGrip) > 0).flatMap((dr) =>
                 szufladaOdCzola(c, dr).map((q, s) => (
                   <rect key={`zu${lv.i}-${c.j}-${dr.i}-${s}`}
                     x={q.x} y={fy(q.y + q.h)} width={q.w} height={q.h}
@@ -9532,8 +9748,15 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         )}
       {geo.doors.map((d) =>
         d.type === "klapa" ? (
-          <KlapaElewacja key={d.key} d={d} fy={fy} ff={ff} open={open} tf={geo.tf} uchOut={uchwytOut(d, cab)}
-            showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />
+          <g key={d.key}>
+            <KlapaElewacja d={d} fy={fy} ff={ff} open={open} tf={geo.tf} uchOut={uchwytOut(d, cab)}
+              showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />
+            {/* tip-on klapy: odbojnik przy wolnej krawedzi, na boku */}
+            {!open && d.otwieranie === "tipon" && d.tiponY != null && (
+              <rect data-el="tipon" x={d.x + 18} y={fy(d.tiponY + 30)} width={16} height={60}
+                rx="3" fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.7" />
+            )}
+          </g>
         ) : d.type === "fix" || d.type === "blenda" ? (
           <g key={d.key}>
             <rect x={d.x} y={fy(d.y + d.h)} width={d.w} height={d.h}
@@ -9643,6 +9866,11 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             {d.handle && d.w > 60 && d.h > 30 && (
               <UchwytElewacja d={d} fy={fy} dx={0} />
             )}
+            {/* tip-on: odbojnik za frontem przy wolnej krawedzi — przerywany obrys */}
+            {d.otwieranie === "tipon" && d.tiponY != null && (
+              <rect data-el="tipon" x={d.hingeSide === "left" ? d.x + d.w - 34 : d.x + 18} y={fy(d.tiponY + 30)} width={16} height={60}
+                rx="3" fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.7" />
+            )}
             {d.mirror && d.w > 2 && d.h > 2 && (
               <rect x={d.x + 0.5} y={fy(d.y + d.h) + 0.5} width={d.w - 1} height={d.h - 1}
                 fill={mat.mirror.color} stroke={INK} strokeWidth="1" opacity="0.85" />
@@ -9664,8 +9892,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           frontach, bo otwarte skrzydlo przy boku zaslanialo kolki (uzytkownik 2026-10-24) */}
       {showPins &&
         geo.levels.flatMap((lv) =>
-          lv.cols.filter((c) => c.shelfMount === "pins").flatMap((c) =>
-            c.shelves.map((s, k) => (
+          lv.cols.flatMap((c) =>
+            c.shelves.map((s, k) => mocPolki(c, s) === "pins" && (
               <g key={`pin${lv.i}-${c.j}-${k}`}>
                 <circle cx={(c.shX0 ?? c.x0) + 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
                 <circle cx={(c.shX1 ?? c.x1) - 7} cy={fy(s.y)} r="5" fill="#71717a" stroke={INK} strokeWidth="1.2" />
@@ -9700,11 +9928,32 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
              wiec opis gornej idzie na prawo, a tej drugiej na lewo. */
           // z lewej: za opisem szczeliny miedzy frontami (od styku) i przed nia opis do frontu wyzej
           const odStyku = 30 + 4 * ZNAK_EM * 20 * kz;
+          /* Opis szczeliny pod dolnym frontem lezal na nozce (kontrola napisow na nozkach,
+             2026-10-25) — kropka z opisem przesuwa sie obok nozki, w obrebie frontu. */
+          const nogiX = cab.legs?.on && geo.legBelow > 0 ? geo.legs.xs.map((lx) => [lx, lx + geo.legs.w]) : [];
+          const obokNog = (x, d, val) => {
+            if (d.y > 60) return x;
+            const dl = String(fmt(val)).length * ZNAK_EM * 20 * kz;
+            // zasieg opisu od kropki: na ekranie wysrodkowany pod nia, w druku na lewo od niej
+            const lewo = kz > 1 ? 12 + dl : dl / 2 + 4, prawo = kz > 1 ? 8 : dl / 2 + 4;
+            nogiX.forEach(([a, b]) => {
+              if (x + prawo > a - 4 && x - lewo < b + 4) {
+                const wPrawo = b + 4 + lewo, wLewo = a - 4 - prawo;
+                x = wPrawo <= d.x + d.w - 6 ? wPrawo : wLewo >= d.x + 6 ? wLewo : x;
+              }
+            });
+            return x;
+          };
           const xSzcz = (d, prawa) => (kz === 1 ? d.x + d.w / 2
             : prawa ? d.x + d.w - Math.min(d.w / 2, Math.max(60, d.w * 0.2)) + 12 + 2 * ZNAK_EM * 20 * kz
               : d.x + Math.min(d.w / 2, Math.max(odStyku, d.w * 0.2)));
           // pionowa szczelina (miedzy frontami, gora, dol) — kropka na krawedzi, etykieta wyprowadzona krotka kreska
+          /* PDF: tylko nietypowe szczeliny — ponizej 2 mm albo ponad granice ostrzezenia
+             (np. 38 nad podfrezem); zwykle 2–5 mm bez opisu. Na ekranie „Pokaż szczeliny”
+             pokazuje wszystkie (decyzja uzytkownika 2026-10-25). */
+          const zwykla = (val) => szczelinyNietypowe && val >= 2 && val <= cab.maxGap;
           const marker = (key, xMid, yTop, val, up, naPrawo = false) => {
+            if (zwykla(val)) return;
             const miejsce = `${Math.round(xMid)}|${Math.round(yTop)}|${val}`;
             if (byly.has(miejsce)) return;
             byly.add(miejsce);
@@ -9736,6 +9985,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           };
           // boczna szczelina (lewy/prawy bok korpusu) — etykieta wyprowadzona poza obrys
           const sideMarker = (key, xMid, yMid0, val, toLeft, d) => {
+            if (zwykla(val)) return;
             const col = val < 2 ? ERRC : ACC;
             // w druku wyzej niz srodek — tam stoi opis frontu obok (np. fix)
             const yMid = kz > 1 && d ? d.y + d.h * 0.75 : yMid0;
@@ -9817,8 +10067,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             if (colTop[d.colKey] === d && (d.inset || d.bandHi == null))
               // w druku opis na prawo od kropki: na lewo stoi szczelina do frontu nad nim
               marker(`gt${d.key}`, xSzcz(d), topRef, Math.round(topRef - (d.y + d.h)), true, true);
-            if (colBot[d.colKey] === d && (d.inset || d.bandLo == null))
-              marker(`gb${d.key}`, xSzcz(d, true), d.y, Math.round(d.y - botRef), false);
+            // front dluzszy od dolu wychodzi pod szafke — szczeliny nie ma czego mierzyc
+            if (colBot[d.colKey] === d && (d.inset || d.bandLo == null) && d.otwieranie !== "dol")
+              marker(`gb${d.key}`, obokNog(xSzcz(d, true), d, Math.round(d.y - botRef)), d.y, Math.round(d.y - botRef), false);
 
             // luz pionowy do frontu bezposrednio nad tym w tej samej kolumnie
             /* Nad przegroda spotykaja sie fronty z dwoch poziomow, wiec sasiada
@@ -9830,8 +10081,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               if (Math.min(d.x + d.w, b2.x + b2.w) - Math.max(d.x, b2.x) <= 0) return;
               if (!above || b2.y < above.y) above = b2;
             });
-            if (above) {
-              const val = Math.round(above.y - (d.y + d.h));
+            const valNad = above ? Math.round(above.y - (d.y + d.h)) : null;
+            if (above && !zwykla(valNad)) {
+              const val = valNad;
               const col = val < 2 ? ERRC : ACC;
               // kropka na styku, kreska wyprowadzona az za prawa krawedz frontu
               /* Opis wyprowadzamy pionowo nad kropke, a nie w prawo — wyprowadzony
@@ -9938,15 +10190,12 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 label={`${fmt(d.h)}`} left={false} c={DIMC} />
             )))}
           {/* wysokosci drzwi przy lewej krawedzi */}
+          {/* dwoje takich samych drzwi obok siebie — jeden wymiar; inne wysokosci w tym samym pasie — osobne kolumny */}
           {!open &&
-            geo.doors
-              .filter((d) => d.type === "door" || d.type === "klapa")
-              // dwoje drzwi obok siebie: jeden wymiar wysokosci, nie dwa na sobie
-              .filter((d, i, a) => a.findIndex((e) => Math.round(e.y) === Math.round(d.y) && Math.round(e.h) === Math.round(d.h)) === i)
-              .map((d) => (
-                <DimV key={"door" + d.key} y1={fy(d.y + d.h)} y2={fy(d.y)} x={dimDoorX}
-                  label={`${fmt(d.h)}`} c={DIMC} />
-              ))}
+            grupyDrzwi.flatMap((g, gi) => g.map((d) => (
+              <DimV key={"door" + d.key} y1={fy(d.y + d.h)} y2={fy(d.y)} x={dimDoorXs[gi]}
+                label={`${fmt(d.h)}`} c={DIMC} />
+            )))}
           {open &&
             geo.levels[0] &&
             geo.levels[0].cols.length > 1 &&
@@ -9962,7 +10211,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               const seen = new Set();
               const yLine = belowY + 90;
               return geo.doors
-                .filter((d) => d.lvl === 0 && d.w > 0)
+                .filter((d) => d.lvl === 0 && d.w > 0 && !napisWFroncie(d))
                 .filter((d) => {
                   const key = Math.round(d.x);
                   if (seen.has(key)) return false;
@@ -10002,7 +10251,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {open && showDims &&
         geo.levels.flatMap((lv) =>
           lv.cols
-            .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
+            .filter((c) => (c.drawers || []).length)
             .flatMap((c) => {
               const ds = [...c.drawers].sort((a, b) => a.y - b.y);
               return ds.map((dr, i) => {
@@ -10036,7 +10285,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {open && showHardware &&
         geo.levels.flatMap((lv) =>
           lv.cols
-            .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
+            .filter((c) => (c.drawers || []).length)
             .flatMap((c) =>
               c.drawers.flatMap((dr) =>
                 szufladaOdCzola(c, dr).map((q, s) => (
@@ -10061,7 +10310,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             /* opis przy kresce tej prowadnicy — na srodku wymiaru odjechalby
                od kreski i przy kilku szufladach nie dalo sie ich powiazac */
             <DimV key={`rh${lvl}-${c.j}-${i}`} y1={fy(dr.rail.y0)} y2={fy(geo.interior.y0)} x={x}
-              labelY={fy(dr.rail.y0)}
+              /* „szyna 0” przy dnie — opis troche wyzej, inaczej w druku schodzil na nozki */
+              labelY={fy(dr.rail.y0 + (val < 40 ? 25 : 0))}
               label={`szyna ${fmt(val)}`} left={where !== "right"} c={DIMC}
               kd={where === "in" ? (kz > 1 ? kNapisu(kz, `szyna ${fmt(val)}`, 22, c.x1 - c.x0 - 2 * RUNNER_W - 38) : undefined) : kDl} />
           );
@@ -10079,7 +10329,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {open && showDims && kz === 1 &&
         geo.levels.flatMap((lv) =>
           lv.cols
-            .filter((c) => c.kind === "drawers" && (c.drawers || []).length && c.w > 42 + 60)
+            .filter((c) => (c.drawers || []).length && c.w > 42 + 60)
             .flatMap((c) => {
               return c.drawers.map((dr, i) => {
                 const q = szerWnetrzaSzuflady(c, dr);
@@ -10176,7 +10426,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
   const vbY = kz > 1 ? Math.min(-40, wymDim ? -55 - 3 - POLE_EM * 22 * kz - 16 : -40) : -pad;
   const opisy = [{ key: "plecy", fs: 22, txt: label }, { key: "kier", fs: 20, txt: "widok od tyłu — lewy bok szafki po prawej" }];
   const opisyU = kz > 1
-    ? ulozLegendy(opisy, Math.max(H + rBelow + 20, wymDim && geo.grooved ? H + 60 + 14 + POLE_EM * 22 * kz : 0), kz, vbW - 40)
+    ? ulozLegendy(opisy, Math.max(H + rBelow + 20, wymDim && geo.grooved ? H + rBelow + 60 + 14 + POLE_EM * 22 * kz : 0), kz, vbW - 40)
       .map((l) => ({ ...l, x: vbX + vbW / 2 }))
     : opisy.map((l, i) => ({ ...l, k: kz, x: W / 2, y: H + rBelow + (i ? 150 : 120) }));
   const vbDol = kz > 1 ? opisyU[opisyU.length - 1].dol + 20 : H + pad + 40 + rBelow;
@@ -10353,7 +10603,7 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
           fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
       {cab.legs?.on && geo.legs.xs.map((lx, li) => (
-        <rect key={"noga" + li} x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
+        <rect key={"noga" + li} data-el="noga" x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
           rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
           opacity={geo.legTop > 0 ? 0.5 : 1} />
       ))}
@@ -10363,7 +10613,8 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
           <DimH x1={mx(bx, bw)} x2={mx(bx, bw) + bw} y={-55} label={`${fmt(bw)}`} />
           <DimV y1={fy(by + bh)} y2={fy(by)} x={-55} label={`${fmt(bh)}`} />
           {geo.grooved && (
-            <DimH x1={mx(bx, bw)} x2={mx(bx, bw) + grab} y={H + 60}
+            // pod nozkami / cokolem, nie na nich (kontrola napisow na nozkach, 2026-10-25)
+            <DimH x1={mx(bx, bw)} x2={mx(bx, bw) + grab} y={H + rBelow + 60}
               label={`frez ${fmt(grab)}`} above={false} c={WARNC} />
           )}
         </>
@@ -10682,10 +10933,11 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
         const licoDo = arm ? (arm.side === "right" ? arm.free - maskK : W) : W;
         return cols.map((c) => {
           if (!c.count) return null;
-          const isDrawer = c.kind === "drawers";
+          // kolumna szuflad albo kolumna z poziomem szuflad (skrzynka z gory)
+          const isDrawer = (c.drawers || []).length > 0;
           // kolumna szuflad ma wlasny montaz frontu — wpuszczony siedzi w
           // swietle korpusu, rowno z bokiem i przegroda, a nie na nich
-          const cMode = isDrawer ? c.drawerMode || cab.frontMode : cab.frontMode;
+          const cMode = c.kind === "drawers" ? c.drawerMode || cab.frontMode : cab.frontMode;
           const z0 = cMode === "overlay" ? cd : cd - geo.tf;
           const dr0 = isDrawer && c.drawers?.length ? c.drawers[0] : null;
           const x0 = dr0 ? dr0.x : c.frontX0 ?? c.x0;
@@ -10733,7 +10985,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
       {showHardware && <TopHardware cab={cab} geo={geo} cd={cd} />}
       {/* prowadnice szuflad z gory — pas 21 mm przy kazdym boku, na glebokosc NL */}
       {showHardware && (geo.levels[0]?.cols || [])
-        .filter((c) => c.kind === "drawers" && (c.drawers || []).length)
+        .filter((c) => (c.drawers || []).length)
         .flatMap((c) => {
           // z gory widac szuflade o najdluzszej prowadnicy (V-BOX: pasy prowadnic, DXS: boki i tyl skrzynki)
           const dr = c.drawers.reduce((m, d) => ((d.rail.d || 0) > (m.rail.d || 0) ? d : m), c.drawers[0]);
@@ -11240,7 +11492,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
       {/* Skrzynka szuflady przy tym boku — kontur (bok metalowy albo wyzszy tyl)
           i dno. Te same wymiary co formatki dna i tylu szuflady. */}
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c, j) =>
-        (c.kind === "drawers" && (sideRight ? j === lv.cols.length - 1 : j === 0) ? c.drawers || [] : [])
+        ((c.drawers || []).length && (sideRight ? j === lv.cols.length - 1 : j === 0) ? c.drawers || [] : [])
           .filter((dr) => dr.skrzynka)
           .map((dr) => {
             const sk = dr.skrzynka;
@@ -11271,7 +11523,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
         const out = [];
         geo.levels.forEach((lv) =>
           lv.cols.forEach((c, j) =>
-            (c.kind === "drawers" && (sideRight ? j === lv.cols.length - 1 : j === 0)
+            ((c.drawers || []).length && (sideRight ? j === lv.cols.length - 1 : j === 0)
               ? c.drawers || []
               : []
             ).forEach((dr) => {
@@ -12426,13 +12678,13 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("silaauto:")) {
       // „silaauto:<poziom>:<kolumna>:<N z tabeli>" — sila klapy wraca do doboru z tabeli
       const [, li, j, n] = action.split(":");
-      return { label: `Zwiększ siłę do ${n} N`, run: () => editLevels((L) => { delete L[+li].cols[+j].silaN; }) };
+      return { label: `Zwiększ siłę do ${n} N`, run: () => editLevels((L) => { delete kolumnaW(L, li, j).silaN; }) };
     }
     if (action.startsWith("klapa2:")) {
       // „klapa2:<poziom>:<kolumna>:<keep|auto>:<N>" — drugi podnosnik; keep — ta sama sila, auto — z tabeli dla dwoch
       const [, li, j, tryb, n] = action.split(":");
       return { label: `Dołóż drugi — 2 × ${n} N`, run: () => editLevels((L) => {
-        const col = L[+li].cols[+j];
+        const col = kolumnaW(L, li, j);
         col.silowniki = 2;
         if (tryb === "auto") delete col.silaN;
       }) };
@@ -12440,20 +12692,20 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("fixgap:")) {
       const [, li, j, val, dir] = action.split(":");
       const verb = dir === "down" ? "Zmniejsz" : "Zwiększ";
-      return { label: `${verb} luz do ${val} mm`, run: () => editLevels((L) => (L[+li].cols[+j].gapBetween = +val)) };
+      return { label: `${verb} luz do ${val} mm`, run: () => editLevels((L) => (kolumnaW(L, li, j).gapBetween = +val)) };
     }
     // „frontyauto:<poziom>:<kolumna>” — wpisane wysokosci frontow szuflad nie wypelniaja pasma: wszystkie na auto
     if (action.startsWith("frontyauto:")) {
       const [, li, j] = action.split(":");
       return { label: "Podziel fronty równo", run: () => editLevels((L) => {
-        (L[+li].cols[+j].drawers || []).forEach((d) => { d.front = null; });
+        (kolumnaW(L, li, j).drawers || []).forEach((d) => { d.front = null; });
       }) };
     }
     if (action.startsWith("fixback:")) {
       const [, li, j, k, val] = action.split(":");
       return {
         label: `Ustaw tył na ${val} mm`,
-        run: () => editLevels((L) => (L[+li].cols[+j].drawers[+k].backHeight = +val)),
+        run: () => editLevels((L) => (kolumnaW(L, li, j).drawers[+k].backHeight = +val)),
       };
     }
     if (action.startsWith("cokolcof:")) {
@@ -12514,7 +12766,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: `Ustaw ${ile} zawiasy`,
         run: () => editLevels((L) => {
-          const col = L[+li].cols[+j];
+          const col = kolumnaW(L, li, j);
           const n = Math.max(1, Math.round(Number(col.doors) || 1), (col.hinges || []).length);
           col.hinges = Array.from({ length: n }, () => +ile);
         }),
@@ -12526,7 +12778,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: on === "1" ? "Dodaj rurę na wieszaki" : "Usuń rurę",
         run: () => editLevels((L) => {
-          const col = L[+li] && L[+li].cols[+j];
+          const col = kolumnaW(L, li, j);
           if (!col) return;
           const zb = new Set((col.drazki || []).map(Number));
           if (on === "1") zb.add(+k); else zb.delete(+k);
@@ -12534,13 +12786,15 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         }),
       };
     }
+    if (action.startsWith("polkipoziomu:"))
+      return { label: "Usuń półki z tego poziomu", run: () => runFix && runFix(action) };
     if (action.startsWith("drazekprzenies:")) {
       // „drazekprzenies:<poziom>:<kolumna>:<z swiatla>:<do swiatla>:<jego wysokosc>"
       const [, li, j, z, na, h] = action.split(":");
       return {
         label: `Przenieś do światła ${+na + 1} (${h} mm)`,
         run: () => editLevels((L) => {
-          const col = L[+li] && L[+li].cols[+j];
+          const col = kolumnaW(L, li, j);
           if (!col) return;
           const zb = new Set((col.drazki || []).map(Number));
           zb.delete(+z); zb.add(+na);
@@ -12568,7 +12822,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: `Zostaw ${ile} ${plural(+ile, "zawias", "zawiasy", "zawiasów")}`,
         run: () => editLevels((L) => {
-          const col = L[+li].cols[+j];
+          const col = kolumnaW(L, li, j);
           col.hingesOk = [...(col.hingesOk || [])];
           col.hingesOk[+k] = +ile;
           // skrzydla kolumny z ta sama liczba — tez zostawione
@@ -12580,7 +12834,21 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const [, li, j, side] = action.split(":");
       return {
         label: `Przełóż zawiasy na ${side === "left" ? "lewą" : "prawą"}`,
-        run: () => editLevels((L) => (L[+li].cols[+j].hinge = side)),
+        run: () => editLevels((L) => (kolumnaW(L, li, j).hinge = side)),
+      };
+    }
+    if (action.startsWith("otwieranie:")) {
+      // „otwieranie:<poziom>:<kolumna albo js<nr>>:<drzwi>:<dol|podfrez|tipon>” — drzwi bez uchwytu
+      const [, li, j, k, co] = action.split(":");
+      return {
+        label: co === "tipon" ? "Tip-on zamiast wydłużenia" : co === "podfrez" ? "Podfrez od góry zamiast wydłużenia" : "Front dłuższy od dołu",
+        run: () => editLevels((L) => {
+          const col = kolumnaW(L, li, j);
+          const a = [...(col.otwieranie || [])];
+          while (a.length <= +k) a.push(null);
+          a[+k] = co;
+          col.otwieranie = a;
+        }),
       };
     }
     if (action.startsWith("onedoor:")) {
@@ -12589,7 +12857,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: `Jedne drzwi ${fmt(Number(w))} mm — zawiasy z ${side === "left" ? "lewej" : "prawej"}`,
         run: () => editLevels((L) => {
-          const c = L[+li].cols[+j];
+          const c = kolumnaW(L, li, j);
           c.doors = 1;
           c.hinge = side;
           c.doorWidths = [];
@@ -12618,7 +12886,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const [, idx, li, j, side, wynik] = action.split(":");
       return {
         label: `Przełóż zawiasy na ${side === "left" ? "lewą" : "prawą"}${poPoprawce(wynik)}`,
-        run: () => editItemLevels(Number(idx), (L) => { L[+li].cols[+j].hinge = side; }),
+        run: () => editItemLevels(Number(idx), (L) => { kolumnaW(L, li, j).hinge = side; }),
       };
     }
     if (action.startsWith("hingewstawka:")) {
@@ -12629,7 +12897,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: `Zawiasy na ${side === "left" ? "lewą" : "prawą"} + ${wst}${poPoprawce(wynik)}`,
         run: () => {
-          editItemLevels(Number(idx), (L) => { L[+li].cols[+j].hinge = side; });
+          editItemLevels(Number(idx), (L) => { kolumnaW(L, li, j).hinge = side; });
           if (runFix) runFix(`wstawka:${rogId}:${typ}:${ile}`);
         },
       };
@@ -12640,7 +12908,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: strona !== "-" ? "Przełóż zawiasy na drugą stronę i usuń wspornik" : "Usuń wspornik",
         run: () => editLevels((L) => {
-          const col = L[+li].cols[+j];
+          const col = kolumnaW(L, li, j);
           col.fix = { ...(col.fix || {}), support: false };
           if (strona !== "-") col.hinge = strona;
         }),
@@ -12727,7 +12995,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const dodaj = kind === "relingdodaj";
       return {
         label: dodaj ? "Dodaj reling" : "Usuń reling",
-        run: () => editLevels((L) => { const d = L[+li].cols[+j].drawers[+k]; d.reling = dodaj; if (dodaj) d.bezRelingu = false; }),
+        run: () => editLevels((L) => { const d = kolumnaW(L, li, j).drawers[+k]; d.reling = dodaj; if (dodaj) d.bezRelingu = false; }),
       };
     }
     if (action.startsWith("reling:")) {
@@ -12735,7 +13003,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const [, li, j, k, juz] = action.split(":");
       return {
         label: juz === "1" ? "Wróć do ostrzeżenia o relingu" : "Zostaw bez relingu",
-        run: () => editLevels((L) => { L[+li].cols[+j].drawers[+k].bezRelingu = juz !== "1"; }),
+        run: () => editLevels((L) => { kolumnaW(L, li, j).drawers[+k].bezRelingu = juz !== "1"; }),
       };
     }
     if (action.startsWith("fixh:")) {
@@ -12743,7 +13011,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       /* Podniesiony tyl wpisany recznie liczyl sie do starego boku — przy
          zmianie boku wraca na automatyczny, zeby zmalal razem z nim. */
       return { label: `Zmień bok szuflady na ${val} mm`, run: () => editLevels((L) => {
-        const d = L[+li].cols[+j].drawers[+k];
+        const d = kolumnaW(L, li, j).drawers[+k];
         d.h = +val;
         if (d.tallBack) d.backHeight = null;
       }) };
@@ -12751,7 +13019,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("parablat:")) {
       const [, li, j] = action.split(":");
       return { label: "Dodaj parę wzmocnień pod blat", run: () => editLevels((L) => {
-        const c = L[+li].cols[+j];
+        const c = kolumnaW(L, li, j);
         c.rails = [...(c.rails || []), ...railPair()];
       }) };
     }
@@ -12760,7 +13028,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("zwieksz60:")) {
       const lista = action.slice("zwieksz60:".length).split(",").map((x) => x.split(":"));
       return { label: `Zwiększ do ${fmt(MIN_PART)} mm`, run: () => editLevels((L) => lista.forEach(([co, li, j, k]) => {
-        const d = (((L[+li] || {}).cols || [])[+j] || {}).drawers?.[+k];
+        const d = (kolumnaW(L, li, j) || {}).drawers?.[+k];
         if (!d) return;
         if (co === "b") d.h = MIN_PART; else d.backHeight = MIN_PART;
       })) };
@@ -12769,7 +13037,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("szufmniej:")) {
       const [, li, j, n] = action.split(":");
       return { label: `Zmniejsz do ${n} ${+n === 1 ? "szuflady" : "szuflad"}`, run: () => editLevels((L) => {
-        const col = L[+li].cols[+j];
+        const col = kolumnaW(L, li, j);
         col.drawers = (col.drawers || []).slice(0, +n).map((d) => ({ ...d, front: null }));
       }) };
     }
@@ -12777,7 +13045,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("szufdxs:")) {
       const [, li, j] = action.split(":");
       return { label: "Zmień na DXS-3D", run: () => editLevels((L) => {
-        const col = L[+li].cols[+j];
+        const col = kolumnaW(L, li, j);
         col.drawers = (col.drawers || []).map((d) => zmienSystemSzuflady(d, "dxs"));
       }) };
     }
@@ -12790,14 +13058,14 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("tylstd:")) {
       const [, li, j, k] = action.split(":");
       return { label: "Wyłącz podniesiony tył", run: () => editLevels((L) => {
-        const d = L[+li].cols[+j].drawers[+k];
+        const d = kolumnaW(L, li, j).drawers[+k];
         d.tallBack = false;
         d.backHeight = null;
       }) };
     }
     if (action.startsWith("fixnl:")) {
       const [, li, j, k, val] = action.split(":");
-      return { label: `Zmień głębokość prowadnic do NL ${val}`, run: () => editLevels((L) => (L[+li].cols[+j].drawers[+k].nl = +val)) };
+      return { label: `Zmień głębokość prowadnic do NL ${val}`, run: () => editLevels((L) => (kolumnaW(L, li, j).drawers[+k].nl = +val)) };
     }
     if (action.startsWith("fixsup:")) {
       // 4. pole — glebokosc wspornika (przy szufladach: dlugosc prowadnicy)
@@ -12805,7 +13073,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: "Dobuduj wspornik pionowy",
         run: () => editLevels((L) => {
-          const f = L[+li].cols[+j].fix || (L[+li].cols[+j].fix = { side: "none", w: 60 });
+          const f = kolumnaW(L, li, j).fix || (kolumnaW(L, li, j).fix = { side: "none", w: 60 });
           f.support = true;
           if (Number(gl) > 0) f.supportDepth = Math.max(Number(f.supportDepth) || 0, Number(gl));
           else if (!(f.supportDepth > 0)) f.supportDepth = 100;
@@ -12816,28 +13084,43 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const [, li, j, m] = action.split(":");
       return {
         label: `Półki kolumny ${+j + 1} na ${m === "pins" ? "kołkach" : m === "confirmat" ? "konfirmatach" : "trójkątach"}`,
-        run: () => editLevels((L) => { L[+li].cols[+j].shelfMount = m === "pins" || m === "confirmat" ? m : "trojkaty"; }),
+        // wszystkie polki kolumny — takze granice poziomow (domyslnie na konfirmatach)
+        run: () => editLevels((L) => {
+          const col = kolumnaW(L, li, j);
+          col.shelfMount = m === "pins" || m === "confirmat" ? m : "trojkaty";
+          if ((col.podzial || []).length) col.podzialMount = col.podzial.map(() => col.shelfMount); else delete col.podzialMount;
+        }),
+      };
+    }
+    if (action.startsWith("granicamont:")) {
+      // „granicamont:<poziom>:<kolumna>:<nr granicy>:<mocowanie>” — jedna polka graniczna poziomu kolumny
+      const [, li, j, poz, m] = action.split(":");
+      const gr = (((((cab || {}).levels || [])[+li] || {}).cols || [])[+j] || {}).podzial || [];
+      const nr = gr[+poz] != null ? Number(gr[+poz]) + 1 : +poz + 1;
+      return {
+        label: `Półka ${nr} na ${m === "pins" ? "kołkach" : m === "confirmat" ? "konfirmatach" : "trójkątach"}`,
+        run: () => editLevels((L) => { const col = L[+li].cols[+j]; const a = [...(col.podzialMount || [])]; while (a.length <= +poz) a.push(null); a[+poz] = m; col.podzialMount = a; }),
       };
     }
     if (action.startsWith("przegrtr:")) {
       const [, li, j] = action.split(":");
       return {
         label: "Dół przegrody na trójkątach",
-        run: () => editLevels((L) => { L[+li].cols[+j].divDolMount = "trojkaty"; }),
+        run: () => editLevels((L) => { kolumnaW(L, li, j).divDolMount = "trojkaty"; }),
       };
     }
     if (action.startsWith("fixdel:")) {
       const [, li, j] = action.split(":");
       return {
         label: "Usuń element stały",
-        run: () => editLevels((L) => { L[+li].cols[+j].fix = { side: "none", w: 60 }; }),
+        run: () => editLevels((L) => { kolumnaW(L, li, j).fix = { side: "none", w: 60 }; }),
       };
     }
     if (action.startsWith("wspgl:")) {
       const [, li, j, val] = action.split(":");
       return {
         label: `Wspornik na ${val} mm głębokości`,
-        run: () => editLevels((L) => { const f = L[+li].cols[+j].fix; if (f) f.supportDepth = +val; }),
+        run: () => editLevels((L) => { const f = kolumnaW(L, li, j).fix; if (f) f.supportDepth = +val; }),
       };
     }
     if (action.startsWith("fixnodoor:")) {
@@ -12845,13 +13128,13 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: "Usuń kolidujące skrzydło",
         run: () => editLevels((L) => {
-          const col = L[+li].cols[+j];
+          const col = kolumnaW(L, li, j);
           const n = Math.max(0, Math.round(col.doors ?? 0));
           if (n <= 0) return;
           // koliduje skrzydlo od strony elementu stalego — usuwamy tylko je
           const k = (col.fix || {}).side === "right" ? n - 1 : 0;
           col.doors = n - 1;
-          ["doorWidths", "mirrors", "handles", "hinges"].forEach((key) => {
+          ["doorWidths", "mirrors", "handles", "hinges", "otwieranie", "otwieranieMm"].forEach((key) => {
             if (Array.isArray(col[key]) && col[key].length > k) col[key].splice(k, 1);
           });
           // po usunieciu jednego z dwoch skrzydel zawias wraca na auto
@@ -15926,7 +16209,7 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
         {head}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {box("Widok zamknięty — wymiary, szczeliny, kolory",
-            <FrontView cab={realCab} geo={geo} mat={mat} open={false} showDims showGaps
+            <FrontView cab={realCab} geo={geo} mat={mat} open={false} showDims showGaps szczelinyNietypowe
               showLabels={false} showHardware={false} arm={arm} wstawki={wstawki} druk={DRUK_WIDOK_MM} />)}
           {box("Widok otwarty — wymiary i okucia",
             <FrontView cab={cab} geo={geo} mat={mat} open showDims showGaps={false}
@@ -16929,9 +17212,19 @@ export default function App() {
      (trzyma nazwe sprzed edycji — Esc do niej wraca); null = bez edycji. */
   const [nazwaSzafki, setNazwaSzafki] = useState(null);
   useEffect(() => { setNazwaSzafki(null); }, [project.active]);
-  /* Formatki, produkty, rozkroj i wycena: domyslnie caly projekt — to jedno
-     zamowienie (uzytkownik 2026-09-29); podglad samego pomieszczenia osobno. */
-  const [zakresZam, setZakresZam] = useState("projekt");
+  /* Formatki, produkty, rozkroj i wycena: domyslnie pomieszczenie (uzytkownik
+     2026-10-25; wczesniej caly projekt — 2026-09-29). Dawne osobne karty (testy,
+     `window.__mpKartyOsobno`) zostaja przy calym projekcie. */
+  const [zakresZam, setZakresZam] = useState(() => {
+    if (typeof window !== "undefined" && window.__mpKartyOsobno) return "projekt";
+    try { const z = localStorage.getItem("mp:zakresZam"); if (z === "projekt" || z === "pomieszczenie") return z; } catch (e) { /* bez pamieci */ }
+    return "pomieszczenie";
+  });
+  // wybor pamietany w przegladarce, jak „Szafka” w kartach
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.__mpKartyOsobno) return;
+    try { localStorage.setItem("mp:zakresZam", zakresZam); } catch (e) { /* bez pamieci w przegladarce */ }
+  }, [zakresZam]);
 
   const undo = useCallback(() => {
     const h = histRef.current;
@@ -17561,6 +17854,13 @@ export default function App() {
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    // „polkipoziomu:<poziom>:<kolumna>:<nr>” — polki z poziomu kolumny z szufladami albo blenda
+    if (action.startsWith("polkipoziomu:")) {
+      const [, li, j, nr] = action.split(":").map(Number);
+      const lvG = geo.levels[li];
+      if (lvG && lvG.cols[j]) ustawPolkiPoziomuKolumny(lvG, lvG.cols[j], nr, 0);
+      return;
+    }
     // system szuflad aktywnej szafki (uwagi szafki i ciagu)
     if (action.startsWith("szufsys:") || ["szufmix", "szufmixnie", "szufinne", "szufinnenie"].includes(action)) {
       setProject((p) => {
@@ -17733,7 +18033,7 @@ export default function App() {
       : field === "hangerMode" ? (run.hangerMode || "listwa") : run[field];
     if (kind === "runrun") setRunShared(run.id, { [field]: fromCab });
     else setCab((cur) => ({ ...cur, [field]: fromRun }));
-  }, [project, runInfo, setRunShared, setCab, setRun, setCorner, setProject]);
+  }, [project, geo, runInfo, setRunShared, setCab, setRun, setCorner, setProject]);
 
   const set = useCallback((patch) => setCab((c) => ({ ...c, ...patch })), [setCab]);
   // szerszy arkusz blatu — zmienia material, wiec dotyczy calego projektu
@@ -17832,18 +18132,18 @@ export default function App() {
     }
   });
   const setColDoors = (i, j, v) =>
-    editLevels((L) => (L[i].cols[j].doors = Math.max(0, Math.round(Number(v) || 0))));
+    editLevels((L) => (kolumnaW(L, i, j).doors = Math.max(0, Math.round(Number(v) || 0))));
   const setColShelfCount = (i, j, v) =>
     editLevels((L) => {
       const n = Math.max(0, Math.round(Number(v) || 0));
-      L[i].cols[j].shelfTargets = Array(n + 1).fill(null);
+      kolumnaW(L, i, j).shelfTargets = Array(n + 1).fill(null);
     });
   // swiatlo ujemne albo zero wraca do auto (uzytkownik 2026-10-24: „nie może być ujemna wartość światła”)
   const setColOpening = (i, j, k, v) =>
-    editLevels((L) => (L[i].cols[j].shelfTargets[k] = v === "" || !(Number(v) > 0) ? null : Math.round(Number(v))));
+    editLevels((L) => (kolumnaW(L, i, j).shelfTargets[k] = v === "" || !(Number(v) > 0) ? null : Math.round(Number(v))));
   const setColKind = (i, j, v) =>
     editLevels((L) => {
-      const col = L[i].cols[j];
+      const col = kolumnaW(L, i, j);
       col.kind = v;
       // ustawienia klapy maja sens tylko przy drzwiach — po „klapa” → Szuflady zostawal `klapa: "gora"`
       if (v !== "doors") POLA_KLAPY.forEach((k) => delete col[k]);
@@ -17858,7 +18158,7 @@ export default function App() {
         const ctxG = armCtxOf(projLayoutGeo, project.active);
         const bledy = (n) => {
           const L2 = JSON.parse(JSON.stringify(L));
-          L2[i].cols[j].drawers = [...Array(n)].map(nowa);
+          kolumnaW(L2, i, j).drawers = [...Array(n)].map(nowa);
           const g = computeGeo({ ...cab, levels: utrzymajPodBlat(cab, L2) }, mat, ctxG);
           return g.msgs.filter((m) => m.level === "error").length;
         };
@@ -17868,49 +18168,50 @@ export default function App() {
     });
   const setFixSide = (i, j, v) =>
     editLevels((L) => {
-      L[i].cols[j].fix = { ...(L[i].cols[j].fix || { w: 60 }), side: v };
+      kolumnaW(L, i, j).fix = { ...(kolumnaW(L, i, j).fix || { w: 60 }), side: v };
     });
   const setFixW = (i, j, v) =>
     editLevels((L) => {
-      L[i].cols[j].fix = {
-        ...(L[i].cols[j].fix || { side: "none" }),
+      kolumnaW(L, i, j).fix = {
+        ...(kolumnaW(L, i, j).fix || { side: "none" }),
         w: Math.max(0, Math.round(Number(v) || 0)),
       };
     });
   const setFixMode = (i, j, v) =>
     editLevels((L) => {
-      L[i].cols[j].fix = { ...(L[i].cols[j].fix || {}), mode: v };
+      kolumnaW(L, i, j).fix = { ...(kolumnaW(L, i, j).fix || {}), mode: v };
     });
   const setDoorWidth = (i, j, k, v) =>
     editLevels((L) => {
-      const a = L[i].cols[j].doorWidths || [];
+      const a = kolumnaW(L, i, j).doorWidths || [];
       while (a.length <= k) a.push(null);
       a[k] = v === "" ? null : Math.round(Number(v));
-      L[i].cols[j].doorWidths = a;
+      kolumnaW(L, i, j).doorWidths = a;
     });
-  const clearDoorWidths = (i, j) => editLevels((L) => (L[i].cols[j].doorWidths = []));
+  const clearDoorWidths = (i, j) => editLevels((L) => (kolumnaW(L, i, j).doorWidths = []));
   const setDoorFlag = (i, j, k, key, v) =>
     editLevels((L) => {
-      const a = L[i].cols[j][key] || [];
-      while (a.length <= k) a.push(key === "handles" ? true : key === "hinges" || key === "handleOuts" || key === "handlePos" ? null : false);
+      const a = kolumnaW(L, i, j)[key] || [];
+      while (a.length <= k) a.push(key === "handles" ? true
+        : ["hinges", "handleOuts", "handlePos", "otwieranie", "otwieranieMm"].includes(key) ? null : false);
       a[k] = v;
-      L[i].cols[j][key] = a;
+      kolumnaW(L, i, j)[key] = a;
     });
   /* Zawiasy wpisane recznie przechodza na wszystkie skrzydla kolumny
      (uzytkownik 2026-10-24); puste — cala kolumna wraca na tabele GTV. */
   const setColHinges = (i, j, v) =>
     editLevels((L) => {
-      const col = L[i].cols[j];
+      const col = kolumnaW(L, i, j);
       const n = Math.max(1, Math.round(Number(col.doors) || 1), (col.hinges || []).length);
       col.hinges = Array.from({ length: n }, () => v);
     });
   const setDrawerHandle = (i, j, k, v) =>
-    editLevels((L) => (L[i].cols[j].drawers[k].handle = v));
-  const setColBack = (i, j, v) => editLevels((L) => (L[i].cols[j].backMode = v));
+    editLevels((L) => (kolumnaW(L, i, j).drawers[k].handle = v));
+  const setColBack = (i, j, v) => editLevels((L) => (kolumnaW(L, i, j).backMode = v));
   const setBlendaMode = (i, j, v) =>
-    editLevels((L) => (L[i].cols[j].blendaMode = v));
+    editLevels((L) => (kolumnaW(L, i, j).blendaMode = v));
   const setDrawerMode = (i, j, v) =>
-    editLevels((L) => (L[i].cols[j].drawerMode = v));
+    editLevels((L) => (kolumnaW(L, i, j).drawerMode = v));
 
   // dodatkowe formatki — poza geometria szafki, wpisywane recznie
   const addExtraPart = () =>
@@ -17924,59 +18225,59 @@ export default function App() {
     set({ extraParts: (cab.extraParts || []).map((e, k) => (k === i ? { ...e, ...patch } : e)) });
   const removeExtraPart = (i) =>
     set({ extraParts: (cab.extraParts || []).filter((_, k) => k !== i) });
-  const setHinge = (i, j, v) => editLevels((L) => (L[i].cols[j].hinge = v));
+  const setHinge = (i, j, v) => editLevels((L) => (kolumnaW(L, i, j).hinge = v));
   const setFixSupport = (i, j, v) =>
     editLevels((L) => {
-      L[i].cols[j].fix = { ...(L[i].cols[j].fix || {}), support: v };
+      kolumnaW(L, i, j).fix = { ...(kolumnaW(L, i, j).fix || {}), support: v };
     });
   const setFixSupportDepth = (i, j, v) =>
     editLevels((L) => {
-      L[i].cols[j].fix = {
-        ...(L[i].cols[j].fix || {}),
+      kolumnaW(L, i, j).fix = {
+        ...(kolumnaW(L, i, j).fix || {}),
         supportDepth: Math.max(0, Math.round(Number(v) || 0)),
       };
     });
 
   const setColNL = (i, j, v) =>
-    editLevels((L) => (L[i].cols[j].nl = v === "" ? null : Number(v)));
+    editLevels((L) => (kolumnaW(L, i, j).nl = v === "" ? null : Number(v)));
   const setCol = (i, j, patch) =>
-    editLevels((L) => Object.assign(L[i].cols[j], patch));
+    editLevels((L) => Object.assign(kolumnaW(L, i, j), patch));
   /* Wciecie zastepuje uchwyt, wiec wlaczenie go zdejmuje z calej kolumny —
      pojedyncza szuflada moze go potem dostac z powrotem. Wylaczenie wciecia
      oddaje uchwyty, bo inaczej szuflady nie ma za co chwycic. */
   const setFingerGrip = (i, j, v) =>
     editLevels((L) => {
-      const col = L[i].cols[j];
+      const col = kolumnaW(L, i, j);
       col.fingerGrip = v;
       (col.drawers || []).forEach((d) => { d.handle = !v; });
     });
   // nowa szuflada: system kolumny, szafki, ciagu albo pomieszczenia (domyslnie V-BOX)
   const addDrawer = (i, j) => editLevels((L) => {
-    const sys = systemKontekstu(project, project.active, L[i].cols[j]);
-    L[i].cols[j].drawers.push(sys === "dxs" ? { ...newDrawer(), system: "dxs" } : newDrawer());
+    const sys = systemKontekstu(project, project.active, kolumnaW(L, i, j));
+    kolumnaW(L, i, j).drawers.push(sys === "dxs" ? { ...newDrawer(), system: "dxs" } : newDrawer());
   });
   const setDrawerSystem = (i, j, k, sys) => editLevels((L) => {
-    const col = L[i].cols[j];
+    const col = kolumnaW(L, i, j);
     col.drawers[k] = zmienSystemSzuflady(col.drawers[k], sys);
   });
-  const removeDrawer = (i, j, k) => editLevels((L) => L[i].cols[j].drawers.splice(k, 1));
-  const addRail = (i, j) => editLevels((L) => { if (!Array.isArray(L[i].cols[j].rails)) L[i].cols[j].rails = []; L[i].cols[j].rails.push(newRail()); });
+  const removeDrawer = (i, j, k) => editLevels((L) => kolumnaW(L, i, j).drawers.splice(k, 1));
+  const addRail = (i, j) => editLevels((L) => { if (!Array.isArray(kolumnaW(L, i, j).rails)) kolumnaW(L, i, j).rails = []; kolumnaW(L, i, j).rails.push(newRail()); });
   /* Szafka bez wienca musi sie czyms usztywnic, a pod blatem robi sie to zawsze
      tak samo: z przodu plyta na plask, zeby bylo do czego przykrecic blat,
      z tylu stojaca, ktora trzyma korpus w kacie prostym. Jednym kliknieciem,
      bo inaczej trzeba to skladac z dwoch wzmocnien i czterech pol. */
   const addRailPair = (i, j) => editLevels((L) => {
-    const col = L[i].cols[j];
+    const col = kolumnaW(L, i, j);
     col.rails = [...(col.rails || []), ...railPair()];
   });
-  const removeRail = (i, j, k) => editLevels((L) => L[i].cols[j].rails.splice(k, 1));
-  const setRail = (i, j, k, patch) => editLevels((L) => { L[i].cols[j].rails[k] = { ...L[i].cols[j].rails[k], ...patch }; });
+  const removeRail = (i, j, k) => editLevels((L) => kolumnaW(L, i, j).rails.splice(k, 1));
+  const setRail = (i, j, k, patch) => editLevels((L) => { kolumnaW(L, i, j).rails[k] = { ...kolumnaW(L, i, j).rails[k], ...patch }; });
   const setDrawer = (i, j, k, patch) =>
-    editLevels((L) => Object.assign(L[i].cols[j].drawers[k], patch));
+    editLevels((L) => Object.assign(kolumnaW(L, i, j).drawers[k], patch));
   const setDrawerH = (i, j, k, v) =>
-    editLevels((L) => (L[i].cols[j].drawers[k].h = v === "auto" ? "auto" : Number(v)));
+    editLevels((L) => (kolumnaW(L, i, j).drawers[k].h = v === "auto" ? "auto" : Number(v)));
   const setDrawerFront = (i, j, k, v) =>
-    editLevels((L) => (L[i].cols[j].drawers[k].front = v === "" ? null : Math.round(Number(v))));
+    editLevels((L) => (kolumnaW(L, i, j).drawers[k].front = v === "" ? null : Math.round(Number(v))));
   // lista elementow kolizyjnych (migracja ze starego pojedynczego pola)
   const obsList = Array.isArray(cab.obstacles) && cab.obstacles.length
     ? cab.obstacles
@@ -17990,18 +18291,21 @@ export default function App() {
     writeObs(obsList.map((o, k) => (k === i ? { ...o, ...patch } : o)));
 
   const setDrawerNL = (i, j, k, v) =>
-    editLevels((L) => (L[i].cols[j].drawers[k].nl = v === "" ? null : Number(v)));
+    editLevels((L) => (kolumnaW(L, i, j).drawers[k].nl = v === "" ? null : Number(v)));
 
   // rozdziela pasmo proporcjonalnie do wysokosci bokow, startujac od minimow
   const fitFronts = (i, j) => {
     const lv = geo.levels[i];
     if (!lv) return;
-    const ds = cab.levels[i].cols[j].drawers || [];
+    const m = /^(\d+)s(\d+)$/.exec(String(j));
+    const ds = (kolumnaW(JSON.parse(JSON.stringify(cab.levels)), i, j) || {}).drawers || [];
     const n = ds.length;
     if (!n) return;
-    const band = Math.round(lv.frontHi - lv.frontLo);
+    // poziom kolumny z szufladami — pasmo frontow z jego geometrii
+    const gk = m ? ((geo.levels[i].cols[+m[1]] || {}).poziomy || {})[+m[2]] : geo.levels[i].cols[j];
+    const band = m ? Math.round((gk && gk.dbandH) || 0) : Math.round(lv.frontHi - lv.frontLo);
     const avail = band - (n - 1) * cab.gaps.between;
-    const cMode = geo.levels[i].cols[j]?.drawerMode || cab.frontMode;
+    const cMode = gk?.drawerMode || cab.frontMode;
     const mins = ds.map((d) => VBOX.minFront[cMode][Number(d.h)] ?? 0);
     const base = mins.reduce((a, b) => a + b, 0);
     let sizes;
@@ -18017,11 +18321,11 @@ export default function App() {
         rem -= 1;
       }
     }
-    editLevels((L) => L[i].cols[j].drawers.forEach((d, k) => (d.front = sizes[k])));
+    editLevels((L) => kolumnaW(L, i, j).drawers.forEach((d, k) => (d.front = sizes[k])));
   };
 
   const clearColOpenings = (i, j) =>
-    editLevels((L) => (L[i].cols[j].shelfTargets = L[i].cols[j].shelfTargets.map(() => null)));
+    editLevels((L) => (kolumnaW(L, i, j).shelfTargets = kolumnaW(L, i, j).shelfTargets.map(() => null)));
   /* Przelicza liczbe polek tak, jakby kolumna powstawala od nowa: tyle, ile
      zmiesci sie przy swietle co najmniej MIN_OPENING. Wysokosc kolumny bierzemy
      z policzonej geometrii, wiec cokol, wieniec i poziomy sa juz odliczone. */
@@ -18031,7 +18335,7 @@ export default function App() {
     const lv = geo.levels[i];
     const inner = lv.y1 - lv.y0;
     const n = autoShelves(inner, geo.t);
-    editLevels((L) => (L[i].cols[j].shelfTargets = Array(n + 1).fill(null)));
+    editLevels((L) => (kolumnaW(L, i, j).shelfTargets = Array(n + 1).fill(null)));
   };
   /* To samo dla calej szafki — po zmianie wysokosci wygodniej klinkac raz. */
   const fitShelvesAll = () =>
@@ -18142,12 +18446,12 @@ export default function App() {
       if (gr.includes(k)) return;
       const poz = gr.filter((x) => x < k).length;
       if (col.segmenty) col.segmenty.splice(poz + 1, 0, col.segmenty[poz] ? { ...col.segmenty[poz] } : null);
+      if (col.podzialMount) col.podzialMount.splice(poz, 0, null);
       col.podzial = [...gr, k].sort((a, b) => a - b);
     });
-    /* Konfirmaty tylko pod klapy — ich zawiasy siedza w polce granicznej. Przy drzwiach
-       polki zostaja na kolkach (uzytkownik 2026-10-24: „nie wiszą na nich klapy,
-       powinny być na kołkach”). */
-    if (naKlapy && mocowanieKolumny(cab, col) === "pins") col.shelfMount = "confirmat";
+    /* Polki graniczne sa domyslnie na konfirmatach (`mocowanieGranicy`) — kreator klap nie
+       przestawia juz calej kolumny; zwykle polki zostaja na kolkach (uzytkownik
+       2026-10-24 i 2026-10-25: „półki raczej na kołki, a poziomy na konfirmanty”). */
     if (naKlapy) {
       col.kind = "doors"; col.doors = 1; col.klapa = naKlapy.kier === "dol" ? "dol" : "gora";
       if (naKlapy.sil === 1 || naKlapy.sil === 2) col.silowniki = naKlapy.sil; else delete col.silowniki;
@@ -18195,26 +18499,304 @@ export default function App() {
     col.shelfTargets = wym;
     if (rury.length) col.drazki = [...new Set(rury)].sort((a, b) => a - b);
   });
+  /* Szuflady kolumny albo poziomu kolumny (uzytkownik 2026-10-24: poziom kolumny
+     z pelna struktura jak cala kolumna) — `c` geometria kolumny / poziomu
+     (`c.poziomy[nr]`), `rawCol` jej ustawienia, `jA` adres: „j” albo „js<nr>”. */
+  /* tylko szuflady; przy waskim oknie pole glebokosci podfrezu schodzi
+     pod checkbox w calosci, zamiast sciskac sie do zera (uzytkownik 2026-10-24) */
+  const uiSzufladGora = (lv, rawCol, jA, waski = false) => (
+    <>
+                          <div className="flex items-center gap-2 text-xs" data-el="szuflady-montaz">
+                            <span className="w-16 shrink-0 text-stone-500">fronty</span>
+                            <div className="flex-1">
+                              <Seg
+                                value={
+                                  rawCol.drawerMode === "overlay" || rawCol.drawerMode === "inset"
+                                    ? rawCol.drawerMode
+                                    : "inherit"
+                                }
+                                onChange={(v) => setDrawerMode(lv.i, jA, v)}
+                                options={[
+                                  // w karcie poziomu kolumny bez dopisku — inaczej przelacznik wychodzi poza karte
+                                  { v: "inherit", l: waski ? "jak szafka" : `jak szafka (${cab.frontMode === "overlay" ? "na korpusie" : "wewnątrz"})` },
+                                  { v: "overlay", l: "Na korpusie" },
+                                  { v: "inset", l: "Wewnątrz" },
+                                ]} />
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-xs" data-el="podfrez">
+                            <Check checked={!!rawCol.fingerGrip}
+                              onChange={(v) => setFingerGrip(lv.i, jA, v)}
+                              label="Wcięcie na palce (podfrez) zamiast uchwytu" />
+                            {rawCol.fingerGrip && (
+                              <span className="flex shrink-0 items-center gap-2">
+                                <span className="text-stone-500">front niższy o</span>
+                                <div className="w-24 shrink-0">
+                                  <Num value={rawCol.gripDepth ?? 18}
+                                    onChange={(v) => setCol(lv.i, jA, { gripDepth: v })} />
+                                </div>
+                              </span>
+                            )}
+                          </div>
+    </>
+  );
+  const uiSzuflad = (lv, c, rawCol, jA) => (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-stone-500">głębokość NL</span>
+                              <select value={rawCol.nl ?? ""}
+                                onChange={(e) => setColNL(lv.i, jA, e.target.value)}
+                                className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none">
+                                <option value="">auto {geo.maxNL ? `(${geo.maxNL})` : ""}</option>
+                                {/* dlugosci systemow szuflad tej kolumny (V-BOX ma tez 270, DXS-3D nie) */}
+                                {[...new Set((c.drawers || []).flatMap((dr) => nlSystemu(dr.system)))].sort((a, b) => a - b).map((v) => (
+                                  <option key={v} value={v}>{v}</option>
+                                ))}
+                              </select>
+                              <MiniBtn onClick={() => addDrawer(lv.i, jA)}>+ szuflada</MiniBtn>
+                              <MiniBtn onClick={() => fitFronts(lv.i, jA)}
+                                title="Rozdziel pasmo proporcjonalnie do wysokości boków">
+                                dopasuj fronty
+                              </MiniBtn>
+                            </div>
+                            {[...(c.drawers || [])].reverse().map((dr) => (
+                              // wiersz szuflady ma sporo pol — przy waskim panelu
+                              // zawija sie na dwie linie zamiast wystawac poza karte
+                              <div key={dr.i} className="flex flex-wrap items-center gap-2" data-el="szuflada-wiersz">
+                                {/* system szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty
+                                    na prowadnicach dolnego montazu) — uzytkownik 2026-10-21 */}
+                                <select value={dr.system || "vbox"} data-el="szuflada-system"
+                                  title="System szuflady: V-BOX — boki metalowe, DXS-3D — skrzynka z płyty na prowadnicach pod dnem"
+                                  onChange={(e) => setDrawerSystem(lv.i, jA, dr.i, e.target.value)}
+                                  className="rounded border border-stone-300 bg-white px-1 py-1 text-[11px] focus:border-teal-600 focus:outline-none">
+                                  <option value="vbox">V-BOX</option>
+                                  <option value="dxs">DXS-3D</option>
+                                </select>
+                                {dr.system === "dxs" ? (
+                                  <label className="flex shrink-0 items-center gap-1" data-el="dxs-bok"
+                                    title="Wysokość boku skrzynki z płyty (mm) — puste: najwyższy z luzem 5 mm pod tym, co wyżej">
+                                    <span className="text-[11px] text-stone-500">bok</span>
+                                    <div className="w-28">
+                                      <AutoNum value={num(rawCol.drawers[dr.i]?.h)} placeholder={`auto ${fmt(dr.hClass)}`}
+                                        fixed={num(rawCol.drawers[dr.i]?.h) !== null}
+                                        onChange={(v) => setDrawer(lv.i, jA, dr.i, { h: v === "" ? "auto" : Math.round(Number(v)) })} />
+                                    </div>
+                                  </label>
+                                ) : (
+                                  <select value={rawCol.drawers[dr.i]?.h ?? "auto"}
+                                    title="Wysokość boku V-BOX — auto dobiera najwyższy mieszczący się w froncie"
+                                    onChange={(e) => setDrawerH(lv.i, jA, dr.i, e.target.value)}
+                                    className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none">
+                                    <option value="auto">auto {dr.hClass}</option>
+                                    {VBOX.heights.map((v) => (
+                                      <option key={v} value={v}>{v} mm</option>
+                                    ))}
+                                  </select>
+                                )}
+                                {(() => {
+                                  // V-BOX ma minimalny front dla boku; DXS-3D — front zawsze siega do spodu prowadnicy
+                                  const zaNiski = dr.system !== "dxs" && dr.h < VBOX.minFront[c.drawerMode || cab.frontMode][dr.hClass];
+                                  return (
+                                    <>
+                                      <div className="w-20 shrink-0">
+                                        <AutoNum value={rawCol.drawers[dr.i]?.front} placeholder={fmt(dr.h)}
+                                          fixed={dr.fixed} warn={zaNiski}
+                                          onChange={(v) => setDrawerFront(lv.i, jA, dr.i, v)} />
+                                      </div>
+                                      <span className="w-12 shrink-0 text-right font-mono text-[11px]"
+                                        style={{ color: zaNiski ? ERRC : "#a8a29e" }}>
+                                        {fmt(dr.h)}
+                                      </span>
+                                    </>
+                                  );
+                                })()}
+                                {/* uchwyt, tyl i reling zawijaja sie razem — przy waskim oknie
+                                    „uchwyt” schodzi do drugiej linii z „tył” i „reling” (uzytkownik 2026-10-24) */}
+                                <div className="flex shrink-0 items-center gap-2" data-el="szuflada-opcje">
+                                <label className="flex shrink-0 items-center gap-1 cursor-pointer"
+                                  title="Uchwyt na tym froncie">
+                                  <input type="checkbox"
+                                    checked={rawCol.drawers[dr.i]?.handle !== false}
+                                    onChange={(e) => setDrawerHandle(lv.i, jA, dr.i, e.target.checked)}
+                                    className="h-3.5 w-3.5 accent-teal-700" />
+                                  <span className="text-[11px] text-stone-500">uchwyt</span>
+                                </label>
+                                {dr.system === "dxs" ? (
+                                  <label className="flex shrink-0 items-center gap-1" data-el="dxs-tyl"
+                                    title="Wysokość tyłu skrzynki (mm) — puste: bok − 10, góra równo z bokami">
+                                    <span className="text-[11px] text-stone-500">tył</span>
+                                    <div className="w-28">
+                                      <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={`auto ${fmt(dr.skrzynka ? dr.skrzynka.tyl[1] : Math.max(0, dr.hClass - DXS.bokPodDnem))}`}
+                                        fixed={num(rawCol.drawers[dr.i]?.backHeight) !== null}
+                                        onChange={(v) => setDrawer(lv.i, jA, dr.i, { backHeight: v === "" ? null : Math.round(Number(v)) })} />
+                                    </div>
+                                  </label>
+                                ) : (
+                                  <>
+                                    <label className="flex shrink-0 items-center gap-1 cursor-pointer"
+                                      title="Tył podniesiony do wysokości frontu, żeby rzeczy nie wypadały">
+                                      <input type="checkbox"
+                                        checked={!!rawCol.drawers[dr.i]?.tallBack}
+                                        onChange={(e) => setDrawer(lv.i, jA, dr.i, { tallBack: e.target.checked })}
+                                        className="h-3.5 w-3.5 accent-teal-700" />
+                                      <span className="text-[11px] text-stone-500">tył</span>
+                                    </label>
+                                    <label className="flex shrink-0 items-center gap-1 cursor-pointer"
+                                      title="Reling boczny — do zamówienia, komplet na szufladę (domyślnie 30 zł bez względu na długość)">
+                                      <input type="checkbox"
+                                        checked={!!rawCol.drawers[dr.i]?.reling}
+                                        onChange={(e) => setDrawer(lv.i, jA, dr.i, e.target.checked ? { reling: true, bezRelingu: false } : { reling: false })}
+                                        className="h-3.5 w-3.5 accent-teal-700" />
+                                      <span className="text-[11px] text-stone-500">reling</span>
+                                    </label>
+                                    {rawCol.drawers[dr.i]?.tallBack && (
+                                      <div className="w-20 shrink-0">
+                                        <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={fmt(dr.h)}
+                                          onChange={(v) => setDrawer(lv.i, jA, dr.i, { backHeight: v === "" ? null : Math.round(Number(v)) })} />
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                                </div>
+                                <select value={rawCol.drawers[dr.i]?.nl ?? ""}
+                                  title="Głębokość NL tej szuflady — puste bierze głębokość kolumny"
+                                  onChange={(e) => setDrawerNL(lv.i, jA, dr.i, e.target.value)}
+                                  className="shrink-0 rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none">
+                                  <option value="">NL {dr.nl ?? c.nl ?? "auto"}</option>
+                                  {nlSystemu(dr.system).map((v) => (
+                                    <option key={v} value={v}>{v}</option>
+                                  ))}
+                                </select>
+                                {(c.drawers || []).length > 1 && (
+                                  <MiniBtn onClick={() => removeDrawer(lv.i, jA, dr.i)} title="Usuń szufladę">×</MiniBtn>
+                                )}
+                              </div>
+                            ))}
+                            <p className="text-[11px] text-stone-400">
+                              {(c.drawers || []).some((dr) => dr.system === "dxs")
+                                ? "System, wysokość boku (V-BOX z listy, DXS-3D w mm), wysokość frontu. Puste = auto / podziel pasmo równo."
+                                : "Lewe pole to wysokość boku V-BOX, prawe to wysokość frontu. Puste = podziel pasmo równo."}
+                            </p>
+                          </div>
+  );
+  /* Poziom kolumny jak osobna kolumna (uzytkownik 2026-10-24: „pełna struktura jak
+     dla całej kolumny … kolumna jak odrębna szafka”): półki i drzwi, szuflady albo
+     blenda. Szuflady i blenda nie maja polek w srodku — polki tego poziomu znikaja
+     (granice zostaja), a szuflad dochodzi tyle, ile sie zmiesci (jak „Szuflady” kolumny). */
+  const ustawRodzajPoziomu = (lv, c, nr, v) => {
+    const pk = (c.poziomyKol || []).find((p) => p.nr === nr);
+    const gr = (cab.levels[lv.i].cols[c.j].podzial || []).map(Number).sort((a, b) => a - b);
+    const lo = nr === 0 ? -1 : gr[nr - 1];
+    const hiOp = nr === gr.length ? (cab.levels[lv.i].cols[c.j].shelfTargets || [null]).length - 1 : gr[nr];
+    if (v !== "doors" && pk && hiOp - lo - 1 > 0) ustawPolkiPoziomuKolumny(lv, c, nr, 0);
+    if (v === "doors") ustawOdcinek(lv.i, c.j, nr, { kind: undefined });
+    else setColKind(lv.i, `${c.j}s${nr}`, v);
+  };
+  /* Drzwi bez uchwytu — jak sie otwieraja (uzytkownik 2026-10-25): front dluzszy od dolu,
+     podfrez od gory (oba w mm, domyslnie OTWIERANIE_MM) albo tip-on. `jA` — kolumna albo
+     jej poziom („js<nr>”), `k` — skrzydlo. */
+  const uiOtwierania = (lv, rawCol, jA, k, klapa = null) => {
+    // klapa do gory — dluzsza od dolu albo tip-on; w dol — podfrez od gory albo tip-on
+    const dozwolone = klapa === "gora" ? ["dol", "tipon"] : klapa === "dol" ? ["podfrez", "tipon"] : OTWIERANIA;
+    const otw = dozwolone.includes((rawCol.otwieranie || [])[k]) ? rawCol.otwieranie[k] : "brak";
+    const pole = "rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none";
+    return (
+      <span className="flex items-center gap-1" data-el="drzwi-otwieranie">
+        <select value={otw} title="Jak otwierać drzwi bez uchwytu"
+          onChange={(e) => setDoorFlag(lv.i, jA, k, "otwieranie", e.target.value === "brak" ? null : e.target.value)}
+          className="rounded border border-stone-300 bg-white px-1 py-1 text-[11px] focus:border-teal-600 focus:outline-none">
+          <option value="brak">otwieranie: —</option>
+          {dozwolone.includes("dol") && <option value="dol">front dłuższy od dołu</option>}
+          {dozwolone.includes("podfrez") && <option value="podfrez">podfrez od góry</option>}
+          <option value="tipon">tip-on (GTV SALTO NOVA)</option>
+        </select>
+        {(otw === "dol" || otw === "podfrez") && (
+          <>
+            <input type="number" min={0} step={1} data-el="drzwi-otwieranie-mm"
+              title={otw === "dol" ? "O ile front schodzi poniżej szafki (mm)" : "O ile front kończy się poniżej płyty nad nim (mm)"}
+              value={(rawCol.otwieranieMm || [])[k] ?? ""} placeholder={String(OTWIERANIE_MM)}
+              onChange={(e) => setDoorFlag(lv.i, jA, k, "otwieranieMm", e.target.value === "" ? null : Math.max(0, Math.round(Number(e.target.value))))}
+              className={"w-12 " + pole} />
+            <span className="text-[11px] text-stone-400">mm</span>
+          </>
+        )}
+      </span>
+    );
+  };
+  /* Mocowanie polki granicznej poziomu kolumny (`col.podzialMount[poz]`, kolejnosc jak
+     `col.podzial`; null — domyslne, `mocowanieGranicy`). Uzytkownik 2026-10-25. */
+  const ustawMocowanieGranicy = (i, j, poz, m) => editLevels((L) => {
+    const col = L[i].cols[j];
+    const a = [...(col.podzialMount || [])];
+    while (a.length <= poz) a.push(null);
+    a[poz] = MOCOWANIA_POLEK.includes(m) ? m : null;
+    if (a.some(Boolean)) col.podzialMount = a; else delete col.podzialMount;
+  });
   const odcinkiKolumny = (lv, c, rawCol) => {
-    const odcinki = [...new Set((c.doors || []).filter((d) => d.seg).map((d) => d.seg.nr))].sort((a, b) => b - a);
+    const odcinki = (c.poziomyKol || []).map((p) => p.nr).sort((a, b) => b - a);
     const pole = "rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none";
     return (
       <div className="space-y-2" data-el="odcinki-kolumny">
         {odcinki.map((nr) => {
           const raw = { ...rawCol, ...((rawCol.segmenty || [])[nr] || {}) };
+          const pk = c.poziomyKol.find((p) => p.nr === nr);
+          const rodzaj = pk.kind;
+          const polkaPod = pk.polkaPod != null ? (c.shelves || [])[pk.polkaPod] : null;
+          const mocWpisane = nr > 0 && MOCOWANIA_POLEK.includes((rawCol.podzialMount || [])[nr - 1]);
           const ustaw = (patch) => ustawOdcinek(lv.i, c.j, nr, patch);
           const dd = c.doors.filter((d) => d.seg && d.seg.nr === nr);
           const ile = Math.max(0, Math.round(raw.doors ?? 0));
           const kl = ile === 1 && (raw.klapa === "gora" || raw.klapa === "dol") ? raw.klapa : null;
           const info = kl && (geo.klapy || []).find((k) => k.key === (dd[0] || {}).key);
           const tablica = (pole2, k, v) => { const a = [...(raw[pole2] || [])]; while (a.length <= k) a.push(null); a[k] = v; ustaw({ [pole2]: a }); };
+          const naglowek = (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium text-stone-700">poziom {nr + 1} kolumny {c.j + 1}</span>
+              <span className="text-stone-400">od dołu</span>
+              <span className="font-mono text-stone-400" title="Światło poziomu kolumny — między półkami granicznymi">{fmt(Math.round(pk.y1 - pk.y0))} światła</span>
+              <div className="w-full" data-el="odcinek-rodzaj">
+                <Seg value={rodzaj} onChange={(v) => ustawRodzajPoziomu(lv, c, nr, v)}
+                  options={[{ v: "doors", l: "Półki i drzwi" }, { v: "drawers", l: "Szuflady" }, { v: "blenda", l: "Blenda" }]} />
+              </div>
+              {/* polka graniczna pod tym poziomem: kolki / konfirmaty / trojkaty (uzytkownik 2026-10-25) */}
+              {nr > 0 && polkaPod && (
+                <div className="flex w-full items-center gap-2" data-el="granica-mocowanie">
+                  <span className="shrink-0 text-stone-500" title="Półka graniczna między tym poziomem a poziomem niżej">półka pod nim</span>
+                  <div className="flex-1">
+                    <Seg value={polkaPod.mount} onChange={(v) => ustawMocowanieGranicy(lv.i, c.j, nr - 1, v)}
+                      options={[{ v: "pins", l: "kołki" }, { v: "confirmat", l: "konfirmaty" }, { v: "trojkaty", l: "trójkąty" }]} />
+                  </div>
+                  {mocWpisane && (
+                    <MiniBtn onClick={() => ustawMocowanieGranicy(lv.i, c.j, nr - 1, null)}
+                      title="Wróć do domyślnego mocowania półki granicznej">domyślne</MiniBtn>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+          if (rodzaj !== "doors")
+            return (
+              <div key={nr} className="space-y-1.5 rounded border border-stone-200 bg-white p-2 text-xs" data-el="odcinek-kolumny">
+                {naglowek}
+                {rodzaj === "blenda" && (
+                  <div className="flex items-center gap-2">
+                    <span className="w-16 shrink-0 text-stone-500">montaż</span>
+                    <div className="flex-1">
+                      <Seg value={raw.blendaMode === "inset" ? "inset" : "overlay"}
+                        onChange={(v) => ustaw({ blendaMode: v === "inset" ? "inset" : undefined })}
+                        options={[{ v: "overlay", l: "Na korpusie" }, { v: "inset", l: "W obrysie" }]} />
+                    </div>
+                  </div>
+                )}
+                {rodzaj === "drawers" && uiSzufladGora(lv, raw, `${c.j}s${nr}`, true)}
+                {rodzaj === "drawers" && (c.poziomy || {})[nr] && uiSzuflad(lv, c.poziomy[nr], raw, `${c.j}s${nr}`)}
+              </div>
+            );
           return (
             <div key={nr} className="space-y-1.5 rounded border border-stone-200 bg-white p-2 text-xs" data-el="odcinek-kolumny">
+              {naglowek}
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium text-stone-700">poziom kolumny {nr + 1}</span>
-                <span className="text-stone-400">od dołu</span>
-                {dd[0] && <span className="font-mono text-stone-400">{fmt(Math.round(dd[0].h))} wys.</span>}
-                <span className="ml-2 text-stone-500">fronty</span>
+                <span className="text-stone-500">fronty</span>
                 <input type="number" min={1} step={1} value={ile} data-el="odcinek-fronty"
                   onChange={(e) => ustaw({ doors: Math.max(1, Math.round(Number(e.target.value) || 1)), doorWidths: [] })}
                   className={"w-12 " + pole} />
@@ -18287,6 +18869,7 @@ export default function App() {
                       onChange={(e) => tablica("handles", k, e.target.checked)} className="h-3.5 w-3.5 accent-teal-700" />
                     <span className="text-[11px] text-stone-500">uchwyt</span>
                   </label>
+                  {(raw.handles || [])[k] === false && uiOtwierania(lv, raw, `${c.j}s${nr}`, k, kl)}
                   {kl && (raw.handles || [])[k] !== false && (
                     <Seg value={d.uchwytKrawedz || (kl === "gora" ? "dol" : "gora")}
                       onChange={(v) => ustaw({ klapaUchwyt: v === (kl === "gora" ? "dol" : "gora") ? null : v })}
@@ -18425,19 +19008,20 @@ export default function App() {
     [project, pokoj, zamTylkoPokoj]);
   /* Formatki, rozkroj, produkty i wycena — po jednej karcie z przyciskami
      Szafka / Pomieszczenie / Projekt pod tytulem (uzytkownik 2026-10-24: „żeby
-     zmniejszyć ilość zakładek”). Pomieszczenie / Projekt to wspolny przelacznik
-     zamowienia (`zakresZam`), „Szafka” — osobno w kazdej karcie (pamietane
-     w przegladarce). Testy sprzed zmiany ogladaja dawne osobne karty
+     zmniejszyć ilość zakładek”). Przyciski sa w kazdej karcie, ale dzialaja wspolnie:
+     zmiana w jednej zmienia wszystkie (uzytkownik 2026-10-25); na starcie formatki —
+     szafka, reszta — pomieszczenie (`KARTY_NA_SZAFKE`, `zakresZam`). Wybor pamietany
+     w przegladarce. Testy sprzed zmiany ogladaja dawne osobne karty
      (`window.__mpKartyOsobno` z `testy/pw.mjs`). */
   const kartyOsobno = typeof window !== "undefined" && !!window.__mpKartyOsobno;
   const [kartySzafka, setKartySzafka] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("mp:kartySzafka") || "null") || {}; } catch (e) { return {}; }
+    try { return JSON.parse(localStorage.getItem("mp:kartyZakres") || "null") || {}; } catch (e) { return {}; }
   });
   const naSzafke = (k) => !kartyOsobno && zCaloscia && (kartySzafka[k] ?? KARTY_NA_SZAFKE[k]);
   const ustawZakresKarty = (k, v) => {
-    const nowe = { ...kartySzafka, [k]: v === "szafka" };
+    const nowe = Object.fromEntries(Object.keys(KARTY_NA_SZAFKE).map((x) => [x, v === "szafka"]));
     setKartySzafka(nowe);
-    try { localStorage.setItem("mp:kartySzafka", JSON.stringify(nowe)); } catch (e) { /* bez pamieci w przegladarce */ }
+    try { localStorage.setItem("mp:kartyZakres", JSON.stringify(nowe)); } catch (e) { /* bez pamieci w przegladarce */ }
     if (v !== "szafka") setZakresZam(v === "pokoj" ? "pomieszczenie" : "projekt");
   };
   const zakresKarty = (k) => (kartyOsobno || !zCaloscia ? null : (
@@ -18721,16 +19305,17 @@ export default function App() {
     const byly = new Set();
     const czysto = (li, j, zmien) => {
       const L = JSON.parse(JSON.stringify(cab.levels));
-      zmien(L[li].cols[j]);
-      const pref = `Poziom ${li + 1}, kolumna ${j + 1}`;
+      zmien(kolumnaW(L, li, j));
+      const m = /^(\d+)s(\d+)$/.exec(j);
+      const pref = m ? gdziePoziomKol(li, +m[1], +m[2]) : `Poziom ${li + 1}, kolumna ${+j + 1}`;
       return !computeGeo({ ...cab, levels: L }, mat, ctxG).msgs.some((m) => m.level === "error"
         && (m.text.startsWith(pref + ",") || m.text.startsWith(pref + ":")));
     };
     return msgs.map((m) => {
-      const r = /\|szufbrak:(\d+):(\d+)/.exec(m.text);
+      const r = /\|szufbrak:(\d+):(\d+(?:s\d+)?)/.exec(m.text);
       if (!r) return m;
-      const li = +r[1], j = +r[2];
-      const ds = ((((cab.levels || [])[li] || {}).cols || [])[j] || {}).drawers || [];
+      const li = +r[1], j = r[2];
+      const ds = (kolumnaW(JSON.parse(JSON.stringify(cab.levels || [])), li, j) || {}).drawers || [];
       let akcje = "";
       if (!byly.has(`${li}:${j}`) && ds.length) {
         byly.add(`${li}:${j}`);
@@ -20270,43 +20855,7 @@ export default function App() {
                           </div>
                         )}
 
-                        {c.kind === "drawers" && (
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className="w-16 shrink-0 text-stone-500">fronty</span>
-                            <div className="flex-1">
-                              <Seg
-                                value={
-                                  rawCol.drawerMode === "overlay" || rawCol.drawerMode === "inset"
-                                    ? rawCol.drawerMode
-                                    : "inherit"
-                                }
-                                onChange={(v) => setDrawerMode(lv.i, c.j, v)}
-                                options={[
-                                  { v: "inherit", l: `jak szafka (${cab.frontMode === "overlay" ? "na korpusie" : "wewnątrz"})` },
-                                  { v: "overlay", l: "Na korpusie" },
-                                  { v: "inset", l: "Wewnątrz" },
-                                ]} />
-                            </div>
-                          </div>
-                        )}
-                        {/* tylko kolumna szuflad; przy waskim oknie pole glebokosci schodzi
-                            pod checkbox w calosci, zamiast sciskac sie do zera (uzytkownik 2026-10-24) */}
-                        {c.kind === "drawers" && (
-                          <div className="flex flex-wrap items-center gap-2 text-xs" data-el="podfrez">
-                            <Check checked={!!rawCol.fingerGrip}
-                              onChange={(v) => setFingerGrip(lv.i, c.j, v)}
-                              label="Wcięcie na palce (podfrez) zamiast uchwytu" />
-                            {rawCol.fingerGrip && (
-                              <span className="flex shrink-0 items-center gap-2">
-                                <span className="text-stone-500">front niższy o</span>
-                                <div className="w-24 shrink-0">
-                                  <Num value={rawCol.gripDepth ?? 18}
-                                    onChange={(v) => setCol(lv.i, c.j, { gripDepth: v })} />
-                                </div>
-                              </span>
-                            )}
-                          </div>
-                        )}
+                        {c.kind === "drawers" && uiSzufladGora(lv, rawCol, c.j)}
 
                         <div className="space-y-2 rounded border border-stone-200 bg-white p-2">
                           <div className="flex items-center gap-2 text-xs">
@@ -20397,8 +20946,9 @@ export default function App() {
                               /* kolumna z podzialem: fronty licza sie w odcinkach nizej (uzytkownik
                                  2026-10-24: „mamy 1 fronty, a to nieprawda”) */
                               <span className="text-stone-500" data-el="fronty-kolumny">
-                                fronty <span className="font-mono text-stone-700">{(c.doors || []).filter((d) => d.type === "door" || d.type === "klapa").length}</span>
-                                {" "}w {new Set((c.doors || []).filter((d) => d.seg).map((d) => d.seg.nr)).size} poziomach kolumny
+                                fronty <span className="font-mono text-stone-700">{(c.doors || []).filter((d) => d.type === "door" || d.type === "klapa").length
+                                  + (c.drawers || []).length + (c.poziomyKol || []).filter((p) => p.kind === "blenda").length}</span>
+                                {" "}w {(c.poziomyKol || []).length} poziomach kolumny
                               </span>
                             ) : (<>
                             {/* przy klapie to nie „drzwi” — liczba frontow; klapa jest tylko przy jednym */}
@@ -20720,6 +21270,7 @@ export default function App() {
                                           )}
                                         </>
                                       )}
+                                      {!uchw && uiOtwierania(lv, rawCol, c.j, k, jestKlapa ? rawCol.klapa : null)}
                                     </span>
                                     <label className="flex items-center gap-1 cursor-pointer" title="Lustro na tych drzwiach">
                                       <input type="checkbox"
@@ -20779,145 +21330,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        {c.kind === "drawers" && (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-stone-500">głębokość NL</span>
-                              <select value={rawCol.nl ?? ""}
-                                onChange={(e) => setColNL(lv.i, c.j, e.target.value)}
-                                className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none">
-                                <option value="">auto {geo.maxNL ? `(${geo.maxNL})` : ""}</option>
-                                {/* dlugosci systemow szuflad tej kolumny (V-BOX ma tez 270, DXS-3D nie) */}
-                                {[...new Set((c.drawers || []).flatMap((dr) => nlSystemu(dr.system)))].sort((a, b) => a - b).map((v) => (
-                                  <option key={v} value={v}>{v}</option>
-                                ))}
-                              </select>
-                              <MiniBtn onClick={() => addDrawer(lv.i, c.j)}>+ szuflada</MiniBtn>
-                              <MiniBtn onClick={() => fitFronts(lv.i, c.j)}
-                                title="Rozdziel pasmo proporcjonalnie do wysokości boków">
-                                dopasuj fronty
-                              </MiniBtn>
-                            </div>
-                            {[...(c.drawers || [])].reverse().map((dr) => (
-                              // wiersz szuflady ma sporo pol — przy waskim panelu
-                              // zawija sie na dwie linie zamiast wystawac poza karte
-                              <div key={dr.i} className="flex flex-wrap items-center gap-2" data-el="szuflada-wiersz">
-                                {/* system szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty
-                                    na prowadnicach dolnego montazu) — uzytkownik 2026-10-21 */}
-                                <select value={dr.system || "vbox"} data-el="szuflada-system"
-                                  title="System szuflady: V-BOX — boki metalowe, DXS-3D — skrzynka z płyty na prowadnicach pod dnem"
-                                  onChange={(e) => setDrawerSystem(lv.i, c.j, dr.i, e.target.value)}
-                                  className="rounded border border-stone-300 bg-white px-1 py-1 text-[11px] focus:border-teal-600 focus:outline-none">
-                                  <option value="vbox">V-BOX</option>
-                                  <option value="dxs">DXS-3D</option>
-                                </select>
-                                {dr.system === "dxs" ? (
-                                  <label className="flex shrink-0 items-center gap-1" data-el="dxs-bok"
-                                    title="Wysokość boku skrzynki z płyty (mm) — puste: najwyższy z luzem 5 mm pod tym, co wyżej">
-                                    <span className="text-[11px] text-stone-500">bok</span>
-                                    <div className="w-28">
-                                      <AutoNum value={num(rawCol.drawers[dr.i]?.h)} placeholder={`auto ${fmt(dr.hClass)}`}
-                                        fixed={num(rawCol.drawers[dr.i]?.h) !== null}
-                                        onChange={(v) => setDrawer(lv.i, c.j, dr.i, { h: v === "" ? "auto" : Math.round(Number(v)) })} />
-                                    </div>
-                                  </label>
-                                ) : (
-                                  <select value={rawCol.drawers[dr.i]?.h ?? "auto"}
-                                    title="Wysokość boku V-BOX — auto dobiera najwyższy mieszczący się w froncie"
-                                    onChange={(e) => setDrawerH(lv.i, c.j, dr.i, e.target.value)}
-                                    className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none">
-                                    <option value="auto">auto {dr.hClass}</option>
-                                    {VBOX.heights.map((v) => (
-                                      <option key={v} value={v}>{v} mm</option>
-                                    ))}
-                                  </select>
-                                )}
-                                {(() => {
-                                  // V-BOX ma minimalny front dla boku; DXS-3D — front zawsze siega do spodu prowadnicy
-                                  const zaNiski = dr.system !== "dxs" && dr.h < VBOX.minFront[c.drawerMode || cab.frontMode][dr.hClass];
-                                  return (
-                                    <>
-                                      <div className="w-20 shrink-0">
-                                        <AutoNum value={rawCol.drawers[dr.i]?.front} placeholder={fmt(dr.h)}
-                                          fixed={dr.fixed} warn={zaNiski}
-                                          onChange={(v) => setDrawerFront(lv.i, c.j, dr.i, v)} />
-                                      </div>
-                                      <span className="w-12 shrink-0 text-right font-mono text-[11px]"
-                                        style={{ color: zaNiski ? ERRC : "#a8a29e" }}>
-                                        {fmt(dr.h)}
-                                      </span>
-                                    </>
-                                  );
-                                })()}
-                                {/* uchwyt, tyl i reling zawijaja sie razem — przy waskim oknie
-                                    „uchwyt” schodzi do drugiej linii z „tył” i „reling” (uzytkownik 2026-10-24) */}
-                                <div className="flex shrink-0 items-center gap-2" data-el="szuflada-opcje">
-                                <label className="flex shrink-0 items-center gap-1 cursor-pointer"
-                                  title="Uchwyt na tym froncie">
-                                  <input type="checkbox"
-                                    checked={rawCol.drawers[dr.i]?.handle !== false}
-                                    onChange={(e) => setDrawerHandle(lv.i, c.j, dr.i, e.target.checked)}
-                                    className="h-3.5 w-3.5 accent-teal-700" />
-                                  <span className="text-[11px] text-stone-500">uchwyt</span>
-                                </label>
-                                {dr.system === "dxs" ? (
-                                  <label className="flex shrink-0 items-center gap-1" data-el="dxs-tyl"
-                                    title="Wysokość tyłu skrzynki (mm) — puste: bok − 10, góra równo z bokami">
-                                    <span className="text-[11px] text-stone-500">tył</span>
-                                    <div className="w-28">
-                                      <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={`auto ${fmt(dr.skrzynka ? dr.skrzynka.tyl[1] : Math.max(0, dr.hClass - DXS.bokPodDnem))}`}
-                                        fixed={num(rawCol.drawers[dr.i]?.backHeight) !== null}
-                                        onChange={(v) => setDrawer(lv.i, c.j, dr.i, { backHeight: v === "" ? null : Math.round(Number(v)) })} />
-                                    </div>
-                                  </label>
-                                ) : (
-                                  <>
-                                    <label className="flex shrink-0 items-center gap-1 cursor-pointer"
-                                      title="Tył podniesiony do wysokości frontu, żeby rzeczy nie wypadały">
-                                      <input type="checkbox"
-                                        checked={!!rawCol.drawers[dr.i]?.tallBack}
-                                        onChange={(e) => setDrawer(lv.i, c.j, dr.i, { tallBack: e.target.checked })}
-                                        className="h-3.5 w-3.5 accent-teal-700" />
-                                      <span className="text-[11px] text-stone-500">tył</span>
-                                    </label>
-                                    <label className="flex shrink-0 items-center gap-1 cursor-pointer"
-                                      title="Reling boczny — do zamówienia, komplet na szufladę (domyślnie 30 zł bez względu na długość)">
-                                      <input type="checkbox"
-                                        checked={!!rawCol.drawers[dr.i]?.reling}
-                                        onChange={(e) => setDrawer(lv.i, c.j, dr.i, e.target.checked ? { reling: true, bezRelingu: false } : { reling: false })}
-                                        className="h-3.5 w-3.5 accent-teal-700" />
-                                      <span className="text-[11px] text-stone-500">reling</span>
-                                    </label>
-                                    {rawCol.drawers[dr.i]?.tallBack && (
-                                      <div className="w-20 shrink-0">
-                                        <AutoNum value={rawCol.drawers[dr.i]?.backHeight} placeholder={fmt(dr.h)}
-                                          onChange={(v) => setDrawer(lv.i, c.j, dr.i, { backHeight: v === "" ? null : Math.round(Number(v)) })} />
-                                      </div>
-                                    )}
-                                  </>
-                                )}
-                                </div>
-                                <select value={rawCol.drawers[dr.i]?.nl ?? ""}
-                                  title="Głębokość NL tej szuflady — puste bierze głębokość kolumny"
-                                  onChange={(e) => setDrawerNL(lv.i, c.j, dr.i, e.target.value)}
-                                  className="shrink-0 rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none">
-                                  <option value="">NL {dr.nl ?? c.nl ?? "auto"}</option>
-                                  {nlSystemu(dr.system).map((v) => (
-                                    <option key={v} value={v}>{v}</option>
-                                  ))}
-                                </select>
-                                {(c.drawers || []).length > 1 && (
-                                  <MiniBtn onClick={() => removeDrawer(lv.i, c.j, dr.i)} title="Usuń szufladę">×</MiniBtn>
-                                )}
-                              </div>
-                            ))}
-                            <p className="text-[11px] text-stone-400">
-                              {(c.drawers || []).some((dr) => dr.system === "dxs")
-                                ? "System, wysokość boku (V-BOX z listy, DXS-3D w mm), wysokość frontu. Puste = auto / podziel pasmo równo."
-                                : "Lewe pole to wysokość boku V-BOX, prawe to wysokość frontu. Puste = podziel pasmo równo."}
-                            </p>
-                          </div>
-                        )}
+                        {c.kind === "drawers" && uiSzuflad(lv, c, rawCol, c.j)}
 
                         {c.kind !== "drawers" && nS > 0 && (
                           <div className="space-y-1">

@@ -17,6 +17,9 @@ const errors = []; page.on('pageerror', (e) => errors.push(e.message));
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 const MIN_MM = 2.3;
+/* Szeroka szafka w siatce 2 × 2 nie dojdzie do 2,3 mm (1600 mm: wymiary ok. 2,0, „nóżki” 1,74) —
+   decyzja użytkownika 2026-10-25 po zobaczeniu wydruku: „może zostać”. Próg niżej, ale pilnowany. */
+const PROGI = { 'Szeroka 1600 na nóżkach': { wym: 1.9, txt: 1.7 } };
 const PL = { on: true, height: 100, mode: 'under', setback: 0 };
 const kol = (o = {}) => ({ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null], ...o });
 const szafka = (name, o = {}) => ({ name, W: 600, H: 720, D: 560, plinth: PL, legs: { on: true, height: 100 },
@@ -36,6 +39,15 @@ const SZAFKI = [
   szafka('Blenda nad szafką', { plinth: { ...PL, on: false }, legs: { on: false }, topFiller: { on: true, height: 80 } }),
   szafka('Narożna L w lewo', { W: 1000, corner: { on: true, arm: 1200, doors: 'wsporniki', side: 'left' }, levels: [{ h: null, cols: [kol({ doors: 1 })] }] }),
   szafka('Trzy kolumny', { W: 1200, levels: [{ h: null, cols: [kol({ doors: 1, w: 300 }), SZUF, kol({ doors: 2 })] }] }),
+  // zgloszenie uzytkownika 2026-10-25: drzwi 894 obok 874 (podfrez) — wymiary na sobie; szafka na samych
+  // nozkach — wiersz szerokosci frontow na nozkach
+  szafka('Na nóżkach, drzwi z podfrezem', { W: 1200, H: 900, plinth: { ...PL, on: false }, levels: [{ h: null, cols: [kol({ doors: 1 }),
+    kol({ doors: 1, handles: [false], otwieranie: ['podfrez'] }), kol({ kind: 'drawers', drawers: [0, 1, 2, 3].map(() => ({ h: 'auto' })) })] }] }),
+  // szeroka jak u użytkownika — niższy próg (PROGI), decyzja 2026-10-25
+  szafka('Szeroka 1600 na nóżkach', { W: 1600, H: 900, plinth: { ...PL, on: false }, levels: [{ h: null, cols: [kol({ doors: 1 }),
+    kol({ doors: 1, handles: [false], otwieranie: ['podfrez'] }), kol({ kind: 'drawers', drawers: [0, 1, 2, 3].map(() => ({ h: 'auto' })) })] }] }),
+  szafka('Drzwi dłuższe od dołu obok zwykłych', { W: 900, plinth: { ...PL, on: false }, levels: [{ h: null, cols: [kol({ doors: 1 }),
+    kol({ doors: 1, handles: [false], otwieranie: ['dol'] })] }] }),
 ];
 // ciag z blatem: wymiar „z blatem”, dwie szafki w jednym projekcie
 const RUN = { id: 'c1', name: 'A', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null };
@@ -68,6 +80,10 @@ const pomiar = async (proj) => {
         const w = Math.min(a.x1, c.x1) - Math.max(a.x0, c.x0), h = Math.min(a.y1, c.y1) - Math.max(a.y0, c.y0);
         if (w > 1 && h > 1) naklady.push(`„${a.t}” × „${c.t}”`);
       }
+      // napis na nozce (wiersz szerokosci frontow lezal na nozkach — zgloszenie 2026-10-25)
+      [...svg.querySelectorAll('[data-el="noga"]')].map((n) => n.getBoundingClientRect()).forEach((r) => tx.forEach((a) => {
+        if (Math.min(a.x1, r.right) - Math.max(a.x0, r.left) > 1 && Math.min(a.y1, r.bottom) - Math.max(a.y0, r.top) > 1) naklady.push(`„${a.t}” × nóżka`);
+      }));
       const poza = tx.filter((q) => q.x0 < pole.left - 0.5 || q.x1 > pole.right + 0.5 || q.y0 < pole.top - 0.5 || q.y1 > pole.bottom + 0.5).map((q) => q.t);
       const wymiary = tx.filter((q) => q.wym).map((q) => q.h).sort((a, c) => a - c);
       const wszystkie = tx.map((q) => q.h).sort((a, c) => a - c);
@@ -90,11 +106,12 @@ const sprawdz = (wyn, opis) => {
   const poSzafce = {};
   wyn.forEach((x, i) => { const sz = wyn.length === 4 ? opis : `${opis} ${Math.floor(i / 4) + 1}`; (poSzafce[sz] = poSzafce[sz] || []).push(x); });
   for (const [sz, widoki] of Object.entries(poSzafce)) {
-    const male = widoki.filter((x) => x.minWym && x.minWym < MIN_MM);
-    ok(`${sz}: wymiary co najmniej ${MIN_MM} mm`, !male.length,
+    const pr = PROGI[sz] || { wym: MIN_MM, txt: 1.8 };
+    const male = widoki.filter((x) => x.minWym && x.minWym < pr.wym);
+    ok(`${sz}: wymiary co najmniej ${pr.wym} mm`, !male.length,
       widoki.map((x) => `${x.widok} ${x.minWym.toFixed(2)}`).join(', '));
-    const drob = widoki.filter((x) => x.drobne.length);
-    ok(`${sz}: żaden napis poniżej 1,8 mm`, !drob.length, drob.map((x) => `${x.widok}: ${x.drobne.slice(0, 4).join(', ')}`).join(' // '));
+    const drob = widoki.filter((x) => x.min < pr.txt);
+    ok(`${sz}: żaden napis poniżej ${String(pr.txt).replace('.', ',')} mm`, !drob.length, drob.map((x) => `${x.widok}: ${x.drobne.slice(0, 4).join(', ')} (min ${x.min.toFixed(2)})`).join(' // '));
     const nach = widoki.filter((x) => x.naklady.length);
     ok(`${sz}: napisy nie nachodzą na siebie`, !nach.length, nach.map((x) => `${x.widok}: ${x.naklady.slice(0, 4).join('; ')}`).join(' // '));
     const poza = widoki.filter((x) => x.poza.length);
