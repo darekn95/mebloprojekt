@@ -31,7 +31,8 @@ const stan = () => page.evaluate(() => ({
   pokoje: !!document.querySelector('header button[title^="Nowe pomieszczenie"]'),
   ciagi: !!document.querySelector('[data-el="pasek-ciagow-lista"]'),
   wys: Math.round(document.querySelector('header[data-el="naglowek"]').getBoundingClientRect().height) }));
-const kolko = async (dy, n = 3) => { for (let i = 0; i < n; i++) { await page.mouse.move(700, 600); await page.mouse.wheel(0, dy); await page.waitForTimeout(250); } await page.waitForTimeout(400); };
+// kolko nad lewa kolumna — prawa jest od 2026-10-25 przypieta z wlasnym przewijaniem (suita `przypiety`)
+const kolko = async (dy, n = 3) => { for (let i = 0; i < n; i++) { await page.mouse.move(250, 600); await page.mouse.wheel(0, dy); await page.waitForTimeout(250); } await page.waitForTimeout(400); };
 
 console.log('== przewijanie w dół zwija paski ==');
 let s = await stan();
@@ -62,12 +63,22 @@ s = await stan();
 ok('przewinięte do góry: oba rozwinięte', s.y === 0 && s.pokoje && s.ciagi, JSON.stringify(s));
 
 console.log('\n== „Pokaż rysunek” ==');
-await page.getByRole('button', { name: 'Pokaż rysunek' }).click(); await page.waitForTimeout(1500);
-const r = await page.evaluate(() => ({ top: Math.round(document.getElementById('rysunek').getBoundingClientRect().top),
+const rys = () => page.evaluate(() => ({ top: Math.round(document.getElementById('rysunek').getBoundingClientRect().top),
   pasek: Math.round(document.querySelector('header[data-el="naglowek"]').getBoundingClientRect().bottom),
-  ciagi: !!document.querySelector('[data-el="pasek-ciagow-lista"]') }));
-ok('paski zwinięte, karta „Rysunek” tuż pod paskiem', !r.ciagi && r.top >= r.pasek && r.top - r.pasek < 20, JSON.stringify(r));
+  ciagi: !!document.querySelector('[data-el="pasek-ciagow-lista"]'), y: Math.round(scrollY) }));
+// szeroko: przypieta kolumna przewija sie sama, strona i paski stoja
+await page.getByRole('button', { name: 'Pokaż rysunek' }).click(); await page.waitForTimeout(1500);
+let r = await rys();
+ok('szeroko: paski zostają, strona stoi, karta „Rysunek” tuż pod paskiem', r.ciagi && r.y === 0 && r.top >= r.pasek && r.top - r.pasek < 20, JSON.stringify(r));
+// waska (jedna kolumna): przewija strone i zwija paski
+await page.setViewportSize({ width: 1000, height: 900 }); await page.waitForTimeout(500);
+await page.getByRole('button', { name: 'Pokaż rysunek' }).click();
+/* przy zegarze Playwrighta czekanie z pw.mjs nie widzi setTimeout przycisku —
+   czekamy, az strona ruszy i stanie */
+for (let i = 0, pop = -1; i < 40; i++) { await page.waitForTimeout(100); r = await rys(); if (r.y > 0 && r.y === pop) break; pop = r.y; }
+ok('wąsko: paski zwinięte, karta „Rysunek” tuż pod paskiem', !r.ciagi && r.y > 0 && r.top >= r.pasek && r.top - r.pasek < 20, JSON.stringify(r));
 await kolko(-3000, 4);
+await page.setViewportSize({ width: 1500, height: 900 }); await page.waitForTimeout(500);
 
 console.log('\n== nazwa ściany ==');
 ok('napis „+ nowy ciąg”', await page.getByRole('button', { name: '+ nowy ciąg', exact: true }).count() === 1);

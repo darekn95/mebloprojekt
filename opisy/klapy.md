@@ -55,6 +55,7 @@ wybranych drzwiach.
   - 3 lub 4 przy odstępie poniżej 600 mm — ostrzeżenie „za dużo zawiasów” z przyciskiem;
   - nie ma w czym zawiesić zawiasów (do góry: brak wieńca / płaskiego wzmocnienia nad klapą; w dół: brak dna) — błąd; przy klapie do góry z przyciskiem „Dodaj parę wzmocnień pod blat”.
 - **Siła**:
+  - dobrana z tabeli albo wybrana z listy (nie słabsza) — bez uwagi; siła, wymiar i waga klapy są w Produktach (podpowiedź „klapa … — 1 × podnośnik 150 N (tabela …)” usunięta, użytkownik 2026-10-26: zbędna);
   - wybrana słabsza niż z tabeli — ostrzeżenie z „Zwiększ siłę do N N” i (przy jednym) „Dołóż drugi — 2 × N N”;
   - klapa za ciężka nawet na najmocniejszy — ostrzeżenie (przy jednym podnośniku też z „Dołóż drugi”).
 - **Wymiary klapy**:

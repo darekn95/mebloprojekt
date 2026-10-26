@@ -254,7 +254,49 @@ console.log('\n== drzwi bez uchwytu: dłuższy od dołu / podfrez / tip-on (uży
   });
   if ((await cenaTip()) === null) { await card(/^Wycena$/).locator('h2').click(); await page.waitForTimeout(700); }
   ok('tip-on: cena 7 zł w Wycenie', (await cenaTip()) === '7', String(await cenaTip()));
-  ok('tip-on na rysunku (przerywany obrys przy wolnej krawędzi)', (await page.locator('#rysunek [data-el="tipon"]').count()) === 1);
+  // zgloszenie uzytkownika 2026-10-25 „tip-on nam się nie rysuje”; 2026-10-26 — „na zamkniętym nie musi się rysować”
+  const tip = page.locator('#rysunek [data-el="tipon"]');
+  ok('tip-on na zamkniętym się nie rysuje', (await tip.count()) === 0, String(await tip.count()));
+  await view('Otw.');
+  ok('tip-on otwarte: okucie na korpusie 15 × 16 (karta SALTO długi z adapterem) z podpisem „tip-on”',
+    (await tip.count()) === 1 && (await tip.locator('text').textContent()) === 'tip-on'
+    && (await tip.locator('rect').evaluate((r) => [r.getAttribute('width'), r.getAttribute('height')].join('×'))) === '15×16');
+  await view('Z boku');
+  if (!(await page.locator('#rysunek [data-el="tipon-bok"]').count())) { await page.getByRole('button', { name: 'Pokaż prawy bok' }).click(); await page.waitForTimeout(500); }
+  ok('tip-on z boku: na boku przy wolnej krawędzi, 89 mm w głąb', (await page.locator('#rysunek [data-el="tipon-bok"]').evaluate((r) => r.getAttribute('width')).catch(() => null)) === '89');
+  await view('Zamk.');
+  await page.evaluate(() => { window.__audytBryl = []; });
+  await view('3D');
+  const tb = await page.evaluate(() => { const a = window.__audytBryl || []; window.__audytBryl = null; return a.filter((x) => x.tag === 'tipon').map((x) => x.d.map(Math.round).sort((p, q) => p - q).join('×') + ' ' + x.color); });
+  ok('tip-on w 3D: odbojnik 15 × 16 × 89 za frontem (okucie, nie formatka)', tb.length === 1 && tb[0] === '15×16×89 #8b8b93', tb.join(', '));
+  await view('Zamk.');
+  /* Polozenie (uzytkownik 2026-10-26): na plycie za frontem, gdzie sie naciska — wiszaca na dnie,
+     stojaca na plycie najblizej 1 m od podlogi (dolna pod wiencem, wysoka na polce ok. 1 m);
+     drzwi pojedyncze przy samym boku, para ok. 20 mm od styku. Obrys z 3D: [x0, y0, z0, x1, y1, z1]. */
+  const tipony = async () => {
+    await page.evaluate(() => { window.__audytBryl = []; });
+    await view('3D');
+    const a = await page.evaluate(() => { const x = window.__audytBryl || []; window.__audytBryl = null; return x.filter((q) => q.tag === 'tipon').map((q) => q.p.map(Math.round)); });
+    await view('Zamk.');
+    // 3D potrafi narysowac sie dwa razy (standalone) — kazdy obrys raz
+    return [...new Set(a.map((q) => JSON.stringify(q)))].map((q) => JSON.parse(q)).sort((p, q) => p[0] - q[0]);
+  };
+  let tp = await tipony();
+  ok('wisząca, drzwi pojedyncze (zawias z lewej): na dnie (wierzch 18) przy samym prawym boku (582)', tp.length === 1 && tp[0][1] === 18 && tp[0][3] === 582, JSON.stringify(tp));
+  await drzwi({ doors: 2, handles: [false, false], otwieranie: ['tipon', 'tipon'] });
+  tp = await tipony();
+  ok('wisząca, para drzwi: oba na dnie, 20 mm od styku (279 | 321)', tp.length === 2 && tp.every((q) => q[1] === 18) && tp[0][3] === 279 && tp[1][0] === 321, JSON.stringify(tp));
+  await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.items[0].cab.legs = { on: true, height: 100 }; localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2000);
+  tp = await tipony();
+  ok('dolna na nóżkach, para: pod wieńcem (spód wieńca 702)', tp.length === 2 && tp.every((q) => q[4] === 702), JSON.stringify(tp));
+  await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); const c = p.items[0].cab;
+    c.H = 2000; c.legs = { on: false }; c.plinth = { on: true, height: 100, mode: 'under', setback: 0 };
+    c.levels[0].cols[0] = { ...c.levels[0].cols[0], doors: 1, handles: [false], otwieranie: ['tipon'], shelfTargets: [null, null, null, null, null] };
+    localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2000);
+  tp = await tipony();
+  ok('wysoka 2000 na cokole 100: na półce najbliżej 1 m od podłogi (wierzch 812 = 912 od podłogi)', tp.length === 1 && tp[0][1] === 812, JSON.stringify(tp));
   // szafka na nozkach: drzwi dluzsze o 95 mm siegaja podlogi — blad z przyciskami
   await drzwi({ handles: [false], otwieranie: ['dol'], otwieranieMm: [95] });
   await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.items[0].cab.legs = { on: true, height: 100 }; localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
@@ -278,7 +320,15 @@ console.log('\n== drzwi bez uchwytu: dłuższy od dołu / podfrez / tip-on (uży
   ok('klapa w dół: „podfrez od góry” i tip-on, bez wydłużenia', (await sel.locator('option').allInnerTexts()).join('|') === 'otwieranie: —|podfrez od góry|tip-on (GTV SALTO NOVA)',
     (await sel.locator('option').allInnerTexts()).join('|'));
   await sel.selectOption('tipon'); await page.waitForTimeout(700);
-  ok('klapa w dół z tip-on: odbojnik w zamówieniu i na rysunku', (await hwRows()).some((r) => /^Odbojnik tip-on/.test(r)) && (await page.locator('#rysunek [data-el="tipon"]').count()) === 1);
+  await view('Otw.');
+  ok('klapa w dół z tip-on: odbojnik w zamówieniu i na otwartym rysunku', (await hwRows()).some((r) => /^Odbojnik tip-on/.test(r)) && (await page.locator('#rysunek [data-el="tipon"]').count()) === 1);
+  await view('Zamk.');
+  // tip-on klapy przy boku od drugiej strony niz silownik (uzytkownik 2026-10-26)
+  tp = await tipony();
+  ok('klapa: tip-on od drugiej strony niż siłownik (siłownik lewy → przy prawym boku, 582)', tp.length === 1 && tp[0][3] === 582, JSON.stringify(tp));
+  await drzwi({ klapa: 'dol', handles: [false], otwieranie: ['tipon'], podnosnikStrona: 'right' });
+  tp = await tipony();
+  ok('klapa: siłownik prawy → tip-on przy lewym boku (18)', tp.length === 1 && tp[0][0] === 18, JSON.stringify(tp));
 }
 
 console.log('\n== widoki bez błędów ==');

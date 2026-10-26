@@ -236,6 +236,21 @@ const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀2
 const OTWIERANIA = ["dol", "podfrez", "tipon"];
 const OTWIERANIE_MM = 20;
 const TIPON_NAME = "Odbojnik tip-on GTV SALTO NOVA";
+/* Obrys odbojnika na rysunkach (orientacyjnie — SALTO NOVA nie ma w katalogach
+   w `instrukcje/`): z karty „Odbojnik SALTO długi z adapterem” (AM-OAM-DL-MG-30,
+   katalog GTV 2023, s. 112) — od czola 15 × 16 mm, dlugosc 89 mm. */
+const TIPON_W = 15;
+const TIPON_H = 16;
+const TIPON_L = 89;
+/* Gdzie tip-on (uzytkownik 2026-10-26): na poziomej plycie za frontem, tam, gdzie sie
+   naciska — szafka wiszaca na dnie, stojaca na plycie najblizej `TIPON_NA_WYSOKOSCI`
+   od podlogi (dolna wychodzi pod wiencem, wysoka na polce ok. 1 m); drzwi pojedyncze
+   przy samym boku, para ok. `TIPON_OD_STYKU` od styku drzwi. */
+const TIPON_NA_WYSOKOSCI = 1000;
+const TIPON_OD_STYKU = 20;
+// szafka na zawieszkach: wymuszone albo bez nozek, cokolu i podlogi pod soba (stojacy ciag)
+const szafkaWisi = (cab) => cab.hangers === "always"
+  || (cab.hangers !== "never" && !((cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on) || cab.naPodlodze));
 const DEFAULT_HW_PRICES = {
   Zawias: 3,
   "Nóżka regulowana": 2.3,
@@ -646,7 +661,9 @@ const vboxDno = (hc) => vboxGora(hc) - (VBOX.backH[hc] ?? hc - 9); // dol prowad
 /* Sevroll DXS-3D Synchro — prowadnice dolnego montazu z miekkim domykiem
    (instrukcja: katalog Sevroll 2026 s. 110–113, wyciag w `instrukcje/SPIS.md`;
    ustalenia z uzytkownikiem 2026-10-21 w BLEDY.md „Ustalone”). Skrzynka z plyty
-   polek: boki na zewnatrz, dno i tyl miedzy nimi, na konfirmaty przez boki.
+   polek: boki na zewnatrz, dno, tyl i przod miedzy nimi, na konfirmaty przez boki;
+   pelna skrzynka z przodem, front przykrecany do niego od srodka (zdjecia
+   uzytkownika 2026-10-26).
    Prowadnice przyklada sie do kreski (spod prowadnicy) i przykreca bez
    nawiercania — w planie wiercen wysokosc kreski i odsuniecie od czola. Pion
    liczony od spodu prowadnicy. */
@@ -668,7 +685,12 @@ const DXS = {
   wolneOdBoku: 75, // pod dnem przy przodzie: miejsce na zaczep frontu
   szerProw: 33,    // prowadnica pod dnem, przy boku
   minTyl: MIN_DOCIECIE, // nizszy tyl: ani otworu zaczepu (11 + ⌀6), ani recznego dociecia
+  // przod skrzynki → czolo dna: 2 konfirmaty (zdjecie uzytkownika 2026-10-26), KONF_OD_KRAWEDZI od koncow
+  konfPrzodDno: 2,
+  // front przykrecany od srodka przez przod skrzynki (uzytkownik 2026-10-26)
+  wkretyFrontu: 4,
 };
+const WKRET_FRONTU_NAME = "Wkręt 4 × 30 do frontu szuflady";
 const dxsBokOd = DXS.dnoOd - DXS.bokPodDnem; // spod prowadnicy → dol boku (17)
 /* System szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty na
    prowadnicach dolnego montazu) — `drawer.system`, bez niego V-BOX
@@ -942,6 +964,8 @@ const szufladaOdCzola = (c, dr) => {
   return [
     // tyl skrzynki miedzy bokami (od spodu dna) — rysowany pierwszy, boki i prowadnice na nim
     ...(sk ? [{ x: x0 + ob + tb, y: dr.rail.y0 + sk.tylOd, w: sk.szer, h: sk.tyl[1], rodzaj: "tyl" }] : []),
+    // przod pelnej skrzynki — od czola zaslania tyl (z tylu widac go nad nizszym tylem)
+    ...(sk && sk.przod ? [{ x: x0 + ob + tb, y: dr.rail.y0 + sk.tylOd, w: sk.szer, h: sk.przod[1], rodzaj: "przod" }] : []),
     ...(sk ? [{ x: x0 + ob, y: dr.rail.y0 + sk.bokOd, w: tb, h: sk.bok, rodzaj: "bok" },
       { x: x1 - ob - tb, y: dr.rail.y0 + sk.bokOd, w: tb, h: sk.bok, rodzaj: "bok" }] : []),
     { x: x0 + ob + tb, y: dr.rail.y0, w: DXS.szerProw, h: DXS.dnoOd, rodzaj: "prowadnica" },
@@ -967,6 +991,7 @@ const szufladaZGory = (c, dr) => {
     { x: x0 + ob, z: sb, w: tb, d: sk.bokDl, rodzaj: "bok" },
     { x: x1 - ob - tb, z: sb, w: tb, d: sk.bokDl, rodzaj: "bok" },
     { x: x0 + ob + tb, z: sb + sk.bokDl - tb, w: sk.szer, d: tb, rodzaj: "tyl" },
+    ...(sk.przod ? [{ x: x0 + ob + tb, z: sb, w: sk.szer, d: tb, rodzaj: "przod" }] : []),
   ];
 };
 /* Luz nad podniesionym tylem szuflady — tyl nie moze siegac dokladnie do frontu
@@ -1513,6 +1538,19 @@ const NAGLOWEK_MAX = 0.4;
    strony (do `PRZEWIN_GORA` px) paski wracaja do zwyklego stanu. */
 const RECZNIE_ROZWINIETY_MS = 60000;
 const PRZEWIN_GORA = 8;
+/* Rysunek „przypiety” (uzytkownik 2026-10-25): od tej szerokosci okna strona ma
+   dwie kolumny (Tailwind `lg`), a prawa stoi pod gornym paskiem z wlasnym
+   przewijaniem; odstep od paska i od dolu okna. */
+const SZEROKI_EKRAN = 1024;
+const PRZYPIETY_ODSTEP = 8;
+// element w przypietej kolumnie: przewija sie tylko ona, strona stoi; false — nie w niej
+const przewinWKolumnie = (el, odstep = 0) => {
+  const kol = el && el.closest('[data-el="prawa-kolumna"]');
+  if (!kol || getComputedStyle(kol).position !== "sticky") return false;
+  kol.scrollTo({ behavior: "smooth",
+    top: el.getBoundingClientRect().top - kol.getBoundingClientRect().top + kol.scrollTop - odstep });
+  return true;
+};
 /* Dokument we wspolnym magazynie artefaktu na claude.ai, do ktorego przycisk
    „Wyslij do Claude" zapisuje biezacy projekt (pole `json`) — Claude czyta go
    stamtad. Poza artefaktem na claude.ai nieuzywany. */
@@ -3262,14 +3300,8 @@ function computeGeoLiczy(cab, mat, ctx) {
           const otw = !d.handle && dozwolone.includes((rawCol.otwieranie || [])[i]) ? rawCol.otwieranie[i] : null;
           if (!otw) return;
           d.otwieranie = otw;
-          if (otw === "tipon") {
-            tiponCount += 1;
-            // odbojnik przy wolnej krawedzi: drzwi — u gory szafki stojacej, u dolu wiszacej; klapa — przy wolnej krawedzi
-            const wisi = !(cab.plinth.on || (cab.legs && cab.legs.on));
-            const uDolu = d.type === "klapa" ? d.klapa === "gora" : wisi;
-            d.tiponY = uDolu ? d.y + 80 : d.y + d.h - 80;
-            return;
-          }
+          // polozenie odbojnika (`d.tipon`) liczy sie po wszystkich plytach — nizej, przy `podloga`
+          if (otw === "tipon") { tiponCount += 1; return; }
           d.otwMm = Math.max(0, Math.round(num((rawCol.otwieranieMm || [])[i]) ?? OTWIERANIE_MM));
           if (otw === "dol") { d.y -= d.otwMm; d.h += d.otwMm; return; }
           const plyta = Math.min(ps.y1, ...(c.rails || []).filter((r) => r.y0 >= d.y && r.z0 < 100 && r.x1 > d.x && r.x0 < d.x + d.w).map((r) => r.y0));
@@ -3400,6 +3432,7 @@ function computeGeoLiczy(cab, mat, ctx) {
               // jeden podnosnik: strona do wyboru przy klapie, domyslnie lewa (uzytkownik 2026-10-17)
               const strona = rawCol.podnosnikStrona === "right" ? "right" : "left";
               klapy.push({ klapa, colKey: `${lv.i}-${j}`, adres: `${lv.i}:${jKey}`, key: d.key, w: dw, h: d.h, kg, ile, kat, sila, recznie: recznie != null, dobor, dobor2, where, strona });
+              d.silowniki = ile; d.silownikStrona = strona;   // tip-on klapy idzie na drugi bok
               dx += dw + colGap;
               continue;
             }
@@ -3501,6 +3534,7 @@ function computeGeoLiczy(cab, mat, ctx) {
                ponad tabele (wysokosc / waga) — ostrzezenie, ze liczba orientacyjna. */
             {
               const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
+              d.zawiasyTabela = gtv.n;   // ile wg wagi — do porownania drzwi tej samej wysokosci
               const opis = `front ${fmt(Math.round(dw))} × ${fmt(Math.round(d.h))} mm, ok. ${gtv.kg.toFixed(1).replace(".", ",")} kg`;
               const wpis = num((rawCol.hinges || [])[i]);
               /* „Zostaw N zawiasy” (uzytkownik 2026-10-24) — liczba inna niz w tabeli
@@ -3717,8 +3751,10 @@ function computeGeoLiczy(cab, mat, ctx) {
         const colMaxDxs = maxNlFor(dsx0, dsx1, dInsetExtra, lv.y0, lv.y1, DXS.nl);
         const wPasie = (r) => r.x1 > dsx0 && r.x0 < dsx1;
         // co jest nad szuflada z przodu: front wyzej albo gora swiatla / wzmocnienie przy licu
+        // (fix u gory stoi w otworze przed skrzynka — jak front wyzej)
         const sufitPrzod = i + 1 < ds.length ? y + fhFull + drGap
-          : Math.min(lv.y1, ...(c.rails || []).filter((r) => r.y0 >= railY0 && r.z0 < 100 && wPasie(r)).map((r) => r.y0));
+          : Math.min(lv.y1, topFixGeo ? topFixGeo.y : Infinity,
+            ...(c.rails || []).filter((r) => r.y0 >= railY0 && r.z0 < 100 && wPasie(r)).map((r) => r.y0));
         const droga = (colMaxDxs ?? Math.max(...DXS.nl)) + DXS.zaTylem + dInsetExtra;
         const sufitDla = (gora) => (i + 1 < ds.length ? sufitPrzod
           : Math.min(sufitPrzod, ...(c.rails || []).filter((r) => r.y0 >= gora && r.z0 < droga && wPasie(r)).map((r) => r.y0)));
@@ -3776,8 +3812,13 @@ function computeGeoLiczy(cab, mat, ctx) {
         // to, co nad skrzynka na calej jej drodze (front wyzej, gora swiatla, wzmocnienie pod blatem)
         const drogaZ = (nl || 0) + DXS.zaTylem + dInsetExtra;
         const nadSzuflada = (c.rails || []).filter((r) => r.y0 >= railY0 && r.z0 < drogaZ && wPasie(r) && !zaSkrzynka.includes(r));
-        const ceilY = i + 1 < ds.length ? y + fhFull + drGap : Math.min(lv.y1, ...nadSzuflada.map((r) => r.y0));
-        const coNad = i + 1 < ds.length ? "front szuflady wyżej"
+        /* Fix u gory stoi w otworze korpusu przed skrzynka — wysuwana skrzynka nie moze
+           siegac nad jego dol (macierz szuflad 2026-10-26: bok auto szedl pod wieniec,
+           za fix, i wjezdzal w niego przy wysuwie). */
+        const sufitFix = topFixGeo ? topFixGeo.y : Infinity;
+        const sufitKorp = Math.min(lv.y1, ...nadSzuflada.map((r) => r.y0));
+        const ceilY = i + 1 < ds.length ? y + fhFull + drGap : Math.min(sufitKorp, sufitFix);
+        const coNad = i + 1 < ds.length ? "front szuflady wyżej" : sufitFix < sufitKorp ? "fix u góry"
           : nadSzuflada.some((r) => r.y0 < lv.y1) ? "wzmocnienie pod blatem" : "góra korpusu";
         const bokFit = Math.floor(ceilY - SZUFLADA_ZAPAS - bokY0); // najwyzszy bok z luzem
         const minBok = DXS.minTyl + DXS.bokPodDnem;
@@ -3827,9 +3868,13 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (fh > 0 && dsx1 - dsx0 > 0) drawerParts.push({ kind: "front", a: fh, b: dsx1 - dsx0 });
         if (nl !== null && skw > 0 && hBok > 0) {
           const bokDl = nl - DXS.krotsza;              // skrzynka NL − 10
-          const dnoGl = Math.max(0, bokDl - tbok);       // dno do tylu
+          /* Pelna skrzynka (zdjecia uzytkownika 2026-10-26): przod miedzy bokami jak tyl —
+             gora rowno z bokami, dol rowno ze spodem dna (bok − 10, takze przy nizszym
+             recznie tyle); dno miedzy przodem a tylem. */
+          const przodH = tylAuto;
+          const dnoGl = Math.max(0, bokDl - 2 * tbok);
           dr.skrzynka = { system: "dxs", LW, nl, bok: hBok, bokDl, bokT: tbok, szer: skw, odBoku: DXS.odBoku,
-            dno: [skw, dnoGl], tyl: [skw, backH], tylOd: DXS.dnoOd, bokOd: dxsBokOd, grub: ts };
+            dno: [skw, dnoGl], tyl: [skw, backH], przod: [skw, przodH], tylOd: DXS.dnoOd, bokOd: dxsBokOd, grub: ts };
           // bok / tyl wezszy niz MIN_PART: przycisk „Zwieksz do 60 mm” zmienia pole tej szuflady
           // tylko gdy bok 60 mm sie zmiesci — inaczej przycisk dawalby blad miejsca
           const jest60 = bokFit >= MIN_PART;
@@ -3837,9 +3882,11 @@ function computeGeoLiczy(cab, mat, ctx) {
           drawerParts.push({ kind: "bok", a: bokDl, b: hBok, zw60: zwB }, { kind: "bok", a: bokDl, b: hBok, zw60: zwB });
           drawerParts.push({ kind: "dno", a: skw, b: dnoGl });
           drawerParts.push({ kind: "tyl", a: skw, b: backH, zw60: zwT });
+          drawerParts.push({ kind: "przod", a: skw, b: przodH });
           dxsGroups.set(nl, (dxsGroups.get(nl) || 0) + 1);
-          // konfirmaty przez boki od zewnatrz: dno wzdluz boku i tyl na jego wysokosci, z obu stron
-          dxsKonf += 2 * (konfirmatyNaStyk(dnoGl) + konfirmatyNaStyk(backH));
+          // konfirmaty przez boki od zewnatrz: dno wzdluz boku, tyl i przod na ich wysokosci,
+          // z obu stron; przod w czolo dna — od lica przodu (zakrywa je front)
+          dxsKonf += 2 * (konfirmatyNaStyk(dnoGl) + konfirmatyNaStyk(backH) + konfirmatyNaStyk(przodH)) + DXS.konfPrzodDno;
         }
       };
       let y = dlo;
@@ -4041,9 +4088,11 @@ function computeGeoLiczy(cab, mat, ctx) {
         const drogaZ = (nl || 0) + 3 + dInsetExtra;
         const nadSzuflada = (c.rails || []).filter((r) => r.y0 >= railY0 && r.z0 < drogaZ
           && r.x1 > dsx0 && r.x0 < dsx1 && !zaSkrzynka.includes(r));
-        const ceilY = i + 1 < ds.length ? y + fhFull + drGap
-          : Math.min(lv.y1, ...nadSzuflada.map((r) => r.y0));
-        const coNad = i + 1 < ds.length ? "front szuflady wyżej"
+        // fix u gory przed skrzynka — jak w DXS-3D (macierz szuflad 2026-10-26)
+        const sufitFix = topFixGeo ? topFixGeo.y : Infinity;
+        const sufitKorp = Math.min(lv.y1, ...nadSzuflada.map((r) => r.y0));
+        const ceilY = i + 1 < ds.length ? y + fhFull + drGap : Math.min(sufitKorp, sufitFix);
+        const coNad = i + 1 < ds.length ? "front szuflady wyżej" : sufitFix < sufitKorp ? "fix u góry"
           : nadSzuflada.some((r) => r.y0 < lv.y1) ? "wzmocnienie pod blatem" : "góra korpusu";
         const maxBack = Math.max(0, Math.round(ceilY - tylY0) - BACK_CLEAR);
         /* Najwyzszy bok, przy ktorym skrzynka (i podniesiony tyl, jesli jest)
@@ -4219,6 +4268,11 @@ function computeGeoLiczy(cab, mat, ctx) {
     grupy.forEach((ds, h) => {
       const liczby = [...new Set(ds.map((d) => d.hinges))].sort((a, b) => a - b);
       if (liczby.length < 2) return;
+      /* Liczbe zawiasow wyznacza waga (uzytkownik 2026-10-26: „jeżeli waga wystarcza,
+         np. 2 na drzwi, nie dawaj podpowiedzi, że lepsze będą 3, bo tak wynika z wymiaru
+         formatki”): rozne liczby wziete z wagi — bez uwagi; uwaga tylko wtedy, gdy
+         ktoras liczba jest wpisana recznie (prosba 2026-10-24). */
+      if (ds.every((d) => d.hinges === (d.zawiasyTabela ?? d.hinges))) return;
       const kolumny = [...new Set(ds.map((d) => d.colKey))];
       const opis = kolumny.map((ck) => {
         const [li, j] = ck.split("-").map(Number);
@@ -4248,6 +4302,38 @@ function computeGeoLiczy(cab, mat, ctx) {
   // podloga pod szafka na nozkach albo cokole (y = 0 to spod korpusu z cokolem w obrysie); wiszaca — null
   const podloga = cab.plinth.on || (cab.legs && cab.legs.on)
     ? -Math.max(cab.plinth.on && !plinthInBody ? plinthH : 0, legBelow) : null;
+  /* Tip-on (uzytkownik 2026-10-26): na poziomej plycie za frontem, tam, gdzie sie naciska.
+     Drzwi: szafka wiszaca — na dnie (najnizsza plyta za frontem), stojaca — plyta najblizej
+     1 m od podlogi (wierzch dna albo polki; najwyzsza — od spodu: pod wiencem albo
+     wzmocnieniem); klapa — przy wolnej krawedzi (do gory — na dole, w dol — u gory).
+     W poziomie: drzwi pojedyncze przy samym boku, para drzwi ok. 20 mm od styku; klapa
+     przy boku od drugiej strony niz silownik (uzytkownik 2026-10-26), przy dwoch
+     silownikach — przy lewym. Obrys `d.tipon` dla rysunkow, `d.tiponY` — jego srodek. */
+  {
+    const wisiTu = szafkaWisi(cab);
+    const cel = TIPON_NA_WYSOKOSCI + (podloga ?? 0);
+    doors.filter((d) => d.otwieranie === "tipon").forEach((d) => {
+      const [li, j] = d.colKey.split("-").map(Number);
+      const c = levels[li] && levels[li].cols[j];
+      if (!c) return;
+      const sufit = Math.min(d.colY1, ...(c.rails || [])
+        .filter((r) => r.y0 >= d.colY0 && r.z0 < 100 && r.x1 > d.x && r.x0 < d.x + d.w).map((r) => r.y0));
+      const plyty = [{ y: d.colY0, wierzch: true },
+        ...(c.shelves || []).filter((sh) => sh.y > d.colY0 + 1 && sh.y + ts < sufit - 1).map((sh) => ({ y: sh.y + ts, wierzch: true })),
+        { y: sufit, wierzch: false }];
+      const p = d.type === "klapa" ? (d.klapa === "gora" ? plyty[0] : plyty[plyty.length - 1])
+        : wisiTu ? plyty[0] : plyty.reduce((a, b) => (Math.abs(b.y - cel) < Math.abs(a.y - cel) ? b : a));
+      const y0 = p.wierzch ? p.y : p.y - TIPON_H;
+      const wolnaPrawa = d.type === "klapa" ? d.silowniki === 1 && d.silownikStrona === "left" : d.hingeSide === "left";
+      const kraw = wolnaPrawa ? d.x + d.w : d.x;
+      const x0 = d.type !== "klapa" && d.groupN > 1
+        ? (wolnaPrawa ? kraw - TIPON_OD_STYKU - TIPON_W : kraw + TIPON_OD_STYKU)
+        : (wolnaPrawa ? Math.min(c.x1, kraw) - TIPON_W : Math.max(c.x0, kraw));
+      const z0 = d.inset ? tf : 0;
+      d.tipon = { x0, x1: x0 + TIPON_W, y0, y1: y0 + TIPON_H, z0, z1: z0 + TIPON_L };
+      d.tiponY = y0 + TIPON_H / 2;
+    });
+  }
   doors.filter((d) => d.otwieranie === "dol").forEach((d) => {
     const [li, jk, k] = d.key.slice(1).split("-");
     const gdzie = `Poziom ${+li + 1}, ${/s/.test(jk) ? `poziom ${+jk.split("s")[1] + 1} kolumny ${+jk.split("s")[0] + 1}` : `kolumna ${+jk + 1}`}, ${d.type === "klapa" ? "klapa" : `drzwi ${+k + 1}`}`;
@@ -4671,6 +4757,13 @@ function computeGeoLiczy(cab, mat, ctx) {
       },
       tyl: {
         name: "Tył szuflady",
+        matKey: "shelf",
+        edges: { a1: true, a2: false, b1: false, b2: false },
+        note: "oklejona krawędź górna",
+      },
+      // pelna skrzynka DXS-3D: przod miedzy bokami, front przykrecany do niego od srodka
+      przod: {
+        name: "Przód skrzynki",
         matKey: "shelf",
         edges: { a1: true, a2: false, b1: false, b2: false },
         note: "oklejona krawędź górna",
@@ -5342,16 +5435,27 @@ function computeGeoLiczy(cab, mat, ctx) {
             // nazwa jak formatka („Bok szuflady”) + ktora szuflada
             const ktora = `szuflada ${dr.i + 1}${lv.cols.length > 1 ? `, kolumna ${c.j + 1}` : ""}`;
             const dnoY = DXS.bokPodDnem + sk.grub / 2;
-            const przodDna = konfirmatyPoz(sk.dno[1]).map((z) => fmt(z)).join(", ");
+            // dno zaczyna sie za przodem skrzynki (pelna skrzynka, 2026-10-26)
+            const zaPrzodem = sk.przod ? sk.grub : 0;
+            const przodDna = konfirmatyPoz(sk.dno[1], zaPrzodem).map((z) => fmt(z)).join(", ");
             drillAdd(lv.i, `Bok szuflady — ${ktora} (2 szt., lustrzanie)`, 0, "konfirmat — dno", dnoY,
               `oś dna (spód dna ${DXS.bokPodDnem} mm nad dołem boku); ${przodDna} mm od przedniej krawędzi boku; od zewnątrz`);
+            if (sk.przod) {
+              konfirmatyPoz(sk.przod[1]).forEach((yP) => drillAdd(lv.i, `Bok szuflady — ${ktora} (2 szt., lustrzanie)`, 0,
+                "konfirmat — przód skrzynki", DXS.bokPodDnem + yP, `oś przodu: ${fmt(sk.grub / 2)} mm od przedniej krawędzi boku; od zewnątrz`));
+              const xs = [KONF_OD_KRAWEDZI, sk.przod[0] - KONF_OD_KRAWEDZI].map((x) => fmt(x)).join(" i ");
+              drillAdd(lv.i, `Przód skrzynki — ${ktora}`, 0, "konfirmat — dno", sk.grub / 2,
+                `oś dna (dół przodu równo ze spodem dna); ${xs} mm od lewej krawędzi; od lica (zakryje je front)`);
+              drillAdd(lv.i, `Przód skrzynki — ${ktora}`, null, "front od środka", null,
+                `${DXS.wkretyFrontu} wkręty 4 × 30 w rogach — front ustawiony na szczeliny i przykręcony od wnętrza skrzynki`);
+            }
             const zTylu = sk.bokDl - sk.grub / 2;
             konfirmatyPoz(sk.tyl[1]).forEach((yT) => drillAdd(lv.i, `Bok szuflady — ${ktora} (2 szt., lustrzanie)`, 0,
               "konfirmat — tył", DXS.bokPodDnem + yT, `oś tyłu: ${fmt(zTylu)} mm od przedniej krawędzi boku; od zewnątrz`));
             drillAdd(lv.i, `Tył szuflady — ${ktora}`, 0, "zaczep prowadnicy ⌀6 × 10", DXS.zaczepY,
               `od tylnej strony, ${DXS.zaczepX} mm od lewej i od prawej krawędzi (2 otwory)`);
             drillAdd(lv.i, `Dno szuflady — ${ktora}`, null, "zaczep frontu (sprzęgło)", null,
-              `pod dnem przy przedniej krawędzi, z obu stron — wkręty wg przyrządu Sevroll 20415 (wiertło ⌀2); ${DXS.wolneOdBoku} mm od boku nic innego`);
+              `pod dnem przy przodzie skrzynki, z obu stron — wkręty wg przyrządu Sevroll 20415 (wiertło ⌀2); ${DXS.wolneOdBoku} mm od boku nic innego`);
           }
           // po stronie elementu stalego prowadnica idzie na wspornik (audyt GPT N42)
           const wsp = c.fix && c.support
@@ -5623,8 +5727,7 @@ function computeGeoLiczy(cab, mat, ctx) {
      ramienia) albo obie w czesci szafki (bok korpusu i plyta rownolegla do
      boku). Bok ramienia dopisuje `wierceniaDodatkowe`. */
   const zawieszki = (() => {
-    const wisi = cab.hangers === "always"
-      || (cab.hangers !== "never" && !((cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on) || cab.naPodlodze));
+    const wisi = szafkaWisi(cab);
     /* Szafka od ZAWIESZKA_SZEROKA wzwyz dostaje dodatkowe zawieszki na
        przegrodach pionowych siegajacych wienca — po jednej na przegrode, najwyzej
        dwie; dwie na tej samej przegrodzie nie wejda, bo wkrety z obu stron
@@ -5695,6 +5798,16 @@ function computeGeoLiczy(cab, mat, ctx) {
       unit: "kpl.",
     });
   });
+  // front szuflady DXS-3D przykrecany od srodka przez przod skrzynki (uzytkownik 2026-10-26)
+  {
+    const nDxs = [...dxsGroups.values()].reduce((a2, b2) => a2 + b2, 0);
+    if (nDxs) hardware.push({
+      name: WKRET_FRONTU_NAME,
+      spec: `front szuflady DXS-3D przykręcany od środka przez przód skrzynki, ${DXS.wkretyFrontu} na front (w rogach)`,
+      qty: nDxs * DXS.wkretyFrontu,
+      unit: "szt.",
+    });
+  }
   // reling boczny: komplet na szuflade, cena jedna bez wzgledu na dlugosc
   relingGroups.forEach((qty, nlR) => {
     hardware.push({
@@ -5764,7 +5877,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       spec: skrzydlaLamane
         ? "skrzydło przy boku szafki narożnej — otwiera się na tyle, żeby drugie skrzydło się złożyło"
         : (cab.frontMode === "overlay" ? "nakładany" : "wpuszczany") +
-          ", liczba wg tabeli GTV (wysokość i waga frontu)"
+          ", liczba wg tabeli GTV (waga frontu)"
           + (klapy.length ? "; klapa: te same zawiasy, 2 szt. na górnej lub dolnej krawędzi, powyżej 900 mm 3" : ""),
       qty: hingeCount - polSzt,
       unit: "szt.",
@@ -5775,7 +5888,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       use: "drzwi szafki",
       wariant: "półnakładany",
       spec: "półnakładany (bliźniaczy) — dwa fronty na jednej płycie: przegroda między kolumnami albo półka między poziomami pod klapą"
-        + ", liczba wg tabeli GTV (wysokość i waga frontu)",
+        + ", liczba wg tabeli GTV (waga frontu)",
       qty: polSzt,
       unit: "szt.",
     });
@@ -5817,9 +5930,8 @@ function computeGeoLiczy(cab, mat, ctx) {
           return k.dobor2.sila ? `|klapa2:${lvJ(k)}:auto:${k.dobor2.sila}` : "";
         })());
     }
-    if (k.sila)
-      add("info", `${k.where}: klapa ${gora ? "do góry" : "w dół"} ${opis} — ${k.ile} × ${co} ${k.sila} N`
-        + (k.recznie ? " (siła wybrana z listy)." : ` (tabela ${k.dobor.tabela}, kąt ${k.kat}°, udźwig ok. ${kg1(k.dobor.udzwig)} kg na sztukę).`));
+    /* Dobrana sila bez uwag — podpowiedz „klapa … — 1 × podnośnik 150 N (tabela …)” byla
+       zbedna (uzytkownik 2026-10-26); sila, wymiar i waga klapy sa w Produktach. */
     if (k.ile === 1 && k.w > 600)
       add("warn", `${k.where}: klapa ma ${fmt(k.w)} mm szerokości, a jeden ${co} — przy szerokości ponad 600 mm dają się dwa, po jednym na bok.`);
     const key = `${k.klapa}|${k.sila || 0}`;
@@ -5950,7 +6062,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   /* Skrzynki DXS-3D: dno i tyl na konfirmaty przez boki od zewnatrz
      (uzytkownik 2026-10-21) — lby widac przy wysunietej szufladzie, wiec
      tez zaslepki; ten sam wiersz co zlacza korpusu. */
-  if (dxsKonf) { confQty += dxsKonf; jointNotes.push(`skrzynki szuflad DXS-3D (dno i tył przez boki) ${dxsKonf}`); }
+  if (dxsKonf) { confQty += dxsKonf; jointNotes.push(`skrzynki szuflad DXS-3D (dno, tył i przód przez boki, przód w dno) ${dxsKonf}`); }
 
   if (confQty)
     hardware.push({
@@ -7111,6 +7223,25 @@ function UchwytElewacja({ d, fy, dx = 0 }) {
   );
 }
 
+/* Tip-on (odbojnik frontu bez uchwytu, `d.tipon`) na otwartym widoku z przodu — okucie
+   na korpusie jak zawias, podpis „tip-on” w strone srodka frontu; na zamknietym go nie
+   ma (uzytkownik 2026-10-26: „na zamkniętym nie musi się rysować”). `dx` — przesuniecie
+   szafki w ciagu. */
+function TiponElewacja({ d, fy, dx = 0 }) {
+  const o = d.tipon;
+  if (!o) return null;
+  const x = o.x0 + dx, w = o.x1 - o.x0;
+  const wPrawo = (o.x0 + o.x1) / 2 < d.x + d.w / 2;   // podpis w strone srodka frontu
+  return (
+    <g data-el="tipon">
+      <rect x={x} y={fy(o.y1)} width={w} height={o.y1 - o.y0} rx="4"
+        fill="#71717a" stroke={INK} strokeWidth="1.5" />
+      <text x={wPrawo ? x + w + 6 : x - 6} y={fy(d.tiponY) + 5} textAnchor={wPrawo ? "start" : "end"}
+        fontSize="14" fill={INK} opacity="0.8" fontFamily="ui-monospace, monospace">tip-on</text>
+    </g>
+  );
+}
+
 /* Klapa na widoku z przodu. Symbol otwierania jak przy drzwiach — trojkat
    z wierzcholkiem po stronie zawiasow — tylko obrocony: klapa do gory ma
    zawiasy na gornej krawedzi, opadana na dolnej. Uchwyt poziomy przy wolnej
@@ -7255,7 +7386,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
                 szufladaOdCzola(c, dr).map((q, si) => (
                   <rect key={`rn${lv.i}-${c.j}-${dr.i}-${si}`}
                     x={mx(q.x, q.w)} y={fy(q.y + q.h)} width={q.w} height={q.h}
-                    fill={q.rodzaj === "bok" || q.rodzaj === "tyl" ? shelfColorOf(cab, mat) : "#8b8b93"} stroke={INK} strokeWidth="1.5" />
+                    fill={q.rodzaj === "prowadnica" ? "#8b8b93" : shelfColorOf(cab, mat)} stroke={INK} strokeWidth="1.5" />
                 ))
               )
             )
@@ -7266,8 +7397,13 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         const X = mx(d.x, d.w);
         const hinge = rear ? (d.hingeSide === "left" ? "right" : "left") : d.hingeSide;
         if (d.type === "klapa")
-          return <KlapaElewacja key={d.key} d={d} fy={fy} ff={ff} open={open} tf={geo.tf} x0={X - d.x} uchOut={uchwytOut(d, cab)}
-            showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />;
+          return (
+            <g key={d.key}>
+              <KlapaElewacja d={d} fy={fy} ff={ff} open={open} tf={geo.tf} x0={X - d.x} uchOut={uchwytOut(d, cab)}
+                showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />
+              {open && showHardware && <TiponElewacja d={d} fy={fy} dx={X - d.x} />}
+            </g>
+          );
         if (d.type === "fix" || d.type === "blenda")
           return (
             <g key={d.key}>
@@ -7316,6 +7452,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
                 <rect key={`hg${hi2}`} x={mx(d.hingeX, HINGE_W)} y={fy(hy + HINGE_H / 2)}
                   width={HINGE_W} height={HINGE_H} rx="3" fill="#71717a" stroke={INK} strokeWidth="1.5" />
               ))}
+              {showHardware && <TiponElewacja d={d} fy={fy} dx={X - d.x} />}
             </g>
           );
         return (
@@ -8871,6 +9008,9 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         c.x + col.x0 + DRAZEK_KROTSZY / 2, c.base + dr.y - DRAZEK_FI / 2, dr.z - DRAZEK_FI / 2,
         c.x + col.x0 + DRAZEK_KROTSZY / 2 + dr.len, c.base + dr.y + DRAZEK_FI / 2, dr.z + DRAZEK_FI / 2, "#8b8b93",
         null, 1, false, wGlab, "rura-wieszaki"))));
+      // tip-on — odbojnik na korpusie za frontem (okucie)
+      (c.geo.doors || []).forEach((d) => d.tipon && box(c.x + d.tipon.x0, c.base + d.tipon.y0, d.tipon.z0,
+        c.x + d.tipon.x1, c.base + d.tipon.y1, d.tipon.z1, "#8b8b93", null, 1, false, wGlab, "tipon"));
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.shelves || []).forEach((sh) => {
         polkaCzesci(col, zPolki[0] + (col.shFront || 0), zPolki[1], cd).forEach(([x0, z0, x1, z1]) =>
           box(c.x + x0, c.base + sh.y, z0, c.x + x1, c.base + sh.y + c.geo.ts, z1, shc3,
@@ -9741,7 +9881,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 szufladaOdCzola(c, dr).map((q, s) => (
                   <rect key={`zu${lv.i}-${c.j}-${dr.i}-${s}`}
                     x={q.x} y={fy(q.y + q.h)} width={q.w} height={q.h}
-                    fill={q.rodzaj === "bok" || q.rodzaj === "tyl" ? shc : "#8b8b93"} stroke={INK} strokeWidth="1" />
+                    fill={q.rodzaj === "prowadnica" ? "#8b8b93" : shc} stroke={INK} strokeWidth="1" />
                 ))
               )
             )
@@ -9752,10 +9892,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             <KlapaElewacja d={d} fy={fy} ff={ff} open={open} tf={geo.tf} uchOut={uchwytOut(d, cab)}
               showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />
             {/* tip-on klapy: odbojnik przy wolnej krawedzi, na boku */}
-            {!open && d.otwieranie === "tipon" && d.tiponY != null && (
-              <rect data-el="tipon" x={d.x + 18} y={fy(d.tiponY + 30)} width={16} height={60}
-                rx="3" fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.7" />
-            )}
+            {open && showHardware && <TiponElewacja d={d} fy={fy} />}
           </g>
         ) : d.type === "fix" || d.type === "blenda" ? (
           <g key={d.key}>
@@ -9851,6 +9988,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                     )}
                   </g>
                 ))}
+                {/* tip-on — na korpusie przy wolnej krawedzi, jak zawias po drugiej stronie */}
+                {showHardware && <TiponElewacja d={d} fy={fy} />}
               </>
             )}
           </g>
@@ -9865,11 +10004,6 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             )}
             {d.handle && d.w > 60 && d.h > 30 && (
               <UchwytElewacja d={d} fy={fy} dx={0} />
-            )}
-            {/* tip-on: odbojnik za frontem przy wolnej krawedzi — przerywany obrys */}
-            {d.otwieranie === "tipon" && d.tiponY != null && (
-              <rect data-el="tipon" x={d.hingeSide === "left" ? d.x + d.w - 34 : d.x + 18} y={fy(d.tiponY + 30)} width={16} height={60}
-                rx="3" fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.7" />
             )}
             {d.mirror && d.w > 2 && d.h > 2 && (
               <rect x={d.x + 0.5} y={fy(d.y + d.h) + 0.5} width={d.w - 1} height={d.h - 1}
@@ -10289,9 +10423,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             .flatMap((c) =>
               c.drawers.flatMap((dr) =>
                 szufladaOdCzola(c, dr).map((q, s) => (
-                  <rect key={`rn${lv.i}-${c.j}-${dr.i}-${s}`} data-el={q.rodzaj === "bok" ? "skrzynka-bok-dxs" : q.rodzaj === "tyl" ? "skrzynka-tyl-dxs" : undefined}
+                  <rect key={`rn${lv.i}-${c.j}-${dr.i}-${s}`} data-el={q.rodzaj === "prowadnica" ? undefined : `skrzynka-${q.rodzaj}-dxs`}
                     x={q.x} y={fy(q.y + q.h)} width={q.w} height={q.h}
-                    fill={q.rodzaj === "bok" || q.rodzaj === "tyl" ? shc : "#8b8b93"} stroke={INK} strokeWidth="1.5" />
+                    fill={q.rodzaj === "prowadnica" ? "#8b8b93" : shc} stroke={INK} strokeWidth="1.5" />
                 ))
               )
             )
@@ -11515,6 +11649,11 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
                     `tylOd` nad dolem boku — dno dochodzi do niego (instrukcja V-BOX) */}
                 <rect x={x0 + (dxs ? 0 : 2)} y={fy(dnoY + sk.tyl[1])} width={dxs ? sk.grub : geo.t} height={sk.tyl[1]}
                   fill={shc} stroke={INK} strokeWidth="1" opacity="0.7" />
+                {/* przod pelnej skrzynki DXS na koncu bokow od strony frontu */}
+                {dxs && sk.przod && (
+                  <rect data-el="skrzynka-przod" x={x0 + dlS - sk.grub} y={fy(dnoY + sk.przod[1])} width={sk.grub} height={sk.przod[1]}
+                    fill={shc} stroke={INK} strokeWidth="1" opacity="0.7" />
+                )}
               </g>
             );
           })))}
@@ -11581,6 +11720,13 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
         );
         return out;
       })()}
+      {/* tip-on przykrecony do tego boku (przy wolnej krawedzi frontu) — od czola w glab */}
+      {showHardware && geo.doors.filter((d) => d.tipon && (sideRight
+        ? d.tipon.x1 >= geo.interior.x1 - 5 : d.tipon.x0 <= geo.interior.x0 + 5)).map((d) => (
+        <rect key={`stp${d.key}`} data-el="tipon-bok" x={D - d.tipon.z1} y={fy(d.tipon.y1)}
+          width={d.tipon.z1 - d.tipon.z0} height={d.tipon.y1 - d.tipon.y0}
+          rx="4" fill="#71717a" fillOpacity="0.8" stroke={INK} strokeWidth="1.5" />
+      ))}
 
       {/* elementy stale (fix) — z boku widac ich zasieg na wysokosci */}
       {(() => {
@@ -11763,7 +11909,8 @@ const skrzynkaBryly = (d, t, zFront) => {
     return [
       [xa, bokY0, zFront, xa + tb, bokY0 + sk.bok, z1d, "bok"],
       [xb - tb, bokY0, zFront, xb, bokY0 + sk.bok, z1d, "bok"],
-      [xa + tb, dnoY0, zFront, xb - tb, dnoY0 + g, z1d - g, "dno"],
+      ...(sk.przod ? [[xa + tb, dnoY0, zFront, xb - tb, dnoY0 + sk.przod[1], zFront + g, "przod"]] : []),
+      [xa + tb, dnoY0, zFront + (sk.przod ? g : 0), xb - tb, dnoY0 + g, z1d - g, "dno"],
       [xa + tb, dnoY0, z1d - g, xb - tb, dnoY0 + tH, z1d, "tyl"],
       [xa + tb, y0, zFront + DXS.odCzola, xa + tb + DXS.szerProw, dnoY0, zFront + DXS.odCzola + sk.nl - DXS.krotsza, "metal"],
       [xb - tb - DXS.szerProw, y0, zFront + DXS.odCzola, xb - tb, dnoY0, zFront + DXS.odCzola + sk.nl - DXS.krotsza, "metal"],
@@ -12224,7 +12371,7 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
       handleBar(d, z0 - pull, null);
       // skrzynka jest w szafce i przy zamknietej — rysunki z gory i z boku ja pokazuja
       skrzynkaBryly(d, t, z1 - pull).forEach(([a0, b0, c0, a1, b1, c1, r]) => {
-        fk = r === "metal" ? null : r === "tyl" ? "Tył szuflady" : r === "bok" ? "Bok szuflady" : "Dno szuflady";
+        fk = r === "metal" ? null : r === "tyl" ? "Tył szuflady" : r === "bok" ? "Bok szuflady" : r === "przod" ? "Przód skrzynki" : "Dno szuflady";
         box(a0, b0, c0, a1, b1, c1, r === "metal" ? "#8b8b93" : shelfColorOf(cab, mat), null, 1, false);
       });
       fk = null;
@@ -12252,6 +12399,11 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
     box(d.x, d.y, z0, d.x + d.w, d.y + d.h, z1, col, rot, 0.85, true);
     handleBar(d, z0, rot);
   });
+
+  // tip-on — odbojnik na korpusie za frontem (okucie w kolorze metalu, nie formatka)
+  fk = null;
+  geo.doors.forEach((d) => d.tipon && box(d.tipon.x0, d.tipon.y0, d.tipon.z0, d.tipon.x1, d.tipon.y1, d.tipon.z1,
+    "#8b8b93", null, 1, false, "tipon"));
 
   // wstawka w rogu przy boku szafki: od lica drzwi `gl` w glab
   fk = null;
@@ -17578,6 +17730,34 @@ export default function App() {
     window.addEventListener("scroll", f, { passive: true });
     return () => window.removeEventListener("scroll", f);
   }, [zwinPrzyPrzewijaniu]);
+  /* Rysunek „przypiety” (uzytkownik 2026-10-25): na szerokim ekranie (dwie kolumny)
+     prawa kolumna — rysunek i karty pod nim — stoi pod gornym paskiem i ma wlasne
+     przewijanie. Przewijanie lewej (ustawienia szafki) nie zabiera rysunku z ekranu,
+     a karty pod rysunkiem przewija sie kolkiem nad prawa kolumna. Pelny ekran
+     rysunku ja odkleja — przyklejona kolumna jest osobna warstwa i nakladka bylaby
+     pod gornym paskiem. */
+  const [szeroki, setSzeroki] = useState(() => !!window.matchMedia
+    && window.matchMedia(`(min-width: ${SZEROKI_EKRAN}px)`).matches);
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mq = window.matchMedia(`(min-width: ${SZEROKI_EKRAN}px)`);
+    const f = () => setSzeroki(mq.matches);
+    f();
+    mq.addEventListener("change", f);
+    return () => mq.removeEventListener("change", f);
+  }, []);
+  const przypieta = szeroki && !pelnyRys;
+  const przypietaGora = (przyklejony ? wysNaglowka : 0) + PRZYPIETY_ODSTEP;
+  // przewijanie prawej kolumny zwija i rozwija paski u gory jak przewijanie strony
+  const prawaY = useRef(0);
+  const przewinPrawa = (e) => {
+    const y = e.currentTarget.scrollTop;
+    if (y > prawaY.current && y > PRZEWIN_GORA) zwinPrzyPrzewijaniu();
+    else if (y < prawaY.current && y <= PRZEWIN_GORA && window.scrollY <= PRZEWIN_GORA) {
+      setAutoPokoje(false); setAutoPasek(false);
+    }
+    prawaY.current = y;
+  };
   const pokojeWidokZw = pokojeZwiniete || autoPokoje;
   const pasekWidokZw = pasekZw || autoPasek;
   // klikniecie w zwiniety (takze sam przy przewijaniu) rozwija go na minute
@@ -19373,7 +19553,8 @@ export default function App() {
   const infosNowe = infos.filter((m) => !przeczytane.has(m.text));
   const notesRef = useRef(null);
   const scrollToNotes = () =>
-    notesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    przewinWKolumnie(notesRef.current, PRZYPIETY_ODSTEP)
+      || notesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   // HDF na plecy jest za cienki na obrzeze — nie dajemy nawet klikac
   const EdgeChips = ({ p }) =>
@@ -19439,8 +19620,10 @@ export default function App() {
             /* pod przyklejony gorny pasek — jego wysokosc sie zmienia (zwijany pasek
                ciagow, szerokosc okna), wiec liczymy ja przy kazdym kliknieciu */
             /* Przewijanie w dol i tak zwinie paski — zwijamy je od razu, a miejsce
-               liczymy po zwinieciu (inaczej rysunek wjezdzal pod pasek o roznice). */
-            zwinPrzyPrzewijaniu();
+               liczymy po zwinieciu (inaczej rysunek wjezdzal pod pasek o roznice).
+               Przypieta kolumna przewija sie sama, strona stoi — paskow nie ruszamy
+               (na gorze strony kolko nie rozwinieloby ich z powrotem). */
+            if (!przypieta) zwinPrzyPrzewijaniu();
             setTimeout(() => {
               const karta = document.getElementById("rysunek");
               const pasek = document.querySelector("header.sticky");   // nieprzyklejony (niskie okno) nie zaslania
@@ -19449,6 +19632,7 @@ export default function App() {
                  rysunku po przelacznikach widokow — przewijamy prosto do niego. */
               const svg = karta && karta.querySelector("svg");
               const el = niskieOkno && svg ? svg : karta;
+              if (przewinWKolumnie(el)) return;
               if (el) window.scrollTo({ behavior: "smooth",
                 top: el.getBoundingClientRect().top + window.scrollY - nad - (el === karta ? 8 : 0) });
             }, 80);
@@ -22019,7 +22203,10 @@ export default function App() {
           </Card>
         </div>
 
-        <div className="mt-4 space-y-4 lg:mt-0">
+        <div className="mt-4 lg:mt-0">
+        <div data-el="prawa-kolumna" onScroll={przypieta ? przewinPrawa : undefined}
+          className={`space-y-4 ${przypieta ? "sticky overflow-y-auto" : ""}`}
+          style={przypieta ? { top: przypietaGora, maxHeight: wysOkna - przypietaGora - PRZYPIETY_ODSTEP } : undefined}>
           {/* Pelny ekran: karta rysunku przykrywa cale okno, Esc wraca. */}
           {/* margines zerujemy — odstepy miedzy kartami dokladaly go i nakladka
               konczyla sie przed dolem okna, a spod niej wystawaly inne karty */}
@@ -22897,6 +23084,7 @@ export default function App() {
             </div>
           </Card>
 
+        </div>
         </div>
       </main>
 

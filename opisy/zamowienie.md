@@ -10,6 +10,7 @@ zamówienia: „Cały projekt” albo „To pomieszczenie”.
   - **prowadnice**: V-BOX wg wysokości boku i NL, DXS-3D komplet na szufladę;
   - **reling**, **uchwyty** (po jednym na front z uchwytem), **podnośniki / amortyzatory klap** (z siłą);
   - **konfirmaty 7 × 50 i zaślepki** (też skrzynek DXS), **kołki podporowe ⌀5**, **trójkąty**;
+  - **wkręty 4 × 30 do frontu szuflady** — 4 na front DXS-3D, front przykręcany od środka przez przód skrzynki (2026-10-26);
   - **nóżki** (wariant: kształt, wysokość, kolor), **złączki do cokołu**;
   - **zawieszki, listwa montażowa** (za metr), **haki**;
     - listwa: w sklepie odcinki 1 m i 2 m, tnie się na wymiar (rzazu nie liczymy). Jedna listwa przez ciąg — od pierwszej do ostatniej szafki, która na niej wisi (skrajna bez zawieszek jej nie dostaje, środkowa nie przerywa; obie z ostrzeżeniem); dłuższa niż 2 m — pełne odcinki 2 m i reszta. Osobna szafka — W, ramię szafki w L — swój odcinek przy drugiej ścianie. Plecy z płyty cofnięte (opcja) — listwa w szafce za plecami: szerokość pleców − 2 × 5 mm (`LISTWA_OD_PLECOW`), a listwa ciągu kończy się przy tej szafce (decyzje użytkownika 2026-10-24);

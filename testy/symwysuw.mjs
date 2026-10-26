@@ -27,9 +27,16 @@ export const symuluj = (bryly, { H, blat = false, nl = [] } = {}) => {
     /* ...i nie jest wyzsza od frontu: plecy wewnetrzne z plyty polek (od
        2026-10-17 w jej kolorze, jak w zamowieniu — audyt GPT N27) maja ten sam
        kolor co dno i tyl skrzynki, ale stoja na cala wysokosc i sa nieruchome. */
+    /* Skrzynka moze byc wyzsza od frontu (fix u gory — siega za niego): nalezy do
+       szuflady, gdy nie wychodzi nad dol nastepnego frontu w tym pasie (plecy na
+       cala wysokosc wychodza). Bez tego bok i przod skrzynki za fixem byly
+       „nieruchome” i kolizja z fixem przy wysuwie umykala (macierz 2026-10-26). */
+    const nastepny = (d) => fronty.filter((f) => f.p[1] > d.front.p[1] + 1 && f.p[0] < d.front.p[3] && f.p[3] > d.front.p[0])
+      .sort((a, b) => a.p[1] - b.p[1])[0];
     return szuflady.find((d) => y >= d.front.p[1] - 1 && y <= d.front.p[4] + 1
       && xm >= d.front.p[0] - 15 && xm <= d.front.p[3] + 15
-      && s.p[4] - s.p[1] <= d.front.p[4] - d.front.p[1] + 1);
+      && (s.p[4] - s.p[1] <= d.front.p[4] - d.front.p[1] + 1
+        || s.p[4] <= (nastepny(d) ? nastepny(d).p[1] + 10 : Infinity)));
   };
   const stale = [];
   bryly.forEach((s) => {
