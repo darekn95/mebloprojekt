@@ -3439,6 +3439,7 @@ function computeGeoLiczy(cab, mat, ctx) {
               // jeden podnosnik: strona do wyboru przy klapie, domyslnie lewa (uzytkownik 2026-10-17)
               const strona = rawCol.podnosnikStrona === "right" ? "right" : "left";
               klapy.push({ klapa, colKey: `${lv.i}-${j}`, adres: `${lv.i}:${jKey}`, key: d.key, w: dw, h: d.h, kg, ile, kat, sila, recznie: recznie != null, dobor, dobor2, where, strona });
+              d.silowniki = ile; d.silownikStrona = strona;   // tip-on klapy idzie na drugi bok
               dx += dw + colGap;
               continue;
             }
@@ -4291,8 +4292,9 @@ function computeGeoLiczy(cab, mat, ctx) {
      Drzwi: szafka wiszaca — na dnie (najnizsza plyta za frontem), stojaca — plyta najblizej
      1 m od podlogi (wierzch dna albo polki; najwyzsza — od spodu: pod wiencem albo
      wzmocnieniem); klapa — przy wolnej krawedzi (do gory — na dole, w dol — u gory).
-     W poziomie: drzwi pojedyncze i klapa przy samym boku (klapa przy lewym), para drzwi
-     ok. 20 mm od styku. Obrys `d.tipon` dla rysunkow, `d.tiponY` — jego srodek. */
+     W poziomie: drzwi pojedyncze przy samym boku, para drzwi ok. 20 mm od styku; klapa
+     przy boku od drugiej strony niz silownik (uzytkownik 2026-10-26), przy dwoch
+     silownikach — przy lewym. Obrys `d.tipon` dla rysunkow, `d.tiponY` — jego srodek. */
   {
     const wisiTu = szafkaWisi(cab);
     const cel = TIPON_NA_WYSOKOSCI + (podloga ?? 0);
@@ -4308,7 +4310,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       const p = d.type === "klapa" ? (d.klapa === "gora" ? plyty[0] : plyty[plyty.length - 1])
         : wisiTu ? plyty[0] : plyty.reduce((a, b) => (Math.abs(b.y - cel) < Math.abs(a.y - cel) ? b : a));
       const y0 = p.wierzch ? p.y : p.y - TIPON_H;
-      const wolnaPrawa = d.type !== "klapa" && d.hingeSide === "left";
+      const wolnaPrawa = d.type === "klapa" ? d.silowniki === 1 && d.silownikStrona === "left" : d.hingeSide === "left";
       const kraw = wolnaPrawa ? d.x + d.w : d.x;
       const x0 = d.type !== "klapa" && d.groupN > 1
         ? (wolnaPrawa ? kraw - TIPON_OD_STYKU - TIPON_W : kraw + TIPON_OD_STYKU)
@@ -7180,19 +7182,19 @@ function UchwytElewacja({ d, fy, dx = 0 }) {
   );
 }
 
-/* Tip-on (odbojnik frontu bez uchwytu, `d.tipon`) na widoku z przodu: zamkniety —
-   przerywany obrys za frontem, otwarty — okucie na korpusie jak zawias; podpis
-   „tip-on” w strone srodka frontu. `dx` — przesuniecie szafki w ciagu. */
-function TiponElewacja({ d, fy, dx = 0, open = false }) {
+/* Tip-on (odbojnik frontu bez uchwytu, `d.tipon`) na otwartym widoku z przodu — okucie
+   na korpusie jak zawias, podpis „tip-on” w strone srodka frontu; na zamknietym go nie
+   ma (uzytkownik 2026-10-26: „na zamkniętym nie musi się rysować”). `dx` — przesuniecie
+   szafki w ciagu. */
+function TiponElewacja({ d, fy, dx = 0 }) {
   const o = d.tipon;
   if (!o) return null;
   const x = o.x0 + dx, w = o.x1 - o.x0;
-  const wPrawo = d.type === "klapa" || d.hingeSide === "right";
+  const wPrawo = (o.x0 + o.x1) / 2 < d.x + d.w / 2;   // podpis w strone srodka frontu
   return (
     <g data-el="tipon">
       <rect x={x} y={fy(o.y1)} width={w} height={o.y1 - o.y0} rx="4"
-        fill={open ? "#71717a" : "none"} stroke={INK} strokeWidth={open ? 1.5 : 2}
-        strokeDasharray={open ? undefined : "5 3"} />
+        fill="#71717a" stroke={INK} strokeWidth="1.5" />
       <text x={wPrawo ? x + w + 6 : x - 6} y={fy(d.tiponY) + 5} textAnchor={wPrawo ? "start" : "end"}
         fontSize="14" fill={INK} opacity="0.8" fontFamily="ui-monospace, monospace">tip-on</text>
     </g>
@@ -7358,7 +7360,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
             <g key={d.key}>
               <KlapaElewacja d={d} fy={fy} ff={ff} open={open} tf={geo.tf} x0={X - d.x} uchOut={uchwytOut(d, cab)}
                 showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />
-              {(!open || showHardware) && <TiponElewacja d={d} fy={fy} dx={X - d.x} open={open} />}
+              {open && showHardware && <TiponElewacja d={d} fy={fy} dx={X - d.x} />}
             </g>
           );
         if (d.type === "fix" || d.type === "blenda")
@@ -7409,7 +7411,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
                 <rect key={`hg${hi2}`} x={mx(d.hingeX, HINGE_W)} y={fy(hy + HINGE_H / 2)}
                   width={HINGE_W} height={HINGE_H} rx="3" fill="#71717a" stroke={INK} strokeWidth="1.5" />
               ))}
-              {showHardware && <TiponElewacja d={d} fy={fy} dx={X - d.x} open />}
+              {showHardware && <TiponElewacja d={d} fy={fy} dx={X - d.x} />}
             </g>
           );
         return (
@@ -7423,7 +7425,6 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
             {d.handle && d.w > 60 && d.h > 30 && (
               <UchwytElewacja d={d} fy={fy} dx={X - d.x} />
             )}
-            <TiponElewacja d={d} fy={fy} dx={X - d.x} />
             {d.mirror && d.w > 2 && d.h > 2 && (
               <rect x={X + 0.5} y={fy(d.y + d.h) + 0.5} width={d.w - 1} height={d.h - 1}
                 fill={mat.mirror.color} stroke={INK} strokeWidth="1" opacity="0.85" />
@@ -9850,7 +9851,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             <KlapaElewacja d={d} fy={fy} ff={ff} open={open} tf={geo.tf} uchOut={uchwytOut(d, cab)}
               showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />
             {/* tip-on klapy: odbojnik przy wolnej krawedzi, na boku */}
-            {(!open || showHardware) && <TiponElewacja d={d} fy={fy} open={open} />}
+            {open && showHardware && <TiponElewacja d={d} fy={fy} />}
           </g>
         ) : d.type === "fix" || d.type === "blenda" ? (
           <g key={d.key}>
@@ -9947,7 +9948,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                   </g>
                 ))}
                 {/* tip-on — na korpusie przy wolnej krawedzi, jak zawias po drugiej stronie */}
-                {showHardware && <TiponElewacja d={d} fy={fy} open />}
+                {showHardware && <TiponElewacja d={d} fy={fy} />}
               </>
             )}
           </g>
@@ -9963,8 +9964,6 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             {d.handle && d.w > 60 && d.h > 30 && (
               <UchwytElewacja d={d} fy={fy} dx={0} />
             )}
-            {/* tip-on: odbojnik za frontem przy wolnej krawedzi — przerywany obrys */}
-            <TiponElewacja d={d} fy={fy} />
             {d.mirror && d.w > 2 && d.h > 2 && (
               <rect x={d.x + 0.5} y={fy(d.y + d.h) + 0.5} width={d.w - 1} height={d.h - 1}
                 fill={mat.mirror.color} stroke={INK} strokeWidth="1" opacity="0.85" />

@@ -254,14 +254,13 @@ console.log('\n== drzwi bez uchwytu: dłuższy od dołu / podfrez / tip-on (uży
   });
   if ((await cenaTip()) === null) { await card(/^Wycena$/).locator('h2').click(); await page.waitForTimeout(700); }
   ok('tip-on: cena 7 zł w Wycenie', (await cenaTip()) === '7', String(await cenaTip()));
-  ok('tip-on na rysunku (przerywany obrys przy wolnej krawędzi)', (await page.locator('#rysunek [data-el="tipon"]').count()) === 1);
-  // zgloszenie uzytkownika 2026-10-25 „tip-on nam się nie rysuje” — wyrazniej i w innych widokach
+  // zgloszenie uzytkownika 2026-10-25 „tip-on nam się nie rysuje”; 2026-10-26 — „na zamkniętym nie musi się rysować”
   const tip = page.locator('#rysunek [data-el="tipon"]');
-  ok('tip-on zamknięte: obrys 15 × 16 (karta SALTO długi z adapterem) z podpisem „tip-on”',
-    (await tip.locator('rect[stroke-dasharray]').count()) === 1 && (await tip.locator('text').textContent()) === 'tip-on'
-    && (await tip.locator('rect').evaluate((r) => [r.getAttribute('width'), r.getAttribute('height')].join('×'))) === '15×16');
+  ok('tip-on na zamkniętym się nie rysuje', (await tip.count()) === 0, String(await tip.count()));
   await view('Otw.');
-  ok('tip-on otwarte: okucie na korpusie (wypełnione, jak zawias)', (await tip.locator('rect:not([stroke-dasharray])').count()) === 1);
+  ok('tip-on otwarte: okucie na korpusie 15 × 16 (karta SALTO długi z adapterem) z podpisem „tip-on”',
+    (await tip.count()) === 1 && (await tip.locator('text').textContent()) === 'tip-on'
+    && (await tip.locator('rect').evaluate((r) => [r.getAttribute('width'), r.getAttribute('height')].join('×'))) === '15×16');
   await view('Z boku');
   if (!(await page.locator('#rysunek [data-el="tipon-bok"]').count())) { await page.getByRole('button', { name: 'Pokaż prawy bok' }).click(); await page.waitForTimeout(500); }
   ok('tip-on z boku: na boku przy wolnej krawędzi, 89 mm w głąb', (await page.locator('#rysunek [data-el="tipon-bok"]').evaluate((r) => r.getAttribute('width')).catch(() => null)) === '89');
@@ -321,7 +320,15 @@ console.log('\n== drzwi bez uchwytu: dłuższy od dołu / podfrez / tip-on (uży
   ok('klapa w dół: „podfrez od góry” i tip-on, bez wydłużenia', (await sel.locator('option').allInnerTexts()).join('|') === 'otwieranie: —|podfrez od góry|tip-on (GTV SALTO NOVA)',
     (await sel.locator('option').allInnerTexts()).join('|'));
   await sel.selectOption('tipon'); await page.waitForTimeout(700);
-  ok('klapa w dół z tip-on: odbojnik w zamówieniu i na rysunku', (await hwRows()).some((r) => /^Odbojnik tip-on/.test(r)) && (await page.locator('#rysunek [data-el="tipon"]').count()) === 1);
+  await view('Otw.');
+  ok('klapa w dół z tip-on: odbojnik w zamówieniu i na otwartym rysunku', (await hwRows()).some((r) => /^Odbojnik tip-on/.test(r)) && (await page.locator('#rysunek [data-el="tipon"]').count()) === 1);
+  await view('Zamk.');
+  // tip-on klapy przy boku od drugiej strony niz silownik (uzytkownik 2026-10-26)
+  tp = await tipony();
+  ok('klapa: tip-on od drugiej strony niż siłownik (siłownik lewy → przy prawym boku, 582)', tp.length === 1 && tp[0][3] === 582, JSON.stringify(tp));
+  await drzwi({ klapa: 'dol', handles: [false], otwieranie: ['tipon'], podnosnikStrona: 'right' });
+  tp = await tipony();
+  ok('klapa: siłownik prawy → tip-on przy lewym boku (18)', tp.length === 1 && tp[0][0] === 18, JSON.stringify(tp));
 }
 
 console.log('\n== widoki bez błędów ==');
