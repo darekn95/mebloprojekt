@@ -248,7 +248,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `hexKoloru(c)` / `GrainDefsProjektu` | 3D bez słojów: `url(#grv<hex>)` → hex; wzory słojów wszystkich szafek projektu na rysunkach ciągu i zabudowy |
 | `plytaFrontu(cab)` | płyta frontów szafki: `"board"` przy „Fronty z tej samej płyty co korpus” (domyślnie), inaczej `"front"` — dla elementów poza `computeGeo` (wstawka w rogu, front ramienia, maskownice kątownika); w `computeGeo` robi to `P()` (`sameBoard`) |
 | `frontRamienia(a, real)` / `sasiadRamienia(a)` | front ramienia szafki L: płyta i kolor frontów szafki sąsiedniej ściany stojącej przy ramieniu (inne fronty → z niej), inaczej szafki w rogu. Formatka niesie własną płytę w `zPlyty`, a listy czytają ją przez `plytaFormatki(p, mat)` |
-| `szufladaDxs` (w `computeGeo`, kolumna szuflad) | szuflada DXS-3D: kreska prowadnicy (`rail.y0`), bok auto/ręcznie, NL z `DXS.nl` (wzmocnienie przy plecach skraca NL), tył, kontrole z przyciskami (`fixh`, `fixback`, `fixnl`), `dr.skrzynka` (`system: "dxs"`, `bokDl`, `bokT`, `szer` = SKW, `dno`, `tyl`), formatki (bok ×2, dno, tył), `dxsGroups` (komplety), `dxsKonf` (konfirmaty dna i tyłu przez boki — do wiersza konfirmatów korpusu) |
+| `szufladaDxs` (w `computeGeo`, kolumna szuflad) | szuflada DXS-3D: kreska prowadnicy (`rail.y0`), bok auto/ręcznie, NL z `DXS.nl` (wzmocnienie przy plecach skraca NL), tył, kontrole z przyciskami (`fixh`, `fixback`, `fixnl`), `dr.skrzynka` (`system: "dxs"`, `bokDl`, `bokT`, `szer` = SKW, `dno` (między przodem a tyłem), `tyl`, `przod` — pełna skrzynka 2026-10-26), formatki (bok ×2, dno, tył, „Przód skrzynki”), `dxsGroups` (komplety; też liczba wkrętów frontu `WKRET_FRONTU_NAME`, `DXS.wkretyFrontu` = 4), `dxsKonf` (konfirmaty dna, tyłu i przodu przez boki + `DXS.konfPrzodDno` = 2 z przodu w dno — do wiersza konfirmatów korpusu) |
 | `szufladaOdCzola(c, dr)` / `szufladaZGory(c, dr)` / `szerWnetrzaSzuflady(c, dr)` | prowadnice (V-BOX: pas 21 mm; DXS: 33 × 27 pod dnem) i boki skrzynki DXS do rysunków z przodu (szafka, ciąg) i z góry; światło szerokości szuflady (V-BOX c.w − 42, DXS SKW). Pion: `dr.bokOd`, `dr.dnoOd`, `dr.gora` (oba systemy) |
 | `systemKontekstu` / `naSystemSzuflad` / `szufladyMsgs` | system nowej szuflady z kontekstu; wszystkie szuflady szafki na jeden system; uwaga ciągu „szuflady tej szafki są na X, a w ciągu / pomieszczeniu na Y” |
 | `shelfColorOf(cab, mat)` | kolor płyty półek na rysunkach: półki, półka ramienia, kątownik w tylnym narożniku L, dno i tył szuflady |
@@ -423,7 +423,7 @@ co do znaku (łącznie ze spacjami wokół „×").
 **Formatki:** Bok · Bok lewy · Bok prawy · Dno / wieniec · Blat · Blat roboczy ·
 Półka · Półka przelotowa · Przegroda pionowa · Wspornik pionowy · Blenda ·
 Blenda nad szafką · Drzwi nakładane · Drzwi wpuszczane · Klapa · Cokół · Cokół ciągu · Wieniec ciągu · Dno ciągu · Element stały (fix) ·
-Front szuflady · Dno szuflady · Tył szuflady · Bok szuflady (DXS-3D) · Plecy HDF · Plecy HDF we frezie ·
+Front szuflady · Dno szuflady · Tył szuflady · Bok szuflady (DXS-3D) · Przód skrzynki (DXS-3D) · Plecy HDF · Plecy HDF we frezie ·
 Plecy z płyty (na zewnątrz) · Plecy z płyty (wewnątrz) ·
 Kątownik przy ramieniu — bok · Kątownik przy ramieniu — plecy ·
 Bok ramienia · Półka ramienia · Cokół ramienia · Front ramienia · Fix ramienia ·

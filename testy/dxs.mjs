@@ -102,11 +102,14 @@ const bokiF = fm.filter((r) => /^Bok szuflady/.test(r[0])).flatMap((r) => Array(
 const bokiO = boki.flatMap((h) => [`${NL - 10}×${h}`, `${NL - 10}×${h}`]).sort();
 ok(`boki skrzynek: 2 × ${NL - 10} × (do tego, co wyżej − 5)`, JSON.stringify(bokiF) === JSON.stringify(bokiO), `formatki ${bokiF.join(', ')} / oczek. ${bokiO.join(', ')}`);
 const dna = fm.filter((r) => /^Dno szuflady/.test(r[0]));
-ok(`dno: ${SKW} × ${NL - 10 - t} (SKW = LW − 49, do tyłu), 3 szt., bez obrzeża`, dna.length === 1 && num(dna[0][2]) === SKW && num(dna[0][3]) === NL - 10 - t && dna[0][4] === '3',
+// pelna skrzynka (zdjecia uzytkownika 2026-10-26): dno miedzy przodem a tylem
+ok(`dno: ${SKW} × ${NL - 10 - 2 * t} (SKW = LW − 49, między przodem a tyłem), 3 szt., bez obrzeża`, dna.length === 1 && num(dna[0][2]) === SKW && num(dna[0][3]) === NL - 10 - 2 * t && dna[0][4] === '3',
   JSON.stringify(dna));
 const tyly = fm.filter((r) => /^Tył szuflady/.test(r[0])).map((r) => `${num(r[2])}×${num(r[3])}`).sort();
 const tylyO = boki.map((h) => `${SKW}×${h - 10}`).sort();
 ok('tył: SKW × (bok − 10)', JSON.stringify(tyly) === JSON.stringify(tylyO), `${tyly.join(', ')} / ${tylyO.join(', ')}`);
+const przody = fm.filter((r) => /^Przód skrzynki/.test(r[0])).flatMap((r) => Array(Number(r[4])).fill(`${num(r[2])}×${num(r[3])}`)).sort();
+ok('przód skrzynki: SKW × (bok − 10), po jednym na szufladę', JSON.stringify(przody) === JSON.stringify(tylyO), `${przody.join(', ')} / ${tylyO.join(', ')}`);
 const bokOkl = wiersz(fm, /^Bok szuflady/);
 ok('bok szuflady z płyty półek, oklejona krawędź górna', !!bokOkl && /górna/.test(bokOkl.join(' ')) || !!bokOkl, JSON.stringify(bokOkl || []).slice(0, 160));
 // zamowienie
@@ -114,9 +117,12 @@ const ok1 = await tabela(/^Produkty do zamówienia/);
 const kpl = ok1.filter((r) => /^Prowadnica Sevroll DXS-3D Synchro/.test(r[0]));
 ok('okucia: komplet DXS-3D NL 550 (ind. 05412) × 3', kpl.length === 1 && /NL 550 mm, ind\. 05412 — komplet na szufladę/.test(kpl[0][1]) && /^3 kpl/.test(kpl[0][2]), JSON.stringify(kpl));
 ok('bez prowadnic V-BOX w zamówieniu', !ok1.some((r) => /V-BOX/.test(r[0])));
-const konfO = boki.reduce((s, h) => s + 2 * (konfNaStyk(NL - 10 - t) + konfNaStyk(h - 10)), 0);
+// dno, tyl i przod przez boki z obu stron + 2 z przodu w czolo dna
+const konfO = boki.reduce((s, h) => s + 2 * (konfNaStyk(NL - 10 - 2 * t) + 2 * konfNaStyk(h - 10)) + 2, 0);
 const konf = wiersz(ok1, /^Konfirmat/);
-ok(`konfirmaty skrzynek: ${konfO} (dno i tył przez boki) w wierszu konfirmatów`, !!konf && konf[1].includes(`skrzynki szuflad DXS-3D (dno i tył przez boki) ${konfO}`), konf ? konf.join(' | ') : '(brak)');
+ok(`konfirmaty skrzynek: ${konfO} (dno, tył i przód przez boki, przód w dno) w wierszu konfirmatów`, !!konf && konf[1].includes(`skrzynki szuflad DXS-3D (dno, tył i przód przez boki, przód w dno) ${konfO}`), konf ? konf.join(' | ') : '(brak)');
+const wkr = wiersz(ok1, /^Wkręt 4 × 30 do frontu szuflady/);
+ok('front od środka: wkręty 4 × 30, 4 na front → 12 szt.', !!wkr && /^12 szt/.test(wkr[2]), wkr ? wkr.join(' | ') : '(brak)');
 const zasl = wiersz(ok1, /^Zaślepka na konfirmat/);
 ok('zaślepki liczone razem z konfirmatami skrzynek', !!zasl && !!konf && num(zasl[2].match(/\((\d+) szt/)?.[1] || 0) === num(konf[2]), zasl ? zasl.join(' | ') : '(brak)');
 // cennik: 50 zl za komplet bez wzgledu na NL
@@ -129,7 +135,11 @@ ok('w wycenie komplet DXS-3D po 50 zł (domyślnie, bez względu na NL)', !!cena
 // plan wiercen skrzynki
 const bokP = plan.filter((r) => /^Bok szuflady — szuflada 1 /.test(r.panel));
 const kDna = bokP.find((r) => r.kind === 'konfirmat — dno');
-ok('bok szuflady: konfirmaty dna 19 mm nad dołem boku (10 + 18/2), 50 mm od końców', !!kDna && kDna.ys[0] === 19 && /50, \d+, 472 mm od przedniej krawędzi boku/.test(kDna.note), kDna ? `${kDna.ys} ${kDna.note}` : '(brak)');
+ok('bok szuflady: konfirmaty dna 19 mm nad dołem boku (10 + 18/2), 50 mm od końców dna (dno za przodem: 68)', !!kDna && kDna.ys[0] === 19 && /68, \d+, 472 mm od przedniej krawędzi boku/.test(kDna.note), kDna ? `${kDna.ys} ${kDna.note}` : '(brak)');
+const kPrzodu = bokP.find((r) => r.kind === 'konfirmat — przód skrzynki');
+ok('bok szuflady: konfirmaty przodu skrzynki w jego osi (9 mm od przedniej krawędzi boku)', !!kPrzodu && kPrzodu.note.includes('oś przodu: 9 mm'), kPrzodu ? kPrzodu.note : '(brak)');
+const pDna = plan.find((r) => /^Przód skrzynki — szuflada 1/.test(r.panel) && r.kind === 'konfirmat — dno');
+ok(`przód skrzynki: 2 konfirmaty w czoło dna, 9 mm nad dołem, 50 i ${SKW - 50} mm od lewej`, !!pDna && pDna.ys[0] === 9 && pDna.note.includes(`50 i ${SKW - 50} mm od lewej`), pDna ? `${pDna.ys} ${pDna.note}` : '(brak)');
 const kTylu = bokP.find((r) => r.kind === 'konfirmat — tył');
 ok(`bok szuflady: konfirmaty tyłu w osi tyłu (${NL - 10 - t / 2} mm od przodu)`, !!kTylu && kTylu.note.includes(`oś tyłu: ${NL - 10 - t / 2} mm`), kTylu ? kTylu.note : '(brak)');
 const zacz = plan.find((r) => /^Tył szuflady — szuflada 1/.test(r.panel));

@@ -30,7 +30,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 - **NL (długość prowadnicy)**: najdłuższa z listy systemu, która się zmieści.
   - Do pleców potrzeba NL + 3 mm, przy froncie wpuszczanym także + grubość frontu.
   - Wzmocnienie przy plecach na wysokości skrzynki skraca NL (4 mm luzu przed nim).
-- **Wysokość boku „auto”**: najwyższa, która mieści się pod tym, co wyżej, z luzem 5 mm (`SZUFLADA_ZAPAS`). Nad szufladą może być następny front, góra światła albo wzmocnienie pod blatem na całej drodze skrzynki.
+- **Wysokość boku „auto”**: najwyższa, która mieści się pod tym, co wyżej, z luzem 5 mm (`SZUFLADA_ZAPAS`). Nad szufladą może być następny front, góra światła, wzmocnienie pod blatem na całej drodze skrzynki albo **fix u góry** — stoi w otworze przed skrzynką, więc skrzynka kończy się pod jego dołem (2026-10-26; wcześniej bok szedł pod wieniec, za fix, i wjeżdżał w niego przy wysuwie).
 
 ### Co ustawiasz ręcznie
 - **System**: V-BOX albo DXS-3D. Przy zmianie bok i tył wracają na auto, reling i podniesiony tył znikają, a NL spoza listy nowego systemu wraca na auto.
@@ -91,10 +91,11 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 
 ## DXS-3D
 
-- **Skrzynka z płyty półek**:
+- **Skrzynka z płyty półek — pełna, z przodem** (zdjęcia szuflady od użytkownika, 2026-10-26):
   - boki na zewnątrz, długość NL − 10, oklejona górna krawędź;
-  - dno i tył między bokami, na konfirmaty przez boki od zewnątrz;
-  - dno dochodzi do tyłu.
+  - tył i **przód skrzynki** między bokami, na konfirmaty przez boki od zewnątrz; przód jak tył: góra równo z bokami, dół równo ze spodem dna (bok − 10, także gdy tył jest ręcznie niższy), oklejona górna krawędź;
+  - dno między bokami oraz między przodem a tyłem (NL − 10 − 2 × grubość płyty), na konfirmaty przez boki i 2 konfirmaty z przodu skrzynki w czoło dna (50 mm od końców, zakrywa je front);
+  - front szuflady przykręcany od środka przez przód skrzynki — 4 wkręty 4 × 30 (w rogach).
 - **Szerokość dna i tyłu** = światło kolumny − 2 × (6,5 + grubość płyty); przy płycie 18 mm to światło − 49. Od boku szafki do boku skrzynki jest 6,5 mm.
 - **Pion od spodu prowadnicy**:
   - dół boku na +17 mm;
@@ -111,11 +112,13 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 - **Inne kontrole**: płyta inna niż 16 / 18 / 19 mm — ostrzeżenie; kolumna za wąska na skrzynkę — błąd.
 - **Zamówienie**:
   - „Prowadnica Sevroll DXS-3D Synchro”, komplet na szufladę (NL i indeks w opisie), 50 zł bez względu na NL;
-  - konfirmaty skrzynek doliczone do konfirmatów („dno i tył przez boki”).
+  - konfirmaty skrzynek doliczone do konfirmatów („dno, tył i przód przez boki, przód w dno”);
+  - „Wkręt 4 × 30 do frontu szuflady” — 4 na front DXS-3D (bez ceny domyślnej).
 - **Plan wierceń**:
   - kreska spodu prowadnicy na boku szafki; prowadnicę przykłada się do kreski i przykręca 3 wkrętami bez nawiercania;
   - przód prowadnicy 4 mm za krawędzią szafki (przy froncie wpuszczanym + grubość frontu);
-  - boki skrzynki: konfirmaty dna i tyłu;
+  - boki skrzynki: konfirmaty dna (licząc od przedniej krawędzi boku — dno zaczyna się za przodem), tyłu i przodu (oś przodu 9 mm od przedniej krawędzi);
+  - przód skrzynki: 2 konfirmaty w czoło dna, 9 mm nad dołem, 50 mm od końców; notatka „front od środka” (4 wkręty 4 × 30);
   - tył: otwór zaczepu ⌀6 × 10 mm, 11 mm nad dołem;
   - dno: sprzęgła (20415), 75 mm od boku.
 
