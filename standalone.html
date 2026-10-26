@@ -253,6 +253,12 @@ const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀2
 const OTWIERANIA = ["dol", "podfrez", "tipon"];
 const OTWIERANIE_MM = 20;
 const TIPON_NAME = "Odbojnik tip-on GTV SALTO NOVA";
+/* Obrys odbojnika na rysunkach (orientacyjnie — SALTO NOVA nie ma w katalogach
+   w `instrukcje/`): wymiary z karty „Odbojnik SALTO długi z adapterem”
+   (AM-OAM-DL-MG-30, katalog GTV 2023) — adapter ok. 22 × 32 mm, dlugosc 89 mm. */
+const TIPON_W = 22;
+const TIPON_H = 32;
+const TIPON_L = 89;
 const DEFAULT_HW_PRICES = {
   Zawias: 3,
   "Nóżka regulowana": 2.3,
@@ -3298,6 +3304,14 @@ function computeGeoLiczy(cab, mat, ctx) {
             const wisi = !(cab.plinth.on || (cab.legs && cab.legs.on));
             const uDolu = d.type === "klapa" ? d.klapa === "gora" : wisi;
             d.tiponY = uDolu ? d.y + 80 : d.y + d.h - 80;
+            /* obrys na rysunki: za frontem przy wolnej krawedzi (klapa — przy lewym boku);
+               za nakladanym przy wewnetrznej scianie boku (front zachodzi na bok o grubosc
+               plyty), za wpuszczanym przy samej krawedzi; w glab od tylu frontu */
+            const przyLewej = d.type === "klapa" || d.hingeSide === "right";
+            const od = d.inset ? 0 : t;
+            const x0 = przyLewej ? d.x + od : d.x + d.w - od - TIPON_W;
+            const z0 = d.inset ? tf : 0;
+            d.tipon = { x0, x1: x0 + TIPON_W, y0: d.tiponY - TIPON_H / 2, y1: d.tiponY + TIPON_H / 2, z0, z1: z0 + TIPON_L };
             return;
           }
           d.otwMm = Math.max(0, Math.round(num((rawCol.otwieranieMm || [])[i]) ?? OTWIERANIE_MM));
@@ -7141,6 +7155,25 @@ function UchwytElewacja({ d, fy, dx = 0 }) {
   );
 }
 
+/* Tip-on (odbojnik frontu bez uchwytu, `d.tipon`) na widoku z przodu: zamkniety —
+   przerywany obrys za frontem, otwarty — okucie na korpusie jak zawias; podpis
+   „tip-on” w strone srodka frontu. `dx` — przesuniecie szafki w ciagu. */
+function TiponElewacja({ d, fy, dx = 0, open = false }) {
+  const o = d.tipon;
+  if (!o) return null;
+  const x = o.x0 + dx, w = o.x1 - o.x0;
+  const wPrawo = d.type === "klapa" || d.hingeSide === "right";
+  return (
+    <g data-el="tipon">
+      <rect x={x} y={fy(o.y1)} width={w} height={o.y1 - o.y0} rx="4"
+        fill={open ? "#71717a" : "none"} stroke={INK} strokeWidth={open ? 1.5 : 2}
+        strokeDasharray={open ? undefined : "5 3"} />
+      <text x={wPrawo ? x + w + 6 : x - 6} y={fy(d.tiponY) + 5} textAnchor={wPrawo ? "start" : "end"}
+        fontSize="14" fill={INK} opacity="0.8" fontFamily="ui-monospace, monospace">tip-on</text>
+    </g>
+  );
+}
+
 /* Klapa na widoku z przodu. Symbol otwierania jak przy drzwiach — trojkat
    z wierzcholkiem po stronie zawiasow — tylko obrocony: klapa do gory ma
    zawiasy na gornej krawedzi, opadana na dolnej. Uchwyt poziomy przy wolnej
@@ -7296,8 +7329,13 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         const X = mx(d.x, d.w);
         const hinge = rear ? (d.hingeSide === "left" ? "right" : "left") : d.hingeSide;
         if (d.type === "klapa")
-          return <KlapaElewacja key={d.key} d={d} fy={fy} ff={ff} open={open} tf={geo.tf} x0={X - d.x} uchOut={uchwytOut(d, cab)}
-            showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />;
+          return (
+            <g key={d.key}>
+              <KlapaElewacja d={d} fy={fy} ff={ff} open={open} tf={geo.tf} x0={X - d.x} uchOut={uchwytOut(d, cab)}
+                showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />
+              {(!open || showHardware) && <TiponElewacja d={d} fy={fy} dx={X - d.x} open={open} />}
+            </g>
+          );
         if (d.type === "fix" || d.type === "blenda")
           return (
             <g key={d.key}>
@@ -7346,6 +7384,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
                 <rect key={`hg${hi2}`} x={mx(d.hingeX, HINGE_W)} y={fy(hy + HINGE_H / 2)}
                   width={HINGE_W} height={HINGE_H} rx="3" fill="#71717a" stroke={INK} strokeWidth="1.5" />
               ))}
+              {showHardware && <TiponElewacja d={d} fy={fy} dx={X - d.x} open />}
             </g>
           );
         return (
@@ -7359,6 +7398,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
             {d.handle && d.w > 60 && d.h > 30 && (
               <UchwytElewacja d={d} fy={fy} dx={X - d.x} />
             )}
+            <TiponElewacja d={d} fy={fy} dx={X - d.x} />
             {d.mirror && d.w > 2 && d.h > 2 && (
               <rect x={X + 0.5} y={fy(d.y + d.h) + 0.5} width={d.w - 1} height={d.h - 1}
                 fill={mat.mirror.color} stroke={INK} strokeWidth="1" opacity="0.85" />
@@ -8901,6 +8941,9 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         c.x + col.x0 + DRAZEK_KROTSZY / 2, c.base + dr.y - DRAZEK_FI / 2, dr.z - DRAZEK_FI / 2,
         c.x + col.x0 + DRAZEK_KROTSZY / 2 + dr.len, c.base + dr.y + DRAZEK_FI / 2, dr.z + DRAZEK_FI / 2, "#8b8b93",
         null, 1, false, wGlab, "rura-wieszaki"))));
+      // tip-on — odbojnik na korpusie za frontem (okucie)
+      (c.geo.doors || []).forEach((d) => d.tipon && box(c.x + d.tipon.x0, c.base + d.tipon.y0, d.tipon.z0,
+        c.x + d.tipon.x1, c.base + d.tipon.y1, d.tipon.z1, "#8b8b93", null, 1, false, wGlab, "tipon"));
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.shelves || []).forEach((sh) => {
         polkaCzesci(col, zPolki[0] + (col.shFront || 0), zPolki[1], cd).forEach(([x0, z0, x1, z1]) =>
           box(c.x + x0, c.base + sh.y, z0, c.x + x1, c.base + sh.y + c.geo.ts, z1, shc3,
@@ -9782,10 +9825,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
             <KlapaElewacja d={d} fy={fy} ff={ff} open={open} tf={geo.tf} uchOut={uchwytOut(d, cab)}
               showDims={showDims} showHardware={showHardware} lustro={mat.mirror.color} />
             {/* tip-on klapy: odbojnik przy wolnej krawedzi, na boku */}
-            {!open && d.otwieranie === "tipon" && d.tiponY != null && (
-              <rect data-el="tipon" x={d.x + 18} y={fy(d.tiponY + 30)} width={16} height={60}
-                rx="3" fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.7" />
-            )}
+            {(!open || showHardware) && <TiponElewacja d={d} fy={fy} open={open} />}
           </g>
         ) : d.type === "fix" || d.type === "blenda" ? (
           <g key={d.key}>
@@ -9881,6 +9921,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                     )}
                   </g>
                 ))}
+                {/* tip-on — na korpusie przy wolnej krawedzi, jak zawias po drugiej stronie */}
+                {showHardware && <TiponElewacja d={d} fy={fy} open />}
               </>
             )}
           </g>
@@ -9897,10 +9939,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               <UchwytElewacja d={d} fy={fy} dx={0} />
             )}
             {/* tip-on: odbojnik za frontem przy wolnej krawedzi — przerywany obrys */}
-            {d.otwieranie === "tipon" && d.tiponY != null && (
-              <rect data-el="tipon" x={d.hingeSide === "left" ? d.x + d.w - 34 : d.x + 18} y={fy(d.tiponY + 30)} width={16} height={60}
-                rx="3" fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.7" />
-            )}
+            <TiponElewacja d={d} fy={fy} />
             {d.mirror && d.w > 2 && d.h > 2 && (
               <rect x={d.x + 0.5} y={fy(d.y + d.h) + 0.5} width={d.w - 1} height={d.h - 1}
                 fill={mat.mirror.color} stroke={INK} strokeWidth="1" opacity="0.85" />
@@ -11611,6 +11650,13 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
         );
         return out;
       })()}
+      {/* tip-on przykrecony do tego boku (przy wolnej krawedzi frontu) — od czola w glab */}
+      {showHardware && geo.doors.filter((d) => d.tipon && (sideRight
+        ? d.tipon.x1 >= geo.interior.x1 - 5 : d.tipon.x0 <= geo.interior.x0 + 5)).map((d) => (
+        <rect key={`stp${d.key}`} data-el="tipon-bok" x={D - d.tipon.z1} y={fy(d.tipon.y1)}
+          width={d.tipon.z1 - d.tipon.z0} height={d.tipon.y1 - d.tipon.y0}
+          rx="4" fill="#71717a" fillOpacity="0.8" stroke={INK} strokeWidth="1.5" />
+      ))}
 
       {/* elementy stale (fix) — z boku widac ich zasieg na wysokosci */}
       {(() => {
@@ -12282,6 +12328,11 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
     box(d.x, d.y, z0, d.x + d.w, d.y + d.h, z1, col, rot, 0.85, true);
     handleBar(d, z0, rot);
   });
+
+  // tip-on — odbojnik na korpusie za frontem (okucie w kolorze metalu, nie formatka)
+  fk = null;
+  geo.doors.forEach((d) => d.tipon && box(d.tipon.x0, d.tipon.y0, d.tipon.z0, d.tipon.x1, d.tipon.y1, d.tipon.z1,
+    "#8b8b93", null, 1, false, "tipon"));
 
   // wstawka w rogu przy boku szafki: od lica drzwi `gl` w glab
   fk = null;

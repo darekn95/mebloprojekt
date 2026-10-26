@@ -255,6 +255,22 @@ console.log('\n== drzwi bez uchwytu: dłuższy od dołu / podfrez / tip-on (uży
   if ((await cenaTip()) === null) { await card(/^Wycena$/).locator('h2').click(); await page.waitForTimeout(700); }
   ok('tip-on: cena 7 zł w Wycenie', (await cenaTip()) === '7', String(await cenaTip()));
   ok('tip-on na rysunku (przerywany obrys przy wolnej krawędzi)', (await page.locator('#rysunek [data-el="tipon"]').count()) === 1);
+  // zgloszenie uzytkownika 2026-10-25 „tip-on nam się nie rysuje” — wyrazniej i w innych widokach
+  const tip = page.locator('#rysunek [data-el="tipon"]');
+  ok('tip-on zamknięte: obrys 22 × 32 z podpisem „tip-on”, przy wolnej krawędzi u dołu szafki wiszącej',
+    (await tip.locator('rect[stroke-dasharray]').count()) === 1 && (await tip.locator('text').textContent()) === 'tip-on'
+    && (await tip.locator('rect').evaluate((r) => [r.getAttribute('width'), r.getAttribute('height')].join('×'))) === '22×32');
+  await view('Otw.');
+  ok('tip-on otwarte: okucie na korpusie (wypełnione, jak zawias)', (await tip.locator('rect:not([stroke-dasharray])').count()) === 1);
+  await view('Z boku');
+  if (!(await page.locator('#rysunek [data-el="tipon-bok"]').count())) { await page.getByRole('button', { name: 'Pokaż prawy bok' }).click(); await page.waitForTimeout(500); }
+  ok('tip-on z boku: na boku przy wolnej krawędzi, 89 mm w głąb', (await page.locator('#rysunek [data-el="tipon-bok"]').evaluate((r) => r.getAttribute('width')).catch(() => null)) === '89');
+  await view('Zamk.');
+  await page.evaluate(() => { window.__audytBryl = []; });
+  await view('3D');
+  const tb = await page.evaluate(() => { const a = window.__audytBryl || []; window.__audytBryl = null; return a.filter((x) => x.tag === 'tipon').map((x) => x.d.map(Math.round).sort((p, q) => p - q).join('×') + ' ' + x.color); });
+  ok('tip-on w 3D: odbojnik 22 × 32 × 89 za frontem (okucie, nie formatka)', tb.length === 1 && tb[0] === '22×32×89 #8b8b93', tb.join(', '));
+  await view('Zamk.');
   // szafka na nozkach: drzwi dluzsze o 95 mm siegaja podlogi — blad z przyciskami
   await drzwi({ handles: [false], otwieranie: ['dol'], otwieranieMm: [95] });
   await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.items[0].cab.legs = { on: true, height: 100 }; localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
