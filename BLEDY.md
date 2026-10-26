@@ -341,6 +341,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Ustalone — nie ruszać
 
+- **Tip-on — gdzie się go przykręca** (użytkownik 2026-10-26): „montuję na półce lub dnie szafki w miejscu, gdzie się naciska; jak szafka górna to na dole, jak dolna to na górze, jak wysoka to na półce mniej więcej na wysokości metra; jak pojedyncze drzwi to przy samym boku, jak drzwi dzielone to około 2 cm od końca styku drzwi z drugimi”. W programie: `TIPON_NA_WYSOKOSCI` 1000 (stojąca — płyta najbliżej 1 m od podłogi), wisząca — dno, `TIPON_OD_STYKU` 20 (`opisy/drzwi.md`).
 - **Szuflady DXS-3D Synchro — ustalenia do budowy** (2026-10-21, odpowiedzi użytkownika na listę „co wiemy, czego nie”; liczby z instrukcji w `instrukcje/SPIS.md`, odczyt rysunku w `AI_NOTES.md`):
   - **prowadnica na boku korpusu** — przykłada się do zaznaczonej kreski (spód prowadnicy) i przykręca bez nawiercania, 3 wkręty na prowadnicę. Plan wierceń ma więc podawać **wysokość spodu prowadnicy** od dolnej krawędzi boku (jak „szyna N” przy V-BOX) i **odsunięcie od czoła boku**: 4 mm za krawędzią korpusu przy froncie nakładanym, przy wpuszczanym + X. Wymiar „37” = górny rząd wkrętów (dolny 12 niżej), nie wierzch dna;
   - **X = grubość frontu** (front wpuszczany: LT = NL + X + 3, szuflada NL + X − 10);

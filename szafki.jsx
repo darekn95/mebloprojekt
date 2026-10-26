@@ -237,11 +237,20 @@ const OTWIERANIA = ["dol", "podfrez", "tipon"];
 const OTWIERANIE_MM = 20;
 const TIPON_NAME = "Odbojnik tip-on GTV SALTO NOVA";
 /* Obrys odbojnika na rysunkach (orientacyjnie — SALTO NOVA nie ma w katalogach
-   w `instrukcje/`): wymiary z karty „Odbojnik SALTO długi z adapterem”
-   (AM-OAM-DL-MG-30, katalog GTV 2023) — adapter ok. 22 × 32 mm, dlugosc 89 mm. */
-const TIPON_W = 22;
-const TIPON_H = 32;
+   w `instrukcje/`): z karty „Odbojnik SALTO długi z adapterem” (AM-OAM-DL-MG-30,
+   katalog GTV 2023, s. 112) — od czola 15 × 16 mm, dlugosc 89 mm. */
+const TIPON_W = 15;
+const TIPON_H = 16;
 const TIPON_L = 89;
+/* Gdzie tip-on (uzytkownik 2026-10-26): na poziomej plycie za frontem, tam, gdzie sie
+   naciska — szafka wiszaca na dnie, stojaca na plycie najblizej `TIPON_NA_WYSOKOSCI`
+   od podlogi (dolna wychodzi pod wiencem, wysoka na polce ok. 1 m); drzwi pojedyncze
+   przy samym boku, para ok. `TIPON_OD_STYKU` od styku drzwi. */
+const TIPON_NA_WYSOKOSCI = 1000;
+const TIPON_OD_STYKU = 20;
+// szafka na zawieszkach: wymuszone albo bez nozek, cokolu i podlogi pod soba (stojacy ciag)
+const szafkaWisi = (cab) => cab.hangers === "always"
+  || (cab.hangers !== "never" && !((cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on) || cab.naPodlodze));
 const DEFAULT_HW_PRICES = {
   Zawias: 3,
   "Nóżka regulowana": 2.3,
@@ -3281,22 +3290,8 @@ function computeGeoLiczy(cab, mat, ctx) {
           const otw = !d.handle && dozwolone.includes((rawCol.otwieranie || [])[i]) ? rawCol.otwieranie[i] : null;
           if (!otw) return;
           d.otwieranie = otw;
-          if (otw === "tipon") {
-            tiponCount += 1;
-            // odbojnik przy wolnej krawedzi: drzwi — u gory szafki stojacej, u dolu wiszacej; klapa — przy wolnej krawedzi
-            const wisi = !(cab.plinth.on || (cab.legs && cab.legs.on));
-            const uDolu = d.type === "klapa" ? d.klapa === "gora" : wisi;
-            d.tiponY = uDolu ? d.y + 80 : d.y + d.h - 80;
-            /* obrys na rysunki: za frontem przy wolnej krawedzi (klapa — przy lewym boku);
-               za nakladanym przy wewnetrznej scianie boku (front zachodzi na bok o grubosc
-               plyty), za wpuszczanym przy samej krawedzi; w glab od tylu frontu */
-            const przyLewej = d.type === "klapa" || d.hingeSide === "right";
-            const od = d.inset ? 0 : t;
-            const x0 = przyLewej ? d.x + od : d.x + d.w - od - TIPON_W;
-            const z0 = d.inset ? tf : 0;
-            d.tipon = { x0, x1: x0 + TIPON_W, y0: d.tiponY - TIPON_H / 2, y1: d.tiponY + TIPON_H / 2, z0, z1: z0 + TIPON_L };
-            return;
-          }
+          // polozenie odbojnika (`d.tipon`) liczy sie po wszystkich plytach — nizej, przy `podloga`
+          if (otw === "tipon") { tiponCount += 1; return; }
           d.otwMm = Math.max(0, Math.round(num((rawCol.otwieranieMm || [])[i]) ?? OTWIERANIE_MM));
           if (otw === "dol") { d.y -= d.otwMm; d.h += d.otwMm; return; }
           const plyta = Math.min(ps.y1, ...(c.rails || []).filter((r) => r.y0 >= d.y && r.z0 < 100 && r.x1 > d.x && r.x0 < d.x + d.w).map((r) => r.y0));
@@ -4275,6 +4270,37 @@ function computeGeoLiczy(cab, mat, ctx) {
   // podloga pod szafka na nozkach albo cokole (y = 0 to spod korpusu z cokolem w obrysie); wiszaca — null
   const podloga = cab.plinth.on || (cab.legs && cab.legs.on)
     ? -Math.max(cab.plinth.on && !plinthInBody ? plinthH : 0, legBelow) : null;
+  /* Tip-on (uzytkownik 2026-10-26): na poziomej plycie za frontem, tam, gdzie sie naciska.
+     Drzwi: szafka wiszaca — na dnie (najnizsza plyta za frontem), stojaca — plyta najblizej
+     1 m od podlogi (wierzch dna albo polki; najwyzsza — od spodu: pod wiencem albo
+     wzmocnieniem); klapa — przy wolnej krawedzi (do gory — na dole, w dol — u gory).
+     W poziomie: drzwi pojedyncze i klapa przy samym boku (klapa przy lewym), para drzwi
+     ok. 20 mm od styku. Obrys `d.tipon` dla rysunkow, `d.tiponY` — jego srodek. */
+  {
+    const wisiTu = szafkaWisi(cab);
+    const cel = TIPON_NA_WYSOKOSCI + (podloga ?? 0);
+    doors.filter((d) => d.otwieranie === "tipon").forEach((d) => {
+      const [li, j] = d.colKey.split("-").map(Number);
+      const c = levels[li] && levels[li].cols[j];
+      if (!c) return;
+      const sufit = Math.min(d.colY1, ...(c.rails || [])
+        .filter((r) => r.y0 >= d.colY0 && r.z0 < 100 && r.x1 > d.x && r.x0 < d.x + d.w).map((r) => r.y0));
+      const plyty = [{ y: d.colY0, wierzch: true },
+        ...(c.shelves || []).filter((sh) => sh.y > d.colY0 + 1 && sh.y + ts < sufit - 1).map((sh) => ({ y: sh.y + ts, wierzch: true })),
+        { y: sufit, wierzch: false }];
+      const p = d.type === "klapa" ? (d.klapa === "gora" ? plyty[0] : plyty[plyty.length - 1])
+        : wisiTu ? plyty[0] : plyty.reduce((a, b) => (Math.abs(b.y - cel) < Math.abs(a.y - cel) ? b : a));
+      const y0 = p.wierzch ? p.y : p.y - TIPON_H;
+      const wolnaPrawa = d.type !== "klapa" && d.hingeSide === "left";
+      const kraw = wolnaPrawa ? d.x + d.w : d.x;
+      const x0 = d.type !== "klapa" && d.groupN > 1
+        ? (wolnaPrawa ? kraw - TIPON_OD_STYKU - TIPON_W : kraw + TIPON_OD_STYKU)
+        : (wolnaPrawa ? Math.min(c.x1, kraw) - TIPON_W : Math.max(c.x0, kraw));
+      const z0 = d.inset ? tf : 0;
+      d.tipon = { x0, x1: x0 + TIPON_W, y0, y1: y0 + TIPON_H, z0, z1: z0 + TIPON_L };
+      d.tiponY = y0 + TIPON_H / 2;
+    });
+  }
   doors.filter((d) => d.otwieranie === "dol").forEach((d) => {
     const [li, jk, k] = d.key.slice(1).split("-");
     const gdzie = `Poziom ${+li + 1}, ${/s/.test(jk) ? `poziom ${+jk.split("s")[1] + 1} kolumny ${+jk.split("s")[0] + 1}` : `kolumna ${+jk + 1}`}, ${d.type === "klapa" ? "klapa" : `drzwi ${+k + 1}`}`;
@@ -5650,8 +5676,7 @@ function computeGeoLiczy(cab, mat, ctx) {
      ramienia) albo obie w czesci szafki (bok korpusu i plyta rownolegla do
      boku). Bok ramienia dopisuje `wierceniaDodatkowe`. */
   const zawieszki = (() => {
-    const wisi = cab.hangers === "always"
-      || (cab.hangers !== "never" && !((cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on) || cab.naPodlodze));
+    const wisi = szafkaWisi(cab);
     /* Szafka od ZAWIESZKA_SZEROKA wzwyz dostaje dodatkowe zawieszki na
        przegrodach pionowych siegajacych wienca — po jednej na przegrode, najwyzej
        dwie; dwie na tej samej przegrodzie nie wejda, bo wkrety z obu stron
