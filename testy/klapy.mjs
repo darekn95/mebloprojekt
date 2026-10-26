@@ -48,16 +48,20 @@ const zapis = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:
 console.log('== klapa do góry 600: siła z tabeli GTV, jeden podnośnik, dwa zawiasy ==');
 await seed(GORNA(600, { klapa: 'gora' }));
 let u = await uwagi();
-const m = /klapa do góry (\d+) × (\d+) mm, ok\. ([\d,]+) kg — (\d) × podnośnik (\d+) N/.exec(u);
-console.log('     ' + (m ? m[0] : '(brak uwagi o podnośniku)'));
-ok('uwaga z dobranym podnośnikiem', !!m);
+let hw = await okucia();
+// sila z tabeli — w Produktach (podpowiedz w Uwagach usunieta, uzytkownik 2026-10-26: zbedna)
+const wPodn = hw.find((r) => /^Podnośnik gazowy \d+ N/.test(r)) || '';
+const mP = /^Podnośnik gazowy (\d+) N.*?(\d+) × (\d+) mm, ok\. ([\d,]+) kg/.exec(wPodn);
+const m = mP && [mP[0], mP[2], mP[3], mP[4], String(ilosc(hw, /^Podnośnik gazowy/)), mP[1]];
+console.log('     ' + (m ? m[0] : '(brak podnośnika w produktach)'));
+ok('bez podpowiedzi o dobranym podnośniku w Uwagach', !/× podnośnik \d+ N \(tabela/.test(u), u.split('\n').filter((l) => /podnośnik/.test(l)).join(' / '));
+ok('podnośnik dobrany w Produktach (siła, wymiar i waga klapy)', !!m, wPodn);
 if (m) {
   const [, w, h, kg, ile, F] = m; const kgN = Number(kg.replace(',', '.'));
   ok('szerokość 600 → jeden podnośnik', ile === '1');
   ok(`siła zgodna z tabelą (${h} mm, ${kg} kg → ${oczekiwana(Number(h), kgN)} N)`, Number(F) === oczekiwana(Number(h), kgN), F);
   ok('waga ≈ szer × wys × 18 mm × 680 kg/m³', Math.abs(kgN - (w / 1000) * (h / 1000) * 0.018 * 680) < 0.06, kg);
 }
-let hw = await okucia();
 ok('okucia: „Podnośnik gazowy N N” × 1', ilosc(hw, /^Podnośnik gazowy \d+ N/) === 1, hw.filter((r) => /Podnośnik|Zawias/.test(r)).join(' / '));
 ok('okucia: 2 zawiasy', ilosc(hw, /^Zawias \|/) === 2 || ilosc(hw, /^Zawias/) === 2);
 let fk = await formatki();
@@ -72,17 +76,17 @@ ok('przy klapie jest wybór „do góry / w dół”', await pole.getByText('w d
 await pole.getByText('w dół', { exact: true }).click(); await page.waitForTimeout(1500);
 let p = await zapis();
 ok('„w dół” zapisuje col.klapa = "dol"', p.items[0].cab.levels[0].cols[0].klapa === 'dol');
-u = await uwagi();
-const md = /klapa w dół (\d+) × (\d+) mm, ok\. ([\d,]+) kg — 1 × amortyzator (\d+) N/.exec(u);
-console.log('     ' + (md ? md[0] : '(brak uwagi o amortyzatorze)'));
-ok('klapa w dół: siła z tabeli PD-ECGDL', md && Number(md[4]) === oczekiwana(Number(md[2]), Number(md[3].replace(',', '.')), ECGDL), md && md[4]);
 hw = await okucia();
+const mA = /^Amortyzator do klapy opadanej (\d+) N.*?(\d+) × (\d+) mm, ok\. ([\d,]+) kg/.exec(hw.find((r) => /^Amortyzator do klapy opadanej \d+ N/.test(r)) || '');
+const md = mA && [mA[0], mA[2], mA[3], mA[4], mA[1]];
+console.log('     ' + (md ? md[0] : '(brak amortyzatora w produktach)'));
+ok('klapa w dół: siła z tabeli PD-ECGDL', md && Number(md[4]) === oczekiwana(Number(md[2]), Number(md[3].replace(',', '.')), ECGDL), md && md[4]);
 ok('okucia: „Amortyzator do klapy opadanej N N” × 1', ilosc(hw, /^Amortyzator do klapy opadanej \d+ N/) === 1, hw.filter((r) => /Amortyzator/.test(r)).join(' / '));
 // sila z listy (2026-10-19), jak NL prowadnic — tylko te z karty producenta
 await pole.locator('select[data-el="klapa-sila"]').selectOption('80'); await page.waitForTimeout(1500);
 hw = await okucia();
 ok('po wybraniu 80 → „Amortyzator do klapy opadanej 80 N” × 1', ilosc(hw, /^Amortyzator do klapy opadanej 80 N/) === 1, hw.filter((r) => /Amortyzator/.test(r)).join(' / '));
-ok('uwaga mówi o sile wybranej z listy', /amortyzator 80 N \(siła wybrana z listy\)/.test(await uwagi()));
+ok('siła z listy bez podpowiedzi w Uwagach', !/siła wybrana z listy/.test(await uwagi()));
 await pole.getByText('skrzydło', { exact: true }).click(); await page.waitForTimeout(1500);
 p = await zapis();
 ok('„skrzydło” usuwa klapę, wraca przełącznik zawiasu, znika wybór kierunku', !p.items[0].cab.levels[0].cols[0].klapa
@@ -372,7 +376,8 @@ const lista = async () => page.locator('select[data-el="klapa-sila"] option').ev
 let ls = await lista();
 ok('do góry: auto + 50, 60, 80, 100, 120, 150 N', ls.length === 7 && ls.slice(1).map((o) => o.v).join() === '50,60,80,100,120,150', ls.map((o) => o.t).join(' | '));
 const autoN = Number((/auto \((\d+) N\)/.exec(ls[0].t) || [])[1]);
-const um = /klapa do góry (\d+) × (\d+) mm, ok\. ([\d,]+) kg/.exec(await uwagi());
+// wymiar i waga klapy — z Produktow (podpowiedz w Uwagach usunieta 2026-10-26)
+const um = /(\d+) × (\d+) mm, ok\. ([\d,]+) kg/.exec((await okucia()).find((r) => /^Podnośnik gazowy \d+ N/.test(r)) || '');
 ok(`auto = siła z tabeli GTV (${autoN} N)`, !!um && autoN === oczekiwana(Number(um[2]), Number(um[3].replace(',', '.'))), ls[0].t);
 ok('słabsze od auto oznaczone „za słaby”, auto i mocniejsze bez', ls.slice(1).every((o) => (Number(o.v) < autoN) === /za słaby/.test(o.t)) && ls.slice(1).every((o) => /do ok\. [\d,]+ kg/.test(o.t)),
   ls.map((o) => o.t).join(' | '));

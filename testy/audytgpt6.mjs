@@ -364,6 +364,12 @@ console.log('\n== zawiasy wpisane ręcznie: cała kolumna, różne kolumny tej s
   await seed(proj([{ cab: cab({ W: 1200, H: 1700, levels: [{ h: 400, cols: [dwa({ hinges: [2, 2] })] }, { h: null, cols: [dwa()] }] }) }]));
   u = await uwagi();
   ok('drzwi różnej wysokości (2 i 3 zawiasy): bez ostrzeżenia o różnej liczbie', !/różną liczbę zawiasów/.test(u), linie(u, /zawias/));
+  // uzytkownik 2026-10-26: waga wystarcza (2) — bez podpowiedzi „Wszędzie 3” tylko dlatego, ze inne drzwi tej wysokosci sa ciezsze
+  await seed(proj([{ cab: cab({ W: 1200, H: 1100, levels: [{ h: null, cols: [dwa(), { kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }] }] }) }]));
+  u = await uwagi();
+  c = (await zap()).items[0].cab;
+  ok('ta sama wysokość, liczby z wagi (2 skrzydła lekkie, 1 ciężkie): bez ostrzeżenia o różnej liczbie i bez „Wszędzie 3”',
+    !/różną liczbę zawiasów/.test(u) && !/Wszędzie \d zawias/.test(u), linie(u, /zawias/));
   // „czy 2 zawiasy nie mogą mieć takiej wagi czy wymiarów?” — Uwagi mówią, co decyduje
   await seed(proj([{ cab: cab({ H: 950, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], hinges: [2] }] }] }) }]));
   u = await uwagi();

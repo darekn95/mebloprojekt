@@ -3524,6 +3524,7 @@ function computeGeoLiczy(cab, mat, ctx) {
                ponad tabele (wysokosc / waga) — ostrzezenie, ze liczba orientacyjna. */
             {
               const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
+              d.zawiasyTabela = gtv.n;   // ile wg wagi — do porownania drzwi tej samej wysokosci
               const opis = `front ${fmt(Math.round(dw))} × ${fmt(Math.round(d.h))} mm, ok. ${gtv.kg.toFixed(1).replace(".", ",")} kg`;
               const wpis = num((rawCol.hinges || [])[i]);
               /* „Zostaw N zawiasy” (uzytkownik 2026-10-24) — liczba inna niz w tabeli
@@ -4242,6 +4243,11 @@ function computeGeoLiczy(cab, mat, ctx) {
     grupy.forEach((ds, h) => {
       const liczby = [...new Set(ds.map((d) => d.hinges))].sort((a, b) => a - b);
       if (liczby.length < 2) return;
+      /* Liczbe zawiasow wyznacza waga (uzytkownik 2026-10-26: „jeżeli waga wystarcza,
+         np. 2 na drzwi, nie dawaj podpowiedzi, że lepsze będą 3, bo tak wynika z wymiaru
+         formatki”): rozne liczby wziete z wagi — bez uwagi; uwaga tylko wtedy, gdy
+         ktoras liczba jest wpisana recznie (prosba 2026-10-24). */
+      if (ds.every((d) => d.hinges === (d.zawiasyTabela ?? d.hinges))) return;
       const kolumny = [...new Set(ds.map((d) => d.colKey))];
       const opis = kolumny.map((ck) => {
         const [li, j] = ck.split("-").map(Number);
@@ -5818,7 +5824,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       spec: skrzydlaLamane
         ? "skrzydło przy boku szafki narożnej — otwiera się na tyle, żeby drugie skrzydło się złożyło"
         : (cab.frontMode === "overlay" ? "nakładany" : "wpuszczany") +
-          ", liczba wg tabeli GTV (wysokość i waga frontu)"
+          ", liczba wg tabeli GTV (waga frontu)"
           + (klapy.length ? "; klapa: te same zawiasy, 2 szt. na górnej lub dolnej krawędzi, powyżej 900 mm 3" : ""),
       qty: hingeCount - polSzt,
       unit: "szt.",
@@ -5829,7 +5835,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       use: "drzwi szafki",
       wariant: "półnakładany",
       spec: "półnakładany (bliźniaczy) — dwa fronty na jednej płycie: przegroda między kolumnami albo półka między poziomami pod klapą"
-        + ", liczba wg tabeli GTV (wysokość i waga frontu)",
+        + ", liczba wg tabeli GTV (waga frontu)",
       qty: polSzt,
       unit: "szt.",
     });
@@ -5871,9 +5877,8 @@ function computeGeoLiczy(cab, mat, ctx) {
           return k.dobor2.sila ? `|klapa2:${lvJ(k)}:auto:${k.dobor2.sila}` : "";
         })());
     }
-    if (k.sila)
-      add("info", `${k.where}: klapa ${gora ? "do góry" : "w dół"} ${opis} — ${k.ile} × ${co} ${k.sila} N`
-        + (k.recznie ? " (siła wybrana z listy)." : ` (tabela ${k.dobor.tabela}, kąt ${k.kat}°, udźwig ok. ${kg1(k.dobor.udzwig)} kg na sztukę).`));
+    /* Dobrana sila bez uwag — podpowiedz „klapa … — 1 × podnośnik 150 N (tabela …)” byla
+       zbedna (uzytkownik 2026-10-26); sila, wymiar i waga klapy sa w Produktach. */
     if (k.ile === 1 && k.w > 600)
       add("warn", `${k.where}: klapa ma ${fmt(k.w)} mm szerokości, a jeden ${co} — przy szerokości ponad 600 mm dają się dwa, po jednym na bok.`);
     const key = `${k.klapa}|${k.sila || 0}`;

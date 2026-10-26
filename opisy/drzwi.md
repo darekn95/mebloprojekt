@@ -56,7 +56,7 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
 - **Liczba zawiasów**:
   - wpis w jednym skrzydle przechodzi na wszystkie skrzydła kolumny („Ustaw N zawiasy” też całą kolumnę) — użytkownik 2026-10-24;
   - wpisana inaczej niż tabela GTV — ostrzeżenie „za dużo / za mało zawiasów wg tabeli GTV” z powodem (`powodZawiasow`, zawsze z wagi: „Waga ok. 6,9 kg wymaga 3 (2 zawiasy do 6 kg)” albo „Waga ok. 5,2 kg — wystarczą 2 (do 6 kg)”), z „Ustaw N zawiasy” i „Zostaw M zawiasy”; po „Zostaw” — informacja „zostawione celowo” (`rawCol.hingesOk`), zmiana liczby przywraca ostrzeżenie (użytkownik 2026-10-24);
-  - drzwi tej samej wysokości w szafce (inne kolumny, też z tabeli) z różną liczbą — ostrzeżenie z „Wszędzie N zawiasy” dla każdej występującej liczby (użytkownik 2026-10-24);
+  - drzwi tej samej wysokości w szafce (inne kolumny) z różną liczbą — ostrzeżenie z „Wszędzie N zawiasy” dla każdej występującej liczby (użytkownik 2026-10-24), ale tylko gdy któraś liczba jest wpisana ręcznie; różne liczby wzięte z wagi (np. 2 przy lekkich skrzydłach, 3 przy cięższym obok) — bez uwagi (użytkownik 2026-10-26: „jeżeli waga wystarcza, nie dawaj podpowiedzi, że lepsze będą 3”);
   - front poza tabelą (szerszy, wyższy, cięższy) — ostrzeżenie „liczba orientacyjna”.
 - **Zawiasy nie mieszczą się** między półkami (po ominięciu wypadają w jednym miejscu) — błąd.
 - **Zawias na przeszkodzie** (rura, wycięcie bliżej lica niż 80 mm zabudowy zawiasu; przy wpuszczanych + grubość frontu) — błąd; przy jednych drzwiach z „Przełóż zawiasy na drugą stronę”.
