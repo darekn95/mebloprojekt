@@ -238,3 +238,58 @@ Nowe otwarte zgłoszenia: N69–N81; PDF-1 pozostaje. N74–N76 potwierdzono w f
 
 
 
+
+
+## Audyt drzwi, klap i poziomów kolumn — 26–27.10.2026
+
+**Wersje:** testy widoków i edycji 26.10 na blobie `517a2ef31b3f4f2730821a5c01ab67fe5344205f`; retest obliczeń 27.10 na aktualnym `szafki.jsx`, blob `7b11faabc89e061b7fc69f78b9a6642dd9d93d68`. Poniższe zgłoszenia są nowe. Poprzednia sekcja N69–N81 opisuje wcześniejszą wersję i nie jest wynikiem ponownego audytu wszystkich tamtych zgłoszeń.
+
+**Zakres:** 104 konfiguracje (fronty nakładane/wpuszczane; skrzydła/klapy góra/dół; uchwyt/brak/wydłużenie/podfrez/tip-on; jedna kolumna, trzy kolumny, trzy poziomy główne i trzy poziomy kolumny), projekt użytkownika — 9 szafek, oraz syntetyczna szafa 1800 × 2100 × 560 mm z dwoma poziomami głównymi i trzema kolumnami. W mieszanej szafie: drzwi, klapy, szuflady DXS w kolumnie i w jej poziomie, podfrez oraz tip-on. Projekt użytkownika pozostaje lokalnie; do repozytorium trafia tylko opis.
+
+**Co przeszło:** dopasowanie wymiarów, grubości i liczby formatek do zamkniętej bryły w 104 konfiguracjach; w projekcie użytkownika również wszystkie 9 szafek (Szafka 6: 27 płyt); mieszana szafa w reteście 27.10: 51 płyt. W zamkniętych bryłach projektu użytkownika i mieszanej szafy nie znaleziono przecięć płyt. Symulacja wysuwu sześciu szuflad projektu nie wykazała kolizji. Obejrzano rzuty zamknięty/otwarty, bok/góra/tył oraz 3D (otwarcie i obrót), bez awarii aplikacji podczas tych działań. Kreator czterech klap zmienił tylko środkową kolumnę — sąsiednie pozostały identyczne. Zmiana jednej klapy na tip-on i kąt 75°/100° zmieniła tylko właściwy segment, z odpowiednim przeliczeniem siły. Nie jest to gwarancja wszystkich możliwych konfiguracji ani audyt nowego wydruku PDF.
+
+### N82 [P2] Wydłużony front wpuszczany przecina dno korpusu bez błędu
+
+**Odtworzenie:** szafka 600 × 600 × 560 mm, płyta 18 mm, dno i wieniec między bokami, front wpuszczany, jedne drzwi, bez półek. Nóżki 100 mm. Odznaczyć uchwyt i wybrać „front dłuższy od dołu”, 20 mm.
+
+**Wynik:** drzwi mają 560 × 580 mm, zaczynają się na y=0, a dno zajmuje y=0…18. Obie płyty leżą na głębokości z=0…18, więc przecinają się w objętości **560 × 18 × 18 mm**. Formatka dłuższych drzwi jest zamawiana, interfejs pokazuje „bez uwag”. To nie tylko rysunek — pełny front nie da się zamknąć w podanym położeniu.
+
+**Kontrole:** to samo dla klapy do góry i w konstrukcjach wielokolumnowych. Nakładany front 20 mm dłuższy przy nóżkach 100 mm nie przecina dna — leży przed korpusem. Wpuszczany z tip-on albo zwykłym uchwytem nie wykazuje tego przecięcia. Potwierdzone geometrią 26 i 27.10 oraz interfejsem.
+
+**Przyczyna:** `otwieranieFrontu` bezwarunkowo obniża `d.y` i zwiększa `d.h`, również przy frontach wpuszczanych. Kontrola wydłużenia szuka frontu pod spodem i podłogi, lecz nie dna ani półki w tej samej płaszczyźnie głębokości.
+
+**Kryterium naprawy:** wydłużenie nie może przecinać dna, półki granicznej ani innego elementu. Przy niewykonalnym wariancie zgłosić błąd i podać wykonalną opcję otwierania; nie zamieniać montażu frontu po cichu. Sprawdzić skrzydła i klapy, dół szafki oraz poziomy kolumn.
+
+### N83 [P2] Front szafki stojącej bez nóżek może zejść pod podłogę
+
+**Odtworzenie:** dolny ciąg na poziomie montażu 0, szafka 600 × 600 × 560 mm, bez nóżek i cokołu. Front nakładany, bez uchwytu, „front dłuższy od dołu”, 20 mm.
+
+**Wynik:** spód korpusu stoi na podłodze, a spód frontu jest na y=−17 mm, czyli **17 mm pod podłogą**. Zamawiana jest formatka wysokości 614 mm. Nie ma błędu ani ostrzeżenia; interfejs pokazuje „bez uwag”. Przy 100 mm wydłużenia front schodzi 97 mm pod podłogę. Potwierdzone w funkcjach i interfejsie, powtórzone na źródle 27.10.
+
+**Przyczyna:** wyznaczenie `podloga` uwzględnia wyłącznie cokół i nóżki. Pomija `cab.naPodlodze`, które aplikacja nadaje szafkom w stojącym dolnym ciągu (`cabDoGeo`/`ciagStoi`). W efekcie taki korpus jest traktowany przez tę kontrolę jak wiszący.
+
+**Kontrola:** szafka na nóżkach 100 mm z wydłużeniem 100 mm poprawnie dostaje błąd niewystarczającego odstępu od podłogi. Prawdziwie wiszący ciąg nie powinien otrzymywać błędu tylko z powodu przejścia frontu poniżej spodu korpusu.
+
+**Kryterium naprawy:** korzystać z rzeczywistej wysokości montażu/podłogi także bez nóżek i cokołu. Sprawdzić dolny ciąg na 0, nóżki/cokół i szafkę wiszącą. Zachować uzgodniony minimalny odstęp frontu od podłogi.
+
+### N84 [P2] Plan wierceń scala różne klapy poziomów kolumny w jedną płytę
+
+**Odtworzenie syntetyczne:** szafka 600 × 900 × 560 mm, jedna kolumna, jedna półka: dolne światło 300 mm, reszta auto. Półka jest granicą dwóch frontów, oba klapami do góry z dwoma podnośnikami; granica na konfirmatach. Klapy mają wysokości **322 i 568 mm**.
+
+**Wynik:** `geo.drillPlan` tworzy jeden panel „Klapa”. Jego wiersz dla lewego mocowania podnośnika zawiera **229, 253, 467 i 491 mm** od dołu, a prawy — ten sam komplet. Pierwsza para należy do niższej klapy, druga do wyższej, ale znika przypisanie do poziomu i rozmiaru frontu. Otwory 467/491 są nawet poza krótszą płytą 322 mm.
+
+**Przyczyna:** `klapaNazwa` rozróżnia tylko kolumnę (albo samo „Klapa”), bez `d.seg.nr`; `drillAdd` i grupowanie planu łączą następnie różne fronty. Plan jest przekazywany do zestawienia bez odzyskania tożsamości segmentu. Potwierdzone wykonaniem generowania planu w obu sprawdzonych wersjach; to ustalenie dotyczące danych planu, nie ocena wyglądu nowego PDF.
+
+**Wpływ:** z planu nie można jednoznacznie wykonać wierceń każdej klapy. Poprawne formatki nie wystarczają, jeżeli otwory różnych frontów są opisane jak otwory jednej płyty.
+
+**Kryterium naprawy:** osobny identyfikator i podpis każdego frontu: poziom główny, kolumna, poziom kolumny, opcjonalnie wymiar. Wysokości wierceń liczone od właściwego frontu; różne płyty pozostają rozdzielone również wtedy, gdy mają te same wymiary. Sprawdzić kilka klap do góry oraz mieszane góra/dół i lewy/prawy podnośnik.
+
+### N85 [P3] Kreator klap w jednej kolumnie zapowiada podział całej szafki
+
+**Odtworzenie:** szafka z trzema kolumnami; w środkowej trzy półki. Otworzyć „klapy zamiast drzwi…”.
+
+**Wynik:** kreator mówi: „Półki zaznaczone jako granice staną się poziomami (płyta przez całą szafkę)”. Po wykonaniu tworzy jednak prawidłowo cztery poziomy tylko środkowej kolumny. Zapis projektu potwierdza: nadal jeden poziom główny, lewa i prawa kolumna bez zmian.
+
+**Wpływ:** użytkownik dostaje błędny opis zakresu operacji — może zrezygnować w obawie przed zmianą całej szafy. To pozostałość starego opisu, a nie ponowne zgłoszenie naprawionego błędu dzielenia sąsiednich kolumn.
+
+**Kryterium naprawy:** przy wielu kolumnach opis mówi o granicach frontów i stałych półkach wybranej kolumny; „przez całą szafkę” tylko przy rzeczywistej zamianie na poziomy główne. Tekst nadal występuje w źródle z 27.10.
