@@ -293,3 +293,36 @@ Nowe otwarte zgłoszenia: N69–N81; PDF-1 pozostaje. N74–N76 potwierdzono w f
 **Wpływ:** użytkownik dostaje błędny opis zakresu operacji — może zrezygnować w obawie przed zmianą całej szafy. To pozostałość starego opisu, a nie ponowne zgłoszenie naprawionego błędu dzielenia sąsiednich kolumn.
 
 **Kryterium naprawy:** przy wielu kolumnach opis mówi o granicach frontów i stałych półkach wybranej kolumny; „przez całą szafkę” tylko przy rzeczywistej zamianie na poziomy główne. Tekst nadal występuje w źródle z 27.10.
+
+## Dalszy audyt 27.10.2026 — N86–N87
+
+Sprawdzona wersja `szafki.jsx`: blob `7b11faabc89e061b7fc69f78b9a6642dd9d93d68`. Oba przypadki odtworzone wykonaniem funkcji aktualnego kodu i w interfejsie GitHub Pages. Konfiguracje syntetyczne; plik projektu użytkownika nie jest publikowany.
+
+### N86 [P2] Scalenie ostatniej granicy kolumny kasuje ustawienia dolnego poziomu
+
+**Odtworzenie:** szafka 600 × 1200 × 560 mm, jedna kolumna, jedna półka jako granica dwóch poziomów kolumny. W dolnym poziomie wybrać jedną szufladę DXS, w górnym dwoje drzwi. Kliknąć „scal” na jedynej granicy.
+
+**Wynik:** zamiast zachować ustawienia dolnego poziomu, aplikacja wraca do ustawień nadrzędnej kolumny. Szuflada znika, znika komplet prowadnic DXS i formatki skrzynki; pojawiają się zwykłe drzwi na całą wysokość. Nie ma pytania o zmianę rodzaju wnętrza. Potwierdzone w interfejsie i danych.
+
+**Druga kontrola:** dolny poziom jako drzwi bez uchwytu z tip-on i zawiasem po prawej — po scaleniu pojawia się uchwyt, zawias wraca na lewo, tip-on znika. Gdy pozostaje więcej granic, usuwany jest tylko górny segment z danej pary; szczególny problem dotyczy likwidacji ostatniej granicy.
+
+**Przyczyna:** `usunGranice` najpierw usuwa górny segment, ale gdy lista `podzial` staje się pusta, kasuje całe `col.segmenty`, nie przenosząc zachowanych ustawień dolnego segmentu do kolumny. To narusza opisaną regułę „scal zostawia ustawienia dolnego odcinka”.
+
+**Wpływ:** utrata wyborów użytkownika oraz niezamierzona zmiana formatek i produktów do zakupu. Nie jest to zamierzona likwidacja samego podziału frontów.
+
+**Kryterium naprawy:** przy usunięciu ostatniej granicy zachować efektywne ustawienia dolnego poziomu w powstałej kolumnie (rodzaj, szuflady i ich system, fronty, otwieranie, strona zawiasów itd.). Osobno sprawdzić półki pozostające we wnętrzu przy zachowaniu szuflad — nie tworzyć po cichu nowej kolizji. Sprawdzić też cofanie operacji oraz scenariusze z dwiema i trzema granicami.
+
+### N87 [P2] Duży podfrez klapy pozostawia mocowanie amortyzatora poza frontem
+
+**Odtworzenie graniczne:** szafka 600 × 300 × 350 mm, korpus i front 18 mm, jedna klapa w dół, dwa amortyzatory, uchwyt wyłączony. Wybrać „podfrez od góry” i wpisać 200 mm. Pole przyjmuje wartość bez ograniczenia górnego.
+
+**Wynik:** zamawiana klapa ma **596 × 79 mm**, ale plan podaje mocowanie amortyzatora **77 i 101 mm od dołu tej klapy** po obu stronach. Otwór 101 mm wypada **22 mm poza płytą**. Mimo tego lista uwag jest pusta. Przy podfrezie 180 mm front ma 99 mm i otwór nadal jest 2 mm poza nim. Liczba i siła amortyzatorów są wyznaczane, produkt trafia do zamówienia.
+
+**Kontrole:** podfrez 20 mm daje front 259 mm, a 100 mm — 179 mm; obie pary otworów mieszczą się w tych frontach. Wysokość korpusu 300 mm pozwala pomieścić płytkę na boku, więc dawna kontrola N74 nie wykrywa tego innego problemu. Tu chodzi o skrócony front, nie o za niski bok korpusu. To przypadek granicznej wartości pola, nie twierdzenie, że standardowe 20 mm jest błędne.
+
+**Przyczyna:** po zmianie wysokości frontu przez `otwieranieFrontu` obliczenia montażu amortyzatora nadal używają stałych odległości od dna, ale kontrola sprawdza miejsce na płytkę w korpusie, a nie zawieranie mocowania frontu w skróconej klapie.
+
+**Wpływ:** konfiguracja „bez uwag” podaje niewykonalne wiercenie poza zamawianą formatką.
+
+**Kryterium naprawy:** sprawdzać otwory i obrys mocowania względem rzeczywistego frontu po podfrezie i innych zmianach wysokości; podać błąd z dopuszczalnym zakresem lub zmianą otwierania. Nie przesuwać mocowania dowolnie — obowiązują wymiary producenta. Sprawdzić klapę pojedynczą oraz poziomy kolumn, jedną/dwie sztuki amortyzatora i obie strony.
+
