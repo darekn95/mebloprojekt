@@ -18890,6 +18890,10 @@ export default function App() {
     // klapa do gory — dluzsza od dolu albo tip-on; w dol — podfrez od gory albo tip-on
     const dozwolone = klapa === "gora" ? ["dol", "tipon"] : klapa === "dol" ? ["podfrez", "tipon"] : OTWIERANIA;
     const otw = dozwolone.includes((rawCol.otwieranie || [])[k]) ? rawCol.otwieranie[k] : "brak";
+    /* front wpuszczany stoi w swietle korpusu — dluzszy od dolu wszedlby w plyte pod nim
+       (uzytkownik 2026-10-27: „nie da się, do ukrycia”); wpis sprzed zmiany frontu zostaje
+       widoczny (wyszarzony), a Uwagi daja przyciski podfrezu / tip-on */
+    const bezDol = cab.frontMode === "inset";
     const pole = "rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none";
     return (
       <span className="flex items-center gap-1" data-el="drzwi-otwieranie">
@@ -18897,7 +18901,8 @@ export default function App() {
           onChange={(e) => setDoorFlag(lv.i, jA, k, "otwieranie", e.target.value === "brak" ? null : e.target.value)}
           className="rounded border border-stone-300 bg-white px-1 py-1 text-[11px] focus:border-teal-600 focus:outline-none">
           <option value="brak">otwieranie: —</option>
-          {dozwolone.includes("dol") && <option value="dol">front dłuższy od dołu</option>}
+          {dozwolone.includes("dol") && (!bezDol || otw === "dol")
+            && <option value="dol" disabled={bezDol}>front dłuższy od dołu{bezDol ? " (nie przy wpuszczanym)" : ""}</option>}
           {dozwolone.includes("podfrez") && <option value="podfrez">podfrez od góry</option>}
           <option value="tipon">tip-on (GTV SALTO NOVA)</option>
         </select>

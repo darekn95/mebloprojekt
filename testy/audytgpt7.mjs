@@ -1,6 +1,7 @@
 /* Audyt GPT 2026-10-26/27, ustalenia N82–N85 (`AUDYT_GPT.md` na galezi gpt/audyt-2026-10-16):
    - N82 front wpuszczany „dluzszy od dolu” wchodzi w plyte pod nim (dno, polka
      przelotowa, polka graniczna poziomu kolumny) — blad z przyciskami zamiast wydluzenia;
+     przy wpuszczanym opcji „dluzszy od dolu” nie ma na liscie (uzytkownik 2026-10-27);
    - N83 szafka w stojacym ciagu bez nozek i cokolu stoi na podlodze — wydluzony front
      nie moze zejsc pod podloge (wiszacy ciag bez bledu);
    - N84 plan wiercen: kazda klapa poziomu kolumny osobno (wysokosci od wlasnego frontu);
@@ -38,6 +39,9 @@ const RUN = (o = {}) => ({ id: 'c1', name: 'Ściana', roomId: null, wallW: null,
   worktop: false, hangerMode: 'listwa', mountY: 0, corner: null, tier: 'dolny', wall: null, clearance: 500, ceiling: null,
   offset: 0, offsetFrom: 'left', wallGap: { bottom: 0, top: null }, topCut: null, ...o });
 const PODFREZ = 'Podfrez od góry zamiast wydłużenia', TIPON = 'Tip-on zamiast wydłużenia';
+// opcje listy „otwieranie” pierwszych drzwi: [tekst, wylaczona]
+const opcje = () => page.locator('[data-el="drzwi-otwieranie"] select').first().evaluate((sel) => ({
+  v: sel.value, o: [...sel.options].map((x) => (x.disabled ? '-' : '') + x.textContent.trim()) }));
 
 console.log('== N82: front wpuszczany dłuższy od dołu wchodzi w płytę pod nim ==');
 {
@@ -46,13 +50,19 @@ console.log('== N82: front wpuszczany dłuższy od dołu wchodzi w płytę pod n
   let n = (await notes()).find((x) => /front wpuszczany dłuższy od dołu o 20 mm/.test(x.txt));
   ok('nóżki 100, drzwi 20 mm: błąd „wchodzi 18 mm w dno” z podfrezem i tip-on', !!n && /wchodzi 18 mm w dno pod nim/.test(n.txt)
     && n.btns.includes(PODFREZ) && n.btns.includes(TIPON), JSON.stringify(n || (await notes()).map((x) => x.txt.slice(0, 90))));
+  let o = await opcje();
+  ok('wpis sprzed zmiany frontu: „dłuższy od dołu” widoczny, ale wyszarzony', o.v === 'dol' && o.o.includes('-front dłuższy od dołu (nie przy wpuszczanym)'), JSON.stringify(o));
   await page.getByRole('button', { name: TIPON, exact: true }).click(); await page.waitForTimeout(800);
+  o = await opcje();
+  ok('wpuszczany: na liście bez „front dłuższy od dołu” (użytkownik 2026-10-27)', o.v === 'tipon' && !o.o.some((x) => /dłuższy/.test(x)) && o.o.includes('podfrez od góry'), JSON.stringify(o));
   const c = await zap();
   ok('„Tip-on zamiast wydłużenia” — otwieranie tip-on, błąd znika', JSON.stringify(c.levels[0].cols[0].otwieranie) === '["tipon"]'
     && !(await notes()).some((x) => /front wpuszczany dłuższy/.test(x.txt)), JSON.stringify(c.levels[0].cols[0].otwieranie));
 
   await seed(proj([{ cab: cab({ ...NOZKI }, [DOL()]) }]));
   ok('nakładany na nóżkach, 20 mm: bez błędu (leży przed korpusem)', !(await bledy()).length, (await bledy()).join(' / '));
+  o = await opcje();
+  ok('nakładany: „front dłuższy od dołu” do wyboru', o.o.includes('front dłuższy od dołu'), JSON.stringify(o));
 
   await seed(proj([{ cab: cab({ ...W, hangers: 'always' }, [DOL(20, { klapa: 'gora' })]) }]));
   n = (await notes()).find((x) => /klapa: front wpuszczany dłuższy od dołu/.test(x.txt));
