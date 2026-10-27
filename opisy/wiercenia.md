@@ -22,7 +22,7 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
   - Trójkąty pod półką tak samo (50 mm od krawędzi półki, przesunięcie jak wyżej).
 - **Trójkąty meblowe**: półki na trójkątach, wspornik pionowy bez płyty nad sobą (co 300 mm, min. 2), cokół bez nóżek.
 - **Zawiasy drzwi**: oś zawiasu na boku, przegrodzie albo wsporniku — puszka ⌀35 we froncie, prowadnik na płycie. Wysokości po ominięciu półek i wzmocnień (`opisy/drzwi.md`).
-- **Zawiasy i podnośniki klap**: `opisy/klapy.md`.
+- **Zawiasy i podnośniki klap**: `opisy/klapy.md` (każda klapa osobną płytą — w kolumnie z poziomami „Klapa — poziom M kolumny N”).
 - **Prowadnice szuflad** (`opisy/szuflady.md`):
   - V-BOX: kreska na boku, przegrodzie albo wsporniku;
   - DXS-3D: kreska spodu prowadnicy i odsunięcie od czoła, przykręcane bez nawiercania;
