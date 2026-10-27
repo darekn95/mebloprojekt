@@ -443,7 +443,13 @@ const usunGranice = (col, k) => {
     if (!col.podzialMount.some(Boolean)) delete col.podzialMount;
   }
   col.podzial = gr.filter((x) => x !== k);
-  if (!col.podzial.length) { delete col.podzial; delete col.segmenty; delete col.podzialMount; }
+  if (!col.podzial.length) {
+    /* ostatnia granica: kolumna przejmuje ustawienia dolnego poziomu (rodzaj, szuflady,
+       fronty, otwieranie, zawiasy…) — wczesniej wracala do ustawien kolumny (audyt GPT N86) */
+    const dol = (col.segmenty || [])[0];
+    delete col.podzial; delete col.segmenty; delete col.podzialMount;
+    if (dol) Object.entries(dol).forEach(([key, v]) => { if (v !== undefined) col[key] = v; });
+  }
 };
 const UCHWYT_OD_KRAWEDZI = 36;   // os uchwytu pionowego od wolnej krawedzi skrzydla
 const uchwytObrys = (d) => {
@@ -5565,6 +5571,26 @@ function computeGeoLiczy(cab, mat, ctx) {
           add("error", `Poziom ${lv.i + 1}, kolumna ${d.colJ + 1}: klapa ${gora ? "do góry" : "w dół"} — płytka ${gora ? "podnośnika GTV PD-G00" : "amortyzatora GTV PD-ECGDL"} `
             + `wypada poza płytą: jej środek jest ${fmt(gora ? PODNOSNIK_H[typ][kat] : AMORTYZATOR_H)} mm ${gora ? "pod płytą z zawiasami" : "nad płytą pod klapą"}, `
             + `a do ${gora ? "dołu" : "góry"} poziomu jest ${fmt(jest)} mm. Potrzeba co najmniej ${fmt(potrzeba)} mm (z płytką) — podwyższ poziom o ${fmt(potrzeba - jest)} mm albo daj drzwi.`);
+        }
+        /* Mocowanie na klapie (otwory i okucie ok. KLAPA_MOC_ZAPAS poza nimi) musi lezec na
+           froncie, ktory naprawde zamawiamy — po podfrezie albo w niskim poziomie (audyt GPT
+           N87: podfrez 200 mm, klapa 79 mm, otwor 101 mm od dolu). Wymiary producenta zostaja;
+           przyciski: najwiekszy podfrez, przy ktorym okucie sie miesci, albo tip-on. */
+        {
+          const fy0 = d.y, fy1 = d.y + d.h;
+          const lo = Math.min(...mocY) - KLAPA_MOC_ZAPAS, hi = Math.max(...mocY) + KLAPA_MOC_ZAPAS;
+          if (lo < fy0 - 0.5 || hi > fy1 + 0.5) {
+            const gdzieK = d.seg ? gdziePoziomKol(lv.i, d.colJ, d.seg.nr) : `Poziom ${lv.i + 1}, kolumna ${d.colJ + 1}`;
+            const adres = `${lv.i}:${d.seg ? `${d.colJ}s${d.seg.nr}` : d.colJ}:0`;
+            const odDolu = mocY.map((y) => Math.round(y - fy0)).sort((a2, b2) => a2 - b2).map(fmt).join(" i ");
+            const podfrez = d.otwieranie === "podfrez" && hi > fy1 + 0.5;
+            const maxMm = podfrez ? Math.floor(d.otwMm - (hi - fy1)) : null;
+            add("error", `${gdzieK}: klapa ${gora ? "do góry" : "w dół"} ${fmt(d.w)} × ${fmt(Math.round(d.h))} mm — mocowanie ${gora ? "podnośnika" : "amortyzatora"} na froncie `
+              + `(otwory ${odDolu} mm od dołu klapy, okucie ok. ${KLAPA_MOC_ZAPAS} mm dalej) wypada poza klapą`
+              + (podfrez ? ` — podfrez ${fmt(d.otwMm)} mm za duży${maxMm >= 0 ? `, najwyżej ${fmt(maxMm)} mm` : ""}.` : ".")
+              + (podfrez && maxMm >= 0 ? `|otwmm:${adres}:${maxMm}` : "")
+              + (d.otwieranie !== "tipon" ? `|otwieranie:${adres}:tipon:${podfrez ? "podfrez" : "klapa"}` : ""));
+          }
         }
         /* Polka na drodze podnosnika (instrukcja PD-G00: polka min. 50 mm za
            frontem). Uzytkownik 2026-10-17: liczy sie tylko polka, ktora naprawde
@@ -13019,15 +13045,31 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     }
     if (action.startsWith("otwieranie:")) {
       // „otwieranie:<poziom>:<kolumna albo js<nr>>:<drzwi>:<dol|podfrez|tipon>” — drzwi bez uchwytu
-      const [, li, j, k, co] = action.split(":");
+      // opcjonalnie „:<zamiast>” — co zastepuje (podfrez klapy za duzy na mocowanie, audyt GPT N87)
+      const [, li, j, k, co, zamiast] = action.split(":");
       return {
-        label: co === "tipon" ? "Tip-on zamiast wydłużenia" : co === "podfrez" ? "Podfrez od góry zamiast wydłużenia" : "Front dłuższy od dołu",
+        label: co === "tipon" ? (zamiast === "podfrez" ? "Tip-on zamiast podfrezu" : zamiast === "klapa" ? "Tip-on" : "Tip-on zamiast wydłużenia")
+          : co === "podfrez" ? "Podfrez od góry zamiast wydłużenia" : "Front dłuższy od dołu",
         run: () => editLevels((L) => {
           const col = kolumnaW(L, li, j);
           const a = [...(col.otwieranie || [])];
           while (a.length <= +k) a.push(null);
           a[+k] = co;
           col.otwieranie = a;
+        }),
+      };
+    }
+    if (action.startsWith("otwmm:")) {
+      // „otwmm:<poziom>:<kolumna albo js<nr>>:<front>:<mm>” — wydluzenie / podfrez frontu bez uchwytu
+      const [, li, j, k, mm] = action.split(":");
+      return {
+        label: `Podfrez ${fmt(Number(mm))} mm`,
+        run: () => editLevels((L) => {
+          const col = kolumnaW(L, li, j);
+          const a = [...(col.otwieranieMm || [])];
+          while (a.length <= +k) a.push(null);
+          a[+k] = Number(mm);
+          col.otwieranieMm = a;
         }),
       };
     }

@@ -64,6 +64,7 @@ wybranych drzwiach.
   - wyższa niż 600 mm — ostrzeżenie „poza tabelą”: siła liczona jak dla 600, do sprawdzenia u producenta;
   - do góry niższa niż 290 mm — ostrzeżenie: podnośnik potrzebuje co najmniej 290 mm korpusu na boku;
   - płytka podnośnika / amortyzatora wypada poza płytą w tym poziomie (do góry: H z tabeli pod płytą z zawiasami, w dół: 245 mm nad płytą pod klapą, plus 15 mm płytki) — błąd „podwyższ poziom o N mm albo daj drzwi” (audyt GPT N74; wtedy bez ostrzeżenia o 290 mm);
+  - mocowanie na klapie (oba otwory i ok. 10 mm okucia poza nimi, `KLAPA_MOC_ZAPAS`) wypada poza zamawianym frontem — np. klapa w dół z podfrezem 200 mm ma 79 mm, a otwory są 77 i 101 mm od jej dołu (audyt GPT N87); błąd z „Podfrez N mm” (największy, przy którym okucie się mieści — wymiary producenta zostają) i „Tip-on zamiast podfrezu”;
   - szersza niż 600 mm z jednym podnośnikiem — ostrzeżenie „dają się dwa”.
 - **Półka na drodze podnośnika** (bliżej frontu niż 50 mm, w zasięgu od płytki do mocowania na klapie) — ostrzeżenie z „Dodatkowe cofnięcie półek N mm”.
 - **Otwieranie** (błąd): łuk klapy do jej kąta, sprawdzany co 1°. Przeszkody to blat, górna szafka, sufit z górnego ciągu, fronty i uchwyty innych poziomów → „nie otworzy się na 90°: po drodze stoi … — otworzy się tylko na ok. N°”. Pod blatem klapa do góry dostaje radę „zrób szufladę albo drzwi”.
@@ -99,4 +100,4 @@ wybranych drzwiach.
 - **Interfejs**: `polkiNaPoziomy(…, naKlapy)` („klapy zamiast drzwi”); przyciski w `NoteLine` (`zawiasy`, `silaauto`, `klapa2`, `polkicof`, `parablat`).
 - **Kontrola otwierania**: `swingBodies` / `openingMsgs` (`klapaHit`, kąt co 1°).
 - **W kodzie klapa to front typu `"klapa"`, nie `"door"`**: tam, gdzie kod filtruje drzwi, klapa jest pominięta celowo. Ma osobną formatkę „Klapa” i nie ma skrzydła w kontroli otwierania drzwi.
-- **Testy**: `klapy`, `audytwierc` (zawiasy i mocowania podnośnika), `ruchy` (otwieranie), `komentarze1` („klapy zamiast drzwi”), `audytgpt7` (klapy poziomów kolumny w planie, opis kreatora, wpuszczana dłuższa od dołu).
+- **Testy**: `klapy`, `audytwierc` (zawiasy i mocowania podnośnika), `ruchy` (otwieranie), `komentarze1` („klapy zamiast drzwi”), `audytgpt7` (klapy poziomów kolumny w planie, opis kreatora, wpuszczana dłuższa od dołu), `audytgpt8` (mocowanie amortyzatora po podfrezie).
