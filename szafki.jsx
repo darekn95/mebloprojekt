@@ -4296,12 +4296,15 @@ function computeGeoLiczy(cab, mat, ctx) {
       ? "blenda"
       : "element stały";
 
-  /* Drzwi dluzsze od dolu: pod nimi nie moze byc innego frontu, a w szafce na nozkach
-     albo cokole front nie moze siegac podlogi (min. 10 mm nad nia). Przyciski: podfrez
-     od gory albo tip-on zamiast wydluzenia (uzytkownik 2026-10-25). */
-  // podloga pod szafka na nozkach albo cokole (y = 0 to spod korpusu z cokolem w obrysie); wiszaca — null
+  /* Drzwi dluzsze od dolu: pod nimi nie moze byc innego frontu, front wpuszczany nie
+     moze wejsc w plyte pod nim (dno, polka graniczna, polka przelotowa — audyt GPT N82),
+     a w szafce stojacej front nie moze siegac podlogi (min. 10 mm nad nia). Przyciski:
+     podfrez od gory albo tip-on zamiast wydluzenia (uzytkownik 2026-10-25). */
+  /* podloga pod szafka na nozkach albo cokole (y = 0 to spod korpusu z cokolem w obrysie);
+     szafka w stojacym ciagu bez nozek i cokolu stoi spodem na podlodze — 0 (audyt GPT N83);
+     wiszaca — null */
   const podloga = cab.plinth.on || (cab.legs && cab.legs.on)
-    ? -Math.max(cab.plinth.on && !plinthInBody ? plinthH : 0, legBelow) : null;
+    ? -Math.max(cab.plinth.on && !plinthInBody ? plinthH : 0, legBelow) : cab.naPodlodze ? 0 : null;
   /* Tip-on (uzytkownik 2026-10-26): na poziomej plycie za frontem, tam, gdzie sie naciska.
      Drzwi: szafka wiszaca — na dnie (najnizsza plyta za frontem), stojaca — plyta najblizej
      1 m od podlogi (wierzch dna albo polki; najwyzsza — od spodu: pod wiencem albo
@@ -4343,8 +4346,14 @@ function computeGeoLiczy(cab, mat, ctx) {
       && e.y < d.y && e.y + e.h > d.y - 2);
     if (pod)
       add("error", `${gdzie}: front dłuższy od dołu o ${fmt(d.otwMm)} mm wchodzi na ${nameOf(pod)} pod nim — wydłużenie ma sens tylko tam, gdzie pod drzwiami jest wolne miejsce (np. szafka wisząca).` + zamiast);
+    // wpuszczany stoi w swietle korpusu — wydluzony wchodzi w plyte pod nim, nie przed nia
+    else if (d.inset && d.y < d.colY0 - 0.5) {
+      const plyta = d.bandLo === null ? "dno" : d.seg && d.seg.nr > 0 ? "półkę graniczną poziomu kolumny" : "półkę przelotową";
+      add("error", `${gdzie}: front wpuszczany dłuższy od dołu o ${fmt(d.otwMm)} mm wchodzi ${fmt(Math.round(d.colY0 - d.y))} mm w ${plyta} pod nim — wpuszczany stoi w świetle korpusu i nie ma gdzie się wydłużyć. Wydłużenie od dołu tylko przy froncie nakładanym.` + zamiast);
+    }
     else if (podloga !== null && d.y < podloga + 10)
-      add("error", `${gdzie}: front dłuższy od dołu o ${fmt(d.otwMm)} mm kończy się ${fmt(Math.round(d.y - podloga))} mm nad podłogą — potrzeba min. 10 mm.` + zamiast);
+      add("error", `${gdzie}: front dłuższy od dołu o ${fmt(d.otwMm)} mm ${d.y < podloga
+        ? `schodzi ${fmt(Math.round(podloga - d.y))} mm pod podłogę` : `kończy się ${fmt(Math.round(d.y - podloga))} mm nad podłogą`} — potrzeba min. 10 mm nad nią.` + zamiast);
   });
 
   /* Odcinki lica zabudowane na staly. Tam, gdzie stoi plyta, nie ma szczeliny —
@@ -5569,7 +5578,9 @@ function computeGeoLiczy(cab, mat, ctx) {
         const opis = gora ? `GTV PD-G00, kąt ${kat}°, front ${typ === "blizniacze" ? "bliźniaczy (półnakładany)" : typ === "wpuszczane" ? "wpuszczany" : "nakładany"}: `
           + `${fmt(PODNOSNIK_H[typ][kat])} mm pod spodem płyty z zawiasami`
           : `GTV PD-ECGDL: ${fmt(AMORTYZATOR_H)} mm nad płytą z zawiasami`;
-        const klapaNazwa = lv.cols.length > 1 ? `Klapa — kolumna ${d.colJ + 1}` : "Klapa";
+        // kazda klapa osobno — w kolumnie z podzialem jest ich kilka jedna nad druga (audyt GPT N84)
+        const klapaNazwa = d.seg ? `Klapa — poziom ${d.seg.nr + 1} kolumny ${d.colJ + 1}`
+          : lv.cols.length > 1 ? `Klapa — kolumna ${d.colJ + 1}` : "Klapa";
         strony.forEach((s) => {
           const naWsporniku = c.fix && c.support && c.fix.side === s;
           const side = naWsporniku
@@ -18879,6 +18890,10 @@ export default function App() {
     // klapa do gory — dluzsza od dolu albo tip-on; w dol — podfrez od gory albo tip-on
     const dozwolone = klapa === "gora" ? ["dol", "tipon"] : klapa === "dol" ? ["podfrez", "tipon"] : OTWIERANIA;
     const otw = dozwolone.includes((rawCol.otwieranie || [])[k]) ? rawCol.otwieranie[k] : "brak";
+    /* front wpuszczany stoi w swietle korpusu — dluzszy od dolu wszedlby w plyte pod nim
+       (uzytkownik 2026-10-27: „nie da się, do ukrycia”); wpis sprzed zmiany frontu zostaje
+       widoczny (wyszarzony), a Uwagi daja przyciski podfrezu / tip-on */
+    const bezDol = cab.frontMode === "inset";
     const pole = "rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none";
     return (
       <span className="flex items-center gap-1" data-el="drzwi-otwieranie">
@@ -18886,7 +18901,8 @@ export default function App() {
           onChange={(e) => setDoorFlag(lv.i, jA, k, "otwieranie", e.target.value === "brak" ? null : e.target.value)}
           className="rounded border border-stone-300 bg-white px-1 py-1 text-[11px] focus:border-teal-600 focus:outline-none">
           <option value="brak">otwieranie: —</option>
-          {dozwolone.includes("dol") && <option value="dol">front dłuższy od dołu</option>}
+          {dozwolone.includes("dol") && (!bezDol || otw === "dol")
+            && <option value="dol" disabled={bezDol}>front dłuższy od dołu{bezDol ? " (nie przy wpuszczanym)" : ""}</option>}
           {dozwolone.includes("podfrez") && <option value="podfrez">podfrez od góry</option>}
           <option value="tipon">tip-on (GTV SALTO NOVA)</option>
         </select>
@@ -21207,8 +21223,10 @@ export default function App() {
                             <div className="space-y-2 rounded border border-teal-200 bg-teal-50 p-2 text-xs" data-el="kreator-klap">
                               <div className="font-medium text-stone-700">Klapy zamiast drzwi</div>
                               <p className="text-[11px] text-stone-500">
-                                Półki zaznaczone jako granice staną się poziomami (płyta przez całą szafkę) — w każdym poziomie jedna klapa.
-                                Pozostałe półki zostają półkami w środku klapy.
+                                {/* przy kilku kolumnach kreator dzieli tylko te kolumne (`podzielKolumne`) — audyt GPT N85 */}
+                                {lv.cols.length > 1
+                                  ? "Półki zaznaczone jako granice staną się stałymi półkami między klapami tej kolumny (poziomy kolumny) — w każdym poziomie jedna klapa. Pozostałe półki zostają półkami w środku klapy. Inne kolumny zostają bez zmian."
+                                  : "Półki zaznaczone jako granice staną się poziomami (płyta przez całą szafkę) — w każdym poziomie jedna klapa. Pozostałe półki zostają półkami w środku klapy."}
                               </p>
                               <div className="flex items-center gap-2">
                                 <span className="w-24 shrink-0 text-stone-500">ile klap</span>

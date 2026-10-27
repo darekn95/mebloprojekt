@@ -3,10 +3,12 @@
 Front uchylny zamiast skrzydła — tylko przy **jednych drzwiach w kolumnie**:
 „front: skrzydło / klapa”, a przy klapie „otwierana: do góry / w dół”.
 
-**„klapy zamiast drzwi…”** (pod polem drzwi, poziom z jedną kolumną) otwiera kreator
+**„klapy zamiast drzwi…”** (pod polem drzwi) otwiera kreator
 (użytkownik 2026-10-24): **ile klap** (1 … liczba pasm; zmiana dzieli równo),
-**granice** — które półki stają się poziomami (płyta przez całą szafkę; półki to półki,
-a poziomy to poziomy — pozostałe półki zostają w środku klapy), **otwierane** do góry /
+**granice** — które półki stają się granicami klap: przy jednej kolumnie poziomami
+(płyta przez całą szafkę), przy kilku kolumnach stałymi półkami tej kolumny (poziomy
+kolumny, inne kolumny bez zmian — tak też mówi opis w kreatorze, audyt GPT N85);
+półki to półki, a poziomy to poziomy — pozostałe półki zostają w środku klapy, **otwierane** do góry /
 w dół, **front** nakładany / wpuszczany (dla całej szafki — klapy nie mają frontu na
 kolumnę) i **podnośniki / amortyzatory** auto / 1 / 2. Pod spodem wysokość każdej klapy
 z ✓ albo „za nisko, podnośnik potrzebuje ok. N mm” (wpuszczane 265, bliźniacze 257,
@@ -76,6 +78,7 @@ wybranych drzwiach.
 - **Mocowanie podnośnika na klapie**: L mm pod spodem tej płyty (75° → 72, 90° → 62, 100° → 52) i drugi wkręt 24 mm niżej, 12 mm od wewnętrznej strony boku.
 - **Amortyzator PD-ECGDL**: płytka 245 mm nad płytą pod klapą, mocowanie na klapie 62 i 86 mm, te same 25 / 12 / 24 mm.
 - **Liczba stron**: jeden podnośnik — na wybranym boku; dwa — po obu stronach.
+- **Płyta klapy w planie**: „Klapa”, przy kilku kolumnach „Klapa — kolumna N”, w kolumnie podzielonej na poziomy „Klapa — poziom M kolumny N” — każda klapa osobno, wysokości od dołu tej klapy (audyt GPT N84: dwie klapy jednej kolumny zlewały się w jedną płytę z otworami obu).
 
 ## Skąd liczby
 
@@ -96,4 +99,4 @@ wybranych drzwiach.
 - **Interfejs**: `polkiNaPoziomy(…, naKlapy)` („klapy zamiast drzwi”); przyciski w `NoteLine` (`zawiasy`, `silaauto`, `klapa2`, `polkicof`, `parablat`).
 - **Kontrola otwierania**: `swingBodies` / `openingMsgs` (`klapaHit`, kąt co 1°).
 - **W kodzie klapa to front typu `"klapa"`, nie `"door"`**: tam, gdzie kod filtruje drzwi, klapa jest pominięta celowo. Ma osobną formatkę „Klapa” i nie ma skrzydła w kontroli otwierania drzwi.
-- **Testy**: `klapy`, `audytwierc` (zawiasy i mocowania podnośnika), `ruchy` (otwieranie), `komentarze1` („klapy zamiast drzwi”).
+- **Testy**: `klapy`, `audytwierc` (zawiasy i mocowania podnośnika), `ruchy` (otwieranie), `komentarze1` („klapy zamiast drzwi”), `audytgpt7` (klapy poziomów kolumny w planie, opis kreatora, wpuszczana dłuższa od dołu).
