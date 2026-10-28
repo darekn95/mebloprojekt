@@ -473,3 +473,119 @@ Wersja `szafki.jsx`: blob `b4ebef6460072cc4d7d8aac0a752acb500996ac7`. Potwierdzo
 
 **Naprawa/odbiór:** walidować względem arkusza faktycznie wybranego materiału, z jego okrawaniem i kierunkiem słojów. Sprawdzić również mniejszy arkusz, korpus/front/półkę oraz zwykły materiał bez własnego arkusza. Dowód: N99 w `N97-N99.json`.
 
+
+## Audyt 28.10.2026 — N100–N109
+
+Sprawdzono niezmienione źródło `szafki.jsx`, blob `b4ebef6460072cc4d7d8aac0a752acb500996ac7`. Poniżej 10 kolejnych odrębnych przypadków. Wszystkie odtworzono wykonaniem funkcji produkcyjnych lub ich niezmienionych handlerów; N101, N102, N105, N106 i N107 dodatkowo w interfejsie Pages. Przy N100 sprawdzono też faktyczne bryły 3D. To nie jest retest wcześniejszych zgłoszeń ani nowy audyt PDF. Przypadki i wyniki znajdują się lokalnie w `work/audit100`; prywatnego projektu użytkownika nie publikowano, po testach został przywrócony.
+
+### N100 [P2] Pionowe wzmocnienie przecina półkę bez komunikatu
+
+**Odtworzenie:** otwarta szafka 600 × 720 × 560 mm, korpus/półki 18 mm, dwie półki, bez drzwi i zawieszek. Wzmocnienie pionowe przy lewym boku, wysokość 400 mm, głębokość 100 mm, od lica 0.
+
+**Wynik:** wzmocnienie zajmuje x=18…36, y=302…702, z=0…100 mm. Górna półka zajmuje y=468…486 i pełną szerokość/głębokość kolumny. Rzeczywiste zamknięte bryły przecinają się o **18 × 18 × 100 mm**. Zamówione są pełne półki 564 × 560 oraz wzmocnienie 400 × 100; brak opisu wycięcia/skrócenia. Lista uwag jest pusta.
+
+**Kontrola:** wzmocnienie 100 mm wysokości zaczyna się na y=602 i nie dochodzi do półki — brak przecięcia. To nie wcześniejszy N72 o wyjściu wzmocnienia poza korpus; tutaj cała płyta mieści się wewnątrz. Nie jest to również N76 o wsporniku fixu.
+
+**Przyczyna:** zwykłe półki nie są dopasowane do pionowych wzmocnień; kontrola wzmocnień sprawdza granice korpusu, ale nie przecięcie z półką.
+
+**Naprawa/odbiór:** wykrywać przecięcie i zaproponować zmianę wysokości/położenia albo jednoznacznie opisać i zamówić dopasowane elementy. Sprawdzić oba boki, głębokość od lica/tyłu i różne grubości półek. Dowody: `rails.mjs`, `rails.json`, `controls.mjs`, `controls.json`.
+
+### N101 [P3] Wzmocnienie pionowe w 2D ma dekor półek zamiast zamówionej płyty korpusu
+
+**Odtworzenie:** korpus Biały mat, osobna płyta półek Czarny, „Realne kolory”, pionowe wzmocnienie 400 × 100 mm, bez półek. Otwarty widok z przodu.
+
+**Wynik:** tabela zamawia „Wzmocnienie pionowe” z białej płyty korpusu, a jego prostokąt 18 × 400 na rysunku jest czarny (`fill=#2b2a28`). W 3D wzmocnienie jest generowane z koloru korpusu. Wybór osobnej płyty półek zmienia wygląd elementu, który nie jest z niej wykonywany.
+
+**Przyczyna:** rysunki 2D stosują dla `r.orient === 'vertical'` kolor `shc`, choć formatka wzmocnienia ma `matKey:'board'`. To inny element niż zwykłe/przelotowe półki z dawnego N60.
+
+**Naprawa/odbiór:** kolor wzmocnienia w widokach brać z faktycznie zamawianego materiału. Sprawdzić otwarty przód i bok, osobne dekory i „Realne kolory”. Dowód: `N101-projekt.json`, `geometry-candidates.json`; odczyt SVG w interfejsie potwierdził czarny prostokąt.
+
+### N102 [P3] Widok boczny dodaje drugi, błędnie nakładany obraz fixu wpuszczanego
+
+**Odtworzenie:** szafka 600 × 720 × 560 mm, globalne fronty na korpusie, fix z lewej 100 mm, jego własny montaż „W obrysie”/wpuszczany. Widok z boku.
+
+**Wynik:** geometria ma jeden fix wpuszczany, wysokość 680 mm. Na bocznym SVG są dwa pasy jego wysokości i grubości: prawidłowy x=542…560 oraz dodatkowy x=560…578 mm, z krzyżowym oznaczeniem fixu. Rysunek sugeruje element również przed korpusem, chociaż zamówiony i modelowany jest jeden wpuszczany fix.
+
+**Przyczyna:** ogólny blok frontów uwzględnia `d.inset`, lecz kolejny blok „elementy stałe (fix)” rysuje fix ponownie i liczy `fxx` wyłącznie z `cab.frontMode`, ignorując `c.fix.inset`.
+
+**Naprawa/odbiór:** jeden obraz fixu we właściwej płaszczyźnie; oznaczenie krzyżem nakładać na ten sam obrys, bez drugiego pasa. Sprawdzić fix nakładany/wpuszczany przy obu globalnych montażach. Dowody: `N102-projekt.json`, `geometry-candidates.json` i SVG widoku bocznego.
+
+### N103 [P2] Przyciski usunięcia fixu/dobudowania wspornika nie naprawiają szuflad w poziomie kolumny
+
+**Odtworzenie:** szafa 600 × 1800 × 560 mm, jedna półka jako granica dwóch poziomów kolumny. Fix całej kolumny z lewej 100 mm, bez wspornika. W dolnym poziomie jedna szuflada DXS, w górnym drzwi. Przy błędzie kolizji szuflady z fixem użyć „Dobuduj wspornik pionowy” albo, w osobnym teście, „Usuń element stały”.
+
+**Wynik:** po każdym przycisku rzeczywisty fix i kolizja pozostają. `fixsup:0:0s0:550` wpisuje wspornik do `segmenty[0].fix` z `side:'none'`; `fixdel:0:0s0` również zmienia wyłącznie ten segment. Geometria fixu/wspornika nadal korzysta z fixu nadrzędnej kolumny. Ten sam błąd jest zwracany po przeliczeniu.
+
+**Kontrola:** akcja na nadrzędnej kolumnie `fixsup:0:0:550` usuwa ten błąd i zwęża skrzynkę poprawnie. Problem dotyczy adresu przycisku nowej struktury segmentowej, a nie samego dawnego N42.
+
+**Naprawa/odbiór:** kierować akcję do faktycznego właściciela fixu lub obsłużyć fix lokalny segmentu w geometrii. Po kliknięciu naprawy właściwy błąd znika i zmieniają się odpowiednie formatki/bryły. Dowody: `N103-projekt.json`, `actions.mjs`, `actions-test.mjs`, `candidates.json`.
+
+### N104 [P2] Usunięcie niższej półki kasuje rurę w górnym świetle
+
+**Odtworzenie:** szafa 600 × 2400 × 560 mm, jedna półka, rura w górnym świetle (`drazki:[1]`). Usuń półkę przy dolnym świetle przyciskiem ×.
+
+**Wynik:** rura, która była 70 mm pod wieńcem na y=2312 mm, znika z geometrii oraz zamówienia, choć wieniec i miejsce jej montażu nie zmieniły się. W danych pozostaje indeks `[1]`, podczas gdy po usunięciu półki jedyne światło ma indeks 0. Geometria odrzuca nieistniejący indeks.
+
+**Przyczyna:** `removeShelfAt` aktualizuje światła i granice frontów, ale nie numery świateł w `drazki`. Inna operacja `ustawPolkiPoziomuKolumny` ma taką aktualizację, ten przycisk jej nie wykonuje.
+
+**Kontrola:** po przepisaniu tej samej rury na indeks 0 wraca ona dokładnie na y=2312, długość 562 mm; nie trzeba dodawać nowej rury ani przesuwać jej wysokości. To nie N89 o rurze pozostawionej w segmencie szuflad.
+
+**Naprawa/odbiór:** zachować przypisanie istniejących rur po usuwaniu półek poniżej nich, z odrębną obsługą usunięcia samej płyty niosącej rurę. Sprawdzić kilka rur, dolną/środkową/górną półkę i cofanie. Dowody: `N104-projekt.json`, `candidates.json`, `controls.json`.
+
+### N105 [P2] „Wszędzie N zawiasy” nie zmienia zawiasów zapisanych w poziomach kolumny
+
+**Odtworzenie:** szafa 600 × 1800 × 560 mm, półka jako granica dwóch frontów, oba po 895 mm. Ręcznie ustawić dolnemu 2, górnemu 3 zawiasy. Przy ostrzeżeniu o różnej liczbie wybrać „Wszędzie 2 zawiasy”.
+
+**Wynik:** fronty nadal mają 2 i 3 zawiasy, ostrzeżenie pozostaje; to samo dla ujednolicenia do 3. Potwierdzone wykonaniem handlera i kliknięciem w interfejsie.
+
+**Przyczyna:** grupowanie ostrzeżenia identyfikuje tylko `colKey='0-0'`; akcja `zawiasywszedzie` zmienia `col.hinges`, a jawne `segmenty[n].hinges` nadal nadpisują tę wartość.
+
+**Naprawa/odbiór:** ujednolicać rzeczywiście wskazane fronty, uwzględniając ich segmenty. Nie zmieniać nieobjętych ostrzeżeniem frontów innych wysokości. Po kliknięciu liczby i ilość zamawianych zawiasów mają się zgadzać, a ostrzeżenie znikać. Dowód: `N105-projekt.json`, `candidates.json` oraz interfejs Pages.
+
+### N106 [P2] „Zwiększ siłę do 100 N” pozostawia odziedziczone 50 N w klapie segmentu
+
+**Odtworzenie:** szafka 600 × 900 × 560 mm, półka jako granica dwóch klap do góry, po 445 mm, dwa podnośniki na klapę. Na nadrzędnej kolumnie ręczna siła 50 N; segmenty dziedziczą ustawienie. Przy ostrzeżeniu dolnej klapy wybrać „Zwiększ siłę do 100 N”.
+
+**Wynik:** dolna klapa nadal zamawia podnośniki 50 N i ostrzega o za małej sile. Tak samo po powtórzeniu kliknięcia. Górna również pozostaje przy swoim 50 N, zgodnie z brakiem jej edycji.
+
+**Przyczyna:** `silaauto` wykonuje `delete segment.silaN`. To przywraca dziedziczenie ręcznego 50 N z kolumny, zamiast automatycznego doboru. W tej strukturze `null` jest jawnym auto, a brak pola — dziedziczeniem.
+
+**Kontrola:** wpisanie `segmenty[0].silaN=null` daje prawidłowe 100 N wyłącznie dolnej klapie. Przycisk opisuje konkretną zmianę, ale jej nie wykonuje. Potwierdzone także w interfejsie.
+
+**Naprawa/odbiór:** ustawić jawne auto lub obiecaną siłę we właściwym segmencie; sprawdzić również „Dołóż drugi” z automatycznym doborem, gdy rodzic ma ręczną siłę. Dowody: `N106-projekt.json`, `candidates.json`, `controls.json`.
+
+### N107 [P3] Kreator klap zaniża wysokość górnego poziomu przy cieńszych półkach
+
+**Odtworzenie:** szafka 1200 × 580 × 350 mm, dwie kolumny, fronty wpuszczane. Korpus 18 mm, osobna płyta półek 12 mm. W pierwszej kolumnie jedna półka, dwa rzeczywiste światła po 266 mm. Otworzyć kreator klap i wybrać dwie klapy.
+
+**Wynik:** kreator podaje dolny poziom 266, górny **260 mm**, choć w strukturze oba światła mają 266. Blokuje operację tekstem „klapa 2 ma 260 mm”, wymagając według swojej kontroli ok. 265 mm. To fałszywy wynik tej konkretnej kontroli wysokości, nie deklaracja braku wszystkich innych wymagań dla małej klapy.
+
+**Przyczyna:** budowanie `ys` używa `shelf.y + geo.t` (18 mm), a rzeczywista półka ma `geo.ts` (12). W kolumnowym podziale półka graniczna pozostaje z płyty półek. Nie jest to poprzedni N96 o doborze liczby zwykłych półek — tutaj błędna jest wysokość w kreatorze i blokada wybranych klap.
+
+**Naprawa/odbiór:** liczyć światła i warianty z rzeczywistych grubości oraz rozróżnić granicę w kolumnie od zamiany na konstrukcyjną półkę przelotową. Przykład ma pokazywać 266/266. Dowody: `N107-projekt.json`, `geometry-candidates.json`, interfejs Pages.
+
+### N108 [P2] „Dopasuj fronty” tworzy błąd wysokości przy własnym luzie lub montażu szuflad
+
+**Odtworzenie A:** szafka 600 × 900 × 560 mm, trzy V-BOX z ręcznymi bokami 95/178/210, standardowy luz szafki 2 mm, własny luz kolumny 5 mm. Kliknąć „dopasuj fronty”.
+
+**Wynik A:** funkcja ustawia skończone fronty 182/327/381, lecz ich suma z dwoma luzami po 5 mm przekracza pasmo o 6 mm. Pojawia się błąd „wysokości frontów szuflad nie zgadzają się o 6 mm”.
+
+**Odtworzenie B:** te same szuflady, luz 2 mm, globalnie fronty na korpusie, własny montaż kolumny „Wewnątrz”. **Wynik B:** fronty 181/327/382, błąd sumy o 34 mm; rzeczywiste pasmo tej kolumny ma 860 mm.
+
+**Przyczyna:** dla zwykłej kolumny `fitFronts` bierze `lv.frontHi-frontLo` i `cab.gaps.between`, zamiast `gk.dbandH` i efektywnego luzu kolumny. Dla segmentu funkcja już korzysta z jego `dbandH`. To odrębne od N97: wszystkie boki są ręczne, żadne NaN tu nie występuje.
+
+**Naprawa/odbiór:** dopasowywać fronty do rzeczywistego pasma i luzu konkretnej kolumny/segmentu. Po użyciu przycisku suma frontów i luzów ma wypełniać pasmo bez nowego błędu. Dowody: `N108-gap-projekt.json`, `N108-mount-projekt.json`, `geometry-candidates.json`.
+
+### N109 [P2] Obsługa pary pod blat nie rozpoznaje przedniego wzmocnienia szafki narożnej
+
+**Odtworzenie:** szafka narożna `corner.on=true`, zastosować wariant bez wieńca pod blat. `bezWienca` dodaje w rogu dwa stojące wzmocnienia 60 mm: przednie i tylne. Dodać drugi poziom główny. Osobna kontrola: włączyć z powrotem wieniec zamiast pary.
+
+**Wynik:** przy dodaniu poziomu przednie wzmocnienie zostaje w niższym, a tylko tylne przechodzi do najwyższego. Para jest rozdzielona; nowa góra nie dostaje przedniej płyty przewidzianej dla narożnika. Przy powrocie do wieńca usuwane jest tylko tylne, przednie zostaje w formatkach i geometrii.
+
+**Przyczyna:** `jestParaPodBlat` rozpoznaje przednie poziome wzmocnienie (`shelf`) zwykłej szafki oraz tylne stojące, ale nie przednie stojące (`front`, `fromBack:false`) tworzone przez `railPair(...,pionZPrzodu=true)` w rogu. Ten sam predykat obsługuje przenoszenie i usuwanie pary.
+
+**Kontrola:** dla zwykłej szafki bez narożnika po dodaniu poziomu obie płyty prawidłowo trafiają do najwyższego. W teście zachowano inne ręczne wzmocnienia — nie należy usuwać wszystkich płyt typu front na ślepo.
+
+**Naprawa/odbiór:** oznaczyć parę pod blat w sposób jednoznaczny, również jej wariant narożny. Przenosić i usuwać oba jej elementy; sprawdzić dodanie poziomu, kolumny i powrót do wieńca. Dowody: `actions-test.mjs`, `candidates.json` (N109), `controls.json` (wariant zwykły).
+
+
