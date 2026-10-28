@@ -777,3 +777,68 @@ Kolejne 10 odrębnych przypadków, sprawdzonych na funkcjach źródła `szafki.j
 - **Odtworzenie:** L900×900×560 z ramieniem640; zamienić jedyną kolumnę korpusu na DXS, NL400, bok80.
 - **Wynik:** przed narożnikiem dostępne275mm lica, ale front szuflady ma896mm, skrzynka jest liczona dla światła864. Bryła zamkniętego frontu przecina maskownicę na16×894×60mm i wewnętrzny kątownik na16×864×18mm. Zamówienie zachowuje te niepasujące wymiary.
 - **Uwagi/poprawa:** pojawia się ogólne ostrzeżenie o froncie sięgającym poza lico, lecz proponuje zmianę na jedne drzwi275, zamiast rozwiązania szuflady. Nie twierdzę, że aplikacja całkiem milczy. Obsłużyć rzeczywistą komorę z prowadnicami/wspornikiem przy ograniczonym licu albo jednoznacznie zablokować ten wariant jako niemożliwy do montażu. Kontrolne drzwi tej samej szafki są przycinane do275 w geometrii z kontekstem narożnika; ścieżka szuflad tego nie robi. Dowody: `cornerdrawer.json`, `last.json:drawerCorner`, `verified.json:drawerHits`.
+
+## Audyt 28.10.2026 — N140–N149
+
+Dziesięć kolejnych odrębnych przypadków. Źródło `szafki.jsx`, blob `b4ebef6460072cc4d7d8aac0a752acb500996ac7`, sprawdzony także na koniec rundy — nadal niezmieniony. Testy korzystają z funkcji produkcyjnych, planów i brył; 14 ukierunkowanych asercji przeszło (`work/audit140/checks.json`). N144 potwierdzono dodatkowo w UI, gdzie jednocześnie widać zamówione NL400 i błąd o NL550. Pozostałe nie są deklaracją pełnego przeklikania UI. Projekt użytkownika przywrócono po kontroli; używano syntetycznych danych. Dowody lokalne w `work/audit140/`, bez prywatnego projektu w repozytorium. Nie zmieniano kodu ani nie testowano PDF. Trop powtórnego zużycia resztki w dwóch grupach o sztucznie zbieżnych etykietach pozostawiono poza tą listą; N140 dotyczy niezależnego, potwierdzonego łączenia dekorów blatów.
+
+### N140 [P2] Różne kolory blatów roboczych trafiają na jeden arkusz rozkroju
+
+- **Odtworzenie:** dwa blaty po1000×600, taka sama nazwa „Blat roboczy” i grubość, ale jeden biały `#e8e6e1`, drugi czarny `#2b2a28`. Wykorzystać rzeczywiste `matLabelOf` i `wierszBlatu` przy budowie wejścia rozkroju.
+- **Wynik:** obie pozycje dostają identyczną etykietę „Blat roboczy” oraz arkusz4100×600. `buildCutPlan` kładzie oba kawałki obok siebie na jednym arkuszu i wylicza zakup jednego. Jeden fizyczny arkusz nie dostarczy obu dekorów. Lista formatek może zachowywać różne kolory, lecz etap grupowania rozkroju je gubi.
+- **Przyczyna/poprawa:** `COLORED_KEYS` nie zawiera `worktop`; `ambiguousThickness` rozróżnia kolory osobno tylko dla HDF. Grupa rozkroju powinna nieść jednoznaczną tożsamość dekoru/grubości/produktu, nie samą etykietę. Kontrolna zmiana nazwy drugiego blatu rozdziela zakup na dwa arkusze. To nie N3 o formacie600/1200 ani N95 o dwóch własnych płytach tej samej nazwy. Dowody: `colors.mjs`, `worktopColors.json`, `checks.json`.
+
+### N141 [P2] Scalenie zamienia drzwi wpuszczane drugiej szafki na nakładane
+
+- **Odtworzenie:** dwie szafki600×720×560 z tych samych materiałów, w jednym ciągu. Pierwsza ma drzwi nakładane, druga wpuszczane. Scalić szafki.
+- **Wynik:** `scalenieBlad` zwraca brak przeszkód. Przed scaleniem drugi front jest wpuszczany560×680; po scaleniu oba fronty są nakładane596×714. Zmieniają się też wynikające z montażu warianty zawiasów. Zachowanie ustawienia drugiej szafki nie jest proponowane ani wymagane.
+- **Przyczyna/poprawa:** kolumny są kopiowane, lecz zależą od `frontMode` skopiowanego wyłącznie z pierwszego korpusu. Przed scaleniem sprawdzać zgodność ustawień, których nie da się zachować per kolumna, albo jawnie przenosić efektywne ustawienia. To osobne od N88 o zamianie materiałów — tu materiały są identyczne. Dowody: `mergeMode.json`, `probe.json:mergeMode`, `checks.json`.
+
+### N142 [P2] Własne blaty szafek na różnych wysokościach łączą się w jedną formatkę
+
+- **Odtworzenie:** ciąg bez wspólnego blatu roboczego; dwie szafki W600, H720 i900, obie z własnym blatem z tej samej płyty18 i wysunięciem przednim30.
+- **Wynik:** geometria pojedynczych szafek ma górne płyty na y=702..720 i882..900. `runTop` łączy je w jeden blat1200×590 na wysokości702; `projectParts` usuwa oba własne blaty i zamawia jedną długą płytę. Nie może ona jednocześnie leżeć na dwóch poziomach. `worktopMsgs` nie zgłasza tej sprzeczności; niezależna uwaga o wysokości szafki w ciągu nie naprawia formatek.
+- **Przyczyna/poprawa:** klucz łączenia własnych blatów uwzględnia materiał, ale nie efektywną wysokość; wysokość całego wyniku pochodzi z pierwszego źródła. Dzielić blaty według rzeczywistego poziomu albo pozostawiać własne płyty. Kontrolne dwie H720 mogą korzystać z jednej płyty1200. Dowody: `ownHeights.json`, `probe.json:ownDifferentHeights`, `verified.json:topControl`.
+
+### N143 [P2] Drążek na wieszaki przecina pionowe wzmocnienie bez komunikatu
+
+- **Odtworzenie:** 600×2000×560, jedna kolumna, drążek w najwyższym świetle. Dodać lewe wzmocnienie pionowe: wysokość400, głębokość100, od lica230, od góry.
+- **Wynik:** drążek ma oś y=1912, z=280 i biegnie przez x=19..581. Wzmocnienie zajmuje x=18..36, y=1582..1982, z=230..330. Rzeczywiste bryły `Scene3D` przecinają się na17×25×25mm. Lista uwag jest pusta, drążek i mocowania pozostają w zamówieniu.
+- **Poprawa:** kontrolować pełny przebieg drążka i dostępność płyt dla rozet wobec wzmocnień, zabudów i innych elementów wnętrza; dać wykonalną korektę albo usunięcie. Usunięcie wyłącznie wzmocnienia usuwa wskazane przecięcie. To nie N89 o rurze pozostawionej po zmianie poziomu na szuflady — tu kolumna jest zwykłą garderobą z drzwiami. Dowody: `rodRails.json`, `verified.json:rodHits`.
+
+### N144 [P2] Wspornik szuflady sprawdzany według domyślnego NL zamiast faktycznie wybranego
+
+- **Odtworzenie:** 600×720×560, fix lewy100 nakładany, wspornik gł.400, jedna DXS z ręcznie wybranym NL400; domyślne NL kolumny pozostawić automatyczne.
+- **Wynik:** geometria i zamówienie mają prowadnicę400, wspornik również400, lecz aplikacja zgłasza błąd „prowadnica NL550 musi się na nim oprzeć ... daj minimum550” i proponuje powiększenie wspornika. W UI jednocześnie widać produkt „NL400 ... ind.05409” i błąd o550.
+- **Przyczyna/poprawa:** kontrola wspornika odczytuje `rawCol.nl ?? maxNL`, ignorując indywidualne `drawers[].nl`. Sprawdzać maksymalną rzeczywistą wymaganą długość spośród szuflad mocowanych na tym wsporniku. Kontrolne wpisanie400 również jako domyślnego NL kolumny usuwa błąd bez zmiany faktycznych prowadnic. Dowody: `supportNl.json`, `more.json:supportNl`, `verified.json:supportControl`, UI.
+
+### N145 [P2] Tip-on nie ma kontroli miejsca montażu i może przeciąć plecy
+
+- **Odtworzenie główne:** szafka600×300×80, standardowe HDF przybijane, drzwi bez uchwytu, tip-on.
+- **Wynik:** model odbojnika zajmuje z=0..89, plecy z=80..83. Bryły przecinają się na15×16×3mm, odbojnik wystaje za korpus. Jedyna uwaga dotyczy jednego konfirmatu przy płytkiej szafce; brak uwagi o niepasującym tip-on, który pozostaje do zakupu.
+- **Dodatkowa kontrola tego samego braku walidacji:** bez dna, wieńca, półek i wzmocnień odbojnik nadal jest umieszczany pod umownym „sufitem” kolumny, choć według reguły w kodzie ma być mocowany na płycie poziomej. Jest ogólna uwaga o otwartym korpusie, bez wskazania montażu tip-on.
+- **Poprawa:** wybierać rzeczywiście istniejącą płytę montażową, uwzględniać jej cofnięcie oraz pełne89mm korpusu odbojnika i dostępne miejsce do pleców. Nie traktować granicy światła jako dowodu istnienia płyty. Dowody: `tipBack.json`, `floatingTip.json`, `verified.json:tipBack`, `more.json:floatingTip`.
+
+### N146 [P2] Złącza blatów w rogu ignorują automatyczną wysokość montażu ciągów górnych
+
+- **Odtworzenie:** dwa ciągi górne połączone rogiem, `mountY=0`, wysokość wyliczana automatycznie od dolnych, prześwit500. Dolne ciągi H720 i900, z blatem38; górne H900 z blatem38.
+- **Wynik:** `tierMountY` i rozmieszczenie dają montaż1258 i1438, więc wierzchy górnych blatów leżą na2196 i2376 — różnica180mm. `wierzchBlatu` porównuje jednak938 z938, a `runTopZlacza` zamawia dwa złącza styku w rogu. Nie ma uwagi o braku wspólnego poziomu tych blatów; inne uwagi dotyczą jedynie usztywnienia pod blatem.
+- **Przyczyna/poprawa:** `wierzchBlatu` dodaje surowe `run.mountY`, pomijając wysokość obliczoną dla powiązanego piętra. Porównywać rzeczywiste wysokości z `tierMountY(project,run)` lub rozmieszczenia. To odrębny brak obsługi montażu automatycznego w ścieżce, w której N66 obsłużyło różne wysokości wpisane bezpośrednio. Dowody: `upperTopHeight.json`, `upperTopHeight-result.json` (także `layoutMount`), `checks.json`.
+
+### N147 [P2] Projekt z `noDiv` dostaje wiercenia w nieistniejącej przegrodzie
+
+- **Odtworzenie:** wczytać obsługiwany model dwóch kolumn, pierwsza `noDiv=true`, po jednej półce w obu kolumnach, bez drzwi. Pole oznacza przelot bez płyty i nadal jest interpretowane przez silnik; dotyczy również zgodności ze starszymi zapisami, nie twierdzę, że obecny UI udostępnia przełącznik usunięcia tej przegrody.
+- **Wynik:** `geo.dividers=[]`, brak formatki przegrody, ale plan zawiera „Przegroda1” z kołkami z obu stron na333mm. Zamówienie daje dwie oddzielne półki282×560, które na styku nie mają podpory. Brak uwag.
+- **Przyczyna/poprawa:** `panelsOfCol` wyznacza nośnik według numeru kolumny, bez sprawdzenia rzeczywistej przegrody. Dla przelotu zaplanować wspólną półkę/realne podparcie albo zgłosić nieobsługiwany układ, zamiast wiercić nieistniejącą płytę. Kontrolne usunięcie `noDiv` przywraca jedną przegrodę i uzasadnia ten plan. Dowody: `noDiv.json`, `more.json:noDiv`, `verified.json:noDivControl`.
+
+### N148 [P2] Jedna ciągła listwa montażowa dla szafek z zawieszkami na dwóch wysokościach
+
+- **Odtworzenie:** dwie wiszące szafki W600, H720 i900, ten sam poziom montażu1500, bez nóżek/cokołu, zawieszki na listwie.
+- **Wynik:** plany szafek umieszczają górne krawędzie zawieszek702 i882mm od dołu boku, czyli na wysokościach2202 i2382 od podłogi. `runRail` mimo to tworzy jeden prosty odcinek1200, a zbiorcze zamówienie zastępuje nim obie listwy szafek: „jedna listwa1200mm przez ciąg”. Prosta pozioma listwa nie obsłuży tych dwóch poziomów. Ogólna uwaga o różnicy H w ciągu nie zmienia planu zakupu/cięcia.
+- **Poprawa:** dzielić listwy według rzeczywistej wysokości i płaszczyzny zaczepów albo jawnie blokować wspólną listwę. Dla jednakowych H720 odcinek1200 jest poprawny; przy różnych wysokościach potrzebne są oddzielne odcinki przy danych szafkach. Dowody: `railHeight.json`, `more.json:railHeight`, `verified.json:railControl`.
+
+### N149 [P2] Zawieszka pozostaje w obszarze górnego wycięcia narożnika
+
+- **Odtworzenie:** wisząca600×1200×560, dwa poziomy, tylne lewe wycięcie100×100 tylko w górnym poziomie, maska włączona, zawieszki zawsze.
+- **Wynik:** obszar wycięcia obejmuje y=609..1182 oraz100mm od tyłu przy lewym boku. Plan nadal mocuje lewą zawieszkę górną krawędzią na1182 i tylną10mm od tyłu boku. Zgodnie z wymiarami zawieszki zapisanymi w kodzie57,2×37,5×17,4 jej obrys pod górną krawędzią mieści się w obszarze przeznaczonym na przeszkodę/wycięcie. Mocowanie ma więc wypaść w usuniętym miejscu; zamówienie nadal zawiera obie zawieszki, bez uwag. Prostokątna formatka boku nie oznacza, że po wykonaniu przewidzianego wycięcia pozostaje tam materiał.
+- **Poprawa:** sprawdzać rzeczywisty obrys i płytę montażową zawieszki względem wycięć/zabudów, wyznaczać alternatywne podparcie lub zgłaszać brak możliwości montażu. Kontrolne przeniesienie wycięcia do dolnego poziomu usuwa konflikt z górną zawieszką. To inny element i plan niż N122 o nóżce pod pełnym dolnym wycięciem. Dowody: `hangerCut.json`, `more.json:hangerCut`, `verified.json:hangerControl`.
