@@ -72,7 +72,11 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
 - **Szafka pod blatem ciągu z wieńcem** albo bez wieńca i bez wzmocnień — ostrzeżenie z „Dołóż parę wzmocnień” (wieniec znika, dochodzi para).
 - **Ciąg bez blatu roboczego, a szafka bez wieńca z parą wzmocnień pod blat** (np. po wyłączeniu blatu) — ostrzeżenie z „Wieniec zamiast wzmocnień”. Wieniec włączony w „Złączach korpusu” (z „brak” na „między” / „na boku”) sam zdejmuje parę wzmocnień pod blat (`zWiencem`; użytkownik 2026-10-24).
 - **Płyta inna niż 18 mm** — ostrzeżenie (liczby katalogowe szuflad są dla 18).
-- **Wycięcie narożnika na całą wysokość nad nóżką** (przechodzi przez dno) — ostrzeżenie z położeniem nóżki i radą przestawienia jej przy montażu (audyt GPT N122; automatyczne przesunięcie — do decyzji).
+- **Wycięcie narożnika na całą wysokość nad nóżką** (przechodzi przez dno) — nóżka przesuwa się sama 10 mm za wycięcie (wzdłuż boku albo w głąb, gdzie bliżej), na wszystkich rysunkach i w 3D, z informacją; gdy obok nie ma miejsca — ostrzeżenie (decyzja użytkownika 2026-10-28, N122).
+- **Wycięcie narożnika tylko w jednym poziomie a zawieszka** — zawieszka w górnym tylnym rogu boku wypadająca w wycięciu to błąd (N149).
+- **Przelot bez przegrody** (`noDiv`): po stronie przelotu nie ma wierceń; półki albo rura kończące się w przelocie — błąd (N147).
+- **Rura na wieszaki a wzmocnienie** w jej drodze — błąd z „Wzmocnienie N: X mm” albo „Usuń rurę” (N143).
+- **Tip-on**: przykręcany tylko do płyty, która jest (bez dna / wieńca dół i góra światła to nie płyta) — bez płyty błąd; odbojnik 89 mm w głąb dłuższy niż do pleców — błąd (N145).
 - **Blat roboczy**: kontrola wysokości blatów w rogu i w pomieszczeniu („odstaje o N mm”) z przyciskami wyrównania, zużycie arkusza (brakuje do 200 mm), odpad — opisane w `opisy/ciagi.md` i `opisy/rozkroj.md`.
 
 ## Skąd liczby

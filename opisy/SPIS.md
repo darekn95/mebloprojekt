@@ -26,4 +26,4 @@ Zmieniasz zasadę albo liczbę opisaną tutaj, popraw opis w tej samej zmianie.
 | [formatki.md](formatki.md) | formatki: nazwy, materiały, okleina, usłojenie, reguła 60 / 30 mm | 2026-10-22 |
 | [zamowienie.md](zamowienie.md) | okucia, zestawienie projektu, wycena i ceny domyślne | 2026-10-22 |
 | [wiercenia.md](wiercenia.md) | plan wierceń: konfirmaty, kołki, trójkąty, zawiasy, prowadnice, zawieszki, frez | 2026-10-28 |
-| [rozkroj.md](rozkroj.md) | rozkrój (arkusze, rzaz, usłojenie, blat), ostrzeżenia zużycia i odpadu, zestawienie PDF | 2026-10-22 |
+| [rozkroj.md](rozkroj.md) | rozkrój (arkusze, rzaz, usłojenie, blat), ostrzeżenia zużycia i odpadu, zestawienie PDF | 2026-10-28 |
