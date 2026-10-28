@@ -6,7 +6,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
 ## Co program liczy sam
 
 - **Wymiary**: szerokość, wysokość i głębokość korpusu.
-  - Głębokość może zawierać plecy i front („Podana głębokość zawiera plecy / front”) — wtedy korpus jest o nie płytszy.
+  - Głębokość może zawierać plecy i front („Podana głębokość zawiera plecy / front”) — wtedy korpus jest o nie płytszy. Front odejmuje się, gdy któryś naprawdę wystaje przed korpus (`frontyWystaja`): drzwi i klapy przy frontach nakładanych szafki, szuflady według montażu kolumny / poziomu kolumny („Na korpusie” / „Wewnątrz”), blenda i fix nakładane (audyt GPT N98: liczył się tylko montaż szafki); pole widać też przy szafce wpuszczanej z szufladami na korpusie.
   - Wysokość to korpus. Cokół „pod dnem, w obrysie” mieści się w niej (boki do podłogi, dno nad cokołem). Cokół „pod korpusem” i nóżki dokładają się pod spodem — szczegóły w `opisy/cokol.md`.
 - **Złącza korpusu** (każde osobno: wieniec z lewej / z prawej, dno z lewej / z prawej):
   - „między bokami” — płyta między bokami;

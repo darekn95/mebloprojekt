@@ -55,8 +55,11 @@ const COLORED_KEYS = ["board", "front", "shelf"];
    arkusz i cene rozkroj i wycena biora z listy projektu. */
 const PLYTA_WLASNA_ARKUSZ = { w: 2800, h: 2070 };
 const plytaWlasna = (project, id) => (id && ((project && project.plyty) || []).find((q) => q.id === id)) || null;
-const matZPlyty = (pl, m) => ({ ...m, name: pl.nazwa, thickness: pl.grubosc, color: pl.kolor, decor: pl.nazwa, plyta: pl.id });
-const bezPlyty = (m) => { const o = { ...m }; delete o.plyta; return o; };
+/* `arkusz` — format arkusza wlasnej plyty w materiale szafki: kontrola „nie mieści się na
+   arkuszu” w `computeGeo` (bez projektu) liczy z niego (audyt GPT N99) */
+const matZPlyty = (pl, m) => ({ ...m, name: pl.nazwa, thickness: pl.grubosc, color: pl.kolor, decor: pl.nazwa, plyta: pl.id,
+  ...(pl.arkusz ? { arkusz: { w: pl.arkusz.w, h: pl.arkusz.h } } : {}) });
+const bezPlyty = (m) => { const o = { ...m }; delete o.plyta; delete o.arkusz; return o; };
 /* wiersz rozkroju z wlasnej plyty: jej arkusz, okrawany jak arkusz z wzornika */
 const arkuszWlasnej = (project, m) => {
   const pl = plytaWlasna(project, m && m.plyta);
@@ -137,6 +140,15 @@ const ambiguousThickness = (mats) => {
     ...[...kolory.entries()].filter(([, set]) => set.size > 1).map(([k]) => "kolor:" + k),
   ]);
 };
+
+/* Stala tozsamosc plyty w rozkroju i przy wlasnych kawalkach (`project.resztki[].matId`):
+   wlasna plyta — jej id, inna — nazwa, kolor, dekor i grubosc. Etykieta (`matLabelOf`)
+   dostaje grubosc dopiero, gdy w projekcie jest ta sama nazwa w innej — kawalek zapisany
+   z etykieta przestawal wtedy pasowac (audyt GPT N94). */
+const tozsamoscPlyty = (m) => (!m ? "" : m.plyta ? `plyta:${m.plyta}`
+  : [String(m.name || "").trim(), String(m.color || "").toLowerCase(), String(m.decor || "").trim(), Math.round(Number(m.thickness) || 0)].join("|"));
+// wlasny kawalek nalezy do grupy rozkroju: po tozsamosci, stare zapisy (bez niej) — po etykiecie
+const resztkaGrupy = (q, g) => (q && q.matId ? (g.matIds || []).includes(q.matId) : !!q && q.matLabel === g.matLabel);
 
 const matLabelOf = (m, key, ambiguous) => {
   // wlasna plyta ma wlasna nazwe — bez dopisku koloru (to ona jest dekorem)
@@ -894,8 +906,8 @@ const ruraWiersz = (pozycje) => {
   const ile = odc.map((d) => [d, z.sztangi.filter((q) => q.dl === d).length]).filter(([, n]) => n).reverse();
   const ciecie = z.sztangi.map((q) => `${m(q.dl)} m → `
     + q.kawalki.map((k) => `${k.dl === q.dl ? "cały" : fmt(k.dl)}${k.gdzie ? ` (${k.gdzie})` : ""}`).join(" + ")).join("; ");
+  // bez `use` — `scalOkucia` zastapilby nim plan zakupu i ciecia (audyt GPT N90)
   return { name: DRAZEK_NAME, unit: "mb", qty: z.zakup / 1000, specSzt: "odcinki 0,5–3 m",
-    use: "drążek na wieszaki w szafie",
     spec: `kupić ${ile.map(([d, n]) => `${n} × ${m(d)} m`).join(" + ")}: potrzeba ${fmt(z.potrzeba)} mm, odpad ${fmt(z.odpad)} mm. Cięcie: ${ciecie}` };
 };
 
@@ -1233,6 +1245,46 @@ const autoShelves = (innerH, t = 18, minOpen = MIN_OPENING) => {
   while (n < 20 && (innerH - (n + 1) * t) / (n + 2) >= minOpen) n++;
   return n;
 };
+
+/* „dopasuj półki” jednej kolumny (`col` — dane, `cG` — jej geometria, `lvH` — wysokosc
+   poziomu, `ts` — grubosc polek: z grubosci korpusu wychodzilo 249 mm zamiast 250 przy
+   polkach grubszych niz korpus — audyt GPT N96). W kolumnie z podzialem kazdy poziom
+   kolumny osobno, granice i ustawienia frontow zostaja (N91 — wczesniej znikaly):
+   swiatla nizszych poziomow na stale (granice stoja), najwyzszy auto; szuflady i blenda
+   bez polek; rura zostaje w swoim poziomie, w jego najwyzszym swietle. */
+const dopasujPolki = (col, cG, lvH, ts) => {
+  const gr = (col.podzial || []).map(Number).sort((a, b) => a - b);
+  const segs = [...((cG && cG.poziomyKol) || [])].sort((a, b) => a.nr - b.nr);
+  if (!gr.length || segs.length !== gr.length + 1) { col.shelfTargets = Array(autoShelves(lvH, ts) + 1).fill(null); return; }
+  const stareRury = (col.drazki || []).map(Number);
+  const st = [], podzial = [], rury = [];
+  segs.forEach((sg, nr) => {
+    const h = sg.y1 - sg.y0;
+    const n = sg.kind === "doors" ? autoShelves(h, ts) : 0;
+    const gorny = nr === segs.length - 1;
+    const sw = Math.round((h - n * ts) / (n + 1));
+    for (let q = 0; q <= n; q++) st.push(gorny ? null : q === n ? Math.round(h - n * ts - sw * n) : sw);
+    const lo = nr === 0 ? -1 : gr[nr - 1], hi = gorny ? Infinity : gr[nr];
+    if (sg.kind === "doors" && stareRury.some((x) => x > lo && x <= hi)) rury.push(st.length - 1);
+    if (!gorny) podzial.push(st.length - 1);
+  });
+  col.shelfTargets = st; col.podzial = podzial;
+  if (rury.length) col.drazki = rury; else delete col.drazki;
+};
+
+/* Czy jakis front wystaje przed korpus — wtedy „Podana głębokość zawiera drzwi” odejmuje
+   jego grubosc. Drzwi i klapy — przy frontach nakladanych szafki; szuflady — wedlug
+   wlasnego montazu kolumny / poziomu kolumny („Na korpusie” / „Wewnątrz”, audyt GPT N98:
+   wczesniej liczyl sie tylko montaz szafki); blenda i fix nakladane (N26). */
+const frontyWystaja = (cab) => (cab.levels || []).some((lv) => (lv.cols || []).some((c) => {
+  const czesc = (r) => (r.kind === "blenda" ? (r.blendaMode || "overlay") === "overlay"
+    : r.kind === "drawers" ? (r.drawers || []).length > 0
+      && (r.drawerMode === "overlay" || r.drawerMode === "inset" ? r.drawerMode : cab.frontMode) === "overlay"
+    : (r.doors ?? 0) > 0 && cab.frontMode === "overlay");
+  const n = c.kind === "drawers" || c.kind === "blenda" ? 0 : (c.podzial || []).length;
+  const czesci = n ? [...Array(n + 1)].map((_, nr) => ({ ...c, ...((c.segmenty || [])[nr] || {}) })) : [c];
+  return czesci.some(czesc) || (!!c.fix && !!c.fix.side && c.fix.side !== "none" && (c.fix.mode || "overlay") === "overlay");
+}));
 
 /* Swiatlo w pionie bez wnikania w kolumny — tyle wystarczy do doboru polek. */
 const innerHeightOf = (H, { t = 18, plinth = 0, hasBot = true, hasTop = true } = {}) =>
@@ -2094,10 +2146,31 @@ const loadProject = (d) => {
       grubosc: Math.max(1, Math.round(Number(q.grubosc) || 18)),
       arkusz: { w: Math.max(200, Math.round(Number((q.arkusz || {}).w) || PLYTA_WLASNA_ARKUSZ.w)), h: Math.max(200, Math.round(Number((q.arkusz || {}).h) || PLYTA_WLASNA_ARKUSZ.h)) },
       cena: Math.max(0, Number(q.cena) || 0) }));
+  /* dwie wlasne plyty o tej samej nazwie — ta sama etykieta, wspolny arkusz i cena w zamowieniu
+     (audyt GPT N95); formularz juz na to nie pozwala, stare zapisy dostaja numer: „… (2)” */
+  plyty.forEach((q, i) => {
+    let n = 2;
+    while (plyty.some((x, k) => k < i && x.nazwa === q.nazwa)) q.nazwa = `${q.nazwa.replace(/ \(\d+\)$/, "")} (${n++})`;
+  });
+  // materialy z wlasna plyta — jej aktualne dane (arkusz do kontroli formatek, N99)
+  items.forEach((it) => Object.keys(it.mat || {}).forEach((k) => {
+    const pl = it.mat[k] && it.mat[k].plyta && plyty.find((q) => q.id === it.mat[k].plyta);
+    if (pl) it.mat = { ...it.mat, [k]: matZPlyty(pl, it.mat[k]) };
+  }));
   // wlasne kawalki plyty do rozkroju (material, wymiar, ilosc)
+  /* kawalek zapisany bez tozsamosci plyty (sprzed N94) — dostaje ja z materialu, ktory przy
+     wczytaniu ma te sama etykiete */
+  const ambigL = ambiguousThickness(items.map((it) => it.mat));
+  const tozZEtykiety = (lbl) => {
+    for (const it of items) for (const [k, m] of Object.entries(it.mat || {})) if (m && matLabelOf(m, k, ambigL) === lbl) return tozsamoscPlyty(m);
+    return null;
+  };
   const resztki = (Array.isArray(d.resztki) ? d.resztki : []).filter((q) => q && q.id != null && q.matLabel)
-    .map((q) => ({ id: String(q.id), matLabel: String(q.matLabel), w: Math.max(1, Math.round(Number(q.w) || 0)), h: Math.max(1, Math.round(Number(q.h) || 0)),
-      qty: Math.max(1, Math.round(Number(q.qty) || 1)) }));
+    .map((q) => {
+      const matId = q.matId ? String(q.matId) : tozZEtykiety(String(q.matLabel));
+      return { id: String(q.id), matLabel: String(q.matLabel), ...(matId ? { matId } : {}), w: Math.max(1, Math.round(Number(q.w) || 0)), h: Math.max(1, Math.round(Number(q.h) || 0)),
+        qty: Math.max(1, Math.round(Number(q.qty) || 1)) };
+    });
   return { name, rooms, items, runs, active, prices, plyty, resztki };
 };
 
@@ -2409,17 +2482,7 @@ function computeGeoLiczy(cab, mat, ctx) {
      zewnatrz”) — wewnetrzne nie zwiekszaja glebokosci (audyt GPT N25). */
   if (!grooved && cab.depthIncludesBack && cab.back !== "none" && !(backIsBoard && backPos === "inside")) carcassDepth -= tb;
   // front nakladany wystaje przed korpus; jesli podana glebokosc go zawiera, korpus jest plytszy
-  if (cab.depthIncludesFront && cab.frontMode === "overlay") {
-    /* Front przed korpusem to tez blenda i fix nakladany — pole z sama blenda
-       albo samym fixem dawalo korpus na pelna glebokosc (audyt GPT N26). */
-    const anyFront = (cab.levels || []).some((lv) =>
-      (lv.cols || []).some((c) => c.kind === "blenda"
-        ? (c.blendaMode || "overlay") === "overlay"
-        : (c.doors ?? 0) > 0 || (c.drawers || []).length > 0
-          || (!!c.fix && !!c.fix.side && c.fix.side !== "none" && (c.fix.mode || "overlay") === "overlay"))
-    );
-    if (anyFront) carcassDepth -= tf;
-  }
+  if (cab.depthIncludesFront && frontyWystaja(cab)) carcassDepth -= tf;
   const hasBack = cab.back !== "none";
   const rear = !hasBack;
   /* Plecy za korpusem: HDF przybijany i plyta na zewnatrz siedza na tylnych
@@ -4573,21 +4636,29 @@ function computeGeoLiczy(cab, mat, ctx) {
   /* Arkusz jest okrawany przed rozkrojem, wiec formatka wieksza niz to, co po
      okrawaniu zostaje, nie ma z czego powstac. Formatka z wymuszonym slojem nie
      moze sie obrocic, wiec dla niej liczy sie tylko jedno ulozenie. */
-  const laysOn = (a, b) =>
-    Math.round(a * 10) / 10 <= USABLE_W && Math.round(b * 10) / 10 <= USABLE_H;
+  /* Wlasna plyta ma swoj arkusz (`mat[k].arkusz`) — okrawany jak arkusz z wzornika
+     (audyt GPT N99: kontrola znala tylko wzornik, rozkroj — arkusz plyty). */
+  const uzytek = (key) => {
+    const ar = (mat[key] || {}).arkusz;
+    const okr = (SHEET_W - USABLE_W) / 2;
+    return ar && ar.w > 0 && ar.h > 0 ? { w: ar.w - 2 * okr, h: ar.h - 2 * okr } : { w: USABLE_W, h: USABLE_H };
+  };
+  const laysOn = (a, b, u) =>
+    Math.round(a * 10) / 10 <= u.w && Math.round(b * 10) / 10 <= u.h;
   const P = (o) => {
     let key = o.matKey;
     if (sameBoard && key === "front") key = "board";
     if (sameShelf && key === "shelf") key = "board";
     // plecy z HDF wolno obracac zawsze — uslojenie ich nie dotyczy
     const rot = key === "back" || !cab.grainMatters;
-    const fits = laysOn(o.a, o.b) || (rot && laysOn(o.b, o.a));
+    const u = uzytek(key);
+    const fits = laysOn(o.a, o.b, u) || (rot && laysOn(o.b, o.a, u));
     /* Blat roboczy ma wlasny arkusz (4100 × 600/1200) i wlasna kontrole dlugosci
        i glebokosci nizej — arkusz plyty meblowej go nie dotyczy (audyt GPT N15). */
     if (o.a > 0 && o.b > 0 && !fits && key !== "worktop")
       add(
         "error",
-        `${o.name} ${fmt(o.a)} × ${fmt(o.b)} mm nie mieści się na arkuszu — po okrawaniu zostaje ${fmt(USABLE_W)} × ${fmt(USABLE_H)} mm.`
+        `${o.name} ${fmt(o.a)} × ${fmt(o.b)} mm nie mieści się na arkuszu — po okrawaniu zostaje ${fmt(u.w)} × ${fmt(u.h)} mm.`
       );
     panels.push(key === o.matKey ? o : { ...o, matKey: key });
   };
@@ -16120,7 +16191,7 @@ function nestPass(parts, sheetW, sheetH, mode, rule) {
       if (!hit) { k++; continue; }
       const r = sheet.free[hit.i];
       sheet.parts.push({ name: p.name, x: r.x, y: r.y, w: hit.w, h: hit.h, rot: hit.rot,
-        grain: p.rotatable ? false : true });
+        grain: p.rotatable ? false : true, src: p.src });
       const pieces = splitFreeRect(r, hit.w, hit.h, mode);
       /* Ciecie trzeba zrobic po kazdej osi, na ktorej pole jest wieksze od
          formatki — takze gdy zostaje sam scinek wezszy od rzazu (audyt GPT N58:
@@ -16140,9 +16211,10 @@ function nestPass(parts, sheetW, sheetH, mode, rule) {
 /* input: [{ name, qty, a, b, rotatable }] — a x b w mm */
 function packSheets(input, { sheetW = USABLE_W, sheetH = USABLE_H } = {}) {
   const parts = [];
-  input.forEach((it) => {
+  // `src` — numer pozycji wejscia: kto liczy zuzycie (wlasne kawalki), zdejmuje dokladnie ja (N92)
+  input.forEach((it, src) => {
     for (let i = 0; i < it.qty; i++)
-      parts.push({ name: it.name, w: it.a, h: it.b, rotatable: it.rotatable !== false });
+      parts.push({ name: it.name, w: it.a, h: it.b, rotatable: it.rotatable !== false, src });
   });
   if (!parts.length)
     return { sheets: [], rejected: [], usedPct: 0, cuts: 0, sheetW, sheetH, strategy: "" };
@@ -16224,7 +16296,6 @@ function packSheets(input, { sheetW = USABLE_W, sheetH = USABLE_H } = {}) {
 const naKawalki = (list, resztki) => {
   const reszta = list.map((r) => ({ ...r }));
   const wlasne = [];
-  const tenSam = (x, p) => [[p.w, p.h], [p.h, p.w]].some(([a, b]) => Math.abs(x.a - a) < 0.01 && Math.abs(x.b - b) < 0.01);
   [...resztki].sort((a, b) => b.w * b.h - a.w * a.h).forEach((q) => {
     for (let n = 0; n < Math.max(1, Math.round(Number(q.qty) || 1)); n++) {
       const zostalo = reszta.filter((r) => r.qty > 0);
@@ -16232,7 +16303,10 @@ const naKawalki = (list, resztki) => {
       const res = packSheets(zostalo, { sheetW: q.w, sheetH: q.h });
       const s0 = res.sheets[0];
       if (!s0 || !s0.parts.length) return;
-      s0.parts.forEach((p) => { const r = reszta.find((x) => x.qty > 0 && x.name === p.name && tenSam(x, p)); if (r) r.qty -= 1; });
+      /* zdejmujemy dokladnie te pozycje, ktore lezy na kawalku (`src`) — po nazwie i wymiarze
+         w obu ulozeniach schodzila czasem inna: 500 × 800 zamiast 800 × 500 przy zakazie
+         obrotu (audyt GPT N92) */
+      s0.parts.forEach((p) => { const r = zostalo[p.src]; if (r) r.qty -= 1; });
       wlasne.push({ ...s0, wlasna: { w: q.w, h: q.h, id: q.id } });
     }
   });
@@ -16245,7 +16319,9 @@ function buildCutPlan(rows, resztki = []) {
      dwa rozne produkty; dotad grupa brala arkusz z pierwszej pozycji i wynik
      zalezal od kolejnosci (audyt GPT N3). */
   rows.forEach((r) => {
-    const k = r.sheet ? `${r.matLabel}|${r.sheet.w}×${r.sheet.h}` : r.matLabel;
+    // wlasna plyta — osobna grupa po id: dwie o tej samej nazwie szly na jeden arkusz (N95)
+    const grupa = r.matId && r.matId.startsWith("plyta:") ? `${r.matLabel}|${r.matId}` : r.matLabel;
+    const k = r.sheet ? `${grupa}|${r.sheet.w}×${r.sheet.h}` : grupa;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(r);
   });
@@ -16253,14 +16329,33 @@ function buildCutPlan(rows, resztki = []) {
      okrawaniu, blat roboczy 4100 x 600 albo 4100 x 1200. */
   return [...groups.values()].map((list) => {
     const sh = list.find((r) => r.sheet);
-    const swoje = (resztki || []).filter((q) => q && q.matLabel === list[0].matLabel && q.w > 0 && q.h > 0);
+    const matIds = [...new Set(list.map((r) => r.matId).filter(Boolean))];
+    const swoje = (resztki || []).filter((q) => resztkaGrupy(q, { matLabel: list[0].matLabel, matIds }) && q.w > 0 && q.h > 0);
     const { reszta, wlasne } = swoje.length ? naKawalki(list, swoje) : { reszta: list, wlasne: [] };
     const kupne = packSheets(reszta, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {});
+    /* Podsumowanie (wykorzystanie, ciecia, zrzut) z calego planu — kupionych arkuszy i
+       wlasnych kawalkow; dotad tylko z kupionych, wiec przy samych kawalkach 0 % i 0 ciec
+       (audyt GPT N93). Odpad w uwagach liczy dalej tylko kupione (`uwagiRozkroju`). */
+    const pole = (q) => q.parts.reduce((a, p2) => a + p2.w * p2.h, 0);
+    const zrzutyW = wlasne.flatMap((q) => usefulOf(q.offcuts || []));
+    const zrzutyK = kupne.sheets.flatMap((q) => usefulOf(q.offcuts || []));
+    const zrzuty = [...zrzutyW, ...zrzutyK];
+    const calosc = kupne.sheets.length * kupne.sheetW * kupne.sheetH + wlasne.reduce((a, q) => a + q.wlasna.w * q.wlasna.h, 0);
+    const uzyte = (kupne.usedArea || 0) + wlasne.reduce((a, q) => a + pole(q), 0);
     return {
       matLabel: list[0].matLabel,
+      matIds,
       // arkusz do zamowienia — blat ma swoj (4100 × 600/1200), plyta 2800 × 2100
       arkusz: sh ? (sh.sheet.zakup || { w: sh.sheet.w, h: sh.sheet.h }) : { w: SHEET_W, h: SHEET_H },
       ...kupne,
+      ...(wlasne.length ? {
+        usedPct: calosc > 0 ? (uzyte / calosc) * 100 : 0,
+        usedArea: uzyte,
+        cuts: (kupne.cuts || 0) + wlasne.reduce((a, q) => a + (q.cuts || 0), 0),
+        biggestRect: zrzuty.reduce((m2, r) => (!m2 || r.w * r.h > m2.w * m2.h ? r : m2), null),
+        usefulArea: zrzuty.reduce((a, r) => a + r.w * r.h, 0),
+        usefulCount: zrzuty.length,
+      } : {}),
       sheets: [...wlasne, ...kupne.sheets],
       kupic: kupne.sheets.length,
       zWlasnych: wlasne.length,
@@ -16703,6 +16798,7 @@ function ReportCutPlan({ project, projectName }) {
           b: p.b,
           rotatable: p.matKey === "back" || !part.grainMatters,
           matLabel: matLabelOf(plytaFormatki(p, part.mat), p.matKey, ambig),
+          matId: tozsamoscPlyty(plytaFormatki(p, part.mat)),
           sheet: null,
           ...arkuszWlasnej(project, plytaFormatki(p, part.mat)),
           // blat roboczy uklada sie na wlasnym arkuszu (z formatki), bez obracania
@@ -16713,7 +16809,7 @@ function ReportCutPlan({ project, projectName }) {
     // te same pozycje z roznych szafek lacza sie w jedna
     const merged = new Map();
     rows.forEach((r) => {
-      const k = [r.matLabel, r.a, r.b, r.name, r.rotatable, r.sheet ? `${r.sheet.w}x${r.sheet.h}` : ""].join("|");
+      const k = [r.matLabel, r.matId, r.a, r.b, r.name, r.rotatable, r.sheet ? `${r.sheet.w}x${r.sheet.h}` : ""].join("|");
       if (merged.has(k)) merged.get(k).qty += r.qty;
       else merged.set(k, { ...r });
     });
@@ -17134,7 +17230,12 @@ export default function App() {
   const [formPlyty, setFormPlyty] = useState(null);
   const zapiszPlyte = useCallback((f) => {
     const id = f.id || `pw${Date.now().toString(36)}`;
-    const pl = { id, nazwa: String(f.nazwa || "").trim() || "Płyta własna", kolor: f.kolor || "#d8c3a0",
+    const inne = (project.plyty || []).filter((q) => q.id !== id).map((q) => q.nazwa);
+    // nazwa jest etykieta w rozkroju i cenniku — dwie takie same szly na jeden arkusz (N95)
+    let nazwa = String(f.nazwa || "").trim();
+    if (nazwa && inne.includes(nazwa)) { setFormPlyty({ ...f, blad: `Płyta „${nazwa}” już jest — nadaj inną nazwę.` }); return; }
+    if (!nazwa) { nazwa = "Płyta własna"; for (let n = 2; inne.includes(nazwa); n++) nazwa = `Płyta własna ${n}`; }
+    const pl = { id, nazwa, kolor: f.kolor || "#d8c3a0",
       grubosc: Math.max(1, Math.round(Number(f.grubosc) || 18)),
       arkusz: { w: Math.max(200, Math.round(Number(f.w) || PLYTA_WLASNA_ARKUSZ.w)), h: Math.max(200, Math.round(Number(f.h) || PLYTA_WLASNA_ARKUSZ.h)) },
       cena: Math.max(0, Number(f.cena) || 0) };
@@ -17148,7 +17249,7 @@ export default function App() {
       }) }));
     setFormPlyty(null);
     if (f.k) setZmianaKoloru({ idx: project.active, k: f.k });
-  }, [setProject, project.active]);
+  }, [setProject, project.active, project.plyty]);
   // szafki z usunieta plyta zostaja z jej nazwa, grubością i kolorem — bez arkusza i ceny z listy
   const usunPlyte = useCallback((id) => setProject((p) => ({ ...p,
     plyty: (p.plyty || []).filter((q) => q.id !== id),
@@ -17160,7 +17261,7 @@ export default function App() {
   const dodajResztke = useCallback((f) => {
     const w = Math.round(Number(f.w) || 0), h = Math.round(Number(f.h) || 0);
     if (w < 10 || h < 10) return;
-    setProject((p) => ({ ...p, resztki: [...(p.resztki || []), { id: `rk${Date.now().toString(36)}`, matLabel: f.matLabel,
+    setProject((p) => ({ ...p, resztki: [...(p.resztki || []), { id: `rk${Date.now().toString(36)}`, matLabel: f.matLabel, ...(f.matId ? { matId: f.matId } : {}),
       w: Math.max(w, h), h: Math.min(w, h), qty: Math.max(1, Math.round(Number(f.qty) || 1)) }] }));
     setFormResztki(null);
   }, [setProject]);
@@ -18633,21 +18734,27 @@ export default function App() {
     const band = m ? Math.round((gk && gk.dbandH) || 0) : Math.round(lv.frontHi - lv.frontLo);
     const avail = band - (n - 1) * cab.gaps.between;
     const cMode = gk?.drawerMode || cab.frontMode;
-    const mins = ds.map((d) => VBOX.minFront[cMode][Number(d.h)] ?? 0);
+    /* proporcje z boku dobranego w geometrii (`hClass`) — wpis bywa „auto”, a Number("auto")
+       zatruwal sume i zapisywal NaN we wszystkich frontach (audyt GPT N97) */
+    const gd = (gk && gk.drawers) || [];
+    const boki = ds.map((d, k) => Number((gd[k] || {}).hClass) || Number(d.h) || 0);
+    const mins = ds.map((d, k) => (systemSzuflady(d) === "vbox" ? VBOX.minFront[cMode][boki[k]] : null) ?? 0);
     const base = mins.reduce((a, b) => a + b, 0);
     let sizes;
     if (avail <= base) {
       sizes = mins.slice();
     } else {
-      const wsum = ds.reduce((a, d) => a + Number(d.h), 0);
+      const wsum = boki.reduce((a, b) => a + b, 0);
+      const waga = (k) => (wsum > 0 ? boki[k] / wsum : 1 / n);
       const left = avail - base;
-      sizes = ds.map((d, k) => mins[k] + Math.floor((left * Number(d.h)) / wsum));
+      sizes = ds.map((d, k) => mins[k] + Math.floor(left * waga(k)));
       let rem = avail - sizes.reduce((a, b) => a + b, 0);
       for (let k = 0; rem > 0; k = (k + 1) % n) {
         sizes[k] += 1;
         rem -= 1;
       }
     }
+    if (!sizes.every((v) => Number.isFinite(v) && v > 0)) return;
     editLevels((L) => kolumnaW(L, i, j).drawers.forEach((d, k) => (d.front = sizes[k])));
   };
 
@@ -18660,21 +18767,16 @@ export default function App() {
     const col = geo.levels[i] && geo.levels[i].cols[j];
     if (!col) return;
     const lv = geo.levels[i];
-    const inner = lv.y1 - lv.y0;
-    const n = autoShelves(inner, geo.t);
-    editLevels((L) => (kolumnaW(L, i, j).shelfTargets = Array(n + 1).fill(null)));
+    editLevels((L) => dopasujPolki(kolumnaW(L, i, j), col, lv.y1 - lv.y0, geo.ts));
   };
   /* To samo dla calej szafki — po zmianie wysokosci wygodniej klinkac raz. */
   const fitShelvesAll = () =>
     editLevels((L) =>
       geo.levels.forEach((lv) => {
-        const inner = lv.y1 - lv.y0;
-        const n = autoShelves(inner, geo.t);
         lv.cols.forEach((c) => {
           const col = L[lv.i] && L[lv.i].cols[c.j];
           // szuflady i blendy nie maja polek, wiec ich nie ruszamy
-          if (col && col.kind !== "drawers" && col.kind !== "blenda")
-            col.shelfTargets = Array(n + 1).fill(null);
+          if (col && col.kind !== "drawers" && col.kind !== "blenda") dopasujPolki(col, c, lv.y1 - lv.y0, geo.ts);
         });
       })
     );
@@ -19396,7 +19498,7 @@ export default function App() {
           g2.qty += p.qty;
           g2.from.set(cabName, (g2.from.get(cabName) || 0) + p.qty);
         } else {
-          map.set(key, { ...p, matName: matLabelOf(m, p.matKey, ambig), matColor: m.color, plytaM: m.plyta ? m : null,
+          map.set(key, { ...p, matName: matLabelOf(m, p.matKey, ambig), matId: tozsamoscPlyty(m), matColor: m.color, plytaM: m.plyta ? m : null,
             ...(p.matKey === "worktop" ? { arkusz: arkuszBlatu(p, part.mat) } : {}),
             from: new Map([[cabName, p.qty]]),
             rotatable: p.matKey === "back" || !part.grainMatters });
@@ -19451,6 +19553,7 @@ export default function App() {
         b: p.b,
         rotatable: p.rotatable !== false,
         matLabel: p.matName,
+        matId: p.matId,
         sheet: null,
         ...arkuszWlasnej(project, p.plytaM),
         ...(p.matKey === "worktop" ? wierszBlatu(p, mat, p.matName) : {}),
@@ -19462,6 +19565,7 @@ export default function App() {
         b: p.b,
         rotatable: p.matKey === "back" || !cab.grainMatters,
         matLabel: matLabelOf(plytaFormatki(p, mat), p.matKey, ambig),
+        matId: tozsamoscPlyty(plytaFormatki(p, mat)),
         sheet: null,
         ...arkuszWlasnej(project, plytaFormatki(p, mat)),
         ...(p.matKey === "worktop" ? wierszBlatu(p, mat, matLabelOf(plytaFormatki(p, mat), p.matKey, ambig)) : {}),
@@ -20802,7 +20906,7 @@ export default function App() {
               <Check checked={cab.depthIncludesBack} onChange={(v) => set({ depthIncludesBack: v })}
                 label="Podana głębokość zawiera plecy" />
             )}
-            {cab.frontMode === "overlay" && (
+            {(cab.frontMode === "overlay" || frontyWystaja(cab)) && (
               <Check checked={!!cab.depthIncludesFront} onChange={(v) => set({ depthIncludesFront: v })}
                 label="Podana głębokość zawiera drzwi (front nakładany wystaje przed korpus)" />
             )}
@@ -22301,7 +22405,7 @@ export default function App() {
                   const pole = (nazwa, klucz, typ = "number", szer = "w-full") => (
                     <label className="flex flex-col gap-0.5">
                       <span className="text-[11px] text-stone-500">{nazwa}</span>
-                      <input type={typ} value={f[klucz] ?? ""} onChange={(e) => setFormPlyty({ ...f, [klucz]: e.target.value })}
+                      <input type={typ} value={f[klucz] ?? ""} onChange={(e) => setFormPlyty({ ...f, [klucz]: e.target.value, blad: null })}
                         className={szer + " rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none"} />
                     </label>
                   );
@@ -22320,6 +22424,7 @@ export default function App() {
                             className="h-7 w-10 cursor-pointer rounded border border-stone-300 bg-white" />
                         </label>
                       </div>
+                      {f.blad && <p className="text-[11px] text-red-700" data-el="plyta-blad">{f.blad}</p>}
                       <div className="flex gap-2">
                         <button onClick={() => zapiszPlyte(f)} className="rounded bg-teal-700 px-2 py-0.5 text-white hover:bg-teal-800">
                           {f.id ? "Zapisz" : "Dodaj i użyj"}
@@ -23065,7 +23170,7 @@ export default function App() {
                   {/* wlasne kawalki tej plyty — rozkroj kladzie na nie formatki przed kupnem
                       arkusza (uzytkownik 2026-10-24: „mam własną płytę”) */}
                   <div className="flex flex-wrap items-center gap-1.5 text-xs" data-el="resztki">
-                    {(project.resztki || []).filter((q) => q.matLabel === g.matLabel).map((q) => (
+                    {(project.resztki || []).filter((q) => resztkaGrupy(q, g)).map((q) => (
                       <span key={q.id} data-el="resztka" className="flex items-center gap-1 rounded border border-dashed border-teal-600 bg-teal-50 px-1.5 py-0.5 font-mono text-[11px] text-teal-900">
                         własny kawałek {fmt(q.w)} × {fmt(q.h)}{q.qty > 1 ? ` × ${q.qty} szt.` : ""}
                         <button onClick={() => usunResztke(q.id)} title="Usuń ten kawałek" className="text-stone-400 hover:text-red-700">×</button>
@@ -23082,7 +23187,7 @@ export default function App() {
                         <button onClick={() => setFormResztki(null)} className="rounded border border-stone-300 bg-white px-2 py-0.5 hover:bg-stone-50">Anuluj</button>
                       </span>
                     ) : (
-                      <MiniBtn onClick={() => setFormResztki({ matLabel: g.matLabel, w: "", h: "", qty: 1 })}
+                      <MiniBtn onClick={() => setFormResztki({ matLabel: g.matLabel, matId: (g.matIds || [])[0] || null, w: "", h: "", qty: 1 })}
                         title="Kawałek tej płyty, który już masz — rozkrój najpierw położy formatki na nim, dopiero resztę na arkuszach do kupienia">
                         + mam własny kawałek tej płyty
                       </MiniBtn>

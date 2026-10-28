@@ -41,7 +41,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 - **Tył**: V-BOX — podniesiony, DXS-3D — wysokość w mm.
 - **NL**: dla całej kolumny albo dla jednej szuflady.
 - **Luz między frontami**: wspólny z drzwiami, domyślnie 2 mm.
-- **„dopasuj fronty”**: dzieli pasmo proporcjonalnie do wysokości boków.
+- **„dopasuj fronty”**: dzieli pasmo proporcjonalnie do wysokości boków — tych dobranych w geometrii (`hClass`), także przy boku „auto” (audyt GPT N97: wpis „auto” dawał NaN we wszystkich frontach); minimalny front V-BOX z tabeli, DXS bez minimum; wynik zapisuje się tylko, gdy wszystkie fronty są liczbami.
 
 ### Kontrole i przyciski
 - **Luz między frontami**:

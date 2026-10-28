@@ -13,6 +13,7 @@ Każda kolumna jest „Półki i drzwi”, „Szuflady” albo „Blenda”. Lis
 - **Szerokość kolumn**: światło minus przegrody, dzielone tak samo.
 - **Światła między półkami** w kolumnie: tak samo — liczba półek = liczba świateł − 1.
 - **Półki nowej szafki** (szablon): tyle, ile wejdzie przy świetle co najmniej 250 mm — niska szafka dostaje jedną, słupek kilka.
+- **„dopasuj półki”** (cała szafka albo kolumna, `dopasujPolki`): tyle półek, ile wejdzie przy świetle co najmniej 250 mm, liczone z grubości półek (audyt GPT N96: z grubości korpusu wychodziło 249 mm przy półkach grubszych od korpusu). W kolumnie z podziałem frontów każdy poziom kolumny osobno — granice, fronty i ich ustawienia zostają (N91: wcześniej znikał podział i zostawały jedne drzwi na całą kolumnę); światła niższych poziomów dostają wymiar na stałe, najwyższy jest auto; poziomy szuflad i blendy — bez półek; rura zostaje w swoim poziomie (w jego najwyższym świetle).
 - **Nowy poziom / kolumna**:
   - wpisanie wymiaru ostatniemu dokłada nowy pusty (auto), jeśli zostaje co najmniej 100 mm (poziom) albo 200 mm (kolumna);
   - „+ poziom” i „+ przegroda i kolumna” dokładają ręcznie.
