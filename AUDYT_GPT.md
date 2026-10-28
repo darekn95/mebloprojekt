@@ -357,3 +357,119 @@ Wersja `szafki.jsx`: blob `b4ebef6460072cc4d7d8aac0a752acb500996ac7`. Potwierdzo
 
 **Kryterium naprawy:** po zmianie poziomu kolumny na szuflady sprawdzać rury przypisane do jego świateł; usunąć/przenieść je za świadomą decyzją lub zgłosić jednoznaczny błąd z akcją. Nie ruszać rury w innym poziomie z drzwiami. Sprawdzić zmianę rodzaju w obu kierunkach, blendę, V-BOX/DXS, dodawanie/usuwanie półek i zapis/wczytanie.
 
+
+
+## Audyt 28.10.2026 — N90–N99
+
+Źródło: szafki.jsx, blob b4ebef6460072cc4d7d8aac0a752acb500996ac7. Dziesięć odrębnych problemów potwierdzono wykonaniem funkcji produkcyjnych; N90, N91 i N97 dodatkowo w interfejsie. Przypadki N92–N96 oraz N98–N99 potwierdzono testami funkcji i analizą powiązanych formularzy, bez deklaracji pełnego testu tych ścieżek przez UI. To uzupełnienie raportu, nie ponowna weryfikacja wcześniejszych zgłoszeń ani audyt PDF.
+
+### N90 — W zamówieniu całego projektu znika plan zakupu i cięcia rur na wieszaki [P2]
+
+**Potwierdzono 28.10.2026**, źródło `szafki.jsx` blob `b4ebef6460072cc4d7d8aac0a752acb500996ac7` i interfejs GitHub Pages.
+
+**Odtworzenie:** dwie wolnostojące szafy 600 × 2100 × 560 mm, płyta 18 mm, bez półek, po jednej rurze w każdej. W „Produkty do zamówienia” wybierz cały projekt.
+
+**Wynik:** wiersz ma jedynie „drążek na wieszaki w szafie”, ilość 1,5 mb. Znika informacja, jakie odcinki kupić i jak je pociąć. Każda rura ma 562 mm; właściwy plan to jedna sztanga 1500 mm i dwie docinki 562 mm (odpad 376 mm). Lista jednej szafki poprawnie pokazuje zakup 1 m i cięcie na 562 mm — problem dotyczy sumowania projektu/pomieszczenia, a nie wyliczenia długości.
+
+**Przyczyna:** `ruraWiersz` tworzy pełną specyfikację zakupu/cięcia, lecz `scalOkucia` nadpisuje `spec` opisem z `use`. Dla listwy montażowej plan pozostaje, bo jej wiersz nie ma `use`.
+
+**Wpływ:** lista zamówienia nie określa odcinków handlowych ani przypisania docinek do szafek; sama liczba metrów nie wystarcza do realizacji.
+
+**Kryterium naprawy:** zachować plan `ruraWiersz` w zamówieniu projektu i pomieszczenia, z odcinkami, docinkami, odpadem i nazwami szafek. Sprawdzić jedną oraz kilka rur o różnych długościach. Nie zmieniać prawidłowej ilości zakupowej.
+
+**Dowody lokalne:** `work/audit28/rod-order.mjs`, `N90.json`, `N90-dwie.json`; test obliczeń i widok zamówienia.
+
+### N91 — „Dopasuj półki” usuwa podział frontów kolumny [P2]
+
+**Odtworzenie:** szafa 600 × 1800 × 560 mm, 10 półek, granica poziomów kolumny na ósmej półce (`podzial:[7]`). Dolny segment: jedne drzwi, zawias prawy; górny: dwoje drzwi. Kliknij „dopasuj półki” nad strukturą wnętrza.
+
+**Wynik:** liczba półek spada do 5, granica 7 zostaje w danych, ale geometria ją pomija. Zamiast trzech frontów (1300 mm oraz dwa po 490 mm) powstają jedne drzwi 1794 mm z zawiasem lewym. Bez pytania znika odrębna struktura frontów. Potwierdzone obliczeniami i kliknięciem w aplikacji.
+
+**Przyczyna:** `fitShelvesAll` zastępuje `shelfTargets`, nie przelicza granic `podzial` i ich segmentów. `poziomyKolumny` filtruje indeksy półek, które przestały istnieć. Analogiczny zapis jest w `fitShelves`.
+
+**Naprawa/odbiór:** dopasowywać zwykłe półki osobno wewnątrz istniejących segmentów, zachowując granice, fronty i ustawienia. Kontrola bez podziału może nadal przeliczać całą kolumnę. Dowody: `fit-shelves.mjs`, `N91.json`, `N91-projekt.json`.
+
+### N92 — Rozkrój na resztce odejmuje niewłaściwą formatkę i zmienia kierunek słojów [P2]
+
+**Odtworzenie:** dwa wiersze tego samego materiału, oba „Drzwi nakładane”, ilość po 1: najpierw 500 × 800, potem 800 × 500 mm. Kierunek słojów istotny, obrót zabroniony. Własny kawałek 800 × 500 mm, ilość 1.
+
+**Wynik:** na własnym kawałku zostaje poprawnie ułożona formatka 800 × 500. Z pozostałej listy odejmowana jest jednak pierwsza, 500 × 800. Na kupowany arkusz trafia ponownie 800 × 500. Końcowo są dwie takie same orientacje, brakuje 500 × 800. Powierzchnia i liczba sztuk się zgadzają, więc nie ujawniają pomyłki.
+
+**Przyczyna:** `naKawalki` dopasowuje zużytą pozycję po nazwie i wymiarach w obu orientacjach (`tenSam`), pomijając zakaz obrotu/identyfikator pozycji.
+
+**Kontrole:** bez resztki wychodzą obie prawidłowe orientacje; odwrócenie kolejności wejściowych wierszy usuwa pomyłkę. To błąd tożsamości pozycji, nie wydajności pakowania. Test bezpośrednio funkcji produkcyjnego rozkroju; nie deklaruję wykonania tego scenariusza przez formularze.
+
+**Naprawa/odbiór:** przenosić identyfikator pozycji do wyniku pakowania i odejmować dokładnie tę pozycję. Sprawdzić identyczne nazwy, zamienione wymiary, mieszany zakaz obrotu i ilości większe od 1. Dowód: `candidates.mjs`, `candidates92-96.json`, `controls90-99.json`.
+
+### N93 — Podsumowanie rozkroju pomija pracę i wykorzystanie własnych kawałków [P3]
+
+**Odtworzenie:** jedna półka 400 × 300 mm i własny kawałek tego materiału 800 × 500 mm. Całość mieści się na własnym kawałku, nie potrzeba zakupów.
+
+**Wynik:** grupa ma jeden użyty własny kawałek i dwa cięcia, ale podsumowanie zwraca `cuts:0`, `usedPct:0`, brak największego zrzutu. Własny kawałek rzeczywiście ma 30% wykorzystania i zrzut 497 × 500 mm. Widok pojedynczego kawałka jest poprawny; nieprawidłowe jest zbiorcze podsumowanie („wykorzystanie”, „cięć”, największy zrzut). To nie jest zarzut błędnej liczby kupowanych arkuszy ani wyceny cięcia.
+
+**Przyczyna:** `buildCutPlan` bierze statystyki wyłącznie z `packSheets(reszta)` dla kupowanych arkuszy i dopiero potem dokleja własne do `sheets`.
+
+**Naprawa/odbiór:** albo sumować statystyki całego pokazywanego planu, albo wyraźnie oznaczyć, że dotyczą wyłącznie zakupów, i podać osobne dla własnych kawałków. Dowód: `candidates92-96.json`, N93.
+
+### N94 — Dodanie innej grubości płyty odłącza wcześniej zapisane resztki [P2]
+
+**Odtworzenie:** materiał „Płyta Dąb sonoma” 18 mm; dodaj jego własny kawałek 800 × 500 i półkę 400 × 300. Następnie dodaj w innej szafce materiał o tej samej nazwie w grubości 16 mm, zachowując pierwotną szafkę i jej płytę 18 mm.
+
+**Wynik:** etykieta pierwotnego materiału zmienia się na „Płyta Dąb sonoma 18”. Własny kawałek pozostaje zapisany ze starym `matLabel`, przestaje pasować i rozkrój kupuje arkusz zamiast go wykorzystać. W karcie nowej etykiety nie ma go też na liście własnych kawałków. Kontrola z jedną grubością wykorzystuje resztkę.
+
+**Przyczyna:** resztki identyfikują materiał zmienną etykietą prezentacji zależną od `ambiguousThickness`, a nie stałym kluczem materiału i grubością.
+
+**Naprawa/odbiór:** wiązać resztkę ze stałą tożsamością materiału; zmiana etykiety po dodaniu/usunięciu innej grubości nie może zmieniać dostępnego zapasu. Nie przypisywać kawałka 18 mm do 16 mm. Dowód: `candidates92-96.json`, N94; kontrola w `controls90-99.json`.
+
+### N95 — Dwie różne płyty własne o tej samej nazwie trafiają na jeden arkusz [P2]
+
+**Odtworzenie:** dodaj dwie płyty własne o różnych ID, obie z nazwą „Płyta własna”, 18 mm, arkusz 2800 × 2070. Jedna biała, druga czarna (np. ceny 100 i 300 zł). Z każdej potrzebny bok 800 × 500 mm. Formularz `zapiszPlyte` dopuszcza takie same nazwy, również domyślną.
+
+**Wynik:** `matLabelOf` nadaje obu tę samą etykietę; `buildCutPlan` układa obie formatki na jednym kupowanym arkuszu. Nie da się wyciąć białej i czarnej formatki z jednej płyty. `matByLabel` również wybiera pierwszy materiał/cenę. Przy różnych nazwach powstają prawidłowo dwie grupy.
+
+**Przyczyna:** grupowanie zakupu korzysta z etykiety zamiast ID płyty własnej; dla takiej płyty etykieta celowo nie zawiera koloru.
+
+**Naprawa/odbiór:** oddzielać płyty według ID (lub blokować niejednoznaczne nazwy przed zapisem, z jasnym komunikatem). Sprawdzić różne kolory, ceny i formaty arkusza o tej samej nazwie. Dowód: `candidates92-96.json`, N95, kontrola różnych nazw.
+
+### N96 — „Dopasuj półki” nie dotrzymuje minimum 250 mm przy innej grubości półek [P3]
+
+**Odtworzenie:** szafka 600 × 816 × 560 mm; korpus 16 mm, półki osobno 18 mm. Wybierz automatyczne dopasowanie półek.
+
+**Wynik:** dobór daje 2 półki i światła 250, 249, 249 mm, choć opis przycisku obiecuje światło co najmniej 250 mm. Przy korpusie i półkach 16 mm kontrola daje 251, 251, 250 mm. Uwaga ogólna o niestandardowym korpusie dotyczy katalogu szuflad i nie informuje o tym błędzie dopasowania.
+
+**Przyczyna:** `fitShelves` i `fitShelvesAll` wołają `autoShelves(inner,geo.t)`, a półki kolumn zajmują `geo.ts`.
+
+**Naprawa/odbiór:** używać rzeczywistej grubości półek w doborze liczby; dla przykładu z półkami 18 mm wybrać 1 półkę. Sprawdzić również półki cieńsze od korpusu. Dowód: N96 w `candidates92-96.json` i kontrola w `controls90-99.json`.
+
+### N97 — „Dopasuj fronty” zapisuje NaN, gdy choć jeden bok szuflady jest automatyczny [P2]
+
+**Odtworzenie:** szafka 600 × 900 × 560 mm, trzy V-BOX: wysokości boków 95, auto, 210 mm; fronty ręczne 150, 300, 440 mm. Kliknij „dopasuj fronty” (opis: rozdzielenie proporcjonalnie do wysokości boków).
+
+**Wynik:** funkcja wpisuje `NaN` do wysokości wszystkich trzech frontów. Obliczenia awaryjnie traktują je jak auto i tworzą równe fronty 297, 297, 296 zamiast podziału proporcjonalnego. Poprzednie wpisy zostają nadpisane; po zapisie JSON wartości NaN przechodzą w null. Nie jest to awaria całej aplikacji — fallback maskuje błąd.
+
+**Przyczyna:** `fitFronts` używa `Number(d.h)` z danych wejściowych, w których legalnie występuje tekst `auto`, zamiast dobranej wysokości boku z geometrii. `Number('auto')` zatruwa sumę i wszystkie wyniki.
+
+**Kontrola:** przy wszystkich bokach ręcznych 95/178/210 funkcja zwraca skończone wartości 182/327/381. Potwierdzone też kliknięciem w aplikacji.
+
+**Naprawa/odbiór:** obliczać proporcje z rzeczywiście dobranych boków; nigdy nie zapisywać NaN. Sprawdzić mix ręczne/auto, wszystkie auto, DXS oraz poziom kolumny. Dowody: `final-candidates.mjs`, `N97-projekt.json`, `N97-N99.json`.
+
+### N98 — „Głębokość zawiera drzwi” ignoruje własny montaż frontów szuflad [P2]
+
+**Odtworzenie:** głębokość 560 mm, płyta 18 mm, zaznaczone „Podana głębokość zawiera drzwi”, jedna kolumna DXS z dwoma frontami. A: szafka globalnie nakładana, kolumna szuflad „Wewnątrz”. B: szafka globalnie wpuszczana, kolumna „Na korpusie”.
+
+**Wynik:** A ma korpus 542 mm, mimo że wszystkie fronty są wewnątrz i nie wymagają odjęcia 18 mm. B ma korpus 560 mm i fronty przed nim — grubość frontu nie zostaje odjęta. Obie konfiguracje bez uwag. Porównanie dotyczy grubości frontu; nie obejmuje osobnej kwestii luzu między korpusem a frontem.
+
+**Przyczyna:** odjęcie w `computeGeoLiczy` zależy od `cab.frontMode` i samego istnienia szuflad, ignoruje `rawCol.drawerMode` i rzeczywisty montaż frontów. To kontrola głębokości korpusu, nie wcześniej zgłoszona kontrola otwierania N38.
+
+**Naprawa/odbiór:** przy zaznaczonym polu odejmować grubość tylko dla faktycznie wystających frontów; uwzględnić kolumny i segmenty z własnym montażem oraz kombinacje mieszane. Dowód: N98 w `N97-N99.json`.
+
+### N99 — Błąd „formatka nie mieści się” ignoruje większy arkusz płyty własnej [P2]
+
+**Odtworzenie:** własna płyta 18 mm o arkuszu 4000 × 2500 mm, przypisana do korpusu. Otwarta szafka 3100 × 600 × 500 mm, bez pleców i półek, dno/wieniec między bokami.
+
+**Wynik:** Uwagi zgłaszają, że „Dno / wieniec 3064 × 500 mm nie mieści się na arkuszu”, podając standardowy limit 2761,2 × 2061,2 mm. Tymczasem rozkrój poprawnie mieści wszystkie formatki na jednym własnym arkuszu, bez odrzuconych elementów (po okrawaniu 3961,2 × 2461,2). Płyta własna została właśnie wprowadzona po to, żeby można było używać innego formatu.
+
+**Przyczyna:** kontrola `P/laysOn` w `computeGeoLiczy` ma na stałe `USABLE_W/USABLE_H`, natomiast rozkrój korzysta z `arkuszWlasnej`.
+
+**Naprawa/odbiór:** walidować względem arkusza faktycznie wybranego materiału, z jego okrawaniem i kierunkiem słojów. Sprawdzić również mniejszy arkusz, korpus/front/półkę oraz zwykły materiał bez własnego arkusza. Dowód: N99 w `N97-N99.json`.
+
