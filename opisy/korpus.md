@@ -49,7 +49,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - wysokość lub głębokość, odsunięcie od lica albo od tyłu;
   - „skraca drzwi”.
 - **Wycięcie tylnego narożnika** (lewego i prawego osobno): szerokość, głębokość, na całą wysokość albo w jednym poziomie, maskownica.
-- **Element kolizyjny** (rura, słup): wymiary i położenie, zabudowa z maskownicą. Ścianki zabudowy (też wycięcia) są z płyty półek — jej grubość liczy styki, czoło („przed bokami” = element + 2 × płyta zabudowy), rzuty i 3D (`maskWalls`, audyt GPT N71).
+- **Element kolizyjny** (rura, słup): wymiary i położenie, zabudowa z maskownicą. Granicą zabudowy jest tylko przegroda na wysokości elementu (nie z innego poziomu — audyt GPT N112); płyta między poziomami nad elementem to „półka nad” dla zabudowy „do półki” (N113); element przechodzący przez płytę między poziomami albo przez przegrodę — ostrzeżenie z wymiarem otworu (N114). Ścianki zabudowy (też wycięcia) są z płyty półek — jej grubość liczy styki, czoło („przed bokami” = element + 2 × płyta zabudowy), rzuty i 3D (`maskWalls`, audyt GPT N71).
 - **Płyty**: grubości i dekory korpusu, frontów, półek, pleców, lustra; arkusz blatu 600 / 1200; „fronty / półki z tej samej płyty co korpus”; usłojenie.
 
 ## Kontrole i przyciski
@@ -72,6 +72,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
 - **Szafka pod blatem ciągu z wieńcem** albo bez wieńca i bez wzmocnień — ostrzeżenie z „Dołóż parę wzmocnień” (wieniec znika, dochodzi para).
 - **Ciąg bez blatu roboczego, a szafka bez wieńca z parą wzmocnień pod blat** (np. po wyłączeniu blatu) — ostrzeżenie z „Wieniec zamiast wzmocnień”. Wieniec włączony w „Złączach korpusu” (z „brak” na „między” / „na boku”) sam zdejmuje parę wzmocnień pod blat (`zWiencem`; użytkownik 2026-10-24).
 - **Płyta inna niż 18 mm** — ostrzeżenie (liczby katalogowe szuflad są dla 18).
+- **Wycięcie narożnika na całą wysokość nad nóżką** (przechodzi przez dno) — ostrzeżenie z położeniem nóżki i radą przestawienia jej przy montażu (audyt GPT N122; automatyczne przesunięcie — do decyzji).
 - **Blat roboczy**: kontrola wysokości blatów w rogu i w pomieszczeniu („odstaje o N mm”) z przyciskami wyrównania, zużycie arkusza (brakuje do 200 mm), odpad — opisane w `opisy/ciagi.md` i `opisy/rozkroj.md`.
 
 ## Skąd liczby

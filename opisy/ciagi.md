@@ -90,6 +90,10 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - drzwi ramienia szersze niż ok. 600 mm — ostrzeżenie;
   - front węższy niż 250 mm — ostrzeżenie;
   - półka bez pary od strony ramienia (skończyłaby się w powietrzu) — błąd;
+  - kilka frontów jeden nad drugim w kolumnie przy ramieniu (dwa poziomy, podział kolumny) — błąd: ramię ma jeden front z pierwszego frontu szafki, reszta zostaje otwarta (audyt GPT N132; dwa fronty w ramieniu — do decyzji);
+  - szuflady w kolumnie przy ramieniu — błąd: od strony ramienia nie ma boku pod prowadnicę (N139);
+  - własna szerokość wzmocnienia ramienia większa niż wysokość wnętrza (stojące) albo głębokość ramienia (leżące) — błąd z największą wartością (N125);
+  - kołki półek nie mieszczą się na półce ramienia (płytkie ramię przy płytkim sąsiednim ciągu) — błąd z „Ustaw 50 / 50 mm” dla szafki w L (N136);
   - za duży luz przy boku — błąd;
   - opisy kątownika i zasięgu od rogu — informacje.
 - **Głębokość w rogu**: szafka sąsiedniego ciągu głębsza niż ta w rogu — błąd.
@@ -97,7 +101,10 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - wystaje poza dolny — ostrzeżenie;
   - szafka dolna sięga w górne (słupek) — błąd;
   - górne szafki ponad sufit — błąd; luz do sufitu — informacja.
-- **Kolizje otwierania w rogu**: przyciski „Przełóż zawiasy” i wstawka 18 / 60 mm — tylko gdy pomagają.
+- **Kolizje otwierania w rogu**: przyciski „Przełóż zawiasy” i wstawka 18 / 60 mm — tylko gdy pomagają. Fronty „Skręcone 90°” liczą się jako jeden sztywny zespół na zawiasach korpusu — front ramienia obraca się wokół tej samej osi (audyt GPT N135), bez rady o przełożeniu zawiasów.
+- **Ramię szafki w L w zamówieniu**: płyty ramienia mają oklejanie z tabeli formatek jak korpus (N130), zawiasy z grubości płyty frontu ramienia (N123), uchwyt także wpuszczany (wystawanie 0, N124), półki z mocowaniem swojej kolumny i granicy (N131), wzmocnienia z kolumny przy ramieniu bez powtórzeń (N137), plecy ze zszywkami / wkrętami co 100 mm po obwodzie (N138), kątownik od wierzchu dna — też przy cokole w obrysie (N134).
+- **Wspólne dno ciągu**: rozpoznanie „dno pod bokami” z osadzenia dna, nie z obrzeży (N118); szafki różnie wysunięte z lica — każda zostaje przy swoim dnie (N133); w 3D jedna płyta „Dno ciągu” jak w zamówieniu (N119).
+- **Prześwit nad blatem 0** zostaje 0 po zapisie i wczytaniu (N120).
 
 ## Skąd liczby
 

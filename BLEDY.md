@@ -18,6 +18,36 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-28 | audyt GPT N110: przycisk naprawy kolizji DXS z przeszkodą proponował NL 270, którego DXS nie ma | lista długości V-BOX w kontroli przeszkody i wycięcia; teraz katalog systemu szuflady (`nlSystemu`); suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N111: przeszkoda pod skrzynką DXS (18–28 mm, bok od 37) dawała kolizję i „skróć do NL 270” | kontrola brała prostokąt frontu; teraz zakres skrzynki od spodu boku/dna do góry boku; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N112: przegroda z górnego poziomu była granicą zabudowy przeszkody w dolnym — L zamiast U | granice bez zakresu wysokości; teraz tylko przegrody na wysokości przeszkody; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N113: zabudowa „do półki” nie widziała płyty między poziomami | `shelfAbove` tylko z półek kolumn; teraz też `sepShelves`; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N114: przeszkoda przez płytę między poziomami / przegrodę bez uwagi | kontrola obejmowała tylko półki kolumn; teraz ostrzeżenie z otworem W × D albo przesunięciem; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N115: konfirmat dna/wieńca 9 mm poza płytą przy lewym końcu między bokami | oś boku liczona od lewego boku szafki, nie od początku płyty; teraz odejmuje `topX0`/`botX0`; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N116: wspornik fixa skrócony wzmocnieniem — zawias pod nim, plan od dołu korpusu, mocowanie do dna | plan od `lv.y0`; teraz od dołu wspornika, `support.nad/pod`, błąd gdy zawias wypada poza wspornik; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N117: wkręt 4 × 30 przebijał przód skrzynki 16 + front 12 mm | brak kontroli długości; teraz błąd/ostrzeżenie z radą krótszego wkrętu (`WKRET_FRONTU_DL`); długość auto — pytanie do użytkownika; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N118: wyłączone obrzeże dna psuło wspólne dno ciągu | rozpoznanie „dno pod bokami” z obrzeży; teraz z `botL`/`botR`; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N119: wspólne dno w zamówieniu, w 3D dwie płyty ze szparą | 3D rysowało dna szafek; teraz pas „dno-ciagu” z `runBottom`; suita `audytgpt12` | (ten commit) |
+| 2026-10-28 | audyt GPT N120: prześwit 0 po wczytaniu wracał do 500 | `migrateRun` brał `|| 500`; teraz skończone ≥ 0 zostaje; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N121: rowki HDF w planie, choć kolumny zdjęły plecy | plan frezował z globalnych pleców; teraz bez frezu przy plecach w kolumnach; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N122: nóżka pod pełnym wycięciem narożnika bez uwagi | kontrola wycięcia nie znała nóżek; teraz ostrzeżenie z położeniem; automatyczne przesunięcie — pytanie do użytkownika; suita `funkcje`, `audytgpt12` | (ten commit) |
+| 2026-10-28 | audyt GPT N123: zawiasy ramienia z grubości frontu właściciela | `a.cab.geo.tf`; teraz `tfRamienia` z płyty frontu ramienia; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N124: uchwyt wpuszczany (wystawanie 0) znikał z zamówienia ramienia | warunek `handleOutOf > 0`; teraz uchwyt zawsze przy otwieranym ramieniu; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N125: własne wzmocnienie ramienia 1000 w H900 schodziło pod podłogę bez uwagi | brak kontroli `railW`; teraz błąd z najwyższą wartością (stojące — wysokość poziomu, leżące — głębokość ramienia); suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N126: półka ramienia zależała od grubości wyłączonych pleców | `armPlan(a).tb || geo.tb`; teraz zawsze `armPlan(a).tb`; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N127: wysuw DXS w kontroli kolizji inny niż w 3D | `swingBodies` brało NL; teraz `wysuwSzuflady`; suita `audytszuflad`/`funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N128: za wysoki tył DXS przecinał wieniec, tylko ostrzeżenie | tył porównywany z bokiem; teraz błąd z miejscem nad szufladą i `fixback`; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N129: jeden podnośnik klapy przeniesiony na drugi bok — model i tip-on zostawały po starej | strona liczona tylko w planie; teraz raz w geometrii (`strona`) dla planu, modelu i tip-on, z podpowiedzią | (ten commit) |
+| 2026-10-28 | audyt GPT N130: kliknięcie obrzeża formatki ramienia nic nie zmieniało | `cornerArmParts` bez `edgeOverrides`; teraz jak w korpusie (HDF bez obrzeży); suita `funkcje`, `audytgpt12` | (ten commit) |
+| 2026-10-28 | audyt GPT N131: ramię ignorowało mocowanie półek kolumny i granicy | `mocowaniePolek(cab)`; teraz `armShelves` z mocowaniem każdej półki (okucia i plan); suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N132: dwa poziomy frontów — ramię z jednym frontem, góra otwarta bez słowa | front ramienia z pierwszego frontu; teraz błąd przed zamówieniem; wariant z dwoma frontami — pytanie do użytkownika; suita `funkcje`, `audytgpt12` | (ten commit) |
+| 2026-10-28 | audyt GPT N133: wspólne dno pod szafką wysuniętą z lica | `runBottom` sprawdzało tylko głębokość; teraz różne wysunięcie = osobne dna z powodem; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N134: kątownik narożnika przecinał dno i cokół w obrysie | płyty `H − 2t` od `y0 + t`; teraz od wierzchu dna (`interior.y0`), formatka i 3D; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N135: fronty „Skręcone 90°” w kontroli kolizji jak dwa skrzydła | ramię z własną osią; teraz punkty frontu ramienia obracane wokół zawiasu korpusu (`sztywne`); suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N136: otwór kołka półki płytkiego ramienia poza bokiem | kontrola kołków tylko na półkach korpusu; teraz też na półce ramienia, przycisk `kolki:…:<szafka>`; suita `funkcje`, `audytgpt12` | (ten commit) |
+| 2026-10-28 | audyt GPT N137: dwie kolumny — zdublowane wzmocnienia ramienia | `armPlan` brało wzmocnienia wszystkich kolumn; teraz kolumny przy ramieniu (bez niej — bez powtórzeń); pionowe nie przechodzą w ramię; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N138: plecy ramienia bez mocowań | okucia ramienia bez pleców; teraz zszywki / wkręty co 100 mm po obwodzie; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N139: szuflady w kolumnie przy ramieniu L — front i skrzynka przez kątownik | ścieżka szuflad bez lica przed narożnikiem; teraz błąd montażu; suita `funkcje`, `audytgpt12` | (ten commit) |
 | 2026-10-28 | audyt GPT N100: pionowe wzmocnienie 400 mm przecina górną półkę bez uwagi | kontrola wzmocnień patrzyła tylko na granice korpusu; teraz błąd z „Wzmocnienie N: X mm” (akcja `wzmwys`) albo radą przesunięcia półki; suita `audytgpt11` | (ten commit) |
 | 2026-10-28 | audyt GPT N101: pionowe wzmocnienie na rysunku w kolorze półek | rysunki 2D brały `shc` dla pionowych; wzmocnienia są z płyty korpusu — kolor `bf` we wszystkich trzech widokach; suita `audytgpt11` | (ten commit) |
 | 2026-10-28 | audyt GPT N102: fix wpuszczany z boku rysował się drugi raz przed korpusem | blok „fix” liczył płaszczyznę z montażu szafki; teraz z montażu fixu (jak blok frontów); suita `audytgpt11` | (ten commit) |
@@ -330,6 +360,14 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 | 2026-09-27 | `luzy` | podpowiedź o luzie pojawia się przy nierównym podziale; test ustawia luz 3 mm wprost | 3d2690b |
 
 ## Do decyzji użytkownika
+
+- **Audyt GPT 2026-10-28 — trzy sprawy do decyzji** (zrobione na razie same uwagi):
+  1. N117 — wkręt frontu DXS przy cienkich płytach (np. 16 + 12 mm): sam błąd z radą
+     „krótszy wkręt” (tak jest) czy program ma sam dobrać krótszy wkręt w zamówieniu;
+  2. N122 — nóżka pod pełnym wycięciem narożnika: ostrzeżenie (tak jest) czy program
+     ma sam przesunąć nóżkę poza wycięcie (rysunki, 3D i zamówienie);
+  3. N132 — dwa poziomy frontów w szafce w L: błąd (tak jest), dwa fronty w ramieniu
+     (po jednym na poziom, w linii z frontami korpusu) czy jeden front ramienia na całą wysokość.
 
 - **Przycinanie albo zawieszanie po zmianach — pierwszy podejrzany: automatyczny
   rozkrój** (2026-09-29). Liczy się sam 1 s po zmianie formatek (powyżej 40 szafek

@@ -3036,6 +3036,14 @@ function computeGeoLiczy(cab, mat, ctx) {
       c.kind = kind;
       const where = `Poziom ${lv.i + 1}, kolumna ${j + 1}`;
       const whereKol = where;
+      /* Szuflady w kolumnie przy ramieniu szafki w L (audyt GPT N139): od strony ramienia nie ma
+         boku pod prowadnice (stoi tam katownik), a front i skrzynka liczyly sie na cale swiatlo
+         korpusu i przecinaly maskownice i katownik. Takiej szuflady sie nie zamontuje. */
+      const kolPrzyRamieniu = ctx && ctx.armFront > 0 && (ctx.armSide === "right" ? j === lv.cols.length - 1 : j === 0);
+      if (kolPrzyRamieniu && (kind === "drawers" || zbiorySzuflad(rawCol).length))
+        add("error", `${where}: szuflady w kolumnie przy ramieniu szafki narożnej w L — od strony ramienia nie ma boku pod prowadnicę `
+          + `(stoi tam kątownik), a przed narożnikiem zostaje ${fmt(Math.round(ctx.armFront))} mm lica. Takiej szuflady nie da się zamontować — `
+          + `zrób w tej kolumnie drzwi albo przenieś szuflady do kolumny dalej od rogu.`);
 
       // --- elementy wzmacniajace kolumny ---
       /* Plecy z plyty trzymaja korpus w kacie prostym tak samo jak stojace
@@ -5250,6 +5258,22 @@ function computeGeoLiczy(cab, mat, ctx) {
 
     const geoCut = { cw, cdp, onLeft, onBack, cy0, cy1, cutH, bx0, bx1, bz0, bz1, zFull, li, maskType: cut.maskType, mask: cut.mask !== false, side };
 
+    /* Wyciecie na cala wysokosc idzie tez przez dno — nozka pod nim nie ma sie do czego
+       przykrecic (audyt GPT N122: tylna lewa 40..80 × 40..80 od tylu pod wycieciem 100 × 100,
+       bez uwagi). Nozki stoja w dwoch rzedach (przy licu i przy plecach) plus srodkowa. */
+    if (zFull && cab.legs && cab.legs.on) {
+      const lw = legs.w, ins = legs.ins;
+      const miejsca = legs.xs.flatMap((lx) => [[lx, ins], [lx, carcassDepth - ins - lw]]);
+      if (legs.srodek) miejsca.push([(W - lw) / 2, (carcassDepth - lw) / 2]);
+      // z liczone od tylu, jak bz0/bz1 wyciecia
+      const pod = miejsca.filter(([lx, lz]) => Math.min(lx + lw, bx1) - Math.max(lx, bx0) > 0 && Math.min(lz + lw, bz1) - Math.max(lz, bz0) > 0);
+      if (pod.length)
+        add("warn", `Wycięcie narożnika (${side}) na całą wysokość przechodzi przez dno nad ${pod.length > 1 ? `${pod.length} nóżkami` : "nóżką"} `
+          + `(${pod.map(([lx, lz]) => `${fmt(Math.round(onLeft ? lx : W - lx - lw))} mm od ${onLeft ? "lewego" : "prawego"} boku, ${fmt(Math.round(lz))} mm od tyłu`).join("; ")}) — `
+          + `po wycięciu nie ma jej do czego przykręcić. Przestaw ją przy montażu poza wycięcie (dalej niż ${fmt(cw)} mm od ${onLeft ? "lewego" : "prawego"} boku `
+          + `albo ${fmt(cdp)} mm od tyłu) albo podeprzyj dno inaczej.`);
+    }
+
     // detekcja kolizji: polki, przegrody, szuflady wchodzace we wneke
     const inRangeY = (y0, y1) => Math.min(y1, cy1) - Math.max(y0, cy0) > 0;
     const maskX = onLeft ? bx1 : bx0;
@@ -6990,8 +7014,15 @@ const armPlan = (a, lokalnie) => {
     ? tyl + Math.max(0, Math.round(geo.postW - (geo.ts || t) - t)) : 0;
   // ramie zamyka bok na wolnym koncu — plyty poziome dochodza do jego lica
   const u1 = Math.max(0, Math.round(a.len - t));
-  const surowe = (((cab.levels || []).slice(-1)[0] || {}).cols || [])
-    .flatMap((c) => c.rails || []);
+  /* Wzmocnienia ramienia przedluzaja te z kolumny przy ramieniu — w niej sie spotykaja.
+     Z wszystkich kolumn naraz para pod blat w dwoch kolumnach dawala w ramieniu cztery
+     plyty, po dwie w tym samym miejscu, i podwojne wkrety (audyt GPT N137). Kolumna przy
+     ramieniu bez wzmocnien — z pozostalych, te same fizyczne plyty raz. */
+  const kolGory = ((cab.levels || []).slice(-1)[0] || {}).cols || [];
+  const przyR = (a.side === "right" ? kolGory[kolGory.length - 1] : kolGory[0]) || {};
+  const znak = (r) => [r.orient, r.pos, !!r.fromBack, Math.round(Number(r.h) || 0), Math.round(Number(r.depth) || 0), Math.round(Number(r.atDepth) || 0)].join("|");
+  const surowe = (przyR.rails || []).length ? przyR.rails
+    : [...new Map(kolGory.flatMap((c) => c.rails || []).map((r) => [znak(r), r])).values()];
   /* Wzmocnienia ramienia to osobne plyty, wiec ich szerokosc moze byc inna niz
      w korpusie — polozenie zostaje wspolne, bo obie plyty musza sie spotkac.
      Puste ustawienie znaczy „tak jak w szafce". */
@@ -7001,6 +7032,8 @@ const armPlan = (a, lokalnie) => {
     return v > 0 ? Math.round(v) : null;
   };
   const rails = geo.hasTop ? [] : surowe
+    // pionowe stoi przy boku korpusu — w ramie nie przechodzi (robilo sie z niego „czołowe” 722 × 100)
+    .filter((r) => r.orient !== "vertical")
     .filter((r) => !(plytaRamienia && r.orient === "front" && r.fromBack))
     .map((r) => {
     const szer = nadpis(r)
@@ -9483,8 +9516,9 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         bracketPlan(a).forEach((r) => {
           // plyta wydluzona wzdluz ramienia stoi w jego licu, wzdluz `v` — w licu korpusu
           const tag = !r.front ? "katownik" : r.w > r.h ? "maska-ramie" : "maska-korpus";
-          // katownik stoi miedzy dnem a gora, maskownice w linii drzwi
-          const ky0 = r.front ? fy0 : y0 + tA, ky1 = r.front ? fy1 : y1 - tA;
+          // katownik stoi miedzy dnem a gora, maskownice w linii drzwi; od wierzchu dna, takze
+          // podniesionego cokolem w obrysie (audyt GPT N134: stal od 18 mm i przecinal dno i cokol)
+          const ky0 = r.front ? fy0 : y0 + c.geo.interior.y0, ky1 = r.front ? fy1 : y1 - tA;
           box(x0 + r.u, ky0, a.depth - (r.v + r.h), x0 + r.u + r.w, ky1, a.depth - r.v,
             r.front ? c.frontColor : shcA, null, 1, r.front, 0, tag);
         });
@@ -14271,12 +14305,18 @@ const armColumn = (side, lv) => {
   const cs = (lv && lv.cols) || [];
   return (side === "right" ? cs[cs.length - 1] : cs[0]) || null;
 };
-const armShelfYs = (side, levels) => {
-  const ys = [];
-  (levels || []).forEach((lv) =>
-    ((armColumn(side, lv) || {}).shelves || []).forEach((s) => ys.push(Math.round(s.y))));
-  return ys;
+/* Polki ramienia z mocowaniem kazdej (audyt GPT N131): kolumna przy ramieniu i granica
+   jej poziomu moga miec inne niz szafka — ramie dotad bralo zawsze `mocowaniePolek(cab)`
+   i przy konfirmatach w kolumnie zamawialo kolki. */
+const armShelves = (side, levels) => {
+  const out = [];
+  (levels || []).forEach((lv) => {
+    const c = armColumn(side, lv);
+    ((c || {}).shelves || []).forEach((s) => out.push({ y: Math.round(s.y), mount: mocPolki(c, s) || "pins" }));
+  });
+  return out;
 };
+const armShelfYs = (side, levels) => armShelves(side, levels).map((s) => s.y);
 
 /* Formatka i okucia wstawki w rogu. Z plyty frontowej (jest widoczna), na
    wysokosc korpusu. Plaska: grubosc plyty od przodu, 60 mm w glab, przykrecona
@@ -14484,14 +14524,17 @@ const cornerArmParts = (a) => {
      Formatki po 60 mm, bo mniejszej nie da sie uciac ani okleic — dlatego jedna
      plyta nachodzi na czolo drugiej. Nachodzaca ma obie dlugie krawedzie na
      wierzchu, doczolowa chowa jedna w styku i tej sie nie oklei. */
+  /* Wewnetrzne plyty katownika od wierzchu dna do spodu wienca — przy cokole w obrysie
+     dno jest wyzej, a plyty mialy H − 2t i wchodzily w dno i cokol (audyt GPT N134). */
+  const katH = Math.max(0, Math.round(H - t - geo.interior.y0));
   if (a.bracket) {
     const w = a.bracket.w;
     const hM = d0 ? Math.round(d0.h) : H;
     // dwie plyty w srodku — z plyty korpusu (ustalone 2026-09-30, „Płyty elementów”)
     const katMat = "board";
-    panels.push({ name: "Kątownik narożnika — nachodzący", qty: 1, a: w, b: inner, matKey: katMat,
+    panels.push({ name: "Kątownik narożnika — nachodzący", qty: 1, a: w, b: katH, matKey: katMat,
       edges: { a1: false, a2: false, b1: true, b2: true }, note: "obie krawędzie pionowe" });
-    panels.push({ name: "Kątownik narożnika — doczołowy", qty: 1, a: w, b: inner, matKey: katMat,
+    panels.push({ name: "Kątownik narożnika — doczołowy", qty: 1, a: w, b: katH, matKey: katMat,
       edges: { a1: false, a2: false, b1: true, b2: false },
       note: "krawędź pionowa od strony wnętrza — druga wchodzi w styk" });
     panels.push({ name: "Maskownica kątownika — nachodząca", qty: 1, a: w, b: hM, matKey: plytaFrontu(cab),
@@ -14503,7 +14546,9 @@ const cornerArmParts = (a) => {
      nie okleji ani nie wniesie. Liczba idzie za kolumna przy ramieniu, bo to na
      jej polkach polka ramienia sie konczy — polka bez pary wisialaby w powietrzu.
      Poziomy sumujemy, bo kazdy z nich ma wlasny podzial na wysokosc. */
-  const polek = armShelfYs(a.side, geo.levels).length;
+  const polkiR = armShelves(a.side, geo.levels);
+  const polek = polkiR.length;
+  const polekM = (m) => polkiR.filter((s) => s.mount === m).length;
   if (polek > 0)
     // za katownikiem naroznika w licu ramienia (gdy jest) — jak polka korpusu
     // z plyty polek jak polki korpusu („Półki z tej samej płyty co korpus”)
@@ -14562,27 +14607,28 @@ const cornerArmParts = (a) => {
         qty: dl / 1000, odcinek: dl, min: dl - LISTWA_SKROT, unit: "mb" });
     }
   }
-  if (polek > 0 && mocowaniePolek(cab) === "pins")
+  if (polekM("pins") > 0)
     hardware.push({ name: "Kołek podporowy ⌀5",
       use: "półki ramienia narożnika, po cztery na półkę",
-      spec: "półki ramienia, po cztery na półkę", qty: polek * 4, unit: "szt." });
-  if (polek > 0 && mocowaniePolek(cab) === "trojkaty")
+      spec: "półki ramienia, po cztery na półkę", qty: polekM("pins") * 4, unit: "szt." });
+  if (polekM("trojkaty") > 0)
     hardware.push({ name: "Trójkąt meblarski",
       use: "półki ramienia narożnika na trójkątach, po cztery na półkę",
-      spec: `półki ramienia na trójkątach: 4 szt. na półkę × ${polek}`, qty: polek * 4, unit: "szt." });
+      spec: `półki ramienia na trójkątach: 4 szt. na półkę × ${polekM("trojkaty")}`, qty: polekM("trojkaty") * 4, unit: "szt." });
   /* Polka ramienia na konfirmatach (uzytkownik 2026-10-17 po audycie GPT N49):
      konfirmaty w boku ramienia; przy rogu ta sama plyta katownika ma juz po
      drugiej stronie konfirmat polki korpusu na tej samej wysokosci — tam dwa
      kolki. Dotad polka ramienia nie miala zadnego mocowania. */
-  if (polek > 0 && mocowaniePolek(cab) === "confirmat") {
+  if (polekM("confirmat") > 0) {
+    const nK = polekM("confirmat");
     const glP = a.depth - armPlan(a).tb - (a.bracket ? t : 0);
     hardware.push({ name: "Konfirmat 7 × 50", use: "złącza ramienia szafki narożnej, co ok. 200 mm styku",
-      spec: `półki ramienia do boku ramienia: ${polek}×${konfirmatyNaStyk(glP)}`, qty: polek * konfirmatyNaStyk(glP), unit: "szt." });
+      spec: `półki ramienia do boku ramienia: ${nK}×${konfirmatyNaStyk(glP)}`, qty: nK * konfirmatyNaStyk(glP), unit: "szt." });
     hardware.push({ name: "Kołek podporowy ⌀5", use: "półki ramienia narożnika przy rogu, po dwa na półkę",
-      spec: "półki ramienia przy rogu (w płycie kątownika jest już konfirmat półki korpusu), po dwa na półkę", qty: polek * 2, unit: "szt." });
+      spec: "półki ramienia przy rogu (w płycie kątownika jest już konfirmat półki korpusu), po dwa na półkę", qty: nK * 2, unit: "szt." });
   }
   {
-    const naPlyte = Math.max(2, Math.ceil(inner / 200));
+    const naPlyte = Math.max(2, Math.ceil(katH / 200));
     const opis = [];
     let wk = 0;
     if (plan.rails.length) { wk += plan.rails.length * 4; opis.push(`wzmocnienia ${plan.rails.length}×4`); }
@@ -14590,6 +14636,16 @@ const cornerArmParts = (a) => {
     if (wk) hardware.push({ name: "Wkręt 4 × 30",
       use: "wzmocnienia i kątownik ramienia narożnika — 4 na wzmocnienie, kątownik co ok. 200 mm",
       spec: `ramię szafki narożnej: ${opis.join(", ")} szt.`, qty: wk, unit: "szt." });
+  }
+  /* Plecy ramienia przybija sie po obwodzie jak plecy korpusu — HDF zszywkami, plyta
+     wkretami, co ok. 100 mm. Dotad ramie nie mialo zadnych (audyt GPT N138: plecy
+     1197 × 898 bez mocowan, korpus liczyl tylko swoj obwod). */
+  if (plan.back) {
+    const pa = Math.round(plan.back.u1 - plan.back.u0), pb = plan.back.plyta ? inner : H - 2;
+    hardware.push({ name: plan.back.plyta ? "Wkręt 3,5 × 30 do pleców" : "Zszywka / gwoździk do pleców",
+      use: "plecy przybijane po obwodzie, co ok. 100 mm",
+      spec: `plecy ramienia szafki narożnej ${fmt(pa)} × ${fmt(pb)} mm, co ok. 100 mm po obwodzie`,
+      qty: Math.ceil((2 * (pa + pb)) / 100), unit: "szt." });
   }
   if (cab.legs && cab.legs.on) {
     // te same miejsca, ktore rysuje elewacja i bryla — `armLegPlan`
@@ -14630,6 +14686,14 @@ const cornerArmParts = (a) => {
       use: "drugie skrzydło szafki narożnej, spięte z pierwszym",
       spec: "spina drugie skrzydło z pierwszym — pierwsze wisi na boku na zawiasie 165°",
       qty: zawiasow, unit: "szt." });
+  /* Oklejanie zmienione recznie w tabeli formatek (`edgeOverrides` po nazwie) — jak
+     w `computeGeo` i we wstawce. Plyty ramienia dochodza do listy pozniej, wiec
+     klikniecie obrzeza „Frontu ramienia” nic nie zmienialo (audyt GPT N130). HDF bez obrzezy. */
+  const eo = cab.edgeOverrides || {};
+  panels.forEach((p) => {
+    const o = eo[p.name];
+    if (o && p.matKey !== "back") { p.edges = { ...p.edges, ...o }; p.note = "oklejanie ustawione ręcznie"; }
+  });
   return { panels: panels.map(naZamowienie), hardware };
 };
 
@@ -14650,8 +14714,11 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
     const kon = `⌀7 w boku ramienia, ${lista(konfirmatyPoz(korpusR))} mm od przedniej krawędzi; w czole płyty ⌀5 × 50`;
     if (geo.hasBot) wiersz("Bok ramienia", "konfirmat — dno ramienia", [geo.bottomY + t / 2], kon);
     if (geo.hasTop) wiersz("Bok ramienia", "konfirmat — wieniec ramienia", [H - t / 2], kon);
-    const ys = armShelfYs(a.side, geo.levels);
-    if (ys.length && mocowaniePolek(cab) === "confirmat") {
+    // kazda polka ze swoim mocowaniem (N131)
+    const polkiR = armShelves(a.side, geo.levels);
+    const ysM = (m) => polkiR.filter((s2) => s2.mount === m).map((s2) => s2.y);
+    let ys = ysM("confirmat");
+    if (ys.length) {
       const przod = a.bracket ? t : 0, gl = a.depth - armPlan(a).tb - (a.bracket ? t : 0);
       const ts = geo.ts || t;
       wiersz("Bok ramienia", "konfirmat — półka ramienia", ys.map((y) => y + ts / 2),
@@ -14660,14 +14727,16 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
         wiersz("Kątownik przy ramieniu — bok", "kołek półki ramienia", ys,
           "⌀5 od strony ramienia, 2 na półkę; wysokość = spód półki — konfirmatu nie da się wkręcić, po drugiej stronie płyty jest konfirmat półki korpusu");
     }
-    if (ys.length && mocowaniePolek(cab) !== "confirmat") {
+    {
       const przod = a.bracket ? t : 0, gl = a.depth - armPlan(a).tb - (a.bracket ? t : 0);
       const pin = cab.shelfPin || {};
       const pf = num(pin.dFront) ?? 50, pb = num(pin.dBack) ?? 50;
-      if (mocowaniePolek(cab) === "trojkaty")
+      ys = ysM("trojkaty");
+      if (ys.length)
         wiersz("Bok ramienia", "trójkąt meblowy", ys,
           `2 rzędy — pod półką ramienia, przy jej przedniej i tylnej krawędzi: ${fmt(przod + KONF_OD_KRAWEDZI)} i ${fmt(przod + gl - KONF_OD_KRAWEDZI)} mm od przedniej krawędzi płyty; wysokość = spód półki; tu 2 z 4`);
-      else
+      ys = ysM("pins");
+      if (ys.length)
         wiersz("Bok ramienia", "kołek półki", ys,
           `⌀5, ${fmt(przod + pf)} i ${fmt(przod + gl - pb)} mm od przedniej krawędzi płyty; wysokość = spód półki; tu 2 z 4 kołków półki`);
     }
@@ -14752,6 +14821,11 @@ const runBottom = (project, run) => {
   if (ujete.some(({ d, g }) => !d || g.botL !== "over" || g.botR !== "over")) return odp("nie każda szafka ma dno pod bokami");
   const gl = [...new Set(ujete.map(({ d }) => Math.round(d.b)))];
   if (gl.length > 1) return odp(`szafki mają dno różnej głębokości (${listPl(gl.map(fmt))} mm)`);
+  /* Ta sama glebokosc to za malo — szafka wysunieta z lica stoi dalej od sciany, wiec jedno
+     prostokatne dno nie jest dnem obu (audyt GPT N133: 1220 × 500 pod szafkami przesunietymi
+     o 100 mm, wlasne dna zdjete z zamowienia). */
+  const wys = [...new Set(ujete.map(({ it }) => Math.round(Number(it.offset) || 0)))];
+  if (wys.length > 1) return odp(`szafki są różnie wysunięte z lica (${listPl(wys.map(fmt))} mm) — jedno prostokątne dno nie obejmie wszystkich`);
   const kl = [...new Set(ujete.map(({ it }) => { const m = migrateMat(it.mat).board || {}; return `${m.color}|${m.thickness}|${m.name}`; }))];
   if (kl.length > 1) return odp("szafki mają korpusy z różnych płyt");
   // odcinek z jedna szafka (np. miedzy slupkami) zostaje przy jej wlasnym dnie
@@ -15662,6 +15736,63 @@ const cornerPairMsgs = (n, blat) => {
         `${kto}: półka na ${wiszace.map(fmt).join(", ")} mm nie ma pary w kolumnie od strony ramienia, `
         + `więc w ramieniu skończyłaby się w powietrzu. Ustaw ten sam podział półek w kolumnie przy `
         + `ramieniu albo zrób jedną kolumnę na całe wnętrze — narożna to jedna komora.` });
+    /* Front ramienia ma jedna wysokosc — z pierwszego frontu szafki (`cornerArmParts`). Przy
+       kilku frontach jeden nad drugim w kolumnie przy ramieniu (dwa poziomy, podzial kolumny)
+       gorna czesc ramienia zostawala otwarta bez slowa (audyt GPT N132). */
+    if (a.len > 0 && a.doors !== "fix") {
+      const pasy = [...new Map((a.cab.geo.doors || []).filter((d) => d.h > 0 && d.type !== "blenda" && (() => {
+        const lv = lvls.find((l) => l.i === d.lvl);
+        const c = armColumn(a.side, lv);
+        return !!c && d.colKey === `${d.lvl}-${c.j}`;
+      })()).map((d) => [`${Math.round(d.y)}|${Math.round(d.h)}`, d])).values()].sort((p, q) => p.y - q.y);
+      const d0 = (a.cab.geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
+      if (pasy.length > 1 && d0)
+        out.push({ level: "error", text: `${kto}: w kolumnie przy ramieniu są ${pasy.length} fronty jeden nad drugim `
+          + `(${pasy.map((d) => `${fmt(Math.round(d.y))}–${fmt(Math.round(d.y + d.h))}`).join(", ")} mm od dołu), a ramię dostaje jeden front — `
+          + `${fmt(Math.round(d0.h))} mm, na wysokości ${fmt(Math.round(d0.y))}–${fmt(Math.round(d0.y + d0.h))} mm. Reszta ramienia zostaje otwarta. `
+          + `Zrób w szafce narożnej jeden poziom frontów albo zaplanuj fronty ramienia ręcznie.` });
+    }
+    /* Kolki polek ramienia — ta sama kontrola co w korpusie (N16), ale na polce ramienia:
+       ramie bywa duzo plytsze niz korpus (sasiedni ciag 200 mm), a kontrola korpusu
+       przechodzila na jego glebszej polce i plan kazal wiercic 68 mm poza bokiem ramienia
+       (audyt GPT N136). */
+    if (a.len > 0 && armShelves(a.side, lvls).some((s) => s.mount === "pins")) {
+      const glR = Math.round(a.depth - armPlan(a).tb - (a.bracket ? a.cab.geo.t : 0));
+      const pin = a.cab.cab.shelfPin || {};
+      const pf = num(pin.dFront) ?? 50, pb = num(pin.dBack) ?? 50;
+      const zal = Math.min(50, Math.floor((glR - KOLEK_PRZESUN) / 2));
+      if (pf < 0 || pb < 0 || pf + pb >= glR)
+        out.push({ level: "error", text: `${kto}: kołki półek ${fmt(pf)} mm od przodu i ${fmt(pb)} mm od tyłu nie mieszczą się na półce ramienia `
+          + `głębokości ${fmt(glR)} mm — otwory w boku ramienia wypadłyby poza płytą albo na siebie.`
+          + (zal > 0 ? `|kolki:${zal}:${zal}:${a.cab.index}` : "") });
+    }
+    /* Wlasna szerokosc wzmocnienia ramienia (audyt GPT N125: stojace 1000 mm w ramieniu
+       H900 schodzilo 100 mm pod podloge, formatka szla do zamowienia bez uwagi).
+       Ta sama granica co w korpusie: stojace — wysokosc najwyzszego poziomu,
+       lezace — glebokosc ramienia miedzy plecami a frontem. */
+    if (a.len > 0) {
+      const apW = armPlan(a, true);
+      const gLv = lvls[lvls.length - 1];
+      const wysLv = gLv ? Math.round(gLv.y1 - gLv.y0) : Math.round(a.cab.geo.H);
+      const doFrontu = armInset(a) ? a.depth - a.cab.geo.tf : a.depth;
+      const nazwyR = { false: "czołowe", true: "tylne" };
+      const zgloszone = new Set();
+      apW.rails.filter((r) => r.wlasna).forEach((r) => {
+        const klucz = String(r.przyTyle);
+        if (zgloszone.has(klucz)) return;
+        const co = `${kto}: wzmocnienie ramienia ${nazwyR[klucz]} — własna szerokość ${fmt(r.wys)} mm`;
+        if (r.stojace && r.wys > wysLv) {
+          zgloszone.add(klucz);
+          out.push({ level: "error", text: `${co}, a wnętrze ramienia ma ${fmt(wysLv)} mm wysokości — `
+            + `wychodzi ${fmt(r.wys - wysLv)} mm poza korpus. Najwyżej ${fmt(wysLv)} mm (Struktura → Wzmocnienia ramienia).` });
+        } else if (!r.stojace && (r.v0 < apW.tb - 0.5 || r.v1 > doFrontu + 0.5)) {
+          zgloszone.add(klucz);
+          const max = Math.max(0, Math.round(r.przyTyle ? doFrontu - r.v0 : r.v1 - apW.tb));
+          out.push({ level: "error", text: `${co} w głąb, a w ramieniu jest na nie ${fmt(max)} mm `
+            + `(${r.przyTyle ? "od pleców do frontu" : "od frontu do pleców"}) — wychodzi poza korpus. Najwyżej ${fmt(max)} mm.` });
+        }
+      });
+    }
     /* Luz przy licu szafki naroznej. Od strony ramienia nie ma tam zadnej
        szczeliny — przestrzen miedzy frontem korpusu a frontem ramienia zamyka
        maskownica przy wsporniku — wiec tego odcinka nie liczymy. Po drugiej
@@ -15827,7 +15958,34 @@ const swingHit = (s, b) => {
    zamknietego frontu od zawiasu, b przed lico) skrzydlo otwarte o kat t
    zamiata wycinek kola od 0 do t, wiec pierwszy styk to punkt pudelka w kole
    o najmniejszym atan2(b, a): najnizsze b i przy nim najdalsze a. */
+/* Fronty „Skręcone 90°” (audyt GPT N135): front korpusu i front ramienia to jeden sztywny
+   zespol na zawiasach korpusu, a kontrola liczyla ramie jak osobne skrzydlo z wlasna osia
+   ~700 mm dalej. `s.sztywne` — punkty frontu ramienia w ukladzie skrzydla (a wzdluz
+   zamknietego frontu od zawiasu, b przed lico); obracaja sie wokol tej samej osi co
+   skrzydlo. Kat pierwszego styku krokiem co SZTYWNE_KROK stopnia; pudelko, w ktorym punkt
+   lezy juz przy zamknietym zespole, to nie kolizja otwierania. */
+const SZTYWNE_KROK = 0.5;
+const wPudelku = (b, x, y) => x > b.x0 + SWING_TOL && x < b.x1 - SWING_TOL && y > b.y0 + SWING_TOL && y < b.y1 - SWING_TOL;
+const sztywnyKat = (s, b) => {
+  if (!s.sztywne || Math.min(s.z1, b.z1) - Math.max(s.z0, b.z0) <= SWING_TOL) return null;
+  const pkt = s.sztywne.map(([pa, pb]) => [Math.hypot(pa, pb), Math.atan2(pb, pa)]);
+  const trafia = (st) => {
+    const t = (st * Math.PI) / 180;
+    return pkt.some(([r, f]) => {
+      const ca = Math.cos(f + t) * r, cb = Math.sin(f + t) * r;
+      return wPudelku(b, s.hx + ca * s.ax + cb * s.bx, s.hy + ca * s.ay + cb * s.by);
+    });
+  };
+  if (trafia(0)) return null;
+  for (let st = SZTYWNE_KROK; st <= 90; st += SZTYWNE_KROK) if (trafia(st)) return st;
+  return null;
+};
 const swingKat = (s, b) => {
+  const k0 = swingKatSkrzydla(s, b);
+  const k1 = sztywnyKat(s, b);
+  return k0 == null ? k1 : k1 == null ? k0 : Math.min(k0, k1);
+};
+const swingKatSkrzydla = (s, b) => {
   if (!(swingHit(s, b) > 0)) return null;
   const pa = [], pb = [];
   [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1]].forEach(([x, y]) => {
@@ -15855,7 +16013,8 @@ const swingStop = (s, bryly) => {
     if (b.zamknieta) return;
     const kat = swingKat(s, b);
     if (kat == null) return;
-    ile = Math.max(ile, swingHit(s, b));
+    // zespol skrecony: zwezanie frontu korpusu nic nie da, wiec bez rady „zwez front”
+    ile = Math.max(ile, s.sztywne ? s.szer : swingHit(s, b));
     if (!g || kat < g.kat) g = { b, kat };
   });
   return g && { ...g, ile };
@@ -15926,6 +16085,7 @@ const klapaHit = (m, b) => {
 const swingBodies = (L, project) => {
   const bryly = [];
   const skrzydla = [];
+  const doZespolu = [];   // fronty ramienia skrecone z frontem korpusu (N135)
   const ruchy = [];   // szuflady (wysuw) i klapy (obrot wokol poziomej osi)
   L.info.forEach((n) => {
     n.g.cabs.forEach((c) => {
@@ -16055,6 +16215,13 @@ const swingBodies = (L, project) => {
       const w = fu1 - fu0;
       if (!(w > 0)) return;
       const klucz = `${kto.id}|ramie-front`;
+      /* Skrecone 90°: front ramienia jedzie razem z frontem korpusu (N135) — dopinamy go
+         do skrzydla korpusu po petli (to moze byc w innym ciagu, liczonym pozniej). */
+      if (a.doors === "skrecone") {
+        const rog = n.at(a.u0 + (przyKoncu ? fu0 : fu1), lico), koniec = n.at(a.u0 + (przyKoncu ? fu1 : fu0), lico);
+        doZespolu.push({ id: kto.id, rog, koniec, w, z0, z1, n, wolne: { a, przyKoncu, fu0, fu1, lico, kto, klucz } });
+        return;
+      }
       // fu0/fu1 sa liczone wzdluz samego ramienia, a zawias siedzi w ciagu
       skrzydla.push(swingLeaf(n, a.u0 + (przyKoncu ? fu1 : fu0), lico, przyKoncu ? -1 : 1,
         w, z0, z1, { ...kto, klucz, szer: w, ramie: true }));
@@ -16080,6 +16247,28 @@ const swingBodies = (L, project) => {
     if (sufit != null)
       bryly.push(roomBox(n, 0, n.lead + n.total + n.tail, 0, 5000, sufit, sufit + 1000,
         { cab: "sufit", run: n.run.name, id: `${n.id}#sufit`, co: "sufit", klucz: `${n.id}|sufit`, sufit }));
+  });
+  /* Front ramienia skrecony z frontem korpusu: punkty co ok. 20 mm wzdluz frontu ramienia
+     w ukladzie tego skrzydla korpusu, ktorego wolna krawedz jest przy rogu. Bez skrzydla
+     korpusu (np. sam fix) — jak dotad, osobne skrzydlo ramienia. */
+  doZespolu.forEach((z) => {
+    const kand = skrzydla.filter((s) => s.id === z.id && !s.ramie);
+    const wolna = (s) => Math.hypot(s.hx + s.r * s.ax - z.rog.x, s.hy + s.r * s.ay - z.rog.y);
+    const s = kand.sort((p, q) => wolna(p) - wolna(q))[0];
+    if (!s) {
+      const { a, przyKoncu, fu0, fu1, lico, kto, klucz } = z.wolne;
+      skrzydla.push(swingLeaf(z.n, a.u0 + (przyKoncu ? fu1 : fu0), lico, przyKoncu ? -1 : 1,
+        z.w, z.z0, z.z1, { ...kto, klucz, szer: z.w, ramie: true }));
+      return;
+    }
+    const ile = Math.max(2, Math.ceil(z.w / 20));
+    s.sztywne = [...Array(ile + 1)].map((_, k) => {
+      const x = z.rog.x + ((z.koniec.x - z.rog.x) * k) / ile, y = z.rog.y + ((z.koniec.y - z.rog.y) * k) / ile;
+      return [(x - s.hx) * s.ax + (y - s.hy) * s.ay, (x - s.hx) * s.bx + (y - s.hy) * s.by];
+    });
+    // zawiasow zespolu nie da sie przelozyc na strone rogu
+    delete s.alt; delete s.flip;
+    s.zFrontemRamienia = true;
   });
   return { bryly, skrzydla, ruchy };
 };
@@ -16137,7 +16326,9 @@ const openingMsgs = (L, project) => {
     /* Przy pojedynczych drzwiach wiemy juz, czy przelozenie pomaga — gdy nie,
        nie radzimy go (wychodzilo „przeloz zawiasy”, a po drugiej stronie bylo
        gorzej). Przy dwojgu drzwiach i froncie ramienia rada zostaje ogolna. */
-    const rady = !s.flip || akcjaFlip ? ["przełóż zawiasy na drugą stronę"] : [];
+    // zespolu skreconego z frontem ramienia nie da sie przelozyc na strone rogu (N135)
+    const rady = s.zFrontemRamienia ? ["zmień drzwi szafki narożnej z „Skręcone 90°” na „Na wsporniki”"]
+      : !s.flip || akcjaFlip ? ["przełóż zawiasy na drugą stronę"] : [];
     if (zostaje >= MIN_COL) rady.push(`zwęź front do ${fmt(zostaje)} mm`);
     if (g.b.run !== s.run) rady.push("odsuń ciągi w rogu (karta ciągu → Narożnik → „Luz w rogu”)");
     const rada = rady.length > 1
@@ -16188,7 +16379,7 @@ const openingMsgs = (L, project) => {
        skrzydla wchodzi w przeszkode, nic nie mowi o tym, czego brakuje. */
     const wcale = g.kat < 2;
     out.push({ level: "error", text:
-      `${s.ramie ? "Front ramienia" : "Skrzydło"} szafki „${s.cab}" (ciąg „${s.run}") nie otworzy się `
+      `${s.ramie ? "Front ramienia" : s.zFrontemRamienia ? "Skrzydło skręcone z frontem ramienia" : "Skrzydło"} szafki „${s.cab}" (ciąg „${s.run}") nie otworzy się `
       + `${wcale ? "wcale: tuż przed nim" : "do końca: po drodze"} stoi ${g.b.co} ${czyje}`
       + (wcale ? ". " : ` — otworzy się tylko do ok. ${Math.round(g.kat)}°. `)
       + rada.charAt(0).toUpperCase() + rada.slice(1) + "." + akcjaFlip + akcja });
@@ -18494,12 +18685,14 @@ export default function App() {
       return;
     }
     if (action.startsWith("kolki:")) {
-      const [, f, t] = action.split(":").map(Number);
+      // czwarta liczba — szafka (uwaga ramienia szafki w L moze byc widoczna przy innej szafce ciagu)
+      const [, f, t, ix] = action.split(":").map(Number);
       setProject((p) => {
         const items = p.items.slice();
-        const it = items[p.active];
+        const k = Number.isInteger(ix) ? ix : p.active;
+        const it = items[k];
         if (!it) return p;
-        items[p.active] = { ...it, cab: { ...it.cab, shelfPin: { ...(it.cab.shelfPin || {}), dFront: f, dBack: t } } };
+        items[k] = { ...it, cab: { ...it.cab, shelfPin: { ...(it.cab.shelfPin || {}), dFront: f, dBack: t } } };
         return { ...p, items };
       });
       return;

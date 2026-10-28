@@ -103,12 +103,14 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
   - najniższa prowadnica stoi 2 mm nad dnem szafki;
   - front zawsze sięga spodu prowadnicy (27 mm poniżej spodu dna) i ją zasłania.
 - **Bok**: auto jak wyżej (najwyższy z luzem 5 mm) albo ręcznie w mm. Puste pole pokazuje „auto N”. Przy froncie obniżonym podfrezem (także górnym pod płytą) bok auto kończy się równo z górą frontu — nie wystaje w szczelinie nad nim (2026-10-25); ręcznie wpisany wyższy — ostrzeżenie z „Zmień bok szuflady na N mm”.
-- **Tył**: auto = bok − 10, góra równo z bokami. Ręcznie można niżej; wyżej daje ostrzeżenie z przyciskiem powrotu.
+- **Tył**: auto = bok − 10, góra równo z bokami. Ręcznie można niżej; wyżej daje ostrzeżenie z przyciskiem powrotu, a ponad to, co jest nad szufladą (wieniec, półka, szuflada wyżej, z luzem 5 mm) — błąd „skrzynki nie da się złożyć ani wsunąć” z przyciskiem (audyt GPT N128).
+- **Wkręty frontu 4 × 30**: dłuższe niż przód skrzynki + front − 3 mm — ostrzeżenie, przebijają front (np. 16 + 12 mm) — błąd z radą krótszego wkrętu (N117; automatyczny dobór — do decyzji).
 - **Najniższa możliwa skrzynka**: bok 40 / tył 30 mm. Gdy auto nie mieści nawet takiej — błąd „nie ma miejsca na skrzynkę DXS-3D” z przyciskami „Zmniejsz do N szuflad” / „Zmień na DXS-3D”.
 - **Wąskie formatki skrzynki** (reguła wszystkich formatek):
   - poniżej 30 mm — błąd;
   - 30–60 mm — ostrzeżenie z „Tak, docinam ręcznie”, a przy boku / tyle także „Zwiększ do 60 mm”, gdy bok 60 mm się mieści.
-- **NL**: 250–600 co 50, bez 270. Wysuw (B z tabeli) jest krótszy od NL, np. NL 500 → 470 mm.
+- **NL**: 250–600 co 50, bez 270. Wysuw (B z tabeli) jest krótszy od NL, np. NL 500 → 470 mm — ten sam wysuw w 3D i w kontroli kolizji (N127).
+- **Przeszkoda / wycięcie przed szufladą**: przycisk proponuje tylko długości z katalogu systemu tej szuflady (DXS bez NL 270 — N110); przeszkoda pod skrzynką albo nad nią (poza zakresem boku i dna) nie skraca szuflady (N111).
 - **Inne kontrole**: płyta inna niż 16 / 18 / 19 mm — ostrzeżenie; kolumna za wąska na skrzynkę — błąd.
 - **Zamówienie**:
   - „Prowadnica Sevroll DXS-3D Synchro”, komplet na szufladę (NL i indeks w opisie), 50 zł bez względu na NL;
