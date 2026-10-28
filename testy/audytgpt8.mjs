@@ -1,6 +1,8 @@
 /* Audyt GPT 2026-10-27, ustalenia N86–N87 (`AUDYT_GPT.md` na galezi gpt/audyt-2026-10-16):
    - N86 „scal” ostatniej granicy kolumny zostawia ustawienia dolnego poziomu (wczesniej
      kolumna wracala do swoich: znikal tip-on, wracal uchwyt i zawias z lewej); cofnij;
+     rozne wnetrza (szuflady / blenda / drzwi) — okno „ktory zostaje” (uzytkownik 2026-10-28),
+     takze „×” przy polce granicznej; szuflady i blenda zabieraja polki scalonego poziomu;
    - N87 mocowanie amortyzatora / podnosnika na klapie musi lezec na zamawianym froncie —
      za duzy podfrez: blad z „Podfrez N mm” (najwiekszy mozliwy) i „Tip-on zamiast podfrezu”. */
 import pw from './pw.mjs';
@@ -61,6 +63,65 @@ console.log('== N86: „scal” ostatniej granicy — zostają ustawienia dolneg
   await scal();
   c2 = await zap();
   ok('potem scal ostatniej: kolumna = dolny poziom (1 drzwi, zawias z prawej)', !c2.podzial && !c2.segmenty && c2.doors === 1 && c2.hinge === 'right' && !c2.otwieranie, JSON.stringify(c2));
+}
+
+console.log('\n== N86: różne wnętrza — „scal” pyta, który poziom zostaje (użytkownik 2026-10-28) ==');
+{
+  // dol: szuflada DXS, gora: dwoje drzwi i polka nad granica
+  const MIX = () => ({ ...SZ, levels: [{ h: null, cols: [{ kind: 'doors', w: null, doors: 2, shelfTargets: [400, null, null], podzial: [0],
+    segmenty: [{ kind: 'drawers', drawers: [{ system: 'dxs' }] }] }] }] });
+  const okno = () => page.locator('[data-okno="scal-poziomy"]');
+  const bledy = async () => (await notes()).filter((x) => /^×/.test(x.txt)).map((x) => x.txt.slice(0, 90));
+  await seed(MIX());
+  await scal();
+  let t = await okno().count() ? await okno().innerText() : '';
+  ok('okno: „Scalić poziomy 1 i 2 kolumny 1?”, na dole szuflady (1), na górze drzwi (2) i półki, półki znikną',
+    /Scalić poziomy 1 i 2 kolumny 1\?/.test(t) && /Na dole szuflady \(1\), na górze drzwi \(2\) i półki/.test(t) && /półki z tego miejsca \(także ta granica\) znikną/.test(t), t.replace(/\n/g, ' / '));
+  await okno().getByRole('button', { name: 'Anuluj', exact: true }).click(); await page.waitForTimeout(500);
+  let c = await zap();
+  ok('„Anuluj” — nic się nie zmienia', JSON.stringify(c.podzial) === '[0]' && c.segmenty[0].kind === 'drawers' && c.shelfTargets.length === 3, JSON.stringify(c));
+  await scal();
+  await okno().getByRole('button', { name: /^Zostaw dolny/ }).click(); await page.waitForTimeout(800);
+  c = await zap();
+  ok('„Zostaw dolny”: kolumna szuflad, bez podziału i bez półek', c.kind === 'drawers' && !c.podzial && !c.segmenty && JSON.stringify(c.shelfTargets) === '[null]'
+    && (c.drawers || []).length === 1, JSON.stringify(c));
+  let p = await produkty(), f = await fronty();
+  ok('zamówienie: komplet DXS, bez zawiasów i drzwi; bez błędów (×)', p.some((r) => /^Prowadnica Sevroll DXS/.test(r)) && !p.some((r) => /^Zawias/.test(r))
+    && !f.some((r) => /^Drzwi/.test(r)) && !(await bledy()).length, `${p.filter((r) => /Prowadnica|Zawias/.test(r)).join(' / ')} | ${(await bledy()).join(' / ')}`);
+  await page.getByRole('button', { name: '↶ Cofnij', exact: true }).click(); await page.waitForTimeout(800);
+  c = await zap();
+  ok('„Cofnij” — wraca podział i półka', JSON.stringify(c.podzial) === '[0]' && c.segmenty[0].kind === 'drawers' && c.shelfTargets.length === 3, JSON.stringify(c));
+  await scal();
+  await okno().getByRole('button', { name: /^Zostaw górny/ }).click(); await page.waitForTimeout(800);
+  c = await zap();
+  ok('„Zostaw górny”: drzwi (2) na całą wysokość, półki zostają (2), bez szuflad', (c.kind || 'doors') === 'doors' && !c.podzial && !c.segmenty && c.doors === 2
+    && c.shelfTargets.length === 3 && !(c.drawers || []).length, JSON.stringify(c));
+  p = await produkty();
+  ok('zamówienie: bez prowadnic, zawiasy są', !p.some((r) => /^Prowadnica/.test(r)) && p.some((r) => /^Zawias/.test(r)), p.filter((r) => /Prowadnica|Zawias/.test(r)).join(' / '));
+
+  // „×” przy polce granicznej miedzy roznymi wnetrzami — to samo pytanie
+  await seed(MIX());
+  const gr = page.locator('[data-el="granica-frontow"]').first().locator('xpath=..');
+  await gr.getByRole('button', { name: '×', exact: true }).click(); await page.waitForTimeout(500);
+  t = await okno().count() ? await okno().innerText() : '';
+  ok('„×” przy półce granicznej: okno „Usunąć półkę między poziomy 1 i 2 kolumny 1?”', /Usunąć półkę między poziomy 1 i 2 kolumny 1\?/.test(t), t.replace(/\n/g, ' / '));
+  await okno().getByRole('button', { name: /^Zostaw górny/ }).click(); await page.waitForTimeout(800);
+  c = await zap();
+  ok('„Zostaw górny” po „×”: półka graniczna znika (zostaje 1), drzwi (2), bez podziału', !c.podzial && c.shelfTargets.length === 2 && c.doors === 2 && !c.segmenty, JSON.stringify(c));
+
+  // srodkowa granica: szuflada / drzwi z polka / drzwi — scal dolnej, zostaw szuflady
+  await seed({ ...SZ, levels: [{ h: null, cols: [{ kind: 'doors', w: null, doors: 1, shelfTargets: [300, null, null, 300], podzial: [0, 2],
+    segmenty: [{ kind: 'drawers', drawers: [{ system: 'dxs' }] }, { doors: 2 }, { doors: 1, hinge: 'right' }] }] }] });
+  await page.locator('[data-el="granica-frontow"]').last().getByRole('button', { name: 'scal', exact: true }).click(); await page.waitForTimeout(500);
+  await okno().getByRole('button', { name: /^Zostaw dolny/ }).click(); await page.waitForTimeout(800);
+  c = await zap();
+  ok('środkowa: szuflady zajmują dwa dolne poziomy, półki z nich znikają, górny bez zmian', JSON.stringify(c.podzial) === '[0]' && c.shelfTargets.length === 2
+    && c.segmenty[0].kind === 'drawers' && c.segmenty[1].hinge === 'right' && c.shelfTargets[1] === 300, JSON.stringify(c));
+  ok('bez błędu „szuflady i półka w tym samym poziomie”', !(await notes()).some((x) => /szuflady i półk/.test(x.txt)), (await bledy()).join(' / '));
+  // te same wnetrza — bez pytania
+  await seed({ ...SZ, levels: [{ h: null, cols: [{ kind: 'doors', w: null, doors: 2, shelfTargets: [400, null], podzial: [0], segmenty: [{ doors: 1 }] }] }] });
+  await scal();
+  ok('drzwi / drzwi: bez okna, zostaje dolny', (await okno().count()) === 0 && (await zap()).doors === 1, String(await okno().count()));
 }
 
 console.log('\n== N87: mocowanie amortyzatora na klapie po podfrezie ==');

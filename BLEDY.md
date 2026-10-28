@@ -18,7 +18,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
-| 2026-10-27 | audyt GPT N86 (`AUDYT_GPT.md`): „scal” jedynej granicy poziomów kolumny kasuje ustawienia dolnego poziomu | `usunGranice` przy pustym `podzial` usuwało `col.segmenty` razem z ustawieniami dolnego odcinka — kolumna wracała do swoich (tip-on znikał, wracał uchwyt i zawias z lewej, szuflada zamieniała się w drzwi); teraz kolumna przejmuje ustawienia dolnego poziomu; cofnij przywraca podział. Scalenie szuflad / blendy z drzwiami — w „Do decyzji”; suita `audytgpt8` | (ten commit) |
+| 2026-10-27 | audyt GPT N86 (`AUDYT_GPT.md`): „scal” jedynej granicy poziomów kolumny kasuje ustawienia dolnego poziomu | `usunGranice` przy pustym `podzial` usuwało `col.segmenty` razem z ustawieniami dolnego odcinka — kolumna wracała do swoich (tip-on znikał, wracał uchwyt i zawias z lewej, szuflada zamieniała się w drzwi); teraz kolumna przejmuje ustawienia dolnego poziomu; cofnij przywraca podział. Przy różnym wnętrzu (szuflady / blenda / drzwi) — decyzja użytkownika 2026-10-28: okno z pytaniem, który poziom zostaje (`scalPytanie`, `scalWykonaj`), także przy „×” na półce granicznej; szuflady i blenda zabierają półki scalonego poziomu (`polkiWPoziomie`); suita `audytgpt8` | (ten commit) |
 | 2026-10-27 | audyt GPT N87: klapa w dół z podfrezem 200 mm (front 79 mm) — mocowanie amortyzatora 77 / 101 mm od dołu klapy, poza płytą, bez uwagi | kontrola N74 sprawdzała tylko płytkę na boku; teraz otwory mocowania na klapie z okuciem (`KLAPA_MOC_ZAPAS`) muszą leżeć na zamawianym froncie — błąd z „Podfrez N mm” (akcja `otwmm`) i „Tip-on zamiast podfrezu”; suita `audytgpt8` | (ten commit) |
 | 2026-10-27 | audyt GPT N82 (`AUDYT_GPT.md`, gałąź `gpt/audyt-2026-10-16`): wpuszczany front „dłuższy od dołu” przecina dno bez błędu | `otwieranieFrontu` obniża front także przy wpuszczanych, a kontrola szukała tylko frontu pod spodem i podłogi; teraz wpuszczany, który schodzi poniżej światła (`d.colY0`), dostaje błąd „wchodzi N mm w dno / półkę przelotową / półkę graniczną poziomu kolumny” z „Podfrez od góry” / „Tip-on zamiast wydłużenia” (klapa — tylko tip-on); nakładany bez zmian. Decyzja użytkownika 2026-10-27 („przy wpuszczanym nie da się zrobić dłuższych, do ukrycia”): przy wpuszczanym opcji „front dłuższy od dołu” nie ma na liście (`uiOtwierania`), wpis sprzed zmiany frontu — wyszarzony; suita `audytgpt7` | (ten commit) |
 | 2026-10-27 | audyt GPT N83: front szafki w stojącym ciągu bez nóżek schodzi pod podłogę bez błędu | `podloga` w kontroli wydłużenia brała tylko nóżki i cokół — szafka w dolnym ciągu na 0 (`cab.naPodlodze`) liczyła się jak wisząca; teraz podłoga = spód korpusu (0), komunikat „schodzi N mm pod podłogę” (wcześniej „kończy się −N mm nad podłogą”); wiszący ciąg bez błędu; suita `audytgpt7` | (ten commit) |
@@ -309,13 +309,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-- **„scal” granicy, gdy dolny poziom kolumny to szuflady albo blenda, a górny — drzwi**
-  (audyt GPT N86, 2026-10-27). Zasada „zostają ustawienia dolnego” daje wtedy szufladę
-  na całą wysokość (np. front 1194 mm), a półki z górnej części przestają się liczyć
-  (kolumna szuflad półek nie ma — jak przy zmianie rodzaju kolumny). Przy środkowej
-  granicy: szuflada rośnie i jest błąd „szuflady i półka w tym samym poziomie”. Pytanie
-  do użytkownika (2026-10-27): blokować „scal” przy różnym rodzaju poziomów, zostawić
-  dolny, czy pytać przy kliknięciu.
 - **Przycinanie albo zawieszanie po zmianach — pierwszy podejrzany: automatyczny
   rozkrój** (2026-09-29). Liczy się sam 1 s po zmianie formatek (powyżej 40 szafek
   — 5 s). Pomiar: 40 szafek niezauważalnie, 100 szafek jedno przytrzymanie ok.
@@ -357,6 +350,11 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Ustalone — nie ruszać
 
+- **„scal” poziomów kolumny o różnym wnętrzu** (użytkownik 2026-10-28, po audycie GPT N86:
+  „pytaj przy kliknięciu”): szuflady / blenda / drzwi z półkami — okno „Scalić poziomy N i N+1
+  kolumny M?” z „Zostaw dolny — …” / „Zostaw górny — …” / „Anuluj”; to samo przy „×” na półce
+  granicznej. Gdy zostają szuflady albo blenda, półki scalonego poziomu (także granica) znikają —
+  okno to mówi. Te same wnętrza — bez pytania, zostaje dolny.
 - **Tip-on — gdzie się go przykręca** (użytkownik 2026-10-26): „montuję na półce lub dnie szafki w miejscu, gdzie się naciska; jak szafka górna to na dole, jak dolna to na górze, jak wysoka to na półce mniej więcej na wysokości metra; jak pojedyncze drzwi to przy samym boku, jak drzwi dzielone to około 2 cm od końca styku drzwi z drugimi”. W programie: `TIPON_NA_WYSOKOSCI` 1000 (stojąca — płyta najbliżej 1 m od podłogi), wisząca — dno, `TIPON_OD_STYKU` 20 (`opisy/drzwi.md`). Klapa (2026-10-26): „tip-on przy klapie od drugiej strony niż siłownik”; przy dwóch siłownikach (klapa > 600 mm) — przy lewym boku (decyzja użytkownika 2026-10-26). Na widoku zamkniętym tip-on się nie rysuje (2026-10-26: „na zamkniętym nie musi się rysować”).
 - **Szuflady DXS-3D Synchro — ustalenia do budowy** (2026-10-21, odpowiedzi użytkownika na listę „co wiemy, czego nie”; liczby z instrukcji w `instrukcje/SPIS.md`, odczyt rysunku w `AI_NOTES.md`):
   - **prowadnica na boku korpusu** — przykłada się do zaznaczonej kreski (spód prowadnicy) i przykręca bez nawiercania, 3 wkręty na prowadnicę. Plan wierceń ma więc podawać **wysokość spodu prowadnicy** od dolnej krawędzi boku (jak „szyna N” przy V-BOX) i **odsunięcie od czoła boku**: 4 mm za krawędzią korpusu przy froncie nakładanym, przy wpuszczanym + X. Wymiar „37” = górny rząd wkrętów (dolny 12 niżej), nie wierzch dna;

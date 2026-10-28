@@ -428,14 +428,53 @@ const kolumnaW = (L, li, j) => {
 /* Nazwa poziomu kolumny w uwagach (uzytkownik 2026-10-25: „poziom 4 kolumny 2”, nie
    „poziom kolumny 4”) — przed nia poziom szafki, jak w innych uwagach. */
 const gdziePoziomKol = (li, j, nr) => `Poziom ${li + 1}, poziom ${nr + 1} kolumny ${j + 1}`;
+// wnetrze poziomu kolumny: „drawers”, „blenda” albo „doors” (polki i drzwi / klapa)
+const wnetrzePoziomu = (col, nr) => {
+  const r = { ...col, ...(((col || {}).segmenty || [])[nr] || {}) };
+  return r.kind === "drawers" || r.kind === "blenda" ? r.kind : "doors";
+};
+const opisWnetrza = (col, nr) => {
+  const r = { ...col, ...(((col || {}).segmenty || [])[nr] || {}) };
+  const ile = (r.drawers || []).length;
+  return r.kind === "drawers" ? `szuflady (${ile})` : r.kind === "blenda" ? "blenda"
+    : r.klapa && (r.doors ?? 1) === 1 ? "klapa i półki" : `drzwi (${r.doors ?? 1}) i półki`;
+};
+/* Polki w poziomie kolumny `nr`: zostaje ich `n` — swiatla tego poziomu ida na auto,
+   swiatla innych poziomow dostaja obecne wymiary (`wys`, z geometrii) na stale; granice
+   i rury przesuwaja sie razem ze swoimi swiatlami. */
+const polkiWPoziomie = (col, nr, n, wys) => {
+  const gr = (col.podzial || []).map(Number).sort((a, b) => a - b);
+  const st = [...(col.shelfTargets || [null])];
+  const lo = nr === 0 ? -1 : gr[nr - 1];
+  const hiOp = nr === gr.length ? st.length - 1 : gr[nr];
+  const m = hiOp - lo - 1;
+  const d = Math.max(0, Math.round(n)) - m;
+  if (!d) return;
+  const wym = st.map((v, k) => (k > lo && k <= hiOp ? null : Math.round((wys || [])[k] ?? num(v) ?? 0) || v));
+  let rury = (col.drazki || []).map(Number);
+  if (d > 0) {
+    wym.splice(hiOp + 1, 0, ...Array(d).fill(null));
+    if (col.podzial) col.podzial = gr.map((x) => (x >= hiOp ? x + d : x));
+    rury = rury.map((x) => (x > hiOp ? x + d : x));
+  } else {
+    const usun = -d;
+    wym.splice(hiOp - usun + 1, usun);
+    if (col.podzial) col.podzial = gr.map((x) => (x >= hiOp ? x - usun : x));
+    rury = rury.map((x) => (x > hiOp ? x - usun : x > hiOp - usun ? hiOp - usun : x));
+  }
+  col.shelfTargets = wym;
+  if (rury.length) col.drazki = [...new Set(rury)].sort((a, b) => a - b);
+};
 // adres szuflady w przyciskach: kolumna albo jej poziom („<kolumna>s<nr>”)
 const jSzuflady = (c, dr) => (dr && dr.seg ? `${c.j}s${dr.seg.nr}` : c.j);
-const usunGranice = (col, k) => {
+/* `zostaw` — „dol” (domyslnie) albo „gora”: ktory z dwoch laczonych poziomow zostaje
+   (przy roznym wnetrzu pyta o to „scal” — uzytkownik 2026-10-28). */
+const usunGranice = (col, k, zostaw = "dol") => {
   const gr = (col.podzial || []).map(Number);
   const poz = gr.indexOf(k);
   if (poz < 0) return;
   if (col.segmenty) {
-    col.segmenty.splice(poz + 1, 1);
+    col.segmenty.splice(zostaw === "gora" ? poz : poz + 1, 1);
     if (!col.segmenty.some(Boolean)) delete col.segmenty;
   }
   if (col.podzialMount) {
@@ -18708,7 +18747,39 @@ export default function App() {
       col.hinges = []; col.doorWidths = [];
     }
   });
-  const scalPodzial = (i, j, k) => editLevels((L) => usunGranice(L[i].cols[j], k));
+  /* „scal” granicy poziomow kolumny (i „×” przy polce granicznej). Rozne wnetrza —
+     szuflady / blenda / drzwi z polkami — pytanie, ktory poziom zostaje (uzytkownik
+     2026-10-28, audyt GPT N86); takie same — zostaje dolny. Szuflady i blenda zajmuja
+     potem caly scalony poziom, wiec polki z niego (takze granica) znikaja. `swiatlo` —
+     „×”: polka znika razem z granica. `wys` — obecne swiatla kolumny z geometrii. */
+  const scalWykonaj = ({ i, j, k, zostaw = "dol", swiatlo = null, wys }) => editLevels((L) => {
+    const col = L[i].cols[j];
+    const poz = (col.podzial || []).map(Number).indexOf(k);
+    if (poz < 0) return;
+    const wnetrze = wnetrzePoziomu(col, zostaw === "gora" ? poz + 1 : poz);
+    if (wnetrze === "doors" && swiatlo != null) {
+      col.shelfTargets.splice(swiatlo, 1);
+      usunGranice(col, k, zostaw);
+      if (col.podzial) col.podzial = col.podzial.map((x) => (x > k ? x - 1 : x));
+      return;
+    }
+    usunGranice(col, k, zostaw);
+    if (wnetrze === "doors") return;
+    const gr = (col.podzial || []).map(Number).sort((a, b) => a - b);
+    const lo = poz === 0 ? -1 : gr[poz - 1], hiOp = poz === gr.length ? (col.shelfTargets || [null]).length - 1 : gr[poz];
+    if (col.drazki) { col.drazki = col.drazki.filter((x) => !(x > lo && x <= hiOp)); if (!col.drazki.length) delete col.drazki; }
+    polkiWPoziomie(col, poz, 0, wys);
+  });
+  const [scalPytanie, setScalPytanie] = useState(null);
+  const scalPodzial = (i, j, k, c, swiatlo = null) => {
+    const col = cab.levels[i].cols[j];
+    const poz = (col.podzial || []).map(Number).indexOf(k);
+    const q = { i, j, k, swiatlo, wys: ((c || {}).openings || []).map((o) => o.h) };
+    if (poz >= 0 && wnetrzePoziomu(col, poz) !== wnetrzePoziomu(col, poz + 1))
+      setScalPytanie({ ...q, nr: poz, dol: opisWnetrza(col, poz), gora: opisWnetrza(col, poz + 1),
+        dolPolki: wnetrzePoziomu(col, poz) !== "doors", goraPolki: wnetrzePoziomu(col, poz + 1) !== "doors" });
+    else scalWykonaj(q);
+  };
   /* Ustawienia frontu odcinka kolumny z podzialem — `col.segmenty[nr]` nad
      ustawieniami kolumny (null to wartosc: „auto” / bez klapy; undefined — jak kolumna). */
   const ustawOdcinek = (i, j, nr, patch) => editLevels((L) => {
@@ -18724,31 +18795,8 @@ export default function App() {
      w poziomie kolumny”): zmienia liczbe swiatel tylko miedzy granicami tego poziomu.
      Granice zostaja na miejscu — swiatla innych poziomow dostaja swoje obecne wymiary
      na stale, a swiatla tego poziomu ida na auto i dziela go rowno. */
-  const ustawPolkiPoziomuKolumny = (lv, c, nr, n) => editLevels((L) => {
-    const col = L[lv.i].cols[c.j];
-    const gr = (col.podzial || []).map(Number).sort((a, b) => a - b);
-    const st = [...(col.shelfTargets || [null])];
-    const lo = nr === 0 ? -1 : gr[nr - 1];
-    const hiOp = nr === gr.length ? st.length - 1 : gr[nr];
-    const m = hiOp - lo - 1;
-    const d = Math.max(0, Math.round(n)) - m;
-    if (!d) return;
-    // obecne swiatla na stale (poza tym poziomem)
-    const wym = st.map((v, k) => (k > lo && k <= hiOp ? null : Math.round(((c.openings || [])[k] || {}).h ?? num(v) ?? 0) || v));
-    let rury = (col.drazki || []).map(Number);
-    if (d > 0) {
-      wym.splice(hiOp + 1, 0, ...Array(d).fill(null));
-      col.podzial = gr.map((x) => (x >= hiOp ? x + d : x));
-      rury = rury.map((x) => (x > hiOp ? x + d : x));
-    } else {
-      const usun = -d;
-      wym.splice(hiOp - usun + 1, usun);
-      col.podzial = gr.map((x) => (x >= hiOp ? x - usun : x));
-      rury = rury.map((x) => (x > hiOp ? x - usun : x > hiOp - usun ? hiOp - usun : x));
-    }
-    col.shelfTargets = wym;
-    if (rury.length) col.drazki = [...new Set(rury)].sort((a, b) => a - b);
-  });
+  const ustawPolkiPoziomuKolumny = (lv, c, nr, n) => editLevels((L) =>
+    polkiWPoziomie(L[lv.i].cols[c.j], nr, n, (c.openings || []).map((o) => o.h)));
   /* Szuflady kolumny albo poziomu kolumny (uzytkownik 2026-10-24: poziom kolumny
      z pelna struktura jak cala kolumna) — `c` geometria kolumny / poziomu
      (`c.poziomy[nr]`), `rawCol` jej ustawienia, `jA` adres: „j” albo „js<nr>”. */
@@ -19182,8 +19230,12 @@ export default function App() {
   const addShelf = (i, j) =>
     editLevels((L) => L[i].cols[j].shelfTargets.push(null));
   // usuwa polke przy wskazanym swietle — dwa swiatla lacza sie w jedno
-  const removeShelfAt = (i, j, k) =>
-    editLevels((L) => {
+  const removeShelfAt = (i, j, k, cG = null) => {
+    // polka graniczna miedzy roznymi wnetrzami — jak „scal”, z pytaniem
+    const colR = cab.levels[i].cols[j], stR = colR.shelfTargets || [null];
+    const polkaR = Math.min(k, stR.length - 2);
+    if (stR.length > 1 && (colR.podzial || []).map(Number).includes(polkaR)) return scalPodzial(i, j, polkaR, cG, k);
+    return editLevels((L) => {
       const col = L[i].cols[j];
       const st = col.shelfTargets;
       if (st.length <= 1) return;
@@ -19195,6 +19247,7 @@ export default function App() {
         if (col.podzial) col.podzial = col.podzial.map((x) => (x > polka ? x - 1 : x));
       }
     });
+  };
 
   const toggleEdge = (name, key, cur) =>
     set({
@@ -21606,7 +21659,7 @@ export default function App() {
                                 <span className="w-12 shrink-0 text-right font-mono text-[11px]"
                                   style={{ color: o.h <= 0 ? ERRC : o.h < 50 ? WARNC : "#a8a29e" }}>{fmt(o.h)}</span>
                                 {c.openings.length > 1 && (
-                                  <MiniBtn onClick={() => removeShelfAt(lv.i, c.j, o.k)}
+                                  <MiniBtn onClick={() => removeShelfAt(lv.i, c.j, o.k, c)}
                                     title="Usuń półkę przy tym świetle">×</MiniBtn>
                                 )}
                                 {/* polka nad tym swiatlem -> granica poziomow (jedna kolumna: caly poziom;
@@ -21614,7 +21667,7 @@ export default function App() {
                                 {o.k < c.openings.length - 1 && (rawCol.podzial || []).map(Number).includes(o.k) ? (
                                   <span className="flex items-center gap-1" data-el="granica-frontow">
                                     <span className="text-[11px] text-teal-700">granica frontów</span>
-                                    <MiniBtn onClick={() => scalPodzial(lv.i, c.j, o.k)}
+                                    <MiniBtn onClick={() => scalPodzial(lv.i, c.j, o.k, c)}
                                       title="Front przechodzi przez tę półkę — półka zostaje półką, fronty nad i pod nią łączą się">scal</MiniBtn>
                                   </span>
                                 ) : (lv.cols.length > 1 || daSiePodzielic(lv)) && o.k < c.openings.length - 1 && (
@@ -23190,6 +23243,37 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* „scal” poziomow kolumny o roznym wnetrzu — ktory zostaje (uzytkownik 2026-10-28) */}
+      {scalPytanie && (() => {
+        const q = scalPytanie;
+        const zrob = (zostaw) => { scalWykonaj({ ...q, zostaw }); setScalPytanie(null); };
+        const przycisk = "rounded border border-teal-700 px-3 py-1.5 text-left text-sm text-teal-800 hover:bg-teal-50";
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4"
+            onClick={() => setScalPytanie(null)}>
+            <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-xl" data-okno="scal-poziomy"
+              onClick={(e) => e.stopPropagation()}>
+              <h3 className="mb-2 text-sm font-semibold text-stone-800">
+                {q.swiatlo != null ? "Usunąć półkę między" : "Scalić"} poziomy {q.nr + 1} i {q.nr + 2} kolumny {q.j + 1}?
+              </h3>
+              <p className="mb-3 text-xs text-stone-500">
+                Na dole {q.dol}, na górze {q.gora}. Po scaleniu zostaje jedno wnętrze — które?
+                {(q.dolPolki || q.goraPolki) && " Szuflady i blenda zajmą całą wysokość, więc półki z tego miejsca (także ta granica) znikną."}
+                {" "}Da się cofnąć przyciskiem Cofnij.
+              </p>
+              <div className="flex flex-col gap-2">
+                <button className={przycisk} onClick={() => zrob("dol")}>Zostaw dolny — {q.dol}</button>
+                <button className={przycisk} onClick={() => zrob("gora")}>Zostaw górny — {q.gora}</button>
+              </div>
+              <div className="mt-3 flex justify-end">
+                <button onClick={() => setScalPytanie(null)}
+                  className="rounded px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-100">Anuluj</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* usuwanie pomieszczenia — zawsze z pytaniem (uzytkownik 2026-09-29) */}
       {usuwanyPokoj && (() => {
