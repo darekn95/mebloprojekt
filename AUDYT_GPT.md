@@ -589,3 +589,127 @@ Sprawdzono niezmienione źródło `szafki.jsx`, blob `b4ebef6460072cc4d7d8aac0a7
 **Naprawa/odbiór:** oznaczyć parę pod blat w sposób jednoznaczny, również jej wariant narożny. Przenosić i usuwać oba jej elementy; sprawdzić dodanie poziomu, kolumny i powrót do wieńca. Dowody: `actions-test.mjs`, `candidates.json` (N109), `controls.json` (wariant zwykły).
 
 
+
+## Audyt 28.10.2026 — N110–N129
+
+20 dodatkowych, potwierdzonych przypadków. Źródło: `szafki.jsx`, blob `b4ebef6460072cc4d7d8aac0a752acb500996ac7`. Testy obliczeń wykonano na funkcjach tego źródła; JSX pominięto w module testowym, zachowując obliczenia i generowanie brył. N110 i N120 odtworzono również w interfejsie aplikacji. Pozostałe są testami funkcji produkcyjnych, geometrii i planów, nie deklaracją pełnego przeklikania UI ani certyfikacją okuć. PDF nie był przedmiotem tej rundy. Przypadki syntetyczne; projekt użytkownika przywrócono po testach. P2: błędny wynik funkcjonalny/produkcyjny; P3: mniejsza rozbieżność wymagająca poprawy. Dowody lokalne: `work/audit110/` (JSON i skrypty; nie są załącznikami do repozytorium).
+
+### N110 [P2] Przycisk naprawy kolizji DXS proponuje niedostępne NL 270
+
+- **Odtworzenie:** szafka 600×720×560, DXS NL300; przeszkoda szer.80, gł.280, wys.100, x=200, od tyłu 0, od dołu 100, bez maskownicy.
+- **Wynik:** uwaga proponuje „Zmień głębokość prowadnic do NL270”. Kliknięcie tworzy błąd „nie ma takiej długości w DXS-3D”; dopiero kolejna propozycja prowadzi do NL250. Potwierdzone w UI i handlerze.
+- **Przyczyna/poprawa:** kontrola przeszkody używa listy długości zawierającej 270, zamiast katalogu wybranego systemu. Naprawa ma od razu wybierać obsługiwane NL. To błąd generatora naprawy, nie ponowne zgłoszenie importu dowolnego NL. Dowody: `obstacle-dxs.mjs`, `N110.json`, `controls.json`.
+
+### N111 [P2] Fałszywa kolizja przeszkody znajdującej się pod skrzynką DXS
+
+- **Odtworzenie:** 600×720×560, DXS NL550; przeszkoda x=200..280, y=18..28, od tyłu 0, głębokość 280, bez maskownicy.
+- **Wynik:** aplikacja każe skrócić NL550 do270. Tymczasem bryły własnego modelu 3D nie przecinają przeszkody: bok skrzynki zaczyna się na y=37, dno na47; przeszkoda kończy się na28. Prostoliniowy wysuw nie zmienia tych wysokości.
+- **Poprawa:** sprawdzać rzeczywistą skrzynkę i prowadnice, nie pełny prostokąt frontu/kolumny. To sprzeczność własnych modeli, niezależna od ogólnego ostrzeżenia o braku zabudowy przeszkody. Dowód: `obstacles.json`, N111, lista przecięć pusta.
+
+### N112 [P2] Przegroda z innego poziomu usuwa potrzebny bok zabudowy przeszkody
+
+- **Odtworzenie:** 600×1200×560, dwa poziomy; dolny jedna kolumna, górny dwie. Przeszkoda dolna x=320..400, y=118..218, gł.80 przy plecach, maskownica automatyczna.
+- **Wynik:** górna przegroda x=291..309, y=609..1182 jest traktowana jako lewa granica dolnej przeszkody. Powstaje zabudowa L zamiast U i brak lewego boku. Brak komunikatu. Usunięcie wyłącznie górnej przegrody przywraca U i trzeci panel.
+- **Poprawa:** przy wyborze granic uwzględniać również zakres wysokości przegród. Dowody: `obstacles.json`, `controls.json:N112_control`.
+
+### N113 [P3] Zabudowa „do półki” ignoruje półkę rozdzielającą poziomy
+
+- **Odtworzenie:** 600×1200×560, przeszkoda y=118..218, maska „do półki”. Porównać jedną kolumnę ze zwykłą półką na y=591 oraz dwa poziomy z płytą rozdzielającą na tym samym y.
+- **Wynik:** w pierwszym przypadku maska dochodzi do591; w drugim `shelfAbove=null`, maska kończy się na218. Ta sama fizyczna płyta przestaje być rozpoznawana, ściany maski skracają się o373mm.
+- **Poprawa:** wyszukiwać również `sepShelves`, z kontrolą pokrycia przeszkody. Dowody: `control113.mjs`, `obstacles.json:N113`.
+
+### N114 [P2] Przeszkoda przecina płytę między poziomami bez odpowiedniej uwagi
+
+- **Odtworzenie:** 600×1200×560, dwa poziomy, płyta pozioma y=591..609; przeszkoda x=200..280, y=548..648, gł.80 przy plecach.
+- **Wynik:** przecięcie 80×18×80mm z płytą rozdzielającą. Jest ogólna uwaga o braku zabudowy, ale brak kolizji tej płyty i instrukcji wycięcia. Kontrola półek obejmuje zwykłe półki kolumn, pomija płyty konstrukcyjne.
+- **Poprawa:** objąć kontrolą przeszkód płyty rozdzielające i przegrody, wskazywać rzeczywisty element do zmiany/wycięcia. Dowód: `obstacles.json:N114`.
+
+### N115 [P2] Wiercenia poza płytą przy asymetrycznym osadzeniu dna i wieńca
+
+- **Odtworzenie:** 600×720×560, lewy koniec dna i wieńca między bokami, prawy na boku, płyta18.
+- **Wynik:** zamawiana długość dna/wieńca582, ale prawy konfirmat w planie ma591mm od lewego końca płyty: 9mm poza nią. Po uwzględnieniu początku płyty x=18 współrzędna powinna wynosić573. Brak komunikatu.
+- **Poprawa:** przeliczać globalne osie boków na lokalne współrzędne każdej płyty; nie stosować `W-t/2` bez odjęcia początku płyty. Dowód: `drill-candidates.json:N115`.
+
+### N116 [P2] Skrócenie wspornika fixa zostawia zawias poza wspornikiem
+
+- **Odtworzenie:** 600×720×560, lewy fix100, wspornik gł.100, zawias po lewej; dolne wzmocnienie frontowe wys.100 na głębokości100.
+- **Wynik:** wspornik jest skrócony do y=118..702, wys.584. Dolny zawias pozostaje na y=103, czyli15mm poniżej wspornika. Plan podaje osie85 i599 od dołu wspornika, choć599 przekracza584. Nadal zakłada mocowanie do dna mimo przerwy100mm. Brak uwag.
+- **Poprawa:** po skróceniu przeliczyć osie, mocowania i dostępne podłoże; jeśli zawias nie mieści się, zgłosić niemożliwy montaż. To następstwo skracania, odrębne od dawnego samego przecinania wspornika z listwą. Dowód: `drill-candidates.json:N116`.
+
+### N117 [P2] Wkręty 4×30 przebijają cienki front DXS
+
+- **Odtworzenie:** DXS, drewniane czoło skrzynki16mm, osobny front12mm.
+- **Wynik:** plan i zamówienie przewidują cztery wkręty4×30 do połączenia tych płyt. Łącznie materiał ma28mm, wkręt przekracza go o2mm. Ogólne ostrzeżenie o niestandardowej grubości nie wskazuje tego problemu ani nie zmienia wkrętów.
+- **Poprawa:** dobrać długość do faktycznych dwóch płyt albo zgłosić konkretny błąd montażu. Dla kontrolnych18+18 ten konkretny problem nie występuje. Dowód: `N117.json`, `screws.mjs`.
+
+### N118 [P2] Wyłączenie obrzeża zmienia rozpoznawanie wspólnego dna
+
+- **Odtworzenie:** dwie szafki600×720×500, odstęp20, dno pod bokami, wspólne dno. Wyłączyć obrzeże b1 dna, nie zmieniając połączeń.
+- **Wynik:** zamiast wspólnego dna1220 funkcja `runBottom` zwraca „nie każda szafka ma dno pod bokami”. Wybór oklejania wpływa na strukturę zamówienia.
+- **Przyczyna/poprawa:** połączenie jest odgadywane z `d.edges.b1/b2`; sprawdzać rzeczywiste `botL/botR`, niezależnie od obrzeży. Dowód: `bottom.json:edgeOff`.
+
+### N119 [P2] Zamówienie zawiera wspólne dno, 3D pokazuje dwie płyty i szparę
+
+- **Odtworzenie:** dwie szafki600×720×500, odstęp20, wspólne dno pod bokami.
+- **Wynik:** `projectParts` zamawia jedną płytę1220×500×18 i usuwa indywidualne dna. `Assembly3D` generuje dwa dna600×500×18 w x=0..600 i620..1220. W środku pozostaje rzeczywista szpara20mm; brak bryły1220.
+- **Poprawa:** generować wspólne dno 3D z tego samego planu `runBottom` co formatki, z uwzględnieniem podziałów. Dowód: `bottom.json` (zamówienie i bryły), `N119-projekt.json`.
+
+### N120 [P2] Zapis i wczytanie zmienia prześwit 0 na500mm
+
+- **Odtworzenie:** ciąg dolny H720, górny powiązany z nim; w UI ustawić prześwit nad blatem0, zapisać projekt i wczytać zapis.
+- **Wynik:** zapis zawiera `clearance:0`, po imporcie pole pokazuje500. W modelu kontrolnym wysokość montażu zmienia się z720 na1220. Potwierdzone pełnym zapisem/wczytaniem w UI, mimo że pole dopuszcza0.
+- **Poprawa:** `migrateRun` ma zachowywać skończone wartości >=0; domyślne500 tylko dla braku/niepoprawnej wartości, nie dla zera. Dowody: `rest-candidates.json:N120`, zapis kontrolny pobrany z aplikacji.
+
+### N121 [P3] Plan frezuje rowki HDF mimo usunięcia wszystkich pleców kolumnami
+
+- **Odtworzenie:** 600×720×560, globalnie plecy HDF frezowane16×3, jedyna kolumna ma nadpisanie pleców „brak”.
+- **Wynik:** w zamówieniu nie ma pleców, lecz plan nadal frezuje rowki HDF na obu bokach, dnie i wieńcu. Sama uwaga mówi, że frez obowiązuje przy jednym pełnym arkuszu; plan jej nie respektuje.
+- **Poprawa:** generować obróbkę na podstawie faktycznych pleców po nadpisaniach, również dla układów mieszanych. Dowód: `rest-candidates.json:N121`.
+
+### N122 [P2] Nóżka zostaje pod narożnikiem usuniętym pełnym wycięciem
+
+- **Odtworzenie:** 600×720×560, nóżki100, pełne wycięcie tylnego lewego narożnika100×100, maska włączona, bez półek i drzwi.
+- **Wynik:** tylna lewa nóżka zajmuje x=40..80, z=480..520. Cała znajduje się w obszarze dna do ręcznego wycięcia x=0..100, z=460..560. Po wykonaniu wymaganego pełnego wycięcia nie ma płyty do jej przykręcenia; brak odpowiedniej uwagi. Prostokątne formatki są tu przewidziane do ręcznego cięcia — nie twierdzę, że renderer już wykonuje to cięcie.
+- **Poprawa:** przenieść podporę lub wymagać rozwiązania podparcia przy kolizji z wycięciem. Dowód: `rest-candidates.json:N122`, bryły nogi i obszar wycięcia.
+
+### N123 [P2] Liczba zawiasów ramienia liczona z grubości innego frontu
+
+- **Odtworzenie:** prawidłowy narożnik L, H900, front właściciela16mm, sąsiada18mm; ramię zgodnie z regułą pobiera materiał sąsiada.
+- **Wynik:** front ramienia560×894×18 potrzebuje według własnego `autoHinges` trzech zawiasów, a `cornerArmParts` zamawia dwa, bo używa16mm właściciela. Dla kontrolnego H720 obie drogi dają dwa.
+- **Poprawa:** liczbę i plan zawiasów ramienia oprzeć na rzeczywistej płycie `frontRamienia(a)`, nie `a.cab.geo.tf`. Dowody: `corner-candidates.json:N123`, `extra-controls.json`.
+
+### N124 [P3] Zerowe wystawanie uchwytu usuwa uchwyt wpuszczany z zamówienia ramienia
+
+- **Odtworzenie:** otwierane ramię L, uchwyty włączone, nazwa „Uchwyt wpuszczany”, wystawanie0 (opis pola dopuszcza uchwyt wpuszczany/muszelkę).
+- **Wynik:** zwykły front zachowuje uchwyt w zamówieniu, ramię nie ma żadnego. Przy wystawaniu20 uchwyt ramienia wraca.
+- **Poprawa:** warunek `handleOutOf(cab)>0` nie może oznaczać obecności uchwytu. Oddzielić obecność od jego obrysu kolizyjnego. To konkretny wariant uchwytu wpuszczanego, nie ogólny dawny brak wszystkich uchwytów ramienia. Dowody: `corner-candidates.json`, `extra-controls.json`.
+
+### N125 [P2] Własna szerokość wzmocnienia ramienia wychodzi pod podłogę
+
+- **Odtworzenie:** ramię L H900, własne wzmocnienie przednie1000, bez wieńca/pod blatem.
+- **Wynik:** zamawiana płyta656×1000×18, bryła y=-100..900. Brak konkretnego błędu przekroczenia obrysu ramienia; ogólne uwagi materiałowe tego nie zastępują.
+- **Poprawa:** walidować własne szerokości wzmocnień ramienia wobec dostępnego wymiaru i pozycji, analogicznie do głównego korpusu. Kontrolne60 mieści się. Dowody: `corner-candidates.json`, `extra-controls.json:N125`.
+
+### N126 [P3] Półka ramienia zależy od grubości wyłączonych pleców
+
+- **Odtworzenie:** L, obie szafki bez pleców, głębokość ramienia560, wspornik18; zmienić wyłącznie nieużywaną grubość materiału HDF3 na4.
+- **Wynik:** `armPlan.tb` pozostaje0, brak pleców w zamówieniu, ale głębokość półki zmienia się539→538. Odejmowana jest grubość nieistniejących pleców.
+- **Poprawa:** respektować prawidłowe `tb=0`; fallback do `geo.tb` nie może włączać wyłączonego materiału. Dowód: `controls.json:N126_control`.
+
+### N127 [P2] Model kolizji DXS przyjmuje inny wysuw niż model3D
+
+- **Odtworzenie:** DXS NL550, bez uchwytu. Porównać `wysuwSzuflady` i ruch generowany przez `swingBodies`.
+- **Wynik:** 3D używa520mm według tabeli DXS, model kolizji550. Kontrolna przeszkoda10–20mm za rzeczywistym zasięgiem daje20mm kolizji, a przy tym samym teście z zasięgiem520 wynik to0.
+- **Poprawa:** wspólna funkcja rzeczywistego wysuwu dla wizualizacji i kolizji, z osobnym uwzględnieniem uchwytów. To test funkcji modelu, nie deklaracja ręcznego sprawdzenia wszystkich ścian w UI. Dowód: `controls.json:N127`.
+
+### N128 [P2] Za wysoki tył DXS przecina wieniec, komunikat nie opisuje niemożliwego montażu
+
+- **Odtworzenie:** 600×300×560, DXS bok80, ręczny tył260.
+- **Wynik:** tył jest na y=47..307, wieniec282..300; przecięcie brył515×18×18mm, tył wystaje7mm ponad korpus. Jest tylko ostrzeżenie, że tył260 wystaje190 ponad boki, z propozycją70; brak konkretnego błędu kolizji z wieńcem.
+- **Poprawa:** ograniczać ręczną wysokość tyłu DXS rzeczywistą przestrzenią skrzynki/korpusu, nie jedynie porównaniem z bokiem. Dowód: `controls.json:N128`.
+
+### N129 [P2] Automatycznie przeniesiony podnośnik klapy nie aktualizuje strony tip-on i modelu
+
+- **Odtworzenie:** L H600, klapa w górę, jeden podnośnik, zadana strona lewa, brak lewego boku przy rogu, otwieranie tip-on bez uchwytu, wieniec między bokami.
+- **Wynik:** plan poprawnie przenosi podnośnik na „Bok prawy” i mocowanie frontu28 od prawej. Model klapy nadal mówi „lewa”; tip-on pozostaje po prawej, czyli po rzeczywistej stronie podnośnika zamiast przeciwnej. Brak uwag. Nie jest to wiercenie w nieistniejącym lewym boku — ten wcześniejszy trop został odrzucony podczas kontroli.
+- **Poprawa:** wyznaczać efektywną stronę raz i przekazywać ją do planu, modelu, UI oraz wyboru strony tip-on. Dowód: `controls.json:N129`, `N129-projekt.json` (wariant z tip-on).
