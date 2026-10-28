@@ -193,10 +193,17 @@ if (await page.getByRole('button', { name: przycisk, exact: true }).count()) {
   const z = await zapis();
   ok('po kliknięciu bok zapisany i błąd znika', z.items[0].cab.levels[0].cols[0].drawers[0].h === boki[0] && !/szuflada 1: skrzynka z bokiem/.test(await uwagi()), String(z.items[0].cab.levels[0].cols[0].drawers[0].h));
 }
+/* Trzy szuflady: nad dolna do szuflady wyzej jest 222 mm, wiec tyl 230 (257 nad spodem
+   prowadnicy) wchodzi w nia — blad, nie samo ostrzezenie (audyt GPT N128). */
 await seed(projekt([[szafka('T', { levels: [{ h: null, cols: [szuf([DX({ backHeight: 230 }), DX(), DX()])] }] })]]));
 u = await uwagi();
-ok('tył 230 nad boki 200: ostrzeżenie i przycisk „Ustaw tył na 190 mm”', /szuflada 1: tył 230 mm wystaje 40 mm ponad boki skrzynki/.test(u)
+ok('tył 230 pod szufladą wyżej (222 mm): błąd „wchodzi w nie” i przycisk „Ustaw tył na 190 mm”', /szuflada 1: tył 230 mm sięga 257 mm nad spód prowadnicy, a do tego, co jest wyżej \(front szuflady wyżej\), jest 222 mm — wchodzi w nie/.test(u)
   && await page.getByRole('button', { name: 'Ustaw tył na 190 mm', exact: true }).count() === 1, u.split('\n').filter((l) => /tył/.test(l)).join(' / ').slice(0, 200));
+// jedna szuflada z bokiem 200: nad nia miejsca dosc — tyl 230 tylko wystaje ponad boki
+await seed(projekt([[szafka('T1', { levels: [{ h: null, cols: [szuf([DX({ h: 200, backHeight: 230 })])] }] })]]));
+u = await uwagi();
+ok('tył 230 nad boki 200 (jedna szuflada): ostrzeżenie i przycisk „Ustaw tył na 190 mm”', /szuflada 1: tył 230 mm wystaje 40 mm ponad boki skrzynki/.test(u)
+  && !/tył 230 mm sięga/.test(u) && await page.getByRole('button', { name: 'Ustaw tył na 190 mm', exact: true }).count() === 1, u.split('\n').filter((l) => /tył/.test(l)).join(' / ').slice(0, 200));
 await seed(projekt([[szafka('N', { levels: [{ h: null, cols: [szuf([DX({ nl: 270 }), DX(), DX()])] }] })]]));
 u = await uwagi();
 ok('NL 270 (tylko V-BOX): błąd „nie ma takiej długości w DXS-3D” z przyciskiem NL 250', /szuflada 1: prowadnice NL 270 — nie ma takiej długości w DXS-3D/.test(u)
