@@ -713,3 +713,67 @@ Sprawdzono niezmienione źródło `szafki.jsx`, blob `b4ebef6460072cc4d7d8aac0a7
 - **Odtworzenie:** L H600, klapa w górę, jeden podnośnik, zadana strona lewa, brak lewego boku przy rogu, otwieranie tip-on bez uchwytu, wieniec między bokami.
 - **Wynik:** plan poprawnie przenosi podnośnik na „Bok prawy” i mocowanie frontu28 od prawej. Model klapy nadal mówi „lewa”; tip-on pozostaje po prawej, czyli po rzeczywistej stronie podnośnika zamiast przeciwnej. Brak uwag. Nie jest to wiercenie w nieistniejącym lewym boku — ten wcześniejszy trop został odrzucony podczas kontroli.
 - **Poprawa:** wyznaczać efektywną stronę raz i przekazywać ją do planu, modelu, UI oraz wyboru strony tip-on. Dowód: `controls.json:N129`, `N129-projekt.json` (wariant z tip-on).
+
+## Audyt 28.10.2026 — N130–N139
+
+Kolejne 10 odrębnych przypadków, sprawdzonych na funkcjach źródła `szafki.jsx`, blob `b4ebef6460072cc4d7d8aac0a752acb500996ac7` (źródło nadal niezmienione). Zastosowano syntetyczne projekty; przypadki kontrolne i przecięcia brył opisano poniżej. N130 potwierdzono również kliknięciem w UI. Pozostałe to testy obliczeń, planów i brył produkcyjnych, nie pełne przeklikanie wszystkich widoków. 15 ukierunkowanych asercji kontrolnych przeszło (`checks.json`); sprawdzenia przecięć zapisano w `verified.json`. Dowody lokalne: `work/audit130/`, bez publikowania prywatnego projektu. Bieżący projekt użytkownika przywrócono. Brak zmian kodu aplikacji, brak ponownej oceny PDF.
+
+### N130 [P3] Przyciski oklejania formatek ramienia nie zmieniają wyniku
+
+- **Odtworzenie:** szafka L, w tabeli „Formatki” wiersz „Front ramienia”, kliknąć włączone obrzeże „przód”. Analogicznie „Bok ramienia”.
+- **Wynik:** `edgeOverrides` może zawierać wszystkie cztery wartości `false`, lecz `cornerArmParts` nadal zwraca komplet obrzeży frontu i domyślne obrzeża boku. W UI po kliknięciu przycisk nadal ma tytuł „Oklejona — kliknij, aby wyłączyć”. Nie można w ten sposób zmienić zamówienia ani kosztu obrzeża ramienia.
+- **Przyczyna/poprawa:** `computeGeo` stosuje nadpisania wyłącznie do własnych płyt; formatki ramienia są dodawane później przez `formatkiSzafki`, a `cornerArmParts` nie stosuje nadpisań. Obsłużyć je przy generowaniu płyt ramienia, zachowując regułę braku obrzeży HDF. Dawne N6 dotyczyło wstawki, której odrębna funkcja już stosuje nadpisania; tu nadal nie działa ramię. Dowody: `edge.json`, `candidates.json:edges`, test UI.
+
+### N131 [P2] Ramię ignoruje własne mocowanie półek kolumny i granicy
+
+- **Odtworzenie:** L, jedna półka w kolumnie przy ramieniu; globalnie kołki, w tej kolumnie wybrać konfirmaty.
+- **Wynik:** geometria półki korpusu ma `mount=confirmat`, ale zamówienie ramienia daje cztery kołki, a plan „Bok ramienia” nadal wierci kołki. Zmiana globalnego ustawienia na konfirmaty dopiero przełącza ramię na właściwe złącza. Zatem ustawienie lokalne nie obejmuje powiązanej półki ramienia.
+- **Przyczyna/poprawa:** `armShelfYs` gubi informację o mocowaniu, a `cornerArmParts` i `wierceniaDodatkowe` odczytują tylko `mocowaniePolek(cab)`. Przekazywać dla każdej półki wysokość i efektywne `mount`, w tym nadpisanie granicy poziomu kolumny; dobierać okucia i wiercenia osobno dla każdej. Dowody: `mount.json`, `candidates.json:mounts`, kontrola globalna w `checks.json`.
+
+### N132 [P2] Przy dwóch poziomach głównych znika górny front ramienia
+
+- **Odtworzenie:** L H900, dwa poziomy główne, w każdym jedne drzwi; korpus ma po uwzględnieniu narożnika poprawne fronty szer.275: dolny y=3..457, górny461..897.
+- **Wynik:** zamówienie zawiera tylko jeden „Front ramienia” 560×454. Model 3D również tworzy tylko bryłę y=3..457; górne otwarcie ramienia pozostaje niezamknięte. Nie powstaje ani drugi front, ani jeden pełny front obejmujący całość.
+- **Przyczyna/poprawa:** części i widoki pobierają pierwsze `geo.doors.find(...)` jako wysokość całego ramienia. Jawnie zaplanować fronty ramienia dla wielu pasm albo jeden pełny front z własnym zakresem. Przy nieobsługiwanym wariancie potrzebny jednoznaczny komunikat przed zamówieniem. Dowody: `frontlevels.json`, `verified.json:frontLevelsCorrect` (poprawne fronty korpusu, formatka i rzeczywista bryła ramienia).
+
+### N133 [P2] Wspólne dno nie uwzględnia wysunięcia jednej szafki
+
+- **Odtworzenie:** dwie szafki600×720×500, odstęp20, wspólne dno pod bokami. Drugą wysunąć z lica o100mm, pozostawiając jednakowe głębokości i materiał.
+- **Wynik:** `projectLayout` zachowuje wysunięcie100, lecz `runBottom` nadal akceptuje wspólne prostokątne dno1220×500 i obejmuje nim obie szafki. Dwa przesunięte względem siebie obrysy głębokości500 wymagają zakresu600mm; ta płyta nie może stanowić pełnego dna obu korpusów. Własne dna są usuwane z zamówienia.
+- **Przyczyna/poprawa:** walidacja sprawdza długości/głębokości płyt i materiał, pomija ich rzeczywiste położenie w głębokości. Albo generować odpowiedni obrys z docinaniem, albo wyłączyć wspólne dno z konkretną przyczyną i zachować indywidualne. To odrębne od N119, które dotyczyło rysowania dwóch płyt mimo poprawnego wspólnego zamówienia. Dowody: `offset.json`, `candidates.json:offset`; kontrolny brak wysunięcia z poprzedniego testu N119.
+
+### N134 [P2] Kątownik narożnika przecina dno i cokół w obrysie
+
+- **Odtworzenie:** L H900, płyta18, cokół100 w obrysie (`mode=inbody`), dno między bokami, wariant ze wspornikami.
+- **Wynik:** dno prawidłowo podnosi się do y=100..118, ale wewnętrzne płyty kątownika nadal stoją od18 do882 i mają864mm wysokości. Jedna przecina dno korpusu na18×18×60mm, druga dno ramienia na60×18×18mm oraz cokół na60×82×18mm. Potwierdzone przecięciem rzeczywistych brył `Assembly3D`, nie samą oceną obrazka.
+- **Przyczyna/poprawa:** wysokość i początek wewnętrznego kątownika nadal wynikają z `H-2*t` oraz `y0+t`, zamiast rzeczywistego światła nad dnem. Przeliczyć formatki, pozycję brył i mocowania od `bottomY`; sprawdzić też wariant bez wieńca. Dawne N56 podniosło dno i dodało cokół, lecz nie dostosowało tego kątownika. Dowody: `raisedBack.json`, `verified.json:raisedHits`.
+
+### N135 [P2] Kontrola kolizji traktuje fronty „Skręcone 90°” jak dwa niezależne skrzydła
+
+- **Odtworzenie:** prawidłowy L, wybrać „Skręcone 90°”; porównać ruch zabudowy 3D z `swingBodies` używanym przez `openingMsgs`.
+- **Wynik:** renderer obraca sztywny zespół wokół zawiasu korpusu, ale model kolizji nadal tworzy dwa osobne sektory z osiami (1224,898) i(600,579) w pokoju testowym. Ramię ma w nim własną nieruchomą oś oddaloną o ok.701mm, choć w rzeczywistym sztywnym zespole ten punkt porusza się wraz z frontem korpusu. Ocena dostępnego otwarcia opiera się na innym ruchu niż prezentowane 3D.
+- **Przyczyna/poprawa:** gałąź ramienia w `swingBodies` rozróżnia fix, lecz nie modeluje skręconego zespołu. Badać oba prostokąty obracane wokół wspólnej osi. Dawne N54 naprawiło obrót w rendererze `poPlace`; ten odrębny model kontroli pozostał niespójny. Nie przedstawiam tego jako ponownego błędu samej animacji ani jako zweryfikowanego konkretnego kąta zderzenia z sąsiadem. Dowody: `rigid.json`, `more.json:rigid`, `checks.json`.
+
+### N136 [P2] Otwór pod kołek półki ramienia może wypaść poza bokiem
+
+- **Odtworzenie:** głębokość korpusu narożnego560, sąsiedni ciąg/ramię o głębokości korpusu200 (203 z HDF); półka przy ramieniu, kołki250mm od przodu i50 od tyłu.
+- **Wynik:** półka ramienia ma182mm głębokości, bok ramienia200. Plan każe wiercić268 i150mm od przedniej krawędzi boku. Pierwszy otwór leży68mm poza płytą. Walidacja kołków korpusu przechodzi, ponieważ jego półka jest znacznie głębsza. Inne ogólne uwagi o froncie/materiale nie wskazują błędnego wiercenia ramienia.
+- **Poprawa:** sprawdzać ustawienia kołków również na rzeczywistych półkach i bokach ramienia. Kontrolne50/50 daje poprawne68 i150. Dawne N16 dotyczyło kontroli zwykłej półki; dodatkowy plan ramienia nadal ją omija. Dowody: `shallowpins.json`, `more.json:shallowpins`, `checks.json`.
+
+### N137 [P2] Dwie kolumny dublują wzmocnienia ramienia w tym samym miejscu
+
+- **Odtworzenie:** narożny korpus z dwiema kolumnami na najwyższym poziomie, zastosować parę wzmocnień pod blat zamiast wieńca. W kolumnie schowanej za narożnikiem można ustawić brak drzwi, aby uniknąć niezależnego błędu szerokości frontu.
+- **Wynik:** ramię dostaje cztery płyty zamiast dwóch: po dwa identyczne wzmocnienia656×60 oraz1143×60. Każda para ma dokładnie te same współrzędne `u0/u1/v0/v1/wys`, więc płyty nakładają się całkowicie. Zamówienie dodaje również osiem zbędnych wkrętów (16 do czterech wzmocnień zamiast8 do dwóch).
+- **Przyczyna/poprawa:** `armPlan` spłaszcza wzmocnienia wszystkich kolumn i każde przedłuża przez całe ramię. Wybrać właściwe styki/kolumnę i usuwać identyczne fizyczne płyty; nie sumować ich jako oddzielnych. Kontrolna jedna kolumna tworzy prawidłowo dwie. Dowody: `duplicaterails.json`, `duplicaterails-result.json`, `verified.json:railControl`, `checks.json`.
+
+### N138 [P2] Plecy ramienia są zamawiane bez mocowań
+
+- **Odtworzenie:** standardowy L z HDF przybijanym, H900, ramię640.
+- **Wynik:** „Plecy ramienia” mają1197×898mm. `cornerArmParts.hardware` nie zawiera żadnych zszywek/gwoździków do tej płyty. Korpus liczy swoje36szt. tylko z własnego obwodu900×900; zamówienie projektu nie dodaje mocowań pleców ramienia. Według stosowanej w aplikacji reguły co100mm sama ta dodatkowa płyta wymaga ok.42szt.
+- **Kontrola/poprawa:** wydłużenie ramienia do840 zwiększa plecy do1397×898, a liczba mocowań wciąż pozostaje zerowa. Doliczać mocowania od rzeczywistych pleców ramienia; dla pełnej płyty odrębnie właściwe wkręty, dla braku pleców zero. Nie powielać mocowań korpusu. Dawne N81 dotyczyło nadpisań pleców kolumn, nie dodatkowej płyty ramienia. Dowody: `last.json:armBack`, `checks.json`.
+
+### N139 [P2] Szuflady w korpusie L nie są zwężane do dostępnego frontu i przecinają kątownik
+
+- **Odtworzenie:** L900×900×560 z ramieniem640; zamienić jedyną kolumnę korpusu na DXS, NL400, bok80.
+- **Wynik:** przed narożnikiem dostępne275mm lica, ale front szuflady ma896mm, skrzynka jest liczona dla światła864. Bryła zamkniętego frontu przecina maskownicę na16×894×60mm i wewnętrzny kątownik na16×864×18mm. Zamówienie zachowuje te niepasujące wymiary.
+- **Uwagi/poprawa:** pojawia się ogólne ostrzeżenie o froncie sięgającym poza lico, lecz proponuje zmianę na jedne drzwi275, zamiast rozwiązania szuflady. Nie twierdzę, że aplikacja całkiem milczy. Obsłużyć rzeczywistą komorę z prowadnicami/wspornikiem przy ograniczonym licu albo jednoznacznie zablokować ten wariant jako niemożliwy do montażu. Kontrolne drzwi tej samej szafki są przycinane do275 w geometrii z kontekstem narożnika; ścieżka szuflad tego nie robi. Dowody: `cornerdrawer.json`, `last.json:drawerCorner`, `verified.json:drawerHits`.
