@@ -1,5 +1,7 @@
 # Audyt GPT — pozostałe uwagi do poprawy
 
+> **Aktualny status po reteście 28.10.2026:** N69–N139 sprawdzone ponownie: 67 wcześniejszych problemów nie odtworzono; N117, N122, N132 i N139 mają walidację, ale wymagają działania opisanego w sekcji Retest 28.10.2026. Starsze opisy poniżej są historią zgłoszeń, nie listą nadal aktywnych usterek. N140–N149 i PDF-1 nie były przedmiotem tego retestu.
+
 Aktualizacja: 21.10.2026. Lista obejmuje potwierdzone uwagi pozostałe po reteście aplikacji i PDF z 21.10.2026, godz. 14:37. Naprawione zgłoszenia usunięto; ich opisy pozostają w historii Git.
 
 ## PDF-1 [P3] Drobne wymiary i podpisy na wydruku A4
@@ -842,3 +844,42 @@ Dziesięć kolejnych odrębnych przypadków. Źródło `szafki.jsx`, blob `b4ebe
 - **Odtworzenie:** wisząca600×1200×560, dwa poziomy, tylne lewe wycięcie100×100 tylko w górnym poziomie, maska włączona, zawieszki zawsze.
 - **Wynik:** obszar wycięcia obejmuje y=609..1182 oraz100mm od tyłu przy lewym boku. Plan nadal mocuje lewą zawieszkę górną krawędzią na1182 i tylną10mm od tyłu boku. Zgodnie z wymiarami zawieszki zapisanymi w kodzie57,2×37,5×17,4 jej obrys pod górną krawędzią mieści się w obszarze przeznaczonym na przeszkodę/wycięcie. Mocowanie ma więc wypaść w usuniętym miejscu; zamówienie nadal zawiera obie zawieszki, bez uwag. Prostokątna formatka boku nie oznacza, że po wykonaniu przewidzianego wycięcia pozostaje tam materiał.
 - **Poprawa:** sprawdzać rzeczywisty obrys i płytę montażową zawieszki względem wycięć/zabudów, wyznaczać alternatywne podparcie lub zgłaszać brak możliwości montażu. Kontrolne przeniesienie wycięcia do dolnego poziomu usuwa konflikt z górną zawieszką. To inny element i plan niż N122 o nóżce pod pełnym dolnym wycięciem. Dowody: `hangerCut.json`, `more.json:hangerCut`, `verified.json:hangerControl`.
+
+## Retest 28.10.2026 — aktualny status N69–N139
+
+**Wersja:** `szafki.jsx`, blob `1a94edbb943fdf6f94c42fc324bf357236aff71d` (poprzednio `b4ebef6460072cc4d7d8aac0a752acb500996ac7`). Ponowiono 71 przypadków N69–N139 na zapisanych konfiguracjach odtworzeniowych, funkcjach produkcyjnych, planach i bryłach. To kontrola tych konkretnych usterek, nie gwarancja wszystkich kombinacji ani pełny test wszystkich widoków/PDF. Po odświeżeniu aplikacji dodatkowo sprawdzono w UI N85, N101, N102, N107, N120 i N130. Projekt użytkownika zabezpieczono i przywrócono.
+
+**Wynik:** w 67 przypadkach wcześniejszy problem nie wystąpił. Cztery otrzymały właściwą walidację, lecz nie automatyczną poprawę geometrii/zamówienia. N140–N149 i PDF-1 nie należały do tego retestu; ich status pozostaje bez zmian.
+
+| Zakres | Wynik |
+|---|---|
+| N69–N87 | wcześniejszych usterek nie odtworzono; sprawdzone obliczenia, plany/bryły, a opis kreatora także w UI |
+| N88–N99 | poprawione w sprawdzonych przypadkach: wybór płyt przy scalaniu, rury, rozkrój, migracja resztek, dopasowanie półek/frontów i głębokości |
+| N100–N109 | poprawione; testy akcji oraz UI koloru wzmocnienia, fixu i kreatora266/266mm |
+| N110–N116 | poprawione: NL, kolizje przeszkód, zabudowy, osie wierceń i kontrola wspornika |
+| N117 | **wykrywane błędem; nadal trzeba dobrać krótszy wkręt lub zmienić płyty** |
+| N118–N121 | poprawione: wspólne dno i bryła1220, import0, brak niepotrzebnego frezowania |
+| N122 | **ostrzeżenie; nadal trzeba ręcznie przestawić nóżkę lub zapewnić inne podparcie** |
+| N123–N131 | poprawione w odtworzonych przypadkach, w tym zawiasy, uchwyt, wysuw, tył DXS, tip-on, obrzeża i mocowania półek |
+| N132 | **wykrywane błędem; kilka frontów ramienia nadal nie jest generowane** |
+| N133–N138 | poprawione: rozdzielenie den, kątownik nad cokołem, sztywny ruch, kołki, liczba wzmocnień i mocowania pleców |
+| N139 | **wykrywane błędem; szuflada przy otwartym boku ramienia nadal nie jest obsługiwana konstrukcyjnie** |
+
+### Cztery przypadki wymagające działania mimo dodanej walidacji
+
+- **N117:** przy przodzie skrzynki16 i froncie12 nadal wskazany jest wkręt30, ale teraz występuje jednoznaczny błąd, że przebije28mm materiału. Jest rada krótszego wkrętu lub grubszej płyty. Naprawiono brak kontroli, nie automatyczny dobór pozycji zakupu. Przed zamówieniem trzeba dobrać rozwiązanie; obsługa długości wymaga decyzji.
+- **N122:** ostrzeżenie wskazuje nóżkę40/40 i wycięcie100/100 oraz radzi przestawienie/podparcie. Sama nóżka pozostaje na dawnym miejscu w modelu. Konfiguracja wymaga ręcznej korekty przed montażem.
+- **N132:** jest błąd z zakresami frontów3–457 i461–897 oraz opisem brakującego zamknięcia ramienia. Nadal zamawiany i rysowany jest tylko jeden front454mm. Należy zastosować jeden poziom frontów lub zaprojektować ramię ręcznie. Pełna obsługa kilku frontów wymaga dalszej implementacji/decyzji.
+- **N139:** jest błąd o braku boku pod prowadnicę i dostępnym licu275mm, z radą drzwi lub przeniesienia szuflad. Nie powstaje automatycznie właściwa komora/wspornik; konfiguracja może nadal zawierać wcześniejsze formatki szuflady. Nie oznacza to, że ten wariant da się już zmontować. Błąd walidacji nie jest równoznaczny z techniczną blokadą eksportu.
+
+### Wybrane wyniki kontroli
+
+- N69: blat693mm ma zakres-593..100 przy różnicy odstępu ściany100. N70/N71: rzeczywiste grubości odpowiadają płytom12/18. N72–N76: oczekiwane kontrole obrysu, odsunięcia pleców, mocowania amortyzatora, rozstawu kołków i skrócenie wspornika. N77–N81: prawidłowe ilości listew, wysokość/materiał własnego blatu, warianty luster i mocowania pleców.
+- N82/N83/N87: są błędy niemożliwych wydłużeń/mocowań. N84: dwie klapy mają osobne plany z różnymi osiami. N85: kreator opisuje poziomy tej kolumny, inne bez zmian. N86: scalenie zachowuje tip-on i stronę zawiasów dolnego poziomu.
+- N88: wykrywane są różne płyty; jawny wybór wzorca drugiej szafki daje jej materiał. N89/N90: wykrywana kolizja rury, zachowany plan zakupu/cięcia. N91/N96: zachowana granica frontów i minimum światła. N92/N93: właściwe odjęcie formatek oraz statystyki resztki. N94: stara resztka otrzymuje matId i nadal jest używana po dopisaniu grubości do etykiety. N95: migracja rozdziela jednakowe nazwy własnych płyt. N97/N108: skończone wysokości i zgodna suma frontów. N98/N99: poprawna głębokość i obsługa dużego własnego arkusza.
+- N100/N103–N106/N109: ponowiono kolizję wzmocnienia i rzeczywiste funkcje akcji dotyczące segmentów, rury, zawiasów, siły podnośnika i pary pod blat. N101: w SVG wzmocnienie ma kolor korpusu biały #e8e6e1 zamiast czarnych półek. N102: oba obrazy fixu680mm są na x542; front nakładany714mm na x560 jest zwykłymi drzwiami. N107: UI pokazuje obie klapy266mm jako mieszczące się.
+- N110–N116: NL250 zamiast270, brak fałszywej kolizji pod skrzynką, maska U, zabudowa do591, uwaga o przecięciu przegrody, wiercenie573 zamiast591 oraz błąd zawiasu poza wspornikiem. N118/N119: obrzeże nie zmienia wspólnego dna, w 3D jest pas1220. N120: migracja i UI zachowują0. N121: brak rowków przy zdjętych plecach.
+- N123–N131: zawiasy z faktycznej płyty frontu ramienia, uchwyt wpuszczany w zamówieniu, kontrola obrysu wzmocnienia, brak zależności od wyłączonego HDF, zgodny wysuw520, błąd zbyt wysokiego tyłu, poprawna strona podnośnika/tip-on, działające obrzeże w UI oraz konfirmaty ramienia zgodne z kolumną.
+- N133–N138: różne wysunięcia rozdzielają dna; kątowniki zaczynają się nad dnem118; skręcone fronty mają jeden model z punktami sztywnego zespołu; błędne otwory kołków są wykrywane; dwa wzmocnienia zamiast czterech; plecy ramienia mają dodatkowe mocowania.
+
+**Dowody lokalne:** `work/retest139/source.jsx`, `N69-N87.json`, `N88-N109.json`, `N110-N139.json`, `all.json`; skrypty `test69.mjs`, `test88.mjs`, `test110.mjs`, `refine.mjs`, zapis kontroli UI w `ui-results.mjs`. Testy robocze doprecyzowano do faktycznych nazw/interfejsów nowego kodu; początkowe fałszywe wyniki pomocnicze N88/N101/N102 nie były błędami aplikacji. Nie uruchamiano pełnej suity ani ponownego audytu wydruku.
