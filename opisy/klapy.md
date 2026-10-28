@@ -11,7 +11,7 @@ kolumny, inne kolumny bez zmian — tak też mówi opis w kreatorze, audyt GPT N
 półki to półki, a poziomy to poziomy — pozostałe półki zostają w środku klapy, **otwierane** do góry /
 w dół, **front** nakładany / wpuszczany (dla całej szafki — klapy nie mają frontu na
 kolumnę) i **podnośniki / amortyzatory** auto / 1 / 2. Pod spodem wysokość każdej klapy
-z ✓ albo „za nisko, podnośnik potrzebuje ok. N mm” (wpuszczane 265, bliźniacze 257,
+z ✓ albo „za nisko, podnośnik potrzebuje ok. N mm” (światła z grubości półek; przy jednej kolumnie granica staje się półką przelotową z płyty korpusu, więc górna klapa traci różnicę grubości — audyt GPT N107) (wpuszczane 265, bliźniacze 257,
 górna nakładana 249, amortyzator 260); gdy któraś za niska — „Nie da się …” i bez
 przycisku „Zrób”. Na start: najwięcej klap, które się mieszczą. Dolne poziomy dostają
 wpisaną wysokość, górny jest auto. Gdy nawet jedna klapa na całą kolumnę jest za niska —
@@ -58,12 +58,13 @@ wybranych drzwiach.
   - nie ma w czym zawiesić zawiasów (do góry: brak wieńca / płaskiego wzmocnienia nad klapą; w dół: brak dna) — błąd; przy klapie do góry z przyciskiem „Dodaj parę wzmocnień pod blat”.
 - **Siła**:
   - dobrana z tabeli albo wybrana z listy (nie słabsza) — bez uwagi; siła, wymiar i waga klapy są w Produktach (podpowiedź „klapa … — 1 × podnośnik 150 N (tabela …)” usunięta, użytkownik 2026-10-26: zbędna);
-  - wybrana słabsza niż z tabeli — ostrzeżenie z „Zwiększ siłę do N N” i (przy jednym) „Dołóż drugi — 2 × N N”;
+  - wybrana słabsza niż z tabeli — ostrzeżenie z „Zwiększ siłę do N N” i (przy jednym) „Dołóż drugi — 2 × N N”; w poziomie kolumny oba zapisują jawne auto (`silaN: null`) — bez pola klapa dziedziczy ręczną siłę kolumny (audyt GPT N106);
   - klapa za ciężka nawet na najmocniejszy — ostrzeżenie (przy jednym podnośniku też z „Dołóż drugi”).
 - **Wymiary klapy**:
   - wyższa niż 600 mm — ostrzeżenie „poza tabelą”: siła liczona jak dla 600, do sprawdzenia u producenta;
   - do góry niższa niż 290 mm — ostrzeżenie: podnośnik potrzebuje co najmniej 290 mm korpusu na boku;
   - płytka podnośnika / amortyzatora wypada poza płytą w tym poziomie (do góry: H z tabeli pod płytą z zawiasami, w dół: 245 mm nad płytą pod klapą, plus 15 mm płytki) — błąd „podwyższ poziom o N mm albo daj drzwi” (audyt GPT N74; wtedy bez ostrzeżenia o 290 mm);
+  - mocowanie na klapie (oba otwory i ok. 10 mm okucia poza nimi, `KLAPA_MOC_ZAPAS`) wypada poza zamawianym frontem — np. klapa w dół z podfrezem 200 mm ma 79 mm, a otwory są 77 i 101 mm od jej dołu (audyt GPT N87); błąd z „Podfrez N mm” (największy, przy którym okucie się mieści — wymiary producenta zostają) i „Tip-on zamiast podfrezu”;
   - szersza niż 600 mm z jednym podnośnikiem — ostrzeżenie „dają się dwa”.
 - **Półka na drodze podnośnika** (bliżej frontu niż 50 mm, w zasięgu od płytki do mocowania na klapie) — ostrzeżenie z „Dodatkowe cofnięcie półek N mm”.
 - **Otwieranie** (błąd): łuk klapy do jej kąta, sprawdzany co 1°. Przeszkody to blat, górna szafka, sufit z górnego ciągu, fronty i uchwyty innych poziomów → „nie otworzy się na 90°: po drodze stoi … — otworzy się tylko na ok. N°”. Pod blatem klapa do góry dostaje radę „zrób szufladę albo drzwi”.
@@ -77,7 +78,7 @@ wybranych drzwiach.
   - 25 mm od przedniej krawędzi boku, przy wpuszczanych + grubość frontu.
 - **Mocowanie podnośnika na klapie**: L mm pod spodem tej płyty (75° → 72, 90° → 62, 100° → 52) i drugi wkręt 24 mm niżej, 12 mm od wewnętrznej strony boku.
 - **Amortyzator PD-ECGDL**: płytka 245 mm nad płytą pod klapą, mocowanie na klapie 62 i 86 mm, te same 25 / 12 / 24 mm.
-- **Liczba stron**: jeden podnośnik — na wybranym boku; dwa — po obu stronach.
+- **Liczba stron**: jeden podnośnik — na wybranym boku; dwa — po obu stronach. W szafce w L po stronie ramienia nie ma boku — jeden podnośnik idzie na drugi bok; ta strona trafia do planu, modelu, wyboru w karcie i tip-on (po przeciwnej), z podpowiedzią (audyt GPT N129).
 - **Płyta klapy w planie**: „Klapa”, przy kilku kolumnach „Klapa — kolumna N”, w kolumnie podzielonej na poziomy „Klapa — poziom M kolumny N” — każda klapa osobno, wysokości od dołu tej klapy (audyt GPT N84: dwie klapy jednej kolumny zlewały się w jedną płytę z otworami obu).
 
 ## Skąd liczby
@@ -99,4 +100,4 @@ wybranych drzwiach.
 - **Interfejs**: `polkiNaPoziomy(…, naKlapy)` („klapy zamiast drzwi”); przyciski w `NoteLine` (`zawiasy`, `silaauto`, `klapa2`, `polkicof`, `parablat`).
 - **Kontrola otwierania**: `swingBodies` / `openingMsgs` (`klapaHit`, kąt co 1°).
 - **W kodzie klapa to front typu `"klapa"`, nie `"door"`**: tam, gdzie kod filtruje drzwi, klapa jest pominięta celowo. Ma osobną formatkę „Klapa” i nie ma skrzydła w kontroli otwierania drzwi.
-- **Testy**: `klapy`, `audytwierc` (zawiasy i mocowania podnośnika), `ruchy` (otwieranie), `komentarze1` („klapy zamiast drzwi”), `audytgpt7` (klapy poziomów kolumny w planie, opis kreatora, wpuszczana dłuższa od dołu).
+- **Testy**: `klapy`, `audytwierc` (zawiasy i mocowania podnośnika), `ruchy` (otwieranie), `komentarze1` („klapy zamiast drzwi”), `audytgpt7` (klapy poziomów kolumny w planie, opis kreatora, wpuszczana dłuższa od dołu), `audytgpt8` (mocowanie amortyzatora po podfrezie).

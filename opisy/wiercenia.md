@@ -30,7 +30,10 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
 - **Rura na wieszaki**: rozeta na boku / przegrodzie po obu stronach kolumny — wysokość osi rury, oś w połowie głębokości wnętrza, 2 wkręty 3,5 × 16 („rura na wieszaki”).
 - **Zawieszki** (szafki wiszące): bez wiercenia — przykręcane wkrętami 4 × 30 od wnętrza, górna krawędź pod wieńcem, 1 cm od pleców (ZK-ZAW-R0-10).
 - **Frez pod HDF**: w bokach, wieńcu i dnie, gdy plecy są we frezie.
-- **Szafka w L**: dokładka „Bok ramienia” — konfirmaty dna / wieńca ramienia, kołki półek ramienia, zawiasy frontu ramienia; kątownik przy ramieniu ma kołki zamiast boku.
+- **Szafka w L**: dokładka „Bok ramienia” — konfirmaty dna / wieńca ramienia, półki ramienia z mocowaniem swojej kolumny (kołki / trójkąty / konfirmaty, każda półka osobno — audyt GPT N131), zawiasy frontu ramienia; kątownik przy ramieniu ma kołki zamiast boku.
+- **Dno i wieniec z jednym końcem między bokami**: oś boku liczona od początku płyty, nie od lewego boku szafki (audyt GPT N115: konfirmat wypadał 9 mm poza płytą).
+- **Wspornik fixa skrócony wzmocnieniem**: zawiasy od dołu wspornika, bez mocowania do płyty, do której nie dochodzi; zawias poza wspornikiem — błąd (N116).
+- **Frez pod HDF**: tylko przy plecach całej szafki — plecy ustawione w kolumnach są przybijane, bez frezu (N121).
 
 ## Co ustawiasz ręcznie
 
@@ -40,7 +43,7 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
 
 ## Kontrole i przyciski
 
-- **Kołki nie mieszczą się na półce** (przód + tył ≥ głębokość najpłytszej) — błąd z „Ustaw 50 / 50 mm” (na płytkiej półce mniej — tyle, ile się zmieści).
+- **Kołki nie mieszczą się na półce** (przód + tył ≥ głębokość najpłytszej) — błąd z „Ustaw 50 / 50 mm” (na płytkiej półce mniej — tyle, ile się zmieści). To samo na półce ramienia szafki w L (N136).
 - **Kołki / trójkąty po obu stronach przegrody** trafiłyby w siebie (albo w konfirmaty z drugiej strony): przesunięte inaczej niż zwykle — informacja z przyciskami „Półki kolumny N na trójkątach / na konfirmatach”; nie da się rozsunąć — błąd z tymi przyciskami (audyt GPT N75, decyzje użytkownika 2026-10-22 i 2026-10-24).
 - **Konfirmaty z obu stron jednej płyty w tej samej osi** — błąd z wyborem mocowania drugiej strony (`opisy/poziomy.md`).
 - **Zawiasy w jednym miejscu** albo na przeszkodzie — błąd (`opisy/drzwi.md`).

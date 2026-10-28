@@ -68,3 +68,10 @@ W karcie „Płyty” przy kolorach płyty jest kwadrat „+”: płyta spoza wz
 ## Własne kawałki płyty (2026-10-24)
 
 Przy każdej płycie w rozkroju jest „+ mam własny kawałek tej płyty” (długość, szerokość, sztuki; `project.resztki`). Rozkrój najpierw kładzie formatki na własne kawałki (większe najpierw, bez okrawania — wpisujesz wymiar użyteczny), resztę na arkusze do kupienia. W „Płyty do zamówienia” i w wycenie liczą się tylko kupowane arkusze („+ N z własnych kawałków”), formatowanie liczy także własne kawałki. Rysunek własnego kawałka ma podpis „własny kawałek … — nie kupujesz”; ostrzeżenie o dużym odpadzie dotyczy tylko kupowanych arkuszy.
+
+Szczegóły (audyt GPT 2026-10-28):
+- kawałek jest przypięty do płyty stałą tożsamością (`resztki[].matId` = `tozsamoscPlyty`: własna płyta — jej id, inna — nazwa, kolor, dekor, grubość), a nie etykietą — etykieta dostaje grubość („… 18”), gdy w projekcie pojawi się ta sama nazwa w innej grubości, i kawałek przestawał pasować (N94); stare zapisy bez `matId` dostają go przy wczytaniu z materiału o tej etykiecie;
+- z listy zdejmuje się dokładnie ta formatka, która leży na kawałku (numer pozycji `src` z pakowania) — wcześniej po nazwie i wymiarze w obu ułożeniach, więc przy zakazie obrotu schodziła czasem druga orientacja (N92);
+- podsumowanie grupy (wykorzystanie, cięcia, zrzut) liczy cały plan — kupione arkusze i własne kawałki (N93); „Płyty do zamówienia” i wycena — dalej tylko kupione.
+
+Własne płyty: nazwa jest etykietą w rozkroju i cenniku, więc dwie o tej samej nazwie szły na jeden arkusz i miały wspólną cenę (N95). Formularz nie pozwala zapisać drugiej o tej samej nazwie („już jest — nadaj inną nazwę”), pusta nazwa dostaje kolejny numer („Płyta własna 2”), a stary zapis z powtórzoną nazwą dostaje przy wczytaniu dopisek „(2)”; grupy rozkroju dla własnych płyt rozdziela też ich id. Arkusz własnej płyty jest w materiale szafki (`mat[k].arkusz`), więc kontrola „formatka nie mieści się na arkuszu” liczy z niego (okrawanego jak wzornik), a nie z 2800 × 2100 (N99).

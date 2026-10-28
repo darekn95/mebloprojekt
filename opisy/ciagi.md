@@ -18,6 +18,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 - **„⊞ Scal szafki w jedną…”** (przycisk w karcie ciągu, „Cały ciąg”, albo znaczek ⊞ przy szafce na pasku — obok ⧉ duplikowania, z dymkiem „Scal z szafką obok w jedną”; użytkownik 2026-10-24): wybór szafek ciągu stojących obok siebie i boków na stykach. Znaczek zaznacza tę szafkę i sąsiada z prawej, rozwija kartę ciągu i przewija do okienka.
   - **Pojedyncze** — jedna szafka (nazwa „S2 + S3 + S4”, szerokość = suma korpusów i luzów) z przegrodami, wspólnym wieńcem i dnem; kolumny i ich wnętrza (półki, drzwi, szuflady, zawiasy) bez zmian; wymiar zewnętrzny zostaje (3 × 600 → 1800), a to, co zwolnił drugi bok i luz między korpusami, dzieli się równo na kolumny, w proporcji do ich szerokości (salon: 564 → 576 / 576 / 576); ostatnia kolumna auto (`scalSzafki`, użytkownik 2026-10-24).
   - Warunki (`scalenieBlad`, „Nie da się scalić: …”): obok siebie w jednym ciągu, ta sama wysokość, głębokość i podział na poziomy, bez szafki w L, wycięć i przeszkód.
+  - **Różne płyty** (audyt GPT N88, 2026-10-28): szafka ma jeden zestaw płyt, więc przy różnych płytach zaznaczonych szafek (korpus, fronty, półki, plecy — te, które szafka naprawdę zamawia, z dekorem i grubością) kreator pokazuje różnice i wybór „płyty jak w [szafka]” (domyślnie pierwsza od lewej); scalona szafka bierze płyty, grubość i ustawienia „z tej samej płyty co korpus” z wybranej (`roznePlyty`, `scalSzafki(…, wzor)`). Wcześniej po cichu płyty pierwszej.
   - **Podwójne** — szafki zostają osobne, skręcone bokami; „wspólny wieniec z płyty” i „wspólne dno” włączają opcje całego ciągu.
 - **Nowa szafka** i szafka przeniesiona do ciągu dostają wspólny wieniec / dno ciągu (`wedlugCiagu`); wyjęta z ciągu — je oddaje.
 - **Cokół ciągu**: jedna płaszczyzna przez cały ciąg, podzielona na formatki; w rogu cokoły na zakładkę (`opisy/cokol.md`).
@@ -89,6 +90,10 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - drzwi ramienia szersze niż ok. 600 mm — ostrzeżenie;
   - front węższy niż 250 mm — ostrzeżenie;
   - półka bez pary od strony ramienia (skończyłaby się w powietrzu) — błąd;
+  - kilka frontów jeden nad drugim w kolumnie przy ramieniu (dwa poziomy, podział kolumny) — błąd: ramię ma jeden front z pierwszego frontu szafki, reszta zostaje otwarta (audyt GPT N132; dwa fronty w ramieniu — do decyzji);
+  - szuflady w kolumnie przy ramieniu — błąd: od strony ramienia nie ma boku pod prowadnicę (N139);
+  - własna szerokość wzmocnienia ramienia większa niż wysokość wnętrza (stojące) albo głębokość ramienia (leżące) — błąd z największą wartością (N125);
+  - kołki półek nie mieszczą się na półce ramienia (płytkie ramię przy płytkim sąsiednim ciągu) — błąd z „Ustaw 50 / 50 mm” dla szafki w L (N136);
   - za duży luz przy boku — błąd;
   - opisy kątownika i zasięgu od rogu — informacje.
 - **Głębokość w rogu**: szafka sąsiedniego ciągu głębsza niż ta w rogu — błąd.
@@ -96,7 +101,10 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - wystaje poza dolny — ostrzeżenie;
   - szafka dolna sięga w górne (słupek) — błąd;
   - górne szafki ponad sufit — błąd; luz do sufitu — informacja.
-- **Kolizje otwierania w rogu**: przyciski „Przełóż zawiasy” i wstawka 18 / 60 mm — tylko gdy pomagają.
+- **Kolizje otwierania w rogu**: przyciski „Przełóż zawiasy” i wstawka 18 / 60 mm — tylko gdy pomagają. Fronty „Skręcone 90°” liczą się jako jeden sztywny zespół na zawiasach korpusu — front ramienia obraca się wokół tej samej osi (audyt GPT N135), bez rady o przełożeniu zawiasów.
+- **Ramię szafki w L w zamówieniu**: płyty ramienia mają oklejanie z tabeli formatek jak korpus (N130), zawiasy z grubości płyty frontu ramienia (N123), uchwyt także wpuszczany (wystawanie 0, N124), półki z mocowaniem swojej kolumny i granicy (N131), wzmocnienia z kolumny przy ramieniu bez powtórzeń (N137), plecy ze zszywkami / wkrętami co 100 mm po obwodzie (N138), kątownik od wierzchu dna — też przy cokole w obrysie (N134).
+- **Wspólne dno ciągu**: rozpoznanie „dno pod bokami” z osadzenia dna, nie z obrzeży (N118); szafki różnie wysunięte z lica — każda zostaje przy swoim dnie (N133); w 3D jedna płyta „Dno ciągu” jak w zamówieniu (N119).
+- **Prześwit nad blatem 0** zostaje 0 po zapisie i wczytaniu (N120).
 
 ## Skąd liczby
 

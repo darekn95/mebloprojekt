@@ -6,13 +6,13 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
 ## Co program liczy sam
 
 - **Wymiary**: szerokość, wysokość i głębokość korpusu.
-  - Głębokość może zawierać plecy i front („Podana głębokość zawiera plecy / front”) — wtedy korpus jest o nie płytszy.
+  - Głębokość może zawierać plecy i front („Podana głębokość zawiera plecy / front”) — wtedy korpus jest o nie płytszy. Front odejmuje się, gdy któryś naprawdę wystaje przed korpus (`frontyWystaja`): drzwi i klapy przy frontach nakładanych szafki, szuflady według montażu kolumny / poziomu kolumny („Na korpusie” / „Wewnątrz”), blenda i fix nakładane (audyt GPT N98: liczył się tylko montaż szafki); pole widać też przy szafce wpuszczanej z szufladami na korpusie.
   - Wysokość to korpus. Cokół „pod dnem, w obrysie” mieści się w niej (boki do podłogi, dno nad cokołem). Cokół „pod korpusem” i nóżki dokładają się pod spodem — szczegóły w `opisy/cokol.md`.
 - **Złącza korpusu** (każde osobno: wieniec z lewej / z prawej, dno z lewej / z prawej):
   - „między bokami” — płyta między bokami;
   - „na boku” — płyta na czołach boków;
   - brak (szafka pod blatem bez wieńca, szafka bez dna).
-- **Szafka pod blatem roboczym** (w ciągu z blatem): wieniec znika, a każda kolumna najwyższego poziomu dostaje parę wzmocnień.
+- **Szafka pod blatem roboczym** (w ciągu z blatem): wieniec znika, a każda kolumna najwyższego poziomu dostaje parę wzmocnień (znacznik `paraPodBlat` — para idzie razem do nowego najwyższego poziomu i razem znika przy powrocie wieńca; w szafce narożnej także stojąca z przodu, audyt GPT N109).
   - Z przodu: płaskie, 100 mm głębokości, przy licu.
   - Z tyłu: stojące, 100 mm wysokości, przy plecach.
   - W szafce narożnej przednie jest pionowe i cofnięte o grubość frontu, a tylne odsunięte o grubość płyty — dochodzi do kątownika.
@@ -49,7 +49,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - wysokość lub głębokość, odsunięcie od lica albo od tyłu;
   - „skraca drzwi”.
 - **Wycięcie tylnego narożnika** (lewego i prawego osobno): szerokość, głębokość, na całą wysokość albo w jednym poziomie, maskownica.
-- **Element kolizyjny** (rura, słup): wymiary i położenie, zabudowa z maskownicą. Ścianki zabudowy (też wycięcia) są z płyty półek — jej grubość liczy styki, czoło („przed bokami” = element + 2 × płyta zabudowy), rzuty i 3D (`maskWalls`, audyt GPT N71).
+- **Element kolizyjny** (rura, słup): wymiary i położenie, zabudowa z maskownicą. Granicą zabudowy jest tylko przegroda na wysokości elementu (nie z innego poziomu — audyt GPT N112); płyta między poziomami nad elementem to „półka nad” dla zabudowy „do półki” (N113); element przechodzący przez płytę między poziomami albo przez przegrodę — ostrzeżenie z wymiarem otworu (N114). Ścianki zabudowy (też wycięcia) są z płyty półek — jej grubość liczy styki, czoło („przed bokami” = element + 2 × płyta zabudowy), rzuty i 3D (`maskWalls`, audyt GPT N71).
 - **Płyty**: grubości i dekory korpusu, frontów, półek, pleców, lustra; arkusz blatu 600 / 1200; „fronty / półki z tej samej płyty co korpus”; usłojenie.
 
 ## Kontrole i przyciski
@@ -68,9 +68,11 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - dwa rzędy nóżek nachodzą na siebie — ostrzeżenie.
 - **Kolumna otwarta od góry** (bez wieńca i wzmocnienia) — ostrzeżenie z „Dodaj parę wzmocnień pod blat”.
 - **Wzmocnienie poza korpusem** (ręcznie wpisana wysokość większa niż poziom, głębokość z odsunięciem większa niż korpus do pleców) — błąd z największą wysokością / głębokością / odsunięciem; ustawień program nie zmienia (audyt GPT N72).
+- **Pionowe wzmocnienie przecina półkę** (stoi przy boku od wieńca w dół i dochodzi do półki w tej samej głębokości) — błąd z „Wzmocnienie N: X mm” (najwyższe, które kończy się nad półką; od 60 mm) albo radą „przesuń półkę” (audyt GPT N100). Wzmocnienia — także pionowe — są z płyty korpusu i tak też wyglądają na rysunkach (N101; wcześniej pionowe miało kolor półek).
 - **Szafka pod blatem ciągu z wieńcem** albo bez wieńca i bez wzmocnień — ostrzeżenie z „Dołóż parę wzmocnień” (wieniec znika, dochodzi para).
 - **Ciąg bez blatu roboczego, a szafka bez wieńca z parą wzmocnień pod blat** (np. po wyłączeniu blatu) — ostrzeżenie z „Wieniec zamiast wzmocnień”. Wieniec włączony w „Złączach korpusu” (z „brak” na „między” / „na boku”) sam zdejmuje parę wzmocnień pod blat (`zWiencem`; użytkownik 2026-10-24).
 - **Płyta inna niż 18 mm** — ostrzeżenie (liczby katalogowe szuflad są dla 18).
+- **Wycięcie narożnika na całą wysokość nad nóżką** (przechodzi przez dno) — ostrzeżenie z położeniem nóżki i radą przestawienia jej przy montażu (audyt GPT N122; automatyczne przesunięcie — do decyzji).
 - **Blat roboczy**: kontrola wysokości blatów w rogu i w pomieszczeniu („odstaje o N mm”) z przyciskami wyrównania, zużycie arkusza (brakuje do 200 mm), odpad — opisane w `opisy/ciagi.md` i `opisy/rozkroj.md`.
 
 ## Skąd liczby
