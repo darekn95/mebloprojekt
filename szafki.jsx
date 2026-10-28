@@ -2694,14 +2694,29 @@ function computeGeoLiczy(cab, mat, ctx) {
             return { k, y, z: Math.round(dividerDepth / 2), len: Math.max(0, Math.round(w - DRAZEK_KROTSZY)), pod: Math.round(y - o.from), swiatlo: Math.round(o.h) };
           })
         : [];
+      /* Poziom kolumny z podzialem moze miec szuflady albo blende (`col.segmenty[nr].kind`)
+         — tam rura przecina skrzynki / nie ma sensu za blenda (audyt GPT N89). Swiatlo k
+         lezy w poziomie nr = liczba granic ponizej niego. */
+      const grRur = (rawCols[j].podzial || []).map(Number);
+      const wnetrzeSwiatla = (k) => wnetrzePoziomu(rawCols[j], grRur.filter((b2) => b2 < k).length);
+      const swiatlaDrzwi = c.openings.filter((o) => wnetrzeSwiatla(o.k) === "doors");
       c.drazki.forEach((dr) => {
         const gdzie = `Poziom ${lv.i + 1}, kolumna ${j + 1}, rura na wieszaki`;
+        const wn = wnetrzeSwiatla(dr.k);
+        if (wn !== "doors") {
+          const nrR = grRur.filter((b2) => b2 < dr.k).length;
+          const wolne = swiatlaDrzwi.filter((o) => !c.drazki.some((q) => q.k === o.k));
+          const cel = [...wolne].reverse().find((o) => o.h - DRAZEK_POD_PLYTA >= DRAZEK_MIN_POD) || [...wolne].sort((a2, b2) => b2.h - a2.h)[0];
+          add("error", `${gdziePoziomKol(lv.i, j, nrR)}, rura na wieszaki: ${wn === "drawers" ? "w tym poziomie są szuflady — rura przecina skrzynki" : "w tym poziomie jest blenda — za nią rura nie ma sensu"}.`
+            + (cel ? `|drazekprzenies:${lv.i}:${j}:${dr.k}:${cel.k}:${Math.round(cel.h)}` : "") + `|drazek:${lv.i}:${j}:${dr.k}:0`);
+          return;
+        }
         /* Swiatlo zmniejszone po dodaniu rury (uzytkownik 2026-10-24: „nie ma opcji
            usunięcia rurki — albo usunąć, albo przestawić na wyższą półkę”): przyciski
            „Usuń rurę” i „Przenieś do światła N” — najwyzszego, pod ktorym zmieszcza
            sie koszule, a gdy takiego nie ma — najwyzszego od 800 mm, wyzszego niz to. */
         if (dr.pod < DRAZEK_MIN_POD) {
-          const wolne = c.openings.filter((o) => o.k !== dr.k && !c.drazki.some((q) => q.k === o.k));
+          const wolne = swiatlaDrzwi.filter((o) => o.k !== dr.k && !c.drazki.some((q) => q.k === o.k));
           const cel = [...wolne].reverse().find((o) => o.h - DRAZEK_POD_PLYTA >= DRAZEK_MIN_POD)
             || [...wolne].filter((o) => o.h >= DRAZEK_SWIATLO_OPCJA && o.h > dr.swiatlo).sort((a, b) => b.h - a.h)[0];
           add("warn", `${gdzie}: pod rurą tylko ${fmt(dr.pod)} mm — na koszule i marynarki potrzeba ok. ${fmt(DRAZEK_MIN_POD)} mm (płaszcze ok. ${fmt(DRAZEK_DLUGIE)}). Rura ${DRAZEK_POD_PLYTA} mm pod półką, światło ${fmt(dr.swiatlo)} mm.`
@@ -2714,7 +2729,8 @@ function computeGeoLiczy(cab, mat, ctx) {
       });
       /* Podpowiedz: wysokie swiatlo bez rury — zmiesci sie rura (koszule, plaszcze). */
       if ((rawCols[j].kind === "doors" || !rawCols[j].kind) && !c.drazki.length && dividerDepth >= DRAZEK_GL_MIN) {
-        const o = [...c.openings].reverse().find((q) => q.h - DRAZEK_POD_PLYTA >= DRAZEK_MIN_POD);
+        // tylko w poziomach z drzwiami — nie w szufladach ani za blenda (N89)
+        const o = [...swiatlaDrzwi].reverse().find((q) => q.h - DRAZEK_POD_PLYTA >= DRAZEK_MIN_POD);
         if (o)
           add("info", `Poziom ${lv.i + 1}, kolumna ${j + 1}: światło ${fmt(o.h)} mm — zmieści się rura na wieszaki (pod nią ${fmt(o.h - DRAZEK_POD_PLYTA)} mm: koszule${o.h - DRAZEK_POD_PLYTA >= DRAZEK_DLUGIE ? ", płaszcze i sukienki" : ""}).|drazek:${lv.i}:${j}:${o.k}:1`);
       }
@@ -16926,7 +16942,24 @@ const scalenieBlad = (project, idxs) => {
     return "różny podział na poziomy — wyrównaj poziomy albo scalaj szafki z jednym poziomem";
   return null;
 };
-const scalSzafki = (project, idxsIn) => {
+/* Plyty, ktore szafka naprawde zamawia — do porownania przy scalaniu (audyt GPT N88:
+   scalona szafka brala po cichu plyty pierwszej). Szafka ma jeden zestaw plyt, wiec przy
+   roznych kreator pokazuje roznice i pyta, z ktorej szafki wziac plyty (`wzor`). */
+const PLYTY_SCALANIA = [["board", "korpus"], ["front", "fronty"], ["shelf", "półki"], ["back", "plecy"]];
+const plytaDoScalenia = (it, k) => {
+  const m = it.mat || {}, cab = it.cab || {};
+  const polki = cab.shelfSameAsBoard === false ? "shelf" : "board";
+  if (k === "back") return cab.back === "board" ? m[cab.backPos === "outside" && cab.backBoardMat !== "shelf" ? "board" : polki] || {} : m.back || {};
+  return m[k === "board" ? "board" : uzywaPlyty(cab, k) ? k : "board"] || {};
+};
+const opisPlytyScalania = (m) => `${(m.decor || "").trim() || (m.plyta && m.name) || paletteName(m.color) || m.name || "płyta"} ${fmt(m.thickness || 0)} mm`;
+const roznePlyty = (project, idxs) => PLYTY_SCALANIA.map(([k, nazwa]) => {
+  const pl = idxs.map((i) => plytaDoScalenia(project.items[i], k));
+  const inna = pl.some((m) => !tenSamKolor(m, pl[0]) || Math.round(m.thickness || 0) !== Math.round(pl[0].thickness || 0)
+    || (m.name || "").trim() !== (pl[0].name || "").trim());
+  return inna ? { k, nazwa, plyty: pl.map(opisPlytyScalania) } : null;
+}).filter(Boolean);
+const scalSzafki = (project, idxsIn, wzorIn = null) => {
   const runId = project.items[idxsIn[0]].runId;
   const lista = runItems(project, runId).map(({ i }) => i);
   const idxs = [...idxsIn].sort((a, b) => lista.indexOf(a) - lista.indexOf(b));
@@ -16934,7 +16967,9 @@ const scalSzafki = (project, idxsIn) => {
   const gap = Math.max(0, Math.round((run && run.gap) || 0));
   const its = idxs.map((i) => project.items[i]);
   const geos = its.map((it) => computeGeo(cabDoGeo(project, it), it.mat));
-  const t = geos[0].t;
+  // plyty (i ich grubosc) z szafki wybranej w kreatorze — domyslnie pierwszej od lewej
+  const kW = Math.max(0, idxs.indexOf(wzorIn));
+  const t = geos[kW].t;
   // na kazdym styku zwalnia sie drugi bok i luz miedzy korpusami
   const wolne = (its.length - 1) * (t + gap);
   // wymiar zewnetrzny zostaje (3 × 600 → 1800, uzytkownik 2026-10-24)
@@ -16962,8 +16997,11 @@ const scalSzafki = (project, idxsIn) => {
     W: Math.round(W), levels,
     top: c0.top && c0.top.widthMode === "inside" ? { ...c0.top, widthMode: "outside" } : c0.top,
     legs: c0.legs ? { ...c0.legs, count: null } : c0.legs };
+  ["frontSameAsBoard", "shelfSameAsBoard", "backBoardMat"].forEach((key) => {
+    if (its[kW].cab[key] === undefined) delete scalona[key]; else scalona[key] = its[kW].cab[key];
+  });
   const znikaja = new Set(idxs.slice(1));
-  const nowa = { ...project.items[idxs[0]], cab: scalona };
+  const nowa = { ...project.items[idxs[0]], cab: scalona, mat: JSON.parse(JSON.stringify(its[kW].mat)) };
   const items = project.items.map((it, i) => (i === idxs[0] ? nowa : it)).filter((_, i) => !znikaja.has(i));
   return { ...project, items, active: items.indexOf(nowa) };
 };
@@ -20180,8 +20218,13 @@ export default function App() {
                     const blad = sc.boki === "pojedyncze" ? scalenieBlad(project, sc.idxs) : null;
                     const W = sc.idxs.reduce((a, i) => a + computeGeo(cabDoGeo(project, project.items[i]), project.items[i].mat).W, 0)
                       + (sc.idxs.length - 1) * Math.max(0, Math.round(runInfo.run.gap || 0));
+                    // rozne plyty zaznaczonych szafek — jawny wybor, z ktorej wziac (audyt GPT N88)
+                    const kolejno = [...sc.idxs].sort((a, b) => lista.findIndex((q) => q.i === a) - lista.findIndex((q) => q.i === b));
+                    const rozne = sc.boki === "pojedyncze" && !blad ? roznePlyty(project, kolejno) : [];
+                    const wzor = kolejno.includes(sc.wzor) ? sc.wzor : kolejno[0];
+                    const nazwaSz = (i) => (project.items[i].cab.name || "").trim() || `Szafka ${i + 1}`;
                     const zastosuj = () => {
-                      if (sc.boki === "pojedyncze") setProject((p) => scalSzafki(p, sc.idxs));
+                      if (sc.boki === "pojedyncze") setProject((p) => scalSzafki(p, sc.idxs, rozne.length ? wzor : null));
                       else setRun(id, { wspolnyWieniec: sc.wieniec, wspolneDno: sc.dno });
                       setScalanie(null);
                     };
@@ -20212,6 +20255,23 @@ export default function App() {
                             <p className="text-[11px] text-stone-500">Szafki zostają osobne, skręcone bokami. Wspólna płyta — dla całego ciągu:</p>
                             <Check checked={sc.wieniec} onChange={(v) => zmien({ wieniec: v })} label="wspólny wieniec z płyty" />
                             <Check checked={sc.dno} onChange={(v) => zmien({ dno: v })} label="wspólne dno" />
+                          </div>
+                        )}
+                        {rozne.length > 0 && (
+                          <div className="space-y-1 rounded border border-amber-300 bg-amber-50 p-1.5" data-el="scal-plyty">
+                            <p className="text-[11px] text-amber-800">
+                              Szafki mają różne płyty — scalona szafka ma jeden zestaw płyt, więc wszystkie jej formatki dostaną płyty wybranej szafki:
+                            </p>
+                            <ul className="text-[11px] text-stone-600">
+                              {rozne.map((r) => (
+                                <li key={r.k}>{r.nazwa}: {kolejno.map((i, q) => `${nazwaSz(i)} — ${r.plyty[q]}`).join("; ")}</li>
+                              ))}
+                            </ul>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-stone-500">płyty jak w</span>
+                              <Seg value={String(wzor)} onChange={(v) => zmien({ wzor: Number(v) })}
+                                options={kolejno.map((i) => ({ v: String(i), l: nazwaSz(i) }))} />
+                            </div>
                           </div>
                         )}
                         {blad && <p className="text-[11px] text-red-700" data-el="scal-blad">Nie da się scalić: {blad}.</p>}
