@@ -326,3 +326,34 @@ Sprawdzona wersja `szafki.jsx`: blob `7b11faabc89e061b7fc69f78b9a6642dd9d93d68`.
 
 **Kryterium naprawy:** sprawdzać otwory i obrys mocowania względem rzeczywistego frontu po podfrezie i innych zmianach wysokości; podać błąd z dopuszczalnym zakresem lub zmianą otwierania. Nie przesuwać mocowania dowolnie — obowiązują wymiary producenta. Sprawdzić klapę pojedynczą oraz poziomy kolumn, jedną/dwie sztuki amortyzatora i obie strony.
 
+
+## Audyt 28.10.2026 — N88–N89
+
+Wersja `szafki.jsx`: blob `b4ebef6460072cc4d7d8aac0a752acb500996ac7`. Potwierdzone wykonaniem obliczeń i operacji na danych oraz przez interfejs GitHub Pages. Testy syntetyczne; bieżący projekt użytkownika zabezpieczono przed testem i przywrócono po nim.
+
+### N88 [P2] Scalenie szafek z różnymi dekorami po cichu zamienia materiały na materiał pierwszej
+
+**Odtworzenie:** dwie sąsiadujące szafki 600 × 900 × 560 mm w jednym dolnym ciągu; obie z płyty 18 mm, po jednych drzwiach, bez półek. Pierwsza ma płytę Biały mat, druga Czarny mat; fronty z płyty korpusu. Wybrać „Scal szafki w jedną…” i boki pojedyncze.
+
+**Wynik:** kreator pozwala wykonać operację bez ostrzeżenia o różnych materiałach. Powstaje szafka 1200 mm, której wszystkie formatki, także oba fronty, mają Biały mat. Czarny dekor znika z zamawianych elementów. Aplikacja pokazuje „bez uwag”. Kreator zapowiada zachowanie wnętrz kolumn, lecz nie uprzedza o ujednoliceniu materiałów.
+
+**Przyczyna:** `scalSzafki` kopiuje kolumny pozostałych szafek, ale nowy element bierze `mat` wyłącznie z pierwszej (`nowa = {...project.items[idxs[0]], cab: scalona}`). `scalenieBlad` sprawdza wysokości, głębokości i poziomy, ale nie materiały. Kopiowane kolumny nie przenoszą płyt swoich frontów i półek.
+
+**Wpływ:** niezamierzona zmiana dekoru zamawianych frontów/półek/korpusu, a wraz z nim rozkroju i wyceny. To problem operacji scalania, odrębny od dawnego N79 dotyczącego wyboru płyty własnego blatu.
+
+**Kryterium naprawy:** przed scaleniem wykrywać różne materiały i zapewnić jawny wybór/ostrzeżenie albo blokadę tego wariantu. Gdy operacja ma zachować różne fronty i półki, trzeba przenieść ich materiał do powstałych kolumn. Nie zgadywać materiału wspólnych płyt korpusu. Sprawdzić także odrębne płyty frontów/półek, różne grubości oraz kolejność zaznaczenia szafek; nie zmieniać materiałów bez informacji użytkownikowi.
+
+### N89 [P2] Rura na wieszaki pozostaje w poziomie kolumny zamienionym na szuflady i przecina skrzynkę
+
+**Odtworzenie:** szafka 600 × 2400 × 560 mm, płyta 18 mm; jedna kolumna z półką jako granicą dwóch poziomów kolumny (granica na konfirmatach), oba światła 1173 mm. Rura na wieszaki w dolnym świetle. Dolny poziom przestawić z „Półki i drzwi” na „Szuflady”; trzy szuflady DXS-3D, NL 550. Górny poziom zostaje z drzwiami. Odtworzono również przejściem Szuflady → Półki i drzwi → Szuflady w interfejsie, z zapamiętanym systemem DXS.
+
+**Wynik:** rura nadal jest zamawiana (562 mm i dwie rozety) i rysowana na osi y=1121 mm, z=280 mm. Przechodzi przez oba drewniane boki górnej szuflady. Każde przecięcie ma **18 × 25 × 25 mm** (obrys rury); jej oś również przebiega wewnątrz boków, więc nie jest to wyłącznie narożnik prostopadłościennego przybliżenia rury. Rura ma zakres wysokości 1108,5…1133,5 mm, a boki szuflady 823…1186 mm. Aplikacja pokazuje „bez uwag”.
+
+**Kontrola:** ta sama konstrukcja z rurą przeniesioną do górnego poziomu z drzwiami nie ma tych przecięć. Pod dolną rurą jest 1103 mm, więc prawidłowo nie uruchamia się ostrzeżenie o za małym miejscu na ubrania — brakuje innej kontroli, dotyczącej rodzaju wnętrza i kolizji.
+
+**Przyczyna:** `c.drazki` powstaje według `kind` nadrzędnej kolumny i indeksów jej świateł; nie uwzględnia `col.segmenty[nr].kind`. Zmiana rodzaju segmentu usuwa ustawienia klapy, ale pozostawia rurę przypisaną do tego światła. Generowanie skrzynek oraz rury działa niezależnie.
+
+**Wpływ:** zamówienie i bryła zawierają elementy, których nie da się złożyć w pokazanym położeniu; rura blokuje skrzynkę.
+
+**Kryterium naprawy:** po zmianie poziomu kolumny na szuflady sprawdzać rury przypisane do jego świateł; usunąć/przenieść je za świadomą decyzją lub zgłosić jednoznaczny błąd z akcją. Nie ruszać rury w innym poziomie z drzwiami. Sprawdzić zmianę rodzaju w obu kierunkach, blendę, V-BOX/DXS, dodawanie/usuwanie półek i zapis/wczytanie.
+
