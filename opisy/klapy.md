@@ -11,7 +11,7 @@ kolumny, inne kolumny bez zmian — tak też mówi opis w kreatorze, audyt GPT N
 półki to półki, a poziomy to poziomy — pozostałe półki zostają w środku klapy, **otwierane** do góry /
 w dół, **front** nakładany / wpuszczany (dla całej szafki — klapy nie mają frontu na
 kolumnę) i **podnośniki / amortyzatory** auto / 1 / 2. Pod spodem wysokość każdej klapy
-z ✓ albo „za nisko, podnośnik potrzebuje ok. N mm” (wpuszczane 265, bliźniacze 257,
+z ✓ albo „za nisko, podnośnik potrzebuje ok. N mm” (światła z grubości półek; przy jednej kolumnie granica staje się półką przelotową z płyty korpusu, więc górna klapa traci różnicę grubości — audyt GPT N107) (wpuszczane 265, bliźniacze 257,
 górna nakładana 249, amortyzator 260); gdy któraś za niska — „Nie da się …” i bez
 przycisku „Zrób”. Na start: najwięcej klap, które się mieszczą. Dolne poziomy dostają
 wpisaną wysokość, górny jest auto. Gdy nawet jedna klapa na całą kolumnę jest za niska —
@@ -58,7 +58,7 @@ wybranych drzwiach.
   - nie ma w czym zawiesić zawiasów (do góry: brak wieńca / płaskiego wzmocnienia nad klapą; w dół: brak dna) — błąd; przy klapie do góry z przyciskiem „Dodaj parę wzmocnień pod blat”.
 - **Siła**:
   - dobrana z tabeli albo wybrana z listy (nie słabsza) — bez uwagi; siła, wymiar i waga klapy są w Produktach (podpowiedź „klapa … — 1 × podnośnik 150 N (tabela …)” usunięta, użytkownik 2026-10-26: zbędna);
-  - wybrana słabsza niż z tabeli — ostrzeżenie z „Zwiększ siłę do N N” i (przy jednym) „Dołóż drugi — 2 × N N”;
+  - wybrana słabsza niż z tabeli — ostrzeżenie z „Zwiększ siłę do N N” i (przy jednym) „Dołóż drugi — 2 × N N”; w poziomie kolumny oba zapisują jawne auto (`silaN: null`) — bez pola klapa dziedziczy ręczną siłę kolumny (audyt GPT N106);
   - klapa za ciężka nawet na najmocniejszy — ostrzeżenie (przy jednym podnośniku też z „Dołóż drugi”).
 - **Wymiary klapy**:
   - wyższa niż 600 mm — ostrzeżenie „poza tabelą”: siła liczona jak dla 600, do sprawdzenia u producenta;

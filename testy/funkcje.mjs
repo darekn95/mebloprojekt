@@ -4,7 +4,9 @@
    - N93 podsumowanie grupy liczy tez wlasne kawalki;
    - N95 dwie wlasne plyty o tej samej nazwie — osobne grupy; stary zapis dostaje numer;
    - N94 stary kawalek (bez tozsamosci plyty) dostaje ja przy wczytaniu;
-   - N90 wiersz rury w zamowieniu projektu z planem zakupu i ciecia. */
+   - N90 wiersz rury w zamowieniu projektu z planem zakupu i ciecia;
+   - N109 para wzmocnien pod blat w szafce narożnej (stojaca z przodu) przy nowym poziomie
+     i przy powrocie do wienca. */
 import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
@@ -18,7 +20,7 @@ let src = fs.readFileSync(path.join(DIR, '..', 'szafki.jsx'), 'utf8');
 src = src.replace(/^import React[^\n]*\n/, 'const React = { createElement: () => null, Fragment: "f" };\n'
   + 'const useState=()=>[null,()=>{}],useEffect=()=>{},useMemo=(f)=>f(),useCallback=(f)=>f,useRef=()=>({current:null});\n');
 src = src.replace(/export default function App/, 'function App');
-const nazwy = ['buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials'];
+const nazwy = ['buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -88,4 +90,22 @@ console.log('\n== N90: rura na wieszaki w zamówieniu projektu ==');
     { name: 'Rura na wieszaki ⌀25', unit: 'mb', qty: 0.9, odcinek: 900, gdzie: 'B', spec: 'docięta' },
   ]).find((h) => /^Rura/.test(h.name));
   ok('różne długości: plan zakupu i cięcia z nazwami szafek', /^kupić/.test(r.spec) && /562 \(A\)/.test(r.spec) && /900 \(B\)/.test(r.spec) && /odpad/.test(r.spec), r.spec);
+}
+
+console.log('\n== N109: para pod blat w szafce narożnej ==');
+{
+  const M = G.defaultMaterials;
+  const kol = () => ({ kind: 'doors', doors: 1, w: null, shelfTargets: [null] });
+  const naroz = G.migrateCab({ name: 'N', W: 1000, H: 720, D: 560, corner: { on: true, side: 'left', arm: 400 }, levels: [{ h: null, cols: [kol()] }] }, M);
+  const z = { ...naroz, ...G.bezWienca(naroz) };
+  const para = (lv) => lv.cols.flatMap((c) => (c.rails || []).filter(G.jestParaPodBlat).map((r) => `${r.orient}/${r.fromBack ? 'tył' : 'przód'}`));
+  ok('bez wieńca: para — stojąca z przodu i z tyłu', JSON.stringify(para(z.levels[0])) === '["front/przód","front/tył"]', JSON.stringify(para(z.levels[0])));
+  const L2 = G.utrzymajPodBlat(z, [...JSON.parse(JSON.stringify(z.levels)), { h: null, cols: [kol()] }]);
+  ok('nowy poziom: obie płyty pary w najwyższym, w niższym żadnej', para(L2[0]).length === 0 && JSON.stringify(para(L2[1])) === '["front/przód","front/tył"]',
+    JSON.stringify(L2.map(para)));
+  const zw = G.zWiencem({ ...z, levels: L2 });
+  ok('powrót do wieńca: para znika w całości', zw.levels.every((lv) => lv.cols.every((c) => !(c.rails || []).length)), JSON.stringify(zw.levels.map((lv) => lv.cols.map((c) => (c.rails || []).length))));
+  // reczne wzmocnienie czolowe 100 mm z przodu — nie jest para, zostaje
+  const r = { orient: 'front', pos: 'top', side: 'left', h: 100, depth: 100, atDepth: 0, fromBack: false };
+  ok('ręczne czołowe 100 mm z przodu nie jest parą', !G.jestParaPodBlat(r));
 }

@@ -440,6 +440,14 @@ const kolumnaW = (L, li, j) => {
 /* Nazwa poziomu kolumny w uwagach (uzytkownik 2026-10-25: „poziom 4 kolumny 2”, nie
    „poziom kolumny 4”) — przed nia poziom szafki, jak w innych uwagach. */
 const gdziePoziomKol = (li, j, nr) => `Poziom ${li + 1}, poziom ${nr + 1} kolumny ${j + 1}`;
+/* Po usunieciu polki `polka` jej swiatla (pod i nad nia) lacza sie w jedno — rury nad nia
+   schodza o jeden numer, rura spod niej wisi pod nastepna plyta (audyt GPT N104: rura
+   w gornym swietle znikala, bo zostawal stary numer swiatla). */
+const ruryPoUsunieciuPolki = (col, polka) => {
+  if (!col.drazki) return;
+  const r = [...new Set(col.drazki.map(Number).map((x) => (x > polka ? x - 1 : x)))].sort((a, b) => a - b);
+  if (r.length) col.drazki = r; else delete col.drazki;
+};
 // wnetrze poziomu kolumny: „drawers”, „blenda” albo „doors” (polki i drzwi / klapa)
 const wnetrzePoziomu = (col, nr) => {
   const r = { ...col, ...(((col || {}).segmenty || [])[nr] || {}) };
@@ -1322,12 +1330,13 @@ const POLA_KLAPY = ["klapa", "klapaUchwyt", "silowniki", "silaN", "katKlapy", "p
    plyty spotykaja sie tam pod katem prostym i skreca sie je przez lico jednej
    w czolo drugiej. Plaska, na 100 mm, dawala tam tylko styk krawedzi. */
 const ROG_WZM_H = 60;
+// `paraPodBlat` — znacznik pary (przenoszenie przy nowym poziomie, usuwanie przy wiencu; N109)
 const railPair = (cofniete = 0, odTylu = 0, pionZPrzodu = false) => ([
   pionZPrzodu
-    ? { ...newRail(), orient: "front", pos: "top", h: ROG_WZM_H, atDepth: cofniete, fromBack: false }
-    : { ...newRail(), orient: "shelf", pos: "top", depth: 100, atDepth: cofniete, fromBack: false },
+    ? { ...newRail(), orient: "front", pos: "top", h: ROG_WZM_H, atDepth: cofniete, fromBack: false, paraPodBlat: true }
+    : { ...newRail(), orient: "shelf", pos: "top", depth: 100, atDepth: cofniete, fromBack: false, paraPodBlat: true },
   { ...newRail(), orient: "front", pos: "top",
-    h: pionZPrzodu ? ROG_WZM_H : 100, atDepth: odTylu, fromBack: true },
+    h: pionZPrzodu ? ROG_WZM_H : 100, atDepth: odTylu, fromBack: true, paraPodBlat: true },
 ]);
 
 /* Szafka pod blatem roboczym: wieniec schodzi, a kazda kolumna najwyzszego
@@ -1362,8 +1371,12 @@ const bezWienca = (cab, tfIn) => {
    przestal byc najwyzszy), a nowa kolumna („+ kolumna”) nie miala nad soba
    niczego (analiza brakow kontroli 2026-10-04). Po kazdej zmianie struktury
    przenosimy pare do najwyzszego poziomu i dokladamy ja kolumnom bez niej. */
-const jestParaPodBlat = (r) => !!r && r.pos === "top"
-  && ((r.orient === "shelf" && !r.fromBack) || (r.orient === "front" && !!r.fromBack));
+/* Para pod blat: ze znacznikiem albo (zapisy sprzed znacznika) plaskie z przodu, stojace
+   z tylu i stojace z przodu wysokosci rogu — tej ostatniej w szafce narożnej predykat nie
+   znal: przy nowym poziomie zostawala nizej, przy wiencu nie znikala (audyt GPT N109). */
+const jestParaPodBlat = (r) => !!r && r.pos === "top" && (!!r.paraPodBlat
+  || (r.orient === "shelf" && !r.fromBack) || (r.orient === "front" && !!r.fromBack)
+  || (r.orient === "front" && !r.fromBack && Math.round(Number(r.h)) === ROG_WZM_H));
 const utrzymajPodBlat = (cab, levels) => {
   const J = cab.joints || {};
   if (!(J.topL === "none" && J.topR === "none") || !levels.length) return levels;
@@ -3173,6 +3186,21 @@ function computeGeoLiczy(cab, mat, ctx) {
             : `przy ${fmt(rAt)} mm ${od} głębokość najwyżej ${fmt(Math.max(0, dost - odTylu))} mm, a przy głębokości ${fmt(gleb)} mm — najwyżej ${fmt(Math.max(0, dost - gleb))} mm ${od}`;
           add("error", `${co} sięga ${fmt(potrzeba)} mm w głąb, a korpus ma ${fmt(dost)} mm${!r.fromBack && backIntrusion ? " do pleców" : ""} — wychodzi o ${fmt(potrzeba - dost)} mm poza korpus. Popraw: ${rada}.`);
         }
+        /* Pionowe wzmocnienie przy boku a polka (audyt GPT N100: 400 mm od wienca przecinalo
+           gorna polke 18 × 18 × 100 mm, polka szla w calosci do zamowienia, bez uwagi).
+           Przycisk: najwyzsze wzmocnienie, ktore konczy sie nad polka. */
+        if (r.orient === "vertical" && g2.y1 > g2.y0) {
+          const zs0 = frontCut + shelfFrontL, zs1 = zs0 + shelfDepth;
+          const tnie = (c.shelves || []).map((sh, i) => ({ ...sh, i }))
+            .filter((sh) => sh.y < g2.y1 - 0.5 && sh.y + ts > g2.y0 + 0.5 && g2.z0 < zs1 && g2.z0 + g2.zLen > zs0);
+          if (tnie.length) {
+            const gorna = tnie.reduce((a2, b2) => (b2.y > a2.y ? b2 : a2));
+            const maxH = Math.floor(g2.y1 - (gorna.y + ts));
+            add("error", `${co} przy ${r.side === "right" ? "prawym" : "lewym"} boku przecina ${tnie.length > 1 ? `półki ${tnie.map((sh) => sh.i + 1).join(" i ")}` : `półkę ${gorna.i + 1}`} (od dołu) — `
+              + `stoi od ${fmt(Math.round(g2.y0 - lv.y0))} do ${fmt(Math.round(g2.y1 - lv.y0))} mm od dołu poziomu, a półka zaczyna się na ${fmt(Math.round(gorna.y - lv.y0))} mm. `
+              + (maxH >= MIN_PART ? `Skróć je do ${fmt(maxH)} mm albo przesuń półkę.|wzmwys:${lv.i}:${j}:${nr - 1}:${maxH}` : "Przesuń półkę albo wzmocnienie."));
+          }
+        }
       });
 
       /* Front wpuszczany siedzi w otworze, w plaszczyznie lica. Wzmocnienie,
@@ -3817,7 +3845,9 @@ function computeGeoLiczy(cab, mat, ctx) {
         const nlW = num(rawCol.nl) ?? maxNL;
         add("error", `${where}: element stały zasłania część kolumny szuflad — skrzynka na całą szerokość uderzy w niego przy wysuwaniu. `
           + "Usuń element stały albo dobuduj wspornik pionowy (szuflada będzie węższa, prowadnica na wsporniku)."
-          + `|fixdel:${lv.i}:${j}|fixsup:${lv.i}:${j}${nlW ? `:${nlW}` : ""}`);
+          // fix nalezy do kolumny (`jKol`), nie do jej poziomu — w poziomie przyciski zmienialy
+          // segment, a geometria brala fix kolumny (audyt GPT N103)
+          + `|fixdel:${lv.i}:${jKol}|fixsup:${lv.i}:${jKol}${nlW ? `:${nlW}` : ""}`);
       }
       const LW = Math.round(bx1 - bx0);
       const colMaxNL = maxNlFor(dsx0, dsx1, dInsetExtra, lv.y0, lv.y1); // ile realnie wchodzi w tej kolumnie i poziomie
@@ -4414,11 +4444,15 @@ function computeGeoLiczy(cab, mat, ctx) {
          formatki”): rozne liczby wziete z wagi — bez uwagi; uwaga tylko wtedy, gdy
          ktoras liczba jest wpisana recznie (prosba 2026-10-24). */
       if (ds.every((d) => d.hinges === (d.zawiasyTabela ?? d.hinges))) return;
-      const kolumny = [...new Set(ds.map((d) => d.colKey))];
+      /* adres frontu: kolumna albo jej poziom („j” / „js<nr>”, z klucza drzwi) — zawiasy poziomu
+         kolumny sa w `segmenty[nr].hinges` i nadpisuja kolumne (audyt GPT N105) */
+      const adresDrzwi = (d) => { const [li, jk] = d.key.slice(1).split("-"); return `${li}-${jk}`; };
+      const kolumny = [...new Set(ds.map(adresDrzwi))];
       const opis = kolumny.map((ck) => {
-        const [li, j] = ck.split("-").map(Number);
-        const n = [...new Set(ds.filter((d) => d.colKey === ck).map((d) => d.hinges))].join(" i ");
-        return `poziom ${li + 1}, kolumna ${j + 1} — ${n}`;
+        const [li, jk] = ck.split("-");
+        const n = [...new Set(ds.filter((d) => adresDrzwi(d) === ck).map((d) => d.hinges))].join(" i ");
+        const m = /^(\d+)s(\d+)$/.exec(jk);
+        return `${m ? `poziom ${+li + 1}, poziom ${+m[2] + 1} kolumny ${+m[1] + 1}` : `poziom ${+li + 1}, kolumna ${+jk + 1}`} — ${n}`;
       }).join("; ");
       add("warn", `Drzwi tej samej wysokości (${fmt(h)} mm) mają różną liczbę zawiasów: ${opis}.`
         + liczby.map((n) => `|zawiasywszedzie:${n}:${kolumny.join(",")}`).join(""));
@@ -7536,7 +7570,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
       {!rear && geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
         <rect key={`rail${lv.i}-${c.j}-${ri}`}
           x={mx(r.x0, r.x1 - r.x0)} y={fy(r.y1)} width={r.x1 - r.x0} height={r.y1 - r.y0}
-          fill={r.orient === "vertical" ? shc : bf}
+          fill={bf /* wzmocnienia sa z plyty korpusu (matKey "board") — pionowe tez (audyt GPT N101) */}
           stroke={INK} strokeWidth="2" opacity={r.orient === "front" ? 0.9 : 0.7} />
       ))))}
 
@@ -9950,7 +9984,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
         <rect key={`rail${lv.i}-${c.j}-${ri}`}
           x={r.x0} y={fy(r.y1)} width={r.x1 - r.x0} height={r.y1 - r.y0}
-          fill={r.orient === "vertical" ? (shc) : bf}
+          fill={bf /* z plyty korpusu, jak w zamowieniu (N101) */}
           stroke={INK} strokeWidth="2" opacity={r.orient === "front" ? 0.9 : 0.7} />
       ))))}
 
@@ -11910,24 +11944,27 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
 
       {/* elementy stale (fix) — z boku widac ich zasieg na wysokosci */}
       {(() => {
-        const fxx = cab.frontMode === "overlay" ? D : D - geo.tf;
+        /* plaszczyzna jak w bloku frontow (`wpuszczony`): fix z wlasnym montazem „W obrysie”
+           stoi w korpusie — dotad tu liczyl sie montaz szafki i fix rysowal sie drugi raz,
+           przed korpusem (audyt GPT N102) */
+        const fxOf = (inset) => ((inset ?? cab.frontMode === "inset") ? D - geo.tf : D);
         const ffc = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
         const panels = [];
         geo.levels.forEach((lv) =>
           lv.cols.forEach((c) => {
-            if (c.fix) panels.push({ k: `sf${lv.i}-${c.j}`, y: c.fix.y, h: c.fix.h });
-            if (c.topFix) panels.push({ k: `stf${lv.i}-${c.j}`, y: c.topFix.y, h: c.topFix.h });
+            if (c.fix) panels.push({ k: `sf${lv.i}-${c.j}`, y: c.fix.y, h: c.fix.h, x: fxOf(c.fix.inset) });
+            if (c.topFix) panels.push({ k: `stf${lv.i}-${c.j}`, y: c.topFix.y, h: c.topFix.h, x: fxOf(undefined) });
           })
         );
         const seen = new Set();
         return panels
           .filter((p) => {
-            const key = `${Math.round(p.y)}|${Math.round(p.h)}`;
+            const key = `${Math.round(p.y)}|${Math.round(p.h)}|${p.x}`;
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
           })
-          .map((p) => (
+          .map(({ x: fxx, ...p }) => (
             <g key={p.k}>
               <rect x={fxx} y={fy(p.y + p.h)} width={geo.tf} height={p.h}
                 fill={ffc} stroke={INK} strokeWidth="2" />
@@ -12008,7 +12045,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
         <rect key={`srail${lv.i}-${c.j}-${ri}`}
           x={xC + cd - (r.z0 + r.zLen)} y={fy(r.y1)} width={r.zLen} height={r.y1 - r.y0}
-          fill={r.orient === "vertical" ? (shc) : bf}
+          fill={bf /* z plyty korpusu, jak w zamowieniu (N101) */}
           stroke={INK} strokeWidth="1.5" opacity="0.6" />
       ))))}
       <text x={D / 2} y={H + 125} textAnchor="middle" fontSize="22" fill={LINE}
@@ -13010,7 +13047,12 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("silaauto:")) {
       // „silaauto:<poziom>:<kolumna>:<N z tabeli>" — sila klapy wraca do doboru z tabeli
       const [, li, j, n] = action.split(":");
-      return { label: `Zwiększ siłę do ${n} N`, run: () => editLevels((L) => { delete kolumnaW(L, li, j).silaN; }) };
+      /* w poziomie kolumny brak pola to dziedziczenie z kolumny (np. recznie 50 N), jawne auto
+         to null — „delete” zostawialo 50 N (audyt GPT N106) */
+      return { label: `Zwiększ siłę do ${n} N`, run: () => editLevels((L) => {
+        const col = kolumnaW(L, li, j);
+        if (/s\d+$/.test(j)) col.silaN = null; else delete col.silaN;
+      }) };
     }
     if (action.startsWith("klapa2:")) {
       // „klapa2:<poziom>:<kolumna>:<keep|auto>:<N>" — drugi podnosnik; keep — ta sama sila, auto — z tabeli dla dwoch
@@ -13018,7 +13060,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return { label: `Dołóż drugi — 2 × ${n} N`, run: () => editLevels((L) => {
         const col = kolumnaW(L, li, j);
         col.silowniki = 2;
-        if (tryb === "auto") delete col.silaN;
+        // jak „Zwiększ siłę”: w poziomie kolumny jawne auto (N106)
+        if (tryb === "auto") { if (/s\d+$/.test(j)) col.silaN = null; else delete col.silaN; }
       }) };
     }
     if (action.startsWith("fixgap:")) {
@@ -13140,10 +13183,13 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return {
         label: `Wszędzie ${ile} ${plural(+ile, "zawias", "zawiasy", "zawiasów")}`,
         run: () => editLevels((L) => lista.split(",").forEach((ck) => {
-          const [li, j] = ck.split("-").map(Number);
-          const col = L[li] && L[li].cols[j];
-          if (!col) return;
-          const n = Math.max(1, Math.round(Number(col.doors) || 1), (col.hinges || []).length);
+          // „<poziom>-<kolumna>” albo „<poziom>-<kolumna>s<nr>” — poziom kolumny (N105)
+          const [li, jk] = ck.split("-");
+          const m = /^(\d+)s(\d+)$/.exec(jk);
+          const kol = L[+li] && L[+li].cols[m ? +m[1] : +jk];
+          if (!kol) return;
+          const col = m ? kolumnaW(L, li, jk) : kol;
+          const n = Math.max(1, Math.round(Number(col.doors ?? kol.doors) || 1), (col.hinges || []).length);
           col.hinges = Array.from({ length: n }, () => +ile);
         })),
       };
@@ -13197,6 +13243,14 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
           a[+k] = Number(mm);
           col.otwieranieMm = a;
         }),
+      };
+    }
+    if (action.startsWith("wzmwys:")) {
+      // „wzmwys:<poziom>:<kolumna>:<nr wzmocnienia>:<mm>” — wysokosc wzmocnienia (pionowe nad polka, N100)
+      const [, li, j, k, mm] = action.split(":");
+      return {
+        label: `Wzmocnienie ${+k + 1}: ${fmt(Number(mm))} mm`,
+        run: () => editLevels((L) => { const col = kolumnaW(L, li, j); const r = col && (col.rails || [])[+k]; if (r) r.h = Number(mm); }),
       };
     }
     if (action.startsWith("onedoor:")) {
@@ -16996,8 +17050,11 @@ function ReportProjectSheet({ project, projectName, tytul = null, tytulProduktow
    swiatla miedzy polkami od dolu, `t` — grubosc polki, `potrzeba(m, k)` —
    najnizszy poziom pod podnosnik klapy m z k. Dla kazdej liczby klap k (od
    jednej na polke do jednej na kolumne) pasma dziela sie rowno (wiecej nizej):
-   wysokosci poziomow, polki-granice (staja sie przelotowe) i czy sie miesci. */
-const wariantyKlap = (pasma, t, potrzeba) => {
+   wysokosci poziomow, polki-granice (staja sie przelotowe) i czy sie miesci.
+   `dGranicy` — o ile granica bedzie grubsza od polki (jedna kolumna: polka przelotowa
+   z plyty korpusu; kilka kolumn: granica zostaje polka, 0) — tyle traci gorny, auto
+   poziom na kazdej granicy (audyt GPT N107: liczylo sie z grubosci korpusu). */
+const wariantyKlap = (pasma, t, potrzeba, dGranicy = 0) => {
   const nb = pasma.length;
   return [...Array(nb)].map((_, q) => nb - q).map((k) => {
     const baza = Math.floor(nb / k), reszta = nb % k;
@@ -17008,6 +17065,7 @@ const wariantyKlap = (pasma, t, potrzeba) => {
       od += g;
       return Math.round(h);
     });
+    if (dGranicy) wys[wys.length - 1] -= (k - 1) * dGranicy;
     const granice = [];
     grupy.slice(0, -1).reduce((cum, g) => { granice.push(cum + g - 1); return cum + g; }, 0);
     const min = wys.map((_, m) => potrzeba(m, k));
@@ -17016,15 +17074,17 @@ const wariantyKlap = (pasma, t, potrzeba) => {
 };
 
 // wysokosci poziomow klap przy polkach-granicach `granice` (indeksy polek od dolu)
-const wysKlap = (pasma, t, granice) => {
+const wysKlap = (pasma, t, granice, dGranicy = 0) => {
   const g = [...new Set(granice)].sort((a, b) => a - b);
   const kon = [...g, pasma.length - 1];
   let od = 0;
-  return kon.map((k) => {
+  const wys = kon.map((k) => {
     const h = pasma.slice(od, k + 1).reduce((a, b) => a + b, 0) + (k - od) * t;
     od = k + 1;
     return Math.round(h);
   });
+  if (dGranicy) wys[wys.length - 1] -= g.length * dGranicy;
+  return wys;
 };
 
 /* Scalanie szafek ciagu w jedna (uzytkownik 2026-10-24: „rysować szafki osobno,
@@ -18731,8 +18791,12 @@ export default function App() {
     if (!n) return;
     // poziom kolumny z szufladami — pasmo frontow z jego geometrii
     const gk = m ? ((geo.levels[i].cols[+m[1]] || {}).poziomy || {})[+m[2]] : geo.levels[i].cols[j];
-    const band = m ? Math.round((gk && gk.dbandH) || 0) : Math.round(lv.frontHi - lv.frontLo);
-    const avail = band - (n - 1) * cab.gaps.between;
+    /* pasmo i luz tej kolumny / poziomu z geometrii (`dbandH`, `gapBetween`) — pasmo poziomu
+       szafki i luz szafki nie znaly montazu „Wewnątrz” ani wlasnego luzu kolumny i suma
+       frontow nie zgadzala sie o kilka-kilkadziesiat mm (audyt GPT N108) */
+    const band = Math.round((gk && gk.dbandH) || (m ? 0 : lv.frontHi - lv.frontLo));
+    const luz = num(gk && gk.gapBetween) ?? cab.gaps.between;
+    const avail = band - (n - 1) * luz;
     const cMode = gk?.drawerMode || cab.frontMode;
     /* proporcje z boku dobranego w geometrii (`hClass`) — wpis bywa „auto”, a Number("auto")
        zatruwal sume i zapisywal NaN we wszystkich frontach (audyt GPT N97) */
@@ -18899,6 +18963,7 @@ export default function App() {
     const wnetrze = wnetrzePoziomu(col, zostaw === "gora" ? poz + 1 : poz);
     if (wnetrze === "doors" && swiatlo != null) {
       col.shelfTargets.splice(swiatlo, 1);
+      ruryPoUsunieciuPolki(col, k);
       usunGranice(col, k, zostaw);
       if (col.podzial) col.podzial = col.podzial.map((x) => (x > k ? x - 1 : x));
       return;
@@ -19382,6 +19447,7 @@ export default function App() {
       // znika polka nad swiatlem k (przy najwyzszym — ta pod nim); granice frontow za nia przesuwaja sie
       const polka = Math.min(k, st.length - 2);
       st.splice(k, 1);
+      ruryPoUsunieciuPolki(col, polka);
       if (col.podzial) {
         usunGranice(col, polka);
         if (col.podzial) col.podzial = col.podzial.map((x) => (x > polka ? x - 1 : x));
@@ -21454,7 +21520,9 @@ export default function App() {
                         {/* zaraz pod drzwiami (komentarz uzytkownika 2026-10-17): klapy zamiast
                             drzwi, poziom zamiast polki — tylko w poziomie z jedna kolumna */}
                         {c.kind === "doors" && nS > 0 && !(rawCol.podzial || []).length && (() => {
-                          const ys = [lv.y0, ...c.shelves.flatMap((s2) => [s2.y, s2.y + geo.t]), lv.y1];
+                          // polki kolumny sa z plyty polek (`geo.ts`); przy jednej kolumnie granica bedzie przelotowa z plyty korpusu
+                          const ys = [lv.y0, ...c.shelves.flatMap((s2) => [s2.y, s2.y + geo.ts]), lv.y1];
+                          const dGr = lv.cols.length > 1 ? 0 : geo.t - geo.ts;
                           const pasma = [...Array(ys.length / 2)].map((_, m) => Math.round(ys[2 * m + 1] - ys[2 * m]));
                           /* najnizszy poziom pod klape: plytka pod plyta z zawiasami (podnosnik GTV wg
                              nalozenia frontu, amortyzator przy klapie w dol) plus jej promien */
@@ -21463,7 +21531,7 @@ export default function App() {
                             : m === k - 1 ? PODNOSNIK_H.nakladane[90] : PODNOSNIK_H.blizniacze[90]) + KLAPA_PLYTKA_R;
                           const frontSz = cab.frontMode === "inset" ? "inset" : "overlay";
                           const kk = kreatorKlap && kreatorKlap.idx === project.active && kreatorKlap.li === lv.i && kreatorKlap.j === c.j ? kreatorKlap : null;
-                          const wr = wariantyKlap(pasma, geo.t, (m, k) => potrzeba(m, k, "gora", frontSz));
+                          const wr = wariantyKlap(pasma, geo.ts, (m, k) => potrzeba(m, k, "gora", frontSz), dGr);
                           const jakas = wr.find((w) => w.miesci);
                           if (!kk) {
                             const otworz = () => setKreatorKlap({ idx: project.active, li: lv.i, j: c.j,
@@ -21489,7 +21557,7 @@ export default function App() {
                           }
                           const zmien = (patch) => setKreatorKlap({ ...kk, ...patch });
                           const k = kk.granice.length + 1;
-                          const wys = wysKlap(pasma, geo.t, kk.granice);
+                          const wys = wysKlap(pasma, geo.ts, kk.granice, dGr);
                           const min = wys.map((_, m) => potrzeba(m, k, kk.kier, kk.front));
                           const zaNiskie = wys.map((h, m) => ({ m, h, min: min[m] })).filter((q) => q.h < q.min);
                           const ileOpcje = pasma.map((_, q) => ({ v: String(q + 1), l: String(q + 1) }));

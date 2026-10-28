@@ -41,7 +41,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 - **Tył**: V-BOX — podniesiony, DXS-3D — wysokość w mm.
 - **NL**: dla całej kolumny albo dla jednej szuflady.
 - **Luz między frontami**: wspólny z drzwiami, domyślnie 2 mm.
-- **„dopasuj fronty”**: dzieli pasmo proporcjonalnie do wysokości boków — tych dobranych w geometrii (`hClass`), także przy boku „auto” (audyt GPT N97: wpis „auto” dawał NaN we wszystkich frontach); minimalny front V-BOX z tabeli, DXS bez minimum; wynik zapisuje się tylko, gdy wszystkie fronty są liczbami.
+- **„dopasuj fronty”**: dzieli pasmo proporcjonalnie do wysokości boków — tych dobranych w geometrii (`hClass`), także przy boku „auto” (audyt GPT N97: wpis „auto” dawał NaN we wszystkich frontach); minimalny front V-BOX z tabeli, DXS bez minimum; wynik zapisuje się tylko, gdy wszystkie fronty są liczbami. Pasmo i luz — tej kolumny / poziomu kolumny (montaż „Wewnątrz” / „Na korpusie”, własny luz), a nie poziomu szafki (audyt GPT N108).
 
 ### Kontrole i przyciski
 - **Luz między frontami**:
@@ -56,7 +56,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
   - za długa (nie ma tyle głębokości albo wjeżdża we wzmocnienie) — błąd z przyciskiem krótszej;
   - krótsza, niż się zmieści — ostrzeżenie „zmieści się głębsza NL”;
   - korpus za płytki na najkrótszą NL — błąd.
-- **Element stały (fix) w kolumnie szuflad**: bez wspornika — błąd z „Usuń element stały” / „Dobuduj wspornik pionowy”. Ze wspornikiem szuflada jest węższa, a prowadnica idzie na wspornik.
+- **Element stały (fix) w kolumnie szuflad**: bez wspornika — błąd z „Usuń element stały” / „Dobuduj wspornik pionowy”. Ze wspornikiem szuflada jest węższa, a prowadnica idzie na wspornik. Przy szufladach w poziomie kolumny przyciski zmieniają fix kolumny — to on stoi przy szufladach (audyt GPT N103).
 - **Kolumna węższa niż 200 mm** — ostrzeżenie.
 - **Różne systemy**:
   - w szafce — ostrzeżenie z „Wszystkie szuflady szafki na …” / „Zostaw różne systemy”;

@@ -12,7 +12,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - „między bokami” — płyta między bokami;
   - „na boku” — płyta na czołach boków;
   - brak (szafka pod blatem bez wieńca, szafka bez dna).
-- **Szafka pod blatem roboczym** (w ciągu z blatem): wieniec znika, a każda kolumna najwyższego poziomu dostaje parę wzmocnień.
+- **Szafka pod blatem roboczym** (w ciągu z blatem): wieniec znika, a każda kolumna najwyższego poziomu dostaje parę wzmocnień (znacznik `paraPodBlat` — para idzie razem do nowego najwyższego poziomu i razem znika przy powrocie wieńca; w szafce narożnej także stojąca z przodu, audyt GPT N109).
   - Z przodu: płaskie, 100 mm głębokości, przy licu.
   - Z tyłu: stojące, 100 mm wysokości, przy plecach.
   - W szafce narożnej przednie jest pionowe i cofnięte o grubość frontu, a tylne odsunięte o grubość płyty — dochodzi do kątownika.
@@ -68,6 +68,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - dwa rzędy nóżek nachodzą na siebie — ostrzeżenie.
 - **Kolumna otwarta od góry** (bez wieńca i wzmocnienia) — ostrzeżenie z „Dodaj parę wzmocnień pod blat”.
 - **Wzmocnienie poza korpusem** (ręcznie wpisana wysokość większa niż poziom, głębokość z odsunięciem większa niż korpus do pleców) — błąd z największą wysokością / głębokością / odsunięciem; ustawień program nie zmienia (audyt GPT N72).
+- **Pionowe wzmocnienie przecina półkę** (stoi przy boku od wieńca w dół i dochodzi do półki w tej samej głębokości) — błąd z „Wzmocnienie N: X mm” (najwyższe, które kończy się nad półką; od 60 mm) albo radą „przesuń półkę” (audyt GPT N100). Wzmocnienia — także pionowe — są z płyty korpusu i tak też wyglądają na rysunkach (N101; wcześniej pionowe miało kolor półek).
 - **Szafka pod blatem ciągu z wieńcem** albo bez wieńca i bez wzmocnień — ostrzeżenie z „Dołóż parę wzmocnień” (wieniec znika, dochodzi para).
 - **Ciąg bez blatu roboczego, a szafka bez wieńca z parą wzmocnień pod blat** (np. po wyłączeniu blatu) — ostrzeżenie z „Wieniec zamiast wzmocnień”. Wieniec włączony w „Złączach korpusu” (z „brak” na „między” / „na boku”) sam zdejmuje parę wzmocnień pod blat (`zWiencem`; użytkownik 2026-10-24).
 - **Płyta inna niż 18 mm** — ostrzeżenie (liczby katalogowe szuflad są dla 18).
