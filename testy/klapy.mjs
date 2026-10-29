@@ -413,5 +413,30 @@ await seed(GORNA(600, { klapa: 'gora', silaN: 90 }));
 ls = await lista();
 ok('starsza siła spoza karty (90 N) zostaje widoczna na liście', ls.some((o) => o.v === '90' && /spoza karty/.test(o.t)) && await page.locator('select[data-el="klapa-sila"]').inputValue() === '90', ls.map((o) => o.t).join(' | '));
 
+console.log('\n== podnośniki na rysunkach otwartej klapy (użytkownik 2026-10-29) ==');
+for (const [kl, co, coMn] of [['gora', 'podnośnik', 'podnośniki'], ['dol', 'amortyzator', 'amortyzatory']]) {
+  // 800 szerokosci — domyslnie dwa; 500 — jeden po wybranej stronie (prawej)
+  await seed(GORNA(800, { klapa: kl, shelfTargets: [null] }));
+  await pick('Szafka'); await pick('Otw.');
+  const n2 = await page.locator('#rysunek [data-el="podnosnik"]').count();
+  await pick('Zamk.');
+  const n0 = await page.locator('#rysunek [data-el="podnosnik"]').count();
+  ok(`klapa ${kl === 'gora' ? 'do góry' : 'w dół'} 800: „Otw.” — dwa ${coMn} przy bokach, „Zamk.” — bez`, n2 === 2 && n0 === 0, `${n2} / ${n0}`);
+  await pick('3D'); await page.evaluate(() => { window.__audytBryl = []; }); await pick('zamknięte'); await page.waitForTimeout(400);
+  const pd = await page.evaluate(() => (window.__audytBryl || []).filter((x) => x.tag === 'podnosnik').map((x) => x.p));
+  await pick('otwarte'); await pick('Front');
+  // kazdy: tloczysko i silownik; jeden koniec w korpusie (z > 0, przy plytce 25 mm), drugi przed nim przy otwartej klapie
+  const lewe = pd.filter((q) => q[3] < 400), prawe = pd.filter((q) => q[0] > 400);
+  const wKorpusie = (a) => a.some((q) => q[5] > 20), przed = (a) => a.some((q) => q[2] < -50);
+  ok(`klapa ${kl === 'gora' ? 'do góry' : 'w dół'}: w 3D otwartej po dwie bryły na ${co} (od boku w korpusie do klapy przed nim), przy bokach`, pd.length === 4
+    && [lewe, prawe].every((a) => a.length === 2 && wKorpusie(a) && przed(a)) && lewe.every((q) => q[0] >= 18 && q[3] <= 40) && prawe.every((q) => q[0] >= 760 && q[3] <= 782),
+    JSON.stringify(pd.map((q) => q.map(Math.round))));
+}
+await seed(GORNA(500, { klapa: 'gora', silowniki: 1, podnosnikStrona: 'right', shelfTargets: [null] }));
+await pick('Szafka'); await pick('Otw.');
+const jeden = await page.locator('#rysunek [data-el="podnosnik"]').evaluateAll((g) => g.map((x) => Math.round(x.querySelector('rect').getAttribute('x'))));
+ok('jeden podnośnik po prawej — na rysunku jeden, przy prawym boku', jeden.length === 1 && jeden[0] > 400, JSON.stringify(jeden));
+await pick('Zamk.');
+
 console.log('\nBLEDY:', errors.length ? errors.join('; ') : '(brak)');
 await b.close();

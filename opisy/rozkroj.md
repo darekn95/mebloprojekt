@@ -13,6 +13,7 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
   - Formatka obraca się, chyba że „Kierunek usłojenia ma znaczenie” — wtedy słoje biegną wzdłuż dłuższego boku arkusza.
   - Plecy z HDF obracają się zawsze.
 - **Blat roboczy**: własny arkusz 4100 × 600 albo 4100 × 1200 mm, nigdy nie obracany (fabryczny profil z przodu). Rzaz 3 mm liczy się tak samo jak na płycie: kawałki 2300 + 1799 = 4099 mm z rzazem to 4102 — nie wejdą w jeden arkusz 4100 (ostrzeżenie „brakuje 2 mm”).
+- **Podpis formatki na arkuszu** (ekran i PDF — ten sam rysunek): każda formatka ma podpis, który nie wychodzi poza nią. Duża — wymiar i nazwa poziomo, jak dawniej. Mniejsza albo wąska (dawniej bez podpisu: wstawka 720 × 60, front szuflady 170 × 460; cokół 100 z nazwą wystającą poza formatkę) — napis wzdłuż dłuższego boku, w wąskiej pionowej obrócony, mniejszy; wymiar zawsze, nazwa, gdy się zmieści (decyzja użytkownika 2026-10-29, audyt GPT PDF-1).
 - **Przeliczanie** samo: 1 s po ostatniej zmianie formatek, przy ponad 40 szafkach 5 s.
 - **Liczba arkuszy** idzie do wyceny („arkusze płyty”, „formatowanie”).
 
@@ -53,13 +54,13 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 - **Rzaz 3 mm**: grubość piły.
 - **Blat 4100 × 600 / 1200**: arkusze z faktur użytkownika (2026-09-29).
 - **Progi 200 mm i 15%**: komentarze użytkownika 2026-10-17.
-- **Czytelność PDF**: decyzja użytkownika 2026-10-21 (audyt GPT PDF-1: „4 widoki zostają, napisy nie nachodzą”).
+- **Czytelność PDF**: decyzja użytkownika 2026-10-21 (audyt GPT PDF-1: „4 widoki zostają, napisy nie nachodzą”); podpisy formatek na arkuszu — „podpis w formatce” (2026-10-29).
 
 ## Gdzie w kodzie i testy
 
-- **Rozkrój**: `buildCutPlan`, `autoPlan`, `uwagiRozkroju`, `arkuszBlatu`, `wierszBlatu`; stałe `SHEET_W/H`, `USABLE_W/H`, `KERF`, `PROG_ODPADU`, `BLAT_BRAKUJE`, `ROZKROJ_ZWLOKA*`.
+- **Rozkrój**: `buildCutPlan`, `autoPlan`, rysunek arkusza `SheetPlan` z podpisem `podpisFormatki` (`PODPIS_MIN`, `szerPodpisu`), `uwagiRozkroju`, `arkuszBlatu`, `wierszBlatu`; stałe `SHEET_W/H`, `USABLE_W/H`, `KERF`, `PROG_ODPADU`, `BLAT_BRAKUJE`, `ROZKROJ_ZWLOKA*`.
 - **PDF**: `ReportSheet` (strona szafki, klasy `rp-page`, `rp-widok`), strony rozkroju `rp-arkusz`, `PRINT_CSS`; skala napisów `drukKUkladu`, `kolumnaDruk`, `ulozLegendy`.
-- **Testy**: `cutplan`, `arkusz`, `arkuszstd`, `fit`, `fitall`, `fitstd`, `fitallstd`, `audytwycena`, `pdf`, `pdfczytelnosc`, `grain`.
+- **Testy**: `cutplan`, `arkusz`, `arkuszstd`, `fit`, `fitall`, `fitstd`, `fitallstd`, `audytwycena`, `pdf`, `pdfczytelnosc`, `podpisyrozkroju`, `grain`.
 
 ## Własne płyty (2026-10-24)
 

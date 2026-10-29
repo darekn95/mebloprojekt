@@ -1,7 +1,9 @@
 /* Niskie okno (audyt GPT U2, decyzja uzytkownika 2026-10-19 — „oba naraz”):
    - ponizej 640 px wysokosci pasek „Ciągi i szafki” zwija sie sam do jednej
      linii, klikniecie go rozwija (bez zapamietywania),
-   - gorny pasek jest przyklejony tylko wtedy, gdy zajmuje najwyzej 40% okna,
+   - gorny pasek jest zawsze przyklejony i ma najwyzej 40% okna — wyzszy przewija sie
+     sam (uzytkownik 2026-10-29: odpiety po rozwinieciu „przypial sie na samej gorze”
+     strony i zniknal z ekranu w waskim oknie artefaktu),
    - „Pokaż rysunek” w niskim oknie przewija prosto do rysunku, pod pasek,
    - w zwyklym oknie bez zmian: pasek rozwiniety i przyklejony. */
 import pw from './pw.mjs';
@@ -28,8 +30,8 @@ const otworz = async (width, height) => {
 };
 const stan = (page) => page.evaluate(() => {
   const h = document.querySelector('header[data-el="naglowek"]');
-  return { wys: Math.round(h.getBoundingClientRect().height), poz: getComputedStyle(h).position,
-    rozwiniety: !!document.querySelector('[data-el="pasek-ciagow-lista"]'), okno: innerHeight };
+  return { wys: Math.round(h.getBoundingClientRect().height), poz: getComputedStyle(h).position, gora: Math.round(h.getBoundingClientRect().top),
+    przewija: h.scrollHeight > h.clientHeight + 1, rozwiniety: !!document.querySelector('[data-el="pasek-ciagow-lista"]'), okno: innerHeight };
 });
 
 console.log('== okno 600 × 495 (audyt GPT U2) ==');
@@ -49,7 +51,7 @@ ok('„Pokaż rysunek”: rysunek tuż pod paskiem, widać całe miejsce pod nim
 await page.locator('[data-el="pasek-ciagow"]').click(); await page.waitForTimeout(600);
 s = await stan(page);
 ok('kliknięcie rozwija pasek ciągów', s.rozwiniety, JSON.stringify(s));
-ok('rozwinięty zajmuje ponad 40% — nagłówek nie jest przyklejony', s.wys > 0.4 * s.okno && s.poz !== 'sticky', JSON.stringify(s));
+ok('rozwinięty byłby ponad 40% — nagłówek dalej przyklejony, 40% okna, przewija się sam', s.poz === 'sticky' && s.wys <= Math.round(0.4 * s.okno) + 1 && s.przewija, JSON.stringify(s));
 ok('rozwinięcie nie jest zapamiętane', await page.evaluate(() => localStorage.getItem('mp-pasek-zwiniety')) === null);
 await page.locator('[data-el="pasek-ciagow"]').click(); await page.waitForTimeout(600);
 s = await stan(page);
@@ -59,8 +61,31 @@ await ctx.close();
 console.log('\n== okno 640 × 300 (telefon w poziomie) ==');
 ({ ctx, page } = await otworz(640, 300));
 s = await stan(page);
-ok('zwinięty, a i tak ponad 40% okna — nie przyklejony', !s.rozwiniety && s.wys > 0.4 * s.okno && s.poz !== 'sticky', JSON.stringify(s));
+ok('zwinięty, a i tak ponad 40% okna — przyklejony, 40% okna, przewija się sam', !s.rozwiniety && s.poz === 'sticky' && s.wys <= Math.round(0.4 * s.okno) + 1 && s.przewija, JSON.stringify(s));
 await ctx.close();
+
+console.log('\n== okno 850 × 650 (artefakt w wąskim oknie, użytkownik 2026-10-29) ==');
+{
+  // trzy ciagi (jak pomieszczenie 1 uzytkownika): po przewinieciu paski sie zwijaja, klik je rozwija
+  const P3 = { ...PROJ, runs: [...PROJ.runs, RUN('c3', 'Ściana C')], items: [...PROJ.items, CAB('C1', 'c3'), CAB('C2', 'c3'), CAB('A3', 'c1'), CAB('B2', 'c2')] };
+  const ctx3 = await b.newContext({ viewport: { width: 850, height: 650 } });
+  await ctx3.addInitScript(() => { window.__mpBezZwijania = false; });
+  const p3 = await ctx3.newPage(); p3.on('pageerror', (e) => errors.push(e.message));
+  await p3.goto(URL, { waitUntil: 'networkidle' });
+  await p3.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); }, P3);
+  await p3.reload({ waitUntil: 'networkidle' }); await p3.waitForTimeout(1500);
+  await p3.mouse.move(200, 600);
+  for (let i = 0; i < 6; i++) { await p3.mouse.wheel(0, 300); await p3.waitForTimeout(150); }
+  await p3.waitForTimeout(800);
+  s = await stan(p3);
+  const y0 = await p3.evaluate(() => Math.round(scrollY));
+  ok('po przewinięciu w dół: pasek zwinięty i przyklejony', y0 > 500 && !s.rozwiniety && s.poz === 'sticky' && s.gora === 0, JSON.stringify({ ...s, y0 }));
+  await p3.locator('header[data-el="naglowek"] button', { hasText: 'Ciągi i szafki' }).first().click(); await p3.waitForTimeout(700);
+  s = await stan(p3);
+  ok('rozwinięcie w tym miejscu: pasek dalej na ekranie u góry (nie odpięty na górze strony), najwyżej 40%', s.rozwiniety && s.poz === 'sticky' && s.gora === 0
+    && s.wys <= Math.round(0.4 * s.okno) + 1, JSON.stringify(s));
+  await ctx3.close();
+}
 
 console.log('\n== okno 1500 × 1000: bez zmian ==');
 ({ ctx, page } = await otworz(1500, 1000));

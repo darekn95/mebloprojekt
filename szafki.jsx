@@ -670,6 +670,27 @@ const KLAPA_PLYTKA_OD_KRAWEDZI = 25, KLAPA_MOC_OD_BOKU = 12, KLAPA_MOC_ROZSTAW =
    s. 3: „min. 50”). Zakres wysokosci podnosnika: plytka ⌀29 (promien ok. 15)
    i mocowanie frontu (ok. 10 mm poza otwor) — wymiary produktu z tych stron. */
 const KLAPA_POLKA_ZA_FRONTEM = 50, KLAPA_PLYTKA_R = 15, KLAPA_MOC_ZAPAS = 10;
+/* Sam podnosnik na rysunkach (PD-G00 s. 3, „Wymiary produktu”): silownik ⌀15, dlugosc
+   z koncowka 28 + 122 = 150 mm, tloczysko ⌀6; kulka mocowania frontu ok. 17,5 mm
+   od klapy. Amortyzator PD-ECGDL rysujemy tak samo. */
+const PODNOSNIK_FI = 15, PODNOSNIK_TLOK_FI = 6, PODNOSNIK_SILOWNIK = 150, KLAPA_KULKA = 17.5;
+/* Odcinek podnosnika otwartej klapy (z = 0 na przedniej krawedzi korpusu, w glab +):
+   kulka na boku stoi, kulka na klapie obraca sie z nia (`klapaObrot`, ta sama os co
+   klapa w bryle; `oz` — lico klapy). */
+const podnosnikOdcinek = (d, p, angle, oz) => ({
+  B: { x: p.x, y: p.yB, z: p.zB },
+  C: klapaObrot(d, angle, oz)({ x: p.x, y: p.yC, z: p.zC }),
+});
+/* Podnosnik w bryle: tloczysko od kulki na boku, silownik przy klapie — prostopadlosciany
+   wzdluz osi y obrocone wokol x na kierunek B→C (`box` przyjmuje przeksztalcenie). */
+const podnosnikBryly = (B, C) => {
+  const dy = C.y - B.y, dz = C.z - B.z, len = Math.hypot(dy, dz);
+  if (!(len > 1)) return [];
+  const rot = (q) => rotAboutX(q, Math.atan2(dz, dy), B.y, B.z);
+  const sil = Math.min(PODNOSNIK_SILOWNIK, len * 0.6), r1 = PODNOSNIK_TLOK_FI / 2, r2 = PODNOSNIK_FI / 2;
+  return [[B.x - r1, B.y, B.z - r1, B.x + r1, B.y + len - sil, B.z + r1, rot],
+    [B.x - r2, B.y + len - sil, B.z - r2, B.x + r2, B.y + len, B.z + r2, rot]];
+};
 /* Gestosc robocza plyty frontu od uzytkownika: 660–680 kg/m3 — bierzemy
    gorna granice, zeby podnosnik nie wyszedl za slaby (18 mm ≈ 12,2 kg/m2). */
 const GESTOSC_FRONTU = 680;
@@ -1677,7 +1698,7 @@ const migrateMat = (rawMat) => {
 // buduje stan projektu z wczytanych danych: obsluguje stary {cab,mat} i nowy {items,active}
 const DEFAULT_PROJECT_NAME = "Projekt bez nazwy";
 /* Niskie okno (audyt GPT U2): ponizej tej wysokosci pasek ciagow zwija sie sam,
-   a gorny pasek nie jest przyklejony, gdy zajmuje wiecej niz ten ulamek okna. */
+   a gorny pasek ma najwyzej ten ulamek okna (dalej przewija sie sam, 2026-10-29). */
 const NISKIE_OKNO = 640;
 const NAGLOWEK_MAX = 0.4;
 /* Przewijanie w dol zwija paski pomieszczen oraz ciagow i szafek (uzytkownik
@@ -2841,7 +2862,28 @@ function computeGeoLiczy(cab, mat, ctx) {
           const wolne = swiatlaDrzwi.filter((o) => o.k !== dr.k && !c.drazki.some((q) => q.k === o.k));
           const cel = [...wolne].reverse().find((o) => o.h - DRAZEK_POD_PLYTA >= DRAZEK_MIN_POD)
             || [...wolne].filter((o) => o.h >= DRAZEK_SWIATLO_OPCJA && o.h > dr.swiatlo).sort((a, b) => b.h - a.h)[0];
+          /* Uzytkownik 2026-10-29: niska rura bywa swiadoma, ale gdy da sie to zmienic,
+             zaproponowac w tym samym ostrzezeniu — polka nad rura wyzej albo pod nia nizej
+             o brakujace mm, kosztem sasiedniego swiatla (zostaje >= 50 mm, bez rury, ta sama
+             polka nie jest granica poziomu kolumny). */
+          const brak = Math.ceil(DRAZEK_MIN_POD + DRAZEK_POD_PLYTA - dr.swiatlo);
+          const przesun = [["gora", dr.k + 1, dr.k], ["dol", dr.k - 1, dr.k - 1]].map(([kier, nb, polka]) => {
+            const o = c.openings[nb];
+            if (!o || grRur.includes(polka) || c.drazki.some((q) => q.k === nb) || o.h - brak < 50) return null;
+            const t = (i) => num(st[i]);
+            const inne = st.some((v, i) => i !== nb && i !== dr.k && t(i) === null);
+            const zm = {};
+            if (inne) { zm[dr.k] = dr.swiatlo + brak; zm[nb] = o.h - brak; }
+            else {
+              if (t(nb) !== null) zm[nb] = t(nb) - brak;
+              if (t(dr.k) !== null) zm[dr.k] = t(dr.k) + brak;
+              if (t(nb) === null && t(dr.k) === null) zm[nb] = o.h - brak;
+            }
+            return `drazekpolka:${lv.i}:${j}:${kier}:${brak}:${nb}:${Math.round(o.h - brak)}:${Object.entries(zm).map(([i, v]) => `${i}=${Math.round(v)}`).join(",")}`;
+          }).filter(Boolean);
           add("warn", `${gdzie}: pod rurą tylko ${fmt(dr.pod)} mm — na koszule i marynarki potrzeba ok. ${fmt(DRAZEK_MIN_POD)} mm (płaszcze ok. ${fmt(DRAZEK_DLUGIE)}). Rura ${DRAZEK_POD_PLYTA} mm pod półką, światło ${fmt(dr.swiatlo)} mm.`
+            + (przesun.length ? ` Wystarczy przesunąć półkę o ${fmt(brak)} mm — jeśli tak ma zostać, odhacz.` : "")
+            + przesun.map((a) => "|" + a).join("")
             + (cel ? `|drazekprzenies:${lv.i}:${j}:${dr.k}:${cel.k}:${Math.round(cel.h)}` : "") + `|drazek:${lv.i}:${j}:${dr.k}:0`);
         }
         if (dividerDepth < DRAZEK_GL_MIN)
@@ -5933,6 +5975,12 @@ function computeGeoLiczy(cab, mat, ctx) {
         const opis = gora ? `GTV PD-G00, kąt ${kat}°, front ${typ === "blizniacze" ? "bliźniaczy (półnakładany)" : typ === "wpuszczane" ? "wpuszczany" : "nakładany"}: `
           + `${fmt(PODNOSNIK_H[typ][kat])} mm pod spodem płyty z zawiasami`
           : `GTV PD-ECGDL: ${fmt(AMORTYZATOR_H)} mm nad płytą z zawiasami`;
+        /* Podnosnik / amortyzator do rysunkow otwartej klapy (uzytkownik 2026-10-29: „nie rysuja
+           sie na otwartym silowniki”): os w plaszczyznie 12 mm od wewnetrznej strony boku, kulka
+           plytki na boku (`plytkaY`, `odPrzodu` od przedniej krawedzi), kulka mocowania na klapie
+           — srodek miedzy jej otworami, `KLAPA_KULKA` za wewnetrzna strona klapy. */
+        d.podnosniki = strony.map((s) => ({ strona: s, gora, x: s === "left" ? c.x0 + KLAPA_MOC_OD_BOKU : c.x1 - KLAPA_MOC_OD_BOKU,
+          yB: plytkaY, zB: odPrzodu, yC: (mocY[0] + mocY[1]) / 2, zC: (d.inset ? tf : 0) + KLAPA_KULKA }));
         // kazda klapa osobno — w kolumnie z podzialem jest ich kilka jedna nad druga (audyt GPT N84)
         const klapaNazwa = d.seg ? `Klapa — poziom ${d.seg.nr + 1} kolumny ${d.colJ + 1}`
           : lv.cols.length > 1 ? `Klapa — kolumna ${d.colJ + 1}` : "Klapa";
@@ -7715,6 +7763,28 @@ function KlapaElewacja({ d, fy, ff, open, tf, showDims, showHardware, lustro, x0
             width={ob.x1 - ob.x0} height={uchOut} rx="3" fill="#52525b" opacity="0.9" />;
         })()}
         {zawiasy}
+        {/* podnosnik / amortyzator przy boku: tloczysko od plytki, silownik przy klapie
+            (od czola widac go z boku — pionowy pasek), uzytkownik 2026-10-29 */}
+        {/* rzut tych samych bryl co w 3D (tloczysko, silownik) — obrys rzutu od czola */}
+        {showHardware && (d.podnosniki || []).map((p, i) => {
+          // os klapy na licu frontu, jak w bryle: nakladany stoi przed korpusem (z = −tf)
+          const { B, C } = podnosnikOdcinek(d, p, d.kat || 90, d.inset ? 0 : -tf);
+          const bryly = podnosnikBryly(B, C);
+          if (!bryly.length) return null;
+          return (
+            <g key={`pd${i}`} data-el="podnosnik">
+              {bryly.map(([a0, b0, c0, a1, b1, c1, r], k) => {
+                const v = [[a0, b0, c0], [a1, b0, c0], [a0, b1, c0], [a1, b1, c0], [a0, b0, c1], [a1, b0, c1], [a0, b1, c1], [a1, b1, c1]]
+                  .map(([x, y, z]) => r({ x, y, z }));
+                const xs = v.map((q) => q.x), ys = v.map((q) => q.y);
+                const X0 = Math.min(...xs) + x0, Y1 = Math.max(...ys);
+                return <rect key={k} x={X0} y={fy(Y1)} width={Math.max(...xs) - Math.min(...xs)} height={Y1 - Math.min(...ys)}
+                  rx={k ? 3 : 0} fill={k ? "#52525b" : "#8b8b93"} stroke={INK} strokeWidth="1" />;
+              })}
+              <circle cx={p.x + x0} cy={fy(B.y)} r="6" fill="#3f3f46" stroke={INK} strokeWidth="1" />
+            </g>
+          );
+        })}
       </g>
     );
   return (
@@ -9502,6 +9572,12 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           box(c.x + d.x, c.base + d.y, zf, c.x + d.x + d.w, c.base + d.y + d.h, zf + tf,
             col, rotB, 0.85, true);
           handleBar(d, zf, rotB);
+          // podnosniki / amortyzatory otwartej klapy — jak w bryle szafki
+          (d.podnosniki || []).forEach((p) => {
+            const { B, C } = podnosnikOdcinek(d, p, angle, zf);
+            podnosnikBryly(B, C).forEach(([a0, b0, c0, a1, b1, c1, r]) => box(c.x + a0, c.base + b0, c0, c.x + a1, c.base + b1, c1,
+              "#8b8b93", (q) => { const w = r({ ...q, x: q.x - c.x, y: q.y - c.base }); return { ...w, x: w.x + c.x, y: w.y + c.base }; }, 1, false, 0, "podnosnik"));
+          });
           return;
         }
         if (d.type === "door") {
@@ -12856,6 +12932,13 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
       const rot = klapaObrot(d, angle, z0);
       box(d.x, d.y, z0, d.x + d.w, d.y + d.h, z1, col, rot, 0.85, true);
       handleBar(d, z0, rot);
+      // podnosniki / amortyzatory otwartej klapy (okucie, nie formatka)
+      const fkK = fk; fk = null;
+      (d.podnosniki || []).forEach((p) => {
+        const { B, C } = podnosnikOdcinek(d, p, angle, z0);
+        podnosnikBryly(B, C).forEach(([a0, b0, c0, a1, b1, c1, r]) => box(a0, b0, c0, a1, b1, c1, "#8b8b93", r, 1, false, "podnosnik"));
+      });
+      fk = fkK;
       return;
     }
     // os obrotu na wlasnej zewnetrznej krawedzi plyty, zeby nie wychodzila poza obrys
@@ -13425,6 +13508,20 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
           const zb = new Set((col.drazki || []).map(Number));
           zb.delete(+z); zb.add(+na);
           col.drazki = [...zb].sort((a, b) => a - b);
+        }),
+      };
+    }
+    if (action.startsWith("drazekpolka:")) {
+      // „drazekpolka:<poziom>:<kolumna>:<gora|dol>:<mm>:<sasiednie swiatlo>:<jego nowa wys.>:<i=wys,…>" — swiatla kolumny
+      const [, li, j, kier, mm, nb, nbH, zm] = action.split(":");
+      return {
+        label: `Półka ${kier === "gora" ? "nad rurą wyżej" : "pod rurą niżej"} o ${mm} mm (światło ${+nb + 1}: ${nbH} mm)`,
+        run: () => editLevels((L) => {
+          const col = kolumnaW(L, li, j);
+          if (!col) return;
+          const st = [...(col.shelfTargets || [null])];
+          zm.split(",").forEach((p) => { const [i, v] = p.split("=").map(Number); if (i < st.length) st[i] = v; });
+          col.shelfTargets = st;
         }),
       };
     }
@@ -15748,8 +15845,10 @@ const cornerPairMsgs = (n, blat) => {
   out.push({ level: "info", text:
     `Narożnik: ciąg „${n.run.name}" stoi pod kątem prostym do „${p.run.name}" (${gdzie}). `
     + `W róg wjeżdża „${wchodzi}"`
+    /* rog na koncu ustepujacego (strata w `tail`) — ten ciag konczy sie przed rogiem; dotad
+       zawsze „zaczyna się … od rogu” (u uzytkownika „Ściana 1” konczy sie 599 mm przed rogiem) */
     + (strata > 0
-      ? `, więc ciąg „${ustepuje.run.name}" zaczyna się ${fmt(strata)} mm od rogu.`
+      ? `, więc ciąg „${ustepuje.run.name}" ${ustepuje.tail > 0 && !(ustepuje.lead > 0) ? `kończy się ${fmt(strata)} mm przed rogiem` : `zaczyna się ${fmt(strata)} mm od rogu`}.`
       : ".") });
   if (n.pair && n.pair.dosuniety > 0)
     out.push({ level: "info", text:
@@ -16889,6 +16988,34 @@ const uwagiRozkroju = (g0) => {
 };
 
 /* rysunek jednego arkusza z ulozonymi formatkami */
+/* Podpis formatki na arkuszu (audyt GPT PDF-1; uzytkownik 2026-10-29 „podpis w formatce”).
+   Duza formatka — wymiar i nazwa jak dotad. Mniejsza albo waska (dawniej bez podpisu: 720 × 60,
+   170 × 460) — napis wzdluz dluzszego boku (w waskiej pionowej obrocony), mniejszy; wymiar
+   zawsze, nazwa, gdy sie zmiesci. Szerokosc napisu szacowana (cyfry ~0,6 wysokosci, tekst ~0,55). */
+const PODPIS_MIN = 12;
+const szerPodpisu = (t, f, mono) => t.length * f * (mono ? 0.6 : 0.55);
+const podpisFormatki = (p) => {
+  const wym = `${fmt(p.w)}×${fmt(p.h)}`, naz = `${p.name}${p.rot ? " ↻" : ""}`;
+  const fd0 = Math.min(56, Math.max(30, Math.min(p.w, p.h) / 4));
+  // dwie linie jak dotad: nazwa 44 mm pod srodkiem — formatka 100 mm byla za niska (napis wystawal)
+  if (p.w > 190 && p.h >= 120 && szerPodpisu(wym, fd0, true) <= p.w - 16)
+    return { rot: false, linie: [{ cz: [[wym, true]], f: fd0, dy: -6 }, { cz: [[naz, false]], f: 34, dy: 44, op: 0.65 }] };
+  const rot = p.h > p.w;
+  const L = Math.max(p.w, p.h) - 16, S = Math.min(p.w, p.h);
+  if (S >= 90) {
+    const fd = Math.min(46, S * 0.3, L / (wym.length * 0.6));
+    const fn = Math.min(34, S * 0.22);
+    if (fd < PODPIS_MIN) return null;
+    return { rot, linie: [{ cz: [[wym, true]], f: fd, dy: szerPodpisu(naz, fn, false) <= L ? -3 : fd * 0.35 },
+      ...(szerPodpisu(naz, fn, false) <= L ? [{ cz: [[naz, false]], f: fn, dy: 3 + fn * 0.8, op: 0.65 }] : [])] };
+  }
+  const f = Math.min(40, S * 0.7);
+  if (szerPodpisu(wym, f, true) + szerPodpisu("  " + naz, f * 0.85, false) <= L)
+    return { rot, linie: [{ cz: [[wym, true], ["  " + naz, false, f * 0.85]], f, dy: f * 0.35 }] };
+  const f1 = Math.min(f, L / (wym.length * 0.6));
+  return f1 < PODPIS_MIN ? null : { rot, linie: [{ cz: [[wym, true]], f: f1, dy: f1 * 0.35 }] };
+};
+
 function SheetPlan({ sheet, sheetW, sheetH, index, total, maxH = 420 }) {
   const pad = 40;
   const vb = `${-pad} ${-pad} ${sheetW + 2 * pad} ${sheetH + 2 * pad + 60}`;
@@ -16925,19 +17052,23 @@ function SheetPlan({ sheet, sheetW, sheetH, index, total, maxH = 420 }) {
           <g key={i}>
             <rect x={p.x} y={p.y} width={p.w} height={p.h}
               fill={mixName(p.name)} stroke={INK} strokeWidth="4" />
-            {p.w > 190 && p.h > 90 && (
-              <>
-                <text x={p.x + p.w / 2} y={p.y + p.h / 2 - 6} textAnchor="middle"
-                  fontSize={Math.min(56, Math.max(30, Math.min(p.w, p.h) / 4))}
-                  fill={INK} fontFamily="ui-monospace, monospace">
-                  {fmt(p.w)}×{fmt(p.h)}
-                </text>
-                <text x={p.x + p.w / 2} y={p.y + p.h / 2 + 44} textAnchor="middle"
-                  fontSize="34" fill={INK} opacity="0.65">
-                  {p.name}{p.rot ? " ↻" : ""}
-                </text>
-              </>
-            )}
+            {(() => {
+              const pd = podpisFormatki(p);
+              if (!pd) return null;
+              const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+              return (
+                <g data-el="podpis-formatki" transform={pd.rot ? `rotate(-90 ${cx} ${cy})` : undefined}>
+                  {pd.linie.map((l, k) => (
+                    <text key={k} x={cx} y={cy + l.dy} textAnchor="middle" fontSize={l.f} fill={INK}
+                      opacity={l.op} fontFamily={l.cz[0][1] ? "ui-monospace, monospace" : undefined}>
+                      {l.cz.length === 1 ? l.cz[0][0] : l.cz.map(([t, mono, f2], q) => (
+                        <tspan key={q} fontFamily={mono ? "ui-monospace, monospace" : "system-ui, sans-serif"}
+                          fontSize={f2 || undefined} opacity={mono ? undefined : 0.65}>{t}</tspan>))}
+                    </text>
+                  ))}
+                </g>
+              );
+            })()}
             {p.grain && p.w > 190 && p.h > 90 &&
               grainArrow(p.x + p.w / 2, p.y + p.h - 34, p.w)}
           </g>
@@ -18425,8 +18556,8 @@ export default function App() {
   });
   /* Niskie okno (audyt GPT U2, decyzja uzytkownika 2026-10-19 — „oba naraz”):
      pasek ciagow sam sie zwija do jednej linii (klikniecie go rozwija, bez
-     zapamietywania), a gorny pasek przestaje byc przyklejony, gdy i tak zajmuje
-     wiecej niz `NAGLOWEK_MAX` wysokosci okna — inaczej zaslanial rysunek. */
+     zapamietywania), a gorny pasek ma najwyzej `NAGLOWEK_MAX` wysokosci okna
+     (wczesniej przestawal byc przyklejony) — inaczej zaslanial rysunek. */
   const [wysOkna, setWysOkna] = useState(() => (typeof window !== "undefined" ? window.innerHeight : 1000));
   useEffect(() => {
     const f = () => setWysOkna(window.innerHeight);
@@ -18446,7 +18577,22 @@ export default function App() {
     ro.observe(el);
     naglowekRO.current = ro;
   }, []);
-  const przyklejony = !(wysNaglowka > wysOkna * NAGLOWEK_MAX);
+  /* Gorny pasek jest zawsze przyklejony (uzytkownik 2026-10-29: po rozwinieciu paska
+     w waskim oknie artefaktu pasek „przypial sie na samej gorze” strony i zniknal
+     z ekranu). Wyzszy niz `NAGLOWEK_MAX` okna — ma tyle wysokosci i przewija sie sam,
+     zeby dalej nie zaslanial rysunku (audyt GPT U2). Wysokosc tresci mierzy
+     wewnetrzny blok — sam pasek przy limicie juz nie rosnie. */
+  const [wysTresciNaglowka, setWysTresciNaglowka] = useState(0);
+  const trescRO = useRef(null);
+  const trescNaglowkaRef = useCallback((el) => {
+    if (trescRO.current) { trescRO.current.disconnect(); trescRO.current = null; }
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setWysTresciNaglowka(el.getBoundingClientRect().height));
+    ro.observe(el);
+    trescRO.current = ro;
+  }, []);
+  const limitNaglowka = Math.round(wysOkna * NAGLOWEK_MAX);
+  const naglowekZaWysoki = wysTresciNaglowka > limitNaglowka;
   /* Zwijanie przy przewijaniu w dol: tylko na czas przewijania, bez zapisu.
      Zwijamy dopiero za wysokoscia paska — przegladarka, trzymajac tresc w
      miejscu, cofa wtedy strone o to, o ile pasek zmalal, i nie dochodzi do samej
@@ -18492,7 +18638,7 @@ export default function App() {
     return () => mq.removeEventListener("change", f);
   }, []);
   const przypieta = szeroki && !pelnyRys;
-  const przypietaGora = (przyklejony ? wysNaglowka : 0) + PRZYPIETY_ODSTEP;
+  const przypietaGora = wysNaglowka + PRZYPIETY_ODSTEP;
   // przewijanie prawej kolumny zwija i rozwija paski u gory jak przewijanie strony
   const prawaY = useRef(0);
   const przewinPrawa = (e) => {
@@ -20352,7 +20498,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900">
       <header ref={naglowekRef} data-el="naglowek"
-        className={`print-hide ${przyklejony ? "sticky top-0" : "relative"} z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur`}>
+        className="print-hide sticky top-0 z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur"
+        style={naglowekZaWysoki ? { maxHeight: limitNaglowka, overflowY: "auto" } : undefined}>
+        <div ref={trescNaglowkaRef}>
         <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
           {/* Nazwa projektu. Nazwa szafki zmienia sie juz na pasku szafek, wiec
               pole projektu dostaje co najmniej 16rem — przy waskim oknie reszta
@@ -20401,7 +20549,7 @@ export default function App() {
             if (!przypieta) zwinPrzyPrzewijaniu();
             setTimeout(() => {
               const karta = document.getElementById("rysunek");
-              const pasek = document.querySelector("header.sticky");   // nieprzyklejony (niskie okno) nie zaslania
+              const pasek = document.querySelector("header.sticky");
               const nad = pasek ? pasek.getBoundingClientRect().bottom : 0;
               /* Niskie okno (audyt GPT U2): pod paskiem nie miesci sie nawet poczatek
                  rysunku po przelacznikach widokow — przewijamy prosto do niego. */
@@ -20727,6 +20875,7 @@ export default function App() {
           </div>
           )}
         </div>
+      </div>
       </header>
 
       <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]">
