@@ -7782,19 +7782,23 @@ function KlapaElewacja({ d, fy, ff, open, tf, showDims, showHardware, lustro, x0
         {zawiasy}
         {/* podnosnik / amortyzator przy boku: tloczysko od plytki, silownik przy klapie
             (od czola widac go z boku — pionowy pasek), uzytkownik 2026-10-29 */}
+        {/* rzut tych samych bryl co w 3D (tloczysko, silownik) — obrys rzutu od czola */}
         {showHardware && (d.podnosniki || []).map((p, i) => {
-          const { B, C } = podnosnikOdcinek(d, p, d.kat || 90, 0);
-          const len = Math.hypot(C.y - B.y, C.z - B.z);
-          if (!(len > 1)) return null;
-          const yS = B.y + (C.y - B.y) * (1 - Math.min(PODNOSNIK_SILOWNIK, len * 0.6) / len);
-          const x = p.x + x0;
+          // os klapy na licu frontu, jak w bryle: nakladany stoi przed korpusem (z = −tf)
+          const { B, C } = podnosnikOdcinek(d, p, d.kat || 90, d.inset ? 0 : -tf);
+          const bryly = podnosnikBryly(B, C);
+          if (!bryly.length) return null;
           return (
             <g key={`pd${i}`} data-el="podnosnik">
-              <rect x={x - PODNOSNIK_TLOK_FI / 2} y={fy(Math.max(B.y, yS))} width={PODNOSNIK_TLOK_FI} height={Math.abs(yS - B.y)}
-                fill="#8b8b93" stroke={INK} strokeWidth="1" />
-              <rect x={x - PODNOSNIK_FI / 2} y={fy(Math.max(yS, C.y))} width={PODNOSNIK_FI} height={Math.abs(C.y - yS)} rx="3"
-                fill="#71717a" stroke={INK} strokeWidth="1.2" />
-              <circle cx={x} cy={fy(B.y)} r="6" fill="#52525b" stroke={INK} strokeWidth="1" />
+              {bryly.map(([a0, b0, c0, a1, b1, c1, r], k) => {
+                const v = [[a0, b0, c0], [a1, b0, c0], [a0, b1, c0], [a1, b1, c0], [a0, b0, c1], [a1, b0, c1], [a0, b1, c1], [a1, b1, c1]]
+                  .map(([x, y, z]) => r({ x, y, z }));
+                const xs = v.map((q) => q.x), ys = v.map((q) => q.y);
+                const X0 = Math.min(...xs) + x0, Y1 = Math.max(...ys);
+                return <rect key={k} x={X0} y={fy(Y1)} width={Math.max(...xs) - Math.min(...xs)} height={Y1 - Math.min(...ys)}
+                  rx={k ? 3 : 0} fill={k ? "#52525b" : "#8b8b93"} stroke={INK} strokeWidth="1" />;
+              })}
+              <circle cx={p.x + x0} cy={fy(B.y)} r="6" fill="#3f3f46" stroke={INK} strokeWidth="1" />
             </g>
           );
         })}
