@@ -638,7 +638,9 @@ klapa zamknieta liczy sie jako „front”). Dobor sily: `dobierzPodnosnik`,
 tabela `GTV_PD_G00`. Suita `testy/klapy.mjs`.
 [AI-INFO] (2026-10-29) Klapy — uzytkownik: „wstepnie wytestowane”. Podnosniki /
 amortyzatory rysowane na otwartej klapie (elewacja „Otw.”, ciag, 3D) — `d.podnosniki`,
-`podnosnikOdcinek`, `podnosnikBryly`. Rozbudowa tylko po wyborze uzytkownika (pytanie 2026-10-29).
+`podnosnikOdcinek`, `podnosnikBryly`. Rozbudowa: uzytkownik 2026-10-29 „nie dodajemy nic” z listy
+(podnosnik gazowy krotki, mechaniczny Easy Up, waga uchwytu w sile, rozworka do klapy w dol) —
+nie proponowac ponownie bez nowej potrzeby.
 [AI-TODO] Klapy — uzytkownik sprawdzi je sam w innym terminie (2026-09-28);
 do tego czasu nie rozbudowywac bez pytania. PDF amortyzatora (PD-ECGDL)
 dotarl i jest w `GTV_PD_ECGDL`. Karta PD-ECGDL podaje zgodny zawias barkowy
