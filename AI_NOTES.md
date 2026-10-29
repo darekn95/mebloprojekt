@@ -594,6 +594,12 @@ pole `json`). Wypisuje ciagi i szafki, bledy/ostrzezenia kazdej szafki,
 kolizje otwierania, audyt rysunek 3D ↔ formatki projektu i robi zrzuty
 (3D, rzut z gory, elewacja). Wymaga serwera 5205 i swiezego buildu.
 
+[AI-INFO] (2026-10-29) Rog ze zwyklymi szafkami SPRAWDZONY na projekcie uzytkownika
+(pomieszczenie 1: „Ściana 2” wjezdza w rog za koncem „Ściana 1”, „Szafka 1 c2” 1095 z fixem
+611 i drzwiami 480 z zawiasem od zewnatrz, wstawka plaska przy „Szafka 3”, ktorej drzwi maja
+zawias od strony dalszej od rogu): bez bledow i kolizji, formatki = bryla. Poprawiony tylko
+opis „ciąg … kończy się N mm przed rogiem” (bylo „zaczyna się … od rogu” przy rogu na koncu
+ciagu). Pomysl 2 ponizej jest w praktyce zrobiony przez „Ustaw szafkę w rogu”; zostaja 3 i 4.
 [AI-TODO] Rog ze zwyklymi szafkami (bez szafki w L) — na realnym projekcie
 uzytkownika (zapowiedzial przyklad w artefakcie, 2026-09-28). Stan i pomysly,
 zeby nie odtwarzac ustalen od nowa:
@@ -630,6 +636,9 @@ front typu "klapa" (nie "door") — dlatego wszedzie, gdzie kod filtruje
 zawiasy bez rozstawu na boku, bez skrzydla w kontroli otwierania; w kolizjach
 klapa zamknieta liczy sie jako „front”). Dobor sily: `dobierzPodnosnik`,
 tabela `GTV_PD_G00`. Suita `testy/klapy.mjs`.
+[AI-INFO] (2026-10-29) Klapy — uzytkownik: „wstepnie wytestowane”. Podnosniki /
+amortyzatory rysowane na otwartej klapie (elewacja „Otw.”, ciag, 3D) — `d.podnosniki`,
+`podnosnikOdcinek`, `podnosnikBryly`. Rozbudowa tylko po wyborze uzytkownika (pytanie 2026-10-29).
 [AI-TODO] Klapy — uzytkownik sprawdzi je sam w innym terminie (2026-09-28);
 do tego czasu nie rozbudowywac bez pytania. PDF amortyzatora (PD-ECGDL)
 dotarl i jest w `GTV_PD_ECGDL`. Karta PD-ECGDL podaje zgodny zawias barkowy

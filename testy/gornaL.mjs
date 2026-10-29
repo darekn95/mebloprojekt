@@ -107,8 +107,9 @@ const wC4 = p.items.filter((it) => it.runId === 'c4');
 ok('stoi na początku ciągu, przy rogu', wC4.length === 2 && wC4[0].cab.W === 650 && wC4[1].cab.name === 'G4', wC4.map((it) => it.cab.name).join(','));
 ok('nie zakłada drugiego górnego ciągu', p.runs.filter((r) => r.tier === 'gorny').length === 2, p.runs.map((r) => r.id).join(','));
 u = await uwagi();
-ok('w górny róg wjeżdża ściana 2 (tam wisi szafka w L), ściana 1 zaczyna się 653 mm od rogu',
-  u.some((l) => /W róg wjeżdża „Ściana 2", więc ciąg „Ściana 1" zaczyna się 653 mm od rogu/.test(l)), u.filter((l) => /^Narożnik/.test(l)).join(' | '));
+// róg jest na końcu ściany 1 — ona kończy się przed rogiem (dotąd „zaczyna się … od rogu”, 2026-10-29)
+ok('w górny róg wjeżdża ściana 2 (tam wisi szafka w L), ściana 1 kończy się 653 mm przed rogiem',
+  u.some((l) => /W róg wjeżdża „Ściana 2", więc ciąg „Ściana 1" kończy się 653 mm przed rogiem/.test(l)), u.filter((l) => /^Narożnik/.test(l)).join(' | '));
 ok('ramię przy ścianie 1', u.some((l) => /korpus 650 mm przy ścianie „Ściana 2" plus ramię 350 × 300 mm przy ścianie „Ściana 1"/.test(l)),
   u.filter((l) => /narożną w L/.test(l)).map((l) => l.slice(0, 160)).join(' | '));
 ok('bez kolizji otwierania szafek górnych', !kolizje(u).length, kolizje(u).join(' / '));

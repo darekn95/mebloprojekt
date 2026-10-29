@@ -94,10 +94,12 @@ wybranych drzwiach.
   - siła z listy;
   - opisy uchwytu „na dole / na górze”.
 
+- **Podnośnik na rysunkach** (zgłoszenie użytkownika 2026-10-29: „nie rysują się na otwartym siłowniki”): przy otwartej klapie — widok „Otw.” szafki i ciągu oraz 3D otwarte — rysowany jest każdy podnośnik / amortyzator po swojej stronie (jeden — po wybranej). Kulka płytki na boku (wysokość i 25 mm od przedniej krawędzi jak w planie wierceń), kulka mocowania na klapie (środek między jej otworami, 17,5 mm za klapą) obraca się z klapą; tłoczysko ⌀6 od boku, siłownik ⌀15 (150 mm) przy klapie — wymiary z PD-G00 s. 3. Przy zamkniętej klapie nie jest rysowany (za frontem).
+
 ## Gdzie w kodzie i testy
 
-- **Obliczenia**: `computeGeo`, kolumna z drzwiami (front typu `"klapa"`, `klapaZawiasy`) i lista `geo.klapy`; stałe `GTV_PD_G00`, `GTV_PD_ECGDL`, `KLAPA_*`, `PODNOSNIK_*`, `AMORTYZATOR_*`; `dobierzPodnosnik`.
+- **Obliczenia**: `computeGeo`, kolumna z drzwiami (front typu `"klapa"`, `klapaZawiasy`) i lista `geo.klapy`; stałe `GTV_PD_G00`, `GTV_PD_ECGDL`, `KLAPA_*`, `PODNOSNIK_*`, `AMORTYZATOR_*`; `dobierzPodnosnik`; do rysunków `d.podnosniki` (przy wierceniach klapy), `podnosnikOdcinek`, `podnosnikBryly`, `KlapaElewacja` (`data-el="podnosnik"`), bryła 3D tag `podnosnik`.
 - **Interfejs**: `polkiNaPoziomy(…, naKlapy)` („klapy zamiast drzwi”); przyciski w `NoteLine` (`zawiasy`, `silaauto`, `klapa2`, `polkicof`, `parablat`).
 - **Kontrola otwierania**: `swingBodies` / `openingMsgs` (`klapaHit`, kąt co 1°).
 - **W kodzie klapa to front typu `"klapa"`, nie `"door"`**: tam, gdzie kod filtruje drzwi, klapa jest pominięta celowo. Ma osobną formatkę „Klapa” i nie ma skrzydła w kontroli otwierania drzwi.
-- **Testy**: `klapy`, `audytwierc` (zawiasy i mocowania podnośnika), `ruchy` (otwieranie), `komentarze1` („klapy zamiast drzwi”), `audytgpt7` (klapy poziomów kolumny w planie, opis kreatora, wpuszczana dłuższa od dołu), `audytgpt8` (mocowanie amortyzatora po podfrezie).
+- **Testy**: `klapy` (też podnośniki na rysunkach otwartej klapy), `audytwierc` (zawiasy i mocowania podnośnika), `ruchy` (otwieranie), `komentarze1` („klapy zamiast drzwi”), `audytgpt7` (klapy poziomów kolumny w planie, opis kreatora, wpuszczana dłuższa od dołu), `audytgpt8` (mocowanie amortyzatora po podfrezie).

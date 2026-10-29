@@ -670,6 +670,27 @@ const KLAPA_PLYTKA_OD_KRAWEDZI = 25, KLAPA_MOC_OD_BOKU = 12, KLAPA_MOC_ROZSTAW =
    s. 3: „min. 50”). Zakres wysokosci podnosnika: plytka ⌀29 (promien ok. 15)
    i mocowanie frontu (ok. 10 mm poza otwor) — wymiary produktu z tych stron. */
 const KLAPA_POLKA_ZA_FRONTEM = 50, KLAPA_PLYTKA_R = 15, KLAPA_MOC_ZAPAS = 10;
+/* Sam podnosnik na rysunkach (PD-G00 s. 3, „Wymiary produktu”): silownik ⌀15, dlugosc
+   z koncowka 28 + 122 = 150 mm, tloczysko ⌀6; kulka mocowania frontu ok. 17,5 mm
+   od klapy. Amortyzator PD-ECGDL rysujemy tak samo. */
+const PODNOSNIK_FI = 15, PODNOSNIK_TLOK_FI = 6, PODNOSNIK_SILOWNIK = 150, KLAPA_KULKA = 17.5;
+/* Odcinek podnosnika otwartej klapy (z = 0 na przedniej krawedzi korpusu, w glab +):
+   kulka na boku stoi, kulka na klapie obraca sie z nia (`klapaObrot`, ta sama os co
+   klapa w bryle; `oz` — lico klapy). */
+const podnosnikOdcinek = (d, p, angle, oz) => ({
+  B: { x: p.x, y: p.yB, z: p.zB },
+  C: klapaObrot(d, angle, oz)({ x: p.x, y: p.yC, z: p.zC }),
+});
+/* Podnosnik w bryle: tloczysko od kulki na boku, silownik przy klapie — prostopadlosciany
+   wzdluz osi y obrocone wokol x na kierunek B→C (`box` przyjmuje przeksztalcenie). */
+const podnosnikBryly = (B, C) => {
+  const dy = C.y - B.y, dz = C.z - B.z, len = Math.hypot(dy, dz);
+  if (!(len > 1)) return [];
+  const rot = (q) => rotAboutX(q, Math.atan2(dz, dy), B.y, B.z);
+  const sil = Math.min(PODNOSNIK_SILOWNIK, len * 0.6), r1 = PODNOSNIK_TLOK_FI / 2, r2 = PODNOSNIK_FI / 2;
+  return [[B.x - r1, B.y, B.z - r1, B.x + r1, B.y + len - sil, B.z + r1, rot],
+    [B.x - r2, B.y + len - sil, B.z - r2, B.x + r2, B.y + len, B.z + r2, rot]];
+};
 /* Gestosc robocza plyty frontu od uzytkownika: 660–680 kg/m3 — bierzemy
    gorna granice, zeby podnosnik nie wyszedl za slaby (18 mm ≈ 12,2 kg/m2). */
 const GESTOSC_FRONTU = 680;
@@ -1677,7 +1698,7 @@ const migrateMat = (rawMat) => {
 // buduje stan projektu z wczytanych danych: obsluguje stary {cab,mat} i nowy {items,active}
 const DEFAULT_PROJECT_NAME = "Projekt bez nazwy";
 /* Niskie okno (audyt GPT U2): ponizej tej wysokosci pasek ciagow zwija sie sam,
-   a gorny pasek nie jest przyklejony, gdy zajmuje wiecej niz ten ulamek okna. */
+   a gorny pasek ma najwyzej ten ulamek okna (dalej przewija sie sam, 2026-10-29). */
 const NISKIE_OKNO = 640;
 const NAGLOWEK_MAX = 0.4;
 /* Przewijanie w dol zwija paski pomieszczen oraz ciagow i szafek (uzytkownik
@@ -5954,6 +5975,12 @@ function computeGeoLiczy(cab, mat, ctx) {
         const opis = gora ? `GTV PD-G00, kąt ${kat}°, front ${typ === "blizniacze" ? "bliźniaczy (półnakładany)" : typ === "wpuszczane" ? "wpuszczany" : "nakładany"}: `
           + `${fmt(PODNOSNIK_H[typ][kat])} mm pod spodem płyty z zawiasami`
           : `GTV PD-ECGDL: ${fmt(AMORTYZATOR_H)} mm nad płytą z zawiasami`;
+        /* Podnosnik / amortyzator do rysunkow otwartej klapy (uzytkownik 2026-10-29: „nie rysuja
+           sie na otwartym silowniki”): os w plaszczyznie 12 mm od wewnetrznej strony boku, kulka
+           plytki na boku (`plytkaY`, `odPrzodu` od przedniej krawedzi), kulka mocowania na klapie
+           — srodek miedzy jej otworami, `KLAPA_KULKA` za wewnetrzna strona klapy. */
+        d.podnosniki = strony.map((s) => ({ strona: s, gora, x: s === "left" ? c.x0 + KLAPA_MOC_OD_BOKU : c.x1 - KLAPA_MOC_OD_BOKU,
+          yB: plytkaY, zB: odPrzodu, yC: (mocY[0] + mocY[1]) / 2, zC: (d.inset ? tf : 0) + KLAPA_KULKA }));
         // kazda klapa osobno — w kolumnie z podzialem jest ich kilka jedna nad druga (audyt GPT N84)
         const klapaNazwa = d.seg ? `Klapa — poziom ${d.seg.nr + 1} kolumny ${d.colJ + 1}`
           : lv.cols.length > 1 ? `Klapa — kolumna ${d.colJ + 1}` : "Klapa";
@@ -7736,6 +7763,24 @@ function KlapaElewacja({ d, fy, ff, open, tf, showDims, showHardware, lustro, x0
             width={ob.x1 - ob.x0} height={uchOut} rx="3" fill="#52525b" opacity="0.9" />;
         })()}
         {zawiasy}
+        {/* podnosnik / amortyzator przy boku: tloczysko od plytki, silownik przy klapie
+            (od czola widac go z boku — pionowy pasek), uzytkownik 2026-10-29 */}
+        {showHardware && (d.podnosniki || []).map((p, i) => {
+          const { B, C } = podnosnikOdcinek(d, p, d.kat || 90, 0);
+          const len = Math.hypot(C.y - B.y, C.z - B.z);
+          if (!(len > 1)) return null;
+          const yS = B.y + (C.y - B.y) * (1 - Math.min(PODNOSNIK_SILOWNIK, len * 0.6) / len);
+          const x = p.x + x0;
+          return (
+            <g key={`pd${i}`} data-el="podnosnik">
+              <rect x={x - PODNOSNIK_TLOK_FI / 2} y={fy(Math.max(B.y, yS))} width={PODNOSNIK_TLOK_FI} height={Math.abs(yS - B.y)}
+                fill="#8b8b93" stroke={INK} strokeWidth="1" />
+              <rect x={x - PODNOSNIK_FI / 2} y={fy(Math.max(yS, C.y))} width={PODNOSNIK_FI} height={Math.abs(C.y - yS)} rx="3"
+                fill="#71717a" stroke={INK} strokeWidth="1.2" />
+              <circle cx={x} cy={fy(B.y)} r="6" fill="#52525b" stroke={INK} strokeWidth="1" />
+            </g>
+          );
+        })}
       </g>
     );
   return (
@@ -9523,6 +9568,12 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           box(c.x + d.x, c.base + d.y, zf, c.x + d.x + d.w, c.base + d.y + d.h, zf + tf,
             col, rotB, 0.85, true);
           handleBar(d, zf, rotB);
+          // podnosniki / amortyzatory otwartej klapy — jak w bryle szafki
+          (d.podnosniki || []).forEach((p) => {
+            const { B, C } = podnosnikOdcinek(d, p, angle, zf);
+            podnosnikBryly(B, C).forEach(([a0, b0, c0, a1, b1, c1, r]) => box(c.x + a0, c.base + b0, c0, c.x + a1, c.base + b1, c1,
+              "#8b8b93", (q) => { const w = r({ ...q, x: q.x - c.x, y: q.y - c.base }); return { ...w, x: w.x + c.x, y: w.y + c.base }; }, 1, false, 0, "podnosnik"));
+          });
           return;
         }
         if (d.type === "door") {
@@ -12877,6 +12928,13 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
       const rot = klapaObrot(d, angle, z0);
       box(d.x, d.y, z0, d.x + d.w, d.y + d.h, z1, col, rot, 0.85, true);
       handleBar(d, z0, rot);
+      // podnosniki / amortyzatory otwartej klapy (okucie, nie formatka)
+      const fkK = fk; fk = null;
+      (d.podnosniki || []).forEach((p) => {
+        const { B, C } = podnosnikOdcinek(d, p, angle, z0);
+        podnosnikBryly(B, C).forEach(([a0, b0, c0, a1, b1, c1, r]) => box(a0, b0, c0, a1, b1, c1, "#8b8b93", r, 1, false, "podnosnik"));
+      });
+      fk = fkK;
       return;
     }
     // os obrotu na wlasnej zewnetrznej krawedzi plyty, zeby nie wychodzila poza obrys
@@ -15783,8 +15841,10 @@ const cornerPairMsgs = (n, blat) => {
   out.push({ level: "info", text:
     `Narożnik: ciąg „${n.run.name}" stoi pod kątem prostym do „${p.run.name}" (${gdzie}). `
     + `W róg wjeżdża „${wchodzi}"`
+    /* rog na koncu ustepujacego (strata w `tail`) — ten ciag konczy sie przed rogiem; dotad
+       zawsze „zaczyna się … od rogu” (u uzytkownika „Ściana 1” konczy sie 599 mm przed rogiem) */
     + (strata > 0
-      ? `, więc ciąg „${ustepuje.run.name}" zaczyna się ${fmt(strata)} mm od rogu.`
+      ? `, więc ciąg „${ustepuje.run.name}" ${ustepuje.tail > 0 && !(ustepuje.lead > 0) ? `kończy się ${fmt(strata)} mm przed rogiem` : `zaczyna się ${fmt(strata)} mm od rogu`}.`
       : ".") });
   if (n.pair && n.pair.dosuniety > 0)
     out.push({ level: "info", text:
@@ -18492,8 +18552,8 @@ export default function App() {
   });
   /* Niskie okno (audyt GPT U2, decyzja uzytkownika 2026-10-19 — „oba naraz”):
      pasek ciagow sam sie zwija do jednej linii (klikniecie go rozwija, bez
-     zapamietywania), a gorny pasek przestaje byc przyklejony, gdy i tak zajmuje
-     wiecej niz `NAGLOWEK_MAX` wysokosci okna — inaczej zaslanial rysunek. */
+     zapamietywania), a gorny pasek ma najwyzej `NAGLOWEK_MAX` wysokosci okna
+     (wczesniej przestawal byc przyklejony) — inaczej zaslanial rysunek. */
   const [wysOkna, setWysOkna] = useState(() => (typeof window !== "undefined" ? window.innerHeight : 1000));
   useEffect(() => {
     const f = () => setWysOkna(window.innerHeight);
@@ -18513,7 +18573,22 @@ export default function App() {
     ro.observe(el);
     naglowekRO.current = ro;
   }, []);
-  const przyklejony = !(wysNaglowka > wysOkna * NAGLOWEK_MAX);
+  /* Gorny pasek jest zawsze przyklejony (uzytkownik 2026-10-29: po rozwinieciu paska
+     w waskim oknie artefaktu pasek „przypial sie na samej gorze” strony i zniknal
+     z ekranu). Wyzszy niz `NAGLOWEK_MAX` okna — ma tyle wysokosci i przewija sie sam,
+     zeby dalej nie zaslanial rysunku (audyt GPT U2). Wysokosc tresci mierzy
+     wewnetrzny blok — sam pasek przy limicie juz nie rosnie. */
+  const [wysTresciNaglowka, setWysTresciNaglowka] = useState(0);
+  const trescRO = useRef(null);
+  const trescNaglowkaRef = useCallback((el) => {
+    if (trescRO.current) { trescRO.current.disconnect(); trescRO.current = null; }
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setWysTresciNaglowka(el.getBoundingClientRect().height));
+    ro.observe(el);
+    trescRO.current = ro;
+  }, []);
+  const limitNaglowka = Math.round(wysOkna * NAGLOWEK_MAX);
+  const naglowekZaWysoki = wysTresciNaglowka > limitNaglowka;
   /* Zwijanie przy przewijaniu w dol: tylko na czas przewijania, bez zapisu.
      Zwijamy dopiero za wysokoscia paska — przegladarka, trzymajac tresc w
      miejscu, cofa wtedy strone o to, o ile pasek zmalal, i nie dochodzi do samej
@@ -18559,7 +18634,7 @@ export default function App() {
     return () => mq.removeEventListener("change", f);
   }, []);
   const przypieta = szeroki && !pelnyRys;
-  const przypietaGora = (przyklejony ? wysNaglowka : 0) + PRZYPIETY_ODSTEP;
+  const przypietaGora = wysNaglowka + PRZYPIETY_ODSTEP;
   // przewijanie prawej kolumny zwija i rozwija paski u gory jak przewijanie strony
   const prawaY = useRef(0);
   const przewinPrawa = (e) => {
@@ -20419,7 +20494,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900">
       <header ref={naglowekRef} data-el="naglowek"
-        className={`print-hide ${przyklejony ? "sticky top-0" : "relative"} z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur`}>
+        className="print-hide sticky top-0 z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur"
+        style={naglowekZaWysoki ? { maxHeight: limitNaglowka, overflowY: "auto" } : undefined}>
+        <div ref={trescNaglowkaRef}>
         <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
           {/* Nazwa projektu. Nazwa szafki zmienia sie juz na pasku szafek, wiec
               pole projektu dostaje co najmniej 16rem — przy waskim oknie reszta
@@ -20468,7 +20545,7 @@ export default function App() {
             if (!przypieta) zwinPrzyPrzewijaniu();
             setTimeout(() => {
               const karta = document.getElementById("rysunek");
-              const pasek = document.querySelector("header.sticky");   // nieprzyklejony (niskie okno) nie zaslania
+              const pasek = document.querySelector("header.sticky");
               const nad = pasek ? pasek.getBoundingClientRect().bottom : 0;
               /* Niskie okno (audyt GPT U2): pod paskiem nie miesci sie nawet poczatek
                  rysunku po przelacznikach widokow — przewijamy prosto do niego. */
@@ -20794,6 +20871,7 @@ export default function App() {
           </div>
           )}
         </div>
+      </div>
       </header>
 
       <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]">
