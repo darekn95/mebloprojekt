@@ -121,13 +121,20 @@ const legPlan = (cab, W) => {
 const nozkiWidok = (geo) => [...new Set([...geo.legs.xs,
   ...(geo.legs.miejsca || []).filter((m) => m.przesunieta).map((m) => Math.round(m.x))])];
 
-// zbior nazw, ktore w podanych zestawach materialow maja wiecej niz jedna grubosc
-const ambiguousThickness = (mats) => {
+/* Materialy, ktorych szafka naprawde uzywa: front i polki z wlasnej plyty tylko przy
+   odznaczonym „z tej samej płyty co korpus” (`uzywaPlyty`). */
+const matyUzyte = (cab, mat) => (!cab ? mat
+  : Object.fromEntries(Object.entries(mat || {}).filter(([k]) => uzywaPlyty(cab, k))));
+/* zbior nazw, ktore w podanych zestawach materialow maja wiecej niz jedna grubosc;
+   „kolor własny” liczony tylko z `uzyte` — nieuzywany domyslny front (#c2a880) i polka
+   (#d0bb96) sa spoza wzornika i robily z jednej plyty „dwie” */
+const ambiguousThickness = (mats, uzyte = mats) => {
   const by = new Map();
   /* Plecy nie maja koloru w etykiecie („HDF”), wiec dwa kolory HDF w projekcie
      szly na jeden arkusz rozkroju (audyt GPT N5). Gdy pod ta sama nazwa sa plecy
      w kilku kolorach, etykieta dostaje kolor — znacznik „kolor:<nazwa>”. */
   const kolory = new Map();
+  const wlasne = new Map();
   mats.forEach((mm) =>
     Object.entries(mm || {}).forEach(([key, m]) => {
       if (!m || !m.name) return;
@@ -141,9 +148,20 @@ const ambiguousThickness = (mats) => {
       }
     })
   );
+  /* Plyta w kolorze spoza wzornika to w etykiecie „kolor własny” — dwie takie pod jedna
+     nazwa wygladaly w rozkroju jak jedna plyta; wtedy etykieta dostaje kod koloru. */
+  uzyte.forEach((mm) =>
+    Object.entries(mm || {}).forEach(([key, m]) => {
+      if (!m || !m.name || !COLORED_KEYS.includes(key) || colorLabel(m) !== "kolor własny") return;
+      const k = m.name.trim();
+      if (!wlasne.has(k)) wlasne.set(k, new Set());
+      wlasne.get(k).add(String(m.color || "").toLowerCase());
+    })
+  );
   return new Set([
     ...[...by.entries()].filter(([, set]) => set.size > 1).map(([k]) => k),
     ...[...kolory.entries()].filter(([, set]) => set.size > 1).map(([k]) => "kolor:" + k),
+    ...[...wlasne.entries()].filter(([, set]) => set.size > 1).map(([k]) => "wlasny:" + k),
   ]);
 };
 
@@ -163,7 +181,11 @@ const matLabelOf = (m, key, ambiguous) => {
     return ambiguous && ambiguous.has(n) ? `${n} ${m.thickness}` : n;
   }
   const parts = [((m && m.name) || "").trim() || key];
-  if (COLORED_KEYS.includes(key)) parts.push(colorLabel(m));
+  if (COLORED_KEYS.includes(key)) {
+    const kol = colorLabel(m);
+    parts.push(kol === "kolor własny" && ambiguous && ambiguous.has("wlasny:" + (((m && m.name) || "").trim()))
+      ? `kolor ${String(m.color || "").toLowerCase()}` : kol);
+  }
   /* kolor spoza palety to u wszystkich „kolor wlasny” — przy plecach w kilku
      kolorach wtedy kod koloru, inaczej dwa rozne HDF dalej szly razem */
   else if ((key === "back" || key === "worktop") && ambiguous && ambiguous.has("kolor:" + (((m && m.name) || "").trim())))
@@ -2156,7 +2178,7 @@ const loadProject = (d) => {
     });
   /* Etykieta materialu nosi teraz kolor, wiec recznie wpisana cena zapisana
      pod stara nazwa zostalaby sierota — przenosimy ja na nowy klucz. */
-  const ambig = ambiguousThickness(items.map((it) => it.mat));
+  const ambig = ambiguousThickness(items.map((it) => it.mat), items.map((it) => matyUzyte(it.cab, it.mat)));
   items.forEach((it) =>
     Object.entries(it.mat || {}).forEach(([key, m]) => {
       Object.keys(LEGACY_MAT_NAMES).forEach((old) => {
@@ -2190,7 +2212,7 @@ const loadProject = (d) => {
   // wlasne kawalki plyty do rozkroju (material, wymiar, ilosc)
   /* kawalek zapisany bez tozsamosci plyty (sprzed N94) — dostaje ja z materialu, ktory przy
      wczytaniu ma te sama etykiete */
-  const ambigL = ambiguousThickness(items.map((it) => it.mat));
+  const ambigL = ambiguousThickness(items.map((it) => it.mat), items.map((it) => matyUzyte(it.cab, it.mat)));
   const tozZEtykiety = (lbl) => {
     for (const it of items) for (const [k, m] of Object.entries(it.mat || {})) if (m && matLabelOf(m, k, ambigL) === lbl) return tozsamoscPlyty(m);
     return null;
@@ -17007,7 +17029,7 @@ const PRINT_CSS = `
    naroznej liczyla front przez cala szerokosc korpusu i nie pokazywala ramienia,
    czyli wydruk mowil co innego niz aplikacja i niz lista formatek. */
 function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, sharedTop, sharedBottom = false, sharedRail, ctx, arm, wstawki = [], rozdzial = null }) {
-  const ambig = useMemo(() => ambiguousThickness([mat]), [mat]);
+  const ambig = useMemo(() => ambiguousThickness([mat], [matyUzyte(cab, mat)]), [mat, cab]);
   const geo = useMemo(() => computeGeo(cab, mat, ctx), [cab, mat, ctx]);
   const hardware = useMemo(() => okuciaSzafki(geo, { bezListwy: sharedRail, arm, wstawki }), [geo, sharedRail, arm, wstawki]);
   // cokol i blat ciagu sa wspolne — na kartce szafki ich nie ma, ida osobna pozycja
@@ -17268,7 +17290,7 @@ const arkuszOpis = (g) => {
 
 /* rozkroj na arkuszach — ostatnie strony zestawienia */
 function ReportCutPlan({ project, projectName }) {
-  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
+  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat), project.items.map((it) => matyUzyte(it.cab, it.mat))), [project]);
   const groups = useMemo(() => {
     const rows = [];
     projectParts(project).forEach((part) => {
@@ -17358,7 +17380,7 @@ function ReportCutPlan({ project, projectName }) {
 
 /* zbiorcza lista formatek calego projektu — tylko przy kilku szafkach */
 function ReportProjectSheet({ project, projectName, tytul = null, tytulProduktow = "Produkty całego projektu" }) {
-  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
+  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat), project.items.map((it) => matyUzyte(it.cab, it.mat))), [project]);
   const rows = useMemo(() => {
     const map = new Map();
     projectParts(project).forEach((part) => {
@@ -19899,7 +19921,7 @@ export default function App() {
 
   // grubosc dopisujemy do etykiety tylko tam, gdzie ta sama plyta wystepuje
   // w projekcie w kilku grubosciach
-  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
+  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat), project.items.map((it) => matyUzyte(it.cab, it.mat))), [project]);
 
   const armAktywnej = useMemo(() => {
     const n = projLayout.info && [...projLayout.info.values()].find((k) => k.arm && k.arm.cab.index === project.active);

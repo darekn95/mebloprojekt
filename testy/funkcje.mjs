@@ -31,7 +31,7 @@ src = src.replace(/^import React[^\n]*\n/, 'const React = { createElement: () =>
 src = src.replace(/export default function App/, 'function App');
 const nazwy = ['buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
-  'ambiguousThickness', 'matLabelOf', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail'];
+  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -316,6 +316,19 @@ console.log('\n== N140–N149 ==');
   ok('N140: biały i czarny „Blat roboczy” — dwie etykiety, dwie grupy, dwa arkusze', rows[0].matLabel !== rows[1].matLabel && plan.length === 2 && plan.every((g) => g.sheets.length === 1),
     rows.map((r) => r.matLabel).join(' / '));
   ok('N140: kontrola — jeden kolor bez dopisku', G.matLabelOf(mats[0].worktop, 'worktop', G.ambiguousThickness([mats[0], mats[0]])) === 'Blat roboczy');
+  // dwie plyty w kolorach spoza wzornika pod jedna nazwa — z kodem koloru, jedna — „kolor własny”
+  const wl = (c) => ({ ...M, board: { ...M.board, name: 'Płyta', color: c, decor: '' } });
+  const amb2 = G.ambiguousThickness([wl('#cc2222'), wl('#22aa22')]);
+  ok('N140: dwa „kolory własne” płyty — etykiety z kodem koloru', G.matLabelOf(wl('#cc2222').board, 'board', amb2) === 'Płyta kolor #cc2222'
+    && G.matLabelOf(wl('#22aa22').board, 'board', amb2) === 'Płyta kolor #22aa22');
+  // nieuzywany domyslny front (#c2a880) i polka (#d0bb96) tez sa spoza wzornika — nie licza sie
+  const cabD = G.migrateCab({});
+  const amb1 = G.ambiguousThickness([wl('#cc2222')], [G.matyUzyte(cabD, wl('#cc2222'))]);
+  ok('N140: jeden „kolor własny” — bez zmian (nieużywany front i półka się nie liczą)', G.matLabelOf(wl('#cc2222').board, 'board', amb1) === 'Płyta kolor własny', [...amb1].join(','));
+  const cabF = { ...cabD, frontSameAsBoard: false };
+  const amb3 = G.ambiguousThickness([wl('#cc2222')], [G.matyUzyte(cabF, wl('#cc2222'))]);
+  ok('N140: front z własnej płyty w innym kolorze własnym — oba z kodem koloru', G.matLabelOf(wl('#cc2222').board, 'board', amb3) === 'Płyta kolor #cc2222'
+    && G.matLabelOf(wl('#cc2222').front, 'front', amb3) === 'Płyta kolor #c2a880', [...amb3].join(','));
 
   const run = (o = {}) => ({ id: 'c1', name: 'Ściana', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: { on: false }, worktop: false, corner: null, ...o });
   const sz = (n, o = {}) => ({ name: n, W: 600, H: 720, D: 560, plinth: { on: false }, legs: { on: true, height: 100 }, levels: [{ h: null, cols: [drzwi({ shelfTargets: [null] })] }], ...o });
