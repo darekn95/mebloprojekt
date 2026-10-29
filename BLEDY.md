@@ -18,6 +18,20 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-28 | decyzja: N117 — krótszy wkręt frontu DXS dobierany sam | `wkretFrontuDl` (30 / 25 / 20 / 16 mm, przód + front − 3 mm): zamówienie „Wkręt 4 × 25 do frontu szuflady”, plan wierceń z tą długością, ostrzeżenie z „Dopisz do notatki montażowej”; poniżej 16 mm — błąd; suita `funkcje` | (ten commit) |
+| 2026-10-28 | decyzja: N122 — nóżka sama przesuwa się spod wycięcia narożnika | `legs.miejsca` w `computeGeo` (x, od tyłu), przesunięcie `LEG_ZA_WYCIECIEM` = 10 mm za wycięcie, tam gdzie bliżej; elewacje (`nozkiWidok`), rzut z góry, z boku, 3D szafki i zabudowy z tych miejsc; informacja; bez miejsca — ostrzeżenie; suity `funkcje`, `audytgpt12` | (ten commit) |
+| 2026-10-28 | decyzja: N132 — dwa fronty w ramieniu szafki w L | `armPasy`: po jednym froncie ramienia na front kolumny przy ramieniu („Front ramienia — dolny / górny”), zawiasy, uchwyty, fix, plan wierceń, 3D, elewacje; maskownica na całą wysokość frontów; informacja zamiast błędu; suity `funkcje`, `audytgpt12` | (ten commit) |
+| 2026-10-28 | audyt GPT N140: biały i czarny „Blat roboczy” na jednym arkuszu rozkroju | etykieta blatu bez koloru i grupowanie po etykiecie; kolor w etykiecie przy kilku kolorach pod jedną nazwą (jak HDF) i grupy rozkroju po `matId`; suita `funkcje` | (ten commit) |
+| 2026-10-29 | audyt projektu: dwie płyty „kolor własny” pod jedną nazwą wyglądały w rozkroju jak jedna („Płyta kolor własny” w dwóch grupach) | grupy rozkroju były już osobne (N140, po `matId`), ale etykieta ta sama; przy kilku kolorach spoza wzornika pod jedną nazwą etykieta dostaje kod koloru („Płyta kolor #cc2222”); liczone tylko z płyt, których szafka używa (`matyUzyte` — nieużywany domyślny front i półka też są spoza wzornika); suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N141: scalanie zmieniało drzwi wpuszczane drugiej szafki na nakładane | montaż frontów jest jeden na szafkę; `scalenieBlad` blokuje różny montaż z powodem; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N142: własne blaty H720 i H900 łączyły się w jedną płytę | klucz łączenia bez wysokości; `blatSzafkiKlucz` z H, uwaga „na różnych wysokościach”; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N143: pionowe wzmocnienie przecinało rurę na wieszaki bez uwagi | kontrola wzmocnień nie znała rury; błąd z „Wzmocnienie N: X mm” / „Usuń rurę”; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N144: wspornik sprawdzany z NL kolumny zamiast z NL szuflady | `rawCol.nl ?? maxNL`; teraz po szufladach z ich `dr.nl`; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N145: tip-on bez płyty montażowej i wchodzący w plecy | brak kontroli; płyty istniejące (bez dna / wieńca — nie ma), błąd przy 89 mm > głębokość do pleców; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N146: złącza blatów w rogu przy automatycznej wysokości ciągów górnych | `wierzchBlatu` z surowego `mountY`; teraz `tierMountY`; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N147: wiercenia w nieistniejącej przegrodzie przy przelocie `noDiv` | `panelsOfCol` bez sprawdzenia płyty; strona przelotu bez wierceń, błąd o półkach / rurze w powietrzu; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N148: jedna listwa dla szafek z zawieszkami na dwóch wysokościach | `runRail` łączył całość; nowy odcinek przy zmianie wysokości zawieszek; suita `funkcje` | (ten commit) |
+| 2026-10-28 | audyt GPT N149: zawieszka w obszarze wycięcia narożnika w jednym poziomie | brak kontroli; błąd, gdy obrys zawieszki (`ZAWIESZKA_WYM`) wypada w wycięciu nie na całą wysokość; suita `funkcje` | (ten commit) |
 | 2026-10-28 | audyt GPT N110: przycisk naprawy kolizji DXS z przeszkodą proponował NL 270, którego DXS nie ma | lista długości V-BOX w kontroli przeszkody i wycięcia; teraz katalog systemu szuflady (`nlSystemu`); suita `funkcje` | (ten commit) |
 | 2026-10-28 | audyt GPT N111: przeszkoda pod skrzynką DXS (18–28 mm, bok od 37) dawała kolizję i „skróć do NL 270” | kontrola brała prostokąt frontu; teraz zakres skrzynki od spodu boku/dna do góry boku; suita `funkcje` | (ten commit) |
 | 2026-10-28 | audyt GPT N112: przegroda z górnego poziomu była granicą zabudowy przeszkody w dolnym — L zamiast U | granice bez zakresu wysokości; teraz tylko przegrody na wysokości przeszkody; suita `funkcje` | (ten commit) |
@@ -361,14 +375,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-- **Audyt GPT 2026-10-28 — trzy sprawy do decyzji** (zrobione na razie same uwagi):
-  1. N117 — wkręt frontu DXS przy cienkich płytach (np. 16 + 12 mm): sam błąd z radą
-     „krótszy wkręt” (tak jest) czy program ma sam dobrać krótszy wkręt w zamówieniu;
-  2. N122 — nóżka pod pełnym wycięciem narożnika: ostrzeżenie (tak jest) czy program
-     ma sam przesunąć nóżkę poza wycięcie (rysunki, 3D i zamówienie);
-  3. N132 — dwa poziomy frontów w szafce w L: błąd (tak jest), dwa fronty w ramieniu
-     (po jednym na poziom, w linii z frontami korpusu) czy jeden front ramienia na całą wysokość.
-
 - **Przycinanie albo zawieszanie po zmianach — pierwszy podejrzany: automatyczny
   rozkrój** (2026-09-29). Liczy się sam 1 s po zmianie formatek (powyżej 40 szafek
   — 5 s). Pomiar: 40 szafek niezauważalnie, 100 szafek jedno przytrzymanie ok.
@@ -409,6 +415,12 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   decyzje o stronie podnośnika, półce na jego drodze, froncie wpuszczanym i zawiasie półnakładanym — w „Ustalone”.
 
 ## Ustalone — nie ruszać
+
+- **Szuflady w kolumnie przy ramieniu szafki w L** (użytkownik 2026-10-28 po retestach GPT N139): zostaje błąd montażu z radą (drzwi albo szuflady w kolumnie dalej od rogu) — bez wspornika pod prowadnicę od strony ramienia i bez automatycznego zwężania szuflady.
+
+- **Wkręt frontu DXS przy cienkich płytach** (użytkownik 2026-10-28, audyt GPT N117): program sam dobiera krótszy wkręt (30 / 25 / 20 / 16 mm, z 3 mm frontu nad czubkiem), ale zawsze z ostrzeżeniem, że wkręty się zmieniły, i przyciskiem do notatki montażowej.
+- **Nóżka pod wycięciem narożnika** (użytkownik 2026-10-28, N122): program sam przesuwa ją 10 mm za wycięcie — wzdłuż boku albo w głąb, gdzie bliżej — wszędzie (rysunki, 3D), z informacją.
+- **Szafka w L z kilkoma frontami jeden nad drugim** (użytkownik 2026-10-28, N132): ramię ma tyle samo frontów, w tych samych wysokościach co fronty kolumny przy ramieniu.
 
 - **„scal” poziomów kolumny o różnym wnętrzu** (użytkownik 2026-10-28, po audycie GPT N86:
   „pytaj przy kliknięciu”): szuflady / blenda / drzwi z półkami — okno „Scalić poziomy N i N+1

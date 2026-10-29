@@ -9,7 +9,13 @@
      i przy powrocie do wienca;
    - N110–N139 (audyt GPT 2026-10-28): przeszkody i DXS, wiercenia, wspolne dno, prześwit,
      ramie szafki w L (zawiasy, uchwyt, wzmocnienia, polki, plecy, katownik, fronty
-     skrecone), noga pod wycieciem. */
+     skrecone), noga pod wycieciem;
+   - decyzje uzytkownika 2026-10-28: krotszy wkret frontu DXS (N117), nozka przesunieta spod
+     wyciecia (N122), dwa fronty w ramieniu (N132);
+   - N140–N149: kolory blatow w rozkroju, scalanie przy roznym montazu frontow, wlasne blaty
+     na roznych wysokosciach, rura a wzmocnienie, wspornik a NL szuflady, tip-on, blaty
+     gornych ciagow w rogu, przelot bez przegrody, listwa przy roznych wysokosciach,
+     zawieszka w wycieciu. */
 import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
@@ -24,7 +30,8 @@ src = src.replace(/^import React[^\n]*\n/, 'const React = { createElement: () =>
   + 'const useState=()=>[null,()=>{}],useEffect=()=>{},useMemo=(f)=>f(),useCallback=(f)=>f,useRef=()=>({current:null});\n');
 src = src.replace(/export default function App/, 'function App');
 const nazwy = ['buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
-  'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf'];
+  'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
+  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -166,8 +173,19 @@ console.log('\n== N117/N128: DXS — wkręty frontu i wysoki tył ==');
   const dx = (o = {}, H = 720) => ({ name: 'T', W: 600, H, D: 560, ...nogi, shelfSameAsBoard: false, frontSameAsBoard: false,
     levels: [{ h: null, cols: [{ kind: 'drawers', w: null, drawers: [{ h: null, system: 'dxs', nl: 500, sideH: 80, ...o }] }] }] });
   const mat = (ts, tf) => ({ ...M0, shelf: { ...M0.shelf, thickness: ts }, front: { ...M0.front, thickness: tf } });
-  ok('N117: przód 16 + front 12 — błąd „wkręt 30 mm przebije front”', uw(geo(dx(), mat(16, 12)), /wkręt 30 mm do frontu przebije front/).length === 1);
-  ok('N117: kontrola 18 + 18 — bez uwagi', !uw(geo(dx(), mat(18, 18)), /wkręt 30 mm do frontu/).length);
+  // decyzja uzytkownika 2026-10-28: krotszy wkret dobiera sie sam, z ostrzezeniem i przyciskiem do notatki
+  const g117 = geo(dx(), mat(16, 12));
+  const w117 = uw(g117, /wkręty do frontu 4 × 25 zamiast 4 × 30/);
+  const h117 = g117.hardware.find((h) => /do frontu szuflady/.test(h.name)) || {};
+  const p117 = g117.drillPlan.flatMap((q) => q.rows.filter((r) => r.kind === 'front od środka').map((r) => r.note)).join(' ');
+  ok('N117: przód 16 + front 12 — zamówienie 4 × 25, ostrzeżenie z „Dopisz do notatki”, plan z 4 × 25',
+    h117.name === 'Wkręt 4 × 25 do frontu szuflady' && h117.qty === 4 && /krótszy niż zwykły 4 × 30/.test(h117.spec)
+    && w117.length === 1 && w117[0].level === 'warn' && /\|notatka:/.test(w117[0].text) && /4 wkręty 4 × 25/.test(p117), `${h117.name} | ${w117.map((x) => x.text.slice(0, 90))} | ${p117}`);
+  const g117b = geo(dx(), mat(8, 8));
+  ok('N117: przód 8 + front 8 — za cienko nawet na 4 × 16: błąd, bez wkrętów w zamówieniu', uw(g117b, /frontu nie da się przykręcić od środka/).length === 1
+    && !g117b.hardware.some((h) => /do frontu szuflady/.test(h.name)));
+  ok('N117: kontrola 18 + 18 — 4 × 30, bez uwagi', !uw(geo(dx(), mat(18, 18)), /wkręt/).length
+    && geo(dx(), mat(18, 18)).hardware.some((h) => h.name === 'Wkręt 4 × 30 do frontu szuflady'));
   const m = uw(geo(dx({ backHeight: 260 }, 300)), /tył 260 mm sięga/);
   ok('N128: tył 260 w korpusie 300 — błąd „wchodzi w nie” z naprawą', m.length === 1 && m[0].level === 'error' && /\|fixback:/.test(m[0].text), m.map((x) => x.text).join(' / '));
 }
@@ -201,8 +219,16 @@ console.log('\n== N122: nóżka pod pełnym wycięciem narożnika ==');
 {
   const c = (cut, legs = true) => geo({ name: 'T', W: 600, H: 720, D: 560, plinth: { on: false }, legs: { on: legs, height: 100 }, cutout: { on: true, w: 100, d: 100, fullHeight: true, mask: true, ...cut },
     levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
-  ok('wycięcie 100 × 100 na całą wysokość nad tylną lewą nóżką — ostrzeżenie', uw(c({}), /przechodzi przez dno nad nóżką \(40 mm od lewego boku, 40 mm od tyłu\)/).length === 1);
-  ok('wycięcie 30 × 30 (nóżka obok), bez nóżek — bez uwagi', !uw(c({ w: 30, d: 30 }), /nad nóżk/).length && !uw(c({}, false), /nad nóżk/).length);
+  // decyzja uzytkownika 2026-10-28: nozka sama przesuwa sie tuz za wyciecie (10 mm), tam gdzie blizej
+  const m = (g) => JSON.stringify(g.legs.miejsca.map((q) => [q.x, q.odTylu]));
+  const g1 = c({});
+  ok('100 × 100: tylna lewa nóżka przesunięta do przodu na 110 mm od tyłu, informacja', m(g1) === '[[40,480],[40,110],[520,480],[520,40]]'
+    && uw(g1, /Nóżka spod wycięcia narożnika \(lewy\) przesunięta o 70 mm do przodu — stoi 40 mm od lewego boku i 110 mm od tyłu/).length === 1, m(g1));
+  const g2 = c({ w: 100, d: 300 });
+  ok('100 × 300 (głębokie): przesunięta w prawo na 110 mm od lewego boku', m(g2) === '[[40,480],[110,40],[520,480],[520,40]]', m(g2));
+  const g3 = c({ w: 560, d: 520 });
+  ok('wycięcie prawie na całą szafkę: nie ma gdzie — ostrzeżenie, nóżki bez zmian', uw(g3, /obok wycięcia nie ma na nią miejsca/).length === 4 && !g3.legs.miejsca.some((q) => q.przesunieta));
+  ok('wycięcie 30 × 30 (nóżka obok), bez nóżek — bez uwagi', !uw(c({ w: 30, d: 30 }), /nóżk/i).length && !uw(c({}, false), /nóżk/i).length);
 }
 
 console.log('\n== N123–N139: ramię szafki w L ==');
@@ -239,8 +265,22 @@ console.log('\n== N123–N139: ramię szafki w L ==');
   ok('N131: kolumna na konfirmatach — półka ramienia też (okucia i plan), bez kołków 4 na półkę',
     ap.hardware.some((h) => /półki ramienia do boku/.test(h.spec || '')) && !ap.hardware.some((h) => h.spec === 'półki ramienia, po cztery na półkę')
     && plan.includes('Bok ramienia|konfirmat — półka ramienia') && !plan.includes('Bok ramienia|kołek półki'), plan.join(' / '));
+  // decyzja uzytkownika 2026-10-28: dwa fronty w ramieniu, w linii z frontami korpusu
   P = proj(Lcab({ H: 900, levels: [{ h: 450, cols: [kol()] }, { h: null, cols: [kol()] }] }));
-  ok('N132: dwa poziomy frontów przy ramieniu — błąd „reszta ramienia zostaje otwarta”', uwagiRogu(P).filter((m) => m.level === 'error' && /2 fronty jeden nad drugim/.test(m.text)).length === 1);
+  let r132 = ramie(P).a;
+  ap = G.cornerArmParts(r132);
+  const fr = ap.panels.filter((p) => /^Front ramienia/.test(p.name)).map((p) => `${p.name} ${p.a}×${p.b}`);
+  const zaw132 = (G.wierceniaDodatkowe(r132).find((q) => q.panel === 'Bok ramienia').rows.find((r) => r.kind === 'zawias') || {}).ys;
+  ok('N132: dwa poziomy — dwa fronty ramienia (dolny 472, górny 418), maskownica 894, 4 zawiasy, 2 uchwyty',
+    JSON.stringify(fr) === '["Front ramienia — dolny 558×472","Front ramienia — górny 558×418"]'
+    && ap.panels.filter((p) => /^Maskownica/.test(p.name)).every((p) => p.b === 894)
+    && (ap.hardware.find((h) => h.name === 'Zawias') || {}).qty === 4 && (ap.hardware.find((h) => h.pk === 'Uchwyt') || {}).qty === 2
+    && JSON.stringify(zaw132) === '[103,375,579,797]', `${fr.join(', ')} | ${JSON.stringify(zaw132)}`);
+  ok('N132: bez błędu, z informacją o dwóch frontach', !uwagiRogu(P).some((m) => m.level === 'error' && /fronty jeden nad drugim/.test(m.text))
+    && uwagiRogu(P).some((m) => m.level === 'info' && /są 2 fronty jeden nad drugim — ramię ma tyle samo/.test(m.text)));
+  ap = G.cornerArmParts(ramie(proj(Lcab({ H: 900 }))).a);
+  ok('N132: kontrola — jeden poziom: jeden „Front ramienia” 558 × 894, 3 zawiasy', JSON.stringify(ap.panels.filter((p) => /^Front ramienia/.test(p.name)).map((p) => `${p.name} ${p.a}×${p.b}`)) === '["Front ramienia 558×894"]'
+    && (ap.hardware.find((h) => h.name === 'Zawias') || {}).qty === 3);
   P = proj(Lcab({ H: 900, plinth: { on: true, height: 100, mode: 'inbody', setback: 0 }, legs: { on: false } }));
   ok('N134: cokół w obrysie — kątownik 900 − 18 − 118 = 764 mm (nad dnem)', G.cornerArmParts(ramie(P).a).panels.filter((p) => /^Kątownik narożnika/.test(p.name)).every((p) => p.b === 764));
   const kol135 = (doors, off) => { const Q = proj(Lcab({}, { doors }), { b2off: off }); const Ly = G.projectLayout(Q).pokoje.values().next().value; return G.openingMsgs(Ly, Q).map((m) => m.text); };
@@ -262,4 +302,87 @@ console.log('\n== N123–N139: ramię szafki w L ==');
   const Ly = G.projectLayout(P);
   const g139 = G.computeGeo(P.items[1].cab, P.items[1].mat, G.armCtxOf(Ly, 1));
   ok('N139: szuflady w kolumnie przy ramieniu — błąd montażu', g139.msgs.some((m) => m.level === 'error' && /szuflady w kolumnie przy ramieniu/.test(m.text)));
+}
+
+console.log('\n== N140–N149 ==');
+{
+  const M = G.defaultMaterials;
+  const wt = (c) => ({ ...M.worktop, name: 'Blat roboczy', color: c });
+  const mats = [{ ...M, worktop: wt('#e8e6e1') }, { ...M, worktop: wt('#2b2a28') }];
+  const amb = G.ambiguousThickness(mats);
+  const rows = mats.map((m) => { const lab = G.matLabelOf(m.worktop, 'worktop', amb);
+    return { name: 'Blat', qty: 1, a: 1000, b: 600, matId: G.tozsamoscPlyty(m.worktop), matLabel: lab, ...G.wierszBlatu({ a: 1000, b: 600, matKey: 'worktop' }, m, lab) }; });
+  const plan = G.buildCutPlan(rows);
+  ok('N140: biały i czarny „Blat roboczy” — dwie etykiety, dwie grupy, dwa arkusze', rows[0].matLabel !== rows[1].matLabel && plan.length === 2 && plan.every((g) => g.sheets.length === 1),
+    rows.map((r) => r.matLabel).join(' / '));
+  ok('N140: kontrola — jeden kolor bez dopisku', G.matLabelOf(mats[0].worktop, 'worktop', G.ambiguousThickness([mats[0], mats[0]])) === 'Blat roboczy');
+  // dwie plyty w kolorach spoza wzornika pod jedna nazwa — z kodem koloru, jedna — „kolor własny”
+  const wl = (c) => ({ ...M, board: { ...M.board, name: 'Płyta', color: c, decor: '' } });
+  const amb2 = G.ambiguousThickness([wl('#cc2222'), wl('#22aa22')]);
+  ok('N140: dwa „kolory własne” płyty — etykiety z kodem koloru', G.matLabelOf(wl('#cc2222').board, 'board', amb2) === 'Płyta kolor #cc2222'
+    && G.matLabelOf(wl('#22aa22').board, 'board', amb2) === 'Płyta kolor #22aa22');
+  // nieuzywany domyslny front (#c2a880) i polka (#d0bb96) tez sa spoza wzornika — nie licza sie
+  const cabD = G.migrateCab({});
+  const amb1 = G.ambiguousThickness([wl('#cc2222')], [G.matyUzyte(cabD, wl('#cc2222'))]);
+  ok('N140: jeden „kolor własny” — bez zmian (nieużywany front i półka się nie liczą)', G.matLabelOf(wl('#cc2222').board, 'board', amb1) === 'Płyta kolor własny', [...amb1].join(','));
+  const cabF = { ...cabD, frontSameAsBoard: false };
+  const amb3 = G.ambiguousThickness([wl('#cc2222')], [G.matyUzyte(cabF, wl('#cc2222'))]);
+  ok('N140: front z własnej płyty w innym kolorze własnym — oba z kodem koloru', G.matLabelOf(wl('#cc2222').board, 'board', amb3) === 'Płyta kolor #cc2222'
+    && G.matLabelOf(wl('#cc2222').front, 'front', amb3) === 'Płyta kolor #c2a880', [...amb3].join(','));
+
+  const run = (o = {}) => ({ id: 'c1', name: 'Ściana', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: { on: false }, worktop: false, corner: null, ...o });
+  const sz = (n, o = {}) => ({ name: n, W: 600, H: 720, D: 560, plinth: { on: false }, legs: { on: true, height: 100 }, levels: [{ h: null, cols: [drzwi({ shelfTargets: [null] })] }], ...o });
+  const P2 = (a, b, r = run()) => G.loadProject({ name: 'P', runs: [r], items: [{ cab: a, runId: 'c1' }, { cab: b, runId: 'c1' }] });
+  ok('N141: scalanie drzwi nakładanych z wpuszczanymi — zablokowane z powodem', /różny montaż frontów \(nakładane i wpuszczane\)/.test(G.scalenieBlad(P2(sz('A'), sz('B', { frontMode: 'inset' })), [0, 1]) || ''));
+  ok('N141: kontrola — ten sam montaż scala się', G.scalenieBlad(P2(sz('A'), sz('B')), [0, 1]) === null);
+
+  const blat = { top: { mode: 'blat', material: 'board', overFront: 30 } };
+  let P = P2(sz('A', { ...blat }), sz('B', { ...blat, H: 900 }));
+  const bl = G.projectParts(P).flatMap((g) => g.panels.filter((x) => /^Blat/.test(x.name)).map((x) => `${x.name} ${x.a}×${x.b}`));
+  ok('N142: własne blaty H720 i H900 — dwa blaty szafek, bez „Blatu ciągu”, uwaga o wysokościach', G.runTop(P, P.runs[0]) == null && bl.length === 2 && bl.every((x) => /^Blat 600×590$/.test(x))
+    && G.worktopMsgs(P, P.runs[0]).some((m) => /na różnych wysokościach \(720 i 900 mm\)/.test(m.text)), bl.join(', '));
+  P = P2(sz('A', { ...blat }), sz('B', { ...blat }));
+  ok('N142: kontrola — H720 i H720: jeden blat ciągu 1200', JSON.stringify((G.runTop(P, P.runs[0]) || {}).lens) === '[1200]');
+
+  const R43 = (o) => ({ orient: 'vertical', pos: 'top', side: 'left', h: 400, depth: 100, atDepth: 230, fromBack: false, reducesDoor: false, ...o });
+  const rura = (rails) => geo({ name: 'T', W: 600, H: 2000, D: 560, ...nogi, levels: [{ h: null, cols: [drzwi({ shelfTargets: [null], drazki: [0], rails })] }] });
+  const m43 = uw(rura([R43()]), /przecina rurę na wieszaki/);
+  ok('N143: pionowe wzmocnienie w drodze rury — błąd z „Usuń rurę”', m43.length === 1 && m43[0].level === 'error' && /\|drazek:0:0:0:0$/.test(m43[0].text));
+  ok('N143: kontrola — wzmocnienie przy licu (poza rurą) i bez wzmocnień — bez uwagi', !uw(rura([R43({ atDepth: 0 })]), /przecina rurę/).length && !uw(rura([]), /przecina rurę/).length);
+
+  const wsp = (sd, nl) => geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, levels: [{ h: null, cols: [{ kind: 'drawers', w: null,
+    fix: { side: 'left', w: 100, mode: 'overlay', support: true, supportDepth: sd }, drawers: [{ h: null, system: 'dxs', nl }] }] }] });
+  ok('N144: wspornik 400 przy NL 400 wybranym w szufladzie — bez błędu o NL 550', !uw(wsp(400, 400), /wspornik ma/).length);
+  ok('N144: wspornik 300 przy NL 400 — błąd „daj minimum 400”', uw(wsp(300, 400), /wspornik ma 300 mm, a prowadnica NL 400/).length === 1);
+
+  const tip = (o) => geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, handles: false, levels: [{ h: null, cols: [drzwi({ shelfTargets: [null], handles: [false], otwieranie: ['tipon'] })] }], ...o });
+  ok('N145: tip-on w szafce D80 — błąd „wchodzi w plecy”', uw(tip({ D: 80, H: 300 }), /tip-on ma 89 mm długości w głąb, a do pleców jest 80 mm/).length === 1);
+  ok('N145: tip-on bez dna, wieńca i półek — błąd „nie ma płyty do przykręcenia”', uw(tip({ joints: { topL: 'none', topR: 'none', botL: 'none', botR: 'none' } }), /tip-on nie ma płyty do przykręcenia/).length === 1);
+  ok('N145: kontrola D560 — bez uwag o tip-on', !uw(tip({}), /tip-on/).length);
+
+  const PL = { on: true, height: 100, mode: 'under', setback: 0 };
+  const R = (id, o) => ({ id, name: id, wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null, ...o });
+  const cabH = (n, H, D = 560) => ({ name: n, W: 600, H, D, plinth: PL, levels: [{ h: null, cols: [drzwi({ shelfTargets: [null] })] }] });
+  const P46 = (h1, h2) => G.loadProject({ name: 'P', items: [{ cab: cabH('A', h1), runId: 'd1' }, { cab: cabH('B', h2), runId: 'd2' }, { cab: cabH('GA', 900, 320), runId: 'g1' }, { cab: cabH('GB', 900, 320), runId: 'g2' }],
+    runs: [R('d1', { H: h1 }), R('d2', { H: h2, corner: { of: 'd1', at: 'end', owner: 'self', clear: 0 } }),
+      R('g1', { tier: 'gorny', wall: 'd1', clearance: 500, H: 900, D: 320, plinth: null }), R('g2', { tier: 'gorny', wall: 'd2', clearance: 500, H: 900, D: 320, plinth: null, corner: { of: 'g1', at: 'end', owner: 'self', clear: 0 } })] });
+  let q = P46(720, 900); let g2 = q.runs.find((r) => r.id === 'g2');
+  ok('N146: górne ciągi nad H720 i H900 (montaż auto) — bez złączy w rogu, uwaga o 180 mm', !(G.runTopZlacza(q, g2) || []).some((z) => /w rogu/.test(z.use))
+    && G.worktopMsgs(q, g2).some((m) => /różnica 180 mm/.test(m.text)));
+  q = P46(720, 720); g2 = q.runs.find((r) => r.id === 'g2');
+  ok('N146: kontrola — równe dolne: złącza w rogu są', (G.runTopZlacza(q, g2) || []).some((z) => /w rogu/.test(z.use)));
+
+  const nd = (v) => geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [null, null], noDiv: v }, { kind: 'open', w: null, shelfTargets: [null, null] }] }] });
+  ok('N147: przelot (noDiv) — bez wierceń w „Przegrodzie 1”, błąd o półkach w powietrzu', !nd(true).drillPlan.some((x) => /^Przegroda/.test(x.panel)) && uw(nd(true), /nie ma przegrody \(przelot\), a półki kończą się tam w powietrzu/).length === 1);
+  ok('N147: kontrola — z przegrodą: wiercenia w niej, bez uwagi', nd(false).drillPlan.some((x) => x.panel === 'Przegroda 1') && !uw(nd(false), /przelot/).length);
+
+  const wis = (n, H) => ({ name: n, W: 600, H, D: 300, plinth: { on: false }, legs: { on: false }, hangerMode: 'listwa', levels: [{ h: null, cols: [drzwi({ shelfTargets: [null] })] }] });
+  const rr = (h1, h2) => G.runRail(G.loadProject({ name: 'P', runs: [run({ mountY: 1500, D: 300, plinth: null, hangerMode: 'listwa' })], items: [{ cab: wis('A', h1), runId: 'c1' }, { cab: wis('B', h2), runId: 'c1' }] }), run({ mountY: 1500, D: 300, plinth: null, hangerMode: 'listwa' }));
+  ok('N148: H720 i H900 — listwa w dwóch odcinkach (zawieszki 702 i 882)', JSON.stringify(rr(720, 900).odcinki.map((o) => [o.len, o.wys])) === '[[600,702],[600,882]]');
+  ok('N148: kontrola H720 i H720 — jedna listwa 1200', JSON.stringify(rr(720, 720).odcinki.map((o) => o.len)) === '[1200]');
+
+  const zw = (li, full) => geo({ name: 'T', W: 600, H: 1200, D: 560, ...nogi, hangers: 'always', cutout: { on: true, w: 100, d: 100, fullHeight: full, levelIndex: li, mask: true },
+    levels: [{ h: 591, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
+  ok('N149: wycięcie w górnym poziomie — błąd o zawieszce w wycięciu', uw(zw(1, false), /Zawieszka przy lewym boku wypada w wycięciu narożnika/).length === 1);
+  ok('N149: kontrola — wycięcie w dolnym poziomie albo na całą wysokość — bez uwagi', !uw(zw(0, false), /Zawieszka/).length && !uw(zw(1, true), /Zawieszka/).length);
 }

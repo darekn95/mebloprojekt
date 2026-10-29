@@ -90,7 +90,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - drzwi ramienia szersze niż ok. 600 mm — ostrzeżenie;
   - front węższy niż 250 mm — ostrzeżenie;
   - półka bez pary od strony ramienia (skończyłaby się w powietrzu) — błąd;
-  - kilka frontów jeden nad drugim w kolumnie przy ramieniu (dwa poziomy, podział kolumny) — błąd: ramię ma jeden front z pierwszego frontu szafki, reszta zostaje otwarta (audyt GPT N132; dwa fronty w ramieniu — do decyzji);
+  - kilka frontów jeden nad drugim w kolumnie przy ramieniu (dwa poziomy, podział kolumny) — ramię ma tyle samo frontów, w tych samych wysokościach („Front ramienia — dolny / górny”, każdy z zawiasami i uchwytem; maskownica na całą wysokość) — informacja (decyzja użytkownika 2026-10-28, N132);
   - szuflady w kolumnie przy ramieniu — błąd: od strony ramienia nie ma boku pod prowadnicę (N139);
   - własna szerokość wzmocnienia ramienia większa niż wysokość wnętrza (stojące) albo głębokość ramienia (leżące) — błąd z największą wartością (N125);
   - kołki półek nie mieszczą się na półce ramienia (płytkie ramię przy płytkim sąsiednim ciągu) — błąd z „Ustaw 50 / 50 mm” dla szafki w L (N136);
@@ -105,6 +105,10 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 - **Ramię szafki w L w zamówieniu**: płyty ramienia mają oklejanie z tabeli formatek jak korpus (N130), zawiasy z grubości płyty frontu ramienia (N123), uchwyt także wpuszczany (wystawanie 0, N124), półki z mocowaniem swojej kolumny i granicy (N131), wzmocnienia z kolumny przy ramieniu bez powtórzeń (N137), plecy ze zszywkami / wkrętami co 100 mm po obwodzie (N138), kątownik od wierzchu dna — też przy cokole w obrysie (N134).
 - **Wspólne dno ciągu**: rozpoznanie „dno pod bokami” z osadzenia dna, nie z obrzeży (N118); szafki różnie wysunięte z lica — każda zostaje przy swoim dnie (N133); w 3D jedna płyta „Dno ciągu” jak w zamówieniu (N119).
 - **Prześwit nad blatem 0** zostaje 0 po zapisie i wczytaniu (N120).
+- **Scalanie szafek** z różnym montażem frontów (nakładane / wpuszczane) — zablokowane z powodem (N141).
+- **Własne blaty szafek** łączą się w blat ciągu tylko z tej samej płyty i na tej samej wysokości (N142).
+- **Blaty ciągów górnych w rogu** porównuje się na rzeczywistej wysokości (montaż automatyczny nad dolnym — `tierMountY`) — przy różnej bez złączy, z uwagą (N146).
+- **Listwa montażowa** ciągu dzieli się na odcinki, gdy szafki mają zawieszki na różnych wysokościach (różne H) (N148).
 
 ## Skąd liczby
 

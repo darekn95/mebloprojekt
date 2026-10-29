@@ -3,7 +3,8 @@
    - N119 wspolne dno ciagu w 3D jedna plyta (jak w zamowieniu), bez szpary miedzy szafkami;
    - N130 klikniecie obrzeza „Frontu ramienia” w tabeli formatek zmienia zamowienie;
    - N136 przycisk „Ustaw 50 / 50 mm” przy kolkach polki ramienia zmienia szafke w L;
-   - N122, N132, N139 — uwagi widoczne w karcie szafki.
+   - N122 nozka przesunieta spod wyciecia (uwaga i 3D), N132 dwa fronty w ramieniu (formatki,
+     uwaga, 3D) — decyzje uzytkownika 2026-10-28; N139 — blad w karcie szafki.
    Liczby i reszta przypadkow (N110–N139) — funkcje, suita `funkcje`. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -45,7 +46,7 @@ const bryly = async (widok) => {
   // standalone rysuje dwa razy (StrictMode) — te same bryly raz
   const byl = new Set();
   return (s || []).filter((x) => { const k = JSON.stringify([x.p, x.d, x.tag]); if (byl.has(k)) return false; byl.add(k); return true; })
-    .map((x) => ({ d: [...x.d].map(Math.round), tag: x.tag }));
+    .map((x) => ({ d: [...x.d].map(Math.round), tag: x.tag, p: x.p }));
 };
 
 console.log('== N119: wspólne dno ciągu w 3D ==');
@@ -87,10 +88,19 @@ console.log('\n== N136: kołki półki płytkiego ramienia ==');
     && !(await notes()).some((x) => /nie mieszczą się na półce ramienia/.test(x.txt)), JSON.stringify(p.items.map((it) => it.cab.shelfPin)));
 }
 
-console.log('\n== N132/N139: uwagi szafki w L ==');
+console.log('\n== N132/N139: szafka w L ==');
 {
+  // decyzja uzytkownika 2026-10-28: dwa fronty w ramieniu, po jednym na poziom
   await seed(rog(Lcab({ H: 900, levels: [{ h: 450, cols: [kol()] }, { h: null, cols: [kol()] }] })));
-  ok('N132: dwa poziomy frontów przy ramieniu — błąd „reszta ramienia zostaje otwarta”', (await notes()).some((x) => /2 fronty jeden nad drugim/.test(x.txt) && /Reszta ramienia zostaje otwarta/.test(x.txt)));
+  await pick('Szafka');
+  const fr = (await rows(/^Formatki do zamówienia$/)).filter((r) => /^Front ramienia/.test(r));
+  ok('N132: formatki „Front ramienia — dolny” 558 × 472 i „— górny” 558 × 418', fr.length === 2 && /dolny .*\| 558 \| 472 \|/.test(fr.join(' / ')) && /górny .*\| 558 \| 418 \|/.test(fr.join(' / ')), fr.join(' / '));
+  ok('N132: informacja zamiast błędu', (await notes()).some((x) => /są 2 fronty jeden nad drugim — ramię ma tyle samo/.test(x.txt)) && !(await notes()).some((x) => /Reszta ramienia zostaje otwarta/.test(x.txt)));
+  // ramie jest w bryle zabudowy (wszystkie ciagi w rogu)
+  const bl = await bryly('Zabudowa');
+  // fronty ramienia: plyta 558 szer. o wysokosci pasa (w bryle wymiary niezaleznie od osi)
+  const fr3 = bl.filter((x) => x.d.includes(558) && (x.d.includes(472) || x.d.includes(418)));
+  ok('N132: w 3D dwa fronty ramienia (472 i 418)', fr3.length === 2, JSON.stringify(bl.filter((x) => x.d.includes(558)).map((x) => x.d)));
   await seed(rog(Lcab({ levels: [{ h: null, cols: [{ kind: 'drawers', w: null, drawers: [{ h: null, system: 'dxs', nl: 400, sideH: 80 }] }] }] })));
   ok('N139: szuflady w kolumnie przy ramieniu — błąd montażu', (await notes()).some((x) => /szuflady w kolumnie przy ramieniu szafki narożnej w L/.test(x.txt)));
 }
@@ -99,7 +109,12 @@ console.log('\n== N122: nóżka pod wycięciem narożnika ==');
 {
   await seed({ name: 'P', active: 0, prices: {}, runs: [], items: [{ cab: { name: 'S', W: 600, H: 720, D: 560, plinth: { on: false }, legs: { on: true, height: 100 },
     cutout: { on: true, w: 100, d: 100, fullHeight: true, mask: true }, levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] }, runId: null, offset: 0 }] });
-  ok('ostrzeżenie „przechodzi przez dno nad nóżką”', (await notes()).some((x) => /przechodzi przez dno nad nóżką/.test(x.txt)));
+  // decyzja uzytkownika 2026-10-28: nozka sama przesuwa sie tuz za wyciecie
+  ok('informacja „przesunięta o 70 mm do przodu”', (await notes()).some((x) => /Nóżka spod wycięcia narożnika \(lewy\) przesunięta o 70 mm do przodu/.test(x.txt)));
+  const nogi = (await bryly('Szafka')).filter((x) => x.tag === 'noga').map((x) => x.p);
+  // z w bryle od lica: tylna lewa 560 − 110 − 40 = 410..450; zadna nie stoi pod wycieciem (x 0..100, z 460..560)
+  ok('3D: tylna lewa nóżka na z 410–450, żadna pod wycięciem', nogi.length === 4 && nogi.some((q) => Math.round(q[0]) === 40 && Math.round(q[2]) === 410)
+    && !nogi.some((q) => q[0] < 100 && q[5] > 460), JSON.stringify(nogi));
 }
 
 ok('bez błędów strony', !errors.length, errors.join(' / '));

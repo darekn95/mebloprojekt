@@ -104,7 +104,8 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
   - front zawsze sięga spodu prowadnicy (27 mm poniżej spodu dna) i ją zasłania.
 - **Bok**: auto jak wyżej (najwyższy z luzem 5 mm) albo ręcznie w mm. Puste pole pokazuje „auto N”. Przy froncie obniżonym podfrezem (także górnym pod płytą) bok auto kończy się równo z górą frontu — nie wystaje w szczelinie nad nim (2026-10-25); ręcznie wpisany wyższy — ostrzeżenie z „Zmień bok szuflady na N mm”.
 - **Tył**: auto = bok − 10, góra równo z bokami. Ręcznie można niżej; wyżej daje ostrzeżenie z przyciskiem powrotu, a ponad to, co jest nad szufladą (wieniec, półka, szuflada wyżej, z luzem 5 mm) — błąd „skrzynki nie da się złożyć ani wsunąć” z przyciskiem (audyt GPT N128).
-- **Wkręty frontu 4 × 30**: dłuższe niż przód skrzynki + front − 3 mm — ostrzeżenie, przebijają front (np. 16 + 12 mm) — błąd z radą krótszego wkrętu (N117; automatyczny dobór — do decyzji).
+- **Wkręty frontu**: zwykle 4 × 30. Gdy przód skrzynki + front − 3 mm nie mieści 30 mm (np. 16 + 12 mm), program sam bierze krótszy (25 / 20 / 16 mm) — w zamówieniu i planie wierceń — z ostrzeżeniem i przyciskiem „Dopisz do notatki montażowej” (decyzja użytkownika 2026-10-28, N117). Poniżej 16 mm — błąd.
+- **Wspornik fixa przy szufladach**: musi mieć długość najdłuższej prowadnicy — liczy się NL wybrane w szufladach, nie domyślne kolumny (N144).
 - **Najniższa możliwa skrzynka**: bok 40 / tył 30 mm. Gdy auto nie mieści nawet takiej — błąd „nie ma miejsca na skrzynkę DXS-3D” z przyciskami „Zmniejsz do N szuflad” / „Zmień na DXS-3D”.
 - **Wąskie formatki skrzynki** (reguła wszystkich formatek):
   - poniżej 30 mm — błąd;

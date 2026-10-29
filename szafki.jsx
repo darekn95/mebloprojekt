@@ -81,6 +81,7 @@ const nozkaWariant = (cab, h) => {
 };
 const LEG_W = 40;      // kwadrat nozki na rysunku
 const LEG_INSET = 40;  // odsuniecie od krawedzi korpusu
+const LEG_ZA_WYCIECIEM = 10;  // nozka przesunieta spod wyciecia naroznika — tyle za jego krawedzia (N122)
 /* Nozki liczy szerokosc: para na kazdy rog, a od 900 mm dochodzi para posrodku —
    dno bez podparcia zaczyna tam pracowac. Wpisana liczba ma pierwszenstwo:
    parzysta rozklada sie po dwoch rzedach w rownych odstepach, nieparzysta znaczy
@@ -98,29 +99,52 @@ const legPlan = (cab, W) => {
     xs.push(Math.round(LEG_INSET + (skok * i) / (wRzedzie - 1)));
   return { ile, xs, srodek, w: LEG_W, ins: LEG_INSET };
 };
+/* Nozki widoczne na elewacji: rzad przy licu (`xs`) i nozki przesuniete spod wyciecia
+   naroznika (`miejsca[].przesunieta`, N122) — te stoja gdzie indziej niz rzad. */
+const nozkiWidok = (geo) => [...new Set([...geo.legs.xs,
+  ...(geo.legs.miejsca || []).filter((m) => m.przesunieta).map((m) => Math.round(m.x))])];
 
-// zbior nazw, ktore w podanych zestawach materialow maja wiecej niz jedna grubosc
-const ambiguousThickness = (mats) => {
+/* Materialy, ktorych szafka naprawde uzywa: front i polki z wlasnej plyty tylko przy
+   odznaczonym „z tej samej płyty co korpus” (`uzywaPlyty`). */
+const matyUzyte = (cab, mat) => (!cab ? mat
+  : Object.fromEntries(Object.entries(mat || {}).filter(([k]) => uzywaPlyty(cab, k))));
+/* zbior nazw, ktore w podanych zestawach materialow maja wiecej niz jedna grubosc;
+   „kolor własny” liczony tylko z `uzyte` — nieuzywany domyslny front (#c2a880) i polka
+   (#d0bb96) sa spoza wzornika i robily z jednej plyty „dwie” */
+const ambiguousThickness = (mats, uzyte = mats) => {
   const by = new Map();
   /* Plecy nie maja koloru w etykiecie („HDF”), wiec dwa kolory HDF w projekcie
      szly na jeden arkusz rozkroju (audyt GPT N5). Gdy pod ta sama nazwa sa plecy
      w kilku kolorach, etykieta dostaje kolor — znacznik „kolor:<nazwa>”. */
   const kolory = new Map();
+  const wlasne = new Map();
   mats.forEach((mm) =>
     Object.entries(mm || {}).forEach(([key, m]) => {
       if (!m || !m.name) return;
       const k = m.name.trim();
       if (!by.has(k)) by.set(k, new Set());
       by.get(k).add(m.thickness);
-      if (key === "back") {
+      // blat roboczy tez nie ma koloru w etykiecie — bialy i czarny „Blat roboczy” szly na jeden arkusz (N140)
+      if (key === "back" || key === "worktop") {
         if (!kolory.has(k)) kolory.set(k, new Set());
         kolory.get(k).add(String(m.color || "").toLowerCase());
       }
     })
   );
+  /* Plyta w kolorze spoza wzornika to w etykiecie „kolor własny” — dwie takie pod jedna
+     nazwa wygladaly w rozkroju jak jedna plyta; wtedy etykieta dostaje kod koloru. */
+  uzyte.forEach((mm) =>
+    Object.entries(mm || {}).forEach(([key, m]) => {
+      if (!m || !m.name || !COLORED_KEYS.includes(key) || colorLabel(m) !== "kolor własny") return;
+      const k = m.name.trim();
+      if (!wlasne.has(k)) wlasne.set(k, new Set());
+      wlasne.get(k).add(String(m.color || "").toLowerCase());
+    })
+  );
   return new Set([
     ...[...by.entries()].filter(([, set]) => set.size > 1).map(([k]) => k),
     ...[...kolory.entries()].filter(([, set]) => set.size > 1).map(([k]) => "kolor:" + k),
+    ...[...wlasne.entries()].filter(([, set]) => set.size > 1).map(([k]) => "wlasny:" + k),
   ]);
 };
 
@@ -140,10 +164,14 @@ const matLabelOf = (m, key, ambiguous) => {
     return ambiguous && ambiguous.has(n) ? `${n} ${m.thickness}` : n;
   }
   const parts = [((m && m.name) || "").trim() || key];
-  if (COLORED_KEYS.includes(key)) parts.push(colorLabel(m));
+  if (COLORED_KEYS.includes(key)) {
+    const kol = colorLabel(m);
+    parts.push(kol === "kolor własny" && ambiguous && ambiguous.has("wlasny:" + (((m && m.name) || "").trim()))
+      ? `kolor ${String(m.color || "").toLowerCase()}` : kol);
+  }
   /* kolor spoza palety to u wszystkich „kolor wlasny” — przy plecach w kilku
      kolorach wtedy kod koloru, inaczej dwa rozne HDF dalej szly razem */
-  else if (key === "back" && ambiguous && ambiguous.has("kolor:" + (((m && m.name) || "").trim())))
+  else if ((key === "back" || key === "worktop") && ambiguous && ambiguous.has("kolor:" + (((m && m.name) || "").trim())))
     parts.push(((m.decor || "").trim()) || paletteName(m.color) || `kolor ${String(m.color || "").toLowerCase()}`);
   if (ambiguous && ambiguous.has(((m && m.name) || "").trim())) parts.push(String(m.thickness));
   return parts.join(" ");
@@ -153,6 +181,8 @@ const matLabelOf = (m, key, ambiguous) => {
    57,2 × 37,5 × 17,4 mm, dwa otwory ⌀4,1 w rozstawie 32 mm. W plycie nic sie nie
    wierci — zawieszke przykreca sie wkretami (uzytkownik 2026-09-29). */
 const ZAWIESZKA_MODEL = "ZK-ZAW-R0-10, 57,2 × 37,5 × 17,4 mm, przykręcana 2 wkrętami 4 × 30 (otwory ⌀4,1, rozstaw 32 mm)";
+// obrys zawieszki na boku: wysokosc pod gorna krawedzia i glebokosc od jej tylu (karta ZK-ZAW-R0-10)
+const ZAWIESZKA_WYM = { h: 57.2, gl: 37.5 };
 // montaz (uzytkownik 2026-09-29): na samej gorze, pod wiencem, 1 cm od plecow; wkrety 4 × 30 jak w reszcie szafki
 const ZAWIESZKA_OD_PLECOW = 10;
 // od tej szerokosci dodatkowe zawieszki na przegrodach pionowych
@@ -757,6 +787,12 @@ const DXS = {
 };
 const WKRET_FRONTU_NAME = "Wkręt 4 × 30 do frontu szuflady";
 const WKRET_FRONTU_DL = 30, WKRET_FRONTU_ZAPAS = 3;   // dlugosc wkretu i plyta frontu nad czubkiem (N117)
+/* Krotszy wkret przy cienkich plytach dobiera sie sam (uzytkownik 2026-10-28 po audycie GPT N117):
+   najdluzszy z typowych, ktory zostawia WKRET_FRONTU_ZAPAS mm frontu nad czubkiem. Zamiana
+   idzie z ostrzezeniem i przyciskiem do notatki montazowej. Ponizej 16 mm — nie da sie. */
+const WKRET_FRONTU_DLUGOSCI = [30, 25, 20, 16];
+const wkretFrontuDl = (razem) => WKRET_FRONTU_DLUGOSCI.find((l) => l <= razem - WKRET_FRONTU_ZAPAS) ?? null;
+const wkretFrontuNazwa = (l) => (l === WKRET_FRONTU_DL ? WKRET_FRONTU_NAME : `Wkręt 4 × ${l} do frontu szuflady`);
 const dxsBokOd = DXS.dnoOd - DXS.bokPodDnem; // spod prowadnicy → dol boku (17)
 /* System szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty na
    prowadnicach dolnego montazu) — `drawer.system`, bez niego V-BOX
@@ -2125,7 +2161,7 @@ const loadProject = (d) => {
     });
   /* Etykieta materialu nosi teraz kolor, wiec recznie wpisana cena zapisana
      pod stara nazwa zostalaby sierota — przenosimy ja na nowy klucz. */
-  const ambig = ambiguousThickness(items.map((it) => it.mat));
+  const ambig = ambiguousThickness(items.map((it) => it.mat), items.map((it) => matyUzyte(it.cab, it.mat)));
   items.forEach((it) =>
     Object.entries(it.mat || {}).forEach(([key, m]) => {
       Object.keys(LEGACY_MAT_NAMES).forEach((old) => {
@@ -2159,7 +2195,7 @@ const loadProject = (d) => {
   // wlasne kawalki plyty do rozkroju (material, wymiar, ilosc)
   /* kawalek zapisany bez tozsamosci plyty (sprzed N94) — dostaje ja z materialu, ktory przy
      wczytaniu ma te sama etykiete */
-  const ambigL = ambiguousThickness(items.map((it) => it.mat));
+  const ambigL = ambiguousThickness(items.map((it) => it.mat), items.map((it) => matyUzyte(it.cab, it.mat)));
   const tozZEtykiety = (lbl) => {
     for (const it of items) for (const [k, m] of Object.entries(it.mat || {})) if (m && matLabelOf(m, k, ambigL) === lbl) return tozsamoscPlyty(m);
     return null;
@@ -2576,6 +2612,13 @@ function computeGeoLiczy(cab, mat, ctx) {
   const legBelow = Math.max(0, legH - legTop);
   // rozstaw i liczba nozek — jedno miejsce dla rysunkow i dla zamowienia
   const legs = legPlan(cab, W);
+  /* Miejsca nozek: `x` od lewego boku, `odTylu` — tylna krawedz nozki od tylu korpusu.
+     Rzad przy licu, rzad przy plecach i srodkowa. Wyciecie naroznika moze jedna przesunac
+     (`processCutout`, N122) — rysunki, rzut z gory i 3D biora miejsca stad. */
+  legs.miejsca = [
+    ...legs.xs.flatMap((lx) => [{ x: lx, odTylu: carcassDepth - legs.ins - legs.w }, { x: lx, odTylu: legs.ins }]),
+    ...(legs.srodek ? [{ x: (W - legs.w) / 2, odTylu: (carcassDepth - legs.w) / 2 }] : []),
+  ];
   /* Przedni i tylny rzad nozek (LEG_INSET od krawedzi, LEG_W szerokosci) nachodza
      na siebie przy glebokosci ponizej 2 × (LEG_INSET + LEG_W) — samo ostrzezenie,
      liczba bez zmian (audyt GPT N30, decyzja uzytkownika 2026-10-17). */
@@ -3195,6 +3238,20 @@ function computeGeoLiczy(cab, mat, ctx) {
               + (maxH >= MIN_PART ? `Skróć je do ${fmt(maxH)} mm albo przesuń półkę.|wzmwys:${lv.i}:${j}:${nr - 1}:${maxH}` : "Przesuń półkę albo wzmocnienie."));
           }
         }
+        /* Rura na wieszaki biegnie przez cala szerokosc kolumny — wzmocnienie w jej drodze
+           (audyt GPT N143: pionowe 400 mm przy boku przecinalo rure 17 × 25 × 25 mm, bez uwagi).
+           Przyciski: krotsze wzmocnienie (pionowe od gory konczy sie nad rura) albo bez rury. */
+        (c.drazki || []).forEach((dr) => {
+          const rx0 = c.x0 + DRAZEK_KROTSZY / 2, rx1 = rx0 + dr.len;
+          const ry0 = dr.y - DRAZEK_FI / 2, ry1 = dr.y + DRAZEK_FI / 2, rz0 = dr.z - DRAZEK_FI / 2, rz1 = dr.z + DRAZEK_FI / 2;
+          const nach = (a0, a1, b0, b1) => Math.min(a1, b1) - Math.max(a0, b0) > 0.5;
+          if (!(nach(g2.x0, g2.x1, rx0, rx1) && nach(g2.y0, g2.y1, ry0, ry1) && nach(g2.z0, g2.z0 + g2.zLen, rz0, rz1))) return;
+          const maxH = r.orient === "vertical" ? Math.floor(g2.y1 - ry1 - 5) : 0;
+          add("error", `${co} przecina rurę na wieszaki (oś ${fmt(Math.round(dr.y - lv.y0))} mm od dołu poziomu, ${fmt(dr.z)} mm od przodu) — `
+            + `rura nie przejdzie przez płytę, a rozeta nie ma gdzie stanąć. `
+            + (maxH >= MIN_PART ? `Skróć wzmocnienie do ${fmt(maxH)} mm albo usuń rurę.|wzmwys:${lv.i}:${j}:${nr - 1}:${maxH}` : "Przesuń wzmocnienie albo usuń rurę.")
+            + `|drazek:${lv.i}:${j}:${dr.k}:0`);
+        });
       });
 
       /* Front wpuszczany siedzi w otworze, w plaszczyznie lica. Wzmocnienie,
@@ -3328,15 +3385,9 @@ function computeGeoLiczy(cab, mat, ctx) {
             /* Przy szufladach wspornik niesie prowadnice — musi miec jej dlugosc.
                Dotad przy szufladach wspornika w ogole nie budowalismy (audyt GPT
                N42; uzytkownik 2026-10-17: szuflada wtedy wezsza, prowadnica na nim). */
-            if (kind === "drawers") {
-              const needNl = num(rawCol.nl) ?? maxNL;
-              if (needNl && sd < needNl)
-                add(
-                  "error",
-                  `${where}: wspornik ma ${fmt(sd)} mm, a prowadnica NL ${needNl} musi się na nim oprzeć na całej długości — daj minimum ${needNl} mm.`
-                    + (needNl <= sdMax ? `|wspgl:${lv.i}:${j}:${needNl}` : "")
-                );
-            }
+            /* Sama kontrola — po szufladach (`wspornikPodNl` nizej), z ich faktycznym NL:
+               tu bylo `rawCol.nl ?? maxNL`, wiec NL 400 wybrane w szufladzie dawalo blad
+               o NL 550 (audyt GPT N144). */
             /* Wspornik stoi na wysokosc swiatla poziomu — ale pod blatem roboczym
                (bez wienca) na gorze lezy plaskie wzmocnienie przy licu, a wspornik
                zaczyna sie od lica: konczy sie pod nim (audyt macierzowy
@@ -3360,7 +3411,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             const podPlyta = (lv.i > 0 || hasBot) && dol;
             supportParts.push({ h: Math.round(sy1 - sy0), d: sd, nad: nadPlyta, pod: podPlyta,
               trojkatyFix: nadPlyta ? 0 : wspornikTrojkaty(sy1 - sy0) });
-            c.support = { d: sd, z0: zaFixem, side: rawFix.side, y0: sy0, y1: sy1, h: Math.round(sy1 - sy0), nad: nadPlyta, pod: podPlyta };
+            c.support = { d: sd, z0: zaFixem, side: rawFix.side, y0: sy0, y1: sy1, h: Math.round(sy1 - sy0), nad: nadPlyta, pod: podPlyta, sdMax, where };
             /* Polka nie przejdzie przez wspornik, a nikt nie wycina w niej „U”
                na niego — jest plytsza: na cala szerokosc, ale zaczyna sie za
                wspornikiem i lezy na zwyklych kolkach w bokach (ustalone
@@ -4424,6 +4475,16 @@ function computeGeoLiczy(cab, mat, ctx) {
       szufladyKolumny(rawCol, c, lv, j, j, where, insLo, insHi, topFixGeo);
     });
   });
+  /* Wspornik przy szufladach niesie prowadnice — musi miec dlugosc najdluzszej z nich,
+     liczac NL faktycznie wybrane w szufladach (audyt GPT N144). */
+  levels.forEach((lv) => lv.cols.forEach((c, j) => {
+    const nls = c.support ? (c.drawers || []).map((dr) => num(dr.nl)).filter((v) => v > 0) : [];
+    if (!nls.length) return;
+    const needNl = Math.max(...nls), sp = c.support;
+    if (sp.d < needNl)
+      add("error", `${sp.where}: wspornik ma ${fmt(sp.d)} mm, a prowadnica NL ${needNl} musi się na nim oprzeć na całej długości — daj minimum ${needNl} mm.`
+        + (needNl <= sp.sdMax ? `|wspgl:${lv.i}:${j}:${needNl}` : ""));
+  }));
 
   /* Szuflady V-BOX i DXS-3D w jednej szafce — dziala, ale zwykle to pomylka
      (uzytkownik 2026-10-21: „domyslnie ten sam typ na szafke”). Przyciski:
@@ -4508,11 +4569,22 @@ function computeGeoLiczy(cab, mat, ctx) {
       if (!c) return;
       const sufit = Math.min(d.colY1, ...(c.rails || [])
         .filter((r) => r.y0 >= d.colY0 && r.z0 < 100 && r.x1 > d.x && r.x0 < d.x + d.w).map((r) => r.y0));
-      const plyty = [{ y: d.colY0, wierzch: true },
-        ...(c.shelves || []).filter((sh) => sh.y > d.colY0 + 1 && sh.y + ts < sufit - 1).map((sh) => ({ y: sh.y + ts, wierzch: true })),
-        { y: sufit, wierzch: false }];
-      const p = d.type === "klapa" ? (d.klapa === "gora" ? plyty[0] : plyty[plyty.length - 1])
-        : wisiTu ? plyty[0] : plyty.reduce((a, b) => (Math.abs(b.y - cel) < Math.abs(a.y - cel) ? b : a));
+      /* Plyta musi naprawde byc (audyt GPT N145): bez dna dol poziomu 1, bez wienca i bez
+         wzmocnienia gora najwyzszego to tylko granica swiatla — tam nie ma do czego przykrecic. */
+      const bezDna = li === 0 && !hasBot && Math.abs(d.colY0 - levels[0].y0) < 1;
+      const bezGory = li === levels.length - 1 && !hasTop && sufit >= d.colY1 - 0.5 && Math.abs(d.colY1 - levels[li].y1) < 1;
+      const plyty = [{ y: d.colY0, wierzch: true, jest: !bezDna },
+        ...(c.shelves || []).filter((sh) => sh.y > d.colY0 + 1 && sh.y + ts < sufit - 1).map((sh) => ({ y: sh.y + ts, wierzch: true, jest: true })),
+        { y: sufit, wierzch: false, jest: !bezGory }];
+      const sa = plyty.filter((q) => q.jest);
+      const gdzieT = `${d.seg ? gdziePoziomKol(li, d.colJ ?? j, d.seg.nr) : `Poziom ${li + 1}, kolumna ${j + 1}`}, ${d.type === "klapa" ? "klapa" : "drzwi"}: tip-on`;
+      if (!sa.length) {
+        add("error", `${gdzieT} nie ma płyty do przykręcenia — w tym miejscu nie ma dna, półki, wieńca ani wzmocnienia. Dołóż półkę albo wzmocnienie, albo daj uchwyt.`);
+        return;
+      }
+      const naj = (lista) => lista.reduce((a, b) => (Math.abs(b.y - cel) < Math.abs(a.y - cel) ? b : a));
+      const p = d.type === "klapa" ? (d.klapa === "gora" ? sa[0] : sa[sa.length - 1])
+        : wisiTu ? sa[0] : naj(sa);
       const y0 = p.wierzch ? p.y : p.y - TIPON_H;
       const wolnaPrawa = d.type === "klapa" ? d.silowniki === 1 && d.silownikStrona === "left" : d.hingeSide === "left";
       const kraw = wolnaPrawa ? d.x + d.w : d.x;
@@ -4522,6 +4594,10 @@ function computeGeoLiczy(cab, mat, ctx) {
       const z0 = d.inset ? tf : 0;
       d.tipon = { x0, x1: x0 + TIPON_W, y0, y1: y0 + TIPON_H, z0, z1: z0 + TIPON_L };
       d.tiponY = y0 + TIPON_H / 2;
+      // korpus odbojnika ma TIPON_L mm w glab — w plytkiej szafce wchodzi w plecy (N145: 89 mm przy D 80)
+      const doPlecow = Math.round(carcassDepth - backIntrusion);
+      if (z0 + TIPON_L > doPlecow + 0.5)
+        add("error", `${gdzieT} ma ${TIPON_L} mm długości w głąb${z0 ? ` (za frontem wpuszczanym od ${fmt(z0)} mm)` : ""}, a do pleców jest ${fmt(doPlecow)} mm — wchodzi w plecy. Daj uchwyt albo głębszą szafkę.`);
     });
   }
   doors.filter((d) => d.otwieranie === "dol").forEach((d) => {
@@ -5260,18 +5336,34 @@ function computeGeoLiczy(cab, mat, ctx) {
 
     /* Wyciecie na cala wysokosc idzie tez przez dno — nozka pod nim nie ma sie do czego
        przykrecic (audyt GPT N122: tylna lewa 40..80 × 40..80 od tylu pod wycieciem 100 × 100,
-       bez uwagi). Nozki stoja w dwoch rzedach (przy licu i przy plecach) plus srodkowa. */
+       bez uwagi). Uzytkownik 2026-10-28: program sam przesuwa ja tuz za wyciecie
+       (LEG_ZA_WYCIECIEM) — wzdluz boku albo w glab, gdzie blizej; tylko gdy nie ma gdzie,
+       zostaje ostrzezenie. */
     if (zFull && cab.legs && cab.legs.on) {
-      const lw = legs.w, ins = legs.ins;
-      const miejsca = legs.xs.flatMap((lx) => [[lx, ins], [lx, carcassDepth - ins - lw]]);
-      if (legs.srodek) miejsca.push([(W - lw) / 2, (carcassDepth - lw) / 2]);
-      // z liczone od tylu, jak bz0/bz1 wyciecia
-      const pod = miejsca.filter(([lx, lz]) => Math.min(lx + lw, bx1) - Math.max(lx, bx0) > 0 && Math.min(lz + lw, bz1) - Math.max(lz, bz0) > 0);
-      if (pod.length)
-        add("warn", `Wycięcie narożnika (${side}) na całą wysokość przechodzi przez dno nad ${pod.length > 1 ? `${pod.length} nóżkami` : "nóżką"} `
-          + `(${pod.map(([lx, lz]) => `${fmt(Math.round(onLeft ? lx : W - lx - lw))} mm od ${onLeft ? "lewego" : "prawego"} boku, ${fmt(Math.round(lz))} mm od tyłu`).join("; ")}) — `
-          + `po wycięciu nie ma jej do czego przykręcić. Przestaw ją przy montażu poza wycięcie (dalej niż ${fmt(cw)} mm od ${onLeft ? "lewego" : "prawego"} boku `
-          + `albo ${fmt(cdp)} mm od tyłu) albo podeprzyj dno inaczej.`);
+      const lw = legs.w;
+      const tnie = (m) => Math.min(m.x + lw, bx1) - Math.max(m.x, bx0) > 0 && Math.min(m.odTylu + lw, bz1) - Math.max(m.odTylu, bz0) > 0;
+      const nachodzi = (m, inne) => inne.some((q) => q !== m && Math.min(m.x + lw, q.x + lw) - Math.max(m.x, q.x) > 0
+        && Math.min(m.odTylu + lw, q.odTylu + lw) - Math.max(m.odTylu, q.odTylu) > 0);
+      const bok = onLeft ? "lewego" : "prawego";
+      legs.miejsca.filter(tnie).forEach((m) => {
+        const wBok = { x: onLeft ? cw + LEG_ZA_WYCIECIEM : W - cw - LEG_ZA_WYCIECIEM - lw, odTylu: m.odTylu };
+        const wGlab = { x: m.x, odTylu: cdp + LEG_ZA_WYCIECIEM };
+        const mozna = (q) => q.x >= 0 && q.x + lw <= W && q.odTylu + lw <= carcassDepth
+          && !nachodzi({ ...q }, legs.miejsca.filter((r) => r !== m));
+        const opcje = [[wGlab, Math.abs(wGlab.odTylu - m.odTylu), "do przodu"], [wBok, Math.abs(wBok.x - m.x), onLeft ? "w prawo" : "w lewo"]]
+          .filter(([q]) => mozna(q)).sort((p, q) => p[1] - q[1]);
+        const odBoku = (q) => Math.round(onLeft ? q.x : W - q.x - lw);
+        if (!opcje.length) {
+          add("warn", `Wycięcie narożnika (${side}) na całą wysokość przechodzi przez dno nad nóżką `
+            + `(${fmt(odBoku(m))} mm od ${bok} boku, ${fmt(Math.round(m.odTylu))} mm od tyłu) — po wycięciu nie ma jej do czego przykręcić, `
+            + `a obok wycięcia nie ma na nią miejsca. Podeprzyj dno inaczej.`);
+          return;
+        }
+        const [q, o, kier] = opcje[0];
+        add("info", `Nóżka spod wycięcia narożnika (${side}) przesunięta o ${fmt(Math.round(o))} mm ${kier} — stoi ${fmt(odBoku(q))} mm od ${bok} boku `
+          + `i ${fmt(Math.round(q.odTylu))} mm od tyłu, ${fmt(LEG_ZA_WYCIECIEM)} mm za wycięciem (tam dno zostaje).`);
+        m.x = q.x; m.odTylu = q.odTylu; m.przesunieta = true;
+      });
     }
 
     // detekcja kolizji: polki, przegrody, szuflady wchodzace we wneke
@@ -5487,6 +5579,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   const drillMap = new Map();
   const drillKey = (lvI, name) => (levels.length > 1 ? `Poziom ${lvI + 1} — ${name}` : name);
   const drillAdd = (lvI, name, base, kind, y, note) => {
+    if (!name) return;   // strona bez plyty (przelot `noDiv`)
     const key = drillKey(lvI, name);
     if (!drillMap.has(key)) drillMap.set(key, { panel: key, holes: [] });
     drillMap.get(key).holes.push({ kind, y: y == null ? null : Math.round(y - base), note });
@@ -5494,14 +5587,26 @@ function computeGeoLiczy(cab, mat, ctx) {
   /* Przegroda niesie kolki i zawiasy z obu stron — kazda strona to osobne
      wiercenie, wiec w planie osobny wpis „(od kolumny N)”. Wczesniej te same
      wysokosci z obu stron zlewaly sie w jeden wpis i jednego otworu brakowalo. */
+  /* Przelot bez przegrody (`noDiv` kolumny po lewej) — po tej stronie nie ma plyty, wiec
+     i wiercen (audyt GPT N147: plan wiercil kolki w „Przegrodzie 1”, ktorej nie ma). */
   const panelsOfCol = (lv, c) => {
     const last = lv.cols.length - 1;
     const strona = ` (od kolumny ${c.j + 1})`;
+    const bezL = c.j > 0 && !!(lv.cols[c.j - 1] || {}).noDiv, bezP = c.j < last && !!c.noDiv;
     return {
-      left: { name: c.j === 0 ? "Bok lewy" : `Przegroda ${c.j}`, base: c.j === 0 ? leftY0 : lv.y0, strona: c.j === 0 ? "" : strona },
-      right: { name: c.j === last ? "Bok prawy" : `Przegroda ${c.j + 1}`, base: c.j === last ? rightY0 : lv.y0, strona: c.j === last ? "" : strona },
+      left: { name: c.j === 0 ? "Bok lewy" : bezL ? null : `Przegroda ${c.j}`, base: c.j === 0 ? leftY0 : lv.y0, strona: c.j === 0 ? "" : strona },
+      right: { name: c.j === last ? "Bok prawy" : bezP ? null : `Przegroda ${c.j + 1}`, base: c.j === last ? rightY0 : lv.y0, strona: c.j === last ? "" : strona },
     };
   };
+  // polki i rura przy przelocie koncza sie w powietrzu — z tej strony nie maja podparcia (N147)
+  levels.forEach((lv) => lv.cols.forEach((c) => {
+    if (!c.noDiv || c.j >= lv.cols.length - 1) return;
+    const nb = lv.cols[c.j + 1];
+    const co = [(c.shelves || []).length || (nb.shelves || []).length ? "półki" : null, (c.drazki || []).length || (nb.drazki || []).length ? "rura na wieszaki" : null].filter(Boolean);
+    if (co.length)
+      add("error", `Poziom ${lv.i + 1}: między kolumnami ${c.j + 1} i ${c.j + 2} nie ma przegrody (przelot), a ${co.join(" i ")} ${co.length > 1 || co[0] === "półki" ? "kończą" : "kończy"} się tam w powietrzu — `
+        + `od strony przelotu nie ma płyty do kołków, konfirmatów ani rozety. Zrób jedną kolumnę na całą szerokość albo przywróć przegrodę.`);
+  }));
   // rozety rury na wieszaki: 2 wkrety na boku / przegrodzie na wysokosci osi rury
   levels.forEach((lv) => lv.cols.forEach((c) => (c.drazki || []).forEach((dr) => {
     const p = panelsOfCol(lv, c);
@@ -5686,7 +5791,7 @@ function computeGeoLiczy(cab, mat, ctx) {
               drillAdd(lv.i, `Przód skrzynki — ${ktora}`, 0, "konfirmat — dno", sk.grub / 2,
                 `oś dna (dół przodu równo ze spodem dna); ${xs} mm od lewej krawędzi; od lica (zakryje je front)`);
               drillAdd(lv.i, `Przód skrzynki — ${ktora}`, null, "front od środka", null,
-                `${DXS.wkretyFrontu} wkręty 4 × 30 w rogach — front ustawiony na szczeliny i przykręcony od wnętrza skrzynki`);
+                `${DXS.wkretyFrontu} wkręty 4 × ${wkretFrontuDl(ts + tf) ?? WKRET_FRONTU_DL} w rogach — front ustawiony na szczeliny i przykręcony od wnętrza skrzynki`);
             }
             const zTylu = sk.bokDl - sk.grub / 2;
             konfirmatyPoz(sk.tyl[1]).forEach((yT) => drillAdd(lv.i, `Bok szuflady — ${ktora} (2 szt., lustrzanie)`, 0,
@@ -6041,6 +6146,16 @@ function computeGeoLiczy(cab, mat, ctx) {
       zaw(bokKorpusu, baseBoku, odTyluBoku, 1);
       zaw("Kątownik przy ramieniu — bok", interior.y0, ZAWIESZKA_OD_PLECOW, 1);
     } else zaw("Kątownik przy ramieniu — plecy", interior.y0, ZAWIESZKA_OD_PLECOW, 1);
+    /* Wyciecie naroznika tylko w jednym poziomie: bok zostaje prostokatny w zamowieniu, ale
+       w wycieciu sie go wycina — zawieszka z gornego tylnego rogu boku wypadala w pustym
+       miejscu (audyt GPT N149). Na calej wysokosci bok jest krotszy i zawieszka idzie za nim. */
+    if (!postSide) geoCuts.filter((gc) => !gc.zFull).forEach((gc) => {
+      const y0z = interior.y1 - ZAWIESZKA_WYM.h, z1z = odTyluBoku + ZAWIESZKA_WYM.gl;
+      if (Math.min(interior.y1, gc.cy1) - Math.max(y0z, gc.cy0) > 0 && Math.min(z1z, gc.bz1) - Math.max(odTyluBoku, gc.bz0) > 0 && gc.cw > 0)
+        add("error", `Zawieszka przy ${gc.onLeft ? "lewym" : "prawym"} boku wypada w wycięciu narożnika (${gc.side}, poziom ${gc.li + 1}) — `
+          + `w górnym tylnym rogu boku, gdzie się ją przykręca, po wycięciu nie ma płyty. Przenieś wycięcie do innego poziomu albo zrób je na całą wysokość, `
+          + `albo zawieś szafkę inaczej.`);
+    });
   }
   const drillPlan = [...drillMap.values()].map((p) => {
     const by = new Map();
@@ -6083,12 +6198,18 @@ function computeGeoLiczy(cab, mat, ctx) {
        wychodzi na licu albo tuz pod nim (audyt GPT N117: 16 + 12 = 28 mm); zostawiamy
        co najmniej 3 mm plyty frontu nad czubkiem */
     const razemFront = ts + tf;
-    if (nDxs && WKRET_FRONTU_DL > razemFront - WKRET_FRONTU_ZAPAS)
-      add(WKRET_FRONTU_DL >= razemFront ? "error" : "warn", `Szuflady DXS-3D: wkręt ${WKRET_FRONTU_DL} mm do frontu ${WKRET_FRONTU_DL >= razemFront ? "przebije front" : "dojdzie prawie do lica frontu"} — przód skrzynki ${fmt(ts)} mm + front ${fmt(tf)} mm = ${fmt(razemFront)} mm. `
-        + `Potrzebny krótszy wkręt (najwyżej ok. ${fmt(razemFront - WKRET_FRONTU_ZAPAS)} mm) albo grubsze płyty.`);
-    if (nDxs) hardware.push({
-      name: WKRET_FRONTU_NAME,
-      spec: `front szuflady DXS-3D przykręcany od środka przez przód skrzynki, ${DXS.wkretyFrontu} na front (w rogach)`,
+    const dl = wkretFrontuDl(razemFront);
+    const plyty = `przód skrzynki ${fmt(ts)} mm + front ${fmt(tf)} mm = ${fmt(razemFront)} mm`;
+    if (nDxs && dl == null)
+      add("error", `Szuflady DXS-3D: frontu nie da się przykręcić od środka — ${plyty}, a najkrótszy wkręt (${WKRET_FRONTU_DLUGOSCI.slice(-1)[0]} mm) potrzebuje ${WKRET_FRONTU_DLUGOSCI.slice(-1)[0] + WKRET_FRONTU_ZAPAS} mm. Grubsze płyty albo inne mocowanie frontu.`);
+    else if (nDxs && dl !== WKRET_FRONTU_DL) {
+      const zmiana = `Szuflady DXS-3D: wkręty do frontu 4 × ${dl} zamiast 4 × ${WKRET_FRONTU_DL} — ${plyty}, dłuższy przebiłby front.`;
+      add("warn", `${zmiana} Zamówienie i plan wierceń są już z krótszym.|notatka:${encodeURIComponent(zmiana)}`);
+    }
+    if (nDxs && dl != null) hardware.push({
+      name: wkretFrontuNazwa(dl), pk: WKRET_FRONTU_NAME,
+      spec: `front szuflady DXS-3D przykręcany od środka przez przód skrzynki, ${DXS.wkretyFrontu} na front (w rogach)`
+        + (dl !== WKRET_FRONTU_DL ? ` — krótszy niż zwykły 4 × ${WKRET_FRONTU_DL}: ${plyty}` : ""),
       qty: nDxs * DXS.wkretyFrontu,
       unit: "szt.",
     });
@@ -6920,6 +7041,30 @@ const cornerBracket = (arm) => {
    zachodzi tam na bok ramienia dokladnie tak, jak drzwi szafki zachodza na jej
    bok. Jedno miejsce dla formatki i dla wszystkich rysunkow: rysowany po staremu
    na cala `armFront` konczyl sie rowno z bokiem, zamiast na niego zachodzic. */
+/* Fronty ramienia jeden nad drugim — po jednym na kazdy front kolumny przy ramieniu
+   (uzytkownik 2026-10-28 po audycie GPT N132: przy dwoch poziomach ramie mialo jeden front
+   na wysokosc dolnego, a nad nim zostawal otwor). Te same wysokosci i luzy co fronty
+   korpusu; drzwi obok siebie w tym samym pasie to jeden front ramienia. Bez frontu w tej
+   kolumnie — pierwszy front szafki, a bez zadnego — cala wysokosc (jak dotad). */
+const armPasy = (a) => {
+  const geo = a.cab.geo;
+  const lvls = geo.levels || [];
+  const wKolumnie = (d) => {
+    const lv = lvls.find((l) => l.i === d.lvl);
+    const c = armColumn(a.side, lv);
+    return !!c && d.colKey === `${d.lvl}-${c.j}`;
+  };
+  const pasy = [...new Map((geo.doors || [])
+    .filter((d) => d.h > 0 && (d.type === "door" || d.type === "klapa" || d.type === "fix") && wKolumnie(d))
+    .map((d) => [`${Math.round(d.y)}|${Math.round(d.h)}`, { y: Math.round(d.y), h: Math.round(d.h), d }])).values()]
+    .sort((p, q) => p.y - q.y);
+  if (pasy.length) return pasy;
+  const d0 = (geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
+  return d0 ? [{ y: Math.round(d0.y), h: Math.round(d0.h), d: d0 }] : [{ y: 0, h: Math.round(a.cab.cab.H), d: null }];
+};
+// nazwa formatki frontu ramienia: przy kilku — ktory od dolu
+const nazwaPasaRamienia = (baza, k, n) => (n <= 1 ? baza
+  : `${baza} — ${n === 2 ? (k === 0 ? "dolny" : "górny") : `${k + 1}. od dołu`}`);
 const armFrontPlan = (a) => {
   const luz = (a.cab.cab.gaps || {}).edge ?? 2;
   const pelne = a.armFront != null ? a.armFront : a.len;
@@ -7500,10 +7645,11 @@ const runLayout = (groups, ref = null) => {
    przesuwa go transform w AssemblyView. */
 /* Pas frontu szafki w ukladzie ciagu: wysokosc i luzy jej drzwi (tak liczy
    bryla i formatka frontu ramienia i maskownicy). Bez drzwi — caly korpus. */
-const pasFrontu = (c) => {
-  const d = (c.geo.doors || []).find((q) => q.h > 0 && q.type !== "blenda");
-  return d ? { y0: c.base + d.y, h: d.h } : { y0: c.base, h: c.cab.H };
-};
+/* Pasy frontow ramienia w ukladzie zabudowy (`y0` od podlogi) — po jednym na front
+   kolumny przy ramieniu (`armPasy`, N132); `cale` — od dolu najnizszego do gory najwyzszego
+   (maskownica katownika). */
+const pasyFrontuRamienia = (a) => armPasy(a).map((p) => ({ y0: a.cab.base + p.y, h: p.h }));
+const caloscPasow = (ps) => ({ y0: ps[0].y0, h: ps[ps.length - 1].y0 + ps[ps.length - 1].h - ps[0].y0 });
 
 /* Uchwyt na rysunku z przodu — ten sam obrys co w bryle 3D, rzucie z gory
    i kontroli otwierania (`uchwytObrys`). Wczesniej elewacja miala wlasne
@@ -7635,8 +7781,8 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         <rect x="0" y={-cab.topFiller.height} width={W} height={cab.topFiller.height}
           fill={ff} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
-      {cab.legs?.on && geo.legs.xs.map((lx, li) => (
-        <rect key={"noga" + li} data-el="noga" x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
+      {cab.legs?.on && nozkiWidok(geo).map((lx, li) => (
+        <rect key={"noga" + li} data-el="noga" x={mx(lx, geo.legs.w)} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
           rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
           opacity={geo.legTop > 0 ? 0.5 : 1} />
       ))}
@@ -7912,9 +8058,8 @@ const TopHardware = ({ cab, geo, cd }) => {
     }
   });
   if (cab.legs && cab.legs.on) {
-    const lp = legPlan(cab, geo.W);
-    const pkt = lp.xs.flatMap((x) => [[x, LEG_INSET], [x, cd - LEG_INSET - LEG_W]]);
-    if (lp.srodek) pkt.push([Math.round((geo.W - LEG_W) / 2), Math.round((cd - LEG_W) / 2)]);
+    // rzut z gory: y od tylu, jak `odTylu` (nozka spod wyciecia przesunieta — N122)
+    const pkt = geo.legs.miejsca.map((m) => [Math.round(m.x), Math.round(m.odTylu)]);
     pkt.forEach(([x, y], i) => out.push(
       <rect key={"n" + i} x={x} y={y} width={LEG_W} height={LEG_W} rx={legRound(cab) ? LEG_W / 2 : 0}
         fill="none" stroke={INK} strokeWidth="1.5" strokeDasharray="6 4" opacity="0.7" />));
@@ -8330,7 +8475,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                     )}
                     {/* maskownica w linii drzwi szafki — te same luzy (jak w bryle i formatce) */}
                     {(() => {
-                      const pf = rear ? { y0: c.base, h: c.cab.H } : pasFrontu(c);
+                      const pf = rear ? { y0: c.base, h: c.cab.H } : caloscPasow(pasyFrontuRamienia(a));
                       return <rect x={mx(ox + u0, wM)} y={fy(pf.y0 + pf.h)} width={wM} height={pf.h}
                         fill={rear ? c.mat.board.color : c.frontColor} stroke={INK} strokeWidth="2" />;
                     })()}
@@ -8356,35 +8501,36 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
               const lx = zl ? ax + (a.len - fp.odRogu - lw) : ax + fp.odRogu;
               // wewnetrzne lico boku na wolnym koncu ramienia — tam siedza zawiasy
               const licoBoku = zl ? ax + a.cab.geo.t : ax + a.len - a.cab.geo.t;
-              // front ramienia w linii drzwi szafki — ta sama wysokosc i luzy co w bryle
-              const pf = pasFrontu(a.cab);
+              // fronty ramienia w linii drzwi szafki — te same wysokosci i luzy co w bryle (po jednym na pas, N132)
+              const pasy = pasyFrontuRamienia(a);
               return (
                 <g key={"arm" + i}>
                   {/* Front ramienia otwiera sie tak samo jak kazdy inny: po
                       otwarciu zostaje obrys skrzydla, symbol kierunku i sama
                       plyta widziana od czola przy zawiasach. */}
-                  {open && !rear && a.doors !== "fix" ? (
-                    <g>
+                  {open && !rear && a.doors !== "fix" ? pasy.map((pf, pk) => (
+                    <g key={"afo" + pk}>
                       <rect x={lx} y={fy(pf.y0 + pf.h)} width={lw} height={pf.h}
                         fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="12 9" opacity="0.6" />
                       <path
-                        d={`M ${zl ? lx + lw : lx} ${fy(a.cab.base + a.cab.cab.H)}
-                            L ${zl ? lx : lx + lw} ${fy(a.cab.base + a.cab.cab.H / 2)}
-                            L ${zl ? lx + lw : lx} ${fy(a.cab.base)}`}
+                        d={`M ${zl ? lx + lw : lx} ${fy(pf.y0 + pf.h)}
+                            L ${zl ? lx : lx + lw} ${fy(pf.y0 + pf.h / 2)}
+                            L ${zl ? lx + lw : lx} ${fy(pf.y0)}`}
                         fill="none" stroke={INK} strokeWidth="1.8" opacity="0.5" />
                       <rect x={zl ? lx : lx + lw - a.cab.geo.tf}
                         y={fy(pf.y0 + pf.h)} width={a.cab.geo.tf} height={pf.h}
                         fill={frontRamienia(a).kolor} stroke={INK} strokeWidth="2" />
                     </g>
-                  ) : (
+                  )) : rear ? (
                     /* Od tylu ramie pokazuje plecy, a nie front — i to na calej
                        dlugosci, bo plecy ida przez cale ramie, a front tylko do
                        maskownicy katownika. */
-                    <rect x={rear ? ax : lx} y={fy(rear ? a.cab.base + a.cab.cab.H : pf.y0 + pf.h)}
-                      width={rear ? a.len : lw} height={rear ? a.cab.cab.H : pf.h}
-                      fill={rear ? a.cab.mat.back.color : frontRamienia(a).kolor}
-                      stroke={INK} strokeWidth="2" />
-                  )}
+                    <rect x={ax} y={fy(a.cab.base + a.cab.cab.H)} width={a.len} height={a.cab.cab.H}
+                      fill={a.cab.mat.back.color} stroke={INK} strokeWidth="2" />
+                  ) : pasy.map((pf, pk) => (
+                    <rect key={"afz" + pk} x={lx} y={fy(pf.y0 + pf.h)} width={lw} height={pf.h}
+                      fill={frontRamienia(a).kolor} stroke={INK} strokeWidth="2" />
+                  ))}
                   {a.cab.plinthH > 0 && (
                     <rect x={ax} y={fy(a.cab.base)} width={a.len} height={a.cab.plinthH}
                       fill={a.cab.mat.board.color} stroke={INK} strokeWidth="2" opacity="0.75" />
@@ -8457,11 +8603,10 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                     /* Zawiasy ramienia siadaja na tych samych wysokosciach co
                        zawiasy drzwi tej szafki — front ramienia jest tak samo
                        wysoki, wiec rozstawione na oko wypadaly obok tamtych. */
-                    const dRef = (a.cab.geo.doors || [])
-                      .find((d) => d.h > 0 && d.type === "door" && (d.hingePts || []).length);
-                    const ile = Math.max(2, Math.min(4, Math.round(H / 500) + 1));
-                    const hys = dRef ? dRef.hingePts
-                      : Array.from({ length: ile }, (_, k) => (H * (k + 1)) / (ile + 1));
+                    // te same wysokosci co w planie wiercen (kazdy front ramienia osobno, N132)
+                    const hys = ((wierceniaDodatkowe(a).find((q) => q.panel === "Bok ramienia") || { rows: [] }).rows
+                      .find((r) => r.kind === "zawias") || { ys: [] }).ys;
+                    const cale = caloscPasow(pasy);
                     return (
                       <g>
                         {open && showHardware && hys.map((hy, k) => (
@@ -8470,18 +8615,20 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                             fill="#a1a1aa" stroke={INK} strokeWidth="1.5" opacity="0.9" />
                         ))}
                         {/* Uchwytu na otwartym skrzydle nie widac — tak samo jak
-                            przy drzwiach szafki, gdzie zostaje sam obrys. */}
-                        {!open && lw > 60 && (
-                          <rect x={zl ? lx + lw - UCHWYT_OD_KRAWEDZI - 6 : lx + UCHWYT_OD_KRAWEDZI - 6}
-                            y={y0 + H / 2 - Math.min(90, H * 0.25)}
-                            width={12} height={2 * Math.min(90, H * 0.25)} rx="5" fill="#52525b" opacity="0.9" />
-                        )}
+                            przy drzwiach szafki, gdzie zostaje sam obrys. Przy kilku
+                            frontach — na kazdym, w jego polowie. */}
+                        {!open && lw > 60 && pasy.map((pf, pk) => {
+                          const sr = pasy.length > 1 ? fy(pf.y0 + pf.h / 2) : y0 + H / 2;
+                          const hh = Math.min(90, (pasy.length > 1 ? pf.h : H) * 0.25);
+                          return <rect key={"auch" + pk} x={zl ? lx + lw - UCHWYT_OD_KRAWEDZI - 6 : lx + UCHWYT_OD_KRAWEDZI - 6}
+                            y={sr - hh} width={12} height={2 * hh} rx="5" fill="#52525b" opacity="0.9" />;
+                        })}
                         {/* Maskownica w rogu: plyta frontowa, do ktorej domykaja
                             sie drzwi. Za nia stoi wspornik, ale ten jest w srodku
                             i z zewnatrz go nie widac. */}
                         {maskW > 0 && (
                           <rect x={zl ? ax + a.len - maskW : ax}
-                            y={fy(pf.y0 + pf.h)} width={maskW} height={pf.h}
+                            y={fy(cale.y0 + cale.h)} width={maskW} height={cale.h}
                             fill={a.cab.frontColor} stroke={INK} strokeWidth="2" />
                         )}
                       </g>
@@ -8728,7 +8875,8 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
               <rect x={p.front - (c.cab.plinth.setback || 0) - c.geo.t} y={fy(p.y0)} width={c.geo.t} height={c.plinthH}
                 fill={bf} stroke={INK} strokeWidth="1.5" />
             )}
-            {c.cab.legs && c.cab.legs.on && c.geo.legH > 0 && [p.back + 40, p.front - 80].map((x, li) => (
+            {c.cab.legs && c.cab.legs.on && c.geo.legH > 0 && [...new Set([p.back + 40, p.front - 80,
+              ...(c.geo.legs.miejsca || []).filter((m) => m.przesunieta).map((m) => Math.round(p.back + m.odTylu))])].map((x, li) => (
               <rect key={"n" + li} x={x} y={fy(p.y0 + c.geo.legTop)} width={40} height={c.geo.legH}
                 rx={legRound(c.cab) ? 20 : 0} fill={legColorOf(c.cab)} stroke={INK} strokeWidth="1.5" />
             ))}
@@ -9379,10 +9527,10 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
          (`legPlan`). Bez nich zabudowa stala w bryle na samym cokole, choc
          cokol jest tylko plyta pod frontami. */
       if (c.cab.legs && c.cab.legs.on && c.geo.legH > 0) {
-        const lw = c.geo.legs.w, ins = c.geo.legs.ins;
+        const lw = c.geo.legs.w;
         const gora = c.base + c.geo.legTop;
-        const miejsca = c.geo.legs.xs.flatMap((lx) => [[lx, ins], [lx, cd - ins - lw]]);
-        if (c.geo.legs.srodek) miejsca.push([(c.geo.W - lw) / 2, (cd - lw) / 2]);
+        // te same miejsca co pojedyncza szafka — z nozka przesunieta spod wyciecia (N122)
+        const miejsca = c.geo.legs.miejsca.map((m) => [m.x, cd - m.odTylu - lw]);
         miejsca.forEach(([lx, lz]) => box(c.x + lx, gora - c.geo.legH, lz,
           c.x + lx + lw, gora, lz + lw, legColorOf(c.cab), null, 1, false, 0, "noga"));
       }
@@ -9462,8 +9610,10 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       const kat = a.bracket;
       /* Front ramienia i maskownice staja w linii drzwi szafki — ta sama
          wysokosc i te same luzy co jej skrzydla (tak jak w formatkach). */
-      const drzwiA = (c.geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
-      const fy0 = drzwiA ? y0 + drzwiA.y : y0, fy1 = drzwiA ? y0 + drzwiA.y + drzwiA.h : y1;
+      /* Kilka frontow jeden nad drugim (`armPasy`, N132) — kazdy w swoim pasie;
+         maskownice od dolu najnizszego do gory najwyzszego. */
+      const pasyA = armPasy(a);
+      const fy0 = y0 + pasyA[0].y, fy1 = y0 + pasyA[pasyA.length - 1].y + pasyA[pasyA.length - 1].h;
       // front zachodzi na bok ramienia z luzem — tak samo jak w elewacji
       const fpA = armFrontPlan(a);
       const fw = fpA.w;
@@ -9474,39 +9624,44 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
          zaslepka, choc to zwykle drzwi. */
       const uchwytA = handleOutOf(c.cab);
       const hcx = przyKoncu ? x0 + fu0 + UCHWYT_OD_KRAWEDZI : x0 + fu0 + fw - UCHWYT_OD_KRAWEDZI;
-      const hcy = y0 + c.cab.H / 2;
-      const hh = Math.min(90, c.cab.H * 0.25);
-      const uchwytBox = (rot) => {
-        if (a.doors === "fix" || !(uchwytA > 0)) return;
-        box(hcx - 6, hcy - hh, zFA - uchwytA, hcx + 6, hcy + hh, zFA, "#3f3f46", rot, 1, false, 400, "uchwyt");
-      };
-      /* Fronty „Skręcone 90°” to jeden sztywny zespol na zawiasach frontu korpusu:
-         front ramienia obraca sie razem z nim, wokol tej samej osi (audyt GPT N54:
-         kazdy krecil sie wokol swojej i odleglosc miedzy nimi sie zmieniala). */
-      const frontyK = a.doors === "skrecone" && otwiera
-        ? (c.geo.doors || []).filter((d) => d.type === "door" && d.w > 0) : [];
-      const dK = frontyK.length
-        ? frontyK.reduce((m, d) => (a.side === "right" ? (d.x > m.x ? d : m) : (d.x < m.x ? d : m)), frontyK[0]) : null;
-      if (dK && a.run && a.run.at) {
-        const leftK = dK.hingeSide === "left";
-        const zK = dK.inset ? 0 : -c.geo.tf;
-        const q = a.run.at(a.run.lead + c.x + (leftK ? dK.x : dK.x + dK.w), a.run.depth + (c.offset || 0) - zK);
-        const angK = (leftK ? -1 : 1) * (angle * Math.PI) / 180;
-        poPlace = (p) => rotAboutY(p, angK, q.x, -q.y);
-        box(x0 + fu0, fy0, zFA, x0 + fu0 + fw, fy1, zFA + tfA, frontRamienia(a).kolor, null, 0.85, true);
-        uchwytBox(null);
-        poPlace = null;
-      } else if (!otwiera) {
-        box(x0 + fu0, fy0, zFA, x0 + fu0 + fw, fy1, zFA + tfA, frontRamienia(a).kolor, null, 1, true);
-        uchwytBox(null);
-      } else {
-        const ang = (angle * Math.PI) / 180;
-        const left = !przyKoncu;                      // zawias po stronie dalszej od rogu
-        const ox = x0 + (left ? fu0 : fu0 + fw);
-        const rot = (p) => rotAboutY(p, (left ? -1 : 1) * ang, ox, zFA);
-        box(x0 + fu0, fy0, zFA, x0 + fu0 + fw, fy1, zFA + tfA, frontRamienia(a).kolor, rot, 0.85, true);
-        uchwytBox(rot);
-      }
+      pasyA.forEach((pas) => {
+        const py0 = y0 + pas.y, py1 = py0 + pas.h;
+        // jeden front — uchwyt w polowie szafki jak dotad, przy kilku — w polowie swojego
+        const hcy = pasyA.length > 1 ? (py0 + py1) / 2 : y0 + c.cab.H / 2;
+        const hh = Math.min(90, (pasyA.length > 1 ? pas.h : c.cab.H) * 0.25);
+        const uchwytBox = (rot) => {
+          if (a.doors === "fix" || !(uchwytA > 0)) return;
+          box(hcx - 6, hcy - hh, zFA - uchwytA, hcx + 6, hcy + hh, zFA, "#3f3f46", rot, 1, false, 400, "uchwyt");
+        };
+        /* Fronty „Skręcone 90°” to jeden sztywny zespol na zawiasach frontu korpusu:
+           front ramienia obraca sie razem z nim, wokol tej samej osi (audyt GPT N54:
+           kazdy krecil sie wokol swojej i odleglosc miedzy nimi sie zmieniala). Przy kilku
+           pasach — z drzwiami korpusu w tym samym pasie. */
+        const frontyK = a.doors === "skrecone" && otwiera
+          ? (c.geo.doors || []).filter((d) => d.type === "door" && d.w > 0 && (pasyA.length === 1 || Math.round(d.y) === pas.y)) : [];
+        const dK = frontyK.length
+          ? frontyK.reduce((m, d) => (a.side === "right" ? (d.x > m.x ? d : m) : (d.x < m.x ? d : m)), frontyK[0]) : null;
+        if (dK && a.run && a.run.at) {
+          const leftK = dK.hingeSide === "left";
+          const zK = dK.inset ? 0 : -c.geo.tf;
+          const q = a.run.at(a.run.lead + c.x + (leftK ? dK.x : dK.x + dK.w), a.run.depth + (c.offset || 0) - zK);
+          const angK = (leftK ? -1 : 1) * (angle * Math.PI) / 180;
+          poPlace = (p) => rotAboutY(p, angK, q.x, -q.y);
+          box(x0 + fu0, py0, zFA, x0 + fu0 + fw, py1, zFA + tfA, frontRamienia(a).kolor, null, 0.85, true);
+          uchwytBox(null);
+          poPlace = null;
+        } else if (!otwiera) {
+          box(x0 + fu0, py0, zFA, x0 + fu0 + fw, py1, zFA + tfA, frontRamienia(a).kolor, null, 1, true);
+          uchwytBox(null);
+        } else {
+          const ang = (angle * Math.PI) / 180;
+          const left = !przyKoncu;                      // zawias po stronie dalszej od rogu
+          const ox = x0 + (left ? fu0 : fu0 + fw);
+          const rot = (p) => rotAboutY(p, (left ? -1 : 1) * ang, ox, zFA);
+          box(x0 + fu0, py0, zFA, x0 + fu0 + fw, py1, zFA + tfA, frontRamienia(a).kolor, rot, 0.85, true);
+          uchwytBox(rot);
+        }
+      });
       /* Cztery plyty katownika liczy `bracketPlan` — ta sama funkcja co w rzucie
          z gory, zeby bryla i rzut nie rozjechaly sie o grubosc plyty. W ukladzie
          ramienia `v` idzie od sciany, a os z w bryle od lica, stad odbicie. */
@@ -9928,8 +10083,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         const maskW = arm.bracket ? arm.bracket.odRamienia - arm.bracket.luz : 0;
         const plinthH = cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
         // front ramienia i maskownica w linii drzwi szafki — te same luzy co w bryle i formatce
-        const dPas = (geo.doors || []).find((q) => q.h > 0 && q.type !== "blenda");
-        const pY = dPas ? fy(dPas.y + dPas.h) : 0, pH = dPas ? dPas.h : H;
+        // po jednym na front kolumny przy ramieniu (`armPasy`, N132); maskownica na calosc
+        const pasyA = armPasy(arm);
+        const pY = fy(pasyA[pasyA.length - 1].y + pasyA[pasyA.length - 1].h), pH = pasyA[pasyA.length - 1].y + pasyA[pasyA.length - 1].h - pasyA[0].y;
         /* Lico korpusu za maskownica jest otwarte — tamtedy siega sie do rogu.
            Puste czytalo sie jak dziura miedzy drzwiami a kątownikiem, wiec
            zaznaczamy je jako przejscie. Po otwarciu drzwi i tak widac wnetrze,
@@ -9991,10 +10147,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 nakladany na niego zachodzi. */}
             <rect x={armL ? ax0 : ax0 + armLen - t} y="0" width={t} height={H}
               fill={bf} stroke={INK} strokeWidth="2" />
-            {!open && (
-              <rect x={fx} y={pY} width={fw} height={pH}
+            {!open && pasyA.map((pas, pk) => (
+              <rect key={"afr" + pk} x={fx} y={fy(pas.y + pas.h)} width={fw} height={pas.h}
                 fill={frontRamienia(arm, !!cab.realColors).kolor} stroke={INK} strokeWidth="2" />
-            )}
+            ))}
             {/* Front ramienia to zwykle drzwi: zawias na koncu dalszym od rogu,
                 uchwyt przy rogu. Po otwarciu zostaje obrys skrzydla, plyta
                 widziana od czola i puszki zawiasow na boku — tak samo jak przy
@@ -10004,30 +10160,32 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               const uchwytOut = handleOutOf(cab);
               if (!open) {
                 if (!(uchwytOut > 0) || fw <= 60) return null;
-                return (
-                  <rect x={zawiasPrawy ? fx + UCHWYT_OD_KRAWEDZI - 6 : fx + fw - UCHWYT_OD_KRAWEDZI - 6}
-                    y={fy(H * 0.5) - Math.min(90, H * 0.25)}
-                    width={12} height={2 * Math.min(90, H * 0.25)} rx="5" fill="#52525b" opacity="0.9" />
-                );
+                // jeden front — uchwyt w polowie szafki jak dotad, przy kilku — w polowie kazdego
+                return pasyA.map((pas, pk) => {
+                  const sr = pasyA.length > 1 ? pas.y + pas.h / 2 : H * 0.5, hh = Math.min(90, (pasyA.length > 1 ? pas.h : H) * 0.25);
+                  return <rect key={"auch" + pk} x={zawiasPrawy ? fx + UCHWYT_OD_KRAWEDZI - 6 : fx + fw - UCHWYT_OD_KRAWEDZI - 6}
+                    y={fy(sr) - hh} width={12} height={2 * hh} rx="5" fill="#52525b" opacity="0.9" />;
+                });
               }
-              /* Te same wysokosci co zawiasy drzwi tej szafki — front ramienia
-                 jest tak samo wysoki, wiec maja stanac w jednej linii. */
-              const dRef = (geo.doors || [])
-                .find((d) => d.h > 0 && d.type === "door" && (d.hingePts || []).length);
-              const ile = Math.max(2, Math.min(4, Math.round(H / 500) + 1));
-              const hys = dRef ? dRef.hingePts
-                : Array.from({ length: ile }, (_, k) => (H * (k + 1)) / (ile + 1));
+              /* Te same wysokosci co zawiasy frontu ramienia w planie wiercen
+                 (`wierceniaDodatkowe`) — w jednej linii z drzwiami szafki w tym pasie. */
+              const hys = ((wierceniaDodatkowe(arm).find((q) => q.panel === "Bok ramienia") || { rows: [] }).rows
+                .find((r) => r.kind === "zawias") || { ys: [] }).ys;
               return (
                 <g>
-                  <rect x={fx} y={pY} width={fw} height={pH}
-                    fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="12 9" opacity="0.6" />
-                  <path
-                    d={`M ${zawiasPrawy ? fx + fw : fx} 0
-                        L ${zawiasPrawy ? fx : fx + fw} ${fy(H / 2)}
-                        L ${zawiasPrawy ? fx + fw : fx} ${H}`}
-                    fill="none" stroke={INK} strokeWidth="1.8" opacity="0.5" />
-                  <rect x={zawiasPrawy ? fx + fw - geo.tf : fx} y={pY} width={geo.tf} height={pH}
-                    fill={ff} stroke={INK} strokeWidth="2" />
+                  {pasyA.map((pas, pk) => (
+                    <g key={"afo" + pk}>
+                      <rect x={fx} y={fy(pas.y + pas.h)} width={fw} height={pas.h}
+                        fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="12 9" opacity="0.6" />
+                      <path
+                        d={`M ${zawiasPrawy ? fx + fw : fx} ${fy(pas.y + pas.h)}
+                            L ${zawiasPrawy ? fx : fx + fw} ${fy(pas.y + pas.h / 2)}
+                            L ${zawiasPrawy ? fx + fw : fx} ${fy(pas.y)}`}
+                        fill="none" stroke={INK} strokeWidth="1.8" opacity="0.5" />
+                      <rect x={zawiasPrawy ? fx + fw - geo.tf : fx} y={fy(pas.y + pas.h)} width={geo.tf} height={pas.h}
+                        fill={ff} stroke={INK} strokeWidth="2" />
+                    </g>
+                  ))}
                   {/* Puszka siedzi na boku ramienia, w jego wewnetrznym licu —
                       po staremu stala na samym boku, jakby wisiala w powietrzu. */}
                   {showHardware && hys.map((hy, k) => (
@@ -10072,7 +10230,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         <rect x="0" y={-cab.topFiller.height} width={W} height={cab.topFiller.height}
           fill={ff} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
-      {cab.legs?.on && geo.legs.xs.map((lx, li) => (
+      {cab.legs?.on && nozkiWidok(geo).map((lx, li) => (
         <rect key={"noga" + li} data-el="noga" x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
           rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
           opacity={geo.legTop > 0 ? 0.5 : 1} />
@@ -10156,9 +10314,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         const wM = arm.bracket.odKorpusu - arm.bracket.luz;
         if (!(wM > 0)) return null;
         const x0 = arm.side === "right" ? arm.free - wM : W - arm.free;
-        const d0 = (geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
-        const hy = d0 ? d0.h : H;
-        const y0 = d0 ? d0.y : 0;
+        // od dolu najnizszego do gory najwyzszego frontu przy ramieniu (`armPasy`, N132)
+        const pasyM = armPasy(arm);
+        const y0 = pasyM[0].y;
+        const hy = pasyM[pasyM.length - 1].y + pasyM[pasyM.length - 1].h - y0;
         return (
           <g>
             <rect x={x0} y={fy(y0 + hy)} width={wM} height={hy}
@@ -10376,7 +10535,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           const odStyku = 30 + 4 * ZNAK_EM * 20 * kz;
           /* Opis szczeliny pod dolnym frontem lezal na nozce (kontrola napisow na nozkach,
              2026-10-25) — kropka z opisem przesuwa sie obok nozki, w obrebie frontu. */
-          const nogiX = cab.legs?.on && geo.legBelow > 0 ? geo.legs.xs.map((lx) => [lx, lx + geo.legs.w]) : [];
+          const nogiX = cab.legs?.on && geo.legBelow > 0 ? nozkiWidok(geo).map((lx) => [lx, lx + geo.legs.w]) : [];
           const obokNog = (x, d, val) => {
             if (d.y > 60) return x;
             const dl = String(fmt(val)).length * ZNAK_EM * 20 * kz;
@@ -11048,8 +11207,8 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
         <rect x="0" y={H} width={W} height={geo.plinthH}
           fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
-      {cab.legs?.on && geo.legs.xs.map((lx, li) => (
-        <rect key={"noga" + li} data-el="noga" x={lx} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
+      {cab.legs?.on && nozkiWidok(geo).map((lx, li) => (
+        <rect key={"noga" + li} data-el="noga" x={W - lx - geo.legs.w} y={H - geo.legTop} width={geo.legs.w} height={geo.legH}
           rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
           opacity={geo.legTop > 0 ? 0.5 : 1} />
       ))}
@@ -11849,16 +12008,12 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
         <rect x={D - geo.t - (cab.plinth.setback || 0)} y={H} width={geo.t} height={geo.plinthH}
           fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
-      {cab.legs?.on && (
-        <>
-          <rect x={xC + 40} y={H - geo.legTop} width={40} height={geo.legH}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
-            opacity={geo.legTop > 0 ? 0.5 : 1} />
-          <rect x={xC + cd - 80} y={H - geo.legTop} width={40} height={geo.legH}
-            rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
-            opacity={geo.legTop > 0 ? 0.5 : 1} />
-        </>
-      )}
+      {/* dwa rzedy (od tylu i przy licu) i nozka przesunieta spod wyciecia naroznika (N122) */}
+      {cab.legs?.on && [...new Set([40, cd - 80, ...(geo.legs.miejsca || []).filter((m) => m.przesunieta).map((m) => Math.round(m.odTylu))])].map((x, li) => (
+        <rect key={"nb" + li} x={xC + x} y={H - geo.legTop} width={40} height={geo.legH}
+          rx={legRound(cab) ? 20 : 0} fill={legColorOf(cab)} stroke={INK} strokeWidth="2"
+          opacity={geo.legTop > 0 ? 0.5 : 1} />
+      ))}
 
       {allShelves.map((s, i) => (
         <rect key={i} x={xC + geo.shelfBack} y={fy(s.y + s.th)}
@@ -12643,12 +12798,10 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
     // inaczej spod korpusu
     const top = geo.legTop;
     const lh = geo.legH;
-    const ins = geo.legs.ins;
     const lw = geo.legs.w;
-    /* Dwa rzedy nozek: przy licu i przy plecach. Nieparzysta liczba znaczy
-       jeszcze jedna podpore na srodku dna — tak samo jak w elewacji. */
-    const miejsca = geo.legs.xs.flatMap((lx) => [[lx, ins], [lx, cd - ins - lw]]);
-    if (geo.legs.srodek) miejsca.push([(W - lw) / 2, (cd - lw) / 2]);
+    /* Dwa rzedy nozek: przy licu i przy plecach, nieparzysta liczba — jeszcze jedna
+       podpora na srodku dna; nozka spod wyciecia naroznika przesunieta (`geo.legs.miejsca`). */
+    const miejsca = geo.legs.miejsca.map((m) => [m.x, cd - m.odTylu - lw]);
     // tag „noga”: nozka to produkt, nie formatka (audyt bryly — czarne nozki brala za plyte)
     miejsca.forEach(([lx, lz]) => box(lx, top - lh, lz, lx + lw, top, lz + lw, legColorOf(cab), undefined, undefined, undefined, "noga"));
   }
@@ -14283,7 +14436,8 @@ const runTopLiczy = (project, run, bezRogu = false) => {
 const blatSzafkiKlucz = ({ it, geo }) => {
   const mk = geo.isWorktop ? "worktop" : "board";
   const m = migrateMat(it.mat)[mk] || {};
-  return `${mk}|${m.color || ""}|${m.thickness || ""}|${m.name || ""}`;
+  // takze wysokosc: blaty H720 i H900 laczyly sie w jedna plyte na 720 (audyt GPT N142)
+  return `${mk}|${m.color || ""}|${m.thickness || ""}|${m.name || ""}|${Math.round(Number(it.cab.H) || 0)}`;
 };
 
 // rowne kawalki lacza sie w jedna pozycje zamowienia
@@ -14505,17 +14659,17 @@ const cornerArmParts = (a) => {
       note: [plan.tyl > 0 ? "sięgają do kątownika w tylnym narożniku" : "",
         plan.back.plyta ? "pełna płyta zamiast HDF — usztywnia róg" : ""]
         .filter(Boolean).join(", ") });
-  // front ramienia bierze wysokosc z frontow samej szafki, zeby stanely w linii
-  const d0 = (geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
+  // fronty ramienia biora wysokosci z frontow kolumny przy ramieniu, zeby stanely w linii (`armPasy`)
+  const pasyR = armPasy(a);
   /* Wariant „fix": ramie zaslepia plyta przykrecona na staly, a otwierac sie
      bedzie tylko front korpusu — tak sie robi, gdy w rogu i tak nic nie stoi. */
   const fix = a.doors === "fix";
   /* Przy katowniku front ramienia konczy sie na maskownicy i luzie, a nie na
      koncu ramienia — `armFrontPlan` ma to juz policzone, tak samo jak rysunki. */
-  panels.push({ name: fix ? "Fix ramienia" : "Front ramienia", qty: 1,
+  pasyR.forEach((pas, k) => panels.push({ name: nazwaPasaRamienia(fix ? "Fix ramienia" : "Front ramienia", k, pasyR.length), qty: 1,
     a: armFrontPlan(a).w,
-    b: d0 ? Math.round(d0.h) : H, matKey: frontRamienia(a).key, zPlyty: frontRamienia(a).plyta,
-    edges: { a1: true, a2: true, b1: true, b2: true }, note: "cztery krawędzie" });
+    b: pas.h, matKey: frontRamienia(a).key, zPlyty: frontRamienia(a).plyta,
+    edges: { a1: true, a2: true, b1: true, b2: true }, note: "cztery krawędzie" }));
   /* Katownik trzyma kat prosty i daje obu skrzydlom o co sie oprzec przy
      zamknieciu. Cztery plyty na cala wysokosc: dwie w srodku i dwie na czole,
      wszystkie skrecone ze soba. Przy drzwiach lamanych albo skreconych na staly
@@ -14529,7 +14683,8 @@ const cornerArmParts = (a) => {
   const katH = Math.max(0, Math.round(H - t - geo.interior.y0));
   if (a.bracket) {
     const w = a.bracket.w;
-    const hM = d0 ? Math.round(d0.h) : H;
+    // maskownica w linii frontow — od dolu najnizszego do gory najwyzszego
+    const hM = pasyR[pasyR.length - 1].y + pasyR[pasyR.length - 1].h - pasyR[0].y;
     // dwie plyty w srodku — z plyty korpusu (ustalone 2026-09-30, „Płyty elementów”)
     const katMat = "board";
     panels.push({ name: "Kątownik narożnika — nachodzący", qty: 1, a: w, b: katH, matKey: katMat,
@@ -14568,13 +14723,13 @@ const cornerArmParts = (a) => {
      kolejna co ok. 400 mm wysokosci, zeby wysoki fix nie trzymal sie na
      czterech. Zawiasow tyle, ile wychodzi z wysokosci i szerokosci skrzydla —
      tak samo jak przy drzwiach szafki. */
-  const trojkatow = 2 * Math.max(2, Math.ceil(inner / 400));
-  const zawiasow = autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w, tfRamienia(a));
+  const trojkatow = pasyR.reduce((n, pas) => n + 2 * Math.max(2, Math.ceil(pas.h / 400)), 0);
+  const zawiasow = pasyR.reduce((n, pas) => n + autoHinges(pas.h, armFrontPlan(a).w, tfRamienia(a)), 0);
   /* Skrzydla lamane: drugie skrzydlo wisi na pierwszym, a nie na korpusie,
      wiec zwyklych zawiasow do niego nie ma — sa tylko lamane. */
   const hardware = fix
     ? [{ name: "Trójkąt meblarski", use: "fix ramienia szafki narożnej, od środka, 2 rzędy co ok. 400 mm",
-        spec: `fix ramienia szafki narożnej, przykręcany od środka: 2 rzędy po ${trojkatow / 2} na ${fmt(inner)} mm`,
+        spec: `fix ramienia szafki narożnej, przykręcany od środka: 2 rzędy po ${trojkatow / 2} na ${listPl(pasyR.map((pas) => fmt(pas.h)))} mm`,
         qty: trojkatow, unit: "szt." }]
     : a.doors === "lamane"
       ? []
@@ -14678,7 +14833,7 @@ const cornerArmParts = (a) => {
      (muszelka) — nadal jest uchwytem do zamowienia, tylko bez obrysu (audyt GPT N124). */
   if (a.doors !== "fix")
     hardware.push({ name: cab.handleName || "Uchwyt", pk: "Uchwyt", use: "fronty z zaznaczonym uchwytem",
-      spec: "front ramienia szafki narożnej", qty: 1, unit: "szt." });
+      spec: pasyR.length > 1 ? `fronty ramienia szafki narożnej (${pasyR.length})` : "front ramienia szafki narożnej", qty: pasyR.length, unit: "szt." });
   /* Zawiasow lamanych tyle samo, co zwyklych na tej wysokosci — spinaja
      skrzydla na calej dlugosci styku, wiec przy wysokim froncie dwa to za malo. */
   if (a.doors === "lamane")
@@ -14740,16 +14895,21 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
         wiersz("Bok ramienia", "kołek półki", ys,
           `⌀5, ${fmt(przod + pf)} i ${fmt(przod + gl - pb)} mm od przedniej krawędzi płyty; wysokość = spód półki; tu 2 z 4 kołków półki`);
     }
-    const d0 = (geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
+    // kazdy front ramienia osobno (`armPasy`, N132)
+    const pasyR = armPasy(a);
     if (a.doors === "fix") {
-      const inner = Math.max(0, H - 2 * t);
-      const n = Math.max(2, Math.ceil(inner / 400));
-      wiersz("Fix ramienia", "trójkąt meblowy", rowno(KONF_OD_KRAWEDZI, inner - KONF_OD_KRAWEDZI, n),
-        "od środka, 2 rzędy — położenie od dołu fixu");
+      pasyR.forEach((pas, k) => {
+        const n = Math.max(2, Math.ceil(pas.h / 400));
+        wiersz(nazwaPasaRamienia("Fix ramienia", k, pasyR.length), "trójkąt meblowy", rowno(KONF_OD_KRAWEDZI, pas.h - KONF_OD_KRAWEDZI, n),
+          "od środka, 2 rzędy — położenie od dołu fixu");
+      });
     } else if (a.doors !== "lamane") {
-      const n = autoHinges(d0 ? Math.round(d0.h) : H, armFrontPlan(a).w, tfRamienia(a));
-      const dRef = (geo.doors || []).find((d) => d.h > 0 && d.type === "door" && (d.hingePts || []).length === n);
-      const hys = dRef ? dRef.hingePts : d0 ? hingePositions(d0.y, d0.h, n, []).pts : rowno(100, H - 100, n);
+      const hys = pasyR.flatMap((pas) => {
+        const n = autoHinges(pas.h, armFrontPlan(a).w, tfRamienia(a));
+        // zawiasy w tej samej wysokosci co drzwi korpusu w tym pasie (gdy maja ich tyle samo)
+        const dRef = (geo.doors || []).find((d) => d.h > 0 && d.type === "door" && Math.round(d.y) === pas.y && (d.hingePts || []).length === n);
+        return dRef ? dRef.hingePts : hingePositions(pas.y, pas.h, n, []).pts;
+      });
       wiersz("Bok ramienia", "zawias", hys, "oś zawiasu frontu ramienia — puszka ⌀35 we froncie, prowadnik na wewnętrznym licu boku");
     }
     // zawieszka w czesci ramienia (wzmocnienie A albo B „w części ramienia”) — patrz `zawieszki` w computeGeo
@@ -14914,15 +15074,18 @@ const zlaczNaStyk = (gl) => (gl > WORKTOP_DEPTHS[0] ? 3 : 2);
 // [{ qty, gl, use, opis }] — jedna pozycja na rodzaj styku
 /* Wierzch blatu nad podloga: wysokosc montazu ciagu + lico szafek + grubosc.
    Dwa blaty w rogu stykaja sie tylko wtedy, gdy leza na tej samej wysokosci. */
-const wierzchBlatu = (run, rt) => Math.round((run.mountY || 0) + (rt.y || 0) + (rt.th || 0));
-const blatyRoznaWys = (r1, t1, r2, t2) => Math.abs(wierzchBlatu(r1, t1) - wierzchBlatu(r2, t2)) > 1;
+/* Wierzch blatu nad podloga. Ciag gorny z montazem automatycznym (`mountY` 0) wisi tam,
+   gdzie wylicza `tierMountY` (nad dolnym z przeswitem) — surowe `mountY` dawalo 938 i 938
+   przy rzeczywistych 2196 i 2376, a zlacza w rogu szly do zamowienia (audyt GPT N146). */
+const wierzchBlatu = (run, rt, project) => Math.round((project ? tierMountY(project, run) : (run.mountY || 0)) + (rt.y || 0) + (rt.th || 0));
+const blatyRoznaWys = (r1, t1, r2, t2, project) => Math.abs(wierzchBlatu(r1, t1, project) - wierzchBlatu(r2, t2, project)) > 1;
 /* Przyciski wyrownania blatu tego ciagu do wysokosci `cel` (wierzch blatu nad
    podloga), uzytkownik 2026-10-21: cokolem i nozkami razem (o te sama roznice —
    nozki nie zawisna nad podloga) albo wysokoscia szafek pod blatem (slupki zostaja).
    Tylko wykonalne: cokol co najmniej MIN_PART, nozki co najmniej NOZKA_MIN;
    cokol w obrysie korpusu nie podnosi blatu, wiec przy nim tylko wysokosc. */
-const wyrownajBlatAkcje = (run, rt, lvl, cel) => {
-  const delta = Math.round(cel - wierzchBlatu(run, rt));
+const wyrownajBlatAkcje = (run, rt, lvl, cel, project) => {
+  const delta = Math.round(cel - wierzchBlatu(run, rt, project));
   if (!delta || !lvl || !lvl.pod.length) return "";
   const pod = lvl.pod.map((c) => c.it.cab);
   const cokolPod = (c) => !!(c.plinth && c.plinth.on && c.plinth.mode !== "inbody");
@@ -14951,7 +15114,7 @@ const runTopZlacza = (project, run) => {
   const n = run.corner ? projectLayout(project).info.get(run.id) : null;
   const b = n && n.pair && n.parent ? runTop(project, n.parent.run) : null;
   // blaty na roznych wysokosciach nie maja wspolnego styku — bez zlaczy (audyt GPT N66, uwaga w `worktopMsgs`)
-  if (b && b.matKey === "worktop" && !blatyRoznaWys(run, a, n.parent.run, b)) {
+  if (b && b.matKey === "worktop" && !blatyRoznaWys(run, a, n.parent.run, b, project)) {
     const gl = Math.max(a.arkusz || a.depth, b.arkusz || b.depth);
     out.push({ qty: zlaczNaStyk(gl), gl, use: "styk blatów roboczych w rogu",
       opis: `róg z blatem „${n.parent.run.name}”, ${(n.corner || {}).cut === "skos" ? "łyżwa 45°" : "na styk"} — ${zlaczNaStyk(gl)} szt.` });
@@ -15009,10 +15172,15 @@ const runRail = (project, run) => {
     const x0 = x, x1 = x + g.W;
     x = x1 + (k < list.length - 1 ? gap : 0);
     if (naListwie(it.cab) && g.backRecess > 0) { biez = null; return; }
-    if (!biez) { biez = { od: null, do: null }; odcinki.push(biez); }
-    if (naListwie(it.cab)) { if (biez.od == null) biez.od = x0; biez.do = x1; }
+    /* Zawieszka wisi gorna krawedzia pod wiencem — szafki rownej wysokosci maja ja na
+       jednej linii, wyzsza wyzej. Prosta listwa nie obsluzy dwoch wysokosci, wiec przy
+       zmianie zaczyna sie nowy odcinek (audyt GPT N148: H720 i H900 — jedna listwa 1200). */
+    const wys = Math.round((Number(it.cab.H) || 0) - (g.hasTop ? (g.tW || g.t) : 0));
+    if (biez && naListwie(it.cab) && biez.wys != null && biez.wys !== wys) { biez = null; }
+    if (!biez) { biez = { od: null, do: null, wys: null }; odcinki.push(biez); }
+    if (naListwie(it.cab)) { if (biez.od == null) biez.od = x0; biez.do = x1; biez.wys = wys; }
   });
-  const odc = odcinki.filter((o) => o.od != null).map((o) => ({ od: Math.round(o.od), do: Math.round(o.do), len: Math.round(o.do - o.od) }));
+  const odc = odcinki.filter((o) => o.od != null).map((o) => ({ od: Math.round(o.od), do: Math.round(o.do), len: Math.round(o.do - o.od), wys: o.wys }));
   if (!odc.length) return null;
   return { odcinki: odc, len: odc.reduce((s, o) => s + o.len, 0), name: run.name };
 };
@@ -15074,7 +15242,9 @@ const projectParts = (project) => {
       panels: runBottomPanels(rb), hardware: [] });
     if (rr) runs.push({ ...base, name: `Listwa — ${run.name}`, panels: [],
       hardware: rr.odcinki.map((o) => ({ name: RAIL_NAME, use: "pod zawieszki szafek wiszących",
-        spec: `jedna listwa ${fmt(o.len)} mm przez ciąg`,
+        spec: rr.odcinki.length > 1 && new Set(rr.odcinki.map((q) => q.wys)).size > 1
+          ? `listwa ${fmt(o.len)} mm — odcinek ciągu z zawieszkami ${fmt(o.wys)} mm nad dołem szafki`
+          : `jedna listwa ${fmt(o.len)} mm przez ciąg`,
         qty: o.len / 1000, odcinek: o.len, min: o.len - LISTWA_SKROT, gdzie: run.name, unit: "mb" })) });
   });
   /* Ramie szafki naroznej to osobna pozycja: formatki ida na te sama plyte, co
@@ -15242,9 +15412,13 @@ const worktopMsgs = (project, run) => {
      ale tylko z tej samej plyty; rozne zostaja przy swoich szafkach (audyt GPT N79). */
   if (!run.worktop) {
     const wlasne = runJoints(project, run).list.map(({ it }) => ({ it, geo: computeGeo(it.cab, it.mat) })).filter((q) => q.geo.isBlat);
-    if (new Set(wlasne.map(blatSzafkiKlucz)).size > 1)
-      out.push({ level: "info", text: `Własne blaty szafek ciągu „${run.name}" (${listPl(wlasne.map((q) => `„${(q.it.cab.name || "").trim() || "bez nazwy"}"`))}) są z różnych płyt — `
+    if (new Set(wlasne.map(blatSzafkiKlucz)).size > 1) {
+      const wys = [...new Set(wlasne.map((q) => Math.round(Number(q.it.cab.H) || 0)))].sort((a, b) => a - b);
+      const plyty = new Set(wlasne.map((q) => blatSzafkiKlucz(q).split("|").slice(0, 4).join("|"))).size > 1;
+      const czym = [plyty ? "z różnych płyt" : null, wys.length > 1 ? `na różnych wysokościach (${listPl(wys.map(fmt))} mm)` : null].filter(Boolean).join(" i ");
+      out.push({ level: "info", text: `Własne blaty szafek ciągu „${run.name}" (${listPl(wlasne.map((q) => `„${(q.it.cab.name || "").trim() || "bez nazwy"}"`))}) są ${czym} — `
         + `każdy idzie do zamówienia ze swoją szafką, nie łączymy ich w jedną płytę ciągu.` });
+    }
   }
   /* Pas za rogiem sam blatu nie ma wlaczonego, a mimo to lezy na nim blat nad
      ramieniem naroznika — jego szerokosc trzeba sprawdzic tak samo. */
@@ -15264,10 +15438,10 @@ const worktopMsgs = (project, run) => {
     ].filter(Boolean);
     sasiedzi.forEach((r2) => {
       const rb = runTop(project, r2);
-      if (rt && rt.worktop && rb && rb.worktop && blatyRoznaWys(run, rt, r2, rb))
-        out.push({ level: "warn", text: `Blat ciągu „${run.name}” leży na ${fmt(wierzchBlatu(run, rt))} mm, a blat „${r2.name}” w rogu na ${fmt(wierzchBlatu(r2, rb))} mm — `
-          + `różnica ${fmt(Math.abs(wierzchBlatu(run, rt) - wierzchBlatu(r2, rb)))} mm, blaty się nie stykają i złączy do blatów w rogu nie liczymy. Jeśli mają się łączyć, wyrównaj wysokość szafek.`
-          + wyrownajBlatAkcje(run, rt, lvl, wierzchBlatu(r2, rb)) });
+      if (rt && rt.worktop && rb && rb.worktop && blatyRoznaWys(run, rt, r2, rb, project))
+        out.push({ level: "warn", text: `Blat ciągu „${run.name}” leży na ${fmt(wierzchBlatu(run, rt, project))} mm, a blat „${r2.name}” w rogu na ${fmt(wierzchBlatu(r2, rb, project))} mm — `
+          + `różnica ${fmt(Math.abs(wierzchBlatu(run, rt, project) - wierzchBlatu(r2, rb, project)))} mm, blaty się nie stykają i złączy do blatów w rogu nie liczymy. Jeśli mają się łączyć, wyrównaj wysokość szafek.`
+          + wyrownajBlatAkcje(run, rt, lvl, wierzchBlatu(r2, rb, project), project) });
     });
   }
   /* Ciagi tego samego pomieszczenia bez wspolnego rogu (np. przeciwlegle sciany):
@@ -15279,17 +15453,17 @@ const worktopMsgs = (project, run) => {
     const inne = runsInRoom(project, roomOfRun(project, run))
       .filter((r) => !grupa.has(r.id) && r.tier !== "gorny")
       .map((r) => ({ r, t: runTop(project, r) }))
-      .filter(({ r, t }) => t && t.worktop && blatyRoznaWys(run, rt, r, t));
+      .filter(({ r, t }) => t && t.worktop && blatyRoznaWys(run, rt, r, t, project));
     if (inne.length) {
-      const moj = wierzchBlatu(run, rt);
+      const moj = wierzchBlatu(run, rt, project);
       // wyrownujemy do wysokosci, na ktorej lezy najwiecej pozostalych blatow
       const ile = new Map();
-      inne.forEach(({ r, t }) => ile.set(wierzchBlatu(r, t), (ile.get(wierzchBlatu(r, t)) || 0) + 1));
+      inne.forEach(({ r, t }) => ile.set(wierzchBlatu(r, t, project), (ile.get(wierzchBlatu(r, t, project)) || 0) + 1));
       const cel = [...ile.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
       out.push({ level: "warn", text: `Blat ciągu „${run.name}” leży na ${fmt(moj)} mm, a w tym pomieszczeniu `
-        + inne.map(({ r, t }) => `blat „${r.name}” na ${fmt(wierzchBlatu(r, t))} mm (różnica ${fmt(Math.abs(moj - wierzchBlatu(r, t)))} mm)`).join(", ")
+        + inne.map(({ r, t }) => `blat „${r.name}” na ${fmt(wierzchBlatu(r, t, project))} mm (różnica ${fmt(Math.abs(moj - wierzchBlatu(r, t, project)))} mm)`).join(", ")
         + ` — blaty się nie stykają, ale w jednej kuchni zwykle są na jednej wysokości. Jeśli to nie celowe, wyrównaj do ${fmt(cel)} mm.`
-        + wyrownajBlatAkcje(run, rt, lvl, cel) });
+        + wyrownajBlatAkcje(run, rt, lvl, cel, project) });
     }
   }
   (lvl ? lvl.poza : []).forEach((c) => {
@@ -15736,22 +15910,11 @@ const cornerPairMsgs = (n, blat) => {
         `${kto}: półka na ${wiszace.map(fmt).join(", ")} mm nie ma pary w kolumnie od strony ramienia, `
         + `więc w ramieniu skończyłaby się w powietrzu. Ustaw ten sam podział półek w kolumnie przy `
         + `ramieniu albo zrób jedną kolumnę na całe wnętrze — narożna to jedna komora.` });
-    /* Front ramienia ma jedna wysokosc — z pierwszego frontu szafki (`cornerArmParts`). Przy
-       kilku frontach jeden nad drugim w kolumnie przy ramieniu (dwa poziomy, podzial kolumny)
-       gorna czesc ramienia zostawala otwarta bez slowa (audyt GPT N132). */
-    if (a.len > 0 && a.doors !== "fix") {
-      const pasy = [...new Map((a.cab.geo.doors || []).filter((d) => d.h > 0 && d.type !== "blenda" && (() => {
-        const lv = lvls.find((l) => l.i === d.lvl);
-        const c = armColumn(a.side, lv);
-        return !!c && d.colKey === `${d.lvl}-${c.j}`;
-      })()).map((d) => [`${Math.round(d.y)}|${Math.round(d.h)}`, d])).values()].sort((p, q) => p.y - q.y);
-      const d0 = (a.cab.geo.doors || []).find((d) => d.h > 0 && d.type !== "blenda");
-      if (pasy.length > 1 && d0)
-        out.push({ level: "error", text: `${kto}: w kolumnie przy ramieniu są ${pasy.length} fronty jeden nad drugim `
-          + `(${pasy.map((d) => `${fmt(Math.round(d.y))}–${fmt(Math.round(d.y + d.h))}`).join(", ")} mm od dołu), a ramię dostaje jeden front — `
-          + `${fmt(Math.round(d0.h))} mm, na wysokości ${fmt(Math.round(d0.y))}–${fmt(Math.round(d0.y + d0.h))} mm. Reszta ramienia zostaje otwarta. `
-          + `Zrób w szafce narożnej jeden poziom frontów albo zaplanuj fronty ramienia ręcznie.` });
-    }
+    /* Kilka frontow jeden nad drugim w kolumnie przy ramieniu — ramie dostaje tyle samo
+       (`armPasy`; uzytkownik 2026-10-28 po audycie GPT N132, wczesniej jeden front i otwor nad nim). */
+    if (a.len > 0 && armPasy(a).length > 1)
+      out.push({ level: "info", text: `${kto}: w kolumnie przy ramieniu ${armPasy(a).length < 5 ? `są ${armPasy(a).length} fronty` : `jest ${armPasy(a).length} frontów`} jeden nad drugim — `
+        + `ramię ma tyle samo, w tych samych wysokościach (${armPasy(a).map((p) => `${fmt(p.y)}–${fmt(p.y + p.h)}`).join(", ")} mm od dołu).` });
     /* Kolki polek ramienia — ta sama kontrola co w korpusie (N16), ale na polce ramienia:
        ramie bywa duzo plytsze niz korpus (sasiedni ciag 200 mm), a kontrola korpusu
        przechodzila na jego glebszej polce i plan kazal wiercic 68 mm poza bokiem ramienia
@@ -16254,7 +16417,10 @@ const swingBodies = (L, project) => {
   doZespolu.forEach((z) => {
     const kand = skrzydla.filter((s) => s.id === z.id && !s.ramie);
     const wolna = (s) => Math.hypot(s.hx + s.r * s.ax - z.rog.x, s.hy + s.r * s.ay - z.rog.y);
-    const s = kand.sort((p, q) => wolna(p) - wolna(q))[0];
+    kand.sort((p, q) => wolna(p) - wolna(q));
+    // przy kilku frontach jeden nad drugim (N132) — kazde skrzydlo korpusu przy rogu ma swoj front ramienia
+    const przyRogu = kand.filter((q) => kand.length && wolna(q) <= wolna(kand[0]) + 1);
+    const s = przyRogu[0];
     if (!s) {
       const { a, przyKoncu, fu0, fu1, lico, kto, klucz } = z.wolne;
       skrzydla.push(swingLeaf(z.n, a.u0 + (przyKoncu ? fu1 : fu0), lico, przyKoncu ? -1 : 1,
@@ -16262,13 +16428,15 @@ const swingBodies = (L, project) => {
       return;
     }
     const ile = Math.max(2, Math.ceil(z.w / 20));
-    s.sztywne = [...Array(ile + 1)].map((_, k) => {
-      const x = z.rog.x + ((z.koniec.x - z.rog.x) * k) / ile, y = z.rog.y + ((z.koniec.y - z.rog.y) * k) / ile;
-      return [(x - s.hx) * s.ax + (y - s.hy) * s.ay, (x - s.hx) * s.bx + (y - s.hy) * s.by];
+    przyRogu.forEach((s2) => {
+      s2.sztywne = [...Array(ile + 1)].map((_, k) => {
+        const x = z.rog.x + ((z.koniec.x - z.rog.x) * k) / ile, y = z.rog.y + ((z.koniec.y - z.rog.y) * k) / ile;
+        return [(x - s2.hx) * s2.ax + (y - s2.hy) * s2.ay, (x - s2.hx) * s2.bx + (y - s2.hy) * s2.by];
+      });
+      // zawiasow zespolu nie da sie przelozyc na strone rogu
+      delete s2.alt; delete s2.flip;
+      s2.zFrontemRamienia = true;
     });
-    // zawiasow zespolu nie da sie przelozyc na strone rogu
-    delete s.alt; delete s.flip;
-    s.zFrontemRamienia = true;
   });
   return { bryly, skrzydla, ruchy };
 };
@@ -16636,8 +16804,10 @@ function buildCutPlan(rows, resztki = []) {
      dwa rozne produkty; dotad grupa brala arkusz z pierwszej pozycji i wynik
      zalezal od kolejnosci (audyt GPT N3). */
   rows.forEach((r) => {
-    // wlasna plyta — osobna grupa po id: dwie o tej samej nazwie szly na jeden arkusz (N95)
-    const grupa = r.matId && r.matId.startsWith("plyta:") ? `${r.matLabel}|${r.matId}` : r.matLabel;
+    /* grupa po tozsamosci plyty (`tozsamoscPlyty`: wlasna — id, inna — nazwa, kolor, dekor,
+       grubosc), nie po samej etykiecie: dwie wlasne o tej samej nazwie (N95) i dwa blaty
+       w roznych kolorach pod jedna nazwa (N140) szly na jeden arkusz */
+    const grupa = r.matId ? `${r.matLabel}|${r.matId}` : r.matLabel;
     const k = r.sheet ? `${grupa}|${r.sheet.w}×${r.sheet.h}` : grupa;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(r);
@@ -16842,7 +17012,7 @@ const PRINT_CSS = `
    naroznej liczyla front przez cala szerokosc korpusu i nie pokazywala ramienia,
    czyli wydruk mowil co innego niz aplikacja i niz lista formatek. */
 function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, sharedTop, sharedBottom = false, sharedRail, ctx, arm, wstawki = [], rozdzial = null }) {
-  const ambig = useMemo(() => ambiguousThickness([mat]), [mat]);
+  const ambig = useMemo(() => ambiguousThickness([mat], [matyUzyte(cab, mat)]), [mat, cab]);
   const geo = useMemo(() => computeGeo(cab, mat, ctx), [cab, mat, ctx]);
   const hardware = useMemo(() => okuciaSzafki(geo, { bezListwy: sharedRail, arm, wstawki }), [geo, sharedRail, arm, wstawki]);
   // cokol i blat ciagu sa wspolne — na kartce szafki ich nie ma, ida osobna pozycja
@@ -17103,7 +17273,7 @@ const arkuszOpis = (g) => {
 
 /* rozkroj na arkuszach — ostatnie strony zestawienia */
 function ReportCutPlan({ project, projectName }) {
-  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
+  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat), project.items.map((it) => matyUzyte(it.cab, it.mat))), [project]);
   const groups = useMemo(() => {
     const rows = [];
     projectParts(project).forEach((part) => {
@@ -17193,7 +17363,7 @@ function ReportCutPlan({ project, projectName }) {
 
 /* zbiorcza lista formatek calego projektu — tylko przy kilku szafkach */
 function ReportProjectSheet({ project, projectName, tytul = null, tytulProduktow = "Produkty całego projektu" }) {
-  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
+  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat), project.items.map((it) => matyUzyte(it.cab, it.mat))), [project]);
   const rows = useMemo(() => {
     const map = new Map();
     projectParts(project).forEach((part) => {
@@ -17376,6 +17546,10 @@ const scalenieBlad = (project, idxs) => {
   if (ds.length > 1) return `różna głębokość (${listPl(ds.map(fmt))} mm)`;
   if (new Set(cabs.map((c) => JSON.stringify((c.levels || []).map((lv) => lv.h ?? null)))).size > 1)
     return "różny podział na poziomy — wyrównaj poziomy albo scalaj szafki z jednym poziomem";
+  /* Montaz frontow jest jeden na szafke — scalona brala go z pierwszej i drzwi wpuszczane
+     drugiej robily sie nakladane, z innymi wymiarami i zawiasami (audyt GPT N141). */
+  const tryby = [...new Set(cabs.map((c) => (c.frontMode === "inset" ? "wpuszczane" : "nakładane")))];
+  if (tryby.length > 1) return `różny montaż frontów (${listPl(tryby)}) — ustaw jednakowo przed scaleniem`;
   return null;
 };
 /* Plyty, ktore szafka naprawde zamawia — do porownania przy scalaniu (audyt GPT N88:
@@ -19730,7 +19904,7 @@ export default function App() {
 
   // grubosc dopisujemy do etykiety tylko tam, gdzie ta sama plyta wystepuje
   // w projekcie w kilku grubosciach
-  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat)), [project]);
+  const ambig = useMemo(() => ambiguousThickness(project.items.map((it) => it.mat), project.items.map((it) => matyUzyte(it.cab, it.mat))), [project]);
 
   const armAktywnej = useMemo(() => {
     const n = projLayout.info && [...projLayout.info.values()].find((k) => k.arm && k.arm.cab.index === project.active);
@@ -21065,7 +21239,9 @@ export default function App() {
                       hint={runRl
                         ? (runRl.odcinki.length === 1
                           ? `Jedna listwa ${fmt(runRl.len)} mm przez ciąg — szafki wiszą w jednej linii.`
-                          : `Listwy ${listPl(runRl.odcinki.map((o) => fmt(o.len)))} mm — szafki z plecami cofniętymi mają listwę w sobie.`)
+                          : `Listwy ${listPl(runRl.odcinki.map((o) => fmt(o.len)))} mm — ${new Set(runRl.odcinki.map((o) => o.wys)).size > 1
+                            ? "szafki różnej wysokości mają zawieszki na różnych wysokościach, więc listwa jest w odcinkach"
+                            : "szafki z plecami cofniętymi mają listwę w sobie"}.`)
                         : "Zawieszki dobiorą się, gdy szafki będą tego potrzebować."}>
                       <Seg value={(runInfo.run.hangerMode || "listwa") === "haczyki" ? "haczyki" : "listwa"}
                         onChange={(v) => setRunShared(runInfo.run.id, { hangerMode: v })}
