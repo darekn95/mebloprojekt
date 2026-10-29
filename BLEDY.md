@@ -410,7 +410,7 @@ szafką skośną i sprzętami”). Kolejność: **najpierw sprzęty**, szafka sk
 
 ## Ustalone — nie ruszać
 
-- **Scalanie szafek: „jedna przegroda” albo „dwie przegrody”** (użytkownik 2026-10-29, po rysunku wariantów): dawne „podwójne” (szafki zostawały osobne) usunięte z okienka; przegroda przelotowa niepotrzebna (to samo co jedna). Dwie przegrody skręcone 4 wkrętami: na wysokości kołka półki do 300 mm od dołu / góry (70 mm od krawędzi), inaczej 20 mm pod / nad zawiasem w jego osi, inaczej 100 mm od dołu / góry i 50 mm od krawędzi (`opisy/korpus.md`).
+- **Scalanie szafek: „jedna przegroda” albo „dwie przegrody”** (użytkownik 2026-10-29, po rysunku wariantów): dawne „podwójne” (szafki zostawały osobne) usunięte z okienka; przegroda przelotowa niepotrzebna (to samo co jedna). Dwie przegrody skręcone 4 wkrętami: nad kołkiem półki, w jej grubości, gdy półka jest do 300 mm od dołu / góry (70 mm od krawędzi), inaczej 20 mm pod / nad zawiasem w jego osi (w połowie części przykręcanej do boku — 40 z 80 mm), inaczej 100 mm od dołu / góry i 50 mm od krawędzi (`opisy/korpus.md`).
 
 - **Szuflady w kolumnie przy ramieniu szafki w L** (użytkownik 2026-10-28 po retestach GPT N139): zostaje błąd montażu z radą (drzwi albo szuflady w kolumnie dalej od rogu) — bez wspornika pod prowadnicę od strony ramienia i bez automatycznego zwężania szuflady.
 

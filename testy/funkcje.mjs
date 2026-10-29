@@ -429,9 +429,9 @@ console.log('\n== Scalanie „dwie przegrody” (użytkownik 2026-10-29) ==');
     g.dividers.map((d) => `${d.x}${d.para}`).join() + ' ' + g.doors.map((d) => `${Math.round(d.x)}+${Math.round(d.w)}`).join());
   const w = wk(g);
   const opis = w.map((r) => `${r.panel} ${r.ys} ${r.note.split(';').slice(0, 2).join(';')}`).join(' / ');
-  ok('4 wkręty: dolne przy kołku półki 200 (70 mm od przodu i tyłu), górny przedni 20 mm nad zawiasem w jego osi (37), górny tylny 100 pod górą (50)',
-    w.length === 4 && w.filter((r) => String(r.ys) === '200' && /^70 mm/.test(r.note) && /kołka półki/.test(r.note)).length === 2
-    && w.some((r) => /^37 mm od przedniej/.test(r.note) && /20 mm nad górnym zawiasem/.test(r.note))
+  ok('4 wkręty: dolne nad kołkiem półki 200, w jej grubości (209; 70 mm od przodu i tyłu), górny przedni 20 mm nad zawiasem w jego osi (40), górny tylny 100 pod górą (50)',
+    w.length === 4 && w.filter((r) => String(r.ys) === '209' && /^70 mm/.test(r.note) && /w grubości półki/.test(r.note)).length === 2
+    && w.some((r) => /^40 mm od przedniej/.test(r.note) && /20 mm nad górnym zawiasem/.test(r.note))
     && w.some((r) => /^50 mm od tylnej/.test(r.note) && /100 mm pod górą/.test(r.note)), opis);
   ok('zamówienie: 4 × „Wkręt 4 × 30” (dwie przegrody na styku 1×4)', G.okuciaSzafki(g, {}).some((h) => h.name === 'Wkręt 4 × 30' && h.qty >= 4 && /dwie przegrody na styku 1×4/.test(h.spec)));
   ok('obie płyty pary osobno w planie wierceń (zawiasy każdej strony na swojej)', g.drillPlan.some((p) => p.panel === 'Przegroda 1 — lewa' && p.rows.some((r) => r.kind === 'zawias'))

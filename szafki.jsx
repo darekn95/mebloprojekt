@@ -671,11 +671,12 @@ const KLAPA_PLYTKA_OD_KRAWEDZI = 25, KLAPA_MOC_OD_BOKU = 12, KLAPA_MOC_ROZSTAW =
    i mocowanie frontu (ok. 10 mm poza otwor) — wymiary produktu z tych stron. */
 const KLAPA_POLKA_ZA_FRONTEM = 50, KLAPA_PLYTKA_R = 15, KLAPA_MOC_ZAPAS = 10;
 /* Dwie przegrody na styku (scalanie, uzytkownik 2026-10-29): 4 wkrety na pare. Na wysokosci
-   kolka polki, gdy polka jest do 300 mm od dolu / gory poziomu, 70 mm od krawedzi; inaczej
-   20 mm pod / nad zawiasem w jego osi (prowadnik — 37 mm od przedniej krawedzi, system 32);
+   kolka polki, w jej grubosci (polka zaslania leb), gdy polka jest do 300 mm od dolu / gory
+   poziomu, 70 mm od krawedzi; inaczej 20 mm pod / nad zawiasem w jego osi — w polowie czesci
+   przykrecanej do boku (rysujemy ja na `HINGE_D` = 80, wiec 40 mm od przedniej krawedzi);
    inaczej 100 mm od dolu / gory i 50 mm od krawedzi; najblizej 30 mm od dolu / gory. */
 const PARA_POLKA_DO = 300, PARA_PRZY_POLCE = 70, PARA_OD_ZAWIASU = 20, PARA_OD_DNA = 100, PARA_OD_KRAWEDZI = 50, PARA_MIN = 30;
-const ZAWIAS_OS_OD_PRZODU = 37;
+const ZAWIAS_OS_OD_PRZODU = 40;   // polowa `HINGE_D` (80, stala nizej w pliku)
 /* Sam podnosnik na rysunkach (PD-G00 s. 3, „Wymiary produktu”): silownik ⌀15, dlugosc
    z koncowka 28 + 122 = 150 mm, tloczysko ⌀6; kulka mocowania frontu ok. 17,5 mm
    od klapy. Amortyzator PD-ECGDL rysujemy tak samo. */
@@ -6124,7 +6125,8 @@ function computeGeoLiczy(cab, mat, ctx) {
       const wkret = (dol, przod) => {
         const pol = polki.filter((q) => (dol ? q.y - lv.y0 : lv.y1 - (q.y + ts)) <= PARA_POLKA_DO)
           .sort((a, b) => (dol ? a.y - b.y : b.y - a.y))[0];
-        if (pol) return { y: pol.y, z: PARA_PRZY_POLCE, nazwa: pol.nazwa, why: `na wysokości kołka półki — łeb zasłania półka kolumny ${pol.kol + 1}` };
+        // nad kolkiem, w grubosci polki — leb zaslania polka (uzytkownik 2026-10-29)
+        if (pol) return { y: pol.y + ts / 2, z: PARA_PRZY_POLCE, nazwa: pol.nazwa, why: `nad kołkiem, w grubości półki — łeb zasłania półka kolumny ${pol.kol + 1}` };
         const zw = przod ? [...zaw].sort((a, b) => (dol ? a.y - b.y : b.y - a.y))[0] : null;
         const yZ = zw && (dol ? zw.y - HINGE_H / 2 - PARA_OD_ZAWIASU : zw.y + HINGE_H / 2 + PARA_OD_ZAWIASU);
         if (zw && yZ > lv.y0 + PARA_MIN && yZ < lv.y1 - PARA_MIN)
