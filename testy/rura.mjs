@@ -112,5 +112,22 @@ console.log('\n== światło zmniejszone po dodaniu rury (użytkownik 2026-10-24)
   ok('odznaczenie w Strukturze zdejmuje rurę z małego światła', !c.levels[0].cols[0].drazki, JSON.stringify(c.levels[0].cols[0].drazki));
 }
 
+console.log('\n== niska rura: przesunięcie półki w tym samym ostrzeżeniu (użytkownik 2026-10-29) ==');
+{
+  // jak Szafka 6 w projekcie uzytkownika: swiatla 250 / auto / 250, rura w srodkowym
+  await seed(szafa({ H: 1600 }, { shelfTargets: [250, null, 250], drazki: [1] }));
+  let u = await uwagi();
+  const m = /pod rurą tylko (\d+) mm/.exec(u), brak = m ? 1000 - +m[1] : 0;
+  const wyzej = page.getByRole('button', { name: new RegExp(`^Półka nad rurą wyżej o ${brak} mm \\(światło 3: ${250 - brak} mm\\)$`) });
+  const nizej = page.getByRole('button', { name: new RegExp(`^Półka pod rurą niżej o ${brak} mm \\(światło 1: ${250 - brak} mm\\)$`) });
+  ok(`ostrzeżenie: „Wystarczy przesunąć półkę o ${brak} mm” z „Półka nad rurą wyżej…” i „Półka pod rurą niżej…”`, brak > 0
+    && new RegExp(`Wystarczy przesunąć półkę o ${brak} mm`).test(u) && (await wyzej.count()) === 1 && (await nizej.count()) === 1, linie(u, /rur|Półka/));
+  await wyzej.click(); await page.waitForTimeout(600);
+  const c = (await zap()).items[0].cab;
+  u = await uwagi();
+  ok('po kliknięciu „wyżej”: światło 3 mniejsze o brak, ostrzeżenie o rurze znika', JSON.stringify(c.levels[0].cols[0].shelfTargets) === JSON.stringify([250, null, 250 - brak])
+    && !/pod rurą tylko/.test(u), JSON.stringify(c.levels[0].cols[0].shelfTargets) + ' ' + linie(u, /rur/));
+}
+
 ok('bez błędów strony', !errors.length, errors.join(' / '));
 await b.close();

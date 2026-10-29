@@ -386,3 +386,31 @@ console.log('\n== N140–N149 ==');
   ok('N149: wycięcie w górnym poziomie — błąd o zawieszce w wycięciu', uw(zw(1, false), /Zawieszka przy lewym boku wypada w wycięciu narożnika/).length === 1);
   ok('N149: kontrola — wycięcie w dolnym poziomie albo na całą wysokość — bez uwagi', !uw(zw(0, false), /Zawieszka/).length && !uw(zw(1, true), /Zawieszka/).length);
 }
+
+console.log('\n== Rura: niska rura — przesunięcie półki w tym samym ostrzeżeniu (użytkownik 2026-10-29) ==');
+{
+  // jak Szafka 6 w projekcie uzytkownika: swiatla 250 / auto / 250, rura w srodkowym
+  const rura = (st, o = {}, H = 1600) => ({ name: 'T', W: 600, H, D: 560, ...nogi, levels: [{ h: null, cols: [drzwi({ shelfTargets: st, drazki: [1], ...o })] }] });
+  const akcje = (g) => (uw(g, /pod rurą tylko/)[0] || { text: '' }).text.split('|').slice(1);
+  const zastosuj = (cab, a) => { const c = JSON.parse(JSON.stringify(cab)); const st = c.levels[0].cols[0].shelfTargets;
+    a.split(':')[7].split(',').forEach((q) => { const [i, v] = q.split('=').map(Number); st[i] = v; }); return c; };
+  const c1 = rura([250, null, 250]);
+  const g1 = geo(c1), a1 = akcje(g1).filter((a) => a.startsWith('drazekpolka:'));
+  const brak = 1070 - g1.levels[0].cols[0].openings[1].h;
+  ok('ostrzeżenie z „przesunąć półkę o N mm” i dwoma przyciskami (wyżej / niżej)', a1.length === 2 && a1.some((a) => /:gora:/.test(a)) && a1.some((a) => /:dol:/.test(a))
+    && uw(g1, new RegExp(`Wystarczy przesunąć półkę o ${brak} mm`)).length === 1, a1.join(' / '));
+  ok('po kliknięciu (obie wersje): 1000 mm pod rurą, ostrzeżenie znika, bez nowych uwag o światłach', a1.every((a) => { const g = geo(zastosuj(c1, a));
+    return g.levels[0].cols[0].drazki[0].pod >= 1000 && !uw(g, /pod rurą tylko|światło|zadane światła/).length; }), a1.join(' / '));
+  // wszystkie swiatla automatyczne (4) — zmiana obu jawnie, reszta bez zmian
+  const c2 = rura([null, null, null, null], {}, 2400), g2 = geo(c2), a2 = akcje(g2).filter((a) => a.startsWith('drazekpolka:'));
+  const h2 = g2.levels[0].cols[0].openings.map((o) => o.h);
+  ok('światła automatyczne: po kliknięciu rura ma 1000 mm, nieruszane światło bez zmian', a2.length && a2.every((a) => { const g = geo(zastosuj(c2, a));
+    const h = g.levels[0].cols[0].openings.map((o) => o.h); const nb = +a.split(':')[5]; const inne = [0, 1, 2, 3].filter((i) => i !== 1 && i !== nb);
+    return g.levels[0].cols[0].drazki[0].pod >= 1000 && inne.every((i) => Math.abs(h[i] - h2[i]) <= 1) && !uw(g, /zadane światła/).length; }), JSON.stringify(h2) + ' ' + a2.join(' / '));
+  // sasiad za niski (60 − brak < 50), granica poziomu kolumny i rura w samym swietle — bez propozycji
+  const a3 = akcje(geo(rura([80, null], {}, 1100))), a4 = akcje(geo(rura([null], { drazki: [0] }, 1000)));
+  ok('kontrola: sąsiad za niski i światło od dna do wieńca — ostrzeżenie bez przycisku przesunięcia', a3.length && a4.length
+    && ![...a3, ...a4].some((a) => a.startsWith('drazekpolka:')), [...a3, ...a4].join(' / '));
+  const a5 = akcje(geo(rura([250, null, 250], { podzial: [0, 1] })));
+  ok('kontrola: półka będąca granicą poziomu kolumny się nie przesuwa', a5.length && !a5.some((a) => a.startsWith('drazekpolka:')), a5.join(' / '));
+}

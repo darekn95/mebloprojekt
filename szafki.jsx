@@ -2841,7 +2841,28 @@ function computeGeoLiczy(cab, mat, ctx) {
           const wolne = swiatlaDrzwi.filter((o) => o.k !== dr.k && !c.drazki.some((q) => q.k === o.k));
           const cel = [...wolne].reverse().find((o) => o.h - DRAZEK_POD_PLYTA >= DRAZEK_MIN_POD)
             || [...wolne].filter((o) => o.h >= DRAZEK_SWIATLO_OPCJA && o.h > dr.swiatlo).sort((a, b) => b.h - a.h)[0];
+          /* Uzytkownik 2026-10-29: niska rura bywa swiadoma, ale gdy da sie to zmienic,
+             zaproponowac w tym samym ostrzezeniu — polka nad rura wyzej albo pod nia nizej
+             o brakujace mm, kosztem sasiedniego swiatla (zostaje >= 50 mm, bez rury, ta sama
+             polka nie jest granica poziomu kolumny). */
+          const brak = Math.ceil(DRAZEK_MIN_POD + DRAZEK_POD_PLYTA - dr.swiatlo);
+          const przesun = [["gora", dr.k + 1, dr.k], ["dol", dr.k - 1, dr.k - 1]].map(([kier, nb, polka]) => {
+            const o = c.openings[nb];
+            if (!o || grRur.includes(polka) || c.drazki.some((q) => q.k === nb) || o.h - brak < 50) return null;
+            const t = (i) => num(st[i]);
+            const inne = st.some((v, i) => i !== nb && i !== dr.k && t(i) === null);
+            const zm = {};
+            if (inne) { zm[dr.k] = dr.swiatlo + brak; zm[nb] = o.h - brak; }
+            else {
+              if (t(nb) !== null) zm[nb] = t(nb) - brak;
+              if (t(dr.k) !== null) zm[dr.k] = t(dr.k) + brak;
+              if (t(nb) === null && t(dr.k) === null) zm[nb] = o.h - brak;
+            }
+            return `drazekpolka:${lv.i}:${j}:${kier}:${brak}:${nb}:${Math.round(o.h - brak)}:${Object.entries(zm).map(([i, v]) => `${i}=${Math.round(v)}`).join(",")}`;
+          }).filter(Boolean);
           add("warn", `${gdzie}: pod rurą tylko ${fmt(dr.pod)} mm — na koszule i marynarki potrzeba ok. ${fmt(DRAZEK_MIN_POD)} mm (płaszcze ok. ${fmt(DRAZEK_DLUGIE)}). Rura ${DRAZEK_POD_PLYTA} mm pod półką, światło ${fmt(dr.swiatlo)} mm.`
+            + (przesun.length ? ` Wystarczy przesunąć półkę o ${fmt(brak)} mm — jeśli tak ma zostać, odhacz.` : "")
+            + przesun.map((a) => "|" + a).join("")
             + (cel ? `|drazekprzenies:${lv.i}:${j}:${dr.k}:${cel.k}:${Math.round(cel.h)}` : "") + `|drazek:${lv.i}:${j}:${dr.k}:0`);
         }
         if (dividerDepth < DRAZEK_GL_MIN)
@@ -13428,6 +13449,20 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         }),
       };
     }
+    if (action.startsWith("drazekpolka:")) {
+      // „drazekpolka:<poziom>:<kolumna>:<gora|dol>:<mm>:<sasiednie swiatlo>:<jego nowa wys.>:<i=wys,…>" — swiatla kolumny
+      const [, li, j, kier, mm, nb, nbH, zm] = action.split(":");
+      return {
+        label: `Półka ${kier === "gora" ? "nad rurą wyżej" : "pod rurą niżej"} o ${mm} mm (światło ${+nb + 1}: ${nbH} mm)`,
+        run: () => editLevels((L) => {
+          const col = kolumnaW(L, li, j);
+          if (!col) return;
+          const st = [...(col.shelfTargets || [null])];
+          zm.split(",").forEach((p) => { const [i, v] = p.split("=").map(Number); if (i < st.length) st[i] = v; });
+          col.shelfTargets = st;
+        }),
+      };
+    }
     if (action.startsWith("zawiasywszedzie:")) {
       // „zawiasywszedzie:<ile>:<poziom-kolumna,…>" — ta sama liczba we wszystkich skrzydlach tych kolumn
       const [, ile, lista] = action.split(":");
@@ -16889,6 +16924,34 @@ const uwagiRozkroju = (g0) => {
 };
 
 /* rysunek jednego arkusza z ulozonymi formatkami */
+/* Podpis formatki na arkuszu (audyt GPT PDF-1; uzytkownik 2026-10-29 „podpis w formatce”).
+   Duza formatka — wymiar i nazwa jak dotad. Mniejsza albo waska (dawniej bez podpisu: 720 × 60,
+   170 × 460) — napis wzdluz dluzszego boku (w waskiej pionowej obrocony), mniejszy; wymiar
+   zawsze, nazwa, gdy sie zmiesci. Szerokosc napisu szacowana (cyfry ~0,6 wysokosci, tekst ~0,55). */
+const PODPIS_MIN = 12;
+const szerPodpisu = (t, f, mono) => t.length * f * (mono ? 0.6 : 0.55);
+const podpisFormatki = (p) => {
+  const wym = `${fmt(p.w)}×${fmt(p.h)}`, naz = `${p.name}${p.rot ? " ↻" : ""}`;
+  const fd0 = Math.min(56, Math.max(30, Math.min(p.w, p.h) / 4));
+  // dwie linie jak dotad: nazwa 44 mm pod srodkiem — formatka 100 mm byla za niska (napis wystawal)
+  if (p.w > 190 && p.h >= 120 && szerPodpisu(wym, fd0, true) <= p.w - 16)
+    return { rot: false, linie: [{ cz: [[wym, true]], f: fd0, dy: -6 }, { cz: [[naz, false]], f: 34, dy: 44, op: 0.65 }] };
+  const rot = p.h > p.w;
+  const L = Math.max(p.w, p.h) - 16, S = Math.min(p.w, p.h);
+  if (S >= 90) {
+    const fd = Math.min(46, S * 0.3, L / (wym.length * 0.6));
+    const fn = Math.min(34, S * 0.22);
+    if (fd < PODPIS_MIN) return null;
+    return { rot, linie: [{ cz: [[wym, true]], f: fd, dy: szerPodpisu(naz, fn, false) <= L ? -3 : fd * 0.35 },
+      ...(szerPodpisu(naz, fn, false) <= L ? [{ cz: [[naz, false]], f: fn, dy: 3 + fn * 0.8, op: 0.65 }] : [])] };
+  }
+  const f = Math.min(40, S * 0.7);
+  if (szerPodpisu(wym, f, true) + szerPodpisu("  " + naz, f * 0.85, false) <= L)
+    return { rot, linie: [{ cz: [[wym, true], ["  " + naz, false, f * 0.85]], f, dy: f * 0.35 }] };
+  const f1 = Math.min(f, L / (wym.length * 0.6));
+  return f1 < PODPIS_MIN ? null : { rot, linie: [{ cz: [[wym, true]], f: f1, dy: f1 * 0.35 }] };
+};
+
 function SheetPlan({ sheet, sheetW, sheetH, index, total, maxH = 420 }) {
   const pad = 40;
   const vb = `${-pad} ${-pad} ${sheetW + 2 * pad} ${sheetH + 2 * pad + 60}`;
@@ -16925,19 +16988,23 @@ function SheetPlan({ sheet, sheetW, sheetH, index, total, maxH = 420 }) {
           <g key={i}>
             <rect x={p.x} y={p.y} width={p.w} height={p.h}
               fill={mixName(p.name)} stroke={INK} strokeWidth="4" />
-            {p.w > 190 && p.h > 90 && (
-              <>
-                <text x={p.x + p.w / 2} y={p.y + p.h / 2 - 6} textAnchor="middle"
-                  fontSize={Math.min(56, Math.max(30, Math.min(p.w, p.h) / 4))}
-                  fill={INK} fontFamily="ui-monospace, monospace">
-                  {fmt(p.w)}×{fmt(p.h)}
-                </text>
-                <text x={p.x + p.w / 2} y={p.y + p.h / 2 + 44} textAnchor="middle"
-                  fontSize="34" fill={INK} opacity="0.65">
-                  {p.name}{p.rot ? " ↻" : ""}
-                </text>
-              </>
-            )}
+            {(() => {
+              const pd = podpisFormatki(p);
+              if (!pd) return null;
+              const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+              return (
+                <g data-el="podpis-formatki" transform={pd.rot ? `rotate(-90 ${cx} ${cy})` : undefined}>
+                  {pd.linie.map((l, k) => (
+                    <text key={k} x={cx} y={cy + l.dy} textAnchor="middle" fontSize={l.f} fill={INK}
+                      opacity={l.op} fontFamily={l.cz[0][1] ? "ui-monospace, monospace" : undefined}>
+                      {l.cz.length === 1 ? l.cz[0][0] : l.cz.map(([t, mono, f2], q) => (
+                        <tspan key={q} fontFamily={mono ? "ui-monospace, monospace" : "system-ui, sans-serif"}
+                          fontSize={f2 || undefined} opacity={mono ? undefined : 0.65}>{t}</tspan>))}
+                    </text>
+                  ))}
+                </g>
+              );
+            })()}
             {p.grain && p.w > 190 && p.h > 90 &&
               grainArrow(p.x + p.w / 2, p.y + p.h - 34, p.w)}
           </g>

@@ -61,7 +61,9 @@ const bryla = async (otwarta) => {
   if (otwarta) { await page.evaluate(() => { window.__audytBryl = []; }); await click('zamknięte'); await page.waitForTimeout(400); }
   const x = await page.evaluate(() => { const q = window.__audytBryl; window.__audytBryl = null; return (q || []).filter((s) => s.p); });
   if (otwarta) await click('otwarte');
-  return x;
+  // standalone rysuje bryle kilka razy (StrictMode) — te same bryly raz (jak w `palce`, BLEDY.md)
+  const byl = new Set();
+  return x.filter((s) => { const k = JSON.stringify([s.p, s.d, s.tag, s.color]); if (byl.has(k)) return false; byl.add(k); return true; });
 };
 const nachodzi = (a, c) => [0, 1, 2].every((k) => Math.min(a.p[k + 3], c.p[k + 3]) - Math.max(a.p[k], c.p[k]) > 0.5);
 const konfNaStyk = (len) => (len < 132 ? 1 : Math.max(2, Math.ceil(len / 200)));
