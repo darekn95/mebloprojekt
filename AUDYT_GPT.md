@@ -1,5 +1,17 @@
 # Audyt GPT — pozostałe uwagi do poprawy
 
+## Do dalszego rozwiązania po reteście N69–N139
+
+Ostatni retest z 28.10.2026 wykazał, że poniższe cztery przypadki mają już komunikaty, ale nadal wymagają decyzji lub zmiany rozwiązania. Nie oznaczaj ich jako w pełni rozwiązanych wyłącznie na podstawie dodania walidacji:
+
+- **N117 — wkręty DXS:** przy 16 mm przodu skrzynki i 12 mm frontu wkręt 4 × 30 przebija materiał. Aplikacja zgłasza błąd, lecz nie dobiera automatycznie bezpiecznej pozycji do zamówienia. Uzgodnić długość wkrętu i sposób jej doboru; do tego czasu zmienić wkręt lub grubość płyt.
+- **N122 — nóżka pod wycięciem:** ostrzeżenie wskazuje kolizję nóżki z wycięciem, ale nóżka pozostaje w tym miejscu w modelu. Potrzebne jest przestawienie nóżki albo inne podparcie, z rozwiązaniem uzgodnionym z użytkownikiem.
+- **N132 — fronty ramienia przy kilku poziomach:** aplikacja pokazuje błąd o otwartej górnej części, lecz nadal generuje jeden front ramienia. Uzgodnić i wdrożyć obsługę kilku frontów albo świadomie pozostać przy ręcznym projektowaniu tego wariantu.
+- **N139 — szuflady przy ramieniu L:** aplikacja sygnalizuje brak boku dla prowadnicy i sugeruje zmianę na drzwi lub przeniesienie szuflad. Nie tworzy automatycznie poprawnej komory ani wspornika. Uzgodnić konstrukcję przed wdrożeniem takiego wariantu.
+
+Pełne warunki odtworzenia, wyniki i ograniczenia znajdują się w sekcji „Retest 28.10.2026 — aktualny status N69–N139”. Zgłoszenia N140–N149 i PDF-1 nie były objęte tamtym retestem.
+
+
 > **Aktualny status po reteście 28.10.2026:** N69–N139 sprawdzone ponownie: 67 wcześniejszych problemów nie odtworzono; N117, N122, N132 i N139 mają walidację, ale wymagają działania opisanego w sekcji Retest 28.10.2026. Starsze opisy poniżej są historią zgłoszeń, nie listą nadal aktywnych usterek. N140–N149 i PDF-1 nie były przedmiotem tego retestu.
 
 Aktualizacja: 21.10.2026. Lista obejmuje potwierdzone uwagi pozostałe po reteście aplikacji i PDF z 21.10.2026, godz. 14:37. Naprawione zgłoszenia usunięto; ich opisy pozostają w historii Git.
