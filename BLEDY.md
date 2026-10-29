@@ -415,6 +415,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Ustalone — nie ruszać
 
+- **Szuflady w kolumnie przy ramieniu szafki w L** (użytkownik 2026-10-28 po retestach GPT N139): zostaje błąd montażu z radą (drzwi albo szuflady w kolumnie dalej od rogu) — bez wspornika pod prowadnicę od strony ramienia i bez automatycznego zwężania szuflady.
+
 - **Wkręt frontu DXS przy cienkich płytach** (użytkownik 2026-10-28, audyt GPT N117): program sam dobiera krótszy wkręt (30 / 25 / 20 / 16 mm, z 3 mm frontu nad czubkiem), ale zawsze z ostrzeżeniem, że wkręty się zmieniły, i przyciskiem do notatki montażowej.
 - **Nóżka pod wycięciem narożnika** (użytkownik 2026-10-28, N122): program sam przesuwa ją 10 mm za wycięcie — wzdłuż boku albo w głąb, gdzie bliżej — wszędzie (rysunki, 3D), z informacją.
 - **Szafka w L z kilkoma frontami jeden nad drugim** (użytkownik 2026-10-28, N132): ramię ma tyle samo frontów, w tych samych wysokościach co fronty kolumny przy ramieniu.
