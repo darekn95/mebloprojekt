@@ -31,7 +31,7 @@ src = src.replace(/^import React[^\n]*\n/, 'const React = { createElement: () =>
 src = src.replace(/export default function App/, 'function App');
 const nazwy = ['buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
-  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail'];
+  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -413,4 +413,39 @@ console.log('\n== Rura: niska rura — przesunięcie półki w tym samym ostrze�
     && ![...a3, ...a4].some((a) => a.startsWith('drazekpolka:')), [...a3, ...a4].join(' / '));
   const a5 = akcje(geo(rura([250, null, 250], { podzial: [0, 1] })));
   ok('kontrola: półka będąca granicą poziomu kolumny się nie przesuwa', a5.length && !a5.some((a) => a.startsWith('drazekpolka:')), a5.join(' / '));
+}
+
+console.log('\n== Scalanie „dwie przegrody” (użytkownik 2026-10-29) ==');
+{
+  const RUN = { id: 'c1', name: 'Ściana', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: { on: false }, worktop: false, corner: null };
+  const sz = (n, col, o = {}) => ({ name: n, W: 600, H: 720, D: 560, plinth: { on: false }, legs: { on: true, height: 100 }, levels: [{ h: null, cols: [col] }], ...o });
+  const scal = (a, b, run = RUN, mat) => { const P = G.loadProject({ name: 'P', runs: [run], items: [{ cab: a, runId: 'c1', ...(mat ? { mat } : {}) }, { cab: b, runId: 'c1', ...(mat ? { mat } : {}) }] });
+    const Q = G.scalSzafki(P, [0, 1], null, 'dwie'); const it = Q.items[Q.active]; return { Q, g: G.computeGeo(G.cabDoGeo(Q, it), it.mat) }; };
+  const wk = (g) => g.drillPlan.flatMap((p) => p.rows.filter((r) => r.kind === 'wkręt łączący przegrody').map((r) => ({ panel: p.panel, ...r })));
+  // A: drzwi z zawiasem przy styku i polka 200 od dolu; B: drzwi z zawiasem przy styku, bez polek
+  const { g } = scal(sz('A', drzwi({ hinge: 'right', shelfTargets: [200, null] })), sz('B', drzwi({ hinge: 'left', shelfTargets: [null] })));
+  ok('1200: kolumny 564 / 564, dwie przegrody obok siebie (582 i 600), fronty jak w osobnych szafkach', g.W === 1200 && g.levels[0].cols.map((c) => Math.round(c.w)).join() === '564,564'
+    && g.dividers.map((d) => `${d.x}${d.para}`).join() === '582L,600P' && g.doors.map((d) => `${Math.round(d.x)}+${Math.round(d.w)}`).join() === '2+596,602+596',
+    g.dividers.map((d) => `${d.x}${d.para}`).join() + ' ' + g.doors.map((d) => `${Math.round(d.x)}+${Math.round(d.w)}`).join());
+  const w = wk(g);
+  const opis = w.map((r) => `${r.panel} ${r.ys} ${r.note.split(';').slice(0, 2).join(';')}`).join(' / ');
+  ok('4 wkręty: dolne przy kołku półki 200 (70 mm od przodu i tyłu), górny przedni 20 mm nad zawiasem w jego osi (37), górny tylny 100 pod górą (50)',
+    w.length === 4 && w.filter((r) => String(r.ys) === '200' && /^70 mm/.test(r.note) && /kołka półki/.test(r.note)).length === 2
+    && w.some((r) => /^37 mm od przedniej/.test(r.note) && /20 mm nad górnym zawiasem/.test(r.note))
+    && w.some((r) => /^50 mm od tylnej/.test(r.note) && /100 mm pod górą/.test(r.note)), opis);
+  ok('zamówienie: 4 × „Wkręt 4 × 30” (dwie przegrody na styku 1×4)', G.okuciaSzafki(g, {}).some((h) => h.name === 'Wkręt 4 × 30' && h.qty >= 4 && /dwie przegrody na styku 1×4/.test(h.spec)));
+  ok('obie płyty pary osobno w planie wierceń (zawiasy każdej strony na swojej)', g.drillPlan.some((p) => p.panel === 'Przegroda 1 — lewa' && p.rows.some((r) => r.kind === 'zawias'))
+    && g.drillPlan.some((p) => p.panel === 'Przegroda 1 — prawa' && p.rows.some((r) => r.kind === 'zawias')));
+  // bez polek i zawiasow przy styku — 100 mm od dolu / gory, 50 od krawedzi
+  const g2 = scal(sz('A', drzwi({ hinge: 'left', shelfTargets: [null] })), sz('B', drzwi({ hinge: 'right', shelfTargets: [null] }))).g;
+  ok('bez półki i zawiasu przy styku: 4 wkręty 100 mm od dołu / góry, 50 mm od krawędzi', wk(g2).length === 4 && wk(g2).every((r) => /^50 mm/.test(r.note) && /100 mm/.test(r.note)), wk(g2).map((r) => r.ys + ' ' + r.note.slice(0, 40)).join(' / '));
+  // plyta 16 mm — 4 × 30 wyszedlby z drugiej plyty (32 mm), wiec 4 × 25 osobna pozycja
+  const M16 = JSON.parse(JSON.stringify(G.defaultMaterials)); M16.board.thickness = 16;
+  const g3 = scal(sz('A', drzwi({ shelfTargets: [null] })), sz('B', drzwi({ shelfTargets: [null] })), RUN, M16).g;
+  ok('płyta 16: wkręt 4 × 25 (osobna pozycja), w planie „4 × 25”', G.okuciaSzafki(g3, {}).some((h) => h.name === 'Wkręt 4 × 25' && h.qty === 4) && wk(g3).every((r) => /4 × 25/.test(r.note)),
+    G.okuciaSzafki(g3, {}).filter((h) => /Wkręt/.test(h.name)).map((h) => h.name + ' ' + h.qty).join(', '));
+  // przy lacznej szczelinie miedzy korpusami (luz ciagu 2 mm) — luz idzie na kolumny, przegrody dalej obok siebie
+  const g4 = scal(sz('A', drzwi({ shelfTargets: [null] })), sz('B', drzwi({ shelfTargets: [null] })), { ...RUN, gap: 2 }).g;
+  ok('luz ciągu 2 mm: szafka 1202, kolumny 565 / 565, bez błędów', g4.W === 1202 && g4.levels[0].cols.map((c) => Math.round(c.w)).join() === '565,565' && !g4.msgs.some((x) => x.level === 'error'),
+    g4.W + ' ' + g4.levels[0].cols.map((c) => Math.round(c.w)).join());
 }
