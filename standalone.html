@@ -5131,31 +5131,70 @@ function computeGeoLiczy(cab, mat, ctx) {
     if (wien) P({ ...wien, note: noteOf(wien.edges, "horiz") });
   }
 
-  if (sepShelves.length)
-    P({ name: "Półka przelotowa", qty: sepShelves.length, a: innerW, b: shelfDepth,
+  // elementy kolizyjne (wstecznie: pojedynczy cab.obstacle) i ich obrys — formatki z otworami i petla elementow
+  const obsWlaczone = (Array.isArray(cab.obstacles) && cab.obstacles.length
+    ? cab.obstacles
+    : cab.obstacle?.on ? [cab.obstacle] : []).filter((o) => o && o.on !== false);
+  const obrysElementu = (ob) => {
+    const ow = Math.max(0, Math.round(ob.w || 0)), od = Math.max(0, Math.round(ob.d || 0));
+    const fromSide = Math.round(ob.fromSide ?? ob.fromRight ?? 0); // odsuniecie od wybranego boku
+    const ox0 = ob.side === "left" ? fromSide : W - fromSide - ow;
+    const oz0 = Math.round(ob.fromBack || 0); // odsuniecie od tylu
+    const oFull = ob.fullHeight !== false;
+    const oy0 = oFull ? interior.y0 : Math.round(ob.fromBottom || 0) + interior.y0;
+    return { ox0, ox1: ox0 + ow, oz0, oz1: oz0 + od, oy0, oy1: oFull ? interior.y1 : oy0 + Math.max(0, Math.round(ob.h || 0)), oFull };
+  };
+  /* Otwory na element kolizyjny (decyzja uzytkownika 2026-10-30 przy audycie GPT N114: „przyciski
+     do dostępnych i sensownych opcji”): element z `otwory` — plyty, przez ktore przechodzi (polka
+     przelotowa, polka, przegroda), dostaja otwor; wymiar idzie w nazwe formatki (opis nie trafia
+     do tabeli ani do PDF), ostrzezenie staje sie informacja. */
+  const elementyOtwory = obsWlaczone.filter((ob) => ob.otwory).map(obrysElementu);
+  const otworW = (y0, y1, x0, x1, z0, z1) => {
+    const e = elementyOtwory.find((q) => Math.min(y1, q.oy1) - Math.max(y0, q.oy0) > 0 && Math.min(x1, q.ox1) - Math.max(x0, q.ox0) > 0
+      && q.oz0 < z1 && q.oz1 > z0);
+    return e ? { a: Math.round(Math.min(x1, e.ox1) - Math.max(x0, e.ox0)), b: Math.round(Math.min(z1, e.oz1) - Math.max(z0, e.oz0)),
+      h: Math.round(Math.min(y1, e.oy1) - Math.max(y0, e.oy0)) } : null;
+  };
+  const zOtworem = new Map();
+  sepShelves.forEach((sh) => {
+    const o = otworW(sh.y, sh.y + t, interior.x0, interior.x1, shelfBack, shelfBack + shelfDepth);
+    const name = o ? `Półka przelotowa — otwór ${fmt(o.a)} × ${fmt(o.b)}` : "Półka przelotowa";
+    zOtworem.set(name, (zOtworem.get(name) || 0) + 1);
+  });
+  zOtworem.forEach((qty, name) =>
+    P({ name, qty, a: innerW, b: shelfDepth,
         matKey: "board", edges: { a1: true, a2: rear, b1: false, b2: false },
-        note: "krawędź przednia" });
+        note: "krawędź przednia" }));
 
   const shelfMat = sameShelf ? "board" : "shelf";
   const divSizes = new Map();
-  dividers.forEach((d) => divSizes.set(d.h, (divSizes.get(d.h) || 0) + 1));
-  divSizes.forEach((qty, h) =>
-    P({ name: "Przegroda pionowa", qty, a: h, b: dividerDepth, matKey: "board",
+  dividers.forEach((d) => {
+    const o = otworW(d.y0, d.y1, d.x, d.x + t, shelfBack, shelfBack + dividerDepth);
+    const k = `${d.h}|${o ? `${o.b}|${o.h}` : ""}`;
+    divSizes.set(k, (divSizes.get(k) || 0) + 1);
+  });
+  divSizes.forEach((qty, k) => {
+    const [h, ob, oh] = k.split("|").map(Number);
+    P({ name: ob > 0 ? `Przegroda pionowa — wycięcie ${fmt(ob)} × ${fmt(oh)}` : "Przegroda pionowa", qty, a: h, b: dividerDepth, matKey: "board",
         edges: { a1: true, a2: rear, b1: false, b2: false },
-        note: "krawędź przednia" })
-  );
+        note: "krawędź przednia" });
+  });
 
   const shSizes = new Map();
   levels.forEach((lv) =>
     lv.cols.forEach((c) => {
-      const k = `${c.shW}|${c.shD ?? shelfDepth}|${c.shNotch ? `${c.shNotch.w}|${c.shNotch.d}` : ""}`;
-      c.shelves.forEach(() => shSizes.set(k, (shSizes.get(k) || 0) + 1));
+      c.shelves.forEach((sh) => {
+        const z1 = shelfBack + shelfDepth;
+        const o = otworW(sh.y, sh.y + ts, c.shX0 ?? c.x0, c.shX1 ?? c.x1, z1 - (c.shD ?? shelfDepth), z1);
+        const k = `${c.shW}|${c.shD ?? shelfDepth}|${c.shNotch ? `${c.shNotch.w}|${c.shNotch.d}` : "|"}|${o ? `${o.a}|${o.b}` : "|"}`;
+        shSizes.set(k, (shSizes.get(k) || 0) + 1);
+      });
     })
   );
   shSizes.forEach((qty, k) => {
-    const [w, dep, nw, nd] = k.split("|").map(Number);
+    const [w, dep, nw, nd, oa, ob] = k.split("|").map(Number);
     // wyciecie idzie w nazwe — opis formatki nie trafia do tabeli ani do PDF
-    P({ name: nw > 0 ? `Półka — wycięty tylny róg ${fmt(nw)} × ${fmt(nd)}` : "Półka", qty, a: w, b: dep, matKey: shelfMat,
+    P({ name: (nw > 0 ? `Półka — wycięty tylny róg ${fmt(nw)} × ${fmt(nd)}` : "Półka") + (oa > 0 ? ` — otwór ${fmt(oa)} × ${fmt(ob)}` : ""), qty, a: w, b: dep, matKey: shelfMat,
         edges: { a1: true, a2: rear, b1: false, b2: false },
         note: nw > 0 ? "krawędź przednia; róg wycięty pod wzmocnienie tylne B" : "krawędź przednia" });
   });
@@ -5649,33 +5688,16 @@ function computeGeoLiczy(cab, mat, ctx) {
 
   /* --- swobodny element kolizyjny (bryla) --- */
   // lista elementow kolizyjnych (wstecznie: pojedynczy cab.obstacle)
-  const obsList = (Array.isArray(cab.obstacles) && cab.obstacles.length
-    ? cab.obstacles
-    : cab.obstacle?.on ? [cab.obstacle] : []).filter((o) => o && o.on !== false);
+  const obsList = obsWlaczone;
   obsList.forEach((ob, obIdx) => {
     const obName = obsList.length > 1 ? `Element ${obIdx + 1}` : "Element kolizyjny";
     const ow = Math.max(0, Math.round(ob.w || 0));
     const od = Math.max(0, Math.round(ob.d || 0));
-    const fromSide = Math.round(ob.fromSide ?? ob.fromRight ?? 0); // odsuniecie od wybranego boku
-    const fromB = Math.round(ob.fromBack || 0);  // odsuniecie od tylu
-    const fromLeft = ob.side === "left";
-    // pozycja mierzona od ZEWNETRZNEJ krawedzi szafki — tak samo jak wyciecie narożnika
-    let ox0, ox1;
-    if (fromLeft) {
-      ox0 = fromSide;
-      ox1 = ox0 + ow;
-    } else {
-      ox1 = W - fromSide;
-      ox0 = ox1 - ow;
-    }
+    // pozycja mierzona od ZEWNETRZNEJ krawedzi szafki — tak samo jak wyciecie narożnika (`obrysElementu`)
+    const { ox0, ox1, oz0, oz1, oy0, oy1, oFull } = obrysElementu(ob);
     // odleglosci do zewnetrznych krawedzi szafki
     const distLeft = Math.round(ox0);
     const distRight = Math.round(W - ox1);
-    const oz0 = fromB;
-    const oz1 = fromB + od;
-    const oFull = ob.fullHeight !== false;
-    const oy0 = oFull ? interior.y0 : Math.round(ob.fromBottom || 0) + interior.y0;
-    const oy1 = oFull ? interior.y1 : oy0 + Math.max(0, Math.round(ob.h || 0));
 
     if (ow <= 0 || od <= 0) add("error", `${obName} ma zerowy wymiar.`);
     // kontrola: czy bryla miesci sie w obrysie szafki
@@ -5714,21 +5736,36 @@ function computeGeoLiczy(cab, mat, ctx) {
     const hitX = (x0, x1) => Math.min(x1, ox1) - Math.max(x0, ox0) > 0;
     /* plyty konstrukcyjne: plyta miedzy poziomami (przez cala szerokosc) i przegroda —
        dotad tylko polki kolumn (audyt GPT N114) */
+    /* Przyciski (decyzja uzytkownika 2026-10-30, N114: „przyciski do dostępnych i sensownych
+       opcji”): „Wycinam otwory w płytach” (`ob.otwory` — otwor w nazwie formatki) zawsze; przy
+       plycie miedzy poziomami — przesuniecie jej nad / pod element, gdy element nie idzie przez
+       cala wysokosc, a oba poziomy zostaja co najmniej 60 mm. */
+    const otwory = `|otwory:el:${obIdx}`;
+    const gdzieOtw = `od lewego boku ${fmt(Math.round(Math.max(ox0, interior.x0) - interior.x0))} mm, od tyłu ${fmt(Math.round(oz0))} mm`;
     sepShelves.forEach((sh, k) => {
-      if (hitY(sh.y, sh.y + t) && oz0 < shelfBack + shelfDepth)
-        add("warn", `${obName} przechodzi przez płytę między poziomami ${k + 1} i ${k + 2} (na ${fmt(Math.round(sh.y - interior.y0))} mm od dołu wnętrza) — wytnij w niej otwór ${fmt(Math.round(ow))} × ${fmt(Math.round(od))} mm albo przesuń poziom.`);
+      if (!(hitY(sh.y, sh.y + t) && oz0 < shelfBack + shelfDepth)) return;
+      const gdzie = `${obName} przechodzi przez płytę między poziomami ${k + 1} i ${k + 2} (na ${fmt(Math.round(sh.y - interior.y0))} mm od dołu wnętrza)`;
+      if (ob.otwory) { add("info", `${gdzie} — w płycie otwór ${fmt(Math.round(ow))} × ${fmt(Math.round(od))} mm, ${gdzieOtw} (formatka „Półka przelotowa — otwór …”).`); return; }
+      const lvA = levels[k], lvB = levels[k + 1];
+      const nad = Math.ceil(oy1 - lvA.y0), pod = Math.floor(oy0 - t - lvA.y0);
+      const przesun = (!oFull && lvB && nad >= 60 && lvB.y1 - (lvA.y0 + nad + t) >= 60 ? `|poziomh:${k}:${nad}:nad` : "")
+        + (!oFull && pod >= 60 && lvB && lvB.y1 - (lvA.y0 + pod + t) >= 60 && Math.round(oy0) > interior.y0 ? `|poziomh:${k}:${pod}:pod` : "");
+      add("warn", `${gdzie} — wytnij w niej otwór ${fmt(Math.round(ow))} × ${fmt(Math.round(od))} mm albo przesuń poziom.${otwory}${przesun}`);
     });
     dividers.forEach((dv) => {
-      if (hitX(dv.x, dv.x + t) && hitY(dv.y0, dv.y1) && oz0 < shelfBack + shelfDepth)
-        add("warn", `${obName} przechodzi przez przegrodę między kolumnami ${dv.j + 1} i ${dv.j + 2} (poziom ${dv.level + 1}) — wytnij w niej miejsce na element albo przesuń kolumny.`);
+      if (!(hitX(dv.x, dv.x + t) && hitY(dv.y0, dv.y1) && oz0 < shelfBack + shelfDepth)) return;
+      const gdzie = `${obName} przechodzi przez przegrodę między kolumnami ${dv.j + 1} i ${dv.j + 2} (poziom ${dv.level + 1})`;
+      if (ob.otwory) add("info", `${gdzie} — w przegrodzie wycięcie na element (formatka „Przegroda pionowa — wycięcie …”).`);
+      else add("warn", `${gdzie} — wytnij w niej miejsce na element albo przesuń kolumny.${otwory}`);
     });
     levels.forEach((lv) => {
       lv.cols.forEach((c) => {
         if (!hitX(c.x0, c.x1)) return;
         c.shelves.forEach((sh) => {
           // polka koliduje, jesli bryla siega jej glebokosci od tylu
-          if (hitY(sh.y, sh.y + ts) && oz0 < shelfBack + shelfDepth)
-            add("warn", `Poziom ${lv.i + 1}: półka na ${fmt(sh.y)} mm koliduje z elementem — przytnij ją lub skróć.`);
+          if (!(hitY(sh.y, sh.y + ts) && oz0 < shelfBack + shelfDepth)) return;
+          if (ob.otwory) add("info", `Poziom ${lv.i + 1}: półka na ${fmt(sh.y)} mm — otwór na element (formatka „Półka … — otwór …”).`);
+          else add("warn", `Poziom ${lv.i + 1}: półka na ${fmt(sh.y)} mm koliduje z elementem — przytnij ją lub skróć.${otwory}`);
         });
         // kolizja z szufladami: sprawdz czy bryla wchodzi w strefe prowadnicy
         if (c.drawers && c.drawers.length) {
@@ -14076,6 +14113,22 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const [, , , co, pod] = action.split(":");
       return { label: co === "konfirmaty" ? "2 konfirmaty przez wieniec" : `2 trójkąty pod ${pod === "blat" ? "blatem" : "wieńcem"}`, run: () => runFix && runFix(action) };
     }
+    // „otwory:el:<nr>” — element przechodzi przez plyty: otwory w nich (nazwy formatek), N114
+    if (action.startsWith("otwory:"))
+      return { label: "Wycinam otwory w płytach (na formatkach)", run: () => runFix && runFix(action) };
+    /* „poziomh:<poziom>:<mm>:<nad|pod>” — plyta miedzy poziomami nad / pod element (N114): wysokosc
+       poziomu, nastepny (gdy zadany) na auto, zeby reszta sie zgadzala */
+    if (action.startsWith("poziomh:")) {
+      const [, k, mm, gdzie] = action.split(":");
+      return {
+        label: `Płyta ${gdzie === "nad" ? "nad" : "pod"} element (poziom ${+k + 1}: ${fmt(Number(mm))} mm)`,
+        run: () => editLevels((L) => {
+          if (!L[+k]) return;
+          L[+k].h = Number(mm);
+          if (L[+k + 1] && num(L[+k + 1].h) !== null) L[+k + 1].h = null;
+        }),
+      };
+    }
     // „bezzabudowy:<wyc:L|P|el:<nr>>” — wneka w srodku wiekszej: jej zabudowa stalaby w kolizji (N162)
     if (action.startsWith("bezzabudowy:"))
       return { label: `Bez zabudowy ${action.split(":")[1] === "wyc" ? "wycięcia" : "elementu"}`, run: () => runFix && runFix(action) };
@@ -19564,10 +19617,10 @@ export default function App() {
     }
     /* „zabudowa:<wyc:L|P|el:<nr>>” — wlacza zabudowe wyciecia / elementu w rogu (do samej gory),
        „zabudowaglab:…:<mm>” — wyciecie / element glebszy, zeby scianka zabudowy uniosla zawieszke (N149) */
-    if (action.startsWith("zabudowa:") || action.startsWith("zabudowaglab:") || action.startsWith("zawmoc:") || action.startsWith("bezzabudowy:")) {
+    if (action.startsWith("zabudowa:") || action.startsWith("zabudowaglab:") || action.startsWith("zawmoc:") || action.startsWith("bezzabudowy:") || action.startsWith("otwory:")) {
       const [co, typ, gdzie, mm] = action.split(":");
       const zmien = (o) => (co === "zabudowa" ? { ...o, mask: true, ...(typ === "el" ? { maskToShelf: false } : {}) }
-        : co === "bezzabudowy" ? { ...o, mask: false }
+        : co === "bezzabudowy" ? { ...o, mask: false } : co === "otwory" ? { ...o, otwory: true }
         : co === "zawmoc" ? { ...o, zawMocowanie: mm } : { ...o, d: Math.round(Number(mm)) });
       setCab((cur) => {
         if (typ === "wyc") {

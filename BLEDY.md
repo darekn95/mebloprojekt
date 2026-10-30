@@ -17,6 +17,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-30 | audyt GPT N114 (uzupełnienie): element przechodzący przez płytę między poziomami, półkę albo przegrodę — ostrzeżenie „wytnij otwór albo przesuń poziom” bez przycisku | decyzja użytkownika „przyciski do dostępnych i sensownych opcji”: „Wycinam otwory w płytach (na formatkach)” (`obstacles[].otwory` — otwór / wycięcie w nazwie formatki, ostrzeżenie → informacja z położeniem) zawsze; „Płyta nad / pod element (poziom N: X mm)” przy płycie między poziomami, gdy element nie idzie przez całą wysokość i oba poziomy zostają ≥ 60 mm (`poziomh:`); obrys elementu liczony raz (`obrysElementu`). `funkcje`, `audytgpt14` | (ten commit) |
 | 2026-10-30 | audyt GPT N158 / N159 / N164 / N165 (+ retest N153): „Podziel kolumnę przegrodą” dokładał drzwi kolumnie bez drzwi, zostawiał szerokość drzwi 600 wpisaną dla dwa razy szerszego pasma (błąd „nie wypełniają pasma” bez przycisku), kopiował fix boczny z wspornikiem do obu kolumn, a prawe skrzydło z pary dostawało „auto” (zawiasy z lewej); przy wpisanej szerokości 2065 dwie połowy zaokrąglone w górę wychodziły o 1 mm za szafkę | `kolumnaNaDwie`: 0 drzwi zostaje 0, `doorWidths` na auto, `fix` tylko po swojej stronie, pojedyncze skrzydło dostaje stronę sprzed podziału (para: lewe — lewa, prawe — prawa), szerokości floor / reszta (1023 + 1024); komunikat mówi, że z jednych drzwi będą dwoje. `funkcje`, `audytgpt14` (kliknięte) | (ten commit) |
 | 2026-10-30 | audyt GPT N157: „Jedna kolumna na całą szerokość” przy dwóch kolumnach z różnymi półkami brał wnętrze lewej, półki prawej znikały bez słowa | gdy wnętrza (półki, rury, mocowanie) są różne — dwa przyciski „Jedna kolumna — wnętrze lewej (1 półka)” / „… prawej (2 półki)” i zdanie „zostanie wnętrze jednej z nich”; przy jednakowych — jeden przycisk jak dotąd (`kolumnaZPrzelotu(…, wnetrzeZ)`, `inneWnetrza`) | (ten commit) |
 | 2026-10-30 | audyt GPT N169: drzwi 198 (wpisane) + 197 + 197 — „Zwiększ luz do 3 mm” dawał 198/196/196, następny 198/195/195, a ostrzeżenie znikało przy różnicy 3 mm; to samo w szufladach 238/236/236 | `evenGapOptions` wyrównywał tylko fronty auto między sobą, a różnica brała się z wpisanego. `wyrownanieFrontow`: bez wpisanych — luz w górę / w dół jak dotąd; z wpisanym — luz, przy którym auto wyjdą równo z nim (gdy jest), i „Wszystkie drzwi / fronty równo[, luz N mm]” (`rowno:`); treść mówi, który wymiar jest wpisany. 198 → „Wszystkie drzwi równo, luz 4 mm” = 3 × 196 | (ten commit) |
@@ -407,13 +408,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 Otwarte zostają tylko dwa tematy (użytkownik 2026-10-29: „zamykamy wszystkie tematy poza
 szafką skośną i sprzętami”). Kolejność: **najpierw sprzęty**, szafka skośna **dużo później**.
-
-- **N114 (audyt GPT 2026-10-30) — przycisk przy elemencie przechodzącym przez płytę między
-  poziomami** (też półka i przegroda przecinane przez element): ostrzeżenie mówi „wytnij otwór
-  W × D mm albo przesuń poziom”, przycisku nie ma. Program nie ma dziś otworów w formatkach.
-  Do wyboru: „Wycinam otwór” (opis otworu na formatce i w planie, ostrzeżenie → informacja),
-  przesunięcie granicy poziomu nad / pod element (gdy element nie idzie przez całą wysokość),
-  albo zostawić bez przycisku.
 
 
 - **1. Sprzęty w zabudowie — następne w kolejce** (kontrola kolizji otwierania, użytkownik 2026-09-28):

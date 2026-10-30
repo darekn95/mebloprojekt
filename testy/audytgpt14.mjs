@@ -10,7 +10,9 @@
    - N145 tip-on bez plyty: „Uchwyt zamiast tip-on”, „Dołóż półkę (tip-on na niej)”;
    - N161 scianka zabudowy z zawieszka bez wienca: „Dodaj wieniec”;
    - N162 wyciecie w srodku elementu: „Bez zabudowy wycięcia”, zawieszka na zabudowie elementu;
-   - N160 / N163 lista produktow projektu: grubosc dystansu, wkrety wg zastosowan.
+   - N160 / N163 lista produktow projektu: grubosc dystansu, wkrety wg zastosowan;
+   - N114 element przez plyte miedzy poziomami: „Wycinam otwory w płytach”, „Płyta nad / pod element”
+     (decyzja uzytkownika 2026-10-30: „przyciski do dostępnych i sensownych opcji”).
    Liczby i reszta przypadkow — funkcje, suita `funkcje`. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -172,6 +174,27 @@ console.log('\n== N160 / N163: lista produktów projektu ==');
   ok('N160: dwa wiersze listwy dystansowej — grubość 50 mm i 100 mm', dyst.length === 2 && dyst.some((r) => /grubość 50 mm/.test(r)) && dyst.some((r) => /grubość 100 mm/.test(r)), dyst.join(' / '));
   const wk = pr.find((r) => /^Wkręt 4 × 30/.test(r)) || '';
   ok('N163: wkręty 4 × 30 — „zawieszki, 2 na zawieszkę”, bez „wzmocnienia i kątownik”', /zawieszki, 2 na zawieszkę/.test(wk) && !/wzmocnienia i kątownik/.test(wk), wk);
+}
+
+console.log('\n== N114: element przechodzi przez płytę (decyzja użytkownika 2026-10-30) ==');
+{
+  const sz = (ob, lv1 = 591) => ({ name: 'T', W: 600, H: 1200, D: 560, ...NOGI,
+    obstacles: [{ on: true, w: 200, d: 150, side: 'left', fromSide: 0, fromBack: 0, fullHeight: true, mask: false, ...ob }],
+    levels: [{ h: lv1, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
+  const re = /przechodzi przez płytę między poziomami/;
+  await seed(sz({}));
+  ok('na całą wysokość — tylko „Wycinam otwory w płytach (na formatkach)”', JSON.stringify(await przyciski(re)) === '["Wycinam otwory w płytach (na formatkach)"]', (await przyciski(re)).join(' / '));
+  await klik(re, 'Wycinam otwory w płytach (na formatkach)');
+  const m = (await notes()).find((x) => re.test(x.txt));
+  const fr = (await rows(/^Formatki/)).filter((r) => /^Półka przelotowa/.test(r));
+  ok('po kliknięciu: `otwory` w elemencie, informacja, formatka „Półka przelotowa — otwór 182 × 150”', (await zap()).items[0].cab.obstacles[0].otwory === true
+    && !!m && !m.btns.filter((x) => x !== '✓').length && fr.some((r) => /^Półka przelotowa — otwór 182 × 150/.test(r)), fr.join(' / '));
+  await seed(sz({ fullHeight: false, fromBottom: 400, h: 300 }));
+  const bt = await przyciski(re);
+  ok('element 400–700 — „Płyta nad element (poziom 1: 700 mm)” i „… pod element (poziom 1: 382 mm)”', bt.includes('Płyta nad element (poziom 1: 700 mm)') && bt.includes('Płyta pod element (poziom 1: 382 mm)'), bt.join(' / '));
+  await klik(re, 'Płyta nad element (poziom 1: 700 mm)');
+  ok('po kliknięciu: poziom 1 ma 700 mm, płyta nie przecina elementu, bez błędu wysokości', (await zap()).items[0].cab.levels[0].h === 700
+    && !(await notes()).some((x) => re.test(x.txt) || /nie wypełniają wnętrza/.test(x.txt)));
 }
 
 ok('bez błędów strony', !errors.length, errors.join(' / '));

@@ -727,3 +727,32 @@ console.log('\n== N168: zaślepki konfirmatów ramienia szafki w L ==');
   const zR = razem.find((h) => h.name === 'Zaślepka na konfirmat'), kR = razem.find((h) => h.name === 'Konfirmat 7 × 50');
   ok('szafka + ramię: jeden wiersz zaślepek, tyle sztuk co konfirmatów', !!zR && zR.qty === kR.qty, `${zR && zR.qty} / ${kR && kR.qty}`);
 }
+
+console.log('\n== N114: element przechodzi przez płytę — przyciski (decyzja użytkownika 2026-10-30) ==');
+{
+  const sz = (ob = {}, o = {}) => geo({ name: 'T', W: 600, H: 1200, D: 560, ...nogi, obstacles: [{ on: true, w: 200, d: 150, side: 'left', fromSide: 0, fromBack: 0, fullHeight: true, mask: false, ...ob }],
+    levels: [{ h: 591, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }], ...o });
+  const g = sz();
+  const m = uw(g, /przechodzi przez płytę między poziomami/)[0];
+  ok('element na całą wysokość — ostrzeżenie z „otwory:el:0”, bez przesuwania poziomu', !!m && m.level === 'warn' && /\|otwory:el:0$/.test(m.text), m && m.text.split('|').slice(1).join());
+  const gO = sz({ otwory: true });
+  const mO = uw(gO, /przechodzi przez płytę między poziomami/)[0];
+  const pO = gO.panels.find((p) => /^Półka przelotowa — otwór/.test(p.name));
+  ok('po „Wycinam otwory”: informacja, formatka „Półka przelotowa — otwór 182 × 150”', !!mO && mO.level === 'info' && !!pO && pO.name === 'Półka przelotowa — otwór 182 × 150' && pO.qty === 1,
+    `${mO && mO.level} ${pO && pO.name}`);
+  // element 300 mm wysoki od 400 mm — plyta na 591: przesuniecie nad / pod
+  const gP = sz({ fullHeight: false, fromBottom: 400, h: 300 });
+  const mP = uw(gP, /przechodzi przez płytę między poziomami/)[0];
+  ok('element 400–700 mm — przyciski „poziomh:0:700:nad” i „poziomh:0:382:pod”', !!mP && /\|otwory:el:0\|poziomh:0:700:nad\|poziomh:0:382:pod$/.test(mP.text), mP && mP.text.split('|').slice(1).join());
+  ok('po „Płyta nad element” (poziom 1: 700) — płyta nie przecina elementu', !uw(sz({ fullHeight: false, fromBottom: 400, h: 300 }, { levels: [{ h: 700, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] }), /przechodzi przez płytę/).length);
+  // polka kolumny i przegroda
+  const gk = (ob = {}) => geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, obstacles: [{ on: true, w: 100, d: 100, side: 'left', fromSide: 250, fromBack: 0, fullHeight: true, mask: false, ...ob }],
+    levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [null, null] }, { kind: 'open', w: null, shelfTargets: [null, null] }] }] });
+  const g1 = gk();
+  ok('półka i przegroda przecięte — ostrzeżenia z „otwory:el:0”', uw(g1, /półka na .* koliduje z elementem/).every((x) => /\|otwory:el:0$/.test(x.text)) && uw(g1, /przechodzi przez przegrodę/).length === 1
+    && /\|otwory:el:0$/.test(uw(g1, /przechodzi przez przegrodę/)[0].text));
+  const g2 = gk({ otwory: true });
+  const nazwy = g2.panels.map((p) => p.name).filter((n) => /otwór|wycięcie/.test(n));
+  ok('po „Wycinam otwory”: półki „— otwór …”, przegroda „— wycięcie …”, bez ostrzeżeń o kolizji', nazwy.some((n) => /^Półka — otwór/.test(n)) && nazwy.some((n) => /^Przegroda pionowa — wycięcie/.test(n))
+    && !uw(g2, /koliduje z elementem|wytnij w niej/).length, nazwy.join(' / '));
+}
