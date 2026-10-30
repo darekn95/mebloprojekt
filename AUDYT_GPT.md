@@ -1,3 +1,11 @@
+### N154 [P2] — DO WERYFIKACJI UI: wspólne dno ignoruje różnicę dekoru
+
+**Test funkcji**, main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`: dwie szafki 600 × 720 × 500 mm w ciągu z cokołem, odstęp 20 mm, wspólne dno. Płyty korpusu mają nazwę „Płyta”, kolor `#d8c3a0`, grubość 18 mm, lecz różne dekory `Oak` i `Ash`. Po `wedlugCiagu` funkcja `runBottom` zwraca wspólne dno 1220 × 500 z materiału Oak, a `projectParts` pomija oddzielne dna obu szafek. Przy dwóch jednakowych dekorach wynik wspólnego dna jest kontrolą. Porównanie w `runBottom` uwzględnia nazwę, kolor i grubość, ale nie dekor. Wymaga sprawdzenia dostępności ustawienia, ostrzeżeń i przycisków w UI.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** porównywać pełną tożsamość materiału dna i przed połączeniem różnych dekorów pokazać wybór lub zachować oddzielne dna. **Test odbioru:** oba dekory, identyczny dekor jako kontrola, różne własne płyty, formatki i zamówienie; sprawdzić działanie proponowanych przycisków. Po pozytywnym teście oznaczyć NAPRAWIONE.
+
+---
+
 ### N153 [P2] — OTWARTE: plan zakupu dzieli pojedynczy drążek na dwie rury
 
 **Test funkcji**, main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`: szafka 3100 × 2000 × 560 mm, jedna kolumna z drążkiem, nóżki 100 mm. `computeGeo` wylicza jeden drążek długości 3062 mm, a `scalOkucia` podaje zakup 1 × 3 m i 1 × 0,5 m oraz cięcie „3 m → cały; 0,5 m → 62”. Dwie osobne części nie są jednym drążkiem 3062 mm i w planie nie ma sposobu ich połączenia ani dodatkowego podparcia. W tym skrajnym przykładzie osobno pojawiają się również błędy za dużych formatek i ostrzeżenie o froncie; nie są to informacje o niemożliwym drążku. Kontrola W2000 daje jeden drążek 1962 z rury 2 m. Interfejs i jego przyciski nie były sprawdzone.
