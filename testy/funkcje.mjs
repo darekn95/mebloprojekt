@@ -31,7 +31,7 @@ src = src.replace(/^import React[^\n]*\n/, 'const React = { createElement: () =>
 src = src.replace(/export default function App/, 'function App');
 const nazwy = ['buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
-  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail'];
+  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -359,6 +359,12 @@ console.log('\n== N140–N149 ==');
   ok('N145: tip-on w szafce D80 — błąd „wchodzi w plecy”', uw(tip({ D: 80, H: 300 }), /tip-on ma 89 mm długości w głąb, a do pleców jest 80 mm/).length === 1);
   ok('N145: tip-on bez dna, wieńca i półek — błąd „nie ma płyty do przykręcenia”', uw(tip({ joints: { topL: 'none', topR: 'none', botL: 'none', botR: 'none' } }), /tip-on nie ma płyty do przykręcenia/).length === 1);
   ok('N145: kontrola D560 — bez uwag o tip-on', !uw(tip({}), /tip-on/).length);
+  // przyciski (retest N145): uchwyt zamiast tip-on i glebokosc o tyle, ile brakuje odbojnikowi
+  const m145 = uw(tip({ D: 80, H: 300 }), /wchodzi w plecy/)[0];
+  ok('N145: błąd ma przyciski „uchwyt:0:0:0” i „glebokosc:89”', !!m145 && /\|uchwyt:0:0:0\|glebokosc:89$/.test(m145.text), m145 && m145.text.split('|').slice(1).join(' | '));
+  const tipU = geo({ name: 'T', W: 600, H: 300, D: 80, ...nogi, handles: false, levels: [{ h: null, cols: [drzwi({ shelfTargets: [null], handles: [true], otwieranie: [null] })] }] });
+  ok('N145: po „Uchwyt zamiast tip-on” — bez błędu i bez tip-on w zamówieniu', !uw(tipU, /tip-on/).length && !G.okuciaSzafki(tipU, {}).some((h) => /SALTO|tip-on/i.test(h.name + ' ' + (h.spec || ''))));
+  ok('N145: po „Głębokość szafki 89 mm” — bez błędu o plecach', !uw(tip({ D: 89, H: 300 }), /wchodzi w plecy/).length);
 
   const PL = { on: true, height: 100, mode: 'under', setback: 0 };
   const R = (id, o) => ({ id, name: id, wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null, ...o });
@@ -375,6 +381,24 @@ console.log('\n== N140–N149 ==');
   const nd = (v) => geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [null, null], noDiv: v }, { kind: 'open', w: null, shelfTargets: [null, null] }] }] });
   ok('N147: przelot (noDiv) — bez wierceń w „Przegrodzie 1”, błąd o półkach w powietrzu', !nd(true).drillPlan.some((x) => /^Przegroda/.test(x.panel)) && uw(nd(true), /nie ma przegrody \(przelot\), a półki kończą się tam w powietrzu/).length === 1);
   ok('N147: kontrola — z przegrodą: wiercenia w niej, bez uwagi', nd(false).drillPlan.some((x) => x.panel === 'Przegroda 1') && !uw(nd(false), /przelot/).length);
+  // przyciski (retest N147): przywroc przegrode albo jedna kolumna na cala szerokosc
+  const m147 = uw(nd(true), /nie ma przegrody \(przelot\)/)[0];
+  ok('N147: błąd ma przyciski „przelot:0:0:przegroda” i „przelot:0:0:jedna:564”', !!m147 && /\|przelot:0:0:przegroda\|przelot:0:0:jedna:564$/.test(m147.text), m147 && m147.text.split('|').slice(1).join(' | '));
+  const jd = (cols, w) => geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, levels: [{ h: null, cols: G.kolumnaZPrzelotu(cols, 0, w) }] });
+  const k147 = [drzwi({ w: null, shelfTargets: [null, null], noDiv: true, handles: [false] }), drzwi({ w: null, shelfTargets: [null, null], hinge: 'right' })];
+  const g147 = jd(k147, 564);
+  ok('N147: „Jedna kolumna” — jedna kolumna 564, dwoje drzwi, bez błędu o przelocie', g147.levels[0].cols.length === 1 && Math.round(g147.levels[0].cols[0].w) === 564
+    && g147.doors.filter((d) => d.type === 'door').length === 2 && !uw(g147, /przelot/).length && !g147.msgs.some((x) => x.level === 'error'),
+    g147.levels[0].cols.map((c) => Math.round(c.w)).join() + ' drzwi ' + g147.doors.length);
+  const kp = G.kolumnaZPrzelotu(k147, 0, 564)[0];
+  ok('N147: „Jedna kolumna” — uchwyty drzwi zostają (false, domyślny), bez noDiv, zawias auto', JSON.stringify(kp.handles) === '[false,true]' && kp.noDiv === undefined && kp.hinge === 'auto', JSON.stringify(kp.handles));
+  const k3 = [{ kind: 'open', w: 200, shelfTargets: [null], noDiv: true }, { kind: 'open', w: null, shelfTargets: [null, null], drazki: [0] }, { kind: 'open', w: null, shelfTargets: [null] }];
+  const p3 = G.kolumnaZPrzelotu(k3, 0, 380);
+  ok('N147: „Jedna kolumna” przy innej kolumnie auto — szerokość z rysunku (380), półki i rura z prawej', p3.length === 2 && p3[0].w === 380 && p3[0].shelfTargets.length === 2 && JSON.stringify(p3[0].drazki) === '[0]');
+  const p4 = G.kolumnaZPrzelotu([{ kind: 'open', w: 200, shelfTargets: [null], noDiv: true }, { kind: 'open', w: null }, { kind: 'open', w: 150 }], 0, 380);
+  ok('N147: „Jedna kolumna”, reszta zadana — auto (weźmie dokładnie to, co obie)', p4[0].w === null);
+  const gP = geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [null, null] }, { kind: 'open', w: null, shelfTargets: [null, null] }] }] });
+  ok('N147: po „Przywróć przegrodę” — bez błędu o przelocie', !uw(gP, /przelot/).length);
 
   const wis = (n, H) => ({ name: n, W: 600, H, D: 300, plinth: { on: false }, legs: { on: false }, hangerMode: 'listwa', levels: [{ h: null, cols: [drzwi({ shelfTargets: [null] })] }] });
   const rr = (h1, h2) => G.runRail(G.loadProject({ name: 'P', runs: [run({ mountY: 1500, D: 300, plinth: null, hangerMode: 'listwa' })], items: [{ cab: wis('A', h1), runId: 'c1' }, { cab: wis('B', h2), runId: 'c1' }] }), run({ mountY: 1500, D: 300, plinth: null, hangerMode: 'listwa' }));

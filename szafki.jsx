@@ -450,6 +450,45 @@ const kolumnaW = (L, li, j) => {
   while (seg.length <= +m[2]) seg.push(null);
   return seg[+m[2]] || (seg[+m[2]] = {});
 };
+/* Dwie kolumny ze wspolnym przelotem (`noDiv` lewej) jako jedna (przycisk przy polkach
+   konczacych sie w przelocie, retest GPT N147). Front zostaje jak byl: drzwi obu kolumn
+   ida do jednej (z ich szerokosciami, uchwytami, zawiasami); wnetrze — polki i rura —
+   z tej, ktora je ma (najpierw lewa). Szerokosc: suma, gdy obie byly zadane; auto, gdy
+   reszta poziomu jest zadana (jedna wezmie dokladnie to, co obie); inaczej `wTeraz` —
+   szerokosc obu z rysunku, zeby sasiednie kolumny auto nie zmienily sie. */
+const POLA_DRZWI = ["doorWidths", "mirrors", "handles", "hinges", "handleOuts", "handlePos", "otwieranie", "otwieranieMm"];
+const kolumnaZPrzelotu = (cols, j, wTeraz) => {
+  const a = cols[j], b = cols[j + 1];
+  if (!a || !b) return cols;
+  const reszta = cols.filter((_, k) => k !== j && k !== j + 1);
+  const w = num(a.w) !== null && num(b.w) !== null ? num(a.w) + num(b.w)
+    : reszta.every((c) => num(c.w) !== null) ? null : (num(wTeraz) ?? null);
+  const c = JSON.parse(JSON.stringify(a));
+  c.w = w;
+  if (b.noDiv) c.noDiv = true; else delete c.noDiv;
+  const drzwi = (k) => (k.kind || "doors") === "doors" && !(k.segmenty || []).some(Boolean);
+  if (drzwi(a) && drzwi(b) && (b.doors ?? 0) > 0) {
+    const nA = Math.max(0, Math.round(a.doors ?? 0)), nB = Math.round(b.doors);
+    POLA_DRZWI.forEach((key) => {
+      if (!Array.isArray(a[key]) && !Array.isArray(b[key])) return;
+      const pusty = key === "handles" ? true : key === "mirrors" ? false : null;
+      const lewe = (a[key] || []).slice(0, nA);
+      while (lewe.length < nA) lewe.push(pusty);
+      const prawe = (b[key] || []).slice(0, nB);
+      while (prawe.length < nB) prawe.push(pusty);
+      c[key] = [...lewe, ...prawe];
+    });
+    c.doors = nA + nB;
+    // para skrzydel — zawiasy po zewnetrznych stronach, jak przy kazdej parze
+    if (c.doors > 1) c.hinge = "auto";
+  }
+  // polki i rura razem (numery rur to numery swiatel miedzy polkami)
+  const wnetrze = (k) => (k.shelfTargets || []).length > 1 || (k.drazki || []).length > 0;
+  if (!wnetrze(a) && wnetrze(b)) ["shelfTargets", "drazki", "shelfMount"].forEach((key) => {
+    if (b[key] === undefined) delete c[key]; else c[key] = JSON.parse(JSON.stringify(b[key]));
+  });
+  return [...cols.slice(0, j), c, ...cols.slice(j + 2)];
+};
 /* Nazwa poziomu kolumny w uwagach (uzytkownik 2026-10-25: „poziom 4 kolumny 2”, nie
    „poziom kolumny 4”) — przed nia poziom szafki, jak w innych uwagach. */
 const gdziePoziomKol = (li, j, nr) => `Poziom ${li + 1}, poziom ${nr + 1} kolumny ${j + 1}`;
@@ -4656,8 +4695,13 @@ function computeGeoLiczy(cab, mat, ctx) {
       d.tiponY = y0 + TIPON_H / 2;
       // korpus odbojnika ma TIPON_L mm w glab — w plytkiej szafce wchodzi w plecy (N145: 89 mm przy D 80)
       const doPlecow = Math.round(carcassDepth - backIntrusion);
-      if (z0 + TIPON_L > doPlecow + 0.5)
-        add("error", `${gdzieT} ma ${TIPON_L} mm długości w głąb${z0 ? ` (za frontem wpuszczanym od ${fmt(z0)} mm)` : ""}, a do pleców jest ${fmt(doPlecow)} mm — wchodzi w plecy. Daj uchwyt albo głębszą szafkę.`);
+      /* przyciski (uzytkownik 2026-10-30, retest GPT N145): uchwyt zamiast tip-on albo szafka
+         glebsza o tyle, ile brakuje odbojnikowi */
+      if (z0 + TIPON_L > doPlecow + 0.5) {
+        const [kLi, kJ, kK] = d.key.slice(1).split("-");
+        add("error", `${gdzieT} ma ${TIPON_L} mm długości w głąb${z0 ? ` (za frontem wpuszczanym od ${fmt(z0)} mm)` : ""}, a do pleców jest ${fmt(doPlecow)} mm — wchodzi w plecy. Daj uchwyt albo głębszą szafkę.`
+          + `|uchwyt:${kLi}:${kJ}:${kK}|glebokosc:${Math.round(cab.D + Math.ceil(z0 + TIPON_L - doPlecow))}`);
+      }
     });
   }
   doors.filter((d) => d.otwieranie === "dol").forEach((d) => {
@@ -5670,7 +5714,9 @@ function computeGeoLiczy(cab, mat, ctx) {
     const co = [(c.shelves || []).length || (nb.shelves || []).length ? "półki" : null, (c.drazki || []).length || (nb.drazki || []).length ? "rura na wieszaki" : null].filter(Boolean);
     if (co.length)
       add("error", `Poziom ${lv.i + 1}: między kolumnami ${c.j + 1} i ${c.j + 2} nie ma przegrody (przelot), a ${co.join(" i ")} ${co.length > 1 || co[0] === "półki" ? "kończą" : "kończy"} się tam w powietrzu — `
-        + `od strony przelotu nie ma płyty do kołków, konfirmatów ani rozety. Zrób jedną kolumnę na całą szerokość albo przywróć przegrodę.`);
+        + `od strony przelotu nie ma płyty do kołków, konfirmatów ani rozety. Zrób jedną kolumnę na całą szerokość albo przywróć przegrodę.`
+        // przyciski (uzytkownik 2026-10-30, retest GPT N147)
+        + `|przelot:${lv.i}:${c.j}:przegroda|przelot:${lv.i}:${c.j}:jedna:${Math.round(nb.x1 - c.x0)}`);
   }));
   // rozety rury na wieszaki: 2 wkrety na boku / przegrodzie na wysokosci osi rury
   levels.forEach((lv) => lv.cols.forEach((c) => (c.drazki || []).forEach((dr) => {
@@ -13641,6 +13687,39 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         }),
       };
     }
+    if (action.startsWith("uchwyt:")) {
+      // „uchwyt:<poziom>:<kolumna albo js<nr>>:<front>” — uchwyt zamiast otwierania bez uchwytu (tip-on, N145)
+      const [, li, j, k] = action.split(":");
+      return {
+        label: "Uchwyt zamiast tip-on",
+        run: () => editLevels((L) => {
+          const col = kolumnaW(L, li, j);
+          if (!col) return;
+          const h = [...(col.handles || [])];
+          while (h.length <= +k) h.push(true);
+          h[+k] = true;
+          col.handles = h;
+          if (col.otwieranie) { const a = [...col.otwieranie]; a[+k] = null; col.otwieranie = a; }
+        }),
+      };
+    }
+    if (action.startsWith("glebokosc:")) {
+      // „glebokosc:<mm>” — glebokosc tej szafki (tip-on wchodzacy w plecy, N145)
+      return { label: `Głębokość szafki ${fmt(Number(action.split(":")[1]))} mm`, run: () => runFix && runFix(action) };
+    }
+    if (action.startsWith("przelot:")) {
+      // „przelot:<poziom>:<kolumna po lewej>:<przegroda|jedna>[:<szerokosc obu>]” — polki konczace sie w przelocie (N147)
+      const [, li, j, co, wTeraz] = action.split(":");
+      return {
+        label: co === "przegroda" ? "Przywróć przegrodę" : "Jedna kolumna na całą szerokość",
+        run: () => editLevels((L) => {
+          const lv = L[+li];
+          if (!lv || !lv.cols[+j] || !lv.cols[+j + 1]) return;
+          if (co === "przegroda") { delete lv.cols[+j].noDiv; return; }
+          lv.cols = kolumnaZPrzelotu(lv.cols, +j, wTeraz);
+        }),
+      };
+    }
     if (action.startsWith("otwmm:")) {
       // „otwmm:<poziom>:<kolumna albo js<nr>>:<front>:<mm>” — wydluzenie / podfrez frontu bez uchwytu
       const [, li, j, k, mm] = action.split(":");
@@ -18996,6 +19075,12 @@ export default function App() {
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    // „glebokosc:<mm>” — glebokosc aktywnej szafki (tip-on wchodzacy w plecy, N145)
+    if (action.startsWith("glebokosc:")) {
+      const d = Math.max(1, Math.round(Number(action.split(":")[1]) || 0));
+      setCab((cur) => ({ ...cur, D: d }));
+      return;
+    }
     // „polkipoziomu:<poziom>:<kolumna>:<nr>” — polki z poziomu kolumny z szufladami albo blenda
     if (action.startsWith("polkipoziomu:")) {
       const [, li, j, nr] = action.split(":").map(Number);
