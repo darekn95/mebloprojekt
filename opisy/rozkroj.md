@@ -22,15 +22,15 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 - **Strona szafki**:
   - 4 widoki w siatce 2 × 2: zamknięty (wymiary, szczeliny, kolory), otwarty (wymiary i okucia), z góry, z tyłu;
   - widok zamknięty (2026-10-25, decyzje użytkownika): wymiar frontu tylko napisem w jego środku (W×H) — linie wysokości i szerokości frontów tylko przy froncie za małym na napis (także na ekranie); wymiary całości (szerokość, korpus, z nóżkami) zostają; szczeliny w PDF tylko nietypowe — poniżej 2 mm albo ponad „Ostrzegaj powyżej” (np. 38 nad podfrezem), zwykłe bez opisu; na ekranie „Pokaż szczeliny” pokazuje wszystkie;
-  - szeroka szafka (np. 1600 mm) ma w siatce 2 × 2 wymiary ok. 2,0 mm zamiast 2,3 — decyzja użytkownika 2026-10-25: może zostać;
+  - szeroka szafka (np. 1600 mm) ma w siatce 2 × 2 wymiary ok. 2,8 mm zamiast 3,2 — decyzja użytkownika 2026-10-25 (wtedy 2,0 zamiast 2,3): może zostać;
   - lista formatek i okuć szafki;
   - notatka montażowa (np. zawiasy przesunięte przez półkę);
   - plan wierceń (`opisy/wiercenia.md`).
 - **Strony projektu**: formatki całego projektu (z szafką, płytą i oklejaniem PCV 2 mm, suma) i „Produkty całego projektu”. Wycena zostaje w aplikacji, w karcie „Wycena”.
 - **Rozkrój**: strona tabeli i dokładnie jedna strona na każdy arkusz z rysunkiem układu.
 - **Napisy w druku** są powiększane, a układ wymiarów liczony z powiększonych napisów:
-  - widok ma ok. 90 mm, wymiary ok. 2,6 mm, minimum 2,3 mm;
-  - drobne opisy co najmniej 1,8 mm;
+  - widok ma ok. 90 mm; **liczby na liniach wymiarowych ok. 3,2 mm (ok. 9 pt, jak tabele), minimum 3 mm** — większe niż opisy (użytkownik 2026-10-30: „sama czcionka wymiarów jest za mała”, rysunki zostają; wcześniej 2,6 mm jak opisy); wąska szafka, której opisom wystarcza ekran (np. 300 z góry) — ok. 2,7 mm;
+  - opisy (fronty, okucia, legendy) ok. 2,6 mm, drobne co najmniej 1,8 mm; długie opisy wymiarów („przegroda 318/336”, „cokół 100”, „szyna 206”) i „od dna” w szufladzie jak opisy;
   - napisy nie nachodzą na siebie i nie wychodzą poza pole widoku.
   - Na ekranie układ bez zmian.
 

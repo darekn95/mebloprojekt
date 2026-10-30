@@ -20,10 +20,10 @@ Zmieniasz zasadę albo liczbę opisaną tutaj, popraw opis w tej samej zmianie.
 | [klapy.md](klapy.md) | klapy do góry i w dół: zawiasy, podnośnik / amortyzator, siła, uchwyt, otwieranie, plan wierceń, rysunki | 2026-10-29 |
 | [drzwi.md](drzwi.md) | drzwi i zawiasy: liczba (tabela GTV), strona, rozstaw, luzy, fix, blenda, otwieranie | 2026-10-28 |
 | [poziomy.md](poziomy.md) | poziomy, kolumny, półki: podział wnętrza, „→ poziom”, usuwanie, głębokość i mocowanie półek | 2026-10-29 |
-| [korpus.md](korpus.md) | korpus, złącza, wzmocnienia (para pod blat), plecy i frez, wieniec / blat z płyty, blat roboczy, dwie przegrody na styku | 2026-10-29 |
+| [korpus.md](korpus.md) | korpus, złącza, wzmocnienia (para pod blat), plecy i frez, wieniec / blat z płyty, blat roboczy, dwie przegrody na styku | 2026-10-30 |
 | [ciagi.md](ciagi.md) | ciągi, narożniki (ślepy róg, szafka w L, wstawka, blat w rogu), górny ciąg, uwagi ciągu, scalanie szafek | 2026-10-29 |
 | [cokol.md](cokol.md) | cokół szafki i ciągu (pod korpusem / w obrysie), nóżki, mocowanie cokołu | 2026-10-22 |
 | [formatki.md](formatki.md) | formatki: nazwy, materiały, okleina, usłojenie, reguła 60 / 30 mm | 2026-10-22 |
 | [zamowienie.md](zamowienie.md) | okucia, zestawienie projektu, wycena i ceny domyślne | 2026-10-22 |
-| [wiercenia.md](wiercenia.md) | plan wierceń: konfirmaty, kołki, trójkąty, zawiasy, prowadnice, zawieszki, frez | 2026-10-28 |
-| [rozkroj.md](rozkroj.md) | rozkrój (arkusze, rzaz, usłojenie, blat), ostrzeżenia zużycia i odpadu, zestawienie PDF | 2026-10-29 |
+| [wiercenia.md](wiercenia.md) | plan wierceń: konfirmaty, kołki, trójkąty, zawiasy, prowadnice, zawieszki, frez | 2026-10-30 |
+| [rozkroj.md](rozkroj.md) | rozkrój (arkusze, rzaz, usłojenie, blat), ostrzeżenia zużycia i odpadu, zestawienie PDF | 2026-10-30 |

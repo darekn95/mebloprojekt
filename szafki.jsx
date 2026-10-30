@@ -6979,15 +6979,18 @@ const texMat = (mat, on, dir) => {
    na stronie zostaja, napisy wieksze, bez nachodzenia). Widok w PDF ma ok. 90 mm
    szerokosci, a napisy sa w jednostkach rysunku — przy szafce 600 wymiar 22
    jednostek wychodzil 1,3 mm. W druku kazdy napis rosnie wokol swojego miejsca
-   (CSS `--k`, PRINT_CSS) tak, zeby wymiar mial ok. DRUK_PISMO_MM. */
+   (CSS `--k`, PRINT_CSS) tak, zeby opis mial ok. DRUK_PISMO_MM. Liczby na liniach
+   wymiarowych (DimH / DimV, klasa `wym`, CSS `--kw`) rosna bardziej — do DRUK_WYM_MM
+   (uzytkownik 2026-10-30: „sama czcionka wymiarów jest za mała”, rysunki zostaja). */
 const DRUK_PISMO_MM = 2.6, DRUK_K_MAX = 3;
+const DRUK_WYM_MM = 3.2, DRUK_KW_MAX = 3.6;
 // szerokosc widoku w siatce 2 × 2 na A4 (190 mm tresci) — zmierzona w PDF
 const DRUK_WIDOK_MM = 90;
-const drukK = (vb, mmSzer) => {
+const drukK = (vb, mmSzer, cel = DRUK_PISMO_MM, max = DRUK_K_MAX) => {
   if (!mmSzer) return 1;
   const vbW = typeof vb === "number" ? vb : Number(String(vb).trim().split(/\s+/)[2]) || 0;
   if (!(vbW > 0)) return 1;
-  return Math.max(1, Math.min(DRUK_K_MAX, DRUK_PISMO_MM / (22 * mmSzer / vbW)));
+  return Math.max(1, Math.min(max, cel / (22 * mmSzer / vbW)));
 };
 /* Uklad w druku liczymy z rozmiaru powiekszonych napisow. ui-monospace: znak
    ma ok. 0,6 wysokosci pisma, pole napisu ok. 1,16 (0,93 nad linia bazowa,
@@ -7004,12 +7007,18 @@ const kDlugie = (k) => (k > 1 ? Math.max(1, k * DRUK_DLUGIE) : 1);
 const kNapisu = (k, txt, fs, max) => (k > 1 ? Math.max(1, Math.min(k, max / szerNapisu(txt, fs))) : 1);
 // drobne opisy (16–18) w druku dociagamy do wielkosci opisow szczelin (20), jesli sie mieszcza
 const kMaly = (k, fs, txt, max) => (k > 1 ? kNapisu(k * Math.max(1, 20 / fs), txt, fs, max) : 1);
-// skala z ekranu na druk z rysunku o szerokosci vbW; uklad zalezy od skali, wiec kilka przejsc
-const drukKUkladu = (szer, mmSzer) => {
-  if (!mmSzer) return 1;
-  let k = drukK(szer(1), mmSzer);
-  for (let i = 0; i < 4; i++) k = drukK(szer(k), mmSzer);
-  return k;
+/* Skale z ekranu na druk z rysunku o szerokosci `szer(k, kw)`: `k` — opisy, `kw` — liczby
+   wymiarow (nie mniejsze niz opisy). Uklad zalezy od obu, wiec kilka przejsc. Gdy opisom
+   wystarcza ekran (k = 1, waska szafka), wymiary tez zostaja — uklad jest wtedy ekranowy. */
+const drukSkale = (szer, mmSzer) => {
+  if (!mmSzer) return { k: 1, kw: 1 };
+  let k = 1, kw = 1;
+  for (let i = 0; i < 5; i++) {
+    const v = szer(k, kw);
+    k = drukK(v, mmSzer);
+    kw = k > 1 ? Math.max(k, drukK(v, mmSzer, DRUK_WYM_MM, DRUK_KW_MAX)) : 1;
+  }
+  return { k, kw };
 };
 /* Legendy pod rysunkiem w druku: linia jest mniejsza tylko wtedy, gdy nie
    miesci sie w szerokosci rysunku, i stoi pod poprzednia wedlug powiekszonej
@@ -7030,8 +7039,8 @@ const DimH = ({ x1, x2, y, label, c = DIMC, above = true, kd }) => (
     <line x1={x1} y1={y} x2={x2} y2={y} stroke={c} strokeWidth="1.5" />
     <line x1={x1} y1={y - 8} x2={x1} y2={y + 8} stroke={c} strokeWidth="1.5" />
     <line x1={x2} y1={y - 8} x2={x2} y2={y + 8} stroke={c} strokeWidth="1.5" />
-    <text x={(x1 + x2) / 2} y={above ? y - 8 : y + 22} textAnchor="middle" className={above ? "wym-nad" : "wym-pod"}
-      style={kd ? { "--k": kd } : undefined} fontSize="22" fill={c} fontFamily="ui-monospace, monospace">{label}</text>
+    <text x={(x1 + x2) / 2} y={above ? y - 8 : y + 22} textAnchor="middle" className={above ? "wym wym-nad" : "wym wym-pod"}
+      style={kd ? { "--k": kd, "--kw": kd } : undefined} fontSize="22" fill={c} fontFamily="ui-monospace, monospace">{label}</text>
   </g>
 );
 
@@ -7041,8 +7050,8 @@ const DimV = ({ y1, y2, x, label, c = DIMC, left = true, labelY = null, kd }) =>
     <line x1={x - 8} y1={y1} x2={x + 8} y2={y1} stroke={c} strokeWidth="1.5" />
     <line x1={x - 8} y1={y2} x2={x + 8} y2={y2} stroke={c} strokeWidth="1.5" />
     <text x={left ? x - 8 : x + 8} y={(labelY == null ? (y1 + y2) / 2 : labelY) + 7}
-      textAnchor={left ? "end" : "start"} fontSize="22" fill={c} style={kd ? { "--k": kd } : undefined}
-      fontFamily="ui-monospace, monospace">{label}</text>
+      textAnchor={left ? "end" : "start"} fontSize="22" fill={c} style={kd ? { "--k": kd, "--kw": kd } : undefined}
+      className="wym" fontFamily="ui-monospace, monospace">{label}</text>
   </g>
 );
 
@@ -10129,8 +10138,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
     blat: zBlatem ? `${fmt(H + podstawaH + blat.th)} z blatem`.length : 0,
     nozki: `nóżki ${fmt(geo.legH)}`.length, cokol: `cokół ${fmt(plHd)}`.length,
   };
-  const uklad = (kz) => {
-    const kol = (w, n) => kolumnaDruk(w, n, kz);
+  const uklad = (kz, kw) => {
+    const kol = (w, n) => kolumnaDruk(w, n, kw);
     const kolD = (w, n) => kolumnaDruk(w, n, kDlugie(kz));
     // opisy szczelin z boku (np. „2”) siedza miedzy obrysem a pierwsza kolumna
     const luzOp = !gapLabels ? 0 : kz > 1 ? Math.max(70, szerNapisu("00", 20, kz) + 44) : 70;
@@ -10167,18 +10176,18 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
     }
     return u;
   };
-  const kz = drukKUkladu((k) => uklad(k).vbW, druk);
+  const { k: kz, kw } = drukSkale((k, kw) => uklad(k, kw).vbW, druk);
   const kDl = kDlugie(kz) === 1 ? undefined : kDlugie(kz);
   const { dimRailLX, dimRailRX, dimSideLX, dimSideRX, dimSepX, dimDoorXs, dimLevelX, dimDrawerXs,
-    dimHMainX, dimHTotalX, dimBlatX, vbX, vbW } = uklad(kz);
+    dimHMainX, dimHTotalX, dimBlatX, vbX, vbW } = uklad(kz, kw);
   // cokol pod lewym wymiarem boku, nozki pod prawym — tuz przy szafce
   const dimCokolX = baseL - 26;
   const dimNozkiX = baseR + 26;
   // wymiar szerokosci u gory, nad nim szerokosc blatu; w druku wyzej o urosly napis
   const wyTop = cab.topFiller?.on && cab.topFiller.height > 0 ? -(cab.topFiller.height + 40) : -50;
-  const wyBlat = kz > 1 ? wyTop - 34 - POLE_EM * 22 * kz : wyTop - 60;
+  const wyBlat = kz > 1 ? wyTop - 34 - POLE_EM * 22 * kw : wyTop - 60;
   const zBlatSzer = geo.isBlat && (geo.blat.overL > 0 || geo.blat.overR > 0);
-  const padTop = kz > 1 ? Math.max(pad, 16 - (zBlatSzer ? wyBlat : wyTop) + POLE_EM * 22 * kz) : pad;
+  const padTop = kz > 1 ? Math.max(pad, 16 - (zBlatSzer ? wyBlat : wyTop) + POLE_EM * 22 * kw) : pad;
   // legendy pod rysunkiem; w druku pod wierszem szerokosci frontow, kazda pod poprzednia
   const legendy = [
     pinLegend && { key: "pin", fs: 19, txt: `otw. — oś otworu ⌀5 pod kołek, od ${pinFromBottom
@@ -10191,18 +10200,18 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   ].filter(Boolean);
   const wierszDol = belowY + 90; // szerokosci frontow / kolumn pod szafka
   // druk: swiatlo szerokosci szuflad — wiersz pod szerokosciami kolumn
-  const wierszSzuf = wierszDol + (open && geo.levels[0] && geo.levels[0].cols.length > 1 ? 30 + POLE_EM * 22 * kz : 0);
+  const wierszSzuf = wierszDol + (open && geo.levels[0] && geo.levels[0].cols.length > 1 ? 30 + POLE_EM * 22 * kw : 0);
   const szerSzuflad = !(open && showDims && kz > 1) ? [] : geo.levels.flatMap((lv) => lv.cols
     .filter((c) => (c.drawers || []).length && c.w > 42 + 60)
     .map((c) => ({ lvl: lv.i, j: c.j, ...szerWnetrzaSzuflady(c, c.drawers[0]) })))
     // kilka poziomow z szufladami: kazdy w swoim wierszu, zeby sie nie nakladaly
-    .map((q, i, a) => ({ ...q, y: wierszSzuf + (a.slice(0, i).some((p) => p.x1 > q.x0 && p.x0 < q.x1) ? (30 + POLE_EM * 22 * kz) * a.slice(0, i).filter((p) => p.x1 > q.x0 && p.x0 < q.x1).length : 0) }));
+    .map((q, i, a) => ({ ...q, y: wierszSzuf + (a.slice(0, i).some((p) => p.x1 > q.x0 && p.x0 < q.x1) ? (30 + POLE_EM * 22 * kw) * a.slice(0, i).filter((p) => p.x1 > q.x0 && p.x0 < q.x1).length : 0) }));
   const dolWierszy = Math.max(wierszDol, ...szerSzuflad.map((q) => q.y));
   const legendyU = kz > 1
-    ? ulozLegendy(legendy, dolWierszy + 14 + POLE_EM * 22 * kz, kz, vbW - 40).map((l) => ({ ...l, x: vbX + vbW / 2 }))
+    ? ulozLegendy(legendy, dolWierszy + 14 + POLE_EM * 22 * kw, kz, vbW - 40).map((l) => ({ ...l, x: vbX + vbW / 2 }))
     : legendy.map((l, i) => ({ ...l, k: 1, x: W / 2, y: belowY + (hasBase ? 160 : 150) + (i ? 34 : 0) }));
   const belowDruk = kz > 1
-    ? Math.max(belowExtra, (legendyU.length ? legendyU[legendyU.length - 1].dol : dolWierszy + POLE_EM * 22 * kz) + 20 - H - 60)
+    ? Math.max(belowExtra, (legendyU.length ? legendyU[legendyU.length - 1].dol : dolWierszy + POLE_EM * 22 * kw) + 20 - H - 60)
     : belowExtra;
   const vb = `${vbX} ${-padTop} ${vbW} ${H + padTop + belowDruk + 60}`;
   const fy = (y) => H - y;
@@ -10277,7 +10286,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
   );
 
   return (
-    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H, "--k": kz }}>
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H, "--k": kz, "--kw": kw }}>
       <GrainDefs mat={matR} on={cab.texture} dir={cab.textureDir} />
       <PrzejscieDefs />
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke="#e7e5e4" strokeWidth="1" />
@@ -11238,21 +11247,21 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
   /* Druk (PDF-1): obrys z zasiegu powiekszonych napisow — z lewej wymiar
      wysokosci plecow, pod spodem dwie linie opisu jedna pod druga. */
   const wymDim = showDims && cab.back !== "none";
-  const lewoDruk = (k) => (wymDim ? -55 - 8 - szerNapisu(fmt(bh), 22, k) : 0) - 30;
-  const kz = drukKUkladu((k) => W + 40 - lewoDruk(k), druk);
-  const vbX = kz > 1 ? lewoDruk(kz) : -pad;
+  const lewoDruk = (kw) => (wymDim ? -55 - 8 - szerNapisu(fmt(bh), 22, kw) : 0) - 30;
+  const { k: kz, kw } = drukSkale((k, kw) => W + 40 - lewoDruk(kw), druk);
+  const vbX = kz > 1 ? lewoDruk(kw) : -pad;
   const vbW = kz > 1 ? W + 40 - vbX : W + 2 * pad;
-  const vbY = kz > 1 ? Math.min(-40, wymDim ? -55 - 3 - POLE_EM * 22 * kz - 16 : -40) : -pad;
+  const vbY = kz > 1 ? Math.min(-40, wymDim ? -55 - 3 - POLE_EM * 22 * kw - 16 : -40) : -pad;
   const opisy = [{ key: "plecy", fs: 22, txt: label }, { key: "kier", fs: 20, txt: "widok od tyłu — lewy bok szafki po prawej" }];
   const opisyU = kz > 1
-    ? ulozLegendy(opisy, Math.max(H + rBelow + 20, wymDim && geo.grooved ? H + rBelow + 60 + 14 + POLE_EM * 22 * kz : 0), kz, vbW - 40)
+    ? ulozLegendy(opisy, Math.max(H + rBelow + 20, wymDim && geo.grooved ? H + rBelow + 60 + 14 + POLE_EM * 22 * kw : 0), kz, vbW - 40)
       .map((l) => ({ ...l, x: vbX + vbW / 2 }))
     : opisy.map((l, i) => ({ ...l, k: kz, x: W / 2, y: H + rBelow + (i ? 150 : 120) }));
   const vbDol = kz > 1 ? opisyU[opisyU.length - 1].dol + 20 : H + pad + 40 + rBelow;
   const vb = `${vbX} ${vbY} ${vbW} ${vbDol - vbY}`;
 
   return (
-    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H, "--k": kz }}>
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H, "--k": kz, "--kw": kw }}>
       <GrainDefs mat={matR} on={cab.texture} dir={cab.textureDir} />
       {/* korpus widziany od tylu */}
       <rect x="0" y="0" width={W} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
@@ -11530,7 +11539,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
   const polkaDim = showDims && geo.shelfDepth < cd - geo.backIntrusion;
   const opisGl = fmt(cd - geo.backIntrusion), opisPolki = `półka ${fmt(geo.shelfDepth)}`;
   const opisRam1 = arm ? `ramię ${fmt(arm.len)}` : "", opisRam2 = arm ? `${fmt(cd + arm.len)} z ramieniem` : "";
-  const ukladT = (k) => {
+  const ukladT = (k) => {   // k — skala wymiarow (`kw`)
     const xPolki = W + 55 + kolumnaDruk(60, opisGl.length, k);
     const ram2 = arm ? kolumnaDruk(arm.side === "left" ? 200 : 190, opisRam1.length, k) : 0;
     let lewo = Math.min(-tOvL, showDims ? -50 - 8 - szerNapisu(fmt(cd), 22, k) : 0);
@@ -11539,23 +11548,23 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
     if (showDims && arm && arm.side !== "left") prawo = Math.max(prawo, W + 55 + ram2 + 8 + szerNapisu(opisRam2, 22, k));
     return { xPolki, ram2, vbX: lewo - 30, vbW: prawo - lewo + 60 };
   };
-  const kz = drukKUkladu((k) => ukladT(k).vbW, druk);
-  const uT = ukladT(kz);
+  const { k: kz, kw } = drukSkale((k, kw) => ukladT(kw).vbW, druk);
+  const uT = ukladT(kw);
   const xPolki = kz > 1 ? uT.xPolki : W + 115;
   const vbX = kz > 1 ? uT.vbX : -pad - tOvL - armDimL;
   const vbW = kz > 1 ? uT.vbW : W + tOvL + tOvR + 2 * pad + 120 + armDimL + armDimR;
-  const vbY = kz > 1 ? Math.min(-tOvB - 30, showDims ? -50 - 3 - POLE_EM * 22 * kz - 16 : -30) : -pad - tOvB;
+  const vbY = kz > 1 ? Math.min(-tOvB - 30, showDims ? -50 - 3 - POLE_EM * 22 * kw - 16 : -30) : -pad - tOvB;
   const podpis = { key: "podpis", fs: 22, txt: "widok z góry — tył u góry, przód u dołu" };
   const kolumnyDol = showDims && (geo.levels[0]?.cols || []).length > 1;
   const podpisU = kz > 1
-    ? ulozLegendy([podpis], Math.max(cd + 150 + (arm ? arm.len : 0) - 0.93 * 22, kolumnyDol ? cd + 90 + 14 + POLE_EM * 22 * kz : 0), kz, vbW - 40)
+    ? ulozLegendy([podpis], Math.max(cd + 150 + (arm ? arm.len : 0) - 0.93 * 22, kolumnyDol ? cd + 90 + 14 + POLE_EM * 22 * kw : 0), kz, vbW - 40)
       .map((l) => ({ ...l, x: vbX + vbW / 2 }))[0]
     : { ...podpis, k: 1, x: W / 2, y: cd + 150 + (arm ? arm.len : 0) };
   const vbDol = kz > 1 ? podpisU.dol + 20 : D + tOvF + pad + 100 + frontExtra + armLen;
   const vb = `${vbX} ${vbY} ${vbW} ${vbDol - vbY}`;
 
   return (
-    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H, "--k": kz }}>
+    <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H, "--k": kz, "--kw": kw }}>
       <GrainDefs mat={matR} on={cab.texture} dir={cab.textureDir} />
       {/* obrys korpusu z gory */}
       <rect x="0" y="0" width={W} height={cd} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" />
@@ -17305,6 +17314,7 @@ const PRINT_CSS = `
      zaczepienia: nad kreska wymiaru w gore, pod nia w dol, z boku od kreski */
   .rp-widok svg { overflow: visible; }
   .rp-widok svg text { transform-box: fill-box; transform-origin: center; transform: scale(var(--k, 1)); }
+  .rp-widok svg text.wym { transform: scale(var(--kw, var(--k, 1))); }
   .rp-widok svg text[text-anchor="end"] { transform-origin: right center; }
   .rp-widok svg text[text-anchor="start"] { transform-origin: left center; }
   .rp-widok svg text.wym-nad { transform-origin: center bottom; }
