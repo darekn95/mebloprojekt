@@ -31,7 +31,7 @@ src = src.replace(/^import React[^\n]*\n/, 'const React = { createElement: () =>
 src = src.replace(/export default function App/, 'function App');
 const nazwy = ['buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
-  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu'];
+  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -492,4 +492,63 @@ console.log('\n== Scalanie „dwie przegrody” (użytkownik 2026-10-29) ==');
   const g4 = scal(sz('A', drzwi({ shelfTargets: [null] })), sz('B', drzwi({ shelfTargets: [null] })), { ...RUN, gap: 2 }).g;
   ok('luz ciągu 2 mm: szafka 1202, kolumny 565 / 565, bez błędów', g4.W === 1202 && g4.levels[0].cols.map((c) => Math.round(c.w)).join() === '565,565' && !g4.msgs.some((x) => x.level === 'error'),
     g4.W + ' ' + g4.levels[0].cols.map((c) => Math.round(c.w)).join());
+}
+
+console.log('\n== N150–N156 (audyt GPT 2026-10-30) ==');
+{
+  const M = G.defaultMaterials;
+  // N150: jedna wlasna resztka blatu 1000 × 1000 — nie moze isc do dwoch grup (arkusz 600 i 1200)
+  const lab = G.matLabelOf(M.worktop, 'worktop', G.ambiguousThickness([M]));
+  const id = G.tozsamoscPlyty(M.worktop);
+  const rows = [[1000, 300], [1000, 700]].map(([a, b]) => ({ name: 'Blat', qty: 1, a, b, matId: id, matLabel: lab, ...G.wierszBlatu({ a, b, matKey: 'worktop' }, M, lab) }));
+  const plan = (qty) => G.buildCutPlan(rows, [{ id: 'r1', matId: id, matLabel: lab, w: 1000, h: 1000, qty }]);
+  const p1 = plan(1);
+  ok('N150: jedna resztka 1000 × 1000 — tylko w jednej grupie, druga kupuje arkusz', p1.length === 2 && p1.filter((g) => g.zWlasnych).length === 1 && p1.reduce((a, g) => a + g.kupic, 0) === 1,
+    p1.map((g) => `${g.arkusz.w}×${g.arkusz.h}: własne ${g.zWlasnych}, kupić ${g.kupic}`).join(' / '));
+  const p2 = plan(2);
+  ok('N150: dwie takie resztki — obie grupy z resztek, zakup 0', p2.every((g) => g.zWlasnych === 1 && g.kupic === 0), p2.map((g) => `${g.zWlasnych}/${g.kupic}`).join(' '));
+
+  // N151: wysoka szafka z wlasnym blatem w ciagu z blatem roboczym — jej blat zostaje
+  const run = (o = {}) => ({ id: 'c1', name: 'Ściana', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: { on: false }, worktop: true, corner: null, ...o });
+  const blat = { top: { mode: 'blat', material: 'board', overFront: 30 } };
+  const sz = (n, o = {}) => ({ name: n, W: 600, H: 720, D: 560, plinth: { on: false }, legs: { on: true, height: 100 }, levels: [{ h: null, cols: [drzwi({ shelfTargets: [null] })] }], ...o });
+  let P = G.loadProject({ name: 'P', runs: [run()], items: [{ cab: sz('A', blat), runId: 'c1' }, { cab: sz('B', { ...blat, H: 2000 }), runId: 'c1' }] });
+  const bl = (Q) => G.projectParts(Q).flatMap((g) => g.panels.filter((x) => /^Blat/.test(x.name)).map((x) => `${g.name}: ${x.name} ${x.a}×${x.b}`));
+  ok('N151: blat ciągu nad A, słupek B zostaje ze swoim blatem 600 × 590', (G.runTop(P, P.runs[0]).pokryte || []).join() === '0' && bl(P).some((x) => /^B: Blat 600×590$/.test(x)) && !bl(P).some((x) => /^A: /.test(x)), bl(P).join(' / '));
+
+  // N154: wspolne dno — ta sama nazwa i kolor, rozny dekor
+  const runD = { id: 'c1', name: 'Ściana', wallW: null, gap: 20, mountY: 0, H: 720, D: 500, plinth: { on: true, height: 100, mode: 'under', setback: 0 }, worktop: false, corner: null, wspolneDno: true };
+  const dek = (d) => ({ ...M, board: { ...M.board, name: 'Płyta', color: '#d8c3a0', decor: d } });
+  const mk = (d1, d2) => {
+    const Q = G.loadProject({ name: 'P', runs: [runD], items: [d1, d2].map((d, k) => ({ cab: { name: 'S' + k, W: 600, H: 720, D: 500, plinth: runD.plinth, levels: [{ h: null, cols: [drzwi()] }] }, runId: 'c1', mat: dek(d) })) });
+    const h = G.wysokoscWienca(Q.items, Q.runs[0]);
+    Q.items = Q.items.map((x) => ({ ...x, cab: G.wedlugCiagu(x.cab, x.mat, Q.runs[0], h) }));
+    return Q;
+  };
+  const rbx = G.runBottom(mk('Oak', 'Ash'), runD);
+  ok('N154: dekor Oak i Ash — bez wspólnego dna („różnych płyt”), każda szafka ze swoim dnem', rbx && rbx.brak && /różnych płyt/.test(rbx.powod)
+    && G.projectParts(mk('Oak', 'Ash')).flatMap((g) => g.panels.filter((p) => /^Dno/.test(p.name))).length === 2, rbx && rbx.powod);
+  ok('N154: kontrola — ten sam dekor: wspólne dno 1220', JSON.stringify((G.runBottom(mk('Oak', 'Oak'), runD) || {}).lens) === '[1220]');
+
+  // N155: model tip-on zostaje w zbiorczej liscie
+  const gT = G.computeGeo(G.migrateCab({ name: 'T', W: 600, H: 720, D: 560, plinth: { on: false }, legs: { on: true, height: 100 }, handles: false, levels: [{ h: null, cols: [drzwi({ shelfTargets: [null], handles: [false], otwieranie: ['tipon'] })] }] }, M), M);
+  const tip = G.scalOkucia([...gT.hardware, ...gT.hardware]).find((h) => /tip-on/.test(h.name));
+  ok('N155: zbiorcza lista — tip-on z modelem AM-SVN-DL-MG-30, 2 szt.', !!tip && /AM-SVN-DL-MG-30/.test(tip.spec) && tip.qty === 2, tip && tip.spec);
+
+  // N156: drugie scalanie z „dwie przegrody” — podwojna przegroda z pierwszego zostaje
+  const P3 = G.loadProject({ name: 'P', runs: [run({ worktop: false })], items: ['A', 'B', 'C'].map((n) => ({ cab: sz(n), runId: 'c1' })) });
+  let Q = G.scalSzafki(P3, [0, 1], null, 'dwie');
+  Q = G.scalSzafki(Q, [Q.active, Q.items.length - 1], null, 'dwie');
+  const it = Q.items[Q.active];
+  const gS = G.computeGeo(G.cabDoGeo(Q, it), it.mat);
+  const prz = gS.panels.filter((p) => /^Przegroda/.test(p.name)).reduce((a, p) => a + p.qty, 0);
+  ok('N156: A + B, potem + C, oba razy „dwie przegrody” — 4 przegrody, szafka 1800, kolumny 564 × 3', prz === 4 && gS.W === 1800 && gS.levels[0].cols.map((c) => Math.round(c.w)).join() === '564,564,564',
+    `${prz} przegród, W ${gS.W}, ${gS.levels[0].cols.map((c) => Math.round(c.w)).join()}`);
+
+  // N152: rozne plecy — kreator pokazuje roznice, plecy z wybranej szafki
+  const P4 = G.loadProject({ name: 'P', runs: [run({ worktop: false })], items: [{ cab: sz('A', { back: 'none' }), runId: 'c1' }, { cab: sz('B', { back: 'hdf' }), runId: 'c1' }] });
+  const rz = G.roznePlyty(P4, [0, 1]).find((r) => r.k === 'back');
+  ok('N152: A bez pleców, B HDF — w kreatorze różnica „plecy”', !!rz && rz.plyty[0] === 'bez pleców' && rz.plyty[1] === 'HDF 3 mm', rz && rz.plyty.join(' | '));
+  const plecy = (wzor) => { const R = G.scalSzafki(P4, [0, 1], wzor); const x = R.items[R.active]; return G.computeGeo(G.cabDoGeo(R, x), x.mat).panels.filter((p) => /^Plecy/.test(p.name)).map((p) => `${p.a}×${p.b}`); };
+  ok('N152: „płyty jak w B” — scalona ma plecy HDF; „jak w A” — bez pleców', plecy(1).length === 1 && plecy(0).length === 0, `B: ${plecy(1).join()} / A: ${plecy(0).join()}`);
 }

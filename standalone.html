@@ -1051,7 +1051,9 @@ const scalOkucia = (lista) => {
     const opis = uzycia.length === 1
       ? uzycia[0].use
       : uzycia.map((u) => `${u.use} — ${qtyFmt(u.qty)} ${h.unit}`).join("; ");
-    return { ...h, spec: h.wariant ? `${h.wariant} — ${opis}` : opis };
+    // `model` — oznaczenie produktu (tip-on, zawieszka), zeby zbiorcza lista nie gubila go (N155)
+    const cecha = [h.model, h.wariant].filter(Boolean).join(", ");
+    return { ...h, spec: cecha ? `${cecha} — ${opis}` : opis };
   });
 };
 
@@ -6459,6 +6461,9 @@ function computeGeoLiczy(cab, mat, ctx) {
     hardware.push({
       name: TIPON_NAME,
       use: "drzwi bez uchwytu — otwieranie przez naciśnięcie",
+      /* model zostaje tez w zbiorczej liscie (`scalOkucia` zastepuje spec zastosowaniem — audyt GPT
+         N155); `model`, nie `wariant` — wariant wchodzi w klucz ceny i zgubilby wpisana cene */
+      model: "długi nakładany z magnesem, szary (AM-SVN-DL-MG-30)",
       spec: "długi nakładany z magnesem, szary (AM-SVN-DL-MG-30), 1 na drzwi, przy wolnej krawędzi; min. 2,5 mm szczeliny między frontem a korpusem",
       qty: tiponCount,
       unit: "szt.",
@@ -6776,6 +6781,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     hardware.push({
       name: "Zawieszka meblowa regulowana",
       use: "szafka wieszana na ścianie",
+      model: ZAWIESZKA_MODEL.split(",")[0],
       spec: `${ZAWIESZKA_MODEL}; szafka bez nóżek i cokołu — wieszana na ścianie`
         + (postSide ? `; szafka w L: ${gdzieL[zawieszki.gdzie]}` : "")
         + (zawieszki.naZabudowie.length ? `; ${zawieszki.naZabudowie.length === 1 ? "jedna" : zawieszki.naZabudowie.length} na ściance zabudowy przy narożniku (bok nie dochodzi tam do ściany)` : ""),
@@ -14619,13 +14625,13 @@ const runTopLiczy = (project, run, bezRogu = false) => {
   // szafki bez wlasnego blatu miedzy tymi z blatem (slupek) przerywaja plyte
   const bezWlasnego = [];
   if (!(lvl && lvl.pod.length)) {
-  list.forEach(({ it }, k) => {
+  list.forEach(({ it, i }, k) => {
     const geo = computeGeo(it.cab, it.mat);
     if (geo.isBlat) {
       spans.push({ x0: x + geo.topX0, x1: x + geo.topX1, depth: geo.blatDepth,
         worktop: geo.isWorktop,
         rear: it.cab.back !== "none" || geo.blat.overBack > 0 });
-      zrodla.push({ it, geo });
+      zrodla.push({ it, geo, i });
     } else bezWlasnego.push({ x0: x, x1: x + geo.W });
     x += geo.W;
     if (k < list.length - 1) x += gap;
@@ -14668,6 +14674,9 @@ const runTopLiczy = (project, run, bezRogu = false) => {
     : (mat0.board || {}).thickness || 18);
   return {
     total, x0, worktop,
+    /* Numery szafek, nad ktorymi lezy ta plyta — tylko im zestawienie zdejmuje wlasny blat
+       (audyt GPT N151: wysoka szafka z wlasnym blatem w ciagu z blatem roboczym znikala z niego). */
+    pokryte: lvl && lvl.pod.length ? lvl.pod.map((c) => c.idx) : zrodla.map((z) => z.i),
     /* Odcinki, ktore blat naprawde zakrywa — rysunek bierze je wprost, zeby
        plaszczyzna konczyla sie tam, gdzie konczy sie mebel pod nia. */
     spans: spans.map((s) => ({
@@ -14736,8 +14745,8 @@ const runTopLiczy = (project, run, bezRogu = false) => {
 const blatSzafkiKlucz = ({ it, geo }) => {
   const mk = geo.isWorktop ? "worktop" : "board";
   const m = migrateMat(it.mat)[mk] || {};
-  // takze wysokosc: blaty H720 i H900 laczyly sie w jedna plyte na 720 (audyt GPT N142)
-  return `${mk}|${m.color || ""}|${m.thickness || ""}|${m.name || ""}|${Math.round(Number(it.cab.H) || 0)}`;
+  // takze wysokosc: blaty H720 i H900 laczyly sie w jedna plyte na 720 (audyt GPT N142); plyta — z dekorem (N154)
+  return `${mk}|${tozsamoscPlyty(m)}|${Math.round(Number(it.cab.H) || 0)}`;
 };
 
 // rowne kawalki lacza sie w jedna pozycje zamowienia
@@ -15286,7 +15295,8 @@ const runBottom = (project, run) => {
      o 100 mm, wlasne dna zdjete z zamowienia). */
   const wys = [...new Set(ujete.map(({ it }) => Math.round(Number(it.offset) || 0)))];
   if (wys.length > 1) return odp(`szafki są różnie wysunięte z lica (${listPl(wys.map(fmt))} mm) — jedno prostokątne dno nie obejmie wszystkich`);
-  const kl = [...new Set(ujete.map(({ it }) => { const m = migrateMat(it.mat).board || {}; return `${m.color}|${m.thickness}|${m.name}`; }))];
+  // pelna tozsamosc plyty — takze dekor (audyt GPT N154: Oak i Ash o tej samej nazwie i kolorze dawaly jedno dno)
+  const kl = [...new Set(ujete.map(({ it }) => tozsamoscPlyty(migrateMat(it.mat).board)))];
   if (kl.length > 1) return odp("szafki mają korpusy z różnych płyt");
   // odcinek z jedna szafka (np. miedzy slupkami) zostaje przy jej wlasnym dnie
   const pas = segs.filter((q) => q.ileSzafek > 1);
@@ -15497,19 +15507,19 @@ const projectParts = (project) => {
     const rb = rbx && !rbx.brak ? rbx : null;
     if (rp || rt || rr || rb) shared.set(r.id, { run: r, rp, rt, rr, rb });
   });
-  const drop = (id) => {
+  const drop = (id, ci) => {
     const s = shared.get(id);
     if (!s) return null;
     const names = [];
     if (s.rp) names.push("cokol");
-    if (s.rt) names.push("blat");
+    if (s.rt && (s.rt.pokryte || []).includes(ci)) names.push("blat");
     return names;
   };
   // szafka narozna liczy sie z kontekstem rogu — inaczej jej wzmocnienia sa za dlugie
   const layout = projectLayout(project);
   const cabs = project.items.map((it, ci) => {
     const g = computeGeo(cabDoGeo(project, it), it.mat, armCtxOf(layout, ci));
-    const gone = drop(it.runId || null);
+    const gone = drop(it.runId || null, ci);
     const s = shared.get(it.runId || null);
     return {
       mat: it.mat,
@@ -15714,7 +15724,7 @@ const worktopMsgs = (project, run) => {
     const wlasne = runJoints(project, run).list.map(({ it }) => ({ it, geo: computeGeo(it.cab, it.mat) })).filter((q) => q.geo.isBlat);
     if (new Set(wlasne.map(blatSzafkiKlucz)).size > 1) {
       const wys = [...new Set(wlasne.map((q) => Math.round(Number(q.it.cab.H) || 0)))].sort((a, b) => a - b);
-      const plyty = new Set(wlasne.map((q) => blatSzafkiKlucz(q).split("|").slice(0, 4).join("|"))).size > 1;
+      const plyty = new Set(wlasne.map((q) => blatSzafkiKlucz(q).split("|").slice(0, -1).join("|"))).size > 1;
       const czym = [plyty ? "z różnych płyt" : null, wys.length > 1 ? `na różnych wysokościach (${listPl(wys.map(fmt))} mm)` : null].filter(Boolean).join(" i ");
       out.push({ level: "info", text: `Własne blaty szafek ciągu „${run.name}" (${listPl(wlasne.map((q) => `„${(q.it.cab.name || "").trim() || "bez nazwy"}"`))}) są ${czym} — `
         + `każdy idzie do zamówienia ze swoją szafką, nie łączymy ich w jedną płytę ciągu.` });
@@ -17080,11 +17090,15 @@ function packSheets(input, { sheetW = USABLE_W, sheetH = USABLE_H } = {}) {
    matLabel, w, h, qty }]`. Rozkroj najpierw kladzie formatki na nie (wieksze
    najpierw, kazdy kawalek to osobny „arkusz” bez okrawania), reszte na arkusze do
    kupienia. W zamowieniu i wycenie licza sie tylko kupowane (`kupic`). */
+/* `q.zostalo` — ile sztuk kawalka jeszcze lezy: kawalek wziety przez jedna grupe rozkroju
+   (np. blat z arkusza 600) nie jest juz do wziecia w drugiej (1200) — dotad ta sama resztka
+   szla do obu i obie pokazywaly zakup 0 (audyt GPT N150). */
 const naKawalki = (list, resztki) => {
   const reszta = list.map((r) => ({ ...r }));
   const wlasne = [];
   [...resztki].sort((a, b) => b.w * b.h - a.w * a.h).forEach((q) => {
-    for (let n = 0; n < Math.max(1, Math.round(Number(q.qty) || 1)); n++) {
+    if (q.zostalo == null) q.zostalo = Math.max(1, Math.round(Number(q.qty) || 1));
+    while (q.zostalo > 0) {
       const zostalo = reszta.filter((r) => r.qty > 0);
       if (!zostalo.length) return;
       const res = packSheets(zostalo, { sheetW: q.w, sheetH: q.h });
@@ -17095,6 +17109,7 @@ const naKawalki = (list, resztki) => {
          obrotu (audyt GPT N92) */
       s0.parts.forEach((p) => { const r = zostalo[p.src]; if (r) r.qty -= 1; });
       wlasne.push({ ...s0, wlasna: { w: q.w, h: q.h, id: q.id } });
+      q.zostalo -= 1;
     }
   });
   return { reszta: reszta.filter((r) => r.qty > 0), wlasne };
@@ -17102,6 +17117,8 @@ const naKawalki = (list, resztki) => {
 
 function buildCutPlan(rows, resztki = []) {
   const groups = new Map();
+  // wlasne kawalki wspolne dla wszystkich grup — kazda sztuka idzie do jednej (N150)
+  const pula = (resztki || []).map((q) => ({ ...q, zostalo: null }));
   /* Grupa to etykieta i format arkusza — ten sam dekor z arkusza 600 i 1200 to
      dwa rozne produkty; dotad grupa brala arkusz z pierwszej pozycji i wynik
      zalezal od kolejnosci (audyt GPT N3). */
@@ -17119,7 +17136,7 @@ function buildCutPlan(rows, resztki = []) {
   return [...groups.values()].map((list) => {
     const sh = list.find((r) => r.sheet);
     const matIds = [...new Set(list.map((r) => r.matId).filter(Boolean))];
-    const swoje = (resztki || []).filter((q) => resztkaGrupy(q, { matLabel: list[0].matLabel, matIds }) && q.w > 0 && q.h > 0);
+    const swoje = pula.filter((q) => resztkaGrupy(q, { matLabel: list[0].matLabel, matIds }) && q.w > 0 && q.h > 0 && q.zostalo !== 0);
     const { reszta, wlasne } = swoje.length ? naKawalki(list, swoje) : { reszta: list, wlasne: [] };
     const kupne = packSheets(reszta, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {});
     /* Podsumowanie (wykorzystanie, ciecia, zrzut) z calego planu — kupionych arkuszy i
@@ -17524,9 +17541,10 @@ function PrintReport({ project }) {
     (project.runs || []).forEach((r) => { if (runPlinth(project, r)) s.add(r.id); });
     return s;
   }, [project]);
-  const runsWithTop = useMemo(() => {
+  // szafki pod blatem ciagu — tylko te, nad ktorymi on lezy (slupek zostaje przy swoim, N151)
+  const cabsUnderTop = useMemo(() => {
     const s = new Set();
-    (project.runs || []).forEach((r) => { if (runTop(project, r)) s.add(r.id); });
+    (project.runs || []).forEach((r) => { const rt = runTop(project, r); if (rt) (rt.pokryte || []).forEach((i) => s.add(i)); });
     return s;
   }, [project]);
   // szafki na wspolnym dnie ciagu — na ich kartce dna nie ma (idzie „Dno ciągu”)
@@ -17554,7 +17572,7 @@ function PrintReport({ project }) {
       index={nr} total={project.items.length} rozdzial={rozdzial}
       ctx={armCtxOf(layout, i)} arm={armOf.get(i)}
       sharedPlinth={!!runsWithPlinth.has(it.runId || null)}
-      sharedTop={!!runsWithTop.has(it.runId || null)}
+      sharedTop={cabsUnderTop.has(i)}
       sharedBottom={cabsOnBottom.has(i)}
       sharedRail={!!runsWithRail.has(it.runId || null)}
       wstawki={wstawkiOf(layout).filter((w) => w.cab.index === i)} />
@@ -17898,10 +17916,22 @@ const plytaDoScalenia = (it, k) => {
   return m[k === "board" ? "board" : uzywaPlyty(cab, k) ? k : "board"] || {};
 };
 const opisPlytyScalania = (m) => `${(m.decor || "").trim() || (m.plyta && m.name) || paletteName(m.color) || m.name || "płyta"} ${fmt(m.thickness || 0)} mm`;
+/* Plecy to nie tylko plyta: bez plecow / HDF / z plyty, na zewnatrz / we frezie / cofniete.
+   Szafka ma jedne ustawienia plecow — scalona brala je z pierwszej i plecy drugiej znikaly
+   (audyt GPT N152: A bez plecow + B z HDF → bez plecow). Rozne — w kreatorze jak rozne plyty. */
+const POLA_PLECOW = ["back", "backPos", "backGroove", "backRecess", "backBoardMat", "depthIncludesBack"];
+const plecyScalania = (cab, m = {}) => (cab.back === "none" ? "bez pleców"
+  : `${cab.back === "board" ? `z płyty ${opisPlytyScalania(m)}` : `HDF ${fmt(m.thickness || 0)} mm`}${cab.back === "board" && cab.backPos === "outside" ? " na zewnątrz" : ""}`
+    + `${cab.backGroove && cab.backGroove.on ? " we frezie" : ""}${num(cab.backRecess) ? `, cofnięte ${fmt(num(cab.backRecess))} mm` : ""}`);
 const roznePlyty = (project, idxs) => PLYTY_SCALANIA.map(([k, nazwa]) => {
   const pl = idxs.map((i) => plytaDoScalenia(project.items[i], k));
   const inna = pl.some((m) => !tenSamKolor(m, pl[0]) || Math.round(m.thickness || 0) !== Math.round(pl[0].thickness || 0)
     || (m.name || "").trim() !== (pl[0].name || "").trim());
+  if (k === "back") {
+    const cabs = idxs.map((i) => project.items[i].cab || {});
+    const rodzaj = cabs.map((c, q) => plecyScalania(c, pl[q]));
+    if (new Set(rodzaj).size > 1) return { k, nazwa, plyty: rodzaj };
+  }
   return inna ? { k, nazwa, plyty: pl.map(opisPlytyScalania) } : null;
 }).filter(Boolean);
 /* `tryb`: „pojedyncze” — jedna przegroda na styku, zwolniony bok i luz ida na kolumny;
@@ -17936,10 +17966,14 @@ const scalSzafki = (project, idxsIn, wzorIn = null, tryb = "pojedyncze") => {
         // zwolnione miejsce rowno, w proporcji do szerokosci kolumn (rowne zostaja rowne)
         c2.w = Math.round(szer[n] + (wolne * szer[n]) / suma);
         n += 1;
-        delete c2.noDiv;
-        delete c2.przegrodaPodw;
-        // ostatnia kolumna szafki (poza ostatnia szafka): na styku dwie przegrody
-        if (dwie && j === kol.length - 1 && k < its.length - 1) c2.przegrodaPodw = true;
+        /* Tryb dotyczy tylko nowych stykow (ostatnia kolumna kazdej szafki): przegrody w srodku
+           szafki — tez podwojne z wczesniejszego scalania i przeloty — zostaja (audyt GPT N156:
+           drugie scalanie zdejmowalo podwojna przegrode pierwszego). */
+        if (j === kol.length - 1) {
+          delete c2.noDiv;
+          delete c2.przegrodaPodw;
+          if (dwie && k < its.length - 1) c2.przegrodaPodw = true;
+        }
         cols.push(c2);
       });
     });
@@ -17951,8 +17985,8 @@ const scalSzafki = (project, idxsIn, wzorIn = null, tryb = "pojedyncze") => {
     W: Math.round(W), levels,
     top: c0.top && c0.top.widthMode === "inside" ? { ...c0.top, widthMode: "outside" } : c0.top,
     legs: c0.legs ? { ...c0.legs, count: null } : c0.legs };
-  ["frontSameAsBoard", "shelfSameAsBoard", "backBoardMat"].forEach((key) => {
-    if (its[kW].cab[key] === undefined) delete scalona[key]; else scalona[key] = its[kW].cab[key];
+  ["frontSameAsBoard", "shelfSameAsBoard", ...POLA_PLECOW].forEach((key) => {
+    if (its[kW].cab[key] === undefined) delete scalona[key]; else scalona[key] = JSON.parse(JSON.stringify(its[kW].cab[key]));
   });
   const znikaja = new Set(idxs.slice(1));
   const nowa = { ...project.items[idxs[0]], cab: scalona, mat: JSON.parse(JSON.stringify(its[kW].mat)) };
@@ -20317,7 +20351,7 @@ export default function App() {
     [geo, runRl, armAktywnej, wstawkiAktywnej]
   );
   const cutList = useMemo(
-    () => formatkiSzafki(geo, { bezCokolu: !!runPl, bezBlatu: !!runTp, bezDna: !!(runBt && !runBt.brak && runBt.idxs.includes(project.active)), arm: armAktywnej, wstawki: wstawkiAktywnej }),
+    () => formatkiSzafki(geo, { bezCokolu: !!runPl, bezBlatu: !!(runTp && (runTp.pokryte || []).includes(project.active)), bezDna: !!(runBt && !runBt.brak && runBt.idxs.includes(project.active)), arm: armAktywnej, wstawki: wstawkiAktywnej }),
     [geo, runPl, runTp, runBt, project.active, armAktywnej, wstawkiAktywnej]);
   const zCaloscia = useMemo(() => calyProjekt(project), [project]);
 
@@ -21268,7 +21302,7 @@ export default function App() {
                         {rozne.length > 0 && (
                           <div className="space-y-1 rounded border border-amber-300 bg-amber-50 p-1.5" data-el="scal-plyty">
                             <p className="text-[11px] text-amber-800">
-                              Szafki mają różne płyty — scalona szafka ma jeden zestaw płyt, więc wszystkie jej formatki dostaną płyty wybranej szafki:
+                              Szafki mają różne płyty{rozne.some((r) => r.k === "back") ? " albo plecy" : ""} — scalona szafka ma jeden zestaw płyt i jedne plecy, więc wszystkie jej formatki dostaną płyty{rozne.some((r) => r.k === "back") ? " i plecy" : ""} wybranej szafki:
                             </p>
                             <ul className="text-[11px] text-stone-600">
                               {rozne.map((r) => (

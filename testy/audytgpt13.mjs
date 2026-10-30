@@ -6,7 +6,9 @@
      „Jedna kolumna na całą szerokość” (decyzje uzytkownika 2026-10-30);
    - N149 zawieszka w wycieciu naroznika / przy elemencie w rogu: idzie na scianke zabudowy
      (dochodzi do sciany); bez zabudowy „Zabuduj wycięcie / element”, plytkie — „Wycięcie N mm
-     w głąb” (uzytkownik 2026-10-30: „nie może wisieć w powietrzu”).
+     w głąb” (uzytkownik 2026-10-30: „nie może wisieć w powietrzu”);
+   - N151 wlasny blat slupka w ciagu z blatem roboczym zostaje w jego formatkach;
+   - N152 scalanie szafek z roznymi plecami: roznica w kreatorze, „płyty jak w B” daje plecy B.
    Liczby i reszta przypadkow — funkcje, suita `funkcje`. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -134,6 +136,37 @@ console.log('\n== N149: zawieszka w wycięciu narożnika ==');
   ok('element w prawym rogu bez zabudowy — błąd z „Zabuduj element (zawieszka na zabudowie)”', !!m && m.btns.includes('Zabuduj element (zawieszka na zabudowie)'), m && m.btns.join(' / '));
   await klik(reE, 'Zabuduj element (zawieszka na zabudowie)');
   ok('po kliknięciu: zabudowa elementu włączona, bez błędu o zawieszce', (await zap()).items[0].cab.obstacles[0].mask === true && !(await notes()).some((x) => reE.test(x.txt)));
+}
+
+console.log('\n== N151 / N152: blat słupka, scalanie z różnymi plecami ==');
+{
+  const RUN = { id: 'c1', name: 'Ściana', roomId: null, wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: { on: false }, worktop: true, corner: null };
+  const sz = (name, o = {}) => ({ name, W: 600, H: 720, D: 560, plinth: { on: false }, legs: { on: true, height: 100 },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }], ...o });
+  const seedRun = async (items, active, run = RUN) => {
+    await page.evaluate((q) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(q)); },
+      { name: 'P', active, prices: {}, runs: [run], items: items.map((cab) => ({ cab, runId: 'c1', offset: 0 })) });
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1500);
+  };
+  const blat = { top: { mode: 'blat', material: 'board', overFront: 30 } };
+  await seedRun([sz('A', blat), sz('B', { ...blat, H: 2000 })], 1);
+  let f = await rows(/^Formatki do zamówienia$/);
+  ok('N151: słupek B w ciągu z blatem roboczym — w jego formatkach własny blat 600 × 590', f.some((r) => /^Blat \|/.test(r) && /\| 600 \| 590 \|/.test(r)), f.filter((r) => /Blat/.test(r)).join(' / '));
+  await seedRun([sz('A', blat), sz('B', { ...blat, H: 2000 })], 0);
+  f = await rows(/^Formatki do zamówienia$/);
+  ok('N151: kontrola — A pod blatem ciągu bez własnego blatu', !f.some((r) => /^Blat \|/.test(r)), f.filter((r) => /Blat/.test(r)).join(' / '));
+
+  await seedRun([sz('A', { back: 'none' }), sz('B', { back: 'hdf' })], 0, { ...RUN, worktop: false });
+  await page.locator('[data-el="scal-otworz"]').click(); await page.waitForTimeout(400);
+  const pl = page.locator('[data-el="scalanie"] [data-el="scal-plyty"]');
+  const t = (await pl.count()) ? await pl.innerText() : '';
+  ok('N152: kreator — „różne płyty albo plecy”, plecy: A — bez pleców; B — HDF 3 mm', /różne płyty albo plecy/.test(t) && /plecy: A — bez pleców; B — HDF 3 mm/.test(t), t.replace(/\n/g, ' / '));
+  await pl.getByRole('button', { name: 'B', exact: true }).click(); await page.waitForTimeout(300);
+  await page.locator('[data-el="scalanie"]').getByRole('button', { name: 'Scal', exact: true }).click(); await page.waitForTimeout(1200);
+  const p = await zap();
+  f = await rows(/^Formatki do zamówienia$/);
+  ok('N152: „płyty jak w B” → scalona szafka 1200 z plecami HDF (formatka 1198 × 718)', p.items.length === 1 && p.items[0].cab.back === 'hdf'
+    && f.some((r) => /^Plecy HDF/.test(r) && /1198/.test(r) && /718/.test(r)), JSON.stringify(p.items.map((x) => [x.cab.W, x.cab.back])) + ' ' + f.filter((r) => /Plecy/.test(r)).join(' / '));
 }
 
 ok('bez błędów strony', !errors.length, errors.join(' / '));

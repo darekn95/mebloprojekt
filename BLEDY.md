@@ -17,6 +17,12 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-30 | audyt GPT N150: jedna własna resztka blatu 1000 × 1000 przypisana do dwóch grup rozkroju (arkusz 600 i 1200), obie z zakupem 0 | każda grupa dostawała pełną listę kawałków; teraz wspólna `pula` w `buildCutPlan`, sztuka kawałka idzie do jednej grupy (`q.zostalo`); `funkcje` | (ten commit) |
+| 2026-10-30 | audyt GPT N151: własny blat słupka 600 × 2000 znikał z zamówienia, gdy ciąg miał blat roboczy (nad słupkiem go nie ma) | `projectParts` (i lista formatek szafki, PDF) zdejmowały rolę „blat” wszystkim szafkom ciągu; teraz tylko szafkom pod blatem ciągu (`runTop(...).pokryte`); `funkcje`, `audytgpt13` | (ten commit) |
+| 2026-10-30 | audyt GPT N152: scalanie A bez pleców + B z HDF dawało szafkę bez pleców, bez słowa | plecy brane z pierwszej szafki; teraz różne plecy widać w kreatorze jak różne płyty, a „płyty jak w” bierze też plecy (`POLA_PLECOW`); kliknięte w `audytgpt13` | (ten commit) |
+| 2026-10-30 | audyt GPT N154: wspólne dno 1220 z dwóch szafek o tej samej nazwie i kolorze płyty, ale różnym dekorze (Oak / Ash) | porównanie płyt bez dekoru (też przy łączeniu własnych blatów); teraz `tozsamoscPlyty`; `funkcje` | (ten commit) |
+| 2026-10-30 | audyt GPT N155: zbiorcza lista okuć gubiła model tip-on (AM-SVN-DL-MG-30), zostawało samo zastosowanie | `scalOkucia` zastępuje opis zastosowaniem; model w polu `model` (tip-on, zawieszka) dopisywany przed zastosowaniem — poza kluczem ceny, żeby nie zgubić wpisanych cen; `funkcje` | (ten commit) |
+| 2026-10-30 | audyt GPT N156: drugie scalanie z „dwie przegrody” zdejmowało podwójną przegrodę z pierwszego (3 płyty zamiast 4) | `scalSzafki` kasował `przegrodaPodw` i `noDiv` we wszystkich kolumnach; teraz tryb dotyczy tylko nowych styków; `funkcje` | (ten commit) |
 | 2026-10-30 | retest GPT N145: błąd „tip-on … wchodzi w plecy” (szafka 600 × 300 × 80) bez przycisku, tip-on dalej w zamówieniu | decyzja użytkownika „oba”: „Uchwyt zamiast tip-on” (uchwyt na tych drzwiach, tip-on znika z zamówienia) i „Głębokość szafki N mm” (o tyle głębsza, ile brakuje odbojnikowi — 89); kliknięte w `audytgpt13`, liczby w `funkcje` | fc53def |
 | 2026-10-30 | retest GPT N147: błąd „półki kończą się w przelocie” bez przycisku | decyzja użytkownika „oba”: „Przywróć przegrodę” (usuwa `noDiv`, przegroda w formatkach i wierceniach) i „Jedna kolumna na całą szerokość” (`kolumnaZPrzelotu`: drzwi obu kolumn zostają, półki i rura z tej, która je ma, szerokość obu); kliknięte w `audytgpt13` | fc53def |
 | 2026-10-30 | retest GPT N149: zawieszka w wycięciu narożnika w górnym poziomie — błąd z samą radą „przenieś wycięcie” (także przy włączonej zabudowie); przy wycięciu na całą wysokość zawieszka szła na skrócony bok, który stoi przed ścianą | użytkownik: „zaproponować zabudowę wycięcia i montaż zawieszki na zabudowie, nie może wisieć w powietrzu”. Zawieszka idzie na ściankę boczną zabudowy (dochodzi do ściany) — plan wierceń, zamówienie, informacja „złącz ściankę mocno z wieńcem”; tak samo przy elemencie w rogu i przy wycięciu na całą wysokość. Bez zabudowy błąd z „Zabuduj wycięcie / element”, ścianka za krótka — „Wycięcie N mm w głąb”; kliknięte w `audytgpt13` | 4c2efba |
@@ -387,6 +393,15 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 Otwarte zostają tylko dwa tematy (użytkownik 2026-10-29: „zamykamy wszystkie tematy poza
 szafką skośną i sprzętami”). Kolejność: **najpierw sprzęty**, szafka skośna **dużo później**.
+
+Pytania z audytu GPT 2026-10-30 (zadane użytkownikowi, czekają na odpowiedź):
+- **N153** — rura na wieszaki dłuższa niż 3 m (najdłuższy odcinek w sprzedaży): plan zakupu
+  składa ją z 3 m + 0,5 m, jakby to była jedna rura. Co zrobić: błąd z przyciskiem
+  (podzielić kolumnę przegrodą / podpora środkowa), czy ostrzeżenie o podporze już przy krótszej?
+- **N148 (wariant)** — szafka wisząca stoi z dala od ściany (wysunięta z lica, płytsza w licu
+  ciągu): zawieszki nie sięgają listwy. Błąd z przyciskiem „do ściany”, czy listwa na dystansie?
+- **N149 (dopytanie)** — ścianka zabudowy wycięcia niesie zawieszkę: czy dodać jej mocowanie do
+  wieńca do planu wierceń i zamówienia (np. 2 konfirmaty), czy zostaje informacja?
 
 - **1. Sprzęty w zabudowie — następne w kolejce** (kontrola kolizji otwierania, użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
