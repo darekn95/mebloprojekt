@@ -1,3 +1,11 @@
+### N156 [P2] — OTWARTE: ponowne scalanie usuwa wcześniejszą podwójną przegrodę
+
+**Test funkcji**, main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`: trzy sąsiednie szafki A, B, C 600 × 720 × 560 mm, ten sam ciąg i materiały. Połączyć A i B z opcją dwóch przegród na styku (`scalSzafki(..., „dwie”)`): powstają dwie płyty 684 × 560 i flaga `przegrodaPodw`. Następnie połączyć wynik z C, ponownie wybierając dwie przegrody. `scalenieBlad` nie zgłasza przeszkody, lecz po drugim scaleniu na wcześniejszym styku jest jedna przegroda, na nowym dwie; lista ma 3 zamiast 4 płyt. Funkcja usuwa flagi podwójnych przegród z kopiowanych kolumn. Interfejs, ostrzeżenia i przyciski nie zostały sprawdzone.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** zachowywać istniejące przegrody wewnątrz każdej scalanej szafki, a wybrany tryb stosować do nowych styków. **Test odbioru:** kolejne scalanie w obu trybach, wiele poziomów, pozycje i szerokości kolumn, wiercenia, formatki, zamówienie oraz przyciski; NAPRAWIONE dopiero po pozytywnej weryfikacji.
+
+---
+
 ### N155 [P3] — OTWARTE: zbiorcza lista okuć gubi numer modelu tip-on
 
 **Test funkcji**, main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`: szafka 600 × 720 × 560 mm z jednymi drzwiami bez uchwytu i otwieraniem tip-on. `computeGeo` generuje pozycję „Odbojnik tip-on GTV SALTO NOVA” o specyfikacji „długi nakładany z magnesem, szary (AM-SVN-DL-MG-30)” i z informacją o szczelinie. Po `scalOkucia` specyfikacja zmienia się na samo „drzwi bez uchwytu — otwieranie przez naciśnięcie”, bez numeru modelu i wariantu. Funkcja jest wykorzystywana w zbiorczej liście okuć; test UI i PDF nie został wykonany. Użytkownik wskazał konkretny model (BLEDY.md, 25.10). Przy zakupie sama nazwa rodziny może być niejednoznaczna.
