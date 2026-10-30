@@ -1,3 +1,9 @@
+### N169 — dodatkowy wariant: fronty szuflad
+
+**Dodatkowy wariant tego samego mechanizmu — szuflady, test UI:** zwykła szafka 600 × 720 × 560 mm, trzy szuflady V-BOX, ręczna wysokość pierwszego frontu 238 mm, pozostałe automatyczne; wynikowe wysokości 238, 236 i 236 mm przy luce 2 mm. Ostrzeżenie obiecuje identyczne fronty po zmianie luzu. Kliknięcie „Zwiększ luz do 3 mm” zmienia je na 238, 235 i 235 mm; różnica wzrasta do 3 mm, a ostrzeżenie znika. To ten sam błąd logiki `evenGapOptions`, nie odrębne zgłoszenie. **Test odbioru dodatkowo:** w analogiczny sposób sprawdzić fronty szuflad z różnymi ręcznymi wysokościami i rzeczywiste działanie obu kierunków zmian.
+
+---
+
 ### N169 [P2] — OTWARTE: przycisk wyrównania drzwi zwiększa różnicę przy jednym ręcznym wymiarze
 
 **Test UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: nowy syntetyczny projekt, zwykła szafka 600 × 720 × 560 mm, jedna kolumna, trzy drzwi. Ustawić szerokość pierwszych drzwi ręcznie na 198 mm, szerokości dwóch pozostałych zostawić automatyczne, luz między drzwiami 2 mm. Rysunek i formatki pokazują fronty 198, 197 i 197 mm. Ostrzeżenie mówi, że przy równym podziale fronty różnią się o 1 mm i zaleca zmianę luzu, „żeby formatki były identyczne”. Przycisk „Zwiększ luz do 3 mm” faktycznie kliknięto: szerokości stały się 198, 196 i 196 mm, a ostrzeżenie zmieniło różnicę na 2 mm. Kolejne kliknięcie oferowanego „Zwiększ luz do 4 mm” dało 198, 195 i 195 mm i ostrzeżenie zniknęło, mimo różnicy 3 mm. Przycisk „Zmniejsz luz do 2 mm” był dostępny po pierwszym kliknięciu, lecz w tym teście nie został kliknięty. Pierwszy wymiar jest ręczny i może być celowy; problem polega na tym, że komunikat i przyciski obiecują identyczne formatki, choć ich nie uzyskują. Źródło: wyznaczanie propozycji `evenGapOptions` wyrównuje pozostałe automatyczne fronty między sobą, podczas gdy rozrzut ostrzeżenia uwzględnia także wymiar ręczny; ostrzeżenie wyświetla się tylko do 2 mm różnicy.
