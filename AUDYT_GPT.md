@@ -1,3 +1,121 @@
+### N168 [P2] — DO WERYFIKACJI: konfirmaty ramienia narożnika bez odpowiadających zaślepek
+
+**Obserwacja UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: projekt syntetyczny z domyślną szafką stojącą i narożnikiem L z szablonu, blatem ciągu i nóżkami. W „Produkty do zamówienia — Projekt” jest 20 konfirmatów 7 × 50, w tym 3 opisane jako złącza ramienia narożnika; pozycja zaślepek podaje 1 opakowanie (17 szt.). `cornerArmParts` dodaje konfirmaty dna ramienia do boku, lecz w tym miejscu nie dodaje odpowiadających im zaślepek. Opis zaślepek mówi „po jednej na widoczny łeb konfirmatu”, dlatego należy ustalić, czy te trzy łby są widoczne w konkretnym sposobie montażu i wymagają zaślepek; sama różnica 20–17 nie dowodzi tego bez oceny. W przykładzie liczba opakowań pozostaje taka sama, ale przy innych ilościach może mieć znaczenie dla zakupu. Przycisków brak do sprawdzenia w tym przypadku.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** ustalić, które łby w boku ramienia i przy półkach są widoczne, i uwzględnić odpowiednie zaślepki, jeśli są potrzebne. **Test odbioru:** ramię z dnem/wieńcem i półkami na konfirmatach, różna głębokość, ukryty i widoczny bok, liczby blisko granicy 25 szt., zamówienie i wycena. NAPRAWIONE po pozytywnej weryfikacji.
+
+---
+
+### N167 [P2] — DO OCENY MONTAŻOWEJ: przycisk pary wzmocnień pomija regułę szafki narożnej
+
+**Test funkcji**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: szafka narożna 1000 × 720 × 560 mm, ramię 400, oba złącza wieńca `brak`, bez wzmocnień. Ostrzeżenie proponuje akcję `parablat:0:0`, której obsługa dodaje `railPair()` bez argumentów. To tworzy z przodu płaską formatkę 964 × 100 mm i z tyłu stojącą 961 × 100 mm, obie z odsunięciem 0. Natomiast istniejąca funkcja `bezWienca` dla tego samego narożnika tworzy dwie stojące płyty 964 × 60 i 961 × 60, z odsunięciem 18 mm od przodu/tyłu, zgodnie z komentarzem w kodzie o połączeniu z kątownikiem. W UI odtworzono narożnik z szablonu 900 × 720 × 560, ramię 640 i blat ciągu: usunięto istniejącą parę i pojawiły się dwa ostrzeżenia. Kliknięcie „Dodaj parę wzmocnień pod blat” dodało przednią płytę poziomą o głębokości 100 i tylną wysokości 100, z odsunięciami 0; w ramieniu formatki 722 × 100 i 1143 × 100. Po cofnięciu kliknięto drugi przycisk „Dołóż parę wzmocnień”: powstały dwie stojące płyty o wysokości 60 i odsunięciach 18, a w ramieniu formatki 658 × 60 i 1143 × 60. Oba usunęły ostrzeżenie o braku wzmocnień. Rzeczywiste dopasowanie i fizyczny montaż wymagają oceny; różnica sama nie przesądza, który wariant jest właściwy.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** porównać działanie przycisku z regułą narożną i po potwierdzeniu zastosować właściwą parę w danym kontekście. **Test odbioru:** lewy i prawy narożnik, różne grubości frontu, z blatem i bez, przycisk, 3D, styki, formatki i zamówienie. NAPRAWIONE dopiero po pozytywnych wynikach.
+
+---
+
+### N166 [P2] — OTWARTE: przycisk dodania pary wzmocnień tworzy błąd przy płytkiej szafce
+
+**Test UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: szafka 600 × 300 × 80 mm bez wieńca, z ostrzeżeniem „nad tą kolumną nie ma wieńca ani wzmocnienia”. Kliknięcie „Dodaj parę wzmocnień pod blat” dodaje wzmocnienie poziome głębokości 100 mm, które wystaje 20 mm poza korpus 80 mm, i pojawia się nowy błąd z instrukcją ręcznej korekty, bez przycisku przy tym błędzie. W tym teście szafka miała także tip-on; po dodaniu pary znika błąd braku płyty, ale pojawia się osobny błąd tip-on wchodzącego w plecy. Powtórzenie bez tip-on daje ten sam błąd. Ręczna zmiana głębokości poziomego wzmocnienia z 100 na 80 mm usuwa wskazany błąd i zmienia formatkę na 564 × 80 mm; niezależne ostrzeżenia o nóżkach i konfirmatach pozostają. Nie sprawdzono fizycznego montażu ani pozostałych konfiguracji.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** przy tworzeniu pary uwzględnić dostępną głębokość albo zaoferować wykonalną zmianę; ocenić skutki montażowe przed ustaleniem wymiaru. **Test odbioru:** D80 oraz wartości poniżej, na i powyżej 100 mm, z i bez pleców, wymiar formatek, 3D, mocowanie, zamówienie, wszystkie proponowane przyciski i ewentualne nowe kolizje. Oznaczyć NAPRAWIONE po pozytywnych testach.
+
+---
+
+### N165 [P2] — OTWARTE: podział kolumny zmienia stronę zawiasów prawego skrzydła
+
+**Test funkcji i UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: szafka 2100 × 2000 × 560 mm, jedna kolumna z dwojgiem drzwi z automatycznymi zawiasami i drążkiem 2062 mm. Przed podziałem `computeGeo` wyznacza zawiasy lewego skrzydła po lewej, prawego po prawej. Ostrzeżenie o uginaniu proponuje „Podziel kolumnę przegrodą”. Po kliknięciu powstają dwie kolumny z jednymi drzwiami każda i dwa drążki 1021 mm, ale `computeGeo` wyznacza oba zawiasy po lewej. UI pokazuje dla obu nowych skrzydeł „auto (L)”; nie wyjaśnia zmiany kierunku prawego skrzydła. Przed podziałem i po nim są niezależne ostrzeżenia o dużych frontach poza tabelą GTV. Kliknięcie „z prawej” dla drugiej kolumny w UI zmienia jej ustawienie na „auto (P)” i przywraca stronę prawą; nie sprawdzono całego zakresu otwierania i kolizji.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** rozważyć zachowanie rzeczywistych kierunków istniejących skrzydeł lub jasno pokazać ich zmianę z wyborem; sprawdzić wpływ na otwieranie i dobór zawiasów. **Test odbioru:** para automatyczna i ręczne strony, inna liczba drzwi, fix lewy/prawy, otwieranie i kolizje, lista okuć, kliknięcia oraz cofanie; NAPRAWIONE po pozytywnym teście.
+
+---
+
+### N164 [P2] — OTWARTE: podział kolumny sam powiela boczny fix i jego wspornik
+
+**Test UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: szafka 2100 × 2000 × 560 mm, jedna kolumna z dwoma drzwiami, lewy fix 100 mm i pionowy wspornik (dodany działającym przyciskiem przy błędzie zawiasu), drążek 2062 mm. Przed podziałem formatki zawierają jeden element stały 2000 × 100 i jeden wspornik 1964 × 100. Kliknięcie „Podziel kolumnę przegrodą” przy ostrzeżeniu drążka tworzy dwie kolumny z drążkami 1021 mm i usuwa ostrzeżenie o drążku, ale każda z kolumn ma lewy fix 100 i wspornik; formatki obu rosną z 1 do 2 sztuk. Drugi fix pojawia się przy środku frontu, bez uprzedzenia w komunikacie. W UI kliknięcie „brak” przy fiksie drugiej kolumny usuwa dodatkowy fix i wspornik z formatek (po 1 szt.), ale zmienia szerokość drugich drzwi; pozostaje niezależne ostrzeżenie o dużym froncie poza tabelą zawiasów. Nie sprawdzono wszystkich skutków montażowych ani innych stron. Test funkcji wskazał analogiczne powielanie prawego fiksu.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** ocenić zachowanie bocznych fiksów i wsporników przy podziale, pokazać skutki lub zachować element tylko po odpowiedniej stronie; sprawdzić zawiasy i pozostałą geometrię. **Test odbioru:** lewy/prawy/górny fix, ze wspornikiem i bez, 0/1/wiele drzwi, kliknięcie akcji i korekt, formatki, okucia, 3D oraz cofanie; NAPRAWIONE dopiero po pozytywnej weryfikacji.
+
+---
+
+### N163 [P3] — OTWARTE: zbiorczy opis wkrętów zawieszek przypisuje je wzmocnieniom
+
+**Test UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: syntetyczny projekt ze standardowymi szafkami, w tym trzy wiszące bez wzmocnień, każda z dwiema zawieszkami. W pojedynczej szafce pozycja „Wkręt 4 × 30” wyjaśnia „zawieszki 2×2 szt.”; w zbiorczej liście projektu ilość 12 szt. jest poprawną sumą, ale specyfikacja brzmi „wzmocnienia i kątownik skręcane na licu — 4 na wzmocnienie, kątownik co ok. 200 mm”, choć w tym projekcie nie ma wzmocnień ani kątownika i wkręty są potrzebne do zawieszek. Nie twierdzę, że liczba jest błędna. `scalOkucia` zastępuje szczegółową specyfikację stałym `use` wiersza, który nie wymienia zawieszek; może to utrudnić przypisanie wkrętów do montażu. PDF nie sprawdzono.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** zachować w zbiorczym opisie faktyczne zastosowania i ilości dla zawieszek, wzmocnień i podwójnych przegród, bez zmiany prawidłowej liczby lub klucza ceny. **Test odbioru:** osobno zawieszki, wzmocnienia, podwójne przegrody i mieszane projekty, lista szafki, projekt, PDF i wycena; status NAPRAWIONE po pozytywnych testach.
+
+---
+
+### N162 [P2] — DO WERYFIKACJI UI: zabudowa wycięcia i zawieszka wchodzą w większy element tego samego narożnika
+
+**Test funkcji**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: wisząca szafka 600 × 1200 × 560 mm, wycięcie lewego tylnego narożnika 100 × 100 mm przez całą wysokość z zabudową oraz element kolizyjny 200 × 150 mm w tym samym narożniku, od boku i tyłu 0, przez całą wysokość. `geoCuts.maskWalls` opisuje ściankę boczną wycięcia jako x=100..118, z=0..100, y=18..1182, natomiast `geoObs` opisuje element jako x=0..200, z=0..150, y=18..1182: bryła ścianki w całości wchodzi w element. Program planuje zawieszkę na tej ściance i podaje informację o jej zamocowaniu; nie zgłasza tego przecięcia jako błędu. Element bez zabudowy wywołuje tylko ogólną uwagę, że nie jest odgrodzony; po włączeniu jego zabudowy program dodatkowo tworzy drugą ściankę przy x=200..218, ale nadal wybiera zawieszkę na pierwszej ściance wewnątrz elementu. Kontrola bez elementu nie ma wskazanego przecięcia. W UI potwierdzono osiągalność podobnego układu: wycięcie 100 × 100 mm w górnym poziomie oraz element 200 × 150 mm na całą wysokość w lewym narożniku, oba zabudowane. Widnieje informacja, że zawieszka jest na ściance zabudowy wycięcia, bez osobnego komunikatu o kolizji tej ścianki z elementem; jest niezależne ostrzeżenie o elemencie przechodzącym przez półkę między poziomami. Powyższe współrzędne dotyczą testu funkcji z wycięciem na całą wysokość; nie potwierdzono niezależnie brył wariantu z UI.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** ocenić łączne obrysy przeszkód i zabudów, unikać formatek w kolizji oraz umieścić zawieszkę na rzeczywiście dostępnej ściance albo pokazać wykonalny wybór. **Test odbioru:** obie kolejności i strony, mniejszy/większy element, maski włączone i wyłączone, inne poziomy; kliknąć działania, skontrolować bryły, mocowania, formatki i zamówienie. NAPRAWIONE tylko po pomyślnych testach.
+
+---
+
+### N161 [P2] — OTWARTE: trójkąty ścianki z zawieszką odwołują się do nieistniejącego wieńca
+
+**Test funkcji**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: szafka 600 × 1200 × 560 mm, dwa poziomy, lewy tylny narożnik wycięty 100 × 100 mm w górnym poziomie, zabudowa włączona, zawieszki, oba złącza górne `none` (brak wieńca). Informacja o ściance z zawieszką proponuje „złącz ją mocno z wieńcem, np. 2 trójkątami” z akcją `zawmoc:wyc:L:trojkaty`. Po ustawieniu odpowiadającego jej `zawMocowanie=trojkaty` informacja twierdzi „Ścianka złączona z wieńcem 2 trójkątami”, plan zawiera „trójkąt meblowy — wieniec”, a zamówienie dwa trójkąty, mimo że w formatkach brak wieńca. Niezależne ostrzeżenie o otwartym korpusie proponuje parę wzmocnień pod blat, ale nie sprawdzono, czy zapewnia właściwe zamocowanie ścianki. Kontrola z wieńcem ma fizyczną formatkę i ten sam plan. Potwierdzono w UI: szafka 600 × 1200 × 560, dwa poziomy, wycięcie 100 × 100 tylko w górnym, zabudowa, nóżki wyłączone i wieniec wyłączony. Po kliknięciu „2 trójkąty pod wieńcem” informacja twierdzi, że ścianka jest złączona z wieńcem, a do zamówienia trafiają dwa trójkąty pomimo braku wieńca. Pozostaje niezależne ostrzeżenie o otwartym korpusie. Kliknięto też „Dodaj parę wzmocnień pod blat”: zniknęło ostrzeżenie o otwartym korpusie, pojawiły się dwie formatki wzmocnień, lecz wieniec nadal nie istnieje, a opis połączenia z wieńcem pozostaje. Nie sprawdzono, czy wzmocnienia dają odpowiednie podparcie w rzeczywistym montażu.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** uzależnić propozycję i opis mocowania od faktycznej płyty nośnej; ustalić wykonalną konstrukcję lub jasno wskazać brak możliwości. **Test odbioru:** bez wieńca, zwykły wieniec, blat, wzmocnienia i obie strony; kliknąć oferowane działania i sprawdzić bryły, plan i zamówienie. NAPRAWIONE tylko po pozytywnej weryfikacji.
+
+---
+
+### N160 [P2] — OTWARTE: zbiorcze zamówienie miesza różne grubości dystansów zawieszek
+
+**Test funkcji**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: syntetyczny ciąg górny, trzy wiszące szafki 600 × 720 × 300 mm z listwą, wysunięcia 0, 50 i 100 mm. Dla drugiej i trzeciej ustawiono odpowiednie dystanse 50 i 100 mm, odpowiadające akcjom przy komunikacie. `odScianyMsgs` pokazuje dwie informacje o dobranych dystansach bez błędu. `projectParts` zawiera dwie listwy dystansowe: 0,6 mb grubości 50 mm i 0,6 mb grubości 100 mm. Jednak `scalOkucia`, wykorzystywane dla zbiorczego zamówienia projektu, łączy je w jedną pozycję 1,2 mb o specyfikacji „szafka wisząca z dala od ściany”, bez żadnej grubości. Nie można z tego wiersza zamówić właściwych odcinków. Po przełączeniu całego ciągu na haki UI pokazuje analogicznie jeden wiersz „Klocek dystansowy pod hak”, 4 szt., bez grubości, mimo że dwie szafki mają dystans 50 i 100 mm. Potwierdzono w UI: dla drugiej i trzeciej szafki ustawiono wysunięcia 50 i 100 mm oraz kliknięto kolejno „Listwa na dystansie 50 mm” i „Listwa na dystansie 100 mm”. Każdy błąd zniknął i indywidualna pozycja pokazała właściwą grubość, jednak „Produkty do zamówienia — Projekt” pokazuje jedną listwę dystansową 1,2 mb ze specyfikacją „szafka wisząca z dala od ściany”, bez grubości. PDF nie sprawdzono.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** zachować i rozróżnić grubości przy sumowaniu listw i klocków, sprawdzić długości i oznaczenia dla wielu szafek oraz ceny. **Test odbioru:** różne i jednakowe dystanse, listwy i haki, szafki w ciągach i poza nimi, rzeczywisty wynik po kliknięciu przycisków, zbiorcze zamówienie, wycena i PDF. Oznaczyć NAPRAWIONE po pomyślnym sprawdzeniu.
+
+---
+
+### N159 [P2] — OTWARTE: podział kolumny zostawia niepasującą ręczną szerokość drzwi
+
+**Wersja i test UI:** `standalone.html` z main `c201eb126a7baed70a943c16a3c93db4df62fb70`, syntetyczna szafka 2100 × 2000 × 560 mm, jedna kolumna, dwa drzwi, szerokość pierwszych zadana 600 mm, drugich automatyczna, drążek 2062 mm. Ostrzeżenie o uginaniu oferuje „Podziel kolumnę przegrodą”. Po kliknięciu dwie kolumny mają szerokość światła 1023 mm, lecz pierwsze drzwi nadal mają zadaną szerokość 600 mm. Program zgłasza błąd „zadane szerokości drzwi nie wypełniają pasma — różnica 446 mm” bez przycisku rozwiązania przy tym błędzie. Przed podziałem oba fronty wypełniały pasmo (600 i 1494 mm), choć szerszy miał niezależne ostrzeżenie o tabeli zawiasów. Sama obecność pola do ręcznej zmiany nie jest przetestowanym przyciskiem przy komunikacie. W teście funkcji wariant z obiema szerokościami zadanymi powodował również wystawanie frontów. Sprawdzono w UI: ręczne wyczyszczenie pola szerokości pierwszych drzwi usuwa ten błąd i ustawia dwa fronty po 1046 mm; pozostają niezależne ostrzeżenia o frontach poza tabelą GTV. Nie jest to przycisk przy komunikacie.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** przy podziale ocenić ręczne szerokości dla nowego pasma, zaproponować właściwą zmianę lub przycisk przy błędzie; sprawdzić skutki dla frontów i zawiasów. **Test odbioru:** wartości auto/ręczne, jedna i większa liczba drzwi, przycisk rozwiązania i jego skutek, formatki, kolizje, zamówienie i cofanie; oznaczyć NAPRAWIONE dopiero po pozytywnych testach.
+
+---
+
+### N158 [P2] — OTWARTE: podział kolumny z drążkiem sam dodaje drzwi
+
+**Wersja i odtworzenie UI:** lokalny standalone z main `c201eb126a7baed70a943c16a3c93db4df62fb70`; projekt syntetyczny, szafka 2100 × 2000 × 560 mm, jedna kolumna „Półki i drzwi”, liczba drzwi 0, półek 0, jeden drążek. W uwagach ostrzeżenie, że drążek 2062 mm może się uginać, i przycisk „Podziel kolumnę przegrodą”. Przed kliknięciem brak drzwi w formatkach. Po kliknięciu są dwie kolumny i dwa krótsze drążki 1021 mm, ale program sam dodaje po jednych drzwiach: dwie formatki 1994 × 1046 mm, dwa uchwyty, po pięć zawiasów na każde skrzydło oraz dwa nowe ostrzeżenia o frontach poza tabelą GTV. Przycisk nie zapowiada dodania drzwi. Test funkcji `kolumnaNaDwie` potwierdził też kontrolne przypadki 1 i 2 drzwi; przy 0 kod wymusza minimum 1 drzwi na obie nowe kolumny.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** zachować brak drzwi przy podziale bezdrzwiowej kolumny; przeanalizować również podział frontów o ręcznych szerokościach, klap i innych wnętrz. **Test odbioru:** kliknąć akcję dla 0, 1, 2 i większej liczby drzwi, sprawdzić fronty, okucia, drążki, formatki, nowe uwagi i cofnięcie; oznaczyć NAPRAWIONE dopiero po pozytywnych wynikach.
+
+---
+
+### N157 [P2] — OTWARTE: akcja „Jedna kolumna” usuwa półki drugiej kolumny bez uprzedzenia
+
+**Wersja i test UI:** lokalna kopia standalone z main `c201eb126a7baed70a943c16a3c93db4df62fb70`, dane syntetyczne. Wczytać starszy projekt szafki 600 × 1200 × 560 mm z dwiema otwartymi kolumnami, w lewej `noDiv=true` i jedna półka (`shelfTargets:[300,null]`), w prawej dwie półki (`shelfTargets:[200,200,null]`). Przed kliknięciem formatki mają 3 półki 282 × 560 mm; uwaga o braku przegrody proponuje „Przywróć przegrodę” i „Jedna kolumna na całą szerokość”. Kliknąć drugi przycisk. Ostrzeżenie znika i widnieje „bez uwag”, ale pozostaje jedna półka 564 × 560 mm, a dwie półki prawej kolumny znikają; kołki zmniejszają się z 12 do 4. Komunikat przed kliknięciem nie wyjaśnia utraty prawej konfiguracji. Test funkcji potwierdza, że `kolumnaZPrzelotu` wybiera wnętrze lewej, gdy obie mają półki. Odtworzono przez wczytanie syntetycznego starszego projektu — nie ustalono, czy taką konfigurację da się utworzyć obecnym interfejsem. Przycisku „Przywróć przegrodę” w tym wariancie nie sprawdzono.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** przed połączeniem różnych wnętrz pokazać skutki i pozwolić wybrać zachowywany układ albo zaproponować zachowanie możliwych elementów; ocenić skutki geometrii i podparcia. **Test odbioru:** obie kolumny o różnych półkach i drążkach, jedna pusta, różne rodzaje wnętrza, zmiana kolejności, kontrola przycisku, formatek, okuć i cofania. Oznaczyć NAPRAWIONE dopiero po pozytywnym sprawdzeniu.
+
+---
+
+### N145 — wariant bez płyty montażowej pozostaje OTWARTY
+
+**Test UI, main `c201eb126a7baed70a943c16a3c93db4df62fb70`:** szafka 600 × 300 × 80 mm, bez dna i wieńca (złącza `brak`), bez półek i wzmocnień, jedno skrzydło z tip-on. Błąd „tip-on nie ma płyty do przykręcenia ... Dołóż półkę albo wzmocnienie, albo daj uchwyt” nie ma żadnego przycisku. Odbojnik pozostaje w zamówieniu. Inne ostrzeżenie o otwartej górze ma przycisk „Dodaj parę wzmocnień pod blat”. Po kliknięciu błąd braku płyty znika, lecz w szafce D80 wzmocnienie o głębokości 100 mm wychodzi poza korpus, pojawia się nowy błąd, a dodatkowo pokazuje się błąd tip-on 89 mm wchodzącego w plecy (ten drugi ma przyciski). Ta akcja może pomóc znaleźć płytę montażową, ale nie jest pełnym rozwiązaniem w tym przykładzie. Nie sprawdzono fizycznego montażu.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** przy błędzie braku płyty rozważyć wykonalne przyciski, np. zmiana na uchwyt lub dodanie odpowiedniej płyty, po kontroli geometrii i pozostałych kolizji. **Test odbioru:** oba sposoby i ich skutki, płytkie/głębokie szafki, zamówienie i inne błędy. Zachować osobny status od naprawionego wariantu kolizji z plecami.
+
+---
+
+### N145 — NAPRAWIONE w sprawdzonym wariancie: przyciski błędu tip-on w płytkiej szafce
+
+**Retest UI, main `c201eb126a7baed70a943c16a3c93db4df62fb70`:** syntetyczna szafka 600 × 300 × 80 mm, HDF, półka, dwoje drzwi, jedno bez uchwytu z tip-on. Błąd o odbojniku 89 mm wchodzącym w plecy ma dwa przyciski. Kliknięcie „Głębokość szafki 89 mm” ustawiło D=89, usunęło błąd tip-on i zmieniło głębokości formatek; pozostały niezależne ostrzeżenia płytkiego korpusu i błąd kołków. Kliknięcie przycisku „Ustaw 39 / 39 mm” usunęło błąd kołków, a w zamówieniu pokazało 39 mm od obu krawędzi. Po cofnięciu i kliknięciu „Uchwyt zamiast tip-on” zaznaczono uchwyt, zniknął błąd tip-on i odbojnik z zamówienia; pozostał niezależny błąd kołków. Oba przyciski faktycznie kliknięto. Test funkcji 339 kombinacji sugerowanej głębokości (D 40–130, opcje uwzględniania pleców/frontu, tryby frontu i różne plecy) nie pozostawił błędu tip-on po zastosowaniu proponowanej wartości. Wynik dotyczy sprawdzanej kolizji z plecami; wariant braku płyty montażowej opisano osobno powyżej; pełnego 3D i PDF nie zweryfikowano.
+
+---
+
+### N114 — uzupełnienie do weryfikacji przycisku: ostrzeżenie o otworze w półce między poziomami
+
+**Test UI, main `c201eb126a7baed70a943c16a3c93db4df62fb70`:** szafka 600 × 1200 × 560 mm z dwoma poziomami; element kolizyjny 200 × 150 mm przez całą wysokość w lewym tylnym narożniku. Program ostrzega: „Element kolizyjny przechodzi przez płytę między poziomami 1 i 2 ... wytnij w niej otwór 200 × 150 mm albo przesuń poziom”. Przy tym ostrzeżeniu jest tylko przycisk oznaczenia jako przeczytane; nie ma przycisku wykonania sugerowanego działania. W tym projekcie występują też inne, niezależne uwagi. Wcześniejsza naprawa N114 polegająca na wykrywaniu przecięcia nie jest kwestionowana; ten wpis dotyczy późniejszego kryterium użytkownika o sprawdzeniu działających przycisków, nie ponownego zgłoszenia starego braku ostrzeżenia.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** ocenić, czy można zaproponować przycisk bezpiecznej zmiany poziomu lub inny wykonalny wybór; nie zakładać automatycznego wycinania ani sposobu montażu. **Test odbioru:** rzeczywisty efekt przycisku i brak nowych kolizji, opis otworu i formatki, różne wymiary i wysokości elementu. Oznaczyć rozwiązanie dopiero po sprawdzeniu.
+
+---
+
 ### Uzupełnienie testów UI — N155 i przycisk kołków
 
 W odizolowanej lokalnej kopii aplikacji z main d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e przetestowano syntetyczną szafkę 600 × 300 × 80 mm z tip-on. Lista pojedynczej szafki pokazała model AM-SVN-DL-MG-30; po powieleniu szafki zbiorcza lista projektu pokazała tylko ogólną nazwę odbojnika i ilość 2, bez kodu modelu. N155 potwierdzono także w interfejsie; pozostaje OTWARTE. PDF nie był sprawdzony.
