@@ -21,6 +21,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 | 2026-10-28 | decyzja: N122 — nóżka sama przesuwa się spod wycięcia narożnika | `legs.miejsca` w `computeGeo` (x, od tyłu), przesunięcie `LEG_ZA_WYCIECIEM` = 10 mm za wycięcie, tam gdzie bliżej; elewacje (`nozkiWidok`), rzut z góry, z boku, 3D szafki i zabudowy z tych miejsc; informacja; bez miejsca — ostrzeżenie; suity `funkcje`, `audytgpt12` | (ten commit) |
 | 2026-10-28 | decyzja: N132 — dwa fronty w ramieniu szafki w L | `armPasy`: po jednym froncie ramienia na front kolumny przy ramieniu („Front ramienia — dolny / górny”), zawiasy, uchwyty, fix, plan wierceń, 3D, elewacje; maskownica na całą wysokość frontów; informacja zamiast błędu; suity `funkcje`, `audytgpt12` | (ten commit) |
 | 2026-10-28 | audyt GPT N140: biały i czarny „Blat roboczy” na jednym arkuszu rozkroju | etykieta blatu bez koloru i grupowanie po etykiecie; kolor w etykiecie przy kilku kolorach pod jedną nazwą (jak HDF) i grupy rozkroju po `matId`; suita `funkcje` | (ten commit) |
+| 2026-10-30 | `macierzszuflad` w pełnym przebiegu: „przycisk … nie usunął błędu” (2 fałszywe alarmy, wolno przechodzą) | test, nie aplikacja: autozapis po wczytaniu (800 ms, przy kilku suitach później) przychodził po kliknięciu, test brał go za zapis zmiany i przeładowywał za wcześnie; teraz `kliknijPrzycisk` czeka, aż zapis stanie, i dopiero klika | (ten commit) |
 | 2026-10-29 | klapy: podnośniki / amortyzatory nie były rysowane przy otwartej klapie (zgłoszenie użytkownika) | były tylko w zamówieniu i planie wierceń; teraz w „Otw.” szafki i ciągu oraz w 3D otwartym — z położenia z planu wierceń, końcówka na klapie obraca się z nią (`d.podnosniki`, `podnosnikOdcinek`); suita `klapy` | (ten commit) |
 | 2026-10-29 | narożnik: „ciąg „Ściana 1” zaczyna się 599 mm od rogu”, a róg jest na jego końcu (projekt użytkownika, pomieszczenie 1) | opis zawsze „zaczyna się … od rogu”; przy stracie na końcu ciągu (`tail`) — „kończy się N mm przed rogiem”; suita `gornaL` | (ten commit) |
 | 2026-10-29 | górny pasek w wąskim oknie artefaktu (ok. 850 × 650): po przewinięciu i rozwinięciu „Ciągi i szafki” pasek „przypiął się na samej górze” strony i zniknął z ekranu (zgłoszenie użytkownika) | reguła z audytu GPT U2: pasek wyższy niż 40% okna przestawał być przyklejony; teraz zawsze przyklejony, a wyższy ma 40% okna i przewija się sam; suita `niskieokno` | (ten commit) |
@@ -380,15 +381,15 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Do decyzji użytkownika
 
-- **Przycinanie albo zawieszanie po zmianach — pierwszy podejrzany: automatyczny
-  rozkrój** (2026-09-29). Liczy się sam 1 s po zmianie formatek (powyżej 40 szafek
-  — 5 s). Pomiar: 40 szafek niezauważalnie, 100 szafek jedno przytrzymanie ok.
-  0,3–0,45 s. Gdy program zacznie przycinać: zmierzyć (`scratchpad` skrypt jak
-  `czas_auto` — Long Tasks po zmianie wymiaru), wydłużyć `ROZKROJ_ZWLOKA*` albo
-  przenieść liczenie do Web Workera. Decyzja użytkownika: tak zostaje, dopóki nie
-  będzie źle.
+Otwarte zostają tylko dwa tematy (użytkownik 2026-10-29: „zamykamy wszystkie tematy poza
+szafką skośną i sprzętami”). Kolejność: **najpierw sprzęty**, szafka skośna **dużo później**.
 
-- **Szafka narożna skośna (front pod kątem 45°) — na później** (użytkownik 2026-10-19,
+- **1. Sprzęty w zabudowie — następne w kolejce** (kontrola kolizji otwierania, użytkownik 2026-09-28):
+  drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
+  się kategoria „sprzęty” (lodówka, piekarnik, mikrofala) — dołożyć je jako
+  bryły w `swingBodies`, a ich drzwi/klapy jako ruchy.
+
+- **2. Szafka narożna skośna (front pod kątem 45°) — dużo później, po sprzętach** (użytkownik 2026-10-19,
   zdjęcia kuchni: dolna pod zlewem i górna wisząca). Szkic projektu w `AI_NOTES.md`
   ([AI-TODO] Szafka narozna SKOSNA). Przed robotą do ustalenia:
   1. wymiary dolnej i górnej: A i B wzdłuż ścian, głębokości (np. 900 × 900 × 560
@@ -402,24 +403,15 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
   6. front ramiakowy: w aplikacji front to płyta — zostawić, czy dodać „front
      zamawiany” (tylko wymiar i liczba).
 
-- **Szuflady na prowadnicach dolnego montażu** (użytkownik 2026-10-20) — **zrobione 2026-10-21** na Sevroll DXS-3D Synchro (ustalenia w „Ustalone”, suita `dxs`). Do sprawdzenia na pierwszej zbudowanej szufladzie: otwór tylnego zaczepu (11 mm nad dołem tyłu, czyli 38 nad kreską prowadnicy) względem tylnego końca prowadnicy; otwory prowadnicy krótszych NL nie są potrzebne (przykręcana bez nawiercania).
-
-- **Kontrola kolizji otwierania — sprzęty w zabudowie** (użytkownik 2026-09-28):
-  drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
-  się kategoria „sprzęty” (lodówka, piekarnik, mikrofala) — dołożyć je jako
-  bryły w `swingBodies`, a ich drzwi/klapy jako ruchy.
-
-- **Klapy do góry i w dół — do sprawdzenia przez użytkownika w innym terminie**
-  (prośba 2026-09-28). Zrobione i w artefakcie (wersja 48), ale użytkownik
-  jeszcze ich nie oglądał. Do przejrzenia razem: przełącznik „otwieranie”,
-  dobór siły z tabeli GTV PD-G00, liczba podnośników i zawiasów, uwagi,
-  formatka „Klapa”, rysunki i bryła 3D. Poprawki po pierwszym spojrzeniu
-  (wybór w dwóch krokach, amortyzator z tabeli PD-ECGDL, ostrzeżenie przy
-  jednym podnośniku, cena 10 zł, gęstość 680) już wprowadzone. Braki spisane w `AI_NOTES.md` ([AI-TODO] Klapy).
-  2026-10-17: mocowania podnośnika / amortyzatora w planie wierceń i sufit w kontroli otwierania zrobione,
-  decyzje o stronie podnośnika, półce na jego drodze, froncie wpuszczanym i zawiasie półnakładanym — w „Ustalone”.
+- **Zamknięte 2026-10-29** (decyzja użytkownika):
+  - automatyczny rozkrój a przycinanie — zostaje jak jest (pomiar: 100 szafek ok. 0,3–0,45 s; gdyby kiedyś przycinało — `ROZKROJ_ZWLOKA*` albo Web Worker);
+  - DXS-3D: otwór tylnego zaczepu ⌀6 × 10 mm, 11 mm od dołu tyłu i 7 mm od boku — zgodny z instrukcją Sevroll (katalog 2026 s. 112, „Wymiary montażowe szuflady”), zostaje; prowadnica krótszych NL przykręcana bez nawiercania;
+  - klapy — wstępnie sprawdzone przez użytkownika, bez rozbudowy (podnośnik krótki, Easy Up, waga uchwytu, rozwórka — „nie dodajemy”);
+  - róg ze zwykłymi szafkami — sprawdzony na projekcie użytkownika; górny ciąg kończący się w rogu nie przesuwa się sam (powie o tym kontrola otwierania), „Luz w rogu” nie proponuje sam wstawki — zostaje tak.
 
 ## Ustalone — nie ruszać
+
+- **Scalanie szafek: „jedna przegroda” albo „dwie przegrody”** (użytkownik 2026-10-29, po rysunku wariantów): dawne „podwójne” (szafki zostawały osobne) usunięte z okienka; przegroda przelotowa niepotrzebna (to samo co jedna). Dwie przegrody skręcone 4 wkrętami: nad kołkiem półki, w jej grubości, gdy półka jest do 300 mm od dołu / góry (70 mm od krawędzi), inaczej 20 mm pod / nad zawiasem w jego osi (w połowie części przykręcanej do boku — 40 z 80 mm), inaczej 100 mm od dołu / góry i 50 mm od krawędzi (`opisy/korpus.md`).
 
 - **Szuflady w kolumnie przy ramieniu szafki w L** (użytkownik 2026-10-28 po retestach GPT N139): zostaje błąd montażu z radą (drzwi albo szuflady w kolumnie dalej od rogu) — bez wspornika pod prowadnicę od strony ramienia i bez automatycznego zwężania szuflady.
 
@@ -573,7 +565,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 ## Pomysły / optymalizacja
 
-- **Na później (użytkownik 2026-10-24): scalanie z podwójną przegrodą albo przegrodą
+- **Zrobione 2026-10-29: scalanie z dwiema przegrodami** (przelotowa — niepotrzebna, decyzja w „Ustalone”). Dawny opis:
+  **scalanie z podwójną przegrodą albo przegrodą
   przelotową** — w jednej szafce dwie płyty obok siebie na styku albo przegroda przez
   wieniec i dno (wieniec / dno w kawałkach). Dziś scalanie robi przegrodę pojedynczą
   ze wspólnym wieńcem i dnem; boki podwójne zostawiają osobne szafki (`opisy/ciagi.md`).

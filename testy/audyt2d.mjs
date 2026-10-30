@@ -217,6 +217,10 @@ await scenariusz('pod blatem w ciągu: fix ze wspornikiem', wCiagu((c) => ({ lev
 await scenariusz('pod blatem w ciągu: dwa poziomy (szuflady pod drzwiami)', wCiagu((c) => ({ levels: [
   { h: 300, cols: [{ ...c.levels[c.levels.length - 1].cols[0], kind: 'drawers', drawers: [{ h: 'auto' }, { h: 'auto' }] }] },
   { h: null, cols: [{ ...c.levels[c.levels.length - 1].cols[0], kind: 'doors', doors: 2 }] }] })));
+// scalanie „dwie przegrody” (uzytkownik 2026-10-29): dwie przegrody obok siebie na styku, drzwi z zawiasem przy styku
+await scenariusz('dwie przegrody na styku (scalone szafki)', szafka('DP', { W: 1200, levels: [{ h: null, cols: [
+  { kind: 'doors', doors: 1, w: 564, hinge: 'right', shelfTargets: [200, null], przegrodaPodw: true },
+  { kind: 'drawers', w: null, drawers: [{ h: 'auto' }, { h: 'auto' }] }] }] }));
 await scenariusz('bez dna (na nóżkach)', szafka('BD', { joints: { topL: 'between', topR: 'between', botL: 'none', botR: 'none' } }));
 await scenariusz('blat roboczy 38 na bokach', szafka('BR', { top: { mode: 'blat', material: 'worktop', widthMode: 'outside', overL: 10, overR: 10, overFront: 20, overBack: 20 },
   joints: { topL: 'over', topR: 'over', botL: 'between', botR: 'between' } }));

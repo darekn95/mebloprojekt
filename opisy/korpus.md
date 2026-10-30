@@ -40,6 +40,11 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - ceny arkuszy z faktur użytkownika: 563,99 zł (600) i 1128,22 zł (1200).
 - **Blenda nad szafką**: pas nad korpusem o podanej wysokości.
 
+- **Dwie przegrody na styku** (scalanie „dwie przegrody”, użytkownik 2026-10-29): dwie płyty obok siebie między wieńcem a dnem, każda z własnymi konfirmatami, kołkami i zawiasami (w planie wierceń „Przegroda N — lewa” / „— prawa”). Skręcone ze sobą 4 wkrętami 4 × 30 (przy płycie 16 mm — 4 × 25, żeby nie wyszedł z drugiej): po dwa przy dole i przy górze poziomu, z przodu i z tyłu. Każdy wkręt:
+  1. nad kołkiem półki, w jej grubości (łeb zasłania półka), gdy półka jest do 300 mm od dołu / od góry poziomu, 70 mm od krawędzi — wkręcany od strony tej półki;
+  2. inaczej (tylko przedni) 20 mm pod dolnym / nad górnym zawiasem na tej parze, w osi zawiasu — w połowie części przykręcanej do boku (80 mm, więc 40 mm od przedniej krawędzi);
+  3. inaczej 100 mm od dołu / od góry poziomu, 50 mm od krawędzi.
+
 ## Co ustawiasz ręcznie
 
 - **Karta „Korpus”**: wymiary, złącza, wieniec / blat z czego i wysunięcia, fronty nakładane / wpuszczane, plecy (rodzaj, montaż, frez, pozycja, materiał).

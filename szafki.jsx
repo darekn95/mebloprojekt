@@ -670,6 +670,13 @@ const KLAPA_PLYTKA_OD_KRAWEDZI = 25, KLAPA_MOC_OD_BOKU = 12, KLAPA_MOC_ROZSTAW =
    s. 3: „min. 50”). Zakres wysokosci podnosnika: plytka ⌀29 (promien ok. 15)
    i mocowanie frontu (ok. 10 mm poza otwor) — wymiary produktu z tych stron. */
 const KLAPA_POLKA_ZA_FRONTEM = 50, KLAPA_PLYTKA_R = 15, KLAPA_MOC_ZAPAS = 10;
+/* Dwie przegrody na styku (scalanie, uzytkownik 2026-10-29): 4 wkrety na pare. Na wysokosci
+   kolka polki, w jej grubosci (polka zaslania leb), gdy polka jest do 300 mm od dolu / gory
+   poziomu, 70 mm od krawedzi; inaczej 20 mm pod / nad zawiasem w jego osi — w polowie czesci
+   przykrecanej do boku (rysujemy ja na `HINGE_D` = 80, wiec 40 mm od przedniej krawedzi);
+   inaczej 100 mm od dolu / gory i 50 mm od krawedzi; najblizej 30 mm od dolu / gory. */
+const PARA_POLKA_DO = 300, PARA_PRZY_POLCE = 70, PARA_OD_ZAWIASU = 20, PARA_OD_DNA = 100, PARA_OD_KRAWEDZI = 50, PARA_MIN = 30;
+const ZAWIAS_OS_OD_PRZODU = 40;   // polowa `HINGE_D` (80, stala nizej w pliku)
 /* Sam podnosnik na rysunkach (PD-G00 s. 3, „Wymiary produktu”): silownik ⌀15, dlugosc
    z koncowka 28 + 122 = 150 mm, tloczysko ⌀6; kulka mocowania frontu ok. 17,5 mm
    od klapy. Amortyzator PD-ECGDL rysujemy tak samo. */
@@ -2761,7 +2768,9 @@ function computeGeoLiczy(cab, mat, ctx) {
     /* Kolumna oznaczona `noDiv` nie ma przegrody po swojej prawej stronie —
        wnetrze idzie dalej bez przerwy. Tak wchodzi sie do ramienia szafki
        naroznej: front konczy sie, a korpus nie. */
-    const nDiv = rawCols.slice(0, -1).filter((c) => !c.noDiv).length;
+    /* `przegrodaPodw` (kolumna po lewej styku, scalanie „dwie przegrody”, uzytkownik
+       2026-10-29): na styku dwie przegrody obok siebie, jak dwa boki osobnych szafek. */
+    const nDiv = rawCols.slice(0, -1).reduce((a, c) => a + (c.noDiv ? 0 : c.przegrodaPodw ? 2 : 1), 0);
     const colFree = innerW - nDiv * t;
     const col = distribute(colFree, rawCols.map((c) => c.w));
     if (col.diff !== 0)
@@ -2828,6 +2837,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       }
 
       c.noDiv = !!rawCols[j].noDiv;
+      c.przegrodaPodw = !rawCols[j].noDiv && !!rawCols[j].przegrodaPodw && j < K - 1;
       /* Rura na wieszaki w swietle `k` (kolumna z drzwiami albo otwarta) — `DRAZEK_*`. */
       c.drazki = rawCols[j].kind === "doors" || !rawCols[j].kind
         ? [...new Set((rawCols[j].drazki || []).map(Number))].filter((k) => c.openings[k]).sort((a, b) => a - b)
@@ -2913,8 +2923,14 @@ function computeGeoLiczy(cab, mat, ctx) {
       if (j < K - 1 && !rawCols[j].noDiv) {
         // j: kolumna po lewej — w planie wiercen ta przegroda to „Przegroda j + 1”
         dividers.push({ x: cx, y0: lv.y0, y1: lv.y1, h: lv.h, level: lv.i, j,
-          dolTrojkaty: rawCols[j].divDolMount === "trojkaty" });
+          dolTrojkaty: rawCols[j].divDolMount === "trojkaty", ...(rawCols[j].przegrodaPodw ? { para: "L" } : {}) });
         cx += t;
+        // dwie przegrody na styku — druga tuz obok, skrecone wkretami (`wkretyPary`)
+        if (rawCols[j].przegrodaPodw) {
+          dividers.push({ x: cx, y0: lv.y0, y1: lv.y1, h: lv.h, level: lv.i, j,
+            dolTrojkaty: rawCols[j].divDolMount === "trojkaty", para: "P" });
+          cx += t;
+        }
       }
     }
   });
@@ -3319,8 +3335,10 @@ function computeGeoLiczy(cab, mat, ctx) {
       // sasiad z frontem wpuszczanym nie zakryje swojej polowy przegrody,
       // wiec front nakladany bierze ja w calosci i zostawia normalny luz
       const rawCols = rawLevels[lv.i].cols;
-      const prevIn = j > 0 && colIsInset(rawCols[j - 1]);
-      const nextIn = j < lv.cols.length - 1 && colIsInset(rawCols[j + 1]);
+      /* przy dwoch przegrodach na styku kazdy front zakrywa swoja przegrode w calosci,
+         jak bok osobnej szafki — liczymy jak przy sasiedzie z frontem wpuszczanym */
+      const prevIn = j > 0 && (colIsInset(rawCols[j - 1]) || (!!rawCols[j - 1].przegrodaPodw && !rawCols[j - 1].noDiv));
+      const nextIn = j < lv.cols.length - 1 && (colIsInset(rawCols[j + 1]) || (!!rawCols[j].przegrodaPodw && !rawCols[j].noDiv));
       const ovlX0 = j === 0
         ? g.edge
         : prevIn
@@ -5620,6 +5638,9 @@ function computeGeoLiczy(cab, mat, ctx) {
      obu stronach kolumny, wiec wpisujemy je do obu plyt. */
   const drillMap = new Map();
   const drillKey = (lvI, name) => (levels.length > 1 ? `Poziom ${lvI + 1} — ${name}` : name);
+  // dwie przegrody na styku: dlugosc wkretu (nie wychodzi z drugiej plyty) i licznik do zamowienia
+  const wkretPary = WKRET_FRONTU_DLUGOSCI.find((l) => l <= 2 * t - WKRET_FRONTU_ZAPAS) ?? WKRET_FRONTU_DLUGOSCI[WKRET_FRONTU_DLUGOSCI.length - 1];
+  let wkretyParyN = 0;
   const drillAdd = (lvI, name, base, kind, y, note) => {
     if (!name) return;   // strona bez plyty (przelot `noDiv`)
     const key = drillKey(lvI, name);
@@ -5629,6 +5650,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   /* Przegroda niesie kolki i zawiasy z obu stron — kazda strona to osobne
      wiercenie, wiec w planie osobny wpis „(od kolumny N)”. Wczesniej te same
      wysokosci z obu stron zlewaly sie w jeden wpis i jednego otworu brakowalo. */
+  // przegroda w planie wiercen: „Przegroda N”, przy dwoch na styku „— lewa” / „— prawa”
+  const nazwaPrzegrody = (d) => `Przegroda ${d.j + 1}${d.para === "L" ? " — lewa" : d.para === "P" ? " — prawa" : ""}`;
   /* Przelot bez przegrody (`noDiv` kolumny po lewej) — po tej stronie nie ma plyty, wiec
      i wiercen (audyt GPT N147: plan wiercil kolki w „Przegrodzie 1”, ktorej nie ma). */
   const panelsOfCol = (lv, c) => {
@@ -5636,8 +5659,8 @@ function computeGeoLiczy(cab, mat, ctx) {
     const strona = ` (od kolumny ${c.j + 1})`;
     const bezL = c.j > 0 && !!(lv.cols[c.j - 1] || {}).noDiv, bezP = c.j < last && !!c.noDiv;
     return {
-      left: { name: c.j === 0 ? "Bok lewy" : bezL ? null : `Przegroda ${c.j}`, base: c.j === 0 ? leftY0 : lv.y0, strona: c.j === 0 ? "" : strona },
-      right: { name: c.j === last ? "Bok prawy" : bezP ? null : `Przegroda ${c.j + 1}`, base: c.j === last ? rightY0 : lv.y0, strona: c.j === last ? "" : strona },
+      left: { name: c.j === 0 ? "Bok lewy" : bezL ? null : `Przegroda ${c.j}${(lv.cols[c.j - 1] || {}).przegrodaPodw ? " — prawa" : ""}`, base: c.j === 0 ? leftY0 : lv.y0, strona: c.j === 0 ? "" : strona },
+      right: { name: c.j === last ? "Bok prawy" : bezP ? null : `Przegroda ${c.j + 1}${c.przegrodaPodw ? " — lewa" : ""}`, base: c.j === last ? rightY0 : lv.y0, strona: c.j === last ? "" : strona },
     };
   };
   // polki i rura przy przelocie koncza sie w powietrzu — z tej strony nie maja podparcia (N147)
@@ -6083,6 +6106,40 @@ function computeGeoLiczy(cab, mat, ctx) {
           `${konfirmatyNaStyk(dividerDepth)} szt. przy przegrodzie, od góry płyty, w miejscach konfirmatów (${listaPoz(konfirmatyPoz(dividerDepth))} mm od przedniej krawędzi); położenie od wewnętrznej strony lewego boku`);
       else if (pod(dv.level)) doPlyty(pod(dv.level), `konfirmat — przegroda ${k + 1}`, x, note);
     });
+    /* Dwie przegrody na styku (scalanie „dwie przegrody”) skrecone 4 wkretami — przy dole
+       i przy gorze poziomu, z przodu i z tylu (uzytkownik 2026-10-29). Kazdy wkret po kolei:
+       na wysokosci kolka polki, gdy polka jest do `PARA_POLKA_DO` od dolu / gory (zaslania
+       leb, 70 mm od krawedzi); inaczej — z przodu — `PARA_OD_ZAWIASU` pod dolnym / nad gornym
+       zawiasem tej pary, w osi zawiasu; inaczej `PARA_OD_DNA` od dolu / gory, 50 mm od krawedzi.
+       Wkret idzie od strony tej plyty, przy ktorej jest polka albo zawias. */
+    dividers.filter((dv) => dv.para === "L").forEach((dv) => {
+      const lv = levels[dv.level];
+      const cL = lv.cols[dv.j], cR = lv.cols[dv.j + 1];
+      if (!cL || !cR) return;
+      const nL = nazwaPrzegrody(dv), nP = nazwaPrzegrody({ ...dv, para: "P" });
+      const polki = [...(cL.shelves || []).map((q) => ({ y: q.y, nazwa: nL, kol: dv.j })),
+        ...(cR.shelves || []).map((q) => ({ y: q.y, nazwa: nP, kol: dv.j + 1 }))];
+      const zaw = doors.filter((d) => d.type === "door" && d.lvl === dv.level
+        && ((d.colJ === dv.j && d.hingeSide === "right") || (d.colJ === dv.j + 1 && d.hingeSide === "left")))
+        .flatMap((d) => (d.hingePts || []).map((hy) => ({ y: hy, nazwa: d.colJ === dv.j ? nL : nP })));
+      const wkret = (dol, przod) => {
+        const pol = polki.filter((q) => (dol ? q.y - lv.y0 : lv.y1 - (q.y + ts)) <= PARA_POLKA_DO)
+          .sort((a, b) => (dol ? a.y - b.y : b.y - a.y))[0];
+        // nad kolkiem, w grubosci polki — leb zaslania polka (uzytkownik 2026-10-29)
+        if (pol) return { y: pol.y + ts / 2, z: PARA_PRZY_POLCE, nazwa: pol.nazwa, why: `nad kołkiem, w grubości półki — łeb zasłania półka kolumny ${pol.kol + 1}` };
+        const zw = przod ? [...zaw].sort((a, b) => (dol ? a.y - b.y : b.y - a.y))[0] : null;
+        const yZ = zw && (dol ? zw.y - HINGE_H / 2 - PARA_OD_ZAWIASU : zw.y + HINGE_H / 2 + PARA_OD_ZAWIASU);
+        if (zw && yZ > lv.y0 + PARA_MIN && yZ < lv.y1 - PARA_MIN)
+          return { y: yZ, z: ZAWIAS_OS_OD_PRZODU, nazwa: zw.nazwa, why: `${PARA_OD_ZAWIASU} mm ${dol ? "pod dolnym" : "nad górnym"} zawiasem, w jego osi` };
+        return { y: dol ? lv.y0 + PARA_OD_DNA : lv.y1 - PARA_OD_DNA, z: PARA_OD_KRAWEDZI, nazwa: nL, why: `${PARA_OD_DNA} mm ${dol ? "nad dołem" : "pod górą"} poziomu` };
+      };
+      [true, false].forEach((dol) => [true, false].forEach((przod) => {
+        const w = wkret(dol, przod);
+        drillAdd(lv.i, w.nazwa, lv.y0, "wkręt łączący przegrody", w.y,
+          `${fmt(w.z)} mm od ${przod ? "przedniej" : "tylnej"} krawędzi płyty; ${w.why}; wkręt 4 × ${fmt(wkretPary)} od tej strony przez obie przegrody`);
+        wkretyParyN += 1;
+      }));
+    });
     levels.forEach((lv) => lv.cols.forEach((c) => {
       if (!c.support || !c.fix) return;
       const x = Math.round((c.fix.side === "left" ? c.fix.x + c.fix.w - t : c.fix.x) + t / 2 - interior.x0);
@@ -6188,7 +6245,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       zaw("Bok lewy", leftY0, odTyluBoku, 1);
       zaw("Bok prawy", rightY0, odTyluBoku, 1);
       // przegroda konczy sie na plecach (backIntrusion od tylu), wiec 10 mm od jej tylnej krawedzi
-      zawieszki.naPrzegrodach.forEach((d) => zaw(`Przegroda ${d.j + 1}`, d.y0, ZAWIESZKA_OD_PLECOW, 1));
+      zawieszki.naPrzegrodach.forEach((d) => zaw(nazwaPrzegrody(d), d.y0, ZAWIESZKA_OD_PLECOW, 1));
     } else if (zawieszki.gdzie === "A") zaw(bokKorpusu, baseBoku, odTyluBoku, 1);
     else if (zawieszki.gdzie === "korpus") {
       zaw(bokKorpusu, baseBoku, odTyluBoku, 1);
@@ -6450,7 +6507,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   dividers.forEach((dv) => {
     const lv = levels[dv.level];
     const cL = lv && lv.cols[dv.j], cR = lv && lv.cols[dv.j + 1];
-    if (cL && cR) {
+    if (cL && cR && !dv.para) {
       const konfR = (cR.shelves || []).filter((sR) => mocPolki(cR, sR) === "confirmat");
       const naprzeciw = (cL.shelves || []).filter((sL) => mocPolki(cL, sL) === "confirmat" && konfR.some((sR) => Math.abs(sR.y - sL.y) < ts + 10));
       // po prawej granica poziomu kolumny z wlasnym mocowaniem — przyciski dla niej
@@ -6674,6 +6731,11 @@ function computeGeoLiczy(cab, mat, ctx) {
   }
   // zawieszki przykreca sie tymi samymi wkretami 4 × 30 (uzytkownik 2026-09-29)
   if (zawieszki.n) { wkretyPlyt += ZAWIESZKA_WKRETY * zawieszki.n; wkretyOpis.push(`zawieszki ${zawieszki.n}×${ZAWIESZKA_WKRETY}`); }
+  // dwie przegrody na styku — po 4 wkrety na pare (krotsze przy cienkiej plycie — osobna pozycja)
+  if (wkretyParyN && wkretPary === 30) { wkretyPlyt += wkretyParyN; wkretyOpis.push(`dwie przegrody na styku ${wkretyParyN / 4}×4`); }
+  else if (wkretyParyN)
+    hardware.push({ name: `Wkręt 4 × ${wkretPary}`, use: "dwie przegrody na styku — 4 na parę, przez obie płyty",
+      spec: `dwie przegrody na styku ${wkretyParyN / 4}×4 szt. (płyta ${fmt(t)} mm — 4 × 30 wyszedłby z drugiej)`, qty: wkretyParyN, unit: "szt." });
   if (wkretyPlyt)
     hardware.push({
       name: "Wkręt 4 × 30",
@@ -17656,7 +17718,7 @@ const wysKlap = (pasma, t, granice, dGranicy = 0) => {
    szafka z przegrodami, wspolnym wiencem i dnem; kolumny i ich wnetrza bez zmian.
    Kolumna dostaje szerokosc, jaka miala, plus to, co zwolnil drugi bok (i luz
    miedzy korpusami) — po polowie dla kolumn przy styku; ostatnia jest auto.
-   Boki podwojne — szafki zostaja osobno (wspolny wieniec / dno to opcje ciagu).
+   Dwie przegrody (`tryb` „dwie”, uzytkownik 2026-10-29) — na styku dwie plyty obok siebie, wnetrza bez zmian.
    Warunki: szafki obok siebie w jednym ciagu, ta sama wysokosc, glebokosc
    i podzial na poziomy, bez szafki w L, wyciec i przeszkod. */
 const scalenieBlad = (project, idxs) => {
@@ -17700,7 +17762,11 @@ const roznePlyty = (project, idxs) => PLYTY_SCALANIA.map(([k, nazwa]) => {
     || (m.name || "").trim() !== (pl[0].name || "").trim());
   return inna ? { k, nazwa, plyty: pl.map(opisPlytyScalania) } : null;
 }).filter(Boolean);
-const scalSzafki = (project, idxsIn, wzorIn = null) => {
+/* `tryb`: „pojedyncze” — jedna przegroda na styku, zwolniony bok i luz ida na kolumny;
+   „dwie” — dwie przegrody obok siebie (jak dwa boki), wnetrza kolumn bez zmian, tylko luz
+   miedzy korpusami idzie na kolumny (uzytkownik 2026-10-29: zamiast „podwójnych” bokow,
+   ktore zostawialy osobne szafki). */
+const scalSzafki = (project, idxsIn, wzorIn = null, tryb = "pojedyncze") => {
   const runId = project.items[idxsIn[0]].runId;
   const lista = runItems(project, runId).map(({ i }) => i);
   const idxs = [...idxsIn].sort((a, b) => lista.indexOf(a) - lista.indexOf(b));
@@ -17711,8 +17777,9 @@ const scalSzafki = (project, idxsIn, wzorIn = null) => {
   // plyty (i ich grubosc) z szafki wybranej w kreatorze — domyslnie pierwszej od lewej
   const kW = Math.max(0, idxs.indexOf(wzorIn));
   const t = geos[kW].t;
-  // na kazdym styku zwalnia sie drugi bok i luz miedzy korpusami
-  const wolne = (its.length - 1) * (t + gap);
+  // na kazdym styku zwalnia sie drugi bok i luz miedzy korpusami (przy dwoch przegrodach — sam luz)
+  const dwie = tryb === "dwie";
+  const wolne = (its.length - 1) * ((dwie ? 0 : t) + gap);
   // wymiar zewnetrzny zostaje (3 × 600 → 1800, uzytkownik 2026-10-24)
   const W = geos.reduce((a, g) => a + g.W, 0) + (its.length - 1) * gap;
   const levels = its[0].cab.levels.map((lv0, li) => {
@@ -17720,13 +17787,17 @@ const scalSzafki = (project, idxsIn, wzorIn = null) => {
     const szer = its.flatMap((it, k) => (it.cab.levels[li].cols || []).map((_, j) => ((geos[k].levels[li] || {}).cols || [])[j]?.w || 0));
     const suma = szer.reduce((a, w) => a + w, 0) || 1;
     let n = 0;
-    its.forEach((it) => {
-      (it.cab.levels[li].cols || []).forEach((col) => {
+    its.forEach((it, k) => {
+      const kol = it.cab.levels[li].cols || [];
+      kol.forEach((col, j) => {
         const c2 = JSON.parse(JSON.stringify(col));
         // zwolnione miejsce rowno, w proporcji do szerokosci kolumn (rowne zostaja rowne)
         c2.w = Math.round(szer[n] + (wolne * szer[n]) / suma);
         n += 1;
         delete c2.noDiv;
+        delete c2.przegrodaPodw;
+        // ostatnia kolumna szafki (poza ostatnia szafka): na styku dwie przegrody
+        if (dwie && j === kol.length - 1 && k < its.length - 1) c2.przegrodaPodw = true;
         cols.push(c2);
       });
     });
@@ -20990,17 +21061,16 @@ export default function App() {
                       );
                     }
                     const zmien = (patch) => setScalanie({ ...sc, ...patch });
-                    const blad = sc.boki === "pojedyncze" ? scalenieBlad(project, sc.idxs) : null;
+                    const blad = scalenieBlad(project, sc.idxs);
                     const W = sc.idxs.reduce((a, i) => a + computeGeo(cabDoGeo(project, project.items[i]), project.items[i].mat).W, 0)
                       + (sc.idxs.length - 1) * Math.max(0, Math.round(runInfo.run.gap || 0));
                     // rozne plyty zaznaczonych szafek — jawny wybor, z ktorej wziac (audyt GPT N88)
                     const kolejno = [...sc.idxs].sort((a, b) => lista.findIndex((q) => q.i === a) - lista.findIndex((q) => q.i === b));
-                    const rozne = sc.boki === "pojedyncze" && !blad ? roznePlyty(project, kolejno) : [];
+                    const rozne = !blad ? roznePlyty(project, kolejno) : [];
                     const wzor = kolejno.includes(sc.wzor) ? sc.wzor : kolejno[0];
                     const nazwaSz = (i) => (project.items[i].cab.name || "").trim() || `Szafka ${i + 1}`;
                     const zastosuj = () => {
-                      if (sc.boki === "pojedyncze") setProject((p) => scalSzafki(p, sc.idxs, rozne.length ? wzor : null));
-                      else setRun(id, { wspolnyWieniec: sc.wieniec, wspolneDno: sc.dno });
+                      setProject((p) => scalSzafki(p, sc.idxs, rozne.length ? wzor : null, sc.boki === "dwie" ? "dwie" : "pojedyncze"));
                       setScalanie(null);
                     };
                     return (
@@ -21018,20 +21088,15 @@ export default function App() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="w-24 shrink-0 text-stone-500">boki na stykach</span>
-                          <Seg value={sc.boki} onChange={(v) => zmien({ boki: v })}
-                            options={[{ v: "pojedyncze", l: "pojedyncze" }, { v: "podwojne", l: "podwójne" }]} />
+                          {/* „podwójne” (szafki zostawaly osobne) zastapione dwiema przegrodami — uzytkownik 2026-10-29 */}
+                          <Seg value={sc.boki === "dwie" ? "dwie" : "pojedyncze"} onChange={(v) => zmien({ boki: v })}
+                            options={[{ v: "pojedyncze", l: "jedna przegroda" }, { v: "dwie", l: "dwie przegrody" }]} />
                         </div>
-                        {sc.boki === "pojedyncze" ? (
-                          <p className="text-[11px] text-stone-500">
-                            Jedna szafka {fmt(W)} mm: przegrody zamiast podwójnych boków, wspólny wieniec i dno, wnętrza kolumn bez zmian.
-                          </p>
-                        ) : (
-                          <div className="space-y-1">
-                            <p className="text-[11px] text-stone-500">Szafki zostają osobne, skręcone bokami. Wspólna płyta — dla całego ciągu:</p>
-                            <Check checked={sc.wieniec} onChange={(v) => zmien({ wieniec: v })} label="wspólny wieniec z płyty" />
-                            <Check checked={sc.dno} onChange={(v) => zmien({ dno: v })} label="wspólne dno" />
-                          </div>
-                        )}
+                        <p className="text-[11px] text-stone-500" data-el="scal-opis">
+                          {sc.boki === "dwie"
+                            ? `Jedna szafka ${fmt(W)} mm: na stykach dwie przegrody obok siebie (jak boki osobnych szafek), skręcone 4 wkrętami; wspólny wieniec i dno; wnętrza kolumn jak w osobnych szafkach.`
+                            : `Jedna szafka ${fmt(W)} mm: jedna przegroda na styku, wspólny wieniec i dno; miejsce po drugim boku idzie na kolumny.`}
+                        </p>
                         {rozne.length > 0 && (
                           <div className="space-y-1 rounded border border-amber-300 bg-amber-50 p-1.5" data-el="scal-plyty">
                             <p className="text-[11px] text-amber-800">
@@ -21051,7 +21116,7 @@ export default function App() {
                         )}
                         {blad && <p className="text-[11px] text-red-700" data-el="scal-blad">Nie da się scalić: {blad}.</p>}
                         <div className="flex gap-2">
-                          {!blad && <MiniBtn tone="on" onClick={zastosuj}>{sc.boki === "pojedyncze" ? "Scal" : "Zastosuj"}</MiniBtn>}
+                          {!blad && <MiniBtn tone="on" onClick={zastosuj}>Scal</MiniBtn>}
                           <MiniBtn onClick={() => setScalanie(null)}>Anuluj</MiniBtn>
                         </div>
                       </div>

@@ -600,7 +600,8 @@ kolizje otwierania, audyt rysunek 3D ↔ formatki projektu i robi zrzuty
 zawias od strony dalszej od rogu): bez bledow i kolizji, formatki = bryla. Poprawiony tylko
 opis „ciąg … kończy się N mm przed rogiem” (bylo „zaczyna się … od rogu” przy rogu na koncu
 ciagu). Pomysl 2 ponizej jest w praktyce zrobiony przez „Ustaw szafkę w rogu”; zostaja 3 i 4.
-[AI-TODO] Rog ze zwyklymi szafkami (bez szafki w L) — na realnym projekcie
+[AI-INFO] (ZAMKNIETE 2026-10-29, uzytkownik: „zamykamy wszystkie tematy poza szafka skosna i sprzetami”)
+Rog ze zwyklymi szafkami (bez szafki w L) — na realnym projekcie
 uzytkownika (zapowiedzial przyklad w artefakcie, 2026-09-28). Stan i pomysly,
 zeby nie odtwarzac ustalen od nowa:
 - Ustalone: slepa czesc szafki w rogu = glebokosc sasiada + jego front +
@@ -641,7 +642,7 @@ amortyzatory rysowane na otwartej klapie (elewacja „Otw.”, ciag, 3D) — `d.
 `podnosnikOdcinek`, `podnosnikBryly`. Rozbudowa: uzytkownik 2026-10-29 „nie dodajemy nic” z listy
 (podnosnik gazowy krotki, mechaniczny Easy Up, waga uchwytu w sile, rozworka do klapy w dol) —
 nie proponowac ponownie bez nowej potrzeby.
-[AI-TODO] Klapy — uzytkownik sprawdzi je sam w innym terminie (2026-09-28);
+[AI-INFO] (ZAMKNIETE 2026-10-29) Klapy — uzytkownik sprawdzi je sam w innym terminie (2026-09-28);
 do tego czasu nie rozbudowywac bez pytania. PDF amortyzatora (PD-ECGDL)
 dotarl i jest w `GTV_PD_ECGDL`. Karta PD-ECGDL podaje zgodny zawias barkowy
 PD-MD-ZB, ale uzytkownik chce zwyklych zawiasow jak przy skrzydlach.
@@ -675,7 +676,7 @@ prostokat klapy z gruboscia frontu obracany co 1° wokol wewnetrznej krawedzi
 — zwraca ostatni wolny kat). Przeszkody w `swingBodies`: korpusy, fronty,
 uchwyty (`uchwytObrys`), wstawki, ramiona, maskownice, blat ciagu. Szuflady
 i klapy nie sprawdzaja sie przeciw innym ruchom (nie otwiera sie naraz).
-[AI-TODO] (2026-10-19, na pozniej — prosba uzytkownika ze zdjeciami kuchni) Szafka
+[AI-TODO] (2026-10-19, na pozniej — prosba uzytkownika ze zdjeciami kuchni; 2026-10-29: DUZO POZNIEJ, po sprzetach) Szafka
 narozna SKOSNA: front pod katem 45° w rogu, dolna (pod zlewem) i gorna (wiszaca).
 Ze zdjec: obrys korpusu to pieciokat; jedne drzwi ramiakowe na skosie (dolna —
 uchwyt na gornej ramie, gorna — na dolnej); po obu stronach drzwi waskie paski
@@ -750,7 +751,7 @@ tyl do spodu dna (bok − 10), dno na konfirmaty przez boki, 33 = szerokosc prow
 spodu prowadnicy na boku + odsuniecie od czola (4 / X + 4), bez otworow.
 Zrzut z zaznaczonym „37” byl w scratchpadzie sesji (pdftoppm s. 112, -r 300,
 -x 150 -y 950, opisy ImageMagick `convert -draw/-annotate`).
-[AI-TODO] Sprzety w zabudowie (lodowka, piekarnik, mikrofala): gdy powstanie
+[AI-TODO] (2026-10-29: NASTEPNE w kolejce, przed szafka skosna) Sprzety w zabudowie (lodowka, piekarnik, mikrofala): gdy powstanie
 kategoria „sprzety”, dolozyc ich bryly i drzwi do `swingBodies` — prosba
 uzytkownika, zeby wrocic. Szafka luzem (bez ciagu) nie ma kontroli
 otwierania — `openingMsgs` idzie po ukladzie ciagow.
