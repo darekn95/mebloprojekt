@@ -1,3 +1,11 @@
+### N153 [P2] — OTWARTE: plan zakupu dzieli pojedynczy drążek na dwie rury
+
+**Test funkcji**, main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`: szafka 3100 × 2000 × 560 mm, jedna kolumna z drążkiem, nóżki 100 mm. `computeGeo` wylicza jeden drążek długości 3062 mm, a `scalOkucia` podaje zakup 1 × 3 m i 1 × 0,5 m oraz cięcie „3 m → cały; 0,5 m → 62”. Dwie osobne części nie są jednym drążkiem 3062 mm i w planie nie ma sposobu ich połączenia ani dodatkowego podparcia. W tym skrajnym przykładzie osobno pojawiają się również błędy za dużych formatek i ostrzeżenie o froncie; nie są to informacje o niemożliwym drążku. Kontrola W2000 daje jeden drążek 1962 z rury 2 m. Interfejs i jego przyciski nie były sprawdzone.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** gdy drążek przekracza najdłuższą dostępną rurę, rozważyć osobny komunikat i wykonalną zmianę konstrukcji zamiast przedstawiać dwa kawałki jako jeden drążek. **Test odbioru:** sprawdzić wartości poniżej, na i powyżej 3000 mm, geometrię, podparcie, zakupy oraz faktyczne działanie ewentualnych przycisków. Oznaczyć NAPRAWIONE dopiero po pozytywnym teście.
+
+---
+
 ### N148 — dodatkowy wariant do weryfikacji: różna płaszczyzna zawieszenia
 
 Test funkcji na main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`: dwie szafki wiszące 600 × 720 × 560, zawieszki na listwie, w jednym ciągu. Przy `offset` 0 dla obu `runRail` zwraca odcinek 1200 mm. Po wysunięciu drugiej o 100 mm funkcja nadal zwraca ten sam odcinek 1200 mm na wspólnej wysokości, mimo różnych płaszczyzn tyłu. Sprawdzić w interfejsie i dokumentacji rzeczywisty sposób podparcia, istniejące komunikaty i ich przyciski. Ten wariant wiąże się z N148, więc nie jest liczony jako osobny potwierdzony błąd. Sugestia GPT do weryfikacji: uwzględnić płaszczyznę zaczepów lub wyjaśnić wymagane podparcie i przetestować działania użytkownika.
