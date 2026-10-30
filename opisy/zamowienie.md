@@ -12,14 +12,14 @@ zamówienia: „Cały projekt” albo „To pomieszczenie”.
   - **konfirmaty 7 × 50 i zaślepki** (też skrzynek DXS), **kołki podporowe ⌀5**, **trójkąty**;
   - **wkręty 4 × 30 do frontu szuflady** — 4 na front DXS-3D, front przykręcany od środka przez przód skrzynki (2026-10-26);
   - **nóżki** (wariant: kształt, wysokość, kolor), **złączki do cokołu**;
-  - **zawieszki, listwa montażowa** (za metr), **haki**;
+  - **zawieszki, listwa montażowa** (za metr), **haki**; przy szafce wiszącej z dala od ściany — listwa dystansowa pod listwę (mb) albo klocki dystansowe pod haki (N148);
     - listwa: w sklepie odcinki 1 m i 2 m, tnie się na wymiar (rzazu nie liczymy). Jedna listwa przez ciąg — od pierwszej do ostatniej szafki, która na niej wisi (skrajna bez zawieszek jej nie dostaje, środkowa nie przerywa; obie z ostrzeżeniem); dłuższa niż 2 m — pełne odcinki 2 m i reszta. Osobna szafka — W, ramię szafki w L — swój odcinek przy drugiej ścianie. Plecy z płyty cofnięte (opcja) — listwa w szafce za plecami: szerokość pleców − 2 × 5 mm (`LISTWA_OD_PLECOW`), a listwa ciągu kończy się przy tej szafce (decyzje użytkownika 2026-10-24);
     - **lustro**: grubość (4 / 6 mm) w opisie i wariancie — różne grubości to osobne wiersze (audyt GPT N80);
     - **mocowania pleców w kolumnach** z obwodu każdej płyty (HDF — zszywki, płyta — wkręty), bez płyt — bez mocowań (audyt GPT N81);
     - zakup listwy (`listwaZakup`): najmniej metrów, docinki idą na krótsze kawałki (3 × 660 z jednego 2 m zamiast 3 × 1 m), przy remisie najmniej cięć. Listwa może być krótsza najwyżej o 10 mm (`LISTWA_SKROT`), ale tylko wtedy, gdy dzięki temu kupuje się mniej (3 × 670 = 2010 → jeden odcinek 2 m, jedna 660; za plecami cofniętymi bez skracania). Wiersz podaje „kupić N × 2 m + N × 1 m”, potrzebną długość, odpad i plan cięcia; ilość w mb = kupione metry (audyt GPT N77, decyzja użytkownika 2026-10-22);
   - **wkręty / zszywki do pleców**, **lustro** (za m²), **złącza do blatów**;
   - **rura na wieszaki ⌀25** — każda docięta na światło kolumny − 2 mm; zakup w odcinkach 0,5 / 1 / 1,5 / 2 / 2,5 / 3 m jak listwa (`ruraWiersz`: najmniej metrów, docinki na krótsze rury, najchętniej odcinki do 2 m — 2,5 i 3 m tylko dla rury dłuższej niż 2 m; wiersz „kupić … / potrzeba / odpad / cięcie” — tak samo w zamówieniu pomieszczenia i projektu, z nazwami szafek przy docinkach; audyt GPT N90: tam plan znikał, zostawał opis „drążek na wieszaki w szafie”), 15 zł/m; **rozety** 2 na rurę, 1 zł (ceny użytkownika 2026-10-24).
-- **Zestawienie projektu**: jeden wiersz na produkt i wariant (nakładany i wpuszczany zawias to dwa wiersze, nóżka 100 kwadratowa i 150 okrągła też). Ilości się sumują.
+- **Zestawienie projektu**: jeden wiersz na produkt i wariant (nakładany i wpuszczany zawias to dwa wiersze, nóżka 100 kwadratowa i 150 okrągła też). Ilości się sumują. Oznaczenie modelu (tip-on AM-SVN-DL-MG-30, zawieszka ZK-ZAW-R0-10 — pole `model`) zostaje w opisie zbiorczego wiersza przed listą zastosowań; nie wchodzi w klucz ceny (N155).
 - **Wycena** (ceny brutto, każdą można nadpisać, 0 zeruje pozycję):
   - **arkusze płyty** — liczba z rozkroju, cena wg materiału: biała 223,10 zł, w kolorze 240 zł (2800 × 2100 × 18), HDF 70 zł;
   - **formatowanie płyty** — 51,66 zł za arkusz;

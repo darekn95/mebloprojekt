@@ -28,7 +28,7 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
   - DXS-3D: kreska spodu prowadnicy i odsunięcie od czoła, przykręcane bez nawiercania;
   - skrzynka DXS: konfirmaty w bokach, zaczep ⌀6 × 10 w tyle, sprzęgła frontu w dnie.
 - **Rura na wieszaki**: rozeta na boku / przegrodzie po obu stronach kolumny — wysokość osi rury, oś w połowie głębokości wnętrza, 2 wkręty 3,5 × 16 („rura na wieszaki”).
-- **Zawieszki** (szafki wiszące): bez wiercenia — przykręcane wkrętami 4 × 30 od wnętrza, górna krawędź pod wieńcem, 1 cm od pleców (ZK-ZAW-R0-10).
+- **Zawieszki** (szafki wiszące): bez wiercenia — przykręcane wkrętami 4 × 30 od wnętrza, górna krawędź pod wieńcem, 1 cm od pleców (ZK-ZAW-R0-10). Przy wycięciu narożnika albo elemencie w rogu — na ściance bocznej zabudowy, która dochodzi do ściany (`opisy/korpus.md`, N149); ścianka z wieńcem: „konfirmat — ścianka zabudowy” w wieńcu (2 szt.) albo „trójkąt meblowy — wieniec” na ściance — wg wyboru w uwagach.
 - **Frez pod HDF**: w bokach, wieńcu i dnie, gdy plecy są we frezie.
 - **Szafka w L**: dokładka „Bok ramienia” — konfirmaty dna / wieńca ramienia, półki ramienia z mocowaniem swojej kolumny (kołki / trójkąty / konfirmaty, każda półka osobno — audyt GPT N131), zawiasy frontu ramienia; kątownik przy ramieniu ma kołki zamiast boku.
 - **Dno i wieniec z jednym końcem między bokami**: oś boku liczona od początku płyty, nie od lewego boku szafki (audyt GPT N115: konfirmat wypadał 9 mm poza płytą).

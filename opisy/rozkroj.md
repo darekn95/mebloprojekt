@@ -22,15 +22,16 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 - **Strona szafki**:
   - 4 widoki w siatce 2 × 2: zamknięty (wymiary, szczeliny, kolory), otwarty (wymiary i okucia), z góry, z tyłu;
   - widok zamknięty (2026-10-25, decyzje użytkownika): wymiar frontu tylko napisem w jego środku (W×H) — linie wysokości i szerokości frontów tylko przy froncie za małym na napis (także na ekranie); wymiary całości (szerokość, korpus, z nóżkami) zostają; szczeliny w PDF tylko nietypowe — poniżej 2 mm albo ponad „Ostrzegaj powyżej” (np. 38 nad podfrezem), zwykłe bez opisu; na ekranie „Pokaż szczeliny” pokazuje wszystkie;
-  - szeroka szafka (np. 1600 mm) ma w siatce 2 × 2 wymiary ok. 2,0 mm zamiast 2,3 — decyzja użytkownika 2026-10-25: może zostać;
+  - szeroka szafka (np. 1600 mm) ma w siatce 2 × 2 wymiary ok. 2,8 mm zamiast 3,2 — decyzja użytkownika 2026-10-25 (wtedy 2,0 zamiast 2,3): może zostać;
   - lista formatek i okuć szafki;
   - notatka montażowa (np. zawiasy przesunięte przez półkę);
   - plan wierceń (`opisy/wiercenia.md`).
 - **Strony projektu**: formatki całego projektu (z szafką, płytą i oklejaniem PCV 2 mm, suma) i „Produkty całego projektu”. Wycena zostaje w aplikacji, w karcie „Wycena”.
 - **Rozkrój**: strona tabeli i dokładnie jedna strona na każdy arkusz z rysunkiem układu.
 - **Napisy w druku** są powiększane, a układ wymiarów liczony z powiększonych napisów:
-  - widok ma ok. 90 mm, wymiary ok. 2,6 mm, minimum 2,3 mm;
-  - drobne opisy co najmniej 1,8 mm;
+  - widok ma ok. 90 mm; **liczby na liniach wymiarowych ok. 3,2 mm (ok. 9 pt, jak tabele), minimum 3 mm** — większe niż opisy (użytkownik 2026-10-30: „sama czcionka wymiarów jest za mała”, rysunki zostają; wcześniej 2,6 mm jak opisy); wąska szafka, której opisom wystarcza ekran (np. 300 z góry) — ok. 2,7 mm;
+  - **„cokół 100”, „nóżki 100” i wymiar formatki w froncie („428×236”) też w skali wymiarów** (użytkownik 2026-10-30: „nóżki, cokół i rozmiary formatek też powinny być większe”): wymiar frontu tak duży, jak się mieści w froncie — w drzwiach z uchwytem między krawędzią od zawiasu a uchwytem, w wąskich wysokich drzwiach pionowo; wymiary sięgające podłogi (z cokołem, z blatem) odsuwają się, żeby ich linia nie przecinała „cokół 100”; światło półki w kolumnie — tyle, ile miejsca do przegrody (w wąskiej kolumnie mniejsze, nie wchodzi na sąsiednią);
+  - opisy (okucia, legendy) ok. 2,6 mm, drobne co najmniej 1,8 mm; długie opisy w kolumnach („przegroda 318/336”, „szyna 206”, „bok L 720”) i „od dna” w szufladzie jak opisy — duże rozpychały złożony widok otwarty i rysunek malał;
   - napisy nie nachodzą na siebie i nie wychodzą poza pole widoku.
   - Na ekranie układ bez zmian.
 
@@ -74,5 +75,6 @@ Szczegóły (audyt GPT 2026-10-28):
 - kawałek jest przypięty do płyty stałą tożsamością (`resztki[].matId` = `tozsamoscPlyty`: własna płyta — jej id, inna — nazwa, kolor, dekor, grubość), a nie etykietą — etykieta dostaje grubość („… 18”), gdy w projekcie pojawi się ta sama nazwa w innej grubości, i kawałek przestawał pasować (N94); stare zapisy bez `matId` dostają go przy wczytaniu z materiału o tej etykiecie;
 - z listy zdejmuje się dokładnie ta formatka, która leży na kawałku (numer pozycji `src` z pakowania) — wcześniej po nazwie i wymiarze w obu ułożeniach, więc przy zakazie obrotu schodziła czasem druga orientacja (N92);
 - podsumowanie grupy (wykorzystanie, cięcia, zrzut) liczy cały plan — kupione arkusze i własne kawałki (N93); „Płyty do zamówienia” i wycena — dalej tylko kupione.
+- każda sztuka kawałka idzie do jednej grupy rozkroju: ten sam kawałek blatu nie trafia już i do grupy z arkusza 600, i do grupy z arkusza 1200 (obie pokazywały zakup 0; `buildCutPlan` → wspólna `pula`, `q.zostalo`; audyt GPT N150). Resztę wziętego kawałka liczymy jako zrzut tej grupy.
 
 Własne płyty: nazwa jest etykietą w rozkroju i cenniku, więc dwie o tej samej nazwie szły na jeden arkusz i miały wspólną cenę (N95). Formularz nie pozwala zapisać drugiej o tej samej nazwie („już jest — nadaj inną nazwę”), pusta nazwa dostaje kolejny numer („Płyta własna 2”), a stary zapis z powtórzoną nazwą dostaje przy wczytaniu dopisek „(2)”; grupy rozkroju dla własnych płyt rozdziela też ich id. Arkusz własnej płyty jest w materiale szafki (`mat[k].arkusz`), więc kontrola „formatka nie mieści się na arkuszu” liczy z niego (okrawanego jak wzornik), a nie z 2800 × 2100 (N99).
