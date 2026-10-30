@@ -3,7 +3,10 @@
    zrobic, i ma dzialajacy przycisk):
    - N145 tip-on wchodzacy w plecy plytkiej szafki: „Uchwyt zamiast tip-on”, „Głębokość szafki N mm”;
    - N147 polki konczace sie w przelocie bez przegrody: „Przywróć przegrodę”,
-     „Jedna kolumna na całą szerokość” (decyzje uzytkownika 2026-10-30).
+     „Jedna kolumna na całą szerokość” (decyzje uzytkownika 2026-10-30);
+   - N149 zawieszka w wycieciu naroznika / przy elemencie w rogu: idzie na scianke zabudowy
+     (dochodzi do sciany); bez zabudowy „Zabuduj wycięcie / element”, plytkie — „Wycięcie N mm
+     w głąb” (uzytkownik 2026-10-30: „nie może wisieć w powietrzu”).
    Liczby i reszta przypadkow — funkcje, suita `funkcje`. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -79,6 +82,58 @@ console.log('\n== N147: półki kończą się w przelocie ==');
   ok('po kliknięciu: bez błędów w uwagach', !n.some((x) => re.test(x.txt) || /w powietrzu/.test(x.txt)), n.map((x) => x.txt.slice(0, 80)).join(' / '));
   const f2 = await rows(/^Formatki/);
   ok('formatki: bez przegrody, półka na całą szerokość (964)', !f2.some((r) => /^Przegroda/.test(r)) && f2.some((r) => /^Półka/.test(r) && / 964 /.test(r)), f2.filter((r) => /Półka|Przegroda/.test(r)).join(' / '));
+}
+
+console.log('\n== N149: zawieszka w wycięciu narożnika ==');
+{
+  // plan wiercen jest w zestawieniu PDF — tabela „Otwory pod”
+  const plan = async () => {
+    await page.evaluate(() => {
+      window.__snap = null;
+      window.print = () => {
+        const rep = document.querySelector('.print-only');
+        const t = rep && [...rep.querySelectorAll('table.rp-tbl')].find((x) => [...x.querySelectorAll('th')].some((th) => th.textContent.trim() === 'Otwory pod'));
+        window.__snap = t ? [...t.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.trim())) : null;
+      };
+    });
+    await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).click(); await page.waitForTimeout(1800);
+    // nazwa plyty tylko w pierwszym wierszu grupy — w kolejnych przenosimy ja dalej
+    let pan = '';
+    const r = ((await page.evaluate(() => window.__snap)) || []).map((x) => { if (x[0]) pan = x[0]; return [pan, ...x.slice(1)]; });
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    return r;
+  };
+  const wis = (o = {}) => ({ name: 'W', W: 600, H: 1200, D: 560, plinth: { on: false }, legs: { on: false },
+    cutout: { on: true, w: 100, d: 100, fullHeight: false, levelIndex: 1, mask: false },
+    levels: [{ h: 591, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }], ...o });
+  const re = /Zawieszka przy lewym boku wypada w wycięciu narożnika/;
+  await seed(wis());
+  let m = (await notes()).find((x) => re.test(x.txt));
+  ok('wycięcie w górnym poziomie bez zabudowy — błąd „zawisłaby w powietrzu” z „Zabuduj wycięcie (zawieszka na zabudowie)”',
+    !!m && /zawisłaby w powietrzu/.test(m.txt) && m.btns.includes('Zabuduj wycięcie (zawieszka na zabudowie)'), m && m.btns.join(' / '));
+  await klik(re, 'Zabuduj wycięcie (zawieszka na zabudowie)');
+  ok('po kliknięciu: zabudowa wycięcia włączona', (await zap()).items[0].cab.cutout.mask === true);
+  const n = await notes();
+  ok('po kliknięciu: bez błędu, informacja „na ściance bocznej zabudowy wycięcia”', !n.some((x) => re.test(x.txt))
+    && n.some((x) => /Zawieszka przy lewym boku na ściance bocznej zabudowy wycięcia/.test(x.txt)), n.filter((x) => /Zawieszk/.test(x.txt)).map((x) => x.txt.slice(0, 90)).join(' / '));
+  const pl = (await plan()).filter((r) => r[1] === 'zawieszka');
+  ok('plan wierceń: zawieszka na ściance zabudowy i na boku prawym, nie na boku lewym', pl.length === 2 && pl.some((r) => /Zabudowa wycięcia \(lewy\) — ścianka boczna/.test(r[0]))
+    && pl.some((r) => /Bok prawy/.test(r[0])) && !pl.some((r) => /Bok lewy/.test(r[0])), pl.map((r) => r[0]).join(' / '));
+  ok('zamówienie: zawieszki 2 szt., „jedna na ściance zabudowy przy narożniku”', (await rows(/^Produkty do zamówienia/)).some((r) => /^Zawieszka/.test(r) && /jedna na ściance zabudowy przy narożniku/.test(r) && /\| 2 szt\.$/.test(r)));
+  // plytkie wyciecie: scianka za krotka na zawieszke
+  await seed(wis({ cutout: { on: true, w: 100, d: 20, fullHeight: false, levelIndex: 1, mask: true } }));
+  m = (await notes()).find((x) => /ścianka zabudowy ma tylko/.test(x.txt));
+  ok('wycięcie 20 mm w głąb — błąd „ścianka zabudowy ma tylko 38 mm” z „Wycięcie 30 mm w głąb”', !!m && m.btns.includes('Wycięcie 30 mm w głąb'), m && (m.txt.slice(0, 120) + ' / ' + m.btns.join(' / ')));
+  await klik(/ścianka zabudowy ma tylko/, 'Wycięcie 30 mm w głąb');
+  ok('po kliknięciu: wycięcie 30 mm, bez błędu o zawieszce', (await zap()).items[0].cab.cutout.d === 30 && !(await notes()).some((x) => /Zawieszka przy lewym boku wypada/.test(x.txt)));
+  // element w prawym rogu na cala wysokosc — to samo co wyciecie
+  await seed(wis({ cutout: { on: false }, H: 720, levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }],
+    obstacles: [{ on: true, side: 'right', w: 120, d: 120, fromSide: 0, fromBack: 0, fullHeight: true, mask: false }] }));
+  const reE = /Zawieszka przy prawym boku wypada w miejscu elementu/;
+  m = (await notes()).find((x) => reE.test(x.txt));
+  ok('element w prawym rogu bez zabudowy — błąd z „Zabuduj element (zawieszka na zabudowie)”', !!m && m.btns.includes('Zabuduj element (zawieszka na zabudowie)'), m && m.btns.join(' / '));
+  await klik(reE, 'Zabuduj element (zawieszka na zabudowie)');
+  ok('po kliknięciu: zabudowa elementu włączona, bez błędu o zawieszce', (await zap()).items[0].cab.obstacles[0].mask === true && !(await notes()).some((x) => reE.test(x.txt)));
 }
 
 ok('bez błędów strony', !errors.length, errors.join(' / '));

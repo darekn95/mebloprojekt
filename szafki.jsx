@@ -5363,7 +5363,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       P({ name: `${name} — ${label}`, qty: 1, a: bh, b, matKey: smat,
           edges: { a1: true, a2: false, b1: false, b2: false },
           note: "krawędź od strony wnętrza szafki" });
-      if (poz) sciany.push({ ...poz, y0: by0, y1: by1 });
+      if (poz) sciany.push({ ...poz, y0: by0, y1: by1, nazwa: `${name} — ${label}` });
       count += 1;
     };
     // przy tyle (albo bez tylu i przodu) zabudowa zamyka sie od przodu, przy przodzie — od tylu
@@ -5584,7 +5584,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     const geoOb = { ox0, ox1, oz0, oz1, oy0, oy1, ow, od, oFull, distLeft, distRight,
       touchLeft: ox0 - boundL < 50, touchRight: boundR - ox1 < 50, boundL, boundR,
       touchBack: oz0 <= 1, touchFront: oz1 >= carcassDepth - 1,
-      mask: !!ob.mask, maskFront: ob.maskFront, name: obName, maskTop: null, shelfAbove: null };
+      mask: !!ob.mask, maskFront: ob.maskFront, name: obName, maskTop: null, shelfAbove: null, idx: obIdx };
 
     // kolizja z polkami i przegrodami
     const hitY = (y0, y1) => Math.min(y1, oy1) - Math.max(y0, oy0) > 0;
@@ -6274,7 +6274,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     const n = !wisi ? 0 : 2 + naPrzegrodach.length;
     const gdzie = !postSide ? null : postTyp === "B" ? (rawCorner.zawieszki === "korpus" ? "korpus" : "ramie") : "A";
     const naKorpusie = !n ? 0 : !postSide ? n : gdzie === "A" ? 1 : gdzie === "korpus" ? 2 : 0;
-    return { n, gdzie, naKorpusie, naRamieniu: postSide && n ? n - naKorpusie : 0, naPrzegrodach };
+    return { n, gdzie, naKorpusie, naRamieniu: postSide && n ? n - naKorpusie : 0, naPrzegrodach, naZabudowie: [] };
   })();
   /* Zawieszka na samej gorze, pod wiencem, 1 cm od plecow (uzytkownik
      2026-09-29) — wysokosc w planie to jej gorna krawedz. Na boku plecy stoja
@@ -6287,9 +6287,48 @@ function computeGeoLiczy(cab, mat, ctx) {
     const bokKorpusu = postSide === "right" ? "Bok lewy" : "Bok prawy";
     const baseBoku = postSide === "right" ? leftY0 : rightY0;
     const odTyluBoku = ZAWIESZKA_OD_PLECOW + backIntrusion;
+    /* Zawieszka wisi w gornym tylnym rogu boku, bo tam plyta dochodzi do sciany. Wyciecie
+       naroznika albo element w rogu (przy boku i z tylu) zabiera ten rog: na calej wysokosci
+       bok jest krotszy i jego tylna krawedz stoi przed sciana, w jednym poziomie bok wycina
+       sie na miejscu (audyt GPT N149). Zawieszka idzie wtedy na scianke zabudowy wzdluz
+       glebokosci — ta dochodzi do sciany (uzytkownik 2026-10-30: „nie może wisieć
+       w powietrzu”). Bez zabudowy, albo gdy scianka nie siega gory czy jest za krotka —
+       blad z przyciskiem, ktory to naprawia. */
+    const y0z = interior.y1 - ZAWIESZKA_WYM.h;
+    const potrzeba = Math.ceil(odTyluBoku + ZAWIESZKA_WYM.gl);
+    const wneki = [
+      ...geoCuts.filter((gc) => gc.cw > 0 && gc.cdp > 0).map((gc) => ({ lewy: gc.onLeft, x0: gc.bx0, x1: gc.bx1, z0: gc.bz0, z1: gc.bz1, y0: gc.cy0, y1: gc.cy1,
+        mask: gc.mask, sciany: gc.maskWalls || [], co: `wycięciu narożnika (${gc.side}${gc.zFull ? "" : `, poziom ${gc.li + 1}`})`, czego: "wycięcia", coB: "wycięcie", adres: `wyc:${gc.onLeft ? "L" : "P"}` })),
+      ...geoObs.filter((o) => o.ow > 0 && o.od > 0 && (o.ox0 <= 0.5 || o.ox1 >= W - 0.5)).map((o) => ({ lewy: o.ox0 <= 0.5, x0: o.ox0, x1: o.ox1, z0: o.oz0, z1: o.oz1, y0: o.oy0, y1: o.oy1,
+        mask: o.mask, sciany: o.maskWalls || [], co: `miejscu elementu „${o.name}”`, czego: "elementu", coB: "element", adres: `el:${o.idx}` })),
+    ];
+    const naBoku = (lewy) => {
+      const boku = lewy ? "lewym" : "prawym";
+      const w = wneki.find((q) => q.lewy === lewy && q.z0 <= 1 && q.z1 > odTyluBoku
+        && Math.min(interior.y1, q.y1) - Math.max(y0z, q.y0) > 0);
+      if (!w) return zaw(lewy ? "Bok lewy" : "Bok prawy", lewy ? leftY0 : rightY0, odTyluBoku, 1);
+      const sc = w.sciany.find((q) => q.x1 - q.x0 <= ts + 0.5 && q.z0 <= 1 && (lewy ? q.x0 >= w.x1 - 1 : q.x1 <= w.x0 + 1)
+        && q.y1 >= interior.y1 - 1 && q.y0 <= y0z);
+      const gdzie = `Zawieszka przy ${boku} boku wypada w ${w.co} — w górnym tylnym rogu boku, gdzie się ją przykręca, nie ma płyty dochodzącej do ściany`;
+      if (!w.mask || !sc) {
+        add("error", `${gdzie} i zawieszka zawisłaby w powietrzu. Zabuduj ${w.coB}${w.mask ? " do samej góry" : ""} — zawieszka pójdzie na ściankę zabudowy, która dochodzi do ściany.|zabudowa:${w.adres}`);
+        return;
+      }
+      const dl = Math.round(sc.z1 - sc.z0);
+      if (dl < potrzeba) {
+        // scianka jest dluzsza od wneki o tyle, ile przy niej (plyta czola) — tyle mniej trzeba poglebic
+        const gl = Math.ceil(potrzeba - (dl - Math.round(w.z1 - w.z0)));
+        add("error", `${gdzie}, a ścianka zabudowy ma tylko ${fmt(dl)} mm w głąb — zawieszka potrzebuje ${fmt(potrzeba)} mm (${fmt(Math.round(odTyluBoku))} mm od tyłu i ${String(ZAWIESZKA_WYM.gl).replace(".", ",")} mm głębokości). Pogłęb ${w.coB} do ${fmt(gl)} mm — zabudowa się wydłuży.|zabudowaglab:${w.adres}:${gl}`);
+        return;
+      }
+      zawieszki.naZabudowie.push(sc.nazwa);
+      zaw(sc.nazwa, sc.y0, odTyluBoku, 1);
+      add("info", `Zawieszka przy ${boku} boku na ściance bocznej zabudowy ${w.czego} — bok nie dochodzi tam do ściany, a ścianka tak. `
+        + `Złącz ściankę mocno z wieńcem: niesie ciężar szafki.`);
+    };
     if (!postSide) {
-      zaw("Bok lewy", leftY0, odTyluBoku, 1);
-      zaw("Bok prawy", rightY0, odTyluBoku, 1);
+      naBoku(true);
+      naBoku(false);
       // przegroda konczy sie na plecach (backIntrusion od tylu), wiec 10 mm od jej tylnej krawedzi
       zawieszki.naPrzegrodach.forEach((d) => zaw(nazwaPrzegrody(d), d.y0, ZAWIESZKA_OD_PLECOW, 1));
     } else if (zawieszki.gdzie === "A") zaw(bokKorpusu, baseBoku, odTyluBoku, 1);
@@ -6297,16 +6336,6 @@ function computeGeoLiczy(cab, mat, ctx) {
       zaw(bokKorpusu, baseBoku, odTyluBoku, 1);
       zaw("Kątownik przy ramieniu — bok", interior.y0, ZAWIESZKA_OD_PLECOW, 1);
     } else zaw("Kątownik przy ramieniu — plecy", interior.y0, ZAWIESZKA_OD_PLECOW, 1);
-    /* Wyciecie naroznika tylko w jednym poziomie: bok zostaje prostokatny w zamowieniu, ale
-       w wycieciu sie go wycina — zawieszka z gornego tylnego rogu boku wypadala w pustym
-       miejscu (audyt GPT N149). Na calej wysokosci bok jest krotszy i zawieszka idzie za nim. */
-    if (!postSide) geoCuts.filter((gc) => !gc.zFull).forEach((gc) => {
-      const y0z = interior.y1 - ZAWIESZKA_WYM.h, z1z = odTyluBoku + ZAWIESZKA_WYM.gl;
-      if (Math.min(interior.y1, gc.cy1) - Math.max(y0z, gc.cy0) > 0 && Math.min(z1z, gc.bz1) - Math.max(odTyluBoku, gc.bz0) > 0 && gc.cw > 0)
-        add("error", `Zawieszka przy ${gc.onLeft ? "lewym" : "prawym"} boku wypada w wycięciu narożnika (${gc.side}, poziom ${gc.li + 1}) — `
-          + `w górnym tylnym rogu boku, gdzie się ją przykręca, po wycięciu nie ma płyty. Przenieś wycięcie do innego poziomu albo zrób je na całą wysokość, `
-          + `albo zawieś szafkę inaczej.`);
-    });
   }
   const drillPlan = [...drillMap.values()].map((p) => {
     const by = new Map();
@@ -6731,7 +6760,8 @@ function computeGeoLiczy(cab, mat, ctx) {
       name: "Zawieszka meblowa regulowana",
       use: "szafka wieszana na ścianie",
       spec: `${ZAWIESZKA_MODEL}; szafka bez nóżek i cokołu — wieszana na ścianie`
-        + (postSide ? `; szafka w L: ${gdzieL[zawieszki.gdzie]}` : ""),
+        + (postSide ? `; szafka w L: ${gdzieL[zawieszki.gdzie]}` : "")
+        + (zawieszki.naZabudowie.length ? `; ${zawieszki.naZabudowie.length === 1 ? "jedna" : zawieszki.naZabudowie.length} na ściance zabudowy przy narożniku (bok nie dochodzi tam do ściany)` : ""),
       qty: nH,
       unit: "szt.",
     });
@@ -13707,6 +13737,12 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       // „glebokosc:<mm>” — glebokosc tej szafki (tip-on wchodzacy w plecy, N145)
       return { label: `Głębokość szafki ${fmt(Number(action.split(":")[1]))} mm`, run: () => runFix && runFix(action) };
     }
+    if (action.startsWith("zabudowa:") || action.startsWith("zabudowaglab:")) {
+      // „zabudowa:<wyc:L|P|el:<nr>>” / „zabudowaglab:…:<mm>” — zawieszka w wycieciu albo przy elemencie w rogu (N149)
+      const [co, typ, , mm] = action.split(":");
+      const label = co === "zabudowa" ? `Zabuduj ${typ === "wyc" ? "wycięcie" : "element"} (zawieszka na zabudowie)` : `${typ === "wyc" ? "Wycięcie" : "Element"} ${fmt(Number(mm))} mm w głąb`;
+      return { label, run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("przelot:")) {
       // „przelot:<poziom>:<kolumna po lewej>:<przegroda|jedna>[:<szerokosc obu>]” — polki konczace sie w przelocie (N147)
       const [, li, j, co, wTeraz] = action.split(":");
@@ -19075,6 +19111,26 @@ export default function App() {
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    /* „zabudowa:<wyc:L|P|el:<nr>>” — wlacza zabudowe wyciecia / elementu w rogu (do samej gory),
+       „zabudowaglab:…:<mm>” — wyciecie / element glebszy, zeby scianka zabudowy uniosla zawieszke (N149) */
+    if (action.startsWith("zabudowa:") || action.startsWith("zabudowaglab:")) {
+      const [co, typ, gdzie, mm] = action.split(":");
+      const zmien = (o) => (co === "zabudowa" ? { ...o, mask: true, ...(typ === "el" ? { maskToShelf: false } : {}) } : { ...o, d: Math.round(Number(mm)) });
+      setCab((cur) => {
+        if (typ === "wyc") {
+          const k = gdzie === "L" ? "cutout" : "cutoutR";
+          return cur[k] ? { ...cur, [k]: zmien(cur[k]) } : cur;
+        }
+        // numer elementu liczy sie po wlaczonych (jak w `computeGeo`), stary zapis — pojedynczy `obstacle`
+        if (Array.isArray(cur.obstacles) && cur.obstacles.length) {
+          const wl = cur.obstacles.map((o, i) => (o && o.on !== false ? i : -1)).filter((i) => i >= 0);
+          const i = wl[Number(gdzie)];
+          return i == null ? cur : { ...cur, obstacles: cur.obstacles.map((o, k) => (k === i ? zmien(o) : o)) };
+        }
+        return cur.obstacle ? { ...cur, obstacle: zmien(cur.obstacle) } : cur;
+      });
+      return;
+    }
     // „glebokosc:<mm>” — glebokosc aktywnej szafki (tip-on wchodzacy w plecy, N145)
     if (action.startsWith("glebokosc:")) {
       const d = Math.max(1, Math.round(Number(action.split(":")[1]) || 0));

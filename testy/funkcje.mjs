@@ -405,10 +405,30 @@ console.log('\n== N140–N149 ==');
   ok('N148: H720 i H900 — listwa w dwóch odcinkach (zawieszki 702 i 882)', JSON.stringify(rr(720, 900).odcinki.map((o) => [o.len, o.wys])) === '[[600,702],[600,882]]');
   ok('N148: kontrola H720 i H720 — jedna listwa 1200', JSON.stringify(rr(720, 720).odcinki.map((o) => o.len)) === '[1200]');
 
-  const zw = (li, full) => geo({ name: 'T', W: 600, H: 1200, D: 560, ...nogi, hangers: 'always', cutout: { on: true, w: 100, d: 100, fullHeight: full, levelIndex: li, mask: true },
+  const zw = (li, full, cu = {}) => geo({ name: 'T', W: 600, H: 1200, D: 560, ...nogi, hangers: 'always', cutout: { on: true, w: 100, d: 100, fullHeight: full, levelIndex: li, mask: true, ...cu },
     levels: [{ h: 591, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
-  ok('N149: wycięcie w górnym poziomie — błąd o zawieszce w wycięciu', uw(zw(1, false), /Zawieszka przy lewym boku wypada w wycięciu narożnika/).length === 1);
-  ok('N149: kontrola — wycięcie w dolnym poziomie albo na całą wysokość — bez uwagi', !uw(zw(0, false), /Zawieszka/).length && !uw(zw(1, true), /Zawieszka/).length);
+  const zaw = (g) => g.drillPlan.filter((p) => p.rows.some((r) => r.kind === 'zawieszka')).map((p) => p.panel);
+  /* uzytkownik 2026-10-30 (retest N149): zawieszka nie moze wisiec w powietrzu — idzie na scianke
+     zabudowy wyciecia, ktora dochodzi do sciany; bez zabudowy blad z przyciskiem, ktory ja wlacza */
+  let g149 = zw(1, false);
+  ok('N149: wycięcie w górnym poziomie z zabudową — zawieszka na ściance zabudowy, bez błędu', !uw(g149, /Zawieszka/).some((m) => m.level === 'error')
+    && zaw(g149).some((p) => /^Poziom 2 — Zabudowa wycięcia \(lewy\) — ścianka boczna/.test(p)) && !zaw(g149).some((p) => /Bok lewy/.test(p)) && zaw(g149).some((p) => /Bok prawy/.test(p))
+    && uw(g149, /Zawieszka przy lewym boku na ściance bocznej zabudowy wycięcia/).length === 1, zaw(g149).join(' / '));
+  ok('N149: zamówienie — „jedna na ściance zabudowy przy narożniku”', G.okuciaSzafki(g149, {}).some((h) => /Zawieszka/.test(h.name) && h.qty === 2 && /jedna na ściance zabudowy przy narożniku/.test(h.spec)));
+  g149 = zw(1, true);
+  ok('N149: wycięcie na całą wysokość (bok skrócony, nie dochodzi do ściany) — też na ściance zabudowy', zaw(g149).some((p) => /Zabudowa wycięcia \(lewy\) — ścianka boczna/.test(p)) && !zaw(g149).some((p) => /Bok lewy/.test(p)), zaw(g149).join(' / '));
+  const m149 = uw(zw(1, false, { mask: false }), /Zawieszka przy lewym boku wypada w wycięciu narożnika \(lewy, poziom 2\)/);
+  ok('N149: bez zabudowy — błąd „zawisłaby w powietrzu” z przyciskiem „zabudowa:wyc:L”', m149.length === 1 && m149[0].level === 'error' && /zawisłaby w powietrzu/.test(m149[0].text) && /\|zabudowa:wyc:L$/.test(m149[0].text), m149[0] && m149[0].text);
+  const k149 = uw(zw(1, false, { d: 20 }), /ścianka zabudowy ma tylko/);
+  ok('N149: płytkie wycięcie (20) — błąd z „zabudowaglab:wyc:L:N”, po pogłębieniu do N bez błędu', k149.length === 1 && /\|zabudowaglab:wyc:L:\d+$/.test(k149[0].text)
+    && !uw(zw(1, false, { d: Number(k149[0].text.split(':').pop()) }), /Zawieszka/).some((m) => m.level === 'error'), k149[0] && k149[0].text);
+  ok('N149: kontrola — wycięcie w dolnym poziomie — zawieszki na bokach, bez uwagi', !uw(zw(0, false), /Zawieszka/).length && zaw(zw(0, false)).join() === 'Poziom 2 — Bok lewy,Poziom 2 — Bok prawy', zaw(zw(0, false)).join());
+  // element w rogu (przy boku i z tylu, na cala wysokosc) — to samo co wyciecie
+  const el = (mask) => geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, hangers: 'always', obstacles: [{ on: true, side: 'right', w: 120, d: 120, fromSide: 0, fromBack: 0, fullHeight: true, mask }],
+    levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
+  const e149 = uw(el(false), /Zawieszka przy prawym boku wypada/);
+  ok('N149: element w prawym rogu bez zabudowy — błąd z „zabudowa:el:0”', e149.length === 1 && /\|zabudowa:el:0$/.test(e149[0].text), e149[0] && e149[0].text);
+  ok('N149: element w rogu z zabudową — zawieszka na jej ściance, bez błędu', !uw(el(true), /Zawieszka/).some((m) => m.level === 'error') && zaw(el(true)).some((p) => /^Zabudowa: Element kolizyjny — ścianka/.test(p)), zaw(el(true)).join(' / '));
 }
 
 console.log('\n== Rura: niska rura — przesunięcie półki w tym samym ostrzeżeniu (użytkownik 2026-10-29) ==');
