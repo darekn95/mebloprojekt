@@ -1,3 +1,28 @@
+## Aktualizacja 30.10.2026 — wyniki sprawdzenia
+
+**PDF-1 pozostaje otwarty:** w aktualnym PDF (15 stron A4) wymiary i opisy na rysunkach są bardzo drobne. Na stronach 1 i 5 przykładowe znaki mają około 2–3 pkt; tabele formatek około 9 pkt. Arkusze rozkroju na stronach 11–15 są większe, lecz część podpisów małych elementów nadal drobna. Ocena na renderach ekranowych, bez wydruku na papierze. W tym projekcie nie było listwy 100 mm, więc jej nie sprawdzono. Powiększyć napisy i ponowić kontrolę. Nie publikować prywatnego projektu ani PDF.
+
+**Testy:** main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`, blob `szafki.jsx` `cce173bd1949b2761405ad83185a6b6d0f5e5a72`. Istniejący zestaw `testy/funkcje.mjs`: 86 OK, 0 błędów, w tym 24 asercje N140–N149. To niezależne uruchomienie testów projektu, a nie pełny niezależny retest interfejsu, 3D i zamówień. Publiczny `standalone.html` odpowiada tej wersji kodu.
+
+| Zgłoszenie | Wynik testu funkcji |
+|---|---|
+| N140 | Różne kolory blatów tworzą osobne grupy i arkusze. |
+| N141 | Różny montaż frontów blokuje scalenie. |
+| N142 | Blaty na różnych wysokościach pozostają osobne. |
+| N143 | Kolizja drążka jest zgłaszana błędem; nie potwierdzono automatycznej korekty. |
+| N144 | Kontrola wspornika uwzględnia wybrany NL szuflady. |
+| N145 | Brak miejsca lub płyty montażowej tip-on jest zgłaszany błędem; nie potwierdzono automatycznej korekty. |
+| N146 | Różne wysokości nie powodują zamówienia złączy w rogu i jest uwaga. |
+| N147 | Brak wierceń w nieistniejącej przegrodzie, półki bez podpory zgłaszane błędem; nie potwierdzono automatycznej przebudowy. |
+| N148 | Różne wysokości dają osobne odcinki listwy. |
+| N149 | Kolizja zawieszki z wycięciem jest zgłaszana błędem; nie potwierdzono automatycznej zmiany mocowania. |
+
+N69–N138 objęto wcześniejszym retestem 29.10, ale nie powtórzono ich wszystkich w tej rundzie. N139 pozostaje zaakceptowanym ograniczeniem. Poniżej zachowano historyczne opisy N140–N149; nie oznaczają, że wszystkie nadal występują.
+
+---
+
+## Stan historyczny przed aktualizacją 30.10
+
 # Audyt GPT — aktualne uwagi
 
 Stan po reteście 29.10.2026. Testowano kod `szafki.jsx` o SHA `9bea2d2643c2284b7b7528a6532cf7b90f1444db`.
