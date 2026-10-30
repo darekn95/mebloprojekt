@@ -1,3 +1,25 @@
+# Audyt GPT — aktualne statusy
+
+Zgłoszenia oznaczone **ZROBIONE** nie wracają na listę błędów do naprawy, chyba że zostanie wykazana nowa regresja. Status podaje zakres rzeczywiście wykonanego sprawdzenia.
+
+## Otwarte
+
+- **PDF-1 — DO POPRAWY:** napisy i wymiary na stronach z rysunkami są bardzo drobne. Szczegóły kontroli aktualnego PDF poniżej. Kryterium odbioru: czytelne wymiary i podpisy bez nachodzenia oraz obcinania na A4; sprawdzić zwykłą szafkę, szuflady i listwy 100 mm.
+
+## Zrobione — potwierdzone we wskazanym zakresie
+
+- **N69–N138 — ZROBIONE:** zamknięte we wcześniejszym reteście 29.10; nie powtórzono ich wszystkich 30.10. Pełne wcześniejsze przypadki i dowody pozostają w historii raportu.
+- **N140, N141, N142, N144, N146, N148 — ZROBIONE w testach funkcji:** poprawione zachowanie potwierdzone uruchomieniem testów 30.10. Nie przeprowadzono pełnego przeglądu UI, 3D i PDF dla tych przypadków.
+
+## Wykrywane błędem — nie automatyczna naprawa konstrukcji
+
+- **N143, N145, N147, N149 — WERYFIKACJA FUNKCJI OK, ograniczenie:** problem jest zgłaszany błędem; automatyczna korekta konstrukcji lub montażu nie została potwierdzona. To nie są niewykryte błędy; nie traktować ostrzeżenia jako poprawionej geometrii. Szczegóły poniżej.
+- **N139 — ZAAKCEPTOWANE OGRANICZENIE:** układ bez podparcia prowadnicy jest zgłaszany jako niemontowalny; aplikacja nie tworzy automatycznie poprawnej konstrukcji.
+
+Wcześniejsze opisy poniżej są archiwalne. Ich stare statusy nie nadpisują powyższych. [Pełny raport przed uporządkowaniem](https://github.com/darekn95/mebloprojekt/blob/d55f1209653a50c1cbbed3432c847a4b72de14e7/AUDYT_GPT.md).
+
+---
+
 ## Aktualizacja 30.10.2026 — wyniki sprawdzenia
 
 **PDF-1 pozostaje otwarty:** w aktualnym PDF (15 stron A4) wymiary i opisy na rysunkach są bardzo drobne. Na stronach 1 i 5 przykładowe znaki mają około 2–3 pkt; tabele formatek około 9 pkt. Arkusze rozkroju na stronach 11–15 są większe, lecz część podpisów małych elementów nadal drobna. Ocena na renderach ekranowych, bez wydruku na papierze. W tym projekcie nie było listwy 100 mm, więc jej nie sprawdzono. Powiększyć napisy i ponowić kontrolę. Nie publikować prywatnego projektu ani PDF.
