@@ -1,3 +1,39 @@
+# Przekazanie audytu dla Claude — 30.10.2026
+
+**Pochodzenie sugestii:** poniższe propozycje przycisków i napraw są pomysłami GPT do oceny i weryfikacji technicznej. Nie są decyzją użytkownika, jego propozycją ani poleceniem wdrożenia konkretnego rozwiązania. Użytkownik ustalił jedynie kryterium: błąd lub ostrzeżenie można uznać za rozwiązane, gdy wskazuje działanie i ma działający przycisk; trzeba kliknąć i sprawdzić skutek, z podanymi przez niego wyjątkami dotyczącymi arkusza i blatu.
+
+**Zasada statusów:** po naprawie odtwórz konkretny przypadek na aktualnym kodzie, uruchom odpowiednie testy i kliknij każdy proponowany przycisk. Sprawdź faktyczną zmianę projektu, usunięcie problemu, geometrię, formatki i zamówienie oraz nowe kolizje adekwatnie do przypadku. Dopiero po pozytywnym wyniku oznacz **NAPRAWIONE**, podaj wersję i zakres testu. Sama deklaracja lub obecność przycisku nie wystarcza. Istniejące przypadki ZROBIONE zachowują udokumentowany zakres.
+
+### N143 — NAPRAWIONE w sprawdzonym wariancie
+
+**Odtworzenie i wynik:** lokalny `standalone.html` z main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`; szafka 600×2000×560, pionowe wzmocnienie 400×100, od lica 230, drążek w górnym świetle. Błąd zawierał „Usuń rurę”. Kliknięcie wyłączyło drążek, usunęło błąd oraz rurę i rozety z zamówienia. Opcji skrócenia wzmocnienia nie testowano.
+
+### N145 — OTWARTE: brak przycisku przy błędzie tip-on
+
+**Odtworzenie i wynik:** w lokalnym UI szafka 600×300×80, HDF, drzwi bez uchwytu i tip-on. Pojawia się błąd o długości 89 mm i 80 mm do pleców; przy tym komunikacie brak przycisku, tip-on nadal znajduje się w zamówieniu. Wariant bez płyty montażowej przeszedł tylko test funkcji; nie odtworzono go w UI.
+
+**Sugestie GPT do weryfikacji:** rozważyć akcję zmiany sposobu otwierania na uchwyt lub zaproponowania odpowiedniej głębokości, ale najpierw sprawdzić konsekwencje dla pozostałych elementów, sposób wyboru uchwytu i realne miejsce montażu; nie zakładać wartości ani wdrażać jako decyzji użytkownika. **Test odbioru:** odtworzyć oba warianty, kliknąć dostępne rozwiązania, sprawdzić montaż, geometrię, zamówienie i ewentualne nowe błędy.
+
+### N147 — DO WERYFIKACJI UI
+
+**Odtworzenie:** model dwóch kolumn, pierwsza `noDiv=true`, po półce w obu, bez drzwi. Test funkcji stwierdził brak wiercenia w nieistniejącej przegrodzie i błąd o półkach bez podparcia. Kod komunikatu nie zawiera przypisanej akcji; UI nie sprawdzono.
+
+**Sugestia GPT do weryfikacji:** rozważyć przywrócenie przegrody przyciskiem, jeśli poprawne dla tego modelu. Nie jest to decyzja użytkownika. **Test odbioru:** odtworzyć stary zapis, sprawdzić komunikat i przycisk, po kliknięciu geometrię, podparcie półek, wiercenia, formatki i zamówienie.
+
+### N149 — DO WERYFIKACJI UI
+
+**Odtworzenie:** wisząca 600×1200×560, dwa poziomy, lewe tylne wycięcie 100×100 tylko w górnym poziomie, maska i zawieszki. Test funkcji potwierdził błąd zawieszki w wycięciu; kod komunikatu nie zawiera przypisanej akcji, UI nie sprawdzono.
+
+**Sugestia GPT do weryfikacji:** rozważyć przycisk zmiany zakresu wycięcia, jeśli po sprawdzeniu zapewnia poprawne podparcie. Nie jest to decyzja użytkownika. **Test odbioru:** kliknąć proponowane działanie i sprawdzić obrys wycięcia, płytę pod zawieszką, geometrię, wiercenia, zamówienie i nowe kolizje.
+
+### PDF-1 — OTWARTE
+
+**Odtworzenie i wynik:** aktualny PDF użytkownika, 15 stron A4. Na renderach stron 1 i 5 wymiary i opisy są drobne, niektóre znaki około 2–3 pkt. Nie testowano fizycznego wydruku ani listwy 100 mm. **Sugestie GPT do weryfikacji:** większe opisy, dodatkowy widok lub legenda. **Test odbioru:** aktualny PDF zwykłej szafki, szuflad i arkusza z listwą 100 mm; czytelność w skali A4, brak nakładania i obcinania. Nie publikować prywatnego PDF ani projektu.
+
+Poniższe starsze sekcje zachowują historię i mogą mieć dawne statusy; aktualne rozstrzygnięcia są powyżej.
+
+---
+
 ## Retest przycisków — 30.10.2026
 
 - **N143 — ZROBIONE w sprawdzonym wariancie:** w lokalnej kopii `standalone.html` z main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e` odtworzono szafkę 600×2000×560, pionowe wzmocnienie 400×100 od lica 230 i drążek w górnym świetle. Błąd miał przycisk „Usuń rurę”. Po kliknięciu checkbox drążka został wyłączony, błąd kolizji zniknął, a rura i rozety zniknęły z zamówienia. Nie testowano osobno przycisku skracania wzmocnienia ani wszystkich kombinacji. Starsze wpisy poniżej o niesprawdzonym przycisku są nieaktualne.
