@@ -64,7 +64,7 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
 - **Zawias na elemencie stałym bez wspornika** — błąd z „Dobuduj wspornik pionowy” / „bez drzwi”.
 - **Dwoje wąskich drzwi** (każde poniżej 250 mm, a jedne miałyby najwyżej 600) — ostrzeżenie z „Jedne drzwi N mm — zawiasy z lewej / z prawej”.
 - **Szerokości drzwi**:
-  - przy równym podziale różnią się o 1–2 mm — ostrzeżenie z przyciskami zmiany luzu („formatki identyczne”);
+  - przy równym podziale różnią się o 1–2 mm — ostrzeżenie z przyciskami zmiany luzu („formatki identyczne”); gdy różnica bierze się z wpisanej szerokości (np. 198 obok dwóch auto 197) — treść to mówi, a przyciski tylko takie, po których formatki są naprawdę identyczne: luz, przy którym auto wyjdą równo z wpisaną (gdy jest), i „Wszystkie drzwi równo[, luz N mm]” (wpisane na auto, z najbliższym luzem dzielącym pasmo bez reszty). Tak samo fronty szuflad („Wszystkie fronty równo”; audyt GPT N169, `wyrownanieFrontow`);
   - zero lub mniej — błąd.
 - **Wysokość drzwi zero lub mniej** — błąd.
 - **Szczelina między frontami** w poziomie: 0 lub mniej (fronty się stykają) — błąd, 1 mm — ostrzeżenie, w jednej kolumnie więcej niż „Ostrzegaj powyżej” (5 mm) — błąd „o N mm za dużo”. Luz z karty „Luzy drzwi” powyżej 5 mm — ostrzeżenie.
@@ -86,5 +86,5 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
 
 - **Obliczenia**: `computeGeo`, kolumna z drzwiami (`d.type === "door"`, `hingeSide`, `hingePts`), `zawiasyGtv` / `autoHinges`, `hingePositions`; stałe `HINGE_*`, `ZAWIASY_GTV`, `WASKI_FRONT`, `SZEROKI_FRONT`; okucia na końcu `computeGeo` (`hardware`).
 - **Kontrola otwierania**: `swingBodies` / `openingMsgs` (`swingHit`, `swingKat`).
-- **Przyciski**: `zawiasy:`, `hingeflip:`, `hingeflipcab:`, `onedoor:`, `fixgap:`, `fixsup:`, `fixnodoor:`.
+- **Przyciski**: `zawiasy:`, `hingeflip:`, `hingeflipcab:`, `onedoor:`, `fixgap:`, `rowno:`, `fixsup:`, `fixnodoor:`.
 - **Testy**: `zawiasy`, `zawias`, `hinge`, `hinge2`, `otwier`, `wasdrzwi`, `gaps`, `fixmode`, `wspornik`, `audytwierc`, `palce` (otwieranie bez uchwytu, tip-on), `audytgpt7` (wydłużenie od dołu: wpuszczany, podłoga).

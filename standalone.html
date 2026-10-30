@@ -475,9 +475,10 @@ const kolumnaW = (L, li, j) => {
    ida do jednej (z ich szerokosciami, uchwytami, zawiasami); wnetrze — polki i rura —
    z tej, ktora je ma (najpierw lewa). Szerokosc: suma, gdy obie byly zadane; auto, gdy
    reszta poziomu jest zadana (jedna wezmie dokladnie to, co obie); inaczej `wTeraz` —
-   szerokosc obu z rysunku, zeby sasiednie kolumny auto nie zmienily sie. */
+   szerokosc obu z rysunku, zeby sasiednie kolumny auto nie zmienily sie. `wnetrzeZ` — „P”:
+   wnetrze prawej, gdy obie je maja (wybor w uwadze, audyt GPT N157). */
 const POLA_DRZWI = ["doorWidths", "mirrors", "handles", "hinges", "handleOuts", "handlePos", "otwieranie", "otwieranieMm"];
-const kolumnaZPrzelotu = (cols, j, wTeraz) => {
+const kolumnaZPrzelotu = (cols, j, wTeraz, wnetrzeZ = null) => {
   const a = cols[j], b = cols[j + 1];
   if (!a || !b) return cols;
   const reszta = cols.filter((_, k) => k !== j && k !== j + 1);
@@ -504,34 +505,46 @@ const kolumnaZPrzelotu = (cols, j, wTeraz) => {
   }
   // polki i rura razem (numery rur to numery swiatel miedzy polkami)
   const wnetrze = (k) => (k.shelfTargets || []).length > 1 || (k.drazki || []).length > 0;
-  if (!wnetrze(a) && wnetrze(b)) ["shelfTargets", "drazki", "shelfMount"].forEach((key) => {
+  if (wnetrzeZ === "P" ? wnetrze(b) : !wnetrze(a) && wnetrze(b)) ["shelfTargets", "drazki", "shelfMount"].forEach((key) => {
     if (b[key] === undefined) delete c[key]; else c[key] = JSON.parse(JSON.stringify(b[key]));
   });
   return [...cols.slice(0, j), c, ...cols.slice(j + 2)];
 };
 /* Kolumna na dwie rowne z przegroda miedzy nimi („Podziel kolumnę przegrodą” przy zbyt dlugiej
    rurze, N153): obie z tym samym wnetrzem (polki, rura — kazda o polowe krotsza), drzwi po
-   polowie (pojedyncze — kazda dostaje swoje). Szerokosc: polowa zadanej; auto, gdy reszta
-   poziomu jest zadana (obie wezma rowno to, co zostaje); inaczej polowa szerokosci z rysunku. */
+   polowie (pojedyncze — kazda dostaje swoje). Szerokosc: polowa zadanej (przy nieparzystej
+   lewa o 1 mm wezsza — dwie zaokraglone w gore wychodzily o 1 mm za szafke, retest GPT N153);
+   auto, gdy reszta poziomu jest zadana (obie wezma rowno to, co zostaje); inaczej polowa
+   szerokosci z rysunku. Audyt GPT N158–N165: kolumna bez drzwi zostaje bez drzwi, wpisane
+   szerokosci drzwi ida na auto (byly dla dwa razy szerszego pasma), fix boczny zostaje tylko
+   po swojej stronie (z nim wspornik), a pojedyncze skrzydlo wisi na zawiasach z tej strony,
+   z ktorej wisialo przed podzialem (prawe z pary dostawalo „auto” — lewe). */
 const kolumnaNaDwie = (cols, j, wTeraz, t) => {
   const a = cols[j];
   if (!a) return cols;
   const reszta = cols.filter((_, k) => k !== j);
-  const pol = (x) => Math.round((x - t) / 2);
-  const w = num(a.w) !== null ? pol(num(a.w)) : reszta.every((c) => num(c.w) !== null) ? null : num(wTeraz) !== null ? pol(num(wTeraz)) : null;
-  const n = Math.max(1, Math.round(a.doors ?? 1));
-  const nL = Math.max(1, Math.ceil(n / 2)), nP = n > 1 ? n - nL : 1;
+  const caly = num(a.w) ?? (reszta.every((c) => num(c.w) !== null) ? null : num(wTeraz));
+  const wL = caly === null ? null : Math.floor((caly - t) / 2);
+  const wP = caly === null ? null : caly - t - wL;
+  const drzwi = (a.kind || "doors") === "doors";
+  const n = Math.max(0, Math.round(a.doors ?? 1));
+  const nL = n ? Math.max(1, Math.ceil(n / 2)) : 0, nP = n > 1 ? n - nL : n;
+  const reczna = a.hinge === "left" || a.hinge === "right";
   const pol2 = (strona) => {
     const c = JSON.parse(JSON.stringify(a));
-    c.w = w;
+    c.w = strona === "L" ? wL : wP;
     if (strona === "L") { delete c.noDiv; delete c.przegrodaPodw; }
-    if ((c.kind || "doors") === "doors") {
+    if (c.fix && c.fix.side === (strona === "L" ? "right" : "left")) delete c.fix;
+    if (drzwi) {
       c.doors = strona === "L" ? nL : nP;
       POLA_DRZWI.forEach((key) => {
         if (!Array.isArray(a[key])) return;
         c[key] = n === 1 ? [...a[key]] : strona === "L" ? a[key].slice(0, nL) : a[key].slice(nL);
       });
-      if (n > 1) c.hinge = "auto";
+      delete c.doorWidths;
+      // para: lewe skrzydlo na lewym boku, prawe na prawym — pojedyncze dostaje swoja strone na stale
+      if (c.doors === 1 && (n > 1 || !reczna)) c.hinge = n > 1 ? (strona === "L" ? "left" : "right") : strona === "L" ? a.hinge : "right";
+      else if (c.doors > 1) c.hinge = "auto";
     }
     return c;
   };
@@ -1064,18 +1077,22 @@ const scalOkucia = (lista) => {
     // `wariant` — cecha handlowa (ksztalt i wysokosc nozki, typ zawiasu): inny wariant to inny wiersz
     const k = `${h.name}|${h.unit}|${h.pack || 0}|${h.wariant || ""}|${h.use ? "" : h.specSzt || h.spec}`;
     const e = map.get(k);
+    // `czesci` — wiersz z kilkoma zastosowaniami (wkrety 4 × 30: wzmocnienia, zawieszki…, N163)
+    const uzyciaH = h.use ? (h.czesci && h.czesci.length ? h.czesci : [{ use: h.use, qty: h.qty }]) : null;
     if (!e) {
-      map.set(k, { ...h, uzycia: h.use ? [{ use: h.use, qty: h.qty }] : null });
+      map.set(k, { ...h, uzycia: uzyciaH ? uzyciaH.map((u) => ({ ...u })) : null });
       return;
     }
     e.qty += h.qty;
     if (h.sztuk) { e.sztuk = (e.sztuk || 0) + h.sztuk; e.spec = (e.specSzt || "").replace("{n}", e.sztuk); }
     if (!e.uzycia) return;
-    const u = e.uzycia.find((x) => x.use === h.use);
-    if (u) u.qty += h.qty;
-    else e.uzycia.push({ use: h.use, qty: h.qty });
+    uzyciaH.forEach((x) => {
+      const u = e.uzycia.find((q) => q.use === x.use);
+      if (u) u.qty += x.qty;
+      else e.uzycia.push({ use: x.use, qty: x.qty });
+    });
   });
-  return [...map.values()].map(({ uzycia, ...h }) => {
+  return [...map.values()].map(({ uzycia, czesci, ...h }) => {
     if (!uzycia) return h;
     /* Przy jednym zastosowaniu liczba jest juz w kolumnie „Ilosc", wiec jej
        nie powtarzamy — dopiero kilka zastosowan trzeba rozpisac. */
@@ -1321,6 +1338,38 @@ const evenGapOptions = (span, n, fixedSum, autoCnt, gap, min = 2, max = 12) => {
   return { up, down };
 };
 
+/* Przyciski przy „fronty roznia sie o 1–2 mm” (audyt GPT N169): tylko takie, po ktorych
+   formatki naprawde wychodza identyczne. Bez wpisanych wymiarow — luz w gore / w dol
+   (`evenGapOptions`). Z wpisanym (np. 198 obok dwoch auto 197) zmiana luzu wyrownuje tylko
+   auto miedzy soba, a wpisany zostaje inny — dotad przycisk obiecywal identyczne, a roznica
+   rosla. Wtedy: luz, przy ktorym auto wyjda rowno z wpisanym (gdy taki jest), i „wszystkie
+   równo” — wpisane wymiary na auto, w razie potrzeby z najblizszym luzem, ktory dzieli pasmo
+   bez reszty. `cele` — wymiary frontow (null = auto), `typ` — „d” drzwi, „s” szuflady. */
+const wyrownanieFrontow = (span, cele, gap, adres, typ, min = 2, max = 12) => {
+  const n = cele.length;
+  const reczne = cele.map(num).filter((v) => v !== null);
+  const autoCnt = n - reczne.length;
+  const fixedSum = reczne.reduce((a, v) => a + v, 0);
+  const luz = (v) => `|fixgap:${adres}:${v}:${v > gap ? "up" : "down"}`;
+  if (!reczne.length) {
+    const opt = evenGapOptions(span, n, 0, autoCnt, gap, min, max);
+    return [opt.up, opt.down].filter((v) => v !== null).map(luz).join("");
+  }
+  let acts = "";
+  if (n > 1 && reczne.every((v) => v === reczne[0])) {
+    const G = (span - fixedSum - autoCnt * reczne[0]) / (n - 1);
+    if (Number.isInteger(G) && G >= min && G <= max && G !== gap) acts += luz(G);
+  }
+  const dzieli = (G) => (span - (n - 1) * G) % n === 0;
+  let G0 = gap;
+  if (!dzieli(gap)) {
+    const opt = evenGapOptions(span, n, 0, n, gap, min, max);
+    G0 = opt.up !== null && (opt.down === null || opt.up - gap <= gap - opt.down) ? opt.up : opt.down;
+  }
+  if (G0 !== null) acts += `|rowno:${adres}:${G0}:${typ}:${G0 !== gap ? 1 : 0}`;
+  return acts;
+};
+
 /* ---------- domyslny projekt ---------- */
 
 const defaultMaterials = {
@@ -1468,10 +1517,12 @@ const POLA_KLAPY = ["klapa", "klapaUchwyt", "silowniki", "silaN", "katKlapy", "p
    w czolo drugiej. Plaska, na 100 mm, dawala tam tylko styk krawedzi. */
 const ROG_WZM_H = 60;
 // `paraPodBlat` — znacznik pary (przenoszenie przy nowym poziomie, usuwanie przy wiencu; N109)
-const railPair = (cofniete = 0, odTylu = 0, pionZPrzodu = false) => ([
+/* `glab` — ile miejsca w glab ma plaskie wzmocnienie z przodu (do tylnego, stojacego): w szafce
+   80 mm plaskie 100 mm wychodzilo 20 mm za korpus (audyt GPT N166) */
+const railPair = (cofniete = 0, odTylu = 0, pionZPrzodu = false, glab = 100) => ([
   pionZPrzodu
     ? { ...newRail(), orient: "front", pos: "top", h: ROG_WZM_H, atDepth: cofniete, fromBack: false, paraPodBlat: true }
-    : { ...newRail(), orient: "shelf", pos: "top", depth: 100, atDepth: cofniete, fromBack: false, paraPodBlat: true },
+    : { ...newRail(), orient: "shelf", pos: "top", depth: Math.max(1, Math.min(100, Math.round(glab))), atDepth: cofniete, fromBack: false, paraPodBlat: true },
   { ...newRail(), orient: "front", pos: "top",
     h: pionZPrzodu ? ROG_WZM_H : 100, atDepth: odTylu, fromBack: true, paraPodBlat: true },
 ]);
@@ -2783,6 +2834,10 @@ function computeGeoLiczy(cab, mat, ctx) {
      bokami. Plyty wewnatrz wczesniej nie odejmowalismy — polka wchodzila
      18 mm w plecy (audyt 2026-09-28). */
   const backIntrusion = grooved ? grOff : backIsBoard && backPos === "inside" && cab.back !== "none" ? tb + backRecess : 0;
+  /* Przycisk „Dodaj parę wzmocnień pod blat” w uwagach: ta sama para co przy „Dołóż parę wzmocnień”
+     (`bezWienca`) — w szafce narożnej stojące, cofnięte o grubość frontu (audyt GPT N167: dawał
+     zwykłą płaską z przodu) — i płaskie najwyżej na tyle, ile jest miejsca przed tylnym (N166). */
+  const paraArg = `${Math.max(0, Math.round(carcassDepth - backIntrusion - t))}:${(cab.corner || {}).on ? Math.round(tf) : 0}`;
   if (backRecess && backRecess + tb >= carcassDepth)
     add("error", `Plecy cofnięte o ${fmt(backRecess)} mm razem z płytą ${fmt(tb)} mm nie mieszczą się w głębokości korpusu ${fmt(carcassDepth)} mm.`);
   /* Wzmocnienie tylne szafki w L (katownik w tylnym narozniku), dwie plyty na
@@ -2955,11 +3010,14 @@ function computeGeoLiczy(cab, mat, ctx) {
         }
         const maxRury = RURA_ODCINKI[RURA_ODCINKI.length - 1];
         const podziel = `|podzielkol:${lv.i}:${j}:${Math.round(w)}:${t}`;
+        // co zrobi podzial z frontem (audyt GPT N158: jedne drzwi staja sie dwojgiem — trzeba to powiedziec)
+        const nDrz = (rawCols[j].kind || "doors") === "doors" ? Math.max(0, Math.round(rawCols[j].doors ?? 1)) : null;
+        const poPodziale = nDrz === 1 ? " Każda kolumna dostanie swoje drzwi (z jednych będą dwoje)." : "";
         if (dr.len > maxRury)
-          add("error", `${gdzie}: rura ma ${fmt(dr.len)} mm — dłuższa niż najdłuższy odcinek w sprzedaży (${fmt(maxRury / 1000)} m), a z dwóch kawałków nie będzie jednej rury. Podziel kolumnę przegrodą — powstaną dwie krótsze.`
+          add("error", `${gdzie}: rura ma ${fmt(dr.len)} mm — dłuższa niż najdłuższy odcinek w sprzedaży (${fmt(maxRury / 1000)} m), a z dwóch kawałków nie będzie jednej rury. Podziel kolumnę przegrodą — powstaną dwie krótsze.${poPodziale}`
             + podziel + `|drazek:${lv.i}:${j}:${dr.k}:0`);
         else if (dr.len > DRAZEK_UGINA)
-          add("warn", `${gdzie}: rura ma ${fmt(dr.len)} mm — przy ponad ${fmt(DRAZEK_UGINA / 1000)} m ugina się pod ubraniami. Podziel kolumnę przegrodą albo podeprzyj rurę na środku.` + podziel);
+          add("warn", `${gdzie}: rura ma ${fmt(dr.len)} mm — przy ponad ${fmt(DRAZEK_UGINA / 1000)} m ugina się pod ubraniami. Podziel kolumnę przegrodą albo podeprzyj rurę na środku.${poPodziale}` + podziel);
         /* Swiatlo zmniejszone po dodaniu rury (uzytkownik 2026-10-24: „nie ma opcji
            usunięcia rurki — albo usunąć, albo przestawić na wyższą półkę”): przyciski
            „Usuń rurę” i „Przenieś do światła N” — najwyzszego, pod ktorym zmieszcza
@@ -3361,8 +3419,9 @@ function computeGeoLiczy(cab, mat, ctx) {
         const co = `${where}: wzmocnienie ${nr} (${RODZAJ_WZM[r.orient] || r.orient})`;
         const wys = lv.y1 - lv.y0;
         const rh = Math.max(0, Math.round(r.h || 0));
+        // przyciski przy wzmocnieniu poza korpusem (audyt GPT N166: blad byl, przycisku nie)
         if (r.orient !== "shelf" && rh > wys + 0.5)
-          add("error", `${co} ma ${fmt(rh)} mm wysokości, a poziom ma ${fmt(Math.round(wys))} mm — wychodzi poza korpus. Najwyżej ${fmt(Math.round(wys))} mm.`);
+          add("error", `${co} ma ${fmt(rh)} mm wysokości, a poziom ma ${fmt(Math.round(wys))} mm — wychodzi poza korpus. Najwyżej ${fmt(Math.round(wys))} mm.|wzmwys:${lv.i}:${j}:${nr - 1}:${Math.floor(wys)}`);
         const rAt = Math.max(0, Math.round(r.atDepth || 0));
         const gleb = r.orient === "front" ? t : Math.max(0, Math.round(r.depth || 0));
         /* Od lica — do plecow (w srodku albo we frezie zabieraja glebokosc); od tylu
@@ -3375,7 +3434,12 @@ function computeGeoLiczy(cab, mat, ctx) {
           const rada = r.orient === "front"
             ? `głębokość ${od} najwyżej ${fmt(Math.max(0, dost - gleb))} mm`
             : `przy ${fmt(rAt)} mm ${od} głębokość najwyżej ${fmt(Math.max(0, dost - odTylu))} mm, a przy głębokości ${fmt(gleb)} mm — najwyżej ${fmt(Math.max(0, dost - gleb))} mm ${od}`;
-          add("error", `${co} sięga ${fmt(potrzeba)} mm w głąb, a korpus ma ${fmt(dost)} mm${!r.fromBack && backIntrusion ? " do pleców" : ""} — wychodzi o ${fmt(potrzeba - dost)} mm poza korpus. Popraw: ${rada}.`);
+          // plaskie z przodu przy stojacym z tylu na tej samej wysokosci (para pod blat) — konczy sie przed nim
+          const tylne = r.orient === "shelf" && !r.fromBack && rawRails.some((r2) => r2 !== r && r2.fromBack && r2.orient === "front" && r2.pos === r.pos);
+          const maxGl = Math.max(0, dost - odTylu - (tylne ? t : 0)), maxOd = Math.max(0, dost - gleb);
+          const przyciski = (r.orient === "shelf" && maxGl >= 30 ? `|wzmgleb:${lv.i}:${j}:${nr - 1}:depth:${maxGl}` : "")
+            + (rAt > maxOd && Math.max(maxOd, r.fromBack ? backIntrusion : 0) + gleb <= dost + 0.5 ? `|wzmgleb:${lv.i}:${j}:${nr - 1}:atDepth:${maxOd}` : "");
+          add("error", `${co} sięga ${fmt(potrzeba)} mm w głąb, a korpus ma ${fmt(dost)} mm${!r.fromBack && backIntrusion ? " do pleców" : ""} — wychodzi o ${fmt(potrzeba - dost)} mm poza korpus. Popraw: ${rada}.${przyciski}`);
         }
         /* Pionowe wzmocnienie przy boku a polka (audyt GPT N100: 400 mm od wienca przecinalo
            gorna polke 18 × 18 × 100 mm, polka szla w calosci do zamowienia, bez uwagi).
@@ -3417,7 +3481,7 @@ function computeGeoLiczy(cab, mat, ctx) {
          gory otwarty: nic nie trzyma bokow w kacie i nie ma do czego przykrecic
          blatu. Tego nikt dotad nie zglaszal (analiza 2026-10-04). */
       if (lv.i === levels.length - 1 && !hasTop && !(c.rails || []).some((r) => r.y1 >= lv.y1 - 1))
-        add("warn", `${where}: nad tą kolumną nie ma wieńca ani wzmocnienia — korpus jest od góry otwarty, nic nie trzyma boków i nie ma do czego przykręcić blatu.|parablat:${lv.i}:${j}`);
+        add("warn", `${where}: nad tą kolumną nie ma wieńca ani wzmocnienia — korpus jest od góry otwarty, nic nie trzyma boków i nie ma do czego przykręcić blatu.|parablat:${lv.i}:${j}:${paraArg}`);
       const wLicu = (c.rails || []).filter((r) => r.orient !== "vertical" && !r.przyTyle && r.z0 < tf);
       const srodekPoz = (lv.y0 + lv.y1) / 2;
       const insLo = Math.max(lv.y0 + g.inset, ...wLicu.filter((r) => r.y0 < srodekPoz).map((r) => r.y1 + g.inset));
@@ -3737,13 +3801,12 @@ function computeGeoLiczy(cab, mat, ctx) {
             if (uniq.length > 1) {
               const spread = Math.max(...uniq) - Math.min(...uniq);
               if (spread <= 2) {
-                const opt = evenGapOptions(sx1 - sx0, cnt, fixedW, autoCnt, colGap);
-                const acts = [opt.up, opt.down]
-                  .filter((v) => v !== null)
-                  .map((v) => `|fixgap:${lv.i}:${jKey}:${v}:${v > colGap ? "up" : "down"}`)
-                  .join("");
-                // ostrzezenie: formatki do wyrownania (uzytkownik 2026-10-17)
-                add("warn", `${where}: przy równym podziale drzwi różnią się o ${fmt(spread)} mm. Zmień luz między drzwiami, żeby formatki były identyczne.${acts}`);
+                const acts = wyrownanieFrontow(sx1 - sx0, wTargets, colGap, `${lv.i}:${jKey}`, "d");
+                const reczne = wTargets.map(num).filter((v) => v !== null);
+                // ostrzezenie: formatki do wyrownania (uzytkownik 2026-10-17); wpisany wymiar — inne rady (N169)
+                add("warn", reczne.length
+                  ? `${where}: drzwi różnią się o ${fmt(spread)} mm — ${reczne.length === 1 ? `szerokość ${fmt(reczne[0])} mm jest wpisana ręcznie` : `szerokości ${reczne.map(fmt).join(", ")} mm są wpisane ręcznie`}, reszta dzieli się po równo. Żeby formatki były identyczne, ${acts.includes("fixgap") ? "zmień luz albo " : ""}podziel wszystkie po równo.${acts}`
+                  : `${where}: przy równym podziale drzwi różnią się o ${fmt(spread)} mm. Zmień luz między drzwiami, żeby formatki były identyczne.${acts}`);
               }
             }
           }
@@ -4101,12 +4164,12 @@ function computeGeoLiczy(cab, mat, ctx) {
         const uniq = [...new Set(fr.sizes.map((v) => Math.round(v)))];
         const spread = uniq.length > 1 ? Math.max(...uniq) - Math.min(...uniq) : 0;
         if (spread >= 1 && spread <= 2) {
-          const opt = evenGapOptions(dbandH, ds.length, fixedFronts, autoFronts, drGap);
-          const acts = [opt.up, opt.down]
-            .filter((v) => v !== null)
-            .map((v) => `|fixgap:${lv.i}:${j}:${v}:${v > drGap ? "up" : "down"}`)
-            .join("");
-          add("warn", `${where}: przy równym podziale fronty szuflad różnią się o ${fmt(spread)} mm. Zmień luz między frontami, żeby były identyczne.${acts}`);
+          const cele = ds.map((d) => d.front);
+          const acts = wyrownanieFrontow(dbandH, cele, drGap, `${lv.i}:${j}`, "s");
+          const reczne = cele.map(num).filter((v) => v !== null);
+          add("warn", reczne.length
+            ? `${where}: fronty szuflad różnią się o ${fmt(spread)} mm — ${reczne.length === 1 ? `wysokość ${fmt(reczne[0])} mm jest wpisana ręcznie` : `wysokości ${reczne.map(fmt).join(", ")} mm są wpisane ręcznie`}, reszta dzieli się po równo. Żeby fronty były identyczne, ${acts.includes("fixgap") ? "zmień luz albo " : ""}podziel wszystkie po równo.${acts}`
+            : `${where}: przy równym podziale fronty szuflad różnią się o ${fmt(spread)} mm. Zmień luz między frontami, żeby były identyczne.${acts}`);
         }
       }
 
@@ -4735,7 +4798,12 @@ function computeGeoLiczy(cab, mat, ctx) {
       const sa = plyty.filter((q) => q.jest);
       const gdzieT = `${d.seg ? gdziePoziomKol(li, d.colJ ?? j, d.seg.nr) : `Poziom ${li + 1}, kolumna ${j + 1}`}, ${d.type === "klapa" ? "klapa" : "drzwi"}: tip-on`;
       if (!sa.length) {
-        add("error", `${gdzieT} nie ma płyty do przykręcenia — w tym miejscu nie ma dna, półki, wieńca ani wzmocnienia. Dołóż półkę albo wzmocnienie, albo daj uchwyt.`);
+        /* przyciski (retest GPT N145, wariant bez plyty): uchwyt zamiast tip-on albo polka
+           w swietle drzwi — odbojnik pojdzie na nia (zwykla kolumna bez rury i bez podzialu) */
+        const [kLi, kJ, kK] = d.key.slice(1).split("-");
+        const polka = d.type !== "klapa" && !d.seg && !(c.drazki || []).length && wnetrzePoziomu(rawLevels[li].cols[j] || {}, 0) === "doors";
+        add("error", `${gdzieT} nie ma płyty do przykręcenia — w tym miejscu nie ma dna, półki, wieńca ani wzmocnienia. Dołóż półkę albo wzmocnienie, albo daj uchwyt.`
+          + `|uchwyt:${kLi}:${kJ}:${kK}` + (polka ? `|polkatipon:${li}:${j}` : ""));
         return;
       }
       const naj = (lista) => lista.reduce((a, b) => (Math.abs(b.y - cel) < Math.abs(a.y - cel) ? b : a));
@@ -5063,31 +5131,70 @@ function computeGeoLiczy(cab, mat, ctx) {
     if (wien) P({ ...wien, note: noteOf(wien.edges, "horiz") });
   }
 
-  if (sepShelves.length)
-    P({ name: "Półka przelotowa", qty: sepShelves.length, a: innerW, b: shelfDepth,
+  // elementy kolizyjne (wstecznie: pojedynczy cab.obstacle) i ich obrys — formatki z otworami i petla elementow
+  const obsWlaczone = (Array.isArray(cab.obstacles) && cab.obstacles.length
+    ? cab.obstacles
+    : cab.obstacle?.on ? [cab.obstacle] : []).filter((o) => o && o.on !== false);
+  const obrysElementu = (ob) => {
+    const ow = Math.max(0, Math.round(ob.w || 0)), od = Math.max(0, Math.round(ob.d || 0));
+    const fromSide = Math.round(ob.fromSide ?? ob.fromRight ?? 0); // odsuniecie od wybranego boku
+    const ox0 = ob.side === "left" ? fromSide : W - fromSide - ow;
+    const oz0 = Math.round(ob.fromBack || 0); // odsuniecie od tylu
+    const oFull = ob.fullHeight !== false;
+    const oy0 = oFull ? interior.y0 : Math.round(ob.fromBottom || 0) + interior.y0;
+    return { ox0, ox1: ox0 + ow, oz0, oz1: oz0 + od, oy0, oy1: oFull ? interior.y1 : oy0 + Math.max(0, Math.round(ob.h || 0)), oFull };
+  };
+  /* Otwory na element kolizyjny (decyzja uzytkownika 2026-10-30 przy audycie GPT N114: „przyciski
+     do dostępnych i sensownych opcji”): element z `otwory` — plyty, przez ktore przechodzi (polka
+     przelotowa, polka, przegroda), dostaja otwor; wymiar idzie w nazwe formatki (opis nie trafia
+     do tabeli ani do PDF), ostrzezenie staje sie informacja. */
+  const elementyOtwory = obsWlaczone.filter((ob) => ob.otwory).map(obrysElementu);
+  const otworW = (y0, y1, x0, x1, z0, z1) => {
+    const e = elementyOtwory.find((q) => Math.min(y1, q.oy1) - Math.max(y0, q.oy0) > 0 && Math.min(x1, q.ox1) - Math.max(x0, q.ox0) > 0
+      && q.oz0 < z1 && q.oz1 > z0);
+    return e ? { a: Math.round(Math.min(x1, e.ox1) - Math.max(x0, e.ox0)), b: Math.round(Math.min(z1, e.oz1) - Math.max(z0, e.oz0)),
+      h: Math.round(Math.min(y1, e.oy1) - Math.max(y0, e.oy0)) } : null;
+  };
+  const zOtworem = new Map();
+  sepShelves.forEach((sh) => {
+    const o = otworW(sh.y, sh.y + t, interior.x0, interior.x1, shelfBack, shelfBack + shelfDepth);
+    const name = o ? `Półka przelotowa — otwór ${fmt(o.a)} × ${fmt(o.b)}` : "Półka przelotowa";
+    zOtworem.set(name, (zOtworem.get(name) || 0) + 1);
+  });
+  zOtworem.forEach((qty, name) =>
+    P({ name, qty, a: innerW, b: shelfDepth,
         matKey: "board", edges: { a1: true, a2: rear, b1: false, b2: false },
-        note: "krawędź przednia" });
+        note: "krawędź przednia" }));
 
   const shelfMat = sameShelf ? "board" : "shelf";
   const divSizes = new Map();
-  dividers.forEach((d) => divSizes.set(d.h, (divSizes.get(d.h) || 0) + 1));
-  divSizes.forEach((qty, h) =>
-    P({ name: "Przegroda pionowa", qty, a: h, b: dividerDepth, matKey: "board",
+  dividers.forEach((d) => {
+    const o = otworW(d.y0, d.y1, d.x, d.x + t, shelfBack, shelfBack + dividerDepth);
+    const k = `${d.h}|${o ? `${o.b}|${o.h}` : ""}`;
+    divSizes.set(k, (divSizes.get(k) || 0) + 1);
+  });
+  divSizes.forEach((qty, k) => {
+    const [h, ob, oh] = k.split("|").map(Number);
+    P({ name: ob > 0 ? `Przegroda pionowa — wycięcie ${fmt(ob)} × ${fmt(oh)}` : "Przegroda pionowa", qty, a: h, b: dividerDepth, matKey: "board",
         edges: { a1: true, a2: rear, b1: false, b2: false },
-        note: "krawędź przednia" })
-  );
+        note: "krawędź przednia" });
+  });
 
   const shSizes = new Map();
   levels.forEach((lv) =>
     lv.cols.forEach((c) => {
-      const k = `${c.shW}|${c.shD ?? shelfDepth}|${c.shNotch ? `${c.shNotch.w}|${c.shNotch.d}` : ""}`;
-      c.shelves.forEach(() => shSizes.set(k, (shSizes.get(k) || 0) + 1));
+      c.shelves.forEach((sh) => {
+        const z1 = shelfBack + shelfDepth;
+        const o = otworW(sh.y, sh.y + ts, c.shX0 ?? c.x0, c.shX1 ?? c.x1, z1 - (c.shD ?? shelfDepth), z1);
+        const k = `${c.shW}|${c.shD ?? shelfDepth}|${c.shNotch ? `${c.shNotch.w}|${c.shNotch.d}` : "|"}|${o ? `${o.a}|${o.b}` : "|"}`;
+        shSizes.set(k, (shSizes.get(k) || 0) + 1);
+      });
     })
   );
   shSizes.forEach((qty, k) => {
-    const [w, dep, nw, nd] = k.split("|").map(Number);
+    const [w, dep, nw, nd, oa, ob] = k.split("|").map(Number);
     // wyciecie idzie w nazwe — opis formatki nie trafia do tabeli ani do PDF
-    P({ name: nw > 0 ? `Półka — wycięty tylny róg ${fmt(nw)} × ${fmt(nd)}` : "Półka", qty, a: w, b: dep, matKey: shelfMat,
+    P({ name: (nw > 0 ? `Półka — wycięty tylny róg ${fmt(nw)} × ${fmt(nd)}` : "Półka") + (oa > 0 ? ` — otwór ${fmt(oa)} × ${fmt(ob)}` : ""), qty, a: w, b: dep, matKey: shelfMat,
         edges: { a1: true, a2: rear, b1: false, b2: false },
         note: nw > 0 ? "krawędź przednia; róg wycięty pod wzmocnienie tylne B" : "krawędź przednia" });
   });
@@ -5573,9 +5680,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       geoCut.maskChosen = r.type;
       geoCut.maskVisible = r.visible;
       geoCut.maskWalls = r.sciany || [];
-    } else {
-      add("warn", `Wycięcie narożnika (${side}) nie ma zabudowy — otwór zostanie odsłonięty. Włącz maskownicę, jeśli ma być zakryty.`);
-    }
+    } else geoCut.bezZabudowy = true; // ostrzezenie po elementach — wyciecie w srodku elementu go nie dostaje (N162)
     geoCuts.push(geoCut);
   };
   processCutout(cab.cutout, true);
@@ -5583,33 +5688,16 @@ function computeGeoLiczy(cab, mat, ctx) {
 
   /* --- swobodny element kolizyjny (bryla) --- */
   // lista elementow kolizyjnych (wstecznie: pojedynczy cab.obstacle)
-  const obsList = (Array.isArray(cab.obstacles) && cab.obstacles.length
-    ? cab.obstacles
-    : cab.obstacle?.on ? [cab.obstacle] : []).filter((o) => o && o.on !== false);
+  const obsList = obsWlaczone;
   obsList.forEach((ob, obIdx) => {
     const obName = obsList.length > 1 ? `Element ${obIdx + 1}` : "Element kolizyjny";
     const ow = Math.max(0, Math.round(ob.w || 0));
     const od = Math.max(0, Math.round(ob.d || 0));
-    const fromSide = Math.round(ob.fromSide ?? ob.fromRight ?? 0); // odsuniecie od wybranego boku
-    const fromB = Math.round(ob.fromBack || 0);  // odsuniecie od tylu
-    const fromLeft = ob.side === "left";
-    // pozycja mierzona od ZEWNETRZNEJ krawedzi szafki — tak samo jak wyciecie narożnika
-    let ox0, ox1;
-    if (fromLeft) {
-      ox0 = fromSide;
-      ox1 = ox0 + ow;
-    } else {
-      ox1 = W - fromSide;
-      ox0 = ox1 - ow;
-    }
+    // pozycja mierzona od ZEWNETRZNEJ krawedzi szafki — tak samo jak wyciecie narożnika (`obrysElementu`)
+    const { ox0, ox1, oz0, oz1, oy0, oy1, oFull } = obrysElementu(ob);
     // odleglosci do zewnetrznych krawedzi szafki
     const distLeft = Math.round(ox0);
     const distRight = Math.round(W - ox1);
-    const oz0 = fromB;
-    const oz1 = fromB + od;
-    const oFull = ob.fullHeight !== false;
-    const oy0 = oFull ? interior.y0 : Math.round(ob.fromBottom || 0) + interior.y0;
-    const oy1 = oFull ? interior.y1 : oy0 + Math.max(0, Math.round(ob.h || 0));
 
     if (ow <= 0 || od <= 0) add("error", `${obName} ma zerowy wymiar.`);
     // kontrola: czy bryla miesci sie w obrysie szafki
@@ -5648,21 +5736,36 @@ function computeGeoLiczy(cab, mat, ctx) {
     const hitX = (x0, x1) => Math.min(x1, ox1) - Math.max(x0, ox0) > 0;
     /* plyty konstrukcyjne: plyta miedzy poziomami (przez cala szerokosc) i przegroda —
        dotad tylko polki kolumn (audyt GPT N114) */
+    /* Przyciski (decyzja uzytkownika 2026-10-30, N114: „przyciski do dostępnych i sensownych
+       opcji”): „Wycinam otwory w płytach” (`ob.otwory` — otwor w nazwie formatki) zawsze; przy
+       plycie miedzy poziomami — przesuniecie jej nad / pod element, gdy element nie idzie przez
+       cala wysokosc, a oba poziomy zostaja co najmniej 60 mm. */
+    const otwory = `|otwory:el:${obIdx}`;
+    const gdzieOtw = `od lewego boku ${fmt(Math.round(Math.max(ox0, interior.x0) - interior.x0))} mm, od tyłu ${fmt(Math.round(oz0))} mm`;
     sepShelves.forEach((sh, k) => {
-      if (hitY(sh.y, sh.y + t) && oz0 < shelfBack + shelfDepth)
-        add("warn", `${obName} przechodzi przez płytę między poziomami ${k + 1} i ${k + 2} (na ${fmt(Math.round(sh.y - interior.y0))} mm od dołu wnętrza) — wytnij w niej otwór ${fmt(Math.round(ow))} × ${fmt(Math.round(od))} mm albo przesuń poziom.`);
+      if (!(hitY(sh.y, sh.y + t) && oz0 < shelfBack + shelfDepth)) return;
+      const gdzie = `${obName} przechodzi przez płytę między poziomami ${k + 1} i ${k + 2} (na ${fmt(Math.round(sh.y - interior.y0))} mm od dołu wnętrza)`;
+      if (ob.otwory) { add("info", `${gdzie} — w płycie otwór ${fmt(Math.round(ow))} × ${fmt(Math.round(od))} mm, ${gdzieOtw} (formatka „Półka przelotowa — otwór …”).`); return; }
+      const lvA = levels[k], lvB = levels[k + 1];
+      const nad = Math.ceil(oy1 - lvA.y0), pod = Math.floor(oy0 - t - lvA.y0);
+      const przesun = (!oFull && lvB && nad >= 60 && lvB.y1 - (lvA.y0 + nad + t) >= 60 ? `|poziomh:${k}:${nad}:nad` : "")
+        + (!oFull && pod >= 60 && lvB && lvB.y1 - (lvA.y0 + pod + t) >= 60 && Math.round(oy0) > interior.y0 ? `|poziomh:${k}:${pod}:pod` : "");
+      add("warn", `${gdzie} — wytnij w niej otwór ${fmt(Math.round(ow))} × ${fmt(Math.round(od))} mm albo przesuń poziom.${otwory}${przesun}`);
     });
     dividers.forEach((dv) => {
-      if (hitX(dv.x, dv.x + t) && hitY(dv.y0, dv.y1) && oz0 < shelfBack + shelfDepth)
-        add("warn", `${obName} przechodzi przez przegrodę między kolumnami ${dv.j + 1} i ${dv.j + 2} (poziom ${dv.level + 1}) — wytnij w niej miejsce na element albo przesuń kolumny.`);
+      if (!(hitX(dv.x, dv.x + t) && hitY(dv.y0, dv.y1) && oz0 < shelfBack + shelfDepth)) return;
+      const gdzie = `${obName} przechodzi przez przegrodę między kolumnami ${dv.j + 1} i ${dv.j + 2} (poziom ${dv.level + 1})`;
+      if (ob.otwory) add("info", `${gdzie} — w przegrodzie wycięcie na element (formatka „Przegroda pionowa — wycięcie …”).`);
+      else add("warn", `${gdzie} — wytnij w niej miejsce na element albo przesuń kolumny.${otwory}`);
     });
     levels.forEach((lv) => {
       lv.cols.forEach((c) => {
         if (!hitX(c.x0, c.x1)) return;
         c.shelves.forEach((sh) => {
           // polka koliduje, jesli bryla siega jej glebokosci od tylu
-          if (hitY(sh.y, sh.y + ts) && oz0 < shelfBack + shelfDepth)
-            add("warn", `Poziom ${lv.i + 1}: półka na ${fmt(sh.y)} mm koliduje z elementem — przytnij ją lub skróć.`);
+          if (!(hitY(sh.y, sh.y + ts) && oz0 < shelfBack + shelfDepth)) return;
+          if (ob.otwory) add("info", `Poziom ${lv.i + 1}: półka na ${fmt(sh.y)} mm — otwór na element (formatka „Półka … — otwór …”).`);
+          else add("warn", `Poziom ${lv.i + 1}: półka na ${fmt(sh.y)} mm koliduje z elementem — przytnij ją lub skróć.${otwory}`);
         });
         // kolizja z szufladami: sprawdz czy bryla wchodzi w strefe prowadnicy
         if (c.drawers && c.drawers.length) {
@@ -5732,6 +5835,30 @@ function computeGeoLiczy(cab, mat, ctx) {
     geoObs.push(geoOb);
   });
   const geoOb = geoObs[0] || null;
+  /* Wyciecie / element w calosci w srodku innego elementu albo wyciecia (audyt GPT N162: wyciecie
+     100 × 100 i element 200 × 150 w tym samym rogu — scianki zabudowy wyciecia staly w srodku
+     elementu, szly do formatek, a zawieszka szla na nie). Wieksza wneka zakrywa mniejsza:
+     zabudowa mniejszej to plyty w kolizji — blad z „Bez zabudowy …”; mniejsza bez zabudowy
+     nie dostaje ostrzezenia o odslonietym otworze. */
+  {
+    const wneki = [
+      ...geoCuts.map((gc) => ({ x0: gc.bx0, x1: gc.bx1, z0: gc.bz0, z1: gc.bz1, y0: gc.cy0, y1: gc.cy1, gc,
+        nazwa: `Wycięcie narożnika (${gc.side})`, czego: "wycięcia", coB: "wycięcie", adres: `wyc:${gc.onLeft ? "L" : "P"}`, sciany: gc.maskWalls || [] })),
+      ...geoObs.map((o) => ({ x0: o.ox0, x1: o.ox1, z0: o.oz0, z1: o.oz1, y0: o.oy0, y1: o.oy1,
+        nazwa: o.name, czego: "elementu", coB: "element", adres: `el:${o.idx}`, sciany: o.maskWalls || [] })),
+    ].filter((q) => q.x1 - q.x0 > 0 && q.z1 - q.z0 > 0 && q.y1 - q.y0 > 0);
+    const wSrodku = (a2, b2) => a2 !== b2 && a2.x0 >= b2.x0 - 1 && a2.x1 <= b2.x1 + 1 && a2.z0 >= b2.z0 - 1 && a2.z1 <= b2.z1 + 1
+      && a2.y0 >= b2.y0 - 1 && a2.y1 <= b2.y1 + 1 && (a2.x1 - a2.x0) * (a2.z1 - a2.z0) < (b2.x1 - b2.x0) * (b2.z1 - b2.z0);
+    wneki.forEach((q) => {
+      const duza = wneki.find((b2) => wSrodku(q, b2));
+      if (q.gc && q.gc.bezZabudowy && !duza)
+        add("warn", `Wycięcie narożnika (${q.gc.side}) nie ma zabudowy — otwór zostanie odsłonięty. Włącz maskownicę, jeśli ma być zakryty.`);
+      if (duza && q.sciany.length) {
+        q.zakryta = true;
+        add("error", `${q.nazwa} leży w całości w ${duza.coB === "element" ? `elemencie „${duza.nazwa}”` : "wycięciu narożnika"} — ścianki zabudowy ${q.czego} stałyby w środku ${duza.czego} (formatki w kolizji). Wyłącz zabudowę ${q.czego} — zakrywa je ${duza.coB}.|bezzabudowy:${q.adres}`);
+      }
+    });
+  }
 
   /* --- wiercenia: co i na jakiej wysokosci na kazdej plycie ---
      Wszystko mierzone od DOLNEJ KRAWEDZI wierconej plyty, bo tak sie ja
@@ -5765,15 +5892,33 @@ function computeGeoLiczy(cab, mat, ctx) {
     };
   };
   // polki i rura przy przelocie koncza sie w powietrzu — z tej strony nie maja podparcia (N147)
+  const wnetrzeKol = (k) => (k.shelves || []).length > 0 || (k.drazki || []).length > 0;
+  const opisWnetrzaKol = (k) => {
+    const n = (k.shelves || []).length, r = (k.drazki || []).length;
+    return [n ? `${n} ${n === 1 ? "półka" : n < 5 ? "półki" : "półek"}` : null, r ? (r === 1 ? "rura" : `${r} rury`) : null].filter(Boolean).join(" i ");
+  };
+  // wnetrza rozne (polki, rury, mocowanie) — tylko wtedy jest co wybierac
+  const inneWnetrza = (lv, j) => {
+    const w = (k) => JSON.stringify(["shelfTargets", "drazki", "shelfMount"].map((key) => (k || {})[key] ?? null));
+    const kols = (rawLevels[lv.i] || {}).cols || [];
+    return w(kols[j]) !== w(kols[j + 1]);
+  };
   levels.forEach((lv) => lv.cols.forEach((c) => {
     if (!c.noDiv || c.j >= lv.cols.length - 1) return;
     const nb = lv.cols[c.j + 1];
+    const wybor = wnetrzeKol(c) && wnetrzeKol(nb) && inneWnetrza(lv, c.j);
     const co = [(c.shelves || []).length || (nb.shelves || []).length ? "półki" : null, (c.drazki || []).length || (nb.drazki || []).length ? "rura na wieszaki" : null].filter(Boolean);
     if (co.length)
       add("error", `Poziom ${lv.i + 1}: między kolumnami ${c.j + 1} i ${c.j + 2} nie ma przegrody (przelot), a ${co.join(" i ")} ${co.length > 1 || co[0] === "półki" ? "kończą" : "kończy"} się tam w powietrzu — `
         + `od strony przelotu nie ma płyty do kołków, konfirmatów ani rozety. Zrób jedną kolumnę na całą szerokość albo przywróć przegrodę.`
+        /* Obie kolumny maja wnetrze: jedna kolumna wezmie wnetrze tylko jednej z nich — wybor
+           z opisem, co zostaje (audyt GPT N157: polki prawej znikaly bez slowa) */
+        + (wybor ? " W jednej kolumnie zostanie wnętrze jednej z nich — wybierz którą." : "")
         // przyciski (uzytkownik 2026-10-30, retest GPT N147)
-        + `|przelot:${lv.i}:${c.j}:przegroda|przelot:${lv.i}:${c.j}:jedna:${Math.round(nb.x1 - c.x0)}`);
+        + `|przelot:${lv.i}:${c.j}:przegroda`
+        + (wybor
+          ? `|przelot:${lv.i}:${c.j}:jedna:${Math.round(nb.x1 - c.x0)}:L:${opisWnetrzaKol(c)}|przelot:${lv.i}:${c.j}:jedna:${Math.round(nb.x1 - c.x0)}:P:${opisWnetrzaKol(nb)}`
+          : `|przelot:${lv.i}:${c.j}:jedna:${Math.round(nb.x1 - c.x0)}`));
   }));
   // rozety rury na wieszaki: 2 wkrety na boku / przegrodzie na wysokosci osi rury
   levels.forEach((lv) => lv.cols.forEach((c) => (c.drazki || []).forEach((dr) => {
@@ -6002,7 +6147,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           : (lv.i === 0 ? (hasBot ? "Dno" : null) : `Półka przelotowa pod poziomem ${lv.i + 1}`);
         if (!nazwa) {
           add("error", `Poziom ${lv.i + 1}, kolumna ${d.colJ + 1}: klapa ${gora ? "do góry" : "w dół"} nie ma w czym zawiesić zawiasów — ${gora ? "nad nią nie ma wieńca ani płaskiego wzmocnienia" : "pod nią nie ma dna"}.`
-            + (gora ? `|parablat:${lv.i}:${d.colJ}` : ""));
+            + (gora ? `|parablat:${lv.i}:${d.colJ}:${paraArg}` : ""));
           return;
         }
         (d.klapaZawiasy || []).forEach((hx) => {
@@ -6363,8 +6508,12 @@ function computeGeoLiczy(cab, mat, ctx) {
     ];
     const naBoku = (lewy) => {
       const boku = lewy ? "lewym" : "prawym";
-      const w = wneki.find((q) => q.lewy === lewy && q.z0 <= 1 && q.z1 > odTyluBoku
-        && Math.min(interior.y1, q.y1) - Math.max(y0z, q.y0) > 0);
+      /* najszersza od boku — mniejsza wneka w srodku wiekszej (wyciecie w elemencie) nie ma
+         scianki dochodzacej do sciany poza wieksza (audyt GPT N162: zawieszka szla na scianke
+         wyciecia stojaca w srodku elementu) */
+      const w = wneki.filter((q) => q.lewy === lewy && q.z0 <= 1 && q.z1 > odTyluBoku
+        && Math.min(interior.y1, q.y1) - Math.max(y0z, q.y0) > 0)
+        .reduce((a2, q) => (!a2 || (lewy ? q.x1 > a2.x1 : q.x0 < a2.x0) ? q : a2), null);
       if (!w) return zaw(lewy ? "Bok lewy" : "Bok prawy", lewy ? leftY0 : rightY0, odTyluBoku, 1);
       const sc = w.sciany.find((q) => q.x1 - q.x0 <= ts + 0.5 && q.z0 <= 1 && (lewy ? q.x0 >= w.x1 - 1 : q.x1 <= w.x0 + 1)
         && q.y1 >= interior.y1 - 1 && q.y0 <= y0z);
@@ -6387,6 +6536,17 @@ function computeGeoLiczy(cab, mat, ctx) {
          (`zawMocowanie: "konfirmaty"`) albo 2 trojkaty pod wiencem (`"trojkaty"`); wybrane
          idzie do planu wiercen i zamowienia (`zawieszki.mocZabudowy`). */
       const zWiencem = hasTop && !isBlat;
+      /* Bez wienca scianki nie ma z czym zlaczyc (audyt GPT N161: opis „złączona z wieńcem”,
+         trojkaty w planie i zamowieniu, a wienca w formatkach nie bylo) — ostrzezenie
+         z „Dodaj wieniec”; blat z plyty na szafce — trojkaty pod blatem */
+      if (!hasTop) {
+        zawieszki.naZabudowie.push(sc.nazwa);
+        zaw(sc.nazwa, sc.y0, odTyluBoku, 1);
+        add("warn", `Zawieszka przy ${boku} boku na ściance bocznej zabudowy ${w.czego} — bok nie dochodzi tam do ściany, a ścianka tak. `
+          + "Ścianka niesie ciężar szafki, a nad nią nie ma wieńca, z którym można ją mocno złączyć. Dodaj wieniec — potem wybierz mocowanie ścianki.|dodajwieniec");
+        return;
+      }
+      const nad = isBlat ? "blatem" : "wieńcem";
       const moc = w.moc === "konfirmaty" && !zWiencem ? null : w.moc;
       // `dl` — dlugosc scianki w glab (wyzej, przy kontroli miejsca na zawieszke)
       const pozK = [Math.round(sc.z0 + dl / 3), Math.round(sc.z0 + (2 * dl) / 3)];
@@ -6395,14 +6555,14 @@ function computeGeoLiczy(cab, mat, ctx) {
         drillMap.get("Wieniec").holes.push({ kind: "konfirmat — ścianka zabudowy", y: Math.round((sc.x0 + sc.x1) / 2 - interior.x0),
           note: `2 szt. ⌀7 w płycie, ${pozK.map(fmt).join(" i ")} mm od tylnej krawędzi; w czole ścianki ⌀5 × 50 (niesie zawieszkę); położenie od wewnętrznej strony lewego boku` });
       } else if (moc === "trojkaty")
-        drillAdd(top, sc.nazwa, sc.y0, "trójkąt meblowy — wieniec", interior.y1,
-          `2 szt. pod wieńcem, od wnętrza szafki, ${pozK.map(fmt).join(" i ")} mm od tylnej krawędzi ścianki (niesie zawieszkę)`);
+        drillAdd(top, sc.nazwa, sc.y0, `trójkąt meblowy — ${isBlat ? "blat" : "wieniec"}`, interior.y1,
+          `2 szt. pod ${nad}, od wnętrza szafki, ${pozK.map(fmt).join(" i ")} mm od tylnej krawędzi ścianki (niesie zawieszkę)`);
       if (moc) zawieszki.mocZabudowy.push(moc);
-      const inne = [zWiencem && moc !== "konfirmaty" ? `zawmoc:${w.adres}:konfirmaty` : null, moc !== "trojkaty" ? `zawmoc:${w.adres}:trojkaty` : null].filter(Boolean);
+      const inne = [zWiencem && moc !== "konfirmaty" ? `zawmoc:${w.adres}:konfirmaty` : null, moc !== "trojkaty" ? `zawmoc:${w.adres}:trojkaty${isBlat ? ":blat" : ""}` : null].filter(Boolean);
       add("info", `Zawieszka przy ${boku} boku na ściance bocznej zabudowy ${w.czego} — bok nie dochodzi tam do ściany, a ścianka tak. `
         + (moc === "konfirmaty" ? "Ścianka złączona z wieńcem 2 konfirmatami (plan wierceń i zamówienie)."
-          : moc === "trojkaty" ? "Ścianka złączona z wieńcem 2 trójkątami (plan wierceń i zamówienie)."
-          : `Ścianka niesie ciężar szafki — złącz ją mocno z wieńcem${zWiencem ? ": 2 konfirmaty przez wieniec albo 2 trójkąty pod nim" : ", np. 2 trójkątami"}.`)
+          : moc === "trojkaty" ? `Ścianka złączona z ${nad} 2 trójkątami (plan wierceń i zamówienie).`
+          : `Ścianka niesie ciężar szafki — złącz ją mocno z ${nad}${zWiencem ? ": 2 konfirmaty przez wieniec albo 2 trójkąty pod nim" : ", np. 2 trójkątami"}.`)
         + inne.map((a) => "|" + a).join(""));
     };
     if (!postSide) {
@@ -6737,8 +6897,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   if (mocKonf) { confQty += mocKonf; jointNotes.push(`ścianka zabudowy z zawieszką do wieńca ${mocKonf}`); }
   const mocTr = zawieszki.mocZabudowy.filter((m) => m === "trojkaty").length * 2;
   if (mocTr)
-    hardware.push({ name: "Trójkąt meblarski", use: "ścianka zabudowy z zawieszką — do wieńca",
-      spec: `2 szt. pod wieńcem na ściankę (${mocTr / 2})`, qty: mocTr, unit: "szt." });
+    hardware.push({ name: "Trójkąt meblarski", use: `ścianka zabudowy z zawieszką — do ${isBlat ? "blatu" : "wieńca"}`,
+      spec: `2 szt. pod ${isBlat ? "blatem" : "wieńcem"} na ściankę (${mocTr / 2})`, qty: mocTr, unit: "szt." });
   if (confQty)
     hardware.push({
       name: "Konfirmat 7 × 50",
@@ -6886,10 +7046,12 @@ function computeGeoLiczy(cab, mat, ctx) {
     const dyst = Math.max(0, Math.round(Number(cab.dystans) || 0));
     if (dyst)
       hardware.push(cab.hangerMode !== "haczyki"
-        ? { name: "Listwa dystansowa pod listwę montażową", use: "szafka wisząca z dala od ściany",
+        /* `wariant` — grubosc: rozne grubosci to rozne wiersze zbiorczej listy (audyt GPT N160:
+           50 i 100 mm laczyly sie w jedna listwe bez grubosci) */
+        ? { name: "Listwa dystansowa pod listwę montażową", use: "szafka wisząca z dala od ściany", wariant: `grubość ${fmt(dyst)} mm`,
           spec: `grubość ${fmt(dyst)} mm, na długość szafki ${fmt(W)} mm — przykręcona do ściany, na niej listwa montażowa`,
           qty: W / 1000, unit: "mb" }
-        : { name: "Klocek dystansowy pod hak", use: "szafka wisząca z dala od ściany",
+        : { name: "Klocek dystansowy pod hak", use: "szafka wisząca z dala od ściany", wariant: `grubość ${fmt(dyst)} mm`,
           spec: `grubość ${fmt(dyst)} mm, po jednym pod hak`, qty: nH, unit: "szt." });
   }
 
@@ -6898,18 +7060,28 @@ function computeGeoLiczy(cab, mat, ctx) {
      kazdy koniec wzmocnienia, a przy katowniku co ok. 200 mm wysokosci. */
   let wkretyPlyt = 0;
   const wkretyOpis = [];
+  /* zastosowania z iloscia — w zbiorczej liscie projektu kazde osobno (audyt GPT N163: przy
+     samych zawieszkach opis mowil o wzmocnieniach i katowniku) */
+  const wkretyCzesci = [];
   let ileWzm = 0;
   levels.forEach((lv) => lv.cols.forEach((c) => { ileWzm += (c.rails || []).length; }));
-  if (ileWzm) { wkretyPlyt += ileWzm * 4; wkretyOpis.push(`wzmocnienia ${ileWzm}×4`); }
+  if (ileWzm) { wkretyPlyt += ileWzm * 4; wkretyOpis.push(`wzmocnienia ${ileWzm}×4`); wkretyCzesci.push({ use: "wzmocnienia skręcane na licu, 4 na wzmocnienie", qty: ileWzm * 4 }); }
   if (postSide) {
     const naPlyte = Math.max(2, Math.ceil(innerH / 200));
     wkretyPlyt += 2 * naPlyte;
     wkretyOpis.push(`kątownik w narożniku 2×${naPlyte}`);
+    wkretyCzesci.push({ use: "kątownik w narożniku, co ok. 200 mm", qty: 2 * naPlyte });
   }
   // zawieszki przykreca sie tymi samymi wkretami 4 × 30 (uzytkownik 2026-09-29)
-  if (zawieszki.n) { wkretyPlyt += ZAWIESZKA_WKRETY * zawieszki.n; wkretyOpis.push(`zawieszki ${zawieszki.n}×${ZAWIESZKA_WKRETY}`); }
+  if (zawieszki.n) {
+    wkretyPlyt += ZAWIESZKA_WKRETY * zawieszki.n; wkretyOpis.push(`zawieszki ${zawieszki.n}×${ZAWIESZKA_WKRETY}`);
+    wkretyCzesci.push({ use: `zawieszki, ${ZAWIESZKA_WKRETY} na zawieszkę`, qty: ZAWIESZKA_WKRETY * zawieszki.n });
+  }
   // dwie przegrody na styku — po 4 wkrety na pare (krotsze przy cienkiej plycie — osobna pozycja)
-  if (wkretyParyN && wkretPary === 30) { wkretyPlyt += wkretyParyN; wkretyOpis.push(`dwie przegrody na styku ${wkretyParyN / 4}×4`); }
+  if (wkretyParyN && wkretPary === 30) {
+    wkretyPlyt += wkretyParyN; wkretyOpis.push(`dwie przegrody na styku ${wkretyParyN / 4}×4`);
+    wkretyCzesci.push({ use: "dwie przegrody na styku, 4 na parę", qty: wkretyParyN });
+  }
   else if (wkretyParyN)
     hardware.push({ name: `Wkręt 4 × ${wkretPary}`, use: "dwie przegrody na styku — 4 na parę, przez obie płyty",
       spec: `dwie przegrody na styku ${wkretyParyN / 4}×4 szt. (płyta ${fmt(t)} mm — 4 × 30 wyszedłby z drugiej)`, qty: wkretyParyN, unit: "szt." });
@@ -6917,6 +7089,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     hardware.push({
       name: "Wkręt 4 × 30",
       use: "wzmocnienia i kątownik skręcane na licu — 4 na wzmocnienie, kątownik co ok. 200 mm",
+      czesci: wkretyCzesci,
       spec: `skręcanie płyt na licu: ${wkretyOpis.join(", ")} szt.`,
       qty: wkretyPlyt,
       unit: "szt.",
@@ -6963,7 +7136,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
     postSide, postW, postBack, postTyp, postRects, zawieszki,
     isBlat, isWorktop, tTop, tW, frezY0, frezY1, plecyPodBlat, blat, blatDepth, blatInside, W, drillPlan,
-    topX0, topX1, botX0, botX1, divOv,
+    topX0, topX1, botX0, botX1, divOv, paraArg,
   };
 }
 
@@ -7151,14 +7324,15 @@ const DimH = ({ x1, x2, y, label, c = DIMC, above = true, kd }) => (
 );
 
 // `wewn` — wymiar w srodku rysunku (swiatlo polki): w druku tyle, ile miejsca (klasa `wym-w`)
-const DimV = ({ y1, y2, x, label, c = DIMC, left = true, labelY = null, kd, wewn = false }) => (
+const DimV = ({ y1, y2, x, label, c = DIMC, left = true, labelY = null, kd, wewn = false, obwodka = false }) => (
   <g>
     <line x1={x} y1={y1} x2={x} y2={y2} stroke={c} strokeWidth="1.5" />
     <line x1={x - 8} y1={y1} x2={x + 8} y2={y1} stroke={c} strokeWidth="1.5" />
     <line x1={x - 8} y1={y2} x2={x + 8} y2={y2} stroke={c} strokeWidth="1.5" />
     <text x={left ? x - 8 : x + 8} y={(labelY == null ? (y1 + y2) / 2 : labelY) + 7}
       textAnchor={left ? "end" : "start"} fontSize="22" fill={c} style={kd ? { "--k": kd, "--kw": kd } : undefined}
-      className={wewn ? "wym wym-w" : "wym"} fontFamily="ui-monospace, monospace">{label}</text>
+      className={wewn ? "wym wym-w" : "wym"} fontFamily="ui-monospace, monospace"
+      {...(obwodka ? { stroke: "#fff", strokeWidth: 5, paintOrder: "stroke", strokeLinejoin: "round", "data-obwodka": "1" } : {})}>{label}</text>
   </g>
 );
 
@@ -7960,7 +8134,7 @@ const caloscPasow = (ps) => ({ y0: ps[0].y0, h: ps[ps.length - 1].y0 + ps[ps.len
 function UchwytElewacja({ d, fy, dx = 0 }) {
   const ob = uchwytObrys(d);
   return (
-    <rect data-el={d.type === "door" ? `uchwyt-${d.handlePos}` : d.type === "klapa" ? `uchwyt-klapy-${d.uchwytKrawedz || "dol"}` : undefined}
+    <rect data-el={d.type === "door" ? `uchwyt-${d.handlePos}` : d.type === "klapa" ? `uchwyt-klapy-${d.uchwytKrawedz || "dol"}` : d.type === "drawer" ? "uchwyt-szuflady" : undefined}
       x={ob.x0 + dx} y={fy(ob.y1)} width={ob.x1 - ob.x0} height={ob.y1 - ob.y0}
       rx="5" fill="#52525b" opacity="0.9" />
   );
@@ -10819,17 +10993,36 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               const ob = kz > 1 && d.type === "door" && d.handle && d.handlePos !== "gora" ? uchwytObrys(d) : null;
               const [zx0, zx1] = !ob ? [d.x, d.x + d.w] : d.hingeSide === "left" ? [d.x, ob.x0] : [ob.x1, d.x + d.w];
               const txt = `${fmt(d.w)}×${fmt(d.h)}`;
-              const kPoz = kz > 1 ? kWFroncie(kw, txt, zx1 - zx0, d.type === "drawer" ? d.h * 0.6 : d.h) : 1;
+              /* Szuflada: uchwyt przy gornej krawedzi — napis w pasie miedzy dolem frontu a uchwytem
+                 (w niskim froncie „560×97” wchodzil na uchwyt, test 2026-10-30) */
+              const obSz = d.type === "drawer" && d.handle ? uchwytObrys(d) : null;
+              let pasSz = obSz ? [d.y + 4, obSz.y0 - 4] : null;
+              let kPoz = kz > 1 ? kWFroncie(kw, txt, zx1 - zx0, pasSz ? pasSz[1] - pasSz[0] + 12 : d.type === "drawer" ? d.h * 0.6 : d.h) : 1;
+              /* niski front (uchwyt na srodku wysokosci): pod uchwytem napis bylby nieczytelny —
+                 idzie obok uchwytu (po szerszej stronie, na srodku wysokosci frontu); gdy i tam
+                 za malo miejsca — na srodek frontu z biala obwodka (czytelny na uchwycie) */
+              const niski = kz > 1 && !!pasSz && kPoz < 0.8 * kz;
+              let bok = null;
+              if (niski) {
+                const lewo = [zx0, obSz.x0 - 6], prawo = [obSz.x1 + 6, zx1];
+                const strona = lewo[1] - lewo[0] >= prawo[1] - prawo[0] ? lewo : prawo;
+                const kBok = kWFroncie(kw, txt, strona[1] - strona[0], d.h);
+                if (kBok >= 0.8 * kz) { bok = strona; kPoz = kBok; pasSz = null; }
+              }
+              const obwodka = niski && !bok;
+              if (obwodka) { pasSz = null; kPoz = kWFroncie(kw, txt, zx1 - zx0, d.h); }
               // waskie wysokie drzwi: w druku napis pionowo, wzdluz wysokosci — miesci sie wiekszy
               const kPion = kz > 1 && d.type !== "drawer" && d.h > d.w ? kWFroncie(kw, txt, d.h - 2 * Math.min(90, d.h * 0.25) - 20, zx1 - zx0) : 0;
               const pion = kPion > kPoz * 1.25;
-              const cx = (zx0 + zx1) / 2, cy = d.type === "drawer" ? fy(d.y + d.h * 0.3) : fy(d.y + d.h / 2) + 7;
+              const cx = bok ? (bok[0] + bok[1]) / 2 : (zx0 + zx1) / 2, cy = pasSz && pasSz[1] - pasSz[0] >= 24 ? fy((pasSz[0] + pasSz[1]) / 2) + 7
+                : d.type === "drawer" ? fy(d.y + d.h * 0.3) : fy(d.y + d.h / 2) + 7;
               return (
                 // obrot w grupie: w druku napis dostaje wlasny transform (powiekszenie)
                 <g transform={pion ? `rotate(-90 ${cx} ${cy - 7})` : undefined}>
-                  <text x={cx} y={cy}
+                  <text x={cx} y={obwodka || bok ? fy(d.y + d.h / 2) + 7 : cy}
                     textAnchor="middle" fontSize="20" fill={INK} opacity="0.75"
                     style={kz > 1 ? { "--k": pion ? kPion : kPoz } : undefined}
+                    {...(obwodka ? { stroke: "#fff", strokeWidth: 5, paintOrder: "stroke", strokeLinejoin: "round", "data-obwodka": "1" } : {})}
                     fontFamily="ui-monospace, monospace">
                     {txt}
                   </text>
@@ -11225,12 +11418,28 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 /* ...i miesci sie w szerokosci kolumny (od wymiaru do prowadnicy przy prawym
                    boku) — w trzech kolumnach po 376 mm „117 od dna” wychodzil za szafke
                    na opisy szyn z prawej (macierz szuflad w PDF 2026-10-22) */
-                const kOd = kz > 1 ? Math.min(Math.max(1, Math.min(kz, miejsce / (POLE_EM * 22))),
+                let kOd = kz > 1 ? Math.min(Math.max(1, Math.min(kz, miejsce / (POLE_EM * 22))),
                   kNapisu(kz, `${fmt(val)} od dna`, 22, c.x1 - c.x0 - 46 - 12 - RUNNER_W)) : undefined;
+                let srodek = kz > 1 ? fy(top) + szynaNad + (POLE_EM * 22 * kOd) / 2 : null;
+                /* Uchwyt szuflady stoi przy gornej krawedzi frontu — tam, gdzie opis; w druku
+                   przechodzil przez „175 od dna” (zgloszenie uzytkownika 2026-10-30). Opis idzie
+                   pod uchwyt, nad dno szuflady; gdy miejsca malo — mniejszy. */
+                const fr = kz > 1 ? (geo.doors || []).find((d) => d.type === "drawer" && d.dr === dr) : null;
+                const ob = fr && fr.handle && uchwytOut(fr, cab) > 0 ? uchwytObrys(fr) : null;
+                let obwOd = false;
+                if (ob) {
+                  const pol = (POLE_EM * 22 * kOd) / 2, xL = c.x0 + 46 + 8, xP = xL + szerNapisu(`${fmt(val)} od dna`, 22, kOd);
+                  const naUchwycie = srodek + pol > fy(ob.y1) - 3 && srodek - pol < fy(ob.y0) + 3 && xP > ob.x0 && xL < ob.x1;
+                  const pod = fy(ob.y0) + 6, dno = fy(bottom) - 4;
+                  if (naUchwycie && dno - pod >= POLE_EM * 22) {
+                    kOd = Math.min(kOd, (dno - pod) / (POLE_EM * 22));
+                    srodek = pod + (POLE_EM * 22 * kOd) / 2;
+                  } else if (naUchwycie) obwOd = true;
+                }
                 return (
                   <DimV key={`du${lv.i}-${c.j}-${i}`}
                     y1={fy(top)} y2={fy(bottom)} x={c.x0 + 46}
-                    labelY={kz > 1 ? fy(top) + szynaNad + (POLE_EM * 22 * kOd) / 2 : null} kd={kOd}
+                    labelY={kz > 1 ? srodek : null} kd={kOd} obwodka={obwOd}
                     label={`${fmt(val)} od dna`} left={false} c={DIMC} />
                 );
               });
@@ -13678,6 +13887,21 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const verb = dir === "down" ? "Zmniejsz" : "Zwiększ";
       return { label: `${verb} luz do ${val} mm`, run: () => editLevels((L) => (kolumnaW(L, li, j).gapBetween = +val)) };
     }
+    /* „rowno:<poziom>:<kolumna>:<luz>:<d|s>:<1 = zmien luz>” — fronty roznia sie o 1–2 mm przez wpisany
+       wymiar: wszystkie drzwi (d) / fronty szuflad (s) na auto, w razie potrzeby z luzem, ktory
+       dzieli pasmo bez reszty (audyt GPT N169) */
+    if (action.startsWith("rowno:")) {
+      const [, li, j, val, typ, zmiana] = action.split(":");
+      const co = typ === "s" ? "fronty" : "drzwi";
+      return { label: zmiana === "1" ? `Wszystkie ${co} równo, luz ${val} mm` : `Wszystkie ${co} równo (bez wpisanych wymiarów)`,
+        run: () => editLevels((L) => {
+          const col = kolumnaW(L, li, j);
+          if (!col) return;
+          if (zmiana === "1") col.gapBetween = +val;
+          if (typ === "s") (col.drawers || []).forEach((d) => { d.front = null; });
+          else delete col.doorWidths;
+        }) };
+    }
     // „frontyauto:<poziom>:<kolumna>” — wpisane wysokosci frontow szuflad nie wypelniaja pasma: wszystkie na auto
     if (action.startsWith("frontyauto:")) {
       const [, li, j] = action.split(":");
@@ -13854,6 +14078,16 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         }),
       };
     }
+    // „dodajwieniec” — scianka zabudowy z zawieszka bez wienca nad nia (N161)
+    if (action === "dodajwieniec") return { label: "Dodaj wieniec", run: () => runFix && runFix(action) };
+    if (action.startsWith("polkatipon:")) {
+      // „polkatipon:<poziom>:<kolumna>” — tip-on bez plyty do przykrecenia: polka w swietle drzwi (N145)
+      const [, li, j] = action.split(":");
+      return {
+        label: "Dołóż półkę (tip-on na niej)",
+        run: () => editLevels((L) => { const col = kolumnaW(L, li, j); if (col) col.shelfTargets = [...(col.shelfTargets || [null]), null]; }),
+      };
+    }
     if (action.startsWith("uchwyt:")) {
       // „uchwyt:<poziom>:<kolumna albo js<nr>>:<front>” — uchwyt zamiast otwierania bez uchwytu (tip-on, N145)
       const [, li, j, k] = action.split(":");
@@ -13876,9 +14110,28 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     }
     if (action.startsWith("zawmoc:")) {
       // „zawmoc:<wyc:L|P|el:<nr>>:<konfirmaty|trojkaty>” — scianka zabudowy z zawieszka do wienca (N149)
-      const co = action.split(":")[3];
-      return { label: co === "konfirmaty" ? "2 konfirmaty przez wieniec" : "2 trójkąty pod wieńcem", run: () => runFix && runFix(action) };
+      const [, , , co, pod] = action.split(":");
+      return { label: co === "konfirmaty" ? "2 konfirmaty przez wieniec" : `2 trójkąty pod ${pod === "blat" ? "blatem" : "wieńcem"}`, run: () => runFix && runFix(action) };
     }
+    // „otwory:el:<nr>” — element przechodzi przez plyty: otwory w nich (nazwy formatek), N114
+    if (action.startsWith("otwory:"))
+      return { label: "Wycinam otwory w płytach (na formatkach)", run: () => runFix && runFix(action) };
+    /* „poziomh:<poziom>:<mm>:<nad|pod>” — plyta miedzy poziomami nad / pod element (N114): wysokosc
+       poziomu, nastepny (gdy zadany) na auto, zeby reszta sie zgadzala */
+    if (action.startsWith("poziomh:")) {
+      const [, k, mm, gdzie] = action.split(":");
+      return {
+        label: `Płyta ${gdzie === "nad" ? "nad" : "pod"} element (poziom ${+k + 1}: ${fmt(Number(mm))} mm)`,
+        run: () => editLevels((L) => {
+          if (!L[+k]) return;
+          L[+k].h = Number(mm);
+          if (L[+k + 1] && num(L[+k + 1].h) !== null) L[+k + 1].h = null;
+        }),
+      };
+    }
+    // „bezzabudowy:<wyc:L|P|el:<nr>>” — wneka w srodku wiekszej: jej zabudowa stalaby w kolizji (N162)
+    if (action.startsWith("bezzabudowy:"))
+      return { label: `Bez zabudowy ${action.split(":")[1] === "wyc" ? "wycięcia" : "elementu"}`, run: () => runFix && runFix(action) };
     if (action.startsWith("zabudowa:") || action.startsWith("zabudowaglab:")) {
       // „zabudowa:<wyc:L|P|el:<nr>>” / „zabudowaglab:…:<mm>” — zawieszka w wycieciu albo przy elemencie w rogu (N149)
       const [co, typ, , mm] = action.split(":");
@@ -13901,15 +14154,17 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       };
     }
     if (action.startsWith("przelot:")) {
-      // „przelot:<poziom>:<kolumna po lewej>:<przegroda|jedna>[:<szerokosc obu>]” — polki konczace sie w przelocie (N147)
-      const [, li, j, co, wTeraz] = action.split(":");
+      /* „przelot:<poziom>:<kolumna po lewej>:<przegroda|jedna>[:<szerokosc obu>[:<L|P>:<opis wnetrza>]]”
+         — polki konczace sie w przelocie (N147); L / P — czyje wnetrze zostaje, gdy maja je obie (N157) */
+      const [, li, j, co, wTeraz, zKtorej, opis] = action.split(":");
       return {
-        label: co === "przegroda" ? "Przywróć przegrodę" : "Jedna kolumna na całą szerokość",
+        label: co === "przegroda" ? "Przywróć przegrodę"
+          : zKtorej ? `Jedna kolumna — wnętrze ${zKtorej === "L" ? "lewej" : "prawej"}${opis ? ` (${opis})` : ""}` : "Jedna kolumna na całą szerokość",
         run: () => editLevels((L) => {
           const lv = L[+li];
           if (!lv || !lv.cols[+j] || !lv.cols[+j + 1]) return;
           if (co === "przegroda") { delete lv.cols[+j].noDiv; return; }
-          lv.cols = kolumnaZPrzelotu(lv.cols, +j, wTeraz);
+          lv.cols = kolumnaZPrzelotu(lv.cols, +j, wTeraz, zKtorej);
         }),
       };
     }
@@ -13925,6 +14180,14 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
           a[+k] = Number(mm);
           col.otwieranieMm = a;
         }),
+      };
+    }
+    if (action.startsWith("wzmgleb:")) {
+      // „wzmgleb:<poziom>:<kolumna>:<nr wzmocnienia>:<depth|atDepth>:<mm>” — wzmocnienie poza korpusem w glab (N166)
+      const [, li, j, k, pole, mm] = action.split(":");
+      return {
+        label: pole === "depth" ? `Wzmocnienie ${+k + 1}: głębokość ${fmt(Number(mm))} mm` : `Wzmocnienie ${+k + 1}: ${fmt(Number(mm))} mm od krawędzi`,
+        run: () => editLevels((L) => { const col = kolumnaW(L, li, j); const r = col && (col.rails || [])[+k]; if (r) r[pole === "depth" ? "depth" : "atDepth"] = Number(mm); }),
       };
     }
     if (action.startsWith("wzmwys:")) {
@@ -14101,10 +14364,12 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       }) };
     }
     if (action.startsWith("parablat:")) {
-      const [, li, j] = action.split(":");
+      // „parablat:<poziom>:<kolumna>[:<miejsce w glab na plaskie>:<cofniecie w rogu>]” (N166, N167)
+      const [, li, j, glab, rog] = action.split(":");
+      const cof = Math.max(0, Number(rog) || 0);
       return { label: "Dodaj parę wzmocnień pod blat", run: () => editLevels((L) => {
         const c = kolumnaW(L, li, j);
-        c.rails = [...(c.rails || []), ...railPair()];
+        c.rails = [...(c.rails || []), ...railPair(cof, cof, cof > 0, glab != null && glab !== "" ? Number(glab) : 100)];
       }) };
     }
     // system szuflad aktywnej szafki — wykonuje `runFix` (cala szafka, z historia)
@@ -15216,6 +15481,12 @@ const cornerArmParts = (a) => {
     hardware.push({ name: "Kołek podporowy ⌀5", use: "półki ramienia narożnika przy rogu, po dwa na półkę",
       spec: "półki ramienia przy rogu (w płycie kątownika jest już konfirmat półki korpusu), po dwa na półkę", qty: nK * 2, unit: "szt." });
   }
+  /* Zaslepki jak w szafce — po jednej na kazdy konfirmat (audyt GPT N168: ramie mialo
+     konfirmaty w boku, a zaslepek nie); ten sam wiersz i opis, wiec sumuja sie z szafka. */
+  const konfRamienia = hardware.filter((h) => h.name === "Konfirmat 7 × 50").reduce((a2, h) => a2 + h.qty, 0);
+  if (konfRamienia)
+    hardware.push({ name: "Zaślepka na konfirmat", use: "po jednej na widoczny łeb konfirmatu",
+      spec: "blister 25 szt., po jednej na widoczny łeb", qty: konfRamienia, unit: "szt.", pack: 25 });
   {
     const naPlyte = Math.max(2, Math.ceil(katH / 200));
     const opis = [];
@@ -19346,9 +19617,10 @@ export default function App() {
     }
     /* „zabudowa:<wyc:L|P|el:<nr>>” — wlacza zabudowe wyciecia / elementu w rogu (do samej gory),
        „zabudowaglab:…:<mm>” — wyciecie / element glebszy, zeby scianka zabudowy uniosla zawieszke (N149) */
-    if (action.startsWith("zabudowa:") || action.startsWith("zabudowaglab:") || action.startsWith("zawmoc:")) {
+    if (action.startsWith("zabudowa:") || action.startsWith("zabudowaglab:") || action.startsWith("zawmoc:") || action.startsWith("bezzabudowy:") || action.startsWith("otwory:")) {
       const [co, typ, gdzie, mm] = action.split(":");
       const zmien = (o) => (co === "zabudowa" ? { ...o, mask: true, ...(typ === "el" ? { maskToShelf: false } : {}) }
+        : co === "bezzabudowy" ? { ...o, mask: false } : co === "otwory" ? { ...o, otwory: true }
         : co === "zawmoc" ? { ...o, zawMocowanie: mm } : { ...o, d: Math.round(Number(mm)) });
       setCab((cur) => {
         if (typ === "wyc") {
@@ -19363,6 +19635,11 @@ export default function App() {
         }
         return cur.obstacle ? { ...cur, obstacle: zmien(cur.obstacle) } : cur;
       });
+      return;
+    }
+    // „dodajwieniec” — wieniec miedzy bokami aktywnej szafki, para pod blat znika (N161)
+    if (action === "dodajwieniec") {
+      setCab((cur) => ({ ...cur, ...zWiencem(cur) }));
       return;
     }
     // „glebokosc:<mm>” — glebokosc aktywnej szafki (tip-on wchodzacy w plecy, N145)
@@ -19785,9 +20062,11 @@ export default function App() {
      tak samo: z przodu plyta na plask, zeby bylo do czego przykrecic blat,
      z tylu stojaca, ktora trzyma korpus w kacie prostym. Jednym kliknieciem,
      bo inaczej trzeba to skladac z dwoch wzmocnien i czterech pol. */
+  // ta sama para co przycisk w uwagach: w rogu stojace, plaskie na tyle, ile miejsca (N166, N167)
   const addRailPair = (i, j) => editLevels((L) => {
     const col = kolumnaW(L, i, j);
-    col.rails = [...(col.rails || []), ...railPair()];
+    const [glab, rog] = String(geo.paraArg || "100:0").split(":").map(Number);
+    col.rails = [...(col.rails || []), ...railPair(rog, rog, rog > 0, glab)];
   });
   const removeRail = (i, j, k) => editLevels((L) => kolumnaW(L, i, j).rails.splice(k, 1));
   const setRail = (i, j, k, patch) => editLevels((L) => { kolumnaW(L, i, j).rails[k] = { ...kolumnaW(L, i, j).rails[k], ...patch }; });
