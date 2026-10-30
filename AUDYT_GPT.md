@@ -1,3 +1,11 @@
+### N151 [P2] — OTWARTE: własny blat wysokiej szafki znika z zamówienia przy blacie ciągu
+
+**Wersja:** main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`. **Test funkcji, nie test interfejsu:** w syntetycznym projekcie utworzyć jeden ciąg z włączonym blatem roboczym i dwiema szafkami 600 × 720 × 560 i 600 × 2000 × 560 mm, każda z własnym blatem z płyty, wysunięcie przednie 30 mm, nóżki 100 mm. `runTop` produkuje wspólny blat 600 × 600 mm tylko nad niższą szafką; `projectParts` usuwa jednak własny blat także wysokiej szafki, więc brakuje formatki 600 × 590 mm. Kontrola: po wyłączeniu blatu ciągu `projectParts` pokazuje osobny własny blat 600 × 590 obu szafek. Sprawdzić osiągalność w UI, komunikaty i przyciski; test funkcji nie przesądza o ich działaniu.
+
+**Sugestia GPT do weryfikacji, nie decyzja ani propozycja użytkownika:** rozważyć pomijanie własnego blatu tylko dla szafki, której rzeczywiście zastępuje go wspólny blat. **Test odbioru:** sprawdzić niską i wysoką szafkę na końcu i w środku ciągu, listę formatek, geometrię, rozkrój i zamówienie oraz ewentualne przyciski. Po pomyślnym teście można oznaczyć jako NAPRAWIONE.
+
+---
+
 # Nowe ustalenie audytu — 30.10.2026
 
 ### N150 [P2] — OTWARTE: ta sama resztka blatu przypisana do dwóch grup rozkroju
