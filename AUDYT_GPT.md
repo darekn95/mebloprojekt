@@ -1,3 +1,11 @@
+## Zasada użytkownika — sprawdzanie przycisków
+
+Ostrzeżenie lub błąd, które wskazują konkretne działanie i mają działający przycisk rozwiązujący problem, są akceptowanym rozwiązaniem. Przycisk trzeba faktycznie kliknąć i sprawdzić zmianę ustawień, usunięcie problemu i ewentualne nowe kolizje; sama obecność przycisku nie wystarcza. Informacje o przekroczeniu arkusza oraz sugestie zmniejszenia wymiarów, aby zmieścić się na poprzednim arkuszu, w tym dla blatu, są wyjątkami wskazanymi przez użytkownika.
+
+**Do sprawdzenia według tej zasady:** N143 — w kodzie przewidziano przycisk usunięcia rury i czasem skrócenia wzmocnienia, ale nie sprawdzono ich kliknięcia w tym przypadku. N145, N147, N149 — w sprawdzonych komunikatach kod zawiera instrukcje tekstowe bez przypisanych przycisków; wymagają sprawdzenia w UI i dalszej oceny. Starszych zgłoszeń oznaczonych ZROBIONE nie otwierać automatycznie ponownie: zakres ich wcześniejszej weryfikacji znajduje się w historii.
+
+---
+
 # Audyt GPT — aktualne statusy
 
 Zgłoszenia oznaczone **ZROBIONE** nie wracają na listę błędów do naprawy, chyba że zostanie wykazana nowa regresja. Status podaje zakres rzeczywiście wykonanego sprawdzenia.
