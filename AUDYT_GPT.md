@@ -1,3 +1,25 @@
+### N153 — dodatkowy retest przycisków: podział przy nieparzystej szerokości
+
+**Test UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: syntetyczna szafka 2101 × 2000 × 560 mm, jedna kolumna z ręczną szerokością 2065 mm, dwa fronty, jedna półka i rura 2063 mm. Kliknięto „Podziel kolumnę przegrodą” przy ostrzeżeniu o uginaniu rury: powstały dwie kolumny, lecz przy zaokrągleniu aplikacja pokazała błąd przekroczenia szerokości wnętrza o 1 mm. Błąd oferował „Rozłóż kolumny automatycznie”. Po kliknięciu przycisku błąd zniknął; w dwóch kolumnach pozostały krótsze rury. Inne uwagi (wysokość pod rurą i fronty poza tabelą zawiasów) pozostały i nie są objęte tym potwierdzeniem. W kontrolnym wariancie z automatyczną szerokością kolumny podział nie spowodował błędu 1 mm. Test funkcji dla W2100–2103 potwierdził, że ręcznie zadana szerokość przy nieparzystych wymiarach może spowodować błąd i przeliczenie na auto go usuwa.
+
+**Wniosek:** w tym konkretnym wariancie komunikat z działającym przyciskiem jest akceptowanym sposobem rozwiązania według kryterium użytkownika; nie zgłaszać samego błędu 1 mm jako osobnego otwartego błędu. N158–N165 dotyczą innych skutków podziału i nie zostały w ten sposób zamknięte. Szerszy zakres N153 wymaga osobnych testów.
+
+**Dodatkowo:** po podziale każda z dwóch kolumn miała ostrzeżenie o 903 mm pod rurą i przycisk „Półka nad rurą wyżej o 97 mm”. Kliknięto go osobno w każdej kolumnie. W każdej światło z rurą zmieniło się z 973 na 1070 mm (1000 mm pod rurą), sąsiednie z 973 na 876 mm, a odpowiadające ostrzeżenie zniknęło. Pierwsze kliknięcie nie zmieniło drugiej kolumny. To pozytywny wynik dla tego układu; innych konfiguracji i pełnego montażu nie sprawdzono.
+
+---
+
+### Retest przycisków — wąskie drzwi, wariant podstawowy
+
+**Test UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: syntetyczna zwykła szafka 300 × 720 × 560 mm z dwojgiem drzwi po 147 mm. Ostrzeżenie proponuje jedne drzwi 296 mm i dwa przyciski wyboru strony zawiasów. Po kliknięciu wariantu prawego powstał jeden front 296 × 714 mm, ustawienie wskazuje „auto (P)” i ostrzeżenie o wąskich frontach znikło. Po cofnięciu i kliknięciu wariantu lewego powstał ten sam wymiar jednego frontu, ustawienie pokazuje „auto (L)” i ostrzeżenie znikło. Potwierdzenie dotyczy tego przypadku, nie przesądza o kolizjach otwierania ani innych konfiguracjach; brak podstaw do nowego błędu w tym wariancie.
+
+---
+
+### N143 — dodatkowy pozytywny retest skrócenia wzmocnienia
+
+**Test UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: syntetyczna szafka 600 × 2000 × 560 mm, jedna półka, rura w dolnym świetle, pionowe wzmocnienie przy lewym boku, wysokość 1200 mm, głębokość 100 mm i 230 mm od lica. Program zgłasza osobno przecięcie półki i rury. Przy kolizji rury proponuje „Wzmocnienie 1: 1043 mm”; po kliknięciu kolizja rury znika, a błąd przecięcia półki pozostaje. Kliknięcie „Wzmocnienie 1: 973 mm” przy tym drugim błędzie ustawia wysokość 973 mm i usuwa oba sprawdzane błędy; niezależne uwagi w projekcie mogą pozostać. Rury nie usunięto. Potwierdza to działanie obydwu przycisków w opisanym wariancie, nie wszystkich wymiarów ani fizycznego montażu. Wcześniejszy status N143 NAPRAWIONE w zakresie przycisku usuwania rury pozostaje, ten wpis rozszerza zakres testu.
+
+---
+
 ### N168 [P2] — DO WERYFIKACJI: konfirmaty ramienia narożnika bez odpowiadających zaślepek
 
 **Obserwacja UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: projekt syntetyczny z domyślną szafką stojącą i narożnikiem L z szablonu, blatem ciągu i nóżkami. W „Produkty do zamówienia — Projekt” jest 20 konfirmatów 7 × 50, w tym 3 opisane jako złącza ramienia narożnika; pozycja zaślepek podaje 1 opakowanie (17 szt.). `cornerArmParts` dodaje konfirmaty dna ramienia do boku, lecz w tym miejscu nie dodaje odpowiadających im zaślepek. Opis zaślepek mówi „po jednej na widoczny łeb konfirmatu”, dlatego należy ustalić, czy te trzy łby są widoczne w konkretnym sposobie montażu i wymagają zaślepek; sama różnica 20–17 nie dowodzi tego bez oceny. W przykładzie liczba opakowań pozostaje taka sama, ale przy innych ilościach może mieć znaczenie dla zakupu. Przycisków brak do sprawdzenia w tym przypadku.
