@@ -19,10 +19,10 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 /* Liczby na liniach wymiarowych (klasa `wym`) — ok. 3,2 mm (uzytkownik 2026-10-30: „sama
    czcionka wymiarów jest za mała”; wczesniej 2,6 jak opisy). */
 const MIN_MM = 3.0;
-/* Szeroka szafka w siatce 2 × 2 nie dojdzie do celu (1600 mm: wymiary ok. 2,8, „nóżki” 1,74) —
+/* Szeroka szafka w siatce 2 × 2 nie dojdzie do celu (1600 mm: wymiary ok. 2,65–2,7) —
    decyzja użytkownika 2026-10-25 po zobaczeniu wydruku: „może zostać”. Próg niżej, ale pilnowany.
    Wąska 300 z góry: opisom wystarcza ekran (k = 1), wymiary zostają jak na ekranie — 2,7 mm. */
-const PROGI = { 'Szeroka 1600 na nóżkach': { wym: 2.7, txt: 1.7 }, 'Wąska 300': { wym: 2.6, txt: 1.8 } };
+const PROGI = { 'Szeroka 1600 na nóżkach': { wym: 2.6, txt: 1.7 }, 'Wąska 300': { wym: 2.6, txt: 1.8 } };
 const PL = { on: true, height: 100, mode: 'under', setback: 0 };
 const kol = (o = {}) => ({ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null], ...o });
 const szafka = (name, o = {}) => ({ name, W: 600, H: 720, D: 560, plinth: PL, legs: { on: true, height: 100 },
@@ -75,7 +75,7 @@ const pomiar = async (proj) => {
         const r = t.getBoundingClientRect(); const ctm = t.getScreenCTM();
         const fs = parseFloat(t.getAttribute('font-size') || getComputedStyle(t).fontSize) || 0;
         return { t: (t.textContent || '').trim(), x0: r.left, y0: r.top, x1: r.right, y1: r.bottom,
-          h: ctm ? mm(fs * Math.hypot(ctm.a, ctm.b)) : 0, wym: /^\d+$/.test((t.textContent || '').trim()) && t.classList.contains('wym') };
+          h: ctm ? mm(fs * Math.hypot(ctm.a, ctm.b)) : 0, wym: /^\d+$/.test((t.textContent || '').trim()) && t.classList.contains('wym') && !t.classList.contains('wym-w') };
       }).filter((q) => q.t && q.x1 > q.x0);
       const naklady = [];
       for (let i = 0; i < tx.length; i++) for (let j = i + 1; j < tx.length; j++) {

@@ -30,7 +30,8 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 - **Rozkrój**: strona tabeli i dokładnie jedna strona na każdy arkusz z rysunkiem układu.
 - **Napisy w druku** są powiększane, a układ wymiarów liczony z powiększonych napisów:
   - widok ma ok. 90 mm; **liczby na liniach wymiarowych ok. 3,2 mm (ok. 9 pt, jak tabele), minimum 3 mm** — większe niż opisy (użytkownik 2026-10-30: „sama czcionka wymiarów jest za mała”, rysunki zostają; wcześniej 2,6 mm jak opisy); wąska szafka, której opisom wystarcza ekran (np. 300 z góry) — ok. 2,7 mm;
-  - opisy (fronty, okucia, legendy) ok. 2,6 mm, drobne co najmniej 1,8 mm; długie opisy wymiarów („przegroda 318/336”, „cokół 100”, „szyna 206”) i „od dna” w szufladzie jak opisy;
+  - **„cokół 100”, „nóżki 100” i wymiar formatki w froncie („428×236”) też w skali wymiarów** (użytkownik 2026-10-30: „nóżki, cokół i rozmiary formatek też powinny być większe”): wymiar frontu tak duży, jak się mieści w froncie — w drzwiach z uchwytem między krawędzią od zawiasu a uchwytem, w wąskich wysokich drzwiach pionowo; wymiary sięgające podłogi (z cokołem, z blatem) odsuwają się, żeby ich linia nie przecinała „cokół 100”; światło półki w kolumnie — tyle, ile miejsca do przegrody (w wąskiej kolumnie mniejsze, nie wchodzi na sąsiednią);
+  - opisy (okucia, legendy) ok. 2,6 mm, drobne co najmniej 1,8 mm; długie opisy w kolumnach („przegroda 318/336”, „szyna 206”, „bok L 720”) i „od dna” w szufladzie jak opisy — duże rozpychały złożony widok otwarty i rysunek malał;
   - napisy nie nachodzą na siebie i nie wychodzą poza pole widoku.
   - Na ekranie układ bez zmian.
 

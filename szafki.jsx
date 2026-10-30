@@ -7005,12 +7005,17 @@ const ZNAK_EM = 0.6, POLE_EM = 1.164, NAD_BAZA_EM = 0.346;
 const szerNapisu = (txt, fs, k = 1) => String(txt).length * ZNAK_EM * fs * k;
 // szerokosc kolumny wymiaru pionowego, gdy opis ma `n` znakow (na ekranie bez zmian)
 const kolumnaDruk = (w, n, k) => (k > 1 ? Math.max(w, n * ZNAK_EM * 22 * k + 26) : w);
-/* Dlugie opisy kolumn („przegroda 1318/1336”, „nóżki 100”) w druku rosna mniej
-   niz liczby — inaczej rozpychaja rysunek tak, ze szafka robi sie malutka. */
+/* Dlugie opisy kolumn („przegroda 1318/1336”, „szyna 206”) w druku rosna mniej niz liczby
+   — inaczej rozpychaja rysunek tak, ze szafka robi sie malutka. „cokół” i „nóżki” stoja przy
+   podstawie, nie w kolumnach — te rosna jak liczby wymiarow (uzytkownik 2026-10-30). */
 const DRUK_DLUGIE = 0.8;
 const kDlugie = (k) => (k > 1 ? Math.max(1, k * DRUK_DLUGIE) : 1);
 // powiekszenie napisu, ktory musi sie zmiescic w `max` jednostkach (front, polka, legenda)
 const kNapisu = (k, txt, fs, max) => (k > 1 ? Math.max(1, Math.min(k, max / szerNapisu(txt, fs))) : 1);
+/* Wymiar formatki napisany w froncie (20) — w druku jak liczby wymiarow (22 × kw), o ile
+   miesci sie w dlugosci i wysokosci frontu (uzytkownik 2026-10-30: „rozmiary formatek też
+   powinny być większe”). */
+const kWFroncie = (kw, txt, dl, wys) => (kw > 1 ? Math.max(1, Math.min(kNapisu(kw * 22 / 20, txt, 20, dl - 16), (wys - 12) / (POLE_EM * 20))) : 1);
 // drobne opisy (16–18) w druku dociagamy do wielkosci opisow szczelin (20), jesli sie mieszcza
 const kMaly = (k, fs, txt, max) => (k > 1 ? kNapisu(k * Math.max(1, 20 / fs), txt, fs, max) : 1);
 /* Skale z ekranu na druk z rysunku o szerokosci `szer(k, kw)`: `k` — opisy, `kw` — liczby
@@ -7050,14 +7055,15 @@ const DimH = ({ x1, x2, y, label, c = DIMC, above = true, kd }) => (
   </g>
 );
 
-const DimV = ({ y1, y2, x, label, c = DIMC, left = true, labelY = null, kd }) => (
+// `wewn` — wymiar w srodku rysunku (swiatlo polki): w druku tyle, ile miejsca (klasa `wym-w`)
+const DimV = ({ y1, y2, x, label, c = DIMC, left = true, labelY = null, kd, wewn = false }) => (
   <g>
     <line x1={x} y1={y1} x2={x} y2={y2} stroke={c} strokeWidth="1.5" />
     <line x1={x - 8} y1={y1} x2={x + 8} y2={y1} stroke={c} strokeWidth="1.5" />
     <line x1={x - 8} y1={y2} x2={x + 8} y2={y2} stroke={c} strokeWidth="1.5" />
     <text x={left ? x - 8 : x + 8} y={(labelY == null ? (y1 + y2) / 2 : labelY) + 7}
       textAnchor={left ? "end" : "start"} fontSize="22" fill={c} style={kd ? { "--k": kd, "--kw": kd } : undefined}
-      className="wym" fontFamily="ui-monospace, monospace">{label}</text>
+      className={wewn ? "wym wym-w" : "wym"} fontFamily="ui-monospace, monospace">{label}</text>
   </g>
 );
 
@@ -10165,6 +10171,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
     // wysokosci frontow szuflad — kolumna na kazda grupe `grupySzuflad`
     u.dimDrawerXs = grupySzuflad.map(() => takeR(kol(90, znaki.drawer)));
     u.dimHMainX = takeL(kol(100, znaki.h));
+    /* W druku „cokół 100” (jak liczby wymiarow) stoi z lewej przy podstawie — wymiary siegajace
+       podlogi (z cokolem / nozkami, z blatem) ida dalej, zeby ich linia nie przecinala napisu. */
+    if (kz > 1 && plHd > 0) lxCur = Math.min(lxCur, baseL - 34 - znaki.cokol * ZNAK_EM * 22 * kw - 12);
     u.dimHTotalX = hasBaseDim ? takeL(kol(100, znaki.hTotal)) : u.dimHMainX;
     u.dimBlatX = zBlatem ? takeL(kolD(100, znaki.blat)) : null;
     const leftExtra = Math.max(0, baseL - lxCur - 40);
@@ -10176,8 +10185,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
       /* W druku obrys liczymy z zasiegu napisow (kolumny, „cokół” przy lewym
          boku, „nóżki” przy prawym), bez zapasu z ekranu — kazdy milimetr
          szerokosci to wieksza szafka na kartce. */
-      const lewo = Math.min(lxCur, plHd > 0 ? baseL - 34 - znaki.cokol * ZNAK_EM * 22 * kDlugie(kz) : lxCur) - 30 - blOvL;
-      const prawo = Math.max(rxCur, hasBase ? baseR + 34 + znaki.nozki * ZNAK_EM * 22 * kDlugie(kz) : rxCur) + 30 + blOvR;
+      const lewo = Math.min(lxCur, plHd > 0 ? baseL - 34 - znaki.cokol * ZNAK_EM * 22 * kw : lxCur) - 30 - blOvL;
+      const prawo = Math.max(rxCur, hasBase ? baseR + 34 + znaki.nozki * ZNAK_EM * 22 * kw : rxCur) + 30 + blOvR;
       u.vbX = lewo; u.vbW = prawo - lewo;
     }
     return u;
@@ -10619,7 +10628,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                   x={d.x + d.w / 2}
                   y={fy(d.y + d.h / 2) + 7}
                   textAnchor="middle" fontSize="20" fill={INK} opacity="0.75"
-                  style={kz > 1 ? { "--k": kNapisu(kz, `${fmt(d.w)}×${fmt(d.h)}`, 20, (d.w <= 170 ? d.h : d.w) - 16) } : undefined}
+                  style={kz > 1 ? { "--k": kWFroncie(kw, `${fmt(d.w)}×${fmt(d.h)}`, d.w <= 170 ? d.h : d.w, d.w <= 170 ? d.w : d.h) } : undefined}
                   fontFamily="ui-monospace, monospace">
                   {fmt(d.w)}×{fmt(d.h)}
                 </text>
@@ -10709,15 +10718,29 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               <rect x={d.x + 0.5} y={fy(d.y + d.h) + 0.5} width={d.w - 1} height={d.h - 1}
                 fill={mat.mirror.color} stroke={INK} strokeWidth="1" opacity="0.85" />
             )}
-            {showDims && d.w > 90 && d.h > 40 && (
-              <text x={d.x + d.w / 2}
-                y={d.type === "drawer" ? fy(d.y + d.h * 0.3) : fy(d.y + d.h / 2) + 7}
-                textAnchor="middle" fontSize="20" fill={INK} opacity="0.75"
-                style={kz > 1 ? { "--k": kNapisu(kz, `${fmt(d.w)}×${fmt(d.h)}`, 20, d.w - 16) } : undefined}
-                fontFamily="ui-monospace, monospace">
-                {fmt(d.w)}×{fmt(d.h)}
-              </text>
-            )}
+            {showDims && d.w > 90 && d.h > 40 && (() => {
+              /* W druku napis wiekszy — w drzwiach z pionowym uchwytem stoi miedzy krawedzia od
+                 zawiasu a uchwytem, zeby na niego nie wchodzil (szuflada i klapa maja uchwyt nad napisem). */
+              const ob = kz > 1 && d.type === "door" && d.handle && d.handlePos !== "gora" ? uchwytObrys(d) : null;
+              const [zx0, zx1] = !ob ? [d.x, d.x + d.w] : d.hingeSide === "left" ? [d.x, ob.x0] : [ob.x1, d.x + d.w];
+              const txt = `${fmt(d.w)}×${fmt(d.h)}`;
+              const kPoz = kz > 1 ? kWFroncie(kw, txt, zx1 - zx0, d.type === "drawer" ? d.h * 0.6 : d.h) : 1;
+              // waskie wysokie drzwi: w druku napis pionowo, wzdluz wysokosci — miesci sie wiekszy
+              const kPion = kz > 1 && d.type !== "drawer" && d.h > d.w ? kWFroncie(kw, txt, d.h - 2 * Math.min(90, d.h * 0.25) - 20, zx1 - zx0) : 0;
+              const pion = kPion > kPoz * 1.25;
+              const cx = (zx0 + zx1) / 2, cy = d.type === "drawer" ? fy(d.y + d.h * 0.3) : fy(d.y + d.h / 2) + 7;
+              return (
+                // obrot w grupie: w druku napis dostaje wlasny transform (powiekszenie)
+                <g transform={pion ? `rotate(-90 ${cx} ${cy - 7})` : undefined}>
+                  <text x={cx} y={cy}
+                    textAnchor="middle" fontSize="20" fill={INK} opacity="0.75"
+                    style={kz > 1 ? { "--k": pion ? kPion : kPoz } : undefined}
+                    fontFamily="ui-monospace, monospace">
+                    {txt}
+                  </text>
+                </g>
+              );
+            })()}
           </g>
         )
       )}
@@ -10986,15 +11009,16 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 {extra > 0 && (
                   <DimV y1={0} y2={H + extra} x={dimHTotalX} label={`${fmt(H + extra)}`} c={LINE} />
                 )}
-                {/* cokol: mierzony przy prawej krawedzi korpusu (cokol jest szerokosci szafki) */}
+                {/* cokol: mierzony przy prawej krawedzi korpusu (cokol jest szerokosci szafki);
+                    w druku „cokół” i „nóżki” jak liczby wymiarow (`kw`, uzytkownik 2026-10-30) */}
                 {plH > 0 && (
                   <DimV y1={H} y2={H + plH} x={dimCokolX} label={`cokół ${fmt(plH)}`}
-                    c={LINE} kd={kDl} />
+                    c={LINE} />
                 )}
                 {/* nozki: mierzone znacznie dalej w prawo, zeby opis sie nie nakladal */}
                 {legH > 0 && (
                   <DimV y1={H - geo.legTop} y2={H - geo.legTop + legH} x={dimNozkiX}
-                    label={`nóżki ${fmt(legH)}`} left={false} c={LINE} kd={kDl} />
+                    label={`nóżki ${fmt(legH)}`} left={false} c={LINE} />
                 )}
               </>
             );
@@ -11073,6 +11097,9 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 .map((op) => (
                   <DimV key={`op${lv.i}-${c.j}-${op.k}`}
                     y1={fy(op.to)} y2={fy(op.from)} x={dimColX(c)}
+                    /* w druku konczy sie najdalej na przegrodzie — w waskiej kolumnie „333” wchodzil
+                       na opisy szyn kolumny obok */
+                    kd={kz > 1 ? kNapisu(kw, fmt(op.h), 22, c.x1 + geo.t - dimColX(c) - 16) : undefined} wewn
                     label={`${fmt(op.h)}`} left={false} c={DIMC} />
                 ))
             )
@@ -11708,7 +11735,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
               ))}
               <text x={(c.x0 + c.x1) / 2} y={geo.shelfBack + geo.shelfDepth - 14}
                 textAnchor="middle" fontSize="17" fill={INK} opacity="0.75"
-                style={kz > 1 ? { "--k": kMaly(kz, 17, `${n} półki ${fmt(c.shW ?? c.w)}×${fmt(c.shD ?? geo.shelfDepth)}`, c.w - 10) } : undefined}
+                style={kz > 1 ? { "--k": kMaly(kw, 17, `${n} półki ${fmt(c.shW ?? c.w)}×${fmt(c.shD ?? geo.shelfDepth)}`, c.w - 10) } : undefined}
                 fontFamily="ui-monospace, monospace">
                 {n} {n === 1 ? "półka" : "półki"} {fmt(c.shW ?? c.w)}×{fmt(c.shD ?? geo.shelfDepth)}
               </text>
