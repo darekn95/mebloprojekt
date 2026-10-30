@@ -1,3 +1,9 @@
+### N148 — dodatkowy wariant do weryfikacji: różna płaszczyzna zawieszenia
+
+Test funkcji na main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`: dwie szafki wiszące 600 × 720 × 560, zawieszki na listwie, w jednym ciągu. Przy `offset` 0 dla obu `runRail` zwraca odcinek 1200 mm. Po wysunięciu drugiej o 100 mm funkcja nadal zwraca ten sam odcinek 1200 mm na wspólnej wysokości, mimo różnych płaszczyzn tyłu. Sprawdzić w interfejsie i dokumentacji rzeczywisty sposób podparcia, istniejące komunikaty i ich przyciski. Ten wariant wiąże się z N148, więc nie jest liczony jako osobny potwierdzony błąd. Sugestia GPT do weryfikacji: uwzględnić płaszczyznę zaczepów lub wyjaśnić wymagane podparcie i przetestować działania użytkownika.
+
+---
+
 ### N152 [P2] — DO WERYFIKACJI UI: scalanie może usunąć plecy drugiej szafki
 
 **Test funkcji**, main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`: dwie sąsiednie szafki ciągu 600 × 720 × 560 mm z jednakowymi materiałami i jednym poziomem; pierwsza bez pleców (`back=none`), druga z HDF (`back=hdf`). Przed scaleniem druga ma w formatach plecy HDF 598 × 718; `scalenieBlad` nie blokuje operacji, a `scalSzafki` bierze ustawienie pleców z pierwszej szafki i w wyniku nie ma pleców. Odwrotna kolejność wymaga osobnego sprawdzenia. Sam test funkcji nie wykazuje, jakie wyjaśnienia, wybory lub przyciski pokazuje kreator scalania w UI.
