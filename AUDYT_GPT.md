@@ -1,3 +1,13 @@
+# Nowe ustalenie audytu — 30.10.2026
+
+### N150 [P2] — OTWARTE: ta sama resztka blatu przypisana do dwóch grup rozkroju
+
+**Wersja:** main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`. **Test funkcji, nie test interfejsu:** na danych syntetycznych utworzono rzeczywistymi funkcjami `wierszBlatu` i `matLabelOf` dwa elementy jednego materiału blatu, 1000 × 300 mm i 1000 × 700 mm. Powstały grupy arkusza 4100 × 600 i 4100 × 1200 mm. Przekazano do `buildCutPlan` jedną własną resztkę tego samego materiału 1000 × 1000 mm, ilość 1. Wynik przypisuje tę samą resztkę obu grupom i w obu pokazuje zakup 0. Przy rzazie 3 mm tych dwóch elementów nie da się wyciąć z jednej takiej resztki: 300 + 700 + 3 = 1003 mm. Może to zaniżyć zakupy i dać niewykonalny plan. Wymaga jeszcze odtworzenia przez interfejs i sprawdzenia komunikatów oraz ewentualnych przycisków.
+
+**Sugestia GPT do weryfikacji, nie decyzja ani propozycja użytkownika:** rozważyć wspólne rozliczanie dostępnej liczby i pozostałej geometrii własnych kawałków pomiędzy grupami tego samego materiału. **Test odbioru:** powtórzyć dokładny przypadek w UI i funkcjach, sprawdzić ilości 0, 1 i 2 oraz rozmiary, rzeczywistą wykonalność cięcia, zakup i wycenę; sprawdzić działanie ewentualnych przycisków i dopiero po pozytywnych wynikach oznaczyć NAPRAWIONE.
+
+---
+
 # Przekazanie audytu dla Claude — 30.10.2026
 
 **Pochodzenie sugestii:** poniższe propozycje przycisków i napraw są pomysłami GPT do oceny i weryfikacji technicznej. Nie są decyzją użytkownika, jego propozycją ani poleceniem wdrożenia konkretnego rozwiązania. Użytkownik ustalił jedynie kryterium: błąd lub ostrzeżenie można uznać za rozwiązane, gdy wskazuje działanie i ma działający przycisk; trzeba kliknąć i sprawdzić skutek, z podanymi przez niego wyjątkami dotyczącymi arkusza i blatu.
