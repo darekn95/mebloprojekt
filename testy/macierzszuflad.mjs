@@ -242,11 +242,23 @@ const wczytaj = async (p) => {
 };
 // klik w przycisk przy bledzie i ponowne wczytanie (autozapis z opoznieniem)
 const kliknijPrzycisk = async (txt, label) => {
+  /* Po wczytaniu aplikacja zapisuje projekt jeszcze raz (autozapis po 800 ms, przy kilku
+     suitach naraz pozniej). Gdy ten zapis przyszedl po kliknieciu, test bral go za zapis
+     zmiany i przeladowywal strone, zanim zmiana trafila do pamieci — falszywy alarm
+     „przycisk … nie usunął błędu” (pelny przebieg 2026-10-30). Najpierw zapis musi stac. */
+  for (let i = 0, v = await zapis(); i < 10; i++) {
+    await page.waitForTimeout(1000);
+    const v2 = await zapis();
+    if (v2 === v) break;
+    v = v2;
+  }
   const przed = await zapis();
   const sec = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Uwagi/ }) }).first();
   const li = sec.locator('li').filter({ hasText: txt.slice(0, 60) }).first();
   await li.getByRole('button', { name: label, exact: true }).first().click();
-  await page.waitForFunction((p) => localStorage.getItem('szafki:projekt') !== p, przed, { timeout: 6000 }).catch(() => {});
+  // przy kilku suitach naraz zapis po kliknieciu bywal wolniejszy niz 6 s — przeladowanie gubilo zmiane
+  // (falszywy alarm „przycisk … nie usunął błędu” w pelnym przebiegu 2026-10-30)
+  await page.waitForFunction((p) => localStorage.getItem('szafki:projekt') !== p, przed, { timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(300);
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(700);
 };
