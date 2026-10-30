@@ -1,3 +1,11 @@
+### Uzupełnienie testów UI — N155 i przycisk kołków
+
+W odizolowanej lokalnej kopii aplikacji z main d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e przetestowano syntetyczną szafkę 600 × 300 × 80 mm z tip-on. Lista pojedynczej szafki pokazała model AM-SVN-DL-MG-30; po powieleniu szafki zbiorcza lista projektu pokazała tylko ogólną nazwę odbojnika i ilość 2, bez kodu modelu. N155 potwierdzono także w interfejsie; pozostaje OTWARTE. PDF nie był sprawdzony.
+
+Przycisk ostrzeżenia „Ustaw 35 / 35 mm” w tym samym syntetycznym przypadku został kliknięty: ostrzeżenie zniknęło, a zestawienie pojedynczej szafki pokazało cztery otwory na kołki 35 mm od przodu i tyłu. Potwierdza to działanie przycisku w tym konkretnym przypadku, nie we wszystkich konfiguracjach.
+
+---
+
 ### N156 [P2] — OTWARTE: ponowne scalanie usuwa wcześniejszą podwójną przegrodę
 
 **Test funkcji**, main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`: trzy sąsiednie szafki A, B, C 600 × 720 × 560 mm, ten sam ciąg i materiały. Połączyć A i B z opcją dwóch przegród na styku (`scalSzafki(..., „dwie”)`): powstają dwie płyty 684 × 560 i flaga `przegrodaPodw`. Następnie połączyć wynik z C, ponownie wybierając dwie przegrody. `scalenieBlad` nie zgłasza przeszkody, lecz po drugim scaleniu na wcześniejszym styku jest jedna przegroda, na nowym dwie; lista ma 3 zamiast 4 płyt. Funkcja usuwa flagi podwójnych przegród z kopiowanych kolumn. Interfejs, ostrzeżenia i przyciski nie zostały sprawdzone.
