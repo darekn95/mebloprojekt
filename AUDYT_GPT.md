@@ -1,3 +1,56 @@
+# Niezależny retest poprawek — 30.10.2026, main `5f0d60075d3be5c27204df86cfbe25b790593432`
+
+Poniższe statusy są aktualizacją starszych wpisów na tej gałęzi. **NAPRAWIONE w sprawdzonym wariancie** oznacza, że opisany przypadek odtworzono w izolowanej aktualnej aplikacji i sprawdzono faktyczny efekt przycisków; nie jest deklaracją pełnej kontroli wszystkich kombinacji, fizycznego montażu, PDF i wyceny. Wcześniejsze otwarte wpisy pozostawiono jako historię. Propozycje techniczne w raporcie są sugestiami GPT do weryfikacji, nie decyzjami użytkownika.
+
+### N169 — NAPRAWIONE w obu sprawdzonych wariantach UI
+
+- Drzwi: szafka 600 × 720 × 560 mm, trzy fronty, pierwszy zadany 198 mm, pozostałe auto. Aplikacja pokazuje 198/197/197 mm, wyjaśnia ręczny wymiar i oferuje „Wszystkie drzwi równo, luz 4 mm”. Po kliknięciu pokazuje trzy fronty 196 × 714 mm, a ostrzeżenie znika.
+- Szuflady: ta sama szafka, trzy V-BOX, pierwszy front ręcznie 238 mm, dwa auto — 238/236/236 mm. Po kliknięciu „Wszystkie fronty równo, luz 3 mm” widoczne są trzy fronty po 236 mm i ostrzeżenie znika. Wcześniejsze przyciski zwiększające rozbieżność w tych wariantach nie są oferowane.
+
+### N158, N159, N164, N165 — NAPRAWIONE w sprawdzonych wariantach UI
+
+- N158: szafka 2100 × 2000 × 560 mm, jedna kolumna, 0 drzwi, drążek 2062 mm. Po kliknięciu „Podziel kolumnę przegrodą” są dwie kolumny po 0 drzwi, drążki pozostają, bez samoczynnego dodania frontów.
+- N159/N164/N165: ta sama szerokość, dwa fronty, lewy fix 100 mm ze wspornikiem, pierwsze drzwi ręcznie 600 mm. Po kliknięciu podziału oba pola szerokości drzwi są automatyczne, nie ma błędu niewypełnionego pasma; formatki zawierają po 1 elemencie stałym i wsporniku, a UI pokazuje lewy zawias pierwszego i prawy drugiego skrzydła. Pozostają niezależne ostrzeżenia o dużych frontach poza tabelą. Przypadków z inną liczbą drzwi, prawym fiksem i pełnego zakresu otwierania nie sprawdzono w UI.
+
+### N157 — NAPRAWIONE w sprawdzonym wariancie starszego projektu
+
+Wczytano syntetyczny projekt 600 × 1200 × 560 mm z dwiema otwartymi kolumnami bez przegrody: lewa 1 półka, prawa 2. Komunikat uprzedza o zachowaniu wnętrza jednej kolumny i oferuje osobny wybór lewej/prawej. Kliknięcie prawej daje jedną kolumnę z 2 półkami; po cofnięciu kliknięcie lewej daje jedną kolumnę z 1 półką. W obu testach znika ostrzeżenie o przelocie. Nie badano wszystkich typów wnętrz ani dostępności tworzenia starej konfiguracji w obecnym UI.
+
+### N166 — NAPRAWIONE w sprawdzonym wariancie UI
+
+Szafka 600 × 300 × 80 mm, bez wieńca. „Dodaj parę wzmocnień pod blat” dodaje formatkę poziomą 564 × 62 mm zamiast 564 × 100 mm; ostrzeżenie o otwartym korpusie znika i nie pojawia się poprzedni błąd przekroczenia głębokości. Fizycznego montażu i innych głębokości w UI nie sprawdzono. Test funkcji obejmuje także przycisk korekty wcześniej zadanej formatki 100 mm; tego przycisku w UI w tej rundzie nie klikano.
+
+### N145 — NAPRAWIONE w sprawdzanym zakresie braku płyty montażowej
+
+Szafka 600 × 300 × 80 mm bez dna, wieńca i półek, jedne drzwi tip-on. Przy błędzie braku płyty są dwa przyciski. „Uchwyt zamiast tip-on” usuwa błąd oraz odbojnik z zamówienia, zaznacza uchwyt. Po cofnięciu „Dołóż półkę (tip-on na niej)” usuwa błąd braku płyty i pozostawia tip-on, ale pojawia się osobny błąd 89 mm odbojnika przy D80. Kliknięcie „Głębokość szafki 89 mm” usuwa tę kolizję; niezależny błąd kołków pozostaje i ma własny przycisk. Nie sprawdzano fizycznego montażu. Pozytywny wynik dotyczy również poprzednio sprawdzonego wariantu kolizji z plecami, a nie wszystkich możliwych kombinacji.
+
+### N161 i N162 — NAPRAWIONE w sprawdzonych wariantach UI
+
+- N161: wisząca 600 × 1200 × 560 mm, wycięcie 100 × 100 w górnym poziomie z zabudową, brak wieńca i wybrany wariant trójkątów. Zamiast twierdzić, że ścianka jest połączona z nieistniejącą płytą, ostrzeżenie oferuje „Dodaj wieniec”. Po kliknięciu widnieje informacja o połączeniu z wieńcem dwoma trójkątami oraz pozycja trójkątów w zamówieniu. Rzeczywistej nośności montażu nie oceniano.
+- N162: wisząca 600 × 1200 × 560 mm, wycięcie 100 × 100 na całą wysokość wewnątrz zabudowanego elementu 200 × 150 w tym narożniku. Program zgłasza kolizję i kieruje zawieszkę na ściankę zabudowy elementu. „Bez zabudowy wycięcia” usuwa ten błąd bez ostrzeżenia o odsłonięciu; wskazanie zawieszki na ściance elementu pozostaje. Nie oceniano innych wzajemnych położeń ani montażu.
+
+### N160 i N163 — NAPRAWIONE w sprawdzonym zestawieniu projektu
+
+Wczytano syntetyczny górny ciąg z trzema szafkami, dwie z dystansami 50 i 100 mm. Zbiorcze zamówienie zawiera osobne wiersze listwy z grubością 50 i 100 mm (N160). Wkręty 4 × 30 dla zawieszek mają opis „zawieszki, 2 na zawieszkę”, a nie opis nieistniejących wzmocnień (N163). Indywidualne przyciski dystansów były kliknięte w poprzedniej rundzie; w tym reteście użyto wczytanego projektu. PDF i wyceny nie sprawdzono.
+
+### N114 — NAPRAWIONE w sprawdzonych wariantach UI
+
+Szafka 600 × 1200 × 560 mm z dwoma poziomami i syntetycznym elementem przez płytę: po kliknięciu „Wycinam otwory w płytach (na formatkach)” ostrzeżenie przechodzi w informację, a formatki mają oznaczone otwory. W odrębnym teście elementu od 400 do 700 mm kliknięto „Płyta nad element (poziom 1: 700 mm)”: poziom zmienił się na 700 mm i ostrzeżenie przecięcia przelotowej płyty znikło. Po cofnięciu „Płyta pod element (poziom 1: 382 mm)” ustawił 382 mm i również usunął tę uwagę. Inne półki i elementy mogą nadal wymagać osobnego sprawdzenia; rzeczywistego cięcia nie wykonano.
+
+### N167 i N168 — częściowe potwierdzenie, pozostają DO OCENY
+
+N167: po kliknięciu „Dodaj parę wzmocnień pod blat” w syntetycznej szafce narożnej 1000 × 720 × 560 mm, ramię 400, powstały dwie czołowe stojące płyty 60 mm odsunięte o 18 mm, zgodne ze sprawdzaną alternatywną regułą. To rozstrzyga zaobserwowaną różnicę działania przycisków w tym przypadku; poprawności fizycznego montażu jeszcze nie oceniono.
+
+N168: test funkcji pokazuje, że dla ramienia liczba zaślepek odpowiada liczbie konfirmatów, a w zestawieniu szafki z ramieniem jest 16/16. Nie ustalono, które łby są faktycznie widoczne ani czy wszystkie wymagają zaślepek. Ocenę montażową zachować.
+
+### Pozostałe zgłoszenia i zakres automatycznych testów
+
+N150, N151, N152, N154, N156 i szerzej N153: testy funkcji w aktualnej wersji przechodzą dla scenariuszy w zestawie `testy/funkcje.mjs`, ale w tej rundzie nie odtworzono wszystkich wymaganych scenariuszy i przycisków w UI; nie oznaczać ich tu jako w pełni naprawionych. N155 pozostaje NAPRAWIONE w uprzednio sprawdzonym wariancie (zbiorczy model tip-on), teraz potwierdzonym także testem funkcji. PDF-1 pozostaje do osobnej kontroli aktualnego PDF i wydruku.
+
+`node testy/funkcje.mjs`: **156 OK, 0 BLAD**. Zestaw `testy/audytgpt14.mjs` nie uruchomił się w tym środowisku Windows, ponieważ odwołuje się do nieistniejącej lokalnej ścieżki Playwright; powyższe testy UI wykonano niezależnie przez interfejs przeglądarki, nie przez ten skrypt.
+
+---
+
 ### Retest przycisków podnośników klapy
 
 **Test UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: zwykła szafka 600 × 400 × 560 mm, jedna klapa do góry 596 × 394 mm o wadze ok. 2,9 kg, jeden ręcznie wybrany podnośnik 50 N. Ostrzeżenie wskazuje zbyt małą siłę i oferuje „Zwiększ siłę do 150 N” oraz „Dołóż drugi — 2 × 80 N”. Kliknięto drugi przycisk: ostrzeżenie zniknęło, ustawienie siły pokazuje auto 80 N, a zamówienie 2 szt. podnośnika 80 N. Po cofnięciu kliknięto pierwszy przycisk: ostrzeżenie zniknęło, ustawienie pokazuje auto 150 N, zamówienie 1 szt. 150 N. Wynik obejmuje tę geometrię i odczyt tabeli aplikacji; nie jest potwierdzeniem fizycznego montażu ani innych wymiarów i kątów.
