@@ -1,3 +1,15 @@
+### Retest przycisków podnośników klapy
+
+**Test UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: zwykła szafka 600 × 400 × 560 mm, jedna klapa do góry 596 × 394 mm o wadze ok. 2,9 kg, jeden ręcznie wybrany podnośnik 50 N. Ostrzeżenie wskazuje zbyt małą siłę i oferuje „Zwiększ siłę do 150 N” oraz „Dołóż drugi — 2 × 80 N”. Kliknięto drugi przycisk: ostrzeżenie zniknęło, ustawienie siły pokazuje auto 80 N, a zamówienie 2 szt. podnośnika 80 N. Po cofnięciu kliknięto pierwszy przycisk: ostrzeżenie zniknęło, ustawienie pokazuje auto 150 N, zamówienie 1 szt. 150 N. Wynik obejmuje tę geometrię i odczyt tabeli aplikacji; nie jest potwierdzeniem fizycznego montażu ani innych wymiarów i kątów.
+
+---
+
+### N155 — NAPRAWIONE w sprawdzonym wariancie: model tip-on w zbiorczym zamówieniu
+
+**Retest UI**, main `c201eb126a7baed70a943c16a3c93db4df62fb70`: syntetyczna zwykła szafka 600 × 720 × 560 mm, jedno skrzydło bez uchwytu z otwieraniem tip-on. Pojedyncze zamówienie pokazuje odbojnik GTV SALTO NOVA z numerem `AM-SVN-DL-MG-30`. Po powieleniu szafki i wybraniu „Produkty do zamówienia — Projekt” zbiorczy wiersz zachowuje opis „długi nakładany z magnesem, szary (AM-SVN-DL-MG-30)”, zastosowanie i prawidłową ilość 2 szt. Wcześniej w teście na `d601d4f` zbiorcze zamówienie gubiło oznaczenie modelu. Aktualny `scalOkucia` dodaje `model` do opisu. PDF, wyceny i innych modeli nie sprawdzono, dlatego status obejmuje wskazany zakres.
+
+---
+
 ### N169 — dodatkowy wariant: fronty szuflad
 
 **Dodatkowy wariant tego samego mechanizmu — szuflady, test UI:** zwykła szafka 600 × 720 × 560 mm, trzy szuflady V-BOX, ręczna wysokość pierwszego frontu 238 mm, pozostałe automatyczne; wynikowe wysokości 238, 236 i 236 mm przy luce 2 mm. Ostrzeżenie obiecuje identyczne fronty po zmianie luzu. Kliknięcie „Zwiększ luz do 3 mm” zmienia je na 238, 235 i 235 mm; różnica wzrasta do 3 mm, a ostrzeżenie znika. To ten sam błąd logiki `evenGapOptions`, nie odrębne zgłoszenie. **Test odbioru dodatkowo:** w analogiczny sposób sprawdzić fronty szuflad z różnymi ręcznymi wysokościami i rzeczywiste działanie obu kierunków zmian.
