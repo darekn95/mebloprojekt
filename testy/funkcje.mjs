@@ -31,7 +31,7 @@ src = src.replace(/^import React[^\n]*\n/, 'const React = { createElement: () =>
 src = src.replace(/export default function App/, 'function App');
 const nazwy = ['buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
-  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty'];
+  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -551,4 +551,66 @@ console.log('\n== N150–N156 (audyt GPT 2026-10-30) ==');
   ok('N152: A bez pleców, B HDF — w kreatorze różnica „plecy”', !!rz && rz.plyty[0] === 'bez pleców' && rz.plyty[1] === 'HDF 3 mm', rz && rz.plyty.join(' | '));
   const plecy = (wzor) => { const R = G.scalSzafki(P4, [0, 1], wzor); const x = R.items[R.active]; return G.computeGeo(G.cabDoGeo(R, x), x.mat).panels.filter((p) => /^Plecy/.test(p.name)).map((p) => `${p.a}×${p.b}`); };
   ok('N152: „płyty jak w B” — scalona ma plecy HDF; „jak w A” — bez pleców', plecy(1).length === 1 && plecy(0).length === 0, `B: ${plecy(1).join()} / A: ${plecy(0).join()}`);
+}
+
+console.log('\n== N153: rura dłuższa niż 3 m / ugięcie od 2 m (decyzja użytkownika 2026-10-30) ==');
+{
+  const szafa = (W, cols) => ({ name: 'S', W, H: 2000, D: 560, plinth: { on: false }, legs: { on: true, height: 100 }, levels: [{ h: null, cols }] });
+  const kol = (o = {}) => drzwi({ doors: 2, shelfTargets: [400, null], drazki: [1], ...o });
+  const g31 = geo(szafa(3100, [kol()]));
+  const m31 = uw(g31, /rura ma 3062 mm/);
+  ok('3100: rura 3062 — błąd „dłuższa niż … 3 m” z „podzielkol:0:0:3064:18”', m31.length === 1 && m31[0].level === 'error' && /\|podzielkol:0:0:3064:18\|/.test(m31[0].text), m31[0] && m31[0].text.split('|').slice(1).join(' | '));
+  const cols = G.kolumnaNaDwie(szafa(3100, [kol()]).levels[0].cols, 0, 3064, 18);
+  const gP = geo(szafa(3100, cols));
+  ok('po „Podziel kolumnę przegrodą”: dwie kolumny po 1523, po jednych drzwiach, rury 1521, bez uwag o długości rury', cols.length === 2 && gP.levels[0].cols.map((c) => Math.round(c.w)).join() === '1523,1523'
+    && cols.every((c) => c.doors === 1) && gP.levels[0].cols.every((c) => c.drazki.length === 1 && c.drazki[0].len === 1521) && !uw(gP, /rura ma/).length,
+    gP.levels[0].cols.map((c) => `${Math.round(c.w)}:${c.drazki.map((d) => d.len)}`).join(' '));
+  const m21 = uw(geo(szafa(2100, [kol()])), /rura ma 2062 mm/);
+  ok('2100: rura 2062 — ostrzeżenie o uginaniu z „Podziel kolumnę przegrodą”', m21.length === 1 && m21[0].level === 'warn' && /ugina się/.test(m21[0].text) && /\|podzielkol:0:0:/.test(m21[0].text));
+  ok('kontrola 2000: rura 1962 — bez uwagi o długości', !uw(geo(szafa(2000, [kol()])), /rura ma/).length);
+}
+
+console.log('\n== N148 (wariant): szafka wisząca z dala od ściany (decyzja użytkownika 2026-10-30) ==');
+{
+  const RUN = { id: 'c1', name: 'Górne', wallW: null, gap: 0, mountY: 1500, H: 720, D: 300, plinth: null, worktop: false, corner: null, hangerMode: 'listwa' };
+  const wis = (n, o = {}) => ({ name: n, W: 600, H: 720, D: 300, plinth: { on: false }, legs: { on: false }, hangerMode: 'listwa', levels: [{ h: null, cols: [drzwi({ shelfTargets: [null] })] }], ...o });
+  const P = (items) => G.loadProject({ name: 'P', runs: [RUN], items: items.map(([cab, offset = 0]) => ({ cab, runId: 'c1', offset })) });
+  let Q = P([[wis('A')], [wis('B'), 100]]);
+  let m = G.odScianyMsgs(Q, 1);
+  ok('B wysunięta o 100 — błąd „wisi 100 mm od ściany” z „dosciany:1:0” i „dystans:1:100”', m.length === 1 && m[0].level === 'error' && /wisi 100 mm od ściany \(wysunięta z lica o 100 mm\)/.test(m[0].text)
+    && /\|dosciany:1:0\|dystans:1:100$/.test(m[0].text), m[0] && m[0].text);
+  ok('kontrola: A przy ścianie — bez uwagi', !G.odScianyMsgs(Q, 0).length);
+  Q = P([[wis('A')], [wis('B', { D: 250 })]]);
+  m = G.odScianyMsgs(Q, 1);
+  ok('B płytsza (250 przy 300) — błąd z „płytsza od ciągu o 50 mm” i „dosciany:1:-50”', m.length === 1 && /płytsza od ciągu o 50 mm/.test(m[0].text) && /\|dosciany:1:-50\|dystans:1:50$/.test(m[0].text), m[0] && m[0].text);
+  // po „Do ściany” (wysuniecie −50) — bez bledu; po „na dystansie 50” — informacja, dystans w zamowieniu
+  ok('po „Do ściany”: bez uwagi', !G.odScianyMsgs(P([[wis('A')], [wis('B', { D: 250 }), -50]]), 1).length);
+  const Qd = P([[wis('A')], [wis('B', { D: 250, dystans: 50 })]]);
+  m = G.odScianyMsgs(Qd, 1);
+  const hwB = G.computeGeo(G.cabDoGeo(Qd, Qd.items[1]), Qd.items[1].mat).hardware;
+  ok('po „Listwa na dystansie 50 mm”: informacja, w zamówieniu listwa dystansowa 50 mm na 600', m.length === 1 && m[0].level === 'info' && /listwa montażowa na listwie dystansowej 50 mm/.test(m[0].text)
+    && hwB.some((h) => h.name === 'Listwa dystansowa pod listwę montażową' && /grubość 50 mm/.test(h.spec) && h.qty === 0.6), m[0] && m[0].text);
+  const rr = G.runRail(Qd, Qd.runs[0]);
+  ok('listwa ciągu w dwóch odcinkach (B na dystansie)', rr && rr.odcinki.length === 2 && rr.odcinki[1].dyst === 50, rr && JSON.stringify(rr.odcinki));
+  ok('dystans przy szafce dosuniętej do ściany — ostrzeżenie „niepotrzebny” z „dystans:1:0”', /\|dystans:1:0$/.test((G.odScianyMsgs(P([[wis('A')], [wis('B', { dystans: 40 })]]), 1)[0] || {}).text || ''));
+}
+
+console.log('\n== N149: mocowanie ścianki zabudowy z zawieszką (decyzja użytkownika 2026-10-30) ==');
+{
+  const zw = (cu = {}) => geo({ name: 'T', W: 600, H: 1200, D: 560, ...nogi, hangers: 'always', cutout: { on: true, w: 100, d: 100, fullHeight: false, levelIndex: 1, mask: true, ...cu },
+    levels: [{ h: 591, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
+  const m0 = uw(zw(), /na ściance bocznej zabudowy wycięcia/)[0];
+  ok('bez wyboru: informacja z „zawmoc:wyc:L:konfirmaty” i „zawmoc:wyc:L:trojkaty”', !!m0 && m0.level === 'info' && /2 konfirmaty przez wieniec albo 2 trójkąty/.test(m0.text)
+    && /\|zawmoc:wyc:L:konfirmaty\|zawmoc:wyc:L:trojkaty$/.test(m0.text), m0 && m0.text.split('|').slice(1).join(' | '));
+  const gK = zw({ zawMocowanie: 'konfirmaty' });
+  const wien = gK.drillPlan.find((p) => /Wieniec$/.test(p.panel));
+  const kon = G.okuciaSzafki(gK, {}).find((h) => h.name === 'Konfirmat 7 × 50');
+  const kon0 = G.okuciaSzafki(zw(), {}).find((h) => h.name === 'Konfirmat 7 × 50');
+  ok('„2 konfirmaty”: wiersz w planie wieńca (x 91 od wewnętrznej strony lewego boku, 33 i 67 mm od tyłu), +2 konfirmaty w zamówieniu, informacja z drugą opcją', !!wien && wien.rows.some((r) => r.kind === 'konfirmat — ścianka zabudowy' && r.ys.join() === '91' && /33 i 67 mm od tylnej/.test(r.note))
+    && kon.qty === kon0.qty + 2 && /ścianka zabudowy z zawieszką do wieńca 2/.test(kon.spec)
+    && /złączona z wieńcem 2 konfirmatami.*\|zawmoc:wyc:L:trojkaty$/.test(uw(gK, /na ściance bocznej zabudowy/)[0].text),
+    wien && JSON.stringify(wien.rows.filter((r) => /ścianka/.test(r.kind))));
+  const gT = zw({ zawMocowanie: 'trojkaty' });
+  ok('„2 trójkąty”: wiersz na ściance zabudowy, 2 trójkąty w zamówieniu', gT.drillPlan.some((p) => /Zabudowa wycięcia/.test(p.panel) && p.rows.some((r) => r.kind === 'trójkąt meblowy — wieniec'))
+    && G.okuciaSzafki(gT, {}).some((h) => h.name === 'Trójkąt meblarski' && h.qty === 2 && /ścianka zabudowy/.test(h.spec + ' ' + (h.use || ''))));
 }

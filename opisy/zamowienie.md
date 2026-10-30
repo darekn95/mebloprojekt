@@ -12,7 +12,7 @@ zamówienia: „Cały projekt” albo „To pomieszczenie”.
   - **konfirmaty 7 × 50 i zaślepki** (też skrzynek DXS), **kołki podporowe ⌀5**, **trójkąty**;
   - **wkręty 4 × 30 do frontu szuflady** — 4 na front DXS-3D, front przykręcany od środka przez przód skrzynki (2026-10-26);
   - **nóżki** (wariant: kształt, wysokość, kolor), **złączki do cokołu**;
-  - **zawieszki, listwa montażowa** (za metr), **haki**;
+  - **zawieszki, listwa montażowa** (za metr), **haki**; przy szafce wiszącej z dala od ściany — listwa dystansowa pod listwę (mb) albo klocki dystansowe pod haki (N148);
     - listwa: w sklepie odcinki 1 m i 2 m, tnie się na wymiar (rzazu nie liczymy). Jedna listwa przez ciąg — od pierwszej do ostatniej szafki, która na niej wisi (skrajna bez zawieszek jej nie dostaje, środkowa nie przerywa; obie z ostrzeżeniem); dłuższa niż 2 m — pełne odcinki 2 m i reszta. Osobna szafka — W, ramię szafki w L — swój odcinek przy drugiej ścianie. Plecy z płyty cofnięte (opcja) — listwa w szafce za plecami: szerokość pleców − 2 × 5 mm (`LISTWA_OD_PLECOW`), a listwa ciągu kończy się przy tej szafce (decyzje użytkownika 2026-10-24);
     - **lustro**: grubość (4 / 6 mm) w opisie i wariancie — różne grubości to osobne wiersze (audyt GPT N80);
     - **mocowania pleców w kolumnach** z obwodu każdej płyty (HDF — zszywki, płyta — wkręty), bez płyt — bez mocowań (audyt GPT N81);

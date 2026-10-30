@@ -8,7 +8,10 @@
      (dochodzi do sciany); bez zabudowy „Zabuduj wycięcie / element”, plytkie — „Wycięcie N mm
      w głąb” (uzytkownik 2026-10-30: „nie może wisieć w powietrzu”);
    - N151 wlasny blat slupka w ciagu z blatem roboczym zostaje w jego formatkach;
-   - N152 scalanie szafek z roznymi plecami: roznica w kreatorze, „płyty jak w B” daje plecy B.
+   - N152 scalanie szafek z roznymi plecami: roznica w kreatorze, „płyty jak w B” daje plecy B;
+   - decyzje uzytkownika 2026-10-30: N153 „Podziel kolumnę przegrodą” przy rurze > 3 m, N148
+     „Do ściany” / „Listwa na dystansie” przy wiszacej z dala od sciany, N149 „2 konfirmaty
+     przez wieniec” przy sciance zabudowy z zawieszka; N155 model tip-on w liscie projektu.
    Liczby i reszta przypadkow — funkcje, suita `funkcje`. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -167,6 +170,60 @@ console.log('\n== N151 / N152: blat słupka, scalanie z różnymi plecami ==');
   f = await rows(/^Formatki do zamówienia$/);
   ok('N152: „płyty jak w B” → scalona szafka 1200 z plecami HDF (formatka 1198 × 718)', p.items.length === 1 && p.items[0].cab.back === 'hdf'
     && f.some((r) => /^Plecy HDF/.test(r) && /1198/.test(r) && /718/.test(r)), JSON.stringify(p.items.map((x) => [x.cab.W, x.cab.back])) + ' ' + f.filter((r) => /Plecy/.test(r)).join(' / '));
+}
+
+console.log('\n== decyzje 2026-10-30: N153, N148, N149, N155 ==');
+{
+  const seedP = async (q) => {
+    await page.evaluate((x) => { localStorage.clear(); localStorage.setItem('szafki:projekt', JSON.stringify(x)); }, q);
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1500);
+  };
+  // N153: szafa 3100 z rura 3062 — blad, „Podziel kolumnę przegrodą”
+  await seed({ name: 'S', W: 3100, H: 2000, D: 560, plinth: { on: false }, legs: { on: true, height: 100 },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [400, null], drazki: [1] }] }] });
+  const re153 = /rura ma 3062 mm/;
+  let m = (await notes()).find((x) => re153.test(x.txt));
+  ok('N153: błąd „rura ma 3062 mm” z „Podziel kolumnę przegrodą”', !!m && m.btns.includes('Podziel kolumnę przegrodą'), m && m.btns.join(' / '));
+  await klik(re153, 'Podziel kolumnę przegrodą');
+  let L = (await zap()).items[0].cab.levels[0];
+  const n153 = await notes();
+  ok('po kliknięciu: dwie kolumny po 1 drzwi z rurą, bez uwag o długości rury', L.cols.length === 2 && L.cols.every((c) => c.doors === 1 && JSON.stringify(c.drazki) === '[1]')
+    && !n153.some((x) => /rura ma/.test(x.txt)), JSON.stringify(L.cols.map((c) => [c.w, c.doors, c.drazki])));
+  // N148: gorny ciag, B wysunieta o 100 — „Do ściany” i „Listwa na dystansie 100 mm”
+  const RUNG = { id: 'g1', name: 'Górne', roomId: null, wallW: null, gap: 0, mountY: 1500, H: 720, D: 300, plinth: null, worktop: false, corner: null, hangerMode: 'listwa' };
+  const wis = (n) => ({ name: n, W: 600, H: 720, D: 300, plinth: { on: false }, legs: { on: false }, hangerMode: 'listwa', levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] });
+  const P148 = { name: 'P', active: 1, prices: {}, runs: [RUNG], items: [{ cab: wis('A'), runId: 'g1', offset: 0 }, { cab: wis('B'), runId: 'g1', offset: 100 }] };
+  await seedP(P148);
+  const re148 = /Szafka wisi 100 mm od ściany/;
+  m = (await notes()).find((x) => re148.test(x.txt));
+  ok('N148: błąd „wisi 100 mm od ściany” z „Do ściany (wysunięcie 0 mm)” i „Listwa na dystansie 100 mm”', !!m && m.btns.includes('Do ściany (wysunięcie 0 mm)') && m.btns.includes('Listwa na dystansie 100 mm'), m && m.btns.join(' / '));
+  await klik(re148, 'Do ściany (wysunięcie 0 mm)');
+  ok('po „Do ściany”: wysunięcie 0, bez błędu', (await zap()).items[1].offset === 0 && !(await notes()).some((x) => re148.test(x.txt)));
+  await seedP(P148);
+  await klik(re148, 'Listwa na dystansie 100 mm');
+  const hw148 = await rows(/^Produkty do zamówienia/);
+  ok('po „Listwa na dystansie”: `dystans` 100, informacja, w zamówieniu listwa dystansowa 100 mm', (await zap()).items[1].cab.dystans === 100
+    && (await notes()).some((x) => /na listwie dystansowej 100 mm/.test(x.txt)) && !(await notes()).some((x) => /zawisłaby w powietrzu/.test(x.txt))
+    && hw148.some((r) => /^Listwa dystansowa pod listwę montażową/.test(r) && /grubość 100 mm/.test(r)), hw148.filter((r) => /dystans/i.test(r)).join(' / '));
+  // N149: scianka zabudowy z zawieszka — „2 konfirmaty przez wieniec”
+  await seed({ name: 'W', W: 600, H: 1200, D: 560, plinth: { on: false }, legs: { on: false },
+    cutout: { on: true, w: 100, d: 100, fullHeight: false, levelIndex: 1, mask: true },
+    levels: [{ h: 591, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
+  const re149 = /na ściance bocznej zabudowy wycięcia/;
+  m = (await notes()).find((x) => re149.test(x.txt));
+  ok('N149: informacja z „2 konfirmaty przez wieniec” i „2 trójkąty pod wieńcem”', !!m && m.btns.includes('2 konfirmaty przez wieniec') && m.btns.includes('2 trójkąty pod wieńcem'), m && m.btns.join(' / '));
+  await klik(re149, '2 konfirmaty przez wieniec');
+  m = (await notes()).find((x) => re149.test(x.txt));
+  const hw149 = await rows(/^Produkty do zamówienia/);
+  ok('po kliknięciu: `zawMocowanie` konfirmaty, informacja „złączona … 2 konfirmatami”, konfirmaty w zamówieniu', (await zap()).items[0].cab.cutout.zawMocowanie === 'konfirmaty'
+    && !!m && /2 konfirmatami/.test(m.txt) && hw149.some((r) => /^Konfirmat 7 × 50/.test(r) && /ścianka zabudowy z zawieszką do wieńca 2/.test(r)), hw149.filter((r) => /Konfirmat/.test(r)).join(' / '));
+  // N155: dwie szafki z tip-on — w liscie projektu model AM-SVN-DL-MG-30
+  const tip = (n) => ({ name: n, W: 600, H: 720, D: 560, plinth: { on: false }, legs: { on: true, height: 100 }, handles: false,
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], handles: [false], otwieranie: ['tipon'] }] }] });
+  await seedP({ name: 'P', active: 0, prices: {}, runs: [], items: [{ cab: tip('A'), runId: null, offset: 0 }, { cab: tip('B'), runId: null, offset: 0 }] });
+  // dwie karty: „Produkty do zamówienia — A” i „Produkty całego projektu — P”
+  const pr = await rows(/^Produkty całego projektu/);
+  ok('N155: lista produktów projektu — tip-on z modelem AM-SVN-DL-MG-30, 2 szt.', pr.some((r) => /Odbojnik tip-on/.test(r) && /AM-SVN-DL-MG-30/.test(r) && /\b2 szt\./.test(r)), pr.filter((r) => /tip-on/.test(r)).join(' / '));
 }
 
 ok('bez błędów strony', !errors.length, errors.join(' / '));

@@ -269,6 +269,9 @@ const SLIDE_PRICES = {
 const DRAZEK_FI = 25, DRAZEK_POD_PLYTA = 70, DRAZEK_KROTSZY = 2;
 const DRAZEK_MIN_POD = 1000, DRAZEK_DLUGIE = 1600, DRAZEK_SWIATLO_OPCJA = 800;
 const DRAZEK_GL_MIN = 400, DRAZEK_GL_DOBRA = 500;
+/* Rura dluzsza niz najdluzszy odcinek w sprzedazy (3 m, `RURA_ODCINKI`) — blad; od 2 m ugina sie
+   pod ubraniami — ostrzezenie; oba z „Podziel kolumnę przegrodą” (uzytkownik 2026-10-30, N153). */
+const DRAZEK_UGINA = 2000;
 const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀25";
 
 /* Drzwi bez uchwytu (uzytkownik 2026-10-25): front dluzszy od dolu (gorne szafki —
@@ -488,6 +491,34 @@ const kolumnaZPrzelotu = (cols, j, wTeraz) => {
     if (b[key] === undefined) delete c[key]; else c[key] = JSON.parse(JSON.stringify(b[key]));
   });
   return [...cols.slice(0, j), c, ...cols.slice(j + 2)];
+};
+/* Kolumna na dwie rowne z przegroda miedzy nimi („Podziel kolumnę przegrodą” przy zbyt dlugiej
+   rurze, N153): obie z tym samym wnetrzem (polki, rura — kazda o polowe krotsza), drzwi po
+   polowie (pojedyncze — kazda dostaje swoje). Szerokosc: polowa zadanej; auto, gdy reszta
+   poziomu jest zadana (obie wezma rowno to, co zostaje); inaczej polowa szerokosci z rysunku. */
+const kolumnaNaDwie = (cols, j, wTeraz, t) => {
+  const a = cols[j];
+  if (!a) return cols;
+  const reszta = cols.filter((_, k) => k !== j);
+  const pol = (x) => Math.round((x - t) / 2);
+  const w = num(a.w) !== null ? pol(num(a.w)) : reszta.every((c) => num(c.w) !== null) ? null : num(wTeraz) !== null ? pol(num(wTeraz)) : null;
+  const n = Math.max(1, Math.round(a.doors ?? 1));
+  const nL = Math.max(1, Math.ceil(n / 2)), nP = n > 1 ? n - nL : 1;
+  const pol2 = (strona) => {
+    const c = JSON.parse(JSON.stringify(a));
+    c.w = w;
+    if (strona === "L") { delete c.noDiv; delete c.przegrodaPodw; }
+    if ((c.kind || "doors") === "doors") {
+      c.doors = strona === "L" ? nL : nP;
+      POLA_DRZWI.forEach((key) => {
+        if (!Array.isArray(a[key])) return;
+        c[key] = n === 1 ? [...a[key]] : strona === "L" ? a[key].slice(0, nL) : a[key].slice(nL);
+      });
+      if (n > 1) c.hinge = "auto";
+    }
+    return c;
+  };
+  return [...cols.slice(0, j), pol2("L"), pol2("P"), ...cols.slice(j + 1)];
 };
 /* Nazwa poziomu kolumny w uwagach (uzytkownik 2026-10-25: „poziom 4 kolumny 2”, nie
    „poziom kolumny 4”) — przed nia poziom szafki, jak w innych uwagach. */
@@ -2905,6 +2936,13 @@ function computeGeoLiczy(cab, mat, ctx) {
             + (cel ? `|drazekprzenies:${lv.i}:${j}:${dr.k}:${cel.k}:${Math.round(cel.h)}` : "") + `|drazek:${lv.i}:${j}:${dr.k}:0`);
           return;
         }
+        const maxRury = RURA_ODCINKI[RURA_ODCINKI.length - 1];
+        const podziel = `|podzielkol:${lv.i}:${j}:${Math.round(w)}:${t}`;
+        if (dr.len > maxRury)
+          add("error", `${gdzie}: rura ma ${fmt(dr.len)} mm — dłuższa niż najdłuższy odcinek w sprzedaży (${fmt(maxRury / 1000)} m), a z dwóch kawałków nie będzie jednej rury. Podziel kolumnę przegrodą — powstaną dwie krótsze.`
+            + podziel + `|drazek:${lv.i}:${j}:${dr.k}:0`);
+        else if (dr.len > DRAZEK_UGINA)
+          add("warn", `${gdzie}: rura ma ${fmt(dr.len)} mm — przy ponad ${fmt(DRAZEK_UGINA / 1000)} m ugina się pod ubraniami. Podziel kolumnę przegrodą albo podeprzyj rurę na środku.` + podziel);
         /* Swiatlo zmniejszone po dodaniu rury (uzytkownik 2026-10-24: „nie ma opcji
            usunięcia rurki — albo usunąć, albo przestawić na wyższą półkę”): przyciski
            „Usuń rurę” i „Przenieś do światła N” — najwyzszego, pod ktorym zmieszcza
@@ -6276,7 +6314,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     const n = !wisi ? 0 : 2 + naPrzegrodach.length;
     const gdzie = !postSide ? null : postTyp === "B" ? (rawCorner.zawieszki === "korpus" ? "korpus" : "ramie") : "A";
     const naKorpusie = !n ? 0 : !postSide ? n : gdzie === "A" ? 1 : gdzie === "korpus" ? 2 : 0;
-    return { n, gdzie, naKorpusie, naRamieniu: postSide && n ? n - naKorpusie : 0, naPrzegrodach, naZabudowie: [] };
+    return { n, gdzie, naKorpusie, naRamieniu: postSide && n ? n - naKorpusie : 0, naPrzegrodach, naZabudowie: [], mocZabudowy: [] };
   })();
   /* Zawieszka na samej gorze, pod wiencem, 1 cm od plecow (uzytkownik
      2026-09-29) — wysokosc w planie to jej gorna krawedz. Na boku plecy stoja
@@ -6300,9 +6338,11 @@ function computeGeoLiczy(cab, mat, ctx) {
     const potrzeba = Math.ceil(odTyluBoku + ZAWIESZKA_WYM.gl);
     const wneki = [
       ...geoCuts.filter((gc) => gc.cw > 0 && gc.cdp > 0).map((gc) => ({ lewy: gc.onLeft, x0: gc.bx0, x1: gc.bx1, z0: gc.bz0, z1: gc.bz1, y0: gc.cy0, y1: gc.cy1,
-        mask: gc.mask, sciany: gc.maskWalls || [], co: `wycięciu narożnika (${gc.side}${gc.zFull ? "" : `, poziom ${gc.li + 1}`})`, czego: "wycięcia", coB: "wycięcie", adres: `wyc:${gc.onLeft ? "L" : "P"}` })),
+        mask: gc.mask, sciany: gc.maskWalls || [], co: `wycięciu narożnika (${gc.side}${gc.zFull ? "" : `, poziom ${gc.li + 1}`})`, czego: "wycięcia", coB: "wycięcie", adres: `wyc:${gc.onLeft ? "L" : "P"}`,
+        moc: ((gc.onLeft ? cab.cutout : cab.cutoutR) || {}).zawMocowanie })),
       ...geoObs.filter((o) => o.ow > 0 && o.od > 0 && (o.ox0 <= 0.5 || o.ox1 >= W - 0.5)).map((o) => ({ lewy: o.ox0 <= 0.5, x0: o.ox0, x1: o.ox1, z0: o.oz0, z1: o.oz1, y0: o.oy0, y1: o.oy1,
-        mask: o.mask, sciany: o.maskWalls || [], co: `miejscu elementu „${o.name}”`, czego: "elementu", coB: "element", adres: `el:${o.idx}` })),
+        mask: o.mask, sciany: o.maskWalls || [], co: `miejscu elementu „${o.name}”`, czego: "elementu", coB: "element", adres: `el:${o.idx}`,
+        moc: (obsList[o.idx] || {}).zawMocowanie })),
     ];
     const naBoku = (lewy) => {
       const boku = lewy ? "lewym" : "prawym";
@@ -6325,8 +6365,28 @@ function computeGeoLiczy(cab, mat, ctx) {
       }
       zawieszki.naZabudowie.push(sc.nazwa);
       zaw(sc.nazwa, sc.y0, odTyluBoku, 1);
+      /* Scianka niesie ciezar szafki — musi byc mocno zlaczona z wiencem. Uzytkownik
+         2026-10-30: informacja z propozycjami — 2 konfirmaty przez wieniec w czolo scianki
+         (`zawMocowanie: "konfirmaty"`) albo 2 trojkaty pod wiencem (`"trojkaty"`); wybrane
+         idzie do planu wiercen i zamowienia (`zawieszki.mocZabudowy`). */
+      const zWiencem = hasTop && !isBlat;
+      const moc = w.moc === "konfirmaty" && !zWiencem ? null : w.moc;
+      // `dl` — dlugosc scianki w glab (wyzej, przy kontroli miejsca na zawieszke)
+      const pozK = [Math.round(sc.z0 + dl / 3), Math.round(sc.z0 + (2 * dl) / 3)];
+      if (moc === "konfirmaty") {
+        if (!drillMap.has("Wieniec")) drillMap.set("Wieniec", { panel: "Wieniec", holes: [] });
+        drillMap.get("Wieniec").holes.push({ kind: "konfirmat — ścianka zabudowy", y: Math.round((sc.x0 + sc.x1) / 2 - interior.x0),
+          note: `2 szt. ⌀7 w płycie, ${pozK.map(fmt).join(" i ")} mm od tylnej krawędzi; w czole ścianki ⌀5 × 50 (niesie zawieszkę); położenie od wewnętrznej strony lewego boku` });
+      } else if (moc === "trojkaty")
+        drillAdd(top, sc.nazwa, sc.y0, "trójkąt meblowy — wieniec", interior.y1,
+          `2 szt. pod wieńcem, od wnętrza szafki, ${pozK.map(fmt).join(" i ")} mm od tylnej krawędzi ścianki (niesie zawieszkę)`);
+      if (moc) zawieszki.mocZabudowy.push(moc);
+      const inne = [zWiencem && moc !== "konfirmaty" ? `zawmoc:${w.adres}:konfirmaty` : null, moc !== "trojkaty" ? `zawmoc:${w.adres}:trojkaty` : null].filter(Boolean);
       add("info", `Zawieszka przy ${boku} boku na ściance bocznej zabudowy ${w.czego} — bok nie dochodzi tam do ściany, a ścianka tak. `
-        + `Złącz ściankę mocno z wieńcem: niesie ciężar szafki.`);
+        + (moc === "konfirmaty" ? "Ścianka złączona z wieńcem 2 konfirmatami (plan wierceń i zamówienie)."
+          : moc === "trojkaty" ? "Ścianka złączona z wieńcem 2 trójkątami (plan wierceń i zamówienie)."
+          : `Ścianka niesie ciężar szafki — złącz ją mocno z wieńcem${zWiencem ? ": 2 konfirmaty przez wieniec albo 2 trójkąty pod nim" : ", np. 2 trójkątami"}.`)
+        + inne.map((a) => "|" + a).join(""));
     };
     if (!postSide) {
       naBoku(true);
@@ -6655,6 +6715,13 @@ function computeGeoLiczy(cab, mat, ctx) {
      tez zaslepki; ten sam wiersz co zlacza korpusu. */
   if (dxsKonf) { confQty += dxsKonf; jointNotes.push(`skrzynki szuflad DXS-3D (dno, tył i przód przez boki, przód w dno) ${dxsKonf}`); }
 
+  // scianka zabudowy z zawieszka do wienca (N149, wybor uzytkownika w uwagach)
+  const mocKonf = zawieszki.mocZabudowy.filter((m) => m === "konfirmaty").length * 2;
+  if (mocKonf) { confQty += mocKonf; jointNotes.push(`ścianka zabudowy z zawieszką do wieńca ${mocKonf}`); }
+  const mocTr = zawieszki.mocZabudowy.filter((m) => m === "trojkaty").length * 2;
+  if (mocTr)
+    hardware.push({ name: "Trójkąt meblarski", use: "ścianka zabudowy z zawieszką — do wieńca",
+      spec: `2 szt. pod wieńcem na ściankę (${mocTr / 2})`, qty: mocTr, unit: "szt." });
   if (confQty)
     hardware.push({
       name: "Konfirmat 7 × 50",
@@ -6796,6 +6863,17 @@ function computeGeoLiczy(cab, mat, ctx) {
         qty: nH,
         unit: "szt.",
       });
+    /* Szafka wisi z dala od sciany (wysunieta / plytsza w licu) i uzytkownik wybral dystans
+       (`cab.dystans`, przycisk „… na dystansie N mm”, N148): listwa dystansowa pod listwe
+       montazowa na dlugosc szafki albo klocek pod kazdy hak. */
+    const dyst = Math.max(0, Math.round(Number(cab.dystans) || 0));
+    if (dyst)
+      hardware.push(cab.hangerMode !== "haczyki"
+        ? { name: "Listwa dystansowa pod listwę montażową", use: "szafka wisząca z dala od ściany",
+          spec: `grubość ${fmt(dyst)} mm, na długość szafki ${fmt(W)} mm — przykręcona do ściany, na niej listwa montażowa`,
+          qty: W / 1000, unit: "mb" }
+        : { name: "Klocek dystansowy pod hak", use: "szafka wisząca z dala od ściany",
+          spec: `grubość ${fmt(dyst)} mm, po jednym pod hak`, qty: nH, unit: "szt." });
   }
 
   /* Wzmocnienia i katownik skreca sie wkretami, nie konfirmatem: tam plyty
@@ -13779,11 +13857,31 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       // „glebokosc:<mm>” — glebokosc tej szafki (tip-on wchodzacy w plecy, N145)
       return { label: `Głębokość szafki ${fmt(Number(action.split(":")[1]))} mm`, run: () => runFix && runFix(action) };
     }
+    if (action.startsWith("zawmoc:")) {
+      // „zawmoc:<wyc:L|P|el:<nr>>:<konfirmaty|trojkaty>” — scianka zabudowy z zawieszka do wienca (N149)
+      const co = action.split(":")[3];
+      return { label: co === "konfirmaty" ? "2 konfirmaty przez wieniec" : "2 trójkąty pod wieńcem", run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("zabudowa:") || action.startsWith("zabudowaglab:")) {
       // „zabudowa:<wyc:L|P|el:<nr>>” / „zabudowaglab:…:<mm>” — zawieszka w wycieciu albo przy elemencie w rogu (N149)
       const [co, typ, , mm] = action.split(":");
       const label = co === "zabudowa" ? `Zabuduj ${typ === "wyc" ? "wycięcie" : "element"} (zawieszka na zabudowie)` : `${typ === "wyc" ? "Wycięcie" : "Element"} ${fmt(Number(mm))} mm w głąb`;
       return { label, run: () => runFix && runFix(action) };
+    }
+    if (action.startsWith("dosciany:") || action.startsWith("dystans:")) {
+      // „dosciany:<szafka>:<wysuniecie>” / „dystans:<szafka>:<mm>” — wiszaca z dala od sciany (N148)
+      const [co, , mm] = action.split(":");
+      const label = co === "dosciany" ? `Do ściany (wysunięcie ${fmt(Number(mm))} mm)`
+        : Number(mm) ? `${naListwie(cab) ? "Listwa" : "Haki"} na dystansie ${fmt(Number(mm))} mm` : "Usuń dystans";
+      return { label, run: () => runFix && runFix(action) };
+    }
+    if (action.startsWith("podzielkol:")) {
+      // „podzielkol:<poziom>:<kolumna>:<szerokosc z rysunku>:<grubosc przegrody>” — rura dluzsza niz 2 / 3 m (N153)
+      const [, li, j, wTeraz, t] = action.split(":");
+      return {
+        label: "Podziel kolumnę przegrodą",
+        run: () => editLevels((L) => { const lv = L[+li]; if (lv) lv.cols = kolumnaNaDwie(lv.cols, +j, +wTeraz, +t); }),
+      };
     }
     if (action.startsWith("przelot:")) {
       // „przelot:<poziom>:<kolumna po lewej>:<przegroda|jedna>[:<szerokosc obu>]” — polki konczace sie w przelocie (N147)
@@ -15496,11 +15594,13 @@ const runRail = (project, run) => {
        jednej linii, wyzsza wyzej. Prosta listwa nie obsluzy dwoch wysokosci, wiec przy
        zmianie zaczyna sie nowy odcinek (audyt GPT N148: H720 i H900 — jedna listwa 1200). */
     const wys = Math.round((Number(it.cab.H) || 0) - (g.hasTop ? (g.tW || g.t) : 0));
-    if (biez && naListwie(it.cab) && biez.wys != null && biez.wys !== wys) { biez = null; }
-    if (!biez) { biez = { od: null, do: null, wys: null }; odcinki.push(biez); }
-    if (naListwie(it.cab)) { if (biez.od == null) biez.od = x0; biez.do = x1; biez.wys = wys; }
+    // szafka na listwie dystansowej (`cab.dystans`, N148) ma listwe w innej plaszczyznie — osobny odcinek
+    const dyst = Math.max(0, Math.round(Number(it.cab.dystans) || 0));
+    if (biez && naListwie(it.cab) && biez.wys != null && (biez.wys !== wys || biez.dyst !== dyst)) { biez = null; }
+    if (!biez) { biez = { od: null, do: null, wys: null, dyst: 0 }; odcinki.push(biez); }
+    if (naListwie(it.cab)) { if (biez.od == null) biez.od = x0; biez.do = x1; biez.wys = wys; biez.dyst = dyst; }
   });
-  const odc = odcinki.filter((o) => o.od != null).map((o) => ({ od: Math.round(o.od), do: Math.round(o.do), len: Math.round(o.do - o.od), wys: o.wys }));
+  const odc = odcinki.filter((o) => o.od != null).map((o) => ({ od: Math.round(o.od), do: Math.round(o.do), len: Math.round(o.do - o.od), wys: o.wys, dyst: o.dyst || 0 }));
   if (!odc.length) return null;
   return { odcinki: odc, len: odc.reduce((s, o) => s + o.len, 0), name: run.name };
 };
@@ -15562,9 +15662,10 @@ const projectParts = (project) => {
       panels: runBottomPanels(rb), hardware: [] });
     if (rr) runs.push({ ...base, name: `Listwa — ${run.name}`, panels: [],
       hardware: rr.odcinki.map((o) => ({ name: RAIL_NAME, use: "pod zawieszki szafek wiszących",
-        spec: rr.odcinki.length > 1 && new Set(rr.odcinki.map((q) => q.wys)).size > 1
+        spec: (rr.odcinki.length > 1 && new Set(rr.odcinki.map((q) => q.wys)).size > 1
           ? `listwa ${fmt(o.len)} mm — odcinek ciągu z zawieszkami ${fmt(o.wys)} mm nad dołem szafki`
-          : `jedna listwa ${fmt(o.len)} mm przez ciąg`,
+          : rr.odcinki.length > 1 ? `listwa ${fmt(o.len)} mm — odcinek ciągu` : `jedna listwa ${fmt(o.len)} mm przez ciąg`)
+          + (o.dyst ? `, na listwie dystansowej ${fmt(o.dyst)} mm` : ""),
         qty: o.len / 1000, odcinek: o.len, min: o.len - LISTWA_SKROT, gdzie: run.name, unit: "mb" })) });
   });
   /* Ramie szafki naroznej to osobna pozycja: formatki ida na te sama plyte, co
@@ -15597,6 +15698,42 @@ const projectParts = (project) => {
 /* Uwagi ciagu w jednym miejscu, bo czyta je i karta aktywnej szafki, i licznik
    uwag przy pozostalych szafkach na pasku — teksty nie moga sie rozjechac.
    runCabMsgs dotyczy jednej szafki, runWideMsgs calego ciagu. */
+/* Szafka wiszaca musi dotykac sciany tylem, inaczej zawieszki nie siegna listwy ani hakow
+   (audyt GPT, wariant N148). Odstep — tyl szafki od sciany w ukladzie ciagu: lico ciagu
+   (`runFrontDepth`) + wysuniecie − glebokosc od sciany. Uzytkownik 2026-10-30: blad
+   z „Do ściany” (wysuniecie, przy ktorym tyl dotyka sciany) i „… na dystansie N mm”
+   (`cab.dystans` — listwa dystansowa pod listwe montazowa albo klocki pod haki, w zamowieniu). */
+const odstepOdSciany = (project, i) => {
+  const it = project.items[i];
+  const run = it && it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
+  if (!run || ciagStoi(run) || !maZawieszki(it.cab)) return null;
+  const n = projectLayout(project).info.get(run.id);
+  const c = n && n.g.cabs.find((q) => q.index === i);
+  if (!c) return null;
+  const gl = c.geo.glebOdSciany ?? c.geo.carcassDepth;
+  const gap = Math.round(n.depth + c.offset - gl);
+  // „Do ściany” tylko wtedy, gdy nie przesuwa lica calego ciagu (wlasne odsuniecie od sciany)
+  const doSciany = c.offset - gap;
+  const licoPo = (c.wallGap ? c.wallGap.bottom : 0) + gl - doSciany;
+  return { gap, doSciany: licoPo <= n.depth + 1 ? doSciany : null, offset: c.offset, plytsza: Math.round(n.depth - (c.wallGap ? c.wallGap.bottom : 0) - gl) };
+};
+const odScianyMsgs = (project, i) => {
+  const it = project.items[i];
+  const o = odstepOdSciany(project, i);
+  if (!o) return [];
+  const dyst = Math.max(0, Math.round(Number(it.cab.dystans) || 0));
+  const listwa = naListwie(it.cab);
+  const czym = listwa ? "listwa montażowa na listwie dystansowej" : "haki na klockach dystansowych";
+  if (o.gap <= 2)
+    return dyst ? [{ level: "warn", text: `Szafka dotyka ściany, a w zamówieniu jest dystans ${fmt(dyst)} mm pod ${listwa ? "listwę" : "haki"} — niepotrzebny.|dystans:${i}:0` }] : [];
+  if (Math.abs(dyst - o.gap) <= 2)
+    return [{ level: "info", text: `Szafka wisi ${fmt(o.gap)} mm od ściany — ${czym} ${fmt(dyst)} mm (w zamówieniu).` }];
+  const powod = [o.offset > 0 ? `wysunięta z lica o ${fmt(o.offset)} mm` : null,
+    o.plytsza > 0 ? `płytsza od ciągu o ${fmt(o.plytsza)} mm, a szafki stoją równo frontami` : null].filter(Boolean);
+  return [{ level: "error", text: `Szafka wisi ${fmt(o.gap)} mm od ściany${powod.length ? ` (${powod.join(", ")})` : ""} — zawieszki nie sięgną ${listwa ? "listwy" : "haków"} na ścianie i szafka zawisłaby w powietrzu. `
+    + `Dosuń ją do ściany albo zamontuj ${listwa ? "listwę" : "haki"} na dystansie ${fmt(o.gap)} mm.`
+    + (o.doSciany != null ? `|dosciany:${i}:${o.doSciany}` : "") + `|dystans:${i}:${o.gap}` }];
+};
 const runCabMsgs = (run, c, inne = []) => {
   const out = [];
   if (!run) return out;
@@ -19088,7 +19225,7 @@ export default function App() {
       const ramie = [...projLayoutGeo.info.values()].map((n) => n.arm)
         .find((a) => a && a.len > 0 && a.cab && a.cab.index === i);
       const inne = c ? runItems(project, c.run.id).filter((x) => x.i !== i).map((x) => x.it.cab) : [];
-      const msgs = [...runCabMsgs(c && c.run, it.cab, inne), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
+      const msgs = [...runCabMsgs(c && c.run, it.cab, inne), ...odScianyMsgs(project, i), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
         ...wstawkaMsgs(projLayoutGeo, i),
         ...(ramie ? maleFormatkiMsgs(cornerArmParts(ramie).panels, it.cab.dociac, "@") : [])];
       return {
@@ -19167,6 +19304,7 @@ export default function App() {
     const node = projLayout.info.get(runInfo.run.id);
     const inne = runItems(project, runInfo.run.id).filter((x) => x.i !== project.active).map((x) => x.it.cab);
     return [...runCabMsgs(runInfo.run, c, inne),
+      ...odScianyMsgs(project, project.active),
       ...szufladyMsgs(project, project.active),
       ...runWideMsgs(runInfo.run, runInfo.total, runPl, runTp, node ? node.len : 0),
       ...wallGapMsgs(project, runInfo.run),
@@ -19182,11 +19320,19 @@ export default function App() {
 
   // przyciski naprawy uwag ciagu: albo szafka idzie za ciagiem, albo ciag za szafka
   const runFix = useCallback((action) => {
+    if (action.startsWith("dosciany:") || action.startsWith("dystans:")) {
+      const [co, i, mm] = action.split(":");
+      setProject((p) => ({ ...p, items: p.items.map((it, k) => (k !== +i ? it
+        : co === "dosciany" ? { ...it, offset: Math.round(Number(mm)) }
+        : { ...it, cab: { ...it.cab, dystans: Math.max(0, Math.round(Number(mm))) || undefined } })) }));
+      return;
+    }
     /* „zabudowa:<wyc:L|P|el:<nr>>” — wlacza zabudowe wyciecia / elementu w rogu (do samej gory),
        „zabudowaglab:…:<mm>” — wyciecie / element glebszy, zeby scianka zabudowy uniosla zawieszke (N149) */
-    if (action.startsWith("zabudowa:") || action.startsWith("zabudowaglab:")) {
+    if (action.startsWith("zabudowa:") || action.startsWith("zabudowaglab:") || action.startsWith("zawmoc:")) {
       const [co, typ, gdzie, mm] = action.split(":");
-      const zmien = (o) => (co === "zabudowa" ? { ...o, mask: true, ...(typ === "el" ? { maskToShelf: false } : {}) } : { ...o, d: Math.round(Number(mm)) });
+      const zmien = (o) => (co === "zabudowa" ? { ...o, mask: true, ...(typ === "el" ? { maskToShelf: false } : {}) }
+        : co === "zawmoc" ? { ...o, zawMocowanie: mm } : { ...o, d: Math.round(Number(mm)) });
       setCab((cur) => {
         if (typ === "wyc") {
           const k = gdzie === "L" ? "cutout" : "cutoutR";

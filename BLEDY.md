@@ -17,6 +17,10 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-10-30 | decyzja: N153 — rura 3062 mm składana w zakupie z 3 m + 0,5 m, jakby była jedna | użytkownik: „opcja 1 i dodatkowo ostrzeżenie jak rura jest dłuższa niż 2 m o uginaniu” — ponad 3 m błąd, ponad 2 m ostrzeżenie, oba z „Podziel kolumnę przegrodą” (`kolumnaNaDwie`); `funkcje`, kliknięte w `audytgpt13` | (ten commit) |
+| 2026-10-30 | decyzja: N148 (wariant) — szafka wisząca wysunięta z lica / płytsza od ciągu wisi z dala od ściany, zawieszki nie sięgają listwy, bez uwagi | użytkownik: „opcja 1 i 2 na przycisku” — błąd z „Do ściany (wysunięcie N mm)” i „Listwa / Haki na dystansie N mm” (`cab.dystans` w zamówieniu, osobny odcinek listwy); `funkcje`, kliknięte w `audytgpt13`; projekt użytkownika bez nowych uwag | (ten commit) |
+| 2026-10-30 | decyzja: N149 — ścianka zabudowy z zawieszką bez mocowania do wieńca w planie i zamówieniu | użytkownik: „informacja i propozycja rozwiązania” — „2 konfirmaty przez wieniec” / „2 trójkąty pod wieńcem” (`zawMocowanie`); `funkcje`, kliknięte w `audytgpt13` | (ten commit) |
+| 2026-10-30 | audyt GPT (uzupełnienie): N155 potwierdzone w interfejsie na starym `main` | naprawione wcześniej (pole `model`); teraz test w interfejsie: lista „Produkty całego projektu” z AM-SVN-DL-MG-30, 2 szt. (`audytgpt13`) | (ten commit) |
 | 2026-10-30 | PDF: „cokół 100”, „nóżki 100” i wymiary formatek w frontach („596×236”) dalej małe (użytkownik, po zmianie liczb wymiarów) | rosły jak opisy (×0,8 albo do szerokości frontu); teraz w skali wymiarów `kw`: wymiar frontu `kWFroncie` (w drzwiach z uchwytem obok uchwytu, w wąskich pionowo), kolumna wymiaru do podłogi odsuwa się za „cokół”, światło półki w kolumnie ograniczone do przegrody (`DimV wewn`, klasa `wym-w`). Próba „wszystkie długie opisy jak wymiary” (szyna, od dna) — w widoku otwartym szafki z frontami wpuszczanymi „od dna” spadało do 0,9 mm i napisy nachodziły; zostały jak opisy. `pdfczytelnosc` 84 OK, projekt użytkownika OK | (ten commit) |
 | 2026-10-30 | audyt GPT N150: jedna własna resztka blatu 1000 × 1000 przypisana do dwóch grup rozkroju (arkusz 600 i 1200), obie z zakupem 0 | każda grupa dostawała pełną listę kawałków; teraz wspólna `pula` w `buildCutPlan`, sztuka kawałka idzie do jednej grupy (`q.zostalo`); `funkcje` | (ten commit) |
 | 2026-10-30 | audyt GPT N151: własny blat słupka 600 × 2000 znikał z zamówienia, gdy ciąg miał blat roboczy (nad słupkiem go nie ma) | `projectParts` (i lista formatek szafki, PDF) zdejmowały rolę „blat” wszystkim szafkom ciągu; teraz tylko szafkom pod blatem ciągu (`runTop(...).pokryte`); `funkcje`, `audytgpt13` | (ten commit) |
@@ -395,14 +399,6 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 Otwarte zostają tylko dwa tematy (użytkownik 2026-10-29: „zamykamy wszystkie tematy poza
 szafką skośną i sprzętami”). Kolejność: **najpierw sprzęty**, szafka skośna **dużo później**.
 
-Pytania z audytu GPT 2026-10-30 (zadane użytkownikowi, czekają na odpowiedź):
-- **N153** — rura na wieszaki dłuższa niż 3 m (najdłuższy odcinek w sprzedaży): plan zakupu
-  składa ją z 3 m + 0,5 m, jakby to była jedna rura. Co zrobić: błąd z przyciskiem
-  (podzielić kolumnę przegrodą / podpora środkowa), czy ostrzeżenie o podporze już przy krótszej?
-- **N148 (wariant)** — szafka wisząca stoi z dala od ściany (wysunięta z lica, płytsza w licu
-  ciągu): zawieszki nie sięgają listwy. Błąd z przyciskiem „do ściany”, czy listwa na dystansie?
-- **N149 (dopytanie)** — ścianka zabudowy wycięcia niesie zawieszkę: czy dodać jej mocowanie do
-  wieńca do planu wierceń i zamówienia (np. 2 konfirmaty), czy zostaje informacja?
 
 - **1. Sprzęty w zabudowie — następne w kolejce** (kontrola kolizji otwierania, użytkownik 2026-09-28):
   drzwi, szuflady i klapy są już sprawdzane (2026-09-28). Wrócić, gdy pojawi
