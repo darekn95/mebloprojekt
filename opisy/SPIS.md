@@ -18,7 +18,7 @@ Zmieniasz zasadę albo liczbę opisaną tutaj, popraw opis w tej samej zmianie.
 |---|---|---|
 | [szuflady.md](szuflady.md) | szuflady V-BOX i DXS-3D: fronty, boki, NL, skrzynki, kontrole, zamówienie, plan wierceń | 2026-10-28 |
 | [klapy.md](klapy.md) | klapy do góry i w dół: zawiasy, podnośnik / amortyzator, siła, uchwyt, otwieranie, plan wierceń, rysunki | 2026-10-29 |
-| [drzwi.md](drzwi.md) | drzwi i zawiasy: liczba (tabela GTV), strona, rozstaw, luzy, fix, blenda, otwieranie | 2026-10-28 |
+| [drzwi.md](drzwi.md) | drzwi i zawiasy: liczba (tabela GTV), strona, rozstaw, luzy, fix, blenda, otwieranie | 2026-10-30 |
 | [poziomy.md](poziomy.md) | poziomy, kolumny, półki: podział wnętrza, „→ poziom”, usuwanie, głębokość i mocowanie półek | 2026-10-30 |
 | [korpus.md](korpus.md) | korpus, złącza, wzmocnienia (para pod blat), plecy i frez, wieniec / blat z płyty, blat roboczy, dwie przegrody na styku | 2026-10-30 |
 | [ciagi.md](ciagi.md) | ciągi, narożniki (ślepy róg, szafka w L, wstawka, blat w rogu), górny ciąg, uwagi ciągu, scalanie szafek | 2026-10-30 |

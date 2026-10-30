@@ -614,3 +614,116 @@ console.log('\n== N149: mocowanie ścianki zabudowy z zawieszką (decyzja użytk
   ok('„2 trójkąty”: wiersz na ściance zabudowy, 2 trójkąty w zamówieniu', gT.drillPlan.some((p) => /Zabudowa wycięcia/.test(p.panel) && p.rows.some((r) => r.kind === 'trójkąt meblowy — wieniec'))
     && G.okuciaSzafki(gT, {}).some((h) => h.name === 'Trójkąt meblarski' && h.qty === 2 && /ścianka zabudowy/.test(h.spec + ' ' + (h.use || ''))));
 }
+
+console.log('\n== N157–N169 (audyt GPT 2026-10-30, druga seria) ==');
+{
+  const szafa = (W, cols, o = {}) => ({ name: 'S', W, H: 2000, D: 560, plinth: { on: false }, legs: { on: true, height: 100 }, levels: [{ h: null, cols }], ...o });
+  const kol = (o = {}) => drzwi({ doors: 2, shelfTargets: [400, null], drazki: [1], ...o });
+  // N158: kolumna bez drzwi zostaje bez drzwi
+  let cols = G.kolumnaNaDwie([kol({ doors: 0 })], 0, 2064, 18);
+  ok('N158: podział kolumny bez drzwi — obie bez drzwi', cols.length === 2 && cols.every((c) => c.doors === 0), cols.map((c) => c.doors).join());
+  // N159: wpisana szerokosc drzwi idzie na auto
+  cols = G.kolumnaNaDwie([kol({ doorWidths: [600, null] })], 0, 2064, 18);
+  let g = geo(szafa(2100, cols));
+  ok('N159: drzwi 600 + auto — po podziale bez wpisanych szerokości, bez błędu „nie wypełniają pasma”', cols.every((c) => !c.doorWidths) && !uw(g, /nie wypełniają pasma/).length, uw(g, /pasma/).map((x) => x.text).join(' / '));
+  // N164: fix lewy zostaje tylko w lewej kolumnie (z nim wspornik)
+  cols = G.kolumnaNaDwie([kol({ fix: { side: 'left', w: 100, mode: 'overlay', support: true } })], 0, 2064, 18);
+  g = geo(szafa(2100, cols));
+  const fixy = g.panels.filter((p) => /stały|Element stały|Fix/i.test(p.name)).reduce((a, p) => a + p.qty, 0);
+  ok('N164: fix lewy — w lewej kolumnie tak, w prawej nie; jeden element stały w formatkach', !!cols[0].fix && !cols[1].fix && fixy === 1, `${JSON.stringify(cols.map((c) => c.fix && c.fix.side))}, formatki ${fixy}`);
+  // N165: para — lewe skrzydlo na lewym boku, prawe na prawym
+  cols = G.kolumnaNaDwie([kol()], 0, 2064, 18);
+  g = geo(szafa(2100, cols));
+  ok('N165: para auto — po podziale zawiasy lewej kolumny z lewej, prawej z prawej', g.doors.map((d) => d.hingeSide).join() === 'left,right', g.doors.map((d) => d.hingeSide).join());
+  cols = G.kolumnaNaDwie([kol({ doors: 1 })], 0, 2064, 18);
+  ok('N165: jedne drzwi auto — lewa „auto”, prawa z prawej (jak para)', geo(szafa(2100, cols)).doors.map((d) => d.hingeSide).join() === 'left,right');
+  // N153 (retest): reczna 2065 przy 2101 — 1023 + 1024, bez przekroczenia o 1 mm
+  cols = G.kolumnaNaDwie([kol({ w: 2065 })], 0, 2065, 18);
+  g = geo(szafa(2101, cols));
+  ok('N153: kolumna 2065 (nieparzysta reszta) — 1023 i 1024, bez błędu szerokości', cols.map((c) => c.w).join() === '1023,1024' && !uw(g, /przekracza|za szerok|o 1 mm/).length, cols.map((c) => c.w).join() + ' ' + uw(g, /szerok/).map((x) => x.text).join(' / '));
+  // N157: przelot — wybor wnetrza prawej
+  const a = { kind: 'open', w: null, noDiv: true, shelfTargets: [300, null] }, b = { kind: 'open', w: null, shelfTargets: [200, 200, null] };
+  const msg = uw(geo(szafa(600, [a, b], { H: 1200 })), /nie ma przegrody \(przelot\)/)[0];
+  ok('N157: obie kolumny z półkami — dwa przyciski „wnętrze lewej (1 półka)” / „prawej (2 półki)”', !!msg && /\|przelot:0:0:jedna:\d+:L:1 półka\|przelot:0:0:jedna:\d+:P:2 półki$/.test(msg.text), msg && msg.text.split('|').slice(1).join(' | '));
+  const jP = G.kolumnaZPrzelotu([a, b], 0, 564, 'P'), jL = G.kolumnaZPrzelotu([a, b], 0, 564, 'L');
+  ok('N157: „prawej” — półki prawej (200, 200), „lewej” — lewej (300)', jP.length === 1 && JSON.stringify(jP[0].shelfTargets) === '[200,200,null]' && JSON.stringify(jL[0].shelfTargets) === '[300,null]');
+  // N169: 198 recznie + 2 auto przy luzie 2 — tylko przycisk, ktory daje identyczne
+  const trzy = (o) => geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, levels: [{ h: null, cols: [drzwi({ doors: 3, ...o })] }] });
+  const m169 = uw(trzy({ doorWidths: [198, null, null] }), /drzwi różnią się/)[0];
+  ok('N169: drzwi 198 + 2 auto — „wpisana ręcznie”, przycisk „rowno:0:0:4:d:1” (bez zwiększania luzu, który tylko pogłębia różnicę)', !!m169 && /szerokość 198 mm jest wpisana ręcznie/.test(m169.text)
+    && /\|rowno:0:0:4:d:1$/.test(m169.text) && !/fixgap/.test(m169.text), m169 && m169.text);
+  const po = trzy({ gapBetween: 4 });
+  ok('N169: po kliknięciu (auto, luz 4) — 196 × 3, bez ostrzeżenia', po.levels[0].cols[0].doorWs.map(Math.round).join() === '196,196,196' && !uw(po, /różnią się/).length, po.levels[0].cols[0].doorWs.join());
+  const szuf = (o) => geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, levels: [{ h: null, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 'auto', front: 238 }, { h: 'auto' }, { h: 'auto' }], ...o }] }] });
+  const s169 = uw(szuf(), /fronty szuflad różnią się/)[0];
+  ok('N169: szuflady 238 + 2 auto — „Wszystkie fronty równo, luz 3 mm” (rowno:…:3:s:1)', !!s169 && /wysokość 238 mm jest wpisana ręcznie/.test(s169.text) && /\|rowno:0:0:3:s:1$/.test(s169.text), s169 && s169.text);
+  // N166 / N167: para pod blat z miejscem w glab i regula narozna
+  const plytka = geo({ name: 'T', W: 600, H: 300, D: 80, ...nogi, joints: { topL: 'none', topR: 'none' }, levels: [{ h: null, cols: [drzwi()] }] });
+  const p166 = uw(plytka, /nie ma wieńca ani wzmocnienia/)[0];
+  ok('N166: D80 — przycisk „parablat:0:0:62:0” (płaskie 62 mm, nie 100)', !!p166 && /\|parablat:0:0:62:0$/.test(p166.text), p166 && p166.text.split('|').slice(1).join());
+  // para z przycisku (railPair z tym miejscem) — bez bledu „poza korpus”
+  const zPara = geo({ name: 'T', W: 600, H: 300, D: 80, ...nogi, joints: { topL: 'none', topR: 'none' }, levels: [{ h: null, cols: [drzwi({ rails: [
+    { orient: 'shelf', pos: 'top', depth: 62, atDepth: 0, fromBack: false, paraPodBlat: true, side: 'left', h: 100 },
+    { orient: 'front', pos: 'top', h: 100, atDepth: 0, fromBack: true, paraPodBlat: true, side: 'left', depth: 100 }] })] }] });
+  ok('N166: po kliknięciu — bez błędu „poza korpus” i bez „nie ma wieńca”', !uw(zPara, /poza korpus|nie ma wieńca ani wzmocnienia/).length, uw(zPara, /poza korpus|wieńca/).map((x) => x.text).join(' / '));
+  const zly = geo({ name: 'T', W: 600, H: 300, D: 80, ...nogi, joints: { topL: 'none', topR: 'none' }, levels: [{ h: null, cols: [drzwi({ rails: [
+    { orient: 'shelf', pos: 'top', depth: 100, atDepth: 0, fromBack: false, side: 'left', h: 100 }] })] }] });
+  const e166 = uw(zly, /wychodzi o 20 mm poza korpus/)[0];
+  ok('N166: płaskie 100 w D80 — błąd z przyciskiem „wzmgleb:0:0:0:depth:80”', !!e166 && /\|wzmgleb:0:0:0:depth:80$/.test(e166.text), e166 && e166.text);
+  const rog = geo({ name: 'L', W: 1000, H: 720, D: 560, ...nogi, joints: { topL: 'none', topR: 'none' }, corner: { on: true, arm: 400, doors: 'wsporniki' }, levels: [{ h: null, cols: [drzwi()] }] });
+  const p167 = uw(rog, /nie ma wieńca ani wzmocnienia/)[0];
+  ok('N167: szafka narożna — przycisk z cofnięciem o front (…:18), jak „Dołóż parę wzmocnień”', !!p167 && /\|parablat:0:0:\d+:18$/.test(p167.text), p167 && p167.text.split('|').slice(1).join());
+  // N145: tip-on bez plyty — uchwyt albo polka
+  const tip = (o = {}) => geo({ name: 'T', W: 600, H: 300, D: 300, ...nogi, joints: { topL: 'none', topR: 'none', botL: 'none', botR: 'none' },
+    levels: [{ h: null, cols: [drzwi({ handles: [false], otwieranie: ['tipon'], ...o })] }] });
+  const t145 = uw(tip(), /tip-on nie ma płyty do przykręcenia/)[0];
+  ok('N145: tip-on bez płyty — „uchwyt:0:0:0” i „polkatipon:0:0”', !!t145 && /\|uchwyt:0:0:0\|polkatipon:0:0$/.test(t145.text), t145 && t145.text.split('|').slice(1).join());
+  ok('N145: po „Dołóż półkę” — tip-on ma płytę (bez błędu)', !uw(tip({ shelfTargets: [null, null] }), /tip-on nie ma płyty/).length);
+  // N161: scianka zabudowy z zawieszka bez wienca
+  const zw = (o = {}, cu = {}) => geo({ name: 'T', W: 600, H: 1200, D: 560, ...nogi, hangers: 'always', ...o, cutout: { on: true, w: 100, d: 100, fullHeight: false, levelIndex: 1, mask: true, ...cu },
+    levels: [{ h: 591, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
+  const bez = zw({ joints: { topL: 'none', topR: 'none' } }, { zawMocowanie: 'trojkaty' });
+  const w161 = uw(bez, /na ściance bocznej zabudowy wycięcia/)[0];
+  ok('N161: bez wieńca — ostrzeżenie z „Dodaj wieniec”, bez „złączona z wieńcem”, bez trójkątów w planie i zamówieniu', !!w161 && w161.level === 'warn' && /\|dodajwieniec$/.test(w161.text) && !/złączona/.test(w161.text)
+    && !bez.drillPlan.some((p) => p.rows.some((r) => /trójkąt meblowy/.test(r.kind))) && !G.okuciaSzafki(bez, {}).some((h) => h.name === 'Trójkąt meblarski'), w161 && w161.text);
+  // N162: wyciecie 100 × 100 w elemencie 200 × 150 (ten sam rog, cala wysokosc)
+  const el = (cu = {}) => geo({ name: 'T', W: 600, H: 1200, D: 560, ...nogi, hangers: 'always', cutout: { on: true, w: 100, d: 100, fullHeight: true, mask: true, ...cu },
+    obstacles: [{ on: true, w: 200, d: 150, side: 'left', fromSide: 0, fromBack: 0, fullHeight: true, mask: true }],
+    levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
+  const g162 = el();
+  const e162 = uw(g162, /leży w całości w elemencie/)[0];
+  ok('N162: zabudowa wycięcia w środku elementu — błąd z „bezzabudowy:wyc:L”', !!e162 && e162.level === 'error' && /\|bezzabudowy:wyc:L$/.test(e162.text), e162 && e162.text);
+  ok('N162: zawieszka na ściance zabudowy elementu, nie wycięcia', g162.zawieszki.naZabudowie.length === 1 && !/wycięcia/.test(g162.zawieszki.naZabudowie[0]), JSON.stringify(g162.zawieszki.naZabudowie));
+  const g162b = el({ mask: false });
+  ok('N162: po „Bez zabudowy wycięcia” — bez błędu i bez ostrzeżenia o odsłoniętym otworze', !uw(g162b, /leży w całości|Wycięcie narożnika \(.*\) nie ma zabudowy/).length);
+  ok('N162: kontrola — samo wycięcie bez zabudowy dalej ostrzega', uw(geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, cutout: { on: true, w: 100, d: 100, fullHeight: true, mask: false }, levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] }), /nie ma zabudowy — otwór/).length === 1);
+  // N160 / N163: zbiorcze zamowienie
+  const lista = G.scalOkucia([
+    { name: 'Listwa dystansowa pod listwę montażową', use: 'szafka wisząca z dala od ściany', wariant: 'grubość 50 mm', spec: 'x', qty: 0.6, unit: 'mb' },
+    { name: 'Listwa dystansowa pod listwę montażową', use: 'szafka wisząca z dala od ściany', wariant: 'grubość 100 mm', spec: 'y', qty: 0.6, unit: 'mb' }]);
+  ok('N160: dystans 50 i 100 mm — dwa wiersze z grubością', lista.length === 2 && lista.every((h) => /^grubość \d+ mm — /.test(h.spec)), lista.map((h) => h.spec).join(' / '));
+  const wis = () => geo({ name: 'W', W: 600, H: 720, D: 300, ...nogi, levels: [{ h: null, cols: [drzwi()] }] });
+  const hw = [wis(), wis(), wis()].flatMap((x) => G.okuciaSzafki(x, {}));
+  const w163 = G.scalOkucia(hw).find((h) => h.name === 'Wkręt 4 × 30');
+  ok('N163: trzy wiszące bez wzmocnień — w projekcie „zawieszki, 2 na zawieszkę”, nie „wzmocnienia i kątownik”', !!w163 && /zawieszki, 2 na zawieszkę/.test(w163.spec) && !/wzmocnienia/.test(w163.spec), w163 && `${w163.qty}: ${w163.spec}`);
+}
+
+console.log('\n== N168: zaślepki konfirmatów ramienia szafki w L ==');
+{
+  const PL = { on: true, height: 100, mode: 'under', setback: 0 };
+  const kol = (o = {}) => ({ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null], ...o });
+  const RUN = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null, ...o });
+  const szafka = (name) => ({ name, W: 600, H: 720, D: 560, plinth: PL, legs: { on: true, height: 100 }, levels: [{ h: null, cols: [kol({ shelfTargets: [null] })] }] });
+  const L = { name: 'L', W: 900, H: 720, D: 560, plinth: PL, legs: { on: true, height: 100 }, corner: { on: true, arm: 640, doors: 'wsporniki' }, levels: [{ h: null, cols: [kol()] }] };
+  const P = G.loadProject({ name: 'P', active: 1, prices: {},
+    runs: [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
+    items: [{ cab: szafka('A1'), runId: 'c1' }, { cab: L, runId: 'c2' }, { cab: szafka('B2'), runId: 'c2' }] });
+  const n = [...G.projectLayout(P).info.values()].find((x) => x.arm);
+  const hw = G.cornerArmParts(n.arm).hardware;
+  const konf = hw.filter((h) => h.name === 'Konfirmat 7 × 50').reduce((a, h) => a + h.qty, 0);
+  const zasl = hw.filter((h) => h.name === 'Zaślepka na konfirmat').reduce((a, h) => a + h.qty, 0);
+  ok('ramię: zaślepek tyle, ile konfirmatów (jak w szafce)', konf > 0 && zasl === konf, `konfirmaty ${konf}, zaślepki ${zasl}`);
+  const razem = G.scalOkucia([...G.okuciaSzafki(G.computeGeo(G.cabDoGeo(P, P.items[1]), P.items[1].mat), {}), ...hw]);
+  const zR = razem.find((h) => h.name === 'Zaślepka na konfirmat'), kR = razem.find((h) => h.name === 'Konfirmat 7 × 50');
+  ok('szafka + ramię: jeden wiersz zaślepek, tyle sztuk co konfirmatów', !!zR && zR.qty === kR.qty, `${zR && zR.qty} / ${kR && kR.qty}`);
+}

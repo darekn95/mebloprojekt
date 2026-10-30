@@ -34,7 +34,9 @@ zamówienia: „Cały projekt” albo „To pomieszczenie”.
     - DXS-3D: 50 zł za komplet;
     - zawias 3 zł; uchwyt 10 zł; reling 30 zł; podnośnik / amortyzator 10 zł;
     - zawias 165° i łamany po 15 zł; złącze do blatów 9 zł.
-- **Konfirmaty**: na styk 1 (krótszy niż 132 mm) albo co ok. 200 mm, min. 2. Zaślepki — tyle samo, w blistrach po 25.
+- **Konfirmaty**: na styk 1 (krótszy niż 132 mm) albo co ok. 200 mm, min. 2. Zaślepki — tyle samo, w blistrach po 25; także konfirmaty ramienia szafki w L (N168).
+- **Wkręty 4 × 30** (wzmocnienia, kątownik, zawieszki, dwie przegrody na styku): w szafce jeden wiersz z rozpisaniem; w liście projektu każde zastosowanie osobno z ilością (`czesci` w `scalOkucia`, audyt GPT N163 — przy samych zawieszkach opis mówił o wzmocnieniach).
+- **Dystans szafki wiszącej** (listwa dystansowa, klocki pod haki): grubość jako wariant — różne grubości to osobne wiersze listy projektu i ceny (N160).
 - **Cena okucia** zapisuje się pod kluczem „nazwa | wariant”, bez ilości — zmiana liczby sztuk jej nie gubi.
 
 ## Co ustawiasz ręcznie
