@@ -75,7 +75,7 @@ const pomiar = async (proj) => {
         const r = t.getBoundingClientRect(); const ctm = t.getScreenCTM();
         const fs = parseFloat(t.getAttribute('font-size') || getComputedStyle(t).fontSize) || 0;
         return { t: (t.textContent || '').trim(), x0: r.left, y0: r.top, x1: r.right, y1: r.bottom,
-          h: ctm ? mm(fs * Math.hypot(ctm.a, ctm.b)) : 0, wym: /^\d+$/.test((t.textContent || '').trim()) && t.classList.contains('wym') && !t.classList.contains('wym-w') };
+          h: ctm ? mm(fs * Math.hypot(ctm.a, ctm.b)) : 0, obw: t.hasAttribute('data-obwodka'), wym: /^\d+$/.test((t.textContent || '').trim()) && t.classList.contains('wym') && !t.classList.contains('wym-w') };
       }).filter((q) => q.t && q.x1 > q.x0);
       const naklady = [];
       for (let i = 0; i < tx.length; i++) for (let j = i + 1; j < tx.length; j++) {
@@ -86,6 +86,11 @@ const pomiar = async (proj) => {
       // napis na nozce (wiersz szerokosci frontow lezal na nozkach — zgloszenie 2026-10-25)
       [...svg.querySelectorAll('[data-el="noga"]')].map((n) => n.getBoundingClientRect()).forEach((r) => tx.forEach((a) => {
         if (Math.min(a.x1, r.right) - Math.max(a.x0, r.left) > 1 && Math.min(a.y1, r.bottom) - Math.max(a.y0, r.top) > 1) naklady.push(`„${a.t}” × nóżka`);
+      }));
+      // napis na uchwycie szuflady („175 od dna” przecinal uchwyt — zgloszenie 2026-10-30);
+      // napis z biala obwodka (gdy pod uchwytem brak miejsca) jest czytelny mimo to
+      [...svg.querySelectorAll('[data-el="uchwyt-szuflady"]')].map((n) => n.getBoundingClientRect()).forEach((r) => tx.filter((a) => !a.obw).forEach((a) => {
+        if (Math.min(a.x1, r.right) - Math.max(a.x0, r.left) > 1 && Math.min(a.y1, r.bottom) - Math.max(a.y0, r.top) > 1) naklady.push(`„${a.t}” × uchwyt szuflady`);
       }));
       const poza = tx.filter((q) => q.x0 < pole.left - 0.5 || q.x1 > pole.right + 0.5 || q.y0 < pole.top - 0.5 || q.y1 > pole.bottom + 0.5).map((q) => q.t);
       const wymiary = tx.filter((q) => q.wym).map((q) => q.h).sort((a, c) => a - c);

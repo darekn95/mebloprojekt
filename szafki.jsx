@@ -7134,14 +7134,15 @@ const DimH = ({ x1, x2, y, label, c = DIMC, above = true, kd }) => (
 );
 
 // `wewn` — wymiar w srodku rysunku (swiatlo polki): w druku tyle, ile miejsca (klasa `wym-w`)
-const DimV = ({ y1, y2, x, label, c = DIMC, left = true, labelY = null, kd, wewn = false }) => (
+const DimV = ({ y1, y2, x, label, c = DIMC, left = true, labelY = null, kd, wewn = false, obwodka = false }) => (
   <g>
     <line x1={x} y1={y1} x2={x} y2={y2} stroke={c} strokeWidth="1.5" />
     <line x1={x - 8} y1={y1} x2={x + 8} y2={y1} stroke={c} strokeWidth="1.5" />
     <line x1={x - 8} y1={y2} x2={x + 8} y2={y2} stroke={c} strokeWidth="1.5" />
     <text x={left ? x - 8 : x + 8} y={(labelY == null ? (y1 + y2) / 2 : labelY) + 7}
       textAnchor={left ? "end" : "start"} fontSize="22" fill={c} style={kd ? { "--k": kd, "--kw": kd } : undefined}
-      className={wewn ? "wym wym-w" : "wym"} fontFamily="ui-monospace, monospace">{label}</text>
+      className={wewn ? "wym wym-w" : "wym"} fontFamily="ui-monospace, monospace"
+      {...(obwodka ? { stroke: "#fff", strokeWidth: 5, paintOrder: "stroke", strokeLinejoin: "round", "data-obwodka": "1" } : {})}>{label}</text>
   </g>
 );
 
@@ -7943,7 +7944,7 @@ const caloscPasow = (ps) => ({ y0: ps[0].y0, h: ps[ps.length - 1].y0 + ps[ps.len
 function UchwytElewacja({ d, fy, dx = 0 }) {
   const ob = uchwytObrys(d);
   return (
-    <rect data-el={d.type === "door" ? `uchwyt-${d.handlePos}` : d.type === "klapa" ? `uchwyt-klapy-${d.uchwytKrawedz || "dol"}` : undefined}
+    <rect data-el={d.type === "door" ? `uchwyt-${d.handlePos}` : d.type === "klapa" ? `uchwyt-klapy-${d.uchwytKrawedz || "dol"}` : d.type === "drawer" ? "uchwyt-szuflady" : undefined}
       x={ob.x0 + dx} y={fy(ob.y1)} width={ob.x1 - ob.x0} height={ob.y1 - ob.y0}
       rx="5" fill="#52525b" opacity="0.9" />
   );
@@ -10802,17 +10803,36 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
               const ob = kz > 1 && d.type === "door" && d.handle && d.handlePos !== "gora" ? uchwytObrys(d) : null;
               const [zx0, zx1] = !ob ? [d.x, d.x + d.w] : d.hingeSide === "left" ? [d.x, ob.x0] : [ob.x1, d.x + d.w];
               const txt = `${fmt(d.w)}×${fmt(d.h)}`;
-              const kPoz = kz > 1 ? kWFroncie(kw, txt, zx1 - zx0, d.type === "drawer" ? d.h * 0.6 : d.h) : 1;
+              /* Szuflada: uchwyt przy gornej krawedzi — napis w pasie miedzy dolem frontu a uchwytem
+                 (w niskim froncie „560×97” wchodzil na uchwyt, test 2026-10-30) */
+              const obSz = d.type === "drawer" && d.handle ? uchwytObrys(d) : null;
+              let pasSz = obSz ? [d.y + 4, obSz.y0 - 4] : null;
+              let kPoz = kz > 1 ? kWFroncie(kw, txt, zx1 - zx0, pasSz ? pasSz[1] - pasSz[0] + 12 : d.type === "drawer" ? d.h * 0.6 : d.h) : 1;
+              /* niski front (uchwyt na srodku wysokosci): pod uchwytem napis bylby nieczytelny —
+                 idzie obok uchwytu (po szerszej stronie, na srodku wysokosci frontu); gdy i tam
+                 za malo miejsca — na srodek frontu z biala obwodka (czytelny na uchwycie) */
+              const niski = kz > 1 && !!pasSz && kPoz < 0.8 * kz;
+              let bok = null;
+              if (niski) {
+                const lewo = [zx0, obSz.x0 - 6], prawo = [obSz.x1 + 6, zx1];
+                const strona = lewo[1] - lewo[0] >= prawo[1] - prawo[0] ? lewo : prawo;
+                const kBok = kWFroncie(kw, txt, strona[1] - strona[0], d.h);
+                if (kBok >= 0.8 * kz) { bok = strona; kPoz = kBok; pasSz = null; }
+              }
+              const obwodka = niski && !bok;
+              if (obwodka) { pasSz = null; kPoz = kWFroncie(kw, txt, zx1 - zx0, d.h); }
               // waskie wysokie drzwi: w druku napis pionowo, wzdluz wysokosci — miesci sie wiekszy
               const kPion = kz > 1 && d.type !== "drawer" && d.h > d.w ? kWFroncie(kw, txt, d.h - 2 * Math.min(90, d.h * 0.25) - 20, zx1 - zx0) : 0;
               const pion = kPion > kPoz * 1.25;
-              const cx = (zx0 + zx1) / 2, cy = d.type === "drawer" ? fy(d.y + d.h * 0.3) : fy(d.y + d.h / 2) + 7;
+              const cx = bok ? (bok[0] + bok[1]) / 2 : (zx0 + zx1) / 2, cy = pasSz && pasSz[1] - pasSz[0] >= 24 ? fy((pasSz[0] + pasSz[1]) / 2) + 7
+                : d.type === "drawer" ? fy(d.y + d.h * 0.3) : fy(d.y + d.h / 2) + 7;
               return (
                 // obrot w grupie: w druku napis dostaje wlasny transform (powiekszenie)
                 <g transform={pion ? `rotate(-90 ${cx} ${cy - 7})` : undefined}>
-                  <text x={cx} y={cy}
+                  <text x={cx} y={obwodka || bok ? fy(d.y + d.h / 2) + 7 : cy}
                     textAnchor="middle" fontSize="20" fill={INK} opacity="0.75"
                     style={kz > 1 ? { "--k": pion ? kPion : kPoz } : undefined}
+                    {...(obwodka ? { stroke: "#fff", strokeWidth: 5, paintOrder: "stroke", strokeLinejoin: "round", "data-obwodka": "1" } : {})}
                     fontFamily="ui-monospace, monospace">
                     {txt}
                   </text>
@@ -11208,12 +11228,28 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 /* ...i miesci sie w szerokosci kolumny (od wymiaru do prowadnicy przy prawym
                    boku) — w trzech kolumnach po 376 mm „117 od dna” wychodzil za szafke
                    na opisy szyn z prawej (macierz szuflad w PDF 2026-10-22) */
-                const kOd = kz > 1 ? Math.min(Math.max(1, Math.min(kz, miejsce / (POLE_EM * 22))),
+                let kOd = kz > 1 ? Math.min(Math.max(1, Math.min(kz, miejsce / (POLE_EM * 22))),
                   kNapisu(kz, `${fmt(val)} od dna`, 22, c.x1 - c.x0 - 46 - 12 - RUNNER_W)) : undefined;
+                let srodek = kz > 1 ? fy(top) + szynaNad + (POLE_EM * 22 * kOd) / 2 : null;
+                /* Uchwyt szuflady stoi przy gornej krawedzi frontu — tam, gdzie opis; w druku
+                   przechodzil przez „175 od dna” (zgloszenie uzytkownika 2026-10-30). Opis idzie
+                   pod uchwyt, nad dno szuflady; gdy miejsca malo — mniejszy. */
+                const fr = kz > 1 ? (geo.doors || []).find((d) => d.type === "drawer" && d.dr === dr) : null;
+                const ob = fr && fr.handle && uchwytOut(fr, cab) > 0 ? uchwytObrys(fr) : null;
+                let obwOd = false;
+                if (ob) {
+                  const pol = (POLE_EM * 22 * kOd) / 2, xL = c.x0 + 46 + 8, xP = xL + szerNapisu(`${fmt(val)} od dna`, 22, kOd);
+                  const naUchwycie = srodek + pol > fy(ob.y1) - 3 && srodek - pol < fy(ob.y0) + 3 && xP > ob.x0 && xL < ob.x1;
+                  const pod = fy(ob.y0) + 6, dno = fy(bottom) - 4;
+                  if (naUchwycie && dno - pod >= POLE_EM * 22) {
+                    kOd = Math.min(kOd, (dno - pod) / (POLE_EM * 22));
+                    srodek = pod + (POLE_EM * 22 * kOd) / 2;
+                  } else if (naUchwycie) obwOd = true;
+                }
                 return (
                   <DimV key={`du${lv.i}-${c.j}-${i}`}
                     y1={fy(top)} y2={fy(bottom)} x={c.x0 + 46}
-                    labelY={kz > 1 ? fy(top) + szynaNad + (POLE_EM * 22 * kOd) / 2 : null} kd={kOd}
+                    labelY={kz > 1 ? srodek : null} kd={kOd} obwodka={obwOd}
                     label={`${fmt(val)} od dna`} left={false} c={DIMC} />
                 );
               });
