@@ -1,3 +1,12 @@
+## Retest przycisków — 30.10.2026
+
+- **N143 — ZROBIONE w sprawdzonym wariancie:** w lokalnej kopii `standalone.html` z main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e` odtworzono szafkę 600×2000×560, pionowe wzmocnienie 400×100 od lica 230 i drążek w górnym świetle. Błąd miał przycisk „Usuń rurę”. Po kliknięciu checkbox drążka został wyłączony, błąd kolizji zniknął, a rura i rozety zniknęły z zamówienia. Nie testowano osobno przycisku skracania wzmocnienia ani wszystkich kombinacji. Starsze wpisy poniżej o niesprawdzonym przycisku są nieaktualne.
+- **N145 — DO UZUPEŁNIENIA DZIAŁANIA:** w UI szafka 600×300×80 z tip-on wyświetla błąd, że 89 mm wchodzi w plecy; przy tym komunikacie brak przycisku. W zamówieniu nadal jest tip-on. Propozycje do rozważenia: przycisk zmiany na uchwyt albo zwiększenia głębokości do poprawnej wartości, z kontrolą konsekwencji. To propozycje, nie przetestowane poprawki. Drugi wariant bez płyty montażowej nie został odtworzony w UI.
+- **N147 i N149 — DO DALSZEJ WERYFIKACJI UI:** testy funkcji potwierdzają komunikaty; w kodzie komunikaty nie mają przypisanych akcji. Nie sprawdzono ich w interfejsie. Potencjalnie pomóc mogą przyciski przywrócenia przegrody (N147) lub zmiany zakresu wycięcia (N149), po sprawdzeniu geometrii i skutków.
+- **PDF-1 — NADAL OTWARTY:** wcześniejsza kontrola aktualnego PDF wykazała drobne wymiary.
+
+---
+
 ## Zasada użytkownika — sprawdzanie przycisków
 
 Ostrzeżenie lub błąd, które wskazują konkretne działanie i mają działający przycisk rozwiązujący problem, są akceptowanym rozwiązaniem. Przycisk trzeba faktycznie kliknąć i sprawdzić zmianę ustawień, usunięcie problemu i ewentualne nowe kolizje; sama obecność przycisku nie wystarcza. Informacje o przekroczeniu arkusza oraz sugestie zmniejszenia wymiarów, aby zmieścić się na poprzednim arkuszu, w tym dla blatu, są wyjątkami wskazanymi przez użytkownika.
