@@ -1,3 +1,11 @@
+### N155 [P3] — OTWARTE: zbiorcza lista okuć gubi numer modelu tip-on
+
+**Test funkcji**, main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`: szafka 600 × 720 × 560 mm z jednymi drzwiami bez uchwytu i otwieraniem tip-on. `computeGeo` generuje pozycję „Odbojnik tip-on GTV SALTO NOVA” o specyfikacji „długi nakładany z magnesem, szary (AM-SVN-DL-MG-30)” i z informacją o szczelinie. Po `scalOkucia` specyfikacja zmienia się na samo „drzwi bez uchwytu — otwieranie przez naciśnięcie”, bez numeru modelu i wariantu. Funkcja jest wykorzystywana w zbiorczej liście okuć; test UI i PDF nie został wykonany. Użytkownik wskazał konkretny model (BLEDY.md, 25.10). Przy zakupie sama nazwa rodziny może być niejednoznaczna.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** zachować w zamówieniu identyfikację modelu i wariantu obok zastosowania, sprawdzić inne pozycje z `use` oraz unikać nieprawidłowego sumowania różnych wariantów. **Test odbioru:** osobna szafka, kilka szafek, projekt, PDF, wycena i prawidłowe sumowanie; potem oznaczyć NAPRAWIONE.
+
+---
+
 ### N154 [P2] — DO WERYFIKACJI UI: wspólne dno ignoruje różnicę dekoru
 
 **Test funkcji**, main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`: dwie szafki 600 × 720 × 500 mm w ciągu z cokołem, odstęp 20 mm, wspólne dno. Płyty korpusu mają nazwę „Płyta”, kolor `#d8c3a0`, grubość 18 mm, lecz różne dekory `Oak` i `Ash`. Po `wedlugCiagu` funkcja `runBottom` zwraca wspólne dno 1220 × 500 z materiału Oak, a `projectParts` pomija oddzielne dna obu szafek. Przy dwóch jednakowych dekorach wynik wspólnego dna jest kontrolą. Porównanie w `runBottom` uwzględnia nazwę, kolor i grubość, ale nie dekor. Wymaga sprawdzenia dostępności ustawienia, ostrzeżeń i przycisków w UI.
