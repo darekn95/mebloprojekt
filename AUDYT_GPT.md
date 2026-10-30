@@ -1,3 +1,11 @@
+### N152 [P2] — DO WERYFIKACJI UI: scalanie może usunąć plecy drugiej szafki
+
+**Test funkcji**, main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`: dwie sąsiednie szafki ciągu 600 × 720 × 560 mm z jednakowymi materiałami i jednym poziomem; pierwsza bez pleców (`back=none`), druga z HDF (`back=hdf`). Przed scaleniem druga ma w formatach plecy HDF 598 × 718; `scalenieBlad` nie blokuje operacji, a `scalSzafki` bierze ustawienie pleców z pierwszej szafki i w wyniku nie ma pleców. Odwrotna kolejność wymaga osobnego sprawdzenia. Sam test funkcji nie wykazuje, jakie wyjaśnienia, wybory lub przyciski pokazuje kreator scalania w UI.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** rozważyć rozpoznanie różnych ustawień pleców przed scaleniem i przedstawienie skutków lub zablokowanie nieobsługiwanego wariantu. **Test odbioru:** odtworzyć obie kolejności w interfejsie, sprawdzić wybory i kliknąć ewentualne przyciski, porównać geometrię, formatki oraz zamówienie. Status NAPRAWIONE dopiero po pozytywnej weryfikacji.
+
+---
+
 ### N151 [P2] — OTWARTE: własny blat wysokiej szafki znika z zamówienia przy blacie ciągu
 
 **Wersja:** main `d601d4fe87eb8a2117b8ab1b1c7e3c25e079272e`. **Test funkcji, nie test interfejsu:** w syntetycznym projekcie utworzyć jeden ciąg z włączonym blatem roboczym i dwiema szafkami 600 × 720 × 560 i 600 × 2000 × 560 mm, każda z własnym blatem z płyty, wysunięcie przednie 30 mm, nóżki 100 mm. `runTop` produkuje wspólny blat 600 × 600 mm tylko nad niższą szafką; `projectParts` usuwa jednak własny blat także wysokiej szafki, więc brakuje formatki 600 × 590 mm. Kontrola: po wyłączeniu blatu ciągu `projectParts` pokazuje osobny własny blat 600 × 590 obu szafek. Sprawdzić osiągalność w UI, komunikaty i przyciski; test funkcji nie przesądza o ich działaniu.
