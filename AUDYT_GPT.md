@@ -1,3 +1,13 @@
+**Uzupełnienie N171 — potwierdzenie UI:** w lokalnej kopii wczytano powyższy syntetyczny projekt z dwoma elementami bez zaznaczonych otworów. Kliknięto osobno przycisk „Wycinam otwory w płytach (na formatkach)” przy pierwszym, a następnie przy drugim elemencie. Oba ostrzeżenia zmieniły się w informacje, ale formatka nadal ma nazwę tylko „Półka przelotowa — otwór 82 × 100”, bez wymiaru drugiego otworu. Nie sprawdzono PDF.
+
+### N172 [P2] — OTWARTE: informacja po kliknięciu podaje inny wymiar otworu niż formatka
+
+**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: ten sam syntetyczny projekt 800 × 1200 × 560 mm z dwoma poziomami i lewym tylnym elementem 100 × 100 mm. Po kliknięciu „Wycinam otwory w płytach (na formatkach)” komunikat mówi, że w płycie ma być otwór 100 × 100 mm od lewej krawędzi, zaś nazwa formatki „Półka przelotowa — otwór 82 × 100” podaje rozmiar faktycznego przecięcia z płytą. Te dwie liczby odnoszą się według komunikatu do tego samego otworu, co utrudnia poprawne wycięcie. Kontrola funkcji dla szafki W800 z elementem 200 × 150 od lewej pokazuje analogicznie informację 200 × 150 i nazwę formatki 182 × 150. W informacji dostępne są także położenia, nie twierdzę, że brakuje ich całkowicie. PDF i fizycznego cięcia nie sprawdzono. Jest to odrębne od N171: występuje już z jednym elementem i dotyczy sprzecznych wymiarów.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** rozróżnić wymiar przeszkody od wymiaru faktycznego przecięcia danej formatki i podać jednoznaczny wymiar cięcia oraz położenie; uwzględnić boki i krawędzie. **Test odbioru:** lewy i prawy bok, element częściowo poza formatką oraz w jej wnętrzu, przycisk, nazwa formatki, informacja, rysunek i PDF. NAPRAWIONE po pozytywnej weryfikacji.
+
+---
+
 ### N171 [P2] — DO WERYFIKACJI UI: drugi otwór pomijany w nazwie formatki przy dwóch elementach
 
 **Test funkcji**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 800 × 1200 × 560 mm, dwa poziomy z płytą między nimi, dwa elementy przez całą wysokość: lewy tylny 100 × 100 mm i prawy tylny 150 × 120 mm, oba z ustawioną opcją `otwory:true` odpowiadającą akcji „Wycinam otwory w płytach (na formatkach)”. `computeGeo` pokazuje dwie informacje o otworach, natomiast nazwę jednej formatki „Półka przelotowa — otwór 82 × 100” (przecięcie pierwszego elementu z płytą) i brak nazwy lub opisu drugiego otworu. `otworW` wyszukuje pierwszy pasujący element przez `find`, zamiast zebrać wszystkie. Zestawienie formatek może więc nie oddawać wszystkich operacji. Nie sprawdzono przycisków w interfejsie ani PDF; informacje o obu otworach w Uwagach istnieją, więc nie twierdzę, że informacje znikają całkowicie. Projekt jest syntetyczny.
