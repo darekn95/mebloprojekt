@@ -1,3 +1,35 @@
+### N177 [P3] — DO OCENY: ostrzeżenie o zbyt małym luzie drzwi bez przycisku korekty
+
+**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: nowy syntetyczny projekt, domyślna szafka 600 × 720 × 560 mm z dwojgiem drzwi. W karcie „Luzy drzwi” ustawić „Między drzwiami” na 1 mm. Uwaga mówi „Luz między drzwiami poniżej 2 mm — mogą się blokować przy otwieraniu”; ma tylko przycisk oznaczenia jako przeczytane, bez przycisku ustawiającego zalecaną wartość. Ręczna zmiana pola z 1 na 2 mm usuwa tę uwagę. To wykryty problem z możliwą ręczną korektą; brak przycisku należy ocenić według późniejszej zasady użytkownika, a nie przedstawiać jako brak wykrycia. Przypadek nie dotyczy wyjątków odnośnie do rozmiaru arkusza lub blatu. Otwierania i innych ustawień w tym teście nie badano.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** rozważyć przycisk ustawienia 2 mm z uwzględnieniem własnych luzów kolumn i skutków dla formatek. **Test odbioru:** 0/1/2 mm, drzwi w kilku kolumnach oraz ręczny luz kolumny, kliknięcie przycisku, geometria, wyrównanie i nowe ostrzeżenia. NAPRAWIONE po pozytywnej weryfikacji.
+
+---
+
+### N178 [P2] — OTWARTE: zalecane wzmocnienie szerokiej szuflady bez przycisku i w zamówieniu
+
+**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: nowy syntetyczny projekt, szafka 800 × 720 × 560 mm; w kolumnie wybrać „Szuflady” (domyślne V-BOX). Uwaga „szuflada szersza niż 600 mm — wzmocnij dno kątownikiem (Sevroll 40343)” wskazuje konkretne działanie, ale ma wyłącznie przycisk oznaczenia jako przeczytane. W widocznym zestawieniu produktów nie znaleziono pozycji kątownika 40343. Nie sprawdzono, czy ten element jest faktycznie wymagany przez producenta ani ręcznego sposobu jego dodania; nie twierdzę, że szuflada jest z pewnością niemontowalna. Według zasady użytkownika samo ostrzeżenie wymagające działania nie wystarcza bez działającego przycisku. W projekcie jest osobna uwaga o różnicy wysokości frontów.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** sprawdzić wymóg i sposób montażu w dokumentacji, a jeśli właściwy — rozważyć dodanie działającego wyboru wzmocnienia z odpowiednią pozycją w zamówieniu lub innej wykonalnej korekty. **Test odbioru:** szerokości wokół 600 mm, wszystkie systemy szuflad, kliknięcie każdej opcji, rzeczywista pozycja/ilość, formatki, montaż i wycena. NAPRAWIONE po pozytywnym teście.
+
+---
+
+### N179 [P2] — OTWARTE: błąd zerowej głębokości półki wskazuje korektę bez przycisku
+
+**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: nowy syntetyczny projekt, domyślna szafka 600 × 720 × 560 mm z półką. W karcie „Luzy drzwi” ustawić „Dodatkowe cofnięcie półki” na 560 mm. Program zgłasza „Głębokość półki wychodzi zero lub mniej — zmniejsz cofnięcie półki”, a ponadto błędy zerowej formatki i kołków; przy pierwszym komunikacie nie ma przycisku wykonania proponowanej zmiany. Ręczne przywrócenie cofnięcia 0 mm usuwa wszystkie trzy wskazane błędy. To nie brak wykrycia, tylko brak sprawdzonego działania przy komunikacie zgodnie z zasadą użytkownika; nie twierdzę, że zawsze należy wybierać 0 mm.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** rozważyć wykonalny przycisk korekty cofnięcia lub wybór wartości po uwzględnieniu kolizji z klapą i mocowań. **Test odbioru:** cofnięcie bliskie oraz ponad głębokością, różne fronty i plecy, działanie przycisku i wpływ na półki, kołki, wymiary oraz inne ostrzeżenia. NAPRAWIONE po pozytywnym teście.
+
+---
+
+### N180 [P2] — OTWARTE: zalecane przycięcie półki przy wycięciu narożnika bez działania w komunikacie
+
+**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: nowy syntetyczny projekt, domyślna szafka 600 × 720 × 560 mm z jedną półką; w karcie „Wycięcie w narożniku (tylne)” zaznaczyć lewe wycięcie (domyślne 100 × 100 mm). Uwaga „Poziom 1: półka na wysokości 351 mm wchodzi w wycięcie narożnika — przytnij ją na miejscu” proponuje konkretne działanie, lecz obok jest tylko przycisk oznaczenia jako przeczytane. Formatka półki figuruje pod nazwą „Półka”, bez informacji o tym wycięciu w nazwie. Uwaga o przesunięciu nóżki jest niezależna. Według zasady użytkownika należy ocenić możliwość działania przy tym komunikacie; sam fakt, że program wykrywa kolizję i poleca ręczne cięcie, nie potwierdza działania przycisku. Nie sprawdzono PDF ani fizycznego montażu.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** rozważyć wykonalny wybór związany z wycięciem lub zmianą półki oraz jednoznaczną informację w formatkach, z uwzględnieniem podpór i umiejscowienia cięcia. **Test odbioru:** lewe/prawe wycięcie, pełne i częściowe wysokości, jedna i wiele półek, rzeczywisty wynik każdego oferowanego przycisku, formatki i PDF. NAPRAWIONE po pozytywnej weryfikacji.
+
+---
+
 ### N175 [P2] — DO WERYFIKACJI MONTAŻU: otwór usuwa tylny narożnik półki przy planowanym kołku
 
 **Test UI i funkcji**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 600 × 1200 × 560 mm z jedną półką na kołkach, lewy tylny element 200 × 150 mm przez całą wysokość. Kliknięto „Wycinam otwory w płytach (na formatkach)”. Ostrzeżenie przecięcia półki zmienia się w informację, a formatka ma nazwę „Półka — otwór 182 × 150”. Plan wierceń funkcji nadal przewiduje w lewym boku dwa kołki na wysokości półki: 50 i 510 mm od przodu, czyli tylny 50 mm od tyłu przy głębokości 560. Wycięcie zajmuje tylny lewy narożnik na głębokości 150 mm, zatem tylny punkt podparcia wypada w obszarze wycięcia; zamówienie nadal ma kołki i nie ma osobnej uwagi o tym podparciu. Program podaje też ogólne ostrzeżenie o niezabudowanym elemencie. Fizycznego montażu i szczegółów styku z bokiem nie zweryfikowano; oznaczyć jako przypadek wymagający oceny, nie jako pewną niemontowalność całej półki. Ten przypadek dotyczy podparcia, a N171–N173 opisu i grupowania otworów.
