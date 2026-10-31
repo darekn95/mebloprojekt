@@ -1,3 +1,19 @@
+### N175 [P2] — DO WERYFIKACJI MONTAŻU: otwór usuwa tylny narożnik półki przy planowanym kołku
+
+**Test UI i funkcji**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 600 × 1200 × 560 mm z jedną półką na kołkach, lewy tylny element 200 × 150 mm przez całą wysokość. Kliknięto „Wycinam otwory w płytach (na formatkach)”. Ostrzeżenie przecięcia półki zmienia się w informację, a formatka ma nazwę „Półka — otwór 182 × 150”. Plan wierceń funkcji nadal przewiduje w lewym boku dwa kołki na wysokości półki: 50 i 510 mm od przodu, czyli tylny 50 mm od tyłu przy głębokości 560. Wycięcie zajmuje tylny lewy narożnik na głębokości 150 mm, zatem tylny punkt podparcia wypada w obszarze wycięcia; zamówienie nadal ma kołki i nie ma osobnej uwagi o tym podparciu. Program podaje też ogólne ostrzeżenie o niezabudowanym elemencie. Fizycznego montażu i szczegółów styku z bokiem nie zweryfikowano; oznaczyć jako przypadek wymagający oceny, nie jako pewną niemontowalność całej półki. Ten przypadek dotyczy podparcia, a N171–N173 opisu i grupowania otworów.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** sprawdzić rzeczywiste dostępne punkty podparcia po wycięciu oraz zaproponować wykonalne mocowanie albo odpowiednie ostrzeżenie z działaniem. **Test odbioru:** oba narożniki, różne głębokości wycięcia, kołki/konfirmaty/trójkąty, z zabudową i bez, rysunek, plan i zamówienie oraz faktyczne kliknięcia. NAPRAWIONE po pozytywnym teście i ocenie montażowej.
+
+---
+
+### N176 [P2] — OTWARTE: przycisk przesunięcia pierwszej półki zmienia dalszy poziom
+
+**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 800 × 1800 × 560 mm, trzy poziomy: wysokości 500 mm, 500 mm oraz automatyczne 728 mm. Element 100 × 100 mm przy lewym tylnym narożniku, od 400 do 700 mm od dna wnętrza, przechodzi przez płytę między pierwszym a drugim poziomem. Komunikat oferuje „Płyta nad element (poziom 1: 700 mm)”. Po kliknięciu pierwszy poziom rzeczywiście staje się 700 mm i ostrzeżenie dla tej płyty znika, lecz drugi zmienia się z ręcznie ustawionych 500 mm na automatyczne 514 mm, a trzeci z 728 na 514 mm. Czyli także druga płyta między poziomami przesuwa się o 214 mm, chociaż komunikat i nazwa przycisku opisują pierwszą. Przycisk zmienia drugi poziom na auto; przy kilku automatycznych poziomach reszta rozdziela się między wszystkie. Wpływu na zawartość pozostałych poziomów ani przycisku „Płyta pod element” w tej konfiguracji nie sprawdzono.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** przed zmianą pokazać wszystkie skutki dla poziomów albo przeliczyć bez niezamierzonego przesuwania dalszych granic, jeśli geometria na to pozwala. **Test odbioru:** trzy i więcej poziomów, różne kombinacje wartości auto i ręcznych, przyciski nad/pod, porównanie położeń wszystkich płyt, formatek i ewentualnych nowych kolizji. NAPRAWIONE po pozytywnych testach.
+
+---
+
 ### N173 [P2] — OTWARTE: formatki z otworami po przeciwnych stronach scalone w jeden wiersz
 
 **Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 800 × 1800 × 560 mm, trzy poziomy, dwa elementy 100 × 100 mm od tyłu: lewy obejmuje wysokość 400–600 mm, prawy 900–1100 mm (liczoną od dna wnętrza). Pierwszy przechodzi przez płytę między poziomami 1 i 2, drugi przez płytę między 2 i 3. Kliknięto osobno przy obu „Wycinam otwory w płytach (na formatkach)”. Uwagi wskazują położenia od lewej odpowiednio 0 i 682 mm, ale tabela formatek łączy je w jedną pozycję „Półka przelotowa — otwór 82 × 100”, 764 × 560 mm, 2 szt., bez rozróżnienia strony i poziomu. Przy przygotowaniu dwóch płyt nie wynika z tego wiersza, że jedna ma wycięcie po lewej, druga po prawej. Informacje o poziomach i położeniach nadal znajdują się w Uwagach; PDF nie sprawdzono. Test funkcji potwierdza ten sam wynik. To osobne od N171 (tu każda płyta ma jeden otwór, ale dwie różne płyty są zsumowane).
