@@ -85,7 +85,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
   - front za niski na bok — błąd z „Zmień bok szuflady na …”;
   - ręcznie wybrany bok niższy, niż front uniesie — ostrzeżenie z przyciskiem wyższego;
   - front ponad 140 mm wyżej niż bok — ostrzeżenie z „Dodaj reling” / „Zostaw bez relingu” (reling w zamówieniu: komplet, 30 zł);
-  - szuflada szersza niż 600 mm — ostrzeżenie „wzmocnij dno kątownikiem (Sevroll 40343)”;
+  - szuflada szersza niż 600 mm — kątownik Sevroll 40343 i 4 wkręty 3,5 × 13 na szufladę same w zamówieniu (folder V-BOX s. 7: dno przykręcone do frontu; decyzja użytkownika 2026-10-31, N178), uwaga to informacja;
   - płyta inna niż 18 mm — ostrzeżenie, bo liczby z katalogu są dla 18.
 - **Zamówienie**: „Prowadnica Sevroll V-BOX 3D Slim … mm”, cena z cennika wg wysokości boku i NL.
 - **Plan wierceń**: kreska prowadnicy na boku, przegrodzie albo wsporniku.

@@ -7,7 +7,9 @@
    - N183 dwa nakladajace sie wyciecia — „Wycięcie lewe: N mm”;
    - N188 / N189 tip-on na cofnietej polce / w elemencie — „Dodatkowe cofnięcie półek 0 mm”,
      „Przełóż zawiasy na …”;
-   - N171 / N173 / N180 nazwy formatek z wycieciami (dwa otwory, strony, wyciecie narozne).
+   - N171 / N173 / N180 nazwy formatek z wycieciami (dwa otwory, strony, wyciecie narozne);
+   - decyzje 2026-10-31: „Podpora rury na środku (GTV WP-10)” (N181/N182), katownik 40343 pod dno
+     szuflady > 600 mm w zamowieniu (N178).
    Liczby i reszta przypadkow — funkcje, suita `funkcje`. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -129,6 +131,26 @@ console.log('\n== N188, N189: tip-on ==');
   ok('N189: błąd z „Uchwyt zamiast tip-on” i „Przełóż zawiasy na prawą”', JSON.stringify(await przyciski(re2)) === '["Uchwyt zamiast tip-on","Przełóż zawiasy na prawą"]', (await przyciski(re2)).join(' / '));
   await klik(re2, 'Przełóż zawiasy na prawą');
   ok('N189: po kliknięciu — zawiasy z prawej, tip-on z lewej, bez błędu', (await zap()).items[0].cab.levels[0].cols[0].hinge === 'right' && !(await jest(re2)));
+}
+
+console.log('\n== Decyzje 2026-10-31: podpora rury WP-10 (N181/N182), kątownik szuflady > 600 (N178) ==');
+{
+  await seed({ name: 'S', W: 2100, H: 2000, D: 560, plinth: { on: false }, legs: { on: true, height: 100 },
+    levels: [{ h: null, cols: [kol({ doors: 2, shelfTargets: [400, null], drazki: [1] })] }] });
+  const re = /rura ma 2062 mm/;
+  const bt = await przyciski(re);
+  ok('rura 2062: „Podpora rury na środku (GTV WP-10)” przed „Podziel kolumnę przegrodą”', bt[0] === 'Podpora rury na środku (GTV WP-10)' && bt.includes('Podziel kolumnę przegrodą'), bt.join(' / '));
+  await klik(re, 'Podpora rury na środku (GTV WP-10)');
+  const c = (await zap()).items[0].cab.levels[0].cols[0];
+  const hw = await rows(/^Produkty do zamówienia/);
+  ok('po kliknięciu: podpora zapisana, ostrzeżenie → informacja, kolumna niepodzielona', c.drazekPodpora === true && !(await jest(re)) && (await jest(/podparta na środku/))
+    && (await zap()).items[0].cab.levels[0].cols.length === 1, String(c.drazekPodpora));
+  ok('zamówienie: Podpora rury ⌀25 GTV WP-10 — 1 szt.', hw.some((r) => /^Podpora rury ⌀25 GTV WP-10/.test(r) && /\| 1 szt\.$/.test(r)), hw.filter((r) => /Podpora|Rura/.test(r)).join(' / '));
+  await seed({ name: 'T', W: 800, H: 720, D: 560, ...NOGI, levels: [{ h: null, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] });
+  const hw2 = await rows(/^Produkty do zamówienia/);
+  ok('N178: W800, 3 szuflady — kątownik 40343 3 szt. i wkręt 3,5 × 13 12 szt. w zamówieniu', hw2.some((r) => /^Kątownik mocujący Sevroll 40343/.test(r) && /\| 3 szt\.$/.test(r))
+    && hw2.some((r) => /^Wkręt 3,5 × 13/.test(r) && /\| 12 szt\.$/.test(r)), hw2.filter((r) => /Kątownik|Wkręt 3,5 × 13/.test(r)).join(' / '));
+  ok('N178: uwaga o szerokiej szufladzie jest informacją (bez „!”) i mówi, że jest w zamówieniu', (await notes()).some((x) => /szersza niż 600 mm/.test(x.txt) && /w zamówieniu/.test(x.txt)));
 }
 
 ok('bez błędów strony', !errors.length, errors.join(' / '));

@@ -273,6 +273,13 @@ const DRAZEK_GL_MIN = 400, DRAZEK_GL_DOBRA = 500;
    pod ubraniami — ostrzezenie; oba z „Podziel kolumnę przegrodą” (uzytkownik 2026-10-30, N153). */
 const DRAZEK_UGINA = 2000;
 const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀25";
+/* Podpora rury na srodku (uzytkownik 2026-10-31 przy audycie GPT N181/N182, zamiast podzialu
+   kolumny przy rurze 2–3 m): GTV „Uchwyt WP-10 dystansowy, regulowany” MR-WP-010-01, przelotowy
+   do rury ⌀25, 50–80 mm od plyty — katalog GTV 2023 s. 258 (`instrukcje/`); rura wisi
+   DRAZEK_POD_PLYTA = 70 mm pod plyta, wiec miesci sie w regulacji. */
+const PODPORA_RURY_NAME = "Podpora rury ⌀25 GTV WP-10";
+// katownik pod dno szerokiej szuflady V-BOX (Sevroll, decyzja uzytkownika 2026-10-31, N178)
+const KATOWNIK_SZUFLADY_NAME = "Kątownik mocujący Sevroll 40343", KATOWNIK_SZUFLADY_WKRETY = 4;
 
 /* Drzwi bez uchwytu (uzytkownik 2026-10-25): front dluzszy od dolu (gorne szafki —
    chwyta sie go od spodu), nizszy od gory (podfrez, jak w szufladach) — oba domyslnie
@@ -2899,6 +2906,7 @@ function computeGeoLiczy(cab, mat, ctx) {
 
   const levels = [];
   const sepShelves = [];
+  let katownikiSzuflad = 0; // szuflady V-BOX szersze niz 600 mm — katownik pod dno (N178)
   let cy = interior.y0;
   for (let i = 0; i < L; i++) {
     const h = lev.sizes[i];
@@ -2998,7 +3006,8 @@ function computeGeoLiczy(cab, mat, ctx) {
           .map((k) => {
             const o = c.openings[k];
             const y = o.to - DRAZEK_POD_PLYTA;
-            return { k, y, z: Math.round(dividerDepth / 2), len: Math.max(0, Math.round(w - DRAZEK_KROTSZY)), pod: Math.round(y - o.from), swiatlo: Math.round(o.h) };
+            return { k, y, z: Math.round(dividerDepth / 2), len: Math.max(0, Math.round(w - DRAZEK_KROTSZY)), pod: Math.round(y - o.from), swiatlo: Math.round(o.h),
+              podpora: !!rawCols[j].drazekPodpora };
           })
         : [];
       /* Poziom kolumny z podzialem moze miec szuflady albo blende (`col.segmenty[nr].kind`)
@@ -3033,8 +3042,11 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (dr.len > maxRury)
           add("error", `${gdzie}: rura ma ${fmt(dr.len)} mm — dłuższa niż najdłuższy odcinek w sprzedaży (${fmt(maxRury / 1000)} m), a z dwóch kawałków nie będzie jednej rury. Podziel kolumnę przegrodą — powstaną dwie krótsze.${poPodziale}`
             + podziel + `|drazek:${lv.i}:${j}:${dr.k}:0`);
+        else if (dr.len > DRAZEK_UGINA && dr.podpora)
+          add("info", `${gdzie}: rura ${fmt(dr.len)} mm podparta na środku — ${PODPORA_RURY_NAME} pod płytą nad rurą (w zamówieniu i planie wierceń).`);
         else if (dr.len > DRAZEK_UGINA)
-          add("warn", `${gdzie}: rura ma ${fmt(dr.len)} mm — przy ponad ${fmt(DRAZEK_UGINA / 1000)} m ugina się pod ubraniami. Podziel kolumnę przegrodą albo podeprzyj rurę na środku.${poPodziale}` + podziel);
+          add("warn", `${gdzie}: rura ma ${fmt(dr.len)} mm — przy ponad ${fmt(DRAZEK_UGINA / 1000)} m ugina się pod ubraniami. Podeprzyj ją na środku (podpora pod płytą nad rurą, bez zmian w szafie${c.drazki.length > 1 ? ` — przycisk podpiera wszystkie ${c.drazki.length} rury tej kolumny, mają tę samą długość` : ""}) albo podziel kolumnę przegrodą.${poPodziale}`
+            + `|podpora:${lv.i}:${j}` + podziel);
         /* Swiatlo zmniejszone po dodaniu rury (uzytkownik 2026-10-24: „nie ma opcji
            usunięcia rurki — albo usunąć, albo przestawić na wyższą półkę”): przyciski
            „Usuń rurę” i „Przenieś do światła N” — najwyzszego, pod ktorym zmieszcza
@@ -4160,8 +4172,11 @@ function computeGeoLiczy(cab, mat, ctx) {
       if (colNl === null)
         add("error", `${where}: korpus za płytki na najkrótszą szufladę (potrzeba ${250 + 3 + dInsetExtra} mm).`);
       // katownik pod dno to element V-BOX — skrzynka DXS ma dno z plyty miedzy bokami
-      if (LW > 600 && ds.some((d) => systemSzuflady(d) === "vbox"))
-        add("warn", `${where}: szuflada szersza niż 600 mm — wzmocnij dno kątownikiem (Sevroll 40343).`);
+      if (LW > 600 && ds.some((d) => systemSzuflady(d) === "vbox")) {
+        const ileV = ds.filter((d) => systemSzuflady(d) === "vbox").length;
+        katownikiSzuflad += ileV;
+        add("info", `${where}: szuflada szersza niż 600 mm — dno przykręcone do frontu kątownikiem Sevroll 40343 (w zamówieniu: 1 szt. i ${KATOWNIK_SZUFLADY_WKRETY} wkręty 3,5 × 13 na szufladę, ${ileV} szt.).`);
+      }
 
       const drGap = num(rawCol.gapBetween) ?? g.between;
       c.gapBetween = drGap;
@@ -6038,6 +6053,12 @@ function computeGeoLiczy(cab, mat, ctx) {
     const opis = `rozeta rury ⌀${DRAZEK_FI}: oś ${fmt(dr.z)} mm od przedniej krawędzi, ${DRAZEK_POD_PLYTA} mm pod półką, 2 wkręty 3,5 × 16`;
     drillAdd(lv.i, p.left.name, p.left.base, "rura na wieszaki", dr.y, opis + p.left.strona);
     drillAdd(lv.i, p.right.name, p.right.base, "rura na wieszaki", dr.y, opis + p.right.strona);
+    // plyta nad rura: polka nad tym swiatlem, a nad ostatnim — wieniec / polka przelotowa
+    const nadRura = (c.shelves || [])[dr.k] ? `Półka ${dr.k + 1} kolumny ${c.j + 1}`
+      : lv.i === levels.length - 1 ? (hasTop && !isBlat ? "Wieniec" : isBlat ? "Blat" : "Wzmocnienie pod blatem") : `Półka przelotowa nad poziomem ${lv.i + 1}`;
+    if (dr.podpora && dr.len > DRAZEK_UGINA)
+      drillAdd(lv.i, nadRura, interior.y0, "podpora rury WP-10 (od spodu)", null,
+        `na środku szerokości kolumny (${fmt(Math.round((c.x1 - c.x0) / 2))} mm od boku / przegrody), oś ${fmt(dr.z)} mm od przedniej krawędzi; wkręty wg uchwytu; rura ${DRAZEK_POD_PLYTA} mm pod płytą`);
   })));
   {
     const pin = cab.shelfPin || {};
@@ -7123,7 +7144,18 @@ function computeGeoLiczy(cab, mat, ctx) {
         qty: d.len / 1000, odcinek: d.len, unit: "mb" }));
       hardware.push({ name: ROZETA_NAME, use: "uchwyt rury na boku / przegrodzie",
         spec: "2 na rurę, wkręty 3,5 × 16", qty: 2 * dr.length, unit: "szt." });
+      const podparte = dr.filter((d) => d.podpora && d.len > DRAZEK_UGINA).length;
+      if (podparte)
+        hardware.push({ name: PODPORA_RURY_NAME, use: "podpora rury dłuższej niż 2 m, na środku",
+          spec: `uchwyt dystansowy regulowany 50–80 mm (MR-WP-010-01), pod płytą nad rurą, na środku jej długości — ${podparte} szt.`, qty: podparte, unit: "szt." });
     }
+  }
+  // szuflady V-BOX szersze niz 600 mm: katownik pod dno przy froncie (N178)
+  if (katownikiSzuflad) {
+    hardware.push({ name: KATOWNIK_SZUFLADY_NAME, use: "wzmocnienie dna szuflady szerszej niż 600 mm",
+      spec: "1 na szufladę, na środku przy froncie — dno przykręcone do frontu (katalog Sevroll V-BOX)", qty: katownikiSzuflad, unit: "szt." });
+    hardware.push({ name: "Wkręt 3,5 × 13", use: "kątownik pod dno szuflady",
+      spec: `${KATOWNIK_SZUFLADY_WKRETY} na kątownik`, qty: KATOWNIK_SZUFLADY_WKRETY * katownikiSzuflad, unit: "szt." });
   }
   if (trShelves)
     hardware.push({
@@ -14312,6 +14344,16 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const label = co === "dosciany" ? `Do ściany (wysunięcie ${fmt(Number(mm))} mm)`
         : Number(mm) ? `${naListwie(cab) ? "Listwa" : "Haki"} na dystansie ${fmt(Number(mm))} mm` : "Usuń dystans";
       return { label, run: () => runFix && runFix(action) };
+    }
+    /* „podpora:<poziom>:<kolumna>” — podpora rury na srodku (GTV WP-10), N181/N182. Cecha kolumny
+       (`drazekPodpora`), nie swiatla: rury jednej kolumny maja te sama dlugosc, a numery swiatel
+       przesuwaja sie przy dodawaniu / usuwaniu polek. */
+    if (action.startsWith("podpora:")) {
+      const [, li, j] = action.split(":");
+      return { label: "Podpora rury na środku (GTV WP-10)", run: () => editLevels((L) => {
+        const col = kolumnaW(L, li, j);
+        if (col) col.drazekPodpora = true;
+      }) };
     }
     if (action.startsWith("podzielkol:")) {
       // „podzielkol:<poziom>:<kolumna>:<szerokosc z rysunku>:<grubosc przegrody>” — rura dluzsza niz 2 / 3 m (N153)

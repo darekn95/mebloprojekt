@@ -826,3 +826,22 @@ console.log('\n== N170–N190 (audyt GPT 2026-10-31) ==');
   // N170: rozne dekory o tym samym kolorze — osobne wiersze i grupy (projectCutList jest w App — sprawdzamy klucz)
   ok('N170: tożsamość płyty rozróżnia dekor', G.tozsamoscPlyty({ name: 'Płyta', color: '#d8c3a0', decor: 'Oak', thickness: 18 }) !== G.tozsamoscPlyty({ name: 'Płyta', color: '#d8c3a0', decor: 'Ash', thickness: 18 }));
 }
+
+console.log('\n== Decyzje 2026-10-31: kątownik szuflady > 600 (N178), podpora rury WP-10 (N181/N182) ==');
+{
+  const szuf = (W) => geo({ name: 'T', W, H: 720, D: 560, ...nogi, levels: [{ h: null, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] });
+  const g800 = szuf(800), hw800 = G.okuciaSzafki(g800, {});
+  const kat = hw800.find((h) => h.name === 'Kątownik mocujący Sevroll 40343'), wk = hw800.find((h) => h.name === 'Wkręt 3,5 × 13');
+  ok('N178: W800, 3 szuflady V-BOX — 3 kątowniki 40343 i 12 wkrętów 3,5 × 13, informacja zamiast ostrzeżenia', !!kat && kat.qty === 3 && !!wk && wk.qty === 12
+    && uw(g800, /szersza niż 600 mm/).every((x) => x.level === 'info'), `${kat && kat.qty} / ${wk && wk.qty}`);
+  ok('N178: kontrola W600 — bez kątownika', !G.okuciaSzafki(szuf(600), {}).some((h) => h.name === 'Kątownik mocujący Sevroll 40343'));
+  const szafa = (o = {}) => geo({ name: 'S', W: 2100, H: 2000, D: 560, plinth: { on: false }, legs: { on: true, height: 100 },
+    levels: [{ h: null, cols: [drzwi({ doors: 2, shelfTargets: [400, null], drazki: [1], ...o })] }] });
+  const m = uw(szafa(), /rura ma 2062 mm/)[0];
+  ok('rura 2062 — ostrzeżenie z „podpora:0:0” przed „podzielkol”', !!m && /\|podpora:0:0\|podzielkol:/.test(m.text), m && m.text.split('|').slice(1).join());
+  const gP = szafa({ drazekPodpora: true });
+  const hwP = G.okuciaSzafki(gP, {});
+  const plan = gP.drillPlan.find((p) => p.rows.some((r) => /podpora rury WP-10/.test(r.kind)));
+  ok('po „Podpora rury na środku”: informacja, w zamówieniu 1 × WP-10, w planie wierceń na płycie nad rurą', uw(gP, /podparta na środku/).length === 1 && !uw(gP, /ugina się/).length
+    && (hwP.find((h) => h.name === 'Podpora rury ⌀25 GTV WP-10') || {}).qty === 1 && !!plan && plan.panel === 'Wieniec', plan && plan.panel);
+}
