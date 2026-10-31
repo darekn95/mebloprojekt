@@ -1,3 +1,19 @@
+### N173 [P2] — OTWARTE: formatki z otworami po przeciwnych stronach scalone w jeden wiersz
+
+**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 800 × 1800 × 560 mm, trzy poziomy, dwa elementy 100 × 100 mm od tyłu: lewy obejmuje wysokość 400–600 mm, prawy 900–1100 mm (liczoną od dna wnętrza). Pierwszy przechodzi przez płytę między poziomami 1 i 2, drugi przez płytę między 2 i 3. Kliknięto osobno przy obu „Wycinam otwory w płytach (na formatkach)”. Uwagi wskazują położenia od lewej odpowiednio 0 i 682 mm, ale tabela formatek łączy je w jedną pozycję „Półka przelotowa — otwór 82 × 100”, 764 × 560 mm, 2 szt., bez rozróżnienia strony i poziomu. Przy przygotowaniu dwóch płyt nie wynika z tego wiersza, że jedna ma wycięcie po lewej, druga po prawej. Informacje o poziomach i położeniach nadal znajdują się w Uwagach; PDF nie sprawdzono. Test funkcji potwierdza ten sam wynik. To osobne od N171 (tu każda płyta ma jeden otwór, ale dwie różne płyty są zsumowane).
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** uwzględnić liczbę, położenia i orientację otworów przy identyfikowaniu formatek oraz jawnie powiązać operację z płytą/poziomem; sprawdzić przypadki, w których obrót jest dopuszczalny. **Test odbioru:** lewy/prawy, różne i identyczne położenia, ten sam oraz różny poziom, po kliknięciu przycisków, zestawienie, rozkrój i PDF. NAPRAWIONE po pozytywnej weryfikacji.
+
+---
+
+### N174 [P2] — OTWARTE: przycisk potwierdza otwór w półce, której przeszkoda nie przecina
+
+**Test UI i funkcji**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 800 × 1200 × 560 mm, pełne plecy z płyty wewnątrz o grubości 18 mm, dwa poziomy. Element 100 × 5 mm od tylnej płaszczyzny 0 mm, od lewego boku 200 mm, przez całą wysokość. Geometria funkcji podaje cofnięcie tylnej krawędzi półki `shelfBack=18`: element zajmuje zakres 0–5 mm, a półka zaczyna się na 18 mm, więc nie przecinają się. Element może natomiast kolidować z samymi plecami, czego osobno nie rozstrzygano. Mimo tego program ostrzega, że przechodzi przez płytę między poziomami, i proponuje „Wycinam otwory w płytach (na formatkach)”. Po kliknięciu ostrzeżenie zmienia się w informację, że w płycie jest otwór 100 × 5, podczas gdy formatka pozostaje nazwana „Półka przelotowa”, bez otworu. W kodzie warunek ostrzeżenia sprawdza tylko jedną granicę zakresu głębokości, a funkcja oznaczania formatki sprawdza obie. PDF i faktycznego montażu nie badano.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** stosować ten sam pełny test przecięcia brył do komunikatu, przycisku i oznaczenia formatki; osobno ocenić ewentualną kolizję z plecami. **Test odbioru:** przeszkoda przed, na granicy i za krawędzią półki, plecy różnego typu i cofnięcia; kliknąć działanie, porównać informacje, formatki, geometrię i PDF. NAPRAWIONE po pozytywnym sprawdzeniu.
+
+---
+
 **Uzupełnienie N171 — potwierdzenie UI:** w lokalnej kopii wczytano powyższy syntetyczny projekt z dwoma elementami bez zaznaczonych otworów. Kliknięto osobno przycisk „Wycinam otwory w płytach (na formatkach)” przy pierwszym, a następnie przy drugim elemencie. Oba ostrzeżenia zmieniły się w informacje, ale formatka nadal ma nazwę tylko „Półka przelotowa — otwór 82 × 100”, bez wymiaru drugiego otworu. Nie sprawdzono PDF.
 
 ### N172 [P2] — OTWARTE: informacja po kliknięciu podaje inny wymiar otworu niż formatka
