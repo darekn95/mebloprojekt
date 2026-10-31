@@ -1,3 +1,11 @@
+### N171 [P2] — DO WERYFIKACJI UI: drugi otwór pomijany w nazwie formatki przy dwóch elementach
+
+**Test funkcji**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 800 × 1200 × 560 mm, dwa poziomy z płytą między nimi, dwa elementy przez całą wysokość: lewy tylny 100 × 100 mm i prawy tylny 150 × 120 mm, oba z ustawioną opcją `otwory:true` odpowiadającą akcji „Wycinam otwory w płytach (na formatkach)”. `computeGeo` pokazuje dwie informacje o otworach, natomiast nazwę jednej formatki „Półka przelotowa — otwór 82 × 100” (przecięcie pierwszego elementu z płytą) i brak nazwy lub opisu drugiego otworu. `otworW` wyszukuje pierwszy pasujący element przez `find`, zamiast zebrać wszystkie. Zestawienie formatek może więc nie oddawać wszystkich operacji. Nie sprawdzono przycisków w interfejsie ani PDF; informacje o obu otworach w Uwagach istnieją, więc nie twierdzę, że informacje znikają całkowicie. Projekt jest syntetyczny.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** dla każdej formatki zebrać wszystkie kolizje oznaczone do wycięcia, uwzględnić wymiary i położenia oraz sposób czytelnego przekazania ich do formatek i PDF. **Test odbioru:** dwa i więcej rozłącznych elementów, kolejność, różne wymiary, pojedynczy element jako kontrola, półka/przegroda, kliknięcie każdego przycisku, formatki, rysunek i PDF. NAPRAWIONE po pozytywnym sprawdzeniu.
+
+---
+
 ### Dodatkowy niezależny retest N150–N153 i N156 — main `5f0d60075d3be5c27204df86cfbe25b790593432`
 
 Poniższe wyniki uzupełniają i aktualizują wcześniejszy wpis: dla opisanych wariantów nie pozostają już wyłącznie testy funkcji.
