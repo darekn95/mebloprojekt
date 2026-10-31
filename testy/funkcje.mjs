@@ -29,7 +29,7 @@ let src = fs.readFileSync(path.join(DIR, '..', 'szafki.jsx'), 'utf8');
 src = src.replace(/^import React[^\n]*\n/, 'const React = { createElement: () => null, Fragment: "f" };\n'
   + 'const useState=()=>[null,()=>{}],useEffect=()=>{},useMemo=(f)=>f(),useCallback=(f)=>f,useRef=()=>({current:null});\n');
 src = src.replace(/export default function App/, 'function App');
-const nazwy = ['buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
+const nazwy = ['hwDefaultPrice', 'buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
@@ -588,8 +588,9 @@ console.log('\n== N148 (wariant): szafka wisząca z dala od ściany (decyzja uż
   const Qd = P([[wis('A')], [wis('B', { D: 250, dystans: 50 })]]);
   m = G.odScianyMsgs(Qd, 1);
   const hwB = G.computeGeo(G.cabDoGeo(Qd, Qd.items[1]), Qd.items[1].mat).hardware;
-  ok('po „Listwa na dystansie 50 mm”: informacja, w zamówieniu listwa dystansowa 50 mm na 600', m.length === 1 && m[0].level === 'info' && /listwa montażowa na listwie dystansowej 50 mm/.test(m[0].text)
-    && hwB.some((h) => h.name === 'Listwa dystansowa pod listwę montażową' && /grubość 50 mm/.test(h.spec) && h.qty === 0.6), m[0] && m[0].text);
+  // dystans 50 — nie 18 / 36, wiec kantowka 50 × 60 (uzytkownik 2026-10-31)
+  ok('po „Listwa na dystansie 50 mm”: informacja, w zamówieniu kantówka dystansowa 50 × 60 mm na 600', m.length === 1 && m[0].level === 'info' && /listwa montażowa na kantówce dystansowej 50 × 60 mm \(w zamówieniu\)/.test(m[0].text)
+    && hwB.some((h) => h.name === 'Kantówka dystansowa' && h.wariant === '50 × 60 mm' && h.qty === 0.6), m[0] && m[0].text);
   const rr = G.runRail(Qd, Qd.runs[0]);
   ok('listwa ciągu w dwóch odcinkach (B na dystansie)', rr && rr.odcinki.length === 2 && rr.odcinki[1].dyst === 50, rr && JSON.stringify(rr.odcinki));
   ok('dystans przy szafce dosuniętej do ściany — ostrzeżenie „niepotrzebny” z „dystans:1:0”', /\|dystans:1:0$/.test((G.odScianyMsgs(P([[wis('A')], [wis('B', { dystans: 40 })]]), 1)[0] || {}).text || ''));
@@ -844,4 +845,39 @@ console.log('\n== Decyzje 2026-10-31: kątownik szuflady > 600 (N178), podpora r
   const plan = gP.drillPlan.find((p) => p.rows.some((r) => /podpora rury WP-10/.test(r.kind)));
   ok('po „Podpora rury na środku”: informacja, w zamówieniu 1 × WP-10, w planie wierceń na płycie nad rurą', uw(gP, /podparta na środku/).length === 1 && !uw(gP, /ugina się/).length
     && (hwP.find((h) => h.name === 'Podpora rury ⌀25 GTV WP-10') || {}).qty === 1 && !!plan && plan.panel === 'Wieniec', plan && plan.panel);
+  // ceny uzytkownika 2026-10-31: WP-10 i katownik po 4 zl, klocek 1 zl, wkrety bez ceny jak 4 × 30
+  const c = (name, pk) => G.hwDefaultPrice({ name, pk });
+  // listwa dystansowa (uzytkownik 2026-10-31): 18 / 36 z plyty (formatka 60 × W, bez okleiny, dzielona), inna — kantowka co 5 mm
+  const wis = (o = {}) => geo({ name: 'W', W: 800, H: 720, D: 320, ...nogi, hangerMode: 'listwa', levels: [{ h: null, cols: [drzwi()] }], ...o });
+  const ld = (g) => g.panels.filter((p) => p.name === 'Listwa dystansowa');
+  const hwD = (g) => g.hardware.filter((h) => /dystans|Kantówka/i.test(h.name));
+  const g18 = wis({ dystans: 18 }), g36 = wis({ dystans: 36 }), g20 = wis({ dystans: 20 }), g50 = wis({ dystans: 50 }), g52 = wis({ dystans: 52 });
+  ok('dystans 18: formatka „Listwa dystansowa” 800 × 60, 1 szt., bez okleiny, dzielona; bez okucia dystansu',
+    ld(g18).length === 1 && ld(g18)[0].qty === 1 && ld(g18)[0].a === 800 && ld(g18)[0].b === 60 && ld(g18)[0].dzielona
+    && !Object.values(ld(g18)[0].edges).some(Boolean) && !hwD(g18).length, JSON.stringify(ld(g18)[0]));
+  ok('dystans 36: 2 warstwy (2 szt.); 20 (w tolerancji 2 mm): 1 warstwa', ld(g36)[0]?.qty === 2 && ld(g20)[0]?.qty === 1 && !hwD(g36).length);
+  ok('dystans 50 / 52: bez formatki, kantówka 50 × 60 mm na 0,8 mb', !ld(g50).length && !ld(g52).length
+    && hwD(g50).length === 1 && hwD(g50)[0].name === 'Kantówka dystansowa' && hwD(g50)[0].wariant === '50 × 60 mm' && hwD(g50)[0].qty === 0.8
+    && hwD(g52)[0]?.wariant === '50 × 60 mm', hwD(g52).map((h) => h.wariant).join());
+  const gH = wis({ dystans: 18, hangerMode: 'haczyki' });
+  ok('haki: klocek dystansowy pod hak, bez listwy z płyty', !ld(gH).length && hwD(gH).length === 1 && hwD(gH)[0].name === 'Klocek dystansowy pod hak');
+  // rozkroj: listwa dzielona w zrzutach — bez dodatkowego arkusza, najmniej kawalkow
+  const wr = (name, a, b, qty = 1, o = {}) => ({ name, a, b, qty, rotatable: true, matLabel: 'X', matId: 'X', sheet: null, ...o });
+  const planR = (rows) => G.buildCutPlan(rows)[0];
+  const czesci = (g) => g.sheets.flatMap((q) => q.parts.filter((p) => /^Listwa dystansowa/.test(p.name)));
+  const dl = (ps) => ps.reduce((s2, p) => s2 + Math.max(p.w, p.h), 0);
+  const p1 = planR([wr('Bok', 2600, 1900), wr('Listwa dystansowa', 1000, 60, 1, { dzielona: true })]);
+  ok('rozkrój: listwa 1000 w zrzucie obok boku — 1 arkusz, 1 kawałek', p1.kupic === 1 && czesci(p1).length === 1 && dl(czesci(p1)) === 1000);
+  const p2 = planR([wr('Bok', 2600, 1900), wr('Listwa dystansowa', 2800, 60, 1, { dzielona: true })]);
+  ok('rozkrój: listwa 2800 (dłuższa niż arkusz) — 2 kawałki w zrzutach, razem 2800, 1 arkusz, każdy ≥ 60',
+    p2.kupic === 1 && czesci(p2).length === 2 && Math.abs(dl(czesci(p2)) - 2800) < 1e-6 && czesci(p2).every((p) => Math.max(p.w, p.h) >= 60 && Math.min(p.w, p.h) === 60)
+    && czesci(p2).every((p) => /kawałek [12]\/2$/.test(p.name)), czesci(p2).map((p) => p.name + ' ' + Math.round(p.w) + '×' + Math.round(p.h)).join(' / '));
+  const p3 = planR([wr('Bok', 2761.2, 2061.2), wr('Listwa dystansowa', 800, 60, 2, { dzielona: true })]);
+  ok('rozkrój: arkusz bez zrzutów — listwy całe (2 × 800) na drugim arkuszu', p3.kupic === 2 && czesci(p3).length === 2 && czesci(p3).every((p) => Math.max(p.w, p.h) === 800));
+  const p4 = G.buildCutPlan([wr('Bok', 2600, 1900), wr('Listwa dystansowa', 800, 60, 1, { dzielona: true })], [{ id: 'r1', matLabel: 'X', w: 900, h: 100, qty: 1 }])[0];
+  ok('rozkrój: własny kawałek 900 × 100 — listwa na nim (zrzut), kupny arkusz 1', p4.kupic === 1 && p4.zWlasnych === 1 && p4.sheets.some((q) => q.wlasna && q.parts.some((p) => p.name === 'Listwa dystansowa')));
+  ok('ceny: WP-10 4 zł, kątownik 40343 4 zł, klocek pod hak 1 zł; wkręty 3,5 × 13, do frontu DXS (też krótszy), 4 × 40 — 0,08 zł jak 4 × 30',
+    c('Podpora rury ⌀25 GTV WP-10') === 4 && c('Kątownik mocujący Sevroll 40343') === 4 && c('Klocek dystansowy pod hak') === 1
+    && c('Wkręt 3,5 × 13') === 0.08 && c('Wkręt 4 × 25 do frontu szuflady', 'Wkręt 4 × 30 do frontu szuflady') === 0.08 && c('Wkręt 4 × 40') === 0.08 && c('Zawias') === 3,
+    [c('Wkręt 3,5 × 13'), c('Wkręt 4 × 40')].join(' / '));
 }

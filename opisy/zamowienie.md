@@ -12,14 +12,14 @@ zamówienia: „Cały projekt” albo „To pomieszczenie”.
   - **konfirmaty 7 × 50 i zaślepki** (też skrzynek DXS), **kołki podporowe ⌀5**, **trójkąty**;
   - **wkręty 4 × 30 do frontu szuflady** — 4 na front DXS-3D, front przykręcany od środka przez przód skrzynki (2026-10-26);
   - **nóżki** (wariant: kształt, wysokość, kolor), **złączki do cokołu**;
-  - **zawieszki, listwa montażowa** (za metr), **haki**; przy szafce wiszącej z dala od ściany — listwa dystansowa pod listwę (mb) albo klocki dystansowe pod haki (N148);
+  - **zawieszki, listwa montażowa** (za metr), **haki**; przy szafce wiszącej z dala od ściany — pod listwę: dystans równy grubości płyty albo dwóm to formatka „Listwa dystansowa” z płyty (nie produkt), inny — **kantówka dystansowa** (mb, przekrój co 5 mm × 60); pod haki — klocki dystansowe, 1 zł (N148, decyzja użytkownika 2026-10-31);
     - listwa: w sklepie odcinki 1 m i 2 m, tnie się na wymiar (rzazu nie liczymy). Jedna listwa przez ciąg — od pierwszej do ostatniej szafki, która na niej wisi (skrajna bez zawieszek jej nie dostaje, środkowa nie przerywa; obie z ostrzeżeniem); dłuższa niż 2 m — pełne odcinki 2 m i reszta. Osobna szafka — W, ramię szafki w L — swój odcinek przy drugiej ścianie. Plecy z płyty cofnięte (opcja) — listwa w szafce za plecami: szerokość pleców − 2 × 5 mm (`LISTWA_OD_PLECOW`), a listwa ciągu kończy się przy tej szafce (decyzje użytkownika 2026-10-24);
     - **lustro**: grubość (4 / 6 mm) w opisie i wariancie — różne grubości to osobne wiersze (audyt GPT N80);
     - **mocowania pleców w kolumnach** z obwodu każdej płyty (HDF — zszywki, płyta — wkręty), bez płyt — bez mocowań (audyt GPT N81);
     - zakup listwy (`listwaZakup`): najmniej metrów, docinki idą na krótsze kawałki (3 × 660 z jednego 2 m zamiast 3 × 1 m), przy remisie najmniej cięć. Listwa może być krótsza najwyżej o 10 mm (`LISTWA_SKROT`), ale tylko wtedy, gdy dzięki temu kupuje się mniej (3 × 670 = 2010 → jeden odcinek 2 m, jedna 660; za plecami cofniętymi bez skracania). Wiersz podaje „kupić N × 2 m + N × 1 m”, potrzebną długość, odpad i plan cięcia; ilość w mb = kupione metry (audyt GPT N77, decyzja użytkownika 2026-10-22);
   - **wkręty / zszywki do pleców**, **lustro** (za m²), **złącza do blatów**;
-  - **rura na wieszaki ⌀25** — każda docięta na światło kolumny − 2 mm; zakup w odcinkach 0,5 / 1 / 1,5 / 2 / 2,5 / 3 m jak listwa (`ruraWiersz`: najmniej metrów, docinki na krótsze rury, najchętniej odcinki do 2 m — 2,5 i 3 m tylko dla rury dłuższej niż 2 m; wiersz „kupić … / potrzeba / odpad / cięcie” — tak samo w zamówieniu pomieszczenia i projektu, z nazwami szafek przy docinkach; audyt GPT N90: tam plan znikał, zostawał opis „drążek na wieszaki w szafie”), 15 zł/m; **rozety** 2 na rurę, 1 zł (ceny użytkownika 2026-10-24); **podpora rury GTV WP-10** — 1 na rurę dłuższą niż 2 m, gdy kliknięto „Podpora rury na środku” (N181/N182; ceny jeszcze nie ma — 0 zł, do wpisania).
-  - **kątownik Sevroll 40343** — 1 na szufladę V-BOX szerszą niż 600 mm, z 4 wkrętami 3,5 × 13 (N178; ceny jeszcze nie ma — 0 zł, do wpisania).
+  - **rura na wieszaki ⌀25** — każda docięta na światło kolumny − 2 mm; zakup w odcinkach 0,5 / 1 / 1,5 / 2 / 2,5 / 3 m jak listwa (`ruraWiersz`: najmniej metrów, docinki na krótsze rury, najchętniej odcinki do 2 m — 2,5 i 3 m tylko dla rury dłuższej niż 2 m; wiersz „kupić … / potrzeba / odpad / cięcie” — tak samo w zamówieniu pomieszczenia i projektu, z nazwami szafek przy docinkach; audyt GPT N90: tam plan znikał, zostawał opis „drążek na wieszaki w szafie”), 15 zł/m; **rozety** 2 na rurę, 1 zł (ceny użytkownika 2026-10-24); **podpora rury GTV WP-10** — 1 na rurę dłuższą niż 2 m, gdy kliknięto „Podpora rury na środku” (N181/N182), 4 zł (cena użytkownika 2026-10-31).
+  - **kątownik Sevroll 40343** — 1 na szufladę V-BOX szerszą niż 600 mm, z 4 wkrętami 3,5 × 13 (N178), 4 zł (cena użytkownika 2026-10-31).
 - **Zestawienie projektu**: jeden wiersz na produkt i wariant (nakładany i wpuszczany zawias to dwa wiersze, nóżka 100 kwadratowa i 150 okrągła też). Ilości się sumują. Oznaczenie modelu (tip-on AM-SVN-DL-MG-30, zawieszka ZK-ZAW-R0-10 — pole `model`) zostaje w opisie zbiorczego wiersza przed listą zastosowań; nie wchodzi w klucz ceny (N155).
 - **Wycena** (ceny brutto, każdą można nadpisać, 0 zeruje pozycję):
   - **arkusze płyty** — liczba z rozkroju, cena wg materiału: biała 223,10 zł, w kolorze 240 zł (2800 × 2100 × 18), HDF 70 zł;
@@ -37,7 +37,7 @@ zamówienia: „Cały projekt” albo „To pomieszczenie”.
     - zawias 165° i łamany po 15 zł; złącze do blatów 9 zł.
 - **Konfirmaty**: na styk 1 (krótszy niż 132 mm) albo co ok. 200 mm, min. 2. Zaślepki — tyle samo, w blistrach po 25; także konfirmaty ramienia szafki w L (N168).
 - **Wkręty 4 × 30** (wzmocnienia, kątownik, zawieszki, dwie przegrody na styku): w szafce jeden wiersz z rozpisaniem; w liście projektu każde zastosowanie osobno z ilością (`czesci` w `scalOkucia`, audyt GPT N163 — przy samych zawieszkach opis mówił o wzmocnieniach).
-- **Dystans szafki wiszącej** (listwa dystansowa, klocki pod haki): grubość jako wariant — różne grubości to osobne wiersze listy projektu i ceny (N160).
+- **Dystans szafki wiszącej** (kantówka, klocki pod haki): grubość / przekrój jako wariant — różne grubości to osobne wiersze listy projektu i ceny (N160). Listwa z płyty jest w formatkach.
 - **Cena okucia** zapisuje się pod kluczem „nazwa | wariant”, bez ilości — zmiana liczby sztuk jej nie gubi.
 
 ## Co ustawiasz ręcznie
@@ -49,7 +49,7 @@ zamówienia: „Cały projekt” albo „To pomieszczenie”.
 
 ## Kontrole i przyciski
 
-- **Okucie bez ceny w cenniku** liczy się jako 0. Każda nowa nazwa okucia musi trafić do `DEFAULT_HW_PRICES` (zasada w `SLOWNIK.md`, sekcja 5).
+- **Okucie bez ceny w cenniku** liczy się jako 0. Każda nowa nazwa okucia musi trafić do `DEFAULT_HW_PRICES` (zasada w `SLOWNIK.md`, sekcja 5). Wyjątek: wkręt bez własnego wpisu („Wkręt 3,5 × 13”, wkręt do frontu szuflady DXS, „Wkręt 4 × N” przez dwie przegrody) kosztuje tyle co Wkręt 4 × 30 (decyzja użytkownika 2026-10-31). Klocek dystansowy pod hak — 1 zł.
 - **Audyt `audytwycena`** sprawdza, że arkusze w wycenie = rozkrój, obrzeże = suma krawędzi, okucia = lista, wartość = ilość × cena, a „Razem” = suma.
 - **Zestawienie projektu** = suma szafek + cokół i blat ciągów; PDF = ekran (audyt `audyt`).
 

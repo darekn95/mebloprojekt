@@ -202,9 +202,10 @@ console.log('\n== decyzje 2026-10-30: N153, N148, N149, N155 ==');
   await seedP(P148);
   await klik(re148, 'Listwa na dystansie 100 mm');
   const hw148 = await rows(/^Produkty do zamówienia/);
-  ok('po „Listwa na dystansie”: `dystans` 100, informacja, w zamówieniu listwa dystansowa 100 mm', (await zap()).items[1].cab.dystans === 100
-    && (await notes()).some((x) => /na listwie dystansowej 100 mm/.test(x.txt)) && !(await notes()).some((x) => /zawisłaby w powietrzu/.test(x.txt))
-    && hw148.some((r) => /^Listwa dystansowa pod listwę montażową/.test(r) && /grubość 100 mm/.test(r)), hw148.filter((r) => /dystans/i.test(r)).join(' / '));
+  // 100 mm — nie grubosc plyty ani dwie, wiec kantowka 100 × 60 (uzytkownik 2026-10-31)
+  ok('po „Listwa na dystansie”: `dystans` 100, informacja, w zamówieniu kantówka dystansowa 100 × 60 mm', (await zap()).items[1].cab.dystans === 100
+    && (await notes()).some((x) => /na kantówce dystansowej 100 × 60 mm/.test(x.txt)) && !(await notes()).some((x) => /zawisłaby w powietrzu/.test(x.txt))
+    && hw148.some((r) => /^Kantówka dystansowa/.test(r) && /100 × 60/.test(r)), hw148.filter((r) => /dystans/i.test(r)).join(' / '));
   // N149: scianka zabudowy z zawieszka — „2 konfirmaty przez wieniec”
   await seed({ name: 'W', W: 600, H: 1200, D: 560, plinth: { on: false }, legs: { on: false },
     cutout: { on: true, w: 100, d: 100, fullHeight: false, levelIndex: 1, mask: true },

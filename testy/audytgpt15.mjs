@@ -9,7 +9,7 @@
      „Przełóż zawiasy na …”;
    - N171 / N173 / N180 nazwy formatek z wycieciami (dwa otwory, strony, wyciecie narozne);
    - decyzje 2026-10-31: „Podpora rury na środku (GTV WP-10)” (N181/N182), katownik 40343 pod dno
-     szuflady > 600 mm w zamowieniu (N178).
+     szuflady > 600 mm w zamowieniu (N178); listwa dystansowa z plyty (18 / 36) i kantowka.
    Liczby i reszta przypadkow — funkcje, suita `funkcje`. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -151,6 +151,29 @@ console.log('\n== Decyzje 2026-10-31: podpora rury WP-10 (N181/N182), kątownik 
   ok('N178: W800, 3 szuflady — kątownik 40343 3 szt. i wkręt 3,5 × 13 12 szt. w zamówieniu', hw2.some((r) => /^Kątownik mocujący Sevroll 40343/.test(r) && /\| 3 szt\.$/.test(r))
     && hw2.some((r) => /^Wkręt 3,5 × 13/.test(r) && /\| 12 szt\.$/.test(r)), hw2.filter((r) => /Kątownik|Wkręt 3,5 × 13/.test(r)).join(' / '));
   ok('N178: uwaga o szerokiej szufladzie jest informacją (bez „!”) i mówi, że jest w zamówieniu', (await notes()).some((x) => /szersza niż 600 mm/.test(x.txt) && /w zamówieniu/.test(x.txt)));
+}
+
+console.log('\n== Listwa dystansowa (decyzja 2026-10-31): 18 / 36 z płyty, inna — kantówka ==');
+{
+  const wis = (dystans) => seed({ name: 'W', W: 800, H: 720, D: 320, plinth: { on: false }, legs: { on: false }, hangerMode: 'listwa', dystans,
+    levels: [{ h: null, cols: [kol()] }] });
+  await wis(36);
+  const f = (await rows(/^Formatki/)).filter((r) => /^Listwa dystansowa/.test(r));
+  const hw = await rows(/^Produkty do zamówienia/);
+  const bezObrzeza = await page.evaluate(() => { const sec = [...document.querySelectorAll('section')].find((x) => /^Formatki/.test(x.querySelector('h2')?.textContent || ''));
+    const tr = [...sec.querySelectorAll('tbody tr')].find((x) => /^Listwa dystansowa/.test(x.innerText.trim()));
+    return !!tr && [...tr.querySelectorAll('button[title]')].filter((q) => /obrzeż/.test(q.title)).every((q) => /^Bez obrzeża/.test(q.title)); });
+  ok('dystans 36: formatka „Listwa dystansowa” 800 × 60, 2 szt. (2 warstwy), bez obrzeża; w produktach bez listwy i kantówki',
+    f.length === 1 && /\| 800 \| 60 \| 2 \|/.test(f[0]) && bezObrzeza && !hw.some((r) => /dystans/i.test(r)), f.join(' / '));
+  // sekcja „Rozkrój” bywa zwinieta — otworz i poczekaj na plan (jak w `plytywlasne`)
+  const rk = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Rozkrój/ }) }).first();
+  if ((await rk.innerText()).length < 120) { await rk.locator('h2').click(); await page.waitForTimeout(500); }
+  await page.waitForTimeout(1500);
+  ok('rozkrój: listwa dystansowa na arkuszu', /Listwa dystansowa/.test(await rk.innerText()));
+  await wis(50);
+  const hw2 = await rows(/^Produkty do zamówienia/);
+  ok('dystans 50: kantówka dystansowa 50 × 60 mm w produktach, bez formatki', hw2.some((r) => /^Kantówka dystansowa/.test(r) && /50 × 60/.test(r))
+    && !(await rows(/^Formatki/)).some((r) => /^Listwa dystansowa/.test(r)), hw2.filter((r) => /dystans/i.test(r)).join(' / '));
 }
 
 ok('bez błędów strony', !errors.length, errors.join(' / '));

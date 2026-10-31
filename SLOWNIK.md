@@ -238,7 +238,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | Zabuduj otwór maskownicą / Widoczna ścianka | `.maskCorner` („horizontal" / „vertical") |
 | Elementy kolizyjne (rura, gniazdko) | `cab.obstacles[] = { w, d, h, side, fromBack, fromBottom, maskType, maskH, maskFront, maskCorner }` |
 | Mocowanie ścianki zabudowy z zawieszką (N149) | `cutout.zawMocowanie` / `obstacles[].zawMocowanie` = `"konfirmaty"` / `"trojkaty"`; akcja `zawmoc:<wyc:L\|P\|el:<nr>>:<konfirmaty\|trojkaty>` („2 konfirmaty przez wieniec” / „2 trójkąty pod wieńcem”, `runFix`; przy blacie z płyty `zawmoc:…:trojkaty:blat` — „pod blatem”); `geo.zawieszki.mocZabudowy` → `confQty` / „Trójkąt meblarski”; bez wieńca — ostrzeżenie z `dodajwieniec` („Dodaj wieniec”, `runFix` → `zWiencem`, N161) |
-| Szafka wisząca z dala od ściany (N148) | `odstepOdSciany(project, i)` (lico `runFrontDepth` + `offset` − `glebOdSciany`), `odScianyMsgs` (w `runMsgs` i w liście szafek z błędami); akcje `dosciany:<szafka>:<wysunięcie>` i `dystans:<szafka>:<mm>` (`runFix`); `cab.dystans` → okucie „Listwa dystansowa pod listwę montażową” / „Klocek dystansowy pod hak”, `runRail` dzieli odcinki po `dyst` |
+| Szafka wisząca z dala od ściany (N148) | `odstepOdSciany(project, i)` (lico `runFrontDepth` + `offset` − `glebOdSciany`), `odScianyMsgs` (w `runMsgs` i w liście szafek z błędami); akcje `dosciany:<szafka>:<wysunięcie>` i `dystans:<szafka>:<mm>` (`runFix`); `cab.dystans` → na listwie: `dystansWarstwy(dyst, t)` (grubość płyty ± 2 mm → 1, dwie → 2) — formatka „Listwa dystansowa” `LISTWA_DYST_SZER` (60) × W z płyty korpusu, bez okleiny, `dzielona` (rozkrój: `wstawDzielone`), bryła 3D za plecami pod wieńcem; inny dystans — okucie `KANTOWKA_NAME` „Kantówka dystansowa” (`kantowkaGrubosc`: co `KANTOWKA_KROK` = 5 mm) × 60; na hakach — „Klocek dystansowy pod hak”; `runRail` dzieli odcinki po `dyst` (decyzja użytkownika 2026-10-31) |
 | Rura dłuższa niż 2 / 3 m (N153) | `DRAZEK_UGINA` (2000), `RURA_ODCINKI` (maks. 3000); akcja `podzielkol:<poziom>:<kolumna>:<szerokość z rysunku>:<grubość>` („Podziel kolumnę przegrodą”) → `kolumnaNaDwie(cols, j, wTeraz, t)` (0 drzwi zostaje 0, `doorWidths` na auto, `fix` po swojej stronie, `hinge` pojedynczego skrzydła jak przed podziałem, szerokość lewa = floor, prawa = reszta; N158–N165) |
 | Podpora rury na środku (N181/N182) | „Podpora rury na środku (GTV WP-10)” przy rurze 2–3 m: akcja `podpora:<poziom>:<kolumna>` → `col.drazekPodpora = true` (cecha kolumny); `computeGeo` → `drazki[].podpora`; zamówienie `PODPORA_RURY_NAME` (1 na podpartą rurę > `DRAZEK_UGINA`), plan wierceń „podpora rury WP-10 (od spodu)” na płycie nad rurą (półka / wieniec / blat / wzmocnienie pod blatem / półka przelotowa) |
 | Kątownik pod dno szuflady > 600 mm (N178) | `KATOWNIK_SZUFLADY_NAME` (Sevroll 40343), `KATOWNIK_SZUFLADY_WKRETY` (4 × „Wkręt 3,5 × 13”); `computeGeo` liczy `katownikiSzuflad` (szuflady V-BOX w kolumnie o LW > 600) → wiersze w `okuciaSzafki`; uwaga „info” |
@@ -338,7 +338,8 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `rotAboutX` / `klapaObrot` / `klapaUchwytY` | klapa w bryle 3D: obrót wokół krawędzi zawiasów (do góry +, w dół −, najwyżej 90°), uchwyt przy wolnej krawędzi |
 | `TopHardware` | okucia w widoku z góry (szafka i zabudowa, pod „Pokaż okucia”): uchwyty przed frontem, zawiasy przy boku od frontu, nóżki przerywane; `data-el="okucia-gora"` |
 | `worktopMsgs` / `runCornerMsgs` / `cornerPairMsgs` / `tierMsgs` | uwagi na poziomie ciągu i narożnika |
-| `hwDefaultPrice(h)` | cena okucia — klucz to `h.pk` albo `h.name` |
+| `hwDefaultPrice(h)` | cena okucia — klucz to `h.pk` albo `h.name`; „Wkręt …” bez wpisu — cena `WKRET_CENA_KLUCZ` (4 × 30) |
+| `wstawDzielone(dzielone, sheets)` | formatki `dzielona` (listwa dystansowa) po ułożeniu reszty: w wolne pola arkuszy i wolne własne kawałki, najmniej kawałków (całość w najmniejsze pole, które ją mieści, inaczej najdłuższe pole), kawałek ≥ `MIN_PART`; nie mieści się — `null` i plan od nowa z nią całą (`buildCutPlan`) |
 | „Pokaż rysunek” (górny pasek) | przewija do karty `Card id="rysunek"` (`scrollMarginTop` pod przyklejony pasek) — przycisk roboczy; w niskim oknie (`niskieOkno`) prosto do samego rysunku (`svg`); przy przypiętej prawej kolumnie przewija tylko ją (`przewinWKolumnie`), strona i paski stoją |
 | prawa kolumna przypięta (`data-el="prawa-kolumna"`) | od szerokości `SZEROKI_EKRAN` (1024, dwie kolumny) — `przypieta`: `sticky` pod górnym paskiem (`przypietaGora` = wysokość paska + `PRZYPIETY_ODSTEP`), wysokość do dołu okna, własne przewijanie (kółko nad nią; w dół zwija paski — `przewinPrawa`); pełny ekran rysunku (`pelnyRys`) ją odkleja; przycisk uwag u góry (`scrollToNotes`) też przewija tylko ją (użytkownik 2026-10-25) |
 | górny pasek (`header data-el="naglowek"`) — zawsze przyklejony | treść wyższa niż `NAGLOWEK_MAX` (0,4) okna (`wysTresciNaglowka` z `ResizeObserver` na bloku w środku, `limitNaglowka`, `naglowekZaWysoki`) — pasek ma tyle wysokości i przewija się sam; dawniej odklejał się (audyt GPT U2) i po rozwinięciu w wąskim oknie znikał z ekranu (użytkownik 2026-10-29); `wysNaglowka` — wysokość samego paska |
@@ -460,7 +461,10 @@ Podnośnik gazowy N N / Podnośnik gazowy — siła do dobrania (cena po `pk` �
 Amortyzator do klapy opadanej N N (`pk` „Amortyzator do klapy opadanej”, 10) ·
 Prowadnica Sevroll V-BOX 3D Slim … mm (`SLIDE_PRICES` wg NL) ·
 Prowadnica Sevroll DXS-3D Synchro (50 za komplet bez względu na NL; NL i indeks w specyfikacji) ·
-Rura na wieszaki ⌀25 (15/mb, zakup w odcinkach — `ruraWiersz`) · Rozeta do rury ⌀25 (1)
+Rura na wieszaki ⌀25 (15/mb, zakup w odcinkach — `ruraWiersz`) · Rozeta do rury ⌀25 (1) ·
+Podpora rury ⌀25 GTV WP-10 (4) · Kątownik mocujący Sevroll 40343 (4) · Klocek dystansowy pod hak (1) ·
+każdy inny „Wkręt …” bez własnego wpisu (3,5 × 13, 4 × 30 / krótszy do frontu szuflady, 4 × N przez dwie przegrody) — jak Wkręt 4 × 30 (`WKRET_CENA_KLUCZ`, 0,08; użytkownik 2026-10-31) ·
+Kantówka dystansowa (0 — ceny jeszcze nie ma; listwa dystansowa 18 / 36 mm to formatka z płyty, nie okucie)
 
 ---
 

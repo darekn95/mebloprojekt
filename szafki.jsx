@@ -280,6 +280,13 @@ const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀2
 const PODPORA_RURY_NAME = "Podpora rury ⌀25 GTV WP-10";
 // katownik pod dno szerokiej szuflady V-BOX (Sevroll, decyzja uzytkownika 2026-10-31, N178)
 const KATOWNIK_SZUFLADY_NAME = "Kątownik mocujący Sevroll 40343", KATOWNIK_SZUFLADY_WKRETY = 4;
+/* Listwa dystansowa pod listwe montazowa (szafka wiszaca z dala od sciany, N148; uzytkownik
+   2026-10-31): z plyty tylko na jej grubosc albo podwojnie — pasek 60 mm, moze byc z kilku kawalkow
+   (x / 60 / 18) dobranych do zrzutow; przy innym dystansie kantowka, przekroje co 5 mm.
+   Tolerancja 2 mm — jak przy porownaniu dystansu z odstepem od sciany (`odScianyMsgs`). */
+const LISTWA_DYST_SZER = 60, KANTOWKA_KROK = 5, KANTOWKA_NAME = "Kantówka dystansowa";
+const dystansWarstwy = (dyst, t) => (!(dyst > 0) || !(t > 0) ? 0 : Math.abs(dyst - t) <= 2 ? 1 : Math.abs(dyst - 2 * t) <= 2 ? 2 : 0);
+const kantowkaGrubosc = (dyst) => Math.max(KANTOWKA_KROK, Math.round(dyst / KANTOWKA_KROK) * KANTOWKA_KROK);
 
 /* Drzwi bez uchwytu (uzytkownik 2026-10-25): front dluzszy od dolu (gorne szafki —
    chwyta sie go od spodu), nizszy od gory (podfrez, jak w szufladach) — oba domyslnie
@@ -337,7 +344,14 @@ const DEFAULT_HW_PRICES = {
   // rura na wieszaki (za metr) i rozety — ceny uzytkownika (2026-10-24)
   [DRAZEK_NAME]: 15,
   [ROZETA_NAME]: 1,
+  // podpora rury GTV WP-10 i katownik pod dno szerokiej szuflady V-BOX — ceny uzytkownika (2026-10-31)
+  [PODPORA_RURY_NAME]: 4,
+  [KATOWNIK_SZUFLADY_NAME]: 4,
+  "Klocek dystansowy pod hak": 1,
 };
+/* Wkret bez wlasnej ceny (3,5 × 13 do katownika szuflady, 4 × 30 / krotszy do frontu DXS,
+   4 × N przez dwie przegrody przy plycie innej niz 18) — jak „Wkręt 4 × 30” (uzytkownik 2026-10-31). */
+const WKRET_CENA_KLUCZ = "Wkręt 4 × 30";
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
    zalatwic zwyklym wpisem w tabeli — stad osobne dopasowanie. */
@@ -350,7 +364,8 @@ const hwDefaultPrice = (h) => {
     return (bands.find((b) => nl <= b.maxNl) || bands[bands.length - 1]).price;
   }
   // uchwyt moze miec wlasna nazwe, wiec dopasowujemy po stalym kluczu pozycji
-  return DEFAULT_HW_PRICES[h.pk || h.name] || 0;
+  const klucz = h.pk || h.name || "";
+  return DEFAULT_HW_PRICES[klucz] ?? (/^Wkręt /.test(klucz) ? DEFAULT_HW_PRICES[WKRET_CENA_KLUCZ] : 0);
 };
 
 /* Ceny netto rozdawane przez wczesniejsza wersje — jesli projekt ma
@@ -7212,16 +7227,21 @@ function computeGeoLiczy(cab, mat, ctx) {
     /* Szafka wisi z dala od sciany (wysunieta / plytsza w licu) i uzytkownik wybral dystans
        (`cab.dystans`, przycisk „… na dystansie N mm”, N148): listwa dystansowa pod listwe
        montazowa na dlugosc szafki albo klocek pod kazdy hak. */
+    /* `wariant` — grubosc: rozne grubosci to rozne wiersze zbiorczej listy (audyt GPT N160:
+       50 i 100 mm laczyly sie w jedna listwe bez grubosci). Listwa (uzytkownik 2026-10-31):
+       dystans rowny grubosci plyty albo dwom — formatka z plyty korpusu (`dystansZPlyty`,
+       nizej), inny — kantowka (przekroj co 5 mm). */
     const dyst = Math.max(0, Math.round(Number(cab.dystans) || 0));
-    if (dyst)
-      hardware.push(cab.hangerMode !== "haczyki"
-        /* `wariant` — grubosc: rozne grubosci to rozne wiersze zbiorczej listy (audyt GPT N160:
-           50 i 100 mm laczyly sie w jedna listwe bez grubosci) */
-        ? { name: "Listwa dystansowa pod listwę montażową", use: "szafka wisząca z dala od ściany", wariant: `grubość ${fmt(dyst)} mm`,
-          spec: `grubość ${fmt(dyst)} mm, na długość szafki ${fmt(W)} mm — przykręcona do ściany, na niej listwa montażowa`,
-          qty: W / 1000, unit: "mb" }
-        : { name: "Klocek dystansowy pod hak", use: "szafka wisząca z dala od ściany", wariant: `grubość ${fmt(dyst)} mm`,
-          spec: `grubość ${fmt(dyst)} mm, po jednym pod hak`, qty: nH, unit: "szt." });
+    if (dyst && cab.hangerMode === "haczyki")
+      hardware.push({ name: "Klocek dystansowy pod hak", use: "szafka wisząca z dala od ściany", wariant: `grubość ${fmt(dyst)} mm`,
+        spec: `grubość ${fmt(dyst)} mm, po jednym pod hak`, qty: nH, unit: "szt." });
+    else if (dyst && !dystansWarstwy(dyst, t)) {
+      const k = kantowkaGrubosc(dyst);
+      hardware.push({ name: KANTOWKA_NAME, use: "listwa dystansowa pod listwę montażową — szafka wisząca z dala od ściany",
+        wariant: `${fmt(k)} × ${fmt(LISTWA_DYST_SZER)} mm`,
+        spec: `przekrój ${fmt(k)} × ${fmt(LISTWA_DYST_SZER)} mm (dystans ${fmt(dyst)} mm${k !== dyst ? `, kantówka co ${KANTOWKA_KROK} mm` : ""}), na długość szafki ${fmt(W)} mm — przykręcona do ściany, na niej listwa montażowa`,
+        qty: W / 1000, unit: "mb" });
+    }
   }
 
   /* Wzmocnienia i katownik skreca sie wkretami, nie konfirmatem: tam plyty
@@ -7293,6 +7313,15 @@ function computeGeoLiczy(cab, mat, ctx) {
   /* Najmniejszy bok formatki. Ponizej tego piła formatowa nie ma czego trzymac
      — takiego kawalka nikt nie wytnie z plyty na maszynie. Do zamowienia idzie
      MIN_PART, a docina sie recznie (uzytkownik 2026-10-11: `naZamowienie`). */
+  /* Listwa dystansowa z plyty (uzytkownik 2026-10-31): dystans rowny grubosci plyty (1 warstwa)
+     albo dwom (2 warstwy) — pasek LISTWA_DYST_SZER × dlugosc szafki z plyty korpusu, bez okleiny.
+     `dzielona`: nie musi byc z jednego kawalka — rozkroj sklada ja z najmniejszej liczby kawalkow
+     ze zrzutow (`wstawDzielone`). */
+  const dystWarstwy = wantHangers && cab.hangerMode !== "haczyki" ? dystansWarstwy(Math.round(Number(cab.dystans) || 0), t) : 0;
+  if (dystWarstwy)
+    panels.push({ name: "Listwa dystansowa", qty: dystWarstwy, a: W, b: LISTWA_DYST_SZER, matKey: "board",
+      edges: { a1: false, a2: false, b1: false, b2: false }, dzielona: true,
+      note: `pod listwę montażową (szafka wisząca z dala od ściany): ${dystWarstwy === 2 ? `2 warstwy = ${fmt(2 * t)} mm` : `1 warstwa = ${fmt(t)} mm`}, bez okleiny — może być z kilku kawałków (rozkrój dobiera je ze zrzutów)` });
   const panelsZam = panels.map(naZamowienie);
   maleFormatkiMsgs(panelsZam, cab.dociac, "@").forEach((m) => add(m.level, m.text));
 
@@ -13468,6 +13497,17 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
 
   fk = "Plecy";
   plecyBryly(cab, geo).forEach((pb) => box(pb.x0, pb.y0, pb.z0, pb.x1, pb.y1, pb.z1, pb.plyta ? (pb.zPolek ? shc : bf) : mat.back.color));
+  /* Listwa dystansowa z plyty (szafka wiszaca z dala od sciany, uzytkownik 2026-10-31) — za plecami,
+     na scianie pod listwa montazowa, gornym brzegiem na wysokosci zawieszki (pod wiencem). */
+  fk = "Listwa dystansowa";
+  {
+    const ld = (geo.panels || []).find((p) => p.name === "Listwa dystansowa");
+    if (ld) {
+      const zT = Math.max(cd, ...plecyBryly(cab, geo).map((pb) => pb.z1));
+      const yG = H - (geo.hasTop ? (geo.tW || t) : 0);
+      for (let i = 0; i < ld.qty; i++) box(0, yG - LISTWA_DYST_SZER, zT + i * t, W, yG, zT + (i + 1) * t, bf);
+    }
+  }
   // blenda nad szafka w licu drzwi (audyt GPT N14)
   fk = "Blenda nad szafką";
   if (cab.topFiller?.on && cab.topFiller.height > 0) {
@@ -16221,11 +16261,16 @@ const odScianyMsgs = (project, i) => {
   if (!o) return [];
   const dyst = Math.max(0, Math.round(Number(it.cab.dystans) || 0));
   const listwa = naListwie(it.cab);
-  const czym = listwa ? "listwa montażowa na listwie dystansowej" : "haki na klockach dystansowych";
+  // listwa z plyty (grubosc plyty albo dwie) — w formatkach, inna — kantowka w zamowieniu (uzytkownik 2026-10-31)
+  const tPl = Number((((it.mat || defaultMaterials) || {}).board || {}).thickness) || 18;
+  const warstwy = listwa ? dystansWarstwy(dyst, tPl) : 0;
+  const czym = !listwa ? `haki na klockach dystansowych ${fmt(dyst)} mm (w zamówieniu)`
+    : warstwy ? `listwa montażowa na listwie dystansowej z płyty ${fmt(dyst)} mm (w formatkach: ${warstwy === 2 ? "2 warstwy" : "1 warstwa"} płyty, może być z kilku kawałków)`
+    : `listwa montażowa na kantówce dystansowej ${fmt(kantowkaGrubosc(dyst))} × ${fmt(LISTWA_DYST_SZER)} mm (w zamówieniu)`;
   if (o.gap <= 2)
     return dyst ? [{ level: "warn", text: `Szafka dotyka ściany, a w zamówieniu jest dystans ${fmt(dyst)} mm pod ${listwa ? "listwę" : "haki"} — niepotrzebny.|dystans:${i}:0` }] : [];
   if (Math.abs(dyst - o.gap) <= 2)
-    return [{ level: "info", text: `Szafka wisi ${fmt(o.gap)} mm od ściany — ${czym} ${fmt(dyst)} mm (w zamówieniu).` }];
+    return [{ level: "info", text: `Szafka wisi ${fmt(o.gap)} mm od ściany — ${czym}.` }];
   const powod = [o.offset > 0 ? `wysunięta z lica o ${fmt(o.offset)} mm` : null,
     o.plytsza > 0 ? `płytsza od ciągu o ${fmt(o.plytsza)} mm, a szafki stoją równo frontami` : null].filter(Boolean);
   return [{ level: "error", text: `Szafka wisi ${fmt(o.gap)} mm od ściany${powod.length ? ` (${powod.join(", ")})` : ""} — zawieszki nie sięgną ${listwa ? "listwy" : "haków"} na ścianie i szafka zawisłaby w powietrzu. `
@@ -17760,6 +17805,60 @@ const naKawalki = (list, resztki) => {
   return { reszta: reszta.filter((r) => r.qty > 0), wlasne };
 };
 
+/* Formatki `dzielona` (listwa dystansowa z plyty, uzytkownik 2026-10-31: „nie musi być lity kawałek,
+   może być z kilku (x/60/18) tak żeby pasowało do odpadów (zrzutów) i jak najmniejsza liczba
+   kawałków”): po ulozeniu reszty formatek kazda sztuka idzie w wolne pola arkuszy (zrzuty
+   i scinki co najmniej tak szerokie jak pasek) — najpierw jedno pole, w ktore wchodzi cala
+   (najmniejsze takie, zeby nie psuc duzych zrzutow), inaczej najdluzsze pole i dalej reszta.
+   Kawalek krotszy niz MIN_PART sie nie uda (firma tego nie utnie). Nie zmiesci sie w zrzutach —
+   null: plan liczy sie jeszcze raz z nimi jak ze zwyklymi formatkami (cale). */
+const wstawDzielone = (dzielone, sheets) => {
+  const ark = sheets.map((sh) => ({ ...sh, parts: [...sh.parts], free: (sh.offcuts || []).map((r) => ({ ...r })), cuts: sh.cuts || 0 }));
+  const kawalki = [];
+  for (const r of dzielone) {
+    const L = Math.max(r.a, r.b), S = Math.min(r.a, r.b);
+    for (let n = 0; n < r.qty; n++) {
+      let zost = L;
+      const moje = [];
+      while (zost > 1e-6) {
+        /* Na koniec nie moze zostac kawalek krotszy niz MIN_PART: pole, ktore by go zostawilo,
+           odpada; gdy innego nie ma — kawalek z niego krotszy o tyle, zeby reszta miala MIN_PART. */
+        const zbierz = (skroc) => {
+          const out = [];
+          ark.forEach((sh, si) => sh.free.forEach((f, fi) => {
+            const dl = Math.max(f.w, f.h), kr = Math.min(f.w, f.h);
+            if (kr + 1e-9 < S) return;
+            let wez = Math.min(zost, dl);
+            if (zost - wez > 1e-6 && zost - wez < MIN_PART) { if (!skroc) return; wez = zost - MIN_PART; }
+            if (wez < MIN_PART - 1e-9) return;
+            out.push({ si, fi, f, dl, wez });
+          }));
+          return out;
+        };
+        let pola = zbierz(false);
+        if (!pola.length) pola = zbierz(true);
+        if (!pola.length) return null;
+        const cale = pola.filter((q) => q.wez >= zost - 1e-6);
+        const q = cale.length ? cale.reduce((m, x) => (x.f.w * x.f.h < m.f.w * m.f.h ? x : m))
+          : pola.reduce((m, x) => (x.wez > m.wez ? x : m));
+        const sh = ark[q.si], f = q.f;
+        const poziomo = f.w >= f.h;
+        const w = poziomo ? q.wez : S, h = poziomo ? S : q.wez;
+        moje.push({ sh, part: { x: f.x, y: f.y, w, h, rot: false, grain: false } });
+        sh.cuts += (f.w - w > 1e-6 ? 1 : 0) + (f.h - h > 1e-6 ? 1 : 0);
+        // pasek wzdluz dluzszego boku pola; reszta pola zostaje w calej szerokosci (pod / obok paska)
+        sh.free.splice(q.fi, 1, ...splitFreeRect(f, w, h, poziomo ? "h" : "v"));
+        zost -= q.wez;
+      }
+      moje.forEach((m, i) => {
+        const part = { ...m.part, name: moje.length > 1 ? `${r.name} — kawałek ${i + 1}/${moje.length}` : r.name, dzielona: true };
+        m.sh.parts.push(part);
+        kawalki.push(part);
+      });
+    }
+  }
+  return ark.map(({ free, ...sh }) => ({ ...sh, offcuts: mergeFree(free) }));
+};
 function buildCutPlan(rows, resztki = []) {
   const groups = new Map();
   // wlasne kawalki wspolne dla wszystkich grup — kazda sztuka idzie do jednej (N150)
@@ -17782,8 +17881,36 @@ function buildCutPlan(rows, resztki = []) {
     const sh = list.find((r) => r.sheet);
     const matIds = [...new Set(list.map((r) => r.matId).filter(Boolean))];
     const swoje = pula.filter((q) => resztkaGrupy(q, { matLabel: list[0].matLabel, matIds }) && q.w > 0 && q.h > 0 && q.zostalo !== 0);
-    const { reszta, wlasne } = swoje.length ? naKawalki(list, swoje) : { reszta: list, wlasne: [] };
-    const kupne = packSheets(reszta, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {});
+    const dzielone = list.filter((r) => r.dzielona);
+    const zwykle = dzielone.length ? list.filter((r) => !r.dzielona) : list;
+    const swojeKopia = swoje.map((q) => ({ ...q }));
+    let { reszta, wlasne } = swoje.length ? naKawalki(zwykle, swoje) : { reszta: zwykle, wlasne: [] };
+    let kupne = packSheets(reszta, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {});
+    if (dzielone.length) {
+      // kawalki wlasnej plyty, ktore zostaly wolne, tez sa zrzutami
+      const wolneWlasne = swoje.filter((q) => q.zostalo > 0).flatMap((q) => Array.from({ length: q.zostalo }, () => ({
+        parts: [], cuts: 0, offcuts: [{ x: 0, y: 0, w: q.w, h: q.h }], wlasna: { w: q.w, h: q.h, id: q.id }, nowyKawalek: q })));
+      const ulozone = wstawDzielone(dzielone, [...wlasne, ...wolneWlasne, ...kupne.sheets]);
+      if (ulozone) {
+        const nW = wlasne.length;
+        const nowe = ulozone.slice(nW, nW + wolneWlasne.length).filter((q) => q.parts.length);
+        nowe.forEach((q) => { q.nowyKawalek.zostalo -= 1; });
+        wlasne = [...ulozone.slice(0, nW), ...nowe.map(({ nowyKawalek, ...q }) => q)];
+        const ks = ulozone.slice(nW + wolneWlasne.length);
+        const uzyte = ks.reduce((a2, q) => a2 + q.parts.reduce((b2, p2) => b2 + p2.w * p2.h, 0), 0);
+        const calosc = ks.length * kupne.sheetW * kupne.sheetH;
+        const off = ks.flatMap((q) => usefulOf(q.offcuts || []));
+        kupne = { ...kupne, sheets: ks, usedArea: uzyte, usedPct: calosc > 0 ? (uzyte / calosc) * 100 : 0,
+          cuts: ks.reduce((a2, q) => a2 + (q.cuts || 0), 0),
+          biggestRect: off.reduce((m2, r) => (!m2 || r.w * r.h > m2.w * m2.h ? r : m2), null),
+          usefulArea: off.reduce((a2, r) => a2 + r.w * r.h, 0), usefulCount: off.length };
+      } else {
+        // nie weszla w zrzuty — cala, jak zwykla formatka (plan od nowa, wlasne kawalki tez)
+        swoje.forEach((q, i) => { q.zostalo = swojeKopia[i].zostalo; });
+        ({ reszta, wlasne } = swoje.length ? naKawalki(list, swoje) : { reszta: list, wlasne: [] });
+        kupne = packSheets(reszta, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {});
+      }
+    }
     /* Podsumowanie (wykorzystanie, ciecia, zrzut) z calego planu — kupionych arkuszy i
        wlasnych kawalkow; dotad tylko z kupionych, wiec przy samych kawalkach 0 % i 0 ciec
        (audyt GPT N93). Odpad w uwagach liczy dalej tylko kupione (`uwagiRozkroju`). */
@@ -18281,7 +18408,8 @@ function ReportCutPlan({ project, projectName }) {
           qty: p.qty,
           a: p.a,
           b: p.b,
-          rotatable: p.matKey === "back" || !part.grainMatters,
+          rotatable: p.matKey === "back" || !!p.dzielona || !part.grainMatters,
+          ...(p.dzielona ? { dzielona: true } : {}),
           matLabel: matLabelOf(plytaFormatki(p, part.mat), p.matKey, ambig),
           matId: tozsamoscPlyty(plytaFormatki(p, part.mat)),
           sheet: null,
@@ -21113,7 +21241,7 @@ export default function App() {
           map.set(key, { ...p, matName: matLabelOf(m, p.matKey, ambig), matId: tozsamoscPlyty(m), matColor: m.color, plytaM: m.plyta ? m : null,
             ...(p.matKey === "worktop" ? { arkusz: arkuszBlatu(p, part.mat) } : {}),
             from: new Map([[cabName, p.qty]]),
-            rotatable: p.matKey === "back" || !part.grainMatters });
+            rotatable: p.matKey === "back" || !!p.dzielona || !part.grainMatters });
         }
       });
     });
@@ -21164,6 +21292,7 @@ export default function App() {
         a: p.a,
         b: p.b,
         rotatable: p.rotatable !== false,
+        ...(p.dzielona ? { dzielona: true } : {}),
         matLabel: p.matName,
         matId: p.matId,
         sheet: null,
@@ -21175,7 +21304,8 @@ export default function App() {
         qty: p.qty,
         a: p.a,
         b: p.b,
-        rotatable: p.matKey === "back" || !cab.grainMatters,
+        rotatable: p.matKey === "back" || !!p.dzielona || !cab.grainMatters,
+        ...(p.dzielona ? { dzielona: true } : {}),
         matLabel: matLabelOf(plytaFormatki(p, mat), p.matKey, ambig),
         matId: tozsamoscPlyty(plytaFormatki(p, mat)),
         sheet: null,
