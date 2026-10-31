@@ -14,6 +14,7 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
 - **Kołki półek** ⌀5:
   - po dwa na stronę półki, domyślnie 50 mm od przedniej i tylnej krawędzi, jak trójkąty („Otwór od przodu / od tyłu”; do 2026-10-24 było 37 — stare 37 / 37 przy wczytaniu zmienia się na 50 / 50, inne wpisane liczby zostają);
   - wysokość = spód półki, liczona od dolnej krawędzi boku albo od dna („Wysokość otworów liczona od”);
+  - półka z wycięciem na element w tylnym rogu (otwory w płytach, wycięcie narożne): tylny kołek z tej strony stoi przed wycięciem, 30 mm od niego (`KOLEK_PRZED_WYCIECIEM`); nie mieści się przed przednim — błąd z „Półki kolumny N na trójkątach”; trójkąty / konfirmaty z tylnym złączem w wycięciu — ostrzeżenie z „… na kołkach” (audyt GPT N175);
   - na przegrodzie, gdy po obu stronach półki są na tej samej wysokości, otwory jednej strony (od kolumny z prawej) przesuwa się tak, żeby mijały się co najmniej o 10 mm — między sobą i z otworami po drugiej stronie (`KOLEK_PRZESUN`) — i były co najmniej 20 mm od krawędzi półki (`KOLEK_OD_KRAWEDZI`):
     - zwykle o 10 mm: na półce głębszej niż 300 mm do środka (50 → 60), na wąskiej (do 300 mm, `POLKA_WASKA`) na zewnątrz (50 → 40) — tylko w planie wierceń;
     - gdy ten kierunek nie wychodzi — drugi, potem oba w tył / w przód, potem o 20 mm; takie przesunięcie ma informację w Uwagach z „Półki kolumny N na trójkątach”;

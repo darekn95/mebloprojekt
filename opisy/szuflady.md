@@ -30,6 +30,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 - **NL (długość prowadnicy)**: najdłuższa z listy systemu, która się zmieści.
   - Do pleców potrzeba NL + 3 mm, przy froncie wpuszczanym także + grubość frontu.
   - Wzmocnienie przy plecach na wysokości skrzynki skraca NL (4 mm luzu przed nim).
+  - Tak samo element kolizyjny (z zabudową — razem z jej płytą) w szerokości samej skrzynki (przy fixie ze wspornikiem skrzynka jest węższa niż kolumna) i w jej wysokości: ta sama granica dla „NL sięga elementu” i „zmieści się głębsza NL” (audyt GPT N184 — przyciski odsyłały do siebie, a element stał za fixem obok skrzynki).
 - **Wysokość boku „auto”**: najwyższa, która mieści się pod tym, co wyżej, z luzem 5 mm (`SZUFLADA_ZAPAS`). Nad szufladą może być następny front, góra światła, wzmocnienie pod blatem na całej drodze skrzynki albo **fix u góry** — stoi w otworze przed skrzynką, więc skrzynka kończy się pod jego dołem (2026-10-26; wcześniej bok szedł pod wieniec, za fix, i wjeżdżał w niego przy wysuwie).
 
 ### Co ustawiasz ręcznie

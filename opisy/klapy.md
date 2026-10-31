@@ -78,7 +78,7 @@ wybranych drzwiach.
   - 25 mm od przedniej krawędzi boku, przy wpuszczanych + grubość frontu.
 - **Mocowanie podnośnika na klapie**: L mm pod spodem tej płyty (75° → 72, 90° → 62, 100° → 52) i drugi wkręt 24 mm niżej, 12 mm od wewnętrznej strony boku.
 - **Amortyzator PD-ECGDL**: płytka 245 mm nad płytą pod klapą, mocowanie na klapie 62 i 86 mm, te same 25 / 12 / 24 mm.
-- **Liczba stron**: jeden podnośnik — na wybranym boku; dwa — po obu stronach. W szafce w L po stronie ramienia nie ma boku — jeden podnośnik idzie na drugi bok; ta strona trafia do planu, modelu, wyboru w karcie i tip-on (po przeciwnej), z podpowiedzią (audyt GPT N129).
+- **Liczba stron**: jeden podnośnik — na wybranym boku; dwa — po obu stronach. W szafce w L po stronie ramienia nie ma boku — jeden podnośnik idzie na drugi bok; ta strona trafia do planu, modelu, wyboru w karcie i tip-on (po przeciwnej), z podpowiedzią (audyt GPT N129). Wybrane dwa, a po stronie ramienia boku nie ma — ostrzeżenie „daj jeden mocniejszy” z „Jeden z lewej / prawej, siła z tabeli” (audyt GPT N187).
 - **Płyta klapy w planie**: „Klapa”, przy kilku kolumnach „Klapa — kolumna N”, w kolumnie podzielonej na poziomy „Klapa — poziom M kolumny N” — każda klapa osobno, wysokości od dołu tej klapy (audyt GPT N84: dwie klapy jednej kolumny zlewały się w jedną płytę z otworami obu).
 
 ## Skąd liczby

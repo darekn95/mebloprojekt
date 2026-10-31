@@ -86,5 +86,6 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
 
 - **Obliczenia**: `computeGeo`, kolumna z drzwiami (`d.type === "door"`, `hingeSide`, `hingePts`), `zawiasyGtv` / `autoHinges`, `hingePositions`; stałe `HINGE_*`, `ZAWIASY_GTV`, `WASKI_FRONT`, `SZEROKI_FRONT`; okucia na końcu `computeGeo` (`hardware`).
 - **Kontrola otwierania**: `swingBodies` / `openingMsgs` (`swingHit`, `swingKat`).
-- **Przyciski**: `zawiasy:`, `hingeflip:`, `hingeflipcab:`, `onedoor:`, `fixgap:`, `rowno:`, `fixsup:`, `fixnodoor:`.
+- **Luz między drzwiami poniżej 2 mm** — ostrzeżenie z „Luz między drzwiami 2 mm” (audyt GPT N177).
+- **Przyciski**: `zawiasy:`, `hingeflip:`, `hingeflipcab:`, `onedoor:`, `fixgap:`, `rowno:`, `luzdrzwi:`, `fixsup:`, `fixnodoor:`.
 - **Testy**: `zawiasy`, `zawias`, `hinge`, `hinge2`, `otwier`, `wasdrzwi`, `gaps`, `fixmode`, `wspornik`, `audytwierc`, `palce` (otwieranie bez uchwytu, tip-on), `audytgpt7` (wydłużenie od dołu: wpuszczany, podłoga).
