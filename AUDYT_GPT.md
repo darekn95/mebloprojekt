@@ -1,3 +1,11 @@
+### N189 [P1] — OTWARTE: tip-on przecina element kolizyjny bez ostrzeżenia o odbojniku
+
+**Test UI i obliczeń**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka stojąca 600 × 720 × 560 mm bez pleców, jedne drzwi bez uchwytu z tip-on, przeszkoda 40 × 100 mm od lewego boku 550 mm, od tyłu 460 mm, pełna wysokość, bez zabudowy. `computeGeo` umieszcza tip-on w x=567–582, y=686–702, z=0–89 mm od frontu. Przeszkoda obejmuje x=550–590, y=18–702, od tyłu z=460–560, co w tej szafce odpowiada 0–100 mm od frontu. Obrysy nakładają się we wszystkich trzech osiach. W UI jest uwaga o odsłoniętej przeszkodzie i informacja o skróceniu boku, ale brak ostrzeżenia, że odbojnik przecina przeszkodę; element i tip-on są uwzględnione w projekcie. Fizycznego montażu nie sprawdzono. To inny problem niż N188: tutaj podpora jest, lecz w przestrzeni odbojnika znajduje się osobna przeszkoda.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** porównać bryłę tip-on z elementami i ich zabudową we wspólnym układzie współrzędnych, proponować wykonalne miejsce lub inne otwieranie. **Test odbioru:** przeszkoda na trasie i poza nią, przy górze/dole, lewa/prawa strona, zabudowa, przyciski, plan oraz wizualizacja. NAPRAWIONE po pozytywnym teście.
+
+---
+
 ### N188 [P1] — OTWARTE: tip-on wybrany na cofniętej półce wisi poza płytą
 
 **Test UI i obliczeń**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka stojąca 600 × 2000 × 560 mm, jedna kolumna, jedne drzwi bez uchwytu z tip-on, jedna półka na środku, dodatkowe cofnięcie półki 200 mm. Zestawienie pokazuje półkę głębokości 360 mm i jeden tip-on; brak uwagi o braku podparcia. Geometria `computeGeo` wybiera półkę na wysokości y=991 mm jako podparcie; bryła odbojnika jest y=1009–1025 mm oraz z=0–89 mm od frontu, a przednia krawędź półki zaczyna się dopiero z=200 mm. W tym modelu odbojnik w ogóle nie leży nad płytą, zatem samo istnienie półki nie zapewnia mocowania. Test nie obejmuje fizycznego montażu. Odmienny wariant od N145: tutaj półka istnieje, ale jest cofnięta za odbojnikiem.
