@@ -1,3 +1,11 @@
+### N182 [P2] — OTWARTE: podział kolumny z rurą powiela szuflady w innym segmencie
+
+**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 2100 × 2000 × 560 mm, jedna kolumna z półką na 400 mm, w dolnym segmencie jedna szuflada V-BOX, w górnym dwie pary drzwi i drążek 2062 mm. Przy ostrzeżeniu rury kliknięto „Podziel kolumnę przegrodą”. Powstają dwie kolumny, każda z szufladą: w zestawieniu front, dno i tył szuflady mają ilość 2 zamiast 1. Podział zmienia wymiary szuflad, a nie tylko podpiera drążek; treść przycisku nie uprzedza o powieleniu. Pojawia się również osobny błąd kolizji mocowań półek. Sprawdzono stan interfejsu i obliczenia; montażu fizycznego nie badano.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** ustalić z projektantem oczekiwany sposób podziału różnych segmentów; przed zmianą pokazać konsekwencje i pozwolić zdecydować, co zrobić z szufladą. **Test odbioru:** szuflady w jednym i wielu segmentach, inne wyposażenie, działanie przycisku, cofnięcie, formatki i zamówienie. NAPRAWIONE po pozytywnym sprawdzeniu.
+
+---
+
 ### N181 [P2] — OTWARTE: podział kolumny z trzema lub więcej drzwiami zmienia strony zawiasów (nowy wariant N165)
 
 **Test funkcji i UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 2100 × 2000 × 560 mm, jedna kolumna, trzy drzwi, jeden drążek 2062 mm. `computeGeo` przed podziałem określa kierunki kolejnych drzwi L/L/P. W UI kliknięto „Podziel kolumnę przegrodą” przy ostrzeżeniu drążka; powstają kolumny z dwoma i jednymi drzwiami. Test produkcyjnych funkcji `kolumnaNaDwie` oraz `computeGeo` dla tych danych pokazuje po podziale L/P/P, czyli kierunek środkowego skrzydła zmienia się z lewego na prawy. Dla czterech drzwi test funkcji daje przed L/L/P/P, po L/P/L/P; dla dwojga kontrolnie L/P przed i po. UI nie przedstawia tej zmiany w treści przycisku; szczegółowego otwierania 3D i kolizji w tym wariancie nie sprawdzono. N165 oznaczono naprawione **wyłącznie dla pary**, czego ten wynik nie unieważnia; jest to nowy wariant większej liczby frontów, nie ponowne zgłoszenie poprawionej pary.
