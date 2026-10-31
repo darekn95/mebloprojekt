@@ -14,6 +14,7 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
 - **Kołki półek** ⌀5:
   - po dwa na stronę półki, domyślnie 50 mm od przedniej i tylnej krawędzi, jak trójkąty („Otwór od przodu / od tyłu”; do 2026-10-24 było 37 — stare 37 / 37 przy wczytaniu zmienia się na 50 / 50, inne wpisane liczby zostają);
   - wysokość = spód półki, liczona od dolnej krawędzi boku albo od dna („Wysokość otworów liczona od”);
+  - półka z wycięciem na element w tylnym rogu (otwory w płytach, wycięcie narożne): tylny kołek z tej strony stoi przed wycięciem, 30 mm od niego (`KOLEK_PRZED_WYCIECIEM`); nie mieści się przed przednim — błąd z „Półki kolumny N na trójkątach”; trójkąty / konfirmaty z tylnym złączem w wycięciu — ostrzeżenie z „… na kołkach” (audyt GPT N175);
   - na przegrodzie, gdy po obu stronach półki są na tej samej wysokości, otwory jednej strony (od kolumny z prawej) przesuwa się tak, żeby mijały się co najmniej o 10 mm — między sobą i z otworami po drugiej stronie (`KOLEK_PRZESUN`) — i były co najmniej 20 mm od krawędzi półki (`KOLEK_OD_KRAWEDZI`):
     - zwykle o 10 mm: na półce głębszej niż 300 mm do środka (50 → 60), na wąskiej (do 300 mm, `POLKA_WASKA`) na zewnątrz (50 → 40) — tylko w planie wierceń;
     - gdy ten kierunek nie wychodzi — drugi, potem oba w tył / w przód, potem o 20 mm; takie przesunięcie ma informację w Uwagach z „Półki kolumny N na trójkątach”;
@@ -27,7 +28,7 @@ Wszystko wynika z geometrii szafki — te same wysokości co na rysunkach i w 3D
   - V-BOX: kreska na boku, przegrodzie albo wsporniku;
   - DXS-3D: kreska spodu prowadnicy i odsunięcie od czoła, przykręcane bez nawiercania;
   - skrzynka DXS: konfirmaty w bokach, zaczep ⌀6 × 10 w tyle, sprzęgła frontu w dnie.
-- **Rura na wieszaki**: rozeta na boku / przegrodzie po obu stronach kolumny — wysokość osi rury, oś w połowie głębokości wnętrza, 2 wkręty 3,5 × 16 („rura na wieszaki”).
+- **Rura na wieszaki**: rozeta na boku / przegrodzie po obu stronach kolumny — wysokość osi rury, oś w połowie głębokości wnętrza, 2 wkręty 3,5 × 16 („rura na wieszaki”). Podparta rura (> 2 m, „Podpora rury na środku”) — na płycie nad nią „podpora rury WP-10 (od spodu)”: na środku szerokości kolumny, oś jak rura.
 - **Zawieszki** (szafki wiszące): bez wiercenia — przykręcane wkrętami 4 × 30 od wnętrza, górna krawędź pod wieńcem, 1 cm od pleców (ZK-ZAW-R0-10). Przy wycięciu narożnika albo elemencie w rogu — na ściance bocznej zabudowy, która dochodzi do ściany (`opisy/korpus.md`, N149); ścianka z wieńcem: „konfirmat — ścianka zabudowy” w wieńcu (2 szt.) albo „trójkąt meblowy — wieniec” na ściance — wg wyboru w uwagach.
 - **Frez pod HDF**: w bokach, wieńcu i dnie, gdy plecy są we frezie.
 - **Szafka w L**: dokładka „Bok ramienia” — konfirmaty dna / wieńca ramienia, półki ramienia z mocowaniem swojej kolumny (kołki / trójkąty / konfirmaty, każda półka osobno — audyt GPT N131), zawiasy frontu ramienia; kątownik przy ramieniu ma kołki zamiast boku.

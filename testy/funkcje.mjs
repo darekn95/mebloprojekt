@@ -148,7 +148,7 @@ console.log('\n== N112–N114: zabudowa przeszkody przy dwóch poziomach ==');
     g2.geoObs[0].maskChosen === 'U' && g2.geoObs[0].maskWalls.length === 3 && g1.geoObs[0].maskWalls.length === 3, `${g2.geoObs[0].maskChosen}/${g2.geoObs[0].maskWalls.length}`);
   ok('N113: płyta między poziomami to „półka nad” elementem', g1.geoObs[0].shelfAbove != null, String(g1.geoObs[0].shelfAbove));
   const g3 = geo(dwa({ fromSide: 200, fromBottom: 530, mask: false }, [open()]));
-  ok('N114: element przez płytę między poziomami — uwaga z wymiarem otworu', uw(g3, /przechodzi przez płytę między poziomami 1 i 2/).length === 1 && /80 × 80 mm/.test(uw(g3, /przechodzi przez płytę/)[0].text));
+  ok('N114: element przez płytę między poziomami — uwaga z wymiarem otworu', uw(g3, /przechodzi przez płytę między poziomami 1 i 2/).length === 1 && /potrzebne w niej wycięcie 80 × 80 z tyłu, 182 mm od lewej/.test(uw(g3, /przechodzi przez płytę/)[0].text), uw(g3, /przechodzi przez płytę/).map((x) => x.text).join(' / '));
   const g4 = geo(dwa({ fromSide: 251, fromBottom: 800, mask: false }, [open(), open()]));
   ok('N114: element przez przegrodę między kolumnami — uwaga', uw(g4, /przechodzi przez przegrodę między kolumnami 1 i 2/).length === 1);
 }
@@ -737,13 +737,13 @@ console.log('\n== N114: element przechodzi przez płytę — przyciski (decyzja 
   ok('element na całą wysokość — ostrzeżenie z „otwory:el:0”, bez przesuwania poziomu', !!m && m.level === 'warn' && /\|otwory:el:0$/.test(m.text), m && m.text.split('|').slice(1).join());
   const gO = sz({ otwory: true });
   const mO = uw(gO, /przechodzi przez płytę między poziomami/)[0];
-  const pO = gO.panels.find((p) => /^Półka przelotowa — otwór/.test(p.name));
-  ok('po „Wycinam otwory”: informacja, formatka „Półka przelotowa — otwór 182 × 150”', !!mO && mO.level === 'info' && !!pO && pO.name === 'Półka przelotowa — otwór 182 × 150' && pO.qty === 1,
+  const pO = gO.panels.find((p) => /^Półka przelotowa — /.test(p.name));
+  ok('po „Wycinam otwory”: informacja, formatka „Półka przelotowa — wycięcie 182 × 150 w lewym tylnym rogu”', !!mO && mO.level === 'info' && !!pO && pO.name === 'Półka przelotowa — wycięcie 182 × 150 w lewym tylnym rogu' && pO.qty === 1,
     `${mO && mO.level} ${pO && pO.name}`);
   // element 300 mm wysoki od 400 mm — plyta na 591: przesuniecie nad / pod
   const gP = sz({ fullHeight: false, fromBottom: 400, h: 300 });
   const mP = uw(gP, /przechodzi przez płytę między poziomami/)[0];
-  ok('element 400–700 mm — przyciski „poziomh:0:700:nad” i „poziomh:0:382:pod”', !!mP && /\|otwory:el:0\|poziomh:0:700:nad\|poziomh:0:382:pod$/.test(mP.text), mP && mP.text.split('|').slice(1).join());
+  ok('element 400–700 mm — przyciski „poziomh:0:700:nad:446” i „poziomh:0:382:pod:764” (poziom 2 o tyle mniejszy)', !!mP && /\|otwory:el:0\|poziomh:0:700:nad:446\|poziomh:0:382:pod:764$/.test(mP.text), mP && mP.text.split('|').slice(1).join());
   ok('po „Płyta nad element” (poziom 1: 700) — płyta nie przecina elementu', !uw(sz({ fullHeight: false, fromBottom: 400, h: 300 }, { levels: [{ h: 700, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] }), /przechodzi przez płytę/).length);
   // polka kolumny i przegroda
   const gk = (ob = {}) => geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, obstacles: [{ on: true, w: 100, d: 100, side: 'left', fromSide: 250, fromBack: 0, fullHeight: true, mask: false, ...ob }],
@@ -753,6 +753,95 @@ console.log('\n== N114: element przechodzi przez płytę — przyciski (decyzja 
     && /\|otwory:el:0$/.test(uw(g1, /przechodzi przez przegrodę/)[0].text));
   const g2 = gk({ otwory: true });
   const nazwy = g2.panels.map((p) => p.name).filter((n) => /otwór|wycięcie/.test(n));
-  ok('po „Wycinam otwory”: półki „— otwór …”, przegroda „— wycięcie …”, bez ostrzeżeń o kolizji', nazwy.some((n) => /^Półka — otwór/.test(n)) && nazwy.some((n) => /^Przegroda pionowa — wycięcie/.test(n))
-    && !uw(g2, /koliduje z elementem|wytnij w niej/).length, nazwy.join(' / '));
+  ok('po „Wycinam otwory”: półki „— wycięcie … w lewym / prawym tylnym rogu”, przegroda „— wycięcie … z tyłu”, bez ostrzeżeń o kolizji', nazwy.some((n) => /^Półka — wycięcie 41 × 100 w lewym tylnym rogu$/.test(n)) && nazwy.some((n) => /^Półka — wycięcie 41 × 100 w prawym tylnym rogu$/.test(n)) && nazwy.some((n) => /^Przegroda pionowa — wycięcie 100 × 684 z tyłu$/.test(n))
+    && !uw(g2, /koliduje z elementem|potrzebne w niej/).length, nazwy.join(' / '));
+}
+
+console.log('\n== N170–N190 (audyt GPT 2026-10-31) ==');
+{
+  const dwaPoz = (obs, o = {}) => geo({ name: 'T', W: 800, H: 1200, D: 560, ...nogi, obstacles: obs,
+    levels: [{ h: 591, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }], ...o });
+  const el = (o) => ({ on: true, w: 100, d: 100, side: 'left', fromSide: 0, fromBack: 0, fullHeight: true, mask: false, otwory: true, ...o });
+  // N171: dwa elementy — oba otwory w nazwie
+  const g171 = dwaPoz([el({}), el({ side: 'right', w: 150, d: 120 })]);
+  const n171 = g171.panels.filter((p) => /^Półka przelotowa/.test(p.name)).map((p) => p.name);
+  ok('N171: dwa elementy — „Półka przelotowa — wycięcie 82 × 100 w lewym tylnym rogu + wycięcie 132 × 120 w prawym tylnym rogu”',
+    n171.length === 1 && n171[0] === 'Półka przelotowa — wycięcie 82 × 100 w lewym tylnym rogu + wycięcie 132 × 120 w prawym tylnym rogu', n171.join(' / '));
+  // N172: informacja z tym samym wymiarem co formatka
+  const m172 = uw(dwaPoz([el({})]), /przechodzi przez płytę między poziomami/)[0];
+  ok('N172: informacja „wycięcie 82 × 100 w lewym tylnym rogu” — jak w nazwie formatki', !!m172 && /wycięcie 82 × 100 w lewym tylnym rogu/.test(m172.text), m172 && m172.text);
+  // N173: dwie plyty z otworami po roznych stronach — dwa wiersze
+  const g173 = geo({ name: 'T', W: 800, H: 1800, D: 560, ...nogi, obstacles: [el({ fullHeight: false, fromBottom: 400, h: 200 }), el({ side: 'right', fullHeight: false, fromBottom: 900, h: 200 })],
+    levels: [{ h: 500, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: 500, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
+  const n173 = g173.panels.filter((p) => /^Półka przelotowa/.test(p.name)).map((p) => `${p.name} ×${p.qty}`);
+  ok('N173: otwór z lewej i z prawej — dwa wiersze po 1 szt.', n173.length === 2 && n173.every((x) => / ×1$/.test(x)) && n173.some((x) => /lewym/.test(x)) && n173.some((x) => /prawym/.test(x)), n173.join(' / '));
+  // N174: element 0–5 mm od tylu przed polka cofnieta o plecy 18 — bez ostrzezenia
+  const g174 = dwaPoz([el({ otwory: false, w: 100, d: 5, fromSide: 200 })], { back: 'board', backPos: 'inside' });
+  ok('N174: element 5 mm za tylną krawędzią półki — bez ostrzeżenia o płycie', !uw(g174, /przechodzi przez płytę/).length, uw(g174, /przechodzi przez płytę/).map((x) => x.text).join(' / '));
+  // N175: polka na kolkach z wycieciem w tylnym lewym rogu — tylny kolek przed wycieciem
+  const g175 = geo({ name: 'T', W: 600, H: 1200, D: 560, ...nogi, obstacles: [el({ w: 200, d: 150 })],
+    levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [null, null] }] }] });
+  const k175 = (g175.drillPlan.find((p) => p.panel === 'Bok lewy') || { rows: [] }).rows.find((r) => r.kind === 'kołek półki');
+  ok('N175: tylny kołek lewego boku przed wycięciem (560 − 150 − 30 = 380 od przodu)', !!k175 && /50 i 380 mm od przedniej krawędzi/.test(k175.note) && /przed wycięciem/.test(k175.note), k175 && k175.note);
+  // N176: plyta nad element — przycisk z wysokoscia nastepnego poziomu
+  const g176 = geo({ name: 'T', W: 800, H: 1800, D: 560, ...nogi, obstacles: [el({ otwory: false, fullHeight: false, fromBottom: 400, h: 300 })],
+    levels: [{ h: 500, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: 500, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }, { h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
+  const m176 = uw(g176, /przechodzi przez płytę między poziomami 1 i 2/)[0];
+  ok('N176: „poziomh:0:700:nad:300” — poziom 2 zmniejsza się o tyle, ile rośnie 1', !!m176 && /\|poziomh:0:700:nad:300/.test(m176.text), m176 && m176.text.split('|').slice(1).join());
+  // N177, N179, N185, N190: przyciski
+  ok('N177: luz między drzwiami 1 mm — „luzdrzwi:2”', /\|luzdrzwi:2$/.test((uw(geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, gaps: { edge: 2, between: 1, top: 3, bottom: 3, inset: 2 }, levels: [{ h: null, cols: [drzwi({ doors: 2 })] }] }), /poniżej 2 mm/)[0] || {}).text || ''));
+  const m179 = uw(geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, shelfExtraSetback: 560, levels: [{ h: null, cols: [drzwi({ shelfTargets: [null, null] })] }] }), /Głębokość półki wychodzi zero/)[0];
+  ok('N179: cofnięcie 560 — „polkicof:460” (półka 100) i „polkicof:0”', !!m179 && /\|polkicof:4\d\d\|polkicof:0$/.test(m179.text), m179 && m179.text.split('|').slice(1).join());
+  const m185 = uw(geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, levels: [{ h: null, cols: [drzwi()] }] }, { ...M0, board: { ...M0.board, thickness: 0 } }), /musi być większa od zera/)[0];
+  ok('N185: grubość korpusu 0 — jeden przycisk „grubosc:board:18”', !!m185 && /\|grubosc:board:18$/.test(m185.text), m185 && m185.text.split('|').slice(1).join());
+  const m190 = uw(geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, back: 'hdf', backGroove: { on: true, depth: 18, offset: 3, play: 1 }, levels: [{ h: null, cols: [drzwi()] }] }), /^Frez 18 mm/)[0];
+  ok('N190: frez 18 przy płycie 18 — „równy grubości płyty”, przycisk „frez:16”', !!m190 && /równy grubości płyty/.test(m190.text) && /\|frez:16$/.test(m190.text), m190 && m190.text);
+  // N180: polka w wycieciu naroznym — wyciety rog w nazwie formatki, informacja
+  const g180 = geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, cutout: { on: true, w: 100, d: 100, fullHeight: true, mask: true }, levels: [{ h: null, cols: [drzwi({ shelfTargets: [null, null] })] }] });
+  const p180 = g180.panels.filter((p) => /^Półka/.test(p.name)).map((p) => p.name);
+  ok('N180: półka — „wycięcie 100 × 118 w lewym tylnym rogu” w nazwie, informacja zamiast „przytnij na miejscu”', p180.some((n) => /^Półka — wycięcie \d+ × \d+ w lewym tylnym rogu$/.test(n))
+    && uw(g180, /wchodzi w wycięcie narożnika — ma wycięcie/).every((x) => x.level === 'info') && !uw(g180, /przytnij ją na miejscu/).length, p180.join(' / '));
+  // N183: dwa wyciecia 400 × 100 przy W600
+  const m183 = uw(geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, back: 'none', cutout: { on: true, w: 400, d: 100, fullHeight: true, mask: true }, cutoutR: { on: true, w: 400, d: 100, fullHeight: true, mask: true },
+    levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] }), /nachodzą na siebie/)[0];
+  ok('N183: błąd z „wycszer:L:164” i „wycszer:P:164”', !!m183 && m183.level === 'error' && /\|wycszer:L:164\|wycszer:P:164$/.test(m183.text), m183 && m183.text);
+  // N184: element obok skrzynki (za fixem) — bez kolizji i bez zapetlenia
+  const sz184 = (nl) => geo({ name: 'T', W: 800, H: 720, D: 560, ...nogi, back: 'none', obstacles: [el({ otwory: false, w: 100, fromSide: 20 })],
+    levels: [{ h: null, cols: [{ kind: 'drawers', w: null, nl, fix: { side: 'left', w: 200, mode: 'overlay', support: true, supportDepth: 550 }, drawers: [{ h: 'auto' }] }] }] });
+  ok('N184: element 20–120, skrzynka od 200 — bez „sięga elementu”, bez „głębsza NL”', !uw(sz184(550), /sięga elementu|głębsza NL/).length, uw(sz184(550), /NL/).map((x) => x.text).join(' / '));
+  const sz184b = (nl) => geo({ name: 'T', W: 800, H: 720, D: 560, ...nogi, back: 'none', obstacles: [el({ otwory: false, w: 100, fromSide: 300 })],
+    levels: [{ h: null, cols: [{ kind: 'drawers', w: null, nl, drawers: [{ h: 'auto' }] }] }] });
+  ok('N184: element na drodze — NL 550 „sięga” z NL 450, a przy NL 450 nie ma „głębsza NL 550”', uw(sz184b(550), /NL 550 sięga elementu/).length === 1 && !uw(sz184b(450), /głębsza NL/).length);
+  // N186: element bez zabudowy — przycisk
+  ok('N186: element bez zabudowy — „zabuduj:el:0”', /\|zabuduj:el:0$/.test((uw(dwaPoz([el({ otwory: false })]), /nie ma zabudowy — nie jest zakryty/)[0] || {}).text || ''));
+  // N188 / N189: tip-on
+  const tip = (o = {}) => geo({ name: 'T', W: 600, H: 2000, D: 560, ...nogi, ...o, levels: [{ h: null, cols: [drzwi({ handles: [false], otwieranie: ['tipon'], shelfTargets: [null, null] })] }] });
+  const t188 = tip({ joints: { topL: 'none', topR: 'none', botL: 'none', botR: 'none' }, shelfExtraSetback: 200 });
+  const m188 = uw(t188, /tip-on nie ma płyty/)[0];
+  ok('N188: półka cofnięta o 200 — „nie ma płyty” z powodem i „polkicof:0”', !!m188 && /półki są cofnięte o 200 mm/.test(m188.text) && /\|uchwyt:0:0:0\|polkicof:0$/.test(m188.text), m188 && m188.text);
+  const t189 = geo({ name: 'T', W: 600, H: 720, D: 560, ...nogi, back: 'none', obstacles: [el({ otwory: false, w: 40, fromSide: 550, fromBack: 460 })],
+    levels: [{ h: null, cols: [drzwi({ handles: [false], otwieranie: ['tipon'] })] }] });
+  const m189 = uw(t189, /tip-on wchodzi w/)[0];
+  ok('N189: odbojnik w elemencie — błąd z „uchwyt” i „hingeflip” (druga krawędź wolna)', !!m189 && m189.level === 'error' && /\|uchwyt:0:0:0\|hingeflip:0:0:right$/.test(m189.text), m189 && m189.text);
+  // N170: rozne dekory o tym samym kolorze — osobne wiersze i grupy (projectCutList jest w App — sprawdzamy klucz)
+  ok('N170: tożsamość płyty rozróżnia dekor', G.tozsamoscPlyty({ name: 'Płyta', color: '#d8c3a0', decor: 'Oak', thickness: 18 }) !== G.tozsamoscPlyty({ name: 'Płyta', color: '#d8c3a0', decor: 'Ash', thickness: 18 }));
+}
+
+console.log('\n== Decyzje 2026-10-31: kątownik szuflady > 600 (N178), podpora rury WP-10 (N181/N182) ==');
+{
+  const szuf = (W) => geo({ name: 'T', W, H: 720, D: 560, ...nogi, levels: [{ h: null, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] });
+  const g800 = szuf(800), hw800 = G.okuciaSzafki(g800, {});
+  const kat = hw800.find((h) => h.name === 'Kątownik mocujący Sevroll 40343'), wk = hw800.find((h) => h.name === 'Wkręt 3,5 × 13');
+  ok('N178: W800, 3 szuflady V-BOX — 3 kątowniki 40343 i 12 wkrętów 3,5 × 13, informacja zamiast ostrzeżenia', !!kat && kat.qty === 3 && !!wk && wk.qty === 12
+    && uw(g800, /szersza niż 600 mm/).every((x) => x.level === 'info'), `${kat && kat.qty} / ${wk && wk.qty}`);
+  ok('N178: kontrola W600 — bez kątownika', !G.okuciaSzafki(szuf(600), {}).some((h) => h.name === 'Kątownik mocujący Sevroll 40343'));
+  const szafa = (o = {}) => geo({ name: 'S', W: 2100, H: 2000, D: 560, plinth: { on: false }, legs: { on: true, height: 100 },
+    levels: [{ h: null, cols: [drzwi({ doors: 2, shelfTargets: [400, null], drazki: [1], ...o })] }] });
+  const m = uw(szafa(), /rura ma 2062 mm/)[0];
+  ok('rura 2062 — ostrzeżenie z „podpora:0:0” przed „podzielkol”', !!m && /\|podpora:0:0\|podzielkol:/.test(m.text), m && m.text.split('|').slice(1).join());
+  const gP = szafa({ drazekPodpora: true });
+  const hwP = G.okuciaSzafki(gP, {});
+  const plan = gP.drillPlan.find((p) => p.rows.some((r) => /podpora rury WP-10/.test(r.kind)));
+  ok('po „Podpora rury na środku”: informacja, w zamówieniu 1 × WP-10, w planie wierceń na płycie nad rurą', uw(gP, /podparta na środku/).length === 1 && !uw(gP, /ugina się/).length
+    && (hwP.find((h) => h.name === 'Podpora rury ⌀25 GTV WP-10') || {}).qty === 1 && !!plan && plan.panel === 'Wieniec', plan && plan.panel);
 }

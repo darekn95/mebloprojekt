@@ -187,12 +187,12 @@ console.log('\n== N114: element przechodzi przez płytę (decyzja użytkownika 2
   await klik(re, 'Wycinam otwory w płytach (na formatkach)');
   const m = (await notes()).find((x) => re.test(x.txt));
   const fr = (await rows(/^Formatki/)).filter((r) => /^Półka przelotowa/.test(r));
-  ok('po kliknięciu: `otwory` w elemencie, informacja, formatka „Półka przelotowa — otwór 182 × 150”', (await zap()).items[0].cab.obstacles[0].otwory === true
-    && !!m && !m.btns.filter((x) => x !== '✓').length && fr.some((r) => /^Półka przelotowa — otwór 182 × 150/.test(r)), fr.join(' / '));
+  ok('po kliknięciu: `otwory` w elemencie, informacja, formatka „Półka przelotowa — wycięcie 182 × 150 w lewym tylnym rogu”', (await zap()).items[0].cab.obstacles[0].otwory === true
+    && !!m && !m.btns.filter((x) => x !== '✓').length && fr.some((r) => /^Półka przelotowa — wycięcie 182 × 150 w lewym tylnym rogu/.test(r)), fr.join(' / '));
   await seed(sz({ fullHeight: false, fromBottom: 400, h: 300 }));
   const bt = await przyciski(re);
-  ok('element 400–700 — „Płyta nad element (poziom 1: 700 mm)” i „… pod element (poziom 1: 382 mm)”', bt.includes('Płyta nad element (poziom 1: 700 mm)') && bt.includes('Płyta pod element (poziom 1: 382 mm)'), bt.join(' / '));
-  await klik(re, 'Płyta nad element (poziom 1: 700 mm)');
+  ok('element 400–700 — „Płyta nad element (poziom 1: 700 mm, poziom 2: 446 mm)” i „… pod element (poziom 1: 382 mm, poziom 2: 764 mm)”', bt.includes('Płyta nad element (poziom 1: 700 mm, poziom 2: 446 mm)') && bt.includes('Płyta pod element (poziom 1: 382 mm, poziom 2: 764 mm)'), bt.join(' / '));
+  await klik(re, 'Płyta nad element (poziom 1: 700 mm, poziom 2: 446 mm)');
   ok('po kliknięciu: poziom 1 ma 700 mm, płyta nie przecina elementu, bez błędu wysokości', (await zap()).items[0].cab.levels[0].h === 700
     && !(await notes()).some((x) => re.test(x.txt) || /nie wypełniają wnętrza/.test(x.txt)));
 }

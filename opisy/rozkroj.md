@@ -7,7 +7,7 @@ Karta „Rozkrój” (układ formatek na arkuszach) i przycisk „Zestawienie PD
 
 ### Rozkrój
 
-- **Grupy**: osobno dla każdego materiału (tożsamość płyty: nazwa, kolor, dekor, grubość — albo id płyty własnej) i formatu arkusza. Ten sam dekor z blatu 600 i 1200 to dwie grupy. Blaty (i HDF) w kilku kolorach pod jedną nazwą dostają kolor w etykiecie i osobne arkusze (audyt GPT N140). Tak samo dwie płyty w kolorach spoza wzornika pod jedną nazwą: zamiast dwóch „kolor własny” etykieta ma kod koloru („Płyta kolor #cc2222”); liczą się tylko płyty, których szafka używa (front i półki z własnej płyty tylko przy odznaczonym „z tej samej płyty co korpus”).
+- **Grupy**: osobno dla każdego materiału (tożsamość płyty: nazwa, kolor, dekor, grubość — albo id płyty własnej) i formatu arkusza. Formatki całego projektu łączą się tylko przy tej samej tożsamości (audyt GPT N170: dekory Oak i Ash o tym samym kolorze były w jednym wierszu i jednej grupie). Ten sam dekor z blatu 600 i 1200 to dwie grupy. Blaty (i HDF) w kilku kolorach pod jedną nazwą dostają kolor w etykiecie i osobne arkusze (audyt GPT N140). Tak samo dwie płyty w kolorach spoza wzornika pod jedną nazwą: zamiast dwóch „kolor własny” etykieta ma kod koloru („Płyta kolor #cc2222”); liczą się tylko płyty, których szafka używa (front i półki z własnej płyty tylko przy odznaczonym „z tej samej płyty co korpus”).
 - **Arkusz płyty**: 2800 × 2100 mm, po okrawaniu zostaje 2761,2 × 2061,2 mm — to realne maksimum jednej formatki. Rzaz piły 3 mm.
 - **Układ**: formatki układane tak, żeby dało się je wyciąć prostymi cięciami piły panelowej.
   - Formatka obraca się, chyba że „Kierunek usłojenia ma znaczenie” — wtedy słoje biegną wzdłuż dłuższego boku arkusza.
