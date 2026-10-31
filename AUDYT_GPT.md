@@ -1,3 +1,11 @@
+### N183 [P2] — OTWARTE: dwa nakładające się wycięcia tworzą kolidujące ścianki zabudowy bez ostrzeżenia
+
+**Test UI i obliczeń**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 600 × 720 × 560 mm, bez pleców, dwa tylne wycięcia narożne lewe i prawe po 400 × 100 mm, pełna wysokość i zabudowa obu. Obszary wycięć nakładają się na szerokości 200 mm. Aplikacja podaje tylko informacje o przesunięciu nóżek, a w zestawieniu podaje cztery osobne ścianki zabudowy. `computeGeo` potwierdza, że ścianka boczna lewego wycięcia (x 400–418, głębokość 0–118) wchodzi w obszar prawego wycięcia (x 200–600, głębokość 0–100); analogicznie prawa wchodzi w lewe. W tej konfiguracji nie ma ostrzeżenia o tej kolizji ani przycisku korekty. Montażu fizycznego nie sprawdzono.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** wykrywać przestrzenne przecięcie wycięć i ich zabudów, a następnie umożliwić odpowiednią zmianę wymiarów lub wspólną zabudowę. **Test odbioru:** wycięcia rozdzielone, stykające i nakładające się, różne głębokości i wysokości; sprawdzić przyciski, ścianki, formatki, wizualizację i zamówienie. NAPRAWIONE po pozytywnym teście.
+
+---
+
 ### N182 [P2] — OTWARTE: podział kolumny z rurą powiela szuflady w innym segmencie
 
 **Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 2100 × 2000 × 560 mm, jedna kolumna z półką na 400 mm, w dolnym segmencie jedna szuflada V-BOX, w górnym dwie pary drzwi i drążek 2062 mm. Przy ostrzeżeniu rury kliknięto „Podziel kolumnę przegrodą”. Powstają dwie kolumny, każda z szufladą: w zestawieniu front, dno i tył szuflady mają ilość 2 zamiast 1. Podział zmienia wymiary szuflad, a nie tylko podpiera drążek; treść przycisku nie uprzedza o powieleniu. Pojawia się również osobny błąd kolizji mocowań półek. Sprawdzono stan interfejsu i obliczenia; montażu fizycznego nie badano.
