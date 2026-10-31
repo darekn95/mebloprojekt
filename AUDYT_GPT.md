@@ -1,3 +1,11 @@
+### N184 [P2] — OTWARTE: fałszywa kolizja boczna szuflady i zapętlone zalecenia NL
+
+**Test UI i obliczeń**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 800 × 720 × 560 mm bez pleców, szuflada V-BOX NL 550 i lewy fix 200 mm ze wspornikiem, element od lewego boku 20 mm, szerokość 100 mm, głębokość 100 mm, pełna wysokość, bez zabudowy. Geometria podaje element x=20–120 mm, początek skrzynki x=200 mm: w poziomie nie zachodzą na siebie. Mimo to komunikat „NL 550 sięga elementu” proponuje NL 450. Po kliknięciu w zamówieniu jest NL 450, ale pojawia się propozycja głębszej NL 550. Po kliknięciu powrotu wraca błąd i przycisk NL 450. Oba przyciski zmieniają prowadnice, ale zalecenia zapętlają się. Pozostaje niezależna uwaga o braku zabudowy. Montażu fizycznego nie sprawdzono.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** sprawdzać rzeczywisty obrys skrzynki, prowadnic i zabudowy w trzech osiach oraz stosować te same kryteria dla obu zaleceń. **Test odbioru:** przeszkoda obok i na drodze szuflady, fixy lewe i prawe, różne systemy, klikanie obu przycisków, wymiary i zamówienie. NAPRAWIONE po pozytywnym teście.
+
+---
+
 ### N183 [P2] — OTWARTE: dwa nakładające się wycięcia tworzą kolidujące ścianki zabudowy bez ostrzeżenia
 
 **Test UI i obliczeń**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 600 × 720 × 560 mm, bez pleców, dwa tylne wycięcia narożne lewe i prawe po 400 × 100 mm, pełna wysokość i zabudowa obu. Obszary wycięć nakładają się na szerokości 200 mm. Aplikacja podaje tylko informacje o przesunięciu nóżek, a w zestawieniu podaje cztery osobne ścianki zabudowy. `computeGeo` potwierdza, że ścianka boczna lewego wycięcia (x 400–418, głębokość 0–118) wchodzi w obszar prawego wycięcia (x 200–600, głębokość 0–100); analogicznie prawa wchodzi w lewe. W tej konfiguracji nie ma ostrzeżenia o tej kolizji ani przycisku korekty. Montażu fizycznego nie sprawdzono.
