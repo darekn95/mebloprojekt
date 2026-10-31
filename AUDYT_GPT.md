@@ -16,7 +16,7 @@
 
 ### N182 [P2] — OTWARTE: podział kolumny z rurą powiela szuflady w innym segmencie
 
-**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 2100 × 2000 × 560 mm, jedna kolumna z półką na 400 mm, w dolnym segmencie jedna szuflada V-BOX, w górnym dwie pary drzwi i drążek 2062 mm. Przy ostrzeżeniu rury kliknięto „Podziel kolumnę przegrodą”. Powstają dwie kolumny, każda z szufladą: w zestawieniu front, dno i tył szuflady mają ilość 2 zamiast 1. Podział zmienia wymiary szuflad, a nie tylko podpiera drążek; treść przycisku nie uprzedza o powieleniu. Pojawia się również osobny błąd kolizji mocowań półek. Sprawdzono stan interfejsu i obliczenia; montażu fizycznego nie badano.
+**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 2100 × 2000 × 560 mm, jedna kolumna z półką na 400 mm, w dolnym segmencie jedna szuflada V-BOX, w górnym dwoje drzwi i drążek 2062 mm. Przy ostrzeżeniu rury kliknięto „Podziel kolumnę przegrodą”. Powstają dwie kolumny, każda z szufladą: w zestawieniu front, dno i tył szuflady mają ilość 2 zamiast 1. Podział zmienia wymiary szuflad, a nie tylko podpiera drążek; treść przycisku nie uprzedza o powieleniu. Pojawia się również osobny błąd kolizji mocowań półek. Sprawdzono stan interfejsu i obliczenia; montażu fizycznego nie badano.
 
 **Sugestia GPT do weryfikacji, nie decyzja użytkownika:** ustalić z projektantem oczekiwany sposób podziału różnych segmentów; przed zmianą pokazać konsekwencje i pozwolić zdecydować, co zrobić z szufladą. **Test odbioru:** szuflady w jednym i wielu segmentach, inne wyposażenie, działanie przycisku, cofnięcie, formatki i zamówienie. NAPRAWIONE po pozytywnym sprawdzeniu.
 
