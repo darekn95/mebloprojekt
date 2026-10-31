@@ -1,3 +1,11 @@
+### N188 [P1] — OTWARTE: tip-on wybrany na cofniętej półce wisi poza płytą
+
+**Test UI i obliczeń**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka stojąca 600 × 2000 × 560 mm, jedna kolumna, jedne drzwi bez uchwytu z tip-on, jedna półka na środku, dodatkowe cofnięcie półki 200 mm. Zestawienie pokazuje półkę głębokości 360 mm i jeden tip-on; brak uwagi o braku podparcia. Geometria `computeGeo` wybiera półkę na wysokości y=991 mm jako podparcie; bryła odbojnika jest y=1009–1025 mm oraz z=0–89 mm od frontu, a przednia krawędź półki zaczyna się dopiero z=200 mm. W tym modelu odbojnik w ogóle nie leży nad płytą, zatem samo istnienie półki nie zapewnia mocowania. Test nie obejmuje fizycznego montażu. Odmienny wariant od N145: tutaj półka istnieje, ale jest cofnięta za odbojnikiem.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** przy wyborze podparcia sprawdzić rzeczywisty obrys płyty i położenie mocowania; jeśli wybrana półka nie dosięga, zaproponować inną odpowiednią płytę lub wykonalną zmianę, z zachowaniem działania drzwi. **Test odbioru:** półka w licu i cofnięta mniej/więcej niż długość odbojnika, różne głębokości, klapy, fixy, inna podpora, ostrzeżenia i przyciski, plan okuć i wizualizacja. NAPRAWIONE po pozytywnym teście.
+
+---
+
 ### N187 [P2] — OTWARTE: zalecenie jednego podnośnika w narożniku bez przycisku
 
 **Test UI i obliczeń**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka narożna z ramieniem po prawej, 600 × 400 × 560 mm, jedna klapa do góry, wybrane dwa podnośniki. Uwaga informuje „drugi podnośnik nie ma boku do przykręcenia ... Daj jeden mocniejszy”, ale nie ma przy niej przycisku. Zamówienie pokazuje 2 × 80 N, a geometria rysuje tylko jeden podnośnik, bo drugiego boku brak. Ręczne kliknięcie „1” w ustawieniach zmienia dobór na auto 150 N, zamówienie na 1 × 150 N i usuwa tę uwagę. Jest to sprawdzone dla tej klapy według tabeli aplikacji, nie dla wszystkich frontów ani fizycznego montażu.
