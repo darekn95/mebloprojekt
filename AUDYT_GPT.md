@@ -1,3 +1,11 @@
+### N181 [P2] — OTWARTE: podział kolumny z trzema lub więcej drzwiami zmienia strony zawiasów (nowy wariant N165)
+
+**Test funkcji i UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 2100 × 2000 × 560 mm, jedna kolumna, trzy drzwi, jeden drążek 2062 mm. `computeGeo` przed podziałem określa kierunki kolejnych drzwi L/L/P. W UI kliknięto „Podziel kolumnę przegrodą” przy ostrzeżeniu drążka; powstają kolumny z dwoma i jednymi drzwiami. Test produkcyjnych funkcji `kolumnaNaDwie` oraz `computeGeo` dla tych danych pokazuje po podziale L/P/P, czyli kierunek środkowego skrzydła zmienia się z lewego na prawy. Dla czterech drzwi test funkcji daje przed L/L/P/P, po L/P/L/P; dla dwojga kontrolnie L/P przed i po. UI nie przedstawia tej zmiany w treści przycisku; szczegółowego otwierania 3D i kolizji w tym wariancie nie sprawdzono. N165 oznaczono naprawione **wyłącznie dla pary**, czego ten wynik nie unieważnia; jest to nowy wariant większej liczby frontów, nie ponowne zgłoszenie poprawionej pary.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** ocenić rzeczywiste możliwości zachowania stron po zmianie konstrukcji albo wyraźnie uprzedzić o skutkach i umożliwić wybór; sprawdzić podparcie, otwieranie i okucia. **Test odbioru:** 1–5 drzwi, ręczne i automatyczne strony, fixy, interfejs, działanie przycisku i cofanie, geometria, plan i zamówienie. NAPRAWIONE po pozytywnym sprawdzeniu.
+
+---
+
 ### N177 [P3] — DO OCENY: ostrzeżenie o zbyt małym luzie drzwi bez przycisku korekty
 
 **Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: nowy syntetyczny projekt, domyślna szafka 600 × 720 × 560 mm z dwojgiem drzwi. W karcie „Luzy drzwi” ustawić „Między drzwiami” na 1 mm. Uwaga mówi „Luz między drzwiami poniżej 2 mm — mogą się blokować przy otwieraniu”; ma tylko przycisk oznaczenia jako przeczytane, bez przycisku ustawiającego zalecaną wartość. Ręczna zmiana pola z 1 na 2 mm usuwa tę uwagę. To wykryty problem z możliwą ręczną korektą; brak przycisku należy ocenić według późniejszej zasady użytkownika, a nie przedstawiać jako brak wykrycia. Przypadek nie dotyczy wyjątków odnośnie do rozmiaru arkusza lub blatu. Otwierania i innych ustawień w tym teście nie badano.
