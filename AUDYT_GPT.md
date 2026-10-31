@@ -1,3 +1,11 @@
+### N187 [P2] — OTWARTE: zalecenie jednego podnośnika w narożniku bez przycisku
+
+**Test UI i obliczeń**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka narożna z ramieniem po prawej, 600 × 400 × 560 mm, jedna klapa do góry, wybrane dwa podnośniki. Uwaga informuje „drugi podnośnik nie ma boku do przykręcenia ... Daj jeden mocniejszy”, ale nie ma przy niej przycisku. Zamówienie pokazuje 2 × 80 N, a geometria rysuje tylko jeden podnośnik, bo drugiego boku brak. Ręczne kliknięcie „1” w ustawieniach zmienia dobór na auto 150 N, zamówienie na 1 × 150 N i usuwa tę uwagę. Jest to sprawdzone dla tej klapy według tabeli aplikacji, nie dla wszystkich frontów ani fizycznego montażu.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** rozważyć przycisk wyboru jednego podnośnika z ponownym doborem jego siły, a gdy jeden nie wystarcza, wyraźnie zaoferować inne możliwe rozwiązanie. **Test odbioru:** oba boki ramienia, klapa w górę i dół, jeden wystarczający i niewystarczający podnośnik, kliknięcie, geometria i zamówienie. NAPRAWIONE po pozytywnym teście.
+
+---
+
 ### N186 [P3] — DO OCENY: uwaga o odsłoniętym elemencie proponuje zabudowę bez przycisku
 
 **Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 800 × 720 × 560 mm z elementem kolizyjnym 100 × 100 mm przy tylnej ścianie, na pełną wysokość, bez zabudowy. Uwaga „Element kolizyjny nie ma zabudowy ... Włącz zabudowę, jeśli ma być schowany” wskazuje opcjonalną czynność, ale przy komunikacie nie ma przycisku. Ręczne otwarcie karty „Elementy kolizyjne” i zaznaczenie „Zabuduj element (odgrodź od wnętrza)” usuwa tę uwagę. To uwaga warunkowa: odkryty element może być celowy; nie uznano samego braku zabudowy za zawsze błędny. Działania przy komunikacie nie ma do kliknięcia. Inna uwaga o szufladzie dotyczy N184.
