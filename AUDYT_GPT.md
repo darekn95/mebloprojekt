@@ -1,3 +1,11 @@
+### N190 [P3] — OTWARTE: błędna treść komunikatu przy frezie równym grubości płyty
+
+**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: w syntetycznym projekcie z płytą korpusu 18 mm wybrano plecy „We frezie” i ustawiono szerokość frezu z grubości płyty na 18 mm. Aplikacja prawidłowo sygnalizuje, że z płyty nic nie zostanie, ale podaje nieprawdziwe porównanie „Frez 18 mm jest szerszy niż płyta 18 mm”: wymiary są równe. Po ręcznej zmianie frezu na 17 mm ten konkretny komunikat znika. Problem dotyczy treści komunikatu, a nie samego wykrycia nieprawidłowej geometrii. Przy komunikacie nie ma akcji korekty; nie oceniono, czy 17 mm zapewnia wystarczającą wytrzymałość. Inne ostrzeżenia w projekcie są niezależne.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** rozróżnić równość od przekroczenia oraz rozważyć działanie pomagające bezpiecznie zmienić frez po wybraniu właściwego wymiaru. **Test odbioru:** frez mniejszy, równy i większy od grubości płyty, inne materiały, treść, działanie korekty oraz wytrzymałość pozostałej ścianki. NAPRAWIONE po pozytywnej weryfikacji.
+
+---
+
 ### N189 [P1] — OTWARTE: tip-on przecina element kolizyjny bez ostrzeżenia o odbojniku
 
 **Test UI i obliczeń**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka stojąca 600 × 720 × 560 mm bez pleców, jedne drzwi bez uchwytu z tip-on, przeszkoda 40 × 100 mm od lewego boku 550 mm, od tyłu 460 mm, pełna wysokość, bez zabudowy. `computeGeo` umieszcza tip-on w x=567–582, y=686–702, z=0–89 mm od frontu. Przeszkoda obejmuje x=550–590, y=18–702, od tyłu z=460–560, co w tej szafce odpowiada 0–100 mm od frontu. Obrysy nakładają się we wszystkich trzech osiach. W UI jest uwaga o odsłoniętej przeszkodzie i informacja o skróceniu boku, ale brak ostrzeżenia, że odbojnik przecina przeszkodę; element i tip-on są uwzględnione w projekcie. Fizycznego montażu nie sprawdzono. To inny problem niż N188: tutaj podpora jest, lecz w przestrzeni odbojnika znajduje się osobna przeszkoda.
