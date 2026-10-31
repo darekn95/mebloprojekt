@@ -1,3 +1,11 @@
+### N185 [P3] — DO OCENY: błąd grubości płyty odsyła do poprawki bez działania przy komunikacie
+
+**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: w syntetycznym projekcie w karcie „Płyty” zmieniono grubość wspólnej płyty korpusu, półek i frontów z 18 na 0 mm. Komunikat poprawnie wykrywa błąd i poleca „Popraw ją w karcie Płyty”, lecz przy komunikacie nie ma przycisku przejścia do pola ani przywrócenia wartości. Ręczne wpisanie 18 mm usuwa ten komunikat; pozostałe uwagi są niezależne. Nie należy wybierać 18 mm automatycznie jako jedynej poprawnej grubości. Zgłoszenie dotyczy zasady użytkownika dotyczącej działania przy komunikacie, nie braku walidacji.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** rozważyć przycisk prowadzący do właściwego pola lub bezpieczny wybór wartości przy uwzględnieniu osobnych materiałów. **Test odbioru:** grubość 0 w każdej płycie, wspólne i oddzielne materiały, działanie przycisku, obliczenia i lista formatek. NAPRAWIONE po pozytywnej weryfikacji.
+
+---
+
 ### N184 [P2] — OTWARTE: fałszywa kolizja boczna szuflady i zapętlone zalecenia NL
 
 **Test UI i obliczeń**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 800 × 720 × 560 mm bez pleców, szuflada V-BOX NL 550 i lewy fix 200 mm ze wspornikiem, element od lewego boku 20 mm, szerokość 100 mm, głębokość 100 mm, pełna wysokość, bez zabudowy. Geometria podaje element x=20–120 mm, początek skrzynki x=200 mm: w poziomie nie zachodzą na siebie. Mimo to komunikat „NL 550 sięga elementu” proponuje NL 450. Po kliknięciu w zamówieniu jest NL 450, ale pojawia się propozycja głębszej NL 550. Po kliknięciu powrotu wraca błąd i przycisk NL 450. Oba przyciski zmieniają prowadnice, ale zalecenia zapętlają się. Pozostaje niezależna uwaga o braku zabudowy. Montażu fizycznego nie sprawdzono.
