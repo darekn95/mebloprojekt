@@ -1,3 +1,11 @@
+### N186 [P3] — DO OCENY: uwaga o odsłoniętym elemencie proponuje zabudowę bez przycisku
+
+**Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: syntetyczna szafka 800 × 720 × 560 mm z elementem kolizyjnym 100 × 100 mm przy tylnej ścianie, na pełną wysokość, bez zabudowy. Uwaga „Element kolizyjny nie ma zabudowy ... Włącz zabudowę, jeśli ma być schowany” wskazuje opcjonalną czynność, ale przy komunikacie nie ma przycisku. Ręczne otwarcie karty „Elementy kolizyjne” i zaznaczenie „Zabuduj element (odgrodź od wnętrza)” usuwa tę uwagę. To uwaga warunkowa: odkryty element może być celowy; nie uznano samego braku zabudowy za zawsze błędny. Działania przy komunikacie nie ma do kliknięcia. Inna uwaga o szufladzie dotyczy N184.
+
+**Sugestia GPT do weryfikacji, nie decyzja użytkownika:** rozważyć przycisk włączenia zabudowy lub przejścia do odpowiedniego elementu, z uwzględnieniem skutków dla formatek. **Test odbioru:** jeden i kilka elementów, różne wysokości i położenia, kliknięcie, formatki i kolizje, możliwość pozostawienia bez zabudowy. NAPRAWIONE po pozytywnym sprawdzeniu.
+
+---
+
 ### N185 [P3] — DO OCENY: błąd grubości płyty odsyła do poprawki bez działania przy komunikacie
 
 **Test UI**, main `5f0d60075d3be5c27204df86cfbe25b790593432`: w syntetycznym projekcie w karcie „Płyty” zmieniono grubość wspólnej płyty korpusu, półek i frontów z 18 na 0 mm. Komunikat poprawnie wykrywa błąd i poleca „Popraw ją w karcie Płyty”, lecz przy komunikacie nie ma przycisku przejścia do pola ani przywrócenia wartości. Ręczne wpisanie 18 mm usuwa ten komunikat; pozostałe uwagi są niezależne. Nie należy wybierać 18 mm automatycznie jako jedynej poprawnej grubości. Zgłoszenie dotyczy zasady użytkownika dotyczącej działania przy komunikacie, nie braku walidacji.
