@@ -464,7 +464,7 @@ Prowadnica Sevroll DXS-3D Synchro (50 za komplet bez względu na NL; NL i indeks
 Rura na wieszaki ⌀25 (15/mb, zakup w odcinkach — `ruraWiersz`) · Rozeta do rury ⌀25 (1) ·
 Podpora rury ⌀25 GTV WP-10 (4) · Kątownik mocujący Sevroll 40343 (4) · Klocek dystansowy pod hak (1) ·
 każdy inny „Wkręt …” bez własnego wpisu (3,5 × 13, 4 × 30 / krótszy do frontu szuflady, 4 × N przez dwie przegrody) — jak Wkręt 4 × 30 (`WKRET_CENA_KLUCZ`, 0,08; użytkownik 2026-10-31) ·
-Kantówka dystansowa (0 — ceny jeszcze nie ma; listwa dystansowa 18 / 36 mm to formatka z płyty, nie okucie)
+Kantówka dystansowa (5/mb, cena użytkownika 2026-11-03; listwa dystansowa 18 / 36 mm to formatka z płyty, nie okucie)
 
 ---
 

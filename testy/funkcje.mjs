@@ -591,6 +591,15 @@ console.log('\n== N148 (wariant): szafka wisząca z dala od ściany (decyzja uż
   // dystans 50 — nie 18 / 36, wiec kantowka 50 × 60 (uzytkownik 2026-10-31)
   ok('po „Listwa na dystansie 50 mm”: informacja, w zamówieniu kantówka dystansowa 50 × 60 mm na 600', m.length === 1 && m[0].level === 'info' && /listwa montażowa na kantówce dystansowej 50 × 60 mm \(w zamówieniu\)/.test(m[0].text)
     && hwB.some((h) => h.name === 'Kantówka dystansowa' && h.wariant === '50 × 60 mm' && h.qty === 0.6), m[0] && m[0].text);
+  ok('dystans 50 = odstęp 50: bez zdania o reszcie odstępu', !/zostaje|grubszy/.test(m[0].text));
+  // uzytkownik 2026-11-03: kantowka do najblizszych 5 mm, a w uwadze — ile zostaje odstepu
+  const m52 = G.odScianyMsgs(P([[wis('A')], [wis('B', { D: 248, dystans: 52 })]]), 1)[0] || {};
+  ok('odstęp 52, kantówka 50: „zostaje 2 mm do ściany: wyrówna go regulacja wysunięcia zawieszek”', m52.level === 'info'
+    && /kantówce dystansowej 50 × 60 mm/.test(m52.text) && /Odstęp 52 mm, dystans 50 mm — zostaje 2 mm do ściany: wyrówna go regulacja wysunięcia zawieszek/.test(m52.text), m52.text);
+  const m20 = G.odScianyMsgs(P([[wis('A')], [wis('B', { D: 280, dystans: 20 })]]), 1)[0] || {};
+  ok('odstęp 20, listwa z płyty 18: „listwie dystansowej z płyty 18 mm … zostaje 2 mm”', m20.level === 'info'
+    && /listwie dystansowej z płyty 18 mm \(w formatkach: 1 warstwa/.test(m20.text) && /Odstęp 20 mm, dystans 18 mm — zostaje 2 mm/.test(m20.text), m20.text);
+  ok('cena kantówki dystansowej 5 zł/m', G.hwDefaultPrice({ name: 'Kantówka dystansowa' }) === 5);
   const rr = G.runRail(Qd, Qd.runs[0]);
   ok('listwa ciągu w dwóch odcinkach (B na dystansie)', rr && rr.odcinki.length === 2 && rr.odcinki[1].dyst === 50, rr && JSON.stringify(rr.odcinki));
   ok('dystans przy szafce dosuniętej do ściany — ostrzeżenie „niepotrzebny” z „dystans:1:0”', /\|dystans:1:0$/.test((G.odScianyMsgs(P([[wis('A')], [wis('B', { dystans: 40 })]]), 1)[0] || {}).text || ''));

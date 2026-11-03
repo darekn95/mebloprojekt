@@ -348,6 +348,8 @@ const DEFAULT_HW_PRICES = {
   [PODPORA_RURY_NAME]: 4,
   [KATOWNIK_SZUFLADY_NAME]: 4,
   "Klocek dystansowy pod hak": 1,
+  // kantowka dystansowa pod listwe montazowa — za metr, cena uzytkownika (2026-11-03)
+  [KANTOWKA_NAME]: 5,
 };
 /* Wkret bez wlasnej ceny (3,5 × 13 do katownika szuflady, 4 × 30 / krotszy do frontu DXS,
    4 × N przez dwie przegrody przy plycie innej niz 18) — jak „Wkręt 4 × 30” (uzytkownik 2026-10-31). */
@@ -16265,12 +16267,22 @@ const odScianyMsgs = (project, i) => {
   const tPl = Number((((it.mat || defaultMaterials) || {}).board || {}).thickness) || 18;
   const warstwy = listwa ? dystansWarstwy(dyst, tPl) : 0;
   const czym = !listwa ? `haki na klockach dystansowych ${fmt(dyst)} mm (w zamówieniu)`
-    : warstwy ? `listwa montażowa na listwie dystansowej z płyty ${fmt(dyst)} mm (w formatkach: ${warstwy === 2 ? "2 warstwy" : "1 warstwa"} płyty, może być z kilku kawałków)`
+    : warstwy ? `listwa montażowa na listwie dystansowej z płyty ${fmt(warstwy * tPl)} mm (w formatkach: ${warstwy === 2 ? "2 warstwy" : "1 warstwa"} płyty, może być z kilku kawałków)`
     : `listwa montażowa na kantówce dystansowej ${fmt(kantowkaGrubosc(dyst))} × ${fmt(LISTWA_DYST_SZER)} mm (w zamówieniu)`;
+  /* Ile zostaje miedzy odstepem a listwa z plyty / kantowka (co 5 mm) — uzytkownik 2026-11-03:
+     „podaj ile wynosi odstęp (wieszaki też mają swoją regulację wysunięcia i szyna też ciut
+     odstaje od ściany)”. */
+  const grubDyst = !listwa ? dyst : warstwy ? warstwy * tPl : kantowkaGrubosc(dyst);
+  const reszta = (gap) => {
+    const r = Math.round(gap - grubDyst);
+    return !r ? "" : r > 0
+      ? ` Odstęp ${fmt(gap)} mm, dystans ${fmt(grubDyst)} mm — zostaje ${fmt(r)} mm do ściany: wyrówna go regulacja wysunięcia zawieszek (i szyna, która też trochę odstaje od ściany).`
+      : ` Odstęp ${fmt(gap)} mm, dystans ${fmt(grubDyst)} mm — o ${fmt(-r)} mm grubszy: szafka wysunie się o tyle z lica, cofnij ją regulacją wysunięcia zawieszek.`;
+  };
   if (o.gap <= 2)
     return dyst ? [{ level: "warn", text: `Szafka dotyka ściany, a w zamówieniu jest dystans ${fmt(dyst)} mm pod ${listwa ? "listwę" : "haki"} — niepotrzebny.|dystans:${i}:0` }] : [];
   if (Math.abs(dyst - o.gap) <= 2)
-    return [{ level: "info", text: `Szafka wisi ${fmt(o.gap)} mm od ściany — ${czym}.` }];
+    return [{ level: "info", text: `Szafka wisi ${fmt(o.gap)} mm od ściany — ${czym}.${reszta(o.gap)}` }];
   const powod = [o.offset > 0 ? `wysunięta z lica o ${fmt(o.offset)} mm` : null,
     o.plytsza > 0 ? `płytsza od ciągu o ${fmt(o.plytsza)} mm, a szafki stoją równo frontami` : null].filter(Boolean);
   return [{ level: "error", text: `Szafka wisi ${fmt(o.gap)} mm od ściany${powod.length ? ` (${powod.join(", ")})` : ""} — zawieszki nie sięgną ${listwa ? "listwy" : "haków"} na ścianie i szafka zawisłaby w powietrzu. `
