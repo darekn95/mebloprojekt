@@ -284,7 +284,7 @@ const KATOWNIK_SZUFLADY_NAME = "Kątownik mocujący Sevroll 40343", KATOWNIK_SZU
    2026-10-31): z plyty tylko na jej grubosc albo podwojnie — pasek 60 mm, moze byc z kilku kawalkow
    (x / 60 / 18) dobranych do zrzutow; przy innym dystansie kantowka, przekroje co 5 mm.
    Tolerancja 2 mm — jak przy porownaniu dystansu z odstepem od sciany (`odScianyMsgs`). */
-const LISTWA_DYST_SZER = 60, KANTOWKA_KROK = 5, KANTOWKA_NAME = "Kantówka dystansowa";
+const LISTWA_DYST_SZER = 60, KANTOWKA_KROK = 5, KANTOWKA_NAME = "Kantówka dystansowa", KANTOWKA_KOLOR = "#c49a6c";
 const dystansWarstwy = (dyst, t) => (!(dyst > 0) || !(t > 0) ? 0 : Math.abs(dyst - t) <= 2 ? 1 : Math.abs(dyst - 2 * t) <= 2 ? 2 : 0);
 const kantowkaGrubosc = (dyst) => Math.max(KANTOWKA_KROK, Math.round(dyst / KANTOWKA_KROK) * KANTOWKA_KROK);
 
@@ -7371,7 +7371,12 @@ function computeGeoLiczy(cab, mat, ctx) {
      albo dwom (2 warstwy) — pasek LISTWA_DYST_SZER × dlugosc szafki z plyty korpusu, bez okleiny.
      `dzielona`: nie musi byc z jednego kawalka — rozkroj sklada ja z najmniejszej liczby kawalkow
      ze zrzutow (`wstawDzielone`). */
-  const dystWarstwy = wantHangers && cab.hangerMode !== "haczyki" ? dystansWarstwy(Math.round(Number(cab.dystans) || 0), t) : 0;
+  const dystMm = Math.max(0, Math.round(Number(cab.dystans) || 0));
+  const dystWarstwy = wantHangers && cab.hangerMode !== "haczyki" ? dystansWarstwy(dystMm, t) : 0;
+  /* co stoi za plecami pod listwa montazowa — do rysunku z boku i 3D: listwa z plyty (warstwy)
+     albo kantowka (przekroj co 5 mm), LISTWA_DYST_SZER wysokosci, pod wiencem */
+  const dystansZa = !(dystMm && wantHangers && cab.hangerMode !== "haczyki") ? null
+    : dystWarstwy ? { gr: dystWarstwy * t, warstwy: dystWarstwy, kantowka: false } : { gr: kantowkaGrubosc(dystMm), warstwy: 0, kantowka: true };
   if (dystWarstwy)
     panels.push({ name: "Listwa dystansowa", qty: dystWarstwy, a: W, b: LISTWA_DYST_SZER, matKey: "board",
       edges: { a1: false, a2: false, b1: false, b2: false }, dzielona: true,
@@ -7382,7 +7387,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   return {
     hardware,
     t, tf, tb, ts, carcassDepth, plecyZa, glebOdSciany, hasBack, interior, innerW, innerH, backRecess,
-    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, msgs, maxNL, zawiasyMontaz, plecyKolumn,
+    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, dystansZa, msgs, maxNL, zawiasyMontaz, plecyKolumn,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
@@ -9616,6 +9621,14 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
         return (
           <g key={k} data-el="profil-szafki" data-nazwy={p.nazwy.join(", ")}>
             {plecy > 0 && <rect x={p.back - plecy} y={fy(p.y1)} width={plecy} height={p.y1 - p.y0} fill={bf} stroke={INK} strokeWidth="1" opacity="0.6" />}
+            {/* listwa dystansowa z plyty / kantowka za plecami, pod wiencem (jak w widoku szafki z boku) */}
+            {c.geo.dystansZa && (() => {
+              const dz = c.geo.dystansZa, yG = p.y1 - (c.geo.hasTop ? (c.geo.tW || c.geo.t) : 0);
+              return (dz.kantowka ? [dz.gr] : Array.from({ length: dz.warstwy }, () => c.geo.t)).map((g, i) => (
+                <rect key={"dz" + i} data-el={dz.kantowka ? "kantowka-dystansowa" : "listwa-dystansowa"} x={p.back - plecy - (i + 1) * g} y={fy(yG)} width={g} height={LISTWA_DYST_SZER}
+                  fill={dz.kantowka ? KANTOWKA_KOLOR : bf} stroke={INK} strokeWidth="1" opacity="0.7" />
+              ));
+            })()}
             <rect x={p.back} y={fy(p.y1)} width={p.front - p.back} height={p.y1 - p.y0} fill={bf} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
             {p.fronty.map((f, fi) => (
               <rect key={fi} x={p.front + HINGE_PLAY} y={fy(f.y + f.h)} width={c.geo.tf} height={f.h} fill={c.frontColor} stroke={INK} strokeWidth="1.5" />
@@ -12747,8 +12760,12 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
     const xN = xG + (xG - xD) * nad / yPodloga;
     return { xD, xG, xN, yPodloga, yBlat, yN: -nad };
   })() : null;
+  /* listwa dystansowa z plyty albo kantowka za plecami, pod listwa montazowa (uzytkownik
+     2026-11-04: „dziś jest tylko w 3D”) — tuz pod wiencem, LISTWA_DYST_SZER wysokosci */
+  const dz = geo.dystansZa;
+  const dzY = H - (geo.hasTop ? (geo.tW || geo.t) : 0);
   // wymiar wysokosci idzie wtedy za sciane, zeby na nia nie wchodzil
-  const xWysokosc = sciana ? Math.min(sciana.xD, sciana.xN) - SCIANA_GR - 60 : -50;
+  const xWysokosc = sciana ? Math.min(sciana.xD, sciana.xN) - SCIANA_GR - 60 : -50 - (dz ? dz.gr : 0);
   const lewo = Math.min(-pad - sOvB, xWysokosc - 110);
   const vb = `${lewo} ${-pad - 70} ${D + sOvF + pad + rightExtra - lewo} ${H + 2 * pad + 70 + below}`;
   const hasFront = geo.levels.some((lv) => lv.cols.some((c) => c.count > 0));
@@ -12782,6 +12799,14 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
             { y: 26, x: sciana.xG, g: wallGap.top }].map((o, i) => (
             <text key={i} x={o.x - 8} y={o.y} fontSize="20" fill={INK} textAnchor="end"
               fontFamily="ui-monospace, monospace">{`↔ ${fmt(o.g)}`}</text>
+          ))}
+        </g>
+      )}
+      {dz && (
+        <g data-el={dz.kantowka ? "kantowka-dystansowa" : "listwa-dystansowa"}>
+          {(dz.kantowka ? [dz.gr] : Array.from({ length: dz.warstwy }, () => geo.t)).map((g, i) => (
+            <rect key={i} x={xTyl - (i + 1) * g} y={fy(dzY)} width={g} height={LISTWA_DYST_SZER}
+              fill={dz.kantowka ? KANTOWKA_KOLOR : bf} stroke={INK} strokeWidth="1.5" opacity="0.7" />
           ))}
         </g>
       )}
@@ -13563,6 +13588,12 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
       const zT = Math.max(cd, ...plecyBryly(cab, geo).map((pb) => pb.z1));
       const yG = H - (geo.hasTop ? (geo.tW || t) : 0);
       for (let i = 0; i < ld.qty; i++) box(0, yG - LISTWA_DYST_SZER, zT + i * t, W, yG, zT + (i + 1) * t, bf);
+    } else if (geo.dystansZa && geo.dystansZa.kantowka) {
+      // kantowka dystansowa (okucie z zamowienia, nie formatka) — w kolorze drewna
+      fk = null;
+      const zT = Math.max(cd, ...plecyBryly(cab, geo).map((pb) => pb.z1));
+      const yG = H - (geo.hasTop ? (geo.tW || t) : 0);
+      box(0, yG - LISTWA_DYST_SZER, zT, W, yG, zT + geo.dystansZa.gr, KANTOWKA_KOLOR, null, 1, false, "kantowka");
     }
   }
   // blenda nad szafka w licu drzwi (audyt GPT N14)

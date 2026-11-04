@@ -171,8 +171,15 @@ console.log('\n== Listwa dystansowa (decyzja 2026-10-31): 18 / 36 z płyty, inna
   if ((await rk.innerText()).length < 120) { await rk.locator('h2').click(); await page.waitForTimeout(500); }
   await page.waitForTimeout(1500);
   ok('rozkrój: listwa dystansowa na arkuszu', /Listwa dystansowa/.test(await rk.innerText()));
+  // rysunek z boku: listwa za plecami (2 warstwy), uzytkownik 2026-11-04
+  const zBoku = async () => { const x = page.getByRole('button', { name: 'Z boku', exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(500); } };
+  await zBoku();
+  ok('z boku: listwa dystansowa za plecami — 2 paski', (await page.locator('[data-el="listwa-dystansowa"] rect').count()) === 2);
   await wis(50);
   const hw2 = await rows(/^Produkty do zamówienia/);
+  await zBoku();
+  ok('z boku: kantówka za plecami (1 pasek), bez listwy z płyty', (await page.locator('[data-el="kantowka-dystansowa"] rect').count()) === 1
+    && !(await page.locator('[data-el="listwa-dystansowa"]').count()));
   ok('dystans 50: kantówka dystansowa 50 × 60 mm w produktach, bez formatki', hw2.some((r) => /^Kantówka dystansowa/.test(r) && /50 × 60/.test(r))
     && !(await rows(/^Formatki/)).some((r) => /^Listwa dystansowa/.test(r)), hw2.filter((r) => /dystans/i.test(r)).join(' / '));
 }
