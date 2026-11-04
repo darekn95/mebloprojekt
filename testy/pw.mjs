@@ -61,6 +61,15 @@ const przyspiesz = (page) => {
       await pauza(Math.min(30, Math.max(0, ms - (Date.now() - t0))));
     }
   };
+  /* Przed przeladowaniem kasujemy czekajace zegary strony (2026-11-04): test wpisuje projekt do
+     localStorage i przeladowuje, a autozapis poprzedniego kroku (800 ms) potrafil wystrzelic
+     miedzy wpisaniem a przeladowaniem i nadpisac go starym (`audytgpt15` N189 pod obciazeniem).
+     Strona i tak znika; test, ktory czeka na autozapis, czeka przed przeladowaniem. */
+  const przeladuj = page.reload.bind(page);
+  page.reload = async (...a) => {
+    await page.evaluate(() => { if (window.__zegary) [...window.__zegary].forEach((id) => clearTimeout(id)); }).catch(() => {});
+    return przeladuj(...a);
+  };
   return page;
 };
 

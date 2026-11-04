@@ -534,7 +534,7 @@ Uruchamianie: `cd testy && bash sweep.sh <nazwy>` (bez `.mjs`).
 
 Testy importują Playwrighta przez `testy/pw.mjs`: `page.waitForTimeout(N)` kończy
 się, gdy strona jest bezczynna (narysowana, bez oczekujących zegarów aplikacji,
-bez trwającego przewijania) dwa razy z rzędu (2026-11-04 — pod obciążeniem jedna cicha klatka bywała przed następnym krokiem aplikacji), a `N` jest tylko limitem. `PW_WOLNO=1` przywraca
+bez trwającego przewijania) dwa razy z rzędu (2026-11-04 — pod obciążeniem jedna cicha klatka bywała przed następnym krokiem aplikacji), a `N` jest tylko limitem. Przed `page.reload` `pw.mjs` kasuje czekające zegary strony (autozapis starej strony nie nadpisze projektu wpisanego przez test). `PW_WOLNO=1` przywraca
 sztywne pauzy — gdy test sypie się tylko w szybkim trybie, znaczy to, że czeka
 na coś, czego `pw.mjs` nie widzi (dopisz to do `zajeta` w `pw.mjs`, nie wydłużaj
 pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
