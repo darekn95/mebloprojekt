@@ -71,7 +71,9 @@ const nachodzi = (sol) => {
     const cienka = Math.min(...s[i].d) <= 4 || Math.min(...s[j].d) <= 4;
     const [o1, o2] = [...ov].sort((x, y) => x - y);
     if (cienka && o1 <= 4 && o2 <= 16) continue;
-    if (ov.every((v) => v > 1)) out.push(`${opis(s[i])} × ${opis(s[j])} (${ov.map(Math.round).join('×')})`);
+    /* czesc wspolna w otworze plyty (wyciecie w formatce — bryla w calosci z `otwory`) to nie kolizja (2026-11-04) */
+    const wOtw = (q) => (q.otwory || []).some((h) => [0, 1, 2].every((k) => Math.max(a[k], c[k]) >= h[k] - 1 && Math.min(a[k + 3], c[k + 3]) <= h[k + 3] + 1));
+    if (ov.every((v) => v > 1) && !wOtw(s[i]) && !wOtw(s[j])) out.push(`${opis(s[i])} × ${opis(s[j])} (${ov.map(Math.round).join('×')})`);
   }
   return [...new Set(out)];
 };

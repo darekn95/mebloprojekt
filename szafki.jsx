@@ -280,6 +280,13 @@ const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀2
 const PODPORA_RURY_NAME = "Podpora rury ⌀25 GTV WP-10";
 // katownik pod dno szerokiej szuflady V-BOX (Sevroll, decyzja uzytkownika 2026-10-31, N178)
 const KATOWNIK_SZUFLADY_NAME = "Kątownik mocujący Sevroll 40343", KATOWNIK_SZUFLADY_WKRETY = 4;
+/* Listwa dystansowa pod listwe montazowa (szafka wiszaca z dala od sciany, N148; uzytkownik
+   2026-10-31): z plyty tylko na jej grubosc albo podwojnie — pasek 60 mm, moze byc z kilku kawalkow
+   (x / 60 / 18) dobranych do zrzutow; przy innym dystansie kantowka, przekroje co 5 mm.
+   Tolerancja 2 mm — jak przy porownaniu dystansu z odstepem od sciany (`odScianyMsgs`). */
+const LISTWA_DYST_SZER = 60, KANTOWKA_KROK = 5, KANTOWKA_NAME = "Kantówka dystansowa", KANTOWKA_KOLOR = "#c49a6c";
+const dystansWarstwy = (dyst, t) => (!(dyst > 0) || !(t > 0) ? 0 : Math.abs(dyst - t) <= 2 ? 1 : Math.abs(dyst - 2 * t) <= 2 ? 2 : 0);
+const kantowkaGrubosc = (dyst) => Math.max(KANTOWKA_KROK, Math.round(dyst / KANTOWKA_KROK) * KANTOWKA_KROK);
 
 /* Drzwi bez uchwytu (uzytkownik 2026-10-25): front dluzszy od dolu (gorne szafki —
    chwyta sie go od spodu), nizszy od gory (podfrez, jak w szufladach) — oba domyslnie
@@ -337,7 +344,16 @@ const DEFAULT_HW_PRICES = {
   // rura na wieszaki (za metr) i rozety — ceny uzytkownika (2026-10-24)
   [DRAZEK_NAME]: 15,
   [ROZETA_NAME]: 1,
+  // podpora rury GTV WP-10 i katownik pod dno szerokiej szuflady V-BOX — ceny uzytkownika (2026-10-31)
+  [PODPORA_RURY_NAME]: 4,
+  [KATOWNIK_SZUFLADY_NAME]: 4,
+  "Klocek dystansowy pod hak": 1,
+  // kantowka dystansowa pod listwe montazowa — za metr, cena uzytkownika (2026-11-03)
+  [KANTOWKA_NAME]: 5,
 };
+/* Wkret bez wlasnej ceny (3,5 × 13 do katownika szuflady, 4 × 30 / krotszy do frontu DXS,
+   4 × N przez dwie przegrody przy plycie innej niz 18) — jak „Wkręt 4 × 30” (uzytkownik 2026-10-31). */
+const WKRET_CENA_KLUCZ = "Wkręt 4 × 30";
 
 /* Prowadnica ma rozmiar w nazwie i NL w specyfikacji, wiec nie da sie jej
    zalatwic zwyklym wpisem w tabeli — stad osobne dopasowanie. */
@@ -350,7 +366,8 @@ const hwDefaultPrice = (h) => {
     return (bands.find((b) => nl <= b.maxNl) || bands[bands.length - 1]).price;
   }
   // uchwyt moze miec wlasna nazwe, wiec dopasowujemy po stalym kluczu pozycji
-  return DEFAULT_HW_PRICES[h.pk || h.name] || 0;
+  const klucz = h.pk || h.name || "";
+  return DEFAULT_HW_PRICES[klucz] ?? (/^Wkręt /.test(klucz) ? DEFAULT_HW_PRICES[WKRET_CENA_KLUCZ] : 0);
 };
 
 /* Ceny netto rozdawane przez wczesniejsza wersje — jesli projekt ma
@@ -5172,6 +5189,61 @@ function computeGeoLiczy(cab, mat, ctx) {
     P({ ...sideR, note: sideR.note || noteOf(sideR.edges, "side") });
   }
 
+  /* Otwory na element kolizyjny (decyzja uzytkownika 2026-10-30 przy audycie GPT N114: „przyciski
+     do dostępnych i sensownych opcji”): element z `otwory` — plyty, przez ktore przechodzi (polka
+     przelotowa, polka, przegroda), dostaja otwor; wymiar idzie w nazwe formatki (opis nie trafia
+     do tabeli ani do PDF), ostrzezenie staje sie informacja. */
+  const elementyOtwory = obsWlaczone.filter((ob) => ob.otwory).map(obrysElementu);
+  /* Czesc wspolna elementu i plyty (x0–x1 od lewej, z0–z1 od tylu, y0–y1): wymiar wyciecia
+     i jego polozenie od lewej i tylnej krawedzi plyty — ta sama liczba w uwadze i w nazwie
+     formatki (audyt GPT N172: uwaga mowila 100 × 100, formatka 82 × 100). Pelna kolizja we
+     wszystkich osiach (N174: element 0–5 mm od tylu przed polka cofnieta o 18 mm). */
+  const przeciecie = (e, x0, x1, z0, z1, y0, y1) => {
+    if (!(Math.min(y1, e.oy1) - Math.max(y0, e.oy0) > 0 && Math.min(x1, e.ox1) - Math.max(x0, e.ox0) > 0
+      && Math.min(z1, e.oz1) - Math.max(z0, e.oz0) > 0)) return null;
+    const xa = Math.max(x0, e.ox0), za = Math.max(z0, e.oz0);
+    return { a: Math.round(Math.min(x1, e.ox1) - xa), b: Math.round(Math.min(z1, e.oz1) - za), h: Math.round(Math.min(y1, e.oy1) - Math.max(y0, e.oy0)),
+      x: Math.round(xa - x0), z: Math.round(za - z0), y: Math.round(Math.max(y0, e.oy0) - y0), szer: Math.round(x1 - x0), gl: Math.round(z1 - z0) };
+  };
+  /* Otwory na rysunkach (uzytkownik 2026-11-04: „dziś są tylko w nazwach formatek”): przy plycie
+     poziomej `otwory` w ukladzie szafki (x od lewej, zb od tylu) — 3D i rzut z gory; przy formatce
+     `otwory` w jej ukladzie a × b (u wzdluz a, v wzdluz b od tylnej krawedzi) — rysunek rozkroju. */
+  const otwAbs = (lista, x0, z0) => lista.map((o) => ({ x0: x0 + o.x, x1: x0 + o.x + o.a, zb0: z0 + o.z, zb1: z0 + o.z + o.b }));
+  const otwFormatki = (lista) => lista.map((o) => ({ u: o.x, v: o.z, du: o.a, dv: o.b }));
+  // opis wyciecia w plycie: rog / przy tylnej krawedzi / otwor w srodku — z polozeniem (N173)
+  const opisOtworu = (o) => {
+    const lewa = o.x <= 0, prawa = o.x + o.a >= o.szer, tyl = o.z <= 0, wym = `${fmt(o.a)} × ${fmt(o.b)}`;
+    if (tyl && (lewa || prawa)) return `wycięcie ${wym} w ${lewa ? "lewym" : "prawym"} tylnym rogu`;
+    if (tyl) return `wycięcie ${wym} z tyłu, ${fmt(o.x)} mm od lewej`;
+    return `otwór ${wym}, ${fmt(o.x)} mm od lewej, ${fmt(o.z)} mm od tyłu`;
+  };
+  /* Wyciecie narozne (z zabudowa — razem z jej sciankami z plyty polek): polka w jego wysokosci
+     ma wyciety tylny rog — w nazwie formatki, jak otwor na element (audyt GPT N180: „przytnij
+     ją na miejscu”, a formatka byla zwykla „Półka”). */
+  const obrysyWyciec = [[cab.cutout, true], [cab.cutoutR, false]]
+    .filter(([cu]) => cu && cu.on && Math.round(cu.w || 0) > 0 && Math.round(cu.d || 0) > 0).map(([cu, lewy]) => {
+      const cw = Math.round(cu.w), cdp = Math.round(cu.d), m = cu.mask !== false ? ts : 0;
+      const li = Math.min(Math.max(0, Math.round(cu.levelIndex || 0)), levels.length - 1);
+      const pelne = cu.fullHeight !== false || levels.length <= 1;
+      return { lewy, ox0: lewy ? 0 : W - cw - m, ox1: lewy ? cw + m : W, oz0: 0, oz1: cdp + m,
+        oy0: pelne ? interior.y0 : levels[li].y0, oy1: pelne ? interior.y1 : levels[li].y1 };
+    });
+  // wszystkie elementy z `otwory`, ktore przechodza przez plyte (N171: liczyl sie tylko pierwszy); polki — tez wyciecia narozne
+  const otworyW = (y0, y1, x0, x1, z0, z1, polka = false) => [...elementyOtwory, ...(polka ? obrysyWyciec : [])]
+    .map((e) => przeciecie(e, x0, x1, z0, z1, y0, y1)).filter(Boolean)
+    .sort((p1, p2) => p1.x - p2.x || p1.z - p2.z);
+  const nazwaZOtworami = (nazwa, lista) => (lista.length ? `${nazwa} — ${lista.map(opisOtworu).join(" + ")}` : nazwa);
+  /* Dno i wieniec (blat): element na cala wysokosc i wyciecie narozne na cala wysokosc przechodza
+     tez przez nie (uzytkownik 2026-11-04) — wyciecie w nazwie formatki, jak w polkach (N171, N180).
+     Wyciecie narozne bez scianek zabudowy: te stoja na dnie, pod wiencem. Elementy bez `otwory`
+     — ostrzezenie z przyciskiem przy elemencie (nizej). */
+  const wycieciaPelne = [[cab.cutout, true], [cab.cutoutR, false]]
+    .filter(([cu]) => cu && cu.on && Math.round(cu.w || 0) > 0 && Math.round(cu.d || 0) > 0 && (cu.fullHeight !== false || levels.length <= 1))
+    .map(([cu, lewy]) => ({ ox0: lewy ? 0 : W - Math.round(cu.w), ox1: lewy ? Math.round(cu.w) : W, oz0: 0, oz1: Math.round(cu.d) }));
+  const przezWysokosc = (e) => ({ ...e, oy0: -Infinity, oy1: Infinity });
+  const otworyDnaWienca = (x0, x1, z0, z1, zElementami = true) => [...(zElementami ? elementyOtwory.filter((e) => e.oFull) : []), ...wycieciaPelne]
+    .map((e) => przeciecie(przezWysokosc(e), x0, x1, z0, z1, 0, 1)).filter(Boolean)
+    .sort((p1, p2) => p1.x - p2.x || p1.z - p2.z);
   const horiz = (name, l, r, x0, x1) => ({
     name, qty: 1, a: x1 - x0, b: carcassDepth, matKey: "board",
     edges: { a1: true, a2: rear, b1: l === "over", b2: r === "over" },
@@ -5198,58 +5270,33 @@ function computeGeoLiczy(cab, mat, ctx) {
     : horiz("Wieniec", topL, topR, topX0, topX1);
   // rola „dno” — wspolne dno ciagu zastepuje te formatke (`formatkiSzafki`, `projectParts`)
   const dno = hasBot ? { ...horiz("Dno", botL, botR, botX0, botX1), rola: "dno" } : null;
-  if (wien && dno && !isBlat && same(wien, dno)) P({ ...dno, name: "Dno / wieniec", rola: "dno+wieniec", qty: 2, note: noteOf(dno.edges, "horiz") });
+  // wyciecie w nazwie dna i wienca / blatu (element albo wyciecie narozne na cala wysokosc)
+  const dnoOtw = dno ? otworyDnaWienca(botX0, botX1, 0, carcassDepth) : [];
+  const wienOtw = !wien ? [] : isBlat ? otworyDnaWienca(topX0, topX1, -blat.overBack, carcassDepth + blat.overFront)
+    : otworyDnaWienca(topX0, topX1, 0, carcassDepth);
+  if (dno) dno.name = nazwaZOtworami("Dno", dnoOtw);
+  if (wien) wien.name = nazwaZOtworami(wien.name, wienOtw);
+  if (dno && dnoOtw.length) dno.otwory = otwFormatki(dnoOtw);
+  if (wien && wienOtw.length) wien.otwory = otwFormatki(wienOtw);
+  const dnoOtwory = otwAbs(dnoOtw, botX0, 0);
+  const wienOtwory = otwAbs(wienOtw, topX0, isBlat ? -blat.overBack : 0);
+  if (wien && dno && !isBlat && same(wien, dno) && nazwaZOtworami("", dnoOtw) === nazwaZOtworami("", wienOtw))
+    P({ ...dno, name: nazwaZOtworami("Dno / wieniec", dnoOtw), rola: "dno+wieniec", qty: 2, note: noteOf(dno.edges, "horiz") });
   else {
     if (dno) P({ ...dno, note: noteOf(dno.edges, "horiz") });
     if (wien) P({ ...wien, note: noteOf(wien.edges, "horiz") });
   }
 
-  /* Otwory na element kolizyjny (decyzja uzytkownika 2026-10-30 przy audycie GPT N114: „przyciski
-     do dostępnych i sensownych opcji”): element z `otwory` — plyty, przez ktore przechodzi (polka
-     przelotowa, polka, przegroda), dostaja otwor; wymiar idzie w nazwe formatki (opis nie trafia
-     do tabeli ani do PDF), ostrzezenie staje sie informacja. */
-  const elementyOtwory = obsWlaczone.filter((ob) => ob.otwory).map(obrysElementu);
-  /* Czesc wspolna elementu i plyty (x0–x1 od lewej, z0–z1 od tylu, y0–y1): wymiar wyciecia
-     i jego polozenie od lewej i tylnej krawedzi plyty — ta sama liczba w uwadze i w nazwie
-     formatki (audyt GPT N172: uwaga mowila 100 × 100, formatka 82 × 100). Pelna kolizja we
-     wszystkich osiach (N174: element 0–5 mm od tylu przed polka cofnieta o 18 mm). */
-  const przeciecie = (e, x0, x1, z0, z1, y0, y1) => {
-    if (!(Math.min(y1, e.oy1) - Math.max(y0, e.oy0) > 0 && Math.min(x1, e.ox1) - Math.max(x0, e.ox0) > 0
-      && Math.min(z1, e.oz1) - Math.max(z0, e.oz0) > 0)) return null;
-    const xa = Math.max(x0, e.ox0), za = Math.max(z0, e.oz0);
-    return { a: Math.round(Math.min(x1, e.ox1) - xa), b: Math.round(Math.min(z1, e.oz1) - za), h: Math.round(Math.min(y1, e.oy1) - Math.max(y0, e.oy0)),
-      x: Math.round(xa - x0), z: Math.round(za - z0), szer: Math.round(x1 - x0), gl: Math.round(z1 - z0) };
-  };
-  // opis wyciecia w plycie: rog / przy tylnej krawedzi / otwor w srodku — z polozeniem (N173)
-  const opisOtworu = (o) => {
-    const lewa = o.x <= 0, prawa = o.x + o.a >= o.szer, tyl = o.z <= 0, wym = `${fmt(o.a)} × ${fmt(o.b)}`;
-    if (tyl && (lewa || prawa)) return `wycięcie ${wym} w ${lewa ? "lewym" : "prawym"} tylnym rogu`;
-    if (tyl) return `wycięcie ${wym} z tyłu, ${fmt(o.x)} mm od lewej`;
-    return `otwór ${wym}, ${fmt(o.x)} mm od lewej, ${fmt(o.z)} mm od tyłu`;
-  };
-  /* Wyciecie narozne (z zabudowa — razem z jej sciankami z plyty polek): polka w jego wysokosci
-     ma wyciety tylny rog — w nazwie formatki, jak otwor na element (audyt GPT N180: „przytnij
-     ją na miejscu”, a formatka byla zwykla „Półka”). */
-  const obrysyWyciec = [[cab.cutout, true], [cab.cutoutR, false]]
-    .filter(([cu]) => cu && cu.on && Math.round(cu.w || 0) > 0 && Math.round(cu.d || 0) > 0).map(([cu, lewy]) => {
-      const cw = Math.round(cu.w), cdp = Math.round(cu.d), m = cu.mask !== false ? ts : 0;
-      const li = Math.min(Math.max(0, Math.round(cu.levelIndex || 0)), levels.length - 1);
-      const pelne = cu.fullHeight !== false || levels.length <= 1;
-      return { lewy, ox0: lewy ? 0 : W - cw - m, ox1: lewy ? cw + m : W, oz0: 0, oz1: cdp + m,
-        oy0: pelne ? interior.y0 : levels[li].y0, oy1: pelne ? interior.y1 : levels[li].y1 };
-    });
-  // wszystkie elementy z `otwory`, ktore przechodza przez plyte (N171: liczyl sie tylko pierwszy); polki — tez wyciecia narozne
-  const otworyW = (y0, y1, x0, x1, z0, z1, polka = false) => [...elementyOtwory, ...(polka ? obrysyWyciec : [])]
-    .map((e) => przeciecie(e, x0, x1, z0, z1, y0, y1)).filter(Boolean)
-    .sort((p1, p2) => p1.x - p2.x || p1.z - p2.z);
-  const nazwaZOtworami = (nazwa, lista) => (lista.length ? `${nazwa} — ${lista.map(opisOtworu).join(" + ")}` : nazwa);
-  const zOtworem = new Map();
+  const zOtworem = new Map(), otwNazwy = new Map();
   sepShelves.forEach((sh) => {
-    const name = nazwaZOtworami("Półka przelotowa", otworyW(sh.y, sh.y + t, interior.x0, interior.x1, shelfBack, shelfBack + shelfDepth, true));
+    const lista = otworyW(sh.y, sh.y + t, interior.x0, interior.x1, shelfBack, shelfBack + shelfDepth, true);
+    const name = nazwaZOtworami("Półka przelotowa", lista);
+    sh.otwory = otwAbs(lista, interior.x0, shelfBack);
     zOtworem.set(name, (zOtworem.get(name) || 0) + 1);
+    otwNazwy.set(name, otwFormatki(lista));
   });
   zOtworem.forEach((qty, name) =>
-    P({ name, qty, a: innerW, b: shelfDepth,
+    P({ name, qty, a: innerW, b: shelfDepth, ...(otwNazwy.get(name).length ? { otwory: otwNazwy.get(name) } : {}),
         matKey: "board", edges: { a1: true, a2: rear, b1: false, b2: false },
         note: "krawędź przednia" }));
 
@@ -5259,12 +5306,16 @@ function computeGeoLiczy(cab, mat, ctx) {
     // przegroda stoi pionowo: wyciecie glebokosc × wysokosc, od tylu i od dolu przegrody
     const o = otworyW(d.y0, d.y1, d.x, d.x + t, shelfBack, shelfBack + dividerDepth);
     const k = `${d.h}|${o.map((q) => `wycięcie ${fmt(q.b)} × ${fmt(q.h)}${q.z > 0 ? `, ${fmt(q.z)} mm od tyłu` : " z tyłu"}`).join(" + ")}`;
+    // przegroda stoi pionowo — otwory w ukladzie y (od dolu) × zb (od tylu)
+    d.otwory = o.map((q) => ({ y0: d.y0 + q.y, y1: d.y0 + q.y + q.h, zb0: shelfBack + q.z, zb1: shelfBack + q.z + q.b }));
     divSizes.set(k, (divSizes.get(k) || 0) + 1);
+    if (!otwNazwy.has("dv" + k)) otwNazwy.set("dv" + k, o.map((q) => ({ u: q.y, v: q.z, du: q.h, dv: q.b })));
   });
   divSizes.forEach((qty, k) => {
     const [hS, opis] = k.split("|");
     const h = Number(hS);
-    P({ name: opis ? `Przegroda pionowa — ${opis}` : "Przegroda pionowa", qty, a: h, b: dividerDepth, matKey: "board",
+    const otwP = otwNazwy.get("dv" + k) || [];
+    P({ name: opis ? `Przegroda pionowa — ${opis}` : "Przegroda pionowa", qty, a: h, b: dividerDepth, matKey: "board", ...(otwP.length ? { otwory: otwP } : {}),
         edges: { a1: true, a2: rear, b1: false, b2: false },
         note: "krawędź przednia" });
   });
@@ -5276,6 +5327,10 @@ function computeGeoLiczy(cab, mat, ctx) {
         const z1 = shelfBack + shelfDepth;
         const o = otworyW(sh.y, sh.y + ts, c.shX0 ?? c.x0, c.shX1 ?? c.x1, z1 - (c.shD ?? shelfDepth), z1, true);
         const k = `${c.shW}|${c.shD ?? shelfDepth}|${c.shNotch ? `${c.shNotch.w}|${c.shNotch.d}` : "|"}|${o.map(opisOtworu).join(" + ")}`;
+        sh.otwory = otwAbs(o, c.shX0 ?? c.x0, z1 - (c.shD ?? shelfDepth));
+        // wyciety rog pod wzmocnienie tylne B (szafka w L) tez na rysunku formatki
+        const n = c.shNotch;
+        if (!otwNazwy.has("sh" + k)) otwNazwy.set("sh" + k, [...(n ? [{ u: Math.round(n.x0 - (c.shX0 ?? c.x0)), v: 0, du: n.w, dv: n.d }] : []), ...otwFormatki(o)]);
         shSizes.set(k, (shSizes.get(k) || 0) + 1);
       });
     })
@@ -5283,8 +5338,10 @@ function computeGeoLiczy(cab, mat, ctx) {
   shSizes.forEach((qty, k) => {
     const [w, dep, nw, nd] = k.split("|").map(Number);
     const otw = k.split("|")[4];
+    const otwP = otwNazwy.get("sh" + k) || [];
     // wyciecie idzie w nazwe — opis formatki nie trafia do tabeli ani do PDF
     P({ name: (nw > 0 ? `Półka — wycięty tylny róg ${fmt(nw)} × ${fmt(nd)}` : "Półka") + (otw ? ` — ${otw}` : ""), qty, a: w, b: dep, matKey: shelfMat,
+        ...(otwP.length ? { otwory: otwP } : {}),
         edges: { a1: true, a2: rear, b1: false, b2: false },
         note: nw > 0 ? "krawędź przednia; róg wycięty pod wzmocnienie tylne B" : "krawędź przednia" });
   });
@@ -5724,6 +5781,21 @@ function computeGeoLiczy(cab, mat, ctx) {
       });
     }
 
+    // wyciecie na cala wysokosc idzie przez dno i wieniec (blat) — wyciecie w ich nazwie (uzytkownik 2026-11-04)
+    if (zFull) {
+      const pel = { ox0: bx0, ox1: bx1, oz0: bz0, oz1: bz1, oy0: -Infinity, oy1: Infinity };
+      const wDnie = hasBot ? przeciecie(pel, botX0, botX1, 0, carcassDepth, 0, 1) : null;
+      const wGorze = !hasTop ? null : isBlat ? przeciecie(pel, topX0, topX1, -blat.overBack, carcassDepth + blat.overFront, 0, 1)
+        : przeciecie(pel, topX0, topX1, 0, carcassDepth, 0, 1);
+      const gora = isBlat ? "blat" : "wieniec";
+      const czesci = [wDnie && ["dno", wDnie], wGorze && [gora, wGorze]].filter(Boolean);
+      if (czesci.length) {
+        const razem = czesci.length === 2 && opisOtworu(wDnie) === opisOtworu(wGorze);
+        add("info", `Wycięcie narożnika (${side}) na całą wysokość przechodzi przez ${razem ? `dno i ${gora}` : czesci.map(([n]) => n).join(" i ")} — `
+          + `${razem ? `w obu ${opisOtworu(wDnie)}` : czesci.map(([n, o]) => `${n}: ${opisOtworu(o)}`).join(", ")} (w nazwie formatki; ścianki zabudowy stoją na dnie).`);
+      }
+    }
+
     // detekcja kolizji: polki, przegrody, szuflady wchodzace we wneke
     const inRangeY = (y0, y1) => Math.min(y1, cy1) - Math.max(y0, cy0) > 0;
     const maskX = onLeft ? bx1 : bx0;
@@ -5859,6 +5931,25 @@ function computeGeoLiczy(cab, mat, ctx) {
       if (ob.otwory) add("info", `${gdzie} — w przegrodzie ${wyc} (w nazwie formatki „Przegroda pionowa — …”).`);
       else add("warn", `${gdzie} — potrzebne w niej ${wyc} albo przesuń kolumny.${otwory}`);
     });
+    /* Dno i wieniec (blat): element na cala wysokosc przechodzi tez przez nie (uzytkownik
+       2026-11-04) — wyciecie w nazwie formatki, jak w polkach; bez `otwory` ostrzezenie
+       z „Wycinam otwory w płytach”. */
+    if (oFull) {
+      const pel = { ox0, ox1, oz0, oz1, oy0: -Infinity, oy1: Infinity };
+      const wDnie = hasBot ? przeciecie(pel, botX0, botX1, 0, carcassDepth, 0, 1) : null;
+      const wGorze = !hasTop ? null : isBlat ? przeciecie(pel, topX0, topX1, -blat.overBack, carcassDepth + blat.overFront, 0, 1)
+        : przeciecie(pel, topX0, topX1, 0, carcassDepth, 0, 1);
+      const gora = isBlat ? "blat" : "wieniec";
+      const czesci = [wDnie && ["dno", wDnie], wGorze && [gora, wGorze]].filter(Boolean);
+      if (czesci.length) {
+        const razem = czesci.length === 2 && opisOtworu(wDnie) === opisOtworu(wGorze);
+        const co = razem ? `dno i ${gora}` : czesci.map(([n]) => n).join(" i ");
+        const wym = razem ? opisOtworu(wDnie) : czesci.map(([n, o]) => `${n} — ${opisOtworu(o)}`).join(", ");
+        const formatki = razem && !isBlat ? "„Dno / wieniec — …”" : czesci.map(([n]) => `„${n[0].toUpperCase()}${n.slice(1)} — …”`).join(" i ");
+        if (ob.otwory) add("info", `${obName} na całą wysokość przechodzi przez ${co} — ${razem ? `w ${czesci.length === 2 ? "obu" : "płycie"}` : "w nich"}: ${wym} (w nazwie formatki ${formatki}).`);
+        else add("warn", `${obName} na całą wysokość przechodzi przez ${co} — potrzebne ${czesci.length === 2 ? "w nich" : "w nim"}: ${wym}.${otwory}`);
+      }
+    }
     levels.forEach((lv) => {
       lv.cols.forEach((c) => {
         if (!hitX(c.x0, c.x1)) return;
@@ -7212,16 +7303,21 @@ function computeGeoLiczy(cab, mat, ctx) {
     /* Szafka wisi z dala od sciany (wysunieta / plytsza w licu) i uzytkownik wybral dystans
        (`cab.dystans`, przycisk „… na dystansie N mm”, N148): listwa dystansowa pod listwe
        montazowa na dlugosc szafki albo klocek pod kazdy hak. */
+    /* `wariant` — grubosc: rozne grubosci to rozne wiersze zbiorczej listy (audyt GPT N160:
+       50 i 100 mm laczyly sie w jedna listwe bez grubosci). Listwa (uzytkownik 2026-10-31):
+       dystans rowny grubosci plyty albo dwom — formatka z plyty korpusu (`dystansZPlyty`,
+       nizej), inny — kantowka (przekroj co 5 mm). */
     const dyst = Math.max(0, Math.round(Number(cab.dystans) || 0));
-    if (dyst)
-      hardware.push(cab.hangerMode !== "haczyki"
-        /* `wariant` — grubosc: rozne grubosci to rozne wiersze zbiorczej listy (audyt GPT N160:
-           50 i 100 mm laczyly sie w jedna listwe bez grubosci) */
-        ? { name: "Listwa dystansowa pod listwę montażową", use: "szafka wisząca z dala od ściany", wariant: `grubość ${fmt(dyst)} mm`,
-          spec: `grubość ${fmt(dyst)} mm, na długość szafki ${fmt(W)} mm — przykręcona do ściany, na niej listwa montażowa`,
-          qty: W / 1000, unit: "mb" }
-        : { name: "Klocek dystansowy pod hak", use: "szafka wisząca z dala od ściany", wariant: `grubość ${fmt(dyst)} mm`,
-          spec: `grubość ${fmt(dyst)} mm, po jednym pod hak`, qty: nH, unit: "szt." });
+    if (dyst && cab.hangerMode === "haczyki")
+      hardware.push({ name: "Klocek dystansowy pod hak", use: "szafka wisząca z dala od ściany", wariant: `grubość ${fmt(dyst)} mm`,
+        spec: `grubość ${fmt(dyst)} mm, po jednym pod hak`, qty: nH, unit: "szt." });
+    else if (dyst && !dystansWarstwy(dyst, t)) {
+      const k = kantowkaGrubosc(dyst);
+      hardware.push({ name: KANTOWKA_NAME, use: "listwa dystansowa pod listwę montażową — szafka wisząca z dala od ściany",
+        wariant: `${fmt(k)} × ${fmt(LISTWA_DYST_SZER)} mm`,
+        spec: `przekrój ${fmt(k)} × ${fmt(LISTWA_DYST_SZER)} mm (dystans ${fmt(dyst)} mm${k !== dyst ? `, kantówka co ${KANTOWKA_KROK} mm` : ""}), na długość szafki ${fmt(W)} mm — przykręcona do ściany, na niej listwa montażowa`,
+        qty: W / 1000, unit: "mb" });
+    }
   }
 
   /* Wzmocnienia i katownik skreca sie wkretami, nie konfirmatem: tam plyty
@@ -7293,13 +7389,27 @@ function computeGeoLiczy(cab, mat, ctx) {
   /* Najmniejszy bok formatki. Ponizej tego piła formatowa nie ma czego trzymac
      — takiego kawalka nikt nie wytnie z plyty na maszynie. Do zamowienia idzie
      MIN_PART, a docina sie recznie (uzytkownik 2026-10-11: `naZamowienie`). */
+  /* Listwa dystansowa z plyty (uzytkownik 2026-10-31): dystans rowny grubosci plyty (1 warstwa)
+     albo dwom (2 warstwy) — pasek LISTWA_DYST_SZER × dlugosc szafki z plyty korpusu, bez okleiny.
+     `dzielona`: nie musi byc z jednego kawalka — rozkroj sklada ja z najmniejszej liczby kawalkow
+     ze zrzutow (`wstawDzielone`). */
+  const dystMm = Math.max(0, Math.round(Number(cab.dystans) || 0));
+  const dystWarstwy = wantHangers && cab.hangerMode !== "haczyki" ? dystansWarstwy(dystMm, t) : 0;
+  /* co stoi za plecami pod listwa montazowa — do rysunku z boku i 3D: listwa z plyty (warstwy)
+     albo kantowka (przekroj co 5 mm), LISTWA_DYST_SZER wysokosci, pod wiencem */
+  const dystansZa = !(dystMm && wantHangers && cab.hangerMode !== "haczyki") ? null
+    : dystWarstwy ? { gr: dystWarstwy * t, warstwy: dystWarstwy, kantowka: false } : { gr: kantowkaGrubosc(dystMm), warstwy: 0, kantowka: true };
+  if (dystWarstwy)
+    panels.push({ name: "Listwa dystansowa", qty: dystWarstwy, a: W, b: LISTWA_DYST_SZER, matKey: "board",
+      edges: { a1: false, a2: false, b1: false, b2: false }, dzielona: true,
+      note: `pod listwę montażową (szafka wisząca z dala od ściany): ${dystWarstwy === 2 ? `2 warstwy = ${fmt(2 * t)} mm` : `1 warstwa = ${fmt(t)} mm`}, bez okleiny — może być z kilku kawałków (rozkrój dobiera je ze zrzutów)` });
   const panelsZam = panels.map(naZamowienie);
   maleFormatkiMsgs(panelsZam, cab.dociac, "@").forEach((m) => add(m.level, m.text));
 
   return {
     hardware,
     t, tf, tb, ts, carcassDepth, plecyZa, glebOdSciany, hasBack, interior, innerW, innerH, backRecess,
-    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, msgs, maxNL, zawiasyMontaz, plecyKolumn,
+    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, dystansZa, dnoOtwory, wienOtwory, msgs, maxNL, zawiasyMontaz, plecyKolumn,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
@@ -8734,6 +8844,23 @@ const TopHardware = ({ cab, geo, cd }) => {
   return <g data-el="okucia-gora">{out}</g>;
 };
 
+/* Wyciecia i otwory w wiencu (blacie) i polkach w rzucie z gory (uzytkownik 2026-11-04: „dziś są
+   tylko w nazwach formatek”): y w rzucie = odleglosc od tylu (`zb`), jak w `geo`. Polki tylko przy
+   `polki` (przelacznik „półki” na rysunku). */
+function OtworyZGory({ geo, polki }) {
+  const lista = [
+    ...(geo.hasTop ? geo.wienOtwory || [] : []).map((o) => ({ ...o, gora: true })),
+    ...(polki ? [...(geo.sepShelves || []), ...geo.levels.flatMap((lv) => lv.cols.flatMap((c) => c.shelves || []))]
+      .flatMap((sh) => sh.otwory || []) : []),
+  ];
+  const widziane = new Set();
+  return lista.filter((o) => { const k = [o.x0, o.x1, o.zb0, o.zb1].join(","); if (widziane.has(k)) return false; widziane.add(k); return true; })
+    .map((o, i) => (
+      <rect key={"otw" + i} data-el="otwor-z-gory" x={o.x0} y={o.zb0} width={o.x1 - o.x0} height={o.zb1 - o.zb0}
+        fill="#fafaf9" fillOpacity={o.gora ? 1 : 0.6} stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
+    ));
+}
+
 function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
   const W = geo.W;
   const t = geo.t;
@@ -8776,6 +8903,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
           opacity={geo.isBlat ? 0.45 : 0.25} />
       )}
 
+      <OtworyZGory geo={geo} polki={false} />
       {/* elementy wzmacniajace */}
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
         <rect key={`trail${lv.i}-${c.j}-${ri}`} x={r.x0} y={cd - (r.z0 + r.zLen)}
@@ -9533,6 +9661,14 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
         return (
           <g key={k} data-el="profil-szafki" data-nazwy={p.nazwy.join(", ")}>
             {plecy > 0 && <rect x={p.back - plecy} y={fy(p.y1)} width={plecy} height={p.y1 - p.y0} fill={bf} stroke={INK} strokeWidth="1" opacity="0.6" />}
+            {/* listwa dystansowa z plyty / kantowka za plecami, pod wiencem (jak w widoku szafki z boku) */}
+            {c.geo.dystansZa && (() => {
+              const dz = c.geo.dystansZa, yG = p.y1 - (c.geo.hasTop ? (c.geo.tW || c.geo.t) : 0);
+              return (dz.kantowka ? [dz.gr] : Array.from({ length: dz.warstwy }, () => c.geo.t)).map((g, i) => (
+                <rect key={"dz" + i} data-el={dz.kantowka ? "kantowka-dystansowa" : "listwa-dystansowa"} x={p.back - plecy - (i + 1) * g} y={fy(yG)} width={g} height={LISTWA_DYST_SZER}
+                  fill={dz.kantowka ? KANTOWKA_KOLOR : bf} stroke={INK} strokeWidth="1" opacity="0.7" />
+              ));
+            })()}
             <rect x={p.back} y={fy(p.y1)} width={p.front - p.back} height={p.y1 - p.y0} fill={bf} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
             {p.fronty.map((f, fi) => (
               <rect key={fi} x={p.front + HINGE_PLAY} y={fy(f.y + f.h)} width={c.geo.tf} height={f.h} fill={c.frontColor} stroke={INK} strokeWidth="1.5" />
@@ -9959,7 +10095,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
    kazda bryla 3D dopisuje tam swoje wymiary — test porownuje je z lista
    formatek, zeby nic narysowanego nie wypadlo z zamowienia. Bez tej tablicy
    nie robi nic. */
-const audytBryly = (x0, y0, z0, x1, y1, z1, color, tag, v, alpha) => {
+const audytBryly = (x0, y0, z0, x1, y1, z1, color, tag, v, alpha, otwory) => {
   const A = typeof window !== "undefined" ? window.__audytBryl : null;
   if (!A) return;
   /* `p` to obrys bryly juz na swoim miejscu (po obrocie skrzydla i po
@@ -9970,6 +10106,8 @@ const audytBryly = (x0, y0, z0, x1, y1, z1, color, tag, v, alpha) => {
     p: v ? [r("x", Math.min), r("y", Math.min), r("z", Math.min), r("x", Math.max), r("y", Math.max), r("z", Math.max)] : null,
     // wierzcholki — plyta scieta (blat na lyzwe) nie jest prostopadloscianem
     v: v ? v.map((q) => ({ x: Math.round(q.x), y: Math.round(q.y), z: Math.round(q.z) })) : null,
+    // plyta z wycieciem: rysowana kawalkami, tu w calosci — z otworami (przez cala grubosc)
+    ...(otwory && otwory.length ? { otwory: otwory.map((o) => o.map((q) => Math.round(q * 10) / 10)) } : {}),
     alpha: alpha ?? 1 });
 };
 
@@ -10003,6 +10141,18 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     if (poPlace) v = v.map(poPlace);
     audytBryly(x0, y0, z0, x1, y1, z1, color, tag, v, alpha);
     solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold, bias: bias || 0, tag });
+  };
+  /* Plyta z wycieciem / otworem — jak w 3D szafki (`boxOtw` w `Scene3D`): kawalki wokol
+     otworow, do audytu jedna bryla w calosci z otworami (po ustawieniu w zabudowie). */
+  const boxOtw = (x0, y0, z0, x1, y1, z1, color, otw, os = "xz", bias = 0) => {
+    if (!otw || !otw.length) return box(x0, y0, z0, x1, y1, z1, color, null, 1, false, bias);
+    const tr = (v) => { let w = v; if (place) w = w.map(place); if (poPlace) w = w.map(poPlace); return w; };
+    const pozioma = os === "xz";
+    const czesc = ([a0, b0, a1, b1]) => tr(pozioma ? VERTS(a0, y0, b0, a1, y1, b1) : VERTS(x0, a0, b0, x1, a1, b1));
+    prostokatyBez(pozioma ? [x0, z0, x1, z1] : [y0, z0, y1, z1], otw).forEach((q) =>
+      solids.push({ v: czesc(q), color, alpha: 1, bold: false, bias, tag: null }));
+    const obrys = (v) => ["x", "y", "z"].map((k) => Math.min(...v.map((q) => q[k]))).concat(["x", "y", "z"].map((k) => Math.max(...v.map((q) => q[k]))));
+    audytBryly(x0, y0, z0, x1, y1, z1, color, null, tr(VERTS(x0, y0, z0, x1, y1, z1)), 1, otw.map((q) => obrys(czesc(q))));
   };
   /* Plyta o koncach scietych w rzucie (blat na lyzwe): x konca inne przy licu
      (z0) i przy scianie (z1). Wierzcholki w kolejnosci `VERTS`, wiec sciany
@@ -10071,17 +10221,20 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         c.geo.postRects.forEach((q) => box(c.x + q.x0, c.base + c.geo.interior.y0, cd - q.v1,
           c.x + q.x1, c.base + c.geo.interior.y1, cd - q.v0, pShc));
       }
+      // otwory z `geo` w ukladzie zabudowy (x + c.x, y + c.base, z = cd − zb)
+      const otwXZ = (lista) => (lista || []).map((o) => [c.x + o.x0, cd - o.zb1, c.x + o.x1, cd - o.zb0]);
+      const otwYZ = (lista) => (lista || []).map((o) => [c.base + o.y0, cd - o.zb1, c.base + o.y1, cd - o.zb0]);
       if (c.geo.hasBot && !(naWspolnym && naWspolnym.has(c.index)))
-        box(c.x + c.geo.botX0, c.base + c.geo.bottomY, 0,
-          c.x + c.geo.botX1, c.base + c.geo.bottomY + t, cd, bf);
+        boxOtw(c.x + c.geo.botX0, c.base + c.geo.bottomY, 0,
+          c.x + c.geo.botX1, c.base + c.geo.bottomY + t, cd, bf, otwXZ(c.geo.dnoOtwory));
       if (c.geo.hasTop)
         /* z = 0 to lico korpusu, plecy przy z = cd — wysuniecie przednie idzie
            w minus, tylne za cd (bylo odwrotnie: blat biurka wystawal w 3D do
            tylu i wchodzil w plecy — audyt macierzowy 2026-10-04) */
-        box(c.x + c.geo.topX0, y1 - (c.geo.tW || t), c.geo.isBlat ? -c.geo.blat.overFront : 0,
+        boxOtw(c.x + c.geo.topX0, y1 - (c.geo.tW || t), c.geo.isBlat ? -c.geo.blat.overFront : 0,
           c.x + c.geo.topX1, y1, c.geo.isBlat ? cd + c.geo.blat.overBack : cd,
           // wlasny blat roboczy w kolorze blatu, nie korpusu (audyt GPT N17)
-          c.geo.isWorktop ? (c.mat.worktop || {}).color || bf : bf);
+          c.geo.isWorktop ? (c.mat.worktop || {}).color || bf : bf, otwXZ(c.geo.wienOtwory));
       plecyBryly(c.cab, c.geo).forEach((pb) => box(c.x + pb.x0, c.base + pb.y0, pb.z0, c.x + pb.x1, c.base + pb.y1, pb.z1,
         pb.plyta ? (pb.zPolek ? shelfColorOf(c.cab, c.mat) : bf) : c.mat.back.color));
       /* Blenda nad szafka — w zamowieniu i na rysunku z przodu byla, w bryle nie
@@ -10109,14 +10262,12 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
          drzwi — odsuwamy ja od widza o pol glebokosci szafki. */
       const wGlab = -Math.round(cd / 2);
       // polka przelotowa jest konstrukcyjna, z plyty korpusu — jak w zamowieniu (audyt GPT N60)
-      (c.geo.sepShelves || []).forEach((sh) => box(
+      (c.geo.sepShelves || []).forEach((sh) => boxOtw(
         c.x + c.geo.interior.x0, c.base + sh.y, zPolki[0],
-        c.x + c.geo.interior.x1, c.base + sh.y + t, zPolki[1], bf,
-        null, 1, false, wGlab));
-      (c.geo.dividers || []).forEach((d) => box(
+        c.x + c.geo.interior.x1, c.base + sh.y + t, zPolki[1], bf, otwXZ(sh.otwory), "xz", wGlab));
+      (c.geo.dividers || []).forEach((d) => boxOtw(
         c.x + d.x, c.base + d.y0, cd - (c.geo.backIntrusion + c.geo.dividerDepth),
-        c.x + d.x + t, c.base + d.y1, cd - c.geo.backIntrusion, bf,
-        null, 1, false, wGlab));
+        c.x + d.x + t, c.base + d.y1, cd - c.geo.backIntrusion, bf, otwYZ(d.otwory), "yz", wGlab));
       // rura na wieszaki (okucie, kolor metalu)
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.drazki || []).forEach((dr) => box(
         c.x + col.x0 + DRAZEK_KROTSZY / 2, c.base + dr.y - DRAZEK_FI / 2, dr.z - DRAZEK_FI / 2,
@@ -10127,8 +10278,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         c.x + d.tipon.x1, c.base + d.tipon.y1, d.tipon.z1, "#8b8b93", null, 1, false, wGlab, "tipon"));
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.shelves || []).forEach((sh) => {
         polkaCzesci(col, zPolki[0] + (col.shFront || 0), zPolki[1], cd).forEach(([x0, z0, x1, z1]) =>
-          box(c.x + x0, c.base + sh.y, z0, c.x + x1, c.base + sh.y + c.geo.ts, z1, shc3,
-            null, 1, false, wGlab));
+          boxOtw(c.x + x0, c.base + sh.y, z0, c.x + x1, c.base + sh.y + c.geo.ts, z1, shc3, otwXZ(sh.otwory), "xz", wGlab));
       })));
       const tf = c.geo.tf;
       /* Uchwyt wystaje przed lico i w bryle calej zabudowy widac go tak samo jak
@@ -12182,6 +12332,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           strokeWidth={geo.isBlat ? 2 : 1}
           opacity={geo.isBlat ? 0.45 : 0.25} />
       )}
+      <OtworyZGory geo={geo} polki={false} />
       {/* elementy wzmacniajace z gory (y=0 tyl; glebokosc od tylu = cd - z0 - zLen) */}
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
         <rect key={`trail${lv.i}-${c.j}-${ri}`}
@@ -12215,6 +12366,8 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
             </g>
           );
         })}
+      {/* otwory w polkach — na ich obrysie (wieniec wyzej) */}
+      {showShelves && <OtworyZGory geo={{ ...geo, hasTop: false }} polki />}
 
       {/* przegrody pionowe */}
       {geo.dividers.map((d, i) => (
@@ -12664,8 +12817,12 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
     const xN = xG + (xG - xD) * nad / yPodloga;
     return { xD, xG, xN, yPodloga, yBlat, yN: -nad };
   })() : null;
+  /* listwa dystansowa z plyty albo kantowka za plecami, pod listwa montazowa (uzytkownik
+     2026-11-04: „dziś jest tylko w 3D”) — tuz pod wiencem, LISTWA_DYST_SZER wysokosci */
+  const dz = geo.dystansZa;
+  const dzY = H - (geo.hasTop ? (geo.tW || geo.t) : 0);
   // wymiar wysokosci idzie wtedy za sciane, zeby na nia nie wchodzil
-  const xWysokosc = sciana ? Math.min(sciana.xD, sciana.xN) - SCIANA_GR - 60 : -50;
+  const xWysokosc = sciana ? Math.min(sciana.xD, sciana.xN) - SCIANA_GR - 60 : -50 - (dz ? dz.gr : 0);
   const lewo = Math.min(-pad - sOvB, xWysokosc - 110);
   const vb = `${lewo} ${-pad - 70} ${D + sOvF + pad + rightExtra - lewo} ${H + 2 * pad + 70 + below}`;
   const hasFront = geo.levels.some((lv) => lv.cols.some((c) => c.count > 0));
@@ -12699,6 +12856,14 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
             { y: 26, x: sciana.xG, g: wallGap.top }].map((o, i) => (
             <text key={i} x={o.x - 8} y={o.y} fontSize="20" fill={INK} textAnchor="end"
               fontFamily="ui-monospace, monospace">{`↔ ${fmt(o.g)}`}</text>
+          ))}
+        </g>
+      )}
+      {dz && (
+        <g data-el={dz.kantowka ? "kantowka-dystansowa" : "listwa-dystansowa"}>
+          {(dz.kantowka ? [dz.gr] : Array.from({ length: dz.warstwy }, () => geo.t)).map((g, i) => (
+            <rect key={i} x={xTyl - (i + 1) * g} y={fy(dzY)} width={g} height={LISTWA_DYST_SZER}
+              fill={dz.kantowka ? KANTOWKA_KOLOR : bf} stroke={INK} strokeWidth="1.5" opacity="0.7" />
           ))}
         </g>
       )}
@@ -13050,6 +13215,30 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
 
 /* ---------- widok 3D ---------- */
 
+/* Prostokat [a0, b0, a1, b1] bez prostokatnych otworow — kawalki do rysowania plyty z wycieciem
+   (uzytkownik 2026-11-04): pasy miedzy krawedziami otworow, w kazdym wolne przedzialy; sasiednie
+   pasy o tych samych przedzialach sie scalaja. */
+const prostokatyBez = ([a0, b0, a1, b1], dziury) => {
+  const h = (dziury || []).map(([p0, q0, p1, q1]) => [Math.max(a0, p0), Math.max(b0, q0), Math.min(a1, p1), Math.min(b1, q1)])
+    .filter(([p0, q0, p1, q1]) => p1 - p0 > 0.5 && q1 - q0 > 0.5);
+  if (!h.length) return [[a0, b0, a1, b1]];
+  const us = [...new Set([a0, a1, ...h.flatMap(([p0, , p1]) => [p0, p1])])].sort((m, n) => m - n);
+  const out = [];
+  let prev = null;
+  for (let i = 0; i < us.length - 1; i++) {
+    const u0 = us[i], u1 = us[i + 1];
+    if (u1 - u0 < 0.5) continue;
+    const zaj = h.filter(([p0, , p1]) => p0 < u1 - 1e-6 && p1 > u0 + 1e-6).map(([, q0, , q1]) => [q0, q1]).sort((m, n) => m[0] - n[0]);
+    let b = b0;
+    const wolne = [];
+    zaj.forEach(([q0, q1]) => { if (q0 > b + 0.5) wolne.push([b, q0]); b = Math.max(b, q1); });
+    if (b1 > b + 0.5) wolne.push([b, b1]);
+    const key = wolne.map((w) => w.join(",")).join(";");
+    if (prev && prev.key === key && Math.abs(prev.u1 - u0) < 1e-6) prev.u1 = u1;
+    else { prev = { u0, u1, wolne, key }; out.push(prev); }
+  }
+  return out.flatMap((q) => q.wolne.map(([w0, w1]) => [q.u0, w0, q.u1, w1]));
+};
 const VERTS = (x0, y0, z0, x1, y1, z1) => [
   { x: x0, y: y0, z: z0 }, { x: x1, y: y0, z: z0 },
   { x: x1, y: y1, z: z0 }, { x: x0, y: y1, z: z0 },
@@ -13399,7 +13588,10 @@ const PODSWIETL = "#2563eb";
 const kluczeFormatki = (n) => {
   if (!n) return null;
   if (n === "Bok") return new Set(["Bok lewy", "Bok prawy"]);
-  if (n === "Dno / wieniec") return new Set(["Dno", "Wieniec"]);
+  // dno / wieniec / blat z wycieciem w nazwie („Dno / wieniec — wycięcie …”) — te same plyty
+  if (/^Dno \/ wieniec($| — )/.test(n)) return new Set(["Dno", "Wieniec"]);
+  const pw = /^(Dno|Wieniec|Blat) — /.exec(n);
+  if (pw) return new Set([pw[1]]);
   if (/^Półka przelotowa/.test(n)) return new Set(["Półka przelotowa"]);
   if (/^Półka/.test(n)) return new Set(["Półka"]);
   if (/^Plecy/.test(n)) return new Set(["Plecy"]);
@@ -13431,6 +13623,21 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
     audytBryly(x0, y0, z0, x1, y1, z1, kol, tag, v, alpha);
     solids.push({ v, color: kol, alpha: alpha ?? 1, bold: !!bold });
   };
+  /* Plyta z wycieciem / otworem (uzytkownik 2026-11-04): kawalki wokol otworow; do audytu jedna
+     bryla w calosci (jak formatka) z lista otworow. `otw` w plaszczyznie plyty: [a0, b0, a1, b1],
+     `os` "xz" (pozioma — x i z) albo "yz" (pionowa — y i z). */
+  const boxOtw = (x0, y0, z0, x1, y1, z1, color, otw, os = "xz") => {
+    if (!otw || !otw.length) return box(x0, y0, z0, x1, y1, z1, color);
+    const kol = wybrane && fk && wybrane.has(fk) ? PODSWIETL : color;
+    const pozioma = os === "xz";
+    prostokatyBez(pozioma ? [x0, z0, x1, z1] : [y0, z0, y1, z1], otw).forEach(([a0, b0, a1, b1]) =>
+      solids.push({ v: pozioma ? VERTS(a0, y0, b0, a1, y1, b1) : VERTS(x0, a0, b0, x1, a1, b1), color: kol, alpha: 1, bold: false }));
+    audytBryly(x0, y0, z0, x1, y1, z1, kol, null, VERTS(x0, y0, z0, x1, y1, z1), 1,
+      otw.map(([a0, b0, a1, b1]) => (pozioma ? [a0, y0, b0, a1, y1, b1] : [x0, a0, b0, x1, a1, b1])));
+  };
+  // otwory z `geo` (x / y i zb od tylu) w plaszczyznie plyty w 3D (z = cd − zb)
+  const otwXZ = (lista) => (lista || []).map((o) => [o.x0, cd - o.zb1, o.x1, cd - o.zb0]);
+  const otwYZ = (lista) => (lista || []).map((o) => [o.y0, cd - o.zb1, o.y1, cd - o.zb0]);
 
   /* Blat ciagu nad szafka (pod blatem roboczym) — ten sam odcinek co w rzucie
      z gory: y tam liczony od tylu korpusu w strone frontu, tu z = cd - y. */
@@ -13455,19 +13662,36 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
       box(q.x0, geo.interior.y0, cd - q.v1, q.x1, geo.interior.y1, cd - q.v0, pShc); });
   }
   fk = "Dno";
-  if (geo.hasBot) box(geo.botX0, geo.bottomY, 0, geo.botX1, geo.bottomY + t, cd, bf);
+  if (geo.hasBot) boxOtw(geo.botX0, geo.bottomY, 0, geo.botX1, geo.bottomY + t, cd, bf, otwXZ(geo.dnoOtwory));
   fk = geo.isBlat ? "Blat" : "Wieniec";
   if (geo.hasTop)
-    box(
+    boxOtw(
       // z = 0 to lico korpusu: wysuniecie przednie w minus, tylne za plecami (cd)
       geo.topX0, H - (geo.tW || t), geo.isBlat ? -geo.blat.overFront : 0,
       geo.topX1, H, geo.isBlat ? cd + geo.blat.overBack : cd,
       // wlasny blat roboczy w kolorze blatu, nie korpusu (audyt GPT N17)
-      geo.isWorktop ? (mat.worktop || {}).color || bf : bf
+      geo.isWorktop ? (mat.worktop || {}).color || bf : bf, otwXZ(geo.wienOtwory)
     );
 
   fk = "Plecy";
   plecyBryly(cab, geo).forEach((pb) => box(pb.x0, pb.y0, pb.z0, pb.x1, pb.y1, pb.z1, pb.plyta ? (pb.zPolek ? shc : bf) : mat.back.color));
+  /* Listwa dystansowa z plyty (szafka wiszaca z dala od sciany, uzytkownik 2026-10-31) — za plecami,
+     na scianie pod listwa montazowa, gornym brzegiem na wysokosci zawieszki (pod wiencem). */
+  fk = "Listwa dystansowa";
+  {
+    const ld = (geo.panels || []).find((p) => p.name === "Listwa dystansowa");
+    if (ld) {
+      const zT = Math.max(cd, ...plecyBryly(cab, geo).map((pb) => pb.z1));
+      const yG = H - (geo.hasTop ? (geo.tW || t) : 0);
+      for (let i = 0; i < ld.qty; i++) box(0, yG - LISTWA_DYST_SZER, zT + i * t, W, yG, zT + (i + 1) * t, bf);
+    } else if (geo.dystansZa && geo.dystansZa.kantowka) {
+      // kantowka dystansowa (okucie z zamowienia, nie formatka) — w kolorze drewna
+      fk = null;
+      const zT = Math.max(cd, ...plecyBryly(cab, geo).map((pb) => pb.z1));
+      const yG = H - (geo.hasTop ? (geo.tW || t) : 0);
+      box(0, yG - LISTWA_DYST_SZER, zT, W, yG, zT + geo.dystansZa.gr, KANTOWKA_KOLOR, null, 1, false, "kantowka");
+    }
+  }
   // blenda nad szafka w licu drzwi (audyt GPT N14)
   fk = "Blenda nad szafką";
   if (cab.topFiller?.on && cab.topFiller.height > 0) {
@@ -13482,11 +13706,11 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
   const zPolki = [cd - geo.shelfBack - geo.shelfDepth, cd - geo.shelfBack];
   fk = "Półka przelotowa";
   geo.sepShelves.forEach((sh) =>
-    box(geo.interior.x0, sh.y, zPolki[0], geo.interior.x1, sh.y + t, zPolki[1], bf)
+    boxOtw(geo.interior.x0, sh.y, zPolki[0], geo.interior.x1, sh.y + t, zPolki[1], bf, otwXZ(sh.otwory))
   );
   fk = "Przegroda pionowa";
   geo.dividers.forEach((d) =>
-    box(d.x, d.y0, cd - geo.backIntrusion - geo.dividerDepth, d.x + t, d.y1, cd - geo.backIntrusion, bf)
+    boxOtw(d.x, d.y0, cd - geo.backIntrusion - geo.dividerDepth, d.x + t, d.y1, cd - geo.backIntrusion, bf, otwYZ(d.otwory), "yz")
   );
   geo.levels.forEach((lv) =>
     lv.cols.forEach((c) => {
@@ -13494,7 +13718,7 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
       c.shelves.forEach((sh) =>
         // zwykla polka z plyty polek (`shelfColorOf`), nie korpusu (audyt GPT N60)
         polkaCzesci(c, zPolki[0] + (c.shFront || 0), zPolki[1], cd).forEach(([x0, z0, x1, z1]) =>
-          box(x0, sh.y, z0, x1, sh.y + geo.ts, z1, shc))
+          boxOtw(x0, sh.y, z0, x1, sh.y + geo.ts, z1, shc, otwXZ(sh.otwory)))
       );
       // rura na wieszaki (okucie, w kolorze metalu — nie formatka)
       fk = null;
@@ -13872,7 +14096,7 @@ const formatkiSzafki = (geo, { bezCokolu = false, bezBlatu = false, bezDna = fal
 /* Wspolne dno ciagu (`runBottom`) zastepuje dno szafki; „Dno / wieniec” (2 szt.)
    zostaje samym wiencem. */
 const bezPlytCiagu = (panels, bezDna) => (!bezDna ? panels : panels.flatMap((p) => (p.rola === "dno" ? []
-  : p.rola === "dno+wieniec" ? [{ ...p, name: "Wieniec", rola: null, qty: p.qty - 1 }] : [p])));
+  : p.rola === "dno+wieniec" ? [{ ...p, name: p.name.replace(/^Dno \/ wieniec/, "Wieniec"), rola: null, qty: p.qty - 1 }] : [p])));
 
 const okuciaSzafki = (geo, { bezListwy = false, arm = null, wstawki = [] } = {}) => {
   const out = (bezListwy ? geo.hardware.filter((h) => h.name !== RAIL_NAME || h.wewnatrz) : geo.hardware).map((h) => ({ ...h }));
@@ -16221,11 +16445,26 @@ const odScianyMsgs = (project, i) => {
   if (!o) return [];
   const dyst = Math.max(0, Math.round(Number(it.cab.dystans) || 0));
   const listwa = naListwie(it.cab);
-  const czym = listwa ? "listwa montażowa na listwie dystansowej" : "haki na klockach dystansowych";
+  // listwa z plyty (grubosc plyty albo dwie) — w formatkach, inna — kantowka w zamowieniu (uzytkownik 2026-10-31)
+  const tPl = Number((((it.mat || defaultMaterials) || {}).board || {}).thickness) || 18;
+  const warstwy = listwa ? dystansWarstwy(dyst, tPl) : 0;
+  const czym = !listwa ? `haki na klockach dystansowych ${fmt(dyst)} mm (w zamówieniu)`
+    : warstwy ? `listwa montażowa na listwie dystansowej z płyty ${fmt(warstwy * tPl)} mm (w formatkach: ${warstwy === 2 ? "2 warstwy" : "1 warstwa"} płyty, może być z kilku kawałków)`
+    : `listwa montażowa na kantówce dystansowej ${fmt(kantowkaGrubosc(dyst))} × ${fmt(LISTWA_DYST_SZER)} mm (w zamówieniu)`;
+  /* Ile zostaje miedzy odstepem a listwa z plyty / kantowka (co 5 mm) — uzytkownik 2026-11-03:
+     „podaj ile wynosi odstęp (wieszaki też mają swoją regulację wysunięcia i szyna też ciut
+     odstaje od ściany)”. */
+  const grubDyst = !listwa ? dyst : warstwy ? warstwy * tPl : kantowkaGrubosc(dyst);
+  const reszta = (gap) => {
+    const r = Math.round(gap - grubDyst);
+    return !r ? "" : r > 0
+      ? ` Odstęp ${fmt(gap)} mm, dystans ${fmt(grubDyst)} mm — zostaje ${fmt(r)} mm do ściany: wyrówna go regulacja wysunięcia zawieszek (i szyna, która też trochę odstaje od ściany).`
+      : ` Odstęp ${fmt(gap)} mm, dystans ${fmt(grubDyst)} mm — o ${fmt(-r)} mm grubszy: szafka wysunie się o tyle z lica, cofnij ją regulacją wysunięcia zawieszek.`;
+  };
   if (o.gap <= 2)
     return dyst ? [{ level: "warn", text: `Szafka dotyka ściany, a w zamówieniu jest dystans ${fmt(dyst)} mm pod ${listwa ? "listwę" : "haki"} — niepotrzebny.|dystans:${i}:0` }] : [];
   if (Math.abs(dyst - o.gap) <= 2)
-    return [{ level: "info", text: `Szafka wisi ${fmt(o.gap)} mm od ściany — ${czym} ${fmt(dyst)} mm (w zamówieniu).` }];
+    return [{ level: "info", text: `Szafka wisi ${fmt(o.gap)} mm od ściany — ${czym}.${reszta(o.gap)}` }];
   const powod = [o.offset > 0 ? `wysunięta z lica o ${fmt(o.offset)} mm` : null,
     o.plytsza > 0 ? `płytsza od ciągu o ${fmt(o.plytsza)} mm, a szafki stoją równo frontami` : null].filter(Boolean);
   return [{ level: "error", text: `Szafka wisi ${fmt(o.gap)} mm od ściany${powod.length ? ` (${powod.join(", ")})` : ""} — zawieszki nie sięgną ${listwa ? "listwy" : "haków"} na ścianie i szafka zawisłaby w powietrzu. `
@@ -17633,7 +17872,7 @@ function nestPass(parts, sheetW, sheetH, mode, rule) {
       if (!hit) { k++; continue; }
       const r = sheet.free[hit.i];
       sheet.parts.push({ name: p.name, x: r.x, y: r.y, w: hit.w, h: hit.h, rot: hit.rot,
-        grain: p.rotatable ? false : true, src: p.src });
+        grain: p.rotatable ? false : true, src: p.src, ...(p.otwory ? { otwory: p.otwory } : {}) });
       const pieces = splitFreeRect(r, hit.w, hit.h, mode);
       /* Ciecie trzeba zrobic po kazdej osi, na ktorej pole jest wieksze od
          formatki — takze gdy zostaje sam scinek wezszy od rzazu (audyt GPT N58:
@@ -17656,7 +17895,7 @@ function packSheets(input, { sheetW = USABLE_W, sheetH = USABLE_H } = {}) {
   // `src` — numer pozycji wejscia: kto liczy zuzycie (wlasne kawalki), zdejmuje dokladnie ja (N92)
   input.forEach((it, src) => {
     for (let i = 0; i < it.qty; i++)
-      parts.push({ name: it.name, w: it.a, h: it.b, rotatable: it.rotatable !== false, src });
+      parts.push({ name: it.name, w: it.a, h: it.b, rotatable: it.rotatable !== false, src, ...(it.otwory ? { otwory: it.otwory } : {}) });
   });
   if (!parts.length)
     return { sheets: [], rejected: [], usedPct: 0, cuts: 0, sheetW, sheetH, strategy: "" };
@@ -17760,6 +17999,60 @@ const naKawalki = (list, resztki) => {
   return { reszta: reszta.filter((r) => r.qty > 0), wlasne };
 };
 
+/* Formatki `dzielona` (listwa dystansowa z plyty, uzytkownik 2026-10-31: „nie musi być lity kawałek,
+   może być z kilku (x/60/18) tak żeby pasowało do odpadów (zrzutów) i jak najmniejsza liczba
+   kawałków”): po ulozeniu reszty formatek kazda sztuka idzie w wolne pola arkuszy (zrzuty
+   i scinki co najmniej tak szerokie jak pasek) — najpierw jedno pole, w ktore wchodzi cala
+   (najmniejsze takie, zeby nie psuc duzych zrzutow), inaczej najdluzsze pole i dalej reszta.
+   Kawalek krotszy niz MIN_PART sie nie uda (firma tego nie utnie). Nie zmiesci sie w zrzutach —
+   null: plan liczy sie jeszcze raz z nimi jak ze zwyklymi formatkami (cale). */
+const wstawDzielone = (dzielone, sheets) => {
+  const ark = sheets.map((sh) => ({ ...sh, parts: [...sh.parts], free: (sh.offcuts || []).map((r) => ({ ...r })), cuts: sh.cuts || 0 }));
+  const kawalki = [];
+  for (const r of dzielone) {
+    const L = Math.max(r.a, r.b), S = Math.min(r.a, r.b);
+    for (let n = 0; n < r.qty; n++) {
+      let zost = L;
+      const moje = [];
+      while (zost > 1e-6) {
+        /* Na koniec nie moze zostac kawalek krotszy niz MIN_PART: pole, ktore by go zostawilo,
+           odpada; gdy innego nie ma — kawalek z niego krotszy o tyle, zeby reszta miala MIN_PART. */
+        const zbierz = (skroc) => {
+          const out = [];
+          ark.forEach((sh, si) => sh.free.forEach((f, fi) => {
+            const dl = Math.max(f.w, f.h), kr = Math.min(f.w, f.h);
+            if (kr + 1e-9 < S) return;
+            let wez = Math.min(zost, dl);
+            if (zost - wez > 1e-6 && zost - wez < MIN_PART) { if (!skroc) return; wez = zost - MIN_PART; }
+            if (wez < MIN_PART - 1e-9) return;
+            out.push({ si, fi, f, dl, wez });
+          }));
+          return out;
+        };
+        let pola = zbierz(false);
+        if (!pola.length) pola = zbierz(true);
+        if (!pola.length) return null;
+        const cale = pola.filter((q) => q.wez >= zost - 1e-6);
+        const q = cale.length ? cale.reduce((m, x) => (x.f.w * x.f.h < m.f.w * m.f.h ? x : m))
+          : pola.reduce((m, x) => (x.wez > m.wez ? x : m));
+        const sh = ark[q.si], f = q.f;
+        const poziomo = f.w >= f.h;
+        const w = poziomo ? q.wez : S, h = poziomo ? S : q.wez;
+        moje.push({ sh, part: { x: f.x, y: f.y, w, h, rot: false, grain: false } });
+        sh.cuts += (f.w - w > 1e-6 ? 1 : 0) + (f.h - h > 1e-6 ? 1 : 0);
+        // pasek wzdluz dluzszego boku pola; reszta pola zostaje w calej szerokosci (pod / obok paska)
+        sh.free.splice(q.fi, 1, ...splitFreeRect(f, w, h, poziomo ? "h" : "v"));
+        zost -= q.wez;
+      }
+      moje.forEach((m, i) => {
+        const part = { ...m.part, name: moje.length > 1 ? `${r.name} — kawałek ${i + 1}/${moje.length}` : r.name, dzielona: true };
+        m.sh.parts.push(part);
+        kawalki.push(part);
+      });
+    }
+  }
+  return ark.map(({ free, ...sh }) => ({ ...sh, offcuts: mergeFree(free) }));
+};
 function buildCutPlan(rows, resztki = []) {
   const groups = new Map();
   // wlasne kawalki wspolne dla wszystkich grup — kazda sztuka idzie do jednej (N150)
@@ -17782,8 +18075,36 @@ function buildCutPlan(rows, resztki = []) {
     const sh = list.find((r) => r.sheet);
     const matIds = [...new Set(list.map((r) => r.matId).filter(Boolean))];
     const swoje = pula.filter((q) => resztkaGrupy(q, { matLabel: list[0].matLabel, matIds }) && q.w > 0 && q.h > 0 && q.zostalo !== 0);
-    const { reszta, wlasne } = swoje.length ? naKawalki(list, swoje) : { reszta: list, wlasne: [] };
-    const kupne = packSheets(reszta, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {});
+    const dzielone = list.filter((r) => r.dzielona);
+    const zwykle = dzielone.length ? list.filter((r) => !r.dzielona) : list;
+    const swojeKopia = swoje.map((q) => ({ ...q }));
+    let { reszta, wlasne } = swoje.length ? naKawalki(zwykle, swoje) : { reszta: zwykle, wlasne: [] };
+    let kupne = packSheets(reszta, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {});
+    if (dzielone.length) {
+      // kawalki wlasnej plyty, ktore zostaly wolne, tez sa zrzutami
+      const wolneWlasne = swoje.filter((q) => q.zostalo > 0).flatMap((q) => Array.from({ length: q.zostalo }, () => ({
+        parts: [], cuts: 0, offcuts: [{ x: 0, y: 0, w: q.w, h: q.h }], wlasna: { w: q.w, h: q.h, id: q.id }, nowyKawalek: q })));
+      const ulozone = wstawDzielone(dzielone, [...wlasne, ...wolneWlasne, ...kupne.sheets]);
+      if (ulozone) {
+        const nW = wlasne.length;
+        const nowe = ulozone.slice(nW, nW + wolneWlasne.length).filter((q) => q.parts.length);
+        nowe.forEach((q) => { q.nowyKawalek.zostalo -= 1; });
+        wlasne = [...ulozone.slice(0, nW), ...nowe.map(({ nowyKawalek, ...q }) => q)];
+        const ks = ulozone.slice(nW + wolneWlasne.length);
+        const uzyte = ks.reduce((a2, q) => a2 + q.parts.reduce((b2, p2) => b2 + p2.w * p2.h, 0), 0);
+        const calosc = ks.length * kupne.sheetW * kupne.sheetH;
+        const off = ks.flatMap((q) => usefulOf(q.offcuts || []));
+        kupne = { ...kupne, sheets: ks, usedArea: uzyte, usedPct: calosc > 0 ? (uzyte / calosc) * 100 : 0,
+          cuts: ks.reduce((a2, q) => a2 + (q.cuts || 0), 0),
+          biggestRect: off.reduce((m2, r) => (!m2 || r.w * r.h > m2.w * m2.h ? r : m2), null),
+          usefulArea: off.reduce((a2, r) => a2 + r.w * r.h, 0), usefulCount: off.length };
+      } else {
+        // nie weszla w zrzuty — cala, jak zwykla formatka (plan od nowa, wlasne kawalki tez)
+        swoje.forEach((q, i) => { q.zostalo = swojeKopia[i].zostalo; });
+        ({ reszta, wlasne } = swoje.length ? naKawalki(list, swoje) : { reszta: list, wlasne: [] });
+        kupne = packSheets(reszta, sh ? { sheetW: sh.sheet.w, sheetH: sh.sheet.h } : {});
+      }
+    }
     /* Podsumowanie (wykorzystanie, ciecia, zrzut) z calego planu — kupionych arkuszy i
        wlasnych kawalkow; dotad tylko z kupionych, wiec przy samych kawalkach 0 % i 0 ciec
        (audyt GPT N93). Odpad w uwagach liczy dalej tylko kupione (`uwagiRozkroju`). */
@@ -17917,6 +18238,13 @@ function SheetPlan({ sheet, sheetW, sheetH, index, total, maxH = 420 }) {
           <g key={i}>
             <rect x={p.x} y={p.y} width={p.w} height={p.h}
               fill={mixName(p.name)} stroke={INK} strokeWidth="4" />
+            {/* wyciecie / otwor w formatce (uzytkownik 2026-11-04) — w ukladzie a × b formatki,
+                na arkuszu obrocone razem z nia */}
+            {(p.otwory || []).map((o, k) => (
+              <rect key={"otw" + k} data-el="otwor-formatki" x={p.x + (p.rot ? o.v : o.u)} y={p.y + (p.rot ? o.u : o.v)}
+                width={p.rot ? o.dv : o.du} height={p.rot ? o.du : o.dv}
+                fill="#fafaf9" stroke={INK} strokeWidth="3" strokeDasharray="14 10" />
+            ))}
             {(() => {
               const pd = podpisFormatki(p);
               if (!pd) return null;
@@ -18281,7 +18609,9 @@ function ReportCutPlan({ project, projectName }) {
           qty: p.qty,
           a: p.a,
           b: p.b,
-          rotatable: p.matKey === "back" || !part.grainMatters,
+          rotatable: p.matKey === "back" || !!p.dzielona || !part.grainMatters,
+          ...(p.dzielona ? { dzielona: true } : {}),
+          ...(p.otwory ? { otwory: p.otwory } : {}),
           matLabel: matLabelOf(plytaFormatki(p, part.mat), p.matKey, ambig),
           matId: tozsamoscPlyty(plytaFormatki(p, part.mat)),
           sheet: null,
@@ -21113,7 +21443,7 @@ export default function App() {
           map.set(key, { ...p, matName: matLabelOf(m, p.matKey, ambig), matId: tozsamoscPlyty(m), matColor: m.color, plytaM: m.plyta ? m : null,
             ...(p.matKey === "worktop" ? { arkusz: arkuszBlatu(p, part.mat) } : {}),
             from: new Map([[cabName, p.qty]]),
-            rotatable: p.matKey === "back" || !part.grainMatters });
+            rotatable: p.matKey === "back" || !!p.dzielona || !part.grainMatters });
         }
       });
     });
@@ -21164,6 +21494,8 @@ export default function App() {
         a: p.a,
         b: p.b,
         rotatable: p.rotatable !== false,
+        ...(p.dzielona ? { dzielona: true } : {}),
+        ...(p.otwory ? { otwory: p.otwory } : {}),
         matLabel: p.matName,
         matId: p.matId,
         sheet: null,
@@ -21175,7 +21507,9 @@ export default function App() {
         qty: p.qty,
         a: p.a,
         b: p.b,
-        rotatable: p.matKey === "back" || !cab.grainMatters,
+        rotatable: p.matKey === "back" || !!p.dzielona || !cab.grainMatters,
+        ...(p.dzielona ? { dzielona: true } : {}),
+        ...(p.otwory ? { otwory: p.otwory } : {}),
         matLabel: matLabelOf(plytaFormatki(p, mat), p.matKey, ambig),
         matId: tozsamoscPlyty(plytaFormatki(p, mat)),
         sheet: null,

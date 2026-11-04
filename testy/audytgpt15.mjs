@@ -9,7 +9,8 @@
      „Przełóż zawiasy na …”;
    - N171 / N173 / N180 nazwy formatek z wycieciami (dwa otwory, strony, wyciecie narozne);
    - decyzje 2026-10-31: „Podpora rury na środku (GTV WP-10)” (N181/N182), katownik 40343 pod dno
-     szuflady > 600 mm w zamowieniu (N178).
+     szuflady > 600 mm w zamowieniu (N178); listwa dystansowa z plyty (18 / 36) i kantowka;
+     dno i wieniec z wycieciem przy elemencie na cala wysokosc (2026-11-04).
    Liczby i reszta przypadkow — funkcje, suita `funkcje`. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -151,6 +152,56 @@ console.log('\n== Decyzje 2026-10-31: podpora rury WP-10 (N181/N182), kątownik 
   ok('N178: W800, 3 szuflady — kątownik 40343 3 szt. i wkręt 3,5 × 13 12 szt. w zamówieniu', hw2.some((r) => /^Kątownik mocujący Sevroll 40343/.test(r) && /\| 3 szt\.$/.test(r))
     && hw2.some((r) => /^Wkręt 3,5 × 13/.test(r) && /\| 12 szt\.$/.test(r)), hw2.filter((r) => /Kątownik|Wkręt 3,5 × 13/.test(r)).join(' / '));
   ok('N178: uwaga o szerokiej szufladzie jest informacją (bez „!”) i mówi, że jest w zamówieniu', (await notes()).some((x) => /szersza niż 600 mm/.test(x.txt) && /w zamówieniu/.test(x.txt)));
+}
+
+console.log('\n== Listwa dystansowa (decyzja 2026-10-31): 18 / 36 z płyty, inna — kantówka ==');
+{
+  const wis = (dystans) => seed({ name: 'W', W: 800, H: 720, D: 320, plinth: { on: false }, legs: { on: false }, hangerMode: 'listwa', dystans,
+    levels: [{ h: null, cols: [kol()] }] });
+  await wis(36);
+  const f = (await rows(/^Formatki/)).filter((r) => /^Listwa dystansowa/.test(r));
+  const hw = await rows(/^Produkty do zamówienia/);
+  const bezObrzeza = await page.evaluate(() => { const sec = [...document.querySelectorAll('section')].find((x) => /^Formatki/.test(x.querySelector('h2')?.textContent || ''));
+    const tr = [...sec.querySelectorAll('tbody tr')].find((x) => /^Listwa dystansowa/.test(x.innerText.trim()));
+    return !!tr && [...tr.querySelectorAll('button[title]')].filter((q) => /obrzeż/.test(q.title)).every((q) => /^Bez obrzeża/.test(q.title)); });
+  ok('dystans 36: formatka „Listwa dystansowa” 800 × 60, 2 szt. (2 warstwy), bez obrzeża; w produktach bez listwy i kantówki',
+    f.length === 1 && /\| 800 \| 60 \| 2 \|/.test(f[0]) && bezObrzeza && !hw.some((r) => /dystans/i.test(r)), f.join(' / '));
+  // sekcja „Rozkrój” bywa zwinieta — otworz i poczekaj na plan (jak w `plytywlasne`)
+  const rk = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Rozkrój/ }) }).first();
+  if ((await rk.innerText()).length < 120) { await rk.locator('h2').click(); await page.waitForTimeout(500); }
+  await page.waitForTimeout(1500);
+  ok('rozkrój: listwa dystansowa na arkuszu', /Listwa dystansowa/.test(await rk.innerText()));
+  // rysunek z boku: listwa za plecami (2 warstwy), uzytkownik 2026-11-04
+  const zBoku = async () => { const x = page.getByRole('button', { name: 'Z boku', exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(500); } };
+  await zBoku();
+  ok('z boku: listwa dystansowa za plecami — 2 paski', (await page.locator('[data-el="listwa-dystansowa"] rect').count()) === 2);
+  await wis(50);
+  const hw2 = await rows(/^Produkty do zamówienia/);
+  await zBoku();
+  ok('z boku: kantówka za plecami (1 pasek), bez listwy z płyty', (await page.locator('[data-el="kantowka-dystansowa"] rect').count()) === 1
+    && !(await page.locator('[data-el="listwa-dystansowa"]').count()));
+  ok('dystans 50: kantówka dystansowa 50 × 60 mm w produktach, bez formatki', hw2.some((r) => /^Kantówka dystansowa/.test(r) && /50 × 60/.test(r))
+    && !(await rows(/^Formatki/)).some((r) => /^Listwa dystansowa/.test(r)), hw2.filter((r) => /dystans/i.test(r)).join(' / '));
+}
+
+console.log('\n== Dno i wieniec przy elemencie na całą wysokość (decyzja 2026-11-04) ==');
+{
+  await seed({ name: 'T', W: 600, H: 720, D: 560, ...NOGI, obstacles: [el({ fromBack: 0 })], levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
+  const re = /na całą wysokość przechodzi przez dno i wieniec — potrzebne w nich/;
+  ok('ostrzeżenie „przechodzi przez dno i wieniec” z „Wycinam otwory w płytach”', (await przyciski(re)).includes('Wycinam otwory w płytach (na formatkach)'), (await przyciski(re)).join(' / '));
+  await klik(re, 'Wycinam otwory w płytach (na formatkach)');
+  const f = (await rows(/^Formatki/)).filter((r) => /^Dno/.test(r));
+  ok('po kliknięciu: „Dno / wieniec — wycięcie 82 × 100 w lewym tylnym rogu” × 2, informacja zamiast ostrzeżenia',
+    f.length === 1 && /^Dno \/ wieniec — wycięcie 82 × 100 w lewym tylnym rogu/.test(f[0]) && /\| 2 \|/.test(f[0]) && !(await jest(re))
+    && (await jest(/przechodzi przez dno i wieniec — w obu: wycięcie 82 × 100/)), f.join(' / '));
+  // otwory na rysunkach (2026-11-04): z gory w wiencu, w rozkroju na formatkach
+  const zG = page.getByRole('button', { name: 'Z góry', exact: true });
+  if (await zG.count()) { await zG.first().click(); await page.waitForTimeout(500); }
+  ok('z góry: wycięcie w wieńcu na rysunku', (await page.locator('[data-el="otwor-z-gory"]').count()) >= 1);
+  const rk2 = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Rozkrój/ }) }).first();
+  if ((await rk2.innerText()).length < 120) { await rk2.locator('h2').click(); await page.waitForTimeout(500); }
+  await page.waitForTimeout(1500);
+  ok('rozkrój: wycięcie na formatkach dna i wieńca (2)', (await rk2.locator('[data-el="otwor-formatki"]').count()) === 2, String(await rk2.locator('[data-el="otwor-formatki"]').count()));
 }
 
 ok('bez błędów strony', !errors.length, errors.join(' / '));
