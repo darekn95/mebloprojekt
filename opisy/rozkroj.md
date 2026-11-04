@@ -80,6 +80,10 @@ Szczegóły (audyt GPT 2026-10-28):
 
 Własne płyty: nazwa jest etykietą w rozkroju i cenniku, więc dwie o tej samej nazwie szły na jeden arkusz i miały wspólną cenę (N95). Formularz nie pozwala zapisać drugiej o tej samej nazwie („już jest — nadaj inną nazwę”), pusta nazwa dostaje kolejny numer („Płyta własna 2”), a stary zapis z powtórzoną nazwą dostaje przy wczytaniu dopisek „(2)”; grupy rozkroju dla własnych płyt rozdziela też ich id. Arkusz własnej płyty jest w materiale szafki (`mat[k].arkusz`), więc kontrola „formatka nie mieści się na arkuszu” liczy z niego (okrawanego jak wzornik), a nie z 2800 × 2100 (N99).
 
+## Wycięcia na rysunku arkusza (2026-11-04)
+
+Formatka z wycięciem albo otworem (`otwory` w wierszu rozkroju, z formatki) ma je na rysunku arkusza jako przerywane pole w kolorze tła — w swoim położeniu, obrócone razem z formatką (`SheetPlan`). Rozkrój układa formatkę po obrysie (prostokąt), wycięcia nie zmieniają ułożenia.
+
 ## Formatka dzielona — listwa dystansowa (2026-10-31)
 
 Listwa dystansowa z płyty (szafka wisząca z dala od ściany, `opisy/ciagi.md`) nie musi być z jednego kawałka (użytkownik: „może być z kilku (x/60/18) tak żeby pasowało do odpadów (zrzutów) i jak najmniejsza liczba kawałków”). Rozkrój układa najpierw pozostałe formatki, potem każdą sztukę listwy w wolne pola arkuszy i wolne własne kawałki, także wąskie ścinki, byle szersze niż pasek. Całą listwę wkłada w najmniejsze pole, które ją mieści, a gdy takiego nie ma — w najdłuższe pole, a resztę dalej. Żaden kawałek nie jest krótszy niż 60 mm. Na rysunku arkusza kawałki mają podpis „Listwa dystansowa — kawałek 1/2”. Gdy listwa nie mieści się w zrzutach, plan liczy się od nowa z nią jako zwykłą, całą formatką (`wstawDzielone` w `buildCutPlan`).

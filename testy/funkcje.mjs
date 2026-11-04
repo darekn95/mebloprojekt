@@ -29,7 +29,7 @@ let src = fs.readFileSync(path.join(DIR, '..', 'szafki.jsx'), 'utf8');
 src = src.replace(/^import React[^\n]*\n/, 'const React = { createElement: () => null, Fragment: "f" };\n'
   + 'const useState=()=>[null,()=>{}],useEffect=()=>{},useMemo=(f)=>f(),useCallback=(f)=>f,useRef=()=>({current:null});\n');
 src = src.replace(/export default function App/, 'function App');
-const nazwy = ['hwDefaultPrice', 'buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
+const nazwy = ['prostokatyBez', 'hwDefaultPrice', 'buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
@@ -903,6 +903,20 @@ console.log('\n== Decyzje 2026-10-31: kątownik szuflady > 600 (N178), podpora r
   const gB = szE({ obstacles: [{ ...elP, otwory: true }], top: { mode: 'blat', material: 'board', overFront: 30 } });
   ok('z blatem na szafce: „Dno — …” i „Blat — …” osobno, gdy wymiar inny', gB.panels.some((p) => /^Dno — wycięcie/.test(p.name)) && gB.panels.some((p) => /^Blat — wycięcie/.test(p.name)),
     gB.panels.filter((p) => /^(Dno|Blat)/.test(p.name)).map((p) => p.name).join(' / '));
+  // otwory na rysunkach (uzytkownik 2026-11-04): kawalki plyty wokol otworow, dane otworow w geo i formatce
+  const kaw = G.prostokatyBez([0, 0, 564, 560], [[0, 0, 82, 100], [362, 0, 462, 100]]);
+  const pole = kaw.reduce((a2, [a0, b0, a1, b1]) => a2 + (a1 - a0) * (b1 - b0), 0);
+  ok('prostokatyBez: płyta 564 × 560 bez dwóch wycięć — kawałki bez nakładania, pole = całość − otwory',
+    pole === 564 * 560 - 82 * 100 - 100 * 100 && kaw.every(([a0, b0, a1, b1]) => a1 > a0 && b1 > b0) && kaw.length <= 4, JSON.stringify(kaw));
+  const gO = szE({ obstacles: [{ ...elP, fromSide: 120, otwory: true }] });
+  const sh0 = gO.levels[0].cols[0].shelves[0];
+  const fP = gO.panels.find((p) => /^Półka — /.test(p.name)), fD = gO.panels.find((p) => /^Dno \/ wieniec — /.test(p.name));
+  ok('otwór w półce: geo (x 380–480, od tyłu 0–100) i formatka (u 362, v 0, 100 × 100); dno / wieniec tak samo',
+    sh0.otwory && sh0.otwory.length === 1 && sh0.otwory[0].x0 === 380 && sh0.otwory[0].x1 === 480 && sh0.otwory[0].zb0 === 0 && sh0.otwory[0].zb1 === 100
+    && fP && JSON.stringify(fP.otwory) === '[{"u":362,"v":0,"du":100,"dv":100}]' && fD && JSON.stringify(fD.otwory) === '[{"u":362,"v":0,"du":100,"dv":100}]'
+    && gO.dnoOtwory.length === 1 && gO.wienOtwory.length === 1, JSON.stringify([sh0.otwory, fP && fP.otwory]));
+  const plO = G.buildCutPlan([{ name: fP.name, a: fP.a, b: fP.b, qty: 1, rotatable: true, matLabel: 'X', matId: 'X', sheet: null, otwory: fP.otwory }])[0];
+  ok('rozkrój: formatka na arkuszu niesie swoje otwory', plO.sheets[0].parts[0].otwory && plO.sheets[0].parts[0].otwory.length === 1);
   ok('ceny: WP-10 4 zł, kątownik 40343 4 zł, klocek pod hak 1 zł; wkręty 3,5 × 13, do frontu DXS (też krótszy), 4 × 40 — 0,08 zł jak 4 × 30',
     c('Podpora rury ⌀25 GTV WP-10') === 4 && c('Kątownik mocujący Sevroll 40343') === 4 && c('Klocek dystansowy pod hak') === 1
     && c('Wkręt 3,5 × 13') === 0.08 && c('Wkręt 4 × 25 do frontu szuflady', 'Wkręt 4 × 30 do frontu szuflady') === 0.08 && c('Wkręt 4 × 40') === 0.08 && c('Zawias') === 3,

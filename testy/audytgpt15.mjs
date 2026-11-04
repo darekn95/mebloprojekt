@@ -194,6 +194,14 @@ console.log('\n== Dno i wieniec przy elemencie na całą wysokość (decyzja 202
   ok('po kliknięciu: „Dno / wieniec — wycięcie 82 × 100 w lewym tylnym rogu” × 2, informacja zamiast ostrzeżenia',
     f.length === 1 && /^Dno \/ wieniec — wycięcie 82 × 100 w lewym tylnym rogu/.test(f[0]) && /\| 2 \|/.test(f[0]) && !(await jest(re))
     && (await jest(/przechodzi przez dno i wieniec — w obu: wycięcie 82 × 100/)), f.join(' / '));
+  // otwory na rysunkach (2026-11-04): z gory w wiencu, w rozkroju na formatkach
+  const zG = page.getByRole('button', { name: 'Z góry', exact: true });
+  if (await zG.count()) { await zG.first().click(); await page.waitForTimeout(500); }
+  ok('z góry: wycięcie w wieńcu na rysunku', (await page.locator('[data-el="otwor-z-gory"]').count()) >= 1);
+  const rk2 = page.locator('section').filter({ has: page.locator('h2', { hasText: /^Rozkrój/ }) }).first();
+  if ((await rk2.innerText()).length < 120) { await rk2.locator('h2').click(); await page.waitForTimeout(500); }
+  await page.waitForTimeout(1500);
+  ok('rozkrój: wycięcie na formatkach dna i wieńca (2)', (await rk2.locator('[data-el="otwor-formatki"]').count()) === 2, String(await rk2.locator('[data-el="otwor-formatki"]').count()));
 }
 
 ok('bez błędów strony', !errors.length, errors.join(' / '));
