@@ -273,7 +273,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `projektPomieszczenia(project, roomId)` | wycinek projektu z jednym pomieszczeniem — listy „To pomieszczenie” i rozdziały PDF |
 | `formatkiSzafki(geo, { bezCokolu, bezBlatu, arm })` | lista formatek jednej szafki — **ta sama** w karcie „Formatki do zamówienia” i na wydruku; cokół i blat wspólne dla ciągu wypadają (są w liście projektu), ramię szafki w L dochodzi (`cornerArmParts`) |
 | `calyProjekt(project)` | czy pokazać „Formatki / Produkty całego projektu”, rozkrój całości i stronę projektu w PDF: 2+ szafki **albo** cokół/blat ciągu/ramię — przy jednej szafce w ciągu to jedyne miejsce, gdzie są blat i cokół |
-| `audytBryly` | tylko dla testów: gdy strona ma `window.__audytBryl`, bryły 3D (szafka i zabudowa) dopisują tam wymiary; `testy/formatki.mjs` sprawdza, czy każda narysowana płyta jest w formatkach |
+| `audytBryly` | tylko dla testów: gdy strona ma `window.__audytBryl`, bryły 3D (szafka i zabudowa) dopisują tam wymiary; `testy/formatki.mjs` sprawdza, czy każda narysowana płyta jest w formatkach Każde przerysowanie widoku 3D zastępuje jego poprzednie bryły (`useAudytWidoku` w `Scene3D` / `Assembly3D`, 2026-11-04 — standalone przerysowywał widok w trakcie zbierania i bryły szły podwójnie). |
 | `runLayout` / `runJoints` / `runPlinth` / `runTop` | układ ciągu, złącza między szafkami, wspólny cokół, wspólny blat. `runTop` zapamiętany przy obiekcie projektu i ciągu (`runTopCache`, liczy `runTopLiczy`) — jak przy `computeGeo`: wynik tylko do odczytu |
 | „Podział blatu / cokołu” (pola styków + „własne cięcie”) | `run.topCuts` / `run.plinthCuts` (styki), `run.topCutsWlasne` / `run.plinthCutsWlasne` (mm od lewego końca) → `splitAtJoints(total, joints, want, max, wlasne)` |
 | narożnik górnych ciągów (`runLayout`, `corner.gorny`) / `gornyPodRamie` | górny ciąg nie ma własnego narożnika; gdy przy rogu wisi szafka z ramieniem, para górnych dostaje narożnik jak dolna (w róg wjeżdża ten, w którym stoi szafka w L), ciąg kończący się w rogu dosuwa się do niego (`pair.dosuniety`, uwaga), a pusty górny ciąg za rogiem jest rysowany (leży na nim ramię). Bez szafki w L — stare odsunięcie o głębokość górnego (`dolny`) |
@@ -543,7 +543,7 @@ Uruchamianie: `cd testy && bash sweep.sh <nazwy>` (bez `.mjs`).
 
 Testy importują Playwrighta przez `testy/pw.mjs`: `page.waitForTimeout(N)` kończy
 się, gdy strona jest bezczynna (narysowana, bez oczekujących zegarów aplikacji,
-bez trwającego przewijania) dwa razy z rzędu (2026-11-04 — pod obciążeniem jedna cicha klatka bywała przed następnym krokiem aplikacji), a `N` jest tylko limitem. Przed `page.reload` `pw.mjs` kasuje czekające zegary strony (autozapis starej strony nie nadpisze projektu wpisanego przez test). `PW_WOLNO=1` przywraca
+bez trwającego przewijania, bez zaplanowanej pracy Reacta — wiadomości jego planisty przez `MessageChannel`, 2026-11-04) dwa razy z rzędu (2026-11-04 — pod obciążeniem jedna cicha klatka bywała przed następnym krokiem aplikacji), a `N` jest tylko limitem. Przed `page.reload` `pw.mjs` kasuje czekające zegary strony (autozapis starej strony nie nadpisze projektu wpisanego przez test). `PW_WOLNO=1` przywraca
 sztywne pauzy — gdy test sypie się tylko w szybkim trybie, znaczy to, że czeka
 na coś, czego `pw.mjs` nie widzi (dopisz to do `zajeta` w `pw.mjs`, nie wydłużaj
 pauzy w teście). Nowy test: `import pw from './pw.mjs';`.

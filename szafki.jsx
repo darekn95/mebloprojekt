@@ -10212,9 +10212,29 @@ const audytBryly = (x0, y0, z0, x1, y1, z1, color, tag, v, alpha, otwory) => {
     // plyta z wycieciem: rysowana kawalkami, tu w calosci — z otworami (przez cala grubosc)
     ...(otwory && otwory.length ? { otwory: otwory.map((o) => o.map((q) => Math.round(q * 10) / 10)) } : {}),
     alpha: alpha ?? 1 });
+  // czyja bryla (widok 3D) — niewidoczne w danych, ktore czyta test
+  Object.defineProperty(A[A.length - 1], "kto", { value: audytKto, enumerable: false });
+};
+/* Kazde przerysowanie widoku 3D zastepuje w audycie jego poprzednie bryly (2026-11-04):
+   standalone przerysowywal widok w trakcie zbierania i kazda bryla szla dwa razy — test widzial
+   ja nachodzaca sama na siebie. Widok znika — jego bryly tez. */
+let AUDYT_NR = 0;
+let audytKto = null;
+const audytBezBryl = (kto) => {
+  const A = typeof window !== "undefined" ? window.__audytBryl : null;
+  if (!A || kto == null) return;
+  for (let i = A.length - 1; i >= 0; i--) if (A[i].kto === kto) A.splice(i, 1);
+};
+const useAudytWidoku = () => {
+  const ref = useRef(null);
+  if (ref.current == null) ref.current = ++AUDYT_NR;
+  audytKto = ref.current;
+  audytBezBryl(ref.current);
+  useEffect(() => () => audytBezBryl(ref.current), []);
 };
 
 function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
+  useAudytWidoku();
   const full = projectLayout(project);
   const groups = assemblyParts(project, runs, full);
   const L = runLayout(groups, full);
@@ -13736,6 +13756,7 @@ const nazwaWzmocnienia = (r) => (r.orient === "front"
   : r.orient === "shelf" ? "Wzmocnienie poziome" : "Wzmocnienie pionowe");
 
 function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat, podswietl = null }) {
+  useAudytWidoku();
   const mat = matRysunku(cab, matIn);
   const t = geo.t;
   const cd = geo.carcassDepth;
