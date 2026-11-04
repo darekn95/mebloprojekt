@@ -885,6 +885,24 @@ console.log('\n== Decyzje 2026-10-31: kątownik szuflady > 600 (N178), podpora r
   ok('rozkrój: arkusz bez zrzutów — listwy całe (2 × 800) na drugim arkuszu', p3.kupic === 2 && czesci(p3).length === 2 && czesci(p3).every((p) => Math.max(p.w, p.h) === 800));
   const p4 = G.buildCutPlan([wr('Bok', 2600, 1900), wr('Listwa dystansowa', 800, 60, 1, { dzielona: true })], [{ id: 'r1', matLabel: 'X', w: 900, h: 100, qty: 1 }])[0];
   ok('rozkrój: własny kawałek 900 × 100 — listwa na nim (zrzut), kupny arkusz 1', p4.kupic === 1 && p4.zWlasnych === 1 && p4.sheets.some((q) => q.wlasna && q.parts.some((p) => p.name === 'Listwa dystansowa')));
+  // dno i wieniec przy elemencie / wycieciu na cala wysokosc (uzytkownik 2026-11-04)
+  const szE = (o = {}) => geo({ name: 'T', W: 600, H: 720, D: 560, plinth: { on: false }, legs: { on: true, height: 100 },
+    levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [null, null] }] }], ...o });
+  const elP = { on: true, w: 100, d: 100, side: 'right', fromSide: 0, fromBack: 0, fullHeight: true, mask: false };
+  const nDW = (g) => g.panels.filter((p) => /^(Dno|Wieniec)/.test(p.name)).map((p) => `${p.name} ×${p.qty}`).join(' / ');
+  const gE0 = szE({ obstacles: [elP] }), gE1 = szE({ obstacles: [{ ...elP, otwory: true }] });
+  ok('element na całą wysokość bez otworów: dno / wieniec bez zmian, ostrzeżenie z „otwory:el:0”', nDW(gE0) === 'Dno / wieniec ×2'
+    && uw(gE0, /na całą wysokość przechodzi przez dno i wieniec — potrzebne w nich: wycięcie 82 × 100 w prawym tylnym rogu\.\|otwory:el:0$/).length === 1, nDW(gE0));
+  ok('… z otworami: „Dno / wieniec — wycięcie 82 × 100 w prawym tylnym rogu” ×2 i informacja', nDW(gE1) === 'Dno / wieniec — wycięcie 82 × 100 w prawym tylnym rogu ×2'
+    && uw(gE1, /przechodzi przez dno i wieniec — w obu: wycięcie 82 × 100/).every((x) => x.level === 'info'), nDW(gE1));
+  const gE2 = szE({ obstacles: [{ ...elP, fullHeight: false, fromBottom: 200, h: 200, otwory: true }] });
+  ok('element nie na całą wysokość: dno / wieniec bez wycięcia', nDW(gE2) === 'Dno / wieniec ×2', nDW(gE2));
+  const gC = szE({ cutout: { on: true, w: 100, d: 100, fullHeight: true, mask: true } });
+  ok('wycięcie narożnika na całą wysokość: dno / wieniec z wycięciem 82 × 100 (bez ścianek zabudowy), półka 100 × 118', nDW(gC) === 'Dno / wieniec — wycięcie 82 × 100 w lewym tylnym rogu ×2'
+    && gC.panels.some((p) => p.name === 'Półka — wycięcie 100 × 118 w lewym tylnym rogu') && uw(gC, /Wycięcie narożnika \(lewy\) na całą wysokość przechodzi przez dno i wieniec/).length === 1, nDW(gC));
+  const gB = szE({ obstacles: [{ ...elP, otwory: true }], top: { mode: 'blat', material: 'board', overFront: 30 } });
+  ok('z blatem na szafce: „Dno — …” i „Blat — …” osobno, gdy wymiar inny', gB.panels.some((p) => /^Dno — wycięcie/.test(p.name)) && gB.panels.some((p) => /^Blat — wycięcie/.test(p.name)),
+    gB.panels.filter((p) => /^(Dno|Blat)/.test(p.name)).map((p) => p.name).join(' / '));
   ok('ceny: WP-10 4 zł, kątownik 40343 4 zł, klocek pod hak 1 zł; wkręty 3,5 × 13, do frontu DXS (też krótszy), 4 × 40 — 0,08 zł jak 4 × 30',
     c('Podpora rury ⌀25 GTV WP-10') === 4 && c('Kątownik mocujący Sevroll 40343') === 4 && c('Klocek dystansowy pod hak') === 1
     && c('Wkręt 3,5 × 13') === 0.08 && c('Wkręt 4 × 25 do frontu szuflady', 'Wkręt 4 × 30 do frontu szuflady') === 0.08 && c('Wkręt 4 × 40') === 0.08 && c('Zawias') === 3,

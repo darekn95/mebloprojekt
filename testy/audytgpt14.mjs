@@ -170,8 +170,9 @@ console.log('\n== N160 / N163: lista produktów projektu ==');
   await seedP({ name: 'P', active: 0, prices: {}, runs: [RUNG], items: [{ cab: wis('A'), runId: 'g1', offset: 0 },
     { cab: wis('B', { dystans: 50 }), runId: 'g1', offset: 50 }, { cab: wis('C', { dystans: 100 }), runId: 'g1', offset: 100 }] });
   const pr = await rows(/^Produkty całego projektu/);
-  const dyst = pr.filter((r) => /^Listwa dystansowa/.test(r));
-  ok('N160: dwa wiersze listwy dystansowej — grubość 50 mm i 100 mm', dyst.length === 2 && dyst.some((r) => /grubość 50 mm/.test(r)) && dyst.some((r) => /grubość 100 mm/.test(r)), dyst.join(' / '));
+  const dyst = pr.filter((r) => /^Kantówka dystansowa/.test(r));
+  // dystans 50 / 100 — kantowka (listwa z plyty tylko przy 18 / 36; decyzja uzytkownika 2026-10-31)
+  ok('N160: dwa wiersze kantówki dystansowej — 50 × 60 mm i 100 × 60 mm', dyst.length === 2 && dyst.some((r) => /50 × 60 mm/.test(r)) && dyst.some((r) => /100 × 60 mm/.test(r)), dyst.join(' / '));
   const wk = pr.find((r) => /^Wkręt 4 × 30/.test(r)) || '';
   ok('N163: wkręty 4 × 30 — „zawieszki, 2 na zawieszkę”, bez „wzmocnienia i kątownik”', /zawieszki, 2 na zawieszkę/.test(wk) && !/wzmocnienia i kątownik/.test(wk), wk);
 }

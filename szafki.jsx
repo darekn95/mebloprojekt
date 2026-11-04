@@ -5189,38 +5189,6 @@ function computeGeoLiczy(cab, mat, ctx) {
     P({ ...sideR, note: sideR.note || noteOf(sideR.edges, "side") });
   }
 
-  const horiz = (name, l, r, x0, x1) => ({
-    name, qty: 1, a: x1 - x0, b: carcassDepth, matKey: "board",
-    edges: { a1: true, a2: rear, b1: l === "over", b2: r === "over" },
-  });
-  const blatDepth = isBlat ? carcassDepth + blat.overFront + blat.overBack : 0;
-  const wien = !hasTop
-    ? null
-    : isBlat
-    ? {
-        name: "Blat",
-        // rola, a nie nazwa: wspolny blat ciagu zastepuje te formatke, a nie
-        // dodatkowa nazwana „Blat” (audyt GPT N10)
-        rola: "blat",
-        qty: 1,
-        a: topX1 - topX0,
-        b: blatDepth,
-        matKey: rawTop.material === "worktop" ? "worktop" : "board",
-        ...(rawTop.material === "worktop" ? { arkusz: worktopDepth(mat) } : {}),
-        // blat jest widoczny dookola, wiec czoło i oba końce zawsze oklejane,
-        // tył tylko gdy wystaje poza korpus albo szafka stoi wolno; blat roboczy
-        // ma przod z fabrycznym profilem — oklejamy konce (uzytkownik 2026-09-29)
-        edges: { a1: rawTop.material !== "worktop", a2: rear || blat.overBack > 0, b1: true, b2: true },
-      }
-    : horiz("Wieniec", topL, topR, topX0, topX1);
-  // rola „dno” — wspolne dno ciagu zastepuje te formatke (`formatkiSzafki`, `projectParts`)
-  const dno = hasBot ? { ...horiz("Dno", botL, botR, botX0, botX1), rola: "dno" } : null;
-  if (wien && dno && !isBlat && same(wien, dno)) P({ ...dno, name: "Dno / wieniec", rola: "dno+wieniec", qty: 2, note: noteOf(dno.edges, "horiz") });
-  else {
-    if (dno) P({ ...dno, note: noteOf(dno.edges, "horiz") });
-    if (wien) P({ ...wien, note: noteOf(wien.edges, "horiz") });
-  }
-
   /* Otwory na element kolizyjny (decyzja uzytkownika 2026-10-30 przy audycie GPT N114: „przyciski
      do dostępnych i sensownych opcji”): element z `otwory` — plyty, przez ktore przechodzi (polka
      przelotowa, polka, przegroda), dostaja otwor; wymiar idzie w nazwe formatki (opis nie trafia
@@ -5260,6 +5228,56 @@ function computeGeoLiczy(cab, mat, ctx) {
     .map((e) => przeciecie(e, x0, x1, z0, z1, y0, y1)).filter(Boolean)
     .sort((p1, p2) => p1.x - p2.x || p1.z - p2.z);
   const nazwaZOtworami = (nazwa, lista) => (lista.length ? `${nazwa} — ${lista.map(opisOtworu).join(" + ")}` : nazwa);
+  /* Dno i wieniec (blat): element na cala wysokosc i wyciecie narozne na cala wysokosc przechodza
+     tez przez nie (uzytkownik 2026-11-04) — wyciecie w nazwie formatki, jak w polkach (N171, N180).
+     Wyciecie narozne bez scianek zabudowy: te stoja na dnie, pod wiencem. Elementy bez `otwory`
+     — ostrzezenie z przyciskiem przy elemencie (nizej). */
+  const wycieciaPelne = [[cab.cutout, true], [cab.cutoutR, false]]
+    .filter(([cu]) => cu && cu.on && Math.round(cu.w || 0) > 0 && Math.round(cu.d || 0) > 0 && (cu.fullHeight !== false || levels.length <= 1))
+    .map(([cu, lewy]) => ({ ox0: lewy ? 0 : W - Math.round(cu.w), ox1: lewy ? Math.round(cu.w) : W, oz0: 0, oz1: Math.round(cu.d) }));
+  const przezWysokosc = (e) => ({ ...e, oy0: -Infinity, oy1: Infinity });
+  const otworyDnaWienca = (x0, x1, z0, z1, zElementami = true) => [...(zElementami ? elementyOtwory.filter((e) => e.oFull) : []), ...wycieciaPelne]
+    .map((e) => przeciecie(przezWysokosc(e), x0, x1, z0, z1, 0, 1)).filter(Boolean)
+    .sort((p1, p2) => p1.x - p2.x || p1.z - p2.z);
+  const horiz = (name, l, r, x0, x1) => ({
+    name, qty: 1, a: x1 - x0, b: carcassDepth, matKey: "board",
+    edges: { a1: true, a2: rear, b1: l === "over", b2: r === "over" },
+  });
+  const blatDepth = isBlat ? carcassDepth + blat.overFront + blat.overBack : 0;
+  const wien = !hasTop
+    ? null
+    : isBlat
+    ? {
+        name: "Blat",
+        // rola, a nie nazwa: wspolny blat ciagu zastepuje te formatke, a nie
+        // dodatkowa nazwana „Blat” (audyt GPT N10)
+        rola: "blat",
+        qty: 1,
+        a: topX1 - topX0,
+        b: blatDepth,
+        matKey: rawTop.material === "worktop" ? "worktop" : "board",
+        ...(rawTop.material === "worktop" ? { arkusz: worktopDepth(mat) } : {}),
+        // blat jest widoczny dookola, wiec czoło i oba końce zawsze oklejane,
+        // tył tylko gdy wystaje poza korpus albo szafka stoi wolno; blat roboczy
+        // ma przod z fabrycznym profilem — oklejamy konce (uzytkownik 2026-09-29)
+        edges: { a1: rawTop.material !== "worktop", a2: rear || blat.overBack > 0, b1: true, b2: true },
+      }
+    : horiz("Wieniec", topL, topR, topX0, topX1);
+  // rola „dno” — wspolne dno ciagu zastepuje te formatke (`formatkiSzafki`, `projectParts`)
+  const dno = hasBot ? { ...horiz("Dno", botL, botR, botX0, botX1), rola: "dno" } : null;
+  // wyciecie w nazwie dna i wienca / blatu (element albo wyciecie narozne na cala wysokosc)
+  const dnoOtw = dno ? otworyDnaWienca(botX0, botX1, 0, carcassDepth) : [];
+  const wienOtw = !wien ? [] : isBlat ? otworyDnaWienca(topX0, topX1, -blat.overBack, carcassDepth + blat.overFront)
+    : otworyDnaWienca(topX0, topX1, 0, carcassDepth);
+  if (dno) dno.name = nazwaZOtworami("Dno", dnoOtw);
+  if (wien) wien.name = nazwaZOtworami(wien.name, wienOtw);
+  if (wien && dno && !isBlat && same(wien, dno) && nazwaZOtworami("", dnoOtw) === nazwaZOtworami("", wienOtw))
+    P({ ...dno, name: nazwaZOtworami("Dno / wieniec", dnoOtw), rola: "dno+wieniec", qty: 2, note: noteOf(dno.edges, "horiz") });
+  else {
+    if (dno) P({ ...dno, note: noteOf(dno.edges, "horiz") });
+    if (wien) P({ ...wien, note: noteOf(wien.edges, "horiz") });
+  }
+
   const zOtworem = new Map();
   sepShelves.forEach((sh) => {
     const name = nazwaZOtworami("Półka przelotowa", otworyW(sh.y, sh.y + t, interior.x0, interior.x1, shelfBack, shelfBack + shelfDepth, true));
@@ -5741,6 +5759,21 @@ function computeGeoLiczy(cab, mat, ctx) {
       });
     }
 
+    // wyciecie na cala wysokosc idzie przez dno i wieniec (blat) — wyciecie w ich nazwie (uzytkownik 2026-11-04)
+    if (zFull) {
+      const pel = { ox0: bx0, ox1: bx1, oz0: bz0, oz1: bz1, oy0: -Infinity, oy1: Infinity };
+      const wDnie = hasBot ? przeciecie(pel, botX0, botX1, 0, carcassDepth, 0, 1) : null;
+      const wGorze = !hasTop ? null : isBlat ? przeciecie(pel, topX0, topX1, -blat.overBack, carcassDepth + blat.overFront, 0, 1)
+        : przeciecie(pel, topX0, topX1, 0, carcassDepth, 0, 1);
+      const gora = isBlat ? "blat" : "wieniec";
+      const czesci = [wDnie && ["dno", wDnie], wGorze && [gora, wGorze]].filter(Boolean);
+      if (czesci.length) {
+        const razem = czesci.length === 2 && opisOtworu(wDnie) === opisOtworu(wGorze);
+        add("info", `Wycięcie narożnika (${side}) na całą wysokość przechodzi przez ${razem ? `dno i ${gora}` : czesci.map(([n]) => n).join(" i ")} — `
+          + `${razem ? `w obu ${opisOtworu(wDnie)}` : czesci.map(([n, o]) => `${n}: ${opisOtworu(o)}`).join(", ")} (w nazwie formatki; ścianki zabudowy stoją na dnie).`);
+      }
+    }
+
     // detekcja kolizji: polki, przegrody, szuflady wchodzace we wneke
     const inRangeY = (y0, y1) => Math.min(y1, cy1) - Math.max(y0, cy0) > 0;
     const maskX = onLeft ? bx1 : bx0;
@@ -5876,6 +5909,25 @@ function computeGeoLiczy(cab, mat, ctx) {
       if (ob.otwory) add("info", `${gdzie} — w przegrodzie ${wyc} (w nazwie formatki „Przegroda pionowa — …”).`);
       else add("warn", `${gdzie} — potrzebne w niej ${wyc} albo przesuń kolumny.${otwory}`);
     });
+    /* Dno i wieniec (blat): element na cala wysokosc przechodzi tez przez nie (uzytkownik
+       2026-11-04) — wyciecie w nazwie formatki, jak w polkach; bez `otwory` ostrzezenie
+       z „Wycinam otwory w płytach”. */
+    if (oFull) {
+      const pel = { ox0, ox1, oz0, oz1, oy0: -Infinity, oy1: Infinity };
+      const wDnie = hasBot ? przeciecie(pel, botX0, botX1, 0, carcassDepth, 0, 1) : null;
+      const wGorze = !hasTop ? null : isBlat ? przeciecie(pel, topX0, topX1, -blat.overBack, carcassDepth + blat.overFront, 0, 1)
+        : przeciecie(pel, topX0, topX1, 0, carcassDepth, 0, 1);
+      const gora = isBlat ? "blat" : "wieniec";
+      const czesci = [wDnie && ["dno", wDnie], wGorze && [gora, wGorze]].filter(Boolean);
+      if (czesci.length) {
+        const razem = czesci.length === 2 && opisOtworu(wDnie) === opisOtworu(wGorze);
+        const co = razem ? `dno i ${gora}` : czesci.map(([n]) => n).join(" i ");
+        const wym = razem ? opisOtworu(wDnie) : czesci.map(([n, o]) => `${n} — ${opisOtworu(o)}`).join(", ");
+        const formatki = razem && !isBlat ? "„Dno / wieniec — …”" : czesci.map(([n]) => `„${n[0].toUpperCase()}${n.slice(1)} — …”`).join(" i ");
+        if (ob.otwory) add("info", `${obName} na całą wysokość przechodzi przez ${co} — ${razem ? `w ${czesci.length === 2 ? "obu" : "płycie"}` : "w nich"}: ${wym} (w nazwie formatki ${formatki}).`);
+        else add("warn", `${obName} na całą wysokość przechodzi przez ${co} — potrzebne ${czesci.length === 2 ? "w nich" : "w nim"}: ${wym}.${otwory}`);
+      }
+    }
     levels.forEach((lv) => {
       lv.cols.forEach((c) => {
         if (!hitX(c.x0, c.x1)) return;
@@ -13430,7 +13482,10 @@ const PODSWIETL = "#2563eb";
 const kluczeFormatki = (n) => {
   if (!n) return null;
   if (n === "Bok") return new Set(["Bok lewy", "Bok prawy"]);
-  if (n === "Dno / wieniec") return new Set(["Dno", "Wieniec"]);
+  // dno / wieniec / blat z wycieciem w nazwie („Dno / wieniec — wycięcie …”) — te same plyty
+  if (/^Dno \/ wieniec($| — )/.test(n)) return new Set(["Dno", "Wieniec"]);
+  const pw = /^(Dno|Wieniec|Blat) — /.exec(n);
+  if (pw) return new Set([pw[1]]);
   if (/^Półka przelotowa/.test(n)) return new Set(["Półka przelotowa"]);
   if (/^Półka/.test(n)) return new Set(["Półka"]);
   if (/^Plecy/.test(n)) return new Set(["Plecy"]);
@@ -13914,7 +13969,7 @@ const formatkiSzafki = (geo, { bezCokolu = false, bezBlatu = false, bezDna = fal
 /* Wspolne dno ciagu (`runBottom`) zastepuje dno szafki; „Dno / wieniec” (2 szt.)
    zostaje samym wiencem. */
 const bezPlytCiagu = (panels, bezDna) => (!bezDna ? panels : panels.flatMap((p) => (p.rola === "dno" ? []
-  : p.rola === "dno+wieniec" ? [{ ...p, name: "Wieniec", rola: null, qty: p.qty - 1 }] : [p])));
+  : p.rola === "dno+wieniec" ? [{ ...p, name: p.name.replace(/^Dno \/ wieniec/, "Wieniec"), rola: null, qty: p.qty - 1 }] : [p])));
 
 const okuciaSzafki = (geo, { bezListwy = false, arm = null, wstawki = [] } = {}) => {
   const out = (bezListwy ? geo.hardware.filter((h) => h.name !== RAIL_NAME || h.wewnatrz) : geo.hardware).map((h) => ({ ...h }));

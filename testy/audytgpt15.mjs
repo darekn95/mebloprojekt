@@ -9,7 +9,8 @@
      „Przełóż zawiasy na …”;
    - N171 / N173 / N180 nazwy formatek z wycieciami (dwa otwory, strony, wyciecie narozne);
    - decyzje 2026-10-31: „Podpora rury na środku (GTV WP-10)” (N181/N182), katownik 40343 pod dno
-     szuflady > 600 mm w zamowieniu (N178); listwa dystansowa z plyty (18 / 36) i kantowka.
+     szuflady > 600 mm w zamowieniu (N178); listwa dystansowa z plyty (18 / 36) i kantowka;
+     dno i wieniec z wycieciem przy elemencie na cala wysokosc (2026-11-04).
    Liczby i reszta przypadkow — funkcje, suita `funkcje`. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -174,6 +175,18 @@ console.log('\n== Listwa dystansowa (decyzja 2026-10-31): 18 / 36 z płyty, inna
   const hw2 = await rows(/^Produkty do zamówienia/);
   ok('dystans 50: kantówka dystansowa 50 × 60 mm w produktach, bez formatki', hw2.some((r) => /^Kantówka dystansowa/.test(r) && /50 × 60/.test(r))
     && !(await rows(/^Formatki/)).some((r) => /^Listwa dystansowa/.test(r)), hw2.filter((r) => /dystans/i.test(r)).join(' / '));
+}
+
+console.log('\n== Dno i wieniec przy elemencie na całą wysokość (decyzja 2026-11-04) ==');
+{
+  await seed({ name: 'T', W: 600, H: 720, D: 560, ...NOGI, obstacles: [el({ fromBack: 0 })], levels: [{ h: null, cols: [{ kind: 'open', w: null, shelfTargets: [] }] }] });
+  const re = /na całą wysokość przechodzi przez dno i wieniec — potrzebne w nich/;
+  ok('ostrzeżenie „przechodzi przez dno i wieniec” z „Wycinam otwory w płytach”', (await przyciski(re)).includes('Wycinam otwory w płytach (na formatkach)'), (await przyciski(re)).join(' / '));
+  await klik(re, 'Wycinam otwory w płytach (na formatkach)');
+  const f = (await rows(/^Formatki/)).filter((r) => /^Dno/.test(r));
+  ok('po kliknięciu: „Dno / wieniec — wycięcie 82 × 100 w lewym tylnym rogu” × 2, informacja zamiast ostrzeżenia',
+    f.length === 1 && /^Dno \/ wieniec — wycięcie 82 × 100 w lewym tylnym rogu/.test(f[0]) && /\| 2 \|/.test(f[0]) && !(await jest(re))
+    && (await jest(/przechodzi przez dno i wieniec — w obu: wycięcie 82 × 100/)), f.join(' / '));
 }
 
 ok('bez błędów strony', !errors.length, errors.join(' / '));
