@@ -302,6 +302,33 @@ const KATOWNIK_SZUFLADY_NAME = "Kątownik mocujący Sevroll 40343", KATOWNIK_SZU
    (x / 60 / 18) dobranych do zrzutow; przy innym dystansie kantowka, przekroje co 5 mm.
    Tolerancja 2 mm — jak przy porownaniu dystansu z odstepem od sciany (`odScianyMsgs`). */
 const LISTWA_DYST_SZER = 60, KANTOWKA_KROK = 5, KANTOWKA_NAME = "Kantówka dystansowa", KANTOWKA_KOLOR = "#c49a6c";
+/* Sprzety w zabudowie (uzytkownik 2026-11-04: „typowe, do zmiany w polach”). Wymiary z typowych
+   kart producentow do zabudowy 60 cm — kazdy do sprawdzenia z karta wlasnego modelu i do zmiany
+   w polach kolumny. Front sprzetu (szer. × wys.), wneka (szerokosc od–do, wysokosc i glebokosc
+   najmniej), drzwi: „dol” (opadaja jak klapa w dol) albo „lewe” / „prawe” (zawias z tej strony),
+   wymiar drzwi (wysokosc opadajacych / szerokosc bocznych) i uchwyt przed licem frontu. */
+const SPRZETY = {
+  piekarnik: { nazwa: "piekarnik", pelna: "Piekarnik do zabudowy", frontW: 595, frontH: 595, wMin: 560, wMax: 568, hMin: 585, dMin: 550,
+    drzwi: "dol", drzwiWym: 480, uchwyt: 40 },
+  mikrofala: { nazwa: "mikrofala", pelna: "Mikrofala do zabudowy", frontW: 594, frontH: 382, wMin: 560, wMax: 568, hMin: 362, dMin: 300,
+    drzwi: "lewe", drzwiWym: 450, uchwyt: 0 },
+};
+const SPRZET_POLA = ["frontW", "frontH", "wMin", "wMax", "hMin", "dMin", "drzwi", "drzwiWym", "uchwyt"];
+const SPRZET_FRONT_GR = 20;       // grubosc frontu sprzetu przed licem korpusu (rysunek, 3D, kontrola otwierania)
+const SPRZET_KOLOR = "#3f3f46";   // jak uchwyty — audyty plyt nie biora tego koloru za formatke
+// parametry sprzetu kolumny: typ z SPRZETY i wpisane pola
+const sprzetKolumny = (col) => {
+  const sp = col && col.sprzet;
+  if (!sp) return null;
+  const baza = SPRZETY[sp.typ] || SPRZETY.piekarnik;
+  const out = { typ: SPRZETY[sp.typ] ? sp.typ : "piekarnik", ...baza };
+  SPRZET_POLA.forEach((k) => { if (sp[k] != null && sp[k] !== "") out[k] = k === "drzwi" ? sp[k] : Math.max(0, Math.round(Number(sp[k]) || 0)); });
+  return out;
+};
+/* Kolumna ze sprzetem to dla geometrii pusta wneka: bez drzwi, polek, rury, fixu i podzialu —
+   sprzet (front, bryla, drzwi) liczy sie osobno (`c.sprzet`). */
+const kolumnaSprzetu = (col) => (col && col.sprzet ? { ...col, kind: "doors", doors: 0, doorWidths: [], shelfTargets: [null],
+  drazki: undefined, segmenty: undefined, podzial: undefined, fix: undefined, klapa: undefined, drawers: undefined } : col);
 const dystansWarstwy = (dyst, t) => (!(dyst > 0) || !(t > 0) ? 0 : Math.abs(dyst - t) <= 2 ? 1 : Math.abs(dyst - 2 * t) <= 2 ? 2 : 0);
 const kantowkaGrubosc = (dyst) => Math.max(KANTOWKA_KROK, Math.round(dyst / KANTOWKA_KROK) * KANTOWKA_KROK);
 
@@ -2926,7 +2953,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   }
 
   /* --- poziomy: rozdzielone półkami na całą szerokość --- */
-  const rawLevels = cab.levels && cab.levels.length ? cab.levels : [newLevel()];
+  const rawLevels = (cab.levels && cab.levels.length ? cab.levels : [newLevel()])
+    .map((lv) => ((lv.cols || []).some((k) => k && k.sprzet) ? { ...lv, cols: lv.cols.map(kolumnaSprzetu) } : lv));
   const L = rawLevels.length;
   const levFree = innerH - (L - 1) * t;
   const lev = distribute(levFree, rawLevels.map((l) => l.h));
@@ -5084,6 +5112,60 @@ function computeGeoLiczy(cab, mat, ctx) {
     if (shelfDepth > need)
       add("warn", `Półka jest głębsza niż ${fmt(need)} mm — drzwi wpuszczane się nie domkną.`);
   }
+
+  /* Sprzety w zabudowie (uzytkownik 2026-11-04): front na srodku wneki, dolem na plycie pod nia
+     (sprzet na niej stoi), bryla w glab wneki. Wneka: szerokosc kolumny, swiatlo poziomu, glebokosc
+     do plecow — kazda za mala (szerokosc tez za duza) to uwaga z przyciskiem poprawy. */
+  levels.forEach((lv) => lv.cols.forEach((c, j) => {
+    const sp = sprzetKolumny(rawLevels[lv.i].cols[j]);
+    c.sprzet = null;
+    if (!sp) return;
+    const where = `Poziom ${lv.i + 1}, kolumna ${j + 1}`;
+    const wW = Math.round(c.x1 - c.x0), wH = Math.round(lv.y1 - lv.y0), wD = Math.round(carcassDepth - backIntrusion);
+    const cx = (c.x0 + c.x1) / 2, bw = Math.min(wW, sp.wMin) - 4;
+    const fx0 = Math.round(cx - sp.frontW / 2), fy0 = Math.round(lv.y0);
+    c.sprzet = { ...sp, x0: fx0, x1: fx0 + sp.frontW, y0: fy0, y1: fy0 + sp.frontH,
+      bryla: { x0: Math.round(cx - bw / 2), x1: Math.round(cx + bw / 2), y0: fy0, y1: fy0 + Math.max(0, Math.min(wH, sp.hMin) - 2), d: Math.max(0, Math.min(wD, sp.dMin) - 5) },
+      wneka: { w: wW, h: wH, d: wD } };
+    const cel = Math.round((sp.wMin + sp.wMax) / 2);
+    const jedna = lv.cols.length === 1;
+    if (wW < sp.wMin || wW > sp.wMax)
+      add(wW < sp.wMin ? "error" : "warn", `${where}: wnęka na ${sp.nazwa} ma ${fmt(wW)} mm szerokości — ${sp.nazwa} potrzebuje ${fmt(sp.wMin)}–${fmt(sp.wMax)} mm`
+        + `${wW > sp.wMax ? " (w szerszej nie przykręci się do boków)" : ""}.|sprzetw:${lv.i}:${j}:${cel}:${jedna ? Math.round(W + cel - wW) : ""}`);
+    // najnizsza wneka, przy ktorej front nie wchodzi na fronty nad nim (z luzem 2 mm)
+    const frontyNad = doors.filter((d) => d.w > 0 && d.h > 0 && d.y >= c.sprzet.y0 + 1
+      && Math.min(c.sprzet.x1, d.x + d.w) - Math.max(c.sprzet.x0, d.x) > 0.5);
+    const hBezNach = frontyNad.reduce((m, d) => Math.max(m, Math.round(wH + (c.sprzet.y1 - d.y) + 2)), 0);
+    const hCel = Math.max(sp.hMin, hBezNach);
+    // nad nizszym sprzetem zostaje otwarta wneka (front sprzetu siedzi na plycie pod nia)
+    const nad = Math.round(wH - sp.frontH);
+    if (nad > 20 && wH >= sp.hMin)
+      add("warn", `${where}: nad sprzętem (${sp.nazwa}, front ${fmt(sp.frontH)} mm) zostaje ${fmt(nad)} mm otwartej wnęki — obniż poziom do ${fmt(hCel)} mm `
+        + `(front zakryje krawędź płyty nad nim) albo zamknij resztę blendą.|sprzeth:${lv.i}:${hCel}:${levels.length === 1 ? Math.round(cab.H + hCel - wH) : ""}`);
+    if (wH < sp.hMin)
+      add("error", `${where}: wnęka na ${sp.nazwa} ma ${fmt(wH)} mm wysokości — potrzeba co najmniej ${fmt(sp.hMin)} mm`
+        + `${hCel > sp.hMin ? ` (${fmt(hCel)} mm, żeby front sprzętu nie wchodził na front nad nim)` : ""}.`
+        + `|sprzeth:${lv.i}:${hCel}:${levels.length === 1 ? Math.round(cab.H + hCel - wH) : ""}`);
+    if (wD < sp.dMin)
+      add("error", `${where}: wnęka na ${sp.nazwa} ma ${fmt(wD)} mm głębokości (do pleców) — potrzeba co najmniej ${fmt(sp.dMin)} mm.|glebokosc:${Math.round(cab.D + sp.dMin - wD)}`);
+    /* Front sprzetu wiekszy niz wneka zachodzi na krawedzie plyt dookola — i na fronty szafki,
+       ktore siedza na tych krawedziach (mikrofala 382 we wnece 362 wchodzila na drzwi nakladane nad
+       nia). Front nad sprzetem: przycisk podnosi plyte nad wneka o tyle, ile trzeba (z luzem 2 mm). */
+    const sf = c.sprzet;
+    doors.forEach((d) => {
+      if (!(d.w > 0) || !(d.h > 0) || wH < sp.hMin && d.y >= sf.y0 + 1) return;   // za niska wneka — mowi o tym uwaga wyzej
+      const ovX = Math.min(sf.x1, d.x + d.w) - Math.max(sf.x0, d.x), ovY = Math.min(sf.y1, d.y + d.h) - Math.max(sf.y0, d.y);
+      if (ovX <= 0.5 || ovY <= 0.5) return;
+      const co = d.type === "drawer" ? "front szuflady" : d.type === "klapa" ? "klapę" : d.type === "blenda" ? "blendę" : d.type === "fix" ? "element stały" : "drzwi";
+      const nadNim = d.y >= sf.y0 + 1;
+      const hNowa = Math.round(wH + (sf.y1 - d.y) + 2);
+      add("error", `${where}: front sprzętu (${sp.nazwa}, ${fmt(sp.frontW)} × ${fmt(sp.frontH)} mm) zachodzi o ${fmt(Math.round(nadNim ? ovY : ovX))} mm na ${co} ${nadNim ? "nad nim" : "obok"} — `
+        + (nadNim && levels.length > 1 ? `podnieś płytę nad wnęką (wnęka ${fmt(hNowa)} mm).|sprzeth:${lv.i}:${hNowa}:`
+          : nadNim ? `postaw ${sp.nazwa === "mikrofala" ? "mikrofalę" : sp.nazwa} w szafce z poziomem nad nim (wnęka ${fmt(hNowa)} mm).`
+          // obok: front sprzetu kryje prawie cala przegrode, a drzwi kolumny obok nakladaja sie na jej polowe
+          : `postaw ${sp.nazwa === "mikrofala" ? "mikrofalę" : sp.nazwa} w osobnej szafce — w szafce z kolumnami front sprzętu kryje prawie całą przegrodę, na którą nakładają się drzwi obok.`));
+    });
+  }));
 
   /* --- formatki --- */
   const geoCuts = [];
@@ -8427,6 +8509,26 @@ const caloscPasow = (ps) => ({ y0: ps[0].y0, h: ps[ps.length - 1].y0 + ps[ps.len
    i kontroli otwierania (`uchwytObrys`). Wczesniej elewacja miala wlasne
    wymiary (120 mm zamiast 180, przy prawych drzwiach 10 mm obok) — znalazl to
    audyt rysunkow 2D (2026-09-28). */
+/* Sprzet w zabudowie na widoku z przodu (uzytkownik 2026-11-04): ciemny front, obrys drzwi
+   (opadajace — od dolu, boczne — od strony zawiasu), uchwyt i podpis. `mx` jak w rzucie ciagu. */
+function SprzetElewacja({ geo, fy, mx = (x) => x }) {
+  return geo.levels.flatMap((lv) => lv.cols.filter((c) => c.sprzet).map((c) => {
+    const s = c.sprzet, w = s.x1 - s.x0, h = s.y1 - s.y0, X = mx(s.x0, w);
+    const dol = s.drzwi === "dol";
+    const dW = dol ? w : Math.min(w, s.drzwiWym), dH = dol ? Math.min(h, s.drzwiWym) : h;
+    const dX = dol || s.drzwi === "lewe" ? X : X + w - dW;
+    return (
+      <g key={`sp${lv.i}-${c.j}`} data-el="sprzet-front">
+        <rect x={X} y={fy(s.y1)} width={w} height={h} fill={SPRZET_KOLOR} fillOpacity="0.85" stroke={INK} strokeWidth="2" />
+        <path d={`M ${dX + 8} ${fy(s.y0 + dH) + 8} h ${dW - 16} v ${dH - 16} h ${-(dW - 16)} z`} fill="none" stroke="#e7e5e4" strokeWidth="2" opacity="0.6" />
+        {s.uchwyt > 0 && (dol
+          ? <path d={`M ${X + w * 0.15} ${fy(s.y0 + dH) + 22} h ${w * 0.7}`} stroke="#d6d3d1" strokeWidth="8" />
+          : <path d={`M ${s.drzwi === "lewe" ? dX + dW - 22 : dX + 22} ${fy(s.y0 + dH * 0.7)} v ${dH * 0.4}`} stroke="#d6d3d1" strokeWidth="8" />)}
+        <text x={X + w / 2} y={fy(s.y0 + h / 2) + 8} textAnchor="middle" fontSize="22" fill="#fafaf9" fontFamily="ui-monospace, monospace">{s.nazwa}</text>
+      </g>
+    );
+  }));
+}
 function UchwytElewacja({ d, fy, dx = 0 }) {
   const ob = uchwytObrys(d);
   return (
@@ -8627,6 +8729,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
             )
         )}
 
+      {!rear && <SprzetElewacja geo={geo} fy={fy} mx={mx} />}
       {/* fronty */}
       {!rear && geo.doors.filter((d) => d.w > 0 && d.h > 0).map((d) => {
         const X = mx(d.x, d.w);
@@ -10297,6 +10400,13 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         polkaCzesci(col, zPolki[0] + (col.shFront || 0), zPolki[1], cd).forEach(([x0, z0, x1, z1]) =>
           boxOtw(c.x + x0, c.base + sh.y, z0, c.x + x1, c.base + sh.y + c.geo.ts, z1, shc3, otwXZ(sh.otwory), "xz", wGlab));
       })));
+      // sprzet w zabudowie (2026-11-04) — jak w 3D szafki
+      c.geo.levels.forEach((lv) => lv.cols.forEach((col) => {
+        const sp = col.sprzet;
+        if (!sp) return;
+        box(c.x + sp.bryla.x0, c.base + sp.bryla.y0, 0, c.x + sp.bryla.x1, c.base + sp.bryla.y1, sp.bryla.d, SPRZET_KOLOR, null, 1, false, wGlab, "sprzet");
+        box(c.x + sp.x0, c.base + sp.y0, -SPRZET_FRONT_GR, c.x + sp.x1, c.base + sp.y1, 0, SPRZET_KOLOR, null, 1, true, 0, "sprzet-front");
+      }));
       const tf = c.geo.tf;
       /* Uchwyt wystaje przed lico i w bryle calej zabudowy widac go tak samo jak
          przy pojedynczej szafce — bez niego fronty wygladaja jak gladkie plyty. */
@@ -11183,6 +11293,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         <rect key={"ws" + i} data-el="wstawka" x={w.x0} y={fy(w.H)} width={w.x1 - w.x0} height={w.H}
           fill={ff} stroke={INK} strokeWidth="2" />
       ))}
+      <SprzetElewacja geo={geo} fy={fy} />
       {/* Uchwyt frezowany skraca front o glebokosc uchwytu — w szczelinie widac skrzynke
           (boki i tyl DXS-3D, boki V-BOX). Rysujemy ja pod frontami, jak w bryle 3D
           (audyt 2D szuflad 2026-10-22). */}
@@ -12385,6 +12496,17 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
         })}
       {/* otwory w polkach — na ich obrysie (wieniec wyzej) */}
       {showShelves && <OtworyZGory geo={{ ...geo, hasTop: false }} polki />}
+      {/* sprzet w zabudowie z gory: bryla w glab wneki (przerywana) i front przed licem */}
+      {geo.levels.flatMap((lv) => lv.cols.filter((c) => c.sprzet).map((c) => {
+        const s = c.sprzet;
+        return (
+          <g key={`sp${lv.i}-${c.j}`} data-el="sprzet-z-gory">
+            <rect x={s.bryla.x0} y={cd - s.bryla.d} width={s.bryla.x1 - s.bryla.x0} height={s.bryla.d}
+              fill={SPRZET_KOLOR} fillOpacity="0.2" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
+            <rect x={s.x0} y={cd} width={s.x1 - s.x0} height={SPRZET_FRONT_GR} fill={SPRZET_KOLOR} stroke={INK} strokeWidth="1.5" />
+          </g>
+        );
+      }))}
 
       {/* przegrody pionowe */}
       {geo.dividers.map((d, i) => (
@@ -12930,6 +13052,17 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
         <rect key={i} x={xC + geo.shelfBack} y={fy(s.y + s.th)}
           width={s.d} height={s.th} fill={bf} stroke={INK} strokeWidth="2" />
       ))}
+      {/* sprzet w zabudowie z boku: bryla w glab wneki (przerywana) i front przed licem */}
+      {geo.levels.flatMap((lv) => lv.cols.filter((c) => c.sprzet).map((c) => {
+        const s = c.sprzet;
+        return (
+          <g key={`sp${lv.i}-${c.j}`} data-el="sprzet-z-boku">
+            <rect x={xC + cd - s.bryla.d} y={fy(s.bryla.y1)} width={s.bryla.d} height={s.bryla.y1 - s.bryla.y0}
+              fill={SPRZET_KOLOR} fillOpacity="0.25" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
+            <rect x={xC + cd} y={fy(s.y1)} width={SPRZET_FRONT_GR} height={s.y1 - s.y0} fill={SPRZET_KOLOR} stroke={INK} strokeWidth="1.5" />
+          </g>
+        );
+      }))}
       {/* rura na wieszaki — przekroj ⌀25 w polowie glebokosci */}
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.drazki || []).map((dr) => (
         <circle key={`dr${lv.i}-${c.j}-${dr.k}`} data-el="rura-wieszaki" cx={xC + cd - dr.z} cy={fy(dr.y)} r={DRAZEK_FI / 2}
@@ -13746,6 +13879,13 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
         fk = "Wspornik pionowy";
         box(sx, c.support.y0, c.support.z0 || 0, sx + t, c.support.y1, (c.support.z0 || 0) + c.support.d, bf);
       }
+      // sprzet w zabudowie (2026-11-04): bryla w wnece i front przed licem — sprzet, nie formatka
+      if (c.sprzet) {
+        fk = null;
+        const sp = c.sprzet;
+        box(sp.bryla.x0, sp.bryla.y0, 0, sp.bryla.x1, sp.bryla.y1, sp.bryla.d, SPRZET_KOLOR, null, 1, false, "sprzet");
+        box(sp.x0, sp.y0, -SPRZET_FRONT_GR, sp.x1, sp.y1, 0, SPRZET_KOLOR, null, 1, true, "sprzet-front");
+      }
     })
   );
 
@@ -14536,6 +14676,17 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
           if (col.otwieranie) { const a = [...col.otwieranie]; a[+k] = null; col.otwieranie = a; }
         }),
       };
+    }
+    /* Wneka na sprzet (uzytkownik 2026-11-04): „sprzetw:<poziom>:<kolumna>:<wneka>:<szerokosc szafki|>” —
+       szerokosc kolumny (kilka kolumn) albo szafki (jedna); „sprzeth:<poziom>:<wneka>:<wysokosc szafki|>” —
+       swiatlo poziomu albo wysokosc szafki przy jednym poziomie */
+    if (action.startsWith("sprzetw:")) {
+      const [, , , mm, Wn] = action.split(":");
+      return { label: Wn ? `Szafka ${fmt(Number(Wn))} mm (wnęka ${fmt(Number(mm))})` : `Kolumna ${fmt(Number(mm))} mm`, run: () => runFix && runFix(action) };
+    }
+    if (action.startsWith("sprzeth:")) {
+      const [, , mm, Hn] = action.split(":");
+      return { label: Hn ? `Wysokość szafki ${fmt(Number(Hn))} mm (wnęka ${fmt(Number(mm))})` : `Poziom ${fmt(Number(mm))} mm`, run: () => runFix && runFix(action) };
     }
     if (action.startsWith("glebokosc:")) {
       // „glebokosc:<mm>” — glebokosc tej szafki (tip-on wchodzacy w plecy, N145)
@@ -17553,6 +17704,30 @@ const swingBodies = (L, project) => {
           { ...kto, klucz, szer: d.w, alt,
             flip: alt ? { idx: c.index, lvl: d.lvl, col: d.colJ, side: nowaStrona } : null }));
       });
+      /* Sprzet w zabudowie (uzytkownik 2026-11-04): front i uchwyt to przeszkoda dla innych, a drzwi —
+         ruch: opadajace jak klapa w dol, boczne jak skrzydlo z zawiasem z tej strony. */
+      geo.levels.forEach((lv) => lv.cols.forEach((col) => {
+        const sp = col.sprzet;
+        if (!sp) return;
+        const klucz = `${kto.id}|sprzet${lv.i}-${col.j}`;
+        const lico = cdV1 + SPRZET_FRONT_GR;
+        const z0 = zBase + sp.y0, z1 = zBase + sp.y1;
+        bryly.push(roomBox(n, u0 + sp.x0, u0 + sp.x1, cdV1, lico, z0, z1, { ...kto, co: `front sprzętu (${sp.nazwa})`, klucz }));
+        const dol = sp.drzwi === "dol", w = sp.x1 - sp.x0;
+        const dH = dol ? Math.min(sp.y1 - sp.y0, sp.drzwiWym) : sp.y1 - sp.y0;
+        const dW = dol ? w : Math.min(w, sp.drzwiWym);
+        const prawe = sp.drzwi === "prawe";
+        if (sp.uchwyt > 0)
+          bryly.push(dol
+            ? roomBox(n, u0 + sp.x0 + w * 0.15, u0 + sp.x1 - w * 0.15, lico, lico + sp.uchwyt, z0 + dH - 40, z0 + dH - 15, { ...kto, co: `uchwyt sprzętu (${sp.nazwa})`, klucz })
+            : roomBox(n, u0 + (prawe ? sp.x1 - dW + 15 : sp.x0 + dW - 40), u0 + (prawe ? sp.x1 - dW + 40 : sp.x0 + dW - 15), lico, lico + sp.uchwyt,
+              z0 + dH * 0.3, z0 + dH * 0.7, { ...kto, co: `uchwyt sprzętu (${sp.nazwa})`, klucz }));
+        if (dol)
+          ruchy.push({ ...kto, klucz, n, typ: "klapa", gora: false, kat: 90, r: sp.uchwyt > 0 ? Math.hypot(dH, sp.uchwyt) : dH, tf: SPRZET_FRONT_GR, szer: dH,
+            u0: u0 + sp.x0, u1: u0 + sp.x1, hv: lico, hz: z0, sprzet: sp.nazwa });
+        else
+          skrzydla.push(swingLeaf(n, u0 + (prawe ? sp.x1 : sp.x0), lico, prawe ? -1 : 1, dW, z0, z0 + dH, { ...kto, klucz, szer: dW, sprzet: sp.nazwa }));
+      }));
     });
     /* Wstawka w rogu stoi w licu drzwi, wiec dla skrzydel jest przeszkoda —
        rowniez dla drzwi jej wlasnej szafki, gdy maja zawias od jej strony. */
@@ -17688,9 +17863,22 @@ const openingMsgs = (L, project) => {
     proby.set(k, wynik);
     return wynik;
   };
+  /* Sprzet: front zachodzacy na sasiedni front tej samej szafki to juz blad z karty szafki
+     (computeGeo) — drzwi sprzetu sprawdzamy tylko przeciw uchwytom swojej szafki i reszcie zabudowy. */
+  const obcePrzeszkody = (x) => (b) => b.id !== x.id || /^uchwyt/.test(b.co);
   skrzydla.forEach((s) => {
-    const g = swingStop(s, bryly);
+    const g = swingStop(s, s.sprzet ? bryly.filter(obcePrzeszkody(s)) : bryly);
     if (!g) return;
+    // drzwi sprzetu (mikrofala) — zawias ma sam sprzet, wiec rada tylko o ukladzie
+    if (s.sprzet) {
+      const czyjeS = g.b.id === s.id ? "tej samej szafki" : `szafki „${g.b.cab}"${g.b.run === s.run ? " w tym samym ciągu" : ` z ciągu „${g.b.run}"`}`;
+      const wcaleS = g.kat < 2;
+      out.push({ level: "error", text: `Drzwi sprzętu (${s.sprzet}) w szafce „${s.cab}" (ciąg „${s.run}") nie otworzą się `
+        + (wcaleS ? `wcale: tuż przed nimi stoi ${g.b.co} ${czyjeS}.` : `do końca: po drodze stoi ${g.b.co} ${czyjeS} — otworzą się tylko do ok. ${Math.round(g.kat)}°.`)
+        + (g.b.run !== s.run ? " Przesuń sprzęt dalej od rogu albo odsuń ciągi w rogu (karta ciągu → Narożnik → „Luz w rogu”)."
+          : " Zostaw przed nimi wolne miejsce albo przenieś sprzęt w inną kolumnę (zawias z drugiej strony ma inny model).") });
+      return;
+    }
     const gdzie = g.b.run === s.run ? "w tym samym ciągu" : `z ciągu „${g.b.run}"`;
     const czyje = g.b.id === s.id ? "tej samej szafki" : `szafki „${g.b.cab}" ${gdzie}`;
     const zostaje = Math.max(0, Math.round(s.szer - g.ile));
@@ -17772,7 +17960,7 @@ const openingMsgs = (L, project) => {
   ruchy.forEach((m) => {
     let g = null;
     bryly.forEach((b) => {
-      if (b.klucz === m.klucz || b.wysuw || (b.id === m.id && b.co === "korpus")) return;
+      if (b.klucz === m.klucz || b.wysuw || (b.id === m.id && b.co === "korpus") || (m.sprzet && !obcePrzeszkody(m)(b))) return;
       if (m.typ === "szuflada") {
         const ile = wysuwHit(m, b);
         if (ile > 0 && (!g || ile > g.ile)) g = { b, ile };
@@ -17792,6 +17980,13 @@ const openingMsgs = (L, project) => {
         + `${g.b.co} ${czyje} — wysunie się tylko ${fmt(zostaje)} z ${fmt(Math.round(m.szer))} mm (z uchwytem). `
         + (g.b.run !== m.run ? "Odsuń ciągi w rogu (karta ciągu → Narożnik → „Luz w rogu”) albo przesuń szufladę dalej od rogu."
           : "Zmień układ tak, żeby przed szufladą było wolne.") });
+      return;
+    }
+    if (m.sprzet) {
+      out.push({ level: "error", text: `Drzwi sprzętu (${m.sprzet}) w szafce „${m.cab}" (ciąg „${m.run}") `
+        + (g.kat < 2 ? `nie otworzą się wcale: tuż przed nimi stoi ${g.b.co} ${czyje}.` : `nie opadną do końca: po drodze stoi ${g.b.co} ${czyje} — otworzą się tylko do ok. ${g.kat}°.`)
+        + (g.b.run !== m.run ? " Przesuń sprzęt dalej od rogu albo odsuń ciągi w rogu (karta ciągu → Narożnik → „Luz w rogu”)."
+          : " Zostaw przed sprzętem wolne miejsce albo przenieś go wyżej / niżej.") });
       return;
     }
     const rada = g.b.blat ? "Pod blatem klapa do góry się nie otworzy — zrób szufladę albo drzwi."
@@ -20223,6 +20418,20 @@ export default function App() {
       setCab((cur) => ({ ...cur, ...zWiencem(cur) }));
       return;
     }
+    // wneka na sprzet: szerokosc kolumny / szafki, swiatlo poziomu / wysokosc szafki (2026-11-04)
+    if (action.startsWith("sprzetw:")) {
+      const [, li, j, mm, Wn] = action.split(":");
+      if (Wn) setCab((cur) => ({ ...cur, W: Math.max(1, Math.round(Number(Wn))) }));
+      else setCab((cur) => ({ ...cur, levels: cur.levels.map((lv, i) => (i !== Number(li) ? lv
+        : { ...lv, cols: lv.cols.map((k, q) => (q !== Number(j) ? k : { ...k, w: Math.round(Number(mm)) })) })) }));
+      return;
+    }
+    if (action.startsWith("sprzeth:")) {
+      const [, li, mm, Hn] = action.split(":");
+      if (Hn) setCab((cur) => ({ ...cur, H: Math.max(1, Math.round(Number(Hn))) }));
+      else setCab((cur) => ({ ...cur, levels: cur.levels.map((lv, i) => (i !== Number(li) ? lv : { ...lv, h: Math.round(Number(mm)) })) }));
+      return;
+    }
     // „glebokosc:<mm>” — glebokosc aktywnej szafki (tip-on wchodzacy w plecy, N145)
     if (action.startsWith("glebokosc:")) {
       const d = Math.max(1, Math.round(Number(action.split(":")[1]) || 0));
@@ -20521,6 +20730,15 @@ export default function App() {
   const setColKind = (i, j, v) =>
     editLevels((L) => {
       const col = kolumnaW(L, i, j);
+      /* „Sprzęt” (uzytkownik 2026-11-04): dla geometrii pusta wneka (`kolumnaSprzetu`) z `col.sprzet`;
+         zwykly rodzaj zdejmuje sprzet */
+      if (v === "sprzet") {
+        col.kind = "doors";
+        col.sprzet = col.sprzet || { typ: "piekarnik" };
+        POLA_KLAPY.forEach((k) => delete col[k]);
+        return;
+      }
+      delete col.sprzet;
       col.kind = v;
       // ustawienia klapy maja sens tylko przy drzwiach — po „klapa” → Szuflady zostawal `klapa: "gora"`
       if (v !== "doors") POLA_KLAPY.forEach((k) => delete col[k]);
@@ -20898,6 +21116,52 @@ export default function App() {
      (`c.poziomy[nr]`), `rawCol` jej ustawienia, `jA` adres: „j” albo „js<nr>”. */
   /* tylko szuflady; przy waskim oknie pole glebokosci podfrezu schodzi
      pod checkbox w calosci, zamiast sciskac sie do zera (uzytkownik 2026-10-24) */
+  /* Sprzet w kolumnie (2026-11-04): typ i wymiary — typowe z `SPRZETY`, kazde do zmiany (puste = typowe) */
+  const setSprzet = (i, j, patch) => editLevels((L) => {
+    const col = kolumnaW(L, i, j);
+    if (!col) return;
+    const sp = { ...(col.sprzet || { typ: "piekarnik" }), ...patch };
+    Object.keys(sp).forEach((k) => { if (sp[k] === "" || sp[k] == null) delete sp[k]; });
+    col.sprzet = sp;
+  });
+  const uiSprzetu = (lv, c, rawCol) => {
+    const sp = sprzetKolumny(rawCol);
+    const typowy = SPRZETY[sp.typ];
+    const pole = (k, label, hint) => (
+      <Field label={label} hint={hint || `typowo ${fmt(typowy[k])} mm`}>
+        <Num value={(rawCol.sprzet || {})[k] ?? ""} onChange={(v) => setSprzet(lv.i, c.j, { [k]: v === "" ? null : v })} />
+      </Field>
+    );
+    return (
+      <div className="space-y-2 rounded border border-stone-200 bg-white p-2 text-xs" data-el="sprzet-kolumny">
+        <Seg value={sp.typ} onChange={(v) => setSprzet(lv.i, c.j, Object.fromEntries([["typ", v], ...SPRZET_POLA.map((k) => [k, null])]))}
+          options={[{ v: "piekarnik", l: "Piekarnik" }, { v: "mikrofala", l: "Mikrofala" }]} />
+        <p className="text-[11px] text-stone-500">
+          Wymiary typowe dla sprzętu do zabudowy 60 cm — sprawdź z kartą swojego modelu i wpisz, jeśli inne.
+          Wnęka teraz: {fmt(c.sprzet ? c.sprzet.wneka.w : c.w)} × {fmt(c.sprzet ? c.sprzet.wneka.h : Math.round(lv.h))} × {fmt(c.sprzet ? c.sprzet.wneka.d : 0)} mm.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {pole("frontW", "Front — szerokość")}
+          {pole("frontH", "Front — wysokość")}
+          {pole("wMin", "Wnęka — szerokość od")}
+          {pole("wMax", "Wnęka — szerokość do")}
+          {pole("hMin", "Wnęka — wysokość min.")}
+          {pole("dMin", "Wnęka — głębokość min.")}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-16 shrink-0 text-stone-500">drzwi</span>
+          <div className="flex-1">
+            <Seg value={sp.drzwi} onChange={(v) => setSprzet(lv.i, c.j, { drzwi: v === typowy.drzwi ? null : v })}
+              options={[{ v: "dol", l: "w dół" }, { v: "lewe", l: "zawias z lewej" }, { v: "prawe", l: "zawias z prawej" }]} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {pole("drzwiWym", sp.drzwi === "dol" ? "Drzwi — wysokość" : "Drzwi — szerokość")}
+          {pole("uchwyt", "Uchwyt przed frontem")}
+        </div>
+      </div>
+    );
+  };
   const uiSzufladGora = (lv, rawCol, jA, waski = false) => (
     <>
                           <div className="flex items-center gap-2 text-xs" data-el="szuflady-montaz">
@@ -23271,13 +23535,16 @@ export default function App() {
                           )}
                         </div>
 
-                        <Seg value={c.kind}
+                        <Seg value={rawCol.sprzet ? "sprzet" : c.kind}
                           onChange={(v) => setColKind(lv.i, c.j, v)}
                           options={[
                             { v: "doors", l: "Półki i drzwi" },
                             { v: "drawers", l: "Szuflady" },
                             { v: "blenda", l: "Blenda" },
+                            { v: "sprzet", l: "Sprzęt" },
                           ]} />
+                        {rawCol.sprzet && uiSprzetu(lv, c, rawCol)}
+                        {!rawCol.sprzet && (<>
 
                         {c.kind === "blenda" && (
                           <div className="flex items-center gap-2 text-xs">
@@ -23915,6 +24182,7 @@ export default function App() {
                             </div>
                           ))}
                         </div>
+                        </>)}
                       </div>
                     );
                   })}

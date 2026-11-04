@@ -922,3 +922,72 @@ console.log('\n== Decyzje 2026-10-31: kątownik szuflady > 600 (N178), podpora r
     && c('Wkręt 3,5 × 13') === 0.08 && c('Wkręt 4 × 25 do frontu szuflady', 'Wkręt 4 × 30 do frontu szuflady') === 0.08 && c('Wkręt 4 × 40') === 0.08 && c('Zawias') === 3,
     [c('Wkręt 3,5 × 13'), c('Wkręt 4 × 40')].join(' / '));
 }
+
+console.log('\n== Sprzęty: piekarnik i mikrofala we wnęce poziomu (użytkownik 2026-11-04) ==');
+{
+  const slupek = (o = {}, sp = { typ: 'piekarnik' }, h2 = 590) => ({ name: 'S', W: 600, H: 2100, D: 560, plinth: { on: true, height: 100 }, legs: { on: false },
+    levels: [{ h: 720, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 'auto' }, { h: 'auto' }] }] },
+      { h: h2, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null], sprzet: sp }] },
+      { h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }], ...o });
+  const sp = (g) => g.levels[1].cols[0].sprzet;
+  const tx = (g) => g.msgs.map((x) => `${x.level} ${x.text}`).join(' // ');
+  const g0 = geo(slupek());
+  const c0 = g0.levels[1].cols[0];
+  ok('słupek 600, piekarnik w poziomie 590: wnęka 564 × 590 × 560, front 595 × 595 od dołu wnęki (y 756), bez uwag',
+    sp(g0) && sp(g0).wneka.w === 564 && sp(g0).wneka.h === 590 && sp(g0).wneka.d === 560 && sp(g0).x1 - sp(g0).x0 === 595 && sp(g0).y0 === 756 && sp(g0).y1 === 1351
+    && !g0.msgs.some((x) => /sprzęt|piekarnik/.test(x.text)), JSON.stringify(sp(g0) && { ...sp(g0), bryla: undefined }));
+  ok('… we wnęce bez drzwi, półek i zawiasów: drzwi tylko na górze (1 × 740), 2 zawiasy, 3 uchwyty (2 szuflady + drzwi)',
+    c0.count === 0 && !c0.shelves.length && g0.panels.filter((p) => /^Drzwi/.test(p.name)).map((p) => `${p.a}×${p.b}×${p.qty}`).join() === '740×596×1'
+    && (g0.hardware.find((h) => h.name === 'Zawias') || {}).qty === 2 && (g0.hardware.find((h) => h.name === 'Uchwyt') || {}).qty === 3,
+    g0.panels.map((p) => p.name).join(' / '));
+  const gW = geo(slupek({ W: 640 }));
+  ok('szafka 640: ostrzeżenie „wnęka … 604 mm szerokości — 560–568” z przyciskiem szafki 600 (wnęka 564)',
+    /warn Poziom 2, kolumna 1: wnęka na piekarnik ma 604 mm szerokości — piekarnik potrzebuje 560–568 mm[^/]*\|sprzetw:1:0:564:600/.test(tx(gW)), tx(gW));
+  const gW2 = geo(slupek({ W: 520 }));
+  ok('szafka 520: błąd (wnęka 484 < 560) z tym samym przyciskiem', gW2.msgs.some((x) => x.level === 'error' && /wnęka na piekarnik ma 484 mm szerokości.*\|sprzetw:1:0:564:600$/.test(x.text)), tx(gW2));
+  const gK = geo({ ...slupek(), W: 1200, levels: [{ h: 720, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 'auto' }] }] },
+    { h: 590, cols: [{ kind: 'doors', doors: 0, w: 640, shelfTargets: [null], sprzet: { typ: 'piekarnik' } }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] },
+    { h: null, cols: [{ kind: 'doors', doors: 2, w: null }] }] });
+  ok('dwie kolumny, wnęka 640: przycisk tylko na kolumnę (bez szerokości szafki)', gK.msgs.some((x) => /wnęka na piekarnik ma 640 mm szerokości.*\|sprzetw:1:0:564:$/.test(x.text)), tx(gK));
+  const gH = geo(slupek({}, { typ: 'piekarnik' }, 500));
+  const mH = gH.msgs.filter((x) => /piekarnik/.test(x.text));
+  ok('wnęka 500 wys.: jeden błąd „co najmniej 585 mm (586 … front nad nim)” z przyciskiem poziomu 586', mH.length === 1 && mH[0].level === 'error'
+    && /wnęka na piekarnik ma 500 mm wysokości — potrzeba co najmniej 585 mm \(586 mm, żeby front sprzętu nie wchodził na front nad nim\)\.\|sprzeth:1:586:$/.test(mH[0].text), tx(gH));
+  const gD = geo(slupek({ D: 450 }));
+  ok('szafka 450 głęb.: błąd „450 mm głębokości — co najmniej 550” z przyciskiem głębokości 550', gD.msgs.some((x) => x.level === 'error' && /450 mm głębokości \(do pleców\) — potrzeba co najmniej 550 mm\.\|glebokosc:550$/.test(x.text)), tx(gD));
+  const gM = geo(slupek({}, { typ: 'mikrofala' }));
+  ok('mikrofala w poziomie 590: front 594 × 382, ostrzeżenie o 208 mm otwartej wnęki z „obniż poziom do 373”',
+    sp(gM).x1 - sp(gM).x0 === 594 && sp(gM).y1 - sp(gM).y0 === 382
+    && gM.msgs.some((x) => x.level === 'warn' && /zostaje 208 mm otwartej wnęki — obniż poziom do 373 mm.*\|sprzeth:1:373:$/.test(x.text)), tx(gM));
+  const gM2 = geo(slupek({}, { typ: 'mikrofala' }, 373));
+  ok('… poziom 373: bez uwag o sprzęcie', !gM2.msgs.some((x) => /sprzęt|mikrofala/.test(x.text)), tx(gM2));
+  const gM3 = geo(slupek({}, { typ: 'mikrofala' }, 362));
+  ok('… poziom 362 (minimum wnęki): front 382 wchodzi 9 mm na drzwi nad nim — błąd z przyciskiem 373', gM3.msgs.some((x) => x.level === 'error'
+    && /front sprzętu \(mikrofala, 594 × 382 mm\) zachodzi o 9 mm na drzwi nad nim — podnieś płytę nad wnęką \(wnęka 373 mm\)\.\|sprzeth:1:373:$/.test(x.text)), tx(gM3));
+  const gP = geo(slupek({}, { typ: 'piekarnik', frontH: 600, hMin: 590 }, 590));
+  ok('własne wymiary z karty (front 600, wnęka od 590): front 600 kryje połowę płyty nad wnęką — bez uwag', sp(gP).y1 - sp(gP).y0 === 600
+    && !gP.msgs.some((x) => /piekarnik/.test(x.text)), tx(gP));
+  const gP2 = geo(slupek({}, { typ: 'piekarnik', frontH: 610, hMin: 590 }, 590));
+  ok('… front 610: zachodzi 9 mm na drzwi nad nim — przycisk wnęki 601', gP2.msgs.some((x) => x.level === 'error' && /front sprzętu \(piekarnik, 595 × 610 mm\) zachodzi o 9 mm.*\|sprzeth:1:601:$/.test(x.text)), tx(gP2));
+  const gO = geo({ name: 'R', W: 1218, H: 720, D: 560, plinth: { on: true, height: 100 }, legs: { on: false },
+    levels: [{ h: null, cols: [{ w: 600, kind: 'doors', doors: 1 }, { w: null, kind: 'doors', doors: 0, sprzet: { typ: 'piekarnik' } }] }] });
+  ok('piekarnik w kolumnie za przegrodą 18 mm: front 595 wchodzi 4 mm na drzwi obok (623 mm) — błąd z radą „w osobnej szafce”',
+    gO.msgs.some((x) => x.level === 'error' && /front sprzętu \(piekarnik, 595 × 595 mm\) zachodzi o 4 mm na drzwi obok — postaw piekarnik w osobnej szafce — w szafce z kolumnami front sprzętu kryje prawie całą przegrodę/.test(x.text)), tx(gO));
+  // otwieranie: drzwi sprzetu w zaslonietej czesci slepego rogu
+  const PLs = { on: true, height: 100, mode: 'under', setback: 0 };
+  const RUNs = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLs, worktop: false, corner: null, ...o });
+  const CABs = (name, W, runId, cols) => ({ cab: { name, W, H: 720, D: 560, plinth: PLs, levels: [{ h: null, cols }] }, runId, offset: 0 });
+  const rog = (typ, przyRogu) => {
+    const kol = [{ w: 600, kind: 'doors', doors: 0, sprzet: { typ } }, { w: null, kind: 'doors', doors: 1 }];
+    const P = G.loadProject({ name: 'R', active: 0, prices: {}, runs: [RUNs('c1', 'Ściana A'), RUNs('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
+      items: [CABs('A1', 600, 'c1', [{ w: null, kind: 'doors', doors: 2 }]), CABs('A2', 600, 'c1', [{ w: null, kind: 'doors', doors: 2 }]),
+        przyRogu ? CABs('R', 1200, 'c2', kol) : CABs('R', 1218, 'c2', [{ w: 600, kind: 'doors', doors: 1 }, { ...kol[0], w: null }])] });
+    return G.openingMsgs(G.projectLayout(P).pokoje.values().next().value, P).map((x) => x.text);
+  };
+  const rP = rog('piekarnik', true), rM = rog('mikrofala', true);
+  ok('piekarnik w zasłoniętej części ślepego rogu: „nie otworzą się wcale: tuż przed nimi stoi korpus szafki „A2”” + rada o rogu',
+    rP.length === 1 && /^Drzwi sprzętu \(piekarnik\) w szafce „R" \(ciąg „Ściana B"\) nie otworzą się wcale: tuż przed nimi stoi korpus szafki „A2" z ciągu „Ściana A"\. Przesuń sprzęt dalej od rogu/.test(rP[0]), rP.join(' / '));
+  ok('mikrofala (zawias z lewej) tak samo', rM.length === 1 && /^Drzwi sprzętu \(mikrofala\) .* nie otworzą się wcale: tuż przed nimi stoi korpus szafki „A2"/.test(rM[0]), rM.join(' / '));
+  const rK = [...rog('piekarnik', false), ...rog('mikrofala', false)];
+  ok('kontrola: sprzęt w kolumnie za drzwiami 600 (od rogu 636 mm) — jego drzwi otwierają się', !rK.some((t) => /^Drzwi sprzętu/.test(t)), rK.join(' / '));
+}
