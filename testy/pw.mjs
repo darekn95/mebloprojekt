@@ -66,6 +66,28 @@ const zajeta = (page) => page.evaluate(() => new Promise((r) => {
   }));
 })).catch(() => 0);
 
+/* Po wczytaniu strony czekamy, az aplikacja wystartuje (2026-11-04), w obu trybach: standalone
+   kompiluje kod w przegladarce (ok. 3,5 s), a przy kilku suitach naraz dluzej niz pauza testu —
+   `otwier` czytal zapis w localStorage, zanim aplikacja go wczytala i zapisala (5 z 5 przy pieciu
+   naraz). Warunek, nie pauza: koniec, gdy w #root nie ma juz „Ładowanie…”. */
+const URUCHOMIONA = () => {
+  const root = document.getElementById('root');
+  return !root || !!root.querySelector('section') || !/adowanie/.test(root.textContent || '');
+};
+const poStarcie = (page) => {
+  if (page.__poStarcie) return page;
+  page.__poStarcie = true;
+  for (const k of ['goto', 'reload']) {
+    const f = page[k].bind(page);
+    page[k] = async (...a) => {
+      const w = await f(...a);
+      await page.waitForFunction(URUCHOMIONA, null, { timeout: 60000 }).catch(() => {});
+      return w;
+    };
+  }
+  return page;
+};
+
 const przyspiesz = (page) => {
   if (WOLNO || page.__przyspieszona) return page;
   page.__przyspieszona = true;
@@ -109,7 +131,7 @@ const kontekst = async (ctx) => {
   await ctx.addInitScript(BEZ_ZWIJANIA);
   if (!WOLNO) await ctx.addInitScript(SLEDZ_ZEGARY);
   const nowa = ctx.newPage.bind(ctx);
-  ctx.newPage = async (...a) => przyspiesz(await nowa(...a));
+  ctx.newPage = async (...a) => przyspiesz(poStarcie(await nowa(...a)));
   return ctx;
 };
 
