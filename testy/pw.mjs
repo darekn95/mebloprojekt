@@ -48,11 +48,16 @@ const przyspiesz = (page) => {
   if (WOLNO || page.__przyspieszona) return page;
   page.__przyspieszona = true;
   const pauza = page.waitForTimeout.bind(page);
+  /* Bezczynna dwa razy z rzedu (2026-11-04): pod obciazeniem (5 suit naraz) pierwsza „cicha”
+     klatka trafiala przed nastepnym krokiem aplikacji — efekt po przeliczonym rozkroju
+     (`plytywlasne`), bryla 3D (`audytmacierz`), poczatek plynnego przewijania (`wyslij`) —
+     i test czytal stary stan; wolno przechodzily. */
   page.waitForTimeout = async (ms) => {
     const t0 = Date.now();
     await pauza(Math.min(ms, 40));
+    let cicho = 0;
     while (Date.now() - t0 < ms) {
-      if (!(await zajeta(page))) return;
+      if (!(await zajeta(page))) { if (++cicho >= 2) return; } else cicho = 0;
       await pauza(Math.min(30, Math.max(0, ms - (Date.now() - t0))));
     }
   };
