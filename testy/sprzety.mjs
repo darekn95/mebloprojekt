@@ -6,7 +6,9 @@
    - za szeroka szafka / kolumna i za plytka szafka — przyciski „Szafka 600 mm (wnęka 564)”,
      „Kolumna 564 mm”, „Głębokość szafki 550 mm”;
    - powrot na „Półki i drzwi” zdejmuje sprzet;
-   - rysunki: front (zamkniety), z boku, z gory, 3D szafki i 3D zabudowy.
+   - rysunki: front (zamkniety), z boku, z gory, 3D szafki i 3D zabudowy;
+   - sprzet w ciagu bez korpusu (2026-11-05): zmywarka i lodowka wolnostojaca z szablonu, karta,
+     przyciski „Miejsce N mm” / „Wysokość N mm”, cokol z przerwa pod lodowka, rysunki ciagu.
    Liczby i kolizje otwierania — suita `funkcje`. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -182,6 +184,54 @@ console.log('\n== wycięcia w blacie (użytkownik 2026-11-05): płyta i zlew nad
   ok('po kliknięciu: od przodu 60, bez błędu', (await zap()).items[1].cab.blatWyciecia[0].odPrzodu === 60 && !(await jest(reT)));
   await page.locator('[data-el="wyciecie-blatu-karta"]').getByRole('button', { name: 'usuń', exact: true }).click(); await page.waitForTimeout(900);
   ok('„usuń”: bez wycięć', !((await zap()).items[1].cab.blatWyciecia || []).length && (await page.locator('[data-el="wyciecie-blatu-karta"]').count()) === 0);
+}
+
+console.log('\n== sprzęt w ciągu bez korpusu (użytkownik 2026-11-05): zmywarka i lodówka wolnostojąca ==');
+{
+  const PLs = { on: true, height: 100, mode: 'under', setback: 0 };
+  const sz = (name, W) => ({ cab: { name, W, H: 720, D: 560, plinth: PLs, joints: { topL: 'none', topR: 'none' },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null] }] }] }, runId: 'c1', offset: 0 });
+  await seedP({ name: 'P', active: 0, prices: {}, runs: [{ id: 'c1', name: 'Ściana A', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLs, worktop: true, corner: null }],
+    items: [sz('A', 600), sz('B', 600)] });
+  await page.locator('[data-el="z-szablonu"]').first().selectOption('zmywarka'); await page.waitForTimeout(1000);
+  let p = await zap();
+  const zm = p.items[p.active];
+  ok('„+ z szablonu… Zmywarka”: pozycja „Zmywarka” w ciągu, 600 × 720, cokół ciągu', zm.cab.name === 'Zmywarka' && zm.runId === 'c1' && zm.cab.sprzetCiagu.typ === 'zmywarka'
+    && zm.cab.W === 600 && zm.cab.H === 720 && zm.cab.plinth.on, JSON.stringify({ n: zm.cab.name, W: zm.cab.W, H: zm.cab.H, sp: zm.cab.sprzetCiagu }));
+  const karta = page.locator('[data-el="sprzet-ciagu-karta"]');
+  const naglowki = await page.evaluate(() => [...document.querySelectorAll('section h2')].map((h) => h.textContent.trim()));
+  ok('karta „Sprzęt w ciągu” zamiast „Korpus” i „Struktura wnętrza”', (await karta.count()) === 1 && !naglowki.some((h) => /^(▼ )?(Korpus|Struktura wnętrza)$/.test(h)), naglowki.join(' | '));
+  const formatki = await page.evaluate(() => { const sec = [...document.querySelectorAll('section')].find((q) => /^(▼ )?Formatki do zamówienia/.test((q.querySelector('h2') || {}).textContent || '')); return sec ? sec.innerText.replace(/\s+/g, ' ') : ''; });
+  ok('formatki zmywarki: tylko „Front zmywarki 714 × 596”', /Front zmywarki .*714 596 1/.test(formatki) && !/Bok|Dno|Plecy/.test(formatki), formatki.slice(0, 200));
+  await karta.locator('label').filter({ hasText: 'Miejsce — szerokość' }).locator('input').fill('590'); await page.waitForTimeout(900);
+  const reW = /Miejsce na zmywarkę ma 590 mm — zmywarka 60 cm potrzebuje 600–605 mm/;
+  ok('miejsce 590: błąd z „Miejsce 600 mm”', JSON.stringify(await przyciski(reW)) === '["Miejsce 600 mm"]', (await przyciski(reW)).join(' / '));
+  await klik(reW, 'Miejsce 600 mm');
+  ok('po kliknięciu: 600, bez błędu', (await zap()).items[(await zap()).active].cab.W === 600 && !(await jest(reW)));
+  ok('bez uwagi „nie ma ani wieńca, ani wzmocnień” o zmywarce', !(await jest(/„Zmywarka" nie ma ani wieńca/)));
+  await page.locator('[data-el="z-szablonu"]').first().selectOption('lodowka-wolno'); await page.waitForTimeout(1000);
+  p = await zap();
+  const lo = p.items[p.active];
+  ok('„+ z szablonu… Lodówka wolnostojąca”: „Lodówka” 700 × 1850, bez cokołu i nóżek', lo.cab.name === 'Lodówka' && lo.cab.sprzetCiagu.typ === 'lodowka'
+    && lo.cab.W === 700 && lo.cab.H === 1850 && !lo.cab.plinth.on && !(lo.cab.legs || {}).on, JSON.stringify({ n: lo.cab.name, W: lo.cab.W, H: lo.cab.H, pl: lo.cab.plinth, legs: lo.cab.legs }));
+  ok('lodówka: bez uwag o wysokości i cokole niezgodnych z ciągiem', !(await jest(/Wysokość 1850 mm nie zgadza się z ciągiem|Cokół tej szafki .* nie zgadza się/)));
+  await page.locator('[data-el="sprzet-ciagu-karta"] label').filter({ hasText: 'Wysokość' }).first().locator('input').fill('1800'); await page.waitForTimeout(900);
+  const reH = /Pozycja ma 1800 mm wysokości, a lodówka 1850 mm/;
+  ok('wysokość 1800: ostrzeżenie z „Wysokość 1850 mm”', JSON.stringify(await przyciski(reH)) === '["Wysokość 1850 mm"]', (await przyciski(reH)).join(' / '));
+  await klik(reH, 'Wysokość 1850 mm');
+  ok('po kliknięciu: 1850, bez ostrzeżenia', (await zap()).items[(await zap()).active].cab.H === 1850 && !(await jest(reH)));
+  // lodowka w srodek: A, Zmywarka, Lodowka, B
+  await page.evaluate(() => { const q = JSON.parse(localStorage.getItem('szafki:projekt')); const o = ['A', 'Zmywarka', 'Lodówka', 'B'];
+    q.items.sort((a, c) => o.indexOf(a.cab.name) - o.indexOf(c.cab.name)); q.active = 1; localStorage.setItem('szafki:projekt', JSON.stringify(q)); });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1500);
+  ok('lodówka w środku ciągu: informacja o przerwie w cokole i dwóch kawałkach blatu', await jest(/Lodówka „Lodówka" stoi w środku ciągu — blat dzieli się przy niej na dwa kawałki, a cokół ciągu ma pod nią przerwę/));
+  await widok('Ciąg'); await widok('Zamk.');
+  ok('rysunek ciągu: zmywarka i lodówka, cokół w dwóch odcinkach', (await ile('[data-el="sprzet-ciagu"]')) === 2 && (await ile('[data-el="cokol-ciagu"]')) === 2,
+    `${await ile('[data-el="sprzet-ciagu"]')} / ${await ile('[data-el="cokol-ciagu"]')}`);
+  await widok('Z boku');
+  ok('ciąg z boku: profile zmywarki i lodówki', (await ile('[data-el="sprzet-ciagu-z-boku"]')) === 2, String(await ile('[data-el="sprzet-ciagu-z-boku"]')));
+  const z3 = await bryly3d('3D');
+  ok('3D ciągu: bryły zmywarki i lodówki', z3.bryla === 2, JSON.stringify(z3));
 }
 
 ok('bez błędów strony', !errors.length, errors.join(' / '));

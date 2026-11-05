@@ -763,9 +763,13 @@ typowo 50 mm od przodu blatu, pola przesuniecia).
 [AI-INFO] (2026-11-05) Plyta i zlew zrobione: wyciecia w blacie roboczym ciagu (`cab.blatWyciecia`),
 opis w `opisy/sprzety.md`. Tylko blat roboczy ciagu (nie wlasny blat szafki); kawalek z lyzwa w rogu
 rysuje sie w 3D bez otworu (`plytaSkos`).
-[AI-TODO] (2026-11-05) Dalej: 3) pozycja w ciagu bez korpusu — zmywarka (front meblowy na drzwiach,
-drzwi opadaja, cokol ciagu idzie dalej) i lodowka wolnostojaca w ciagu (miedzy bokami szafek, przy
-scianie albo osobno).
+[AI-INFO] (2026-11-05) Sprzet w ciagu zrobiony: `cab.sprzetCiagu` (zmywarka / lodowka wolnostojaca),
+`computeGeo` → `geoSprzetuCiagu` (`geo.bezKorpusu`) — geometria z pustej szafki tej szerokosci, bez plyt
+korpusu, okuc i wiercen. Kazde nowe miejsce, ktore pyta o korpus szafki w ciagu (wieniec, plecy,
+wieszanie, scalanie), musi pominac `bezKorpusu`; lodowka wolnostojaca liczy sie jak slupek
+(`lodowkaCiagu`: poza blatem, bez wspolnych wymiarow ciagu, cokol z przerwa `rp.segmenty`).
+Otwarte pytanie do uzytkownika: lezace wzmocnienie przednie pod wycieciem plyty / zlewu (teraz
+tylko ostrzezenie).
 Na pozniej: sprzet w poziomie kolumny (odcinku), wiersz sprzetu w zamowieniu (teraz poza zamowieniem).
 
 [AI-INFO] Szafka w L: `CORNER_L_D` = 560 (jak stojaca), ramie 640. Pusty ciag

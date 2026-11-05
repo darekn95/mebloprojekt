@@ -2,8 +2,8 @@
 
 Piekarnik i mikrofala (użytkownik 2026-11-04) oraz lodówka (2026-11-05). Siedzą we
 wnęce, czyli w kolumnie poziomu szafki — zwykle w słupku. Płyta grzewcza i zlew to
-wycięcia w blacie roboczym nad szafką (niżej). Zmywarka i lodówka wolnostojąca w ciągu
-dojdą później.
+wycięcia w blacie roboczym nad szafką (niżej). Zmywarka i lodówka wolnostojąca stoją
+w ciągu jako osobne pozycje bez korpusu (niżej, „Sprzęt w ciągu”).
 
 W karcie „Struktura wnętrza” kolumna ma cztery rodzaje: „Półki i drzwi /
 Szuflady / Blenda / **Sprzęt**”. Przy „Sprzęt” wybierasz typ: **Piekarnik /
@@ -56,6 +56,43 @@ Lodówka wolnostojąca we wnęce: 600 × 1850 × 650 mm, luz z boków 50, nad ni
 lodówka) — błąd, za mało luzu — ostrzeżenie, oba z przyciskiem szerokości / wysokości.
 Głębsza niż wnęka — informacja, ile wystaje przed lico; w kontroli otwierania jej
 drzwi otwierają się od wysuniętego przodu.
+
+## Sprzęt w ciągu: zmywarka i lodówka wolnostojąca
+
+Pozycja ciągu bez korpusu (użytkownik 2026-11-05: „zależnie od sprzętu” — zmywarka i lodówka
+wolnostojąca jako pozycja w ciągu). Dodajesz ją z „+ z szablonu…” przy ciągu: **Zmywarka**
+albo **Lodówka wolnostojąca**. Dostaje nazwę sprzętu („Zmywarka”, „Lodówka 2”). Karta
+szafki ma wtedy zamiast „Korpus” / „Struktura wnętrza” kartę „Sprzęt w ciągu”: typ, miejsce
+(szerokość, wysokość, głębokość) i wymiary sprzętu (typowe, do zmiany). Sąsiednie szafki stoją
+przy niej bokami; „Scal szafki” jej nie łączy.
+
+**Zmywarka** (do zabudowy 60 albo 45 cm, typowo wysokość 815–875, głębokość od 550):
+- w zamówieniu tylko „Front zmywarki” — wymiar drzwi szafki tej szerokości (te same luzy co
+  fronty obok, np. 714 × 596), z płyty frontów, oklejony dookoła, przykręcany do drzwi
+  zmywarki okuciami z jej kompletu. Bez korpusu, okuć i wierceń;
+- **cokół ciągu idzie dalej** przed zmywarką (decyzja użytkownika); blat ciągu leży nad nią;
+- bryła: nad cokołem od lica w głąb, a w strefie cokołu stopa cofnięta za płytę cokołu;
+- kontrole: × miejsce węższe niż zmywarka, ! szersze o ponad 5 mm — przycisk „Miejsce
+  600 mm”; × od podłogi do spodu blatu poza 815–875; × za płytko — „Głębokość …”;
+- otwieranie: drzwi opadają w dół jak klapa (przed cokołem).
+
+**Lodówka wolnostojąca** (typowo 600 × 1850 × 650 w miejscu 700, luzy 50 z boków, 100 nad nią,
+50 z tyłu):
+- stoi na podłodze — bez cokołu i nóżek, bez formatek; wspólne wymiary ciągu (wysokość,
+  głębokość, cokół) jej nie zmieniają i nie dają uwag o niezgodności;
+- blat ciągu kończy się przy jej boku (nie wyznacza wysokości blatu);
+- **cokół ciągu**: na końcu ciągu kończy się przy niej, w środku ciągu (np. między szafkami
+  a słupkiem) ma przerwę — dwa odcinki, każdy dzielony osobno (`runPlinth`: `segmenty`,
+  `luki`); karta ciągu pisze „Przerwa pod lodówkę wolnostojącą: …”;
+- uwagi: i „stoi na końcu ciągu / w środku ciągu …”, i ile wystaje przed korpusy i fronty;
+  × za wąskie miejsce, ! za mało luzu z boku — „Miejsce N mm”; ! za niska pozycja —
+  „Wysokość N mm”; × górny ciąg nad nią (jak nad słupkiem);
+- otwieranie: drzwi to skrzydło od wysuniętego przodu (zawias z lewej / prawej).
+
+Rysunki: front ciągu (front zmywarki, bryła lodówki), z boku ciągu (profil sprzętu: zmywarka do
+podłogi, lodówka wysunięta), z góry, 3D pozycji i 3D zabudowy (`sprzet`, `sprzet-stopa`,
+`sprzet-front`, `front-zmywarki`). PDF pomija pozycję w arkuszach szafek; front zmywarki jest
+w formatkach.
 
 ## Płyta grzewcza i zlew — wycięcia w blacie
 
@@ -163,11 +200,17 @@ frontach to zapas, żeby front sprzętu nie dotykał frontu nad nim.
     `wycieciaKawalka` (otwory i nazwa kawałka w `runTopPanels`), kontrole w `worktopMsgs`,
     przycisk `wycblatu:`, rysunek w `AssemblyTopView` (`blatPasa`) i `Assembly3D` (`boxOtw`);
   - karta: `uiSprzetu`;
+  - sprzęt w ciągu: `SPRZETY_CIAGU`, `sprzetCiagu`, `lodowkaCiagu`, `geoSprzetuCiagu` (`geo.bezKorpusu`,
+    `geo.sprzetCiagu`), szablony `zmywarka` / `lodowka-wolno`, karta `uiSprzetuCiagu`, cokół z przerwą
+    w `runPlinth`, blat w `worktopLevel`, uwagi w `worktopMsgs` / `runCabMsgs`, przyciski `sprzetcw:` /
+    `sprzetch:`, rysunki `SprzetCiaguElew`, `SprzetCiaguWidok`, `SprzetCiagu3D`, `AssemblySideView`,
+    `Assembly3D`;
   - rysunki: `SprzetElewacja`, `SideView`, `TopView`, `Scene3D`, `Assembly3D`;
   - otwieranie: `swingBodies` / `openingMsgs`.
 - **Testy**:
   - `funkcje` — wnęka, uwagi i przyciski, front na drzwiach nad nim i obok, ślepy róg,
     lodówka (fronty, zawiasy, wnęka, wolnostojąca);
   - `funkcje` — wycięcia w blacie (położenie, formatka z otworami, łączenie, tył, bok, wzmocnienie);
-  - `sprzety` — klikane w aplikacji (też lodówka i wycięcia w blacie).
+  - `funkcje` — sprzęt w ciągu (front zmywarki, kontrole, cokół z przerwą, blat, uwagi, scalanie);
+  - `sprzety` — klikane w aplikacji (też lodówka, wycięcia w blacie i sprzęt w ciągu z szablonu).
 - Pola w danych: `SLOWNIK.md`.

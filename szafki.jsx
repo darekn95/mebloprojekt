@@ -326,6 +326,9 @@ const sprzetCiagu = (cab) => {
   if (typ === "lodowka" && out.drzwi !== "prawe") out.drzwi = "lewe";
   return out;
 };
+/* Lodowka wolnostojaca w ciagu — jak slupek: wyzsza z zalozenia, bez cokolu i blatu nad soba;
+   wspolne wymiary ciagu (wysokosc, glebokosc, cokol) jej nie dotycza. */
+const lodowkaCiagu = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === "lodowka");
 const SPRZET_POLA = ["frontW", "frontH", "wMin", "wMax", "hMin", "hMax", "dMin", "drzwi", "drzwiWym", "uchwyt",
   "montaz", "fronty", "dolny", "lodW", "lodH", "lodD", "luzBok", "luzGora", "luzTyl"];
 const SPRZET_TEKST = ["drzwi", "montaz"];   // pola z wyborem, nie liczba
@@ -1691,13 +1694,13 @@ const zWiencem = (cab, joints = { topL: "between", topR: "between" }) => ({
    przy swoim — rowno z frontami (front nakladany: luz przy zawiasach + grubosc
    frontu), na trojkatach. W szafce to „Blat z płyty” oznaczony `top.zCiagu`;
    w zamowieniu jedna formatka „Wieniec ciągu” (`runTop`, wlasne blaty). */
-const podWspolnymWiencem = (cab, h) => !cab.slupek && !(cab.corner && cab.corner.on)
+const podWspolnymWiencem = (cab, h) => !cab.slupek && !lodowkaCiagu(cab) && !(cab.corner && cab.corner.on)
   && (h == null || Math.round(cab.H) === Math.round(h));
 /* Wysokosc, na ktorej lezy wspolny wieniec: najczestsza wysokosc szafek ciagu
    (bez slupkow); przy remisie — wysokosc ciagu. W salonie ciag mial H 1600 od
    pierwszej, wysokiej szafki, a trzy pozostale 900. */
 const wysokoscWienca = (items, run) => {
-  const hs = items.filter((it) => (it.runId || null) === run.id && !it.cab.slupek).map((it) => Math.round(it.cab.H));
+  const hs = items.filter((it) => (it.runId || null) === run.id && !it.cab.slupek && !lodowkaCiagu(it.cab)).map((it) => Math.round(it.cab.H));
   if (!hs.length) return run.H;
   const ile = new Map();
   hs.forEach((h) => ile.set(h, (ile.get(h) || 0) + 1));
@@ -7672,10 +7675,16 @@ function geoSprzetuCiagu(cab, mat, ctx) {
     const d = (baza.doors || []).find((x) => x.type === "door") || { x: 2, y: 3, w: W - 4, h: cab.H - 6 };
     const wysNiszy = Math.round(podloga + cab.H);   // od podlogi do spodu blatu
     const x0 = Math.round((W - sp.szer) / 2) + 2;
+    /* Bryla nad cokolem (od lica w glab) i stopa w strefie cokolu — cofnieta za plyte cokolu
+       (stopki zmywarki stoja za nim; audyt projektu: bryla do podlogi wchodzila w cokol). */
+    const zCok = cab.plinth && cab.plinth.on && podloga > 0 ? Math.round((cab.plinth.setback || 0) + baza.t + 2) : 0;
+    const dB = Math.min(cd, sp.dMin) - 5;
     dane = { ...sp, front: { x: d.x, y: d.y, w: Math.round(d.w), h: Math.round(d.h) },
-      bryla: { x0, x1: x0 + sp.szer - 4, y0: -podloga, y1: Math.round(cab.H) - 2, z0: 0, d: Math.min(cd, sp.dMin) - 5 },
+      bryla: { x0, x1: x0 + sp.szer - 4, y0: 0, y1: Math.round(cab.H) - 2, z0: 0, d: dB },
+      stopa: podloga > 0 ? { x0, x1: x0 + sp.szer - 4, y0: -podloga, y1: 0, z0: zCok, d: dB } : null,
       nisza: { w: Math.round(W), h: wysNiszy, d: Math.round(cd) } };
-    panels.push({ name: "Front zmywarki", qty: 1, a: Math.round(d.h), b: Math.round(d.w), matKey: "front",
+    // plyta frontow jak drzwi obok (fronty z plyty korpusu — `board`), tak samo jak `P` w computeGeo
+    panels.push({ name: "Front zmywarki", qty: 1, a: Math.round(d.h), b: Math.round(d.w), matKey: plytaFrontu(cab),
       edges: { a1: true, a2: true, b1: true, b2: true }, note: "oklejone wszystkie krawędzie; przykręcany do drzwi zmywarki (okucia z kompletu zmywarki)" });
     if (W < sp.szer || W > sp.szer + 5)
       add(W < sp.szer ? "error" : "warn", `Miejsce na zmywarkę ma ${fmt(Math.round(W))} mm — zmywarka ${sp.szer === 450 ? "45" : "60"} cm potrzebuje ${fmt(sp.szer)}–${fmt(sp.szer + 5)} mm.|sprzetcw:${sp.szer}`);
@@ -7697,8 +7706,11 @@ function geoSprzetuCiagu(cab, mat, ctx) {
       add("warn", `Między lodówką a sąsiadami zostaje ${fmt(luz)} mm z boku — na wentylację potrzeba ${fmt(sp.luzBok)} mm (sprawdź w instrukcji modelu).|sprzetcw:${lw + 2 * sp.luzBok}`);
     if (Math.round(cab.H) < sp.lodH)
       add("warn", `Pozycja ma ${fmt(Math.round(cab.H))} mm wysokości, a lodówka ${fmt(sp.lodH)} mm.|sprzetch:${sp.lodH}`);
+    // lico korpusow; fronty szafek obok stoja przed nim o luz zawiasu i grubosc frontu
+    const przedFronty = Math.round(-zPrzod - HINGE_PLAY - baza.tf);
     if (zPrzod < 0)
-      add("info", `Lodówka (głęb. ${fmt(sp.lodD)} mm z luzem ${fmt(sp.luzTyl)} mm z tyłu) wystaje ${fmt(Math.round(-zPrzod))} mm przed lico szafek.`);
+      add("info", `Lodówka (głęb. ${fmt(sp.lodD)} mm z luzem ${fmt(sp.luzTyl)} mm z tyłu) wystaje ${fmt(Math.round(-zPrzod))} mm przed korpusy szafek`
+        + (przedFronty > 0 ? ` (${fmt(przedFronty)} mm przed ich fronty).` : ", ale nie przed ich fronty."));
   }
   return { ...baza, bezKorpusu: true, sprzetCiagu: dane, panels, hardware: [], msgs, doors: [], klapy: [],
     hasTop: false, hasBot: false, hasBack: false, isBlat: false, isWorktop: false, blat: null, dividers: [], sepShelves: [],
@@ -8839,7 +8851,7 @@ function SprzetCiaguElew({ cab, geo, frontColor, fy, mx = (x) => x }) {
   const b = s.bryla, f = s.front;
   return (
     <g data-el="sprzet-ciagu">
-      <rect x={mx(b.x0, b.x1 - b.x0)} y={fy(b.y1)} width={b.x1 - b.x0} height={b.y1 - b.y0} fill={SPRZET_KOLOR} fillOpacity="0.15"
+      <rect x={mx(b.x0, b.x1 - b.x0)} y={fy(b.y1)} width={b.x1 - b.x0} height={b.y1 - (s.stopa ? s.stopa.y0 : b.y0)} fill={SPRZET_KOLOR} fillOpacity="0.15"
         stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
       <rect x={mx(f.x, f.w)} y={fy(f.y + f.h)} width={f.w} height={f.h} fill={frontColor} stroke={INK} strokeWidth="2" data-el="front-zmywarki" />
       <text x={mx(f.x, f.w) + f.w / 2} y={fy(f.y + f.h / 2)} textAnchor="middle" fontSize="22" fill={INK} fontFamily="ui-monospace, monospace">{`${s.nazwa} ${fmt(f.w)}×${fmt(f.h)}`}</text>
@@ -8876,6 +8888,7 @@ function SprzetCiaguWidok({ cab, geo, mat, widok = "przod" }) {
       <svg viewBox={`${-pad} ${-pad} ${cd - zMin + 2 * pad} ${H + pod + 2 * pad}`} className="w-full h-auto select-none" style={{ maxHeight: DRAW_MAX_H }} data-el="sprzet-ciagu-widok">
         <line x1={-pad / 2} y1={fy(-pod)} x2={cd - zMin + pad / 2} y2={fy(-pod)} stroke={INK} strokeWidth="2" />
         <rect x={x(z.bz1)} y={fy(b.y1)} width={z.bz1 - z.bz0} height={b.y1 - b.y0} fill={SPRZET_KOLOR} fillOpacity="0.25" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
+        {s.stopa && <rect x={x(s.stopa.d)} y={fy(s.stopa.y1)} width={s.stopa.d - s.stopa.z0} height={s.stopa.y1 - s.stopa.y0} fill={SPRZET_KOLOR} fillOpacity="0.25" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />}
         {s.lodowka
           ? <rect x={x(z.fz1)} y={fy(s.y1)} width={z.fz1 - z.fz0} height={s.y1 - s.y0} fill={SPRZET_KOLOR} stroke={INK} strokeWidth="1.5" />
           : <rect x={cd} y={fy(s.front.y + s.front.h)} width={geo.tf} height={s.front.h} fill={ff} stroke={INK} strokeWidth="1.5" />}
@@ -9537,8 +9550,11 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                 {/* W rogu cokol konczy sie na cokole prostopadlej sciany, a nie
                     na koncu szafki naroznej — `rp.total` ma to juz policzone.
                     Rysowany na cala dlugosc ciagu wystawal w powietrze. */}
-                <rect x={mx(ox + (rp.x0 || 0), rp.total)} y={fy(g.mount + plinthH)} width={rp.total} height={plinthH}
-                  fill={plyta(g)} stroke={INK} strokeWidth="2" opacity="0.75" />
+                {/* przy lodowce wolnostojacej w srodku ciagu cokol ma przerwe — odcinki osobno */}
+                {(rp.segmenty || [[rp.x0 || 0, (rp.x0 || 0) + rp.total]]).map(([s0, s1]) => (
+                  <rect key={"ps" + s0} x={mx(ox + s0, s1 - s0)} y={fy(g.mount + plinthH)} width={s1 - s0} height={plinthH}
+                    fill={plyta(g)} stroke={INK} strokeWidth="2" opacity="0.75" data-el="cokol-ciagu" />
+                ))}
                 {rp.cuts.map((c) => (
                   <line key={"pc" + c} x1={mx(ox + c, 0)} y1={fy(g.mount + plinthH)}
                     x2={mx(ox + c, 0)} y2={fy(g.mount)} stroke={INK} strokeWidth="3" />
@@ -10007,21 +10023,32 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
   groups.forEach((g) => {
     const lico = Math.max(...g.cabs.map((c) => (c.wallGap ? c.wallGap.bottom : 0) + c.geo.glebOdSciany - c.offset));
     g.cabs.forEach((c) => {
-      const front = lico + c.offset, back = front - c.geo.carcassDepth;
-      const y0 = c.base, y1 = c.base + c.cab.H;
+      /* Sprzet w ciagu (bez korpusu): profil sprzetu, nie korpusu — zmywarka od podlogi pod blat
+         z frontem meblowym na drzwiach, lodowka wolnostojaca na podlodze, wysunieta z lica. */
+      const sc = c.geo.bezKorpusu ? c.geo.sprzetCiagu : null;
+      const licoK = lico + c.offset;
+      let back = licoK - c.geo.carcassDepth, front = licoK, y0 = c.base, y1 = c.base + c.cab.H;
+      if (sc) {
+        back = licoK - sc.bryla.d;
+        if (sc.lodowka) { front = licoK - sc.fz0; y0 = c.base + sc.y0; y1 = c.base + sc.y1; }
+        else { y0 = c.base + (sc.stopa ? sc.stopa.y0 : sc.bryla.y0); y1 = c.base + sc.bryla.y1; }
+      }
       const wpuszczony = (d) => d.inset ?? c.cab.frontMode === "inset";
-      const fronty = [...new Map(c.geo.doors.filter((d) => d.w > 0 && d.h > 0 && !wpuszczony(d))
-        .map((d) => [`${Math.round(d.y)}|${Math.round(d.h)}`, { y: y0 + d.y, h: d.h }])).values()];
-      const klucz = [back, front, y0, y1, g.mount, fronty.map((f) => `${Math.round(f.y)}/${Math.round(f.h)}`).join(",")].map((v) => (typeof v === "number" ? Math.round(v) : v)).join("|");
+      const fronty = sc ? (sc.front && !sc.lodowka ? [{ y: c.base + sc.front.y, h: sc.front.h }] : [])
+        : [...new Map(c.geo.doors.filter((d) => d.w > 0 && d.h > 0 && !wpuszczony(d))
+          .map((d) => [`${Math.round(d.y)}|${Math.round(d.h)}`, { y: y0 + d.y, h: d.h }])).values()];
+      const klucz = [back, front, y0, y1, g.mount, sc ? sc.typ : "", fronty.map((f) => `${Math.round(f.y)}/${Math.round(f.h)}`).join(",")].map((v) => (typeof v === "number" ? Math.round(v) : v)).join("|");
       const p = profile.get(klucz);
       if (p) { p.nazwy.push(c.name); return; }
-      profile.set(klucz, { c, g, back, front, y0, y1, fronty, nazwy: [c.name],
-        lico: front + (fronty.length ? HINGE_PLAY + c.geo.tf : 0) });
+      // front zmywarki przykrecony do jej drzwi — bez luzu zawiasu
+      const luzF = sc ? 0 : HINGE_PLAY;
+      profile.set(klucz, { c, g, back, front, y0, y1, fronty, nazwy: [c.name], sprzet: !!sc, luzF,
+        lico: front + (fronty.length ? luzF + c.geo.tf : 0) });
     });
     // blat roboczy ciagu — od sciany na wysokosci blatu (jak w widoku szafki)
     const rt = g.run.worktop && g.run.tier !== "gorny" ? runTop(project, g.run) : null;
     if (rt && rt.th > 0 && showBlat) {
-      const pod = g.cabs.filter((c) => !c.cab.slupek);
+      const pod = g.cabs.filter((c) => !c.cab.slupek && !lodowkaCiagu(c.cab));
       const y = Math.max(...(pod.length ? pod : g.cabs).map((c) => c.base + c.cab.H));
       const gs = wallGapOf(g.run, null);
       blaty.push({ x0: gs.bottom - gs.top, x1: gs.bottom - gs.top + rt.depth, y, th: rt.th,
@@ -10072,16 +10099,17 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
                   fill={dz.kantowka ? KANTOWKA_KOLOR : bf} stroke={INK} strokeWidth="1" opacity="0.7" />
               ));
             })()}
-            <rect x={p.back} y={fy(p.y1)} width={p.front - p.back} height={p.y1 - p.y0} fill={bf} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
+            <rect x={p.back} y={fy(p.y1)} width={p.front - p.back} height={p.y1 - p.y0} fill={p.sprzet ? SPRZET_KOLOR : bf}
+              fillOpacity={p.sprzet ? 0.85 : 0.35} stroke={INK} strokeWidth="2" data-el={p.sprzet ? "sprzet-ciagu-z-boku" : undefined} />
             {p.fronty.map((f, fi) => (
-              <rect key={fi} x={p.front + HINGE_PLAY} y={fy(f.y + f.h)} width={c.geo.tf} height={f.h} fill={c.frontColor} stroke={INK} strokeWidth="1.5" />
+              <rect key={fi} x={p.front + p.luzF} y={fy(f.y + f.h)} width={c.geo.tf} height={f.h} fill={c.frontColor} stroke={INK} strokeWidth="1.5" />
             ))}
             {/* cokol pod korpusem — plyta cofnieta od lica */}
             {c.plinthH > 0 && (
-              <rect x={p.front - (c.cab.plinth.setback || 0) - c.geo.t} y={fy(p.y0)} width={c.geo.t} height={c.plinthH}
+              <rect x={p.front - (c.cab.plinth.setback || 0) - c.geo.t} y={fy(c.base)} width={c.geo.t} height={c.plinthH}
                 fill={bf} stroke={INK} strokeWidth="1.5" />
             )}
-            {c.cab.legs && c.cab.legs.on && c.geo.legH > 0 && [...new Set([p.back + 40, p.front - 80,
+            {!p.sprzet && c.cab.legs && c.cab.legs.on && c.geo.legH > 0 && [...new Set([p.back + 40, p.front - 80,
               ...(c.geo.legs.miejsca || []).filter((m) => m.przesunieta).map((m) => Math.round(p.back + m.odTylu))])].map((x, li) => (
               <rect key={"n" + li} x={x} y={fy(p.y0 + c.geo.legTop)} width={40} height={c.geo.legH}
                 rx={legRound(c.cab) ? 20 : 0} fill={legColorOf(c.cab)} stroke={INK} strokeWidth="1.5" />
@@ -10091,7 +10119,7 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
               const pelny = p.nazwy.length > 2 ? `${p.nazwy[0]} i ${p.nazwy.length - 1} inne` : p.nazwy.join(", ");
               const ile = Math.max(4, Math.floor((p.front - p.back - 28) / 12));
               return (
-                <text x={p.back + 14} y={fy(p.y1) + 30} fontSize="20" fill={INK} opacity="0.7" fontFamily="ui-monospace, monospace">
+                <text x={p.back + 14} y={fy(p.y1) + 30} fontSize="20" fill={p.sprzet ? "#fff" : INK} opacity="0.7" fontFamily="ui-monospace, monospace">
                   <title>{p.nazwy.join(", ")}</title>
                   {pelny.length > ile ? pelny.slice(0, ile - 1) + "…" : pelny}
                 </text>
@@ -10621,8 +10649,8 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     if (rp && rp.h > 0 && g.cabs.length) {
       const cokT = g.cabs[0].geo.t;
       const cokZ = Math.max(0, Math.round(rp.setback || 0));
-      box(rp.x0 || 0, g.mount, cokZ, (rp.x0 || 0) + rp.total, g.mount + rp.h, cokZ + cokT,
-        g.cabs[0].mat.board.color, null, 0.95);
+      (rp.segmenty || [[rp.x0 || 0, (rp.x0 || 0) + rp.total]]).forEach(([s0, s1]) =>
+        box(s0, g.mount, cokZ, s1, g.mount + rp.h, cokZ + cokT, g.cabs[0].mat.board.color, null, 0.95));
     }
     /* Wspolne dno ciagu (`runBottom`) — w zamowieniu jedna plyta, wiec i w bryle: szafki
        pod nim bez wlasnego dna, plyta przez cale pasmo (audyt GPT N119: byly dwa dna i szpara). */
@@ -10635,6 +10663,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       if (c.geo.bezKorpusu && c.geo.sprzetCiagu) {
         const s = c.geo.sprzetCiagu, z = sprzetZ(s), b = s.bryla;
         box(c.x + b.x0, c.base + b.y0, z.bz0, c.x + b.x1, c.base + b.y1, z.bz1, SPRZET_KOLOR, null, 1, false, 0, "sprzet");
+        if (s.stopa) box(c.x + s.stopa.x0, c.base + s.stopa.y0, s.stopa.z0, c.x + s.stopa.x1, c.base + s.stopa.y1, s.stopa.d, SPRZET_KOLOR, null, 1, false, 0, "sprzet-stopa");
         if (s.lodowka) box(c.x + s.x0, c.base + s.y0, z.fz0, c.x + s.x1, c.base + s.y1, z.fz1, SPRZET_KOLOR, null, 1, true, 0, "sprzet-front");
         else box(c.x + s.front.x, c.base + s.front.y, -c.geo.tf, c.x + s.front.x + s.front.w, c.base + s.front.y + s.front.h, 0, c.frontColor, null, 1, true, 0, "front-zmywarki");
         return;
@@ -14084,7 +14113,7 @@ const nazwaWzmocnienia = (r) => (r.orient === "front"
 
 function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat, podswietl = null }) {
   useAudytWidoku();
-  if (geo.bezKorpusu) return <SprzetCiaguWidok cab={cab} geo={geo} mat={matIn} widok="przod" />;
+  if (geo.bezKorpusu) return <SprzetCiagu3D cab={cab} geo={geo} mat={matIn} yaw={yaw} pitch={pitch} blat={blat} />;
   const mat = matRysunku(cab, matIn);
   const t = geo.t;
   const cd = geo.carcassDepth;
@@ -14330,7 +14359,43 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
     if (w.listwa) box(w.x0, 0, zL + w.listwa.odLica, w.x1, w.H, zL + w.listwa.odLica + w.listwa.gl, bf, null, 1, true);
   });
 
-  /* --- rzut --- */
+  return rzut3D(solids, W, H, cd, yaw, pitch);
+}
+
+/* Sprzet w ciagu bez korpusu w 3D (2026-11-05): bryla sprzetu (zmywarka do podlogi za cokolem,
+   lodowka wolnostojaca z drzwiami), front meblowy zmywarki na jej drzwiach, cokol i blat nad zmywarka —
+   te same bryly co w 3D zabudowy (`Assembly3D`), w ukladzie szafki (z = 0 lico, y = 0 spod korpusu). */
+function SprzetCiagu3D({ cab, geo, mat: matIn, yaw, pitch, blat }) {
+  const s = geo.sprzetCiagu;
+  const mat = matRysunku(cab, matIn);
+  const W = geo.W, H = cab.H, cd = geo.carcassDepth, t = geo.t, tf = geo.tf;
+  const ff = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
+  const solids = [];
+  const box = (x0, y0, z0, x1, y1, z1, color, alpha, bold, tag = null) => {
+    const v = VERTS(x0, y0, z0, x1, y1, z1);
+    audytBryly(x0, y0, z0, x1, y1, z1, color, tag, v, alpha);
+    solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold });
+  };
+  const b = s.bryla, z = sprzetZ(s);
+  if (s.lodowka) {
+    box(b.x0, b.y0, z.bz0, b.x1, b.y1, z.bz1, SPRZET_KOLOR, 1, false, "sprzet");
+    box(s.x0, s.y0, z.fz0, s.x1, s.y1, z.fz1, SPRZET_KOLOR, 1, true, "sprzet-front");
+  } else {
+    box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z0 + b.d, SPRZET_KOLOR, 1, false, "sprzet");
+    if (s.stopa) box(s.stopa.x0, s.stopa.y0, s.stopa.z0, s.stopa.x1, s.stopa.y1, s.stopa.d, SPRZET_KOLOR, 1, false, "sprzet-stopa");
+    box(s.front.x, s.front.y, -tf, s.front.x + s.front.w, s.front.y + s.front.h, 0, ff, 1, true, "front-zmywarki");
+    if (blat && blat.roboczy && blat.th > 0)
+      blat.korpus.forEach((q) => box(q.x, H, cd - q.y - q.h, q.x + q.w, H + blat.th, cd - q.y, blat.kolor, 1, true, "blat"));
+    if (cab.plinth && cab.plinth.on && geo.plinthH > 0) {
+      const sb = cab.plinth.setback || 0;
+      box(0, -geo.plinthH, sb, W, 0, sb + t, mat.board.color);
+    }
+  }
+  return rzut3D(solids, W, Math.max(H, s.lodowka ? s.y1 : H), cd, yaw, pitch);
+}
+
+/* Rzut brył widoku 3D szafki (i sprzetu w ciagu) — wspolny dla obu galezi `Scene3D`. */
+const rzut3D = (solids, W, H, cd, yaw, pitch) => {
   const cyw = Math.cos(yaw), syw = Math.sin(yaw);
   const cp = Math.cos(pitch), sp = Math.sin(pitch);
   const cx = W / 2, cyc = H / 2, cz = cd / 2;
@@ -14371,7 +14436,7 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
       ))}
     </svg>
   );
-}
+};
 
 /* ---------- kontrolki ---------- */
 
@@ -15821,24 +15886,52 @@ const runPlinth = (project, run) => {
       if (naStarcie) a -= ext; else e += ext;
     }
   });
-  /* Lodowka wolnostojaca w ciagu stoi na podlodze (2026-11-05) — cokol ciagu konczy sie przy niej,
-     gdy stoi na koncu ciagu; w srodku ciagu zostaje ciagly (uwaga w `worktopMsgs`). */
+  /* Lodowka wolnostojaca w ciagu stoi na podlodze (2026-11-05) — cokol ciagu konczy sie przy niej:
+     na koncu ciagu cokol jest krotszy, w srodku (np. miedzy szafkami a slupkiem) ma przerwe
+     i idzie dwoma odcinkami (`segmenty`, `luki`). */
+  const luki = [];
   {
     let x = 0;
     const poz = list.map(({ it }, k) => { const w = computeGeo(it.cab, it.mat).W; const o = { it, x0: x, x1: x + w }; x += w + (k < list.length - 1 ? run.gap || 0 : 0); return o; });
-    const wolno = (o) => !!(o && o.it.cab.sprzetCiagu && sprzetCiagu(o.it.cab).typ === "lodowka");
+    const wolno = (o) => !!o && lodowkaCiagu(o.it.cab);
     for (let k = poz.length - 1; k >= 0 && wolno(poz[k]); k--) e = Math.min(e, poz[k].x0);
     for (let k = 0; k < poz.length && wolno(poz[k]); k++) a = Math.max(a, poz[k].x1);
     if (e - a < 1) return null;
+    poz.forEach((o) => {
+      if (!wolno(o) || o.x0 < a || o.x1 > e) return;
+      const ost = luki[luki.length - 1];
+      if (ost && o.x0 - ost[1] <= (run.gap || 0)) ost[1] = o.x1; else luki.push([o.x0, o.x1]);
+    });
   }
   dl = e - a;
-  const sp = splitAtJoints(dl, joints.map((j) => j - a).filter((j) => j > 0 && j < dl),
-    Array.isArray(run.plinthCuts) ? run.plinthCuts.map((c) => c - a) : run.plinthCuts, USABLE_W,
-    (run.plinthCutsWlasne || []).map((c) => c - a));
-  // styki i ciecia zostaja w ukladzie ciagu (tak je zapisuje i pokazuje „Podział cokołu”)
-  return { total: dl, x0: a, h, setback, ...sp,
-    cuts: sp.cuts.map((c) => c + a), joints: sp.joints.map((j) => j + a), wlasne: sp.wlasne.map((c) => c + a),
-    mat: list[0].it.mat, grainMatters: list[0].it.cab.grainMatters, name: run.name };
+  const wspolne = { h, setback, mat: list[0].it.mat, grainMatters: list[0].it.cab.grainMatters, name: run.name };
+  if (!luki.length) {
+    const sp = splitAtJoints(dl, joints.map((j) => j - a).filter((j) => j > 0 && j < dl),
+      Array.isArray(run.plinthCuts) ? run.plinthCuts.map((c) => c - a) : run.plinthCuts, USABLE_W,
+      (run.plinthCutsWlasne || []).map((c) => c - a));
+    // styki i ciecia zostaja w ukladzie ciagu (tak je zapisuje i pokazuje „Podział cokołu”)
+    return { total: dl, x0: a, ...wspolne, ...sp,
+      cuts: sp.cuts.map((c) => c + a), joints: sp.joints.map((j) => j + a), wlasne: sp.wlasne.map((c) => c + a),
+      segmenty: [[a, e]], luki: [] };
+  }
+  /* Z przerwa: kazdy odcinek dzieli sie osobno (te same reczne ciecia, w ukladzie ciagu),
+     a wynik sklada sie w jedna liste formatek — `total` to zasieg od pierwszego do ostatniego. */
+  const segmenty = [];
+  let pocz = a;
+  luki.forEach(([l0, l1]) => { if (l0 - pocz >= 1) segmenty.push([pocz, l0]); pocz = l1; });
+  if (e - pocz >= 1) segmenty.push([pocz, e]);
+  const czesci = segmenty.map(([s0, s1]) => {
+    const len = s1 - s0;
+    const sp = splitAtJoints(len, joints.map((j) => j - s0).filter((j) => j > 0 && j < len),
+      Array.isArray(run.plinthCuts) ? run.plinthCuts.map((c) => c - s0) : run.plinthCuts, USABLE_W,
+      (run.plinthCutsWlasne || []).map((c) => c - s0));
+    return { ...sp, cuts: sp.cuts.map((c) => c + s0), joints: sp.joints.map((j) => j + s0), wlasne: sp.wlasne.map((c) => c + s0) };
+  });
+  const lens = czesci.flatMap((c) => c.lens);
+  return { total: dl, x0: a, ...wspolne, segmenty, luki,
+    cuts: czesci.flatMap((c) => c.cuts), joints: czesci.flatMap((c) => c.joints), wlasne: czesci.flatMap((c) => c.wlasne),
+    lens, n: lens.length, auto: czesci.every((c) => c.auto), noFit: czesci.some((c) => c.noFit), max: USABLE_W,
+    tooLong: Math.max(0, ...czesci.map((c) => c.tooLong)) };
 };
 
 /* Blat idzie nad calym ciagiem jedna plaszczyzna. Bierzemy go od lewego wysuniecia
@@ -15912,9 +16005,12 @@ const worktopLevel = (project, run) => {
     return o;
   });
   const szer = new Map();
-  cabs.forEach((c) => szer.set(c.y, (szer.get(c.y) || 0) + (c.x1 - c.x0)));
+  // lodowka wolnostojaca nie wyznacza wysokosci blatu (stoi obok niego)
+  const zBlatem = cabs.filter((c) => !lodowkaCiagu(c.it.cab));
+  (zBlatem.length ? zBlatem : cabs).forEach((c) => szer.set(c.y, (szer.get(c.y) || 0) + (c.x1 - c.x0)));
   const y = [...szer.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
-  return { cabs, y, pod: cabs.filter((c) => c.y === y), poza: cabs.filter((c) => c.y !== y) };
+  const podBlatem = (c) => c.y === y && !lodowkaCiagu(c.it.cab);
+  return { cabs, y, pod: cabs.filter(podBlatem), poza: cabs.filter((c) => !podBlatem(c)) };
 };
 
 /* Blat ciagu liczy sie z calego projektu, a pyta o niego kilkanascie miejsc
@@ -17039,10 +17135,14 @@ const odScianyMsgs = (project, i) => {
 const runCabMsgs = (run, c, inne = []) => {
   const out = [];
   if (!run) return out;
+  /* Lodowka wolnostojaca stoi w ciagu na wlasnych wymiarach (bez cokolu, wyzsza, glebsza) —
+     uwagi o niej daje `geoSprzetuCiagu` i `worktopMsgs`, nie zgodnosc z ciagiem. */
+  if (lodowkaCiagu(c)) return out;
+  const sprzet = !!c.sprzetCiagu;   // zmywarka: bez korpusu — nie wiesza sie, nie ma wienca
   /* Ciag bez blatu roboczego, a szafka bez wienca z para wzmocnien pod blat —
      zwykle zostalo po wylaczeniu blatu (uzytkownik 2026-10-24). */
   const J = c.joints || {};
-  if (!run.worktop && J.topL === "none" && J.topR === "none" && maParePodBlat(c))
+  if (!sprzet && !run.worktop && J.topL === "none" && J.topR === "none" && maParePodBlat(c))
     out.push({ level: "warn", text:
       `Ciąg „${run.name}" nie ma blatu roboczego, a ta szafka jest bez wieńca, z parą wzmocnień pod blat — od góry jest otwarta. `
       + `Jeśli blatu nie będzie, daj wieniec (wzmocnienia pod blat znikną).|wieniec` });
@@ -17050,7 +17150,7 @@ const runCabMsgs = (run, c, inne = []) => {
      powinna wisiec tak samo; wyjatek dopuszczalny, ale z ostrzezeniem i
      wyborem listwa / haczyki (uzytkownik 2026-10-17). */
   const wisiTa = !(c.legs && c.legs.on) && !(c.plinth && c.plinth.on);
-  if (wisiTa && !maZawieszki(c) && inne.some(naListwie))
+  if (!sprzet && wisiTa && !maZawieszki(c) && inne.some(naListwie))
     out.push({ level: "warn", text:
       `Ta szafka jest bez zawieszek, a inne szafki ciągu „${run.name}" wiszą na zawieszkach na listwie — to może być pomyłka. W środku ciągu listwa przechodzi za nią, na końcu ciągu kończy się przed nią. Powieś ją tak samo albo na haczykach.`
       + `|zawieszki:listwa|zawieszki:haczyki` });
@@ -17092,7 +17192,7 @@ const runCabMsgs = (run, c, inne = []) => {
      wiesza, wiec sposob wieszania jest jej obojetny. */
   const wisi = !(c.legs && c.legs.on) && !(c.plinth && c.plinth.on) && !ciagStoi(run);
   // szafka bez zawieszek nie wiesza sie wcale — o niej mowi uwaga wyzej
-  if (wisi && maZawieszki(c) && (run.hangerMode || "listwa") !== (c.hangerMode || "listwa"))
+  if (!sprzet && wisi && maZawieszki(c) && (run.hangerMode || "listwa") !== (c.hangerMode || "listwa"))
     out.push({ level: "warn", text:
       `Ta szafka wiesza się ${c.hangerMode === "haczyki" ? "na haczykach" : "na listwie"}, `
       + `a ciąg ${run.hangerMode === "haczyki" ? "na haczykach" : "na listwie"} — w ciągu listwa trzyma wszystkie szafki w jednej linii.`
@@ -17123,6 +17223,14 @@ const splitMsgs = (what, whatGen, s, fixAction) => {
     out.push({ level: "error", text:
       `Odcinek ${whatGen} ${fmt(s.tooLong)} mm nie mieści się w ${jednostka} (${fmt(s.max)} mm) `
       + `— dołóż podział na styku korpusów.|${fixAction}` });
+  /* Cokol z przerwa pod lodowka wolnostojaca (`runPlinth`, `luki`) — odcinki po obu jej stronach
+     to nie ciecie; mowimy tylko o cieciach na stykach, gdy jakis odcinek je ma. */
+  else if ((s.luki || []).length) {
+    if (s.cuts.length)
+      out.push({ level: "warn", text:
+        `${what} idzie z ${s.n} części po ${listPl(s.lens.map(fmt))} mm: przerwa pod lodówką wolnostojącą `
+        + `i cięcia na styku korpusów (${listPl(s.cuts.map(fmt))} mm od lewej), oklejone także na łączeniu.` });
+  }
   else if (s.n > 1)
     out.push({ level: "warn", text:
       (s.auto
@@ -17287,6 +17395,17 @@ const worktopMsgs = (project, run) => {
   (lvl ? lvl.poza : []).forEach((c) => {
     const nazwa = (c.it.cab.name || "").trim() || "szafka";
     const roznica = Math.abs(c.y - lvl.y);
+    /* Lodowka wolnostojaca: blat konczy sie przy niej, cokol ciagu tez (w srodku ciagu ma przerwe,
+       `runPlinth`) — mowimy, jak to wyjdzie, bez „wyrownaj wysokosc”. */
+    if (lodowkaCiagu(c.it.cab)) {
+      const zBlatem = (bok) => lvl.pod.some((q) => (bok < 0 ? q.x1 <= c.x0 : q.x0 >= c.x1));
+      const srodek = zBlatem(-1) && zBlatem(1);
+      out.push({ level: "info", text: srodek
+        ? `Lodówka „${nazwa}" stoi w środku ciągu — blat dzieli się przy niej na dwa kawałki, `
+          + `a cokół ciągu ma pod nią przerwę (lodówka stoi na podłodze).`
+        : `Lodówka „${nazwa}" stoi na końcu ciągu — blat i cokół kończą się przy jej boku.` });
+      return;
+    }
     if (roznica >= SLUPEK_MIN)
       out.push({ level: "info", text:
         `Szafka „${nazwa}" jest o ${fmt(roznica)} mm ${c.y > lvl.y ? "wyższa" : "niższa"} od reszty ciągu `
@@ -17426,6 +17545,7 @@ const worktopMsgs = (project, run) => {
   });
   (lvl ? lvl.pod : []).forEach((c) => {
     const nazwa = (c.it.cab.name || "").trim() || "szafka";
+    if (c.geo.bezKorpusu) return; // zmywarka w ciagu nie ma korpusu do usztywnienia
     if (c.geo.hasTop) {
       out.push({ level: "warn", text:
         `Szafka „${nazwa}" stoi pod blatem roboczym, a ma wieniec — pod blatem robi się parę wzmocnień: `
@@ -19560,6 +19680,7 @@ const scalenieBlad = (project, idxs) => {
   if (poz.some((q, k) => k > 0 && q !== poz[k - 1] + 1)) return "szafki muszą stać obok siebie";
   const cabs = idxs.map((i) => project.items[i].cab);
   if (cabs.some((c) => c.corner && c.corner.on)) return "szafka w L nie scala się z innymi";
+  if (cabs.some((c) => c.sprzetCiagu)) return "zmywarka i lodówka w ciągu nie mają korpusu — nie scalają się z szafkami";
   if (cabs.some((c) => (c.cutout && c.cutout.on) || (c.cutoutR && c.cutoutR.on) || (c.obstacles || []).some((o) => o && o.on !== false)))
     return "szafka z wycięciem albo przeszkodą — zdejmij je przed scaleniem";
   const hs = [...new Set(cabs.map((c) => Math.round(c.H)))].sort((a, b) => a - b);
@@ -19867,10 +19988,21 @@ export default function App() {
       ...(aktywna ? { realColors: !!aktywna.cab.realColors } : {}),
       ...(wzorPlyt ? { texture: !!wzorPlyt.cab.texture, textureDir: wzorPlyt.cab.textureDir || "v" } : {}),
     };
-    const fresh = { cab: { ...base, name: `Szafka ${next}`, ...wymiaryCiagu, ...wyglad,
-      ...(run ? { hangerMode: run.hangerMode || "listwa" } : {}),
-      ...(podBlat ? bezWienca(base, matNowej.front.thickness) : {}),
-      ...(stoi ? { legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } } : {}) },
+    /* Sprzet w ciagu dostaje nazwe sprzetu („Zmywarka”, „Lodówka 2”) — „Szafka N” myli, bo to nie
+       szafka; lodowka wolnostojaca stoi na podlodze, bez nozek ciagu. */
+    const spC = base.sprzetCiagu ? sprzetCiagu(base) : null;
+    const nazwaSp = spC ? spC.nazwa.charAt(0).toUpperCase() + spC.nazwa.slice(1) : null;
+    const nazwa = !nazwaSp ? `Szafka ${next}` : (() => {
+      const zajete = new Set(p.items.map((it) => (it.cab.name || "").trim()));
+      if (!zajete.has(nazwaSp)) return nazwaSp;
+      let k = 2;
+      while (zajete.has(`${nazwaSp} ${k}`)) k++;
+      return `${nazwaSp} ${k}`;
+    })();
+    const fresh = { cab: { ...base, name: nazwa, ...wymiaryCiagu, ...wyglad,
+      ...(run && !spC ? { hangerMode: run.hangerMode || "listwa" } : {}),
+      ...(podBlat && !spC ? bezWienca(base, matNowej.front.thickness) : {}),
+      ...(stoi && !(spC && spC.typ === "lodowka") ? { legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } } : {}) },
       mat: matNowej, runId, roomId };
     /* Nowa szafka ciagu ma stanac na jego koncu, a nie na koncu calego projektu —
        inaczej kolejnosc przy scianie zalezalaby od tego, w jakiej kolejnosci
@@ -20057,7 +20189,7 @@ export default function App() {
     runs: (p.runs || []).map((r) => (r.id === id ? { ...r, ...patch } : r)),
     // slupek (wyjatek w ciagu) zostaje przy swojej wysokosci
     items: p.items.map((it) => {
-      if ((it.runId || null) !== id) return it;
+      if ((it.runId || null) !== id || lodowkaCiagu(it.cab)) return it;
       const { H, ...bezH } = patch;
       return { ...it, cab: { ...it.cab, ...(it.cab.slupek && H != null ? bezH : patch) } };
     }),
@@ -23431,6 +23563,9 @@ export default function App() {
                           {runPl.n === 1
                             ? <>{cornerNode && cornerNode.arm ? "jedna" : "Jedna"} formatka <span className="font-mono text-stone-700">{fmt(runPl.total)} × {fmt(runPl.h)} mm</span>, oklejona od dołu i na obu końcach.</>
                             : <>{runPl.n} części po <span className="font-mono text-stone-700">{listPl(runPl.lens.map(fmt))} mm</span>, cięte na styku korpusów i oklejone także na łączeniu.</>}
+                          {(runPl.luki || []).length > 0 && (
+                            <> Przerwa pod lodówkę wolnostojącą: {listPl(runPl.luki.map(([l0, l1]) => `${fmt(l0)}–${fmt(l1)} mm`))} od lewego końca ciągu.</>
+                          )}
                           {cornerNode && cornerNode.arm && cornerNode.arm.cab.plinthH > 0 && (
                             <> W narożniku dochodzi cokół ramienia, wzdłuż ściany
                               {" "}„{cornerNode.pair ? cornerNode.pair.ustepuje.run.name : "obok"}" —{" "}
@@ -23454,7 +23589,9 @@ export default function App() {
                       cokół, a nóżek nie ma”) — wisiacy ciag nie stoi, wiec nie ma ich gdzie dac */}
                   <CardSub title="Nóżki">
                   {!ciagWisi && (() => {
-                    const idxs = project.items.map((_, i) => i).filter((i) => project.items[i].runId === runInfo.run.id);
+                    // lodowka wolnostojaca stoi na podlodze — nozki ciagu jej nie dotycza
+                    const idxs = project.items.map((_, i) => i).filter((i) => project.items[i].runId === runInfo.run.id
+                      && !lodowkaCiagu(project.items[i].cab));
                     const zN = idxs.filter((i) => (project.items[i].cab.legs || {}).on);
                     const wszystkie = zN.length === idxs.length;
                     const wz = (cab.legs || {}).on ? cab.legs : zN.length ? project.items[zN[0]].cab.legs : { height: 100 };
@@ -25082,7 +25219,7 @@ export default function App() {
             )}
             {zmianaNozek === project.active && runInfo && (() => {
               const inne = project.items.map((_, i) => i).filter((i) => i !== project.active
-                && project.items[i].runId === runInfo.run.id && !nozkiJak(project.items[i].cab, cab));
+                && project.items[i].runId === runInfo.run.id && !lodowkaCiagu(project.items[i].cab) && !nozkiJak(project.items[i].cab, cab));
               if (!inne.length) return null;
               const l = cab.legs || {};
               return (

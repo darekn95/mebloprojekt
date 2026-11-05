@@ -15,7 +15,9 @@
    - N140–N149: kolory blatow w rozkroju, scalanie przy roznym montazu frontow, wlasne blaty
      na roznych wysokosciach, rura a wzmocnienie, wspornik a NL szuflady, tip-on, blaty
      gornych ciagow w rogu, przelot bez przegrody, listwa przy roznych wysokosciach,
-     zawieszka w wycieciu. */
+     zawieszka w wycieciu;
+   - sprzety w ciagu bez korpusu (2026-11-05): zmywarka (front meblowy, cokol ciagu idzie dalej)
+     i lodowka wolnostojaca (stoi na podlodze: cokol z przerwa, blat konczy sie przy niej). */
 import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
@@ -31,7 +33,8 @@ src = src.replace(/^import React[^\n]*\n/, 'const React = { createElement: () =>
 src = src.replace(/export default function App/, 'function App');
 const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice', 'buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
-  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany'];
+  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
+  'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1058,4 +1061,65 @@ console.log('\n== Wycięcia w blacie: płyta i zlew nad szafką (użytkownik 202
   ok('blat w dwóch kawałkach (4100 + 1200): płyta na łączeniu — błąd z przyciskami przesunięcia w obie strony',
     rt4.lens.length === 2 && m4.some((t) => /^error .*wycięcie wypada na łączeniu blatu \(4100 mm od początku blatu\).*\|wycblatu:3:0:przesun:-\d+\|wycblatu:3:0:przesun:\d+$/.test(t)), `${JSON.stringify(rt4.lens)} | ${m4.join(' // ')}`);
   ok('… otwory rozdzielone na oba kawałki blatu', f4.filter((p) => (p.otwory || []).length).length === 2, JSON.stringify(f4.map((p) => [p.name, p.a, p.otwory])));
+}
+
+console.log('\n== Sprzęt w ciągu bez korpusu: zmywarka i lodówka wolnostojąca (użytkownik 2026-11-05) ==');
+{
+  const PLs = { on: true, height: 100, mode: 'under', setback: 0 };
+  const RUNs = { id: 'c1', name: 'Ściana A', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLs, worktop: true, corner: null, hangerMode: 'listwa' };
+  const szS = (name, W) => { const c = G.migrateCab({ name, W, H: 720, D: 560, plinth: PLs, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null] }] }] }, M0);
+    return { cab: { ...c, ...G.bezWienca(c, 18) }, runId: 'c1', offset: 0 }; };
+  const zmS = (o = {}) => ({ cab: { ...G.makeFromTemplate('zmywarka'), plinth: PLs, ...o }, runId: 'c1', offset: 0 });
+  const loS = (o = {}) => ({ cab: { ...G.makeFromTemplate('lodowka-wolno'), ...o }, runId: 'c1', offset: 0 });
+  const projS = (items) => G.loadProject({ name: 'P', active: 0, prices: {}, runs: [RUNs], items });
+  const tx = (g) => g.msgs.map((x) => `${x.level} ${x.text}`).join(' // ');
+  const gz = geo(zmS().cab);
+  ok('zmywarka: bez korpusu — tylko cokół i „Front zmywarki 714 × 596” z płyty frontów (fronty z płyty korpusu → board), bez okuć i wierceń',
+    gz.bezKorpusu && gz.panels.map((q) => `${q.name} ${q.a}×${q.b} ${q.matKey}`).join(' / ') === 'Cokół 600×100 board / Front zmywarki 714×596 board'
+    && !gz.hardware.length && !gz.drillPlan.length && !gz.doors.length && gz.sprzetCiagu.front.w === 596,
+    gz.panels.map((q) => `${q.name} ${q.a}×${q.b} ${q.matKey}`).join(' / '));
+  const gz2 = geo(zmS({ W: 590 }).cab);
+  ok('zmywarka w miejscu 590: błąd „potrzebuje 600–605 mm” z przyciskiem „Miejsce 600 mm”', gz2.msgs.some((x) => x.level === 'error' && /Miejsce na zmywarkę ma 590 mm — zmywarka 60 cm potrzebuje 600–605 mm\.\|sprzetcw:600$/.test(x.text)), tx(gz2));
+  const gz3 = geo(zmS({ H: 800 }).cab);
+  ok('zmywarka pod blatem 900 mm od podłogi: błąd „potrzebuje 815–875 mm”', gz3.msgs.some((x) => x.level === 'error' && /Od podłogi do spodu blatu jest 900 mm — zmywarka do zabudowy potrzebuje 815–875 mm/.test(x.text)), tx(gz3));
+  const gl = geo(loS().cab);
+  ok('lodówka wolnostojąca 700: bez formatek, bryła 600 × 1850 na podłodze, wystaje 140 mm przed korpusy (120 przed fronty)',
+    gl.bezKorpusu && !gl.panels.length && gl.sprzetCiagu.x1 - gl.sprzetCiagu.x0 === 600 && gl.sprzetCiagu.y1 === 1850
+    && gl.msgs.some((x) => x.level === 'info' && /wystaje 140 mm przed korpusy szafek \(120 mm przed ich fronty\)/.test(x.text)), tx(gl));
+  const gl2 = geo(loS({ W: 640, H: 1800 }).cab);
+  ok('lodówka w miejscu 640 × 1800: luz 20 < 50 z boku i za niska pozycja — ostrzeżenia z „Miejsce 700 mm” i „Wysokość 1850 mm”',
+    gl2.msgs.some((x) => x.level === 'warn' && /zostaje 20 mm z boku — na wentylację potrzeba 50 mm.*\|sprzetcw:700$/.test(x.text))
+    && gl2.msgs.some((x) => x.level === 'warn' && /Pozycja ma 1800 mm wysokości, a lodówka 1850 mm\.\|sprzetch:1850$/.test(x.text)), tx(gl2));
+  const gl3 = geo(loS({ W: 590 }).cab);
+  ok('lodówka w miejscu 590: błąd „lodówka ma 600 mm”', gl3.msgs.some((x) => x.level === 'error' && /Miejsce na lodówkę ma 590 mm — lodówka ma 600 mm/.test(x.text)), tx(gl3));
+
+  // ciag: A 600 | zmywarka 600 | lodowka 700 | B 600
+  const P1 = projS([szS('A', 600), zmS(), loS(), szS('B', 600)]);
+  const r1 = P1.runs[0];
+  const rp1 = G.runPlinth(P1, r1);
+  ok('lodówka w środku ciągu: cokół z przerwą pod nią — odcinki 0–1200 i 1900–2500, formatki 1200 i 600',
+    JSON.stringify(rp1.segmenty) === '[[0,1200],[1900,2500]]' && JSON.stringify(rp1.luki) === '[[1200,1900]]'
+    && JSON.stringify(G.runPlinthPanels(rp1).map((q) => [q.a, q.qty])) === '[[1200,1],[600,1]]', JSON.stringify(rp1));
+  const rt1 = G.runTop(P1, r1);
+  ok('… blat nad szafkami i zmywarką, bez lodówki (pokryte 0, 1, 3) — dwa kawałki', JSON.stringify(rt1.pokryte) === '[0,1,3]' && G.runTopPanels(rt1).length === 2,
+    `${JSON.stringify(rt1.pokryte)} ${G.runTopPanels(rt1).map((q) => q.a).join(',')}`);
+  const w1 = G.worktopMsgs(P1, r1).map((x) => `${x.level} ${x.text}`);
+  ok('… uwaga: „Lodówka stoi w środku ciągu — blat dzieli się …, cokół ma pod nią przerwę”; zmywarka bez „nie ma ani wieńca”',
+    w1.some((t) => /^info Lodówka „Lodówka" stoi w środku ciągu — blat dzieli się przy niej na dwa kawałki, a cokół ciągu ma pod nią przerwę/.test(t))
+    && !w1.some((t) => /Zmywarka.*nie ma ani wieńca|Lodówka.*wyższa od reszty ciągu/.test(t)), w1.join(' // '));
+  const rw1 = G.runWideMsgs(r1, 2500, rp1, rt1, 0).map((x) => x.text);
+  ok('… bez uwagi „cokół nie zmieści się w jednym arkuszu” (2 części to przerwa, nie cięcie)', !rw1.some((t) => /Cokół ciągu/.test(t)), rw1.join(' // '));
+  const inne = (i) => G.runItems(P1, 'c1').filter((x) => x.i !== i).map((x) => x.it.cab);
+  const c2 = G.runCabMsgs(r1, P1.items[2].cab, inne(2)), c1 = G.runCabMsgs(r1, P1.items[1].cab, inne(1));
+  ok('… lodówka bez uwag zgodności z ciągiem (wysokość 1850, bez cokołu); zmywarka bez uwag o wieszaniu', !c2.length && !c1.some((x) => /zawiesz|wiesza/.test(x.text)),
+    [...c2, ...c1].map((x) => x.text).join(' // '));
+  ok('… „Scal szafki”: zmywarka się nie scala', /zmywarka i lodówka w ciągu nie mają korpusu/.test(G.scalenieBlad(P1, [0, 1]) || ''), G.scalenieBlad(P1, [0, 1]));
+  const P2 = projS([szS('A', 600), zmS(), szS('B', 600), loS()]);
+  const rp2 = G.runPlinth(P2, P2.runs[0]);
+  ok('lodówka na końcu ciągu: cokół 1800 w jednym odcinku, uwaga „stoi na końcu ciągu — blat i cokół kończą się przy jej boku”',
+    rp2.total === 1800 && rp2.segmenty.length === 1 && !rp2.luki.length
+    && G.worktopMsgs(P2, P2.runs[0]).some((x) => x.level === 'info' && /Lodówka „Lodówka" stoi na końcu ciągu — blat i cokół kończą się przy jej boku/.test(x.text)), JSON.stringify(rp2));
+  const P3 = projS([szS('A', 600), loS({ W: 900 })]);
+  const rt3 = G.runTop(P3, P3.runs[0]);
+  ok('ciąg: szafka 600 i szersza lodówka 900 — blat nad szafką, nie nad lodówką', JSON.stringify(rt3.pokryte) === '[0]', JSON.stringify(rt3.pokryte));
 }
