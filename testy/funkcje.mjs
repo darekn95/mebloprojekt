@@ -1049,7 +1049,8 @@ console.log('\n== Wycięcia w blacie: płyta i zlew nad szafką (użytkownik 202
   ok('zlew 780 nad szafką 800: informacja o komorze i ociekaczu (wnętrze 764 mm)', m1.some((t) => /^info .*wycięcie zlewu \(780 mm\) wychodzi nad bok szafki — komora zlewu musi zmieścić się we wnętrzu szafki \(764 mm\)/.test(t)), m1.join(' // '));
   const P2 = projW([szW('Płyta', 600, [{ typ: 'plyta' }]), szW('B', 600)]);
   const m2 = G.worktopMsgs(P2, P2.runs[0]).map((x) => `${x.level} ${x.text}`);
-  ok('płyta 50 od przodu nad parą wzmocnień: ostrzeżenie o leżącym wzmocnieniu przednim (wycięcie 20 mm za licem)', m2.some((t) => /^warn .*wycięcie zaczyna się 20 mm za licem korpusu, nad leżącym wzmocnieniem przednim \(100 mm w głąb\) — korpus płyty w nie trafi/.test(t)), m2.join(' // '));
+  ok('płyta 50 od przodu nad parą wzmocnień: błąd — korpus płyty (60 od wierzchu, 22 pod blat) wchodzi w leżące wzmocnienie; „Wzmocnienie stojące” i „Wycięcie 60 mm od przodu” (na wycięcie we wzmocnieniu zostałby pasek 20 mm)',
+    m2.some((t) => /^error .*korpus płyty sięga 60 mm od wierzchu blatu \(22 mm pod blat\), a wycięcie zaczyna się 20 mm za licem korpusu — nad leżącym wzmocnieniem przednim \(100 mm w głąb\), korpus płyty w nie wchodzi\. Postaw je na sztorc — na wycięcie we wzmocnieniu zostałby pasek 20 mm.*\|wzmblat:0:0:0:0:stoj\|wycblatu:0:0:odPrzodu:60$/.test(t)), m2.join(' // '));
   ok('płyta 20 mm od początku blatu: ostrzeżenie „za blisko końca blatu” z przyciskiem przesunięcia o 30', m2.some((t) => /^warn .*za blisko końca blatu.*\|wycblatu:0:0:przesun:30$/.test(t)), m2.join(' // '));
   const P3 = projW([szW('Płyta', 450, [{ typ: 'plyta', przesun: 100 }]), szW('B', 600)]);
   const m3 = G.worktopMsgs(P3, P3.runs[0]).map((x) => `${x.level} ${x.text}`);
@@ -1122,4 +1123,52 @@ console.log('\n== Sprzęt w ciągu bez korpusu: zmywarka i lodówka wolnostojąc
   const P3 = projS([szS('A', 600), loS({ W: 900 })]);
   const rt3 = G.runTop(P3, P3.runs[0]);
   ok('ciąg: szafka 600 i szersza lodówka 900 — blat nad szafką, nie nad lodówką', JSON.stringify(rt3.pokryte) === '[0]', JSON.stringify(rt3.pokryte));
+}
+
+console.log('\n== Pod wycięciem w blacie: nachodzenie, wzmocnienie stojące / z wycięciem, łączniki (użytkownik 2026-11-05) ==');
+{
+  const PLk = { on: true, height: 100, mode: 'under', setback: 0 };
+  const RUNk = { id: 'c1', name: 'Ściana A', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLk, worktop: true, corner: null };
+  const szK = (name, W, wyc, cols = null, zmien = null) => {
+    const c = G.migrateCab({ name, W, H: 720, D: 560, plinth: PLk,
+      levels: [{ h: null, cols: cols || [{ kind: 'doors', doors: W > 500 ? 2 : 1, w: null, shelfTargets: [null] }] }] }, M0);
+    const cab = { ...c, ...G.bezWienca(c, 18), ...(wyc ? { blatWyciecia: wyc } : {}) };
+    if (zmien) zmien(cab);
+    return { cab, runId: 'c1', offset: 0 };
+  };
+  const projK = (items) => G.loadProject({ name: 'P', active: 0, prices: {}, runs: [RUNk], items });
+  const msgs = (P) => G.worktopMsgs(P, P.runs[0]).map((x) => `${x.level} ${x.text}`);
+  const P1 = projK([szK('Płyta', 600, [{ typ: 'plyta', odPrzodu: 80 }]), szK('B', 600)]);
+  const m1 = msgs(P1);
+  ok('płyta 80 od przodu (zostaje pasek 50): błąd z „Wzmocnienie stojące” i „Wycięcie we wzmocnieniu”',
+    m1.some((t) => /^error .*nad leżącym wzmocnieniem przednim \(100 mm w głąb\), korpus płyty w nie wchodzi\. Postaw je na sztorc albo wytnij w nim wycięcie \(zostaje pasek 50 mm\)\.\|wzmblat:0:0:0:0:stoj\|wzmblat:0:0:0:0:wyc$/.test(t)), m1.join(' // '));
+  const wyc = (cab) => { cab.levels[0].cols[0].rails[0].podWyciecie = true; };
+  const P2 = projK([szK('Płyta', 600, [{ typ: 'plyta', odPrzodu: 80 }], null, wyc), szK('B', 600)]);
+  const g2 = G.computeGeo(G.cabDoGeo(P2, P2.items[0]), P2.items[0].mat);
+  const r2 = g2.levels[0].cols[0].rails[0];
+  const f2 = g2.panels.find((p) => /^Wzmocnienie poziome/.test(p.name));
+  ok('„Wycięcie we wzmocnieniu”: otwór 560 × 50 od tyłu, formatka „Wzmocnienie poziome — wycięcie 560 × 50 z tyłu, 2 mm od lewej” z otworem',
+    JSON.stringify(r2.otwory.map((o) => [o.x0, o.x1, o.z0, o.z1])) === '[[20,580,50,100]]'
+    && f2 && f2.name === 'Wzmocnienie poziome — wycięcie 560 × 50 z tyłu, 2 mm od lewej' && JSON.stringify(f2.otwory) === '[{"u":2,"v":0,"du":560,"dv":50}]',
+    `${JSON.stringify(r2.otwory)} | ${f2 && f2.name} ${JSON.stringify(f2 && f2.otwory)}`);
+  ok('… łączniki: wycięcie 2 mm od końców — po jednym na stronę, 25 mm od lica (przed wycięciem); informacja w uwagach',
+    JSON.stringify(r2.laczniki.map((l) => [l.strona, l.z])) === '[["lewy",[25]],["prawy",[25]]]'
+    && g2.msgs.some((x) => x.level === 'info' && /wkręty przez boki przestawione poza wycięcie — lewy koniec 25 mm od lica, prawy koniec 25 mm od lica \(miejsca tylko na jeden — po jednym na stronę\)/.test(x.text)),
+    `${JSON.stringify(r2.laczniki)} | ${g2.msgs.map((x) => x.text).join(' // ')}`);
+  const wk2 = (g2.hardware.find((h) => h.name === 'Wkręt 4 × 30') || {}).qty;
+  ok('… wkręty 4 × 30: 2 + 4 = 6 (zamiast 8)', wk2 === 6, String(wk2));
+  ok('… uwagi ciągu: płyta już nie wchodzi we wzmocnienie', !msgs(P2).some((t) => /leżącym wzmocnieniem/.test(t)), msgs(P2).join(' // '));
+  const P3 = projK([szK('Płyta', 600, [{ typ: 'plyta' }], null, wyc), szK('B', 600)]);
+  const g3 = G.computeGeo(G.cabDoGeo(P3, P3.items[0]), P3.items[0].mat);
+  ok('wycięcie we wzmocnieniu przy płycie 50 od przodu: ostrzeżenie „zostaje pasek 20 mm” z „Wzmocnienie stojące”',
+    g3.msgs.some((x) => x.level === 'warn' && /z wycięciem pod płytę — przy wycięciu zostaje pasek 20 mm, za wąski.*\|wzmstoj:0:0:0$/.test(x.text)), g3.msgs.map((x) => x.text).join(' // '));
+  const P4 = projK([szK('A', 600), szK('Zlew', 800, [{ typ: 'zlew' }], [{ kind: 'drawers', w: null, drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }])]);
+  const m4 = msgs(P4);
+  ok('zlew (200 od wierzchu) nad szafką z szufladami: błąd „wchodzi w szufladę 3” (górna)', m4.some((t) => /^error .*zlew nad szafką „Zlew”: komora zlewu sięga 200 mm od wierzchu blatu \(162 mm pod blat\) i wchodzi w szufladę \d.*pod zlew daj drzwi/.test(t)), m4.join(' // '));
+  const P5 = projK([szK('A', 600), szK('Zlew', 800, [{ typ: 'zlew', podBlatem: 150 }], [{ kind: 'doors', doors: 2, w: null, shelfTargets: [620, null] }])]);
+  const m5 = msgs(P5);
+  const g5 = G.computeGeo(G.cabDoGeo(P5, P5.items[1]), P5.items[1].mat);
+  ok('zlew 150 od wierzchu nad półką 64 mm pod blatem: błąd „wchodzi w półkę … obniż ją o 48 mm”', m5.some((t) => /^error .*komora zlewu sięga 150 mm od wierzchu blatu \(112 mm pod blat\) i wchodzi w półkę \(64 mm pod blatem\) — obniż ją o 48 mm/.test(t)), JSON.stringify(g5.levels[0].cols[0].shelves) + ' ' + m5.join(' // '));
+  const P6 = projK([szK('A', 600), szK('Zlew', 800, [{ typ: 'zlew', podBlatem: 30 }])]);
+  ok('pod blat 30 przy blacie 38: sprzęt nie sięga pod blat — bez uwag o nachodzeniu', !msgs(P6).some((t) => /wchodzi w/.test(t)), msgs(P6).join(' // '));
 }

@@ -3568,6 +3568,36 @@ function computeGeoLiczy(cab, mat, ctx) {
         return { orient: "front", przyTyle: !!r.fromBack,
           x0: rx0, x1: rx1, y0: ry1 - rh, y1: ry1, z0, zLen: t, a: rw, b: rh };
       });
+      /* Numer wzmocnienia w kolumnie (przyciski z uwag ciagu) i wyciecie pod plyte / zlew w lezacym
+         wzmocnieniu z `podWyciecie` — w ukladzie szafki (x, z od lica), `laczniki` po obu koncach. */
+      c.rails.forEach((g2, k) => {
+        if (!g2) return;
+        g2.ri = (rawCol.rails || []).indexOf(rawRails[k]);
+        if (rawRails[k].paraPodBlat) g2.paraPodBlat = true;
+        if (!(rawRails[k].podWyciecie && g2.orient === "shelf")) return;
+        const otw = wycieciaWSzafce(cab, W, tf).map((q) => ({ typ: q.typ, nazwa: q.nazwa,
+          x0: Math.max(g2.x0, q.x0), x1: Math.min(g2.x1, q.x1), z0: Math.max(g2.z0, q.z0), z1: Math.min(g2.z0 + g2.zLen, q.z1) }))
+          .filter((o) => o.x1 - o.x0 > 0.5 && o.z1 - o.z0 > 0.5);
+        g2.podWyciecie = true;
+        g2.otwory = otw;
+        g2.laczniki = lacznikiWzmocnienia(g2, otw);
+        const kto = `${where}: wzmocnienie ${g2.ri + 1} (poziome) z wycięciem`;
+        const stoj = `|wzmstoj:${lv.i}:${j}:${g2.ri}`;
+        otw.forEach((o) => {
+          const przod = Math.round(o.z0 - g2.z0), tyl = Math.round(g2.z0 + g2.zLen - o.z1);
+          if (przod < 1 && tyl < 1)
+            add("error", `${kto} pod ${o.nazwa} — wycięcie przecina je na całej głębokości (${fmt(Math.round(g2.zLen))} mm), wzmocnienie rozpada się na dwa kawałki. Daj wzmocnienie stojące.${stoj}`);
+          else if (Math.max(przod, tyl) < WZM_PASEK_MIN)
+            add("warn", `${kto} pod ${o.nazwa} — przy wycięciu zostaje pasek ${fmt(Math.max(przod, tyl))} mm, za wąski, żeby trzymał boki i blat (co najmniej ${WZM_PASEK_MIN} mm). Daj wzmocnienie stojące albo przesuń wycięcie dalej od przodu blatu.${stoj}`);
+        });
+        g2.laczniki.filter((l) => !l.z.length).forEach((l) =>
+          add("error", `${kto}: przy ${l.strona === "lewy" ? "lewym" : "prawym"} boku nie ma gdzie go przykręcić — wycięcie zabiera całe czoło wzmocnienia. Daj wzmocnienie stojące.${stoj}`));
+        const przest = g2.laczniki.filter((l) => l.przestawione && l.z.length);
+        if (przest.length)
+          add("info", `${kto}: wkręty przez boki przestawione poza wycięcie — `
+            + przest.map((l) => `${l.strona} koniec ${l.z.map(fmt).join(" i ")} mm od lica`).join(", ")
+            + (przest.some((l) => l.z.length === 1) ? " (miejsca tylko na jeden — po jednym na stronę)." : "."));
+      });
       /* Recznie wpisane wzmocnienie wychodzace poza korpus (audyt GPT N72): poziome
          200 mm 500 mm od lica w korpusie 560 konczylo sie 140 mm za tylem, czolowe
          800 mm w szafce 720 przechodzilo przez dno — bez uwagi, a formatka szla
@@ -5774,9 +5804,16 @@ function computeGeoLiczy(cab, mat, ctx) {
     /* Kazde wzmocnienie ma jedna dluga krawedz widoczna po otwarciu szafki —
        plaskie i pionowe przednia (komentarz uzytkownika 2026-10-17: „przecież
        jest widoczny po otwarciu i nie styka się z niczym”). */
-    P({ name, qty: 1, a: Math.round(r.a), b: Math.round(r.b), matKey: "board",
+    /* Wyciecie pod plyte / zlew (`r.otwory`, uklad szafki: z od lica) — w formatce od tylnej krawedzi,
+       laczniki przy koncach w uwadze formatki (przestawione poza wyciecie). */
+    const otw = (r.otwory || []).map((o) => ({ x: Math.round(o.x0 - r.x0), z: Math.round(r.z0 + r.zLen - o.z1),
+      a: Math.round(o.x1 - o.x0), b: Math.round(o.z1 - o.z0), szer: Math.round(r.a), gl: Math.round(r.b) }));
+    const lacz = r.laczniki && r.laczniki.some((l) => l.przestawione)
+      ? `; wkręty przez boki: ${r.laczniki.map((l) => `${l.strona} koniec ${l.z.length ? `${l.z.map(fmt).join(" i ")} mm od przodu` : "brak"}`).join(", ")} (poza wycięciem)` : "";
+    P({ name: nazwaZOtworami(name, otw), qty: 1, a: Math.round(r.a), b: Math.round(r.b), matKey: "board",
         edges: { a1: true, a2: false, b1: false, b2: false },
-        note: r.orient === "front" ? undefined : "krawędź przednia — widoczna po otwarciu" });
+        ...(otw.length ? { otwory: otwFormatki(otw) } : {}),
+        note: r.orient === "front" ? undefined : `krawędź przednia — widoczna po otwarciu${lacz}` });
   })));
 
   const backOverride = levels.some((lv) =>
@@ -7563,9 +7600,13 @@ function computeGeoLiczy(cab, mat, ctx) {
   /* zastosowania z iloscia — w zbiorczej liscie projektu kazde osobno (audyt GPT N163: przy
      samych zawieszkach opis mowil o wzmocnieniach i katowniku) */
   const wkretyCzesci = [];
-  let ileWzm = 0;
-  levels.forEach((lv) => lv.cols.forEach((c) => { ileWzm += (c.rails || []).length; }));
-  if (ileWzm) { wkretyPlyt += ileWzm * 4; wkretyOpis.push(`wzmocnienia ${ileWzm}×4`); wkretyCzesci.push({ use: "wzmocnienia skręcane na licu, 4 na wzmocnienie", qty: ileWzm * 4 }); }
+  let ileWzm = 0, wkretyWzm = 0;
+  // wzmocnienie z wycieciem: tyle wkretow, ile lacznikow zmiescilo sie przy koncach (`laczniki`)
+  levels.forEach((lv) => lv.cols.forEach((c) => (c.rails || []).forEach((r) => {
+    ileWzm += 1;
+    wkretyWzm += r.laczniki ? r.laczniki.reduce((a2, l) => a2 + l.z.length, 0) : 4;
+  })));
+  if (ileWzm) { wkretyPlyt += wkretyWzm; wkretyOpis.push(wkretyWzm === ileWzm * 4 ? `wzmocnienia ${ileWzm}×4` : `wzmocnienia ${wkretyWzm}`); wkretyCzesci.push({ use: wkretyWzm === ileWzm * 4 ? "wzmocnienia skręcane na licu, 4 na wzmocnienie" : "wzmocnienia skręcane na licu, 4 na wzmocnienie (przy wycięciu mniej)", qty: wkretyWzm }); }
   if (postSide) {
     const naPlyte = Math.max(2, Math.ceil(innerH / 200));
     wkretyPlyt += 2 * naPlyte;
@@ -9263,6 +9304,21 @@ function OtworyZGory({ geo, polki }) {
     ));
 }
 
+/* Wyciecie we wzmocnieniu pod plyte / zlew z gory (y = 0 tyl): otwor jak tlo i laczniki przy koncach —
+   wkrety przez boki tam, gdzie zostaje plyta (`laczniki`, z od lica). */
+const WycieciaWzmocnienia = ({ r, cd }) => (!(r.otwory || []).length ? null : (
+  <g data-el="wyciecie-wzmocnienia">
+    {r.otwory.map((o, k) => (
+      <rect key={k} x={o.x0} y={cd - o.z1} width={o.x1 - o.x0} height={o.z1 - o.z0}
+        fill="#fafaf9" stroke={INK} strokeWidth="1.2" strokeDasharray="10 6" />
+    ))}
+    {(r.laczniki || []).flatMap((l) => l.z.map((z) => (
+      <circle key={`${l.strona}${z}`} cx={l.strona === "lewy" ? r.x0 + 8 : r.x1 - 8} cy={cd - z} r={5}
+        fill="#71717a" stroke={INK} strokeWidth="1" data-el="lacznik-wzmocnienia" />
+    )))}
+  </g>
+));
+
 function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
   if (geo.bezKorpusu && geo.sprzetCiagu) {
     // sprzet w ciagu z gory (2026-11-05): bryla przerywana, front (zmywarka) albo przod lodowki
@@ -9322,8 +9378,11 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
       <OtworyZGory geo={geo} polki={false} />
       {/* elementy wzmacniajace */}
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
-        <rect key={`trail${lv.i}-${c.j}-${ri}`} x={r.x0} y={cd - (r.z0 + r.zLen)}
-          width={r.x1 - r.x0} height={r.zLen} fill={bf} stroke={INK} strokeWidth="1.5" opacity="0.55" />
+        <g key={`trail${lv.i}-${c.j}-${ri}`}>
+          <rect x={r.x0} y={cd - (r.z0 + r.zLen)}
+            width={r.x1 - r.x0} height={r.zLen} fill={bf} stroke={INK} strokeWidth="1.5" opacity="0.55" />
+          <WycieciaWzmocnienia r={r} cd={cd} />
+        </g>
       ))))}
 
       {showShelves && cols.map((c) => {
@@ -10718,7 +10777,9 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
          w rzucie z gory (gdzie zero jest z tylu) odbijalo wzmocnienia na druga
          strone szafki. */
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.rails || []).forEach((r) => {
-        box(c.x + r.x0, c.base + r.y0, r.z0, c.x + r.x1, c.base + r.y1, r.z0 + r.zLen, bf);
+        // lezace z wycieciem pod plyte / zlew — z otworem (jak blat nad nim)
+        boxOtw(c.x + r.x0, c.base + r.y0, r.z0, c.x + r.x1, c.base + r.y1, r.z0 + r.zLen, bf,
+          (r.otwory || []).map((o) => [c.x + o.x0, o.z0, c.x + o.x1, o.z1]));
       })));
       /* Polki i przegrody. Po otwarciu drzwi to one sa cala trescia szafki, wiec
          bez nich bryla calej zabudowy pokazywala puste pudla. Glebokosci w `geo`
@@ -12821,9 +12882,11 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
       <OtworyZGory geo={geo} polki={false} />
       {/* elementy wzmacniajace z gory (y=0 tyl; glebokosc od tylu = cd - z0 - zLen) */}
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
-        <rect key={`trail${lv.i}-${c.j}-${ri}`}
-          x={r.x0} y={cd - (r.z0 + r.zLen)} width={r.x1 - r.x0} height={r.zLen}
-          fill={bf} stroke={INK} strokeWidth="1.5" opacity="0.55" />
+        <g key={`trail${lv.i}-${c.j}-${ri}`}>
+          <rect x={r.x0} y={cd - (r.z0 + r.zLen)} width={r.x1 - r.x0} height={r.zLen}
+            fill={bf} stroke={INK} strokeWidth="1.5" opacity="0.55" />
+          <WycieciaWzmocnienia r={r} cd={cd} />
+        </g>
       ))))}
 
       {/* polki widziane z gory — obrys glebokosci polki w kolumnach, ktore je maja */}
@@ -14104,6 +14167,8 @@ const kluczeFormatki = (n) => {
   if (/^Półka przelotowa/.test(n)) return new Set(["Półka przelotowa"]);
   if (/^Półka/.test(n)) return new Set(["Półka"]);
   if (/^Plecy/.test(n)) return new Set(["Plecy"]);
+  const wz = /^(Wzmocnienie (?:poziome|czołowe|tylne|pionowe)) — /.exec(n);
+  if (wz) return new Set([wz[1]]);
   if (/^Drzwi/.test(n)) return new Set(["Drzwi"]);
   return new Set([n]);
 };
@@ -14260,8 +14325,9 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
   }
   geo.levels.forEach((lv) => lv.cols.forEach((c) => (c.rails || []).forEach((r) => {
     fk = nazwaWzmocnienia(r);
+    // lezace z wycieciem pod plyte / zlew — kawalki wokol niego, w audycie jedna bryla z otworem
     if (r.x1 > r.x0 && r.y1 > r.y0 && r.zLen > 0)
-      box(r.x0, r.y0, r.z0, r.x1, r.y1, r.z0 + r.zLen, bf);
+      boxOtw(r.x0, r.y0, r.z0, r.x1, r.y1, r.z0 + r.zLen, bf, (r.otwory || []).map((o) => [o.x0, o.z0, o.x1, o.z1]));
   })));
   fk = null;
   if (cab.legs && cab.legs.on) {
@@ -15194,6 +15260,28 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         run: () => editLevels((L) => { const col = kolumnaW(L, li, j); const r = col && (col.rails || [])[+k]; if (r) r[pole === "depth" ? "depth" : "atDepth"] = Number(mm); }),
       };
     }
+    /* Wzmocnienie lezace pod wycieciem w blacie (uzytkownik 2026-11-05): „wzmstoj:<poziom>:<kolumna>:<nr>”
+       — staje na sztorc przy licu (h 100, jak tylne), „wzmblat:<nr szafki>:<poziom>:<kolumna>:<nr>:<stoj|wyc>”
+       — to samo z uwag ciagu albo wyciecie we wzmocnieniu (`podWyciecie`) dla szafki obok. */
+    if (action.startsWith("wzmstoj:") || action.startsWith("wzmblat:")) {
+      const cz = action.split(":");
+      const zCiagu = cz[0] === "wzmblat";
+      const [idx, li, j, k, co] = zCiagu ? cz.slice(1) : [null, ...cz.slice(1), "stoj"];
+      const zmien = (L) => {
+        const col = kolumnaW(L, li, j);
+        const r = col && (col.rails || [])[+k];
+        if (!r) return;
+        if (co === "wyc") { r.podWyciecie = true; return; }
+        delete r.podWyciecie;
+        r.orient = "front"; r.h = WZM_STOJACE_H; r.fromBack = false;
+      };
+      return {
+        label: co === "wyc" ? "Wycięcie we wzmocnieniu" : "Wzmocnienie stojące",
+        run: () => (zCiagu
+          ? editItemCab && editItemCab(Number(idx), (c) => { zmien(c.levels || []); })
+          : editLevels(zmien)),
+      };
+    }
     if (action.startsWith("wzmwys:")) {
       // „wzmwys:<poziom>:<kolumna>:<nr wzmocnienia>:<mm>” — wysokosc wzmocnienia (pionowe nad polka, N100)
       const [, li, j, k, mm] = action.split(":");
@@ -15945,17 +16033,57 @@ const WORKTOP_OVERHANG = 10;
    szerokosci (+ `przesun` w bok), `odPrzodu` od przedniej krawedzi blatu. Wymiary typowe, do
    zmiany z karty modelu: plyta 60 cm 560 × 490, zlew jednokomorowy z ociekaczem 780 × 480. */
 const WYCIECIA_BLATU = {
-  plyta: { nazwa: "płytę", krotka: "płyta", pelna: "Płyta grzewcza", w: 560, d: 490, odPrzodu: 50 },
-  zlew: { nazwa: "zlew", krotka: "zlew", pelna: "Zlew", w: 780, d: 480, odPrzodu: 50 },
+  plyta: { nazwa: "płytę", krotka: "płyta", pelna: "Płyta grzewcza", w: 560, d: 490, odPrzodu: 50, podBlatem: 60 },
+  zlew: { nazwa: "zlew", krotka: "zlew", pelna: "Zlew", w: 780, d: 480, odPrzodu: 50, podBlatem: 200 },
 };
+/* `podBlatem` — ile sprzet siega w dol od wierzchu blatu (uzytkownik 2026-11-05: „kontrola nachodzenia
+   elementów”): plyta indukcyjna typowo 50–56 mm z zapasem na wentylacje, komora zlewu ok. 200 mm.
+   Bryla sprzetu pod blatem = obrys wyciecia na te glebokosc; do zmiany z karty modelu. */
 const WYCIECIE_ZAPAS = 50;   // najmniej plyty miedzy wycieciem a koncem blatu, laczeniem i tylem
 const wycieciaSzafki = (cab) => ((cab && cab.blatWyciecia) || []).map((q, k) => {
   const typ = WYCIECIA_BLATU[q && q.typ] ? q.typ : "plyta";
   const baza = WYCIECIA_BLATU[typ];
   const liczba = (v, d) => (v == null || v === "" ? d : Math.round(Number(v) || 0));
   return { k, typ, ...baza, w: Math.max(0, liczba(q.w, baza.w)), d: Math.max(0, liczba(q.d, baza.d)),
-    odPrzodu: Math.max(0, liczba(q.odPrzodu, baza.odPrzodu)), przesun: liczba(q.przesun, 0) };
+    odPrzodu: Math.max(0, liczba(q.odPrzodu, baza.odPrzodu)), przesun: liczba(q.przesun, 0),
+    podBlatem: Math.max(0, liczba(q.podBlatem, baza.podBlatem)) };
 });
+/* Wyciecie w ukladzie szafki pod nim: x od lewej krawedzi korpusu, z od lica w glab. Blat wystaje
+   przed lico o luz zawiasu i front (przy frontach wpuszczanych — nie) i o nawis `WORKTOP_OVERHANG`. */
+const wycieciaWSzafce = (cab, W, tf) => {
+  const przed = (cab.frontMode === "inset" ? 0 : HINGE_PLAY + tf) + WORKTOP_OVERHANG;
+  return wycieciaSzafki(cab).map((q) => {
+    const sr = W / 2 + q.przesun, z0 = q.odPrzodu - przed;
+    return { ...q, x0: Math.round(sr - q.w / 2), x1: Math.round(sr + q.w / 2), z0, z1: z0 + q.d, przed };
+  });
+};
+/* Wzmocnienie lezace z wycieciem pod plyte / zlew (`rail.podWyciecie`, uzytkownik 2026-11-05: „stojące
+   zamiast leżącego albo wycięcie własne”): czesc wspolna obrysu wyciecia i wzmocnienia. Laczniki
+   przez boki w czolo wzmocnienia (po 2 na koniec) ida tam, gdzie przy koncu jest plyta: gdy wyciecie
+   zaczyna sie blizej konca niz `WZM_LACZNIK_GLEB`, tylko przed nim albo za nim; zmiesci sie
+   jeden — zostaje jeden na strone. */
+const WZM_LACZNIK_GLEB = 15;    // tyle wkret 4 × 30 wchodzi w czolo wzmocnienia przez bok 18 mm (z zapasem)
+const WZM_LACZNIK_ROZSTAW = 20; // od krawedzi i miedzy dwoma lacznikami na jednym koncu
+const WZM_PASEK_MIN = 30;       // wezszy pasek wzmocnienia przy wycieciu nie trzyma (jak waska formatka)
+const WZM_STOJACE_H = 100;      // przednie wzmocnienie postawione na sztorc pod wycieciem — jak tylne pary
+const lacznikiWzmocnienia = (g, otw) => {
+  const zA = g.z0, zB = g.z0 + g.zLen;
+  return [["lewy", g.x0], ["prawy", g.x1]].map(([strona, xe]) => {
+    // wyciecia, ktore podchodza pod ten koniec blizej niz wkret wchodzi w czolo
+    const blisko = (otw || []).filter((o) => (strona === "lewy" ? o.x0 - xe : xe - o.x1) < WZM_LACZNIK_GLEB);
+    let odc = [[zA, zB]];
+    blisko.forEach((o) => {
+      odc = odc.flatMap(([a, b]) => [[a, Math.min(b, o.z0)], [Math.max(a, o.z1), b]]).filter(([a, b]) => b - a > 0.5);
+    });
+    const naj = odc.sort((p, q) => (q[1] - q[0]) - (p[1] - p[0]))[0];
+    if (!naj || naj[1] - naj[0] < 2 * 3) return { strona, z: [] };
+    const len = naj[1] - naj[0];
+    const z = len >= 3 * WZM_LACZNIK_ROZSTAW
+      ? [naj[0] + WZM_LACZNIK_ROZSTAW, naj[1] - WZM_LACZNIK_ROZSTAW]
+      : [(naj[0] + naj[1]) / 2];
+    return { strona, z: z.map(Math.round), przestawione: blisko.length > 0 };
+  });
+};
 /* Blat kupuje sie w gotowym pasie 600 albo 1200 mm i nie docina z glebokosci,
    dopoki wystaje przed drzwi najwyzej tyle — do sciany i tak dopasowuje sie go
    na miejscu. Wiecej znaczy zwykle, ze zle jest odsuniecie od sciany albo
@@ -17338,19 +17466,63 @@ const worktopMsgs = (project, run) => {
         else
           out.push({ level: "info", text: `${kto}: wycięcie zlewu (${fmt(q.w)} mm) wychodzi nad bok szafki — komora zlewu musi zmieścić się we wnętrzu szafki (${fmt(wn)} mm), ociekacz leży nad sąsiednią.` });
       }
-      // co jest pod wycieciem w szafce: wieniec albo przednie wzmocnienie lezace
+      /* Co jest pod wycieciem w szafce (uzytkownik 2026-11-05: „kontrola nachodzenia elementów”): bryla
+         sprzetu — obrys wyciecia na `podBlatem` od wierzchu blatu — z wiencem, wzmocnieniami, szufladami,
+         polkami i przegrodami. Przy lezacym wzmocnieniu przednim: „Wzmocnienie stojące” albo „Wycięcie
+         we wzmocnieniu” (gdy zostaje pasek co najmniej `WZM_PASEK_MIN`), inaczej przesuniecie wyciecia. */
       const pod = lvl && lvl.pod.find((c) => c.idx === q.idx);
-      if (pod) {
-        const przed = HINGE_PLAY + pod.geo.tf + WORKTOP_OVERHANG;
+      const gPod = pod && pod.geo;
+      const podBlat = q.podBlatem - (rt.th || 0);   // ile pod spod blatu
+      if (gPod && !gPod.bezKorpusu && podBlat > 0) {
+        const Hc = pod.it.cab.H, cd = gPod.carcassDepth;
+        const przed = (pod.it.cab.frontMode === "inset" ? 0 : HINGE_PLAY + gPod.tf) + WORKTOP_OVERHANG;
         const z0 = q.odPrzodu - przed, z1 = z0 + q.d;   // od lica korpusu w glab
-        const xs0 = q.x0 - pod.x0, xs1 = q.x1 - pod.x0;
-        // wieniec pod blatem roboczym ma juz wlasna uwage z „Dołóż parę wzmocnień” (noTop)
-        const wszystkie = (pod.geo.levels || []).flatMap((lv) => lv.cols.flatMap((c) => (c.rails || [])));
-        const gora = Math.max(0, ...wszystkie.map((r) => r.y1));   // wzmocnienia pod blatem leza najwyzej
-        const wzm = wszystkie.filter((r) => r.orient === "shelf" && r.y1 >= gora - 1 && r.z0 < z1 && r.z0 + r.zLen > z0 && r.x0 < xs1 && r.x1 > xs0);
-        if (wzm.length)
-          out.push({ level: "warn", text: `${kto}: wycięcie zaczyna się ${fmt(Math.max(0, Math.round(z0)))} mm za licem korpusu, nad leżącym wzmocnieniem przednim (${fmt(wzm[0].zLen)} mm w głąb) — `
-            + `${q.typ === "plyta" ? "korpus płyty" : "komora zlewu"} w nie trafi. Sprawdź z kartą sprzętu, ile wchodzi pod blat, albo zmień wzmocnienie.` });
+        const xs0 = q.x0 - pod.x0, xs1 = q.x1 - pod.x0, yB = Hc - podBlat;
+        const nach = (x0, x1, y0, y1, za, zb) => Math.min(x1, xs1) - Math.max(x0, xs0) > 0.5
+          && y1 > yB + 0.5 && y0 < Hc + 0.5 && Math.min(zb, z1) - Math.max(za, z0) > 0.5;
+        const co = q.typ === "plyta" ? "korpus płyty" : "komora zlewu";
+        const opis = `${co} sięga ${fmt(q.podBlatem)} mm od wierzchu blatu (${fmt(podBlat)} mm pod blat)`;
+        const odPrz = (nowe) => (nowe >= 0 && rt.depth - nowe - q.d >= WYCIECIE_ZAPAS && nowe !== q.odPrzodu ? `|wycblatu:${q.idx}:${q.k}:odPrzodu:${Math.round(nowe)}` : "");
+        const blad = (text) => out.push({ level: "error", text: `${kto}: ${text}` });
+        if (gPod.hasTop && nach(gPod.topX0 ?? 0, gPod.topX1 ?? gPod.W, Hc - (gPod.tW || gPod.t), Hc, 0, cd))
+          blad(`${opis} i wchodzi w wieniec — pod blatem roboczym zamiast wieńca idzie para wzmocnień.|noTop:${q.idx}`);
+        (gPod.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => {
+          (c.rails || []).forEach((g2) => {
+            if (!nach(g2.x0, g2.x1, g2.y0, g2.y1, g2.z0, g2.z0 + g2.zLen)) return;
+            // wzmocnienie z wycieciem — czesc wspolna lezy w jego otworze
+            const ax0 = Math.max(g2.x0, xs0), ax1 = Math.min(g2.x1, xs1), az0 = Math.max(g2.z0, z0), az1 = Math.min(g2.z0 + g2.zLen, z1);
+            if ((g2.otwory || []).some((o) => o.x0 <= ax0 + 0.5 && o.x1 >= ax1 - 0.5 && o.z0 <= az0 + 0.5 && o.z1 >= az1 - 0.5)) return;
+            const adr = `${q.idx}:${lv.i}:${c.j}:${g2.ri}`;
+            if (g2.orient === "shelf") {
+              const pasek = Math.round(Math.max(z0 - g2.z0, g2.z0 + g2.zLen - z1));
+              blad(`${opis}, a wycięcie zaczyna się ${fmt(Math.max(0, Math.round(z0)))} mm za licem korpusu — nad leżącym wzmocnieniem przednim (${fmt(Math.round(g2.zLen))} mm w głąb), ${co} w nie wchodzi. `
+                + (pasek >= WZM_PASEK_MIN ? `Postaw je na sztorc albo wytnij w nim wycięcie (zostaje pasek ${fmt(pasek)} mm).`
+                  : `Postaw je na sztorc — na wycięcie we wzmocnieniu zostałby pasek ${fmt(Math.max(0, pasek))} mm (co najmniej ${WZM_PASEK_MIN}); wycięcie dalej od przodu blatu daje miejsce na pasek.`)
+                + `|wzmblat:${adr}:stoj` + (pasek >= WZM_PASEK_MIN ? `|wzmblat:${adr}:wyc` : odPrz(przed + g2.z0 + WZM_PASEK_MIN)));
+            } else if (g2.orient === "front")
+              blad(`${opis} i wchodzi w ${g2.przyTyle ? "tylne" : "przednie"} stojące wzmocnienie (${fmt(Math.round(g2.y1 - g2.y0))} mm wysokości). Przesuń wycięcie ${g2.przyTyle ? "do przodu" : "do tyłu"}.`
+                + odPrz(g2.przyTyle ? przed + g2.z0 - q.d - 2 : przed + g2.z0 + g2.zLen + 2));
+            else blad(`${opis} i wchodzi w pionowe wzmocnienie przy ${g2.x0 < gPod.W / 2 ? "lewym" : "prawym"} boku.`);
+          });
+          (c.drawers || []).forEach((dr, i) => {
+            const gora = dr.rail.y0 + (dr.gora ?? vboxGora(dr.rail.h));
+            const sb = dr.rail.setback || 0;
+            if (nach(dr.bx0 ?? c.x0, dr.bx1 ?? c.x1, dr.rail.y0, gora, sb, sb + (dr.rail.d || cd)))
+              blad(`${opis} i wchodzi w szufladę ${i + 1} (skrzynka sięga ${fmt(Math.max(0, Math.round(Hc - gora)))} mm pod blat) — pod ${q.nazwa} daj drzwi albo niższą szufladę.`);
+          });
+          (c.shelves || []).forEach((sh) => {
+            if (nach(c.x0, c.x1, sh.y, sh.y + gPod.ts, 0, cd))
+              blad(`${opis} i wchodzi w półkę (${fmt(Math.max(0, Math.round(Hc - sh.y - gPod.ts)))} mm pod blatem) — obniż ją o ${fmt(Math.ceil(sh.y + gPod.ts - yB))} mm.`);
+          });
+        }));
+        (gPod.sepShelves || []).forEach((sh) => {
+          if (nach(gPod.interior.x0, gPod.interior.x1, sh.y, sh.y + gPod.t, 0, cd))
+            blad(`${opis} i wchodzi w półkę przelotową (${fmt(Math.max(0, Math.round(Hc - sh.y - gPod.t)))} mm pod blatem) — obniż poziom pod nią o ${fmt(Math.ceil(sh.y + gPod.t - yB))} mm.`);
+        });
+        (gPod.dividers || []).forEach((dv, k) => {
+          if (nach(dv.x, dv.x + gPod.t, dv.y0, dv.y1, 0, cd))
+            blad(`${opis} i wchodzi w przegrodę ${k + 1} — pod ${q.nazwa} jedna kolumna albo przesuń wycięcie nad jedną z kolumn.`);
+        });
       }
     });
   }
@@ -23813,7 +23985,9 @@ export default function App() {
                   {wycieciaSzafki(cab).map((q) => {
                     const zmien = (patch) => set({ blatWyciecia: (cab.blatWyciecia || []).map((x, k) => (k === q.k ? { ...x, ...patch } : x)) });
                     const pole = (k, label) => (
-                      <Field label={label} hint={k === "przesun" ? "0 = środek szafki, + w prawo" : `typowo ${fmt(WYCIECIA_BLATU[q.typ][k])} mm`}>
+                      <Field label={label} hint={k === "przesun" ? "0 = środek szafki, + w prawo"
+                        : k === "podBlatem" ? `ile ${q.typ === "plyta" ? "płyta" : "komora zlewu"} sięga w dół od wierzchu blatu — typowo ${fmt(WYCIECIA_BLATU[q.typ][k])} mm`
+                        : `typowo ${fmt(WYCIECIA_BLATU[q.typ][k])} mm`}>
                         <Num value={((cab.blatWyciecia || [])[q.k] || {})[k] ?? ""} onChange={(v) => zmien({ [k]: v === "" ? null : v })} />
                       </Field>
                     );
@@ -23821,7 +23995,7 @@ export default function App() {
                       <div key={q.k} className="space-y-2 rounded border border-stone-200 bg-white p-2 text-xs" data-el="wyciecie-blatu-karta">
                         <div className="flex items-center gap-2">
                           <div className="flex-1">
-                            <Seg value={q.typ} onChange={(v) => zmien({ typ: v, w: null, d: null, odPrzodu: null })}
+                            <Seg value={q.typ} onChange={(v) => zmien({ typ: v, w: null, d: null, odPrzodu: null, podBlatem: null })}
                               options={[{ v: "plyta", l: "Płyta grzewcza" }, { v: "zlew", l: "Zlew" }]} />
                           </div>
                           <MiniBtn onClick={() => set({ blatWyciecia: (cab.blatWyciecia || []).filter((x, k) => k !== q.k) })} title="Usuń wycięcie">usuń</MiniBtn>
@@ -23831,6 +24005,7 @@ export default function App() {
                           {pole("d", "Głębokość wycięcia")}
                           {pole("odPrzodu", "Od przodu blatu")}
                           {pole("przesun", "Przesunięcie w bok")}
+                          {pole("podBlatem", "Pod blat (od wierzchu)")}
                         </div>
                       </div>
                     );
