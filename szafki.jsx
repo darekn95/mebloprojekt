@@ -10050,11 +10050,19 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
     /* ze znakiem (audyt GPT N69): sciana dalej u gory niz u dolu (dol 0, gora 100)
        — blat zaczyna sie 100 mm za linia sciany przy podlodze, a nie na niej */
     const gs = wallGapOf(run, null);
-    return worktopSpans(rt).map((sp, i) => (
-      <rect key={"blat" + i} x={lead + sp.x0} y={gs.bottom - gs.top}
+    const yS = gs.bottom - gs.top;
+    return [...worktopSpans(rt).map((sp, i) => (
+      <rect key={"blat" + i} x={lead + sp.x0} y={yS}
         width={sp.x1 - sp.x0} height={rt.depth}
         fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
-    ));
+    )), ...(rt.wyciecia || []).map((q, i) => (
+      <g key={"wyc" + i} data-el="wyciecie-blatu">
+        <rect x={lead + q.x0} y={yS + rt.depth - q.odPrzodu - q.d} width={q.x1 - q.x0} height={q.d}
+          fill="#fafaf9" stroke={INK} strokeWidth="2" strokeDasharray="10 6" />
+        <text x={lead + (q.x0 + q.x1) / 2} y={yS + rt.depth - q.odPrzodu - q.d / 2 + 8} textAnchor="middle"
+          fontSize="22" fill={INK} fontFamily="ui-monospace, monospace">{`${q.krotka} ${fmt(q.w)}×${fmt(q.d)}`}</text>
+      </g>
+    ))];
   };
   /* Ramie, ktorego sciany nie rysujemy (zakres „ciag"), stawiamy tam, gdzie stoi
      naprawde — obrocone wzdluz drugiej sciany, razem z jej kawalkiem. Przenosi
@@ -10377,15 +10385,15 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
   };
   /* Plyta z wycieciem / otworem — jak w 3D szafki (`boxOtw` w `Scene3D`): kawalki wokol
      otworow, do audytu jedna bryla w calosci z otworami (po ustawieniu w zabudowie). */
-  const boxOtw = (x0, y0, z0, x1, y1, z1, color, otw, os = "xz", bias = 0) => {
-    if (!otw || !otw.length) return box(x0, y0, z0, x1, y1, z1, color, null, 1, false, bias);
+  const boxOtw = (x0, y0, z0, x1, y1, z1, color, otw, os = "xz", bias = 0, tag = null, bold = false) => {
+    if (!otw || !otw.length) return box(x0, y0, z0, x1, y1, z1, color, null, 1, bold, bias, tag);
     const tr = (v) => { let w = v; if (place) w = w.map(place); if (poPlace) w = w.map(poPlace); return w; };
     const pozioma = os === "xz";
     const czesc = ([a0, b0, a1, b1]) => tr(pozioma ? VERTS(a0, y0, b0, a1, y1, b1) : VERTS(x0, a0, b0, x1, a1, b1));
     prostokatyBez(pozioma ? [x0, z0, x1, z1] : [y0, z0, y1, z1], otw).forEach((q) =>
-      solids.push({ v: czesc(q), color, alpha: 1, bold: false, bias, tag: null }));
+      solids.push({ v: czesc(q), color, alpha: 1, bold, bias, tag }));
     const obrys = (v) => ["x", "y", "z"].map((k) => Math.min(...v.map((q) => q[k]))).concat(["x", "y", "z"].map((k) => Math.max(...v.map((q) => q[k]))));
-    audytBryly(x0, y0, z0, x1, y1, z1, color, null, tr(VERTS(x0, y0, z0, x1, y1, z1)), 1, otw.map((q) => obrys(czesc(q))));
+    audytBryly(x0, y0, z0, x1, y1, z1, color, tag, tr(VERTS(x0, y0, z0, x1, y1, z1)), 1, otw.map((q) => obrys(czesc(q))));
   };
   /* Plyta o koncach scietych w rzucie (blat na lyzwe): x konca inne przy licu
      (z0) i przy scianie (z1). Wierzcholki w kolejnosci `VERTS`, wiec sciany
@@ -10791,9 +10799,14 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
           plytaSkos(s.x0 + (skL ? rt.skosGl0 ?? rt.depth : 0), s.x1 - (skP ? rt.skosGl1 ?? rt.depth : 0), s.x0, s.x1,
             g.mount + rt.y, g.mount + rt.y + rt.th, przyScianie - rt.depth, przyScianie,
             kolB, true, Math.round(rt.depth / 2), "blat");
-        else
-          box(s.x0, g.mount + rt.y, przyScianie - rt.depth, s.x1, g.mount + rt.y + rt.th, przyScianie,
-            kolB, null, 1, true, Math.round(rt.depth / 2), "blat");
+        else {
+          // wyciecia pod plyte i zlew (2026-11-05) — otwory w plycie blatu, liczone od jej przodu
+          const zP = przyScianie - rt.depth;
+          const otw = (rt.wyciecia || []).filter((q) => q.x1 > s.x0 && q.x0 < s.x1)
+            .map((q) => [Math.max(q.x0, s.x0), zP + q.odPrzodu, Math.min(q.x1, s.x1), Math.min(przyScianie, zP + q.odPrzodu + q.d)]);
+          boxOtw(s.x0, g.mount + rt.y, zP, s.x1, g.mount + rt.y + rt.th, przyScianie,
+            kolB, otw, "xz", Math.round(rt.depth / 2), "blat", true);
+        }
       });
     }
   });
@@ -14928,6 +14941,20 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         }),
       };
     }
+    if (action.startsWith("wycblatu:")) {
+      // „wycblatu:<nr szafki>:<nr wyciecia>:<przesun|odPrzodu>:<mm>” — wyciecie pod plyte / zlew (2026-11-05)
+      const [, idx, k, pole, mm] = action.split(":");
+      const v = Math.round(Number(mm) || 0);
+      return {
+        label: pole === "przesun" ? (v ? `Przesuń wycięcie na ${v > 0 ? "+" : ""}${fmt(v)} mm od środka szafki` : "Wycięcie na środku szafki") : `Wycięcie ${fmt(v)} mm od przodu blatu`,
+        run: () => editItemCab && editItemCab(Number(idx), (c) => {
+          const l = [...(c.blatWyciecia || [])];
+          if (!l[Number(k)]) return;
+          l[Number(k)] = { ...l[Number(k)], [pole]: v };
+          c.blatWyciecia = l;
+        }),
+      };
+    }
     if (action.startsWith("noTop:")) {
       const idx = Number(action.split(":")[1]);
       return {
@@ -15601,6 +15628,22 @@ const runPlinth = (project, run) => {
 /* Ile blat wystaje przed lico frontow. Glebokosc blatu jest wymiarem
    rzeczywistym — od sciany do jego konca — wiec ten wysieg wchodzi w nia. */
 const WORKTOP_OVERHANG = 10;
+/* Wyciecia w blacie roboczym ciagu pod plyte grzewcza i zlew (uzytkownik 2026-11-05: „nad szafką,
+   z przesunięciem”) — zapisane w szafce, nad ktora leza (`cab.blatWyciecia`): na srodku jej
+   szerokosci (+ `przesun` w bok), `odPrzodu` od przedniej krawedzi blatu. Wymiary typowe, do
+   zmiany z karty modelu: plyta 60 cm 560 × 490, zlew jednokomorowy z ociekaczem 780 × 480. */
+const WYCIECIA_BLATU = {
+  plyta: { nazwa: "płytę", krotka: "płyta", pelna: "Płyta grzewcza", w: 560, d: 490, odPrzodu: 50 },
+  zlew: { nazwa: "zlew", krotka: "zlew", pelna: "Zlew", w: 780, d: 480, odPrzodu: 50 },
+};
+const WYCIECIE_ZAPAS = 50;   // najmniej plyty miedzy wycieciem a koncem blatu, laczeniem i tylem
+const wycieciaSzafki = (cab) => ((cab && cab.blatWyciecia) || []).map((q, k) => {
+  const typ = WYCIECIA_BLATU[q && q.typ] ? q.typ : "plyta";
+  const baza = WYCIECIA_BLATU[typ];
+  const liczba = (v, d) => (v == null || v === "" ? d : Math.round(Number(v) || 0));
+  return { k, typ, ...baza, w: Math.max(0, liczba(q.w, baza.w)), d: Math.max(0, liczba(q.d, baza.d)),
+    odPrzodu: Math.max(0, liczba(q.odPrzodu, baza.odPrzodu)), przesun: liczba(q.przesun, 0) };
+});
 /* Blat kupuje sie w gotowym pasie 600 albo 1200 mm i nie docina z glebokosci,
    dopoki wystaje przed drzwi najwyzej tyle — do sciany i tak dopasowuje sie go
    na miejscu. Wiecej znaczy zwykle, ze zle jest odsuniecie od sciany albo
@@ -15684,6 +15727,7 @@ const runTopLiczy = (project, run, bezRogu = false) => {
   const gap = Math.max(0, Math.round(run.gap || 0));
   let x = 0;
   const spans = [];
+  const wyciecia = [];   // plyta i zlew w blacie roboczym (x w ukladzie ciagu)
   /* Blat roboczy ciagu obejmuje wszystkie szafki jednej wysokosci, niezaleznie
      od tego, co ma ustawione pojedyncza szafka. Slupek jest wyzszy, wiec blat
      konczy sie przy jego boku i do niego dolega. */
@@ -15710,6 +15754,11 @@ const runTopLiczy = (project, run, bezRogu = false) => {
       spans.push({ x0: c.x0, x1: c.x1,
         depth: odSciany + gl + przed + WORKTOP_OVERHANG, przed,
         odSciany, worktop: true, rear: c.it.cab.back !== "none" });
+      wycieciaSzafki(c.it.cab).forEach((q) => {
+        const sr = (c.x0 + c.x1) / 2 + q.przesun;
+        wyciecia.push({ ...q, idx: c.idx, x0: Math.round(sr - q.w / 2), x1: Math.round(sr + q.w / 2),
+          cabX0: c.x0, cabX1: c.x1, t: c.geo.t, nazwaSzafki: (c.it.cab.name || "").trim() || `szafka ${c.idx + 1}` });
+      });
     });
   }
   /* Ramie szafki naroznej lezy w pasie sasiedniej sciany i tez chce blat nad
@@ -15780,7 +15829,7 @@ const runTopLiczy = (project, run, bezRogu = false) => {
     ? (mat0.worktop || {}).thickness || 38
     : (mat0.board || {}).thickness || 18);
   return {
-    total, x0, worktop,
+    total, x0, worktop, wyciecia,
     /* Numery szafek, nad ktorymi lezy ta plyta — tylko im zestawienie zdejmuje wlasny blat
        (audyt GPT N151: wysoka szafka z wlasnym blatem w ciagu z blatem roboczym znikala z niego). */
     pokryte: lvl && lvl.pod.length ? lvl.pod.map((c) => c.idx) : zrodla.map((z) => z.i),
@@ -16450,8 +16499,18 @@ const kawalkiBlatu = (rt) => {
     s0 += len;
   });
   const lacz = out.filter((k, i) => i > 0 && Math.abs(out[i - 1].v - k.u) <= 1).length;
-  return { kawalki: out.map((k) => ({ len: k.len,
+  return { kawalki: out.map((k) => ({ len: k.len, u: k.u, v: k.v,
     b1: k.u <= 1 && rt.wolny0 !== false, b2: k.v >= total - 1 && rt.wolny1 !== false })), lacz };
+};
+/* Wyciecia (plyta, zlew) w kawalku blatu: otwory formatki (u wzdluz, v od tylu — jak polki)
+   i opis do nazwy. Kawalek liczy sie od poczatku blatu ciagu (`rt.x0`). */
+const wycieciaKawalka = (rt, k) => {
+  const lista = (rt.wyciecia || []).map((q) => ({ q, u0: Math.max(q.x0 - rt.x0, k.u), u1: Math.min(q.x1 - rt.x0, k.v) }))
+    .filter((o) => o.u1 - o.u0 > 1).sort((a2, b2) => a2.u0 - b2.u0);
+  return {
+    otwory: lista.map((o) => ({ u: Math.round(o.u0 - k.u), v: Math.max(0, Math.round(rt.depth - o.q.odPrzodu - o.q.d)), du: Math.round(o.u1 - o.u0), dv: o.q.d })),
+    opis: lista.length ? `${lista.length > 1 ? "wycięcia" : "wycięcie"} pod ${listPl(lista.map((o) => `${o.q.nazwa} ${fmt(o.q.w)} × ${fmt(o.q.d)}`))}` : "",
+  };
 };
 
 const runTopPanels = (rt) => {
@@ -16471,17 +16530,21 @@ const runTopPanels = (rt) => {
       note: rt.n > 1 ? "czoło i oba końce, w tym łączenie" : "czoło i oba końce",
     }));
   }
+  /* kawalek z wycieciem pod plyte / zlew (2026-11-05) — osobna pozycja z otworami i opisem w nazwie */
   /* Blat roboczy: przod ma fabryczny profil, tyl stoi przy scianie — oklejamy
      tylko wolne konce (uzytkownik 2026-09-29, faktura: obrzeze ABS 43/2 na
      dwa konce). Laczenia kawalkow i konce w rogu / przy slupku zostaja bez. */
   const map = new Map();
-  kawalki.forEach(({ len, b1, b2 }) => {
-    const key = `${len}|${b1}|${b2}`;
-    if (!map.has(key)) map.set(key, { len, b1, b2, qty: 0 });
+  kawalki.forEach((k) => {
+    const { len, b1, b2 } = k;
+    const w = wycieciaKawalka(rt, k);
+    const key = `${len}|${b1}|${b2}|${JSON.stringify(w.otwory)}`;
+    if (!map.has(key)) map.set(key, { len, b1, b2, qty: 0, w });
     map.get(key).qty += 1;
   });
   return [...map.values()].map((g) => ({
-    name, qty: g.qty, a: g.len, b: rt.depth, matKey: rt.matKey, arkusz: rt.arkusz || null,
+    name: g.w.opis ? `${name} — ${g.w.opis}` : name, ...(g.w.otwory.length ? { otwory: g.w.otwory } : {}),
+    qty: g.qty, a: g.len, b: rt.depth, matKey: rt.matKey, arkusz: rt.arkusz || null,
     edges: { a1: false, a2: false, b1: g.b1, b2: g.b2 },
     note: g.b1 && g.b2 ? "oba końce (przód z profilem)" : g.b1 || g.b2 ? "jeden koniec (przód z profilem)" : "bez oklejania — końce przy rogu, słupku albo łączeniu",
   }));
@@ -16905,6 +16968,65 @@ const worktopMsgs = (project, run) => {
      naroznika z sasiedniej sciany. Wtedy `lvl` jest pusty, ale sprawdzic
      szerokosc blatu i tak trzeba. */
   const lvl = worktopLevel(project, run);
+  /* Wyciecia pod plyte i zlew (uzytkownik 2026-11-05). Kazde musi lezec w jednym kawalku blatu
+     z zapasem `WYCIECIE_ZAPAS` od laczenia, konca i tylu blatu; plyta grzewcza — w wnetrzu
+     szafki (jej korpus wchodzi pod blat); zlew moze wyjsc nad bok (ociekacz), wtedy tylko
+     informacja. Przednie wzmocnienie lezace pod wycieciem — ostrzezenie (wieniec ma swoja uwage). */
+  if (rt && rt.worktop && (rt.wyciecia || []).length) {
+    const { kawalki } = kawalkiBlatu(rt);
+    const granice = [];
+    kawalki.forEach((k, i) => { if (i > 0) granice.push(k.u); });
+    const total = rt.total;
+    (rt.wyciecia || []).forEach((q) => {
+      const kto = `Blat ciągu „${run.name}”, ${q.krotka} nad szafką „${q.nazwaSzafki}”`;
+      const przes = (o) => `|wycblatu:${q.idx}:${q.k}:przesun:${q.przesun + o}`;
+      const u0 = q.x0 - rt.x0, u1 = q.x1 - rt.x0;
+      const naLaczeniu = granice.find((b) => b > u0 - WYCIECIE_ZAPAS && b < u1 + WYCIECIE_ZAPAS);
+      if (naLaczeniu != null) {
+        const wLewo = Math.round(naLaczeniu - WYCIECIE_ZAPAS - u1), wPrawo = Math.round(naLaczeniu + WYCIECIE_ZAPAS - u0);
+        const ok = (o) => u0 + o >= WYCIECIE_ZAPAS && u1 + o <= total - WYCIECIE_ZAPAS;
+        out.push({ level: u0 < naLaczeniu && u1 > naLaczeniu ? "error" : "warn",
+          text: `${kto}: wycięcie ${u0 < naLaczeniu && u1 > naLaczeniu ? "wypada na łączeniu blatu" : "jest za blisko łączenia blatu"} (${fmt(Math.round(naLaczeniu))} mm od początku blatu) — `
+            + `między wycięciem a łączeniem potrzeba co najmniej ${WYCIECIE_ZAPAS} mm płyty.`
+            + (ok(wLewo) ? przes(wLewo) : "") + (ok(wPrawo) ? przes(wPrawo) : "") });
+      } else if (u0 < WYCIECIE_ZAPAS || u1 > total - WYCIECIE_ZAPAS) {
+        const o = u0 < WYCIECIE_ZAPAS ? Math.round(WYCIECIE_ZAPAS - u0) : Math.round(total - WYCIECIE_ZAPAS - u1);
+        out.push({ level: u0 < 0 || u1 > total ? "error" : "warn",
+          text: `${kto}: wycięcie ${u0 < 0 || u1 > total ? "wychodzi poza blat" : "jest za blisko końca blatu"} — od końca potrzeba co najmniej ${WYCIECIE_ZAPAS} mm płyty.${przes(o)}` });
+      }
+      const tyl = rt.depth - q.odPrzodu - q.d;
+      if (tyl < WYCIECIE_ZAPAS) {
+        const nowe = rt.depth - q.d - WYCIECIE_ZAPAS;
+        out.push({ level: tyl < 0 ? "error" : "warn",
+          text: `${kto}: blat ma ${fmt(rt.depth)} mm głębokości, a wycięcie ${fmt(q.d)} mm zaczyna się ${fmt(q.odPrzodu)} mm od przodu — `
+            + (tyl < 0 ? `wychodzi ${fmt(-tyl)} mm poza tył blatu.` : `za nim zostaje tylko ${fmt(tyl)} mm płyty (co najmniej ${WYCIECIE_ZAPAS}).`)
+            + (nowe >= 0 ? `|wycblatu:${q.idx}:${q.k}:odPrzodu:${nowe}` : "") });
+      }
+      const w0 = q.cabX0 + q.t, w1 = q.cabX1 - q.t;
+      if (q.x0 < w0 - 0.5 || q.x1 > w1 + 0.5) {
+        const wn = Math.round(w1 - w0);
+        if (q.typ === "plyta")
+          out.push({ level: "error", text: `${kto}: płyta grzewcza ${fmt(q.w)} mm wychodzi nad bok szafki — jej korpus pod blatem nie zmieści się we wnętrzu szafki (${fmt(wn)} mm).`
+            + (q.w <= wn && q.przesun ? `|wycblatu:${q.idx}:${q.k}:przesun:0` : "") });
+        else
+          out.push({ level: "info", text: `${kto}: wycięcie zlewu (${fmt(q.w)} mm) wychodzi nad bok szafki — komora zlewu musi zmieścić się we wnętrzu szafki (${fmt(wn)} mm), ociekacz leży nad sąsiednią.` });
+      }
+      // co jest pod wycieciem w szafce: wieniec albo przednie wzmocnienie lezace
+      const pod = lvl && lvl.pod.find((c) => c.idx === q.idx);
+      if (pod) {
+        const przed = HINGE_PLAY + pod.geo.tf + WORKTOP_OVERHANG;
+        const z0 = q.odPrzodu - przed, z1 = z0 + q.d;   // od lica korpusu w glab
+        const xs0 = q.x0 - pod.x0, xs1 = q.x1 - pod.x0;
+        // wieniec pod blatem roboczym ma juz wlasna uwage z „Dołóż parę wzmocnień” (noTop)
+        const wszystkie = (pod.geo.levels || []).flatMap((lv) => lv.cols.flatMap((c) => (c.rails || [])));
+        const gora = Math.max(0, ...wszystkie.map((r) => r.y1));   // wzmocnienia pod blatem leza najwyzej
+        const wzm = wszystkie.filter((r) => r.orient === "shelf" && r.y1 >= gora - 1 && r.z0 < z1 && r.z0 + r.zLen > z0 && r.x0 < xs1 && r.x1 > xs0);
+        if (wzm.length)
+          out.push({ level: "warn", text: `${kto}: wycięcie zaczyna się ${fmt(Math.max(0, Math.round(z0)))} mm za licem korpusu, nad leżącym wzmocnieniem przednim (${fmt(wzm[0].zLen)} mm w głąb) — `
+            + `${q.typ === "plyta" ? "korpus płyty" : "komora zlewu"} w nie trafi. Sprawdź z kartą sprzętu, ile wchodzi pod blat, albo zmień wzmocnienie.` });
+      }
+    });
+  }
   /* Blat w rogu na innej wysokosci niz blat ciagu, do ktorego sie dostawiamy —
      nie ma styku, wiec nie ma zlaczy; mowimy o tym wprost (audyt GPT N66). */
   {
@@ -23234,6 +23356,44 @@ export default function App() {
                   : ""}. Ustawienia wieńca i blatu wrócą, gdy któreś złącze wróci
                 na „między" albo „na boku".
               </p>
+            )}
+            {/* Wyciecia w blacie roboczym ciagu nad ta szafka (uzytkownik 2026-11-05: „nad szafką,
+                z przesunięciem”) — plyta grzewcza i zlew; wymiary typowe, do zmiany z karty sprzetu. */}
+            {runTp && runTp.worktop && (runTp.pokryte || []).includes(project.active) && (
+              <Group label="Wycięcia w blacie nad szafką"
+                hint="Płyta grzewcza albo zlew — na środku szafki (przesunięcie w bok od środka), odległość od przedniej krawędzi blatu. Wymiary wycięcia z karty sprzętu.">
+                <div className="space-y-2" data-el="wyciecia-blatu">
+                  {wycieciaSzafki(cab).map((q) => {
+                    const zmien = (patch) => set({ blatWyciecia: (cab.blatWyciecia || []).map((x, k) => (k === q.k ? { ...x, ...patch } : x)) });
+                    const pole = (k, label) => (
+                      <Field label={label} hint={k === "przesun" ? "0 = środek szafki, + w prawo" : `typowo ${fmt(WYCIECIA_BLATU[q.typ][k])} mm`}>
+                        <Num value={((cab.blatWyciecia || [])[q.k] || {})[k] ?? ""} onChange={(v) => zmien({ [k]: v === "" ? null : v })} />
+                      </Field>
+                    );
+                    return (
+                      <div key={q.k} className="space-y-2 rounded border border-stone-200 bg-white p-2 text-xs" data-el="wyciecie-blatu-karta">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <Seg value={q.typ} onChange={(v) => zmien({ typ: v, w: null, d: null, odPrzodu: null })}
+                              options={[{ v: "plyta", l: "Płyta grzewcza" }, { v: "zlew", l: "Zlew" }]} />
+                          </div>
+                          <MiniBtn onClick={() => set({ blatWyciecia: (cab.blatWyciecia || []).filter((x, k) => k !== q.k) })} title="Usuń wycięcie">usuń</MiniBtn>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {pole("w", "Szerokość wycięcia")}
+                          {pole("d", "Głębokość wycięcia")}
+                          {pole("odPrzodu", "Od przodu blatu")}
+                          {pole("przesun", "Przesunięcie w bok")}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="flex gap-2">
+                    <MiniBtn onClick={() => set({ blatWyciecia: [...(cab.blatWyciecia || []), { typ: "plyta" }] })}>+ płyta grzewcza</MiniBtn>
+                    <MiniBtn onClick={() => set({ blatWyciecia: [...(cab.blatWyciecia || []), { typ: "zlew" }] })}>+ zlew</MiniBtn>
+                  </div>
+                </div>
+              </Group>
             )}
 
             <Field label="Drzwi" hint={cab.frontMode === "overlay"

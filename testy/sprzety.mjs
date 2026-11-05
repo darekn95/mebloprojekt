@@ -159,5 +159,30 @@ console.log('\n== lodówka (użytkownik 2026-11-05): zabudowa ślizgowo / na sta
   ok('3D: bryła i drzwi lodówki wolnostojącej', l3.bryla === 1 && l3.front === 1, JSON.stringify(l3));
 }
 
+console.log('\n== wycięcia w blacie (użytkownik 2026-11-05): płyta i zlew nad szafką ==');
+{
+  const PLw = { on: true, height: 100, mode: 'under', setback: 0 };
+  const sz = (name, W) => ({ cab: { name, W, H: 720, D: 560, plinth: PLw, joints: { topL: 'none', topR: 'none' },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: W > 500 ? 2 : 1, w: null, shelfTargets: [null] }] }] }, runId: 'c1', offset: 0 });
+  await seedP({ name: 'P', active: 1, prices: {}, runs: [{ id: 'c1', name: 'Ściana A', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLw, worktop: true, corner: null }],
+    items: [sz('A', 400), sz('Płyta', 600), sz('B', 600)] });
+  const karta = page.locator('[data-el="wyciecia-blatu"]');
+  ok('karta „Wycięcia w blacie nad szafką” przy szafce pod blatem roboczym', (await karta.count()) === 1);
+  await karta.getByRole('button', { name: '+ płyta grzewcza', exact: true }).click(); await page.waitForTimeout(900);
+  ok('„+ płyta grzewcza”: wycięcie w szafce, karta z polami', JSON.stringify((await zap()).items[1].cab.blatWyciecia) === '[{"typ":"plyta"}]'
+    && (await page.locator('[data-el="wyciecie-blatu-karta"] input').count()) === 4);
+  await widok((await page.getByRole('button', { name: 'Zabudowa', exact: true }).count()) ? 'Zabudowa' : 'Ciąg');
+  await widok('Z góry');
+  ok('rzut z góry ciągu: wycięcie „płyta 560×490”', (await ile('[data-el="wyciecie-blatu"]')) === 1
+    && /płyta 560×490/.test(await page.locator('#rysunek [data-el="wyciecie-blatu"]').first().textContent()));
+  await page.locator('[data-el="wyciecie-blatu-karta"] label').filter({ hasText: 'Od przodu blatu' }).locator('input').fill('140'); await page.waitForTimeout(900);
+  const reT = /płyta nad szafką „Płyta”: blat ma 600 mm głębokości, a wycięcie 490 mm zaczyna się 140 mm od przodu/;
+  ok('od przodu 140: błąd „poza tył blatu” z „Wycięcie 60 mm od przodu blatu”', (await przyciski(reT)).includes('Wycięcie 60 mm od przodu blatu'), (await przyciski(reT)).join(' / '));
+  await klik(reT, 'Wycięcie 60 mm od przodu blatu');
+  ok('po kliknięciu: od przodu 60, bez błędu', (await zap()).items[1].cab.blatWyciecia[0].odPrzodu === 60 && !(await jest(reT)));
+  await page.locator('[data-el="wyciecie-blatu-karta"]').getByRole('button', { name: 'usuń', exact: true }).click(); await page.waitForTimeout(900);
+  ok('„usuń”: bez wycięć', !((await zap()).items[1].cab.blatWyciecia || []).length && (await page.locator('[data-el="wyciecie-blatu-karta"]').count()) === 0);
+}
+
 ok('bez błędów strony', !errors.length, errors.join(' / '));
 await b.close();

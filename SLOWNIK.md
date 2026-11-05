@@ -345,6 +345,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `hwDefaultPrice(h)` | cena okucia — klucz to `h.pk` albo `h.name`; „Wkręt …” bez wpisu — cena `WKRET_CENA_KLUCZ` (4 × 30) |
 | `wstawDzielone(dzielone, sheets)` | formatki `dzielona` (listwa dystansowa) po ułożeniu reszty: w wolne pola arkuszy i wolne własne kawałki, najmniej kawałków (całość w najmniejsze pole, które ją mieści, inaczej najdłuższe pole), kawałek ≥ `MIN_PART`; nie mieści się — `null` i plan od nowa z nią całą (`buildCutPlan`) |
 | `sprzetKolumny(col)` / `kolumnaSprzetu(col)` | parametry sprzętu kolumny (typowe z `SPRZETY` + własne pola) / kolumna sprzętu jako pusta wnęka do `computeGeo` (drzwi 0, bez półek, szuflad, podziału) |
+| `wycieciaSzafki(cab)` / `rt.wyciecia` / `wycieciaKawalka(rt, k)` | wycięcia pod płytę i zlew (`cab.blatWyciecia = [{ typ: "plyta"\|"zlew", w, d, odPrzodu, przesun }]`, puste = `WYCIECIA_BLATU`): w `runTop` położenie w ciągu (środek szafki + przesunięcie), w `runTopPanels` otwory kawałka blatu (u wzdłuż, v od tyłu) i opis w nazwie; kontrole w `worktopMsgs` (łączenie, koniec, tył blatu — `WYCIECIE_ZAPAS` 50 mm; płyta nad bokiem; leżące wzmocnienie przednie); karta szafki „Wycięcia w blacie nad szafką” (`data-el="wyciecia-blatu"`, `wyciecie-blatu-karta`), rzut z góry ciągu `data-el="wyciecie-blatu"`, 3D blatu z otworami (`boxOtw`, tag `blat`) |
 | sprzęt w `swingBodies` / `openingMsgs` | front i uchwyt sprzętu to przeszkoda dla innych; drzwi piekarnika opadają jak klapa w dół (`ruchy`, `sprzet`), drzwi mikrofali to skrzydło (`skrzydla`, `sprzet`); przeszkody z własnej szafki — tylko uchwyty (`obcePrzeszkody`, zachodzenie frontów mówi karta szafki) |
 | „Pokaż rysunek” (górny pasek) | przewija do karty `Card id="rysunek"` (`scrollMarginTop` pod przyklejony pasek) — przycisk roboczy; w niskim oknie (`niskieOkno`) prosto do samego rysunku (`svg`); przy przypiętej prawej kolumnie przewija tylko ją (`przewinWKolumnie`), strona i paski stoją |
 | prawa kolumna przypięta (`data-el="prawa-kolumna"`) | od szerokości `SZEROKI_EKRAN` (1024, dwie kolumny) — `przypieta`: `sticky` pod górnym paskiem (`przypietaGora` = wysokość paska + `PRZYPIETY_ODSTEP`), wysokość do dołu okna, własne przewijanie (kółko nad nią; w dół zwija paski — `przewinPrawa`); pełny ekran rysunku (`pelnyRys`) ją odkleja; przycisk uwag u góry (`scrollToNotes`) też przewija tylko ją (użytkownik 2026-10-25) |
@@ -448,7 +449,7 @@ co do znaku (łącznie ze spacjami wokół „×").
 
 **Formatki:** Bok · Bok lewy · Bok prawy · Dno / wieniec · Blat · Blat roboczy ·
 Półka · Półka przelotowa · Przegroda pionowa · Wspornik pionowy · Blenda ·
-Blenda nad szafką · Drzwi nakładane · Drzwi wpuszczane · Front lodówki · Front lodówki — dolny · Front lodówki — górny · Klapa · Cokół · Cokół ciągu · Wieniec ciągu · Dno ciągu · Element stały (fix) ·
+Blenda nad szafką · Drzwi nakładane · Drzwi wpuszczane · Front lodówki · Front lodówki — dolny · Front lodówki — górny · Klapa · Blat ciągu — wycięcie pod płytę W × D / zlew W × D (przy dwóch: „wycięcia pod płytę … i zlew …”) · Cokół · Cokół ciągu · Wieniec ciągu · Dno ciągu · Element stały (fix) ·
 Front szuflady · Dno szuflady · Tył szuflady · Bok szuflady (DXS-3D) · Przód skrzynki (DXS-3D) · Plecy HDF · Plecy HDF we frezie ·
 Plecy z płyty (na zewnątrz) · Plecy z płyty (wewnątrz) ·
 Kątownik przy ramieniu — bok · Kątownik przy ramieniu — plecy ·
@@ -530,6 +531,7 @@ Kod akcji dopisuje się do tekstu uwagi po znaku `|`; obsługuje je `NoteLine`.
 | `armlen:<mm>:<idx>:<drzwi>` | skraca ramię szafki w L (`cab.corner.arm`) — przyciski przy drzwiach ramienia szerszych niż 600 mm |
 | `legs:<n>` | wpisuje liczbę nóżek (podpowiedź przy ręcznie za małej liczbie) |
 | `sprzetw:<poziom>:<kolumna>:<wnęka mm>:<szafka mm>` | wnęka sprzętu za wąska / za szeroka: „Szafka 600 mm (wnęka 564)” (jedna kolumna — `cab.W`) albo „Kolumna 564 mm” (`col.w`) |
+| `wycblatu:<nr szafki>:<nr wycięcia>:<przesun\|odPrzodu>:<mm>` | wycięcie pod płytę / zlew w blacie: „Przesuń wycięcie na ±N mm od środka szafki”, „Wycięcie na środku szafki”, „Wycięcie N mm od przodu blatu” (`cab.blatWyciecia[k]`) |
 | `sprzeth:<poziom>:<wnęka mm>:<szafka mm>` | wysokość wnęki sprzętu (za niska, otwarta nad mikrofalą, front sprzętu na drzwiach nad nim): „Poziom N mm” (`levels[poziom].h`) albo przy jednym poziomie „Wysokość szafki N mm (wnęka M)” |
 
 ---

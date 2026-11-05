@@ -1,8 +1,9 @@
 # Sprzęty w zabudowie
 
 Piekarnik i mikrofala (użytkownik 2026-11-04) oraz lodówka (2026-11-05). Siedzą we
-wnęce, czyli w kolumnie poziomu szafki — zwykle w słupku. Zmywarka, lodówka
-wolnostojąca w ciągu oraz płyta i zlew dojdą później, każde osobno.
+wnęce, czyli w kolumnie poziomu szafki — zwykle w słupku. Płyta grzewcza i zlew to
+wycięcia w blacie roboczym nad szafką (niżej). Zmywarka i lodówka wolnostojąca w ciągu
+dojdą później.
 
 W karcie „Struktura wnętrza” kolumna ma cztery rodzaje: „Półki i drzwi /
 Szuflady / Blenda / **Sprzęt**”. Przy „Sprzęt” wybierasz typ: **Piekarnik /
@@ -55,6 +56,33 @@ Lodówka wolnostojąca we wnęce: 600 × 1850 × 650 mm, luz z boków 50, nad ni
 lodówka) — błąd, za mało luzu — ostrzeżenie, oba z przyciskiem szerokości / wysokości.
 Głębsza niż wnęka — informacja, ile wystaje przed lico; w kontroli otwierania jej
 drzwi otwierają się od wysuniętego przodu.
+
+## Płyta grzewcza i zlew — wycięcia w blacie
+
+Wycięcie zapisuje się w szafce, nad którą leży (karta szafki → „Wycięcia w blacie nad
+szafką”, tylko przy szafce pod blatem roboczym ciągu; użytkownik 2026-11-05: „nad szafką,
+z przesunięciem”). Przyciski „+ płyta grzewcza” / „+ zlew”, przy każdym: szerokość
+i głębokość wycięcia, odległość od przedniej krawędzi blatu, przesunięcie w bok od
+środka szafki (+ w prawo), „usuń”.
+
+- Typowo: płyta 60 cm 560 × 490, zlew jednokomorowy z ociekaczem 780 × 480, oba 50 mm od
+  przodu blatu (`WYCIECIA_BLATU`) — do zmiany z karty sprzętu.
+- Blat: kawałek z wycięciem idzie osobną pozycją „Blat ciągu — wycięcie pod płytę
+  560 × 490” (przy dwóch: „wycięcia pod płytę … i zlew …”) z otworami — widać je na
+  arkuszu rozkroju (otwory liczone od tylnej krawędzi), w 3D zabudowy i na rzucie
+  z góry ciągu (przerywany prostokąt z podpisem).
+- Kontrole (Uwagi):
+  - × wycięcie na łączeniu kawałków blatu, ! za blisko łączenia (mniej niż 50 mm) —
+    przyciski przesunięcia w jedną albo drugą stronę;
+  - × poza blatem / ! za blisko końca blatu — przycisk przesunięcia;
+  - × poza tyłem blatu / ! za tylną krawędzią mniej niż 50 mm — przycisk „Wycięcie N mm
+    od przodu blatu”;
+  - × płyta grzewcza szersza niż wnętrze szafki albo wychodząca nad bok — jej korpus nie
+    zmieści się pod blatem („Wycięcie na środku szafki”, gdy pomaga); zlew nad bokiem —
+    tylko informacja (komora we wnętrzu, ociekacz nad sąsiednią);
+  - ! wycięcie nad leżącym wzmocnieniem przednim pary pod blat — sprzęt w nie trafi
+    (bez przycisku, sprawdź z kartą sprzętu). Wieniec pod blatem roboczym ma swoją
+    uwagę z „Dołóż parę wzmocnień”.
 
 ## Co ustawiasz ręcznie
 
@@ -131,11 +159,15 @@ frontach to zapas, żeby front sprzętu nie dotykał frontu nad nim.
   - przyciski: `sprzetw:` / `sprzeth:` w `NoteLine` i `runFix`;
   - lodówka: `lodowkaWneki` (kontrole wnęki), `pasmaPodzialu` (dwa fronty), drzwi
     z `d.lodowka` (bez zawiasów przy „na stałe”), formatka „Front lodówki”;
+  - wycięcia w blacie: `WYCIECIA_BLATU`, `wycieciaSzafki` (`cab.blatWyciecia`), `runTop` → `rt.wyciecia`,
+    `wycieciaKawalka` (otwory i nazwa kawałka w `runTopPanels`), kontrole w `worktopMsgs`,
+    przycisk `wycblatu:`, rysunek w `AssemblyTopView` (`blatPasa`) i `Assembly3D` (`boxOtw`);
   - karta: `uiSprzetu`;
   - rysunki: `SprzetElewacja`, `SideView`, `TopView`, `Scene3D`, `Assembly3D`;
   - otwieranie: `swingBodies` / `openingMsgs`.
 - **Testy**:
   - `funkcje` — wnęka, uwagi i przyciski, front na drzwiach nad nim i obok, ślepy róg,
     lodówka (fronty, zawiasy, wnęka, wolnostojąca);
-  - `sprzety` — klikane w aplikacji.
+  - `funkcje` — wycięcia w blacie (położenie, formatka z otworami, łączenie, tył, bok, wzmocnienie);
+  - `sprzety` — klikane w aplikacji (też lodówka i wycięcia w blacie).
 - Pola w danych: `SLOWNIK.md`.

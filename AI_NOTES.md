@@ -760,9 +760,12 @@ mocowanie do wyboru, takze bez frontu („wolnostojąca lodówka może stać sam
 lub bokiem a ścianą lub w ogóle wolnostojąca”); „1 albo 2, podział z pola”; zmywarka — „Cokół ciągu
 idzie dalej”; plyta i zlew — „Nad szafką, z przesunięciem” (wyciecie na srodku wybranej szafki,
 typowo 50 mm od przodu blatu, pola przesuniecia).
-[AI-TODO] (2026-11-05) Dalsze etapy: 3) pozycja w ciagu bez korpusu — zmywarka (front meblowy na
-drzwiach, drzwi opadaja, cokol ciagu idzie dalej) i lodowka wolnostojaca w ciagu (miedzy bokami
-szafek, przy scianie albo osobno); 4) plyta i zlew — wyciecia w blacie roboczym nad wybrana szafka.
+[AI-INFO] (2026-11-05) Plyta i zlew zrobione: wyciecia w blacie roboczym ciagu (`cab.blatWyciecia`),
+opis w `opisy/sprzety.md`. Tylko blat roboczy ciagu (nie wlasny blat szafki); kawalek z lyzwa w rogu
+rysuje sie w 3D bez otworu (`plytaSkos`).
+[AI-TODO] (2026-11-05) Dalej: 3) pozycja w ciagu bez korpusu — zmywarka (front meblowy na drzwiach,
+drzwi opadaja, cokol ciagu idzie dalej) i lodowka wolnostojaca w ciagu (miedzy bokami szafek, przy
+scianie albo osobno).
 Na pozniej: sprzet w poziomie kolumny (odcinku), wiersz sprzetu w zamowieniu (teraz poza zamowieniem).
 
 [AI-INFO] Szafka w L: `CORNER_L_D` = 560 (jak stojaca), ramie 640. Pusty ciag

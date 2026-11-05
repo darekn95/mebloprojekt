@@ -29,7 +29,7 @@ let src = fs.readFileSync(path.join(DIR, '..', 'szafki.jsx'), 'utf8');
 src = src.replace(/^import React[^\n]*\n/, 'const React = { createElement: () => null, Fragment: "f" };\n'
   + 'const useState=()=>[null,()=>{}],useEffect=()=>{},useMemo=(f)=>f(),useCallback=(f)=>f,useRef=()=>({current:null});\n');
 src = src.replace(/export default function App/, 'function App');
-const nazwy = ['prostokatyBez', 'hwDefaultPrice', 'buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
+const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice', 'buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
@@ -1025,4 +1025,37 @@ console.log('\n== Sprzęty: lodówka w kolumnie (użytkownik 2026-11-05) ==');
     && g6.msgs.some((x) => x.level === 'info' && /wystaje 140 mm przed lico szafki/.test(x.text)), tx(g6));
   const g7 = geo(slup({ typ: 'lodowka', montaz: 'brak' }, 1900));
   ok('wolnostojąca we wnęce 564: błąd „lodówka ma 600 mm”', g7.msgs.some((x) => x.level === 'error' && /wnęka na lodówkę ma 564 mm szerokości — lodówka ma 600 mm/.test(x.text)), tx(g7));
+}
+
+console.log('\n== Wycięcia w blacie: płyta i zlew nad szafką (użytkownik 2026-11-05) ==');
+{
+  const PLw = { on: true, height: 100, mode: 'under', setback: 0 };
+  const RUNw = { id: 'c1', name: 'Ściana A', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLw, worktop: true, corner: null };
+  const szW = (name, W, wyc) => { const c = G.migrateCab({ name, W, H: 720, D: 560, plinth: PLw, levels: [{ h: null, cols: [{ kind: 'doors', doors: W > 500 ? 2 : 1, w: null, shelfTargets: [null] }] }] }, M0);
+    return { cab: { ...c, ...G.bezWienca(c, 18), ...(wyc ? { blatWyciecia: wyc } : {}) }, runId: 'c1', offset: 0 }; };
+  const projW = (items) => G.loadProject({ name: 'P', active: 0, prices: {}, runs: [RUNw], items });
+  const P1 = projW([szW('A', 400), szW('Płyta', 600, [{ typ: 'plyta', odPrzodu: 140 }]), szW('Zlew', 800, [{ typ: 'zlew', odPrzodu: 70 }]), szW('B', 600)]);
+  const rt1 = G.runTop(P1, P1.runs[0]);
+  const f1 = G.runTopPanels(rt1);
+  ok('płyta nad 600 i zlew nad 800: wycięcia na środku szafek (x 420–980 i 1010–1790)', JSON.stringify(rt1.wyciecia.map((q) => [q.typ, q.x0, q.x1])) === '[["plyta",420,980],["zlew",1010,1790]]', JSON.stringify(rt1.wyciecia.map((q) => [q.typ, q.x0, q.x1])));
+  ok('formatka blatu: „Blat ciągu — wycięcia pod płytę 560 × 490 i zlew 780 × 480”, otwory od tyłu (v = 600 − od przodu − głęb.)',
+    f1.length === 1 && f1[0].name === 'Blat ciągu — wycięcia pod płytę 560 × 490 i zlew 780 × 480'
+    && JSON.stringify(f1[0].otwory) === '[{"u":420,"v":-30,"du":560,"dv":490},{"u":1010,"v":50,"du":780,"dv":480}]'.replace('"v":-30', '"v":0'), JSON.stringify(f1));
+  const m1 = G.worktopMsgs(P1, P1.runs[0]).map((x) => `${x.level} ${x.text}`);
+  ok('płyta 140 od przodu + 490 w blacie 600: błąd „wychodzi 30 mm poza tył blatu” z przyciskiem „60 mm od przodu”', m1.some((t) => /^error .*płyta nad szafką „Płyta”: blat ma 600 mm głębokości, a wycięcie 490 mm zaczyna się 140 mm od przodu — wychodzi 30 mm poza tył blatu\.\|wycblatu:1:0:odPrzodu:60$/.test(t)), m1.join(' // '));
+  ok('zlew 780 nad szafką 800: informacja o komorze i ociekaczu (wnętrze 764 mm)', m1.some((t) => /^info .*wycięcie zlewu \(780 mm\) wychodzi nad bok szafki — komora zlewu musi zmieścić się we wnętrzu szafki \(764 mm\)/.test(t)), m1.join(' // '));
+  const P2 = projW([szW('Płyta', 600, [{ typ: 'plyta' }]), szW('B', 600)]);
+  const m2 = G.worktopMsgs(P2, P2.runs[0]).map((x) => `${x.level} ${x.text}`);
+  ok('płyta 50 od przodu nad parą wzmocnień: ostrzeżenie o leżącym wzmocnieniu przednim (wycięcie 20 mm za licem)', m2.some((t) => /^warn .*wycięcie zaczyna się 20 mm za licem korpusu, nad leżącym wzmocnieniem przednim \(100 mm w głąb\) — korpus płyty w nie trafi/.test(t)), m2.join(' // '));
+  ok('płyta 20 mm od początku blatu: ostrzeżenie „za blisko końca blatu” z przyciskiem przesunięcia o 30', m2.some((t) => /^warn .*za blisko końca blatu.*\|wycblatu:0:0:przesun:30$/.test(t)), m2.join(' // '));
+  const P3 = projW([szW('Płyta', 450, [{ typ: 'plyta', przesun: 100 }]), szW('B', 600)]);
+  const m3 = G.worktopMsgs(P3, P3.runs[0]).map((x) => `${x.level} ${x.text}`);
+  ok('płyta 560 nad szafką 450: błąd „wychodzi nad bok szafki — wnętrze 414 mm” (bez przycisku — nie zmieści się)', m3.some((t) => /^error .*płyta grzewcza 560 mm wychodzi nad bok szafki — jej korpus pod blatem nie zmieści się we wnętrzu szafki \(414 mm\)\.$/.test(t)), m3.join(' // '));
+  const P4 = projW([szW('A', 1200), szW('B', 1200), szW('C', 1100), szW('Płyta', 600, [{ typ: 'plyta', przesun: 300 }]), szW('D', 1200)]);
+  const rt4 = G.runTop(P4, P4.runs[0]);
+  const m4 = G.worktopMsgs(P4, P4.runs[0]).map((x) => `${x.level} ${x.text}`);
+  const f4 = G.runTopPanels(rt4);
+  ok('blat w dwóch kawałkach (4100 + 1200): płyta na łączeniu — błąd z przyciskami przesunięcia w obie strony',
+    rt4.lens.length === 2 && m4.some((t) => /^error .*wycięcie wypada na łączeniu blatu \(4100 mm od początku blatu\).*\|wycblatu:3:0:przesun:-\d+\|wycblatu:3:0:przesun:\d+$/.test(t)), `${JSON.stringify(rt4.lens)} | ${m4.join(' // ')}`);
+  ok('… otwory rozdzielone na oba kawałki blatu', f4.filter((p) => (p.otwory || []).length).length === 2, JSON.stringify(f4.map((p) => [p.name, p.a, p.otwory])));
 }
