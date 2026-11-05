@@ -305,6 +305,27 @@ const SPRZETY = {
     montaz: "slizg", fronty: 1, dolny: null, drzwi: "lewe", uchwyt: 0,
     lodW: 600, lodH: 1850, lodD: 650, luzBok: 50, luzGora: 100, luzTyl: 50 },
 };
+/* Sprzet w ciagu bez korpusu (uzytkownik 2026-11-04: „zmywarka jako pozycja w ciągu”, 2026-11-05:
+   „cokół ciągu idzie dalej”, lodowka wolnostojaca „pomiędzy bokami lub bokiem a ścianą lub w ogóle
+   wolnostojąca”). Pozycja ma szerokosc miejsca w ciagu (`cab.W`). Zmywarka do zabudowy: model 60 albo
+   45 cm, miejsce szer. modelu do +5 mm, od podlogi do spodu blatu 815–875 mm, glebokosc od 550;
+   front meblowy jak drzwi szafki obok, przykrecony do drzwi zmywarki, drzwi opadaja. Lodowka
+   wolnostojaca: jak we wnece kolumny (`SPRZETY.lodowka`), stoi na podlodze. */
+const SPRZETY_CIAGU = {
+  zmywarka: { nazwa: "zmywarka", pelna: "Zmywarka do zabudowy", szer: 600, hMin: 815, hMax: 875, dMin: 550, drzwi: "dol" },
+  lodowka: { nazwa: "lodówka", pelna: "Lodówka wolnostojąca", lodW: 600, lodH: 1850, lodD: 650, luzBok: 50, luzGora: 100, luzTyl: 50, drzwi: "lewe" },
+};
+const SPRZET_CIAGU_POLA = ["szer", "hMin", "hMax", "dMin", "lodW", "lodH", "lodD", "luzBok", "luzGora", "luzTyl", "drzwi"];
+const sprzetCiagu = (cab) => {
+  const sp = cab && cab.sprzetCiagu;
+  if (!sp) return null;
+  const typ = SPRZETY_CIAGU[sp.typ] ? sp.typ : "zmywarka";
+  const out = { typ, ...SPRZETY_CIAGU[typ] };
+  SPRZET_CIAGU_POLA.forEach((k) => { if (sp[k] != null && sp[k] !== "") out[k] = k === "drzwi" ? sp[k] : Math.max(0, Math.round(Number(sp[k]) || 0)); });
+  if (typ === "zmywarka") out.szer = out.szer === 450 ? 450 : 600;
+  if (typ === "lodowka" && out.drzwi !== "prawe") out.drzwi = "lewe";
+  return out;
+};
 const SPRZET_POLA = ["frontW", "frontH", "wMin", "wMax", "hMin", "hMax", "dMin", "drzwi", "drzwiWym", "uchwyt",
   "montaz", "fronty", "dolny", "lodW", "lodH", "lodD", "luzBok", "luzGora", "luzTyl"];
 const SPRZET_TEKST = ["drzwi", "montaz"];   // pola z wyborem, nie liczba
@@ -2556,6 +2577,24 @@ const TEMPLATES = [
       levels: [{ h: null, cols: [newColumn(1, autoShelves(innerHeightOf(720)))] }],
     }),
   },
+  /* Sprzet w ciagu bez korpusu (2026-11-05) — wymiary ciagu bierze przy dodawaniu (addCabinet) */
+  {
+    id: "zmywarka",
+    label: "Zmywarka",
+    hint: "do zabudowy 60 cm, front meblowy, cokół ciągu idzie dalej",
+    make: () => ({ name: "Zmywarka", W: 600, H: 720, D: 560, sprzetCiagu: { typ: "zmywarka" },
+      plinth: { on: false, height: 100, mode: "under", setback: 0 },
+      legs: { on: true, height: 100, color: "#3f3f46", shape: "box", count: null },
+      levels: [newLevel(1, 0)] }),
+  },
+  {
+    id: "lodowka-wolno",
+    label: "Lodówka wolnostojąca",
+    hint: "600 × 1850 × 650 w miejscu 700 mm, stoi na podłodze",
+    make: () => ({ name: "Lodówka", W: 700, H: 1850, D: 560, sprzetCiagu: { typ: "lodowka" },
+      plinth: { on: false, height: 100, mode: "under", setback: 0 }, legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
+      levels: [newLevel(1, 0)] }),
+  },
 ];
 
 const makeFromTemplate = (id) => {
@@ -2675,6 +2714,7 @@ function computeGeo(cab, mat, ctx) {
   return poCtx.get(klucz);
 }
 function computeGeoLiczy(cab, mat, ctx) {
+  if (cab && cab.sprzetCiagu) return geoSprzetuCiagu(cab, mat, ctx);
   const t = mat.board.thickness;
   /* „Fronty z tej samej plyty co korpus” — zamowienie bierze wtedy plyte korpusu,
      wiec i grubosc frontu w geometrii (bryla, glebokosci, ruchy) jest z niej.
@@ -7611,6 +7651,61 @@ function computeGeoLiczy(cab, mat, ctx) {
   };
 }
 
+/* Sprzet w ciagu bez korpusu (2026-11-05). Geometria pustej szafki tej samej szerokosci i wysokosci
+   daje wszystkie pola, z ktorych korzystaja uklad ciagu, blat, cokol i rysunki; korpusu nie ma
+   (`bezKorpusu`): bez plyt korpusu, okuc i wiercen. Zostaje cokol (ciag i tak go laczy). Zmywarka
+   dostaje front meblowy o wymiarach drzwi tej szafki (te same luzy co fronty obok). */
+function geoSprzetuCiagu(cab, mat, ctx) {
+  const sp = sprzetCiagu(cab);
+  const zmyw = sp.typ === "zmywarka";
+  const baza = computeGeoLiczy({ ...cab, sprzetCiagu: undefined, corner: undefined, obstacles: [], cutout: undefined,
+    blatWyciecia: undefined, top: undefined, joints: { topL: "none", topR: "none", botL: "between", botR: "between" },
+    levels: [{ h: null, cols: [{ kind: "doors", doors: zmyw ? 1 : 0, w: null, shelfTargets: [null], handles: [] }] }],
+    ...(zmyw ? {} : { plinth: { ...(cab.plinth || {}), on: false }, legs: { ...(cab.legs || {}), on: false } }) }, mat, ctx);
+  const msgs = [];
+  const add = (level, text) => msgs.push({ level, text });
+  const W = baza.W, cd = baza.carcassDepth;
+  const podloga = Math.round(baza.plinthInBody ? 0 : baza.legBelow || baza.plinthH || 0);   // spod korpusu nad podloga
+  const panels = baza.panels.filter((p) => p.rola === "cokol");
+  let dane;
+  if (zmyw) {
+    const d = (baza.doors || []).find((x) => x.type === "door") || { x: 2, y: 3, w: W - 4, h: cab.H - 6 };
+    const wysNiszy = Math.round(podloga + cab.H);   // od podlogi do spodu blatu
+    const x0 = Math.round((W - sp.szer) / 2) + 2;
+    dane = { ...sp, front: { x: d.x, y: d.y, w: Math.round(d.w), h: Math.round(d.h) },
+      bryla: { x0, x1: x0 + sp.szer - 4, y0: -podloga, y1: Math.round(cab.H) - 2, z0: 0, d: Math.min(cd, sp.dMin) - 5 },
+      nisza: { w: Math.round(W), h: wysNiszy, d: Math.round(cd) } };
+    panels.push({ name: "Front zmywarki", qty: 1, a: Math.round(d.h), b: Math.round(d.w), matKey: "front",
+      edges: { a1: true, a2: true, b1: true, b2: true }, note: "oklejone wszystkie krawędzie; przykręcany do drzwi zmywarki (okucia z kompletu zmywarki)" });
+    if (W < sp.szer || W > sp.szer + 5)
+      add(W < sp.szer ? "error" : "warn", `Miejsce na zmywarkę ma ${fmt(Math.round(W))} mm — zmywarka ${sp.szer === 450 ? "45" : "60"} cm potrzebuje ${fmt(sp.szer)}–${fmt(sp.szer + 5)} mm.|sprzetcw:${sp.szer}`);
+    if (wysNiszy < sp.hMin || wysNiszy > sp.hMax)
+      add("error", `Od podłogi do spodu blatu jest ${fmt(wysNiszy)} mm — zmywarka do zabudowy potrzebuje ${fmt(sp.hMin)}–${fmt(sp.hMax)} mm (regulowane nóżki).`);
+    if (cd < sp.dMin)
+      add("error", `Miejsce na zmywarkę ma ${fmt(Math.round(cd))} mm głębokości — potrzeba co najmniej ${fmt(sp.dMin)} mm.|glebokosc:${Math.round(cab.D + sp.dMin - cd)}`);
+    add("info", "Front zmywarki przykręcony do jej drzwi okuciami z kompletu zmywarki; cokół ciągu idzie dalej przed zmywarką.");
+  } else {
+    const lw = sp.lodW, x0 = Math.round((W - lw) / 2);
+    const zTyl = cd - sp.luzTyl, zPrzod = zTyl - sp.lodD;
+    dane = { ...sp, lodowka: true, x0, x1: x0 + lw, y0: 0, y1: sp.lodH, fz0: zPrzod, fz1: zPrzod + SPRZET_FRONT_GR,
+      bryla: { x0, x1: x0 + lw, y0: 0, y1: sp.lodH, z0: zPrzod + SPRZET_FRONT_GR, d: zTyl },
+      nisza: { w: Math.round(W), h: Math.round(cab.H), d: Math.round(cd) } };
+    const luz = Math.floor((W - lw) / 2);
+    if (W < lw)
+      add("error", `Miejsce na lodówkę ma ${fmt(Math.round(W))} mm — lodówka ma ${fmt(lw)} mm, z luzem na wentylację ${fmt(lw + 2 * sp.luzBok)} mm.|sprzetcw:${lw + 2 * sp.luzBok}`);
+    else if (luz < sp.luzBok)
+      add("warn", `Między lodówką a sąsiadami zostaje ${fmt(luz)} mm z boku — na wentylację potrzeba ${fmt(sp.luzBok)} mm (sprawdź w instrukcji modelu).|sprzetcw:${lw + 2 * sp.luzBok}`);
+    if (Math.round(cab.H) < sp.lodH)
+      add("warn", `Pozycja ma ${fmt(Math.round(cab.H))} mm wysokości, a lodówka ${fmt(sp.lodH)} mm.|sprzetch:${sp.lodH}`);
+    if (zPrzod < 0)
+      add("info", `Lodówka (głęb. ${fmt(sp.lodD)} mm z luzem ${fmt(sp.luzTyl)} mm z tyłu) wystaje ${fmt(Math.round(-zPrzod))} mm przed lico szafek.`);
+  }
+  return { ...baza, bezKorpusu: true, sprzetCiagu: dane, panels, hardware: [], msgs, doors: [], klapy: [],
+    hasTop: false, hasBot: false, hasBack: false, isBlat: false, isWorktop: false, blat: null, dividers: [], sepShelves: [],
+    zawieszki: [], drillPlan: [], zawiasyMontaz: [], dystansZa: null, dnoOtwory: [], wienOtwory: [],
+    levels: baza.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, shelves: [], doors: [], rails: [], drazki: [], sprzet: null })) })) };
+}
+
 /* ---------- rysunki ---------- */
 
 /* ---------- struktura usłojenia na rysunkach ----------
@@ -8725,7 +8820,88 @@ function KlapaElewacja({ d, fy, ff, open, tf, showDims, showHardware, lustro, x0
   );
 }
 
+/* Sprzet w ciagu bez korpusu (2026-11-05) na rysunku z przodu: zmywarka — bryla przerywana
+   i front meblowy (kolor frontow); lodowka wolnostojaca — jej bryla z drzwiami. `fy` jak w elewacji. */
+function SprzetCiaguElew({ cab, geo, frontColor, fy, mx = (x) => x }) {
+  const s = geo.sprzetCiagu;
+  if (!s) return null;
+  if (s.lodowka) {
+    const w = s.x1 - s.x0, h = s.y1 - s.y0, X = mx(s.x0, w);
+    return (
+      <g data-el="sprzet-ciagu">
+        <rect x={X} y={fy(s.y1)} width={w} height={h} fill={SPRZET_KOLOR} fillOpacity="0.85" stroke={INK} strokeWidth="2" />
+        <path d={`M ${X + 10} ${fy(s.y1) + 10} h ${w - 20} v ${h - 20} h ${-(w - 20)} z`} fill="none" stroke="#e7e5e4" strokeWidth="2" opacity="0.6" />
+        <path d={`M ${s.drzwi === "prawe" ? X + 28 : X + w - 28} ${fy(s.y0 + h * 0.6)} v ${h * 0.25}`} stroke="#d6d3d1" strokeWidth="8" />
+        <text x={X + w / 2} y={fy(s.y0 + h / 2)} textAnchor="middle" fontSize="24" fill="#fafaf9" fontFamily="ui-monospace, monospace">{s.nazwa}</text>
+      </g>
+    );
+  }
+  const b = s.bryla, f = s.front;
+  return (
+    <g data-el="sprzet-ciagu">
+      <rect x={mx(b.x0, b.x1 - b.x0)} y={fy(b.y1)} width={b.x1 - b.x0} height={b.y1 - b.y0} fill={SPRZET_KOLOR} fillOpacity="0.15"
+        stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
+      <rect x={mx(f.x, f.w)} y={fy(f.y + f.h)} width={f.w} height={f.h} fill={frontColor} stroke={INK} strokeWidth="2" data-el="front-zmywarki" />
+      <text x={mx(f.x, f.w) + f.w / 2} y={fy(f.y + f.h / 2)} textAnchor="middle" fontSize="22" fill={INK} fontFamily="ui-monospace, monospace">{`${s.nazwa} ${fmt(f.w)}×${fmt(f.h)}`}</text>
+    </g>
+  );
+}
+
+/* Widok pojedynczej pozycji bez korpusu (zmywarka, lodowka wolnostojaca w ciagu, 2026-11-05) —
+   zamiast rysunku szafki: z przodu, z boku albo z gory sam sprzet z wymiarami i podloga. */
+function SprzetCiaguWidok({ cab, geo, mat, widok = "przod" }) {
+  const s = geo.sprzetCiagu;
+  if (!s) return null;
+  const W = Math.round(geo.W), H = Math.round(cab.H), cd = Math.round(geo.carcassDepth);
+  const pod = s.lodowka ? 0 : Math.round(geo.plinthInBody ? 0 : geo.legBelow || geo.plinthH || 0);
+  const ff = (matRysunku(cab, mat).front || {}).color || "#d6d3d1";
+  const fy = (y) => H - y;
+  const pad = 140, z = sprzetZ(s);
+  if (widok === "gora") {
+    const z0 = Math.min(0, z.fz0, -geo.tf);
+    return (
+      <svg viewBox={`${-pad} ${-pad} ${W + 2 * pad} ${cd - z0 + 2 * pad}`} className="w-full h-auto select-none" style={{ maxHeight: DRAW_MAX_H }} data-el="sprzet-ciagu-widok">
+        <rect x="0" y="0" width={W} height={cd} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" strokeDasharray="14 9" />
+        <CabTop cab={cab} geo={geo} mat={mat} />
+        <DimH x1={0} x2={W} y={-50} label={fmt(W)} />
+        <DimV y1={0} y2={cd} x={-50} label={fmt(cd)} />
+      </svg>
+    );
+  }
+  if (widok === "bok") {
+    const zMin = Math.min(0, z.fz0, -geo.tf);
+    const x = (zz) => cd - zz;   // sciana po lewej, przod po prawej
+    const b = s.bryla;
+    return (
+      <svg viewBox={`${-pad} ${-pad} ${cd - zMin + 2 * pad} ${H + pod + 2 * pad}`} className="w-full h-auto select-none" style={{ maxHeight: DRAW_MAX_H }} data-el="sprzet-ciagu-widok">
+        <line x1={-pad / 2} y1={fy(-pod)} x2={cd - zMin + pad / 2} y2={fy(-pod)} stroke={INK} strokeWidth="2" />
+        <rect x={x(z.bz1)} y={fy(b.y1)} width={z.bz1 - z.bz0} height={b.y1 - b.y0} fill={SPRZET_KOLOR} fillOpacity="0.25" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
+        {s.lodowka
+          ? <rect x={x(z.fz1)} y={fy(s.y1)} width={z.fz1 - z.fz0} height={s.y1 - s.y0} fill={SPRZET_KOLOR} stroke={INK} strokeWidth="1.5" />
+          : <rect x={cd} y={fy(s.front.y + s.front.h)} width={geo.tf} height={s.front.h} fill={ff} stroke={INK} strokeWidth="1.5" />}
+        <DimV y1={fy(H)} y2={fy(-pod)} x={-60} label={fmt(H + pod)} />
+        <DimH x1={0} x2={cd} y={fy(H) - 50} label={fmt(cd)} />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox={`${-pad} ${-pad} ${W + 2 * pad} ${H + pod + 2 * pad}`} className="w-full h-auto select-none" style={{ maxHeight: DRAW_MAX_H }} data-el="sprzet-ciagu-widok">
+      <line x1={-pad / 2} y1={fy(-pod)} x2={W + pad / 2} y2={fy(-pod)} stroke={INK} strokeWidth="2" />
+      <SprzetCiaguElew cab={cab} geo={geo} frontColor={ff} fy={fy} />
+      <DimH x1={0} x2={W} y={fy(H) - 50} label={fmt(W)} />
+      <DimV y1={fy(H)} y2={fy(-pod)} x={-60} label={fmt(H + pod)} />
+      <text x={W / 2} y={fy(-pod) + 60} textAnchor="middle" fontSize="22" fill="#78716c" fontFamily="ui-monospace, monospace">
+        {s.lodowka ? "lodówka wolnostojąca — bez korpusu" : "zmywarka — bez korpusu, w zamówieniu tylko front"}
+      </text>
+    </svg>
+  );
+}
+
 function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels, frontColor, rear, levelDims }) {
+  if (geo.bezKorpusu) {
+    const Wb = geo.W;
+    return <SprzetCiaguElew cab={cab} geo={geo} frontColor={frontColor} fy={(y) => cab.H - y} mx={(x, w) => (rear ? Wb - x - w : x)} />;
+  }
   const H = cab.H;
   const W = geo.W;
   const t = geo.t;
@@ -9075,6 +9251,20 @@ function OtworyZGory({ geo, polki }) {
 }
 
 function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
+  if (geo.bezKorpusu && geo.sprzetCiagu) {
+    // sprzet w ciagu z gory (2026-11-05): bryla przerywana, front (zmywarka) albo przod lodowki
+    const s = geo.sprzetCiagu, cdS = geo.carcassDepth;
+    const b = s.bryla, z = sprzetZ(s);
+    return (
+      <g data-el="sprzet-ciagu-z-gory">
+        <rect x={b.x0} y={cdS - z.bz1} width={b.x1 - b.x0} height={z.bz1 - z.bz0} fill={SPRZET_KOLOR} fillOpacity="0.2" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
+        {s.lodowka
+          ? <rect x={s.x0} y={cdS - z.fz1} width={s.x1 - s.x0} height={z.fz1 - z.fz0} fill={SPRZET_KOLOR} stroke={INK} strokeWidth="1.5" />
+          : <rect x={s.front.x} y={cdS} width={s.front.w} height={geo.tf} fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="1.5" />}
+        <text x={(b.x0 + b.x1) / 2} y={cdS / 2} textAnchor="middle" fontSize="22" fill={INK} fontFamily="ui-monospace, monospace">{s.nazwa}</text>
+      </g>
+    );
+  }
   const W = geo.W;
   const t = geo.t;
   const cd = geo.carcassDepth;
@@ -10440,6 +10630,15 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     const naWspolnym = rbDno && !rbDno.brak ? new Set(rbDno.idxs) : null;
     g.cabs.forEach((c) => {
       wysun = c.offset || 0;
+      /* Sprzet w ciagu bez korpusu (2026-11-05): bryla sprzetu, front meblowy zmywarki (jak drzwi:
+         przed licem, w kolorze frontow) albo przod lodowki wolnostojacej. */
+      if (c.geo.bezKorpusu && c.geo.sprzetCiagu) {
+        const s = c.geo.sprzetCiagu, z = sprzetZ(s), b = s.bryla;
+        box(c.x + b.x0, c.base + b.y0, z.bz0, c.x + b.x1, c.base + b.y1, z.bz1, SPRZET_KOLOR, null, 1, false, 0, "sprzet");
+        if (s.lodowka) box(c.x + s.x0, c.base + s.y0, z.fz0, c.x + s.x1, c.base + s.y1, z.fz1, SPRZET_KOLOR, null, 1, true, 0, "sprzet-front");
+        else box(c.x + s.front.x, c.base + s.front.y, -c.geo.tf, c.x + s.front.x + s.front.w, c.base + s.front.y + s.front.h, 0, c.frontColor, null, 1, true, 0, "front-zmywarki");
+        return;
+      }
       const cd = c.geo.carcassDepth;
       const t = c.geo.t;
       const bf = c.mat.board.color;
@@ -10858,6 +11057,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
 }
 
 function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels, showHardware, arm, wstawki, blat, druk, szczelinyNietypowe = false }) {
+  if (geo.bezKorpusu) return <SprzetCiaguWidok cab={cab} geo={geo} mat={matIn} widok="przod" />;
   const wsL = wstawkiSzafki(wstawki, geo);
   const matR = matRysunku(cab, matIn);
   const mat = texMat(matR, cab.texture, cab.textureDir);
@@ -12102,6 +12302,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
 }
 
 function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
+  if (geo.bezKorpusu) return <SprzetCiaguWidok cab={cab} geo={geo} mat={matIn} widok="przod" />;
   const matR = matRysunku(cab, matIn);
   const mat = texMat(matR, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
@@ -12423,6 +12624,7 @@ const blatNadSzafka = (project, full, index, arm) => {
 };
 
 function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, arm, blat, wstawki, druk }) {
+  if (geo.bezKorpusu) return <SprzetCiaguWidok cab={cab} geo={geo} mat={matIn} widok="gora" />;
   const matR = matRysunku(cab, matIn);
   const mat = texMat(matR, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
@@ -13048,6 +13250,7 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
 }
 
 function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap, wstawki, blat }) {
+  if (geo.bezKorpusu) return <SprzetCiaguWidok cab={cab} geo={geo} mat={matIn} widok="bok" />;
   const matR = matRysunku(cab, matIn);
   const mat = texMat(matR, cab.texture, cab.textureDir);
   const shc = shelfColorOf(cab, mat);
@@ -13881,6 +14084,7 @@ const nazwaWzmocnienia = (r) => (r.orient === "front"
 
 function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat, podswietl = null }) {
   useAudytWidoku();
+  if (geo.bezKorpusu) return <SprzetCiaguWidok cab={cab} geo={geo} mat={matIn} widok="przod" />;
   const mat = matRysunku(cab, matIn);
   const t = geo.t;
   const cd = geo.carcassDepth;
@@ -14812,6 +15016,11 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const [, , , mm, Wn] = action.split(":");
       return { label: Wn ? `Szafka ${fmt(Number(Wn))} mm (wnęka ${fmt(Number(mm))})` : `Kolumna ${fmt(Number(mm))} mm`, run: () => runFix && runFix(action) };
     }
+    if (action.startsWith("sprzetcw:") || action.startsWith("sprzetch:")) {
+      // „sprzetcw:<mm>” / „sprzetch:<mm>” — szerokosc / wysokosc miejsca sprzetu w ciagu (2026-11-05)
+      const mm = Number(action.split(":")[1]);
+      return { label: `${action.startsWith("sprzetcw:") ? "Miejsce" : "Wysokość"} ${fmt(mm)} mm`, run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("sprzeth:")) {
       const [, , mm, Hn] = action.split(":");
       return { label: Hn ? `Wysokość szafki ${fmt(Number(Hn))} mm (wnęka ${fmt(Number(mm))})` : `Poziom ${fmt(Number(mm))} mm`, run: () => runFix && runFix(action) };
@@ -15612,6 +15821,16 @@ const runPlinth = (project, run) => {
       if (naStarcie) a -= ext; else e += ext;
     }
   });
+  /* Lodowka wolnostojaca w ciagu stoi na podlodze (2026-11-05) — cokol ciagu konczy sie przy niej,
+     gdy stoi na koncu ciagu; w srodku ciagu zostaje ciagly (uwaga w `worktopMsgs`). */
+  {
+    let x = 0;
+    const poz = list.map(({ it }, k) => { const w = computeGeo(it.cab, it.mat).W; const o = { it, x0: x, x1: x + w }; x += w + (k < list.length - 1 ? run.gap || 0 : 0); return o; });
+    const wolno = (o) => !!(o && o.it.cab.sprzetCiagu && sprzetCiagu(o.it.cab).typ === "lodowka");
+    for (let k = poz.length - 1; k >= 0 && wolno(poz[k]); k--) e = Math.min(e, poz[k].x0);
+    for (let k = 0; k < poz.length && wolno(poz[k]); k++) a = Math.max(a, poz[k].x1);
+    if (e - a < 1) return null;
+  }
   dl = e - a;
   const sp = splitAtJoints(dl, joints.map((j) => j - a).filter((j) => j > 0 && j < dl),
     Array.isArray(run.plinthCuts) ? run.plinthCuts.map((c) => c - a) : run.plinthCuts, USABLE_W,
@@ -17866,6 +18085,26 @@ const swingBodies = (L, project) => {
       const cdV1 = n.depth + c.offset;                 // lico korpusu
       const cdV0 = cdV1 - geo.carcassDepth;            // tyl korpusu
       const zBase = c.base;
+      /* Sprzet w ciagu bez korpusu (2026-11-05): zmywarka — bryla, front meblowy na drzwiach (opadaja
+         jak klapa w dol, os na dolnej krawedzi frontu); lodowka wolnostojaca — bryla wysunieta przed
+         lico i drzwi na boku (skrzydlo). Cokol ciagu nie jest przeszkoda — front opada przed nim. */
+      if (geo.bezKorpusu && geo.sprzetCiagu) {
+        const s = geo.sprzetCiagu, zs = sprzetZ(s);
+        const klucz = `${kto.id}|sprzet`;
+        if (s.lodowka) {
+          const lico = cdV1 - zs.fz0;
+          bryly.push(roomBox(n, u0 + s.x0, u0 + s.x1, cdV0, lico, zBase + s.y0, zBase + s.y1, { ...kto, co: `lodówka`, klucz }));
+          const prawe = s.drzwi === "prawe", w = s.x1 - s.x0;
+          skrzydla.push(swingLeaf(n, u0 + (prawe ? s.x1 : s.x0), lico, prawe ? -1 : 1, w, zBase + s.y0, zBase + s.y1, { ...kto, klucz, szer: w, sprzet: s.nazwa }));
+        } else {
+          const f = s.front, lico = cdV1 + geo.tf;
+          bryly.push(roomBox(n, u0, u0 + geo.W, cdV0, cdV1, zBase - (s.nisza.h - c.cab.H), zBase + c.cab.H, { ...kto, co: "zmywarka", klucz: `${klucz}b` }));
+          bryly.push(roomBox(n, u0 + f.x, u0 + f.x + f.w, cdV1, lico, zBase + f.y, zBase + f.y + f.h, { ...kto, co: "front zmywarki", klucz }));
+          ruchy.push({ ...kto, klucz, n, typ: "klapa", gora: false, kat: 90, r: f.h, tf: geo.tf, szer: f.h,
+            u0: u0 + f.x, u1: u0 + f.x + f.w, hv: lico, hz: zBase + f.y, sprzet: s.nazwa });
+        }
+        return;
+      }
       bryly.push(roomBox(n, u0, u0 + geo.W, cdV0, cdV1, zBase, zBase + c.cab.H,
         { ...kto, co: "korpus", klucz: `${kto.id}|korpus` }));
       const overlay = c.cab.frontMode !== "inset";
@@ -18994,7 +19233,8 @@ function PrintReport({ project }) {
     layout.info.forEach((n) => { if (n.arm) m.set(n.arm.cab.index, n.arm); });
     return m;
   }, [layout]);
-  const arkusz = (it, i, nr, rozdzial) => (
+  // sprzet w ciagu bez korpusu (zmywarka, lodowka wolnostojaca) nie ma wlasnej kartki — jego front jest w zamowieniu
+  const arkusz = (it, i, nr, rozdzial) => (it.cab && it.cab.sprzetCiagu ? null :
     <ReportSheet key={i} cab={cabDoGeo(project, it)} mat={it.mat} projectName={name}
       index={nr} total={project.items.length} rozdzial={rozdzial}
       ctx={armCtxOf(layout, i)} arm={armOf.get(i)}
@@ -19610,7 +19850,7 @@ export default function App() {
         && roomOfRun(p, r) === pokojRun);
       return inny ? inny.D : SZAFKA_KUCHENNA_D;
     })() : null;
-    const wymiaryCiagu = run && !tplId ? {
+    const wymiaryCiagu = run && (!tplId || (base.sprzetCiagu && base.sprzetCiagu.typ === "zmywarka")) ? {
       ...(run.H != null ? { H: run.H } : {}),
       ...(run.D != null ? { D: run.D } : glebPustego != null ? { D: glebPustego } : {}),
       ...(run.plinth ? { plinth: { ...run.plinth } } : {}),
@@ -20661,6 +20901,11 @@ export default function App() {
       return;
     }
     // wneka na sprzet: szerokosc kolumny / szafki, swiatlo poziomu / wysokosc szafki (2026-11-04)
+    if (action.startsWith("sprzetcw:") || action.startsWith("sprzetch:")) {
+      const mm = Math.max(1, Math.round(Number(action.split(":")[1]) || 0));
+      setCab((cur) => ({ ...cur, ...(action.startsWith("sprzetcw:") ? { W: mm } : { H: mm }) }));
+      return;
+    }
     if (action.startsWith("sprzetw:")) {
       const [, li, j, mm, Wn] = action.split(":");
       if (Wn) setCab((cur) => ({ ...cur, W: Math.max(1, Math.round(Number(Wn))) }));
@@ -21366,6 +21611,68 @@ export default function App() {
     Object.keys(sp).forEach((k) => { if (sp[k] === "" || sp[k] == null) delete sp[k]; });
     col.sprzet = sp;
   });
+  const uiSprzetuCiagu = () => {
+    const sp = sprzetCiagu(cab);
+    const typowy = SPRZETY_CIAGU[sp.typ];
+    const setSp = (patch) => set({ sprzetCiagu: (() => { const o = { ...(cab.sprzetCiagu || {}), ...patch };
+      Object.keys(o).forEach((k) => { if (o[k] === "" || o[k] == null) delete o[k]; }); return o; })() });
+    const pole = (k, label) => (
+      <Field label={label} hint={`typowo ${fmt(typowy[k])} mm`}>
+        <Num value={(cab.sprzetCiagu || {})[k] ?? ""} onChange={(v) => setSp({ [k]: v === "" ? null : v })} />
+      </Field>
+    );
+    const s = geo.sprzetCiagu;
+    return (
+      <Card title="Sprzęt w ciągu" id="sprzet-ciagu">
+        <div className="space-y-3 text-xs" data-el="sprzet-ciagu-karta">
+          <Seg value={sp.typ} onChange={(v) => set({ sprzetCiagu: { typ: v }, ...(v === "lodowka"
+              ? { W: 700, H: 1850, plinth: { ...(cab.plinth || {}), on: false }, legs: { ...(cab.legs || {}), on: false } } : { W: 600 }) })}
+            options={[{ v: "zmywarka", l: "Zmywarka" }, { v: "lodowka", l: "Lodówka wolnostojąca" }]} />
+          <p className="text-[11px] text-stone-500">
+            Pozycja w ciągu bez korpusu — sąsiednie szafki stoją przy niej bokami.
+            {sp.typ === "zmywarka"
+              ? ` W zamówieniu tylko front meblowy${s && s.front ? ` ${fmt(s.front.h)} × ${fmt(s.front.w)} mm` : ""} (luzy jak drzwi obok), przykręcany do drzwi zmywarki; cokół i blat ciągu idą dalej.`
+              : " Stoi na podłodze, bez cokołu; blat ciągu kończy się przy niej."}
+            {" "}Wymiary typowe — sprawdź z kartą swojego modelu.
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Miejsce — szerokość"><Num value={cab.W} onChange={(v) => set({ W: v })} /></Field>
+            <Field label="Wysokość"><Num value={cab.H} onChange={(v) => set({ H: v })} /></Field>
+            <Field label="Głębokość"><Num value={cab.D} onChange={(v) => set({ D: v })} /></Field>
+          </div>
+          {sp.typ === "zmywarka" ? (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="w-16 shrink-0 text-stone-500">model</span>
+                <div className="flex-1"><Seg value={String(sp.szer)} onChange={(v) => { setSp({ szer: v === "450" ? 450 : null }); set({ W: Number(v) }); }}
+                  options={[{ v: "600", l: "60 cm" }, { v: "450", l: "45 cm" }]} /></div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {pole("hMin", "Od podłogi do blatu — od")}
+                {pole("hMax", "… do")}
+                {pole("dMin", "Głębokość min.")}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                {pole("lodW", "Lodówka — szerokość")}
+                {pole("lodH", "Lodówka — wysokość")}
+                {pole("lodD", "Lodówka — głębokość")}
+                {pole("luzBok", "Luz z boku")}
+                {pole("luzTyl", "Luz z tyłu")}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-16 shrink-0 text-stone-500">drzwi</span>
+                <div className="flex-1"><Seg value={sp.drzwi} onChange={(v) => setSp({ drzwi: v === "lewe" ? null : v })}
+                  options={[{ v: "lewe", l: "zawias z lewej" }, { v: "prawe", l: "zawias z prawej" }]} /></div>
+              </div>
+            </>
+          )}
+        </div>
+      </Card>
+    );
+  };
   const uiSprzetu = (lv, c, rawCol) => {
     const sp = sprzetKolumny(rawCol);
     const typowy = SPRZETY[sp.typ];
@@ -23260,6 +23567,9 @@ export default function App() {
               )}
             </Card>
           )}
+          {/* Sprzet w ciagu bez korpusu (2026-11-05): zamiast kart szafki — karta sprzetu; „Płyty”
+              zostaja (z nich front zmywarki) */}
+          {cab.sprzetCiagu ? uiSprzetuCiagu() : (<>
           <Card title="Korpus" collapsible id="korpus">
             <div className="grid grid-cols-3 gap-3">
               <Field label="Szerokość"><Num value={cab.W} onChange={(v) => set({ W: v })} /></Field>
@@ -24859,6 +25169,7 @@ export default function App() {
             )}
           </Card>
 
+          </>)}
           <Card title="Płyty" collapsible defaultOpen={false}>
             {[
               "board",
