@@ -1,12 +1,12 @@
 # Sprzęty w zabudowie
 
-Piekarnik i mikrofala (użytkownik 2026-11-04). Siedzą we wnęce, czyli w kolumnie
-poziomu szafki — zwykle w słupku między szufladami a drzwiami. Lodówka, zmywarka,
-płyta i zlew dojdą później, każde osobno.
+Piekarnik i mikrofala (użytkownik 2026-11-04) oraz lodówka (2026-11-05). Siedzą we
+wnęce, czyli w kolumnie poziomu szafki — zwykle w słupku. Zmywarka, lodówka
+wolnostojąca w ciągu oraz płyta i zlew dojdą później, każde osobno.
 
 W karcie „Struktura wnętrza” kolumna ma cztery rodzaje: „Półki i drzwi /
 Szuflady / Blenda / **Sprzęt**”. Przy „Sprzęt” wybierasz typ: **Piekarnik /
-Mikrofala**. Powrót na inny rodzaj zdejmuje sprzęt, a kolumna wraca do tego, co
+Mikrofala / Lodówka**. Powrót na inny rodzaj zdejmuje sprzęt, a kolumna wraca do tego, co
 miała wcześniej.
 
 ## Co program liczy sam
@@ -30,6 +30,32 @@ miała wcześniej.
   | piekarnik | 595 × 595 | 560–568 | 585 | 550 | w dół, 480 | 40 |
   | mikrofala | 594 × 382 | 560–568 | 362 | 300 | zawias z lewej, 450 szer. | — |
 
+## Lodówka
+
+Mocowanie frontu (pole „front”, użytkownik 2026-11-05: do wyboru, także bez frontu):
+- **ślizgowo** (domyślnie) — front meblowy na zawiasach szafki (liczba z tabeli GTV, jak
+  drzwi), z drzwiami lodówki łączy go prowadnica ślizgowa z kompletu lodówki;
+- **na stałe** — front przykręcony do drzwi lodówki okuciami z kompletu, bez zawiasów
+  meblowych (w zamówieniu ich nie ma, plan wierceń bez puszek);
+- **bez frontu (wolnostojąca)** — lodówka z własnymi drzwiami stoi we wnęce między
+  bokami szafki.
+
+Przy lodówce z frontem:
+- **1 front** na całą wnękę albo **2 fronty** (dolny i górny, bez płyty między nimi, luz
+  jak między drzwiami). Wysokość dolnego wpisujesz z karty lodówki; bez niej — po równo
+  i ostrzeżenie.
+- Formatki: „Front lodówki” albo „Front lodówki — dolny / górny”, z uwagą o mocowaniu.
+- Zawiasy z lewej albo z prawej, uchwyt na froncie (do odznaczenia).
+- Wnęka lodówki 177 cm: szerokość 560–570, wysokość 1772–1790, głębokość od 550 —
+  każda poza zakresem to uwaga z przyciskiem („Szafka … / Kolumna …”, „Poziom 1781 mm”,
+  „Głębokość szafki …”). W kolumnie lodówki nie ma podpowiedzi rury na wieszaki.
+
+Lodówka wolnostojąca we wnęce: 600 × 1850 × 650 mm, luz z boków 50, nad nią 100, z tyłu
+50 mm (typowo z instrukcji — model może chcieć inaczej). Za wąska wnęka (mniej niż
+lodówka) — błąd, za mało luzu — ostrzeżenie, oba z przyciskiem szerokości / wysokości.
+Głębsza niż wnęka — informacja, ile wystaje przed lico; w kontroli otwierania jej
+drzwi otwierają się od wysuniętego przodu.
+
 ## Co ustawiasz ręcznie
 
 Każdy typowy wymiar możesz zmienić polem w karcie sprzętu. Puste pole oznacza
@@ -40,7 +66,9 @@ wartość typową, a podpowiedź pod polem ją podaje. Pola:
 - **Drzwi** — wysokość albo szerokość;
 - **Uchwyt** przed frontem.
 
-Zmiana typu (piekarnik ↔ mikrofala) czyści wszystkie własne wymiary.
+Lodówka: patrz wyżej (mocowanie, fronty, wnęka od–do, wymiary wolnostojącej i luzy).
+
+Zmiana typu (piekarnik / mikrofala / lodówka) czyści wszystkie własne wymiary.
 Wpisuj liczby z karty swojego modelu.
 
 ## Kontrole (Uwagi w karcie szafki)
@@ -89,7 +117,10 @@ Wpisuj liczby z karty swojego modelu.
 ## Skąd liczby
 
 Typowe wymiary sprzętu do zabudowy 60 cm. Decyzja użytkownika 2026-11-04: „Typowe,
-do zmiany w polach”, a każdy wymiar trzeba sprawdzić z kartą modelu. Luz 2 mm przy
+do zmiany w polach”, a każdy wymiar trzeba sprawdzić z kartą modelu. Lodówka 177 cm:
+wnęki z kart Bosch / Beko / Bora (1772–1790 × 560–570 × 550); lodówka wolnostojąca —
+luzy 50 / 100 mm z poradników producentów (Samsung), decyzje o mocowaniu i frontach
+2026-11-05. Luz 2 mm przy
 frontach to zapas, żeby front sprzętu nie dotykał frontu nad nim.
 
 ## Gdzie w kodzie i testy
@@ -98,10 +129,13 @@ frontach to zapas, żeby front sprzętu nie dotykał frontu nad nim.
   - stałe i parametry: `SPRZETY`, `SPRZET_POLA`, `sprzetKolumny`, `kolumnaSprzetu`;
   - kontrole: `computeGeo`, blok „Sprzety w zabudowie” przed formatkami;
   - przyciski: `sprzetw:` / `sprzeth:` w `NoteLine` i `runFix`;
+  - lodówka: `lodowkaWneki` (kontrole wnęki), `pasmaPodzialu` (dwa fronty), drzwi
+    z `d.lodowka` (bez zawiasów przy „na stałe”), formatka „Front lodówki”;
   - karta: `uiSprzetu`;
   - rysunki: `SprzetElewacja`, `SideView`, `TopView`, `Scene3D`, `Assembly3D`;
   - otwieranie: `swingBodies` / `openingMsgs`.
 - **Testy**:
-  - `funkcje` — wnęka, uwagi i przyciski, front na drzwiach nad nim i obok, ślepy róg;
+  - `funkcje` — wnęka, uwagi i przyciski, front na drzwiach nad nim i obok, ślepy róg,
+    lodówka (fronty, zawiasy, wnęka, wolnostojąca);
   - `sprzety` — klikane w aplikacji.
 - Pola w danych: `SLOWNIK.md`.

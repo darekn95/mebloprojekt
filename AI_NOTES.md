@@ -754,11 +754,16 @@ Zrzut z zaznaczonym „37” byl w scratchpadzie sesji (pdftoppm s. 112, -r 300,
 [AI-INFO] (2026-11-04) Sprzety w zabudowie — etap 1 zrobiony: piekarnik i mikrofala jako rodzaj
 kolumny „Sprzęt” (`col.sprzet`, opis `opisy/sprzety.md`), bryly i drzwi w `swingBodies`.
 Szafka luzem (bez ciagu) nadal nie ma kontroli otwierania — `openingMsgs` idzie po ukladzie ciagow.
-[AI-TODO] (2026-11-04, decyzje uzytkownika: wszystkie cztery; „zaleznie od sprzetu”; „typowe, do
-zmiany w polach”) Dalsze etapy: 2) lodowka do zabudowy — wneka w slupku, front meblowy na
-drzwiach lodowki (1 albo 2 fronty); 3) zmywarka — pozycja w ciagu bez korpusu, front meblowy,
-drzwi opadaja; 4) plyta i zlew — wyciecia w blacie roboczym (rozkroj blatu). Na pozniej w etapie 1:
-sprzet w poziomie kolumny (odcinku), wiersz sprzetu w zamowieniu (teraz poza zamowieniem).
+[AI-INFO] (2026-11-05) Lodowka w kolumnie zrobiona: typ „Lodówka” — front slizgowo / na stale /
+bez frontu (wolnostojaca we wnece), 1 albo 2 fronty (dolny z pola). Decyzje uzytkownika 2026-11-05:
+mocowanie do wyboru, takze bez frontu („wolnostojąca lodówka może stać sama we wnęce pomiędzy bokami
+lub bokiem a ścianą lub w ogóle wolnostojąca”); „1 albo 2, podział z pola”; zmywarka — „Cokół ciągu
+idzie dalej”; plyta i zlew — „Nad szafką, z przesunięciem” (wyciecie na srodku wybranej szafki,
+typowo 50 mm od przodu blatu, pola przesuniecia).
+[AI-TODO] (2026-11-05) Dalsze etapy: 3) pozycja w ciagu bez korpusu — zmywarka (front meblowy na
+drzwiach, drzwi opadaja, cokol ciagu idzie dalej) i lodowka wolnostojaca w ciagu (miedzy bokami
+szafek, przy scianie albo osobno); 4) plyta i zlew — wyciecia w blacie roboczym nad wybrana szafka.
+Na pozniej: sprzet w poziomie kolumny (odcinku), wiersz sprzetu w zamowieniu (teraz poza zamowieniem).
 
 [AI-INFO] Szafka w L: `CORNER_L_D` = 560 (jak stojaca), ramie 640. Pusty ciag
 za rogiem liczy glebokosc od sciany z domyslnymi plecami HDF (`runFrontDepth`).

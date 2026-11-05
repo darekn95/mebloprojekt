@@ -127,5 +127,37 @@ console.log('\n== zabudowa 3D: sprzęt w szafce ciągu ==');
   ok('3D zabudowy: bryła i front sprzętu (po 1)', z3.bryla === 1 && z3.front === 1, JSON.stringify(z3));
 }
 
+console.log('\n== lodówka (użytkownik 2026-11-05): zabudowa ślizgowo / na stałe, 2 fronty, wolnostojąca ==');
+{
+  await seed({ name: 'Lodówka', W: 600, H: 2100, D: 560, plinth: { on: true, height: 100 }, legs: { on: false },
+    levels: [{ h: 1781, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }] }, { h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] });
+  // poziomy od gory: poziom 2, 1 — „Sprzęt” poziomu 1 to drugi
+  await page.getByRole('button', { name: 'Sprzęt', exact: true }).nth(1).click(); await page.waitForTimeout(700);
+  const karta = page.locator('[data-el="sprzet-kolumny"]');
+  await karta.getByRole('button', { name: 'Lodówka', exact: true }).click(); await page.waitForTimeout(900);
+  const c = (await zap()).items[0].cab.levels[0].cols[0];
+  ok('„Lodówka”: typ lodowka, domyślnie ślizgowo — informacja o prowadnicy, bez uwag o wnęce', c.sprzet.typ === 'lodowka'
+    && await jest(/prowadnicą ślizgową z kompletu lodówki/) && !(await jest(/wnęka na lodówkę/)), JSON.stringify(c.sprzet));
+  ok('karta: mocowanie (ślizgowo / na stałe / bez frontu), fronty, pola wnęki, zawiasy, uchwyt',
+    (await karta.getByRole('button', { name: 'bez frontu (wolnostojąca)', exact: true }).count()) === 1 && (await karta.getByRole('button', { name: '2 fronty', exact: true }).count()) === 1
+    && (await karta.locator('input[type=number]').count()) === 5 && (await karta.locator('[data-el="lodowka-uchwyt"] input').count()) === 1);
+  await karta.getByRole('button', { name: '2 fronty', exact: true }).click(); await page.waitForTimeout(700);
+  ok('„2 fronty”: ostrzeżenie „wpisz wysokość dolnego frontu z karty lodówki”', await jest(/wpisz wysokość dolnego frontu z karty lodówki/));
+  await karta.locator('label').filter({ hasText: 'Dolny front — wysokość' }).locator('input').fill('700'); await page.waitForTimeout(900);
+  ok('dolny 700: zapisany, bez ostrzeżenia', (await zap()).items[0].cab.levels[0].cols[0].sprzet.dolny === 700 && !(await jest(/wpisz wysokość dolnego frontu/)));
+  await widok('Zamk.');
+  const napisy = await page.locator('#rysunek svg').first().evaluate((e) => e.textContent).catch(() => '');
+  ok('rysunek frontu: dwa fronty lodówki 596 × 700 i 596 × 1101', /596×700/.test(napisy) && /596×1101/.test(napisy), napisy.replace(/\s+/g, ' ').slice(0, 200));
+  await karta.getByRole('button', { name: 'na stałe', exact: true }).click(); await page.waitForTimeout(700);
+  ok('„na stałe”: informacja „bez zawiasów meblowych”', await jest(/przykręcony do drzwi lodówki okuciami z kompletu lodówki — bez zawiasów meblowych/));
+  await karta.getByRole('button', { name: 'bez frontu (wolnostojąca)', exact: true }).click(); await page.waitForTimeout(900);
+  const reW = /wnęka na lodówkę ma 564 mm szerokości — lodówka ma 600 mm/;
+  ok('„bez frontu”: błąd szerokości z „Szafka 736 mm (wnęka 700)”', JSON.stringify(await przyciski(reW)) === '["Szafka 736 mm (wnęka 700)"]', (await przyciski(reW)).join(' / '));
+  await klik(reW, 'Szafka 736 mm (wnęka 700)');
+  ok('po kliknięciu: szafka 736, bez błędu szerokości', (await zap()).items[0].cab.W === 736 && !(await jest(reW)));
+  const l3 = await bryly3d('3D');
+  ok('3D: bryła i drzwi lodówki wolnostojącej', l3.bryla === 1 && l3.front === 1, JSON.stringify(l3));
+}
+
 ok('bez błędów strony', !errors.length, errors.join(' / '));
 await b.close();

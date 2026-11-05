@@ -27,4 +27,4 @@ Zmieniasz zasadę albo liczbę opisaną tutaj, popraw opis w tej samej zmianie.
 | [zamowienie.md](zamowienie.md) | okucia, zestawienie projektu, wycena i ceny domyślne | 2026-10-30 |
 | [wiercenia.md](wiercenia.md) | plan wierceń: konfirmaty, kołki, trójkąty, zawiasy, prowadnice, zawieszki, frez | 2026-10-30 |
 | [rozkroj.md](rozkroj.md) | rozkrój (arkusze, rzaz, usłojenie, blat), ostrzeżenia zużycia i odpadu, zestawienie PDF | 2026-10-30 |
-| [sprzety.md](sprzety.md) | sprzęty w zabudowie: piekarnik i mikrofala we wnęce poziomu — typowe wymiary, kontrole wnęki i frontu, otwieranie, rysunki | 2026-11-04 |
+| [sprzety.md](sprzety.md) | sprzęty w zabudowie: piekarnik, mikrofala i lodówka (front ślizgowo / na stałe / wolnostojąca) we wnęce poziomu — typowe wymiary, kontrole wnęki i frontu, otwieranie, rysunki | 2026-11-05 |

@@ -295,23 +295,54 @@ const SPRZETY = {
     drzwi: "dol", drzwiWym: 480, uchwyt: 40 },
   mikrofala: { nazwa: "mikrofala", pelna: "Mikrofala do zabudowy", frontW: 594, frontH: 382, wMin: 560, wMax: 568, hMin: 362, dMin: 300,
     drzwi: "lewe", drzwiWym: 450, uchwyt: 0 },
+  /* Lodowka (uzytkownik 2026-11-05): do zabudowy — front meblowy na drzwiach lodowki, mocowany
+     slizgowo (front na zawiasach szafki, z drzwiami lodowki laczy go prowadnica z kompletu) albo na
+     stale (przykrecony do drzwi lodowki, bez zawiasow meblowych); 1 albo 2 fronty, przy dwoch
+     wysokosc dolnego z karty lodowki. Wneka typowej lodowki 177 cm: 560–570 × 1772–1790 × od 550.
+     Bez frontu — wolnostojaca we wnece: lodowka W × H × D z wlasnymi drzwiami, luz z bokow i z tylu
+     50 mm, nad nia 100 mm (typowe z instrukcji, model moze chciec inaczej). */
+  lodowka: { nazwa: "lodówka", pelna: "Lodówka", wMin: 560, wMax: 570, hMin: 1772, hMax: 1790, dMin: 550,
+    montaz: "slizg", fronty: 1, dolny: null, drzwi: "lewe", uchwyt: 0,
+    lodW: 600, lodH: 1850, lodD: 650, luzBok: 50, luzGora: 100, luzTyl: 50 },
 };
-const SPRZET_POLA = ["frontW", "frontH", "wMin", "wMax", "hMin", "dMin", "drzwi", "drzwiWym", "uchwyt"];
+const SPRZET_POLA = ["frontW", "frontH", "wMin", "wMax", "hMin", "hMax", "dMin", "drzwi", "drzwiWym", "uchwyt",
+  "montaz", "fronty", "dolny", "lodW", "lodH", "lodD", "luzBok", "luzGora", "luzTyl"];
+const SPRZET_TEKST = ["drzwi", "montaz"];   // pola z wyborem, nie liczba
+const MONTAZE_LODOWKI = { slizg: "ślizgowo", staly: "na stałe", brak: "bez frontu (wolnostojąca)" };
+// lodowka z frontem meblowym (slizgowo / na stale) — kolumna ma zwykle drzwi, sprzet nie ma wlasnego frontu
+const lodowkaZFrontem = (sp) => !!sp && sp.typ === "lodowka" && sp.montaz !== "brak";
 const SPRZET_FRONT_GR = 20;       // grubosc frontu sprzetu przed licem korpusu (rysunek, 3D, kontrola otwierania)
 const SPRZET_KOLOR = "#3f3f46";   // jak uchwyty — audyty plyt nie biora tego koloru za formatke
+/* Glebokosci sprzetu od lica korpusu w glab (z): front fz0–fz1 (piekarnik przed licem: −20–0,
+   lodowka wolnostojaca wysunieta: drzwi tam, gdzie wypada jej przod), bryla bz0–bz1. Lodowka do
+   zabudowy nie ma wlasnego frontu (`front: false`) — jej front to drzwi szafki. */
+const sprzetZ = (s) => ({ fz0: s.fz0 ?? -SPRZET_FRONT_GR, fz1: s.fz1 ?? 0, bz0: s.bryla.z0 ?? 0, bz1: s.bryla.d, front: s.front !== false });
 // parametry sprzetu kolumny: typ z SPRZETY i wpisane pola
 const sprzetKolumny = (col) => {
   const sp = col && col.sprzet;
   if (!sp) return null;
   const baza = SPRZETY[sp.typ] || SPRZETY.piekarnik;
   const out = { typ: SPRZETY[sp.typ] ? sp.typ : "piekarnik", ...baza };
-  SPRZET_POLA.forEach((k) => { if (sp[k] != null && sp[k] !== "") out[k] = k === "drzwi" ? sp[k] : Math.max(0, Math.round(Number(sp[k]) || 0)); });
+  SPRZET_POLA.forEach((k) => { if (sp[k] != null && sp[k] !== "") out[k] = SPRZET_TEKST.includes(k) ? sp[k] : Math.max(0, Math.round(Number(sp[k]) || 0)); });
+  if (out.typ === "lodowka") {
+    if (!MONTAZE_LODOWKI[out.montaz]) out.montaz = "slizg";
+    out.fronty = out.fronty === 2 ? 2 : 1;
+    if (out.drzwi !== "prawe") out.drzwi = "lewe";
+  }
   return out;
 };
 /* Kolumna ze sprzetem to dla geometrii pusta wneka: bez drzwi, polek, rury, fixu i podzialu —
-   sprzet (front, bryla, drzwi) liczy sie osobno (`c.sprzet`). */
-const kolumnaSprzetu = (col) => (col && col.sprzet ? { ...col, kind: "doors", doors: 0, doorWidths: [], shelfTargets: [null],
-  drazki: undefined, segmenty: undefined, podzial: undefined, fix: undefined, klapa: undefined, drawers: undefined } : col);
+   sprzet (front, bryla, drzwi) liczy sie osobno (`c.sprzet`). Lodowka z frontem meblowym ma
+   jedne drzwi (przy dwoch frontach — dwa pasma bez plyty miedzy nimi, `pasmaPodzialu`), zawias
+   od strony drzwi lodowki. */
+const kolumnaSprzetu = (col) => {
+  if (!col || !col.sprzet) return col;
+  const pusta = { ...col, kind: "doors", doors: 0, doorWidths: [], shelfTargets: [null],
+    drazki: undefined, segmenty: undefined, podzial: undefined, fix: undefined, klapa: undefined, drawers: undefined };
+  const sp = sprzetKolumny(col);
+  if (!lodowkaZFrontem(sp)) return pusta;
+  return { ...pusta, doors: 1, hinge: sp.drzwi === "prawe" ? "right" : "left", otwieranie: undefined, otwieranieMm: undefined };
+};
 const dystansWarstwy = (dyst, t) => (!(dyst > 0) || !(t > 0) ? 0 : Math.abs(dyst - t) <= 2 ? 1 : Math.abs(dyst - 2 * t) <= 2 ? 2 : 0);
 const kantowkaGrubosc = (dyst) => Math.max(KANTOWKA_KROK, Math.round(dyst / KANTOWKA_KROK) * KANTOWKA_KROK);
 
@@ -3130,7 +3161,8 @@ function computeGeoLiczy(cab, mat, ctx) {
           add("warn", `${gdzie}: wnętrze ma ${fmt(dividerDepth)} mm w głąb — płytko, wieszaki zmieszczą się tylko pod skosem (prosto ok. ${DRAZEK_GL_DOBRA} mm).`);
       });
       /* Podpowiedz: wysokie swiatlo bez rury — zmiesci sie rura (koszule, plaszcze). */
-      if ((rawCols[j].kind === "doors" || !rawCols[j].kind) && !c.drazki.length && dividerDepth >= DRAZEK_GL_MIN) {
+      // nie we wnece na sprzet (lodowka, piekarnik) — tam rury nie bedzie
+      if ((rawCols[j].kind === "doors" || !rawCols[j].kind) && !rawCols[j].sprzet && !c.drazki.length && dividerDepth >= DRAZEK_GL_MIN) {
         // tylko w poziomach z drzwiami — nie w szufladach ani za blenda (N89)
         const o = [...swiatlaDrzwi].reverse().find((q) => q.h - DRAZEK_POD_PLYTA >= DRAZEK_MIN_POD);
         if (o)
@@ -3195,6 +3227,18 @@ function computeGeoLiczy(cab, mat, ctx) {
      2026-10-24) — na polce granicznej fronty nakladane zachodza na nia jak na
      przegrode (szczelina 2 mm na srodku), wpuszczane trzymaja luz od niej. */
   const pasmaPodzialu = (rawCol, c, lv, clo, chi) => {
+    /* Lodowka z frontem meblowym (uzytkownik 2026-11-05): 1 front na cala wneke albo 2 — dolny
+       o wysokosci z karty lodowki (`sprzet.dolny`), gorny reszta, miedzy nimi luz miedzy drzwiami,
+       bez plyty (to drzwi lodowki i zamrazarki). Bez wpisanej wysokosci — po rowno (uwaga nizej). */
+    const spL = sprzetKolumny(rawCol);
+    if (lodowkaZFrontem(spL)) {
+      const jedno = (o) => ({ y0: lv.y0, y1: lv.y1, seg: null, raw: rawCol, ...o });
+      if (spL.fronty !== 2) return [jedno({ lo: clo, hi: chi, pierwszy: true, ostatni: true, lodowka: { nr: null, nazwa: "" } })];
+      const pelna = chi - clo;
+      const dol = spL.dolny > 0 ? Math.min(spL.dolny, Math.max(0, pelna - g.between - MIN_PART)) : Math.round((pelna - g.between) / 2);
+      return [jedno({ lo: clo, hi: clo + dol, pierwszy: true, ostatni: false, lodowka: { nr: 0, nazwa: "dolny" } }),
+        jedno({ lo: clo + dol + g.between, hi: chi, pierwszy: false, ostatni: true, lodowka: { nr: 1, nazwa: "górny" } })];
+    }
     const ks = [...new Set((rawCol.podzial || []).map(Number))].filter((k) => c.shelves && c.shelves[k]).sort((a, b) => a - b);
     if (!ks.length) return [{ lo: clo, hi: chi, y0: lv.y0, y1: lv.y1, seg: null, pierwszy: true, ostatni: true, raw: rawCol }];
     const ovl = cab.frontMode === "overlay";
@@ -3797,7 +3841,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         pasmaDrzwi.forEach((ps) => {
         const clo = ps.lo, chi = ps.hi, cbandH = Math.round(ps.hi - ps.lo);
         // „poziom N kolumny M” (uzytkownik 2026-10-24: „odcinek źle brzmi”, 2026-10-25: numer przy poziomie)
-        const where = ps.seg ? gdziePoziomKol(lv.i, j, ps.seg.nr) : whereKol;
+        const where = ps.seg ? gdziePoziomKol(lv.i, j, ps.seg.nr) : ps.lodowka && ps.lodowka.nr != null ? `${whereKol}, ${ps.lodowka.nazwa} front lodówki` : whereKol;
         const jKey = ps.seg ? `${j}s${ps.seg.nr}` : `${j}`;
         const rawCol = ps.raw;
         /* Otwieranie frontu bez uchwytu (`rawCol.otwieranie[i]`, `otwieranieMm[i]`;
@@ -3990,7 +4034,16 @@ function computeGeoLiczy(cab, mat, ctx) {
                   ? "left"
                   : "right",
             };
-            otwieranieFrontu(d, i, OTWIERANIA);
+            /* front lodowki (uzytkownik 2026-11-05): mocowany na stale wisi na drzwiach lodowki —
+               bez zawiasow meblowych (i bez ich kontroli); slizgowo — zwykle zawiasy szafki */
+            const spF = ps.lodowka ? sprzetKolumny(rawCol) : null;
+            const bezZawiasow = !!spF && spF.montaz === "staly";
+            if (ps.lodowka) {
+              d.lodowka = { nazwa: ps.lodowka.nazwa, montaz: spF.montaz };
+              if (ps.lodowka.nr != null) d.key += `f${ps.lodowka.nr}`;
+            }
+            if (bezZawiasow) d.hinges = 0;
+            if (!ps.lodowka) otwieranieFrontu(d, i, OTWIERANIA);
             if (d.otwMm && num((rawCol.hinges || [])[i]) === null)
               d.hinges = autoHinges(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
             /* Zawias musi miec do czego sie przykrecic: bok szafki albo przegrode.
@@ -4000,7 +4053,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             const wPowietrzu = d.hingeSide === "left"
               ? (j > 0 && !!kolumny[j - 1].noDiv) || (postSide === "left" && j === 0)
               : (j < kolumny.length - 1 && !!kolumny[j].noDiv) || (postSide === "right" && j === kolumny.length - 1);
-            if (wPowietrzu) {
+            if (wPowietrzu && !bezZawiasow) {
               const druga = d.hingeSide === "left" ? "right" : "left";
               add("error", `${where}: zawiasy wypadają od strony przelotu — nie ma tam płyty, `
                 + `do której da się je przykręcić. Przełóż je na ${druga === "left" ? "lewą" : "prawą"} stronę.`
@@ -4050,7 +4103,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             /* Liczba zawiasow wpisana recznie wobec tabeli GTV (uzytkownik
                2026-10-16: „za duzo” i „za malo” wg tabeli, z przyciskiem). Front
                ponad tabele (wysokosc / waga) — ostrzezenie, ze liczba orientacyjna. */
-            {
+            if (!bezZawiasow) {
               const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
               d.zawiasyTabela = gtv.n;   // ile wg wagi — do porownania drzwi tej samej wysokosci
               const opis = `front ${fmt(Math.round(dw))} × ${fmt(Math.round(d.h))} mm, ok. ${gtv.kg.toFixed(1).replace(".", ",")} kg`;
@@ -4105,7 +4158,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             if ((rawCol.handles || [])[i] !== false) handleCount += 1;
             // wysokosc frontu po wydluzeniu / podfrezie (bez nich = pasmo)
             const autoH = autoHinges(d.h, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, d.h, mat) : 0);
-            const ovH = num((rawCol.hinges || [])[i]);
+            const ovH = bezZawiasow ? 0 : num((rawCol.hinges || [])[i]);
             hingeCount += ovH !== null ? ovH : autoH;
             /* Na ile front zachodzi na czolo boku albo przegrody, ktora niesie
                zawias; wspornik przy elemencie stalym zostaje jak byl (front fixu
@@ -5096,6 +5149,57 @@ function computeGeoLiczy(cab, mat, ctx) {
       add("warn", `Półka jest głębsza niż ${fmt(need)} mm — drzwi wpuszczane się nie domkną.`);
   }
 
+  /* Lodowka w kolumnie (uzytkownik 2026-11-05). Do zabudowy (front slizgowo / na stale): wneka
+     w zakresie z karty lodowki (szerokosc i wysokosc od–do, glebokosc najmniej), fronty to drzwi
+     kolumny (`pasmaPodzialu`). Bez frontu — wolnostojaca we wnece: lodowka z wlasnymi drzwiami na
+     dole wneki, przy plecach z luzem z tylu; z bokow i nad nia luz na wentylacje; glebsza niz wneka —
+     wystaje przed lico (informacja). Przyciski jak przy piekarniku: szafka / kolumna, poziom, glebokosc. */
+  const lodowkaWneki = (lv, c, j, sp, where, wW, wH, wD) => {
+    const jedna = lv.cols.length === 1, jedenPoziom = levels.length === 1;
+    const fy0 = Math.round(lv.y0), cx = (c.x0 + c.x1) / 2;
+    const przycW = (cel) => `|sprzetw:${lv.i}:${j}:${cel}:${jedna ? Math.round(W + cel - wW) : ""}`;
+    const przycH = (cel) => `|sprzeth:${lv.i}:${cel}:${jedenPoziom ? Math.round(cab.H + cel - wH) : ""}`;
+    if (sp.montaz === "brak") {
+      const lw = sp.lodW, lh = sp.lodH, ld = sp.lodD;
+      const fx0 = Math.round(cx - lw / 2);
+      const zTyl = wD - sp.luzTyl, zPrzod = zTyl - ld;   // z od lica korpusu w glab
+      c.sprzet = { ...sp, front: true, x0: fx0, x1: fx0 + lw, y0: fy0, y1: fy0 + lh, fz0: zPrzod, fz1: zPrzod + SPRZET_FRONT_GR,
+        drzwiWym: lw, uchwyt: sp.uchwyt,
+        bryla: { x0: fx0, x1: fx0 + lw, y0: fy0, y1: fy0 + lh, z0: zPrzod + SPRZET_FRONT_GR, d: zTyl },
+        wneka: { w: wW, h: wH, d: wD } };
+      const celW = lw + 2 * sp.luzBok, celH = lh + sp.luzGora;
+      if (wW < lw)
+        add("error", `${where}: wnęka na lodówkę ma ${fmt(wW)} mm szerokości — lodówka ma ${fmt(lw)} mm, a z luzem na wentylację potrzeba ${fmt(celW)} mm.${przycW(celW)}`);
+      else if (wW < celW)
+        add("warn", `${where}: wokół lodówki zostaje ${fmt(Math.floor((wW - lw) / 2))} mm z boku — na wentylację potrzeba ${fmt(sp.luzBok)} mm (sprawdź w instrukcji modelu).${przycW(celW)}`);
+      if (wH < lh)
+        add("error", `${where}: wnęka na lodówkę ma ${fmt(wH)} mm wysokości — lodówka ma ${fmt(lh)} mm, a z luzem nad nią potrzeba ${fmt(celH)} mm.${przycH(celH)}`);
+      else if (wH < celH)
+        add("warn", `${where}: nad lodówką zostaje ${fmt(wH - lh)} mm — na wentylację potrzeba ${fmt(sp.luzGora)} mm (sprawdź w instrukcji modelu).${przycH(celH)}`);
+      const wystaje = Math.round(-zPrzod);
+      if (wystaje > 0)
+        add("info", `${where}: lodówka (głęb. ${fmt(ld)} mm z luzem ${fmt(sp.luzTyl)} mm z tyłu) wystaje ${fmt(wystaje)} mm przed lico szafki.`);
+      return;
+    }
+    c.sprzet = { ...sp, front: false, x0: Math.round(c.x0), x1: Math.round(c.x1), y0: fy0, y1: Math.round(lv.y1),
+      bryla: { x0: Math.round(c.x0 + 2), x1: Math.round(c.x1 - 2), y0: fy0, y1: fy0 + Math.max(0, Math.min(wH, sp.hMin) - 2), z0: 0, d: Math.max(0, Math.min(wD, sp.dMin) - 5) },
+      wneka: { w: wW, h: wH, d: wD } };
+    const celW = Math.round((sp.wMin + sp.wMax) / 2), celH = Math.round((sp.hMin + sp.hMax) / 2);
+    if (wW < sp.wMin || wW > sp.wMax)
+      add(wW < sp.wMin ? "error" : "warn", `${where}: wnęka na lodówkę ma ${fmt(wW)} mm szerokości — lodówka do zabudowy potrzebuje ${fmt(sp.wMin)}–${fmt(sp.wMax)} mm`
+        + `${wW > sp.wMax ? " (w szerszej nie przykręci się do boków)" : ""}.${przycW(celW)}`);
+    if (wH < sp.hMin || wH > sp.hMax)
+      add(wH < sp.hMin ? "error" : "warn", `${where}: wnęka na lodówkę ma ${fmt(wH)} mm wysokości — lodówka do zabudowy potrzebuje ${fmt(sp.hMin)}–${fmt(sp.hMax)} mm`
+        + `${wH > sp.hMax ? " (nad nią zostanie szpara, a uchwyty frontu nie trafią w drzwi lodówki)" : ""}.${przycH(celH)}`);
+    if (wD < sp.dMin)
+      add("error", `${where}: wnęka na lodówkę ma ${fmt(wD)} mm głębokości (do pleców) — potrzeba co najmniej ${fmt(sp.dMin)} mm.|glebokosc:${Math.round(cab.D + sp.dMin - wD)}`);
+    if (sp.fronty === 2 && !(sp.dolny > 0))
+      add("warn", `${where}: dwa fronty lodówki — wpisz wysokość dolnego frontu z karty lodówki (teraz podział po równo).`);
+    add("info", sp.montaz === "staly"
+      ? `${where}: front lodówki przykręcony do drzwi lodówki okuciami z kompletu lodówki — bez zawiasów meblowych.`
+      : `${where}: front lodówki na zawiasach szafki, z drzwiami lodówki połączony prowadnicą ślizgową z kompletu lodówki.`);
+  };
+
   /* Sprzety w zabudowie (uzytkownik 2026-11-04): front na srodku wneki, dolem na plycie pod nia
      (sprzet na niej stoi), bryla w glab wneki. Wneka: szerokosc kolumny, swiatlo poziomu, glebokosc
      do plecow — kazda za mala (szerokosc tez za duza) to uwaga z przyciskiem poprawy. */
@@ -5105,6 +5209,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     if (!sp) return;
     const where = `Poziom ${lv.i + 1}, kolumna ${j + 1}`;
     const wW = Math.round(c.x1 - c.x0), wH = Math.round(lv.y1 - lv.y0), wD = Math.round(carcassDepth - backIntrusion);
+    if (sp.typ === "lodowka") { lodowkaWneki(lv, c, j, sp, where, wW, wH, wD); return; }
     const cx = (c.x0 + c.x1) / 2, bw = Math.min(wW, sp.wMin) - 4;
     const fx0 = Math.round(cx - sp.frontW / 2), fy0 = Math.round(lv.y0);
     c.sprzet = { ...sp, x0: fx0, x1: fx0 + sp.frontW, y0: fy0, y1: fy0 + sp.frontH,
@@ -5432,15 +5537,20 @@ function computeGeoLiczy(cab, mat, ctx) {
   doors.forEach((d) => {
     // tylko wlasciwe drzwi — szuflady, fix i blenda maja osobne formatki
     if (d.type !== "door") return;
-    const k = `${Math.round(d.h)}x${Math.round(d.w)}`;
+    // front lodowki osobno (uzytkownik 2026-11-05) — w zamowieniu widac, ktory to front i jak wisi
+    const lod = d.lodowka ? `|${d.lodowka.nazwa}|${d.lodowka.montaz}` : "";
+    const k = `${Math.round(d.h)}x${Math.round(d.w)}${lod}`;
     doorSizes.set(k, (doorSizes.get(k) || 0) + 1);
   });
   doorSizes.forEach((qty, k) => {
-    const [dh, dw] = k.split("x").map(Number);
-    P({ name: cab.frontMode === "overlay" ? "Drzwi nakładane" : "Drzwi wpuszczane",
+    const [wym, nazwaL, montaz] = k.split("|");
+    const [dh, dw] = wym.split("x").map(Number);
+    P({ name: nazwaL != null ? `Front lodówki${nazwaL ? ` — ${nazwaL}` : ""}` : cab.frontMode === "overlay" ? "Drzwi nakładane" : "Drzwi wpuszczane",
         qty, a: dh, b: dw, matKey: "front",
         edges: { a1: true, a2: true, b1: true, b2: true },
-        note: "oklejone wszystkie krawędzie" });
+        note: nazwaL == null ? "oklejone wszystkie krawędzie"
+          : montaz === "staly" ? "oklejone wszystkie krawędzie; przykręcany do drzwi lodówki (okucia z kompletu lodówki)"
+          : "oklejone wszystkie krawędzie; na zawiasach szafki, prowadnica ślizgowa z kompletu lodówki" });
   });
 
   const klapaSizes = new Map();
@@ -8495,7 +8605,7 @@ const caloscPasow = (ps) => ({ y0: ps[0].y0, h: ps[ps.length - 1].y0 + ps[ps.len
 /* Sprzet w zabudowie na widoku z przodu (uzytkownik 2026-11-04): ciemny front, obrys drzwi
    (opadajace — od dolu, boczne — od strony zawiasu), uchwyt i podpis. `mx` jak w rzucie ciagu. */
 function SprzetElewacja({ geo, fy, mx = (x) => x }) {
-  return geo.levels.flatMap((lv) => lv.cols.filter((c) => c.sprzet).map((c) => {
+  return geo.levels.flatMap((lv) => lv.cols.filter((c) => c.sprzet && c.sprzet.front !== false).map((c) => {
     const s = c.sprzet, w = s.x1 - s.x0, h = s.y1 - s.y0, X = mx(s.x0, w);
     const dol = s.drzwi === "dol";
     const dW = dol ? w : Math.min(w, s.drzwiWym), dH = dol ? Math.min(h, s.drzwiWym) : h;
@@ -10407,8 +10517,9 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => {
         const sp = col.sprzet;
         if (!sp) return;
-        box(c.x + sp.bryla.x0, c.base + sp.bryla.y0, 0, c.x + sp.bryla.x1, c.base + sp.bryla.y1, sp.bryla.d, SPRZET_KOLOR, null, 1, false, wGlab, "sprzet");
-        box(c.x + sp.x0, c.base + sp.y0, -SPRZET_FRONT_GR, c.x + sp.x1, c.base + sp.y1, 0, SPRZET_KOLOR, null, 1, true, 0, "sprzet-front");
+        const z = sprzetZ(sp);
+        box(c.x + sp.bryla.x0, c.base + sp.bryla.y0, z.bz0, c.x + sp.bryla.x1, c.base + sp.bryla.y1, z.bz1, SPRZET_KOLOR, null, 1, false, wGlab, "sprzet");
+        if (z.front) box(c.x + sp.x0, c.base + sp.y0, z.fz0, c.x + sp.x1, c.base + sp.y1, z.fz1, SPRZET_KOLOR, null, 1, true, 0, "sprzet-front");
       }));
       const tf = c.geo.tf;
       /* Uchwyt wystaje przed lico i w bryle calej zabudowy widac go tak samo jak
@@ -12501,12 +12612,12 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
       {showShelves && <OtworyZGory geo={{ ...geo, hasTop: false }} polki />}
       {/* sprzet w zabudowie z gory: bryla w glab wneki (przerywana) i front przed licem */}
       {geo.levels.flatMap((lv) => lv.cols.filter((c) => c.sprzet).map((c) => {
-        const s = c.sprzet;
+        const s = c.sprzet, z = sprzetZ(s);
         return (
           <g key={`sp${lv.i}-${c.j}`} data-el="sprzet-z-gory">
-            <rect x={s.bryla.x0} y={cd - s.bryla.d} width={s.bryla.x1 - s.bryla.x0} height={s.bryla.d}
+            <rect x={s.bryla.x0} y={cd - z.bz1} width={s.bryla.x1 - s.bryla.x0} height={z.bz1 - z.bz0}
               fill={SPRZET_KOLOR} fillOpacity="0.2" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
-            <rect x={s.x0} y={cd} width={s.x1 - s.x0} height={SPRZET_FRONT_GR} fill={SPRZET_KOLOR} stroke={INK} strokeWidth="1.5" />
+            {z.front && <rect x={s.x0} y={cd - z.fz1} width={s.x1 - s.x0} height={z.fz1 - z.fz0} fill={SPRZET_KOLOR} stroke={INK} strokeWidth="1.5" />}
           </g>
         );
       }))}
@@ -13057,12 +13168,12 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
       ))}
       {/* sprzet w zabudowie z boku: bryla w glab wneki (przerywana) i front przed licem */}
       {geo.levels.flatMap((lv) => lv.cols.filter((c) => c.sprzet).map((c) => {
-        const s = c.sprzet;
+        const s = c.sprzet, z = sprzetZ(s);
         return (
           <g key={`sp${lv.i}-${c.j}`} data-el="sprzet-z-boku">
-            <rect x={xC + cd - s.bryla.d} y={fy(s.bryla.y1)} width={s.bryla.d} height={s.bryla.y1 - s.bryla.y0}
+            <rect x={xC + cd - z.bz1} y={fy(s.bryla.y1)} width={z.bz1 - z.bz0} height={s.bryla.y1 - s.bryla.y0}
               fill={SPRZET_KOLOR} fillOpacity="0.25" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
-            <rect x={xC + cd} y={fy(s.y1)} width={SPRZET_FRONT_GR} height={s.y1 - s.y0} fill={SPRZET_KOLOR} stroke={INK} strokeWidth="1.5" />
+            {z.front && <rect x={xC + cd - z.fz1} y={fy(s.y1)} width={z.fz1 - z.fz0} height={s.y1 - s.y0} fill={SPRZET_KOLOR} stroke={INK} strokeWidth="1.5" />}
           </g>
         );
       }))}
@@ -13886,9 +13997,9 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
       // sprzet w zabudowie (2026-11-04): bryla w wnece i front przed licem — sprzet, nie formatka
       if (c.sprzet) {
         fk = null;
-        const sp = c.sprzet;
-        box(sp.bryla.x0, sp.bryla.y0, 0, sp.bryla.x1, sp.bryla.y1, sp.bryla.d, SPRZET_KOLOR, null, 1, false, "sprzet");
-        box(sp.x0, sp.y0, -SPRZET_FRONT_GR, sp.x1, sp.y1, 0, SPRZET_KOLOR, null, 1, true, "sprzet-front");
+        const sp = c.sprzet, z = sprzetZ(sp);
+        box(sp.bryla.x0, sp.bryla.y0, z.bz0, sp.bryla.x1, sp.bryla.y1, z.bz1, SPRZET_KOLOR, null, 1, false, "sprzet");
+        if (z.front) box(sp.x0, sp.y0, z.fz0, sp.x1, sp.y1, z.fz1, SPRZET_KOLOR, null, 1, true, "sprzet-front");
       }
     })
   );
@@ -17712,11 +17823,16 @@ const swingBodies = (L, project) => {
          ruch: opadajace jak klapa w dol, boczne jak skrzydlo z zawiasem z tej strony. */
       geo.levels.forEach((lv) => lv.cols.forEach((col) => {
         const sp = col.sprzet;
-        if (!sp) return;
+        // lodowka do zabudowy: jej front to drzwi szafki — licza sie wyzej jak drzwi
+        if (!sp || sp.front === false) return;
         const klucz = `${kto.id}|sprzet${lv.i}-${col.j}`;
-        const lico = cdV1 + SPRZET_FRONT_GR;
+        const zs = sprzetZ(sp);
+        const lico = cdV1 - zs.fz0;
         const z0 = zBase + sp.y0, z1 = zBase + sp.y1;
-        bryly.push(roomBox(n, u0 + sp.x0, u0 + sp.x1, cdV1, lico, z0, z1, { ...kto, co: `front sprzętu (${sp.nazwa})`, klucz }));
+        bryly.push(roomBox(n, u0 + sp.x0, u0 + sp.x1, cdV1 - zs.fz1, lico, z0, z1, { ...kto, co: `front sprzętu (${sp.nazwa})`, klucz }));
+        // bryla wystajaca przed lico korpusu (lodowka wolnostojaca glebsza niz wneka)
+        if (zs.bz0 < 0)
+          bryly.push(roomBox(n, u0 + sp.bryla.x0, u0 + sp.bryla.x1, cdV1, cdV1 - zs.bz0, zBase + sp.bryla.y0, zBase + sp.bryla.y1, { ...kto, co: sp.nazwa, klucz: `${klucz}b` }));
         const dol = sp.drzwi === "dol", w = sp.x1 - sp.x0;
         const dH = dol ? Math.min(sp.y1 - sp.y0, sp.drzwiWym) : sp.y1 - sp.y0;
         const dW = dol ? w : Math.min(w, sp.drzwiWym);
@@ -21136,33 +21252,79 @@ export default function App() {
         <Num value={(rawCol.sprzet || {})[k] ?? ""} onChange={(v) => setSprzet(lv.i, c.j, { [k]: v === "" ? null : v })} />
       </Field>
     );
+    const wybor = (label, value, onChange, options) => (
+      <div className="flex items-center gap-2">
+        <span className="w-16 shrink-0 text-stone-500">{label}</span>
+        <div className="flex-1"><Seg value={value} onChange={onChange} options={options} /></div>
+      </div>
+    );
+    const lod = sp.typ === "lodowka";
+    const zFrontem = lodowkaZFrontem(sp);
+    const wneka = c.sprzet ? c.sprzet.wneka : null;
     return (
       <div className="space-y-2 rounded border border-stone-200 bg-white p-2 text-xs" data-el="sprzet-kolumny">
         <Seg value={sp.typ} onChange={(v) => setSprzet(lv.i, c.j, Object.fromEntries([["typ", v], ...SPRZET_POLA.map((k) => [k, null])]))}
-          options={[{ v: "piekarnik", l: "Piekarnik" }, { v: "mikrofala", l: "Mikrofala" }]} />
+          options={[{ v: "piekarnik", l: "Piekarnik" }, { v: "mikrofala", l: "Mikrofala" }, { v: "lodowka", l: "Lodówka" }]} />
         <p className="text-[11px] text-stone-500">
-          Wymiary typowe dla sprzętu do zabudowy 60 cm — sprawdź z kartą swojego modelu i wpisz, jeśli inne.
-          Wnęka teraz: {fmt(c.sprzet ? c.sprzet.wneka.w : c.w)} × {fmt(c.sprzet ? c.sprzet.wneka.h : Math.round(lv.h))} × {fmt(c.sprzet ? c.sprzet.wneka.d : 0)} mm.
+          {lod ? "Wymiary typowe dla lodówki 177 cm" : "Wymiary typowe dla sprzętu do zabudowy 60 cm"} — sprawdź z kartą swojego modelu i wpisz, jeśli inne.
+          {wneka && <> Wnęka teraz: {fmt(wneka.w)} × {fmt(wneka.h)} × {fmt(wneka.d)} mm.</>}
         </p>
-        <div className="grid grid-cols-2 gap-2">
-          {pole("frontW", "Front — szerokość")}
-          {pole("frontH", "Front — wysokość")}
-          {pole("wMin", "Wnęka — szerokość od")}
-          {pole("wMax", "Wnęka — szerokość do")}
-          {pole("hMin", "Wnęka — wysokość min.")}
-          {pole("dMin", "Wnęka — głębokość min.")}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-16 shrink-0 text-stone-500">drzwi</span>
-          <div className="flex-1">
-            <Seg value={sp.drzwi} onChange={(v) => setSprzet(lv.i, c.j, { drzwi: v === typowy.drzwi ? null : v })}
-              options={[{ v: "dol", l: "w dół" }, { v: "lewe", l: "zawias z lewej" }, { v: "prawe", l: "zawias z prawej" }]} />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {pole("drzwiWym", sp.drzwi === "dol" ? "Drzwi — wysokość" : "Drzwi — szerokość")}
-          {pole("uchwyt", "Uchwyt przed frontem")}
-        </div>
+        {lod && wybor("front", sp.montaz, (v) => setSprzet(lv.i, c.j, { montaz: v === "slizg" ? null : v }),
+          Object.entries(MONTAZE_LODOWKI).map(([v, l]) => ({ v, l })))}
+        {lod && zFrontem && (
+          <>
+            {wybor("fronty", String(sp.fronty), (v) => setSprzet(lv.i, c.j, { fronty: v === "2" ? 2 : null }),
+              [{ v: "1", l: "1 front" }, { v: "2", l: "2 fronty" }])}
+            {sp.fronty === 2 && pole("dolny", "Dolny front — wysokość", "z karty lodówki (puste — po równo)")}
+            <div className="grid grid-cols-2 gap-2">
+              {pole("wMin", "Wnęka — szerokość od")}
+              {pole("wMax", "Wnęka — szerokość do")}
+              {pole("hMin", "Wnęka — wysokość od")}
+              {pole("hMax", "Wnęka — wysokość do")}
+              {pole("dMin", "Wnęka — głębokość min.")}
+            </div>
+            {wybor("zawiasy", sp.drzwi, (v) => setSprzet(lv.i, c.j, { drzwi: v === "lewe" ? null : v }),
+              [{ v: "lewe", l: "z lewej" }, { v: "prawe", l: "z prawej" }])}
+            <label className="flex items-center gap-1 cursor-pointer" data-el="lodowka-uchwyt">
+              <input type="checkbox" checked={(rawCol.handles || [])[0] !== false}
+                onChange={(e) => editLevels((L) => { const col = kolumnaW(L, lv.i, c.j); if (col) col.handles = e.target.checked ? [] : [false]; })}
+                className="h-3.5 w-3.5 accent-teal-700" />
+              <span className="text-[11px] text-stone-500">uchwyt na froncie</span>
+            </label>
+          </>
+        )}
+        {lod && !zFrontem && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              {pole("lodW", "Lodówka — szerokość")}
+              {pole("lodH", "Lodówka — wysokość")}
+              {pole("lodD", "Lodówka — głębokość")}
+              {pole("luzBok", "Luz z boku")}
+              {pole("luzGora", "Luz nad lodówką")}
+              {pole("luzTyl", "Luz z tyłu")}
+            </div>
+            {wybor("drzwi", sp.drzwi, (v) => setSprzet(lv.i, c.j, { drzwi: v === "lewe" ? null : v }),
+              [{ v: "lewe", l: "zawias z lewej" }, { v: "prawe", l: "zawias z prawej" }])}
+          </>
+        )}
+        {!lod && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              {pole("frontW", "Front — szerokość")}
+              {pole("frontH", "Front — wysokość")}
+              {pole("wMin", "Wnęka — szerokość od")}
+              {pole("wMax", "Wnęka — szerokość do")}
+              {pole("hMin", "Wnęka — wysokość min.")}
+              {pole("dMin", "Wnęka — głębokość min.")}
+            </div>
+            {wybor("drzwi", sp.drzwi, (v) => setSprzet(lv.i, c.j, { drzwi: v === typowy.drzwi ? null : v }),
+              [{ v: "dol", l: "w dół" }, { v: "lewe", l: "zawias z lewej" }, { v: "prawe", l: "zawias z prawej" }])}
+            <div className="grid grid-cols-2 gap-2">
+              {pole("drzwiWym", sp.drzwi === "dol" ? "Drzwi — wysokość" : "Drzwi — szerokość")}
+              {pole("uchwyt", "Uchwyt przed frontem")}
+            </div>
+          </>
+        )}
       </div>
     );
   };

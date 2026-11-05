@@ -991,3 +991,38 @@ console.log('\n== Sprzęty: piekarnik i mikrofala we wnęce poziomu (użytkownik
   const rK = [...rog('piekarnik', false), ...rog('mikrofala', false)];
   ok('kontrola: sprzęt w kolumnie za drzwiami 600 (od rogu 636 mm) — jego drzwi otwierają się', !rK.some((t) => /^Drzwi sprzętu/.test(t)), rK.join(' / '));
 }
+
+console.log('\n== Sprzęty: lodówka w kolumnie (użytkownik 2026-11-05) ==');
+{
+  const slup = (sp, h1 = 1781, o = {}) => ({ name: 'L', W: 600, H: 2100, D: 560, plinth: { on: true, height: 100 }, legs: { on: false },
+    levels: [{ h: h1, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null], sprzet: sp }] }, { h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }], ...o });
+  const tx = (g) => g.msgs.map((x) => `${x.level} ${x.text}`).join(' // ');
+  const fr = (g) => g.panels.filter((p) => /^Front lodówki/.test(p.name)).map((p) => `${p.name} ${p.a}×${p.b}`).join(' / ');
+  const zaw = (g) => (g.hardware.find((h) => h.name === 'Zawias') || {}).qty;
+  const g1 = geo(slup({ typ: 'lodowka' }));
+  ok('ślizgowo, 1 front: „Front lodówki 1803 × 596”, zawiasy szafki (4 + 2 drzwi nad nią), informacja o prowadnicy, bez podpowiedzi rury',
+    fr(g1) === 'Front lodówki 1803×596' && zaw(g1) === 6 && g1.msgs.some((x) => x.level === 'info' && /prowadnicą ślizgową z kompletu lodówki/.test(x.text))
+    && !g1.msgs.some((x) => /rura na wieszaki/.test(x.text)) && !g1.levels[0].cols[0].shelves.length, `${fr(g1)} | ${zaw(g1)} | ${tx(g1)}`);
+  const g2 = geo(slup({ typ: 'lodowka', fronty: 2, dolny: 700, montaz: 'staly', drzwi: 'prawe' }));
+  ok('na stałe, 2 fronty (dolny 700): dolny 700 i górny 1101 (luz 3 mm), zawias z prawej, bez zawiasów meblowych (zostają 2 drzwi nad nią)',
+    fr(g2) === 'Front lodówki — dolny 700×596 / Front lodówki — górny 1101×596' && zaw(g2) === 2
+    && g2.doors.filter((d) => d.lodowka).every((d) => d.hingeSide === 'right' && d.hinges === 0 && !d.hingePts.length)
+    && g2.msgs.some((x) => /przykręcony do drzwi lodówki okuciami z kompletu lodówki — bez zawiasów meblowych/.test(x.text)), `${fr(g2)} | ${zaw(g2)}`);
+  const g3 = geo(slup({ typ: 'lodowka', fronty: 2 }));
+  ok('2 fronty bez wysokości dolnego: ostrzeżenie „wpisz wysokość dolnego frontu z karty lodówki”, podział po równo',
+    g3.msgs.some((x) => x.level === 'warn' && /wpisz wysokość dolnego frontu z karty lodówki \(teraz podział po równo\)/.test(x.text))
+    && fr(g3) === 'Front lodówki — dolny 901×596 / Front lodówki — górny 900×596', fr(g3));
+  const g4 = geo(slup({ typ: 'lodowka' }, 1700));
+  ok('wnęka 1700 (lodówka 1772–1790): błąd z przyciskiem „Poziom 1781 mm”', g4.msgs.some((x) => x.level === 'error' && /wnęka na lodówkę ma 1700 mm wysokości — lodówka do zabudowy potrzebuje 1772–1790 mm\.\|sprzeth:0:1781:$/.test(x.text)), tx(g4));
+  const g5 = geo(slup({ typ: 'lodowka' }, 1781, { W: 640 }));
+  ok('szafka 640 (wnęka 604): ostrzeżenie z „Szafka 601 mm (wnęka 565)”', g5.msgs.some((x) => x.level === 'warn' && /wnęka na lodówkę ma 604 mm szerokości — lodówka do zabudowy potrzebuje 560–570 mm.*\|sprzetw:0:0:565:601$/.test(x.text)), tx(g5));
+  const g6 = geo(slup({ typ: 'lodowka', montaz: 'brak' }, 1900, { W: 720 }));
+  const s6 = g6.levels[0].cols[0].sprzet;
+  ok('wolnostojąca we wnęce 684 × 1900: bez frontu meblowego, luz z boku 42 < 50 i nad nią 50 < 100 — ostrzeżenia z przyciskami, wystaje 140 mm (informacja)',
+    !fr(g6) && s6.front === true && s6.x1 - s6.x0 === 600 && s6.y1 - s6.y0 === 1850 && s6.fz0 === -140
+    && g6.msgs.some((x) => x.level === 'warn' && /zostaje 42 mm z boku — na wentylację potrzeba 50 mm.*\|sprzetw:0:0:700:736$/.test(x.text))
+    && g6.msgs.some((x) => x.level === 'warn' && /nad lodówką zostaje 50 mm — na wentylację potrzeba 100 mm.*\|sprzeth:0:1950:$/.test(x.text))
+    && g6.msgs.some((x) => x.level === 'info' && /wystaje 140 mm przed lico szafki/.test(x.text)), tx(g6));
+  const g7 = geo(slup({ typ: 'lodowka', montaz: 'brak' }, 1900));
+  ok('wolnostojąca we wnęce 564: błąd „lodówka ma 600 mm”', g7.msgs.some((x) => x.level === 'error' && /wnęka na lodówkę ma 564 mm szerokości — lodówka ma 600 mm/.test(x.text)), tx(g7));
+}

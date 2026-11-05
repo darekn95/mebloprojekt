@@ -185,6 +185,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | Wzmocnienia korpusu: Wysokość / Głębokość / Położenie / Przy boku / Liczone od tyłu / Skraca drzwi | `rail.h`, `rail.depth`, `rail.pos`, `rail.side`, `rail.fromBack`, `rail.reducesDoor` |
 | kolumna „Sprzęt” (rodzaj obok „Półki i drzwi / Szuflady / Blenda”; karta `data-el="sprzet-kolumny"`) | `col.sprzet = { typ, …własne wymiary }` (`typ`: `"piekarnik"` / `"mikrofala"`); `setColKind(…, "sprzet")`, `setSprzet(lv, col, patch)`; w `computeGeo` kolumna idzie przez `kolumnaSprzetu` (pusta wnęka: bez drzwi, półek, szuflad), wynik `c.sprzet` ({ x0, x1, y0, y1 frontu, `bryla`, `wneka: { w, h, d }` } + parametry) |
 | pola sprzętu: Front — szerokość / wysokość, Wnęka — szerokość od / do, wysokość min., głębokość min., drzwi (w dół / zawias z lewej / z prawej), Drzwi — wysokość / szerokość, Uchwyt przed frontem | `col.sprzet.frontW`, `frontH`, `wMin`, `wMax`, `hMin`, `dMin`, `drzwi` (`"dol"` / `"lewe"` / `"prawe"`), `drzwiWym`, `uchwyt` — puste = typowe z `SPRZETY[typ]` (`sprzetKolumny(col)`, lista `SPRZET_POLA`); zmiana typu czyści wszystkie |
+| lodówka (typ „Lodówka”, 2026-11-05): front ślizgowo / na stałe / bez frontu (wolnostojąca), 1 / 2 fronty, Dolny front — wysokość, Wnęka — szerokość / wysokość od–do, głębokość min., zawiasy z lewej / z prawej, uchwyt na froncie (`data-el="lodowka-uchwyt"`); przy wolnostojącej: Lodówka — szerokość / wysokość / głębokość, Luz z boku / nad lodówką / z tyłu | `col.sprzet.montaz` (`"slizg"` puste / `"staly"` / `"brak"`, `MONTAZE_LODOWKI`), `fronty` (2 albo puste = 1), `dolny`, `wMin`/`wMax`/`hMin`/`hMax`/`dMin`, `drzwi` (`"lewe"`/`"prawe"`), `col.handles[0]`, `lodW`/`lodH`/`lodD`, `luzBok`/`luzGora`/`luzTyl`; z frontem (`lodowkaZFrontem`) kolumna ma 1 drzwi (`kolumnaSprzetu`), dwa fronty to dwa pasma (`pasmaPodzialu`, `ps.lodowka`), drzwi mają `d.lodowka = { nazwa, montaz }` — przy „na stałe” `hinges: 0`; kontrole `lodowkaWneki` w `computeGeo`; `c.sprzet.front === false` (front to drzwi szafki) albo `fz0`/`fz1` (drzwi wolnostojącej przed licem) — `sprzetZ(s)` dla rysunków, 3D i `swingBodies` |
 | sprzęt na rysunkach | front z przodu (`SprzetElewacja`, `data-el="sprzet-front"`, też w ciągu), z boku `sprzet-z-boku`, z góry `sprzet-z-gory`, 3D szafki i zabudowy — bryły z tagiem `sprzet` (w wnęce) i `sprzet-front` (przed licem, gr. `SPRZET_FRONT_GR`), kolor `SPRZET_KOLOR` (poza audytem płyt) |
 
 ### Karta „Luzy drzwi" (`cab.gaps`)
@@ -447,7 +448,7 @@ co do znaku (łącznie ze spacjami wokół „×").
 
 **Formatki:** Bok · Bok lewy · Bok prawy · Dno / wieniec · Blat · Blat roboczy ·
 Półka · Półka przelotowa · Przegroda pionowa · Wspornik pionowy · Blenda ·
-Blenda nad szafką · Drzwi nakładane · Drzwi wpuszczane · Klapa · Cokół · Cokół ciągu · Wieniec ciągu · Dno ciągu · Element stały (fix) ·
+Blenda nad szafką · Drzwi nakładane · Drzwi wpuszczane · Front lodówki · Front lodówki — dolny · Front lodówki — górny · Klapa · Cokół · Cokół ciągu · Wieniec ciągu · Dno ciągu · Element stały (fix) ·
 Front szuflady · Dno szuflady · Tył szuflady · Bok szuflady (DXS-3D) · Przód skrzynki (DXS-3D) · Plecy HDF · Plecy HDF we frezie ·
 Plecy z płyty (na zewnątrz) · Plecy z płyty (wewnątrz) ·
 Kątownik przy ramieniu — bok · Kątownik przy ramieniu — plecy ·
