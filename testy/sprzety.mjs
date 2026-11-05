@@ -8,7 +8,9 @@
    - powrot na „Półki i drzwi” zdejmuje sprzet;
    - rysunki: front (zamkniety), z boku, z gory, 3D szafki i 3D zabudowy;
    - sprzet w ciagu bez korpusu (2026-11-05): zmywarka i lodowka wolnostojaca z szablonu, karta,
-     przyciski „Miejsce N mm” / „Wysokość N mm”, cokol z przerwa pod lodowka, rysunki ciagu.
+     przyciski „Miejsce N mm” / „Wysokość N mm”, cokol z przerwa pod lodowka, rysunki ciagu;
+   - pod wycieciem w blacie: plyta nad lezacym wzmocnieniem — „Wycięcie we wzmocnieniu” (formatka,
+     rzut z gory, laczniki po jednym na strone) i „Wzmocnienie stojące”.
    Liczby i kolizje otwierania — suita `funkcje`. */
 import pw from './pw.mjs';
 const URL = process.env.STD ? 'http://127.0.0.1:5199/standalone-local.html'
@@ -171,8 +173,8 @@ console.log('\n== wycięcia w blacie (użytkownik 2026-11-05): płyta i zlew nad
   const karta = page.locator('[data-el="wyciecia-blatu"]');
   ok('karta „Wycięcia w blacie nad szafką” przy szafce pod blatem roboczym', (await karta.count()) === 1);
   await karta.getByRole('button', { name: '+ płyta grzewcza', exact: true }).click(); await page.waitForTimeout(900);
-  ok('„+ płyta grzewcza”: wycięcie w szafce, karta z polami', JSON.stringify((await zap()).items[1].cab.blatWyciecia) === '[{"typ":"plyta"}]'
-    && (await page.locator('[data-el="wyciecie-blatu-karta"] input').count()) === 4);
+  ok('„+ płyta grzewcza”: wycięcie w szafce, karta z 5 polami (z „Pod blat”)', JSON.stringify((await zap()).items[1].cab.blatWyciecia) === '[{"typ":"plyta"}]'
+    && (await page.locator('[data-el="wyciecie-blatu-karta"] input').count()) === 5);
   await widok((await page.getByRole('button', { name: 'Zabudowa', exact: true }).count()) ? 'Zabudowa' : 'Ciąg');
   await widok('Z góry');
   ok('rzut z góry ciągu: wycięcie „płyta 560×490”', (await ile('[data-el="wyciecie-blatu"]')) === 1
@@ -184,6 +186,37 @@ console.log('\n== wycięcia w blacie (użytkownik 2026-11-05): płyta i zlew nad
   ok('po kliknięciu: od przodu 60, bez błędu', (await zap()).items[1].cab.blatWyciecia[0].odPrzodu === 60 && !(await jest(reT)));
   await page.locator('[data-el="wyciecie-blatu-karta"]').getByRole('button', { name: 'usuń', exact: true }).click(); await page.waitForTimeout(900);
   ok('„usuń”: bez wycięć', !((await zap()).items[1].cab.blatWyciecia || []).length && (await page.locator('[data-el="wyciecie-blatu-karta"]').count()) === 0);
+}
+
+console.log('\n== pod wycięciem w blacie (użytkownik 2026-11-05): nachodzenie, wzmocnienie z wycięciem / stojące ==');
+{
+  const PLw = { on: true, height: 100, mode: 'under', setback: 0 };
+  const para = [{ orient: 'shelf', pos: 'top', depth: 100, atDepth: 0, fromBack: false, paraPodBlat: true },
+    { orient: 'front', pos: 'top', h: 100, atDepth: 0, fromBack: true, paraPodBlat: true }];
+  const sz = (name, W, o = {}) => ({ cab: { name, W, H: 720, D: 560, plinth: PLw, joints: { topL: 'none', topR: 'none' },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: W > 500 ? 2 : 1, w: null, shelfTargets: [null], rails: para }] }], ...o }, runId: 'c1', offset: 0 });
+  await seedP({ name: 'P', active: 1, prices: {}, runs: [{ id: 'c1', name: 'Ściana A', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLw, worktop: true, corner: null }],
+    items: [sz('A', 400), sz('Płyta', 600, { blatWyciecia: [{ typ: 'plyta', odPrzodu: 80 }] }), sz('B', 600)] });
+  const reK = /korpus płyty sięga 60 mm od wierzchu blatu \(22 mm pod blat\), a wycięcie zaczyna się 50 mm za licem korpusu — nad leżącym wzmocnieniem przednim/;
+  ok('płyta nad leżącym wzmocnieniem: błąd z „Wzmocnienie stojące” i „Wycięcie we wzmocnieniu”',
+    JSON.stringify(await przyciski(reK)) === '["Wzmocnienie stojące","Wycięcie we wzmocnieniu"]', (await przyciski(reK)).join(' / '));
+  ok('karta wycięcia: pole „Pod blat (od wierzchu)”', (await page.locator('[data-el="wyciecie-blatu-karta"] label').filter({ hasText: 'Pod blat (od wierzchu)' }).count()) === 1);
+  await klik(reK, 'Wycięcie we wzmocnieniu');
+  let r0 = (await zap()).items[1].cab.levels[0].cols[0].rails[0];
+  const formatki = await page.evaluate(() => { const sec = [...document.querySelectorAll('section')].find((q) => /^(▼ )?Formatki do zamówienia/.test((q.querySelector('h2') || {}).textContent || '')); return sec ? sec.innerText.replace(/\s+/g, ' ') : ''; });
+  ok('po kliknięciu: wzmocnienie z wycięciem, formatka „Wzmocnienie poziome — wycięcie 560 × 50 z tyłu, 2 mm od lewej”, bez błędu',
+    r0.podWyciecie === true && /Wzmocnienie poziome — wycięcie 560 × 50 z tyłu, 2 mm od lewej/.test(formatki) && !(await jest(reK)), formatki.slice(0, 300));
+  ok('… informacja: wkręty przestawione poza wycięcie, po jednym na stronę', await jest(/wkręty przez boki przestawione poza wycięcie — lewy koniec 25 mm od lica, prawy koniec 25 mm od lica \(miejsca tylko na jeden — po jednym na stronę\)/));
+  await widok('Z góry');
+  ok('rzut z góry szafki: wycięcie we wzmocnieniu i 2 łączniki', (await ile('[data-el="wyciecie-wzmocnienia"]')) === 1 && (await ile('[data-el="lacznik-wzmocnienia"]')) === 2,
+    `${await ile('[data-el="wyciecie-wzmocnienia"]')} / ${await ile('[data-el="lacznik-wzmocnienia"]')}`);
+  await page.locator('[data-el="wyciecie-blatu-karta"] label').filter({ hasText: 'Od przodu blatu' }).locator('input').fill('50'); await page.waitForTimeout(900);
+  const reP = /z wycięciem pod płytę — przy wycięciu zostaje pasek 20 mm, za wąski/;
+  ok('wycięcie 50 od przodu: ostrzeżenie „zostaje pasek 20 mm” z „Wzmocnienie stojące”', JSON.stringify(await przyciski(reP)) === '["Wzmocnienie stojące"]', (await przyciski(reP)).join(' / '));
+  await klik(reP, 'Wzmocnienie stojące');
+  r0 = (await zap()).items[1].cab.levels[0].cols[0].rails[0];
+  ok('po kliknięciu: wzmocnienie stojące 100 mm przy licu, bez wycięcia i bez uwag o nachodzeniu',
+    r0.orient === 'front' && r0.h === 100 && !r0.fromBack && !r0.podWyciecie && !(await jest(/wchodzi w/)) && !(await jest(reP)), JSON.stringify(r0));
 }
 
 console.log('\n== sprzęt w ciągu bez korpusu (użytkownik 2026-11-05): zmywarka i lodówka wolnostojąca ==');

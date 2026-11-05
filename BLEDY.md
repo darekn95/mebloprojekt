@@ -436,8 +436,8 @@ szafką skośną i sprzętami”). Kolejność: **najpierw sprzęty**, szafka sk
 
 - **1. Sprzęty w zabudowie — zrobione 2026-11-04 / 05** (etapy 1–4: piekarnik i mikrofala, lodówka
   w kolumnie, zmywarka i lodówka wolnostojąca w ciągu, płyta i zlew w blacie; bryły i ruchy
-  w `swingBodies`). Otwarte pytanie do użytkownika: leżące wzmocnienie przednie pod wycięciem
-  płyty / zlewu — na razie tylko ostrzeżenie (opis: `opisy/sprzety.md`).
+  w `swingBodies`). Wzmocnienie pod wycięciem płyty / zlewu — zrobione
+  (kontrola nachodzenia, stojące albo z wycięciem, łączniki poza wycięciem).
 
 - **2. Szafka narożna skośna (front pod kątem 45°) — dużo później, po sprzętach** (użytkownik 2026-10-19,
   zdjęcia kuchni: dolna pod zlewem i górna wisząca). Szkic projektu w `AI_NOTES.md`
@@ -461,6 +461,7 @@ szafką skośną i sprzętami”). Kolejność: **najpierw sprzęty**, szafka sk
 
 ## Ustalone — nie ruszać
 
+- **Pod wycięciem w blacie** (użytkownik 2026-11-05): „kontrola nachodzenia elementów, przyciski stojące zamiast leżącego albo wycięcie własne, i trzeba przestawić konfirmaty tak, żeby nie przeszkadzały w wycięciu, jeśli się da, a jak się nie da — zostawić jeden lub po jednym na stronę”. Opis: `opisy/sprzety.md`.
 - **Sprzęty w zabudowie** (użytkownik 2026-11-04 / 05): wszystkie cztery (piekarnik i mikrofala, zmywarka, lodówka, płyta i zlew); „zależnie od sprzętu” — piekarnik, mikrofala i lodówka jako wnęka w kolumnie, zmywarka jako pozycja w ciągu bez korpusu; wymiary „typowe, do zmiany w polach”. Lodówka: mocowanie frontu do wyboru — ślizgowo / na stałe / bez frontu (wolnostojąca we wnęce między bokami, przy ścianie albo osobno); 1 albo 2 fronty, wysokość dolnego z karty lodówki. Zmywarka: cokół ciągu idzie dalej przed nią. Płyta i zlew: wycięcie nad wybraną szafką, z przesunięciem w polach. Opis: `opisy/sprzety.md`.
 
 - **Scalanie szafek: „jedna przegroda” albo „dwie przegrody”** (użytkownik 2026-10-29, po rysunku wariantów): dawne „podwójne” (szafki zostawały osobne) usunięte z okienka; przegroda przelotowa niepotrzebna (to samo co jedna). Dwie przegrody skręcone 4 wkrętami: nad kołkiem półki, w jej grubości, gdy półka jest do 300 mm od dołu / góry (70 mm od krawędzi), inaczej 20 mm pod / nad zawiasem w jego osi (w połowie części przykręcanej do boku — 40 z 80 mm), inaczej 100 mm od dołu / góry i 50 mm od krawędzi (`opisy/korpus.md`).

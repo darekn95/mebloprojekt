@@ -768,8 +768,10 @@ rysuje sie w 3D bez otworu (`plytaSkos`).
 korpusu, okuc i wiercen. Kazde nowe miejsce, ktore pyta o korpus szafki w ciagu (wieniec, plecy,
 wieszanie, scalanie), musi pominac `bezKorpusu`; lodowka wolnostojaca liczy sie jak slupek
 (`lodowkaCiagu`: poza blatem, bez wspolnych wymiarow ciagu, cokol z przerwa `rp.segmenty`).
-Otwarte pytanie do uzytkownika: lezace wzmocnienie przednie pod wycieciem plyty / zlewu (teraz
-tylko ostrzezenie).
+Pod wycieciem w blacie (2026-11-05): kontrola nachodzenia w `worktopMsgs` (bryla do `podBlatem`),
+lezace wzmocnienie — przyciski stojace / z wycieciem (`rail.podWyciecie`), laczniki przestawiane
+(`lacznikiWzmocnienia`). Wzmocnienia sa na wkretach 4 × 30 (nie konfirmatach) i bez wiercen w planie —
+uzytkownik mowi o konfirmatach: zapytany 2026-11-05, czy zmienic.
 Na pozniej: sprzet w poziomie kolumny (odcinku), wiersz sprzetu w zamowieniu (teraz poza zamowieniem).
 
 [AI-INFO] Szafka w L: `CORNER_L_D` = 560 (jak stojaca), ramie 640. Pusty ciag

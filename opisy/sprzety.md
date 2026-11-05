@@ -117,9 +117,25 @@ i głębokość wycięcia, odległość od przedniej krawędzi blatu, przesunię
   - × płyta grzewcza szersza niż wnętrze szafki albo wychodząca nad bok — jej korpus nie
     zmieści się pod blatem („Wycięcie na środku szafki”, gdy pomaga); zlew nad bokiem —
     tylko informacja (komora we wnętrzu, ociekacz nad sąsiednią);
-  - ! wycięcie nad leżącym wzmocnieniem przednim pary pod blat — sprzęt w nie trafi
-    (bez przycisku, sprawdź z kartą sprzętu). Wieniec pod blatem roboczym ma swoją
-    uwagę z „Dołóż parę wzmocnień”.
+  - × **nachodzenie pod blatem** (użytkownik 2026-11-05) — bryła sprzętu to obrys wycięcia na
+    głębokość „Pod blat (od wierzchu)” (typowo płyta 60 mm, zlew 200 mm; blat 38 → płyta
+    22 mm pod blat). Sprawdzana z elementami szafki pod nią:
+    - leżące wzmocnienie przednie — przyciski „Wzmocnienie stojące” (na sztorc przy licu,
+      100 mm jak tylne) i „Wycięcie we wzmocnieniu” (gdy zostaje pasek co najmniej 30 mm;
+      inaczej „Wycięcie N mm od przodu blatu”, które robi miejsce na pasek);
+    - stojące wzmocnienie przednie / tylne — przycisk przesunięcia wycięcia do tyłu / przodu;
+    - wieniec — „Dołóż parę wzmocnień”;
+    - szuflada (górna krawędź skrzynki), półka, półka przelotowa, przegroda — opis, ile
+      obniżyć albo co zmienić (bez przycisku).
+    Mniej niż grubość blatu — sprzęt nie sięga pod blat, bez kontroli.
+- **Wzmocnienie z wycięciem** (`rail.podWyciecie`): w leżącym wzmocnieniu wycięcie tam, gdzie
+  wchodzi w nie obrys wycięcia w blacie — formatka „Wzmocnienie poziome — wycięcie 560 × 50
+  z tyłu, 2 mm od lewej” z otworem (rozkrój), w 3D i na rzucie z góry. Łączniki (wkręty przez
+  boki w czoło wzmocnienia, po 2 na koniec) są przestawiane poza wycięcie: gdy wycięcie zaczyna
+  się bliżej końca niż 15 mm (tyle wchodzi wkręt), tylko przed nim albo za nim; mieści się
+  jeden — zostaje po jednym na stronę (uwaga z położeniem od lica; w zamówieniu mniej wkrętów).
+  Uwagi: ! pasek przy wycięciu węższy niż 30 mm, × wycięcie przez całą głębokość albo brak
+  miejsca na łącznik — przycisk „Wzmocnienie stojące”.
 
 ## Co ustawiasz ręcznie
 
@@ -199,6 +215,9 @@ frontach to zapas, żeby front sprzętu nie dotykał frontu nad nim.
   - wycięcia w blacie: `WYCIECIA_BLATU`, `wycieciaSzafki` (`cab.blatWyciecia`), `runTop` → `rt.wyciecia`,
     `wycieciaKawalka` (otwory i nazwa kawałka w `runTopPanels`), kontrole w `worktopMsgs`,
     przycisk `wycblatu:`, rysunek w `AssemblyTopView` (`blatPasa`) i `Assembly3D` (`boxOtw`);
+  - pod wycięciem: `wycieciaWSzafce` (obrys w układzie szafki), kontrola nachodzenia w `worktopMsgs`,
+    `rail.podWyciecie` → `otwory`, `laczniki` (`lacznikiWzmocnienia`) w `computeGeo`, przyciski
+    `wzmblat:` / `wzmstoj:`, rysunek `WycieciaWzmocnienia` (rzut z góry), 3D `boxOtw`;
   - karta: `uiSprzetu`;
   - sprzęt w ciągu: `SPRZETY_CIAGU`, `sprzetCiagu`, `lodowkaCiagu`, `geoSprzetuCiagu` (`geo.bezKorpusu`,
     `geo.sprzetCiagu`), szablony `zmywarka` / `lodowka-wolno`, karta `uiSprzetuCiagu`, cokół z przerwą
@@ -211,6 +230,8 @@ frontach to zapas, żeby front sprzętu nie dotykał frontu nad nim.
   - `funkcje` — wnęka, uwagi i przyciski, front na drzwiach nad nim i obok, ślepy róg,
     lodówka (fronty, zawiasy, wnęka, wolnostojąca);
   - `funkcje` — wycięcia w blacie (położenie, formatka z otworami, łączenie, tył, bok, wzmocnienie);
+  - `funkcje` — pod wycięciem: nachodzenie (wzmocnienie, szuflada, półka), wzmocnienie z wycięciem,
+    łączniki po jednym na stronę, liczba wkrętów;
   - `funkcje` — sprzęt w ciągu (front zmywarki, kontrole, cokół z przerwą, blat, uwagi, scalanie);
   - `sprzety` — klikane w aplikacji (też lodówka, wycięcia w blacie i sprzęt w ciągu z szablonu).
 - Pola w danych: `SLOWNIK.md`.
