@@ -130,12 +130,15 @@ i głębokość wycięcia, odległość od przedniej krawędzi blatu, przesunię
     Mniej niż grubość blatu — sprzęt nie sięga pod blat, bez kontroli.
 - **Wzmocnienie z wycięciem** (`rail.podWyciecie`): w leżącym wzmocnieniu wycięcie tam, gdzie
   wchodzi w nie obrys wycięcia w blacie — formatka „Wzmocnienie poziome — wycięcie 560 × 50
-  z tyłu, 2 mm od lewej” z otworem (rozkrój), w 3D i na rzucie z góry. Łączniki (wkręty przez
-  boki w czoło wzmocnienia, po 2 na koniec) są przestawiane poza wycięcie: gdy wycięcie zaczyna
-  się bliżej końca niż 15 mm (tyle wchodzi wkręt), tylko przed nim albo za nim; mieści się
-  jeden — zostaje po jednym na stronę (uwaga z położeniem od lica; w zamówieniu mniej wkrętów).
+  z tyłu, 2 mm od lewej” z otworem (rozkrój), w 3D i na rzucie z góry. Łączniki (konfirmaty przez
+  boki w czoło wzmocnienia, po 2 na koniec — `opisy/korpus.md`) są przestawiane poza wycięcie: gdy
+  wycięcie zaczyna się bliżej końca, niż łącznik wchodzi w czoło (konfirmat 35 mm, wkręt 15 mm),
+  tylko przed nim albo za nim (pasek 50 mm — konfirmaty 13 i 38 mm od lica); mieści się jeden —
+  zostaje po jednym na stronę (uwaga z położeniem od lica, plan wierceń i zamówienie z tym, co się
+  zmieściło). Przy uwadze przycisk „Wkręty 4 × 30” (użytkownik 2026-11-06: „przy takich
+  wzmocnieniach warto zamienić na 4 × 30, ale na przycisku”) — wkręty wchodzą płycej.
   Uwagi: ! pasek przy wycięciu węższy niż 30 mm, × wycięcie przez całą głębokość albo brak
-  miejsca na łącznik — przycisk „Wzmocnienie stojące”.
+  miejsca na łącznik — przycisk „Wzmocnienie stojące” (i „Wkręty 4 × 30”).
 
 ## Co ustawiasz ręcznie
 

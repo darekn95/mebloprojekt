@@ -1151,17 +1151,30 @@ console.log('\n== Pod wycięciem w blacie: nachodzenie, wzmocnienie stojące / z
     JSON.stringify(r2.otwory.map((o) => [o.x0, o.x1, o.z0, o.z1])) === '[[20,580,50,100]]'
     && f2 && f2.name === 'Wzmocnienie poziome — wycięcie 560 × 50 z tyłu, 2 mm od lewej' && JSON.stringify(f2.otwory) === '[{"u":2,"v":0,"du":560,"dv":50}]',
     `${JSON.stringify(r2.otwory)} | ${f2 && f2.name} ${JSON.stringify(f2 && f2.otwory)}`);
-  ok('… łączniki: wycięcie 2 mm od końców — po jednym na stronę, 25 mm od lica (przed wycięciem); informacja w uwagach',
-    JSON.stringify(r2.laczniki.map((l) => [l.strona, l.z])) === '[["lewy",[25]],["prawy",[25]]]'
-    && g2.msgs.some((x) => x.level === 'info' && /wkręty przez boki przestawione poza wycięcie — lewy koniec 25 mm od lica, prawy koniec 25 mm od lica \(miejsca tylko na jeden — po jednym na stronę\)/.test(x.text)),
+  ok('… konfirmaty (2026-11-06): wycięcie 2 mm od końców — przestawione przed wycięcie, po 2 na koniec (13 i 38 mm od lica); informacja z „Wkręty 4 × 30”',
+    JSON.stringify(r2.laczniki.map((l) => [l.strona, l.moc, l.poz])) === '[["lewy","konfirmaty",[13,38]],["prawy","konfirmaty",[13,38]]]'
+    && g2.msgs.some((x) => x.level === 'info' && /konfirmaty przez boki przestawione poza wycięcie — lewy koniec 13 i 38 mm od lica, prawy koniec 13 i 38 mm od lica\.\|wzmmoc:0:0:0:wkrety$/.test(x.text)),
     `${JSON.stringify(r2.laczniki)} | ${g2.msgs.map((x) => x.text).join(' // ')}`);
-  const wk2 = (g2.hardware.find((h) => h.name === 'Wkręt 4 × 30') || {}).qty;
-  ok('… wkręty 4 × 30: 2 + 4 = 6 (zamiast 8)', wk2 === 6, String(wk2));
+  const konf2 = g2.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {};
+  ok('… zamówienie: konfirmaty wzmocnień 8 (2 wzmocnienia × 2 końce × 2), bez wkrętów 4 × 30',
+    /wzmocnienia 8/.test(konf2.spec || '') && !g2.hardware.some((h) => h.name === 'Wkręt 4 × 30'), `${konf2.spec} | ${g2.hardware.map((h) => h.name).join(', ')}`);
+  const pl2 = (g2.drillPlan || []).filter((q) => /Bok lewy/.test(q.panel)).flatMap((q) => q.rows);
+  ok('… plan wierceń boku: „konfirmat — wzmocnienie poziome” 13, 38 mm od przodu i „— tylne” na dwóch wysokościach',
+    pl2.some((h) => h.kind === 'konfirmat — wzmocnienie poziome' && /13, 38 mm od przedniej krawędzi; w czole wzmocnienia ⌀5 × 50/.test(h.note))
+    && pl2.filter((h) => h.kind === 'konfirmat — wzmocnienie tylne').flatMap((h) => h.ys).length === 2, JSON.stringify(pl2.filter((h) => /wzmocnienie/.test(h.kind))));
+  const P2w = projK([szK('Płyta', 600, [{ typ: 'plyta', odPrzodu: 80 }], null, (cab) => { wyc(cab); cab.levels[0].cols[0].rails[0].mocowanie = 'wkrety'; }), szK('B', 600)]);
+  const g2w = G.computeGeo(G.cabDoGeo(P2w, P2w.items[0]), P2w.items[0].mat);
+  const wk2 = (g2w.hardware.find((h) => h.name === 'Wkręt 4 × 30') || {}).qty;
+  ok('„Wkręty 4 × 30” przy wzmocnieniu z wycięciem: po jednym na stronę (25 mm od lica) — 2 wkręty, tylne zostaje na 4 konfirmatach',
+    JSON.stringify(g2w.levels[0].cols[0].rails[0].laczniki.map((l) => [l.moc, l.poz])) === '[["wkrety",[25]],["wkrety",[25]]]' && wk2 === 2
+    && g2w.msgs.some((x) => /wkręty przez boki przestawione poza wycięcie — lewy koniec 25 mm od lica, prawy koniec 25 mm od lica \(miejsca tylko na jeden — po jednym na stronę\)\.$/.test(x.text)),
+    `${wk2} | ${g2w.msgs.map((x) => x.text).join(' // ')}`);
   ok('… uwagi ciągu: płyta już nie wchodzi we wzmocnienie', !msgs(P2).some((t) => /leżącym wzmocnieniem/.test(t)), msgs(P2).join(' // '));
   const P3 = projK([szK('Płyta', 600, [{ typ: 'plyta' }], null, wyc), szK('B', 600)]);
   const g3 = G.computeGeo(G.cabDoGeo(P3, P3.items[0]), P3.items[0].mat);
-  ok('wycięcie we wzmocnieniu przy płycie 50 od przodu: ostrzeżenie „zostaje pasek 20 mm” z „Wzmocnienie stojące”',
-    g3.msgs.some((x) => x.level === 'warn' && /z wycięciem pod płytę — przy wycięciu zostaje pasek 20 mm, za wąski.*\|wzmstoj:0:0:0$/.test(x.text)), g3.msgs.map((x) => x.text).join(' // '));
+  ok('wycięcie we wzmocnieniu przy płycie 50 od przodu: ostrzeżenie „zostaje pasek 20 mm” z „Wzmocnienie stojące”, konfirmaty po jednym na stronę (10 mm od lica)',
+    g3.msgs.some((x) => x.level === 'warn' && /z wycięciem pod płytę — przy wycięciu zostaje pasek 20 mm, za wąski.*\|wzmstoj:0:0:0$/.test(x.text))
+    && g3.msgs.some((x) => /konfirmaty przez boki przestawione poza wycięcie — lewy koniec 10 mm od lica, prawy koniec 10 mm od lica \(miejsca tylko na jeden — po jednym na stronę\)/.test(x.text)), g3.msgs.map((x) => x.text).join(' // '));
   const P4 = projK([szK('A', 600), szK('Zlew', 800, [{ typ: 'zlew' }], [{ kind: 'drawers', w: null, drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }])]);
   const m4 = msgs(P4);
   ok('zlew (200 od wierzchu) nad szafką z szufladami: błąd „wchodzi w szufladę 3” (górna)', m4.some((t) => /^error .*zlew nad szafką „Zlew”: komora zlewu sięga 200 mm od wierzchu blatu \(162 mm pod blat\) i wchodzi w szufladę \d.*pod zlew daj drzwi/.test(t)), m4.join(' // '));
@@ -1171,4 +1184,26 @@ console.log('\n== Pod wycięciem w blacie: nachodzenie, wzmocnienie stojące / z
   ok('zlew 150 od wierzchu nad półką 64 mm pod blatem: błąd „wchodzi w półkę … obniż ją o 48 mm”', m5.some((t) => /^error .*komora zlewu sięga 150 mm od wierzchu blatu \(112 mm pod blat\) i wchodzi w półkę \(64 mm pod blatem\) — obniż ją o 48 mm/.test(t)), JSON.stringify(g5.levels[0].cols[0].shelves) + ' ' + m5.join(' // '));
   const P6 = projK([szK('A', 600), szK('Zlew', 800, [{ typ: 'zlew', podBlatem: 30 }])]);
   ok('pod blat 30 przy blacie 38: sprzęt nie sięga pod blat — bez uwag o nachodzeniu', !msgs(P6).some((t) => /wchodzi w/.test(t)), msgs(P6).join(' // '));
+}
+
+console.log('\n== Wzmocnienia na konfirmatach (użytkownik 2026-11-06) ==');
+{
+  const dwie = G.migrateCab({ name: 'D', W: 800, H: 720, D: 560, plinth: { on: true, height: 100 },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }, M0);
+  const gD = geo({ ...dwie, ...G.bezWienca(dwie, 18) });
+  const [k0, k1] = gD.levels[0].cols;
+  ok('pod blatem, 2 kolumny: leżące 25 / 75 mm od lica na końcach; przy przegrodzie prawa kolumna o 15 mm dalej (40 / 90), bez uwagi o kolizji',
+    JSON.stringify(k0.rails[0].laczniki.map((l) => l.poz)) === '[[25,75],[25,75]]' && JSON.stringify(k1.rails[0].laczniki.map((l) => l.poz)) === '[[40,90],[25,75]]'
+    && !gD.msgs.some((x) => /wypadają za blisko siebie/.test(x.text)), JSON.stringify([k0.rails[0].laczniki, k1.rails[0].laczniki]));
+  const prz = (gD.drillPlan || []).filter((q) => /Przegroda 1/.test(q.panel)).flatMap((q) => q.rows).filter((h) => h.kind === 'konfirmat — wzmocnienie poziome');
+  ok('… plan wierceń przegrody: konfirmaty wzmocnień z obu stron (25, 75 i 40, 90 — przesunięte)',
+    prz.length === 2 && prz.some((h) => /25, 75 mm/.test(h.note)) && prz.some((h) => /40, 90 mm .*przesunięte o 15 mm/.test(h.note)), JSON.stringify(prz));
+  const konfD = gD.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {};
+  ok('… zamówienie: konfirmaty wzmocnień 16 (4 wzmocnienia × 2 końce × 2)', /wzmocnienia 16/.test(konfD.spec || ''), konfD.spec);
+  const pion = G.migrateCab({ name: 'P', W: 600, H: 720, D: 560, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null],
+    rails: [{ orient: 'vertical', pos: 'top', side: 'left', h: 300, depth: 100, atDepth: 0 }] }] }] }, M0);
+  const gP = geo(pion);
+  ok('wzmocnienie pionowe przy boku zostaje na wkrętach 4 × 30 (4 szt.)', /wzmocnienia 1×4/.test((gP.hardware.find((h) => h.name === 'Wkręt 4 × 30') || {}).spec || '') && gP.levels[0].cols[0].rails[0].mocowanie === 'wkrety'
+    && !/wzmocnienia/.test((gP.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {}).spec || ''),
+    JSON.stringify({ hw: gP.hardware.filter((h) => /Wkręt|Konfirmat/.test(h.name)).map((h) => [h.name, h.qty, h.spec]), r: gP.levels[0].cols[0].rails }));
 }

@@ -206,10 +206,19 @@ console.log('\n== pod wycięciem w blacie (użytkownik 2026-11-05): nachodzenie,
   const formatki = await page.evaluate(() => { const sec = [...document.querySelectorAll('section')].find((q) => /^(▼ )?Formatki do zamówienia/.test((q.querySelector('h2') || {}).textContent || '')); return sec ? sec.innerText.replace(/\s+/g, ' ') : ''; });
   ok('po kliknięciu: wzmocnienie z wycięciem, formatka „Wzmocnienie poziome — wycięcie 560 × 50 z tyłu, 2 mm od lewej”, bez błędu',
     r0.podWyciecie === true && /Wzmocnienie poziome — wycięcie 560 × 50 z tyłu, 2 mm od lewej/.test(formatki) && !(await jest(reK)), formatki.slice(0, 300));
-  ok('… informacja: wkręty przestawione poza wycięcie, po jednym na stronę', await jest(/wkręty przez boki przestawione poza wycięcie — lewy koniec 25 mm od lica, prawy koniec 25 mm od lica \(miejsca tylko na jeden — po jednym na stronę\)/));
+  const reKo = /konfirmaty przez boki przestawione poza wycięcie — lewy koniec 13 i 38 mm od lica, prawy koniec 13 i 38 mm od lica\./;
+  ok('… informacja: konfirmaty przestawione przed wycięcie (po 2 na koniec) z „Wkręty 4 × 30”', JSON.stringify(await przyciski(reKo)) === '["Wkręty 4 × 30"]', (await przyciski(reKo)).join(' / '));
   await widok('Z góry');
-  ok('rzut z góry szafki: wycięcie we wzmocnieniu i 2 łączniki', (await ile('[data-el="wyciecie-wzmocnienia"]')) === 1 && (await ile('[data-el="lacznik-wzmocnienia"]')) === 2,
+  ok('rzut z góry szafki: wycięcie we wzmocnieniu i 4 łączniki', (await ile('[data-el="wyciecie-wzmocnienia"]')) === 1 && (await ile('[data-el="lacznik-wzmocnienia"]')) === 4,
     `${await ile('[data-el="wyciecie-wzmocnienia"]')} / ${await ile('[data-el="lacznik-wzmocnienia"]')}`);
+  await klik(reKo, 'Wkręty 4 × 30');
+  r0 = (await zap()).items[1].cab.levels[0].cols[0].rails[0];
+  ok('„Wkręty 4 × 30”: wzmocnienie na wkrętach — po jednym na stronę, 25 mm od lica; w karcie „Mocowanie: Wkręty 4 × 30”',
+    r0.mocowanie === 'wkrety' && await jest(/wkręty przez boki przestawione poza wycięcie — lewy koniec 25 mm od lica, prawy koniec 25 mm od lica \(miejsca tylko na jeden — po jednym na stronę\)/)
+    && (await ile('[data-el="lacznik-wzmocnienia"]')) === 2, JSON.stringify(r0));
+  const segB = page.locator('[data-el="mocowanie-wzmocnienia"] button').filter({ hasText: /^Konfirmaty$/ });
+  if (await segB.count()) { await segB.first().click(); await page.waitForTimeout(900); }
+  ok('karta wzmocnienia „Mocowanie: Konfirmaty” — z powrotem na konfirmatach', !(await zap()).items[1].cab.levels[0].cols[0].rails[0].mocowanie && await jest(reKo));
   await page.locator('[data-el="wyciecie-blatu-karta"] label').filter({ hasText: 'Od przodu blatu' }).locator('input').fill('50'); await page.waitForTimeout(900);
   const reP = /z wycięciem pod płytę — przy wycięciu zostaje pasek 20 mm, za wąski/;
   ok('wycięcie 50 od przodu: ostrzeżenie „zostaje pasek 20 mm” z „Wzmocnienie stojące”', JSON.stringify(await przyciski(reP)) === '["Wzmocnienie stojące"]', (await przyciski(reP)).join(' / '));

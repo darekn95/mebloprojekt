@@ -18,6 +18,15 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - W szafce narożnej przednie jest pionowe i cofnięte o grubość frontu, a tylne odsunięte o grubość płyty — dochodzi do kątownika.
   - Para zawsze siedzi w najwyższym poziomie, także po zmianach struktury.
 - **Wzmocnienie stojące przy plecach** na wysokości szuflady skraca jej NL; to przy licu — wysokość boku skrzynki.
+- **Mocowanie wzmocnień** (użytkownik 2026-11-06): poziome, czołowe i tylne — **konfirmaty** przez bok
+  albo przegrodę w czoło wzmocnienia, **po 2 na koniec** (wzmocnienie 100 mm: 25 i 75 mm od krawędzi,
+  60 mm: 15 i 45; szersze niż 132 mm — jak inne styki, 50 mm od krawędzi, co ok. 200 mm), w planie
+  wierceń „konfirmat — wzmocnienie poziome / czołowe / tylne”. Pionowe przy boku (lico do lica) —
+  wkręty 4 × 30, 4 na wzmocnienie. Koniec bez boku i przegrody (kątownik w rogu, ścianka wycięcia,
+  przelot) — wkręty. Przy przegrodzie z wzmocnieniem tej samej wysokości po drugiej stronie konfirmaty
+  prawej kolumny są o 15 mm dalej (otwory ⌀7 nie mogą się pokryć); bliżej niż 10 mm — ostrzeżenie
+  z „Wkręty 4 × 30”. W karcie wzmocnienia „Mocowanie: Konfirmaty / Wkręty 4 × 30” (wkręty — po 2 na
+  koniec, bez planu wierceń).
 - **Tylne wzmocnienie przy wycięciu i rurze** (decyzja użytkownika 2026-10-22):
   - wycięcie tylnego narożnika — wzmocnienie jest krótsze i kończy się na ściance wycięcia;
   - element kolizyjny (rura) — wzmocnienie stoi przed nim i dalej idzie od boku do boku.
@@ -92,7 +101,8 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
 - **Blat**: arkusze 4100 × 600 / 1200 i ceny PB0090 Śnieżna biel z faktur użytkownika (2026-09-29); brak obracania blatu w rozkroju (2026-10-17).
 - **Wzmocnienia pod blat**: para 100 mm i jej położenie — ustalone z użytkownikiem (narożnik: cofnięcie o front, odsunięcie o płytę).
 - **Frez**: wręg 16 × 3 zlicowany z tyłem (zmiana starych ustawień przy wczytaniu).
-- **Konfirmaty**: 50 mm od krawędzi, odstęp ok. 200 mm, min. 32 mm między dwoma.
+- **Konfirmaty**: 50 mm od krawędzi, odstęp ok. 200 mm, min. 32 mm między dwoma. Wzmocnienia —
+  po 2 na koniec także na 100 i 60 mm (¼ i ¾ szerokości), decyzja użytkownika 2026-11-06.
 
 ## Gdzie w kodzie i testy
 

@@ -461,6 +461,7 @@ szafką skośną i sprzętami”). Kolejność: **najpierw sprzęty**, szafka sk
 
 ## Ustalone — nie ruszać
 
+- **Mocowanie wzmocnień** (użytkownik 2026-11-06): „normalnie powinny być konfirmaty, ale przy takich wzmocnieniach (z wycięciem) warto zamienić na 4 × 30 — na przycisku”; po 2 konfirmaty na koniec także przy 100 i 60 mm; na konfirmatach poziome, czołowe i tylne (pionowe przy boku na wkrętach); przycisk „Wkręty 4 × 30” przy wycięciu i wybór w karcie. Opis: `opisy/korpus.md`.
 - **Pod wycięciem w blacie** (użytkownik 2026-11-05): „kontrola nachodzenia elementów, przyciski stojące zamiast leżącego albo wycięcie własne, i trzeba przestawić konfirmaty tak, żeby nie przeszkadzały w wycięciu, jeśli się da, a jak się nie da — zostawić jeden lub po jednym na stronę”. Opis: `opisy/sprzety.md`.
 - **Sprzęty w zabudowie** (użytkownik 2026-11-04 / 05): wszystkie cztery (piekarnik i mikrofala, zmywarka, lodówka, płyta i zlew); „zależnie od sprzętu” — piekarnik, mikrofala i lodówka jako wnęka w kolumnie, zmywarka jako pozycja w ciągu bez korpusu; wymiary „typowe, do zmiany w polach”. Lodówka: mocowanie frontu do wyboru — ślizgowo / na stałe / bez frontu (wolnostojąca we wnęce między bokami, przy ścianie albo osobno); 1 albo 2 fronty, wysokość dolnego z karty lodówki. Zmywarka: cokół ciągu idzie dalej przed nią. Płyta i zlew: wycięcie nad wybraną szafką, z przesunięciem w polach. Opis: `opisy/sprzety.md`.
 
