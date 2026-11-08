@@ -507,6 +507,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     });
     // blat z przodu
     if (widok.dolny) odcinki.forEach((o) => { s += `<rect x="${o.x0}" y="${yEl(PL + KOR + BLAT)}" width="${o.x1 - o.x0}" height="${BLAT}" fill="var(--top)"/>`; });
+    let liniaGornych = false;
     if (widok.dolny) L.forEach((q) => {
       const x = q.x, w = q.w;
       if (q.kind === "cab") {
@@ -534,7 +535,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
           const m = wnekiSlupka(q), zle = nachodza(m);
           const v = Object.entries(m).sort((a, b) => a[1].y0 - b[1].y0);
           let dol = PL;
-          v.forEach(([id, p]) => { if (p.y0 - 10 - dol >= 60) s += drzwi(dol, p.y0 - 10, 1); dol = Math.max(dol, p.y1 + 10); });
+          v.forEach(([id, p]) => { if (p.y0 - 10 - dol >= 60) s += drzwi(dol, p.y0 - 10, 1); dol = Math.max(dol, p.y1); });
+          // wneka konczy sie na dole szafek gornych — jedna linia frontow
+          if (widok.gorny && v.some(([, p]) => p.y1 === GORNE0)) liniaGornych = true;
           if (PL + SLUP - dol >= 60) s += drzwi(dol, PL + SLUP, 1);
           v.forEach(([id, p]) => { s += wneka(jest.find((a) => a.id === id), p.y0, p.y1, zle); });
         } else if (piek) { const y1 = PL + KOR - 25, y0 = y1 - rozm(piek).h; s += wneka(piek, y0, y1); s += drzwi(PL, y0 - 10, 1); }
@@ -563,6 +566,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         s += `<text x="${x + w / 2}" y="${yEl(0) + 80}" font-size="54" text-anchor="middle" fill="var(--muted)">${SPRZETY[q.typ].nazwa.split(" ")[0]}</text>`;
       }
     });
+    if (liniaGornych) s += `<line x1="-40" y1="${yEl(GORNE0)}" x2="${Wr + 40}" y2="${yEl(GORNE0)}" stroke="var(--accent)" stroke-width="5" stroke-dasharray="28 18"/>`
+      + `<text class="mm" x="${Wr + 50}" y="${yEl(GORNE0) + 14}" font-size="40" fill="var(--accent)">${GORNE0} — jedna linia</text>`;
     // wymiary szerokosci
     if (widok.dolny) L.forEach((q) => { s += `<text class="mm" x="${q.x + q.w / 2}" y="${yEl(0) + 160}" font-size="48" text-anchor="middle" fill="var(--muted)">${q.w}</text>`; });
     // miejsca dla wybranego sprzetu
@@ -617,7 +622,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         const m = wnekiSlupka(cab), p = m[sel.id];
         const para = wSzafce(cab.id).filter((a) => a.typ === "piekarnik" || a.typ === "mikrofala").length === 2;
         h += etyk("Wysokość w słupku") + `<label for="wysWneki" style="font-size:12.5px">dół wnęki od podłogi</label><div class="wys"><button class="krok" data-wys="-50">−</button><input id="wysWneki" type="number" step="10" value="${p ? p.y0 : ""}"><button class="krok" data-wys="50">+</button><span>mm</span></div>`
-          + `<div class="rob"><button class="btn" data-akcja="nablat">Na wysokość blatu (dół ${BLAT_Y})</button><button class="btn" data-akcja="podblat">Pod blat (góra równo z blatem)</button>${para ? `<button class="btn" data-akcja="zamien">Zamień miejscami z ${sel.typ === "piekarnik" ? "mikrofalą" : "piekarnikiem"}</button>` : ""}</div>`;
+          + `<div class="rob"><button class="btn" data-akcja="nablat">Na wysokość blatu (dół ${BLAT_Y})</button><button class="btn" data-akcja="podblat">Pod blat (góra równo z blatem)</button><button class="btn" data-akcja="dogornych">Góra do dołu szafek górnych (${GORNE0})</button>${para ? `<button class="btn" data-akcja="zamien">Zamień miejscami z ${sel.typ === "piekarnik" ? "mikrofalą" : "piekarnikiem"}</button>` : ""}</div>`;
         if (nachodza(m)) h += `<p class="uwaga">Wnęki nachodzą na siebie albo wychodzą poza słupek — przesuń wysokość albo zamień miejscami.</p>`;
       }
       // mikrofala za wysoko (prog przykladowy — do ustalenia): ostrzezenie, w aplikacji tez kiedys
@@ -704,6 +709,13 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       if (a === "nablat" && ob) ob.y0 = BLAT_Y;
       // pod blat: gora sprzetu rowno z wierzchem blatu; sprzet nad nim wraca na swoje miejsce nad tym
       if (a === "podblat" && ob) { ob.y0 = BLAT_Y - rozm(ob).h; wSzafce(ob.cel).forEach((q) => { if (q !== ob) delete q.y0; }); }
+      // gora wneki = dol szafek gornych: polka nad sprzetem w linii ich den, doly frontow w jednej linii (uzytkownik 2026-11-08)
+      if (a === "dogornych" && ob) {
+        ob.y0 = GORNE0 - rozm(ob).h;
+        // drugi sprzet w slupku, ktory by nachodzil — zjezdza pod spod (35 mm przerwy)
+        const cabT = ciag.find((q) => q.id === ob.cel), m = cabT ? wnekiSlupka(cabT) : {};
+        wSzafce(ob.cel).filter((q) => q !== ob && m[q.id] && m[q.id].y1 > ob.y0 && m[q.id].y0 < GORNE0).forEach((q) => { q.y0 = ob.y0 - 35 - rozm(q).h; });
+      }
       if (a === "szafkawyzej" && ob) gorne[ob.cel] = { y0: Number(ak.dataset.y) };
       if (a === "okapwyzej" && ob) ob.y0 = BLAT_Y + OKAP_MIN;
       // zamiana: wysokosci wracaja do domyslnych, kolejnosc odwrotna

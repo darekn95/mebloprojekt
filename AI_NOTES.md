@@ -943,6 +943,9 @@ do ustalenia; uzytkownik: „kiedyś będzie musiało być ostrzeżeniem w aplik
 (`makieta-dodaj-v1`) + „Wyślij do Claude” / „Wczytaj wysłaną” — artefakt z `db`, dokument `makieta/biezaca`
 (pola `json`, `uwagi`, `kiedy`, `okno`, `zaznaczony`). Odczyt: `ArtifactData get` (collection `makieta`, doc
 `biezaca`), potem wczytac stan do makiety lokalnie (localStorage przed zaladowaniem) i zrobic zrzut w szerokosci `okno`.
+[AI-INFO] Wersja 5: w slupku „Góra do dołu szafek górnych” (gora wneki = dol szafek gornych 1400 — polka nad sprzetem
+w linii den szafek gornych, doly frontow w jednej linii; przerywana linia na rysunku), drugi sprzet zjezdza pod spod.
+To samo trzeba bedzie miec w aplikacji (wnęka w słupku: dół / pod blat / na wysokość blatu / do dołu szafek górnych).
 [AI-TODO] Ustalone z uzytkownikiem 2026-11-08: najpierw dopracowac makiete AGD (klocki od razu tylko, gdy wymiarowanie
 ich wymaga), potem w aplikacji nowy widok obok Zamk./Otw. — przód ciagu + blat z gory — z przelacznikami „AGD i zlew”
 (nazwa do ustalenia), „Ciąg górny” (domyslnie widoczny) i „Ciąg dolny”.
