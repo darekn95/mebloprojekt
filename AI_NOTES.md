@@ -989,6 +989,9 @@ bez frontu, 1 albo 2 fronty (wysokosc dolnego), zawiasy L / P (symbol otwierania
 Plyta i zlew: polozenie na blacie — od poczatku blatu (lewy koniec odcinka) do lewej krawedzi wyciecia i od przodu
 (`a.przes` od srodka szafki jak w aplikacji, `a.odPrzodu`), wymiar na rzucie z gory, kontrole: poza wnetrzem szafki,
 < 50 od poczatku / konca / tylu blatu, nachodzenie albo < 50 miedzy wycieciami.
+[AI-INFO] Wersja 13: „Szuflada + drzwi” — szuflada u gory (170) albo na dole (200, `q.szuflDol`), w reszcie 1 albo
+2 drzwi (`q.drzwiIle`, domyslnie 2 przy szer. > 500); we wnetrzu polki i przegroda tylko w strefie drzwi, skrzynka
+szuflady w swojej strefie (wczesniej rysowala sie jedna szuflada na cala szafke).
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
 rant i kasete szer. × glab. × w dol (bryla pod blatem = kaseta, nie obrys wyciecia; wyciecie plyty = kaseta + luz),
