@@ -964,3 +964,13 @@ samo. Szafke przesuwa sie przeciagnieciem korpusu (`.szaf`, typ `szafkaPrzes`).
 [AI-TODO] Ustalone z uzytkownikiem 2026-11-08: makieta AGD i klocki gotowe do ogladania (v8; uzytkownik oglada i przysle
 uwagi przez „Wyślij do Claude”), potem w aplikacji nowy widok obok Zamk./Otw. — przód ciagu + blat z gory — z przelacznikami „AGD i zlew”
 (nazwa ustalona 2026-11-08: „Wyposażenie”), „Ciąg górny” (domyslnie widoczny) i „Ciąg dolny”.
+
+[AI-TODO] Pomysl uzytkownika na pozniej (2026-11-08): makieta jako tryb w aplikacji glownej — drag and drop zamiast
+wyklikiwania, polaczony w obie strony z karta szafki. Zasada: makieta NIE ma wlasnych danych — to drugi widok
+i edytor tego samego `project` (`project.runs[]`, szafki), akcje klockow wolaja te same funkcje co karta (ta sama
+historia Cofnij/Ponów, te same uwagi i kontrole). Podzial: makieta — uklad i budowa z grubsza (co gdzie stoi,
+szerokosci, fronty, polki, sprzet), karta — szczegoly (luzy, okucia, laczenia, wiercenia, material). Trudne miejsca:
+cel upuszczenia = konkretna kolumna / poziom, a nie cala szafka; akcja uproszczona nie moze kasowac szczegolow
+(fronty per poziom, podzial kolumny) — wtedy pytanie albo odeslanie do karty; narozniki, ramiona, kilka scian,
+ciag gorny. Kolejnosc: 1) widok przod ciagu + blat z gory w stylu makiety (juz ustalony) — tylko podglad,
+2) przeciaganie sprzetu i przesuwanie szafek, 3) klocki na kolumny / poziomy, 4) karta w makiecie = skrot do pelnej.
