@@ -992,6 +992,21 @@ Plyta i zlew: polozenie na blacie — od poczatku blatu (lewy koniec odcinka) do
 [AI-INFO] Wersja 13: „Szuflada + drzwi” — szuflada u gory (170) albo na dole (200, `q.szuflDol`), w reszcie 1 albo
 2 drzwi (`q.drzwiIle`, domyslnie 2 przy szer. > 500); we wnetrzu polki i przegroda tylko w strefie drzwi, skrzynka
 szuflady w swojej strefie (wczesniej rysowala sie jedna szuflada na cala szafke).
+[AI-INFO] Wersja 14 (uwagi uzytkownika 2026-11-08): okienko „Co zmienić?” — dotkniety element nie pasuje do otwartej
+zakladki (np. szafka przy „AGD”, gorna przy „Szufladach”) → lista zakladek (+ sprzet w szafce), wybor przelacza
+zakladke; sprzet dotkniety poza AGD — od razu AGD. W zakladce Szafka listy „Ciąg dolny” i „Ciąg górny” (zaznaczona gorna
+— jej lista pierwsza, „×” = bez szafki gornej), pola calego ciagu gornego (dol / gora, `ciagGorny` w zapisie; `GORNE0`,
+`GORNE` sa teraz zmienne). Wysokosc korpusu slupka (`q.h`, „= równo z górnymi”, wlasna, do 2200). Slupek ze sprzetem:
+strefy „Pod sprzętem” / „Nad sprzętem” (`q.strefy.dol/gora`: front, szuflady, polki) — klocki upuszczane na strefy
+i przyciski w karcie. Polki w kolumnach przy przegrodzie (`polkiL`, `polkiP`; kolumna z miejsca upuszczenia). Lodowka
+podblatowa do zabudowy w ciagu jak zmywarka (`lodowkaP`, wneka typowo 820 × 600 × 550 — Bosch KU22LVFD0, Smeg U8L080DE)
+i lodowka do zabudowy w szafce dolnej (wneka „82 pod blat”, boki do podlogi, bez dna, kratka w cokole); wolnostojaca
+„na równo z meblami” (Kitchen Fit: ok. 2,5 mm z boku, 15 nad, uchwyty z zestawu, szafka nad nia). Rzut szafek gornych
+na blacie nie lapie dotkniec (plyta pod nim byla nieklikalna). W panelu AGD lista „W projekcie” na dole, opcje wyzej.
+[AI-TODO] Pomysl uzytkownika do rozwazenia przy scalaniu makiety z aplikacja (2026-11-08): przelacznik „Tryb: makieta /
+zaawansowany” — makieta (przeciaganie, klocki, proste karty) i tryb zaawansowany (obecna aplikacja), na tych samych
+danych projektu. Otwarte: wysokosci polek (pola / przeciaganie na rysunku) — teraz czy przy scalaniu (pytanie
+2026-11-08).
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
 rant i kasete szer. × glab. × w dol (bryla pod blatem = kaseta, nie obrys wyciecia; wyciecie plyty = kaseta + luz),
