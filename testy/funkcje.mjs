@@ -521,6 +521,18 @@ console.log('\n== Scalanie „dwie przegrody” (użytkownik 2026-10-29) ==');
   ok('… osobne dna pod blatem roboczym: dno w dwóch kawałkach, wzmocnienia każdej kolumny na swojej przegrodzie (konfirmaty, bez trójkątów)',
     o5.g.panels.filter((p) => /^Dno (lewe|prawe)/.test(p.name)).length === 2 && !o5.g.msgs.some((x) => /wzmocnienia z obu stron/.test(x.text))
     && o5.g.levels[0].cols[1].rails[0].laczniki[0].moc === 'konfirmaty', o5.g.msgs.map((x) => x.text).join(' // ').slice(0, 400));
+  // nóżki przy osobnych dnach (2026-11-08): „osobne po 4” albo „wspólne na łączeniu”, od 900 mm części para pośrodku
+  const nozkiA = (sz('A', drzwi({ shelfTargets: [null] }))), nozkiB = sz('B', drzwi({ shelfTargets: [null] }));
+  const nOs = scalO({ dno: 'osobne', gora: 'wieniec', nozki: 'osobne' }, nozkiA, nozkiB).g.legs, nWs = scalO({ dno: 'osobne', gora: 'wieniec' }, nozkiA, nozkiB).g.legs;
+  ok('nóżki przy osobnych dnach: osobne — po 4 na część (40, 520, 640, 1120), wspólne — para pod łączeniem (40, 580, 1120)',
+    JSON.stringify(nOs.xs) === '[40,520,640,1120]' && nOs.ile === 8 && JSON.stringify(nWs.xs) === '[40,580,1120]' && nWs.ile === 6,
+    JSON.stringify([nOs.xs, nOs.ile, nWs.xs, nWs.ile]));
+  const duze = (n) => ({ ...sz(n, drzwi({ shelfTargets: [null] })), W: 1000 });
+  const nDuze = scalO({ dno: 'osobne', gora: 'wieniec', nozki: 'osobne' }, duze('A'), duze('B')).g.legs;
+  ok('… część 1000 mm „osobne”: 3 w rzędzie na część (dodatkowa para pośrodku)', nDuze.xs.length === 6 && nDuze.ile === 12, JSON.stringify(nDuze.xs));
+  const PR = G.loadProject({ name: 'P', runs: [RUN], items: [{ cab: sz('A', drzwi({ shelfTargets: [null] })), runId: 'c1' }, { cab: sz('B', drzwi({ shelfTargets: [null] })), runId: 'c1' }] });
+  const QR = G.scalSzafki(PR, [0, 1], null, 'pojedyncze', { dno: 'wspolne', gora: 'roboczy' });
+  ok('„blat roboczy” w ciągu bez blatu — włącza blat roboczy ciągu', QR.runs.find((r) => r.id === 'c1').worktop === true, JSON.stringify(QR.runs));
   const bledy5 = [o1, o2, o3, o4, o5].flatMap((o) => o.g.msgs.filter((x) => x.level === 'error').map((x) => x.text));
   ok('… żadnych błędów w tych wariantach', !bledy5.length, bledy5.join(' // '));
 }

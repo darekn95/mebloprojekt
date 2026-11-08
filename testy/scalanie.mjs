@@ -127,12 +127,15 @@ console.log('\n== dno i góra do wyboru (użytkownik 2026-11-08) ==');
     (await panel().locator('[data-el="scal-dno"] button').allInnerTexts()).join('|') === 'wspólne|osobne'
     && (await panel().locator('[data-el="scal-gora"] button').allInnerTexts()).join('|') === 'wspólny wieniec|osobne wieńce|blat z płyty|blat roboczy');
   await panel().locator('[data-el="scal-dno"]').getByRole('button', { name: 'osobne', exact: true }).click(); await page.waitForTimeout(150);
+  ok('przy osobnych dnach wiersz „nóżki: osobne po 4 / wspólne na łączeniu”', (await panel().locator('[data-el="scal-nozki"] button').allInnerTexts()).join('|') === 'osobne po 4|wspólne na łączeniu');
+  await panel().locator('[data-el="scal-nozki"]').getByRole('button', { name: 'osobne po 4', exact: true }).click(); await page.waitForTimeout(150);
   await panel().locator('[data-el="scal-gora"]').getByRole('button', { name: 'osobne wieńce', exact: true }).click(); await page.waitForTimeout(150);
   const op = await panel().locator('[data-el="scal-opis"]').innerText();
   ok('osobne dno i wieńce same przełączają na dwie przegrody (opis)', /dwie przegrody obok siebie.*osobne dna, góra: osobne wieńce/.test(op) && /nie da się skręcić po kolei/.test(op), op);
   await panel().getByRole('button', { name: 'Scal', exact: true }).click(); await page.waitForTimeout(800);
   const p = await zap();
   const kol = p.items[p.active].cab.levels[0].cols;
+  ok('nóżki „osobne” zapisane w szafce (`legs.uStyku`)', p.items[p.active].cab.legs && p.items[p.active].cab.legs.uStyku === 'osobne', JSON.stringify(p.items[p.active].cab.legs));
   ok('na styku `przegrodaPodw`, `przegrodaOsobneDna`, `przegrodaOsobneWience`', kol[0].przegrodaPodw === true && kol[0].przegrodaOsobneDna === true && kol[0].przegrodaOsobneWience === true,
     JSON.stringify(kol.map((k) => [!!k.przegrodaPodw, !!k.przegrodaOsobneDna, !!k.przegrodaOsobneWience])));
   const f = await rows(/^Formatki do zamówienia$/);

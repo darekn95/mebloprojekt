@@ -3293,6 +3293,29 @@ function computeGeoLiczy(cab, mat, ctx) {
     .filter((d) => d.level === 0 && d.j === q.para.j && d.para).forEach((d) => { d.y0 -= t; d.h += t; d.doSpodu = true; }));
   (wienKawalki && wienMiedzy ? wienKawalki.filter((q) => q.para) : []).forEach((q) => dividers
     .filter((d) => d.level === levels.length - 1 && d.j === q.para.j && d.para).forEach((d) => { d.y1 += t; d.h += t; d.doWierzchu = true; }));
+  /* Nozki przy osobnych dnach (uzytkownik 2026-11-08: „zależy jak duże szafki — osobne po 4 nóżki albo wspólne
+     na łączeniu; jak trzeba, na środku dodatkowa para”): `legs.uStyku` — „osobne” (kazda czesc jak szafka,
+     `legPlan` z jej szerokosci) albo „wspolne” (domyslnie: skrajne, para pod kazdym stykiem przegrod i para
+     posrodku czesci od 900 mm). Recznie wpisana liczba nozek — bez zmian. */
+  if (dnoKawalki && cab.legs && cab.legs.on && !(Number(cab.legs.count) > 0)) {
+    const pary = dnoKawalki.filter((q) => q.para).map((q) => q.para);
+    const czesci = [];
+    let a0 = 0;
+    pary.forEach((d) => { czesci.push([a0, d.x + t]); a0 = d.x + t; });
+    czesci.push([a0, W]);
+    const xs = [];
+    if (cab.legs.uStyku === "osobne") czesci.forEach(([p0, p1]) => legPlan({ legs: {} }, p1 - p0).xs.forEach((x) => xs.push(Math.round(p0 + x))));
+    else {
+      xs.push(LEG_INSET, Math.round(W - LEG_INSET - LEG_W));
+      pary.forEach((d) => xs.push(Math.round(d.x + t - LEG_W / 2)));
+      czesci.forEach(([p0, p1]) => { if (p1 - p0 >= 900) xs.push(Math.round((p0 + p1 - LEG_W) / 2)); });
+    }
+    legs.xs = [...new Set(xs)].sort((p0, p1) => p0 - p1);
+    legs.srodek = false;
+    legs.ile = legs.xs.length * 2;
+    legs.uStyku = cab.legs.uStyku === "osobne" ? "osobne" : "wspolne";
+    legs.miejsca = legs.xs.flatMap((lx) => [{ x: lx, odTylu: carcassDepth - legs.ins - legs.w }, { x: lx, odTylu: legs.ins }]);
+  }
   // kawalek plyty pod / nad danym x (bez podzialu — cala plyta, polozenie od wewnetrznej strony lewego boku)
   const kawalekPod = (kaw, x, nazwa) => {
     const q = kaw && kaw.find((k2) => x >= k2.x0 - 0.5 && x <= k2.x1 + 0.5);
@@ -20387,6 +20410,8 @@ const scalSzafki = (project, idxsIn, wzorIn = null, trybIn = "pojedyncze", opcje
   ["frontSameAsBoard", "shelfSameAsBoard", ...POLA_PLECOW].forEach((key) => {
     if (its[kW].cab[key] === undefined) delete scalona[key]; else scalona[key] = JSON.parse(JSON.stringify(its[kW].cab[key]));
   });
+  // nozki przy osobnych dnach (wybor w scalaniu)
+  if (osobneDna && scalona.legs && opcje.nozki) scalona.legs = { ...scalona.legs, uStyku: opcje.nozki === "osobne" ? "osobne" : "wspolne" };
   // gora scalonej szafki z wyboru (bez wyboru — jak pierwsza szafka)
   if (opcje.gora) {
     const bezGory = (scalona.joints || {}).topL === "none" || (scalona.joints || {}).topR === "none";
@@ -20401,7 +20426,10 @@ const scalSzafki = (project, idxsIn, wzorIn = null, trybIn = "pojedyncze", opcje
   const znikaja = new Set(idxs.slice(1));
   const nowa = { ...project.items[idxs[0]], cab: scalona, mat: JSON.parse(JSON.stringify(its[kW].mat)) };
   const items = project.items.map((it, i) => (i === idxs[0] ? nowa : it)).filter((_, i) => !znikaja.has(i));
-  return { ...project, items, active: items.indexOf(nowa) };
+  /* „blat roboczy” przy ciagu bez blatu — wlacza blat roboczy ciagu (uzytkownik 2026-11-08) */
+  const runs = opcje.gora === "roboczy" && run && !run.worktop
+    ? (project.runs || []).map((r) => (r.id === runId ? { ...r, worktop: true, wspolnyWieniec: false } : r)) : project.runs;
+  return { ...project, items, runs, active: items.indexOf(nowa) };
 };
 
 /* Ktore szafki uzywaja plyty `k`: fronty i polki z wlasnej plyty tylko przy
@@ -23929,10 +23957,10 @@ export default function App() {
                     const goraW = ["wieniec", "osobne", "blat", "roboczy"].includes(sc.gora) ? sc.gora : goraDom;
                     const dwieP = sc.boki === "dwie" || dnoW === "osobne" || goraW === "osobne";
                     const zastosuj = () => {
-                      setProject((p) => scalSzafki(p, sc.idxs, rozne.length ? wzor : null, dwieP ? "dwie" : "pojedyncze", { dno: dnoW, gora: goraW }));
+                      setProject((p) => scalSzafki(p, sc.idxs, rozne.length ? wzor : null, dwieP ? "dwie" : "pojedyncze", { dno: dnoW, gora: goraW, nozki: sc.nozki === "osobne" ? "osobne" : "wspolne" }));
                       setScalanie(null);
                     };
-                    const OPIS_GORY = { wieniec: "wspólny wieniec", osobne: "osobne wieńce", blat: "blat z płyty na bokach", roboczy: "bez wieńca — para wzmocnień pod blat roboczy ciągu" };
+                    const OPIS_GORY = { wieniec: "wspólny wieniec", osobne: "osobne wieńce", blat: "blat z płyty na bokach", roboczy: runInfo.run.worktop ? "bez wieńca — para wzmocnień pod blat roboczy ciągu" : "bez wieńca — para wzmocnień pod blat roboczy (włączę blat ciągu)" };
                     return (
                       <div className="space-y-2 rounded border border-teal-200 bg-teal-50 p-2 text-xs" data-el="scalanie">
                         <div className="font-medium text-stone-700">Scal szafki w jedną</div>
@@ -23958,6 +23986,13 @@ export default function App() {
                           <Seg value={dnoW} onChange={(v) => zmien({ dno: v, ...(v === "osobne" ? { boki: "dwie" } : {}) })}
                             options={[{ v: "wspolne", l: "wspólne" }, { v: "osobne", l: "osobne" }]} />
                         </div>
+                        {dnoW === "osobne" && (
+                          <div className="flex items-center gap-2" data-el="scal-nozki">
+                            <span className="w-24 shrink-0 text-stone-500">nóżki</span>
+                            <Seg value={sc.nozki === "osobne" ? "osobne" : "wspolne"} onChange={(v) => zmien({ nozki: v })}
+                              options={[{ v: "osobne", l: "osobne po 4" }, { v: "wspolne", l: "wspólne na łączeniu" }]} />
+                          </div>
+                        )}
                         <div className="flex flex-wrap items-center gap-2" data-el="scal-gora">
                           <span className="w-24 shrink-0 text-stone-500">góra</span>
                           <Seg value={goraW} onChange={(v) => zmien({ gora: v, ...(v === "osobne" ? { boki: "dwie" } : {}) })}
@@ -25887,6 +25922,17 @@ export default function App() {
                   fixed={Number(cab.legs.count) > 0}
                   onChange={(v) => set({ legs: { ...cab.legs,
                     count: v === "" || v == null ? null : Math.max(2, Math.round(Number(v) || 0)) } })} />
+              </Field>
+            )}
+            {/* osobne dna przy dwoch przegrodach — nozki kazdej czesci albo wspolne na styku (2026-11-08) */}
+            {cab.legs?.on && (geo.dnoKawalki || []).length > 1 && !(Number(cab.legs.count) > 0) && (
+              <Field label="Nóżki przy osobnych dnach"
+                hint={`${geo.legs.ile} szt. — ${geo.legs.uStyku === "osobne" ? "każda część jak osobna szafka" : "skrajne i para pod łączeniem przegród"}; od 900 mm części dochodzi para pośrodku.`}>
+                <div data-el="nozki-styk">
+                  <Seg value={cab.legs.uStyku === "osobne" ? "osobne" : "wspolne"}
+                    onChange={(v) => set({ legs: { ...cab.legs, uStyku: v } })}
+                    options={[{ v: "osobne", l: "osobne po 4" }, { v: "wspolne", l: "wspólne na łączeniu" }]} />
+                </div>
               </Field>
             )}
             {zmianaNozek === project.active && runInfo && (() => {
