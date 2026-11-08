@@ -253,16 +253,16 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   const MIKRO_MAX = 1300;   // dol mikrofali wyzej niz to — ostrzezenie (prog ustalony z uzytkownikiem 2026-11-08)
   /* Wymiary sprzetu do wyboru (makieta — wartosci przykladowe): w — szerokosc wyciecia / miejsca, h — wysokosc wneki */
   const ROZM = {
-    /* plyta: sw × sd szklo (na blacie), kw × kd kaseta z elektronika (pod blatem), ww × wd wyciecie, h wysokosc zabudowy
-       od wierzchu blatu w dol. Typowo (karty Bosch / Neff / Electrolux / Samsung, 2026-11): 60 cm — szklo ok. 590 × 520,
+    /* plyta: sw × sd szklo (na blacie), kw × kd kaseta z elektronika (pod blatem), h — ile kaseta schodzi w dol od
+       wierzchu blatu; wyciecie = kaseta + WYC_LUZ z kazdej strony (uzytkownik 2026-11-08: „opcja 2, z głębokością kasety”). Typowo (karty Bosch / Neff / Electrolux / Samsung, 2026-11): 60 cm — szklo ok. 590 × 520,
        wyciecie 560 × 490, wysokosc 51–54; „slim” 44; z okapem w plycie ok. 150–230 pod blatem. Kaseta — przykladowo
        wyciecie − 6. Wartosci przykladowe — wpisuje sie z karty modelu. */
-    plyta: [{ k: "30", l: "30 cm", sw: 290, sd: 520, kw: 262, kd: 484, ww: 268, wd: 490, h: 51 },
-      { k: "60", l: "60 cm", sw: 590, sd: 520, kw: 554, kd: 484, ww: 560, wd: 490, h: 51 },
-      { k: "60s", l: "60 cm slim", sw: 590, sd: 520, kw: 554, kd: 484, ww: 560, wd: 490, h: 44 },
-      { k: "80", l: "80 cm", sw: 800, sd: 520, kw: 744, kd: 484, ww: 750, wd: 490, h: 51 },
-      { k: "90", l: "90 cm", sw: 900, sd: 520, kw: 854, kd: 484, ww: 860, wd: 490, h: 51 },
-      { k: "80o", l: "80 z okapem", sw: 830, sd: 520, kw: 754, kd: 484, ww: 760, wd: 490, h: 230 }],
+    plyta: [{ k: "30", l: "30 cm", sw: 290, sd: 520, kw: 262, kd: 484, h: 51 },
+      { k: "60", l: "60 cm", sw: 590, sd: 520, kw: 554, kd: 484, h: 51 },
+      { k: "60s", l: "60 cm slim", sw: 590, sd: 520, kw: 554, kd: 484, h: 44 },
+      { k: "80", l: "80 cm", sw: 800, sd: 520, kw: 744, kd: 484, h: 51 },
+      { k: "90", l: "90 cm", sw: 900, sd: 520, kw: 854, kd: 484, h: 51 },
+      { k: "80o", l: "80 z okapem", sw: 830, sd: 520, kw: 754, kd: 484, h: 230 }],
     /* zlew: sw × sd rant na blacie, ww × wd wyciecie (z szablonu), h glebokosc komory od wierzchu blatu (typowo ok. 200;
        np. 780 × 500, wyciecie 760 × 480, komora 220 — Franke UBG 611-78) */
     zlew: [{ k: "1", l: "1 komora", sw: 500, sd: 500, ww: 480, wd: 480, h: 200 },
@@ -280,16 +280,21 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   ROZM.szafkaPrzes = [{ k: "w", l: "", w: 600 }];
   const rozm = (a) => ROZM[a.typ].find((r) => r.k === a.rozm) || ROZM[a.typ][a.typ === "plyta" || a.typ === "zlew" ? 1 : 0];   // plyta 60, zlew z ociekaczem
   // wymiary z wlasnymi poprawkami (`a.wym`) — pola z karty modelu; wybor rozmiaru wraca do typowych
-  const wym = (a) => ({ ...rozm(a), ...(a.wym || {}) });
+  const WYC_LUZ = 3;          // wyciecie pod plyte = kaseta + 3 mm z kazdej strony (przykladowo — do potwierdzenia)
+  const wym = (a) => {
+    const m = { ...rozm(a), ...(a.wym || {}) };
+    if (a.typ === "plyta") { m.ww = m.kw + 2 * WYC_LUZ; m.wd = m.kd + 2 * WYC_LUZ; }
+    return m;
+  };
   const WYM_POLA = {
-    plyta: [["Szkło na blacie", "sw", "sd"], ["Kaseta pod blatem", "kw", "kd"], ["Wycięcie w blacie", "ww", "wd"], ["Wysokość od wierzchu blatu", "h"]],
+    plyta: [["Szkło na blacie", "sw", "sd"], ["Kaseta pod szkłem", "kw", "kd"], ["Kaseta w dół od wierzchu blatu", "h"]],
     zlew: [["Rant na blacie", "sw", "sd"], ["Wycięcie w blacie", "ww", "wd"], ["Głębokość komory od wierzchu blatu", "h"]],
   };
   const WYC_OD_PRZODU = 50;   // wyciecie od przedniej krawedzi blatu (jak w aplikacji)
   const BLAT_Y = PL0 + KOR0 + BLAT0;   // wierzch blatu od podlogi
   let widok = { agd: true, gorny: true, dolny: true, fronty: true };
   const CO_ZROBI = {
-    plyta: (c, a) => { const m = wym(a || { typ: "plyta" }); return `Wycięcie ${m.ww} × ${m.wd} mm w blacie nad szafką „${c}”, na środku szafki, ${WYC_OD_PRZODU} mm od przodu blatu. Szkło ${m.sw} × ${m.sd} leży na blacie, kaseta ${m.kw} × ${m.kd} schodzi ${m.h} mm od wierzchu blatu (${Math.max(0, m.h - BLAT0)} mm pod blat). Program sprawdzi, czy kaseta nie wchodzi w szuflady albo leżące wzmocnienie — jeśli wchodzi, zaproponuje wzmocnienie stojące albo wycięcie we wzmocnieniu.`; },
+    plyta: (c, a) => { const m = wym(a || { typ: "plyta" }); return `Wycięcie ${m.ww} × ${m.wd} mm (kaseta + ${WYC_LUZ} mm z każdej strony) w blacie nad szafką „${c}”, na środku szafki, ${WYC_OD_PRZODU} mm od przodu blatu. Szkło ${m.sw} × ${m.sd} leży na blacie, kaseta ${m.kw} × ${m.kd} schodzi ${m.h} mm od wierzchu blatu (${Math.max(0, m.h - BLAT0)} mm pod blat). Program sprawdzi, czy kaseta nie wchodzi w szuflady albo leżące wzmocnienie — jeśli wchodzi, zaproponuje wzmocnienie stojące albo wycięcie we wzmocnieniu.`; },
     zlew: (c, a) => { const m = wym(a || { typ: "zlew" }); return `Wycięcie ${m.ww} × ${m.wd} mm pod zlew nad szafką „${c}”, ${WYC_OD_PRZODU} mm od przodu blatu; rant ${m.sw} × ${m.sd} leży na blacie. Komora schodzi ${m.h} mm od wierzchu blatu (${Math.max(0, m.h - BLAT0)} mm pod blat) — program sprawdzi półki i szuflady pod nią.`; },
     piekarnik: (c) => `Wnęka na piekarnik w szafce „${c}”: front skraca się o wnękę, pod piekarnikiem zostaje szuflada albo blenda.`,
     mikrofala: (c) => `Wnęka na mikrofalę w słupku „${c}”, nad piekarnikiem albo na wysokości oczu; nad nią drzwi.`,
@@ -435,6 +440,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if (!q || pod <= 0) return out;
     const co = a.typ === "plyta" ? "Kaseta płyty" : "Komora zlewu";
     if ((q.wzm || []).includes("lezace")) out.push(`${co} schodzi ${pod} mm pod blat i wchodzi w leżące wzmocnienie — program zaproponuje stojące albo wycięcie we wzmocnieniu.`);
+    if ((q.wzm || []).includes("stojace")) out.push(`${co} schodzi ${pod} mm pod blat przy stojącym wzmocnieniu — od przodu blatu ${WYC_OD_PRZODU + (a.typ === "plyta" ? WYC_LUZ : 0)} mm, do tyłu ${GL - WYC_OD_PRZODU - m.wd + (a.typ === "plyta" ? WYC_LUZ : 0)} mm; program sprawdzi, czy mija wzmocnienie, i zaproponuje przesunięcie wycięcia.`);
     if (q.drawers && pod > 30) out.push(`${co} schodzi ${pod} mm pod blat — górna szuflada musi być niżej albo krótsza (wymiary z instrukcji modelu).`);
     if (q.polki && a.typ === "zlew") out.push(`Półka pod zlewem — musi być niżej niż komora (${pod} mm pod blatem) i syfon.`);
     if (a.typ === "plyta" && m.h > 120) out.push(`Płyta głęboka (${m.h} mm, np. z okapem w płycie) — górna szuflada odpada albo jest skrócona, przy wyciągu na zewnątrz kanał idzie przez szafkę; wymiary z instrukcji modelu.`);
@@ -830,11 +836,15 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         const pole = (k, l) => `<input type="number" min="0" step="1" inputmode="numeric" data-wym="${k}" value="${m[k]}" aria-label="${l}"${ob.wym && ob.wym[k] != null ? ' class="wlasny"' : ""}>`;
         h += etyk("Wymiary z karty modelu") + `<div class="wym">` + WYM_POLA[sel.typ].map(([l, k1, k2]) =>
           `<span>${l}</span><span class="para">${pole(k1, l + (k2 ? " — szerokość" : ""))}${k2 ? `<i>×</i>${pole(k2, l + " — głębokość")}` : ""}<i>mm</i></span>`).join("") + `</div>`;
-        h += `<p class="hint">Typowe „${r.l}” — wpisz liczby z karty swojego modelu (szer. × głęb.). ${sel.typ === "plyta" ? "Kaseta to część z elektroniką pod szkłem. Wysokość: slim ok. 44 mm, zwykłe 51–54, z okapem w płycie 150–230." : "Komora zwykle 180–220 mm."}</p>`;
+        if (sel.typ === "plyta") {
+          const tyl = GL - WYC_OD_PRZODU - WYC_LUZ - m.kd;
+          h += `<p>Wycięcie w blacie: <b class="mm">${m.ww} × ${m.wd}</b> (kaseta + ${WYC_LUZ} mm z każdej strony).</p>`
+            + `<p>Kaseta w blacie: od przodu blatu <b class="mm">${WYC_OD_PRZODU + WYC_LUZ}</b>, do tyłu blatu <b class="mm">${tyl}</b>, w dół <b class="mm">${m.h}</b> od wierzchu (<b class="mm">${Math.max(0, m.h - BLAT)}</b> pod blat ${BLAT} mm).</p>`;
+        }
+        h += `<p class="hint">Typowe „${r.l}” — wpisz liczby z karty swojego modelu (szer. × głęb.). ${sel.typ === "plyta" ? "Kaseta to część z elektroniką pod szkłem; „w dół” — jak głęboko schodzi od wierzchu blatu: slim ok. 44 mm, zwykłe 51–54, z okapem w płycie 150–230." : "Komora zwykle 180–220 mm."}</p>`;
         if (ob.wym) h += `<div class="rob"><button class="btn" data-akcja="wymtyp">Wróć do typowych („${r.l}”)</button></div>`;
         const uw = [];
         if (cab && m.ww > cab.w - 36) uw.push(sel.typ === "plyta" ? `Wycięcie ${m.ww} mm szersze niż wnętrze szafki (${cab.w - 36} mm) — kaseta oprze się na bokach; daj szerszą szafkę albo mniejszą płytę.` : `Wycięcie ${m.ww} mm wychodzi nad bok szafki (wnętrze ${cab.w - 36} mm) — komora musi być nad wnętrzem, ociekacz może wisieć nad sąsiednią.`);
-        if (sel.typ === "plyta" && (m.kw > m.ww || m.kd > m.wd)) uw.push(`Kaseta ${m.kw} × ${m.kd} większa niż wycięcie ${m.ww} × ${m.wd} — płyta nie wejdzie w otwór.`);
         if (m.sw <= m.ww || m.sd <= m.wd) uw.push(`${sel.typ === "plyta" ? "Szkło" : "Rant"} ${m.sw} × ${m.sd} nie zakryje wycięcia ${m.ww} × ${m.wd}.`);
         if (GL - WYC_OD_PRZODU - m.wd < 50) uw.push(`Wycięcie ${m.wd} mm w głąb — do tylnej krawędzi blatu zostaje ${GL - WYC_OD_PRZODU - m.wd} mm (najmniej 50).`);
         uw.push(...podBlatemUwagi(ob, cab));

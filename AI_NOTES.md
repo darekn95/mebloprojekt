@@ -971,9 +971,14 @@ komora 220). Wyciecie 50 od przodu blatu. Kontrole w makiecie: wyciecie plyty sz
 wieksza niz wyciecie, szklo / rant nie zakrywa wyciecia, za malo blatu z tylu, kaseta / komora pod blatem a lezace
 wzmocnienie, szuflady (> 30 mm pod blatem), polka pod zlewem, plyta gleboka (> 120). Widok z przodu: kaseta i komora
 przerywane pod blatem (pomaranczowe, gdy cos przeszkadza).
+[AI-INFO] Wersja 11 (uzytkownik 2026-11-08, „opcja 2, ale z głębokością kasety — przy kontroli nachodzenia dzieją się
+cyrki”): plyta bez pola wyciecia — wyciecie = kaseta + `WYC_LUZ` (3 mm z kazdej strony, przykladowo, do potwierdzenia);
+pola: szklo, kaseta szer. × glab., kaseta w dol od wierzchu blatu. Karta pokazuje wyciecie i polozenie kasety w blacie
+(od przodu 53, do tylu, w dol / pod blat) oraz uwage przy stojacym wzmocnieniu. Zlew bez zmian (wyciecie z szablonu).
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
-rant i kasete (bryla pod blatem = kaseta, nie obrys wyciecia), zgodnie z polami makiety.
+rant i kasete szer. × glab. × w dol (bryla pod blatem = kaseta, nie obrys wyciecia; wyciecie plyty = kaseta + luz),
+zgodnie z polami makiety.
 [AI-TODO] Ustalone z uzytkownikiem 2026-11-08: makieta AGD i klocki gotowe do ogladania (v8; uzytkownik oglada i przysle
 uwagi przez „Wyślij do Claude”), potem w aplikacji nowy widok obok Zamk./Otw. — przód ciagu + blat z gory — z przelacznikami „AGD i zlew”
 (nazwa ustalona 2026-11-08: „Wyposażenie”), „Ciąg górny” (domyslnie widoczny) i „Ciąg dolny”.
