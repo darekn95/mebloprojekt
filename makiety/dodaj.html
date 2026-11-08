@@ -563,7 +563,14 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   }
   /* Polki w kolumnach (uzytkownik 2026-11-08): przy przegrodzie osobno lewa (`polkiL`) i prawa (`polkiP`) */
   const polkiKol = (q) => [q.polkiL ?? (q.polki || 0), q.polkiP ?? (q.polki || 0)];
+  // obiekt z polkami wg `wl`: szafka, „g:id” — gorna, „id|dol” / „id|gora” — strefa slupka
+  function wlObj(wl) {
+    if (wl.startsWith("g:")) { const id = wl.slice(2); return (gorne[id] = gorne[id] || {}); }
+    if (wl.includes("|")) { const [id, k] = wl.split("|"), q = ciag.find((z) => z.id === id); if (!q) return null; q.strefy = q.strefy || {}; return (q.strefy[k] = q.strefy[k] || { front: "drzwi1" }); }
+    return ciag.find((z) => z.id === wl);
+  }
   function dodajPolke(q, kol, d) {
+    delete q.pozPolek;      // inna liczba polek — znow po rowno
     const cl = (v) => Math.max(0, Math.min(6, v));
     if (q.przegroda && kol) {
       const [L, P] = polkiKol(q);
@@ -683,7 +690,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 
   const typPrzes = (id) => (ciag.some((q) => q.id === id && q.kind === "cab") ? "szafkaPrzes" : (wszystkie().find((q) => q.id === id) || {}).typ);
   // fronty albo wnetrze szafki (makieta): szuflady, drzwi, klapy, otwarta; wnetrze — polki, przegroda, wzmocnienia
-  function frontySzafki(q, x, w, y0, y1, drzwi, wnetrzeWidok) {
+  function frontySzafki(q, x, w, y0, y1, drzwi, wnetrzeWidok, wl) {
     let t = "";
     const dashed = (a, b, c, d) => `<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="var(--accent)" stroke-width="7" stroke-dasharray="26 14"/>`;
     const wnetrze = wnetrzeWidok || q.front === "otwarta";
@@ -696,11 +703,17 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if (wnetrze) {
       const n = q.polki || 0, [nL, nP] = q.przegroda ? polkiKol(q) : [n, n];
       const polka = (xx, ww, yy) => `<rect x="${xx}" y="${yEl(yy) - 9}" width="${ww}" height="18" fill="var(--top)" opacity=".55"/>`;
+      /* Wysokosci polek (uzytkownik 2026-11-08: „przeciąganie”): `q.pozPolek[k]` — od dolu strefy polek (yd), k: "" / "L" / "P";
+         brak albo inna liczba — po rowno. Chwytak (przezroczysty pasek) do przeciagania; przy zaznaczonej szafce wymiar. */
+      const zazn = wl && (zaznaczony === wl || zaznaczony === wl.split("|")[0]);
+      const poz = (k, cnt) => { const a = (q.pozPolek || {})[k]; return a && a.length === cnt ? a.map((v) => yd + v) : Array.from({ length: cnt }, (_, i) => yd + ((yg - yd) * (i + 1)) / (cnt + 1)); };
+      const polkaD = (xx, ww, yy, k, i) => polka(xx, ww, yy) + (wl ? `<rect class="polkaH" data-wl="${wl}" data-k="${k}" data-i="${i}" data-z0="${yd}" data-z1="${yg}" x="${xx}" y="${yEl(yy) - 24}" width="${ww}" height="48" fill="transparent" pointer-events="all" style="cursor:ns-resize;touch-action:none"/>` : "")
+        + (zazn ? `<text class="mm" pointer-events="none" x="${xx + ww - 8}" y="${yEl(yy) - 16}" font-size="34" text-anchor="end" fill="var(--accent)">${Math.round(yy - yd)}</text>` : "");
       const rura = (xx, ww, yy) => `<line x1="${xx + 20}" y1="${yEl(yy)}" x2="${xx + ww - 20}" y2="${yEl(yy)}" stroke="var(--metal)" stroke-width="12" stroke-linecap="round"/>`
         + [0.3, 0.5, 0.7].map((f) => `<path d="M${xx + ww * f} ${yEl(yy)} l-50 70 h100 z" fill="none" stroke="var(--muted)" stroke-width="4"/>`).join("");
       if (q.drazek && q.przegroda) {
         // lewa kolumna — polki, prawa — polka u gory i drazek pod nia
-        for (let i = 1; i <= nL; i++) t += polka(x + 18, w / 2 - 27, yd + ((yg - yd) * i) / (nL + 1));
+        poz("L", nL).forEach((yy, i) => { t += polkaD(x + 18, w / 2 - 27, yy, "L", i); });
         t += polka(x + w / 2 + 9, w / 2 - 27, yg - 300) + rura(x + w / 2 + 9, w / 2 - 27, yg - 360);
         for (let i = 1; i < nP; i++) t += polka(x + w / 2 + 9, w / 2 - 27, yd + (400 * i) / nP);
       } else if (q.drazek) {
@@ -708,9 +721,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         t += polka(x + 18, w - 36, yg - 300) + rura(x + 18, w - 36, yg - 360);
         for (let i = 1; i < n; i++) t += polka(x + 18, w - 36, yd + (400 * i) / n);
       } else if (q.przegroda) {
-        for (let i = 1; i <= nL; i++) t += polka(x + 18, w / 2 - 27, yd + ((yg - yd) * i) / (nL + 1));
-        for (let i = 1; i <= nP; i++) t += polka(x + w / 2 + 9, w / 2 - 27, yd + ((yg - yd) * i) / (nP + 1));
-      } else for (let i = 1; i <= n; i++) t += polka(x + 18, w - 36, yd + ((yg - yd) * i) / (n + 1));
+        poz("L", nL).forEach((yy, i) => { t += polkaD(x + 18, w / 2 - 27, yy, "L", i); });
+        poz("P", nP).forEach((yy, i) => { t += polkaD(x + w / 2 + 9, w / 2 - 27, yy, "P", i); });
+      } else poz("", n).forEach((yy, i) => { t += polkaD(x + 18, w - 36, yy, "", i); });
       // przegroda — przy szufladzie + drzwiach tylko w strefie drzwi (szuflada na cala szerokosc)
       if (q.przegroda) t += sd ? `<rect x="${x + w / 2 - 9}" y="${yEl(yg)}" width="18" height="${yg - yd}" fill="var(--accent)" opacity=".7"/>` : `<rect x="${x + w / 2 - 9}" y="${yEl(y1)}" width="18" height="${y1 - y0}" fill="var(--accent)" opacity=".7"/>`;
       if (sd) t += `<line x1="${x + 18}" y1="${yEl(q.szuflDol ? sd.d1 : sd.d0)}" x2="${x + w - 18}" y2="${yEl(q.szuflDol ? sd.d1 : sd.d0)}" stroke="var(--ink)" stroke-width="6" opacity=".6"/>`;
@@ -867,7 +880,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         const zG = zaznaczony === "g:" + q.id, gx = q.x, gw = q.w;
         s += `<rect class="gorna" data-g="${q.id}" x="${q.x}" y="${yEl(g.y1)}" width="${q.w}" height="${g.y1 - g.y0}" fill="var(--board)" stroke="${zG ? "var(--accent)" : "var(--ink)"}" stroke-width="${zG ? 14 : 5}" style="cursor:pointer"/>`;
         const drzwiG = (y0, y1, ile) => { let t = `<rect x="${gx + 8}" y="${yEl(y1) + 8}" width="${gw - 16}" height="${y1 - y0 - 16}" fill="none" stroke="var(--ink)" stroke-width="3"/>`; for (let i = 1; i < ile; i++) t += `<line x1="${gx + (gw * i) / ile}" y1="${yEl(y1) + 8}" x2="${gx + (gw * i) / ile}" y2="${yEl(y0) - 8}" stroke="var(--ink)" stroke-width="3"/>`; return t; };
-        s += `<g pointer-events="none">${frontySzafki({ w: gw, ...(gorne[q.id] || {}) }, gx, gw, g.y0 + wDnie, g.y1, drzwiG, wnetrzeWidok)}</g>`;
+        s += `<g pointer-events="none">${frontySzafki({ w: gw, ...(gorne[q.id] || {}) }, gx, gw, g.y0 + wDnie, g.y1, drzwiG, wnetrzeWidok, "g:" + q.id)}</g>`;
         if (wDnie) s += `<line pointer-events="none" x1="${q.x}" y1="${yEl(g.y0 + wDnie)}" x2="${q.x + q.w}" y2="${yEl(g.y0 + wDnie)}" stroke="var(--ink)" stroke-width="4"/>`;
       }
       if (!ok) return;
@@ -937,11 +950,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
           let dol = PL;
           // strefy slupka (uzytkownik 2026-11-08): pod najnizszym sprzetem i nad najwyzszym — fronty / szuflady / polki z klockow;
           // miedzy sprzetami — drzwi albo blenda (ponizej 60 mm)
-          const strefaSlupka = (qq, k, z0, z1) => `<g pointer-events="none">${frontySzafki({ w, ...((qq.strefy || {})[k] || { front: "drzwi1" }) }, x, w, z0, z1, drzwi, wnetrzeWidok)}</g>`;
+          const strefaSlupka = (qq, k, z0, z1) => `<g pointer-events="none">${frontySzafki({ w, ...((qq.strefy || {})[k] || { front: "drzwi1" }) }, x, w, z0, z1, drzwi, wnetrzeWidok, qq.id + "|" + k)}</g>`;
           v.forEach(([id, p], i) => { if (p.y0 - 10 - dol >= 60) s += i === 0 ? strefaSlupka(q, "dol", dol, p.y0 - 10) : drzwi(dol, p.y0 - 10, 1); dol = Math.max(dol, p.y1); });
           // wneka konczy sie na dole szafek gornych — jedna linia frontow
           if (widok.gorny && v.some(([, p]) => p.y1 === GORNE0)) liniaGornych = true;
-          if (!v.length) s += `<g pointer-events="none">${frontySzafki(q, x, w, PL, PL + h, drzwi, wnetrzeWidok)}</g>`;
+          if (!v.length) s += `<g pointer-events="none">${frontySzafki(q, x, w, PL, PL + h, drzwi, wnetrzeWidok, q.id)}</g>`;
           else if (PL + h - dol >= 60) s += strefaSlupka(q, "gora", dol, PL + h);
           v.forEach(([id, p]) => { s += wneka(jest.find((a) => a.id === id), p.y0, p.y1, zle); });
         } else if (piek) { const y1 = PL + KOR - 25, y0 = y1 - rozm(piek).h; s += wneka(piek, y0, y1); s += drzwi(PL, y0 - 10, 1); }
@@ -950,7 +963,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
           s += [0, 1, 2, 3, 4].map((k) => `<line x1="${x + w / 2 - 80 + k * 40}" y1="${yEl(PL) + 25}" x2="${x + w / 2 - 80 + k * 40}" y2="${yEl(0) - 25}" stroke="var(--ink)" stroke-width="5"/>`).join("");
           s += wneka(lod, PL, PL + KOR);
         }
-        else s += `<g pointer-events="none">${frontySzafki(q, x, w, PL, PL + h, drzwi, wnetrzeWidok)}</g>`;
+        else s += `<g pointer-events="none">${frontySzafki(q, x, w, PL, PL + h, drzwi, wnetrzeWidok, q.id)}</g>`;
         // zlew: bateria nad blatem, plyta: cienka plyta na blacie
         if (widok.agd) jest.filter((a) => a.typ === "zlew").forEach((a) => { const cx = polozenieWyc(a).cx; s += `<path d="M${cx + 60} ${yEl(PL + KOR + BLAT)} v-240 q0 -60 -60 -60 h-110" fill="none" stroke="var(--metal)" stroke-width="22" stroke-linecap="round"/>`; });
         if (widok.agd) jest.filter((a) => a.typ === "plyta").forEach((a) => { const cw = wym(a).sw; s += `<rect x="${polozenieWyc(a).cx - cw / 2}" y="${yEl(PL + KOR + BLAT) - 10}" width="${cw}" height="10" fill="var(--glass)"/>`; });
@@ -1174,7 +1187,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
      dotknieciem; to samo da sie zrobic przyciskami w karcie szafki (bez przeciagania). */
   const ZAK = {
     szafka: ["Szafka", "Przeciągnij miniaturę w ciąg — stanie między szafkami, reszta się rozsunie. Szerokość, front i wnętrze zmienisz potem w karcie szafki."],
-    polki: ["Półki", "Przeciągnij półkę na szafkę — każde upuszczenie to jedna półka więcej (najwyżej 6). Rysunek pokazuje teraz wnętrze szafek."],
+    polki: ["Półki", "Przeciągnij półkę na szafkę — każde upuszczenie to jedna półka więcej (najwyżej 6); przy przegrodzie trafia do kolumny, nad którą ją puścisz. Postawioną półkę przeciągnij w górę albo w dół, żeby zmienić wysokość."],
     drzwi: ["Drzwi i klapy", "Przeciągnij front na szafkę — zastąpi to, co było (także szuflady)."],
     szuflady: ["Szuflady", "Tylko w dolnych szafkach. Zestaw szuflad zastępuje drzwi, półki i przegrodę."],
     przegroda: ["Przegroda", "Przeciągnij na szafkę — podzieli ją na 2 kolumny. Rysunek pokazuje teraz wnętrze szafek."],
@@ -1236,7 +1249,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       h += strefySlupka(q).map((z) => {
         const st = (q.strefy || {})[z.k] || { front: "drzwi1" }, fk = st.drawers ? "szu_" + st.drawers : "fr_" + (st.front || "drzwi1");
         return etyk(`${z.l} (${Math.round(z.y1 - z.y0)} mm)`) + `<div class="rozm">` + ["fr_drzwi1", "fr_drzwi2", "fr_klapaG", "fr_klapaD", "fr_otwarta", "szu_1", "szu_2", "szu_3", "szu_4"].map((k) => `<button data-sf="${z.k}|${k}" aria-pressed="${fk === k}">${SPRZETY[k].nazwa}</button>`).join("") + `</div>`
-          + (st.drawers ? "" : `<div class="wys">${licznikPolek(st, "spolki-" + z.k)}</div>`);
+          + (st.drawers ? "" : `<div class="wys">${licznikPolek(st, "spolki-" + z.k)}${st.pozPolek ? `<button class="btn" data-srowno="${z.k}">Półki po równo</button>` : ""}</div>`);
       }).join("");
     }
     if (sprz) h += `<p class="hint">W szafce stoi sprzęt (${wSzafce(q.id).filter((a) => SPRZETY[a.typ].grupa === "wneka").map((a) => SPRZETY[a.typ].nazwa.toLowerCase()).join(", ")}) — front, półki i wnękę wokół niego ustawi program. Sprzęt zmienisz w zakładce AGD.</p>`;
@@ -1251,7 +1264,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       if (pelneSzuflady) h += `<p class="hint">Same szuflady — półek ani przegrody tu nie ma. Wybierz drzwi albo „Szuflada + drzwi”, żeby je dodać.</p>`;
       else h += `<div class="wys">${licznikPolek(q, "polki")}`
         + `<button class="btn${q.przegroda ? " on" : ""}" data-akcja="przegrodaT" aria-pressed="${!!q.przegroda}" style="margin-left:6px">Przegroda</button>`
-        + (mozeDrazek(q) ? `<button class="btn${q.drazek ? " on" : ""}" data-akcja="drazekT" aria-pressed="${!!q.drazek}">Drążek</button>` : "") + `</div>`;
+        + (mozeDrazek(q) ? `<button class="btn${q.drazek ? " on" : ""}" data-akcja="drazekT" aria-pressed="${!!q.drazek}">Drążek</button>` : "") + `</div>`
+        + (q.pozPolek ? `<div class="rob"><button class="btn" data-akcja="polkiRowno">Półki po równo</button></div>` : "")
+        + ((q.polki || q.polkiL || q.polkiP) ? `<p class="hint">Półkę przesuniesz, przeciągając ją na rysunku w górę albo w dół (widać ją przy wyłączonych „Frontach” i w zakładce Półki).</p>` : "");
       h += `<div class="rozm" role="group" aria-label="Wzmocnienia">` + (q.tall || !kuchnia() ? ["pionowe"] : ["lezace", "stojace", "pionowe"]).map((r) => `<button data-wzm="${r}" aria-pressed="${(q.wzm || []).includes(r)}">wzm. ${WZM_L[r]}</button>`).join("")
         + (q.tall || !kuchnia() ? "" : `<button data-wzm="para" aria-pressed="${["lezace", "stojace"].every((r) => (q.wzm || []).includes(r))}">para pod blat</button>`) + `</div>`;
     }
@@ -1275,7 +1290,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const fk = "fr_" + (g.front || (g.przegroda || q.w > 500 ? "drzwi2" : "drzwi1"));
     h += etyk("Front") + `<div class="rozm">` + ["fr_drzwi1", "fr_drzwi2", "fr_klapaG", "fr_otwarta"].map((k) => `<button data-gfront="${k}" aria-pressed="${fk === k}">${SPRZETY[k].nazwa}</button>`).join("") + `</div>`;
     h += etyk("Wnętrze") + `<div class="wys">${licznikPolek(g, "gpolki")}`
-      + `<button class="btn${g.przegroda ? " on" : ""}" data-akcja="gprzegroda" aria-pressed="${!!g.przegroda}" style="margin-left:6px">Przegroda</button></div>`;
+      + `<button class="btn${g.przegroda ? " on" : ""}" data-akcja="gprzegroda" aria-pressed="${!!g.przegroda}" style="margin-left:6px">Przegroda</button></div>`
+      + (g.pozPolek ? `<div class="rob"><button class="btn" data-akcja="gpolkiRowno">Półki po równo</button></div>` : "");
     h += etyk("Co zrobi program") + `<p>Szafka wisząca ${q.w} × ${gg.y1 - gg.y0} × ${GORNE_GL} mm na zawieszkach i listwie montażowej; ${fk === "fr_klapaG" ? "klapa do góry na podnośnikach" : fk === "fr_otwarta" ? "bez frontu" : fk === "fr_drzwi2" ? "dwoje drzwi na zawiasach" : "jedne drzwi na zawiasach"}${g.polki ? `, ${g.polki} ${g.polki === 1 ? "półka" : "półki"} na kołkach` : ""}${g.przegroda ? ", przegroda na 2 kolumny" : ""}.</p>`;
     h += `<div class="rob"><button class="btn" data-akcja="gbrak">Bez szafki górnej</button></div></div>`;
     return h;
@@ -1381,7 +1397,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       const ga = e.target.closest("[data-akcja]");
       if (ga && ga.dataset.akcja === "gbrak") { if (go.brak) delete go.brak; else go.brak = true; odswiez(); return; }
       if (ga && ga.dataset.akcja === "gwysdom") { delete go.y0; odswiez(); return; }
-      if (ga && ga.dataset.akcja === "gprzegroda") { if (go.przegroda) { delete go.przegroda; delete go.polkiL; delete go.polkiP; } else go.przegroda = true; odswiez(); return; }
+      if (ga && ga.dataset.akcja === "gpolkiRowno") { delete go.pozPolek; odswiez(); return; }
+      if (ga && ga.dataset.akcja === "gprzegroda") { delete go.pozPolek; if (go.przegroda) { delete go.przegroda; delete go.polkiL; delete go.polkiP; } else go.przegroda = true; odswiez(); return; }
     }
     // karta szafki: szerokosc, front / szuflady, polki, przegroda, wzmocnienia
     const kq = zaznaczony && ciag.find((q) => q.id === zaznaczony && q.kind === "cab");
@@ -1396,6 +1413,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       if (/^fr_/.test(typ)) { st.front = typ.slice(3); delete st.drawers; } else { st.drawers = Number(typ.slice(4)); delete st.front; delete st.polki; }
       odswiez(); return;
     }
+    const sr = e.target.closest("[data-srowno]");
+    if (sr && kq) { const st = (kq.strefy || {})[sr.dataset.srowno]; if (st) delete st.pozPolek; odswiez(); return; }
     const sp = e.target.closest("[data-spolki-dol], [data-spolki-gora]");
     if (sp && kq) {
       const k = sp.dataset.spolkiDol != null ? "dol" : "gora", [kol, d] = (sp.dataset.spolkiDol ?? sp.dataset.spolkiGora).split("|");
@@ -1478,7 +1497,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       if (a === "wycsrodek" && ob) delete ob.przes;
       if (a === "wycprzod" && ob) delete ob.odPrzodu;
       if (a === "drazekT" && kq) { if (kq.drazek) delete kq.drazek; else kq.drazek = true; }
-      if (a === "przegrodaT" && kq) { if (kq.przegroda) { delete kq.przegroda; delete kq.polkiL; delete kq.polkiP; } else kq.przegroda = true; }
+      if (a === "przegrodaT" && kq) { delete kq.pozPolek; if (kq.przegroda) { delete kq.przegroda; delete kq.polkiL; delete kq.polkiP; } else kq.przegroda = true; }
+      if (a === "polkiRowno" && kq) delete kq.pozPolek;
       if (a === "anuluj") { wybranyTyp = null; przesuwany = null; }
       if (a === "przesun") { przesuwany = przesuwany === zaznaczony ? null : zaznaczony; wybranyTyp = null; }
       if (a === "usun" && zaznaczony) usun(zaznaczony);
@@ -1577,13 +1597,34 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const b = e.target.closest(".sprzet"); if (!b || e.button > 0) return;
     start(e, b.dataset.typ, null);
   });
+  let polkaDrag = null;   // przeciaganie polki: { wl, k, i, z0, z1, pid }
   svg.addEventListener("pointerdown", (e) => {
+    const ph = !wybranyTyp && !przesuwany && e.button <= 0 && e.target.closest(".polkaH");
+    if (ph) {
+      e.preventDefault();
+      polkaDrag = { wl: ph.dataset.wl, k: ph.dataset.k, i: Number(ph.dataset.i), z0: Number(ph.dataset.z0), z1: Number(ph.dataset.z1), pid: e.pointerId };
+      try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+      const sel = polkaDrag.wl.includes("|") ? polkaDrag.wl.split("|")[0] : polkaDrag.wl;
+      if (zaznaczony !== sel) { zaznaczony = sel; rysujPanel(); rysuj(); }
+      return;
+    }
     const g = e.target.closest(".post");
     if (g && e.button <= 0) { const q = wszystkie().find((z) => z.id === g.dataset.id); if (q) start(e, q.typ, q.id); return; }
     const sz = e.target.closest(".szaf");
     if (sz && e.button <= 0 && !wybranyTyp && !przesuwany) start(e, "szafkaPrzes", sz.dataset.sz);
   });
   window.addEventListener("pointermove", (e) => {
+    if (polkaDrag && e.pointerId === polkaDrag.pid) {
+      const o = wlObj(polkaDrag.wl); if (!o) return;
+      const { k, i, z0, z1 } = polkaDrag, cnt = k ? polkiKol(o)[k === "L" ? 0 : 1] : o.polki || 0; if (!cnt) return;
+      const stare = (o.pozPolek || {})[k], arr = stare && stare.length === cnt ? [...stare] : Array.from({ length: cnt }, (_, j) => ((z1 - z0) * (j + 1)) / (cnt + 1));
+      const mm = Y_EL + H_EL - doSvg(e).y - z0;                       // od dolu strefy polek
+      // co 10 mm, najmniej 60 mm od sasiednich polek (i 40 od dolu / gory strefy) — kolejnosc zostaje
+      const dol = i > 0 ? arr[i - 1] + 60 : 40, gora = i < cnt - 1 ? arr[i + 1] - 60 : z1 - z0 - 40;
+      arr[i] = Math.max(dol, Math.min(gora, Math.round(mm / 10) * 10));
+      o.pozPolek = { ...(o.pozPolek || {}), [k]: arr };
+      rysuj(); return;
+    }
     if (!drag || e.pointerId !== drag.pid) return;
     if (!drag.ruszony && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 7) return;
     if (!drag.ruszony) { drag.ruszony = true; wybranyTyp = null; przesuwany = null; rysuj(); }
@@ -1656,6 +1697,12 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     else { wybranyTyp = wybranyTyp === d.typ ? null : d.typ; przesuwany = null; }
     odswiez();
   };
+  window.addEventListener("pointerup", (e) => {
+    if (!polkaDrag || e.pointerId !== polkaDrag.pid) return;
+    const o = wlObj(polkaDrag.wl), k = polkaDrag.k;
+    if (o && o.pozPolek && o.pozPolek[k]) o.pozPolek[k] = [...o.pozPolek[k]].sort((a, b) => a - b);   // kolejnosc od dolu
+    polkaDrag = null; odswiez();
+  });
   window.addEventListener("pointerup", koniec);
   window.addEventListener("pointercancel", (e) => { if (drag && e.pointerId === drag.pid) { drag = null; schowajDucha(); odswiez(); } });
   // stawianie dotknieciem: wybrany sprzet / „Przesuń”, potem ramka na rysunku

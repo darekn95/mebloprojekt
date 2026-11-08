@@ -1005,8 +1005,12 @@ i lodowka do zabudowy w szafce dolnej (wneka „82 pod blat”, boki do podlogi,
 na blacie nie lapie dotkniec (plyta pod nim byla nieklikalna). W panelu AGD lista „W projekcie” na dole, opcje wyzej.
 [AI-TODO] Pomysl uzytkownika do rozwazenia przy scalaniu makiety z aplikacja (2026-11-08): przelacznik „Tryb: makieta /
 zaawansowany” — makieta (przeciaganie, klocki, proste karty) i tryb zaawansowany (obecna aplikacja), na tych samych
-danych projektu. Otwarte: wysokosci polek (pola / przeciaganie na rysunku) — teraz czy przy scalaniu (pytanie
-2026-11-08).
+danych projektu.
+[AI-INFO] Wersja 15 (uzytkownik 2026-11-08: wysokosci polek „teraz: przeciąganie”): polke we wnetrzu chwyta sie
+i przesuwa w gore / dol (co 10 mm, najmniej 60 od sasiednich, 40 od dolu / gory strefy); `pozPolek[k]` (k: "" / L / P)
+od dolu strefy polek, dziala w szafkach dolnych, gornych i strefach slupka; przy zaznaczonej szafce wymiar przy polce;
+„Półki po równo” w kartach; zmiana liczby polek wraca do rownych odstepow. W aplikacji polozenia polek juz sa — przy
+scalaniu przeciaganie ma pisac w nie (rzedy otworow, swiatlo).
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
 rant i kasete szer. × glab. × w dol (bryla pod blatem = kaseta, nie obrys wyciecia; wyciecie plyty = kaseta + luz),
