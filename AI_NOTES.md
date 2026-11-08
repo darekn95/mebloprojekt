@@ -935,6 +935,14 @@ waska szyna zakladek z ikonami (wiecej miejsca na rysunek).
 sama mikrofala / sam piekarnik na wysokosci blatu, oba — piekarnik nizej (700), „Zamień miejscami”, wlasna wysokosc
 (`a.y0`, ±50, „Na wysokość blatu”), przelaczniki „AGD i zlew” (wylaczone: wyciecia i puste wneki), „Ciąg górny”,
 „Ciąg dolny” (zawsze jeden widoczny).
+[AI-INFO] Wersja 4 (2026-11-08): okap (`OKAP`: podszafkowy / teleskopowy / wklad / kominowy, 50/60/90, odleglosc od
+plyty z wymiarem, min. 650 nad indukcja — EN 60335-2-31 wg instrukcji Solgaz, gaz 750; przycisk „Szafka nad okapem
+krótsza, dół na …” / „Okap wyżej”), rzut szafek gornych (320) i okapu na blat z gory przy „Ciąg górny”, „Pod blat”
+w slupku (gora sprzetu rowno z blatem) i ostrzezenie o wysokiej mikrofali (`MIKRO_MAX` 1300 — prog przykladowy,
+do ustalenia; uzytkownik: „kiedyś będzie musiało być ostrzeżeniem w aplikacji głównej”). Zapis: localStorage
+(`makieta-dodaj-v1`) + „Wyślij do Claude” / „Wczytaj wysłaną” — artefakt z `db`, dokument `makieta/biezaca`
+(pola `json`, `uwagi`, `kiedy`, `okno`, `zaznaczony`). Odczyt: `ArtifactData get` (collection `makieta`, doc
+`biezaca`), potem wczytac stan do makiety lokalnie (localStorage przed zaladowaniem) i zrobic zrzut w szerokosci `okno`.
 [AI-TODO] Ustalone z uzytkownikiem 2026-11-08: najpierw dopracowac makiete AGD (klocki od razu tylko, gdy wymiarowanie
 ich wymaga), potem w aplikacji nowy widok obok Zamk./Otw. — przód ciagu + blat z gory — z przelacznikami „AGD i zlew”
 (nazwa do ustalenia), „Ciąg górny” (domyslnie widoczny) i „Ciąg dolny”.

@@ -112,6 +112,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .wys input { width: 70px; font: 500 13px var(--f-num); padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--soft); color: var(--ink); }
 .wys .krok { border: 1px solid var(--line); background: var(--panel); border-radius: 5px; padding: 2px 8px; cursor: pointer; }
 .uwaga { color: var(--warn); font-size: 12.5px; margin: 0; }
+.wysylka { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; font-size: 12.5px; }
+.wysylka input { flex: 1 1 260px; min-width: 0; font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); color: var(--ink); }
+.wysylka .stan { color: var(--muted); flex-basis: 100%; }
+.wysylka[hidden] { display: none; }
 .rys .ramka { overflow-x: auto; }
 #rysunek { display: block; width: 100%; min-width: 520px; height: auto; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 #rysunek .cel { cursor: copy; }
@@ -152,6 +156,13 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   <p>Przeciągnij sprzęt z listy na rysunek albo dotknij sprzęt, a potem miejsce na rysunku. Postawiony sprzęt przesuwasz, przeciągając go po rysunku. Zielone ramki pokazują, gdzie dany sprzęt może stanąć.</p>
 </header>
 
+<div class="wysylka" id="wysylka" hidden>
+  <input id="uwagiDoClaude" type="text" placeholder="Co widzisz, co nie działa? (idzie razem z makietą)" aria-label="Uwagi do makiety">
+  <button class="btn on" id="btnWyslij">Wyślij do Claude</button>
+  <button class="btn" id="btnWczytaj">Wczytaj wysłaną</button>
+  <span class="stan" id="stanWysylki">Makieta zapisuje się sama w tej przeglądarce. „Wyślij do Claude” — Claude zobaczy dokładnie ten układ.</span>
+</div>
+
 <div class="app">
   <nav class="tabs" role="tablist" aria-label="Dodaj">
     <div class="cap">Dodaj</div>
@@ -176,7 +187,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       <button class="przel" data-wid="dolny" aria-pressed="true">Ciąg dolny</button>
     </div>
     <div class="ramka"><svg id="rysunek" role="img" aria-label="Rysunek ciągu: blat z góry i widok z przodu"></svg></div>
-    <div class="legenda"><span><i></i>tu może stanąć wybrany sprzęt</span><span>góra: blat z góry · dół: widok z przodu</span><span>„AGD i zlew” wyłączone — wycięcia i puste wnęki</span></div>
+    <div class="legenda"><span><i></i>tu może stanąć wybrany sprzęt</span><span>góra: blat z góry · dół: widok z przodu</span><span>„AGD i zlew” wyłączone — wycięcia i puste wnęki</span><span>„Ciąg górny” na blacie z góry — ile głębokości zasłaniają szafki górne i okap</span></div>
   </section>
 </div>
 
@@ -194,7 +205,19 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     lodowka:  { nazwa: "Lodówka do zabudowy", gdzie: "do słupka", grupa: "wneka" },
     zmywarka: { nazwa: "Zmywarka", bier: "zmywarkę", gdzie: "w ciąg, bez korpusu", grupa: "ciag", w: 600 },
     wolna:    { nazwa: "Lodówka wolnostojąca", bier: "lodówkę wolnostojącą", gdzie: "w ciąg, bez korpusu", grupa: "ciag", w: 600 },
+    okap:     { nazwa: "Okap", gdzie: "pod szafkę, w szafkę, na ścianę", grupa: "gorne" },
   };
+  /* Okap (uzytkownik 2026-11-08): podszafkowy (pod szafka gorna), teleskopowy (w dnie szafki, wysuwany panel), wklad
+     (nieruchomy w dnie szafki), kominowy (na scianie zamiast szafki). Odleglosc nad plyta wg instrukcji producenta —
+     zwykle min. 650 mm nad indukcja / elektryczna (EN 60335-2-31), 750 nad gazem. Wartosci w makiecie przykladowe. */
+  const OKAP = {
+    podszafkowy: { l: "podszafkowy", opis: "pod szafką górną", h: 150, gl: 300 },
+    teleskopowy: { l: "teleskopowy", opis: "w dnie szafki, wysuwany panel", h: 130, gl: 290, wysuw: 150 },
+    wklad: { l: "wkład w szafce", opis: "nieruchomy w dnie szafki", h: 60, gl: 290 },
+    kominowy: { l: "kominowy", opis: "na ścianie zamiast szafki", h: 90, gl: 500 },
+  };
+  const OKAP_MIN = 650, GORNE_GL = 320;
+  const MIKRO_MAX = 1300;   // dol mikrofali wyzej niz to — ostrzezenie (prog przykladowy, do ustalenia z uzytkownikiem)
   /* Wymiary sprzetu do wyboru (makieta — wartosci przykladowe): w — szerokosc wyciecia / miejsca, h — wysokosc wneki */
   const ROZM = {
     plyta: [{ k: "30", l: "30 cm", w: 270, h: 490 }, { k: "60", l: "60 cm", w: 560, h: 490 }, { k: "80", l: "80 cm", w: 750, h: 490 }, { k: "90", l: "90 cm", w: 840, h: 490 }],
@@ -204,6 +227,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     lodowka: [{ k: "178", l: "178 cm", h: 1780 }, { k: "122", l: "122 cm", h: 1220 }],
     zmywarka: [{ k: "60", l: "60 cm", w: 600 }, { k: "45", l: "45 cm", w: 450 }],
     wolna: [{ k: "60", l: "60 cm", w: 600 }, { k: "70", l: "70 cm", w: 700 }, { k: "90", l: "90 cm (side by side)", w: 900 }],
+    okap: [{ k: "60", l: "60 cm", w: 600 }, { k: "90", l: "90 cm", w: 900 }, { k: "50", l: "50 cm", w: 500 }],
   };
   const rozm = (a) => ROZM[a.typ].find((r) => r.k === a.rozm) || ROZM[a.typ][a.typ === "plyta" ? 1 : 0];
   const BLAT_Y = PL0 + KOR0 + BLAT0;   // wierzch blatu od podlogi
@@ -216,6 +240,12 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     lodowka: (c) => `Wnęka na lodówkę w słupku „${c}”, front meblowy na drzwiach lodówki (zawiasy z kompletu lodówki).`,
     zmywarka: () => `Miejsce w ciągu bez korpusu: front meblowy na zmywarce, cokół z przerwą, blat idzie nad nią.`,
     wolna: () => `Miejsce w ciągu bez korpusu: luz po bokach na wentylację, blat i cokół kończą się przed lodówką.`,
+    okap: (c, a) => ({
+      podszafkowy: `Okap przykręcany pod dnem szafki górnej nad „${c}”; w dnie i w półkach szafki otwór na rurę wyciągu (albo filtr węglowy).`,
+      teleskopowy: `Okap w dnie szafki górnej nad „${c}”: szafka bez dna, wysuwany panel okapu z przodu, nad nim drzwi; otwór na rurę w półkach i wieńcu.`,
+      wklad: `Wkład okapowy w dnie szafki górnej nad „${c}”: szafka bez dna, wkład na listwach; otwór na rurę w półkach i wieńcu.`,
+      kominowy: `Okap kominowy na ścianie nad „${c}” — w tym miejscu nie ma szafki górnej, sąsiednie górne kończą się przy okapie (min. 150 mm od boku okapu wg instrukcji).`,
+    })[(a && a.rodzaj) || "podszafkowy"],
   };
   const SZAFKI0 = [
     { id: "s1", kind: "cab", name: "Słupek 600", w: 600, tall: true },
@@ -233,6 +263,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   const SCIANA0 = 4400;     // sciana A: ciag 3800 + 600 wolnego
   let sciana = SCIANA0;
   let ostatni = null;       // ostatnio wstawiony sprzet w ciag (do „Usuń” przy braku miejsca)
+  let gorne = {};           // szafki gorne nad pozycjami ciagu: { [id pozycji]: { y0 } } (dol szafki od podlogi, gora 2120)
   let ciag = JSON.parse(JSON.stringify(SZAFKI0));
   let wnetrze = JSON.parse(JSON.stringify(WNETRZE0));
   let nr = 10;
@@ -248,6 +279,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     zlew: '<rect x="3" y="8" width="28" height="19" rx="4" fill="var(--steel)"/><rect x="7" y="11" width="20" height="13" rx="3" fill="var(--panel)" stroke="var(--metal)" stroke-width="1.2"/><circle cx="17" cy="17.5" r="1.8" fill="var(--metal)"/><path d="M24 8 V4 H18" fill="none" stroke="var(--metal)" stroke-width="1.6" stroke-linecap="round"/>',
     piekarnik: '<rect x="4" y="4" width="26" height="26" rx="2" fill="var(--metal)"/><rect x="7" y="11" width="20" height="15" rx="1.5" fill="var(--glass)"/><rect x="9" y="7" width="16" height="1.8" rx=".9" fill="var(--steel)"/>',
     mikrofala: '<rect x="3" y="8" width="28" height="18" rx="2" fill="var(--metal)"/><rect x="6" y="11" width="16" height="12" rx="1.5" fill="var(--glass)"/><circle cx="26.5" cy="14" r="1.4" fill="var(--steel)"/><circle cx="26.5" cy="19" r="1.4" fill="var(--steel)"/>',
+    okap: '<path d="M10 4 h14 v8 l6 8 v4 H4 v-4 l6 -8 z" fill="var(--steel)" stroke="var(--metal)" stroke-width="1.2"/><line x1="7" y1="22" x2="27" y2="22" stroke="var(--metal)" stroke-width="1.2"/><circle cx="12" cy="27" r="1.3" fill="var(--accent)"/><circle cx="17" cy="27" r="1.3" fill="var(--accent)"/><circle cx="22" cy="27" r="1.3" fill="var(--accent)"/>',
     lodowka: '<rect x="7" y="2" width="20" height="30" rx="1.5" fill="var(--board)" stroke="var(--ink)" stroke-width="1.2"/><line x1="7" y1="20" x2="27" y2="20" stroke="var(--ink)" stroke-width="1.2"/><path d="M17 8 v6 M14.4 9.5 l5.2 3 M19.6 9.5 l-5.2 3" stroke="var(--accent)" stroke-width="1.3" stroke-linecap="round"/>',
     zmywarka: '<rect x="4" y="3" width="26" height="28" rx="1.5" fill="var(--board)" stroke="var(--ink)" stroke-width="1.2"/><rect x="8" y="9" width="18" height="18" rx="1" fill="none" stroke="var(--metal)" stroke-width="1.1" stroke-dasharray="2.2 1.8"/><path d="M12 15 q2.5 -3 5 0 t5 0 M12 20 q2.5 -3 5 0 t5 0" fill="none" stroke="var(--accent)" stroke-width="1.2"/>',
     wolna: '<rect x="8" y="1.5" width="18" height="31" rx="4" fill="var(--steel)" stroke="var(--metal)" stroke-width="1.1"/><line x1="8" y1="13" x2="26" y2="13" stroke="var(--metal)" stroke-width="1.1"/><line x1="11" y1="5" x2="11" y2="10" stroke="var(--metal)" stroke-width="1.6" stroke-linecap="round"/><line x1="11" y1="16" x2="11" y2="24" stroke="var(--metal)" stroke-width="1.6" stroke-linecap="round"/>',
@@ -280,6 +312,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       else ok = !jest.some((a) => a.typ === "piekarnik" || a.typ === "lodowka" || a.typ === "zlew") && !(s.drawers && !s.tall);
       if (ok) out.push({ key: "w" + s.id, x0: s.x, x1: s.x + s.w, y0: yEl(s.tall ? PL + SLUP : PL + KOR), y1: yEl(PL), cel: s.id });
     });
+    if (g === "gorne") L.filter((s) => maGorna(s)).forEach((s) => {
+      if (wSzafce(s.id).some((a) => a.id !== bez && a.typ === "okap")) return;
+      out.push({ key: "g" + s.id, x0: s.x, x1: s.x + s.w, y0: yEl(GORNE0 + GORNE), y1: yEl(BLAT_Y + 120), cel: s.id });
+    });
     if (g === "ciag") {
       const bezS = L.filter((s) => s.id !== bez);
       let x = 0;
@@ -298,6 +334,16 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     return out;
   }
 
+  // pozycja ciagu z szafka gorna nad soba (dolna szafka albo zmywarka); geometria szafki gornej i okapu
+  const maGorna = (q) => (q.kind === "cab" && !q.tall) || q.typ === "zmywarka";
+  const okapNad = (id) => wnetrze.find((a) => a.typ === "okap" && a.cel === id);
+  const gornaGeo = (id) => { const y0 = (gorne[id] || {}).y0 ?? GORNE0; return { y0, y1: GORNE0 + GORNE }; };
+  function okapGeo(a, q) {
+    const r = OKAP[a.rodzaj || "podszafkowy"], g = gornaGeo(q.id), w = rozm(a).w;
+    const dol = a.rodzaj === "kominowy" ? (a.y0 ?? BLAT_Y + OKAP_MIN) : a.rodzaj === "podszafkowy" || !a.rodzaj ? g.y0 - r.h : g.y0;
+    const plyta = wSzafce(q.id).find((z) => z.typ === "plyta");
+    return { r, w, dol, gora: dol + r.h, x0: q.x + (q.w - w) / 2, odPlyty: plyta ? Math.round(dol - BLAT_Y) : null };
+  }
   function postaw(typ, c, istniejacy) {
     if (SPRZETY[typ].grupa === "ciag") {
       let slot;
@@ -311,13 +357,13 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     } else { const a = { id: "a" + nr++, typ, cel: c.cel }; wnetrze.push(a); zaznaczony = a.id; }
   }
   function usun(id) {
-    if (ciag.some((s) => s.id === id)) ciag = ciag.filter((s) => s.id !== id);
+    if (ciag.some((s) => s.id === id)) { ciag = ciag.filter((s) => s.id !== id); wnetrze = wnetrze.filter((a) => a.cel !== id); }
     else wnetrze = wnetrze.filter((a) => a.id !== id);
     if (zaznaczony === id) zaznaczony = null;
     if (przesuwany === id) przesuwany = null;
   }
   const wszystkie = () => [
-    ...wnetrze.map((a) => ({ id: a.id, typ: a.typ, gdzie: (SPRZETY[a.typ].grupa === "blat" ? `nad szafką „${nazwaCelu(a.cel)}”` : `w „${nazwaCelu(a.cel)}”`) + ` · ${rozm(a).l}`, cel: a.cel, przyklad: a.przyklad })),
+    ...wnetrze.map((a) => ({ id: a.id, typ: a.typ, gdzie: (a.typ === "okap" ? `${OKAP[a.rodzaj || "podszafkowy"].l}, nad „${nazwaCelu(a.cel) || "zmywarką"}”` : SPRZETY[a.typ].grupa === "blat" ? `nad szafką „${nazwaCelu(a.cel)}”` : `w „${nazwaCelu(a.cel)}”`) + ` · ${rozm(a).l}`, cel: a.cel, przyklad: a.przyklad })),
     ...uklad().filter((s) => s.kind === "app").map((s) => {
       const L = uklad(), i = L.findIndex((q) => q.id === s.id);
       const lewa = L[i - 1], prawa = L[i + 1];
@@ -358,7 +404,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         + (ost ? `<button class="btn" data-usun-ost="${ost.id}">Usuń ${SPRZETY[ost.typ].bier}</button>` : "");
       al.hidden = false;
     } else al.hidden = true;
-    svg.setAttribute("viewBox", `-90 -150 ${Wr + 180} ${Y_EL + H_EL + 360}`);
+    svg.setAttribute("viewBox", `-90 -150 ${Wr + 420} ${Y_EL + H_EL + 360}`);
     const typAkt = drag ? drag.typ : przesuwany ? (wszystkie().find((q) => q.id === przesuwany) || {}).typ : wybranyTyp;
     const bezId = drag ? drag.id : przesuwany;
     const C = typAkt ? cele(typAkt, bezId) : [];
@@ -408,14 +454,56 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
             : `<rect x="${x + 40}" y="${y + 40}" width="${w - 80}" height="${h - 80}" rx="30" fill="var(--panel)" stroke="var(--metal)" stroke-width="5"/><circle cx="${cx}" cy="${y + h / 2}" r="26" fill="var(--metal)"/>`) + `</g>`;
       }
     });
+    // blat z gory + ciag gorny: ile glebokosci blatu zaslaniaja szafki gorne (i okap)
+    if (widok.gorny && widok.dolny) {
+      let napis = false;
+      L.filter((q) => maGorna(q)).forEach((q) => {
+        const ok = okapNad(q.id);
+        if (!(ok && ok.rodzaj === "kominowy")) {
+          s += `<rect x="${q.x}" y="${Y_TOP}" width="${q.w}" height="${GORNE_GL}" fill="var(--ink)" opacity=".12" stroke="var(--ink)" stroke-width="4" stroke-dasharray="20 14"/>`;
+          if (!napis) { napis = true; s += `<text class="mm" x="${Wr + 40}" y="${Y_TOP + GORNE_GL / 2 + 14}" font-size="40" fill="var(--muted)">↑ górne ${GORNE_GL}</text><text class="mm" x="${Wr + 40}" y="${Y_TOP + GORNE_GL + (GL - GORNE_GL) / 2 + 14}" font-size="40" fill="var(--muted)">↓ wolne ${GL - GORNE_GL}</text>`; }
+        }
+        if (ok) {
+          const og = okapGeo(ok, q), zazn = ok.id === zaznaczony;
+          s += `<rect x="${og.x0}" y="${Y_TOP}" width="${og.w}" height="${og.r.gl}" fill="none" stroke="${zazn ? "var(--accent)" : "var(--metal)"}" stroke-width="${zazn ? 12 : 8}"/>`;
+          if (og.r.wysuw) s += `<rect x="${og.x0}" y="${Y_TOP + og.r.gl}" width="${og.w}" height="${og.r.wysuw}" fill="none" stroke="var(--metal)" stroke-width="6" stroke-dasharray="18 12"/>`;
+          s += `<rect x="${og.x0 + og.w / 2 - 190}" y="${Y_TOP + 12}" width="380" height="62" rx="8" fill="var(--panel)" opacity=".9"/><text class="mm" x="${og.x0 + og.w / 2}" y="${Y_TOP + 56}" font-size="40" text-anchor="middle" fill="var(--metal)">okap ${og.r.gl}${og.r.wysuw ? ` + ${og.r.wysuw}` : ""}</text>`;
+        }
+      });
+    }
     // widok z przodu: podloga
     s += `<line x1="-60" y1="${yEl(0)}" x2="${Wr + 60}" y2="${yEl(0)}" stroke="var(--muted)" stroke-width="5"/>`;
     // gorne szafki nad dolnymi i zmywarka
     if (widok.gorny) L.forEach((q) => {
-      if (!((q.kind === "cab" && !q.tall) || q.typ === "zmywarka")) return;
-      s += `<rect x="${q.x}" y="${yEl(GORNE0 + GORNE)}" width="${q.w}" height="${GORNE}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/>`;
-      const n = q.w > 500 ? 2 : 1;
-      for (let i = 1; i < n; i++) s += `<line x1="${q.x + (q.w * i) / n}" y1="${yEl(GORNE0 + GORNE)}" x2="${q.x + (q.w * i) / n}" y2="${yEl(GORNE0)}" stroke="var(--ink)" stroke-width="3"/>`;
+      if (!maGorna(q)) return;
+      const ok = okapNad(q.id), g = gornaGeo(q.id);
+      const kom = ok && ok.rodzaj === "kominowy";
+      const wDnie = ok && (ok.rodzaj === "teleskopowy" || ok.rodzaj === "wklad") ? OKAP[ok.rodzaj].h : 0;
+      if (!kom) {
+        s += `<rect x="${q.x}" y="${yEl(g.y1)}" width="${q.w}" height="${g.y1 - g.y0}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/>`;
+        const n = q.w > 500 ? 2 : 1;
+        for (let i = 1; i < n; i++) s += `<line x1="${q.x + (q.w * i) / n}" y1="${yEl(g.y1)}" x2="${q.x + (q.w * i) / n}" y2="${yEl(g.y0 + wDnie)}" stroke="var(--ink)" stroke-width="3"/>`;
+        if (wDnie) s += `<line x1="${q.x}" y1="${yEl(g.y0 + wDnie)}" x2="${q.x + q.w}" y2="${yEl(g.y0 + wDnie)}" stroke="var(--ink)" stroke-width="4"/>`;
+      }
+      if (!ok) return;
+      const og = okapGeo(ok, q), zazn = ok.id === zaznaczony, ruch = drag && drag.id === ok.id ? ' opacity=".35"' : "";
+      const zaNisko = og.odPlyty != null && og.odPlyty < OKAP_MIN;
+      const obr = zazn ? "var(--accent)" : zaNisko ? "var(--warn)" : "var(--metal)";
+      let t = `<g data-id="${ok.id}" class="post" style="cursor:grab;touch-action:none"${ruch}>`;
+      if (!widok.agd) t += `<rect x="${og.x0}" y="${yEl(og.gora)}" width="${og.w}" height="${og.r.h}" fill="var(--wall)" stroke="${obr}" stroke-width="6" stroke-dasharray="20 12"/>`;
+      else if (kom) t += `<rect x="${og.x0 + og.w / 2 - 140}" y="${yEl(2260)}" width="280" height="${2260 - og.gora}" fill="var(--steel)" stroke="var(--metal)" stroke-width="4"/>`
+        + `<path d="M${og.x0} ${yEl(og.dol)} h${og.w} l-60 ${-og.r.h} h${-(og.w - 120)} z" fill="var(--steel)" stroke="${obr}" stroke-width="${zazn ? 12 : 6}"/>`;
+      else if (ok.rodzaj === "teleskopowy") t += `<rect x="${og.x0 + 10}" y="${yEl(og.gora)}" width="${og.w - 20}" height="${og.r.h}" fill="var(--steel)" stroke="${obr}" stroke-width="${zazn ? 12 : 6}"/><rect x="${og.x0 + 10}" y="${yEl(og.dol) - 30}" width="${og.w - 20}" height="30" fill="var(--metal)"/>`;
+      else if (ok.rodzaj === "wklad") t += `<rect x="${og.x0 + 30}" y="${yEl(og.gora)}" width="${og.w - 60}" height="${og.r.h}" fill="var(--metal)" stroke="${obr}" stroke-width="${zazn ? 12 : 6}"/>`;
+      else t += `<rect x="${og.x0}" y="${yEl(og.gora)}" width="${og.w}" height="${og.r.h}" rx="10" fill="var(--steel)" stroke="${obr}" stroke-width="${zazn ? 12 : 6}"/><line x1="${og.x0 + 30}" y1="${yEl(og.dol) - 25}" x2="${og.x0 + og.w - 30}" y2="${yEl(og.dol) - 25}" stroke="var(--metal)" stroke-width="6"/>`;
+      t += `</g>`;
+      s += t;
+      // odleglosc od plyty do okapu (wymiar), za nisko — pomaranczowo
+      if (og.odPlyty != null && widok.dolny) {
+        const xx = og.x0 + og.w - 70;
+        s += `<line x1="${xx}" y1="${yEl(BLAT_Y)}" x2="${xx}" y2="${yEl(og.dol)}" stroke="${zaNisko ? "var(--warn)" : "var(--accent)"}" stroke-width="6"/>`
+          + `<text class="mm" x="${xx - 20}" y="${yEl((BLAT_Y + og.dol) / 2) + 16}" font-size="46" text-anchor="end" fill="${zaNisko ? "var(--warn)" : "var(--accent)"}">${og.odPlyty}${zaNisko ? ` < ${OKAP_MIN}` : ""}</text>`;
+      }
     });
     // blat z przodu
     if (widok.dolny) odcinki.forEach((o) => { s += `<rect x="${o.x0}" y="${yEl(PL + KOR + BLAT)}" width="${o.x1 - o.x0}" height="${BLAT}" fill="var(--top)"/>`; });
@@ -517,7 +605,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       : `<div class="pusto">Nic jeszcze nie stoi. Przeciągnij pierwszy sprzęt na rysunek.</div>`;
     h += `</div>`;
     if (sel) {
-      const opis = CO_ZROBI[sel.typ](nazwaCelu(sel.cel));
+      const opis = CO_ZROBI[sel.typ](nazwaCelu(sel.cel) || "zmywarką", wnetrze.find((a) => a.id === sel.id));
       const obj = wnetrze.find((a) => a.id === sel.id) || ciag.find((q) => q.id === sel.id);
       const cab = sel.cel && ciag.find((q) => q.id === sel.cel);
       const r = rozm(obj);
@@ -529,8 +617,25 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         const m = wnekiSlupka(cab), p = m[sel.id];
         const para = wSzafce(cab.id).filter((a) => a.typ === "piekarnik" || a.typ === "mikrofala").length === 2;
         h += etyk("Wysokość w słupku") + `<label for="wysWneki" style="font-size:12.5px">dół wnęki od podłogi</label><div class="wys"><button class="krok" data-wys="-50">−</button><input id="wysWneki" type="number" step="10" value="${p ? p.y0 : ""}"><button class="krok" data-wys="50">+</button><span>mm</span></div>`
-          + `<div class="rob"><button class="btn" data-akcja="nablat">Na wysokość blatu (${BLAT_Y})</button>${para ? `<button class="btn" data-akcja="zamien">Zamień miejscami z ${sel.typ === "piekarnik" ? "mikrofalą" : "piekarnikiem"}</button>` : ""}</div>`;
+          + `<div class="rob"><button class="btn" data-akcja="nablat">Na wysokość blatu (dół ${BLAT_Y})</button><button class="btn" data-akcja="podblat">Pod blat (góra równo z blatem)</button>${para ? `<button class="btn" data-akcja="zamien">Zamień miejscami z ${sel.typ === "piekarnik" ? "mikrofalą" : "piekarnikiem"}</button>` : ""}</div>`;
         if (nachodza(m)) h += `<p class="uwaga">Wnęki nachodzą na siebie albo wychodzą poza słupek — przesuń wysokość albo zamień miejscami.</p>`;
+      }
+      // mikrofala za wysoko (prog przykladowy — do ustalenia): ostrzezenie, w aplikacji tez kiedys
+      const mikrWys = cab && cab.tall && Object.entries(wnekiSlupka(cab)).find(([id]) => (wnetrze.find((a) => a.id === id) || {}).typ === "mikrofala");
+      if (mikrWys && mikrWys[1].y0 > MIKRO_MAX && (sel.typ === "mikrofala" || sel.typ === "piekarnik"))
+        h += `<p class="uwaga">Mikrofala wysoko — dół ${mikrWys[1].y0} mm od podłogi (przykładowy próg ${MIKRO_MAX}): trudno z niej korzystać i wyjmować gorące naczynia. Daj piekarnik „Pod blat” albo zamień je miejscami.</p>`;
+      if (sel.typ === "okap" && cab) {
+        const ok = wnetrze.find((a) => a.id === sel.id), og = okapGeo(ok, cab);
+        h += etyk("Rodzaj") + `<div class="rozm">` + Object.entries(OKAP).map(([k, v]) => `<button data-okap="${k}" aria-pressed="${(ok.rodzaj || "podszafkowy") === k}" title="${v.opis}">${v.l}</button>`).join("") + `</div>`;
+        if (og.w > cab.w) h += `<p class="uwaga">Okap ${og.w} mm jest szerszy niż szafka ${cab.w} mm nad którą wisi${ok.rodzaj === "kominowy" ? " — sąsiednie szafki górne muszą się kończyć dalej" : ""}.</p>`;
+        if (og.odPlyty == null) h += `<p class="uwaga">Pod okapem nie ma płyty — okap wisi zwykle nad płytą.</p>`;
+        else h += `<p>Od płyty do okapu: <b class="mm">${og.odPlyty} mm</b> (indukcja zwykle min. ${OKAP_MIN}, gaz 750 — wg instrukcji producenta).</p>`;
+        if (og.odPlyty != null && og.odPlyty < OKAP_MIN) {
+          const potrzeba = BLAT_Y + OKAP_MIN + (ok.rodzaj === "podszafkowy" || !ok.rodzaj ? OKAP.podszafkowy.h : 0);
+          h += ok.rodzaj === "kominowy" ? `<div class="rob"><button class="btn" data-akcja="okapwyzej">Okap wyżej (${OKAP_MIN} nad płytą)</button></div>`
+            : `<div class="rob"><button class="btn" data-akcja="szafkawyzej" data-y="${potrzeba}">Szafka nad okapem krótsza, dół na ${potrzeba}</button></div>`;
+        }
+        if (ok.rodzaj === "kominowy") h += `<div class="wys"><span>dół okapu</span><button class="krok" data-okapwys="-50">−</button><span class="mm">${og.dol}</span><button class="krok" data-okapwys="50">+</button><span>mm</span></div>`;
       }
       h += etyk("Co zrobi program") + `<p>${opis}</p>`
         + `<div class="rob"><button class="btn${przesuwany === sel.id ? " on" : ""}" data-akcja="przesun">Przesuń</button><button class="btn" data-akcja="usun">Usuń</button></div></div>`;
@@ -550,7 +655,20 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const [t, pkt] = DALEJ[k];
     return `<div class="dalej"><h2>${t}</h2><p class="hint">Ta zakładka — w następnym kroku makiety („klocki”). Co w niej będzie:</p><ul>${pkt.map((p) => `<li>${p}</li>`).join("")}</ul></div>`;
   }
-  function odswiez() { rysujPanel(); rysuj(); }
+  /* Zapis (uzytkownik 2026-11-08: „zapisywanie makiety i wysyłanie jej do ciebie”): stan w przegladarce przy
+     kazdej zmianie, „Wyślij do Claude” — dokument `makieta/biezaca` (pole `json` + uwagi + szerokosc okna). */
+  const KLUCZ = "makieta-dodaj-v1";
+  const stan = () => ({ ciag, wnetrze, sciana, gorne, widok, nr });
+  function wczytaj(st) {
+    if (!st || !Array.isArray(st.ciag)) return false;
+    ciag = st.ciag; wnetrze = st.wnetrze || []; sciana = st.sciana || SCIANA0; gorne = st.gorne || {};
+    widok = { agd: true, gorny: true, dolny: true, ...(st.widok || {}) }; nr = Math.max(nr, st.nr || 0);
+    zaznaczony = wybranyTyp = przesuwany = ostatni = null;
+    document.querySelectorAll(".przel").forEach((x) => { x.setAttribute("aria-pressed", String(widok[x.dataset.wid])); x.disabled = (x.dataset.wid === "gorny" && !widok.dolny) || (x.dataset.wid === "dolny" && !widok.gorny); });
+    return true;
+  }
+  try { const z = JSON.parse(localStorage.getItem(KLUCZ) || "null"); if (z) wczytaj(z); } catch (_) {}
+  function odswiez() { rysujPanel(); rysuj(); try { localStorage.setItem(KLUCZ, JSON.stringify(stan())); } catch (_) {} }
 
   // --- zdarzenia: zakladki ---
   document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => {
@@ -563,6 +681,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   panel.addEventListener("click", (e) => {
     const usunB = e.target.closest("[data-usun]");
     if (usunB) { usun(usunB.dataset.usun); odswiez(); return; }
+    const okb = e.target.closest("[data-okap]");
+    if (okb && zaznaczony) { const ok = wnetrze.find((a) => a.id === zaznaczony); ok.rodzaj = okb.dataset.okap; delete ok.y0; odswiez(); return; }
+    const okw = e.target.closest("[data-okapwys]");
+    if (okw && zaznaczony) { const ok = wnetrze.find((a) => a.id === zaznaczony), q = ciag.find((z) => z.id === ok.cel); ok.y0 = okapGeo(ok, q).dol + Number(okw.dataset.okapwys); odswiez(); return; }
     const rz = e.target.closest("[data-rozm]");
     if (rz && zaznaczony) {
       const obj = wnetrze.find((a) => a.id === zaznaczony) || ciag.find((q) => q.id === zaznaczony);
@@ -580,12 +702,16 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       const a = ak.dataset.akcja;
       const ob = wnetrze.find((q) => q.id === zaznaczony), cabS = ob && ciag.find((q) => q.id === ob.cel);
       if (a === "nablat" && ob) ob.y0 = BLAT_Y;
+      // pod blat: gora sprzetu rowno z wierzchem blatu; sprzet nad nim wraca na swoje miejsce nad tym
+      if (a === "podblat" && ob) { ob.y0 = BLAT_Y - rozm(ob).h; wSzafce(ob.cel).forEach((q) => { if (q !== ob) delete q.y0; }); }
+      if (a === "szafkawyzej" && ob) gorne[ob.cel] = { y0: Number(ak.dataset.y) };
+      if (a === "okapwyzej" && ob) ob.y0 = BLAT_Y + OKAP_MIN;
       // zamiana: wysokosci wracaja do domyslnych, kolejnosc odwrotna
       if (a === "zamien" && cabS) { cabS.zamiana = !cabS.zamiana; wSzafce(cabS.id).forEach((q) => { delete q.y0; }); }
       if (a === "anuluj") { wybranyTyp = null; przesuwany = null; }
       if (a === "przesun") { przesuwany = przesuwany === zaznaczony ? null : zaznaczony; wybranyTyp = null; }
       if (a === "usun" && zaznaczony) usun(zaznaczony);
-      if (a === "reset") { ciag = JSON.parse(JSON.stringify(SZAFKI0)); /* rozmiary i wysokosci tez wracaja */ wnetrze = JSON.parse(JSON.stringify(WNETRZE0)); sciana = SCIANA0; zaznaczony = wybranyTyp = przesuwany = ostatni = null; }
+      if (a === "reset") { ciag = JSON.parse(JSON.stringify(SZAFKI0)); /* rozmiary i wysokosci tez wracaja */ wnetrze = JSON.parse(JSON.stringify(WNETRZE0)); sciana = SCIANA0; gorne = {}; zaznaczony = wybranyTyp = przesuwany = ostatni = null; }
       odswiez(); return;
     }
     const li = e.target.closest("li[data-id]");
@@ -681,5 +807,32 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") { wybranyTyp = null; przesuwany = null; drag = null; schowajDucha(); odswiez(); } });
 
   odswiez();
+
+  // wysylka do Claude — tylko gdy strona ma baze (artefakt na claude.ai, zalogowany)
+  (async () => {
+    const use = window.claude && window.claude.use;
+    const db = use ? await window.claude.use("db").catch(() => null) : null;
+    if (!db) return;
+    const box = document.getElementById("wysylka"), st = document.getElementById("stanWysylki");
+    box.hidden = false;
+    const godz = (d) => new Date(d).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+    document.getElementById("btnWyslij").addEventListener("click", async () => {
+      st.textContent = "Wysyłam…";
+      try {
+        await db.doc("makieta/biezaca").set({ json: JSON.stringify(stan()), uwagi: document.getElementById("uwagiDoClaude").value.trim(),
+          kiedy: new Date().toISOString(), okno: `${window.innerWidth} × ${window.innerHeight}`, zaznaczony: zaznaczony || "" });
+        st.textContent = `Wysłano o ${godz(Date.now())}. Napisz w czacie, że wysłałeś — wczytam ten układ u siebie.`;
+      } catch (e) { st.textContent = `Nie wysłało się (${(e && e.code) || "błąd"}). Spróbuj jeszcze raz.`; }
+    });
+    document.getElementById("btnWczytaj").addEventListener("click", async () => {
+      st.textContent = "Wczytuję…";
+      try {
+        const sn = await db.doc("makieta/biezaca").get();
+        if (!sn.exists) { st.textContent = "Nic jeszcze nie wysłano."; return; }
+        const d = sn.data();
+        if (wczytaj(JSON.parse(d.json))) { odswiez(); st.textContent = `Wczytano makietę wysłaną ${d.kiedy ? godz(d.kiedy) : ""}${d.uwagi ? ` — uwagi: „${d.uwagi}”` : ""}.`; }
+      } catch (e) { st.textContent = `Nie wczytało się (${(e && e.code) || "błąd"}).`; }
+    });
+  })();
 })();
 </script>
