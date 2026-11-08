@@ -1192,24 +1192,96 @@ console.log('\n== Wzmocnienia na konfirmatach (użytkownik 2026-11-06) ==');
     levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }, M0);
   const gD = geo({ ...dwie, ...G.bezWienca(dwie, 18) });
   const [k0, k1] = gD.levels[0].cols;
-  ok('pod blatem, 2 kolumny: leżące 25 / 75 mm od lica na końcach; przy przegrodzie prawa kolumna o 15 mm dalej (40 / 90), bez uwagi o kolizji',
-    JSON.stringify(k0.rails[0].laczniki.map((l) => l.poz)) === '[[25,75],[25,75]]' && JSON.stringify(k1.rails[0].laczniki.map((l) => l.poz)) === '[[40,90],[25,75]]'
-    && !gD.msgs.some((x) => /wypadają za blisko siebie/.test(x.text)), JSON.stringify([k0.rails[0].laczniki, k1.rails[0].laczniki]));
-  const prz = (gD.drillPlan || []).filter((q) => /Przegroda 1/.test(q.panel)).flatMap((q) => q.rows).filter((h) => h.kind === 'konfirmat — wzmocnienie poziome');
-  ok('… plan wierceń przegrody: konfirmaty wzmocnień z obu stron (25, 75 i 40, 90 — przesunięte)',
-    prz.length === 2 && prz.some((h) => /25, 75 mm/.test(h.note)) && prz.some((h) => /40, 90 mm .*przesunięte o 15 mm/.test(h.note)), JSON.stringify(prz));
-  ok('… informacja przy przegrodzie (2026-11-08: „do wyboru na przyciskach”) z „Ta kolumna na wkrętach 4 × 30”',
-    gD.msgs.some((x) => x.level === 'info' && /kolumna 2: przy przegrodzie 1 wzmocnienia z obu stron na tej samej wysokości — konfirmaty tej kolumny przesunięte o 15 mm.*poziome 40 i 90 zamiast 25 i 75 mm.*\|wzmmoc:0:1:0,1:wkrety$/.test(x.text)),
+  ok('pod blatem, 2 kolumny: leżące konfirmaty 25 / 75 mm przy bokach; przy przegrodzie (2026-11-08) trójkąty po 2 — lewa 20 / 60, prawa 40 / 80',
+    JSON.stringify(k0.rails[0].laczniki.map((l) => [l.moc, l.poz])) === '[["konfirmaty",[25,75]],["trojkaty",[20,60]]]'
+    && JSON.stringify(k1.rails[0].laczniki.map((l) => [l.moc, l.poz])) === '[["trojkaty",[40,80]],["konfirmaty",[25,75]]]',
+    JSON.stringify([k0.rails[0].laczniki, k1.rails[0].laczniki]));
+  const y0T = k1.rails[1].y0;
+  ok('… tylne stojące tak samo, na wysokościach (lewa +20 / +60, prawa +40 / +80 od spodu wzmocnienia)',
+    JSON.stringify(k0.rails[1].laczniki[1].poz) === JSON.stringify([y0T + 20, y0T + 60]) && JSON.stringify(k1.rails[1].laczniki[0].poz) === JSON.stringify([y0T + 40, y0T + 80])
+    && k1.rails[1].laczniki[0].moc === 'trojkaty', JSON.stringify([k0.rails[1].laczniki, k1.rails[1].laczniki]));
+  const prz = (gD.drillPlan || []).filter((q) => /Przegroda 1/.test(q.panel)).flatMap((q) => q.rows);
+  const trPoz = prz.filter((h) => h.kind === 'trójkąt meblowy — wzmocnienie poziome');
+  ok('… plan wierceń przegrody: trójkąty wzmocnień z obu stron (20, 60 i 40, 80 — pod wzmocnieniem), bez konfirmatów wzmocnień',
+    trPoz.length === 2 && trPoz.some((h) => /2 szt\. pod wzmocnieniem, 20, 60 mm/.test(h.note)) && trPoz.some((h) => /40, 80 mm .*wkręty się mijają/.test(h.note))
+    && prz.filter((h) => h.kind === 'trójkąt meblowy — wzmocnienie tylne').length === 2 && !prz.some((h) => /^konfirmat — wzmocnienie/.test(h.kind)), JSON.stringify(prz));
+  const ostP = gD.msgs.filter((x) => /przy przegrodzie 1 wzmocnienia z obu stron/.test(x.text));
+  ok('… ostrzeżenie z przyciskami: 1 konfirmat, przegroda niższa, dwie przegrody (wspólne / osobne dna), tak zostaje',
+    ostP.length === 1 && ostP[0].level === 'warn' && /nie da się skręcić po kolei/.test(ostP[0].text)
+    && /\|wzmprzegr:0:1:0,1:jeden\|przegrnizsza:0:0\|przegrpodw:0:0:wspolne:18\|przegrpodw:0:0:osobne:18\|wzmprzegr:0:1:0,1:trojkaty$/.test(ostP[0].text),
     gD.msgs.filter((x) => /przegrodzie/.test(x.text)).map((x) => x.text).join(' // '));
+  const konfD = gD.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {};
+  const trD = gD.hardware.find((h) => h.name === 'Trójkąt meblarski' && /przy przegrodzie/.test(h.use)) || {};
+  ok('… zamówienie: konfirmaty wzmocnień 8 (przy bokach), trójkąty 8 (4 końce przy przegrodzie × 2)',
+    /wzmocnienia 8/.test(konfD.spec || '') && trD.qty === 8, JSON.stringify([konfD.spec, trD]));
+  const zWyb = (v) => { const c2 = JSON.parse(JSON.stringify({ ...dwie, ...G.bezWienca(dwie, 18) })); c2.levels[0].cols[1].rails.forEach((r) => { r.przyPrzegrodzie = v; }); return geo(c2); };
+  const gT = zWyb('trojkaty');
+  ok('„Tak zostaje”: trójkąty, informacja zamiast ostrzeżenia (bez przycisku „Tak zostaje”)',
+    !gT.msgs.some((x) => x.level === 'warn' && /przegrodzie 1/.test(x.text)) && gT.msgs.some((x) => x.level === 'info' && /przy przegrodzie 1 wzmocnienia poziome 1 \| 1, tylne 2 \| 2 na trójkątach/.test(x.text) && !/:trojkaty($|\|)/.test(x.text))
+    && gT.levels[0].cols[1].rails[0].laczniki[0].moc === 'trojkaty', gT.msgs.filter((x) => /przegrodzie/.test(x.text)).map((x) => x.text).join(' // '));
+  const gJ = zWyb('jeden');
+  const pJ = (gJ.drillPlan || []).filter((q) => /Przegroda 1/.test(q.panel)).flatMap((q) => q.rows).filter((h) => h.kind === 'konfirmat — wzmocnienie poziome');
+  ok('„Prawa na 1 konfirmacie”: prawa 1 w środku (50), lewa 2 (25 / 75), plan wierceń i kolejność montażu w notatce',
+    JSON.stringify(gJ.levels[0].cols[1].rails[0].laczniki[0].poz) === '[50]' && JSON.stringify(gJ.levels[0].cols[0].rails[0].laczniki[1].poz) === '[25,75]'
+    && pJ.some((h) => /50 mm .*jeden w środku czoła/.test(h.note)) && (gJ.montazKolejnosc || []).length === 2
+    && /1\) przykręć je do przegrody jednym konfirmatem w środku czoła .*2\) obróć wzmocnienie na nim do pionu.*4\) obróć/.test(gJ.montazKolejnosc[0])
+    && gJ.msgs.some((x) => x.level === 'info' && /prawa kolumna na 1 konfirmacie/.test(x.text) && /:trojkaty/.test(x.text)),
+    JSON.stringify({ l: gJ.levels[0].cols[1].rails[0].laczniki, k: gJ.montazKolejnosc, pJ }));
+  const konfJ = gJ.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {};
+  ok('… zamówienie: konfirmaty wzmocnień 14 (8 przy bokach + 2 × 2 lewe + 2 × 1 prawe), bez trójkątów wzmocnień',
+    /wzmocnienia 14/.test(konfJ.spec || '') && !gJ.hardware.some((h) => h.name === 'Trójkąt meblarski' && /przy przegrodzie/.test(h.use)), konfJ.spec);
   const dwieW = JSON.parse(JSON.stringify({ ...dwie, ...G.bezWienca(dwie, 18) }));
   dwieW.levels[0].cols[1].rails.forEach((r) => { r.mocowanie = 'wkrety'; });
   const gW = geo(dwieW);
-  ok('… prawa kolumna na wkrętach: wkręty przy przegrodzie też przesunięte (35 i 90 zamiast 20 i 80), przycisk „Ta kolumna na konfirmatach”',
-    JSON.stringify(gW.levels[0].cols[1].rails[0].laczniki.map((l) => [l.moc, l.poz])) === '[["wkrety",[35,90]],["wkrety",[20,80]]]'
-    && gW.msgs.some((x) => /wkręty tej kolumny przesunięte o 15 mm.*\|wzmmoc:0:1:0,1:konfirmaty$/.test(x.text)),
+  ok('… prawa kolumna na wkrętach: przy przegrodzie i tak trójkąty, przy boku wkręty 20 / 80',
+    JSON.stringify(gW.levels[0].cols[1].rails[0].laczniki.map((l) => [l.moc, l.poz])) === '[["trojkaty",[40,80]],["wkrety",[20,80]]]',
     JSON.stringify(gW.levels[0].cols[1].rails[0].laczniki));
-  const konfD = gD.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {};
-  ok('… zamówienie: konfirmaty wzmocnień 16 (4 wzmocnienia × 2 końce × 2)', /wzmocnienia 16/.test(konfD.spec || ''), konfD.spec);
+  const podw = JSON.parse(JSON.stringify({ ...dwie, ...G.bezWienca(dwie, 18) }));
+  podw.levels[0].cols[0].przegrodaPodw = true;
+  const gPw = geo(podw);
+  ok('dwie przegrody na styku: każda kolumna na swoich konfirmatach (25 / 75), bez ostrzeżenia, konfirmaty wzmocnień 16',
+    JSON.stringify(gPw.levels[0].cols[1].rails[0].laczniki.map((l) => l.poz)) === '[[25,75],[25,75]]'
+    && !gPw.msgs.some((x) => /wzmocnienia z obu stron/.test(x.text)) && /wzmocnienia 16/.test((gPw.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {}).spec || ''),
+    JSON.stringify(gPw.levels[0].cols[1].rails[0].laczniki));
+  // „Przegroda niższa” (2026-11-08): to, co robi przycisk — przegroda o płytę niżej, górne wzmocnienia na płask
+  const nizsza = (moc) => {
+    const c2 = JSON.parse(JSON.stringify({ ...dwie, ...G.bezWienca(dwie, 18) }));
+    c2.levels[0].cols[0].przegrodaNizsza = true;
+    if (moc) c2.levels[0].cols[0].przegrodaNizszaMoc = moc;
+    c2.levels[0].cols.forEach((k) => (k.rails || []).forEach((r) => { if (r.pos === 'top' && r.orient === 'front') { r.przedNizsza = { orient: r.orient, h: r.h, depth: r.depth }; r.orient = 'shelf'; r.depth = r.h || 100; } }));
+    return geo(c2);
+  };
+  const gN = nizsza();
+  const dvN = gN.dividers[0];
+  const czN = gN.panels.filter((p) => /^Wzmocnienie/.test(p.name));
+  ok('przegroda niższa: przegroda o 18 mm niżej, formatki „Wzmocnienie poziome nad przegrodą” 764 × 100 (przód i tył), innych wzmocnień brak',
+    dvN.nizsza && dvN.y1 === gN.levels[0].y1 - 18 && czN.length === 2 && czN.every((p) => p.name === 'Wzmocnienie poziome nad przegrodą' && p.qty === 1 && p.a === 764 && p.b === 100),
+    JSON.stringify({ dv: dvN, cz: czN.map((p) => [p.name, p.qty, p.a, p.b]) }));
+  const prtN = gN.panels.find((p) => /^Przegroda pionowa/.test(p.name)) || {};
+  ok('… formatka przegrody krótsza o płytę, bez trójkątów i ostrzeżenia przy przegrodzie; informacja z „Przegroda do góry”',
+    prtN.a === Math.round(gN.levels[0].h - 18) && !gN.msgs.some((x) => /wzmocnienia z obu stron/.test(x.text))
+    && gN.msgs.some((x) => x.level === 'info' && /Poziom 1: przegroda 1 niższa o płytę \(18 mm\) — nad nią 2 wzmocnienia przez obie kolumny.*konfirmaty 7 × 50 przez wzmocnienie w czoło przegrody.*\|przegrnizsza:0:0:off$/.test(x.text))
+    && !gN.hardware.some((h) => /przy przegrodzie/.test(h.use || '')),
+    JSON.stringify({ prtN, m: gN.msgs.filter((x) => /przegrod/.test(x.text)).map((x) => x.text) }));
+  const nadPlan = (gN.drillPlan || []).find((q) => q.panel === 'Wzmocnienie poziome nad przegrodą');
+  const konfN = gN.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {};
+  ok('… plan wierceń: konfirmat przez każde wzmocnienie w czoło przegrody (oś przegrody 382 mm od lewego końca formatki, 50 mm od przodu); zamówienie: wzmocnienia 8 (przy bokach) + przegroda niższa 2',
+    nadPlan && nadPlan.rows.length === 2 && nadPlan.rows.every((h) => /50 mm od przedniej krawędzi; w czole przegrody od góry/.test(h.note) && h.ys[0] === 382)
+    && /wzmocnienia 8/.test(konfN.spec || '') && /przegroda niższa do wzmocnień nad nią 2/.test(konfN.spec || ''),
+    JSON.stringify({ nadPlan, s: konfN.spec }));
+  const gNt = nizsza('trojkaty'), gNw = nizsza('wkrety');
+  const trNt = gNt.hardware.find((h) => h.name === 'Trójkąt meblarski' && /przegroda niższa/.test(h.use)) || {};
+  const prNt = (gNt.drillPlan || []).filter((q) => /Przegroda 1/.test(q.panel)).flatMap((q) => q.rows).filter((h) => /wzmocnienie nad przegrodą/.test(h.kind));
+  ok('… na trójkątach: 4 szt. (po 1 z każdej strony pod każdym), w planie przegrody 40 / 60 mm; na wkrętach: 4 × wkręt 4 × 30 bez konfirmatów przegrody',
+    trNt.qty === 4 && prNt.length === 2 && prNt.some((h) => /od kolumny 1 40 mm, od kolumny 2 60 mm/.test(h.note))
+    && /przegroda niższa 4/.test((gNw.hardware.find((h) => h.name === 'Wkręt 4 × 30') || {}).spec || '') && !/przegroda niższa/.test((gNw.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {}).spec || ''),
+    JSON.stringify({ trNt, prNt, w: (gNw.hardware.find((h) => h.name === 'Wkręt 4 × 30') || {}).spec }));
+  const bezNad = JSON.parse(JSON.stringify({ ...dwie, ...G.bezWienca(dwie, 18) }));
+  bezNad.levels[0].cols[0].przegrodaNizsza = true;
+  const gB = geo(bezNad);
+  ok('… tylne zostało stojące (bez przycisku): błąd „kończy się na niej” z „Przegroda do góry”',
+    gB.msgs.some((x) => x.level === 'error' && /górne wzmocnienia kończą się na niej \(stojące nr 2, stojące nr 2\)/.test(x.text) && /\|przegrnizsza:0:0:off$/.test(x.text)),
+    gB.msgs.filter((x) => /przegroda 1/.test(x.text)).map((x) => x.text).join(' // '));
   const pion = G.migrateCab({ name: 'P', W: 600, H: 720, D: 560, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null],
     rails: [{ orient: 'vertical', pos: 'top', side: 'left', h: 300, depth: 100, atDepth: 0 }] }] }] }, M0);
   const gP = geo(pion);

@@ -3223,9 +3223,15 @@ function computeGeoLiczy(cab, mat, ctx) {
       c.divDolMount = rawCols[j].divDolMount === "trojkaty" ? "trojkaty" : null;
       lv.cols.push(c);
       cx += w;
+      /* Przegroda nizsza o plyte (uzytkownik 2026-11-08, „przegroda niższa”): tylko w najwyzszym poziomie —
+         nad nia jedno lezace wzmocnienie przez obie kolumny (z przodu i z tylu), przegroda przykrecona do
+         nich od gory (`przegrodaNizszaMoc`: konfirmaty / wkrety / trojkaty). */
+      c.przegrodaNizsza = j < K - 1 && !rawCols[j].noDiv && !rawCols[j].przegrodaPodw && !!rawCols[j].przegrodaNizsza && lv.i === levels.length - 1;
+      if (c.przegrodaNizsza) c.przegrodaNizszaMoc = ["wkrety", "trojkaty"].includes(rawCols[j].przegrodaNizszaMoc) ? rawCols[j].przegrodaNizszaMoc : "konfirmaty";
       if (j < K - 1 && !rawCols[j].noDiv) {
         // j: kolumna po lewej — w planie wiercen ta przegroda to „Przegroda j + 1”
-        dividers.push({ x: cx, y0: lv.y0, y1: lv.y1, h: lv.h, level: lv.i, j,
+        dividers.push({ x: cx, y0: lv.y0, y1: c.przegrodaNizsza ? lv.y1 - t : lv.y1, h: c.przegrodaNizsza ? lv.h - t : lv.h, level: lv.i, j,
+          ...(c.przegrodaNizsza ? { nizsza: true } : {}),
           dolTrojkaty: rawCols[j].divDolMount === "trojkaty", ...(rawCols[j].przegrodaPodw ? { para: "L" } : {}) });
         cx += t;
         // dwie przegrody na styku — druga tuz obok, skrecone wkretami (`wkretyPary`)
@@ -3322,6 +3328,11 @@ function computeGeoLiczy(cab, mat, ctx) {
      na stronie szafki w PDF (uzytkownik 2026-10-16: „zeby miec pozniej
      pewnosc, ze zawias dobrze wypadnie”). */
   const zawiasyMontaz = [];
+  /* Kolejnosc montazu, gdy laczniki da sie skrecic tylko w okreslonym porzadku (AGENTS.md, 2026-11-08) —
+     do notatki montazowej (karta i strona szafki w PDF), liczona z geometrii. */
+  const montazKolejnosc = [];
+  // przegrody nizsze z wzmocnieniami nad nimi (plan wiercen i okucia): { lvI, j, moc, rails }
+  const nizszeNad = [];
   const drawerParts = [];
   const fixParts = [];
   const blendaParts = [];
@@ -3574,7 +3585,11 @@ function computeGeoLiczy(cab, mat, ctx) {
       const ostKol = (rawLevels[lv.i].cols || []).length - 1;
       const plytaL = j === 0 ? postSide !== "left" : !((rawLevels[lv.i].cols || [])[j - 1] || {}).noDiv;
       const plytaP = j === ostKol ? postSide !== "right" : !rawCol.noDiv;
-      const przyPrzegr = [];   // wzmocnienia przesuniete przy przegrodzie po lewej (jedna informacja na kolumne)
+      const przyPrzegr = [];   // pary wzmocnien przy przegrodzie po lewej (jedna uwaga na kolumne)
+      // wyciecia w blacie nad lezacym wzmocnieniem — czesc wspolna w ukladzie szafki
+      const otworyWzm = (g) => wycieciaWSzafce(cab, W, tf).map((q) => ({ typ: q.typ, nazwa: q.nazwa,
+        x0: Math.max(g.x0, q.x0), x1: Math.min(g.x1, q.x1), z0: Math.max(g.z0, q.z0), z1: Math.min(g.z0 + g.zLen, q.z1) }))
+        .filter((o) => o.x1 - o.x0 > 0.5 && o.z1 - o.z0 > 0.5);
       c.rails.forEach((g2, k) => {
         if (!g2) return;
         const raw = rawRails[k];
@@ -3585,32 +3600,59 @@ function computeGeoLiczy(cab, mat, ctx) {
         const konce = { lewy: plytaL && Math.abs(g2.x0 - c.x0) < 1, prawy: plytaP && Math.abs(g2.x1 - c.x1) < 1 };
         let otw = [];
         if (raw.podWyciecie && g2.orient === "shelf") {
-          otw = wycieciaWSzafce(cab, W, tf).map((q) => ({ typ: q.typ, nazwa: q.nazwa,
-            x0: Math.max(g2.x0, q.x0), x1: Math.min(g2.x1, q.x1), z0: Math.max(g2.z0, q.z0), z1: Math.min(g2.z0 + g2.zLen, q.z1) }))
-            .filter((o) => o.x1 - o.x0 > 0.5 && o.z1 - o.z0 > 0.5);
+          otw = otworyWzm(g2);
           g2.podWyciecie = true;
           g2.otwory = otw;
         }
         g2.laczniki = lacznikiWzmocnienia(g2, otw, g2.mocowanie, konce);
-        /* Przegroda z wzmocnieniem tej samej wysokosci po drugiej stronie: oba na konfirmatach przez
-           te przegrode w jednej osi sie nie zmieszcza — konfirmaty prawej kolumny o KONF_WZM_PRZESUN dalej. */
-        /* (uzytkownik 2026-11-08: „do wyboru na przyciskach”) — domyslnie przesuniecie, przycisk: prawa
-           kolumna na wkretach 4 × 30 (tez przesuniete, poza osia konfirmatow z drugiej strony). */
+        /* Nad przegroda nizsza (kolumna po lewej z `przegrodaNizsza`): gorne lezace wzmocnienia obu kolumn to
+           jedna formatka (`wCzesci` -> `wlasciciel`, dlugosc w `czescA`). Kazda kolumna trzyma swoj kawalek
+           (szuflady, drzwi i rysunki licza po kolumnach), lewy siega nad przegrode; na styku laczy nie ma. */
+        const lewaKol = j > 0 ? lv.cols[j - 1] : null;
+        if (lewaKol && lewaKol.przegrodaNizsza && g2.orient === "shelf" && Math.abs(g2.y1 - kHi) < 1 && Math.abs(g2.x0 - c.x0) < 1) {
+          const q = (lewaKol.rails || []).find((r) => r && r.orient === "shelf" && Math.abs(r.y1 - kHi) < 1 && Math.abs(r.x1 - lewaKol.x1) < 1
+            && Math.min(r.z0 + r.zLen, g2.z0 + g2.zLen) - Math.max(r.z0, g2.z0) > 0.5);
+          if (q) {
+            const wl = q.wlasciciel || q;
+            q.x1 = c.x0;   // nad przegroda
+            if (q.podWyciecie) q.otwory = otworyWzm(q);
+            q.laczniki[1] = { ...q.laczniki[1], moc: "ciagle", poz: [] };
+            g2.laczniki[0] = { ...g2.laczniki[0], moc: "ciagle", poz: [] };
+            wl.czescA = Math.round(g2.x1 - wl.x0);
+            wl.nadPrzegroda = [...(wl.nadPrzegroda || []), j - 1];
+            g2.wlasciciel = wl; g2.wCzesci = true; g2.nadPrzegroda = wl.nadPrzegroda;
+            [wl, ...lv.cols.slice(0, j + 1).flatMap((k2) => k2.rails || []).filter((r) => r && r.wlasciciel === wl)].forEach((r) => { r.nadPrzegroda = wl.nadPrzegroda; });
+            if (g2.podWyciecie) wl.podWyciecie = true;
+          }
+        }
+        g2.konce = konce;
+        /* Przegroda z wzmocnieniem tej samej wysokosci po drugiej stronie (uzytkownik 2026-11-08): konfirmatow
+           (i wkretow) przez przegrode z obu stron nie da sie skrecic po kolei — leb drugiej kolumny
+           zaslania wzmocnienie pierwszej. Domyslnie trojkaty meblowe, po 2 na koniec (`trojkatyNaKoncu`),
+           do wyboru w uwagach (`przyPrzegrodzie` na wzmocnieniu prawej kolumny): „jeden” — prawa na 1
+           konfirmacie w srodku (kolejnosc montazu w notatce), „trojkaty” — tak zostaje. Dwie przegrody
+           na styku (`przegrodaPodw`) — kazda kolumna ma swoja plyte, konfirmaty jak przy boku. */
         const lewyK = g2.laczniki[0];
-        const sasiad = j > 0 && plytaL && lewyK.poz.length ? ((lv.cols[j - 1] || {}).rails || []).find((q) => q && q.orient === g2.orient
+        const podwojna = j > 0 && !!((rawLevels[lv.i].cols || [])[j - 1] || {}).przegrodaPodw;
+        const sasiad = j > 0 && plytaL && !podwojna && lewyK.poz.length ? ((lv.cols[j - 1] || {}).rails || []).find((q) => q && q.orient === g2.orient
           && q.laczniki && q.laczniki[1].poz.length && Math.min(q.y1, g2.y1) - Math.max(q.y0, g2.y0) > 0.5
           && Math.min(q.z0 + q.zLen, g2.z0 + g2.zLen) - Math.max(q.z0, g2.z0) > 0.5) : null;
         const kto0 = `${where}: wzmocnienie ${g2.ri + 1} (${g2.orient === "shelf" ? "poziome" : g2.przyTyle ? "tylne" : "czołowe"})`;
         const wkr = g2.mocowanie === "konfirmaty" ? `|wzmmoc:${lv.i}:${j}:${g2.ri}:wkrety` : "";
         if (sasiad) {
-          const lo = lewyK.od + KONF_WZM_MIN_ODST, hi = lewyK.do - KONF_WZM_MIN_ODST;
-          const przed = lewyK.poz;
-          lewyK.poz = [...new Set(lewyK.poz.map((v) => Math.round(Math.min(hi, Math.max(lo, v + KONF_WZM_PRZESUN)))))];
-          lewyK.przesuniete = true;
-          przyPrzegr.push({ g2, przed, po: lewyK.poz, moc: lewyK.moc });
-          const zaBlisko = lewyK.poz.some((v) => sasiad.laczniki[1].poz.some((u) => Math.abs(u - v) < KONF_WZM_MIN_ODST));
-          if (zaBlisko)
-            add("warn", `${kto0}: przy przegrodzie ${j} konfirmaty z obu stron wypadają za blisko siebie (mniej niż ${KONF_WZM_MIN_ODST} mm) — przy jednym z wzmocnień daj wkręty 4 × 30.${wkr}`);
+          const prawyS = sasiad.laczniki[1];
+          const wyb = raw.przyPrzegrodzie === "jeden" || raw.przyPrzegrodzie === "trojkaty" ? raw.przyPrzegrodzie : null;
+          const naZakresie = (l, xs) => { const [p0] = l.zakres || [l.od]; return xs.map((v) => Math.round(p0 + v)); };
+          const dl = (l) => (l.zakres ? l.zakres[1] - l.zakres[0] : l.do - l.od);
+          if (wyb === "jeden") {
+            // prawa kolumna na jednym laczniku w srodku czola, lewa — zwykle dwa obok niego
+            lewyK.poz = naZakresie(lewyK, [dl(lewyK) / 2]);
+            lewyK.jeden = true;
+          } else {
+            Object.assign(prawyS, { moc: "trojkaty", poz: naZakresie(prawyS, trojkatyNaKoncu(dl(prawyS), false)), przyPrzegrodzie: true });
+            Object.assign(lewyK, { moc: "trojkaty", poz: naZakresie(lewyK, trojkatyNaKoncu(dl(lewyK), true)), przyPrzegrodzie: true });
+          }
+          przyPrzegr.push({ g2, sasiad, wyb });
         }
         if (!g2.podWyciecie) return;
         const kto = `${kto0} z wycięciem`;
@@ -3623,7 +3665,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             add("warn", `${kto} pod ${o.nazwa} — przy wycięciu zostaje pasek ${fmt(Math.max(przod, tyl))} mm, za wąski, żeby trzymał boki i blat (co najmniej ${WZM_PASEK_MIN} mm). Daj wzmocnienie stojące albo przesuń wycięcie dalej od przodu blatu.${stoj}`);
         });
         const nazwaL = (l) => (l.moc === "konfirmaty" ? "konfirmaty" : "wkręty");
-        g2.laczniki.filter((l) => !l.poz.length).forEach((l) =>
+        g2.laczniki.filter((l) => !l.poz.length && l.moc !== "ciagle").forEach((l) =>
           add("error", `${kto}: przy ${l.strona === "lewy" ? "lewym" : "prawym"} boku nie ma gdzie go przykręcić — wycięcie zabiera całe czoło wzmocnienia. Daj wzmocnienie stojące${wkr ? " albo wkręty 4 × 30 (wchodzą płycej)" : ""}.${stoj}${wkr}`));
         const przest = g2.laczniki.filter((l) => l.przestawione && l.poz.length);
         if (przest.length)
@@ -3632,13 +3674,60 @@ function computeGeoLiczy(cab, mat, ctx) {
             + (przest.some((l) => l.poz.length === 1) ? " (miejsca tylko na jeden — po jednym na stronę)." : ".")
             + wkr);
       });
+      /* Przegroda nizsza po lewej tej kolumny: co jest nad nia i czy wszystko sie domyka */
+      const lewaN = j > 0 ? lv.cols[j - 1] : null;
+      if (lewaN && lewaN.przegrodaNizsza) {
+        const gdzieP = `Poziom ${lv.i + 1}: przegroda ${j}`;
+        const off = `|przegrnizsza:${lv.i}:${j - 1}:off`;
+        const nad = lv.cols.slice(0, j + 1).flatMap((k2) => k2.rails || []).filter((r) => r && !r.wCzesci && (r.nadPrzegroda || []).includes(j - 1));
+        // gorne wzmocnienie (lezace albo stojace) dochodzace do przegrody, a nie przechodzace nad nia
+        const goreBez = [...(lewaN.rails || []).filter((r) => r && Math.abs(r.x1 - lewaN.x1) < 1), ...(c.rails || []).filter((r) => r && Math.abs(r.x0 - c.x0) < 1)]
+          .filter((r) => r.orient !== "vertical" && Math.abs(r.y1 - kHi) < 1 && !(r.nadPrzegroda || []).includes(j - 1));
+        const MOC_N = { konfirmaty: "konfirmaty 7 × 50 przez wzmocnienie w czoło przegrody", wkrety: "wkręty 4 × 30 przez wzmocnienie w czoło przegrody", trojkaty: "trójkąty meblowe pod wzmocnieniem, po obu stronach przegrody" };
+        if (!nad.length)
+          add("error", `${gdzieP} jest niższa o płytę (${fmt(t)} mm), a nad nią nie ma leżącego wzmocnienia przez obie kolumny — nie ma do czego jej przykręcić od góry. Daj leżące wzmocnienia u góry obu kolumn albo przegrodę do góry.${off}`);
+        else {
+          nizszeNad.push({ lvI: lv.i, j: j - 1, moc: lewaN.przegrodaNizszaMoc, rails: nad });
+          add("info", `${gdzieP} niższa o płytę (${fmt(t)} mm) — nad nią ${nad.length > 1 ? `${nad.length} wzmocnienia` : "wzmocnienie"} przez obie kolumny (formatka „Wzmocnienie poziome nad przegrodą”), `
+            + `przegroda przykręcona do ${nad.length > 1 ? "nich" : "niego"} od góry: ${MOC_N[lewaN.przegrodaNizszaMoc]} (zmienisz w karcie wzmocnienia).${off}`);
+          if (goreBez.length)
+            add("error", `${gdzieP} jest niższa o płytę, a ${goreBez.length > 1 ? `${goreBez.length} górne wzmocnienia kończą` : "górne wzmocnienie kończy"} się na niej `
+              + `(${goreBez.map((r) => `${r.orient === "shelf" ? "leżące" : "stojące"} nr ${r.ri + 1}`).join(", ")}) — czoło trafia nad przegrodę w puste miejsce. `
+              + `Daj w obu kolumnach leżące wzmocnienia na tej samej głębokości albo przegrodę do góry.${off}`);
+        }
+      }
       if (przyPrzegr.length) {
-        const nazwaW = (q) => (q.g2.orient === "shelf" ? "poziome" : q.g2.przyTyle ? "tylne" : "czołowe");
-        const wszystkieWkr = przyPrzegr.every((q) => q.moc === "wkrety");
-        add("info", `${where}: przy przegrodzie ${j} wzmocnienia z obu stron na tej samej wysokości — `
-          + `${wszystkieWkr ? "wkręty" : "konfirmaty"} tej kolumny przesunięte o ${KONF_WZM_PRZESUN} mm, żeby otwory się nie pokryły (`
-          + przyPrzegr.map((q) => `${nazwaW(q)} ${q.po.map(fmt).join(" i ")} zamiast ${q.przed.map(fmt).join(" i ")} mm`).join(", ") + ")."
-          + `|wzmmoc:${lv.i}:${j}:${przyPrzegr.map((q) => q.g2.ri).join(",")}:${wszystkieWkr ? "konfirmaty" : "wkrety"}`);
+        const nazwaW = (q) => `${q.g2.orient === "shelf" ? "poziome" : q.g2.przyTyle ? "tylne" : "czołowe"} ${q.sasiad.ri + 1} | ${q.g2.ri + 1}`;
+        const nr = (lista) => lista.map((q) => q.g2.ri).join(",");
+        const wszystkie = nr(przyPrzegr);
+        // jedno wzmocnienie nad nizsza przegroda — tylko pod blatem / wiencem (gorne w najwyzszym poziomie)
+        const gorne = lv.i === levels.length - 1 && przyPrzegr.some((q) => Math.abs(q.g2.y1 - kHi) < 1);
+        const mocJ = przyPrzegr.every((q) => q.g2.mocowanie === "wkrety") ? "wkręcie" : "konfirmacie";
+        const przyciski = (bez) => [
+          bez !== "jeden" ? `|wzmprzegr:${lv.i}:${j}:${wszystkie}:jeden` : "",
+          gorne ? `|przegrnizsza:${lv.i}:${j - 1}` : "",
+          `|przegrpodw:${lv.i}:${j - 1}:wspolne:${t}`,
+          `|przegrpodw:${lv.i}:${j - 1}:osobne:${t}`,
+          bez !== "trojkaty" ? `|wzmprzegr:${lv.i}:${j}:${wszystkie}:trojkaty` : "",
+        ].join("");
+        const bezWyb = przyPrzegr.filter((q) => !q.wyb), tr = przyPrzegr.filter((q) => q.wyb === "trojkaty"), jeden = przyPrzegr.filter((q) => q.wyb === "jeden");
+        const opisTr = (lista) => `${lista.length > 1 ? "wzmocnienia" : "wzmocnienie"} ${lista.map(nazwaW).join(", ")}`;
+        if (bezWyb.length)
+          add("warn", `${where}: przy przegrodzie ${j} wzmocnienia z obu stron na tej samej wysokości (${opisTr(bezWyb)}, kolumna ${j} | ${j + 1}) — `
+            + "konfirmatów z obu stron nie da się skręcić po kolei: łby drugiej kolumny zasłania wzmocnienie pierwszej. "
+            + `Są na trójkątach meblowych, po 2 na koniec przy przegrodzie (prawa kolumna obok lewej, żeby wkręty się minęły; plan wierceń). Możesz też wybrać prawą na 1 ${mocJ} w środku (kolejność montażu w notatce)`
+            + `${gorne ? ", przegrodę niższą o płytę z jednym wzmocnieniem nad nią" : ""} albo dwie przegrody na styku.` + przyciski(null));
+        if (tr.length)
+          add("info", `${where}: przy przegrodzie ${j} ${opisTr(tr)} na trójkątach meblowych, po 2 na koniec przy przegrodzie (konfirmatów z obu stron nie da się skręcić po kolei).` + przyciski("trojkaty"));
+        if (jeden.length)
+          add("info", `${where}: przy przegrodzie ${j} ${opisTr(jeden)} — prawa kolumna na 1 ${mocJ} w środku czoła, lewa na 2; kolejność montażu w notatce montażowej.` + przyciski("jeden"));
+        jeden.forEach((q) => {
+          const co = q.g2.orient === "shelf" ? "poziome" : q.g2.przyTyle ? "tylne" : "czołowe";
+          montazKolejnosc.push(`${where}, przegroda ${j}, wzmocnienie ${co} (kolumna ${j + 1}, nr ${q.g2.ri + 1}): `
+            + `1) przykręć je do przegrody jednym ${q.g2.mocowanie === "wkrety" ? "wkrętem" : "konfirmatem"} w środku czoła (łeb od strony kolumny ${j}); `
+            + `2) obróć wzmocnienie na nim ${q.g2.orient === "shelf" ? "do pionu" : "do poziomu"}; 3) zamontuj wzmocnienie kolumny ${j} (nr ${q.sasiad.ri + 1}) — jego łączniki wkręcasz od strony kolumny ${j + 1}; `
+            + `4) obróć wzmocnienie kolumny ${j + 1} z powrotem i przykręć jego prawy koniec.`);
+        });
       }
       /* Recznie wpisane wzmocnienie wychodzace poza korpus (audyt GPT N72): poziome
          200 mm 500 mm od lica w korpusie 560 konczylo sie 140 mm za tylem, czolowe
@@ -5840,19 +5929,23 @@ function computeGeoLiczy(cab, mat, ctx) {
   // formatki wzmocnien (per kolumna, wiele)
   levels.forEach((lv) => lv.cols.forEach((c) => (c.rails || []).forEach((r) => {
     if (!(r.a > 0 && r.b > 0)) return;
+    // kawalek wzmocnienia nad przegroda nizsza — formatka idzie z pierwszym (lewym)
+    if (r.wCzesci) return;
+    const kawalki = r.czescA ? [r, ...levels[lv.i].cols.flatMap((k2) => k2.rails || []).filter((q) => q.wlasciciel === r)] : [r];
     const name = r.orient === "front"
       ? (r.przyTyle ? "Wzmocnienie tylne" : "Wzmocnienie czołowe")
-      : r.orient === "shelf" ? "Wzmocnienie poziome" : "Wzmocnienie pionowe";
+      : r.orient === "shelf" ? (r.czescA ? "Wzmocnienie poziome nad przegrodą" : "Wzmocnienie poziome") : "Wzmocnienie pionowe";
     /* Kazde wzmocnienie ma jedna dluga krawedz widoczna po otwarciu szafki —
        plaskie i pionowe przednia (komentarz uzytkownika 2026-10-17: „przecież
        jest widoczny po otwarciu i nie styka się z niczym”). */
     /* Wyciecie pod plyte / zlew (`r.otwory`, uklad szafki: z od lica) — w formatce od tylnej krawedzi,
        laczniki przy koncach w uwadze formatki (przestawione poza wyciecie). */
-    const otw = (r.otwory || []).map((o) => ({ x: Math.round(o.x0 - r.x0), z: Math.round(r.z0 + r.zLen - o.z1),
-      a: Math.round(o.x1 - o.x0), b: Math.round(o.z1 - o.z0), szer: Math.round(r.a), gl: Math.round(r.b) }));
+    const dl = r.czescA || r.a;
+    const otw = kawalki.flatMap((q) => q.otwory || []).map((o) => ({ x: Math.round(o.x0 - r.x0), z: Math.round(r.z0 + r.zLen - o.z1),
+      a: Math.round(o.x1 - o.x0), b: Math.round(o.z1 - o.z0), szer: Math.round(dl), gl: Math.round(r.b) }));
     const lacz = r.laczniki && r.laczniki.some((l) => l.przestawione)
       ? `; ${r.mocowanie === "konfirmaty" ? "konfirmaty" : "wkręty"} przez boki: ${r.laczniki.map((l) => `${l.strona} koniec ${l.poz.length ? `${l.poz.map(fmt).join(" i ")} mm od przodu` : "brak"}`).join(", ")} (poza wycięciem)` : "";
-    P({ name: nazwaZOtworami(name, otw), qty: 1, a: Math.round(r.a), b: Math.round(r.b), matKey: "board",
+    P({ name: nazwaZOtworami(name, otw), qty: 1, a: Math.round(dl), b: Math.round(r.b), matKey: "board",
         edges: { a1: true, a2: false, b1: false, b2: false },
         ...(otw.length ? { otwory: otwFormatki(otw) } : {}),
         note: r.orient === "front" ? undefined : `krawędź przednia — widoczna po otwarciu${lacz}` });
@@ -6909,13 +7002,46 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (!pn || !pn.name) return;
         const kind = `konfirmat — wzmocnienie ${r.orient === "shelf" ? "poziome" : r.przyTyle ? "tylne" : "czołowe"}`;
         const w = /^Bok/.test(pn.name) ? "w boku" : "w płycie";
-        const przes = l.przesuniete ? `, przesunięte o ${KONF_WZM_PRZESUN} mm względem wzmocnienia po drugiej stronie` : "";
+        const przes = l.jeden ? "; jeden w środku czoła — po drugiej stronie wzmocnienie na tej samej wysokości (kolejność montażu w notatce)" : "";
         if (l.os === "z")
           drillAdd(lv.i, pn.name, pn.base, kind, r.y0 + t / 2, `⌀7 ${w}, ${listaPoz(l.poz)} mm od przedniej krawędzi; w czole wzmocnienia ⌀5 × 50${przes}${pn.strona}`);
         else l.poz.forEach((y) => drillAdd(lv.i, pn.name, pn.base, kind, y,
           `⌀7 ${w}, ${fmt(Math.round(r.z0 + t / 2))} mm od przedniej krawędzi; w czole wzmocnienia ⌀5 × 50${przes}${pn.strona}`));
       });
+      /* Trojkaty przy przegrodzie z wzmocnieniem tej samej wysokosci po drugiej stronie (2026-11-08) —
+         lezace: pod nim (gorne) albo na nim (dolne), polozenia od przodu; stojace: od wnetrza, na wysokosciach. */
+      (r.laczniki || []).filter((l) => l.moc === "trojkaty" && l.poz.length).forEach((l) => {
+        const pn = panelsOfCol(lv, c)[l.strona === "lewy" ? "left" : "right"];
+        if (!pn || !pn.name) return;
+        const kind = `trójkąt meblowy — wzmocnienie ${r.orient === "shelf" ? "poziome" : r.przyTyle ? "tylne" : "czołowe"}`;
+        const obok = "; po drugiej stronie przegrody wzmocnienie na tej samej wysokości — trójkąty obok siebie, wkręty się mijają";
+        if (l.os === "z") {
+          const gora = r.y1 >= lv.y1 - 1 || r.y0 > (lv.y0 + lv.y1) / 2;
+          drillAdd(lv.i, pn.name, pn.base, kind, gora ? r.y0 : r.y1,
+            `${l.poz.length} szt. ${gora ? "pod wzmocnieniem" : "na wzmocnieniu"}, ${listaPoz(l.poz)} mm od przedniej krawędzi płyty; wysokość = ${gora ? "spód" : "wierzch"} wzmocnienia${obok}${pn.strona}`);
+        } else l.poz.forEach((y) => drillAdd(lv.i, pn.name, pn.base, kind, y,
+          `${r.przyTyle ? "przed wzmocnieniem (od wnętrza)" : "za wzmocnieniem (od wnętrza)"}, ${fmt(Math.round(r.przyTyle ? r.z0 : r.z0 + t))} mm od przedniej krawędzi płyty${obok}${pn.strona}`));
+      });
     })));
+    /* Przegroda nizsza — od gory do wzmocnien nad nia (2026-11-08): konfirmaty przez wzmocnienie w jej czolo
+       (w osi przegrody, polozenie od lewego konca formatki), trojkaty — po 1 z kazdej strony pod wzmocnieniem,
+       obok siebie w srodku jego glebokosci; wkrety bez planu. */
+    nizszeNad.forEach((nz) => {
+      const dv = dividers.find((d) => d.level === nz.lvI && d.j === nz.j && d.nizsza);
+      if (!dv) return;
+      nz.rails.forEach((r) => {
+        const ktore = nz.rails.length > 1 ? (r.z0 < carcassDepth / 2 ? " (przednie)" : " (tylne)") : "";
+        if (nz.moc === "konfirmaty")
+          doPlyty("Wzmocnienie poziome nad przegrodą", `konfirmat — przegroda ${nz.j + 1}${ktore}`, dv.x + t / 2 - r.x0,
+            `⌀7 w płycie (od jej lewego końca), ${listaPoz(konfirmatyPoz(r.zLen).map((z) => Math.round(z)))} mm od przedniej krawędzi; w czole przegrody od góry ⌀5 × 50`);
+        else if (nz.moc === "trojkaty") {
+          // po jednym z kazdej strony, obok siebie w srodku glebokosci (2/5 i 3/5), zeby wkrety sie minely
+          const a = Math.round(r.z0 + (2 * r.zLen) / 5), b = Math.round(r.z0 + (3 * r.zLen) / 5);
+          drillAdd(nz.lvI, `Przegroda ${nz.j + 1}`, levels[nz.lvI].y0, `trójkąt meblowy — wzmocnienie nad przegrodą${ktore}`, dv.y1,
+            `2 szt. pod wzmocnieniem, po 1 z każdej strony: od kolumny ${nz.j + 1} ${fmt(a)} mm, od kolumny ${nz.j + 2} ${fmt(b)} mm od przedniej krawędzi płyty; wysokość = wierzch przegrody`);
+        }
+      });
+    });
     /* Przegrody pionowe i wsporniki fixu stoja na plycie pod soba i dochodza do
        plyty nad soba — konfirmat przez te plyty w ich czolo; polozenie wzdluz
        szerokosci od wewnetrznej strony lewego boku. */
@@ -6924,7 +7050,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     dividers.forEach((dv, k) => {
       const x = Math.round(dv.x + t / 2 - interior.x0);
       const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(dividerDepth))} mm od przedniej krawędzi; w czole przegrody ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
-      if (nad(dv.level)) doPlyty(nad(dv.level), `konfirmat — przegroda ${k + 1}`, x, note);
+      if (nad(dv.level) && !dv.nizsza) doPlyty(nad(dv.level), `konfirmat — przegroda ${k + 1}`, x, note);
       /* Przegroda stojaca nad inna, na tej samej polce przelotowej — konfirmat
          od dolu nie wejdzie (leb pod czolem dolnej), wiec trojkaty (N45). */
       if (pod(dv.level) && dv.dolTrojkaty)
@@ -7473,6 +7599,20 @@ function computeGeoLiczy(cab, mat, ctx) {
   const konfWzm = levels.reduce((a2, lv) => a2 + lv.cols.reduce((b2, c) => b2 + (c.rails || []).reduce((s2, r) =>
     s2 + (r.laczniki || []).filter((l) => l.moc === "konfirmaty").reduce((t2, l) => t2 + l.poz.length, 0), 0), 0), 0);
   if (konfWzm) { confQty += konfWzm; jointNotes.push(`wzmocnienia ${konfWzm}`); }
+  // przegroda nizsza przykrecona od gory do wzmocnien nad nia (2026-11-08)
+  const nizszeIle = (moc, naR) => nizszeNad.filter((nz) => nz.moc === moc).reduce((a2, nz) => a2 + nz.rails.reduce((b2, r) => b2 + naR(r), 0), 0);
+  const konfNiz = nizszeIle("konfirmaty", (r) => konfirmatyNaStyk(r.zLen));
+  if (konfNiz) { confQty += konfNiz; jointNotes.push(`przegroda niższa do wzmocnień nad nią ${konfNiz}`); }
+  const trNiz = nizszeIle("trojkaty", () => 2);
+  if (trNiz)
+    hardware.push({ name: "Trójkąt meblarski", use: "przegroda niższa — do wzmocnień nad nią",
+      spec: `po 1 z każdej strony przegrody pod każdym wzmocnieniem: ${trNiz} szt.`, qty: trNiz, unit: "szt." });
+  // trojkaty przy przegrodzie z wzmocnieniem tej samej wysokosci po drugiej stronie (2026-11-08)
+  const trWzm = levels.reduce((a2, lv) => a2 + lv.cols.reduce((b2, c) => b2 + (c.rails || []).reduce((s2, r) =>
+    s2 + (r.laczniki || []).filter((l) => l.moc === "trojkaty").reduce((t2, l) => t2 + l.poz.length, 0), 0), 0), 0);
+  if (trWzm)
+    hardware.push({ name: "Trójkąt meblarski", use: "wzmocnienia przy przegrodzie — z obu stron na tej samej wysokości",
+      spec: `po 2 na koniec wzmocnienia przy przegrodzie: ${trWzm} szt.`, qty: trWzm, unit: "szt." });
 
   // scianka zabudowy z zawieszka do wienca (N149, wybor uzytkownika w uwagach)
   const mocKonf = zawieszki.mocZabudowy.filter((m) => m === "konfirmaty").length * 2;
@@ -7668,6 +7808,8 @@ function computeGeoLiczy(cab, mat, ctx) {
     const n = r.laczniki ? r.laczniki.filter((l) => l.moc === "wkrety").reduce((a2, l) => a2 + l.poz.length, 0) : 4;
     if (n) { ileWzm += 1; wkretyWzm += n; }
   })));
+  const wkrNiz = nizszeIle("wkrety", (r) => lacznikiNaKoncu(r.zLen, "wkrety").length);
+  if (wkrNiz) { wkretyPlyt += wkrNiz; wkretyOpis.push(`przegroda niższa ${wkrNiz}`); wkretyCzesci.push({ use: "przegroda niższa — przez wzmocnienie nad nią w czoło przegrody", qty: wkrNiz }); }
   if (ileWzm) { wkretyPlyt += wkretyWzm; wkretyOpis.push(wkretyWzm === ileWzm * 4 ? `wzmocnienia ${ileWzm}×4` : `wzmocnienia ${wkretyWzm}`); wkretyCzesci.push({ use: "wzmocnienia skręcane wkrętami (pionowe przy boku i wybrane „Wkręty 4 × 30”)", qty: wkretyWzm }); }
   if (postSide) {
     const naPlyte = Math.max(2, Math.ceil(innerH / 200));
@@ -7747,7 +7889,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   return {
     hardware,
     t, tf, tb, ts, carcassDepth, plecyZa, glebOdSciany, hasBack, interior, innerW, innerH, backRecess,
-    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, dystansZa, dnoOtwory, wienOtwory, msgs, maxNL, zawiasyMontaz, plecyKolumn,
+    shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, dystansZa, dnoOtwory, wienOtwory, msgs, maxNL, zawiasyMontaz, montazKolejnosc, plecyKolumn,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
     topL, topR, botL, botR, hasTop, hasBot, leftLen, rightLen, leftY0, rightY0,
@@ -7817,7 +7959,7 @@ function geoSprzetuCiagu(cab, mat, ctx) {
   }
   return { ...baza, bezKorpusu: true, sprzetCiagu: dane, panels, hardware: [], msgs, doors: [], klapy: [],
     hasTop: false, hasBot: false, hasBack: false, isBlat: false, isWorktop: false, blat: null, dividers: [], sepShelves: [],
-    zawieszki: [], drillPlan: [], zawiasyMontaz: [], dystansZa: null, dnoOtwory: [], wienOtwory: [],
+    zawieszki: [], drillPlan: [], zawiasyMontaz: [], montazKolejnosc: [], dystansZa: null, dnoOtwory: [], wienOtwory: [],
     levels: baza.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, shelves: [], doors: [], rails: [], drazki: [], sprzet: null })) })) };
 }
 
@@ -15326,14 +15468,69 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
        — staje na sztorc przy licu (h 60, `WZM_STOJACE_H`), „wzmblat:<nr szafki>:<poziom>:<kolumna>:<nr>:<stoj|wyc>”
        — to samo z uwag ciagu albo wyciecie we wzmocnieniu (`podWyciecie`) dla szafki obok. */
     if (action.startsWith("wzmmoc:")) {
-      /* „wzmmoc:<poziom>:<kolumna>:<nr[,nr]>:<wkrety|konfirmaty>” — mocowanie wzmocnienia (uzytkownik 2026-11-06);
-         kilka numerow — wzmocnienia kolumny przy przegrodzie (2026-11-08) */
+      /* „wzmmoc:<poziom>:<kolumna>:<nr[,nr]>:<wkrety|konfirmaty>” — mocowanie wzmocnienia (uzytkownik 2026-11-06) */
       const [, li, j, k, v] = action.split(":");
       const nr = String(k).split(",").map(Number);
       return {
-        label: nr.length > 1 ? (v === "wkrety" ? "Ta kolumna na wkrętach 4 × 30" : "Ta kolumna na konfirmatach")
-          : v === "wkrety" ? "Wkręty 4 × 30" : "Konfirmaty",
+        label: v === "wkrety" ? "Wkręty 4 × 30" : "Konfirmaty",
         run: () => editLevels((L) => { const col = kolumnaW(L, li, j); nr.forEach((q) => { const r = col && (col.rails || [])[q]; if (!r) return; if (v === "wkrety") r.mocowanie = "wkrety"; else delete r.mocowanie; }); }),
+      };
+    }
+    if (action.startsWith("wzmprzegr:")) {
+      /* „wzmprzegr:<poziom>:<kolumna>:<nr[,nr]>:<jeden|trojkaty>” — wzmocnienia prawej kolumny przy przegrodzie
+         z wzmocnieniem tej samej wysokosci po drugiej stronie (uzytkownik 2026-11-08): prawa na 1 konfirmacie
+         albo „Tak zostaje” (trojkaty bez ostrzezenia) */
+      const [, li, j, k, v] = action.split(":");
+      const nr = String(k).split(",").map(Number);
+      return {
+        label: v === "jeden" ? "Prawa na 1 konfirmacie" : "Tak zostaje (trójkąty)",
+        run: () => editLevels((L) => { const col = kolumnaW(L, li, j); nr.forEach((q) => { const r = col && (col.rails || [])[q]; if (r) r.przyPrzegrodzie = v; }); }),
+      };
+    }
+    if (action.startsWith("przegrnizsza:")) {
+      /* „przegrnizsza:<poziom>:<kolumna po lewej>[:off]” — przegroda nizsza o plyte z jednym wzmocnieniem nad nia
+         (uzytkownik 2026-11-08): gorne wzmocnienia obu kolumn kladziemy na plask (tylne tez — „z automatu tak
+         samo”), poprzednie ustawienie stojacych zostaje w `przedNizsza` i wraca przy „Przegroda do góry”. */
+      const [, li, j, off] = action.split(":");
+      return {
+        label: off ? "Przegroda do góry" : "Przegroda niższa",
+        run: () => editLevels((L) => {
+          const cols = (L[+li] || {}).cols || [];
+          const lewa = cols[+j], prawa = cols[+j + 1];
+          if (!lewa) return;
+          if (off) {
+            delete lewa.przegrodaNizsza; delete lewa.przegrodaNizszaMoc;
+            [lewa, prawa].filter(Boolean).forEach((k2) => (k2.rails || []).forEach((r) => {
+              if (!r.przedNizsza) return;
+              Object.assign(r, r.przedNizsza); delete r.przedNizsza;
+            }));
+            return;
+          }
+          lewa.przegrodaNizsza = true;
+          [lewa, prawa].filter(Boolean).forEach((k2) => (k2.rails || []).forEach((r) => {
+            if (r.pos !== "top" || r.orient !== "front") return;
+            r.przedNizsza = { orient: r.orient, h: r.h, depth: r.depth };
+            r.orient = "shelf"; r.depth = Math.max(1, Math.round(r.h || 100));
+          }));
+        }),
+      };
+    }
+    if (action.startsWith("przegrpodw:")) {
+      /* „przegrpodw:<poziom>:<kolumna po lewej>:<wspolne|osobne>:<plyta mm>” — dwie przegrody na styku zamiast
+         jednej (`przegrodaPodw`, jak przy scalaniu): kazda kolumna ma swoja plyte. Druga przegroda zabiera
+         grubosc plyty prawej kolumnie, gdy ta ma wpisana szerokosc. */
+      const [, li, j, v, tStr] = action.split(":");
+      return {
+        label: v === "osobne" ? "Dwie przegrody, osobne dna" : "Dwie przegrody, wspólne dno",
+        run: () => editLevels((L) => {
+          const cols = (L[+li] || {}).cols || [];
+          const lewa = cols[+j], prawa = cols[+j + 1];
+          if (!lewa || !prawa) return;
+          lewa.przegrodaPodw = true;
+          if (v === "osobne") lewa.przegrodaOsobneDna = true; else delete lewa.przegrodaOsobneDna;
+          const tt = Number(tStr) || 18;
+          if (typeof prawa.w === "number" && prawa.w > tt) prawa.w -= tt;
+        }),
       };
     }
     if (action.startsWith("wzmstoj:") || action.startsWith("wzmblat:")) {
@@ -16141,8 +16338,14 @@ const wycieciaWSzafce = (cab, W, tf) => {
 const WZM_LACZNIK_GLEB = 15;    // tyle wkret 4 × 30 wchodzi w czolo wzmocnienia przez bok 18 mm (z zapasem)
 const KONF_WZM_GLEB = 35;       // konfirmat 7 × 50 przez bok 18 mm — ok. 32 mm w czole wzmocnienia
 const WZM_LACZNIK_ROZSTAW = 20; // wkrety: od krawedzi i miedzy dwoma na jednym koncu
-const KONF_WZM_PRZESUN = 15;    // przy przegrodzie z wzmocnieniem po drugiej stronie — konfirmaty prawej kolumny dalej
-const KONF_WZM_MIN_ODST = 10;   // osie otworow ⌀7 z obu stron przegrody co najmniej tyle od siebie
+/* Przegroda z wzmocnieniem tej samej wysokosci po obu stronach (uzytkownik 2026-11-08): konfirmatow
+   z obu stron nie da sie skrecic po kolei (leb drugiego zaslania wzmocnienie pierwszego), wiec domyslnie
+   trojkaty meblowe, po 2 na koniec przy przegrodzie; prawa kolumna obok lewej, zeby wkrety sie minely.
+   Waskie (do KONF_DWA_OD): lewa 1/5 i 3/5 szerokosci, prawa 2/5 i 4/5 (100 mm: 20 i 60 / 40 i 80);
+   szersze jak polki — 50 mm od krawedzi, prawa o KOLEK_PRZESUN do srodka. */
+const trojkatyNaKoncu = (len, druga) => (len >= KONF_DWA_OD
+  ? (druga ? [KONF_OD_KRAWEDZI + KOLEK_PRZESUN, len - KONF_OD_KRAWEDZI - KOLEK_PRZESUN] : [KONF_OD_KRAWEDZI, len - KONF_OD_KRAWEDZI])
+  : (druga ? [2, 4] : [1, 3]).map((k) => (k * len) / 5)).map(Math.round);
 // polozenia lacznikow na koncu wzmocnienia szerokiego `len` (od jego przedniej / dolnej krawedzi)
 const lacznikiNaKoncu = (len, moc) => {
   if (moc === "konfirmaty") {
@@ -16167,7 +16370,8 @@ const lacznikiWzmocnienia = (g, otw, moc, konce = {}) => {
     });
     const naj = odc.sort((p, q) => (q[1] - q[0]) - (p[1] - p[0]))[0];
     const poz = naj ? lacznikiNaKoncu(naj[1] - naj[0], mocK).map((v) => Math.round(naj[0] + v)) : [];
-    return { strona, os: lezace ? "z" : "y", moc: mocK, poz, przestawione: blisko.length > 0, od: a, do: b };
+    // `zakres` — odcinek czola, w ktorym siedza laczniki (trojkaty i jeden konfirmat przy przegrodzie)
+    return { strona, os: lezace ? "z" : "y", moc: mocK, poz, przestawione: blisko.length > 0, od: a, do: b, zakres: naj || null };
   });
 };
 const WZM_PASEK_MIN = 30;       // wezszy pasek wzmocnienia przy wycieciu nie trzyma (jak waska formatka)
@@ -19448,6 +19652,12 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
         <div data-el="notatka-zawiasy" style={{ fontSize: "9pt", marginTop: 3 }}>
           <strong>Zawiasy przesunięte:</strong>{" "}
           {geo.zawiasyMontaz.join(" ")}
+        </div>
+      )}
+      {(geo.montazKolejnosc || []).length > 0 && (
+        <div data-el="notatka-kolejnosc" style={{ fontSize: "9pt", marginTop: 3 }}>
+          <strong>Kolejność montażu:</strong>{" "}
+          {geo.montazKolejnosc.join(" ")}
         </div>
       )}
     </div>
@@ -25217,6 +25427,22 @@ export default function App() {
                               </div>
                               {/* mocowanie (uzytkownik 2026-11-06): konfirmaty przez boki, wkrety 4 × 30 z wyboru;
                                   pionowe przy boku (lico do lica) zawsze na wkretach */}
+                              {/* nad przegroda nizsza: jedno mocowanie przegrody do obu wzmocnien (uzytkownik 2026-11-08) */}
+                              {(() => {
+                                const gR = (c.rails || []).find((g) => g.ri === ri);
+                                const dj = gR && (gR.nadPrzegroda || [])[0];
+                                if (dj == null) return null;
+                                const kolL = (geo.levels[lv.i] || {}).cols[dj] || {};
+                                return (
+                                  <Field label={`Przegroda ${dj + 1} pod spodem`} hint="niższa o płytę; to wzmocnienie idzie przez obie kolumny jako jedna formatka — jedno mocowanie dla przedniego i tylnego">
+                                    <div data-el="mocowanie-przegrody-nizszej">
+                                      <Seg value={kolL.przegrodaNizszaMoc || "konfirmaty"}
+                                        onChange={(v) => editLevels((L) => { const k2 = L[lv.i].cols[dj]; if (v === "konfirmaty") delete k2.przegrodaNizszaMoc; else k2.przegrodaNizszaMoc = v; })}
+                                        options={[{ v: "konfirmaty", l: "Konfirmaty" }, { v: "wkrety", l: "Wkręty 4 × 30" }, { v: "trojkaty", l: "Trójkąty" }]} />
+                                    </div>
+                                  </Field>
+                                );
+                              })()}
                               {r.orient !== "vertical" && (
                                 <Field label="Mocowanie" hint={r.mocowanie === "wkrety"
                                   ? "wkręty 4 × 30 przez boki w czoło wzmocnienia, po 2 na koniec"
@@ -26041,6 +26267,13 @@ export default function App() {
               placeholder="np. idzie pod okno, uważać na rurę przy prawym boku"
               onChange={(e) => set({ note: e.target.value })}
               className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
+            {/* liczone z projektu — laczniki, ktore da sie skrecic tylko po kolei (AGENTS.md, 2026-11-08) */}
+            {(geo.montazKolejnosc || []).length > 0 && (
+              <div data-el="kolejnosc-montazu" className="mt-2 text-xs text-stone-600">
+                <div className="font-medium text-stone-700">Kolejność montażu (z projektu, idzie do PDF):</div>
+                {geo.montazKolejnosc.map((m, i) => <p key={i} className="mt-1">{m}</p>)}
+              </div>
+            )}
           </Card>
 
           {(errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0 || rozkrojUwagi.inne.length > 0) && (

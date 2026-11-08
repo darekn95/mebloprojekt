@@ -23,11 +23,30 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   60 mm: 15 i 45; szersze niż 132 mm — jak inne styki, 50 mm od krawędzi, co ok. 200 mm), w planie
   wierceń „konfirmat — wzmocnienie poziome / czołowe / tylne”. Pionowe przy boku (lico do lica) —
   wkręty 4 × 30, 4 na wzmocnienie. Koniec bez boku i przegrody (kątownik w rogu, ścianka wycięcia,
-  przelot) — wkręty. Przy przegrodzie z wzmocnieniem tej samej wysokości po drugiej stronie łączniki
-  prawej kolumny są o 15 mm dalej (otwory ⌀7 nie mogą się pokryć) — informacja w Uwagach z przyciskiem
-  „Ta kolumna na wkrętach 4 × 30” / „… na konfirmatach” (użytkownik 2026-11-08: „do wyboru na
-  przyciskach”); bliżej niż 10 mm — ostrzeżenie z „Wkręty 4 × 30”. W karcie wzmocnienia „Mocowanie: Konfirmaty / Wkręty 4 × 30” (wkręty — po 2 na
+  przelot) — wkręty. W karcie wzmocnienia „Mocowanie: Konfirmaty / Wkręty 4 × 30” (wkręty — po 2 na
   koniec, bez planu wierceń).
+- **Przegroda z wzmocnieniem tej samej wysokości po obu stronach** (użytkownik 2026-11-08): konfirmatów
+  (i wkrętów) przez przegrodę z obu stron nie da się skręcić po kolei — łby drugiej kolumny zasłania
+  wzmocnienie pierwszej. Domyślnie **trójkąty meblowe, po 2 na koniec** przy przegrodzie, lewa kolumna
+  na 1/5 i 3/5 szerokości wzmocnienia, prawa na 2/5 i 4/5 (100 mm: 20 i 60 / 40 i 80 — wkręty się
+  mijają; szersze niż 132 mm — 50 mm od krawędzi, prawa o 10 mm do środka). Ostrzeżenie z przyciskami:
+  - „Prawa na 1 konfirmacie” — prawe wzmocnienie na jednym łączniku w środku czoła, lewe na dwóch;
+    kolejność montażu (w karcie „Notatka montażowa” i na stronie szafki w PDF): przykręć prawe jednym
+    konfirmatem, obróć je na nim (leżące do pionu), zamontuj lewe (łby od strony prawej kolumny), obróć
+    prawe z powrotem i przykręć jego prawy koniec;
+  - „Przegroda niższa” (tylko górne wzmocnienia najwyższego poziomu) — przegroda o grubość płyty niżej,
+    nad nią jedno leżące wzmocnienie przez obie kolumny z przodu i z tyłu (tylne stojące kładzie się na
+    płask, „Przegroda do góry” przywraca). Formatka „Wzmocnienie poziome nad przegrodą” (długość obu
+    kolumn + przegroda), na styku nad przegrodą bez łączników. Przegroda przykręcona do wzmocnień od
+    góry — w karcie wzmocnienia „Przegroda N pod spodem”: konfirmaty 7 × 50 przez wzmocnienie w czoło
+    przegrody (1 na wzmocnienie 100 mm, w osi przegrody), wkręty 4 × 30 (2) albo trójkąty (po 1 z każdej
+    strony, 2/5 i 3/5 głębokości). Górne wzmocnienie, które kończy się na niższej przegrodzie (np. stojące)
+    — błąd;
+  - „Dwie przegrody, wspólne dno” / „… osobne dna” — dwie przegrody na styku (jak dwa boki), każda
+    kolumna na swoich konfirmatach; prawa kolumna z wpisaną szerokością traci grubość płyty;
+  - „Tak zostaje (trójkąty)” — informacja zamiast ostrzeżenia.
+- **Kolejność montażu** (AGENTS.md, 2026-11-08): każde łączenie sprawdzamy, czy da się je skręcić po kolei
+  i czy jest dostęp do łba łącznika; gdy nie — mówimy to i proponujemy rozwiązania (jak wyżej).
 - **Tylne wzmocnienie przy wycięciu i rurze** (decyzja użytkownika 2026-10-22):
   - wycięcie tylnego narożnika — wzmocnienie jest krótsze i kończy się na ściance wycięcia;
   - element kolizyjny (rura) — wzmocnienie stoi przed nim i dalej idzie od boku do boku.
