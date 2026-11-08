@@ -975,6 +975,20 @@ przerywane pod blatem (pomaranczowe, gdy cos przeszkadza).
 cyrki”): plyta bez pola wyciecia — wyciecie = kaseta + `WYC_LUZ` (3 mm z kazdej strony, przykladowo, do potwierdzenia);
 pola: szklo, kaseta szer. × glab., kaseta w dol od wierzchu blatu. Karta pokazuje wyciecie i polozenie kasety w blacie
 (od przodu 53, do tylu, w dol / pod blat) oraz uwage przy stojacym wzmocnieniu. Zlew bez zmian (wyciecie z szablonu).
+[AI-INFO] Wersja 12 (uwagi uzytkownika 2026-11-08): luz wyciecia 3 mm ustalony. Przelacznik rodzaju zabudowy
+(„przełącznik rodzaju”, a nie pelne pomieszczenia — te przyjda z aplikacji): Kuchnia / Szafa (bez blatu) / Szafka
+wolnostojaca; kazdy rodzaj ma swoj uklad (`rodzaj`, `inne`), wlasne wzory (`WZORY[k].rodz`), szafa bez AGD, blatu
+i ciagu gornego, szuflady w szafie na dole (220) pod drzwiami, klocek „Drążek na wieszaki” (`q.drazek`); wolnostojaca
+bez sciany, na nozkach, wysokosc `q.h`. Zakladki „Dodaj / zmień”, przypiete przy przewijaniu, podswietlenie po
+najechaniu tylko przy myszy (na dotyku zostawalo), „Szuflady” nad „Półkami”, klocek „1 szuflada”. Zlew z ociekaczem —
+ociekacz z lewej / z prawej. Szafki gorne klikalne: `gorne[id] = { y0, front, polki, przegroda, brak }`, karta (dol od
+podlogi, front, polki, przegroda, „Bez szafki górnej”), klocki (polki, przegroda, fronty) upuszczane tez na gorne.
+Lodowki: wolnostojaca — w × h × d + luzy (boki 50, nad 100, tyl 50 — typowo), miejsce = w + 2 × luz, „wystaje przed
+blat”; do zabudowy — wneki 88/102/122/140/158/178/194 (178 typowo), wlasna wysokosc wneki, front slizgowo / na stale /
+bez frontu, 1 albo 2 fronty (wysokosc dolnego), zawiasy L / P (symbol otwierania — wierzcholek po stronie zawiasu).
+Plyta i zlew: polozenie na blacie — od poczatku blatu (lewy koniec odcinka) do lewej krawedzi wyciecia i od przodu
+(`a.przes` od srodka szafki jak w aplikacji, `a.odPrzodu`), wymiar na rzucie z gory, kontrole: poza wnetrzem szafki,
+< 50 od poczatku / konca / tylu blatu, nachodzenie albo < 50 miedzy wycieciami.
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
 rant i kasete szer. × glab. × w dol (bryla pod blatem = kaseta, nie obrys wyciecia; wyciecie plyty = kaseta + luz),
