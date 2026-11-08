@@ -946,6 +946,9 @@ do ustalenia; uzytkownik: „kiedyś będzie musiało być ostrzeżeniem w aplik
 [AI-INFO] Wersja 5: w slupku „Góra do dołu szafek górnych” (gora wneki = dol szafek gornych 1400 — polka nad sprzetem
 w linii den szafek gornych, doly frontow w jednej linii; przerywana linia na rysunku), drugi sprzet zjezdza pod spod.
 To samo trzeba bedzie miec w aplikacji (wnęka w słupku: dół / pod blat / na wysokość blatu / do dołu szafek górnych).
+[AI-INFO] Wersja 6: kazda zmiana wysokosci w slupku przez `ustawWys` — drugi sprzet, ktory by nachodzil, sam zjezdza
+pod spod / nad (przerwa 35); „Razem” (`slupek.razem`) — piekarnik i mikrofala jako blok z polka 18 miedzy nimi,
+przesuwane razem (kotwica: dolny sprzet); „Zamień miejscami” zostawia dol bloku na miejscu.
 [AI-TODO] Ustalone z uzytkownikiem 2026-11-08: najpierw dopracowac makiete AGD (klocki od razu tylko, gdy wymiarowanie
 ich wymaga), potem w aplikacji nowy widok obok Zamk./Otw. — przód ciagu + blat z gory — z przelacznikami „AGD i zlew”
 (nazwa do ustalenia), „Ciąg górny” (domyslnie widoczny) i „Ciąg dolny”.

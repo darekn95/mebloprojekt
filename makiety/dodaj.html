@@ -382,8 +382,29 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const both = piek && mikr;
     const dol = both ? (q.zamiana ? mikr : piek) : piek || mikr, gora = both ? (dol === piek ? mikr : piek) : null;
     if (dol) { const y0 = dol.y0 ?? (both ? 700 : BLAT_Y); out[dol.id] = { y0, y1: y0 + rozm(dol).h }; }
-    if (gora) { const y0 = gora.y0 ?? out[dol.id].y1 + 35; out[gora.id] = { y0, y1: y0 + rozm(gora).h }; }
+    if (gora) { const y0 = q.razem ? out[dol.id].y1 + POLKA_SL : gora.y0 ?? out[dol.id].y1 + PRZERWA_SL; out[gora.id] = { y0, y1: y0 + rozm(gora).h }; }
     return out;
+  }
+  const POLKA_SL = 18, PRZERWA_SL = 35;   // razem: polka miedzy sprzetami; osobno: przerwa
+  /* Nowa wysokosc sprzetu w slupku (uzytkownik 2026-11-08: „piekarnik sam się powinien dostosować”): drugi sprzet,
+     ktory by nachodzil, przesuwa sie pod spod / nad; „Razem” — oba jak jeden blok z polka miedzy nimi. */
+  function ustawWys(ob, y0) {
+    const cab = ciag.find((q) => q.id === ob.cel);
+    if (!cab || !cab.tall) { ob.y0 = y0; return; }
+    const m = wnekiSlupka(cab);
+    const inny = wSzafce(cab.id).find((q) => q !== ob && (q.typ === "piekarnik" || q.typ === "mikrofala"));
+    if (!inny || !m[inny.id] || !m[ob.id]) { ob.y0 = y0; return; }
+    const obDolny = m[ob.id].y0 < m[inny.id].y0;
+    if (cab.razem) {
+      if (obDolny) { ob.y0 = y0; delete inny.y0; }
+      else { inny.y0 = y0 - POLKA_SL - rozm(inny).h; delete ob.y0; }
+      return;
+    }
+    ob.y0 = y0;
+    const y1 = y0 + rozm(ob).h, p = m[inny.id];
+    if (p.y1 > y0 - (obDolny ? 0 : 0) && p.y0 < y1) {
+      if (obDolny) inny.y0 = y1 + PRZERWA_SL; else inny.y0 = y0 - PRZERWA_SL - rozm(inny).h;
+    } else if (!obDolny && inny.y0 == null) inny.y0 = p.y0;   // dolny zostaje tam, gdzie byl
   }
   const nachodza = (m) => { const v = Object.values(m).sort((a, b) => a.y0 - b.y0); return v.some((a, i) => i && a.y0 < v[i - 1].y1) || v.some((a) => a.y1 > PL + SLUP - 10 || a.y0 < PL + 10); };
 
@@ -622,7 +643,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         const m = wnekiSlupka(cab), p = m[sel.id];
         const para = wSzafce(cab.id).filter((a) => a.typ === "piekarnik" || a.typ === "mikrofala").length === 2;
         h += etyk("Wysokość w słupku") + `<label for="wysWneki" style="font-size:12.5px">dół wnęki od podłogi</label><div class="wys"><button class="krok" data-wys="-50">−</button><input id="wysWneki" type="number" step="10" value="${p ? p.y0 : ""}"><button class="krok" data-wys="50">+</button><span>mm</span></div>`
-          + `<div class="rob"><button class="btn" data-akcja="nablat">Na wysokość blatu (dół ${BLAT_Y})</button><button class="btn" data-akcja="podblat">Pod blat (góra równo z blatem)</button><button class="btn" data-akcja="dogornych">Góra do dołu szafek górnych (${GORNE0})</button>${para ? `<button class="btn" data-akcja="zamien">Zamień miejscami z ${sel.typ === "piekarnik" ? "mikrofalą" : "piekarnikiem"}</button>` : ""}</div>`;
+          + `<div class="rob"><button class="btn" data-akcja="nablat">Na wysokość blatu (dół ${BLAT_Y})</button><button class="btn" data-akcja="podblat">Pod blat (góra równo z blatem)</button><button class="btn" data-akcja="dogornych">Góra do dołu szafek górnych (${GORNE0})</button>${para ? `<button class="btn" data-akcja="zamien">Zamień miejscami z ${sel.typ === "piekarnik" ? "mikrofalą" : "piekarnikiem"}</button><button class="btn${cab.razem ? " on" : ""}" data-akcja="razem" title="Piekarnik i mikrofala jako jeden blok: półka ${POLKA_SL} mm między nimi, przesuwają się razem">${cab.razem ? "Razem ✓ (półka między)" : "Razem — półka między, przesuwaj oba"}</button>` : ""}</div>`;
         if (nachodza(m)) h += `<p class="uwaga">Wnęki nachodzą na siebie albo wychodzą poza słupek — przesuń wysokość albo zamień miejscami.</p>`;
       }
       // mikrofala za wysoko (prog przykladowy — do ustalenia): ostrzezenie, w aplikacji tez kiedys
@@ -699,27 +720,34 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const wy = e.target.closest("[data-wys]");
     if (wy && zaznaczony) {
       const a = wnetrze.find((q) => q.id === zaznaczony), cab = a && ciag.find((q) => q.id === a.cel);
-      if (a && cab) { const p = wnekiSlupka(cab)[a.id]; a.y0 = Math.max(PL + 10, p.y0 + Number(wy.dataset.wys)); }
+      if (a && cab) { const p = wnekiSlupka(cab)[a.id]; ustawWys(a, Math.max(PL + 10, p.y0 + Number(wy.dataset.wys))); }
       odswiez(); return;
     }
     const ak = e.target.closest("[data-akcja]");
     if (ak) {
       const a = ak.dataset.akcja;
       const ob = wnetrze.find((q) => q.id === zaznaczony), cabS = ob && ciag.find((q) => q.id === ob.cel);
-      if (a === "nablat" && ob) ob.y0 = BLAT_Y;
+      if (a === "nablat" && ob) ustawWys(ob, BLAT_Y);
       // pod blat: gora sprzetu rowno z wierzchem blatu; sprzet nad nim wraca na swoje miejsce nad tym
-      if (a === "podblat" && ob) { ob.y0 = BLAT_Y - rozm(ob).h; wSzafce(ob.cel).forEach((q) => { if (q !== ob) delete q.y0; }); }
+      if (a === "podblat" && ob) ustawWys(ob, BLAT_Y - rozm(ob).h);
       // gora wneki = dol szafek gornych: polka nad sprzetem w linii ich den, doly frontow w jednej linii (uzytkownik 2026-11-08)
-      if (a === "dogornych" && ob) {
-        ob.y0 = GORNE0 - rozm(ob).h;
-        // drugi sprzet w slupku, ktory by nachodzil — zjezdza pod spod (35 mm przerwy)
-        const cabT = ciag.find((q) => q.id === ob.cel), m = cabT ? wnekiSlupka(cabT) : {};
-        wSzafce(ob.cel).filter((q) => q !== ob && m[q.id] && m[q.id].y1 > ob.y0 && m[q.id].y0 < GORNE0).forEach((q) => { q.y0 = ob.y0 - 35 - rozm(q).h; });
+      if (a === "dogornych" && ob) ustawWys(ob, GORNE0 - rozm(ob).h);
+      if (a === "razem" && cabS) {
+        // laczy w blok od dolnego sprzetu (gorny siada na polce nad nim) albo rozlacza (zostaja na miejscach)
+        const m = wnekiSlupka(cabS);
+        if (cabS.razem) { delete cabS.razem; Object.entries(m).forEach(([id, p]) => { const q = wnetrze.find((z) => z.id === id); if (q) q.y0 = p.y0; }); }
+        else { cabS.razem = true; const dol = Object.entries(m).sort((x, y) => x[1].y0 - y[1].y0)[0]; wSzafce(cabS.id).forEach((q) => { if (q.id === dol[0]) q.y0 = dol[1].y0; else delete q.y0; }); }
       }
       if (a === "szafkawyzej" && ob) gorne[ob.cel] = { y0: Number(ak.dataset.y) };
       if (a === "okapwyzej" && ob) ob.y0 = BLAT_Y + OKAP_MIN;
       // zamiana: wysokosci wracaja do domyslnych, kolejnosc odwrotna
-      if (a === "zamien" && cabS) { cabS.zamiana = !cabS.zamiana; wSzafce(cabS.id).forEach((q) => { delete q.y0; }); }
+      if (a === "zamien" && cabS) {
+        // zamiana: dol bloku zostaje tam, gdzie byl, sprzety zamieniaja sie kolejnoscia
+        const m = wnekiSlupka(cabS), dolY = Math.min(...Object.values(m).map((p) => p.y0));
+        cabS.zamiana = !cabS.zamiana; wSzafce(cabS.id).forEach((q) => { delete q.y0; });
+        const nowyDol = wSzafce(cabS.id).find((q) => q.typ === (cabS.zamiana ? "mikrofala" : "piekarnik"));
+        if (nowyDol && isFinite(dolY)) nowyDol.y0 = dolY;
+      }
       if (a === "anuluj") { wybranyTyp = null; przesuwany = null; }
       if (a === "przesun") { przesuwany = przesuwany === zaznaczony ? null : zaznaczony; wybranyTyp = null; }
       if (a === "usun" && zaznaczony) usun(zaznaczony);
@@ -732,7 +760,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   panel.addEventListener("change", (e) => {
     if (e.target.id !== "wysWneki" || !zaznaczony) return;
     const a = wnetrze.find((q) => q.id === zaznaczony), v = Math.round(Number(e.target.value));
-    if (a && v > 0) a.y0 = v;
+    if (a && v > 0) ustawWys(a, v);
     odswiez();
   });
   // przelaczniki widoku: AGD i zlew, ciag gorny / dolny (zawsze co najmniej jeden ciag)
