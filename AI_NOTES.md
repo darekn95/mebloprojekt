@@ -961,6 +961,19 @@ i wzmocnienia pod blat w slupkach, polki/przegroda w pelnych szufladach. Karta s
 zakladce, tez w AGD): szerokosc, front, polki −/+, przegroda, wzmocnienia, „Co zrobi program”, „Przesuń w ciągu”,
 „Usuń szafkę”. Przelacznik „Fronty” (wylaczony — wnetrze); na zakladkach polek, przegrody i wzmocnien wnetrze widac
 samo. Szafke przesuwa sie przeciagnieciem korpusu (`.szaf`, typ `szafkaPrzes`).
+[AI-INFO] Wersja 10 (uwagi uzytkownika 2026-11-08): zmywarka wolnostojaca (`zmywarkaW`, 60/45, „Pod blatem” — pokrywa
+zdjeta, ok. 815–820, blat nad nia / „Z własną pokrywą” — ok. 850, blat konczy sie przy boku; cokol ciagu z przerwa,
+bez frontu meblowego). Plyta i zlew: pola wymiarow z karty modelu (`a.wym` nadpisuje `ROZM`, wybor rozmiaru wraca do
+typowych): plyta — szklo sw × sd, kaseta z elektronika kw × kd, wyciecie ww × wd, wysokosc h od wierzchu blatu
+(typowo 51–54, slim 44 — Samsung / Electrolux Slim-Fit, z okapem w plycie 150–230, np. Samsung CC90H84 217);
+zlew — rant, wyciecie, glebokosc komory (typowo ok. 200, np. Franke UBG 611-78: 780 × 500, wyciecie 760 × 480,
+komora 220). Wyciecie 50 od przodu blatu. Kontrole w makiecie: wyciecie plyty szersze niz wnetrze szafki, kaseta
+wieksza niz wyciecie, szklo / rant nie zakrywa wyciecia, za malo blatu z tylu, kaseta / komora pod blatem a lezace
+wzmocnienie, szuflady (> 30 mm pod blatem), polka pod zlewem, plyta gleboka (> 120). Widok z przodu: kaseta i komora
+przerywane pod blatem (pomaranczowe, gdy cos przeszkadza).
+[AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
+do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
+rant i kasete (bryla pod blatem = kaseta, nie obrys wyciecia), zgodnie z polami makiety.
 [AI-TODO] Ustalone z uzytkownikiem 2026-11-08: makieta AGD i klocki gotowe do ogladania (v8; uzytkownik oglada i przysle
 uwagi przez „Wyślij do Claude”), potem w aplikacji nowy widok obok Zamk./Otw. — przód ciagu + blat z gory — z przelacznikami „AGD i zlew”
 (nazwa ustalona 2026-11-08: „Wyposażenie”), „Ciąg górny” (domyslnie widoczny) i „Ciąg dolny”.

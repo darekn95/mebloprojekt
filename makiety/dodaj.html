@@ -59,7 +59,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .sprzet:hover { border-color: var(--accent); }
 .sprzet[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .sprzet svg { grid-row: span 2; width: 34px; height: 34px; }
-.sprzet b { font-weight: 500; font-size: 13px; line-height: 1.2; }
+.sprzet b { font-weight: 500; font-size: 13px; line-height: 1.2; hyphens: auto; overflow-wrap: anywhere; }
 .sprzet span { font-size: 11px; color: var(--muted); line-height: 1.2; }
 
 .wybor { display: flex; align-items: center; gap: 8px; font-size: 12.5px; background: var(--accent-soft); border-radius: 6px; padding: 7px 8px; }
@@ -87,6 +87,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .karta .naglowek b { display: block; font-weight: 600; font-size: 14px; }
 .karta .naglowek span { display: block; font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
 .wys b { min-width: 1.6em; text-align: center; }
+.wym { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 8px; align-items: center; font-size: 12.5px; }
+.wym .para { display: flex; align-items: center; gap: 4px; }
+.wym i { font-style: normal; color: var(--muted); }
+.wym input { width: 60px; font: 500 13px var(--f-num); padding: 3px 5px; border: 1px solid var(--line); border-radius: 5px; background: var(--soft); color: var(--ink); }
+.wym input.wlasny { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; }
 .btn.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .btn:hover { border-color: var(--accent); }
@@ -169,7 +174,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   <span class="stan" id="stanWysylki">Makieta zapisuje się sama w tej przeglądarce. „Wyślij do Claude” — Claude zobaczy dokładnie ten układ.</span>
 </div>
 
-<div class="app">
+<div class="app" lang="pl">
   <nav class="tabs" role="tablist" aria-label="Dodaj">
     <div class="cap">Dodaj</div>
     <button class="tab" role="tab" data-tab="agd" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="7.5" y="9" width="9" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="8" y1="6" x2="16" y2="6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>AGD</button>
@@ -211,6 +216,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     mikrofala:{ nazwa: "Mikrofala", gdzie: "do słupka", grupa: "wneka" },
     lodowka:  { nazwa: "Lodówka do zabudowy", gdzie: "do słupka", grupa: "wneka" },
     zmywarka: { nazwa: "Zmywarka", bier: "zmywarkę", gdzie: "w ciąg, bez korpusu", grupa: "ciag", w: 600 },
+    zmywarkaW: { nazwa: "Zmywarka wolnostojąca", bier: "zmywarkę wolnostojącą", gdzie: "pod blat albo z pokrywą", grupa: "ciag", w: 600 },
     wolna:    { nazwa: "Lodówka wolnostojąca", bier: "lodówkę wolnostojącą", gdzie: "w ciąg, bez korpusu", grupa: "ciag", w: 600 },
     okap:     { nazwa: "Okap", gdzie: "pod szafkę, w szafkę, na ścianę", grupa: "gorne" },
   };
@@ -226,7 +232,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   const OKAP_MIN = 650, GORNE_GL = 320;
   /* Klocki (uzytkownik 2026-11-08: „budowa jak dla amatora”): szafki z miniatur wstawiane w ciag, a do szafki —
      polki, przegroda, wzmocnienia, fronty (drzwi / klapy / otwarta) i szuflady. Tylko makieta, bez obliczen. */
-  const AGD_TYPY = ["plyta", "zlew", "piekarnik", "mikrofala", "lodowka", "zmywarka", "wolna", "okap"];
+  const AGD_TYPY = ["plyta", "zlew", "piekarnik", "mikrofala", "lodowka", "zmywarka", "zmywarkaW", "wolna", "okap"];
   const WZORY = {
     sz_drzwi: { nazwa: "Dolna, 1 drzwi", gdzie: "450 mm", w: 450, front: "drzwi1", name: "Szafka 450" },
     sz_2drzwi: { nazwa: "Dolna, 2 drzwi", gdzie: "800 mm", w: 800, front: "drzwi2", name: "Szafka 800" },
@@ -247,28 +253,52 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   const MIKRO_MAX = 1300;   // dol mikrofali wyzej niz to — ostrzezenie (prog ustalony z uzytkownikiem 2026-11-08)
   /* Wymiary sprzetu do wyboru (makieta — wartosci przykladowe): w — szerokosc wyciecia / miejsca, h — wysokosc wneki */
   const ROZM = {
-    plyta: [{ k: "30", l: "30 cm", w: 270, h: 490 }, { k: "60", l: "60 cm", w: 560, h: 490 }, { k: "80", l: "80 cm", w: 750, h: 490 }, { k: "90", l: "90 cm", w: 840, h: 490 }],
-    zlew: [{ k: "1", l: "1 komora", w: 480, h: 420 }, { k: "1o", l: "z ociekaczem", w: 760, h: 420 }, { k: "2", l: "2 komory", w: 820, h: 420 }],
+    /* plyta: sw × sd szklo (na blacie), kw × kd kaseta z elektronika (pod blatem), ww × wd wyciecie, h wysokosc zabudowy
+       od wierzchu blatu w dol. Typowo (karty Bosch / Neff / Electrolux / Samsung, 2026-11): 60 cm — szklo ok. 590 × 520,
+       wyciecie 560 × 490, wysokosc 51–54; „slim” 44; z okapem w plycie ok. 150–230 pod blatem. Kaseta — przykladowo
+       wyciecie − 6. Wartosci przykladowe — wpisuje sie z karty modelu. */
+    plyta: [{ k: "30", l: "30 cm", sw: 290, sd: 520, kw: 262, kd: 484, ww: 268, wd: 490, h: 51 },
+      { k: "60", l: "60 cm", sw: 590, sd: 520, kw: 554, kd: 484, ww: 560, wd: 490, h: 51 },
+      { k: "60s", l: "60 cm slim", sw: 590, sd: 520, kw: 554, kd: 484, ww: 560, wd: 490, h: 44 },
+      { k: "80", l: "80 cm", sw: 800, sd: 520, kw: 744, kd: 484, ww: 750, wd: 490, h: 51 },
+      { k: "90", l: "90 cm", sw: 900, sd: 520, kw: 854, kd: 484, ww: 860, wd: 490, h: 51 },
+      { k: "80o", l: "80 z okapem", sw: 830, sd: 520, kw: 754, kd: 484, ww: 760, wd: 490, h: 230 }],
+    /* zlew: sw × sd rant na blacie, ww × wd wyciecie (z szablonu), h glebokosc komory od wierzchu blatu (typowo ok. 200;
+       np. 780 × 500, wyciecie 760 × 480, komora 220 — Franke UBG 611-78) */
+    zlew: [{ k: "1", l: "1 komora", sw: 500, sd: 500, ww: 480, wd: 480, h: 200 },
+      { k: "1o", l: "z ociekaczem", sw: 780, sd: 500, ww: 760, wd: 480, h: 200 },
+      { k: "2", l: "2 komory", sw: 860, sd: 500, ww: 840, wd: 480, h: 200 }],
     piekarnik: [{ k: "60", l: "60 cm", h: 595 }, { k: "45", l: "kompakt 45", h: 455 }],
     mikrofala: [{ k: "38", l: "38 cm", h: 380 }, { k: "45", l: "45 cm", h: 455 }],
     lodowka: [{ k: "178", l: "178 cm", h: 1780 }, { k: "122", l: "122 cm", h: 1220 }],
     zmywarka: [{ k: "60", l: "60 cm", w: 600 }, { k: "45", l: "45 cm", w: 450 }],
+    zmywarkaW: [{ k: "60", l: "60 cm", w: 600 }, { k: "45", l: "45 cm", w: 450 }],
     wolna: [{ k: "60", l: "60 cm", w: 600 }, { k: "70", l: "70 cm", w: 700 }, { k: "90", l: "90 cm (side by side)", w: 900 }],
     okap: [{ k: "60", l: "60 cm", w: 600 }, { k: "90", l: "90 cm", w: 900 }, { k: "50", l: "50 cm", w: 500 }],
   };
   ["sz_drzwi", "sz_2drzwi", "sz_szuflady", "sz_zlew", "sz_slupek"].forEach((k) => { ROZM[k] = [{ k: "w", l: "", w: { sz_drzwi: 450, sz_2drzwi: 800, sz_szuflady: 600, sz_zlew: 800, sz_slupek: 600 }[k] }]; });
   ROZM.szafkaPrzes = [{ k: "w", l: "", w: 600 }];
-  const rozm = (a) => ROZM[a.typ].find((r) => r.k === a.rozm) || ROZM[a.typ][a.typ === "plyta" ? 1 : 0];
+  const rozm = (a) => ROZM[a.typ].find((r) => r.k === a.rozm) || ROZM[a.typ][a.typ === "plyta" || a.typ === "zlew" ? 1 : 0];   // plyta 60, zlew z ociekaczem
+  // wymiary z wlasnymi poprawkami (`a.wym`) — pola z karty modelu; wybor rozmiaru wraca do typowych
+  const wym = (a) => ({ ...rozm(a), ...(a.wym || {}) });
+  const WYM_POLA = {
+    plyta: [["Szkło na blacie", "sw", "sd"], ["Kaseta pod blatem", "kw", "kd"], ["Wycięcie w blacie", "ww", "wd"], ["Wysokość od wierzchu blatu", "h"]],
+    zlew: [["Rant na blacie", "sw", "sd"], ["Wycięcie w blacie", "ww", "wd"], ["Głębokość komory od wierzchu blatu", "h"]],
+  };
+  const WYC_OD_PRZODU = 50;   // wyciecie od przedniej krawedzi blatu (jak w aplikacji)
   const BLAT_Y = PL0 + KOR0 + BLAT0;   // wierzch blatu od podlogi
   let widok = { agd: true, gorny: true, dolny: true, fronty: true };
   const CO_ZROBI = {
-    plyta: (c) => `Wycięcie w blacie nad szafką „${c}”, na środku szafki, 50 mm od przodu blatu. Program sprawdzi, czy korpus płyty nie wchodzi w szuflady albo leżące wzmocnienie pod blatem — jeśli wchodzi, zaproponuje wzmocnienie stojące.`,
-    zlew: (c) => `Wycięcie pod zlew nad szafką „${c}”. Komora zlewu sięga pod blat — program sprawdzi półki i szuflady pod nią.`,
+    plyta: (c, a) => { const m = wym(a || { typ: "plyta" }); return `Wycięcie ${m.ww} × ${m.wd} mm w blacie nad szafką „${c}”, na środku szafki, ${WYC_OD_PRZODU} mm od przodu blatu. Szkło ${m.sw} × ${m.sd} leży na blacie, kaseta ${m.kw} × ${m.kd} schodzi ${m.h} mm od wierzchu blatu (${Math.max(0, m.h - BLAT0)} mm pod blat). Program sprawdzi, czy kaseta nie wchodzi w szuflady albo leżące wzmocnienie — jeśli wchodzi, zaproponuje wzmocnienie stojące albo wycięcie we wzmocnieniu.`; },
+    zlew: (c, a) => { const m = wym(a || { typ: "zlew" }); return `Wycięcie ${m.ww} × ${m.wd} mm pod zlew nad szafką „${c}”, ${WYC_OD_PRZODU} mm od przodu blatu; rant ${m.sw} × ${m.sd} leży na blacie. Komora schodzi ${m.h} mm od wierzchu blatu (${Math.max(0, m.h - BLAT0)} mm pod blat) — program sprawdzi półki i szuflady pod nią.`; },
     piekarnik: (c) => `Wnęka na piekarnik w szafce „${c}”: front skraca się o wnękę, pod piekarnikiem zostaje szuflada albo blenda.`,
     mikrofala: (c) => `Wnęka na mikrofalę w słupku „${c}”, nad piekarnikiem albo na wysokości oczu; nad nią drzwi.`,
     lodowka: (c) => `Wnęka na lodówkę w słupku „${c}”, front meblowy na drzwiach lodówki (zawiasy z kompletu lodówki).`,
     zmywarka: () => `Miejsce w ciągu bez korpusu: front meblowy na zmywarce, cokół z przerwą, blat idzie nad nią.`,
     wolna: () => `Miejsce w ciągu bez korpusu: luz po bokach na wentylację, blat i cokół kończą się przed lodówką.`,
+    zmywarkaW: (c, a) => (a && a.pokrywa
+      ? `Zmywarka z własną pokrywą (ok. 845–850 mm): blat kończy się przy jej boku, cokół ciągu ma przerwę. Bez korpusu i bez frontu meblowego — w zamówieniu nic do niej.`
+      : `Zmywarka pod blatem: zdejmujesz jej pokrywę (zostaje ok. 815–820 mm), blat idzie nad nią, cokół ciągu ma przerwę (drzwi i listwa zmywarki sięgają podłogi). Bez korpusu i bez frontu meblowego — w zamówieniu nic do niej.`),
     okap: (c, a) => ({
       podszafkowy: `Okap przykręcany pod dnem szafki górnej nad „${c}”; w dnie i w półkach szafki otwór na rurę wyciągu (albo filtr węglowy).`,
       teleskopowy: `Okap w dnie szafki górnej nad „${c}”: szafka bez dna, wysuwany panel okapu z przodu, nad nim drzwi; otwór na rurę w półkach i wieńcu.`,
@@ -312,6 +342,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     okap: '<path d="M10 4 h14 v8 l6 8 v4 H4 v-4 l6 -8 z" fill="var(--steel)" stroke="var(--metal)" stroke-width="1.2"/><line x1="7" y1="22" x2="27" y2="22" stroke="var(--metal)" stroke-width="1.2"/><circle cx="12" cy="27" r="1.3" fill="var(--accent)"/><circle cx="17" cy="27" r="1.3" fill="var(--accent)"/><circle cx="22" cy="27" r="1.3" fill="var(--accent)"/>',
     lodowka: '<rect x="7" y="2" width="20" height="30" rx="1.5" fill="var(--board)" stroke="var(--ink)" stroke-width="1.2"/><line x1="7" y1="20" x2="27" y2="20" stroke="var(--ink)" stroke-width="1.2"/><path d="M17 8 v6 M14.4 9.5 l5.2 3 M19.6 9.5 l-5.2 3" stroke="var(--accent)" stroke-width="1.3" stroke-linecap="round"/>',
     zmywarka: '<rect x="4" y="3" width="26" height="28" rx="1.5" fill="var(--board)" stroke="var(--ink)" stroke-width="1.2"/><rect x="8" y="9" width="18" height="18" rx="1" fill="none" stroke="var(--metal)" stroke-width="1.1" stroke-dasharray="2.2 1.8"/><path d="M12 15 q2.5 -3 5 0 t5 0 M12 20 q2.5 -3 5 0 t5 0" fill="none" stroke="var(--accent)" stroke-width="1.2"/>',
+    zmywarkaW: '<rect x="4" y="3" width="26" height="28" rx="2" fill="var(--steel)" stroke="var(--metal)" stroke-width="1.2"/><rect x="4" y="3" width="26" height="6" fill="var(--metal)"/><circle cx="26" cy="6" r="1.3" fill="var(--accent)"/><rect x="4" y="27" width="26" height="4" fill="var(--metal)" opacity=".5"/><line x1="12" y1="13" x2="22" y2="13" stroke="var(--metal)" stroke-width="1.6" stroke-linecap="round"/>',
     wolna: '<rect x="8" y="1.5" width="18" height="31" rx="4" fill="var(--steel)" stroke="var(--metal)" stroke-width="1.1"/><line x1="8" y1="13" x2="26" y2="13" stroke="var(--metal)" stroke-width="1.1"/><line x1="11" y1="5" x2="11" y2="10" stroke="var(--metal)" stroke-width="1.6" stroke-linecap="round"/><line x1="11" y1="16" x2="11" y2="24" stroke="var(--metal)" stroke-width="1.6" stroke-linecap="round"/>',
   };
   // miniatury szafek i ikony klockow (34 × 34)
@@ -398,8 +429,19 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   }
 
   // pozycja ciagu z szafka gorna nad soba (dolna szafka albo zmywarka); geometria szafki gornej i okapu
+  /* Pod plyta / komora zlewu (makieta — dokladnie liczy aplikacja): lezace wzmocnienie, szuflady, polki, plyta gleboka */
+  function podBlatemUwagi(a, q) {
+    const m = wym(a), pod = m.h - BLAT, out = [];
+    if (!q || pod <= 0) return out;
+    const co = a.typ === "plyta" ? "Kaseta płyty" : "Komora zlewu";
+    if ((q.wzm || []).includes("lezace")) out.push(`${co} schodzi ${pod} mm pod blat i wchodzi w leżące wzmocnienie — program zaproponuje stojące albo wycięcie we wzmocnieniu.`);
+    if (q.drawers && pod > 30) out.push(`${co} schodzi ${pod} mm pod blat — górna szuflada musi być niżej albo krótsza (wymiary z instrukcji modelu).`);
+    if (q.polki && a.typ === "zlew") out.push(`Półka pod zlewem — musi być niżej niż komora (${pod} mm pod blatem) i syfon.`);
+    if (a.typ === "plyta" && m.h > 120) out.push(`Płyta głęboka (${m.h} mm, np. z okapem w płycie) — górna szuflada odpada albo jest skrócona, przy wyciągu na zewnątrz kanał idzie przez szafkę; wymiary z instrukcji modelu.`);
+    return out;
+  }
   const zeSprzetem = (q) => wSzafce(q.id).some((a) => SPRZETY[a.typ].grupa === "wneka");
-  const maGorna = (q) => (q.kind === "cab" && !q.tall) || q.typ === "zmywarka";
+  const maGorna = (q) => (q.kind === "cab" && !q.tall) || q.typ === "zmywarka" || q.typ === "zmywarkaW";
   const okapNad = (id) => wnetrze.find((a) => a.typ === "okap" && a.cel === id);
   const gornaGeo = (id) => { const y0 = (gorne[id] || {}).y0 ?? GORNE0; return { y0, y1: GORNE0 + GORNE }; };
   function okapGeo(a, q) {
@@ -446,7 +488,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if (przesuwany === id) przesuwany = null;
   }
   const wszystkie = () => [
-    ...wnetrze.map((a) => ({ id: a.id, typ: a.typ, gdzie: (a.typ === "okap" ? `${OKAP[a.rodzaj || "podszafkowy"].l}, nad „${nazwaCelu(a.cel) || "zmywarką"}”` : SPRZETY[a.typ].grupa === "blat" ? `nad szafką „${nazwaCelu(a.cel)}”` : `w „${nazwaCelu(a.cel)}”`) + ` · ${rozm(a).l}`, cel: a.cel, przyklad: a.przyklad })),
+    ...wnetrze.map((a) => ({ id: a.id, typ: a.typ, gdzie: (a.typ === "okap" ? `${OKAP[a.rodzaj || "podszafkowy"].l}, nad „${nazwaCelu(a.cel) || "zmywarką"}”` : SPRZETY[a.typ].grupa === "blat" ? `nad szafką „${nazwaCelu(a.cel)}”` : `w „${nazwaCelu(a.cel)}”`) + ` · ${rozm(a).l}${a.wym ? " (własne wymiary)" : ""}`, cel: a.cel, przyklad: a.przyklad })),
     ...uklad().filter((s) => s.kind === "app").map((s) => {
       const L = uklad(), i = L.findIndex((q) => q.id === s.id);
       const lewa = L[i - 1], prawa = L[i + 1];
@@ -561,35 +603,37 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       + `<line x1="${W + 20}" y1="${yEl(1080)}" x2="${sciana - 20}" y2="${yEl(1080)}" stroke="var(--muted)" stroke-width="4" stroke-dasharray="16 12"/>`;
     // blat z gory: odcinki nad szafkami dolnymi i zmywarka
     let odc = null; const odcinki = [];
-    L.forEach((q) => { const podBlatem = (q.kind === "cab" && !q.tall) || q.typ === "zmywarka"; if (podBlatem) { if (!odc) odc = { x0: q.x, x1: q.x + q.w }; else odc.x1 = q.x + q.w; } else if (odc) { odcinki.push(odc); odc = null; } });
+    L.forEach((q) => { const podBlatem = (q.kind === "cab" && !q.tall) || q.typ === "zmywarka" || (q.typ === "zmywarkaW" && !q.pokrywa); if (podBlatem) { if (!odc) odc = { x0: q.x, x1: q.x + q.w }; else odc.x1 = q.x + q.w; } else if (odc) { odcinki.push(odc); odc = null; } });
     if (odc) odcinki.push(odc);
     if (widok.dolny) odcinki.forEach((o) => { s += `<rect x="${o.x0}" y="${Y_TOP}" width="${o.x1 - o.x0}" height="${GL}" fill="var(--top)" opacity=".35" stroke="var(--top)" stroke-width="6"/>`; });
     if (widok.dolny) L.forEach((q) => {
-      if (q.tall || q.typ === "wolna") s += `<rect x="${q.x}" y="${Y_TOP}" width="${q.w}" height="${GL}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/><text x="${q.x + q.w / 2}" y="${Y_TOP + GL / 2 + 22}" font-size="58" text-anchor="middle" fill="var(--muted)">${q.tall ? "słupek" : "lodówka"}</text>`;
+      if (q.tall || q.typ === "wolna" || (q.typ === "zmywarkaW" && q.pokrywa)) s += `<rect x="${q.x}" y="${Y_TOP}" width="${q.w}" height="${GL}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/><text x="${q.x + q.w / 2}" y="${Y_TOP + GL / 2 + 22}" font-size="58" text-anchor="middle" fill="var(--muted)">${q.tall ? "słupek" : q.typ === "wolna" ? "lodówka" : "zmywarka"}</text>`;
     });
     // sprzet na blacie (z gory)
     if (widok.dolny) wnetrze.filter((a) => SPRZETY[a.typ].grupa === "blat").forEach((a) => {
       const q = L.find((z) => z.id === a.cel); if (!q) return;
       const cx = q.x + q.w / 2, zazn = a.id === zaznaczony;
       const ruch = drag && drag.id === a.id ? ' opacity=".35"' : "";
-      const r = rozm(a), zaSzeroki = r.w > q.w - 60;
+      const r = wym(a), zaSzeroki = a.typ === "plyta" && r.ww > q.w - 36;
+      const wy0 = Y_TOP + GL - WYC_OD_PRZODU - r.wd, ny0 = wy0 - (r.sd - r.wd) / 2;   // wyciecie i szklo / rant
       if (!widok.agd || zaSzeroki) {
         // wyciecie w blacie (bez sprzetu) — i za szerokie: na pomaranczowo
-        const w = r.w, h = r.h, x = cx - w / 2, y = Y_TOP + (GL - h) / 2;
+        const w = r.ww, h = r.wd, x = cx - w / 2, y = wy0;
         s += `<g data-id="${a.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="${zaSzeroki ? "url(#kreski)" : "var(--panel)"}" stroke="${zazn ? "var(--accent)" : zaSzeroki ? "var(--warn)" : "var(--ink)"}" stroke-width="${zazn ? 14 : 6}" stroke-dasharray="${widok.agd ? "none" : "26 16"}"/>`
           + `<text class="mm" x="${cx}" y="${y + h / 2 - 8}" font-size="44" text-anchor="middle" fill="${zaSzeroki ? "var(--warn)" : "var(--muted)"}">${zaSzeroki ? "szersze" : "wycięcie"}</text>`
           + `<text class="mm" x="${cx}" y="${y + h / 2 + 46}" font-size="44" text-anchor="middle" fill="${zaSzeroki ? "var(--warn)" : "var(--muted)"}">${zaSzeroki ? "niż szafka" : `${w} × ${h}`}</text></g>`;
         return;
       }
       if (a.typ === "plyta") {
-        const w = r.w, h = r.h, x = cx - w / 2, y = Y_TOP + 50;
+        const w = r.sw, h = r.sd, x = cx - w / 2, y = ny0;
         s += `<g data-id="${a.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="22" fill="var(--glass)" stroke="${zazn ? "var(--accent)" : "none"}" stroke-width="14"/>`
-          + [[0.3, 0.3, 80], [0.7, 0.3, 62], [0.3, 0.72, 62], [0.7, 0.72, 80]].map(([fx, fy, r]) => `<circle cx="${x + w * fx}" cy="${y + h * fy}" r="${r}" fill="none" stroke="var(--steel)" stroke-width="7"/>`).join("") + `</g>`;
+          + [[0.3, 0.3, 80], [0.7, 0.3, 62], [0.3, 0.72, 62], [0.7, 0.72, 80]].map(([fx, fy, r]) => `<circle cx="${x + w * fx}" cy="${y + h * fy}" r="${r}" fill="none" stroke="var(--steel)" stroke-width="7"/>`).join("")
+          + (zazn ? `<rect x="${cx - r.kw / 2}" y="${wy0 + (r.wd - r.kd) / 2}" width="${r.kw}" height="${r.kd}" fill="none" stroke="var(--accent)" stroke-width="5" stroke-dasharray="18 12"/>` : "") + `</g>`;
       } else {
-        const w = r.w, h = r.h, x = cx - w / 2, y = Y_TOP + 70;
+        const w = r.sw, h = r.sd, x = cx - w / 2, y = ny0;
         s += `<g data-id="${a.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="40" fill="var(--steel)" stroke="${zazn ? "var(--accent)" : "var(--metal)"}" stroke-width="${zazn ? 14 : 5}"/>`
-          + (a.rozm === "2" ? [0, 1].map((k) => `<rect x="${x + 30 + k * (w - 60) / 2}" y="${y + 40}" width="${(w - 60) / 2 - 10}" height="${h - 80}" rx="26" fill="var(--panel)" stroke="var(--metal)" stroke-width="5"/>`).join("")
-            : a.rozm === "1o" ? `<rect x="${x + 40}" y="${y + 40}" width="${w * 0.48}" height="${h - 80}" rx="30" fill="var(--panel)" stroke="var(--metal)" stroke-width="5"/>` + [0, 1, 2, 3, 4].map((k) => `<line x1="${x + w * 0.58}" y1="${y + 80 + k * 60}" x2="${x + w - 50}" y2="${y + 80 + k * 60}" stroke="var(--metal)" stroke-width="5"/>`).join("")
+          + (rozm(a).k === "2" ? [0, 1].map((k) => `<rect x="${x + 30 + k * (w - 60) / 2}" y="${y + 40}" width="${(w - 60) / 2 - 10}" height="${h - 80}" rx="26" fill="var(--panel)" stroke="var(--metal)" stroke-width="5"/>`).join("")
+            : rozm(a).k === "1o" ? `<rect x="${x + 40}" y="${y + 40}" width="${w * 0.48}" height="${h - 80}" rx="30" fill="var(--panel)" stroke="var(--metal)" stroke-width="5"/>` + [0, 1, 2, 3, 4].map((k) => `<line x1="${x + w * 0.58}" y1="${y + 80 + k * 60}" x2="${x + w - 50}" y2="${y + 80 + k * 60}" stroke="var(--metal)" stroke-width="5"/>`).join("")
             : `<rect x="${x + 40}" y="${y + 40}" width="${w - 80}" height="${h - 80}" rx="30" fill="var(--panel)" stroke="var(--metal)" stroke-width="5"/><circle cx="${cx}" cy="${y + h / 2}" r="26" fill="var(--metal)"/>`) + `</g>`;
       }
     });
@@ -687,7 +731,14 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         else s += `<g pointer-events="none">${frontySzafki(q, x, w, PL, PL + KOR, drzwi, wnetrzeWidok)}</g>`;
         // zlew: bateria nad blatem, plyta: cienka plyta na blacie
         if (widok.agd) jest.filter((a) => a.typ === "zlew").forEach(() => { const cx = x + w / 2; s += `<path d="M${cx + 60} ${yEl(PL + KOR + BLAT)} v-240 q0 -60 -60 -60 h-110" fill="none" stroke="var(--metal)" stroke-width="22" stroke-linecap="round"/>`; });
-        if (widok.agd) jest.filter((a) => a.typ === "plyta").forEach((a) => { const cw = Math.min(rozm(a).w, w); s += `<rect x="${x + (w - cw) / 2}" y="${yEl(PL + KOR + BLAT) - 10}" width="${cw}" height="10" fill="var(--glass)"/>`; });
+        if (widok.agd) jest.filter((a) => a.typ === "plyta").forEach((a) => { const cw = wym(a).sw; s += `<rect x="${x + (w - cw) / 2}" y="${yEl(PL + KOR + BLAT) - 10}" width="${cw}" height="10" fill="var(--glass)"/>`; });
+        // pod blatem: kaseta plyty / komora zlewu — przerywane; pomaranczowo, gdy cos pod nimi przeszkadza
+        if (widok.agd) jest.filter((a) => SPRZETY[a.typ].grupa === "blat").forEach((a) => {
+          const m = wym(a), cx = x + w / 2, gora = yEl(PL + KOR + BLAT), kol = podBlatemUwagi(a, q).length ? "var(--warn)" : "var(--metal)";
+          const kom = a.typ === "plyta" ? [[cx - m.kw / 2, m.kw]] : rozm(a).k === "2" ? [[cx - (m.ww - 60) / 2, (m.ww - 80) / 2], [cx + 10, (m.ww - 80) / 2]] : rozm(a).k === "1o" ? [[cx - m.ww / 2 + 30, m.ww * 0.5]] : [[cx - (m.ww - 60) / 2, m.ww - 60]];
+          kom.forEach(([kx, kw]) => { s += `<rect pointer-events="none" x="${kx}" y="${gora}" width="${kw}" height="${m.h}" rx="${a.typ === "zlew" ? 16 : 0}" fill="none" stroke="${kol}" stroke-width="5" stroke-dasharray="16 10"/>`; });
+          if (m.h > 80) s += `<text class="mm" pointer-events="none" x="${kom[0][0] + 14}" y="${gora + m.h - 16}" font-size="36" fill="${kol}">${m.h}</text>`;
+        });
         s += `<text x="${x + w / 2}" y="${yEl(0) + 80}" font-size="54" text-anchor="middle" fill="var(--muted)">${q.name}</text>`;
       } else {
         const zazn = q.id === zaznaczony, ruch = drag && drag.id === q.id ? ' opacity=".35"' : "";
@@ -695,6 +746,15 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
           const hh = q.typ === "wolna" ? 1850 : PL + KOR;
           s += `<g data-id="${q.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x + 6}" y="${yEl(hh)}" width="${w - 12}" height="${hh}" fill="var(--wall)" stroke="${zazn ? "var(--accent)" : "var(--ink)"}" stroke-width="${zazn ? 14 : 5}" stroke-dasharray="24 14"/>`
             + `<text class="mm" x="${x + w / 2}" y="${yEl(hh / 2)}" font-size="50" text-anchor="middle" fill="var(--muted)">miejsce ${w}</text></g>`;
+        } else if (q.typ === "zmywarkaW") {
+          // wolnostojaca: wlasne drzwi z panelem u gory i listwa przy podlodze; bez pokrywy pod blatem (820), z pokrywa 850
+          const hh = q.pokrywa ? 850 : PL + KOR, pas = q.pokrywa ? 30 : 0;
+          s += `<g data-id="${q.id}" class="post" style="cursor:grab;touch-action:none"${ruch}>`
+            + `<rect x="${x + 6}" y="${yEl(hh)}" width="${w - 12}" height="${hh - 8}" rx="8" fill="var(--steel)" stroke="${zazn ? "var(--accent)" : "var(--metal)"}" stroke-width="${zazn ? 14 : 5}"/>`
+            + (q.pokrywa ? `<rect x="${x + 2}" y="${yEl(hh)}" width="${w - 4}" height="${pas}" fill="var(--board)" stroke="var(--ink)" stroke-width="3"/>` : "")
+            + `<rect x="${x + 6}" y="${yEl(hh) + pas}" width="${w - 12}" height="80" fill="var(--metal)" opacity=".75"/><circle cx="${x + w - 70}" cy="${yEl(hh) + pas + 40}" r="14" fill="var(--accent)"/>`
+            + `<rect x="${x + 6}" y="${yEl(90)}" width="${w - 12}" height="82" fill="var(--metal)" opacity=".45"/>`
+            + `<text x="${x + w / 2}" y="${yEl(hh / 2) + 20}" font-size="54" text-anchor="middle" fill="var(--metal)">zmywarka</text></g>`;
         } else if (q.typ === "zmywarka") {
           s += `<g data-id="${q.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x}" y="${yEl(PL)}" width="${w}" height="${PL}" fill="var(--plinth)" stroke="var(--ink)" stroke-width="4" stroke-dasharray="18 12"/>`
             + `<rect x="${x + 4}" y="${yEl(PL + KOR)}" width="${w - 8}" height="${KOR}" fill="var(--board)" stroke="${zazn ? "var(--accent)" : "var(--ink)"}" stroke-width="${zazn ? 14 : 6}"/>`
@@ -705,7 +765,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
             + `<line x1="${x + 15}" y1="${yEl(1200)}" x2="${x + w - 15}" y2="${yEl(1200)}" stroke="var(--metal)" stroke-width="5"/><line x1="${x + 70}" y1="${yEl(1100)}" x2="${x + 70}" y2="${yEl(800)}" stroke="var(--metal)" stroke-width="16" stroke-linecap="round"/>`
             + `<text x="${x + w / 2}" y="${yEl(1500)}" font-size="58" text-anchor="middle" fill="var(--muted)">lodówka</text></g>`;
         }
-        s += `<text x="${x + w / 2}" y="${yEl(0) + 80}" font-size="54" text-anchor="middle" fill="var(--muted)">${SPRZETY[q.typ].nazwa.split(" ")[0]}</text>`;
+        s += `<text x="${x + w / 2}" y="${yEl(0) + 80}" font-size="54" text-anchor="middle" fill="var(--muted)">${q.typ === "zmywarkaW" ? "Zmyw. wolnost." : SPRZETY[q.typ].nazwa.split(" ")[0]}</text>`;
       }
     });
     if (liniaOkapu) liniaGornych = true;
@@ -758,14 +818,32 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       : `<div class="pusto">Nic jeszcze nie stoi. Przeciągnij pierwszy sprzęt na rysunek.</div>`;
     h += `</div>`;
     if (sel) {
-      const opis = CO_ZROBI[sel.typ](nazwaCelu(sel.cel) || "zmywarką", wnetrze.find((a) => a.id === sel.id));
+      const opis = CO_ZROBI[sel.typ](nazwaCelu(sel.cel) || "zmywarką", wnetrze.find((a) => a.id === sel.id) || ciag.find((q) => q.id === sel.id));
       const obj = wnetrze.find((a) => a.id === sel.id) || ciag.find((q) => q.id === sel.id);
       const cab = sel.cel && ciag.find((q) => q.id === sel.cel);
       const r = rozm(obj);
       const etyk = (t) => `<h3 style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500">${t}</h3>`;
       h += `<div class="szczegol">${etyk("Wymiar")}<div class="rozm">` + ROZM[sel.typ].map((q) => `<button data-rozm="${q.k}" aria-pressed="${q.k === r.k}">${q.l}</button>`).join("") + `</div>`;
-      if (SPRZETY[sel.typ].grupa === "blat" && cab && r.w > cab.w - 60)
-        h += `<p class="uwaga">Wycięcie ${r.w} mm jest szersze niż szafka ${cab.w} mm — program pokaże błąd i zaproponuje szerszą szafkę albo mniejszy sprzęt.</p>`;
+      if (WYM_POLA[sel.typ]) {
+        // wymiary z karty modelu (uzytkownik 2026-11-08: szklo / kaseta / wysokosc plyty, wymiary zlewu)
+        const ob = wnetrze.find((a) => a.id === sel.id), m = wym(ob);
+        const pole = (k, l) => `<input type="number" min="0" step="1" inputmode="numeric" data-wym="${k}" value="${m[k]}" aria-label="${l}"${ob.wym && ob.wym[k] != null ? ' class="wlasny"' : ""}>`;
+        h += etyk("Wymiary z karty modelu") + `<div class="wym">` + WYM_POLA[sel.typ].map(([l, k1, k2]) =>
+          `<span>${l}</span><span class="para">${pole(k1, l + (k2 ? " — szerokość" : ""))}${k2 ? `<i>×</i>${pole(k2, l + " — głębokość")}` : ""}<i>mm</i></span>`).join("") + `</div>`;
+        h += `<p class="hint">Typowe „${r.l}” — wpisz liczby z karty swojego modelu (szer. × głęb.). ${sel.typ === "plyta" ? "Kaseta to część z elektroniką pod szkłem. Wysokość: slim ok. 44 mm, zwykłe 51–54, z okapem w płycie 150–230." : "Komora zwykle 180–220 mm."}</p>`;
+        if (ob.wym) h += `<div class="rob"><button class="btn" data-akcja="wymtyp">Wróć do typowych („${r.l}”)</button></div>`;
+        const uw = [];
+        if (cab && m.ww > cab.w - 36) uw.push(sel.typ === "plyta" ? `Wycięcie ${m.ww} mm szersze niż wnętrze szafki (${cab.w - 36} mm) — kaseta oprze się na bokach; daj szerszą szafkę albo mniejszą płytę.` : `Wycięcie ${m.ww} mm wychodzi nad bok szafki (wnętrze ${cab.w - 36} mm) — komora musi być nad wnętrzem, ociekacz może wisieć nad sąsiednią.`);
+        if (sel.typ === "plyta" && (m.kw > m.ww || m.kd > m.wd)) uw.push(`Kaseta ${m.kw} × ${m.kd} większa niż wycięcie ${m.ww} × ${m.wd} — płyta nie wejdzie w otwór.`);
+        if (m.sw <= m.ww || m.sd <= m.wd) uw.push(`${sel.typ === "plyta" ? "Szkło" : "Rant"} ${m.sw} × ${m.sd} nie zakryje wycięcia ${m.ww} × ${m.wd}.`);
+        if (GL - WYC_OD_PRZODU - m.wd < 50) uw.push(`Wycięcie ${m.wd} mm w głąb — do tylnej krawędzi blatu zostaje ${GL - WYC_OD_PRZODU - m.wd} mm (najmniej 50).`);
+        uw.push(...podBlatemUwagi(ob, cab));
+        h += uw.map((t) => `<p class="uwaga">${t}</p>`).join("");
+      }
+      if (sel.typ === "zmywarkaW") {
+        const zw = ciag.find((q) => q.id === sel.id);
+        h += etyk("Montaż") + `<div class="rozm"><button data-pokrywa="0" aria-pressed="${!zw.pokrywa}">Pod blatem (bez pokrywy)</button><button data-pokrywa="1" aria-pressed="${!!zw.pokrywa}">Z własną pokrywą</button></div>`;
+      }
       if (cab && cab.tall && SPRZETY[sel.typ].grupa === "wneka") {
         const m = wnekiSlupka(cab), p = m[sel.id];
         const para = wSzafce(cab.id).filter((a) => a.typ === "piekarnik" || a.typ === "mikrofala").length === 2;
@@ -840,8 +918,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const sprz = zeSprzetem(q);
     let h = `<div class="szczegol karta" data-karta="${q.id}"><div class="naglowek">${ikona(ikonaSzafki(q))}<div><b>${q.name}</b><span>${opisSzafki(q)}</span></div></div>`;
     h += etyk("Szerokość") + `<div class="rozm">` + (q.tall ? SZER_S : SZER_D).map((w) => `<button data-szer="${w}" aria-pressed="${q.w === w}">${w}</button>`).join("") + `</div>`;
-    const zaWaski = wSzafce(q.id).filter((a) => SPRZETY[a.typ].grupa === "blat" && rozm(a).w > q.w - 60);
-    if (zaWaski.length) h += `<p class="uwaga">${zaWaski.map((a) => SPRZETY[a.typ].nazwa).join(", ")}: wycięcie szersze niż szafka — daj szerszą szafkę albo mniejszy sprzęt.</p>`;
+    if (wSzafce(q.id).some((a) => a.typ === "plyta" && wym(a).ww > q.w - 36)) h += `<p class="uwaga">Płyta: wycięcie szersze niż wnętrze szafki (${q.w - 36} mm) — daj szerszą szafkę albo mniejszą płytę.</p>`;
+    h += wSzafce(q.id).filter((a) => SPRZETY[a.typ].grupa === "blat").flatMap((a) => podBlatemUwagi(a, q)).map((t) => `<p class="uwaga">${t}</p>`).join("");
     if (sprz) h += `<p class="hint">W szafce stoi sprzęt (${wSzafce(q.id).filter((a) => SPRZETY[a.typ].grupa === "wneka").map((a) => SPRZETY[a.typ].nazwa.toLowerCase()).join(", ")}) — front, półki i wnękę wokół niego ustawi program. Sprzęt zmienisz w zakładce AGD.</p>`;
     else {
       const fk = frontKlucz(q);
@@ -929,9 +1007,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const rz = e.target.closest("[data-rozm]");
     if (rz && zaznaczony) {
       const obj = wnetrze.find((a) => a.id === zaznaczony) || ciag.find((q) => q.id === zaznaczony);
-      obj.rozm = rz.dataset.rozm; if (obj.kind === "app") obj.w = rozm(obj).w;
+      obj.rozm = rz.dataset.rozm; delete obj.wym; if (obj.kind === "app") obj.w = rozm(obj).w;
       odswiez(); return;
     }
+    const pk = e.target.closest("[data-pokrywa]");
+    if (pk && zaznaczony) { const zw = ciag.find((q) => q.id === zaznaczony); if (zw) { if (pk.dataset.pokrywa === "1") zw.pokrywa = true; else delete zw.pokrywa; } odswiez(); return; }
     const wy = e.target.closest("[data-wys]");
     if (wy && zaznaczony) {
       const a = wnetrze.find((q) => q.id === zaznaczony), cab = a && ciag.find((q) => q.id === a.cel);
@@ -962,6 +1042,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         const nowyDol = wSzafce(cabS.id).find((q) => q.typ === (cabS.zamiana ? "mikrofala" : "piekarnik"));
         if (nowyDol && isFinite(dolY)) nowyDol.y0 = dolY;
       }
+      if (a === "wymtyp" && ob) delete ob.wym;
       if (a === "przegrodaT" && kq) { if (kq.przegroda) delete kq.przegroda; else kq.przegroda = true; }
       if (a === "anuluj") { wybranyTyp = null; przesuwany = null; }
       if (a === "przesun") { przesuwany = przesuwany === zaznaczony ? null : zaznaczony; wybranyTyp = null; }
@@ -973,6 +1054,12 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if (li) { zaznaczony = zaznaczony === li.dataset.id ? null : li.dataset.id; przesuwany = null; odswiez(); }
   });
   panel.addEventListener("change", (e) => {
+    const wk = e.target.dataset && e.target.dataset.wym;
+    if (wk && zaznaczony) {
+      const a = wnetrze.find((q) => q.id === zaznaczony), v = Math.round(Number(e.target.value));
+      if (a && v > 0) { a.wym = { ...(a.wym || {}), [wk]: v }; if (rozm(a)[wk] === v) delete a.wym[wk]; if (!Object.keys(a.wym).length) delete a.wym; }
+      odswiez(); return;
+    }
     if (e.target.id === "okapDol" && zaznaczony) {
       const ok = wnetrze.find((a) => a.id === zaznaczony), v = Math.round(Number(e.target.value));
       if (ok && v > 0) okapNaDol(ok, v);
