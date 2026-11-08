@@ -81,6 +81,12 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .szczegol { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .szczegol p { margin: 0; font-size: 12.5px; }
 .szczegol .rob { display: flex; gap: 6px; flex-wrap: wrap; }
+.szczegol h3 { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.karta .naglowek { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 8px; align-items: center; }
+.karta .naglowek svg { width: 34px; height: 34px; }
+.karta .naglowek b { display: block; font-weight: 600; font-size: 14px; }
+.karta .naglowek span { display: block; font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+.wys b { min-width: 1.6em; text-align: center; }
 .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; }
 .btn.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .btn:hover { border-color: var(--accent); }
@@ -151,9 +157,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 </style>
 
 <header class="top">
-  <h1>Dodaj sprzęt AGD</h1>
+  <h1>Dodaj: sprzęt AGD i klocki</h1>
   <span class="badge">makieta — bez obliczeń</span>
-  <p>Przeciągnij sprzęt z listy na rysunek albo dotknij sprzęt, a potem miejsce na rysunku. Postawiony sprzęt przesuwasz, przeciągając go po rysunku. Zielone ramki pokazują, gdzie dany sprzęt może stanąć.</p>
+  <p>Przeciągnij sprzęt albo klocek z listy na rysunek — albo dotknij go, a potem miejsce na rysunku. Zielone ramki pokazują, gdzie może stanąć. Postawione przesuwasz, przeciągając po rysunku; dotknięta szafka pokazuje kartę, w której to samo zmienisz przyciskami.</p>
 </header>
 
 <div class="wysylka" id="wysylka" hidden>
@@ -167,12 +173,12 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   <nav class="tabs" role="tablist" aria-label="Dodaj">
     <div class="cap">Dodaj</div>
     <button class="tab" role="tab" data-tab="agd" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="7.5" y="9" width="9" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="8" y1="6" x2="16" y2="6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>AGD</button>
-    <button class="tab" role="tab" data-tab="szafka" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" stroke-width="1.4"/><circle cx="10" cy="12" r=".9" fill="currentColor"/><circle cx="14" cy="12" r=".9" fill="currentColor"/></svg>Szafka<span class="later">dalej</span></button>
-    <button class="tab" role="tab" data-tab="polki" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="4" y1="10" x2="20" y2="10" stroke="currentColor" stroke-width="2"/><line x1="4" y1="15" x2="20" y2="15" stroke="currentColor" stroke-width="2"/></svg>Półki<span class="later">dalej</span></button>
-    <button class="tab" role="tab" data-tab="drzwi" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 3 L13 6 V21" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Drzwi i klapy<span class="later">dalej</span></button>
-    <button class="tab" role="tab" data-tab="szuflady" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="4" y1="9.5" x2="20" y2="9.5" stroke="currentColor" stroke-width="1.4"/><line x1="4" y1="15" x2="20" y2="15" stroke="currentColor" stroke-width="1.4"/><line x1="10" y1="7" x2="14" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Szuflady<span class="later">dalej</span></button>
-    <button class="tab" role="tab" data-tab="przegroda" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" stroke-width="2.6"/></svg>Przegroda<span class="later">dalej</span></button>
-    <button class="tab" role="tab" data-tab="wzmocnienie" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8 V20 H20 V8" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="4" y="5" width="16" height="3" fill="currentColor"/></svg>Wzmocnienie<span class="later">dalej</span></button>
+    <button class="tab" role="tab" data-tab="szafka" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" stroke-width="1.4"/><circle cx="10" cy="12" r=".9" fill="currentColor"/><circle cx="14" cy="12" r=".9" fill="currentColor"/></svg>Szafka</button>
+    <button class="tab" role="tab" data-tab="polki" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="4" y1="10" x2="20" y2="10" stroke="currentColor" stroke-width="2"/><line x1="4" y1="15" x2="20" y2="15" stroke="currentColor" stroke-width="2"/></svg>Półki</button>
+    <button class="tab" role="tab" data-tab="drzwi" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 3 L13 6 V21" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Drzwi i klapy</button>
+    <button class="tab" role="tab" data-tab="szuflady" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="4" y1="9.5" x2="20" y2="9.5" stroke="currentColor" stroke-width="1.4"/><line x1="4" y1="15" x2="20" y2="15" stroke="currentColor" stroke-width="1.4"/><line x1="10" y1="7" x2="14" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Szuflady</button>
+    <button class="tab" role="tab" data-tab="przegroda" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" stroke-width="2.6"/></svg>Przegroda</button>
+    <button class="tab" role="tab" data-tab="wzmocnienie" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8 V20 H20 V8" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="4" y="5" width="16" height="3" fill="currentColor"/></svg>Wzmoc&shy;nienie</button>
   </nav>
 
   <section class="panel" id="panel" aria-live="polite"></section>
@@ -185,13 +191,14 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       <button class="przel" data-wid="agd" aria-pressed="true" title="Wyłączone: zamiast sprzętu wycięcia w blacie i puste wnęki">AGD i zlew</button>
       <button class="przel" data-wid="gorny" aria-pressed="true">Ciąg górny</button>
       <button class="przel" data-wid="dolny" aria-pressed="true">Ciąg dolny</button>
+      <button class="przel" data-wid="fronty" aria-pressed="true" title="Wyłączone: widać wnętrze — półki, przegrody, wzmocnienia">Fronty</button>
     </div>
     <div class="ramka"><svg id="rysunek" role="img" aria-label="Rysunek ciągu: blat z góry i widok z przodu"></svg></div>
-    <div class="legenda"><span><i></i>tu może stanąć wybrany sprzęt</span><span>góra: blat z góry · dół: widok z przodu</span><span>„AGD i zlew” wyłączone — wycięcia i puste wnęki</span><span>„Ciąg górny” na blacie z góry — ile głębokości zasłaniają szafki górne i okap</span></div>
+    <div class="legenda"><span><i></i>tu może stanąć wybrany sprzęt albo klocek</span><span>góra: blat z góry · dół: widok z przodu</span><span>„AGD i zlew” wyłączone — wycięcia i puste wnęki</span><span>„Ciąg górny” na blacie z góry — ile głębokości zasłaniają szafki górne i okap</span></div>
   </section>
 </div>
 
-<p class="stopka">W aplikacji zakładka AGD stanie pod kartą „Płyty”, obok „Struktury”, „Cokołu” i „Nóżek”; dotychczasowe miejsca dodawania sprzętu zostają. Pozostałe zakładki („klocki”) — w następnym kroku tej samej makiety.</p>
+<p class="stopka">W aplikacji zakładki „Dodaj” staną pod kartą „Płyty”, obok „Struktury”, „Cokołu” i „Nóżek”; dotychczasowe miejsca dodawania sprzętu i edycji szafek zostają. Klocki w makiecie tylko zmieniają rysunek — prawdziwe wymiary, okucia i łączenia liczy aplikacja.</p>
 
 <script>
 (() => {
@@ -217,6 +224,26 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     kominowy: { l: "kominowy", opis: "na ścianie zamiast szafki", h: 90, gl: 500 },
   };
   const OKAP_MIN = 650, GORNE_GL = 320;
+  /* Klocki (uzytkownik 2026-11-08: „budowa jak dla amatora”): szafki z miniatur wstawiane w ciag, a do szafki —
+     polki, przegroda, wzmocnienia, fronty (drzwi / klapy / otwarta) i szuflady. Tylko makieta, bez obliczen. */
+  const AGD_TYPY = ["plyta", "zlew", "piekarnik", "mikrofala", "lodowka", "zmywarka", "wolna", "okap"];
+  const WZORY = {
+    sz_drzwi: { nazwa: "Dolna, 1 drzwi", gdzie: "450 mm", w: 450, front: "drzwi1", name: "Szafka 450" },
+    sz_2drzwi: { nazwa: "Dolna, 2 drzwi", gdzie: "800 mm", w: 800, front: "drzwi2", name: "Szafka 800" },
+    sz_szuflady: { nazwa: "Dolna z szufladami", gdzie: "600 mm, 3 szuflady", w: 600, drawers: 3, name: "Szuflady 600" },
+    sz_zlew: { nazwa: "Zlewowa", gdzie: "800 mm, bez półek", w: 800, front: "drzwi2", name: "Zlewowa 800" },
+    sz_slupek: { nazwa: "Słupek", gdzie: "600 mm, do sufitu", w: 600, tall: true, front: "drzwi1", name: "Słupek 600" },
+  };
+  Object.entries(WZORY).forEach(([k, v]) => { SPRZETY[k] = { nazwa: v.nazwa, gdzie: v.gdzie, grupa: "ciag", szafka: true }; });
+  SPRZETY.szafkaPrzes = { nazwa: "Szafka", gdzie: "", grupa: "ciag", szafka: true };
+  const KLOCKI = {
+    polki: { polka: ["Półka", "do szafki", "w"] },
+    drzwi: { fr_drzwi1: ["1 drzwi", "na szafkę", "f"], fr_drzwi2: ["2 drzwi", "na szafkę", "f"], fr_klapaG: ["Klapa do góry", "na szafkę", "f"], fr_klapaD: ["Klapa w dół", "na szafkę", "f"], fr_otwarta: ["Bez frontu", "otwarta półka", "f"] },
+    szuflady: { szu_2: ["2 szuflady", "dolna szafka", "f"], szu_3: ["3 szuflady", "dolna szafka", "f"], szu_4: ["4 szuflady", "dolna szafka", "f"], szu_1d: ["Szuflada + drzwi", "dolna szafka", "f"] },
+    przegroda: { przegroda: ["Przegroda pionowa", "dzieli szafkę na 2", "w"] },
+    wzmocnienie: { wzm_para: ["Para pod blat", "leżące + stojące", "w"], wzm_lezace: ["Leżące", "jak półka, u góry", "w"], wzm_stojace: ["Stojące", "z przodu, u góry", "w"], wzm_pionowe: ["Pionowe", "przy boku", "w"] },
+  };
+  Object.values(KLOCKI).forEach((grp) => Object.entries(grp).forEach(([k, [n, g, rodz]]) => { SPRZETY[k] = { nazwa: n, gdzie: g, grupa: "szafka", wnetrze: rodz === "w" }; }));
   const MIKRO_MAX = 1300;   // dol mikrofali wyzej niz to — ostrzezenie (prog przykladowy, do ustalenia z uzytkownikiem)
   /* Wymiary sprzetu do wyboru (makieta — wartosci przykladowe): w — szerokosc wyciecia / miejsca, h — wysokosc wneki */
   const ROZM = {
@@ -229,9 +256,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     wolna: [{ k: "60", l: "60 cm", w: 600 }, { k: "70", l: "70 cm", w: 700 }, { k: "90", l: "90 cm (side by side)", w: 900 }],
     okap: [{ k: "60", l: "60 cm", w: 600 }, { k: "90", l: "90 cm", w: 900 }, { k: "50", l: "50 cm", w: 500 }],
   };
+  ["sz_drzwi", "sz_2drzwi", "sz_szuflady", "sz_zlew", "sz_slupek"].forEach((k) => { ROZM[k] = [{ k: "w", l: "", w: { sz_drzwi: 450, sz_2drzwi: 800, sz_szuflady: 600, sz_zlew: 800, sz_slupek: 600 }[k] }]; });
+  ROZM.szafkaPrzes = [{ k: "w", l: "", w: 600 }];
   const rozm = (a) => ROZM[a.typ].find((r) => r.k === a.rozm) || ROZM[a.typ][a.typ === "plyta" ? 1 : 0];
   const BLAT_Y = PL0 + KOR0 + BLAT0;   // wierzch blatu od podlogi
-  let widok = { agd: true, gorny: true, dolny: true };
+  let widok = { agd: true, gorny: true, dolny: true, fronty: true };
   const CO_ZROBI = {
     plyta: (c) => `Wycięcie w blacie nad szafką „${c}”, na środku szafki, 50 mm od przodu blatu. Program sprawdzi, czy korpus płyty nie wchodzi w szuflady albo leżące wzmocnienie pod blatem — jeśli wchodzi, zaproponuje wzmocnienie stojące.`,
     zlew: (c) => `Wycięcie pod zlew nad szafką „${c}”. Komora zlewu sięga pod blat — program sprawdzi półki i szuflady pod nią.`,
@@ -268,6 +297,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   let wnetrze = JSON.parse(JSON.stringify(WNETRZE0));
   let nr = 10;
   let zakladka = "agd";
+  const ZAK_WNETRZE = ["polki", "przegroda", "wzmocnienie"];   // na tych zakladkach rysunek pokazuje wnetrze szafek
   let wybranyTyp = null;      // dotknieto sprzet w palecie (stawianie dotknieciem)
   let zaznaczony = null;      // id postawionego sprzetu
   let przesuwany = null;      // id postawionego sprzetu w trybie „Przesuń” (dotknieciem)
@@ -284,7 +314,32 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     zmywarka: '<rect x="4" y="3" width="26" height="28" rx="1.5" fill="var(--board)" stroke="var(--ink)" stroke-width="1.2"/><rect x="8" y="9" width="18" height="18" rx="1" fill="none" stroke="var(--metal)" stroke-width="1.1" stroke-dasharray="2.2 1.8"/><path d="M12 15 q2.5 -3 5 0 t5 0 M12 20 q2.5 -3 5 0 t5 0" fill="none" stroke="var(--accent)" stroke-width="1.2"/>',
     wolna: '<rect x="8" y="1.5" width="18" height="31" rx="4" fill="var(--steel)" stroke="var(--metal)" stroke-width="1.1"/><line x1="8" y1="13" x2="26" y2="13" stroke="var(--metal)" stroke-width="1.1"/><line x1="11" y1="5" x2="11" y2="10" stroke="var(--metal)" stroke-width="1.6" stroke-linecap="round"/><line x1="11" y1="16" x2="11" y2="24" stroke="var(--metal)" stroke-width="1.6" stroke-linecap="round"/>',
   };
-  const ikona = (typ) => `<svg viewBox="0 0 34 34" aria-hidden="true">${IK[typ]}</svg>`;
+  // miniatury szafek i ikony klockow (34 × 34)
+  const KOR_I = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="var(--board)" stroke="var(--ink)" stroke-width="1.3"/>`;
+  const LN = (x1, y1, x2, y2, c = "var(--ink)", sw = 1.1) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${sw}"/>`;
+  Object.assign(IK, {
+    sz_drzwi: KOR_I(11, 9, 12, 20) + LN(11, 29, 23, 29) + `<circle cx="21" cy="17" r=".9" fill="var(--ink)"/>` + `<rect x="9" y="7" width="16" height="2" fill="var(--top)"/>`,
+    sz_2drzwi: KOR_I(5, 9, 24, 20) + LN(17, 9, 17, 29) + `<rect x="3" y="7" width="28" height="2" fill="var(--top)"/>`,
+    sz_szuflady: KOR_I(8, 9, 18, 20) + LN(8, 15.5, 26, 15.5) + LN(8, 22, 26, 22) + `<rect x="6" y="7" width="22" height="2" fill="var(--top)"/>`,
+    sz_zlew: KOR_I(5, 11, 24, 18) + LN(17, 11, 17, 29) + `<rect x="3" y="9" width="28" height="2" fill="var(--top)"/><path d="M20 9 V4 h-4" fill="none" stroke="var(--metal)" stroke-width="1.6"/>`,
+    sz_slupek: KOR_I(11, 2, 12, 30) + LN(11, 14, 23, 14),
+    polka: KOR_I(7, 5, 20, 24) + LN(7, 13, 27, 13, "var(--accent)", 2) + LN(7, 21, 27, 21, "var(--accent)", 2),
+    fr_drzwi1: KOR_I(10, 5, 14, 24) + `<circle cx="21" cy="17" r="1" fill="var(--ink)"/>`,
+    fr_drzwi2: KOR_I(5, 5, 24, 24) + LN(17, 5, 17, 29),
+    fr_klapaG: KOR_I(5, 9, 24, 16) + `<path d="M17 21 V13 M14 16 l3 -3 l3 3" fill="none" stroke="var(--accent)" stroke-width="1.6"/>`,
+    fr_klapaD: KOR_I(5, 9, 24, 16) + `<path d="M17 13 V21 M14 18 l3 3 l3 -3" fill="none" stroke="var(--accent)" stroke-width="1.6"/>`,
+    fr_otwarta: `<rect x="6" y="5" width="22" height="24" fill="none" stroke="var(--ink)" stroke-width="1.3"/>` + LN(6, 17, 28, 17),
+    szu_2: KOR_I(7, 6, 20, 22) + LN(7, 17, 27, 17) + LN(14, 11, 20, 11) + LN(14, 22, 20, 22),
+    szu_3: KOR_I(7, 6, 20, 22) + LN(7, 13, 27, 13) + LN(7, 20.5, 27, 20.5),
+    szu_4: KOR_I(7, 6, 20, 22) + LN(7, 11.5, 27, 11.5) + LN(7, 17, 27, 17) + LN(7, 22.5, 27, 22.5),
+    szu_1d: KOR_I(7, 6, 20, 22) + LN(7, 11, 27, 11) + `<circle cx="24" cy="19" r=".9" fill="var(--ink)"/>`,
+    przegroda: KOR_I(5, 6, 24, 22) + LN(17, 6, 17, 28, "var(--accent)", 2.4),
+    wzm_para: `<path d="M6 10 V28 M28 10 V28" stroke="var(--ink)" stroke-width="1.3"/>` + `<rect x="6" y="8" width="22" height="2.2" fill="var(--accent)"/><rect x="24" y="8" width="2" height="7" fill="var(--accent)"/>`,
+    wzm_lezace: `<path d="M6 10 V28 M28 10 V28" stroke="var(--ink)" stroke-width="1.3"/>` + `<rect x="6" y="8" width="22" height="2.2" fill="var(--accent)"/>`,
+    wzm_stojace: `<path d="M6 10 V28 M28 10 V28" stroke="var(--ink)" stroke-width="1.3"/>` + `<rect x="6" y="8" width="22" height="6" fill="var(--accent)" opacity=".8"/>`,
+    wzm_pionowe: `<path d="M6 6 V28 M28 6 V28" stroke="var(--ink)" stroke-width="1.3"/>` + `<rect x="6" y="6" width="2.5" height="14" fill="var(--accent)"/>`,
+  });
+  const ikona = (typ) => `<svg viewBox="0 0 34 34" aria-hidden="true">${IK[typ] || IK.sz_drzwi}</svg>`;
 
   // --- geometria rysunku (mm) ---
   const PL = 100, KOR = 720, BLAT = 38, SLUP = 2120, GORNE0 = 1400, GORNE = 720, GL = 600;
@@ -312,6 +367,13 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       else ok = !jest.some((a) => a.typ === "piekarnik" || a.typ === "lodowka" || a.typ === "zlew") && !(s.drawers && !s.tall);
       if (ok) out.push({ key: "w" + s.id, x0: s.x, x1: s.x + s.w, y0: yEl(s.tall ? PL + SLUP : PL + KOR), y1: yEl(PL), cel: s.id });
     });
+    if (g === "szafka") L.filter((s) => s.kind === "cab").forEach((s) => {
+      if (/^szu_/.test(typ) && s.tall) return;               // szuflady tylko w dolnych
+      if ((typ === "wzm_para" || typ === "wzm_lezace" || typ === "wzm_stojace") && s.tall) return;   // pod blat — dolne
+      if (zeSprzetem(s)) return;                             // piekarnik / mikrofala / lodowka — fronty i polki ustawia program
+      if ((typ === "polka" || typ === "przegroda") && s.drawers && !s.szuflDrzwi) return;   // same szuflady — nie ma gdzie
+      out.push({ key: "k" + s.id, x0: s.x, x1: s.x + s.w, y0: yEl(s.tall ? PL + SLUP : PL + KOR), y1: yEl(PL), cel: s.id });
+    });
     if (g === "gorne") L.filter((s) => maGorna(s)).forEach((s) => {
       if (wSzafce(s.id).some((a) => a.id !== bez && a.typ === "okap")) return;
       out.push({ key: "g" + s.id, x0: s.x, x1: s.x + s.w, y0: yEl(GORNE0 + GORNE), y1: yEl(BLAT_Y + 120), cel: s.id });
@@ -322,7 +384,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       const granice = [0];
       bezS.forEach((s) => { x += s.w; granice.push(x); });
       const przes = bez && L.find((q) => q.id === bez);
-      const w = przes ? przes.w : rozm({ typ }).w, wys = typ === "wolna" ? 1850 : PL + KOR + BLAT;
+      const w = przes ? przes.w : rozm({ typ }).w;
+      const wys = typ === "wolna" ? 1850 : (przes ? przes.tall : WZORY[typ] && WZORY[typ].tall) ? PL + SLUP : PL + KOR + BLAT;
       const brak = Math.max(0, x + w - sciana);
       // koniec ciagu — cale wolne miejsce na scianie (albo tyle, ile sprzet potrzebuje)
       granice.forEach((gx, i) => {
@@ -335,6 +398,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   }
 
   // pozycja ciagu z szafka gorna nad soba (dolna szafka albo zmywarka); geometria szafki gornej i okapu
+  const zeSprzetem = (q) => wSzafce(q.id).some((a) => SPRZETY[a.typ].grupa === "wneka");
   const maGorna = (q) => (q.kind === "cab" && !q.tall) || q.typ === "zmywarka";
   const okapNad = (id) => wnetrze.find((a) => a.typ === "okap" && a.cel === id);
   const gornaGeo = (id) => { const y0 = (gorne[id] || {}).y0 ?? GORNE0; return { y0, y1: GORNE0 + GORNE }; };
@@ -352,11 +416,23 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     else gorne[ok.cel] = { y0: ok.rodzaj === "podszafkowy" || !ok.rodzaj ? d + r.h : d };
   }
   function postaw(typ, c, istniejacy) {
+    if (SPRZETY[typ].grupa === "szafka") {
+      const q = ciag.find((z) => z.id === c.cel); if (!q) return;
+      if (typ === "polka") q.polki = Math.min(6, (q.polki || 0) + 1);
+      else if (typ === "przegroda") q.przegroda = true;
+      else if (/^wzm_/.test(typ)) { const r = typ.slice(4); q.wzm = r === "para" ? ["lezace", "stojace"] : [...new Set([...(q.wzm || []), r])]; }
+      else if (/^fr_/.test(typ)) { q.front = typ.slice(3); delete q.drawers; delete q.szuflDrzwi; }
+      else if (typ === "szu_1d") { q.drawers = 1; q.szuflDrzwi = true; delete q.front; }
+      else if (/^szu_/.test(typ)) { q.drawers = Number(typ.slice(4)); delete q.szuflDrzwi; delete q.front; delete q.przegroda; delete q.polki; }
+      zaznaczony = q.id;
+      return;
+    }
     if (SPRZETY[typ].grupa === "ciag") {
       let slot;
       if (istniejacy) { const i = ciag.findIndex((s) => s.id === istniejacy); slot = ciag.splice(i, 1)[0]; delete slot.przyklad; }
+      else if (WZORY[typ]) { const { nazwa, gdzie, ...wz } = WZORY[typ]; slot = { id: "s" + nr++, kind: "cab", ...wz }; }
       else slot = { id: "z" + nr++, kind: "app", typ, w: SPRZETY[typ].w };
-      slot.w = rozm(slot).w;
+      if (slot.kind === "app") slot.w = rozm(slot).w;
       ciag.splice(c.wstaw, 0, slot);
       zaznaczony = slot.id; ostatni = slot.id;
     } else if (istniejacy) {
@@ -415,6 +491,39 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   }
   const nachodza = (m) => { const v = Object.values(m).sort((a, b) => a.y0 - b.y0); return v.some((a, i) => i && a.y0 < v[i - 1].y1) || v.some((a) => a.y1 > PL + SLUP - 10 || a.y0 < PL + 10); };
 
+  const typPrzes = (id) => (ciag.some((q) => q.id === id && q.kind === "cab") ? "szafkaPrzes" : (wszystkie().find((q) => q.id === id) || {}).typ);
+  // fronty albo wnetrze szafki (makieta): szuflady, drzwi, klapy, otwarta; wnetrze — polki, przegroda, wzmocnienia
+  function frontySzafki(q, x, w, y0, y1, drzwi, wnetrzeWidok) {
+    let t = "";
+    const dashed = (a, b, c, d) => `<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="var(--accent)" stroke-width="7" stroke-dasharray="26 14"/>`;
+    const wnetrze = wnetrzeWidok || q.front === "otwarta";
+    if (wnetrze) {
+      const n = q.polki || 0;
+      for (let i = 1; i <= n; i++) { const yy = y0 + ((y1 - y0) * i) / (n + 1); t += `<rect x="${x + 18}" y="${yEl(yy) - 9}" width="${w - 36}" height="18" fill="var(--top)" opacity=".55"/>`; }
+      if (q.przegroda) t += `<rect x="${x + w / 2 - 9}" y="${yEl(y1)}" width="18" height="${y1 - y0}" fill="var(--accent)" opacity=".7"/>`;
+      (q.wzm || []).forEach((r) => {
+        if (r === "lezace") t += `<rect x="${x + 18}" y="${yEl(y1)}" width="${w - 36}" height="18" fill="var(--ink)" opacity=".75"/>`;
+        if (r === "stojace") t += `<rect x="${x + 18}" y="${yEl(y1)}" width="${w - 36}" height="100" fill="var(--ink)" opacity=".25"/>`;
+        if (r === "pionowe") t += `<rect x="${x + 18}" y="${yEl(y1)}" width="18" height="300" fill="var(--ink)" opacity=".6"/>`;
+      });
+      if (q.drawers) for (let i = 0; i < q.drawers; i++) t += `<rect x="${x + 40}" y="${yEl(y0 + ((y1 - y0) * (i + 1)) / q.drawers) + 30}" width="${w - 80}" height="${(y1 - y0) / q.drawers - 60}" fill="none" stroke="var(--muted)" stroke-width="4" stroke-dasharray="16 10"/>`;
+      if (wnetrzeWidok && n + (q.przegroda ? 1 : 0) + (q.wzm || []).length === 0 && !q.drawers) t += `<text x="${x + w / 2}" y="${yEl((y0 + y1) / 2)}" font-size="46" text-anchor="middle" fill="var(--muted)">puste</text>`;
+      if (!wnetrzeWidok) t += dashed(x + 10, yEl(y1) + 10, x + w - 10, yEl(y1) + 10);
+      return t;
+    }
+    if (q.drawers) {
+      if (q.szuflDrzwi) return drzwi(y1 - 170, y1, 1) + drzwi(y0, y1 - 170, w > 500 ? 2 : 1);
+      for (let i = 0; i < q.drawers; i++) t += drzwi(y0 + ((y1 - y0) / q.drawers) * i, y0 + ((y1 - y0) / q.drawers) * (i + 1), 1);
+      return t;
+    }
+    const f = q.front || (q.przegroda || w > 500 ? "drzwi2" : "drzwi1");
+    if (f === "klapaG" || f === "klapaD") {
+      const cx = x + w / 2, cy = yEl((y0 + y1) / 2), d = f === "klapaG" ? -1 : 1;
+      return drzwi(y0, y1, 1) + `<path d="M${cx} ${cy - d * 90} V${cy + d * 90} M${cx - 60} ${cy + d * 30} L${cx} ${cy + d * 90} L${cx + 60} ${cy + d * 30}" fill="none" stroke="var(--accent)" stroke-width="10"/>`;
+    }
+    return drzwi(y0, y1, f === "drzwi2" ? 2 : 1);
+  }
+
   // --- rysunek ---
   function rysuj() {
     const L = uklad();
@@ -429,13 +538,15 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       const ost = ciag.find((q) => q.id === ostatni);
       al.innerHTML = `<b>Ciąg nie mieści się na ścianie</b> — ${W} mm na ścianie ${sciana} mm, brakuje ${-wolne} mm.`
         + `<button class="btn" data-sc-ustaw="${W}">Poszerz ścianę do ${W} mm</button>`
-        + (ost ? `<button class="btn" data-usun-ost="${ost.id}">Usuń ${SPRZETY[ost.typ].bier}</button>` : "");
+        + (ost ? `<button class="btn" data-usun-ost="${ost.id}">Usuń ${ost.kind === "cab" ? `szafkę „${ost.name}”` : SPRZETY[ost.typ].bier}</button>` : "");
       al.hidden = false;
     } else al.hidden = true;
     svg.setAttribute("viewBox", `-90 -150 ${Wr + 420} ${Y_EL + H_EL + 360}`);
-    const typAkt = drag ? drag.typ : przesuwany ? (wszystkie().find((q) => q.id === przesuwany) || {}).typ : wybranyTyp;
+    const typAkt = drag ? drag.typ : przesuwany ? typPrzes(przesuwany) : wybranyTyp;
     const bezId = drag ? drag.id : przesuwany;
     const C = typAkt ? cele(typAkt, bezId) : [];
+    // wnetrze: wylaczone „Fronty” albo przeciaganie polki / przegrody / wzmocnienia
+    const wnetrzeWidok = !widok.fronty || !!(typAkt && SPRZETY[typAkt] && SPRZETY[typAkt].wnetrze) || ZAK_WNETRZE.includes(zakladka);
     let s = "";
     // podpisy pasow
     s += `<text x="-70" y="${Y_TOP - 70}" font-size="64" fill="var(--muted)">Blat z góry</text>`;
@@ -446,7 +557,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     s += `<line x1="0" y1="${yEl(2260)}" x2="0" y2="${yEl(0)}" stroke="var(--muted)" stroke-width="10"/><line x1="${sciana}" y1="${yEl(2260)}" x2="${sciana}" y2="${yEl(0)}" stroke="var(--muted)" stroke-width="10"/>`;
     s += `<line x1="0" y1="${Y_TOP - 18}" x2="${sciana}" y2="${Y_TOP - 18}" stroke="var(--muted)" stroke-width="16"/>`;
     if (W > sciana) s += `<rect x="${sciana}" y="${yEl(2260)}" width="${W - sciana}" height="2260" fill="url(#kreski)"/><text x="${W - 20}" y="${yEl(2180)}" font-size="58" text-anchor="end" fill="var(--warn)">poza ścianą ${W - sciana}</text>`;
-    else if (sciana - W >= 100) s += `<text class="mm" x="${(W + sciana) / 2}" y="${yEl(1150)}" font-size="58" text-anchor="middle" fill="var(--muted)">wolne ${sciana - W}</text>`
+    else if (sciana - W >= 340) s += `<text class="mm" x="${(W + sciana) / 2}" y="${yEl(1150)}" font-size="58" text-anchor="middle" fill="var(--muted)">wolne ${sciana - W}</text>`
       + `<line x1="${W + 20}" y1="${yEl(1080)}" x2="${sciana - 20}" y2="${yEl(1080)}" stroke="var(--muted)" stroke-width="4" stroke-dasharray="16 12"/>`;
     // blat z gory: odcinki nad szafkami dolnymi i zmywarka
     let odc = null; const odcinki = [];
@@ -543,10 +654,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       if (q.kind === "cab") {
         const h = q.tall ? SLUP : KOR;
         s += `<rect x="${x}" y="${yEl(PL)}" width="${w}" height="${PL}" fill="var(--plinth)" stroke="var(--ink)" stroke-width="4"/>`;
-        s += `<rect x="${x}" y="${yEl(PL + h)}" width="${w}" height="${h}" fill="var(--board)" stroke="var(--ink)" stroke-width="6"/>`;
+        const zSz = q.id === zaznaczony, ruchSz = drag && drag.id === q.id ? ' opacity=".35"' : "";
+        s += `<rect class="szaf" data-sz="${q.id}" x="${x}" y="${yEl(PL + h)}" width="${w}" height="${h}" fill="var(--board)" stroke="${zSz ? "var(--accent)" : "var(--ink)"}" stroke-width="${zSz ? 14 : 6}" style="cursor:grab;touch-action:none"${ruchSz}/>`;
         const jest = wSzafce(q.id);
         const piek = jest.find((a) => a.typ === "piekarnik"), mikr = jest.find((a) => a.typ === "mikrofala"), lod = jest.find((a) => a.typ === "lodowka");
-        const drzwi = (y0, y1, ile) => { let t = `<rect x="${x + 8}" y="${yEl(y1) + 8}" width="${w - 16}" height="${y1 - y0 - 16}" fill="none" stroke="var(--ink)" stroke-width="3"/>`; for (let i = 1; i < ile; i++) t += `<line x1="${x + (w * i) / ile}" y1="${yEl(y1) + 8}" x2="${x + (w * i) / ile}" y2="${yEl(y0) - 8}" stroke="var(--ink)" stroke-width="3"/>`; return t; };
+        const drzwi = (y0, y1, ile) => { let t = `<rect pointer-events="none" x="${x + 8}" y="${yEl(y1) + 8}" width="${w - 16}" height="${y1 - y0 - 16}" fill="none" stroke="var(--ink)" stroke-width="3"/>`; for (let i = 1; i < ile; i++) t += `<line pointer-events="none" x1="${x + (w * i) / ile}" y1="${yEl(y1) + 8}" x2="${x + (w * i) / ile}" y2="${yEl(y0) - 8}" stroke="var(--ink)" stroke-width="3"/>`; return t; };
         const wneka = (a, y0, y1, zle) => {
           const zazn = a.id === zaznaczony, ruch = drag && drag.id === a.id ? ' opacity=".35"' : "";
           if (!widok.agd || zle)
@@ -568,11 +680,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
           v.forEach(([id, p]) => { if (p.y0 - 10 - dol >= 60) s += drzwi(dol, p.y0 - 10, 1); dol = Math.max(dol, p.y1); });
           // wneka konczy sie na dole szafek gornych — jedna linia frontow
           if (widok.gorny && v.some(([, p]) => p.y1 === GORNE0)) liniaGornych = true;
-          if (PL + SLUP - dol >= 60) s += drzwi(dol, PL + SLUP, 1);
+          if (!v.length) s += `<g pointer-events="none">${frontySzafki(q, x, w, PL, PL + SLUP, drzwi, wnetrzeWidok)}</g>`;
+          else if (PL + SLUP - dol >= 60) s += drzwi(dol, PL + SLUP, 1);
           v.forEach(([id, p]) => { s += wneka(jest.find((a) => a.id === id), p.y0, p.y1, zle); });
         } else if (piek) { const y1 = PL + KOR - 25, y0 = y1 - rozm(piek).h; s += wneka(piek, y0, y1); s += drzwi(PL, y0 - 10, 1); }
-        else if (q.drawers) { for (let i = 0; i < q.drawers; i++) s += drzwi(PL + (KOR / q.drawers) * i, PL + (KOR / q.drawers) * (i + 1), 1); }
-        else s += drzwi(PL, PL + KOR, w > 500 ? 2 : 1);
+        else s += `<g pointer-events="none">${frontySzafki(q, x, w, PL, PL + KOR, drzwi, wnetrzeWidok)}</g>`;
         // zlew: bateria nad blatem, plyta: cienka plyta na blacie
         if (widok.agd) jest.filter((a) => a.typ === "zlew").forEach(() => { const cx = x + w / 2; s += `<path d="M${cx + 60} ${yEl(PL + KOR + BLAT)} v-240 q0 -60 -60 -60 h-110" fill="none" stroke="var(--metal)" stroke-width="22" stroke-linecap="round"/>`; });
         if (widok.agd) jest.filter((a) => a.typ === "plyta").forEach((a) => { const cw = Math.min(rozm(a).w, w); s += `<rect x="${x + (w - cw) / 2}" y="${yEl(PL + KOR + BLAT) - 10}" width="${cw}" height="10" fill="var(--glass)"/>`; });
@@ -623,19 +735,24 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 
   // --- panel ---
   const panel = document.getElementById("panel");
+  const paleta = (tytul, klucze) => `<div class="sec"><h3>${tytul}</h3><div class="paleta">` + klucze.map((k) =>
+    `<button class="sprzet" data-typ="${k}" aria-pressed="${wybranyTyp === k}">${ikona(k)}<b>${SPRZETY[k].nazwa}</b><span>${SPRZETY[k].gdzie}</span></button>`).join("") + `</div></div>`;
+  function pasekWyboru() {
+    const aktywny = wybranyTyp || (przesuwany && typPrzes(przesuwany));
+    if (!aktywny) return "";
+    const C = cele(aktywny, przesuwany), n = C.length;
+    const brak = SPRZETY[aktywny].grupa === "ciag" ? (C[0] || {}).brak : 0;
+    const nazwa = przesuwany && aktywny === "szafkaPrzes" ? `szafka „${nazwaCelu(przesuwany)}”` : SPRZETY[aktywny].nazwa;
+    return `<div class="wybor">${przesuwany ? "Przesuwasz" : "Wybrany"}: <b>${nazwa}</b> — ${n ? "dotknij ramkę na rysunku" : "nie ma na rysunku wolnego miejsca"}${brak ? ` (na ścianie brakuje ${brak} mm — poszerz ją nad rysunkiem albo wstaw i zdecyduj potem)` : ""}<button data-akcja="anuluj">Anuluj</button></div>`;
+  }
   function rysujPanel() {
-    if (zakladka !== "agd") { panel.innerHTML = panelDalej(zakladka); return; }
+    if (zakladka !== "agd") { panel.innerHTML = panelKlocki(zakladka); return; }
     const lista = wszystkie();
     const sel = lista.find((q) => q.id === zaznaczony);
-    const aktywny = wybranyTyp || (przesuwany && (lista.find((q) => q.id === przesuwany) || {}).typ);
+    const cabSel = ciag.find((q) => q.id === zaznaczony && q.kind === "cab");
     let h = `<h2>AGD</h2><p class="hint">Przeciągnij sprzęt na zieloną ramkę na rysunku. Na telefonie: dotknij sprzęt, potem miejsce.</p>`;
-    h += `<div class="sec"><h3>Sprzęt</h3><div class="paleta">` + Object.entries(SPRZETY).map(([k, v]) =>
-      `<button class="sprzet" data-typ="${k}" aria-pressed="${wybranyTyp === k}">${ikona(k)}<b>${v.nazwa}</b><span>${v.gdzie}</span></button>`).join("") + `</div></div>`;
-    if (aktywny) {
-      const n = cele(aktywny, przesuwany).length;
-      const brak = SPRZETY[aktywny].grupa === "ciag" ? (cele(aktywny, przesuwany)[0] || {}).brak : 0;
-      h += `<div class="wybor">${przesuwany ? "Przesuwasz" : "Wybrany"}: <b>${SPRZETY[aktywny].nazwa}</b> — ${n ? "dotknij ramkę na rysunku" : "nie ma na rysunku wolnego miejsca"}${brak ? ` (na ścianie brakuje ${brak} mm — poszerz ją nad rysunkiem albo wstaw i zdecyduj potem)` : ""}<button data-akcja="anuluj">Anuluj</button></div>`;
-    }
+    h += paleta("Sprzęt", AGD_TYPY) + pasekWyboru();
+    if (cabSel) h += kartaSzafki(cabSel);
     h += `<div class="sec"><h3>W projekcie (${lista.length})</h3>`;
     h += lista.length ? `<ul class="lista">` + lista.map((q) => `<li data-id="${q.id}" aria-current="${q.id === zaznaczony}" tabindex="0">${ikona(q.typ)}<div class="co"><b>${SPRZETY[q.typ].nazwa}${q.przyklad ? '<span class="przyklad">przykład</span>' : ""}</b><span>${q.gdzie}</span></div><button class="x" data-usun="${q.id}" aria-label="Usuń ${SPRZETY[q.typ].nazwa}">×</button></li>`).join("") + `</ul>`
       : `<div class="pusto">Nic jeszcze nie stoi. Przeciągnij pierwszy sprzęt na rysunek.</div>`;
@@ -680,17 +797,84 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     h += `<div class="rob" style="display:flex"><button class="btn" data-akcja="reset">Wróć do przykładu</button></div>`;
     panel.innerHTML = h;
   }
-  const DALEJ = {
-    szafka: ["Dodaj szafkę", ["miniatury gotowych wzorów: dolna z drzwiami, z szufladami, zlewowa, słupek, górna, narożna", "przeciągasz miniaturę w ciąg — staje między szafkami, reszta się rozsuwa", "szerokość i wysokość poprawiasz potem w karcie szafki"]],
-    polki: ["Dodaj półki", ["przeciągasz półkę do kolumny — staje tam, gdzie ją puścisz", "kołki, konfirmaty albo trójkąty do wyboru po postawieniu"]],
-    drzwi: ["Drzwi i klapy", ["jedne / dwoje drzwi, klapa do góry, klapa w dół", "przeciągasz na otwór w szafce"]],
-    szuflady: ["Szuflady", ["zestaw 2, 3, 4 szuflad albo pojedyncza", "na kolumnę albo poziom szafki"]],
-    przegroda: ["Przegroda", ["przeciągasz pionową kreskę w szafkę — dzieli ją na kolumny", "przy wzmocnieniach z obu stron program sam zapyta o łączenie (trójkąty, przegroda niższa, dwie przegrody)"]],
-    wzmocnienie: ["Wzmocnienie", ["leżące, stojące, pionowe — przeciągasz do kolumny", "para pod blat jednym przyciskiem"]],
+  /* Klocki (uzytkownik 2026-11-08): zakladka = paleta klockow + karta zaznaczonej szafki. Wszystko przeciaganiem albo
+     dotknieciem; to samo da sie zrobic przyciskami w karcie szafki (bez przeciagania). */
+  const ZAK = {
+    szafka: ["Szafka", "Przeciągnij miniaturę w ciąg — stanie między szafkami, reszta się rozsunie. Szerokość, front i wnętrze zmienisz potem w karcie szafki."],
+    polki: ["Półki", "Przeciągnij półkę na szafkę — każde upuszczenie to jedna półka więcej (najwyżej 6). Rysunek pokazuje teraz wnętrze szafek."],
+    drzwi: ["Drzwi i klapy", "Przeciągnij front na szafkę — zastąpi to, co było (także szuflady)."],
+    szuflady: ["Szuflady", "Tylko w dolnych szafkach. Zestaw szuflad zastępuje drzwi, półki i przegrodę."],
+    przegroda: ["Przegroda", "Przeciągnij na szafkę — podzieli ją na 2 kolumny. Rysunek pokazuje teraz wnętrze szafek."],
+    wzmocnienie: ["Wzmocnienie", "„Para pod blat” — leżące i stojące naraz. Pod blat tylko w dolnych szafkach. Rysunek pokazuje teraz wnętrze szafek."],
   };
-  function panelDalej(k) {
-    const [t, pkt] = DALEJ[k];
-    return `<div class="dalej"><h2>${t}</h2><p class="hint">Ta zakładka — w następnym kroku makiety („klocki”). Co w niej będzie:</p><ul>${pkt.map((p) => `<li>${p}</li>`).join("")}</ul></div>`;
+  const FRONT_L = { drzwi1: "1 drzwi", drzwi2: "2 drzwi", klapaG: "klapa do góry", klapaD: "klapa w dół", otwarta: "bez frontu" };
+  const WZM_L = { lezace: "leżące", stojace: "stojące", pionowe: "pionowe" };
+  const SZER_D = [300, 400, 450, 500, 600, 800, 900], SZER_S = [400, 450, 500, 600];
+  const frontDom = (q) => q.front || (q.przegroda || q.w > 500 ? "drzwi2" : "drzwi1");
+  const frontKlucz = (q) => (q.drawers ? (q.szuflDrzwi ? "szu_1d" : "szu_" + q.drawers) : "fr_" + frontDom(q));
+  const frontOpis = (q) => (q.drawers ? (q.szuflDrzwi ? "szuflada + drzwi" : `${q.drawers} szuflady`) : FRONT_L[frontDom(q)]);
+  const ikonaSzafki = (q) => (q.tall ? "sz_slupek" : q.drawers && !q.szuflDrzwi ? "sz_szuflady" : q.w > 500 ? "sz_2drzwi" : "sz_drzwi");
+  function opisSzafki(q) {
+    const sprz = wSzafce(q.id).map((a) => SPRZETY[a.typ].nazwa.toLowerCase());
+    const t = [`${q.w} mm`, zeSprzetem(q) ? "" : frontOpis(q)];
+    if (q.polki) t.push(`${q.polki} ${q.polki === 1 ? "półka" : q.polki < 5 ? "półki" : "półek"}`);
+    if (q.przegroda) t.push("przegroda");
+    if ((q.wzm || []).length) t.push("wzm. " + q.wzm.map((r) => WZM_L[r]).join(" + "));
+    if (sprz.length) t.push(sprz.join(", "));
+    return t.filter(Boolean).join(" · ");
+  }
+  function coZrobiSzafka(q) {
+    const t = [`Korpus ${q.w} × ${q.tall ? SLUP : KOR} mm${q.tall ? " (słupek)" : ", pod blat"}, plecy z HDF, ${q.tall ? "cokół i nóżki pod spodem" : "cokół i nóżki jak w ciągu"}.`];
+    if (zeSprzetem(q)) t.push("W środku sprzęt — wnękę, drzwi i blendy wokół niego ustawi program.");
+    else if (q.drawers) t.push(q.szuflDrzwi ? "U góry szuflada, pod nią drzwi; prowadnice z systemu szuflad w ustawieniach." : `${q.drawers} szuflady na całą szerokość — fronty po równo, prowadnice z systemu szuflad w ustawieniach.`);
+    else if (frontDom(q) === "otwarta") t.push("Bez frontu — otwarte półki, bez zawiasów.");
+    else if (frontDom(q) === "klapaG" || frontDom(q) === "klapaD") t.push(`Klapa ${frontDom(q) === "klapaG" ? "do góry — podnośniki dobierze program" : "w dół — zawiasy i rozpórki dobierze program"}.`);
+    else t.push(`${frontDom(q) === "drzwi2" ? "Dwoje drzwi" : "Jedne drzwi"} na zawiasach puszkowych — liczba zawiasów z wysokości drzwi.`);
+    if (q.polki) t.push(`${q.polki} ${q.polki === 1 ? "półka" : "półki"} na kołkach${q.przegroda ? " w każdej kolumnie" : ""}, po równo na wysokości (przesuniesz w aplikacji).`);
+    if (q.przegroda) t.push("Przegroda dzieli szafkę na 2 kolumny; łączenie z dnem i wieńcem (albo wzmocnieniami) program dobierze i powie, w jakiej kolejności skręcać.");
+    if ((q.wzm || []).length) t.push(`Wzmocnienia: ${q.wzm.map((r) => WZM_L[r]).join(", ")}${q.przegroda && q.wzm.some((r) => r !== "pionowe") ? " — nad przegrodą program zapyta o łączenie (trójkąty, przegroda niższa albo dwie przegrody)" : ""}.`);
+    return t.join(" ");
+  }
+  function kartaSzafki(q) {
+    const etyk = (t) => `<h3>${t}</h3>`;
+    const sprz = zeSprzetem(q);
+    let h = `<div class="szczegol karta" data-karta="${q.id}"><div class="naglowek">${ikona(ikonaSzafki(q))}<div><b>${q.name}</b><span>${opisSzafki(q)}</span></div></div>`;
+    h += etyk("Szerokość") + `<div class="rozm">` + (q.tall ? SZER_S : SZER_D).map((w) => `<button data-szer="${w}" aria-pressed="${q.w === w}">${w}</button>`).join("") + `</div>`;
+    const zaWaski = wSzafce(q.id).filter((a) => SPRZETY[a.typ].grupa === "blat" && rozm(a).w > q.w - 60);
+    if (zaWaski.length) h += `<p class="uwaga">${zaWaski.map((a) => SPRZETY[a.typ].nazwa).join(", ")}: wycięcie szersze niż szafka — daj szerszą szafkę albo mniejszy sprzęt.</p>`;
+    if (sprz) h += `<p class="hint">W szafce stoi sprzęt (${wSzafce(q.id).filter((a) => SPRZETY[a.typ].grupa === "wneka").map((a) => SPRZETY[a.typ].nazwa.toLowerCase()).join(", ")}) — front, półki i wnękę wokół niego ustawi program. Sprzęt zmienisz w zakładce AGD.</p>`;
+    else {
+      const fk = frontKlucz(q);
+      const fronty = ["fr_drzwi1", "fr_drzwi2", "fr_klapaG", "fr_klapaD", "fr_otwarta", ...(q.tall ? [] : ["szu_2", "szu_3", "szu_4", "szu_1d"])];
+      h += etyk("Front") + `<div class="rozm">` + fronty.map((k) => `<button data-front="${k}" aria-pressed="${fk === k}">${SPRZETY[k].nazwa}</button>`).join("") + `</div>`;
+      const pelneSzuflady = q.drawers && !q.szuflDrzwi;
+      h += etyk("Wnętrze");
+      if (pelneSzuflady) h += `<p class="hint">Same szuflady — półek ani przegrody tu nie ma. Wybierz drzwi albo „Szuflada + drzwi”, żeby je dodać.</p>`;
+      else h += `<div class="wys"><span>Półki</span><button class="krok" data-polki="-1" aria-label="Mniej półek">−</button><b class="mm">${q.polki || 0}</b><button class="krok" data-polki="1" aria-label="Więcej półek">+</button>`
+        + `<button class="btn${q.przegroda ? " on" : ""}" data-akcja="przegrodaT" aria-pressed="${!!q.przegroda}" style="margin-left:6px">Przegroda</button></div>`;
+      h += `<div class="rozm" role="group" aria-label="Wzmocnienia">` + (q.tall ? ["pionowe"] : ["lezace", "stojace", "pionowe"]).map((r) => `<button data-wzm="${r}" aria-pressed="${(q.wzm || []).includes(r)}">wzm. ${WZM_L[r]}</button>`).join("")
+        + (q.tall ? "" : `<button data-wzm="para" aria-pressed="${["lezace", "stojace"].every((r) => (q.wzm || []).includes(r))}">para pod blat</button>`) + `</div>`;
+    }
+    h += etyk("Co zrobi program") + `<p>${coZrobiSzafka(q)}</p>`;
+    const zeSrodka = wSzafce(q.id).length;
+    h += `<div class="rob"><button class="btn${przesuwany === q.id ? " on" : ""}" data-akcja="przesun">Przesuń w ciągu</button><button class="btn" data-akcja="usun">Usuń szafkę${zeSrodka ? " (ze sprzętem)" : ""}</button></div></div>`;
+    return h;
+  }
+  function panelKlocki(k) {
+    const [t, hint] = ZAK[k];
+    const cab = ciag.find((q) => q.id === zaznaczony && q.kind === "cab");
+    let h = `<h2>${t}</h2><p class="hint">${hint} Na telefonie: dotknij klocek, potem szafkę.</p>`;
+    h += paleta(k === "szafka" ? "Wzory szafek" : "Klocki", k === "szafka" ? Object.keys(WZORY) : Object.keys(KLOCKI[k])) + pasekWyboru();
+    if (cab) h += kartaSzafki(cab);
+    else h += `<div class="pusto">Dotknij szafkę na rysunku — tu pokaże się jej karta: szerokość, front, półki, przegroda, wzmocnienia. Wszystko zmienisz też przyciskami, bez przeciągania.</div>`;
+    if (k === "szafka") {
+      const sz = uklad();
+      h += `<div class="sec"><h3>W ciągu (${sz.length})</h3><ul class="lista">` + sz.map((q) => q.kind === "cab"
+        ? `<li data-id="${q.id}" aria-current="${q.id === zaznaczony}" tabindex="0">${ikona(ikonaSzafki(q))}<div class="co"><b>${q.name}</b><span>${opisSzafki(q)}</span></div><button class="x" data-usun="${q.id}" aria-label="Usuń ${q.name}">×</button></li>`
+        : `<li data-id="${q.id}" aria-current="${q.id === zaznaczony}" tabindex="0">${ikona(q.typ)}<div class="co"><b>${SPRZETY[q.typ].nazwa}</b><span>${q.w} mm · bez korpusu (zakładka AGD)</span></div><button class="x" data-usun="${q.id}" aria-label="Usuń ${SPRZETY[q.typ].nazwa}">×</button></li>`).join("") + `</ul></div>`;
+      h += `<div class="rob" style="display:flex"><button class="btn" data-akcja="reset">Wróć do przykładu</button></div>`;
+    }
+    return h;
   }
   /* Zapis (uzytkownik 2026-11-08: „zapisywanie makiety i wysyłanie jej do ciebie”): stan w przegladarce przy
      kazdej zmianie, „Wyślij do Claude” — dokument `makieta/biezaca` (pole `json` + uwagi + szerokosc okna). */
@@ -699,7 +883,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   function wczytaj(st) {
     if (!st || !Array.isArray(st.ciag)) return false;
     ciag = st.ciag; wnetrze = st.wnetrze || []; sciana = st.sciana || SCIANA0; gorne = st.gorne || {};
-    widok = { agd: true, gorny: true, dolny: true, ...(st.widok || {}) }; nr = Math.max(nr, st.nr || 0);
+    widok = { agd: true, gorny: true, dolny: true, fronty: true, ...(st.widok || {}) }; nr = Math.max(nr, st.nr || 0);
     zaznaczony = wybranyTyp = przesuwany = ostatni = null;
     document.querySelectorAll(".przel").forEach((x) => { x.setAttribute("aria-pressed", String(widok[x.dataset.wid])); x.disabled = (x.dataset.wid === "gorny" && !widok.dolny) || (x.dataset.wid === "dolny" && !widok.gorny); });
     return true;
@@ -724,6 +908,22 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if ((okw || okd) && zaznaczony) {
       const ok = wnetrze.find((a) => a.id === zaznaczony), q = ciag.find((z) => z.id === ok.cel);
       okapNaDol(ok, okd ? Number(okd.dataset.okapdol) : okapGeo(ok, q).dol + Number(okw.dataset.okapwys));
+      odswiez(); return;
+    }
+    // karta szafki: szerokosc, front / szuflady, polki, przegroda, wzmocnienia
+    const kq = zaznaczony && ciag.find((q) => q.id === zaznaczony && q.kind === "cab");
+    const sz = e.target.closest("[data-szer]");
+    if (sz && kq) { const w = Number(sz.dataset.szer); if (new RegExp(kq.w + "$").test(kq.name)) kq.name = kq.name.replace(/\d+$/, String(w)); kq.w = w; odswiez(); return; }
+    const fr = e.target.closest("[data-front]");
+    if (fr && kq) { postaw(fr.dataset.front, { cel: kq.id }); odswiez(); return; }
+    const po = e.target.closest("[data-polki]");
+    if (po && kq) { kq.polki = Math.max(0, Math.min(6, (kq.polki || 0) + Number(po.dataset.polki))); if (!kq.polki) delete kq.polki; odswiez(); return; }
+    const wz = e.target.closest("[data-wzm]");
+    if (wz && kq) {
+      const r = wz.dataset.wzm, jest = new Set(kq.wzm || []);
+      if (r === "para") { const obie = jest.has("lezace") && jest.has("stojace"); ["lezace", "stojace"].forEach((x) => (obie ? jest.delete(x) : jest.add(x))); }
+      else if (jest.has(r)) jest.delete(r); else jest.add(r);
+      kq.wzm = [...jest]; if (!kq.wzm.length) delete kq.wzm;
       odswiez(); return;
     }
     const rz = e.target.closest("[data-rozm]");
@@ -762,6 +962,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         const nowyDol = wSzafce(cabS.id).find((q) => q.typ === (cabS.zamiana ? "mikrofala" : "piekarnik"));
         if (nowyDol && isFinite(dolY)) nowyDol.y0 = dolY;
       }
+      if (a === "przegrodaT" && kq) { if (kq.przegroda) delete kq.przegroda; else kq.przegroda = true; }
       if (a === "anuluj") { wybranyTyp = null; przesuwany = null; }
       if (a === "przesun") { przesuwany = przesuwany === zaznaczony ? null : zaznaczony; wybranyTyp = null; }
       if (a === "usun" && zaznaczony) usun(zaznaczony);
@@ -821,6 +1022,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   svg.addEventListener("pointerdown", (e) => {
     const g = e.target.closest(".post");
     if (g && e.button <= 0) { const q = wszystkie().find((z) => z.id === g.dataset.id); if (q) start(e, q.typ, q.id); return; }
+    const sz = e.target.closest(".szaf");
+    if (sz && e.button <= 0 && !wybranyTyp && !przesuwany) start(e, "szafkaPrzes", sz.dataset.sz);
   });
   window.addEventListener("pointermove", (e) => {
     if (!drag || e.pointerId !== drag.pid) return;
@@ -848,7 +1051,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   window.addEventListener("pointercancel", (e) => { if (drag && e.pointerId === drag.pid) { drag = null; schowajDucha(); odswiez(); } });
   // stawianie dotknieciem: wybrany sprzet / „Przesuń”, potem ramka na rysunku
   svg.addEventListener("click", (e) => {
-    const typ = wybranyTyp || (przesuwany && (wszystkie().find((q) => q.id === przesuwany) || {}).typ);
+    const typ = wybranyTyp || (przesuwany && typPrzes(przesuwany));
     if (!typ) return;
     const c = trafia(e);
     if (!c) return;

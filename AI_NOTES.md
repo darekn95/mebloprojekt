@@ -949,6 +949,17 @@ To samo trzeba bedzie miec w aplikacji (wnęka w słupku: dół / pod blat / na 
 [AI-INFO] Wersja 6: kazda zmiana wysokosci w slupku przez `ustawWys` — drugi sprzet, ktory by nachodzil, sam zjezdza
 pod spod / nad (przerwa 35); „Razem” (`slupek.razem`) — piekarnik i mikrofala jako blok z polka 18 miedzy nimi,
 przesuwane razem (kotwica: dolny sprzet); „Zamień miejscami” zostawia dol bloku na miejscu.
-[AI-TODO] Ustalone z uzytkownikiem 2026-11-08: najpierw dopracowac makiete AGD (klocki od razu tylko, gdy wymiarowanie
-ich wymaga), potem w aplikacji nowy widok obok Zamk./Otw. — przód ciagu + blat z gory — z przelacznikami „AGD i zlew”
+[AI-INFO] Wersja 7: okap na dowolnej wysokosci (pole „dół okapu”, ±50, „= dół szafek górnych”, „650 nad płytą”;
+przy okapie w szafce / pod szafka przesuwa sie dno szafki nad nim — `gorne[id].y0`, kominowy — sam `a.y0`).
+[AI-INFO] Wersja 8 — klocki (uzytkownik 2026-11-08: „budowa jak dla amatora”): zakladki Szafka / Półki / Drzwi i klapy /
+Szuflady / Przegroda / Wzmocnienie. Szafka: miniatury `WZORY` (1 drzwi 450, 2 drzwi 800, szuflady 600, zlewowa 800,
+slupek 600) przeciagane w ciag jak zmywarka (grupa „ciag”). Pozostale klocki (`KLOCKI`, grupa „szafka”) upuszczane na
+korpus: polka +1 (max 6), przegroda, wzmocnienia (`q.wzm`: lezace / stojace / pionowe, „para pod blat”), front
+(`q.front`: drzwi1 / drzwi2 / klapaG / klapaD / otwarta), szuflady (`q.drawers`, `q.szuflDrzwi` — zastepuja front,
+pelne szuflady kasuja polki i przegrode). Bez celow: szafki ze sprzetem we wnece (front ustawia program), szuflady
+i wzmocnienia pod blat w slupkach, polki/przegroda w pelnych szufladach. Karta szafki (dotknieta szafka, w kazdej
+zakladce, tez w AGD): szerokosc, front, polki −/+, przegroda, wzmocnienia, „Co zrobi program”, „Przesuń w ciągu”,
+„Usuń szafkę”. Przelacznik „Fronty” (wylaczony — wnetrze); na zakladkach polek, przegrody i wzmocnien wnetrze widac
+samo. Szafke przesuwa sie przeciagnieciem korpusu (`.szaf`, typ `szafkaPrzes`).
+[AI-TODO] Ustalone z uzytkownikiem 2026-11-08: makieta AGD i klocki gotowe do ogladania (v8), potem w aplikacji nowy widok obok Zamk./Otw. — przód ciagu + blat z gory — z przelacznikami „AGD i zlew”
 (nazwa do ustalenia), „Ciąg górny” (domyslnie widoczny) i „Ciąg dolny”.
