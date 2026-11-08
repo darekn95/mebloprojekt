@@ -344,6 +344,13 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const plyta = wSzafce(q.id).find((z) => z.typ === "plyta");
     return { r, w, dol, gora: dol + r.h, x0: q.x + (q.w - w) / 2, odPlyty: plyta ? Math.round(dol - BLAT_Y) : null };
   }
+  // dol okapu na zadanej wysokosci: kominowy — sam okap; inne — szafka nad nim (krotsza, gora zostaje 2120)
+  function okapNaDol(ok, dol) {
+    const r = OKAP[ok.rodzaj || "podszafkowy"];
+    const d = Math.max(BLAT_Y + 100, Math.min(GORNE0 + GORNE - r.h - 200, Math.round(dol)));
+    if (ok.rodzaj === "kominowy") ok.y0 = d;
+    else gorne[ok.cel] = { y0: ok.rodzaj === "podszafkowy" || !ok.rodzaj ? d + r.h : d };
+  }
   function postaw(typ, c, istniejacy) {
     if (SPRZETY[typ].grupa === "ciag") {
       let slot;
@@ -495,6 +502,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     // widok z przodu: podloga
     s += `<line x1="-60" y1="${yEl(0)}" x2="${Wr + 60}" y2="${yEl(0)}" stroke="var(--muted)" stroke-width="5"/>`;
     // gorne szafki nad dolnymi i zmywarka
+    let liniaOkapu = false;
     if (widok.gorny) L.forEach((q) => {
       if (!maGorna(q)) return;
       const ok = okapNad(q.id), g = gornaGeo(q.id);
@@ -508,6 +516,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       }
       if (!ok) return;
       const og = okapGeo(ok, q), zazn = ok.id === zaznaczony, ruch = drag && drag.id === ok.id ? ' opacity=".35"' : "";
+      if (og.dol === GORNE0) liniaOkapu = true;
       const zaNisko = og.odPlyty != null && og.odPlyty < OKAP_MIN;
       const obr = zazn ? "var(--accent)" : zaNisko ? "var(--warn)" : "var(--metal)";
       let t = `<g data-id="${ok.id}" class="post" style="cursor:grab;touch-action:none"${ruch}>`;
@@ -587,6 +596,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         s += `<text x="${x + w / 2}" y="${yEl(0) + 80}" font-size="54" text-anchor="middle" fill="var(--muted)">${SPRZETY[q.typ].nazwa.split(" ")[0]}</text>`;
       }
     });
+    if (liniaOkapu) liniaGornych = true;
     if (liniaGornych) s += `<line x1="-40" y1="${yEl(GORNE0)}" x2="${Wr + 40}" y2="${yEl(GORNE0)}" stroke="var(--accent)" stroke-width="5" stroke-dasharray="28 18"/>`
       + `<text class="mm" x="${Wr + 50}" y="${yEl(GORNE0) + 14}" font-size="40" fill="var(--accent)">${GORNE0} — jedna linia</text>`;
     // wymiary szerokosci
@@ -656,12 +666,13 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         if (og.w > cab.w) h += `<p class="uwaga">Okap ${og.w} mm jest szerszy niż szafka ${cab.w} mm nad którą wisi${ok.rodzaj === "kominowy" ? " — sąsiednie szafki górne muszą się kończyć dalej" : ""}.</p>`;
         if (og.odPlyty == null) h += `<p class="uwaga">Pod okapem nie ma płyty — okap wisi zwykle nad płytą.</p>`;
         else h += `<p>Od płyty do okapu: <b class="mm">${og.odPlyty} mm</b> (indukcja zwykle min. ${OKAP_MIN}, gaz 750 — wg instrukcji producenta).</p>`;
-        if (og.odPlyty != null && og.odPlyty < OKAP_MIN) {
-          const potrzeba = BLAT_Y + OKAP_MIN + (ok.rodzaj === "podszafkowy" || !ok.rodzaj ? OKAP.podszafkowy.h : 0);
-          h += ok.rodzaj === "kominowy" ? `<div class="rob"><button class="btn" data-akcja="okapwyzej">Okap wyżej (${OKAP_MIN} nad płytą)</button></div>`
-            : `<div class="rob"><button class="btn" data-akcja="szafkawyzej" data-y="${potrzeba}">Szafka nad okapem krótsza, dół na ${potrzeba}</button></div>`;
-        }
-        if (ok.rodzaj === "kominowy") h += `<div class="wys"><span>dół okapu</span><button class="krok" data-okapwys="-50">−</button><span class="mm">${og.dol}</span><button class="krok" data-okapwys="50">+</button><span>mm</span></div>`;
+        // wysokosc okapu (uzytkownik 2026-11-08: „dowolna wysokość, np. dół okapu z dołem szafek, i ręczna zmiana”) —
+        // przy podszafkowym / teleskopowym / wkladzie przesuwa sie szafka nad okapem (krotsza), kominowy — sam okap
+        h += etyk("Wysokość okapu") + `<label for="okapDol" style="font-size:12.5px">dół okapu od podłogi${ok.rodzaj === "kominowy" ? "" : " (szafka nad nim przesuwa się razem)"}</label>`
+          + `<div class="wys"><button class="krok" data-okapwys="-50">−</button><input id="okapDol" type="number" step="10" value="${og.dol}"><button class="krok" data-okapwys="50">+</button><span>mm</span></div>`
+          + `<div class="rob"><button class="btn" data-okapdol="${GORNE0}">Dół okapu = dół szafek górnych (${GORNE0})</button>`
+          + `<button class="btn" data-okapdol="${BLAT_Y + OKAP_MIN}">${OKAP_MIN} nad płytą (${BLAT_Y + OKAP_MIN})</button>`
+          + ((gorne[ok.cel] || ok.y0 != null) ? `<button class="btn" data-akcja="okapjakinne">${ok.rodzaj === "kominowy" ? "Okap na domyślną wysokość" : "Szafka nad okapem jak inne"}</button>` : "") + `</div>`;
       }
       h += etyk("Co zrobi program") + `<p>${opis}</p>`
         + `<div class="rob"><button class="btn${przesuwany === sel.id ? " on" : ""}" data-akcja="przesun">Przesuń</button><button class="btn" data-akcja="usun">Usuń</button></div></div>`;
@@ -709,8 +720,12 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if (usunB) { usun(usunB.dataset.usun); odswiez(); return; }
     const okb = e.target.closest("[data-okap]");
     if (okb && zaznaczony) { const ok = wnetrze.find((a) => a.id === zaznaczony); ok.rodzaj = okb.dataset.okap; delete ok.y0; odswiez(); return; }
-    const okw = e.target.closest("[data-okapwys]");
-    if (okw && zaznaczony) { const ok = wnetrze.find((a) => a.id === zaznaczony), q = ciag.find((z) => z.id === ok.cel); ok.y0 = okapGeo(ok, q).dol + Number(okw.dataset.okapwys); odswiez(); return; }
+    const okw = e.target.closest("[data-okapwys]"), okd = e.target.closest("[data-okapdol]");
+    if ((okw || okd) && zaznaczony) {
+      const ok = wnetrze.find((a) => a.id === zaznaczony), q = ciag.find((z) => z.id === ok.cel);
+      okapNaDol(ok, okd ? Number(okd.dataset.okapdol) : okapGeo(ok, q).dol + Number(okw.dataset.okapwys));
+      odswiez(); return;
+    }
     const rz = e.target.closest("[data-rozm]");
     if (rz && zaznaczony) {
       const obj = wnetrze.find((a) => a.id === zaznaczony) || ciag.find((q) => q.id === zaznaczony);
@@ -738,8 +753,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         if (cabS.razem) { delete cabS.razem; Object.entries(m).forEach(([id, p]) => { const q = wnetrze.find((z) => z.id === id); if (q) q.y0 = p.y0; }); }
         else { cabS.razem = true; const dol = Object.entries(m).sort((x, y) => x[1].y0 - y[1].y0)[0]; wSzafce(cabS.id).forEach((q) => { if (q.id === dol[0]) q.y0 = dol[1].y0; else delete q.y0; }); }
       }
-      if (a === "szafkawyzej" && ob) gorne[ob.cel] = { y0: Number(ak.dataset.y) };
-      if (a === "okapwyzej" && ob) ob.y0 = BLAT_Y + OKAP_MIN;
+      if (a === "okapjakinne" && ob) { delete gorne[ob.cel]; delete ob.y0; }
       // zamiana: wysokosci wracaja do domyslnych, kolejnosc odwrotna
       if (a === "zamien" && cabS) {
         // zamiana: dol bloku zostaje tam, gdzie byl, sprzety zamieniaja sie kolejnoscia
@@ -758,6 +772,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if (li) { zaznaczony = zaznaczony === li.dataset.id ? null : li.dataset.id; przesuwany = null; odswiez(); }
   });
   panel.addEventListener("change", (e) => {
+    if (e.target.id === "okapDol" && zaznaczony) {
+      const ok = wnetrze.find((a) => a.id === zaznaczony), v = Math.round(Number(e.target.value));
+      if (ok && v > 0) okapNaDol(ok, v);
+      odswiez(); return;
+    }
     if (e.target.id !== "wysWneki" || !zaznaczony) return;
     const a = wnetrze.find((q) => q.id === zaznaczony), v = Math.round(Number(e.target.value));
     if (a && v > 0) ustawWys(a, v);
