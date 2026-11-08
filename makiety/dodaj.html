@@ -9,7 +9,7 @@
   --bg: #f5f5f4; --panel: #ffffff; --ink: #1c1917; --muted: #78716c; --line: #d6d3d1; --soft: #fafaf9;
   --accent: #0f766e; --accent-ink: #ffffff; --accent-soft: #ccfbf1;
   --board: #fbfaf8; --plinth: #e7e5e4; --top: #8b6f56; --metal: #57534e; --glass: #292524; --steel: #d6d3d1;
-  --target: rgba(15, 118, 110, 0.10); --target-on: rgba(15, 118, 110, 0.28); --warn: #b45309;
+  --target: rgba(15, 118, 110, 0.10); --target-on: rgba(15, 118, 110, 0.28); --warn: #b45309; --wall: #ece7e1;
   --f-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
@@ -17,12 +17,12 @@
   --bg: #1c1917; --panel: #262220; --ink: #f5f5f4; --muted: #a8a29e; --line: #44403c; --soft: #2e2a27;
   --accent: #2dd4bf; --accent-ink: #042f2e; --accent-soft: #134e4a;
   --board: #3a3532; --plinth: #2e2a27; --top: #a0836a; --metal: #a8a29e; --glass: #0c0a09; --steel: #57534e;
-  --target: rgba(45, 212, 191, 0.12); --target-on: rgba(45, 212, 191, 0.32); --warn: #fbbf24; color-scheme: dark } }
+  --target: rgba(45, 212, 191, 0.12); --target-on: rgba(45, 212, 191, 0.32); --warn: #fbbf24; --wall: #2b2623; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #1c1917; --panel: #262220; --ink: #f5f5f4; --muted: #a8a29e; --line: #44403c; --soft: #2e2a27;
   --accent: #2dd4bf; --accent-ink: #042f2e; --accent-soft: #134e4a;
   --board: #3a3532; --plinth: #2e2a27; --top: #a0836a; --metal: #a8a29e; --glass: #0c0a09; --steel: #57534e;
-  --target: rgba(45, 212, 191, 0.12); --target-on: rgba(45, 212, 191, 0.32); --warn: #fbbf24; color-scheme: dark }
+  --target: rgba(45, 212, 191, 0.12); --target-on: rgba(45, 212, 191, 0.32); --warn: #fbbf24; --wall: #2b2623; color-scheme: dark }
 
 html, body { height: 100%; }
 body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 14px; line-height: 1.45;
@@ -37,13 +37,14 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .badge { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--warn); border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; }
 .top p { margin: 0; color: var(--muted); font-size: 13px; flex-basis: 100%; max-width: 75ch; }
 
-.app { display: grid; grid-template-columns: 148px minmax(260px, 320px) minmax(0, 1fr); gap: 12px; align-items: start; }
+.app { display: grid; grid-template-columns: 78px minmax(240px, 280px) minmax(0, 1fr); gap: 10px; align-items: start; }
 .tabs { display: flex; flex-direction: column; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
-.tabs .cap { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 4px 8px 6px; }
-.tab { display: flex; align-items: center; gap: 8px; text-align: left; border: 0; background: transparent; border-radius: 6px; padding: 7px 8px; cursor: pointer; }
+.tabs .cap { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 2px 2px 4px; text-align: center; }
+.tab { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; border: 0; background: transparent; border-radius: 6px; padding: 6px 2px; cursor: pointer; font-size: 11.5px; line-height: 1.15; }
+.tab svg { width: 22px; height: 22px; }
 .tab:hover { background: var(--soft); }
 .tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
-.tab .later { margin-left: auto; font-size: 10px; color: var(--muted); }
+.tab .later { font-size: 9.5px; color: var(--muted); }
 .tab[aria-selected="true"] .later { color: inherit; opacity: .8; }
 
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
@@ -88,6 +89,16 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .rys .pasek { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 6px; }
 .rys .pasek h2 { font-size: 15px; font-weight: 600; }
 .rys .pasek span { font-size: 12px; color: var(--muted); }
+.sciana { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12.5px; margin-bottom: 6px; }
+.sciana label { color: var(--muted); }
+.sciana input { width: 76px; font: 500 13px var(--f-num); padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--soft); color: var(--ink); }
+.sciana .krok { border: 1px solid var(--line); background: var(--panel); border-radius: 5px; width: 28px; height: 26px; cursor: pointer; }
+.sciana .mm { font-family: var(--f-num); }
+.sciana .wolne { color: var(--accent); }
+.sciana .brak { color: var(--warn); font-weight: 500; }
+.alarm { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12.5px; border: 1px solid var(--warn); color: var(--ink); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; }
+.alarm b { color: var(--warn); }
+.alarm[hidden] { display: none; }
 .rys .ramka { overflow-x: auto; }
 #rysunek { display: block; width: 100%; min-width: 520px; height: auto; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 #rysunek .cel { cursor: copy; }
@@ -106,8 +117,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .stopka { margin-top: 14px; font-size: 12px; color: var(--muted); max-width: 90ch; }
 
 @media (max-width: 980px) {
-  .app { grid-template-columns: minmax(250px, 300px) minmax(0, 1fr); }
+  .app { grid-template-columns: minmax(240px, 280px) minmax(0, 1fr); }
   .tabs { grid-column: 1 / -1; flex-direction: row; overflow-x: auto; }
+  .tab { flex-direction: row; gap: 6px; padding: 6px 10px; font-size: 13px; }
   .tabs .cap { display: none; }
   .tab { white-space: nowrap; }
 }
@@ -130,19 +142,21 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 <div class="app">
   <nav class="tabs" role="tablist" aria-label="Dodaj">
     <div class="cap">Dodaj</div>
-    <button class="tab" role="tab" data-tab="agd" aria-selected="true">AGD</button>
-    <button class="tab" role="tab" data-tab="szafka" aria-selected="false">Szafka <span class="later">dalej</span></button>
-    <button class="tab" role="tab" data-tab="polki" aria-selected="false">Półki <span class="later">dalej</span></button>
-    <button class="tab" role="tab" data-tab="drzwi" aria-selected="false">Drzwi i klapy <span class="later">dalej</span></button>
-    <button class="tab" role="tab" data-tab="szuflady" aria-selected="false">Szuflady <span class="later">dalej</span></button>
-    <button class="tab" role="tab" data-tab="przegroda" aria-selected="false">Przegroda <span class="later">dalej</span></button>
-    <button class="tab" role="tab" data-tab="wzmocnienie" aria-selected="false">Wzmocnienie <span class="later">dalej</span></button>
+    <button class="tab" role="tab" data-tab="agd" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="7.5" y="9" width="9" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="8" y1="6" x2="16" y2="6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>AGD</button>
+    <button class="tab" role="tab" data-tab="szafka" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" stroke-width="1.4"/><circle cx="10" cy="12" r=".9" fill="currentColor"/><circle cx="14" cy="12" r=".9" fill="currentColor"/></svg>Szafka<span class="later">dalej</span></button>
+    <button class="tab" role="tab" data-tab="polki" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="4" y1="10" x2="20" y2="10" stroke="currentColor" stroke-width="2"/><line x1="4" y1="15" x2="20" y2="15" stroke="currentColor" stroke-width="2"/></svg>Półki<span class="later">dalej</span></button>
+    <button class="tab" role="tab" data-tab="drzwi" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 3 L13 6 V21" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Drzwi i klapy<span class="later">dalej</span></button>
+    <button class="tab" role="tab" data-tab="szuflady" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="4" y1="9.5" x2="20" y2="9.5" stroke="currentColor" stroke-width="1.4"/><line x1="4" y1="15" x2="20" y2="15" stroke="currentColor" stroke-width="1.4"/><line x1="10" y1="7" x2="14" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Szuflady<span class="later">dalej</span></button>
+    <button class="tab" role="tab" data-tab="przegroda" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" stroke-width="2.6"/></svg>Przegroda<span class="later">dalej</span></button>
+    <button class="tab" role="tab" data-tab="wzmocnienie" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8 V20 H20 V8" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="4" y="5" width="16" height="3" fill="currentColor"/></svg>Wzmocnienie<span class="later">dalej</span></button>
   </nav>
 
   <section class="panel" id="panel" aria-live="polite"></section>
 
   <section class="rys">
     <div class="pasek"><h2>Ciąg „Kuchnia — ściana A”</h2><span class="mm" id="szer"></span></div>
+    <div class="sciana"><label for="scianaW">Ściana A</label><button class="krok" data-sc="-100" aria-label="Węższa o 100 mm">−</button><input id="scianaW" type="number" step="10" min="600" inputmode="numeric"><button class="krok" data-sc="100" aria-label="Szersza o 100 mm">+</button><span>mm</span><span id="wolne"></span></div>
+    <div class="alarm" id="alarm" hidden></div>
     <div class="ramka"><svg id="rysunek" role="img" aria-label="Rysunek ciągu: blat z góry i widok z przodu"></svg></div>
     <div class="legenda"><span><i></i>tu może stanąć wybrany sprzęt</span><span>góra: blat z góry · dół: widok z przodu</span></div>
   </section>
@@ -159,8 +173,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     piekarnik:{ nazwa: "Piekarnik", gdzie: "do szafki albo słupka", grupa: "wneka" },
     mikrofala:{ nazwa: "Mikrofala", gdzie: "do słupka", grupa: "wneka" },
     lodowka:  { nazwa: "Lodówka do zabudowy", gdzie: "do słupka", grupa: "wneka" },
-    zmywarka: { nazwa: "Zmywarka", gdzie: "w ciąg, bez korpusu", grupa: "ciag", w: 600 },
-    wolna:    { nazwa: "Lodówka wolnostojąca", gdzie: "w ciąg, bez korpusu", grupa: "ciag", w: 600 },
+    zmywarka: { nazwa: "Zmywarka", bier: "zmywarkę", gdzie: "w ciąg, bez korpusu", grupa: "ciag", w: 600 },
+    wolna:    { nazwa: "Lodówka wolnostojąca", bier: "lodówkę wolnostojącą", gdzie: "w ciąg, bez korpusu", grupa: "ciag", w: 600 },
   };
   const CO_ZROBI = {
     plyta: (c) => `Wycięcie w blacie nad szafką „${c}”, na środku szafki, 50 mm od przodu blatu. Program sprawdzi, czy korpus płyty nie wchodzi w szuflady albo leżące wzmocnienie pod blatem — jeśli wchodzi, zaproponuje wzmocnienie stojące.`,
@@ -184,6 +198,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     { id: "a2", typ: "zlew", cel: "s4", przyklad: true },
     { id: "a3", typ: "piekarnik", cel: "s2", przyklad: true },
   ];
+  const SCIANA0 = 4400;     // sciana A: ciag 3800 + 600 wolnego
+  let sciana = SCIANA0;
+  let ostatni = null;       // ostatnio wstawiony sprzet w ciag (do „Usuń” przy braku miejsca)
   let ciag = JSON.parse(JSON.stringify(SZAFKI0));
   let wnetrze = JSON.parse(JSON.stringify(WNETRZE0));
   let nr = 10;
@@ -236,7 +253,14 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       let x = 0;
       const granice = [0];
       bezS.forEach((s) => { x += s.w; granice.push(x); });
-      granice.forEach((gx, i) => out.push({ key: "c" + i, x0: gx - 90, x1: gx + 90, y0: yEl(PL + KOR + BLAT + 40), y1: yEl(0), wstaw: i, gx }));
+      const w = SPRZETY[typ].w, wys = typ === "wolna" ? 1850 : PL + KOR + BLAT;
+      const brak = Math.max(0, x + w - sciana);
+      // koniec ciagu — cale wolne miejsce na scianie (albo tyle, ile sprzet potrzebuje)
+      granice.forEach((gx, i) => {
+        const koniec = i === granice.length - 1;
+        out.push({ key: "c" + i, x0: koniec ? gx : gx - 70, x1: koniec ? Math.max(sciana, gx + w) : gx + 70,
+          y0: yEl(PL + KOR + BLAT + 200), y1: yEl(0), wstaw: i, gx, w, wys, koniec, brak });
+      });
     }
     return out;
   }
@@ -247,7 +271,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       if (istniejacy) { const i = ciag.findIndex((s) => s.id === istniejacy); slot = ciag.splice(i, 1)[0]; delete slot.przyklad; }
       else slot = { id: "z" + nr++, kind: "app", typ, w: SPRZETY[typ].w };
       ciag.splice(c.wstaw, 0, slot);
-      zaznaczony = slot.id;
+      zaznaczony = slot.id; ostatni = slot.id;
     } else if (istniejacy) {
       const a = wnetrze.find((q) => q.id === istniejacy); a.cel = c.cel; delete a.przyklad; zaznaczony = a.id;
     } else { const a = { id: "a" + nr++, typ, cel: c.cel }; wnetrze.push(a); zaznaczony = a.id; }
@@ -272,15 +296,35 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   function rysuj() {
     const L = uklad();
     const W = L.reduce((a, s) => a + s.w, 0);
-    document.getElementById("szer").textContent = `${W} mm`;
-    svg.setAttribute("viewBox", `-150 -150 ${W + 300} ${Y_EL + H_EL + 360}`);
+    const Wr = Math.max(W, sciana);
+    document.getElementById("szer").textContent = `ciąg ${W} mm`;
+    const wej = document.getElementById("scianaW"); if (document.activeElement !== wej) wej.value = sciana;
+    const wolne = sciana - W;
+    document.getElementById("wolne").innerHTML = wolne >= 0 ? `<span class="wolne">wolne ${wolne} mm</span>` : `<span class="brak">brakuje ${-wolne} mm</span>`;
+    const al = document.getElementById("alarm");
+    if (wolne < 0) {
+      const ost = ciag.find((q) => q.id === ostatni);
+      al.innerHTML = `<b>Ciąg nie mieści się na ścianie</b> — ${W} mm na ścianie ${sciana} mm, brakuje ${-wolne} mm.`
+        + `<button class="btn" data-sc-ustaw="${W}">Poszerz ścianę do ${W} mm</button>`
+        + (ost ? `<button class="btn" data-usun-ost="${ost.id}">Usuń ${SPRZETY[ost.typ].bier}</button>` : "");
+      al.hidden = false;
+    } else al.hidden = true;
+    svg.setAttribute("viewBox", `-90 -150 ${Wr + 180} ${Y_EL + H_EL + 360}`);
     const typAkt = drag ? drag.typ : przesuwany ? (wszystkie().find((q) => q.id === przesuwany) || {}).typ : wybranyTyp;
     const bezId = drag ? drag.id : przesuwany;
     const C = typAkt ? cele(typAkt, bezId) : [];
     let s = "";
     // podpisy pasow
-    s += `<text x="-130" y="${Y_TOP - 50}" font-size="64" fill="var(--muted)">Blat z góry</text>`;
-    s += `<text x="-130" y="${Y_EL - 50}" font-size="64" fill="var(--muted)">Widok z przodu</text>`;
+    s += `<text x="-70" y="${Y_TOP - 70}" font-size="64" fill="var(--muted)">Blat z góry</text>`;
+    s += `<text x="-70" y="${Y_EL - 50}" font-size="64" fill="var(--muted)">Widok z przodu</text>`;
+    // sciana: tlo w widoku z przodu, linia za blatem z gory, wolne miejsce i brak
+    s += `<defs><pattern id="kreski" width="60" height="60" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="60" height="60" fill="none"/><line x1="0" y1="0" x2="0" y2="60" stroke="var(--warn)" stroke-width="12" opacity=".5"/></pattern></defs>`;
+    s += `<rect x="0" y="${yEl(2260)}" width="${sciana}" height="2260" fill="var(--wall)"/>`;
+    s += `<line x1="0" y1="${yEl(2260)}" x2="0" y2="${yEl(0)}" stroke="var(--muted)" stroke-width="10"/><line x1="${sciana}" y1="${yEl(2260)}" x2="${sciana}" y2="${yEl(0)}" stroke="var(--muted)" stroke-width="10"/>`;
+    s += `<line x1="0" y1="${Y_TOP - 18}" x2="${sciana}" y2="${Y_TOP - 18}" stroke="var(--muted)" stroke-width="16"/>`;
+    if (W > sciana) s += `<rect x="${sciana}" y="${yEl(2260)}" width="${W - sciana}" height="2260" fill="url(#kreski)"/><text x="${W - 20}" y="${yEl(2180)}" font-size="58" text-anchor="end" fill="var(--warn)">poza ścianą ${W - sciana}</text>`;
+    else if (sciana - W >= 100) s += `<text class="mm" x="${(W + sciana) / 2}" y="${yEl(1150)}" font-size="58" text-anchor="middle" fill="var(--muted)">wolne ${sciana - W}</text>`
+      + `<line x1="${W + 20}" y1="${yEl(1080)}" x2="${sciana - 20}" y2="${yEl(1080)}" stroke="var(--muted)" stroke-width="4" stroke-dasharray="16 12"/>`;
     // blat z gory: odcinki nad szafkami dolnymi i zmywarka
     let odc = null; const odcinki = [];
     L.forEach((q) => { const podBlatem = (q.kind === "cab" && !q.tall) || q.typ === "zmywarka"; if (podBlatem) { if (!odc) odc = { x0: q.x, x1: q.x + q.w }; else odc.x1 = q.x + q.w; } else if (odc) { odcinki.push(odc); odc = null; } });
@@ -305,7 +349,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       }
     });
     // widok z przodu: podloga
-    s += `<line x1="-100" y1="${yEl(0)}" x2="${W + 100}" y2="${yEl(0)}" stroke="var(--muted)" stroke-width="5"/>`;
+    s += `<line x1="-60" y1="${yEl(0)}" x2="${Wr + 60}" y2="${yEl(0)}" stroke="var(--muted)" stroke-width="5"/>`;
     // gorne szafki nad dolnymi i zmywarka
     L.forEach((q) => {
       if (!((q.kind === "cab" && !q.tall) || q.typ === "zmywarka")) return;
@@ -371,8 +415,18 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     // miejsca dla wybranego sprzetu
     C.forEach((c) => {
       const on = drag && drag.cel && drag.cel.key === c.key;
-      s += `<rect class="cel" data-cel="${c.key}" x="${c.x0}" y="${c.y0}" width="${c.x1 - c.x0}" height="${c.y1 - c.y0}" rx="16" fill="${on ? "var(--target-on)" : "var(--target)"}" stroke="var(--accent)" stroke-width="${on ? 12 : 7}" stroke-dasharray="${on ? "none" : "30 20"}"/>`;
-      if (c.wstaw != null) s += `<line x1="${c.gx}" y1="${c.y0 + 40}" x2="${c.gx}" y2="${c.y1 - 40}" stroke="var(--accent)" stroke-width="10" stroke-linecap="round"/>`;
+      const kol = c.brak ? "var(--warn)" : "var(--accent)";
+      s += `<rect class="cel" data-cel="${c.key}" x="${c.x0}" y="${c.y0}" width="${c.x1 - c.x0}" height="${c.y1 - c.y0}" rx="16" fill="${on ? "var(--target-on)" : "var(--target)"}" stroke="${kol}" stroke-width="${on ? 12 : 7}" stroke-dasharray="${on ? "none" : "30 20"}"/>`;
+      if (c.wstaw != null) {
+        const mx = c.koniec ? Math.min(c.x1, c.gx + c.w) - c.w / 2 : c.gx, my = c.y0 + 90;
+        if (!c.koniec && !on) s += `<line x1="${c.gx}" y1="${c.y0 + 170}" x2="${c.gx}" y2="${c.y1 - 40}" stroke="${kol}" stroke-width="10" stroke-linecap="round"/>`;
+        if (!on) s += `<circle cx="${mx}" cy="${my}" r="62" fill="var(--panel)" stroke="${kol}" stroke-width="8"/><path d="M${mx - 30} ${my} h60 M${mx} ${my - 30} v60" stroke="${kol}" stroke-width="10" stroke-linecap="round"/>`;
+        // podglad: gdzie stanie sprzet (w srodku ciagu reszta przesunie sie w prawo)
+        if (on) {
+          s += `<rect x="${c.gx}" y="${yEl(c.wys)}" width="${c.w}" height="${c.wys}" rx="${c.wys > 1000 ? 50 : 8}" fill="var(--target-on)" stroke="${kol}" stroke-width="10" stroke-dasharray="26 16"/>`;
+          s += `<text x="${c.gx + c.w / 2}" y="${yEl(c.wys) - 40}" font-size="56" text-anchor="middle" fill="${kol}">${c.koniec ? "tu stanie" : `wstawię tu, reszta w prawo o ${c.w}`}${c.brak ? ` · brakuje ${c.brak} mm ściany` : ""}</text>`;
+        }
+      }
     });
     svg.innerHTML = s;
     svg._cele = C;
@@ -390,7 +444,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       `<button class="sprzet" data-typ="${k}" aria-pressed="${wybranyTyp === k}">${ikona(k)}<b>${v.nazwa}</b><span>${v.gdzie}</span></button>`).join("") + `</div></div>`;
     if (aktywny) {
       const n = cele(aktywny, przesuwany).length;
-      h += `<div class="wybor">${przesuwany ? "Przesuwasz" : "Wybrany"}: <b>${SPRZETY[aktywny].nazwa}</b> — ${n ? "dotknij zieloną ramkę na rysunku" : "nie ma na rysunku wolnego miejsca"}<button data-akcja="anuluj">Anuluj</button></div>`;
+      const brak = SPRZETY[aktywny].grupa === "ciag" ? (cele(aktywny, przesuwany)[0] || {}).brak : 0;
+      h += `<div class="wybor">${przesuwany ? "Przesuwasz" : "Wybrany"}: <b>${SPRZETY[aktywny].nazwa}</b> — ${n ? "dotknij ramkę na rysunku" : "nie ma na rysunku wolnego miejsca"}${brak ? ` (na ścianie brakuje ${brak} mm — poszerz ją nad rysunkiem albo wstaw i zdecyduj potem)` : ""}<button data-akcja="anuluj">Anuluj</button></div>`;
     }
     h += `<div class="sec"><h3>W projekcie (${lista.length})</h3>`;
     h += lista.length ? `<ul class="lista">` + lista.map((q) => `<li data-id="${q.id}" aria-current="${q.id === zaznaczony}" tabindex="0">${ikona(q.typ)}<div class="co"><b>${SPRZETY[q.typ].nazwa}${q.przyklad ? '<span class="przyklad">przykład</span>' : ""}</b><span>${q.gdzie}</span></div><button class="x" data-usun="${q.id}" aria-label="Usuń ${SPRZETY[q.typ].nazwa}">×</button></li>`).join("") + `</ul>`
@@ -435,7 +490,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       if (a === "anuluj") { wybranyTyp = null; przesuwany = null; }
       if (a === "przesun") { przesuwany = przesuwany === zaznaczony ? null : zaznaczony; wybranyTyp = null; }
       if (a === "usun" && zaznaczony) usun(zaznaczony);
-      if (a === "reset") { ciag = JSON.parse(JSON.stringify(SZAFKI0)); wnetrze = JSON.parse(JSON.stringify(WNETRZE0)); zaznaczony = wybranyTyp = przesuwany = null; }
+      if (a === "reset") { ciag = JSON.parse(JSON.stringify(SZAFKI0)); wnetrze = JSON.parse(JSON.stringify(WNETRZE0)); sciana = SCIANA0; zaznaczony = wybranyTyp = przesuwany = ostatni = null; }
       odswiez(); return;
     }
     const li = e.target.closest("li[data-id]");
@@ -454,7 +509,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if (!duch) { duch = document.createElement("div"); duch.className = "duch"; document.body.appendChild(duch); }
     duch.innerHTML = `${ikona(typ)}<span>${SPRZETY[typ].nazwa}</span>`;
     duch.classList.toggle("zle", !ok);
-    duch.style.transform = `translate(${e.clientX + 12}px, ${e.clientY + 12}px)`;
+    const prawo = e.clientX + 12 + duch.offsetWidth > window.innerWidth - 8;
+    duch.style.transform = `translate(${prawo ? e.clientX - 12 - duch.offsetWidth : e.clientX + 12}px, ${e.clientY + 12}px)`;
   };
   const schowajDucha = () => { if (duch) { duch.remove(); duch = null; } };
 
@@ -502,6 +558,14 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if (!c) return;
     postaw(typ, c, przesuwany);
     wybranyTyp = null; przesuwany = null; odswiez();
+  });
+  // sciana: pole, krok ±100, „Poszerz ścianę do …”, „Usuń …” przy braku miejsca
+  const wej = document.getElementById("scianaW");
+  wej.addEventListener("change", () => { const v = Math.round(Number(wej.value)); if (v >= 600) sciana = v; odswiez(); });
+  document.querySelectorAll(".sciana .krok").forEach((b) => b.addEventListener("click", () => { sciana = Math.max(600, sciana + Number(b.dataset.sc)); odswiez(); }));
+  document.getElementById("alarm").addEventListener("click", (e) => {
+    const u = e.target.closest("[data-sc-ustaw]"); if (u) { sciana = Number(u.dataset.scUstaw); odswiez(); return; }
+    const d = e.target.closest("[data-usun-ost]"); if (d) { usun(d.dataset.usunOst); ostatni = null; odswiez(); }
   });
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") { wybranyTyp = null; przesuwany = null; drag = null; schowajDucha(); odswiez(); } });
 

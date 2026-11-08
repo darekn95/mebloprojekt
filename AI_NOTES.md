@@ -927,4 +927,8 @@ program”, rysunek ciagu (blat z gory + widok z przodu) po prawej; przeciaganie
 na telefonie „dotknij sprzet, potem miejsce”, „Przesuń” dla postawionego. Uzgodnienia z uzytkownikiem: jedna wspolna
 makieta, najpierw AGD, potem „klocki” (szafka z miniaturami wzorow, polki, drzwi/klapy, szuflady, przegroda,
 wzmocnienie — „budowa jak dla amatora”); w aplikacji zakladka AGD pod karta „Płyty”, stare miejsca zostaja.
-[AI-TODO] klocki — po uwagach uzytkownika do zakladki AGD.
+[AI-INFO] Wersja 2 (uwagi uzytkownika 2026-11-08): sciana z szerokoscia (pole, ±100, „wolne N mm” / „brakuje N mm”,
+„Poszerz ścianę do …”, „Usuń …”), koniec ciagu = cale wolne miejsce, „+” przy stykach i podglad, gdzie stanie sprzet,
+waska szyna zakladek z ikonami (wiecej miejsca na rysunek).
+[AI-TODO] klocki; w aplikacji — widok ciagu „przód + blat z góry” (bez ciagu gornego) i przelacznik ciagu gornego
+(prosba uzytkownika 2026-11-08, miejsce do ustalenia).
