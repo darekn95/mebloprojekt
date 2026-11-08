@@ -1,0 +1,510 @@
+<title>Makieta „Dodaj”</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Uklad: zakladki „Dodaj” po lewej, paleta i lista w srodku, rysunek ciagu po prawej (przypiety) — jak w MebloProjekcie (kamien + morski akcent). */
+:root {
+  --bg: #f5f5f4; --panel: #ffffff; --ink: #1c1917; --muted: #78716c; --line: #d6d3d1; --soft: #fafaf9;
+  --accent: #0f766e; --accent-ink: #ffffff; --accent-soft: #ccfbf1;
+  --board: #fbfaf8; --plinth: #e7e5e4; --top: #8b6f56; --metal: #57534e; --glass: #292524; --steel: #d6d3d1;
+  --target: rgba(15, 118, 110, 0.10); --target-on: rgba(15, 118, 110, 0.28); --warn: #b45309;
+  --f-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1c1917; --panel: #262220; --ink: #f5f5f4; --muted: #a8a29e; --line: #44403c; --soft: #2e2a27;
+  --accent: #2dd4bf; --accent-ink: #042f2e; --accent-soft: #134e4a;
+  --board: #3a3532; --plinth: #2e2a27; --top: #a0836a; --metal: #a8a29e; --glass: #0c0a09; --steel: #57534e;
+  --target: rgba(45, 212, 191, 0.12); --target-on: rgba(45, 212, 191, 0.32); --warn: #fbbf24; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #1c1917; --panel: #262220; --ink: #f5f5f4; --muted: #a8a29e; --line: #44403c; --soft: #2e2a27;
+  --accent: #2dd4bf; --accent-ink: #042f2e; --accent-soft: #134e4a;
+  --board: #3a3532; --plinth: #2e2a27; --top: #a0836a; --metal: #a8a29e; --glass: #0c0a09; --steel: #57534e;
+  --target: rgba(45, 212, 191, 0.12); --target-on: rgba(45, 212, 191, 0.32); --warn: #fbbf24; color-scheme: dark }
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 14px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 14px 28px; }
+* { box-sizing: border-box; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+button { font: inherit; color: inherit; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 12px; }
+.top h1 { font-size: 18px; font-weight: 600; }
+.badge { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--warn); border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; }
+.top p { margin: 0; color: var(--muted); font-size: 13px; flex-basis: 100%; max-width: 75ch; }
+
+.app { display: grid; grid-template-columns: 148px minmax(260px, 320px) minmax(0, 1fr); gap: 12px; align-items: start; }
+.tabs { display: flex; flex-direction: column; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+.tabs .cap { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 4px 8px 6px; }
+.tab { display: flex; align-items: center; gap: 8px; text-align: left; border: 0; background: transparent; border-radius: 6px; padding: 7px 8px; cursor: pointer; }
+.tab:hover { background: var(--soft); }
+.tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.tab .later { margin-left: auto; font-size: 10px; color: var(--muted); }
+.tab[aria-selected="true"] .later { color: inherit; opacity: .8; }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel h2 { font-size: 15px; font-weight: 600; }
+.hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+.sec { display: flex; flex-direction: column; gap: 6px; }
+.sec h3 { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+
+.paleta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sprzet { display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: 2px 8px; border: 1px solid var(--line); background: var(--soft); border-radius: 7px;
+  padding: 6px 7px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; text-align: left; min-width: 0; }
+.sprzet:hover { border-color: var(--accent); }
+.sprzet[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.sprzet svg { grid-row: span 2; width: 34px; height: 34px; }
+.sprzet b { font-weight: 500; font-size: 13px; line-height: 1.2; }
+.sprzet span { font-size: 11px; color: var(--muted); line-height: 1.2; }
+
+.wybor { display: flex; align-items: center; gap: 8px; font-size: 12.5px; background: var(--accent-soft); border-radius: 6px; padding: 7px 8px; }
+.wybor button { margin-left: auto; border: 1px solid var(--line); background: var(--panel); border-radius: 5px; padding: 2px 8px; cursor: pointer; }
+
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.lista li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 5px 6px; cursor: pointer; }
+.lista li[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.lista svg { width: 26px; height: 26px; }
+.lista .co { min-width: 0; }
+.lista .co b { display: block; font-weight: 500; font-size: 13px; }
+.lista .co span { display: block; font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+.lista .co span.przyklad { display: inline-block; font-size: 10px; vertical-align: 1px; }
+.lista .x { border: 0; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; padding: 4px 6px; cursor: pointer; border-radius: 4px; }
+.lista .x:hover { color: var(--ink); background: var(--soft); }
+.pusto { font-size: 12.5px; color: var(--muted); border: 1px dashed var(--line); border-radius: 6px; padding: 10px; }
+.przyklad { font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; margin-left: 4px; }
+
+.szczegol { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.szczegol p { margin: 0; font-size: 12.5px; }
+.szczegol .rob { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; }
+.btn.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:hover { border-color: var(--accent); }
+
+.rys { position: sticky; top: env(safe-area-inset-top, 0px); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-width: 0; }
+.rys .pasek { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 6px; }
+.rys .pasek h2 { font-size: 15px; font-weight: 600; }
+.rys .pasek span { font-size: 12px; color: var(--muted); }
+.rys .ramka { overflow-x: auto; }
+#rysunek { display: block; width: 100%; min-width: 520px; height: auto; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+#rysunek .cel { cursor: copy; }
+#rysunek text { font-family: var(--f-ui); }
+#rysunek .mm { font-family: var(--f-num); }
+.legenda { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+.legenda i { display: inline-block; width: 14px; height: 10px; border: 1.5px dashed var(--accent); background: var(--target); vertical-align: -1px; margin-right: 4px; border-radius: 2px; }
+
+.duch { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; display: flex; align-items: center; gap: 6px;
+  background: var(--panel); border: 1px solid var(--accent); border-radius: 7px; padding: 4px 8px 4px 4px; box-shadow: 0 6px 18px rgba(0,0,0,.18); font-size: 12.5px; }
+.duch svg { width: 28px; height: 28px; }
+.duch.zle { border-color: var(--line); opacity: .85; }
+
+.dalej { display: flex; flex-direction: column; gap: 8px; }
+.dalej ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.stopka { margin-top: 14px; font-size: 12px; color: var(--muted); max-width: 90ch; }
+
+@media (max-width: 980px) {
+  .app { grid-template-columns: minmax(250px, 300px) minmax(0, 1fr); }
+  .tabs { grid-column: 1 / -1; flex-direction: row; overflow-x: auto; }
+  .tabs .cap { display: none; }
+  .tab { white-space: nowrap; }
+}
+@media (max-width: 700px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .rys { order: -1; position: static; }
+  .tabs { order: 0; }
+  .panel { order: 1; }
+  #rysunek { min-width: 600px; }
+}
+@media (prefers-reduced-motion: no-preference) { .tab, .sprzet, .btn, .lista li { transition: background .12s, border-color .12s; } }
+</style>
+
+<header class="top">
+  <h1>Dodaj sprzęt AGD</h1>
+  <span class="badge">makieta — bez obliczeń</span>
+  <p>Przeciągnij sprzęt z listy na rysunek albo dotknij sprzęt, a potem miejsce na rysunku. Postawiony sprzęt przesuwasz, przeciągając go po rysunku. Zielone ramki pokazują, gdzie dany sprzęt może stanąć.</p>
+</header>
+
+<div class="app">
+  <nav class="tabs" role="tablist" aria-label="Dodaj">
+    <div class="cap">Dodaj</div>
+    <button class="tab" role="tab" data-tab="agd" aria-selected="true">AGD</button>
+    <button class="tab" role="tab" data-tab="szafka" aria-selected="false">Szafka <span class="later">dalej</span></button>
+    <button class="tab" role="tab" data-tab="polki" aria-selected="false">Półki <span class="later">dalej</span></button>
+    <button class="tab" role="tab" data-tab="drzwi" aria-selected="false">Drzwi i klapy <span class="later">dalej</span></button>
+    <button class="tab" role="tab" data-tab="szuflady" aria-selected="false">Szuflady <span class="later">dalej</span></button>
+    <button class="tab" role="tab" data-tab="przegroda" aria-selected="false">Przegroda <span class="later">dalej</span></button>
+    <button class="tab" role="tab" data-tab="wzmocnienie" aria-selected="false">Wzmocnienie <span class="later">dalej</span></button>
+  </nav>
+
+  <section class="panel" id="panel" aria-live="polite"></section>
+
+  <section class="rys">
+    <div class="pasek"><h2>Ciąg „Kuchnia — ściana A”</h2><span class="mm" id="szer"></span></div>
+    <div class="ramka"><svg id="rysunek" role="img" aria-label="Rysunek ciągu: blat z góry i widok z przodu"></svg></div>
+    <div class="legenda"><span><i></i>tu może stanąć wybrany sprzęt</span><span>góra: blat z góry · dół: widok z przodu</span></div>
+  </section>
+</div>
+
+<p class="stopka">W aplikacji zakładka AGD stanie pod kartą „Płyty”, obok „Struktury”, „Cokołu” i „Nóżek”; dotychczasowe miejsca dodawania sprzętu zostają. Pozostałe zakładki („klocki”) — w następnym kroku tej samej makiety.</p>
+
+<script>
+(() => {
+  // --- dane makiety (bez obliczen) ---
+  const SPRZETY = {
+    plyta:    { nazwa: "Płyta indukcyjna", gdzie: "na blat", grupa: "blat" },
+    zlew:     { nazwa: "Zlew", gdzie: "na blat", grupa: "blat" },
+    piekarnik:{ nazwa: "Piekarnik", gdzie: "do szafki albo słupka", grupa: "wneka" },
+    mikrofala:{ nazwa: "Mikrofala", gdzie: "do słupka", grupa: "wneka" },
+    lodowka:  { nazwa: "Lodówka do zabudowy", gdzie: "do słupka", grupa: "wneka" },
+    zmywarka: { nazwa: "Zmywarka", gdzie: "w ciąg, bez korpusu", grupa: "ciag", w: 600 },
+    wolna:    { nazwa: "Lodówka wolnostojąca", gdzie: "w ciąg, bez korpusu", grupa: "ciag", w: 600 },
+  };
+  const CO_ZROBI = {
+    plyta: (c) => `Wycięcie w blacie nad szafką „${c}”, na środku szafki, 50 mm od przodu blatu. Program sprawdzi, czy korpus płyty nie wchodzi w szuflady albo leżące wzmocnienie pod blatem — jeśli wchodzi, zaproponuje wzmocnienie stojące.`,
+    zlew: (c) => `Wycięcie pod zlew nad szafką „${c}”. Komora zlewu sięga pod blat — program sprawdzi półki i szuflady pod nią.`,
+    piekarnik: (c) => `Wnęka na piekarnik w szafce „${c}”: front skraca się o wnękę, pod piekarnikiem zostaje szuflada albo blenda.`,
+    mikrofala: (c) => `Wnęka na mikrofalę w słupku „${c}”, nad piekarnikiem albo na wysokości oczu; nad nią drzwi.`,
+    lodowka: (c) => `Wnęka na lodówkę w słupku „${c}”, front meblowy na drzwiach lodówki (zawiasy z kompletu lodówki).`,
+    zmywarka: () => `Miejsce 600 mm w ciągu bez korpusu: front meblowy na zmywarce, cokół z przerwą, blat idzie nad nią.`,
+    wolna: () => `Miejsce w ciągu bez korpusu: luz po bokach na wentylację, blat i cokół kończą się przed lodówką.`,
+  };
+  const SZAFKI0 = [
+    { id: "s1", kind: "cab", name: "Słupek 600", w: 600, tall: true },
+    { id: "s2", kind: "cab", name: "Szafka 600", w: 600 },
+    { id: "s3", kind: "cab", name: "Szuflady 800", w: 800, drawers: 3 },
+    { id: "s4", kind: "cab", name: "Zlewowa 800", w: 800 },
+    { id: "z0", kind: "app", typ: "zmywarka", w: 600, przyklad: true },
+    { id: "s5", kind: "cab", name: "Szafka 400", w: 400 },
+  ];
+  const WNETRZE0 = [
+    { id: "a1", typ: "plyta", cel: "s3", przyklad: true },
+    { id: "a2", typ: "zlew", cel: "s4", przyklad: true },
+    { id: "a3", typ: "piekarnik", cel: "s2", przyklad: true },
+  ];
+  let ciag = JSON.parse(JSON.stringify(SZAFKI0));
+  let wnetrze = JSON.parse(JSON.stringify(WNETRZE0));
+  let nr = 10;
+  let zakladka = "agd";
+  let wybranyTyp = null;      // dotknieto sprzet w palecie (stawianie dotknieciem)
+  let zaznaczony = null;      // id postawionego sprzetu
+  let przesuwany = null;      // id postawionego sprzetu w trybie „Przesuń” (dotknieciem)
+  let drag = null;            // przeciaganie
+
+  // --- ikony ---
+  const IK = {
+    plyta: '<rect x="3" y="7" width="28" height="20" rx="3" fill="var(--glass)"/><circle cx="11" cy="14" r="3.2" fill="none" stroke="var(--steel)" stroke-width="1.4"/><circle cx="23" cy="14" r="2.4" fill="none" stroke="var(--steel)" stroke-width="1.4"/><circle cx="11" cy="21" r="2.4" fill="none" stroke="var(--steel)" stroke-width="1.4"/><circle cx="23" cy="21" r="3.2" fill="none" stroke="var(--steel)" stroke-width="1.4"/>',
+    zlew: '<rect x="3" y="8" width="28" height="19" rx="4" fill="var(--steel)"/><rect x="7" y="11" width="20" height="13" rx="3" fill="var(--panel)" stroke="var(--metal)" stroke-width="1.2"/><circle cx="17" cy="17.5" r="1.8" fill="var(--metal)"/><path d="M24 8 V4 H18" fill="none" stroke="var(--metal)" stroke-width="1.6" stroke-linecap="round"/>',
+    piekarnik: '<rect x="4" y="4" width="26" height="26" rx="2" fill="var(--metal)"/><rect x="7" y="11" width="20" height="15" rx="1.5" fill="var(--glass)"/><rect x="9" y="7" width="16" height="1.8" rx=".9" fill="var(--steel)"/>',
+    mikrofala: '<rect x="3" y="8" width="28" height="18" rx="2" fill="var(--metal)"/><rect x="6" y="11" width="16" height="12" rx="1.5" fill="var(--glass)"/><circle cx="26.5" cy="14" r="1.4" fill="var(--steel)"/><circle cx="26.5" cy="19" r="1.4" fill="var(--steel)"/>',
+    lodowka: '<rect x="7" y="2" width="20" height="30" rx="1.5" fill="var(--board)" stroke="var(--ink)" stroke-width="1.2"/><line x1="7" y1="20" x2="27" y2="20" stroke="var(--ink)" stroke-width="1.2"/><path d="M17 8 v6 M14.4 9.5 l5.2 3 M19.6 9.5 l-5.2 3" stroke="var(--accent)" stroke-width="1.3" stroke-linecap="round"/>',
+    zmywarka: '<rect x="4" y="3" width="26" height="28" rx="1.5" fill="var(--board)" stroke="var(--ink)" stroke-width="1.2"/><rect x="8" y="9" width="18" height="18" rx="1" fill="none" stroke="var(--metal)" stroke-width="1.1" stroke-dasharray="2.2 1.8"/><path d="M12 15 q2.5 -3 5 0 t5 0 M12 20 q2.5 -3 5 0 t5 0" fill="none" stroke="var(--accent)" stroke-width="1.2"/>',
+    wolna: '<rect x="8" y="1.5" width="18" height="31" rx="4" fill="var(--steel)" stroke="var(--metal)" stroke-width="1.1"/><line x1="8" y1="13" x2="26" y2="13" stroke="var(--metal)" stroke-width="1.1"/><line x1="11" y1="5" x2="11" y2="10" stroke="var(--metal)" stroke-width="1.6" stroke-linecap="round"/><line x1="11" y1="16" x2="11" y2="24" stroke="var(--metal)" stroke-width="1.6" stroke-linecap="round"/>',
+  };
+  const ikona = (typ) => `<svg viewBox="0 0 34 34" aria-hidden="true">${IK[typ]}</svg>`;
+
+  // --- geometria rysunku (mm) ---
+  const PL = 100, KOR = 720, BLAT = 38, SLUP = 2120, GORNE0 = 1400, GORNE = 720, GL = 600;
+  const Y_TOP = 0, Y_EL = 860, H_EL = 2300;        // pas „blat z gory”, potem widok z przodu
+  const yEl = (h) => Y_EL + H_EL - h;              // wysokosc od podlogi -> y w SVG
+  const svg = document.getElementById("rysunek");
+  const uklad = () => { let x = 0; return ciag.map((s) => { const o = { ...s, x }; x += s.w; return o; }); };
+  const nazwaCelu = (id) => (ciag.find((s) => s.id === id) || {}).name || "";
+  const wSzafce = (id) => wnetrze.filter((a) => a.cel === id);
+
+  // gdzie moze stanac sprzet danego rodzaju (bez `bez` — przesuwany)
+  function cele(typ, bez) {
+    const L = uklad(), out = [];
+    const g = SPRZETY[typ].grupa;
+    if (g === "blat") L.filter((s) => s.kind === "cab" && !s.tall).forEach((s) => {
+      const zajete = wSzafce(s.id).some((a) => a.id !== bez && SPRZETY[a.typ].grupa === "blat");
+      const piek = typ === "zlew" && wSzafce(s.id).some((a) => a.id !== bez && a.typ === "piekarnik");
+      if (!zajete && !piek) out.push({ key: "b" + s.id, x0: s.x, x1: s.x + s.w, y0: Y_TOP, y1: Y_TOP + GL, cel: s.id });
+    });
+    if (g === "wneka") L.filter((s) => s.kind === "cab").forEach((s) => {
+      const jest = wSzafce(s.id).filter((a) => a.id !== bez);
+      let ok;
+      if (typ === "lodowka") ok = s.tall && !jest.length;
+      else if (typ === "mikrofala") ok = s.tall && !jest.some((a) => a.typ === "mikrofala" || a.typ === "lodowka");
+      else ok = !jest.some((a) => a.typ === "piekarnik" || a.typ === "lodowka" || a.typ === "zlew") && !(s.drawers && !s.tall);
+      if (ok) out.push({ key: "w" + s.id, x0: s.x, x1: s.x + s.w, y0: yEl(s.tall ? PL + SLUP : PL + KOR), y1: yEl(PL), cel: s.id });
+    });
+    if (g === "ciag") {
+      const bezS = L.filter((s) => s.id !== bez);
+      let x = 0;
+      const granice = [0];
+      bezS.forEach((s) => { x += s.w; granice.push(x); });
+      granice.forEach((gx, i) => out.push({ key: "c" + i, x0: gx - 90, x1: gx + 90, y0: yEl(PL + KOR + BLAT + 40), y1: yEl(0), wstaw: i, gx }));
+    }
+    return out;
+  }
+
+  function postaw(typ, c, istniejacy) {
+    if (SPRZETY[typ].grupa === "ciag") {
+      let slot;
+      if (istniejacy) { const i = ciag.findIndex((s) => s.id === istniejacy); slot = ciag.splice(i, 1)[0]; delete slot.przyklad; }
+      else slot = { id: "z" + nr++, kind: "app", typ, w: SPRZETY[typ].w };
+      ciag.splice(c.wstaw, 0, slot);
+      zaznaczony = slot.id;
+    } else if (istniejacy) {
+      const a = wnetrze.find((q) => q.id === istniejacy); a.cel = c.cel; delete a.przyklad; zaznaczony = a.id;
+    } else { const a = { id: "a" + nr++, typ, cel: c.cel }; wnetrze.push(a); zaznaczony = a.id; }
+  }
+  function usun(id) {
+    if (ciag.some((s) => s.id === id)) ciag = ciag.filter((s) => s.id !== id);
+    else wnetrze = wnetrze.filter((a) => a.id !== id);
+    if (zaznaczony === id) zaznaczony = null;
+    if (przesuwany === id) przesuwany = null;
+  }
+  const wszystkie = () => [
+    ...wnetrze.map((a) => ({ id: a.id, typ: a.typ, gdzie: SPRZETY[a.typ].grupa === "blat" ? `nad szafką „${nazwaCelu(a.cel)}”` : `w „${nazwaCelu(a.cel)}”`, cel: a.cel, przyklad: a.przyklad })),
+    ...uklad().filter((s) => s.kind === "app").map((s) => {
+      const L = uklad(), i = L.findIndex((q) => q.id === s.id);
+      const lewa = L[i - 1], prawa = L[i + 1];
+      const gdzie = lewa && prawa ? `w ciągu między „${lewa.name || SPRZETY[lewa.typ].nazwa}” a „${prawa.name || SPRZETY[prawa.typ].nazwa}”` : lewa ? `na końcu ciągu, za „${lewa.name || SPRZETY[lewa.typ].nazwa}”` : `na początku ciągu`;
+      return { id: s.id, typ: s.typ, gdzie, przyklad: s.przyklad };
+    }),
+  ];
+
+  // --- rysunek ---
+  function rysuj() {
+    const L = uklad();
+    const W = L.reduce((a, s) => a + s.w, 0);
+    document.getElementById("szer").textContent = `${W} mm`;
+    svg.setAttribute("viewBox", `-150 -150 ${W + 300} ${Y_EL + H_EL + 360}`);
+    const typAkt = drag ? drag.typ : przesuwany ? (wszystkie().find((q) => q.id === przesuwany) || {}).typ : wybranyTyp;
+    const bezId = drag ? drag.id : przesuwany;
+    const C = typAkt ? cele(typAkt, bezId) : [];
+    let s = "";
+    // podpisy pasow
+    s += `<text x="-130" y="${Y_TOP - 50}" font-size="64" fill="var(--muted)">Blat z góry</text>`;
+    s += `<text x="-130" y="${Y_EL - 50}" font-size="64" fill="var(--muted)">Widok z przodu</text>`;
+    // blat z gory: odcinki nad szafkami dolnymi i zmywarka
+    let odc = null; const odcinki = [];
+    L.forEach((q) => { const podBlatem = (q.kind === "cab" && !q.tall) || q.typ === "zmywarka"; if (podBlatem) { if (!odc) odc = { x0: q.x, x1: q.x + q.w }; else odc.x1 = q.x + q.w; } else if (odc) { odcinki.push(odc); odc = null; } });
+    if (odc) odcinki.push(odc);
+    odcinki.forEach((o) => { s += `<rect x="${o.x0}" y="${Y_TOP}" width="${o.x1 - o.x0}" height="${GL}" fill="var(--top)" opacity=".35" stroke="var(--top)" stroke-width="6"/>`; });
+    L.forEach((q) => {
+      if (q.tall || q.typ === "wolna") s += `<rect x="${q.x}" y="${Y_TOP}" width="${q.w}" height="${GL}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/><text x="${q.x + q.w / 2}" y="${Y_TOP + GL / 2 + 22}" font-size="58" text-anchor="middle" fill="var(--muted)">${q.tall ? "słupek" : "lodówka"}</text>`;
+    });
+    // sprzet na blacie (z gory)
+    wnetrze.filter((a) => SPRZETY[a.typ].grupa === "blat").forEach((a) => {
+      const q = L.find((z) => z.id === a.cel); if (!q) return;
+      const cx = q.x + q.w / 2, zazn = a.id === zaznaczony;
+      const ruch = drag && drag.id === a.id ? ' opacity=".35"' : "";
+      if (a.typ === "plyta") {
+        const w = Math.min(560, q.w - 60), h = 490, x = cx - w / 2, y = Y_TOP + 50;
+        s += `<g data-id="${a.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="22" fill="var(--glass)" stroke="${zazn ? "var(--accent)" : "none"}" stroke-width="14"/>`
+          + [[0.3, 0.3, 80], [0.7, 0.3, 62], [0.3, 0.72, 62], [0.7, 0.72, 80]].map(([fx, fy, r]) => `<circle cx="${x + w * fx}" cy="${y + h * fy}" r="${r}" fill="none" stroke="var(--steel)" stroke-width="7"/>`).join("") + `</g>`;
+      } else {
+        const w = Math.min(500, q.w - 80), h = 420, x = cx - w / 2, y = Y_TOP + 70;
+        s += `<g data-id="${a.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="40" fill="var(--steel)" stroke="${zazn ? "var(--accent)" : "var(--metal)"}" stroke-width="${zazn ? 14 : 5}"/>`
+          + `<rect x="${x + 40}" y="${y + 40}" width="${w - 80}" height="${h - 80}" rx="30" fill="var(--panel)" stroke="var(--metal)" stroke-width="5"/><circle cx="${cx}" cy="${y + h / 2}" r="26" fill="var(--metal)"/></g>`;
+      }
+    });
+    // widok z przodu: podloga
+    s += `<line x1="-100" y1="${yEl(0)}" x2="${W + 100}" y2="${yEl(0)}" stroke="var(--muted)" stroke-width="5"/>`;
+    // gorne szafki nad dolnymi i zmywarka
+    L.forEach((q) => {
+      if (!((q.kind === "cab" && !q.tall) || q.typ === "zmywarka")) return;
+      s += `<rect x="${q.x}" y="${yEl(GORNE0 + GORNE)}" width="${q.w}" height="${GORNE}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/>`;
+      const n = q.w > 500 ? 2 : 1;
+      for (let i = 1; i < n; i++) s += `<line x1="${q.x + (q.w * i) / n}" y1="${yEl(GORNE0 + GORNE)}" x2="${q.x + (q.w * i) / n}" y2="${yEl(GORNE0)}" stroke="var(--ink)" stroke-width="3"/>`;
+    });
+    // blat z przodu
+    odcinki.forEach((o) => { s += `<rect x="${o.x0}" y="${yEl(PL + KOR + BLAT)}" width="${o.x1 - o.x0}" height="${BLAT}" fill="var(--top)"/>`; });
+    L.forEach((q) => {
+      const x = q.x, w = q.w;
+      if (q.kind === "cab") {
+        const h = q.tall ? SLUP : KOR;
+        s += `<rect x="${x}" y="${yEl(PL)}" width="${w}" height="${PL}" fill="var(--plinth)" stroke="var(--ink)" stroke-width="4"/>`;
+        s += `<rect x="${x}" y="${yEl(PL + h)}" width="${w}" height="${h}" fill="var(--board)" stroke="var(--ink)" stroke-width="6"/>`;
+        const jest = wSzafce(q.id);
+        const piek = jest.find((a) => a.typ === "piekarnik"), mikr = jest.find((a) => a.typ === "mikrofala"), lod = jest.find((a) => a.typ === "lodowka");
+        const drzwi = (y0, y1, ile) => { let t = `<rect x="${x + 8}" y="${yEl(y1) + 8}" width="${w - 16}" height="${y1 - y0 - 16}" fill="none" stroke="var(--ink)" stroke-width="3"/>`; for (let i = 1; i < ile; i++) t += `<line x1="${x + (w * i) / ile}" y1="${yEl(y1) + 8}" x2="${x + (w * i) / ile}" y2="${yEl(y0) - 8}" stroke="var(--ink)" stroke-width="3"/>`; return t; };
+        const wneka = (a, y0, y1) => {
+          const zazn = a.id === zaznaczony, ruch = drag && drag.id === a.id ? ' opacity=".35"' : "";
+          if (a.typ === "lodowka")
+            return `<g data-id="${a.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x + 8}" y="${yEl(y1)}" width="${w - 16}" height="${y1 - y0}" fill="var(--board)" stroke="${zazn ? "var(--accent)" : "var(--ink)"}" stroke-width="${zazn ? 14 : 4}"/>`
+              + `<line x1="${x + 8}" y1="${yEl(y0 + 720)}" x2="${x + w - 8}" y2="${yEl(y0 + 720)}" stroke="var(--ink)" stroke-width="4"/><text x="${x + w / 2}" y="${yEl(y0 + 1200)}" font-size="58" text-anchor="middle" fill="var(--muted)">lodówka</text>`
+              + `<text x="${x + w / 2}" y="${yEl(y0 + 360)}" font-size="50" text-anchor="middle" fill="var(--muted)">zamrażarka</text></g>`;
+          return `<g data-id="${a.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x + 14}" y="${yEl(y1)}" width="${w - 28}" height="${y1 - y0}" fill="var(--metal)" stroke="${zazn ? "var(--accent)" : "none"}" stroke-width="14"/>`
+            + `<rect x="${x + 50}" y="${yEl(y1) + (a.typ === "piekarnik" ? 110 : 50)}" width="${w - 100 - (a.typ === "mikrofala" ? 90 : 0)}" height="${y1 - y0 - (a.typ === "piekarnik" ? 160 : 100)}" fill="var(--glass)" rx="10"/>`
+            + (a.typ === "piekarnik" ? `<rect x="${x + 90}" y="${yEl(y1) + 40}" width="${w - 180}" height="22" rx="11" fill="var(--steel)"/>` : `<circle cx="${x + w - 80}" cy="${yEl(y1) + 110}" r="16" fill="var(--steel)"/>`) + `</g>`;
+        };
+        if (q.tall) {
+          if (lod) { s += wneka(lod, PL + 20, PL + 1780); s += drzwi(PL + 1800, PL + SLUP, 1); }
+          else {
+            if (piek) s += wneka(piek, PL + 700, PL + 1295);
+            if (mikr) s += wneka(mikr, PL + 1330, PL + 1710);
+            if (piek || mikr) {
+              s += drzwi(PL, PL + (piek ? 690 : 1320), 1);
+              s += drzwi(PL + (mikr ? 1720 : 1305), PL + SLUP, 1);
+            } else s += drzwi(PL, PL + SLUP, 1);
+          }
+        } else if (piek) { s += wneka(piek, PL + 120, PL + KOR - 25); s += drzwi(PL, PL + 110, 1); }
+        else if (q.drawers) { for (let i = 0; i < q.drawers; i++) s += drzwi(PL + (KOR / q.drawers) * i, PL + (KOR / q.drawers) * (i + 1), 1); }
+        else s += drzwi(PL, PL + KOR, w > 500 ? 2 : 1);
+        // zlew: bateria nad blatem, plyta: cienka plyta na blacie
+        jest.filter((a) => a.typ === "zlew").forEach(() => { const cx = x + w / 2; s += `<path d="M${cx + 60} ${yEl(PL + KOR + BLAT)} v-240 q0 -60 -60 -60 h-110" fill="none" stroke="var(--metal)" stroke-width="22" stroke-linecap="round"/>`; });
+        jest.filter((a) => a.typ === "plyta").forEach(() => { const cw = Math.min(560, w - 60); s += `<rect x="${x + (w - cw) / 2}" y="${yEl(PL + KOR + BLAT) - 10}" width="${cw}" height="10" fill="var(--glass)"/>`; });
+        s += `<text x="${x + w / 2}" y="${yEl(0) + 80}" font-size="54" text-anchor="middle" fill="var(--muted)">${q.name}</text>`;
+      } else {
+        const zazn = q.id === zaznaczony, ruch = drag && drag.id === q.id ? ' opacity=".35"' : "";
+        if (q.typ === "zmywarka") {
+          s += `<g data-id="${q.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x}" y="${yEl(PL)}" width="${w}" height="${PL}" fill="var(--plinth)" stroke="var(--ink)" stroke-width="4" stroke-dasharray="18 12"/>`
+            + `<rect x="${x + 4}" y="${yEl(PL + KOR)}" width="${w - 8}" height="${KOR}" fill="var(--board)" stroke="${zazn ? "var(--accent)" : "var(--ink)"}" stroke-width="${zazn ? 14 : 6}"/>`
+            + `<rect x="${x + 50}" y="${yEl(PL + KOR) + 60}" width="${w - 100}" height="${KOR - 120}" fill="none" stroke="var(--metal)" stroke-width="4" stroke-dasharray="20 14"/>`
+            + `<text x="${x + w / 2}" y="${yEl(PL + KOR / 2) + 20}" font-size="58" text-anchor="middle" fill="var(--muted)">zmywarka</text></g>`;
+        } else {
+          s += `<g data-id="${q.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x + 15}" y="${yEl(1850)}" width="${w - 30}" height="1850" rx="60" fill="var(--steel)" stroke="${zazn ? "var(--accent)" : "var(--metal)"}" stroke-width="${zazn ? 14 : 5}"/>`
+            + `<line x1="${x + 15}" y1="${yEl(1200)}" x2="${x + w - 15}" y2="${yEl(1200)}" stroke="var(--metal)" stroke-width="5"/><line x1="${x + 70}" y1="${yEl(1100)}" x2="${x + 70}" y2="${yEl(800)}" stroke="var(--metal)" stroke-width="16" stroke-linecap="round"/>`
+            + `<text x="${x + w / 2}" y="${yEl(1500)}" font-size="58" text-anchor="middle" fill="var(--muted)">lodówka</text></g>`;
+        }
+        s += `<text x="${x + w / 2}" y="${yEl(0) + 80}" font-size="54" text-anchor="middle" fill="var(--muted)">${SPRZETY[q.typ].nazwa.split(" ")[0]}</text>`;
+      }
+    });
+    // wymiary szerokosci
+    L.forEach((q) => { s += `<text class="mm" x="${q.x + q.w / 2}" y="${yEl(0) + 160}" font-size="48" text-anchor="middle" fill="var(--muted)">${q.w}</text>`; });
+    // miejsca dla wybranego sprzetu
+    C.forEach((c) => {
+      const on = drag && drag.cel && drag.cel.key === c.key;
+      s += `<rect class="cel" data-cel="${c.key}" x="${c.x0}" y="${c.y0}" width="${c.x1 - c.x0}" height="${c.y1 - c.y0}" rx="16" fill="${on ? "var(--target-on)" : "var(--target)"}" stroke="var(--accent)" stroke-width="${on ? 12 : 7}" stroke-dasharray="${on ? "none" : "30 20"}"/>`;
+      if (c.wstaw != null) s += `<line x1="${c.gx}" y1="${c.y0 + 40}" x2="${c.gx}" y2="${c.y1 - 40}" stroke="var(--accent)" stroke-width="10" stroke-linecap="round"/>`;
+    });
+    svg.innerHTML = s;
+    svg._cele = C;
+  }
+
+  // --- panel ---
+  const panel = document.getElementById("panel");
+  function rysujPanel() {
+    if (zakladka !== "agd") { panel.innerHTML = panelDalej(zakladka); return; }
+    const lista = wszystkie();
+    const sel = lista.find((q) => q.id === zaznaczony);
+    const aktywny = wybranyTyp || (przesuwany && (lista.find((q) => q.id === przesuwany) || {}).typ);
+    let h = `<h2>AGD</h2><p class="hint">Przeciągnij sprzęt na zieloną ramkę na rysunku. Na telefonie: dotknij sprzęt, potem miejsce.</p>`;
+    h += `<div class="sec"><h3>Sprzęt</h3><div class="paleta">` + Object.entries(SPRZETY).map(([k, v]) =>
+      `<button class="sprzet" data-typ="${k}" aria-pressed="${wybranyTyp === k}">${ikona(k)}<b>${v.nazwa}</b><span>${v.gdzie}</span></button>`).join("") + `</div></div>`;
+    if (aktywny) {
+      const n = cele(aktywny, przesuwany).length;
+      h += `<div class="wybor">${przesuwany ? "Przesuwasz" : "Wybrany"}: <b>${SPRZETY[aktywny].nazwa}</b> — ${n ? "dotknij zieloną ramkę na rysunku" : "nie ma na rysunku wolnego miejsca"}<button data-akcja="anuluj">Anuluj</button></div>`;
+    }
+    h += `<div class="sec"><h3>W projekcie (${lista.length})</h3>`;
+    h += lista.length ? `<ul class="lista">` + lista.map((q) => `<li data-id="${q.id}" aria-current="${q.id === zaznaczony}" tabindex="0">${ikona(q.typ)}<div class="co"><b>${SPRZETY[q.typ].nazwa}${q.przyklad ? '<span class="przyklad">przykład</span>' : ""}</b><span>${q.gdzie}</span></div><button class="x" data-usun="${q.id}" aria-label="Usuń ${SPRZETY[q.typ].nazwa}">×</button></li>`).join("") + `</ul>`
+      : `<div class="pusto">Nic jeszcze nie stoi. Przeciągnij pierwszy sprzęt na rysunek.</div>`;
+    h += `</div>`;
+    if (sel) {
+      const opis = CO_ZROBI[sel.typ](nazwaCelu(sel.cel));
+      h += `<div class="szczegol"><h3 style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500">Co zrobi program</h3><p>${opis}</p>`
+        + `<div class="rob"><button class="btn${przesuwany === sel.id ? " on" : ""}" data-akcja="przesun">Przesuń</button><button class="btn" data-akcja="usun">Usuń</button></div></div>`;
+    }
+    h += `<div class="rob" style="display:flex"><button class="btn" data-akcja="reset">Wróć do przykładu</button></div>`;
+    panel.innerHTML = h;
+  }
+  const DALEJ = {
+    szafka: ["Dodaj szafkę", ["miniatury gotowych wzorów: dolna z drzwiami, z szufladami, zlewowa, słupek, górna, narożna", "przeciągasz miniaturę w ciąg — staje między szafkami, reszta się rozsuwa", "szerokość i wysokość poprawiasz potem w karcie szafki"]],
+    polki: ["Dodaj półki", ["przeciągasz półkę do kolumny — staje tam, gdzie ją puścisz", "kołki, konfirmaty albo trójkąty do wyboru po postawieniu"]],
+    drzwi: ["Drzwi i klapy", ["jedne / dwoje drzwi, klapa do góry, klapa w dół", "przeciągasz na otwór w szafce"]],
+    szuflady: ["Szuflady", ["zestaw 2, 3, 4 szuflad albo pojedyncza", "na kolumnę albo poziom szafki"]],
+    przegroda: ["Przegroda", ["przeciągasz pionową kreskę w szafkę — dzieli ją na kolumny", "przy wzmocnieniach z obu stron program sam zapyta o łączenie (trójkąty, przegroda niższa, dwie przegrody)"]],
+    wzmocnienie: ["Wzmocnienie", ["leżące, stojące, pionowe — przeciągasz do kolumny", "para pod blat jednym przyciskiem"]],
+  };
+  function panelDalej(k) {
+    const [t, pkt] = DALEJ[k];
+    return `<div class="dalej"><h2>${t}</h2><p class="hint">Ta zakładka — w następnym kroku makiety („klocki”). Co w niej będzie:</p><ul>${pkt.map((p) => `<li>${p}</li>`).join("")}</ul></div>`;
+  }
+  function odswiez() { rysujPanel(); rysuj(); }
+
+  // --- zdarzenia: zakladki ---
+  document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => {
+    zakladka = b.dataset.tab;
+    document.querySelectorAll(".tab").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+    wybranyTyp = null; przesuwany = null; odswiez();
+  }));
+
+  // --- zdarzenia: panel ---
+  panel.addEventListener("click", (e) => {
+    const usunB = e.target.closest("[data-usun]");
+    if (usunB) { usun(usunB.dataset.usun); odswiez(); return; }
+    const ak = e.target.closest("[data-akcja]");
+    if (ak) {
+      const a = ak.dataset.akcja;
+      if (a === "anuluj") { wybranyTyp = null; przesuwany = null; }
+      if (a === "przesun") { przesuwany = przesuwany === zaznaczony ? null : zaznaczony; wybranyTyp = null; }
+      if (a === "usun" && zaznaczony) usun(zaznaczony);
+      if (a === "reset") { ciag = JSON.parse(JSON.stringify(SZAFKI0)); wnetrze = JSON.parse(JSON.stringify(WNETRZE0)); zaznaczony = wybranyTyp = przesuwany = null; }
+      odswiez(); return;
+    }
+    const li = e.target.closest("li[data-id]");
+    if (li) { zaznaczony = zaznaczony === li.dataset.id ? null : li.dataset.id; przesuwany = null; odswiez(); }
+  });
+  panel.addEventListener("keydown", (e) => {
+    const li = e.target.closest("li[data-id]");
+    if (li && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); zaznaczony = li.dataset.id; odswiez(); }
+  });
+
+  // --- przeciaganie (mysz i palec) ---
+  const doSvg = (e) => { const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; const m = svg.getScreenCTM(); return m ? p.matrixTransform(m.inverse()) : { x: -1e9, y: -1e9 }; };
+  const trafia = (e) => { const p = doSvg(e); return (svg._cele || []).find((c) => p.x >= c.x0 && p.x <= c.x1 && p.y >= c.y0 && p.y <= c.y1) || null; };
+  let duch = null;
+  const pokazDucha = (typ, e, ok) => {
+    if (!duch) { duch = document.createElement("div"); duch.className = "duch"; document.body.appendChild(duch); }
+    duch.innerHTML = `${ikona(typ)}<span>${SPRZETY[typ].nazwa}</span>`;
+    duch.classList.toggle("zle", !ok);
+    duch.style.transform = `translate(${e.clientX + 12}px, ${e.clientY + 12}px)`;
+  };
+  const schowajDucha = () => { if (duch) { duch.remove(); duch = null; } };
+
+  function start(e, typ, id) {
+    drag = { typ, id: id || null, x: e.clientX, y: e.clientY, ruszony: false, cel: null, pid: e.pointerId };
+    try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
+  }
+  panel.addEventListener("pointerdown", (e) => {
+    const b = e.target.closest(".sprzet"); if (!b || e.button > 0) return;
+    start(e, b.dataset.typ, null);
+  });
+  svg.addEventListener("pointerdown", (e) => {
+    const g = e.target.closest(".post");
+    if (g && e.button <= 0) { const q = wszystkie().find((z) => z.id === g.dataset.id); if (q) start(e, q.typ, q.id); return; }
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.pid) return;
+    if (!drag.ruszony && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 7) return;
+    if (!drag.ruszony) { drag.ruszony = true; wybranyTyp = null; przesuwany = null; rysuj(); }
+    const c = trafia(e);
+    if ((c && c.key) !== (drag.cel && drag.cel.key)) { drag.cel = c; rysuj(); }
+    pokazDucha(drag.typ, e, !!c);
+  });
+  const koniec = (e) => {
+    if (!drag || e.pointerId !== drag.pid) return;
+    const d = drag; drag = null; schowajDucha();
+    if (d.ruszony) {
+      const c = trafia(e);
+      if (c) postaw(d.typ, c, d.id);
+      else if (d.id) zaznaczony = d.id;
+      odswiez(); return;
+    }
+    // dotkniecie bez ruchu
+    if (d.id) { zaznaczony = zaznaczony === d.id && !przesuwany ? null : d.id; przesuwany = null; wybranyTyp = null; }
+    else { wybranyTyp = wybranyTyp === d.typ ? null : d.typ; przesuwany = null; }
+    odswiez();
+  };
+  window.addEventListener("pointerup", koniec);
+  window.addEventListener("pointercancel", (e) => { if (drag && e.pointerId === drag.pid) { drag = null; schowajDucha(); odswiez(); } });
+  // stawianie dotknieciem: wybrany sprzet / „Przesuń”, potem ramka na rysunku
+  svg.addEventListener("click", (e) => {
+    const typ = wybranyTyp || (przesuwany && (wszystkie().find((q) => q.id === przesuwany) || {}).typ);
+    if (!typ) return;
+    const c = trafia(e);
+    if (!c) return;
+    postaw(typ, c, przesuwany);
+    wybranyTyp = null; przesuwany = null; odswiez();
+  });
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape") { wybranyTyp = null; przesuwany = null; drag = null; schowajDucha(); odswiez(); } });
+
+  odswiez();
+})();
+</script>

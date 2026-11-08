@@ -918,3 +918,13 @@ Na co uważać przy pisaniu nowych scenariuszy:
 - „błąd” w audycie przy ręcznie ustawionym układzie, który zawsze jest zły (np. 3 V-BOX
   w połowie szafki pod blatem), to poprawna uwaga aplikacji, nie błąd — taki stan
   albo testuj jako oczekiwany błąd, albo nie ustawiaj go.
+
+## Makieta „Dodaj” (2026-11-08)
+
+[AI-INFO] `makiety/dodaj.html` — osobna strona bez obliczen (artefakt https://claude.ai/artifact/5m43AjCMCw141KoT2AypyJ),
+nie podlaczona do aplikacji ani do GitHub Pages. Zakladki „Dodaj” po lewej, paleta AGD z lista i opisem „Co zrobi
+program”, rysunek ciagu (blat z gory + widok z przodu) po prawej; przeciaganie wskaznikiem (mysz i palec, `pointer*`),
+na telefonie „dotknij sprzet, potem miejsce”, „Przesuń” dla postawionego. Uzgodnienia z uzytkownikiem: jedna wspolna
+makieta, najpierw AGD, potem „klocki” (szafka z miniaturami wzorow, polki, drzwi/klapy, szuflady, przegroda,
+wzmocnienie — „budowa jak dla amatora”); w aplikacji zakladka AGD pod karta „Płyty”, stare miejsca zostaja.
+[AI-TODO] klocki — po uwagach uzytkownika do zakladki AGD.
