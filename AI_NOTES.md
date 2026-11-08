@@ -938,8 +938,8 @@ sama mikrofala / sam piekarnik na wysokosci blatu, oba — piekarnik nizej (700)
 [AI-INFO] Wersja 4 (2026-11-08): okap (`OKAP`: podszafkowy / teleskopowy / wklad / kominowy, 50/60/90, odleglosc od
 plyty z wymiarem, min. 650 nad indukcja — EN 60335-2-31 wg instrukcji Solgaz, gaz 750; przycisk „Szafka nad okapem
 krótsza, dół na …” / „Okap wyżej”), rzut szafek gornych (320) i okapu na blat z gory przy „Ciąg górny”, „Pod blat”
-w slupku (gora sprzetu rowno z blatem) i ostrzezenie o wysokiej mikrofali (`MIKRO_MAX` 1300 — prog przykladowy,
-do ustalenia; uzytkownik: „kiedyś będzie musiało być ostrzeżeniem w aplikacji głównej”). Zapis: localStorage
+w slupku (gora sprzetu rowno z blatem) i ostrzezenie o wysokiej mikrofali (`MIKRO_MAX` 1300 — prog ustalony z uzytkownikiem
+2026-11-08; uzytkownik: „kiedyś będzie musiało być ostrzeżeniem w aplikacji głównej”). Zapis: localStorage
 (`makieta-dodaj-v1`) + „Wyślij do Claude” / „Wczytaj wysłaną” — artefakt z `db`, dokument `makieta/biezaca`
 (pola `json`, `uwagi`, `kiedy`, `okno`, `zaznaczony`). Odczyt: `ArtifactData get` (collection `makieta`, doc
 `biezaca`), potem wczytac stan do makiety lokalnie (localStorage przed zaladowaniem) i zrobic zrzut w szerokosci `okno`.
@@ -961,5 +961,6 @@ i wzmocnienia pod blat w slupkach, polki/przegroda w pelnych szufladach. Karta s
 zakladce, tez w AGD): szerokosc, front, polki −/+, przegroda, wzmocnienia, „Co zrobi program”, „Przesuń w ciągu”,
 „Usuń szafkę”. Przelacznik „Fronty” (wylaczony — wnetrze); na zakladkach polek, przegrody i wzmocnien wnetrze widac
 samo. Szafke przesuwa sie przeciagnieciem korpusu (`.szaf`, typ `szafkaPrzes`).
-[AI-TODO] Ustalone z uzytkownikiem 2026-11-08: makieta AGD i klocki gotowe do ogladania (v8), potem w aplikacji nowy widok obok Zamk./Otw. — przód ciagu + blat z gory — z przelacznikami „AGD i zlew”
-(nazwa do ustalenia), „Ciąg górny” (domyslnie widoczny) i „Ciąg dolny”.
+[AI-TODO] Ustalone z uzytkownikiem 2026-11-08: makieta AGD i klocki gotowe do ogladania (v8; uzytkownik oglada i przysle
+uwagi przez „Wyślij do Claude”), potem w aplikacji nowy widok obok Zamk./Otw. — przód ciagu + blat z gory — z przelacznikami „AGD i zlew”
+(nazwa ustalona 2026-11-08: „Wyposażenie”), „Ciąg górny” (domyslnie widoczny) i „Ciąg dolny”.

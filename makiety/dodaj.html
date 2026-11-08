@@ -188,13 +188,13 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     <div class="sciana"><label for="scianaW">Ściana A</label><button class="krok" data-sc="-100" aria-label="Węższa o 100 mm">−</button><input id="scianaW" type="number" step="10" min="600" inputmode="numeric"><button class="krok" data-sc="100" aria-label="Szersza o 100 mm">+</button><span>mm</span><span id="wolne"></span></div>
     <div class="alarm" id="alarm" hidden></div>
     <div class="widok" role="group" aria-label="Co pokazać na rysunku">
-      <button class="przel" data-wid="agd" aria-pressed="true" title="Wyłączone: zamiast sprzętu wycięcia w blacie i puste wnęki">AGD i zlew</button>
+      <button class="przel" data-wid="agd" aria-pressed="true" title="Wyłączone: zamiast sprzętu wycięcia w blacie i puste wnęki">Wyposażenie</button>
       <button class="przel" data-wid="gorny" aria-pressed="true">Ciąg górny</button>
       <button class="przel" data-wid="dolny" aria-pressed="true">Ciąg dolny</button>
       <button class="przel" data-wid="fronty" aria-pressed="true" title="Wyłączone: widać wnętrze — półki, przegrody, wzmocnienia">Fronty</button>
     </div>
     <div class="ramka"><svg id="rysunek" role="img" aria-label="Rysunek ciągu: blat z góry i widok z przodu"></svg></div>
-    <div class="legenda"><span><i></i>tu może stanąć wybrany sprzęt albo klocek</span><span>góra: blat z góry · dół: widok z przodu</span><span>„AGD i zlew” wyłączone — wycięcia i puste wnęki</span><span>„Ciąg górny” na blacie z góry — ile głębokości zasłaniają szafki górne i okap</span></div>
+    <div class="legenda"><span><i></i>tu może stanąć wybrany sprzęt albo klocek</span><span>góra: blat z góry · dół: widok z przodu</span><span>„Wyposażenie” wyłączone — wycięcia i puste wnęki</span><span>„Ciąg górny” na blacie z góry — ile głębokości zasłaniają szafki górne i okap</span></div>
   </section>
 </div>
 
@@ -244,7 +244,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     wzmocnienie: { wzm_para: ["Para pod blat", "leżące + stojące", "w"], wzm_lezace: ["Leżące", "jak półka, u góry", "w"], wzm_stojace: ["Stojące", "z przodu, u góry", "w"], wzm_pionowe: ["Pionowe", "przy boku", "w"] },
   };
   Object.values(KLOCKI).forEach((grp) => Object.entries(grp).forEach(([k, [n, g, rodz]]) => { SPRZETY[k] = { nazwa: n, gdzie: g, grupa: "szafka", wnetrze: rodz === "w" }; }));
-  const MIKRO_MAX = 1300;   // dol mikrofali wyzej niz to — ostrzezenie (prog przykladowy, do ustalenia z uzytkownikiem)
+  const MIKRO_MAX = 1300;   // dol mikrofali wyzej niz to — ostrzezenie (prog ustalony z uzytkownikiem 2026-11-08)
   /* Wymiary sprzetu do wyboru (makieta — wartosci przykladowe): w — szerokosc wyciecia / miejsca, h — wysokosc wneki */
   const ROZM = {
     plyta: [{ k: "30", l: "30 cm", w: 270, h: 490 }, { k: "60", l: "60 cm", w: 560, h: 490 }, { k: "80", l: "80 cm", w: 750, h: 490 }, { k: "90", l: "90 cm", w: 840, h: 490 }],
@@ -773,10 +773,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
           + `<div class="rob"><button class="btn" data-akcja="nablat">Na wysokość blatu (dół ${BLAT_Y})</button><button class="btn" data-akcja="podblat">Pod blat (góra równo z blatem)</button><button class="btn" data-akcja="dogornych">Góra do dołu szafek górnych (${GORNE0})</button>${para ? `<button class="btn" data-akcja="zamien">Zamień miejscami z ${sel.typ === "piekarnik" ? "mikrofalą" : "piekarnikiem"}</button><button class="btn${cab.razem ? " on" : ""}" data-akcja="razem" title="Piekarnik i mikrofala jako jeden blok: półka ${POLKA_SL} mm między nimi, przesuwają się razem">${cab.razem ? "Razem ✓ (półka między)" : "Razem — półka między, przesuwaj oba"}</button>` : ""}</div>`;
         if (nachodza(m)) h += `<p class="uwaga">Wnęki nachodzą na siebie albo wychodzą poza słupek — przesuń wysokość albo zamień miejscami.</p>`;
       }
-      // mikrofala za wysoko (prog przykladowy — do ustalenia): ostrzezenie, w aplikacji tez kiedys
+      // mikrofala za wysoko (prog 1300, uzytkownik 2026-11-08): ostrzezenie, w aplikacji tez
       const mikrWys = cab && cab.tall && Object.entries(wnekiSlupka(cab)).find(([id]) => (wnetrze.find((a) => a.id === id) || {}).typ === "mikrofala");
       if (mikrWys && mikrWys[1].y0 > MIKRO_MAX && (sel.typ === "mikrofala" || sel.typ === "piekarnik"))
-        h += `<p class="uwaga">Mikrofala wysoko — dół ${mikrWys[1].y0} mm od podłogi (przykładowy próg ${MIKRO_MAX}): trudno z niej korzystać i wyjmować gorące naczynia. Daj piekarnik „Pod blat” albo zamień je miejscami.</p>`;
+        h += `<p class="uwaga">Mikrofala wysoko — dół ${mikrWys[1].y0} mm od podłogi (więcej niż ${MIKRO_MAX}): trudno z niej korzystać i wyjmować gorące naczynia. Daj piekarnik „Pod blat” albo zamień je miejscami.</p>`;
       if (sel.typ === "okap" && cab) {
         const ok = wnetrze.find((a) => a.id === sel.id), og = okapGeo(ok, cab);
         h += etyk("Rodzaj") + `<div class="rozm">` + Object.entries(OKAP).map(([k, v]) => `<button data-okap="${k}" aria-pressed="${(ok.rodzaj || "podszafkowy") === k}" title="${v.opis}">${v.l}</button>`).join("") + `</div>`;
@@ -983,7 +983,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if (a && v > 0) ustawWys(a, v);
     odswiez();
   });
-  // przelaczniki widoku: AGD i zlew, ciag gorny / dolny (zawsze co najmniej jeden ciag)
+  // przelaczniki widoku: Wyposażenie (AGD, zlew), ciag gorny / dolny (zawsze co najmniej jeden ciag)
   document.querySelectorAll(".przel").forEach((b) => b.addEventListener("click", () => {
     const k = b.dataset.wid;
     widok[k] = !widok[k];
