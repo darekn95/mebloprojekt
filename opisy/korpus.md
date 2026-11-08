@@ -74,6 +74,14 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   1. nad kołkiem półki, w jej grubości (łeb zasłania półka), gdy półka jest do 300 mm od dołu / od góry poziomu, 70 mm od krawędzi — wkręcany od strony tej półki;
   2. inaczej (tylko przedni) 20 mm pod dolnym / nad górnym zawiasem na tej parze, w osi zawiasu — w połowie części przykręcanej do boku (80 mm, więc 40 mm od przedniej krawędzi);
   3. inaczej 100 mm od dołu / od góry poziomu, 50 mm od krawędzi.
+- **Osobne dna / osobne wieńce** przy dwóch przegrodach na styku (użytkownik 2026-11-08: „jak dwie szafki
+  skręcone razem”; przycisk „Dwie przegrody, osobne dna” przy przegrodzie pod blatem i wybór w scalaniu):
+  dno (wieniec) w kawałkach „Dno lewe / prawe” („Wieniec lewy / prawy”, przy trzech i więcej — „Dno 1, 2…”).
+  Płyta między bokami — kawałki kończą się na przegrodach, para idzie przez szczelinę do spodu dna /
+  wierzchu wieńca jak boki, konfirmat przez każdą przegrodę w czoło kawałka (łeb między przegrodami —
+  wkręcić przed skręceniem przegród). Płyta na bokach — kawałki stykają się pod / nad parą, każda
+  przegroda stoi na swoim (konfirmat od spodu, położenie od lewego końca kawałka). Szafka w L — bez
+  podziału. Kolejność montażu przy parze (łby konfirmatów między przegrodami) — w notatce montażowej.
 
 ## Co ustawiasz ręcznie
 

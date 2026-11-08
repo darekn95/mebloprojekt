@@ -119,6 +119,30 @@ console.log('\n== dwie przegrody na styku (użytkownik 2026-10-29) ==');
   await page.keyboard.press('Escape'); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(800);
 }
 
+console.log('\n== dno i góra do wyboru (użytkownik 2026-11-08) ==');
+{
+  await seed(SALON());
+  await otworz();
+  ok('w okienku „dno: wspólne / osobne” i „góra: wspólny wieniec / osobne wieńce / blat z płyty / blat roboczy”',
+    (await panel().locator('[data-el="scal-dno"] button').allInnerTexts()).join('|') === 'wspólne|osobne'
+    && (await panel().locator('[data-el="scal-gora"] button').allInnerTexts()).join('|') === 'wspólny wieniec|osobne wieńce|blat z płyty|blat roboczy');
+  await panel().locator('[data-el="scal-dno"]').getByRole('button', { name: 'osobne', exact: true }).click(); await page.waitForTimeout(150);
+  await panel().locator('[data-el="scal-gora"]').getByRole('button', { name: 'osobne wieńce', exact: true }).click(); await page.waitForTimeout(150);
+  const op = await panel().locator('[data-el="scal-opis"]').innerText();
+  ok('osobne dno i wieńce same przełączają na dwie przegrody (opis)', /dwie przegrody obok siebie.*osobne dna, góra: osobne wieńce/.test(op) && /nie da się skręcić po kolei/.test(op), op);
+  await panel().getByRole('button', { name: 'Scal', exact: true }).click(); await page.waitForTimeout(800);
+  const p = await zap();
+  const kol = p.items[p.active].cab.levels[0].cols;
+  ok('na styku `przegrodaPodw`, `przegrodaOsobneDna`, `przegrodaOsobneWience`', kol[0].przegrodaPodw === true && kol[0].przegrodaOsobneDna === true && kol[0].przegrodaOsobneWience === true,
+    JSON.stringify(kol.map((k) => [!!k.przegrodaPodw, !!k.przegrodaOsobneDna, !!k.przegrodaOsobneWience])));
+  const f = await rows(/^Formatki do zamówienia$/);
+  ok('formatki: Dno lewe / prawe i Wieniec lewy / prawy po 564 (jak w dwóch szafkach)', ['Dno lewe', 'Dno prawe', 'Wieniec lewy', 'Wieniec prawy'].every((n) => f.some((r) => new RegExp(`^${n} .*\\| 564 \\| 500 \\| 1 \\|`).test(r))),
+    f.filter((r) => /Przegroda|Dno|Wieniec/.test(r)).join(' / '));
+  const pick = async (l) => { const x = page.getByRole('button', { name: l, exact: true }); if (await x.count()) { await x.first().click(); await page.waitForTimeout(250); } };
+  for (const v of ['Zamk.', 'Otw.', 'Z góry', '3D']) { const k = errors.length; await pick('Szafka'); await pick(v); ok(`osobne dna — widok ${v} bez błędów`, errors.length === k, errors.slice(k).join('; ')); }
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(800);
+}
+
 console.log('\n== widoki po scaleniu ==');
 {
   await seed(SALON());

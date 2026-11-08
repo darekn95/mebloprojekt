@@ -495,6 +495,34 @@ console.log('\n== Scalanie „dwie przegrody” (użytkownik 2026-10-29) ==');
   const g4 = scal(sz('A', drzwi({ shelfTargets: [null] })), sz('B', drzwi({ shelfTargets: [null] })), { ...RUN, gap: 2 }).g;
   ok('luz ciągu 2 mm: szafka 1202, kolumny 565 / 565, bez błędów', g4.W === 1202 && g4.levels[0].cols.map((c) => Math.round(c.w)).join() === '565,565' && !g4.msgs.some((x) => x.level === 'error'),
     g4.W + ' ' + g4.levels[0].cols.map((c) => Math.round(c.w)).join());
+  // osobne dna i wieńce (użytkownik 2026-11-08): dno i góra do wyboru przy scalaniu
+  const scalO = (opcje, a = sz('A', drzwi({ shelfTargets: [null] })), b = sz('B', drzwi({ shelfTargets: [null] }))) => {
+    const P = G.loadProject({ name: 'P', runs: [RUN], items: [{ cab: a, runId: 'c1' }, { cab: b, runId: 'c1' }] });
+    const Q = G.scalSzafki(P, [0, 1], null, 'pojedyncze', opcje); const it = Q.items[Q.active]; return { cab: it.cab, g: G.computeGeo(G.cabDoGeo(Q, it), it.mat) }; };
+  const o1 = scalO({ dno: 'osobne', gora: 'osobne' });
+  const nazwy = o1.g.panels.filter((p) => /^(Dno|Wieniec|Przegroda)/.test(p.name)).map((p) => `${p.name} ${p.qty}×${p.a}×${p.b}`).join(', ');
+  ok('scalanie: osobne dna i wieńce — same wymuszają dwie przegrody; Dno lewe / prawe 564, Wieniec lewy / prawy 564, przegrody pary na całą wysokość 720',
+    o1.g.dividers.map((d) => `${d.para}${d.y0}-${d.y1}`).join() === 'L0-720,P0-720'
+    && /Dno lewe 1×564×560, Dno prawe 1×564×560, Wieniec lewy 1×564×560, Wieniec prawy 1×564×560/.test(nazwy) && /Przegroda pionowa 2×720×560/.test(nazwy), nazwy);
+  const plan1 = o1.g.drillPlan.filter((q) => /^Przegroda 1/.test(q.panel)).flatMap((q) => q.rows.map((r) => `${q.panel}: ${r.kind} ${r.ys}`));
+  ok('… konfirmaty dna i wieńca przez przegrody pary (9 i 711 mm od dołu przegrody), bez konfirmatu przegrody w dnie / wieńcu',
+    ['Przegroda 1 — lewa: konfirmat — dno 9', 'Przegroda 1 — lewa: konfirmat — wieniec 711', 'Przegroda 1 — prawa: konfirmat — dno 9', 'Przegroda 1 — prawa: konfirmat — wieniec 711'].every((x) => plan1.includes(x))
+    && !o1.g.drillPlan.some((q) => /^(Dno|Wieniec)/.test(q.panel) && q.rows.some((r) => /przegroda/.test(r.kind))), plan1.join(' / '));
+  const o2 = scalO({ dno: 'osobne', gora: 'wieniec' });
+  ok('… osobne dna + wspólny wieniec: wieniec jeden (1164), przegrody od spodu dna do wieńca (0–702), konfirmaty przegród w wieńcu',
+    o2.g.panels.some((p) => p.name === 'Wieniec' && p.a === 1164) && o2.g.dividers.every((d) => d.y0 === 0 && d.y1 === 702)
+    && (o2.g.drillPlan.find((q) => q.panel === 'Wieniec') || { rows: [] }).rows.filter((r) => /konfirmat — przegroda/.test(r.kind)).length === 2,
+    JSON.stringify(o2.g.dividers.map((d) => [d.y0, d.y1])));
+  const o3 = scalO({ dno: 'wspolne', gora: 'blat' }), o4 = scalO({ dno: 'wspolne', gora: 'roboczy' });
+  ok('… góra „blat z płyty”: blat na bokach (isBlat); „blat roboczy”: bez wieńca, para wzmocnień pod blat w obu kolumnach; jedna przegroda',
+    o3.g.isBlat && o3.g.dividers.length === 1 && !o4.g.hasTop && o4.g.levels[0].cols.every((c) => (c.rails || []).length === 2),
+    JSON.stringify({ blat: o3.g.isBlat, top4: o4.g.hasTop, r: o4.g.levels[0].cols.map((c) => (c.rails || []).length) }));
+  const o5 = scalO({ dno: 'osobne', gora: 'roboczy' });
+  ok('… osobne dna pod blatem roboczym: dno w dwóch kawałkach, wzmocnienia każdej kolumny na swojej przegrodzie (konfirmaty, bez trójkątów)',
+    o5.g.panels.filter((p) => /^Dno (lewe|prawe)/.test(p.name)).length === 2 && !o5.g.msgs.some((x) => /wzmocnienia z obu stron/.test(x.text))
+    && o5.g.levels[0].cols[1].rails[0].laczniki[0].moc === 'konfirmaty', o5.g.msgs.map((x) => x.text).join(' // ').slice(0, 400));
+  const bledy5 = [o1, o2, o3, o4, o5].flatMap((o) => o.g.msgs.filter((x) => x.level === 'error').map((x) => x.text));
+  ok('… żadnych błędów w tych wariantach', !bledy5.length, bledy5.join(' // '));
 }
 
 console.log('\n== N150–N156 (audyt GPT 2026-10-30) ==');

@@ -643,7 +643,7 @@ const kolumnaNaDwie = (cols, j, wTeraz, t) => {
   const pol2 = (strona) => {
     const c = JSON.parse(JSON.stringify(a));
     c.w = strona === "L" ? wL : wP;
-    if (strona === "L") { delete c.noDiv; delete c.przegrodaPodw; }
+    if (strona === "L") { delete c.noDiv; delete c.przegrodaPodw; delete c.przegrodaOsobneDna; delete c.przegrodaOsobneWience; delete c.przegrodaNizsza; delete c.przegrodaNizszaMoc; }
     if (c.fix && c.fix.side === (strona === "L" ? "right" : "left")) delete c.fix;
     if (drzwi) {
       c.doors = strona === "L" ? nL : nP;
@@ -3264,6 +3264,41 @@ function computeGeoLiczy(cab, mat, ctx) {
   /* Zasieg polek w kolumnie: w szafce w L plyta katownika wzdluz sciany
      ramienia stoi o grubosc plecow od boku — polka w kolumnie przy nim jest
      o tyle wezsza (inaczej wchodzi w katownik 3 mm). */
+  /* Osobne dna / wienice przy dwoch przegrodach na styku (uzytkownik 2026-11-08: „jak dwie szafki skręcone
+     razem”) — `przegrodaOsobneDna` w kolumnie po lewej styku w najnizszym poziomie, `przegrodaOsobneWience`
+     w najwyzszym. Plyta miedzy bokami — kawalki miedzy przegrodami (szczelina na pare), przegrody ida przez
+     nia do spodu / wierzchu jak boki; plyta na bokach — kawalki stykaja sie pod / nad para, kazda przegroda
+     stoi na swoim. Szafka w L — bez podzialu. `dnoKawalki` / `wienKawalki`: [{ x0, x1, nazwa, l, r }]. */
+  const kawalkiPlyty = (x0, x1, lvI, pole, miedzy, nazwa) => {
+    const pary = postSide ? [] : dividers.filter((d) => d.para === "L" && d.level === lvI && (rawLevels[lvI].cols[d.j] || {})[pole])
+      .sort((a, b) => a.x - b.x);
+    if (!pary.length) return null;
+    const out = [];
+    let a = x0;
+    pary.forEach((d) => {
+      if (miedzy) { out.push({ x0: a, x1: d.x, para: d }); a = d.x + 2 * t; }
+      else { out.push({ x0: a, x1: d.x + t, para: d }); a = d.x + t; }
+    });
+    out.push({ x0: a, x1 });
+    const n = out.length;
+    return out.map((q, k) => ({ ...q, nazwa: n === 2 ? `${nazwa} ${k ? "prawe" : "lewe"}`.replace(/^Wieniec lewe$/, "Wieniec lewy").replace(/^Wieniec prawe$/, "Wieniec prawy") : `${nazwa} ${k + 1}`,
+      pierwszy: k === 0, ostatni: k === n - 1 }));
+  };
+  const dnoMiedzy = botL === "between" && botR === "between";
+  const wienMiedzy = topL === "between" && topR === "between";
+  const dnoKawalki = hasBot ? kawalkiPlyty(botX0, botX1, 0, "przegrodaOsobneDna", dnoMiedzy, "Dno") : null;
+  const wienKawalki = hasTop && !isBlat ? kawalkiPlyty(topX0, topX1, levels.length - 1, "przegrodaOsobneWience", wienMiedzy, "Wieniec") : null;
+  // przegrody pary ida przez szczeline do spodu dna / wierzchu wienca — jak boki
+  (dnoKawalki && dnoMiedzy ? dnoKawalki.filter((q) => q.para) : []).forEach((q) => dividers
+    .filter((d) => d.level === 0 && d.j === q.para.j && d.para).forEach((d) => { d.y0 -= t; d.h += t; d.doSpodu = true; }));
+  (wienKawalki && wienMiedzy ? wienKawalki.filter((q) => q.para) : []).forEach((q) => dividers
+    .filter((d) => d.level === levels.length - 1 && d.j === q.para.j && d.para).forEach((d) => { d.y1 += t; d.h += t; d.doWierzchu = true; }));
+  // kawalek plyty pod / nad danym x (bez podzialu — cala plyta, polozenie od wewnetrznej strony lewego boku)
+  const kawalekPod = (kaw, x, nazwa) => {
+    const q = kaw && kaw.find((k2) => x >= k2.x0 - 0.5 && x <= k2.x1 + 0.5);
+    return q ? { nazwa: q.nazwa, od: q.x0, opis: "od lewego końca płyty" } : { nazwa, od: interior.x0, opis: "od wewnętrznej strony lewego boku" };
+  };
+
   levels.forEach((lv) => lv.cols.forEach((c, j) => {
     const przyKat = postSide && (postSide === "left" ? j === 0 : j === lv.cols.length - 1);
     // A: polka do wewnetrznego lica plyty katownika (gruba na `ts`, kolumna liczona od boku `t`)
@@ -3724,7 +3759,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           bez !== "jeden" ? `|wzmprzegr:${lv.i}:${j}:${wszystkie}:jeden` : "",
           gorne ? `|przegrnizsza:${lv.i}:${j - 1}` : "",
           `|przegrpodw:${lv.i}:${j - 1}:wspolne:${t}`,
-          `|przegrpodw:${lv.i}:${j - 1}:osobne:${t}`,
+          lv.i === 0 ? `|przegrpodw:${lv.i}:${j - 1}:osobne:${t}` : "",
           bez !== "trojkaty" ? `|wzmprzegr:${lv.i}:${j}:${wszystkie}:trojkaty` : "",
         ].join("");
         const bezWyb = przyPrzegr.filter((q) => !q.wyb), tr = przyPrzegr.filter((q) => q.wyb === "trojkaty"), jeden = przyPrzegr.filter((q) => q.wyb === "jeden");
@@ -5686,9 +5721,22 @@ function computeGeoLiczy(cab, mat, ctx) {
   if (wien) wien.name = nazwaZOtworami(wien.name, wienOtw);
   if (dno && dnoOtw.length) dno.otwory = otwFormatki(dnoOtw);
   if (wien && wienOtw.length) wien.otwory = otwFormatki(wienOtw);
-  const dnoOtwory = otwAbs(dnoOtw, botX0, 0);
-  const wienOtwory = otwAbs(wienOtw, topX0, isBlat ? -blat.overBack : 0);
-  if (wien && dno && !isBlat && same(wien, dno) && nazwaZOtworami("", dnoOtw) === nazwaZOtworami("", wienOtw))
+  let dnoOtwory = otwAbs(dnoOtw, botX0, 0);
+  let wienOtwory = otwAbs(wienOtw, topX0, isBlat ? -blat.overBack : 0);
+  /* Osobne dna / wience (dwie przegrody na styku): kawalek na kazda czesc, krawedz przy przegrodzie
+     schowana — bez okleiny; wyciecia z elementow liczone dla kawalka. */
+  const zKawalkow = (kaw, wzor, z0, z1, l, r) => kaw.map((q) => {
+    const otw = otworyDnaWienca(q.x0, q.x1, z0, z1);
+    const e = horiz(q.nazwa, q.pierwszy ? l : "przegroda", q.ostatni ? r : "przegroda", q.x0, q.x1);
+    return { ...wzor, ...e, name: nazwaZOtworami(q.nazwa, otw), ...(otw.length ? { otwory: otwFormatki(otw) } : {}), otwAbs: otwAbs(otw, q.x0, 0) };
+  });
+  const dnoCzesci = dno && dnoKawalki ? zKawalkow(dnoKawalki, dno, 0, carcassDepth, botL, botR) : null;
+  const wienCzesci = wien && wienKawalki ? zKawalkow(wienKawalki, wien, 0, carcassDepth, topL, topR) : null;
+  if (dnoCzesci) dnoOtwory = dnoCzesci.flatMap((q) => q.otwAbs);
+  if (wienCzesci) wienOtwory = wienCzesci.flatMap((q) => q.otwAbs);
+  if (dnoCzesci || wienCzesci) {
+    [...(dnoCzesci || (dno ? [dno] : [])), ...(wienCzesci || (wien ? [wien] : []))].forEach((q) => { const { otwAbs: _o, ...bez } = q; P({ ...bez, note: noteOf(q.edges, "horiz") }); });
+  } else if (wien && dno && !isBlat && same(wien, dno) && nazwaZOtworami("", dnoOtw) === nazwaZOtworami("", wienOtw))
     P({ ...dno, name: nazwaZOtworami("Dno / wieniec", dnoOtw), rola: "dno+wieniec", qty: 2, note: noteOf(dno.edges, "horiz") });
   else {
     if (dno) P({ ...dno, note: noteOf(dno.edges, "horiz") });
@@ -6528,9 +6576,11 @@ function computeGeoLiczy(cab, mat, ctx) {
     const last = lv.cols.length - 1;
     const strona = ` (od kolumny ${c.j + 1})`;
     const bezL = c.j > 0 && !!(lv.cols[c.j - 1] || {}).noDiv, bezP = c.j < last && !!c.noDiv;
+    // przegroda pary przez szczeline w dnie (osobne dna) zaczyna sie nizej — wysokosci od jej dolnej krawedzi
+    const dolPrzegrody = (x) => { const d = dividers.find((q) => q.level === lv.i && Math.abs(q.x - x) < 1); return d ? d.y0 : lv.y0; };
     return {
-      left: { name: c.j === 0 ? "Bok lewy" : bezL ? null : `Przegroda ${c.j}${(lv.cols[c.j - 1] || {}).przegrodaPodw ? " — prawa" : ""}`, base: c.j === 0 ? leftY0 : lv.y0, strona: c.j === 0 ? "" : strona },
-      right: { name: c.j === last ? "Bok prawy" : bezP ? null : `Przegroda ${c.j + 1}${c.przegrodaPodw ? " — lewa" : ""}`, base: c.j === last ? rightY0 : lv.y0, strona: c.j === last ? "" : strona },
+      left: { name: c.j === 0 ? "Bok lewy" : bezL ? null : `Przegroda ${c.j}${(lv.cols[c.j - 1] || {}).przegrodaPodw ? " — prawa" : ""}`, base: c.j === 0 ? leftY0 : dolPrzegrody(c.x0 - t), strona: c.j === 0 ? "" : strona },
+      right: { name: c.j === last ? "Bok prawy" : bezP ? null : `Przegroda ${c.j + 1}${c.przegrodaPodw ? " — lewa" : ""}`, base: c.j === last ? rightY0 : dolPrzegrody(c.x1), strona: c.j === last ? "" : strona },
     };
   };
   // polki i rura przy przelocie koncza sie w powietrzu — z tej strony nie maja podparcia (N147)
@@ -6822,10 +6872,13 @@ function computeGeoLiczy(cab, mat, ctx) {
           return;
         }
         (d.klapaZawiasy || []).forEach((hx) => {
-          const key = nazwa;
+          // osobne dna / wience — w kawalku nad / pod klapa, od jego lewego konca
+          const kq = nazwa === "Wieniec" && wienKawalki ? kawalekPod(wienKawalki, hx, nazwa)
+            : nazwa === "Dno" && dnoKawalki ? kawalekPod(dnoKawalki, hx, nazwa) : { nazwa, od: interior.x0, opis: "od wewnętrznej strony lewego boku" };
+          const key = kq.nazwa;
           if (!drillMap.has(key)) drillMap.set(key, { panel: key, holes: [] });
-          drillMap.get(key).holes.push({ kind: "zawias klapy", y: Math.round(hx - interior.x0),
-            note: "oś zawiasu od wewnętrznej strony lewego boku — puszka ⌀35 w klapie, prowadnik na płycie" });
+          drillMap.get(key).holes.push({ kind: "zawias klapy", y: Math.round(hx - kq.od),
+            note: `oś zawiasu ${kq.opis} — puszka ⌀35 w klapie, prowadnik na płycie` });
         });
         /* Podnosnik / amortyzator: plytka na boku kolumny i mocowanie na klapie
            (stale `PODNOSNIK_*`, `AMORTYZATOR_*`). Liczone od plyty z zawiasami:
@@ -6990,13 +7043,32 @@ function computeGeoLiczy(cab, mat, ctx) {
       if (postSide !== "left" && zlacze.l) doPlyty(plyta, "konfirmat — bok lewy", t / 2 - x0, note);
       if (postSide !== "right" && zlacze.r) doPlyty(plyta, "konfirmat — bok prawy", W - t / 2 - x0, note);
     };
+    /* Osobne dna / wience: plyta na bokach — konfirmaty skrajnych bokow w skrajnych kawalkach (od ich
+       lewego konca); plyta miedzy bokami — przegrody pary jak boki: konfirmat przez przegrode w czolo
+       kawalka (leb od strony drugiej przegrody — wkrecic przed skreceniem przegrod). */
+    const kawalkiNaBokach = (kaw, zlacze) => {
+      const pierwszy = kaw[0], ostatni = kaw[kaw.length - 1];
+      naBokach(pierwszy.nazwa, { l: zlacze.l, r: false }, carcassDepth, 0, pierwszy.x0);
+      naBokach(ostatni.nazwa, { l: false, r: zlacze.r }, carcassDepth, 0, ostatni.x0);
+    };
+    const przezPare = (kaw, lvI, yOs, co) => kaw.filter((q) => q.para).forEach((q) => {
+      const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(carcassDepth))} mm od przedniej krawędzi; w czole ${co} ⌀5 × 50; łeb od strony drugiej przegrody — wkręć przed skręceniem przegród`;
+      dividers.filter((d) => d.level === lvI && d.j === q.para.j && d.para).forEach((d) =>
+        drillAdd(lvI, nazwaPrzegrody(d), d.y0, `konfirmat — ${co === "dna" ? "dno" : "wieniec"}`, yOs, note));
+    });
     if (hasTop && !isBlat) {
       przezBok(top, { nazwa: "wieniec", l: topL === "between", r: topR === "between" }, H - t / 2, carcassDepth, 0, "wieńca");
-      naBokach("Wieniec", { l: topL === "over", r: topR === "over" }, carcassDepth, 0, topX0);
+      if (wienKawalki) {
+        kawalkiNaBokach(wienKawalki, { l: topL === "over", r: topR === "over" });
+        if (wienMiedzy) przezPare(wienKawalki, top, H - t / 2, "wieńca");
+      } else naBokach("Wieniec", { l: topL === "over", r: topR === "over" }, carcassDepth, 0, topX0);
     }
     if (hasBot) {
       przezBok(0, { nazwa: "dno", l: botL === "between", r: botR === "between" }, bottomY + t / 2, carcassDepth, 0, "dna");
-      naBokach("Dno", { l: botL === "over", r: botR === "over" }, carcassDepth, 0, botX0);
+      if (dnoKawalki) {
+        kawalkiNaBokach(dnoKawalki, { l: botL === "over", r: botR === "over" });
+        if (dnoMiedzy) przezPare(dnoKawalki, 0, bottomY + t / 2, "dna");
+      } else naBokach("Dno", { l: botL === "over", r: botR === "over" }, carcassDepth, 0, botX0);
     }
     /* Szafka w L: po stronie ramienia wieniec i dno skreca sie konfirmatem
        w czolo obu plyt katownika (uzytkownik 2026-09-29) — po jednym na plyte,
@@ -7067,7 +7139,19 @@ function computeGeoLiczy(cab, mat, ctx) {
     dividers.forEach((dv, k) => {
       const x = Math.round(dv.x + t / 2 - interior.x0);
       const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(dividerDepth))} mm od przedniej krawędzi; w czole przegrody ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
-      if (nad(dv.level) && !dv.nizsza) doPlyty(nad(dv.level), `konfirmat — przegroda ${k + 1}`, x, note);
+      /* osobne dna / wience: przegroda w kawalku pod / nad nia (polozenie od jego lewego konca); para przez
+         szczeline (plyta miedzy bokami) — tu nic, skreca sie przez nia w czolo kawalka (wyzej) */
+      const wKawalku = (kaw, nazwa) => {
+        const kq = kawalekPod(kaw, dv.x + t / 2, nazwa);
+        return { nazwa: kq.nazwa, x: Math.round(dv.x + t / 2 - kq.od), note: note.replace("od wewnętrznej strony lewego boku", kq.opis) };
+      };
+      if (dv.level === top && wienKawalki && nad(dv.level)) {
+        if (!dv.doWierzchu) { const q = wKawalku(wienKawalki, "Wieniec"); doPlyty(q.nazwa, `konfirmat — przegroda ${k + 1}`, q.x, q.note); }
+      } else if (nad(dv.level) && !dv.nizsza) doPlyty(nad(dv.level), `konfirmat — przegroda ${k + 1}`, x, note);
+      if (dv.level === 0 && dnoKawalki && pod(dv.level)) {
+        if (!dv.doSpodu) { const q = wKawalku(dnoKawalki, "Dno"); doPlyty(q.nazwa, dv.dolTrojkaty ? `trójkąt meblowy — przegroda ${k + 1}` : `konfirmat — przegroda ${k + 1}`, q.x, q.note); }
+        return;
+      }
       /* Przegroda stojaca nad inna, na tej samej polce przelotowej — konfirmat
          od dolu nie wejdzie (leb pod czolem dolnej), wiec trojkaty (N45). */
       if (pod(dv.level) && dv.dolTrojkaty)
@@ -7104,7 +7188,8 @@ function computeGeoLiczy(cab, mat, ctx) {
       };
       [true, false].forEach((dol) => [true, false].forEach((przod) => {
         const w = wkret(dol, przod);
-        drillAdd(lv.i, w.nazwa, lv.y0, "wkręt łączący przegrody", w.y,
+        // wysokosc od dolnej krawedzi przegrody (przy osobnych dnach para idzie do spodu dna)
+        drillAdd(lv.i, w.nazwa, dv.y0, "wkręt łączący przegrody", w.y,
           `${fmt(w.z)} mm od ${przod ? "przedniej" : "tylnej"} krawędzi płyty; ${w.why}; wkręt 4 × ${fmt(wkretPary)} od tej strony przez obie przegrody`);
         wkretyParyN += 1;
       }));
@@ -7166,8 +7251,8 @@ function computeGeoLiczy(cab, mat, ctx) {
       const note = `na tylnej krawędzi, na całej długości: ${fmt(grDep)} mm w grubość płyty × ${fmt(grOff)} mm w stronę drzwi`;
       if (postSide !== "left") drillAdd(0, "Bok lewy", leftY0, "frez pod HDF", null, note);
       if (postSide !== "right") drillAdd(0, "Bok prawy", rightY0, "frez pod HDF", null, note);
-      if (hasTop && !isBlat) doPlyty("Wieniec", "frez pod HDF", null, note);
-      if (hasBot) doPlyty("Dno", "frez pod HDF", null, note);
+      if (hasTop && !isBlat) (wienKawalki ? wienKawalki.map((q) => q.nazwa) : ["Wieniec"]).forEach((n2) => doPlyty(n2, "frez pod HDF", null, note));
+      if (hasBot) (dnoKawalki ? dnoKawalki.map((q) => q.nazwa) : ["Dno"]).forEach((n2) => doPlyty(n2, "frez pod HDF", null, note));
     }
     if (cab.plinth && cab.plinth.on && !(cab.legs && cab.legs.on)) {
       const len = Math.round(plinthInBody ? innerW : W);
@@ -7272,9 +7357,10 @@ function computeGeoLiczy(cab, mat, ctx) {
       // `dl` — dlugosc scianki w glab (wyzej, przy kontroli miejsca na zawieszke)
       const pozK = [Math.round(sc.z0 + dl / 3), Math.round(sc.z0 + (2 * dl) / 3)];
       if (moc === "konfirmaty") {
-        if (!drillMap.has("Wieniec")) drillMap.set("Wieniec", { panel: "Wieniec", holes: [] });
-        drillMap.get("Wieniec").holes.push({ kind: "konfirmat — ścianka zabudowy", y: Math.round((sc.x0 + sc.x1) / 2 - interior.x0),
-          note: `2 szt. ⌀7 w płycie, ${pozK.map(fmt).join(" i ")} mm od tylnej krawędzi; w czole ścianki ⌀5 × 50 (niesie zawieszkę); położenie od wewnętrznej strony lewego boku` });
+        const kq = kawalekPod(wienKawalki, (sc.x0 + sc.x1) / 2, "Wieniec");
+        if (!drillMap.has(kq.nazwa)) drillMap.set(kq.nazwa, { panel: kq.nazwa, holes: [] });
+        drillMap.get(kq.nazwa).holes.push({ kind: "konfirmat — ścianka zabudowy", y: Math.round((sc.x0 + sc.x1) / 2 - kq.od),
+          note: `2 szt. ⌀7 w płycie, ${pozK.map(fmt).join(" i ")} mm od tylnej krawędzi; w czole ścianki ⌀5 × 50 (niesie zawieszkę); położenie ${kq.opis}` });
       } else if (moc === "trojkaty")
         drillAdd(top, sc.nazwa, sc.y0, `trójkąt meblowy — ${isBlat ? "blat" : "wieniec"}`, interior.y1,
           `2 szt. pod ${nad}, od wnętrza szafki, ${pozK.map(fmt).join(" i ")} mm od tylnej krawędzi ścianki (niesie zawieszkę)`);
@@ -7297,6 +7383,17 @@ function computeGeoLiczy(cab, mat, ctx) {
       zaw("Kątownik przy ramieniu — bok", interior.y0, ZAWIESZKA_OD_PLECOW, 1);
     } else zaw("Kątownik przy ramieniu — plecy", interior.y0, ZAWIESZKA_OD_PLECOW, 1);
   }
+  /* Dwie przegrody na styku (AGENTS.md: kolejnosc montazu, 2026-11-08): konfirmaty przez przegrode pary
+     maja leb miedzy przegrodami — po postawieniu drugiej nie ma do nich dostepu. Do notatki montazowej. */
+  dividers.filter((d) => d.para === "L").forEach((dv) => {
+    const nL = nazwaPrzegrody(dv), nP = nazwaPrzegrody({ ...dv, para: "P" });
+    const konf = (n) => ((drillMap.get(drillKey(dv.level, n)) || {}).holes || [])
+      .filter((h) => /^konfirmat/.test(h.kind)).map((h) => h.kind.replace(/^konfirmat — /, ""));
+    const co = [...new Set([...konf(nL), ...konf(nP)])];
+    if (!co.length) return;
+    montazKolejnosc.push(`${levels.length > 1 ? `Poziom ${dv.level + 1}, ` : ""}przegroda ${dv.j + 1} (dwie na styku): konfirmaty przez przegrody (${listPl(co)}) mają łby między nimi — `
+      + `najpierw skręć lewą część z przegrodą lewą, prawą przegrodę z jej płytami osobno, dopiero potem postaw je obok siebie i skręć 4 wkrętami.`);
+  });
   const drillPlan = [...drillMap.values()].map((p) => {
     const by = new Map();
     p.holes.forEach((h) => {
@@ -7913,6 +8010,9 @@ function computeGeoLiczy(cab, mat, ctx) {
     postSide, postW, postBack, postTyp, postRects, zawieszki,
     isBlat, isWorktop, tTop, tW, frezY0, frezY1, plecyPodBlat, blat, blatDepth, blatInside, W, drillPlan,
     topX0, topX1, botX0, botX1, divOv, paraArg,
+    // kawalki dna / wienca do rysunkow (bez podzialu — cala plyta)
+    dnoKawalki: dnoKawalki || (hasBot ? [{ x0: botX0, x1: botX1 }] : []),
+    wienKawalki: wienKawalki || (hasTop ? [{ x0: topX0, x1: topX1 }] : []),
   };
 }
 
@@ -7976,7 +8076,7 @@ function geoSprzetuCiagu(cab, mat, ctx) {
   }
   return { ...baza, bezKorpusu: true, sprzetCiagu: dane, panels, hardware: [], msgs, doors: [], klapy: [],
     hasTop: false, hasBot: false, hasBack: false, isBlat: false, isWorktop: false, blat: null, dividers: [], sepShelves: [],
-    zawieszki: [], drillPlan: [], zawiasyMontaz: [], montazKolejnosc: [], dystansZa: null, dnoOtwory: [], wienOtwory: [],
+    zawieszki: [], drillPlan: [], zawiasyMontaz: [], montazKolejnosc: [], dystansZa: null, dnoOtwory: [], wienOtwory: [], dnoKawalki: [], wienKawalki: [],
     levels: baza.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, shelves: [], doors: [], rails: [], drazki: [], sprzet: null })) })) };
 }
 
@@ -9205,14 +9305,15 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         geo.topL === "between", geo.botL === "between")}
       {geo.postSide !== "right" && side("r", mx(W - t, t), fy(geo.rightY0 + geo.rightLen), geo.rightLen,
         geo.topR === "between", geo.botR === "between")}
-      {geo.hasTop && (
-        <rect x={mx(geo.topX0, geo.topX1 - geo.topX0)} y={fy(H)} width={geo.topX1 - geo.topX0} height={geo.tW || t}
+      {/* kawalki — osobne wience / dna przy dwoch przegrodach na styku */}
+      {geo.hasTop && (geo.wienKawalki || [{ x0: geo.topX0, x1: geo.topX1 }]).map((q, k) => (
+        <rect key={"wk" + k} x={mx(q.x0, q.x1 - q.x0)} y={fy(H)} width={q.x1 - q.x0} height={geo.tW || t}
           fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
-      )}
-      {geo.hasBot && (
-        <rect x={mx(geo.botX0, geo.botX1 - geo.botX0)} y={fy(geo.bottomY + t)} width={geo.botX1 - geo.botX0} height={t}
+      ))}
+      {geo.hasBot && (geo.dnoKawalki || [{ x0: geo.botX0, x1: geo.botX1 }]).map((q, k) => (
+        <rect key={"dk" + k} x={mx(q.x0, q.x1 - q.x0)} y={fy(geo.bottomY + t)} width={q.x1 - q.x0} height={t}
           fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
-      )}
+      ))}
       {geo.plinthInBody && (
         <rect x={mx(geo.interior.x0, geo.innerW)} y={fy(geo.plinthH)} width={geo.innerW} height={geo.plinthH}
           fill={bf} stroke={INK} strokeWidth="2" />
@@ -9420,14 +9521,15 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
             geo.topL === "between", geo.botL === "between")}
           {side("r2", mx(W - t, t), fy(geo.rightY0 + geo.rightLen), geo.rightLen,
             geo.topR === "between", geo.botR === "between")}
-          {geo.hasTop && (
-            <rect x={mx(geo.topX0, geo.topX1 - geo.topX0)} y={fy(H)} width={geo.topX1 - geo.topX0} height={geo.tW || t}
+          {/* kawalki — osobne wience / dna przy dwoch przegrodach na styku */}
+          {geo.hasTop && (geo.wienKawalki || [{ x0: geo.topX0, x1: geo.topX1 }]).map((q, k) => (
+            <rect key={"wk" + k} x={mx(q.x0, q.x1 - q.x0)} y={fy(H)} width={q.x1 - q.x0} height={geo.tW || t}
               fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
-          )}
-          {geo.hasBot && (
-            <rect x={mx(geo.botX0, geo.botX1 - geo.botX0)} y={fy(geo.bottomY + t)} width={geo.botX1 - geo.botX0} height={t}
+          ))}
+          {geo.hasBot && (geo.dnoKawalki || [{ x0: geo.botX0, x1: geo.botX1 }]).map((q, k) => (
+            <rect key={"dk" + k} x={mx(q.x0, q.x1 - q.x0)} y={fy(geo.bottomY + t)} width={q.x1 - q.x0} height={t}
               fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
-          )}
+          ))}
         </g>
       )}
     </g>
@@ -9589,12 +9691,12 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
       ))}
 
       {/* wieniec albo blat widoczny z gory */}
-      {geo.hasTop && (
-        <rect x={geo.topX0} y={geo.isBlat ? -geo.blat.overBack : 0}
-          width={geo.topX1 - geo.topX0} height={geo.isBlat ? geo.blatDepth : cd}
+      {geo.hasTop && (geo.wienKawalki || [{ x0: geo.topX0, x1: geo.topX1 }]).map((q, k) => (
+        <rect key={"wk" + k} x={q.x0} y={geo.isBlat ? -geo.blat.overBack : 0}
+          width={q.x1 - q.x0} height={geo.isBlat ? geo.blatDepth : cd}
           fill={bf} stroke={INK} strokeWidth={geo.isBlat ? 2 : 1}
           opacity={geo.isBlat ? 0.45 : 0.25} />
-      )}
+      ))}
 
       <OtworyZGory geo={geo} polki={false} />
       {/* elementy wzmacniajace */}
@@ -10974,16 +11076,16 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       const otwXZ = (lista) => (lista || []).map((o) => [c.x + o.x0, cd - o.zb1, c.x + o.x1, cd - o.zb0]);
       const otwYZ = (lista) => (lista || []).map((o) => [c.base + o.y0, cd - o.zb1, c.base + o.y1, cd - o.zb0]);
       if (c.geo.hasBot && !(naWspolnym && naWspolnym.has(c.index)))
-        boxOtw(c.x + c.geo.botX0, c.base + c.geo.bottomY, 0,
-          c.x + c.geo.botX1, c.base + c.geo.bottomY + t, cd, bf, otwXZ(c.geo.dnoOtwory));
+        (c.geo.dnoKawalki || [{ x0: c.geo.botX0, x1: c.geo.botX1 }]).forEach((q) => boxOtw(c.x + q.x0, c.base + c.geo.bottomY, 0,
+          c.x + q.x1, c.base + c.geo.bottomY + t, cd, bf, otwXZ((c.geo.dnoOtwory || []).filter((o) => o.x0 >= q.x0 - 0.5 && o.x1 <= q.x1 + 0.5))));
       if (c.geo.hasTop)
         /* z = 0 to lico korpusu, plecy przy z = cd — wysuniecie przednie idzie
            w minus, tylne za cd (bylo odwrotnie: blat biurka wystawal w 3D do
            tylu i wchodzil w plecy — audyt macierzowy 2026-10-04) */
-        boxOtw(c.x + c.geo.topX0, y1 - (c.geo.tW || t), c.geo.isBlat ? -c.geo.blat.overFront : 0,
-          c.x + c.geo.topX1, y1, c.geo.isBlat ? cd + c.geo.blat.overBack : cd,
+        (c.geo.wienKawalki || [{ x0: c.geo.topX0, x1: c.geo.topX1 }]).forEach((q) => boxOtw(c.x + q.x0, y1 - (c.geo.tW || t), c.geo.isBlat ? -c.geo.blat.overFront : 0,
+          c.x + q.x1, y1, c.geo.isBlat ? cd + c.geo.blat.overBack : cd,
           // wlasny blat roboczy w kolorze blatu, nie korpusu (audyt GPT N17)
-          c.geo.isWorktop ? (c.mat.worktop || {}).color || bf : bf, otwXZ(c.geo.wienOtwory));
+          c.geo.isWorktop ? (c.mat.worktop || {}).color || bf : bf, otwXZ((c.geo.wienOtwory || []).filter((o) => o.x0 >= q.x0 - 0.5 && o.x1 <= q.x1 + 0.5))));
       plecyBryly(c.cab, c.geo).forEach((pb) => box(c.x + pb.x0, c.base + pb.y0, pb.z0, c.x + pb.x1, c.base + pb.y1, pb.z1,
         pb.plyta ? (pb.zPolek ? shelfColorOf(c.cab, c.mat) : bf) : c.mat.back.color));
       /* Blenda nad szafka — w zamowieniu i na rysunku z przodu byla, w bryle nie
@@ -10998,9 +11100,13 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
          w rzucie z gory (gdzie zero jest z tylu) odbijalo wzmocnienia na druga
          strone szafki. */
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => (col.rails || []).forEach((r) => {
+        // nad przegroda nizsza jedna plyta przez kolumny (`czescA`), kawalki pozostale pomijamy
+        if (r.wCzesci) return;
+        const kaw = r.czescA ? [r, ...lv.cols.flatMap((k2) => k2.rails || []).filter((q) => q.wlasciciel === r)] : [r];
+        const x1 = r.czescA ? r.x0 + r.czescA : r.x1;
         // lezace z wycieciem pod plyte / zlew — z otworem (jak blat nad nim)
-        boxOtw(c.x + r.x0, c.base + r.y0, r.z0, c.x + r.x1, c.base + r.y1, r.z0 + r.zLen, bf,
-          (r.otwory || []).map((o) => [c.x + o.x0, o.z0, c.x + o.x1, o.z1]));
+        boxOtw(c.x + r.x0, c.base + r.y0, r.z0, c.x + x1, c.base + r.y1, r.z0 + r.zLen, bf,
+          kaw.flatMap((q) => q.otwory || []).map((o) => [c.x + o.x0, o.z0, c.x + o.x1, o.z1]));
       })));
       /* Polki i przegrody. Po otwarciu drzwi to one sa cala trescia szafki, wiec
          bez nich bryla calej zabudowy pokazywala puste pudla. Glebokosci w `geo`
@@ -11642,14 +11748,14 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         <rect key={"blat" + k} data-el="blat" x={b.x} y={topY - blat.th} width={b.w} height={blat.th}
           fill={blat.kolor} stroke={INK} strokeWidth="2" />
       ))}
-      {geo.hasTop && (
-        <rect x={geo.topX0} y={topY} width={geo.topX1 - geo.topX0} height={geo.tW || t}
+      {geo.hasTop && (geo.wienKawalki || [{ x0: geo.topX0, x1: geo.topX1 }]).map((q, k) => (
+        <rect key={"wk" + k} x={q.x0} y={topY} width={q.x1 - q.x0} height={geo.tW || t}
           fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
-      )}
-      {geo.hasBot && (
-        <rect x={geo.botX0} y={bottomY} width={geo.botX1 - geo.botX0} height={t}
+      ))}
+      {geo.hasBot && (geo.dnoKawalki || [{ x0: geo.botX0, x1: geo.botX1 }]).map((q, k) => (
+        <rect key={"dk" + k} x={q.x0} y={bottomY} width={q.x1 - q.x0} height={t}
           fill={bf} stroke={INK} strokeWidth="2" strokeLinejoin="miter" />
-      )}
+      ))}
     </g>
   );
 
@@ -12717,15 +12823,15 @@ function RearView({ cab, geo, mat: matIn, showDims, wstawki, blat, druk }) {
         <rect key={"blat" + k} data-el="blat" x={mx(b.x, b.w)} y={-blat.th} width={b.w} height={blat.th}
           fill={blat.kolor} stroke={INK} strokeWidth="2" />
       ))}
-      {geo.hasTop && (
-        <rect x={W - geo.topX1} y="0" width={geo.topX1 - geo.topX0} height={geo.tW || t}
+      {geo.hasTop && (geo.wienKawalki || [{ x0: geo.topX0, x1: geo.topX1 }]).map((q, k) => (
+        <rect key={"wk" + k} x={W - q.x1} y="0" width={q.x1 - q.x0} height={geo.tW || t}
           fill={bf} stroke={INK} strokeWidth="2" />
-      )}
+      ))}
       {/* dno */}
-      {geo.hasBot && (
-        <rect x={W - geo.botX1} y={fy(geo.bottomY + t)} width={geo.botX1 - geo.botX0} height={t}
+      {geo.hasBot && (geo.dnoKawalki || [{ x0: geo.botX0, x1: geo.botX1 }]).map((q, k) => (
+        <rect key={"dk" + k} x={W - q.x1} y={fy(geo.bottomY + t)} width={q.x1 - q.x0} height={t}
           fill={bf} stroke={INK} strokeWidth="2" />
-      )}
+      ))}
 
       {/* plecy */}
       {cab.back !== "none" && (
@@ -13092,14 +13198,14 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
           fill={shc} stroke={INK} strokeWidth="2" />
       ))}
       {/* wieniec widoczny z gory jako plyta na calej glebokosci */}
-      {geo.hasTop && (
-        <rect x={geo.topX0} y={geo.isBlat ? -tOvB : 0}
-          width={geo.topX1 - geo.topX0}
+      {geo.hasTop && (geo.wienKawalki || [{ x0: geo.topX0, x1: geo.topX1 }]).map((q, k) => (
+        <rect key={"wk" + k} x={q.x0} y={geo.isBlat ? -tOvB : 0}
+          width={q.x1 - q.x0}
           height={geo.isBlat ? geo.blatDepth : cd}
           fill={bf} stroke={INK}
           strokeWidth={geo.isBlat ? 2 : 1}
           opacity={geo.isBlat ? 0.45 : 0.25} />
-      )}
+      ))}
       <OtworyZGory geo={geo} polki={false} />
       {/* elementy wzmacniajace z gory (y=0 tyl; glebokosc od tylu = cd - z0 - zLen) */}
       {geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.rails || []).map((r, ri) => (
@@ -14395,7 +14501,7 @@ const kluczeFormatki = (n) => {
 };
 const nazwaWzmocnienia = (r) => (r.orient === "front"
   ? (r.przyTyle ? "Wzmocnienie tylne" : "Wzmocnienie czołowe")
-  : r.orient === "shelf" ? "Wzmocnienie poziome" : "Wzmocnienie pionowe");
+  : r.orient === "shelf" ? (r.czescA || r.wCzesci ? "Wzmocnienie poziome nad przegrodą" : "Wzmocnienie poziome") : "Wzmocnienie pionowe");
 
 function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat, podswietl = null }) {
   useAudytWidoku();
@@ -14459,16 +14565,19 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
       box(q.x0, geo.interior.y0, cd - q.v1, q.x1, geo.interior.y1, cd - q.v0, pShc); });
   }
   fk = "Dno";
-  if (geo.hasBot) boxOtw(geo.botX0, geo.bottomY, 0, geo.botX1, geo.bottomY + t, cd, bf, otwXZ(geo.dnoOtwory));
+  // kawalki — osobne dna / wience przy dwoch przegrodach na styku
+  const wKaw = (q, lista) => (lista || []).filter((o) => o.x0 >= q.x0 - 0.5 && o.x1 <= q.x1 + 0.5);
+  if (geo.hasBot) (geo.dnoKawalki || [{ x0: geo.botX0, x1: geo.botX1 }]).forEach((q) =>
+    boxOtw(q.x0, geo.bottomY, 0, q.x1, geo.bottomY + t, cd, bf, otwXZ(wKaw(q, geo.dnoOtwory))));
   fk = geo.isBlat ? "Blat" : "Wieniec";
-  if (geo.hasTop)
+  if (geo.hasTop) (geo.wienKawalki || [{ x0: geo.topX0, x1: geo.topX1 }]).forEach((q) =>
     boxOtw(
       // z = 0 to lico korpusu: wysuniecie przednie w minus, tylne za plecami (cd)
-      geo.topX0, H - (geo.tW || t), geo.isBlat ? -geo.blat.overFront : 0,
-      geo.topX1, H, geo.isBlat ? cd + geo.blat.overBack : cd,
+      q.x0, H - (geo.tW || t), geo.isBlat ? -geo.blat.overFront : 0,
+      q.x1, H, geo.isBlat ? cd + geo.blat.overBack : cd,
       // wlasny blat roboczy w kolorze blatu, nie korpusu (audyt GPT N17)
-      geo.isWorktop ? (mat.worktop || {}).color || bf : bf, otwXZ(geo.wienOtwory)
-    );
+      geo.isWorktop ? (mat.worktop || {}).color || bf : bf, otwXZ(wKaw(q, geo.wienOtwory))
+    ));
 
   fk = "Plecy";
   plecyBryly(cab, geo).forEach((pb) => box(pb.x0, pb.y0, pb.z0, pb.x1, pb.y1, pb.z1, pb.plyta ? (pb.zPolek ? shc : bf) : mat.back.color));
@@ -14546,9 +14655,13 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
   }
   geo.levels.forEach((lv) => lv.cols.forEach((c) => (c.rails || []).forEach((r) => {
     fk = nazwaWzmocnienia(r);
+    // nad przegroda nizsza: jedna plyta przez kolumny — rysuje ja pierwszy kawalek na cala dlugosc (`czescA`)
+    if (r.wCzesci) return;
+    const kaw = r.czescA ? [r, ...lv.cols.flatMap((k2) => k2.rails || []).filter((q) => q.wlasciciel === r)] : [r];
+    const x1 = r.czescA ? r.x0 + r.czescA : r.x1;
     // lezace z wycieciem pod plyte / zlew — kawalki wokol niego, w audycie jedna bryla z otworem
-    if (r.x1 > r.x0 && r.y1 > r.y0 && r.zLen > 0)
-      boxOtw(r.x0, r.y0, r.z0, r.x1, r.y1, r.z0 + r.zLen, bf, (r.otwory || []).map((o) => [o.x0, o.z0, o.x1, o.z1]));
+    if (x1 > r.x0 && r.y1 > r.y0 && r.zLen > 0)
+      boxOtw(r.x0, r.y0, r.z0, x1, r.y1, r.z0 + r.zLen, bf, kaw.flatMap((q) => q.otwory || []).map((o) => [o.x0, o.z0, o.x1, o.z1]));
   })));
   fk = null;
   if (cab.legs && cab.legs.on) {
@@ -20215,7 +20328,12 @@ const roznePlyty = (project, idxs) => PLYTY_SCALANIA.map(([k, nazwa]) => {
    „dwie” — dwie przegrody obok siebie (jak dwa boki), wnetrza kolumn bez zmian, tylko luz
    miedzy korpusami idzie na kolumny (uzytkownik 2026-10-29: zamiast „podwójnych” bokow,
    ktore zostawialy osobne szafki). */
-const scalSzafki = (project, idxsIn, wzorIn = null, tryb = "pojedyncze") => {
+/* `opcje` (uzytkownik 2026-11-08): `dno` — „wspolne” / „osobne” (osobne — dwie przegrody na stykach, dno
+   w kawalkach, `przegrodaOsobneDna`), `gora` — „wieniec” (wspolny), „osobne” (osobne wience, jak dno),
+   „blat” (blat z plyty na bokach), „roboczy” (bez wienca, para wzmocnien pod blat roboczy ciagu). */
+const scalSzafki = (project, idxsIn, wzorIn = null, trybIn = "pojedyncze", opcje = {}) => {
+  const osobneDna = opcje.dno === "osobne", osobneWience = opcje.gora === "osobne";
+  const tryb = osobneDna || osobneWience ? "dwie" : trybIn;
   const runId = project.items[idxsIn[0]].runId;
   const lista = runItems(project, runId).map(({ i }) => i);
   const idxs = [...idxsIn].sort((a, b) => lista.indexOf(a) - lista.indexOf(b));
@@ -20248,8 +20366,12 @@ const scalSzafki = (project, idxsIn, wzorIn = null, tryb = "pojedyncze") => {
            drugie scalanie zdejmowalo podwojna przegrode pierwszego). */
         if (j === kol.length - 1) {
           delete c2.noDiv;
-          delete c2.przegrodaPodw;
-          if (dwie && k < its.length - 1) c2.przegrodaPodw = true;
+          ["przegrodaPodw", "przegrodaOsobneDna", "przegrodaOsobneWience", "przegrodaNizsza", "przegrodaNizszaMoc"].forEach((q) => delete c2[q]);
+          if (dwie && k < its.length - 1) {
+            c2.przegrodaPodw = true;
+            if (osobneDna && li === 0) c2.przegrodaOsobneDna = true;
+            if (osobneWience && li === its[0].cab.levels.length - 1) c2.przegrodaOsobneWience = true;
+          }
         }
         cols.push(c2);
       });
@@ -20265,6 +20387,17 @@ const scalSzafki = (project, idxsIn, wzorIn = null, tryb = "pojedyncze") => {
   ["frontSameAsBoard", "shelfSameAsBoard", ...POLA_PLECOW].forEach((key) => {
     if (its[kW].cab[key] === undefined) delete scalona[key]; else scalona[key] = JSON.parse(JSON.stringify(its[kW].cab[key]));
   });
+  // gora scalonej szafki z wyboru (bez wyboru — jak pierwsza szafka)
+  if (opcje.gora) {
+    const bezGory = (scalona.joints || {}).topL === "none" || (scalona.joints || {}).topR === "none";
+    if (opcje.gora === "roboczy") {
+      if (!maParePodBlat(scalona)) Object.assign(scalona, bezWienca(scalona, (its[kW].mat.front || {}).thickness));
+      else scalona.joints = { ...(scalona.joints || {}), topL: "none", topR: "none" };
+    } else {
+      if (bezGory) Object.assign(scalona, zWiencem(scalona));
+      scalona.top = { ...(scalona.top || {}), mode: opcje.gora === "blat" ? "blat" : "wieniec" };
+    }
+  }
   const znikaja = new Set(idxs.slice(1));
   const nowa = { ...project.items[idxs[0]], cab: scalona, mat: JSON.parse(JSON.stringify(its[kW].mat)) };
   const items = project.items.map((it, i) => (i === idxs[0] ? nowa : it)).filter((_, i) => !znikaja.has(i));
@@ -20302,7 +20435,7 @@ export default function App() {
     const run = (project.runs || []).find((r) => r.id === runId) || {};
     if (!obok) return;
     switchCabinet(i);
-    setScalanie({ runId, idxs: [i, obok.i], boki: "pojedyncze", wieniec: !!run.wspolnyWieniec, dno: !!run.wspolneDno });
+    setScalanie({ runId, idxs: [i, obok.i], boki: "pojedyncze" });
     window.dispatchEvent(new CustomEvent("mp-karta", { detail: { id: "ciag-meblowy" } }));
     setTimeout(() => {
       const el = document.querySelector('[data-el="scalanie"]');
@@ -23770,8 +23903,7 @@ export default function App() {
                       return (
                         <div>
                           {/* wiekszy napis (uzytkownik 2026-10-24) — to samo okienko otwiera ⊞ na pasku szafek */}
-                          <button data-el="scal-otworz" onClick={() => setScalanie({ runId: id, idxs: [project.active, obok.i], boki: "pojedyncze",
-                            wieniec: !!runInfo.run.wspolnyWieniec, dno: !!runInfo.run.wspolneDno })}
+                          <button data-el="scal-otworz" onClick={() => setScalanie({ runId: id, idxs: [project.active, obok.i], boki: "pojedyncze" })}
                             title="Połącz szafki ciągu stojące obok siebie w jedną — wybór szafek i boków na stykach"
                             className="rounded border border-teal-600 px-2 py-1 text-sm font-medium text-teal-700 hover:bg-teal-50">
                             ⊞ Scal szafki w jedną…
@@ -23788,10 +23920,19 @@ export default function App() {
                     const rozne = !blad ? roznePlyty(project, kolejno) : [];
                     const wzor = kolejno.includes(sc.wzor) ? sc.wzor : kolejno[0];
                     const nazwaSz = (i) => (project.items[i].cab.name || "").trim() || `Szafka ${i + 1}`;
+                    /* dno i gora (uzytkownik 2026-11-08: „zawsze do wyboru”, 4 opcje gory) — domyslnie jak pierwsza szafka;
+                       osobne dna / wience tylko przy dwoch przegrodach (jedna przegroda z obu stron nie da sie skrecic) */
+                    const it0 = kolejno.length ? project.items[kolejno[0]] : null;
+                    const g0 = it0 ? computeGeo(cabDoGeo(project, it0), it0.mat) : null;
+                    const goraDom = !g0 ? "wieniec" : !g0.hasTop ? "roboczy" : g0.isBlat ? "blat" : "wieniec";
+                    const dnoW = sc.dno === "osobne" ? "osobne" : "wspolne";
+                    const goraW = ["wieniec", "osobne", "blat", "roboczy"].includes(sc.gora) ? sc.gora : goraDom;
+                    const dwieP = sc.boki === "dwie" || dnoW === "osobne" || goraW === "osobne";
                     const zastosuj = () => {
-                      setProject((p) => scalSzafki(p, sc.idxs, rozne.length ? wzor : null, sc.boki === "dwie" ? "dwie" : "pojedyncze"));
+                      setProject((p) => scalSzafki(p, sc.idxs, rozne.length ? wzor : null, dwieP ? "dwie" : "pojedyncze", { dno: dnoW, gora: goraW }));
                       setScalanie(null);
                     };
+                    const OPIS_GORY = { wieniec: "wspólny wieniec", osobne: "osobne wieńce", blat: "blat z płyty na bokach", roboczy: "bez wieńca — para wzmocnień pod blat roboczy ciągu" };
                     return (
                       <div className="space-y-2 rounded border border-teal-200 bg-teal-50 p-2 text-xs" data-el="scalanie">
                         <div className="font-medium text-stone-700">Scal szafki w jedną</div>
@@ -23808,13 +23949,25 @@ export default function App() {
                         <div className="flex items-center gap-2">
                           <span className="w-24 shrink-0 text-stone-500">boki na stykach</span>
                           {/* „podwójne” (szafki zostawaly osobne) zastapione dwiema przegrodami — uzytkownik 2026-10-29 */}
-                          <Seg value={sc.boki === "dwie" ? "dwie" : "pojedyncze"} onChange={(v) => zmien({ boki: v })}
+                          <Seg value={dwieP ? "dwie" : "pojedyncze"}
+                            onChange={(v) => zmien(v === "pojedyncze" ? { boki: v, dno: "wspolne", gora: goraW === "osobne" ? "wieniec" : goraW } : { boki: v })}
                             options={[{ v: "pojedyncze", l: "jedna przegroda" }, { v: "dwie", l: "dwie przegrody" }]} />
                         </div>
+                        <div className="flex items-center gap-2" data-el="scal-dno">
+                          <span className="w-24 shrink-0 text-stone-500">dno</span>
+                          <Seg value={dnoW} onChange={(v) => zmien({ dno: v, ...(v === "osobne" ? { boki: "dwie" } : {}) })}
+                            options={[{ v: "wspolne", l: "wspólne" }, { v: "osobne", l: "osobne" }]} />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2" data-el="scal-gora">
+                          <span className="w-24 shrink-0 text-stone-500">góra</span>
+                          <Seg value={goraW} onChange={(v) => zmien({ gora: v, ...(v === "osobne" ? { boki: "dwie" } : {}) })}
+                            options={[{ v: "wieniec", l: "wspólny wieniec" }, { v: "osobne", l: "osobne wieńce" }, { v: "blat", l: "blat z płyty" }, { v: "roboczy", l: "blat roboczy" }]} />
+                        </div>
                         <p className="text-[11px] text-stone-500" data-el="scal-opis">
-                          {sc.boki === "dwie"
-                            ? `Jedna szafka ${fmt(W)} mm: na stykach dwie przegrody obok siebie (jak boki osobnych szafek), skręcone 4 wkrętami; wspólny wieniec i dno; wnętrza kolumn jak w osobnych szafkach.`
-                            : `Jedna szafka ${fmt(W)} mm: jedna przegroda na styku, wspólny wieniec i dno; miejsce po drugim boku idzie na kolumny.`}
+                          {dwieP
+                            ? `Jedna szafka ${fmt(W)} mm: na stykach dwie przegrody obok siebie (jak boki osobnych szafek), skręcone 4 wkrętami; ${dnoW === "osobne" ? "osobne dna" : "wspólne dno"}, góra: ${OPIS_GORY[goraW]}; wnętrza kolumn jak w osobnych szafkach.`
+                            : `Jedna szafka ${fmt(W)} mm: jedna przegroda na styku, wspólne dno, góra: ${OPIS_GORY[goraW]}; miejsce po drugim boku idzie na kolumny.`}
+                          {(dnoW === "osobne" || goraW === "osobne") && " Osobne dno / wieniec tylko przy dwóch przegrodach — przy jednej łączników z obu stron nie da się skręcić po kolei."}
                         </p>
                         {rozne.length > 0 && (
                           <div className="space-y-1 rounded border border-amber-300 bg-amber-50 p-1.5" data-el="scal-plyty">
