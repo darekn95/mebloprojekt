@@ -99,6 +99,19 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .alarm { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12.5px; border: 1px solid var(--warn); color: var(--ink); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; }
 .alarm b { color: var(--warn); }
 .alarm[hidden] { display: none; }
+.widok { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.przel { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 3px 10px 3px 6px; cursor: pointer; font-size: 12.5px; }
+.przel::before { content: ""; width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--muted); background: var(--panel); }
+.przel[aria-pressed="true"] { border-color: var(--accent); }
+.przel[aria-pressed="true"]::before { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--panel); }
+.przel:disabled { opacity: .5; cursor: not-allowed; }
+.rozm { display: flex; flex-wrap: wrap; gap: 4px; }
+.rozm button { border: 1px solid var(--line); background: var(--panel); border-radius: 5px; padding: 3px 8px; cursor: pointer; font-size: 12.5px; }
+.rozm button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.wys { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; }
+.wys input { width: 70px; font: 500 13px var(--f-num); padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--soft); color: var(--ink); }
+.wys .krok { border: 1px solid var(--line); background: var(--panel); border-radius: 5px; padding: 2px 8px; cursor: pointer; }
+.uwaga { color: var(--warn); font-size: 12.5px; margin: 0; }
 .rys .ramka { overflow-x: auto; }
 #rysunek { display: block; width: 100%; min-width: 520px; height: auto; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 #rysunek .cel { cursor: copy; }
@@ -157,8 +170,13 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     <div class="pasek"><h2>Ciąg „Kuchnia — ściana A”</h2><span class="mm" id="szer"></span></div>
     <div class="sciana"><label for="scianaW">Ściana A</label><button class="krok" data-sc="-100" aria-label="Węższa o 100 mm">−</button><input id="scianaW" type="number" step="10" min="600" inputmode="numeric"><button class="krok" data-sc="100" aria-label="Szersza o 100 mm">+</button><span>mm</span><span id="wolne"></span></div>
     <div class="alarm" id="alarm" hidden></div>
+    <div class="widok" role="group" aria-label="Co pokazać na rysunku">
+      <button class="przel" data-wid="agd" aria-pressed="true" title="Wyłączone: zamiast sprzętu wycięcia w blacie i puste wnęki">AGD i zlew</button>
+      <button class="przel" data-wid="gorny" aria-pressed="true">Ciąg górny</button>
+      <button class="przel" data-wid="dolny" aria-pressed="true">Ciąg dolny</button>
+    </div>
     <div class="ramka"><svg id="rysunek" role="img" aria-label="Rysunek ciągu: blat z góry i widok z przodu"></svg></div>
-    <div class="legenda"><span><i></i>tu może stanąć wybrany sprzęt</span><span>góra: blat z góry · dół: widok z przodu</span></div>
+    <div class="legenda"><span><i></i>tu może stanąć wybrany sprzęt</span><span>góra: blat z góry · dół: widok z przodu</span><span>„AGD i zlew” wyłączone — wycięcia i puste wnęki</span></div>
   </section>
 </div>
 
@@ -166,6 +184,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 
 <script>
 (() => {
+  const PL0 = 100, KOR0 = 720, BLAT0 = 38;
   // --- dane makiety (bez obliczen) ---
   const SPRZETY = {
     plyta:    { nazwa: "Płyta indukcyjna", gdzie: "na blat", grupa: "blat" },
@@ -176,13 +195,26 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     zmywarka: { nazwa: "Zmywarka", bier: "zmywarkę", gdzie: "w ciąg, bez korpusu", grupa: "ciag", w: 600 },
     wolna:    { nazwa: "Lodówka wolnostojąca", bier: "lodówkę wolnostojącą", gdzie: "w ciąg, bez korpusu", grupa: "ciag", w: 600 },
   };
+  /* Wymiary sprzetu do wyboru (makieta — wartosci przykladowe): w — szerokosc wyciecia / miejsca, h — wysokosc wneki */
+  const ROZM = {
+    plyta: [{ k: "30", l: "30 cm", w: 270, h: 490 }, { k: "60", l: "60 cm", w: 560, h: 490 }, { k: "80", l: "80 cm", w: 750, h: 490 }, { k: "90", l: "90 cm", w: 840, h: 490 }],
+    zlew: [{ k: "1", l: "1 komora", w: 480, h: 420 }, { k: "1o", l: "z ociekaczem", w: 760, h: 420 }, { k: "2", l: "2 komory", w: 820, h: 420 }],
+    piekarnik: [{ k: "60", l: "60 cm", h: 595 }, { k: "45", l: "kompakt 45", h: 455 }],
+    mikrofala: [{ k: "38", l: "38 cm", h: 380 }, { k: "45", l: "45 cm", h: 455 }],
+    lodowka: [{ k: "178", l: "178 cm", h: 1780 }, { k: "122", l: "122 cm", h: 1220 }],
+    zmywarka: [{ k: "60", l: "60 cm", w: 600 }, { k: "45", l: "45 cm", w: 450 }],
+    wolna: [{ k: "60", l: "60 cm", w: 600 }, { k: "70", l: "70 cm", w: 700 }, { k: "90", l: "90 cm (side by side)", w: 900 }],
+  };
+  const rozm = (a) => ROZM[a.typ].find((r) => r.k === a.rozm) || ROZM[a.typ][a.typ === "plyta" ? 1 : 0];
+  const BLAT_Y = PL0 + KOR0 + BLAT0;   // wierzch blatu od podlogi
+  let widok = { agd: true, gorny: true, dolny: true };
   const CO_ZROBI = {
     plyta: (c) => `Wycięcie w blacie nad szafką „${c}”, na środku szafki, 50 mm od przodu blatu. Program sprawdzi, czy korpus płyty nie wchodzi w szuflady albo leżące wzmocnienie pod blatem — jeśli wchodzi, zaproponuje wzmocnienie stojące.`,
     zlew: (c) => `Wycięcie pod zlew nad szafką „${c}”. Komora zlewu sięga pod blat — program sprawdzi półki i szuflady pod nią.`,
     piekarnik: (c) => `Wnęka na piekarnik w szafce „${c}”: front skraca się o wnękę, pod piekarnikiem zostaje szuflada albo blenda.`,
     mikrofala: (c) => `Wnęka na mikrofalę w słupku „${c}”, nad piekarnikiem albo na wysokości oczu; nad nią drzwi.`,
     lodowka: (c) => `Wnęka na lodówkę w słupku „${c}”, front meblowy na drzwiach lodówki (zawiasy z kompletu lodówki).`,
-    zmywarka: () => `Miejsce 600 mm w ciągu bez korpusu: front meblowy na zmywarce, cokół z przerwą, blat idzie nad nią.`,
+    zmywarka: () => `Miejsce w ciągu bez korpusu: front meblowy na zmywarce, cokół z przerwą, blat idzie nad nią.`,
     wolna: () => `Miejsce w ciągu bez korpusu: luz po bokach na wentylację, blat i cokół kończą się przed lodówką.`,
   };
   const SZAFKI0 = [
@@ -253,7 +285,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       let x = 0;
       const granice = [0];
       bezS.forEach((s) => { x += s.w; granice.push(x); });
-      const w = SPRZETY[typ].w, wys = typ === "wolna" ? 1850 : PL + KOR + BLAT;
+      const przes = bez && L.find((q) => q.id === bez);
+      const w = przes ? przes.w : rozm({ typ }).w, wys = typ === "wolna" ? 1850 : PL + KOR + BLAT;
       const brak = Math.max(0, x + w - sciana);
       // koniec ciagu — cale wolne miejsce na scianie (albo tyle, ile sprzet potrzebuje)
       granice.forEach((gx, i) => {
@@ -270,6 +303,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       let slot;
       if (istniejacy) { const i = ciag.findIndex((s) => s.id === istniejacy); slot = ciag.splice(i, 1)[0]; delete slot.przyklad; }
       else slot = { id: "z" + nr++, kind: "app", typ, w: SPRZETY[typ].w };
+      slot.w = rozm(slot).w;
       ciag.splice(c.wstaw, 0, slot);
       zaznaczony = slot.id; ostatni = slot.id;
     } else if (istniejacy) {
@@ -283,14 +317,29 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if (przesuwany === id) przesuwany = null;
   }
   const wszystkie = () => [
-    ...wnetrze.map((a) => ({ id: a.id, typ: a.typ, gdzie: SPRZETY[a.typ].grupa === "blat" ? `nad szafką „${nazwaCelu(a.cel)}”` : `w „${nazwaCelu(a.cel)}”`, cel: a.cel, przyklad: a.przyklad })),
+    ...wnetrze.map((a) => ({ id: a.id, typ: a.typ, gdzie: (SPRZETY[a.typ].grupa === "blat" ? `nad szafką „${nazwaCelu(a.cel)}”` : `w „${nazwaCelu(a.cel)}”`) + ` · ${rozm(a).l}`, cel: a.cel, przyklad: a.przyklad })),
     ...uklad().filter((s) => s.kind === "app").map((s) => {
       const L = uklad(), i = L.findIndex((q) => q.id === s.id);
       const lewa = L[i - 1], prawa = L[i + 1];
       const gdzie = lewa && prawa ? `w ciągu między „${lewa.name || SPRZETY[lewa.typ].nazwa}” a „${prawa.name || SPRZETY[prawa.typ].nazwa}”` : lewa ? `na końcu ciągu, za „${lewa.name || SPRZETY[lewa.typ].nazwa}”` : `na początku ciągu`;
-      return { id: s.id, typ: s.typ, gdzie, przyklad: s.przyklad };
+      return { id: s.id, typ: s.typ, gdzie: `${gdzie} · ${rozm(s).l}`, przyklad: s.przyklad };
     }),
   ];
+
+  /* Wneki w slupku (uzytkownik 2026-11-08): sam piekarnik albo sama mikrofala — na wysokosci blatu; oba — piekarnik
+     nizej (700 od podlogi), mikrofala nad nim; „Zamień miejscami” (`slupek.zamiana`) i wlasna wysokosc (`a.y0`). */
+  function wnekiSlupka(q) {
+    const jest = wSzafce(q.id), out = {};
+    const lod = jest.find((a) => a.typ === "lodowka");
+    if (lod) { const y0 = lod.y0 ?? PL + 20; out[lod.id] = { y0, y1: y0 + rozm(lod).h }; return out; }
+    const piek = jest.find((a) => a.typ === "piekarnik"), mikr = jest.find((a) => a.typ === "mikrofala");
+    const both = piek && mikr;
+    const dol = both ? (q.zamiana ? mikr : piek) : piek || mikr, gora = both ? (dol === piek ? mikr : piek) : null;
+    if (dol) { const y0 = dol.y0 ?? (both ? 700 : BLAT_Y); out[dol.id] = { y0, y1: y0 + rozm(dol).h }; }
+    if (gora) { const y0 = gora.y0 ?? out[dol.id].y1 + 35; out[gora.id] = { y0, y1: y0 + rozm(gora).h }; }
+    return out;
+  }
+  const nachodza = (m) => { const v = Object.values(m).sort((a, b) => a.y0 - b.y0); return v.some((a, i) => i && a.y0 < v[i - 1].y1) || v.some((a) => a.y1 > PL + SLUP - 10 || a.y0 < PL + 10); };
 
   // --- rysunek ---
   function rysuj() {
@@ -329,37 +378,48 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     let odc = null; const odcinki = [];
     L.forEach((q) => { const podBlatem = (q.kind === "cab" && !q.tall) || q.typ === "zmywarka"; if (podBlatem) { if (!odc) odc = { x0: q.x, x1: q.x + q.w }; else odc.x1 = q.x + q.w; } else if (odc) { odcinki.push(odc); odc = null; } });
     if (odc) odcinki.push(odc);
-    odcinki.forEach((o) => { s += `<rect x="${o.x0}" y="${Y_TOP}" width="${o.x1 - o.x0}" height="${GL}" fill="var(--top)" opacity=".35" stroke="var(--top)" stroke-width="6"/>`; });
-    L.forEach((q) => {
+    if (widok.dolny) odcinki.forEach((o) => { s += `<rect x="${o.x0}" y="${Y_TOP}" width="${o.x1 - o.x0}" height="${GL}" fill="var(--top)" opacity=".35" stroke="var(--top)" stroke-width="6"/>`; });
+    if (widok.dolny) L.forEach((q) => {
       if (q.tall || q.typ === "wolna") s += `<rect x="${q.x}" y="${Y_TOP}" width="${q.w}" height="${GL}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/><text x="${q.x + q.w / 2}" y="${Y_TOP + GL / 2 + 22}" font-size="58" text-anchor="middle" fill="var(--muted)">${q.tall ? "słupek" : "lodówka"}</text>`;
     });
     // sprzet na blacie (z gory)
-    wnetrze.filter((a) => SPRZETY[a.typ].grupa === "blat").forEach((a) => {
+    if (widok.dolny) wnetrze.filter((a) => SPRZETY[a.typ].grupa === "blat").forEach((a) => {
       const q = L.find((z) => z.id === a.cel); if (!q) return;
       const cx = q.x + q.w / 2, zazn = a.id === zaznaczony;
       const ruch = drag && drag.id === a.id ? ' opacity=".35"' : "";
+      const r = rozm(a), zaSzeroki = r.w > q.w - 60;
+      if (!widok.agd || zaSzeroki) {
+        // wyciecie w blacie (bez sprzetu) — i za szerokie: na pomaranczowo
+        const w = r.w, h = r.h, x = cx - w / 2, y = Y_TOP + (GL - h) / 2;
+        s += `<g data-id="${a.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="${zaSzeroki ? "url(#kreski)" : "var(--panel)"}" stroke="${zazn ? "var(--accent)" : zaSzeroki ? "var(--warn)" : "var(--ink)"}" stroke-width="${zazn ? 14 : 6}" stroke-dasharray="${widok.agd ? "none" : "26 16"}"/>`
+          + `<text class="mm" x="${cx}" y="${y + h / 2 - 8}" font-size="44" text-anchor="middle" fill="${zaSzeroki ? "var(--warn)" : "var(--muted)"}">${zaSzeroki ? "szersze" : "wycięcie"}</text>`
+          + `<text class="mm" x="${cx}" y="${y + h / 2 + 46}" font-size="44" text-anchor="middle" fill="${zaSzeroki ? "var(--warn)" : "var(--muted)"}">${zaSzeroki ? "niż szafka" : `${w} × ${h}`}</text></g>`;
+        return;
+      }
       if (a.typ === "plyta") {
-        const w = Math.min(560, q.w - 60), h = 490, x = cx - w / 2, y = Y_TOP + 50;
+        const w = r.w, h = r.h, x = cx - w / 2, y = Y_TOP + 50;
         s += `<g data-id="${a.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="22" fill="var(--glass)" stroke="${zazn ? "var(--accent)" : "none"}" stroke-width="14"/>`
           + [[0.3, 0.3, 80], [0.7, 0.3, 62], [0.3, 0.72, 62], [0.7, 0.72, 80]].map(([fx, fy, r]) => `<circle cx="${x + w * fx}" cy="${y + h * fy}" r="${r}" fill="none" stroke="var(--steel)" stroke-width="7"/>`).join("") + `</g>`;
       } else {
-        const w = Math.min(500, q.w - 80), h = 420, x = cx - w / 2, y = Y_TOP + 70;
+        const w = r.w, h = r.h, x = cx - w / 2, y = Y_TOP + 70;
         s += `<g data-id="${a.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="40" fill="var(--steel)" stroke="${zazn ? "var(--accent)" : "var(--metal)"}" stroke-width="${zazn ? 14 : 5}"/>`
-          + `<rect x="${x + 40}" y="${y + 40}" width="${w - 80}" height="${h - 80}" rx="30" fill="var(--panel)" stroke="var(--metal)" stroke-width="5"/><circle cx="${cx}" cy="${y + h / 2}" r="26" fill="var(--metal)"/></g>`;
+          + (a.rozm === "2" ? [0, 1].map((k) => `<rect x="${x + 30 + k * (w - 60) / 2}" y="${y + 40}" width="${(w - 60) / 2 - 10}" height="${h - 80}" rx="26" fill="var(--panel)" stroke="var(--metal)" stroke-width="5"/>`).join("")
+            : a.rozm === "1o" ? `<rect x="${x + 40}" y="${y + 40}" width="${w * 0.48}" height="${h - 80}" rx="30" fill="var(--panel)" stroke="var(--metal)" stroke-width="5"/>` + [0, 1, 2, 3, 4].map((k) => `<line x1="${x + w * 0.58}" y1="${y + 80 + k * 60}" x2="${x + w - 50}" y2="${y + 80 + k * 60}" stroke="var(--metal)" stroke-width="5"/>`).join("")
+            : `<rect x="${x + 40}" y="${y + 40}" width="${w - 80}" height="${h - 80}" rx="30" fill="var(--panel)" stroke="var(--metal)" stroke-width="5"/><circle cx="${cx}" cy="${y + h / 2}" r="26" fill="var(--metal)"/>`) + `</g>`;
       }
     });
     // widok z przodu: podloga
     s += `<line x1="-60" y1="${yEl(0)}" x2="${Wr + 60}" y2="${yEl(0)}" stroke="var(--muted)" stroke-width="5"/>`;
     // gorne szafki nad dolnymi i zmywarka
-    L.forEach((q) => {
+    if (widok.gorny) L.forEach((q) => {
       if (!((q.kind === "cab" && !q.tall) || q.typ === "zmywarka")) return;
       s += `<rect x="${q.x}" y="${yEl(GORNE0 + GORNE)}" width="${q.w}" height="${GORNE}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/>`;
       const n = q.w > 500 ? 2 : 1;
       for (let i = 1; i < n; i++) s += `<line x1="${q.x + (q.w * i) / n}" y1="${yEl(GORNE0 + GORNE)}" x2="${q.x + (q.w * i) / n}" y2="${yEl(GORNE0)}" stroke="var(--ink)" stroke-width="3"/>`;
     });
     // blat z przodu
-    odcinki.forEach((o) => { s += `<rect x="${o.x0}" y="${yEl(PL + KOR + BLAT)}" width="${o.x1 - o.x0}" height="${BLAT}" fill="var(--top)"/>`; });
-    L.forEach((q) => {
+    if (widok.dolny) odcinki.forEach((o) => { s += `<rect x="${o.x0}" y="${yEl(PL + KOR + BLAT)}" width="${o.x1 - o.x0}" height="${BLAT}" fill="var(--top)"/>`; });
+    if (widok.dolny) L.forEach((q) => {
       const x = q.x, w = q.w;
       if (q.kind === "cab") {
         const h = q.tall ? SLUP : KOR;
@@ -368,8 +428,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         const jest = wSzafce(q.id);
         const piek = jest.find((a) => a.typ === "piekarnik"), mikr = jest.find((a) => a.typ === "mikrofala"), lod = jest.find((a) => a.typ === "lodowka");
         const drzwi = (y0, y1, ile) => { let t = `<rect x="${x + 8}" y="${yEl(y1) + 8}" width="${w - 16}" height="${y1 - y0 - 16}" fill="none" stroke="var(--ink)" stroke-width="3"/>`; for (let i = 1; i < ile; i++) t += `<line x1="${x + (w * i) / ile}" y1="${yEl(y1) + 8}" x2="${x + (w * i) / ile}" y2="${yEl(y0) - 8}" stroke="var(--ink)" stroke-width="3"/>`; return t; };
-        const wneka = (a, y0, y1) => {
+        const wneka = (a, y0, y1, zle) => {
           const zazn = a.id === zaznaczony, ruch = drag && drag.id === a.id ? ' opacity=".35"' : "";
+          if (!widok.agd || zle)
+            return `<g data-id="${a.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x + 14}" y="${yEl(y1)}" width="${w - 28}" height="${y1 - y0}" fill="${zle ? "url(#kreski)" : "var(--wall)"}" stroke="${zazn ? "var(--accent)" : zle ? "var(--warn)" : "var(--ink)"}" stroke-width="${zazn ? 14 : 5}" stroke-dasharray="24 14"/>`
+              + `<text class="mm" x="${x + w / 2}" y="${yEl((y0 + y1) / 2) + 18}" font-size="50" text-anchor="middle" fill="${zle ? "var(--warn)" : "var(--muted)"}">${zle ? "nachodzi" : `wnęka ${y1 - y0}`}</text></g>`;
           if (a.typ === "lodowka")
             return `<g data-id="${a.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x + 8}" y="${yEl(y1)}" width="${w - 16}" height="${y1 - y0}" fill="var(--board)" stroke="${zazn ? "var(--accent)" : "var(--ink)"}" stroke-width="${zazn ? 14 : 4}"/>`
               + `<line x1="${x + 8}" y1="${yEl(y0 + 720)}" x2="${x + w - 8}" y2="${yEl(y0 + 720)}" stroke="var(--ink)" stroke-width="4"/><text x="${x + w / 2}" y="${yEl(y0 + 1200)}" font-size="58" text-anchor="middle" fill="var(--muted)">lodówka</text>`
@@ -379,25 +442,27 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
             + (a.typ === "piekarnik" ? `<rect x="${x + 90}" y="${yEl(y1) + 40}" width="${w - 180}" height="22" rx="11" fill="var(--steel)"/>` : `<circle cx="${x + w - 80}" cy="${yEl(y1) + 110}" r="16" fill="var(--steel)"/>`) + `</g>`;
         };
         if (q.tall) {
-          if (lod) { s += wneka(lod, PL + 20, PL + 1780); s += drzwi(PL + 1800, PL + SLUP, 1); }
-          else {
-            if (piek) s += wneka(piek, PL + 700, PL + 1295);
-            if (mikr) s += wneka(mikr, PL + 1330, PL + 1710);
-            if (piek || mikr) {
-              s += drzwi(PL, PL + (piek ? 690 : 1320), 1);
-              s += drzwi(PL + (mikr ? 1720 : 1305), PL + SLUP, 1);
-            } else s += drzwi(PL, PL + SLUP, 1);
-          }
-        } else if (piek) { s += wneka(piek, PL + 120, PL + KOR - 25); s += drzwi(PL, PL + 110, 1); }
+          // wneki w slupku i fronty w odstepach miedzy nimi (ponizej 60 mm — blenda bez drzwi)
+          const m = wnekiSlupka(q), zle = nachodza(m);
+          const v = Object.entries(m).sort((a, b) => a[1].y0 - b[1].y0);
+          let dol = PL;
+          v.forEach(([id, p]) => { if (p.y0 - 10 - dol >= 60) s += drzwi(dol, p.y0 - 10, 1); dol = Math.max(dol, p.y1 + 10); });
+          if (PL + SLUP - dol >= 60) s += drzwi(dol, PL + SLUP, 1);
+          v.forEach(([id, p]) => { s += wneka(jest.find((a) => a.id === id), p.y0, p.y1, zle); });
+        } else if (piek) { const y1 = PL + KOR - 25, y0 = y1 - rozm(piek).h; s += wneka(piek, y0, y1); s += drzwi(PL, y0 - 10, 1); }
         else if (q.drawers) { for (let i = 0; i < q.drawers; i++) s += drzwi(PL + (KOR / q.drawers) * i, PL + (KOR / q.drawers) * (i + 1), 1); }
         else s += drzwi(PL, PL + KOR, w > 500 ? 2 : 1);
         // zlew: bateria nad blatem, plyta: cienka plyta na blacie
-        jest.filter((a) => a.typ === "zlew").forEach(() => { const cx = x + w / 2; s += `<path d="M${cx + 60} ${yEl(PL + KOR + BLAT)} v-240 q0 -60 -60 -60 h-110" fill="none" stroke="var(--metal)" stroke-width="22" stroke-linecap="round"/>`; });
-        jest.filter((a) => a.typ === "plyta").forEach(() => { const cw = Math.min(560, w - 60); s += `<rect x="${x + (w - cw) / 2}" y="${yEl(PL + KOR + BLAT) - 10}" width="${cw}" height="10" fill="var(--glass)"/>`; });
+        if (widok.agd) jest.filter((a) => a.typ === "zlew").forEach(() => { const cx = x + w / 2; s += `<path d="M${cx + 60} ${yEl(PL + KOR + BLAT)} v-240 q0 -60 -60 -60 h-110" fill="none" stroke="var(--metal)" stroke-width="22" stroke-linecap="round"/>`; });
+        if (widok.agd) jest.filter((a) => a.typ === "plyta").forEach((a) => { const cw = Math.min(rozm(a).w, w); s += `<rect x="${x + (w - cw) / 2}" y="${yEl(PL + KOR + BLAT) - 10}" width="${cw}" height="10" fill="var(--glass)"/>`; });
         s += `<text x="${x + w / 2}" y="${yEl(0) + 80}" font-size="54" text-anchor="middle" fill="var(--muted)">${q.name}</text>`;
       } else {
         const zazn = q.id === zaznaczony, ruch = drag && drag.id === q.id ? ' opacity=".35"' : "";
-        if (q.typ === "zmywarka") {
+        if (!widok.agd) {
+          const hh = q.typ === "wolna" ? 1850 : PL + KOR;
+          s += `<g data-id="${q.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x + 6}" y="${yEl(hh)}" width="${w - 12}" height="${hh}" fill="var(--wall)" stroke="${zazn ? "var(--accent)" : "var(--ink)"}" stroke-width="${zazn ? 14 : 5}" stroke-dasharray="24 14"/>`
+            + `<text class="mm" x="${x + w / 2}" y="${yEl(hh / 2)}" font-size="50" text-anchor="middle" fill="var(--muted)">miejsce ${w}</text></g>`;
+        } else if (q.typ === "zmywarka") {
           s += `<g data-id="${q.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${x}" y="${yEl(PL)}" width="${w}" height="${PL}" fill="var(--plinth)" stroke="var(--ink)" stroke-width="4" stroke-dasharray="18 12"/>`
             + `<rect x="${x + 4}" y="${yEl(PL + KOR)}" width="${w - 8}" height="${KOR}" fill="var(--board)" stroke="${zazn ? "var(--accent)" : "var(--ink)"}" stroke-width="${zazn ? 14 : 6}"/>`
             + `<rect x="${x + 50}" y="${yEl(PL + KOR) + 60}" width="${w - 100}" height="${KOR - 120}" fill="none" stroke="var(--metal)" stroke-width="4" stroke-dasharray="20 14"/>`
@@ -411,7 +476,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       }
     });
     // wymiary szerokosci
-    L.forEach((q) => { s += `<text class="mm" x="${q.x + q.w / 2}" y="${yEl(0) + 160}" font-size="48" text-anchor="middle" fill="var(--muted)">${q.w}</text>`; });
+    if (widok.dolny) L.forEach((q) => { s += `<text class="mm" x="${q.x + q.w / 2}" y="${yEl(0) + 160}" font-size="48" text-anchor="middle" fill="var(--muted)">${q.w}</text>`; });
     // miejsca dla wybranego sprzetu
     C.forEach((c) => {
       const on = drag && drag.cel && drag.cel.key === c.key;
@@ -453,7 +518,21 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     h += `</div>`;
     if (sel) {
       const opis = CO_ZROBI[sel.typ](nazwaCelu(sel.cel));
-      h += `<div class="szczegol"><h3 style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500">Co zrobi program</h3><p>${opis}</p>`
+      const obj = wnetrze.find((a) => a.id === sel.id) || ciag.find((q) => q.id === sel.id);
+      const cab = sel.cel && ciag.find((q) => q.id === sel.cel);
+      const r = rozm(obj);
+      const etyk = (t) => `<h3 style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500">${t}</h3>`;
+      h += `<div class="szczegol">${etyk("Wymiar")}<div class="rozm">` + ROZM[sel.typ].map((q) => `<button data-rozm="${q.k}" aria-pressed="${q.k === r.k}">${q.l}</button>`).join("") + `</div>`;
+      if (SPRZETY[sel.typ].grupa === "blat" && cab && r.w > cab.w - 60)
+        h += `<p class="uwaga">Wycięcie ${r.w} mm jest szersze niż szafka ${cab.w} mm — program pokaże błąd i zaproponuje szerszą szafkę albo mniejszy sprzęt.</p>`;
+      if (cab && cab.tall && SPRZETY[sel.typ].grupa === "wneka") {
+        const m = wnekiSlupka(cab), p = m[sel.id];
+        const para = wSzafce(cab.id).filter((a) => a.typ === "piekarnik" || a.typ === "mikrofala").length === 2;
+        h += etyk("Wysokość w słupku") + `<label for="wysWneki" style="font-size:12.5px">dół wnęki od podłogi</label><div class="wys"><button class="krok" data-wys="-50">−</button><input id="wysWneki" type="number" step="10" value="${p ? p.y0 : ""}"><button class="krok" data-wys="50">+</button><span>mm</span></div>`
+          + `<div class="rob"><button class="btn" data-akcja="nablat">Na wysokość blatu (${BLAT_Y})</button>${para ? `<button class="btn" data-akcja="zamien">Zamień miejscami z ${sel.typ === "piekarnik" ? "mikrofalą" : "piekarnikiem"}</button>` : ""}</div>`;
+        if (nachodza(m)) h += `<p class="uwaga">Wnęki nachodzą na siebie albo wychodzą poza słupek — przesuń wysokość albo zamień miejscami.</p>`;
+      }
+      h += etyk("Co zrobi program") + `<p>${opis}</p>`
         + `<div class="rob"><button class="btn${przesuwany === sel.id ? " on" : ""}" data-akcja="przesun">Przesuń</button><button class="btn" data-akcja="usun">Usuń</button></div></div>`;
     }
     h += `<div class="rob" style="display:flex"><button class="btn" data-akcja="reset">Wróć do przykładu</button></div>`;
@@ -484,18 +563,50 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   panel.addEventListener("click", (e) => {
     const usunB = e.target.closest("[data-usun]");
     if (usunB) { usun(usunB.dataset.usun); odswiez(); return; }
+    const rz = e.target.closest("[data-rozm]");
+    if (rz && zaznaczony) {
+      const obj = wnetrze.find((a) => a.id === zaznaczony) || ciag.find((q) => q.id === zaznaczony);
+      obj.rozm = rz.dataset.rozm; if (obj.kind === "app") obj.w = rozm(obj).w;
+      odswiez(); return;
+    }
+    const wy = e.target.closest("[data-wys]");
+    if (wy && zaznaczony) {
+      const a = wnetrze.find((q) => q.id === zaznaczony), cab = a && ciag.find((q) => q.id === a.cel);
+      if (a && cab) { const p = wnekiSlupka(cab)[a.id]; a.y0 = Math.max(PL + 10, p.y0 + Number(wy.dataset.wys)); }
+      odswiez(); return;
+    }
     const ak = e.target.closest("[data-akcja]");
     if (ak) {
       const a = ak.dataset.akcja;
+      const ob = wnetrze.find((q) => q.id === zaznaczony), cabS = ob && ciag.find((q) => q.id === ob.cel);
+      if (a === "nablat" && ob) ob.y0 = BLAT_Y;
+      // zamiana: wysokosci wracaja do domyslnych, kolejnosc odwrotna
+      if (a === "zamien" && cabS) { cabS.zamiana = !cabS.zamiana; wSzafce(cabS.id).forEach((q) => { delete q.y0; }); }
       if (a === "anuluj") { wybranyTyp = null; przesuwany = null; }
       if (a === "przesun") { przesuwany = przesuwany === zaznaczony ? null : zaznaczony; wybranyTyp = null; }
       if (a === "usun" && zaznaczony) usun(zaznaczony);
-      if (a === "reset") { ciag = JSON.parse(JSON.stringify(SZAFKI0)); wnetrze = JSON.parse(JSON.stringify(WNETRZE0)); sciana = SCIANA0; zaznaczony = wybranyTyp = przesuwany = ostatni = null; }
+      if (a === "reset") { ciag = JSON.parse(JSON.stringify(SZAFKI0)); /* rozmiary i wysokosci tez wracaja */ wnetrze = JSON.parse(JSON.stringify(WNETRZE0)); sciana = SCIANA0; zaznaczony = wybranyTyp = przesuwany = ostatni = null; }
       odswiez(); return;
     }
     const li = e.target.closest("li[data-id]");
     if (li) { zaznaczony = zaznaczony === li.dataset.id ? null : li.dataset.id; przesuwany = null; odswiez(); }
   });
+  panel.addEventListener("change", (e) => {
+    if (e.target.id !== "wysWneki" || !zaznaczony) return;
+    const a = wnetrze.find((q) => q.id === zaznaczony), v = Math.round(Number(e.target.value));
+    if (a && v > 0) a.y0 = v;
+    odswiez();
+  });
+  // przelaczniki widoku: AGD i zlew, ciag gorny / dolny (zawsze co najmniej jeden ciag)
+  document.querySelectorAll(".przel").forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.wid;
+    widok[k] = !widok[k];
+    document.querySelectorAll(".przel").forEach((x) => {
+      x.setAttribute("aria-pressed", String(widok[x.dataset.wid]));
+      x.disabled = (x.dataset.wid === "gorny" && !widok.dolny) || (x.dataset.wid === "dolny" && !widok.gorny);
+    });
+    odswiez();
+  }));
   panel.addEventListener("keydown", (e) => {
     const li = e.target.closest("li[data-id]");
     if (li && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); zaznaczony = li.dataset.id; odswiez(); }

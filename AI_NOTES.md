@@ -930,5 +930,11 @@ wzmocnienie — „budowa jak dla amatora”); w aplikacji zakladka AGD pod kart
 [AI-INFO] Wersja 2 (uwagi uzytkownika 2026-11-08): sciana z szerokoscia (pole, ±100, „wolne N mm” / „brakuje N mm”,
 „Poszerz ścianę do …”, „Usuń …”), koniec ciagu = cale wolne miejsce, „+” przy stykach i podglad, gdzie stanie sprzet,
 waska szyna zakladek z ikonami (wiecej miejsca na rysunek).
-[AI-TODO] klocki; w aplikacji — widok ciagu „przód + blat z góry” (bez ciagu gornego) i przelacznik ciagu gornego
-(prosba uzytkownika 2026-11-08, miejsce do ustalenia).
+[AI-INFO] Wersja 3 (2026-11-08): wymiary sprzetu do wyboru (`ROZM`: plyta 30/60/80/90, zlew 1 komora / z ociekaczem /
+2 komory, piekarnik 60 / kompakt 45, mikrofala 38/45, lodowka 178/122, zmywarka 60/45, wolnostojaca 60/70/90), w slupku
+sama mikrofala / sam piekarnik na wysokosci blatu, oba — piekarnik nizej (700), „Zamień miejscami”, wlasna wysokosc
+(`a.y0`, ±50, „Na wysokość blatu”), przelaczniki „AGD i zlew” (wylaczone: wyciecia i puste wneki), „Ciąg górny”,
+„Ciąg dolny” (zawsze jeden widoczny).
+[AI-TODO] Ustalone z uzytkownikiem 2026-11-08: najpierw dopracowac makiete AGD (klocki od razu tylko, gdy wymiarowanie
+ich wymaga), potem w aplikacji nowy widok obok Zamk./Otw. — przód ciagu + blat z gory — z przelacznikami „AGD i zlew”
+(nazwa do ustalenia), „Ciąg górny” (domyslnie widoczny) i „Ciąg dolny”.
