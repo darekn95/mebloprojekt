@@ -121,7 +121,7 @@ i głębokość wycięcia, odległość od przedniej krawędzi blatu, przesunię
     głębokość „Pod blat (od wierzchu)” (typowo płyta 60 mm, zlew 200 mm; blat 38 → płyta
     22 mm pod blat). Sprawdzana z elementami szafki pod nią:
     - leżące wzmocnienie przednie — przyciski „Wzmocnienie stojące” (na sztorc przy licu,
-      100 mm jak tylne) i „Wycięcie we wzmocnieniu” (gdy zostaje pasek co najmniej 30 mm;
+      60 mm jak w szafce narożnej) i „Wycięcie we wzmocnieniu” (gdy zostaje pasek co najmniej 30 mm;
       inaczej „Wycięcie N mm od przodu blatu”, które robi miejsce na pasek);
     - stojące wzmocnienie przednie / tylne — przycisk przesunięcia wycięcia do tyłu / przodu;
     - wieniec — „Dołóż parę wzmocnień”;

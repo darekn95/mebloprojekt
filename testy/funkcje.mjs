@@ -1198,6 +1198,16 @@ console.log('\n== Wzmocnienia na konfirmatach (użytkownik 2026-11-06) ==');
   const prz = (gD.drillPlan || []).filter((q) => /Przegroda 1/.test(q.panel)).flatMap((q) => q.rows).filter((h) => h.kind === 'konfirmat — wzmocnienie poziome');
   ok('… plan wierceń przegrody: konfirmaty wzmocnień z obu stron (25, 75 i 40, 90 — przesunięte)',
     prz.length === 2 && prz.some((h) => /25, 75 mm/.test(h.note)) && prz.some((h) => /40, 90 mm .*przesunięte o 15 mm/.test(h.note)), JSON.stringify(prz));
+  ok('… informacja przy przegrodzie (2026-11-08: „do wyboru na przyciskach”) z „Ta kolumna na wkrętach 4 × 30”',
+    gD.msgs.some((x) => x.level === 'info' && /kolumna 2: przy przegrodzie 1 wzmocnienia z obu stron na tej samej wysokości — konfirmaty tej kolumny przesunięte o 15 mm.*poziome 40 i 90 zamiast 25 i 75 mm.*\|wzmmoc:0:1:0,1:wkrety$/.test(x.text)),
+    gD.msgs.filter((x) => /przegrodzie/.test(x.text)).map((x) => x.text).join(' // '));
+  const dwieW = JSON.parse(JSON.stringify({ ...dwie, ...G.bezWienca(dwie, 18) }));
+  dwieW.levels[0].cols[1].rails.forEach((r) => { r.mocowanie = 'wkrety'; });
+  const gW = geo(dwieW);
+  ok('… prawa kolumna na wkrętach: wkręty przy przegrodzie też przesunięte (35 i 90 zamiast 20 i 80), przycisk „Ta kolumna na konfirmatach”',
+    JSON.stringify(gW.levels[0].cols[1].rails[0].laczniki.map((l) => [l.moc, l.poz])) === '[["wkrety",[35,90]],["wkrety",[20,80]]]'
+    && gW.msgs.some((x) => /wkręty tej kolumny przesunięte o 15 mm.*\|wzmmoc:0:1:0,1:konfirmaty$/.test(x.text)),
+    JSON.stringify(gW.levels[0].cols[1].rails[0].laczniki));
   const konfD = gD.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {};
   ok('… zamówienie: konfirmaty wzmocnień 16 (4 wzmocnienia × 2 końce × 2)', /wzmocnienia 16/.test(konfD.spec || ''), konfD.spec);
   const pion = G.migrateCab({ name: 'P', W: 600, H: 720, D: 560, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null],

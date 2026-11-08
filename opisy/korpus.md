@@ -23,9 +23,10 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   60 mm: 15 i 45; szersze niż 132 mm — jak inne styki, 50 mm od krawędzi, co ok. 200 mm), w planie
   wierceń „konfirmat — wzmocnienie poziome / czołowe / tylne”. Pionowe przy boku (lico do lica) —
   wkręty 4 × 30, 4 na wzmocnienie. Koniec bez boku i przegrody (kątownik w rogu, ścianka wycięcia,
-  przelot) — wkręty. Przy przegrodzie z wzmocnieniem tej samej wysokości po drugiej stronie konfirmaty
-  prawej kolumny są o 15 mm dalej (otwory ⌀7 nie mogą się pokryć); bliżej niż 10 mm — ostrzeżenie
-  z „Wkręty 4 × 30”. W karcie wzmocnienia „Mocowanie: Konfirmaty / Wkręty 4 × 30” (wkręty — po 2 na
+  przelot) — wkręty. Przy przegrodzie z wzmocnieniem tej samej wysokości po drugiej stronie łączniki
+  prawej kolumny są o 15 mm dalej (otwory ⌀7 nie mogą się pokryć) — informacja w Uwagach z przyciskiem
+  „Ta kolumna na wkrętach 4 × 30” / „… na konfirmatach” (użytkownik 2026-11-08: „do wyboru na
+  przyciskach”); bliżej niż 10 mm — ostrzeżenie z „Wkręty 4 × 30”. W karcie wzmocnienia „Mocowanie: Konfirmaty / Wkręty 4 × 30” (wkręty — po 2 na
   koniec, bez planu wierceń).
 - **Tylne wzmocnienie przy wycięciu i rurze** (decyzja użytkownika 2026-10-22):
   - wycięcie tylnego narożnika — wzmocnienie jest krótsze i kończy się na ściance wycięcia;

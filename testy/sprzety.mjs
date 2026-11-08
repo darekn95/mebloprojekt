@@ -224,8 +224,8 @@ console.log('\n== pod wycięciem w blacie (użytkownik 2026-11-05): nachodzenie,
   ok('wycięcie 50 od przodu: ostrzeżenie „zostaje pasek 20 mm” z „Wzmocnienie stojące”', JSON.stringify(await przyciski(reP)) === '["Wzmocnienie stojące"]', (await przyciski(reP)).join(' / '));
   await klik(reP, 'Wzmocnienie stojące');
   r0 = (await zap()).items[1].cab.levels[0].cols[0].rails[0];
-  ok('po kliknięciu: wzmocnienie stojące 100 mm przy licu, bez wycięcia i bez uwag o nachodzeniu',
-    r0.orient === 'front' && r0.h === 100 && !r0.fromBack && !r0.podWyciecie && !(await jest(/wchodzi w/)) && !(await jest(reP)), JSON.stringify(r0));
+  ok('po kliknięciu: wzmocnienie stojące 60 mm przy licu, bez wycięcia i bez uwag o nachodzeniu',
+    r0.orient === 'front' && r0.h === 60 && !r0.fromBack && !r0.podWyciecie && !(await jest(/wchodzi w/)) && !(await jest(reP)), JSON.stringify(r0));
 }
 
 console.log('\n== sprzęt w ciągu bez korpusu (użytkownik 2026-11-05): zmywarka i lodówka wolnostojąca ==');

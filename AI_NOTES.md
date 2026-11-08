@@ -771,8 +771,8 @@ wieszanie, scalanie), musi pominac `bezKorpusu`; lodowka wolnostojaca liczy sie 
 Pod wycieciem w blacie (2026-11-05): kontrola nachodzenia w `worktopMsgs` (bryla do `podBlatem`),
 lezace wzmocnienie — przyciski stojace / z wycieciem (`rail.podWyciecie`), laczniki przestawiane
 (`lacznikiWzmocnienia`). Od 2026-11-06 wzmocnienia poziome, czolowe i tylne sa na konfirmatach (2 na koniec,
-plan wiercen), pionowe i z wyborem „Wkręty 4 × 30” na wkretach. [CHECK] Przy przegrodzie z wzmocnieniami
-po obu stronach konfirmaty prawej kolumny przesuwamy o 15 mm — zasada przyjeta bez pytania, do potwierdzenia.
+plan wiercen), pionowe i z wyborem „Wkręty 4 × 30” na wkretach. Przy przegrodzie (2026-11-08): przesuniecie
+15 mm domyslnie, przycisk „Ta kolumna na wkrętach”; [AI-TODO] wariant „jedno wzmocnienie na całą szafkę” — do ustalenia.
 Na pozniej: sprzet w poziomie kolumny (odcinku), wiersz sprzetu w zamowieniu (teraz poza zamowieniem).
 
 [AI-INFO] Szafka w L: `CORNER_L_D` = 560 (jak stojaca), ramie 640. Pusty ciag
