@@ -15,6 +15,7 @@ await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1500);
 
+await page.waitForFunction(() => !!localStorage.getItem('szafki:projekt'), null, { timeout: 10000 });
 console.log('== projekt: ciąg z 3 szafkami + szafka wolnostojąca ==');
 await page.evaluate(() => {
   const p = JSON.parse(localStorage.getItem('szafki:projekt'));
@@ -50,8 +51,13 @@ ok('wybór z listy zaznacza „Prawa”', /Prawa/.test(await page.locator('[data
 await page.locator('[data-el="mak-szafka"] button').first().click();
 await page.locator('[data-el="mak-szafka"] [data-v="0"]').click();
 await page.waitForTimeout(300);
+const szafki0 = await page.locator('[data-el="makieta-szafka"]').evaluateAll((els) => els.map((e) => e.dataset.idx));
+ok('domyślnie ciąg zaznaczonej szafki (3 szafki)', szafki0.length === 3, szafki0.join(','));
+await page.locator('[data-el="mak-ciag"] button').first().click();
+await page.locator('[data-el="mak-ciag"] [data-v="wszystkie"]').click();
+await page.waitForTimeout(400);
 const szafki = await page.locator('[data-el="makieta-szafka"]').evaluateAll((els) => els.map((e) => e.dataset.idx));
-ok('na rysunku 3 szafki ciągu i wolnostojąca', szafki.length === 4, szafki.join(','));
+ok('„Wszystkie ciągi”: 3 szafki ciągu i wolnostojąca', szafki.length === 4, szafki.join(','));
 const zakl = await page.locator('[data-el="makieta"] nav [data-zakl]').evaluateAll((els) => els.map((e) => e.dataset.zakl));
 ok('zakładki prostej (bez wzmocnień)', zakl.join(',') === 'szafka,szuflady,polki,drzwi,przegroda,cokol', zakl.join(','));
 ok('karta aktywnej szafki', /Lewa/.test(await page.locator('[data-el="makieta-karta"] h3').textContent()));

@@ -9888,7 +9888,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
 
 /* Elewacja — od przodu (zamknieta i otwarta) oraz od tylu. Wszystkie trzy to ten
    sam rzut, wiec dzieli je tylko to, co rysujemy w srodku obrysu. */
-function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, showLabels, activeCab, onPick, zazn, maxH }) {
+function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, showLabels, activeCab, onPick, zazn, maxH, nakladka }) {
   const full = projectLayout(project);
   const groups = assemblyParts(project, runs, full);
   const wzor = wzorcowaSzafka(groups);
@@ -9979,6 +9979,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                   <rect pointerEvents="none" data-el="makieta-zaznaczona" x={0} y={0} width={c.geo.W} height={c.cab.H}
                     fill="none" stroke={MAK_AKCENT} strokeWidth="12" />
                 )}
+                {onPick && c.index === zazn && nakladka && nakladka(c.cab, c.geo, c.index)}
               </g>
             ))}
             {/* Wstawka w rogu od przodu i od tylu: plaska to pasek grubosci plyty przy boku,
@@ -10565,7 +10566,7 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
   );
 }
 
-function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, showWall = true, showBlat = true, onPick, zazn, maxH }) {
+function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, showWall = true, showBlat = true, onPick, zazn, maxH, nakladka }) {
   const full = projectLayout(project);
   const groups = assemblyParts(project, runs, full).slice().sort((a, b) => a.mount - b.mount);
   const wzor = wzorcowaSzafka(groups);
@@ -10798,6 +10799,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
                   <rect pointerEvents="none" data-el="makieta-zaznaczona" x={0} y={0} width={c.geo.W} height={c.geo.carcassDepth}
                     fill="none" stroke={MAK_AKCENT} strokeWidth="10" />
                 )}
+                {onPick && c.index === zazn && nakladka && nakladka(c.cab, c.geo, c.index)}
               </g>
             ))}
             {/* Ramie szafki naroznej lezy w tym ciagu, ale nalezy do szafki
@@ -20467,6 +20469,126 @@ const MAK_ZAKLADKI_SZCZ = [["korpus", "Korpus i plecy"], ["wzmocnienia", "Wzmocn
 const MAK_WIDOKI = [{ v: "closed", l: "Zamknięty", opis: "fronty" }, { v: "open", l: "Otwarty", opis: "wnętrze: półki, szuflady, przegrody" },
   { v: "top", l: "Z góry", opis: "rzut ciągu" }];
 
+/* ---------- Krok 2: uchwyty na rysunku (uzytkownik 2026-11-09) ----------
+   Zaznaczona szafka, zakladka wybiera, co mozna przeciagac — jak w makiecie „Dodaj”:
+   Szafka — prawa krawedz (szerokosc), gorna (wysokosc), z gory przod (glebokosc);
+   Polki — polka w kolumnie (swiatla `col.shelfTargets`); Przegroda — przegroda w poziomie
+   (szerokosci kolumn `col.w`); Szuflady — linia miedzy frontami (`drawers[].front`).
+   Zmieniamy TE SAME pola co tryb techniczny: przeciagniete swiatlo / kolumna / front i sasiad
+   dostaja liczby, pozostale zostaja na tym, co teraz widac, a ostatnie idzie na auto i bierze
+   reszte (bez rozjazdu sum). W trakcie tylko podglad (linia i liczba), zapis po puszczeniu
+   — jeden krok „Cofnij”. Co 10 mm; swiatlo, front i kolumna najmniej MAK_MIN mm. Kolumny
+   z podzialem na poziomy kolumny (`podzial` / `segmenty`) — tylko w trybie technicznym. */
+const MAK_MIN = 60, MAK_MIN_KOL = 100;
+const r10 = (v) => Math.round(v / 10) * 10;
+const makKolumnaProsta = (raw) => raw && !(raw.podzial || []).length && !(raw.segmenty || []).some(Boolean);
+const makLv = (geo, li) => (geo.levels || []).find((l) => l.i === li);
+// przeciagniecie: { u, li, j, k, widok } + punkt p w ukladzie szafki (x od lewego boku; y od gory z przodu, od tylu z gory)
+function makWylicz(cab, geo, d, p) {
+  const H = cab.H, gy = H - p.y;
+  if (d.u === "szer") { const W = Math.max(150, Math.min(3000, r10(p.x))); return { wartosc: W, napis: `szer. ${W}`,
+    linia: d.widok === "top" ? [W, 0, W, geo.carcassDepth] : [W, 0, W, H], zmien: (c) => { c.W = W; } }; }
+  if (d.u === "wys") { const nH = Math.max(200, Math.min(3000, r10(H - p.y))); return { wartosc: nH, napis: `wys. ${nH}`,
+    linia: [0, H - nH, geo.W, H - nH], zmien: (c) => { c.H = nH; } }; }
+  if (d.u === "gleb") { const nD = Math.max(150, Math.min(1200, r10(cab.D + p.y - geo.carcassDepth))); const yy = geo.carcassDepth + nD - cab.D;
+    return { wartosc: nD, napis: `gł. ${nD}`, linia: [0, yy, geo.W, yy], zmien: (c) => { c.D = nD; } }; }
+  const lv = makLv(geo, d.li); if (!lv) return null;
+  const col = lv.cols.find((q) => q.j === d.j); if (!col) return null;
+  if (d.u === "polka") {
+    const o = col.openings || [], a = o[d.k], b = o[d.k + 1]; if (!a || !b) return null;
+    const suma = a.h + b.h, sw = Math.max(MAK_MIN, Math.min(suma - MAK_MIN, r10(gy - geo.ts / 2 - a.from)));
+    const yc = a.from + sw + geo.ts / 2;
+    return { wartosc: sw, napis: `↕${sw} · ↕${Math.round(suma - sw)}`, linia: [col.x0, H - yc, col.x0 + col.w, H - yc],
+      zmien: (c) => { const raw = kolumnaW(c.levels, d.li, d.j); const st = o.map((q) => Math.round(q.h)); st[st.length - 1] = null;
+        st[d.k] = sw; if (d.k + 1 < st.length - 1) st[d.k + 1] = Math.round(suma) - sw; raw.shelfTargets = st; } };
+  }
+  if (d.u === "przeg") {
+    const n = lv.cols[lv.cols.indexOf(col) + 1]; if (!n) return null;
+    const suma = col.w + n.w, w = Math.max(MAK_MIN_KOL, Math.min(suma - MAK_MIN_KOL, r10(p.x - geo.t / 2 - col.x0)));
+    const xx = col.x0 + w + geo.t / 2;
+    return { wartosc: w, napis: `↔${w} · ↔${Math.round(suma - w)}`, linia: [xx, H - lv.y1, xx, H - lv.y0],
+      zmien: (c) => { const rawCols = c.levels[d.li].cols; if (rawCols.length !== lv.cols.length) return;
+        const ws = lv.cols.map((q) => Math.round(q.w)); ws[ws.length - 1] = null; const m = lv.cols.indexOf(col);
+        ws[m] = w; if (m + 1 < ws.length - 1) ws[m + 1] = Math.round(suma) - w; rawCols.forEach((rc, i) => { rc.w = ws[i]; }); } };
+  }
+  if (d.u === "szufl") {
+    const dr = [...(col.drawers || [])].sort((x, y) => x.i - y.i), a = dr[d.k], b = dr[d.k + 1]; if (!a || !b) return null;
+    const gap = col.gapBetween || 0, suma = a.h + b.h, fh = Math.max(MAK_MIN, Math.min(suma - MAK_MIN, r10(gy - gap / 2 - a.y)));
+    const yb = a.y + fh + gap / 2;
+    return { wartosc: fh, napis: `front ${fh} · ${Math.round(suma - fh)}`, linia: [col.x0, H - yb, col.x0 + col.w, H - yb],
+      zmien: (c) => { const raw = kolumnaW(c.levels, d.li, d.j); if (!raw || (raw.drawers || []).length !== dr.length) return;
+        const f = dr.map((q) => Math.round(q.h)); f[f.length - 1] = null; f[d.k] = fh; if (d.k + 1 < f.length - 1) f[d.k + 1] = Math.round(suma) - fh;
+        raw.drawers.forEach((rd, i) => { rd.front = f[i]; }); } };
+  }
+  return null;
+}
+
+// uchwyty zaznaczonej szafki (uklad szafki: x od lewego boku, y od gory) + podglad przeciagania
+function MakietaUchwyty({ cab, geo, zakladka, widok, podglad }) {
+  const H = cab.H, W = geo.W, fy = (y) => H - y;
+  const out = [];
+  const pas = (key, u, dane, x, y, w, h, kursor) => (
+    <rect key={key} data-u={u} {...dane} x={x} y={y} width={Math.max(1, w)} height={Math.max(1, h)} fill="transparent"
+      pointerEvents="all" style={{ cursor: kursor, touchAction: "none" }} />
+  );
+  const chwyt = (key, cx, cy, poziomo) => (
+    <rect key={key} pointerEvents="none" x={cx - (poziomo ? 60 : 12)} y={cy - (poziomo ? 12 : 60)} width={poziomo ? 120 : 24} height={poziomo ? 24 : 120}
+      rx="8" fill={MAK_AKCENT} />
+  );
+  const napis = (key, x, y, t, kotwica = "middle") => (
+    <text key={key} pointerEvents="none" x={x} y={y} fontSize="30" textAnchor={kotwica} fill={MAK_AKCENT} fontFamily="ui-monospace, monospace">{t}</text>
+  );
+  if (widok === "top") {
+    const D = geo.carcassDepth;
+    if (zakladka === "szafka") {
+      out.push(pas("ts", "szer", { "data-widok": "top" }, W - 30, 0, 60, D, "ew-resize"), chwyt("tsc", W, D / 2, false));
+      out.push(pas("tg", "gleb", { "data-widok": "top" }, 0, D - 30, W, 60, "ns-resize"), chwyt("tgc", W / 2, D, true));
+      out.push(napis("tgn", W / 2, D + 50, `gł. ${fmt(cab.D)}`));
+    }
+  } else if (zakladka === "szafka") {
+    out.push(pas("s", "szer", {}, W - 30, 0, 60, H, "ew-resize"), chwyt("sc", W, H / 2, false));
+    out.push(pas("h", "wys", {}, 0, -30, W, 60, "ns-resize"), chwyt("hc", W / 2, 0, true));
+    out.push(napis("wn", W / 2, 60, `${fmt(cab.W)} × ${fmt(cab.H)}`));
+  } else (geo.levels || []).forEach((lv) => lv.cols.forEach((col) => {
+    const raw = typeof col.j === "number" ? ((cab.levels[lv.i] || {}).cols || [])[col.j] : null;
+    if (!makKolumnaProsta(raw)) return;
+    const dane = { "data-li": lv.i, "data-j": col.j };
+    if (zakladka === "polki" && (raw.kind || "doors") === "doors" && !raw.sprzet) {
+      (col.shelves || []).forEach((sh, k) => {
+        out.push(pas(`p${lv.i}-${col.j}-${k}`, "polka", { ...dane, "data-k": k }, col.x0, fy(sh.y + geo.ts) - 22, col.w, geo.ts + 44, "ns-resize"));
+      });
+      (col.openings || []).forEach((o) => { if (o.h > 70) out.push(napis(`o${lv.i}-${col.j}-${o.k}`, col.x0 + col.w - 10, fy(o.to) + 36, `↕${fmt(o.h)}`, "end")); });
+    }
+    if (zakladka === "szuflady" && raw.kind === "drawers") {
+      const dr = [...(col.drawers || [])].sort((x, y) => x.i - y.i);
+      dr.forEach((a, k) => {
+        out.push(napis(`f${lv.i}-${col.j}-${k}`, col.x0 + col.w / 2, fy(a.y + a.h / 2) + 10, `front ${fmt(a.h)}`));
+        if (k < dr.length - 1) {
+          const yb = a.y + a.h + (col.gapBetween || 0) / 2;
+          out.push(pas(`d${lv.i}-${col.j}-${k}`, "szufl", { ...dane, "data-k": k }, col.x0, fy(yb) - 26, col.w, 52, "ns-resize"),
+            <line key={`dl${lv.i}-${col.j}-${k}`} pointerEvents="none" x1={col.x0 + 10} y1={fy(yb)} x2={col.x0 + col.w - 10} y2={fy(yb)}
+              stroke={MAK_AKCENT} strokeWidth="4" strokeDasharray="14 10" />);
+        }
+      });
+    }
+  }));
+  if (zakladka === "przegroda" && widok !== "top") {
+    (geo.dividers || []).filter((dv) => dv.para !== "P").forEach((dv) => {
+      const lv = makLv(geo, dv.level); if (!lv || lv.cols.length !== ((cab.levels[dv.level] || {}).cols || []).length) return;
+      out.push(pas(`v${dv.level}-${dv.j}`, "przeg", { "data-li": dv.level, "data-j": dv.j }, dv.x - 26, fy(dv.y1), geo.t + 52, dv.h, "ew-resize"),
+        chwyt(`vc${dv.level}-${dv.j}`, dv.x + geo.t / 2, fy((dv.y0 + dv.y1) / 2), false));
+    });
+    (geo.levels || []).forEach((lv) => { if (lv.cols.length > 1) lv.cols.forEach((col) => out.push(napis(`w${lv.i}-${col.j}`, col.x0 + col.w / 2, fy(lv.y1) + 40, `↔${fmt(col.w)}`))); });
+  }
+  if (podglad && podglad.linia) {
+    const [x1, y1, x2, y2] = podglad.linia;
+    out.push(<line key="pg" pointerEvents="none" data-el="makieta-podglad" x1={x1} y1={y1} x2={x2} y2={y2} stroke={MAK_AKCENT} strokeWidth="8" strokeDasharray="20 12" />,
+      <text key="pgn" pointerEvents="none" x={(x1 + x2) / 2} y={Math.min(y1, y2) - 18} fontSize="40" fontWeight="700" textAnchor="middle" fill={MAK_AKCENT}
+        stroke="#fff" strokeWidth="8" paintOrder="stroke">{podglad.napis}</text>);
+  }
+  return <g data-el="makieta-uchwyty">{out}</g>;
+}
+
 /* przycisk z rozwijana lista (pomieszczenie, ciag, widok) — w stylu przelacznikow makiety */
 function Rozwijana({ etykieta, wartosc, opcje, onWybierz, el }) {
   const [otw, setOtw] = useState(false);
@@ -20514,7 +20636,7 @@ const makOpisKolumny = (col) => {
 
 /* Karta szafki w makiecie (krok 1 — do odczytu). Zakladka wybiera, co pokazac; szczegolowa
    dochodza: korpus i plecy, wzmocnienia, wyciecia i elementy kolizyjne. */
-function MakietaKarta({ project, idx, tryb, zakladka }) {
+function MakietaKarta({ project, idx, tryb, zakladka, zmien }) {
   const it = project.items[idx];
   if (!it) return <p className="text-sm text-stone-500">Kliknij szafkę na rysunku — tu pokaże się jej karta.</p>;
   const cab = it.cab;
@@ -20532,10 +20654,41 @@ function MakietaKarta({ project, idx, tryb, zakladka }) {
   const cokol = cab.plinth && cab.plinth.on ? `${fmt(cab.plinth.height)} mm${cab.plinth.mode === "inbody" || cab.plinth.mode === "between" ? ", w obrysie" : ", pod korpusem"}` : "brak";
   const nozki = cab.legs && cab.legs.on ? `${fmt(cab.legs.height)} mm${cab.legs.count ? `, ${cab.legs.count} szt.` : ""}` : "brak";
   let tresc = [];
-  if (zakladka === "szafka") tresc = [W("Wymiary", `${fmt(cab.W)} × ${fmt(cab.H)} × ${fmt(cab.D)} mm`), W("Ciąg", run ? run.name || "ciąg" : "wolnostojąca"),
+  // pole liczby: zapis po Enter albo po wyjsciu z pola (jak w trybie technicznym — `cab.W / H / D`)
+  const Pole = ({ k, l }) => (
+    <label className="flex items-center justify-between gap-2 border-b border-stone-100 py-1 text-xs">
+      <span className="text-stone-500">{l}</span>
+      <input type="number" step="10" defaultValue={cab[k]} key={`${idx}-${k}-${cab[k]}`} data-pole={k}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v > 0 && v !== cab[k]) zmien(idx, (c) => { c[k] = v; }); }}
+        className="w-24 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />
+    </label>
+  );
+  const poRowno = (pole, l) => {
+    const ma = kolumny.some(({ c }) => pole === "shelfTargets" ? (c.shelfTargets || []).some((v) => v != null)
+      : pole === "front" ? (c.drawers || []).some((d) => d.front != null) : c.w != null);
+    if (!ma) return null;
+    return (
+      <button key="porowno" data-akcja={`porowno-${pole}`} onClick={() => zmien(idx, (c) => { (c.levels || []).forEach((lv) => (lv.cols || []).forEach((k) => {
+        if (!makKolumnaProsta(k)) return;
+        if (pole === "shelfTargets") k.shelfTargets = (k.shelfTargets || [null]).map(() => null);
+        else if (pole === "front") (k.drawers || []).forEach((d) => { d.front = null; });
+        else k.w = null;
+      })); })}
+        className="mt-2 rounded border border-teal-600 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-50">{l}</button>
+    );
+  };
+  const wskazowka = { szafka: "Na rysunku: prawa krawędź — szerokość, górna — wysokość; z góry przód — głębokość (zielone znaczki).",
+    polki: "Półkę przeciągnij na rysunku w górę albo w dół — liczby pokazują światło pod i nad nią.",
+    szuflady: "Przeciągnij linię między szufladami — zmienia się front pod nią i nad nią.",
+    przegroda: "Przegrodę przeciągnij w lewo albo w prawo — zmieniają się szerokości kolumn obok." }[zakladka];
+  if (zakladka === "szafka") tresc = [<Pole key="pW" k="W" l="Szerokość" />, <Pole key="pH" k="H" l="Wysokość" />, <Pole key="pD" k="D" l="Głębokość" />, W("Ciąg", run ? run.name || "ciąg" : "wolnostojąca"),
     W("Cokół", cokol), W("Nóżki", nozki), W("Poziomy / kolumny", `${poziomy.length} / ${kolumny.length}`), ...listaKol(null)];
-  else if (zakladka === "szuflady" || zakladka === "polki" || zakladka === "drzwi") { tresc = listaKol(tylko[zakladka]); if (!tresc.length) tresc = [<p key="brak" className="text-xs text-stone-500">W tej szafce nic z tej zakładki.</p>]; }
-  else if (zakladka === "przegroda") tresc = poziomy.map((lv, li) => W(poziomy.length > 1 ? `poziom ${li + 1}` : "kolumny", `${(lv.cols || []).length} · szer. ${(lv.cols || []).map((c) => (c.w ? fmt(c.w) : "auto")).join(" / ")}`));
+  else if (zakladka === "szuflady" || zakladka === "polki" || zakladka === "drzwi") { tresc = listaKol(tylko[zakladka]); if (!tresc.length) tresc = [<p key="brak" className="text-xs text-stone-500">W tej szafce nic z tej zakładki.</p>];
+    else if (zakladka === "polki") tresc.push(poRowno("shelfTargets", "Półki po równo"));
+    else if (zakladka === "szuflady") tresc.push(poRowno("front", "Fronty po równo")); }
+  else if (zakladka === "przegroda") tresc = [...poziomy.map((lv, li) => W(poziomy.length > 1 ? `poziom ${li + 1}` : "kolumny", `${(lv.cols || []).length} · szer. ${(lv.cols || []).map((c) => (c.w ? fmt(c.w) : "auto")).join(" / ")}`, `pz${li}`)),
+    poRowno("w", "Kolumny po równo")];
   else if (zakladka === "cokol") tresc = [W("Cokół", cokol), W("Nóżki", nozki)];
   else if (zakladka === "korpus") tresc = [W("Plecy", { hdf: "HDF", board: "płyta", none: "brak" }[cab.back] || cab.back || "—"),
     W("Fronty", cab.frontMode === "inset" ? "wpuszczane" : "nakładane"), W("Góra", cab.top && cab.top.mode === "blat" ? "blat z płyty" : "wieniec")];
@@ -20549,15 +20702,16 @@ function MakietaKarta({ project, idx, tryb, zakladka }) {
         <p className="text-xs text-stone-500">{fmt(cab.W)} × {fmt(cab.H)} × {fmt(cab.D)} mm{run ? ` · ${run.name || "ciąg"}` : " · wolnostojąca"}</p>
       </div>
       <div>{tresc}</div>
+      {wskazowka && <p className="text-[11px] text-teal-800" data-el="makieta-wskazowka">{wskazowka}</p>}
       <p className="text-[11px] text-stone-500">
-        Podgląd ({tryb === "szczegolowa" ? "makieta szczegółowa" : "makieta prosta"}) — zmiany z makiety dojdą w kolejnych krokach; teraz zmienisz je w trybie Technicznym.
+        {tryb === "szczegolowa" ? "Makieta szczegółowa" : "Makieta prosta"}: na rysunku zmieniasz wymiary, półki, przegrody i szuflady. Pozostałe ustawienia — na razie w trybie Technicznym.
       </p>
     </div>
   );
 }
 
 /* szafki wolnostojace pomieszczenia — obok siebie, z odstepem (nie stoja w ciagu) */
-function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH }) {
+function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladka }) {
   const ODST = 200;
   let x = 0;
   const czesci = items.map(({ it, i }) => {
@@ -20585,6 +20739,7 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH }) {
           <CabElevation cab={c.it.cab} geo={c.geo} mat={c.mat} open={open} showDims={false} showHardware={false}
             showLabels frontColor={c.frontColor} />
           {c.i === zazn && <rect pointerEvents="none" data-el="makieta-zaznaczona" x={0} y={0} width={c.geo.W} height={c.it.cab.H} fill="none" stroke={MAK_AKCENT} strokeWidth="12" />}
+          {c.i === zazn && nakladka && nakladka(c.it.cab, c.geo, c.i)}
           <text x={c.geo.W / 2} y={c.it.cab.H + c.base + 70} fontSize="54" textAnchor="middle" fill="#78716c">{c.it.cab.name}</text>
         </g>
       ))}
@@ -20592,17 +20747,61 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH }) {
   );
 }
 
-function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf }) {
+function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien }) {
   const [zakladka, setZakladka] = useState("szafka");
-  const [ciagId, setCiagId] = useState("wszystkie");
+  // przeciaganie uchwytu: { u, li, j, k, widok, idx, grp (grupa szafki w svg) }, podglad: wynik makWylicz
+  const ciagnie = useRef(null);
+  const [podglad, setPodglad] = useState(null);
+  // geometria narysowanej szafki (z kontekstem ciagu, np. ramie w rogu) — przeciaganie liczy na tej samej
+  const geoRysunku = useRef({});
+  const punkt = (e, grp) => { const m = grp.getScreenCTM(); if (!m) return null; const q = grp.ownerSVGElement.createSVGPoint(); q.x = e.clientX; q.y = e.clientY; return q.matrixTransform(m.inverse()); };
+  const naPoczatek = (e) => {
+    const h = e.target.closest && e.target.closest("[data-u]");
+    if (!h || e.button > 0) return;
+    const grp = h.closest("[data-el=makieta-szafka]"); if (!grp) return;
+    e.preventDefault(); e.stopPropagation();
+    const idx = Number(grp.getAttribute("data-idx"));
+    const num = (k) => (h.getAttribute(k) == null ? null : Number(h.getAttribute(k)));
+    ciagnie.current = { u: h.getAttribute("data-u"), li: num("data-li"), j: num("data-j"), k: num("data-k"), widok: h.getAttribute("data-widok") || "front", idx, grp };
+    try { h.setPointerCapture(e.pointerId); } catch (er) { /* bez przechwycenia */ }
+  };
+  useEffect(() => {
+    const ruch = (e) => {
+      const d = ciagnie.current; if (!d) return;
+      const it = project.items[d.idx]; if (!it) return;
+      const p = punkt(e, d.grp); if (!p) return;
+      const geo = geoRysunku.current[d.idx] || computeGeo(cabDoGeo(project, it), it.mat);
+      const w = makWylicz(it.cab, geo, d, p);
+      d.wynik = w; setPodglad(w ? { ...w, idx: d.idx, widok: d.widok } : null);
+    };
+    const koniec = () => {
+      const d = ciagnie.current; if (!d) return;
+      ciagnie.current = null; setPodglad(null);
+      if (d.wynik && d.wynik.zmien) zmien(d.idx, d.wynik.zmien);
+    };
+    window.addEventListener("pointermove", ruch);
+    window.addEventListener("pointerup", koniec);
+    window.addEventListener("pointercancel", koniec);
+    return () => { window.removeEventListener("pointermove", ruch); window.removeEventListener("pointerup", koniec); window.removeEventListener("pointercancel", koniec); };
+  }, [project, zmien]);
+  // domyslnie ciag zaznaczonej szafki (z pietrem nad nim) — caly pokoj na raz jest za drobny do chwytania polek
+  const [ciagId, setCiagId] = useState("aktywny");
   const [widok, setWidok] = useState("closed");
   const runs = drawableRuns(project, pokoj);
-  const wybrane = ciagId === "wszystkie" ? runs : runs.filter((r) => r.id === ciagId);
+  const aktIt = project.items[project.active];
+  const aktR = aktIt && aktIt.runId ? runs.find((r) => r.id === aktIt.runId) : null;
+  const sciana = aktR ? aktR.wall || aktR.id : null;
+  const wybrane = ciagId === "wszystkie" ? runs : ciagId === "aktywny" ? runs.filter((r) => r.id === sciana || r.wall === sciana) : runs.filter((r) => r.id === ciagId);
   const wolne = itemsInRoom(project, pokoj).filter(({ it }) => !it.runId);
+  const pokazWolne = ciagId === "wszystkie" || (ciagId === "aktywny" && aktIt && !aktIt.runId);
   const zakl = [...MAK_ZAKLADKI, ...(tryb === "szczegolowa" ? MAK_ZAKLADKI_SZCZ : [])];
   const akt = zakl.some(([k]) => k === zakladka) ? zakladka : "szafka";
+  // Polki / Szuflady / Przegroda — rysunek otwarty (wnetrze), zeby bylo co chwycic; widok z gory zostaje
+  const widokRys = widok === "closed" && (akt === "polki" || akt === "przegroda") ? "open" : widok;
   // rysunek miesci sie w oknie pod paskiem (jak w makiecie — dol z szufladami nie moze uciekac)
   const maxH = "calc(100vh - 210px)";
+  const nakladkaPrzod = (cab, geo, idx) => (geoRysunku.current[idx] = geo) && <MakietaUchwyty cab={cab} geo={geo} zakladka={akt} widok="front" podglad={podglad && podglad.idx === idx && podglad.widok !== "top" ? podglad : null} />;
+  const nakladkaGora = (cab, geo, idx) => (geoRysunku.current[idx] = geo) && <MakietaUchwyty cab={cab} geo={geo} zakladka={akt} widok="top" podglad={podglad && podglad.idx === idx && podglad.widok === "top" ? podglad : null} />;
   return (
     <div data-el="makieta" data-tryb={tryb}
       className="mx-auto grid max-w-[1700px] items-start gap-3 px-4 py-3 lg:grid-cols-[104px_340px_minmax(0,1fr)]">
@@ -20613,33 +20812,34 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf })
         ))}
       </nav>
       <section className="rounded-lg border border-stone-200 bg-white p-3 lg:sticky lg:top-24">
-        <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} />
+        <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} />
       </section>
-      <section className="min-w-0 rounded-lg border border-stone-200 bg-white p-3 lg:sticky lg:top-24">
+      <section className="min-w-0 rounded-lg border border-stone-200 bg-white p-3 lg:sticky lg:top-24" onPointerDownCapture={naPoczatek}
+        style={podglad ? { touchAction: "none", userSelect: "none" } : undefined}>
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <Rozwijana el="mak-pomieszczenie" etykieta="Pomieszczenie" wartosc={pokoj}
             opcje={roomsOf(project).map((r) => ({ v: r.id, l: r.name }))}
-            onWybierz={(v) => { setCiagId("wszystkie"); switchRoom(v); }} />
-          <Rozwijana el="mak-ciag" etykieta="Ciąg" wartosc={wybrane.length === runs.length ? "wszystkie" : ciagId}
-            opcje={[{ v: "wszystkie", l: "Wszystkie ciągi", opis: wolne.length ? "i szafki wolnostojące" : "" },
+            onWybierz={(v) => { setCiagId("aktywny"); switchRoom(v); }} />
+          <Rozwijana el="mak-ciag" etykieta="Ciąg" wartosc={ciagId}
+            opcje={[{ v: "aktywny", l: "Ciąg zaznaczonej szafki", opis: "z ciągiem górnym nad nim" }, { v: "wszystkie", l: "Wszystkie ciągi", opis: wolne.length ? "i szafki wolnostojące" : "" },
               ...runs.map((r) => ({ v: r.id, l: r.name || "Ciąg", opis: `${runItems(project, r.id).length} szafek` }))]}
             onWybierz={setCiagId} />
           <Rozwijana el="mak-szafka" etykieta="Szafka" wartosc={project.active}
             opcje={itemsInRoom(project, pokoj).map(({ it, i }) => ({ v: i, l: it.cab.name || `Szafka ${i + 1}`,
               opis: `${fmt(it.cab.W)} × ${fmt(it.cab.H)} · ${it.runId ? ((project.runs || []).find((r) => r.id === it.runId) || {}).name || "ciąg" : "wolnostojąca"}` }))}
             onWybierz={switchCabinet} />
-          <Rozwijana el="mak-widok" etykieta="Widok" wartosc={widok} opcje={MAK_WIDOKI} onWybierz={setWidok} />
+          <Rozwijana el="mak-widok" etykieta="Widok" wartosc={widokRys} opcje={MAK_WIDOKI} onWybierz={setWidok} />
         </div>
         {wybrane.length > 0 && (widok === "top"
           ? <AssemblyTopView project={project} runs={wybrane} showDims={false} showShelves showHardware={false}
-              onPick={switchCabinet} zazn={project.active} maxH={maxH} />
-          : <AssemblyView project={project} runs={wybrane} rpOf={rpOf} variant={widok} showDims={false}
+              onPick={switchCabinet} zazn={project.active} maxH={maxH} nakladka={nakladkaGora} />
+          : <AssemblyView project={project} runs={wybrane} rpOf={rpOf} variant={widokRys} showDims={false}
               showHardware={false} showLabels activeCab={(project.items[project.active] || {}).cab}
-              onPick={switchCabinet} zazn={project.active} maxH={maxH} />)}
-        {ciagId === "wszystkie" && wolne.length > 0 && widok !== "top" && (
+              onPick={switchCabinet} zazn={project.active} maxH={maxH} nakladka={nakladkaPrzod} />)}
+        {pokazWolne && wolne.length > 0 && widok !== "top" && (
           <div className="mt-2">
             {wybrane.length > 0 && <p className="mb-1 text-xs text-stone-500">Szafki wolnostojące</p>}
-            <MakietaWolnostojace project={project} items={wolne} open={widok === "open"} onPick={switchCabinet} zazn={project.active} maxH={maxH} />
+            <MakietaWolnostojace project={project} items={wolne} open={widokRys === "open"} onPick={switchCabinet} zazn={project.active} maxH={maxH} nakladka={nakladkaPrzod} />
           </div>
         )}
         {!wybrane.length && !wolne.length && <p className="text-sm text-stone-500">W tym pomieszczeniu nie ma jeszcze szafek.</p>}
@@ -20709,6 +20909,15 @@ export default function App() {
     });
   }, [setProject]);
 
+  /* zmiana szafki z makiety: kopia, poprawka, para wzmocnien pod blat jak w `editLevels` — jeden krok „Cofnij” */
+  const makietaZmien = useCallback((i, fn) => setProject((p) => {
+    const it = p.items[i]; if (!it) return p;
+    const cab = JSON.parse(JSON.stringify(it.cab));
+    fn(cab);
+    const items = p.items.slice();
+    items[i] = { ...it, cab: { ...cab, levels: utrzymajPodBlat(cab, cab.levels) } };
+    return { ...p, items, active: i };
+  }), [setProject]);
   const setMat = useCallback((next) => {
     setProject((p) => {
       const it = p.items[p.active];
@@ -24051,7 +24260,7 @@ export default function App() {
       </div>
       </header>
 
-      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} />}
+      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} />}
       <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]"
         style={makieta ? { display: "none" } : undefined}>
         <div className="space-y-4">

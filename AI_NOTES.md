@@ -1078,6 +1078,11 @@ Opis: `opisy/makieta.md`, test `testy/makieta.mjs`. Artefakt MebloProjekt publik
 z poprzedniej wersji (tytul + ziarno projektu na pustym magazynie, do `<div id="root">`) + `testy/mebloprojekt-app.html`.
 Nastepne kroki: uchwyty na rysunku (wymiary, polki, przegroda = szerokosc kolumny, szuflady = fronty), karty z polami, paleta,
 AGD (`makiety/BRAKI.md` D).
+[AI-INFO] Tryb makiety — krok 2 (2026-11-09): uchwyty na rysunku zapisuja prawdziwe dane (szer./wys. z przodu, glebokosc
+z gory, polka → `shelfTargets`, przegroda → `col.w`, linia szuflad → `drawers[].front`; ostatnie na auto), pola W/H/D w karcie,
+„… po rowno”, domyslnie ciag zaznaczonej szafki. Opis `opisy/makieta.md`, testy `makieta.mjs`, `makieta2.mjs`.
+[AI-INFO] Ustalone z uzytkownikiem 2026-11-09: od teraz poprawki makiety robimy W APLIKACJI (artefakt MebloProjekt, tryb makiety);
+artefakt „Makieta „Dodaj”” (`makiety/dodaj.html`) zamrozony jako wzor wygladu i obsugi — nie wyrownujemy go z aplikacja.
 [AI-TODO] Aplikacja glowna, szablon „Biurko” (uzytkownik 2026-11-09): dolozyc plyte wzmacniajaca z tylu (300 mm wysokosci,
 miedzy bokami pod blatem; laczenie do wyboru, domyslnie konfirmaty + zaslepki — lby na zewnatrz boku; przy kontenerze
 konfirmat od srodka kontenera, przed wlozeniem szuflad) i wariant z kontenerem szuflad.

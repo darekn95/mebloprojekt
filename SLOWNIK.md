@@ -199,7 +199,9 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | widok makiety (`data-el="makieta"`) | `MakietaWidok` — zakładki (`MAK_ZAKLADKI`, w szczegółowej + `MAK_ZAKLADKI_SZCZ`), karta, rysunek; tryb techniczny (`<main>`) ukryty, paski `[data-pasek]` z nagłówka schowane |
 | „Pomieszczenie / Ciąg / Szafka / Widok ▾” (`data-el="mak-pomieszczenie"`, `mak-ciag`, `mak-szafka`, `mak-widok`) | `Rozwijana` — przycisk z listą; pomieszczenie `switchRoom`, szafka `switchCabinet`, widok `MAK_WIDOKI` (zamknięty / otwarty / z góry) |
 | szafka na rysunku makiety (`data-el="makieta-szafka"`, `data-idx`), obrys zaznaczonej (`makieta-zaznaczona`) | `AssemblyView` / `AssemblyTopView` z `onPick`, `zazn`, `maxH`; wolnostojące — `MakietaWolnostojace`; klik = `project.active` |
-| karta szafki w makiecie (`data-el="makieta-karta"`) | `MakietaKarta` (krok 1 — do odczytu), opis kolumny `makOpisKolumny` |
+| karta szafki w makiecie (`data-el="makieta-karta"`) | `MakietaKarta`, opis kolumny `makOpisKolumny`; pola „Szerokość / Wysokość / Głębokość” (`data-pole`) → `cab.W / H / D`; „Półki / Fronty / Kolumny po równo” (`data-akcja="porowno-…"`) → `shelfTargets` / `drawers[].front` / `col.w` na auto |
+| uchwyty na rysunku makiety (`data-el="makieta-uchwyty"`, `data-u`: `szer`, `wys`, `gleb`, `polka`, `przeg`, `szufl`), podgląd (`makieta-podglad`) | `MakietaUchwyty` (rysuje), `makWylicz` (przelicza: przeciągnięte i sąsiad liczbą, reszta jak teraz, ostatnie auto; co 10 mm; min. `MAK_MIN` 60, kolumna `MAK_MIN_KOL` 100), zapis `makietaZmien(i, fn)` w `App` po puszczeniu (jeden krok „Cofnij”); kolumny z podziałem na poziomy (`makKolumnaProsta`) bez uchwytów |
+| „Ciąg ▾” w makiecie: „Ciąg zaznaczonej szafki” (domyślnie, z piętrem nad nim) / „Wszystkie ciągi” / ciąg | `ciagId` w `MakietaWidok` (`"aktywny"` / `"wszystkie"` / id ciągu) |
 
 ### Karta „Luzy drzwi" (`cab.gaps`)
 
@@ -579,6 +581,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 
 | Suita | Pilnuje |
 |---|---|
+| `makieta2` | uchwyty makiety: szerokość / wysokość z rysunku, podgląd w trakcie, pola karty, jeden krok „Cofnij”, półka → światła (ostatnie auto, bez błędu sumy), „Półki po równo”, przegroda → `col.w` (ostatnia auto), linia szuflad → fronty (górny auto), głębokość z pola |
 | `makieta` | tryb makiety: przełącznik trybu (domyślnie techniczny, pamiętany), rysunek ciągu i wolnostojących z danych, listy pomieszczenie / ciąg / szafka / widok, klik i obrys zaznaczonej, zakładki prostej i szczegółowej, projekt nietknięty |
 | `narozn` | dwa ciągi pod kątem prostym, kto wjeżdża w róg, luz w rogu, lustrzane L, U z trzech ścian |
 | `narozn2` | ramię odsuwa drugi ciąg, formatki ramienia, cztery warianty drzwi, za wąski korpus |
