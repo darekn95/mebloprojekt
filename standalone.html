@@ -20815,7 +20815,25 @@ function makWylicz(cab, geo, d, p) {
     const yc = a.from + sw + geo.ts / 2;
     return { wartosc: sw, napis: `↕${sw} · ↕${Math.round(suma - sw)}`, linia: [col.x0, H - yc, col.x0 + col.w, H - yc],
       zmien: (c) => { const raw = kolumnaW(c.levels, d.li, d.j); const st = o.map((q) => Math.round(q.h)); st[st.length - 1] = null;
-        st[d.k] = sw; if (d.k + 1 < st.length - 1) st[d.k + 1] = Math.round(suma) - sw; raw.shelfTargets = st; } };
+        st[d.k] = sw; if (d.k + 1 < st.length - 1) st[d.k + 1] = Math.round(suma) - sw; raw.shelfTargets = st;
+        /* drazek w swietle nad polka (wisi 70 mm pod plyta nad nim): polka przeciagnieta ponad niego — drazek schodzi do
+           swiatla pod nia i wisi pod przesunieta polka (zgloszenie 2026-11-09: „przy przesunięciu półki nad drążek znika,
+           a powinien się przesunąć w dół”) */
+        const drz = (raw.drazki || []).map(Number);
+        if (drz.includes(d.k + 1) && a.from + sw + geo.ts > b.to - DRAZEK_POD_PLYTA - DRAZEK_FI)
+          raw.drazki = [...new Set(drz.map((x) => (x === d.k + 1 ? d.k : x)))].sort((x, y) => x - y); } };
+  }
+  /* Drazek przeciagany miedzy polkami (uzytkownik 2026-11-09: „drążek też powinien być przesuwalny pomiędzy półkami”):
+     trafia do swiatla pod kursorem (wisi DRAZEK_POD_PLYTA pod plyta nad nim); tylko swiatla z drzwiami / polkami. */
+  if (d.u === "drazek") {
+    const o = (col.openings || []).find((q) => gy >= q.from && gy <= q.to) || (gy < ((col.openings || [])[0] || {}).from ? col.openings[0] : (col.openings || [])[(col.openings || []).length - 1]);
+    if (!o) return null;
+    const raw0 = ((cab.levels[d.li] || {}).cols || [])[d.j];
+    if (raw0 && (raw0.podzial || []).length && wnetrzePoziomu(raw0, (raw0.podzial || []).map(Number).filter((x) => x < o.k).length) !== "doors") return null;
+    const yr = o.to - DRAZEK_POD_PLYTA;
+    return { wartosc: o.k, napis: `drążek ↕${fmt(Math.round(o.h))}`, linia: [col.x0, H - yr, col.x0 + col.w, H - yr],
+      zmien: (c) => { const raw = kolumnaW(c.levels, d.li, d.j); if (!raw) return;
+        raw.drazki = [...new Set((raw.drazki || []).map(Number).map((x) => (x === d.k ? o.k : x)))].sort((x, y) => x - y); } };
   }
   if (d.u === "przeg") {
     const n = lv.cols[lv.cols.indexOf(col) + 1]; if (!n) return null;
@@ -20885,6 +20903,8 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ }) {
       if (zakladka === "polki" && !raw.sprzet) {
         (col.shelves || []).forEach((sh, k) => out.push(pas(`p${lv.i}-${col.j}-${k}`, "polka", { ...dane, "data-k": k }, col.x0, fy(sh.y + geo.ts) - 22, col.w, geo.ts + 44, "ns-resize")));
         (col.openings || []).forEach((o) => { if (o.h > 70) out.push(napis(`o${lv.i}-${col.j}-${o.k}`, col.x0 + col.w - 10, fy(o.to) + 36, `↕${fmt(o.h)}`, "end")); });
+        (col.drazki || []).forEach((dr) => out.push(pas(`dz${lv.i}-${col.j}-${dr.k}`, "drazek", { ...dane, "data-k": dr.k }, col.x0 + 20, fy(dr.y) - 26, col.w - 40, 52, "ns-resize"),
+          chwyt(`dzc${lv.i}-${col.j}-${dr.k}`, col.x0 + col.w / 2, fy(dr.y), true)));
       }
       if (zakladka === "szuflady") {
         const grupy = {};
@@ -20909,6 +20929,9 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ }) {
         out.push(pas(`p${lv.i}-${col.j}-${k}`, "polka", { ...dane, "data-k": k }, col.x0, fy(sh.y + geo.ts) - 22, col.w, geo.ts + 44, "ns-resize"));
       });
       (col.openings || []).forEach((o) => { if (o.h > 70) out.push(napis(`o${lv.i}-${col.j}-${o.k}`, col.x0 + col.w - 10, fy(o.to) + 36, `↕${fmt(o.h)}`, "end")); });
+      // drazek: chwyt na srodku — przeciagnij do innego swiatla
+      (col.drazki || []).forEach((dr) => out.push(pas(`dz${lv.i}-${col.j}-${dr.k}`, "drazek", { ...dane, "data-k": dr.k }, col.x0 + 20, fy(dr.y) - 26, col.w - 40, 52, "ns-resize"),
+        chwyt(`dzc${lv.i}-${col.j}-${dr.k}`, col.x0 + col.w / 2, fy(dr.y), true)));
     }
     if (zakladka === "szuflady" && raw.kind === "drawers") {
       const dr = [...(col.drawers || [])].sort((x, y) => x.i - y.i);
@@ -21420,7 +21443,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     );
   };
   const wskazowka = { szafka: "Na rysunku: prawa krawędź — szerokość, górna — wysokość; z góry przód — głębokość (zielone znaczki).",
-    polki: "Liczba półek przyciskami; wysokość — przeciągnij półkę na rysunku (liczby: światło pod i nad nią) albo dwuklik na półce i wpisz światło.",
+    polki: "Liczba półek przyciskami; wysokość — przeciągnij półkę na rysunku (liczby: światło pod i nad nią) albo dwuklik na półce i wpisz światło. Drążek przeciągnij do innego światła (zielony znaczek).",
     szuflady: "Liczba szuflad przyciskami; wysokość frontów — przeciągnij linię między szufladami na rysunku.",
     przegroda: "Liczba kolumn przyciskami; szerokość — przeciągnij przegrodę na rysunku w lewo albo w prawo.",
     drzwi: "Front każdej kolumny i otwieranie: uchwyt albo tip-on." }[zakladka];

@@ -147,6 +147,30 @@ if (await page.locator('[data-el="mak-swiatlo-pole"]').count()) {
   L = await czekajNa('L[0].shelfTargets[0] === 300');
   ok('światło 300 zapisane, ostatnie auto', L[0].shelfTargets[0] === 300 && L[0].shelfTargets[L[0].shelfTargets.length - 1] == null, JSON.stringify(L[0].shelfTargets));
 }
+console.log('== drążek pod przesuniętą półką ==');
+{ await zakl('polki');
+  let K = (await kolumny())[0];
+  const ost = (K.shelfTargets || []).length - 1;
+  await page.locator('[data-el="mak-kol-wybor"] [title="kolumna 1"]').click().catch(() => {}); await page.waitForTimeout(200);
+  const uch = page.locator(`[data-u="polka"][data-j="0"][data-k="${ost - 1}"]`);
+  if ((K.drazki || []).includes(ost) && await uch.count()) {
+    const b = await uch.boundingBox();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2, b.y - 400, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(300);
+    K = (await czekajNa(`(L[0].drazki || []).includes(${ost - 1})`))[0];
+    ok('górna półka przeciągnięta ponad drążek — drążek zjeżdża pod nią', (K.drazki || []).includes(ost - 1) && !(K.drazki || []).includes(ost), JSON.stringify({ d: K.drazki, st: K.shelfTargets }));
+  } else ok('układ do testu drążka (drążek w najwyższym świetle kolumny 1)', false, JSON.stringify({ d: K.drazki, st: K.shelfTargets, pz: K.podzial })); }
+{ // drazek przeciagany do innego swiatla (uzytkownik 2026-11-09: „drążek też powinien być przesuwalny pomiędzy półkami”)
+  const K0 = (await kolumny())[0], dk = (K0.drazki || [])[0];
+  const uchD = page.locator(`[data-u="drazek"][data-j="0"][data-k="${dk}"]`);
+  ok('drążek ma zielony uchwyt w zakładce Półki', (await uchD.count()) === 1, JSON.stringify(K0.drazki));
+  if (await uchD.count()) {
+    const b = await uchD.boundingBox(), sz = await page.locator('[data-el="mak-plotno"] svg:not([data-el="makieta-wolnostojace-zgory"]) [data-el="makieta-zaznaczona"]').first().boundingBox();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2, sz.y + sz.height - 30, { steps: 10 }); await page.mouse.up(); await page.waitForTimeout(300);
+    const K1 = (await czekajNa('(L[0].drazki || []).includes(0)'))[0];
+    ok('drążek przeciągnięty na dół — w najniższym świetle', (K1.drazki || []).join() === '0', JSON.stringify(K1.drazki));
+  } }
 console.log('== uwagi w makiecie ==');
 await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(200);
 const uw = page.locator('[data-el="makieta-uwagi"]');

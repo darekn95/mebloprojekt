@@ -83,6 +83,9 @@ i klapy”, pod frontami wybranej kolumny / poziomu:
 - **scal z wyższym / z niższym** — dwa poziomy w jeden (np. jedne drzwi na dwa poziomy); zostają ustawienia
   wybranego poziomu; półka graniczna zostaje zwykłą półką, a gdy zostają szuflady / blenda — półki i drążek
   z tego poziomu znikają (`makScalPoziomy`, jak „scal” w technicznym);
+- **Drążek**: przeciągnij jego zielony znaczek (zakładka Półki) do innego światła — zawiśnie 70 mm pod płytą nad nim
+  (tylko światła z drzwiami / półkami); półka przeciągnięta ponad drążek zabiera go w dół — drążek wisi wtedy pod nią
+  (zgłoszenia 2026-11-09).
 - „Bez frontu” działa też w poziomie kolumny (otwarty poziom, `segmenty[nr].doors = 0`).
 - **Półki** wybiera się po kolumnie (cała kolumna, wszystkie jej poziomy naraz) — użytkownik: „w półkach wybór
   kolumny, a nie konkretnej półki”.
