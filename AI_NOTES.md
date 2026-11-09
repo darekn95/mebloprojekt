@@ -1069,6 +1069,8 @@ Kolejnosc: bok(i) / kontener ze wzmocnieniem, potem blat od spodu.
   w karcie; zielone znaczki na rysunku;
 - BLAD naprawiony: przypiety rysunek byl wyzszy niz okno (krotki ciag wolnostojacych, ekran ~830 px) — dol (szuflady,
   podloga) byl niedostepny; teraz `dopasujRysunek()` ogranicza wysokosc rysunku do okna.
+[AI-INFO] Lista brakow makieta <-> aplikacja: `makiety/BRAKI.md` (2026-11-09). Ustalone z uzytkownikiem: makieta bedzie
+osobnym trybem aplikacji z dwoma poziomami — prostym i szczegolowym; w szczegolowym wszystkie funkcje aplikacji.
 [AI-TODO] Aplikacja glowna, szablon „Biurko” (uzytkownik 2026-11-09): dolozyc plyte wzmacniajaca z tylu (300 mm wysokosci,
 miedzy bokami pod blatem; laczenie do wyboru, domyslnie konfirmaty + zaslepki — lby na zewnatrz boku; przy kontenerze
 konfirmat od srodka kontenera, przed wlozeniem szuflad) i wariant z kontenerem szuflad.
