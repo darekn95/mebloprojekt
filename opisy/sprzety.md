@@ -33,8 +33,10 @@ miała wcześniej.
   | ekspres | 595 × 455 | 560–568 | 450 | 550 | nie sprawdzane | — |
 
   Ekspres do zabudowy (użytkownik 2026-11-09, z makiety — przykładowo, Electrolux KKK994500T / AEG). Jak się otwiera —
-  z karty modelu: drzwi „nie sprawdzaj” (domyślnie) pomija go w kontroli otwierania, do wyboru też w dół / zawias
-  z lewej / z prawej. **Rozmiar** piekarnika (60 / kompakt 45) i mikrofali (38 / 45): 45 to front 455 i wnęka od 450
+  z karty modelu (użytkownik 2026-11-09: „wysuwa się” albo drzwi z zawiasem z boku; w sieci nisze 45 się zgadzają —
+  Siemens CT636LES1 449 × 558 × 356, AEG KKE884500M 45 × 56 × 55 — sposób otwierania nie): „nie sprawdzaj” (domyślnie)
+  pomija go w kontroli otwierania; **„wysuwa się”** — ekspres jedzie do przodu o „Wysuw do przodu” z karty modelu
+  i sprawdza się jak szuflada (× „Sprzęt (ekspres) … nie wysunie się do końca”); albo w dół / zawias z lewej / z prawej. **Rozmiar** piekarnika (60 / kompakt 45) i mikrofali (38 / 45): 45 to front 455 i wnęka od 450
   (`SPRZET_ROZM`, z makiety — przykładowo).
 
 ## Lodówka

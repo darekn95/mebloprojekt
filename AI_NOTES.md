@@ -1096,6 +1096,11 @@ bez wiersza „Ciag” w karcie. Test `testy/makieta5.mjs`.
 [AI-INFO] Ustalone z uzytkownikiem 2026-11-09 (krok 6): najpierw AGD w aplikacji (A1 z makiety/BRAKI.md), zaraz potem karty
 makiety szczegolowej ze wszystkimi funkcjami. Wymiary sprzetow brac z makiety „Dodaj” jako domyslne (przykladowe — uzytkownik
 poprawi pozniej; w opisach zaznaczac, ze to wartosci przykladowe). „Duzy rysunek” (z gory i z przodu w tej samej skali) zostaje.
+[AI-INFO] Ustalone z uzytkownikiem 2026-11-09 (AGD): ekspres do zabudowy — do wyboru „wysuwa się” (prowadnice, wysuw z karty
+modelu) i drzwi z zawiasem z boku; domyslnie „nie sprawdzaj” (w sieci: nisze 45 potwierdzone — Siemens CT636LES1 449 × 558 × 356,
+AEG KKE884500M / Gorenje 45 × 56 × 55 cm — ale sposob otwierania nie). Okap w szafce (teleskopowy / wklad): wyciecie w dnie z pola
+z karty okapu, a program proponuje wymiar z makiety (do poprawy). Mikrofala i ekspres wolnostojace na blacie: tylko rysunek, bez
+kontroli.
 [AI-TODO] Paleta makiety: brak „Biurko z kontenerem” (kontener szuflad zamiast boku, plyta wzmacniajaca 300) i „Szafa z szufladami”
 (dwa poziomy: szuflady na dole + polki) — do zrobienia razem z szablonem Biurka w aplikacji (TODO wyzej).
 [AI-INFO] Ustalone z uzytkownikiem 2026-11-09: od teraz poprawki makiety robimy W APLIKACJI (artefakt MebloProjekt, tryb makiety);

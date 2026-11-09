@@ -299,7 +299,7 @@ const SPRZETY = {
      wneka 560 × 450 × 550 (szerokosc do 568 jak inne sprzety 60 cm). Otwieranie z karty modelu — domyslnie „brak”: kontrola
      otwierania go pomija (do wyboru: w dol / zawias z lewej / z prawej). */
   ekspres: { nazwa: "ekspres", pelna: "Ekspres do zabudowy", frontW: 595, frontH: 455, wMin: 560, wMax: 568, hMin: 450, dMin: 550,
-    drzwi: "brak", drzwiWym: 0, uchwyt: 0 },
+    drzwi: "brak", drzwiWym: 0, uchwyt: 0, wysuw: null },
   /* Lodowka (uzytkownik 2026-11-05): do zabudowy — front meblowy na drzwiach lodowki, mocowany
      slizgowo (front na zawiasach szafki, z drzwiami lodowki laczy go prowadnica z kompletu) albo na
      stale (przykrecony do drzwi lodowki, bez zawiasow meblowych); 1 albo 2 fronty, przy dwoch
@@ -366,7 +366,7 @@ const lodowkaCiagu = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ =
    ciagu (wysokosc, glebokosc, cokol, nozki) jej nie dotycza. Blat konczy sie przy lodowce i zmywarce z pokrywa. */
 const naPodlodzeCiagu = (cab) => !!(cab && cab.sprzetCiagu && (cab.sprzetCiagu.typ === "lodowka" || cab.sprzetCiagu.typ === "zmywarkaW"));
 const bezBlatuCiagu = (cab) => lodowkaCiagu(cab) || !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === "zmywarkaW" && cab.sprzetCiagu.pokrywa);
-const SPRZET_POLA = ["frontW", "frontH", "wMin", "wMax", "hMin", "hMax", "dMin", "drzwi", "drzwiWym", "uchwyt",
+const SPRZET_POLA = ["frontW", "frontH", "wMin", "wMax", "hMin", "hMax", "dMin", "drzwi", "drzwiWym", "uchwyt", "wysuw",
   "montaz", "fronty", "dolny", "lodW", "lodH", "lodD", "luzBok", "luzGora", "luzTyl"];
 const SPRZET_TEKST = ["drzwi", "montaz"];   // pola z wyborem, nie liczba
 const MONTAZE_LODOWKI = { slizg: "ślizgowo", staly: "na stałe", brak: "bez frontu (wolnostojąca)" };
@@ -19074,6 +19074,14 @@ const swingBodies = (L, project) => {
             : roomBox(n, u0 + (prawe ? sp.x1 - dW + 15 : sp.x0 + dW - 40), u0 + (prawe ? sp.x1 - dW + 40 : sp.x0 + dW - 15), lico, lico + sp.uchwyt,
               z0 + dH * 0.3, z0 + dH * 0.7, { ...kto, co: `uchwyt sprzętu (${sp.nazwa})`, klucz }));
         if (sp.drzwi === "brak") { /* otwieranie z karty modelu — nie sprawdzamy */ }
+        else if (sp.drzwi === "wysuw") {
+          // ekspres wyjezdza do przodu na prowadnicach (uzytkownik 2026-11-09) — jak szuflada, o wysuw z karty modelu
+          const ws = Math.max(0, num(sp.wysuw) || 0);
+          if (ws > 0) {
+            bryly.push(roomBox(n, u0 + sp.x0, u0 + sp.x1, lico, lico + ws, z0, z1, { ...kto, co: `wysunięty ${sp.nazwa}`, klucz, wysuw: true }));
+            ruchy.push({ ...kto, klucz, n, typ: "szuflada", szer: ws, u0: u0 + sp.x0, u1: u0 + sp.x1, v0: lico, v1: lico + ws, z0, z1, sprzet: sp.nazwa });
+          }
+        }
         else if (dol)
           ruchy.push({ ...kto, klucz, n, typ: "klapa", gora: false, kat: 90, r: sp.uchwyt > 0 ? Math.hypot(dH, sp.uchwyt) : dH, tf: SPRZET_FRONT_GR, szer: dH,
             u0: u0 + sp.x0, u1: u0 + sp.x1, hv: lico, hz: z0, sprzet: sp.nazwa });
@@ -19328,8 +19336,9 @@ const openingMsgs = (L, project) => {
     if (m.typ === "szuflada") {
       const zostaje = Math.max(0, Math.round(m.szer - g.ile));
       out.push({ level: "error", text:
-        `Szuflada szafki „${m.cab}" (ciąg „${m.run}") nie wysunie się do końca: po drodze stoi `
-        + `${g.b.co} ${czyje} — wysunie się tylko ${fmt(zostaje)} z ${fmt(Math.round(m.szer))} mm (z uchwytem). `
+        (m.sprzet ? `Sprzęt (${m.sprzet}) w szafce „${m.cab}" (ciąg „${m.run}") nie wysunie się do końca: po drodze stoi `
+          : `Szuflada szafki „${m.cab}" (ciąg „${m.run}") nie wysunie się do końca: po drodze stoi `)
+        + `${g.b.co} ${czyje} — wysunie się tylko ${fmt(zostaje)} z ${fmt(Math.round(m.szer))} mm${m.sprzet ? "" : " (z uchwytem)"}. `
         + (g.b.run !== m.run ? "Odsuń ciągi w rogu (karta ciągu → Narożnik → „Luz w rogu”) albo przesuń szufladę dalej od rogu."
           : "Zmień układ tak, żeby przed szufladą było wolne.") });
       return;
@@ -23533,8 +23542,8 @@ export default function App() {
               SPRZET_ROZM[sp.typ].map((r) => ({ v: r.k, l: r.l })))}
           </div>
         )}
-        {sp.typ === "ekspres" && sp.drzwi === "brak" && (
-          <p className="text-[11px] text-amber-800" data-el="ekspres-otwieranie">Jak otwiera się ekspres — wybierz niżej z karty modelu; dopóki „nie sprawdzaj”, kontrola otwierania go pomija.</p>
+        {sp.typ === "ekspres" && (sp.drzwi === "brak" || (sp.drzwi === "wysuw" && !(sp.wysuw > 0))) && (
+          <p className="text-[11px] text-amber-800" data-el="ekspres-otwieranie">Jak otwiera się ekspres — wybierz niżej z karty modelu (wysuwa się na prowadnicach albo drzwi z zawiasem z boku); dopóki „nie sprawdzaj” albo bez wysuwu, kontrola otwierania go pomija.</p>
         )}
         <p className="text-[11px] text-stone-500">
           {lod ? "Wymiary typowe dla lodówki 177 cm" : "Wymiary typowe dla sprzętu do zabudowy 60 cm"} — sprawdź z kartą swojego modelu i wpisz, jeśli inne.
@@ -23595,9 +23604,11 @@ export default function App() {
               {pole("dMin", "Wnęka — głębokość min.")}
             </div>
             {wybor("drzwi", sp.drzwi, (v) => setSprzet(lv.i, c.j, { drzwi: v === typowy.drzwi ? null : v }),
-              [{ v: "dol", l: "w dół" }, { v: "lewe", l: "zawias z lewej" }, { v: "prawe", l: "zawias z prawej" }, { v: "brak", l: "nie sprawdzaj" }])}
+              [{ v: "dol", l: "w dół" }, { v: "lewe", l: "zawias z lewej" }, { v: "prawe", l: "zawias z prawej" },
+                ...(sp.typ === "ekspres" ? [{ v: "wysuw", l: "wysuwa się" }] : []), { v: "brak", l: "nie sprawdzaj" }])}
             <div className="grid grid-cols-2 gap-2">
-              {sp.drzwi !== "brak" && pole("drzwiWym", sp.drzwi === "dol" ? "Drzwi — wysokość" : "Drzwi — szerokość")}
+              {sp.drzwi === "wysuw" && pole("wysuw", "Wysuw do przodu", "z karty modelu (puste — nie sprawdzam)")}
+              {sp.drzwi !== "brak" && sp.drzwi !== "wysuw" && pole("drzwiWym", sp.drzwi === "dol" ? "Drzwi — wysokość" : "Drzwi — szerokość")}
               {pole("uchwyt", "Uchwyt przed frontem")}
             </div>
           </>

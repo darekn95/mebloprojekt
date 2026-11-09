@@ -86,6 +86,11 @@ console.log('== „Sprzęt” w kolumnie poziomu 2: piekarnik ==');
   const reE = /wnęka na ekspres ma 373 mm wysokości — potrzeba co najmniej 450 mm/;
   ok('„Ekspres”: wnęka 373 za niska (potrzeba 450), informacja o otwieraniu „nie sprawdzaj”', await jest(reE)
     && (await page.locator('[data-el="ekspres-otwieranie"]').count()) === 1 && (await spK()).typ === 'ekspres');
+  await karta.getByRole('button', { name: 'wysuwa się', exact: true }).click(); await page.waitForTimeout(700);
+  ok('ekspres „wysuwa się”: pole „Wysuw do przodu”, bez wysuwu nadal informacja', (await spK()).drzwi === 'wysuw'
+    && (await karta.locator('label').filter({ hasText: 'Wysuw do przodu' }).count()) === 1 && (await page.locator('[data-el="ekspres-otwieranie"]').count()) === 1);
+  await karta.locator('label').filter({ hasText: 'Wysuw do przodu' }).locator('input').fill('400'); await page.waitForTimeout(900);
+  ok('wysuw 400: zapisany, informacja znika, bez błędów strony', Number((await spK()).wysuw) === 400 && (await page.locator('[data-el="ekspres-otwieranie"]').count()) === 0);
   await karta.getByRole('button', { name: 'Mikrofala', exact: true }).click(); await page.waitForTimeout(700);
   await page.locator('[data-el="sprzet-rozmiar"] button').filter({ hasText: /^45 cm$/ }).click(); await page.waitForTimeout(900);
   const sp45 = await spK();
