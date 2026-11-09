@@ -20698,7 +20698,7 @@ const MakIkona = ({ d, size = 22 }) => (
 // miniatury szablonow (34 × 34): korpus, fronty, polki, szuflady — jak „sz_*” w makiecie
 const ikonaWzoru = (w) => {
   const id = w.id, tpl = w.tpl;
-  const wys = ["slupek", "szafa2", "szafa1", "regal", "regalW", "szafaW", "lodowka-wolno"].includes(id);
+  const wys = ["slupek", "szafa2", "szafa1", "szafaSz", "regal", "regalW", "szafaW", "lodowka-wolno"].includes(id);
   const wisi = tpl === "wiszaca" || tpl === "naroznikLgorny";
   const x0 = 7, x1 = 27, y0 = wys ? 2 : wisi ? 4 : 10, y1 = wys ? 30 : wisi ? 18 : 28;
   const box = `M${x0} ${y0}h${x1 - x0}v${y1 - y0}h${x0 - x1}z`;
@@ -20713,6 +20713,7 @@ const ikonaWzoru = (w) => {
   else if (id === "lodowka-wolno" || id === "lodowka-pod") d = `${box} M${x0} ${y0 + (y1 - y0) * 0.4}h${x1 - x0} M${x1 - 4} ${y0 + 4}v4`;
   else if (id === "szuflady" || id === "nocna") d = `${box} ${sz(id === "nocna" ? 2 : 3)}`;
   else if (id === "regal" || id === "regalW") d = `${box} ${sz(5)}`;
+  else if (id === "szafaSz") d = `${box} M${x0} ${y1 - 9}h${x1 - x0} M${x0} ${y1 - 4.5}h${x1 - x0} M${x0} ${y1 - 13.5}h${x1 - x0} M${mid} ${y0}v${y1 - y0 - 13.5}`;
   else if (id === "szafa2") d = `${box} M${mid} ${y0}v${y1 - y0} M${mid + 3} ${y0 + 6}h${x1 - mid - 6}`;
   else if (id === "zlewowa") d = `${box} M${mid} ${y0}v${y1 - y0} M${mid - 6} ${y0 - 3}h12`;
   else if (id === "dolna1" || id === "szafa1" || id === "slupek") d = `${box} M${x1 - 4} ${(y0 + y1) / 2 - 2}v4`;
@@ -20790,6 +20791,15 @@ function makWylicz(cab, geo, d, p) {
     linia: [0, H - nH, geo.W, H - nH], zmien: (c) => { c.H = nH; } }; }
   if (d.u === "gleb") { const nD = Math.max(150, Math.min(1200, r10(cab.D + p.y - geo.carcassDepth))); const yy = geo.carcassDepth + nD - cab.D;
     return { wartosc: nD, napis: `gł. ${nD}`, linia: [0, yy, geo.W, yy], zmien: (c) => { c.D = nD; } }; }
+  if (d.u === "poziom") {
+    const a = (geo.levels || [])[d.k], b = (geo.levels || [])[d.k + 1]; if (!a || !b) return null;
+    const suma = a.h + b.h, hNew = Math.max(MAK_MIN, Math.min(suma - MAK_MIN, d.sw != null ? Math.round(d.sw) : r10(gy - geo.t / 2 - a.y0)));
+    const yc = a.y0 + hNew + geo.t / 2;
+    return { wartosc: hNew, napis: `↕${hNew} · ↕${Math.round(suma - hNew)}`, linia: [0, H - yc, geo.W, H - yc],
+      zmien: (c) => { const L = c.levels; if (L.length !== geo.levels.length) return;
+        const hs = geo.levels.map((q) => Math.round(q.h)); hs[hs.length - 1] = null; hs[d.k] = hNew; if (d.k + 1 < hs.length - 1) hs[d.k + 1] = Math.round(suma) - hNew;
+        L.forEach((lv, i) => { lv.h = hs[i]; }); } };
+  }
   const lv = makLv(geo, d.li); if (!lv) return null;
   const col = lv.cols.find((q) => q.j === d.j); if (!col) return null;
   if (d.u === "polka") {
@@ -20930,6 +20940,9 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ }) {
     }
   }));
   if (zakladka === "przegroda" && widok !== "top") {
+    // przegroda pozioma miedzy poziomami szafki — przeciagnij w gore / w dol
+    (geo.sepShelves || []).forEach((sp, i) => out.push(pas(`sp${i}`, "poziom", { "data-k": i }, 0, fy(sp.y + geo.t) - 26, W, geo.t + 52, "ns-resize"),
+      chwyt(`spc${i}`, W / 2, fy(sp.y + geo.t / 2), true)));
     (geo.dividers || []).filter((dv) => dv.para !== "P").forEach((dv) => {
       const lv = makLv(geo, dv.level); if (!lv || lv.cols.length !== ((cab.levels[dv.level] || {}).cols || []).length) return;
       out.push(pas(`v${dv.level}-${dv.j}`, "przeg", { "data-li": dv.level, "data-j": dv.j }, dv.x - 26, fy(dv.y1), geo.t + 52, dv.h, "ew-resize"),
@@ -21206,6 +21219,11 @@ const MAK_PALETA = [
       mod: (c) => { c.W = 1000; const p = newColumn(1, 4), d = newColumn(1, 1); d.shelfTargets = [null, 300]; d.drazki = [0]; c.levels = [{ h: null, cols: [p, d] }]; } },
     { id: "szafa1", nazwa: "Szafa, 1 drzwi", opis: "500 mm, 5 półek", tpl: "slupek", gdzie: "dol", szafka: "Szafa",
       mod: (c) => { c.W = 500; const k = makK0(c); makUstawFront(k, "drzwi-1"); makUstawPolki(k, 5); } },
+    /* Szafa z szufladami (makieta „Dodaj”: 800 mm, 3 szuflady na dole, 2 polki): dwa poziomy szafki — na dole szuflady
+       (600 mm swiatla, 3 × ok. 200), nad nimi 2 drzwi i 2 polki; system szuflad jak w szafce / ciagu. */
+    { id: "szafaSz", nazwa: "Szafa z szufladami", opis: "800 mm, 3 szuflady na dole", tpl: "slupek", gdzie: "dol", szafka: "Szafa",
+      mod: (c, sys) => { c.W = 800; const dol = newColumn(1, 0), gora = newColumn(2, 2); makUstawSzuflady(dol, 3, sys); makUstawFront(gora, "drzwi-2");
+        c.levels = [{ h: 600, cols: [dol] }, { h: null, cols: [gora] }]; } },
     { id: "regal", nazwa: "Regał otwarty", opis: "600 mm, 5 półek", tpl: "slupek", gdzie: "dol", szafka: "Regał",
       mod: (c) => { c.W = 600; const k = makK0(c); makUstawFront(k, "otwarta"); makUstawPolki(k, 5); } },
   ] },
@@ -21368,7 +21386,7 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
   );
 }
 
-function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProjekt, ciag, geoOf, onOdznacz, kolZ, wybierzKol }) {
+function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProjekt, ciag, geoOf, onOdznacz, kolZ, wybierzKol, kopiuj, usun }) {
   const it = project.items[idx];
   if (!it) return <p className="text-sm text-stone-500">Kliknij szafkę na rysunku — tu pokaże się jej karta.</p>;
   const cab = it.cab;
@@ -21489,7 +21507,19 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       {lista.map((v) => <Btn key={v} el={`${el}-v`} v={v} on={Math.round(akt) === v} onClick={() => fn(v)}>{v}</Btn>)}
     </div>
   );
-  if (zakladka === "szafka") tresc = [<Pole key="pW" k="W" l="Szerokość" />,
+  // nazwa, kopiuj, usun (podstawy kreatora — przeglad brakow makiety prostej 2026-11-09)
+  const naglowekSzafki = [
+    <label key="nazwa" className="flex items-center justify-between gap-2 border-b border-stone-100 py-1 text-xs"><span className="text-stone-500">Nazwa</span>
+      <input type="text" defaultValue={cab.name || ""} key={`${idx}-n-${cab.name}`} data-pole="nazwa"
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        onBlur={(e) => { const v = e.currentTarget.value.trim(); if (v && v !== cab.name) zmien(idx, (c) => { c.name = v; }); }}
+        className="w-36 rounded border border-stone-300 px-1.5 py-0.5 text-xs focus:border-teal-600 focus:outline-none" /></label>,
+    <div key="akcje" className="flex flex-wrap gap-1 border-b border-stone-100 py-1.5">
+      {kopiuj && <Btn el="mak-kopiuj" onClick={() => kopiuj(idx)}>Kopiuj obok</Btn>}
+      {usun && <button data-el="mak-usun-szafke" onClick={() => usun(idx)} className="rounded border border-stone-300 px-2 py-0.5 text-[11px] font-medium text-stone-700 hover:border-red-400 hover:text-red-700">Usuń szafkę</button>}
+    </div>,
+  ];
+  if (zakladka === "szafka") tresc = [...naglowekSzafki, <Pole key="pW" k="W" l="Szerokość" />,
     // szerokosci jak w makiecie „Dodaj” (rodzaj zabudowy ciagu; wolnostojaca — tez wysokosci)
     ...(cab.sprzetCiagu ? [] : [chips("mak-szer", szerChips, cab.W, (v) => zmien(idx, (c) => { c.W = v; }))]),
     <Pole key="pH" k="H" l="Wysokość" />,
@@ -21581,7 +21611,21 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     tresc.push(poRowno("shelfTargets", "Półki po równo"));
   }
   else if (zakladka === "przegroda") {
-    tresc = [...poziomy.map((lv, li) => {
+    /* Poziomy szafki (polka przez cala szerokosc, np. szuflady na dole szafy): + dodaje poziom na gorze (jak „+ poziom”
+       w trybie technicznym), − zdejmuje najwyzszy; wysokosc — przeciagnij przegrode pozioma na rysunku. */
+    const ileP = poziomy.length;
+    const poziomySzafki = wiersz("pszafki", `poziomy szafki (półka przez całą szerokość): ${ileP}`, [
+      <Btn key="m" el="mak-poziom-szafki" v="-1" onClick={() => ileP > 1 && zmien(idx, (c) => { c.levels.pop(); c.levels[c.levels.length - 1].h = null; })}>−</Btn>,
+      <b key="n" className="w-5 text-center font-mono text-xs" data-el="mak-poziomy-szafki-n">{ileP}</b>,
+      <Btn key="p" el="mak-poziom-szafki" v="1" onClick={() => zmien(idx, (c) => {
+        const g = geoOf ? geoOf(idx) : null;
+        // dotychczasowe poziomy dostaja obecne wysokosci, nowy (na gorze) bierze reszte
+        if (g) c.levels.forEach((lv, i) => { const gl = (g.levels || []).find((q) => q.i === i); if (gl) lv.h = Math.round(gl.h); });
+        const ost = c.levels[c.levels.length - 1];
+        if (ost && ost.h != null && g) ost.h = Math.round(ost.h / 2);
+        c.levels.push(newLevel(((ost && ost.cols[0]) || {}).doors ?? 1, 0));
+      })}>+</Btn>], "mak-poziomy-szafki");
+    tresc = [poziomySzafki, ...poziomy.map((lv, li) => {
       const cols = lv.cols || [], proste = cols.every((c) => makKolumnaProsta(c));
       return wiersz(`pz${li}`, `${poziomy.length > 1 ? `poziom ${li + 1} — ` : ""}kolumny (szer. ${cols.map((c) => (c.w ? fmt(c.w) : "auto")).join(" / ")})`,
         proste ? [1, 2, 3, 4].map((n) => <Btn key={n} el="mak-kolumny" v={n} on={cols.length === n} onClick={() => zmien(idx, (c) => {
@@ -21699,7 +21743,7 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladk
   );
 }
 
-function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien, zmienProjekt, ciag, dodaj: dodaj0, dodajGorny, gora = 96, usunPozycje }) {
+function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien, zmienProjekt, ciag, dodaj: dodaj0, dodajGorny, gora = 96, usunPozycje, kopiuj }) {
   /* Szeroki ekran (lg): zakladki, karta i rysunek przyklejone pod gornym paskiem (`gora` — jego wysokosc jak „rysunek
      przypiety” w trybie technicznym), rysunek do dolu okna z wlasnym przewijaniem (zgloszenie 2026-11-09: „suwak rysunku
      na dole, ale suwak okna nie na dole i ucina rysunek” — wysokosc liczona z zalozonego paska 100 px). */
@@ -22148,7 +22192,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           ) : zaznM && aktIt ? (
             <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} zmienProjekt={zmienProjekt} ciag={ciag}
               geoOf={(i) => geoRysunku.current[i]} onOdznacz={() => setZaznM(false)}
-              kolZ={kolZ && kolZ.idx === project.active ? kolZ : null} wybierzKol={(k) => setKolZ(k ? { idx: project.active, ...k } : null)} />
+              kolZ={kolZ && kolZ.idx === project.active ? kolZ : null} wybierzKol={(k) => setKolZ(k ? { idx: project.active, ...k } : null)}
+              kopiuj={kopiuj} usun={usunPozycje ? (i) => { usunPozycje(i); setZaznM(false); } : null} />
           ) : (
             <div className="space-y-2" data-el="mak-bez-zaznaczenia">
               <p className="rounded-md bg-stone-50 px-2 py-1.5 text-[12px] text-stone-600">
@@ -26017,7 +26062,7 @@ export default function App() {
       </div>
       </header>
 
-      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} ciag={{ setRun, setRunShared }} dodaj={addCabinet} dodajGorny={addUpperRun} gora={wysNaglowka + PRZYPIETY_ODSTEP} usunPozycje={removeCabinet} />}
+      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} ciag={{ setRun, setRunShared }} dodaj={addCabinet} dodajGorny={addUpperRun} gora={wysNaglowka + PRZYPIETY_ODSTEP} usunPozycje={removeCabinet} kopiuj={duplicateCabinet} />}
       {makieta && <div className="print-hide mx-auto max-w-[1900px] px-3 pb-6">{uwagiKarta(false)}</div>}
       <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]"
         style={makieta ? { display: "none" } : undefined}>

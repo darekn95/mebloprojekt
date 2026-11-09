@@ -56,6 +56,17 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
 - Klik w szafkę (albo wybór z listy „Szafka ▾”) robi ją aktywną szafką projektu — po przejściu
   do trybu technicznego otwiera się właśnie ona.
 
+## Podstawy kreatora (przegląd braków 2026-11-09)
+
+- **Szafka**: pole „Nazwa”, „Kopiuj obok” (kopia za nią w tym samym ciągu, „… (kopia)”, zaznaczona — `duplicateCabinet`),
+  „Usuń szafkę” (`removeCabinet`; ostatnia szafka pomieszczenia zostaje; po usunięciu nic nie jest zaznaczone —
+  widać paletę). Cofnij (Ctrl + Z) przywraca.
+- **Przegroda → poziomy szafki** (półka przez całą szerokość, np. szuflady na dole szafy): „+” dodaje poziom na górze
+  (dotychczasowe dostają obecne wysokości, ostatni oddaje połowę), „−” zdejmuje najwyższy; wysokość — przeciągnij
+  przegrodę poziomą na rysunku (zielony znaczek; `makWylicz` `u: "poziom"` → `levels[].h`, najwyższy auto).
+- **Paleta → Szafa w zabudowie → „Szafa z szufladami”** (z makiety): 800 mm, poziom dolny 600 mm z 3 szufladami,
+  nad nim 2 drzwi i 2 półki.
+
 ## Karta sprzętu AGD (krok 1 planu wyrównania)
 
 W „Dodaj → AGD”, nad listą „W projekcie” — karta wybranego sprzętu. Wybór: klik w listę, klik w płytę / zlew /
@@ -237,7 +248,7 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
   kolumna zaznaczonej szafki. Półka i drążek tylko do kolumny z drzwiami / otwartej — inaczej komunikat.
   Te same zmiany co przyciski karty (`makUstawFront`, `makUstawSzuflady`, `makUstawPolki`, `makDodajPrzegrode`).
 - W trakcie przeciągania nad rysunkiem widać, gdzie spadnie („upuść: przed „Szafka 2””).
-- Jeszcze nie ma: biurko z kontenerem szuflad, szafa z szufladami na dole (dwa poziomy).
+- Jeszcze nie ma: biurko z kontenerem szuflad.
 
 ## Co ustawiasz ręcznie
 
