@@ -27,10 +27,16 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
   wnętrze); wybór pamięta przeglądarka. Szafki wolnostojące stoją obok, z odstępem.
 - Nagłówek w makiecie jest zwarty: bez „Zwiń wszystkie” i „Pokaż rysunek” (to przyciski kart
   trybu technicznego).
-- **Duży rysunek** (przełącznik, domyślnie włączony; użytkownik 2026-11-09): widok ciągu z przodu ma
-  wysokość okna, widok z góry tę samą skalę nad nim. Oba siedzą w oknie z przewijaniem (`mak-plotno`):
-  szeroki ciąg przewija się w bok, oba widoki razem — w dół. Zaznaczona szafka sama wjeżdża w okno.
-  Wyłączony — cały ciąg w szerokości okna, jak dawniej. „Tylko zaznaczona szafka” zawsze w oknie.
+- **Widok jak w makiecie „Dodaj”** (użytkownik 2026-11-09: „popraw widok żeby był jak w artefakcie makieta”):
+  - nad rysunkiem nagłówek: „Ciąg „…”” i jego długość, **ściana** (− / pole / +, co 100 mm → `run.wallW`)
+    i „wolne N mm” (albo „brakuje N mm”); przy szafkach wolnostojących — „Szafki wolnostojące”;
+  - widok z góry i z przodu w **tej samej skali, jeden nad drugim** (szafki w tych samych miejscach), skala na
+    szerokość okna rysunku i tak, żeby oba widoki zmieściły się na ekranie;
+  - z przodu ściana do 2300 mm (`MAK_SCIANA`) w tle, do długości ściany — wolne miejsce przerywane z „wolne N”;
+  - szafki wolnostojące też z widokiem z góry nad nimi;
+  - „Powiększ” (przełącznik, domyślnie wyłączony) — widok z przodu na wysokość okna, przewijany w bok i w dół.
+- Zakładki po lewej z ikonami i podpisem „Dodaj / zmień”, kafelki palety z miniaturami szafek, nagłówki sekcji
+  wielkimi literami — jak w makiecie.
 - **Kartę można schować**: klik w otwartą zakładkę albo „‹” w karcie; rysunek dostaje całą szerokość.
   Klik w zakładkę otwiera kartę z powrotem. Pamięta przeglądarka.
 - W karcie „Szafka” nie ma wiersza „Ciąg” — widać go na przycisku „Ciąg ▾” nad rysunkiem.

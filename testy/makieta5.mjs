@@ -100,12 +100,15 @@ await page.locator('[data-el="makieta"] nav [data-zakl="szafka"]').click(); awai
 ok('inna zakładka otwiera kartę', /Szerokość/.test(await page.locator('[data-el="makieta-karta"]').innerText()));
 await page.locator('[data-el="mak-karta-schowaj"]').click(); await page.waitForTimeout(300);
 ok('„‹” chowa kartę, pamiętane', !(await page.locator('[data-el="mak-karta-panel"]').count()) && (await page.evaluate(() => localStorage.getItem('mp-mak-karta'))) === '0');
-const duzy = await page.evaluate(() => { const box = document.querySelector('[data-el="mak-plotno"]'); const svgs = [...box.querySelectorAll('svg')].filter((s) => !s.closest('[data-el="mak-zgory"]') && s.querySelector('[data-el="makieta-szafka"]'));
-  const f = svgs[0].getBoundingClientRect(); return { h: f.height, okno: window.innerHeight, sw: box.scrollWidth, cw: box.clientWidth }; });
-ok('duży rysunek: widok z przodu prawie na wysokość okna, przewijany w bok', duzy.h > duzy.okno * 0.6 && duzy.sw > duzy.cw, JSON.stringify(duzy));
-await page.locator('[data-el="mak-przel"] [data-p="duzy"]').click(); await page.waitForTimeout(400);
-const caly = await page.evaluate(() => { const box = document.querySelector('[data-el="mak-plotno"]'); return { sw: box.scrollWidth, cw: box.clientWidth }; });
-ok('„Duży rysunek” wyłączony: cały ciąg w szerokości okna', caly.sw <= caly.cw + 2, JSON.stringify(caly));
+// widok jak w makiecie „Dodaj” (2026-11-09): na szerokosc okna, sciana do 2300 w tle, z gory nad widokiem z przodu
+const miara = () => page.evaluate(() => { const box = document.querySelector('[data-el="mak-plotno"]'); const svgs = [...box.querySelectorAll('svg')].filter((s) => !s.closest('[data-el="mak-zgory"]') && s.querySelector('[data-el="makieta-szafka"]'));
+  const f = svgs[0].getBoundingClientRect(); return { h: f.height, okno: window.innerHeight, sw: box.scrollWidth, cw: box.clientWidth, tlo: !!box.querySelector('[data-el="tlo-sciany"]') }; });
+const m1 = await miara();
+ok('jak w makiecie: rysunek w szerokości okna, ściana w tle, nagłówek ciągu', m1.sw <= m1.cw + 2 && m1.tlo && (await page.locator('[data-el="mak-naglowek"]').count()) === 1, JSON.stringify(m1));
+await page.locator('[data-el="mak-przel"] [data-p="powieksz"]').click(); await page.waitForTimeout(400);
+const m2 = await miara();
+ok('„Powiększ”: widok z przodu na wysokość okna, przewijany w bok', m2.h > m2.okno * 0.6 && m2.sw > m2.cw, JSON.stringify(m2));
+await page.locator('[data-el="mak-przel"] [data-p="powieksz"]').click(); await page.waitForTimeout(300);
 await page.locator('[data-el="makieta"] nav [data-zakl="dodaj"]').click(); await page.waitForTimeout(200);
 
 const p2 = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
