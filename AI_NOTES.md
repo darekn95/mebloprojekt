@@ -1071,6 +1071,13 @@ Kolejnosc: bok(i) / kontener ze wzmocnieniem, potem blat od spodu.
   podloga) byl niedostepny; teraz `dopasujRysunek()` ogranicza wysokosc rysunku do okna.
 [AI-INFO] Lista brakow makieta <-> aplikacja: `makiety/BRAKI.md` (2026-11-09). Ustalone z uzytkownikiem: makieta bedzie
 osobnym trybem aplikacji z dwoma poziomami — prostym i szczegolowym; w szczegolowym wszystkie funkcje aplikacji.
+[AI-INFO] Tryb makiety w aplikacji — krok 1 (2026-11-09): przelacznik „Makieta prosta / szczegolowa / Techniczny” w naglowku
+(stan `tryb`, `mp-tryb`), `MakietaWidok` (zakladki, karta do odczytu, rysunek z `AssemblyView` / `AssemblyTopView` z `onPick`,
+wolnostojace `MakietaWolnostojace`), listy pomieszczenie / ciag / szafka / widok (`Rozwijana`). Techniczny bez zmian (domyslny).
+Opis: `opisy/makieta.md`, test `testy/makieta.mjs`. Artefakt MebloProjekt publikujemy jako `$SP/MebloProjekt.html` = naglowek
+z poprzedniej wersji (tytul + ziarno projektu na pustym magazynie, do `<div id="root">`) + `testy/mebloprojekt-app.html`.
+Nastepne kroki: uchwyty na rysunku (wymiary, polki, przegroda = szerokosc kolumny, szuflady = fronty), karty z polami, paleta,
+AGD (`makiety/BRAKI.md` D).
 [AI-TODO] Aplikacja glowna, szablon „Biurko” (uzytkownik 2026-11-09): dolozyc plyte wzmacniajaca z tylu (300 mm wysokosci,
 miedzy bokami pod blatem; laczenie do wyboru, domyslnie konfirmaty + zaslepki — lby na zewnatrz boku; przy kontenerze
 konfirmat od srodka kontenera, przed wlozeniem szuflad) i wariant z kontenerem szuflad.

@@ -191,6 +191,16 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | sprzęt na rysunkach | front z przodu (`SprzetElewacja`, `data-el="sprzet-front"`, też w ciągu), z boku `sprzet-z-boku`, z góry `sprzet-z-gory`, 3D szafki i zabudowy — bryły z tagiem `sprzet` (w wnęce) i `sprzet-front` (przed licem, gr. `SPRZET_FRONT_GR`), kolor `SPRZET_KOLOR` (poza audytem płyt) |
 | sprzęt w ciągu (karta „Sprzęt w ciągu”, `data-el="sprzet-ciagu-karta"`; szablony „Zmywarka” / „Lodówka wolnostojąca” w „+ z szablonu…”, 2026-11-05): Zmywarka / Lodówka wolnostojąca, Miejsce — szerokość / Wysokość / Głębokość, zmywarka 60 / 45 cm, wys. od–do, głęb. min., lodówka — szerokość / wysokość / głębokość, luzy, drzwi z lewej / z prawej | `cab.sprzetCiagu = { typ: "zmywarka"\|"lodowka", szer, hMin, hMax, dMin, lodW, lodH, lodD, luzBok, luzGora, luzTyl, drzwi }` (puste = `SPRZETY_CIAGU[typ]`, `sprzetCiagu(cab)`, lista `SPRZET_CIAGU_POLA`); miejsce to `cab.W` / `H` / `D`; `computeGeo` → `geoSprzetuCiagu`: `geo.bezKorpusu`, `geo.sprzetCiagu` ({ `front` zmywarki, `bryla`, `stopa` w strefie cokołu, `nisza`; lodówka: `x0`/`x1`/`y0`/`y1`, `fz0`/`fz1` }), formatka „Front zmywarki”; `lodowkaCiagu(cab)` — lodówka jak słupek (bez wspólnych wymiarów ciągu, poza blatem, cokół z przerwą `rp.segmenty` / `rp.luki`); nazwa pozycji z nazwy sprzętu (`addCabinet`) |
 
+### Tryb pracy i tryb makiety (2026-11-09, krok 1)
+
+| Etykieta | W kodzie |
+|---|---|
+| „Makieta prosta / Makieta szczegółowa / Techniczny” w nagłówku (`data-el="tryb"`) | stan `tryb` w `App` (`"prosta"` / `"szczegolowa"` / `"techniczny"`), pamięć przeglądarki `mp-tryb`; `TRYBY` |
+| widok makiety (`data-el="makieta"`) | `MakietaWidok` — zakładki (`MAK_ZAKLADKI`, w szczegółowej + `MAK_ZAKLADKI_SZCZ`), karta, rysunek; tryb techniczny (`<main>`) ukryty, paski `[data-pasek]` z nagłówka schowane |
+| „Pomieszczenie / Ciąg / Szafka / Widok ▾” (`data-el="mak-pomieszczenie"`, `mak-ciag`, `mak-szafka`, `mak-widok`) | `Rozwijana` — przycisk z listą; pomieszczenie `switchRoom`, szafka `switchCabinet`, widok `MAK_WIDOKI` (zamknięty / otwarty / z góry) |
+| szafka na rysunku makiety (`data-el="makieta-szafka"`, `data-idx`), obrys zaznaczonej (`makieta-zaznaczona`) | `AssemblyView` / `AssemblyTopView` z `onPick`, `zazn`, `maxH`; wolnostojące — `MakietaWolnostojace`; klik = `project.active` |
+| karta szafki w makiecie (`data-el="makieta-karta"`) | `MakietaKarta` (krok 1 — do odczytu), opis kolumny `makOpisKolumny` |
+
 ### Karta „Luzy drzwi" (`cab.gaps`)
 
 | Etykieta | W kodzie | Domyślnie |
@@ -569,6 +579,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 
 | Suita | Pilnuje |
 |---|---|
+| `makieta` | tryb makiety: przełącznik trybu (domyślnie techniczny, pamiętany), rysunek ciągu i wolnostojących z danych, listy pomieszczenie / ciąg / szafka / widok, klik i obrys zaznaczonej, zakładki prostej i szczegółowej, projekt nietknięty |
 | `narozn` | dwa ciągi pod kątem prostym, kto wjeżdża w róg, luz w rogu, lustrzane L, U z trzech ścian |
 | `narozn2` | ramię odsuwa drugi ciąg, formatki ramienia, cztery warianty drzwi, za wąski korpus |
 | `narozn3` | blat w narożniku: na styk, przełączenie, łyżwa, U; złącza do blatów (2 / 3, U, prosty ciąg w 2 kawałkach, płyta 18 bez, wycena 9 zł) |

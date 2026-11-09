@@ -28,3 +28,4 @@ Zmieniasz zasadę albo liczbę opisaną tutaj, popraw opis w tej samej zmianie.
 | [wiercenia.md](wiercenia.md) | plan wierceń: konfirmaty, kołki, trójkąty, zawiasy, prowadnice, zawieszki, frez | 2026-10-30 |
 | [rozkroj.md](rozkroj.md) | rozkrój (arkusze, rzaz, usłojenie, blat), ostrzeżenia zużycia i odpadu, zestawienie PDF | 2026-10-30 |
 | [sprzety.md](sprzety.md) | sprzęty w zabudowie: piekarnik, mikrofala i lodówka (front ślizgowo / na stałe / wolnostojąca) we wnęce poziomu, płyta grzewcza i zlew jako wycięcia w blacie — typowe wymiary, kontrole, otwieranie, rysunki | 2026-11-05 |
+| [makieta.md](makieta.md) | tryb makiety: prosta / szczegółowa / techniczny, co jest w której, krok 1 (podgląd z danych, zaznaczanie) | 2026-11-09 |
