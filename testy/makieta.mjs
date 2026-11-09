@@ -51,12 +51,13 @@ ok('wybór z listy zaznacza „Prawa”', /Prawa/.test(await page.locator('[data
 await page.locator('[data-el="mak-szafka"] button').first().click();
 await page.locator('[data-el="mak-szafka"] [data-v="0"]').click();
 await page.waitForTimeout(300);
-const szafki0 = await page.locator('[data-el="makieta-szafka"]').evaluateAll((els) => els.map((e) => e.dataset.idx));
+const PRZOD = '[data-el="makieta"] svg:not([data-el="mak-zgory"] svg) [data-el="makieta-szafka"]';
+const szafki0 = await page.locator(PRZOD).evaluateAll((els) => els.map((e) => e.dataset.idx));
 ok('domyślnie ciąg zaznaczonej szafki (3 szafki)', szafki0.length === 3, szafki0.join(','));
 await page.locator('[data-el="mak-ciag"] button').first().click();
 await page.locator('[data-el="mak-ciag"] [data-v="wszystkie"]').click();
 await page.waitForTimeout(400);
-const szafki = await page.locator('[data-el="makieta-szafka"]').evaluateAll((els) => els.map((e) => e.dataset.idx));
+const szafki = await page.locator(PRZOD).evaluateAll((els) => els.map((e) => e.dataset.idx));
 ok('„Wszystkie ciągi”: 3 szafki ciągu i wolnostojąca', szafki.length === 4, szafki.join(','));
 const zakl = await page.locator('[data-el="makieta"] nav [data-zakl]').evaluateAll((els) => els.map((e) => e.dataset.zakl));
 ok('zakładki prostej (bez wzmocnień)', zakl.join(',') === 'szafka,szuflady,polki,drzwi,przegroda,cokol', zakl.join(','));
@@ -65,7 +66,7 @@ ok('karta aktywnej szafki', /Lewa/.test(await page.locator('[data-el="makieta-ka
 await page.locator('[data-el="makieta-szafka"][data-idx="1"]').first().click({ force: true });
 await page.waitForTimeout(400);
 ok('klik zaznacza szafkę „Środek”', /Środek/.test(await page.locator('[data-el="makieta-karta"] h3').textContent()));
-ok('obrys zaznaczonej na rysunku', (await page.locator('[data-el="makieta-szafka"][data-idx="1"] [data-el="makieta-zaznaczona"]').count()) === 1);
+ok('obrys zaznaczonej na rysunku (z przodu i z góry)', (await page.locator('[data-el="makieta-szafka"][data-idx="1"] [data-el="makieta-zaznaczona"]').count()) === 2);
 await page.waitForFunction(() => JSON.parse(localStorage.getItem('szafki:projekt')).active === 1, null, { timeout: 5000 }).catch(() => {});
 const akt = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')).active);
 ok('aktywna szafka projektu = 1', akt === 1, String(akt));
@@ -78,11 +79,8 @@ await page.locator('[data-el="mak-ciag"] button').first().click();
 await page.locator('[data-el="mak-ciag"] [data-v="r1"]').click();
 await page.waitForTimeout(400);
 ok('tylko ciąg: bez wolnostojących', !(await page.locator('[data-el="makieta-wolnostojace"]').count()));
-await page.locator('[data-el="mak-widok"] button').first().click();
-await page.locator('[data-el="mak-widok"] [data-v="top"]').click();
-await page.waitForTimeout(400);
-ok('widok z góry: szafki klikalne', (await page.locator('[data-el="makieta-szafka"]').count()) === 3);
-await page.locator('[data-el="makieta-szafka"][data-idx="2"]').first().click({ force: true });
+ok('z góry nad widokiem z przodu: szafki klikalne', (await page.locator('[data-el="mak-zgory"] [data-el="makieta-szafka"]').count()) === 3);
+await page.locator('[data-el="mak-zgory"] [data-el="makieta-szafka"][data-idx="2"]').first().click({ force: true });
 await page.waitForTimeout(300);
 ok('klik z góry zaznacza „Prawa”', /Prawa/.test(await page.locator('[data-el="makieta-karta"] h3').textContent()));
 

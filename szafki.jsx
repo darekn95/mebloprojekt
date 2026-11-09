@@ -20449,8 +20449,17 @@ const TRYBY = [["prosta", "Makieta prosta"], ["szczegolowa", "Makieta szczegół
 const MAK_ZAKLADKI = [["szafka", "Szafka"], ["szuflady", "Szuflady"], ["polki", "Półki"], ["drzwi", "Drzwi i klapy"],
   ["przegroda", "Przegroda"], ["cokol", "Cokół i nóżki"]];
 const MAK_ZAKLADKI_SZCZ = [["korpus", "Korpus i plecy"], ["wzmocnienia", "Wzmocnienia"], ["wyciecia", "Wycięcia i kolizje"]];
-const MAK_WIDOKI = [{ v: "closed", l: "Zamknięty", opis: "fronty" }, { v: "open", l: "Otwarty", opis: "wnętrze: półki, szuflady, przegrody" },
-  { v: "top", l: "Z góry", opis: "rzut ciągu" }];
+/* Przelaczniki rysunku jak w makiecie „Dodaj” (uzytkownik 2026-11-09: „widok jak w makiecie — mniej miejsca, większy
+   rysunek”): z gory nad widokiem z przodu, ciag gorny / dolny, fronty (wylaczone — wnetrze). */
+const MAK_PRZEL = [["zgory", "Z góry"], ["gorny", "Ciąg górny"], ["dolny", "Ciąg dolny"], ["fronty", "Fronty"]];
+const Przelacznik = ({ k, l, on, onClick }) => (
+  <button data-p={k} aria-pressed={on} onClick={onClick}
+    className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${on ? "border-teal-600 bg-teal-50 text-stone-800" : "border-stone-300 bg-white text-stone-500 hover:bg-stone-50"}`}>
+    <span aria-hidden="true" className={`inline-block h-3.5 w-3.5 rounded-[3px] border ${on ? "border-teal-700 bg-teal-700" : "border-stone-400 bg-white"}`}>
+      {on && <svg viewBox="0 0 12 12" className="h-full w-full"><path d="M2.5 6.2 5 8.6 9.6 3.6" fill="none" stroke="#fff" strokeWidth="1.8" /></svg>}
+    </span>{l}
+  </button>
+);
 
 /* ---------- Krok 2: uchwyty na rysunku (uzytkownik 2026-11-09) ----------
    Zaznaczona szafka, zakladka wybiera, co mozna przeciagac — jak w makiecie „Dodaj”:
@@ -20828,7 +20837,10 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   }, [project, zmien]);
   // domyslnie ciag zaznaczonej szafki (z pietrem nad nim) — caly pokoj na raz jest za drobny do chwytania polek
   const [ciagId, setCiagId] = useState("aktywny");
-  const [widok, setWidok] = useState("closed");
+  // przelaczniki rysunku (pamieta przegladarka)
+  const [przel, setPrzel] = useState(() => { try { return { zgory: true, gorny: true, dolny: true, fronty: true, ...JSON.parse(localStorage.getItem("mp-mak-przel") || "{}") }; } catch (e) { return { zgory: true, gorny: true, dolny: true, fronty: true }; } });
+  useEffect(() => { try { localStorage.setItem("mp-mak-przel", JSON.stringify(przel)); } catch (e) { /* bez pamieci */ } }, [przel]);
+  const widok = przel.fronty ? "closed" : "open";
   const runs = drawableRuns(project, pokoj);
   const aktIt = project.items[project.active];
   const aktR = aktIt && aktIt.runId ? runs.find((r) => r.id === aktIt.runId) : null;
@@ -20842,8 +20854,14 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   const akt = zakl.some(([k]) => k === zakladka) ? zakladka : "szafka";
   // Polki / Szuflady / Przegroda — rysunek otwarty (wnetrze), zeby bylo co chwycic; widok z gory zostaje
   const widokRys = widok === "closed" && (akt === "polki" || akt === "przegroda") ? "open" : widok;
+  // ciag gorny / dolny — ktore pietra rysowac
+  const rysowane = wybrane.filter((r) => (r.tier === "gorny" ? przel.gorny : przel.dolny));
+  const maPietra = wybrane.some((r) => r.tier === "gorny");
   // rysunek miesci sie w oknie pod paskiem (jak w makiecie — dol z szufladami nie moze uciekac)
   const maxH = "calc(100vh - 210px)";
+  // z gory i z przodu razem mieszcza sie w oknie: pasek z gory do 30 % wysokosci, reszta na widok z przodu
+  const maxHGora = "26vh";
+  const maxHPrzod = przel.zgory && !samaSzafka ? "calc(100vh - 250px - 26vh)" : maxH;
   const nakladkaPrzod = (cab, geo, idx) => (geoRysunku.current[idx] = geo) && <MakietaUchwyty cab={cab} geo={geo} zakladka={akt} widok="front" podglad={podglad && podglad.idx === idx && podglad.widok !== "top" ? podglad : null} />;
   const nakladkaGora = (cab, geo, idx) => (geoRysunku.current[idx] = geo) && <MakietaUchwyty cab={cab} geo={geo} zakladka={akt} widok="top" podglad={podglad && podglad.idx === idx && podglad.widok === "top" ? podglad : null} />;
   return (
@@ -20872,19 +20890,31 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
             opcje={itemsInRoom(project, pokoj).map(({ it, i }) => ({ v: i, l: it.cab.name || `Szafka ${i + 1}`,
               opis: `${fmt(it.cab.W)} × ${fmt(it.cab.H)} · ${it.runId ? ((project.runs || []).find((r) => r.id === it.runId) || {}).name || "ciąg" : "wolnostojąca"}` }))}
             onWybierz={switchCabinet} />
-          <Rozwijana el="mak-widok" etykieta="Widok" wartosc={widokRys} opcje={MAK_WIDOKI} onWybierz={setWidok} />
         </div>
-        {samaSzafka && widok !== "top" && (
+        <div className="mb-1 flex flex-wrap items-center gap-1.5" data-el="mak-przel">
+          {MAK_PRZEL.filter(([k]) => maPietra || (k !== "gorny" && k !== "dolny")).map(([k, l]) => (
+            <Przelacznik key={k} k={k} l={l} on={!!przel[k]} onClick={() => setPrzel((p) => ({ ...p, [k]: !p[k] }))} />
+          ))}
+          {widokRys !== widok && <span className="text-[11px] text-stone-500">wnętrze — w tej zakładce zawsze</span>}
+        </div>
+        {przel.zgory && !samaSzafka && rysowane.length > 0 && (
+          <div data-el="mak-zgory">
+            <p className="text-[11px] text-stone-500">Z góry</p>
+            <AssemblyTopView project={project} runs={rysowane} showDims={false} showShelves showHardware={false}
+              onPick={switchCabinet} zazn={project.active} maxH={maxHGora} nakladka={nakladkaGora} />
+          </div>
+        )}
+        {(przel.zgory && !samaSzafka && rysowane.length > 0) && <p className="mt-1 text-[11px] text-stone-500">Z przodu</p>}
+        {samaSzafka && (
           <MakietaWolnostojace project={project} items={[{ it: aktIt, i: project.active }]} open={widokRys === "open"} onPick={switchCabinet}
             zazn={project.active} maxH={maxH} nakladka={nakladkaPrzod} />
         )}
-        {(!samaSzafka || widok === "top") && wybrane.length > 0 && (widok === "top"
-          ? <AssemblyTopView project={project} runs={wybrane} showDims={false} showShelves showHardware={false}
-              onPick={switchCabinet} zazn={project.active} maxH={maxH} nakladka={nakladkaGora} />
-          : <AssemblyView project={project} runs={wybrane} rpOf={rpOf} variant={widokRys} showDims={false}
-              showHardware={false} showLabels activeCab={(project.items[project.active] || {}).cab}
-              onPick={switchCabinet} zazn={project.active} maxH={maxH} nakladka={nakladkaPrzod} />)}
-        {pokazWolne && wolne.length > 0 && widok !== "top" && (
+        {!samaSzafka && rysowane.length > 0 && (
+          <AssemblyView project={project} runs={rysowane} rpOf={rpOf} variant={widokRys} showDims={false}
+            showHardware={false} showLabels activeCab={(project.items[project.active] || {}).cab}
+            onPick={switchCabinet} zazn={project.active} maxH={maxHPrzod} nakladka={nakladkaPrzod} />
+        )}
+        {pokazWolne && wolne.length > 0 && (
           <div className="mt-2">
             {wybrane.length > 0 && <p className="mb-1 text-xs text-stone-500">Szafki wolnostojące</p>}
             <MakietaWolnostojace project={project} items={wolne} open={widokRys === "open"} onPick={switchCabinet} zazn={project.active} maxH={maxH} nakladka={nakladkaPrzod} />
@@ -23948,7 +23978,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900" data-tryb={makieta ? "makieta" : "techniczny"}>
       {/* tryb makiety: paski pomieszczen i ciagow z naglowka zastepuja przyciski z lista nad rysunkiem makiety */}
-      {makieta && <style>{'[data-tryb="makieta"] header [data-pasek] { display: none; }'}</style>}
+      {makieta && <style>{'[data-tryb="makieta"] header [data-pasek], [data-tryb="makieta"] header [data-tech] { display: none; }'}</style>}
       <header ref={naglowekRef} data-el="naglowek"
         className="print-hide sticky top-0 z-10 border-b border-stone-300 bg-stone-50/95 backdrop-blur"
         style={naglowekZaWysoki ? { maxHeight: limitNaglowka, overflowY: "auto" } : undefined}>
@@ -23990,7 +24020,7 @@ export default function App() {
               Ponów ↷
             </button>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" data-tech="">
             <button onClick={() => window.dispatchEvent(new CustomEvent("mp-karty", { detail: { open: false } }))}
               title="Zwiń wszystkie karty (uwagi zostają)"
               className="rounded px-2 py-1 text-xs font-medium hover:bg-stone-200">
@@ -24020,7 +24050,7 @@ export default function App() {
                 top: el.getBoundingClientRect().top + window.scrollY - nad - (el === karta ? 8 : 0) });
             }, 80);
           }}
-            title="Przewiń do karty „Rysunek”"
+            title="Przewiń do karty „Rysunek”" data-tech=""
             className="rounded border border-teal-600 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-50">
             Pokaż rysunek
           </button>

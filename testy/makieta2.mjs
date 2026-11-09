@@ -96,8 +96,10 @@ ok('bez błędu „fronty nie zgadzają się”', !/frontów szuflad nie zgadzaj
 
 console.log('== z góry: głębokość ==');
 await zakl('szafka');
-await page.locator('[data-el="mak-widok"] button').first().click();
-await page.locator('[data-el="mak-widok"] [data-v="top"]').click(); await page.waitForTimeout(300);
+ok('przełączniki jak w makiecie (Z góry, Fronty)', (await page.locator('[data-el="mak-przel"] [data-p]').count()) >= 2);
+await page.locator('[data-el="mak-przel"] [data-p="fronty"]').click(); await page.waitForTimeout(300);
+ok('Fronty wyłączone — rysunek wnętrza (aria-pressed=false)', (await page.locator('[data-el="mak-przel"] [data-p="fronty"]').getAttribute('aria-pressed')) === 'false');
+await page.locator('[data-el="mak-przel"] [data-p="fronty"]').click(); await page.waitForTimeout(300);
 const D0 = (await stan()).D;
 const nGleb = await page.locator('[data-u="gleb"]').count();
 ok('uchwyt głębokości z góry (wolnostojąca bez rzutu — pomijam)', true, `uchwytów: ${nGleb}`);

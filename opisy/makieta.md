@@ -22,8 +22,11 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
 ## Co program robi sam (krok 1)
 
 - Rysuje ciągi oglądanego pomieszczenia z prawdziwej geometrii (te same rysunki co widok
-  ciągu w trybie technicznym): zamknięty, otwarty albo z góry. Szafki wolnostojące stoją obok,
-  z odstępem.
+  ciągu w trybie technicznym), jak w makiecie „Dodaj”: **z góry nad widokiem z przodu**.
+  Przełączniki: „Z góry”, „Ciąg górny” / „Ciąg dolny” (gdy jest piętro), „Fronty” (wyłączone —
+  wnętrze); wybór pamięta przeglądarka. Szafki wolnostojące stoją obok, z odstępem.
+- Nagłówek w makiecie jest zwarty: bez „Zwiń wszystkie” i „Pokaż rysunek” (to przyciski kart
+  trybu technicznego).
 - Rysunek mieści się w oknie pod paskiem.
 - Klik w szafkę (albo wybór z listy „Szafka ▾”) robi ją aktywną szafką projektu — po przejściu
   do trybu technicznego otwiera się właśnie ona.
