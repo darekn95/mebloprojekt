@@ -126,7 +126,12 @@ pytania. Wolnostojąca i ciąg górny — bez pytania.
 
 ## Przyciski w karcie (krok 4)
 
-Jak w makiecie „Dodaj”: rząd przycisków na kolumnę (w szafce z jedną kolumną bez podpisu).
+Jak w makiecie „Dodaj”: rząd przycisków kolumny (w szafce z jedną kolumną bez podpisu).
+**Drzwi i klapy, Szuflady, Półki — tylko wybrana kolumna** (użytkownik 2026-11-09: „za duży sajgon — po wybraniu na
+rysunku konkretnych opcje konkretnych, a nie wszystko naraz”; „szuflady tak samo, półki powinny dotyczyć kolumny”):
+klik na rysunku w kolumnę albo poziom kolumny wybiera ją (przerywana ramka na rysunku), karta pokazuje tylko jej
+przyciski; nad nimi małe „kol. J · poz. N” do zmiany bez klikania w rysunek. Szafka z jedną kolumną — od razu jej
+opcje.
 Zapis do tych samych pól co tryb techniczny; liczy aplikacja.
 - **Drzwi i klapy**: „1 drzwi / 2 drzwi / Klapa ↑ / Klapa ↓ / Bez frontu” (`col.doors`, `col.klapa`);
   przy frontach „uchwyt / tip-on” (`col.handles[i]`, `col.otwieranie[i] = "tipon"`). Tip-on zostaje

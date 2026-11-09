@@ -41,32 +41,41 @@ const kolumny = async () => (await proj()).items[0].cab.levels[0].cols;
 const czekajNa = async (f) => { await page.waitForFunction((src) => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); try { return new Function('L', 'return ' + src)(p.items[0].cab.levels[0].cols); } catch (e) { return false; } }, f, { timeout: 5000 }).catch(() => {}); return kolumny(); };
 const zakl = async (k) => { const b = page.locator(`[data-el="makieta"] nav [data-zakl="${k}"]`);
   if ((await b.getAttribute('aria-pressed')) !== 'true' || !(await page.locator('[data-el="mak-karta-panel"]').count())) await b.click(); await page.waitForTimeout(250); };
-const wiersz = (t) => page.locator('[data-el="makieta-karta"] [data-el="mak-kolumna"]').filter({ has: page.locator('p', { hasText: new RegExp(`^${t}$`) }) });
+// karta pokazuje tylko wybrana kolumne / poziom (2026-11-09) — wybor przyciskiem „kol. J · poz. N” (title = pelna nazwa)
+const wiersz = async (t) => { const b = page.locator(`[data-el="mak-kol-wybor"] [title="${t}"]`);
+  if (await b.count()) { await b.first().click(); await page.waitForTimeout(200); }
+  return page.locator('[data-el="makieta-karta"] [data-el="mak-kolumna"]').filter({ has: page.locator('p', { hasText: new RegExp(`^${t}$`) }) }); };
 
 console.log('== karta: poziomy kolumny ==');
 await zakl('szafka');
 const tekst = await page.locator('[data-el="makieta-karta"]').innerText();
 ok('„Szafka”: każdy poziom kolumny 2 i 3 w karcie', ['kolumna 2 · poziom 4', 'kolumna 2 · poziom 1', 'kolumna 3 · poziom 2', 'kolumna 3 · poziom 1'].every((t) => tekst.includes(t)), tekst.replace(/\n/g, ' | ').slice(0, 300));
 await zakl('polki');
-const nWier = await page.locator('[data-el="makieta-karta"] [data-el="mak-kolumna"]').count();
-ok('„Półki”: kolumna 1 + 4 poziomy kolumny 2 + 2 poziomy kolumny 3', nWier === 7, String(nWier));
-ok('kolumna 3 · poziom 2: 1 półka (światła 2–3 kolumny)', (await wiersz('kolumna 3 · poziom 2').locator('[data-el="mak-polki-n"]').innerText()) === '1');
-await wiersz('kolumna 3 · poziom 1').locator('[data-el="mak-polki"][data-v="1"]').click(); await page.waitForTimeout(400);
+const nWier = await page.locator('[data-el="mak-kol-wybor"] [data-el="mak-kol"]').count();
+ok('„Półki”: wybór — kolumna 1 + 4 poziomy kolumny 2 + 2 poziomy kolumny 3', nWier === 7, String(nWier));
+ok('bez wybranej kolumny: żadnych przycisków kolumn naraz (tylko wybór)', !(await page.locator('[data-el="makieta-karta"] [data-el="mak-kolumna"]').count()));
+ok('kolumna 3 · poziom 2: 1 półka (światła 2–3 kolumny)', (await (await wiersz('kolumna 3 · poziom 2')).locator('[data-el="mak-polki-n"]').innerText()) === '1');
+await (await wiersz('kolumna 3 · poziom 1')).locator('[data-el="mak-polki"][data-v="1"]').click(); await page.waitForTimeout(400);
 let L = await czekajNa('L[2].shelfTargets.length === 5');
 ok('„+” w poziomie 1 kolumny 3: półka w tym poziomie, granica idzie za nią', L[2].shelfTargets.length === 5 && L[2].podzial.join() === '2', JSON.stringify({ st: L[2].shelfTargets, pz: L[2].podzial }));
-ok('kolumna 3 · poziom 2 dalej ma 1 półkę, poziom 1 — 2', (await wiersz('kolumna 3 · poziom 2').locator('[data-el="mak-polki-n"]').innerText()) === '1' && (await wiersz('kolumna 3 · poziom 1').locator('[data-el="mak-polki-n"]').innerText()) === '2');
-await wiersz('kolumna 2 · poziom 3').locator('[data-el="mak-drazek"]').click(); await page.waitForTimeout(400);
+ok('kolumna 3 · poziom 2 dalej ma 1 półkę, poziom 1 — 2', (await (await wiersz('kolumna 3 · poziom 2')).locator('[data-el="mak-polki-n"]').innerText()) === '1' && (await (await wiersz('kolumna 3 · poziom 1')).locator('[data-el="mak-polki-n"]').innerText()) === '2');
+await (await wiersz('kolumna 2 · poziom 3')).locator('[data-el="mak-drazek"]').click(); await page.waitForTimeout(400);
 L = await czekajNa('(L[1].drazki || []).length > 0');
 ok('drążek w poziomie 3 kolumny 2 (światło 2)', (L[1].drazki || []).join() === '2', JSON.stringify(L[1].drazki));
 
 console.log('== fronty i szuflady w poziomie kolumny ==');
 await zakl('drzwi');
-await wiersz('kolumna 2 · poziom 1').locator('[data-el="mak-front"][data-v="drzwi-2"]').click(); await page.waitForTimeout(400);
+{ const g = page.locator('[data-el="mak-plotno"] svg:not([data-el="makieta-wolnostojace-zgory"]) [data-el="makieta-szafka"]').first(); const r = await g.boundingBox();
+  await page.mouse.click(r.x + r.width * 0.83, r.y + r.height * 0.12); await page.waitForTimeout(400); }
+const tyt = await page.locator('[data-el="makieta-karta"] [data-el="mak-kolumna"] p').allInnerTexts();
+ok('klik na rysunku w górny poziom kolumny 3: karta tylko jego (z ramką)', tyt.length === 1 && /kolumna 3 · poziom 2/.test(tyt[0]) && (await page.locator('[data-el="mak-kol-ramka"]').count()) === 1, tyt.join(' | '));
+await zakl('drzwi');
+await (await wiersz('kolumna 2 · poziom 1')).locator('[data-el="mak-front"][data-v="drzwi-2"]').click(); await page.waitForTimeout(400);
 L = await czekajNa('L[1].segmenty && L[1].segmenty[0] && L[1].segmenty[0].doors === 2');
 ok('„2 drzwi” w poziomie 1 kolumny 2 (reszta kolumny — klapy)', (L[1].segmenty || [])[0] && L[1].segmenty[0].doors === 2 && L[1].segmenty[0].klapa === null && L[1].klapa === 'gora', JSON.stringify(L[1].segmenty));
-ok('poziom kolumny bez „Bez frontu”', !(await wiersz('kolumna 2 · poziom 2').locator('[data-v="otwarta"]').count()));
+ok('poziom kolumny bez „Bez frontu”', !(await (await wiersz('kolumna 2 · poziom 2')).locator('[data-v="otwarta"]').count()));
 await zakl('szuflady');
-await wiersz('kolumna 2 · poziom 4').locator('[data-el="mak-szuflady"][data-v="2"]').click(); await page.waitForTimeout(500);
+await (await wiersz('kolumna 2 · poziom 4')).locator('[data-el="mak-szuflady"][data-v="2"]').click(); await page.waitForTimeout(500);
 L = await czekajNa('L[1].segmenty && L[1].segmenty[3] && L[1].segmenty[3].kind === "drawers"');
 ok('2 szuflady w poziomie 4 kolumny 2', (L[1].segmenty || [])[3] && L[1].segmenty[3].kind === 'drawers' && L[1].segmenty[3].drawers.length === 2, JSON.stringify(L[1].segmenty));
 const uch = page.locator('[data-u="szufl"][data-seg="3"]');
