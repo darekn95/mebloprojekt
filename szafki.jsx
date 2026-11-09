@@ -9448,6 +9448,12 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
             fill={shc} stroke={INK} strokeWidth="2" />
         ))
       ))}
+      {/* rura na wieszaki (zgloszenie 2026-11-09: „3 półki i drążek — a gdzie się to wyświetla?”) — jak w widoku szafki;
+          za drzwiami zaslania ja front */}
+      {!rear && geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.drazki || []).map((dr) => (
+        <rect key={`dr${lv.i}-${c.j}-${dr.k}`} data-el="rura-wieszaki" x={mx(c.x0 + DRAZEK_KROTSZY / 2, dr.len)} y={fy(dr.y + DRAZEK_FI / 2)}
+          width={dr.len} height={DRAZEK_FI} rx={DRAZEK_FI / 2} fill="#a1a1aa" stroke={INK} strokeWidth="1.5" />
+      ))))}
 
       {/* prowadnice szuflad — po jednej przy kazdym boku kolumny */}
       {open && showHardware && !rear &&
@@ -20633,10 +20639,16 @@ const tenSamKolor = (a, b) => String((a || {}).color || "").toLowerCase() === St
    kasuje ustawien, ktorych nie pokazuje (wzmocnienia, wyciecia, kolizje...); szczegolowa je pokazuje. */
 const MAK_AKCENT = "#0f766e";
 const TRYBY = [["prosta", "Makieta prosta"], ["szczegolowa", "Makieta szczegółowa"], ["techniczny", "Techniczny"]];
-const MAK_ZAKLADKI = [["agd", "AGD"], ["szafka", "Szafka"], ["szuflady", "Szuflady"], ["polki", "Półki"], ["drzwi", "Drzwi i klapy"],
+/* Zakladki (uzytkownik 2026-11-09: „wraca stare Dodaj, ale z modyfikacjami”): „Dodaj” rozwija wybor — AGD / Nowe szafki /
+   Elementy szafki; pozostale to parametry zaznaczonej szafki, a bez zaznaczenia — co mozna dodac (MakietaPaleta). */
+const MAK_ZAKLADKI = [["dodaj", "Dodaj"], ["szafka", "Szafka"], ["szuflady", "Szuflady"], ["polki", "Półki"], ["drzwi", "Drzwi i klapy"],
   ["przegroda", "Przegroda"], ["cokol", "Cokół i nóżki"]];
+// „Dodaj” — co dodac (rozwijane jak lista): klucz, nazwa, opis, ikona (MAK_IKONY), zakladka palety
+const MAK_DODAJ = [["agd", "AGD", "sprzęt do zabudowy, w ciąg i na blat", "agd", "agd"], ["szafki", "Nowe szafki", "kuchnia, szafa w zabudowie, wolnostojące", "szafka", "szafka"],
+  ["elementy", "Elementy szafki", "szuflady, półki, drzwi i klapy, przegroda", "szuflady", "elementy"]];
 /* Ikony jak w makiecie „Dodaj” (uzytkownik 2026-11-09: „popraw widok żeby był jak w artefakcie makieta”). */
 const MAK_IKONY = {
+  dodaj: "M4 4h16v16H4z M12 8v8 M8 12h8",
   agd: "M4 3h16v18H4z M4 7h16 M7 10h10v8H7z M7 5h1 M10 5h1",
   szafka: "M5 3h14v18H5z M12 3v18 M10 11v3 M14 11v3",
   szuflady: "M4 4h16v16H4z M4 9.5h16 M4 15h16 M10 6.7h4 M10 12.2h4 M10 17.7h4",
@@ -21071,7 +21083,6 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
     });
     return (
       <div className="space-y-2" data-el="mak-paleta">
-        <h2 className="text-[15px] font-semibold text-stone-900">AGD</h2>
         <p className="text-[12px] text-stone-500">Przeciągnij sprzęt na rysunek — na szafkę, kolumnę albo w ciąg; klik — do zaznaczonej szafki (sprzęt w ciągu na jego koniec).</p>
         {kom}
         {naglowek("Sprzęt")}
@@ -21104,6 +21115,18 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
       ))}
     </div>
   );
+  if (zakladka === "elementy") return (
+    <div className="space-y-2" data-el="mak-paleta">
+      <p className="text-[12px] text-stone-500">Przeciągnij klocek na kolumnę szafki; klik — do zaznaczonej szafki.</p>
+      {kom}
+      {[["szuflady", "Szuflady"], ["polki", "Półki i drążek"], ["drzwi", "Drzwi i klapy"], ["przegroda", "Przegroda"]].map(([z, t]) => (
+        <div key={z}>
+          {naglowek(t)}
+          <div className="grid grid-cols-3 gap-1">{MAK_KLOCKI_ZAKL[z].map((id) => MAK_KLOCKI.find((k) => k.id === id)).map((k) => kafel("mak-klocek", k.id, k.nazwa, null, () => onKlocek(k, null)))}</div>
+        </div>
+      ))}
+    </div>
+  );
   const ids = MAK_KLOCKI_ZAKL[zakladka];
   if (!ids) return kom || null;
   return (
@@ -21116,7 +21139,7 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
   );
 }
 
-function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProjekt, ciag, geoOf }) {
+function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProjekt, ciag, geoOf, onOdznacz }) {
   const it = project.items[idx];
   if (!it) return <p className="text-sm text-stone-500">Kliknij szafkę na rysunku — tu pokaże się jej karta.</p>;
   const cab = it.cab;
@@ -21130,8 +21153,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   const kolumny = poziomy.flatMap((lv, li) => (lv.cols || []).map((c, j) => ({ c, li, j, n: (lv.cols || []).length })));
   const nazwaKol0 = ({ li, j, n }) => `${poziomy.length > 1 ? `poziom ${li + 1}` : ""}${poziomy.length > 1 && n > 1 ? ", " : ""}${n > 1 ? `kolumna ${j + 1}` : ""}` || "wnętrze";
   /* Kolumna z podzialem (poziomy kolumny — `col.podzial`, `col.segmenty`; zgloszenie 2026-11-09: „w szafie nie widzi
-     kolumn do sprawdzenia i poprawy”): kazdy poziom kolumny osobno, od gory, nazwany jak w trybie technicznym
-     („poziom N kolumny J”). `c` — ustawienia poziomu nalozone na kolumne, `jA` — adres dla `kolumnaW`,
+     kolumn do sprawdzenia i poprawy”): kazdy poziom kolumny osobno, od gory (jak na rysunku), nazwany „kolumna J · poziom N”
+     (poziomy od dolu, jak w trybie technicznym). `c` — ustawienia poziomu nalozone na kolumne, `jA` — adres dla `kolumnaW`,
      `lo` / `hi` — swiatla kolumny nalezace do poziomu (lo < k <= hi). */
   const odcinki = kolumny.flatMap((k) => {
     if (makKolumnaProsta(k.c)) return [{ ...k, jA: k.j }];
@@ -21140,7 +21163,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     return [...gr.map((_, x) => x), gr.length].reverse().map((nr) => ({ ...k, kol: k.c, nr, jA: `${k.j}s${nr}`,
       c: { ...k.c, ...((k.c.segmenty || [])[nr] || {}) }, lo: nr === 0 ? -1 : gr[nr - 1], hi: nr === gr.length ? ost : gr[nr] }));
   });
-  const nazwaKol = (k) => (k.nr == null ? nazwaKol0(k) : `${poziomy.length > 1 ? `poziom szafki ${k.li + 1}, ` : ""}poziom ${k.nr + 1} kolumny ${k.j + 1}`);
+  // najpierw kolumna, potem jej poziom (uzytkownik 2026-11-09: „najpierw kolumna, później poziom, bo się można zgubić”)
+  const nazwaKol = (k) => (k.nr == null ? nazwaKol0(k) : `${poziomy.length > 1 ? `poziom szafki ${k.li + 1}, ` : ""}kolumna ${k.j + 1} · poziom ${k.nr + 1}`);
   const tylko = { szuflady: (c) => c.kind === "drawers", polki: (c) => (c.kind || "doors") === "doors" && !c.sprzet, drzwi: (c) => (c.kind || "doors") === "doors" && !c.sprzet };
   const listaKol = (f) => odcinki.filter((k) => !f || f(k.c)).map((k) => W(nazwaKol(k), makOpisKolumny(k.nr == null ? k.c : { ...k.c, podzial: undefined,
     shelfTargets: Array(Math.max(0, k.hi - k.lo - 1) + 1).fill(null), drazki: (k.kol.drazki || []).filter((x) => x > k.lo && x <= k.hi) }), `k${k.li}-${k.jA}`));
@@ -21322,8 +21346,13 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     W("Elementy kolizyjne", (cab.obstacles || []).length ? `${cab.obstacles.length}` : "brak")];
   return (
     <div className="space-y-2" data-el="makieta-karta">
-      <div>
-        <h3 className="text-sm font-semibold text-stone-900">{cab.name || "Szafka"}</h3>
+      <div className="pr-5">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-stone-900">{cab.name || "Szafka"}</h3>
+          {/* odznaczenie (uzytkownik 2026-11-09): bez zaznaczonej szafki zakladki pokazuja, co mozna dodac */}
+          {onOdznacz && <button data-el="mak-odznacz" onClick={onOdznacz} title="Odznacz szafkę — zakładki pokażą, co można dodać"
+            className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] text-stone-600 hover:bg-stone-100">odznacz</button>}
+        </div>
         <p className="text-xs text-stone-500">{fmt(cab.W)} × {fmt(cab.H)} × {fmt(cab.D)} mm{run ? ` · ${run.name || "ciąg"}` : " · wolnostojąca"}</p>
       </div>
       <div>{tresc}</div>
@@ -21389,8 +21418,27 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladk
   );
 }
 
-function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien, zmienProjekt, ciag, dodaj, dodajGorny }) {
+function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien, zmienProjekt, ciag, dodaj: dodaj0, dodajGorny, gora = 96 }) {
+  /* Szeroki ekran (lg): zakladki, karta i rysunek przyklejone pod gornym paskiem (`gora` — jego wysokosc jak „rysunek
+     przypiety” w trybie technicznym), rysunek do dolu okna z wlasnym przewijaniem (zgloszenie 2026-11-09: „suwak rysunku
+     na dole, ale suwak okna nie na dole i ucina rysunek” — wysokosc liczona z zalozonego paska 100 px). */
+  const [lg, setLg] = useState(() => !!(typeof window !== "undefined" && window.matchMedia && window.matchMedia("(min-width: 1024px)").matches));
+  useEffect(() => {
+    if (!window.matchMedia) return undefined;
+    const mq = window.matchMedia("(min-width: 1024px)"); const f = () => setLg(mq.matches);
+    f(); mq.addEventListener("change", f); return () => mq.removeEventListener("change", f);
+  }, []);
   const [zakladka, setZakladka] = useState("szafka");
+  /* Zaznaczona szafka (uzytkownik 2026-11-09: „możliwość odznaczenia szafki — wtedy opcje dodania nowej, a gdy zaznaczona,
+     tylko opcje tej szafki”; „to samo szuflady, półki, drzwi, przegroda”): klik w puste miejsce rysunku, „odznacz” w karcie
+     albo „Szafka ▾ → Żadna” odznacza; klik w szafke, wybor z listy i nowa szafka z palety — zaznacza. Aktywna szafka
+     projektu (`project.active`) zostaje — tryb techniczny otwiera ja jak dotad. */
+  const [zaznM, setZaznM] = useState(true);
+  const wybierz = (i) => { setZaznM(true); switchCabinet(i); };
+  const dodaj = (...a) => { dodaj0(...a); setZaznM(true); };
+  // „Dodaj” — rozwiniety wybor (pamieta przegladarka)
+  const [dodajCo, setDodajCo] = useState(() => { try { const v = localStorage.getItem("mp-mak-dodaj"); return v === "" ? null : v || "szafki"; } catch (e) { return "szafki"; } });
+  useEffect(() => { try { localStorage.setItem("mp-mak-dodaj", dodajCo || ""); } catch (e) { /* bez pamieci */ } }, [dodajCo]);
   /* Karta do schowania (uzytkownik 2026-11-09: „nie musi być wyświetlana zawsze — wtedy rysunek większy”): klik
      w zakladke, ktora jest otwarta, albo „‹” w karcie; pamieta przegladarka. */
   const [karta, setKarta] = useState(() => { try { return localStorage.getItem("mp-mak-karta") !== "0"; } catch (e) { return true; } });
@@ -21485,7 +21533,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     const idx = Number(grp.getAttribute("data-idx")); const it = project.items[idx]; if (!it) return null;
     const p = punkt(e, grp); if (!p) return null;
     const zgory = !!grp.closest("[data-el=mak-zgory]");
-    const geo = geoRysunku.current[idx];
+    const geo = geoRysunku.current[idx] || (() => { try { return computeGeo(cabDoGeo(project, it), it.mat); } catch (er) { return null; } })();
     let li = null, j = null;
     if (geo) {
       const gy = it.cab.H - p.y;
@@ -21514,6 +21562,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   };
   const wstawKlocek = (kl, c0) => {
     setKomunikat(null);
+    if (!c0 && !zaznM) { setKomunikat(`„${kl.nazwa}” przeciągnij na szafkę na rysunku — żadna nie jest zaznaczona.`); return; }
     const c = c0 || { idx: project.active, li: null, j: null };
     const it = project.items[c.idx]; if (!it) return;
     const pasuje = (k) => k && makKolumnaProsta(k) && !k.sprzet && (!kl.drzwi || (k.kind || "doors") === "doors");
@@ -21535,6 +21584,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     setKomunikat(null);
     if (a.rodz === "brak") { setKomunikat("Okap — jeszcze w przygotowaniu."); return; }
     if (a.rodz === "wzor") { wstawWzor(a, c0); return; }
+    if (!c0 && !zaznM) { setKomunikat(`„${a.nazwa}” przeciągnij na szafkę na rysunku — żadna nie jest zaznaczona.`); return; }
     const c = c0 || { idx: project.active, li: null, j: null };
     const it = project.items[c.idx]; if (!it) return;
     if (a.rodz === "blat" || a.rodz === "naBlat") {
@@ -21637,29 +21687,34 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   const skalaKlucz = rysowane.map((r) => r.id).join(",");
   const plotno = useRef(null);
   const [plotnoW, setPlotnoW] = useState(0);
+  const [plotnoH, setPlotnoH] = useState(0);
   useEffect(() => {
     const el = plotno.current;
     if (!el || typeof ResizeObserver === "undefined") return undefined;
-    const ro = new ResizeObserver((e) => { const w = Math.round(e[0].contentRect.width); setPlotnoW((v) => (Math.abs(v - w) > 2 ? w : v)); });
+    const ro = new ResizeObserver((e) => { const w = Math.round(e[0].contentRect.width), h = Math.round(e[0].contentRect.height);
+      setPlotnoW((v) => (Math.abs(v - w) > 2 ? w : v)); setPlotnoH((v) => (Math.abs(v - h) > 2 ? h : v)); });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  /* Przyblizanie w kazdym widoku (uzytkownik 2026-11-09: „to powinno być w każdym widoku, nie tylko ciąg — może nie być
+     widać wymiarów, jak dojdą”): „Tylko zaznaczona szafka” liczy skale jak szafki wolnostojace — z jednej szafki. */
+  const wolneSk = samaSzafka ? [{ it: aktIt, i: project.active }] : wolne;
   const skala = useMemo(() => {
-    if (samaSzafka) return null;
-    const zWolnych = !rysowane.length;
+    const zWolnych = samaSzafka || !rysowane.length;
     const full = projectLayout(project);
     const groups = zWolnych ? [] : assemblyParts(project, rysowane, full);
-    const top = zWolnych ? Math.max(0, ...wolne.map(({ it }) => (it.cab.H || 0) + 100)) : Math.max(0, ...groups.flatMap((g) => g.cabs.map((c) => c.base + c.cab.H)));
+    const top = zWolnych ? Math.max(0, ...wolneSk.map(({ it }) => (it.cab.H || 0) + 100)) : Math.max(0, ...groups.flatMap((g) => g.cabs.map((c) => c.base + c.cab.H)));
     if (!(top > 0)) return null;
-    const zapas = pelny ? 120 : 0;   // pelny ekran: bez paska aplikacji nad rysunkiem
-    if (zoomM.pow) return Math.max(0.05, Math.min(8, ((oknoH - 215 + zapas) / (top + 80)) * zoomM.z));
+    // wysokosc okna rysunku: na szerokim ekranie i w pelnym ekranie zmierzona (rysunek wypelnia reszte okna), inaczej z okna
+    const wysR = (lg || pelny) && plotnoH > 100 ? plotnoH : oknoH - 175;
+    if (zoomM.pow) return Math.max(0.05, Math.min(8, ((wysR - 40) / (top + 80)) * zoomM.z));
     if (!(plotnoW > 0)) return null;
     const Lw = zWolnych ? null : runLayout(groups, full);
     const scDo = Lw && Lw.walls.length === 1 ? Math.max(0, ...groups.map((g) => runWallW(project, g.run) || 0)) : 0;
-    const szer = zWolnych ? wolne.reduce((a, { it }) => a + (it.cab.W || 0) + 200, -200) + 80 : Math.max(1, Lw.elevTotal, scDo) + 80;
-    const wys = Math.max(top, zWolnych ? 0 : MAK_SCIANA) + 80 + (przel.zgory ? 900 : 0);
-    return Math.max(0.05, Math.min(2, (plotnoW - 4) / szer, (oknoH - 230 + zapas) / wys) * zoomM.z);
-  }, [project, skalaKlucz, oknoH, plotnoW, zoomM.pow, zoomM.z, pelny, przel.zgory, samaSzafka, wolne.length]);
+    const szer = zWolnych ? wolneSk.reduce((a, { it }) => a + (it.cab.W || 0) + 200, -200) + 80 : Math.max(1, Lw.elevTotal, scDo) + 80;
+    const wys = Math.max(top, zWolnych ? 0 : MAK_SCIANA) + 80 + (przel.zgory && !samaSzafka ? 900 : 0);
+    return Math.max(0.05, Math.min(2, (plotnoW - 4) / szer, (wysR - 55) / wys) * zoomM.z);
+  }, [project, skalaKlucz, oknoH, plotnoW, plotnoH, lg, zoomM.pow, zoomM.z, pelny, przel.zgory, samaSzafka, wolne.length, project.active]);
   // Ctrl + kolko nad rysunkiem: przyblizanie w miejscu kursora (jak w trybie technicznym)
   const zoomRefM = useRef(zoomM); zoomRefM.current = zoomM;
   const poZoomie = useRef(null);
@@ -21697,7 +21752,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   return (
     <div data-el="makieta" data-tryb={tryb}
       className={`mx-auto grid max-w-[1900px] items-start gap-2 px-3 py-3 ${karta ? "lg:grid-cols-[80px_250px_minmax(0,1fr)]" : "lg:grid-cols-[80px_minmax(0,1fr)]"}`}>
-      <nav aria-label="Co zmieniasz" className="flex flex-wrap gap-0.5 rounded-lg border border-stone-200 bg-white p-1.5 lg:sticky lg:top-24 lg:flex-col lg:flex-nowrap lg:items-stretch">
+      <nav aria-label="Co zmieniasz" style={lg ? { top: gora } : undefined} className="flex flex-wrap gap-0.5 rounded-lg border border-stone-200 bg-white p-1.5 lg:sticky lg:flex-col lg:flex-nowrap lg:items-stretch">
         <p className="hidden px-0.5 pb-1 text-center text-[10px] uppercase leading-tight tracking-wider text-stone-500 lg:block">Dodaj / zmień</p>
         {zakl.map(([k, l]) => (
           <button key={k} data-zakl={k} aria-pressed={akt === k} title={akt === k ? (karta ? "Zwiń kartę (większy rysunek)" : "Rozwiń kartę") : undefined}
@@ -21708,24 +21763,52 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
             {MAK_IKONY[k] && <MakIkona d={MAK_IKONY[k]} />}{l}</button>
         ))}
       </nav>
-      {karta && <section className="relative rounded-lg border border-stone-200 bg-white p-2.5 lg:sticky lg:top-24" data-el="mak-karta-panel">
+      {karta && <section className="relative rounded-lg border border-stone-200 bg-white p-2.5 lg:sticky" data-el="mak-karta-panel"
+        style={lg ? { top: gora, maxHeight: oknoH - gora - 8, overflowY: "auto" } : undefined}>
         <button data-el="mak-karta-schowaj" onClick={() => setKarta(false)} title="Schowaj kartę (większy rysunek)"
           className="absolute right-1.5 top-1.5 rounded px-1.5 text-sm leading-none text-stone-400 hover:bg-stone-100 hover:text-stone-700">‹</button>
         <div className="space-y-3">
-          <MakietaPaleta zakladka={akt} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
-            project={project} pokoj={pokoj} wybierz={switchCabinet} zmien={zmien}
-            zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); }} />
-          {akt !== "agd" && (
-            <div className={MAK_KLOCKI_ZAKL[akt] || akt === "szafka" ? "border-t border-stone-200 pt-2" : ""}>
-              <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} zmienProjekt={zmienProjekt} ciag={ciag}
-                geoOf={(i) => geoRysunku.current[i]} />
+          {akt === "dodaj" ? (
+            <div className="space-y-1.5" data-el="mak-dodaj">
+              <h2 className="text-[15px] font-semibold text-stone-900">Dodaj</h2>
+              {MAK_DODAJ.map(([k, l, opis, ik, zak]) => (
+                <div key={k} className={`rounded-lg border ${dodajCo === k ? "border-teal-600" : "border-stone-200"}`}>
+                  <button data-dodaj={k} aria-expanded={dodajCo === k} onClick={() => setDodajCo((v) => (v === k ? null : k))}
+                    className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left ${dodajCo === k ? "bg-teal-50" : "hover:bg-stone-50"}`}>
+                    <MakIkona d={MAK_IKONY[ik]} size={20} />
+                    <span className="min-w-0 flex-1"><b className="block text-[13px] font-semibold text-stone-800">{l}</b><span className="block text-[11px] leading-tight text-stone-500">{opis}</span></span>
+                    <span aria-hidden="true" className="text-xs text-stone-500">{dodajCo === k ? "▾" : "▸"}</span>
+                  </button>
+                  {dodajCo === k && (
+                    <div className="border-t border-stone-200 p-2">
+                      <MakietaPaleta zakladka={zak} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+                        project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
+                        zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); }} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : zaznM && aktIt ? (
+            <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} zmienProjekt={zmienProjekt} ciag={ciag}
+              geoOf={(i) => geoRysunku.current[i]} onOdznacz={() => setZaznM(false)} />
+          ) : (
+            <div className="space-y-2" data-el="mak-bez-zaznaczenia">
+              <p className="rounded-md bg-stone-50 px-2 py-1.5 text-[12px] text-stone-600">
+                Żadna szafka nie jest zaznaczona{akt === "szafka" || MAK_KLOCKI_ZAKL[akt] ? " — przeciągnij na rysunek, co chcesz dodać" : ""}. Klik w szafkę pokaże jej opcje.
+              </p>
+              {(akt === "szafka" || MAK_KLOCKI_ZAKL[akt]) && (
+                <MakietaPaleta zakladka={akt} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+                  project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
+                  zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); }} />
+              )}
             </div>
           )}
         </div>
       </section>}
-      <section className={pelny ? "fixed inset-0 z-50 overflow-hidden bg-white p-3" : "min-w-0 rounded-lg border border-stone-200 bg-white p-3 lg:sticky lg:top-24"} data-pelny={pelny ? "1" : undefined} onPointerDownCapture={naPoczatek}
+      <section className={pelny ? "fixed inset-0 z-50 flex flex-col overflow-hidden bg-white p-3" : "flex min-w-0 flex-col rounded-lg border border-stone-200 bg-white p-3 lg:sticky"} data-pelny={pelny ? "1" : undefined} onPointerDownCapture={naPoczatek}
         onDragOver={naPrzeciaganie} onDrop={naUpuszczenie} data-el="makieta-rysunek"
-        style={podglad ? { touchAction: "none", userSelect: "none" } : undefined}>
+        style={{ ...(lg && !pelny ? { top: gora, height: oknoH - gora - 8 } : {}), ...(podglad ? { touchAction: "none", userSelect: "none" } : {}) }}>
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <Rozwijana el="mak-pomieszczenie" etykieta="Pomieszczenie" wartosc={pokoj}
             opcje={roomsOf(project).map((r) => ({ v: r.id, l: r.name }))}
@@ -21734,10 +21817,10 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
             opcje={[{ v: "szafka", l: "Tylko zaznaczona szafka", opis: "duży rysunek do przeciągania" }, { v: "aktywny", l: "Ciąg zaznaczonej szafki", opis: "z ciągiem górnym nad nim" }, { v: "wszystkie", l: "Wszystkie ciągi", opis: wolne.length ? "i szafki wolnostojące" : "" },
               ...runs.map((r) => ({ v: r.id, l: r.name || "Ciąg", opis: `${runItems(project, r.id).length} szafek` }))]}
             onWybierz={setCiagId} />
-          <Rozwijana el="mak-szafka" etykieta="Szafka" wartosc={project.active}
-            opcje={itemsInRoom(project, pokoj).map(({ it, i }) => ({ v: i, l: it.cab.name || `Szafka ${i + 1}`,
-              opis: `${fmt(it.cab.W)} × ${fmt(it.cab.H)} · ${it.runId ? ((project.runs || []).find((r) => r.id === it.runId) || {}).name || "ciąg" : "wolnostojąca"}` }))}
-            onWybierz={switchCabinet} />
+          <Rozwijana el="mak-szafka" etykieta="Szafka" wartosc={zaznM ? project.active : -1}
+            opcje={[{ v: -1, l: "Żadna", opis: "zakładki pokażą, co można dodać" }, ...itemsInRoom(project, pokoj).map(({ it, i }) => ({ v: i, l: it.cab.name || `Szafka ${i + 1}`,
+              opis: `${fmt(it.cab.W)} × ${fmt(it.cab.H)} · ${it.runId ? ((project.runs || []).find((r) => r.id === it.runId) || {}).name || "ciąg" : "wolnostojąca"}` }))]}
+            onWybierz={(v) => (v === -1 ? setZaznM(false) : wybierz(v))} />
         </div>
         {(() => {
           /* Naglowek jak w makiecie „Dodaj”: nazwa ciagu i jego dlugosc, sciana (− / +) i ile wolnego (`run.wallW`). */
@@ -21777,43 +21860,42 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           {MAK_PRZEL.filter(([k]) => maPietra || (k !== "gorny" && k !== "dolny")).map(([k, l]) => (
             <Przelacznik key={k} k={k} l={l} on={!!przel[k]} onClick={() => setPrzel((p) => ({ ...p, [k]: !p[k] }))} />
           ))}
-          {!samaSzafka && <Przelacznik k="powieksz" l="Powiększ" on={!!zoomM.pow} onClick={() => setZoomM((m) => ({ ...m, pow: !m.pow }))} />}
+          <Przelacznik k="powieksz" l="Powiększ" on={!!zoomM.pow} onClick={() => setZoomM((m) => ({ ...m, pow: !m.pow }))} />
           {widokRys !== widok && <span className="text-[11px] text-stone-500">wnętrze — w tej zakładce zawsze</span>}
           {celOpis && <span className="rounded bg-teal-700 px-1.5 py-0.5 text-[11px] font-medium text-white" data-el="mak-cel">upuść: {celOpis}</span>}
           <span className="ml-auto flex items-center gap-1" data-el="mak-zoom">
-            {!samaSzafka && <>
-              <MiniBtn onClick={() => krokZoom(-1)} title="Pomniejsz">−</MiniBtn>
-              <span className="w-10 text-center font-mono text-[11px] text-stone-500" data-el="mak-zoom-proc" title="Ctrl + kółko nad rysunkiem: przybliż">{Math.round(zoomM.z * 100)}%</span>
-              <MiniBtn onClick={() => krokZoom(1)} title="Powiększ">+</MiniBtn>
-              <MiniBtn onClick={() => setZoomM({ pow: false, z: 1 })} title="Cały rysunek w oknie">Dopasuj</MiniBtn>
-            </>}
+            <MiniBtn onClick={() => krokZoom(-1)} title="Pomniejsz">−</MiniBtn>
+            <span className="w-10 text-center font-mono text-[11px] text-stone-500" data-el="mak-zoom-proc" title="Ctrl + kółko nad rysunkiem: przybliż">{Math.round(zoomM.z * 100)}%</span>
+            <MiniBtn onClick={() => krokZoom(1)} title="Powiększ">+</MiniBtn>
+            <MiniBtn onClick={() => setZoomM({ pow: false, z: 1 })} title="Cały rysunek w oknie">Dopasuj</MiniBtn>
             <MiniBtn onClick={() => setPelny((v) => !v)} tone={pelny ? "on" : "plain"} title={pelny ? "Wróć do zwykłego widoku (Esc)" : "Rysunek na całe okno"}>
               {pelny ? "Zamknij pełny ekran" : "Pełny ekran"}
             </MiniBtn>
           </span>
         </div>
-        <div data-el="mak-plotno" ref={plotno} className="overflow-auto" style={{ maxHeight: pelny ? "calc(100vh - 110px)" : "calc(100vh - 175px)" }}>
+        <div data-el="mak-plotno" ref={plotno} className={`overflow-auto ${lg || pelny ? "min-h-0 flex-1" : ""}`}
+          onClick={(e) => { if (!(e.target.closest && e.target.closest("[data-el=makieta-szafka]"))) setZaznM(false); }} style={lg || pelny ? undefined : { maxHeight: "calc(100vh - 175px)" }}>
         {przel.zgory && !samaSzafka && rysowane.length > 0 && (
           <div data-el="mak-zgory">
             <p className="text-[11px] text-stone-500">Z góry</p>
             <AssemblyTopView project={project} runs={rysowane} showDims={false} showShelves showHardware={false}
-              onPick={switchCabinet} zazn={project.active} maxH={maxHGora} nakladka={nakladkaGora} skala={skala} />
+              onPick={wybierz} zazn={zaznM ? project.active : null} maxH={maxHGora} nakladka={nakladkaGora} skala={skala} />
           </div>
         )}
         {(przel.zgory && !samaSzafka && rysowane.length > 0) && <p className="mt-1 text-[11px] text-stone-500">Widok z przodu</p>}
         {samaSzafka && (
-          <MakietaWolnostojace project={project} items={[{ it: aktIt, i: project.active }]} open={widokRys === "open"} onPick={switchCabinet}
-            zazn={project.active} maxH={maxH} nakladka={nakladkaPrzod} />
+          <MakietaWolnostojace project={project} items={[{ it: aktIt, i: project.active }]} open={widokRys === "open"} onPick={wybierz}
+            zazn={zaznM ? project.active : null} maxH={maxH} nakladka={nakladkaPrzod} skala={skala} />
         )}
         {!samaSzafka && rysowane.length > 0 && (
           <AssemblyView project={project} runs={rysowane} rpOf={rpOf} variant={widokRys} showDims={false}
             showHardware={false} showLabels activeCab={(project.items[project.active] || {}).cab}
-            onPick={switchCabinet} zazn={project.active} maxH={maxHPrzod} nakladka={nakladkaPrzod} skala={skala} sciana={MAK_SCIANA} />
+            onPick={wybierz} zazn={zaznM ? project.active : null} maxH={maxHPrzod} nakladka={nakladkaPrzod} skala={skala} sciana={MAK_SCIANA} />
         )}
         {pokazWolne && wolne.length > 0 && (
           <div className="mt-2">
             {wybrane.length > 0 && <p className="mb-1 text-xs text-stone-500">Szafki wolnostojące</p>}
-            <MakietaWolnostojace project={project} items={wolne} open={widokRys === "open"} onPick={switchCabinet} zazn={project.active} maxH={maxH} nakladka={nakladkaPrzod}
+            <MakietaWolnostojace project={project} items={wolne} open={widokRys === "open"} onPick={wybierz} zazn={zaznM ? project.active : null} maxH={maxH} nakladka={nakladkaPrzod}
               skala={!wybrane.length ? skala : null} zGory={!wybrane.length && przel.zgory} />
           </div>
         )}
@@ -24920,9 +25002,13 @@ export default function App() {
   const warnsNowe = warns.filter((m) => !przeczytane.has(m.text));
   const infosNowe = infos.filter((m) => !przeczytane.has(m.text));
   const notesRef = useRef(null);
-  const scrollToNotes = () =>
+  const scrollToNotes = () => {
+    // w makiecie karta technicznego jest schowana — uwagi stoja pod rysunkiem makiety
+    const mak = makieta && document.querySelector('[data-el="makieta-uwagi"]');
+    if (mak) { mak.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     przewinWKolumnie(notesRef.current, PRZYPIETY_ODSTEP)
       || notesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // HDF na plecy jest za cienki na obrzeze — nie dajemy nawet klikac
   const EdgeChips = ({ p }) =>
@@ -24941,6 +25027,133 @@ export default function App() {
         )}
       </div>
     );
+
+  /* Karta „Uwagi” (bledy, ostrzezenia z przyciskami poprawek, podpowiedzi, inne szafki i pomieszczenia) — w trybie
+     technicznym pod ustawieniami, w makiecie pod rysunkiem (zgloszenie 2026-11-09: „brak w prostym wyświetlanych na dole
+     ostrzeżeń i błędów i podpowiedzi”). Dotyczy aktywnej szafki projektu. `zRef` — tylko jedna kopia ma ref do przewijania. */
+  const uwagiKarta = (zRef) => ((errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0 || rozkrojUwagi.inne.length > 0) && (
+            <div ref={zRef ? notesRef : undefined} className="scroll-mt-24" data-el={zRef ? undefined : "makieta-uwagi"}>
+            {/* uwagi zawsze na wierzchu — bez zwijania (uzytkownik 2026-09-29) */}
+            <Card title="Uwagi" collapsible={false}>
+              {(errors.length > 0 || warns.length > 0) && (() => {
+                /* Ostrzezenie mozna odhaczyc tak samo jak podpowiedz: odhaczone
+                   schodzi pod zwijany naglowek i przestaje sie liczyc u gory.
+                   Bledow sie nie odhacza — to nie jest cos, co da sie odklikac. */
+                const stare = warns.filter((m) => przeczytane.has(m.text));
+                const linia = (m, i, czyt) => (
+                  <NoteLine key={(czyt ? "wp" : "w") + i} text={m.text} color={WARNC} icon="!"
+                    przed={znacznik(m.text, czyt)}
+                    editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab}
+                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} setPlinthSb={setPlinthSb} />
+                );
+                return (
+                  <>
+                    {(errors.length > 0 || warnsNowe.length > 0) && (
+                      <ul className="space-y-2">
+                        {errors.map((m, i) => (
+                          <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} setPlinthSb={setPlinthSb} />
+                        ))}
+                        {warnsNowe.map((m, i) => linia(m, i, false))}
+                      </ul>
+                    )}
+                    {stare.length > 0 && (
+                      <div className={(errors.length || warnsNowe.length) ? "mt-3 border-t border-stone-100 pt-2" : ""}>
+                        <button onClick={() => setPokazPrzeczytaneW((v) => !v)}
+                          className="flex items-center gap-2 text-xs text-stone-400 hover:text-stone-600">
+                          <span className={"text-[10px] leading-none transition-transform "
+                            + (pokazPrzeczytaneW ? "" : "-rotate-90")}>▼</span>
+                          Przeczytane ostrzeżenia ({stare.length})
+                        </button>
+                        {pokazPrzeczytaneW && (
+                          <ul className="mt-2 space-y-2 opacity-60">{stare.map((m, i) => linia(m, i, true))}</ul>
+                        )}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+              {infos.length > 0 && (() => {
+                const nowe = infosNowe;
+                const stare = infos.filter((m) => przeczytane.has(m.text));
+                /* Znacznik idzie do srodka wiersza uwagi, a nie w osobne <li> —
+                   zagniezdzone listy dublowaly kazda podpowiedz. */
+                const linia = (m, i, czyt) => (
+                  <NoteLine key={(czyt ? "p" : "i") + i} text={m.text} color="#78716c" icon="i"
+                    przed={znacznik(m.text, czyt)}
+                    editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab}
+                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} setPlinthSb={setPlinthSb} />
+                );
+                return (
+                  <div className={(errors.length || warns.length) ? "border-t border-stone-100 pt-3" : ""}>
+                    <div className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">
+                      Podpowiedzi — nic nie trzeba poprawiać
+                    </div>
+                    {nowe.length > 0 && <ul className="space-y-2">{nowe.map((m, i) => linia(m, i, false))}</ul>}
+                    {stare.length > 0 && (
+                      <div className={nowe.length ? "mt-3 border-t border-stone-100 pt-2" : ""}>
+                        <button onClick={() => setPokazPrzeczytane((v) => !v)}
+                          className="flex items-center gap-2 text-xs text-stone-400 hover:text-stone-600">
+                          <span className={"text-[10px] leading-none transition-transform "
+                            + (pokazPrzeczytane ? "" : "-rotate-90")}>▼</span>
+                          Przeczytane ({stare.length})
+                        </button>
+                        {pokazPrzeczytane && (
+                          <ul className="mt-2 space-y-2 opacity-60">{stare.map((m, i) => linia(m, i, true))}</ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              {rozkrojUwagi.inne.length > 0 && (
+                <div className={(errors.length || warns.length || infos.length) ? "border-t border-stone-100 pt-3" : ""} data-el="uwagi-inne-pomieszczenia">
+                  <div className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">
+                    Do sprawdzenia w innych pomieszczeniach
+                  </div>
+                  <ul className="space-y-1.5">
+                    {rozkrojUwagi.inne.map((m, k) => (
+                      <li key={k} className="text-sm" style={{ color: WARNC }}>
+                        <span className="font-mono">!</span>{" "}
+                        {m.pokoje.map((r, q) => (
+                          <span key={r.id}>
+                            {q > 0 && ", "}
+                            <button onClick={() => switchRoom(r.id)} className="font-medium hover:underline">{r.name}</button>
+                          </span>
+                        ))}
+                        <span className="text-stone-500"> — {m.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {otherNotes.length > 0 && (
+                <div className={(errors.length || warns.length || infos.length || rozkrojUwagi.inne.length) ? "border-t border-stone-100 pt-3" : ""}>
+                  <div className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">
+                    Do sprawdzenia w innych szafkach
+                  </div>
+                  <ul className="space-y-1.5">
+                    {otherNotes.map((n) => (
+                      <li key={n.i} className="text-sm">
+                        <button onClick={() => switchCabinet(n.i)}
+                          className="text-left hover:underline"
+                          style={{ color: n.err ? ERRC : WARNC }}>
+                          <span className="font-mono">{n.err ? "×" : "!"}</span>{" "}
+                          <span className="font-medium">{n.name}</span>
+                          <span className="text-stone-500">
+                            {" — "}
+                            {[n.err && `${n.err} ${plural(n.err, "błąd", "błędy", "błędów")}`,
+                              n.warn && `${n.warn} ${plural(n.warn, "ostrzeżenie", "ostrzeżenia", "ostrzeżeń")}`]
+                              .filter(Boolean).join(", ")}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </Card>
+            </div>
+          ));
 
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900" data-tryb={makieta ? "makieta" : "techniczny"}>
@@ -25335,7 +25548,8 @@ export default function App() {
       </div>
       </header>
 
-      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} ciag={{ setRun, setRunShared }} dodaj={addCabinet} dodajGorny={addUpperRun} />}
+      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} ciag={{ setRun, setRunShared }} dodaj={addCabinet} dodajGorny={addUpperRun} gora={wysNaglowka + PRZYPIETY_ODSTEP} />}
+      {makieta && <div className="print-hide mx-auto max-w-[1900px] px-3 pb-6">{uwagiKarta(false)}</div>}
       <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]"
         style={makieta ? { display: "none" } : undefined}>
         <div className="space-y-4">
@@ -28068,129 +28282,7 @@ export default function App() {
             )}
           </Card>
 
-          {(errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0 || rozkrojUwagi.inne.length > 0) && (
-            <div ref={notesRef} className="scroll-mt-24">
-            {/* uwagi zawsze na wierzchu — bez zwijania (uzytkownik 2026-09-29) */}
-            <Card title="Uwagi" collapsible={false}>
-              {(errors.length > 0 || warns.length > 0) && (() => {
-                /* Ostrzezenie mozna odhaczyc tak samo jak podpowiedz: odhaczone
-                   schodzi pod zwijany naglowek i przestaje sie liczyc u gory.
-                   Bledow sie nie odhacza — to nie jest cos, co da sie odklikac. */
-                const stare = warns.filter((m) => przeczytane.has(m.text));
-                const linia = (m, i, czyt) => (
-                  <NoteLine key={(czyt ? "wp" : "w") + i} text={m.text} color={WARNC} icon="!"
-                    przed={znacznik(m.text, czyt)}
-                    editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab}
-                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} setPlinthSb={setPlinthSb} />
-                );
-                return (
-                  <>
-                    {(errors.length > 0 || warnsNowe.length > 0) && (
-                      <ul className="space-y-2">
-                        {errors.map((m, i) => (
-                          <NoteLine key={"e" + i} text={m.text} color={ERRC} icon="×" editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab} cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} setPlinthSb={setPlinthSb} />
-                        ))}
-                        {warnsNowe.map((m, i) => linia(m, i, false))}
-                      </ul>
-                    )}
-                    {stare.length > 0 && (
-                      <div className={(errors.length || warnsNowe.length) ? "mt-3 border-t border-stone-100 pt-2" : ""}>
-                        <button onClick={() => setPokazPrzeczytaneW((v) => !v)}
-                          className="flex items-center gap-2 text-xs text-stone-400 hover:text-stone-600">
-                          <span className={"text-[10px] leading-none transition-transform "
-                            + (pokazPrzeczytaneW ? "" : "-rotate-90")}>▼</span>
-                          Przeczytane ostrzeżenia ({stare.length})
-                        </button>
-                        {pokazPrzeczytaneW && (
-                          <ul className="mt-2 space-y-2 opacity-60">{stare.map((m, i) => linia(m, i, true))}</ul>
-                        )}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-              {infos.length > 0 && (() => {
-                const nowe = infosNowe;
-                const stare = infos.filter((m) => przeczytane.has(m.text));
-                /* Znacznik idzie do srodka wiersza uwagi, a nie w osobne <li> —
-                   zagniezdzone listy dublowaly kazda podpowiedz. */
-                const linia = (m, i, czyt) => (
-                  <NoteLine key={(czyt ? "p" : "i") + i} text={m.text} color="#78716c" icon="i"
-                    przed={znacznik(m.text, czyt)}
-                    editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab}
-                    cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} setPlinthSb={setPlinthSb} />
-                );
-                return (
-                  <div className={(errors.length || warns.length) ? "border-t border-stone-100 pt-3" : ""}>
-                    <div className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">
-                      Podpowiedzi — nic nie trzeba poprawiać
-                    </div>
-                    {nowe.length > 0 && <ul className="space-y-2">{nowe.map((m, i) => linia(m, i, false))}</ul>}
-                    {stare.length > 0 && (
-                      <div className={nowe.length ? "mt-3 border-t border-stone-100 pt-2" : ""}>
-                        <button onClick={() => setPokazPrzeczytane((v) => !v)}
-                          className="flex items-center gap-2 text-xs text-stone-400 hover:text-stone-600">
-                          <span className={"text-[10px] leading-none transition-transform "
-                            + (pokazPrzeczytane ? "" : "-rotate-90")}>▼</span>
-                          Przeczytane ({stare.length})
-                        </button>
-                        {pokazPrzeczytane && (
-                          <ul className="mt-2 space-y-2 opacity-60">{stare.map((m, i) => linia(m, i, true))}</ul>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-              {rozkrojUwagi.inne.length > 0 && (
-                <div className={(errors.length || warns.length || infos.length) ? "border-t border-stone-100 pt-3" : ""} data-el="uwagi-inne-pomieszczenia">
-                  <div className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">
-                    Do sprawdzenia w innych pomieszczeniach
-                  </div>
-                  <ul className="space-y-1.5">
-                    {rozkrojUwagi.inne.map((m, k) => (
-                      <li key={k} className="text-sm" style={{ color: WARNC }}>
-                        <span className="font-mono">!</span>{" "}
-                        {m.pokoje.map((r, q) => (
-                          <span key={r.id}>
-                            {q > 0 && ", "}
-                            <button onClick={() => switchRoom(r.id)} className="font-medium hover:underline">{r.name}</button>
-                          </span>
-                        ))}
-                        <span className="text-stone-500"> — {m.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {otherNotes.length > 0 && (
-                <div className={(errors.length || warns.length || infos.length || rozkrojUwagi.inne.length) ? "border-t border-stone-100 pt-3" : ""}>
-                  <div className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">
-                    Do sprawdzenia w innych szafkach
-                  </div>
-                  <ul className="space-y-1.5">
-                    {otherNotes.map((n) => (
-                      <li key={n.i} className="text-sm">
-                        <button onClick={() => switchCabinet(n.i)}
-                          className="text-left hover:underline"
-                          style={{ color: n.err ? ERRC : WARNC }}>
-                          <span className="font-mono">{n.err ? "×" : "!"}</span>{" "}
-                          <span className="font-medium">{n.name}</span>
-                          <span className="text-stone-500">
-                            {" — "}
-                            {[n.err && `${n.err} ${plural(n.err, "błąd", "błędy", "błędów")}`,
-                              n.warn && `${n.warn} ${plural(n.warn, "ostrzeżenie", "ostrzeżenia", "ostrzeżeń")}`]
-                              .filter(Boolean).join(", ")}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </Card>
-            </div>
-          )}
+          {uwagiKarta(true)}
 
           {/* „Kontrola frontów” (polozenia i luzy frontow) zdjeta z ekranu — uzytkownikowi
               niepotrzebna (2026-09-29); te same liczby sprawdzaja testy z `geo.doors`. */}

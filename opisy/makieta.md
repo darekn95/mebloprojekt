@@ -39,7 +39,15 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
     przewijany w bok i w dół; „− 100 % +” — dalsze kroki jak w trybie technicznym (do 400 %), Ctrl + kółko nad
     rysunkiem przybliża w miejscu kursora; „Dopasuj” — cały rysunek w oknie (bez „Powiększ”, 100 %); „Pełny ekran” —
     rysunek na całe okno, Esc zamyka. Pamięta przeglądarka (`mp-mak-zoom`).
-  - szafka wolnostojąca z cokołem pod korpusem — cokół narysowany pod nią (zasłania nóżki za nim).
+    Przybliżanie działa w każdym widoku, także „Tylko zaznaczona szafka”.
+  - szafka wolnostojąca z cokołem pod korpusem — cokół narysowany pod nią (zasłania nóżki za nim); drążek
+    (rura na wieszaki) rysuje się jak w widoku szafki — za drzwiami zasłania go front.
+- **Układ na ekranie** (zgłoszenie 2026-11-09: „suwak rysunku na dole, ale suwak okna nie, ucina rysunek”): na
+  szerokim ekranie zakładki, karta i rysunek stoją pod górnym paskiem (jego prawdziwa wysokość, jak „rysunek
+  przypięty” w trybie technicznym), rysunek sięga do dołu okna i ma własne suwaki; długa karta przewija się sama.
+- **Uwagi** (zgłoszenie 2026-11-09: „brak w prostym ostrzeżeń, błędów i podpowiedzi”): pod makietą ta sama karta
+  „Uwagi” co w trybie technicznym (błędy, ostrzeżenia z przyciskami poprawek, podpowiedzi, inne szafki) — dla
+  zaznaczonej (aktywnej) szafki; przycisk „N ostrzeżeń” w pasku przewija do niej.
 - Zakładki po lewej z ikonami i podpisem „Dodaj / zmień”, kafelki palety z miniaturami szafek, nagłówki sekcji
   wielkimi literami — jak w makiecie.
 - **Kartę można schować**: klik w otwartą zakładkę albo „‹” w karcie; rysunek dostaje całą szerokość.
@@ -99,7 +107,7 @@ Zapis do tych samych pól co tryb techniczny; liczy aplikacja.
   wyłączony, szafki ciągu dopasowane do blatu, jak w karcie ciągu). Tylko ciąg stojący.
 
 **Kolumna podzielona na poziomy** (`col.podzial`, `col.segmenty`; zgłoszenie 2026-11-09: „w szafie nie widzi kolumn”):
-każdy poziom kolumny to osobny wiersz „poziom N kolumny J”, od góry, jak w trybie technicznym.
+każdy poziom kolumny to osobny wiersz „kolumna J · poziom N” (najpierw kolumna — użytkownik: „bo się można zgubić”), od góry jak na rysunku; poziomy liczone od dołu, jak w trybie technicznym.
 - Półki „− N +” zmieniają półki tylko w tym poziomie (`polkiWPoziomie`): światła innych poziomów dostają obecne
   wymiary na stałe (z narysowanej geometrii), granice idą razem z nimi; „drążek” — w najwyższym świetle poziomu.
 - Fronty: „1 drzwi / 2 drzwi / Klapa ↑ / Klapa ↓” w `col.segmenty[nr]` (bez „Bez frontu” — poziom kolumny ma front,
@@ -110,8 +118,17 @@ każdy poziom kolumny to osobny wiersz „poziom N kolumny J”, od góry, jak w
 
 ## Paleta, AGD i klocki (krok 5)
 
-Zakładki jak w makiecie „Dodaj” (użytkownik 2026-11-09: „zniknął AGD”):
-- **AGD** (pierwsza) — sprzęt (`MAK_AGD`) i lista „W projekcie” (klik zaznacza szafkę, × usuwa wycięcie / sprzęt
+Zakładki (użytkownik 2026-11-09: „wraca stare Dodaj, ale z modyfikacjami”): **Dodaj**, Szafka, Szuflady, Półki,
+Drzwi i klapy, Przegroda, Cokół i nóżki.
+- **Dodaj** rozwija wybór (jeden naraz, pamięta przeglądarka — `mp-mak-dodaj`): **AGD**, **Nowe szafki** (Kuchnia —
+  dół, Kuchnia — góra, Szafa w zabudowie, Wolnostojące), **Elementy szafki** (klocki: szuflady, półki i drążek,
+  drzwi i klapy, przegroda).
+- **Zaznaczona szafka** (klik w szafkę, wybór z „Szafka ▾”, nowa szafka z palety): pozostałe zakładki pokazują tylko
+  jej opcje (karta). **Bez zaznaczenia** (klik w puste miejsce rysunku, „odznacz” w karcie, „Szafka ▾ → Żadna”):
+  „Szafka” pokazuje nowe szafki, „Szuflady / Półki / Drzwi i klapy / Przegroda” — swoje klocki do przeciągnięcia;
+  klik klocka bez zaznaczonej szafki — komunikat „przeciągnij na szafkę”. Aktywna szafka projektu zostaje (tryb
+  techniczny otwiera ją jak dotąd).
+- **AGD** — sprzęt (`MAK_AGD`) i lista „W projekcie” (klik zaznacza szafkę, × usuwa wycięcie / sprzęt
   na blacie / sprzęt z kolumny):
   - płyta, zlew — wycięcie w blacie nad szafką (tylko pod blatem roboczym, inaczej komunikat);
   - piekarnik, mikrofala, ekspres, lodówka do zabudowy — sprzęt w kolumnie, na którą upuścisz
@@ -119,8 +136,6 @@ Zakładki jak w makiecie „Dodaj” (użytkownik 2026-11-09: „zniknął AGD�
   - lodówka podblatowa i wolnostojąca, zmywarka i zmywarka wolnostojąca — pozycja w ciągu jak szafka;
   - mikrofala i ekspres wolnostojące — na blat (tylko rysunek);
   - okap — w przygotowaniu.
-- **Szafka** — wzory szafek nad kartą zaznaczonej szafki.
-- **Szuflady, Półki, Drzwi i klapy, Przegroda** — klocki tej zakładki nad kartą.
 - Zaznaczona zakładka ma znaczek „‹” (karta otwarta — klik zwija) albo „›” (schowana — klik rozwija).
 
 Kafelki można przeciągnąć na rysunek albo kliknąć.

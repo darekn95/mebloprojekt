@@ -46,27 +46,27 @@ const wiersz = (t) => page.locator('[data-el="makieta-karta"] [data-el="mak-kolu
 console.log('== karta: poziomy kolumny ==');
 await zakl('szafka');
 const tekst = await page.locator('[data-el="makieta-karta"]').innerText();
-ok('„Szafka”: każdy poziom kolumny 2 i 3 w karcie', ['poziom 4 kolumny 2', 'poziom 1 kolumny 2', 'poziom 2 kolumny 3', 'poziom 1 kolumny 3'].every((t) => tekst.includes(t)), tekst.replace(/\n/g, ' | ').slice(0, 300));
+ok('„Szafka”: każdy poziom kolumny 2 i 3 w karcie', ['kolumna 2 · poziom 4', 'kolumna 2 · poziom 1', 'kolumna 3 · poziom 2', 'kolumna 3 · poziom 1'].every((t) => tekst.includes(t)), tekst.replace(/\n/g, ' | ').slice(0, 300));
 await zakl('polki');
 const nWier = await page.locator('[data-el="makieta-karta"] [data-el="mak-kolumna"]').count();
 ok('„Półki”: kolumna 1 + 4 poziomy kolumny 2 + 2 poziomy kolumny 3', nWier === 7, String(nWier));
-ok('poziom 2 kolumny 3: 1 półka (światła 2–3 kolumny)', (await wiersz('poziom 2 kolumny 3').locator('[data-el="mak-polki-n"]').innerText()) === '1');
-await wiersz('poziom 1 kolumny 3').locator('[data-el="mak-polki"][data-v="1"]').click(); await page.waitForTimeout(400);
+ok('kolumna 3 · poziom 2: 1 półka (światła 2–3 kolumny)', (await wiersz('kolumna 3 · poziom 2').locator('[data-el="mak-polki-n"]').innerText()) === '1');
+await wiersz('kolumna 3 · poziom 1').locator('[data-el="mak-polki"][data-v="1"]').click(); await page.waitForTimeout(400);
 let L = await czekajNa('L[2].shelfTargets.length === 5');
 ok('„+” w poziomie 1 kolumny 3: półka w tym poziomie, granica idzie za nią', L[2].shelfTargets.length === 5 && L[2].podzial.join() === '2', JSON.stringify({ st: L[2].shelfTargets, pz: L[2].podzial }));
-ok('poziom 2 kolumny 3 dalej ma 1 półkę, poziom 1 — 2', (await wiersz('poziom 2 kolumny 3').locator('[data-el="mak-polki-n"]').innerText()) === '1' && (await wiersz('poziom 1 kolumny 3').locator('[data-el="mak-polki-n"]').innerText()) === '2');
-await wiersz('poziom 3 kolumny 2').locator('[data-el="mak-drazek"]').click(); await page.waitForTimeout(400);
+ok('kolumna 3 · poziom 2 dalej ma 1 półkę, poziom 1 — 2', (await wiersz('kolumna 3 · poziom 2').locator('[data-el="mak-polki-n"]').innerText()) === '1' && (await wiersz('kolumna 3 · poziom 1').locator('[data-el="mak-polki-n"]').innerText()) === '2');
+await wiersz('kolumna 2 · poziom 3').locator('[data-el="mak-drazek"]').click(); await page.waitForTimeout(400);
 L = await czekajNa('(L[1].drazki || []).length > 0');
 ok('drążek w poziomie 3 kolumny 2 (światło 2)', (L[1].drazki || []).join() === '2', JSON.stringify(L[1].drazki));
 
 console.log('== fronty i szuflady w poziomie kolumny ==');
 await zakl('drzwi');
-await wiersz('poziom 1 kolumny 2').locator('[data-el="mak-front"][data-v="drzwi-2"]').click(); await page.waitForTimeout(400);
+await wiersz('kolumna 2 · poziom 1').locator('[data-el="mak-front"][data-v="drzwi-2"]').click(); await page.waitForTimeout(400);
 L = await czekajNa('L[1].segmenty && L[1].segmenty[0] && L[1].segmenty[0].doors === 2');
 ok('„2 drzwi” w poziomie 1 kolumny 2 (reszta kolumny — klapy)', (L[1].segmenty || [])[0] && L[1].segmenty[0].doors === 2 && L[1].segmenty[0].klapa === null && L[1].klapa === 'gora', JSON.stringify(L[1].segmenty));
-ok('poziom kolumny bez „Bez frontu”', !(await wiersz('poziom 2 kolumny 2').locator('[data-v="otwarta"]').count()));
+ok('poziom kolumny bez „Bez frontu”', !(await wiersz('kolumna 2 · poziom 2').locator('[data-v="otwarta"]').count()));
 await zakl('szuflady');
-await wiersz('poziom 4 kolumny 2').locator('[data-el="mak-szuflady"][data-v="2"]').click(); await page.waitForTimeout(500);
+await wiersz('kolumna 2 · poziom 4').locator('[data-el="mak-szuflady"][data-v="2"]').click(); await page.waitForTimeout(500);
 L = await czekajNa('L[1].segmenty && L[1].segmenty[3] && L[1].segmenty[3].kind === "drawers"');
 ok('2 szuflady w poziomie 4 kolumny 2', (L[1].segmenty || [])[3] && L[1].segmenty[3].kind === 'drawers' && L[1].segmenty[3].drawers.length === 2, JSON.stringify(L[1].segmenty));
 const uch = page.locator('[data-u="szufl"][data-seg="3"]');
@@ -79,9 +79,34 @@ if (await uch.count()) {
   ok('przeciągnięcie: front dolnej szuflady poziomu zapisany w poziomie', L[1].segmenty[3].drawers[0].front > 0 && L[1].segmenty[3].drawers[1].front == null, JSON.stringify(L[1].segmenty[3].drawers.map((d) => d.front)));
 }
 
-console.log('== cokół szafki wolnostojącej ==');
+console.log('== cokół, drążek, okno rysunku ==');
 ok('cokół pod korpusem narysowany', (await page.locator('[data-el="cokol-szafki"]').count()) >= 1);
-
+ok('drążek otwartej kolumny narysowany (zgłoszenie „a gdzie się to wyświetla?”)', (await page.locator('[data-el="makieta"] [data-el="rura-wieszaki"]').count()) >= 1);
+const okno = await page.evaluate(() => { const r = document.querySelector('[data-el="makieta-rysunek"]').getBoundingClientRect(), n = document.querySelector('[data-el="naglowek"]').getBoundingClientRect();
+  return { gora: Math.round(r.top), dol: Math.round(r.bottom), nagl: Math.round(n.bottom), H: innerHeight }; });
+ok('rysunek pod paskiem i do dołu okna (suwak rysunku widoczny)', okno.dol <= okno.H && okno.gora >= okno.nagl && okno.dol > okno.H - 40, JSON.stringify(okno));
+console.log('== przybliżanie w każdym widoku ==');
+await page.locator('[data-el="mak-ciag"] button').first().click(); await page.locator('[data-el="mak-ciag"] [data-v="szafka"]').click(); await page.waitForTimeout(400);
+const wys = async () => page.evaluate(() => { const s = [...document.querySelectorAll('[data-el="mak-plotno"] svg')].find((q) => q.querySelector('[data-el="makieta-szafka"]')); return s ? Math.round(s.getBoundingClientRect().height) : 0; });
+const h1 = await wys();
+ok('„Tylko zaznaczona szafka”: − / % / + / Dopasuj / Powiększ', (await page.locator('[data-el="mak-zoom"] button').count()) >= 4 && (await page.locator('[data-el="mak-przel"] [data-p="powieksz"]').count()) === 1);
+await page.locator('[data-el="mak-zoom"] button[title="Powiększ"]').click(); await page.waitForTimeout(400);
+const h2 = await wys();
+ok('„+” powiększa samą szafkę', h2 > h1 * 1.15, `${h1} → ${h2}`);
+await page.locator('[data-el="mak-zoom"] button', { hasText: 'Dopasuj' }).click(); await page.waitForTimeout(300);
+await page.locator('[data-el="mak-ciag"] button').first().click(); await page.locator('[data-el="mak-ciag"] [data-v="aktywny"]').click(); await page.waitForTimeout(400);
+console.log('== uwagi w makiecie ==');
+await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(200);
+const uw = page.locator('[data-el="makieta-uwagi"]');
+ok('karta „Uwagi” pod makietą (błędy, ostrzeżenia, podpowiedzi)', (await uw.count()) === 1 && /Uwagi/.test(await uw.innerText()), String(await uw.count()));
+const pod = await page.evaluate(() => document.querySelector('[data-el="makieta-uwagi"]').getBoundingClientRect().top >= document.querySelector('[data-el="makieta-rysunek"]').getBoundingClientRect().bottom - 1);
+ok('uwagi na dole — pod rysunkiem (rysunek bez ucięcia na górze strony)', pod);
+const odznaka = page.locator('[data-el="naglowek"] button', { hasText: /ostrze|błęd/ }).first();
+if (await odznaka.count()) {
+  await odznaka.click(); await page.waitForTimeout(800);
+  const r = await uw.boundingBox();
+  ok('przycisk ostrzeżeń w pasku przewija do uwag makiety', !!r && r.y < 950 && r.y + 20 > 0, JSON.stringify(r));
+}
 console.log('bledy strony:', errors.length ? errors.join(' | ') : 'brak');
 if (errors.length) bledy++;
 console.log(bledy ? `${bledy} BLAD` : 'WSZYSTKO OK');
