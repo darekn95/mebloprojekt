@@ -1057,10 +1057,21 @@ wysokość 30 cm od góry dla stabilizacji” + „z kontenerem szuflad”): biu
 wzmocnienia 300 od wierzchu — do potwierdzenia przy aplikacji). „Biurko z kontenerem”: kontener szuflad pod blatem zamiast
 boku (`kontener` L / P, `kontW` 400 / 450 / 500, `kontSz` 2–4), w karcie biurka przelaczniki i „Miejsce na nogi”.
 Kolejnosc: bok(i) / kontener ze wzmocnieniem, potem blat od spodu.
-[AI-TODO] Aplikacja glowna, szablon „Biurko” (uzytkownik 2026-11-09): dolozyc wzmocnienie tylne pod blatem (300 od wierzchu)
-i wariant z kontenerem szuflad. Do decyzji uzytkownika przy wdrozeniu: laczenie wzmocnienia z bokami — konfirmaty przez boki
-(lby widac na zewnatrz boku biurka, zaslepki) albo kolki z mimosrodami / zlacza ukryte; przy kontenerze konfirmat od srodka
-kontenera (dostep przed wlozeniem szuflad).
+[AI-INFO] Wersja 23–24 (uzytkownik 2026-11-09):
+- wzmocnienie biurka to PLYTA 300 mm wysokosci, wewnatrz miedzy bokami, od blatu w dol (poprawione z „dol 300 od wierzchu”);
+  laczenie z bokami do wyboru `wzmLacz`: konfirmaty + zaslepki (domyslnie) / kolki z mimosrodami;
+- szuflady: chwyta sie cala szuflade (gorna polowa — linia nad nia, dolna — pod nia), dwuklik — jej wysokosc; w okienku
+  „Ta szuflada typowa / jak po równo” zmienia TYLKO te szuflade (karta: „po równo” dla wszystkich); szuflady kontenera
+  biurka tez (`kontD`, wl „k:id”);
+- najwyzsza polka: w okienku drugie pole „Światło od góry (do wieńca)”, przy drazku napis „↕N od góry”;
+- wymiary szafki w zakladce Szafka: z przodu prawa krawedz — szerokosc, gorna — wysokosc (nie dolna w kuchni — pod blat),
+  z gory przod — glebokosc (`q.gl`, domyslnie dolna 560 / slupek, szafa, biurko 600 / wolnostojaca 450); pola „własna”
+  w karcie; zielone znaczki na rysunku;
+- BLAD naprawiony: przypiety rysunek byl wyzszy niz okno (krotki ciag wolnostojacych, ekran ~830 px) — dol (szuflady,
+  podloga) byl niedostepny; teraz `dopasujRysunek()` ogranicza wysokosc rysunku do okna.
+[AI-TODO] Aplikacja glowna, szablon „Biurko” (uzytkownik 2026-11-09): dolozyc plyte wzmacniajaca z tylu (300 mm wysokosci,
+miedzy bokami pod blatem; laczenie do wyboru, domyslnie konfirmaty + zaslepki — lby na zewnatrz boku; przy kontenerze
+konfirmat od srodka kontenera, przed wlozeniem szuflad) i wariant z kontenerem szuflad.
 [AI-TODO] W aplikacji glownej lodowka wolnostojaca ma dzis jeden luz z boku (50) — przy scalaniu: z lewej / z prawej osobno.
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
