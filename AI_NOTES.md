@@ -1035,6 +1035,22 @@ do polek sasiednich szafek (te same rzedy otworow).
 wolnostojaca ma luz z lewej (`lL`) i z prawej (`lP`) osobno (stary `lb` czytany jako oba), miejsce w ciagu = lL + szer.
 + lP; lodowka stoi od lewego luzu; na rysunku obrys miejsca (przerywany) i wymiary luzow w szczelinach (z boku pionowo,
 nad lodowka poziomo), z gory obrys miejsca z luzem z tylu. „Na równo z meblami” — 3 / 3 / 15.
+[AI-INFO] Wersja 20 (uzytkownik 2026-11-09: „brakuje mikrofali wolnostojącej i ekspresu do zabudowy i wolnostojącego”):
+ekspres do zabudowy (`ekspres`, wneka 45 w slupku; typowo 560 × 450 × 550, front 595 × 455 — np. Electrolux KKK994500T),
+mikrofala wolnostojaca (`mikrofalaW`, 20 / 23 / 25 l, np. Teka 20 l 440 × 258 × 340) i ekspres wolnostojacy (`ekspresW`,
+24 / 22 cm, np. De'Longhi Magnifica Evo 240 × 360 × 440) — grupa „stoi”: na blacie nad szafka dolna / zmywarka, bez plyty
+i zlewu nad nia; karta mowi, ile zostaje do szafki gornej. Slupek miesci do 3 sprzetow (`stosSlupka`, kolejnosc
+`q.kolejnosc`, „Zamień miejscami z: …” z sasiadem).
+[AI-INFO] Wersja 21 (uzytkownik 2026-11-09): przegroda przesuwana — `przegX` = swiatlo lewej kolumny (brak = srodek,
+kolumna min 100, co 10 mm, ±15 od srodka przyciaga na srodek); uchwyt na przegrodzie w zakladce Przegroda przy zaznaczonej
+szafce (dolne, gorne `g:id`, strefy slupka), dwuklik — okienko lewa / prawa; w karcie pola „Kolumny — światło” i
+„Przegroda na środek”. Polki w kolumnie z drazkiem przeciagane jak inne (`polkiDom`: najwyzsza 300 pod gora, drazek 60 pod
+nia jedzie za nia, reszta co 400/n na dole; „pod drążkiem ↕N”). Wysokosci szuflad (`szuflWys`, od dolu): w szafie linia
+nad najwyzsza przesuwa granice drzwi (drzwi min 300), miedzy szufladami — zmienia obie sasiednie; min 100, co 10; dwuklik
+na linii — wysokosc frontu; „Szuflady po równo / typowe (po 220)”. Wolnostojace: „Szafa” 800 × 2000, 5 polek, 2 drzwi,
+cokol w obrysie (`cokolObrys`: boki do podlogi, dno na cokole 100, nozki za cokolem — jak tryb „w obrysie” w aplikacji,
+`h` = wysokosc calkowita) i „Biurko” 1200 × 750 × 600 jak szablon „Biurko” w aplikacji (blat 18 na bokach, 50 na boki,
+30 do przodu, bez dna / plecow / drzwi / nozek; tylko szerokosc i wysokosc, bez klockow).
 [AI-TODO] W aplikacji glownej lodowka wolnostojaca ma dzis jeden luz z boku (50) — przy scalaniu: z lewej / z prawej osobno.
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
