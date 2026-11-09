@@ -60,7 +60,7 @@ await page.waitForTimeout(400);
 const szafki = await page.locator(PRZOD).evaluateAll((els) => els.map((e) => e.dataset.idx));
 ok('„Wszystkie ciągi”: 3 szafki ciągu i wolnostojąca', szafki.length === 4, szafki.join(','));
 const zakl = await page.locator('[data-el="makieta"] nav [data-zakl]').evaluateAll((els) => els.map((e) => e.dataset.zakl));
-ok('zakładki prostej (bez wzmocnień)', zakl.join(',') === 'szafka,szuflady,polki,drzwi,przegroda,cokol', zakl.join(','));
+ok('zakładki prostej (bez wzmocnień)', zakl.join(',') === 'dodaj,szafka,szuflady,polki,drzwi,przegroda,cokol', zakl.join(','));
 ok('karta aktywnej szafki', /Lewa/.test(await page.locator('[data-el="makieta-karta"] h3').textContent()));
 
 await page.locator('[data-el="makieta-szafka"][data-idx="1"]').first().click({ force: true });

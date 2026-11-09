@@ -43,7 +43,9 @@ const ciagnij = async (sel, dx, dy) => {
   await page.waitForTimeout(400);
   return pg;
 };
-const zakl = async (k) => { await page.locator(`[data-el="makieta"] nav [data-zakl="${k}"]`).click(); await page.waitForTimeout(300); };
+// klik w otwarta zakladke chowa karte — klikamy tylko inna albo przy schowanej karcie
+const zakl = async (k) => { const b = page.locator(`[data-el="makieta"] nav [data-zakl="${k}"]`);
+  if ((await b.getAttribute('aria-pressed')) !== 'true' || !(await page.locator('[data-el="mak-karta-panel"]').count())) await b.click(); await page.waitForTimeout(300); };
 
 console.log('== Szafka: szerokość i wysokość z rysunku ==');
 ok('uchwyty szerokości i wysokości', (await page.locator('[data-u="szer"]').count()) === 1 && (await page.locator('[data-u="wys"]').count()) === 1);

@@ -1087,6 +1087,14 @@ w ciagu i w narozniku — `testy/makieta3.mjs`). Krok 4: przyciski w `MakietaKar
 polki ± i drazek, kolumny 1–4, cokol i nozki, blat ciagu). Ciag: cokol przez `setRunShared` (`run.plinth` + szafki — inaczej
 uwaga „Cokol tej szafki nie zgadza sie z ciagiem”), blat przez `setRun` (`wedlugCiagu`, wspolny wieniec off) — oba
 przekazane z `App` jako prop `ciag`. Test `testy/makieta4.mjs`. Nastepne: paleta i klocki (krok 5), AGD i szczegolowa (krok 6).
+[AI-INFO] Tryb makiety — krok 5 (2026-11-09): zakladka „Dodaj” = `MakietaPaleta` (`MAK_PALETA` — szablony aplikacji i brakujace
+z makiety jako szablon + `mod`; `MAK_KLOCKI`). HTML5 drag and drop na `[data-el=makieta-rysunek]` (cel z `elementFromPoint` +
+`punkt` jak uchwyty) albo klik. `addCabinet(tplId, runId, opcje)` ma teraz `opcje`: `zmien`, `nazwa`, `wymiaryCiagu`, `przed`
+(indeks w items; nie dla naroznikow), `naGorny`. Widok (uzytkownik 2026-11-09): „Duzy rysunek” — prop `skala` w AssemblyView /
+AssemblyTopView (svg o stalym rozmiarze), okno `mak-plotno` z przewijaniem; karta chowana klikiem w otwarta zakladke (`mp-mak-karta`);
+bez wiersza „Ciag” w karcie. Test `testy/makieta5.mjs`.
+[AI-TODO] Paleta makiety: brak „Biurko z kontenerem” (kontener szuflad zamiast boku, plyta wzmacniajaca 300) i „Szafa z szufladami”
+(dwa poziomy: szuflady na dole + polki) — do zrobienia razem z szablonem Biurka w aplikacji (TODO wyzej).
 [AI-INFO] Ustalone z uzytkownikiem 2026-11-09: od teraz poprawki makiety robimy W APLIKACJI (artefakt MebloProjekt, tryb makiety);
 artefakt „Makieta „Dodaj”” (`makiety/dodaj.html`) zamrozony jako wzor wygladu i obsugi — nie wyrownujemy go z aplikacja.
 [AI-TODO] Aplikacja glowna, szablon „Biurko” (uzytkownik 2026-11-09): dolozyc plyte wzmacniajaca z tylu (300 mm wysokosci,

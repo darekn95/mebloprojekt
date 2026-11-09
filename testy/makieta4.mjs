@@ -37,7 +37,9 @@ const czekaj = async (opis, fn, arg) => {
   ok(opis, okk);
   return okk;
 };
-const zakladka = async (z) => { await page.locator(`[data-el="makieta"] nav [data-zakl="${z}"]`).click(); await page.waitForTimeout(250); };
+// klik w otwarta zakladke chowa karte — klikamy tylko inna albo przy schowanej karcie
+const zakladka = async (z) => { const b = page.locator(`[data-el="makieta"] nav [data-zakl="${z}"]`);
+  if ((await b.getAttribute('aria-pressed')) !== 'true' || !(await page.locator('[data-el="mak-karta-panel"]').count())) await b.click(); await page.waitForTimeout(250); };
 const wybierz = async (i) => {
   await page.locator('[data-el="mak-szafka"] button').first().click();
   await page.locator(`[data-el="mak-szafka"] [data-v="${i}"]`).click();

@@ -24,6 +24,9 @@ To trzeba dorobić w aplikacji, bo makieta tylko rysuje i niczego nie liczy.
 | Słupek: do 3 sprzętów, „razem — półka między”, „zamień miejscami”, „na wysokość blatu / pod blat / do górnych” | sprzęt w kolumnie poziomu; ustawianie ręcznie przez poziomy |
 
 ### A2. Szablony szafek
+> 2026-11-09: w palecie makiety (zakładka „Dodaj”) są już wszystkie poniżej poza biurkiem z kontenerem
+> i szafą z szufladami na dole — `MAK_PALETA` w `szafki.jsx`, opis `opisy/makieta.md`.
+
 W aplikacji: Szafka stojąca, Szafka wisząca, Biurko, Słupek, Narożnik L, Górna narożna L, Zmywarka,
 Lodówka wolnostojąca. **Brak**:
 - Dolna z szufladami, Zlewowa;

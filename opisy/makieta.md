@@ -27,7 +27,13 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
   wnętrze); wybór pamięta przeglądarka. Szafki wolnostojące stoją obok, z odstępem.
 - Nagłówek w makiecie jest zwarty: bez „Zwiń wszystkie” i „Pokaż rysunek” (to przyciski kart
   trybu technicznego).
-- Rysunek mieści się w oknie pod paskiem.
+- **Duży rysunek** (przełącznik, domyślnie włączony; użytkownik 2026-11-09): widok ciągu z przodu ma
+  wysokość okna, widok z góry tę samą skalę nad nim. Oba siedzą w oknie z przewijaniem (`mak-plotno`):
+  szeroki ciąg przewija się w bok, oba widoki razem — w dół. Zaznaczona szafka sama wjeżdża w okno.
+  Wyłączony — cały ciąg w szerokości okna, jak dawniej. „Tylko zaznaczona szafka” zawsze w oknie.
+- **Kartę można schować**: klik w otwartą zakładkę albo „‹” w karcie; rysunek dostaje całą szerokość.
+  Klik w zakładkę otwiera kartę z powrotem. Pamięta przeglądarka.
+- W karcie „Szafka” nie ma wiersza „Ciąg” — widać go na przycisku „Ciąg ▾” nad rysunkiem.
 - Klik w szafkę (albo wybór z listy „Szafka ▾”) robi ją aktywną szafką projektu — po przejściu
   do trybu technicznego otwiera się właśnie ona.
 
@@ -83,6 +89,33 @@ Zapis do tych samych pól co tryb techniczny; liczy aplikacja.
 
 Kolumny złożone (podział na poziomy kolumny, sprzęt) zmienia się w trybie technicznym — karta to mówi.
 
+## Paleta i klocki (krok 5)
+
+Zakładka **Dodaj** (pierwsza). Kafelki można przeciągnąć na rysunek albo kliknąć.
+- **Szafki** — szablony aplikacji (`TEMPLATES`) i brakujące z makiety „Dodaj” jako szablon + zmiany
+  (`MAK_PALETA`):
+  - kuchnia dół: Dolna 1 drzwi 450, Dolna 2 drzwi 800, Dolna z szufladami 600 (3), Zlewowa 800 (bez półek),
+    Słupek, Narożnik L, Zmywarka, Lodówka wolnostojąca;
+  - kuchnia góra: Szafka wisząca, Górna narożna L;
+  - szafa w zabudowie (ze Słupka: 2000, cokół 100, 600 w głąb): Szafa 2 drzwi 1000 (dwie kolumny: 4 półki;
+    półka 300 pod wieńcem i drążek pod nią), Szafa 1 drzwi 500 (5 półek), Regał otwarty 600 (5 półek);
+  - wolnostojące (450 w głąb, jak w makiecie): Komoda 800 × 800 (4 szuflady), Szafka RTV 1600 × 450 (dwie
+    kolumny, klapy w dół), Szafka nocna 450 × 500 (2 szuflady), Regał 800 × 1700 (4 półki), Szafa 800 × 2000
+    (600 w głąb, 5 półek, 2 drzwi, cokół w obrysie i nóżki), Biurko.
+- Gdzie ląduje szafka (`addCabinet` z `opcje`):
+  - upuszczona na szafkę w ciągu — przed nią (lewa połowa) albo za nią (prawa);
+  - klik — na koniec ciągu zaznaczonej szafki;
+  - kuchenne dolne i wisząca biorą wysokość, głębokość i cokół ciągu (`wymiaryCiagu`);
+  - wisząca na ciąg dolny — do ciągu górnego nad nim (zakładany, gdy go nie ma — `addUpperRun`); bez ciągu —
+    komunikat;
+  - wolnostojące — zawsze obok, w oglądanym pomieszczeniu; nazwa z palety („Komoda”, „Komoda 2”).
+- **Klocki** (`MAK_KLOCKI`): półka (+1), drążek, 1 / 2 drzwi, klapa ↑ / ↓, bez frontu, 1–4 szuflady, przegroda
+  (nowa kolumna za tą, szerokości auto). Upuszczony — na kolumnę pod kursorem; klik — pierwsza pasująca
+  kolumna zaznaczonej szafki. Półka i drążek tylko do kolumny z drzwiami / otwartej — inaczej komunikat.
+  Te same zmiany co przyciski karty (`makUstawFront`, `makUstawSzuflady`, `makUstawPolki`, `makDodajPrzegrode`).
+- W trakcie przeciągania nad rysunkiem widać, gdzie spadnie („upuść: przed „Szafka 2””).
+- Jeszcze nie ma: biurko z kontenerem szuflad, szafa z szufladami na dole (dwa poziomy).
+
 ## Co ustawiasz ręcznie
 
 - Pomieszczenie, ciąg, szafka i widok — przyciski z rozwijaną listą. Ciąg domyślnie: ciąg
@@ -99,14 +132,14 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
 ## Czego jeszcze nie ma
 
 Kolejne kroki (`makiety/BRAKI.md`, D):
-- paleta i klocki (przeciąganie szablonów na rysunek);
 - AGD (brakujące w aplikacji, A1);
 - karty szczegółowej ze wszystkimi funkcjami.
 
 ## Gdzie w kodzie i testy
 
-- **Kod**: `MakietaWidok`, `MakietaKarta`, `MakietaWolnostojace`, `MakietaUchwyty`, `makWylicz`, `Rozwijana`;
+- **Kod**: `MakietaWidok`, `MakietaKarta`, `MakietaPaleta` (`MAK_PALETA`, `MAK_KLOCKI`), `MakietaWolnostojace`, `MakietaUchwyty`, `makWylicz`, `Rozwijana`;
   `makietaZmien` w `App`; `onPick` / `zazn` / `maxH` / `nakladka`
   w `AssemblyView` i `AssemblyTopView`; stan `tryb` w `App`.
 - **Test**: `testy/makieta.mjs` (tryb, rysunek, zaznaczanie), `testy/makieta2.mjs` (uchwyty i zapis),
-  `testy/makieta3.mjs` (pytanie o wysokość w ciągu i w narożniku), `testy/makieta4.mjs` (przyciski karty).
+  `testy/makieta3.mjs` (pytanie o wysokość w ciągu i w narożniku), `testy/makieta4.mjs` (przyciski karty),
+  `testy/makieta5.mjs` (paleta, klocki, karta do schowania, duży rysunek).
