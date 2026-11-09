@@ -102,8 +102,35 @@ z przesunięciem”). Przyciski „+ płyta grzewcza” / „+ zlew”, przy ka�
 i głębokość wycięcia, odległość od przedniej krawędzi blatu, przesunięcie w bok od
 środka szafki (+ w prawo), „usuń”.
 
-- Typowo: płyta 60 cm 560 × 490, zlew jednokomorowy z ociekaczem 780 × 480, oba 50 mm od
-  przodu blatu (`WYCIECIA_BLATU`) — do zmiany z karty sprzętu.
+- **Rozmiar** (użytkownik 2026-11-09, liczby z makiety „Dodaj” — przykładowe, z kart Bosch / Neff /
+  Electrolux / Samsung / Franke; wpisz z karty swojego modelu), `ROZM_WYCIEC`:
+
+  | płyta | szkło na blacie | kaseta pod blatem | kaseta od wierzchu | wycięcie |
+  |---|---|---|---|---|
+  | 30 cm | 290 × 520 | 262 × 484 | 51 | 268 × 490 |
+  | 60 cm (domyślnie) | 590 × 520 | 554 × 484 | 51 | 560 × 490 |
+  | 60 slim | 590 × 520 | 554 × 484 | 44 | 560 × 490 |
+  | 80 cm | 800 × 520 | 744 × 484 | 51 | 750 × 490 |
+  | 90 cm | 900 × 520 | 854 × 484 | 51 | 860 × 490 |
+  | 80 z okapem | 830 × 520 | 754 × 484 | 230 | 760 × 490 |
+
+  Wycięcie pod płytę = kaseta + 3 mm z każdej strony (`WYC_LUZ`, użytkownik 2026-11-08).
+
+  | zlew | rant na blacie | wycięcie | komora od wierzchu |
+  |---|---|---|---|
+  | 1 komora | 500 × 500 | 480 × 480 | 200 |
+  | z ociekaczem (domyślnie) | 780 × 500 | 760 × 480 | 200 |
+  | 2 komory | 860 × 500 | 840 × 480 | 200 |
+
+  Zlew z ociekaczem: ociekacz z lewej albo z prawej (komora po drugiej stronie) — na rzucie z góry linia
+  podziału i podpis. Oba 50 mm od przodu blatu.
+- Karta pokazuje wycięcie (szer. × głęb.) i **odległość od lewego końca blatu** (jak wymiar na rysunku);
+  ustawiasz nadal „przesunięcie w bok” od środka szafki.
+- Szkło płyty / rant zlewu na rzucie z góry (pełny obrys) nad wycięciem (przerywany). × szkło / rant
+  wystaje przed blat albo poza jego tył — przycisk „Wycięcie N mm od przodu blatu”.
+- Wycięcia zapisane przed 2026-11-09 (bez rozmiaru): samo wycięcie w × d i „Pod blat (od wierzchu)”, typowo
+  płyta 560 × 490 / 60 mm, zlew 780 × 480 / 200 mm (`WYCIECIA_BLATU`) — karta pokazuje stare pola, wybór
+  rozmiaru przechodzi na nowe.
 - Blat: kawałek z wycięciem idzie osobną pozycją „Blat ciągu — wycięcie pod płytę
   560 × 490” (przy dwóch: „wycięcia pod płytę … i zlew …”) z otworami — widać je na
   arkuszu rozkroju (otwory liczone od tylnej krawędzi), w 3D zabudowy i na rzucie
@@ -215,7 +242,7 @@ frontach to zapas, żeby front sprzętu nie dotykał frontu nad nim.
   - przyciski: `sprzetw:` / `sprzeth:` w `NoteLine` i `runFix`;
   - lodówka: `lodowkaWneki` (kontrole wnęki), `pasmaPodzialu` (dwa fronty), drzwi
     z `d.lodowka` (bez zawiasów przy „na stałe”), formatka „Front lodówki”;
-  - wycięcia w blacie: `WYCIECIA_BLATU`, `wycieciaSzafki` (`cab.blatWyciecia`), `runTop` → `rt.wyciecia`,
+  - wycięcia w blacie: `WYCIECIA_BLATU`, `ROZM_WYCIEC` / `WYC_LUZ` (rozmiary płyt i zlewów), `wycieciaSzafki` (`cab.blatWyciecia`), `runTop` → `rt.wyciecia`,
     `wycieciaKawalka` (otwory i nazwa kawałka w `runTopPanels`), kontrole w `worktopMsgs`,
     przycisk `wycblatu:`, rysunek w `AssemblyTopView` (`blatPasa`) i `Assembly3D` (`boxOtw`);
   - pod wycięciem: `wycieciaWSzafce` (obrys w układzie szafki), kontrola nachodzenia w `worktopMsgs`,

@@ -173,8 +173,15 @@ console.log('\n== wycięcia w blacie (użytkownik 2026-11-05): płyta i zlew nad
   const karta = page.locator('[data-el="wyciecia-blatu"]');
   ok('karta „Wycięcia w blacie nad szafką” przy szafce pod blatem roboczym', (await karta.count()) === 1);
   await karta.getByRole('button', { name: '+ płyta grzewcza', exact: true }).click(); await page.waitForTimeout(900);
-  ok('„+ płyta grzewcza”: wycięcie w szafce, karta z 5 polami (z „Pod blat”)', JSON.stringify((await zap()).items[1].cab.blatWyciecia) === '[{"typ":"plyta"}]'
-    && (await page.locator('[data-el="wyciecie-blatu-karta"] input').count()) === 5);
+  // rozmiar z makiety (2026-11-09): plyta 60 — szklo 590 × 520, kaseta 554 × 484, wyciecie = kaseta + 3 mm = 560 × 490
+  ok('„+ płyta grzewcza”: wycięcie w szafce (rozmiar 60 cm), karta z 7 polami (szkło, kaseta, od przodu, w bok)', JSON.stringify((await zap()).items[1].cab.blatWyciecia) === '[{"typ":"plyta","rozm":"60"}]'
+    && (await page.locator('[data-el="wyciecie-blatu-karta"] input').count()) === 7);
+  ok('karta: „Wycięcie w blacie 560 × 490 mm (kaseta + 3 mm…)”, od lewego końca blatu 420 mm', /Wycięcie w blacie 560 × 490 mm \(kaseta \+ 3 mm z każdej strony\), od lewego końca blatu 420 mm/.test(await page.locator('[data-el="wyciecie-info"]').innerText()),
+    await page.locator('[data-el="wyciecie-info"]').innerText());
+  await page.locator('[data-el="wyciecie-rozmiar"] button').filter({ hasText: /^80 cm$/ }).click(); await page.waitForTimeout(900);
+  ok('rozmiar „80 cm”: wycięcie 750 × 490 — płyta wychodzi nad bok szafki 600 (błąd)', /Wycięcie w blacie 750 × 490/.test(await page.locator('[data-el="wyciecie-info"]').innerText())
+    && await jest(/płyta grzewcza 750 mm wychodzi nad bok szafki/));
+  await page.locator('[data-el="wyciecie-rozmiar"] button').filter({ hasText: /^60 cm$/ }).click(); await page.waitForTimeout(900);
   await widok((await page.getByRole('button', { name: 'Zabudowa', exact: true }).count()) ? 'Zabudowa' : 'Ciąg');
   await widok('Z góry');
   ok('rzut z góry ciągu: wycięcie „płyta 560×490”', (await ile('[data-el="wyciecie-blatu"]')) === 1

@@ -10672,10 +10672,19 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
         fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
     )), ...(rt.wyciecia || []).map((q, i) => (
       <g key={"wyc" + i} data-el="wyciecie-blatu">
+        {q.sw > 0 && q.sd > 0 && (
+          <rect data-el="rant-blatu" x={lead + (q.x0 + q.x1) / 2 - q.sw / 2} y={yS + rt.depth - q.odPrzodu - q.d - (q.sd - q.d) / 2} width={q.sw} height={q.sd}
+            fill={q.typ === "plyta" ? "#27272a" : "#d4d4d8"} opacity={q.typ === "plyta" ? 0.18 : 0.45} stroke={INK} strokeWidth="2" />
+        )}
+        {q.ociekacz && (() => {
+          // ociekacz — pol rantu po swojej stronie, kreskowane (komora po drugiej)
+          const sx = lead + (q.x0 + q.x1) / 2, y0 = yS + rt.depth - q.odPrzodu - q.d;
+          return <line x1={sx} y1={y0} x2={sx} y2={y0 + q.d} stroke={INK} strokeWidth="2" strokeDasharray="4 6" data-el="ociekacz" data-strona={q.ociekacz} />;
+        })()}
         <rect x={lead + q.x0} y={yS + rt.depth - q.odPrzodu - q.d} width={q.x1 - q.x0} height={q.d}
           fill="#fafaf9" stroke={INK} strokeWidth="2" strokeDasharray="10 6" />
         <text x={lead + (q.x0 + q.x1) / 2} y={yS + rt.depth - q.odPrzodu - q.d / 2 + 8} textAnchor="middle"
-          fontSize="22" fill={INK} fontFamily="ui-monospace, monospace">{`${q.krotka} ${fmt(q.w)}×${fmt(q.d)}`}</text>
+          fontSize="22" fill={INK} fontFamily="ui-monospace, monospace">{`${q.krotka} ${fmt(q.w)}×${fmt(q.d)}${q.ociekacz ? ` · ociekacz ${q.ociekacz === "L" ? "z lewej" : "z prawej"}` : ""}`}</text>
       </g>
     ))];
   };
@@ -16462,13 +16471,34 @@ const WYCIECIA_BLATU = {
    elementów”): plyta indukcyjna typowo 50–56 mm z zapasem na wentylacje, komora zlewu ok. 200 mm.
    Bryla sprzetu pod blatem = obrys wyciecia na te glebokosc; do zmiany z karty modelu. */
 const WYCIECIE_ZAPAS = 50;   // najmniej plyty miedzy wycieciem a koncem blatu, laczeniem i tylem
+/* Rozmiary plyt i zlewow z makiety „Dodaj” (uzytkownik 2026-11-09: „z makiety, poprawię później” — wartosci
+   przykladowe z kart Bosch / Neff / Electrolux / Samsung / Franke, do zmiany z karty modelu). Plyta: szklo sw × sd
+   lezy na blacie, kaseta kw × kd pod blatem, `h` — ile kaseta schodzi od wierzchu blatu; wyciecie = kaseta + WYC_LUZ
+   z kazdej strony (uzytkownik 2026-11-08). Zlew: rant sw × sd na blacie, wyciecie w × d z szablonu zlewu, `h` —
+   komora od wierzchu blatu; przy zlewie z ociekaczem ociekacz z lewej albo z prawej (komora po drugiej stronie).
+   Zapis bez `rozm` (sprzed 2026-11-09) zostaje przy samym wycieciu w × d i `podBlatem`. */
+const WYC_LUZ = 3;
+const ROZM_WYCIEC = {
+  plyta: [{ k: "30", l: "30 cm", sw: 290, sd: 520, kw: 262, kd: 484, h: 51 }, { k: "60", l: "60 cm", sw: 590, sd: 520, kw: 554, kd: 484, h: 51 },
+    { k: "60s", l: "60 slim", sw: 590, sd: 520, kw: 554, kd: 484, h: 44 }, { k: "80", l: "80 cm", sw: 800, sd: 520, kw: 744, kd: 484, h: 51 },
+    { k: "90", l: "90 cm", sw: 900, sd: 520, kw: 854, kd: 484, h: 51 }, { k: "80o", l: "80 z okapem", sw: 830, sd: 520, kw: 754, kd: 484, h: 230 }],
+  zlew: [{ k: "1", l: "1 komora", sw: 500, sd: 500, w: 480, d: 480, h: 200 }, { k: "1o", l: "z ociekaczem", sw: 780, sd: 500, w: 760, d: 480, h: 200 },
+    { k: "2", l: "2 komory", sw: 860, sd: 500, w: 840, d: 480, h: 200 }],
+};
+const ROZM_WYCIEC_DOM = { plyta: "60", zlew: "1o" };
 const wycieciaSzafki = (cab) => ((cab && cab.blatWyciecia) || []).map((q, k) => {
   const typ = WYCIECIA_BLATU[q && q.typ] ? q.typ : "plyta";
   const baza = WYCIECIA_BLATU[typ];
   const liczba = (v, d) => (v == null || v === "" ? d : Math.round(Number(v) || 0));
-  return { k, typ, ...baza, w: Math.max(0, liczba(q.w, baza.w)), d: Math.max(0, liczba(q.d, baza.d)),
-    odPrzodu: Math.max(0, liczba(q.odPrzodu, baza.odPrzodu)), przesun: liczba(q.przesun, 0),
+  const out = { k, typ, ...baza, odPrzodu: Math.max(0, liczba(q.odPrzodu, baza.odPrzodu)), przesun: liczba(q.przesun, 0) };
+  if (!q.rozm) return { ...out, w: Math.max(0, liczba(q.w, baza.w)), d: Math.max(0, liczba(q.d, baza.d)),
     podBlatem: Math.max(0, liczba(q.podBlatem, baza.podBlatem)) };
+  const lista = ROZM_WYCIEC[typ], r = lista.find((x) => x.k === q.rozm) || lista.find((x) => x.k === ROZM_WYCIEC_DOM[typ]);
+  const n = (pole) => Math.max(0, liczba(q[pole], r[pole]));
+  Object.assign(out, { rozm: r.k, rozmL: r.l, sw: n("sw"), sd: n("sd"), podBlatem: Math.max(0, liczba(q.podBlatem, r.h)) });
+  if (typ === "plyta") Object.assign(out, { kw: n("kw"), kd: n("kd") }, { w: n("kw") + 2 * WYC_LUZ, d: n("kd") + 2 * WYC_LUZ });
+  else Object.assign(out, { w: n("w"), d: n("d"), ociekacz: r.k === "1o" ? (q.ociekacz === "L" ? "L" : "P") : null });
+  return out;
 });
 /* Wyciecie w ukladzie szafki pod nim: x od lewej krawedzi korpusu, z od lica w glab. Blat wystaje
    przed lico o luz zawiasu i front (przy frontach wpuszczanych — nie) i o nawis `WORKTOP_OVERHANG`. */
@@ -17892,6 +17922,15 @@ const worktopMsgs = (project, run) => {
         const o = u0 < WYCIECIE_ZAPAS ? Math.round(WYCIECIE_ZAPAS - u0) : Math.round(total - WYCIECIE_ZAPAS - u1);
         out.push({ level: u0 < 0 || u1 > total ? "error" : "warn",
           text: `${kto}: wycięcie ${u0 < 0 || u1 > total ? "wychodzi poza blat" : "jest za blisko końca blatu"} — od końca potrzeba co najmniej ${WYCIECIE_ZAPAS} mm płyty.${przes(o)}` });
+      }
+      // szklo plyty / rant zlewu lezy na blacie — wystaje z kazdej strony wyciecia o polowe roznicy
+      if (q.sd > q.d) {
+        const zap = (q.sd - q.d) / 2, przod = q.odPrzodu - zap, tylR = rt.depth - q.odPrzodu - q.d - zap;
+        const co = q.typ === "plyta" ? "szkło płyty" : "rant zlewu";
+        if (przod < 0) out.push({ level: "error", text: `${kto}: ${co} (${fmt(q.sd)} mm) wystaje ${fmt(Math.ceil(-przod))} mm przed blat — wycięcie co najmniej ${fmt(Math.ceil(zap))} mm od przodu blatu.`
+          + (rt.depth - Math.ceil(zap) - q.d >= WYCIECIE_ZAPAS ? `|wycblatu:${q.idx}:${q.k}:odPrzodu:${Math.ceil(zap)}` : "") });
+        else if (tylR < 0) out.push({ level: "error", text: `${kto}: ${co} (${fmt(q.sd)} mm) wychodzi ${fmt(Math.ceil(-tylR))} mm poza tył blatu.`
+          + (q.odPrzodu + tylR >= zap ? `|wycblatu:${q.idx}:${q.k}:odPrzodu:${Math.floor(q.odPrzodu + tylR)}` : "") });
       }
       const tyl = rt.depth - q.odPrzodu - q.d;
       if (tyl < WYCIECIE_ZAPAS) {
@@ -25381,24 +25420,69 @@ export default function App() {
                       <div key={q.k} className="space-y-2 rounded border border-stone-200 bg-white p-2 text-xs" data-el="wyciecie-blatu-karta">
                         <div className="flex items-center gap-2">
                           <div className="flex-1">
-                            <Seg value={q.typ} onChange={(v) => zmien({ typ: v, w: null, d: null, odPrzodu: null, podBlatem: null })}
+                            <Seg value={q.typ} onChange={(v) => zmien({ typ: v, rozm: ROZM_WYCIEC_DOM[v], w: null, d: null, odPrzodu: null, podBlatem: null, sw: null, sd: null, kw: null, kd: null, ociekacz: null })}
                               options={[{ v: "plyta", l: "Płyta grzewcza" }, { v: "zlew", l: "Zlew" }]} />
                           </div>
                           <MiniBtn onClick={() => set({ blatWyciecia: (cab.blatWyciecia || []).filter((x, k) => k !== q.k) })} title="Usuń wycięcie">usuń</MiniBtn>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {pole("w", "Szerokość wycięcia")}
-                          {pole("d", "Głębokość wycięcia")}
-                          {pole("odPrzodu", "Od przodu blatu")}
-                          {pole("przesun", "Przesunięcie w bok")}
-                          {pole("podBlatem", "Pod blat (od wierzchu)")}
+                        {/* rozmiar z makiety (uzytkownik 2026-11-09): plyta — szklo i kaseta, wyciecie = kaseta + 3 mm; zlew — rant i wyciecie */}
+                        <div data-el="wyciecie-rozmiar">
+                          <Seg value={q.rozm || ""} onChange={(v) => zmien({ rozm: v, w: null, d: null, podBlatem: null, sw: null, sd: null, kw: null, kd: null })}
+                            options={ROZM_WYCIEC[q.typ].map((r) => ({ v: r.k, l: r.l }))} />
                         </div>
+                        {q.ociekacz && (
+                          <div className="flex items-center gap-2" data-el="ociekacz-strona">
+                            <span className="text-stone-500">ociekacz</span>
+                            <Seg value={q.ociekacz} onChange={(v) => zmien({ ociekacz: v })} options={[{ v: "L", l: "z lewej" }, { v: "P", l: "z prawej" }]} />
+                          </div>
+                        )}
+                        {q.rozm ? (() => {
+                          const r = ROZM_WYCIEC[q.typ].find((x) => x.k === q.rozm) || {};
+                          const poleR = (k, label, hint) => (
+                            <Field label={label} hint={hint || `typowo ${fmt(r[k === "podBlatem" ? "h" : k])} mm (przykładowo — wpisz z karty modelu)`}>
+                              <Num value={((cab.blatWyciecia || [])[q.k] || {})[k] ?? ""} onChange={(v) => zmien({ [k]: v === "" ? null : v })} />
+                            </Field>
+                          );
+                          return (
+                            <div className="grid grid-cols-2 gap-2">
+                              {q.typ === "plyta" ? <>
+                                {poleR("sw", "Szkło — szerokość")}{poleR("sd", "Szkło — głębokość")}
+                                {poleR("kw", "Kaseta — szerokość")}{poleR("kd", "Kaseta — głębokość")}
+                                {poleR("podBlatem", "Kaseta od wierzchu blatu")}
+                              </> : <>
+                                {poleR("sw", "Rant — szerokość")}{poleR("sd", "Rant — głębokość")}
+                                {poleR("w", "Wycięcie — szerokość")}{poleR("d", "Wycięcie — głębokość")}
+                                {poleR("podBlatem", "Komora od wierzchu blatu")}
+                              </>}
+                              {pole("odPrzodu", "Od przodu blatu")}
+                              {pole("przesun", "Przesunięcie w bok")}
+                            </div>
+                          );
+                        })() : (
+                          <div className="grid grid-cols-2 gap-2">
+                            {pole("w", "Szerokość wycięcia")}
+                            {pole("d", "Głębokość wycięcia")}
+                            {pole("odPrzodu", "Od przodu blatu")}
+                            {pole("przesun", "Przesunięcie w bok")}
+                            {pole("podBlatem", "Pod blat (od wierzchu)")}
+                          </div>
+                        )}
+                        {(() => {
+                          // wyciecie liczone od poczatku blatu (jak wymiar na rysunku z gory) — makieta „Dodaj”
+                          const wq = ((runTp && runTp.wyciecia) || []).find((x) => x.idx === project.active && x.k === q.k);
+                          return (
+                            <p className="text-stone-600" data-el="wyciecie-info">
+                              Wycięcie w blacie <b className="font-mono">{fmt(q.w)} × {fmt(q.d)}</b> mm{q.typ === "plyta" && q.rozm ? ` (kaseta + ${WYC_LUZ} mm z każdej strony)` : ""}
+                              {wq ? <>, od lewego końca blatu <b className="font-mono">{fmt(Math.round(wq.x0 - runTp.x0))}</b> mm</> : ""}.
+                            </p>
+                          );
+                        })()}
                       </div>
                     );
                   })}
                   <div className="flex gap-2">
-                    <MiniBtn onClick={() => set({ blatWyciecia: [...(cab.blatWyciecia || []), { typ: "plyta" }] })}>+ płyta grzewcza</MiniBtn>
-                    <MiniBtn onClick={() => set({ blatWyciecia: [...(cab.blatWyciecia || []), { typ: "zlew" }] })}>+ zlew</MiniBtn>
+                    <MiniBtn onClick={() => set({ blatWyciecia: [...(cab.blatWyciecia || []), { typ: "plyta", rozm: ROZM_WYCIEC_DOM.plyta }] })}>+ płyta grzewcza</MiniBtn>
+                    <MiniBtn onClick={() => set({ blatWyciecia: [...(cab.blatWyciecia || []), { typ: "zlew", rozm: ROZM_WYCIEC_DOM.zlew }] })}>+ zlew</MiniBtn>
                   </div>
                 </div>
               </Group>
