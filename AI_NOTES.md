@@ -1017,6 +1017,9 @@ sie zaznacza — obraz nie skacze w trakcie przeciagania). „Szuflada + drzwi�
 „Lodówka” w palecie AGD (`lodowkaM`: slupek / szafka dolna albo miejsce w ciagu) i „Rodzaj lodówki” w karcie (jak okap):
 do zabudowy w slupku / podblatowa w szafce / podblatowa w ciagu / wolnostojaca / na rowno z meblami — `zmienLodowke`
 przestawia miejsce (slupek 600 albo szafka 600 z wneka w miejscu pozycji ciagu i odwrotnie).
+[AI-TODO] Przy scalaniu makiety z aplikacja (uzytkownik 2026-11-09): w makiecie domyslnie WSZYSTKIE widoki jak
+w aplikacji — zamkniety, otwarty, z boku, z gory, 3D — z funkcji rysujacych aplikacji, na tych samych danych (nie
+budowac ich osobno w makiecie przed scaleniem).
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
 rant i kasete szer. × glab. × w dol (bryla pod blatem = kaseta, nie obrys wyciecia; wyciecie plyty = kaseta + luz),
