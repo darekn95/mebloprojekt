@@ -34,7 +34,12 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
     szerokość okna rysunku i tak, żeby oba widoki zmieściły się na ekranie;
   - z przodu ściana do 2300 mm (`MAK_SCIANA`) w tle, do długości ściany — wolne miejsce przerywane z „wolne N”;
   - szafki wolnostojące też z widokiem z góry nad nimi;
-  - „Powiększ” (przełącznik, domyślnie wyłączony) — widok z przodu na wysokość okna, przewijany w bok i w dół.
+  - **przybliżanie** (użytkownik 2026-11-09: „powiększ jako domyślny … jak w technicznym większe powiększenie,
+    dopasowanie i pełny ekran”): „Powiększ” (przełącznik, **domyślnie włączony**) — widok z przodu na wysokość okna,
+    przewijany w bok i w dół; „− 100 % +” — dalsze kroki jak w trybie technicznym (do 400 %), Ctrl + kółko nad
+    rysunkiem przybliża w miejscu kursora; „Dopasuj” — cały rysunek w oknie (bez „Powiększ”, 100 %); „Pełny ekran” —
+    rysunek na całe okno, Esc zamyka. Pamięta przeglądarka (`mp-mak-zoom`).
+  - szafka wolnostojąca z cokołem pod korpusem — cokół narysowany pod nią (zasłania nóżki za nim).
 - Zakładki po lewej z ikonami i podpisem „Dodaj / zmień”, kafelki palety z miniaturami szafek, nagłówki sekcji
   wielkimi literami — jak w makiecie.
 - **Kartę można schować**: klik w otwartą zakładkę albo „‹” w karcie; rysunek dostaje całą szerokość.
@@ -93,7 +98,15 @@ Zapis do tych samych pól co tryb techniczny; liczy aplikacja.
 - **Szafka**: „Blat roboczy ciągu: jest / nie ma” (`run.worktop` przez `setRun` — wspólny wieniec
   wyłączony, szafki ciągu dopasowane do blatu, jak w karcie ciągu). Tylko ciąg stojący.
 
-Kolumny złożone (podział na poziomy kolumny, sprzęt) zmienia się w trybie technicznym — karta to mówi.
+**Kolumna podzielona na poziomy** (`col.podzial`, `col.segmenty`; zgłoszenie 2026-11-09: „w szafie nie widzi kolumn”):
+każdy poziom kolumny to osobny wiersz „poziom N kolumny J”, od góry, jak w trybie technicznym.
+- Półki „− N +” zmieniają półki tylko w tym poziomie (`polkiWPoziomie`): światła innych poziomów dostają obecne
+  wymiary na stałe (z narysowanej geometrii), granice idą razem z nimi; „drążek” — w najwyższym świetle poziomu.
+- Fronty: „1 drzwi / 2 drzwi / Klapa ↑ / Klapa ↓” w `col.segmenty[nr]` (bez „Bez frontu” — poziom kolumny ma front,
+  jak w technicznym); szuflady i blenda poziomu zamieniają się w drzwi; tip-on poziomu osobno.
+- Szuflady 1–5: poziom dostaje szuflady, półki i drążek z tego poziomu znikają.
+- Na rysunku: półki takiej kolumny przeciąga się jak zwykłe (także granice), linie między szufladami — w swoim poziomie.
+- Liczbę poziomów kolumny i sprzęt w kolumnie zmienia się w trybie technicznym.
 
 ## Paleta, AGD i klocki (krok 5)
 

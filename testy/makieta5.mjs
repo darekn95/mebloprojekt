@@ -39,10 +39,17 @@ const PRZOD = '[data-el="makieta"] svg:not([data-el="mak-zgory"] svg) [data-el="
 const kafel = (el, id) => page.locator(`[data-el="mak-paleta"] [data-el="${el}"][data-id="${id}"]`);
 const upusc = async (el, id, idx, gdzie = 'srodek') => {
   const cel = page.locator(`${PRZOD}[data-idx="${idx}"]`).first();
-  await cel.scrollIntoViewIfNeeded();
-  const b = await cel.boundingBox();
-  const pos = gdzie === 'lewo' ? { x: Math.min(15, b.width / 4), y: b.height / 2 } : gdzie === 'prawo' ? { x: b.width - Math.min(15, b.width / 4), y: b.height / 2 }
-    : typeof gdzie === 'object' ? gdzie : { x: b.width / 2, y: b.height / 2 };
+  // srodek okna — przy „Powiększ” (domyslnie) rysunek przewija sie i brzeg moze stac pod paskiem aplikacji
+  await cel.evaluate((el) => { const box = el.closest('[data-el="mak-plotno"]'); if (!box) return; const r = el.getBoundingClientRect(), c = box.getBoundingClientRect();
+    box.scrollLeft += r.left + r.width / 2 - (c.left + c.width / 2); box.scrollTop += r.top + r.height / 2 - (c.top + c.height / 2); });
+  await cel.scrollIntoViewIfNeeded(); await page.waitForTimeout(100);
+  /* obrys korpusu (zaznaczona — ramka), nie calej grupy: w widoku otwartym skrzydla drzwi wychodza poza szafke
+     i „prawo” calej grupy trafialo w sasiada (przy „Powiększ”) */
+  const g = await cel.boundingBox(), ram = cel.locator('[data-el="makieta-zaznaczona"]');
+  const r = (await ram.count()) ? await ram.first().boundingBox() : g, dx = r.x - g.x, dy = r.y - g.y;
+  // 15 % od brzegu: przy powiekszeniu uchwyt otwartych drzwi sasiada zachodzi kilkanascie pikseli na szafke
+  const pos = gdzie === 'lewo' ? { x: dx + r.width * 0.15, y: dy + r.height / 2 } : gdzie === 'prawo' ? { x: dx + r.width * 0.85, y: dy + r.height / 2 }
+    : typeof gdzie === 'object' ? gdzie : { x: dx + r.width / 2, y: dy + r.height / 2 };
   await kafel(el, id).dragTo(cel, { targetPosition: pos, force: true });
   await page.waitForTimeout(400);
 };
@@ -117,12 +124,22 @@ ok('„‹” chowa kartę, pamiętane', !(await page.locator('[data-el="mak-kar
 // widok jak w makiecie „Dodaj” (2026-11-09): na szerokosc okna, sciana do 2300 w tle, z gory nad widokiem z przodu
 const miara = () => page.evaluate(() => { const box = document.querySelector('[data-el="mak-plotno"]'); const svgs = [...box.querySelectorAll('svg')].filter((s) => !s.closest('[data-el="mak-zgory"]') && s.querySelector('[data-el="makieta-szafka"]'));
   const f = svgs[0].getBoundingClientRect(); return { h: f.height, okno: window.innerHeight, sw: box.scrollWidth, cw: box.clientWidth, tlo: !!box.querySelector('[data-el="tlo-sciany"]') }; });
-const m1 = await miara();
-ok('jak w makiecie: rysunek w szerokości okna, ściana w tle, nagłówek ciągu', m1.sw <= m1.cw + 2 && m1.tlo && (await page.locator('[data-el="mak-naglowek"]').count()) === 1, JSON.stringify(m1));
-await page.locator('[data-el="mak-przel"] [data-p="powieksz"]').click(); await page.waitForTimeout(400);
+// przyblizanie (uzytkownik 2026-11-09: „powiększ jako domyślny … większe powiększenie, dopasowanie i pełny ekran”)
+ok('„Powiększ” domyślnie włączone', (await page.locator('[data-el="mak-przel"] [data-p="powieksz"]').getAttribute('aria-pressed')) === 'true');
 const m2 = await miara();
-ok('„Powiększ”: widok z przodu na wysokość okna, przewijany w bok', m2.h > m2.okno * 0.6 && m2.sw > m2.cw, JSON.stringify(m2));
-await page.locator('[data-el="mak-przel"] [data-p="powieksz"]').click(); await page.waitForTimeout(300);
+ok('„Powiększ”: widok z przodu na wysokość okna', m2.h > m2.okno * 0.6, JSON.stringify(m2));
+await page.locator('[data-el="mak-zoom"] button[title="Powiększ"]').click(); await page.waitForTimeout(400);
+const m3 = await miara();
+ok('„+” powiększa dalej (125 %), rysunek przewijany w bok', m3.h > m2.h * 1.2 && m3.sw > m3.cw && /125%/.test(await page.locator('[data-el="mak-zoom-proc"]').innerText()), `${Math.round(m2.h)} → ${Math.round(m3.h)}`);
+await page.locator('[data-el="mak-zoom"] button', { hasText: 'Pełny ekran' }).click(); await page.waitForTimeout(400);
+const pe = await page.evaluate(() => { const r = document.querySelector('[data-el="makieta-rysunek"]').getBoundingClientRect(); return { w: r.width, h: r.height, W: innerWidth, H: innerHeight }; });
+ok('„Pełny ekran”: rysunek na całe okno', pe.w >= pe.W - 2 && pe.h >= pe.H - 2, JSON.stringify(pe));
+await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+ok('Esc zamyka pełny ekran', !(await page.locator('[data-el="makieta-rysunek"][data-pelny]').count()));
+await page.locator('[data-el="mak-zoom"] button', { hasText: 'Dopasuj' }).click(); await page.waitForTimeout(400);
+const m1 = await miara();
+ok('„Dopasuj”: rysunek w szerokości okna, ściana w tle, nagłówek ciągu', m1.sw <= m1.cw + 2 && m1.tlo && (await page.locator('[data-el="mak-naglowek"]').count()) === 1
+  && (await page.locator('[data-el="mak-przel"] [data-p="powieksz"]').getAttribute('aria-pressed')) === 'false', JSON.stringify(m1));
 await zakl('szafka');
 
 const p2 = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));

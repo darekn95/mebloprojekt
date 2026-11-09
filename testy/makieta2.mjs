@@ -27,7 +27,7 @@ await page.evaluate(() => {
   it.cab.levels = [{ h: null, cols: [polki, szuf] }];
   p.items = [it]; p.runs = []; p.active = 0;
   localStorage.setItem('szafki:projekt', JSON.stringify(p));
-  localStorage.setItem('mp-tryb', 'prosta');
+  localStorage.setItem('mp-tryb', 'prosta'); localStorage.setItem('mp-mak-zoom', JSON.stringify({ pow: false, z: 1 }));   // „Dopasuj” — uchwyty w oknie (przyblizanie: makieta5)
 });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1500);

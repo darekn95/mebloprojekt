@@ -20695,7 +20695,12 @@ const ikonaWzoru = (w) => {
 const MAK_ZAKLADKI_SZCZ = [["korpus", "Korpus i plecy"], ["wzmocnienia", "Wzmocnienia"], ["wyciecia", "Wycięcia i kolizje"]];
 /* Przelaczniki rysunku jak w makiecie „Dodaj” (uzytkownik 2026-11-09: „widok jak w makiecie — mniej miejsca, większy
    rysunek”): z gory nad widokiem z przodu, ciag gorny / dolny, fronty (wylaczone — wnetrze). */
-const MAK_PRZEL = [["zgory", "Z góry"], ["gorny", "Ciąg górny"], ["dolny", "Ciąg dolny"], ["fronty", "Fronty"], ["powieksz", "Powiększ"]];
+const MAK_PRZEL = [["zgory", "Z góry"], ["gorny", "Ciąg górny"], ["dolny", "Ciąg dolny"], ["fronty", "Fronty"]];
+/* Przyblizanie rysunku makiety (uzytkownik 2026-11-09: „powiększ jako domyślny i brakuje jak w technicznym jeszcze
+   większego powiększenia, dopasowania i pełnego ekranu”): „Powiększ” (domyslnie wlaczone) — widok z przodu na wysokosc
+   okna; − / + — kroki jak w trybie technicznym na tej podstawie; „Dopasuj” — caly rysunek w oknie (bez Powiększ, 100 %);
+   „Pełny ekran” — rysunek na cale okno (Esc zamyka); Ctrl + kolko nad rysunkiem — przyblizanie w miejscu kursora. */
+const MAK_ZOOM = [1, 1.25, 1.5, 2, 2.5, 3, 4];
 // wysokosc sciany na widoku z przodu w makiecie (makieta „Dodaj”: rysunek do 2300 od podlogi)
 const MAK_SCIANA = 2300;
 const Przelacznik = ({ k, l, on, onClick }) => (
@@ -20768,11 +20773,12 @@ function makWylicz(cab, geo, d, p) {
         ws[m] = w; if (m + 1 < ws.length - 1) ws[m + 1] = Math.round(suma) - w; rawCols.forEach((rc, i) => { rc.w = ws[i]; }); } };
   }
   if (d.u === "szufl") {
-    const dr = [...(col.drawers || [])].sort((x, y) => x.i - y.i), a = dr[d.k], b = dr[d.k + 1]; if (!a || !b) return null;
+    // poziom kolumny z szufladami (`d.seg`) — tylko jego szuflady, zapis do `col.segmenty[nr]`
+    const dr = (col.drawers || []).filter((q) => (d.seg == null ? true : q.seg && q.seg.nr === d.seg)).sort((x, y) => x.i - y.i), a = dr[d.k], b = dr[d.k + 1]; if (!a || !b) return null;
     const gap = col.gapBetween || 0, suma = a.h + b.h, fh = Math.max(MAK_MIN, Math.min(suma - MAK_MIN, r10(gy - gap / 2 - a.y)));
     const yb = a.y + fh + gap / 2;
     return { wartosc: fh, napis: `front ${fh} · ${Math.round(suma - fh)}`, linia: [col.x0, H - yb, col.x0 + col.w, H - yb],
-      zmien: (c) => { const raw = kolumnaW(c.levels, d.li, d.j); if (!raw || (raw.drawers || []).length !== dr.length) return;
+      zmien: (c) => { const raw = kolumnaW(c.levels, d.li, d.seg == null ? d.j : `${d.j}s${d.seg}`); if (!raw || (raw.drawers || []).length !== dr.length) return;
         const f = dr.map((q) => Math.round(q.h)); f[f.length - 1] = null; f[d.k] = fh; if (d.k + 1 < f.length - 1) f[d.k + 1] = Math.round(suma) - fh;
         raw.drawers.forEach((rd, i) => { rd.front = f[i]; }); } };
   }
@@ -20807,8 +20813,33 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad }) {
     out.push(napis("wn", W / 2, 60, `${fmt(cab.W)} × ${fmt(cab.H)}`));
   } else (geo.levels || []).forEach((lv) => lv.cols.forEach((col) => {
     const raw = typeof col.j === "number" ? ((cab.levels[lv.i] || {}).cols || [])[col.j] : null;
-    if (!makKolumnaProsta(raw)) return;
+    if (!raw) return;
     const dane = { "data-li": lv.i, "data-j": col.j };
+    /* kolumna z podzialem (poziomy kolumny): polki ciagnie sie jak w zwyklej kolumnie (granice tez), szuflady — w swoim
+       poziomie (`data-seg`, adres „<kolumna>s<nr>”) */
+    if (!makKolumnaProsta(raw)) {
+      if (zakladka === "polki" && !raw.sprzet) {
+        (col.shelves || []).forEach((sh, k) => out.push(pas(`p${lv.i}-${col.j}-${k}`, "polka", { ...dane, "data-k": k }, col.x0, fy(sh.y + geo.ts) - 22, col.w, geo.ts + 44, "ns-resize")));
+        (col.openings || []).forEach((o) => { if (o.h > 70) out.push(napis(`o${lv.i}-${col.j}-${o.k}`, col.x0 + col.w - 10, fy(o.to) + 36, `↕${fmt(o.h)}`, "end")); });
+      }
+      if (zakladka === "szuflady") {
+        const grupy = {};
+        (col.drawers || []).forEach((dr) => { if (dr.seg) (grupy[dr.seg.nr] = grupy[dr.seg.nr] || []).push(dr); });
+        Object.entries(grupy).forEach(([nr, lista]) => {
+          const dr = lista.sort((x, y) => x.i - y.i);
+          dr.forEach((a, k) => {
+            out.push(napis(`f${lv.i}-${col.j}s${nr}-${k}`, col.x0 + col.w / 2, fy(a.y + a.h / 2) + 10, `front ${fmt(a.h)}`));
+            if (k < dr.length - 1) {
+              const yb = a.y + a.h + (col.gapBetween || 0) / 2;
+              out.push(pas(`d${lv.i}-${col.j}s${nr}-${k}`, "szufl", { ...dane, "data-k": k, "data-seg": nr }, col.x0, fy(yb) - 26, col.w, 52, "ns-resize"),
+                <line key={`dl${lv.i}-${col.j}s${nr}-${k}`} pointerEvents="none" x1={col.x0 + 10} y1={fy(yb)} x2={col.x0 + col.w - 10} y2={fy(yb)}
+                  stroke={MAK_AKCENT} strokeWidth="4" strokeDasharray="14 10" />);
+            }
+          });
+        });
+      }
+      return;
+    }
     if (zakladka === "polki" && (raw.kind || "doors") === "doors" && !raw.sprzet) {
       (col.shelves || []).forEach((sh, k) => {
         out.push(pas(`p${lv.i}-${col.j}-${k}`, "polka", { ...dane, "data-k": k }, col.x0, fy(sh.y + geo.ts) - 22, col.w, geo.ts + 44, "ns-resize"));
@@ -21102,7 +21133,7 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
   );
 }
 
-function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProjekt, ciag }) {
+function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProjekt, ciag, geoOf }) {
   const it = project.items[idx];
   if (!it) return <p className="text-sm text-stone-500">Kliknij szafkę na rysunku — tu pokaże się jej karta.</p>;
   const cab = it.cab;
@@ -21114,9 +21145,22 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   );
   const poziomy = cab.levels || [];
   const kolumny = poziomy.flatMap((lv, li) => (lv.cols || []).map((c, j) => ({ c, li, j, n: (lv.cols || []).length })));
-  const nazwaKol = ({ li, j, n }) => `${poziomy.length > 1 ? `poziom ${li + 1}` : ""}${poziomy.length > 1 && n > 1 ? ", " : ""}${n > 1 ? `kolumna ${j + 1}` : ""}` || "wnętrze";
+  const nazwaKol0 = ({ li, j, n }) => `${poziomy.length > 1 ? `poziom ${li + 1}` : ""}${poziomy.length > 1 && n > 1 ? ", " : ""}${n > 1 ? `kolumna ${j + 1}` : ""}` || "wnętrze";
+  /* Kolumna z podzialem (poziomy kolumny — `col.podzial`, `col.segmenty`; zgloszenie 2026-11-09: „w szafie nie widzi
+     kolumn do sprawdzenia i poprawy”): kazdy poziom kolumny osobno, od gory, nazwany jak w trybie technicznym
+     („poziom N kolumny J”). `c` — ustawienia poziomu nalozone na kolumne, `jA` — adres dla `kolumnaW`,
+     `lo` / `hi` — swiatla kolumny nalezace do poziomu (lo < k <= hi). */
+  const odcinki = kolumny.flatMap((k) => {
+    if (makKolumnaProsta(k.c)) return [{ ...k, jA: k.j }];
+    const gr = (k.c.podzial || []).map(Number).sort((a, b) => a - b);
+    const ost = (k.c.shelfTargets || [null]).length - 1;
+    return [...gr.map((_, x) => x), gr.length].reverse().map((nr) => ({ ...k, kol: k.c, nr, jA: `${k.j}s${nr}`,
+      c: { ...k.c, ...((k.c.segmenty || [])[nr] || {}) }, lo: nr === 0 ? -1 : gr[nr - 1], hi: nr === gr.length ? ost : gr[nr] }));
+  });
+  const nazwaKol = (k) => (k.nr == null ? nazwaKol0(k) : `${poziomy.length > 1 ? `poziom szafki ${k.li + 1}, ` : ""}poziom ${k.nr + 1} kolumny ${k.j + 1}`);
   const tylko = { szuflady: (c) => c.kind === "drawers", polki: (c) => (c.kind || "doors") === "doors" && !c.sprzet, drzwi: (c) => (c.kind || "doors") === "doors" && !c.sprzet };
-  const listaKol = (f) => kolumny.filter((k) => !f || f(k.c)).map((k) => W(nazwaKol(k), makOpisKolumny(k.c), `k${k.li}-${k.j}`));
+  const listaKol = (f) => odcinki.filter((k) => !f || f(k.c)).map((k) => W(nazwaKol(k), makOpisKolumny(k.nr == null ? k.c : { ...k.c, podzial: undefined,
+    shelfTargets: Array(Math.max(0, k.hi - k.lo - 1) + 1).fill(null), drazki: (k.kol.drazki || []).filter((x) => x > k.lo && x <= k.hi) }), `k${k.li}-${k.jA}`));
   const cokol = cab.plinth && cab.plinth.on ? `${fmt(cab.plinth.height)} mm${cab.plinth.mode === "inbody" || cab.plinth.mode === "between" ? ", w obrysie" : ", pod korpusem"}` : "brak";
   const nozki = cab.legs && cab.legs.on ? `${fmt(cab.legs.height)} mm${cab.legs.count ? `, ${cab.legs.count} szt.` : ""}` : "brak";
   let tresc = [];
@@ -21156,14 +21200,40 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       className={`rounded border px-2 py-0.5 text-[11px] font-medium ${on ? "border-teal-700 bg-teal-700 text-white" : "border-stone-300 bg-white text-stone-700 hover:bg-stone-100"}`}>{children}</button>
   );
   const zmienKol = (li, j, fn) => zmien(idx, (c) => { const k = kolumnaW(c.levels, li, j); if (k) fn(k, c); });
-  const edytowalne = kolumny.filter(({ c }) => makKolumnaProsta(c) && !c.sprzet);
+  const edytowalne = odcinki.filter(({ c }) => !c.sprzet);
+  // obecne swiatla kolumny z narysowanej geometrii — przy zmianie polek w jednym poziomie kolumny inne zostaja na miejscu
+  const wysKol = (k) => { const g = geoOf ? geoOf(idx) : null; const lv = g && makLv(g, k.li); const col = lv && lv.cols.find((q) => q.j === k.j);
+    return col ? (col.openings || []).map((o) => o.h) : undefined; };
+  const kolumnaRaw = (c, k) => c.levels[k.li].cols[k.j];
+  // poziom kolumny: front (drzwi / klapa) — zastepuje szuflady i blende tego poziomu (jak klocek w makiecie)
+  const frontOdc = (k, v) => zmien(idx, (c) => {
+    const seg = kolumnaW(c.levels, k.li, k.jA); if (!seg) return;
+    delete seg.kind; delete seg.drawers; delete seg.blendaMode; delete seg.sprzet;
+    seg.doorWidths = [];
+    if (v.startsWith("klapa")) { seg.doors = 1; seg.klapa = v.slice(6); }
+    else { seg.doors = Number(v.slice(6)); seg.klapa = null; POLA_KLAPY.slice(1).forEach((pole) => delete seg[pole]); }
+    const n = Math.max(1, seg.doors || 1), tip = makTipon(k.c);
+    seg.handles = Array(n).fill(!tip); seg.otwieranie = tip ? Array(n).fill("tipon") : [];
+  });
+  const tiponOdc = (k, on) => zmienKol(k.li, k.jA, (seg) => { const n = Math.max(1, k.c.doors || 1); seg.handles = Array(n).fill(!on); seg.otwieranie = on ? Array(n).fill("tipon") : []; });
+  // poziom kolumny: szuflady — polki i rura z tego poziomu znikaja (jak „Szuflady” poziomu w trybie technicznym)
+  const szufladyOdc = (k, n) => zmien(idx, (c) => {
+    const col = kolumnaRaw(c, k);
+    polkiWPoziomie(col, k.nr, 0, wysKol(k));
+    if (col.drazki) { col.drazki = col.drazki.filter((x) => x !== k.lo + 1); if (!col.drazki.length) delete col.drazki; }
+    makUstawSzuflady(kolumnaW(c.levels, k.li, k.jA), n, systemKontekstu(project, idx));
+  });
+  const polkiOdc = (k, n) => zmien(idx, (c) => polkiWPoziomie(kolumnaRaw(c, k), k.nr, n, wysKol(k)));
+  const drazekOdc = (k) => zmien(idx, (c) => { const col = kolumnaRaw(c, k), ma = (col.drazki || []).some((x) => x > k.lo && x <= k.hi);
+    const r = ma ? (col.drazki || []).filter((x) => !(x > k.lo && x <= k.hi)) : [...(col.drazki || []), k.hi].sort((a, b) => a - b);
+    if (r.length) col.drazki = r; else delete col.drazki; });
   const wiersz = (k, tytul, tresc2, el) => (
     <div key={k} data-el={el} className="border-b border-stone-100 py-1.5">
       {tytul && <p className="mb-1 text-[11px] text-stone-500">{tytul}</p>}
       <div className="flex flex-wrap items-center gap-1">{tresc2}</div>
     </div>
   );
-  const nazwaK = (k) => (kolumny.length > 1 ? nazwaKol(k) : "");
+  const nazwaK = (k) => (kolumny.length > 1 || k.nr != null ? nazwaKol(k) : "");
   const tipon = makTipon, ustawFront = makUstawFront, ustawTipon = makUstawTipon, ustawPolki = makUstawPolki;
   const frontKol = (c) => (c.kind === "drawers" ? "szuflady" : c.kind === "blenda" ? "blenda" : !c.doors ? "otwarta" : c.klapa ? `klapa-${c.klapa}` : `drzwi-${Math.min(2, c.doors)}`);
   const ustawSzuflady = (k, n) => makUstawSzuflady(k, n, systemKontekstu(project, idx));
@@ -21182,21 +21252,34 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       <Btn key="n" el="mak-blat" v="nie" on={!run.worktop} onClick={() => ciag.setRun(run.id, { worktop: false })}>nie ma</Btn>])] : []),
     W("Cokół", cokol), W("Nóżki", nozki), ...(tryb === "szczegolowa" ? [W("Poziomy / kolumny", `${poziomy.length} / ${kolumny.length}`)] : []), ...listaKol(null)];
   else if (zakladka === "drzwi") {
-    tresc = edytowalne.map((k) => wiersz(`f${k.li}-${k.j}`, nazwaK(k), [
-      ...MAK_FRONTY.map(([v, l]) => <Btn key={v} el="mak-front" v={v} on={frontKol(k.c) === v} onClick={() => zmienKol(k.li, k.j, (kk) => ustawFront(kk, v))}>{l}</Btn>),
+    tresc = edytowalne.map((k) => wiersz(`f${k.li}-${k.jA}`, nazwaK(k), [
+      // poziom kolumny ma zawsze front (jak w trybie technicznym: „fronty” od 1)
+      ...MAK_FRONTY.filter(([v]) => k.nr == null || v !== "otwarta").map(([v, l]) => <Btn key={v} el="mak-front" v={v} on={frontKol(k.c) === v}
+        onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawFront(kk, v)) : frontOdc(k, v))}>{l}</Btn>),
       ...((k.c.kind || "doors") === "doors" && k.c.doors > 0 ? [<span key="sep" className="mx-1 text-stone-300">|</span>,
-        <Btn key="u" el="mak-otw" v="uchwyt" on={!tipon(k.c)} onClick={() => zmienKol(k.li, k.j, (kk) => ustawTipon(kk, false))}>uchwyt</Btn>,
-        <Btn key="t" el="mak-otw" v="tipon" on={tipon(k.c)} onClick={() => zmienKol(k.li, k.j, (kk) => ustawTipon(kk, true))}>tip-on</Btn>] : []),
+        <Btn key="u" el="mak-otw" v="uchwyt" on={!tipon(k.c)} onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawTipon(kk, false)) : tiponOdc(k, false))}>uchwyt</Btn>,
+        <Btn key="t" el="mak-otw" v="tipon" on={tipon(k.c)} onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawTipon(kk, true)) : tiponOdc(k, true))}>tip-on</Btn>] : []),
     ], "mak-kolumna"));
     if (!tresc.length) tresc = [<p key="brak" className="text-xs text-stone-500">W tej szafce fronty zmienisz w trybie Technicznym.</p>];
   }
   else if (zakladka === "szuflady") {
-    tresc = edytowalne.map((k) => wiersz(`s${k.li}-${k.j}`, nazwaK(k), [1, 2, 3, 4, 5].map((n) =>
-      <Btn key={n} el="mak-szuflady" v={n} on={k.c.kind === "drawers" && (k.c.drawers || []).length === n} onClick={() => zmienKol(k.li, k.j, (kk) => ustawSzuflady(kk, n))}>{n}</Btn>), "mak-kolumna"));
+    tresc = edytowalne.map((k) => wiersz(`s${k.li}-${k.jA}`, nazwaK(k), [1, 2, 3, 4, 5].map((n) =>
+      <Btn key={n} el="mak-szuflady" v={n} on={k.c.kind === "drawers" && (k.c.drawers || []).length === n}
+        onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawSzuflady(kk, n)) : szufladyOdc(k, n))}>{n}</Btn>), "mak-kolumna"));
     tresc.push(poRowno("front", "Fronty po równo"));
   }
   else if (zakladka === "polki") {
     tresc = edytowalne.filter(({ c }) => (c.kind || "doors") === "doors").map((k) => {
+      if (k.nr != null) {
+        const n = Math.max(0, k.hi - k.lo - 1), dr = (k.kol.drazki || []).some((x) => x > k.lo && x <= k.hi);
+        return wiersz(`p${k.li}-${k.jA}`, nazwaK(k), [
+          <span key="l" className="text-[11px] text-stone-500">półki</span>,
+          <Btn key="m" el="mak-polki" v="-1" onClick={() => n > 0 && polkiOdc(k, n - 1)}>−</Btn>,
+          <b key="n" className="w-5 text-center font-mono text-xs" data-el="mak-polki-n">{n}</b>,
+          <Btn key="p" el="mak-polki" v="1" onClick={() => polkiOdc(k, n + 1)}>+</Btn>,
+          <Btn key="d" el="mak-drazek" on={dr} onClick={() => drazekOdc(k)}>drążek</Btn>,
+        ], "mak-kolumna");
+      }
       const n = Math.max(0, (k.c.shelfTargets || [null]).length - 1);
       return wiersz(`p${k.li}-${k.j}`, nazwaK(k), [
         <span key="l" className="text-[11px] text-stone-500">półki</span>,
@@ -21278,7 +21361,7 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladk
     const mat = texMat(matRysunku(it.cab, it.mat), it.cab.texture, it.cab.textureDir);
     const plinthH = it.cab.plinth && it.cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
     const legBelow = it.cab.legs && it.cab.legs.on ? geo.legBelow : 0;
-    const o = { it, i, geo, mat, x, base: Math.max(plinthH, legBelow),
+    const o = { it, i, geo, mat, x, base: Math.max(plinthH, legBelow), plinthH,
       frontColor: it.cab.realColors && it.cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color };
     x += geo.W + ODST;
     return o;
@@ -21311,6 +21394,8 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladk
           onClick={() => onPick(c.i)} style={{ cursor: "pointer" }} data-el="makieta-szafka" data-idx={c.i}>
           <CabElevation cab={c.it.cab} geo={c.geo} mat={c.mat} open={open} showDims={false} showHardware={false}
             showLabels frontColor={c.frontColor} />
+          {/* cokol pod korpusem (zgloszenie 2026-11-09: „nie wyświetla cokołu”) — jak w widoku szafki: zaslania nozki za nim */}
+          {c.plinthH > 0 && <rect data-el="cokol-szafki" x={0} y={c.it.cab.H} width={c.geo.W} height={c.plinthH} fill={c.mat.board.color} stroke={INK} strokeWidth="2" opacity="0.9" />}
           {c.i === zazn && <rect pointerEvents="none" data-el="makieta-zaznaczona" x={0} y={0} width={c.geo.W} height={c.it.cab.H} fill="none" stroke={MAK_AKCENT} strokeWidth="12" />}
           {c.i === zazn && nakladka && nakladka(c.it.cab, c.geo, c.i)}
           <text x={c.geo.W / 2} y={c.it.cab.H + c.base + 70} fontSize="54" textAnchor="middle" fill="#78716c">{c.it.cab.name}</text>
@@ -21382,7 +21467,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     e.preventDefault(); e.stopPropagation();
     const idx = Number(grp.getAttribute("data-idx"));
     const num = (k) => (h.getAttribute(k) == null ? null : Number(h.getAttribute(k)));
-    ciagnie.current = { u: h.getAttribute("data-u"), li: num("data-li"), j: num("data-j"), k: num("data-k"), widok: h.getAttribute("data-widok") || "front", idx, grp };
+    ciagnie.current = { u: h.getAttribute("data-u"), li: num("data-li"), j: num("data-j"), k: num("data-k"), seg: num("data-seg"), widok: h.getAttribute("data-widok") || "front", idx, grp };
     try { h.setPointerCapture(e.pointerId); } catch (er) { /* bez przechwycenia */ }
   };
   useEffect(() => {
@@ -21529,8 +21614,19 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   // domyslnie ciag zaznaczonej szafki (z pietrem nad nim) — caly pokoj na raz jest za drobny do chwytania polek
   const [ciagId, setCiagId] = useState("aktywny");
   // przelaczniki rysunku (pamieta przegladarka)
-  const [przel, setPrzel] = useState(() => { try { return { zgory: true, gorny: true, dolny: true, fronty: true, powieksz: false, ...JSON.parse(localStorage.getItem("mp-mak-przel") || "{}") }; } catch (e) { return { zgory: true, gorny: true, dolny: true, fronty: true, powieksz: false }; } });
+  const [przel, setPrzel] = useState(() => { try { const { powieksz, ...p } = JSON.parse(localStorage.getItem("mp-mak-przel") || "{}"); return { zgory: true, gorny: true, dolny: true, fronty: true, ...p }; } catch (e) { return { zgory: true, gorny: true, dolny: true, fronty: true }; } });
   useEffect(() => { try { localStorage.setItem("mp-mak-przel", JSON.stringify(przel)); } catch (e) { /* bez pamieci */ } }, [przel]);
+  // przyblizanie: { pow — „Powiększ” (na wysokosc okna), z — krok z MAK_ZOOM }; pamieta przegladarka
+  const [zoomM, setZoomM] = useState(() => { try { return { pow: true, z: 1, ...JSON.parse(localStorage.getItem("mp-mak-zoom") || "{}") }; } catch (e) { return { pow: true, z: 1 }; } });
+  useEffect(() => { try { localStorage.setItem("mp-mak-zoom", JSON.stringify(zoomM)); } catch (e) { /* bez pamieci */ } }, [zoomM]);
+  const krokZoom = (d) => setZoomM((m) => { const i = MAK_ZOOM.findIndex((k) => k >= m.z - 1e-6); const j = Math.max(0, Math.min(MAK_ZOOM.length - 1, (i < 0 ? MAK_ZOOM.length - 1 : i) + d)); return { ...m, z: MAK_ZOOM[j] }; });
+  const [pelny, setPelny] = useState(false);
+  useEffect(() => {
+    if (!pelny) return undefined;
+    const esc = (e) => { if (e.key === "Escape") setPelny(false); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [pelny]);
   const widok = przel.fronty ? "closed" : "open";
   const runs = drawableRuns(project, pokoj);
   const aktIt = project.items[project.active];
@@ -21572,14 +21668,39 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     const groups = zWolnych ? [] : assemblyParts(project, rysowane, full);
     const top = zWolnych ? Math.max(0, ...wolne.map(({ it }) => (it.cab.H || 0) + 100)) : Math.max(0, ...groups.flatMap((g) => g.cabs.map((c) => c.base + c.cab.H)));
     if (!(top > 0)) return null;
-    if (przel.powieksz) return Math.max(0.05, Math.min(2, (oknoH - 215) / (top + 80)));
+    const zapas = pelny ? 120 : 0;   // pelny ekran: bez paska aplikacji nad rysunkiem
+    if (zoomM.pow) return Math.max(0.05, Math.min(8, ((oknoH - 215 + zapas) / (top + 80)) * zoomM.z));
     if (!(plotnoW > 0)) return null;
     const Lw = zWolnych ? null : runLayout(groups, full);
     const scDo = Lw && Lw.walls.length === 1 ? Math.max(0, ...groups.map((g) => runWallW(project, g.run) || 0)) : 0;
     const szer = zWolnych ? wolne.reduce((a, { it }) => a + (it.cab.W || 0) + 200, -200) + 80 : Math.max(1, Lw.elevTotal, scDo) + 80;
     const wys = Math.max(top, zWolnych ? 0 : MAK_SCIANA) + 80 + (przel.zgory ? 900 : 0);
-    return Math.max(0.05, Math.min(2, (plotnoW - 4) / szer, (oknoH - 230) / wys));
-  }, [project, skalaKlucz, oknoH, plotnoW, przel.powieksz, przel.zgory, samaSzafka, wolne.length]);   // eslint-disable-line react-hooks/exhaustive-deps
+    return Math.max(0.05, Math.min(2, (plotnoW - 4) / szer, (oknoH - 230 + zapas) / wys) * zoomM.z);
+  }, [project, skalaKlucz, oknoH, plotnoW, zoomM.pow, zoomM.z, pelny, przel.zgory, samaSzafka, wolne.length]);
+  // Ctrl + kolko nad rysunkiem: przyblizanie w miejscu kursora (jak w trybie technicznym)
+  const zoomRefM = useRef(zoomM); zoomRefM.current = zoomM;
+  const poZoomie = useRef(null);
+  useEffect(() => {
+    const el = plotno.current;
+    if (!el) return undefined;
+    const naKolko = (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      const z0 = zoomRefM.current.z;
+      const z1 = Math.max(1, Math.min(MAK_ZOOM[MAK_ZOOM.length - 1], z0 * Math.exp(-e.deltaY * 0.0015)));
+      if (Math.abs(z1 - z0) < 1e-3) return;
+      const r = el.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+      poZoomie.current = { x: (el.scrollLeft + mx) * (z1 / z0) - mx, y: (el.scrollTop + my) * (z1 / z0) - my };
+      setZoomM((m) => ({ ...m, z: z1 }));
+    };
+    el.addEventListener("wheel", naKolko, { passive: false });
+    return () => el.removeEventListener("wheel", naKolko);
+  }, []);
+  useEffect(() => {
+    const p = poZoomie.current, el = plotno.current;
+    if (!p || !el) return;
+    el.scrollLeft = p.x; el.scrollTop = p.y; poZoomie.current = null;
+  }, [skala]);   // eslint-disable-line react-hooks/exhaustive-deps
   // duzy rysunek przewija sie w bok — zaznaczona szafka ma byc widoczna (po kliknieciu z listy, po dodaniu z palety)
   useEffect(() => {
     const box = plotno.current; if (!box || !skala) return;
@@ -21613,12 +21734,13 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
             zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); }} />
           {akt !== "agd" && (
             <div className={MAK_KLOCKI_ZAKL[akt] || akt === "szafka" ? "border-t border-stone-200 pt-2" : ""}>
-              <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} zmienProjekt={zmienProjekt} ciag={ciag} />
+              <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} zmienProjekt={zmienProjekt} ciag={ciag}
+                geoOf={(i) => geoRysunku.current[i]} />
             </div>
           )}
         </div>
       </section>}
-      <section className="min-w-0 rounded-lg border border-stone-200 bg-white p-3 lg:sticky lg:top-24" onPointerDownCapture={naPoczatek}
+      <section className={pelny ? "fixed inset-0 z-50 overflow-hidden bg-white p-3" : "min-w-0 rounded-lg border border-stone-200 bg-white p-3 lg:sticky lg:top-24"} data-pelny={pelny ? "1" : undefined} onPointerDownCapture={naPoczatek}
         onDragOver={naPrzeciaganie} onDrop={naUpuszczenie} data-el="makieta-rysunek"
         style={podglad ? { touchAction: "none", userSelect: "none" } : undefined}>
         <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -21669,13 +21791,25 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           );
         })()}
         <div className="mb-1 flex flex-wrap items-center gap-1.5" data-el="mak-przel">
-          {MAK_PRZEL.filter(([k]) => (maPietra || (k !== "gorny" && k !== "dolny")) && !(k === "powieksz" && samaSzafka)).map(([k, l]) => (
+          {MAK_PRZEL.filter(([k]) => maPietra || (k !== "gorny" && k !== "dolny")).map(([k, l]) => (
             <Przelacznik key={k} k={k} l={l} on={!!przel[k]} onClick={() => setPrzel((p) => ({ ...p, [k]: !p[k] }))} />
           ))}
+          {!samaSzafka && <Przelacznik k="powieksz" l="Powiększ" on={!!zoomM.pow} onClick={() => setZoomM((m) => ({ ...m, pow: !m.pow }))} />}
           {widokRys !== widok && <span className="text-[11px] text-stone-500">wnętrze — w tej zakładce zawsze</span>}
           {celOpis && <span className="rounded bg-teal-700 px-1.5 py-0.5 text-[11px] font-medium text-white" data-el="mak-cel">upuść: {celOpis}</span>}
+          <span className="ml-auto flex items-center gap-1" data-el="mak-zoom">
+            {!samaSzafka && <>
+              <MiniBtn onClick={() => krokZoom(-1)} title="Pomniejsz">−</MiniBtn>
+              <span className="w-10 text-center font-mono text-[11px] text-stone-500" data-el="mak-zoom-proc" title="Ctrl + kółko nad rysunkiem: przybliż">{Math.round(zoomM.z * 100)}%</span>
+              <MiniBtn onClick={() => krokZoom(1)} title="Powiększ">+</MiniBtn>
+              <MiniBtn onClick={() => setZoomM({ pow: false, z: 1 })} title="Cały rysunek w oknie">Dopasuj</MiniBtn>
+            </>}
+            <MiniBtn onClick={() => setPelny((v) => !v)} tone={pelny ? "on" : "plain"} title={pelny ? "Wróć do zwykłego widoku (Esc)" : "Rysunek na całe okno"}>
+              {pelny ? "Zamknij pełny ekran" : "Pełny ekran"}
+            </MiniBtn>
+          </span>
         </div>
-        <div data-el="mak-plotno" ref={plotno} className="overflow-auto" style={{ maxHeight: "calc(100vh - 175px)" }}>
+        <div data-el="mak-plotno" ref={plotno} className="overflow-auto" style={{ maxHeight: pelny ? "calc(100vh - 110px)" : "calc(100vh - 175px)" }}>
         {przel.zgory && !samaSzafka && rysowane.length > 0 && (
           <div data-el="mak-zgory">
             <p className="text-[11px] text-stone-500">Z góry</p>

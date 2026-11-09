@@ -23,7 +23,7 @@ const wczytaj = async () => {
     p.items = [k('A1', 720, 'r1'), k('A2', 720, 'r1'), k('Słupek', 2000, 'r1', { slupek: true }), k('B1', 720, 'r2'), k('B2', 720, 'r2'), k('Komoda', 720, null)];
     p.active = 0;
     localStorage.setItem('szafki:projekt', JSON.stringify(p));
-    localStorage.setItem('mp-tryb', 'prosta');
+    localStorage.setItem('mp-tryb', 'prosta'); localStorage.setItem('mp-mak-zoom', JSON.stringify({ pow: false, z: 1 }));   // „Dopasuj” — uchwyty w oknie (przyblizanie: makieta5)
   });
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
 };

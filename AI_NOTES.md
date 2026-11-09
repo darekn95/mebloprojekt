@@ -1126,3 +1126,19 @@ cel upuszczenia = konkretna kolumna / poziom, a nie cala szafka; akcja uproszczo
 (fronty per poziom, podzial kolumny) — wtedy pytanie albo odeslanie do karty; narozniki, ramiona, kilka scian,
 ciag gorny. Kolejnosc: 1) widok przod ciagu + blat z gory w stylu makiety (juz ustalony) — tylko podglad,
 2) przeciaganie sprzetu i przesuwanie szafek, 3) klocki na kolumny / poziomy, 4) karta w makiecie = skrot do pelnej.
+[AI-INFO] Plan wyrownania trybu makiety z artefaktem „Makieta „Dodaj”” (uzytkownik 2026-11-09: „1,2,3,4 lecimy po kolei, od razu
+plan na calosc”), po kolei:
+- 0a przyblizanie: „Powiększ” domyslnie, − / + (MAK_ZOOM), „Dopasuj”, „Pełny ekran” + Esc, Ctrl + kolko — ZROBIONE;
+- 0b „Dodaj” wraca (jak stare, z modyfikacjami): Dodaj rozwija wybor AGD (sprzet + „W projekcie”) / Nowe szafki (Kuchnia: dol, gora;
+  Szafa w zabudowie; Wolnostojace) / Elementy szafki (klocki); zakladki Szafka, Szuflady, Polki, Drzwi i klapy, Przegroda,
+  Cokol i nozki — parametry zaznaczonej szafki. Odznaczanie szafki (klik w puste miejsce rysunku): bez zaznaczenia zakladki
+  Szafka / Szuflady / Polki / Drzwi / Przegroda pokazuja, co mozna dodac (nowe szafki / klocki); z zaznaczeniem — tylko opcje tej szafki;
+- 0c rodzaj zabudowy NA CIAG (`run.zabudowa`: kuchnia / szafa / wolnostojaca) — przelacznik w naglowku ciagu;
+- 0d kolory rysunku: prosta — jasne jak makieta; szczegolowa — kolory plyt jak techniczny, na przelaczniku; techniczny — kolory;
+- 1 karta AGD w stylu makiety + rysunki sprzetu (plyta z polami, zlew z komora, piekarnik z szyba, „Blat z góry”);
+- 2 przesuwanie postawionych rzeczy po rysunku (zielone ramki celu) + menu „Co zmienić?” (dwuklik / prawy przycisk);
+- 3 okap (typy, wyciecie w dnie z pola z propozycja, 650 / 750) + slupek z 3 sprzetami;
+- 4 karty szczegolowe (wzmocnienia, polki „równo z półką obok”, naglowek karty z ikona i szerokosciami, biurko z kontenerem,
+  szafa z szufladami).
+[AI-INFO] 2026-11-09: karta makiety pokazuje kazdy poziom kolumny z podzialem („poziom N kolumny J”) — zgloszenie „w szafie nie
+widzi kolumn”; cokol szafki wolnostojacej rysowany (`cokol-szafki`).
