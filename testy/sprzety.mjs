@@ -218,6 +218,15 @@ console.log('\n== wycięcia w blacie (użytkownik 2026-11-05): płyta i zlew nad
   ok('po kliknięciu: od przodu 60, bez błędu', (await zap()).items[1].cab.blatWyciecia[0].odPrzodu === 60 && !(await jest(reT)));
   await page.locator('[data-el="wyciecie-blatu-karta"]').getByRole('button', { name: 'usuń', exact: true }).click(); await page.waitForTimeout(900);
   ok('„usuń”: bez wycięć', !((await zap()).items[1].cab.blatWyciecia || []).length && (await page.locator('[data-el="wyciecie-blatu-karta"]').count()) === 0);
+  // sprzet wolnostojacy na blacie (2026-11-09, z makiety): tylko rysunek
+  await page.locator('[data-el="na-blacie-karta"]').getByRole('button', { name: '+ mikrofala', exact: true }).click(); await page.waitForTimeout(900);
+  ok('„+ mikrofala” na blacie: zapis w szafce, rzut z góry — 1', JSON.stringify((await zap()).items[1].cab.naBlacie) === '[{"typ":"mikrofala"}]'
+    && (await ile('[data-el="na-blacie"]')) === 1, String(await ile('[data-el="na-blacie"]')));
+  await page.locator('[data-el="na-blacie-poz"] button').filter({ hasText: /^25 l$/ }).click(); await page.waitForTimeout(700);
+  ok('rozmiar 25 l: 483 × 280 × 419', /483 × 280 × 419 mm/.test(await page.locator('[data-el="na-blacie-poz"]').innerText()));
+  await widok('Zamk.');
+  ok('widok z przodu ciągu: mikrofala na blacie', (await ile('[data-el="na-blacie"][data-typ="mikrofala"]')) === 1, String(await ile('[data-el="na-blacie"]')));
+  await page.locator('[data-el="na-blacie-poz"]').getByRole('button', { name: 'usuń', exact: true }).click(); await page.waitForTimeout(700);
 }
 
 console.log('\n== pod wycięciem w blacie (użytkownik 2026-11-05): nachodzenie, wzmocnienie z wycięciem / stojące ==');

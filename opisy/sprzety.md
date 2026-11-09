@@ -203,6 +203,14 @@ i głębokość wycięcia, odległość od przedniej krawędzi blatu, przesunię
   Uwagi: ! pasek przy wycięciu węższy niż 30 mm, × wycięcie przez całą głębokość albo brak
   miejsca na łącznik — przycisk „Wzmocnienie stojące” (i „Wkręty 4 × 30”).
 
+## Sprzęt wolnostojący na blacie (tylko rysunek)
+
+Użytkownik 2026-11-09: mikrofala i ekspres wolnostojące stoją na blacie — **tylko rysunek, bez kontroli**. Karta szafki
+pod blatem → „Na blacie (tylko rysunek)”: „+ mikrofala” / „+ ekspres”, rozmiar i przesunięcie w bok od środka szafki.
+Rysowane na widoku ciągu z przodu (na wierzchu blatu) i z góry (przy ścianie). Rozmiary z makiety, przykładowo (`NA_BLACIE`):
+mikrofala 20 l 440 × 258 × 340, 23 l 489 × 275 × 377, 25 l 483 × 280 × 419; ekspres 24 cm 240 × 360 × 440,
+22 cm 220 × 350 × 420.
+
 ## Co ustawiasz ręcznie
 
 Każdy typowy wymiar możesz zmienić polem w karcie sprzętu. Puste pole oznacza

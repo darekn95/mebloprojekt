@@ -10085,11 +10085,19 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
               const kol = rt.worktop
                 ? (rt.mat.worktop || {}).color || "#8d7b68"
                 : (rt.mat.board || {}).color || "#d8c3a0";
-              return worktopSpans(rt).map((s, i) => (
+              const wierzch = g.mount + rt.y + rt.th;
+              return [...worktopSpans(rt).map((s, i) => (
                 <rect key={"blat" + i} x={mx(ox + s.x0, s.x1 - s.x0)}
-                  y={fy(g.mount + rt.y + rt.th)} width={s.x1 - s.x0} height={rt.th}
+                  y={fy(wierzch)} width={s.x1 - s.x0} height={rt.th}
                   fill={kol} stroke={INK} strokeWidth="2" />
-              ));
+              )), ...(rt.naBlacie || []).map((q, i) => (
+                <g key={"nb" + i} data-el="na-blacie" data-typ={q.typ}>
+                  <rect x={mx(ox + q.x0, q.w)} y={fy(wierzch + q.h)} width={q.w} height={q.h} rx="12"
+                    fill={SPRZET_KOLOR} fillOpacity="0.75" stroke={INK} strokeWidth="2" />
+                  <text x={mx(ox + q.x0, q.w) + q.w / 2} y={fy(wierzch + q.h / 2) + 8} textAnchor="middle" fontSize="20" fill="#fafaf9"
+                    fontFamily="ui-monospace, monospace">{q.nazwa}</text>
+                </g>
+              ))];
             })()}
             {/* Odcinek zjedzony przez rog nie jest pusty — stoi w nim bok szafki
                 z sasiedniej sciany. Bez tego szafki wygladaja, jakby bez powodu
@@ -10772,6 +10780,9 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
       <rect key={"blat" + i} x={lead + sp.x0} y={yS}
         width={sp.x1 - sp.x0} height={rt.depth}
         fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
+    )), ...(rt.naBlacie || []).map((q, i) => (
+      <rect key={"nb" + i} data-el="na-blacie" x={lead + q.x0} y={yS} width={q.w} height={q.d} rx="10"
+        fill={SPRZET_KOLOR} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
     )), ...(rt.wyciecia || []).map((q, i) => (
       <g key={"wyc" + i} data-el="wyciecie-blatu">
         {q.sw > 0 && q.sd > 0 && (
@@ -16588,6 +16599,18 @@ const ROZM_WYCIEC = {
     { k: "2", l: "2 komory", sw: 860, sd: 500, w: 840, d: 480, h: 200 }],
 };
 const ROZM_WYCIEC_DOM = { plyta: "60", zlew: "1o" };
+/* Sprzet wolnostojacy na blacie (uzytkownik 2026-11-09, z makiety — przykladowo: mikrofala Teka 20 l, Whirlpool 23 / 25 l,
+   ekspres De'Longhi Magnifica Evo / Start): tylko rysunek, bez kontroli (decyzja uzytkownika). Zapisany w szafce, na ktorej
+   blacie stoi (`cab.naBlacie`), na srodku jej szerokosci (+ `przesun`), przy scianie. */
+const NA_BLACIE = {
+  mikrofala: { nazwa: "mikrofala", rozm: [{ k: "20", l: "20 l", w: 440, h: 258, d: 340 }, { k: "23", l: "23 l", w: 489, h: 275, d: 377 }, { k: "25", l: "25 l", w: 483, h: 280, d: 419 }] },
+  ekspres: { nazwa: "ekspres", rozm: [{ k: "24", l: "24 cm", w: 240, h: 360, d: 440 }, { k: "22", l: "22 cm", w: 220, h: 350, d: 420 }] },
+};
+const naBlacieSzafki = (cab) => ((cab && cab.naBlacie) || []).map((q, k) => {
+  const typ = NA_BLACIE[q && q.typ] ? q.typ : "mikrofala";
+  const r = NA_BLACIE[typ].rozm.find((x) => x.k === q.rozm) || NA_BLACIE[typ].rozm[0];
+  return { k, typ, nazwa: NA_BLACIE[typ].nazwa, rozm: r.k, rozmL: r.l, w: r.w, h: r.h, d: r.d, przesun: Math.round(Number(q.przesun) || 0) };
+});
 const wycieciaSzafki = (cab) => ((cab && cab.blatWyciecia) || []).map((q, k) => {
   const typ = WYCIECIA_BLATU[q && q.typ] ? q.typ : "plyta";
   const baza = WYCIECIA_BLATU[typ];
@@ -16747,6 +16770,7 @@ const runTopLiczy = (project, run, bezRogu = false) => {
   let x = 0;
   const spans = [];
   const wyciecia = [];   // plyta i zlew w blacie roboczym (x w ukladzie ciagu)
+  const naBlacie = [];   // sprzet wolnostojacy na blacie — tylko rysunek
   /* Blat roboczy ciagu obejmuje wszystkie szafki jednej wysokosci, niezaleznie
      od tego, co ma ustawione pojedyncza szafka. Slupek jest wyzszy, wiec blat
      konczy sie przy jego boku i do niego dolega. */
@@ -16773,6 +16797,10 @@ const runTopLiczy = (project, run, bezRogu = false) => {
       spans.push({ x0: c.x0, x1: c.x1,
         depth: odSciany + gl + przed + WORKTOP_OVERHANG, przed,
         odSciany, worktop: true, rear: c.it.cab.back !== "none" });
+      naBlacieSzafki(c.it.cab).forEach((q) => {
+        const sr = (c.x0 + c.x1) / 2 + q.przesun;
+        naBlacie.push({ ...q, idx: c.idx, x0: Math.round(sr - q.w / 2), x1: Math.round(sr + q.w / 2) });
+      });
       wycieciaSzafki(c.it.cab).forEach((q) => {
         const sr = (c.x0 + c.x1) / 2 + q.przesun;
         wyciecia.push({ ...q, idx: c.idx, x0: Math.round(sr - q.w / 2), x1: Math.round(sr + q.w / 2),
@@ -16848,7 +16876,7 @@ const runTopLiczy = (project, run, bezRogu = false) => {
     ? (mat0.worktop || {}).thickness || 38
     : (mat0.board || {}).thickness || 18);
   return {
-    total, x0, worktop, wyciecia,
+    total, x0, worktop, wyciecia, naBlacie,
     /* Numery szafek, nad ktorymi lezy ta plyta — tylko im zestawienie zdejmuje wlasny blat
        (audyt GPT N151: wysoka szafka z wlasnym blatem w ciagu z blatem roboczym znikala z niego). */
     pokryte: lvl && lvl.pod.length ? lvl.pod.map((c) => c.idx) : zrodla.map((z) => z.i),
@@ -25586,6 +25614,29 @@ export default function App() {
                   : ""}. Ustawienia wieńca i blatu wrócą, gdy któreś złącze wróci
                 na „między" albo „na boku".
               </p>
+            )}
+            {/* Sprzet wolnostojacy na blacie nad ta szafka (uzytkownik 2026-11-09) — tylko rysunek */}
+            {runTp && (runTp.pokryte || []).includes(project.active) && (
+              <Group label="Na blacie (tylko rysunek)" hint="Mikrofala albo ekspres wolnostojący stojący na blacie nad szafką — rysowany przy ścianie, bez kontroli. Wymiary przykładowe.">
+                <div className="space-y-2" data-el="na-blacie-karta">
+                  {naBlacieSzafki(cab).map((q) => {
+                    const zmien = (patch) => set({ naBlacie: (cab.naBlacie || []).map((x, k) => (k === q.k ? { ...x, ...patch } : x)) });
+                    return (
+                      <div key={q.k} className="flex flex-wrap items-center gap-2 rounded border border-stone-200 bg-white p-2 text-xs" data-el="na-blacie-poz">
+                        <Seg value={q.typ} onChange={(v) => zmien({ typ: v, rozm: null })} options={[{ v: "mikrofala", l: "Mikrofala" }, { v: "ekspres", l: "Ekspres" }]} />
+                        <Seg value={q.rozm} onChange={(v) => zmien({ rozm: v })} options={NA_BLACIE[q.typ].rozm.map((r) => ({ v: r.k, l: r.l }))} />
+                        <span className="text-stone-500">{fmt(q.w)} × {fmt(q.h)} × {fmt(q.d)} mm</span>
+                        <Field label="Przesunięcie w bok"><Num value={(cab.naBlacie || [])[q.k].przesun ?? ""} onChange={(v) => zmien({ przesun: v === "" ? null : v })} /></Field>
+                        <MiniBtn onClick={() => set({ naBlacie: (cab.naBlacie || []).filter((x, k) => k !== q.k) })} title="Usuń">usuń</MiniBtn>
+                      </div>
+                    );
+                  })}
+                  <div className="flex gap-2">
+                    <MiniBtn onClick={() => set({ naBlacie: [...(cab.naBlacie || []), { typ: "mikrofala" }] })}>+ mikrofala</MiniBtn>
+                    <MiniBtn onClick={() => set({ naBlacie: [...(cab.naBlacie || []), { typ: "ekspres" }] })}>+ ekspres</MiniBtn>
+                  </div>
+                </div>
+              </Group>
             )}
             {/* Wyciecia w blacie roboczym ciagu nad ta szafka (uzytkownik 2026-11-05: „nad szafką,
                 z przesunięciem”) — plyta grzewcza i zlew; wymiary typowe, do zmiany z karty sprzetu. */}
