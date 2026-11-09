@@ -203,6 +203,7 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | karta szafki w makiecie (`data-el="makieta-karta"`) | `MakietaKarta`, opis kolumny `makOpisKolumny`; pola „Szerokość / Wysokość / Głębokość” (`data-pole`) → `cab.W / H / D`; „Półki / Fronty / Kolumny po równo” (`data-akcja="porowno-…"`) → `shelfTargets` / `drawers[].front` / `col.w` na auto |
 | uchwyty na rysunku makiety (`data-el="makieta-uchwyty"`, `data-u`: `szer`, `wys`, `gleb`, `polka`, `przeg`, `szufl`), podgląd (`makieta-podglad`) | `MakietaUchwyty` (rysuje), `makWylicz` (przelicza: przeciągnięte i sąsiad liczbą, reszta jak teraz, ostatnie auto; co 10 mm; min. `MAK_MIN` 60, kolumna `MAK_MIN_KOL` 100), zapis `makietaZmien(i, fn)` w `App` po puszczeniu (jeden krok „Cofnij”); kolumny z podziałem na poziomy (`makKolumnaProsta`) bez uchwytów |
 | „Ciąg ▾” w makiecie: „Tylko zaznaczona szafka” / „Ciąg zaznaczonej szafki” (domyślnie, z piętrem nad nim) / „Wszystkie ciągi” / ciąg | `ciagId` w `MakietaWidok` (`"szafka"` / `"aktywny"` / `"wszystkie"` / id ciągu) |
+| przyciski karty makiety (`data-el`: `mak-front` / `mak-otw` / `mak-szuflady` / `mak-polki` (`mak-polki-n`) / `mak-drazek` / `mak-kolumny` / `mak-cokol` / `mak-nozki` / `mak-blat`, `data-v`; pola `cokol-h`, `nozki-h`) | `MakietaKarta`: `ustawFront` → `col.doors` / `klapa`, `ustawTipon` → `handles` / `otwieranie`, `ustawSzuflady` → `drawers`, `ustawPolki` → `shelfTargets` (+ `drazki`), kolumny → `levels[].cols`; cokół ciągu `setRunShared` (`run.plinth` i szafki), nóżki ciągu `wCiagu`, blat `setRun(…, { worktop })`; ciąg wiszący (`wisi`) bez cokołu, nóżek i blatu |
 | okienko „wysokość … → … mm” (`data-el="makieta-pytanie-wys"`, `data-wys`: `ciag` / `naroznik` / `ta`) | `zmienWys`, `pytWys`, `wysDla` w `MakietaWidok`; grupa ciągów w rogu `makGrupaNaroznika`, szafki za wysokością `makZaWysokoscia` |
 
 ### Karta „Luzy drzwi" (`cab.gaps`)
@@ -583,6 +584,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 
 | Suita | Pilnuje |
 |---|---|
+| `makieta4` | przyciski karty makiety prostej: fronty (1 / 2 drzwi, klapa ↑ / ↓, bez frontu), tip-on zostaje przy 2 drzwiach, szuflady 1–5, półki ± i drążek na górze, kolumny 1–4, cokół i nóżki dla całego ciągu (`run.plinth`) albo tylko wolnostojącej, blat ciągu jest / nie ma |
 | `makieta3` | wysokość szafki w ciągu z makiety: pytanie „Cały ciąg / Ten ciąg i połączone w narożniku / Tylko ta”, słupek i wolnostojąca zostają, `run.H`, przeciągnięcie też pyta, Esc |
 | `makieta2` | uchwyty makiety: szerokość / wysokość z rysunku, podgląd w trakcie, pola karty, jeden krok „Cofnij”, półka → światła (ostatnie auto, bez błędu sumy), „Półki po równo”, przegroda → `col.w` (ostatnia auto), linia szuflad → fronty (górny auto), głębokość z pola |
 | `makieta` | tryb makiety: przełącznik trybu (domyślnie techniczny, pamiętany), rysunek ciągu i wolnostojących z danych, listy pomieszczenie / ciąg / szafka / widok, klik i obrys zaznaczonej, zakładki prostej i szczegółowej, projekt nietknięty |

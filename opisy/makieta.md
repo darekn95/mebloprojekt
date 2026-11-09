@@ -62,6 +62,27 @@ Polki i przegrody widać we wnętrzu, więc te zakładki same przełączają rys
 Słupki (`slupek`) i lodówka w ciągu zostają. Szafka sama w ciągu — wysokość ciągu idzie za nią bez
 pytania. Wolnostojąca i ciąg górny — bez pytania.
 
+## Przyciski w karcie (krok 4)
+
+Jak w makiecie „Dodaj”: rząd przycisków na kolumnę (w szafce z jedną kolumną bez podpisu).
+Zapis do tych samych pól co tryb techniczny; liczy aplikacja.
+- **Drzwi i klapy**: „1 drzwi / 2 drzwi / Klapa ↑ / Klapa ↓ / Bez frontu” (`col.doors`, `col.klapa`);
+  przy frontach „uchwyt / tip-on” (`col.handles[i]`, `col.otwieranie[i] = "tipon"`). Tip-on zostaje
+  przy zmianie liczby drzwi i przy klapie. Szuflady w kolumnie zmieniają się w drzwi.
+- **Szuflady**: 1–5 w kolumnie (`col.drawers`, fronty auto, system z szafki / ciągu jak w trybie
+  technicznym — `systemKontekstu`).
+- **Półki**: „− N +” (`shelfTargets`, wszystkie światła na auto) i „drążek” (`col.drazki`) w najwyższym
+  świetle — przy zmianie liczby półek zostaje na górze.
+- **Przegroda**: 1–4 kolumny w poziomie; szerokości na auto, nowa kolumna jak ostatnia (drzwi, półki).
+- **Cokół i nóżki**: cokół brak / pod korpusem / w obrysie i wysokość, nóżki brak / są i wysokość.
+  W ciągu — **cały ciąg** naraz, jak karta ciągu: cokół przez `run.plinth` (bez uwagi „nie zgadza się
+  z ciągiem”), nóżki we wszystkich szafkach ciągu; lodówka wolnostojąca w ciągu zostaje. Szafka
+  wolnostojąca — tylko ona. Ciąg wiszący: cokołu i nóżek nie ma (jak `ciagWisi`).
+- **Szafka**: „Blat roboczy ciągu: jest / nie ma” (`run.worktop` przez `setRun` — wspólny wieniec
+  wyłączony, szafki ciągu dopasowane do blatu, jak w karcie ciągu). Tylko ciąg stojący.
+
+Kolumny złożone (podział na poziomy kolumny, sprzęt) zmienia się w trybie technicznym — karta to mówi.
+
 ## Co ustawiasz ręcznie
 
 - Pomieszczenie, ciąg, szafka i widok — przyciski z rozwijaną listą. Ciąg domyślnie: ciąg
@@ -78,10 +99,9 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
 ## Czego jeszcze nie ma
 
 Kolejne kroki (`makiety/BRAKI.md`, D):
-- karty z polami do zmiany (fronty, liczba półek i szuflad, cokół, nóżki);
-- paleta i klocki;
-- AGD;
-- karty z polami do zmiany.
+- paleta i klocki (przeciąganie szablonów na rysunek);
+- AGD (brakujące w aplikacji, A1);
+- karty szczegółowej ze wszystkimi funkcjami.
 
 ## Gdzie w kodzie i testy
 
@@ -89,4 +109,4 @@ Kolejne kroki (`makiety/BRAKI.md`, D):
   `makietaZmien` w `App`; `onPick` / `zazn` / `maxH` / `nakladka`
   w `AssemblyView` i `AssemblyTopView`; stan `tryb` w `App`.
 - **Test**: `testy/makieta.mjs` (tryb, rysunek, zaznaczanie), `testy/makieta2.mjs` (uchwyty i zapis),
-  `testy/makieta3.mjs` (pytanie o wysokość w ciągu i w narożniku).
+  `testy/makieta3.mjs` (pytanie o wysokość w ciągu i w narożniku), `testy/makieta4.mjs` (przyciski karty).

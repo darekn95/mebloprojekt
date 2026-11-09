@@ -20663,7 +20663,7 @@ const makOpisKolumny = (col) => {
 
 /* Karta szafki w makiecie (krok 1 — do odczytu). Zakladka wybiera, co pokazac; szczegolowa
    dochodza: korpus i plecy, wzmocnienia, wyciecia i elementy kolizyjne. */
-function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys }) {
+function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProjekt, ciag }) {
   const it = project.items[idx];
   if (!it) return <p className="text-sm text-stone-500">Kliknij szafkę na rysunku — tu pokaże się jej karta.</p>;
   const cab = it.cab;
@@ -20707,17 +20707,133 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys }) {
     );
   };
   const wskazowka = { szafka: "Na rysunku: prawa krawędź — szerokość, górna — wysokość; z góry przód — głębokość (zielone znaczki).",
-    polki: "Półkę przeciągnij na rysunku w górę albo w dół — liczby pokazują światło pod i nad nią.",
-    szuflady: "Przeciągnij linię między szufladami — zmienia się front pod nią i nad nią.",
-    przegroda: "Przegrodę przeciągnij w lewo albo w prawo — zmieniają się szerokości kolumn obok." }[zakladka];
+    polki: "Liczba półek przyciskami; wysokość — przeciągnij półkę na rysunku (liczby: światło pod i nad nią).",
+    szuflady: "Liczba szuflad przyciskami; wysokość frontów — przeciągnij linię między szufladami na rysunku.",
+    przegroda: "Liczba kolumn przyciskami; szerokość — przeciągnij przegrodę na rysunku w lewo albo w prawo.",
+    drzwi: "Front każdej kolumny i otwieranie: uchwyt albo tip-on." }[zakladka];
+  /* ---- krok 4 (uzytkownik 2026-11-09): przyciski jak w makiecie „Dodaj”, zapis do tych samych pol co tryb techniczny ---- */
+  const Btn = ({ on, onClick, children, el, v }) => (
+    <button data-el={el} data-v={v} aria-pressed={!!on} onClick={onClick}
+      className={`rounded border px-2 py-0.5 text-[11px] font-medium ${on ? "border-teal-700 bg-teal-700 text-white" : "border-stone-300 bg-white text-stone-700 hover:bg-stone-100"}`}>{children}</button>
+  );
+  const zmienKol = (li, j, fn) => zmien(idx, (c) => { const k = kolumnaW(c.levels, li, j); if (k) fn(k, c); });
+  const edytowalne = kolumny.filter(({ c }) => makKolumnaProsta(c) && !c.sprzet);
+  const wiersz = (k, tytul, tresc2, el) => (
+    <div key={k} data-el={el} className="border-b border-stone-100 py-1.5">
+      {tytul && <p className="mb-1 text-[11px] text-stone-500">{tytul}</p>}
+      <div className="flex flex-wrap items-center gap-1">{tresc2}</div>
+    </div>
+  );
+  const nazwaK = (k) => (kolumny.length > 1 ? nazwaKol(k) : "");
+  const tipon = (c) => (c.handles || [])[0] === false && (c.otwieranie || [])[0] === "tipon";
+  const frontKol = (c) => (c.kind === "drawers" ? "szuflady" : c.kind === "blenda" ? "blenda" : !c.doors ? "otwarta" : c.klapa ? `klapa-${c.klapa}` : `drzwi-${Math.min(2, c.doors)}`);
+  const FRONTY_MAK = [["drzwi-1", "1 drzwi"], ["drzwi-2", "2 drzwi"], ["klapa-gora", "Klapa ↑"], ["klapa-dol", "Klapa ↓"], ["otwarta", "Bez frontu"]];
+  const ustawFront = (k, v) => {
+    const bylTipon = (k.kind || "doors") === "doors" && tipon(k);   // tip-on zostaje przy zmianie liczby drzwi / klapie
+    if (k.kind === "drawers") k.drawers = [];
+    k.kind = "doors"; delete k.sprzet; k.doorWidths = [];
+    if (v.startsWith("klapa")) { k.doors = 1; k.klapa = v.slice(6); }
+    else { POLA_KLAPY.forEach((pole) => delete k[pole]); k.doors = v === "otwarta" ? 0 : Number(v.slice(6)); }
+    if (!k.shelfTargets) k.shelfTargets = [null];
+    if (bylTipon && k.doors > 0) ustawTipon(k, true);
+  };
+  const ustawTipon = (k, on) => {
+    const n = Math.max(1, k.doors || 1);
+    k.handles = Array(n).fill(!on);
+    if (on) k.otwieranie = Array(n).fill("tipon"); else delete k.otwieranie;
+  };
+  const ustawSzuflady = (k, n) => {
+    const sys = systemKontekstu(project, idx);
+    const nowa = () => (sys === "dxs" ? { ...newDrawer(), system: "dxs" } : newDrawer());
+    const st = k.kind === "drawers" ? k.drawers || [] : [];
+    k.kind = "drawers"; delete k.sprzet; POLA_KLAPY.forEach((pole) => delete k[pole]);
+    k.drawers = Array.from({ length: n }, (_, i) => (st[i] ? { ...st[i], front: null } : nowa()));
+  };
+  const ustawPolki = (k, n) => {
+    k.shelfTargets = Array(Math.max(0, n) + 1).fill(null);
+    if ((k.drazki || []).length) k.drazki = [Math.max(0, n)];   // drazek zostaje w najwyzszym swietle
+  };
+  // caly ciag (cokol, nozki) albo sama szafka wolnostojaca
+  const wCiagu = (fn) => {
+    if (!run) { zmien(idx, fn); return; }
+    zmienProjekt((p) => ({ ...p, items: p.items.map((x) => (x.runId === run.id && !lodowkaCiagu(x.cab) ? { ...x, cab: (() => { const c = JSON.parse(JSON.stringify(x.cab)); fn(c); return c; })() } : x)) }));
+  };
+  // ciag wiszacy: ani cokolu, ani nozek, ani blatu (jak karta ciagu w trybie technicznym — `ciagWisi`)
+  const wisi = !!run && (run.tier === "gorny" || run.mountY > 0 || !!runRail(project, run));
+  const naCiag = run ? <p key="nc" className="text-[11px] text-stone-500">Dla całego ciągu „{run.name || "ciąg"}”.</p> : null;
   if (zakladka === "szafka") tresc = [<Pole key="pW" k="W" l="Szerokość" />, <Pole key="pH" k="H" l="Wysokość" />, <Pole key="pD" k="D" l="Głębokość" />, W("Ciąg", run ? run.name || "ciąg" : "wolnostojąca"),
+    ...(run && !wisi ? [wiersz("blat", "Blat roboczy ciągu", [
+      <Btn key="t" el="mak-blat" v="tak" on={!!run.worktop} onClick={() => ciag.setRun(run.id, { worktop: true })}>jest</Btn>,
+      <Btn key="n" el="mak-blat" v="nie" on={!run.worktop} onClick={() => ciag.setRun(run.id, { worktop: false })}>nie ma</Btn>])] : []),
     W("Cokół", cokol), W("Nóżki", nozki), ...(tryb === "szczegolowa" ? [W("Poziomy / kolumny", `${poziomy.length} / ${kolumny.length}`)] : []), ...listaKol(null)];
-  else if (zakladka === "szuflady" || zakladka === "polki" || zakladka === "drzwi") { tresc = listaKol(tylko[zakladka]); if (!tresc.length) tresc = [<p key="brak" className="text-xs text-stone-500">W tej szafce nic z tej zakładki.</p>];
-    else if (zakladka === "polki") tresc.push(poRowno("shelfTargets", "Półki po równo"));
-    else if (zakladka === "szuflady") tresc.push(poRowno("front", "Fronty po równo")); }
-  else if (zakladka === "przegroda") tresc = [...poziomy.map((lv, li) => W(poziomy.length > 1 ? `poziom ${li + 1}` : "kolumny", `${(lv.cols || []).length} · szer. ${(lv.cols || []).map((c) => (c.w ? fmt(c.w) : "auto")).join(" / ")}`, `pz${li}`)),
-    poRowno("w", "Kolumny po równo")];
-  else if (zakladka === "cokol") tresc = [W("Cokół", cokol), W("Nóżki", nozki)];
+  else if (zakladka === "drzwi") {
+    tresc = edytowalne.map((k) => wiersz(`f${k.li}-${k.j}`, nazwaK(k), [
+      ...FRONTY_MAK.map(([v, l]) => <Btn key={v} el="mak-front" v={v} on={frontKol(k.c) === v} onClick={() => zmienKol(k.li, k.j, (kk) => ustawFront(kk, v))}>{l}</Btn>),
+      ...((k.c.kind || "doors") === "doors" && k.c.doors > 0 ? [<span key="sep" className="mx-1 text-stone-300">|</span>,
+        <Btn key="u" el="mak-otw" v="uchwyt" on={!tipon(k.c)} onClick={() => zmienKol(k.li, k.j, (kk) => ustawTipon(kk, false))}>uchwyt</Btn>,
+        <Btn key="t" el="mak-otw" v="tipon" on={tipon(k.c)} onClick={() => zmienKol(k.li, k.j, (kk) => ustawTipon(kk, true))}>tip-on</Btn>] : []),
+    ], "mak-kolumna"));
+    if (!tresc.length) tresc = [<p key="brak" className="text-xs text-stone-500">W tej szafce fronty zmienisz w trybie Technicznym.</p>];
+  }
+  else if (zakladka === "szuflady") {
+    tresc = edytowalne.map((k) => wiersz(`s${k.li}-${k.j}`, nazwaK(k), [1, 2, 3, 4, 5].map((n) =>
+      <Btn key={n} el="mak-szuflady" v={n} on={k.c.kind === "drawers" && (k.c.drawers || []).length === n} onClick={() => zmienKol(k.li, k.j, (kk) => ustawSzuflady(kk, n))}>{n}</Btn>), "mak-kolumna"));
+    tresc.push(poRowno("front", "Fronty po równo"));
+  }
+  else if (zakladka === "polki") {
+    tresc = edytowalne.filter(({ c }) => (c.kind || "doors") === "doors").map((k) => {
+      const n = Math.max(0, (k.c.shelfTargets || [null]).length - 1);
+      return wiersz(`p${k.li}-${k.j}`, nazwaK(k), [
+        <span key="l" className="text-[11px] text-stone-500">półki</span>,
+        <Btn key="m" el="mak-polki" v="-1" onClick={() => zmienKol(k.li, k.j, (kk) => ustawPolki(kk, n - 1))}>−</Btn>,
+        <b key="n" className="w-5 text-center font-mono text-xs" data-el="mak-polki-n">{n}</b>,
+        <Btn key="p" el="mak-polki" v="1" onClick={() => zmienKol(k.li, k.j, (kk) => ustawPolki(kk, n + 1))}>+</Btn>,
+        <Btn key="d" el="mak-drazek" on={(k.c.drazki || []).length > 0} onClick={() => zmienKol(k.li, k.j, (kk) => { if ((kk.drazki || []).length) delete kk.drazki; else kk.drazki = [n]; })}>drążek</Btn>,
+      ], "mak-kolumna");
+    });
+    if (!tresc.length) tresc = [<p key="brak" className="text-xs text-stone-500">W tej szafce nie ma kolumn z półkami.</p>];
+    tresc.push(poRowno("shelfTargets", "Półki po równo"));
+  }
+  else if (zakladka === "przegroda") {
+    tresc = [...poziomy.map((lv, li) => {
+      const cols = lv.cols || [], proste = cols.every((c) => makKolumnaProsta(c));
+      return wiersz(`pz${li}`, `${poziomy.length > 1 ? `poziom ${li + 1} — ` : ""}kolumny (szer. ${cols.map((c) => (c.w ? fmt(c.w) : "auto")).join(" / ")})`,
+        proste ? [1, 2, 3, 4].map((n) => <Btn key={n} el="mak-kolumny" v={n} on={cols.length === n} onClick={() => zmien(idx, (c) => {
+          const L = c.levels[li].cols;
+          if (n > L.length) { const wz = L[L.length - 1]; while (L.length < n) L.push(newColumn((wz && wz.doors) || 1, Math.max(0, ((wz && wz.shelfTargets) || [null]).length - 1))); }
+          else L.splice(n);
+          L.forEach((k) => { k.w = null; });
+          delete L[L.length - 1].noDiv; delete L[L.length - 1].przegrodaPodw;
+        })}>{n}</Btn>) : [<span key="t" className="text-[11px] text-stone-500">podział na poziomy kolumny — w trybie Technicznym</span>], "mak-poziom");
+    }), poRowno("w", "Kolumny po równo")];
+  }
+  else if (zakladka === "cokol" && wisi) tresc = [<p key="wisi" className="text-xs text-stone-500">Ciąg „{run.name || "ciąg"}” wisi na ścianie — cokół i nóżki go nie dotyczą.</p>];
+  else if (zakladka === "cokol") {
+    const pl = (run && run.plinth) || cab.plinth || {}, lg = cab.legs || {};
+    const cokolNa = (patch) => {
+      if (!run) { zmien(idx, (c) => { c.plinth = { ...(c.plinth || {}), ...patch }; }); return; }
+      ciag.setRunShared(run.id, { plinth: { ...pl, ...patch } });
+    };
+    const trybCokolu = !pl.on ? "brak" : pl.mode === "inbody" || pl.mode === "between" ? "inbody" : "under";
+    const ustawCokol = (v) => cokolNa({ on: v !== "brak", ...(v !== "brak" ? { mode: v } : {}) });
+    tresc = [
+      wiersz("c", "Cokół", [["brak", "brak"], ["under", "pod korpusem"], ["inbody", "w obrysie"]].map(([v, l]) =>
+        <Btn key={v} el="mak-cokol" v={v} on={trybCokolu === v} onClick={() => ustawCokol(v)}>{l}</Btn>)),
+      pl.on && <label key="ch" className="flex items-center justify-between gap-2 border-b border-stone-100 py-1 text-xs"><span className="text-stone-500">wysokość cokołu</span>
+        <input type="number" step="10" defaultValue={pl.height} key={`ch-${pl.height}`} data-pole="cokol-h"
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v > 0 && v !== pl.height) cokolNa({ height: v }); }}
+          className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs" /></label>,
+      wiersz("n", "Nóżki", [["nie", "brak"], ["tak", "są"]].map(([v, l]) =>
+        <Btn key={v} el="mak-nozki" v={v} on={!!lg.on === (v === "tak")} onClick={() => wCiagu((c) => { c.legs = { ...(c.legs || {}), on: v === "tak" }; })}>{l}</Btn>)),
+      lg.on && <label key="nh" className="flex items-center justify-between gap-2 border-b border-stone-100 py-1 text-xs"><span className="text-stone-500">wysokość nóżek</span>
+        <input type="number" step="5" defaultValue={lg.height} key={`nh-${lg.height}`} data-pole="nozki-h"
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v > 0 && v !== lg.height) wCiagu((c) => { c.legs = { ...(c.legs || {}), height: v }; }); }}
+          className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs" /></label>,
+      naCiag,
+    ].filter(Boolean);
+  }
   else if (zakladka === "korpus") tresc = [W("Plecy", { hdf: "HDF", board: "płyta", none: "brak" }[cab.back] || cab.back || "—"),
     W("Fronty", cab.frontMode === "inset" ? "wpuszczane" : "nakładane"), W("Góra", cab.top && cab.top.mode === "blat" ? "blat z płyty" : "wieniec")];
   else if (zakladka === "wzmocnienia") { const n = kolumny.reduce((a, k) => a + (k.c.rails || []).length, 0); tresc = [W("Wzmocnienia w kolumnach", n ? `${n}` : "brak")]; }
@@ -20732,7 +20848,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys }) {
       <div>{tresc}</div>
       {wskazowka && <p className="text-[11px] text-teal-800" data-el="makieta-wskazowka">{wskazowka}</p>}
       <p className="text-[11px] text-stone-500">
-        {tryb === "szczegolowa" ? "Makieta szczegółowa" : "Makieta prosta"}: na rysunku zmieniasz wymiary, półki, przegrody i szuflady. Pozostałe ustawienia — na razie w trybie Technicznym.
+        {tryb === "szczegolowa" ? "Makieta szczegółowa" : "Makieta prosta"}: zmiany idą od razu do projektu (formatki, okucia, uwagi). Czego tu nie ma — w trybie Technicznym.
       </p>
     </div>
   );
@@ -20775,7 +20891,7 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladk
   );
 }
 
-function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien, zmienProjekt }) {
+function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien, zmienProjekt, ciag }) {
   const [zakladka, setZakladka] = useState("szafka");
   /* Wysokosc szafki w ciagu (uzytkownik 2026-11-09): po zmianie od razu pytanie — tylko ta, caly ciag,
      czy ten ciag i polaczone w narozniku (wspolny blat). Idzie wysokosc ciagu (`run.H`) i szafki
@@ -20891,7 +21007,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         ))}
       </nav>
       <section className="rounded-lg border border-stone-200 bg-white p-2.5 lg:sticky lg:top-24">
-        <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} />
+        <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} zmienProjekt={zmienProjekt} ciag={ciag} />
       </section>
       <section className="min-w-0 rounded-lg border border-stone-200 bg-white p-3 lg:sticky lg:top-24" onPointerDownCapture={naPoczatek}
         style={podglad ? { touchAction: "none", userSelect: "none" } : undefined}>
@@ -24385,7 +24501,7 @@ export default function App() {
       </div>
       </header>
 
-      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} />}
+      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} ciag={{ setRun, setRunShared }} />}
       <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]"
         style={makieta ? { display: "none" } : undefined}>
         <div className="space-y-4">
