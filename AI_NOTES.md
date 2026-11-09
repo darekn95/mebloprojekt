@@ -1031,6 +1031,11 @@ okienko „Co zmienić?”. Dwuklik na polce — okienko swiatla: najnizsza od d
 w promieniu 45 mm) staje na tej samej wysokosci od podlogi (bez zaokraglania do 10), linia pomocnicza „równo” przez
 caly rysunek; kazda narysowana polka ma `.polkaV` z polozeniem (data-yy, x0, x1). W aplikacji: to samo jako wyrownanie
 do polek sasiednich szafek (te same rzedy otworow).
+[AI-INFO] Wersja 19 (uzytkownik 2026-11-09: „luz z boku każdy — raczej z lewej, z prawej i od tyłu”): lodowka
+wolnostojaca ma luz z lewej (`lL`) i z prawej (`lP`) osobno (stary `lb` czytany jako oba), miejsce w ciagu = lL + szer.
++ lP; lodowka stoi od lewego luzu; na rysunku obrys miejsca (przerywany) i wymiary luzow w szczelinach (z boku pionowo,
+nad lodowka poziomo), z gory obrys miejsca z luzem z tylu. „Na równo z meblami” — 3 / 3 / 15.
+[AI-TODO] W aplikacji glownej lodowka wolnostojaca ma dzis jeden luz z boku (50) — przy scalaniu: z lewej / z prawej osobno.
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
 rant i kasete szer. × glab. × w dol (bryla pod blatem = kaseta, nie obrys wyciecia; wyciecie plyty = kaseta + luz),

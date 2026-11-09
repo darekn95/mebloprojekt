@@ -301,10 +301,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     zmywarka: [{ k: "60", l: "60 cm", w: 600 }, { k: "45", l: "45 cm", w: 450 }],
     zmywarkaW: [{ k: "60", l: "60 cm", w: 600 }, { k: "45", l: "45 cm", w: 450 }],
     lodowkaP: [{ k: "60", l: "60 cm", w: 600 }],   // wneka typowo 820 × 600 × 550 (np. Bosch KU22LVFD0, Smeg U8L080DE)
-    /* lodowka wolnostojaca: w × h × d lodowki, luzy lb (z kazdego boku), lg (nad), lt (z tylu) — typowo 50 / 100 / 50
+    /* lodowka wolnostojaca: w × h × d lodowki, luzy lL / lP (z lewej / z prawej — osobno, uzytkownik 2026-11-09), lg (nad),
+       lt (z tylu) — typowo 50 / 50 / 100 / 50
        (wentylacja; czesc modeli chce mniej — wg instrukcji). Wymiary przykladowe. */
-    wolna: [{ k: "60", l: "60 × 185", w: 600, h: 1850, d: 650, lb: 50, lg: 100, lt: 50 }, { k: "60w", l: "60 × 203", w: 600, h: 2030, d: 670, lb: 50, lg: 100, lt: 50 },
-      { k: "70", l: "70 × 203", w: 700, h: 2030, d: 670, lb: 50, lg: 100, lt: 50 }, { k: "90", l: "side by side 91", w: 910, h: 1790, d: 720, lb: 50, lg: 100, lt: 50 }],
+    wolna: [{ k: "60", l: "60 × 185", w: 600, h: 1850, d: 650, lL: 50, lP: 50, lg: 100, lt: 50 }, { k: "60w", l: "60 × 203", w: 600, h: 2030, d: 670, lL: 50, lP: 50, lg: 100, lt: 50 },
+      { k: "70", l: "70 × 203", w: 700, h: 2030, d: 670, lL: 50, lP: 50, lg: 100, lt: 50 }, { k: "90", l: "side by side 91", w: 910, h: 1790, d: 720, lL: 50, lP: 50, lg: 100, lt: 50 }],
     okap: [{ k: "60", l: "60 cm", w: 600 }, { k: "90", l: "90 cm", w: 900 }, { k: "50", l: "50 cm", w: 500 }],
   };
   Object.keys(WZORY).forEach((k) => { ROZM[k] = [{ k: "w", l: "", w: WZORY[k].w }]; });
@@ -316,16 +317,17 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   const wym = (a) => {
     const m = { ...rozm(a), ...(a.wym || {}) };
     if (a.typ === "plyta") { m.ww = m.kw + 2 * WYC_LUZ; m.wd = m.kd + 2 * WYC_LUZ; }
+    if (a.typ === "wolna" && m.lb != null) { if (!(a.wym && a.wym.lL != null)) m.lL = m.lb; if (!(a.wym && a.wym.lP != null)) m.lP = m.lb; }   // stary zapis: jeden luz z boku
     return m;
   };
   const WYM_POLA = {
     plyta: [["Szkło na blacie", "sw", "sd"], ["Kaseta pod szkłem", "kw", "kd"], ["Kaseta w dół od wierzchu blatu", "h"]],
     zlew: [["Rant na blacie", "sw", "sd"], ["Wycięcie w blacie", "ww", "wd"], ["Głębokość komory od wierzchu blatu", "h"]],
     lodowka: [["Wysokość wnęki", "h"]],
-    wolna: [["Lodówka (szer. × głęb.)", "w", "d"], ["Wysokość lodówki", "h"], ["Luz z boku (każdy)", "lb"], ["Luz nad lodówką", "lg"], ["Luz z tyłu", "lt"]],
+    wolna: [["Lodówka (szer. × głęb.)", "w", "d"], ["Wysokość lodówki", "h"], ["Luz z lewej", "lL"], ["Luz z prawej", "lP"], ["Luz nad lodówką", "lg"], ["Luz z tyłu", "lt"]],
   };
   const gdzieWyc = (a) => { const pw = a && a.cel && polozenieWyc(a); return pw ? `${pw.odPoczatku} mm od początku blatu (do lewej krawędzi), ${pw.odPrz} mm od przodu` : `na środku szafki, ${WYC_OD_PRZODU} mm od przodu blatu`; };
-  const szerMiejsca = (o) => (o.typ === "wolna" ? wym(o).w + 2 * wym(o).lb : rozm(o).w);   // miejsce w ciagu
+  const szerMiejsca = (o) => (o.typ === "wolna" ? wym(o).w + wym(o).lL + wym(o).lP : rozm(o).w);   // miejsce w ciagu: luz z lewej + lodowka + luz z prawej
   const WYC_OD_PRZODU = 50;   // wyciecie od przedniej krawedzi blatu (jak w aplikacji)
   const BLAT_Y = PL0 + KOR0 + BLAT0;   // wierzch blatu od podlogi
   let widok = { agd: true, gorny: true, dolny: true, fronty: true };
@@ -341,8 +343,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         : `${a && a.fronty === 2 ? `2 fronty (dolny ${a.frontDol ? a.frontDol + " mm" : "po równo"} i górny, bez płyty między nimi)` : "1 front na całą wnękę"}, ${moc === "stale" ? "przykręcony na stałe do drzwi lodówki okuciami z kompletu — bez zawiasów meblowych" : "na zawiasach szafki, z drzwiami lodówki łączy go prowadnica ślizgowa z kompletu"}; zawiasy z ${a && a.zawias === "L" ? "lewej" : "prawej"}.`); },
     zmywarka: () => `Miejsce w ciągu bez korpusu: front meblowy na zmywarce, cokół z przerwą, blat idzie nad nią.`,
     wolna: (c, a) => { const m = wym(a || { typ: "wolna" }), wyst = m.d + m.lt - GL;
-      if (a && a.rowno) return `Lodówka na równo z meblami: miejsce ${m.w + 2 * m.lb} mm (lodówka ${m.w} × ${m.h} × ${m.d}, luz ${m.lb} z boków, ${m.lg} nad), mocowana do sąsiednich szafek uchwytami z zestawu producenta; nad nią szafka do wysokości słupków. Ciepło oddaje tyłem i dołem — otwory w bokach szafek, jeśli instrukcja ich wymaga.${wyst > 0 ? ` Wystaje ${wyst} mm przed blat.` : ""}`;
-      return `Miejsce ${m.w + 2 * m.lb} mm w ciągu bez korpusu: lodówka ${m.w} × ${m.h} × ${m.d}, luz ${m.lb} z boków, ${m.lg} nad, ${m.lt} z tyłu (wentylacja — wg instrukcji modelu). Blat i cokół kończą się przy niej${wyst > 0 ? `; wystaje ${wyst} mm przed blat` : ""}.`; },
+      if (a && a.rowno) return `Lodówka na równo z meblami: miejsce ${m.w + m.lL + m.lP} mm (lodówka ${m.w} × ${m.h} × ${m.d}, luz ${m.lL} z lewej, ${m.lP} z prawej, ${m.lg} nad), mocowana do sąsiednich szafek uchwytami z zestawu producenta; nad nią szafka do wysokości słupków. Ciepło oddaje tyłem i dołem — otwory w bokach szafek, jeśli instrukcja ich wymaga.${wyst > 0 ? ` Wystaje ${wyst} mm przed blat.` : ""}`;
+      return `Miejsce ${m.w + m.lL + m.lP} mm w ciągu bez korpusu: lodówka ${m.w} × ${m.h} × ${m.d}, luz ${m.lL} z lewej, ${m.lP} z prawej, ${m.lg} nad, ${m.lt} z tyłu (wentylacja — wg instrukcji modelu). Blat i cokół kończą się przy niej${wyst > 0 ? `; wystaje ${wyst} mm przed blat` : ""}.`; },
     lodowkaP: (c, a) => `Miejsce w ciągu bez korpusu (wnęka typowo 820 × 600 × 550 — wg karty modelu): lodówka stoi na podłodze między bokami sąsiednich szafek, front meblowy na jej drzwiach (${a && a.moc === "stale" ? "przykręcony na stałe" : "ślizgowo"}, zawiasy z ${a && a.zawias === "L" ? "lewej" : "prawej"}), blat idzie nad nią, w cokole zwykle kratka wentylacyjna (wg instrukcji).`,
     zmywarkaW: (c, a) => (a && a.pokrywa
       ? `Zmywarka z własną pokrywą (ok. 845–850 mm): blat kończy się przy jej boku, cokół ciągu ma przerwę. Bez korpusu i bez frontu meblowego — w zamówieniu nic do niej.`
@@ -606,8 +608,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       if (!slot) { slot = { id: "z" + nr++, kind: "app", typ: "wolna" }; zastap(slot); }
       slot.typ = nowy === "ciag" ? "lodowkaP" : "wolna";
       if (slot.typ === "lodowkaP") { delete slot.rowno; delete slot.wym; delete slot.rozm; }
-      else if (nowy === "rowno") { slot.rowno = true; slot.wym = { ...(slot.wym || {}), lb: 3, lg: 15 }; }
-      else { delete slot.rowno; if (slot.wym) { delete slot.wym.lb; delete slot.wym.lg; if (!Object.keys(slot.wym).length) delete slot.wym; } }
+      else if (nowy === "rowno") { slot.rowno = true; const { lb, ...wy } = slot.wym || {}; slot.wym = { ...wy, lL: 3, lP: 3, lg: 15 }; }
+      else { delete slot.rowno; if (slot.wym) { ["lb", "lL", "lP", "lg"].forEach((k) => delete slot.wym[k]); if (!Object.keys(slot.wym).length) delete slot.wym; } }
       if (slot.typ === "wolna" && slot.rozm && !ROZM.wolna.some((r) => r.k === slot.rozm)) delete slot.rozm;
       Object.assign(slot, slot.typ === "lodowkaP" ? dane : {}); slot.w = szerMiejsca(slot); zaznaczony = slot.id;
       return;
@@ -848,7 +850,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if (widok.dolny) L.forEach((q) => {
       if (q.typ === "wolna") {
         // lodowka wolnostojaca z gory: luz z tylu, glebokosc — ile wystaje przed blat
-        const m = wym(q), fx = q.x + (q.w - m.w) / 2, gl = m.d + m.lt;
+        const m = wym(q), fx = q.x + m.lL, gl = m.d + m.lt;
+        s += `<rect x="${q.x}" y="${Y_TOP}" width="${q.w}" height="${gl}" fill="none" stroke="var(--muted)" stroke-width="4" stroke-dasharray="14 10"/>`;
         s += `<rect x="${fx}" y="${Y_TOP + m.lt}" width="${m.w}" height="${m.d}" rx="24" fill="var(--steel)" stroke="var(--metal)" stroke-width="5"/><text x="${fx + m.w / 2}" y="${Y_TOP + m.lt + m.d / 2 + 22}" font-size="58" text-anchor="middle" fill="var(--muted)">lodówka</text>`
           + (gl > GL ? `<text class="mm" x="${fx + m.w / 2}" y="${Y_TOP + gl + 56}" font-size="44" text-anchor="middle" fill="var(--warn)">wystaje ${gl - GL}</text>` : "");
       } else if (q.tall || (q.typ === "zmywarkaW" && q.pokrywa)) s += `<rect x="${q.x}" y="${Y_TOP}" width="${q.w}" height="${GL}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/><text x="${q.x + q.w / 2}" y="${Y_TOP + GL / 2 + 22}" font-size="58" text-anchor="middle" fill="var(--muted)">${q.tall ? (rodzaj === "szafa" ? q.name : "słupek") : q.typ === "wolna" ? "lodówka" : "zmywarka"}</text>`;
@@ -1050,7 +1053,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
             + `<text x="${x + w / 2}" y="${yEl(PL + KOR / 2) + 20}" font-size="58" text-anchor="middle" fill="var(--muted)">zmywarka</text></g>`;
         } else {
           // lodowka wolnostojaca wg wymiarow (na srodku miejsca, luz po bokach); side by side — podzial pionowy
-          const m = wym(q), fw = m.w, fh = m.h, fx = x + (w - fw) / 2;
+          const m = wym(q), fw = m.w, fh = m.h, fx = x + m.lL;
+          // miejsce (przerywane) i luzy z lewej / z prawej / nad lodowka — wymiary w szczelinach
+          const luzTxt = (cx, cy, v, obr) => v > 0 ? `<text class="mm" pointer-events="none" x="${cx}" y="${cy}" font-size="34" text-anchor="middle" fill="var(--muted)"${obr ? ` transform="rotate(-90 ${cx} ${cy})"` : ""}>${v}</text>` : "";
+          s += `<rect pointer-events="none" x="${x}" y="${yEl(fh + m.lg)}" width="${w}" height="${fh + m.lg}" fill="none" stroke="var(--muted)" stroke-width="4" stroke-dasharray="14 10"/>`
+            + luzTxt(x + m.lL / 2 + 12, yEl(fh * 0.3), m.lL, true) + luzTxt(x + w - m.lP / 2 + 12, yEl(fh * 0.3), m.lP, true) + luzTxt(fx + fw / 2, yEl(fh + m.lg / 2) + 12, m.lg, false);
           s += `<g data-id="${q.id}" class="post" style="cursor:grab;touch-action:none"${ruch}><rect x="${fx}" y="${yEl(fh)}" width="${fw}" height="${fh}" rx="50" fill="var(--steel)" stroke="${zazn ? "var(--accent)" : "var(--metal)"}" stroke-width="${zazn ? 14 : 5}"/>`
             + (fw >= 800 ? `<line x1="${fx + fw / 2}" y1="${yEl(fh)}" x2="${fx + fw / 2}" y2="${yEl(0)}" stroke="var(--metal)" stroke-width="5"/>` : `<line x1="${fx}" y1="${yEl(fh * 0.65)}" x2="${fx + fw}" y2="${yEl(fh * 0.65)}" stroke="var(--metal)" stroke-width="5"/>`)
             + `<line x1="${fx + 55}" y1="${yEl(fh * 0.6)}" x2="${fx + 55}" y2="${yEl(fh * 0.43)}" stroke="var(--metal)" stroke-width="16" stroke-linecap="round"/>`
@@ -1134,7 +1141,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         if (sel.typ === "wolna") {
           if (ob.rowno) h += `<p class="hint">Lodówka „do zabudowy na równo” (np. Samsung Kitchen Fit): ok. 2,5 mm z boków i 15 mm nad nią, ciepło oddaje tyłem i dołem; mocowana do sąsiednich szafek uchwytami z zestawu producenta, w bokach szafek otwory wentylacyjne, jeśli instrukcja ich wymaga. Nad nią szafka.</p>`;
           const wyst = m.d + m.lt - GL;
-          h += `<p>Miejsce w ciągu: <b class="mm">${m.w + 2 * m.lb}</b> mm (lodówka ${m.w} + ${m.lb} z każdej strony), wysokość z luzem <b class="mm">${m.h + m.lg}</b> mm.${wyst > 0 ? ` Wystaje przed blat o <b class="mm">${wyst}</b> mm.` : ""}</p>`;
+          h += `<p>Miejsce w ciągu: <b class="mm">${m.w + m.lL + m.lP}</b> mm (luz ${m.lL} z lewej + lodówka ${m.w} + luz ${m.lP} z prawej), wysokość z luzem <b class="mm">${m.h + m.lg}</b> mm.${wyst > 0 ? ` Wystaje przed blat o <b class="mm">${wyst}</b> mm.` : ""}</p>`;
         }
         if (sel.typ === "lodowka") h += `<p>Wnęka: szer. 560–570, głęb. od 550, wys. <b class="mm">${m.h}</b> mm — z karty modelu („wymiary wnęki”).</p>`;
         if (sel.typ === "plyta") {
@@ -1144,7 +1151,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         }
         const PODP = { plyta: "Kaseta to część z elektroniką pod szkłem; „w dół” — jak głęboko schodzi od wierzchu blatu: slim ok. 44 mm, zwykłe 51–54, z okapem w płycie 150–230.",
           zlew: "Komora zwykle 180–220 mm.", lodowka: "Typowe wnęki: 178 cm (najczęściej), 194 (wysokie), 88 (małe), pośrednie 102–158.",
-          wolna: "Luz zwykle 50 z boków i z tyłu, 100 nad lodówką (wentylacja) — część modeli chce mniej, wg instrukcji." };
+          wolna: "Luz to odstęp od szafki albo ściany obok — na wentylację i otwarcie drzwi; liczy się do miejsca w ciągu. Zwykle 50 z boków i z tyłu, 100 nad lodówką; przy ścianie po stronie zawiasów często trzeba więcej, żeby drzwi otworzyły się do końca — wg instrukcji modelu." };
         h += `<p class="hint">Typowe „${r.l}” — wpisz liczby z karty swojego modelu. ${PODP[sel.typ] || ""}</p>`;
         if (ob.wym) h += `<div class="rob"><button class="btn" data-akcja="wymtyp">Wróć do typowych („${r.l}”)</button></div>`;
         const uw = [];
@@ -1528,8 +1535,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if (rw && zaznaczony) {
       const lo = ciag.find((q) => q.id === zaznaczony);
       if (lo) {
-        if (rw.dataset.rowno === "1") { lo.rowno = true; lo.wym = { ...(lo.wym || {}), lb: 3, lg: 15 }; }
-        else { delete lo.rowno; if (lo.wym) { delete lo.wym.lb; delete lo.wym.lg; if (!Object.keys(lo.wym).length) delete lo.wym; } }
+        if (rw.dataset.rowno === "1") { lo.rowno = true; const { lb, ...wy } = lo.wym || {}; lo.wym = { ...wy, lL: 3, lP: 3, lg: 15 }; }
+        else { delete lo.rowno; if (lo.wym) { ["lb", "lL", "lP", "lg"].forEach((k) => delete lo.wym[k]); if (!Object.keys(lo.wym).length) delete lo.wym; } }
         lo.w = szerMiejsca(lo);
       }
       odswiez(); return;
@@ -1607,7 +1614,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const wk = e.target.dataset && e.target.dataset.wym;
     if (wk && zaznaczony) {
       const a = wnetrze.find((q) => q.id === zaznaczony) || ciag.find((q) => q.id === zaznaczony), v = Math.round(Number(e.target.value));
-      if (a && (v > 0 || (v === 0 && /^l[bgt]$/.test(wk)))) {
+      if (a && (v > 0 || (v === 0 && /^l[bgtLP]$/.test(wk)))) {
         a.wym = { ...(a.wym || {}), [wk]: v }; if (rozm(a)[wk] === v) delete a.wym[wk]; if (!Object.keys(a.wym).length) delete a.wym;
         if (a.kind === "app") a.w = szerMiejsca(a);
       }
