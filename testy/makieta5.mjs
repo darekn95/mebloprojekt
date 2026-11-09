@@ -161,6 +161,17 @@ ok('„Dopasuj”: rysunek w szerokości okna, ściana w tle, nagłówek ciągu'
   && (await page.locator('[data-el="mak-przel"] [data-p="powieksz"]').getAttribute('aria-pressed')) === 'false', JSON.stringify(m1));
 await zakl('szafka');
 
+console.log('== przesuwanie szafki po rysunku ==');
+await page.locator('[data-el="mak-zoom"] button', { hasText: 'Dopasuj' }).click(); await page.waitForTimeout(300);
+const idxNazwy = (n) => page.evaluate((nm) => JSON.parse(localStorage.getItem('szafki:projekt')).items.findIndex((it) => it.cab.name === nm), n);
+const iPrawa = await idxNazwy('Prawa'), iLewa = await idxNazwy('Lewa');
+const gP = await page.locator(`${PRZOD}[data-idx="${iPrawa}"]`).first().boundingBox(), gL = await page.locator(`${PRZOD}[data-idx="${iLewa}"]`).first().boundingBox();
+await page.mouse.move(gP.x + gP.width / 2, gP.y + gP.height * 0.4); await page.mouse.down();
+await page.mouse.move(gL.x + gL.width * 0.2, gL.y + gL.height * 0.4, { steps: 12 }); await page.waitForTimeout(150);
+const zn = await page.locator('[data-el="mak-znacznik"]').innerText().catch(() => '');
+ok('w trakcie: zielony znacznik „przed „Lewa””', /przed „Lewa”/.test(zn), zn);
+await page.mouse.up(); await page.waitForTimeout(300);
+await czekaj('„Prawa” przeciągnięta przed „Lewa” (kolejność w ciągu), zaznaczona', 'const r = p.items.filter((it) => it.runId === "r1").map((it) => it.cab.name); return r.indexOf("Prawa") >= 0 && r.indexOf("Prawa") === r.indexOf("Lewa") - 1 && p.items[p.active].cab.name === "Prawa"');
 const p2 = await page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
 ok('stare szafki nietknięte (Środek 800, Prawa 400)', p2.items.find((it) => it.cab.name === 'Środek').cab.W === 800 && p2.items.find((it) => it.cab.name === 'Prawa').cab.W === 400);
 

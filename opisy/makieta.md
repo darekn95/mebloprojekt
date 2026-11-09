@@ -56,6 +56,20 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
 - Klik w szafkę (albo wybór z listy „Szafka ▾”) robi ją aktywną szafką projektu — po przejściu
   do trybu technicznego otwiera się właśnie ona.
 
+## „Co zmienić?”, światło półki, przesuwanie (krok 2 planu wyrównania)
+
+Jak w makiecie „Dodaj” (zgłoszenie 2026-11-09: „nie działa dwuklik lewym i prawy myszy”):
+- **Dwuklik albo prawy przycisk na szafce** — okienko „Co zmienić?”: Szafka, Szuflady, Półki, Drzwi i klapy,
+  Przegroda, Cokół i nóżki (w szczegółowej także Korpus i plecy, Wzmocnienia, Wycięcia i kolizje); sprzęt w tej
+  szafce (wycięcia w blacie, sprzęt w kolumnie, na blacie, sprzęt w ciągu) — prowadzi do „Dodaj → AGD”. Wybór
+  zaznacza szafkę i przełącza zakładkę. Esc albo klik obok zamyka. Sprzęt w ciągu (zmywarka, lodówka) — tylko
+  wymiary, cokół i AGD.
+- **Dwuklik na półce** (zakładka Półki) — wpisanie światła pod nią (najniższa — od dna, wyższa — od półki niżej);
+  reszta przechodzi do światła nad nią, ostatnie zostaje auto (jak przy przeciąganiu, `makWylicz` z `d.sw`).
+- **Przesuwanie szafki w ciągu**: chwyć szafkę (nie uchwyt) i przeciągnij — zielona kreska z napisem
+  „przed / za „…”” pokazuje, gdzie stanie (tylko w tym samym ciągu); po puszczeniu zmienia się kolejność szafek
+  w ciągu, szafka zostaje zaznaczona. Ta sama zielona kreska pokazuje miejsce szafki przeciąganej z palety.
+
 ## Uchwyty na rysunku (krok 2)
 
 Przeciągasz tylko w zaznaczonej szafce; zakładka mówi, co:

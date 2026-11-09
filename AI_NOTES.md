@@ -1142,3 +1142,6 @@ plan na calosc”), po kolei:
   szafa z szufladami).
 [AI-INFO] 2026-11-09: karta makiety pokazuje kazdy poziom kolumny z podzialem („poziom N kolumny J”) — zgloszenie „w szafie nie
 widzi kolumn”; cokol szafki wolnostojacej rysowany (`cokol-szafki`).
+[AI-INFO] 2026-11-09: krok 2 planu (menu „Co zmienić?”, dwuklik na polce, przesuwanie szafki w ciagu z zielonym znacznikiem)
+ZROBIONY przed 0c/0d, bo uzytkownik juz go testowal („nie działa dwuklik lewym i prawy myszy”). Przesuwanie tylko w tym samym
+ciagu; przenoszenie miedzy ciagami i przesuwanie sprzetu po blacie — jeszcze nie (sprzet: razem z karta AGD, krok 1).
