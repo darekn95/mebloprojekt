@@ -42,7 +42,8 @@ const czekajNa = async (f) => { await page.waitForFunction((src) => { const p = 
 const zakl = async (k) => { const b = page.locator(`[data-el="makieta"] nav [data-zakl="${k}"]`);
   if ((await b.getAttribute('aria-pressed')) !== 'true' || !(await page.locator('[data-el="mak-karta-panel"]').count())) await b.click(); await page.waitForTimeout(250); };
 // karta pokazuje tylko wybrana kolumne / poziom (2026-11-09) — wybor przyciskiem „kol. J · poz. N” (title = pelna nazwa)
-const wiersz = async (t) => { const b = page.locator(`[data-el="mak-kol-wybor"] [title="${t}"]`);
+const wiersz = async (t) => { let b = page.locator(`[data-el="mak-kol-wybor"] [title="${t}"]`);
+  if (!(await b.count())) b = page.locator(`[data-el="mak-kol-wybor"] [title="${t.split(' · ')[0]}"]`);   // Polki — wybor calej kolumny
   if (await b.count()) { await b.first().click(); await page.waitForTimeout(200); }
   return page.locator('[data-el="makieta-karta"] [data-el="mak-kolumna"]').filter({ has: page.locator('p', { hasText: new RegExp(`^${t}$`) }) }); };
 
@@ -52,8 +53,10 @@ const tekst = await page.locator('[data-el="makieta-karta"]').innerText();
 ok('„Szafka”: każdy poziom kolumny 2 i 3 w karcie', ['kolumna 2 · poziom 4', 'kolumna 2 · poziom 1', 'kolumna 3 · poziom 2', 'kolumna 3 · poziom 1'].every((t) => tekst.includes(t)), tekst.replace(/\n/g, ' | ').slice(0, 300));
 await zakl('polki');
 const nWier = await page.locator('[data-el="mak-kol-wybor"] [data-el="mak-kol"]').count();
-ok('„Półki”: wybór — kolumna 1 + 4 poziomy kolumny 2 + 2 poziomy kolumny 3', nWier === 7, String(nWier));
+ok('„Półki”: wybór kolumny (3 kolumny, nie poziomy)', nWier === 3, String(nWier));
 ok('bez wybranej kolumny: żadnych przycisków kolumn naraz (tylko wybór)', !(await page.locator('[data-el="makieta-karta"] [data-el="mak-kolumna"]').count()));
+await page.locator('[data-el="mak-kol-wybor"] [title="kolumna 2"]').click(); await page.waitForTimeout(250);
+ok('kolumna 2 w Półkach: wszystkie jej 4 poziomy naraz', (await page.locator('[data-el="makieta-karta"] [data-el="mak-kolumna"]').count()) === 4);
 ok('kolumna 3 · poziom 2: 1 półka (światła 2–3 kolumny)', (await (await wiersz('kolumna 3 · poziom 2')).locator('[data-el="mak-polki-n"]').innerText()) === '1');
 await (await wiersz('kolumna 3 · poziom 1')).locator('[data-el="mak-polki"][data-v="1"]').click(); await page.waitForTimeout(400);
 let L = await czekajNa('L[2].shelfTargets.length === 5');
@@ -73,7 +76,24 @@ await zakl('drzwi');
 await (await wiersz('kolumna 2 · poziom 1')).locator('[data-el="mak-front"][data-v="drzwi-2"]').click(); await page.waitForTimeout(400);
 L = await czekajNa('L[1].segmenty && L[1].segmenty[0] && L[1].segmenty[0].doors === 2');
 ok('„2 drzwi” w poziomie 1 kolumny 2 (reszta kolumny — klapy)', (L[1].segmenty || [])[0] && L[1].segmenty[0].doors === 2 && L[1].segmenty[0].klapa === null && L[1].klapa === 'gora', JSON.stringify(L[1].segmenty));
-ok('poziom kolumny bez „Bez frontu”', !(await (await wiersz('kolumna 2 · poziom 2')).locator('[data-v="otwarta"]').count()));
+await (await wiersz('kolumna 2 · poziom 2')).locator('[data-el="mak-front"][data-v="otwarta"]').click();
+L = await czekajNa('L[1].segmenty && L[1].segmenty[1] && L[1].segmenty[1].doors === 0');
+ok('„Bez frontu” w poziomie kolumny (otwarty poziom)', (L[1].segmenty || [])[1] && L[1].segmenty[1].doors === 0, JSON.stringify(L[1].segmenty));
+console.log('== poziomy kolumny: scal i podziel ==');
+await (await wiersz('kolumna 2 · poziom 1')).count();
+await page.locator('[data-el="mak-poziomy"] [data-el="mak-scal"][data-v="gora"]').click();
+L = await czekajNa('L[1].podzial && L[1].podzial.length === 2');
+ok('„scal z wyższym”: poziomy 1 i 2 kolumny 2 w jeden (jedne drzwi na dwa poziomy)', L[1].podzial.join() === '1,2' && L[1].segmenty[0].doors === 2, JSON.stringify({ pz: L[1].podzial, s0: L[1].segmenty[0] }));
+await (await wiersz('kolumna 2 · poziom 1')).count();
+const podz = page.locator('[data-el="mak-poziomy"] [data-el="mak-podziel"]');
+ok('w scalonym poziomie: „podziel na półce” (półka w środku)', (await podz.count()) === 1);
+await podz.first().click();
+L = await czekajNa('L[1].podzial && L[1].podzial.length === 3');
+ok('„podziel na półce”: z powrotem 4 poziomy, nowy z ustawieniami dzielonego', L[1].podzial.join() === '0,1,2' && L[1].segmenty[1] && L[1].segmenty[1].doors === 2, JSON.stringify({ pz: L[1].podzial, s: L[1].segmenty }));
+await page.locator('[data-el="mak-kol-wybor"] [title="kolumna 1"]').click(); await page.waitForTimeout(250);
+await page.locator('[data-el="mak-poziomy"] [data-el="mak-podziel"]').nth(1).click();
+L = await czekajNa('L[0].podzial && L[0].podzial.length === 1');
+ok('zwykła kolumna 1: „podziel na półce” — dwa poziomy, każdy ze swoim frontem', L[0].podzial.join() === '1', JSON.stringify(L[0].podzial));
 await zakl('szuflady');
 await (await wiersz('kolumna 2 · poziom 4')).locator('[data-el="mak-szuflady"][data-v="2"]').click(); await page.waitForTimeout(500);
 L = await czekajNa('L[1].segmenty && L[1].segmenty[3] && L[1].segmenty[3].kind === "drawers"');

@@ -10095,7 +10095,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                   y={fy(wierzch)} width={s.x1 - s.x0} height={rt.th}
                   fill={kol} stroke={INK} strokeWidth="2" />
               )), ...(rt.naBlacie || []).map((q, i) => (
-                <g key={"nb" + i} data-el="na-blacie" data-typ={q.typ}>
+                <g key={"nb" + i} data-el="na-blacie" data-typ={q.typ} data-idx={q.idx} data-k={q.k} style={onPick ? { cursor: "pointer" } : undefined}>
                   <rect x={mx(ox + q.x0, q.w)} y={fy(wierzch + q.h)} width={q.w} height={q.h} rx="12"
                     fill={SPRZET_KOLOR} fillOpacity="0.75" stroke={INK} strokeWidth="2" />
                   <text x={mx(ox + q.x0, q.w) + q.w / 2} y={fy(wierzch + q.h / 2) + 8} textAnchor="middle" fontSize="20" fill="#fafaf9"
@@ -10785,10 +10785,10 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
         width={sp.x1 - sp.x0} height={rt.depth}
         fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
     )), ...(rt.naBlacie || []).map((q, i) => (
-      <rect key={"nb" + i} data-el="na-blacie" x={lead + q.x0} y={yS} width={q.w} height={q.d} rx="10"
-        fill={SPRZET_KOLOR} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
+      <rect key={"nb" + i} data-el="na-blacie" data-idx={q.idx} data-k={q.k} x={lead + q.x0} y={yS} width={q.w} height={q.d} rx="10"
+        fill={SPRZET_KOLOR} fillOpacity="0.35" stroke={INK} strokeWidth="2" style={onPick ? { cursor: "pointer" } : undefined} />
     )), ...(rt.wyciecia || []).map((q, i) => (
-      <g key={"wyc" + i} data-el="wyciecie-blatu">
+      <g key={"wyc" + i} data-el="wyciecie-blatu" data-idx={q.idx} data-k={q.k} style={onPick ? { cursor: "pointer" } : undefined}>
         {q.sw > 0 && q.sd > 0 && (
           <rect data-el="rant-blatu" x={lead + (q.x0 + q.x1) / 2 - q.sw / 2} y={yS + rt.depth - q.odPrzodu - q.d - (q.sd - q.d) / 2} width={q.sw} height={q.sd}
             fill={q.typ === "plyta" ? "#27272a" : "#d4d4d8"} opacity={q.typ === "plyta" ? 0.18 : 0.45} stroke={INK} strokeWidth="2" />
@@ -10800,6 +10800,21 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
         })()}
         <rect x={lead + q.x0} y={yS + rt.depth - q.odPrzodu - q.d} width={q.x1 - q.x0} height={q.d}
           fill="#fafaf9" stroke={INK} strokeWidth="2" strokeDasharray="10 6" />
+        {/* jak w makiecie „Dodaj”: plyta — pola grzewcze, zlew — komory (i ociekacz) */}
+        {(() => {
+          const y0 = yS + rt.depth - q.odPrzodu - q.d, x0 = lead + q.x0, w = q.x1 - q.x0;
+          if (q.typ === "plyta") {
+            const n = q.rozm === "30" ? 2 : q.rozm === "90" ? 5 : 4, r = Math.min(w, q.d) * (n === 2 ? 0.22 : 0.18);
+            const pkt = n === 2 ? [[0.5, 0.28], [0.5, 0.72]] : n === 5 ? [[0.2, 0.3], [0.2, 0.7], [0.5, 0.5], [0.8, 0.3], [0.8, 0.7]] : [[0.27, 0.3], [0.27, 0.7], [0.73, 0.3], [0.73, 0.7]];
+            return <g data-el="pola-grzewcze">{pkt.map(([fx, fz], k2) => <circle key={k2} cx={x0 + fx * w} cy={y0 + fz * q.d} r={r} fill="none" stroke={INK} strokeWidth="2.5" opacity="0.7" />)}</g>;
+          }
+          const kom = (kx, kw) => <rect key={kx} x={kx} y={y0 + 25} width={kw} height={q.d - 50} rx="30" fill="#e7e5e4" stroke={INK} strokeWidth="2" />;
+          const sciek = (cx) => <circle key={`s${cx}`} cx={cx} cy={y0 + q.d / 2} r="18" fill="none" stroke={INK} strokeWidth="2" />;
+          if (q.rozm === "2") return <g data-el="komory">{kom(x0 + 25, w / 2 - 37)}{kom(x0 + w / 2 + 12, w / 2 - 37)}{sciek(x0 + w / 4)}{sciek(x0 + (3 * w) / 4)}</g>;
+          if (q.ociekacz) { const kw = w * 0.5 - 30, kx = q.ociekacz === "L" ? x0 + w - 25 - kw : x0 + 25;
+            return <g data-el="komory">{kom(kx, kw)}{sciek(kx + kw / 2)}</g>; }
+          return <g data-el="komory">{kom(x0 + 25, w - 50)}{sciek(x0 + w / 2)}</g>;
+        })()}
         <text x={lead + (q.x0 + q.x1) / 2} y={yS + rt.depth - q.odPrzodu - q.d / 2 + 8} textAnchor="middle"
           fontSize="22" fill={INK} fontFamily="ui-monospace, monospace">{`${q.krotka} ${fmt(q.w)}×${fmt(q.d)}${q.ociekacz ? ` · ociekacz ${q.ociekacz === "L" ? "z lewej" : "z prawej"}` : ""}`}</text>
       </g>
@@ -20908,6 +20923,134 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ }) {
   return <g data-el="makieta-uchwyty">{out}</g>;
 }
 
+/* przycisk-wybor w kartach makiety (jak w makiecie „Dodaj”) */
+const MakBtn = ({ on, onClick, children, el, v }) => (
+  <button data-el={el} data-v={v} aria-pressed={!!on} onClick={onClick}
+    className={`rounded border px-2 py-0.5 text-[11px] font-medium ${on ? "border-teal-700 bg-teal-700 text-white" : "border-stone-300 bg-white text-stone-700 hover:bg-stone-100"}`}>{children}</button>
+);
+/* Karta sprzetu w makiecie (krok 1 planu wyrownania, uzytkownik 2026-11-09): to, co w makiecie „Dodaj” — rozmiar do
+   klikniecia, wymiary z karty modelu, polozenie, opcje — zapisane w te same pola co tryb techniczny:
+   `cab.blatWyciecia[k]` (wyc), `cab.naBlacie[k]` (nb), `col.sprzet` (kol), `cab.sprzetCiagu` (ciag). `sel`: { i, rodz, k, li, j }. */
+function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij }) {
+  const it = project.items[sel.i]; if (!it) return null;
+  const cab = it.cab, nazwaSz = cab.name || "szafka";
+  const etyk = (t) => <p className="mt-2 text-[11px] font-medium uppercase tracking-wider text-stone-500">{t}</p>;
+  const rzad = (el, dzieci) => <div className="flex flex-wrap items-center gap-1" data-el={el}>{dzieci}</div>;
+  const liczba = (el, value, typowo, zapisz, szer = "w-16") => (
+    <input type="number" step="1" data-el={el} defaultValue={value ?? ""} placeholder={typowo != null ? String(typowo) : ""} key={`${el}-${value ?? ""}`}
+      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+      onBlur={(e) => { const t = e.currentTarget.value; const v = t === "" ? null : Math.round(Number(t)); if (v !== (value ?? null)) zapisz(v); }}
+      className={`${szer} rounded border border-stone-300 px-1 py-0.5 text-right font-mono text-[11px] focus:border-teal-600 focus:outline-none`} />
+  );
+  const para = (l, a, b) => <div className="flex items-center justify-between gap-2 py-0.5 text-[11px]"><span className="text-stone-500">{l}</span><span className="flex items-center gap-1">{a}{b && <><span className="text-stone-400">×</span>{b}</>}<span className="text-stone-400">mm</span></span></div>;
+  const usun = (fn) => <button data-el="agd-usun" onClick={fn} className="rounded border border-stone-300 px-2 py-0.5 text-[11px] text-stone-700 hover:border-red-400 hover:text-red-700">Usuń</button>;
+  let tytul = "", tresc = null;
+  if (sel.rodz === "wyc") {
+    const q = wycieciaSzafki(cab).find((x) => x.k === sel.k); if (!q) return null;
+    const raw = (cab.blatWyciecia || [])[sel.k] || {};
+    const ustaw = (patch) => zmien(sel.i, (c) => { c.blatWyciecia = (c.blatWyciecia || []).map((x, k) => (k === sel.k ? { ...x, ...patch } : x)); });
+    const r = q.rozm ? ROZM_WYCIEC[q.typ].find((x) => x.k === q.rozm) || {} : null;
+    const run = it.runId ? (project.runs || []).find((x) => x.id === it.runId) : null;
+    const rt = run ? runTop(project, run) : null, wq = rt && (rt.wyciecia || []).find((x) => x.idx === sel.i && x.k === sel.k);
+    const odPocz = wq ? Math.round(wq.x0 - rt.x0) : null;
+    const wlasne = ["sw", "sd", "kw", "kd", "w", "d", "podBlatem"].some((k) => raw[k] != null);
+    tytul = q.typ === "plyta" ? "Płyta grzewcza" : "Zlew";
+    tresc = <>
+      {r && <>{etyk("Wymiar")}{rzad("agd-rozm", ROZM_WYCIEC[q.typ].map((x) => <MakBtn key={x.k} el="agd-rozm-v" v={x.k} on={x.k === q.rozm}
+        onClick={() => ustaw({ rozm: x.k, w: null, d: null, podBlatem: null, sw: null, sd: null, kw: null, kd: null })}>{x.l}</MakBtn>))}</>}
+      {q.ociekacz && <>{etyk("Ociekacz")}{rzad("agd-ociekacz", [["L", "z lewej"], ["P", "z prawej"]].map(([v, l]) => <MakBtn key={v} el="agd-ociekacz-v" v={v} on={q.ociekacz === v} onClick={() => ustaw({ ociekacz: v })}>{l}</MakBtn>))}</>}
+      {etyk("Wymiary z karty modelu")}
+      {r ? (q.typ === "plyta" ? <>
+        {para("szkło (na blacie)", liczba("agd-sw", raw.sw, r.sw, (v) => ustaw({ sw: v })), liczba("agd-sd", raw.sd, r.sd, (v) => ustaw({ sd: v })))}
+        {para("kaseta (pod blatem)", liczba("agd-kw", raw.kw, r.kw, (v) => ustaw({ kw: v })), liczba("agd-kd", raw.kd, r.kd, (v) => ustaw({ kd: v })))}
+        {para("kaseta w dół od wierzchu", liczba("agd-h", raw.podBlatem, r.h, (v) => ustaw({ podBlatem: v })))}
+      </> : <>
+        {para("rant (na blacie)", liczba("agd-sw", raw.sw, r.sw, (v) => ustaw({ sw: v })), liczba("agd-sd", raw.sd, r.sd, (v) => ustaw({ sd: v })))}
+        {para("wycięcie", liczba("agd-w", raw.w, r.w, (v) => ustaw({ w: v })), liczba("agd-d", raw.d, r.d, (v) => ustaw({ d: v })))}
+        {para("komora w dół od wierzchu", liczba("agd-h", raw.podBlatem, r.h, (v) => ustaw({ podBlatem: v })))}
+      </>) : <>
+        {para("wycięcie", liczba("agd-w", raw.w, WYCIECIA_BLATU[q.typ].w, (v) => ustaw({ w: v })), liczba("agd-d", raw.d, WYCIECIA_BLATU[q.typ].d, (v) => ustaw({ d: v })))}
+        {para("w dół od wierzchu", liczba("agd-h", raw.podBlatem, WYCIECIA_BLATU[q.typ].podBlatem, (v) => ustaw({ podBlatem: v })))}
+      </>}
+      <p className="text-[11px] text-stone-600" data-el="agd-wyciecie">Wycięcie w blacie <b className="font-mono">{fmt(q.w)} × {fmt(q.d)}</b> mm{q.typ === "plyta" && r ? ` (kaseta + ${WYC_LUZ} mm z każdej strony)` : ""}. Puste pola — typowe „{r ? r.l : "—"}”, wpisz liczby z karty swojego modelu.</p>
+      {wlasne && <button data-el="agd-typowe" onClick={() => ustaw({ w: null, d: null, podBlatem: null, sw: null, sd: null, kw: null, kd: null })} className="mt-1 rounded border border-teal-600 px-2 py-0.5 text-[11px] text-teal-700 hover:bg-teal-50">Wróć do typowych</button>}
+      {etyk("Położenie na blacie")}
+      {odPocz != null && para("od początku blatu do lewej krawędzi wycięcia", liczba("agd-odpocz", odPocz, null, (v) => v != null && ustaw({ przesun: (Number(raw.przesun) || 0) + (v - odPocz) }), "w-20"))}
+      {para("od przodu blatu", liczba("agd-odprzodu", raw.odPrzodu, WYCIECIA_BLATU[q.typ].odPrzodu, (v) => ustaw({ odPrzodu: v })))}
+      <p className="text-[11px] text-stone-600">Środek wycięcia {q.przesun ? `${fmt(Math.abs(q.przesun))} mm w ${q.przesun > 0 ? "prawo" : "lewo"} od środka szafki „${nazwaSz}”` : `na środku szafki „${nazwaSz}”`}.</p>
+      <div className="mt-1 flex flex-wrap gap-1">
+        {q.przesun !== 0 && <button data-el="agd-srodek" onClick={() => ustaw({ przesun: null })} className="rounded border border-teal-600 px-2 py-0.5 text-[11px] text-teal-700 hover:bg-teal-50">Na środek szafki</button>}
+        {usun(() => { zmien(sel.i, (c) => { c.blatWyciecia = (c.blatWyciecia || []).filter((_, k) => k !== sel.k); }); zamknij(); })}
+      </div>
+    </>;
+  } else if (sel.rodz === "nb") {
+    const q = naBlacieSzafki(cab).find((x) => x.k === sel.k); if (!q) return null;
+    const ustaw = (patch) => zmien(sel.i, (c) => { c.naBlacie = (c.naBlacie || []).map((x, k) => (k === sel.k ? { ...x, ...patch } : x)); });
+    tytul = q.typ === "mikrofala" ? "Mikrofala wolnostojąca" : "Ekspres wolnostojący";
+    tresc = <>
+      {etyk("Wymiar")}{rzad("agd-rozm", NA_BLACIE[q.typ].rozm.map((x) => <MakBtn key={x.k} el="agd-rozm-v" v={x.k} on={x.k === q.rozm} onClick={() => ustaw({ rozm: x.k })}>{x.l}</MakBtn>))}
+      <p className="text-[11px] text-stone-600">{fmt(q.w)} × {fmt(q.h)} × {fmt(q.d)} mm (przykładowo) — stoi na blacie nad „{nazwaSz}”, przy ścianie. Tylko rysunek.</p>
+      {para("przesunięcie w bok od środka szafki", liczba("agd-przesun", ((cab.naBlacie || [])[sel.k] || {}).przesun, 0, (v) => ustaw({ przesun: v })))}
+      <div className="mt-1">{usun(() => { zmien(sel.i, (c) => { c.naBlacie = (c.naBlacie || []).filter((_, k) => k !== sel.k); }); zamknij(); })}</div>
+    </>;
+  } else if (sel.rodz === "kol") {
+    const col = ((cab.levels || [])[sel.li] || {}).cols ? cab.levels[sel.li].cols[sel.j] : null;
+    if (!col || !col.sprzet) return null;
+    const sp = sprzetKolumny(col), lod = sp.typ === "lodowka";
+    const setSp = (patch) => zmien(sel.i, (c) => { const k = kolumnaW(c.levels, sel.li, sel.j); if (!k) return;
+      const o = { ...(k.sprzet || { typ: sp.typ }), ...patch }; Object.keys(o).forEach((x) => { if (o[x] === "" || o[x] == null) delete o[x]; }); k.sprzet = o; });
+    tytul = (SPRZETY[sp.typ] || SPRZETY.piekarnik).pelna;
+    const rozm = SPRZET_ROZM[sp.typ];
+    tresc = <>
+      {rozm && <>{etyk("Wymiar")}{rzad("agd-rozm", rozm.map((x) => <MakBtn key={x.k} el="agd-rozm-v" v={x.k} on={x.frontH === ((col.sprzet || {}).frontH ?? null)}
+        onClick={() => setSp({ frontH: x.frontH, hMin: x.hMin })}>{x.l}</MakBtn>))}</>}
+      {lod && <>{etyk("Front lodówki")}{rzad("agd-lod-montaz", Object.entries(MONTAZE_LODOWKI).map(([v, l]) => <MakBtn key={v} el="agd-lod-montaz-v" v={v} on={sp.montaz === v} onClick={() => setSp({ montaz: v === "slizg" ? null : v })}>{l}</MakBtn>))}</>}
+      {lod && lodowkaZFrontem(sp) && <>
+        {etyk("Fronty")}{rzad("agd-lod-fronty", [["1", "1 front"], ["2", "2 fronty"]].map(([v, l]) => <MakBtn key={v} el="agd-lod-fronty-v" v={v} on={String(sp.fronty) === v} onClick={() => setSp({ fronty: v === "2" ? 2 : null })}>{l}</MakBtn>))}
+        {sp.fronty === 2 && para("dolny front — wysokość", liczba("agd-lod-dolny", (col.sprzet || {}).dolny, null, (v) => setSp({ dolny: v })))}
+        {etyk("Wnęka (wysokość)")}{rzad("agd-lod-wneka", LODOWKA_WNEKI.map((h) => <MakBtn key={h} el="agd-lod-wneka-v" v={h} on={sp.hMin === (h === 1780 ? 1772 : h - 8)} onClick={() => setSp(lodowkaWnekaZakres(h))}>{fmt(h / 10)}</MakBtn>))}
+      </>}
+      {lod && <>{etyk("Zawiasy")}{rzad("agd-drzwi", [["lewe", "z lewej"], ["prawe", "z prawej"]].map(([v, l]) => <MakBtn key={v} el="agd-drzwi-v" v={v} on={sp.drzwi === v} onClick={() => setSp({ drzwi: v === "lewe" ? null : v })}>{l}</MakBtn>))}</>}
+      {!lod && <>{etyk("Otwieranie")}{rzad("agd-drzwi", [["dol", "w dół"], ["lewe", "zawias z lewej"], ["prawe", "zawias z prawej"], ...(sp.typ === "ekspres" ? [["wysuw", "wysuwa się"]] : []), ["brak", "nie sprawdzaj"]].map(([v, l]) =>
+        <MakBtn key={v} el="agd-drzwi-v" v={v} on={sp.drzwi === v} onClick={() => setSp({ drzwi: v === (SPRZETY[sp.typ] || {}).drzwi ? null : v })}>{l}</MakBtn>))}
+        {sp.drzwi === "wysuw" && para("wysuw do przodu", liczba("agd-wysuw", (col.sprzet || {}).wysuw, null, (v) => setSp({ wysuw: v })))}</>}
+      <p className="text-[11px] text-stone-600">{col.sprzet.wneka ? `Wnęka teraz ${fmt(col.sprzet.wneka.w)} × ${fmt(col.sprzet.wneka.h)} × ${fmt(col.sprzet.wneka.d)} mm. ` : ""}W „{nazwaSz}” — wymiary typowe; pozostałe pola z karty modelu w trybie Technicznym.</p>
+      <div className="mt-1">{usun(() => { zmien(sel.i, (c) => { const k = kolumnaW(c.levels, sel.li, sel.j); if (k) { delete k.sprzet; if (!k.doors) k.doors = 1; } }); zamknij(); })}</div>
+    </>;
+  } else if (sel.rodz === "ciag") {
+    if (!cab.sprzetCiagu) return null;
+    const sp = sprzetCiagu(cab);
+    const setSp = (patch, extra) => zmien(sel.i, (c) => { const o = { ...(c.sprzetCiagu || {}), ...patch };
+      Object.keys(o).forEach((x) => { if (o[x] === "" || o[x] == null) delete o[x]; }); c.sprzetCiagu = o; if (extra) Object.assign(c, extra); });
+    tytul = sp.pelna;
+    const zaw = rzad("agd-drzwi", [["lewe", "zawias z lewej"], ["prawe", "zawias z prawej"]].map(([v, l]) => <MakBtn key={v} el="agd-drzwi-v" v={v} on={sp.drzwi === v} onClick={() => setSp({ drzwi: v === "lewe" ? null : v })}>{l}</MakBtn>));
+    tresc = <>
+      {(sp.typ === "zmywarka" || sp.typ === "zmywarkaW") && <>{etyk("Model")}{rzad("agd-model", [["600", "60 cm"], ["450", "45 cm"]].map(([v, l]) => <MakBtn key={v} el="agd-model-v" v={v} on={String(sp.szer) === v} onClick={() => setSp({ szer: v === "450" ? 450 : null }, { W: Number(v) })}>{l}</MakBtn>))}</>}
+      {sp.typ === "zmywarkaW" && <>{etyk("Montaż")}{rzad("agd-pokrywa", [["0", "pod blatem (bez pokrywy)"], ["1", "z własną pokrywą"]].map(([v, l]) => <MakBtn key={v} el="agd-pokrywa-v" v={v} on={(sp.pokrywa ? "1" : "0") === v} onClick={() => setSp({ pokrywa: v === "1" ? true : null }, { H: v === "1" ? sp.hPokr : 820 })}>{l}</MakBtn>))}</>}
+      {sp.typ === "lodowkaP" && <>{etyk("Drzwi")}{zaw}</>}
+      {sp.typ === "lodowka" && <>
+        {etyk("Rodzaj")}{rzad("agd-lod-rowno", [["wolna", "wolnostojąca"], ["rowno", "na równo z meblami"]].map(([v, l]) => <MakBtn key={v} el="agd-lod-rowno-v" v={v} on={(sp.rowno ? "rowno" : "wolna") === v} onClick={() => setSp({ rowno: v === "rowno" ? true : null, luzL: null, luzP: null, luzGora: null })}>{l}</MakBtn>))}
+        {etyk("Luzy")}
+        {para("z lewej", liczba("agd-luzl", (cab.sprzetCiagu || {}).luzL, sp.luzL, (v) => setSp({ luzL: v })))}
+        {para("z prawej", liczba("agd-luzp", (cab.sprzetCiagu || {}).luzP, sp.luzP, (v) => setSp({ luzP: v })))}
+        <p className="text-[11px] text-stone-600">Miejsce w ciągu: {fmt(sp.luzL)} + lodówka {fmt(sp.lodW)} + {fmt(sp.luzP)} = <b className="font-mono">{fmt(sp.luzL + sp.lodW + sp.luzP)}</b> mm.</p>
+        {etyk("Drzwi")}{zaw}
+      </>}
+      <p className="text-[11px] text-stone-600">W ciągu, bez korpusu — wymiary typowe; pozostałe pola z karty modelu w trybie Technicznym.</p>
+      {usunPozycje && <div className="mt-1">{usun(() => { usunPozycje(sel.i); zamknij(); })}</div>}
+    </>;
+  }
+  return (
+    <div className="rounded-lg border border-teal-600 bg-white p-2" data-el="makieta-karta-agd" data-rodz={sel.rodz}>
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1"><b className="block text-[13px] text-stone-900">{tytul}</b><span className="block text-[11px] text-stone-500">{sel.rodz === "ciag" ? "w ciągu" : sel.rodz === "kol" ? "w" : "nad"} „{nazwaSz}”</span></div>
+        <button aria-label="Zamknij" onClick={zamknij} className="rounded px-1 text-stone-400 hover:bg-stone-100">×</button>
+      </div>
+      {tresc}
+    </div>
+  );
+}
+
 /* przycisk z rozwijana lista (pomieszczenie, ciag, widok) — w stylu przelacznikow makiety */
 function Rozwijana({ etykieta, wartosc, opcje, onWybierz, el }) {
   const [otw, setOtw] = useState(false);
@@ -20985,6 +21128,30 @@ const makUstawPolki = (k, n) => {
   if ((k.drazki || []).length) k.drazki = [Math.max(0, n)];   // drazek zostaje w najwyzszym swietle (jak `dopasujPolki`)
 };
 const makIlePolek = (k) => Math.max(0, (k.shelfTargets || [null]).length - 1);
+/* Poziomy kolumny w makiecie prostej (uzytkownik 2026-11-09: „dodawanie i usuwanie poziomów prosto … nie da się zrobić
+   1 drzwi dla 2 poziomów, bo nie da się scalić poziomów”) — to samo co „→ poziom” i „scal” w trybie technicznym
+   (`podzielKolumne`, `scalWykonaj`): podzial na polce `k` (polka zostaje polka graniczna, nowy poziom bierze ustawienia
+   dzielonego), scalenie granicy `k` — zostaje poziom `zostaw` („dol” / „gora”); gdy zostaje szuflada / blenda, polki
+   i drazek ze scalonego poziomu znikaja. */
+const makPodzielKolumne = (col, k) => {
+  const gr = (col.podzial || []).map(Number);
+  if (gr.includes(k)) return;
+  const poz = gr.filter((x) => x < k).length;
+  if (col.segmenty) col.segmenty.splice(poz + 1, 0, col.segmenty[poz] ? { ...col.segmenty[poz] } : null);
+  if (col.podzialMount) col.podzialMount.splice(poz, 0, null);
+  col.podzial = [...gr, k].sort((a, b) => a - b);
+};
+const makScalPoziomy = (col, k, zostaw, wys) => {
+  const poz = (col.podzial || []).map(Number).sort((a, b) => a - b).indexOf(k);
+  if (poz < 0) return;
+  const wnetrze = wnetrzePoziomu(col, zostaw === "gora" ? poz + 1 : poz);
+  usunGranice(col, k, zostaw);
+  if (wnetrze === "doors") return;
+  const gr = (col.podzial || []).map(Number).sort((a, b) => a - b);
+  const lo = poz === 0 ? -1 : gr[poz - 1], hiOp = poz === gr.length ? (col.shelfTargets || [null]).length - 1 : gr[poz];
+  if (col.drazki) { col.drazki = col.drazki.filter((x) => !(x > lo && x <= hiOp)); if (!col.drazki.length) delete col.drazki; }
+  polkiWPoziomie(col, poz, 0, wys);
+};
 // przegroda za kolumna `j`: nowa kolumna jak ta (drzwi, polki), szerokosci na auto
 const makDodajPrzegrode = (L, j) => {
   const wz = L[j]; if (!wz) return;
@@ -21086,7 +21253,7 @@ const MAK_KLOCKI = [
   { id: "przegroda", nazwa: "Przegroda", przegroda: true },
 ];
 
-function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia" }) {
+function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia", selAgd, setSelAgd, usunPozycje }) {
   const kafel = (el, id, l, opis, onClick, ikona) => (
     <button key={id} data-el={el} data-id={id} draggable
       onDragStart={(e) => { try { e.dataTransfer.setData("text/plain", `${el}:${id}`); e.dataTransfer.effectAllowed = "copy"; } catch (er) { /* bez danych */ } zacznij({ el, id }); }}
@@ -21108,13 +21275,13 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
       const n = it.cab.name || "szafka";
       const usun = (fn) => () => zmien(i, fn);
       return [
-        ...(it.cab.sprzetCiagu ? [{ k: `c${i}`, i, l: sprzetCiagu(it.cab).pelna, g: `w ciągu, „${n}”` }] : []),
-        ...wycieciaSzafki(it.cab).map((q) => ({ k: `w${i}-${q.k}`, i, l: q.pelna, g: `nad szafką „${n}”${q.rozmL ? ` · ${q.rozmL}` : ""}`,
+        ...(it.cab.sprzetCiagu ? [{ k: `c${i}`, i, sel: { i, rodz: "ciag" }, l: sprzetCiagu(it.cab).pelna, g: `w ciągu, „${n}”` }] : []),
+        ...wycieciaSzafki(it.cab).map((q) => ({ k: `w${i}-${q.k}`, i, sel: { i, rodz: "wyc", k: q.k }, l: q.pelna, g: `nad szafką „${n}”${q.rozmL ? ` · ${q.rozmL}` : ""}`,
           usun: usun((c) => { c.blatWyciecia = (c.blatWyciecia || []).filter((_, x) => x !== q.k); }) })),
-        ...naBlacieSzafki(it.cab).map((q) => ({ k: `b${i}-${q.k}`, i, l: `${q.typ === "mikrofala" ? "Mikrofala" : "Ekspres"} wolnostojąc${q.typ === "mikrofala" ? "a" : "y"}`, g: `na blacie nad „${n}” · ${q.rozmL}`,
+        ...naBlacieSzafki(it.cab).map((q) => ({ k: `b${i}-${q.k}`, i, sel: { i, rodz: "nb", k: q.k }, l: `${q.typ === "mikrofala" ? "Mikrofala" : "Ekspres"} wolnostojąc${q.typ === "mikrofala" ? "a" : "y"}`, g: `na blacie nad „${n}” · ${q.rozmL}`,
           usun: usun((c) => { c.naBlacie = (c.naBlacie || []).filter((_, x) => x !== q.k); }) })),
         ...(it.cab.levels || []).flatMap((lv, li) => (lv.cols || []).map((col, j) => ({ col, li, j }))).filter(({ col }) => col.sprzet)
-          .map(({ col, li, j }) => ({ k: `s${i}-${li}-${j}`, i, l: (SPRZETY[col.sprzet.typ] || SPRZETY.piekarnik).pelna, g: `w „${n}”`,
+          .map(({ col, li, j }) => ({ k: `s${i}-${li}-${j}`, i, sel: { i, rodz: "kol", li, j }, l: (SPRZETY[col.sprzet.typ] || SPRZETY.piekarnik).pelna, g: `w „${n}”`,
             usun: usun((c) => { const kk = kolumnaW(c.levels, li, j); if (kk) { delete kk.sprzet; if (!kk.doors) kk.doors = 1; } }) })),
       ];
     });
@@ -21124,15 +21291,17 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
         {kom}
         {naglowek("Sprzęt")}
         <div className="grid grid-cols-2 gap-1">{MAK_AGD.map((a) => kafel("mak-agd", a.id, a.nazwa, a.opis, () => onAgd(a, null), ikonaAgd(a.id)))}</div>
+        {selAgd && <MakietaKartaAgd project={project} sel={selAgd} zmien={zmien} usunPozycje={usunPozycje} zamknij={() => setSelAgd && setSelAgd(null)} />}
         {naglowek(`W projekcie (${lista.length})`)}
         {lista.length ? (
           <ul className="space-y-1" data-el="mak-agd-lista">
             {lista.map((q) => (
-              <li key={q.k} className="flex items-center gap-2 rounded-md border border-stone-200 px-2 py-1 text-[12px]">
-                <button className="min-w-0 flex-1 text-left" onClick={() => wybierz(q.i)}>
+              <li key={q.k} aria-current={!!selAgd && JSON.stringify(selAgd) === JSON.stringify(q.sel)}
+                className={`flex items-center gap-2 rounded-md border px-2 py-1 text-[12px] ${selAgd && JSON.stringify(selAgd) === JSON.stringify(q.sel) ? "border-teal-600 bg-teal-50" : "border-stone-200"}`}>
+                <button className="min-w-0 flex-1 text-left" data-el="mak-agd-wybierz" onClick={() => { wybierz(q.i); if (setSelAgd) setSelAgd(q.sel); }}>
                   <b className="block font-medium text-stone-800">{q.l}</b><span className="block text-[11px] text-stone-500">{q.g}</span>
                 </button>
-                {q.usun && <button className="rounded px-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="Usuń" onClick={q.usun} data-el="mak-agd-usun">×</button>}
+                {q.usun && <button className="rounded px-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="Usuń" onClick={() => { q.usun(); if (setSelAgd && selAgd && JSON.stringify(selAgd) === JSON.stringify(q.sel)) setSelAgd(null); }} data-el="mak-agd-usun">×</button>}
               </li>
             ))}
           </ul>
@@ -21255,7 +21424,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     delete seg.kind; delete seg.drawers; delete seg.blendaMode; delete seg.sprzet;
     seg.doorWidths = [];
     if (v.startsWith("klapa")) { seg.doors = 1; seg.klapa = v.slice(6); }
-    else { seg.doors = Number(v.slice(6)); seg.klapa = null; POLA_KLAPY.slice(1).forEach((pole) => delete seg[pole]); }
+    // „Bez frontu” (uzytkownik 2026-11-09: „nie ma opcji braku drzwi”) — poziom kolumny otwarty, polki zostaja
+    else { seg.doors = v === "otwarta" ? 0 : Number(v.slice(6)); seg.klapa = null; POLA_KLAPY.slice(1).forEach((pole) => delete seg[pole]); }
     const n = Math.max(1, seg.doors || 1), tip = makTipon(k.c);
     seg.handles = Array(n).fill(!tip); seg.otwieranie = tip ? Array(n).fill("tipon") : [];
   });
@@ -21310,29 +21480,51 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   /* Tylko kliknieta kolumna / poziom kolumny (uzytkownik 2026-11-09: „drzwi klapy za duży sajgon — po wybraniu na rysunku
      konkretnych powinny być opcje konkretnych, a nie wszystko naraz”): klik na rysunku wybiera (`kolZ`), male przyciski
      „kol. J · poz. N” — zapasowo; jedna kolumna — od razu jej opcje. */
-  const tylkoWybrana = (lista, wiersze) => {
-    const sel = lista.find((k) => kolZ && k.li === kolZ.li && k.j === kolZ.j && (k.nr ?? null) === (kolZ.nr ?? null)) || (lista.length === 1 ? lista[0] : null);
-    const krotka = (k) => `${poziomy.length > 1 ? `p.sz. ${k.li + 1} · ` : ""}kol. ${k.j + 1}${k.nr != null ? ` · poz. ${k.nr + 1}` : ""}`;
+  /* `poKol` — Polki (uzytkownik 2026-11-09: „w półkach wybór kolumny, a nie konkretnej półki”): wybor calej kolumny,
+     karta pokazuje wszystkie jej poziomy naraz. */
+  const tylkoWybrana = (lista, wiersze, poKol = false) => {
+    const klucz = (k) => (poKol ? `${k.li}-${k.j}` : `${k.li}-${k.jA}`);
+    const grupy = lista.filter((k, x) => lista.findIndex((q) => klucz(q) === klucz(k)) === x);
+    const sel = grupy.find((k) => kolZ && k.li === kolZ.li && k.j === kolZ.j && (poKol || (k.nr ?? null) === (kolZ.nr ?? null))) || (grupy.length === 1 ? grupy[0] : null);
+    const krotka = (k) => `${poziomy.length > 1 ? `p.sz. ${k.li + 1} · ` : ""}kol. ${k.j + 1}${k.nr != null && !poKol ? ` · poz. ${k.nr + 1}` : ""}`;
     return [
-      lista.length > 1 && (
+      grupy.length > 1 && (
         <div key="wyb" className="flex flex-wrap items-center gap-1 border-b border-stone-100 pb-1.5" data-el="mak-kol-wybor">
           <span className="text-[11px] text-stone-500">{sel ? "inna:" : "Kliknij na rysunku kolumnę albo:"}</span>
-          {lista.map((k) => <Btn key={`${k.li}-${k.jA}`} el="mak-kol" v={`${k.li}-${k.jA}`} on={sel === k} onClick={() => wybierzKol && wybierzKol({ li: k.li, j: k.j, nr: k.nr ?? null })}>
-            <span title={nazwaKol(k)}>{krotka(k)}</span></Btn>)}
+          {grupy.map((k) => <Btn key={klucz(k)} el="mak-kol" v={poKol ? `${k.li}-${k.j}` : `${k.li}-${k.jA}`} on={sel === k} onClick={() => wybierzKol && wybierzKol({ li: k.li, j: k.j, nr: poKol ? null : k.nr ?? null })}>
+            <span title={poKol ? nazwaKol0(k) : nazwaKol(k)}>{krotka(k)}</span></Btn>)}
         </div>
       ),
-      ...(sel ? [wiersze(sel)] : []),
+      ...(sel ? lista.filter((k) => klucz(k) === klucz(sel)).map(wiersze) : []),
     ].filter(Boolean);
   };
+  // poziomy wybranej kolumny / poziomu: podziel na polce w srodku, scal z wyzszym / nizszym
+  const poziomyUI = (k) => {
+    const col = k.kol || k.c, gr = (col.podzial || []).map(Number).sort((a, b) => a - b);
+    const nSw = (col.shelfTargets || [null]).length;
+    const lo = k.nr == null ? -1 : k.lo, hi = k.nr == null ? nSw - 1 : k.hi;
+    const drzwiWew = (k.c.kind || "doors") === "doors";
+    const wewn = drzwiWew ? Array.from({ length: Math.max(0, hi - lo - 1) }, (_, x) => lo + 1 + x) : [];
+    const g = geoOf ? geoOf(idx) : null, lv = g && makLv(g, k.li), gc = lv && lv.cols.find((q) => q.j === k.j);
+    const naWys = (x) => (gc && (gc.shelves || [])[x] ? `${fmt(Math.round(gc.shelves[x].y))}` : `${x + 1}.`);
+    const naCol = (fn) => zmien(idx, (c) => { const cc = c.levels[k.li].cols[k.j]; if (cc) fn(cc); });
+    const przyciski = [
+      ...(wewn.length ? [<span key="pl" className="text-[11px] text-stone-500">podziel na półce (mm od dołu):</span>,
+        ...wewn.map((x) => <Btn key={`p${x}`} el="mak-podziel" v={x} onClick={() => naCol((cc) => makPodzielKolumne(cc, x))}>{naWys(x)}</Btn>)] : []),
+      ...(k.nr != null && k.nr < gr.length ? [<Btn key="sg" el="mak-scal" v="gora" onClick={() => naCol((cc) => makScalPoziomy(cc, gr[k.nr], "dol", wysKol(k)))}>scal z wyższym</Btn>] : []),
+      ...(k.nr != null && k.nr > 0 ? [<Btn key="sd" el="mak-scal" v="dol" onClick={() => naCol((cc) => makScalPoziomy(cc, gr[k.nr - 1], "gora", wysKol(k)))}>scal z niższym</Btn>] : []),
+    ];
+    if (!przyciski.length) return null;
+    return wiersz(`pz${k.li}-${k.jA}`, k.nr == null ? "poziomy kolumny — każdy dostaje swój front" : "poziomy kolumny", przyciski, "mak-poziomy");
+  };
   if (zakladka === "drzwi") {
-    tresc = tylkoWybrana(edytowalne, (k) => wiersz(`f${k.li}-${k.jA}`, nazwaK(k), [
-      // poziom kolumny ma zawsze front (jak w trybie technicznym: „fronty” od 1)
-      ...MAK_FRONTY.filter(([v]) => k.nr == null || v !== "otwarta").map(([v, l]) => <Btn key={v} el="mak-front" v={v} on={frontKol(k.c) === v}
+    tresc = tylkoWybrana(edytowalne, (k) => [wiersz(`f${k.li}-${k.jA}`, nazwaK(k), [
+      ...MAK_FRONTY.map(([v, l]) => <Btn key={v} el="mak-front" v={v} on={frontKol(k.c) === v}
         onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawFront(kk, v)) : frontOdc(k, v))}>{l}</Btn>),
       ...((k.c.kind || "doors") === "doors" && k.c.doors > 0 ? [<span key="sep" className="mx-1 text-stone-300">|</span>,
         <Btn key="u" el="mak-otw" v="uchwyt" on={!tipon(k.c)} onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawTipon(kk, false)) : tiponOdc(k, false))}>uchwyt</Btn>,
         <Btn key="t" el="mak-otw" v="tipon" on={tipon(k.c)} onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawTipon(kk, true)) : tiponOdc(k, true))}>tip-on</Btn>] : []),
-    ], "mak-kolumna"));
+    ], "mak-kolumna"), poziomyUI(k)].filter(Boolean)).flat();
     if (!tresc.length) tresc = [<p key="brak" className="text-xs text-stone-500">W tej szafce fronty zmienisz w trybie Technicznym.</p>];
   }
   else if (zakladka === "szuflady") {
@@ -21361,7 +21553,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         <Btn key="p" el="mak-polki" v="1" onClick={() => zmienKol(k.li, k.j, (kk) => ustawPolki(kk, n + 1))}>+</Btn>,
         <Btn key="d" el="mak-drazek" on={(k.c.drazki || []).length > 0} onClick={() => zmienKol(k.li, k.j, (kk) => { if ((kk.drazki || []).length) delete kk.drazki; else kk.drazki = [n]; })}>drążek</Btn>,
       ], "mak-kolumna");
-    });
+    }, true);
     if (!tresc.length) tresc = [<p key="brak" className="text-xs text-stone-500">W tej szafce nie ma kolumn z półkami.</p>];
     tresc.push(poRowno("shelfTargets", "Półki po równo"));
   }
@@ -21484,7 +21676,7 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladk
   );
 }
 
-function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien, zmienProjekt, ciag, dodaj: dodaj0, dodajGorny, gora = 96 }) {
+function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien, zmienProjekt, ciag, dodaj: dodaj0, dodajGorny, gora = 96, usunPozycje }) {
   /* Szeroki ekran (lg): zakladki, karta i rysunek przyklejone pod gornym paskiem (`gora` — jego wysokosc jak „rysunek
      przypiety” w trybie technicznym), rysunek do dolu okna z wlasnym przewijaniem (zgloszenie 2026-11-09: „suwak rysunku
      na dole, ale suwak okna nie na dole i ucina rysunek” — wysokosc liczona z zalozonego paska 100 px). */
@@ -21506,6 +21698,9 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   const [menuCo, setMenuCo] = useState(null);
   // kliknieta kolumna / poziom kolumny: { idx, li, j, nr } — karta Drzwi / Szuflady / Polki pokazuje tylko ja
   const [kolZ, setKolZ] = useState(null);
+  // wybrany sprzet (karta AGD w „Dodaj → AGD”): { i, rodz: "wyc" | "nb" | "kol" | "ciag", k, li, j }
+  const [selAgd, setSelAgd] = useState(null);
+  const pokazAgd = (sel) => { setSelAgd(sel); setZaznM(true); if (sel.i !== project.active) switchCabinet(sel.i); setZakladka("dodaj"); setDodajCo("agd"); setKarta(true); };
   const [swiatloPolki, setSwiatloPolki] = useState(null);
   const ostatniKlik = useRef(null);
   useEffect(() => {
@@ -21884,7 +22079,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     if (r.left < c.left || r.right > c.right) box.scrollLeft += Math.round(r.left - c.left - Math.max(20, (c.width - r.width) / 2));
   }, [project.active, skala, ciagId]);   // eslint-disable-line react-hooks/exhaustive-deps
   const nakladkaPrzod = (cab, geo, idx) => (geoRysunku.current[idx] = geo) && <MakietaUchwyty cab={cab} geo={geo} zakladka={akt} widok="front" podglad={podglad && podglad.idx === idx && podglad.widok !== "top" ? podglad : null}
-    kolZ={kolZ && kolZ.idx === idx && ["drzwi", "szuflady", "polki"].includes(akt) ? kolZ : null} />;
+    kolZ={kolZ && kolZ.idx === idx && ["drzwi", "szuflady", "polki"].includes(akt) ? (akt === "polki" ? { ...kolZ, nr: null } : kolZ) : null} />;
   const nakladkaGora = (cab, geo, idx) => (geoRysunku.current[idx] = geo) && <MakietaUchwyty cab={cab} geo={geo} zakladka={akt} widok="top" podglad={podglad && podglad.idx === idx && podglad.widok === "top" ? podglad : null} />;
   return (
     <div data-el="makieta" data-tryb={tryb}
@@ -21919,7 +22114,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                   </button>
                   {dodajCo === k && (
                     <div className="border-t border-stone-200 p-2">
-                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} selAgd={selAgd} setSelAgd={setSelAgd} usunPozycje={usunPozycje} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
                         project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
                         zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); setZnacznik(null); }} />
                     </div>
@@ -22023,6 +22218,9 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         </div>
         <div data-el="mak-plotno" ref={plotno} className={`overflow-auto ${lg || pelny ? "min-h-0 flex-1" : ""}`}
           onClick={(e) => {
+            // sprzet na blacie / wyciecie w blacie (rysunek ciagu) — karta sprzetu
+            const sb = e.target.closest && e.target.closest("[data-el=wyciecie-blatu][data-idx], [data-el=na-blacie][data-idx]");
+            if (sb) { pokazAgd({ i: Number(sb.getAttribute("data-idx")), rodz: sb.getAttribute("data-el") === "na-blacie" ? "nb" : "wyc", k: Number(sb.getAttribute("data-k")) }); return; }
             const g = e.target.closest && e.target.closest("[data-el=makieta-szafka]");
             if (!g) { setZaznM(false); ostatniKlik.current = null; return; }
             // wlasny dwuklik: pierwszy klik zaznacza i przerysowuje, wiec przegladarka nie zawsze laczy klikniecia
@@ -22036,6 +22234,10 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                 if (lv && col && typeof col.j === "number") {
                   const pk = (col.poziomyKol || []).find((q) => gy >= q.y0 - geo.ts && gy <= q.y1 + geo.ts);
                   setKolZ({ idx, li: lv.i, j: col.j, nr: (col.poziomyKol || []).length ? (pk ? pk.nr : null) : null });
+                  // sprzet w kolumnie / w ciagu — przy otwartym „Dodaj → AGD” od razu jego karta
+                  const rawK = ((it.cab.levels[lv.i] || {}).cols || [])[col.j];
+                  const s2 = it.cab.sprzetCiagu ? { i: idx, rodz: "ciag" } : rawK && rawK.sprzet ? { i: idx, rodz: "kol", li: lv.i, j: col.j } : null;
+                  if (s2 && akt === "dodaj" && dodajCo === "agd") setSelAgd(s2);
                 }
               }
             }
@@ -22097,9 +22299,10 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         const opcje = [["szafka", sc ? "Wymiary" : "Szafka"], ...(sc ? [] : [["szuflady", "Szuflady"], ["polki", "Półki"], ["drzwi", "Drzwi i klapy"], ["przegroda", "Przegroda"]]),
           ["cokol", "Cokół i nóżki"], ...(tryb === "szczegolowa" && !sc ? MAK_ZAKLADKI_SZCZ : [])].map(([z, l]) => ({ z, l, ik: MAK_IKONY[z] }));
         // sprzet w tej szafce — na razie do „Dodaj → AGD” (lista „W projekcie”)
-        const agd = [...(sc ? [sprzetCiagu(c).pelna] : []), ...wycieciaSzafki(c).map((q) => q.pelna),
-          ...naBlacieSzafki(c).map((q) => (q.typ === "mikrofala" ? "Mikrofala wolnostojąca" : "Ekspres wolnostojący")),
-          ...(c.levels || []).flatMap((lv) => (lv.cols || []).filter((k) => k.sprzet).map((k) => (SPRZETY[k.sprzet.typ] || SPRZETY.piekarnik).pelna))];
+        const agd = [...(sc ? [{ l: sprzetCiagu(c).pelna, sel: { i: menuCo.idx, rodz: "ciag" } }] : []),
+          ...wycieciaSzafki(c).map((q) => ({ l: q.pelna, sel: { i: menuCo.idx, rodz: "wyc", k: q.k } })),
+          ...naBlacieSzafki(c).map((q) => ({ l: q.typ === "mikrofala" ? "Mikrofala wolnostojąca" : "Ekspres wolnostojący", sel: { i: menuCo.idx, rodz: "nb", k: q.k } })),
+          ...(c.levels || []).flatMap((lv, li) => (lv.cols || []).map((k, j) => ({ k, li, j })).filter(({ k }) => k.sprzet).map(({ k, li, j }) => ({ l: (SPRZETY[k.sprzet.typ] || SPRZETY.piekarnik).pelna, sel: { i: menuCo.idx, rodz: "kol", li, j } })))];
         const x = Math.max(8, Math.min(menuCo.x + 10, (typeof window !== "undefined" ? window.innerWidth : 1200) - 230));
         const y = Math.max(8, Math.min(menuCo.y + 10, oknoH - 60 - (opcje.length + agd.length) * 34));
         const idz = (z) => { setZaznM(true); if (menuCo.idx !== project.active) switchCabinet(menuCo.idx); setZakladka(z); setKarta(true); setMenuCo(null); };
@@ -22113,9 +22316,9 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
               <button key={o.z} data-mz={o.z} onClick={() => idz(o.z)} className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-[12px] text-stone-800 hover:bg-teal-50">
                 {o.ik && <MakIkona d={o.ik} size={18} />}{o.l}</button>
             ))}
-            {agd.map((l, i) => (
-              <button key={`a${i}`} data-mz="agd" onClick={() => { setDodajCo("agd"); idz("dodaj"); }} className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-[12px] text-stone-800 hover:bg-teal-50">
-                <MakIkona d={MAK_IKONY.agd} size={18} />{l}</button>
+            {agd.map((a, i) => (
+              <button key={`a${i}`} data-mz="agd" onClick={() => { pokazAgd(a.sel); setMenuCo(null); }} className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-[12px] text-stone-800 hover:bg-teal-50">
+                <MakIkona d={MAK_IKONY.agd} size={18} />{a.l}</button>
             ))}
           </div>
         );
@@ -25791,7 +25994,7 @@ export default function App() {
       </div>
       </header>
 
-      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} ciag={{ setRun, setRunShared }} dodaj={addCabinet} dodajGorny={addUpperRun} gora={wysNaglowka + PRZYPIETY_ODSTEP} />}
+      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} ciag={{ setRun, setRunShared }} dodaj={addCabinet} dodajGorny={addUpperRun} gora={wysNaglowka + PRZYPIETY_ODSTEP} usunPozycje={removeCabinet} />}
       {makieta && <div className="print-hide mx-auto max-w-[1900px] px-3 pb-6">{uwagiKarta(false)}</div>}
       <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]"
         style={makieta ? { display: "none" } : undefined}>

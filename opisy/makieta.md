@@ -56,6 +56,37 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
 - Klik w szafkę (albo wybór z listy „Szafka ▾”) robi ją aktywną szafką projektu — po przejściu
   do trybu technicznego otwiera się właśnie ona.
 
+## Karta sprzętu AGD (krok 1 planu wyrównania)
+
+W „Dodaj → AGD”, nad listą „W projekcie” — karta wybranego sprzętu. Wybór: klik w listę, klik w płytę / zlew /
+sprzęt na blacie na rysunku (otwiera „Dodaj → AGD”), „Co zmienić?” → sprzęt, przy otwartym AGD klik w kolumnę ze
+sprzętem albo w zmywarkę / lodówkę w ciągu. Zapis w te same pola co tryb techniczny:
+- **płyta / zlew** (`cab.blatWyciecia[k]`): rozmiar do kliknięcia (`ROZM_WYCIEC`), wymiary z karty modelu (szkło /
+  rant, kaseta / wycięcie, w dół od wierzchu; puste — typowe), „Wróć do typowych”, ociekacz z lewej / z prawej,
+  **położenie od początku blatu do lewej krawędzi wycięcia** (zmienia `przesun`), od przodu blatu, „Na środek szafki”,
+  „Usuń”;
+- **na blacie** (`cab.naBlacie[k]`): rozmiar, przesunięcie w bok, „Usuń”;
+- **w kolumnie** (`col.sprzet`): rozmiar (`SPRZET_ROZM`), otwieranie (w dół / zawias z lewej / z prawej / wysuwa się /
+  nie sprawdzaj) i wysuw; lodówka — front (ślizgowo / na stałe / bez frontu), 1 / 2 fronty, wnęka, zawiasy; „Usuń”;
+- **w ciągu** (`cab.sprzetCiagu`): zmywarka — model 60 / 45, wolnostojąca — montaż pod blatem / z pokrywą; lodówka
+  podblatowa — drzwi; wolnostojąca — rodzaj, luzy z lewej / z prawej, drzwi; „Usuń” (cała pozycja ciągu).
+- Pozostałe pola z karty modelu — w trybie Technicznym (karta to mówi).
+- Rysunek z góry: płyta z polami grzewczymi (30 — 2, 90 — 5, inne — 4), zlew z komorą / komorami i odpływem
+  (ociekacz po swojej stronie). Uwagi (wycięcie poza wnętrzem szafki, za blisko końca blatu…) — w karcie „Uwagi”.
+
+## Poziomy kolumny w makiecie prostej
+
+Użytkownik 2026-11-09: „dodawanie i usuwanie poziomów prosto … nie da się zrobić 1 drzwi dla 2 poziomów”. W „Drzwi
+i klapy”, pod frontami wybranej kolumny / poziomu:
+- **podziel na półce** (wysokość półki od dołu) — półka zostaje półką graniczną, każdy poziom dostaje swój front
+  (nowy z ustawieniami dzielonego) — jak „→ poziom” w trybie technicznym (`makPodzielKolumne`);
+- **scal z wyższym / z niższym** — dwa poziomy w jeden (np. jedne drzwi na dwa poziomy); zostają ustawienia
+  wybranego poziomu; półka graniczna zostaje zwykłą półką, a gdy zostają szuflady / blenda — półki i drążek
+  z tego poziomu znikają (`makScalPoziomy`, jak „scal” w technicznym);
+- „Bez frontu” działa też w poziomie kolumny (otwarty poziom, `segmenty[nr].doors = 0`).
+- **Półki** wybiera się po kolumnie (cała kolumna, wszystkie jej poziomy naraz) — użytkownik: „w półkach wybór
+  kolumny, a nie konkretnej półki”.
+
 ## Kolory rysunku
 
 Użytkownik 2026-11-09: „zależnie od trybu — w prostym jak jest [w makiecie], w szczegółowej już z kolorami płyt jak

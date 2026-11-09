@@ -1,0 +1,106 @@
+// Makieta: karta sprzetu AGD (krok 1 planu wyrownania, 2026-11-09) — Dodaj → AGD: karta wybranego sprzetu (z listy, z rysunku,
+// z „Co zmienić?”), rozmiary do klikniecia, wymiary z karty modelu, polozenie od poczatku blatu, ociekacz, otwieranie
+// sprzetu w kolumnie, model / montaz zmywarki w ciagu; zapis w te same pola co tryb techniczny. Rysunek: pola grzewcze, komory.
+import pw from './pw.mjs';
+const { chromium } = pw;
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
+const errors = [];
+page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message));
+page.on('console', (m) => { if (m.type() === 'error' && !/favicon|404/.test(m.text())) errors.push('[console] ' + m.text()); });
+let bledy = 0;
+const ok = (l, c, e = '') => { if (!c) bledy++; console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : '')); };
+await page.goto('http://127.0.0.1:5205/mebloprojekt-app.html', { waitUntil: 'networkidle' });
+await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForFunction(() => !!localStorage.getItem('szafki:projekt'), null, { timeout: 10000 });
+await page.evaluate(() => {
+  const p = JSON.parse(localStorage.getItem('szafki:projekt'));
+  const wzor = p.items[0];
+  const w = (n, W) => { const it = JSON.parse(JSON.stringify(wzor)); it.cab.name = n; it.cab.W = W; return { ...it, runId: 'r1' }; };
+  p.runs = [{ id: 'r1', name: 'Ściana A', roomId: 'p1', worktop: true }];
+  p.items = [w('Lewa', 600), w('Płyta', 600), w('Zlew', 800)];
+  p.items[1].cab.blatWyciecia = [{ typ: 'plyta', rozm: '60' }];
+  p.items[2].cab.blatWyciecia = [{ typ: 'zlew', rozm: '1o' }];
+  p.items[0].cab.levels[0].cols[0].sprzet = { typ: 'piekarnik' };
+  p.active = 1;
+  localStorage.setItem('szafki:projekt', JSON.stringify(p));
+  localStorage.setItem('mp-tryb', 'prosta');
+  localStorage.setItem('mp-mak-zoom', JSON.stringify({ pow: false, z: 1 }));   // „Dopasuj” — cały ciąg w oknie
+});
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(1200);
+const proj = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
+const czekaj = async (f) => { await page.waitForFunction((src) => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); try { return new Function('p', 'return ' + src)(p); } catch (e) { return false; } }, f, { timeout: 5000 }).catch(() => {}); return proj(); };
+const zakl = async (k) => { const b = page.locator(`[data-el="makieta"] nav [data-zakl="${k}"]`);
+  if ((await b.getAttribute('aria-pressed')) !== 'true' || !(await page.locator('[data-el="mak-karta-panel"]').count())) await b.click(); await page.waitForTimeout(250); };
+const dodajSek = async (k) => { await zakl('dodaj'); const b = page.locator(`[data-el="mak-dodaj"] [data-dodaj="${k}"]`);
+  if ((await b.getAttribute('aria-expanded')) !== 'true') await b.click(); await page.waitForTimeout(250); };
+const karta = page.locator('[data-el="makieta-karta-agd"]');
+const pole = async (el, v) => { await karta.locator(`[data-el="${el}"]`).fill(String(v)); await karta.locator(`[data-el="${el}"]`).press('Enter'); await page.waitForTimeout(300); };
+
+console.log('== płyta: karta z listy ==');
+await dodajSek('agd');
+await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { hasText: 'Płyta grzewcza' }).click(); await page.waitForTimeout(300);
+ok('klik w listę „W projekcie” — karta płyty', (await karta.count()) === 1 && /Płyta grzewcza/.test(await karta.innerText()));
+await karta.locator('[data-el="agd-rozm-v"][data-v="80"]').click();
+let p = await czekaj('p.items[1].cab.blatWyciecia[0].rozm === "80"');
+ok('rozmiar „80 cm” do kliknięcia', p.items[1].cab.blatWyciecia[0].rozm === '80');
+await pole('agd-kw', 760);
+p = await czekaj('p.items[1].cab.blatWyciecia[0].kw === 760');
+ok('kaseta z karty modelu (szer. 760)', p.items[1].cab.blatWyciecia[0].kw === 760);
+ok('„Wróć do typowych” po własnej liczbie', (await karta.locator('[data-el="agd-typowe"]').count()) === 1);
+const odp0 = Number(await karta.locator('[data-el="agd-odpocz"]').inputValue());
+await pole('agd-odpocz', odp0 + 40);
+p = await czekaj('p.items[1].cab.blatWyciecia[0].przesun === 40');
+ok('od początku blatu +40 → przesunięcie 40', p.items[1].cab.blatWyciecia[0].przesun === 40, JSON.stringify(p.items[1].cab.blatWyciecia[0]));
+await karta.locator('[data-el="agd-srodek"]').click();
+p = await czekaj('p.items[1].cab.blatWyciecia[0].przesun == null');
+ok('„Na środek szafki”', p.items[1].cab.blatWyciecia[0].przesun == null);
+await pole('agd-odprzodu', 70);
+p = await czekaj('p.items[1].cab.blatWyciecia[0].odPrzodu === 70');
+ok('od przodu blatu 70', p.items[1].cab.blatWyciecia[0].odPrzodu === 70);
+ok('rysunek z góry: pola grzewcze płyty (80 — 4)', (await page.locator('[data-el="makieta"] [data-el="pola-grzewcze"] circle').count()) === 4);
+
+console.log('== zlew: klik na rysunku ==');
+const zl = page.locator('[data-el="makieta"] [data-el="wyciecie-blatu"][data-idx="2"]').first();
+await zl.click({ force: true }); await page.waitForTimeout(300);
+ok('klik w zlew na rysunku z góry — karta zlewu', (await karta.count()) === 1 && /Zlew/.test(await karta.innerText()));
+ok('rysunek: komora zlewu z ociekaczem', (await page.locator('[data-el="makieta"] [data-el="komory"] rect').count()) >= 1);
+await karta.locator('[data-el="agd-ociekacz-v"][data-v="L"]').click();
+p = await czekaj('p.items[2].cab.blatWyciecia[0].ociekacz === "L"');
+ok('ociekacz z lewej', p.items[2].cab.blatWyciecia[0].ociekacz === 'L');
+
+console.log('== piekarnik w kolumnie: przez „Co zmienić?” ==');
+const lewa = page.locator('[data-el="mak-plotno"] svg:not([data-el="mak-zgory"] svg) [data-el="makieta-szafka"][data-idx="0"]').first();
+const lb = await lewa.boundingBox();
+await page.mouse.click(lb.x + lb.width / 2, lb.y + lb.height / 2, { button: 'right' }); await page.waitForTimeout(300);
+await page.locator('[data-el="mak-menu-co"] [data-mz="agd"]', { hasText: 'Piekarnik' }).click(); await page.waitForTimeout(300);
+ok('„Co zmienić?” → Piekarnik — jego karta', (await karta.count()) === 1 && /Piekarnik/.test(await karta.innerText()));
+await karta.locator('[data-el="agd-rozm-v"][data-v="45"]').click();
+p = await czekaj('p.items[0].cab.levels[0].cols[0].sprzet.frontH === 455');
+ok('piekarnik „kompakt 45”', p.items[0].cab.levels[0].cols[0].sprzet.frontH === 455);
+await karta.locator('[data-el="agd-drzwi-v"][data-v="lewe"]').click();
+p = await czekaj('p.items[0].cab.levels[0].cols[0].sprzet.drzwi === "lewe"');
+ok('otwieranie: zawias z lewej', p.items[0].cab.levels[0].cols[0].sprzet.drzwi === 'lewe');
+await karta.locator('[data-el="agd-usun"]').click();
+p = await czekaj('!p.items[0].cab.levels[0].cols[0].sprzet');
+ok('„Usuń” — sprzęt z kolumny zdjęty, karta zamknięta', !p.items[0].cab.levels[0].cols[0].sprzet && !(await karta.count()));
+
+console.log('== zmywarka wolnostojąca w ciągu ==');
+await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="zmywarka-wolno"]').click(); await page.waitForTimeout(500);
+p = await czekaj('p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "zmywarkaW")');
+const iz = p.items.findIndex((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === 'zmywarkaW');
+await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { hasText: 'Zmywarka wolnostojąca' }).click(); await page.waitForTimeout(300);
+await karta.locator('[data-el="agd-pokrywa-v"][data-v="1"]').click();
+p = await czekaj(`p.items[${iz}].cab.sprzetCiagu.pokrywa === true`);
+ok('zmywarka: „z własną pokrywą” (wys. z pokrywą)', p.items[iz].cab.sprzetCiagu.pokrywa === true && p.items[iz].cab.H === 850, String(p.items[iz].cab.H));
+await karta.locator('[data-el="agd-model-v"][data-v="450"]').click();
+p = await czekaj(`p.items[${iz}].cab.W === 450`);
+ok('zmywarka: model 45 cm', p.items[iz].cab.W === 450 && p.items[iz].cab.sprzetCiagu.szer === 450);
+
+console.log('bledy strony:', errors.length ? errors.join(' | ') : 'brak');
+if (errors.length) bledy++;
+console.log(bledy ? `${bledy} BLAD` : 'WSZYSTKO OK');
+await browser.close();
+process.exit(bledy ? 1 : 0);

@@ -1145,3 +1145,12 @@ widzi kolumn”; cokol szafki wolnostojacej rysowany (`cokol-szafki`).
 [AI-INFO] 2026-11-09: krok 2 planu (menu „Co zmienić?”, dwuklik na polce, przesuwanie szafki w ciagu z zielonym znacznikiem)
 ZROBIONY przed 0c/0d, bo uzytkownik juz go testowal („nie działa dwuklik lewym i prawy myszy”). Przesuwanie tylko w tym samym
 ciagu; przenoszenie miedzy ciagami i przesuwanie sprzetu po blacie — jeszcze nie (sprzet: razem z karta AGD, krok 1).
+[AI-INFO] 2026-11-09 (wieczor): zrobione w makiecie — karta AGD (krok 1, bez okapu), poziomy kolumny (podziel / scal), „Bez frontu”
+w poziomie, Polki po kolumnie, opcje tylko wybranej kolumny (Drzwi / Szuflady / Polki), rodzaj zabudowy na ciag, kolory wg trybu,
+„Co zmienić?”, przesuwanie szafek, uwagi pod makieta. Suity: makieta..makieta8.
+[AI-TODO] Polecenie uzytkownika 2026-11-09 („niedługo skończą się tokeny”): po wznowieniu dokonczyc biezace, potem PRZEGLAD — czego
+brakuje w makiecie prostej, zeby byla wiekszosc prostych funkcji kreatora szafek i szaf; rozwiazania wdrazac bez pytania, gdy jasne;
+pytania zbierac i zadac WSZYSTKIE na koniec (narzedzie z opcjami). Pozostale z planu: krok 3 (okap, slupek z 3 sprzetami),
+krok 4 (wzmocnienia, polki „równo z obok”, biurko z kontenerem, szafa z szufladami). Kandydaci z przegladu: usuwanie szafki
+z makiety (× / Delete), kopiowanie szafki, poziomy szafki (cale szerokosci) — dodaj / usun, drazek w kolumnie z wysokoscia,
+uchwyty (rodzaj), material/kolor plyty i frontu (szczegolowa), nozki/cokol w ciagu juz sa, nazwa szafki w karcie.
