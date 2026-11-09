@@ -20633,11 +20633,11 @@ const tenSamKolor = (a, b) => String((a || {}).color || "").toLowerCase() === St
    kasuje ustawien, ktorych nie pokazuje (wzmocnienia, wyciecia, kolizje...); szczegolowa je pokazuje. */
 const MAK_AKCENT = "#0f766e";
 const TRYBY = [["prosta", "Makieta prosta"], ["szczegolowa", "Makieta szczegółowa"], ["techniczny", "Techniczny"]];
-const MAK_ZAKLADKI = [["dodaj", "Dodaj"], ["szafka", "Szafka"], ["szuflady", "Szuflady"], ["polki", "Półki"], ["drzwi", "Drzwi i klapy"],
+const MAK_ZAKLADKI = [["agd", "AGD"], ["szafka", "Szafka"], ["szuflady", "Szuflady"], ["polki", "Półki"], ["drzwi", "Drzwi i klapy"],
   ["przegroda", "Przegroda"], ["cokol", "Cokół i nóżki"]];
 /* Ikony jak w makiecie „Dodaj” (uzytkownik 2026-11-09: „popraw widok żeby był jak w artefakcie makieta”). */
 const MAK_IKONY = {
-  dodaj: "M4 4h16v16H4z M12 8v8 M8 12h8",
+  agd: "M4 3h16v18H4z M4 7h16 M7 10h10v8H7z M7 5h1 M10 5h1",
   szafka: "M5 3h14v18H5z M12 3v18 M10 11v3 M14 11v3",
   szuflady: "M4 4h16v16H4z M4 9.5h16 M4 15h16 M10 6.7h4 M10 12.2h4 M10 17.7h4",
   polki: "M5 3h14v18H5z M5 9h14 M5 15h14",
@@ -20926,10 +20926,6 @@ const MAK_PALETA = [
     { id: "zlewowa", nazwa: "Zlewowa", opis: "800 mm, bez półek", tpl: "stojaca", gdzie: "dol", ciag: true, mod: (c) => { c.W = 800; makUstawPolki(makK0(c), 0); } },
     { id: "slupek", opis: "600 × 2000", tpl: "slupek", gdzie: "dol" },
     { id: "naroznikL", opis: "z ramieniem i ciągiem za rogiem", tpl: "naroznikL", gdzie: "dol" },
-    { id: "zmywarka", opis: "60 cm, front meblowy", tpl: "zmywarka", gdzie: "dol" },
-    { id: "zmywarka-wolno", opis: "pod blat albo z pokrywą", tpl: "zmywarka-wolno", gdzie: "dol" },
-    { id: "lodowka-pod", opis: "podblatowa, w ciąg jak zmywarka", tpl: "lodowka-pod", gdzie: "dol" },
-    { id: "lodowka-wolno", opis: "w ciąg, bez korpusu", tpl: "lodowka-wolno", gdzie: "dol" },
   ] },
   { grupa: "Kuchnia — góra", wzory: [
     { id: "wiszaca", opis: "na ciąg górny", tpl: "wiszaca", gdzie: "gora", ciag: true },
@@ -20958,7 +20954,48 @@ const MAK_PALETA = [
     { id: "biurko", opis: "1200 × 750, blat na bokach", tpl: "biurko", gdzie: "wolna", szafka: "Biurko" },
   ] },
 ];
-const MAK_WZORY = Object.fromEntries(MAK_PALETA.flatMap((g) => g.wzory.map((w) => [w.id, w])));
+/* Zakladka AGD (jak w makiecie „Dodaj”, uzytkownik 2026-11-09: „zniknął AGD”): sprzet przeciagany na rysunek albo klikany.
+   `rodz`: blat — wyciecie w blacie nad szafka (`blatWyciecia`), naBlat — sprzet na blacie (`naBlacie`, tylko rysunek),
+   kol — sprzet w kolumnie szafki (`col.sprzet`), wzor — pozycja w ciagu z szablonu (jak szafka z palety). */
+const MAK_AGD = [
+  { id: "plyta", nazwa: "Płyta indukcyjna", opis: "na blat", rodz: "blat", typ: "plyta" },
+  { id: "zlew", nazwa: "Zlew", opis: "na blat", rodz: "blat", typ: "zlew" },
+  { id: "piekarnik", nazwa: "Piekarnik", opis: "do szafki albo słupka", rodz: "kol", typ: "piekarnik" },
+  { id: "mikrofala", nazwa: "Mikrofala", opis: "do słupka", rodz: "kol", typ: "mikrofala" },
+  { id: "ekspres", nazwa: "Ekspres do zabudowy", opis: "do słupka, wnęka 45", rodz: "kol", typ: "ekspres" },
+  { id: "lodowka", nazwa: "Lodówka do zabudowy", opis: "do słupka", rodz: "kol", typ: "lodowka" },
+  { id: "lodowka-pod", nazwa: "Lodówka podblatowa", opis: "w ciąg jak zmywarka", rodz: "wzor", tpl: "lodowka-pod", gdzie: "dol" },
+  { id: "lodowka-wolno", nazwa: "Lodówka wolnostojąca", opis: "w ciąg, bez korpusu", rodz: "wzor", tpl: "lodowka-wolno", gdzie: "dol" },
+  { id: "zmywarka", nazwa: "Zmywarka", opis: "w ciąg, bez korpusu", rodz: "wzor", tpl: "zmywarka", gdzie: "dol" },
+  { id: "zmywarka-wolno", nazwa: "Zmywarka wolnostojąca", opis: "pod blat albo z pokrywą", rodz: "wzor", tpl: "zmywarka-wolno", gdzie: "dol" },
+  { id: "mikrofalaW", nazwa: "Mikrofala wolnostojąca", opis: "na blat", rodz: "naBlat", typ: "mikrofala" },
+  { id: "ekspresW", nazwa: "Ekspres wolnostojący", opis: "na blat", rodz: "naBlat", typ: "ekspres" },
+  { id: "okap", nazwa: "Okap", opis: "w przygotowaniu", rodz: "brak" },
+];
+const MAK_AGD_ID = Object.fromEntries(MAK_AGD.map((a) => [a.id, a]));
+const MAK_WZORY = Object.fromEntries([...MAK_PALETA.flatMap((g) => g.wzory), ...MAK_AGD.filter((a) => a.rodz === "wzor")].map((w) => [w.id, w]));
+// miniatury AGD (34 × 34), jak ikony sprzetu w makiecie
+const ikonaAgd = (id) => {
+  const d = {
+    plyta: "M5 8h24v18H5z M12 14m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0 M22 14m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0 M12 21h0 M22 21h0",
+    zlew: "M4 10h26v14H4z M8 13h11v8H8z M22 14h5 M22 17h5 M22 20h5",
+    piekarnik: "M6 6h22v22H6z M6 10h22 M10 14h14v10H10z",
+    mikrofala: "M5 10h24v14H5z M8 13h13v8H8z M24 14v2",
+    ekspres: "M7 6h20v22H7z M7 10h20 M14 14h6v6h-6z M15 24h4",
+    lodowka: "M9 2h16v30H9z M9 13h16 M22 6v4 M22 16v5",
+    "lodowka-pod": "M8 10h18v20H8z M23 13v4",
+    "lodowka-wolno": "M9 2h16v30H9z M9 13h16 M22 6v4 M22 16v5",
+    zmywarka: "M6 8h22v22H6z M6 12h22 M14 16h6",
+    "zmywarka-wolno": "M6 7h22v23H6z M6 11h22 M14 16h6 M6 27h22",
+    mikrofalaW: "M4 16h26v12H4z M7 19h13v6H7z M2 28h30",
+    ekspresW: "M11 8h12v20H11z M14 18h6v4h-6z M8 28h18",
+    okap: "M14 4h6v10h-6z M6 22l8-8h6l8 8z M6 22h22",
+  }[id] || "M6 6h22v22H6z";
+  return <svg viewBox="0 0 34 34" width="34" height="34" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"><path d={d} /></svg>;
+};
+// klocki przy swoich zakladkach (jak w makiecie: Szuflady, Polki, Drzwi i klapy, Przegroda)
+const MAK_KLOCKI_ZAKL = { szuflady: ["szu-1", "szu-2", "szu-3", "szu-4"], polki: ["polka", "drazek"],
+  drzwi: ["drzwi-1", "drzwi-2", "klapa-gora", "klapa-dol", "otwarta"], przegroda: ["przegroda"] };
 const makNazwaWzoru = (w) => w.nazwa || (TEMPLATES.find((t) => t.id === w.tpl) || {}).label || w.id;
 // klocki do szafki: na kolumne pod kursorem (klik — pierwsza pasujaca kolumna zaznaczonej szafki)
 const MAK_KLOCKI = [
@@ -20969,7 +21006,7 @@ const MAK_KLOCKI = [
   { id: "przegroda", nazwa: "Przegroda", przegroda: true },
 ];
 
-function MakietaPaleta({ onWzor, onKlocek, zacznij, skoncz, komunikat }) {
+function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien }) {
   const kafel = (el, id, l, opis, onClick, ikona) => (
     <button key={id} data-el={el} data-id={id} draggable
       onDragStart={(e) => { try { e.dataTransfer.setData("text/plain", `${el}:${id}`); e.dataTransfer.effectAllowed = "copy"; } catch (er) { /* bez danych */ } zacznij({ el, id }); }}
@@ -20982,20 +21019,68 @@ function MakietaPaleta({ onWzor, onKlocek, zacznij, skoncz, komunikat }) {
       </span>
     </button>
   );
-  return (
+  const naglowek = (t) => <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-stone-500">{t}</p>;
+  const kom = komunikat && <p className="rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-800" data-el="mak-komunikat">{komunikat}</p>;
+  if (zakladka === "agd") {
+    // sprzet w ogladanym pomieszczeniu — klik zaznacza szafke, × usuwa (pozycje w ciagu usuwa sie w trybie Technicznym)
+    const wPokoju = itemsInRoom(project, pokoj);
+    const lista = wPokoju.flatMap(({ it, i }) => {
+      const n = it.cab.name || "szafka";
+      const usun = (fn) => () => zmien(i, fn);
+      return [
+        ...(it.cab.sprzetCiagu ? [{ k: `c${i}`, i, l: sprzetCiagu(it.cab).pelna, g: `w ciągu, „${n}”` }] : []),
+        ...wycieciaSzafki(it.cab).map((q) => ({ k: `w${i}-${q.k}`, i, l: q.pelna, g: `nad szafką „${n}”${q.rozmL ? ` · ${q.rozmL}` : ""}`,
+          usun: usun((c) => { c.blatWyciecia = (c.blatWyciecia || []).filter((_, x) => x !== q.k); }) })),
+        ...naBlacieSzafki(it.cab).map((q) => ({ k: `b${i}-${q.k}`, i, l: `${q.typ === "mikrofala" ? "Mikrofala" : "Ekspres"} wolnostojąc${q.typ === "mikrofala" ? "a" : "y"}`, g: `na blacie nad „${n}” · ${q.rozmL}`,
+          usun: usun((c) => { c.naBlacie = (c.naBlacie || []).filter((_, x) => x !== q.k); }) })),
+        ...(it.cab.levels || []).flatMap((lv, li) => (lv.cols || []).map((col, j) => ({ col, li, j }))).filter(({ col }) => col.sprzet)
+          .map(({ col, li, j }) => ({ k: `s${i}-${li}-${j}`, i, l: (SPRZETY[col.sprzet.typ] || SPRZETY.piekarnik).pelna, g: `w „${n}”`,
+            usun: usun((c) => { const kk = kolumnaW(c.levels, li, j); if (kk) { delete kk.sprzet; if (!kk.doors) kk.doors = 1; } }) })),
+      ];
+    });
+    return (
+      <div className="space-y-2" data-el="mak-paleta">
+        <h2 className="text-[15px] font-semibold text-stone-900">AGD</h2>
+        <p className="text-[12px] text-stone-500">Przeciągnij sprzęt na rysunek — na szafkę, kolumnę albo w ciąg; klik — do zaznaczonej szafki (sprzęt w ciągu na jego koniec).</p>
+        {kom}
+        {naglowek("Sprzęt")}
+        <div className="grid grid-cols-2 gap-1">{MAK_AGD.map((a) => kafel("mak-agd", a.id, a.nazwa, a.opis, () => onAgd(a, null), ikonaAgd(a.id)))}</div>
+        {naglowek(`W projekcie (${lista.length})`)}
+        {lista.length ? (
+          <ul className="space-y-1" data-el="mak-agd-lista">
+            {lista.map((q) => (
+              <li key={q.k} className="flex items-center gap-2 rounded-md border border-stone-200 px-2 py-1 text-[12px]">
+                <button className="min-w-0 flex-1 text-left" onClick={() => wybierz(q.i)}>
+                  <b className="block font-medium text-stone-800">{q.l}</b><span className="block text-[11px] text-stone-500">{q.g}</span>
+                </button>
+                {q.usun && <button className="rounded px-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700" title="Usuń" onClick={q.usun} data-el="mak-agd-usun">×</button>}
+              </li>
+            ))}
+          </ul>
+        ) : <p className="rounded-md border border-dashed border-stone-300 p-2 text-[12px] text-stone-500">W tym pomieszczeniu nie ma jeszcze sprzętu.</p>}
+      </div>
+    );
+  }
+  if (zakladka === "szafka") return (
     <div className="space-y-2" data-el="mak-paleta">
-      <p className="text-[11px] text-teal-800">Przeciągnij na rysunek: szafkę — przed albo za szafką, na którą upuścisz; klocek — na kolumnę szafki. Klik: szafka na koniec ciągu, klocek do zaznaczonej szafki.</p>
-      {komunikat && <p className="rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-800" data-el="mak-komunikat">{komunikat}</p>}
+      <p className="text-[12px] text-stone-500">Przeciągnij miniaturę w ciąg — stanie przed albo za szafką, na którą upuścisz; klik — na koniec ciągu zaznaczonej szafki.</p>
+      {kom}
       {MAK_PALETA.map((g) => (
         <div key={g.grupa}>
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-stone-500">{g.grupa}</p>
+          {naglowek(g.grupa)}
           <div className="grid grid-cols-2 gap-1">{g.wzory.map((w) => kafel("mak-wzor", w.id, makNazwaWzoru(w), w.opis, () => onWzor(w, null), ikonaWzoru(w)))}</div>
         </div>
       ))}
-      <div>
-        <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-stone-500">Do szafki</p>
-        <div className="grid grid-cols-3 gap-1">{MAK_KLOCKI.map((k) => kafel("mak-klocek", k.id, k.nazwa, null, () => onKlocek(k, null)))}</div>
-      </div>
+    </div>
+  );
+  const ids = MAK_KLOCKI_ZAKL[zakladka];
+  if (!ids) return kom || null;
+  return (
+    <div className="space-y-1.5" data-el="mak-paleta">
+      {naglowek("Klocki")}
+      <div className="grid grid-cols-3 gap-1">{ids.map((id) => MAK_KLOCKI.find((k) => k.id === id)).map((k) => kafel("mak-klocek", k.id, k.nazwa, null, () => onKlocek(k, null)))}</div>
+      <p className="text-[11px] text-stone-500">Przeciągnij na kolumnę szafki albo kliknij — do zaznaczonej szafki.</p>
+      {kom}
     </div>
   );
 }
@@ -21361,13 +21446,49 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
       const k = kolumnaW(cab.levels, li, j); if (k) kl.fn(k, sys);
     });
   };
+  const wstawAgd = (a, c0) => {
+    setKomunikat(null);
+    if (a.rodz === "brak") { setKomunikat("Okap — jeszcze w przygotowaniu."); return; }
+    if (a.rodz === "wzor") { wstawWzor(a, c0); return; }
+    const c = c0 || { idx: project.active, li: null, j: null };
+    const it = project.items[c.idx]; if (!it) return;
+    if (a.rodz === "blat" || a.rodz === "naBlat") {
+      const run = runOf(it), rt = run ? runTop(project, run) : null;
+      if (!rt || !(rt.pokryte || []).includes(c.idx) || (a.rodz === "blat" && !rt.worktop)) {
+        setKomunikat(`„${a.nazwa}” upuść na szafkę pod blatem roboczym${a.rodz === "blat" ? "" : " (albo blatem ciągu)"}.`); return;
+      }
+      zmien(c.idx, (cab) => {
+        if (a.rodz === "blat") cab.blatWyciecia = [...(cab.blatWyciecia || []), { typ: a.typ, rozm: ROZM_WYCIEC_DOM[a.typ] }];
+        else cab.naBlacie = [...(cab.naBlacie || []), { typ: a.typ }];
+      });
+      return;
+    }
+    // sprzet w kolumnie: wskazana kolumna albo pierwsza prosta kolumna zaznaczonej szafki (jak „Sprzęt” w trybie Technicznym)
+    if (it.cab.sprzetCiagu) { setKomunikat(`„${a.nazwa}” upuść na szafkę (słupek albo szafkę z wnęką), nie na sprzęt w ciągu.`); return; }
+    let li = c.li, j = c.j;
+    if (li == null || !makKolumnaProsta(kolumnaW(it.cab.levels, li, j))) {
+      const pierwsza = (it.cab.levels || []).flatMap((lv, x) => (lv.cols || []).map((k, y) => ({ k, x, y }))).find(({ k }) => makKolumnaProsta(k));
+      if (!pierwsza) { setKomunikat(`W szafce „${it.cab.name || "szafka"}” nie ma kolumny na „${a.nazwa}”.`); return; }
+      li = pierwsza.x; j = pierwsza.y;
+    }
+    zmien(c.idx, (cab) => {
+      const k = kolumnaW(cab.levels, li, j); if (!k) return;
+      k.kind = "doors"; POLA_KLAPY.forEach((pole) => delete k[pole]); k.sprzet = { typ: a.typ };
+    });
+  };
   const celOpis = (() => {
     if (!cel || !wlecze.current) return null;
     const it = project.items[cel.idx]; if (!it) return null;
     const nazwa = it.cab.name || "szafka";
+    if (wlecze.current.el === "mak-agd") {
+      const a = MAK_AGD_ID[wlecze.current.id];
+      if (a && (a.rodz === "blat" || a.rodz === "naBlat")) return `na blat nad „${nazwa}”`;
+      if (a && a.rodz === "kol") return `do „${nazwa}”${cel.li != null && ((it.cab.levels || []).length > 1 || (it.cab.levels[cel.li].cols || []).length > 1) ? `, poziom ${cel.li + 1} kolumna ${cel.j + 1}` : ""}`;
+    }
     if (wlecze.current.el === "mak-klocek") return cel.li != null ? `na „${nazwa}”${(it.cab.levels || []).length > 1 || (it.cab.levels[cel.li].cols || []).length > 1 ? `, poziom ${cel.li + 1} kolumna ${cel.j + 1}` : ""}` : `na „${nazwa}”`;
     const w = MAK_WZORY[wlecze.current.id];
-    if (!w || w.gdzie === "wolna") return "wolnostojąca, obok";
+    if (!w) return null;
+    if (w.gdzie === "wolna") return "wolnostojąca, obok";
     return it.runId ? `${cel.prawa ? "za" : "przed"} „${nazwa}”` : "na koniec ciągu";
   })();
   const naPrzeciaganie = (e) => {
@@ -21385,6 +21506,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     if (!w) return;
     const c = celZ(e);
     if (w.el === "mak-wzor" && MAK_WZORY[w.id]) wstawWzor(MAK_WZORY[w.id], c);
+    else if (w.el === "mak-agd" && MAK_AGD_ID[w.id]) wstawAgd(MAK_AGD_ID[w.id], c);
     else if (w.el === "mak-klocek") { const kl = MAK_KLOCKI.find((k) => k.id === w.id); if (kl) wstawKlocek(kl, c); }
   };
   // domyslnie ciag zaznaczonej szafki (z pietrem nad nim) — caly pokoj na raz jest za drobny do chwytania polek
@@ -21457,19 +21579,27 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
       <nav aria-label="Co zmieniasz" className="flex flex-wrap gap-0.5 rounded-lg border border-stone-200 bg-white p-1.5 lg:sticky lg:top-24 lg:flex-col lg:flex-nowrap lg:items-stretch">
         <p className="hidden px-0.5 pb-1 text-center text-[10px] uppercase leading-tight tracking-wider text-stone-500 lg:block">Dodaj / zmień</p>
         {zakl.map(([k, l]) => (
-          <button key={k} data-zakl={k} aria-pressed={akt === k} title={akt === k && karta ? "Schowaj kartę (większy rysunek)" : undefined}
+          <button key={k} data-zakl={k} aria-pressed={akt === k} title={akt === k ? (karta ? "Zwiń kartę (większy rysunek)" : "Rozwiń kartę") : undefined}
             onClick={() => { if (akt === k && karta) setKarta(false); else { setZakladka(k); setKarta(true); } }}
-            className={`flex flex-col items-center gap-0.5 rounded-md px-1 py-1.5 text-center text-[11px] leading-tight lg:w-full ${akt === k ? "bg-teal-700 font-semibold text-white" : "text-stone-700 hover:bg-stone-100"}`}>
+            className={`relative flex flex-col items-center gap-0.5 rounded-md px-1 py-1.5 text-center text-[11px] leading-tight lg:w-full ${akt === k ? "bg-teal-700 font-semibold text-white" : "text-stone-700 hover:bg-stone-100"}`}>
+            {/* znaczek zwijania karty (uzytkownik 2026-11-09: „brakuje znaczka, że można rozwinąć i zwinąć”) */}
+            {akt === k && <span aria-hidden="true" data-el="mak-zakl-zwin" className="absolute right-1 top-0.5 text-[13px] leading-none opacity-80">{karta ? "‹" : "›"}</span>}
             {MAK_IKONY[k] && <MakIkona d={MAK_IKONY[k]} />}{l}</button>
         ))}
       </nav>
       {karta && <section className="relative rounded-lg border border-stone-200 bg-white p-2.5 lg:sticky lg:top-24" data-el="mak-karta-panel">
         <button data-el="mak-karta-schowaj" onClick={() => setKarta(false)} title="Schowaj kartę (większy rysunek)"
           className="absolute right-1.5 top-1.5 rounded px-1.5 text-sm leading-none text-stone-400 hover:bg-stone-100 hover:text-stone-700">‹</button>
-        {akt === "dodaj"
-          ? <MakietaPaleta onWzor={wstawWzor} onKlocek={wstawKlocek} komunikat={komunikat}
-              zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); }} />
-          : <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} zmienProjekt={zmienProjekt} ciag={ciag} />}
+        <div className="space-y-3">
+          <MakietaPaleta zakladka={akt} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+            project={project} pokoj={pokoj} wybierz={switchCabinet} zmien={zmien}
+            zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); }} />
+          {akt !== "agd" && (
+            <div className={MAK_KLOCKI_ZAKL[akt] || akt === "szafka" ? "border-t border-stone-200 pt-2" : ""}>
+              <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} zmienProjekt={zmienProjekt} ciag={ciag} />
+            </div>
+          )}
+        </div>
       </section>}
       <section className="min-w-0 rounded-lg border border-stone-200 bg-white p-3 lg:sticky lg:top-24" onPointerDownCapture={naPoczatek}
         onDragOver={naPrzeciaganie} onDrop={naUpuszczenie} data-el="makieta-rysunek"

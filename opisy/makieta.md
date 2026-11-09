@@ -95,9 +95,22 @@ Zapis do tych samych pól co tryb techniczny; liczy aplikacja.
 
 Kolumny złożone (podział na poziomy kolumny, sprzęt) zmienia się w trybie technicznym — karta to mówi.
 
-## Paleta i klocki (krok 5)
+## Paleta, AGD i klocki (krok 5)
 
-Zakładka **Dodaj** (pierwsza). Kafelki można przeciągnąć na rysunek albo kliknąć.
+Zakładki jak w makiecie „Dodaj” (użytkownik 2026-11-09: „zniknął AGD”):
+- **AGD** (pierwsza) — sprzęt (`MAK_AGD`) i lista „W projekcie” (klik zaznacza szafkę, × usuwa wycięcie / sprzęt
+  na blacie / sprzęt z kolumny):
+  - płyta, zlew — wycięcie w blacie nad szafką (tylko pod blatem roboczym, inaczej komunikat);
+  - piekarnik, mikrofala, ekspres, lodówka do zabudowy — sprzęt w kolumnie, na którą upuścisz
+    (klik — pierwsza prosta kolumna zaznaczonej szafki);
+  - lodówka podblatowa i wolnostojąca, zmywarka i zmywarka wolnostojąca — pozycja w ciągu jak szafka;
+  - mikrofala i ekspres wolnostojące — na blat (tylko rysunek);
+  - okap — w przygotowaniu.
+- **Szafka** — wzory szafek nad kartą zaznaczonej szafki.
+- **Szuflady, Półki, Drzwi i klapy, Przegroda** — klocki tej zakładki nad kartą.
+- Zaznaczona zakładka ma znaczek „‹” (karta otwarta — klik zwija) albo „›” (schowana — klik rozwija).
+
+Kafelki można przeciągnąć na rysunek albo kliknąć.
 - **Szafki** — szablony aplikacji (`TEMPLATES`) i brakujące z makiety „Dodaj” jako szablon + zmiany
   (`MAK_PALETA`):
   - kuchnia dół: Dolna 1 drzwi 450, Dolna 2 drzwi 800, Dolna z szufladami 600 (3), Zlewowa 800 (bez półek),
