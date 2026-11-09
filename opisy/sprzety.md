@@ -78,6 +78,13 @@ przy niej bokami; „Scal szafki” jej nie łączy.
 
 **Lodówka wolnostojąca** (typowo 600 × 1850 × 650 w miejscu 700, luzy 50 z boków, 100 nad nią,
 50 z tyłu):
+- **luz z lewej i z prawej osobno** (użytkownik 2026-11-09, z makiety; puste = luz z boku 50). Lodówka stoi
+  o luz z lewej od sąsiada, nadmiar miejsca dzieli się po równo; za ciasno — wolne miejsce w proporcji luzów.
+  Karta pokazuje „Miejsce w ciągu: luz + lodówka + luz = N mm”. ! za mało luzu — „Miejsce N mm”
+  (przy równych luzach stary tekst „zostaje … z boku”);
+- **rodzaj: wolnostojąca / na równo z meblami** (np. Samsung Kitchen Fit) — typowo 3 mm z boków i 15 nad
+  nią (przykładowo, z makiety — wg instrukcji modelu), ciepło oddaje tyłem i dołem; informacja o mocowaniu
+  do sąsiednich szafek uchwytami producenta;
 - stoi na podłodze — bez cokołu i nóżek, bez formatek; wspólne wymiary ciągu (wysokość,
   głębokość, cokół) jej nie zmieniają i nie dają uwag o niezgodności;
 - blat ciągu kończy się przy jej boku (nie wyznacza wysokości blatu);

@@ -269,6 +269,21 @@ console.log('\n== sprzęt w ciągu bez korpusu (użytkownik 2026-11-05): zmywark
   ok('wysokość 1800: ostrzeżenie z „Wysokość 1850 mm”', JSON.stringify(await przyciski(reH)) === '["Wysokość 1850 mm"]', (await przyciski(reH)).join(' / '));
   await klik(reH, 'Wysokość 1850 mm');
   ok('po kliknięciu: 1850, bez ostrzeżenia', (await zap()).items[(await zap()).active].cab.H === 1850 && !(await jest(reH)));
+  // luz z lewej i z prawej osobno, „na równo z meblami” (uzytkownik 2026-11-09, z makiety)
+  const kartaL = page.locator('[data-el="sprzet-ciagu-karta"]');
+  ok('karta lodówki: „Luz z lewej / z prawej”, miejsce 50 + 600 + 50 = 700', (await kartaL.locator('label').filter({ hasText: 'Luz z lewej' }).count()) === 1
+    && /luz 50 \+ lodówka 600 \+ luz 50 = 700 mm/.test(await page.locator('[data-el="lodowka-miejsce"]').innerText()));
+  await kartaL.locator('label').filter({ hasText: 'Luz z prawej' }).locator('input').fill('120'); await page.waitForTimeout(900);
+  const reLP = /Przy lodówce zostaje 29 mm z lewej i 71 mm z prawej — potrzeba 50 z lewej i 120 z prawej/;
+  ok('luz z prawej 120: ostrzeżenie z „Miejsce 770 mm”', JSON.stringify(await przyciski(reLP)) === '["Miejsce 770 mm"]', (await przyciski(reLP)).join(' / '));
+  await klik(reLP, 'Miejsce 770 mm');
+  ok('po kliknięciu: miejsce 770, bez ostrzeżenia', (await zap()).items[(await zap()).active].cab.W === 770 && !(await jest(reLP)));
+  await page.locator('[data-el="lodowka-rowno"] button').filter({ hasText: 'na równo z meblami' }).click(); await page.waitForTimeout(900);
+  ok('„na równo z meblami”: luzy 3 / 3 / 15 (własny luz z prawej skasowany), informacja o mocowaniu', /luz 3 \+ lodówka 600 \+ luz 3 = 606 mm/.test(await page.locator('[data-el="lodowka-miejsce"]').innerText())
+    && await jest(/Lodówka na równo z meblami: luz 3 mm z lewej, 3 z prawej i 15 nad nią/) && (await zap()).items[(await zap()).active].cab.sprzetCiagu.rowno === true);
+  await page.locator('[data-el="lodowka-rowno"] button').filter({ hasText: /^wolnostojąca$/ }).click(); await page.waitForTimeout(900);
+  await page.evaluate(() => { const q = JSON.parse(localStorage.getItem('szafki:projekt')); q.items[q.active].cab.W = 700; localStorage.setItem('szafki:projekt', JSON.stringify(q)); });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
   // lodowka w srodek: A, Zmywarka, Lodowka, B
   await page.evaluate(() => { const q = JSON.parse(localStorage.getItem('szafki:projekt')); const o = ['A', 'Zmywarka', 'Lodówka', 'B'];
     q.items.sort((a, c) => o.indexOf(a.cab.name) - o.indexOf(c.cab.name)); q.active = 1; localStorage.setItem('szafki:projekt', JSON.stringify(q)); });

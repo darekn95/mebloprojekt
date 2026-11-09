@@ -315,7 +315,11 @@ const SPRZETY_CIAGU = {
   zmywarka: { nazwa: "zmywarka", pelna: "Zmywarka do zabudowy", szer: 600, hMin: 815, hMax: 875, dMin: 550, drzwi: "dol" },
   lodowka: { nazwa: "lodówka", pelna: "Lodówka wolnostojąca", lodW: 600, lodH: 1850, lodD: 650, luzBok: 50, luzGora: 100, luzTyl: 50, drzwi: "lewe" },
 };
-const SPRZET_CIAGU_POLA = ["szer", "hMin", "hMax", "dMin", "lodW", "lodH", "lodD", "luzBok", "luzGora", "luzTyl", "drzwi"];
+const SPRZET_CIAGU_POLA = ["szer", "hMin", "hMax", "dMin", "lodW", "lodH", "lodD", "luzBok", "luzL", "luzP", "luzGora", "luzTyl", "drzwi"];
+/* Lodowka wolnostojaca w ciagu (uzytkownik 2026-11-09, z makiety „Dodaj”): luz z lewej i z prawej osobno (`luzL` / `luzP`,
+   puste = `luzBok`); „na równo z meblami” (`rowno`, np. Samsung Kitchen Fit) — typowo 3 mm z bokow i 15 nad nia, cieplo
+   oddaje tylem i dolem (wartosci przykladowe z makiety — wg instrukcji modelu). */
+const LODOWKA_ROWNO = { luzL: 3, luzP: 3, luzGora: 15 };
 const sprzetCiagu = (cab) => {
   const sp = cab && cab.sprzetCiagu;
   if (!sp) return null;
@@ -324,6 +328,13 @@ const sprzetCiagu = (cab) => {
   SPRZET_CIAGU_POLA.forEach((k) => { if (sp[k] != null && sp[k] !== "") out[k] = k === "drzwi" ? sp[k] : Math.max(0, Math.round(Number(sp[k]) || 0)); });
   if (typ === "zmywarka") out.szer = out.szer === 450 ? 450 : 600;
   if (typ === "lodowka" && out.drzwi !== "prawe") out.drzwi = "lewe";
+  if (typ === "lodowka") {
+    const pusty = (k) => sp[k] == null || sp[k] === "";
+    out.rowno = !!sp.rowno;
+    if (out.rowno) ["luzL", "luzP", "luzGora"].forEach((k) => { if (pusty(k)) out[k] = LODOWKA_ROWNO[k]; });
+    if (pusty("luzL") && !out.rowno) out.luzL = out.luzBok;
+    if (pusty("luzP") && !out.rowno) out.luzP = out.luzBok;
+  }
   return out;
 };
 /* Lodowka wolnostojaca w ciagu — jak slupek: wyzsza z zalozenia, bez cokolu i blatu nad soba;
@@ -8062,16 +8073,23 @@ function geoSprzetuCiagu(cab, mat, ctx) {
       add("error", `Miejsce na zmywarkę ma ${fmt(Math.round(cd))} mm głębokości — potrzeba co najmniej ${fmt(sp.dMin)} mm.|glebokosc:${Math.round(cab.D + sp.dMin - cd)}`);
     add("info", "Front zmywarki przykręcony do jej drzwi okuciami z kompletu zmywarki; cokół ciągu idzie dalej przed zmywarką.");
   } else {
-    const lw = sp.lodW, x0 = Math.round((W - lw) / 2);
+    // luz z lewej od sasiada, reszta miejsca po rowno na obie strony (makieta: miejsce = luz L + lodowka + luz P)
+    // za ciasno na oba luzy — wolne miejsce dzielone w proporcji luzow (przy rownych: po rowno)
+    const lw = sp.lodW, wolne = Math.max(0, W - lw), sumaL = sp.luzL + sp.luzP;
+    const x0 = Math.round(wolne >= sumaL ? sp.luzL + (wolne - sumaL) / 2 : sumaL > 0 ? (wolne * sp.luzL) / sumaL : wolne / 2);
     const zTyl = cd - sp.luzTyl, zPrzod = zTyl - sp.lodD;
     dane = { ...sp, lodowka: true, x0, x1: x0 + lw, y0: 0, y1: sp.lodH, fz0: zPrzod, fz1: zPrzod + SPRZET_FRONT_GR,
       bryla: { x0, x1: x0 + lw, y0: 0, y1: sp.lodH, z0: zPrzod + SPRZET_FRONT_GR, d: zTyl },
       nisza: { w: Math.round(W), h: Math.round(cab.H), d: Math.round(cd) } };
-    const luz = Math.floor((W - lw) / 2);
+    const cel = lw + sp.luzL + sp.luzP, luzLe = Math.floor(x0), luzPr = Math.floor(W - x0 - lw);
     if (W < lw)
-      add("error", `Miejsce na lodówkę ma ${fmt(Math.round(W))} mm — lodówka ma ${fmt(lw)} mm, z luzem na wentylację ${fmt(lw + 2 * sp.luzBok)} mm.|sprzetcw:${lw + 2 * sp.luzBok}`);
-    else if (luz < sp.luzBok)
-      add("warn", `Między lodówką a sąsiadami zostaje ${fmt(luz)} mm z boku — na wentylację potrzeba ${fmt(sp.luzBok)} mm (sprawdź w instrukcji modelu).|sprzetcw:${lw + 2 * sp.luzBok}`);
+      add("error", `Miejsce na lodówkę ma ${fmt(Math.round(W))} mm — lodówka ma ${fmt(lw)} mm, z luzem na wentylację ${fmt(cel)} mm.|sprzetcw:${cel}`);
+    else if (luzLe < sp.luzL || luzPr < sp.luzP)
+      add("warn", sp.luzL === sp.luzP && luzLe === luzPr
+        ? `Między lodówką a sąsiadami zostaje ${fmt(luzLe)} mm z boku — na wentylację potrzeba ${fmt(sp.luzL)} mm (sprawdź w instrukcji modelu).|sprzetcw:${cel}`
+        : `Przy lodówce zostaje ${fmt(luzLe)} mm z lewej i ${fmt(luzPr)} mm z prawej — potrzeba ${fmt(sp.luzL)} z lewej i ${fmt(sp.luzP)} z prawej (sprawdź w instrukcji modelu).|sprzetcw:${cel}`);
+    if (sp.rowno)
+      add("info", `Lodówka na równo z meblami: luz ${fmt(sp.luzL)} mm z lewej, ${fmt(sp.luzP)} z prawej i ${fmt(sp.luzGora)} nad nią — ciepło oddaje tyłem i dołem; mocowana do sąsiednich szafek uchwytami z zestawu producenta (wg instrukcji modelu).`);
     if (Math.round(cab.H) < sp.lodH)
       add("warn", `Pozycja ma ${fmt(Math.round(cab.H))} mm wysokości, a lodówka ${fmt(sp.lodH)} mm.|sprzetch:${sp.lodH}`);
     // lico korpusow; fronty szafek obok stoja przed nim o luz zawiasu i grubosc frontu
@@ -23306,8 +23324,10 @@ export default function App() {
     const typowy = SPRZETY_CIAGU[sp.typ];
     const setSp = (patch) => set({ sprzetCiagu: (() => { const o = { ...(cab.sprzetCiagu || {}), ...patch };
       Object.keys(o).forEach((k) => { if (o[k] === "" || o[k] == null) delete o[k]; }); return o; })() });
+    // luz z lewej / prawej: typowo jak luz z boku, przy „na równo z meblami” — `LODOWKA_ROWNO`
+    const typowa = (k) => (sp.rowno && LODOWKA_ROWNO[k] != null ? LODOWKA_ROWNO[k] : k === "luzL" || k === "luzP" ? typowy.luzBok : typowy[k]);
     const pole = (k, label) => (
-      <Field label={label} hint={`typowo ${fmt(typowy[k])} mm`}>
+      <Field label={label} hint={`typowo ${fmt(typowa(k))} mm`}>
         <Num value={(cab.sprzetCiagu || {})[k] ?? ""} onChange={(v) => setSp({ [k]: v === "" ? null : v })} />
       </Field>
     );
@@ -23345,13 +23365,21 @@ export default function App() {
             </>
           ) : (
             <>
+              <div className="flex items-center gap-2" data-el="lodowka-rowno">
+                <span className="w-16 shrink-0 text-stone-500">rodzaj</span>
+                <div className="flex-1"><Seg value={sp.rowno ? "rowno" : "wolna"} onChange={(v) => setSp({ rowno: v === "rowno" ? true : null, luzL: null, luzP: null, luzGora: null })}
+                  options={[{ v: "wolna", l: "wolnostojąca" }, { v: "rowno", l: "na równo z meblami" }]} /></div>
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 {pole("lodW", "Lodówka — szerokość")}
                 {pole("lodH", "Lodówka — wysokość")}
                 {pole("lodD", "Lodówka — głębokość")}
-                {pole("luzBok", "Luz z boku")}
+                {pole("luzL", "Luz z lewej")}
+                {pole("luzP", "Luz z prawej")}
+                {pole("luzGora", "Luz nad lodówką")}
                 {pole("luzTyl", "Luz z tyłu")}
               </div>
+              <p className="text-stone-600" data-el="lodowka-miejsce">Miejsce w ciągu: luz {fmt(sp.luzL)} + lodówka {fmt(sp.lodW)} + luz {fmt(sp.luzP)} = <b className="font-mono">{fmt(sp.luzL + sp.lodW + sp.luzP)}</b> mm.</p>
               <div className="flex items-center gap-2">
                 <span className="w-16 shrink-0 text-stone-500">drzwi</span>
                 <div className="flex-1"><Seg value={sp.drzwi} onChange={(v) => setSp({ drzwi: v === "lewe" ? null : v })}
