@@ -50,11 +50,21 @@ Zasada zapisu:
 
 Polki i przegrody widać we wnętrzu, więc te zakładki same przełączają rysunek na „Otwarty”.
 
+**Wysokość szafki w ciągu** (użytkownik 2026-11-09): po zmianie (uchwyt albo pole) od razu pytanie:
+- „Cały ciąg” — `run.H` ciągu i szafki o tej samej wysokości co zmieniona przed zmianą;
+- „Ten ciąg i połączone w narożniku” — to samo we wszystkich ciągach dolnych połączonych `corner.of`
+  (szafka narożna albo dwie szafki w rogu — wspólny blat), także dalej, np. w U;
+- „Tylko ta szafka” (albo Esc).
+
+Słupki (`slupek`) i lodówka w ciągu zostają. Szafka sama w ciągu — wysokość ciągu idzie za nią bez
+pytania. Wolnostojąca i ciąg górny — bez pytania.
+
 ## Co ustawiasz ręcznie
 
 - Pomieszczenie, ciąg, szafka i widok — przyciski z rozwijaną listą. Ciąg domyślnie: ciąg
   zaznaczonej szafki z piętrem nad nim (cały pokój na raz jest za drobny do chwytania półek);
-  „Wszystkie ciągi” — cały pokój i szafki wolnostojące.
+  „Wszystkie ciągi” — cały pokój i szafki wolnostojące; „Tylko zaznaczona szafka” — duży rysunek
+  jednej szafki do przeciągania półek i szuflad.
 - Zakładka po lewej wybiera, co pokazuje karta: Szafka, Szuflady, Półki, Drzwi i klapy,
   Przegroda, Cokół i nóżki; w szczegółowej także Korpus i plecy, Wzmocnienia, Wycięcia i kolizje.
 
@@ -75,4 +85,5 @@ Kolejne kroki (`makiety/BRAKI.md`, D):
 - **Kod**: `MakietaWidok`, `MakietaKarta`, `MakietaWolnostojace`, `MakietaUchwyty`, `makWylicz`, `Rozwijana`;
   `makietaZmien` w `App`; `onPick` / `zazn` / `maxH` / `nakladka`
   w `AssemblyView` i `AssemblyTopView`; stan `tryb` w `App`.
-- **Test**: `testy/makieta.mjs` (tryb, rysunek, zaznaczanie), `testy/makieta2.mjs` (uchwyty i zapis).
+- **Test**: `testy/makieta.mjs` (tryb, rysunek, zaznaczanie), `testy/makieta2.mjs` (uchwyty i zapis),
+  `testy/makieta3.mjs` (pytanie o wysokość w ciągu i w narożniku).

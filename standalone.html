@@ -20483,6 +20483,24 @@ const MAK_MIN = 60, MAK_MIN_KOL = 100;
 const r10 = (v) => Math.round(v / 10) * 10;
 const makKolumnaProsta = (raw) => raw && !(raw.podzial || []).length && !(raw.segmenty || []).some(Boolean);
 const makLv = (geo, li) => (geo.levels || []).find((l) => l.i === li);
+/* Ciagi dolne polaczone w narozniku (szafka narozna albo dwie szafki w rogu — wspolny blat):
+   ten ciag i wszystkie, z ktorymi laczy go `corner.of` (takze dalej, np. U), w tym samym pomieszczeniu. */
+function makGrupaNaroznika(project, run) {
+  const runs = (project.runs || []).filter((r) => r.tier !== "gorny" && roomOfRun(project, r) === roomOfRun(project, run));
+  const grupa = [run], kolejka = [run];
+  while (kolejka.length) {
+    const cur = kolejka.shift();
+    runs.forEach((r) => {
+      if (grupa.includes(r)) return;
+      if ((r.corner && r.corner.of === cur.id) || (cur.corner && cur.corner.of === r.id)) { grupa.push(r); kolejka.push(r); }
+    });
+  }
+  return grupa;
+}
+// szafki ciagow `ids` o wysokosci `stara`, ktore pojda za zmieniona (bez slupkow i lodowki w ciagu)
+const makZaWysokoscia = (project, ids, stara, bez) => project.items.map((x, i) => ({ x, i }))
+  .filter(({ x, i }) => i !== bez && ids.includes(x.runId) && !x.cab.slupek && !lodowkaCiagu(x.cab) && Math.round(x.cab.H) === stara);
+
 // przeciagniecie: { u, li, j, k, widok } + punkt p w ukladzie szafki (x od lewego boku; y od gory z przodu, od tylu z gory)
 function makWylicz(cab, geo, d, p) {
   const H = cab.H, gy = H - p.y;
@@ -20636,7 +20654,7 @@ const makOpisKolumny = (col) => {
 
 /* Karta szafki w makiecie (krok 1 — do odczytu). Zakladka wybiera, co pokazac; szczegolowa
    dochodza: korpus i plecy, wzmocnienia, wyciecia i elementy kolizyjne. */
-function MakietaKarta({ project, idx, tryb, zakladka, zmien }) {
+function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys }) {
   const it = project.items[idx];
   if (!it) return <p className="text-sm text-stone-500">Kliknij szafkę na rysunku — tu pokaże się jej karta.</p>;
   const cab = it.cab;
@@ -20660,7 +20678,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien }) {
       <span className="text-stone-500">{l}</span>
       <input type="number" step="10" defaultValue={cab[k]} key={`${idx}-${k}-${cab[k]}`} data-pole={k}
         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-        onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v > 0 && v !== cab[k]) zmien(idx, (c) => { c[k] = v; }); }}
+        onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (!(v > 0) || v === cab[k]) return;
+          if (k === "H" && zmienWys) zmienWys(idx, v); else zmien(idx, (c) => { c[k] = v; }); }}
         className="w-24 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />
     </label>
   );
@@ -20683,7 +20702,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien }) {
     szuflady: "Przeciągnij linię między szufladami — zmienia się front pod nią i nad nią.",
     przegroda: "Przegrodę przeciągnij w lewo albo w prawo — zmieniają się szerokości kolumn obok." }[zakladka];
   if (zakladka === "szafka") tresc = [<Pole key="pW" k="W" l="Szerokość" />, <Pole key="pH" k="H" l="Wysokość" />, <Pole key="pD" k="D" l="Głębokość" />, W("Ciąg", run ? run.name || "ciąg" : "wolnostojąca"),
-    W("Cokół", cokol), W("Nóżki", nozki), W("Poziomy / kolumny", `${poziomy.length} / ${kolumny.length}`), ...listaKol(null)];
+    W("Cokół", cokol), W("Nóżki", nozki), ...(tryb === "szczegolowa" ? [W("Poziomy / kolumny", `${poziomy.length} / ${kolumny.length}`)] : []), ...listaKol(null)];
   else if (zakladka === "szuflady" || zakladka === "polki" || zakladka === "drzwi") { tresc = listaKol(tylko[zakladka]); if (!tresc.length) tresc = [<p key="brak" className="text-xs text-stone-500">W tej szafce nic z tej zakładki.</p>];
     else if (zakladka === "polki") tresc.push(poRowno("shelfTargets", "Półki po równo"));
     else if (zakladka === "szuflady") tresc.push(poRowno("front", "Fronty po równo")); }
@@ -20747,8 +20766,47 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladk
   );
 }
 
-function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien }) {
+function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien, zmienProjekt }) {
   const [zakladka, setZakladka] = useState("szafka");
+  /* Wysokosc szafki w ciagu (uzytkownik 2026-11-09): po zmianie od razu pytanie — tylko ta, caly ciag,
+     czy ten ciag i polaczone w narozniku (wspolny blat). Idzie wysokosc ciagu (`run.H`) i szafki
+     o tej samej wysokosci co zmieniona przed zmiana; slupki i lodowka w ciagu zostaja. */
+  const [pytWys, setPytWys] = useState(null);
+  const zmienWys = (idx, nowa) => {
+    const it = project.items[idx]; if (!it) return;
+    const stara = Math.round(it.cab.H);
+    zmien(idx, (c) => { c.H = nowa; });
+    if (!it.runId || nowa === stara) return;
+    const run = (project.runs || []).find((r) => r.id === it.runId);
+    if (!run || run.tier === "gorny") return;
+    const grupa = makGrupaNaroznika(project, run);
+    const nCiag = makZaWysokoscia(project, [run.id], stara, idx).length;
+    const nGrupa = grupa.length > 1 ? makZaWysokoscia(project, grupa.map((r) => r.id), stara, idx).length : 0;
+    if (!nCiag && nGrupa <= nCiag) {
+      // sama w ciagu — wysokosc ciagu idzie za nia bez pytania
+      if (run.H == null || Math.round(run.H) === stara) zmienProjekt((p) => ({ ...p, runs: (p.runs || []).map((r) => (r.id === run.id ? { ...r, H: nowa } : r)) }));
+      return;
+    }
+    setPytWys({ idx, stara, nowa, run, grupa, nCiag, nGrupa, nazwa: it.cab.name || "szafka" });
+  };
+  const zmienWysRef = useRef(zmienWys);
+  zmienWysRef.current = zmienWys;
+  const wysDla = (ids) => {
+    const { idx, stara, nowa } = pytWys;
+    zmienProjekt((p) => {
+      const idzie = new Set(makZaWysokoscia(p, ids, stara, idx).map(({ i }) => i));
+      return { ...p,
+        runs: (p.runs || []).map((r) => (ids.includes(r.id) && (r.H == null || Math.round(r.H) === stara) ? { ...r, H: nowa } : r)),
+        items: p.items.map((x, i) => (idzie.has(i) ? { ...x, cab: { ...x.cab, H: nowa } } : x)) };
+    });
+    setPytWys(null);
+  };
+  useEffect(() => {
+    if (!pytWys) return undefined;
+    const esc = (e) => { if (e.key === "Escape") setPytWys(null); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [pytWys]);
   // przeciaganie uchwytu: { u, li, j, k, widok, idx, grp (grupa szafki w svg) }, podglad: wynik makWylicz
   const ciagnie = useRef(null);
   const [podglad, setPodglad] = useState(null);
@@ -20777,7 +20835,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     const koniec = () => {
       const d = ciagnie.current; if (!d) return;
       ciagnie.current = null; setPodglad(null);
-      if (d.wynik && d.wynik.zmien) zmien(d.idx, d.wynik.zmien);
+      if (d.wynik && d.u === "wys") zmienWysRef.current(d.idx, d.wynik.wartosc);
+      else if (d.wynik && d.wynik.zmien) zmien(d.idx, d.wynik.zmien);
     };
     window.addEventListener("pointermove", ruch);
     window.addEventListener("pointerup", koniec);
@@ -20791,9 +20850,11 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   const aktIt = project.items[project.active];
   const aktR = aktIt && aktIt.runId ? runs.find((r) => r.id === aktIt.runId) : null;
   const sciana = aktR ? aktR.wall || aktR.id : null;
-  const wybrane = ciagId === "wszystkie" ? runs : ciagId === "aktywny" ? runs.filter((r) => r.id === sciana || r.wall === sciana) : runs.filter((r) => r.id === ciagId);
+  const wybrane = ciagId === "wszystkie" ? runs : ciagId === "aktywny" || ciagId === "szafka" ? runs.filter((r) => r.id === sciana || r.wall === sciana) : runs.filter((r) => r.id === ciagId);
   const wolne = itemsInRoom(project, pokoj).filter(({ it }) => !it.runId);
   const pokazWolne = ciagId === "wszystkie" || (ciagId === "aktywny" && aktIt && !aktIt.runId);
+  // „Tylko zaznaczona szafka” (uzytkownik 2026-11-09: „można by zwiększyć rysunek”) — jedna szafka na cały rysunek
+  const samaSzafka = ciagId === "szafka" && !!aktIt;
   const zakl = [...MAK_ZAKLADKI, ...(tryb === "szczegolowa" ? MAK_ZAKLADKI_SZCZ : [])];
   const akt = zakl.some(([k]) => k === zakladka) ? zakladka : "szafka";
   // Polki / Szuflady / Przegroda — rysunek otwarty (wnetrze), zeby bylo co chwycic; widok z gory zostaje
@@ -20804,15 +20865,15 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   const nakladkaGora = (cab, geo, idx) => (geoRysunku.current[idx] = geo) && <MakietaUchwyty cab={cab} geo={geo} zakladka={akt} widok="top" podglad={podglad && podglad.idx === idx && podglad.widok === "top" ? podglad : null} />;
   return (
     <div data-el="makieta" data-tryb={tryb}
-      className="mx-auto grid max-w-[1700px] items-start gap-3 px-4 py-3 lg:grid-cols-[104px_340px_minmax(0,1fr)]">
-      <nav aria-label="Co zmieniasz" className="flex flex-wrap gap-1 rounded-lg border border-stone-200 bg-white p-1.5 lg:sticky lg:top-24 lg:flex-col">
+      className="mx-auto grid max-w-[1900px] items-start gap-2 px-3 py-3 lg:grid-cols-[80px_250px_minmax(0,1fr)]">
+      <nav aria-label="Co zmieniasz" className="flex flex-wrap gap-1 rounded-lg border border-stone-200 bg-white p-1 lg:sticky lg:top-24 lg:flex-col">
         {zakl.map(([k, l]) => (
           <button key={k} data-zakl={k} aria-pressed={akt === k} onClick={() => setZakladka(k)}
-            className={`rounded-md px-2 py-1.5 text-xs font-medium ${akt === k ? "bg-teal-700 text-white" : "text-stone-700 hover:bg-stone-100"}`}>{l}</button>
+            className={`rounded-md px-1.5 py-1.5 text-[11px] font-medium leading-tight ${akt === k ? "bg-teal-700 text-white" : "text-stone-700 hover:bg-stone-100"}`}>{l}</button>
         ))}
       </nav>
-      <section className="rounded-lg border border-stone-200 bg-white p-3 lg:sticky lg:top-24">
-        <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} />
+      <section className="rounded-lg border border-stone-200 bg-white p-2.5 lg:sticky lg:top-24">
+        <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} />
       </section>
       <section className="min-w-0 rounded-lg border border-stone-200 bg-white p-3 lg:sticky lg:top-24" onPointerDownCapture={naPoczatek}
         style={podglad ? { touchAction: "none", userSelect: "none" } : undefined}>
@@ -20821,7 +20882,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
             opcje={roomsOf(project).map((r) => ({ v: r.id, l: r.name }))}
             onWybierz={(v) => { setCiagId("aktywny"); switchRoom(v); }} />
           <Rozwijana el="mak-ciag" etykieta="Ciąg" wartosc={ciagId}
-            opcje={[{ v: "aktywny", l: "Ciąg zaznaczonej szafki", opis: "z ciągiem górnym nad nim" }, { v: "wszystkie", l: "Wszystkie ciągi", opis: wolne.length ? "i szafki wolnostojące" : "" },
+            opcje={[{ v: "szafka", l: "Tylko zaznaczona szafka", opis: "duży rysunek do przeciągania" }, { v: "aktywny", l: "Ciąg zaznaczonej szafki", opis: "z ciągiem górnym nad nim" }, { v: "wszystkie", l: "Wszystkie ciągi", opis: wolne.length ? "i szafki wolnostojące" : "" },
               ...runs.map((r) => ({ v: r.id, l: r.name || "Ciąg", opis: `${runItems(project, r.id).length} szafek` }))]}
             onWybierz={setCiagId} />
           <Rozwijana el="mak-szafka" etykieta="Szafka" wartosc={project.active}
@@ -20830,7 +20891,11 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
             onWybierz={switchCabinet} />
           <Rozwijana el="mak-widok" etykieta="Widok" wartosc={widokRys} opcje={MAK_WIDOKI} onWybierz={setWidok} />
         </div>
-        {wybrane.length > 0 && (widok === "top"
+        {samaSzafka && widok !== "top" && (
+          <MakietaWolnostojace project={project} items={[{ it: aktIt, i: project.active }]} open={widokRys === "open"} onPick={switchCabinet}
+            zazn={project.active} maxH={maxH} nakladka={nakladkaPrzod} />
+        )}
+        {(!samaSzafka || widok === "top") && wybrane.length > 0 && (widok === "top"
           ? <AssemblyTopView project={project} runs={wybrane} showDims={false} showShelves showHardware={false}
               onPick={switchCabinet} zazn={project.active} maxH={maxH} nakladka={nakladkaGora} />
           : <AssemblyView project={project} runs={wybrane} rpOf={rpOf} variant={widokRys} showDims={false}
@@ -20844,6 +20909,36 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         )}
         {!wybrane.length && !wolne.length && <p className="text-sm text-stone-500">W tym pomieszczeniu nie ma jeszcze szafek.</p>}
       </section>
+      {pytWys && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/25 p-4" data-el="makieta-pytanie-wys"
+          onClick={(e) => { if (e.target === e.currentTarget) setPytWys(null); }}>
+          <div role="dialog" aria-label="Wysokość w ciągu" className="w-full max-w-md rounded-lg bg-white p-4 shadow-xl">
+            <h3 className="text-sm font-semibold text-stone-900">„{pytWys.nazwa}”: wysokość {fmt(pytWys.stara)} → {fmt(pytWys.nowa)} mm</h3>
+            <p className="mt-1 text-xs text-stone-600">
+              Zmienić też inne szafki {fmt(pytWys.stara)} mm? Inaczej blat i fronty nie staną w jednej linii.
+              Wyższe szafki (słupki) i lodówka w ciągu zostają.
+            </p>
+            <div className="mt-3 flex flex-col gap-1.5">
+              {pytWys.nCiag > 0 && (
+                <button data-wys="ciag" onClick={() => wysDla([pytWys.run.id])}
+                  className="rounded border border-teal-600 bg-teal-700 px-3 py-1.5 text-left text-xs font-medium text-white hover:bg-teal-800">
+                  Cały ciąg „{pytWys.run.name || "ciąg"}” — jeszcze {pytWys.nCiag} {plural(pytWys.nCiag, "szafka", "szafki", "szafek")}
+                </button>
+              )}
+              {pytWys.nGrupa > pytWys.nCiag && (
+                <button data-wys="naroznik" onClick={() => wysDla(pytWys.grupa.map((r) => r.id))}
+                  className="rounded border border-teal-600 px-3 py-1.5 text-left text-xs font-medium text-teal-800 hover:bg-teal-50">
+                  Ten ciąg i połączone w narożniku ({pytWys.grupa.map((r) => `„${r.name || "ciąg"}”`).join(" + ")}) — jeszcze {pytWys.nGrupa} {plural(pytWys.nGrupa, "szafka", "szafki", "szafek")}
+                </button>
+              )}
+              <button data-wys="ta" onClick={() => setPytWys(null)}
+                className="rounded border border-stone-300 px-3 py-1.5 text-left text-xs text-stone-700 hover:bg-stone-100">
+                Tylko ta szafka
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -24260,7 +24355,7 @@ export default function App() {
       </div>
       </header>
 
-      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} />}
+      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} />}
       <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]"
         style={makieta ? { display: "none" } : undefined}>
         <div className="space-y-4">
