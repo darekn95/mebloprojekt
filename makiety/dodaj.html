@@ -274,6 +274,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
        `h` — wysokosc calkowita (cokol w niej) */
     sz_szafaW: { nazwa: "Szafa", gdzie: "800 × 2000, 5 półek, 2 drzwi", w: 800, h: 2000, tall: true, cokolObrys: true, front: "drzwi2", polki: 5, name: "Szafa 800", rodz: "wolnostojaca" },
     sz_biurko: { nazwa: "Biurko", gdzie: "1200 × 750, blat na bokach", w: 1200, h: 750, biurko: true, name: "Biurko 1200", rodz: "wolnostojaca" },
+    // biurko z kontenerem szuflad pod blatem zamiast jednego boku (uzytkownik 2026-11-09)
+    sz_biurkoK: { nazwa: "Biurko z kontenerem", gdzie: "1200 × 750, 3 szuflady z prawej", w: 1200, h: 750, biurko: true, kontener: "P", kontW: 400, kontSz: 3, name: "Biurko 1200", rodz: "wolnostojaca" },
   };
   Object.entries(WZORY).forEach(([k, v]) => { SPRZETY[k] = { nazwa: v.nazwa, gdzie: v.gdzie, grupa: "ciag", szafka: true }; });
   SPRZETY.szafkaPrzes = { nazwa: "Szafka", gdzie: "", grupa: "ciag", szafka: true };
@@ -418,6 +420,17 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   const kuchnia = () => rodzaj === "kuchnia";
   const bezSciany = () => rodzaj === "wolnostojaca";
   const GL_BIURKO = 630, BIURKO_WYS = 50;   // biurko jak szablon w aplikacji: korpus 600 + blat 30 do przodu, 50 na boki
+  /* Wzmocnienie biurka (uzytkownik 2026-11-09: „od tyłu pod blatem na wysokość 30 cm od góry dla stabilizacji”): plyta 18
+     z tylu miedzy bokami (albo bokiem i kontenerem), od spodu blatu do BIURKO_WZM od wierzchu blatu. Kontener szuflad
+     (`kontener` L / P, `kontW`, `kontSz`) stoi pod blatem zamiast boku, cofniety jak bok o BIURKO_WYS. */
+  const BIURKO_WZM = 300, KONT_W = [400, 450, 500];
+  function biurkoGeo(q, x, w) {
+    const kw = q.kontener ? q.kontW || 400 : 0;
+    const kont = q.kontener === "L" ? { x0: x + BIURKO_WYS, w: kw } : q.kontener === "P" ? { x0: x + w - BIURKO_WYS - kw, w: kw } : null;
+    const boki = [q.kontener === "L" ? null : x + BIURKO_WYS, q.kontener === "P" ? null : x + w - BIURKO_WYS - 18].filter((v) => v != null);
+    const wzm = { x0: q.kontener === "L" ? kont.x0 + kw : x + BIURKO_WYS + 18, x1: q.kontener === "P" ? kont.x0 : x + w - BIURKO_WYS - 18 };
+    return { boki, kont, wzm };
+  }
   const GL_WOLNA = 450;      // glebokosc szafki wolnostojacej na rzucie z gory (makieta)
   const ZAK_WNETRZE = ["polki", "przegroda", "wzmocnienie"];   // na tych zakladkach rysunek pokazuje wnetrze szafek
   let wybranyTyp = null;      // dotknieto sprzet w palecie (stawianie dotknieciem)
@@ -461,6 +474,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     sz_nocna: KOR_I(10, 12, 14, 15) + LN(10, 19.5, 24, 19.5) + LN(12, 27, 12, 30) + LN(22, 27, 22, 30),
     sz_regalW: `<rect x="8" y="3" width="18" height="26" fill="none" stroke="var(--ink)" stroke-width="1.3"/>` + LN(8, 11.5, 26, 11.5) + LN(8, 20, 26, 20) + LN(10, 29, 10, 31) + LN(24, 29, 24, 31),
     sz_szafaW: `<rect x="8" y="2" width="18" height="28" fill="none" stroke="var(--ink)" stroke-width="1.3"/>` + LN(17, 2, 17, 26) + LN(8, 26, 26, 26) + `<rect x="9.5" y="26.5" width="15" height="3" fill="var(--plinth)"/>` + LN(14.5, 13, 14.5, 16, "var(--ink)", 1.4) + LN(19.5, 13, 19.5, 16, "var(--ink)", 1.4),
+    sz_biurkoK: `<rect x="2" y="11" width="30" height="3" fill="var(--board)" stroke="var(--ink)" stroke-width="1.3"/><rect x="5" y="14" width="2.6" height="16" fill="var(--board)" stroke="var(--ink)" stroke-width="1.1"/><rect x="19" y="14" width="10" height="16" fill="var(--board)" stroke="var(--ink)" stroke-width="1.1"/>` + LN(19, 19.3, 29, 19.3) + LN(19, 24.6, 29, 24.6),
     sz_biurko: `<rect x="2" y="11" width="30" height="3" fill="var(--board)" stroke="var(--ink)" stroke-width="1.3"/><rect x="5" y="14" width="2.6" height="16" fill="var(--board)" stroke="var(--ink)" stroke-width="1.1"/><rect x="26.4" y="14" width="2.6" height="16" fill="var(--board)" stroke="var(--ink)" stroke-width="1.1"/>`,
     drazek: `<rect x="5" y="4" width="24" height="26" fill="none" stroke="var(--ink)" stroke-width="1.3"/>` + LN(5, 9, 29, 9, "var(--top)", 2) + LN(8, 13, 26, 13, "var(--accent)", 2.6) + `<path d="M12 13 l-3 6 h6 z M21 13 l-3 6 h6 z" fill="none" stroke="var(--muted)" stroke-width="1"/>`,
     polka: KOR_I(7, 5, 20, 24) + LN(7, 13, 27, 13, "var(--accent)", 2) + LN(7, 21, 27, 21, "var(--accent)", 2),
@@ -952,9 +966,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
           + (gl > GL ? `<text class="mm" x="${fx + m.w / 2}" y="${Y_TOP + gl + 56}" font-size="44" text-anchor="middle" fill="var(--warn)">wystaje ${gl - GL}</text>` : "");
       } else if (q.tall || (q.typ === "zmywarkaW" && q.pokrywa)) s += `<rect x="${q.x}" y="${Y_TOP}" width="${q.w}" height="${GL}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/><text x="${q.x + q.w / 2}" y="${Y_TOP + GL / 2 + 22}" font-size="58" text-anchor="middle" fill="var(--muted)">${q.tall ? (kuchnia() ? "słupek" : q.name) : q.typ === "wolna" ? "lodówka" : "zmywarka"}</text>`;
       // szafka wolnostojaca z gory: obrys korpusu (bez blatu)
-      else if (!kuchnia() && q.kind === "cab" && q.biurko) s += `<rect x="${q.x}" y="${Y_TOP}" width="${q.w}" height="${GL_BIURKO}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/>`
-        + [q.x + BIURKO_WYS, q.x + q.w - BIURKO_WYS - 18].map((bx) => `<rect x="${bx}" y="${Y_TOP}" width="18" height="${GL_BIURKO - 30}" fill="none" stroke="var(--muted)" stroke-width="4" stroke-dasharray="12 8"/>`).join("")
-        + `<text x="${q.x + q.w / 2}" y="${Y_TOP + GL_BIURKO / 2 + 22}" font-size="58" text-anchor="middle" fill="var(--muted)">${q.name}</text>`;
+      else if (!kuchnia() && q.kind === "cab" && q.biurko) { const bg = biurkoGeo(q, q.x, q.w); s += `<rect x="${q.x}" y="${Y_TOP}" width="${q.w}" height="${GL_BIURKO}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/>`
+        + bg.boki.map((bx) => `<rect x="${bx}" y="${Y_TOP}" width="18" height="${GL_BIURKO - 30}" fill="none" stroke="var(--muted)" stroke-width="4" stroke-dasharray="12 8"/>`).join("")
+        + (bg.kont ? `<rect x="${bg.kont.x0}" y="${Y_TOP}" width="${bg.kont.w}" height="${GL_BIURKO - 30}" fill="none" stroke="var(--muted)" stroke-width="4" stroke-dasharray="12 8"/>` : "")
+        + `<rect x="${bg.wzm.x0}" y="${Y_TOP}" width="${bg.wzm.x1 - bg.wzm.x0}" height="18" fill="none" stroke="var(--muted)" stroke-width="4" stroke-dasharray="12 8"/>`
+        + `<text x="${q.x + q.w / 2}" y="${Y_TOP + GL_BIURKO / 2 + 22}" font-size="58" text-anchor="middle" fill="var(--muted)">${q.name}</text>`; }
       else if (!kuchnia() && q.kind === "cab") s += `<rect x="${q.x}" y="${Y_TOP}" width="${q.w}" height="${GL_WOLNA}" fill="var(--board)" stroke="var(--ink)" stroke-width="5"/><text x="${q.x + q.w / 2}" y="${Y_TOP + GL_WOLNA / 2 + 22}" font-size="58" text-anchor="middle" fill="var(--muted)">${q.name}</text>`;
     });
     // sprzet na blacie (z gory)
@@ -1069,8 +1085,17 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         // biurko: blat 18 na bokach, boki cofniete o BIURKO_WYS od krawedzi blatu; bez dna, plecow i nozek
         const h = wysK(q), zSz = q.id === zaznaczony, ruchSz = drag && drag.id === q.id ? ' opacity=".35"' : "";
         s += `<rect class="szaf" data-sz="${q.id}" x="${x}" y="${yEl(h)}" width="${w}" height="${h}" fill="transparent" pointer-events="all" stroke="${zSz ? "var(--accent)" : "none"}" stroke-width="10" stroke-dasharray="30 16" style="cursor:grab;touch-action:none"${ruchSz}/>`;
-        s += `<g pointer-events="none"${ruchSz}><rect x="${x}" y="${yEl(h)}" width="${w}" height="18" fill="var(--board)" stroke="${zSz ? "var(--accent)" : "var(--ink)"}" stroke-width="5"/>`
-          + [x + BIURKO_WYS, x + w - BIURKO_WYS - 18].map((bx) => `<rect x="${bx}" y="${yEl(h - 18)}" width="18" height="${h - 18}" fill="var(--board)" stroke="${zSz ? "var(--accent)" : "var(--ink)"}" stroke-width="5"/>`).join("") + `</g>`;
+        const bg = biurkoGeo(q, x, w), kol = zSz ? "var(--accent)" : "var(--ink)";
+        // wzmocnienie z tylu (za nogami — przerywane), boki, kontener z szufladami, blat
+        s += `<g pointer-events="none"${ruchSz}><rect x="${bg.wzm.x0}" y="${yEl(h - 18)}" width="${bg.wzm.x1 - bg.wzm.x0}" height="${BIURKO_WZM - 18}" fill="var(--wall)" stroke="var(--muted)" stroke-width="4" stroke-dasharray="16 10"/>`
+          + `<text class="mm" x="${(bg.wzm.x0 + bg.wzm.x1) / 2}" y="${yEl(h - BIURKO_WZM / 2) + 12}" font-size="34" text-anchor="middle" fill="var(--muted)">wzm. z tyłu ↕${BIURKO_WZM}</text>`
+          + bg.boki.map((bx) => `<rect x="${bx}" y="${yEl(h - 18)}" width="18" height="${h - 18}" fill="var(--board)" stroke="${kol}" stroke-width="5"/>`).join("");
+        if (bg.kont) {
+          const k = bg.kont, n = q.kontSz || 3, kh = h - 18;
+          s += `<rect x="${k.x0}" y="${yEl(kh)}" width="${k.w}" height="${kh}" fill="var(--board)" stroke="${kol}" stroke-width="5"/>`;
+          for (let i = 0; i < n; i++) { const a = (kh * i) / n, b = (kh * (i + 1)) / n; s += `<rect x="${k.x0 + 8}" y="${yEl(b) + 8}" width="${k.w - 16}" height="${b - a - 16}" fill="none" stroke="var(--ink)" stroke-width="3"/><line x1="${k.x0 + k.w / 2 - 50}" y1="${yEl(b) + 50}" x2="${k.x0 + k.w / 2 + 50}" y2="${yEl(b) + 50}" stroke="var(--metal)" stroke-width="10" stroke-linecap="round"/>`; }
+        }
+        s += `<rect x="${x}" y="${yEl(h)}" width="${w}" height="18" fill="var(--board)" stroke="${kol}" stroke-width="5"/></g>`;
         s += `<text x="${x + w / 2}" y="${yEl(0) + 80}" font-size="54" text-anchor="middle" fill="var(--muted)">${q.name}</text>`;
         return;
       }
@@ -1403,9 +1428,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   const ileSzuflad = (n) => `${n} ${n === 1 ? "szuflada" : n < 5 ? "szuflady" : "szuflad"}`;
   const ileDrzwi = (q) => q.drzwiIle || (q.w > 500 ? 2 : 1);
   const frontOpis = (q) => (q.drawers ? (q.szuflDrzwi ? `szuflada ${q.szuflDol ? "na dole" : "u góry"} + ${ileDrzwi(q) === 2 ? "2 drzwi" : "1 drzwi"}` : q.tall ? `${ileSzuflad(q.drawers)} + drzwi` : ileSzuflad(q.drawers)) : FRONT_L[frontDom(q)]);
-  const ikonaSzafki = (q) => (q.biurko ? "sz_biurko" : q.cokolObrys ? "sz_szafaW" : q.tall ? "sz_slupek" : q.drawers && !q.szuflDrzwi ? "sz_szuflady" : q.w > 500 ? "sz_2drzwi" : "sz_drzwi");
+  const ikonaSzafki = (q) => (q.biurko ? (q.kontener ? "sz_biurkoK" : "sz_biurko") : q.cokolObrys ? "sz_szafaW" : q.tall ? "sz_slupek" : q.drawers && !q.szuflDrzwi ? "sz_szuflady" : q.w > 500 ? "sz_2drzwi" : "sz_drzwi");
   function opisSzafki(q) {
-    if (q.biurko) return `${q.w} × ${wysK(q)} mm · blat na bokach`;
+    if (q.biurko) return `${q.w} × ${wysK(q)} mm · ${q.kontener ? `kontener ${q.kontSz || 3} szuflady z ${q.kontener === "L" ? "lewej" : "prawej"}` : "blat na bokach"} · wzm. z tyłu`;
     const sprz = wSzafce(q.id).map((a) => SPRZETY[a.typ].nazwa.toLowerCase());
     const t = [`${q.w} mm`, zeSprzetem(q) ? "" : frontOpis(q)];
     if (opisPolek(q)) t.push(opisPolek(q));
@@ -1416,7 +1441,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     return t.filter(Boolean).join(" · ");
   }
   function coZrobiSzafka(q) {
-    if (q.biurko) return `Biurko ${q.w} × ${wysK(q)} × 600 mm jak szablon „Biurko” w aplikacji: blat z płyty leży na dwóch bokach i wystaje ${BIURKO_WYS} mm w lewo i w prawo, 30 mm do przodu; bez dna, pleców, drzwi i nóżek.`;
+    if (q.biurko) return `Biurko ${q.w} × ${wysK(q)} × 600 mm jak szablon „Biurko” w aplikacji: blat z płyty leży na ${q.kontener ? `boku i kontenerze (${q.kontW || 400} mm, ${ileSzuflad(q.kontSz || 3)}, z ${q.kontener === "L" ? "lewej" : "prawej"})` : "dwóch bokach"} i wystaje ${BIURKO_WYS} mm w lewo i w prawo, 30 mm do przodu; bez dna, pleców, drzwi i nóżek. `
+      + `Z tyłu pod blatem wzmocnienie z płyty między ${q.kontener ? "bokiem a kontenerem" : "bokami"} — ${BIURKO_WZM} mm od wierzchu blatu, usztywnia biurko na boki. `
+      + `Kolejność: najpierw ${q.kontener ? "bok i kontener" : "boki"} ze wzmocnieniem, potem blat od spodu.`;
     const t = [q.cokolObrys ? `Korpus ${q.w} × ${wysK(q)} mm z cokołem w obrysie: boki do podłogi, dno na wysokości cokołu (${PL} mm), blenda cokołu między bokami, nóżki pod dnem za cokołem; wieniec z płyty na górze, plecy z HDF.`
       : rodzaj === "szafa" ? `Korpus ${q.w} × ${wysK(q)} mm (szafa w zabudowie, bez blatu): wieniec i dno z płyty, plecy z HDF, cokół pod spodem.`
       : bezSciany() ? `Korpus ${q.w} × ${wysK(q)} mm, wieniec z płyty na górze (widoczny — oklejony dookoła), plecy z HDF, nóżki pod spodem.`
@@ -1466,7 +1493,15 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
           + (pol ? `<div class="wys">${licznikPolek(st, "spolki-" + z.k)}${st.pozPolek ? `<button class="btn" data-srowno="${z.k}">Półki po równo</button>` : ""}</div>` : "");
       }).join("");
     }
-    if (q.biurko) { if (cala) h += `<p class="hint">Biurko: tylko szerokość i wysokość — półek, frontów ani szuflad tu nie ma (kontener z szufladami postawisz obok jako osobną szafkę).</p>`; }
+    if (q.biurko) {
+      if (cala) {
+        const bg = biurkoGeo(q, 0, q.w), nogi = Math.round(bg.wzm.x1 - bg.wzm.x0);
+        h += etyk("Kontener szuflad") + `<div class="rozm" role="group" aria-label="Kontener szuflad">` + [["", "bez kontenera"], ["L", "z lewej"], ["P", "z prawej"]].map(([k, l]) => `<button data-kont="${k}" aria-pressed="${(q.kontener || "") === k}">${l}</button>`).join("") + `</div>`;
+        if (q.kontener) h += `<div class="rozm" role="group" aria-label="Szerokość kontenera">` + KONT_W.map((v) => `<button data-kontw="${v}" aria-pressed="${(q.kontW || 400) === v}">${v}</button>`).join("") + `</div>`
+          + `<div class="rozm" role="group" aria-label="Szuflady w kontenerze">` + [2, 3, 4].map((v) => `<button data-kontsz="${v}" aria-pressed="${(q.kontSz || 3) === v}">${ileSzuflad(v)}</button>`).join("") + `</div>`;
+        h += `<p class="hint">Miejsce na nogi między ${q.kontener ? "bokiem a kontenerem" : "bokami"}: ${nogi} mm.</p>`;
+      }
+    }
     else if (sprz) { if (cala) h += `<p class="hint">W szafce stoi sprzęt (${wSzafce(q.id).filter((a) => SPRZETY[a.typ].grupa === "wneka").map((a) => SPRZETY[a.typ].nazwa.toLowerCase()).join(", ")}) — wnękę wokół niego ustawi program. Sprzęt zmienisz w zakładce AGD.</p>`; }
     else {
       const fk = frontKlucz(q);
@@ -1654,6 +1689,14 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const kq = zaznaczony && ciag.find((q) => q.id === zaznaczony && q.kind === "cab");
     const sz = e.target.closest("[data-szer]");
     if (sz && kq) { const w = Number(sz.dataset.szer); if (new RegExp(kq.w + "$").test(kq.name)) kq.name = kq.name.replace(/\d+$/, String(w)); kq.w = w; odswiez(); return; }
+    // biurko: kontener szuflad (strona, szerokosc, liczba szuflad)
+    const kon = e.target.closest("[data-kont]"), konw = e.target.closest("[data-kontw]"), kons = e.target.closest("[data-kontsz]");
+    if (kq && kq.biurko && (kon || konw || kons)) {
+      if (kon) { if (kon.dataset.kont) { kq.kontener = kon.dataset.kont; kq.kontW = kq.kontW || 400; kq.kontSz = kq.kontSz || 3; } else { delete kq.kontener; delete kq.kontW; delete kq.kontSz; } }
+      if (konw) kq.kontW = Number(konw.dataset.kontw);
+      if (kons) kq.kontSz = Number(kons.dataset.kontsz);
+      odswiez(); return;
+    }
     const sdl = e.target.closest("[data-szdol]"), dil = e.target.closest("[data-drzwiile]");
     if (sdl && kq) { if (sdl.dataset.szdol === "1") kq.szuflDol = true; else delete kq.szuflDol; odswiez(); return; }
     if (dil && kq) { kq.drzwiIle = Number(dil.dataset.drzwiile); odswiez(); return; }
@@ -1942,7 +1985,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       return out;
     }
     const q = ciag.find((z) => z.id === id);
-    if (q && q.biurko) return [["szafka", id, "Biurko", "sz_biurko"]];   // biurko: tylko wymiary
+    if (q && q.biurko) return [["szafka", id, "Biurko", q.kontener ? "sz_biurkoK" : "sz_biurko"]];   // biurko: tylko wymiary
     if (q && q.kind === "cab") {
       ["szafka", ...(q.tall && kuchnia() ? [] : ["szuflady"]), "polki", "drzwi", "przegroda", "wzmocnienie"].forEach((z) => out.push([z, id, TAB_L[z], TAB_IK[z]]));
       if (kuchnia()) wSzafce(id).forEach((a) => out.push(["agd", a.id, SPRZETY[a.typ].nazwa, a.typ]));

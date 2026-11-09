@@ -1051,6 +1051,16 @@ na linii — wysokosc frontu; „Szuflady po równo / typowe (po 220)”. Wolnos
 cokol w obrysie (`cokolObrys`: boki do podlogi, dno na cokole 100, nozki za cokolem — jak tryb „w obrysie” w aplikacji,
 `h` = wysokosc calkowita) i „Biurko” 1200 × 750 × 600 jak szablon „Biurko” w aplikacji (blat 18 na bokach, 50 na boki,
 30 do przodu, bez dna / plecow / drzwi / nozek; tylko szerokosc i wysokosc, bez klockow).
+[AI-INFO] Wersja 22 (uzytkownik 2026-11-09, odpowiedz o biurku: „zostaje jak jest, ale wzmocnienie od tyłu pod blatem na
+wysokość 30 cm od góry dla stabilizacji” + „z kontenerem szuflad”): biurko ma wzmocnienie z plyty z tylu miedzy bokami
+(albo bokiem i kontenerem), od spodu blatu do 300 mm od wierzchu blatu (`BIURKO_WZM`; odczyt „30 cm od góry” = dol
+wzmocnienia 300 od wierzchu — do potwierdzenia przy aplikacji). „Biurko z kontenerem”: kontener szuflad pod blatem zamiast
+boku (`kontener` L / P, `kontW` 400 / 450 / 500, `kontSz` 2–4), w karcie biurka przelaczniki i „Miejsce na nogi”.
+Kolejnosc: bok(i) / kontener ze wzmocnieniem, potem blat od spodu.
+[AI-TODO] Aplikacja glowna, szablon „Biurko” (uzytkownik 2026-11-09): dolozyc wzmocnienie tylne pod blatem (300 od wierzchu)
+i wariant z kontenerem szuflad. Do decyzji uzytkownika przy wdrozeniu: laczenie wzmocnienia z bokami — konfirmaty przez boki
+(lby widac na zewnatrz boku biurka, zaslepki) albo kolki z mimosrodami / zlacza ukryte; przy kontenerze konfirmat od srodka
+kontenera (dostep przed wlozeniem szuflad).
 [AI-TODO] W aplikacji glownej lodowka wolnostojaca ma dzis jeden luz z boku (50) — przy scalaniu: z lewej / z prawej osobno.
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
