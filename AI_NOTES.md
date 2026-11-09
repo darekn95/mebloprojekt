@@ -1011,6 +1011,12 @@ i przesuwa w gore / dol (co 10 mm, najmniej 60 od sasiednich, 40 od dolu / gory 
 od dolu strefy polek, dziala w szafkach dolnych, gornych i strefach slupka; przy zaznaczonej szafce wymiar przy polce;
 „Półki po równo” w kartach; zmiana liczby polek wraca do rownych odstepow. W aplikacji polozenia polek juz sa — przy
 scalaniu przeciaganie ma pisac w nie (rzedy otworow, swiatlo).
+[AI-INFO] Wersja 16 (uwagi uzytkownika 2026-11-09): uchwyty polek i szuflady tylko w zaznaczonej szafce (inna najpierw
+sie zaznacza — obraz nie skacze w trakcie przeciagania). „Szuflada + drzwi”: szuflade przeciagasz pod / nad drzwi
+(`szuflDol`), linie podzialu — wysokosc szuflady (`szuflH`, 100–400, „Szuflada typowa” wraca do 170 / 200). Jedna
+„Lodówka” w palecie AGD (`lodowkaM`: slupek / szafka dolna albo miejsce w ciagu) i „Rodzaj lodówki” w karcie (jak okap):
+do zabudowy w slupku / podblatowa w szafce / podblatowa w ciagu / wolnostojaca / na rowno z meblami — `zmienLodowke`
+przestawia miejsce (slupek 600 albo szafka 600 z wneka w miejscu pozycji ciagu i odwrotnie).
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
 rant i kasete szer. × glab. × w dol (bryla pod blatem = kaseta, nie obrys wyciecia; wyciecie plyty = kaseta + luz),
