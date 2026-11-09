@@ -42,6 +42,9 @@ Mocowanie frontu (pole „front”, użytkownik 2026-11-05: do wyboru, także be
   bokami szafki.
 
 Przy lodówce z frontem:
+- **Wysokość wnęki** (użytkownik 2026-11-09, z makiety — przykładowo): 82 pod blat / 88 / 102 / 122 / 140 / 158 /
+  178 / 194 cm (`LODOWKA_WNEKI`) — ustawia „wysokość od / do” na −8 / +10 mm (jak 178: 1772–1790, `lodowkaWnekaZakres`);
+  178 wraca do typowych.
 - **1 front** na całą wnękę albo **2 fronty** (dolny i górny, bez płyty między nimi, luz
   jak między drzwiami). Wysokość dolnego wpisujesz z karty lodówki; bez niej — po równo
   i ostrzeżenie.
@@ -75,6 +78,12 @@ przy niej bokami; „Scal szafki” jej nie łączy.
 - kontrole: × miejsce węższe niż zmywarka, ! szersze o ponad 5 mm — przycisk „Miejsce
   600 mm”; × od podłogi do spodu blatu poza 815–875; × za płytko — „Głębokość …”;
 - otwieranie: drzwi opadają w dół jak klapa (przed cokołem).
+
+**Lodówka podblatowa** (użytkownik 2026-11-09, z makiety — przykładowo, np. Bosch KU22LVFD0, Smeg U8L080DE; szablon
+„Lodówka podblatowa”): jak zmywarka do zabudowy — bez korpusu, w zamówieniu tylko „Front lodówki” przykręcany do jej
+drzwi, cokół i blat ciągu idą dalej (wentylacja — wg instrukcji modelu). Wnęka typowo 820 × 600 × 550: × od podłogi
+do spodu blatu mniej niż 820, × / ! szerokość poza 600–605, × za płytko. Drzwi to skrzydło (zawias z lewej / z prawej)
+— w kontroli otwierania jak drzwi szafki.
 
 **Zmywarka wolnostojąca** (użytkownik 2026-11-09, z makiety — wartości przykładowe; szablon „Zmywarka
 wolnostojąca”, typ w karcie „Sprzęt w ciągu”):

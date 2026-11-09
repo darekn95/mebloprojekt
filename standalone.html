@@ -335,7 +335,15 @@ const SPRZETY_CIAGU = {
      meblowego i bez korpusu; pod blatem — bez pokrywy, ok. 815–820 mm, blat idzie nad nia; z pokrywa — ok. 845–850 mm,
      blat konczy sie przy jej boku. W obu cokol ciagu ma pod nia przerwe (drzwi i listwa siegaja podlogi). */
   zmywarkaW: { nazwa: "zmywarka", pelna: "Zmywarka wolnostojąca", szer: 600, hPod: 815, hPokr: 850, dMin: 550, drzwi: "dol" },
+  /* Lodowka podblatowa w ciagu (uzytkownik 2026-11-09, z makiety — przykladowo, np. Bosch KU22LVFD0, Smeg U8L080DE): jak
+     zmywarka do zabudowy — bez korpusu, front meblowy przykrecony do drzwi lodowki, cokol i blat ciagu ida dalej; wneka
+     typowo 820 × 600 × 550 (od podlogi do spodu blatu co najmniej 820), drzwi na boku (skrzydlo). */
+  lodowkaP: { nazwa: "lodówka", pelna: "Lodówka podblatowa", szer: 600, hMin: 820, hMax: null, dMin: 550, drzwi: "lewe" },
 };
+/* Wysokosc wneki lodowki do zabudowy (uzytkownik 2026-11-09, z makiety — przykladowo; typowo 178, wysokie 194, male do ok.
+   89, posrednie z karty modelu). Zakres jak w karcie 178 (1772–1790): od −8 do +10 mm. */
+const LODOWKA_WNEKI = [820, 880, 1020, 1220, 1400, 1580, 1780, 1940];
+const lodowkaWnekaZakres = (h) => (h === 1780 ? { hMin: null, hMax: null } : { hMin: h - 8, hMax: h + 10 });
 const SPRZET_CIAGU_POLA = ["szer", "hMin", "hMax", "hPod", "hPokr", "dMin", "lodW", "lodH", "lodD", "luzBok", "luzL", "luzP", "luzGora", "luzTyl", "drzwi"];
 /* Lodowka wolnostojaca w ciagu (uzytkownik 2026-11-09, z makiety „Dodaj”): luz z lewej i z prawej osobno (`luzL` / `luzP`,
    puste = `luzBok`); „na równo z meblami” (`rowno`, np. Samsung Kitchen Fit) — typowo 3 mm z bokow i 15 nad nia, cieplo
@@ -348,6 +356,7 @@ const sprzetCiagu = (cab) => {
   const out = { typ, ...SPRZETY_CIAGU[typ] };
   SPRZET_CIAGU_POLA.forEach((k) => { if (sp[k] != null && sp[k] !== "") out[k] = k === "drzwi" ? sp[k] : Math.max(0, Math.round(Number(sp[k]) || 0)); });
   if (typ === "zmywarka" || typ === "zmywarkaW") out.szer = out.szer === 450 ? 450 : 600;
+  if (typ === "lodowkaP" && out.drzwi !== "prawe") out.drzwi = "lewe";
   if (typ === "zmywarkaW") { out.pokrywa = !!sp.pokrywa; out.drzwi = "dol"; }
   if (typ === "lodowka" && out.drzwi !== "prawe") out.drzwi = "lewe";
   if (typ === "lodowka") {
@@ -2633,6 +2642,15 @@ const TEMPLATES = [
     hint: "60 cm, pod blatem albo z własną pokrywą, bez frontu meblowego",
     make: () => ({ name: "Zmywarka", W: 600, H: 820, D: 560, sprzetCiagu: { typ: "zmywarkaW" },
       plinth: { on: false, height: 100, mode: "under", setback: 0 }, legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
+      levels: [newLevel(1, 0)] }),
+  },
+  {
+    id: "lodowka-pod",
+    label: "Lodówka podblatowa",
+    hint: "w ciągu jak zmywarka, front meblowy, wnęka 820 × 600 × 550",
+    make: () => ({ name: "Lodówka", W: 600, H: 720, D: 560, sprzetCiagu: { typ: "lodowkaP" },
+      plinth: { on: false, height: 100, mode: "under", setback: 0 },
+      legs: { on: true, height: 100, color: "#3f3f46", shape: "box", count: null },
       levels: [newLevel(1, 0)] }),
   },
   {
@@ -8073,7 +8091,9 @@ function computeGeoLiczy(cab, mat, ctx) {
    dostaje front meblowy o wymiarach drzwi tej szafki (te same luzy co fronty obok). */
 function geoSprzetuCiagu(cab, mat, ctx) {
   const sp = sprzetCiagu(cab);
-  const zmyw = sp.typ === "zmywarka";
+  // zmywarka do zabudowy i lodowka podblatowa: front meblowy na drzwiach sprzetu, cokol ciagu idzie dalej
+  const zmyw = sp.typ === "zmywarka" || sp.typ === "lodowkaP";
+  const lodP = sp.typ === "lodowkaP", jego = lodP ? "lodówki" : "zmywarki", ona = lodP ? "lodówkę" : "zmywarkę";
   const baza = computeGeoLiczy({ ...cab, sprzetCiagu: undefined, corner: undefined, obstacles: [], cutout: undefined,
     blatWyciecia: undefined, top: undefined, joints: { topL: "none", topR: "none", botL: "between", botR: "between" },
     levels: [{ h: null, cols: [{ kind: "doors", doors: zmyw ? 1 : 0, w: null, shelfTargets: [null], handles: [] }] }],
@@ -8097,15 +8117,17 @@ function geoSprzetuCiagu(cab, mat, ctx) {
       stopa: podloga > 0 ? { x0, x1: x0 + sp.szer - 4, y0: -podloga, y1: 0, z0: zCok, d: dB } : null,
       nisza: { w: Math.round(W), h: wysNiszy, d: Math.round(cd) } };
     // plyta frontow jak drzwi obok (fronty z plyty korpusu — `board`), tak samo jak `P` w computeGeo
-    panels.push({ name: "Front zmywarki", qty: 1, a: Math.round(d.h), b: Math.round(d.w), matKey: plytaFrontu(cab),
-      edges: { a1: true, a2: true, b1: true, b2: true }, note: "oklejone wszystkie krawędzie; przykręcany do drzwi zmywarki (okucia z kompletu zmywarki)" });
+    panels.push({ name: `Front ${jego}`, qty: 1, a: Math.round(d.h), b: Math.round(d.w), matKey: plytaFrontu(cab),
+      edges: { a1: true, a2: true, b1: true, b2: true }, note: `oklejone wszystkie krawędzie; przykręcany do drzwi ${jego} (okucia z kompletu ${jego})` });
     if (W < sp.szer || W > sp.szer + 5)
-      add(W < sp.szer ? "error" : "warn", `Miejsce na zmywarkę ma ${fmt(Math.round(W))} mm — zmywarka ${sp.szer === 450 ? "45" : "60"} cm potrzebuje ${fmt(sp.szer)}–${fmt(sp.szer + 5)} mm.|sprzetcw:${sp.szer}`);
-    if (wysNiszy < sp.hMin || wysNiszy > sp.hMax)
-      add("error", `Od podłogi do spodu blatu jest ${fmt(wysNiszy)} mm — zmywarka do zabudowy potrzebuje ${fmt(sp.hMin)}–${fmt(sp.hMax)} mm (regulowane nóżki).`);
+      add(W < sp.szer ? "error" : "warn", `Miejsce na ${ona} ma ${fmt(Math.round(W))} mm — ${lodP ? "lodówka podblatowa" : `zmywarka ${sp.szer === 450 ? "45" : "60"} cm`} potrzebuje ${fmt(sp.szer)}–${fmt(sp.szer + 5)} mm.|sprzetcw:${sp.szer}`);
+    if (wysNiszy < sp.hMin || (sp.hMax != null && wysNiszy > sp.hMax))
+      add("error", lodP ? `Od podłogi do spodu blatu jest ${fmt(wysNiszy)} mm — lodówka podblatowa potrzebuje co najmniej ${fmt(sp.hMin)} mm (z karty modelu).`
+        : `Od podłogi do spodu blatu jest ${fmt(wysNiszy)} mm — zmywarka do zabudowy potrzebuje ${fmt(sp.hMin)}–${fmt(sp.hMax)} mm (regulowane nóżki).`);
     if (cd < sp.dMin)
-      add("error", `Miejsce na zmywarkę ma ${fmt(Math.round(cd))} mm głębokości — potrzeba co najmniej ${fmt(sp.dMin)} mm.|glebokosc:${Math.round(cab.D + sp.dMin - cd)}`);
-    add("info", "Front zmywarki przykręcony do jej drzwi okuciami z kompletu zmywarki; cokół ciągu idzie dalej przed zmywarką.");
+      add("error", `Miejsce na ${ona} ma ${fmt(Math.round(cd))} mm głębokości — potrzeba co najmniej ${fmt(sp.dMin)} mm.|glebokosc:${Math.round(cab.D + sp.dMin - cd)}`);
+    add("info", lodP ? "Front lodówki przykręcony do jej drzwi okuciami z kompletu lodówki; cokół ciągu idzie dalej przed lodówką (wentylacja — wg instrukcji modelu)."
+      : "Front zmywarki przykręcony do jej drzwi okuciami z kompletu zmywarki; cokół ciągu idzie dalej przed zmywarką.");
   } else if (sp.typ === "zmywarkaW") {
     // wlasne drzwi w linii frontow szafek obok; pod blatem nozki zmywarki wykrecone do spodu blatu
     const sw = sp.szer, x0 = Math.round((W - sw) / 2), Hp = Math.round(cab.H);
@@ -9343,7 +9365,7 @@ function SprzetCiaguWidok({ cab, geo, mat, widok = "przod" }) {
       <DimH x1={0} x2={W} y={fy(H) - 50} label={fmt(W)} />
       <DimV y1={fy(H)} y2={fy(-pod)} x={-60} label={fmt(H + pod)} />
       <text x={W / 2} y={fy(-pod) + 60} textAnchor="middle" fontSize="22" fill="#78716c" fontFamily="ui-monospace, monospace">
-        {s.zmywW ? "zmywarka wolnostojąca — bez korpusu i frontu meblowego" : s.lodowka ? "lodówka wolnostojąca — bez korpusu" : "zmywarka — bez korpusu, w zamówieniu tylko front"}
+        {s.zmywW ? "zmywarka wolnostojąca — bez korpusu i frontu meblowego" : s.lodowka ? "lodówka wolnostojąca — bez korpusu" : s.typ === "lodowkaP" ? "lodówka podblatowa — bez korpusu, w zamówieniu tylko front" : "zmywarka — bez korpusu, w zamówieniu tylko front"}
       </text>
     </svg>
   );
@@ -18949,11 +18971,15 @@ const swingBodies = (L, project) => {
           const prawe = s.drzwi === "prawe", w = s.x1 - s.x0;
           skrzydla.push(swingLeaf(n, u0 + (prawe ? s.x1 : s.x0), lico, prawe ? -1 : 1, w, zBase + s.y0, zBase + s.y1, { ...kto, klucz, szer: w, sprzet: s.nazwa }));
         } else {
-          const f = s.front, lico = cdV1 + geo.tf;
-          bryly.push(roomBox(n, u0, u0 + geo.W, cdV0, cdV1, zBase - (s.nisza.h - c.cab.H), zBase + c.cab.H, { ...kto, co: "zmywarka", klucz: `${klucz}b` }));
-          bryly.push(roomBox(n, u0 + f.x, u0 + f.x + f.w, cdV1, lico, zBase + f.y, zBase + f.y + f.h, { ...kto, co: "front zmywarki", klucz }));
-          ruchy.push({ ...kto, klucz, n, typ: "klapa", gora: false, kat: 90, r: f.h, tf: geo.tf, szer: f.h,
-            u0: u0 + f.x, u1: u0 + f.x + f.w, hv: lico, hz: zBase + f.y, sprzet: s.nazwa });
+          const f = s.front, lico = cdV1 + geo.tf, lodP = s.typ === "lodowkaP";
+          bryly.push(roomBox(n, u0, u0 + geo.W, cdV0, cdV1, zBase - (s.nisza.h - c.cab.H), zBase + c.cab.H, { ...kto, co: lodP ? "lodówka" : "zmywarka", klucz: `${klucz}b` }));
+          bryly.push(roomBox(n, u0 + f.x, u0 + f.x + f.w, cdV1, lico, zBase + f.y, zBase + f.y + f.h, { ...kto, co: lodP ? "front lodówki" : "front zmywarki", klucz }));
+          if (lodP) {
+            const prawe = s.drzwi === "prawe";
+            skrzydla.push(swingLeaf(n, u0 + (prawe ? f.x + f.w : f.x), lico, prawe ? -1 : 1, f.w, zBase + f.y, zBase + f.y + f.h, { ...kto, klucz, szer: f.w, sprzet: s.nazwa }));
+          } else
+            ruchy.push({ ...kto, klucz, n, typ: "klapa", gora: false, kat: 90, r: f.h, tf: geo.tf, szer: f.h,
+              u0: u0 + f.x, u1: u0 + f.x + f.w, hv: lico, hz: zBase + f.y, sprzet: s.nazwa });
         }
         return;
       }
@@ -20818,6 +20844,7 @@ const MAK_PALETA = [
     { id: "naroznikL", opis: "z ramieniem i ciągiem za rogiem", tpl: "naroznikL", gdzie: "dol" },
     { id: "zmywarka", opis: "60 cm, front meblowy", tpl: "zmywarka", gdzie: "dol" },
     { id: "zmywarka-wolno", opis: "pod blat albo z pokrywą", tpl: "zmywarka-wolno", gdzie: "dol" },
+    { id: "lodowka-pod", opis: "podblatowa, w ciąg jak zmywarka", tpl: "lodowka-pod", gdzie: "dol" },
     { id: "lodowka-wolno", opis: "w ciąg, bez korpusu", tpl: "lodowka-wolno", gdzie: "dol" },
   ] },
   { grupa: "Kuchnia — góra", wzory: [
@@ -21605,7 +21632,7 @@ export default function App() {
         && roomOfRun(p, r) === pokojRun);
       return inny ? inny.D : SZAFKA_KUCHENNA_D;
     })() : null;
-    const wymiaryCiagu = run && (!tplId || opcje.wymiaryCiagu || (base.sprzetCiagu && base.sprzetCiagu.typ === "zmywarka")) ? {
+    const wymiaryCiagu = run && (!tplId || opcje.wymiaryCiagu || (base.sprzetCiagu && (base.sprzetCiagu.typ === "zmywarka" || base.sprzetCiagu.typ === "lodowkaP"))) ? {
       ...(run.H != null ? { H: run.H } : {}),
       ...(run.D != null ? { D: run.D } : glebPustego != null ? { D: glebPustego } : {}),
       ...(run.plinth ? { plinth: { ...run.plinth } } : {}),
@@ -23398,10 +23425,12 @@ export default function App() {
           <Seg value={sp.typ} onChange={(v) => set({ sprzetCiagu: { typ: v }, ...(v === "lodowka"
               ? { W: 700, H: 1850, plinth: { ...(cab.plinth || {}), on: false }, legs: { ...(cab.legs || {}), on: false } }
               : v === "zmywarkaW" ? { W: 600, H: 820, plinth: { ...(cab.plinth || {}), on: false }, legs: { ...(cab.legs || {}), on: false } } : { W: 600 }) })}
-            options={[{ v: "zmywarka", l: "Zmywarka" }, { v: "zmywarkaW", l: "Zmywarka wolnostojąca" }, { v: "lodowka", l: "Lodówka wolnostojąca" }]} />
+            options={[{ v: "zmywarka", l: "Zmywarka" }, { v: "zmywarkaW", l: "Zmywarka wolnostojąca" }, { v: "lodowkaP", l: "Lodówka podblatowa" }, { v: "lodowka", l: "Lodówka wolnostojąca" }]} />
           <p className="text-[11px] text-stone-500">
             Pozycja w ciągu bez korpusu — sąsiednie szafki stoją przy niej bokami.
-            {sp.typ === "zmywarkaW"
+            {sp.typ === "lodowkaP"
+              ? ` W zamówieniu tylko front meblowy${s && s.front ? ` ${fmt(s.front.h)} × ${fmt(s.front.w)} mm` : ""}, przykręcany do drzwi lodówki; cokół i blat ciągu idą dalej.`
+              : sp.typ === "zmywarkaW"
               ? ` Własne drzwi, bez frontu meblowego — w zamówieniu nic do niej. Cokół ciągu ma pod nią przerwę; ${sp.pokrywa ? "blat kończy się przy jej boku (zmywarka z własną pokrywą)." : "blat idzie nad nią (pokrywa zdjęta)."}`
               : sp.typ === "zmywarka"
               ? ` W zamówieniu tylko front meblowy${s && s.front ? ` ${fmt(s.front.h)} × ${fmt(s.front.w)} mm` : ""} (luzy jak drzwi obok), przykręcany do drzwi zmywarki; cokół i blat ciągu idą dalej.`
@@ -23428,6 +23457,18 @@ export default function App() {
               <div className="grid grid-cols-3 gap-3">
                 {pole(sp.pokrywa ? "hPokr" : "hPod", sp.pokrywa ? "Wysokość z pokrywą" : "Wysokość bez pokrywy")}
                 {pole("dMin", "Głębokość min.")}
+              </div>
+            </>
+          ) : sp.typ === "lodowkaP" ? (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                {pole("hMin", "Od podłogi do blatu — od")}
+                {pole("dMin", "Głębokość min.")}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-16 shrink-0 text-stone-500">drzwi</span>
+                <div className="flex-1"><Seg value={sp.drzwi} onChange={(v) => setSp({ drzwi: v === "lewe" ? null : v })}
+                  options={[{ v: "lewe", l: "zawias z lewej" }, { v: "prawe", l: "zawias z prawej" }]} /></div>
               </div>
             </>
           ) : sp.typ === "zmywarka" ? (
@@ -23503,6 +23544,12 @@ export default function App() {
             {wybor("fronty", String(sp.fronty), (v) => setSprzet(lv.i, c.j, { fronty: v === "2" ? 2 : null }),
               [{ v: "1", l: "1 front" }, { v: "2", l: "2 fronty" }])}
             {sp.fronty === 2 && pole("dolny", "Dolny front — wysokość", "z karty lodówki (puste — po równo)")}
+            {/* wysokosc wneki z makiety (2026-11-09) — przykladowo; ustawia „wysokość od / do” */}
+            <div data-el="lodowka-wneka">
+              {wybor("wnęka", String(LODOWKA_WNEKI.find((h) => sp.hMin === (h === 1780 ? 1772 : h - 8)) || ""),
+                (v) => setSprzet(lv.i, c.j, lodowkaWnekaZakres(Number(v))),
+                LODOWKA_WNEKI.map((h) => ({ v: String(h), l: `${fmt(h / 10)}${h === 820 ? " pod blat" : ""}` })))}
+            </div>
             <div className="grid grid-cols-2 gap-2">
               {pole("wMin", "Wnęka — szerokość od")}
               {pole("wMax", "Wnęka — szerokość do")}

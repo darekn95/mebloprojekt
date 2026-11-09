@@ -149,6 +149,13 @@ console.log('\n== lodówka (użytkownik 2026-11-05): zabudowa ślizgowo / na sta
   ok('„2 fronty”: ostrzeżenie „wpisz wysokość dolnego frontu z karty lodówki”', await jest(/wpisz wysokość dolnego frontu z karty lodówki/));
   await karta.locator('label').filter({ hasText: 'Dolny front — wysokość' }).locator('input').fill('700'); await page.waitForTimeout(900);
   ok('dolny 700: zapisany, bez ostrzeżenia', (await zap()).items[0].cab.levels[0].cols[0].sprzet.dolny === 700 && !(await jest(/wpisz wysokość dolnego frontu/)));
+  // wysokosc wneki z makiety (2026-11-09): „88” ustawia 872–890 (jak 178: −8 / +10), „178” wraca do typowych
+  await page.locator('[data-el="lodowka-wneka"] button').filter({ hasText: /^88$/ }).click(); await page.waitForTimeout(900);
+  const sp88 = (await zap()).items[0].cab.levels[0].cols[0].sprzet;
+  ok('wnęka „88”: wysokość od 872 do 890, błąd za wysokiej wnęki', sp88.hMin === 872 && sp88.hMax === 890 && await jest(/wnęk.*lodówk/i), JSON.stringify(sp88));
+  await page.locator('[data-el="lodowka-wneka"] button').filter({ hasText: /^178$/ }).click(); await page.waitForTimeout(900);
+  const sp178 = (await zap()).items[0].cab.levels[0].cols[0].sprzet;
+  ok('wnęka „178”: z powrotem typowe (bez własnych od / do)', sp178.hMin == null && sp178.hMax == null, JSON.stringify(sp178));
   await widok('Zamk.');
   const napisy = await page.locator('#rysunek svg').first().evaluate((e) => e.textContent).catch(() => '');
   ok('rysunek frontu: dwa fronty lodówki 596 × 700 i 596 × 1101', /596×700/.test(napisy) && /596×1101/.test(napisy), napisy.replace(/\s+/g, ' ').slice(0, 200));
@@ -308,6 +315,13 @@ console.log('\n== sprzęt w ciągu bez korpusu (użytkownik 2026-11-05): zmywark
   p = await zap();
   ok('„z własną pokrywą”: wysokość 850, blat kończy się przy jej boku (na końcu ciągu)', p.items[p.active].cab.H === 850 && p.items[p.active].cab.sprzetCiagu.pokrywa === true
     && await jest(/Zmywarka z pokrywą „Zmywarka 2" stoi na końcu ciągu — blat i cokół kończą się przy jej boku/));
+  // lodowka podblatowa (2026-11-09, z makiety): jak zmywarka do zabudowy — front meblowy, cokol idzie dalej, drzwi na boku
+  await page.locator('[data-el="z-szablonu"]').first().selectOption('lodowka-pod'); await page.waitForTimeout(1000);
+  p = await zap();
+  const lp = p.items[p.active];
+  ok('„+ z szablonu… Lodówka podblatowa”: typ lodowkaP, wymiary ciągu (720, cokół ciągu)', lp.cab.sprzetCiagu.typ === 'lodowkaP' && lp.cab.W === 600 && lp.cab.H === 720 && lp.cab.plinth.on,
+    JSON.stringify({ n: lp.cab.name, W: lp.cab.W, H: lp.cab.H, pl: lp.cab.plinth }));
+  ok('lodówka podblatowa: informacja o froncie na drzwiach lodówki', await jest(/Front lodówki przykręcony do jej drzwi okuciami z kompletu lodówki; cokół ciągu idzie dalej/));
   await widok('Ciąg'); await widok('Zamk.');
   ok('rysunek ciągu: pokrywa zmywarki wolnostojącej', (await ile('[data-el="pokrywa-zmywarki"]')) === 1, String(await ile('[data-el="pokrywa-zmywarki"]')));
 }
