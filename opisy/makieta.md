@@ -56,6 +56,16 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
 - Klik w szafkę (albo wybór z listy „Szafka ▾”) robi ją aktywną szafką projektu — po przejściu
   do trybu technicznego otwiera się właśnie ona.
 
+## Kolory rysunku
+
+Użytkownik 2026-11-09: „zależnie od trybu — w prostym jak jest [w makiecie], w szczegółowej już z kolorami płyt jak
+w technicznym, na przełączniku”:
+- **prosta** — jasne jak makieta „Dodaj” (płyta #fbfaf8, front #f3f0eb, plecy #ece7e1, blat #8b6f56), bez słojów;
+- **szczegółowa** — przełącznik „Kolory płyt” (domyślnie włączony): kolory materiałów jak w trybie technicznym,
+  wyłączony — jasne;
+- zmienia się tylko rysunek makiety (kopia `mat` — `makJasneMat`, `projRys`); kolory w projekcie, formatkach, PDF
+  i trybie technicznym zostają.
+
 ## Rodzaj zabudowy (na ciąg)
 
 Jak „Rodzaj zabudowy” w makiecie „Dodaj”, ale **na ciąg** (użytkownik 2026-11-09), `run.zabudowa`:

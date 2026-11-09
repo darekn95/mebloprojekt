@@ -20724,7 +20724,17 @@ const ikonaWzoru = (w) => {
 const MAK_ZAKLADKI_SZCZ = [["korpus", "Korpus i plecy"], ["wzmocnienia", "Wzmocnienia"], ["wyciecia", "Wycięcia i kolizje"]];
 /* Przelaczniki rysunku jak w makiecie „Dodaj” (uzytkownik 2026-11-09: „widok jak w makiecie — mniej miejsca, większy
    rysunek”): z gory nad widokiem z przodu, ciag gorny / dolny, fronty (wylaczone — wnetrze). */
-const MAK_PRZEL = [["zgory", "Z góry"], ["gorny", "Ciąg górny"], ["dolny", "Ciąg dolny"], ["fronty", "Fronty"]];
+const MAK_PRZEL = [["zgory", "Z góry"], ["gorny", "Ciąg górny"], ["dolny", "Ciąg dolny"], ["fronty", "Fronty"], ["kolory", "Kolory płyt"]];
+/* Kolory rysunku makiety (uzytkownik 2026-11-09: „zależnie od trybu — w prostym jak jest [w makiecie], w szczegółowej już
+   z kolorami płyt jak w technicznym, na przełączniku”): prosta — jasne jak makieta „Dodaj” (--board, --top), bez slojow;
+   szczegolowa — przelacznik „Kolory płyt” (domyslnie wlaczony). Zmienia tylko rysunek (kopia `mat` z kolorami), nie dane. */
+const MAK_JASNE = { board: "#fbfaf8", front: "#f3f0eb", back: "#ece7e1", worktop: "#8b6f56" };
+const makJasneMat = (mat) => {
+  if (!mat) return mat;
+  const k = (o, c) => (o ? { ...o, color: c } : o);
+  return { ...mat, board: k(mat.board, MAK_JASNE.board), shelf: k(mat.shelf || mat.board, MAK_JASNE.board), front: k(mat.front, MAK_JASNE.front),
+    back: k(mat.back, MAK_JASNE.back), worktop: k(mat.worktop, MAK_JASNE.worktop) };
+};
 /* Przyblizanie rysunku makiety (uzytkownik 2026-11-09: „powiększ jako domyślny i brakuje jak w technicznym jeszcze
    większego powiększenia, dopasowania i pełnego ekranu”): „Powiększ” (domyslnie wlaczone) — widok z przodu na wysokosc
    okna; − / + — kroki jak w trybie technicznym na tej podstawie; „Dopasuj” — caly rysunek w oknie (bez Powiększ, 100 %);
@@ -21755,7 +21765,11 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   // domyslnie ciag zaznaczonej szafki (z pietrem nad nim) — caly pokoj na raz jest za drobny do chwytania polek
   const [ciagId, setCiagId] = useState("aktywny");
   // przelaczniki rysunku (pamieta przegladarka)
-  const [przel, setPrzel] = useState(() => { try { const { powieksz, ...p } = JSON.parse(localStorage.getItem("mp-mak-przel") || "{}"); return { zgory: true, gorny: true, dolny: true, fronty: true, ...p }; } catch (e) { return { zgory: true, gorny: true, dolny: true, fronty: true }; } });
+  const [przel, setPrzel] = useState(() => { try { const { powieksz, ...p } = JSON.parse(localStorage.getItem("mp-mak-przel") || "{}"); return { zgory: true, gorny: true, dolny: true, fronty: true, kolory: true, ...p }; } catch (e) { return { zgory: true, gorny: true, dolny: true, fronty: true, kolory: true }; } });
+  // projekt do rysunku: jasne kolory w prostej i w szczegolowej z wylaczonymi „Kolorami płyt”
+  const kolory = tryb === "szczegolowa" && przel.kolory !== false;
+  const projRys = useMemo(() => (kolory ? project : { ...project,
+    items: project.items.map((it) => ({ ...it, cab: it.cab.texture ? { ...it.cab, texture: false } : it.cab, mat: makJasneMat(it.mat) })) }), [project, kolory]);
   useEffect(() => { try { localStorage.setItem("mp-mak-przel", JSON.stringify(przel)); } catch (e) { /* bez pamieci */ } }, [przel]);
   // przyblizanie: { pow — „Powiększ” (na wysokosc okna), z — krok z MAK_ZOOM }; pamieta przegladarka
   const [zoomM, setZoomM] = useState(() => { try { return { pow: true, z: 1, ...JSON.parse(localStorage.getItem("mp-mak-zoom") || "{}") }; } catch (e) { return { pow: true, z: 1 }; } });
@@ -21977,7 +21991,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           );
         })()}
         <div className="mb-1 flex flex-wrap items-center gap-1.5" data-el="mak-przel">
-          {MAK_PRZEL.filter(([k]) => maPietra || (k !== "gorny" && k !== "dolny")).map(([k, l]) => (
+          {MAK_PRZEL.filter(([k]) => (maPietra || (k !== "gorny" && k !== "dolny")) && (k !== "kolory" || tryb === "szczegolowa")).map(([k, l]) => (
             <Przelacznik key={k} k={k} l={l} on={!!przel[k]} onClick={() => setPrzel((p) => ({ ...p, [k]: !p[k] }))} />
           ))}
           <Przelacznik k="powieksz" l="Powiększ" on={!!zoomM.pow} onClick={() => setZoomM((m) => ({ ...m, pow: !m.pow }))} />
@@ -22021,24 +22035,24 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         {przel.zgory && !samaSzafka && rysowane.length > 0 && (
           <div data-el="mak-zgory">
             <p className="text-[11px] text-stone-500">Z góry</p>
-            <AssemblyTopView project={project} runs={rysowane} showDims={false} showShelves showHardware={false}
+            <AssemblyTopView project={projRys} runs={rysowane} showDims={false} showShelves showHardware={false}
               onPick={wybierz} zazn={zaznM ? project.active : null} maxH={maxHGora} nakladka={nakladkaGora} skala={skala} />
           </div>
         )}
         {(przel.zgory && !samaSzafka && rysowane.length > 0) && <p className="mt-1 text-[11px] text-stone-500">Widok z przodu</p>}
         {samaSzafka && (
-          <MakietaWolnostojace project={project} items={[{ it: aktIt, i: project.active }]} open={widokRys === "open"} onPick={wybierz}
+          <MakietaWolnostojace project={projRys} items={[{ it: projRys.items[project.active], i: project.active }]} open={widokRys === "open"} onPick={wybierz}
             zazn={zaznM ? project.active : null} maxH={maxH} nakladka={nakladkaPrzod} skala={skala} />
         )}
         {!samaSzafka && rysowane.length > 0 && (
-          <AssemblyView project={project} runs={rysowane} rpOf={rpOf} variant={widokRys} showDims={false}
+          <AssemblyView project={projRys} runs={rysowane} rpOf={rpOf} variant={widokRys} showDims={false}
             showHardware={false} showLabels activeCab={(project.items[project.active] || {}).cab}
             onPick={wybierz} zazn={zaznM ? project.active : null} maxH={maxHPrzod} nakladka={nakladkaPrzod} skala={skala} sciana={rodzaj === "wolnostojaca" ? null : MAK_SCIANA} />
         )}
         {pokazWolne && wolne.length > 0 && (
           <div className="mt-2">
             {wybrane.length > 0 && <p className="mb-1 text-xs text-stone-500">Szafki wolnostojące</p>}
-            <MakietaWolnostojace project={project} items={wolne} open={widokRys === "open"} onPick={wybierz} zazn={zaznM ? project.active : null} maxH={maxH} nakladka={nakladkaPrzod}
+            <MakietaWolnostojace project={projRys} items={wolne.map(({ i }) => ({ it: projRys.items[i], i }))} open={widokRys === "open"} onPick={wybierz} zazn={zaznM ? project.active : null} maxH={maxH} nakladka={nakladkaPrzod}
               skala={!wybrane.length ? skala : null} zGory={!wybrane.length && przel.zgory} />
           </div>
         )}
