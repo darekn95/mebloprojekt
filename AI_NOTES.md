@@ -1020,6 +1020,13 @@ przestawia miejsce (slupek 600 albo szafka 600 z wneka w miejscu pozycji ciagu i
 [AI-TODO] Przy scalaniu makiety z aplikacja (uzytkownik 2026-11-09): w makiecie domyslnie WSZYSTKIE widoki jak
 w aplikacji — zamkniety, otwarty, z boku, z gory, 3D — z funkcji rysujacych aplikacji, na tych samych danych (nie
 budowac ich osobno w makiecie przed scaleniem).
+[AI-INFO] Wersja 17 (uzytkownik 2026-11-09: „zawsze wybieramy, co chcemy zmienić, i aktywne tylko to, co wybrane”):
+karta szafki / gornej pokazuje tylko czesc otwartej zakladki (Szafka i AGD — cala; Szuflady, Drzwi i klapy, Polki,
+Przegroda, Wzmocnienie — swoja), polki chwyta sie tylko w zakladce Polki, szuflade tylko w Szufladach. Pojedyncze
+klikniecie tylko zaznacza (nie odznacza); szafka spoza zakladki (np. przy AGD) — w panelu wybor „Co zmienić?”;
+dwuklik / podwojne dotkniecie (wlasne wykrywanie — rysunek przerysowuje sie miedzy kliknieciami) albo prawy przycisk —
+okienko „Co zmienić?”. Dwuklik na polce — okienko swiatla: najnizsza od dna szafki (dno 18), wyzsza od polki ponizej
+(polka 18); etykiety przy polkach pokazuja swiatlo (↕).
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
 rant i kasete szer. × glab. × w dol (bryla pod blatem = kaseta, nie obrys wyciecia; wyciecie plyty = kaseta + luz),

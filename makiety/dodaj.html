@@ -143,7 +143,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .menu .tyt b { color: var(--ink); font-size: 13.5px; }
 .menu .tyt button { margin-left: auto; border: 0; background: transparent; font-size: 18px; line-height: 1; cursor: pointer; color: var(--muted); }
 .menu .poz { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--soft); border-radius: 7px; padding: 5px 8px; cursor: pointer; text-align: left; font-size: 13px; }
-.menu .poz svg { width: 22px; height: 22px; flex: none; }
+.menu .poz svg, .menu-w .poz svg { width: 22px; height: 22px; flex: none; }
+.menu-w { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.menu-w .poz { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--soft); border-radius: 7px; padding: 5px 7px; cursor: pointer; text-align: left; font-size: 12.5px; }
 @media (hover: hover) { .menu .poz:hover { border-color: var(--accent); } }
 .duch { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; display: flex; align-items: center; gap: 6px;
   background: var(--panel); border: 1px solid var(--accent); border-radius: 7px; padding: 4px 8px 4px 4px; box-shadow: 0 6px 18px rgba(0,0,0,.18); font-size: 12.5px; }
@@ -175,7 +177,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 <header class="top">
   <h1>Dodaj: sprzęt AGD i klocki</h1>
   <span class="badge">makieta — bez obliczeń</span>
-  <p>Przeciągnij sprzęt albo klocek z listy na rysunek — albo dotknij go, a potem miejsce na rysunku. Zielone ramki pokazują, gdzie może stanąć. Postawione przesuwasz, przeciągając po rysunku; dotknięta szafka pokazuje kartę, w której to samo zmienisz przyciskami.</p>
+  <p>Przeciągnij sprzęt albo klocek z listy na rysunek — albo dotknij go, a potem miejsce na rysunku. Zielone ramki pokazują, gdzie może stanąć. Postawione przesuwasz, przeciągając po rysunku. Dotknięta szafka pokazuje kartę otwartej zakładki — zmieniasz tylko to, co wybrane; dwuklik albo prawy przycisk na szafce — „Co zmienić?”.</p>
 </header>
 
 <div class="wysylka" id="wysylka" hidden>
@@ -736,7 +738,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
        wybrania szafki”) — tylko w zaznaczonej szafce; inna szafka najpierw sie zaznacza. */
     const zaznW = wl && (zaznaczony === wl || zaznaczony === wl.split("|")[0]);
     // szuflada + drzwi: szuflade przeciagasz pod drzwi / nad drzwi, linie podzialu — wysokosc szuflady
-    const uchSz = () => (sd && zaznW && !wl.includes("|") ? `<rect class="uchwyt" data-u="szuflPrzes" data-wl="${wl}" data-y0="${y0}" data-y1="${y1}" x="${x + 24}" y="${yEl(sd.d1) + 24}" width="${w - 48}" height="${Math.max(10, sd.d1 - sd.d0 - 48)}" fill="transparent" pointer-events="all" style="cursor:grab;touch-action:none"/>`
+    const uchSz = () => (sd && zaznW && zakladka === "szuflady" && !wl.includes("|") ? `<rect class="uchwyt" data-u="szuflPrzes" data-wl="${wl}" data-y0="${y0}" data-y1="${y1}" x="${x + 24}" y="${yEl(sd.d1) + 24}" width="${w - 48}" height="${Math.max(10, sd.d1 - sd.d0 - 48)}" fill="transparent" pointer-events="all" style="cursor:grab;touch-action:none"/>`
       + `<rect class="uchwyt" data-u="szuflKr" data-wl="${wl}" data-y0="${y0}" data-y1="${y1}" x="${x}" y="${yEl(q.szuflDol ? sd.d1 : sd.d0) - 22}" width="${w}" height="44" fill="transparent" pointer-events="all" style="cursor:ns-resize;touch-action:none"/>`
       + `<text class="mm" pointer-events="none" x="${x + w / 2}" y="${yEl((sd.d0 + sd.d1) / 2) + 12}" font-size="34" text-anchor="middle" fill="var(--accent)">szuflada ${sd.d1 - sd.d0}</text>` : "");
     const yd = q.drawers && q.tall ? y0 + q.drawers * SZ_H : sd && q.szuflDol ? sd.d1 : y0;   // dol strefy polek
@@ -748,13 +750,15 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
          brak albo inna liczba — po rowno. Chwytak (przezroczysty pasek) do przeciagania; przy zaznaczonej szafce wymiar. */
       const zazn = zaznW;
       const poz = (k, cnt) => { const a = (q.pozPolek || {})[k]; return a && a.length === cnt ? a.map((v) => yd + v) : Array.from({ length: cnt }, (_, i) => yd + ((yg - yd) * (i + 1)) / (cnt + 1)); };
-      const polkaD = (xx, ww, yy, k, i) => polka(xx, ww, yy) + (wl && zazn ? `<rect class="polkaH" data-wl="${wl}" data-k="${k}" data-i="${i}" data-z0="${yd}" data-z1="${yg}" x="${xx}" y="${yEl(yy) - 24}" width="${ww}" height="48" fill="transparent" pointer-events="all" style="cursor:ns-resize;touch-action:none"/>` : "")
-        + (zazn ? `<text class="mm" pointer-events="none" x="${xx + ww - 8}" y="${yEl(yy) - 16}" font-size="34" text-anchor="end" fill="var(--accent)">${Math.round(yy - yd)}</text>` : "");
+      // swiatlo pod polka: od dna (18) albo od polki ponizej — jak w aplikacji; chwytak tylko w zakladce Polki
+      const swiatlo = (yy, i, a) => Math.round(yy - 9 - (i ? a[i - 1] + 9 : yd + 18));
+      const polkaD = (xx, ww, yy, k, i, a) => polka(xx, ww, yy) + (wl && zazn && zakladka === "polki" ? `<rect class="polkaH" data-wl="${wl}" data-k="${k}" data-i="${i}" data-z0="${yd}" data-z1="${yg}" x="${xx}" y="${yEl(yy) - 24}" width="${ww}" height="48" fill="transparent" pointer-events="all" style="cursor:ns-resize;touch-action:none"/>` : "")
+        + (zazn ? `<text class="mm" pointer-events="none" x="${xx + ww - 8}" y="${yEl(yy) + 42}" font-size="34" text-anchor="end" fill="var(--accent)">↕${swiatlo(yy, i, a)}</text>` : "");
       const rura = (xx, ww, yy) => `<line x1="${xx + 20}" y1="${yEl(yy)}" x2="${xx + ww - 20}" y2="${yEl(yy)}" stroke="var(--metal)" stroke-width="12" stroke-linecap="round"/>`
         + [0.3, 0.5, 0.7].map((f) => `<path d="M${xx + ww * f} ${yEl(yy)} l-50 70 h100 z" fill="none" stroke="var(--muted)" stroke-width="4"/>`).join("");
       if (q.drazek && q.przegroda) {
         // lewa kolumna — polki, prawa — polka u gory i drazek pod nia
-        poz("L", nL).forEach((yy, i) => { t += polkaD(x + 18, w / 2 - 27, yy, "L", i); });
+        poz("L", nL).forEach((yy, i, a) => { t += polkaD(x + 18, w / 2 - 27, yy, "L", i, a); });
         t += polka(x + w / 2 + 9, w / 2 - 27, yg - 300) + rura(x + w / 2 + 9, w / 2 - 27, yg - 360);
         for (let i = 1; i < nP; i++) t += polka(x + w / 2 + 9, w / 2 - 27, yd + (400 * i) / nP);
       } else if (q.drazek) {
@@ -762,9 +766,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         t += polka(x + 18, w - 36, yg - 300) + rura(x + 18, w - 36, yg - 360);
         for (let i = 1; i < n; i++) t += polka(x + 18, w - 36, yd + (400 * i) / n);
       } else if (q.przegroda) {
-        poz("L", nL).forEach((yy, i) => { t += polkaD(x + 18, w / 2 - 27, yy, "L", i); });
-        poz("P", nP).forEach((yy, i) => { t += polkaD(x + w / 2 + 9, w / 2 - 27, yy, "P", i); });
-      } else poz("", n).forEach((yy, i) => { t += polkaD(x + 18, w - 36, yy, "", i); });
+        poz("L", nL).forEach((yy, i, a) => { t += polkaD(x + 18, w / 2 - 27, yy, "L", i, a); });
+        poz("P", nP).forEach((yy, i, a) => { t += polkaD(x + w / 2 + 9, w / 2 - 27, yy, "P", i, a); });
+      } else poz("", n).forEach((yy, i, a) => { t += polkaD(x + 18, w - 36, yy, "", i, a); });
       // przegroda — przy szufladzie + drzwiach tylko w strefie drzwi (szuflada na cala szerokosc)
       if (q.przegroda) t += sd ? `<rect x="${x + w / 2 - 9}" y="${yEl(yg)}" width="18" height="${yg - yd}" fill="var(--accent)" opacity=".7"/>` : `<rect x="${x + w / 2 - 9}" y="${yEl(y1)}" width="18" height="${y1 - y0}" fill="var(--accent)" opacity=".7"/>`;
       if (sd) t += `<line x1="${x + 18}" y1="${yEl(q.szuflDol ? sd.d1 : sd.d0)}" x2="${x + w - 18}" y2="${yEl(q.szuflDol ? sd.d1 : sd.d0)}" stroke="var(--ink)" stroke-width="6" opacity=".6"/>`;
@@ -1102,8 +1106,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const cabSel = ciag.find((q) => q.id === zaznaczony && q.kind === "cab");
     let h = `<h2>AGD</h2><p class="hint">Przeciągnij sprzęt na zieloną ramkę na rysunku. Na telefonie: dotknij sprzęt, potem miejsce.</p>`;
     h += paleta("Sprzęt", AGD_TYPY) + pasekWyboru();
-    if (cabSel) h += kartaSzafki(cabSel);
-    if (String(zaznaczony || "").startsWith("g:")) h += kartaGornej(zaznaczony.slice(2));
+    if (cabSel || String(zaznaczony || "").startsWith("g:")) h += wyborCo(zaznaczony);   // szafka przy AGD — wybierz, co zmienic
     // lista „W projekcie” na dole panelu, opcje zaznaczonego wyzej (uzytkownik 2026-11-08)
     let hl = `<div class="sec"><h3>W projekcie (${lista.length})</h3>`;
     hl += lista.length ? `<ul class="lista">` + lista.map((q) => `<li data-id="${q.id}" aria-current="${q.id === zaznaczony}" tabindex="0">${ikona(q.typ)}<div class="co"><b>${SPRZETY[q.typ].nazwa}${q.przyklad ? '<span class="przyklad">przykład</span>' : ""}</b><span>${q.gdzie}</span></div><button class="x" data-usun="${q.id}" aria-label="Usuń ${SPRZETY[q.typ].nazwa}">×</button></li>`).join("") + `</ul>`
@@ -1272,52 +1275,69 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     if ((q.wzm || []).length) t.push(`Wzmocnienia: ${q.wzm.map((r) => WZM_L[r]).join(", ")}${q.przegroda && q.wzm.some((r) => r !== "pionowe") ? " — nad przegrodą program zapyta o łączenie (trójkąty, przegroda niższa albo dwie przegrody)" : ""}.`);
     return t.join(" ");
   }
+  /* Karta szafki (uzytkownik 2026-11-09: „zawsze wybieramy, co chcemy zmienić, i aktywne tylko to, co wybrane”):
+     zakladka Szafka — cala karta; Szuflady / Drzwi i klapy / Polki / Przegroda / Wzmocnienie — tylko swoja czesc. */
+  const DRZWI_K = ["fr_drzwi1", "fr_drzwi2", "fr_klapaG", "fr_klapaD", "fr_otwarta"];
   function kartaSzafki(q) {
     const etyk = (t) => `<h3>${t}</h3>`;
-    const sprz = zeSprzetem(q);
+    const sprz = zeSprzetem(q), Z = zakladka, cala = Z === "szafka" || Z === "agd";
+    const pok = { szer: cala, drzwi: cala || Z === "drzwi", szufl: cala || Z === "szuflady", polki: cala || Z === "polki", przegroda: cala || Z === "przegroda", wzm: cala || Z === "wzmocnienie" };
     let h = `<div class="szczegol karta" data-karta="${q.id}"><div class="naglowek">${ikona(ikonaSzafki(q))}<div><b>${q.name}</b><span>${opisSzafki(q)}</span></div></div>`;
-    h += etyk("Szerokość") + `<div class="rozm">` + (rodzaj === "szafa" ? SZER_SZAFA : bezSciany() ? SZER_WOLNA : q.tall ? SZER_S : SZER_D).map((w) => `<button data-szer="${w}" aria-pressed="${q.w === w}">${w}</button>`).join("") + `</div>`;
-    if (bezSciany()) h += etyk("Wysokość") + `<div class="rozm">` + WYS_WOLNA.map((v) => `<button data-wysk="${v}" aria-pressed="${wysK(q) === v}">${v}</button>`).join("") + `</div>`;
-    if (wSzafce(q.id).some((a) => a.typ === "plyta" && wym(a).ww > q.w - 36)) h += `<p class="uwaga">Płyta: wycięcie szersze niż wnętrze szafki (${q.w - 36} mm) — daj szerszą szafkę albo mniejszą płytę.</p>`;
-    h += wSzafce(q.id).filter((a) => SPRZETY[a.typ].grupa === "blat").flatMap((a) => podBlatemUwagi(a, q)).map((t) => `<p class="uwaga">${t}</p>`).join("");
-    if (q.tall && kuchnia()) {
-      // wysokosc slupka (korpus; z cokolem +100) — „równo z górnymi” = gora slupka na gorze ciagu gornego
-      const rowno = GORNE0 + GORNE - PL;
-      h += etyk("Wysokość korpusu") + `<div class="rozm">` + [...new Set([rowno, 1800, 2000, 2120, 2200])].filter((v) => v <= SLUP_MAX).sort((a, b) => a - b).map((v) => `<button data-wysk="${v}" aria-pressed="${wysK(q) === v}">${v === rowno ? `${v} = równo z górnymi` : v}</button>`).join("") + `</div>`
-        + `<div class="wys"><label for="slupH">własna</label><input id="slupH" type="number" step="10" value="${wysK(q)}"><span>mm (z cokołem ${wysK(q) + PL})</span></div>`;
+    if (pok.szer) {
+      h += etyk("Szerokość") + `<div class="rozm">` + (rodzaj === "szafa" ? SZER_SZAFA : bezSciany() ? SZER_WOLNA : q.tall ? SZER_S : SZER_D).map((w) => `<button data-szer="${w}" aria-pressed="${q.w === w}">${w}</button>`).join("") + `</div>`;
+      if (bezSciany()) h += etyk("Wysokość") + `<div class="rozm">` + WYS_WOLNA.map((v) => `<button data-wysk="${v}" aria-pressed="${wysK(q) === v}">${v}</button>`).join("") + `</div>`;
+      if (wSzafce(q.id).some((a) => a.typ === "plyta" && wym(a).ww > q.w - 36)) h += `<p class="uwaga">Płyta: wycięcie szersze niż wnętrze szafki (${q.w - 36} mm) — daj szerszą szafkę albo mniejszą płytę.</p>`;
+      h += wSzafce(q.id).filter((a) => SPRZETY[a.typ].grupa === "blat").flatMap((a) => podBlatemUwagi(a, q)).map((t) => `<p class="uwaga">${t}</p>`).join("");
+      if (q.tall && kuchnia()) {
+        // wysokosc slupka (korpus; z cokolem +100) — „równo z górnymi” = gora slupka na gorze ciagu gornego
+        const rowno = GORNE0 + GORNE - PL;
+        h += etyk("Wysokość korpusu") + `<div class="rozm">` + [...new Set([rowno, 1800, 2000, 2120, 2200])].filter((v) => v <= SLUP_MAX).sort((a, b) => a - b).map((v) => `<button data-wysk="${v}" aria-pressed="${wysK(q) === v}">${v === rowno ? `${v} = równo z górnymi` : v}</button>`).join("") + `</div>`
+          + `<div class="wys"><label for="slupH">własna</label><input id="slupH" type="number" step="10" value="${wysK(q)}"><span>mm (z cokołem ${wysK(q) + PL})</span></div>`;
+      }
     }
     if (sprz && q.tall && strefySlupka(q).length) {
-      // strefy slupka ze sprzetem: front / szuflady / polki — tez klockami z zakladek
+      // strefy slupka ze sprzetem: przyciski tylko z otwartej zakladki (drzwi / szuflady / polki)
       h += strefySlupka(q).map((z) => {
         const st = (q.strefy || {})[z.k] || { front: "drzwi1" }, fk = st.drawers ? "szu_" + st.drawers : "fr_" + (st.front || "drzwi1");
-        return etyk(`${z.l} (${Math.round(z.y1 - z.y0)} mm)`) + `<div class="rozm">` + ["fr_drzwi1", "fr_drzwi2", "fr_klapaG", "fr_klapaD", "fr_otwarta", "szu_1", "szu_2", "szu_3", "szu_4"].map((k) => `<button data-sf="${z.k}|${k}" aria-pressed="${fk === k}">${SPRZETY[k].nazwa}</button>`).join("") + `</div>`
-          + (st.drawers ? "" : `<div class="wys">${licznikPolek(st, "spolki-" + z.k)}${st.pozPolek ? `<button class="btn" data-srowno="${z.k}">Półki po równo</button>` : ""}</div>`);
+        const kl = [...(pok.drzwi ? DRZWI_K : []), ...(pok.szufl ? ["szu_1", "szu_2", "szu_3", "szu_4"] : [])];
+        const pol = pok.polki && !st.drawers;
+        if (!kl.length && !pol) return "";
+        return etyk(`${z.l} (${Math.round(z.y1 - z.y0)} mm)`) + (kl.length ? `<div class="rozm">` + kl.map((k) => `<button data-sf="${z.k}|${k}" aria-pressed="${fk === k}">${SPRZETY[k].nazwa}</button>`).join("") + `</div>` : "")
+          + (pol ? `<div class="wys">${licznikPolek(st, "spolki-" + z.k)}${st.pozPolek ? `<button class="btn" data-srowno="${z.k}">Półki po równo</button>` : ""}</div>` : "");
       }).join("");
     }
-    if (sprz) h += `<p class="hint">W szafce stoi sprzęt (${wSzafce(q.id).filter((a) => SPRZETY[a.typ].grupa === "wneka").map((a) => SPRZETY[a.typ].nazwa.toLowerCase()).join(", ")}) — front, półki i wnękę wokół niego ustawi program. Sprzęt zmienisz w zakładce AGD.</p>`;
+    if (sprz) { if (cala) h += `<p class="hint">W szafce stoi sprzęt (${wSzafce(q.id).filter((a) => SPRZETY[a.typ].grupa === "wneka").map((a) => SPRZETY[a.typ].nazwa.toLowerCase()).join(", ")}) — wnękę wokół niego ustawi program. Sprzęt zmienisz w zakładce AGD.</p>`; }
     else {
       const fk = frontKlucz(q);
-      const fronty = ["fr_drzwi1", "fr_drzwi2", "fr_klapaG", "fr_klapaD", "fr_otwarta", ...(q.tall ? (rodzaj === "szafa" ? ["szu_1", "szu_2", "szu_3", "szu_4"] : []) : ["szu_1", "szu_2", "szu_3", "szu_4", "szu_1d"])];
-      h += etyk("Front") + `<div class="rozm">` + fronty.map((k) => `<button data-front="${k}" aria-pressed="${fk === k}">${SPRZETY[k].nazwa}</button>`).join("") + `</div>`;
-      if (q.szuflDrzwi) h += `<div class="rozm" role="group" aria-label="Szuflada i drzwi"><button data-szdol="0" aria-pressed="${!q.szuflDol}">szuflada u góry</button><button data-szdol="1" aria-pressed="${!!q.szuflDol}">szuflada na dole</button></div>`
-        + `<div class="rozm" role="group" aria-label="Ile drzwi"><button data-drzwiile="1" aria-pressed="${ileDrzwi(q) === 1}">1 drzwi</button><button data-drzwiile="2" aria-pressed="${ileDrzwi(q) === 2}">2 drzwi</button></div>`
-        + `<p class="hint">Szufladę przeciągniesz na rysunku pod drzwi albo nad drzwi, a linię między szufladą i drzwiami — w górę / w dół (wysokość szuflady${q.szuflH ? `: ${q.szuflH} mm` : ""}).</p>`
-        + (q.szuflH ? `<div class="rob"><button class="btn" data-akcja="szuflHdom">Szuflada typowa (${q.szuflDol ? 200 : 170} mm)</button></div>` : "");
+      const szuK = q.tall ? (rodzaj === "szafa" ? ["szu_1", "szu_2", "szu_3", "szu_4"] : []) : ["szu_1", "szu_2", "szu_3", "szu_4", "szu_1d"];
+      const fronty = [...(pok.drzwi ? DRZWI_K : []), ...(pok.szufl ? szuK : [])];
+      if (fronty.length) h += etyk(cala ? "Front" : Z === "szuflady" ? "Szuflady" : "Drzwi i klapy") + `<div class="rozm">` + fronty.map((k) => `<button data-front="${k}" aria-pressed="${fk === k}">${SPRZETY[k].nazwa}</button>`).join("") + `</div>`;
+      if (pok.szufl && !szuK.length) h += `<p class="hint">W słupku szuflad nie ma — dodasz je pod sprzętem, gdy w słupku stoi piekarnik albo mikrofala.</p>`;
+      if (q.szuflDrzwi && (pok.szufl || pok.drzwi)) {
+        if (pok.szufl) h += `<div class="rozm" role="group" aria-label="Szuflada i drzwi"><button data-szdol="0" aria-pressed="${!q.szuflDol}">szuflada u góry</button><button data-szdol="1" aria-pressed="${!!q.szuflDol}">szuflada na dole</button></div>`;
+        if (pok.drzwi) h += `<div class="rozm" role="group" aria-label="Ile drzwi"><button data-drzwiile="1" aria-pressed="${ileDrzwi(q) === 1}">1 drzwi</button><button data-drzwiile="2" aria-pressed="${ileDrzwi(q) === 2}">2 drzwi</button></div>`;
+        if (pok.szufl) h += `<p class="hint">W zakładce Szuflady szufladę przeciągniesz na rysunku pod drzwi albo nad drzwi, a linię między szufladą i drzwiami — w górę / w dół (wysokość szuflady${q.szuflH ? `: ${q.szuflH} mm` : ""}).</p>`
+          + (q.szuflH ? `<div class="rob"><button class="btn" data-akcja="szuflHdom">Szuflada typowa (${q.szuflDol ? 200 : 170} mm)</button></div>` : "");
+      }
       const pelneSzuflady = q.drawers && !q.szuflDrzwi && !q.tall;
-      h += etyk("Wnętrze");
-      if (pelneSzuflady) h += `<p class="hint">Same szuflady — półek ani przegrody tu nie ma. Wybierz drzwi albo „Szuflada + drzwi”, żeby je dodać.</p>`;
-      else h += `<div class="wys">${licznikPolek(q, "polki")}`
-        + `<button class="btn${q.przegroda ? " on" : ""}" data-akcja="przegrodaT" aria-pressed="${!!q.przegroda}" style="margin-left:6px">Przegroda</button>`
-        + (mozeDrazek(q) ? `<button class="btn${q.drazek ? " on" : ""}" data-akcja="drazekT" aria-pressed="${!!q.drazek}">Drążek</button>` : "") + `</div>`
-        + (q.pozPolek ? `<div class="rob"><button class="btn" data-akcja="polkiRowno">Półki po równo</button></div>` : "")
-        + ((q.polki || q.polkiL || q.polkiP) ? `<p class="hint">Półkę przesuniesz, przeciągając ją na rysunku w górę albo w dół (widać ją przy wyłączonych „Frontach” i w zakładce Półki).</p>` : "");
-      h += `<div class="rozm" role="group" aria-label="Wzmocnienia">` + (q.tall || !kuchnia() ? ["pionowe"] : ["lezace", "stojace", "pionowe"]).map((r) => `<button data-wzm="${r}" aria-pressed="${(q.wzm || []).includes(r)}">wzm. ${WZM_L[r]}</button>`).join("")
+      if (pok.polki || pok.przegroda) {
+        if (cala) h += etyk("Wnętrze");
+        if (pelneSzuflady) h += `<p class="hint">Same szuflady — półek ani przegrody tu nie ma. Wybierz drzwi albo „Szuflada + drzwi”, żeby je dodać.</p>`;
+        else {
+          h += `<div class="wys">${pok.polki ? licznikPolek(q, "polki") : ""}`
+            + (pok.przegroda ? `<button class="btn${q.przegroda ? " on" : ""}" data-akcja="przegrodaT" aria-pressed="${!!q.przegroda}"${pok.polki ? ' style="margin-left:6px"' : ""}>Przegroda</button>` : "")
+            + (pok.polki && mozeDrazek(q) ? `<button class="btn${q.drazek ? " on" : ""}" data-akcja="drazekT" aria-pressed="${!!q.drazek}">Drążek</button>` : "") + `</div>`;
+          if (pok.polki) h += (q.pozPolek ? `<div class="rob"><button class="btn" data-akcja="polkiRowno">Półki po równo</button></div>` : "")
+            + ((q.polki || q.polkiL || q.polkiP) ? `<p class="hint">${Z === "polki" ? "Półkę przeciągnij na rysunku w górę albo w dół albo kliknij ją dwa razy i wpisz światło." : "Wysokość półek zmienisz w zakładce Półki: przeciągając półkę albo dwuklikiem (światło)."}</p>` : "");
+        }
+      }
+      if (pok.wzm) h += (cala ? "" : etyk("Wzmocnienia")) + `<div class="rozm" role="group" aria-label="Wzmocnienia">` + (q.tall || !kuchnia() ? ["pionowe"] : ["lezace", "stojace", "pionowe"]).map((r) => `<button data-wzm="${r}" aria-pressed="${(q.wzm || []).includes(r)}">wzm. ${WZM_L[r]}</button>`).join("")
         + (q.tall || !kuchnia() ? "" : `<button data-wzm="para" aria-pressed="${["lezace", "stojace"].every((r) => (q.wzm || []).includes(r))}">para pod blat</button>`) + `</div>`;
     }
     h += etyk("Co zrobi program") + `<p>${coZrobiSzafka(q)}</p>`;
-    const zeSrodka = wSzafce(q.id).length;
-    h += `<div class="rob"><button class="btn${przesuwany === q.id ? " on" : ""}" data-akcja="przesun">Przesuń</button><button class="btn" data-akcja="usun">Usuń szafkę${zeSrodka ? " (ze sprzętem)" : ""}</button></div></div>`;
-    return h;
+    if (cala) { const zeSrodka = wSzafce(q.id).length; h += `<div class="rob"><button class="btn${przesuwany === q.id ? " on" : ""}" data-akcja="przesun">Przesuń</button><button class="btn" data-akcja="usun">Usuń szafkę${zeSrodka ? " (ze sprzętem)" : ""}</button></div>`; }
+    else h += `<p class="hint">Całą szafkę (szerokość, wysokość, przesuwanie) zmienisz w zakładce Szafka.</p>`;
+    return h + `</div>`;
   }
   const polaCiaguGornego = () => `<div class="wys"><label for="cgDol">dół</label><input id="cgDol" type="number" step="10" value="${GORNE0}"><label for="cgGora">góra</label><input id="cgGora" type="number" step="10" value="${GORNE0 + GORNE}"><span>mm od podłogi</span></div>`;
   function kartaGornej(id) {
@@ -1327,17 +1347,21 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     let h = `<div class="szczegol karta"><div class="naglowek">${ikona(g.brak ? "fr_otwarta" : "sz_2drzwi")}<div><b>Górna nad „${nad}”</b><span>${g.brak ? "bez szafki górnej" : `${q.w} × ${gg.y1 - gg.y0} × ${GORNE_GL} mm · dół ${gg.y0} od podłogi`}</span></div></div>`;
     if (ok && ok.rodzaj === "kominowy") return h + `<p class="hint">Tu wisi okap kominowy zamiast szafki — zmień rodzaj okapu w jego karcie (zakładka AGD).</p></div>`;
     if (g.brak) return h + `<p class="hint">Tu nie ma szafki górnej (np. okno albo otwarta ściana).</p><div class="rob"><button class="btn" data-akcja="gbrak">Przywróć szafkę górną</button></div></div>`;
+    const Z = zakladka, cala = Z === "szafka" || Z === "agd";
+    if (cala) {
     h += `<p class="hint">Szerokość jak szafka pod nią (${q.w} mm) — zmienisz ją w szafce dolnej. Góra zostaje na ${GORNE0 + GORNE} mm.</p>` + etyk("Cały ciąg górny") + polaCiaguGornego();
     h += etyk("Dół szafki od podłogi") + `<div class="wys"><button class="krok" data-gwys="-50">−</button><input id="gDol" type="number" step="10" value="${gg.y0}"><button class="krok" data-gwys="50">+</button><span>mm</span>`
       + (g.y0 != null ? `<button class="btn" data-akcja="gwysdom">Jak inne (${GORNE0})</button>` : "") + `</div>`;
     if (ok) h += `<p class="hint">Pod szafką okap (${OKAP[ok.rodzaj || "podszafkowy"].l}) — przesuwa się razem z dnem szafki.</p>`;
+    }
     const fk = "fr_" + (g.front || (g.przegroda || q.w > 500 ? "drzwi2" : "drzwi1"));
-    h += etyk("Front") + `<div class="rozm">` + ["fr_drzwi1", "fr_drzwi2", "fr_klapaG", "fr_otwarta"].map((k) => `<button data-gfront="${k}" aria-pressed="${fk === k}">${SPRZETY[k].nazwa}</button>`).join("") + `</div>`;
-    h += etyk("Wnętrze") + `<div class="wys">${licznikPolek(g, "gpolki")}`
-      + `<button class="btn${g.przegroda ? " on" : ""}" data-akcja="gprzegroda" aria-pressed="${!!g.przegroda}" style="margin-left:6px">Przegroda</button></div>`
-      + (g.pozPolek ? `<div class="rob"><button class="btn" data-akcja="gpolkiRowno">Półki po równo</button></div>` : "");
+    if (cala || Z === "drzwi") h += etyk("Front") + `<div class="rozm">` + ["fr_drzwi1", "fr_drzwi2", "fr_klapaG", "fr_otwarta"].map((k) => `<button data-gfront="${k}" aria-pressed="${fk === k}">${SPRZETY[k].nazwa}</button>`).join("") + `</div>`;
+    if (cala || Z === "polki" || Z === "przegroda") h += (cala ? etyk("Wnętrze") : "") + `<div class="wys">${cala || Z === "polki" ? licznikPolek(g, "gpolki") : ""}`
+      + (cala || Z === "przegroda" ? `<button class="btn${g.przegroda ? " on" : ""}" data-akcja="gprzegroda" aria-pressed="${!!g.przegroda}" style="margin-left:6px">Przegroda</button>` : "") + `</div>`
+      + ((cala || Z === "polki") && g.pozPolek ? `<div class="rob"><button class="btn" data-akcja="gpolkiRowno">Półki po równo</button></div>` : "")
+      + (Z === "polki" && (g.polki || g.polkiL || g.polkiP) ? `<p class="hint">Półkę przeciągnij na rysunku w górę albo w dół albo kliknij ją dwa razy i wpisz światło.</p>` : "");
     h += etyk("Co zrobi program") + `<p>Szafka wisząca ${q.w} × ${gg.y1 - gg.y0} × ${GORNE_GL} mm na zawieszkach i listwie montażowej; ${fk === "fr_klapaG" ? "klapa do góry na podnośnikach" : fk === "fr_otwarta" ? "bez frontu" : fk === "fr_drzwi2" ? "dwoje drzwi na zawiasach" : "jedne drzwi na zawiasach"}${g.polki ? `, ${g.polki} ${g.polki === 1 ? "półka" : "półki"} na kołkach` : ""}${g.przegroda ? ", przegroda na 2 kolumny" : ""}.</p>`;
-    h += `<div class="rob"><button class="btn" data-akcja="gbrak">Bez szafki górnej</button></div></div>`;
+    h += cala ? `<div class="rob"><button class="btn" data-akcja="gbrak">Bez szafki górnej</button></div></div>` : `<p class="hint">Wysokość i całą szafkę górną zmienisz w zakładce Szafka.</p></div>`;
     return h;
   }
   function panelKlocki(k) {
@@ -1347,8 +1371,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     let h = `<h2>${t}</h2><p class="hint">${hint} Na telefonie: dotknij klocek, potem szafkę.</p>`;
     h += paleta(k === "szafka" ? "Wzory szafek" : "Klocki", k === "szafka" ? Object.keys(WZORY).filter((z) => (WZORY[z].rodz || "kuchnia") === rodzaj) : Object.keys(KLOCKI[k])) + pasekWyboru();
     const gSel = String(zaznaczony || "").startsWith("g:") && zaznaczony.slice(2);
-    if (cab) h += kartaSzafki(cab);
-    else if (gSel) h += kartaGornej(gSel);
+    if (cab) h += pasujeDoZakladki(cab.id) ? kartaSzafki(cab) : wyborCo(cab.id);
+    else if (gSel) h += pasujeDoZakladki(zaznaczony) ? kartaGornej(gSel) : wyborCo(zaznaczony);
     else h += `<div class="pusto">Dotknij szafkę na rysunku — tu pokaże się jej karta: szerokość, front, półki, przegroda, wzmocnienia. Wszystko zmienisz też przyciskami, bez przeciągania.</div>`;
     if (k === "szafka") {
       const sz = uklad();
@@ -1418,6 +1442,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 
   // --- zdarzenia: panel ---
   panel.addEventListener("click", (e) => {
+    const mz = e.target.closest("[data-mz]");
+    if (mz) { ustawZakladke(mz.dataset.mz); zaznaczony = mz.dataset.mid; odswiez(); return; }
     const gb = e.target.closest("[data-gbrak]");
     if (gb) { const go = (gorne[gb.dataset.gbrak] = gorne[gb.dataset.gbrak] || {}); if (go.brak) delete go.brak; else go.brak = true; odswiez(); return; }
     const usunB = e.target.closest("[data-usun]");
@@ -1657,7 +1683,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const ph = !wybranyTyp && !przesuwany && e.button <= 0 && e.target.closest(".polkaH");
     if (ph) {
       e.preventDefault();
-      polkaDrag = { wl: ph.dataset.wl, k: ph.dataset.k, i: Number(ph.dataset.i), z0: Number(ph.dataset.z0), z1: Number(ph.dataset.z1), pid: e.pointerId };
+      polkaDrag = { wl: ph.dataset.wl, k: ph.dataset.k, i: Number(ph.dataset.i), z0: Number(ph.dataset.z0), z1: Number(ph.dataset.z1), pid: e.pointerId, y: e.clientY, ruszyl: false };
       try { svg.setPointerCapture(e.pointerId); } catch (_) {}
       const sel = polkaDrag.wl.includes("|") ? polkaDrag.wl.split("|")[0] : polkaDrag.wl;
       if (zaznaczony !== sel) { zaznaczony = sel; rysujPanel(); rysuj(); }
@@ -1677,6 +1703,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       rysuj(); return;
     }
     if (polkaDrag && e.pointerId === polkaDrag.pid) {
+      if (!polkaDrag.ruszyl && Math.abs(e.clientY - polkaDrag.y) < 4) return;   // dotkniecie, nie przeciaganie
+      polkaDrag.ruszyl = true;
       const o = wlObj(polkaDrag.wl); if (!o) return;
       const { k, i, z0, z1 } = polkaDrag, cnt = k ? polkiKol(o)[k === "L" ? 0 : 1] : o.polki || 0; if (!cnt) return;
       const stare = (o.pozPolek || {})[k], arr = stare && stare.length === cnt ? [...stare] : Array.from({ length: cnt }, (_, j) => ((z1 - z0) * (j + 1)) / (cnt + 1));
@@ -1714,16 +1742,27 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     }
     return [["agd", id, SPRZETY[(q || wnetrze.find((a) => a.id === id) || {}).typ] ? "AGD" : "AGD", "piekarnik"]];
   }
+  const pasujeDoZakladki = (id) => zakladkiDla(id).some(([z, oid]) => z === zakladka && oid === id);
+  // „Co zmienić?” w panelu — po pojedynczym kliknieciu w element spoza otwartej zakladki
+  function wyborCo(id) {
+    const nazwa = String(id).startsWith("g:") ? `szafka górna nad „${nazwaCelu(id.slice(2)) || "zmywarką"}”` : `„${nazwaCelu(id) || ""}”`;
+    return `<div class="szczegol karta"><div class="naglowek">${ikona("sz_2drzwi")}<div><b>Zaznaczono: ${nazwa}</b><span>Co zmienić? (dwuklik albo prawy przycisk na rysunku — to samo)</span></div></div><div class="menu-w">`
+      + zakladkiDla(id).map(([z, oid, l, ik]) => `<button class="poz" data-mz="${z}" data-mid="${oid}">${ikona(ik)}<span>${l}</span></button>`).join("") + `</div></div>`;
+  }
   let menu = null;
   const zamknijMenu = () => { if (menu) { menu.remove(); menu = null; } };
   function ustawZakladke(z) {
     zakladka = z; wybranyTyp = null; przesuwany = null;
     document.querySelectorAll(".tab").forEach((x) => x.setAttribute("aria-selected", String(x.dataset.tab === z)));
   }
+  // pojedyncze dotkniecie: sprzet spoza AGD — od razu AGD; szafka — zaznaczona, wybor w panelu
   function poDotknieciu(e, id) {
     const opcje = zakladkiDla(id);
-    if (opcje.some(([z, oid]) => z === zakladka && oid === id)) return;            // otwarta zakladka pasuje
-    if (opcje.length === 1) { ustawZakladke(opcje[0][0]); zaznaczony = opcje[0][1]; return; }
+    if (opcje.some(([z, oid]) => z === zakladka && oid === id)) return;
+    if (opcje.length === 1) { ustawZakladke(opcje[0][0]); zaznaczony = opcje[0][1]; }
+  }
+  function pokazMenu(e, id) {
+    const opcje = zakladkiDla(id);
     zamknijMenu();
     const nazwa = String(id).startsWith("g:") ? `górna nad „${nazwaCelu(id.slice(2)) || "zmywarką"}”` : nazwaCelu(id) ? `„${nazwaCelu(id)}”` : "";
     menu = document.createElement("div"); menu.className = "menu"; menu.setAttribute("role", "dialog"); menu.setAttribute("aria-label", "Co zmienić?");
@@ -1741,6 +1780,50 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     });
   }
   document.addEventListener("pointerdown", (e) => { if (menu && !menu.contains(e.target)) zamknijMenu(); }, true);
+  // dwuklik albo prawy przycisk na elemencie rysunku: okienko „Co zmienić?”; dwuklik na polce (zakladka Polki) — swiatlo
+  const idZCelu = (t) => { const ph = t.closest(".polkaH"); if (ph) return null; const sz = t.closest(".szaf"); if (sz) return sz.dataset.sz; const gr = t.closest(".gorna"); if (gr) return "g:" + gr.dataset.g; const po = t.closest(".post"); return po ? po.dataset.id : null; };
+  function menuNaRysunku(e) {
+    const ph = e.target.closest(".polkaH");
+    if (ph && e.type === "dblclick") { e.preventDefault(); edytorPolki(e, ph.dataset); return; }
+    const id = idZCelu(e.target); if (!id) return;
+    e.preventDefault(); zaznaczony = id; wybranyTyp = null; przesuwany = null; odswiez(); pokazMenu(e, id);
+  }
+  svg.addEventListener("dblclick", menuNaRysunku);
+  // wlasny dwuklik / podwojne dotkniecie: pierwsze klikniecie przerysowuje rysunek, wiec przegladarka nie laczy klikniec
+  let ostatniTap = null;
+  const podwojny = (klucz) => { const t = Date.now(), ok = !!ostatniTap && ostatniTap.k === klucz && t - ostatniTap.t < 450; ostatniTap = ok ? null : { k: klucz, t }; return ok; };
+  svg.addEventListener("contextmenu", menuNaRysunku);
+  /* Swiatlo polki (uzytkownik 2026-11-09): dwuklik na polce — najnizsza: swiatlo od dna szafki, wyzsza: od polki ponizej
+     (polka 18 mm, dno 18 mm — makieta). */
+  function edytorPolki(e, ds) {
+    const o = wlObj(ds.wl); if (!o) return;
+    const k = ds.k, i = Number(ds.i), z0 = Number(ds.z0), z1 = Number(ds.z1), cnt = k ? polkiKol(o)[k === "L" ? 0 : 1] : o.polki || 0; if (!cnt) return;
+    const stare = (o.pozPolek || {})[k], arr = stare && stare.length === cnt ? [...stare] : Array.from({ length: cnt }, (_, j) => ((z1 - z0) * (j + 1)) / (cnt + 1));
+    const pod = i ? arr[i - 1] + 9 : 18, sw = Math.round(arr[i] - 9 - pod);
+    zamknijMenu();
+    menu = document.createElement("div"); menu.className = "menu"; menu.setAttribute("role", "dialog"); menu.setAttribute("aria-label", "Światło półki");
+    menu.innerHTML = `<div class="tyt"><b>Półka ${i + 1}${k ? (k === "L" ? " · lewa kolumna" : " · prawa kolumna") : ""}</b><button data-zamknij aria-label="Zamknij">×</button></div>`
+      + `<label style="font-size:12.5px" for="swPolki">${i ? "Światło od półki poniżej" : "Światło od dna szafki"}</label>`
+      + `<div class="wys"><input id="swPolki" type="number" step="1" value="${sw}"><span>mm</span><button class="btn on" data-ok>OK</button></div>`
+      + `<button class="poz" data-rowno>Półki po równo</button>`;
+    document.body.appendChild(menu);
+    const r = menu.getBoundingClientRect();
+    menu.style.left = Math.min(window.innerWidth - r.width - 8, Math.max(8, e.clientX + 10)) + "px"; menu.style.top = Math.min(window.innerHeight - r.height - 8, Math.max(8, e.clientY + 10)) + "px";
+    const pole = menu.querySelector("#swPolki"); pole.focus(); pole.select();
+    const zastosuj = () => {
+      const v = Math.round(Number(pole.value)); if (!isFinite(v)) return;
+      const dol = i ? arr[i - 1] + 60 : 40, gora = i < cnt - 1 ? arr[i + 1] - 60 : z1 - z0 - 40;
+      arr[i] = Math.max(dol, Math.min(gora, pod + v + 9));
+      o.pozPolek = { ...(o.pozPolek || {}), [k]: arr }; zamknijMenu(); odswiez();
+    };
+    pole.addEventListener("keydown", (ev) => { if (ev.key === "Enter") zastosuj(); if (ev.key === "Escape") zamknijMenu(); });
+    menu.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      if (ev.target.closest("[data-ok]")) zastosuj();
+      else if (ev.target.closest("[data-rowno]")) { if (o.pozPolek) delete o.pozPolek[k]; zamknijMenu(); odswiez(); }
+      else if (ev.target.closest("[data-zamknij]")) zamknijMenu();
+    });
+  }
   const koniec = (e) => {
     if (!drag || e.pointerId !== drag.pid) return;
     const d = drag; drag = null; schowajDucha();
@@ -1752,9 +1835,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     }
     // dotkniecie bez ruchu
     if (d.id) {
-      const nowy = !(zaznaczony === d.id && !przesuwany);
-      zaznaczony = nowy ? d.id : null; przesuwany = null; wybranyTyp = null;
-      if (nowy) poDotknieciu(e, d.id);
+      zaznaczony = d.id; przesuwany = null; wybranyTyp = null;   // ponowne klikniecie nie odznacza (dwuklik — okienko)
+      if (podwojny("e:" + d.id)) { odswiez(); pokazMenu(e, d.id); return; }
+      poDotknieciu(e, d.id);
     }
     else { wybranyTyp = wybranyTyp === d.typ ? null : d.typ; przesuwany = null; }
     odswiez();
@@ -1762,6 +1845,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   window.addEventListener("pointerup", (e) => {
     if (uchDrag && e.pointerId === uchDrag.pid) { uchDrag = null; odswiez(); return; }
     if (!polkaDrag || e.pointerId !== polkaDrag.pid) return;
+    if (!polkaDrag.ruszyl) {
+      const pd = polkaDrag; polkaDrag = null;
+      if (podwojny(`p:${pd.wl}|${pd.k}|${pd.i}`)) { odswiez(); edytorPolki(e, { wl: pd.wl, k: pd.k, i: String(pd.i), z0: String(pd.z0), z1: String(pd.z1) }); }
+      return;
+    }
     const o = wlObj(polkaDrag.wl), k = polkaDrag.k;
     if (o && o.pozPolek && o.pozPolek[k]) o.pozPolek[k] = [...o.pozPolek[k]].sort((a, b) => a - b);   // kolejnosc od dolu
     polkaDrag = null; odswiez();
@@ -1773,7 +1861,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const typ = wybranyTyp || (przesuwany && typPrzes(przesuwany));
     // dotkniecie szafki gornej — zaznacza ja (karta w panelu)
     const gr = !typ && e.target.closest(".gorna");
-    if (gr) { const id = "g:" + gr.dataset.g; const nowy = zaznaczony !== id; zaznaczony = nowy ? id : null; if (nowy) poDotknieciu(e, id); odswiez(); return; }
+    if (gr) { const id = "g:" + gr.dataset.g; zaznaczony = id; if (podwojny("e:" + id)) { odswiez(); pokazMenu(e, id); return; } poDotknieciu(e, id); odswiez(); return; }
     if (!typ) return;
     const c = trafia(e);
     if (!c) return;
