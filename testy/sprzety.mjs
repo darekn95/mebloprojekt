@@ -296,6 +296,20 @@ console.log('\n== sprzęt w ciągu bez korpusu (użytkownik 2026-11-05): zmywark
   ok('ciąg z boku: profile zmywarki i lodówki', (await ile('[data-el="sprzet-ciagu-z-boku"]')) === 2, String(await ile('[data-el="sprzet-ciagu-z-boku"]')));
   const z3 = await bryly3d('3D');
   ok('3D ciągu: bryły zmywarki i lodówki', z3.bryla === 2, JSON.stringify(z3));
+  // zmywarka wolnostojaca (uzytkownik 2026-11-09, z makiety): pod blatem albo z pokrywa, bez frontu meblowego, cokol z przerwa
+  await page.locator('[data-el="z-szablonu"]').first().selectOption('zmywarka-wolno'); await page.waitForTimeout(1000);
+  p = await zap();
+  const zw = p.items[p.active];
+  ok('„+ z szablonu… Zmywarka wolnostojąca”: 600 × 820, bez cokołu i nóżek', zw.cab.sprzetCiagu.typ === 'zmywarkaW' && zw.cab.W === 600 && zw.cab.H === 820
+    && !zw.cab.plinth.on && !(zw.cab.legs || {}).on, JSON.stringify({ n: zw.cab.name, W: zw.cab.W, H: zw.cab.H, legs: zw.cab.legs }));
+  ok('pod blatem: informacja „blat idzie nad nią, cokół ciągu ma przerwę”, bez frontu w formatkach', await jest(/Zmywarka pod blatem: zdejmujesz jej pokrywę, blat idzie nad nią, cokół ciągu ma przerwę/)
+    && !(await jest(/Wysokość 820 mm nie zgadza się z ciągiem/)));
+  await page.locator('[data-el="zmywarka-pokrywa"] button').filter({ hasText: 'z własną pokrywą' }).click(); await page.waitForTimeout(900);
+  p = await zap();
+  ok('„z własną pokrywą”: wysokość 850, blat kończy się przy jej boku (na końcu ciągu)', p.items[p.active].cab.H === 850 && p.items[p.active].cab.sprzetCiagu.pokrywa === true
+    && await jest(/Zmywarka z pokrywą „Zmywarka 2" stoi na końcu ciągu — blat i cokół kończą się przy jej boku/));
+  await widok('Ciąg'); await widok('Zamk.');
+  ok('rysunek ciągu: pokrywa zmywarki wolnostojącej', (await ile('[data-el="pokrywa-zmywarki"]')) === 1, String(await ile('[data-el="pokrywa-zmywarki"]')));
 }
 
 ok('bez błędów strony', !errors.length, errors.join(' / '));

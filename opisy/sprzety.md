@@ -76,6 +76,18 @@ przy niej bokami; „Scal szafki” jej nie łączy.
   600 mm”; × od podłogi do spodu blatu poza 815–875; × za płytko — „Głębokość …”;
 - otwieranie: drzwi opadają w dół jak klapa (przed cokołem).
 
+**Zmywarka wolnostojąca** (użytkownik 2026-11-09, z makiety — wartości przykładowe; szablon „Zmywarka
+wolnostojąca”, typ w karcie „Sprzęt w ciągu”):
+- własne drzwi, bez korpusu i bez frontu meblowego — w zamówieniu nic do niej; stoi na podłodze, bez cokołu
+  i nóżek (wspólne wymiary ciągu jej nie zmieniają), **cokół ciągu ma pod nią przerwę** (drzwi i listwa
+  sięgają podłogi);
+- **montaż „pod blatem”** (domyślnie) — pokrywa zdjęta, ok. 815 mm (pole „Wysokość bez pokrywy”), blat ciągu
+  idzie nad nią; × od podłogi do spodu blatu mniej niż 815 — „Wysokość 815 mm”;
+- **montaż „z własną pokrywą”** — 850 mm, blat kończy się przy jej boku (informacja jak przy lodówce:
+  na końcu / w środku ciągu); ! inna wysokość pozycji — „Wysokość 850 mm”;
+- model 60 / 45 cm; × miejsce węższe, ! szersze o ponad 5 mm — „Miejsce N mm”;
+- otwieranie: drzwi opadają w dół jak klapa (od lica, w linii frontów szafek obok).
+
 **Lodówka wolnostojąca** (typowo 600 × 1850 × 650 w miejscu 700, luzy 50 z boków, 100 nad nią,
 50 z tyłu):
 - **luz z lewej i z prawej osobno** (użytkownik 2026-11-09, z makiety; puste = luz z boku 50). Lodówka stoi
@@ -256,7 +268,8 @@ frontach to zapas, żeby front sprzętu nie dotykał frontu nad nim.
     `rail.podWyciecie` → `otwory`, `laczniki` (`lacznikiWzmocnienia`) w `computeGeo`, przyciski
     `wzmblat:` / `wzmstoj:`, rysunek `WycieciaWzmocnienia` (rzut z góry), 3D `boxOtw`;
   - karta: `uiSprzetu`;
-  - sprzęt w ciągu: `SPRZETY_CIAGU`, `sprzetCiagu`, `lodowkaCiagu`, `geoSprzetuCiagu` (`geo.bezKorpusu`,
+  - sprzęt w ciągu: `SPRZETY_CIAGU` (zmywarka, zmywarkaW, lodowka), `sprzetCiagu`, `lodowkaCiagu`, `naPodlodzeCiagu`
+    (lodówka i zmywarka wolnostojąca — cokół z przerwą, bez wspólnych wymiarów), `bezBlatuCiagu` (blat kończy się przy niej), `geoSprzetuCiagu` (`geo.bezKorpusu`,
     `geo.sprzetCiagu`), szablony `zmywarka` / `lodowka-wolno`, karta `uiSprzetuCiagu`, cokół z przerwą
     w `runPlinth`, blat w `worktopLevel`, uwagi w `worktopMsgs` / `runCabMsgs`, przyciski `sprzetcw:` /
     `sprzetch:`, rysunki `SprzetCiaguElew`, `SprzetCiaguWidok`, `SprzetCiagu3D`, `AssemblySideView`,
