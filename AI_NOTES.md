@@ -1027,6 +1027,10 @@ klikniecie tylko zaznacza (nie odznacza); szafka spoza zakladki (np. przy AGD) �
 dwuklik / podwojne dotkniecie (wlasne wykrywanie — rysunek przerysowuje sie miedzy kliknieciami) albo prawy przycisk —
 okienko „Co zmienić?”. Dwuklik na polce — okienko swiatla: najnizsza od dna szafki (dno 18), wyzsza od polki ponizej
 (polka 18); etykiety przy polkach pokazuja swiatlo (↕).
+[AI-INFO] Wersja 18 (uzytkownik 2026-11-09): przeciagana polka najechana na polke innej szafki (albo drugiej kolumny,
+w promieniu 45 mm) staje na tej samej wysokosci od podlogi (bez zaokraglania do 10), linia pomocnicza „równo” przez
+caly rysunek; kazda narysowana polka ma `.polkaV` z polozeniem (data-yy, x0, x1). W aplikacji: to samo jako wyrownanie
+do polek sasiednich szafek (te same rzedy otworow).
 [AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
 do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
 rant i kasete szer. × glab. × w dol (bryla pod blatem = kaseta, nie obrys wyciecia; wyciecie plyty = kaseta + luz),

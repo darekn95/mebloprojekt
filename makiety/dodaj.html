@@ -400,6 +400,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   let zaznaczony = null;      // id postawionego sprzetu
   let przesuwany = null;      // id postawionego sprzetu w trybie „Przesuń” (dotknieciem)
   let drag = null;            // przeciaganie
+  let prowadnica = null;      // przeciagana polka „równo” z polka obok: { yy } (mm od podlogi) — linia pomocnicza
 
   // --- ikony ---
   const IK = {
@@ -745,14 +746,14 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     const yg = sd && !q.szuflDol ? sd.d0 : y1;                                               // gora strefy polek
     if (wnetrze) {
       const n = q.polki || 0, [nL, nP] = q.przegroda ? polkiKol(q) : [n, n];
-      const polka = (xx, ww, yy) => `<rect x="${xx}" y="${yEl(yy) - 9}" width="${ww}" height="18" fill="var(--top)" opacity=".55"/>`;
+      const polka = (xx, ww, yy, k = "x") => `<rect class="polkaV" data-wl="${wl || ""}" data-k="${k}" data-yy="${yy}" data-x0="${xx}" data-x1="${xx + ww}" x="${xx}" y="${yEl(yy) - 9}" width="${ww}" height="18" fill="var(--top)" opacity=".55"/>`;
       /* Wysokosci polek (uzytkownik 2026-11-08: „przeciąganie”): `q.pozPolek[k]` — od dolu strefy polek (yd), k: "" / "L" / "P";
          brak albo inna liczba — po rowno. Chwytak (przezroczysty pasek) do przeciagania; przy zaznaczonej szafce wymiar. */
       const zazn = zaznW;
       const poz = (k, cnt) => { const a = (q.pozPolek || {})[k]; return a && a.length === cnt ? a.map((v) => yd + v) : Array.from({ length: cnt }, (_, i) => yd + ((yg - yd) * (i + 1)) / (cnt + 1)); };
       // swiatlo pod polka: od dna (18) albo od polki ponizej — jak w aplikacji; chwytak tylko w zakladce Polki
       const swiatlo = (yy, i, a) => Math.round(yy - 9 - (i ? a[i - 1] + 9 : yd + 18));
-      const polkaD = (xx, ww, yy, k, i, a) => polka(xx, ww, yy) + (wl && zazn && zakladka === "polki" ? `<rect class="polkaH" data-wl="${wl}" data-k="${k}" data-i="${i}" data-z0="${yd}" data-z1="${yg}" x="${xx}" y="${yEl(yy) - 24}" width="${ww}" height="48" fill="transparent" pointer-events="all" style="cursor:ns-resize;touch-action:none"/>` : "")
+      const polkaD = (xx, ww, yy, k, i, a) => polka(xx, ww, yy, k) + (wl && zazn && zakladka === "polki" ? `<rect class="polkaH" data-wl="${wl}" data-k="${k}" data-i="${i}" data-z0="${yd}" data-z1="${yg}" x="${xx}" y="${yEl(yy) - 24}" width="${ww}" height="48" fill="transparent" pointer-events="all" style="cursor:ns-resize;touch-action:none"/>` : "")
         + (zazn ? `<text class="mm" pointer-events="none" x="${xx + ww - 8}" y="${yEl(yy) + 42}" font-size="34" text-anchor="end" fill="var(--accent)">↕${swiatlo(yy, i, a)}</text>` : "");
       const rura = (xx, ww, yy) => `<line x1="${xx + 20}" y1="${yEl(yy)}" x2="${xx + ww - 20}" y2="${yEl(yy)}" stroke="var(--metal)" stroke-width="12" stroke-linecap="round"/>`
         + [0.3, 0.5, 0.7].map((f) => `<path d="M${xx + ww * f} ${yEl(yy)} l-50 70 h100 z" fill="none" stroke="var(--muted)" stroke-width="4"/>`).join("");
@@ -1083,6 +1084,8 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         }
       }
     });
+    if (prowadnica) s += `<line x1="-40" y1="${yEl(prowadnica.yy)}" x2="${Wr + 40}" y2="${yEl(prowadnica.yy)}" stroke="var(--accent)" stroke-width="5" stroke-dasharray="24 14" pointer-events="none"/>`
+      + `<text class="mm" x="${Wr + 50}" y="${yEl(prowadnica.yy) + 14}" font-size="40" fill="var(--accent)" pointer-events="none">równo</text>`;
     svg.innerHTML = s;
     svg._cele = C;
   }
@@ -1232,7 +1235,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
      dotknieciem; to samo da sie zrobic przyciskami w karcie szafki (bez przeciagania). */
   const ZAK = {
     szafka: ["Szafka", "Przeciągnij miniaturę w ciąg — stanie między szafkami, reszta się rozsunie. Szerokość, front i wnętrze zmienisz potem w karcie szafki."],
-    polki: ["Półki", "Przeciągnij półkę na szafkę — każde upuszczenie to jedna półka więcej (najwyżej 6); przy przegrodzie trafia do kolumny, nad którą ją puścisz. Postawioną półkę przeciągnij w górę albo w dół, żeby zmienić wysokość."],
+    polki: ["Półki", "Przeciągnij półkę na szafkę — każde upuszczenie to jedna półka więcej (najwyżej 6); przy przegrodzie trafia do kolumny, nad którą ją puścisz. Postawioną półkę przeciągnij w górę albo w dół; najedź nią na półkę szafki obok — stanie równo z nią."],
     drzwi: ["Drzwi i klapy", "Przeciągnij front na szafkę — zastąpi to, co było (także szuflady)."],
     szuflady: ["Szuflady", "Tylko w dolnych szafkach. Zestaw szuflad zastępuje drzwi, półki i przegrodę."],
     przegroda: ["Przegroda", "Przeciągnij na szafkę — podzieli ją na 2 kolumny. Rysunek pokazuje teraz wnętrze szafek."],
@@ -1708,10 +1711,21 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       const o = wlObj(polkaDrag.wl); if (!o) return;
       const { k, i, z0, z1 } = polkaDrag, cnt = k ? polkiKol(o)[k === "L" ? 0 : 1] : o.polki || 0; if (!cnt) return;
       const stare = (o.pozPolek || {})[k], arr = stare && stare.length === cnt ? [...stare] : Array.from({ length: cnt }, (_, j) => ((z1 - z0) * (j + 1)) / (cnt + 1));
-      const mm = Y_EL + H_EL - doSvg(e).y - z0;                       // od dolu strefy polek
+      /* „Równo z półką obok” (uzytkownik 2026-11-09): przeciagajac, najedz na polke innej szafki (albo drugiej kolumny) —
+         polka staje na tej samej wysokosci; linia pomocnicza na rysunku */
+      const pt = doSvg(e), mmAbs = Y_EL + H_EL - pt.y;
+      let cel = null;
+      svg.querySelectorAll(".polkaV").forEach((el) => {
+        if (el.dataset.wl === polkaDrag.wl && el.dataset.k === polkaDrag.k) return;
+        const yy = Number(el.dataset.yy);
+        if (pt.x < Number(el.dataset.x0) || pt.x > Number(el.dataset.x1) || Math.abs(mmAbs - yy) > 45 || yy < z0 + 40 || yy > z1 - 40) return;
+        if (!cel || Math.abs(mmAbs - yy) < Math.abs(mmAbs - cel)) cel = yy;
+      });
+      const mm = cel != null ? cel - z0 : mmAbs - z0;                  // od dolu strefy polek
       // co 10 mm, najmniej 60 mm od sasiednich polek (i 40 od dolu / gory strefy) — kolejnosc zostaje
       const dol = i > 0 ? arr[i - 1] + 60 : 40, gora = i < cnt - 1 ? arr[i + 1] - 60 : z1 - z0 - 40;
-      arr[i] = Math.max(dol, Math.min(gora, Math.round(mm / 10) * 10));
+      arr[i] = Math.max(dol, Math.min(gora, cel != null ? Math.round(mm) : Math.round(mm / 10) * 10));
+      prowadnica = cel != null && Math.abs(z0 + arr[i] - cel) < 1 ? { yy: cel } : null;
       o.pozPolek = { ...(o.pozPolek || {}), [k]: arr };
       rysuj(); return;
     }
@@ -1845,6 +1859,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   window.addEventListener("pointerup", (e) => {
     if (uchDrag && e.pointerId === uchDrag.pid) { uchDrag = null; odswiez(); return; }
     if (!polkaDrag || e.pointerId !== polkaDrag.pid) return;
+    prowadnica = null;
     if (!polkaDrag.ruszyl) {
       const pd = polkaDrag; polkaDrag = null;
       if (podwojny(`p:${pd.wl}|${pd.k}|${pd.i}`)) { odswiez(); edytorPolki(e, { wl: pd.wl, k: pd.k, i: String(pd.i), z0: String(pd.z0), z1: String(pd.z1) }); }
