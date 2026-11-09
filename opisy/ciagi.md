@@ -57,6 +57,10 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - do którego ciągu, za nim czy przed nim, kto w róg;
   - szafka w rogu: ślepa z fixem, w L albo bez;
   - szerokość, ramię, wstawka, blat.
+- **Rodzaj zabudowy** (`run.zabudowa`, użytkownik 2026-11-09 — „na ciąg”): kuchnia (domyślnie, także stare projekty) /
+  szafa w zabudowie / wolnostojąca. Ustawia się w nagłówku ciągu w makiecie; kuchnia włącza blat roboczy ciągu
+  (stojącego), szafa i wolnostojąca go wyłączają. Ciąg górny bierze rodzaj od dolnego. Na liczenie wpływa tylko przez
+  blat; reszta to makieta (paleta, AGD, ściana, szerokości do kliknięcia).
 - **Pasek ciągów**: „+ nowy ciąg”, „+ szafka”, „+ ciąg górny”, nazwa ściany (kliknięcie), „× usuń ciąg”, przenoszenie do innego pomieszczenia.
 
 ## Kontrole i przyciski

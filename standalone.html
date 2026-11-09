@@ -2246,6 +2246,9 @@ const migrateRun = (r) => ({
     ? r.topCutsWlasne.map((n) => Math.round(Number(n))).filter((n) => n > 0).sort((a, b) => a - b) : [],
   // blat roboczy przez caly ciag; w starych projektach pola nie ma, wiec zostaje wylaczony
   worktop: r.worktop === true,
+  /* Rodzaj zabudowy ciagu (uzytkownik 2026-11-09, makieta: „Rodzaj zabudowy” — na ciag): kuchnia (blat, AGD, ciag gorny) /
+     szafa w zabudowie (bez blatu) / wolnostojaca (bez sciany). null = kuchnia (stare projekty). Ustawia palete makiety. */
+  zabudowa: ["kuchnia", "szafa", "wolnostojaca"].includes(r.zabudowa) ? r.zabudowa : null,
   /* Wspolny wieniec z plyty i wspolne dno przez ciag (uzytkownik 2026-10-24,
      szafki RTV) — opcje jak blat roboczy; `wieniecZCiagu` / `dnoZCiagu`. */
   wspolnyWieniec: r.wspolnyWieniec === true && r.worktop !== true,
@@ -20661,6 +20664,20 @@ const TRYBY = [["prosta", "Makieta prosta"], ["szczegolowa", "Makieta szczegół
 const MAK_ZAKLADKI = [["dodaj", "Dodaj"], ["szafka", "Szafka"], ["szuflady", "Szuflady"], ["polki", "Półki"], ["drzwi", "Drzwi i klapy"],
   ["przegroda", "Przegroda"], ["cokol", "Cokół i nóżki"]];
 // „Dodaj” — co dodac (rozwijane jak lista): klucz, nazwa, opis, ikona (MAK_IKONY), zakladka palety
+// rodzaj zabudowy ciagu (`run.zabudowa`) — ciag gorny bierze go od dolnego; szafka bez ciagu — wolnostojaca
+const MAK_RODZAJE = [["kuchnia", "Kuchnia"], ["szafa", "Szafa (bez blatu)"], ["wolnostojaca", "Wolnostojąca"]];
+const rodzajCiagu = (project, run) => {
+  if (!run) return "wolnostojaca";
+  const b = run.tier === "gorny" ? (project.runs || []).find((r) => r.id === run.wall) || run : run;
+  return b.zabudowa || "kuchnia";
+};
+// grupy palety „Nowe szafki” dla rodzaju — ida na poczatek
+const MAK_RODZ_GRUPY = { kuchnia: ["Kuchnia — dół", "Kuchnia — góra"], szafa: ["Szafa w zabudowie"], wolnostojaca: ["Wolnostojące"] };
+/* Szerokosci i wysokosci do klikniecia w karcie „Szafka” — jak w makiecie „Dodaj” (SZER_D / SZER_S / SZER_SZAFA /
+   SZER_WOLNA / WYS_WOLNA); pole liczby zostaje. */
+const MAK_SZER = { dolna: [300, 400, 450, 500, 600, 800, 900], slupek: [400, 450, 500, 600], szafa: [400, 500, 600, 800, 1000, 1200],
+  wolnostojaca: [400, 450, 600, 800, 1000, 1200, 1600] };
+const MAK_WYS_WOLNA = [450, 500, 720, 750, 800, 900, 1200, 1700, 2000];
 const MAK_DODAJ = [["agd", "AGD", "sprzęt do zabudowy, w ciąg i na blat", "agd", "agd"], ["szafki", "Nowe szafki", "kuchnia, szafa w zabudowie, wolnostojące", "szafka", "szafka"],
   ["elementy", "Elementy szafki", "szuflady, półki, drzwi i klapy, przegroda", "szuflady", "elementy"]];
 /* Ikony jak w makiecie „Dodaj” (uzytkownik 2026-11-09: „popraw widok żeby był jak w artefakcie makieta”). */
@@ -21066,7 +21083,7 @@ const MAK_KLOCKI = [
   { id: "przegroda", nazwa: "Przegroda", przegroda: true },
 ];
 
-function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien }) {
+function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia" }) {
   const kafel = (el, id, l, opis, onClick, ikona) => (
     <button key={id} data-el={el} data-id={id} draggable
       onDragStart={(e) => { try { e.dataTransfer.setData("text/plain", `${el}:${id}`); e.dataTransfer.effectAllowed = "copy"; } catch (er) { /* bez danych */ } zacznij({ el, id }); }}
@@ -21124,7 +21141,7 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
     <div className="space-y-2" data-el="mak-paleta">
       <p className="text-[12px] text-stone-500">Przeciągnij miniaturę w ciąg — stanie przed albo za szafką, na którą upuścisz; klik — na koniec ciągu zaznaczonej szafki.</p>
       {kom}
-      {MAK_PALETA.map((g) => (
+      {[...MAK_PALETA].sort((a, b) => Number(!(MAK_RODZ_GRUPY[rodzaj] || []).includes(a.grupa)) - Number(!(MAK_RODZ_GRUPY[rodzaj] || []).includes(b.grupa))).map((g) => (
         <div key={g.grupa}>
           {naglowek(g.grupa)}
           <div className="grid grid-cols-2 gap-1">{g.wzory.map((w) => kafel("mak-wzor", w.id, makNazwaWzoru(w), w.opis, () => onWzor(w, null), ikonaWzoru(w)))}</div>
@@ -21269,7 +21286,19 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   // ciag wiszacy: ani cokolu, ani nozek, ani blatu (jak karta ciagu w trybie technicznym — `ciagWisi`)
   const wisi = !!run && (run.tier === "gorny" || run.mountY > 0 || !!runRail(project, run));
   const naCiag = run ? <p key="nc" className="text-[11px] text-stone-500">Dla całego ciągu „{run.name || "ciąg"}”.</p> : null;
-  if (zakladka === "szafka") tresc = [<Pole key="pW" k="W" l="Szerokość" />, <Pole key="pH" k="H" l="Wysokość" />, <Pole key="pD" k="D" l="Głębokość" />,
+  const rodzK = rodzajCiagu(project, run);
+  const szerChips = MAK_SZER[rodzK === "kuchnia" ? (cab.slupek || cab.H > 1500 ? "slupek" : "dolna") : rodzK];
+  const chips = (el, lista, akt, fn) => (
+    <div key={el} className="flex flex-wrap gap-1 border-b border-stone-100 py-1" data-el={el}>
+      {lista.map((v) => <Btn key={v} el={`${el}-v`} v={v} on={Math.round(akt) === v} onClick={() => fn(v)}>{v}</Btn>)}
+    </div>
+  );
+  if (zakladka === "szafka") tresc = [<Pole key="pW" k="W" l="Szerokość" />,
+    // szerokosci jak w makiecie „Dodaj” (rodzaj zabudowy ciagu; wolnostojaca — tez wysokosci)
+    ...(cab.sprzetCiagu ? [] : [chips("mak-szer", szerChips, cab.W, (v) => zmien(idx, (c) => { c.W = v; }))]),
+    <Pole key="pH" k="H" l="Wysokość" />,
+    ...(rodzK === "wolnostojaca" ? [chips("mak-wys", MAK_WYS_WOLNA, cab.H, (v) => (run && zmienWys ? zmienWys(idx, v) : zmien(idx, (c) => { c.H = v; })))] : []),
+    <Pole key="pD" k="D" l="Głębokość" />,
     // bez wiersza „Ciąg” (uzytkownik 2026-11-09: „widać to na górze rysunku” — przycisk „Ciąg ▾”)
     ...(run && !wisi ? [wiersz("blat", "Blat roboczy ciągu", [
       <Btn key="t" el="mak-blat" v="tak" on={!!run.worktop} onClick={() => ciag.setRun(run.id, { worktop: true })}>jest</Btn>,
@@ -21749,6 +21778,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   const pokazWolne = ciagId === "wszystkie" || (ciagId === "aktywny" && aktIt && !aktIt.runId);
   // „Tylko zaznaczona szafka” (uzytkownik 2026-11-09: „można by zwiększyć rysunek”) — jedna szafka na cały rysunek
   const samaSzafka = ciagId === "szafka" && !!aktIt;
+  const runAkt = aktIt && aktIt.runId ? (project.runs || []).find((r) => r.id === aktIt.runId) || null : null;
+  const rodzaj = rodzajCiagu(project, runAkt);
   const zakl = [...MAK_ZAKLADKI, ...(tryb === "szczegolowa" ? MAK_ZAKLADKI_SZCZ : [])];
   const akt = zakl.some(([k]) => k === zakladka) ? zakladka : "szafka";
   // Polki / Szuflady / Przegroda — rysunek otwarty (wnetrze), zeby bylo co chwycic; widok z gory zostaje
@@ -21789,11 +21820,11 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     if (zoomM.pow) return Math.max(0.05, Math.min(8, ((wysR - 40) / (top + 80)) * zoomM.z));
     if (!(plotnoW > 0)) return null;
     const Lw = zWolnych ? null : runLayout(groups, full);
-    const scDo = Lw && Lw.walls.length === 1 ? Math.max(0, ...groups.map((g) => runWallW(project, g.run) || 0)) : 0;
+    const scDo = Lw && Lw.walls.length === 1 && rodzaj !== "wolnostojaca" ? Math.max(0, ...groups.map((g) => runWallW(project, g.run) || 0)) : 0;
     const szer = zWolnych ? wolneSk.reduce((a, { it }) => a + (it.cab.W || 0) + 200, -200) + 80 : Math.max(1, Lw.elevTotal, scDo) + 80;
-    const wys = Math.max(top, zWolnych ? 0 : MAK_SCIANA) + 80 + (przel.zgory && !samaSzafka ? 900 : 0);
+    const wys = Math.max(top, zWolnych || rodzaj === "wolnostojaca" ? 0 : MAK_SCIANA) + 80 + (przel.zgory && !samaSzafka ? 900 : 0);
     return Math.max(0.05, Math.min(2, (plotnoW - 4) / szer, (wysR - 55) / wys) * zoomM.z);
-  }, [project, skalaKlucz, oknoH, plotnoW, plotnoH, lg, zoomM.pow, zoomM.z, pelny, przel.zgory, samaSzafka, wolne.length, project.active]);
+  }, [project, skalaKlucz, oknoH, plotnoW, plotnoH, lg, zoomM.pow, zoomM.z, pelny, przel.zgory, samaSzafka, wolne.length, project.active, rodzaj]);
   // Ctrl + kolko nad rysunkiem: przyblizanie w miejscu kursora (jak w trybie technicznym)
   const zoomRefM = useRef(zoomM); zoomRefM.current = zoomM;
   const poZoomie = useRef(null);
@@ -21850,7 +21881,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           {akt === "dodaj" ? (
             <div className="space-y-1.5" data-el="mak-dodaj">
               <h2 className="text-[15px] font-semibold text-stone-900">Dodaj</h2>
-              {MAK_DODAJ.map(([k, l, opis, ik, zak]) => (
+              {rodzaj !== "kuchnia" && <p className="text-[11px] text-stone-500" data-el="mak-agd-kuchnia">AGD — w ciągu kuchennym (rodzaj zabudowy nad rysunkiem).</p>}
+              {MAK_DODAJ.filter(([k]) => k !== "agd" || rodzaj === "kuchnia").map(([k, l, opis, ik, zak]) => (
                 <div key={k} className={`rounded-lg border ${dodajCo === k ? "border-teal-600" : "border-stone-200"}`}>
                   <button data-dodaj={k} aria-expanded={dodajCo === k} onClick={() => setDodajCo((v) => (v === k ? null : k))}
                     className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left ${dodajCo === k ? "bg-teal-50" : "hover:bg-stone-50"}`}>
@@ -21860,7 +21892,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                   </button>
                   {dodajCo === k && (
                     <div className="border-t border-stone-200 p-2">
-                      <MakietaPaleta zakladka={zak} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
                         project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
                         zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); setZnacznik(null); }} />
                     </div>
@@ -21877,7 +21909,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                 Żadna szafka nie jest zaznaczona{akt === "szafka" || MAK_KLOCKI_ZAKL[akt] ? " — przeciągnij na rysunek, co chcesz dodać" : ""}. Klik w szafkę pokaże jej opcje.
               </p>
               {(akt === "szafka" || MAK_KLOCKI_ZAKL[akt]) && (
-                <MakietaPaleta zakladka={akt} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+                <MakietaPaleta zakladka={akt} rodzaj={rodzaj} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
                   project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
                   zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); setZnacznik(null); }} />
               )}
@@ -21918,9 +21950,17 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           const krok = "h-6 w-7 rounded border border-stone-300 bg-white text-sm leading-none text-stone-700 hover:border-teal-600";
           return (
             <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" data-el="mak-naglowek">
-              <h2 className="text-[15px] font-semibold text-stone-900">Ciąg „{runN.name || "ciąg"}”</h2>
-              <span className="text-stone-500">ciąg {fmt(dlug)} mm</span>
-              <span className="flex items-center gap-1.5">
+              <h2 className="text-[15px] font-semibold text-stone-900">{rodzaj === "szafa" ? "Zabudowa" : "Ciąg"} „{runN.name || "ciąg"}”</h2>
+              <span className="text-stone-500">{rodzaj === "wolnostojaca" ? "szerokość" : "ciąg"} {fmt(dlug)} mm</span>
+              {/* rodzaj zabudowy na ciag (uzytkownik 2026-11-09): szafa — bez blatu, kuchnia — z blatem (stojacy ciag) */}
+              <span className="flex overflow-hidden rounded-full border border-stone-300" role="group" aria-label="Rodzaj zabudowy" data-el="mak-rodzaj">
+                {MAK_RODZAJE.map(([v, l]) => (
+                  <button key={v} data-v={v} aria-pressed={rodzaj === v}
+                    onClick={() => { if (rodzaj !== v) ciag.setRun(runN.id, { zabudowa: v, worktop: v === "kuchnia" && !(runN.mountY > 0) }); }}
+                    className={`px-2 py-0.5 text-[11px] ${rodzaj === v ? "bg-teal-700 font-semibold text-white" : "bg-white text-stone-600 hover:bg-stone-100"}`}>{l}</button>
+                ))}
+              </span>
+              {rodzaj !== "wolnostojaca" && <span className="flex items-center gap-1.5">
                 <span className="text-stone-500">ściana</span>
                 <button data-el="mak-sciana-minus" className={krok} onClick={() => ustaw(Math.max(dlug, (scW || dlug) - 100))}>−</button>
                 <input type="number" step="100" key={`sc-${scW}`} defaultValue={scW ?? ""} placeholder="—" data-el="mak-sciana"
@@ -21929,8 +21969,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                   className="w-20 rounded border border-stone-300 bg-stone-50 px-1.5 py-0.5 text-right font-mono text-xs" />
                 <button data-el="mak-sciana-plus" className={krok} onClick={() => ustaw((scW || dlug) + 100)}>+</button>
                 <span>mm</span>
-              </span>
-              {scW > 0 && (scW >= dlug
+              </span>}
+              {rodzaj !== "wolnostojaca" && scW > 0 && (scW >= dlug
                 ? <span className="text-teal-700" data-el="mak-wolne">wolne {fmt(scW - dlug)} mm</span>
                 : <span className="font-medium text-amber-700" data-el="mak-wolne">brakuje {fmt(dlug - scW)} mm</span>)}
             </div>
@@ -21993,7 +22033,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         {!samaSzafka && rysowane.length > 0 && (
           <AssemblyView project={project} runs={rysowane} rpOf={rpOf} variant={widokRys} showDims={false}
             showHardware={false} showLabels activeCab={(project.items[project.active] || {}).cab}
-            onPick={wybierz} zazn={zaznM ? project.active : null} maxH={maxHPrzod} nakladka={nakladkaPrzod} skala={skala} sciana={MAK_SCIANA} />
+            onPick={wybierz} zazn={zaznM ? project.active : null} maxH={maxHPrzod} nakladka={nakladkaPrzod} skala={skala} sciana={rodzaj === "wolnostojaca" ? null : MAK_SCIANA} />
         )}
         {pokazWolne && wolne.length > 0 && (
           <div className="mt-2">

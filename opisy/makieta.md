@@ -56,6 +56,19 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
 - Klik w szafkę (albo wybór z listy „Szafka ▾”) robi ją aktywną szafką projektu — po przejściu
   do trybu technicznego otwiera się właśnie ona.
 
+## Rodzaj zabudowy (na ciąg)
+
+Jak „Rodzaj zabudowy” w makiecie „Dodaj”, ale **na ciąg** (użytkownik 2026-11-09), `run.zabudowa`:
+- przełącznik „Kuchnia / Szafa (bez blatu) / Wolnostojąca” w nagłówku ciągu (`mak-rodzaj`); ciąg górny — jak dolny;
+  szafka bez ciągu — wolnostojąca;
+- **Kuchnia**: blat roboczy ciągu włączony (ciąg stojący), w „Dodaj” jest AGD, paleta zaczyna od „Kuchnia — dół / góra”,
+  szerokości do kliknięcia 300–900 (słupek 400–600);
+- **Szafa**: blat ciągu wyłączony, nagłówek „Zabudowa „…””, paleta od „Szafa w zabudowie”, szerokości 400–1200,
+  AGD schowane (podpowiedź „AGD — w ciągu kuchennym”);
+- **Wolnostojąca**: bez ściany (pole ściany, „wolne”, tło), paleta od „Wolnostojące”, szerokości 400–1600 i wysokości
+  450–2000 do kliknięcia (w ciągu — z pytaniem o cały ciąg), AGD schowane;
+- pole „Szerokość” zostaje — przyciski to skrót (`MAK_SZER`, `MAK_WYS_WOLNA`, liczby z makiety „Dodaj”).
+
 ## „Co zmienić?”, światło półki, przesuwanie (krok 2 planu wyrównania)
 
 Jak w makiecie „Dodaj” (zgłoszenie 2026-11-09: „nie działa dwuklik lewym i prawy myszy”):
