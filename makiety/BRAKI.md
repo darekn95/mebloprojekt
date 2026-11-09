@@ -103,3 +103,22 @@ aplikacji” są od razu, bez pisania ich drugi raz.
 
 Makieta (artefakt) zostaje wzorem wyglądu i obsługi. Poprawiamy ją tylko wtedy, gdy trzeba pokazać
 nowy pomysł, zanim trafi do aplikacji.
+
+## E. Ustalenia z użytkownikiem (2026-11-09)
+
+- **Trzy tryby**: Makieta prosta · Makieta szczegółowa · Techniczny (dzisiejsza aplikacja).
+- **Makieta prosta**:
+  - wymiary szafki, fronty (drzwi, klapy, szuflady), uchwyty i tip-on;
+  - półki, przegroda, drążek, cokół i nóżki;
+  - blat roboczy: tylko „jest / nie ma” (bez podziałów), AGD.
+  - Scalania szafek tu nie ma.
+- **Makieta szczegółowa**: **wszystkie** funkcje aplikacji, w **nowych kartach w stylu makiety**
+  (nie karty z trybu technicznego). Na rysunku też to, czego prosta nie pokazuje:
+  wzmocnienia, wycięcia, elementy kolizyjne itd.
+- **Wygląd**: jak dzisiejsza makieta (zakładki po lewej, paleta i karta, rysunek). Do tego, jak
+  w aplikacji: nazwa projektu, pomieszczenia, szafki, ciągi, widoki. Każde z nich na przycisku
+  z rozwijaną listą, w stylu przełączników „Wyposażenie / Ciąg górny / Ciąg dolny / Fronty”.
+- **Ustawienia spoza prostej**: makieta prosta ich nie kasuje (przyjęte domyślnie);
+  szczegółowa je pokazuje i pozwala zmieniać.
+- **Kolejność**: krok 1 — tryb makiety w aplikacji, podgląd z prawdziwych danych i zaznaczanie;
+  potem uchwyty, paleta i klocki, AGD.
