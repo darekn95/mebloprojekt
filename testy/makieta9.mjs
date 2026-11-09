@@ -61,6 +61,16 @@ await page.locator('[data-el="mak-poziom-szafki"][data-v="-1"]').click();
 p = await czekaj('p.items[0].cab.levels.length === 1');
 ok('„−” zdejmuje najwyższy, zostaje jeden (auto)', p.items[0].cab.levels.length === 1 && p.items[0].cab.levels[0].h == null);
 
+console.log('== półki równo z kolumną obok ==');
+await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); const c = p.items[1].cab, k0 = c.levels[0].cols[0];
+  c.levels[0].cols = [{ ...JSON.parse(JSON.stringify(k0)), w: null, shelfTargets: [300, 500, null] }, { ...JSON.parse(JSON.stringify(k0)), w: null, shelfTargets: [null, null, null, null] }];
+  p.active = 1; localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+await zakl('polki');
+await page.locator('[data-el="mak-kol-wybor"] [title="kolumna 2"]').click(); await page.waitForTimeout(250);
+await page.locator('[data-el="mak-polki-rowno"][data-v="0"]').click();
+p = await czekaj('p.items[1].cab.levels[0].cols[1].shelfTargets.length === 3');
+ok('„równo z kol. 1”: te same światła (2 półki, ostatnie auto)', JSON.stringify(p.items[1].cab.levels[0].cols[1].shelfTargets) === JSON.stringify([300, 500, null]), JSON.stringify(p.items[1].cab.levels[0].cols[1].shelfTargets));
 console.log('== szafa z szufladami z palety ==');
 await zakl('dodaj'); const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200);
 await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaSz"]').click();

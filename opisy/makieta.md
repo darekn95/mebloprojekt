@@ -64,6 +64,8 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
 - **Przegroda → poziomy szafki** (półka przez całą szerokość, np. szuflady na dole szafy): „+” dodaje poziom na górze
   (dotychczasowe dostają obecne wysokości, ostatni oddaje połowę), „−” zdejmuje najwyższy; wysokość — przeciągnij
   przegrodę poziomą na rysunku (zielony znaczek; `makWylicz` `u: "poziom"` → `levels[].h`, najwyższy auto).
+- **Półki → „równo z kol. J”** (makieta „Dodaj”: „równo z półką obok”): półki wybranej kolumny na tych samych
+  wysokościach co w sąsiedniej (światła sąsiada, najwyższe auto; drążek zostaje w najwyższym świetle).
 - **Paleta → Szafa w zabudowie → „Szafa z szufladami”** (z makiety): 800 mm, poziom dolny 600 mm z 3 szufladami,
   nad nim 2 drzwi i 2 półki.
 

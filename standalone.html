@@ -21616,7 +21616,17 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         ], "mak-kolumna");
       }
       const n = Math.max(0, (k.c.shelfTargets || [null]).length - 1);
+      /* „równo z kolumną obok” (makieta „Dodaj”: półki na tych samych wysokościach co w sąsiedniej kolumnie): swiatla
+         sasiada z geometrii (ostatnie auto) — kolumny w jednym poziomie maja te sama wysokosc */
+      const g = geoOf ? geoOf(idx) : null, lvG = g && makLv(g, k.li);
+      const sasiedzi = (lvG ? lvG.cols : []).filter((q) => typeof q.j === "number" && q.j !== k.j && Math.abs(q.j - k.j) === 1 && (q.openings || []).length > 1
+        && makKolumnaProsta(((cab.levels[k.li] || {}).cols || [])[q.j]) && ((((cab.levels[k.li] || {}).cols || [])[q.j] || {}).kind || "doors") === "doors");
+      const rowno = sasiedzi.map((q) => <Btn key={`r${q.j}`} el="mak-polki-rowno" v={q.j} onClick={() => zmienKol(k.li, k.j, (kk) => {
+        const st = q.openings.map((o) => Math.round(o.h)); st[st.length - 1] = null; kk.shelfTargets = st;
+        if ((kk.drazki || []).length) kk.drazki = [st.length - 1];
+      })}>równo z kol. {q.j + 1}</Btn>);
       return wiersz(`p${k.li}-${k.j}`, nazwaK(k), [
+        ...rowno,
         <span key="l" className="text-[11px] text-stone-500">półki</span>,
         <Btn key="m" el="mak-polki" v="-1" onClick={() => zmienKol(k.li, k.j, (kk) => ustawPolki(kk, n - 1))}>−</Btn>,
         <b key="n" className="w-5 text-center font-mono text-xs" data-el="mak-polki-n">{n}</b>,

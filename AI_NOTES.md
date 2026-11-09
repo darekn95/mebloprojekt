@@ -1154,3 +1154,7 @@ pytania zbierac i zadac WSZYSTKIE na koniec (narzedzie z opcjami). Pozostale z p
 krok 4 (wzmocnienia, polki „równo z obok”, biurko z kontenerem, szafa z szufladami). Kandydaci z przegladu: usuwanie szafki
 z makiety (× / Delete), kopiowanie szafki, poziomy szafki (cale szerokosci) — dodaj / usun, drazek w kolumnie z wysokoscia,
 uchwyty (rodzaj), material/kolor plyty i frontu (szczegolowa), nozki/cokol w ciagu juz sa, nazwa szafki w karcie.
+[AI-INFO] 2026-11-09: przeglad brakow makiety prostej — zrobione bez pytan: nazwa / kopiuj / usun szafke, poziomy calej szafki
+(+ / −, przegroda pozioma przeciagana), szafa z szufladami w palecie, polki „równo z kol. obok”, drazek przeciagany.
+Do decyzji uzytkownika (pytania zadane na koniec sesji): okap (gdzie w danych, typy), slupek z 3 sprzetami (skroty wysokosci),
+biurko z kontenerem (szablon), kolory / plyty w makiecie prostej, wzmocnienia w szczegolowej.
