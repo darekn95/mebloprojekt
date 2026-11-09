@@ -80,6 +80,19 @@ console.log('== „Sprzęt” w kolumnie poziomu 2: piekarnik ==');
   ok('po kliknięciu: poziom 2 = 373 mm, bez uwag o mikrofali', (await zap()).items[0].cab.levels[1].h === 373 && !(await jest(/mikrofala/)),
     String((await zap()).items[0].cab.levels[1].h));
 
+  console.log('\n== ekspres do zabudowy i rozmiar 45 (2026-11-09, z makiety) ==');
+  const spK = async () => ((await zap()).items[0].cab.levels.flatMap((l) => l.cols).find((c) => c.sprzet) || {}).sprzet || {};
+  await karta.getByRole('button', { name: 'Ekspres', exact: true }).click(); await page.waitForTimeout(900);
+  const reE = /wnęka na ekspres ma 373 mm wysokości — potrzeba co najmniej 450 mm/;
+  ok('„Ekspres”: wnęka 373 za niska (potrzeba 450), informacja o otwieraniu „nie sprawdzaj”', await jest(reE)
+    && (await page.locator('[data-el="ekspres-otwieranie"]').count()) === 1 && (await spK()).typ === 'ekspres');
+  await karta.getByRole('button', { name: 'Mikrofala', exact: true }).click(); await page.waitForTimeout(700);
+  await page.locator('[data-el="sprzet-rozmiar"] button').filter({ hasText: /^45 cm$/ }).click(); await page.waitForTimeout(900);
+  const sp45 = await spK();
+  ok('mikrofala „45 cm”: front 455, wnęka od 450 — za niska w poziomie 373', sp45.frontH === 455 && sp45.hMin === 450 && await jest(/wnęka na mikrofal.* 373 mm wysokości — potrzeba co najmniej 450/), JSON.stringify(sp45));
+  await page.locator('[data-el="sprzet-rozmiar"] button').filter({ hasText: /^38 cm$/ }).click(); await page.waitForTimeout(900);
+  ok('mikrofala „38 cm”: z powrotem typowa', (await spK()).frontH == null);
+
   console.log('\n== własny wymiar frontu: zachodzi na drzwi nad nim ==');
   await karta.getByRole('button', { name: 'Piekarnik', exact: true }).click(); await page.waitForTimeout(700);
   const reH = /wnęka na piekarnik ma 373 mm wysokości — potrzeba co najmniej 585 mm \(586 mm/;

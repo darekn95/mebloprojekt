@@ -30,6 +30,12 @@ miała wcześniej.
   |---|---|---|---|---|---|---|
   | piekarnik | 595 × 595 | 560–568 | 585 | 550 | w dół, 480 | 40 |
   | mikrofala | 594 × 382 | 560–568 | 362 | 300 | zawias z lewej, 450 szer. | — |
+  | ekspres | 595 × 455 | 560–568 | 450 | 550 | nie sprawdzane | — |
+
+  Ekspres do zabudowy (użytkownik 2026-11-09, z makiety — przykładowo, Electrolux KKK994500T / AEG). Jak się otwiera —
+  z karty modelu: drzwi „nie sprawdzaj” (domyślnie) pomija go w kontroli otwierania, do wyboru też w dół / zawias
+  z lewej / z prawej. **Rozmiar** piekarnika (60 / kompakt 45) i mikrofali (38 / 45): 45 to front 455 i wnęka od 450
+  (`SPRZET_ROZM`, z makiety — przykładowo).
 
 ## Lodówka
 

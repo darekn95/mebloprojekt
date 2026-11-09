@@ -312,6 +312,11 @@ const SPRZETY = {
     drzwi: "dol", drzwiWym: 480, uchwyt: 40 },
   mikrofala: { nazwa: "mikrofala", pelna: "Mikrofala do zabudowy", frontW: 594, frontH: 382, wMin: 560, wMax: 568, hMin: 362, dMin: 300,
     drzwi: "lewe", drzwiWym: 450, uchwyt: 0 },
+  /* Ekspres do zabudowy (uzytkownik 2026-11-09, z makiety — przykladowo, Electrolux KKK994500T / AEG): front 595 × 455,
+     wneka 560 × 450 × 550 (szerokosc do 568 jak inne sprzety 60 cm). Otwieranie z karty modelu — domyslnie „brak”: kontrola
+     otwierania go pomija (do wyboru: w dol / zawias z lewej / z prawej). */
+  ekspres: { nazwa: "ekspres", pelna: "Ekspres do zabudowy", frontW: 595, frontH: 455, wMin: 560, wMax: 568, hMin: 450, dMin: 550,
+    drzwi: "brak", drzwiWym: 0, uchwyt: 0 },
   /* Lodowka (uzytkownik 2026-11-05): do zabudowy — front meblowy na drzwiach lodowki, mocowany
      slizgowo (front na zawiasach szafki, z drzwiami lodowki laczy go prowadnica z kompletu) albo na
      stale (przykrecony do drzwi lodowki, bez zawiasow meblowych); 1 albo 2 fronty, przy dwoch
@@ -335,7 +340,7 @@ const SPRZETY_CIAGU = {
      meblowego i bez korpusu; pod blatem — bez pokrywy, ok. 815–820 mm, blat idzie nad nia; z pokrywa — ok. 845–850 mm,
      blat konczy sie przy jej boku. W obu cokol ciagu ma pod nia przerwe (drzwi i listwa siegaja podlogi). */
   zmywarkaW: { nazwa: "zmywarka", pelna: "Zmywarka wolnostojąca", szer: 600, hPod: 815, hPokr: 850, dMin: 550, drzwi: "dol" },
-  /* Lodowka podblatowa w ciagu (uzytkownik 2026-11-09, z makiety — przykladowo, np. Bosch KU22LVFD0, Smeg U8L080DE): jak
+/* Lodowka podblatowa w ciagu (uzytkownik 2026-11-09, z makiety — przykladowo, np. Bosch KU22LVFD0, Smeg U8L080DE): jak
      zmywarka do zabudowy — bez korpusu, front meblowy przykrecony do drzwi lodowki, cokol i blat ciagu ida dalej; wneka
      typowo 820 × 600 × 550 (od podlogi do spodu blatu co najmniej 820), drzwi na boku (skrzydlo). */
   lodowkaP: { nazwa: "lodówka", pelna: "Lodówka podblatowa", szer: 600, hMin: 820, hMax: null, dMin: 550, drzwi: "lewe" },
@@ -344,6 +349,9 @@ const SPRZETY_CIAGU = {
    89, posrednie z karty modelu). Zakres jak w karcie 178 (1772–1790): od −8 do +10 mm. */
 const LODOWKA_WNEKI = [820, 880, 1020, 1220, 1400, 1580, 1780, 1940];
 const lodowkaWnekaZakres = (h) => (h === 1780 ? { hMin: null, hMax: null } : { hMin: h - 8, hMax: h + 10 });
+/* Kompaktowe 45 (makieta „Dodaj”, przykladowo): front 455, wneka 450 — jak ekspres. */
+const SPRZET_ROZM = { piekarnik: [{ k: "60", l: "60 cm", frontH: null, hMin: null }, { k: "45", l: "kompakt 45", frontH: 455, hMin: 450 }],
+  mikrofala: [{ k: "38", l: "38 cm", frontH: null, hMin: null }, { k: "45", l: "45 cm", frontH: 455, hMin: 450 }] };
 const SPRZET_CIAGU_POLA = ["szer", "hMin", "hMax", "hPod", "hPokr", "dMin", "lodW", "lodH", "lodD", "luzBok", "luzL", "luzP", "luzGora", "luzTyl", "drzwi"];
 /* Lodowka wolnostojaca w ciagu (uzytkownik 2026-11-09, z makiety „Dodaj”): luz z lewej i z prawej osobno (`luzL` / `luzP`,
    puste = `luzBok`); „na równo z meblami” (`rowno`, np. Samsung Kitchen Fit) — typowo 3 mm z bokow i 15 nad nia, cieplo
@@ -9175,10 +9183,11 @@ function SprzetElewacja({ geo, fy, mx = (x) => x }) {
     const dol = s.drzwi === "dol";
     const dW = dol ? w : Math.min(w, s.drzwiWym), dH = dol ? Math.min(h, s.drzwiWym) : h;
     const dX = dol || s.drzwi === "lewe" ? X : X + w - dW;
+    const drzwi = s.drzwi !== "brak" && dW > 16 && dH > 16;
     return (
       <g key={`sp${lv.i}-${c.j}`} data-el="sprzet-front">
         <rect x={X} y={fy(s.y1)} width={w} height={h} fill={SPRZET_KOLOR} fillOpacity="0.85" stroke={INK} strokeWidth="2" />
-        <path d={`M ${dX + 8} ${fy(s.y0 + dH) + 8} h ${dW - 16} v ${dH - 16} h ${-(dW - 16)} z`} fill="none" stroke="#e7e5e4" strokeWidth="2" opacity="0.6" />
+        {drzwi && <path d={`M ${dX + 8} ${fy(s.y0 + dH) + 8} h ${dW - 16} v ${dH - 16} h ${-(dW - 16)} z`} fill="none" stroke="#e7e5e4" strokeWidth="2" opacity="0.6" />}
         {s.uchwyt > 0 && (dol
           ? <path d={`M ${X + w * 0.15} ${fy(s.y0 + dH) + 22} h ${w * 0.7}`} stroke="#d6d3d1" strokeWidth="8" />
           : <path d={`M ${s.drzwi === "lewe" ? dX + dW - 22 : dX + 22} ${fy(s.y0 + dH * 0.7)} v ${dH * 0.4}`} stroke="#d6d3d1" strokeWidth="8" />)}
@@ -19081,7 +19090,8 @@ const swingBodies = (L, project) => {
             ? roomBox(n, u0 + sp.x0 + w * 0.15, u0 + sp.x1 - w * 0.15, lico, lico + sp.uchwyt, z0 + dH - 40, z0 + dH - 15, { ...kto, co: `uchwyt sprzętu (${sp.nazwa})`, klucz })
             : roomBox(n, u0 + (prawe ? sp.x1 - dW + 15 : sp.x0 + dW - 40), u0 + (prawe ? sp.x1 - dW + 40 : sp.x0 + dW - 15), lico, lico + sp.uchwyt,
               z0 + dH * 0.3, z0 + dH * 0.7, { ...kto, co: `uchwyt sprzętu (${sp.nazwa})`, klucz }));
-        if (dol)
+        if (sp.drzwi === "brak") { /* otwieranie z karty modelu — nie sprawdzamy */ }
+        else if (dol)
           ruchy.push({ ...kto, klucz, n, typ: "klapa", gora: false, kat: 90, r: sp.uchwyt > 0 ? Math.hypot(dH, sp.uchwyt) : dH, tf: SPRZET_FRONT_GR, szer: dH,
             u0: u0 + sp.x0, u1: u0 + sp.x1, hv: lico, hz: z0, sprzet: sp.nazwa });
         else
@@ -23532,7 +23542,17 @@ export default function App() {
     return (
       <div className="space-y-2 rounded border border-stone-200 bg-white p-2 text-xs" data-el="sprzet-kolumny">
         <Seg value={sp.typ} onChange={(v) => setSprzet(lv.i, c.j, Object.fromEntries([["typ", v], ...SPRZET_POLA.map((k) => [k, null])]))}
-          options={[{ v: "piekarnik", l: "Piekarnik" }, { v: "mikrofala", l: "Mikrofala" }, { v: "lodowka", l: "Lodówka" }]} />
+          options={[{ v: "piekarnik", l: "Piekarnik" }, { v: "mikrofala", l: "Mikrofala" }, { v: "ekspres", l: "Ekspres" }, { v: "lodowka", l: "Lodówka" }]} />
+        {SPRZET_ROZM[sp.typ] && (
+          <div data-el="sprzet-rozmiar">
+            {wybor("rozmiar", (SPRZET_ROZM[sp.typ].find((r) => r.frontH === (((rawCol || {}).sprzet || {}).frontH ?? null)) || SPRZET_ROZM[sp.typ][0]).k,
+              (v) => { const r = SPRZET_ROZM[sp.typ].find((x) => x.k === v); setSprzet(lv.i, c.j, { frontH: r.frontH, hMin: r.hMin }); },
+              SPRZET_ROZM[sp.typ].map((r) => ({ v: r.k, l: r.l })))}
+          </div>
+        )}
+        {sp.typ === "ekspres" && sp.drzwi === "brak" && (
+          <p className="text-[11px] text-amber-800" data-el="ekspres-otwieranie">Jak otwiera się ekspres — wybierz niżej z karty modelu; dopóki „nie sprawdzaj”, kontrola otwierania go pomija.</p>
+        )}
         <p className="text-[11px] text-stone-500">
           {lod ? "Wymiary typowe dla lodówki 177 cm" : "Wymiary typowe dla sprzętu do zabudowy 60 cm"} — sprawdź z kartą swojego modelu i wpisz, jeśli inne.
           {wneka && <> Wnęka teraz: {fmt(wneka.w)} × {fmt(wneka.h)} × {fmt(wneka.d)} mm.</>}
@@ -23592,9 +23612,9 @@ export default function App() {
               {pole("dMin", "Wnęka — głębokość min.")}
             </div>
             {wybor("drzwi", sp.drzwi, (v) => setSprzet(lv.i, c.j, { drzwi: v === typowy.drzwi ? null : v }),
-              [{ v: "dol", l: "w dół" }, { v: "lewe", l: "zawias z lewej" }, { v: "prawe", l: "zawias z prawej" }])}
+              [{ v: "dol", l: "w dół" }, { v: "lewe", l: "zawias z lewej" }, { v: "prawe", l: "zawias z prawej" }, { v: "brak", l: "nie sprawdzaj" }])}
             <div className="grid grid-cols-2 gap-2">
-              {pole("drzwiWym", sp.drzwi === "dol" ? "Drzwi — wysokość" : "Drzwi — szerokość")}
+              {sp.drzwi !== "brak" && pole("drzwiWym", sp.drzwi === "dol" ? "Drzwi — wysokość" : "Drzwi — szerokość")}
               {pole("uchwyt", "Uchwyt przed frontem")}
             </div>
           </>
