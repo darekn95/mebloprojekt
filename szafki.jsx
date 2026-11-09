@@ -21454,12 +21454,12 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   return (
     <div data-el="makieta" data-tryb={tryb}
       className={`mx-auto grid max-w-[1900px] items-start gap-2 px-3 py-3 ${karta ? "lg:grid-cols-[80px_250px_minmax(0,1fr)]" : "lg:grid-cols-[80px_minmax(0,1fr)]"}`}>
-      <nav aria-label="Co zmieniasz" className="flex flex-wrap gap-0.5 rounded-lg border border-stone-200 bg-white p-1.5 lg:sticky lg:top-24 lg:flex-col">
+      <nav aria-label="Co zmieniasz" className="flex flex-wrap gap-0.5 rounded-lg border border-stone-200 bg-white p-1.5 lg:sticky lg:top-24 lg:flex-col lg:flex-nowrap lg:items-stretch">
         <p className="hidden px-0.5 pb-1 text-center text-[10px] uppercase leading-tight tracking-wider text-stone-500 lg:block">Dodaj / zmień</p>
         {zakl.map(([k, l]) => (
           <button key={k} data-zakl={k} aria-pressed={akt === k} title={akt === k && karta ? "Schowaj kartę (większy rysunek)" : undefined}
             onClick={() => { if (akt === k && karta) setKarta(false); else { setZakladka(k); setKarta(true); } }}
-            className={`flex flex-col items-center gap-0.5 rounded-md px-1 py-1.5 text-center text-[11px] leading-tight ${akt === k ? "bg-teal-700 font-semibold text-white" : "text-stone-700 hover:bg-stone-100"}`}>
+            className={`flex flex-col items-center gap-0.5 rounded-md px-1 py-1.5 text-center text-[11px] leading-tight lg:w-full ${akt === k ? "bg-teal-700 font-semibold text-white" : "text-stone-700 hover:bg-stone-100"}`}>
             {MAK_IKONY[k] && <MakIkona d={MAK_IKONY[k]} />}{l}</button>
         ))}
       </nav>
