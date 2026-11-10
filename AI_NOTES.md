@@ -751,10 +751,32 @@ tyl do spodu dna (bok − 10), dno na konfirmaty przez boki, 33 = szerokosc prow
 spodu prowadnicy na boku + odsuniecie od czola (4 / X + 4), bez otworow.
 Zrzut z zaznaczonym „37” byl w scratchpadzie sesji (pdftoppm s. 112, -r 300,
 -x 150 -y 950, opisy ImageMagick `convert -draw/-annotate`).
-[AI-TODO] (2026-10-29: NASTEPNE w kolejce, przed szafka skosna) Sprzety w zabudowie (lodowka, piekarnik, mikrofala): gdy powstanie
-kategoria „sprzety”, dolozyc ich bryly i drzwi do `swingBodies` — prosba
-uzytkownika, zeby wrocic. Szafka luzem (bez ciagu) nie ma kontroli
-otwierania — `openingMsgs` idzie po ukladzie ciagow.
+[AI-INFO] (2026-11-04) Sprzety w zabudowie — etap 1 zrobiony: piekarnik i mikrofala jako rodzaj
+kolumny „Sprzęt” (`col.sprzet`, opis `opisy/sprzety.md`), bryly i drzwi w `swingBodies`.
+Szafka luzem (bez ciagu) nadal nie ma kontroli otwierania — `openingMsgs` idzie po ukladzie ciagow.
+[AI-INFO] (2026-11-05) Lodowka w kolumnie zrobiona: typ „Lodówka” — front slizgowo / na stale /
+bez frontu (wolnostojaca we wnece), 1 albo 2 fronty (dolny z pola). Decyzje uzytkownika 2026-11-05:
+mocowanie do wyboru, takze bez frontu („wolnostojąca lodówka może stać sama we wnęce pomiędzy bokami
+lub bokiem a ścianą lub w ogóle wolnostojąca”); „1 albo 2, podział z pola”; zmywarka — „Cokół ciągu
+idzie dalej”; plyta i zlew — „Nad szafką, z przesunięciem” (wyciecie na srodku wybranej szafki,
+typowo 50 mm od przodu blatu, pola przesuniecia).
+[AI-INFO] (2026-11-05) Plyta i zlew zrobione: wyciecia w blacie roboczym ciagu (`cab.blatWyciecia`),
+opis w `opisy/sprzety.md`. Tylko blat roboczy ciagu (nie wlasny blat szafki); kawalek z lyzwa w rogu
+rysuje sie w 3D bez otworu (`plytaSkos`).
+[AI-INFO] (2026-11-05) Sprzet w ciagu zrobiony: `cab.sprzetCiagu` (zmywarka / lodowka wolnostojaca),
+`computeGeo` → `geoSprzetuCiagu` (`geo.bezKorpusu`) — geometria z pustej szafki tej szerokosci, bez plyt
+korpusu, okuc i wiercen. Kazde nowe miejsce, ktore pyta o korpus szafki w ciagu (wieniec, plecy,
+wieszanie, scalanie), musi pominac `bezKorpusu`; lodowka wolnostojaca liczy sie jak slupek
+(`lodowkaCiagu`: poza blatem, bez wspolnych wymiarow ciagu, cokol z przerwa `rp.segmenty`).
+Pod wycieciem w blacie (2026-11-05): kontrola nachodzenia w `worktopMsgs` (bryla do `podBlatem`),
+lezace wzmocnienie — przyciski stojace / z wycieciem (`rail.podWyciecie`), laczniki przestawiane
+(`lacznikiWzmocnienia`). Od 2026-11-06 wzmocnienia poziome, czolowe i tylne sa na konfirmatach (2 na koniec,
+plan wiercen), pionowe i z wyborem „Wkręty 4 × 30” na wkretach. Przy przegrodzie (2026-11-08, poprawione tego
+samego dnia): przesuniecie konfirmatow z obu stron NIE DA SIE SKRECIC po kolei (uzytkownik) — domyslnie trojkaty
+(`trojkatyNaKoncu`), ostrzezenie z przyciskami „Prawa na 1 konfirmacie” (`przyPrzegrodzie`, `montazKolejnosc`),
+„Przegroda niższa” (`przegrodaNizsza`, jedna formatka nad przegroda), dwie przegrody (wspolne / osobne dna),
+„Tak zostaje”. [AI-INFO] Zasada w AGENTS.md: kazde laczenie sprawdzac pod katem kolejnosci montazu.
+Na pozniej: sprzet w poziomie kolumny (odcinku), wiersz sprzetu w zamowieniu (teraz poza zamowieniem).
 
 [AI-INFO] Szafka w L: `CORNER_L_D` = 560 (jak stojaca), ramie 640. Pusty ciag
 za rogiem liczy glebokosc od sciany z domyslnymi plecami HDF (`runFrontDepth`).
@@ -896,3 +918,287 @@ Na co uważać przy pisaniu nowych scenariuszy:
 - „błąd” w audycie przy ręcznie ustawionym układzie, który zawsze jest zły (np. 3 V-BOX
   w połowie szafki pod blatem), to poprawna uwaga aplikacji, nie błąd — taki stan
   albo testuj jako oczekiwany błąd, albo nie ustawiaj go.
+
+## Makieta „Dodaj” (2026-11-08)
+
+[AI-INFO] `makiety/dodaj.html` — osobna strona bez obliczen (artefakt https://claude.ai/artifact/5m43AjCMCw141KoT2AypyJ),
+nie podlaczona do aplikacji ani do GitHub Pages. Zakladki „Dodaj” po lewej, paleta AGD z lista i opisem „Co zrobi
+program”, rysunek ciagu (blat z gory + widok z przodu) po prawej; przeciaganie wskaznikiem (mysz i palec, `pointer*`),
+na telefonie „dotknij sprzet, potem miejsce”, „Przesuń” dla postawionego. Uzgodnienia z uzytkownikiem: jedna wspolna
+makieta, najpierw AGD, potem „klocki” (szafka z miniaturami wzorow, polki, drzwi/klapy, szuflady, przegroda,
+wzmocnienie — „budowa jak dla amatora”); w aplikacji zakladka AGD pod karta „Płyty”, stare miejsca zostaja.
+[AI-INFO] Wersja 2 (uwagi uzytkownika 2026-11-08): sciana z szerokoscia (pole, ±100, „wolne N mm” / „brakuje N mm”,
+„Poszerz ścianę do …”, „Usuń …”), koniec ciagu = cale wolne miejsce, „+” przy stykach i podglad, gdzie stanie sprzet,
+waska szyna zakladek z ikonami (wiecej miejsca na rysunek).
+[AI-INFO] Wersja 3 (2026-11-08): wymiary sprzetu do wyboru (`ROZM`: plyta 30/60/80/90, zlew 1 komora / z ociekaczem /
+2 komory, piekarnik 60 / kompakt 45, mikrofala 38/45, lodowka 178/122, zmywarka 60/45, wolnostojaca 60/70/90), w slupku
+sama mikrofala / sam piekarnik na wysokosci blatu, oba — piekarnik nizej (700), „Zamień miejscami”, wlasna wysokosc
+(`a.y0`, ±50, „Na wysokość blatu”), przelaczniki „AGD i zlew” (wylaczone: wyciecia i puste wneki), „Ciąg górny”,
+„Ciąg dolny” (zawsze jeden widoczny).
+[AI-INFO] Wersja 4 (2026-11-08): okap (`OKAP`: podszafkowy / teleskopowy / wklad / kominowy, 50/60/90, odleglosc od
+plyty z wymiarem, min. 650 nad indukcja — EN 60335-2-31 wg instrukcji Solgaz, gaz 750; przycisk „Szafka nad okapem
+krótsza, dół na …” / „Okap wyżej”), rzut szafek gornych (320) i okapu na blat z gory przy „Ciąg górny”, „Pod blat”
+w slupku (gora sprzetu rowno z blatem) i ostrzezenie o wysokiej mikrofali (`MIKRO_MAX` 1300 — prog ustalony z uzytkownikiem
+2026-11-08; uzytkownik: „kiedyś będzie musiało być ostrzeżeniem w aplikacji głównej”). Zapis: localStorage
+(`makieta-dodaj-v1`) + „Wyślij do Claude” / „Wczytaj wysłaną” — artefakt z `db`, dokument `makieta/biezaca`
+(pola `json`, `uwagi`, `kiedy`, `okno`, `zaznaczony`). Odczyt: `ArtifactData get` (collection `makieta`, doc
+`biezaca`), potem wczytac stan do makiety lokalnie (localStorage przed zaladowaniem) i zrobic zrzut w szerokosci `okno`.
+[AI-INFO] Wersja 5: w slupku „Góra do dołu szafek górnych” (gora wneki = dol szafek gornych 1400 — polka nad sprzetem
+w linii den szafek gornych, doly frontow w jednej linii; przerywana linia na rysunku), drugi sprzet zjezdza pod spod.
+To samo trzeba bedzie miec w aplikacji (wnęka w słupku: dół / pod blat / na wysokość blatu / do dołu szafek górnych).
+[AI-INFO] Wersja 6: kazda zmiana wysokosci w slupku przez `ustawWys` — drugi sprzet, ktory by nachodzil, sam zjezdza
+pod spod / nad (przerwa 35); „Razem” (`slupek.razem`) — piekarnik i mikrofala jako blok z polka 18 miedzy nimi,
+przesuwane razem (kotwica: dolny sprzet); „Zamień miejscami” zostawia dol bloku na miejscu.
+[AI-INFO] Wersja 7: okap na dowolnej wysokosci (pole „dół okapu”, ±50, „= dół szafek górnych”, „650 nad płytą”;
+przy okapie w szafce / pod szafka przesuwa sie dno szafki nad nim — `gorne[id].y0`, kominowy — sam `a.y0`).
+[AI-INFO] Wersja 8 — klocki (uzytkownik 2026-11-08: „budowa jak dla amatora”): zakladki Szafka / Półki / Drzwi i klapy /
+Szuflady / Przegroda / Wzmocnienie. Szafka: miniatury `WZORY` (1 drzwi 450, 2 drzwi 800, szuflady 600, zlewowa 800,
+slupek 600) przeciagane w ciag jak zmywarka (grupa „ciag”). Pozostale klocki (`KLOCKI`, grupa „szafka”) upuszczane na
+korpus: polka +1 (max 6), przegroda, wzmocnienia (`q.wzm`: lezace / stojace / pionowe, „para pod blat”), front
+(`q.front`: drzwi1 / drzwi2 / klapaG / klapaD / otwarta), szuflady (`q.drawers`, `q.szuflDrzwi` — zastepuja front,
+pelne szuflady kasuja polki i przegrode). Bez celow: szafki ze sprzetem we wnece (front ustawia program), szuflady
+i wzmocnienia pod blat w slupkach, polki/przegroda w pelnych szufladach. Karta szafki (dotknieta szafka, w kazdej
+zakladce, tez w AGD): szerokosc, front, polki −/+, przegroda, wzmocnienia, „Co zrobi program”, „Przesuń w ciągu”,
+„Usuń szafkę”. Przelacznik „Fronty” (wylaczony — wnetrze); na zakladkach polek, przegrody i wzmocnien wnetrze widac
+samo. Szafke przesuwa sie przeciagnieciem korpusu (`.szaf`, typ `szafkaPrzes`).
+[AI-INFO] Wersja 10 (uwagi uzytkownika 2026-11-08): zmywarka wolnostojaca (`zmywarkaW`, 60/45, „Pod blatem” — pokrywa
+zdjeta, ok. 815–820, blat nad nia / „Z własną pokrywą” — ok. 850, blat konczy sie przy boku; cokol ciagu z przerwa,
+bez frontu meblowego). Plyta i zlew: pola wymiarow z karty modelu (`a.wym` nadpisuje `ROZM`, wybor rozmiaru wraca do
+typowych): plyta — szklo sw × sd, kaseta z elektronika kw × kd, wyciecie ww × wd, wysokosc h od wierzchu blatu
+(typowo 51–54, slim 44 — Samsung / Electrolux Slim-Fit, z okapem w plycie 150–230, np. Samsung CC90H84 217);
+zlew — rant, wyciecie, glebokosc komory (typowo ok. 200, np. Franke UBG 611-78: 780 × 500, wyciecie 760 × 480,
+komora 220). Wyciecie 50 od przodu blatu. Kontrole w makiecie: wyciecie plyty szersze niz wnetrze szafki, kaseta
+wieksza niz wyciecie, szklo / rant nie zakrywa wyciecia, za malo blatu z tylu, kaseta / komora pod blatem a lezace
+wzmocnienie, szuflady (> 30 mm pod blatem), polka pod zlewem, plyta gleboka (> 120). Widok z przodu: kaseta i komora
+przerywane pod blatem (pomaranczowe, gdy cos przeszkadza).
+[AI-INFO] Wersja 11 (uzytkownik 2026-11-08, „opcja 2, ale z głębokością kasety — przy kontroli nachodzenia dzieją się
+cyrki”): plyta bez pola wyciecia — wyciecie = kaseta + `WYC_LUZ` (3 mm z kazdej strony, przykladowo, do potwierdzenia);
+pola: szklo, kaseta szer. × glab., kaseta w dol od wierzchu blatu. Karta pokazuje wyciecie i polozenie kasety w blacie
+(od przodu 53, do tylu, w dol / pod blat) oraz uwage przy stojacym wzmocnieniu. Zlew bez zmian (wyciecie z szablonu).
+[AI-INFO] Wersja 12 (uwagi uzytkownika 2026-11-08): luz wyciecia 3 mm ustalony. Przelacznik rodzaju zabudowy
+(„przełącznik rodzaju”, a nie pelne pomieszczenia — te przyjda z aplikacji): Kuchnia / Szafa (bez blatu) / Szafka
+wolnostojaca; kazdy rodzaj ma swoj uklad (`rodzaj`, `inne`), wlasne wzory (`WZORY[k].rodz`), szafa bez AGD, blatu
+i ciagu gornego, szuflady w szafie na dole (220) pod drzwiami, klocek „Drążek na wieszaki” (`q.drazek`); wolnostojaca
+bez sciany, na nozkach, wysokosc `q.h`. Zakladki „Dodaj / zmień”, przypiete przy przewijaniu, podswietlenie po
+najechaniu tylko przy myszy (na dotyku zostawalo), „Szuflady” nad „Półkami”, klocek „1 szuflada”. Zlew z ociekaczem —
+ociekacz z lewej / z prawej. Szafki gorne klikalne: `gorne[id] = { y0, front, polki, przegroda, brak }`, karta (dol od
+podlogi, front, polki, przegroda, „Bez szafki górnej”), klocki (polki, przegroda, fronty) upuszczane tez na gorne.
+Lodowki: wolnostojaca — w × h × d + luzy (boki 50, nad 100, tyl 50 — typowo), miejsce = w + 2 × luz, „wystaje przed
+blat”; do zabudowy — wneki 88/102/122/140/158/178/194 (178 typowo), wlasna wysokosc wneki, front slizgowo / na stale /
+bez frontu, 1 albo 2 fronty (wysokosc dolnego), zawiasy L / P (symbol otwierania — wierzcholek po stronie zawiasu).
+Plyta i zlew: polozenie na blacie — od poczatku blatu (lewy koniec odcinka) do lewej krawedzi wyciecia i od przodu
+(`a.przes` od srodka szafki jak w aplikacji, `a.odPrzodu`), wymiar na rzucie z gory, kontrole: poza wnetrzem szafki,
+< 50 od poczatku / konca / tylu blatu, nachodzenie albo < 50 miedzy wycieciami.
+[AI-INFO] Wersja 13: „Szuflada + drzwi” — szuflada u gory (170) albo na dole (200, `q.szuflDol`), w reszcie 1 albo
+2 drzwi (`q.drzwiIle`, domyslnie 2 przy szer. > 500); we wnetrzu polki i przegroda tylko w strefie drzwi, skrzynka
+szuflady w swojej strefie (wczesniej rysowala sie jedna szuflada na cala szafke).
+[AI-INFO] Wersja 14 (uwagi uzytkownika 2026-11-08): okienko „Co zmienić?” — dotkniety element nie pasuje do otwartej
+zakladki (np. szafka przy „AGD”, gorna przy „Szufladach”) → lista zakladek (+ sprzet w szafce), wybor przelacza
+zakladke; sprzet dotkniety poza AGD — od razu AGD. W zakladce Szafka listy „Ciąg dolny” i „Ciąg górny” (zaznaczona gorna
+— jej lista pierwsza, „×” = bez szafki gornej), pola calego ciagu gornego (dol / gora, `ciagGorny` w zapisie; `GORNE0`,
+`GORNE` sa teraz zmienne). Wysokosc korpusu slupka (`q.h`, „= równo z górnymi”, wlasna, do 2200). Slupek ze sprzetem:
+strefy „Pod sprzętem” / „Nad sprzętem” (`q.strefy.dol/gora`: front, szuflady, polki) — klocki upuszczane na strefy
+i przyciski w karcie. Polki w kolumnach przy przegrodzie (`polkiL`, `polkiP`; kolumna z miejsca upuszczenia). Lodowka
+podblatowa do zabudowy w ciagu jak zmywarka (`lodowkaP`, wneka typowo 820 × 600 × 550 — Bosch KU22LVFD0, Smeg U8L080DE)
+i lodowka do zabudowy w szafce dolnej (wneka „82 pod blat”, boki do podlogi, bez dna, kratka w cokole); wolnostojaca
+„na równo z meblami” (Kitchen Fit: ok. 2,5 mm z boku, 15 nad, uchwyty z zestawu, szafka nad nia). Rzut szafek gornych
+na blacie nie lapie dotkniec (plyta pod nim byla nieklikalna). W panelu AGD lista „W projekcie” na dole, opcje wyzej.
+[AI-TODO] Pomysl uzytkownika do rozwazenia przy scalaniu makiety z aplikacja (2026-11-08): przelacznik „Tryb: makieta /
+zaawansowany” — makieta (przeciaganie, klocki, proste karty) i tryb zaawansowany (obecna aplikacja), na tych samych
+danych projektu.
+[AI-INFO] Wersja 15 (uzytkownik 2026-11-08: wysokosci polek „teraz: przeciąganie”): polke we wnetrzu chwyta sie
+i przesuwa w gore / dol (co 10 mm, najmniej 60 od sasiednich, 40 od dolu / gory strefy); `pozPolek[k]` (k: "" / L / P)
+od dolu strefy polek, dziala w szafkach dolnych, gornych i strefach slupka; przy zaznaczonej szafce wymiar przy polce;
+„Półki po równo” w kartach; zmiana liczby polek wraca do rownych odstepow. W aplikacji polozenia polek juz sa — przy
+scalaniu przeciaganie ma pisac w nie (rzedy otworow, swiatlo).
+[AI-INFO] Wersja 16 (uwagi uzytkownika 2026-11-09): uchwyty polek i szuflady tylko w zaznaczonej szafce (inna najpierw
+sie zaznacza — obraz nie skacze w trakcie przeciagania). „Szuflada + drzwi”: szuflade przeciagasz pod / nad drzwi
+(`szuflDol`), linie podzialu — wysokosc szuflady (`szuflH`, 100–400, „Szuflada typowa” wraca do 170 / 200). Jedna
+„Lodówka” w palecie AGD (`lodowkaM`: slupek / szafka dolna albo miejsce w ciagu) i „Rodzaj lodówki” w karcie (jak okap):
+do zabudowy w slupku / podblatowa w szafce / podblatowa w ciagu / wolnostojaca / na rowno z meblami — `zmienLodowke`
+przestawia miejsce (slupek 600 albo szafka 600 z wneka w miejscu pozycji ciagu i odwrotnie).
+[AI-TODO] Przy scalaniu makiety z aplikacja (uzytkownik 2026-11-09): w makiecie domyslnie WSZYSTKIE widoki jak
+w aplikacji — zamkniety, otwarty, z boku, z gory, 3D — z funkcji rysujacych aplikacji, na tych samych danych (nie
+budowac ich osobno w makiecie przed scaleniem).
+[AI-INFO] Wersja 17 (uzytkownik 2026-11-09: „zawsze wybieramy, co chcemy zmienić, i aktywne tylko to, co wybrane”):
+karta szafki / gornej pokazuje tylko czesc otwartej zakladki (Szafka i AGD — cala; Szuflady, Drzwi i klapy, Polki,
+Przegroda, Wzmocnienie — swoja), polki chwyta sie tylko w zakladce Polki, szuflade tylko w Szufladach. Pojedyncze
+klikniecie tylko zaznacza (nie odznacza); szafka spoza zakladki (np. przy AGD) — w panelu wybor „Co zmienić?”;
+dwuklik / podwojne dotkniecie (wlasne wykrywanie — rysunek przerysowuje sie miedzy kliknieciami) albo prawy przycisk —
+okienko „Co zmienić?”. Dwuklik na polce — okienko swiatla: najnizsza od dna szafki (dno 18), wyzsza od polki ponizej
+(polka 18); etykiety przy polkach pokazuja swiatlo (↕).
+[AI-INFO] Wersja 18 (uzytkownik 2026-11-09): przeciagana polka najechana na polke innej szafki (albo drugiej kolumny,
+w promieniu 45 mm) staje na tej samej wysokosci od podlogi (bez zaokraglania do 10), linia pomocnicza „równo” przez
+caly rysunek; kazda narysowana polka ma `.polkaV` z polozeniem (data-yy, x0, x1). W aplikacji: to samo jako wyrownanie
+do polek sasiednich szafek (te same rzedy otworow).
+[AI-INFO] Wersja 19 (uzytkownik 2026-11-09: „luz z boku każdy — raczej z lewej, z prawej i od tyłu”): lodowka
+wolnostojaca ma luz z lewej (`lL`) i z prawej (`lP`) osobno (stary `lb` czytany jako oba), miejsce w ciagu = lL + szer.
++ lP; lodowka stoi od lewego luzu; na rysunku obrys miejsca (przerywany) i wymiary luzow w szczelinach (z boku pionowo,
+nad lodowka poziomo), z gory obrys miejsca z luzem z tylu. „Na równo z meblami” — 3 / 3 / 15.
+[AI-INFO] Wersja 20 (uzytkownik 2026-11-09: „brakuje mikrofali wolnostojącej i ekspresu do zabudowy i wolnostojącego”):
+ekspres do zabudowy (`ekspres`, wneka 45 w slupku; typowo 560 × 450 × 550, front 595 × 455 — np. Electrolux KKK994500T),
+mikrofala wolnostojaca (`mikrofalaW`, 20 / 23 / 25 l, np. Teka 20 l 440 × 258 × 340) i ekspres wolnostojacy (`ekspresW`,
+24 / 22 cm, np. De'Longhi Magnifica Evo 240 × 360 × 440) — grupa „stoi”: na blacie nad szafka dolna / zmywarka, bez plyty
+i zlewu nad nia; karta mowi, ile zostaje do szafki gornej. Slupek miesci do 3 sprzetow (`stosSlupka`, kolejnosc
+`q.kolejnosc`, „Zamień miejscami z: …” z sasiadem).
+[AI-INFO] Wersja 21 (uzytkownik 2026-11-09): przegroda przesuwana — `przegX` = swiatlo lewej kolumny (brak = srodek,
+kolumna min 100, co 10 mm, ±15 od srodka przyciaga na srodek); uchwyt na przegrodzie w zakladce Przegroda przy zaznaczonej
+szafce (dolne, gorne `g:id`, strefy slupka), dwuklik — okienko lewa / prawa; w karcie pola „Kolumny — światło” i
+„Przegroda na środek”. Polki w kolumnie z drazkiem przeciagane jak inne (`polkiDom`: najwyzsza 300 pod gora, drazek 60 pod
+nia jedzie za nia, reszta co 400/n na dole; „pod drążkiem ↕N”). Wysokosci szuflad (`szuflWys`, od dolu): w szafie linia
+nad najwyzsza przesuwa granice drzwi (drzwi min 300), miedzy szufladami — zmienia obie sasiednie; min 100, co 10; dwuklik
+na linii — wysokosc frontu; „Szuflady po równo / typowe (po 220)”. Wolnostojace: „Szafa” 800 × 2000, 5 polek, 2 drzwi,
+cokol w obrysie (`cokolObrys`: boki do podlogi, dno na cokole 100, nozki za cokolem — jak tryb „w obrysie” w aplikacji,
+`h` = wysokosc calkowita) i „Biurko” 1200 × 750 × 600 jak szablon „Biurko” w aplikacji (blat 18 na bokach, 50 na boki,
+30 do przodu, bez dna / plecow / drzwi / nozek; tylko szerokosc i wysokosc, bez klockow).
+[AI-INFO] Wersja 22 (uzytkownik 2026-11-09, odpowiedz o biurku: „zostaje jak jest, ale wzmocnienie od tyłu pod blatem na
+wysokość 30 cm od góry dla stabilizacji” + „z kontenerem szuflad”): biurko ma wzmocnienie z plyty z tylu miedzy bokami
+(albo bokiem i kontenerem), od spodu blatu do 300 mm od wierzchu blatu (`BIURKO_WZM`; odczyt „30 cm od góry” = dol
+wzmocnienia 300 od wierzchu — do potwierdzenia przy aplikacji). „Biurko z kontenerem”: kontener szuflad pod blatem zamiast
+boku (`kontener` L / P, `kontW` 400 / 450 / 500, `kontSz` 2–4), w karcie biurka przelaczniki i „Miejsce na nogi”.
+Kolejnosc: bok(i) / kontener ze wzmocnieniem, potem blat od spodu.
+[AI-INFO] Wersja 23–24 (uzytkownik 2026-11-09):
+- wzmocnienie biurka to PLYTA 300 mm wysokosci, wewnatrz miedzy bokami, od blatu w dol (poprawione z „dol 300 od wierzchu”);
+  laczenie z bokami do wyboru `wzmLacz`: konfirmaty + zaslepki (domyslnie) / kolki z mimosrodami;
+- szuflady: chwyta sie cala szuflade (gorna polowa — linia nad nia, dolna — pod nia), dwuklik — jej wysokosc; w okienku
+  „Ta szuflada typowa / jak po równo” zmienia TYLKO te szuflade (karta: „po równo” dla wszystkich); szuflady kontenera
+  biurka tez (`kontD`, wl „k:id”);
+- najwyzsza polka: w okienku drugie pole „Światło od góry (do wieńca)”, przy drazku napis „↕N od góry”;
+- wymiary szafki w zakladce Szafka: z przodu prawa krawedz — szerokosc, gorna — wysokosc (nie dolna w kuchni — pod blat),
+  z gory przod — glebokosc (`q.gl`, domyslnie dolna 560 / slupek, szafa, biurko 600 / wolnostojaca 450); pola „własna”
+  w karcie; zielone znaczki na rysunku;
+- BLAD naprawiony: przypiety rysunek byl wyzszy niz okno (krotki ciag wolnostojacych, ekran ~830 px) — dol (szuflady,
+  podloga) byl niedostepny; teraz `dopasujRysunek()` ogranicza wysokosc rysunku do okna.
+[AI-INFO] Lista brakow makieta <-> aplikacja: `makiety/BRAKI.md` (2026-11-09). Ustalone z uzytkownikiem: makieta bedzie
+osobnym trybem aplikacji z dwoma poziomami — prostym i szczegolowym; w szczegolowym wszystkie funkcje aplikacji.
+[AI-INFO] Tryb makiety w aplikacji — krok 1 (2026-11-09): przelacznik „Makieta prosta / szczegolowa / Techniczny” w naglowku
+(stan `tryb`, `mp-tryb`), `MakietaWidok` (zakladki, karta do odczytu, rysunek z `AssemblyView` / `AssemblyTopView` z `onPick`,
+wolnostojace `MakietaWolnostojace`), listy pomieszczenie / ciag / szafka / widok (`Rozwijana`). Techniczny bez zmian (domyslny).
+Opis: `opisy/makieta.md`, test `testy/makieta.mjs`. Artefakt MebloProjekt publikujemy jako `$SP/MebloProjekt.html` = naglowek
+z poprzedniej wersji (tytul + ziarno projektu na pustym magazynie, do `<div id="root">`) + `testy/mebloprojekt-app.html`.
+Nastepne kroki: uchwyty na rysunku (wymiary, polki, przegroda = szerokosc kolumny, szuflady = fronty), karty z polami, paleta,
+AGD (`makiety/BRAKI.md` D).
+[AI-INFO] Tryb makiety — krok 2 (2026-11-09): uchwyty na rysunku zapisuja prawdziwe dane (szer./wys. z przodu, glebokosc
+z gory, polka → `shelfTargets`, przegroda → `col.w`, linia szuflad → `drawers[].front`; ostatnie na auto), pola W/H/D w karcie,
+„… po rowno”, domyslnie ciag zaznaczonej szafki. Opis `opisy/makieta.md`, testy `makieta.mjs`, `makieta2.mjs`.
+[AI-INFO] Tryb makiety — krok 3 i 4 (2026-11-09): widok jak w makiecie „Dodaj” (z gory nad widokiem z przodu, przelaczniki
+„Z gory / Ciag gorny / Ciag dolny / Fronty” — `Przelacznik`, `mp-mak-przel`; „Tylko zaznaczona szafka”; pytanie o wysokosc
+w ciagu i w narozniku — `testy/makieta3.mjs`). Krok 4: przyciski w `MakietaKarta` (fronty, uchwyt / tip-on, szuflady 1–5,
+polki ± i drazek, kolumny 1–4, cokol i nozki, blat ciagu). Ciag: cokol przez `setRunShared` (`run.plinth` + szafki — inaczej
+uwaga „Cokol tej szafki nie zgadza sie z ciagiem”), blat przez `setRun` (`wedlugCiagu`, wspolny wieniec off) — oba
+przekazane z `App` jako prop `ciag`. Test `testy/makieta4.mjs`. Nastepne: paleta i klocki (krok 5), AGD i szczegolowa (krok 6).
+[AI-INFO] Tryb makiety — krok 5 (2026-11-09): zakladka „Dodaj” = `MakietaPaleta` (`MAK_PALETA` — szablony aplikacji i brakujace
+z makiety jako szablon + `mod`; `MAK_KLOCKI`). HTML5 drag and drop na `[data-el=makieta-rysunek]` (cel z `elementFromPoint` +
+`punkt` jak uchwyty) albo klik. `addCabinet(tplId, runId, opcje)` ma teraz `opcje`: `zmien`, `nazwa`, `wymiaryCiagu`, `przed`
+(indeks w items; nie dla naroznikow), `naGorny`. Widok (uzytkownik 2026-11-09): „Duzy rysunek” — prop `skala` w AssemblyView /
+AssemblyTopView (svg o stalym rozmiarze), okno `mak-plotno` z przewijaniem; karta chowana klikiem w otwarta zakladke (`mp-mak-karta`);
+bez wiersza „Ciag” w karcie. Test `testy/makieta5.mjs`.
+[AI-INFO] Ustalone z uzytkownikiem 2026-11-09 (krok 6): najpierw AGD w aplikacji (A1 z makiety/BRAKI.md), zaraz potem karty
+makiety szczegolowej ze wszystkimi funkcjami. Wymiary sprzetow brac z makiety „Dodaj” jako domyslne (przykladowe — uzytkownik
+poprawi pozniej; w opisach zaznaczac, ze to wartosci przykladowe). „Duzy rysunek” (z gory i z przodu w tej samej skali) zostaje.
+[AI-INFO] Ustalone z uzytkownikiem 2026-11-09 (AGD): ekspres do zabudowy — do wyboru „wysuwa się” (prowadnice, wysuw z karty
+modelu) i drzwi z zawiasem z boku; domyslnie „nie sprawdzaj” (w sieci: nisze 45 potwierdzone — Siemens CT636LES1 449 × 558 × 356,
+AEG KKE884500M / Gorenje 45 × 56 × 55 cm — ale sposob otwierania nie). Okap w szafce (teleskopowy / wklad): wyciecie w dnie z pola
+z karty okapu, a program proponuje wymiar z makiety (do poprawy). Mikrofala i ekspres wolnostojace na blacie: tylko rysunek, bez
+kontroli.
+[AI-TODO] Paleta makiety: brak „Biurko z kontenerem” (kontener szuflad zamiast boku, plyta wzmacniajaca 300) i „Szafa z szufladami”
+(dwa poziomy: szuflady na dole + polki) — do zrobienia razem z szablonem Biurka w aplikacji (TODO wyzej).
+[AI-INFO] Ustalone z uzytkownikiem 2026-11-09: od teraz poprawki makiety robimy W APLIKACJI (artefakt MebloProjekt, tryb makiety);
+artefakt „Makieta „Dodaj”” (`makiety/dodaj.html`) zamrozony jako wzor wygladu i obsugi — nie wyrownujemy go z aplikacja.
+[AI-TODO] Aplikacja glowna, szablon „Biurko” (uzytkownik 2026-11-09): dolozyc plyte wzmacniajaca z tylu (300 mm wysokosci,
+miedzy bokami pod blatem; laczenie do wyboru, domyslnie konfirmaty + zaslepki — lby na zewnatrz boku; przy kontenerze
+konfirmat od srodka kontenera, przed wlozeniem szuflad) i wariant z kontenerem szuflad.
+[AI-TODO] W aplikacji glownej lodowka wolnostojaca ma dzis jeden luz z boku (50) — przy scalaniu: z lewej / z prawej osobno.
+[AI-TODO] W aplikacji glownej (gdy dojdziemy do sprzetu): zmywarka wolnostojaca jako pozycja ciagu (dzis jest tylko
+do zabudowy z frontem); wyciecia w blacie maja dzis tylko wyciecie w × d + „Pod blat (od wierzchu)” — dolozyc szklo /
+rant i kasete szer. × glab. × w dol (bryla pod blatem = kaseta, nie obrys wyciecia; wyciecie plyty = kaseta + luz),
+zgodnie z polami makiety.
+[AI-TODO] Ustalone z uzytkownikiem 2026-11-08: makieta AGD i klocki gotowe do ogladania (v8; uzytkownik oglada i przysle
+uwagi przez „Wyślij do Claude”), potem w aplikacji nowy widok obok Zamk./Otw. — przód ciagu + blat z gory — z przelacznikami „AGD i zlew”
+(nazwa ustalona 2026-11-08: „Wyposażenie”), „Ciąg górny” (domyslnie widoczny) i „Ciąg dolny”.
+
+[AI-TODO] Pomysl uzytkownika na pozniej (2026-11-08): makieta jako tryb w aplikacji glownej — drag and drop zamiast
+wyklikiwania, polaczony w obie strony z karta szafki. Zasada: makieta NIE ma wlasnych danych — to drugi widok
+i edytor tego samego `project` (`project.runs[]`, szafki), akcje klockow wolaja te same funkcje co karta (ta sama
+historia Cofnij/Ponów, te same uwagi i kontrole). Podzial: makieta — uklad i budowa z grubsza (co gdzie stoi,
+szerokosci, fronty, polki, sprzet), karta — szczegoly (luzy, okucia, laczenia, wiercenia, material). Trudne miejsca:
+cel upuszczenia = konkretna kolumna / poziom, a nie cala szafka; akcja uproszczona nie moze kasowac szczegolow
+(fronty per poziom, podzial kolumny) — wtedy pytanie albo odeslanie do karty; narozniki, ramiona, kilka scian,
+ciag gorny. Kolejnosc: 1) widok przod ciagu + blat z gory w stylu makiety (juz ustalony) — tylko podglad,
+2) przeciaganie sprzetu i przesuwanie szafek, 3) klocki na kolumny / poziomy, 4) karta w makiecie = skrot do pelnej.
+[AI-INFO] Plan wyrownania trybu makiety z artefaktem „Makieta „Dodaj”” (uzytkownik 2026-11-09: „1,2,3,4 lecimy po kolei, od razu
+plan na calosc”), po kolei:
+- 0a przyblizanie: „Powiększ” domyslnie, − / + (MAK_ZOOM), „Dopasuj”, „Pełny ekran” + Esc, Ctrl + kolko — ZROBIONE;
+- 0b „Dodaj” wraca (jak stare, z modyfikacjami): Dodaj rozwija wybor AGD (sprzet + „W projekcie”) / Nowe szafki (Kuchnia: dol, gora;
+  Szafa w zabudowie; Wolnostojace) / Elementy szafki (klocki); zakladki Szafka, Szuflady, Polki, Drzwi i klapy, Przegroda,
+  Cokol i nozki — parametry zaznaczonej szafki. Odznaczanie szafki (klik w puste miejsce rysunku): bez zaznaczenia zakladki
+  Szafka / Szuflady / Polki / Drzwi / Przegroda pokazuja, co mozna dodac (nowe szafki / klocki); z zaznaczeniem — tylko opcje tej szafki;
+- 0c rodzaj zabudowy NA CIAG (`run.zabudowa`: kuchnia / szafa / wolnostojaca) — przelacznik w naglowku ciagu;
+- 0d kolory rysunku: prosta — jasne jak makieta; szczegolowa — kolory plyt jak techniczny, na przelaczniku; techniczny — kolory;
+- 1 karta AGD w stylu makiety + rysunki sprzetu (plyta z polami, zlew z komora, piekarnik z szyba, „Blat z góry”);
+- 2 przesuwanie postawionych rzeczy po rysunku (zielone ramki celu) + menu „Co zmienić?” (dwuklik / prawy przycisk);
+- 3 okap (typy, wyciecie w dnie z pola z propozycja, 650 / 750) + slupek z 3 sprzetami;
+- 4 karty szczegolowe (wzmocnienia, polki „równo z półką obok”, naglowek karty z ikona i szerokosciami, biurko z kontenerem,
+  szafa z szufladami).
+[AI-INFO] 2026-11-09: karta makiety pokazuje kazdy poziom kolumny z podzialem („poziom N kolumny J”) — zgloszenie „w szafie nie
+widzi kolumn”; cokol szafki wolnostojacej rysowany (`cokol-szafki`).
+[AI-INFO] 2026-11-09: krok 2 planu (menu „Co zmienić?”, dwuklik na polce, przesuwanie szafki w ciagu z zielonym znacznikiem)
+ZROBIONY przed 0c/0d, bo uzytkownik juz go testowal („nie działa dwuklik lewym i prawy myszy”). Przesuwanie tylko w tym samym
+ciagu; przenoszenie miedzy ciagami i przesuwanie sprzetu po blacie — jeszcze nie (sprzet: razem z karta AGD, krok 1).
+[AI-INFO] 2026-11-09 (wieczor): zrobione w makiecie — karta AGD (krok 1, bez okapu), poziomy kolumny (podziel / scal), „Bez frontu”
+w poziomie, Polki po kolumnie, opcje tylko wybranej kolumny (Drzwi / Szuflady / Polki), rodzaj zabudowy na ciag, kolory wg trybu,
+„Co zmienić?”, przesuwanie szafek, uwagi pod makieta. Suity: makieta..makieta8.
+[AI-TODO] Polecenie uzytkownika 2026-11-09 („niedługo skończą się tokeny”): po wznowieniu dokonczyc biezace, potem PRZEGLAD — czego
+brakuje w makiecie prostej, zeby byla wiekszosc prostych funkcji kreatora szafek i szaf; rozwiazania wdrazac bez pytania, gdy jasne;
+pytania zbierac i zadac WSZYSTKIE na koniec (narzedzie z opcjami). Pozostale z planu: krok 3 (okap, slupek z 3 sprzetami),
+krok 4 (wzmocnienia, polki „równo z obok”, biurko z kontenerem, szafa z szufladami). Kandydaci z przegladu: usuwanie szafki
+z makiety (× / Delete), kopiowanie szafki, poziomy szafki (cale szerokosci) — dodaj / usun, drazek w kolumnie z wysokoscia,
+uchwyty (rodzaj), material/kolor plyty i frontu (szczegolowa), nozki/cokol w ciagu juz sa, nazwa szafki w karcie.
+[AI-INFO] 2026-11-09: przeglad brakow makiety prostej — zrobione bez pytan: nazwa / kopiuj / usun szafke, poziomy calej szafki
+(+ / −, przegroda pozioma przeciagana), szafa z szufladami w palecie, polki „równo z kol. obok”, drazek przeciagany.
+Do decyzji uzytkownika (pytania zadane na koniec sesji): okap (gdzie w danych, typy), slupek z 3 sprzetami (skroty wysokosci),
+biurko z kontenerem (szablon), kolory / plyty w makiecie prostej, wzmocnienia w szczegolowej.
+[AI-INFO] Decyzje uzytkownika 2026-11-10 (po przegladzie brakow makiety prostej):
+- OKAP: podszafkowy / teleskopowy / wklad — cecha szafki gornej nad plyta (wyciecie w dnie z pola, propozycja 560 × 290);
+  kominowy — pozycja ciagu gornego bez korpusu (jak zmywarka w dolnym); kontrola 650 / 750 nad plyta.
+- SLUPEK z kilkoma sprzetami: w karcie AGD skroty z makiety — „na wysokość blatu”, „pod blat”, „do dołu szafek górnych”,
+  „zamień miejscami”, „razem (półka między)”.
+- BIURKO Z KONTENEREM: nowy szablon aplikacji teraz; plyta wzmacniajaca 300 z tylu pod blatem, laczenie z bokami domyslnie
+  konfirmaty + zaslepki (kolejnosc montazu sprawdzic wg AGENTS.md).
+- KOLORY / PLYTY w makiecie: wybor plyty korpusu i frontu (z palety materialow projektu) TYLKO w szczegolowej; prosta jasna.
+[AI-TODO] Kolejnosc wdrazania: kolory w szczegolowej → skroty slupka → okap → biurko z kontenerem.
+[AI-INFO] 2026-11-10: zrobione z decyzji — plyty w szczegolowej, skroty slupka, okap w szafce gornej (podszafkowy / teleskopowy /
+wklad, wyciecie w dnie, kontrola 650 / 750). Artefakt v201.
+[AI-TODO] Zostaje z decyzji 2026-11-10: (1) okap KOMINOWY jako pozycja ciagu gornego bez korpusu (jak `sprzetCiagu` w dolnym —
+geometria bezKorpusu, rysunki przod / bok / gora / 3D, brak formatek, kontrola nad plyta jak `okapMsgs`); (2) BIURKO Z KONTENEREM —
+szablon aplikacji: kontener szuflad zamiast jednego boku, plyta wzmacniajaca 300 z tylu pod blatem, laczenie konfirmaty + zaslepki
+(sprawdzic kolejnosc montazu wg AGENTS.md: kontener — konfirmat od srodka kontenera przed wlozeniem szuflad).
+[AI-INFO] 2026-11-10: okap KOMINOWY zrobiony — `sprzetCiagu.typ = "okapK"` w ciagu gornym (szablon „Okap kominowy”, `tylkoGorny`),
+geometria bez korpusu z kominem, przerwa listwy zawieszek, `okapMsgs` + przycisk „Okap 650 mm nad płytą”, makieta: zamiana
+szafka z okapem <-> kominowy w karcie AGD. Opis: `opisy/sprzety.md`. Zostaje biurko z kontenerem.
+[AI-INFO] 2026-11-10: uzytkownik zapytal o „półka → poziom / poziom → półka” w makiecie — jest w „Drzwi i klapy” (podziel / scal);
+kopie w zakladce „Półki” uzytkownik odrzucil („żeby nie wprowadzać zamętu”) — nie dodawac.
+[AI-INFO] 2026-11-10: BIURKO Z KONTENEREM zrobione — szablon `biurko-kontener` (nogi + kontener 3 szuflady z prawej, wnetrze 400),
+w obu szablonach biurka wzmocnienie tylne 300 pod blatem (konfirmaty + zaslepki) i `hangers: "never"`; makieta: paleta „Biurko
+z kontenerem”, karta Szafka — kontener bez / L / P i szerokosc 400 / 450 / 500; uwaga o kolejnosci montazu (`biurkoMsgs`).
+[AI-INFO] Odpowiedzi uzytkownika 2026-11-10 (biurko): kontener — „bok jest dalej bokiem biurka, dołożona przegroda pionowa, dwa
+wzmocnienia jak cokół z przodu w obrysie i z tyłu, dno, szyny do boku biurka i do przegrody, z możliwością zmiany strony” —
+zrobione (kolumna z dwoma poziomami, `biurkoKontener`); mimosrody — NIE (wystarcza konfirmaty + zaslepki, opcja wkrety 4 × 30).
+[AI-INFO] 2026-11-10: plan wyrownania makiety z artefaktem „Dodaj” ZAMKNIETY — krok 4 (karty szczegolowe: Korpus i plecy,
+Wzmocnienia, Wyciecia; naglowek karty z ikona i opisem) i krok 6 (AGD z listy A1 w `makiety/BRAKI.md` — ostatni punkt:
+„Rodzaj lodówki” w karcie AGD, `zamienLodowke`). Trzy kafelki lodowki w palecie zostaja (do zabudowy / podblatowa /
+wolnostojaca) — w makiecie „Dodaj” jest jeden; do decyzji uzytkownika, czy laczyc.
+
+[AI-INFO] 2026-11-10: kafelki AGD polaczone (decyzja uzytkownika „Połącz wszystkie”): jedna lodowka, mikrofala, ekspres,
+zmywarka — rodzaj w karcie AGD.
+[AI-INFO] 2026-11-10: lista uwag uzytkownika po pierwszych testach makiety (zawiasy → „2 drzwi w kolumnie”, klocki „Półka” /
+„Drążek” nad karta Polek, okienko polki pod / nad / usun + PPM, Drzwi: zawiasy L / P i lustro, klocki lustro / uchwyt /
+tip-on, „Dodaj” zwiniete i grupy „Nowe szafki” wg rodzaju ciagu (pamiec `mp-mak-grupy` na ciag), ikony wzorow z
+nozkami / cokolem, plyty „inne niz korpus”, szczegolowa: wzmocnienia na rysunku (klik → karta), wymiary (przelacznik
+„Wymiary”, napisy 52 px w makiecie), blat nad zaznaczona szafka, mocowanie polek, trojkaty przy przegrodzie / pod
+przegroda nizsza, plan kolizji, „Widok” (przod / bok / gora / 3D / 45°) zamiast „Powiększ”, przesuwanie rysunku
+lewym przyciskiem, drganie przy 125 % (rozmiar okna z paskiem), wieniec z gory na wierzchu, nowy ciag z makiety) —
+zrobione na galezi, opis `opisy/makieta.md` („Uwagi 2026-11-10”), test `testy/makieta11.mjs`.
+[AI-TODO] Trojkaty meblowe przy BOKACH dla wzmocnien (zamiast konfirmatow) — w aplikacji nie ma takiego mocowania (sa
+przy przegrodzie i pod przegroda nizsza). Uzytkownik pytany 2026-11-10; bez odpowiedzi nie dodawac (wiercenia, okucia,
+kolejnosc montazu).

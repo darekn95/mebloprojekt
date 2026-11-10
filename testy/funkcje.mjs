@@ -15,7 +15,9 @@
    - N140–N149: kolory blatow w rozkroju, scalanie przy roznym montazu frontow, wlasne blaty
      na roznych wysokosciach, rura a wzmocnienie, wspornik a NL szuflady, tip-on, blaty
      gornych ciagow w rogu, przelot bez przegrody, listwa przy roznych wysokosciach,
-     zawieszka w wycieciu. */
+     zawieszka w wycieciu;
+   - sprzety w ciagu bez korpusu (2026-11-05): zmywarka (front meblowy, cokol ciagu idzie dalej)
+     i lodowka wolnostojaca (stoi na podlodze: cokol z przerwa, blat konczy sie przy niej). */
 import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
@@ -29,9 +31,10 @@ let src = fs.readFileSync(path.join(DIR, '..', 'szafki.jsx'), 'utf8');
 src = src.replace(/^import React[^\n]*\n/, 'const React = { createElement: () => null, Fragment: "f" };\n'
   + 'const useState=()=>[null,()=>{}],useEffect=()=>{},useMemo=(f)=>f(),useCallback=(f)=>f,useRef=()=>({current:null});\n');
 src = src.replace(/export default function App/, 'function App');
-const nazwy = ['prostokatyBez', 'hwDefaultPrice', 'buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
+const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice', 'buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
-  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany'];
+  'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
+  'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -492,6 +495,46 @@ console.log('\n== Scalanie „dwie przegrody” (użytkownik 2026-10-29) ==');
   const g4 = scal(sz('A', drzwi({ shelfTargets: [null] })), sz('B', drzwi({ shelfTargets: [null] })), { ...RUN, gap: 2 }).g;
   ok('luz ciągu 2 mm: szafka 1202, kolumny 565 / 565, bez błędów', g4.W === 1202 && g4.levels[0].cols.map((c) => Math.round(c.w)).join() === '565,565' && !g4.msgs.some((x) => x.level === 'error'),
     g4.W + ' ' + g4.levels[0].cols.map((c) => Math.round(c.w)).join());
+  // osobne dna i wieńce (użytkownik 2026-11-08): dno i góra do wyboru przy scalaniu
+  const scalO = (opcje, a = sz('A', drzwi({ shelfTargets: [null] })), b = sz('B', drzwi({ shelfTargets: [null] }))) => {
+    const P = G.loadProject({ name: 'P', runs: [RUN], items: [{ cab: a, runId: 'c1' }, { cab: b, runId: 'c1' }] });
+    const Q = G.scalSzafki(P, [0, 1], null, 'pojedyncze', opcje); const it = Q.items[Q.active]; return { cab: it.cab, g: G.computeGeo(G.cabDoGeo(Q, it), it.mat) }; };
+  const o1 = scalO({ dno: 'osobne', gora: 'osobne' });
+  const nazwy = o1.g.panels.filter((p) => /^(Dno|Wieniec|Przegroda)/.test(p.name)).map((p) => `${p.name} ${p.qty}×${p.a}×${p.b}`).join(', ');
+  ok('scalanie: osobne dna i wieńce — same wymuszają dwie przegrody; Dno lewe / prawe 564, Wieniec lewy / prawy 564, przegrody pary na całą wysokość 720',
+    o1.g.dividers.map((d) => `${d.para}${d.y0}-${d.y1}`).join() === 'L0-720,P0-720'
+    && /Dno lewe 1×564×560, Dno prawe 1×564×560, Wieniec lewy 1×564×560, Wieniec prawy 1×564×560/.test(nazwy) && /Przegroda pionowa 2×720×560/.test(nazwy), nazwy);
+  const plan1 = o1.g.drillPlan.filter((q) => /^Przegroda 1/.test(q.panel)).flatMap((q) => q.rows.map((r) => `${q.panel}: ${r.kind} ${r.ys}`));
+  ok('… konfirmaty dna i wieńca przez przegrody pary (9 i 711 mm od dołu przegrody), bez konfirmatu przegrody w dnie / wieńcu',
+    ['Przegroda 1 — lewa: konfirmat — dno 9', 'Przegroda 1 — lewa: konfirmat — wieniec 711', 'Przegroda 1 — prawa: konfirmat — dno 9', 'Przegroda 1 — prawa: konfirmat — wieniec 711'].every((x) => plan1.includes(x))
+    && !o1.g.drillPlan.some((q) => /^(Dno|Wieniec)/.test(q.panel) && q.rows.some((r) => /przegroda/.test(r.kind))), plan1.join(' / '));
+  const o2 = scalO({ dno: 'osobne', gora: 'wieniec' });
+  ok('… osobne dna + wspólny wieniec: wieniec jeden (1164), przegrody od spodu dna do wieńca (0–702), konfirmaty przegród w wieńcu',
+    o2.g.panels.some((p) => p.name === 'Wieniec' && p.a === 1164) && o2.g.dividers.every((d) => d.y0 === 0 && d.y1 === 702)
+    && (o2.g.drillPlan.find((q) => q.panel === 'Wieniec') || { rows: [] }).rows.filter((r) => /konfirmat — przegroda/.test(r.kind)).length === 2,
+    JSON.stringify(o2.g.dividers.map((d) => [d.y0, d.y1])));
+  const o3 = scalO({ dno: 'wspolne', gora: 'blat' }), o4 = scalO({ dno: 'wspolne', gora: 'roboczy' });
+  ok('… góra „blat z płyty”: blat na bokach (isBlat); „blat roboczy”: bez wieńca, para wzmocnień pod blat w obu kolumnach; jedna przegroda',
+    o3.g.isBlat && o3.g.dividers.length === 1 && !o4.g.hasTop && o4.g.levels[0].cols.every((c) => (c.rails || []).length === 2),
+    JSON.stringify({ blat: o3.g.isBlat, top4: o4.g.hasTop, r: o4.g.levels[0].cols.map((c) => (c.rails || []).length) }));
+  const o5 = scalO({ dno: 'osobne', gora: 'roboczy' });
+  ok('… osobne dna pod blatem roboczym: dno w dwóch kawałkach, wzmocnienia każdej kolumny na swojej przegrodzie (konfirmaty, bez trójkątów)',
+    o5.g.panels.filter((p) => /^Dno (lewe|prawe)/.test(p.name)).length === 2 && !o5.g.msgs.some((x) => /wzmocnienia z obu stron/.test(x.text))
+    && o5.g.levels[0].cols[1].rails[0].laczniki[0].moc === 'konfirmaty', o5.g.msgs.map((x) => x.text).join(' // ').slice(0, 400));
+  // nóżki przy osobnych dnach (2026-11-08): „osobne po 4” albo „wspólne na łączeniu”, od 900 mm części para pośrodku
+  const nozkiA = (sz('A', drzwi({ shelfTargets: [null] }))), nozkiB = sz('B', drzwi({ shelfTargets: [null] }));
+  const nOs = scalO({ dno: 'osobne', gora: 'wieniec', nozki: 'osobne' }, nozkiA, nozkiB).g.legs, nWs = scalO({ dno: 'osobne', gora: 'wieniec' }, nozkiA, nozkiB).g.legs;
+  ok('nóżki przy osobnych dnach: osobne — po 4 na część (40, 520, 640, 1120), wspólne — para pod łączeniem (40, 580, 1120)',
+    JSON.stringify(nOs.xs) === '[40,520,640,1120]' && nOs.ile === 8 && JSON.stringify(nWs.xs) === '[40,580,1120]' && nWs.ile === 6,
+    JSON.stringify([nOs.xs, nOs.ile, nWs.xs, nWs.ile]));
+  const duze = (n) => ({ ...sz(n, drzwi({ shelfTargets: [null] })), W: 1000 });
+  const nDuze = scalO({ dno: 'osobne', gora: 'wieniec', nozki: 'osobne' }, duze('A'), duze('B')).g.legs;
+  ok('… część 1000 mm „osobne”: 3 w rzędzie na część (dodatkowa para pośrodku)', nDuze.xs.length === 6 && nDuze.ile === 12, JSON.stringify(nDuze.xs));
+  const PR = G.loadProject({ name: 'P', runs: [RUN], items: [{ cab: sz('A', drzwi({ shelfTargets: [null] })), runId: 'c1' }, { cab: sz('B', drzwi({ shelfTargets: [null] })), runId: 'c1' }] });
+  const QR = G.scalSzafki(PR, [0, 1], null, 'pojedyncze', { dno: 'wspolne', gora: 'roboczy' });
+  ok('„blat roboczy” w ciągu bez blatu — włącza blat roboczy ciągu', QR.runs.find((r) => r.id === 'c1').worktop === true, JSON.stringify(QR.runs));
+  const bledy5 = [o1, o2, o3, o4, o5].flatMap((o) => o.g.msgs.filter((x) => x.level === 'error').map((x) => x.text));
+  ok('… żadnych błędów w tych wariantach', !bledy5.length, bledy5.join(' // '));
 }
 
 console.log('\n== N150–N156 (audyt GPT 2026-10-30) ==');
@@ -921,4 +964,368 @@ console.log('\n== Decyzje 2026-10-31: kątownik szuflady > 600 (N178), podpora r
     c('Podpora rury ⌀25 GTV WP-10') === 4 && c('Kątownik mocujący Sevroll 40343') === 4 && c('Klocek dystansowy pod hak') === 1
     && c('Wkręt 3,5 × 13') === 0.08 && c('Wkręt 4 × 25 do frontu szuflady', 'Wkręt 4 × 30 do frontu szuflady') === 0.08 && c('Wkręt 4 × 40') === 0.08 && c('Zawias') === 3,
     [c('Wkręt 3,5 × 13'), c('Wkręt 4 × 40')].join(' / '));
+}
+
+console.log('\n== Sprzęty: piekarnik i mikrofala we wnęce poziomu (użytkownik 2026-11-04) ==');
+{
+  const slupek = (o = {}, sp = { typ: 'piekarnik' }, h2 = 590) => ({ name: 'S', W: 600, H: 2100, D: 560, plinth: { on: true, height: 100 }, legs: { on: false },
+    levels: [{ h: 720, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 'auto' }, { h: 'auto' }] }] },
+      { h: h2, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null], sprzet: sp }] },
+      { h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }], ...o });
+  const sp = (g) => g.levels[1].cols[0].sprzet;
+  const tx = (g) => g.msgs.map((x) => `${x.level} ${x.text}`).join(' // ');
+  const g0 = geo(slupek());
+  const c0 = g0.levels[1].cols[0];
+  ok('słupek 600, piekarnik w poziomie 590: wnęka 564 × 590 × 560, front 595 × 595 od dołu wnęki (y 756), bez uwag',
+    sp(g0) && sp(g0).wneka.w === 564 && sp(g0).wneka.h === 590 && sp(g0).wneka.d === 560 && sp(g0).x1 - sp(g0).x0 === 595 && sp(g0).y0 === 756 && sp(g0).y1 === 1351
+    && !g0.msgs.some((x) => /sprzęt|piekarnik/.test(x.text)), JSON.stringify(sp(g0) && { ...sp(g0), bryla: undefined }));
+  ok('… we wnęce bez drzwi, półek i zawiasów: drzwi tylko na górze (1 × 740), 2 zawiasy, 3 uchwyty (2 szuflady + drzwi)',
+    c0.count === 0 && !c0.shelves.length && g0.panels.filter((p) => /^Drzwi/.test(p.name)).map((p) => `${p.a}×${p.b}×${p.qty}`).join() === '740×596×1'
+    && (g0.hardware.find((h) => h.name === 'Zawias') || {}).qty === 2 && (g0.hardware.find((h) => h.name === 'Uchwyt') || {}).qty === 3,
+    g0.panels.map((p) => p.name).join(' / '));
+  const gW = geo(slupek({ W: 640 }));
+  ok('szafka 640: ostrzeżenie „wnęka … 604 mm szerokości — 560–568” z przyciskiem szafki 600 (wnęka 564)',
+    /warn Poziom 2, kolumna 1: wnęka na piekarnik ma 604 mm szerokości — piekarnik potrzebuje 560–568 mm[^/]*\|sprzetw:1:0:564:600/.test(tx(gW)), tx(gW));
+  const gW2 = geo(slupek({ W: 520 }));
+  ok('szafka 520: błąd (wnęka 484 < 560) z tym samym przyciskiem', gW2.msgs.some((x) => x.level === 'error' && /wnęka na piekarnik ma 484 mm szerokości.*\|sprzetw:1:0:564:600$/.test(x.text)), tx(gW2));
+  const gK = geo({ ...slupek(), W: 1200, levels: [{ h: 720, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 'auto' }] }] },
+    { h: 590, cols: [{ kind: 'doors', doors: 0, w: 640, shelfTargets: [null], sprzet: { typ: 'piekarnik' } }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] },
+    { h: null, cols: [{ kind: 'doors', doors: 2, w: null }] }] });
+  ok('dwie kolumny, wnęka 640: przycisk tylko na kolumnę (bez szerokości szafki)', gK.msgs.some((x) => /wnęka na piekarnik ma 640 mm szerokości.*\|sprzetw:1:0:564:$/.test(x.text)), tx(gK));
+  const gH = geo(slupek({}, { typ: 'piekarnik' }, 500));
+  const mH = gH.msgs.filter((x) => /piekarnik/.test(x.text));
+  ok('wnęka 500 wys.: jeden błąd „co najmniej 585 mm (586 … front nad nim)” z przyciskiem poziomu 586', mH.length === 1 && mH[0].level === 'error'
+    && /wnęka na piekarnik ma 500 mm wysokości — potrzeba co najmniej 585 mm \(586 mm, żeby front sprzętu nie wchodził na front nad nim\)\.\|sprzeth:1:586:$/.test(mH[0].text), tx(gH));
+  const gD = geo(slupek({ D: 450 }));
+  ok('szafka 450 głęb.: błąd „450 mm głębokości — co najmniej 550” z przyciskiem głębokości 550', gD.msgs.some((x) => x.level === 'error' && /450 mm głębokości \(do pleców\) — potrzeba co najmniej 550 mm\.\|glebokosc:550$/.test(x.text)), tx(gD));
+  const gM = geo(slupek({}, { typ: 'mikrofala' }));
+  ok('mikrofala w poziomie 590: front 594 × 382, ostrzeżenie o 208 mm otwartej wnęki z „obniż poziom do 373”',
+    sp(gM).x1 - sp(gM).x0 === 594 && sp(gM).y1 - sp(gM).y0 === 382
+    && gM.msgs.some((x) => x.level === 'warn' && /zostaje 208 mm otwartej wnęki — obniż poziom do 373 mm.*\|sprzeth:1:373:$/.test(x.text)), tx(gM));
+  const gM2 = geo(slupek({}, { typ: 'mikrofala' }, 373));
+  ok('… poziom 373: bez uwag o sprzęcie', !gM2.msgs.some((x) => /sprzęt|mikrofala/.test(x.text)), tx(gM2));
+  const gM3 = geo(slupek({}, { typ: 'mikrofala' }, 362));
+  ok('… poziom 362 (minimum wnęki): front 382 wchodzi 9 mm na drzwi nad nim — błąd z przyciskiem 373', gM3.msgs.some((x) => x.level === 'error'
+    && /front sprzętu \(mikrofala, 594 × 382 mm\) zachodzi o 9 mm na drzwi nad nim — podnieś płytę nad wnęką \(wnęka 373 mm\)\.\|sprzeth:1:373:$/.test(x.text)), tx(gM3));
+  const gP = geo(slupek({}, { typ: 'piekarnik', frontH: 600, hMin: 590 }, 590));
+  ok('własne wymiary z karty (front 600, wnęka od 590): front 600 kryje połowę płyty nad wnęką — bez uwag', sp(gP).y1 - sp(gP).y0 === 600
+    && !gP.msgs.some((x) => /piekarnik/.test(x.text)), tx(gP));
+  const gP2 = geo(slupek({}, { typ: 'piekarnik', frontH: 610, hMin: 590 }, 590));
+  ok('… front 610: zachodzi 9 mm na drzwi nad nim — przycisk wnęki 601', gP2.msgs.some((x) => x.level === 'error' && /front sprzętu \(piekarnik, 595 × 610 mm\) zachodzi o 9 mm.*\|sprzeth:1:601:$/.test(x.text)), tx(gP2));
+  const gO = geo({ name: 'R', W: 1218, H: 720, D: 560, plinth: { on: true, height: 100 }, legs: { on: false },
+    levels: [{ h: null, cols: [{ w: 600, kind: 'doors', doors: 1 }, { w: null, kind: 'doors', doors: 0, sprzet: { typ: 'piekarnik' } }] }] });
+  ok('piekarnik w kolumnie za przegrodą 18 mm: front 595 wchodzi 4 mm na drzwi obok (623 mm) — błąd z radą „w osobnej szafce”',
+    gO.msgs.some((x) => x.level === 'error' && /front sprzętu \(piekarnik, 595 × 595 mm\) zachodzi o 4 mm na drzwi obok — postaw piekarnik w osobnej szafce — w szafce z kolumnami front sprzętu kryje prawie całą przegrodę/.test(x.text)), tx(gO));
+  // otwieranie: drzwi sprzetu w zaslonietej czesci slepego rogu
+  const PLs = { on: true, height: 100, mode: 'under', setback: 0 };
+  const RUNs = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLs, worktop: false, corner: null, ...o });
+  const CABs = (name, W, runId, cols) => ({ cab: { name, W, H: 720, D: 560, plinth: PLs, levels: [{ h: null, cols }] }, runId, offset: 0 });
+  const rog = (typ, przyRogu) => {
+    const kol = [{ w: 600, kind: 'doors', doors: 0, sprzet: { typ } }, { w: null, kind: 'doors', doors: 1 }];
+    const P = G.loadProject({ name: 'R', active: 0, prices: {}, runs: [RUNs('c1', 'Ściana A'), RUNs('c2', 'Ściana B', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
+      items: [CABs('A1', 600, 'c1', [{ w: null, kind: 'doors', doors: 2 }]), CABs('A2', 600, 'c1', [{ w: null, kind: 'doors', doors: 2 }]),
+        przyRogu ? CABs('R', 1200, 'c2', kol) : CABs('R', 1218, 'c2', [{ w: 600, kind: 'doors', doors: 1 }, { ...kol[0], w: null }])] });
+    return G.openingMsgs(G.projectLayout(P).pokoje.values().next().value, P).map((x) => x.text);
+  };
+  const rP = rog('piekarnik', true), rM = rog('mikrofala', true);
+  ok('piekarnik w zasłoniętej części ślepego rogu: „nie otworzą się wcale: tuż przed nimi stoi korpus szafki „A2”” + rada o rogu',
+    rP.length === 1 && /^Drzwi sprzętu \(piekarnik\) w szafce „R" \(ciąg „Ściana B"\) nie otworzą się wcale: tuż przed nimi stoi korpus szafki „A2" z ciągu „Ściana A"\. Przesuń sprzęt dalej od rogu/.test(rP[0]), rP.join(' / '));
+  ok('mikrofala (zawias z lewej) tak samo', rM.length === 1 && /^Drzwi sprzętu \(mikrofala\) .* nie otworzą się wcale: tuż przed nimi stoi korpus szafki „A2"/.test(rM[0]), rM.join(' / '));
+  const rK = [...rog('piekarnik', false), ...rog('mikrofala', false)];
+  ok('kontrola: sprzęt w kolumnie za drzwiami 600 (od rogu 636 mm) — jego drzwi otwierają się', !rK.some((t) => /^Drzwi sprzętu/.test(t)), rK.join(' / '));
+}
+
+console.log('\n== Sprzęty: lodówka w kolumnie (użytkownik 2026-11-05) ==');
+{
+  const slup = (sp, h1 = 1781, o = {}) => ({ name: 'L', W: 600, H: 2100, D: 560, plinth: { on: true, height: 100 }, legs: { on: false },
+    levels: [{ h: h1, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null], sprzet: sp }] }, { h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }], ...o });
+  const tx = (g) => g.msgs.map((x) => `${x.level} ${x.text}`).join(' // ');
+  const fr = (g) => g.panels.filter((p) => /^Front lodówki/.test(p.name)).map((p) => `${p.name} ${p.a}×${p.b}`).join(' / ');
+  const zaw = (g) => (g.hardware.find((h) => h.name === 'Zawias') || {}).qty;
+  const g1 = geo(slup({ typ: 'lodowka' }));
+  ok('ślizgowo, 1 front: „Front lodówki 1803 × 596”, zawiasy szafki (4 + 2 drzwi nad nią), informacja o prowadnicy, bez podpowiedzi rury',
+    fr(g1) === 'Front lodówki 1803×596' && zaw(g1) === 6 && g1.msgs.some((x) => x.level === 'info' && /prowadnicą ślizgową z kompletu lodówki/.test(x.text))
+    && !g1.msgs.some((x) => /rura na wieszaki/.test(x.text)) && !g1.levels[0].cols[0].shelves.length, `${fr(g1)} | ${zaw(g1)} | ${tx(g1)}`);
+  const g2 = geo(slup({ typ: 'lodowka', fronty: 2, dolny: 700, montaz: 'staly', drzwi: 'prawe' }));
+  ok('na stałe, 2 fronty (dolny 700): dolny 700 i górny 1101 (luz 3 mm), zawias z prawej, bez zawiasów meblowych (zostają 2 drzwi nad nią)',
+    fr(g2) === 'Front lodówki — dolny 700×596 / Front lodówki — górny 1101×596' && zaw(g2) === 2
+    && g2.doors.filter((d) => d.lodowka).every((d) => d.hingeSide === 'right' && d.hinges === 0 && !d.hingePts.length)
+    && g2.msgs.some((x) => /przykręcony do drzwi lodówki okuciami z kompletu lodówki — bez zawiasów meblowych/.test(x.text)), `${fr(g2)} | ${zaw(g2)}`);
+  const g3 = geo(slup({ typ: 'lodowka', fronty: 2 }));
+  ok('2 fronty bez wysokości dolnego: ostrzeżenie „wpisz wysokość dolnego frontu z karty lodówki”, podział po równo',
+    g3.msgs.some((x) => x.level === 'warn' && /wpisz wysokość dolnego frontu z karty lodówki \(teraz podział po równo\)/.test(x.text))
+    && fr(g3) === 'Front lodówki — dolny 901×596 / Front lodówki — górny 900×596', fr(g3));
+  const g4 = geo(slup({ typ: 'lodowka' }, 1700));
+  ok('wnęka 1700 (lodówka 1772–1790): błąd z przyciskiem „Poziom 1781 mm”', g4.msgs.some((x) => x.level === 'error' && /wnęka na lodówkę ma 1700 mm wysokości — lodówka do zabudowy potrzebuje 1772–1790 mm\.\|sprzeth:0:1781:$/.test(x.text)), tx(g4));
+  const g5 = geo(slup({ typ: 'lodowka' }, 1781, { W: 640 }));
+  ok('szafka 640 (wnęka 604): ostrzeżenie z „Szafka 601 mm (wnęka 565)”', g5.msgs.some((x) => x.level === 'warn' && /wnęka na lodówkę ma 604 mm szerokości — lodówka do zabudowy potrzebuje 560–570 mm.*\|sprzetw:0:0:565:601$/.test(x.text)), tx(g5));
+  const g6 = geo(slup({ typ: 'lodowka', montaz: 'brak' }, 1900, { W: 720 }));
+  const s6 = g6.levels[0].cols[0].sprzet;
+  ok('wolnostojąca we wnęce 684 × 1900: bez frontu meblowego, luz z boku 42 < 50 i nad nią 50 < 100 — ostrzeżenia z przyciskami, wystaje 140 mm (informacja)',
+    !fr(g6) && s6.front === true && s6.x1 - s6.x0 === 600 && s6.y1 - s6.y0 === 1850 && s6.fz0 === -140
+    && g6.msgs.some((x) => x.level === 'warn' && /zostaje 42 mm z boku — na wentylację potrzeba 50 mm.*\|sprzetw:0:0:700:736$/.test(x.text))
+    && g6.msgs.some((x) => x.level === 'warn' && /nad lodówką zostaje 50 mm — na wentylację potrzeba 100 mm.*\|sprzeth:0:1950:$/.test(x.text))
+    && g6.msgs.some((x) => x.level === 'info' && /wystaje 140 mm przed lico szafki/.test(x.text)), tx(g6));
+  const g7 = geo(slup({ typ: 'lodowka', montaz: 'brak' }, 1900));
+  ok('wolnostojąca we wnęce 564: błąd „lodówka ma 600 mm”', g7.msgs.some((x) => x.level === 'error' && /wnęka na lodówkę ma 564 mm szerokości — lodówka ma 600 mm/.test(x.text)), tx(g7));
+}
+
+console.log('\n== Wycięcia w blacie: płyta i zlew nad szafką (użytkownik 2026-11-05) ==');
+{
+  const PLw = { on: true, height: 100, mode: 'under', setback: 0 };
+  const RUNw = { id: 'c1', name: 'Ściana A', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLw, worktop: true, corner: null };
+  const szW = (name, W, wyc) => { const c = G.migrateCab({ name, W, H: 720, D: 560, plinth: PLw, levels: [{ h: null, cols: [{ kind: 'doors', doors: W > 500 ? 2 : 1, w: null, shelfTargets: [null] }] }] }, M0);
+    return { cab: { ...c, ...G.bezWienca(c, 18), ...(wyc ? { blatWyciecia: wyc } : {}) }, runId: 'c1', offset: 0 }; };
+  const projW = (items) => G.loadProject({ name: 'P', active: 0, prices: {}, runs: [RUNw], items });
+  const P1 = projW([szW('A', 400), szW('Płyta', 600, [{ typ: 'plyta', odPrzodu: 140 }]), szW('Zlew', 800, [{ typ: 'zlew', odPrzodu: 70 }]), szW('B', 600)]);
+  const rt1 = G.runTop(P1, P1.runs[0]);
+  const f1 = G.runTopPanels(rt1);
+  ok('płyta nad 600 i zlew nad 800: wycięcia na środku szafek (x 420–980 i 1010–1790)', JSON.stringify(rt1.wyciecia.map((q) => [q.typ, q.x0, q.x1])) === '[["plyta",420,980],["zlew",1010,1790]]', JSON.stringify(rt1.wyciecia.map((q) => [q.typ, q.x0, q.x1])));
+  ok('formatka blatu: „Blat ciągu — wycięcia pod płytę 560 × 490 i zlew 780 × 480”, otwory od tyłu (v = 600 − od przodu − głęb.)',
+    f1.length === 1 && f1[0].name === 'Blat ciągu — wycięcia pod płytę 560 × 490 i zlew 780 × 480'
+    && JSON.stringify(f1[0].otwory) === '[{"u":420,"v":-30,"du":560,"dv":490},{"u":1010,"v":50,"du":780,"dv":480}]'.replace('"v":-30', '"v":0'), JSON.stringify(f1));
+  const m1 = G.worktopMsgs(P1, P1.runs[0]).map((x) => `${x.level} ${x.text}`);
+  ok('płyta 140 od przodu + 490 w blacie 600: błąd „wychodzi 30 mm poza tył blatu” z przyciskiem „60 mm od przodu”', m1.some((t) => /^error .*płyta nad szafką „Płyta”: blat ma 600 mm głębokości, a wycięcie 490 mm zaczyna się 140 mm od przodu — wychodzi 30 mm poza tył blatu\.\|wycblatu:1:0:odPrzodu:60$/.test(t)), m1.join(' // '));
+  ok('zlew 780 nad szafką 800: informacja o komorze i ociekaczu (wnętrze 764 mm)', m1.some((t) => /^info .*wycięcie zlewu \(780 mm\) wychodzi nad bok szafki — komora zlewu musi zmieścić się we wnętrzu szafki \(764 mm\)/.test(t)), m1.join(' // '));
+  const P2 = projW([szW('Płyta', 600, [{ typ: 'plyta' }]), szW('B', 600)]);
+  const m2 = G.worktopMsgs(P2, P2.runs[0]).map((x) => `${x.level} ${x.text}`);
+  ok('płyta 50 od przodu nad parą wzmocnień: błąd — korpus płyty (60 od wierzchu, 22 pod blat) wchodzi w leżące wzmocnienie; „Wzmocnienie stojące” i „Wycięcie 60 mm od przodu” (na wycięcie we wzmocnieniu zostałby pasek 20 mm)',
+    m2.some((t) => /^error .*korpus płyty sięga 60 mm od wierzchu blatu \(22 mm pod blat\), a wycięcie zaczyna się 20 mm za licem korpusu — nad leżącym wzmocnieniem przednim \(100 mm w głąb\), korpus płyty w nie wchodzi\. Postaw je na sztorc — na wycięcie we wzmocnieniu zostałby pasek 20 mm.*\|wzmblat:0:0:0:0:stoj\|wycblatu:0:0:odPrzodu:60$/.test(t)), m2.join(' // '));
+  ok('płyta 20 mm od początku blatu: ostrzeżenie „za blisko końca blatu” z przyciskiem przesunięcia o 30', m2.some((t) => /^warn .*za blisko końca blatu.*\|wycblatu:0:0:przesun:30$/.test(t)), m2.join(' // '));
+  const P3 = projW([szW('Płyta', 450, [{ typ: 'plyta', przesun: 100 }]), szW('B', 600)]);
+  const m3 = G.worktopMsgs(P3, P3.runs[0]).map((x) => `${x.level} ${x.text}`);
+  ok('płyta 560 nad szafką 450: błąd „wychodzi nad bok szafki — wnętrze 414 mm” (bez przycisku — nie zmieści się)', m3.some((t) => /^error .*płyta grzewcza 560 mm wychodzi nad bok szafki — jej korpus pod blatem nie zmieści się we wnętrzu szafki \(414 mm\)\.$/.test(t)), m3.join(' // '));
+  const P4 = projW([szW('A', 1200), szW('B', 1200), szW('C', 1100), szW('Płyta', 600, [{ typ: 'plyta', przesun: 300 }]), szW('D', 1200)]);
+  const rt4 = G.runTop(P4, P4.runs[0]);
+  const m4 = G.worktopMsgs(P4, P4.runs[0]).map((x) => `${x.level} ${x.text}`);
+  const f4 = G.runTopPanels(rt4);
+  ok('blat w dwóch kawałkach (4100 + 1200): płyta na łączeniu — błąd z przyciskami przesunięcia w obie strony',
+    rt4.lens.length === 2 && m4.some((t) => /^error .*wycięcie wypada na łączeniu blatu \(4100 mm od początku blatu\).*\|wycblatu:3:0:przesun:-\d+\|wycblatu:3:0:przesun:\d+$/.test(t)), `${JSON.stringify(rt4.lens)} | ${m4.join(' // ')}`);
+  ok('… otwory rozdzielone na oba kawałki blatu', f4.filter((p) => (p.otwory || []).length).length === 2, JSON.stringify(f4.map((p) => [p.name, p.a, p.otwory])));
+}
+
+console.log('\n== Sprzęt w ciągu bez korpusu: zmywarka i lodówka wolnostojąca (użytkownik 2026-11-05) ==');
+{
+  const PLs = { on: true, height: 100, mode: 'under', setback: 0 };
+  const RUNs = { id: 'c1', name: 'Ściana A', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLs, worktop: true, corner: null, hangerMode: 'listwa' };
+  const szS = (name, W) => { const c = G.migrateCab({ name, W, H: 720, D: 560, plinth: PLs, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null] }] }] }, M0);
+    return { cab: { ...c, ...G.bezWienca(c, 18) }, runId: 'c1', offset: 0 }; };
+  const zmS = (o = {}) => ({ cab: { ...G.makeFromTemplate('zmywarka'), plinth: PLs, ...o }, runId: 'c1', offset: 0 });
+  const loS = (o = {}) => ({ cab: { ...G.makeFromTemplate('lodowka-wolno'), ...o }, runId: 'c1', offset: 0 });
+  const projS = (items) => G.loadProject({ name: 'P', active: 0, prices: {}, runs: [RUNs], items });
+  const tx = (g) => g.msgs.map((x) => `${x.level} ${x.text}`).join(' // ');
+  const gz = geo(zmS().cab);
+  ok('zmywarka: bez korpusu — tylko cokół i „Front zmywarki 714 × 596” z płyty frontów (fronty z płyty korpusu → board), bez okuć i wierceń',
+    gz.bezKorpusu && gz.panels.map((q) => `${q.name} ${q.a}×${q.b} ${q.matKey}`).join(' / ') === 'Cokół 600×100 board / Front zmywarki 714×596 board'
+    && !gz.hardware.length && !gz.drillPlan.length && !gz.doors.length && gz.sprzetCiagu.front.w === 596,
+    gz.panels.map((q) => `${q.name} ${q.a}×${q.b} ${q.matKey}`).join(' / '));
+  const gz2 = geo(zmS({ W: 590 }).cab);
+  ok('zmywarka w miejscu 590: błąd „potrzebuje 600–605 mm” z przyciskiem „Miejsce 600 mm”', gz2.msgs.some((x) => x.level === 'error' && /Miejsce na zmywarkę ma 590 mm — zmywarka 60 cm potrzebuje 600–605 mm\.\|sprzetcw:600$/.test(x.text)), tx(gz2));
+  const gz3 = geo(zmS({ H: 800 }).cab);
+  ok('zmywarka pod blatem 900 mm od podłogi: błąd „potrzebuje 815–875 mm”', gz3.msgs.some((x) => x.level === 'error' && /Od podłogi do spodu blatu jest 900 mm — zmywarka do zabudowy potrzebuje 815–875 mm/.test(x.text)), tx(gz3));
+  const gl = geo(loS().cab);
+  ok('lodówka wolnostojąca 700: bez formatek, bryła 600 × 1850 na podłodze, wystaje 140 mm przed korpusy (120 przed fronty)',
+    gl.bezKorpusu && !gl.panels.length && gl.sprzetCiagu.x1 - gl.sprzetCiagu.x0 === 600 && gl.sprzetCiagu.y1 === 1850
+    && gl.msgs.some((x) => x.level === 'info' && /wystaje 140 mm przed korpusy szafek \(120 mm przed ich fronty\)/.test(x.text)), tx(gl));
+  const gl2 = geo(loS({ W: 640, H: 1800 }).cab);
+  ok('lodówka w miejscu 640 × 1800: luz 20 < 50 z boku i za niska pozycja — ostrzeżenia z „Miejsce 700 mm” i „Wysokość 1850 mm”',
+    gl2.msgs.some((x) => x.level === 'warn' && /zostaje 20 mm z boku — na wentylację potrzeba 50 mm.*\|sprzetcw:700$/.test(x.text))
+    && gl2.msgs.some((x) => x.level === 'warn' && /Pozycja ma 1800 mm wysokości, a lodówka 1850 mm\.\|sprzetch:1850$/.test(x.text)), tx(gl2));
+  const gl3 = geo(loS({ W: 590 }).cab);
+  ok('lodówka w miejscu 590: błąd „lodówka ma 600 mm”', gl3.msgs.some((x) => x.level === 'error' && /Miejsce na lodówkę ma 590 mm — lodówka ma 600 mm/.test(x.text)), tx(gl3));
+
+  // ciag: A 600 | zmywarka 600 | lodowka 700 | B 600
+  const P1 = projS([szS('A', 600), zmS(), loS(), szS('B', 600)]);
+  const r1 = P1.runs[0];
+  const rp1 = G.runPlinth(P1, r1);
+  ok('lodówka w środku ciągu: cokół z przerwą pod nią — odcinki 0–1200 i 1900–2500, formatki 1200 i 600',
+    JSON.stringify(rp1.segmenty) === '[[0,1200],[1900,2500]]' && JSON.stringify(rp1.luki) === '[[1200,1900]]'
+    && JSON.stringify(G.runPlinthPanels(rp1).map((q) => [q.a, q.qty])) === '[[1200,1],[600,1]]', JSON.stringify(rp1));
+  const rt1 = G.runTop(P1, r1);
+  ok('… blat nad szafkami i zmywarką, bez lodówki (pokryte 0, 1, 3) — dwa kawałki', JSON.stringify(rt1.pokryte) === '[0,1,3]' && G.runTopPanels(rt1).length === 2,
+    `${JSON.stringify(rt1.pokryte)} ${G.runTopPanels(rt1).map((q) => q.a).join(',')}`);
+  const w1 = G.worktopMsgs(P1, r1).map((x) => `${x.level} ${x.text}`);
+  ok('… uwaga: „Lodówka stoi w środku ciągu — blat dzieli się …, cokół ma pod nią przerwę”; zmywarka bez „nie ma ani wieńca”',
+    w1.some((t) => /^info Lodówka „Lodówka" stoi w środku ciągu — blat dzieli się przy niej na dwa kawałki, a cokół ciągu ma pod nią przerwę/.test(t))
+    && !w1.some((t) => /Zmywarka.*nie ma ani wieńca|Lodówka.*wyższa od reszty ciągu/.test(t)), w1.join(' // '));
+  const rw1 = G.runWideMsgs(r1, 2500, rp1, rt1, 0).map((x) => x.text);
+  ok('… bez uwagi „cokół nie zmieści się w jednym arkuszu” (2 części to przerwa, nie cięcie)', !rw1.some((t) => /Cokół ciągu/.test(t)), rw1.join(' // '));
+  const inne = (i) => G.runItems(P1, 'c1').filter((x) => x.i !== i).map((x) => x.it.cab);
+  const c2 = G.runCabMsgs(r1, P1.items[2].cab, inne(2)), c1 = G.runCabMsgs(r1, P1.items[1].cab, inne(1));
+  ok('… lodówka bez uwag zgodności z ciągiem (wysokość 1850, bez cokołu); zmywarka bez uwag o wieszaniu', !c2.length && !c1.some((x) => /zawiesz|wiesza/.test(x.text)),
+    [...c2, ...c1].map((x) => x.text).join(' // '));
+  ok('… „Scal szafki”: zmywarka się nie scala', /zmywarka i lodówka w ciągu nie mają korpusu/.test(G.scalenieBlad(P1, [0, 1]) || ''), G.scalenieBlad(P1, [0, 1]));
+  const P2 = projS([szS('A', 600), zmS(), szS('B', 600), loS()]);
+  const rp2 = G.runPlinth(P2, P2.runs[0]);
+  ok('lodówka na końcu ciągu: cokół 1800 w jednym odcinku, uwaga „stoi na końcu ciągu — blat i cokół kończą się przy jej boku”',
+    rp2.total === 1800 && rp2.segmenty.length === 1 && !rp2.luki.length
+    && G.worktopMsgs(P2, P2.runs[0]).some((x) => x.level === 'info' && /Lodówka „Lodówka" stoi na końcu ciągu — blat i cokół kończą się przy jej boku/.test(x.text)), JSON.stringify(rp2));
+  const P3 = projS([szS('A', 600), loS({ W: 900 })]);
+  const rt3 = G.runTop(P3, P3.runs[0]);
+  ok('ciąg: szafka 600 i szersza lodówka 900 — blat nad szafką, nie nad lodówką', JSON.stringify(rt3.pokryte) === '[0]', JSON.stringify(rt3.pokryte));
+}
+
+console.log('\n== Pod wycięciem w blacie: nachodzenie, wzmocnienie stojące / z wycięciem, łączniki (użytkownik 2026-11-05) ==');
+{
+  const PLk = { on: true, height: 100, mode: 'under', setback: 0 };
+  const RUNk = { id: 'c1', name: 'Ściana A', wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PLk, worktop: true, corner: null };
+  const szK = (name, W, wyc, cols = null, zmien = null) => {
+    const c = G.migrateCab({ name, W, H: 720, D: 560, plinth: PLk,
+      levels: [{ h: null, cols: cols || [{ kind: 'doors', doors: W > 500 ? 2 : 1, w: null, shelfTargets: [null] }] }] }, M0);
+    const cab = { ...c, ...G.bezWienca(c, 18), ...(wyc ? { blatWyciecia: wyc } : {}) };
+    if (zmien) zmien(cab);
+    return { cab, runId: 'c1', offset: 0 };
+  };
+  const projK = (items) => G.loadProject({ name: 'P', active: 0, prices: {}, runs: [RUNk], items });
+  const msgs = (P) => G.worktopMsgs(P, P.runs[0]).map((x) => `${x.level} ${x.text}`);
+  const P1 = projK([szK('Płyta', 600, [{ typ: 'plyta', odPrzodu: 80 }]), szK('B', 600)]);
+  const m1 = msgs(P1);
+  ok('płyta 80 od przodu (zostaje pasek 50): błąd z „Wzmocnienie stojące” i „Wycięcie we wzmocnieniu”',
+    m1.some((t) => /^error .*nad leżącym wzmocnieniem przednim \(100 mm w głąb\), korpus płyty w nie wchodzi\. Postaw je na sztorc albo wytnij w nim wycięcie \(zostaje pasek 50 mm\)\.\|wzmblat:0:0:0:0:stoj\|wzmblat:0:0:0:0:wyc$/.test(t)), m1.join(' // '));
+  const wyc = (cab) => { cab.levels[0].cols[0].rails[0].podWyciecie = true; };
+  const P2 = projK([szK('Płyta', 600, [{ typ: 'plyta', odPrzodu: 80 }], null, wyc), szK('B', 600)]);
+  const g2 = G.computeGeo(G.cabDoGeo(P2, P2.items[0]), P2.items[0].mat);
+  const r2 = g2.levels[0].cols[0].rails[0];
+  const f2 = g2.panels.find((p) => /^Wzmocnienie poziome/.test(p.name));
+  ok('„Wycięcie we wzmocnieniu”: otwór 560 × 50 od tyłu, formatka „Wzmocnienie poziome — wycięcie 560 × 50 z tyłu, 2 mm od lewej” z otworem',
+    JSON.stringify(r2.otwory.map((o) => [o.x0, o.x1, o.z0, o.z1])) === '[[20,580,50,100]]'
+    && f2 && f2.name === 'Wzmocnienie poziome — wycięcie 560 × 50 z tyłu, 2 mm od lewej' && JSON.stringify(f2.otwory) === '[{"u":2,"v":0,"du":560,"dv":50}]',
+    `${JSON.stringify(r2.otwory)} | ${f2 && f2.name} ${JSON.stringify(f2 && f2.otwory)}`);
+  ok('… konfirmaty (2026-11-06): wycięcie 2 mm od końców — przestawione przed wycięcie, po 2 na koniec (13 i 38 mm od lica); informacja z „Wkręty 4 × 30”',
+    JSON.stringify(r2.laczniki.map((l) => [l.strona, l.moc, l.poz])) === '[["lewy","konfirmaty",[13,38]],["prawy","konfirmaty",[13,38]]]'
+    && g2.msgs.some((x) => x.level === 'info' && /konfirmaty przez boki przestawione poza wycięcie — lewy koniec 13 i 38 mm od lica, prawy koniec 13 i 38 mm od lica\.\|wzmmoc:0:0:0:wkrety$/.test(x.text)),
+    `${JSON.stringify(r2.laczniki)} | ${g2.msgs.map((x) => x.text).join(' // ')}`);
+  const konf2 = g2.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {};
+  ok('… zamówienie: konfirmaty wzmocnień 8 (2 wzmocnienia × 2 końce × 2), bez wkrętów 4 × 30',
+    /wzmocnienia 8/.test(konf2.spec || '') && !g2.hardware.some((h) => h.name === 'Wkręt 4 × 30'), `${konf2.spec} | ${g2.hardware.map((h) => h.name).join(', ')}`);
+  const pl2 = (g2.drillPlan || []).filter((q) => /Bok lewy/.test(q.panel)).flatMap((q) => q.rows);
+  ok('… plan wierceń boku: „konfirmat — wzmocnienie poziome” 13, 38 mm od przodu i „— tylne” na dwóch wysokościach',
+    pl2.some((h) => h.kind === 'konfirmat — wzmocnienie poziome' && /13, 38 mm od przedniej krawędzi; w czole wzmocnienia ⌀5 × 50/.test(h.note))
+    && pl2.filter((h) => h.kind === 'konfirmat — wzmocnienie tylne').flatMap((h) => h.ys).length === 2, JSON.stringify(pl2.filter((h) => /wzmocnienie/.test(h.kind))));
+  const P2w = projK([szK('Płyta', 600, [{ typ: 'plyta', odPrzodu: 80 }], null, (cab) => { wyc(cab); cab.levels[0].cols[0].rails[0].mocowanie = 'wkrety'; }), szK('B', 600)]);
+  const g2w = G.computeGeo(G.cabDoGeo(P2w, P2w.items[0]), P2w.items[0].mat);
+  const wk2 = (g2w.hardware.find((h) => h.name === 'Wkręt 4 × 30') || {}).qty;
+  ok('„Wkręty 4 × 30” przy wzmocnieniu z wycięciem: po jednym na stronę (25 mm od lica) — 2 wkręty, tylne zostaje na 4 konfirmatach',
+    JSON.stringify(g2w.levels[0].cols[0].rails[0].laczniki.map((l) => [l.moc, l.poz])) === '[["wkrety",[25]],["wkrety",[25]]]' && wk2 === 2
+    && g2w.msgs.some((x) => /wkręty przez boki przestawione poza wycięcie — lewy koniec 25 mm od lica, prawy koniec 25 mm od lica \(miejsca tylko na jeden — po jednym na stronę\)\.$/.test(x.text)),
+    `${wk2} | ${g2w.msgs.map((x) => x.text).join(' // ')}`);
+  ok('… uwagi ciągu: płyta już nie wchodzi we wzmocnienie', !msgs(P2).some((t) => /leżącym wzmocnieniem/.test(t)), msgs(P2).join(' // '));
+  const P3 = projK([szK('Płyta', 600, [{ typ: 'plyta' }], null, wyc), szK('B', 600)]);
+  const g3 = G.computeGeo(G.cabDoGeo(P3, P3.items[0]), P3.items[0].mat);
+  ok('wycięcie we wzmocnieniu przy płycie 50 od przodu: ostrzeżenie „zostaje pasek 20 mm” z „Wzmocnienie stojące”, konfirmaty po jednym na stronę (10 mm od lica)',
+    g3.msgs.some((x) => x.level === 'warn' && /z wycięciem pod płytę — przy wycięciu zostaje pasek 20 mm, za wąski.*\|wzmstoj:0:0:0$/.test(x.text))
+    && g3.msgs.some((x) => /konfirmaty przez boki przestawione poza wycięcie — lewy koniec 10 mm od lica, prawy koniec 10 mm od lica \(miejsca tylko na jeden — po jednym na stronę\)/.test(x.text)), g3.msgs.map((x) => x.text).join(' // '));
+  const P4 = projK([szK('A', 600), szK('Zlew', 800, [{ typ: 'zlew' }], [{ kind: 'drawers', w: null, drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }])]);
+  const m4 = msgs(P4);
+  ok('zlew (200 od wierzchu) nad szafką z szufladami: błąd „wchodzi w szufladę 3” (górna)', m4.some((t) => /^error .*zlew nad szafką „Zlew”: komora zlewu sięga 200 mm od wierzchu blatu \(162 mm pod blat\) i wchodzi w szufladę \d.*pod zlew daj drzwi/.test(t)), m4.join(' // '));
+  const P5 = projK([szK('A', 600), szK('Zlew', 800, [{ typ: 'zlew', podBlatem: 150 }], [{ kind: 'doors', doors: 2, w: null, shelfTargets: [620, null] }])]);
+  const m5 = msgs(P5);
+  const g5 = G.computeGeo(G.cabDoGeo(P5, P5.items[1]), P5.items[1].mat);
+  ok('zlew 150 od wierzchu nad półką 64 mm pod blatem: błąd „wchodzi w półkę … obniż ją o 48 mm”', m5.some((t) => /^error .*komora zlewu sięga 150 mm od wierzchu blatu \(112 mm pod blat\) i wchodzi w półkę \(64 mm pod blatem\) — obniż ją o 48 mm/.test(t)), JSON.stringify(g5.levels[0].cols[0].shelves) + ' ' + m5.join(' // '));
+  const P6 = projK([szK('A', 600), szK('Zlew', 800, [{ typ: 'zlew', podBlatem: 30 }])]);
+  ok('pod blat 30 przy blacie 38: sprzęt nie sięga pod blat — bez uwag o nachodzeniu', !msgs(P6).some((t) => /wchodzi w/.test(t)), msgs(P6).join(' // '));
+}
+
+console.log('\n== Wzmocnienia na konfirmatach (użytkownik 2026-11-06) ==');
+{
+  const dwie = G.migrateCab({ name: 'D', W: 800, H: 720, D: 560, plinth: { on: true, height: 100 },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }, M0);
+  const gD = geo({ ...dwie, ...G.bezWienca(dwie, 18) });
+  const [k0, k1] = gD.levels[0].cols;
+  ok('pod blatem, 2 kolumny: leżące konfirmaty 25 / 75 mm przy bokach; przy przegrodzie (2026-11-08) trójkąty po 2 — lewa 20 / 60, prawa 40 / 80',
+    JSON.stringify(k0.rails[0].laczniki.map((l) => [l.moc, l.poz])) === '[["konfirmaty",[25,75]],["trojkaty",[20,60]]]'
+    && JSON.stringify(k1.rails[0].laczniki.map((l) => [l.moc, l.poz])) === '[["trojkaty",[40,80]],["konfirmaty",[25,75]]]',
+    JSON.stringify([k0.rails[0].laczniki, k1.rails[0].laczniki]));
+  const y0T = k1.rails[1].y0;
+  ok('… tylne stojące tak samo, na wysokościach (lewa +20 / +60, prawa +40 / +80 od spodu wzmocnienia)',
+    JSON.stringify(k0.rails[1].laczniki[1].poz) === JSON.stringify([y0T + 20, y0T + 60]) && JSON.stringify(k1.rails[1].laczniki[0].poz) === JSON.stringify([y0T + 40, y0T + 80])
+    && k1.rails[1].laczniki[0].moc === 'trojkaty', JSON.stringify([k0.rails[1].laczniki, k1.rails[1].laczniki]));
+  const prz = (gD.drillPlan || []).filter((q) => /Przegroda 1/.test(q.panel)).flatMap((q) => q.rows);
+  const trPoz = prz.filter((h) => h.kind === 'trójkąt meblowy — wzmocnienie poziome');
+  ok('… plan wierceń przegrody: trójkąty wzmocnień z obu stron (20, 60 i 40, 80 — pod wzmocnieniem), bez konfirmatów wzmocnień',
+    trPoz.length === 2 && trPoz.some((h) => /2 szt\. pod wzmocnieniem, 20, 60 mm/.test(h.note)) && trPoz.some((h) => /40, 80 mm .*wkręty się mijają/.test(h.note))
+    && prz.filter((h) => h.kind === 'trójkąt meblowy — wzmocnienie tylne').length === 2 && !prz.some((h) => /^konfirmat — wzmocnienie/.test(h.kind)), JSON.stringify(prz));
+  const ostP = gD.msgs.filter((x) => /przy przegrodzie 1 wzmocnienia z obu stron/.test(x.text));
+  ok('… ostrzeżenie z przyciskami: 1 konfirmat, przegroda niższa, dwie przegrody (wspólne / osobne dna), tak zostaje',
+    ostP.length === 1 && ostP[0].level === 'warn' && /nie da się skręcić po kolei/.test(ostP[0].text)
+    && /\|wzmprzegr:0:1:0,1:jeden\|przegrnizsza:0:0\|przegrpodw:0:0:wspolne:18\|przegrpodw:0:0:osobne:18\|wzmprzegr:0:1:0,1:trojkaty$/.test(ostP[0].text),
+    gD.msgs.filter((x) => /przegrodzie/.test(x.text)).map((x) => x.text).join(' // '));
+  const konfD = gD.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {};
+  const trD = gD.hardware.find((h) => h.name === 'Trójkąt meblarski' && /przy przegrodzie/.test(h.use)) || {};
+  ok('… zamówienie: konfirmaty wzmocnień 8 (przy bokach), trójkąty 8 (4 końce przy przegrodzie × 2)',
+    /wzmocnienia 8/.test(konfD.spec || '') && trD.qty === 8, JSON.stringify([konfD.spec, trD]));
+  const zWyb = (v) => { const c2 = JSON.parse(JSON.stringify({ ...dwie, ...G.bezWienca(dwie, 18) })); c2.levels[0].cols[1].rails.forEach((r) => { r.przyPrzegrodzie = v; }); return geo(c2); };
+  const gT = zWyb('trojkaty');
+  ok('„Tak zostaje”: trójkąty, informacja zamiast ostrzeżenia (bez przycisku „Tak zostaje”)',
+    !gT.msgs.some((x) => x.level === 'warn' && /przegrodzie 1/.test(x.text)) && gT.msgs.some((x) => x.level === 'info' && /przy przegrodzie 1 wzmocnienia poziome 1 \| 1, tylne 2 \| 2 na trójkątach/.test(x.text) && !/:trojkaty($|\|)/.test(x.text))
+    && gT.levels[0].cols[1].rails[0].laczniki[0].moc === 'trojkaty', gT.msgs.filter((x) => /przegrodzie/.test(x.text)).map((x) => x.text).join(' // '));
+  const gJ = zWyb('jeden');
+  const pJ = (gJ.drillPlan || []).filter((q) => /Przegroda 1/.test(q.panel)).flatMap((q) => q.rows).filter((h) => h.kind === 'konfirmat — wzmocnienie poziome');
+  ok('„Prawa na 1 konfirmacie”: prawa 1 w środku (50), lewa 2 (25 / 75), plan wierceń i kolejność montażu w notatce',
+    JSON.stringify(gJ.levels[0].cols[1].rails[0].laczniki[0].poz) === '[50]' && JSON.stringify(gJ.levels[0].cols[0].rails[0].laczniki[1].poz) === '[25,75]'
+    && pJ.some((h) => /50 mm .*jeden w środku czoła/.test(h.note)) && (gJ.montazKolejnosc || []).length === 2
+    && /1\) przykręć je do przegrody jednym konfirmatem w środku czoła .*2\) obróć wzmocnienie na nim do pionu.*4\) obróć/.test(gJ.montazKolejnosc[0])
+    && gJ.msgs.some((x) => x.level === 'info' && /prawa kolumna na 1 konfirmacie/.test(x.text) && /:trojkaty/.test(x.text)),
+    JSON.stringify({ l: gJ.levels[0].cols[1].rails[0].laczniki, k: gJ.montazKolejnosc, pJ }));
+  const konfJ = gJ.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {};
+  ok('… zamówienie: konfirmaty wzmocnień 14 (8 przy bokach + 2 × 2 lewe + 2 × 1 prawe), bez trójkątów wzmocnień',
+    /wzmocnienia 14/.test(konfJ.spec || '') && !gJ.hardware.some((h) => h.name === 'Trójkąt meblarski' && /przy przegrodzie/.test(h.use)), konfJ.spec);
+  const dwieW = JSON.parse(JSON.stringify({ ...dwie, ...G.bezWienca(dwie, 18) }));
+  dwieW.levels[0].cols[1].rails.forEach((r) => { r.mocowanie = 'wkrety'; });
+  const gW = geo(dwieW);
+  ok('… prawa kolumna na wkrętach: przy przegrodzie i tak trójkąty, przy boku wkręty 20 / 80',
+    JSON.stringify(gW.levels[0].cols[1].rails[0].laczniki.map((l) => [l.moc, l.poz])) === '[["trojkaty",[40,80]],["wkrety",[20,80]]]',
+    JSON.stringify(gW.levels[0].cols[1].rails[0].laczniki));
+  const podw = JSON.parse(JSON.stringify({ ...dwie, ...G.bezWienca(dwie, 18) }));
+  podw.levels[0].cols[0].przegrodaPodw = true;
+  const gPw = geo(podw);
+  ok('dwie przegrody na styku: każda kolumna na swoich konfirmatach (25 / 75), bez ostrzeżenia, konfirmaty wzmocnień 16',
+    JSON.stringify(gPw.levels[0].cols[1].rails[0].laczniki.map((l) => l.poz)) === '[[25,75],[25,75]]'
+    && !gPw.msgs.some((x) => /wzmocnienia z obu stron/.test(x.text)) && /wzmocnienia 16/.test((gPw.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {}).spec || ''),
+    JSON.stringify(gPw.levels[0].cols[1].rails[0].laczniki));
+  // „Przegroda niższa” (2026-11-08): to, co robi przycisk — przegroda o płytę niżej, górne wzmocnienia na płask
+  const nizsza = (moc) => {
+    const c2 = JSON.parse(JSON.stringify({ ...dwie, ...G.bezWienca(dwie, 18) }));
+    c2.levels[0].cols[0].przegrodaNizsza = true;
+    if (moc) c2.levels[0].cols[0].przegrodaNizszaMoc = moc;
+    c2.levels[0].cols.forEach((k) => (k.rails || []).forEach((r) => { if (r.pos === 'top' && r.orient === 'front') { r.przedNizsza = { orient: r.orient, h: r.h, depth: r.depth }; r.orient = 'shelf'; r.depth = r.h || 100; } }));
+    return geo(c2);
+  };
+  const gN = nizsza();
+  const dvN = gN.dividers[0];
+  const czN = gN.panels.filter((p) => /^Wzmocnienie/.test(p.name));
+  ok('przegroda niższa: przegroda o 18 mm niżej, formatki „Wzmocnienie poziome nad przegrodą” 764 × 100 (przód i tył), innych wzmocnień brak',
+    dvN.nizsza && dvN.y1 === gN.levels[0].y1 - 18 && czN.length === 2 && czN.every((p) => p.name === 'Wzmocnienie poziome nad przegrodą' && p.qty === 1 && p.a === 764 && p.b === 100),
+    JSON.stringify({ dv: dvN, cz: czN.map((p) => [p.name, p.qty, p.a, p.b]) }));
+  const prtN = gN.panels.find((p) => /^Przegroda pionowa/.test(p.name)) || {};
+  ok('… formatka przegrody krótsza o płytę, bez trójkątów i ostrzeżenia przy przegrodzie; informacja z „Przegroda do góry”',
+    prtN.a === Math.round(gN.levels[0].h - 18) && !gN.msgs.some((x) => /wzmocnienia z obu stron/.test(x.text))
+    && gN.msgs.some((x) => x.level === 'info' && /Poziom 1: przegroda 1 niższa o płytę \(18 mm\) — nad nią 2 wzmocnienia przez obie kolumny.*konfirmaty 7 × 50 przez wzmocnienie w czoło przegrody.*\|przegrnizsza:0:0:off$/.test(x.text))
+    && !gN.hardware.some((h) => /przy przegrodzie/.test(h.use || '')),
+    JSON.stringify({ prtN, m: gN.msgs.filter((x) => /przegrod/.test(x.text)).map((x) => x.text) }));
+  const nadPlan = (gN.drillPlan || []).find((q) => q.panel === 'Wzmocnienie poziome nad przegrodą');
+  const konfN = gN.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {};
+  ok('… plan wierceń: konfirmat przez każde wzmocnienie w czoło przegrody (oś przegrody 382 mm od lewego końca formatki, 50 mm od przodu); zamówienie: wzmocnienia 8 (przy bokach) + przegroda niższa 2',
+    nadPlan && nadPlan.rows.length === 2 && nadPlan.rows.every((h) => /50 mm od przedniej krawędzi; w czole przegrody od góry/.test(h.note) && h.ys[0] === 382)
+    && /wzmocnienia 8/.test(konfN.spec || '') && /przegroda niższa do wzmocnień nad nią 2/.test(konfN.spec || ''),
+    JSON.stringify({ nadPlan, s: konfN.spec }));
+  const gNt = nizsza('trojkaty'), gNw = nizsza('wkrety');
+  const trNt = gNt.hardware.find((h) => h.name === 'Trójkąt meblarski' && /przegroda niższa/.test(h.use)) || {};
+  const prNt = (gNt.drillPlan || []).filter((q) => /Przegroda 1/.test(q.panel)).flatMap((q) => q.rows).filter((h) => /wzmocnienie nad przegrodą/.test(h.kind));
+  ok('… na trójkątach: 4 szt. (po 1 z każdej strony pod każdym), w planie przegrody 40 / 60 mm; na wkrętach: 4 × wkręt 4 × 30 bez konfirmatów przegrody',
+    trNt.qty === 4 && prNt.length === 2 && prNt.some((h) => /od kolumny 1 40 mm, od kolumny 2 60 mm/.test(h.note))
+    && /przegroda niższa 4/.test((gNw.hardware.find((h) => h.name === 'Wkręt 4 × 30') || {}).spec || '') && !/przegroda niższa/.test((gNw.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {}).spec || ''),
+    JSON.stringify({ trNt, prNt, w: (gNw.hardware.find((h) => h.name === 'Wkręt 4 × 30') || {}).spec }));
+  const bezNad = JSON.parse(JSON.stringify({ ...dwie, ...G.bezWienca(dwie, 18) }));
+  bezNad.levels[0].cols[0].przegrodaNizsza = true;
+  const gB = geo(bezNad);
+  ok('… tylne zostało stojące (bez przycisku): błąd „kończy się na niej” z „Przegroda do góry”',
+    gB.msgs.some((x) => x.level === 'error' && /górne wzmocnienia kończą się na niej \(stojące nr 2, stojące nr 2\)/.test(x.text) && /\|przegrnizsza:0:0:off$/.test(x.text)),
+    gB.msgs.filter((x) => /przegroda 1/.test(x.text)).map((x) => x.text).join(' // '));
+  const pion = G.migrateCab({ name: 'P', W: 600, H: 720, D: 560, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null],
+    rails: [{ orient: 'vertical', pos: 'top', side: 'left', h: 300, depth: 100, atDepth: 0 }] }] }] }, M0);
+  const gP = geo(pion);
+  ok('wzmocnienie pionowe przy boku zostaje na wkrętach 4 × 30 (4 szt.)', /wzmocnienia 1×4/.test((gP.hardware.find((h) => h.name === 'Wkręt 4 × 30') || {}).spec || '') && gP.levels[0].cols[0].rails[0].mocowanie === 'wkrety'
+    && !/wzmocnienia/.test((gP.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {}).spec || ''),
+    JSON.stringify({ hw: gP.hardware.filter((h) => /Wkręt|Konfirmat/.test(h.name)).map((h) => [h.name, h.qty, h.spec]), r: gP.levels[0].cols[0].rails }));
 }

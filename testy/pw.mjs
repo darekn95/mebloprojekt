@@ -29,6 +29,28 @@ const SLEDZ_ZEGARY = () => {
     return id;
   };
   window.clearTimeout = function (id) { zeg.delete(id); return clr.call(window, id); };
+  /* Praca zaplanowana przez Reacta (2026-11-04): jego planista budzi sie wiadomoscia przez
+     `MessageChannel`, nie zegarem. Miedzy dwoma renderami (np. po wczytaniu projektu, zanim efekt
+     zaplanuje autozapis) nie czekal zaden zegar, a strona wygladala na bezczynna — `otwier` na
+     standalone czytal zapis sprzed autozapisu. Wyslana, a jeszcze nieodebrana wiadomosc = zajeta. */
+  const MC = window.MessageChannel;
+  const onmsg = MC && Object.getOwnPropertyDescriptor(MessagePort.prototype, 'onmessage');
+  window.__wiadomosci = 0;
+  if (MC && onmsg) window.MessageChannel = function () {
+    const ch = new MC();
+    const post = ch.port2.postMessage.bind(ch.port2);
+    ch.port2.postMessage = function (...a) { window.__wiadomosci++; return post(...a); };
+    let h = null;
+    Object.defineProperty(ch.port1, 'onmessage', {
+      configurable: true,
+      get: () => h,
+      set: (f) => {
+        h = f;
+        onmsg.set.call(ch.port1, f ? function (e) { window.__wiadomosci = Math.max(0, window.__wiadomosci - 1); return f.call(this, e); } : null);
+      },
+    });
+    return ch;
+  };
 };
 
 /* Zajeta = laduje sie, czeka na zegar albo jeszcze sie przewija (plynne
@@ -40,9 +62,31 @@ const zajeta = (page) => page.evaluate(() => new Promise((r) => {
     const root = document.getElementById('root');
     const laduje = !!root && /adowanie/.test(root.textContent || '') && !root.querySelector('section');
     const przewija = Math.abs(window.scrollY - y0) > 0.5;
-    r((window.__zegary ? window.__zegary.size : 0) + (laduje ? 1 : 0) + (przewija ? 1 : 0));
+    r((window.__zegary ? window.__zegary.size : 0) + (window.__wiadomosci || 0) + (laduje ? 1 : 0) + (przewija ? 1 : 0));
   }));
 })).catch(() => 0);
+
+/* Po wczytaniu strony czekamy, az aplikacja wystartuje (2026-11-04), w obu trybach: standalone
+   kompiluje kod w przegladarce (ok. 3,5 s), a przy kilku suitach naraz dluzej niz pauza testu —
+   `otwier` czytal zapis w localStorage, zanim aplikacja go wczytala i zapisala (5 z 5 przy pieciu
+   naraz). Warunek, nie pauza: koniec, gdy w #root nie ma juz „Ładowanie…”. */
+const URUCHOMIONA = () => {
+  const root = document.getElementById('root');
+  return !root || !!root.querySelector('section') || !/adowanie/.test(root.textContent || '');
+};
+const poStarcie = (page) => {
+  if (page.__poStarcie) return page;
+  page.__poStarcie = true;
+  for (const k of ['goto', 'reload']) {
+    const f = page[k].bind(page);
+    page[k] = async (...a) => {
+      const w = await f(...a);
+      await page.waitForFunction(URUCHOMIONA, null, { timeout: 60000 }).catch(() => {});
+      return w;
+    };
+  }
+  return page;
+};
 
 const przyspiesz = (page) => {
   if (WOLNO || page.__przyspieszona) return page;
@@ -87,7 +131,7 @@ const kontekst = async (ctx) => {
   await ctx.addInitScript(BEZ_ZWIJANIA);
   if (!WOLNO) await ctx.addInitScript(SLEDZ_ZEGARY);
   const nowa = ctx.newPage.bind(ctx);
-  ctx.newPage = async (...a) => przyspiesz(await nowa(...a));
+  ctx.newPage = async (...a) => przyspiesz(poStarcie(await nowa(...a)));
   return ctx;
 };
 

@@ -11,6 +11,12 @@
   poprawka wpisana na wyczucie, która potem wraca jako błąd w zamówieniu.
   Pytanie zadawaj konkretne — powiedz, co już sprawdziłeś w kodzie, gdzie
   widzisz dwa możliwe odczyty i co zrobisz przy każdym z nich.
+- **Każde łączenie sprawdź pod kątem kolejności montażu** (ustalone z użytkownikiem
+  2026-11-08): czy da się je skręcić po kolei (co pierwsze, co potem) i czy jest
+  dostęp do łba konfirmatu / wkrętu, gdy sąsiednie płyty już stoją. Nie da się —
+  powiedz to wprost i zaproponuj rozwiązania (inny łącznik, inna kolejność, inny
+  układ płyt), a wybór zostaw użytkownikowi. Przykład: konfirmaty z obu stron
+  przegrody w te same wzmocnienia — drugiej kolumny nie dokręcisz.
 - Instrukcje montażu i karty katalogowe od użytkownika (PDF) trzymaj w folderze
   `instrukcje/` i dopisuj każdy plik do `instrukcje/SPIS.md` (co to, co z niego
   bierzemy, gdzie w kodzie). Zanim zmienisz liczbę z katalogu (okucia, szuflady,
