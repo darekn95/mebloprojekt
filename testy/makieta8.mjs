@@ -192,7 +192,7 @@ await page.locator('[data-el="tryb"] [data-tryb="prosta"]').click(); await page.
 await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.active = p.items.findIndex((it) => it.cab.name === 'Zlew'); localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 await dodajSek('agd');
-await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="lodowka-wolno"]').click(); await page.waitForTimeout(600);
+await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="lodowkaM"]').click(); await page.waitForTimeout(600);
 p = await czekaj('p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "lodowka")');
 const nL = p.items.length;
 await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { hasText: 'Lodówka wolnostojąca' }).click(); await page.waitForTimeout(400);
@@ -212,6 +212,17 @@ await karta.locator('[data-el="agd-lod-rodz-v"][data-v="rowno"]').click();
 p = await czekaj(`p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.rowno)`);
 const ro = p.items.find((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.rowno);
 ok('→ na równo z meblami: lodówka wolnostojąca, miejsce 606, słupek zniknął', !!ro && ro.cab.W === 606 && ro.cab.sprzetCiagu.typ === 'lodowka' && p.items.length === nL && !p.items.some((it) => it.cab.H > 1500 && it.cab.levels[0].cols[0].sprzet));
+// jeden kafelek „Lodówka”: na zaznaczony słupek — do zabudowy w jego kolumnie
+await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); const wz = p.items.find((it) => it.cab.name === 'Zlew');
+  const s2 = JSON.parse(JSON.stringify(wz)); s2.cab.name = 'S2'; s2.cab.H = 2000; s2.cab.W = 600; s2.cab.blatWyciecia = [];
+  s2.cab.levels = [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null], handles: [] }] }];
+  p.items.push(s2); p.active = p.items.length - 1; localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+await dodajSek('agd');
+ok('jeden kafelek „Lodówka” (bez osobnych: do zabudowy / podblatowa / wolnostojąca)', (await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id^="lodowka"]').count()) === 1);
+await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="lodowkaM"]').click();
+p = await czekaj('p.items[p.items.length - 1].cab.levels[0].cols[0].sprzet && p.items[p.items.length - 1].cab.levels[0].cols[0].sprzet.typ === "lodowka"');
+ok('„Lodówka” na zaznaczony słupek — do zabudowy w jego kolumnie', ((p.items[p.items.length - 1].cab.levels[0].cols[0] || {}).sprzet || {}).typ === 'lodowka');
 console.log('bledy strony:', errors.length ? errors.join(' | ') : 'brak');
 if (errors.length) bledy++;
 console.log(bledy ? `${bledy} BLAD` : 'WSZYSTKO OK');

@@ -21638,22 +21638,25 @@ const MAK_AGD = [
   { id: "piekarnik", nazwa: "Piekarnik", opis: "do szafki albo słupka", rodz: "kol", typ: "piekarnik" },
   { id: "mikrofala", nazwa: "Mikrofala", opis: "do słupka", rodz: "kol", typ: "mikrofala" },
   { id: "ekspres", nazwa: "Ekspres do zabudowy", opis: "do słupka, wnęka 45", rodz: "kol", typ: "ekspres" },
-  { id: "lodowka", nazwa: "Lodówka do zabudowy", opis: "do słupka", rodz: "kol", typ: "lodowka" },
-  { id: "lodowka-pod", nazwa: "Lodówka podblatowa", opis: "w ciąg jak zmywarka", rodz: "wzor", tpl: "lodowka-pod", gdzie: "dol" },
-  { id: "lodowka-wolno", nazwa: "Lodówka wolnostojąca", opis: "w ciąg, bez korpusu", rodz: "wzor", tpl: "lodowka-wolno", gdzie: "dol" },
+  /* jedna „Lodówka” jak w makiecie „Dodaj” (decyzja uzytkownika 2026-11-10): na wysoka szafke (slupek) — do zabudowy w jej
+     kolumnie, na nizsza szafke albo bez celu — wolnostojaca w ciagu (przed / za szafka); rodzaj zmienia sie w karcie */
+  { id: "lodowkaM", nazwa: "Lodówka", opis: "do zabudowy, pod blat, wolnostojąca", rodz: "lodowkaM" },
   { id: "zmywarka", nazwa: "Zmywarka", opis: "w ciąg, bez korpusu", rodz: "wzor", tpl: "zmywarka", gdzie: "dol" },
   { id: "zmywarka-wolno", nazwa: "Zmywarka wolnostojąca", opis: "pod blat albo z pokrywą", rodz: "wzor", tpl: "zmywarka-wolno", gdzie: "dol" },
   { id: "mikrofalaW", nazwa: "Mikrofala wolnostojąca", opis: "na blat", rodz: "naBlat", typ: "mikrofala" },
   { id: "ekspresW", nazwa: "Ekspres wolnostojący", opis: "na blat", rodz: "naBlat", typ: "ekspres" },
   { id: "okap", nazwa: "Okap", opis: "w szafkę górną nad płytą", rodz: "okap" },
 ];
+// rodzaje lodowki wstawiane z kafelka „Lodówka” (`wstawAgd`, rodz `lodowkaM`) i z karty (`zamienLodowke`)
+const MAK_LOD_ZAB = { id: "lodowka", nazwa: "Lodówka do zabudowy", rodz: "kol", typ: "lodowka" };
+const MAK_LOD_WOLNA = { id: "lodowka-wolno", nazwa: "Lodówka wolnostojąca", rodz: "wzor", tpl: "lodowka-wolno", gdzie: "dol" };
 const MAK_AGD_ID = Object.fromEntries(MAK_AGD.map((a) => [a.id, a]));
 /* Rodzaj lodowki w karcie AGD (makieta „Dodaj”: „Rodzaj lodówki” — krok 6 planu, 2026-11-10): do zabudowy (w slupku albo
    w szafce — wneka w kolumnie), podblatowa w ciagu (jak zmywarka), wolnostojaca, na rowno z meblami. Zmiana rodzaju
    wstawia nowa pozycje na miejsce starej (`zamienLodowke` w `MakietaWidok`). „Podblatowa w szafce” z makiety to w aplikacji
    wneka 82 cm w kolumnie szafki (wybor „Wnęka” w karcie) albo pozycja w ciagu — szafka dolna 720 nie ma wneki 820. */
 const MAK_LOD_RODZ = [["slupek", "do zabudowy (słupek)"], ["ciag", "podblatowa w ciągu"], ["wolna", "wolnostojąca"], ["rowno", "na równo z meblami"]];
-const MAK_WZORY = Object.fromEntries([...MAK_PALETA.flatMap((g) => g.wzory), ...MAK_AGD.filter((a) => a.rodz === "wzor")].map((w) => [w.id, w]));
+const MAK_WZORY = Object.fromEntries([...MAK_PALETA.flatMap((g) => g.wzory), ...MAK_AGD.filter((a) => a.rodz === "wzor"), MAK_LOD_WOLNA].map((w) => [w.id, w]));
 // miniatury AGD (34 × 34), jak ikony sprzetu w makiecie
 const ikonaAgd = (id) => {
   const d = {
@@ -21663,6 +21666,7 @@ const ikonaAgd = (id) => {
     mikrofala: "M5 10h24v14H5z M8 13h13v8H8z M24 14v2",
     ekspres: "M7 6h20v22H7z M7 10h20 M14 14h6v6h-6z M15 24h4",
     lodowka: "M9 2h16v30H9z M9 13h16 M22 6v4 M22 16v5",
+    lodowkaM: "M9 2h16v30H9z M9 20h16 M17 7v6 M14.4 8.5l5.2 3 M19.6 8.5l-5.2 3",
     "lodowka-pod": "M8 10h18v20H8z M23 13v4",
     "lodowka-wolno": "M9 2h16v30H9z M9 13h16 M22 6v4 M22 16v5",
     zmywarka: "M6 8h22v22H6z M6 12h22 M14 16h6",
@@ -22457,6 +22461,12 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   const wstawAgd = (a, c0) => {
     setKomunikat(null);
     if (a.rodz === "brak") { setKomunikat(`„${a.nazwa}” — jeszcze w przygotowaniu.`); return; }
+    if (a.rodz === "lodowkaM") {
+      const c = c0 || (zaznM ? { idx: project.active, li: null, j: null } : null), it = c ? project.items[c.idx] : null;
+      if (it && !it.cab.sprzetCiagu && (it.cab.slupek || it.cab.H > 1500)) wstawAgd(MAK_LOD_ZAB, c0);
+      else wstawWzor(MAK_LOD_WOLNA, c0);
+      return;
+    }
     if (a.rodz === "okap") {
       const c = c0 || { idx: project.active };
       const it = project.items[c.idx], run = runOf(it);
@@ -22503,6 +22513,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
       const a = MAK_AGD_ID[wlecze.current.id];
       if (a && (a.rodz === "blat" || a.rodz === "naBlat")) return `na blat nad „${nazwa}”`;
       if (a && a.rodz === "kol") return `do „${nazwa}”${cel.li != null && ((it.cab.levels || []).length > 1 || (it.cab.levels[cel.li].cols || []).length > 1) ? `, poziom ${cel.li + 1} kolumna ${cel.j + 1}` : ""}`;
+      if (a && a.rodz === "lodowkaM") return !it.cab.sprzetCiagu && (it.cab.slupek || it.cab.H > 1500) ? `do zabudowy w „${nazwa}”` : `wolnostojąca ${cel.prawa ? "za" : "przed"} „${nazwa}”`;
     }
     if (wlecze.current.el === "mak-klocek") return cel.li != null ? `na „${nazwa}”${(it.cab.levels || []).length > 1 || (it.cab.levels[cel.li].cols || []).length > 1 ? `, poziom ${cel.li + 1} kolumna ${cel.j + 1}` : ""}` : `na „${nazwa}”`;
     const w = MAK_WZORY[wlecze.current.id];
