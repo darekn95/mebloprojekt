@@ -5777,7 +5777,11 @@ function computeGeoLiczy(cab, mat, ctx) {
   // rola „dno” — wspolne dno ciagu zastepuje te formatke (`formatkiSzafki`, `projectParts`)
   const dno = hasBot ? { ...horiz("Dno", botL, botR, botX0, botX1), rola: "dno" } : null;
   // wyciecie w nazwie dna i wienca / blatu (element albo wyciecie narozne na cala wysokosc)
-  const dnoOtw = dno ? otworyDnaWienca(botX0, botX1, 0, carcassDepth) : [];
+  // okap teleskopowy / wklad: wyciecie w dnie (na srodku, `odPrzodu` od przedniej krawedzi) — jak otwor na element
+  const okapG = okapSzafki(cab);
+  const okapOtw = okapG && okapG.wyciecie && dno ? [przeciecie({ ox0: Math.round(W / 2 - okapG.wycW / 2), ox1: Math.round(W / 2 + okapG.wycW / 2),
+    oz0: carcassDepth - okapG.odPrzodu - okapG.wycD, oz1: carcassDepth - okapG.odPrzodu, oy0: -Infinity, oy1: Infinity }, botX0, botX1, 0, carcassDepth, 0, 1)].filter(Boolean) : [];
+  const dnoOtw = dno ? [...otworyDnaWienca(botX0, botX1, 0, carcassDepth), ...okapOtw] : [];
   const wienOtw = !wien ? [] : isBlat ? otworyDnaWienca(topX0, topX1, -blat.overBack, carcassDepth + blat.overFront)
     : otworyDnaWienca(topX0, topX1, 0, carcassDepth);
   if (dno) dno.name = nazwaZOtworami("Dno", dnoOtw);
@@ -9451,6 +9455,12 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
             fill={shc} stroke={INK} strokeWidth="2" />
         ))
       ))}
+      {/* okap (decyzja 2026-11-10): podszafkowy pod dnem; teleskopowy / wklad w szafce, przy dnie (przerywany) */}
+      {!rear && (() => { const ok = okapSzafki(cab); if (!ok) return null; const x = W / 2 - ok.w / 2;
+        return ok.typ === "podszafkowy"
+          ? <rect data-el="okap" x={mx(x, ok.w)} y={H} width={ok.w} height={ok.h} rx="8" fill="#d6d3d1" stroke={INK} strokeWidth="2" />
+          : <g data-el="okap"><rect x={mx(x, ok.w)} y={H - geo.t - ok.h} width={ok.w} height={ok.h} fill="#d6d3d1" fillOpacity="0.5" stroke={INK} strokeWidth="2" strokeDasharray="10 6" />
+            {ok.typ === "teleskopowy" && <rect x={mx(x, ok.w)} y={H - 4} width={ok.w} height={24} fill="#a8a29e" stroke={INK} strokeWidth="2" />}</g>; })()}
       {/* rura na wieszaki (zgloszenie 2026-11-09: „3 półki i drążek — a gdzie się to wyświetla?”) — jak w widoku szafki;
           za drzwiami zaslania ja front */}
       {!rear && geo.levels.flatMap((lv) => lv.cols.flatMap((c) => (c.drazki || []).map((dr) => (
@@ -16610,6 +16620,25 @@ const WYCIECIE_ZAPAS = 50;   // najmniej plyty miedzy wycieciem a koncem blatu, 
    komora od wierzchu blatu; przy zlewie z ociekaczem ociekacz z lewej albo z prawej (komora po drugiej stronie).
    Zapis bez `rozm` (sprzed 2026-11-09) zostaje przy samym wycieciu w × d i `podBlatem`. */
 const WYC_LUZ = 3;
+/* Okap w szafce gornej nad plyta (decyzja uzytkownika 2026-11-10; liczby z makiety „Dodaj” — przykladowo, do zmiany
+   z karty modelu): podszafkowy — pod dnem szafki, bez wyciecia; teleskopowy i wklad — w szafce, wyciecie w dnie
+   (propozycja: szerokosc okapu − 40 × 290, czyli 560 × 290 dla 60 cm), na srodku szerokosci, `odPrzodu` od przedniej
+   krawedzi dna. `h` — ile okap schodzi pod dno (podszafkowy) albo widoczny pas (teleskopowy). Kontrola wysokosci nad
+   plyta: indukcja OKAP_MIN_IND, gaz OKAP_MIN_GAZ (wg instrukcji producenta). Kominowy (w ciagu gornym) — osobno. */
+const OKAPY = {
+  podszafkowy: { nazwa: "Okap podszafkowy", krotka: "podszafkowy", h: 150, gl: 300, wyciecie: false },
+  teleskopowy: { nazwa: "Okap teleskopowy", krotka: "teleskopowy", h: 130, gl: 290, wysuw: 150, wyciecie: true },
+  wklad: { nazwa: "Okap — wkład w szafce", krotka: "wkład", h: 60, gl: 290, wyciecie: true },
+};
+const OKAP_ROZM = [{ k: "60", l: "60 cm", w: 600 }, { k: "90", l: "90 cm", w: 900 }, { k: "50", l: "50 cm", w: 500 }];
+const OKAP_MIN_IND = 650, OKAP_MIN_GAZ = 750, OKAP_OD_PRZODU = 20;
+const okapSzafki = (cab) => {
+  if (!cab || !cab.okap) return null;
+  const typ = OKAPY[cab.okap.typ] ? cab.okap.typ : "teleskopowy", t = OKAPY[typ];
+  const r = OKAP_ROZM.find((x) => x.k === cab.okap.rozm) || OKAP_ROZM[0];
+  const n = (v, d) => (v == null || v === "" ? d : Math.max(0, Math.round(Number(v) || 0)));
+  return { typ, ...t, rozm: r.k, rozmL: r.l, w: r.w, wycW: n(cab.okap.wycW, r.w - 40), wycD: n(cab.okap.wycD, 290), odPrzodu: n(cab.okap.odPrzodu, OKAP_OD_PRZODU) };
+};
 const ROZM_WYCIEC = {
   plyta: [{ k: "30", l: "30 cm", sw: 290, sd: 520, kw: 262, kd: 484, h: 51 }, { k: "60", l: "60 cm", sw: 590, sd: 520, kw: 554, kd: 484, h: 51 },
     { k: "60s", l: "60 slim", sw: 590, sd: 520, kw: 554, kd: 484, h: 44 }, { k: "80", l: "80 cm", sw: 800, sd: 520, kw: 744, kd: 484, h: 51 },
@@ -18373,6 +18402,28 @@ const worktopMsgs = (project, run) => {
 
 /* Uwagi o pietrach: gorny ciag nie moze wystawac poza dolny, a pod sufitem
    warto wiedziec, ile jeszcze zostaje. */
+/* Okap nad plyta (decyzja uzytkownika 2026-11-10): od wierzchu blatu do dolu okapu — indukcja zwykle min. 650,
+   gaz 750 (wg instrukcji producenta); bez plyty pod okapem — informacja. Polozenie w ukladzie sciany: przesuniecie
+   ciagu od lewej (`offset`) + szafki przed nia; narozniki pomijamy (przyblizenie). */
+const okapMsgs = (project, idx) => {
+  const it = project.items[idx], ok = it && okapSzafki(it.cab);
+  if (!ok) return [];
+  const runs = project.runs || [], run = runs.find((r) => r.id === it.runId);
+  if (!run || run.tier !== "gorny") return [{ level: "warn", text: `${ok.nazwa}: szafka nie wisi w ciągu górnym — okap montuje się w szafce górnej nad płytą.` }];
+  const dolny = runs.find((r) => r.id === run.wall);
+  const rt = dolny ? runTop(project, dolny) : null;
+  if (!rt) return [{ level: "info", text: `${ok.nazwa}: pod ciągiem górnym nie ma blatu — nie sprawdzam wysokości nad płytą.` }];
+  let x = 0;
+  for (const { it: q, i } of runItems(project, run.id)) { if (i === idx) break; x += q.cab.W + Math.max(0, Math.round(run.gap || 0)); }
+  const x0 = Math.round(run.offset || 0) + x, x1 = x0 + it.cab.W, odD = Math.round(dolny.offset || 0);
+  const plyty = (rt.wyciecia || []).filter((q) => q.typ === "plyta" && Math.min(x1, odD + q.x1 - (rt.x0 || 0)) - Math.max(x0, odD + q.x0 - (rt.x0 || 0)) > 0);
+  if (!plyty.length) return [{ level: "info", text: `${ok.nazwa} w „${it.cab.name || "szafka"}”: pod nim nie ma płyty grzewczej — okap wisi zwykle nad płytą.` }];
+  const dol = tierMountY(project, run) - (ok.typ === "podszafkowy" ? ok.h : 0), wierzch = rt.y + rt.th;
+  const od = Math.round(dol - wierzch);
+  if (od < OKAP_MIN_IND) return [{ level: "warn", text: `${ok.nazwa}: od płyty do okapu tylko ${fmt(od)} mm — przy indukcji zwykle co najmniej ${OKAP_MIN_IND}, przy gazie ${OKAP_MIN_GAZ} (wg instrukcji producenta).` }];
+  if (od < OKAP_MIN_GAZ) return [{ level: "info", text: `${ok.nazwa}: od płyty do okapu ${fmt(od)} mm — wystarczy przy indukcji (${OKAP_MIN_IND}), przy płycie gazowej zwykle ${OKAP_MIN_GAZ}.` }];
+  return [];
+};
 const tierMsgs = (project, run) => {
   const out = [];
   if (!run) return out;
@@ -21107,6 +21158,22 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf }) {
       })()}
       <div className="mt-1">{usun(() => { zmien(sel.i, (c) => { const k = kolumnaW(c.levels, sel.li, sel.j); if (k) { delete k.sprzet; if (!k.doors) k.doors = 1; } }); zamknij(); })}</div>
     </>;
+  } else if (sel.rodz === "okap") {
+    const ok = okapSzafki(cab); if (!ok) return null;
+    const ustaw = (patch) => zmien(sel.i, (c) => { const o = { ...(c.okap || {}), ...patch }; Object.keys(o).forEach((x) => { if (o[x] == null || o[x] === "") delete o[x]; }); c.okap = o; });
+    tytul = ok.nazwa;
+    tresc = <>
+      {etyk("Rodzaj")}{rzad("agd-okap-typ", Object.entries(OKAPY).map(([v, t]) => <MakBtn key={v} el="agd-okap-typ-v" v={v} on={ok.typ === v} onClick={() => ustaw({ typ: v })}>{t.krotka}</MakBtn>))}
+      {etyk("Wymiar")}{rzad("agd-rozm", OKAP_ROZM.map((x) => <MakBtn key={x.k} el="agd-rozm-v" v={x.k} on={x.k === ok.rozm} onClick={() => ustaw({ rozm: x.k, wycW: null })}>{x.l}</MakBtn>))}
+      {ok.wyciecie ? <>
+        {etyk("Wycięcie w dnie szafki")}
+        {para("szerokość × głębokość", liczba("agd-okap-wycw", (cab.okap || {}).wycW, ok.w - 40, (v) => ustaw({ wycW: v })), liczba("agd-okap-wycd", (cab.okap || {}).wycD, 290, (v) => ustaw({ wycD: v })))}
+        {para("od przedniej krawędzi dna", liczba("agd-okap-odprzodu", (cab.okap || {}).odPrzodu, OKAP_OD_PRZODU, (v) => ustaw({ odPrzodu: v })))}
+        <p className="text-[11px] text-stone-600" data-el="agd-okap-info">Wycięcie <b className="font-mono">{fmt(ok.wycW)} × {fmt(ok.wycD)}</b> mm na środku dna (propozycja z makiety — wpisz z karty modelu); w formatce „Dno”.</p>
+      </> : <p className="text-[11px] text-stone-600">Pod dnem szafki, {fmt(ok.h)} mm w dół — bez wycięcia.</p>}
+      <p className="text-[11px] text-stone-600">Wysokość nad płytą sprawdzam w „Uwagach” (indukcja min. {OKAP_MIN_IND}, gaz {OKAP_MIN_GAZ}).</p>
+      <div className="mt-1">{usun(() => { zmien(sel.i, (c) => { delete c.okap; }); zamknij(); })}</div>
+    </>;
   } else if (sel.rodz === "ciag") {
     if (!cab.sprzetCiagu) return null;
     const sp = sprzetCiagu(cab);
@@ -21312,7 +21379,7 @@ const MAK_AGD = [
   { id: "zmywarka-wolno", nazwa: "Zmywarka wolnostojąca", opis: "pod blat albo z pokrywą", rodz: "wzor", tpl: "zmywarka-wolno", gdzie: "dol" },
   { id: "mikrofalaW", nazwa: "Mikrofala wolnostojąca", opis: "na blat", rodz: "naBlat", typ: "mikrofala" },
   { id: "ekspresW", nazwa: "Ekspres wolnostojący", opis: "na blat", rodz: "naBlat", typ: "ekspres" },
-  { id: "okap", nazwa: "Okap", opis: "w przygotowaniu", rodz: "brak" },
+  { id: "okap", nazwa: "Okap", opis: "w szafkę górną nad płytą", rodz: "okap" },
 ];
 const MAK_AGD_ID = Object.fromEntries(MAK_AGD.map((a) => [a.id, a]));
 const MAK_WZORY = Object.fromEntries([...MAK_PALETA.flatMap((g) => g.wzory), ...MAK_AGD.filter((a) => a.rodz === "wzor")].map((w) => [w.id, w]));
@@ -21371,6 +21438,8 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
       const usun = (fn) => () => zmien(i, fn);
       return [
         ...(it.cab.sprzetCiagu ? [{ k: `c${i}`, i, sel: { i, rodz: "ciag" }, l: sprzetCiagu(it.cab).pelna, g: `w ciągu, „${n}”` }] : []),
+        ...(okapSzafki(it.cab) ? [{ k: `o${i}`, i, sel: { i, rodz: "okap" }, l: okapSzafki(it.cab).nazwa, g: `w „${n}” · ${okapSzafki(it.cab).rozmL}`,
+          usun: usun((c) => { delete c.okap; }) }] : []),
         ...wycieciaSzafki(it.cab).map((q) => ({ k: `w${i}-${q.k}`, i, sel: { i, rodz: "wyc", k: q.k }, l: q.pelna, g: `nad szafką „${n}”${q.rozmL ? ` · ${q.rozmL}` : ""}`,
           usun: usun((c) => { c.blatWyciecia = (c.blatWyciecia || []).filter((_, x) => x !== q.k); }) })),
         ...naBlacieSzafki(it.cab).map((q) => ({ k: `b${i}-${q.k}`, i, sel: { i, rodz: "nb", k: q.k }, l: `${q.typ === "mikrofala" ? "Mikrofala" : "Ekspres"} wolnostojąc${q.typ === "mikrofala" ? "a" : "y"}`, g: `na blacie nad „${n}” · ${q.rozmL}`,
@@ -22049,7 +22118,16 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   };
   const wstawAgd = (a, c0) => {
     setKomunikat(null);
-    if (a.rodz === "brak") { setKomunikat("Okap — jeszcze w przygotowaniu."); return; }
+    if (a.rodz === "brak") { setKomunikat(`„${a.nazwa}” — jeszcze w przygotowaniu.`); return; }
+    if (a.rodz === "okap") {
+      const c = c0 || { idx: project.active };
+      const it = project.items[c.idx], run = runOf(it);
+      if (!c0 && !zaznM) { setKomunikat("Okap przeciągnij na szafkę górną nad płytą — żadna nie jest zaznaczona."); return; }
+      if (!it || !run || run.tier !== "gorny" || it.cab.sprzetCiagu) { setKomunikat("Okap upuść na szafkę górną nad płytą (kominowy — w przygotowaniu)."); return; }
+      zmien(c.idx, (cab) => { cab.okap = cab.okap || { typ: "teleskopowy", rozm: "60" }; });
+      pokazAgd({ i: c.idx, rodz: "okap" });
+      return;
+    }
     if (a.rodz === "wzor") { wstawWzor(a, c0); return; }
     if (!c0 && !zaznM) { setKomunikat(`„${a.nazwa}” przeciągnij na szafkę na rysunku — żadna nie jest zaznaczona.`); return; }
     const c = c0 || { idx: project.active, li: null, j: null };
@@ -22446,6 +22524,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           ["cokol", "Cokół i nóżki"], ...(tryb === "szczegolowa" && !sc ? MAK_ZAKLADKI_SZCZ : [])].map(([z, l]) => ({ z, l, ik: MAK_IKONY[z] }));
         // sprzet w tej szafce — na razie do „Dodaj → AGD” (lista „W projekcie”)
         const agd = [...(sc ? [{ l: sprzetCiagu(c).pelna, sel: { i: menuCo.idx, rodz: "ciag" } }] : []),
+          ...(okapSzafki(c) ? [{ l: okapSzafki(c).nazwa, sel: { i: menuCo.idx, rodz: "okap" } }] : []),
           ...wycieciaSzafki(c).map((q) => ({ l: q.pelna, sel: { i: menuCo.idx, rodz: "wyc", k: q.k } })),
           ...naBlacieSzafki(c).map((q) => ({ l: q.typ === "mikrofala" ? "Mikrofala wolnostojąca" : "Ekspres wolnostojący", sel: { i: menuCo.idx, rodz: "nb", k: q.k } })),
           ...(c.levels || []).flatMap((lv, li) => (lv.cols || []).map((k, j) => ({ k, li, j })).filter(({ k }) => k.sprzet).map(({ k, li, j }) => ({ l: (SPRZETY[k.sprzet.typ] || SPRZETY.piekarnik).pelna, sel: { i: menuCo.idx, rodz: "kol", li, j } })))];
@@ -23720,6 +23799,7 @@ export default function App() {
       ...wallGapMsgs(project, runInfo.run),
       ...worktopMsgs(project, runInfo.run),
       ...tierMsgs(project, runInfo.run),
+      ...okapMsgs(project, project.active),
       ...runCornerMsgs(node, !!runTp),
       /* Kolizje otwierania sa sprawa calej zabudowy, a nie tego jednego ciagu —
          dlatego lecimy po calym rozmieszczeniu i pokazujemy wszystkie. */

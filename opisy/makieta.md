@@ -86,6 +86,11 @@ sprzętem albo w zmywarkę / lodówkę w ciągu. Zapis w te same pola co tryb te
   „Zamień miejscami” (z najbliższym sprzętem w słupku), „Razem — półka między” (sprzęty w sąsiednich poziomach).
   Wnękę przesuwa zmiana poziomu pod nią (brak — dochodzi poziom z drzwiami); poziomy dostają obecne wysokości, najwyższy
   bez sprzętu zostaje auto (`makSlupekWneka`);
+- **okap** (`cab.okap`, decyzja 2026-11-10): kafelek „Okap” wstawia go do szafki górnej (klik — zaznaczonej, przeciągnięcie —
+  na szafkę); rodzaj podszafkowy (pod dnem, 150 w dół) / teleskopowy / wkład (w szafce, **wycięcie w dnie** — propozycja
+  szerokość okapu − 40 × 290, czyli 560 × 290 dla 60 cm, na środku, 20 mm od przedniej krawędzi; pola z karty modelu),
+  rozmiar 60 / 90 / 50; wycięcie idzie do formatki „Dno”. Uwagi: od wierzchu blatu do okapu (indukcja min. 650 —
+  ostrzeżenie, gaz 750 — informacja), bez płyty pod okapem — informacja. Kominowy (w ciągu górnym bez szafki) — jeszcze nie;
 - **w ciągu** (`cab.sprzetCiagu`): zmywarka — model 60 / 45, wolnostojąca — montaż pod blatem / z pokrywą; lodówka
   podblatowa — drzwi; wolnostojąca — rodzaj, luzy z lewej / z prawej, drzwi; „Usuń” (cała pozycja ciągu).
 - Pozostałe pola z karty modelu — w trybie Technicznym (karta to mówi).
