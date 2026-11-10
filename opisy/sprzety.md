@@ -318,4 +318,24 @@ liczby z makiety „Dodaj” — przykładowo). Teleskopowy i wkład: wycięcie 
 z otworami elementów — nazwa i `otwory` formatki „Dno”); podszafkowy bez wycięcia. Kontrola `okapMsgs`: odległość wierzch
 blatu → dół okapu (dół szafek górnych `tierMountY`, podszafkowy niżej o `h`): < `OKAP_MIN_IND` 650 — ostrzeżenie,
 < `OKAP_MIN_GAZ` 750 — informacja; płyta szukana pod szafką w układzie ściany (przesunięcie ciągu + szafki przed nią,
-bez narożników — przybliżenie). Kominowy (w ciągu górnym bez szafki) — jeszcze nie.
+bez narożników — przybliżenie).
+
+## Okap kominowy (2026-11-10)
+
+Pozycja **ciągu górnego bez korpusu** (`cab.sprzetCiagu = { typ: "okapK", szer, dol, h, gl, kominW, kominD }`, szablon
+„Okap kominowy” — tylko w ciągu górnym, `tylkoGorny`), jak zmywarka w dolnym: na ścianie zamiast szafki, szafki górne obok
+kończą się przy nim. Liczby z makiety „Dodaj” (przykładowo, z karty modelu): okap 60 / 90 / 50 cm na środku miejsca,
+daszek 90 mm × 500 mm od ściany (wystaje przed szafki górne), komin 280 × 250 od daszka do góry pozycji (z kompletu okapu,
+regulowany — do sufitu wg instrukcji). `dol` — dół okapu nad dołem szafek górnych (może być ujemny); nowy okap dostaje
+650 nad wierzchem blatu (`okapKDol`), bez blatu pod ciągiem — 150.
+- Geometria `geoSprzetuCiagu` (gałąź `okapK`): bez formatek, okuć i wierceń; daszek jak przód lodówki (`fz0` = głębokość
+  korpusu − `gl`), `komin`. Uwagi: miejsce węższe niż okap — błąd z „Miejsce N mm”; daszek ponad górę szafek — ostrzeżenie.
+- Listwa zawieszek ciągu ma przy okapie przerwę (`runRail`: komin na ścianie) — kończy się przed nim i zaczyna za nim.
+- Wysokość nad płytą — `okapMsgs` jak przy okapie w szafce (dół = `tierMountY` + `dol`); „za nisko” ma przycisk
+  „Okap 650 mm nad płytą” (`okapdol:<dol>:650`).
+- Rysunki: przód (`SprzetCiaguElew` — daszek zwężany ku górze, komin `data-el="komin-okapu"`), z boku, z góry, 3D szafki,
+  ciągu i pomieszczenia (bryły „okap” i „komin okapu” — nachodzenie).
+- Makieta: w karcie okapu w szafce rodzaj „kominowy (zamiast szafki)” zamienia szafkę na okap (to samo miejsce: szerokość,
+  wysokość, głębokość; `cabOkapuKominowego`), w karcie kominowego inny rodzaj wstawia z powrotem szafkę wiszącą z okapem
+  (`cabSzafkiZOkapem`); karta: wymiar 60 / 90 / 50, „dół okapu nad blatem” (przelicza `dol`). Tryb techniczny — karta
+  „Okap kominowy” (miejsce, wysokość, głębokość, dół okapu, daszek, komin).

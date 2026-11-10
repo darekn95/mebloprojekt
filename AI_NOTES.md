@@ -1173,3 +1173,8 @@ wklad, wyciecie w dnie, kontrola 650 / 750). Artefakt v201.
 geometria bezKorpusu, rysunki przod / bok / gora / 3D, brak formatek, kontrola nad plyta jak `okapMsgs`); (2) BIURKO Z KONTENEREM —
 szablon aplikacji: kontener szuflad zamiast jednego boku, plyta wzmacniajaca 300 z tylu pod blatem, laczenie konfirmaty + zaslepki
 (sprawdzic kolejnosc montazu wg AGENTS.md: kontener — konfirmat od srodka kontenera przed wlozeniem szuflad).
+[AI-INFO] 2026-11-10: okap KOMINOWY zrobiony — `sprzetCiagu.typ = "okapK"` w ciagu gornym (szablon „Okap kominowy”, `tylkoGorny`),
+geometria bez korpusu z kominem, przerwa listwy zawieszek, `okapMsgs` + przycisk „Okap 650 mm nad płytą”, makieta: zamiana
+szafka z okapem <-> kominowy w karcie AGD. Opis: `opisy/sprzety.md`. Zostaje biurko z kontenerem.
+[AI-INFO] 2026-11-10: uzytkownik zapytal o „półka → poziom / poziom → półka” w makiecie — jest w „Drzwi i klapy” (podziel / scal);
+kopie w zakladce „Półki” uzytkownik odrzucil („żeby nie wprowadzać zamętu”) — nie dodawac.
