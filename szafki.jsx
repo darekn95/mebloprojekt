@@ -21519,6 +21519,20 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       {usun && <button data-el="mak-usun-szafke" onClick={() => usun(idx)} className="rounded border border-stone-300 px-2 py-0.5 text-[11px] font-medium text-stone-700 hover:border-red-400 hover:text-red-700">Usuń szafkę</button>}
     </div>,
   ];
+  /* Plyta korpusu i frontu (uzytkownik 2026-11-10: wybor plyty tylko w makiecie szczegolowej) — wzornik `PALETA` jak
+     w trybie technicznym (kolor, bez wlasnej plyty, dekor czysci sie); „cały ciąg” — ten sam kolor w szafkach ciagu. */
+  const ustawPlyte = (k, hex, calyCiag) => zmienProjekt((p) => ({ ...p, items: p.items.map((x, i) => ((i === idx || (calyCiag && run && x.runId === run.id)) && x.mat && x.mat[k]
+    ? { ...x, mat: { ...x.mat, [k]: { ...bezPlyty(x.mat[k]), color: hex, decor: "" } } } : x)) }));
+  const plytyRows = [["board", "Płyta korpusu"], ["front", "Fronty"]].map(([k, l]) => {
+    const akt = ((it.mat || {})[k] || {}).color || "";
+    return wiersz(`mat-${k}`, `${l}: ${paletteName(akt) || ((it.mat || {})[k] || {}).decor || "kolor własny"}`, [
+      ...PALETA.map(([n, hex]) => (
+        <button key={hex} title={n} data-el="mak-plyta" data-k={k} data-v={hex} onClick={() => ustawPlyte(k, hex, false)}
+          className={`h-5 w-5 rounded border ${akt.toLowerCase() === hex.toLowerCase() ? "border-teal-700 ring-1 ring-teal-700" : "border-stone-300"}`} style={{ background: hex }} />
+      )),
+      ...(run ? [<Btn key="c" el="mak-plyta-ciag" v={k} onClick={() => ustawPlyte(k, akt, true)}>cały ciąg</Btn>] : []),
+    ], "mak-plyta-wiersz");
+  });
   if (zakladka === "szafka") tresc = [...naglowekSzafki, <Pole key="pW" k="W" l="Szerokość" />,
     // szerokosci jak w makiecie „Dodaj” (rodzaj zabudowy ciagu; wolnostojaca — tez wysokosci)
     ...(cab.sprzetCiagu ? [] : [chips("mak-szer", szerChips, cab.W, (v) => zmien(idx, (c) => { c.W = v; }))]),
@@ -21529,7 +21543,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     ...(run && !wisi ? [wiersz("blat", "Blat roboczy ciągu", [
       <Btn key="t" el="mak-blat" v="tak" on={!!run.worktop} onClick={() => ciag.setRun(run.id, { worktop: true })}>jest</Btn>,
       <Btn key="n" el="mak-blat" v="nie" on={!run.worktop} onClick={() => ciag.setRun(run.id, { worktop: false })}>nie ma</Btn>])] : []),
-    W("Cokół", cokol), W("Nóżki", nozki), ...(tryb === "szczegolowa" ? [W("Poziomy / kolumny", `${poziomy.length} / ${kolumny.length}`)] : []), ...listaKol(null)];
+    W("Cokół", cokol), W("Nóżki", nozki), ...(tryb === "szczegolowa" ? [W("Poziomy / kolumny", `${poziomy.length} / ${kolumny.length}`), ...plytyRows] : []), ...listaKol(null)];
   /* Tylko kliknieta kolumna / poziom kolumny (uzytkownik 2026-11-09: „drzwi klapy za duży sajgon — po wybraniu na rysunku
      konkretnych powinny być opcje konkretnych, a nie wszystko naraz”): klik na rysunku wybiera (`kolZ`), male przyciski
      „kol. J · poz. N” — zapasowo; jedna kolumna — od razu jej opcje. */

@@ -87,8 +87,20 @@ ok('szczegółowa: „Kolory płyt” włączone — kolory materiału', (await 
 await page.locator('[data-el="mak-przel"] [data-p="kolory"]').click(); await page.waitForTimeout(400);
 f = await fille();
 ok('szczegółowa, „Kolory płyt” wyłączone — jasne', f.includes('#fbfaf8') && !f.includes('#d8c3a0'), f.slice(0, 8).join(' '));
+console.log('== płyty w szczegółowej ==');
+await page.locator('[data-el="makieta"] nav [data-zakl="szafka"]').click().catch(() => {}); await page.waitForTimeout(200);
+if (!(await page.locator('[data-el="mak-plyta-wiersz"]').count())) { await page.locator('[data-el="makieta"] nav [data-zakl="szafka"]').click(); await page.waitForTimeout(200); }
+ok('szczegółowa: wzornik płyty korpusu i frontów w karcie Szafka', (await page.locator('[data-el="mak-plyta"][data-k="board"]').count()) >= 8 && (await page.locator('[data-el="mak-plyta"][data-k="front"]').count()) >= 8);
+await page.locator('[data-el="mak-plyta"][data-k="front"][data-v="#4a4d4f"]').click();
+let pm = await czekaj('p.items[1].mat.front.color === "#4a4d4f"');
+ok('front „Antracyt” tylko w zaznaczonej szafce', pm.items[1].mat.front.color === '#4a4d4f' && pm.items[0].mat.front.color !== '#4a4d4f');
+await page.locator('[data-el="mak-plyta-ciag"][data-v="front"]').click();
+pm = await czekaj('p.items.every((it) => it.mat.front.color === "#4a4d4f")');
+ok('„cały ciąg” — fronty wszystkich szafek ciągu', pm.items.every((it) => it.mat.front.color === '#4a4d4f'));
+await page.locator('[data-el="tryb"] button', { hasText: 'prosta' }).click(); await page.waitForTimeout(400);
+ok('prosta: bez wzornika płyt', !(await page.locator('[data-el="mak-plyta"]').count()));
 const pk = await proj();
-ok('kolory w projekcie nietknięte', pk.items.every((it) => it.mat.board.color === '#d8c3a0'), pk.items.map((it) => it.mat.board.color).join(','));
+ok('kolory korpusu w projekcie nietknięte', pk.items.every((it) => it.mat.board.color === '#d8c3a0'), pk.items.map((it) => it.mat.board.color).join(','));
 console.log('bledy strony:', errors.length ? errors.join(' | ') : 'brak');
 if (errors.length) bledy++;
 console.log(bledy ? `${bledy} BLAD` : 'WSZYSTKO OK');

@@ -110,6 +110,9 @@ w technicznym, na przełączniku”:
 - **prosta** — jasne jak makieta „Dodaj” (płyta #fbfaf8, front #f3f0eb, plecy #ece7e1, blat #8b6f56), bez słojów;
 - **szczegółowa** — przełącznik „Kolory płyt” (domyślnie włączony): kolory materiałów jak w trybie technicznym,
   wyłączony — jasne;
+- **wybór płyty** (użytkownik 2026-11-10: tylko w szczegółowej): w karcie „Szafka” wzornik płyty korpusu i frontów
+  (`PALETA`, jak w trybie technicznym — kolor, dekor czyści się, własna płyta zdejmuje), „cały ciąg” — ten sam kolor
+  we wszystkich szafkach ciągu;
 - zmienia się tylko rysunek makiety (kopia `mat` — `makJasneMat`, `projRys`); kolory w projekcie, formatkach, PDF
   i trybie technicznym zostają.
 
