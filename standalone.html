@@ -21225,7 +21225,7 @@ const MakBtn = ({ on, onClick, children, el, v }) => (
 /* Karta sprzetu w makiecie (krok 1 planu wyrownania, uzytkownik 2026-11-09): to, co w makiecie „Dodaj” — rozmiar do
    klikniecia, wymiary z karty modelu, polozenie, opcje — zapisane w te same pola co tryb techniczny:
    `cab.blatWyciecia[k]` (wyc), `cab.naBlacie[k]` (nb), `col.sprzet` (kol), `cab.sprzetCiagu` (ciag). `sel`: { i, rodz, k, li, j }. */
-function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ustawSel }) {
+function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ustawSel, lodRodzaj }) {
   const it = project.items[sel.i]; if (!it) return null;
   const cab = it.cab, nazwaSz = cab.name || "szafka";
   const etyk = (t) => <p className="mt-2 text-[11px] font-medium uppercase tracking-wider text-stone-500">{t}</p>;
@@ -21238,6 +21238,9 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
   );
   const para = (l, a, b) => <div className="flex items-center justify-between gap-2 py-0.5 text-[11px]"><span className="text-stone-500">{l}</span><span className="flex items-center gap-1">{a}{b && <><span className="text-stone-400">×</span>{b}</>}<span className="text-stone-400">mm</span></span></div>;
   const usun = (fn) => <button data-el="agd-usun" onClick={fn} className="rounded border border-stone-300 px-2 py-0.5 text-[11px] text-stone-700 hover:border-red-400 hover:text-red-700">Usuń</button>;
+  // rodzaj lodowki — ten sam wiersz w karcie lodowki w kolumnie i w ciagu; inny rodzaj zastepuje pozycje
+  const rodzajLodowki = (akt) => lodRodzaj ? <>{etyk("Rodzaj lodówki")}{rzad("agd-lod-rodz", MAK_LOD_RODZ.map(([v, l]) =>
+    <MakBtn key={v} el="agd-lod-rodz-v" v={v} on={akt === v} onClick={() => akt !== v && lodRodzaj(sel, v)}>{v === "slupek" && akt === "slupek" && !(cab.slupek || cab.H > 1500) ? "do zabudowy (w szafce)" : l}</MakBtn>))}</> : null;
   let tytul = "", tresc = null;
   if (sel.rodz === "wyc") {
     const q = wycieciaSzafki(cab).find((x) => x.k === sel.k); if (!q) return null;
@@ -21296,6 +21299,7 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
     tytul = (SPRZETY[sp.typ] || SPRZETY.piekarnik).pelna;
     const rozm = SPRZET_ROZM[sp.typ];
     tresc = <>
+      {lod && rodzajLodowki("slupek")}
       {rozm && <>{etyk("Wymiar")}{rzad("agd-rozm", rozm.map((x) => <MakBtn key={x.k} el="agd-rozm-v" v={x.k} on={x.frontH === ((col.sprzet || {}).frontH ?? null)}
         onClick={() => setSp({ frontH: x.frontH, hMin: x.hMin })}>{x.l}</MakBtn>))}</>}
       {lod && <>{etyk("Front lodówki")}{rzad("agd-lod-montaz", Object.entries(MONTAZE_LODOWKI).map(([v, l]) => <MakBtn key={v} el="agd-lod-montaz-v" v={v} on={sp.montaz === v} onClick={() => setSp({ montaz: v === "slizg" ? null : v })}>{l}</MakBtn>))}</>}
@@ -21397,8 +21401,9 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
     tresc = <>
       {(sp.typ === "zmywarka" || sp.typ === "zmywarkaW") && <>{etyk("Model")}{rzad("agd-model", [["600", "60 cm"], ["450", "45 cm"]].map(([v, l]) => <MakBtn key={v} el="agd-model-v" v={v} on={String(sp.szer) === v} onClick={() => setSp({ szer: v === "450" ? 450 : null }, { W: Number(v) })}>{l}</MakBtn>))}</>}
       {sp.typ === "zmywarkaW" && <>{etyk("Montaż")}{rzad("agd-pokrywa", [["0", "pod blatem (bez pokrywy)"], ["1", "z własną pokrywą"]].map(([v, l]) => <MakBtn key={v} el="agd-pokrywa-v" v={v} on={(sp.pokrywa ? "1" : "0") === v} onClick={() => setSp({ pokrywa: v === "1" ? true : null }, { H: v === "1" ? sp.hPokr : 820 })}>{l}</MakBtn>))}</>}
-      {sp.typ === "lodowkaP" && <>{etyk("Drzwi")}{zaw}</>}
+      {sp.typ === "lodowkaP" && <>{rodzajLodowki("ciag")}{etyk("Drzwi")}{zaw}</>}
       {sp.typ === "lodowka" && <>
+        {rodzajLodowki(sp.rowno ? "rowno" : "wolna")}
         {etyk("Rodzaj")}{rzad("agd-lod-rowno", [["wolna", "wolnostojąca"], ["rowno", "na równo z meblami"]].map(([v, l]) => <MakBtn key={v} el="agd-lod-rowno-v" v={v} on={(sp.rowno ? "rowno" : "wolna") === v} onClick={() => setSp({ rowno: v === "rowno" ? true : null, luzL: null, luzP: null, luzGora: null })}>{l}</MakBtn>))}
         {etyk("Luzy")}
         {para("z lewej", liczba("agd-luzl", (cab.sprzetCiagu || {}).luzL, sp.luzL, (v) => setSp({ luzL: v })))}
@@ -21643,6 +21648,11 @@ const MAK_AGD = [
   { id: "okap", nazwa: "Okap", opis: "w szafkę górną nad płytą", rodz: "okap" },
 ];
 const MAK_AGD_ID = Object.fromEntries(MAK_AGD.map((a) => [a.id, a]));
+/* Rodzaj lodowki w karcie AGD (makieta „Dodaj”: „Rodzaj lodówki” — krok 6 planu, 2026-11-10): do zabudowy (w slupku albo
+   w szafce — wneka w kolumnie), podblatowa w ciagu (jak zmywarka), wolnostojaca, na rowno z meblami. Zmiana rodzaju
+   wstawia nowa pozycje na miejsce starej (`zamienLodowke` w `MakietaWidok`). „Podblatowa w szafce” z makiety to w aplikacji
+   wneka 82 cm w kolumnie szafki (wybor „Wnęka” w karcie) albo pozycja w ciagu — szafka dolna 720 nie ma wneki 820. */
+const MAK_LOD_RODZ = [["slupek", "do zabudowy (słupek)"], ["ciag", "podblatowa w ciągu"], ["wolna", "wolnostojąca"], ["rowno", "na równo z meblami"]];
 const MAK_WZORY = Object.fromEntries([...MAK_PALETA.flatMap((g) => g.wzory), ...MAK_AGD.filter((a) => a.rodz === "wzor")].map((w) => [w.id, w]));
 // miniatury AGD (34 × 34), jak ikony sprzetu w makiecie
 const ikonaAgd = (id) => {
@@ -21676,7 +21686,7 @@ const MAK_KLOCKI = [
   { id: "przegroda", nazwa: "Przegroda", przegroda: true },
 ];
 
-function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia", selAgd, setSelAgd, usunPozycje, geoOf }) {
+function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia", selAgd, setSelAgd, usunPozycje, geoOf, lodRodzaj }) {
   const kafel = (el, id, l, opis, onClick, ikona) => (
     <button key={id} data-el={el} data-id={id} draggable
       onDragStart={(e) => { try { e.dataTransfer.setData("text/plain", `${el}:${id}`); e.dataTransfer.effectAllowed = "copy"; } catch (er) { /* bez danych */ } zacznij({ el, id }); }}
@@ -21716,7 +21726,7 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
         {kom}
         {naglowek("Sprzęt")}
         <div className="grid grid-cols-2 gap-1">{MAK_AGD.map((a) => kafel("mak-agd", a.id, a.nazwa, a.opis, () => onAgd(a, null), ikonaAgd(a.id)))}</div>
-        {selAgd && <MakietaKartaAgd project={project} sel={selAgd} zmien={zmien} usunPozycje={usunPozycje} zamknij={() => setSelAgd && setSelAgd(null)} geoOf={geoOf} ustawSel={setSelAgd} />}
+        {selAgd && <MakietaKartaAgd project={project} sel={selAgd} zmien={zmien} usunPozycje={usunPozycje} zamknij={() => setSelAgd && setSelAgd(null)} geoOf={geoOf} ustawSel={setSelAgd} lodRodzaj={lodRodzaj} />}
         {naglowek(`W projekcie (${lista.length})`)}
         {lista.length ? (
           <ul className="space-y-1" data-el="mak-agd-lista">
@@ -22425,6 +22435,25 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
       const k = kolumnaW(cab.levels, li, j); if (k) kl.fn(k, sys);
     });
   };
+  /* Zmiana rodzaju lodowki z karty AGD: nowa pozycja z szablonu (slupek z wneka 1780 / „Lodówka podblatowa” / „Lodówka
+     wolnostojąca”, na rowno: luzy 3 / 3 / 15, miejsce 606) wstawiona za stara; stara znika, gdy to pozycja ciagu albo szafka
+     bez innego sprzetu — w szafce z innymi sprzetami lodowka tylko wychodzi z kolumny (kolumna wraca do drzwi). */
+  const zamienLodowke = (sel, rodzaj) => {
+    const it = project.items[sel.i]; if (!it) return;
+    let run = runOf(it);
+    if (run && run.tier === "gorny") run = (project.runs || []).find((r) => r.id === run.wall) || null;
+    const tpl = rodzaj === "slupek" ? "slupek" : rodzaj === "ciag" ? "lodowka-pod" : "lodowka-wolno";
+    const inne = sel.rodz === "kol" && (it.cab.levels || []).some((lv, li) => (lv.cols || []).some((k, j) => k.sprzet && !(li === sel.li && j === sel.j)));
+    const zastap = sel.rodz === "ciag" || !inne;
+    const mod = rodzaj === "slupek" ? (c) => { c.levels = [{ h: 1780, cols: [{ ...newColumn(1, 0), sprzet: { typ: "lodowka" } }] }, { h: null, cols: [newColumn(1, 0)] }]; }
+      : rodzaj === "rowno" ? (c) => { c.sprzetCiagu = { ...(c.sprzetCiagu || {}), rowno: true }; c.W = LODOWKA_ROWNO.luzL + SPRZETY_CIAGU.lodowka.lodW + LODOWKA_ROWNO.luzP; } : null;
+    setKomunikat(null);
+    dodaj(tpl, run ? run.id : null, { przed: sel.i + 1, zmien: mod, nazwa: rodzaj === "slupek" ? "Słupek" : null });
+    if (zastap) usunPozycje(sel.i);
+    else zmien(sel.i, (c) => { const k = kolumnaW(c.levels, sel.li, sel.j); if (k) { delete k.sprzet; if (!k.doors) k.doors = 1; } });
+    const nowy = zastap ? sel.i : sel.i + 1;
+    pokazAgd(rodzaj === "slupek" ? { i: nowy, rodz: "kol", li: 0, j: 0 } : { i: nowy, rodz: "ciag" });
+  };
   const wstawAgd = (a, c0) => {
     setKomunikat(null);
     if (a.rodz === "brak") { setKomunikat(`„${a.nazwa}” — jeszcze w przygotowaniu.`); return; }
@@ -22647,7 +22676,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                   </button>
                   {dodajCo === k && (
                     <div className="border-t border-stone-200 p-2">
-                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} selAgd={selAgd} setSelAgd={setSelAgd} usunPozycje={usunPozycje} geoOf={(i) => geoRysunku.current[i]} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} selAgd={selAgd} setSelAgd={setSelAgd} usunPozycje={usunPozycje} geoOf={(i) => geoRysunku.current[i]} lodRodzaj={zamienLodowke} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
                         project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
                         zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); setZnacznik(null); }} />
                     </div>

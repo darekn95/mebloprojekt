@@ -186,6 +186,32 @@ await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { ha
 await karta.locator('[data-el="agd-okap-typ-v"][data-v="teleskopowy"]').click();
 p = await czekaj(`p.items[${io}].cab.okap && p.items[${io}].cab.okap.typ === "teleskopowy"`);
 ok('kominowy → teleskopowy: z powrotem szafka górna z okapem', !p.items[io].cab.sprzetCiagu && p.items[io].cab.okap && p.items[io].cab.okap.typ === 'teleskopowy' && p.items[io].cab.W === 600);
+console.log('== rodzaj lodówki w karcie AGD (krok 6 planu) ==');
+await page.locator('[data-el="tryb"] [data-tryb="prosta"]').click(); await page.waitForTimeout(1000);
+// lodowka wolnostojaca na koncu dolnego ciagu
+await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.active = p.items.findIndex((it) => it.cab.name === 'Zlew'); localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+await dodajSek('agd');
+await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="lodowka-wolno"]').click(); await page.waitForTimeout(600);
+p = await czekaj('p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "lodowka")');
+const nL = p.items.length;
+await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { hasText: 'Lodówka wolnostojąca' }).click(); await page.waitForTimeout(400);
+ok('karta lodówki: „Rodzaj lodówki” (4 rodzaje), wolnostojąca zaznaczona', (await karta.locator('[data-el="agd-lod-rodz-v"]').count()) === 4
+  && (await karta.locator('[data-el="agd-lod-rodz-v"][data-v="wolna"]').getAttribute('aria-pressed')) === 'true');
+await karta.locator('[data-el="agd-lod-rodz-v"][data-v="ciag"]').click();
+p = await czekaj(`p.items.length === ${nL} && p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "lodowkaP") && !p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "lodowka")`);
+ok('→ podblatowa w ciągu: pozycja zastąpiona (lodowkaP), tyle samo pozycji', p.items.length === nL && p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === 'lodowkaP'));
+ok('karta pokazuje teraz lodówkę podblatową', /Lodówka podblatowa/.test(await karta.innerText()) && (await karta.locator('[data-el="agd-lod-rodz-v"][data-v="ciag"]').getAttribute('aria-pressed')) === 'true');
+await karta.locator('[data-el="agd-lod-rodz-v"][data-v="slupek"]').click();
+p = await czekaj(`p.items.length === ${nL} && p.items.some((it) => (it.cab.levels || [])[0] && it.cab.levels[0].cols[0].sprzet && it.cab.levels[0].cols[0].sprzet.typ === "lodowka" && it.cab.H > 1500)`);
+const sl = p.items.find((it) => it.cab.H > 1500 && it.cab.levels[0].cols[0].sprzet);
+ok('→ do zabudowy: słupek z wnęką 1780 na lodówkę', !!sl && sl.cab.levels[0].h === 1780 && sl.runId === 'r1' && !p.items.some((it) => it.cab.sprzetCiagu && /lodowka/.test(it.cab.sprzetCiagu.typ)), sl && JSON.stringify(sl.cab.levels.map((l) => l.h)));
+await page.waitForTimeout(400);
+ok('karta lodówki w słupku (wnęka, zawiasy)', /Lodówka/.test(await karta.innerText()) && (await karta.locator('[data-el="agd-lod-wneka"]').count()) === 1);
+await karta.locator('[data-el="agd-lod-rodz-v"][data-v="rowno"]').click();
+p = await czekaj(`p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.rowno)`);
+const ro = p.items.find((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.rowno);
+ok('→ na równo z meblami: lodówka wolnostojąca, miejsce 606, słupek zniknął', !!ro && ro.cab.W === 606 && ro.cab.sprzetCiagu.typ === 'lodowka' && p.items.length === nL && !p.items.some((it) => it.cab.H > 1500 && it.cab.levels[0].cols[0].sprzet));
 console.log('bledy strony:', errors.length ? errors.join(' | ') : 'brak');
 if (errors.length) bledy++;
 console.log(bledy ? `${bledy} BLAD` : 'WSZYSTKO OK');

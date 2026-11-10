@@ -93,6 +93,11 @@ sprzętem albo w zmywarkę / lodówkę w ciągu. Zapis w te same pola co tryb te
   ostrzeżenie, gaz 750 — informacja), bez płyty pod okapem — informacja. **Kominowy** — w karcie okapu „kominowy (zamiast
   szafki)”: szafka staje się okapem na ścianie (pozycja ciągu górnego bez korpusu, to samo miejsce), karta: wymiar,
   „dół okapu nad blatem” (650 domyślnie); inny rodzaj wraca do szafki wiszącej z okapem (`opisy/sprzety.md`);
+- **rodzaj lodówki** (krok 6 planu, 2026-11-10, jak „Rodzaj lodówki” w makiecie „Dodaj”): w karcie lodówki w kolumnie
+  i w ciągu wiersz „do zabudowy (słupek) / podblatowa w ciągu / wolnostojąca / na równo z meblami” — inny rodzaj wstawia
+  nową pozycję z szablonu na miejsce starej (słupek z wnęką 1780; na równo — luzy 3 / 3 / 15, miejsce 606); szafka
+  z innymi sprzętami zostaje, lodówka tylko wychodzi z kolumny (`zamienLodowke`, `MAK_LOD_RODZ`). „Podblatowa w szafce”
+  z makiety: wnęka 82 cm w kolumnie (wybór „Wnęka”) albo pozycja w ciągu;
 - **w ciągu** (`cab.sprzetCiagu`): zmywarka — model 60 / 45, wolnostojąca — montaż pod blatem / z pokrywą; lodówka
   podblatowa — drzwi; wolnostojąca — rodzaj, luzy z lewej / z prawej, drzwi; „Usuń” (cała pozycja ciągu).
 - Pozostałe pola z karty modelu — w trybie Technicznym (karta to mówi).

@@ -10,6 +10,8 @@ aplikacji**.
 To trzeba dorobić w aplikacji, bo makieta tylko rysuje i niczego nie liczy.
 
 ### A1. Sprzęty AGD
+> 2026-11-10: wszystko z tabeli jest już w aplikacji (karta AGD makiety i tryb techniczny); ostatni punkt — rodzaj lodówki
+> w jednym miejscu — jako wiersz „Rodzaj lodówki” w karcie (`opisy/makieta.md`). Tabela zostaje jako historia.
 | Makieta | Aplikacja dziś |
 |---|---|
 | Ekspres do zabudowy (wnęka 45 w słupku) | brak typu (są: piekarnik, mikrofala, lodówka) |
