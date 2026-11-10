@@ -260,6 +260,12 @@ console.log('\n== pod wycięciem w blacie (użytkownik 2026-11-05): nachodzenie,
   const segB = page.locator('[data-el="mocowanie-wzmocnienia"] button').filter({ hasText: /^Konfirmaty$/ });
   if (await segB.count()) { await segB.first().click(); await page.waitForTimeout(900); }
   ok('karta wzmocnienia „Mocowanie: Konfirmaty” — z powrotem na konfirmatach', !(await zap()).items[1].cab.levels[0].cols[0].rails[0].mocowanie && await jest(reKo));
+  // trojkaty meblowe w karcie wzmocnienia (decyzja uzytkownika 2026-11-10: „wszędzie opcja na trójkąty”)
+  const segT = page.locator('[data-el="mocowanie-wzmocnienia"] button').filter({ hasText: /^Trójkąty$/ });
+  ok('karta wzmocnienia: „Mocowanie: Trójkąty”', (await segT.count()) >= 1);
+  if (await segT.count()) { await segT.first().click(); await page.waitForTimeout(900); }
+  ok('„Trójkąty”: wzmocnienie na trójkątach meblowych', (await zap()).items[1].cab.levels[0].cols[0].rails[0].mocowanie === 'trojkaty');
+  if (await segB.count()) { await segB.first().click(); await page.waitForTimeout(900); }
   await page.locator('[data-el="wyciecie-blatu-karta"] label').filter({ hasText: 'Od przodu blatu' }).locator('input').fill('50'); await page.waitForTimeout(900);
   const reP = /z wycięciem pod płytę — przy wycięciu zostaje pasek 20 mm, za wąski/;
   ok('wycięcie 50 od przodu: ostrzeżenie „zostaje pasek 20 mm” z „Wzmocnienie stojące”', JSON.stringify(await przyciski(reP)) === '["Wzmocnienie stojące"]', (await przyciski(reP)).join(' / '));

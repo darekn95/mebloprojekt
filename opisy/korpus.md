@@ -23,8 +23,14 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   60 mm: 15 i 45; szersze niż 132 mm — jak inne styki, 50 mm od krawędzi, co ok. 200 mm), w planie
   wierceń „konfirmat — wzmocnienie poziome / czołowe / tylne”. Pionowe przy boku (lico do lica) —
   wkręty 4 × 30, 4 na wzmocnienie. Koniec bez boku i przegrody (kątownik w rogu, ścianka wycięcia,
-  przelot) — wkręty. W karcie wzmocnienia „Mocowanie: Konfirmaty / Wkręty 4 × 30” (wkręty — po 2 na
-  koniec, bez planu wierceń).
+  przelot) — wkręty. W karcie wzmocnienia „Mocowanie: Konfirmaty / Wkręty 4 × 30 / Trójkąty” (wkręty — po 2 na
+  koniec, bez planu wierceń). **Trójkąty meblowe** (użytkownik 2026-11-10: „wszędzie opcja na trójkąty” — dla
+  wzmocnień prostopadłych do płyty, w technicznym i w makiecie szczegółowej): po 2 na koniec przy boku albo
+  przegrodzie, jak przy przegrodzie z wzmocnieniami z obu stron (100 mm: 20 i 60 mm, szersze — 50 mm od krawędzi);
+  poziome — pod wzmocnieniem (górne) albo na nim (dolne), czołowe — za nim, tylne — przed nim, zawsze od wnętrza,
+  więc dostęp do wkrętów jest przy każdej kolejności montażu. Plan wierceń „trójkąt meblowy — wzmocnienie …”,
+  zamówienie „Trójkąt meblarski — wzmocnienia na trójkątach”. Koniec bez boku i przegrody — wkręty, jak przy
+  konfirmatach. Wybrane trójkąty przy przegrodzie z drugim wzmocnieniem — bez ostrzeżenia o kolejności.
 - **Przegroda z wzmocnieniem tej samej wysokości po obu stronach** (użytkownik 2026-11-08): konfirmatów
   (i wkrętów) przez przegrodę z obu stron nie da się skręcić po kolei — łby drugiej kolumny zasłania
   wzmocnienie pierwszej. Domyślnie **trójkąty meblowe, po 2 na koniec** przy przegrodzie, lewa kolumna

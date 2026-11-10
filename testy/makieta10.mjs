@@ -79,6 +79,11 @@ ok('+ na dole z tyłu', r.some((x) => x.orient === 'front' && x.pos === 'bottom'
 await page.locator('[data-el="mak-wzm-moc"][data-v="wkrety"]').click();
 p = await czekaj('p.items[0].cab.levels[0].cols[1].rails.every((x) => x.mocowanie === "wkrety")');
 ok('mocowanie: wkręty 4 × 30 dla całej kolumny', cab(p).levels[0].cols[1].rails.every((x) => x.mocowanie === 'wkrety'));
+// trojkaty meblowe (decyzja uzytkownika 2026-11-10: „wszędzie opcja na trójkąty”)
+await page.locator('[data-el="mak-wzm-moc"][data-v="trojkaty"]').click();
+p = await czekaj('p.items[0].cab.levels[0].cols[1].rails.every((x) => x.mocowanie === "trojkaty")');
+ok('mocowanie: trójkąty meblowe dla całej kolumny', cab(p).levels[0].cols[1].rails.every((x) => x.mocowanie === 'trojkaty')
+  && (await page.locator('[data-el="mak-wzm-moc"][data-v="trojkaty"]').getAttribute('aria-pressed')) === 'true');
 await page.locator('[data-el="mak-wzm"][data-v="lezace"]').click();
 p = await czekaj('p.items[0].cab.levels[0].cols[1].rails.length === 1');
 ok('ponowny klik zdejmuje leżące', cab(p).levels[0].cols[1].rails.length === 1 && cab(p).levels[0].cols[1].rails[0].pos === 'bottom');

@@ -1199,6 +1199,7 @@ nozkami / cokolem, plyty „inne niz korpus”, szczegolowa: wzmocnienia na rysu
 przegroda nizsza, plan kolizji, „Widok” (przod / bok / gora / 3D / 45°) zamiast „Powiększ”, przesuwanie rysunku
 lewym przyciskiem, drganie przy 125 % (rozmiar okna z paskiem), wieniec z gory na wierzchu, nowy ciag z makiety) —
 zrobione na galezi, opis `opisy/makieta.md` („Uwagi 2026-11-10”), test `testy/makieta11.mjs`.
-[AI-TODO] Trojkaty meblowe przy BOKACH dla wzmocnien (zamiast konfirmatow) — w aplikacji nie ma takiego mocowania (sa
-przy przegrodzie i pod przegroda nizsza). Uzytkownik pytany 2026-11-10; bez odpowiedzi nie dodawac (wiercenia, okucia,
-kolejnosc montazu).
+[AI-INFO] 2026-11-10 (odpowiedz uzytkownika: „jeśli chodzi o te prostopadłe do płyty, to wszędzie powinna być opcja na
+trójkąty — szczegółowy i techniczny”): `rail.mocowanie: "trojkaty"` dla wzmocnien lezacych, czolowych i tylnych — laczniki
+po 2 na koniec (`trojkatyNaKoncu`, jak przy przegrodzie), plan wiercen, zamowienie, karta techniczna (Seg) i szczegolowa
+(`mak-wzm-moc`). Pionowe — bez zmian (wkrety). Opis: `opisy/korpus.md`.

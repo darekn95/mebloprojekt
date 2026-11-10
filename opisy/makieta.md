@@ -346,8 +346,9 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
 - **Wzmocnienia (szczegółowa)**: na rysunku każde wzmocnienie w ramce z wymiarem (czołowe szer. × wys., leżące —
   głębokość, pionowe — wys. × gł.); klik otwiera kartę Wzmocnienia jego kolumny. Trójkąty meblowe tam, gdzie program
   je liczy: przy przegrodzie z wzmocnieniami z obu stron („trójkąty meblowe / 1 konfirmat w środku”,
-  `rail.przyPrzegrodzie`) i pod przegrodą niższą o płytę (`col.przegrodaNizszaMoc`). Przy bokach — konfirmaty
-  albo wkręty (jak w technicznym).
+  `rail.przyPrzegrodzie`) i pod przegrodą niższą o płytę (`col.przegrodaNizszaMoc`). Mocowanie do boków /
+  przegród całej kolumny: konfirmaty / wkręty 4 × 30 / trójkąty meblowe (`rail.mocowanie`, decyzja użytkownika
+  2026-11-10 — trójkąty wszędzie, jak w technicznym; opis w `opisy/korpus.md`).
 - **Elementy kolizyjne (szczegółowa)**: plan szafki z góry — klik dodaje element 80 × 80 w tym miejscu,
   przeciągnięcie przesuwa (co 5 mm, od bliższego boku i od tyłu), wybrany: szer. / gł. / od boku / od tyłu,
   wysokość cała albo część (od dna, wys.), zabudowa bez / auto / L / U, usuń (`cab.obstacles`, `MakPlanKolizji`).

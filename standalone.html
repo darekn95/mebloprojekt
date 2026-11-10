@@ -3815,7 +3815,8 @@ function computeGeoLiczy(cab, mat, ctx) {
         g2.ri = (rawCol.rails || []).indexOf(raw);
         if (raw.paraPodBlat) g2.paraPodBlat = true;
         if (g2.orient === "vertical") { g2.mocowanie = "wkrety"; return; }
-        g2.mocowanie = raw.mocowanie === "wkrety" ? "wkrety" : "konfirmaty";
+        // konfirmaty (domyslnie), wkrety 4 × 30 albo trojkaty meblowe (uzytkownik 2026-11-10: „wszędzie opcja na trójkąty”)
+        g2.mocowanie = raw.mocowanie === "wkrety" || raw.mocowanie === "trojkaty" ? raw.mocowanie : "konfirmaty";
         const konce = { lewy: plytaL && Math.abs(g2.x0 - c.x0) < 1, prawy: plytaP && Math.abs(g2.x1 - c.x1) < 1 };
         let otw = [];
         if (raw.podWyciecie && g2.orient === "shelf") {
@@ -3860,7 +3861,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         const wkr = g2.mocowanie === "konfirmaty" ? `|wzmmoc:${lv.i}:${j}:${g2.ri}:wkrety` : "";
         if (sasiad) {
           const prawyS = sasiad.laczniki[1];
-          const wyb = raw.przyPrzegrodzie === "jeden" || raw.przyPrzegrodzie === "trojkaty" ? raw.przyPrzegrodzie : null;
+          const wyb = raw.przyPrzegrodzie === "jeden" || raw.przyPrzegrodzie === "trojkaty" ? raw.przyPrzegrodzie : raw.mocowanie === "trojkaty" ? "trojkaty" : null;
           const naZakresie = (l, xs) => { const [p0] = l.zakres || [l.od]; return xs.map((v) => Math.round(p0 + v)); };
           const dl = (l) => (l.zakres ? l.zakres[1] - l.zakres[0] : l.do - l.od);
           if (wyb === "jeden") {
@@ -3883,7 +3884,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           else if (Math.max(przod, tyl) < WZM_PASEK_MIN)
             add("warn", `${kto} pod ${o.nazwa} — przy wycięciu zostaje pasek ${fmt(Math.max(przod, tyl))} mm, za wąski, żeby trzymał boki i blat (co najmniej ${WZM_PASEK_MIN} mm). Daj wzmocnienie stojące albo przesuń wycięcie dalej od przodu blatu.${stoj}`);
         });
-        const nazwaL = (l) => (l.moc === "konfirmaty" ? "konfirmaty" : "wkręty");
+        const nazwaL = (l) => (l.moc === "konfirmaty" ? "konfirmaty" : l.moc === "trojkaty" ? "trójkąty" : "wkręty");
         g2.laczniki.filter((l) => !l.poz.length && l.moc !== "ciagle").forEach((l) =>
           add("error", `${kto}: przy ${l.strona === "lewy" ? "lewym" : "prawym"} boku nie ma gdzie go przykręcić — wycięcie zabiera całe czoło wzmocnienia. Daj wzmocnienie stojące${wkr ? " albo wkręty 4 × 30 (wchodzą płycej)" : ""}.${stoj}${wkr}`));
         const przest = g2.laczniki.filter((l) => l.przestawione && l.poz.length);
@@ -6195,7 +6196,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     const otw = kawalki.flatMap((q) => q.otwory || []).map((o) => ({ x: Math.round(o.x0 - r.x0), z: Math.round(r.z0 + r.zLen - o.z1),
       a: Math.round(o.x1 - o.x0), b: Math.round(o.z1 - o.z0), szer: Math.round(dl), gl: Math.round(r.b) }));
     const lacz = r.laczniki && r.laczniki.some((l) => l.przestawione)
-      ? `; ${r.mocowanie === "konfirmaty" ? "konfirmaty" : "wkręty"} przez boki: ${r.laczniki.map((l) => `${l.strona} koniec ${l.poz.length ? `${l.poz.map(fmt).join(" i ")} mm od przodu` : "brak"}`).join(", ")} (poza wycięciem)` : "";
+      ? `; ${r.mocowanie === "konfirmaty" ? "konfirmaty przez boki" : r.mocowanie === "trojkaty" ? "trójkąty przy bokach" : "wkręty przez boki"}: ${r.laczniki.map((l) => `${l.strona} koniec ${l.poz.length ? `${l.poz.map(fmt).join(" i ")} mm od przodu` : "brak"}`).join(", ")} (poza wycięciem)` : "";
     P({ name: nazwaZOtworami(name, otw), qty: 1, a: Math.round(dl), b: Math.round(r.b), matKey: "board",
         edges: { a1: true, a2: false, b1: false, b2: false },
         ...(otw.length ? { otwory: otwFormatki(otw) } : {}),
@@ -7289,7 +7290,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         const pn = panelsOfCol(lv, c)[l.strona === "lewy" ? "left" : "right"];
         if (!pn || !pn.name) return;
         const kind = `trójkąt meblowy — wzmocnienie ${r.orient === "shelf" ? "poziome" : r.przyTyle ? "tylne" : "czołowe"}`;
-        const obok = "; po drugiej stronie przegrody wzmocnienie na tej samej wysokości — trójkąty obok siebie, wkręty się mijają";
+        const obok = l.przyPrzegrodzie ? "; po drugiej stronie przegrody wzmocnienie na tej samej wysokości — trójkąty obok siebie, wkręty się mijają" : "";
         if (l.os === "z") {
           const gora = r.y1 >= lv.y1 - 1 || r.y0 > (lv.y0 + lv.y1) / 2;
           drillAdd(lv.i, pn.name, pn.base, kind, gora ? r.y0 : r.y1,
@@ -7908,11 +7909,17 @@ function computeGeoLiczy(cab, mat, ctx) {
     hardware.push({ name: "Trójkąt meblarski", use: "przegroda niższa — do wzmocnień nad nią",
       spec: `po 1 z każdej strony przegrody pod każdym wzmocnieniem: ${trNiz} szt.`, qty: trNiz, unit: "szt." });
   // trojkaty przy przegrodzie z wzmocnieniem tej samej wysokosci po drugiej stronie (2026-11-08)
-  const trWzm = levels.reduce((a2, lv) => a2 + lv.cols.reduce((b2, c) => b2 + (c.rails || []).reduce((s2, r) =>
-    s2 + (r.laczniki || []).filter((l) => l.moc === "trojkaty").reduce((t2, l) => t2 + l.poz.length, 0), 0), 0), 0);
+  const trojkatyWzm = (przy) => levels.reduce((a2, lv) => a2 + lv.cols.reduce((b2, c) => b2 + (c.rails || []).reduce((s2, r) =>
+    s2 + (r.laczniki || []).filter((l) => l.moc === "trojkaty" && !!l.przyPrzegrodzie === przy).reduce((t2, l) => t2 + l.poz.length, 0), 0), 0), 0);
+  const trWzm = trojkatyWzm(true);
   if (trWzm)
     hardware.push({ name: "Trójkąt meblarski", use: "wzmocnienia przy przegrodzie — z obu stron na tej samej wysokości",
       spec: `po 2 na koniec wzmocnienia przy przegrodzie: ${trWzm} szt.`, qty: trWzm, unit: "szt." });
+  // wzmocnienia z wybranym mocowaniem „trójkąty” (2026-11-10) — przy bokach i przegrodach
+  const trWzmWyb = trojkatyWzm(false);
+  if (trWzmWyb)
+    hardware.push({ name: "Trójkąt meblarski", use: "wzmocnienia na trójkątach — do boków / przegród",
+      spec: `po 2 na koniec wzmocnienia: ${trWzmWyb} szt.`, qty: trWzmWyb, unit: "szt." });
 
   // scianka zabudowy z zawieszka do wienca (N149, wybor uzytkownika w uwagach)
   const mocKonf = zawieszki.mocZabudowy.filter((m) => m === "konfirmaty").length * 2;
@@ -16877,6 +16884,8 @@ const trojkatyNaKoncu = (len, druga) => (len >= KONF_DWA_OD
   : (druga ? [2, 4] : [1, 3]).map((k) => (k * len) / 5)).map(Math.round);
 // polozenia lacznikow na koncu wzmocnienia szerokiego `len` (od jego przedniej / dolnej krawedzi)
 const lacznikiNaKoncu = (len, moc) => {
+  // trojkaty meblowe — po 2 na koniec, jak przy przegrodzie (50 mm od krawedzi, waskie — 1/5 i 3/5)
+  if (moc === "trojkaty") return len >= 30 ? trojkatyNaKoncu(len, false) : len >= 14 ? [Math.round(len / 2)] : [];
   if (moc === "konfirmaty") {
     if (len >= KONF_DWA_OD) return konfirmatyPoz(len);
     if (len >= 40) return [Math.round(len / 4), Math.round((3 * len) / 4)];
@@ -16889,7 +16898,8 @@ const lacznikiWzmocnienia = (g, otw, moc, konce = {}) => {
   const lezace = g.orient === "shelf";
   const a = lezace ? g.z0 : g.y0, b = lezace ? g.z0 + g.zLen : g.y1;
   return [["lewy", g.x0], ["prawy", g.x1]].map(([strona, xe]) => {
-    const mocK = moc === "konfirmaty" && konce[strona] !== false ? "konfirmaty" : "wkrety";
+    // konfirmaty i trojkaty tylko przy boku / przegrodzie (`konce`); przy katowniku, sciance wyciecia, przelocie — wkrety
+    const mocK = (moc === "konfirmaty" || moc === "trojkaty") && konce[strona] !== false ? moc : "wkrety";
     const gleb = mocK === "konfirmaty" ? KONF_WZM_GLEB : WZM_LACZNIK_GLEB;
     // wyciecia, ktore podchodza pod ten koniec blizej, niz lacznik wchodzi w czolo
     const blisko = lezace ? (otw || []).filter((o) => (strona === "lewy" ? o.x0 - xe : xe - o.x1) < gleb) : [];
@@ -22453,11 +22463,11 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     };
     tresc = tylkoWybrana(kols, (k) => {
       const rails = k.c.rails || [];
-      const wkrety = rails.length > 0 && rails.every((r) => r.mocowanie === "wkrety");
+      const mocKol = ["wkrety", "trojkaty"].find((m) => rails.length > 0 && rails.filter((r) => r && r.orient !== "vertical").every((r) => r.mocowanie === m)) || "konfirmaty";
       return [wiersz(`w${k.li}-${k.j}`, nazwaK(k) || "wzmocnienia", MAK_WZM.map((t) => <Btn key={t.k} el="mak-wzm" v={t.k} on={rails.some((r) => r && t.jest(r))}
         onClick={() => zmienKol(k.li, k.j, (kk) => makPrzelaczWzm(kk, t))}>{t.l}</Btn>), "mak-wzm"),
-        ...(rails.length ? [wiersz(`wm${k.li}-${k.j}`, "mocowanie do boków / przegród", [["konfirmaty", "konfirmaty"], ["wkrety", "wkręty 4 × 30"]].map(([v, l]) =>
-          <Btn key={v} el="mak-wzm-moc" v={v} on={(v === "wkrety") === wkrety} onClick={() => zmienKol(k.li, k.j, (kk) => { (kk.rails || []).forEach((r) => { if (v === "wkrety") r.mocowanie = "wkrety"; else delete r.mocowanie; }); })}>{l}</Btn>), "mak-wzm-moc")] : []),
+        ...(rails.length ? [wiersz(`wm${k.li}-${k.j}`, "mocowanie do boków / przegród", [["konfirmaty", "konfirmaty"], ["wkrety", "wkręty 4 × 30"], ["trojkaty", "trójkąty meblowe"]].map(([v, l]) =>
+          <Btn key={v} el="mak-wzm-moc" v={v} on={mocKol === v} onClick={() => zmienKol(k.li, k.j, (kk) => { (kk.rails || []).forEach((r) => { if (!r || r.orient === "vertical") return; if (v === "konfirmaty") delete r.mocowanie; else r.mocowanie = v; }); })}>{l}</Btn>), "mak-wzm-moc")] : []),
         ...wzmTrojkaty(k)];
     }, true).flat();
     tresc.push(<p key="wzh" className="text-[11px] text-stone-500">Wymiary typowe (100 mm); wysokość, głębokość i strona pionowego — w trybie Technicznym. Trójkąty meblowe — przy przegrodzie, gdy po obu jej stronach są wzmocnienia na tej samej wysokości, i pod przegrodą niższą o płytę.</p>);
@@ -29069,11 +29079,13 @@ export default function App() {
                               {r.orient !== "vertical" && (
                                 <Field label="Mocowanie" hint={r.mocowanie === "wkrety"
                                   ? "wkręty 4 × 30 przez boki w czoło wzmocnienia, po 2 na koniec"
+                                  : r.mocowanie === "trojkaty"
+                                  ? "trójkąty meblowe od wnętrza przy boku / przegrodzie, po 2 na koniec (plan wierceń, zamówienie)"
                                   : "konfirmaty 7 × 50 przez boki / przegrody w czoło wzmocnienia, po 2 na koniec (plan wierceń)"}>
                                   <div data-el="mocowanie-wzmocnienia">
-                                    <Seg value={r.mocowanie === "wkrety" ? "wkrety" : "konfirmaty"}
-                                      onChange={(v) => setRail(lv.i, c.j, ri, { mocowanie: v === "wkrety" ? "wkrety" : undefined })}
-                                      options={[{ v: "konfirmaty", l: "Konfirmaty" }, { v: "wkrety", l: "Wkręty 4 × 30" }]} />
+                                    <Seg value={r.mocowanie === "wkrety" || r.mocowanie === "trojkaty" ? r.mocowanie : "konfirmaty"}
+                                      onChange={(v) => setRail(lv.i, c.j, ri, { mocowanie: v === "wkrety" || v === "trojkaty" ? v : undefined })}
+                                      options={[{ v: "konfirmaty", l: "Konfirmaty" }, { v: "wkrety", l: "Wkręty 4 × 30" }, { v: "trojkaty", l: "Trójkąty" }]} />
                                   </div>
                                 </Field>
                               )}
