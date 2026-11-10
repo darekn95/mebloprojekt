@@ -21498,6 +21498,53 @@ const makUstawPolki = (k, n) => {
   if ((k.drazki || []).length) k.drazki = [Math.max(0, n)];   // drazek zostaje w najwyzszym swietle (jak `dopasujPolki`)
 };
 const makIlePolek = (k) => Math.max(0, (k.shelfTargets || [null]).length - 1);
+/* Wzmocnienia w makiecie szczegolowej (krok 4 planu; makieta „Dodaj”: „wzm. leżące / stojące / pionowe”, „para pod blat”):
+   przelaczniki w wybranej kolumnie — kazdy dodaje albo zdejmuje jedno wzmocnienie tego rodzaju (jak „+ wzmocnienie”
+   w trybie technicznym, wymiary typowe 100 mm); mocowanie calej kolumny: konfirmaty (domyslnie) albo wkrety 4 × 30. */
+const MAK_WZM = [
+  { k: "lezace", l: "leżące u góry", jest: (r) => r.orient === "shelf" && r.pos !== "bottom" && !r.fromBack,
+    nowe: () => ({ ...newRail(), orient: "shelf", pos: "top", depth: 100 }) },
+  { k: "stojace", l: "stojące z przodu u góry", jest: (r) => r.orient === "front" && r.pos !== "bottom" && !r.fromBack,
+    nowe: () => ({ ...newRail(), orient: "front", pos: "top", h: 100 }) },
+  { k: "tylne", l: "tylne u góry", jest: (r) => r.orient === "front" && r.pos !== "bottom" && !!r.fromBack,
+    nowe: () => ({ ...newRail(), orient: "front", pos: "top", h: 100, fromBack: true }) },
+  { k: "dolP", l: "na dole z przodu", jest: (r) => r.orient === "front" && r.pos === "bottom" && !r.fromBack,
+    nowe: () => ({ ...newRail(), orient: "front", pos: "bottom", h: 100 }) },
+  { k: "dolT", l: "na dole z tyłu", jest: (r) => r.orient === "front" && r.pos === "bottom" && !!r.fromBack,
+    nowe: () => ({ ...newRail(), orient: "front", pos: "bottom", h: 100, fromBack: true }) },
+  { k: "pionowe", l: "pionowe", jest: (r) => r.orient === "vertical",
+    nowe: () => ({ ...newRail(), orient: "vertical", side: "left", depth: 100 }) },
+];
+const makPrzelaczWzm = (col, t) => {
+  const rails = col.rails || [];
+  const x = rails.findIndex((r) => r && t.jest(r));
+  col.rails = x >= 0 ? rails.filter((_, i) => i !== x) : [...rails, t.nowe()];
+};
+// ikona szafki w naglowku karty makiety (miniatury palety `ikonaWzoru`)
+const makIkonaSzafki = (cab, gorny) => {
+  const b = biurkoSzafki(cab), sp = cab.sprzetCiagu && cab.sprzetCiagu.typ;
+  const cols = (cab.levels || []).flatMap((lv) => lv.cols || []);
+  const id = b ? (b.kont ? "biurkoK" : "biurko") : sp === "zmywarka" ? "zmywarka" : sp === "zmywarkaW" ? "zmywarka-wolno"
+    : sp === "lodowka" ? "lodowka-wolno" : sp === "lodowkaP" ? "lodowka-pod" : (cab.corner || {}).on ? (gorny ? "naroznikLgorny" : "naroznikL")
+    : cab.H >= 1500 ? (cols.some((k) => k.kind === "drawers") ? "szafaSz" : "slupek")
+    : cols.length && cols.every((k) => k.kind === "drawers") ? "szuflady" : "x";
+  return ikonaWzoru({ id, tpl: gorny ? "wiszaca" : "" });
+};
+// opis szafki pod nazwa (jak w makiecie „Dodaj”): szerokosci kolumn, fronty, szuflady, polki, przegrody, wzmocnienia
+const makOpisSzafki = (cab, g) => {
+  if (!g || g.bezKorpusu) return "";
+  const lvl = (g.levels || []).filter((lv) => (lv.cols || []).length);
+  const szer = lvl.map((lv) => lv.cols.map((c) => fmt(Math.round(c.x1 - c.x0))).join(" / "));
+  const cols = lvl.flatMap((lv) => lv.cols);
+  const drzwi = (g.doors || []).filter((d) => d.type === "door").length;
+  const szufl = cols.reduce((a, c) => a + (c.drawers || []).length, 0);
+  const polki = cols.reduce((a, c) => a + (c.shelves || []).length, 0) + (g.sepShelves || []).length;
+  const wzm = cols.reduce((a, c) => a + (c.rails || []).length, 0);
+  const t = [szer.length ? `kol. ${szer.join(" · ")}` : "",
+    drzwi ? `${drzwi} drzwi` : "", szufl ? `${szufl} szufl.` : "", polki ? `${polki} półk.` : "",
+    (g.dividers || []).length ? `${g.dividers.length} przegr.` : "", wzm ? `${wzm} wzm.` : ""];
+  return t.filter(Boolean).join(" · ");
+};
 /* Poziomy kolumny w makiecie prostej (uzytkownik 2026-11-09: „dodawanie i usuwanie poziomów prosto … nie da się zrobić
    1 drzwi dla 2 poziomów, bo nie da się scalić poziomów”) — to samo co „→ poziom” i „scal” w trybie technicznym
    (`podzielKolumne`, `scalWykonaj`): podzial na polce `k` (polka zostaje polka graniczna, nowy poziom bierze ustawienia
@@ -21728,6 +21775,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   if (!it) return <p className="text-sm text-stone-500">Kliknij szafkę na rysunku — tu pokaże się jej karta.</p>;
   const cab = it.cab;
   const biurko = biurkoSzafki(cab);   // biurko — przelaczniki kontenera szuflad w karcie Szafka
+  // geometria liczona tu, na biezaco (`geoOf` z rysunku spoznia sie o jedno odswiezenie — opis i karta Korpus)
+  const geoKarty = computeGeo(cabDoGeo(project, it), it.mat);
   const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
   const W = (k, v, klucz) => (
     <div key={klucz || k} className="flex justify-between gap-3 border-b border-stone-100 py-1 text-xs">
@@ -22031,14 +22080,52 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       naCiag,
     ].filter(Boolean);
   }
-  else if (zakladka === "korpus") tresc = [W("Plecy", { hdf: "HDF", board: "płyta", none: "brak" }[cab.back] || cab.back || "—"),
-    W("Fronty", cab.frontMode === "inset" ? "wpuszczane" : "nakładane"), W("Góra", cab.top && cab.top.mode === "blat" ? "blat z płyty" : "wieniec")];
-  else if (zakladka === "wzmocnienia") { const n = kolumny.reduce((a, k) => a + (k.c.rails || []).length, 0); tresc = [W("Wzmocnienia w kolumnach", n ? `${n}` : "brak")]; }
-  else if (zakladka === "wyciecia") tresc = [W("Wycięcie w narożniku", [cab.cutout && cab.cutout.on ? "lewy" : "", cab.cutoutR && cab.cutoutR.on ? "prawy" : ""].filter(Boolean).join(", ") || "brak"),
-    W("Elementy kolizyjne", (cab.obstacles || []).length ? `${cab.obstacles.length}` : "brak")];
+  /* Karty szczegolowe (krok 4 planu): te same pola co w trybie technicznym — plecy (HDF / plyta / brak, HDF przybijane / we
+     frezie), fronty na korpusie / wewnatrz, gora wieniec / blat z plyty (gdy szafka ma gore); wzmocnienia wybranej kolumny
+     (`MAK_WZM`); wyciecie tylnego naroznika z lewej / z prawej (szer. × gleb.). */
+  else if (zakladka === "korpus") {
+    const g = geoKarty;
+    const rzad = (k, l, opcje, akt, ustaw, el) => wiersz(k, l, opcje.map(([v, t]) => <Btn key={v} el={el} v={v} on={akt === v} onClick={() => zmien(idx, (c) => ustaw(c, v))}>{t}</Btn>), el);
+    tresc = [
+      rzad("plecy", "Plecy", [["hdf", "HDF"], ["board", "płyta"], ["none", "brak"]], cab.back || "hdf", (c, v) => { c.back = v; }, "mak-plecy"),
+      ...(cab.back === "hdf" || !cab.back ? [rzad("frez", "Plecy HDF", [["nail", "przybijane"], ["groove", "we frezie"]], g && g.grooved ? "groove" : "nail",
+        (c, v) => { c.backGroove = { ...(c.backGroove || {}), on: v === "groove" }; }, "mak-plecy-frez")] : []),
+      rzad("fronty", "Fronty", [["overlay", "na korpusie"], ["inset", "wewnątrz"]], cab.frontMode === "inset" ? "inset" : "overlay", (c, v) => { c.frontMode = v; }, "mak-fronty"),
+      ...(g && g.hasTop ? [rzad("gora", "Góra", [["wieniec", "wieniec"], ["blat", "blat z płyty"]], (cab.top || {}).mode === "blat" ? "blat" : "wieniec",
+        (c, v) => { c.top = { ...(c.top || {}), mode: v }; }, "mak-gora")] : [W("Góra", g && g.isWorktop ? "blat roboczy ciągu" : "bez wieńca")]),
+    ];
+  }
+  else if (zakladka === "wzmocnienia") {
+    const kols = kolumny.map((k) => ({ ...k, jA: k.j }));
+    tresc = tylkoWybrana(kols, (k) => {
+      const rails = k.c.rails || [];
+      const wkrety = rails.length > 0 && rails.every((r) => r.mocowanie === "wkrety");
+      return [wiersz(`w${k.li}-${k.j}`, nazwaK(k) || "wzmocnienia", MAK_WZM.map((t) => <Btn key={t.k} el="mak-wzm" v={t.k} on={rails.some((r) => r && t.jest(r))}
+        onClick={() => zmienKol(k.li, k.j, (kk) => makPrzelaczWzm(kk, t))}>{t.l}</Btn>), "mak-wzm"),
+        ...(rails.length ? [wiersz(`wm${k.li}-${k.j}`, "mocowanie do boków / przegród", [["konfirmaty", "konfirmaty"], ["wkrety", "wkręty 4 × 30"]].map(([v, l]) =>
+          <Btn key={v} el="mak-wzm-moc" v={v} on={(v === "wkrety") === wkrety} onClick={() => zmienKol(k.li, k.j, (kk) => { (kk.rails || []).forEach((r) => { if (v === "wkrety") r.mocowanie = "wkrety"; else delete r.mocowanie; }); })}>{l}</Btn>), "mak-wzm-moc")] : [])];
+    }, true).flat();
+    tresc.push(<p key="wzh" className="text-[11px] text-stone-500">Wymiary typowe (100 mm); wysokość, głębokość i strona pionowego — w trybie Technicznym. Łączenia przy przegrodzie program dobierze sam (uwagi).</p>);
+  }
+  else if (zakladka === "wyciecia") {
+    const wyc = (klucz, l) => {
+      const q = cab[klucz] || {};
+      return [wiersz(klucz, l, [["0", "brak"], ["1", "jest"]].map(([v, t]) => <Btn key={v} el="mak-wyciecie" v={`${klucz}-${v}`} on={(q.on ? "1" : "0") === v}
+        onClick={() => zmien(idx, (c) => { c[klucz] = { ...(defaultCab[klucz] || {}), ...(c[klucz] || {}), on: v === "1" }; })}>{t}</Btn>), "mak-wyciecie"),
+        ...(q.on ? [<label key={`${klucz}-w`} className="flex items-center justify-between gap-2 border-b border-stone-100 py-1 text-xs"><span className="text-stone-500">szer. × głęb. (mm)</span>
+          <span className="flex gap-1">{["w", "d"].map((p2) => <input key={`${p2}-${q[p2]}`} type="number" step="5" defaultValue={q[p2]} data-pole={`${klucz}-${p2}`}
+            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+            onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v > 0 && v !== q[p2]) zmien(idx, (c) => { c[klucz] = { ...(c[klucz] || {}), [p2]: v }; }); }}
+            className="w-16 rounded border border-stone-300 px-1 py-0.5 text-right font-mono text-xs" />)}</span></label>] : [])];
+    };
+    tresc = [...wyc("cutout", "Wycięcie tylnego narożnika z lewej (rura, pion)"), ...wyc("cutoutR", "Wycięcie tylnego narożnika z prawej"),
+      W("Elementy kolizyjne", (cab.obstacles || []).length ? `${cab.obstacles.length} — zmienisz w trybie Technicznym` : "brak (dodasz w trybie Technicznym)")];
+  }
   return (
     <div className="space-y-2" data-el="makieta-karta">
-      <div className="pr-5">
+      <div className="flex items-start gap-2 pr-5">
+        <span className="mt-0.5 shrink-0 text-stone-600" data-el="mak-ikona-szafki">{makIkonaSzafki(cab, !!(run && run.tier === "gorny"))}</span>
+        <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-stone-900">{cab.name || "Szafka"}</h3>
           {/* odznaczenie (uzytkownik 2026-11-09): bez zaznaczonej szafki zakladki pokazuja, co mozna dodac */}
@@ -22046,6 +22133,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
             className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] text-stone-600 hover:bg-stone-100">odznacz</button>}
         </div>
         <p className="text-xs text-stone-500">{fmt(cab.W)} × {fmt(cab.H)} × {fmt(cab.D)} mm{run ? ` · ${run.name || "ciąg"}` : " · wolnostojąca"}</p>
+        {(() => { const o = makOpisSzafki(cab, geoKarty); return o ? <p className="text-[11px] text-stone-500" data-el="mak-opis-szafki">{o}</p> : null; })()}
+        </div>
       </div>
       <div>{tresc}</div>
       {wskazowka && <p className="text-[11px] text-teal-800" data-el="makieta-wskazowka">{wskazowka}</p>}

@@ -286,6 +286,17 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
   jednej szafki do przeciągania półek i szuflad.
 - Zakładka po lewej wybiera, co pokazuje karta: Szafka, Szuflady, Półki, Drzwi i klapy,
   Przegroda, Cokół i nóżki; w szczegółowej także Korpus i plecy, Wzmocnienia, Wycięcia i kolizje.
+- **Nagłówek karty** (krok 4 planu, 2026-11-10): ikona szafki (miniatura jak w palecie — `makIkonaSzafki`), nazwa,
+  wymiary i opis: szerokości kolumn każdego poziomu, liczba drzwi, szuflad, półek, przegród i wzmocnień
+  (`makOpisSzafki`, z geometrii liczonej w karcie na bieżąco — `geoKarty`).
+- **Karty szczegółowe** (do zmiany, te same pola co w technicznym):
+  - Korpus i plecy — plecy HDF / płyta / brak, HDF przybijane / we frezie, fronty na korpusie / wewnątrz, góra wieniec /
+    blat z płyty (gdy szafka ma górę; pod blatem roboczym — napis);
+  - Wzmocnienia — w wybranej kolumnie przełączniki (`MAK_WZM`): leżące u góry, stojące z przodu u góry, tylne u góry,
+    na dole z przodu, na dole z tyłu, pionowe — każdy dodaje / zdejmuje jedno wzmocnienie (100 mm); mocowanie całej kolumny
+    konfirmaty / wkręty 4 × 30; wymiary i strona pionowego — w technicznym;
+  - Wycięcia i kolizje — wycięcie tylnego narożnika z lewej / z prawej (jest / brak, szer. × głęb.); elementy kolizyjne —
+    liczba, zmiana w technicznym.
 
 ## Kontrole
 
@@ -295,7 +306,7 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
 
 Kolejne kroki (`makiety/BRAKI.md`, D):
 - AGD (brakujące w aplikacji, A1);
-- karty szczegółowej ze wszystkimi funkcjami.
+- w kartach szczegółowych: wymiary wzmocnień, elementy kolizyjne, złącza boków (zostają w technicznym).
 
 ## Gdzie w kodzie i testy
 
