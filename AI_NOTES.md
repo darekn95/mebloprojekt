@@ -1189,3 +1189,16 @@ Wzmocnienia, Wyciecia; naglowek karty z ikona i opisem) i krok 6 (AGD z listy A1
 „Rodzaj lodówki” w karcie AGD, `zamienLodowke`). Trzy kafelki lodowki w palecie zostaja (do zabudowy / podblatowa /
 wolnostojaca) — w makiecie „Dodaj” jest jeden; do decyzji uzytkownika, czy laczyc.
 
+[AI-INFO] 2026-11-10: kafelki AGD polaczone (decyzja uzytkownika „Połącz wszystkie”): jedna lodowka, mikrofala, ekspres,
+zmywarka — rodzaj w karcie AGD.
+[AI-INFO] 2026-11-10: lista uwag uzytkownika po pierwszych testach makiety (zawiasy → „2 drzwi w kolumnie”, klocki „Półka” /
+„Drążek” nad karta Polek, okienko polki pod / nad / usun + PPM, Drzwi: zawiasy L / P i lustro, klocki lustro / uchwyt /
+tip-on, „Dodaj” zwiniete i grupy „Nowe szafki” wg rodzaju ciagu (pamiec `mp-mak-grupy` na ciag), ikony wzorow z
+nozkami / cokolem, plyty „inne niz korpus”, szczegolowa: wzmocnienia na rysunku (klik → karta), wymiary (przelacznik
+„Wymiary”, napisy 52 px w makiecie), blat nad zaznaczona szafka, mocowanie polek, trojkaty przy przegrodzie / pod
+przegroda nizsza, plan kolizji, „Widok” (przod / bok / gora / 3D / 45°) zamiast „Powiększ”, przesuwanie rysunku
+lewym przyciskiem, drganie przy 125 % (rozmiar okna z paskiem), wieniec z gory na wierzchu, nowy ciag z makiety) —
+zrobione na galezi, opis `opisy/makieta.md` („Uwagi 2026-11-10”), test `testy/makieta11.mjs`.
+[AI-TODO] Trojkaty meblowe przy BOKACH dla wzmocnien (zamiast konfirmatow) — w aplikacji nie ma takiego mocowania (sa
+przy przegrodzie i pod przegroda nizsza). Uzytkownik pytany 2026-11-10; bez odpowiedzi nie dodawac (wiercenia, okucia,
+kolejnosc montazu).

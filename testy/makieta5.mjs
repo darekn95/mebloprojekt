@@ -61,18 +61,20 @@ const dodajSek = async (k) => { await zakl('dodaj'); const b = page.locator(`[da
   if ((await b.getAttribute('aria-expanded')) !== 'true') await b.click(); await page.waitForTimeout(250); };
 await dodajSek('agd');
 const nAgd = await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"]').count();
-ok('Dodaj → AGD: sprzęt do przeciągnięcia', nAgd >= 12, String(nAgd));
+// po jednym kafelku na sprzet (2026-11-10): plyta, zlew, piekarnik, mikrofala, ekspres, lodowka, zmywarka, okap
+ok('Dodaj → AGD: sprzęt do przeciągnięcia', nAgd >= 8, String(nAgd));
 await dodajSek('szafki');
 const nWz = await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"]').count();
 ok('rozwija się tylko wybrane (AGD zwinięte)', !(await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"]').count()));
 await dodajSek('elementy');
 const nKl = await page.locator('[data-el="mak-paleta"] [data-el="mak-klocek"]').count();
-ok('Dodaj → Nowe szafki: wzory; Elementy szafki: wszystkie klocki', nWz >= 14 && nKl === 12, `${nWz} / ${nKl}`);
+// w ciagu kuchennym na start rozwinieta tylko kuchnia (2026-11-10): dol 6 + gora 2; klocki + lustro, uchwyt, tip-on
+ok('Dodaj → Nowe szafki: wzory kuchni; Elementy szafki: wszystkie klocki', nWz >= 8 && nKl === 15, `${nWz} / ${nKl}`);
 await zakl('szafka');
 ok('zaznaczona szafka: „Szafka” — tylko jej opcje (bez palety)', !(await page.locator('[data-el="mak-paleta"]').count()) && (await page.locator('[data-el="makieta-karta"]').count()) === 1);
 console.log('== odznaczenie szafki ==');
 await page.locator('[data-el="mak-odznacz"]').click(); await page.waitForTimeout(300);
-ok('„odznacz”: „Szafka” pokazuje nowe szafki, rysunek bez obrysu', (await page.locator('[data-el="mak-bez-zaznaczenia"] [data-el="mak-wzor"]').count()) >= 14 && !(await page.locator('[data-el="makieta-zaznaczona"]').count()));
+ok('„odznacz”: „Szafka” pokazuje nowe szafki, rysunek bez obrysu', (await page.locator('[data-el="mak-bez-zaznaczenia"] [data-el="mak-wzor"]').count()) >= 8 && !(await page.locator('[data-el="makieta-zaznaczona"]').count()));
 await zakl('szuflady');
 ok('bez zaznaczenia „Szuflady” — klocki szuflad', (await page.locator('[data-el="mak-bez-zaznaczenia"] [data-el="mak-klocek"]').count()) === 4);
 await kafel('mak-klocek', 'szu-2').click(); await page.waitForTimeout(200);
@@ -118,8 +120,17 @@ await czekaj('klik „Klapa ↑”: pierwsza pasująca kolumna zaznaczonej', 'p.
 
 console.log('== wolnostojące i górne ==');
 await dodajSek('szafki');
+// grupa „Wolnostojące” w ciagu kuchennym zwinieta na start — rozwiniecie naglowkiem (pamieta na ciag)
+{ const n = page.locator('[data-el="mak-grupa"][data-grupa="Wolnostojące"] [data-el="mak-grupa-nagl"]');
+  ok('w kuchni „Wolnostojące” zwinięte na start', (await n.getAttribute('aria-expanded')) === 'false');
+  await n.click(); await page.waitForTimeout(200); }
 await kafel('mak-wzor', 'komoda').click();
 await czekaj('„Komoda” wolnostojąca, nazwa bez powtórki', 'const it = p.items[p.active]; return it.runId == null && it.cab.name === "Komoda 2" && it.cab.W === 800 && it.cab.H === 800 && it.cab.D === 450 && it.cab.levels[0].cols[0].drawers.length === 4');
+// przy wolnostojacej (kontekst „wolne”) kuchnia zwinieta na start — rozwiniecie „Kuchnia — góra”
+{ const n = page.locator('[data-el="mak-grupa"][data-grupa="Kuchnia — góra"] [data-el="mak-grupa-nagl"]');
+  ok('przy wolnostojącej „Kuchnia — góra” zwinięta, „Wolnostojące” pierwsze', (await n.getAttribute('aria-expanded')) === 'false'
+    && (await page.locator('[data-el="mak-grupa"]').first().getAttribute('data-grupa')) === 'Wolnostojące');
+  await n.click(); await page.waitForTimeout(200); }
 await kafel('mak-wzor', 'wiszaca').click();
 ok('wisząca przy wolnostojącej zaznaczonej — komunikat', /upuść na ciąg/.test(await page.locator('[data-el="mak-komunikat"]').innerText().catch(() => '')));
 await kafel('mak-wzor', 'szafaW').click();
@@ -144,7 +155,8 @@ ok('„‹” chowa kartę, pamiętane', !(await page.locator('[data-el="mak-kar
 const miara = () => page.evaluate(() => { const box = document.querySelector('[data-el="mak-plotno"]'); const svgs = [...box.querySelectorAll('svg')].filter((s) => !s.closest('[data-el="mak-zgory"]') && s.querySelector('[data-el="makieta-szafka"]'));
   const f = svgs[0].getBoundingClientRect(); return { h: f.height, okno: window.innerHeight, sw: box.scrollWidth, cw: box.clientWidth, tlo: !!box.querySelector('[data-el="tlo-sciany"]') }; });
 // przyblizanie (uzytkownik 2026-11-09: „powiększ jako domyślny … większe powiększenie, dopasowanie i pełny ekran”)
-ok('„Powiększ” domyślnie włączone', (await page.locator('[data-el="mak-przel"] [data-p="powieksz"]').getAttribute('aria-pressed')) === 'true');
+// „Widok” zamiast przelacznika „Powiększ” (uzytkownik 2026-11-10); na start dalej rysunek na wysokosc okna
+ok('„Widok” zamiast „Powiększ”', (await page.locator('[data-el="mak-widoki"]').count()) >= 1 && !(await page.locator('[data-el="mak-przel"] [data-p="powieksz"]').count()));
 const m2 = await miara();
 ok('„Powiększ”: widok z przodu na wysokość okna', m2.h > m2.okno * 0.6, JSON.stringify(m2));
 await page.locator('[data-el="mak-zoom"] button[title="Powiększ"]').click(); await page.waitForTimeout(400);
@@ -157,8 +169,7 @@ await page.keyboard.press('Escape'); await page.waitForTimeout(300);
 ok('Esc zamyka pełny ekran', !(await page.locator('[data-el="makieta-rysunek"][data-pelny]').count()));
 await page.locator('[data-el="mak-zoom"] button', { hasText: 'Dopasuj' }).click(); await page.waitForTimeout(400);
 const m1 = await miara();
-ok('„Dopasuj”: rysunek w szerokości okna, ściana w tle, nagłówek ciągu', m1.sw <= m1.cw + 2 && m1.tlo && (await page.locator('[data-el="mak-naglowek"]').count()) === 1
-  && (await page.locator('[data-el="mak-przel"] [data-p="powieksz"]').getAttribute('aria-pressed')) === 'false', JSON.stringify(m1));
+ok('„Dopasuj”: rysunek w szerokości okna, ściana w tle, nagłówek ciągu', m1.sw <= m1.cw + 2 && m1.tlo && (await page.locator('[data-el="mak-naglowek"]').count()) === 1, JSON.stringify(m1));
 await zakl('szafka');
 
 console.log('== przesuwanie szafki po rysunku ==');

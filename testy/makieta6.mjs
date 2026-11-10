@@ -62,7 +62,12 @@ await (await wiersz('kolumna 3 · poziom 1')).locator('[data-el="mak-polki"][dat
 let L = await czekajNa('L[2].shelfTargets.length === 5');
 ok('„+” w poziomie 1 kolumny 3: półka w tym poziomie, granica idzie za nią', L[2].shelfTargets.length === 5 && L[2].podzial.join() === '2', JSON.stringify({ st: L[2].shelfTargets, pz: L[2].podzial }));
 ok('kolumna 3 · poziom 2 dalej ma 1 półkę, poziom 1 — 2', (await (await wiersz('kolumna 3 · poziom 2')).locator('[data-el="mak-polki-n"]').innerText()) === '1' && (await (await wiersz('kolumna 3 · poziom 1')).locator('[data-el="mak-polki-n"]').innerText()) === '2');
-await (await wiersz('kolumna 2 · poziom 3')).locator('[data-el="mak-drazek"]').click(); await page.waitForTimeout(400);
+// drazek — klocek przeciagniety w swiatlo 2 kolumny 2 (miedzy uchwytami polek 1 i 2; 2026-11-10: bez przycisku przy swietle)
+{ const hb = (k) => page.locator(`[data-u="polka"][data-j="1"][data-k="${k}"]`).first().boundingBox();
+  const a = await hb(1), b = await hb(2), pl = page.locator('[data-el="mak-plotno"]'), r = await pl.boundingBox();
+  await page.locator('[data-el="mak-klocki-karty"] [data-el="mak-klocek"][data-id="drazek"]').dragTo(pl, { force: true,
+    targetPosition: { x: a.x + a.width / 2 - r.x, y: (a.y + a.height / 2 + b.y + b.height / 2) / 2 - r.y } });
+  await page.waitForTimeout(400); }
 L = await czekajNa('(L[1].drazki || []).length > 0');
 ok('drążek w poziomie 3 kolumny 2 (światło 2)', (L[1].drazki || []).join() === '2', JSON.stringify(L[1].drazki));
 
@@ -118,7 +123,7 @@ console.log('== przybliżanie w każdym widoku ==');
 await page.locator('[data-el="mak-ciag"] button').first().click(); await page.locator('[data-el="mak-ciag"] [data-v="szafka"]').click(); await page.waitForTimeout(400);
 const wys = async () => page.evaluate(() => { const s = [...document.querySelectorAll('[data-el="mak-plotno"] svg')].find((q) => q.querySelector('[data-el="makieta-szafka"]')); return s ? Math.round(s.getBoundingClientRect().height) : 0; });
 const h1 = await wys();
-ok('„Tylko zaznaczona szafka”: − / % / + / Dopasuj / Powiększ', (await page.locator('[data-el="mak-zoom"] button').count()) >= 4 && (await page.locator('[data-el="mak-przel"] [data-p="powieksz"]').count()) === 1);
+ok('„Tylko zaznaczona szafka”: − / % / + / Dopasuj / Widok', (await page.locator('[data-el="mak-zoom"] button').count()) >= 4 && (await page.locator('[data-el="mak-widoki"]').count()) >= 1);
 await page.locator('[data-el="mak-zoom"] button[title="Powiększ"]').click(); await page.waitForTimeout(400);
 const h2 = await wys();
 ok('„+” powiększa samą szafkę', h2 > h1 * 1.15, `${h1} → ${h2}`);

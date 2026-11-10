@@ -154,8 +154,12 @@ Jak w makiecie „Dodaj” (zgłoszenie 2026-11-09: „nie działa dwuklik lewym
   szafce (wycięcia w blacie, sprzęt w kolumnie, na blacie, sprzęt w ciągu) — prowadzi do „Dodaj → AGD”. Wybór
   zaznacza szafkę i przełącza zakładkę. Esc albo klik obok zamyka. Sprzęt w ciągu (zmywarka, lodówka) — tylko
   wymiary, cokół i AGD.
-- **Dwuklik na półce** (zakładka Półki) — wpisanie światła pod nią (najniższa — od dna, wyższa — od półki niżej);
-  reszta przechodzi do światła nad nią, ostatnie zostaje auto (jak przy przeciąganiu, `makWylicz` z `d.sw`).
+- **Dwuklik albo prawy przycisk na półce** (zakładka Półki; użytkownik 2026-11-10) — okienko „Półka N”: światło
+  **pod nią** (najniższa — od dna, wyższa — od półki niżej) i **nad nią** (do półki wyżej albo do płyty u góry);
+  wpisujesz jedno, drugie przejmuje resztę, ostatnie światło kolumny zostaje auto (`makWylicz` z `d.sw`).
+  „Usuń tę półkę” łączy światło pod i nad nią w jedno (z grubością półki, `makUsunPolke`), reszta półek zostaje na
+  miejscu; drążek nad nią schodzi do połączonego światła. Granicy poziomu kolumny (`podzial`) tak się nie usuwa —
+  to zmiana poziomów („Drzwi i klapy”).
 - **Przesuwanie szafki w ciągu**: chwyć szafkę (nie uchwyt) i przeciągnij — zielona kreska z napisem
   „przed / za „…”” pokazuje, gdzie stanie (tylko w tym samym ciągu); po puszczeniu zmienia się kolejność szafek
   w ciągu, szafka zostaje zaznaczona. Ta sama zielona kreska pokazuje miejsce szafki przeciąganej z palety.
@@ -201,12 +205,20 @@ przyciski; nad nimi małe „kol. J · poz. N” do zmiany bez klikania w rysune
 opcje.
 Zapis do tych samych pól co tryb techniczny; liczy aplikacja.
 - **Drzwi i klapy**: „1 drzwi / 2 drzwi / Klapa ↑ / Klapa ↓ / Bez frontu” (`col.doors`, `col.klapa`);
-  przy frontach „uchwyt / tip-on” (`col.handles[i]`, `col.otwieranie[i] = "tipon"`). Tip-on zostaje
-  przy zmianie liczby drzwi i przy klapie. Szuflady w kolumnie zmieniają się w drzwi.
+  przy frontach „uchwyt / tip-on” (`col.handles[i]`, `col.otwieranie[i] = "tipon"`) i „lustro” (`col.mirrors` na
+  wszystkich skrzydłach — waga lustra idzie do doboru zawiasów). Pojedyncze drzwi (nie klapa): „zawiasy z lewej /
+  z prawej” (`col.hinge`; zaznaczona strona z rysunku, także domyślna). Tip-on zostaje przy zmianie liczby drzwi
+  i przy klapie. Szuflady w kolumnie zmieniają się w drzwi.
 - **Szuflady**: 1–5 w kolumnie (`col.drawers`, fronty auto, system z szafki / ciągu jak w trybie
   technicznym — `systemKontekstu`).
-- **Półki**: „− N +” (`shelfTargets`, wszystkie światła na auto) i „drążek” (`col.drazki`) w najwyższym
-  świetle — przy zmianie liczby półek zostaje na górze.
+- **Półki**: „− N +” (`shelfTargets`, wszystkie światła na auto). Nad kartą klocki **„Półka”** i **„Drążek”**
+  (użytkownik 2026-11-10: „klocek do przeciągnięcia w wybrane miejsce, drążek nie jako przycisk obok każdej
+  przestrzeni”): półka upuszczona na kolumnę dzieli światło pod kursorem — staje na wysokości upuszczenia (co 10 mm,
+  światła co najmniej 60 mm, `makWstawPolke`; półki i granice wyżej przesuwają numer, drążek zostaje w górnej
+  części); drążek trafia do światła pod kursorem (`col.drazki`). Działa też w poziomie kolumny z drzwiami. Klik
+  w klocek — do wybranej kolumny (półka po równo, drążek w najwyższym świetle). W wierszu kolumny tylko „usuń drążek”,
+  gdy jest. W szczegółowej także **mocowanie półek**: kołki / konfirmaty / trójkąty dla wybranej kolumny
+  (`col.shelfMount`) albo całej szafki (`cab.shelfMount`, kolumny wracają do szafki).
 - **Przegroda**: 1–4 kolumny w poziomie; szerokości na auto, nowa kolumna jak ostatnia (drzwi, półki).
 - **Cokół i nóżki**: cokół brak / pod korpusem / w obrysie i wysokość, nóżki brak / są i wysokość.
   W ciągu — **cały ciąg** naraz, jak karta ciągu: cokół przez `run.plinth` (bez uwagi „nie zgadza się
@@ -314,11 +326,43 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
 
 Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w nagłówku od razu po zmianie.
 
+## Uwagi 2026-11-10 (lista użytkownika po pierwszych testach)
+
+- **Zawiasy**: uwaga „za mało zawiasów wg tabeli GTV” przy jednych drzwiach w kolumnie podpowiada dwoje drzwi, gdy
+  połówka (szerokość minus szczelina, przez 2, co najmniej 200 mm) potrzebuje mniej zawiasów albo mieści się
+  w tabeli, z której jedno skrzydło wychodzi — przycisk „2 drzwi w kolumnie (po N zawiasy)” (`drzwi2:`; uchwyt,
+  tip-on i lustro przechodzą na oba skrzydła). Przykład: 596 × 1994 (14,5 kg) — 4 zawiasy; dwoje po 297 mm (7,2 kg) — po 3.
+- **Dodaj**: klik w zakładkę otwiera ją ze zwiniętymi sekcjami; prawy przycisk na szafce — „Elementy szafki”
+  (przełącza na Dodaj → Elementy szafki). „Nowe szafki”: kolejność grup wg rodzaju zabudowy ciągu (kuchnia —
+  kuchnia, wolnostojące, szafy; wolnostojąca — wolnostojące, szafy, kuchnia; szafa — szafy, wolnostojące,
+  kuchnia), nagłówki grup zwijane; na start rozwinięte: nowy projekt (najwyżej jedna szafka) — wszystkie, kuchnia —
+  tylko kuchnia, wolnostojąca — wolnostojące i szafy, szafa — szafy i wolnostojące. Wybór pamięta przeglądarka
+  osobno dla każdego ciągu (`mp-mak-grupy`).
+- **Ikony wzorów** mają podstawę z tego, co szablon tworzy (`bazaWzoru`): nóżki, cokół pod korpusem (cofnięty pasek)
+  albo w obrysie (linia w korpusie); wzór „w ciąg” bierze cokół ciągu, jak `addCabinet`.
+- **Elementy szafki**: klocki „Lustro”, „Uchwyt”, „Tip-on” (na drzwi / klapę kolumny).
+- **Płyty (szczegółowa)**: płyta korpusu zawsze; „Fronty inne niż korpus” i „Półki inne niż korpus”
+  (`frontSameAsBoard`, `shelfSameAsBoard` jak w technicznym) — dopiero wtedy paleta frontów / półek.
+- **Wzmocnienia (szczegółowa)**: na rysunku każde wzmocnienie w ramce z wymiarem (czołowe szer. × wys., leżące —
+  głębokość, pionowe — wys. × gł.); klik otwiera kartę Wzmocnienia jego kolumny. Trójkąty meblowe tam, gdzie program
+  je liczy: przy przegrodzie z wzmocnieniami z obu stron („trójkąty meblowe / 1 konfirmat w środku”,
+  `rail.przyPrzegrodzie`) i pod przegrodą niższą o płytę (`col.przegrodaNizszaMoc`). Przy bokach — konfirmaty
+  albo wkręty (jak w technicznym).
+- **Elementy kolizyjne (szczegółowa)**: plan szafki z góry — klik dodaje element 80 × 80 w tym miejscu,
+  przeciągnięcie przesuwa (co 5 mm, od bliższego boku i od tyłu), wybrany: szer. / gł. / od boku / od tyłu,
+  wysokość cała albo część (od dna, wys.), zabudowa bez / auto / L / U, usuń (`cab.obstacles`, `MakPlanKolizji`).
+- **Rysunek**: „Widok” zamiast „Powiększ” — z przodu (makieta z uchwytami), z boku, z góry, 3D (obracany
+  przeciąganiem), 45° (cała zabudowa, stały widok); poza „z przodu” to podgląd jak w technicznym. Powiększony
+  rysunek przesuwa się przytrzymanym lewym przyciskiem (poza szafką w ciągu — tę się przestawia). W szczegółowej
+  przełącznik „Wymiary” (domyślnie włączony): wymiary ciągu jak w technicznym, szafki wolnostojącej (z blatem
+  z płyty) jak jej widok z przodu.
+- **Z góry**: wieniec / blat z płyty rysowany na wierzchu (półprzezroczysty, pełny obrys) — wcześniej leżał pod
+  półkami i przegrodami i wyglądał jak osobny w każdej kolumnie, a blat biurka jak pod spodem.
+
 ## Czego jeszcze nie ma
 
 Kolejne kroki (`makiety/BRAKI.md`, D):
-- AGD (brakujące w aplikacji, A1);
-- w kartach szczegółowych: wymiary wzmocnień, elementy kolizyjne, złącza boków (zostają w technicznym).
+- złącza boków, wysokość / głębokość wzmocnienia i strona pionowego (zostają w technicznym).
 
 ## Gdzie w kodzie i testy
 

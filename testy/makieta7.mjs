@@ -33,7 +33,7 @@ const zakl = async (k) => { const b = page.locator(`[data-el="makieta"] nav [dat
 const dodajSek = async (k) => { await zakl('dodaj'); const b = page.locator(`[data-el="mak-dodaj"] [data-dodaj="${k}"]`);
   if ((await b.getAttribute('aria-expanded')) !== 'true') await b.click(); await page.waitForTimeout(250); };
 const rodzaj = (v) => page.locator(`[data-el="mak-rodzaj"] [data-v="${v}"]`);
-const pierwszaGrupa = () => page.locator('[data-el="mak-paleta"] p.uppercase').first().innerText();
+const pierwszaGrupa = () => page.locator('[data-el="mak-paleta"] [data-el="mak-grupa-nagl"]').first().innerText();
 
 console.log('== kuchnia (domyślnie) ==');
 ok('ciąg bez pola — „Kuchnia”', (await rodzaj('kuchnia').getAttribute('aria-pressed')) === 'true');
@@ -90,9 +90,18 @@ ok('szczegółowa, „Kolory płyt” wyłączone — jasne', f.includes('#fbfaf
 console.log('== płyty w szczegółowej ==');
 await page.locator('[data-el="makieta"] nav [data-zakl="szafka"]').click().catch(() => {}); await page.waitForTimeout(200);
 if (!(await page.locator('[data-el="mak-plyta-wiersz"]').count())) { await page.locator('[data-el="makieta"] nav [data-zakl="szafka"]').click(); await page.waitForTimeout(200); }
-ok('szczegółowa: wzornik płyty korpusu i frontów w karcie Szafka', (await page.locator('[data-el="mak-plyta"][data-k="board"]').count()) >= 8 && (await page.locator('[data-el="mak-plyta"][data-k="front"]').count()) >= 8);
+ok('szczegółowa: wzornik płyty korpusu, frontów — dopiero po „Fronty inne niż korpus”', (await page.locator('[data-el="mak-plyta"][data-k="board"]').count()) >= 8 && !(await page.locator('[data-el="mak-plyta"][data-k="front"]').count()));
+await page.locator('[data-el="mak-plyta-inne"][data-v="frontSameAsBoard"]').click();
+let pm = await czekaj('p.items[1].cab.frontSameAsBoard === false');
+ok('„Fronty inne niż korpus” — frontSameAsBoard false, wzornik frontów', pm.items[1].cab.frontSameAsBoard === false && (await page.locator('[data-el="mak-plyta"][data-k="front"]').count()) >= 8);
+await page.locator('[data-el="mak-plyta-inne"][data-v="shelfSameAsBoard"]').click();
+pm = await czekaj('p.items[1].cab.shelfSameAsBoard === false');
+ok('„Półki inne niż korpus” — wzornik półek', (await page.locator('[data-el="mak-plyta"][data-k="shelf"]').count()) >= 8);
+await page.locator('[data-el="mak-plyta"][data-k="shelf"][data-v="#4a4d4f"]').click();
+pm = await czekaj('p.items[1].mat.shelf && p.items[1].mat.shelf.color === "#4a4d4f"');
+ok('półki „Antracyt” w zaznaczonej szafce', pm.items[1].mat.shelf && pm.items[1].mat.shelf.color === '#4a4d4f');
 await page.locator('[data-el="mak-plyta"][data-k="front"][data-v="#4a4d4f"]').click();
-let pm = await czekaj('p.items[1].mat.front.color === "#4a4d4f"');
+pm = await czekaj('p.items[1].mat.front.color === "#4a4d4f"');
 ok('front „Antracyt” tylko w zaznaczonej szafce', pm.items[1].mat.front.color === '#4a4d4f' && pm.items[0].mat.front.color !== '#4a4d4f');
 await page.locator('[data-el="mak-plyta-ciag"][data-v="front"]').click();
 pm = await czekaj('p.items.every((it) => it.mat.front.color === "#4a4d4f")');
