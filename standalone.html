@@ -20976,6 +20976,27 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ }) {
   return <g data-el="makieta-uchwyty">{out}</g>;
 }
 
+/* Slupek ze sprzetem (uzytkownik 2026-11-10: skroty z makiety „Dodaj”): sprzet stoi w poziomie szafki `li`; jego wneke
+   przesuwa sie zmiana poziomu pod nim (pod nim brak — dochodzi nowy poziom z drzwiami). Wszystkie poziomy dostaja obecne
+   wysokosci, najwyzszy (bez sprzetu — w razie potrzeby dochodzi) zostaje auto. `Y` — dol wneki od podlogi. */
+const makBaza = (cab, geo) => Math.max(cab.plinth && cab.plinth.on && !geo.plinthInBody ? geo.plinthH || 0 : 0, cab.legs && cab.legs.on ? geo.legBelow || 0 : 0);
+const makSlupekWneka = (geo, li, Y) => (c) => {
+  const L = c.levels, gl = geo.levels || [];
+  if (!L || L.length !== gl.length || !gl[li]) return;
+  L.forEach((lv, x) => { lv.h = Math.round(gl[x].h); });
+  const d = Math.round(Y - (makBaza(c, geo) + gl[li].y0));
+  if (!d) return;
+  let i = li;
+  if (i === 0) {
+    if (d < MAK_MIN + geo.t) return;
+    L.unshift({ ...newLevel(1, 0), h: d - geo.t }); i = 1;
+  } else L[i - 1].h = Math.max(MAK_MIN, L[i - 1].h + d);
+  if (i === L.length - 1) L.push(newLevel(1, 0));
+  L[L.length - 1].h = null;
+};
+// poziom ze sprzetem w kolumnie (pierwsza kolumna poziomu)
+const makPoziomZeSprzetem = (lv) => (lv.cols || []).some((k) => k.sprzet);
+
 /* przycisk-wybor w kartach makiety (jak w makiecie „Dodaj”) */
 const MakBtn = ({ on, onClick, children, el, v }) => (
   <button data-el={el} data-v={v} aria-pressed={!!on} onClick={onClick}
@@ -20984,7 +21005,7 @@ const MakBtn = ({ on, onClick, children, el, v }) => (
 /* Karta sprzetu w makiecie (krok 1 planu wyrownania, uzytkownik 2026-11-09): to, co w makiecie „Dodaj” — rozmiar do
    klikniecia, wymiary z karty modelu, polozenie, opcje — zapisane w te same pola co tryb techniczny:
    `cab.blatWyciecia[k]` (wyc), `cab.naBlacie[k]` (nb), `col.sprzet` (kol), `cab.sprzetCiagu` (ciag). `sel`: { i, rodz, k, li, j }. */
-function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij }) {
+function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf }) {
   const it = project.items[sel.i]; if (!it) return null;
   const cab = it.cab, nazwaSz = cab.name || "szafka";
   const etyk = (t) => <p className="mt-2 text-[11px] font-medium uppercase tracking-wider text-stone-500">{t}</p>;
@@ -21068,6 +21089,39 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij }) {
         <MakBtn key={v} el="agd-drzwi-v" v={v} on={sp.drzwi === v} onClick={() => setSp({ drzwi: v === (SPRZETY[sp.typ] || {}).drzwi ? null : v })}>{l}</MakBtn>))}
         {sp.drzwi === "wysuw" && para("wysuw do przodu", liczba("agd-wysuw", (col.sprzet || {}).wysuw, null, (v) => setSp({ wysuw: v })))}</>}
       <p className="text-[11px] text-stone-600">{col.sprzet.wneka ? `Wnęka teraz ${fmt(col.sprzet.wneka.w)} × ${fmt(col.sprzet.wneka.h)} × ${fmt(col.sprzet.wneka.d)} mm. ` : ""}W „{nazwaSz}” — wymiary typowe; pozostałe pola z karty modelu w trybie Technicznym.</p>
+      {(() => {
+        // slupek: wysokosc wneki i skroty z makiety (uzytkownik 2026-11-10)
+        // geometria liczona tu z biezacego projektu (geometria rysunku jest o jedno rysowanie spozniona)
+        const geo = (() => { try { return computeGeo(cabDoGeo(project, it), it.mat); } catch (e) { return geoOf ? geoOf(sel.i) : null; } })();
+        if (!geo || !(cab.slupek || cab.H > 1500) || !(geo.levels || [])[sel.li]) return null;
+        const baza = makBaza(cab, geo), gl = geo.levels[sel.li], dol = Math.round(baza + gl.y0), hW = Math.round(gl.h);
+        const run = it.runId ? (project.runs || []).find((x) => x.id === it.runId) : null;
+        const rt = run ? runTop(project, run) : null;
+        const gorny = run ? (project.runs || []).find((x) => x.tier === "gorny" && x.wall === run.id) : null;
+        const naY = (Y) => zmien(sel.i, makSlupekWneka(geo, sel.li, Y));
+        const inne = (cab.levels || []).map((lv, x) => ({ lv, x })).filter(({ lv, x }) => x !== sel.li && makPoziomZeSprzetem(lv));
+        const sas = inne.sort((a, b) => Math.abs(a.x - sel.li) - Math.abs(b.x - sel.li))[0];
+        const razem = sas && Math.abs(sas.x - sel.li) === 1;
+        const btn = (el, l, fn, on) => <button data-el={el} onClick={fn} className={`rounded border px-2 py-0.5 text-[11px] ${on ? "border-teal-700 bg-teal-700 text-white" : "border-teal-600 text-teal-700 hover:bg-teal-50"}`}>{l}</button>;
+        return <>
+          {etyk("Wysokość w słupku")}
+          {para("dół wnęki od podłogi", liczba("agd-slupek-dol", dol, null, (v) => v != null && naY(v), "w-20"))}
+          <div className="mt-1 flex flex-wrap gap-1">
+            {rt && rt.worktop && btn("agd-slupek-blat", `Na wysokość blatu (dół ${fmt(Math.round(rt.y + rt.th))})`, () => naY(Math.round(rt.y + rt.th)))}
+            {rt && btn("agd-slupek-podblat", "Pod blat (góra równo z szafkami dolnymi)", () => naY(Math.round(rt.y - hW)))}
+            {gorny && btn("agd-slupek-gorne", `Góra do dołu szafek górnych (${fmt(tierMountY(project, gorny))})`, () => naY(Math.round(tierMountY(project, gorny) - hW)))}
+            {sas && btn("agd-slupek-zamien", `Zamień miejscami z: ${(SPRZETY[(sas.lv.cols.find((k) => k.sprzet) || {}).sprzet.typ] || {}).nazwa || "sprzętem"}`,
+              () => zmien(sel.i, (c) => { const L = c.levels, gl2 = geo.levels; if (L.length !== gl2.length) return; L.forEach((lv, x) => { lv.h = Math.round(gl2[x].h); });
+                const t = L[sel.li]; L[sel.li] = L[sas.x]; L[sas.x] = t; L[L.length - 1].h = null; }))}
+            {sas && btn("agd-slupek-razem", razem ? "Razem ✓ (półka między)" : "Razem — półka między", () => {
+              if (razem) return;
+              zmien(sel.i, (c) => { const L = c.levels, gl2 = geo.levels; if (L.length !== gl2.length) return; L.forEach((lv, x) => { lv.h = Math.round(gl2[x].h); });
+                const [drugi] = L.splice(sas.x, 1); const gdzie = sas.x < sel.li ? sel.li - 1 : sel.li; L.splice(gdzie + 1, 0, drugi);
+                if (!makPoziomZeSprzetem(L[L.length - 1])) L[L.length - 1].h = null; else L.push(newLevel(1, 0)); });
+            }, razem)}
+          </div>
+        </>;
+      })()}
       <div className="mt-1">{usun(() => { zmien(sel.i, (c) => { const k = kolumnaW(c.levels, sel.li, sel.j); if (k) { delete k.sprzet; if (!k.doors) k.doors = 1; } }); zamknij(); })}</div>
     </>;
   } else if (sel.rodz === "ciag") {
@@ -21311,7 +21365,7 @@ const MAK_KLOCKI = [
   { id: "przegroda", nazwa: "Przegroda", przegroda: true },
 ];
 
-function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia", selAgd, setSelAgd, usunPozycje }) {
+function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia", selAgd, setSelAgd, usunPozycje, geoOf }) {
   const kafel = (el, id, l, opis, onClick, ikona) => (
     <button key={id} data-el={el} data-id={id} draggable
       onDragStart={(e) => { try { e.dataTransfer.setData("text/plain", `${el}:${id}`); e.dataTransfer.effectAllowed = "copy"; } catch (er) { /* bez danych */ } zacznij({ el, id }); }}
@@ -21349,7 +21403,7 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
         {kom}
         {naglowek("Sprzęt")}
         <div className="grid grid-cols-2 gap-1">{MAK_AGD.map((a) => kafel("mak-agd", a.id, a.nazwa, a.opis, () => onAgd(a, null), ikonaAgd(a.id)))}</div>
-        {selAgd && <MakietaKartaAgd project={project} sel={selAgd} zmien={zmien} usunPozycje={usunPozycje} zamknij={() => setSelAgd && setSelAgd(null)} />}
+        {selAgd && <MakietaKartaAgd project={project} sel={selAgd} zmien={zmien} usunPozycje={usunPozycje} zamknij={() => setSelAgd && setSelAgd(null)} geoOf={geoOf} />}
         {naglowek(`W projekcie (${lista.length})`)}
         {lista.length ? (
           <ul className="space-y-1" data-el="mak-agd-lista">
@@ -22222,7 +22276,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                   </button>
                   {dodajCo === k && (
                     <div className="border-t border-stone-200 p-2">
-                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} selAgd={selAgd} setSelAgd={setSelAgd} usunPozycje={usunPozycje} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} selAgd={selAgd} setSelAgd={setSelAgd} usunPozycje={usunPozycje} geoOf={(i) => geoRysunku.current[i]} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
                         project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
                         zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); setZnacznik(null); }} />
                     </div>

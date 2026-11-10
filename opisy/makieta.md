@@ -81,6 +81,11 @@ sprzętem albo w zmywarkę / lodówkę w ciągu. Zapis w te same pola co tryb te
 - **na blacie** (`cab.naBlacie[k]`): rozmiar, przesunięcie w bok, „Usuń”;
 - **w kolumnie** (`col.sprzet`): rozmiar (`SPRZET_ROZM`), otwieranie (w dół / zawias z lewej / z prawej / wysuwa się /
   nie sprawdzaj) i wysuw; lodówka — front (ślizgowo / na stałe / bez frontu), 1 / 2 fronty, wnęka, zawiasy; „Usuń”;
+- **w słupku** (sprzęt w poziomie szafki wyższej niż 1500, decyzja 2026-11-10): „dół wnęki od podłogi”, „Na wysokość
+  blatu” (dół = wierzch blatu ciągu), „Pod blat” (góra = spód blatu, jak szafki dolne), „Góra do dołu szafek górnych”,
+  „Zamień miejscami” (z najbliższym sprzętem w słupku), „Razem — półka między” (sprzęty w sąsiednich poziomach).
+  Wnękę przesuwa zmiana poziomu pod nią (brak — dochodzi poziom z drzwiami); poziomy dostają obecne wysokości, najwyższy
+  bez sprzętu zostaje auto (`makSlupekWneka`);
 - **w ciągu** (`cab.sprzetCiagu`): zmywarka — model 60 / 45, wolnostojąca — montaż pod blatem / z pokrywą; lodówka
   podblatowa — drzwi; wolnostojąca — rodzaj, luzy z lewej / z prawej, drzwi; „Usuń” (cała pozycja ciągu).
 - Pozostałe pola z karty modelu — w trybie Technicznym (karta to mówi).

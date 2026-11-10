@@ -99,6 +99,27 @@ await karta.locator('[data-el="agd-model-v"][data-v="450"]').click();
 p = await czekaj(`p.items[${iz}].cab.W === 450`);
 ok('zmywarka: model 45 cm', p.items[iz].cab.W === 450 && p.items[iz].cab.sprzetCiagu.szer === 450);
 
+console.log('== słupek: skróty wysokości ==');
+await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); const it = JSON.parse(JSON.stringify(p.items[0]));
+  it.cab.name = 'Słupek'; it.cab.W = 600; it.cab.H = 2100; it.cab.slupek = true; const k0 = it.cab.levels[0].cols[0];
+  const kol = (o) => ({ ...JSON.parse(JSON.stringify(k0)), sprzet: undefined, w: null, ...o });
+  it.cab.levels = [{ h: 500, cols: [kol({ doors: 1, shelfTargets: [null] })] }, { h: 600, cols: [kol({ doors: 1, shelfTargets: [null], sprzet: { typ: 'piekarnik' } })] },
+    { h: 400, cols: [kol({ doors: 1, shelfTargets: [null], sprzet: { typ: 'mikrofala' } })] }, { h: null, cols: [kol({ doors: 1, shelfTargets: [null] })] }];
+  p.items.push(it); p.active = p.items.length - 1; localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+await dodajSek('agd');
+await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { hasText: 'Piekarnik' }).last().click(); await page.waitForTimeout(400);
+ok('karta piekarnika w słupku: „Wysokość w słupku”', (await karta.locator('[data-el="agd-slupek-dol"]').count()) === 1);
+const lbl = await karta.locator('[data-el="agd-slupek-blat"]').innerText().catch(() => '');
+const cel = Number((lbl.match(/dół (\d[\d ]*)/) || [])[1]?.replace(/\s/g, ''));
+await karta.locator('[data-el="agd-slupek-blat"]').click(); await page.waitForTimeout(600);
+const dolTeraz = Number(await karta.locator('[data-el="agd-slupek-dol"]').inputValue());
+ok('„Na wysokość blatu”: dół wnęki = wierzch blatu', cel > 0 && Math.abs(dolTeraz - cel) <= 1, `${dolTeraz} / ${cel}`);
+await karta.locator('[data-el="agd-slupek-zamien"]').click();
+p = await czekaj('p.items[p.active].cab.levels.some((lv, x) => lv.cols[0].sprzet && lv.cols[0].sprzet.typ === "mikrofala" && x === 1)');
+const L8 = p.items[p.active].cab.levels;
+ok('„Zamień miejscami”: mikrofala niżej, piekarnik nad nią', L8[1].cols[0].sprzet && L8[1].cols[0].sprzet.typ === 'mikrofala' && L8[2].cols[0].sprzet && L8[2].cols[0].sprzet.typ === 'piekarnik', L8.map((l) => (l.cols[0].sprzet || {}).typ || '-').join(','));
+ok('obok siebie — „Razem ✓”', /Razem ✓/.test(await page.locator('[data-el="agd-slupek-razem"]').innerText().catch(() => '')));
 console.log('bledy strony:', errors.length ? errors.join(' | ') : 'brak');
 if (errors.length) bledy++;
 console.log(bledy ? `${bledy} BLAD` : 'WSZYSTKO OK');
