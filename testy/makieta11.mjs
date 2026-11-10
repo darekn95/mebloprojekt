@@ -133,6 +133,9 @@ const plan = page.locator('[data-el="mak-kolizje-plan"]');
 p = await czekaj('(p.items[0].cab.obstacles || []).length === 1');
 const ob = (p.items[0].cab.obstacles || [])[0] || {};
 ok('klik na planie: element kolizyjny po prawej, przy tyle', ob.side === 'right' && ob.w === 80 && ob.fromBack < 300, JSON.stringify(ob));
+{ const r = await page.locator('[data-el="mak-kolizja"]').first().boundingBox(); await page.mouse.click(r.x + r.width / 2, r.y + r.height / 2); await page.waitForTimeout(400); }
+p = await proj();
+ok('klik w istniejący element — tylko go wybiera (nie dodaje nowego)', (p.items[0].cab.obstacles || []).length === 1 && (await page.locator('[data-el="mak-kolizja-karta"]').count()) === 1);
 await page.locator('[data-el="mak-kolizja-zab"][data-v="brak"]').click();
 p = await czekaj('p.items[0].cab.obstacles[0].mask === false');
 ok('zabudowa elementu: bez', p.items[0].cab.obstacles[0].mask === false);

@@ -17,6 +17,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-11-10 | makieta (przegląd własnego kodu przed scaleniem): klik w istniejący element na planie kolizji dodawał nowy; „Usuń tę półkę” na granicy poziomu kolumny nic nie robiło | przechwycenie wskaźnika przenosiło klik na tło planu — flaga `naElemencie`; granica poziomu — komunikat „połączysz w Drzwi i klapy”; `makieta11` | (ten commit) |
 | 2026-11-10 | makieta (zgłoszenie użytkownika): przy powiększeniu 125–130 % rysunek szczegółowej drgał | pętla z paskiem przewijania: okno rysunku mierzone bez paska (`contentRect`) — pasek pojawiał się, okno zwężało, skala malała, pasek znikał, okno rosło; teraz rozmiar z paskiem (`offsetWidth` / `offsetHeight`), sprawdzone pomiarem szerokości rysunku przy 125 % | (ten commit) |
 | 2026-11-10 | makieta (zgłoszenie użytkownika): z góry wieniec szafy wyglądał na osobny w każdej kolumnie, blat biurka — jakby był pod spodem | `CabTop` rysował wieniec / blat z płyty pierwszy (25–45 % krycia), a półki, wzmocnienia i przegrody na nim; teraz wieniec na końcu, półprzezroczysty, z pełnym obrysem | (ten commit) |
 | 2026-11-10 | makieta5 (pełny przebieg): „Dodaj → AGD: sprzęt do przeciągnięcia — 8” | test liczył kafelki sprzed połączenia lodówek / mikrofal / ekspresów / zmywarek w jeden kafelek (≥ 12) — teraz ≥ 8 | (ten commit) |

@@ -21935,6 +21935,8 @@ function MakPlanKolizji({ cab, zapisz }) {
   const [wyb, setWyb] = useState(null);
   const [ciagniety, setCiagniety] = useState(null);   // { i, x, y } — podglad w czasie przeciagania (mm)
   const ruch = useRef(null);
+  // klik zaczety na elemencie (wybor albo przeciagniecie) — klik na planie po nim nie dodaje nowego (przechwycenie wskaznika)
+  const naElemencie = useRef(false);
   const W = cab.W, D = cab.D;
   const ow = (o) => o.w ?? 80, od = (o) => o.d ?? 80;
   const xOd = (o) => (o.side === "left" ? o.fromSide || 0 : W - (o.fromSide || 0) - ow(o));
@@ -21969,7 +21971,9 @@ function MakPlanKolizji({ cab, zapisz }) {
     <div className="border-b border-stone-100 py-1.5" data-el="mak-kolizje">
       <p className="mb-1 text-[11px] text-stone-500">Elementy kolizyjne (rura, pion, kanał) — plan z góry: kliknij, gdzie przechodzi; przeciągnij, żeby przesunąć.</p>
       <svg viewBox={`${-pad} ${-pad} ${W + 2 * pad} ${D + 2 * pad}`} width={sz} style={{ maxWidth: "100%", touchAction: "none" }} data-el="mak-kolizje-plan"
-        onClick={(e) => { if (e.target.closest && e.target.closest("[data-ob]")) return; const p = naMm(e, e.currentTarget); if (p && p.x >= 0 && p.x <= W && p.y >= 0 && p.y <= D) nowy(p.x, p.y); }}
+        onPointerDown={() => { naElemencie.current = false; }}
+        onClick={(e) => { if (naElemencie.current) { naElemencie.current = false; return; } if (e.target.closest && e.target.closest("[data-ob]")) return;
+          const p = naMm(e, e.currentTarget); if (p && p.x >= 0 && p.x <= W && p.y >= 0 && p.y <= D) nowy(p.x, p.y); }}
         onPointerMove={(e) => { const r = ruch.current; if (!r) return; const p = naMm(e, e.currentTarget); if (!p) return;
           if (!r.ruszyl && Math.hypot(p.x - r.p0.x, p.y - r.p0.y) < 5) return; r.ruszyl = true;
           setCiagniety({ i: r.i, x: r.x0 + p.x - r.p0.x, y: r.y0 + p.y - r.p0.y }); }}
@@ -21985,7 +21989,7 @@ function MakPlanKolizji({ cab, zapisz }) {
           return (
             <rect key={i} data-ob={i} data-el="mak-kolizja" x={x} y={y} width={ow(o)} height={od(o)} rx={Math.min(ow(o), od(o)) / 2.5}
               fill={wyb === i ? "#f59e0b" : "#fcd34d"} stroke="#92400e" strokeWidth={W / 150} style={{ cursor: "grab" }}
-              onPointerDown={(e) => { e.stopPropagation(); setWyb(i); const p = naMm(e, e.currentTarget.ownerSVGElement); if (!p) return;
+              onPointerDown={(e) => { e.stopPropagation(); setWyb(i); naElemencie.current = true; const p = naMm(e, e.currentTarget.ownerSVGElement); if (!p) return;
                 ruch.current = { i, p0: p, x0: xOd(o), y0: o.fromBack || 0, ruszyl: false }; try { e.currentTarget.ownerSVGElement.setPointerCapture(e.pointerId); } catch (er) { /* bez przechwycenia */ } }}
               onClick={(e) => e.stopPropagation()} />
           );
@@ -23436,7 +23440,11 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         };
         const usunPolke = () => {
           const it = project.items[idx], geo = geoRysunku.current[idx], lv = geo && makLv(geo, li);
-          const col = lv && lv.cols.find((q) => q.j === j);
+          const col = lv && lv.cols.find((q) => q.j === j), raw = it && kolumnaW(it.cab.levels, li, j);
+          if (raw && (raw.podzial || []).map(Number).includes(k)) {
+            setKomunikat("Ta półka to granica poziomu kolumny — poziomy połączysz w „Drzwi i klapy” (scal).");
+            setSwiatloPolki(null); return;
+          }
           if (it && col) zmien(idx, (c) => makUsunPolke(kolumnaW(c.levels, li, j), col.openings || [], k, geo.ts));
           setSwiatloPolki(null);
         };
