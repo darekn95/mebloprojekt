@@ -2545,6 +2545,62 @@ const loadProject = (d) => {
 /* ---------- szablony startowe ----------
    Szablon tylko ustawia zestaw pol — nie blokuje niczego i nie rozgalezia
    silnika geometrii. Po dodaniu szafki zmieniasz w niej co chcesz. */
+/* Biurko (uzytkownik 2026-11-09, decyzja 2026-11-10 „konfirmaty + zaślepki”): z tylu pod blatem plyta wzmacniajaca
+   BIURKO_WZM mm wysokosci miedzy bokami (albo bokiem i przegroda kontenera) — wzmocnienie tylne pod blatem (`fromBack`,
+   `pos: "top"`), konfirmaty przez boki w jej czola (lby na zewnatrz boku — zaslepki; od strony kontenera — w kontenerze).
+   Biurko stoi na podlodze — bez zawieszek (`hangers: "never"`; wczesniej dostawalo zawieszki i haki do sciany).
+   Kontener szuflad (makieta „Dodaj”: kontener zamiast boku): kolumna szuflad przy boku, przegroda do podlogi oddziela go
+   od miejsca na nogi; szerokosc wnetrza BIURKO_KONT_W (400 / 450 / 500), 3 szuflady. */
+const BIURKO_WZM = 300;
+const BIURKO_KONT_W = [400, 450, 500];
+const biurkoWzm = () => ({ ...newRail(), orient: "front", pos: "top", h: BIURKO_WZM, fromBack: true });
+const biurkoNogi = () => { const c = newColumn(0, 0); c.doors = 0; c.shelfTargets = [null]; c.rails = [biurkoWzm()]; return c; };
+const biurkoKontener = (w = BIURKO_KONT_W[0], n = 3) => {
+  const c = newColumn(0, 0);
+  // luz 3 mm miedzy frontami — przy 3 szufladach na 732 mm fronty wychodza rowne (z domyslnym roznily sie o 1 mm)
+  return { ...c, kind: "drawers", w, doors: 0, shelfTargets: [null], gapBetween: 3, drawers: Array.from({ length: n }, () => newDrawer()) };
+};
+const BIURKO_BAZA = () => ({
+  W: 1200, H: 750, D: 600, hangers: "never",
+  top: { mode: "blat", widthMode: "inside", overL: 50, overR: 50, overFront: 30, overBack: 0 },
+  joints: { topL: "over", topR: "over", botL: "none", botR: "none" },
+  back: "none",
+  plinth: { on: false, height: 100, mode: "under", setback: 0 },
+  legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
+});
+/* Biurko w danych: blat z plyty na bokach, bez dna (dol bokow „none”) i bez plecow; kontener — skrajna kolumna szuflad
+   (null, gdy go nie ma), `strona` L / P. Dla makiety (przelaczniki kontenera). */
+const biurkoSzafki = (cab) => {
+  if (!cab || !cab.top || cab.top.mode !== "blat" || cab.back !== "none" || (cab.levels || []).length !== 1) return null;
+  const J = cab.joints || {};
+  if (J.botL !== "none" || J.botR !== "none") return null;
+  const cols = cab.levels[0].cols || [];
+  const kont = cols.length === 2 ? (cols[1].kind === "drawers" ? "P" : cols[0].kind === "drawers" ? "L" : null) : null;
+  return { kont, cols, kolK: kont === "P" ? 1 : kont === "L" ? 0 : null };
+};
+/* Zmiana kontenera biurka z makiety: bez / z lewej / z prawej (kolumna nog z wzmocnieniem zostaje), szerokosc wnetrza. */
+const biurkoUstawKontener = (cab, strona, w) => {
+  const b = biurkoSzafki(cab); if (!b) return;
+  const nogi = b.cols.find((k) => k.kind !== "drawers") || biurkoNogi();
+  if (!(nogi.rails || []).some((r) => r.fromBack && r.orient === "front")) nogi.rails = [...(nogi.rails || []), biurkoWzm()];
+  nogi.w = null;
+  const kont = b.kolK != null ? { ...b.cols[b.kolK] } : biurkoKontener();
+  if (w) kont.w = w;
+  delete nogi.noDiv; delete kont.noDiv;
+  cab.levels[0].cols = !strona ? [nogi] : strona === "L" ? [kont, nogi] : [nogi, kont];
+};
+/* Kolejnosc montazu biurka (AGENTS.md: kazde laczenie sprawdz pod katem kolejnosci): konfirmaty wzmocnienia wchodza przez
+   bok (leb na zewnatrz — dostep zawsze) i przez przegrode kontenera — leb od strony kontenera, 590 mm w glab miedzy
+   przegroda a bokiem kontenera. Dlatego: przegroda + wzmocnienie, zanim stanie bok kontenera i blat; szuflady na koncu. */
+const biurkoMsgs = (cab, geo) => {
+  const b = biurkoSzafki(cab);
+  if (!b || !b.kont || !geo) return [];
+  const lv = (geo.levels || [])[0], nogi = lv && lv.cols.find((c) => c.j === (b.kont === "P" ? 0 : 1));
+  const konf = nogi && (nogi.rails || []).some((r) => r.przyTyle && (r.laczniki || []).some((l) => l.moc === "konfirmaty"));
+  if (!konf) return [];
+  return [{ level: "info", text: `Biurko z kontenerem — kolejność montażu: (1) wzmocnienie tylne do przegrody kontenera — konfirmaty od strony kontenera, póki nie stoi bok kontenera (potem łeb jest ${fmt(Math.round(geo.carcassDepth - 10))} mm w głąb wąskiej skrzynki); (2) bok przy nogach do wzmocnienia — konfirmaty od zewnątrz, zaślepki; (3) bok kontenera i blat (trójkąty od spodu); (4) prowadnice i szuflady na końcu.` }];
+};
+
 const TEMPLATES = [
   {
     id: "stojaca",
@@ -2577,21 +2633,14 @@ const TEMPLATES = [
   {
     id: "biurko",
     label: "Biurko",
-    hint: "1200 × 750 × 600, blat na bokach, bez dna, pleców i drzwi",
-    make: () => {
-      const col = newColumn(0, 0);
-      col.doors = 0;
-      col.shelfTargets = [null];
-      return {
-        W: 1200, H: 750, D: 600,
-        top: { mode: "blat", widthMode: "inside", overL: 50, overR: 50, overFront: 30, overBack: 0 },
-        joints: { topL: "over", topR: "over", botL: "none", botR: "none" },
-        back: "none",
-        plinth: { on: false, height: 100, mode: "under", setback: 0 },
-        legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
-        levels: [{ h: null, cols: [col] }],
-      };
-    },
+    hint: "1200 × 750 × 600, blat na bokach, wzmocnienie 300 z tyłu, bez dna, pleców i drzwi",
+    make: () => ({ ...BIURKO_BAZA(), levels: [{ h: null, cols: [biurkoNogi()] }] }),
+  },
+  {
+    id: "biurko-kontener",
+    label: "Biurko z kontenerem",
+    hint: "1200 × 750 × 600, kontener 3 szuflady z prawej (wnętrze 400), wzmocnienie 300 z tyłu",
+    make: () => ({ ...BIURKO_BAZA(), name: "Biurko", levels: [{ h: null, cols: [biurkoNogi(), biurkoKontener()] }] }),
   },
   {
     id: "slupek",
@@ -20880,6 +20929,7 @@ const ikonaWzoru = (w) => {
   const sz = (n) => Array.from({ length: n - 1 }, (_, i) => `M${x0} ${y0 + ((i + 1) * (y1 - y0)) / n}h${x1 - x0}`).join(" ");
   let d = box;
   if (id === "biurko") d = "M3 11h28v3H3z M6 14v16 M28 14v16";
+  else if (id === "biurkoK") d = "M3 11h28v3H3z M6 14v16 M19 14h10v16H19z M19 19.3h10 M19 24.6h10";
   else if (id === "rtv") d = "M3 16h28v10H3z M17 16v10 M3 26h28";
   else if (id === "komoda") d = `M6 8h22v20H6z ${sz(4).replace(/M7 /g, "M6 ").replace(/h20/g, "h22")}`;
   else if (id === "naroznikL" || id === "naroznikLgorny") d = `${box} M${mid} ${y0}v${y1 - y0} M${x0} ${y0 + 4}h6`;
@@ -21511,6 +21561,7 @@ const MAK_PALETA = [
       mod: (c) => { Object.assign(c, { W: 800, H: 2000, D: 600 }); const k = makK0(c); makUstawFront(k, "drzwi-2"); makUstawPolki(k, 5);
         c.plinth = { ...(c.plinth || {}), on: true, mode: "inbody", height: 100 }; c.legs = { ...(c.legs || {}), on: true, height: 100, color: "#3f3f46", shape: "box", count: null }; } },
     { id: "biurko", opis: "1200 × 750, blat na bokach", tpl: "biurko", gdzie: "wolna", szafka: "Biurko" },
+    { id: "biurkoK", nazwa: "Biurko z kontenerem", opis: "1200 × 750, 3 szuflady z prawej", tpl: "biurko-kontener", gdzie: "wolna", szafka: "Biurko" },
   ] },
 ];
 /* Zakladka AGD (jak w makiecie „Dodaj”, uzytkownik 2026-11-09: „zniknął AGD”): sprzet przeciagany na rysunek albo klikany.
@@ -21663,6 +21714,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   const it = project.items[idx];
   if (!it) return <p className="text-sm text-stone-500">Kliknij szafkę na rysunku — tu pokaże się jej karta.</p>;
   const cab = it.cab;
+  const biurko = biurkoSzafki(cab);   // biurko — przelaczniki kontenera szuflad w karcie Szafka
   const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
   const W = (k, v, klucz) => (
     <div key={klucz || k} className="flex justify-between gap-3 border-b border-stone-100 py-1 text-xs">
@@ -21816,6 +21868,11 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     ...(run && !wisi ? [wiersz("blat", "Blat roboczy ciągu", [
       <Btn key="t" el="mak-blat" v="tak" on={!!run.worktop} onClick={() => ciag.setRun(run.id, { worktop: true })}>jest</Btn>,
       <Btn key="n" el="mak-blat" v="nie" on={!run.worktop} onClick={() => ciag.setRun(run.id, { worktop: false })}>nie ma</Btn>])] : []),
+    ...(biurko ? [wiersz("kont", "Kontener szuflad", [["", "bez"], ["L", "z lewej"], ["P", "z prawej"]].map(([v, l]) =>
+      <Btn key={v || "bez"} el="mak-kontener" v={v || "bez"} on={(biurko.kont || "") === v} onClick={() => zmien(idx, (c) => biurkoUstawKontener(c, v || null))}>{l}</Btn>), "mak-kontener"),
+      ...(biurko.kont ? [wiersz("kontw", "kontener — szerokość wnętrza", BIURKO_KONT_W.map((v) =>
+        <Btn key={v} el="mak-kontener-w" v={v} on={Math.round(biurko.cols[biurko.kolK].w || 0) === v} onClick={() => zmien(idx, (c) => biurkoUstawKontener(c, biurko.kont, v))}>{v}</Btn>), "mak-kontener-w")] : []),
+      <p key="bhint" className="text-[11px] text-stone-500" data-el="mak-biurko-info">Z tyłu pod blatem płyta {BIURKO_WZM} mm{biurko.kont ? " między bokiem a kontenerem" : " między bokami"} — konfirmaty przez boki, zaślepki. Szuflady kontenera — zakładka Szuflady.</p>] : []),
     W("Cokół", cokol), W("Nóżki", nozki), ...(tryb === "szczegolowa" ? [W("Poziomy / kolumny", `${poziomy.length} / ${kolumny.length}`), ...plytyRows] : []), ...listaKol(null)];
   /* Tylko kliknieta kolumna / poziom kolumny (uzytkownik 2026-11-09: „drzwi klapy za duży sajgon — po wybraniu na rysunku
      konkretnych powinny być opcje konkretnych, a nie wszystko naraz”): klik na rysunku wybiera (`kolZ`), male przyciski
@@ -25843,6 +25900,7 @@ export default function App() {
 
   // uwagi ciagu ida przed uwagami szafki — dotycza calej sciany, wiec sa nadrzedne
   const allMsgs = useMemo(() => [...runMsgs, ...bezWspolnychFormatek(przyciskiSzuflad(geo.msgs), !!runPl, !!runTp), ...wstawkaMsgs(projLayout, project.active),
+    ...biurkoMsgs(cab, geo),
     // ramie szafki w L: jego formatki naleza do tej szafki
     ...(cornerNode && cornerNode.arm && cornerNode.arm.len > 0
       ? maleFormatkiMsgs(cornerArmParts(cornerNode.arm).panels, cab.dociac, "@") : []),

@@ -1,5 +1,6 @@
 // Makieta prosta — podstawy kreatora (przeglad brakow 2026-11-09): nazwa szafki, „Kopiuj obok”, „Usuń szafkę”, poziomy
-// szafki (+ / −, przegroda pozioma przeciagana na rysunku), „Szafa z szufladami” z palety (3 szuflady na dole, 2 drzwi).
+// szafki (+ / −, przegroda pozioma przeciagana na rysunku), „Szafa z szufladami” z palety (3 szuflady na dole, 2 drzwi),
+// „Biurko z kontenerem” (2026-11-10): kontener z lewej / z prawej / bez, szerokosc, wzmocnienie 300, uwaga o kolejnosci montazu.
 import pw from './pw.mjs';
 const { chromium } = pw;
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
@@ -78,6 +79,36 @@ p = await czekaj('p.items.length === 3');
 const c = p.items[p.active].cab;
 ok('„Szafa z szufladami”: 800, dwa poziomy — 3 szuflady na dole, 2 drzwi z półkami nad nimi', c.W === 800 && c.levels.length === 2 && c.levels[0].cols[0].kind === 'drawers' && c.levels[0].cols[0].drawers.length === 3 && c.levels[1].cols[0].doors === 2,
   JSON.stringify(c.levels.map((l) => ({ h: l.h, k: l.cols[0].kind, d: l.cols[0].doors, n: (l.cols[0].drawers || []).length }))));
+
+console.log('== biurko z kontenerem (szablon, decyzja 2026-11-10) ==');
+await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="biurkoK"]').click();
+p = await czekaj('p.items.length === 4');
+const bi = p.items[p.active], bc = bi.cab.levels[0].cols;
+ok('„Biurko z kontenerem”: nogi + kontener 3 szuflady z prawej (wnętrze 400)', bc.length === 2 && bc[1].kind === 'drawers' && bc[1].drawers.length === 3 && bc[1].w === 400 && bc[0].kind !== 'drawers',
+  JSON.stringify(bc.map((k) => ({ k: k.kind, w: k.w, n: (k.drawers || []).length }))));
+ok('wzmocnienie tylne 300 pod blatem przy nogach, biurko bez zawieszek', (bc[0].rails || []).length === 1 && bc[0].rails[0].h === 300 && bc[0].rails[0].fromBack && bi.cab.hangers === 'never');
+await zakl('szafka');
+ok('karta: „Kontener szuflad” z prawej', (await page.locator('[data-el="mak-kontener"][data-v="P"]').getAttribute('aria-pressed')) === 'true');
+await page.locator('[data-el="mak-kontener"][data-v="L"]').click();
+p = await czekaj(`p.items[p.active].cab.levels[0].cols[0].kind === "drawers"`);
+let bc2 = p.items[p.active].cab.levels[0].cols;
+ok('kontener z lewej: kolumny zamienione, wzmocnienie zostaje przy nogach', bc2[0].kind === 'drawers' && (bc2[1].rails || []).length === 1);
+await page.locator('[data-el="mak-kontener-w"][data-v="450"]').click();
+p = await czekaj(`p.items[p.active].cab.levels[0].cols[0].w === 450`);
+ok('szerokość wnętrza kontenera 450', p.items[p.active].cab.levels[0].cols[0].w === 450);
+await page.waitForTimeout(400);
+const uwB = await page.locator('[data-el="makieta-uwagi"]').innerText().catch(() => '');
+ok('uwagi: kolejność montażu (wzmocnienie do przegrody przed bokiem kontenera, szuflady na końcu)', /kolejność montażu/.test(uwB) && /szuflady na końcu/.test(uwB));
+await page.locator('[data-el="mak-kontener"][data-v="bez"]').click();
+p = await czekaj(`p.items[p.active].cab.levels[0].cols.length === 1`);
+bc2 = p.items[p.active].cab.levels[0].cols;
+ok('„bez” kontenera: jedna kolumna z wzmocnieniem', bc2.length === 1 && (bc2[0].rails || []).length === 1);
+await page.locator('[data-el="mak-kontener"][data-v="P"]').click();
+p = await czekaj(`p.items[p.active].cab.levels[0].cols.length === 2`);
+await page.locator('[data-el="tryb"] [data-tryb="techniczny"]').click(); await page.waitForTimeout(1200);
+const txtB = await page.evaluate(() => document.body.innerText);
+ok('techniczny: formatka „Wzmocnienie tylne … × 300”, zaślepki, bez zawieszek', /Wzmocnienie tylne/.test(txtB) && /× 300/.test(txtB) && /Zaślepka na konfirmat/.test(txtB) && !/Zawieszka meblowa/.test(txtB),
+  (txtB.match(/Wzmocnienie tylne[^\n]{0,40}/) || [''])[0]);
 
 console.log('bledy strony:', errors.length ? errors.join(' | ') : 'brak');
 if (errors.length) bledy++;

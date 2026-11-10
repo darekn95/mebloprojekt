@@ -252,7 +252,8 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
     półka 300 pod wieńcem i drążek pod nią), Szafa 1 drzwi 500 (5 półek), Regał otwarty 600 (5 półek);
   - wolnostojące (450 w głąb, jak w makiecie): Komoda 800 × 800 (4 szuflady), Szafka RTV 1600 × 450 (dwie
     kolumny, klapy w dół), Szafka nocna 450 × 500 (2 szuflady), Regał 800 × 1700 (4 półki), Szafa 800 × 2000
-    (600 w głąb, 5 półek, 2 drzwi, cokół w obrysie i nóżki), Biurko.
+    (600 w głąb, 5 półek, 2 drzwi, cokół w obrysie i nóżki), Biurko, Biurko z kontenerem (3 szuflady z prawej,
+    wnętrze 400).
 - Gdzie ląduje szafka (`addCabinet` z `opcje`):
   - upuszczona na szafkę w ciągu — przed nią (lewa połowa) albo za nią (prawa);
   - klik — na koniec ciągu zaznaczonej szafki;
@@ -265,7 +266,12 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
   kolumna zaznaczonej szafki. Półka i drążek tylko do kolumny z drzwiami / otwartej — inaczej komunikat.
   Te same zmiany co przyciski karty (`makUstawFront`, `makUstawSzuflady`, `makUstawPolki`, `makDodajPrzegrode`).
 - W trakcie przeciągania nad rysunkiem widać, gdzie spadnie („upuść: przed „Szafka 2””).
-- Jeszcze nie ma: biurko z kontenerem szuflad.
+- **Biurko** (szablony „Biurko” i „Biurko z kontenerem”, decyzja 2026-11-10): blat z płyty na bokach, bez dna i pleców;
+  z tyłu pod blatem płyta wzmacniająca 300 mm (wzmocnienie tylne pod blatem — konfirmaty przez boki w jej czoła,
+  zaślepki); biurko stoi — bez zawieszek. Kontener = skrajna kolumna szuflad oddzielona przegrodą do podłogi. W karcie
+  Szafka: „Kontener szuflad” bez / z lewej / z prawej (kolumny zamieniane, wzmocnienie zostaje przy nogach —
+  `biurkoUstawKontener`) i szerokość wnętrza 400 / 450 / 500; szuflady — zakładka Szuflady. Uwaga „kolejność montażu”
+  (`biurkoMsgs`): wzmocnienie do przegrody (konfirmaty od strony kontenera), zanim stanie bok kontenera; szuflady na końcu.
 
 ## Co ustawiasz ręcznie
 

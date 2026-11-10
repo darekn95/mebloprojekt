@@ -1178,3 +1178,10 @@ geometria bez korpusu z kominem, przerwa listwy zawieszek, `okapMsgs` + przycisk
 szafka z okapem <-> kominowy w karcie AGD. Opis: `opisy/sprzety.md`. Zostaje biurko z kontenerem.
 [AI-INFO] 2026-11-10: uzytkownik zapytal o „półka → poziom / poziom → półka” w makiecie — jest w „Drzwi i klapy” (podziel / scal);
 kopie w zakladce „Półki” uzytkownik odrzucil („żeby nie wprowadzać zamętu”) — nie dodawac.
+[AI-INFO] 2026-11-10: BIURKO Z KONTENEREM zrobione — szablon `biurko-kontener` (nogi + kontener 3 szuflady z prawej, wnetrze 400),
+w obu szablonach biurka wzmocnienie tylne 300 pod blatem (konfirmaty + zaslepki) i `hangers: "never"`; makieta: paleta „Biurko
+z kontenerem”, karta Szafka — kontener bez / L / P i szerokosc 400 / 450 / 500; uwaga o kolejnosci montazu (`biurkoMsgs`).
+[AI-TODO] Do pytania uzytkownika (na koniec): kontener biurka trzyma sie dzis tylko blatu (bok kontenera + przegroda, bez dna
+i plecow, jak w makiecie) — czy dolozyc usztywnienie kontenera (dno / tylne wzmocnienie w kontenerze)? Alternatywa
+mimosrodow (makieta: „kołki z mimośrodami”) — w aplikacji jest tylko wybor „Wkręty 4 × 30” przy wzmocnieniu.
+
