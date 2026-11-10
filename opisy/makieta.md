@@ -268,10 +268,15 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
 - W trakcie przeciągania nad rysunkiem widać, gdzie spadnie („upuść: przed „Szafka 2””).
 - **Biurko** (szablony „Biurko” i „Biurko z kontenerem”, decyzja 2026-11-10): blat z płyty na bokach, bez dna i pleców;
   z tyłu pod blatem płyta wzmacniająca 300 mm (wzmocnienie tylne pod blatem — konfirmaty przez boki w jej czoła,
-  zaślepki); biurko stoi — bez zawieszek. Kontener = skrajna kolumna szuflad oddzielona przegrodą do podłogi. W karcie
-  Szafka: „Kontener szuflad” bez / z lewej / z prawej (kolumny zamieniane, wzmocnienie zostaje przy nogach —
-  `biurkoUstawKontener`) i szerokość wnętrza 400 / 450 / 500; szuflady — zakładka Szuflady. Uwaga „kolejność montażu”
-  (`biurkoMsgs`): wzmocnienie do przegrody (konfirmaty od strony kontenera), zanim stanie bok kontenera; szuflady na końcu.
+  zaślepki); biurko stoi — bez zawieszek. **Kontener** (decyzja 2026-11-10): bok biurka zostaje bokiem, dochodzi przegroda
+  do podłogi; na dole dwa wzmocnienia 100 mm — czołowe w obrysie i tylne, na nich „Dno kontenera” (półka graniczna dwóch
+  poziomów kolumny, na konfirmatach), nad nim szuflady; prowadnice na boku biurka i na przegrodzie. W karcie Szafka:
+  „Kontener szuflad” bez / z lewej / z prawej (kolumny zamieniane, wzmocnienie 300 zostaje przy nogach —
+  `biurkoUstawKontener`) i szerokość wnętrza 400 / 450 / 500; liczba szuflad — zakładka Szuflady (poziom 2 kolumny).
+  Uwaga „kolejność montażu” (`biurkoMsgs`): (1) wzmocnienie 300 do przegrody — konfirmaty od strony kontenera, zanim stanie
+  bok po tej stronie; (2) bok przy nogach; (3) dno i wzmocnienia 100 do przegrody — od strony nóg; (4) bok przy kontenerze;
+  (5) blat — trójkąty od spodu; (6) prowadnice i szuflady. Konfirmaty z obu stron przegrody są na różnych wysokościach
+  (300 u góry, 100 i dno na dole), więc się nie zasłaniają.
 
 ## Co ustawiasz ręcznie
 

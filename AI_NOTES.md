@@ -1181,7 +1181,7 @@ kopie w zakladce „Półki” uzytkownik odrzucil („żeby nie wprowadzać zam
 [AI-INFO] 2026-11-10: BIURKO Z KONTENEREM zrobione — szablon `biurko-kontener` (nogi + kontener 3 szuflady z prawej, wnetrze 400),
 w obu szablonach biurka wzmocnienie tylne 300 pod blatem (konfirmaty + zaslepki) i `hangers: "never"`; makieta: paleta „Biurko
 z kontenerem”, karta Szafka — kontener bez / L / P i szerokosc 400 / 450 / 500; uwaga o kolejnosci montazu (`biurkoMsgs`).
-[AI-TODO] Do pytania uzytkownika (na koniec): kontener biurka trzyma sie dzis tylko blatu (bok kontenera + przegroda, bez dna
-i plecow, jak w makiecie) — czy dolozyc usztywnienie kontenera (dno / tylne wzmocnienie w kontenerze)? Alternatywa
-mimosrodow (makieta: „kołki z mimośrodami”) — w aplikacji jest tylko wybor „Wkręty 4 × 30” przy wzmocnieniu.
+[AI-INFO] Odpowiedzi uzytkownika 2026-11-10 (biurko): kontener — „bok jest dalej bokiem biurka, dołożona przegroda pionowa, dwa
+wzmocnienia jak cokół z przodu w obrysie i z tyłu, dno, szyny do boku biurka i do przegrody, z możliwością zmiany strony” —
+zrobione (kolumna z dwoma poziomami, `biurkoKontener`); mimosrody — NIE (wystarcza konfirmaty + zaslepki, opcja wkrety 4 × 30).
 

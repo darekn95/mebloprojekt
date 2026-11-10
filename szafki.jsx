@@ -2532,17 +2532,26 @@ const loadProject = (d) => {
    BIURKO_WZM mm wysokosci miedzy bokami (albo bokiem i przegroda kontenera) — wzmocnienie tylne pod blatem (`fromBack`,
    `pos: "top"`), konfirmaty przez boki w jej czola (lby na zewnatrz boku — zaslepki; od strony kontenera — w kontenerze).
    Biurko stoi na podlodze — bez zawieszek (`hangers: "never"`; wczesniej dostawalo zawieszki i haki do sciany).
-   Kontener szuflad (makieta „Dodaj”: kontener zamiast boku): kolumna szuflad przy boku, przegroda do podlogi oddziela go
-   od miejsca na nogi; szerokosc wnetrza BIURKO_KONT_W (400 / 450 / 500), 3 szuflady. */
+   Kontener szuflad (decyzja uzytkownika 2026-11-10: „bok jest dalej bokiem biurka, dołożona przegroda pionowa, dwa
+   wzmocnienia jak cokół z przodu w obrysie i z tyłu, dno; szyny z jednej strony do boku biurka, z drugiej do przegrody;
+   z możliwością zmiany strony”): kolumna przy boku, przegroda do podlogi oddziela ja od miejsca na nogi; na dole dwa
+   wzmocnienia BIURKO_COKOL (czolowe w obrysie i tylne), na nich dno kontenera (polka graniczna poziomow kolumny, na
+   konfirmatach), nad nim szuflady. Szerokosc wnetrza BIURKO_KONT_W (400 / 450 / 500), 3 szuflady. */
 const BIURKO_WZM = 300;
+const BIURKO_COKOL = 100;
 const BIURKO_KONT_W = [400, 450, 500];
 const biurkoWzm = () => ({ ...newRail(), orient: "front", pos: "top", h: BIURKO_WZM, fromBack: true });
 const biurkoNogi = () => { const c = newColumn(0, 0); c.doors = 0; c.shelfTargets = [null]; c.rails = [biurkoWzm()]; return c; };
 const biurkoKontener = (w = BIURKO_KONT_W[0], n = 3) => {
   const c = newColumn(0, 0);
-  // luz 3 mm miedzy frontami — przy 3 szufladach na 732 mm fronty wychodza rowne (z domyslnym roznily sie o 1 mm)
-  return { ...c, kind: "drawers", w, doors: 0, shelfTargets: [null], gapBetween: 3, drawers: Array.from({ length: n }, () => newDrawer()) };
+  const wzm = (fromBack) => ({ ...newRail(), orient: "front", pos: "bottom", h: BIURKO_COKOL, fromBack });
+  // dolny poziom kolumny (pod dnem) pusty — w nim oba wzmocnienia; gorny — szuflady (luz 3 mm: fronty rowne)
+  return { ...c, kind: "doors", w, doors: 0, shelfTargets: [BIURKO_COKOL, null], podzial: [0], nazwaDna: "Dno kontenera",
+    segmenty: [{ kind: "doors", doors: 0 }, { kind: "drawers", gapBetween: 3, drawers: Array.from({ length: n }, () => newDrawer()) }],
+    rails: [wzm(false), wzm(true)] };
 };
+// kolumna kontenera: szuflady w calej kolumnie albo w jej poziomie (kontener z dnem)
+const jestKontener = (k) => !!k && (k.kind === "drawers" || (k.segmenty || []).some((sg) => sg && sg.kind === "drawers"));
 const BIURKO_BAZA = () => ({
   W: 1200, H: 750, D: 600, hangers: "never",
   top: { mode: "blat", widthMode: "inside", overL: 50, overR: 50, overFront: 30, overBack: 0 },
@@ -2558,13 +2567,13 @@ const biurkoSzafki = (cab) => {
   const J = cab.joints || {};
   if (J.botL !== "none" || J.botR !== "none") return null;
   const cols = cab.levels[0].cols || [];
-  const kont = cols.length === 2 ? (cols[1].kind === "drawers" ? "P" : cols[0].kind === "drawers" ? "L" : null) : null;
+  const kont = cols.length === 2 ? (jestKontener(cols[1]) ? "P" : jestKontener(cols[0]) ? "L" : null) : null;
   return { kont, cols, kolK: kont === "P" ? 1 : kont === "L" ? 0 : null };
 };
 /* Zmiana kontenera biurka z makiety: bez / z lewej / z prawej (kolumna nog z wzmocnieniem zostaje), szerokosc wnetrza. */
 const biurkoUstawKontener = (cab, strona, w) => {
   const b = biurkoSzafki(cab); if (!b) return;
-  const nogi = b.cols.find((k) => k.kind !== "drawers") || biurkoNogi();
+  const nogi = b.cols.find((k) => !jestKontener(k)) || biurkoNogi();
   if (!(nogi.rails || []).some((r) => r.fromBack && r.orient === "front")) nogi.rails = [...(nogi.rails || []), biurkoWzm()];
   nogi.w = null;
   const kont = b.kolK != null ? { ...b.cols[b.kolK] } : biurkoKontener();
@@ -2581,7 +2590,7 @@ const biurkoMsgs = (cab, geo) => {
   const lv = (geo.levels || [])[0], nogi = lv && lv.cols.find((c) => c.j === (b.kont === "P" ? 0 : 1));
   const konf = nogi && (nogi.rails || []).some((r) => r.przyTyle && (r.laczniki || []).some((l) => l.moc === "konfirmaty"));
   if (!konf) return [];
-  return [{ level: "info", text: `Biurko z kontenerem — kolejność montażu: (1) wzmocnienie tylne do przegrody kontenera — konfirmaty od strony kontenera, póki nie stoi bok kontenera (potem łeb jest ${fmt(Math.round(geo.carcassDepth - 10))} mm w głąb wąskiej skrzynki); (2) bok przy nogach do wzmocnienia — konfirmaty od zewnątrz, zaślepki; (3) bok kontenera i blat (trójkąty od spodu); (4) prowadnice i szuflady na końcu.` }];
+  return [{ level: "info", text: `Biurko z kontenerem — kolejność montażu: (1) wzmocnienie ${BIURKO_WZM} do przegrody — konfirmaty od strony kontenera, póki nie stoi bok po tej stronie (potem łeb jest ${fmt(Math.round(geo.carcassDepth - 10))} mm w głąb wąskiej skrzynki); (2) bok przy nogach do wzmocnienia ${BIURKO_WZM} — konfirmaty od zewnątrz, zaślepki; (3) dno kontenera i dwa wzmocnienia pod nim do przegrody — konfirmaty od strony nóg; (4) bok przy kontenerze — konfirmaty od zewnątrz, zaślepki; (5) blat (trójkąty od spodu); (6) prowadnice (na boku i przegrodzie) i szuflady na końcu.` }];
 };
 
 const TEMPLATES = [
@@ -2622,7 +2631,7 @@ const TEMPLATES = [
   {
     id: "biurko-kontener",
     label: "Biurko z kontenerem",
-    hint: "1200 × 750 × 600, kontener 3 szuflady z prawej (wnętrze 400), wzmocnienie 300 z tyłu",
+    hint: "1200 × 750 × 600, kontener 3 szuflady z prawej (wnętrze 400, dno na wzmocnieniach 100), wzmocnienie 300 z tyłu",
     make: () => ({ ...BIURKO_BAZA(), name: "Biurko", levels: [{ h: null, cols: [biurkoNogi(), biurkoKontener()] }] }),
   },
   {
@@ -3358,6 +3367,8 @@ function computeGeoLiczy(cab, mat, ctx) {
          nad nia jedno lezace wzmocnienie przez obie kolumny (z przodu i z tylu), przegroda przykrecona do
          nich od gory (`przegrodaNizszaMoc`: konfirmaty / wkrety / trojkaty). */
       c.przegrodaNizsza = j < K - 1 && !rawCols[j].noDiv && !rawCols[j].przegrodaPodw && !!rawCols[j].przegrodaNizsza && lv.i === levels.length - 1;
+      // nazwa formatki dolnej polki granicznej (dno kontenera biurka, 2026-11-10)
+      if (rawCols[j].nazwaDna) c.nazwaDna = String(rawCols[j].nazwaDna);
       if (c.przegrodaNizsza) c.przegrodaNizszaMoc = ["wkrety", "trojkaty"].includes(rawCols[j].przegrodaNizszaMoc) ? rawCols[j].przegrodaNizszaMoc : "konfirmaty";
       if (j < K - 1 && !rawCols[j].noDiv) {
         // j: kolumna po lewej — w planie wiercen ta przegroda to „Przegroda j + 1”
@@ -5923,7 +5934,9 @@ function computeGeoLiczy(cab, mat, ctx) {
       c.shelves.forEach((sh) => {
         const z1 = shelfBack + shelfDepth;
         const o = otworyW(sh.y, sh.y + ts, c.shX0 ?? c.x0, c.shX1 ?? c.x1, z1 - (c.shD ?? shelfDepth), z1, true);
-        const k = `${c.shW}|${c.shD ?? shelfDepth}|${c.shNotch ? `${c.shNotch.w}|${c.shNotch.d}` : "|"}|${o.map(opisOtworu).join(" + ")}`;
+        // dolna polka graniczna z wlasna nazwa (dno kontenera biurka) — osobna formatka z ta nazwa
+        const nazwa = c.nazwaDna && sh.granica === 0 ? c.nazwaDna : "";
+        const k = `${c.shW}|${c.shD ?? shelfDepth}|${c.shNotch ? `${c.shNotch.w}|${c.shNotch.d}` : "|"}|${o.map(opisOtworu).join(" + ")}|${nazwa}`;
         sh.otwory = otwAbs(o, c.shX0 ?? c.x0, z1 - (c.shD ?? shelfDepth));
         // wyciety rog pod wzmocnienie tylne B (szafka w L) tez na rysunku formatki
         const n = c.shNotch;
@@ -5934,10 +5947,10 @@ function computeGeoLiczy(cab, mat, ctx) {
   );
   shSizes.forEach((qty, k) => {
     const [w, dep, nw, nd] = k.split("|").map(Number);
-    const otw = k.split("|")[4];
+    const otw = k.split("|")[4], nazwa = k.split("|")[5];
     const otwP = otwNazwy.get("sh" + k) || [];
     // wyciecie idzie w nazwe — opis formatki nie trafia do tabeli ani do PDF
-    P({ name: (nw > 0 ? `Półka — wycięty tylny róg ${fmt(nw)} × ${fmt(nd)}` : "Półka") + (otw ? ` — ${otw}` : ""), qty, a: w, b: dep, matKey: shelfMat,
+    P({ name: (nazwa || (nw > 0 ? `Półka — wycięty tylny róg ${fmt(nw)} × ${fmt(nd)}` : "Półka")) + (otw ? ` — ${otw}` : ""), qty, a: w, b: dep, matKey: shelfMat,
         ...(otwP.length ? { otwory: otwP } : {}),
         edges: { a1: true, a2: rear, b1: false, b2: false },
         note: nw > 0 ? "krawędź przednia; róg wycięty pod wzmocnienie tylne B" : "krawędź przednia" });
@@ -14771,7 +14784,7 @@ const kluczeFormatki = (n) => {
   const pw = /^(Dno|Wieniec|Blat) — /.exec(n);
   if (pw) return new Set([pw[1]]);
   if (/^Półka przelotowa/.test(n)) return new Set(["Półka przelotowa"]);
-  if (/^Półka/.test(n)) return new Set(["Półka"]);
+  if (/^Półka/.test(n) || /^Dno kontenera/.test(n)) return new Set(["Półka"]);
   if (/^Plecy/.test(n)) return new Set(["Plecy"]);
   const wz = /^(Wzmocnienie (?:poziome|czołowe|tylne|pionowe)) — /.exec(n);
   if (wz) return new Set([wz[1]]);

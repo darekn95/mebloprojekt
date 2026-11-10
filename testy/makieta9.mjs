@@ -84,15 +84,18 @@ console.log('== biurko z kontenerem (szablon, decyzja 2026-11-10) ==');
 await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="biurkoK"]').click();
 p = await czekaj('p.items.length === 4');
 const bi = p.items[p.active], bc = bi.cab.levels[0].cols;
-ok('„Biurko z kontenerem”: nogi + kontener 3 szuflady z prawej (wnętrze 400)', bc.length === 2 && bc[1].kind === 'drawers' && bc[1].drawers.length === 3 && bc[1].w === 400 && bc[0].kind !== 'drawers',
-  JSON.stringify(bc.map((k) => ({ k: k.kind, w: k.w, n: (k.drawers || []).length }))));
+const kont = (k) => !!k && (k.segmenty || []).some((sg) => sg && sg.kind === 'drawers');
+const sz = (k) => ((k.segmenty || []).find((sg) => sg && sg.kind === 'drawers') || {}).drawers || [];
+ok('„Biurko z kontenerem”: nogi + kontener 3 szuflady z prawej (wnętrze 400) nad dnem', bc.length === 2 && kont(bc[1]) && sz(bc[1]).length === 3 && bc[1].w === 400 && !kont(bc[0])
+  && JSON.stringify(bc[1].podzial) === '[0]' && bc[1].shelfTargets[0] === 100, JSON.stringify(bc.map((k) => ({ k: k.kind, w: k.w, pz: k.podzial, st: k.shelfTargets, n: sz(k).length }))));
+ok('kontener: dwa wzmocnienia 100 na dole (czołowe i tylne)', (bc[1].rails || []).length === 2 && bc[1].rails.every((r) => r.pos === 'bottom' && r.h === 100) && bc[1].rails.some((r) => r.fromBack) && bc[1].rails.some((r) => !r.fromBack));
 ok('wzmocnienie tylne 300 pod blatem przy nogach, biurko bez zawieszek', (bc[0].rails || []).length === 1 && bc[0].rails[0].h === 300 && bc[0].rails[0].fromBack && bi.cab.hangers === 'never');
 await zakl('szafka');
 ok('karta: „Kontener szuflad” z prawej', (await page.locator('[data-el="mak-kontener"][data-v="P"]').getAttribute('aria-pressed')) === 'true');
 await page.locator('[data-el="mak-kontener"][data-v="L"]').click();
-p = await czekaj(`p.items[p.active].cab.levels[0].cols[0].kind === "drawers"`);
+p = await czekaj(`(p.items[p.active].cab.levels[0].cols[0].segmenty || []).some((sg) => sg && sg.kind === "drawers")`);
 let bc2 = p.items[p.active].cab.levels[0].cols;
-ok('kontener z lewej: kolumny zamienione, wzmocnienie zostaje przy nogach', bc2[0].kind === 'drawers' && (bc2[1].rails || []).length === 1);
+ok('kontener z lewej: kolumny zamienione, wzmocnienie zostaje przy nogach', kont(bc2[0]) && (bc2[1].rails || []).length === 1 && (bc2[0].rails || []).length === 2);
 await page.locator('[data-el="mak-kontener-w"][data-v="450"]').click();
 p = await czekaj(`p.items[p.active].cab.levels[0].cols[0].w === 450`);
 ok('szerokość wnętrza kontenera 450', p.items[p.active].cab.levels[0].cols[0].w === 450);
@@ -107,7 +110,7 @@ await page.locator('[data-el="mak-kontener"][data-v="P"]').click();
 p = await czekaj(`p.items[p.active].cab.levels[0].cols.length === 2`);
 await page.locator('[data-el="tryb"] [data-tryb="techniczny"]').click(); await page.waitForTimeout(1200);
 const txtB = await page.evaluate(() => document.body.innerText);
-ok('techniczny: formatka „Wzmocnienie tylne … × 300”, zaślepki, bez zawieszek', /Wzmocnienie tylne/.test(txtB) && /× 300/.test(txtB) && /Zaślepka na konfirmat/.test(txtB) && !/Zawieszka meblowa/.test(txtB),
+ok('techniczny: formatki „Wzmocnienie tylne” (300), „Dno kontenera”, „Wzmocnienie czołowe”, zaślepki, bez zawieszek', /Wzmocnienie tylne/.test(txtB) && /Dno kontenera/.test(txtB) && /Wzmocnienie czołowe/.test(txtB) && /Zaślepka na konfirmat/.test(txtB) && !/Zawieszka meblowa/.test(txtB),
   (txtB.match(/Wzmocnienie tylne[^\n]{0,40}/) || [''])[0]);
 
 console.log('bledy strony:', errors.length ? errors.join(' | ') : 'brak');
