@@ -1184,4 +1184,8 @@ z kontenerem”, karta Szafka — kontener bez / L / P i szerokosc 400 / 450 / 5
 [AI-INFO] Odpowiedzi uzytkownika 2026-11-10 (biurko): kontener — „bok jest dalej bokiem biurka, dołożona przegroda pionowa, dwa
 wzmocnienia jak cokół z przodu w obrysie i z tyłu, dno, szyny do boku biurka i do przegrody, z możliwością zmiany strony” —
 zrobione (kolumna z dwoma poziomami, `biurkoKontener`); mimosrody — NIE (wystarcza konfirmaty + zaslepki, opcja wkrety 4 × 30).
+[AI-INFO] 2026-11-10: plan wyrownania makiety z artefaktem „Dodaj” ZAMKNIETY — krok 4 (karty szczegolowe: Korpus i plecy,
+Wzmocnienia, Wyciecia; naglowek karty z ikona i opisem) i krok 6 (AGD z listy A1 w `makiety/BRAKI.md` — ostatni punkt:
+„Rodzaj lodówki” w karcie AGD, `zamienLodowke`). Trzy kafelki lodowki w palecie zostaja (do zabudowy / podblatowa /
+wolnostojaca) — w makiecie „Dodaj” jest jeden; do decyzji uzytkownika, czy laczyc.
 
