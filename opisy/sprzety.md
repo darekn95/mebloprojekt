@@ -310,3 +310,12 @@ frontach to zapas, żeby front sprzętu nie dotykał frontu nad nim.
   - `funkcje` — sprzęt w ciągu (front zmywarki, kontrole, cokół z przerwą, blat, uwagi, scalanie);
   - `sprzety` — klikane w aplikacji (też lodówka, wycięcia w blacie i sprzęt w ciągu z szablonu).
 - Pola w danych: `SLOWNIK.md`.
+
+## Okap w szafce górnej (2026-11-10)
+
+`cab.okap = { typ, rozm, wycW, wycD, odPrzodu }` w szafce ciągu górnego; `okapSzafki(cab)` (stałe `OKAPY`, `OKAP_ROZM`,
+liczby z makiety „Dodaj” — przykładowo). Teleskopowy i wkład: wycięcie w dnie (`okapOtw` w `computeGeoLiczy`, razem
+z otworami elementów — nazwa i `otwory` formatki „Dno”); podszafkowy bez wycięcia. Kontrola `okapMsgs`: odległość wierzch
+blatu → dół okapu (dół szafek górnych `tierMountY`, podszafkowy niżej o `h`): < `OKAP_MIN_IND` 650 — ostrzeżenie,
+< `OKAP_MIN_GAZ` 750 — informacja; płyta szukana pod szafką w układzie ściany (przesunięcie ciągu + szafki przed nią,
+bez narożników — przybliżenie). Kominowy (w ciągu górnym bez szafki) — jeszcze nie.
