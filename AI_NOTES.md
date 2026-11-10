@@ -1167,3 +1167,9 @@ biurko z kontenerem (szablon), kolory / plyty w makiecie prostej, wzmocnienia w 
   konfirmaty + zaslepki (kolejnosc montazu sprawdzic wg AGENTS.md).
 - KOLORY / PLYTY w makiecie: wybor plyty korpusu i frontu (z palety materialow projektu) TYLKO w szczegolowej; prosta jasna.
 [AI-TODO] Kolejnosc wdrazania: kolory w szczegolowej → skroty slupka → okap → biurko z kontenerem.
+[AI-INFO] 2026-11-10: zrobione z decyzji — plyty w szczegolowej, skroty slupka, okap w szafce gornej (podszafkowy / teleskopowy /
+wklad, wyciecie w dnie, kontrola 650 / 750). Artefakt v201.
+[AI-TODO] Zostaje z decyzji 2026-11-10: (1) okap KOMINOWY jako pozycja ciagu gornego bez korpusu (jak `sprzetCiagu` w dolnym —
+geometria bezKorpusu, rysunki przod / bok / gora / 3D, brak formatek, kontrola nad plyta jak `okapMsgs`); (2) BIURKO Z KONTENEREM —
+szablon aplikacji: kontener szuflad zamiast jednego boku, plyta wzmacniajaca 300 z tylu pod blatem, laczenie konfirmaty + zaslepki
+(sprawdzic kolejnosc montazu wg AGENTS.md: kontener — konfirmat od srodka kontenera przed wlozeniem szuflad).
