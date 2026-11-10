@@ -21208,7 +21208,7 @@ const MakBtn = ({ on, onClick, children, el, v }) => (
 /* Karta sprzetu w makiecie (krok 1 planu wyrownania, uzytkownik 2026-11-09): to, co w makiecie „Dodaj” — rozmiar do
    klikniecia, wymiary z karty modelu, polozenie, opcje — zapisane w te same pola co tryb techniczny:
    `cab.blatWyciecia[k]` (wyc), `cab.naBlacie[k]` (nb), `col.sprzet` (kol), `cab.sprzetCiagu` (ciag). `sel`: { i, rodz, k, li, j }. */
-function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ustawSel, lodRodzaj }) {
+function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ustawSel, lodRodzaj, zamienSprzet }) {
   const it = project.items[sel.i]; if (!it) return null;
   const cab = it.cab, nazwaSz = cab.name || "szafka";
   const etyk = (t) => <p className="mt-2 text-[11px] font-medium uppercase tracking-wider text-stone-500">{t}</p>;
@@ -21221,6 +21221,9 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
   );
   const para = (l, a, b) => <div className="flex items-center justify-between gap-2 py-0.5 text-[11px]"><span className="text-stone-500">{l}</span><span className="flex items-center gap-1">{a}{b && <><span className="text-stone-400">×</span>{b}</>}<span className="text-stone-400">mm</span></span></div>;
   const usun = (fn) => <button data-el="agd-usun" onClick={fn} className="rounded border border-stone-300 px-2 py-0.5 text-[11px] text-stone-700 hover:border-red-400 hover:text-red-700">Usuń</button>;
+  // rodzaj sprzetu (mikrofala / ekspres: do zabudowy / na blacie, zmywarka: do zabudowy / wolnostojaca) — inny przenosi sprzet
+  const rodzajSprzetu = (opcje, akt) => zamienSprzet ? <>{etyk("Rodzaj")}{rzad("agd-rodzaj", opcje.map(([v, l]) =>
+    <MakBtn key={v} el="agd-rodzaj-v" v={v} on={akt === v} onClick={() => akt !== v && zamienSprzet(sel, v)}>{l}</MakBtn>))}</> : null;
   // rodzaj lodowki — ten sam wiersz w karcie lodowki w kolumnie i w ciagu; inny rodzaj zastepuje pozycje
   const rodzajLodowki = (akt) => lodRodzaj ? <>{etyk("Rodzaj lodówki")}{rzad("agd-lod-rodz", MAK_LOD_RODZ.map(([v, l]) =>
     <MakBtn key={v} el="agd-lod-rodz-v" v={v} on={akt === v} onClick={() => akt !== v && lodRodzaj(sel, v)}>{v === "slupek" && akt === "slupek" && !(cab.slupek || cab.H > 1500) ? "do zabudowy (w szafce)" : l}</MakBtn>))}</> : null;
@@ -21268,6 +21271,7 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
     const ustaw = (patch) => zmien(sel.i, (c) => { c.naBlacie = (c.naBlacie || []).map((x, k) => (k === sel.k ? { ...x, ...patch } : x)); });
     tytul = q.typ === "mikrofala" ? "Mikrofala wolnostojąca" : "Ekspres wolnostojący";
     tresc = <>
+      {rodzajSprzetu([["zab", "do zabudowy"], ["blat", "wolnostojąca na blacie"]], "blat")}
       {etyk("Wymiar")}{rzad("agd-rozm", NA_BLACIE[q.typ].rozm.map((x) => <MakBtn key={x.k} el="agd-rozm-v" v={x.k} on={x.k === q.rozm} onClick={() => ustaw({ rozm: x.k })}>{x.l}</MakBtn>))}
       <p className="text-[11px] text-stone-600">{fmt(q.w)} × {fmt(q.h)} × {fmt(q.d)} mm (przykładowo) — stoi na blacie nad „{nazwaSz}”, przy ścianie. Tylko rysunek.</p>
       {para("przesunięcie w bok od środka szafki", liczba("agd-przesun", ((cab.naBlacie || [])[sel.k] || {}).przesun, 0, (v) => ustaw({ przesun: v })))}
@@ -21283,6 +21287,7 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
     const rozm = SPRZET_ROZM[sp.typ];
     tresc = <>
       {lod && rodzajLodowki("slupek")}
+      {(sp.typ === "mikrofala" || sp.typ === "ekspres") && rodzajSprzetu([["zab", "do zabudowy"], ["blat", "wolnostojąca na blacie"]], "zab")}
       {rozm && <>{etyk("Wymiar")}{rzad("agd-rozm", rozm.map((x) => <MakBtn key={x.k} el="agd-rozm-v" v={x.k} on={x.frontH === ((col.sprzet || {}).frontH ?? null)}
         onClick={() => setSp({ frontH: x.frontH, hMin: x.hMin })}>{x.l}</MakBtn>))}</>}
       {lod && <>{etyk("Front lodówki")}{rzad("agd-lod-montaz", Object.entries(MONTAZE_LODOWKI).map(([v, l]) => <MakBtn key={v} el="agd-lod-montaz-v" v={v} on={sp.montaz === v} onClick={() => setSp({ montaz: v === "slizg" ? null : v })}>{l}</MakBtn>))}</>}
@@ -21382,6 +21387,7 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
     tytul = sp.pelna;
     const zaw = rzad("agd-drzwi", [["lewe", "zawias z lewej"], ["prawe", "zawias z prawej"]].map(([v, l]) => <MakBtn key={v} el="agd-drzwi-v" v={v} on={sp.drzwi === v} onClick={() => setSp({ drzwi: v === "lewe" ? null : v })}>{l}</MakBtn>));
     tresc = <>
+      {(sp.typ === "zmywarka" || sp.typ === "zmywarkaW") && rodzajSprzetu([["zab", "do zabudowy (front meblowy)"], ["wolna", "wolnostojąca"]], sp.typ === "zmywarkaW" ? "wolna" : "zab")}
       {(sp.typ === "zmywarka" || sp.typ === "zmywarkaW") && <>{etyk("Model")}{rzad("agd-model", [["600", "60 cm"], ["450", "45 cm"]].map(([v, l]) => <MakBtn key={v} el="agd-model-v" v={v} on={String(sp.szer) === v} onClick={() => setSp({ szer: v === "450" ? 450 : null }, { W: Number(v) })}>{l}</MakBtn>))}</>}
       {sp.typ === "zmywarkaW" && <>{etyk("Montaż")}{rzad("agd-pokrywa", [["0", "pod blatem (bez pokrywy)"], ["1", "z własną pokrywą"]].map(([v, l]) => <MakBtn key={v} el="agd-pokrywa-v" v={v} on={(sp.pokrywa ? "1" : "0") === v} onClick={() => setSp({ pokrywa: v === "1" ? true : null }, { H: v === "1" ? sp.hPokr : 820 })}>{l}</MakBtn>))}</>}
       {sp.typ === "lodowkaP" && <>{rodzajLodowki("ciag")}{etyk("Drzwi")}{zaw}</>}
@@ -21619,15 +21625,14 @@ const MAK_AGD = [
   { id: "plyta", nazwa: "Płyta indukcyjna", opis: "na blat", rodz: "blat", typ: "plyta" },
   { id: "zlew", nazwa: "Zlew", opis: "na blat", rodz: "blat", typ: "zlew" },
   { id: "piekarnik", nazwa: "Piekarnik", opis: "do szafki albo słupka", rodz: "kol", typ: "piekarnik" },
-  { id: "mikrofala", nazwa: "Mikrofala", opis: "do słupka", rodz: "kol", typ: "mikrofala" },
-  { id: "ekspres", nazwa: "Ekspres do zabudowy", opis: "do słupka, wnęka 45", rodz: "kol", typ: "ekspres" },
+  /* jeden kafelek na sprzet (decyzja uzytkownika 2026-11-10: „połącz wszystkie”): mikrofala i ekspres — na slupek / szafke
+     gorna do zabudowy, na szafke pod blatem — wolnostojace na blat; rodzaj zmienia sie w karcie (`zamienSprzet`) */
+  { id: "mikrofala", nazwa: "Mikrofala", opis: "do zabudowy albo na blat", rodz: "kolBlat", typ: "mikrofala" },
+  { id: "ekspres", nazwa: "Ekspres", opis: "do zabudowy (wnęka 45) albo na blat", rodz: "kolBlat", typ: "ekspres" },
   /* jedna „Lodówka” jak w makiecie „Dodaj” (decyzja uzytkownika 2026-11-10): na wysoka szafke (slupek) — do zabudowy w jej
      kolumnie, na nizsza szafke albo bez celu — wolnostojaca w ciagu (przed / za szafka); rodzaj zmienia sie w karcie */
   { id: "lodowkaM", nazwa: "Lodówka", opis: "do zabudowy, pod blat, wolnostojąca", rodz: "lodowkaM" },
-  { id: "zmywarka", nazwa: "Zmywarka", opis: "w ciąg, bez korpusu", rodz: "wzor", tpl: "zmywarka", gdzie: "dol" },
-  { id: "zmywarka-wolno", nazwa: "Zmywarka wolnostojąca", opis: "pod blat albo z pokrywą", rodz: "wzor", tpl: "zmywarka-wolno", gdzie: "dol" },
-  { id: "mikrofalaW", nazwa: "Mikrofala wolnostojąca", opis: "na blat", rodz: "naBlat", typ: "mikrofala" },
-  { id: "ekspresW", nazwa: "Ekspres wolnostojący", opis: "na blat", rodz: "naBlat", typ: "ekspres" },
+  { id: "zmywarka", nazwa: "Zmywarka", opis: "w ciąg — do zabudowy albo wolnostojąca", rodz: "wzor", tpl: "zmywarka", gdzie: "dol" },
   { id: "okap", nazwa: "Okap", opis: "w szafkę górną nad płytą", rodz: "okap" },
 ];
 // rodzaje lodowki wstawiane z kafelka „Lodówka” (`wstawAgd`, rodz `lodowkaM`) i z karty (`zamienLodowke`)
@@ -21639,7 +21644,8 @@ const MAK_AGD_ID = Object.fromEntries(MAK_AGD.map((a) => [a.id, a]));
    wstawia nowa pozycje na miejsce starej (`zamienLodowke` w `MakietaWidok`). „Podblatowa w szafce” z makiety to w aplikacji
    wneka 82 cm w kolumnie szafki (wybor „Wnęka” w karcie) albo pozycja w ciagu — szafka dolna 720 nie ma wneki 820. */
 const MAK_LOD_RODZ = [["slupek", "do zabudowy (słupek)"], ["ciag", "podblatowa w ciągu"], ["wolna", "wolnostojąca"], ["rowno", "na równo z meblami"]];
-const MAK_WZORY = Object.fromEntries([...MAK_PALETA.flatMap((g) => g.wzory), ...MAK_AGD.filter((a) => a.rodz === "wzor"), MAK_LOD_WOLNA].map((w) => [w.id, w]));
+const MAK_WZORY = Object.fromEntries([...MAK_PALETA.flatMap((g) => g.wzory), ...MAK_AGD.filter((a) => a.rodz === "wzor"), MAK_LOD_WOLNA,
+  { id: "zmywarka-wolno", nazwa: "Zmywarka wolnostojąca", rodz: "wzor", tpl: "zmywarka-wolno", gdzie: "dol" }].map((w) => [w.id, w]));
 // miniatury AGD (34 × 34), jak ikony sprzetu w makiecie
 const ikonaAgd = (id) => {
   const d = {
@@ -21673,7 +21679,7 @@ const MAK_KLOCKI = [
   { id: "przegroda", nazwa: "Przegroda", przegroda: true },
 ];
 
-function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia", selAgd, setSelAgd, usunPozycje, geoOf, lodRodzaj }) {
+function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia", selAgd, setSelAgd, usunPozycje, geoOf, lodRodzaj, zamienSprzet }) {
   const kafel = (el, id, l, opis, onClick, ikona) => (
     <button key={id} data-el={el} data-id={id} draggable
       onDragStart={(e) => { try { e.dataTransfer.setData("text/plain", `${el}:${id}`); e.dataTransfer.effectAllowed = "copy"; } catch (er) { /* bez danych */ } zacznij({ el, id }); }}
@@ -21713,7 +21719,7 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
         {kom}
         {naglowek("Sprzęt")}
         <div className="grid grid-cols-2 gap-1">{MAK_AGD.map((a) => kafel("mak-agd", a.id, a.nazwa, a.opis, () => onAgd(a, null), ikonaAgd(a.id)))}</div>
-        {selAgd && <MakietaKartaAgd project={project} sel={selAgd} zmien={zmien} usunPozycje={usunPozycje} zamknij={() => setSelAgd && setSelAgd(null)} geoOf={geoOf} ustawSel={setSelAgd} lodRodzaj={lodRodzaj} />}
+        {selAgd && <MakietaKartaAgd project={project} sel={selAgd} zmien={zmien} usunPozycje={usunPozycje} zamknij={() => setSelAgd && setSelAgd(null)} geoOf={geoOf} ustawSel={setSelAgd} lodRodzaj={lodRodzaj} zamienSprzet={zamienSprzet} />}
         {naglowek(`W projekcie (${lista.length})`)}
         {lista.length ? (
           <ul className="space-y-1" data-el="mak-agd-lista">
@@ -22441,9 +22447,58 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     const nowy = zastap ? sel.i : sel.i + 1;
     pokazAgd(rodzaj === "slupek" ? { i: nowy, rodz: "kol", li: 0, j: 0 } : { i: nowy, rodz: "ciag" });
   };
+  /* Zmiana rodzaju sprzetu z karty AGD (decyzja 2026-11-10: jeden kafelek, rodzaj w karcie): zmywarka do zabudowy <->
+     wolnostojaca — nowa pozycja z szablonu w to samo miejsce; mikrofala / ekspres z kolumny na blat — na blat najblizszej
+     szafki pod blatem roboczym tego ciagu (kolumna wraca do drzwi), z blatu do zabudowy — do najblizszego slupka z wolna
+     prosta kolumna; gdy takiej szafki nie ma — komunikat. */
+  const zamienSprzet = (sel, na) => {
+    const it = project.items[sel.i]; if (!it) return;
+    setKomunikat(null);
+    let run = runOf(it);
+    if (sel.rodz === "ciag") {
+      if (run && run.tier === "gorny") run = (project.runs || []).find((r) => r.id === run.wall) || null;
+      dodaj(na === "wolna" ? "zmywarka-wolno" : "zmywarka", run ? run.id : null, { przed: sel.i + 1 });
+      usunPozycje(sel.i);
+      pokazAgd({ i: sel.i, rodz: "ciag" });
+      return;
+    }
+    const lista = run ? runItems(project, run.id) : [{ it, i: sel.i }];
+    const blisko = (a, b) => Math.abs(a.i - sel.i) - Math.abs(b.i - sel.i);
+    if (sel.rodz === "kol" && na === "blat") {
+      const k0 = kolumnaW(it.cab.levels, sel.li, sel.j), typ = k0 && k0.sprzet && k0.sprzet.typ;
+      const dolny = run && run.tier === "gorny" ? (project.runs || []).find((r) => r.id === run.wall) : run;
+      const rt = dolny ? runTop(project, dolny) : null;
+      const cele = (dolny ? runItems(project, dolny.id) : []).filter(({ i }) => rt && (rt.pokryte || []).includes(i)).sort(blisko);
+      if (!typ || !cele.length) { setKomunikat("Pod tym ciągiem nie ma blatu roboczego — sprzęt wolnostojący stawiasz na blacie."); return; }
+      const cel = cele[0].i, nr = (project.items[cel].cab.naBlacie || []).length;
+      zmien(sel.i, (c) => { const k = kolumnaW(c.levels, sel.li, sel.j); if (k) { delete k.sprzet; if (!k.doors) k.doors = 1; } });
+      zmien(cel, (c) => { c.naBlacie = [...(c.naBlacie || []), { typ }]; });
+      pokazAgd({ i: cel, rodz: "nb", k: nr });
+      return;
+    }
+    if (sel.rodz === "nb" && na === "zab") {
+      const q = (it.cab.naBlacie || [])[sel.k]; if (!q) return;
+      const gorny = run ? (project.runs || []).find((r) => r.tier === "gorny" && r.wall === run.id) : null;
+      const kandydaci = [...lista, ...(gorny ? runItems(project, gorny.id) : [])].filter(({ it: x }) => !x.cab.sprzetCiagu && (x.cab.slupek || x.cab.H > 1500)).sort(blisko);
+      let t = null;
+      kandydaci.some(({ it: x, i }) => (x.cab.levels || []).some((lv, li) => (lv.cols || []).some((k, j) => {
+        if (k.sprzet || !makKolumnaProsta(k)) return false; t = { i, li, j }; return true; })));
+      if (!t) { setKomunikat(`Nie ma słupka z wolną kolumną — przeciągnij kafelek „${q.typ === "mikrofala" ? "Mikrofala" : "Ekspres"}” na słupek.`); return; }
+      zmien(sel.i, (c) => { c.naBlacie = (c.naBlacie || []).filter((_, x) => x !== sel.k); });
+      zmien(t.i, (c) => { const k = kolumnaW(c.levels, t.li, t.j); if (!k) return; k.kind = "doors"; POLA_KLAPY.forEach((pole) => delete k[pole]); k.sprzet = { typ: q.typ }; });
+      pokazAgd({ i: t.i, rodz: "kol", li: t.li, j: t.j });
+    }
+  };
   const wstawAgd = (a, c0) => {
     setKomunikat(null);
     if (a.rodz === "brak") { setKomunikat(`„${a.nazwa}” — jeszcze w przygotowaniu.`); return; }
+    if (a.rodz === "kolBlat") {
+      const c = c0 || (zaznM ? { idx: project.active, li: null, j: null } : null), it = c ? project.items[c.idx] : null;
+      const run = it ? runOf(it) : null, rt = run && run.tier !== "gorny" ? runTop(project, run) : null;
+      const naBlat = !!it && !it.cab.sprzetCiagu && !(it.cab.slupek || it.cab.H > 1500) && !!rt && (rt.pokryte || []).includes(c.idx);
+      wstawAgd({ ...a, rodz: naBlat ? "naBlat" : "kol" }, c0);
+      return;
+    }
     if (a.rodz === "lodowkaM") {
       const c = c0 || (zaznM ? { idx: project.active, li: null, j: null } : null), it = c ? project.items[c.idx] : null;
       if (it && !it.cab.sprzetCiagu && (it.cab.slupek || it.cab.H > 1500)) wstawAgd(MAK_LOD_ZAB, c0);
@@ -22496,6 +22551,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
       const a = MAK_AGD_ID[wlecze.current.id];
       if (a && (a.rodz === "blat" || a.rodz === "naBlat")) return `na blat nad „${nazwa}”`;
       if (a && a.rodz === "kol") return `do „${nazwa}”${cel.li != null && ((it.cab.levels || []).length > 1 || (it.cab.levels[cel.li].cols || []).length > 1) ? `, poziom ${cel.li + 1} kolumna ${cel.j + 1}` : ""}`;
+      if (a && a.rodz === "kolBlat") { const run = runOf(it), rt = run && run.tier !== "gorny" ? runTop(project, run) : null;
+        return !it.cab.sprzetCiagu && !(it.cab.slupek || it.cab.H > 1500) && rt && (rt.pokryte || []).includes(cel.idx) ? `na blat nad „${nazwa}”` : `do zabudowy w „${nazwa}”`; }
       if (a && a.rodz === "lodowkaM") return !it.cab.sprzetCiagu && (it.cab.slupek || it.cab.H > 1500) ? `do zabudowy w „${nazwa}”` : `wolnostojąca ${cel.prawa ? "za" : "przed"} „${nazwa}”`;
     }
     if (wlecze.current.el === "mak-klocek") return cel.li != null ? `na „${nazwa}”${(it.cab.levels || []).length > 1 || (it.cab.levels[cel.li].cols || []).length > 1 ? `, poziom ${cel.li + 1} kolumna ${cel.j + 1}` : ""}` : `na „${nazwa}”`;
@@ -22670,7 +22727,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                   </button>
                   {dodajCo === k && (
                     <div className="border-t border-stone-200 p-2">
-                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} selAgd={selAgd} setSelAgd={setSelAgd} usunPozycje={usunPozycje} geoOf={(i) => geoRysunku.current[i]} lodRodzaj={zamienLodowke} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} selAgd={selAgd} setSelAgd={setSelAgd} usunPozycje={usunPozycje} geoOf={(i) => geoRysunku.current[i]} lodRodzaj={zamienLodowke} zamienSprzet={zamienSprzet} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
                         project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
                         zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); setZnacznik(null); }} />
                     </div>

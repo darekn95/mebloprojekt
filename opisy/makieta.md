@@ -240,13 +240,17 @@ Drzwi i klapy, Przegroda, Cokół i nóżki.
 - **AGD** — sprzęt (`MAK_AGD`) i lista „W projekcie” (klik zaznacza szafkę, × usuwa wycięcie / sprzęt
   na blacie / sprzęt z kolumny):
   - płyta, zlew — wycięcie w blacie nad szafką (tylko pod blatem roboczym, inaczej komunikat);
-  - piekarnik, mikrofala, ekspres — sprzęt w kolumnie, na którą upuścisz (klik — pierwsza prosta kolumna zaznaczonej
-    szafki);
+  - piekarnik — sprzęt w kolumnie, na którą upuścisz (klik — pierwsza prosta kolumna zaznaczonej szafki);
+  - **mikrofala, ekspres — po jednym kafelku** (decyzja 2026-11-10: „połącz wszystkie”): na szafkę pod blatem roboczym —
+    wolnostojąca na blat, na słupek / szafkę górną / inną — do zabudowy w kolumnie; w karcie „Rodzaj”: do zabudowy ↔
+    wolnostojąca na blacie (`zamienSprzet`: z kolumny na blat najbliższej szafki pod blatem, z blatu do najbliższego słupka
+    z wolną prostą kolumną; brak — komunikat);
   - **lodówka — jeden kafelek** (decyzja 2026-11-10, jak w makiecie „Dodaj”): na wysoką szafkę (słupek) — do zabudowy
     w jej kolumnie, na niższą albo bez celu — wolnostojąca w ciągu (przed / za szafką, klik — na koniec ciągu); rodzaj
     (podblatowa w ciągu, na równo z meblami…) — w karcie, wiersz „Rodzaj lodówki”;
-  - zmywarka i zmywarka wolnostojąca — pozycja w ciągu jak szafka;
-  - mikrofala i ekspres wolnostojące — na blat (tylko rysunek);
+  - **zmywarka — jeden kafelek**: do zabudowy w ciągu; w karcie „Rodzaj” do zabudowy ↔ wolnostojąca (nowa pozycja z szablonu
+    w to samo miejsce);
+  - sprzęt na blacie (mikrofala / ekspres wolnostojące) — tylko rysunek;
   - okap — w szafkę górną (rodzaj w karcie, także kominowy zamiast szafki).
 - Zaznaczona zakładka ma znaczek „‹” (karta otwarta — klik zwija) albo „›” (schowana — klik rozwija).
 

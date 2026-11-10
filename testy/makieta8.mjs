@@ -88,10 +88,17 @@ p = await czekaj('!p.items[0].cab.levels[0].cols[0].sprzet');
 ok('„Usuń” — sprzęt z kolumny zdjęty, karta zamknięta', !p.items[0].cab.levels[0].cols[0].sprzet && !(await karta.count()));
 
 console.log('== zmywarka wolnostojąca w ciągu ==');
-await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="zmywarka-wolno"]').click(); await page.waitForTimeout(500);
-p = await czekaj('p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "zmywarkaW")');
+ok('jeden kafelek „Zmywarka” (bez osobnej wolnostojącej)', (await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id^="zmywarka"]').count()) === 1);
+await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="zmywarka"]').click(); await page.waitForTimeout(500);
+p = await czekaj('p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "zmywarka")');
+const nZ = p.items.length;
+await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { hasText: 'Zmywarka do zabudowy' }).click(); await page.waitForTimeout(300);
+ok('karta zmywarki: „Rodzaj” do zabudowy / wolnostojąca', (await karta.locator('[data-el="agd-rodzaj-v"]').count()) === 2 && (await karta.locator('[data-el="agd-rodzaj-v"][data-v="zab"]').getAttribute('aria-pressed')) === 'true');
+await karta.locator('[data-el="agd-rodzaj-v"][data-v="wolna"]').click();
+p = await czekaj(`p.items.length === ${nZ} && p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "zmywarkaW")`);
 const iz = p.items.findIndex((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === 'zmywarkaW');
-await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { hasText: 'Zmywarka wolnostojąca' }).click(); await page.waitForTimeout(300);
+ok('rodzaj → wolnostojąca: pozycja zastąpiona (zmywarkaW, tyle samo pozycji)', iz >= 0 && p.items.length === nZ && !p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === 'zmywarka'));
+await page.waitForTimeout(300);
 await karta.locator('[data-el="agd-pokrywa-v"][data-v="1"]').click();
 p = await czekaj(`p.items[${iz}].cab.sprzetCiagu.pokrywa === true`);
 ok('zmywarka: „z własną pokrywą” (wys. z pokrywą)', p.items[iz].cab.sprzetCiagu.pokrywa === true && p.items[iz].cab.H === 850, String(p.items[iz].cab.H));
@@ -215,7 +222,7 @@ ok('→ na równo z meblami: lodówka wolnostojąca, miejsce 606, słupek znikn�
 // jeden kafelek „Lodówka”: na zaznaczony słupek — do zabudowy w jego kolumnie
 await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); const wz = p.items.find((it) => it.cab.name === 'Zlew');
   const s2 = JSON.parse(JSON.stringify(wz)); s2.cab.name = 'S2'; s2.cab.H = 2000; s2.cab.W = 600; s2.cab.blatWyciecia = [];
-  s2.cab.levels = [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null], handles: [] }] }];
+  s2.cab.levels = [{ h: 1790, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null], handles: [] }] }, { h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], handles: [] }] }];
   p.items.push(s2); p.active = p.items.length - 1; localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 await dodajSek('agd');
@@ -223,6 +230,26 @@ ok('jeden kafelek „Lodówka” (bez osobnych: do zabudowy / podblatowa / wolno
 await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="lodowkaM"]').click();
 p = await czekaj('p.items[p.items.length - 1].cab.levels[0].cols[0].sprzet && p.items[p.items.length - 1].cab.levels[0].cols[0].sprzet.typ === "lodowka"');
 ok('„Lodówka” na zaznaczony słupek — do zabudowy w jego kolumnie', ((p.items[p.items.length - 1].cab.levels[0].cols[0] || {}).sprzet || {}).typ === 'lodowka');
+// jeden kafelek „Mikrofala”: na szafkę pod blatem — na blat; w karcie „do zabudowy” — do najbliższego słupka z wolną kolumną
+ok('jeden kafelek „Mikrofala” i „Ekspres”', (await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id^="mikrofala"]').count()) === 1 && (await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id^="ekspres"]').count()) === 1);
+await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.active = p.items.findIndex((it) => it.cab.name === 'Płyta'); localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+await dodajSek('agd');
+await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="mikrofala"]').click();
+p = await czekaj('p.items.find((it) => it.cab.name === "Płyta").cab.naBlacie && p.items.find((it) => it.cab.name === "Płyta").cab.naBlacie.length === 1');
+ok('„Mikrofala” na szafkę pod blatem — wolnostojąca na blat', ((p.items.find((it) => it.cab.name === 'Płyta').cab.naBlacie || [])[0] || {}).typ === 'mikrofala');
+await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { hasText: 'Mikrofala wolnostojąca' }).click(); await page.waitForTimeout(300);
+const nKol = (q) => q.items.reduce((a, it) => a + (it.cab.levels || []).reduce((b, lv) => b + (lv.cols || []).filter((k) => k.sprzet && k.sprzet.typ === 'mikrofala').length, 0), 0);
+const nBlat = (q) => q.items.reduce((a, it) => a + (it.cab.naBlacie || []).filter((x) => x.typ === 'mikrofala').length, 0);
+const kol0 = nKol(await proj());
+await karta.locator('[data-el="agd-rodzaj-v"][data-v="zab"]').click();
+p = await czekaj(`(${nKol.toString()})(p) === ${kol0 + 1}`);
+ok('rodzaj → do zabudowy: z blatu do wolnej kolumny najbliższego słupka', nKol(p) === kol0 + 1 && nBlat(p) === 0 && /Mikrofala do zabudowy/.test(await karta.innerText().catch(() => '')),
+  `${nKol(p)} / ${nBlat(p)}`);
+await page.waitForTimeout(300);
+await karta.locator('[data-el="agd-rodzaj-v"][data-v="blat"]').click();
+p = await czekaj(`(${nBlat.toString()})(p) === 1`);
+ok('i z powrotem na blat (najbliższa szafka pod blatem)', nKol(p) === kol0 && nBlat(p) === 1, `${nKol(p)} / ${nBlat(p)}`);
 console.log('bledy strony:', errors.length ? errors.join(' | ') : 'brak');
 if (errors.length) bledy++;
 console.log(bledy ? `${bledy} BLAD` : 'WSZYSTKO OK');
