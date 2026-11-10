@@ -1158,3 +1158,12 @@ uchwyty (rodzaj), material/kolor plyty i frontu (szczegolowa), nozki/cokol w cia
 (+ / −, przegroda pozioma przeciagana), szafa z szufladami w palecie, polki „równo z kol. obok”, drazek przeciagany.
 Do decyzji uzytkownika (pytania zadane na koniec sesji): okap (gdzie w danych, typy), slupek z 3 sprzetami (skroty wysokosci),
 biurko z kontenerem (szablon), kolory / plyty w makiecie prostej, wzmocnienia w szczegolowej.
+[AI-INFO] Decyzje uzytkownika 2026-11-10 (po przegladzie brakow makiety prostej):
+- OKAP: podszafkowy / teleskopowy / wklad — cecha szafki gornej nad plyta (wyciecie w dnie z pola, propozycja 560 × 290);
+  kominowy — pozycja ciagu gornego bez korpusu (jak zmywarka w dolnym); kontrola 650 / 750 nad plyta.
+- SLUPEK z kilkoma sprzetami: w karcie AGD skroty z makiety — „na wysokość blatu”, „pod blat”, „do dołu szafek górnych”,
+  „zamień miejscami”, „razem (półka między)”.
+- BIURKO Z KONTENEREM: nowy szablon aplikacji teraz; plyta wzmacniajaca 300 z tylu pod blatem, laczenie z bokami domyslnie
+  konfirmaty + zaslepki (kolejnosc montazu sprawdzic wg AGENTS.md).
+- KOLORY / PLYTY w makiecie: wybor plyty korpusu i frontu (z palety materialow projektu) TYLKO w szczegolowej; prosta jasna.
+[AI-TODO] Kolejnosc wdrazania: kolory w szczegolowej → skroty slupka → okap → biurko z kontenerem.
