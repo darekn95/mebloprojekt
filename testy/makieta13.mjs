@@ -13,7 +13,7 @@ let bledy = 0;
 const ok = (l, c, e = '') => { if (!c) bledy++; console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : '')); };
 const STD = !!process.env.STD;
 const URL = STD ? 'http://127.0.0.1:5199/standalone-local.html' : 'http://127.0.0.1:5205/mebloprojekt-app.html';
-const start = async (tryb, zmien, przel) => {
+const start = async (tryb, zmien, przel, tryb2) => { if (tryb2) tryb = tryb2;
   await page.goto(URL, { waitUntil: 'networkidle' });
   await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
   await page.reload({ waitUntil: 'networkidle' });
@@ -42,6 +42,7 @@ const CIAG = `const w = p.items[0];
   p.runs = [{ id: 'r1', name: 'Ściana 1', roomId: w.roomId || 'p1', worktop: true }];
   p.items = [0, 1].map((i) => { const it = JSON.parse(JSON.stringify(w)); it.cab.name = 'Szafka ' + (i + 1); it.cab.W = 600; it.cab.levels = [{ h: null, cols: [{ ...it.cab.levels[0].cols[0], doors: 1, w: null }] }]; it.runId = 'r1'; return it; });
   p.active = 0;`;
+const PRZOD = { zgory: false, gorny: true, dolny: true, fronty: true, kolory: true, wymiary: true };
 const WSZYSTKO = { zgory: true, gorny: true, dolny: true, fronty: true, kolory: true, wymiary: true };
 
 console.log('== Szuflada + drzwi ==');
@@ -115,6 +116,64 @@ await start('prosta', CIAG + `p.items[0].cab.blatWyciecia = [{ typ: 'plyta', roz
   ok('z góry: ciemne szkło, 4 jasne pola grzewcze w dwóch rozmiarach', !!r && r.fill === '#292524' && r.op === '1' && r.kola === 4 && r.kolor === '#d6d3d1' && r.r === 2, JSON.stringify(r));
   const f = await page.evaluate(() => [...document.querySelectorAll('[data-el="wyciecie-front"]')].map((g) => ({ typ: g.getAttribute('data-typ'), szklo: !!g.querySelector('rect[height="10"]'), kran: !!g.querySelector('path'), kas: g.querySelectorAll('rect[stroke-dasharray]').length })));
   ok('z przodu: szkło płyty na blacie i kaseta pod nim, zlew z baterią i komorą', f.some((q) => q.typ === 'plyta' && q.szklo && q.kas === 1) && f.some((q) => q.typ === 'zlew' && q.kran && q.kas >= 1), JSON.stringify(f));
+}
+
+console.log('== przenoszenie sprzętu: przeciąganie i „Przesuń” ==');
+const TRZY = CIAG + `const s = JSON.parse(JSON.stringify(p.items[1])); s.cab.name = 'Słupek'; s.cab.H = 2000; s.cab.slupek = true; p.items.push(s);
+  p.items[0].cab.levels[0].cols[0].sprzet = { typ: 'piekarnik' };`;
+await start('prosta', TRZY, PRZOD);
+await zakl('dodaj');
+{ // piekarnik z szafki 1 przeciagniety na slupek
+  const sz = page.locator('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="0"]').last(), sl = page.locator('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="2"]').last();
+  const a = await srodek(sz), b = await srodek(sl);
+  await page.mouse.move(a.x, a.y); await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(a.x + ((b.x - a.x) * i) / 10, a.y + ((b.y - a.y) * i) / 10);
+  await page.waitForTimeout(200);
+  const r = await page.evaluate(() => [...document.querySelectorAll('[data-el="mak-ramka"]')].map((q) => [q.getAttribute('data-idx'), q.getAttribute('data-akt')]));
+  ok('w trakcie: zielone ramki na szafce 2 i słupku, słupek podświetlony', r.length === 2 && r.some(([i, a2]) => i === '2' && a2 === '1') && r.some(([i]) => i === '1'), JSON.stringify(r));
+  await page.mouse.up(); await page.waitForTimeout(600);
+  p = await czekaj('p.items[2].cab.levels.some((lv) => lv.cols.some((k) => k.sprzet))');
+  const wSl = p.items[2].cab.levels.some((lv) => lv.cols.some((k) => k.sprzet && k.sprzet.typ === 'piekarnik'));
+  const wSz = p.items[0].cab.levels.some((lv) => lv.cols.some((k) => k.sprzet));
+  ok('piekarnik przeniesiony do słupka (własny poziom), szafka 1 bez sprzętu', wSl && !wSz && p.items[2].cab.levels.length >= 2, JSON.stringify(p.items[2].cab.levels.map((l) => [l.h, l.cols[0].sprzet && l.cols[0].sprzet.typ])));
+  ok('ramki znikają po upuszczeniu', (await page.locator('[data-el="mak-ramka"]').count()) === 0);
+  ok('karta przeniesionego sprzętu z „Co zrobi program”', (await page.locator('[data-el="agd-co-zrobi"]').count()) === 1 && /Wnęka na piekarnik w „Słupek”/.test(await page.locator('[data-el="agd-co-zrobi"]').textContent()));
+}
+{ // „Przesuń” z karty: piekarnik ze slupka z powrotem do szafki 2
+  ok('w karcie sprzętu przycisk „Przesuń do innej szafki”', (await page.locator('[data-el="agd-przesun"]').count()) === 1);
+  await page.locator('[data-el="agd-przesun"]').click(); await page.waitForTimeout(300);
+  ok('tryb „Przesuń”: pasek i zielone ramki', (await page.locator('[data-el="mak-przesun-pasek"]').count()) === 1 && (await page.locator('[data-el="mak-ramka"]').count()) >= 1);
+  const sz = await srodek(page.locator('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="1"]').last());
+  await page.mouse.click(sz.x, sz.y); await page.waitForTimeout(600);
+  p = await czekaj('p.items[1].cab.levels.some((lv) => lv.cols.some((k) => k.sprzet))');
+  ok('dotknięcie szafki 2 — piekarnik w niej, słupek bez piekarnika', p.items[1].cab.levels.some((lv) => lv.cols.some((k) => k.sprzet && k.sprzet.typ === 'piekarnik')) && !p.items[2].cab.levels.some((lv) => lv.cols.some((k) => k.sprzet)));
+  ok('pasek „Przesuń” znika', (await page.locator('[data-el="mak-przesun-pasek"]').count()) === 0 && (await page.locator('[data-el="mak-ramka"]').count()) === 0);
+}
+{ // „Przesuń w ciągu” szafki
+  await start('prosta', TRZY, PRZOD);
+  await zakl('szafka');
+  ok('Szafka: „Co zrobi program” z korpusem i wnęką', /Korpus 600 × 720/.test(await karta('[data-el="mak-co-zrobi"]').textContent()) && /piekarnik/.test(await karta('[data-el="mak-co-zrobi"]').textContent()), await karta('[data-el="mak-co-zrobi"]').textContent());
+  await karta('[data-el="mak-przesun-szafke"]').click(); await page.waitForTimeout(300);
+  const sl = await srodek(page.locator('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="2"]').last());
+  await page.mouse.click(sl.x + sl.b.width / 4, sl.y); await page.waitForTimeout(500);
+  p = await czekaj('p.items[2].cab.name === "Szafka 1"');
+  ok('„Przesuń w ciągu”: szafka 1 za słupkiem', p.items.map((x) => x.cab.name).join(',') === 'Szafka 2,Słupek,Szafka 1', p.items.map((x) => x.cab.name).join(','));
+}
+console.log('== lodówka: dolny front przy 2 frontach ==');
+await start('szczegolowa', TRZY + `p.items[2].cab.levels = [{ h: 1780, cols: [{ ...p.items[2].cab.levels[0].cols[0], sprzet: { typ: 'lodowka', fronty: 2 } }] }, { h: null, cols: [{ ...p.items[2].cab.levels[0].cols[0] }] }]; p.active = 2;`, PRZOD, 'szczegolowa');
+await zakl('dodaj');
+await page.locator('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="2"]').last().click(); await page.waitForTimeout(400);
+{ const sw = page.locator('[data-el="mak-dodaj-co"] [data-v="agd"], [data-dodaj="agd"]').first(); if (await sw.count()) await sw.click().catch(() => {}); }
+await page.evaluate(() => {}); await page.waitForTimeout(300);
+if (!(await page.locator('[data-el="agd-lod-dolny"]').count())) { const it = page.locator('[data-el="mak-agd-lista"] button').filter({ hasText: 'Lodówka' }).first(); if (await it.count()) await it.click(); await page.waitForTimeout(300); }
+ok('pole „dolny front — wysokość” przy 2 frontach', (await page.locator('[data-el="agd-lod-dolny"]').count()) === 1);
+if (await page.locator('[data-el="agd-lod-dolny"]').count()) {
+  await page.locator('[data-el="agd-lod-dolny"]').fill('700'); await page.locator('[data-el="agd-lod-dolny"]').blur(); await page.waitForTimeout(500);
+  p = await czekaj('p.items[2].cab.levels[0].cols[0].sprzet.dolny === 700');
+  ok('dolny front zapisany (700)', p.items[2].cab.levels[0].cols[0].sprzet.dolny === 700);
+  const fr = await page.evaluate(() => { const g = document.querySelector('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="2"]'); return g ? [...g.querySelectorAll('text')].map((t) => t.textContent.trim()).filter((t) => /×/.test(t)) : []; });
+  ok('na rysunku dolny front lodówki 700 wysokości', fr.some((t) => / × 70\d$/.test(t) || /×\s*70\d/.test(t)), JSON.stringify(fr));
+  ok('opis lodówki: 2 fronty, dolny 700 mm', /2 fronty \(dolny 700 mm/.test(await page.locator('[data-el="agd-co-zrobi"]').textContent()));
 }
 
 ok('bez błędów strony', errors.length === 0, errors.slice(0, 3).join(' | '));
