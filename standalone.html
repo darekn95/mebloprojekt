@@ -23012,6 +23012,10 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
      za szafke (nie za uchwyt), po 8 px ruchu zielony znacznik pokazuje, gdzie stanie — przed albo za szafka pod kursorem
      tego samego ciagu; po puszczeniu zmienia sie kolejnosc w ciagu (`project.items`, jak strzalki w trybie technicznym). */
   const przesuw = useRef(null);
+  /* Przeciaganie postawionej plyty / zlewu / sprzetu na blacie do innej szafki (uzytkownik 2026-11-11: „nie da się płyty
+     przeciągnąć do innej szafki — na makiecie testowej działało”): chwyt na rysunku z gory, upuszczenie na szafce pod blatem
+     przenosi pozycje (`blatWyciecia` / `naBlacie`), polozenie wraca na srodek nowej szafki. */
+  const przenAgd = useRef(null);
   const tlumKlik = useRef(false);
   const [znacznik, setZnacznik] = useState(null);   // { x, y, h } — zielona kreska w miejscu, gdzie stanie
   const znacznikZ = (e, bez) => {
@@ -23026,6 +23030,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   const naPoczatek = (e) => {
     const h = e.target.closest && e.target.closest("[data-u]");
     if (!h && e.button === 0) {
+      const sb = e.target.closest && e.target.closest("[data-el=wyciecie-blatu][data-idx], [data-el=na-blacie][data-idx]");
+      if (sb) { przenAgd.current = { idx: Number(sb.getAttribute("data-idx")), k: Number(sb.getAttribute("data-k")), nb: sb.getAttribute("data-el") === "na-blacie", x: e.clientX, y: e.clientY }; return; }
       const g = e.target.closest && e.target.closest("[data-el=makieta-szafka]");
       const idx = g && !g.closest("[data-el=mak-zgory]") ? Number(g.getAttribute("data-idx")) : null;
       if (idx != null && project.items[idx] && project.items[idx].runId) { przesuw.current = { idx, x: e.clientX, y: e.clientY, ruszyl: false }; return; }
@@ -23073,7 +23079,28 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
       const w = makWylicz(it.cab, geo, d, p);
       d.wynik = w; setPodglad(w ? { ...w, idx: d.idx, widok: d.widok } : null);
     };
-    const koniec = () => {
+    const koniec = (e) => {
+      const pa = przenAgd.current;
+      if (pa) {
+        przenAgd.current = null;
+        if (!e || Math.hypot(e.clientX - pa.x, e.clientY - pa.y) < 10) return;   // zwykly klik — karta sprzetu
+        tlumKlik.current = true;
+        const el = (document.elementsFromPoint(e.clientX, e.clientY) || []).map((q) => q.closest && q.closest("[data-el=makieta-szafka][data-idx]")).find(Boolean);
+        const cel = el ? Number(el.getAttribute("data-idx")) : null, zr = project.items[pa.idx], doc = cel != null ? project.items[cel] : null;
+        if (cel == null || cel === pa.idx || !zr || !doc) return;
+        const run = doc.runId ? (project.runs || []).find((r) => r.id === doc.runId) : null, rt = run ? runTop(project, run) : null;
+        if (!rt || !(rt.pokryte || []).includes(cel) || (!pa.nb && !rt.worktop)) { setKomunikat("Upuść na szafkę pod blatem roboczym."); return; }
+        const pole = pa.nb ? "naBlacie" : "blatWyciecia";
+        zmienProjekt((p) => {
+          const a = p.items[pa.idx], b = p.items[cel], poz = ((a && a.cab[pole]) || [])[pa.k];
+          if (!a || !b || !poz) return p;
+          const { przesun, ...bez } = poz;
+          return { ...p, active: cel, items: p.items.map((x, i) => (i === pa.idx ? { ...x, cab: { ...x.cab, [pole]: x.cab[pole].filter((_, k) => k !== pa.k) } }
+            : i === cel ? { ...x, cab: { ...x.cab, [pole]: [...(x.cab[pole] || []), bez] } } : x)) };
+        });
+        setSelAgd({ i: cel, rodz: pa.nb ? "nb" : "wyc", k: ((doc.cab[pole]) || []).length });
+        return;
+      }
       const pr = przewijanie.current;
       if (pr) { przewijanie.current = null; if (plotno.current) plotno.current.style.cursor = ""; if (pr.ruszyl) tlumKlik.current = true; return; }
       const m = przesuw.current;
