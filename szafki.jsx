@@ -1790,6 +1790,25 @@ const bezDnaCiagu = (cab) => {
   const { dnoZCiagu: stare, ...reszta } = cab;
   return { ...reszta, joints: { ...J, botL: stare.botL || "between", botR: stare.botR || "between" } };
 };
+/* Slupek w ciagu z blatem roboczym (uzytkownik 2026-11-11: „wsporniki pod blat, jak słupek nie ma blatu?!”): blat konczy sie
+   przy jego boku, wiec slupek nie moze zostac bez wienca z para wzmocnien pod blat — dostaje wieniec (`zWiencem`), para znika.
+   Slupek: oznaczony (`cab.slupek`) albo wyzszy od najnizszej szafki ciagu co najmniej o `SLUPEK_MIN`. Blat z plyty
+   (`top.mode: "blat"`) i sprzet w ciagu zostaja. Wolane po kazdej zmianie projektu i po wczytaniu. */
+const slupkiZWiencem = (p) => {
+  if (!p || !Array.isArray(p.items) || !(p.runs || []).some((r) => r.worktop)) return p;
+  let zmiana = false;
+  const items = p.items.map((it) => {
+    const c = it.cab, J = (c && c.joints) || {};
+    if (!it.runId || !c || c.sprzetCiagu || !(J.topL === "none" && J.topR === "none") || (c.top || {}).mode === "blat" || (c.corner || {}).on) return it;
+    const run = p.runs.find((r) => r.id === it.runId);
+    if (!run || !run.worktop || run.tier === "gorny" || !maParePodBlat(c)) return it;
+    const minH = Math.min(...p.items.filter((x) => x.runId === run.id && !x.cab.sprzetCiagu).map((x) => Number(x.cab.H) || 0));
+    if (!(Number(c.H) - minH >= SLUPEK_MIN)) return it;
+    zmiana = true;
+    return { ...it, cab: { ...c, ...zWiencem(c) } };
+  });
+  return zmiana ? { ...p, items } : p;
+};
 // szafka w ciagu z opcjami wspolnego wienca / dna — przy wlaczeniu i przy dodaniu nowej
 const wedlugCiagu = (cab, mat, run, h = run && run.H) => {
   let c = cab;
@@ -21414,12 +21433,20 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
    przesuwa sie zmiana poziomu pod nim (pod nim brak — dochodzi nowy poziom z drzwiami). Wszystkie poziomy dostaja obecne
    wysokosci, najwyzszy (bez sprzetu — w razie potrzeby dochodzi) zostaje auto. `Y` — dol wneki od podlogi. */
 const makBaza = (cab, geo) => Math.max(cab.plinth && cab.plinth.on && !geo.plinthInBody ? geo.plinthH || 0 : 0, cab.legs && cab.legs.on ? geo.legBelow || 0 : 0);
+// wysokosc wneki sprzetu w slupku: srodek zakresu z karty albo tyle, zeby front sprzetu nie zachodzil na front nad nim (front − 9)
+const makWnekaH = (col) => { const sp = sprzetKolumny(col); if (!sp) return null;
+  return sp.hMax ? Math.round((sp.hMin + sp.hMax) / 2) : Math.round(Math.max((sp.hMin || 585) + 5, (sp.frontH || 0) - 9)); };
 const makSlupekWneka = (geo, li, Y) => (c) => {
   const L = c.levels, gl = geo.levels || [];
   if (!L || L.length !== gl.length || !gl[li]) return;
   L.forEach((lv, x) => { lv.h = Math.round(gl[x].h); });
+  /* sprzet wstawiony dawniej zajmuje caly poziom slupka (np. 1964 mm) — wtedy przyciski „Pod blat” / „Na wysokość blatu” nie mialy
+     czego przesunac (uzytkownik 2026-11-11: „przyciski piekarnika nie działają”): poziom dostaje wysokosc wneki sprzetu */
+  const wn = makWnekaH((L[li].cols || [])[0]);
+  const zmniejszony = !!wn && L[li].h > wn + MAK_MIN;
+  if (zmniejszony) L[li].h = wn;
   const d = Math.round(Y - (makBaza(c, geo) + gl[li].y0));
-  if (!d) return;
+  if (!d) { if (zmniejszony) { if (li === L.length - 1) L.push(newLevel(1, 0)); L[L.length - 1].h = null; } return; }
   let i = li;
   if (i === 0) {
     if (d < MAK_MIN + geo.t) return;
@@ -21537,7 +21564,8 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
         // geometria liczona tu z biezacego projektu (geometria rysunku jest o jedno rysowanie spozniona)
         const geo = (() => { try { return computeGeo(cabDoGeo(project, it), it.mat); } catch (e) { return geoOf ? geoOf(sel.i) : null; } })();
         if (!geo || !(cab.slupek || cab.H > 1500) || !(geo.levels || [])[sel.li]) return null;
-        const baza = makBaza(cab, geo), gl = geo.levels[sel.li], dol = Math.round(baza + gl.y0), hW = Math.round(gl.h);
+        const baza = makBaza(cab, geo), gl = geo.levels[sel.li], dol = Math.round(baza + gl.y0);
+        const hW = Math.min(Math.round(gl.h), makWnekaH(((cab.levels[sel.li] || {}).cols || [])[0]) || Infinity);   // wneka sprzetu, nie caly poziom
         const run = it.runId ? (project.runs || []).find((x) => x.id === it.runId) : null;
         const rt = run ? runTop(project, run) : null;
         const gorny = run ? (project.runs || []).find((x) => x.tier === "gorny" && x.wall === run.id) : null;
@@ -23264,9 +23292,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     }
     const gS = geoRysunku.current[c.idx], lvS = (it.cab.levels || [])[li];
     if ((it.cab.slupek || it.cab.H > 1500) && gS && (gS.levels || []).length === (it.cab.levels || []).length && lvS && (lvS.cols || []).length === 1 && typeof j === "number") {
-      const sp = sprzetKolumny({ sprzet: { typ: a.typ } });
-      // wneka: srodek zakresu z karty albo tyle, zeby front sprzetu nie zachodzil na front nad nim (front − 9, jak podpowiedz uwagi)
-      const celH = sp.hMax ? Math.round((sp.hMin + sp.hMax) / 2) : Math.round(Math.max((sp.hMin || 585) + 5, (sp.frontH || 0) - 9));
+      const celH = makWnekaH({ sprzet: { typ: a.typ } });
       const zajety = !!lvS.cols[0].sprzet, hL = Math.round(gS.levels[li].h);
       if (zajety || hL > celH + MAK_MIN + gS.t) {
         zmien(c.idx, (cab) => {
@@ -23940,7 +23966,7 @@ export default function App() {
   // kazda zmiana projektu przechodzi tu — zapisuje poprzedni stan do historii
   const setProject = useCallback((next) => {
     setProjectRaw((prev) => {
-      const resolved = typeof next === "function" ? next(prev) : next;
+      const resolved = slupkiZWiencem(typeof next === "function" ? next(prev) : next);
       if (resolved === prev) return prev;
       const h = histRef.current;
       h.past.push(prev);
