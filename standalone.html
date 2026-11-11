@@ -22629,7 +22629,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       /* dlugosc i wysokosc sciany takze tutaj (uzytkownik 2026-11-11: „w ciągu nie da się zmienić długości ściany i jej
          wysokości”; pasek nad rysunkiem znika w widoku „Wszystkie ciągi”); za krotka sciana — przycisk wydluzenia */
       ...(() => {
-        const sc = runWallW(project, run), dlR = Math.round(runJoints(project, run).total);
+        const sc = runWallW(project, run), dlR = Math.max(Math.round(runJoints(project, run).total), Math.round(((projectLayout(project).info.get(run.id) || {}).len) || 0));
         const pole = (k, l, wart, zapis, krok) => (
           <label key={k} className="flex items-center justify-between gap-2 border-b border-stone-100 py-1 text-xs"><span className="text-stone-500">{l}</span>
             <input type="number" step={krok} defaultValue={wart ?? ""} placeholder="—" key={`${run.id}-${k}-${wart}`} data-pole={`ciag-${k}`}
@@ -23603,14 +23603,16 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
             </div>
           ) : null;
           const runN = aktR.tier === "gorny" ? (project.runs || []).find((r) => r.id === aktR.wall) || aktR : aktR;
-          const dlug = Math.round(runJoints(project, runN).total);
+          // zajete miejsce na scianie = szafki albo wiecej, gdy narożnik zabiera czesc sciany (jak uwaga `runWideMsgs`)
+          const szafkiDl = Math.round(runJoints(project, runN).total);
+          const dlug = Math.max(szafkiDl, Math.round(((projectLayout(project).info.get(runN.id) || {}).len) || 0));
           const scW = runWallW(project, runN);
           const ustaw = (v) => ciag.setRun(runN.id, { wallW: v > 0 ? Math.round(v) : null });
           const krok = "h-6 w-7 rounded border border-stone-300 bg-white text-sm leading-none text-stone-700 hover:border-teal-600";
           return (
             <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" data-el="mak-naglowek">
               <h2 className="text-[15px] font-semibold text-stone-900">{rodzaj === "szafa" ? "Zabudowa" : "Ciąg"} „{runN.name || "ciąg"}”</h2>
-              <span className="text-stone-500">{rodzaj === "wolnostojaca" ? "szerokość" : "ciąg"} {fmt(dlug)} mm</span>
+              <span className="text-stone-500">{rodzaj === "wolnostojaca" ? "szerokość" : "ciąg"} {fmt(szafkiDl)} mm{dlug > szafkiDl ? ` + ${fmt(dlug - szafkiDl)} narożnik = ${fmt(dlug)} mm` : ""}</span>
               {/* rodzaj zabudowy na ciag (uzytkownik 2026-11-09): szafa — bez blatu, kuchnia — z blatem (stojacy ciag) */}
               <span className="flex overflow-hidden rounded-full border border-stone-300" role="group" aria-label="Rodzaj zabudowy" data-el="mak-rodzaj">
                 {MAK_RODZAJE.map(([v, l]) => (
