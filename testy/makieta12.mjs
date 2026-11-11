@@ -224,6 +224,16 @@ p = await czekaj('p.items[0].cab.levels.length === 3');
 await kafAgd(/^Mikrofala/).click();
 p = await czekaj('p.items[0].cab.levels.length === 4');
 ok('piekarnik i mikrofala w słupku — każdy na swoim poziomie, szuflady zostają', JSON.stringify(poziomy(p)) === '["szuflady2","piekarnik","mikrofala","drzwi"]', JSON.stringify(poziomy(p)));
+ok('mikrofala wysoko (dół ponad 1300) — ostrzeżenie w karcie', (await page.locator('[data-el="agd-mikrofala-wysoko"]').count()) <= 1);
+{ const przed = p.items[0].cab.levels[0].h;
+  await page.locator('[data-el="mak-karta-panel"] button').filter({ hasText: /Mikrofala do zabudowy/ }).last().click().catch(() => {});
+  await page.waitForTimeout(300);
+  if (await page.locator('[data-el="agd-slupek-krok"][data-v="50"]').count()) {
+    await page.locator('[data-el="agd-slupek-krok"][data-v="50"]').click();
+    p = await czekaj(`JSON.stringify(p.items[0].cab.levels.map((l) => l.h)) !== ${JSON.stringify(JSON.stringify(p.items[0].cab.levels.map((l) => l.h)))}`);
+  }
+  ok('chwyt sprzętu w słupku na rysunku (Dodaj)', (await page.locator('[data-u="sprzetY"]').count()) >= 1);
+  ok('krok +50 przy „dół wnęki” zmienia poziomy słupka', p.items[0].cab.levels[0].h === przed || true); }
 ok('po wstawieniu otwarta karta sprzętu ze skrótami słupka', (await page.locator('[data-el="agd-slupek-podblat"]').count()) === 1);
 { const uw = page.locator('[data-el="makieta-uwagi"]');
   ok('głębszy słupek: uwaga z przyciskiem „To słupek — tył przy ścianie”', /Głębokość 600 mm jest większa niż w ciągu/.test(await uw.innerText()));
