@@ -1218,3 +1218,14 @@ warto sprawdzic nia przed oddaniem. Nazwa kafelka „Zamówienie” — potwierd
 — przez szuflade „Wszystkie opcje” z karta trybu technicznego (`MAK_PELNE`, `makPelne`); plyty i luzy drzwi zostaja
 w technicznym. „Kolory płyt” wylaczone = szare, blat roboczy brazowy (`MAK_SZARE`). Scalenie do main dopiero po
 dolozeniu brakow i testach — i tylko na wyrazna prosbe.
+[AI-INFO] 2026-11-11 (druga seria uwag uzytkownika, zrobione): „Kolory płyt” wlaczone = realne kolory (`realColors` w `projRys`,
+`activeCab` z `projRys`), napis frontu wezszy o strefe uchwytow (`data-fs="staly"`), „blat” na liscie Wymiary chowa tez odcinek
+blatu w lancuchu, karta Drzwi w wierszach z podpisami (`mak-drzwi-grupa`), duzy przycisk „Wszystkie opcje” nad trescia,
+plan kolizji bez zaznaczania napisow, sciana: wysokosc (`run.ceiling`, pole `mak-sciana-wys`, bez niej tlo 300 mm nad szafkami),
+dlugosc / wysokosc sciany w zakladce Ciag, uwaga o za krotkiej scianie z przyciskiem `wallw:<mm>:<ciag>`, nazwy szafek pod blatem
+na froncie, bez napisu „W × H” przy wlaczonych wymiarach.
+[AI-TODO] 2026-11-11 (zgloszone, do zrobienia / do pytania): slupek glebszy niz ciag (opcja „to slupek, zostaje 600”), uwaga
+o blacie — „zmniejsz wysunięcie o N mm”, szuflady w makiecie: przeciaganie i usuwanie pojedynczej, slupek: piekarnik + mikrofala
+kasuja sie nawzajem, przyciski „Pod blat” / „Na wysokość blatu” nie dzialaja; scenariusz uzytkownika: 2 niskie szuflady na dole
+slupka, piekarnik, mikrofala, u gory polka i jedne drzwi z zawiasami po lewej. Projekt wyslany z artefaktu — audyt.
+
