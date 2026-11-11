@@ -22442,7 +22442,9 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   else if (zakladka === "szuflady") {
     tresc = tylkoWybrana(edytowalne, (k) => wiersz(`s${k.li}-${k.jA}`, nazwaK(k), [1, 2, 3, 4, 5].map((n) =>
       <Btn key={n} el="mak-szuflady" v={n} on={k.c.kind === "drawers" && (k.c.drawers || []).length === n}
-        onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawSzuflady(kk, n)) : szufladyOdc(k, n))}>{n}</Btn>), "mak-kolumna"));
+        onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawSzuflady(kk, n)) : szufladyOdc(k, n))}>{n}</Btn>).concat(
+      // usuwanie szuflad (uzytkownik 2026-11-11: „brak opcji usuwania”): kolumna / poziom wraca do jednych drzwi
+      k.c.kind === "drawers" ? [<Btn key="us" el="mak-szuflady-usun" onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawFront(kk, "drzwi-1")) : frontOdc(k, "drzwi-1"))}>usuń szuflady</Btn>] : []), "mak-kolumna"));
     tresc.push(poRowno("front", "Fronty po równo"));
   }
   else if (zakladka === "polki") {
@@ -23207,6 +23209,30 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
       if (!pierwsza) { setKomunikat(`W szafce „${it.cab.name || "szafka"}” nie ma kolumny na „${a.nazwa}”.`); return; }
       li = pierwsza.x; j = pierwsza.y;
     }
+    /* Slupek (uzytkownik 2026-11-11: „nie da się wrzucić piekarnika i mikrofali do słupka, bo jedno kasuje drugie”): sprzet
+       dostaje WLASNY poziom szafki o wysokosci swojej wneki — nad sprzetem, na ktory go upuszczono, albo na dole poziomu
+       bez sprzetu (reszta poziomu zostaje nad nim). Poziomy dostaja obecne wysokosci, najwyzszy bez sprzetu zostaje auto. */
+    const gS = geoRysunku.current[c.idx], lvS = (it.cab.levels || [])[li];
+    if ((it.cab.slupek || it.cab.H > 1500) && gS && (gS.levels || []).length === (it.cab.levels || []).length && lvS && (lvS.cols || []).length === 1 && typeof j === "number") {
+      const sp = sprzetKolumny({ sprzet: { typ: a.typ } });
+      // wneka: srodek zakresu z karty albo tyle, zeby front sprzetu nie zachodzil na front nad nim (front − 9, jak podpowiedz uwagi)
+      const celH = sp.hMax ? Math.round((sp.hMin + sp.hMax) / 2) : Math.round(Math.max((sp.hMin || 585) + 5, (sp.frontH || 0) - 9));
+      const zajety = !!lvS.cols[0].sprzet, hL = Math.round(gS.levels[li].h);
+      if (zajety || hL > celH + MAK_MIN + gS.t) {
+        zmien(c.idx, (cab) => {
+          const L = cab.levels;
+          L.forEach((lv, x) => { lv.h = Math.round(gS.levels[x].h); });
+          const nowy = { ...newLevel(1, 0), h: celH };
+          nowy.cols[0].kind = "doors"; nowy.cols[0].sprzet = { typ: a.typ };
+          if (zajety) L.splice(li + 1, 0, nowy);
+          else { L[li].h = Math.max(MAK_MIN, hL - celH - gS.t); L.splice(li, 0, nowy); }
+          let auto = -1; L.forEach((lv, x) => { if (!makPoziomZeSprzetem(lv)) auto = x; });
+          if (auto < 0 || auto < L.length - 1) { L.push(newLevel(1, 0)); auto = L.length - 1; }
+          L[auto].h = null;
+        });
+        return;
+      }
+    }
     zmien(c.idx, (cab) => {
       const k = kolumnaW(cab.levels, li, j); if (!k) return;
       k.kind = "doors"; POLA_KLAPY.forEach((pole) => delete k[pole]); k.sprzet = { typ: a.typ };
@@ -23541,6 +23567,17 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                   onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if ((v || null) !== (runN.ceiling || null)) ciag.setRun(runN.id, { ceiling: v > 0 ? v : null }); }}
                   className="w-20 rounded border border-stone-300 bg-stone-50 px-1.5 py-0.5 text-right font-mono text-xs" />
                 <span>mm</span>
+                {/* kontrola wysokosci (uzytkownik 2026-11-11): sciana nizsza niz szafki — ostrzezenie i „wyrównaj do szafek” */}
+                {(() => {
+                  const wysIt = (x, mount) => mount + Math.max(x.cab.plinth && x.cab.plinth.on ? Number(x.cab.plinth.height) || 0 : 0, x.cab.legs && x.cab.legs.on ? Number(x.cab.legs.height) || 0 : 0) + (Number(x.cab.H) || 0);
+                  const gorne = (project.runs || []).filter((r) => r.tier === "gorny" && r.wall === runN.id);
+                  const szczyt = Math.round(Math.max(0, ...project.items.filter((x) => x.runId === runN.id).map((x) => wysIt(x, Number(runN.mountY) || 0)),
+                    ...gorne.flatMap((g) => project.items.filter((x) => x.runId === g.id).map((x) => tierMountY(project, g) + (Number(x.cab.H) || 0)))));
+                  return runN.ceiling > 0 && runN.ceiling < szczyt ? <span className="flex items-center gap-1.5 font-medium text-amber-700" data-el="mak-sciana-niska">
+                    ściana niższa niż szafki ({fmt(szczyt)} mm)
+                    <button data-el="mak-sciana-wyrownaj" onClick={() => ciag.setRun(runN.id, { ceiling: szczyt })}
+                      className="rounded border border-amber-500 bg-white px-2 py-0.5 text-[11px] text-amber-800 hover:bg-amber-50">wyrównaj do szafek</button></span> : null;
+                })()}
               </span>}
               {rodzaj !== "wolnostojaca" && scW > 0 && (scW >= dlug
                 ? <span className="text-teal-700" data-el="mak-wolne">wolne {fmt(scW - dlug)} mm</span>

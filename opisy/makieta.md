@@ -400,6 +400,17 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
 - **„Kolory płyt” wyłączone** (szczegółowa): neutralna szarość (`MAK_SZARE`), blat roboczy zostaje brązowy, wieniec
   i blat z płyty jak reszta korpusu (decyzja użytkownika 2026-11-11). Makieta prosta — jasna paleta `MAK_JASNE`.
 
+- **Sprzęt upuszczony na słupek** (szafka wyższa niż 1500 albo `slupek`; 2026-11-11): dostaje własny poziom szafki
+  o wysokości swojej wnęki (środek zakresu z karty albo front − 9 mm) — nad sprzętem, na który go upuszczono, albo na
+  dole poziomu bez sprzętu; poziomy dostają obecne wysokości, najwyższy bez sprzętu zostaje auto (`wstawAgd`).
+  Wcześniej drugi sprzęt zastępował pierwszy.
+- **Szuflady**: „usuń szuflady” (`mak-szuflady-usun`) — kolumna / poziom wraca do jednych drzwi.
+- **Ściana**: wysokość (`run.ceiling`, pole `mak-sciana-wys` nad rysunkiem i w zakładce Ciąg); bez niej tło ściany
+  kończy się 300 mm nad szafkami; niższa niż szafki — ostrzeżenie i „wyrównaj do szafek” (`mak-sciana-wyrownaj`).
+  Za krótka ściana: „wydłuż do N” w zakładce Ciąg i przycisk przy uwadze (`wallw:<mm>:<ciąg>`).
+- **Kolory płyt włączone** = prawdziwe kolory płyt (`realColors` w `projRys`). Karta Drzwi — grupy w osobnych wierszach.
+  Nazwy szafek pod blatem na froncie. Napis „W × H” przy uchwytach tylko bez wymiarów na rysunku.
+
 ## Czego jeszcze nie ma
 
 Kolejne kroki (`makiety/BRAKI.md`, D):
