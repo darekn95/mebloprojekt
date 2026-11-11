@@ -21265,11 +21265,15 @@ function makWylicz(cab, geo, d, p) {
     return { wartosc: nD, napis: `gł. ${nD}`, linia: [0, yy, geo.W, yy], zmien: (c) => { c.D = nD; } }; }
   if (d.u === "poziom") {
     const a = (geo.levels || [])[d.k], b = (geo.levels || [])[d.k + 1]; if (!a || !b) return null;
-    const suma = a.h + b.h, hNew = Math.max(MAK_MIN, Math.min(suma - MAK_MIN, d.sw != null ? Math.round(d.sw) : r10(gy - geo.t / 2 - a.y0)));
+    /* nad linia stoi sprzet (slupek): jego wneka zostaje, a roznice bierze najwyzszy poziom — linia przesuwa sprzet
+       w gore / w dol razem z wneka (uzytkownik 2026-11-11: szuflady pod piekarnikiem, jak w makiecie „Dodaj”) */
+    const nL = (geo.levels || []).length, sprzNad = d.k + 1 < nL - 1 && makPoziomZeSprzetem((cab.levels || [])[d.k + 1] || {});
+    const suma = sprzNad ? a.h + geo.levels[nL - 1].h : a.h + b.h;
+    const hNew = Math.max(MAK_MIN, Math.min(suma - MAK_MIN, d.sw != null ? Math.round(d.sw) : r10(gy - geo.t / 2 - a.y0)));
     const yc = a.y0 + hNew + geo.t / 2;
-    return { wartosc: hNew, napis: `↕${hNew} · ↕${Math.round(suma - hNew)}`, linia: [0, H - yc, geo.W, H - yc],
+    return { wartosc: hNew, napis: sprzNad ? `↕${hNew}` : `↕${hNew} · ↕${Math.round(suma - hNew)}`, linia: [0, H - yc, geo.W, H - yc],
       zmien: (c) => { const L = c.levels; if (L.length !== geo.levels.length) return;
-        const hs = geo.levels.map((q) => Math.round(q.h)); hs[hs.length - 1] = null; hs[d.k] = hNew; if (d.k + 1 < hs.length - 1) hs[d.k + 1] = Math.round(suma) - hNew;
+        const hs = geo.levels.map((q) => Math.round(q.h)); hs[hs.length - 1] = null; hs[d.k] = hNew; if (!sprzNad && d.k + 1 < hs.length - 1) hs[d.k + 1] = Math.round(suma) - hNew;
         L.forEach((lv, i) => { lv.h = hs[i]; }); } };
   }
   const lv = makLv(geo, d.li); if (!lv) return null;
@@ -21433,8 +21437,9 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
       });
     }
   }));
-  if (zakladka === "przegroda" && widok !== "top") {
-    // przegroda pozioma miedzy poziomami szafki — przeciagnij w gore / w dol
+  if (["przegroda", "szuflady", "dodaj"].includes(zakladka) && widok !== "top") {
+    // przegroda pozioma miedzy poziomami szafki — przeciagnij w gore / w dol (takze w Szufladach i przy AGD: wysokosc
+    //   poziomu szuflad i polozenie sprzetu w slupku)
     (geo.sepShelves || []).forEach((sp, i) => out.push(pas(`sp${i}`, "poziom", { "data-k": i }, 0, fy(sp.y + geo.t) - 26, W, geo.t + 52, "ns-resize"),
       chwyt(`spc${i}`, W / 2, fy(sp.y + geo.t / 2), true)));
     (geo.dividers || []).filter((dv) => dv.para !== "P").forEach((dv) => {

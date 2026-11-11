@@ -420,6 +420,16 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
 - **Za szeroki blat przez wysunięcie szafki**: przyciski „Zmniejsz wysunięcie szafki o N mm” — o cały nadmiar (nawis
   10 mm) albo tyle, żeby arkusz kończył się 1 mm przed frontem (`wysun:<mm>:<ciąg>`); blat zawsze zakrywa front.
 
+- **Słupek w ciągu z blatem** (2026-11-11): dostaje wieniec, para wzmocnień pod blat znika (`slupkiZWiencem`, po każdej
+  zmianie projektu) — blat kończy się przy jego boku. Sprzęt wstawiony dawniej na cały poziom słupka: przyciski
+  wysokości i nowy sprzęt najpierw zmniejszają ten poziom do wnęki (`makWnekaH`).
+- **Linia między poziomami szafki** do przeciągania także w zakładkach Szuflady i Dodaj (AGD); nad linią sprzęt —
+  jego wnęka zostaje, różnicę bierze najwyższy poziom (sprzęt jedzie w górę / w dół).
+- **Płyta, zlew, sprzęt na blacie**: przeciągnięcie na rysunku z góry na inną szafkę pod blatem przenosi pozycję
+  (`przenAgd`). **Wygląd sprzętów** jak w makiecie „Dodaj”: szyba piekarnika, szyba i pokrętła mikrofali
+  (`SprzetElewacja`).
+- „Wolne / brakuje” na ścianie liczone z miejscem na narożnik.
+
 ## Czego jeszcze nie ma
 
 Kolejne kroki (`makiety/BRAKI.md`, D):
