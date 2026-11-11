@@ -204,6 +204,43 @@ await start('prosta', CIAG);
 await zakl('ciag');
 ok('makieta prosta: bez przycisku „Wszystkie opcje”', (await page.locator('[data-el="mak-pelne-otworz"]').count()) === 0);
 
+console.log('== słupek: szuflady, piekarnik, mikrofala; głębszy słupek; wysunięcie a blat ==');
+const SLUPEK = `const w = p.items[0];
+  p.runs = [{ id: 'r1', name: 'Ściana 1', roomId: w.roomId || 'p1', worktop: true, H: 720, D: 560 }];
+  const k = (n, H, D) => { const it = JSON.parse(JSON.stringify(w)); it.cab.name = n; it.cab.W = 600; it.cab.H = H; it.cab.D = D; it.cab.levels[0].cols[0].doors = 1; it.runId = 'r1'; return it; };
+  p.items = [k('Słupek', 2000, 600), k('Dolna 1', 720, 560), k('Dolna 2', 720, 560)]; p.items[0].cab.slupek = true; p.active = 0;`;
+await start('szczegolowa', SLUPEK, { ...WSZYSTKO, fronty: false });
+const poziomy = (q) => q.items[0].cab.levels.map((lv) => (lv.cols[0].sprzet || {}).typ || (lv.cols[0].kind === 'drawers' ? 'szuflady' + lv.cols[0].drawers.length : 'drzwi'));
+await zakl('szuflady');
+await page.locator('[data-el="mak-szuflady"][data-v="2"]').first().click();
+p = await czekaj('p.items[0].cab.levels.length === 2');
+ok('2 szuflady w słupku: własny niski poziom na dole (360), reszta nad nimi', JSON.stringify(poziomy(p)) === '["szuflady2","drzwi"]' && p.items[0].cab.levels[0].h === 360, JSON.stringify(poziomy(p)));
+await zakl('dodaj');
+if ((await page.locator('[data-el="mak-dodaj"] [data-dodaj="agd"]').getAttribute('aria-expanded')) !== 'true') await page.locator('[data-el="mak-dodaj"] [data-dodaj="agd"]').click();
+await page.waitForTimeout(300);
+const kafAgd = (n) => page.locator('[data-el="mak-karta-panel"] button').filter({ hasText: n }).first();
+await kafAgd(/^Piekarnik/).click();
+p = await czekaj('p.items[0].cab.levels.length === 3');
+await kafAgd(/^Mikrofala/).click();
+p = await czekaj('p.items[0].cab.levels.length === 4');
+ok('piekarnik i mikrofala w słupku — każdy na swoim poziomie, szuflady zostają', JSON.stringify(poziomy(p)) === '["szuflady2","piekarnik","mikrofala","drzwi"]', JSON.stringify(poziomy(p)));
+ok('po wstawieniu otwarta karta sprzętu ze skrótami słupka', (await page.locator('[data-el="agd-slupek-podblat"]').count()) === 1);
+{ const uw = page.locator('[data-el="makieta-uwagi"]');
+  ok('głębszy słupek: uwaga z przyciskiem „To słupek — tył przy ścianie”', /Głębokość 600 mm jest większa niż w ciągu/.test(await uw.innerText()));
+  await uw.locator('button', { hasText: /To słupek — tył przy ścianie, front wysunięty o 40 mm/ }).first().click();
+  p = await czekaj('p.items[0].offset === 40');
+  await page.waitForTimeout(600);
+  const t = await uw.innerText();
+  ok('po kliknięciu: słupek wysunięty 40, bez uwag o głębokości i za szerokim blacie', p.items[0].offset === 40 && !/jest większa niż w ciągu/.test(t) && !/Blat wychodzi/.test(t) && !/Za głęboki słupek/.test(t), t.replace(/\s+/g, ' ').slice(0, 200)); }
+await start('szczegolowa', SLUPEK.replace("p.active = 0;", "p.items[0].cab.D = 560; p.items[1].offset = 60; p.active = 1;"));
+{ const uw = page.locator('[data-el="makieta-uwagi"]');
+  const b1 = uw.locator('button', { hasText: /Zmniejsz wysunięcie szafki o 53 mm \(blat zakrywa front, nawis 10 mm\)/ });
+  ok('za szeroki blat przez wysunięcie: dwa przyciski „Zmniejsz wysunięcie” (nawis 10 i 1 mm)', (await b1.count()) === 1 && (await uw.locator('button', { hasText: /Zmniejsz wysunięcie szafki o 44 mm/ }).count()) === 1);
+  await b1.click();
+  p = await czekaj('p.items[1].offset === 7');
+  await page.waitForTimeout(600);
+  ok('wysunięcie 60 → 7, blat mieści się w arkuszu 600', p.items[1].offset === 7 && !/Blat wychodzi/.test(await uw.innerText())); }
+
 ok('bez błędów w konsoli', errors.length === 0, errors.slice(0, 3).join(' | '));
 console.log(bledy ? `\nBLEDY: ${bledy}` : '\nWSZYSTKO OK');
 await browser.close();

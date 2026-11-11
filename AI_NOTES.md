@@ -1239,4 +1239,7 @@ slupka, piekarnik, mikrofala, u gory polka i jedne drzwi z zawiasami po lewej. P
    dzialaja; scenariusz do testu: slupek 600 × 2000 — 2 niskie szuflady na dole, piekarnik, mikrofala, u gory polka i jedne drzwi
    z zawiasami po lewej. Projekt uzytkownika z 2026-11-11 (wersja 37 w `projekt/biezacy`): audyt — blad dlugosci sciany
    (2999 > 1800) i skrzydlo „Szafka 1 c2” przy wstawce w rogu; reszta to skutki slupka 600 (pkt 1).
+[AI-INFO] 2026-11-11: zrobione z listy AI-TODO powyzej — slupek glebszy (`slupekgl`), „zmniejsz wysunięcie” (`wysun`), sprzet
+i szuflady w slupku na wlasnych poziomach, „Pod blat” / „Na wysokość blatu” (zaznaczenie idzie za sprzetem), „usuń szuflady”.
+Nie zrobione: przeciaganie pojedynczej szuflady na rysunku (jest przeciaganie linii miedzy szufladami).
 

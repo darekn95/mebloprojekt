@@ -137,3 +137,13 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 ## Rysunek ciągu z boku (2026-10-24)
 
 Zakres „Ciąg” ma widok „Z boku” — przekrój ściany: od ściany głębokość, od podłogi wysokość. Każdy inny profil szafki (głębokość, wysokość, zawieszenie) rysuje się raz, wyższe pod spodem; szafki stoją licem równo (lico ciągu jak przy blacie), fronty nakładane 2 mm przed korpusem. Do tego cokół, nóżki, blat roboczy, ciąg górny i ściana (przełączniki „Ukryj blat” / „Ukryj ścianę”). Wymiary: „z frontem” każdego piętra, „blat N (M przed frontem)”, łańcuch wysokości i wysokość całkowita. Zabudowa z rogami tego widoku nie ma (nie ma jednego boku).
+
+## Słupek głębszy niż ciąg (2026-11-11)
+
+Szafki ciągu stoją równo w licu, więc głębsza szafka odsuwa pozostałe od ściany o różnicę (stąd też szerszy blat).
+Słupek (szafka wyższa niż 1500 albo oznaczona jako słupek) ma stać inaczej: tył przy ścianie, front wysunięty
+o różnicę głębokości (`item.offset`), pozostałe szafki przy ścianie. Ustawia to przycisk przy uwadze o głębokości
+(„To słupek — tył przy ścianie, front wysunięty o N mm”). Gdy wysunięcie pokrywa różnicę, uwagi o głębokości nie ma;
+zostaje kontrola z blatem roboczym: korpus słupka głębszy niż blat (arkusz 600 albo blat docięty) — ostrzeżenie
+„Za głęboki słupek” z przyciskiem wyrównania głębokości do blatu (`runCabMsgs`, parametr `poz`).
+

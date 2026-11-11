@@ -15533,6 +15533,10 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         : `Zmniejsz głębokość szafek do ${fmt(Number(d))} mm`,
         run: () => runFix && runFix(action) };
     }
+    if (action.startsWith("wysun:")) { const [, mm, , nawis] = action.split(":");
+      return { label: `Zmniejsz wysunięcie szafki o ${fmt(Number(mm))} mm (blat zakrywa front, nawis ${fmt(Number(nawis))} mm)`, run: () => runFix && runFix(action) }; }
+    if (action.startsWith("slupekgl:"))
+      return { label: `To słupek — tył przy ścianie, front wysunięty o ${fmt(Number(action.split(":")[1]))} mm`, run: () => runFix && runFix(action) };
     if (action.startsWith("slupek:"))
       return { label: action === "slupek:1" ? "To słupek — wyjątek w ciągu" : "To jednak zwykła szafka", run: () => runFix && runFix(action) };
     if (action.startsWith("ciagslupki:"))
@@ -18132,7 +18136,7 @@ const odScianyMsgs = (project, i) => {
     + `Dosuń ją do ściany albo zamontuj ${listwa ? "listwę" : "haki"} na dystansie ${fmt(o.gap)} mm.`
     + (o.doSciany != null ? `|dosciany:${i}:${o.doSciany}` : "") + `|dystans:${i}:${o.gap}` }];
 };
-const runCabMsgs = (run, c, inne = []) => {
+const runCabMsgs = (run, c, inne = [], poz = null) => {   // poz: { idx, offset, rt } — pozycja w projekcie (slupek glebszy niz ciag)
   const out = [];
   if (!run) return out;
   /* Lodowka wolnostojaca stoi w ciagu na wlasnych wymiarach (bez cokolu, wyzsza, glebsza) —
@@ -18176,12 +18180,21 @@ const runCabMsgs = (run, c, inne = []) => {
   /* Glebsza szafka (np. slupek 600 w ciagu 560 — uzytkownik 2026-09-28: zostaje
      600, ale ma byc ostrzezenie) wyznacza lico calego ciagu: pozostale szafki
      odsuwaja sie od sciany o roznice albo ona sama wystaje, gdy ja cofnac. */
-  if (run.D != null && Math.round(c.D) > run.D)
+  /* Slupek glebszy niz ciag (decyzja uzytkownika 2026-11-11): tyl przy scianie, front wysuniety o roznice (`item.offset`),
+     pozostale szafki zostaja przy scianie; ma byc na rowno z blatem — glebszy niz blat: ostrzezenie „za głęboki słupek”. */
+  const roznD = run.D != null ? Math.round(c.D) - run.D : 0;
+  const slupekGl = roznD > 0 && (c.slupek || c.H > 1500);
+  if (slupekGl && poz && Math.round(Number(poz.offset) || 0) >= roznD) {
+    const blat = poz.rt && poz.rt.worktop ? (poz.rt.depth <= WORKTOP_DEPTHS[0] ? WORKTOP_DEPTHS[0] : Math.round(poz.rt.depth)) : null;
+    if (blat != null && Math.round(c.D) > blat)
+      out.push({ level: "warn", text: `Za głęboki słupek: korpus ${fmt(c.D)} mm wychodzi ${fmt(Math.round(c.D) - blat)} mm przed blat (${fmt(blat)} mm) — powinien być z nim na równo.|runcab:D:${blat}` });
+  }
+  else if (run.D != null && Math.round(c.D) > run.D)
     out.push({ level: "warn", text:
       `Głębokość ${fmt(c.D)} mm jest większa niż w ciągu (${fmt(run.D)} mm) o ${fmt(Math.round(c.D) - run.D)} mm. `
       + `Szafki stoją równo w licu, więc pozostałe odsuną się o tyle od ściany (za nimi zostanie pusta przestrzeń), `
       + `a blat i cokół pójdą za tym licem. Jeśli ta ma wystawać przed pozostałe, ustaw jej wysunięcie z lica.`
-      + `|runcab:D:${run.D}|runrun:D:${Math.round(c.D)}` });
+      + (slupekGl && poz ? `|slupekgl:${roznD}:${poz.idx}` : "") + `|runcab:D:${run.D}|runrun:D:${Math.round(c.D)}` });
   else if (run.D != null && Math.round(c.D) !== run.D)
     out.push({ level: "warn", text:
       `Głębokość ${fmt(c.D)} mm różni się od ciągu (${fmt(run.D)} mm). Jeśli to celowe — lico zostaje w linii, cofa się tylko tył — zostaw tak; blat licz na najgłębszą szafkę.`
@@ -18496,6 +18509,7 @@ const worktopMsgs = (project, run) => {
     const plecySz0 = lvl && lvl.pod.length ? Math.max(...lvl.pod.map((c) => c.geo.plecyZa || 0)) : 0;
     const wysuniecie = Math.max(0, Math.round(rt.doLica - (rt.odSciany || 0) - plecySz0 - glebokosc - (rt.przed ?? HINGE_PLAY + tf)));
     const sugerowana = WORKTOP_DEPTHS[0] - WORKTOP_OVERHANG - (rt.przed ?? HINGE_PLAY + tf) - (rt.odSciany || 0) - plecySz - wysuniecie;
+    const maksOffset = Math.max(0, ...project.items.filter((x) => x.runId === run.id).map((x) => Number(x.offset) || 0));
     out.push({ level: "warn", text:
       `Blat wychodzi ${fmt(rt.depth)} mm — o ${fmt(nadmiar)} mm za dużo na arkusz `
       + `${fmt(WORKTOP_DEPTHS[0])} mm, a z arkusza ${fmt(WORKTOP_DEPTHS[1])} mm zostaje pas odpadu. `
@@ -18505,6 +18519,12 @@ const worktopMsgs = (project, run) => {
       + (wysuniecie ? ` i z wysunięciem szafki o ${fmt(wysuniecie)} mm` : "")
       + `. Można też świadomie wziąć szerszy arkusz.`
       + (glebokosc > sugerowana ? `|rundepth:${sugerowana}` : "")
+      /* „zmniejsz wysunięcie” (decyzja uzytkownika 2026-11-11: oba warianty, blat nie moze byc krotszy niz front — musi go
+         zaslaniac od gory): o caly nadmiar — nawis zostaje 10 mm; o mniej — arkusz konczy sie 1 mm przed frontem (najmniej,
+         ile program dopuszcza). Tylko gdy ktoras szafka jest wysunieta z lica co najmniej o tyle. */
+      + (wysuniecie >= nadmiar && maksOffset >= nadmiar ? `|wysun:${nadmiar}:${run.id}:${WORKTOP_OVERHANG}` : "")
+      + (maksOffset >= Math.round(rt.doLica - (WORKTOP_DEPTHS[0] - 1)) && wysuniecie >= Math.round(rt.doLica - (WORKTOP_DEPTHS[0] - 1)) && Math.round(rt.doLica - (WORKTOP_DEPTHS[0] - 1)) > 0 && Math.round(rt.doLica - (WORKTOP_DEPTHS[0] - 1)) < nadmiar
+        ? `|wysun:${Math.round(rt.doLica - (WORKTOP_DEPTHS[0] - 1))}:${run.id}:1` : "")
       + `|worktop:${WORKTOP_DEPTHS[1]}` });
   }
   /* Ile arkusz 600 wystaje przed drzwi. Standard to 10 mm — blat oslania gorna
@@ -21521,7 +21541,10 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
         const run = it.runId ? (project.runs || []).find((x) => x.id === it.runId) : null;
         const rt = run ? runTop(project, run) : null;
         const gorny = run ? (project.runs || []).find((x) => x.tier === "gorny" && x.wall === run.id) : null;
-        const naY = (Y) => zmien(sel.i, makSlupekWneka(geo, sel.li, Y));
+        // wneka najnizszego poziomu idzie w gore przez nowy poziom pod nia — wybrany sprzet jest wtedy poziom wyzej
+        const naY = (Y) => { const d = Math.round(Y - (makBaza(cab, geo) + geo.levels[sel.li].y0));
+          zmien(sel.i, makSlupekWneka(geo, sel.li, Y));
+          if (sel.li === 0 && d >= MAK_MIN + geo.t && ustawSel) ustawSel({ ...sel, li: 1 }); };
         const inne = (cab.levels || []).map((lv, x) => ({ lv, x })).filter(({ lv, x }) => x !== sel.li && makPoziomZeSprzetem(lv));
         const sas = inne.sort((a, b) => Math.abs(a.x - sel.li) - Math.abs(b.x - sel.li))[0];
         const razem = sas && Math.abs(sas.x - sel.li) === 1;
@@ -22419,6 +22442,25 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     if (!przyciski.length) return null;
     return wiersz(`pz${k.li}-${k.jA}`, k.nr == null ? "poziomy kolumny — każdy dostaje swój front" : "poziomy kolumny", przyciski, "mak-poziomy");
   };
+  /* Szuflady w slupku (uzytkownik 2026-11-11: „2 niskie szuflady na dół słupka”): w wysokim poziomie (ponad 900 mm) szafki
+     wyzszej niz 1500 szuflady nie zajmuja calego poziomu — dostaja wlasny poziom na jego dole, po 180 mm na szuflade;
+     reszta zostaje nad nimi. Poziomy dostaja obecne wysokosci, najwyzszy bez sprzetu zostaje auto. */
+  const slupekSzuflady = (k, n) => {
+    const g = geoKarty, lvG = g && (g.levels || [])[k.li];
+    if (!(cab.slupek || cab.H > 1500) || k.nr != null || k.n !== 1 || k.c.kind === "drawers" || !lvG || (g.levels || []).length !== (cab.levels || []).length || !(lvG.h > 900)) return false;
+    const hS = n * 180;
+    zmien(idx, (c) => {
+      const L = c.levels;
+      L.forEach((lv, x) => { lv.h = Math.round(g.levels[x].h); });
+      const nowy = { ...newLevel(1, 0), h: hS };
+      makUstawSzuflady(nowy.cols[0], n, systemKontekstu(project, idx));
+      L[k.li].h = Math.max(MAK_MIN, Math.round(lvG.h) - hS - g.t);
+      L.splice(k.li, 0, nowy);
+      let auto = -1; L.forEach((lv, x) => { if (!makPoziomZeSprzetem(lv)) auto = x; });
+      if (auto >= 0) L[auto].h = null;
+    });
+    return true;
+  };
   if (zakladka === "drzwi") {
     // kazda grupa w swoim wierszu z podpisem (uzytkownik 2026-11-11: „nie może być w jednym ciągu, bo jest chaos”)
     const grupa = (key, l) => <span key={key} data-el="mak-drzwi-grupa" className="mt-1 basis-full text-[11px] text-stone-500 first:mt-0">{l}</span>;
@@ -22442,7 +22484,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   else if (zakladka === "szuflady") {
     tresc = tylkoWybrana(edytowalne, (k) => wiersz(`s${k.li}-${k.jA}`, nazwaK(k), [1, 2, 3, 4, 5].map((n) =>
       <Btn key={n} el="mak-szuflady" v={n} on={k.c.kind === "drawers" && (k.c.drawers || []).length === n}
-        onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawSzuflady(kk, n)) : szufladyOdc(k, n))}>{n}</Btn>).concat(
+        onClick={() => (slupekSzuflady(k, n) ? null : k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawSzuflady(kk, n)) : szufladyOdc(k, n))}>{n}</Btn>).concat(
       // usuwanie szuflad (uzytkownik 2026-11-11: „brak opcji usuwania”): kolumna / poziom wraca do jednych drzwi
       k.c.kind === "drawers" ? [<Btn key="us" el="mak-szuflady-usun" onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawFront(kk, "drzwi-1")) : frontOdc(k, "drzwi-1"))}>usuń szuflady</Btn>] : []), "mak-kolumna"));
     tresc.push(poRowno("front", "Fronty po równo"));
@@ -23212,6 +23254,14 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     /* Slupek (uzytkownik 2026-11-11: „nie da się wrzucić piekarnika i mikrofali do słupka, bo jedno kasuje drugie”): sprzet
        dostaje WLASNY poziom szafki o wysokosci swojej wneki — nad sprzetem, na ktory go upuszczono, albo na dole poziomu
        bez sprzetu (reszta poziomu zostaje nad nim). Poziomy dostaja obecne wysokosci, najwyzszy bez sprzetu zostaje auto. */
+    // klik w kafelek (bez wskazanego miejsca): nad najwyzszym sprzetem slupka, a bez sprzetu — w najnizszym poziomie z drzwiami
+    //   (szuflady na dole zostaja)
+    if (!c0 && (it.cab.slupek || it.cab.H > 1500)) {
+      const Lv = it.cab.levels || [], jedna = (lv) => (lv.cols || []).length === 1;
+      let cel = -1; Lv.forEach((lv, x) => { if (jedna(lv) && lv.cols[0].sprzet) cel = x; });
+      if (cel < 0) cel = Lv.findIndex((lv) => jedna(lv) && (lv.cols[0].kind || "doors") === "doors" && makKolumnaProsta(lv.cols[0]));
+      if (cel >= 0) { li = cel; j = 0; }
+    }
     const gS = geoRysunku.current[c.idx], lvS = (it.cab.levels || [])[li];
     if ((it.cab.slupek || it.cab.H > 1500) && gS && (gS.levels || []).length === (it.cab.levels || []).length && lvS && (lvS.cols || []).length === 1 && typeof j === "number") {
       const sp = sprzetKolumny({ sprzet: { typ: a.typ } });
@@ -23230,6 +23280,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           if (auto < 0 || auto < L.length - 1) { L.push(newLevel(1, 0)); auto = L.length - 1; }
           L[auto].h = null;
         });
+        pokazAgd({ i: c.idx, rodz: "kol", li: zajety ? li + 1 : li, j: 0 });
         return;
       }
     }
@@ -24957,7 +25008,7 @@ export default function App() {
       const ramie = [...projLayoutGeo.info.values()].map((n) => n.arm)
         .find((a) => a && a.len > 0 && a.cab && a.cab.index === i);
       const inne = c ? runItems(project, c.run.id).filter((x) => x.i !== i).map((x) => x.it.cab) : [];
-      const msgs = [...runCabMsgs(c && c.run, it.cab, inne), ...odScianyMsgs(project, i), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
+      const msgs = [...runCabMsgs(c && c.run, it.cab, inne, { idx: i, offset: it.offset, rt: c && c.rt }), ...odScianyMsgs(project, i), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
         ...wstawkaMsgs(projLayoutGeo, i),
         ...(ramie ? maleFormatkiMsgs(cornerArmParts(ramie).panels, it.cab.dociac, "@") : [])];
       return {
@@ -25035,7 +25086,7 @@ export default function App() {
     const c = project.items[project.active].cab;
     const node = projLayout.info.get(runInfo.run.id);
     const inne = runItems(project, runInfo.run.id).filter((x) => x.i !== project.active).map((x) => x.it.cab);
-    return [...runCabMsgs(runInfo.run, c, inne),
+    return [...runCabMsgs(runInfo.run, c, inne, { idx: project.active, offset: (project.items[project.active] || {}).offset, rt: runTp }),
       ...odScianyMsgs(project, project.active),
       ...szufladyMsgs(project, project.active),
       ...runWideMsgs(runInfo.run, runInfo.total, runPl, runTp, node ? node.len : 0),
@@ -25287,6 +25338,11 @@ export default function App() {
         { wstawka: { typ, w: (r.corner.wstawka && r.corner.wstawka.w) || WSTAWKA_W } });
       return;
     }
+    if (action.startsWith("wysun:")) { const [, mm, id] = action.split(":");
+      setProject((p) => { const maks = Math.max(0, ...p.items.filter((x) => x.runId === id).map((x) => Number(x.offset) || 0));
+        return maks > 0 ? { ...p, items: p.items.map((x) => (x.runId === id && (Number(x.offset) || 0) === maks ? { ...x, offset: Math.max(0, maks - Number(mm)) } : x)) } : p; }); return; }
+    if (action.startsWith("slupekgl:")) { const [, d, ix] = action.split(":");
+      setProject((p) => ({ ...p, items: p.items.map((x, k) => (k === Number(ix) ? { ...x, offset: Number(d), cab: { ...x.cab, slupek: true } } : x)) })); return; }
     if (action.startsWith("wallw:")) { const [, v, id] = action.split(":"); if (id && Number(v) > 0) setRun(id, { wallW: Number(v) }); return; }
     if (!runInfo) return;
     if (action === "plinthauto") { setRun(runInfo.run.id, { plinthCuts: null, plinthCutsWlasne: [] }); return; }

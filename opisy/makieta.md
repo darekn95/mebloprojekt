@@ -411,6 +411,15 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
 - **Kolory płyt włączone** = prawdziwe kolory płyt (`realColors` w `projRys`). Karta Drzwi — grupy w osobnych wierszach.
   Nazwy szafek pod blatem na froncie. Napis „W × H” przy uchwytach tylko bez wymiarów na rysunku.
 
+- **Szuflady w słupku**: w poziomie wyższym niż 900 mm szafki ponad 1500 przycisk liczby szuflad zakłada własny
+  niski poziom na dole (po 180 mm na szufladę), reszta zostaje nad nim (`slupekSzuflady`). Sprzęt kliknięty z palety
+  staje nad najwyższym sprzętem słupka albo w najniższym poziomie z drzwiami; po wstawieniu otwiera się jego karta.
+- **Słupek głębszy niż ciąg** (decyzja 2026-11-11): przy uwadze o głębokości przycisk „To słupek — tył przy ścianie,
+  front wysunięty o N mm” (`slupekgl:<mm>:<pozycja>` → `item.offset`, `cab.slupek`); pozostałe szafki zostają przy
+  ścianie. Potem kontrola tylko z blatem: korpus głębszy niż blat — „Za głęboki słupek”. Opis reguły: `opisy/ciagi.md`.
+- **Za szeroki blat przez wysunięcie szafki**: przyciski „Zmniejsz wysunięcie szafki o N mm” — o cały nadmiar (nawis
+  10 mm) albo tyle, żeby arkusz kończył się 1 mm przed frontem (`wysun:<mm>:<ciąg>`); blat zawsze zakrywa front.
+
 ## Czego jeszcze nie ma
 
 Kolejne kroki (`makiety/BRAKI.md`, D):
