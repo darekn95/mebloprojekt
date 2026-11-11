@@ -21276,6 +21276,14 @@ function makWylicz(cab, geo, d, p) {
         const hs = geo.levels.map((q) => Math.round(q.h)); hs[hs.length - 1] = null; hs[d.k] = hNew; if (!sprzNad && d.k + 1 < hs.length - 1) hs[d.k + 1] = Math.round(suma) - hNew;
         L.forEach((lv, i) => { lv.h = hs[i]; }); } };
   }
+  /* sprzet w slupku chwycony na rysunku (uzytkownik 2026-11-11, jak w makiecie „Dodaj”: postawione przesuwasz, przeciagajac):
+     dol wneki idzie za wskaznikiem (srodek sprzetu pod wskaznikiem), co 10 mm — zapis jak pole „dół wnęki od podłogi” */
+  if (d.u === "sprzetY") {
+    const gl = (geo.levels || [])[d.k]; if (!gl) return null;
+    const wn = Math.min(gl.h, makWnekaH((((cab.levels || [])[d.k] || {}).cols || [])[0]) || gl.h), baza = makBaza(cab, geo);
+    const y0 = Math.max(0, Math.min(H - wn - 2 * geo.t, r10(gy - wn / 2))), Y = Math.round(baza + y0);
+    return { wartosc: Y, napis: `dół ${Y} od podłogi`, linia: [0, H - y0, geo.W, H - y0], zmien: makSlupekWneka(geo, d.k, Y) };
+  }
   const lv = makLv(geo, d.li); if (!lv) return null;
   const col = lv.cols.find((q) => q.j === d.j); if (!col) return null;
   if (d.u === "polka") {
@@ -21437,6 +21445,11 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
       });
     }
   }));
+  // slupek: sprzet w poziomie szafki do chwycenia i przesuniecia w gore / w dol (zakladka Dodaj)
+  if (zakladka === "dodaj" && widok !== "top" && (cab.slupek || cab.H > 1500)) (geo.levels || []).forEach((lv) => {
+    const c0 = lv.cols.length === 1 ? lv.cols[0] : null, sp = c0 && c0.sprzet;
+    if (sp && sp.front !== false && sp.y1 > sp.y0) out.push(pas(`spy${lv.i}`, "sprzetY", { "data-k": lv.i }, sp.x0 + 40, fy(sp.y1) + 30, Math.max(20, sp.x1 - sp.x0 - 80), Math.max(20, sp.y1 - sp.y0 - 60), "ns-resize"));
+  });
   if (["przegroda", "szuflady", "dodaj"].includes(zakladka) && widok !== "top") {
     // przegroda pozioma miedzy poziomami szafki — przeciagnij w gore / w dol (takze w Szufladach i przy AGD: wysokosc
     //   poziomu szuflad i polozenie sprzetu w slupku)
@@ -21561,6 +21574,17 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
       {rodzajSprzetu([["zab", "do zabudowy"], ["blat", "wolnostojąca na blacie"]], "blat")}
       {etyk("Wymiar")}{rzad("agd-rozm", NA_BLACIE[q.typ].rozm.map((x) => <MakBtn key={x.k} el="agd-rozm-v" v={x.k} on={x.k === q.rozm} onClick={() => ustaw({ rozm: x.k })}>{x.l}</MakBtn>))}
       <p className="text-[11px] text-stone-600">{fmt(q.w)} × {fmt(q.h)} × {fmt(q.d)} mm (przykładowo) — stoi na blacie nad „{nazwaSz}”, przy ścianie. Tylko rysunek.</p>
+      {/* jak w makiecie „Dodaj”: gora sprzetu od podlogi i miejsce do szafki gornej */}
+      {(() => { const run = it.runId ? (project.runs || []).find((x) => x.id === it.runId) : null, rt = run ? runTop(project, run) : null;
+        if (!rt) return null;
+        const blatY = Math.round(rt.y + rt.th), gorny = (project.runs || []).find((x) => x.tier === "gorny" && x.wall === run.id && project.items.some((y) => y.runId === x.id));
+        const nad = gorny ? Math.round(tierMountY(project, gorny) - blatY - q.h) : null;
+        return <>
+          <p className="text-[11px] text-stone-600" data-el="agd-nb-miejsce">Góra {fmt(blatY + q.h)} mm od podłogi{nad != null ? <>, do szafek górnych zostaje <b>{fmt(nad)}</b> mm</> : null}.</p>
+          {nad != null && nad < 0 && <p className="text-[11px] font-medium text-amber-700">Wyższy niż miejsce pod szafkami górnymi — nie zmieści się; postaw go gdzie indziej albo podnieś szafki górne.</p>}
+          {nad != null && nad >= 0 && q.typ === "ekspres" && nad < 150 && <p className="text-[11px] font-medium text-amber-700">Nad ekspresem tylko {fmt(nad)} mm — pojemnik na ziarna i wodę napełnia się zwykle od góry; zostaw więcej miejsca albo wysuwaj ekspres do napełniania.</p>}
+          {nad != null && nad >= 0 && q.typ === "mikrofala" && nad < 100 && <p className="text-[11px] font-medium text-amber-700">Nad mikrofalą tylko {fmt(nad)} mm — luz na wentylację wg instrukcji modelu (często kilkanaście centymetrów).</p>}
+        </>; })()}
       {para("przesunięcie w bok od środka szafki", liczba("agd-przesun", ((cab.naBlacie || [])[sel.k] || {}).przesun, 0, (v) => ustaw({ przesun: v })))}
       <div className="mt-1">{usun(() => { zmien(sel.i, (c) => { c.naBlacie = (c.naBlacie || []).filter((_, k) => k !== sel.k); }); zamknij(); })}</div>
     </>;
@@ -21608,7 +21632,14 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
         const btn = (el, l, fn, on) => <button data-el={el} onClick={fn} className={`rounded border px-2 py-0.5 text-[11px] ${on ? "border-teal-700 bg-teal-700 text-white" : "border-teal-600 text-teal-700 hover:bg-teal-50"}`}>{l}</button>;
         return <>
           {etyk("Wysokość w słupku")}
-          {para("dół wnęki od podłogi", liczba("agd-slupek-dol", dol, null, (v) => v != null && naY(v), "w-20"))}
+          {para("dół wnęki od podłogi", <span className="flex items-center gap-1">
+            <button data-el="agd-slupek-krok" data-v="-50" onClick={() => naY(dol - 50)} className="h-6 w-6 rounded border border-stone-300 bg-white text-sm leading-none text-stone-700 hover:border-teal-600">−</button>
+            {liczba("agd-slupek-dol", dol, null, (v) => v != null && naY(v), "w-20")}
+            <button data-el="agd-slupek-krok" data-v="50" onClick={() => naY(dol + 50)} className="h-6 w-6 rounded border border-stone-300 bg-white text-sm leading-none text-stone-700 hover:border-teal-600">+</button></span>)}
+          {/* jak w makiecie „Dodaj” (prog 1300 mm, uzytkownik 2026-11-08): mikrofala wysoko — ostrzezenie */}
+          {(() => { const lm = (cab.levels || []).findIndex((lv) => (lv.cols || []).some((k) => k.sprzet && k.sprzet.typ === "mikrofala"));
+            const ym = lm >= 0 && geo.levels[lm] ? Math.round(baza + geo.levels[lm].y0) : null;
+            return ym != null && ym > 1300 ? <p data-el="agd-mikrofala-wysoko" className="mt-1 text-[11px] font-medium text-amber-700">Mikrofala wysoko — dół {fmt(ym)} mm od podłogi (więcej niż 1 300): trudno z niej korzystać i wyjmować gorące naczynia. Daj piekarnik „Pod blat” albo zamień je miejscami.</p> : null; })()}
           <div className="mt-1 flex flex-wrap gap-1">
             {rt && rt.worktop && btn("agd-slupek-blat", `Na wysokość blatu (dół ${fmt(Math.round(rt.y + rt.th))})`, () => naY(Math.round(rt.y + rt.th)))}
             {rt && btn("agd-slupek-podblat", "Pod blat (góra równo z szafkami dolnymi)", () => naY(Math.round(rt.y - hW)))}

@@ -127,3 +127,29 @@ nowy pomysł, zanim trafi do aplikacji.
   szczegółowa je pokazuje i pozwala zmieniać.
 - **Kolejność**: krok 1 — tryb makiety w aplikacji, podgląd z prawdziwych danych i zaznaczanie;
   potem uchwyty, paleta i klocki, AGD.
+
+## F. Porównanie po zgłoszeniach użytkownika (2026-11-11)
+
+Użytkownik: „czemu to, co było dobre na makiecie testowej, tutaj nie działa?”. Przyczyna wspólna: makieta trzyma sprzęt
+jako klocek z własną wysokością, aplikacja — w poziomie szafki; szafka bez gotowych poziomów miała jeden poziom na
+całą wysokość.
+
+Wyrównane 2026-11-11:
+- sprzęt w słupku na własnym poziomie (drugi nie kasuje pierwszego), szuflady pod sprzętem na własnym niskim poziomie;
+- „Na wysokość blatu”, „Pod blat”, „Do szafek górnych”, „Zamień”, „Razem” — także dla sprzętu wstawionego dawniej na
+  cały poziom; kroki −/+ 50 mm przy „dół wnęki od podłogi”;
+- postawiony sprzęt w słupku chwytany na rysunku (góra / dół), płyta / zlew / sprzęt na blacie — przeciągane na inną
+  szafkę (rysunek z góry);
+- ostrzeżenie „Mikrofala wysoko” (dół ponad 1300 mm); sprzęt na blacie: góra od podłogi, miejsce do szafek górnych,
+  ostrzeżenia (nie mieści się, ekspres poniżej 150 mm, mikrofala poniżej 100 mm);
+- wygląd piekarnika, mikrofali i ekspresu jak w makiecie; słupek w ciągu z blatem ma wieniec (bez pary pod blat).
+
+Zostaje (jest w makiecie, nie ma w aplikacji):
+- chwyt całej szuflady (górna połowa — linia nad nią, dolna — pod nią), dwuklik na szufladzie — wpisanie wysokości,
+  „Szuflada typowa”; w aplikacji jest linia między szufladami i „po równo”;
+- front „Szuflada + drzwi” (szuflada u góry / na dole) jednym przyciskiem — w aplikacji przez poziomy kolumny;
+- przeciąganie piekarnika / mikrofali do INNEJ szafki (w aplikacji: usuń i wstaw);
+- tryb dotykowy „Przesuń” (dotknij sprzęt, potem miejsce) i zielone ramki miejsc, gdzie sprzęt może stanąć;
+- opis „Co zrobi program” w karcie sprzętu i szafki;
+- lodówka do zabudowy: pole „dolny front” przy 2 frontach — do sprawdzenia w karcie aplikacji.
+
