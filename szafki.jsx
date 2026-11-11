@@ -10292,7 +10292,21 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                   <text x={mx(ox + q.x0, q.w) + q.w / 2} y={fy(wierzch + q.h / 2) + 8} textAnchor="middle" fontSize="20" fill="#fafaf9"
                     fontFamily="ui-monospace, monospace">{q.nazwa}</text>
                 </g>
-              ))];
+              )),
+              /* makieta (jak „Dodaj”): z przodu plyta to cienkie szklo na blacie, zlew — bateria; pod blatem przerywana kaseta
+                 plyty / komora zlewu na glebokosc z karty modelu */
+              ...(onPick ? (rt.wyciecia || []).map((q, i) => {
+                const cx = ox + (q.x0 + q.x1) / 2, w = q.x1 - q.x0, sw = q.sw > 0 ? q.sw : w, xs = mx(cx - sw / 2, sw);
+                const kom = q.typ === "plyta" ? [[cx - (q.kw || w) / 2, q.kw || w]] : q.rozm === "2" ? [[cx - (w - 60) / 2, (w - 80) / 2], [cx + 10, (w - 80) / 2]]
+                  : q.ociekacz ? [[q.ociekacz === "L" ? cx + w / 2 - 30 - w * 0.5 : cx - w / 2 + 30, w * 0.5]] : [[cx - (w - 60) / 2, w - 60]];
+                const xb = mx(cx, 0);
+                return <g key={"wf" + i} data-el="wyciecie-front" data-typ={q.typ} pointerEvents="none">
+                  {q.typ === "plyta" ? <rect x={xs} y={fy(wierzch) - 10} width={sw} height="10" fill="#292524" />
+                    : <path d={`M${xb + 60} ${fy(wierzch)} v-240 q0 -60 -60 -60 h-110`} fill="none" stroke="#57534e" strokeWidth="22" strokeLinecap="round" />}
+                  {q.podBlatem > 0 && kom.map(([kx, kw], k2) => <rect key={k2} x={mx(kx, kw)} y={fy(wierzch)} width={Math.max(1, kw)} height={q.podBlatem}
+                    rx={q.typ === "zlew" ? 16 : 0} fill="none" stroke="#57534e" strokeWidth="5" strokeDasharray="16 10" />)}
+                </g>;
+              }) : [])];
             })()}
             {/* Odcinek zjedzony przez rog nie jest pusty — stoi w nim bok szafki
                 z sasiedniej sciany. Bez tego szafki wygladaja, jakby bez powodu
@@ -11012,24 +11026,30 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
         fill={SPRZET_KOLOR} fillOpacity="0.35" stroke={INK} strokeWidth="2" style={onPick ? { cursor: "pointer" } : undefined} />
     )), ...(rt.wyciecia || []).map((q, i) => (
       <g key={"wyc" + i} data-el="wyciecie-blatu" data-idx={q.idx} data-k={q.k} style={onPick ? { cursor: "pointer" } : undefined}>
+        {/* plyta: szklo ciemne i pelne, pola grzewcze jasne (jak w makiecie „Dodaj”; uzytkownik 2026-11-11: „płyta indukcyjna
+            też wygląda inaczej”) — wyciecie pod szklem nie jest widoczne */}
         {q.sw > 0 && q.sd > 0 && (
           <rect data-el="rant-blatu" x={lead + (q.x0 + q.x1) / 2 - q.sw / 2} y={yS + rt.depth - q.odPrzodu - q.d - (q.sd - q.d) / 2} width={q.sw} height={q.sd}
-            fill={q.typ === "plyta" ? "#27272a" : "#d4d4d8"} opacity={q.typ === "plyta" ? 0.18 : 0.45} stroke={INK} strokeWidth="2" />
+            rx={q.typ === "plyta" ? 22 : 0} fill={q.typ === "plyta" ? "#292524" : "#d4d4d8"} opacity={q.typ === "plyta" ? 1 : 0.45} stroke={INK} strokeWidth="2" />
         )}
         {q.ociekacz && (() => {
           // ociekacz — pol rantu po swojej stronie, kreskowane (komora po drugiej)
           const sx = lead + (q.x0 + q.x1) / 2, y0 = yS + rt.depth - q.odPrzodu - q.d;
           return <line x1={sx} y1={y0} x2={sx} y2={y0 + q.d} stroke={INK} strokeWidth="2" strokeDasharray="4 6" data-el="ociekacz" data-strona={q.ociekacz} />;
         })()}
-        <rect x={lead + q.x0} y={yS + rt.depth - q.odPrzodu - q.d} width={q.x1 - q.x0} height={q.d}
-          fill="#fafaf9" stroke={INK} strokeWidth="2" strokeDasharray="10 6" />
-        {/* jak w makiecie „Dodaj”: plyta — pola grzewcze, zlew — komory (i ociekacz) */}
+        {!(q.typ === "plyta" && q.sw > 0 && q.sd > 0) && <rect x={lead + q.x0} y={yS + rt.depth - q.odPrzodu - q.d} width={q.x1 - q.x0} height={q.d}
+          fill="#fafaf9" stroke={INK} strokeWidth="2" strokeDasharray="10 6" />}
+        {/* jak w makiecie „Dodaj”: plyta — pola grzewcze (dwa wieksze, dwa mniejsze, na szkle), zlew — komory (i ociekacz) */}
         {(() => {
           const y0 = yS + rt.depth - q.odPrzodu - q.d, x0 = lead + q.x0, w = q.x1 - q.x0;
           if (q.typ === "plyta") {
-            const n = q.rozm === "30" ? 2 : q.rozm === "90" ? 5 : 4, r = Math.min(w, q.d) * (n === 2 ? 0.22 : 0.18);
-            const pkt = n === 2 ? [[0.5, 0.28], [0.5, 0.72]] : n === 5 ? [[0.2, 0.3], [0.2, 0.7], [0.5, 0.5], [0.8, 0.3], [0.8, 0.7]] : [[0.27, 0.3], [0.27, 0.7], [0.73, 0.3], [0.73, 0.7]];
-            return <g data-el="pola-grzewcze">{pkt.map(([fx, fz], k2) => <circle key={k2} cx={x0 + fx * w} cy={y0 + fz * q.d} r={r} fill="none" stroke={INK} strokeWidth="2.5" opacity="0.7" />)}</g>;
+            const szklo = q.sw > 0 && q.sd > 0, gw = szklo ? q.sw : w, gd = szklo ? q.sd : q.d;
+            const gx = szklo ? lead + (q.x0 + q.x1) / 2 - q.sw / 2 : x0, gy = szklo ? y0 - (q.sd - q.d) / 2 : y0;
+            const n = q.rozm === "30" ? 2 : q.rozm === "90" ? 5 : 4, m = Math.min(gw, gd);
+            const pkt = n === 2 ? [[0.5, 0.28, 0.2], [0.5, 0.72, 0.16]] : n === 5 ? [[0.2, 0.3, 0.13], [0.2, 0.72, 0.11], [0.5, 0.5, 0.17], [0.8, 0.3, 0.11], [0.8, 0.72, 0.13]]
+              : [[0.3, 0.3, 0.16], [0.7, 0.3, 0.125], [0.3, 0.72, 0.125], [0.7, 0.72, 0.16]];
+            return <g data-el="pola-grzewcze">{pkt.map(([fx, fz, fr], k2) => <circle key={k2} cx={gx + fx * gw} cy={gy + fz * gd} r={m * fr}
+              fill="none" stroke={szklo ? "#d6d3d1" : INK} strokeWidth="5" opacity={szklo ? 1 : 0.7} />)}</g>;
           }
           const kom = (kx, kw) => <rect key={kx} x={kx} y={y0 + 25} width={kw} height={q.d - 50} rx="30" fill="#e7e5e4" stroke={INK} strokeWidth="2" />;
           const sciek = (cx) => <circle key={`s${cx}`} cx={cx} cy={y0 + q.d / 2} r="18" fill="none" stroke={INK} strokeWidth="2" />;
@@ -11039,7 +11059,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
           return <g data-el="komory">{kom(x0 + 25, w - 50)}{sciek(x0 + w / 2)}</g>;
         })()}
         <text x={lead + (q.x0 + q.x1) / 2} y={yS + rt.depth - q.odPrzodu - q.d / 2 + 8} textAnchor="middle"
-          fontSize="22" fill={INK} fontFamily="ui-monospace, monospace">{`${q.krotka} ${fmt(q.w)}×${fmt(q.d)}${q.ociekacz ? ` · ociekacz ${q.ociekacz === "L" ? "z lewej" : "z prawej"}` : ""}`}</text>
+          fontSize="22" fill={q.typ === "plyta" && q.sw > 0 && q.sd > 0 ? "#fafaf9" : INK} fontFamily="ui-monospace, monospace">{`${q.krotka} ${fmt(q.w)}×${fmt(q.d)}${q.ociekacz ? ` · ociekacz ${q.ociekacz === "L" ? "z lewej" : "z prawej"}` : ""}`}</text>
       </g>
     ))];
   };
@@ -21112,6 +21132,7 @@ const ikonaWzoru = (w, baza0) => {
   else if (id === "zmywarka" || id === "zmywarka-wolno") d = `${box} M${x0} ${y0 + 4}h${x1 - x0} M${mid - 4} ${y0 + 8}h8`;
   else if (id === "lodowka-wolno" || id === "lodowka-pod") d = `${box} M${x0} ${y0 + (y1 - y0) * 0.4}h${x1 - x0} M${x1 - 4} ${y0 + 4}v4`;
   else if (id === "szuflady" || id === "nocna") d = `${box} ${sz(id === "nocna" ? 2 : 3)}`;
+  else if (id === "szufDrzwi") d = `${box} M${x0} ${y0 + 5}h${x1 - x0} M${mid - 3} ${y0 + 2.5}h6 M${mid} ${y0 + 5}v${y1 - y0 - 5}`;
   else if (id === "regal" || id === "regalW") d = `${box} ${sz(5)}`;
   else if (id === "szafaSz") d = `${box} M${x0} ${y1 - 9}h${x1 - x0} M${x0} ${y1 - 4.5}h${x1 - x0} M${x0} ${y1 - 13.5}h${x1 - x0} M${mid} ${y0}v${y1 - y0 - 13.5}`;
   else if (id === "szafa2") d = `${box} M${mid} ${y0}v${y1 - y0} M${mid + 3} ${y0 + 6}h${x1 - mid - 6}`;
@@ -21307,7 +21328,7 @@ function makWylicz(cab, geo, d, p) {
   if (d.u === "szufl") {
     // poziom kolumny z szufladami (`d.seg`) — tylko jego szuflady, zapis do `col.segmenty[nr]`
     const dr = (col.drawers || []).filter((q) => (d.seg == null ? true : q.seg && q.seg.nr === d.seg)).sort((x, y) => x.i - y.i), a = dr[d.k], b = dr[d.k + 1]; if (!a || !b) return null;
-    const gap = col.gapBetween || 0, suma = a.h + b.h, fh = Math.max(MAK_MIN, Math.min(suma - MAK_MIN, r10(gy - gap / 2 - a.y)));
+    const gap = col.gapBetween || 0, suma = a.h + b.h, fh = Math.max(MAK_MIN, Math.min(suma - MAK_MIN, d.sw != null ? Math.round(d.sw) : r10(gy - gap / 2 - a.y)));
     const yb = a.y + fh + gap / 2;
     return { wartosc: fh, napis: `front ${fh} · ${Math.round(suma - fh)}`, linia: [col.x0, H - yb, col.x0 + col.w, H - yb],
       zmien: (c) => { const raw = kolumnaW(c.levels, d.li, d.seg == null ? d.j : `${d.j}s${d.seg}`); if (!raw || (raw.drawers || []).length !== dr.length) return;
@@ -21316,6 +21337,29 @@ function makWylicz(cab, geo, d, p) {
   }
   return null;
 }
+
+/* Chwyt calej szuflady (makieta „Dodaj”, uzytkownik 2026-11-11): gorna polowa szuflady ciagnie linie nad nia, dolna — pod
+   nia. Linia to granica z sasiednia szuflada (`szufl`) albo — przy szufladzie na skraju poziomu szafki z jedna kolumna —
+   przegroda pozioma do poziomu obok (`poziom`, np. szuflada nad drzwiami w „Szuflada + drzwi”). `null` — tej linii nie ma. */
+const makSzuflLinie = (cab, geo, li, j, k) => {
+  const lv = makLv(geo, li), col = lv && lv.cols.find((q) => q.j === j);
+  if (!col) return { nad: null, pod: null, dr: [] };
+  const dr = [...(col.drawers || [])].sort((x, y) => x.i - y.i), n = dr.length;
+  const x = (geo.levels || []).indexOf(lv), jedna = lv.cols.length === 1 && (geo.levels || []).length === (cab.levels || []).length;
+  return { dr, lvX: x,
+    nad: k < n - 1 ? { u: "szufl", k } : jedna && x < geo.levels.length - 1 ? { u: "poziom", k: x } : null,
+    pod: k > 0 ? { u: "szufl", k: k - 1 } : jedna && x > 0 ? { u: "poziom", k: x - 1 } : null };
+};
+/* wpisana wysokosc frontu szuflady `k` (dwuklik na szufladzie): roznice bierze sasiednia szuflada, a na skraju poziomu — poziom obok */
+const makSzuflWys = (cab, geo, li, j, k, v) => {
+  const L = makSzuflLinie(cab, geo, li, j, k), a = L.dr[k]; if (!a || !(v > 0)) return null;
+  const dl = v - a.h;
+  if (L.nad && L.nad.u === "szufl") return makWylicz(cab, geo, { u: "szufl", li, j, k, sw: v }, null);
+  if (L.pod && L.pod.u === "szufl") return makWylicz(cab, geo, { u: "szufl", li, j, k: k - 1, sw: L.dr[k - 1].h + a.h - v }, null);
+  if (L.nad) return makWylicz(cab, geo, { u: "poziom", k: L.nad.k, sw: geo.levels[L.lvX].h + dl }, null);
+  if (L.pod) return makWylicz(cab, geo, { u: "poziom", k: L.pod.k, sw: geo.levels[L.lvX - 1].h - dl }, null);
+  return null;
+};
 
 // uchwyty zaznaczonej szafki (uklad szafki: x od lewego boku, y od gory) + podglad przeciagania
 function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, blatSzcz, bezWn }) {
@@ -21417,7 +21461,12 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
     }
     if (zakladka === "szuflady" && raw.kind === "drawers") {
       const dr = [...(col.drawers || [])].sort((x, y) => x.i - y.i);
+      const lin = makSzuflLinie(cab, geo, lv.i, col.j, 0);
       dr.forEach((a, k) => {
+        /* cala szuflada do chwycenia (gorna polowa — linia nad nia, dolna — pod nia; dwuklik — wpisz wysokosc); bez pasa
+           przy linii, zeby linie dalo sie chwycic jak dotad */
+        const ln = k === 0 ? lin : makSzuflLinie(cab, geo, lv.i, col.j, k);
+        if (ln.nad || ln.pod) out.push(pas(`sz${lv.i}-${col.j}-${k}`, "szuflSz", { ...dane, "data-k": k }, col.x0 + 20, fy(a.y + a.h) + 28, col.w - 40, Math.max(6, a.h - 56), "ns-resize"));
         out.push(napis(`f${lv.i}-${col.j}-${k}`, col.x0 + col.w / 2, fy(a.y + a.h / 2) + 10, `front ${fmt(a.h)}`));
         if (k < dr.length - 1) {
           const yb = a.y + a.h + (col.gapBetween || 0) / 2;
@@ -21792,6 +21841,46 @@ const makUstawSzuflady = (k, n, sys) => {
   k.kind = "drawers"; delete k.sprzet; POLA_KLAPY.forEach((pole) => delete k[pole]);
   k.drawers = Array.from({ length: n }, (_, i) => (st[i] ? { ...st[i], front: null } : nowa()));
 };
+/* „Szuflada + drzwi” (makieta „Dodaj”, szu_1d; uzytkownik 2026-11-08): szafka dolna z dwoma poziomami — szuflada
+   (front typowo 170 mm u gory, 200 na dole) i drzwi (1 albo 2) w reszcie, polki zostaja przy drzwiach. Wysokosc poziomu
+   szuflady dobrana tak, zeby jej front mial zadana wysokosc (geometria liczona `geoF`). Szafka wysoka — szuflady w slupku. */
+const MAK_SZ_G = 170, MAK_SZ_D = 200;
+const makSzufDrzwiUklad = (cab) => {
+  const L = (cab && cab.levels) || [];
+  if (L.length !== 2 || cab.slupek || cab.H > 1500 || L.some((lv) => (lv.cols || []).length !== 1)) return null;
+  const sz = (k) => k.kind === "drawers" && (k.drawers || []).length === 1 && makKolumnaProsta(k);
+  const dz = (k) => (k.kind || "doors") === "doors" && !k.sprzet && k.doors > 0 && !k.klapa && makKolumnaProsta(k);
+  const [a, b] = [L[0].cols[0], L[1].cols[0]];
+  if (sz(a) && dz(b)) return { dol: true, sz: 0, dr: 1, drzwi: Math.min(2, b.doors) };
+  if (dz(a) && sz(b)) return { dol: false, sz: 1, dr: 0, drzwi: Math.min(2, a.doors) };
+  return null;
+};
+const makUstawSzufDrzwi = (c, o) => {
+  const st = makSzufDrzwiUklad(c), L0 = c.levels || [];
+  const zrodlo = st ? L0[st.dr].cols[0] : ((L0[0] || {}).cols || [])[0];
+  const kD = zrodlo && (zrodlo.kind || "doors") === "doors" && !zrodlo.sprzet && makKolumnaProsta(zrodlo) ? JSON.parse(JSON.stringify(zrodlo)) : newColumn(1, 0);
+  const drzwi = o.drzwi || (st ? st.drzwi : Math.min(2, kD.doors || (c.W > 500 ? 2 : 1)));
+  makUstawFront(kD, `drzwi-${drzwi}`);
+  kD.w = null; kD.shelfTargets = Array((kD.shelfTargets || [null]).length).fill(null);
+  const kS = st ? JSON.parse(JSON.stringify(L0[st.sz].cols[0])) : newColumn(1, 0);
+  if (!st) makUstawSzuflady(kS, 1, o.sys);
+  kS.w = null; kS.drawers = (kS.drawers || []).map((d) => ({ ...d, front: null }));
+  const dol = o.dol != null ? !!o.dol : st ? st.dol : false;
+  const cel = o.frontH || (dol ? MAK_SZ_D : MAK_SZ_G);
+  const lvS = { h: dol ? cel - 30 : null, cols: [kS] }, lvD = { h: null, cols: [kD] };
+  c.levels = dol ? [lvS, lvD] : [lvD, lvS];
+  // front szuflady na zadana wysokosc: przy szufladzie na dole zmienia sie jej poziom, u gory — poziom drzwi pod nia
+  for (let n = 0; n < 4 && o.geoF; n++) {
+    const g = o.geoF(c), gl = g && (g.levels || [])[dol ? 0 : 1], d = gl && ((gl.cols[0] || {}).drawers || [])[0];
+    if (!d) break;
+    const roz = Math.round(cel - d.h); if (!roz) break;
+    if (dol) lvS.h = Math.max(MAK_MIN, lvS.h + roz);
+    else lvD.h = Math.max(MAK_MIN, Math.round((lvD.h ?? g.levels[0].h) - roz));
+  }
+  return c;
+};
+// geometria kopii szafki do dopasowania wysokosci (nowy obiekt — bez pamieci podrecznej `computeGeo`)
+const makGeoKopii = (mat, stoi) => (c) => { try { return computeGeo({ ...JSON.parse(JSON.stringify(c)), ...(stoi ? { naPodlodze: true } : {}) }, mat || defaultMaterials); } catch (e) { return null; } };
 const makUstawPolki = (k, n) => {
   k.shelfTargets = Array(Math.max(0, n) + 1).fill(null);
   if ((k.drazki || []).length) k.drazki = [Math.max(0, n)];   // drazek zostaje w najwyzszym swietle (jak `dopasujPolki`)
@@ -21866,7 +21955,7 @@ const makIkonaSzafki = (cab, gorny) => {
   const id = b ? (b.kont ? "biurkoK" : "biurko") : sp === "zmywarka" ? "zmywarka" : sp === "zmywarkaW" ? "zmywarka-wolno"
     : sp === "lodowka" ? "lodowka-wolno" : sp === "lodowkaP" ? "lodowka-pod" : (cab.corner || {}).on ? (gorny ? "naroznikLgorny" : "naroznikL")
     : cab.H >= 1500 ? (cols.some((k) => k.kind === "drawers") ? "szafaSz" : "slupek")
-    : cols.length && cols.every((k) => k.kind === "drawers") ? "szuflady" : "x";
+    : cols.length && cols.every((k) => k.kind === "drawers") ? "szuflady" : makSzufDrzwiUklad(cab) ? "szufDrzwi" : "x";
   return ikonaWzoru({ id, tpl: gorny ? "wiszaca" : "" }, bazaSzafki(cab));
 };
 // opis szafki pod nazwa (jak w makiecie „Dodaj”): szerokosci kolumn, fronty, szuflady, polki, przegrody, wzmocnienia
@@ -21926,6 +22015,10 @@ const MAK_PALETA = [
     { id: "dolna1", nazwa: "Dolna, 1 drzwi", opis: "450 mm", tpl: "stojaca", gdzie: "dol", ciag: true, mod: (c) => { c.W = 450; makUstawFront(makK0(c), "drzwi-1"); } },
     { id: "dolna2", nazwa: "Dolna, 2 drzwi", opis: "800 mm", tpl: "stojaca", gdzie: "dol", ciag: true, mod: (c) => { c.W = 800; } },
     { id: "szuflady", nazwa: "Dolna z szufladami", opis: "600 mm, 3 szuflady", tpl: "stojaca", gdzie: "dol", ciag: true, mod: (c, sys) => { c.W = 600; makUstawSzuflady(makK0(c), 3, sys); } },
+    { id: "szufDrzwi", nazwa: "Dolna, szuflada + drzwi", opis: "600 mm, szuflada u góry", tpl: "stojaca", gdzie: "dol", ciag: true,
+      mod: (c, sys) => { c.W = 600; makUstawSzufDrzwi(c, { sys }); },
+      // front szuflady 170 — dopiero gdy szafka ma juz wysokosc ciagu i blat zamiast wienca (`dodaj`, `opcje.poDodaniu`)
+      po: (c, sys, mat, stoi) => makUstawSzufDrzwi(c, { sys, geoF: makGeoKopii(mat, stoi) }) },
     { id: "zlewowa", nazwa: "Zlewowa", opis: "800 mm, bez półek", tpl: "stojaca", gdzie: "dol", ciag: true, mod: (c) => { c.W = 800; makUstawPolki(makK0(c), 0); } },
     { id: "slupek", opis: "600 × 2000", tpl: "slupek", gdzie: "dol" },
     { id: "naroznikL", opis: "z ramieniem i ciągiem za rogiem", tpl: "naroznikL", gdzie: "dol" },
@@ -22539,6 +22632,10 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       grupa("gf", "front"),
       ...MAK_FRONTY.map(([v, l]) => <Btn key={v} el="mak-front" v={v} on={frontKol(k.c) === v}
         onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawFront(kk, v)) : frontOdc(k, v))}>{l}</Btn>),
+      // „Szuflada + drzwi” jednym przyciskiem (makieta „Dodaj”) — szafka dolna z jedna kolumna albo juz w tym ukladzie
+      ...(k.nr == null && (makSzufDrzwiUklad(cab) || (!(cab.slupek || cab.H > 1500) && !biurko && !cab.sprzetCiagu && poziomy.length === 1 && kolumny.length === 1 && !k.c.sprzet))
+        ? [<Btn key="szd" el="mak-front" v="szuflada-drzwi" on={!!makSzufDrzwiUklad(cab)} onClick={() => !makSzufDrzwiUklad(cab)
+          && zmien(idx, (c) => makUstawSzufDrzwi(c, { sys: systemKontekstu(project, idx), geoF: makGeoKopii(it.mat, ciagStoi(run) && !cab.naPodlodze) }))}>Szuflada + drzwi</Btn>] : []),
       ...((k.c.kind || "doors") === "doors" && k.c.doors > 0 ? [grupa("go", "otwieranie"),
         <Btn key="u" el="mak-otw" v="uchwyt" on={!tipon(k.c)} onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawTipon(kk, false)) : tiponOdc(k, false))}>uchwyt</Btn>,
         <Btn key="t" el="mak-otw" v="tipon" on={tipon(k.c)} onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawTipon(kk, true)) : tiponOdc(k, true))}>tip-on</Btn>,
@@ -22558,6 +22655,25 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         onClick={() => (slupekSzuflady(k, n) ? null : k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawSzuflady(kk, n)) : szufladyOdc(k, n))}>{n}</Btn>).concat(
       // usuwanie szuflad (uzytkownik 2026-11-11: „brak opcji usuwania”): kolumna / poziom wraca do jednych drzwi
       k.c.kind === "drawers" ? [<Btn key="us" el="mak-szuflady-usun" onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawFront(kk, "drzwi-1")) : frontOdc(k, "drzwi-1"))}>usuń szuflady</Btn>] : []), "mak-kolumna"));
+    /* „Szuflada + drzwi” (makieta „Dodaj”): jednym przyciskiem; w ukladzie — szuflada u gory / na dole, drzwi 1 / 2,
+       „Szuflada typowa” wraca do 170 / 200 mm frontu */
+    const sd = makSzufDrzwiUklad(cab), geoF = makGeoKopii(it.mat, ciagStoi(run) && !cab.naPodlodze);
+    const sdUstaw = (o) => zmien(idx, (c) => makUstawSzufDrzwi(c, { sys: systemKontekstu(project, idx), geoF, ...o }));
+    if (sd) {
+      const gS = geoKarty && (geoKarty.levels || [])[sd.sz], dS = gS && ((gS.cols[0] || {}).drawers || [])[0], fh = dS ? Math.round(dS.h) : null;
+      const typ = sd.dol ? MAK_SZ_D : MAK_SZ_G;
+      tresc.unshift(wiersz("szd", `szuflada + drzwi${fh ? ` — front szuflady ${fmt(fh)} mm` : ""}`, [
+        <Btn key="g" el="mak-szd-miejsce" v="gora" on={!sd.dol} onClick={() => sd.dol && sdUstaw({ dol: false, frontH: fh && fh !== MAK_SZ_D ? fh : null })}>szuflada u góry</Btn>,
+        <Btn key="d" el="mak-szd-miejsce" v="dol" on={sd.dol} onClick={() => !sd.dol && sdUstaw({ dol: true, frontH: fh && fh !== MAK_SZ_G ? fh : null })}>szuflada na dole</Btn>,
+        <span key="s" className="basis-full" />,
+        ...[1, 2].map((n) => <Btn key={`dz${n}`} el="mak-szd-drzwi" v={n} on={sd.drzwi === n} onClick={() => sd.drzwi !== n && sdUstaw({ drzwi: n, frontH: fh })}>{n} drzwi</Btn>),
+        ...(fh != null && Math.abs(fh - typ) > 2 ? [<Btn key="t" el="mak-szd-typowa" onClick={() => sdUstaw({ frontH: typ })}>Szuflada typowa ({typ} mm)</Btn>] : []),
+      ], "mak-szd"));
+      tresc.splice(1, 0, <p key="szdh" className="text-[11px] text-stone-500" data-el="mak-szd-hint">Na rysunku chwyć szufladę i przeciągnij w górę / w dół — zmienia się jej wysokość (granica z drzwiami); dwuklik na szufladzie — wpisz wysokość frontu.</p>);
+    } else if (!(cab.slupek || cab.H > 1500) && !biurko && poziomy.length === 1 && (poziomy[0].cols || []).length === 1 && makKolumnaProsta(poziomy[0].cols[0]) && !poziomy[0].cols[0].sprzet && !cab.sprzetCiagu)
+      tresc.push(wiersz("szd", null, [<Btn key="sd" el="mak-szd-nowa" onClick={() => sdUstaw({})}>Szuflada + drzwi</Btn>,
+        <span key="o" className="text-[11px] text-stone-500">szuflada {MAK_SZ_G} mm u góry, pod nią drzwi</span>], "mak-szd"));
+    if (!sd && kolumny.some((q) => q.c.kind === "drawers")) tresc.push(<p key="szh" className="text-[11px] text-stone-500" data-el="mak-szufl-hint">Chwyć szufladę na rysunku i przeciągnij w górę albo w dół (górna połowa — linia nad nią, dolna — pod nią); dwuklik na szufladzie — wpisz jej wysokość.</p>);
     tresc.push(poRowno("front", "Fronty po równo"));
   }
   else if (zakladka === "polki") {
@@ -22963,13 +23079,23 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     setSwiatloPolki({ idx, li, j, k, x: e.clientX, y: e.clientY, h: Math.round(o[k].h), hNad: o[k + 1] ? Math.round(o[k + 1].h) : null, gora: k + 1 === o.length - 1 });
     return true;
   };
+  /* dwuklik / prawy przycisk na szufladzie (zakladka Szuflady, jak w makiecie „Dodaj”): wpisanie wysokosci jej frontu */
+  const [szuflWys, setSzuflWys] = useState(null);
+  const otworzSzuflade = (idx, h, e) => {
+    const geo = geoRysunku.current[idx], it = project.items[idx], li = Number(h.getAttribute("data-li")), j = Number(h.getAttribute("data-j")), k = Number(h.getAttribute("data-k"));
+    const L = geo && it && makSzuflLinie(it.cab, geo, li, j, k), a = L && L.dr[k];
+    if (!a) return false;
+    setMenuCo(null); setSwiatloPolki(null);
+    setSzuflWys({ idx, li, j, k, n: L.dr.length, h: Math.round(a.h), x: e.clientX, y: e.clientY });
+    return true;
+  };
   useEffect(() => {
-    if (!menuCo && !swiatloPolki) return undefined;
-    const esc = (e) => { if (e.key === "Escape") { setMenuCo(null); setSwiatloPolki(null); } };
-    const poza = (e) => { if (!(e.target.closest && e.target.closest("[data-el=mak-menu-co], [data-el=mak-swiatlo]"))) { setMenuCo(null); setSwiatloPolki(null); } };
+    if (!menuCo && !swiatloPolki && !szuflWys) return undefined;
+    const esc = (e) => { if (e.key === "Escape") { setMenuCo(null); setSwiatloPolki(null); setSzuflWys(null); } };
+    const poza = (e) => { if (!(e.target.closest && e.target.closest("[data-el=mak-menu-co], [data-el=mak-swiatlo], [data-el=mak-szuflada-wys]"))) { setMenuCo(null); setSwiatloPolki(null); setSzuflWys(null); } };
     window.addEventListener("keydown", esc); document.addEventListener("pointerdown", poza, true);
     return () => { window.removeEventListener("keydown", esc); document.removeEventListener("pointerdown", poza, true); };
-  }, [menuCo, swiatloPolki]);
+  }, [menuCo, swiatloPolki, szuflWys]);
   const wybierz = (i) => { setZaznM(true); switchCabinet(i); };
   const dodaj = (...a) => { dodaj0(...a); setZaznM(true); };
   // „Dodaj” — rozwiniety wybor (pamieta przegladarka)
@@ -23069,6 +23195,15 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     const idx = Number(grp.getAttribute("data-idx"));
     const num = (k) => (h.getAttribute(k) == null ? null : Number(h.getAttribute(k)));
     ciagnie.current = { u: h.getAttribute("data-u"), li: num("data-li"), j: num("data-j"), k: num("data-k"), seg: num("data-seg"), widok: h.getAttribute("data-widok") || "front", idx, grp };
+    /* cala szuflada: gorna polowa — linia nad nia, dolna — pod nia (gdy jej nie ma — ta druga) */
+    if (ciagnie.current.u === "szuflSz") {
+      const d = ciagnie.current, it = project.items[idx], geo = it && geoRysunku.current[idx], p = punkt(e, grp);
+      const L = geo && makSzuflLinie(it.cab, geo, d.li, d.j, d.k), a = L && L.dr[d.k];
+      const gora = !!(a && p && it.cab.H - p.y > a.y + a.h / 2);
+      const ln = L ? (gora ? L.nad || L.pod : L.pod || L.nad) : null;
+      if (!ln) { ciagnie.current = null; return; }
+      Object.assign(d, { u: ln.u, k: ln.k, szuflSz: true });
+    }
     try { h.setPointerCapture(e.pointerId); } catch (er) { /* bez przechwycenia */ }
   };
   const przewijanie = useRef(null);
@@ -23186,7 +23321,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     const it = c ? project.items[c.idx] : null;
     let run = c ? runOf(it) : runOf(project.items[project.active]);
     const sys = systemKontekstu(project, c ? c.idx : project.active);
-    const opcje = { zmien: w.mod ? (cab) => w.mod(cab, sys) : null, nazwa: w.szafka || null, wymiaryCiagu: !!w.ciag };
+    const opcje = { zmien: w.mod ? (cab) => w.mod(cab, sys) : null, nazwa: w.szafka || null, wymiaryCiagu: !!w.ciag,
+      poDodaniu: w.po ? (cab, mat, stoi) => w.po(cab, sys, mat, stoi) : null };
     const przed = (r) => (it && r && it.runId === r.id ? c.idx + (c.prawa ? 1 : 0) : null);
     if (w.gdzie === "wolna") { dodaj(w.tpl, null, opcje); return; }
     if (w.gdzie === "gora") {
@@ -23795,6 +23931,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
             ostatniKlik.current = pop && pop.k === klucz && t - pop.t < 450 ? null : { k: klucz, t };
             if (!(pop && pop.k === klucz && t - pop.t < 450)) return;
             if (h && h.getAttribute("data-u") === "polka" && otworzPolke(idx, h, e)) return;
+            if (h && h.getAttribute("data-u") === "szuflSz" && otworzSzuflade(idx, h, e)) return;
             setMenuCo({ idx, x: e.clientX, y: e.clientY });
           }}
           onContextMenu={(e) => {
@@ -23804,6 +23941,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
             const idx = Number(g.getAttribute("data-idx")), h = e.target.closest("[data-u]");
             // prawy przycisk na polce — to samo okienko co dwuklik (uzytkownik 2026-11-10)
             if (h && h.getAttribute("data-u") === "polka" && otworzPolke(idx, h, e)) return;
+            if (h && h.getAttribute("data-u") === "szuflSz" && otworzSzuflade(idx, h, e)) return;
             wybierz(idx); setMenuCo({ idx, x: e.clientX, y: e.clientY });
           }} style={lg || pelny ? undefined : { maxHeight: "calc(100vh - 175px)" }}>
         {widokM !== "przod" && (() => {
@@ -23902,6 +24040,30 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
               <button key={`a${i}`} data-mz="agd" onClick={() => { pokazAgd(a.sel); setMenuCo(null); }} className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-[12px] text-stone-800 hover:bg-teal-50">
                 <MakIkona d={MAK_IKONY.agd} size={18} />{a.l}</button>
             ))}
+          </div>
+        );
+      })()}
+      {szuflWys && (() => {
+        const { idx, li, j, k, n } = szuflWys;
+        const zapisz = (v) => {
+          const it = project.items[idx], geo = geoRysunku.current[idx];
+          const w = it && geo && v > 0 ? makSzuflWys(it.cab, geo, li, j, k, v) : null;
+          if (w && w.zmien) zmien(idx, w.zmien);
+          setSzuflWys(null);
+        };
+        return (
+          <div role="dialog" aria-label={`Szuflada ${k + 1}`} data-el="mak-szuflada-wys" className="fixed z-50 w-64 rounded-lg border border-stone-200 bg-white p-2 shadow-xl"
+            style={{ left: Math.max(8, Math.min(szuflWys.x + 10, (typeof window !== "undefined" ? window.innerWidth : 1200) - 270)), top: Math.max(8, Math.min(szuflWys.y + 10, oknoH - 150)) }}>
+            <b className="block text-[12px] text-stone-900">Szuflada {k + 1} od dołu</b>
+            <span className="block text-[11px] text-stone-500">{n > 1 ? "Wysokość frontu — różnicę przejmie szuflada obok." : "Wysokość frontu — różnicę przejmie poziom obok."}</span>
+            <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-stone-600">
+              <span>front</span>
+              <input type="number" step="10" autoFocus defaultValue={szuflWys.h} data-el="mak-szuflada-wys-pole"
+                onKeyDown={(e) => { if (e.key === "Enter") zapisz(Math.round(Number(e.currentTarget.value))); }}
+                className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" /><span>mm</span>
+              <button data-el="mak-szuflada-wys-ok" onClick={(e) => zapisz(Math.round(Number(e.currentTarget.parentNode.querySelector("input").value)))}
+                className="ml-auto rounded bg-teal-700 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-teal-800">OK</button>
+            </div>
           </div>
         );
       })()}
@@ -24232,6 +24394,7 @@ export default function App() {
       ...(podBlat && !spC ? bezWienca(base, matNowej.front.thickness) : {}),
       ...(stoi && !(spC && (spC.typ === "lodowka" || spC.typ === "zmywarkaW")) ? { legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } } : {}) },
       mat: matNowej, runId, roomId };
+    if (opcje.poDodaniu) opcje.poDodaniu(fresh.cab, fresh.mat, !!stoi);
     /* Nowa szafka ciagu ma stanac na jego koncu, a nie na koncu calego projektu —
        inaczej kolejnosc przy scianie zalezalaby od tego, w jakiej kolejnosci
        dokladano szafki do roznych ciagow. */

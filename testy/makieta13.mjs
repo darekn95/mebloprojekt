@@ -1,0 +1,123 @@
+// Makieta — roznice z makieta testowa „Dodaj” (uzytkownik 2026-11-11: „wszystko zrób”): chwyt calej szuflady (gorna
+// polowa — linia nad nia, dolna — pod nia), dwuklik na szufladzie (wysokosc frontu), „Szuflada + drzwi” jednym przyciskiem
+// i „Szuflada typowa”, przenoszenie sprzetu do innej szafki (przeciaganie i „Przesuń” dotknieciem, zielone ramki),
+// opis „Co zrobi program”, plyta indukcyjna jak w makiecie, lodowka — dolny front przy 2 frontach.
+import pw from './pw.mjs';
+const { chromium } = pw;
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
+const errors = [];
+page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message));
+page.on('console', (m) => { if (m.type() === 'error' && !/favicon|404|\[BABEL\] Note/.test(m.text())) errors.push('[console] ' + m.text()); });
+let bledy = 0;
+const ok = (l, c, e = '') => { if (!c) bledy++; console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : '')); };
+const STD = !!process.env.STD;
+const URL = STD ? 'http://127.0.0.1:5199/standalone-local.html' : 'http://127.0.0.1:5205/mebloprojekt-app.html';
+const start = async (tryb, zmien, przel) => {
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForFunction(() => !!localStorage.getItem('szafki:projekt'), null, { timeout: 10000 });
+  await page.evaluate(([tryb, src, przel]) => {
+    const p = JSON.parse(localStorage.getItem('szafki:projekt'));
+    if (src) new Function('p', src)(p);
+    localStorage.setItem('szafki:projekt', JSON.stringify(p));
+    localStorage.setItem('mp-tryb', tryb);
+    localStorage.setItem('mp-mak-zoom', JSON.stringify({ pow: false, z: 1 }));
+    if (przel) localStorage.setItem('mp-mak-przel', JSON.stringify(przel));
+  }, [tryb, zmien || '', przel || null]);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(1200);
+};
+const proj = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
+const czekaj = async (f) => { await page.waitForFunction((src) => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); try { return new Function('p', 'return ' + src)(p); } catch (e) { return false; } }, f, { timeout: 5000 }).catch(() => {}); return proj(); };
+const zakl = async (k) => { const b = page.locator(`[data-el="makieta"] nav [data-zakl="${k}"]`);
+  if ((await b.getAttribute('aria-pressed')) !== 'true' || !(await page.locator('[data-el="mak-karta-panel"]').count())) await b.click(); await page.waitForTimeout(300); };
+const karta = (sel) => page.locator(`[data-el="mak-karta-panel"] ${sel}`);
+// srodek elementu na ekranie
+const srodek = async (loc) => { const b = await loc.boundingBox(); return b ? { x: b.x + b.width / 2, y: b.y + b.height / 2, b } : null; };
+const ciagnij = async (x0, y0, x1, y1) => { await page.mouse.move(x0, y0); await page.mouse.down(); for (let i = 1; i <= 8; i++) await page.mouse.move(x0 + ((x1 - x0) * i) / 8, y0 + ((y1 - y0) * i) / 8); await page.mouse.up(); await page.waitForTimeout(400); };
+// ciag kuchenny z blatem: szafka 600 z jedna kolumna drzwi (zaznaczona) i druga 600
+const CIAG = `const w = p.items[0];
+  p.runs = [{ id: 'r1', name: 'Ściana 1', roomId: w.roomId || 'p1', worktop: true }];
+  p.items = [0, 1].map((i) => { const it = JSON.parse(JSON.stringify(w)); it.cab.name = 'Szafka ' + (i + 1); it.cab.W = 600; it.cab.levels = [{ h: null, cols: [{ ...it.cab.levels[0].cols[0], doors: 1, w: null }] }]; it.runId = 'r1'; return it; });
+  p.active = 0;`;
+const WSZYSTKO = { zgory: true, gorny: true, dolny: true, fronty: true, kolory: true, wymiary: true };
+
+console.log('== Szuflada + drzwi ==');
+await start('prosta', CIAG, WSZYSTKO);
+await zakl('szuflady');
+ok('przycisk „Szuflada + drzwi” w Szufladach', (await karta('[data-el="mak-szd-nowa"]').count()) === 1);
+await karta('[data-el="mak-szd-nowa"]').click();
+let p = await czekaj('p.items[0].cab.levels.length === 2');
+let L = p.items[0].cab.levels;
+ok('dwa poziomy: drzwi na dole, szuflada u góry', L.length === 2 && (L[0].cols[0].kind || 'doors') === 'doors' && L[1].cols[0].kind === 'drawers' && L[1].cols[0].drawers.length === 1, JSON.stringify(L.map((l) => [l.h, l.cols[0].kind, l.cols[0].doors])));
+await page.waitForTimeout(400);
+const frontSz = async () => page.evaluate(() => { const t = [...document.querySelectorAll('[data-el="makieta-uchwyty"] text')].map((q) => q.textContent.trim()).filter((q) => /^front \d+/.test(q)); return t; });
+ok('front szuflady 170 mm', (await frontSz()).includes('front 170'), JSON.stringify(await frontSz()));
+ok('wiersz „szuflada + drzwi” z miejscem i drzwiami', (await karta('[data-el="mak-szd"]').count()) === 1 && /szuflada \+ drzwi — front szuflady 170/.test(await karta('[data-el="mak-szd"]').textContent()));
+await karta('[data-el="mak-szd-miejsce"][data-v="dol"]').click();
+p = await czekaj('p.items[0].cab.levels[0].cols[0].kind === "drawers"');
+L = p.items[0].cab.levels;
+ok('szuflada na dole: poziom szuflady pierwszy', L[0].cols[0].kind === 'drawers' && (L[1].cols[0].kind || 'doors') === 'doors');
+await page.waitForTimeout(400);
+ok('front szuflady na dole 200 mm', (await frontSz()).includes('front 200'), JSON.stringify(await frontSz()));
+await karta('[data-el="mak-szd-drzwi"][data-v="1"]').click();
+p = await czekaj('p.items[0].cab.levels[1].cols[0].doors === 1');
+ok('1 drzwi nad szufladą', p.items[0].cab.levels[1].cols[0].doors === 1);
+// chwyt calej szuflady: gorna polowa — granica z drzwiami w gore
+{ const pas = page.locator('[data-u="szuflSz"]').first();
+  ok('szuflada do chwycenia na rysunku', (await pas.count()) === 1);
+  const s = await srodek(pas);
+  await ciagnij(s.x, s.b.y + 4, s.x, s.b.y - 60);
+  await page.waitForTimeout(300);
+  const f = await frontSz();
+  const h = Number(((f[0] || '').match(/\d+/) || [0])[0]);
+  ok('górna połowa szuflady ciągnie linię nad nią — szuflada wyższa', h > 220, JSON.stringify(f));
+  ok('„Szuflada typowa (200 mm)” po zmianie', (await karta('[data-el="mak-szd-typowa"]').count()) === 1 && /200/.test(await karta('[data-el="mak-szd-typowa"]').textContent()));
+  await karta('[data-el="mak-szd-typowa"]').click(); await page.waitForTimeout(500);
+  ok('„Szuflada typowa” wraca do 200', (await frontSz()).includes('front 200'), JSON.stringify(await frontSz()));
+}
+// dwuklik na szufladzie — wysokosc frontu
+{ const pas = page.locator('[data-u="szuflSz"]').first(); const s = await srodek(pas);
+  await page.mouse.dblclick(s.x, s.y); await page.waitForTimeout(300);
+  ok('dwuklik na szufladzie — okienko wysokości', (await page.locator('[data-el="mak-szuflada-wys"]').count()) === 1);
+  await page.locator('[data-el="mak-szuflada-wys-pole"]').fill('250'); await page.locator('[data-el="mak-szuflada-wys-pole"]').press('Enter'); await page.waitForTimeout(500);
+  ok('wpisane 250 — front szuflady 250', (await frontSz()).includes('front 250'), JSON.stringify(await frontSz()));
+}
+// zwykle szuflady: chwyt dolnej polowy srodkowej szuflady ciagnie linie pod nia
+await karta('[data-el="mak-szuflady"][data-v="3"]').first().click().catch(() => {});
+console.log('== 3 szuflady: chwyt dolnej połowy ==');
+await start('prosta', CIAG + `p.items[0].cab.levels[0].cols[0].kind = 'drawers'; p.items[0].cab.levels[0].cols[0].drawers = [{}, {}, {}];`, WSZYSTKO);
+await zakl('szuflady');
+{ const przed = await frontSz();
+  const pas = page.locator('[data-u="szuflSz"][data-k="1"]'); const s = await srodek(pas);
+  ok('3 szuflady — każda do chwycenia', (await page.locator('[data-u="szuflSz"]').count()) === 3);
+  await ciagnij(s.x, s.b.y + s.b.height - 4, s.x, s.b.y + s.b.height + 40);
+  const po = await frontSz();
+  const n = (t) => t.map((q) => Number(q.match(/\d+/)[0]));
+  ok('dolna połowa środkowej: niższa szuflada mniejsza, środkowa większa, górna bez zmian', n(po)[0] < n(przed)[0] && n(po)[1] > n(przed)[1] && n(po)[2] === n(przed)[2], JSON.stringify([przed, po]));
+}
+
+console.log('== Drzwi i klapy: „Szuflada + drzwi” ==');
+await start('prosta', CIAG, WSZYSTKO);
+await zakl('drzwi');
+ok('przycisk „Szuflada + drzwi” wśród frontów', (await karta('[data-el="mak-front"][data-v="szuflada-drzwi"]').count()) === 1);
+await karta('[data-el="mak-front"][data-v="szuflada-drzwi"]').click();
+p = await czekaj('p.items[0].cab.levels.length === 2');
+ok('z Drzwi — szuflada u góry i drzwi', p.items[0].cab.levels.length === 2 && p.items[0].cab.levels[1].cols[0].kind === 'drawers');
+
+console.log('== płyta indukcyjna jak w makiecie ==');
+await start('prosta', CIAG + `p.items[0].cab.blatWyciecia = [{ typ: 'plyta', rozm: '60' }, { typ: 'zlew', rozm: '1' }].slice(0, 1); p.items[1].cab.blatWyciecia = [{ typ: 'zlew', rozm: '1' }];`, WSZYSTKO);
+{ const r = await page.evaluate(() => { const g = document.querySelector('[data-el="wyciecie-blatu"]'); if (!g) return null;
+    const rant = g.querySelector('[data-el="rant-blatu"]'), kola = [...g.querySelectorAll('[data-el="pola-grzewcze"] circle')];
+    return { fill: rant && rant.getAttribute('fill'), op: rant && rant.getAttribute('opacity'), kola: kola.length, kolor: kola[0] && kola[0].getAttribute('stroke'), r: [...new Set(kola.map((c) => Math.round(Number(c.getAttribute('r')))))].length }; });
+  ok('z góry: ciemne szkło, 4 jasne pola grzewcze w dwóch rozmiarach', !!r && r.fill === '#292524' && r.op === '1' && r.kola === 4 && r.kolor === '#d6d3d1' && r.r === 2, JSON.stringify(r));
+  const f = await page.evaluate(() => [...document.querySelectorAll('[data-el="wyciecie-front"]')].map((g) => ({ typ: g.getAttribute('data-typ'), szklo: !!g.querySelector('rect[height="10"]'), kran: !!g.querySelector('path'), kas: g.querySelectorAll('rect[stroke-dasharray]').length })));
+  ok('z przodu: szkło płyty na blacie i kaseta pod nim, zlew z baterią i komorą', f.some((q) => q.typ === 'plyta' && q.szklo && q.kas === 1) && f.some((q) => q.typ === 'zlew' && q.kran && q.kas >= 1), JSON.stringify(f));
+}
+
+ok('bez błędów strony', errors.length === 0, errors.slice(0, 3).join(' | '));
+await browser.close();
+console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
+process.exit(bledy ? 1 : 0);
