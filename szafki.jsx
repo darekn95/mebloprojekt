@@ -10590,7 +10590,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
               /* makieta: nazwa pod blatem, na froncie (uzytkownik 2026-11-11: „na blacie są niewidoczne — lepiej pod blatem na
                  drzwiach, a przy wycięciu jeszcze trochę niżej”), z jasna obwodka */
               <text key={"n" + gi + "-" + i} x={mx(ox + c.x, c.geo.W) + c.geo.W / 2}
-                y={nakladka ? fy(c.base + c.cab.H) + (((c.cab.cutout || {}).on || (c.cab.cutoutR || {}).on || (c.cab.blatWyciecia || []).length) ? 150 : 62) : fy(c.base + c.cab.H) - 14} textAnchor="middle"
+                y={nakladka ? fy(c.base + c.cab.H) + makNazwaOd(c.cab, c.geo) : fy(c.base + c.cab.H) - 14} textAnchor="middle"
                 {...(nakladka ? { stroke: "#fff", strokeWidth: 6, paintOrder: "stroke", strokeLinejoin: "round", pointerEvents: "none" } : {})}
                 fontSize="22" fill={nakladka ? INK : LINE} fontFamily="ui-monospace, monospace">{c.name}</text>
             ) : null)}
@@ -21361,8 +21361,20 @@ const makSzuflWys = (cab, geo, li, j, k, v) => {
   return null;
 };
 
+/* Nazwa szafki na froncie (makieta): 62 jednostki pod gora szafki (150 przy wycieciu w blacie); gdy tam jest niski front
+   (szuflada ponizej 260 mm — „Szuflada + drzwi”), nazwa schodzi na pierwszy wysoki front pod nim — w niskim froncie
+   wchodzila na jego wymiar i uchwyt (przeglad 2026-11-11). */
+const makNazwaOd = (cab, geo) => {
+  const H = cab.H, od = ((cab.cutout || {}).on || (cab.cutoutR || {}).on || (cab.blatWyciecia || []).length) ? 150 : 62;
+  const fr = ((geo && geo.doors) || []).filter((d) => d.h > 0 && d.type !== "blenda" && d.type !== "fix");
+  const tu = fr.filter((d) => d.y <= H - od + 10 && d.y + d.h >= H - od - 10);
+  if (!tu.length || tu.some((d) => d.h >= 260)) return od;
+  const nizej = fr.filter((d) => d.h >= 260 && d.y + d.h < H - od).sort((a, b) => (b.y + b.h) - (a.y + a.h))[0];
+  return nizej ? Math.round(H - (nizej.y + nizej.h) + 62) : od;
+};
+
 // uchwyty zaznaczonej szafki (uklad szafki: x od lewego boku, y od gory) + podglad przeciagania
-function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, blatSzcz, bezWn }) {
+function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, blatSzcz, bezWn, bezFr }) {
   const H = cab.H, W = geo.W, fy = (y) => H - y;
   const out = [];
   // blat roboczy nad zaznaczona szafka (szczegolowa; uzytkownik 2026-11-10: „brak zwymiarowania blatu”): grubosc i wierzch od podlogi
@@ -21419,7 +21431,7 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
     const podWzm = szcz ? Math.max(160, ...(geo.levels || []).flatMap((lv) => lv.cols.flatMap((col) => (col.rails || []).filter((r) => r && fy(r.y1) < 300).map((r) => fy(r.y0))))) + 70 : 60;
     // szer. × wys. przy uchwytach — tylko gdy rysunek nie ma wymiarow (uzytkownik 2026-11-11: „co to za wymiar i czy tu powinien być?”)
     // pod nazwa szafki (na froncie, 62 / 150 przy wycieciu) — nie na niej (przeglad 2026-11-11: „600 × 2000” na „Słupek”)
-    const yNazwy = ((cab.cutout || {}).on || (cab.cutoutR || {}).on || (cab.blatWyciecia || []).length) ? 150 : 62;
+    const yNazwy = makNazwaOd(cab, geo);
     if (!bezWn) out.push(napis("wn", W / 2, Math.max(podWzm, yNazwy + 95), `${fmt(cab.W)} × ${fmt(cab.H)}`));
   } else (geo.levels || []).forEach((lv) => lv.cols.forEach((col) => {
     const raw = typeof col.j === "number" ? ((cab.levels[lv.i] || {}).cols || [])[col.j] : null;
@@ -21440,7 +21452,7 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
         Object.entries(grupy).forEach(([nr, lista]) => {
           const dr = lista.sort((x, y) => x.i - y.i);
           dr.forEach((a, k) => {
-            out.push(napis(`f${lv.i}-${col.j}s${nr}-${k}`, col.x0 + col.w / 2, fy(a.y + a.h / 2) + 10, `front ${fmt(a.h)}`));
+            if (!bezFr) out.push(napis(`f${lv.i}-${col.j}s${nr}-${k}`, col.x0 + col.w / 2, fy(a.y + a.h / 2) + 10, `front ${fmt(a.h)}`));
             if (k < dr.length - 1) {
               const yb = a.y + a.h + (col.gapBetween || 0) / 2;
               out.push(pas(`d${lv.i}-${col.j}s${nr}-${k}`, "szufl", { ...dane, "data-k": k, "data-seg": nr }, col.x0, fy(yb) - 26, col.w, 52, "ns-resize"),
@@ -21469,7 +21481,7 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
            przy linii, zeby linie dalo sie chwycic jak dotad */
         const ln = k === 0 ? lin : makSzuflLinie(cab, geo, lv.i, col.j, k);
         if (ln.nad || ln.pod) out.push(pas(`sz${lv.i}-${col.j}-${k}`, "szuflSz", { ...dane, "data-k": k }, col.x0 + 20, fy(a.y + a.h) + 28, col.w - 40, Math.max(6, a.h - 56), "ns-resize"));
-        out.push(napis(`f${lv.i}-${col.j}-${k}`, col.x0 + col.w / 2, fy(a.y + a.h / 2) + 10, `front ${fmt(a.h)}`));
+        if (!bezFr) out.push(napis(`f${lv.i}-${col.j}-${k}`, col.x0 + col.w / 2, fy(a.y + a.h / 2) + 10, `front ${fmt(a.h)}`));
         if (k < dr.length - 1) {
           const yb = a.y + a.h + (col.gapBetween || 0) / 2;
           out.push(pas(`d${lv.i}-${col.j}-${k}`, "szufl", { ...dane, "data-k": k }, col.x0, fy(yb) - 26, col.w, 52, "ns-resize"),
@@ -23373,7 +23385,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
       const g = e.target.closest && e.target.closest("[data-el=makieta-szafka]");
       const idx = g && !g.closest("[data-el=mak-zgory]") ? Number(g.getAttribute("data-idx")) : null;
       const spr = idx != null && !przesuwany ? sprzetPod(e, g, idx) : null;
-      if (spr) { przenSpr.current = { idx, li: spr.li, j: spr.j, typ: spr.typ, x: e.clientX, y: e.clientY, ruszyl: false }; return; }
+      // bez zaznaczania tekstu na rysunku w trakcie przeciagania
+      if (spr) { e.preventDefault(); przenSpr.current = { idx, li: spr.li, j: spr.j, typ: spr.typ, x: e.clientX, y: e.clientY, ruszyl: false }; return; }
       if (idx != null && project.items[idx] && project.items[idx].runId) { przesuw.current = { idx, x: e.clientX, y: e.clientY, ruszyl: false }; return; }
       /* Przesuwanie rysunku przytrzymanym lewym przyciskiem (uzytkownik 2026-11-10: „przy powiększeniu przytrzymanie
          lewym i przesuwanie myszką powinno przesuwać rysunek”): chwyt poza szafka (albo za szafke wolnostojaca),
@@ -23969,7 +23982,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   }, [project.active, skala, ciagId]);   // eslint-disable-line react-hooks/exhaustive-deps
   const nakladkaPrzod = (cab, geo, idx) => (geoRysunku.current[idx] = geo) && <MakietaUchwyty cab={cab} geo={geo} zakladka={akt} widok="front" podglad={podglad && podglad.idx === idx && podglad.widok !== "top" ? podglad : null}
     szcz={tryb === "szczegolowa" && widokRys === "open" && (akt === "wzmocnienia" || (wymiaryRys && wym.wzm !== false && !["szuflady", "polki", "drzwi", "przegroda"].includes(akt)))}
-    blatSzcz={tryb === "szczegolowa"} bezWn={wymiaryRys && wym.szer !== false && wym.wys !== false}
+    blatSzcz={tryb === "szczegolowa"} bezWn={wymiaryRys && wym.szer !== false && wym.wys !== false} bezFr={wymiaryRys && wym.fronty !== false}
     blat={geo.isWorktop && wymiaryRys && wym.blat !== false ? (() => { const it = project.items[idx], t = ((it && it.mat && it.mat.worktop) || {}).thickness || 38;
       return { t, wierzch: cabTopY(cab, geo) + t }; })() : null}
     kolZ={kolZ && kolZ.idx === idx && ["drzwi", "szuflady", "polki"].includes(akt) ? (akt === "polki" ? { ...kolZ, nr: null } : kolZ) : null} />;

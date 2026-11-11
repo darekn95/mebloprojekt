@@ -430,6 +430,36 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
   (`SprzetElewacja`).
 - „Wolne / brakuje” na ścianie liczone z miejscem na narożnik.
 
+- **Reszta różnic z makietą „Dodaj”** (użytkownik 2026-11-11: „wszystko zrób”):
+  - **cała szuflada do chwycenia** (zakładka Szuflady, `data-u="szuflSz"`): górna połowa ciągnie linię nad nią, dolna —
+    pod nią; linia to granica z sąsiednią szufladą (`szufl`) albo — na skraju poziomu szafki z jedną kolumną — przegroda
+    do poziomu obok (`poziom`), jak „Szuflada + drzwi” (`makSzuflLinie`). **Dwuklik / prawy przycisk** na szufladzie —
+    okienko z wysokością frontu (`mak-szuflada-wys`, `makSzuflWys`): różnicę bierze szuflada obok albo poziom obok;
+  - **„Szuflada + drzwi”** jednym przyciskiem (Szuflady i Drzwi i klapy, szafka dolna z jedną kolumną; wzór palety
+    „Dolna, szuflada + drzwi”): dwa poziomy szafki — szuflada i drzwi (1 albo 2, półki zostają przy drzwiach);
+    front szuflady 170 mm u góry, 200 na dole (`MAK_SZ_G`, `MAK_SZ_D`; wysokość poziomu dobrana z geometrii tak,
+    żeby front miał tyle). W Szufladach: u góry / na dole, 1 / 2 drzwi, „Szuflada typowa (170 / 200 mm)” po zmianie
+    (`makSzufDrzwiUklad`, `makUstawSzufDrzwi`). Wzór palety dopasowuje front po wstawieniu (`opcje.poDodaniu`
+    w `addCabinet` — dopiero wtedy szafka ma wysokość ciągu i blat zamiast wieńca);
+  - **sprzęt do innej szafki**: piekarnik / mikrofala / ekspres / lodówka chwycone na rysunku (z przodu; w słupku
+    także za uchwyt `sprzetY` w Dodaj) — po 8 px zielone ramki na szafkach, gdzie może stanąć (`makCelPrzeniesienia`:
+    słupek — własny poziom; szafka z wolną prostą kolumną, piekarnik nie w ciągu górnym; mikrofala / ekspres nad
+    szafką pod blatem — na blat; lodówka do zabudowy — tylko słupek); upuszczony na ramce wychodzi ze starej szafki
+    (`makWyjmijSprzet`: w słupku jego poziom znika, inaczej kolumna wraca do drzwi) i staje w nowej z tymi samymi
+    ustawieniami (`wstawAgd` z `a.dane`). Geometria szafki, która nie jest zaznaczona, liczona na miejscu (`geoSzafki`);
+  - **„Przesuń” dotknięciem** (telefon): w karcie sprzętu „Przesuń do innej szafki” (sprzęt w kolumnie, płyta, zlew,
+    sprzęt na blacie), w karcie Szafka „Przesuń w ciągu”; pasek na dole („Przesuwasz: … — dotknij zieloną ramkę”,
+    Anuluj / Esc), dotknięcie szafki w ramce kończy (`przesunNa`). Ramki przycięte do widocznej części rysunku;
+  - **„Co zrobi program”** w karcie sprzętu (`makCoZrobiSprzet`) i w karcie Szafka (`makCoZrobiSzafka`) — tylko to,
+    co wynika z danych i co program naprawdę sprawdza;
+  - **płyta indukcyjna** jak w makiecie: z góry ciemne szkło i jasne pola grzewcze (dwa większe, dwa mniejsze),
+    z przodu cienkie szkło na blacie i przerywana kaseta pod nim; zlew z przodu — bateria i przerywana komora
+    (`wyciecie-front`, tylko makieta);
+  - lodówka do zabudowy: pole „dolny front — wysokość” przy 2 frontach było już w karcie (`agd-lod-dolny`) — sprawdzone
+    testem (zapis i front 700 na rysunku).
+- Klik po przeciągnięciu jest tłumiony tylko raz (`tlumKlikNa`, 60 ms) — wcześniej blokada zostawała, gdy po
+  puszczeniu nie przyszedł klik, i zjadała następny prawdziwy klik.
+
 ## Czego jeszcze nie ma
 
 Kolejne kroki (`makiety/BRAKI.md`, D):

@@ -1243,3 +1243,9 @@ slupka, piekarnik, mikrofala, u gory polka i jedne drzwi z zawiasami po lewej. P
 i szuflady w slupku na wlasnych poziomach, „Pod blat” / „Na wysokość blatu” (zaznaczenie idzie za sprzetem), „usuń szuflady”.
 Nie zrobione: przeciaganie pojedynczej szuflady na rysunku (jest przeciaganie linii miedzy szufladami).
 
+
+[AI-INFO] 2026-11-11 (pozniej): uzytkownik „wszystko zrób” — reszta roznic z makieta „Dodaj” (makiety/BRAKI.md F) zrobiona:
+chwyt calej szuflady + dwuklik (`makSzuflLinie`, `makSzuflWys`), „Szuflada + drzwi” (`makUstawSzufDrzwi`, front 170 / 200 —
+odczytane jako WYSOKOSC FRONTU szuflady, tak jak w makiecie „Szuflada typowa (170 mm)”), przenoszenie sprzetu do innej szafki
+(przeciaganie, „Przesuń”, zielone ramki — `makCelPrzeniesienia`), „Co zrobi program”, plyta indukcyjna jak w makiecie.
+Pulapka: `geoRysunku.current[i]` jest tylko dla ZAZNACZONEJ szafki (nakladka) — do innych `geoSzafki(i)`. Test: `makieta13`.

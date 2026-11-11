@@ -159,6 +159,36 @@ await zakl('dodaj');
   p = await czekaj('p.items[2].cab.name === "Szafka 1"');
   ok('„Przesuń w ciągu”: szafka 1 za słupkiem', p.items.map((x) => x.cab.name).join(',') === 'Szafka 2,Słupek,Szafka 1', p.items.map((x) => x.cab.name).join(','));
 }
+console.log('== mikrofala ze słupka za uchwyt na drugi słupek, płyta „Przesuń” ==');
+await start('prosta', TRZY + `p.items[0].cab.levels[0].cols[0].sprzet = null; delete p.items[0].cab.levels[0].cols[0].sprzet;
+  const s2 = JSON.parse(JSON.stringify(p.items[2])); s2.cab.name = 'Słupek 2'; p.items.push(s2);
+  p.items[2].cab.levels = [{ h: 400, cols: [{ ...p.items[2].cab.levels[0].cols[0], sprzet: { typ: 'mikrofala' } }] }, { h: null, cols: [{ ...p.items[2].cab.levels[0].cols[0] }] }];
+  p.items[0].cab.blatWyciecia = [{ typ: 'plyta', rozm: '60' }]; p.active = 2;`, PRZOD);
+await zakl('dodaj');
+{ const uch = page.locator('[data-u="sprzetY"]').first();
+  ok('słupek: uchwyt mikrofali', (await uch.count()) === 1);
+  const a = await srodek(uch), b = await srodek(page.locator('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="3"]').last());
+  await page.mouse.move(a.x, a.y); await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(a.x + ((b.x - a.x) * i) / 10, a.y + ((b.y - a.y) * i) / 10);
+  await page.waitForTimeout(200);
+  ok('nad słupkiem 2: jego ramka podświetlona', (await page.locator('[data-el="mak-ramka"][data-idx="3"][data-akt="1"]').count()) === 1);
+  await page.mouse.up(); await page.waitForTimeout(600);
+  p = await czekaj('p.items[3].cab.levels.some((lv) => lv.cols.some((k) => k.sprzet))');
+  ok('mikrofala w słupku 2, słupek 1 bez sprzętu i bez jej poziomu', p.items[3].cab.levels.some((lv) => lv.cols.some((k) => k.sprzet && k.sprzet.typ === 'mikrofala'))
+    && !p.items[2].cab.levels.some((lv) => lv.cols.some((k) => k.sprzet)) && p.items[2].cab.levels.length === 1, JSON.stringify(p.items[2].cab.levels.map((l) => l.h)));
+}
+{ // plyta: „Przesuń” z karty (z listy „W projekcie”)
+  const poz = page.locator('[data-el="mak-agd-lista"] button').filter({ hasText: 'Płyta' }).first();
+  if (await poz.count()) await poz.click(); await page.waitForTimeout(300);
+  ok('karta płyty: „Co zrobi program” i „Przesuń”', /Wycięcie .* w blacie nad „Szafka 1”/.test((await page.locator('[data-el="agd-co-zrobi"]').textContent().catch(() => '')) || '') && (await page.locator('[data-el="agd-przesun"]').count()) === 1);
+  await page.locator('[data-el="agd-przesun"]').click(); await page.waitForTimeout(300);
+  const r = await page.evaluate(() => [...document.querySelectorAll('[data-el="mak-ramka"]')].map((q) => q.getAttribute('data-idx')).sort().join(','));
+  ok('ramki tylko na szafce pod blatem (szafka 2)', r === '1', r);
+  const sz = await srodek(page.locator('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="1"]').last());
+  await page.mouse.click(sz.x, sz.y); await page.waitForTimeout(500);
+  p = await czekaj('(p.items[1].cab.blatWyciecia || []).length === 1');
+  ok('płyta przeniesiona nad szafkę 2', (p.items[1].cab.blatWyciecia || []).length === 1 && !(p.items[0].cab.blatWyciecia || []).length);
+}
 console.log('== lodówka: dolny front przy 2 frontach ==');
 await start('szczegolowa', TRZY + `p.items[2].cab.levels = [{ h: 1780, cols: [{ ...p.items[2].cab.levels[0].cols[0], sprzet: { typ: 'lodowka', fronty: 2 } }] }, { h: null, cols: [{ ...p.items[2].cab.levels[0].cols[0] }] }]; p.active = 2;`, PRZOD, 'szczegolowa');
 await zakl('dodaj');

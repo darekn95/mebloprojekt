@@ -144,12 +144,13 @@ Wyrównane 2026-11-11:
   ostrzeżenia (nie mieści się, ekspres poniżej 150 mm, mikrofala poniżej 100 mm);
 - wygląd piekarnika, mikrofali i ekspresu jak w makiecie; słupek w ciągu z blatem ma wieniec (bez pary pod blat).
 
-Zostaje (jest w makiecie, nie ma w aplikacji):
+Wyrównane później tego samego dnia (użytkownik: „wszystko zrób”; opis: `opisy/makieta.md`, test `makieta13`):
 - chwyt całej szuflady (górna połowa — linia nad nią, dolna — pod nią), dwuklik na szufladzie — wpisanie wysokości,
-  „Szuflada typowa”; w aplikacji jest linia między szufladami i „po równo”;
-- front „Szuflada + drzwi” (szuflada u góry / na dole) jednym przyciskiem — w aplikacji przez poziomy kolumny;
-- przeciąganie piekarnika / mikrofali do INNEJ szafki (w aplikacji: usuń i wstaw);
-- tryb dotykowy „Przesuń” (dotknij sprzęt, potem miejsce) i zielone ramki miejsc, gdzie sprzęt może stanąć;
+  „Szuflada typowa”;
+- front „Szuflada + drzwi” (szuflada u góry / na dole, 1 / 2 drzwi) jednym przyciskiem i wzór palety;
+- przeciąganie piekarnika / mikrofali / ekspresu / lodówki do INNEJ szafki z zielonymi ramkami miejsc;
+- tryb dotykowy „Przesuń” (sprzęt, płyta, zlew, sprzęt na blacie, szafka w ciągu);
 - opis „Co zrobi program” w karcie sprzętu i szafki;
-- lodówka do zabudowy: pole „dolny front” przy 2 frontach — do sprawdzenia w karcie aplikacji.
+- płyta indukcyjna jak w makiecie (ciemne szkło, pola grzewcze; z przodu szkło i kaseta), zlew z baterią;
+- lodówka do zabudowy: pole „dolny front” przy 2 frontach — było, sprawdzone testem.
 
