@@ -120,6 +120,9 @@ await start('szczegolowa', `${SZAFA} const k2 = p.items[0].cab.levels[0].cols[0]
   k2.rails = [{ orient: 'shelf', pos: 'top', side: 'left', h: 100, depth: 100, atDepth: 0, fromBack: false }];`);
 ok('przełącznik „Wymiary” i wymiary szafki wolnostojącej', (await page.locator('[data-el="mak-przel"] [data-p="wymiary"]').count()) === 1 && (await page.locator('[data-el="mak-wymiary-szafki"]').count()) >= 1);
 const wzm = page.locator('[data-el="mak-wzm-rys"]');
+// wzmocnienia rysuja sie tylko przy otwartych frontach (uzytkownik 2026-11-11)
+ok('fronty zamknięte: wzmocnień na rysunku nie ma', (await wzm.count()) === 0);
+await page.locator('[data-el="mak-przel"] [data-p="fronty"]').click(); await page.waitForTimeout(400);
 ok('wzmocnienie na rysunku z wymiarem', (await wzm.count()) === 1 && /leż\. 100/.test(await wzm.first().textContent()));
 { const r = await wzm.locator('rect').first().boundingBox(); await page.mouse.click(r.x + r.width / 2, r.y + r.height / 2); await page.waitForTimeout(400); }
 ok('klik we wzmocnienie → karta Wzmocnienia', (await page.locator('[data-el="makieta"] nav [data-zakl="wzmocnienia"]').getAttribute('aria-pressed')) === 'true');

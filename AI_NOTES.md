@@ -1203,3 +1203,14 @@ zrobione na galezi, opis `opisy/makieta.md` („Uwagi 2026-11-10”), test `test
 trójkąty — szczegółowy i techniczny”): `rail.mocowanie: "trojkaty"` dla wzmocnien lezacych, czolowych i tylnych — laczniki
 po 2 na koniec (`trojkatyNaKoncu`, jak przy przegrodzie), plan wiercen, zamowienie, karta techniczna (Seg) i szczegolowa
 (`mak-wzm-moc`). Pionowe — bez zmian (wkrety). Opis: `opisy/korpus.md`.
+[AI-INFO] 2026-11-11 (uwagi uzytkownika do makiety szczegolowej): lista „Wymiary” (`MAK_WYM`, `przel.wym`), lancuch
+wysokosci (`mak-wysokosci`), „wnętrze” w srodku szafki, najmniejszy napis ok. 10 px na ekranie (efekt w `MakietaWidok`,
+`text.wym` 52 jednostki), wzmocnienia tylko przy otwartych frontach, zakladka „Ciąg” (takze blenda calego ciagu
+i „Wyłącz szafkę z ciągu” przez `assignCabinet`), Polki: otwory kolkow i zawieszki, Korpus: blenda, Szafka: notatka
+montazowa, kafelek „Zamówienie” (`kartyZamowienia` w `App` — karty zamowienia rysowane w jednym miejscu naraz).
+Opis: `opisy/makieta.md` („Uwagi 2026-11-11”), test `testy/makieta12.mjs`.
+[AI-INFO] Przeglad makiety na przykladach (2026-11-11): skrypt wstawia wzory z „Dodaj” (kuchnia, naroznik, wolnostojace,
+szafy w zabudowie) i bierze projekt uzytkownika; w kazdym stanie (tryb × fronty × widok ciagu × szafka × zakladka) szuka
+bledow strony oraz napisow ucietych przez krawedz rysunku, nizszych niz 8,5 px i nachodzacych na siebie (ponad 30 %
+mniejszego). Ta sama kontrola napisow jest w `testy/makieta12.mjs` (`napisy()`), wiec nowy napis na rysunku makiety
+warto sprawdzic nia przed oddaniem. Nazwa kafelka „Zamówienie” jest robocza — pytanie do uzytkownika.

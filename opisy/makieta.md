@@ -360,6 +360,36 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
 - **Z góry**: wieniec / blat z płyty rysowany na wierzchu (półprzezroczysty, pełny obrys) — wcześniej leżał pod
   półkami i przegrodami i wyglądał jak osobny w każdej kolumnie, a blat biurka jak pod spodem.
 
+## Uwagi 2026-11-11 (wymiary, ciąg, zamówienie)
+
+- **Lista „Wymiary”** (szczegółowa, nad rysunkiem; `MakWymiaryMenu`, `MAK_WYM`, stan `przel.wym`): zaznaczasz, co ma być
+  na rysunku — szerokości (szafki, ciąg), wysokości (nóżki / cokół, korpus, blat i razem), wymiary frontów, światła
+  półek i wnętrza, wzmocnienia, blat nad zaznaczoną szafką; „wszystkie” / „żadne”. Na przycisku licznik „4/6”.
+- **Wysokości** (`mak-wysokosci`): z lewej strony ciągu łańcuch dla zaznaczonej szafki — nóżki albo cokół, korpus,
+  blat roboczy (gdy ją przykrywa) i obok cała wysokość od podłogi. Szafka wolnostojąca: wysokość z nóżkami / cokołem.
+- **Światło poziomu** („wnętrze 684”): rysowane w środku zaznaczonej szafki, przy prawym boku, nisko nad dnem — nie
+  obok szafki, gdzie wyglądało jak wymiar ciągu. Przy samych szufladach go nie ma (są wysokości frontów).
+- **Wielkość napisów**: napis na froncie rośnie z frontem (`fsNapisuFrontu`, 20–46), a każdy napis rysunku ma na ekranie
+  co najmniej ok. 10 px (`MakietaWidok`, najwyżej 48 jednostek rysunku — w bardzo szerokim widoku trzeba powiększyć).
+  Wymiary (`text.wym`) mają 52 jednostki; liczba pod linią wymiarową stoi pod linią, nie na niej.
+- **Wzmocnienia na rysunku** tylko przy otwartych frontach (przełącznik „Fronty” wyłączony albo zakładka
+  „Wzmocnienia”, która sama otwiera fronty) i nie w zakładkach Szuflady / Półki / Drzwi / Przegroda (tam są ich
+  uchwyty i napisy).
+- **Zakładka „Ciąg”** (tylko przy zaznaczonej szafce z ciągu; `MAK_ZAKLADKA_CIAG`): nazwa ciągu, ile szafek i długość,
+  wysokość i głębokość szafek (`setRunShared`), luz między korpusami, odsunięcie od ściany, blat roboczy;
+  w szczegółowej także wspólny wieniec, wspólne dno i blenda nad szafkami całego ciągu (`cab.topFiller` każdej
+  szafki); „Wyłącz szafkę z ciągu” (`assignCabinet(idx, null)` — szafka zostaje w pomieszczeniu jako wolnostojąca
+  i oddaje wieniec / dno ciągu). Ten sam przycisk jest w karcie Szafka. Narożnik, podział blatu i cokołu,
+  wieszanie — w trybie technicznym.
+- **Półki (szczegółowa)**: przy kołkach — otwór od przodu / od tyłu i od czego liczona wysokość otworów
+  (`shelfPin`, `pinDatum`); szafka, która nie stoi — zawieszki ścienne auto / zawsze / nigdy i na listwie /
+  na haczykach (`hangers`, `hangerMode`) — jak karta „Montaż półek i zawieszenie”.
+- **Korpus i plecy (szczegółowa)**: blenda nad szafką (jest / nie ma, wysokość).
+- **Szafka (szczegółowa)**: notatka montażowa (`cab.note`, idzie do PDF) i pod nią kolejność montażu z projektu.
+- **Kafelek „Zamówienie”** (szczegółowa): zamiast rysunku pokazuje karty Formatki, Rozkrój na płycie, Produkty do
+  zamówienia i Wycena — te same co w trybie technicznym (`kartyZamowienia` w `App`, rysowane w jednym miejscu naraz:
+  `zamWMak`). Klik w inny kafelek wraca do rysunku.
+
 ## Czego jeszcze nie ma
 
 Kolejne kroki (`makiety/BRAKI.md`, D):
@@ -372,4 +402,6 @@ Kolejne kroki (`makiety/BRAKI.md`, D):
   w `AssemblyView` i `AssemblyTopView`; stan `tryb` w `App`.
 - **Test**: `testy/makieta.mjs` (tryb, rysunek, zaznaczanie), `testy/makieta2.mjs` (uchwyty i zapis),
   `testy/makieta3.mjs` (pytanie o wysokość w ciągu i w narożniku), `testy/makieta4.mjs` (przyciski karty),
-  `testy/makieta5.mjs` (paleta, klocki, karta do schowania, duży rysunek).
+  `testy/makieta5.mjs` (paleta, klocki, karta do schowania, duży rysunek), `testy/makieta11.mjs` (uwagi 2026-11-10),
+  `testy/makieta12.mjs` (lista „Wymiary”, wysokości, zakładka „Ciąg”, zawieszki, blenda, notatka, „Zamówienie”,
+  napisy nieucięte i czytelne).
