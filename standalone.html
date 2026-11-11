@@ -21083,6 +21083,18 @@ const ikonaWzoru = (w, baza0) => {
   return <svg viewBox="0 0 34 34" width="34" height="34" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"><path d={d} /></svg>;
 };
 const MAK_ZAKLADKA_CIAG = ["ciag", "Ciąg"];
+// zakladka makiety szczegolowej -> [opis, id kart trybu technicznego] pokazywanych w szufladzie „Wszystkie opcje”
+const MAK_PELNE = {
+  ciag: ["narożnik, podział blatu i cokołu, wieszanie, położenie", ["ciag-meblowy"]],
+  szafka: ["położenie w ciągu, narożnik, wymiary korpusu", ["ciag-meblowy", "korpus"]],
+  korpus: ["złącza boków, blat z płyty, plecy, frez", ["korpus"]],
+  cokol: ["cofnięcie i montaż cokołu, kształt, kolor i liczba nóżek", ["karta-cokol", "karta-nozki"]],
+  szuflady: ["system szuflad, fronty, uchwyty", ["struktura"]],
+  polki: ["struktura wnętrza", ["struktura"]],
+  drzwi: ["zawiasy, uchwyty, lustra, szerokości drzwi", ["struktura"]],
+  przegroda: ["kolumny, poziomy, przegrody", ["struktura"]],
+  wzmocnienia: ["wysokość, głębokość i położenie wzmocnień", ["struktura"]],
+};
 const MAK_ZAKLADKI_SZCZ = [["korpus", "Korpus i plecy"], ["wzmocnienia", "Wzmocnienia"], ["wyciecia", "Wycięcia i kolizje"], ["zamowienie", "Zamówienie"]];
 /* Przelaczniki rysunku jak w makiecie „Dodaj” (uzytkownik 2026-11-09: „widok jak w makiecie — mniej miejsca, większy
    rysunek”): z gory nad widokiem z przodu, ciag gorny / dolny, fronty (wylaczone — wnetrze). */
@@ -21091,11 +21103,14 @@ const MAK_PRZEL = [["zgory", "Z góry"], ["gorny", "Ciąg górny"], ["dolny", "C
    z kolorami płyt jak w technicznym, na przełączniku”): prosta — jasne jak makieta „Dodaj” (--board, --top), bez slojow;
    szczegolowa — przelacznik „Kolory płyt” (domyslnie wlaczony). Zmienia tylko rysunek (kopia `mat` z kolorami), nie dane. */
 const MAK_JASNE = { board: "#fbfaf8", front: "#f3f0eb", back: "#ece7e1", worktop: "#8b6f56" };
-const makJasneMat = (mat) => {
+/* Szczegolowa z wylaczonymi „Kolorami płyt” (decyzja uzytkownika 2026-11-11: „neutralny szary, tylko blat roboczy bym
+   zostawił brązowy — od razu rzuca się w oczy, że to blat roboczy; wieniec jako blat tak jak kolory reszty”). */
+const MAK_SZARE = { board: "#f1f1f0", front: "#dfdfdd", back: "#e8e8e6", worktop: "#8b6f56" };
+const makJasneMat = (mat, pal = MAK_JASNE) => {
   if (!mat) return mat;
   const k = (o, c) => (o ? { ...o, color: c } : o);
-  return { ...mat, board: k(mat.board, MAK_JASNE.board), shelf: k(mat.shelf || mat.board, MAK_JASNE.board), front: k(mat.front, MAK_JASNE.front),
-    back: k(mat.back, MAK_JASNE.back), worktop: k(mat.worktop, MAK_JASNE.worktop) };
+  return { ...mat, board: k(mat.board, pal.board), shelf: k(mat.shelf || mat.board, pal.board), front: k(mat.front, pal.front),
+    back: k(mat.back, pal.back), worktop: k(mat.worktop, pal.worktop) };
 };
 /* Przyblizanie rysunku makiety (uzytkownik 2026-11-09: „powiększ jako domyślny i brakuje jak w technicznym jeszcze
    większego powiększenia, dopasowania i pełnego ekranu”): „Powiększ” (domyslnie wlaczone) — widok z przodu na wysokosc
@@ -22157,7 +22172,7 @@ function MakPlanKolizji({ cab, zapisz }) {
   );
 }
 
-function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProjekt, ciag, geoOf, onOdznacz, kolZ, wybierzKol, kopiuj, usun }) {
+function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProjekt, ciag, geoOf, onOdznacz, kolZ, wybierzKol, kopiuj, usun, pelneOpcje }) {
   const it = project.items[idx];
   if (!it) return <p className="text-sm text-stone-500">Kliknij szafkę na rysunku — tu pokaże się jej karta.</p>;
   const cab = it.cab;
@@ -22688,9 +22703,15 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         </div>
       </div>
       <div>{tresc}</div>
+      {/* wszystkie opcje tej zakladki — karta trybu technicznego w szufladzie z prawej (`pelneOpcje`) */}
+      {tryb === "szczegolowa" && pelneOpcje && MAK_PELNE[zakladka] && !(zakladka === "ciag" && !run) && (
+        <button data-el="mak-pelne-otworz" data-v={zakladka} onClick={() => pelneOpcje(MAK_PELNE[zakladka][1])}
+          className="w-full rounded border border-teal-600 px-2 py-1 text-left text-[11px] font-medium text-teal-800 hover:bg-teal-50">
+          Wszystkie opcje: {MAK_PELNE[zakladka][0]} ›</button>)}
       {wskazowka && <p className="text-[11px] text-teal-800" data-el="makieta-wskazowka">{wskazowka}</p>}
       <p className="text-[11px] text-stone-500">
-        {tryb === "szczegolowa" ? "Makieta szczegółowa" : "Makieta prosta"}: zmiany idą od razu do projektu (formatki, okucia, uwagi). Czego tu nie ma — w trybie Technicznym.
+        {tryb === "szczegolowa" ? "Makieta szczegółowa: zmiany idą od razu do projektu (formatki, okucia, uwagi). Rzadsze ustawienia — przycisk „Wszystkie opcje” albo tryb Techniczny."
+          : "Makieta prosta: zmiany idą od razu do projektu (formatki, okucia, uwagi). Czego tu nie ma — w trybie Technicznym."}
       </p>
     </div>
   );
@@ -22773,7 +22794,7 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladk
   );
 }
 
-function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien, zmienProjekt, ciag, dodaj: dodaj0, dodajGorny, gora = 96, usunPozycje, kopiuj, zam, setZam, zamowienie }) {
+function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien, zmienProjekt, ciag, dodaj: dodaj0, dodajGorny, gora = 96, usunPozycje, kopiuj, zam, setZam, zamowienie, pelneOpcje }) {
   /* Szeroki ekran (lg): zakladki, karta i rysunek przyklejone pod gornym paskiem (`gora` — jego wysokosc jak „rysunek
      przypiety” w trybie technicznym), rysunek do dolu okna z wlasnym przewijaniem (zgloszenie 2026-11-09: „suwak rysunku
      na dole, ale suwak okna nie na dole i ucina rysunek” — wysokosc liczona z zalozonego paska 100 px). */
@@ -23219,7 +23240,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   // projekt do rysunku: jasne kolory w prostej i w szczegolowej z wylaczonymi „Kolorami płyt”
   const kolory = tryb === "szczegolowa" && przel.kolory !== false;
   const projRys = useMemo(() => (kolory ? project : { ...project,
-    items: project.items.map((it) => ({ ...it, cab: it.cab.texture ? { ...it.cab, texture: false } : it.cab, mat: makJasneMat(it.mat) })) }), [project, kolory]);
+    items: project.items.map((it) => ({ ...it, cab: it.cab.texture ? { ...it.cab, texture: false } : it.cab, mat: makJasneMat(it.mat, tryb === "szczegolowa" ? MAK_SZARE : MAK_JASNE) })) }), [project, kolory, tryb]);
   useEffect(() => { try { localStorage.setItem("mp-mak-przel", JSON.stringify(przel)); } catch (e) { /* bez pamieci */ } }, [przel]);
   // przyblizanie: { pow — „Powiększ” (na wysokosc okna), z — krok z MAK_ZOOM }; pamieta przegladarka
   const [zoomM, setZoomM] = useState(() => { try { return { pow: true, z: 1, ...JSON.parse(localStorage.getItem("mp-mak-zoom") || "{}") }; } catch (e) { return { pow: true, z: 1 }; } });
@@ -23421,7 +23442,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                 project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
                 zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); setZnacznik(null); }} />
             </div>}
-            <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} zmienProjekt={zmienProjekt} ciag={ciag}
+            <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} zmienProjekt={zmienProjekt} ciag={ciag} pelneOpcje={pelneOpcje}
               geoOf={(i) => geoRysunku.current[i]} onOdznacz={() => setZaznM(false)}
               kolZ={kolZ && kolZ.idx === project.active ? kolZ : null} wybierzKol={(k) => setKolZ(k ? { idx: project.active, ...k } : null)}
               kopiuj={kopiuj} usun={usunPozycje ? (i) => { usunPozycje(i); setZaznM(false); } : null} />
@@ -23767,6 +23788,13 @@ export default function App() {
   // makieta szczegolowa: kafelek „Zamówienie” otwarty (karty zamowienia zamiast rysunku)
   const [makZam, setMakZam] = useState(false);
   const zamWMak = makieta && tryb === "szczegolowa" && makZam;
+  /* „Wszystkie opcje” w makiecie szczegolowej (decyzja uzytkownika 2026-11-11: dolozyc do szczegolowej brakujace opcje ciagu,
+     korpusu, cokolu, nozek, drzwi i szuflad): zamiast pisac je drugi raz, karta trybu technicznego wysuwa sie z prawej
+     jako szuflada nad makieta — te same pola, kontrole i zapis. `makPelne` — lista id kart (`Card id`). */
+  const [makPelne, setMakPelne] = useState(null);
+  const pelneWMak = makieta && tryb === "szczegolowa" && makPelne && makPelne.length ? makPelne : null;
+  const otworzPelne = useCallback((ids) => { setMakPelne(ids);
+    setTimeout(() => ids.forEach((id) => window.dispatchEvent(new CustomEvent("mp-karta", { detail: { id } }))), 0); }, []);
   const histRef = useRef({ past: [], future: [] });
   const [histLen, setHistLen] = useState({ undo: 0, redo: 0 });
   // ciag, ktorego rozwiazanie czeka na potwierdzenie (wisi nad nim ciag gorny)
@@ -27901,10 +27929,17 @@ export default function App() {
       </div>
       </header>
 
-      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} ciag={{ setRun, setRunShared, assignCabinet }} zam={zamWMak} setZam={setMakZam} zamowienie={zamWMak ? kartyZamowienia : null} dodaj={addCabinet} dodajGorny={addUpperRun} gora={wysNaglowka + PRZYPIETY_ODSTEP} usunPozycje={removeCabinet} kopiuj={duplicateCabinet} />}
+      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} ciag={{ setRun, setRunShared, assignCabinet }} zam={zamWMak} setZam={setMakZam} zamowienie={zamWMak ? kartyZamowienia : null} pelneOpcje={otworzPelne} dodaj={addCabinet} dodajGorny={addUpperRun} gora={wysNaglowka + PRZYPIETY_ODSTEP} usunPozycje={removeCabinet} kopiuj={duplicateCabinet} />}
       {makieta && <div className="print-hide mx-auto max-w-[1900px] px-3 pb-6">{uwagiKarta(false)}</div>}
-      <main className="print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]"
-        style={makieta ? { display: "none" } : undefined}>
+      {pelneWMak && <>
+        <style>{`main[data-szuflada] > div:last-child { display: none; } main[data-szuflada] > div:first-child > :not(${pelneWMak.map((id) => "#" + id).join("):not(")}) { display: none; }`}</style>
+        <div data-el="mak-pelne-tlo" className="print-hide fixed inset-0 z-40 bg-black/20" onClick={() => setMakPelne(null)} />
+        <button data-el="mak-pelne-zamknij" onClick={() => setMakPelne(null)}
+          className="print-hide fixed right-3 top-2 z-[60] rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-medium text-stone-700 shadow hover:bg-stone-100">Zamknij ✕</button>
+      </>}
+      <main className={pelneWMak ? "print-hide fixed bottom-0 right-0 top-0 z-50 w-[500px] max-w-full overflow-y-auto border-l border-stone-300 bg-stone-100 px-3 pb-6 pt-12 shadow-2xl" : "print-hide mx-auto max-w-[1700px] gap-4 px-4 py-4 lg:grid lg:grid-cols-[460px_1fr]"}
+        data-szuflada={pelneWMak ? "1" : undefined} data-el={pelneWMak ? "mak-pelne" : undefined}
+        style={makieta && !pelneWMak ? { display: "none" } : undefined}>
         <div className="space-y-4">
           {runsInRoom(project, pokoj).length > 0 && (
             <Card title="Ciąg meblowy" collapsible id="ciag-meblowy">
@@ -28786,7 +28821,7 @@ export default function App() {
             </div>
           </Card>
 
-          <Card title="Struktura wnętrza" collapsible
+          <Card title="Struktura wnętrza" collapsible id="struktura"
             right={
               <div className="flex items-center gap-2">
                 <button onClick={fitShelvesAll}
@@ -29995,7 +30030,7 @@ export default function App() {
             </p>
           </Card>
 
-          <Card title="Cokół" collapsible defaultOpen={false}>
+          <Card title="Cokół" collapsible defaultOpen={false} id="karta-cokol">
             <Check checked={cab.plinth.on} onChange={(v) => set({ plinth: { ...cab.plinth, on: v } })} label="Cokół pod szafką" />
             {cab.plinth.on && (
               <div className="space-y-3">
@@ -30019,7 +30054,7 @@ export default function App() {
             )}
           </Card>
 
-          <Card title="Nóżki" collapsible defaultOpen={false}>
+          <Card title="Nóżki" collapsible defaultOpen={false} id="karta-nozki">
             <Check checked={!!cab.legs?.on}
               onChange={(v) => { set({ legs: { ...(cab.legs || { height: 100 }), on: v } }); setZmianaNozek(project.active); }}
               label="Nóżki pod szafką" />
