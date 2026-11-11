@@ -9337,6 +9337,13 @@ function SprzetElewacja({ geo, fy, mx = (x) => x }) {
     return (
       <g key={`sp${lv.i}-${c.j}`} data-el="sprzet-front">
         <rect x={X} y={fy(s.y1)} width={w} height={h} fill={SPRZET_KOLOR} fillOpacity="0.85" stroke={INK} strokeWidth="2" />
+        {/* wyglad jak w makiecie „Dodaj” (uzytkownik 2026-11-11: „skąd rozjazdy wyglądów urządzeń?”): piekarnik — szyba pod
+            listwa z uchwytem, mikrofala — szyba z lewej i dwa pokretla, ekspres — wyswietlacz i wneka na filizanke */}
+        {s.typ === "piekarnik" && <rect data-el="sprzet-szyba" x={X + w * 0.1} y={fy(s.y1) + h * 0.3} width={w * 0.8} height={h * 0.58} rx="8" fill="#1c1917" pointerEvents="none" />}
+        {s.typ === "mikrofala" && <g pointerEvents="none"><rect data-el="sprzet-szyba" x={X + w * 0.06} y={fy(s.y1) + h * 0.14} width={w * 0.62} height={h * 0.72} rx="8" fill="#1c1917" />
+          <circle cx={X + w * 0.84} cy={fy(s.y1) + h * 0.36} r={Math.min(w, h) * 0.07} fill="#d6d3d1" /><circle cx={X + w * 0.84} cy={fy(s.y1) + h * 0.66} r={Math.min(w, h) * 0.07} fill="#d6d3d1" /></g>}
+        {s.typ === "ekspres" && <g pointerEvents="none"><rect x={X + w * 0.12} y={fy(s.y1) + h * 0.1} width={w * 0.76} height={h * 0.16} rx="6" fill="#1c1917" />
+          <rect x={X + w * 0.3} y={fy(s.y1) + h * 0.38} width={w * 0.4} height={h * 0.5} fill="#1c1917" /><rect x={X + w * 0.43} y={fy(s.y1) + h * 0.64} width={w * 0.14} height={h * 0.24} fill="#d6d3d1" /></g>}
         {drzwi && <path d={`M ${dX + 8} ${fy(s.y0 + dH) + 8} h ${dW - 16} v ${dH - 16} h ${-(dW - 16)} z`} fill="none" stroke="#e7e5e4" strokeWidth="2" opacity="0.6" />}
         {s.uchwyt > 0 && (dol
           ? <path d={`M ${X + w * 0.15} ${fy(s.y0 + dH) + 22} h ${w * 0.7}`} stroke="#d6d3d1" strokeWidth="8" />
@@ -9549,7 +9556,7 @@ function SprzetCiaguWidok({ cab, geo, mat, widok = "przod" }) {
 /* `makieta` — rysunek makiety (kilka razy mniejszy niz w trybie technicznym): wieksze napisy wymiarow na frontach
    (uzytkownik 2026-11-10: „wymiary na drzwiach stanowczo za małe”), wysokosc wnetrza poziomu w szafce, nie przy jej
    lewej krawedzi (w ciagu wypadala na sasiedniej szafce — „684 — nie wiem, co to za wymiar”). */
-const fsNapisuFrontu = (d, makieta) => (makieta ? Math.round(Math.max(20, Math.min(56, (d.w - 150) / 4.6, d.h / 2.5))) : 20);
+const fsNapisuFrontu = (d, makieta) => (makieta ? Math.round(Math.max(20, Math.min(56, (d.w - 90) / 4.2, d.h / 2.5))) : 20);
 function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels, frontColor, rear, levelDims, makieta }) {
   if (geo.bezKorpusu) {
     const Wb = geo.W;
@@ -10586,7 +10593,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
               /* makieta: nazwa pod blatem, na froncie (uzytkownik 2026-11-11: „na blacie są niewidoczne — lepiej pod blatem na
                  drzwiach, a przy wycięciu jeszcze trochę niżej”), z jasna obwodka */
               <text key={"n" + gi + "-" + i} x={mx(ox + c.x, c.geo.W) + c.geo.W / 2}
-                y={nakladka ? fy(c.base + c.cab.H) + (((c.cab.cutout || {}).on || (c.cab.cutoutR || {}).on || (c.cab.blatWyciecia || []).length) ? 190 : 105) : fy(c.base + c.cab.H) - 14} textAnchor="middle"
+                y={nakladka ? fy(c.base + c.cab.H) + (((c.cab.cutout || {}).on || (c.cab.cutoutR || {}).on || (c.cab.blatWyciecia || []).length) ? 150 : 62) : fy(c.base + c.cab.H) - 14} textAnchor="middle"
                 {...(nakladka ? { stroke: "#fff", strokeWidth: 6, paintOrder: "stroke", strokeLinejoin: "round", pointerEvents: "none" } : {})}
                 fontSize="22" fill={nakladka ? INK : LINE} fontFamily="ui-monospace, monospace">{c.name}</text>
             ) : null)}
@@ -23315,6 +23322,9 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         zmien(c.idx, (cab) => {
           const L = cab.levels;
           L.forEach((lv, x) => { lv.h = Math.round(gS.levels[x].h); });
+          // sprzet wstawiony dawniej na caly poziom slupka: poziom wraca do wysokosci wneki — inaczej nowy sprzet
+          // ladowal nad szafka (uzytkownik 2026-11-11: „mikrofala wyleciała w kosmos”)
+          L.forEach((lv) => { const wn = makPoziomZeSprzetem(lv) && (lv.cols || []).length === 1 ? makWnekaH(lv.cols[0]) : null; if (wn && lv.h > wn + MAK_MIN) lv.h = wn; });
           const nowy = { ...newLevel(1, 0), h: celH };
           nowy.cols[0].kind = "doors"; nowy.cols[0].sprzet = { typ: a.typ };
           if (zajety) L.splice(li + 1, 0, nowy);
