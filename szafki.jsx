@@ -21304,7 +21304,8 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
     out.push(pas("s", "szer", {}, W - 30, 0, 60, H, "ew-resize"), chwyt("sc", W, H / 2, false));
     out.push(pas("h", "wys", {}, 0, -30, W, 60, "ns-resize"), chwyt("hc", W / 2, 0, true));
     // z wzmocnieniami na rysunku (ramki z wymiarami u gory szafki) napis schodzi pod nie
-    out.push(napis("wn", W / 2, szcz ? 230 : 60, `${fmt(cab.W)} × ${fmt(cab.H)}`));
+    const podWzm = szcz ? Math.max(160, ...(geo.levels || []).flatMap((lv) => lv.cols.flatMap((col) => (col.rails || []).filter((r) => r && fy(r.y1) < 300).map((r) => fy(r.y0))))) + 70 : 60;
+    out.push(napis("wn", W / 2, podWzm, `${fmt(cab.W)} × ${fmt(cab.H)}`));
   } else (geo.levels || []).forEach((lv) => lv.cols.forEach((col) => {
     const raw = typeof col.j === "number" ? ((cab.levels[lv.i] || {}).cols || [])[col.j] : null;
     if (!raw) return;
