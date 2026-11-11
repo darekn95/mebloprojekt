@@ -1228,4 +1228,15 @@ na froncie, bez napisu „W × H” przy wlaczonych wymiarach.
 o blacie — „zmniejsz wysunięcie o N mm”, szuflady w makiecie: przeciaganie i usuwanie pojedynczej, slupek: piekarnik + mikrofala
 kasuja sie nawzajem, przyciski „Pod blat” / „Na wysokość blatu” nie dzialaja; scenariusz uzytkownika: 2 niskie szuflady na dole
 slupka, piekarnik, mikrofala, u gory polka i jedne drzwi z zawiasami po lewej. Projekt wyslany z artefaktu — audyt.
+[AI-TODO] 2026-11-11 — decyzje uzytkownika do wdrozenia (pytania z opcjami):
+1. Slupek glebszy niz ciag (np. 600 w ciagu 560): tyl przy scianie, front wystaje — ale ma byc NA ROWNO Z BLATEM (lico slupka
+   = przednia krawedz blatu roboczego); gdy nie jest rowno z blatem — ostrzezenie „za gleboki slupek”. Pozostale szafki zostaja
+   przy scianie (bez odsuwania o roznice), blat konczy sie przy boku slupka. Dzis: lico w jednej linii, reszta odsunieta, blat 633.
+2. Uwaga „Blat wychodzi N mm — za duzo na arkusz”: dwa przyciski — zmniejsz nawis blatu przed drzwiami o N mm oraz zmniejsz
+   wysuniecie szafki z lica o N mm; ograniczenie: blat nie moze byc krotszy niz front — musi go zaslaniac od gory.
+3. Zgloszone bledy makiety do zrobienia: szuflady — przeciaganie pojedynczej i usuwanie; slupek — piekarnik i mikrofala kasuja
+   sie nawzajem (w makiecie testowej „Dodaj” dzialalo); przyciski „Pod blat” / „Na wysokość blatu” w karcie piekarnika nie
+   dzialaja; scenariusz do testu: slupek 600 × 2000 — 2 niskie szuflady na dole, piekarnik, mikrofala, u gory polka i jedne drzwi
+   z zawiasami po lewej. Projekt uzytkownika z 2026-11-11 (wersja 37 w `projekt/biezacy`): audyt — blad dlugosci sciany
+   (2999 > 1800) i skrzydlo „Szafka 1 c2” przy wstawce w rogu; reszta to skutki slupka 600 (pkt 1).
 
