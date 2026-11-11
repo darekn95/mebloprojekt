@@ -22587,7 +22587,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
           ...(wszystkie ? [liczba("blenda-h", "wysokość blendy", hB, (v) => ustawB({ height: v }), 10, 1)] : [])];
       })(),
       zCiagu,
-      <p key="ch" className="pt-1 text-[11px] text-stone-500" data-el="mak-ciag-info">Rodzaj zabudowy i długość ściany — nad rysunkiem. Cokół i nóżki ciągu — zakładka „Cokół i nóżki”. Narożnik, podział blatu i cokołu, wieszanie — w trybie Technicznym.</p>,
+      <p key="ch" className="pt-1 text-[11px] text-stone-500" data-el="mak-ciag-info">Rodzaj zabudowy i długość ściany — nad rysunkiem. Cokół i nóżki ciągu — zakładka „Cokół i nóżki”.{tryb === "szczegolowa" ? " Narożnik, podział blatu i cokołu, wieszanie — przycisk „Wszystkie opcje” poniżej." : " Narożnik, podział blatu i cokołu, wieszanie — w trybie Technicznym."}</p>,
     ];
   }
   else if (zakladka === "cokol" && wisi) tresc = [<p key="wisi" className="text-xs text-stone-500">Ciąg „{run.name || "ciąg"}” wisi na ścianie — cokół i nóżki go nie dotyczą.</p>];

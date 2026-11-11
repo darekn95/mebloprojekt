@@ -390,6 +390,16 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
   zamówienia i Wycena — te same co w trybie technicznym (`kartyZamowienia` w `App`, rysowane w jednym miejscu naraz:
   `zamWMak`). Klik w inny kafelek wraca do rysunku.
 
+- **„Wszystkie opcje: … ›”** (szczegółowa, na dole karty; `MAK_PELNE`, `mak-pelne-otworz`): karta trybu technicznego
+  wysuwa się z prawej jako szuflada nad makietą (`makPelne` w `App`, `main[data-szuflada]`, zamknięcie przyciskiem albo
+  klikiem w tło) — te same pola i kontrole, bez drugiej implementacji. Ciąg → „Ciąg meblowy” (narożnik, podział blatu
+  i cokołu, wieszanie, poziom montażu, położenie na ścianie, prześwit, wysunięcie szafki); Szafka → „Ciąg meblowy”
+  i „Korpus”; Korpus i plecy → „Korpus”; Cokół i nóżki → „Cokół” i „Nóżki”; Szuflady / Półki / Drzwi / Przegroda /
+  Wzmocnienia → „Struktura wnętrza”. Decyzja użytkownika 2026-11-11 (dołożyć: ciąg, korpus / cokół / nóżki, drzwi
+  i szuflady; płyty i luzy drzwi zostają w technicznym).
+- **„Kolory płyt” wyłączone** (szczegółowa): neutralna szarość (`MAK_SZARE`), blat roboczy zostaje brązowy, wieniec
+  i blat z płyty jak reszta korpusu (decyzja użytkownika 2026-11-11). Makieta prosta — jasna paleta `MAK_JASNE`.
+
 ## Czego jeszcze nie ma
 
 Kolejne kroki (`makiety/BRAKI.md`, D):

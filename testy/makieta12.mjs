@@ -180,6 +180,30 @@ ok('makieta prosta: bez kafelka „Zamówienie”', (await page.locator('[data-e
 await start('techniczny');
 ok('tryb techniczny: karty zamówienia w prawej kolumnie', (await page.locator('main [data-el="karty-zamowienia"]').count()) === 1 && (await page.locator('main [data-el="karty-zamowienia"]').isVisible()));
 
+console.log('== „Wszystkie opcje” (karty techniczne w szufladzie), szare kolory ==');
+await start('szczegolowa', CIAG, { ...WSZYSTKO, kolory: false });
+{ const k = await page.evaluate(() => { const f = (sel) => { const e = document.querySelector(sel); return e ? getComputedStyle(e).fill : ''; };
+    const drzwi = [...document.querySelectorAll('[data-el="makieta-szafka"] rect')].map((r) => r.getAttribute('fill')).filter((c) => /^#/.test(c || ''));
+    return [...new Set(drzwi.map((c) => c.toLowerCase()))]; });
+  ok('„Kolory płyt” wyłączone: szare płyty i fronty, brązowy blat roboczy', k.includes('#f1f1f0') && !k.includes('#f3f0eb') && !k.includes('#fbfaf8') && (await page.locator('[data-el="mak-plotno"] svg [fill="#8b6f56"]').count()) >= 1, k.join(',')); }
+for (const [z, karty] of [['ciag', ['Ciąg meblowy']], ['korpus', ['Korpus']], ['cokol', ['Cokół', 'Nóżki']], ['drzwi', ['Struktura wnętrza']], ['szuflady', ['Struktura wnętrza']]]) {
+  await zakl(z);
+  await page.locator('[data-el="mak-pelne-otworz"]').click(); await page.waitForTimeout(500);
+  const tyt = await page.evaluate(() => [...document.querySelectorAll('main[data-szuflada] > div:first-child > *')].filter((e) => e.getBoundingClientRect().height > 0).map((e) => (e.querySelector('header h2, header') || e).textContent.trim()));
+  ok(`„Wszystkie opcje” w zakładce ${z}: ${karty.join(' + ')}`, tyt.length === karty.length && karty.every((k, i) => tyt[i].includes(k)), JSON.stringify(tyt).slice(0, 160));
+  if (z === 'ciag') { const pole = page.locator('main[data-szuflada] input').filter({ hasNot: page.locator('[type="checkbox"]') });
+    ok('karta ciągu w szufladzie: położenie na ścianie, poziom montażu, podział blatu', /Położenie na ścianie/i.test(await page.locator('main[data-szuflada]').innerText()) && /Poziom montażu/i.test(await page.locator('main[data-szuflada]').innerText()) && /Podział blatu|Blat/i.test(await page.locator('main[data-szuflada]').innerText()) && (await pole.count()) > 3); }
+  await page.locator('[data-el="mak-pelne-zamknij"]').click(); await page.waitForTimeout(300);
+  ok(`zamknięcie szuflady (${z})`, !(await page.locator('main').isVisible()) && (await page.locator('[data-el="makieta-rysunek"]').isVisible()));
+}
+await zakl('ciag');
+await page.locator('[data-el="mak-pelne-otworz"]').click(); await page.waitForTimeout(400);
+await page.mouse.click(200, 500); await page.waitForTimeout(300);
+ok('klik w tło zamyka szufladę', (await page.locator('main[data-szuflada]').count()) === 0);
+await start('prosta', CIAG);
+await zakl('ciag');
+ok('makieta prosta: bez przycisku „Wszystkie opcje”', (await page.locator('[data-el="mak-pelne-otworz"]').count()) === 0);
+
 ok('bez błędów w konsoli', errors.length === 0, errors.slice(0, 3).join(' | '));
 console.log(bledy ? `\nBLEDY: ${bledy}` : '\nWSZYSTKO OK');
 await browser.close();

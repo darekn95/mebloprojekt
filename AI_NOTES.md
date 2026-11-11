@@ -1213,4 +1213,8 @@ Opis: `opisy/makieta.md` („Uwagi 2026-11-11”), test `testy/makieta12.mjs`.
 szafy w zabudowie) i bierze projekt uzytkownika; w kazdym stanie (tryb × fronty × widok ciagu × szafka × zakladka) szuka
 bledow strony oraz napisow ucietych przez krawedz rysunku, nizszych niz 8,5 px i nachodzacych na siebie (ponad 30 %
 mniejszego). Ta sama kontrola napisow jest w `testy/makieta12.mjs` (`napisy()`), wiec nowy napis na rysunku makiety
-warto sprawdzic nia przed oddaniem. Nazwa kafelka „Zamówienie” jest robocza — pytanie do uzytkownika.
+warto sprawdzic nia przed oddaniem. Nazwa kafelka „Zamówienie” — potwierdzona przez uzytkownika 2026-11-11.
+[AI-INFO] 2026-11-11 (odpowiedzi uzytkownika): brakujace opcje szczegolowej (ciag, korpus / cokol / nozki, drzwi i szuflady)
+— przez szuflade „Wszystkie opcje” z karta trybu technicznego (`MAK_PELNE`, `makPelne`); plyty i luzy drzwi zostaja
+w technicznym. „Kolory płyt” wylaczone = szare, blat roboczy brazowy (`MAK_SZARE`). Scalenie do main dopiero po
+dolozeniu brakow i testach — i tylko na wyrazna prosbe.
