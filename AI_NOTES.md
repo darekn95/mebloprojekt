@@ -1249,3 +1249,5 @@ chwyt calej szuflady + dwuklik (`makSzuflLinie`, `makSzuflWys`), „Szuflada + d
 odczytane jako WYSOKOSC FRONTU szuflady, tak jak w makiecie „Szuflada typowa (170 mm)”), przenoszenie sprzetu do innej szafki
 (przeciaganie, „Przesuń”, zielone ramki — `makCelPrzeniesienia`), „Co zrobi program”, plyta indukcyjna jak w makiecie.
 Pulapka: `geoRysunku.current[i]` jest tylko dla ZAZNACZONEJ szafki (nakladka) — do innych `geoSzafki(i)`. Test: `makieta13`.
+[AI-INFO] 2026-11-12: decyzja uzytkownika — „Szuflada + drzwi”: 170 (u gory) / 200 (na dole) to wysokosc FRONTU szuflady
+(tak jak jest w `MAK_SZ_G` / `MAK_SZ_D`). Pelne testy v218 (b3c6497): 169 suit, 5423 OK, 0 bledow; losowe 66 / 0.
