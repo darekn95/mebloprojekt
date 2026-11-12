@@ -1836,12 +1836,14 @@ const slupkiSprzetNorma = (p) => {
   const items = p.items.map((it) => {
     const c = it.cab, L = c && c.levels;
     if (!c || c.sprzetCiagu || !(c.slupek || c.H > 1500) || !Array.isArray(L) || L.length < 2) return it;
+    // tylko stan „w kosmosie”: napompowany poziom sprzetu, a nad nim jeszcze sprzet (pojedyncza lodowka z inna wneka zostaje)
     const zly = L.some((lv, x) => { if (!makSlupekSprzet(L, x)) return false; const wn = makWnekaH(lv.cols[0]);
-      return !!wn && lv.h != null && lv.h > wn + MAK_MIN && lv.h > 0.6 * c.H; });
+      return !!wn && lv.h != null && lv.h > wn + MAK_MIN && lv.h > 0.6 * c.H && L.some((q, y) => y > x && makSlupekSprzet(L, y)); });
     if (!zly) return it;
     zmiana = true;
     const N = L.map((lv) => ({ ...lv }));
-    N.forEach((lv, x) => { if (!makSlupekSprzet(N, x)) return; const wn = makWnekaH(lv.cols[0]); if (wn && lv.h != null && lv.h > wn + MAK_MIN && lv.h > 0.6 * c.H) lv.h = wn; });
+    N.forEach((lv, x) => { if (!makSlupekSprzet(N, x)) return; const wn = makWnekaH(lv.cols[0]);
+      if (wn && lv.h != null && lv.h > wn + MAK_MIN && lv.h > 0.6 * c.H && N.some((q, y) => y > x && makSlupekSprzet(N, y))) lv.h = wn; });
     if (makSlupekSprzet(N, N.length - 1)) N.push(newLevel(1, 0));
     N[N.length - 1].h = null;
     return { ...it, cab: { ...c, levels: N } };
@@ -21417,7 +21419,7 @@ const makNazwaOd = (cab, geo) => {
 };
 
 // uchwyty zaznaczonej szafki (uklad szafki: x od lewego boku, y od gory) + podglad przeciagania
-function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, blatSzcz, bezWn, bezFr }) {
+function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, blatSzcz, bezWn, bezFr, bezSw }) {
   const H = cab.H, W = geo.W, fy = (y) => H - y;
   const out = [];
   // blat roboczy nad zaznaczona szafka (szczegolowa; uzytkownik 2026-11-10: „brak zwymiarowania blatu”): grubosc i wierzch od podlogi
@@ -21457,15 +21459,20 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
     <rect key={key} pointerEvents="none" x={cx - (poziomo ? 60 : 12)} y={cy - (poziomo ? 12 : 60)} width={poziomo ? 120 : 24} height={poziomo ? 24 : 120}
       rx="8" fill={MAK_AKCENT} />
   );
-  const napis = (key, x, y, t, kotwica = "middle") => (
-    <text key={key} pointerEvents="none" x={x} y={y} fontSize="30" textAnchor={kotwica} fill={MAK_AKCENT} fontFamily="ui-monospace, monospace">{t}</text>
-  );
+  /* napisy uchwytow przy gorze szafki (szerokosci kolumn „↔”, swiatlo gornej polki „↕”) schodza pod nazwe szafki na froncie
+     — wchodzily na nia (przeglad 2026-11-12: „↔510” na „Szafka 2 salon + …”) */
+  const yNazwyF = widok === "top" ? null : makNazwaOd(cab, geo);
+  const napis = (key, x, y, t, kotwica = "middle") => {
+    const yy = yNazwyF != null && !/^f/.test(key) && y > yNazwyF - 55 && y < yNazwyF + 45 ? yNazwyF + 75 : y;
+    return <text key={key} pointerEvents="none" x={x} y={yy} fontSize="30" textAnchor={kotwica} fill={MAK_AKCENT} fontFamily="ui-monospace, monospace">{t}</text>;
+  };
   if (widok === "top") {
     const D = geo.carcassDepth;
     if (zakladka === "szafka") {
       out.push(pas("ts", "szer", { "data-widok": "top" }, W - 30, 0, 60, D, "ew-resize"), chwyt("tsc", W, D / 2, false));
       out.push(pas("tg", "gleb", { "data-widok": "top" }, 0, D - 30, W, 60, "ns-resize"), chwyt("tgc", W / 2, D, true));
-      out.push(napis("tgn", W / 2, D + 50, `gł. ${fmt(cab.D)}`));
+      // w srodku przy przedniej krawedzi (pod spodem bywa rzut ciagu dolnego — „gł. 300” wchodzil na plyte, przeglad 2026-11-12)
+      out.push(napis("tgn", W / 2, D - 44, `gł. ${fmt(cab.D)}`));
     }
   } else if (zakladka === "szafka") {
     out.push(pas("s", "szer", {}, W - 30, 0, 60, H, "ew-resize"), chwyt("sc", W, H / 2, false));
@@ -21485,7 +21492,7 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
     if (!makKolumnaProsta(raw)) {
       if (zakladka === "polki" && !raw.sprzet) {
         (col.shelves || []).forEach((sh, k) => out.push(pas(`p${lv.i}-${col.j}-${k}`, "polka", { ...dane, "data-k": k }, col.x0, fy(sh.y + geo.ts) - 22, col.w, geo.ts + 44, "ns-resize")));
-        (col.openings || []).forEach((o) => { if (o.h > 70) out.push(napis(`o${lv.i}-${col.j}-${o.k}`, col.x0 + col.w - 10, fy(o.to) + 36, `↕${fmt(o.h)}`, "end")); });
+        (col.openings || []).forEach((o) => { if (o.h > 70 && !bezSw) out.push(napis(`o${lv.i}-${col.j}-${o.k}`, col.x0 + col.w - 10, fy(o.to) + 36, `↕${fmt(o.h)}`, "end")); });
         (col.drazki || []).forEach((dr) => out.push(pas(`dz${lv.i}-${col.j}-${dr.k}`, "drazek", { ...dane, "data-k": dr.k }, col.x0 + 20, fy(dr.y) - 26, col.w - 40, 52, "ns-resize"),
           chwyt(`dzc${lv.i}-${col.j}-${dr.k}`, col.x0 + col.w / 2, fy(dr.y), true)));
       }
@@ -21511,7 +21518,7 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
       (col.shelves || []).forEach((sh, k) => {
         out.push(pas(`p${lv.i}-${col.j}-${k}`, "polka", { ...dane, "data-k": k }, col.x0, fy(sh.y + geo.ts) - 22, col.w, geo.ts + 44, "ns-resize"));
       });
-      (col.openings || []).forEach((o) => { if (o.h > 70) out.push(napis(`o${lv.i}-${col.j}-${o.k}`, col.x0 + col.w - 10, fy(o.to) + 36, `↕${fmt(o.h)}`, "end")); });
+      (col.openings || []).forEach((o) => { if (o.h > 70 && !bezSw) out.push(napis(`o${lv.i}-${col.j}-${o.k}`, col.x0 + col.w - 10, fy(o.to) + 36, `↕${fmt(o.h)}`, "end")); });
       // drazek: chwyt na srodku — przeciagnij do innego swiatla
       (col.drazki || []).forEach((dr) => out.push(pas(`dz${lv.i}-${col.j}-${dr.k}`, "drazek", { ...dane, "data-k": dr.k }, col.x0 + 20, fy(dr.y) - 26, col.w - 40, 52, "ns-resize"),
         chwyt(`dzc${lv.i}-${col.j}-${dr.k}`, col.x0 + col.w / 2, fy(dr.y), true)));
@@ -21549,7 +21556,10 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
       out.push(pas(`v${dv.level}-${dv.j}`, "przeg", { "data-li": dv.level, "data-j": dv.j }, dv.x - 26, fy(dv.y1), geo.t + 52, dv.h, "ew-resize"),
         chwyt(`vc${dv.level}-${dv.j}`, dv.x + geo.t / 2, fy((dv.y0 + dv.y1) / 2), false));
     });
-    (geo.levels || []).forEach((lv) => { if (lv.cols.length > 1) lv.cols.forEach((col) => out.push(napis(`w${lv.i}-${col.j}`, col.x0 + col.w / 2, fy(lv.y1) + 40, `↔${fmt(col.w)}`))); });
+    // szerokosci kolumn przy dole poziomu (u gory wchodzily na nazwe szafki, pod nia — na front gornej szuflady)
+    (geo.levels || []).forEach((lv) => { if (lv.cols.length > 1) lv.cols.forEach((col, x) => out.push(napis(`w${lv.i}-${col.j}`, col.x0 + col.w / 2,
+      // ostatnia kolumna przy wymiarze „wnętrze N” (szczegolowa, prawa krawedz, 70 nad dolem poziomu) — nad nim
+      fy(lv.y0) - (bezSw && x === lv.cols.length - 1 ? 140 : 22), `↔${fmt(col.w)}`))); });
   }
   if (podglad && podglad.linia) {
     const [x1, y1, x2, y2] = podglad.linia;
@@ -24075,7 +24085,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   }, [project.active, skala, ciagId]);   // eslint-disable-line react-hooks/exhaustive-deps
   const nakladkaPrzod = (cab, geo, idx) => (geoRysunku.current[idx] = geo) && <MakietaUchwyty cab={cab} geo={geo} zakladka={akt} widok="front" podglad={podglad && podglad.idx === idx && podglad.widok !== "top" ? podglad : null}
     szcz={tryb === "szczegolowa" && widokRys === "open" && (akt === "wzmocnienia" || (wymiaryRys && wym.wzm !== false && !["szuflady", "polki", "drzwi", "przegroda"].includes(akt)))}
-    blatSzcz={tryb === "szczegolowa"} bezWn={wymiaryRys && wym.szer !== false && wym.wys !== false} bezFr={wymiaryRys && wym.fronty !== false}
+    blatSzcz={tryb === "szczegolowa"} bezWn={wymiaryRys && wym.szer !== false && wym.wys !== false} bezFr={wymiaryRys && wym.fronty !== false} bezSw={wymiaryRys && wym.swiatla !== false}
     blat={geo.isWorktop && wymiaryRys && wym.blat !== false ? (() => { const it = project.items[idx], t = ((it && it.mat && it.mat.worktop) || {}).thickness || 38;
       return { t, wierzch: cabTopY(cab, geo) + t }; })() : null}
     kolZ={kolZ && kolZ.idx === idx && ["drzwi", "szuflady", "polki"].includes(akt) ? (akt === "polki" ? { ...kolZ, nr: null } : kolZ) : null} />;

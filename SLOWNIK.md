@@ -244,6 +244,8 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | cała szuflada do chwycenia (Szuflady, `data-u="szuflSz"`), dwuklik — „Szuflada N od dołu” (`mak-szuflada-wys`) | `makSzuflLinie`, `makSzuflWys`, `otworzSzuflade` / `szuflWys` w `MakietaWidok`; `col.drawers[].front` albo `levels[].h` |
 | „Szuflada + drzwi” (`mak-szd-nowa`, `mak-front` = `szuflada-drzwi`), „szuflada u góry / na dole” (`mak-szd-miejsce`), „1 / 2 drzwi” (`mak-szd-drzwi`), „Szuflada typowa” (`mak-szd-typowa`), wzór „Dolna, szuflada + drzwi” | `makSzufDrzwiUklad`, `makUstawSzufDrzwi`, `MAK_SZ_G` / `MAK_SZ_D`, `makGeoKopii`; dwa poziomy `cab.levels` |
 | zielone ramki (`mak-ramka`), „Przesuń do innej szafki” (`agd-przesun`), „Przesuń w ciągu” (`mak-przesun-szafke`), pasek „Przesuwasz: …” (`mak-przesun-pasek`) | `makCelPrzeniesienia`, `makWyjmijSprzet`, `przeniesSprzet` / `przeniesBlat` / `przestawSzafke` / `przesunNa` w `MakietaWidok`, `geoSzafki` |
+| sprzęt w słupku: „dół wnęki od podłogi”, ±50, „Na wysokość blatu”, „Pod blat”, „Razem”, „Zamień” (`agd-slupek-*`) | `makSlupekWneka`, `makSlupekRazem`, `makSlupekNorma`, `slupkiSprzetNorma` (`naprawProjekt` w `setProject` i przy wczytaniu) |
+| podpis przy wskaźniku przy przeciąganiu (`mak-niesiesz`) | `ramki.kx` / `ky` w `MakietaWidok` |
 | „Co zrobi program” — karta sprzętu (`agd-co-zrobi`) i karta Szafka (`mak-co-zrobi`) | `makCoZrobiSprzet`, `makCoZrobiSzafka` |
 | płyta / zlew z przodu na rysunku makiety (`wyciecie-front`), szkło płyty z góry (`rant-blatu`, `pola-grzewcze`) | `AssemblyView` (blat ciągu, `rt.wyciecia`) |
 | uwagi pod makietą (`data-el="makieta-uwagi"`) | `uwagiKarta(zRef)` w `App` — ta sama karta „Uwagi” co w technicznym (`NoteLine`), `scrollToNotes` w makiecie przewija do niej |

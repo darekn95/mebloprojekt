@@ -457,6 +457,21 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
     (`wyciecie-front`, tylko makieta);
   - lodówka do zabudowy: pole „dolny front — wysokość” przy 2 frontach było już w karcie (`agd-lod-dolny`) — sprawdzone
     testem (zapis i front 700 na rysunku).
+- **Sprzęt w słupku jak klocki** (użytkownik 2026-11-12: „mikrofala w słupku dalej w kosmosie”, „nie widzę, żeby były
+  razem”): poziom ze sprzętem ma zawsze wysokość swojej wnęki (`makWnekaH`), przerwa pod sprzętem albo między sprzętami
+  to osobny poziom z frontem („wypełnienie”), najwyższy poziom bez sprzętu bierze resztę (auto). Przesunięcie sprzętu
+  (pole „dół wnęki”, −/+50, „Na wysokość blatu”, „Pod blat”, „Do szafek górnych”, uchwyt na rysunku; `makSlupekWneka`)
+  zmienia tylko wypełnienie pod nim — w górę rośnie albo dochodzi nowe (najmniej 60 mm), w dół maleje albo znika
+  i sprzęt siada na tym, co pod nim; sprzęt nie wyjdzie nad szafkę i nie wejdzie w sprzęt pod nim. Wcześniej rósł poziom
+  pod sprzętem — gdy stał tam piekarnik, jego poziom puchł (1982 mm), a mikrofala lądowała nad słupkiem. „Razem”
+  (`makSlupekRazem`) usuwa wypełnienia między dwoma sprzętami (półka między nimi), „Zamień” zamienia poziomy. Karta
+  sprzętu idzie za nim, gdy dochodzi wypełnienie (zmieniony numer poziomu). Projekt w stanie „w kosmosie” (poziom sprzętu
+  ponad 60% szafki, a nad nim drugi sprzęt) naprawia się przy wczytaniu i każdej zmianie (`slupkiSprzetNorma`).
+- **Płyta / zlew / sprzęt na blacie przeciągane z góry** (2026-11-12: „zginęły podświetlenia, gdzie można ją przenieść”):
+  zielone ramki na szafkach pod blatem (z góry i z przodu), pod wskaźnikiem podpis „Płyta … → „Szafka 2” — puść”
+  albo „upuść na zielonej ramce” (`mak-niesiesz`; tak samo przy sprzęcie w kolumnie).
+- W zakładce Półki przy wymiarach świateł (szczegółowa) bez napisów „↕N” przy półkach — dublowały wymiary i wchodziły
+  na „wnętrze N”; „gł. N” w rzucie z góry w środku szafki (wchodził na rzut ciągu pod szafką wiszącą).
 - Klik po przeciągnięciu jest tłumiony tylko raz (`tlumKlikNa`, 60 ms) — wcześniej blokada zostawała, gdy po
   puszczeniu nie przyszedł klik, i zjadała następny prawdziwy klik.
 
