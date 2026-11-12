@@ -10355,7 +10355,12 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                  w prostokacie (przeglad na przykladach 2026-11-11). */
               const zrodlo = g.cabs.length ? g.cabs : ((groups.find((q) => q.run.id === sasiad.pair.wchodzi.run.id) || {}).cabs || []);
               if (!zrodlo.length) return null;
-              const hTop = Math.max(...zrodlo.map((c) => c.base + c.cab.H));
+              /* wysokosc boku = szafka w rogu z sasiedniej sciany (rysowana albo z jej ciagu); bez niej — szafki tego ciagu bez
+                 slupkow (uzytkownik 2026-11-12: po dodaniu slupka „bok 581” mial 2000 mm wysokosci — brana byla najwyzsza szafka ciagu) */
+              const rogC = sasiad.pair.rogowa, gW = groups.find((q) => q.run.id === sasiad.pair.wchodzi.run.id);
+              const cW = rogC && gW && gW.cabs.find((c) => c.cab === rogC.cab);
+              const niskie = zrodlo.filter((c) => !(c.cab.slupek || c.cab.H > 1500));
+              const hTop = cW ? cW.base + cW.cab.H : Math.max(...(niskie.length ? niskie : zrodlo).map((c) => c.base + c.cab.H));
               const bok = (u0, w) => w <= 0 ? null : (
                 <g key={"bok" + u0}>
                   <rect x={mx(n.ex + u0, w)} y={fy(hTop)} width={w} height={hTop - g.mount}
@@ -10934,7 +10939,7 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
   );
 }
 
-function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, showWall = true, showBlat = true, onPick, zazn, maxH, nakladka, skala }) {
+function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, showWall = true, showBlat = true, onPick, zazn, maxH, nakladka, skala, glebWym = false }) {
   const full = projectLayout(project);
   const groups = assemblyParts(project, runs, full).slice().sort((a, b) => a.mount - b.mount);
   const wzor = wzorcowaSzafka(groups);
@@ -11133,7 +11138,8 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
     });
   });
   // margines obejmuje tez grubosc sciany; nazwy scian stoja na niej
-  const pad = (showDims ? 190 : 40) + SCIANA_GR;
+  // makieta z wymiarami glebokosci (`glebWym`): przy ciagu dwie kolumny wymiarow z napisami w duzym rozmiarze
+  const pad = (showDims ? 190 : glebWym ? 420 : 40) + SCIANA_GR;
   const padR = pad;
   const vb = [b.x0 - pad, b.y0 - pad,
     b.x1 - b.x0 + pad + padR, b.y1 - b.y0 + 2 * pad].join(" ");
@@ -11271,6 +11277,30 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
           <g key={"wym" + g.run.id} transform={`translate(${o.x}, ${o.y}) rotate(${deg})`}>
             {showDims && armsIn(full, n, rysowane).filter((a) => !a.dostawione)
               .map((a, i) => podpisRamienia(a, i, n.depth))}
+            {/* Makieta (uzytkownik 2026-11-12: „na rzucie z góry brakuje wymiarów od ściany do ciągu szafek, słupka i blatu”):
+                przy wolnym koncu ciagu lancuch od sciany — odsuniecie od sciany, glebokosc korpusu, front; obok blat (od sciany
+                do jego przodu); szafka glebsza albo wysunieta (np. slupek) — wymiar od sciany do jej lica w niej samej. */}
+            {glebWym && !upper && g.cabs.length > 0 && (() => {
+              const lewo = !(n.lead > 0), kol = (k) => (lewo ? -60 - 200 * k : n.len + 60 + 200 * k);
+              const wz = g.cabs.filter((c) => !c.offset && !(c.cab.slupek || c.cab.H > 1500));
+              const t0 = wz[0] || g.cabs[0], tyl = Math.round(n.depth - t0.geo.carcassDepth + t0.offset), lico = Math.round(n.depth + t0.offset);
+              const rt = showBlat ? runTop(project, g.run) : null, gs = wallGapOf(g.run, null), yS = gs.bottom - gs.top;
+              const v = (k, y1, y2, label, x) => <DimV key={k} y1={y1} y2={y2} x={x} left={lewo} label={label} c={MAK_AKCENT} obwodka />;
+              // odsuniecie od sciany (ustawienie ciagu) i plecy przybijane (stoja za korpusem) — osobno, zeby „3 od ściany” nie mylilo
+              const odS = Math.max(0, Math.round(gs.bottom || 0)), plecy = Math.max(0, tyl - odS);
+              return <g data-el="mak-wym-zgory">
+                {odS > 0 && v("odSc", 0, odS, `${fmt(odS)} od ściany`, kol(0))}
+                {v("gl", odS, lico, plecy > 0 ? `${fmt(lico - tyl)} + plecy ${fmt(plecy)}` : fmt(lico - tyl), kol(0))}
+                {dv + t0.offset > lico + 1 && v("fr", lico, Math.round(dv + t0.offset), `front ${fmt(Math.round(dv + t0.offset - lico))}`, kol(0))}
+                {rt && v("blat", yS, yS + rt.depth, `blat ${fmt(Math.round(rt.depth))}`, kol(1))}
+                {g.cabs.filter((c) => c !== t0 && (c.offset || Math.round(c.geo.carcassDepth) !== Math.round(t0.geo.carcassDepth))).map((c, i) => {
+                  const y1c = Math.round(n.depth + c.offset), x = n.lead + c.x + c.geo.W - 50;
+                  return <g key={"wd" + i} data-el="mak-wym-zgory-szafka">
+                    <DimV y1={0} y2={y1c} x={x} left label={`${fmt(y1c)}${c.offset ? ` (${c.offset > 0 ? "wysunięty " : "cofnięty "}${fmt(Math.abs(c.offset))})` : ""}`} c={MAK_AKCENT} obwodka />
+                  </g>;
+                })}
+              </g>;
+            })()}
             {/* Wymiary na samym wierzchu — ramie z sasiedniej sciany i blat
                 rysowane pozniej zaslanialy opisy, np. szerokosc szafki w rogu. */}
             {showDims && (
@@ -21225,7 +21255,7 @@ const MAK_ZOOM = [1, 1.25, 1.5, 2, 2.5, 3, 4];
 const MAK_SCIANA = 2300;
 /* Lista „Wymiary” nad rysunkiem makiety szczegolowej — co rysowac (uzytkownik 2026-11-10). */
 const MAK_WYM = [["szer", "szerokości (szafki, ciąg)"], ["wys", "wysokości (nóżki / cokół, korpus, blat)"], ["fronty", "wymiary frontów"],
-  ["swiatla", "światła półek i wnętrza"], ["wzm", "wzmocnienia"], ["blat", "blat (grubość, wierzch od podłogi)"]];
+  ["swiatla", "światła półek i wnętrza"], ["zgory", "z góry: od ściany, głębokość szafek i blatu"], ["wzm", "wzmocnienia"], ["blat", "blat (grubość, wierzch od podłogi)"]];
 function MakWymiaryMenu({ wym, ustaw }) {
   const [otw, setOtw] = useState(false);
   const ref = useRef(null);
@@ -22781,6 +22811,16 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     // bez wiersza „Ciąg” (uzytkownik 2026-11-09: „widać to na górze rysunku” — przycisk „Ciąg ▾”)
     /* szafka w ciagu -> wolnostojaca (uzytkownik 2026-11-10: „brak w opcji szafki, żeby wyłączyć ją z ciągu”): zostaje
        w pomieszczeniu ciagu, bez `runId`; ciag (i jego blat) liczy sie juz bez niej */
+    /* Wysuniecie szafki przed lico ciagu (`item.offset`; uzytkownik 2026-11-12: „nie wiemy, czy można wysunąć szafki do przodu”) —
+       jak „wysunięcie z lica” w trybie technicznym; caly ciag od sciany — zakladka Ciąg („Odsunięcie od ściany”) */
+    ...(run && run.tier !== "gorny" ? [<div key="wysun" data-el="mak-wysun-w" className="border-b border-stone-100 py-1 text-xs">
+      <label className="flex items-center justify-between gap-2"><span className="text-stone-500">wysunięcie przed lico ciągu</span>
+        <span className="flex items-center gap-1"><input type="number" step="5" defaultValue={Math.round(Number(it.offset) || 0)} key={`${idx}-off-${it.offset || 0}`} data-pole="wysuniecie"
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value) || 0); if (v !== Math.round(Number(it.offset) || 0)) zmienProjekt((p) => ({ ...p, items: p.items.map((x, i) => (i === idx ? { ...x, offset: v } : x)) })); }}
+          className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" /><span className="text-stone-500">mm</span></span></label>
+      <p className="mt-0.5 text-[11px] text-stone-500">Ta szafka wyjdzie przed pozostałe o tyle (np. głębszy słupek); cały ciąg odsuniesz od ściany w zakładce Ciąg — „Odsunięcie od ściany” ({fmt(Math.round(wallGapOf(run, null).bottom || 0))} mm). Wymiary od ściany — rzut z góry.</p>
+    </div>] : []),
     ...(run ? [zCiagu] : []),
     /* szafka wolnostojaca -> do ciagu (uzytkownik 2026-11-10: „jak utworzyć ciąg z kilku szafek?”): nowy ciag z tej
        szafki albo na koniec ciagu dolnego w tym pomieszczeniu */
@@ -24413,7 +24453,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         {przel.zgory && !samaSzafka && rysowane.length > 0 && (
           <div data-el="mak-zgory">
             <p className="text-[11px] text-stone-500">Z góry</p>
-            <AssemblyTopView project={projRys} runs={rysowane} showDims={false} showShelves showHardware={false}
+            <AssemblyTopView project={projRys} runs={rysowane} showDims={false} showShelves showHardware={false} glebWym={wymiaryRys && wym.zgory !== false}
               onPick={wybierz} zazn={zaznM ? project.active : null} maxH={maxHGora} nakladka={nakladkaGora} skala={skala} />
           </div>
         )}
