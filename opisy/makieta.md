@@ -486,6 +486,14 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
   słupka i blatu”): przy wolnym końcu ciągu łańcuch — odsunięcie od ściany, korpus (+ plecy przybijane), front; obok
   blat od ściany; szafka głębsza albo wysunięta (słupek) — od ściany do jej lica i „wysunięty N” (`mak-wym-zgory`).
   W karcie Szafka pole „wysunięcie przed lico ciągu” (`item.offset`); cały ciąg — „Odsunięcie od ściany” w zakładce Ciąg.
+- **Przełącznik „AGD”** (jak w makiecie „Dodaj”, 2026-11-12): wyłączony — bez sprzętu na rysunku (wnęki puste, płyta i zlew
+  jako samo wycięcie, bez sprzętu na blacie); domyślnie włączony (`przel.agd !== false`).
+- **3D i 45°**: przycisk „otwarte / zamknięte” (ten sam co „Fronty”) i suwak kąta 0–110° (`kat3d`), jak w trybie technicznym.
+- **Karta płyty**: kaseta między bokami szafki — „Kaseta 554 mm we wnętrzu szafki 564 mm: zapas 5 / 5 mm”; wycięcie na boku —
+  błąd w „Uwagach” (to sprawdzał program już wcześniej).
+- **Wnęka sprzętu w słupku niższa niż sprzęt** — program sam ją podnosi do wnęki sprzętu (`slupkiSprzetNorma`).
+- Na rzucie z góry blat nie przechwytuje kliknięć (szafkę pod nim da się wybrać); napis przy ścianie: „na ścianie wolne
+  N mm długości” / „brakuje N mm długości”.
 - **Bok szafki z sąsiedniej ściany w rogu** (widok z przodu): wysokość szafki w rogu (albo szafek ciągu bez słupków) —
   wcześniej najwyższej szafki ciągu, po dodaniu słupka „bok 581” szedł do 2000 mm.
 - **Płyta / zlew / sprzęt na blacie przeciągane z góry** (2026-11-12: „zginęły podświetlenia, gdzie można ją przenieść”):

@@ -7,6 +7,13 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 ## Co program liczy sam
 
 - **Stoi czy wisi**: ciąg dolny z poziomem montażu 0 stoi na podłodze — także szafki bez nóżek i cokołu (np. RTV): bez zawieszek, haków, listwy i uwag o wieszaniu (`ciagStoi`, `cabDoGeo` → `cab.naPodlodze`; użytkownik 2026-10-24). Ciąg wiszący (także dolny, np. szafki RTV na ścianie) — poziom montażu > 0.
+- **Głębokość blatu wpisana ręcznie** (karta ciągu w makiecie: „Głębokość blatu (od ściany)”, `run.blatGl`; 2026-11-12):
+  zastępuje głębokość z szafek (lico drzwi + 10 mm, arkusz 600); arkusz — najmniejszy, z którego się ją wytnie. Za płytki
+  (fronty wystają przed blat) — ostrzeżenie z przyciskami „Blat N mm” i „Głębokość blatu automatycznie” (`blatgl`).
+- **Słupek równo z blatem**: drzwi słupka wysuniętego (tył przy ścianie) nie mogą wyjść przed blat — „Za głęboki słupek:
+  drzwi wystają N mm przed blat” z przyciskami „Głębokość szafki …” (płytszy, tył zostaje przy ścianie) i „Blat … mm”.
+  Zmiana głębokości wysuniętej szafki zmienia jej wysunięcie o tyle samo — tył zostaje przy ścianie
+  (`wysuniecieZaGlebokoscia` w `setProject`; 2026-11-12: „czemu po zmianie głębokości słupek sam się odsunął od ściany?”).
 - **Wysokość blatu roboczego** (`worktopLevel`): wysokość, na której stoją szafki o największej łącznej szerokości;
   słupek (oznaczony albo wyższy niż 1500 mm) się nie liczy, chyba że w ciągu są same słupki — ciąg „dolna 450 +
   słupek 600” miał blat na słupku (2100 mm; poprawione 2026-11-12). Remis — niższa wysokość.

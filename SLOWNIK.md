@@ -247,6 +247,10 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | sprzęt w słupku: „dół wnęki od podłogi”, ±50, „Na wysokość blatu”, „Pod blat”, „Razem”, „Zamień” (`agd-slupek-*`) | `makSlupekWneka`, `makSlupekRazem`, `makSlupekNorma`, `slupkiSprzetNorma` (`naprawProjekt` w `setProject` i przy wczytaniu) |
 | wysokość słupka 1800 / 2000 / 2120 / 2200 / „równo z górnymi” (`mak-slupek-wys`), „dół szafek górnych od podłogi” (`mak-gorny-dol`, `mak-gorny-krok`, `mak-gorny-dom`) | `cab.H`; `run.clearance` (górny przy dolnym) albo `run.mountY` — `tierMountY` |
 | „wysunięcie przed lico ciągu” (karta Szafka, `data-pole="wysuniecie"`), wymiary z góry (`mak-wym-zgory`, „Wymiary → z góry”) | `item.offset`; `AssemblyTopView` (`glebWym`), `wallGapOf(run).bottom`, `runTop(...).depth` |
+| „Głębokość blatu (od ściany)” w karcie Ciąg (`data-pole="ciag-blatgl"`, „auto”) | `run.blatGl` → `runTopLiczy` (`reczna`), uwagi `blatgl` |
+| przełącznik „AGD” (`data-p="agd"`), 3D / 45°: „otwarte / zamknięte” i „kąt” (`mak-3d-otwarcie`, `mak-3d-kat`) | `przel.agd`, `kat3d` w `MakietaWidok` |
+| „Szerszy fix N mm — drzwi M mm”, „Luz w rogu N mm” (uwaga o kolizji skrzydła w rogu) | `openingMsgs` (`zFixem`, `zLuzem`), akcje `slepyfix`, `rogluz` |
+| wzmocnienie domyślnie 70 mm | `WZM_DOM`, `newRail`, `railPair` |
 | podpis przy wskaźniku przy przeciąganiu (`mak-niesiesz`) | `ramki.kx` / `ky` w `MakietaWidok` |
 | „Co zrobi program” — karta sprzętu (`agd-co-zrobi`) i karta Szafka (`mak-co-zrobi`) | `makCoZrobiSprzet`, `makCoZrobiSzafka` |
 | płyta / zlew z przodu na rysunku makiety (`wyciecie-front`), szkło płyty z góry (`rant-blatu`, `pola-grzewcze`) | `AssemblyView` (blat ciągu, `rt.wyciecia`) |
