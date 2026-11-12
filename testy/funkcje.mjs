@@ -39,7 +39,13 @@ src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefin
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
 new Function('module', 'exports', 'window', 'localStorage', out)(m, m.exports, {}, { getItem: () => null, setItem: () => {} });
-const G = m.exports;
+const G0 = m.exports;
+/* Testy logiki wzmocnien (paski przy wycieciu, rozstaw lacznikow) spisane przy wzmocnieniach 100 mm — od 2026-11-12 domyslne
+   maja 70 (`WZM_DOM`); tu para pod blat dalej 100 mm, a domyslne 70 sprawdza osobny test nizej. */
+const bezWienca100 = (c, tf) => { const w = G0.bezWienca(c, tf);
+  (w.levels || []).forEach((lv) => (lv.cols || []).forEach((k) => (k.rails || []).forEach((r) => { if (!r.paraPodBlat) return; if (r.orient === 'shelf') r.depth = 100; else if (r.h === 70) r.h = 100; })));
+  return w; };
+const G = { ...G0, bezWienca: bezWienca100 };
 
 console.log('== N92: własny kawałek zdejmuje właściwą formatkę ==');
 {
@@ -1224,6 +1230,15 @@ console.log('\n== Pod wycięciem w blacie: nachodzenie, wzmocnienie stojące / z
   ok('zlew 150 od wierzchu nad półką 64 mm pod blatem: błąd „wchodzi w półkę … obniż ją o 48 mm”', m5.some((t) => /^error .*komora zlewu sięga 150 mm od wierzchu blatu \(112 mm pod blat\) i wchodzi w półkę \(64 mm pod blatem\) — obniż ją o 48 mm/.test(t)), JSON.stringify(g5.levels[0].cols[0].shelves) + ' ' + m5.join(' // '));
   const P6 = projK([szK('A', 600), szK('Zlew', 800, [{ typ: 'zlew', podBlatem: 30 }])]);
   ok('pod blat 30 przy blacie 38: sprzęt nie sięga pod blat — bez uwag o nachodzeniu', !msgs(P6).some((t) => /wchodzi w/.test(t)), msgs(P6).join(' // '));
+}
+
+console.log('\n== Wzmocnienia domyślnie 70 mm (użytkownik 2026-11-12) ==');
+{
+  const c = G0.migrateCab({ name: 'D70', W: 600, H: 720, D: 560, plinth: { on: true, height: 100 }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null] }] }] }, M0);
+  const r = G0.bezWienca(c, 18).levels[0].cols[0].rails;
+  ok('para pod blat: leżące 70 mm w głąb, tylne stojące 70 mm wysokości', r.length === 2 && r[0].orient === 'shelf' && r[0].depth === 70 && r[1].h === 70, JSON.stringify(r.map((q) => [q.orient, q.depth, q.h])));
+  const g = G0.computeGeo(G0.migrateCab({ ...c, ...G0.bezWienca(c, 18) }, M0), M0);
+  ok('konfirmaty na końcu wzmocnienia 70: 18 i 53 mm od krawędzi', JSON.stringify(g.levels[0].cols[0].rails[0].laczniki.map((l) => l.poz)) === '[[18,53],[18,53]]', JSON.stringify(g.levels[0].cols[0].rails[0].laczniki));
 }
 
 console.log('\n== Wzmocnienia na konfirmatach (użytkownik 2026-11-06) ==');

@@ -83,9 +83,11 @@ console.log('== „Sprzęt” w kolumnie poziomu 2: piekarnik ==');
   console.log('\n== ekspres do zabudowy i rozmiar 45 (2026-11-09, z makiety) ==');
   const spK = async () => ((await zap()).items[0].cab.levels.flatMap((l) => l.cols).find((c) => c.sprzet) || {}).sprzet || {};
   await karta.getByRole('button', { name: 'Ekspres', exact: true }).click(); await page.waitForTimeout(900);
-  const reE = /wnęka na ekspres ma 373 mm wysokości — potrzeba co najmniej 450 mm/;
-  ok('„Ekspres”: wnęka 373 za niska (potrzeba 450), informacja o otwieraniu „nie sprawdzaj”', await jest(reE)
-    && (await page.locator('[data-el="ekspres-otwieranie"]').count()) === 1 && (await spK()).typ === 'ekspres');
+  /* od 2026-11-12 („wnęka za mała — program sam nie powinien na to pozwolić”) poziom za niski na sprzęt sam rośnie do jego wnęki
+     (`slupkiSprzetNorma`), więc zamiast błędu „za niska” sprawdzamy podniesiony poziom */
+  const lvH = async () => (await zap()).items[0].cab.levels[1].h;
+  ok('„Ekspres”: poziom 373 sam rośnie do wnęki ekspresu (≥ 450), bez błędu wysokości, informacja o otwieraniu „nie sprawdzaj”', (await lvH()) >= 450
+    && !(await jest(/wnęka na ekspres ma \d+ mm wysokości/)) && (await page.locator('[data-el="ekspres-otwieranie"]').count()) === 1 && (await spK()).typ === 'ekspres', String(await lvH()));
   await karta.getByRole('button', { name: 'wysuwa się', exact: true }).click(); await page.waitForTimeout(700);
   ok('ekspres „wysuwa się”: pole „Wysuw do przodu”, bez wysuwu nadal informacja', (await spK()).drzwi === 'wysuw'
     && (await karta.locator('label').filter({ hasText: 'Wysuw do przodu' }).count()) === 1 && (await page.locator('[data-el="ekspres-otwieranie"]').count()) === 1);
@@ -94,23 +96,19 @@ console.log('== „Sprzęt” w kolumnie poziomu 2: piekarnik ==');
   await karta.getByRole('button', { name: 'Mikrofala', exact: true }).click(); await page.waitForTimeout(700);
   await page.locator('[data-el="sprzet-rozmiar"] button').filter({ hasText: /^45 cm$/ }).click(); await page.waitForTimeout(900);
   const sp45 = await spK();
-  ok('mikrofala „45 cm”: front 455, wnęka od 450 — za niska w poziomie 373', sp45.frontH === 455 && sp45.hMin === 450 && await jest(/wnęka na mikrofal.* 373 mm wysokości — potrzeba co najmniej 450/), JSON.stringify(sp45));
+  ok('mikrofala „45 cm”: front 455, wnęka od 450 — poziom co najmniej 450, bez błędu „za niska”', sp45.frontH === 455 && sp45.hMin === 450 && (await lvH()) >= 450
+    && !(await jest(/wnęka na mikrofal.* mm wysokości — potrzeba co najmniej/)), JSON.stringify(sp45) + ' poziom ' + (await lvH()));
   await page.locator('[data-el="sprzet-rozmiar"] button').filter({ hasText: /^38 cm$/ }).click(); await page.waitForTimeout(900);
   ok('mikrofala „38 cm”: z powrotem typowa', (await spK()).frontH == null);
 
   console.log('\n== własny wymiar frontu: zachodzi na drzwi nad nim ==');
   await karta.getByRole('button', { name: 'Piekarnik', exact: true }).click(); await page.waitForTimeout(700);
-  const reH = /wnęka na piekarnik ma 373 mm wysokości — potrzeba co najmniej 585 mm \(586 mm/;
-  ok('powrót na piekarnik w poziomie 373: błąd wysokości z „Poziom 586 mm”', JSON.stringify(await przyciski(reH)) === '["Poziom 586 mm"]', (await przyciski(reH)).join(' / '));
-  await klik(reH, 'Poziom 586 mm');
-  ok('po kliknięciu: poziom 586, bez błędu', (await zap()).items[0].cab.levels[1].h === 586 && !(await jest(/piekarnik/)));
+  ok('powrót na piekarnik: poziom sam rośnie do wnęki piekarnika (≥ 585), bez błędu wysokości', (await lvH()) >= 585 && !(await jest(/wnęka na piekarnik ma \d+ mm wysokości/)), String(await lvH()));
   await karta.locator('label').filter({ hasText: 'Front — wysokość' }).locator('input').fill('610'); await page.waitForTimeout(900);
   const sp = (await zap()).items[0].cab.levels[1].cols[0].sprzet;
   const reF = /front sprzętu \(piekarnik, 595 × 610 mm\) zachodzi o \d+ mm na drzwi nad nim/;
-  const bF = await przyciski(reF);
-  ok('pole „Front — wysokość” 610: zapisane, błąd frontu na drzwiach nad nim z przyciskiem „Poziom N mm”', sp.frontH === 610 && bF.length === 1 && /^Poziom \d+ mm$/.test(bF[0]), `${sp.frontH} | ${bF.join(' / ')}`);
-  await klik(reF, bF[0]);
-  ok('po kliknięciu: bez błędu frontu', !(await jest(reF)), String((await zap()).items[0].cab.levels[1].h));
+  ok('pole „Front — wysokość” 610: zapisane, poziom rośnie z frontem (≥ 601), bez błędu frontu na drzwiach nad nim', sp.frontH === 610 && (await lvH()) >= 601 && !(await jest(reF)),
+    `${sp.frontH} | poziom ${await lvH()} | ${(await przyciski(reF)).join(' / ')}`);
 
   console.log('\n== „Półki i drzwi” zdejmuje sprzęt ==');
   await page.getByRole('button', { name: 'Półki i drzwi', exact: true }).nth(1).click(); await page.waitForTimeout(900);

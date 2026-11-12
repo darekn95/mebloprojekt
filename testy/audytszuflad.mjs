@@ -165,8 +165,8 @@ const sprawdz = async (opis, { pomin = [] } = {}) => {
   const sym = symuluj(zamkniete, { H: cab.H, blat: podBlatem });
   sym.forEach((x) => { if (x.kolizje.length) bl.push(`wysuw szuflady ${x.szuflada}: ${x.kolizje[0]}`); });
   if (podBlatem) {
-    // wzmocnienia spod blatu: plyty korpusu 18 × 100 na szerokosc wnetrza — gora rowno z gora korpusu
-    const wz = korpus.filter((s) => { const d = [...s.d].map(Math.round).sort((x, y) => x - y); return d[0] === 18 && d[1] === 100 && d[2] > 200; });
+    // wzmocnienia spod blatu: plyty korpusu 18 × 70 (domyslnie od 2026-11-12; wczesniej 100) na szerokosc wnetrza — gora rowno z gora korpusu
+    const wz = korpus.filter((s) => { const d = [...s.d].map(Math.round).sort((x, y) => x - y); return d[0] === 18 && (d[1] === 70 || d[1] === 100) && d[2] > 200; });
     const nizej = wz.filter((s) => s.p[4] < cab.H - 1);
     if (!wz.length) bl.push('pod blatem bez wzmocnień w 3D');
     if (nizej.length) bl.push(`wzmocnienie pod blatem nie na górze korpusu: góra ${nizej.map((s) => s.p[4]).join(', ')} (H ${cab.H})`);

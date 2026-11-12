@@ -166,8 +166,9 @@ console.log('\n== 7. luz nad skrzynką V-BOX min. 5 mm; reling — albo zostaw b
    liczac sufit z calej drogi skrzynki; mniejszy luz to blad z przyciskiem.
    Przy froncie > 140 mm ponad bokiem — reling albo „Zostaw bez relingu”. */
 {
+  // scenariusz z wzmocnieniami 100 mm (od 2026-11-12 domyslne maja 70) — luz gornej szuflady pod tylnym stojacym
   const z2 = (h2) => ({ ...podBlat, cab: { ...podBlat.cab, levels: podBlat.cab.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, kind: 'drawers',
-    drawers: [{ h: 'auto' }, { h: h2 }] })) })) } });
+    rails: (c.rails || []).map((r) => ({ ...r, h: 100, depth: 100 })), drawers: [{ h: 'auto' }, { h: h2 }] })) })) } });
   const uw = () => page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || '');
   const ikona = (re) => page.evaluate((src) => { const sec = [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''));
     const l = (sec ? sec.innerText : '').split('\n').map((x) => x.trim()); const i = l.findIndex((x) => new RegExp(src).test(x)); return i > 0 ? l[i - 1] : null; }, re.source);
