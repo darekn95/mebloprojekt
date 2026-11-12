@@ -470,6 +470,24 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
   **Domyślne wysokości jak w makiecie „Dodaj”** (stos jeszcze nieustawiany): sam piekarnik / sama mikrofala — dół na
   wysokości blatu roboczego (858), dwa sprzęty — dolny na 700 od podłogi, drugi na nim (półka między). Projekt w stanie „w kosmosie” (poziom sprzętu
   ponad 60% szafki, a nad nim drugi sprzęt) naprawia się przy wczytaniu i każdej zmianie (`slupkiSprzetNorma`).
+- **Razem bez odstępu** (2026-11-12: „razem to razem — tylko półka między nimi, bez przestrzeni; jak chcę osobno, dodam
+  półkę”): w makiecie poziom sprzętu w słupku ma dokładnie wysokość wnęki (`makSlupekNorma`, `makSlupekWneka`), sprzęty
+  jeden na drugim jadą razem (przesuwa się dół stosu), linii między poziomami przy sprzęcie nie ma (przeciągnięta robiła
+  pustą wnękę nad sprzętem) — sprzęt ma swój uchwyt (turkusowy chwyt u góry, zakładki Dodaj / Szafka / Przegroda /
+  Szuflady). Projekt z pustą wnęką między dwoma sprzętami naprawia się przy wczytaniu (`slupkiSprzetNorma`). Dwa sprzęty
+  domyślnie: dolny nisko tak, żeby górny (mikrofala) miał dół do 1300 od podłogi (makieta: 700 — mikrofala wypadała 1308).
+- **Jak w makiecie „Dodaj”** (porównanie 2026-11-12): wysokości słupka 1800 / 2000 / 2120 / 2200 i „równo z górnymi”
+  (`mak-slupek-wys`); dół szafek górnych od podłogi z −/+50 i „jak domyślnie” w kartach Szafka i Ciąg szafki górnej
+  (`mak-gorny-dol` — prześwit nad blatem `run.clearance`, cały ciąg górny; w aplikacji szafki górne wiszą ciągiem, więc
+  nie pojedynczo jak w makiecie); płyta / zlew „50 od przodu (typowo)”. Inaczej niż w makiecie: „bez szafki górnej”
+  to w aplikacji usunięcie szafki z ciągu górnego; łączenie wzmocnienia biurka — konfirmaty / wkręty / trójkąty
+  (zakładka Wzmocnienia), kołków z mimośrodem aplikacja nie ma.
+- **Rzut z góry z wymiarami** (szczegółowa, „Wymiary → z góry”; 2026-11-12: „brakuje wymiarów od ściany do ciągu,
+  słupka i blatu”): przy wolnym końcu ciągu łańcuch — odsunięcie od ściany, korpus (+ plecy przybijane), front; obok
+  blat od ściany; szafka głębsza albo wysunięta (słupek) — od ściany do jej lica i „wysunięty N” (`mak-wym-zgory`).
+  W karcie Szafka pole „wysunięcie przed lico ciągu” (`item.offset`); cały ciąg — „Odsunięcie od ściany” w zakładce Ciąg.
+- **Bok szafki z sąsiedniej ściany w rogu** (widok z przodu): wysokość szafki w rogu (albo szafek ciągu bez słupków) —
+  wcześniej najwyższej szafki ciągu, po dodaniu słupka „bok 581” szedł do 2000 mm.
 - **Płyta / zlew / sprzęt na blacie przeciągane z góry** (2026-11-12: „zginęły podświetlenia, gdzie można ją przenieść”):
   zielone ramki na szafkach pod blatem (z góry i z przodu), pod wskaźnikiem podpis „Płyta … → „Szafka 2” — puść”
   albo „upuść na zielonej ramce” (`mak-niesiesz`; tak samo przy sprzęcie w kolumnie).
