@@ -1251,3 +1251,9 @@ odczytane jako WYSOKOSC FRONTU szuflady, tak jak w makiecie „Szuflada typowa (
 Pulapka: `geoRysunku.current[i]` jest tylko dla ZAZNACZONEJ szafki (nakladka) — do innych `geoSzafki(i)`. Test: `makieta13`.
 [AI-INFO] 2026-11-12: decyzja uzytkownika — „Szuflada + drzwi”: 170 (u gory) / 200 (na dole) to wysokosc FRONTU szuflady
 (tak jak jest w `MAK_SZ_G` / `MAK_SZ_D`). Pelne testy v218 (b3c6497): 169 suit, 5423 OK, 0 bledow; losowe 66 / 0.
+[AI-INFO] 2026-11-12: zgloszenia „plyta bez podswietlen przy przeciaganiu”, „mikrofala w kosmosie”, „nie razem” — zrobione
+(slupek jak klocki: `makSlupekWneka`, `makSlupekRazem`, `slupkiSprzetNorma`; blat nie na slupku w `worktopLevel`; ramki
+i `mak-niesiesz` przy przeciaganiu plyty), audyt projektu v38: nozki wysunietego slupka w cokole — naprawione
+(`cab.nozkiCofnij`). Zostaje w projekcie uzytkownika: kaseta plyty nad „Szafka 1” wchodzi w lezace wzmocnienie
+przednie (przyciski przy uwadze), plyta za blisko konca blatu. Pelny przebieg v221 (d324799): 169 suit, 5440 OK, 0 bledow;
+losowe 66 / 0. Lekcja: testowac tak, jak klika uzytkownik (paleta → przyciski karty po kolei), a nie tylko gotowe stany.
