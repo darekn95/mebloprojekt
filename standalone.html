@@ -1826,6 +1826,29 @@ const slupkiZWiencem = (p) => {
   });
   return zmiana ? { ...p, items } : p;
 };
+/* Slupek ze sprzetem na niemal calej wysokosci (stan po starych przyciskach makiety, uzytkownik 2026-11-12: piekarnik 1982 mm,
+   mikrofala nad szafka „w kosmosie”): poziom ze sprzetem wiekszy niz jego wneka o ponad MAK_MIN i ponad 60% wysokosci szafki
+   wraca do wysokosci wneki, reszte bierze najwyzszy poziom bez sprzetu. Swiadomie wiekszy poziom (np. z blenda w trybie
+   technicznym) zostaje. Wolane po kazdej zmianie projektu i po wczytaniu. */
+const slupkiSprzetNorma = (p) => {
+  if (!p || !Array.isArray(p.items)) return p;
+  let zmiana = false;
+  const items = p.items.map((it) => {
+    const c = it.cab, L = c && c.levels;
+    if (!c || c.sprzetCiagu || !(c.slupek || c.H > 1500) || !Array.isArray(L) || L.length < 2) return it;
+    const zly = L.some((lv, x) => { if (!makSlupekSprzet(L, x)) return false; const wn = makWnekaH(lv.cols[0]);
+      return !!wn && lv.h != null && lv.h > wn + MAK_MIN && lv.h > 0.6 * c.H; });
+    if (!zly) return it;
+    zmiana = true;
+    const N = L.map((lv) => ({ ...lv }));
+    N.forEach((lv, x) => { if (!makSlupekSprzet(N, x)) return; const wn = makWnekaH(lv.cols[0]); if (wn && lv.h != null && lv.h > wn + MAK_MIN && lv.h > 0.6 * c.H) lv.h = wn; });
+    if (makSlupekSprzet(N, N.length - 1)) N.push(newLevel(1, 0));
+    N[N.length - 1].h = null;
+    return { ...it, cab: { ...c, levels: N } };
+  });
+  return zmiana ? { ...p, items } : p;
+};
+const naprawProjekt = (p) => slupkiSprzetNorma(slupkiZWiencem(p));
 // szafka w ciagu z opcjami wspolnego wienca / dna — przy wlaczeniu i przy dodaniu nowej
 const wedlugCiagu = (cab, mat, run, h = run && run.H) => {
   let c = cab;
@@ -17068,7 +17091,10 @@ const worktopLevel = (project, run) => {
   const szer = new Map();
   // lodowka wolnostojaca nie wyznacza wysokosci blatu (stoi obok niego)
   const zBlatem = cabs.filter((c) => !bezBlatuCiagu(c.it.cab));
-  (zBlatem.length ? zBlatem : cabs).forEach((c) => szer.set(c.y, (szer.get(c.y) || 0) + (c.x1 - c.x0)));
+  /* slupek (oznaczony albo wyzszy niz 1500) nie wyznacza wysokosci blatu, chyba ze w ciagu sa same slupki — ciag „dolna 450
+     + slupek 600” mial blat na slupku, 2100 mm (przeglad 2026-11-12: „Na wysokość blatu (dół 2138)”) */
+  const kand = zBlatem.length ? zBlatem : cabs, niskie = kand.filter((c) => !(c.it.cab.slupek || c.it.cab.H > 1500));
+  (niskie.length ? niskie : kand).forEach((c) => szer.set(c.y, (szer.get(c.y) || 0) + (c.x1 - c.x0)));
   const y = [...szer.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
   const podBlatem = (c) => c.y === y && !bezBlatuCiagu(c.it.cab);
   return { cabs, y, pod: cabs.filter(podBlatem), poza: cabs.filter((c) => !podBlatem(c)) };
@@ -21541,24 +21567,53 @@ const makBaza = (cab, geo) => Math.max(cab.plinth && cab.plinth.on && !geo.plint
 // wysokosc wneki sprzetu w slupku: srodek zakresu z karty albo tyle, zeby front sprzetu nie zachodzil na front nad nim (front − 9)
 const makWnekaH = (col) => { const sp = sprzetKolumny(col); if (!sp) return null;
   return sp.hMax ? Math.round((sp.hMin + sp.hMax) / 2) : Math.round(Math.max((sp.hMin || 585) + 5, (sp.frontH || 0) - 9)); };
-const makSlupekWneka = (geo, li, Y) => (c) => {
-  const L = c.levels, gl = geo.levels || [];
-  if (!L || L.length !== gl.length || !gl[li]) return;
-  L.forEach((lv, x) => { lv.h = Math.round(gl[x].h); });
-  /* sprzet wstawiony dawniej zajmuje caly poziom slupka (np. 1964 mm) — wtedy przyciski „Pod blat” / „Na wysokość blatu” nie mialy
-     czego przesunac (uzytkownik 2026-11-11: „przyciski piekarnika nie działają”): poziom dostaje wysokosc wneki sprzetu */
-  const wn = makWnekaH((L[li].cols || [])[0]);
-  const zmniejszony = !!wn && L[li].h > wn + MAK_MIN;
-  if (zmniejszony) L[li].h = wn;
-  const d = Math.round(Y - (makBaza(c, geo) + gl[li].y0));
-  if (!d) { if (zmniejszony) { if (li === L.length - 1) L.push(newLevel(1, 0)); L[L.length - 1].h = null; } return; }
-  let i = li;
-  if (i === 0) {
-    if (d < MAK_MIN + geo.t) return;
-    L.unshift({ ...newLevel(1, 0), h: d - geo.t }); i = 1;
-  } else L[i - 1].h = Math.max(MAK_MIN, L[i - 1].h + d);
-  if (i === L.length - 1) L.push(newLevel(1, 0));
+/* Sprzet w slupku jak klocki w makiecie „Dodaj” (uzytkownik 2026-11-12: „mikrofala w słupku dalej w kosmosie”, „nie widzę,
+   żeby były razem”): poziom ze sprzetem ma ZAWSZE wysokosc swojej wneki, przerwa miedzy sprzetami albo pod sprzetem to osobny
+   poziom z frontem („wypełnienie”), najwyzszy poziom bez sprzetu bierze reszte (auto). Wczesniej przesuniecie sprzetu
+   powiekszalo poziom pod nim — gdy tam stal drugi sprzet, jego poziom puchl (piekarnik 1982 mm), a mikrofala nad nim
+   wychodzila nad szafke. `Y` — dol wneki od podlogi; sprzet nie wyjdzie poza szafke ani nie wejdzie w sprzet pod nim. */
+const makSlupekSprzet = (L, x) => (L[x].cols || []).length === 1 && !!L[x].cols[0].sprzet;
+const makSlupekNorma = (L) => {
+  L.forEach((lv, x) => { if (makSlupekSprzet(L, x)) { const wn = makWnekaH(lv.cols[0]); if (wn && (lv.h == null || lv.h > wn + MAK_MIN)) lv.h = wn; } });
+  if (makSlupekSprzet(L, L.length - 1)) L.push(newLevel(1, 0));
+  L.forEach((lv, x) => { if (x < L.length - 1 && lv.h == null) lv.h = MAK_MIN; });
   L[L.length - 1].h = null;
+};
+const makSlupekWneka = (geo, li, Y) => (c) => {
+  const L = c.levels, gl = geo.levels || [], t = geo.t;
+  if (!L || L.length !== gl.length || !gl[li]) return;
+  const wnetrze = gl.reduce((a, q) => a + q.h, 0) + t * (gl.length - 1);
+  L.forEach((lv, x) => { lv.h = Math.round(gl[x].h); });
+  L.forEach((lv, x) => { if (makSlupekSprzet(L, x)) { const wn = makWnekaH(lv.cols[0]); if (wn && lv.h > wn + MAK_MIN) lv.h = wn; } });
+  if (makSlupekSprzet(L, L.length - 1)) L.push({ ...newLevel(1, 0), h: 0 });
+  const nad = (x) => L.slice(0, x).reduce((a, q) => a + q.h + t, 0);
+  let i = li, d = Math.round(Y - (makBaza(c, geo) + gl[0].y0 + nad(i)));
+  // w gore: najwyzszy poziom (auto) zostaje co najmniej MAK_MIN
+  const wolne = Math.round(wnetrze - nad(L.length - 1) - MAK_MIN);
+  if (d > 0) d = Math.min(d, Math.max(0, wolne));
+  const podSpodem = i > 0 && !makSlupekSprzet(L, i - 1) ? L[i - 1] : null;   // wypelnienie pod sprzetem
+  if (d > 0) {
+    if (podSpodem) podSpodem.h += d;
+    else if (d >= MAK_MIN + t) { L.splice(i, 0, { ...newLevel(1, 0), h: d - t }); i++; }
+    else if (d >= (MAK_MIN + t) / 2 && wolne >= MAK_MIN + t) { L.splice(i, 0, { ...newLevel(1, 0), h: MAK_MIN }); i++; }
+  } else if (d < 0 && podSpodem) {
+    // w dol: wypelnienie maleje; za male — znika i sprzet siada na tym, co pod nim
+    if (podSpodem.h + d >= MAK_MIN) podSpodem.h += d;
+    else L.splice(i - 1, 1);
+  }
+  L[L.length - 1].h = null;
+};
+/* „Razem” (makieta „Dodaj”: dwa sprzety jeden na drugim, polka miedzy nimi): wypelnienia miedzy nimi znikaja — gorny siada na
+   dolnym; gdy miedzy nimi jest inny sprzet, drugi przechodzi obok wybranego */
+const makSlupekRazem = (geo, li, x2) => (c) => {
+  const L = c.levels, gl = geo.levels || [];
+  if (!L || L.length !== gl.length) return;
+  L.forEach((lv, x) => { lv.h = Math.round(gl[x].h); });
+  const [a, b] = li < x2 ? [li, x2] : [x2, li];
+  const miedzy = L.slice(a + 1, b);
+  if (miedzy.every((lv, k) => !makSlupekSprzet(L, a + 1 + k))) L.splice(a + 1, b - a - 1);
+  else { const [drugi] = L.splice(x2, 1); L.splice(x2 < li ? li - 1 + 1 : li + 1, 0, drugi); }
+  makSlupekNorma(L);
 };
 // poziom ze sprzetem w kolumnie (pierwsza kolumna poziomu)
 const makPoziomZeSprzetem = (lv) => (lv.cols || []).some((k) => k.sprzet);
@@ -21686,9 +21741,14 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
         const rt = run ? runTop(project, run) : null;
         const gorny = run ? (project.runs || []).find((x) => x.tier === "gorny" && x.wall === run.id) : null;
         // wneka najnizszego poziomu idzie w gore przez nowy poziom pod nia — wybrany sprzet jest wtedy poziom wyzej
-        const naY = (Y) => { const d = Math.round(Y - (makBaza(cab, geo) + geo.levels[sel.li].y0));
-          zmien(sel.i, makSlupekWneka(geo, sel.li, Y));
-          if (sel.li === 0 && d >= MAK_MIN + geo.t && ustawSel) ustawSel({ ...sel, li: 1 }); };
+        // zmiana poziomow slupka; zaznaczenie idzie za wybranym sprzetem (nowe wypelnienie pod nim przesuwa numer poziomu)
+        const poZmianie = (fn) => {
+          const k = JSON.parse(JSON.stringify(cab)); if (k.levels[sel.li]) k.levels[sel.li].__wyb = 1; fn(k);
+          const x = (k.levels || []).findIndex((l) => l.__wyb);
+          zmien(sel.i, fn);
+          if (x >= 0 && x !== sel.li && ustawSel) ustawSel({ ...sel, li: x });
+        };
+        const naY = (Y) => poZmianie(makSlupekWneka(geo, sel.li, Y));
         const inne = (cab.levels || []).map((lv, x) => ({ lv, x })).filter(({ lv, x }) => x !== sel.li && makPoziomZeSprzetem(lv));
         const sas = inne.sort((a, b) => Math.abs(a.x - sel.li) - Math.abs(b.x - sel.li))[0];
         const razem = sas && Math.abs(sas.x - sel.li) === 1;
@@ -21708,14 +21768,9 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
             {rt && btn("agd-slupek-podblat", "Pod blat (góra równo z szafkami dolnymi)", () => naY(Math.round(rt.y - hW)))}
             {gorny && btn("agd-slupek-gorne", `Góra do dołu szafek górnych (${fmt(tierMountY(project, gorny))})`, () => naY(Math.round(tierMountY(project, gorny) - hW)))}
             {sas && btn("agd-slupek-zamien", `Zamień miejscami z: ${(SPRZETY[(sas.lv.cols.find((k) => k.sprzet) || {}).sprzet.typ] || {}).nazwa || "sprzętem"}`,
-              () => zmien(sel.i, (c) => { const L = c.levels, gl2 = geo.levels; if (L.length !== gl2.length) return; L.forEach((lv, x) => { lv.h = Math.round(gl2[x].h); });
-                const t = L[sel.li]; L[sel.li] = L[sas.x]; L[sas.x] = t; L[L.length - 1].h = null; }))}
-            {sas && btn("agd-slupek-razem", razem ? "Razem ✓ (półka między)" : "Razem — półka między", () => {
-              if (razem) return;
-              zmien(sel.i, (c) => { const L = c.levels, gl2 = geo.levels; if (L.length !== gl2.length) return; L.forEach((lv, x) => { lv.h = Math.round(gl2[x].h); });
-                const [drugi] = L.splice(sas.x, 1); const gdzie = sas.x < sel.li ? sel.li - 1 : sel.li; L.splice(gdzie + 1, 0, drugi);
-                if (!makPoziomZeSprzetem(L[L.length - 1])) L[L.length - 1].h = null; else L.push(newLevel(1, 0)); });
-            }, razem)}
+              () => poZmianie((c) => { const L = c.levels, gl2 = geo.levels; if (L.length !== gl2.length) return; L.forEach((lv, x) => { lv.h = Math.round(gl2[x].h); });
+                const t = L[sel.li]; L[sel.li] = L[sas.x]; L[sas.x] = t; makSlupekNorma(L); }))}
+            {sas && btn("agd-slupek-razem", razem ? "Razem ✓ (półka między)" : "Razem — półka między", () => { if (!razem) poZmianie(makSlupekRazem(geo, sel.li, sas.x)); }, razem)}
           </div>
         </>;
       })()}
@@ -23316,25 +23371,28 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   const [przesuwany, setPrzesuwany] = useState(null);
   const [ramki, setRamki] = useState(null);   // { lista: [{ i, x, y, w, h }], akt }
   // prostokat szafki na ekranie (front korpusu z macierzy grupy — bez wymiarow i napisow)
-  const ekranSzafki = (g, i) => {
+  const ekranSzafki = (g, i, zg) => {
     const m = g.getScreenCTM && g.getScreenCTM(), it = project.items[i]; if (!m || !it) return null;
     const geo = geoSzafki(i), W = geo ? geo.W : it.cab.W, sv = g.ownerSVGElement; if (!sv) return null;
-    const a = sv.createSVGPoint(), b = sv.createSVGPoint(); a.x = 0; a.y = 0; b.x = W; b.y = it.cab.H;
+    // z gory: szerokosc × glebokosc korpusu (jak uchwyty rzutu z gory), z przodu: szerokosc × wysokosc
+    const a = sv.createSVGPoint(), b = sv.createSVGPoint(); a.x = 0; a.y = 0; b.x = W; b.y = zg ? (geo ? geo.carcassDepth : it.cab.D) : it.cab.H;
     const A = a.matrixTransform(m), B = b.matrixTransform(m);
     return { x: Math.min(A.x, B.x), y: Math.min(A.y, B.y), w: Math.abs(B.x - A.x), h: Math.abs(B.y - A.y) };
   };
-  const policzRamki = (co, bez) => {
+  // `zGory` — takze szafki w rzucie z gory (plyta / zlew / sprzet na blacie przeciagane z gory)
+  const policzRamki = (co, bez, zGory) => {
     const out = [];
     document.querySelectorAll("[data-el=makieta-szafka][data-idx]").forEach((g) => {
-      if (g.closest("[data-el=mak-zgory]")) return;
-      const i = Number(g.getAttribute("data-idx"));
-      if (i === bez || out.some((q) => q.i === i) || !makCelPrzeniesienia(project, co, i)) return;
-      const r = ekranSzafki(g, i), pl = plotno.current && plotno.current.getBoundingClientRect();
+      const zg = !!g.closest("[data-el=mak-zgory]");
+      if (zg && !zGory) return;
+      const i = Number(g.getAttribute("data-idx")), k = `${i}${zg ? "g" : ""}`;
+      if (i === bez || out.some((q) => q.k === k) || !makCelPrzeniesienia(project, co, i)) return;
+      const r = ekranSzafki(g, i, zg), pl = plotno.current && plotno.current.getBoundingClientRect();
       if (!r || !(r.w > 0)) return;
       // ramka przycieta do widocznej czesci rysunku (fixed — nie wychodzi na karte ani pasek)
       const x0 = pl ? Math.max(r.x, pl.left) : r.x, y0 = pl ? Math.max(r.y, pl.top) : r.y;
       const x1 = pl ? Math.min(r.x + r.w, pl.right) : r.x + r.w, y1 = pl ? Math.min(r.y + r.h, pl.bottom) : r.y + r.h;
-      if (x1 - x0 > 4 && y1 - y0 > 4) out.push({ i, x: x0, y: y0, w: x1 - x0, h: y1 - y0, nazwa: project.items[i].cab.name || "szafka" });
+      if (x1 - x0 > 4 && y1 - y0 > 4) out.push({ i, k, x: x0, y: y0, w: x1 - x0, h: y1 - y0, nazwa: project.items[i].cab.name || "szafka" });
     });
     return out;
   };
@@ -23366,8 +23424,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     setZaznM(true);
   };
   // szafka (widok z przodu) pod wskaznikiem
-  const szafkaPod = (e) => {
-    const g = (document.elementsFromPoint(e.clientX, e.clientY) || []).map((q) => q.closest && q.closest("[data-el=makieta-szafka][data-idx]")).find((q) => q && !q.closest("[data-el=mak-zgory]"));
+  const szafkaPod = (e, zGory) => {
+    const g = (document.elementsFromPoint(e.clientX, e.clientY) || []).map((q) => q.closest && q.closest("[data-el=makieta-szafka][data-idx]")).find((q) => q && (zGory || !q.closest("[data-el=mak-zgory]")));
     return g ? Number(g.getAttribute("data-idx")) : null;
   };
   // sprzet w kolumnie pod wskaznikiem (z geometrii narysowanej szafki): { li, j, typ }
@@ -23398,7 +23456,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     const h = e.target.closest && e.target.closest("[data-u]");
     if (!h && e.button === 0) {
       const sb = e.target.closest && e.target.closest("[data-el=wyciecie-blatu][data-idx], [data-el=na-blacie][data-idx]");
-      if (sb) { przenAgd.current = { idx: Number(sb.getAttribute("data-idx")), k: Number(sb.getAttribute("data-k")), nb: sb.getAttribute("data-el") === "na-blacie", x: e.clientX, y: e.clientY }; return; }
+      if (sb) { e.preventDefault(); przenAgd.current = { idx: Number(sb.getAttribute("data-idx")), k: Number(sb.getAttribute("data-k")), nb: sb.getAttribute("data-el") === "na-blacie", x: e.clientX, y: e.clientY }; return; }
       const g = e.target.closest && e.target.closest("[data-el=makieta-szafka]");
       const idx = g && !g.closest("[data-el=mak-zgory]") ? Number(g.getAttribute("data-idx")) : null;
       const spr = idx != null && !przesuwany ? sprzetPod(e, g, idx) : null;
@@ -23442,13 +23500,25 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         pl.style.cursor = "grabbing";
         return;
       }
+      /* plyta / zlew / sprzet na blacie chwycone na rysunku (uzytkownik 2026-11-12: „przy przesuwaniu płyty zginęły
+         podświetlenia, gdzie można ją przenieść — nie widać, że ma się gdzieś upuścić”): ramki z gory i z przodu */
+      const pa = przenAgd.current;
+      if (pa) {
+        if (!pa.ruszyl && Math.hypot(e.clientX - pa.x, e.clientY - pa.y) < 10) return;
+        const it0 = project.items[pa.idx], q0 = it0 && (pa.nb ? naBlacieSzafki(it0.cab) : wycieciaSzafki(it0.cab)).find((x) => x.k === pa.k);
+        if (!pa.ruszyl) { pa.ruszyl = true; pa.ramki = policzRamki({ blat: pa.nb ? "nb" : "wyc" }, pa.idx, true); pa.opis = q0 ? (pa.nb ? `${q0.nazwa} na blacie` : q0.pelna) : "sprzęt"; }
+        const i2 = szafkaPod(e, true);
+        pa.cel = i2 != null && pa.ramki.some((r) => r.i === i2) ? i2 : null;
+        setRamki({ lista: pa.ramki, akt: pa.cel, opis: pa.opis, kx: e.clientX, ky: e.clientY });
+        return;
+      }
       const ps = przenSpr.current;
       if (ps) {
         if (!ps.ruszyl && Math.abs(e.clientX - ps.x) + Math.abs(e.clientY - ps.y) < 8) return;
         if (!ps.ruszyl) { ps.ruszyl = true; ps.ramki = policzRamki({ typ: ps.typ }, ps.idx); }
         const i2 = szafkaPod(e);
         ps.cel = i2 != null && ps.ramki.some((r) => r.i === i2) ? i2 : null;
-        setRamki({ lista: ps.ramki, akt: ps.cel, opis: (SPRZETY[ps.typ] || {}).pelna || "sprzęt", x: e.clientX, y: e.clientY });
+        setRamki({ lista: ps.ramki, akt: ps.cel, opis: (SPRZETY[ps.typ] || {}).pelna || "sprzęt", kx: e.clientX, ky: e.clientY });
         return;
       }
       const m = przesuw.current;
@@ -23469,7 +23539,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         const i2 = szafkaPod(e);
         if (i2 != null && i2 !== d.idx) {
           d.przen = (d.ramki || []).some((r) => r.i === i2) ? i2 : null; d.wynik = null; setPodglad(null);
-          setRamki({ lista: d.ramki || [], akt: d.przen, opis: (SPRZETY[d.typ] || {}).pelna || "sprzęt", x: e.clientX, y: e.clientY });
+          setRamki({ lista: d.ramki || [], akt: d.przen, opis: (SPRZETY[d.typ] || {}).pelna || "sprzęt", kx: e.clientX, ky: e.clientY });
           return;
         }
         d.przen = undefined;
@@ -23495,8 +23565,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         przenAgd.current = null;
         if (!e || Math.hypot(e.clientX - pa.x, e.clientY - pa.y) < 10) return;   // zwykly klik — karta sprzetu
         tlumKlikNa();
-        const el = (document.elementsFromPoint(e.clientX, e.clientY) || []).map((q) => q.closest && q.closest("[data-el=makieta-szafka][data-idx]")).find(Boolean);
-        przeniesBlat(pa, el ? Number(el.getAttribute("data-idx")) : null);
+        setRamki(null);
+        przeniesBlat(pa, pa.cel != null ? pa.cel : szafkaPod(e, true));
         return;
       }
       const pr = przewijanie.current;
@@ -23514,6 +23584,12 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
       ciagnie.current = null; setPodglad(null);
       if (d.u === "sprzetY") setRamki(null);
       if (d.u === "sprzetY" && d.przen != null) { tlumKlikNa(); przeniesSprzetRef.current({ idx: d.idx, li: d.k, j: 0 }, d.przen, e); return; }
+      // sprzet w slupku przeciagniety w gore: pod nim moze dojsc wypelnienie — karta sprzetu idzie za nim
+      if (d.wynik && d.u === "sprzetY" && d.wynik.zmien) {
+        const it = project.items[d.idx], k = it && JSON.parse(JSON.stringify(it.cab));
+        if (k && k.levels[d.k]) { k.levels[d.k].__wyb = 1; d.wynik.zmien(k); const x = k.levels.findIndex((l) => l.__wyb);
+          zmien(d.idx, d.wynik.zmien); if (x >= 0) setSelAgd({ i: d.idx, rodz: "kol", li: x, j: 0 }); return; }
+      }
       if (d.wynik && d.u === "wys") zmienWysRef.current(d.idx, d.wynik.wartosc);
       else if (d.wynik && d.wynik.zmien) zmien(d.idx, d.wynik.zmien);
     };
@@ -23793,7 +23869,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   const przesunSzafke = (i) => { const it = project.items[i]; if (it && it.runId) { setPrzesuwany({ co: { szafka: i }, z: { idx: i }, nazwa: it.cab.name || "szafka" }); setKomunikat(null); } };
   // „Przesuń”: dotkniecie szafki w zielonej ramce
   const przesunNa = (e) => {
-    const pz = przesuwany, i = szafkaPod(e);
+    const pz = przesuwany, i = szafkaPod(e, !!pz.co.blat);
     if (i == null || i === pz.z.idx || !makCelPrzeniesienia(project, pz.co, i)) { setKomunikat(`„${pz.nazwa}” — dotknij szafkę w zielonej ramce albo „Anuluj”.`); return; }
     let zrobione = false;
     if (pz.co.typ) zrobione = przeniesSprzet(pz.z, i, e);
@@ -23803,7 +23879,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   };
   useEffect(() => {
     if (!przesuwany) return undefined;
-    const f = () => setRamki({ lista: policzRamki(przesuwany.co, przesuwany.z.idx), akt: null, staly: true });
+    const f = () => setRamki({ lista: policzRamki(przesuwany.co, przesuwany.z.idx, !!przesuwany.co.blat), akt: null, staly: true });
     const t = setTimeout(f, 30), pl = plotno.current;
     const esc = (e) => { if (e.key === "Escape") setPrzesuwany(null); };
     if (pl) pl.addEventListener("scroll", f);
@@ -24287,11 +24363,14 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
         </div>
       </section>
       {ramki && ramki.lista.map((r) => (
-        <div key={`rm${r.i}`} aria-hidden="true" data-el="mak-ramka" data-idx={r.i} data-akt={ramki.akt === r.i ? "1" : "0"} className="pointer-events-none fixed z-30 rounded-md"
+        <div key={`rm${r.k || r.i}`} aria-hidden="true" data-el="mak-ramka" data-idx={r.i} data-akt={ramki.akt === r.i ? "1" : "0"} className="pointer-events-none fixed z-30 rounded-md"
           style={{ left: r.x - 3, top: r.y - 3, width: r.w + 6, height: r.h + 6, border: `${ramki.akt === r.i ? 5 : 3}px ${ramki.akt === r.i ? "solid" : "dashed"} #16a34a`, background: ramki.akt === r.i ? "rgba(22,163,74,.16)" : "rgba(22,163,74,.05)" }}>
-          {ramki.akt === r.i && <span className="absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap rounded bg-green-700 px-1.5 py-0.5 text-[11px] font-medium text-white">{ramki.opis ? `${ramki.opis} → ` : ""}„{r.nazwa}”</span>}
         </div>
       ))}
+      {/* przy wskazniku: co niesiesz i gdzie upadnie (uzytkownik 2026-11-12: „nie widać, że ma się gdzieś upuścić”) */}
+      {ramki && ramki.kx != null && (() => { const cel = ramki.akt != null ? ramki.lista.find((r) => r.i === ramki.akt) : null;
+        return <div aria-hidden="true" data-el="mak-niesiesz" className={`pointer-events-none fixed z-50 whitespace-nowrap rounded px-2 py-1 text-[11px] font-medium shadow ${cel ? "bg-green-700 text-white" : "border border-stone-300 bg-white text-stone-700"}`}
+          style={{ left: ramki.kx + 16, top: ramki.ky + 14 }}>{cel ? `${ramki.opis} → „${cel.nazwa}” — puść` : `${ramki.opis} — upuść na zielonej ramce`}</div>; })()}
       {przesuwany && (
         <div data-el="mak-przesun-pasek" className="fixed bottom-4 left-1/2 z-50 flex max-w-[92vw] -translate-x-1/2 items-center gap-2 rounded-lg border border-green-700 bg-white px-3 py-2 text-xs text-stone-800 shadow-xl">
           <span>Przesuwasz: <b>{przesuwany.nazwa}</b> — {ramki && !ramki.lista.length ? "nie ma na rysunku miejsca, gdzie może stanąć" : "dotknij zieloną ramkę na rysunku"}</span>
@@ -24500,7 +24579,7 @@ export default function App() {
   // kazda zmiana projektu przechodzi tu — zapisuje poprzedni stan do historii
   const setProject = useCallback((next) => {
     setProjectRaw((prev) => {
-      const resolved = slupkiZWiencem(typeof next === "function" ? next(prev) : next);
+      const resolved = naprawProjekt(typeof next === "function" ? next(prev) : next);
       if (resolved === prev) return prev;
       const h = histRef.current;
       h.past.push(prev);
@@ -24619,7 +24698,7 @@ export default function App() {
   const replaceProject = useCallback((proj) => {
     histRef.current = { past: [], future: [] };
     setHistLen({ undo: 0, redo: 0 });
-    setProjectRaw(proj);
+    setProjectRaw(naprawProjekt(proj));
   }, []);
 
   // przelaczanie / dodawanie / usuwanie szafek
@@ -25246,7 +25325,7 @@ export default function App() {
         const r = await projectStore.get("szafki:projekt");
         if (r) {
           const d = JSON.parse(r.value);
-          const proj = loadProject(d);
+          const proj = naprawProjekt(loadProject(d));
           if (proj) {
             setProjectRaw(proj);
             const oldV = Array.isArray(d.items) ? d.items[0]?.cab?.version : d.cab?.version;

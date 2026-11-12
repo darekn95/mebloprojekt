@@ -34,6 +34,10 @@
   odpowiedź, zapisz pytanie i przejdź do następnego zadania z listy. Wszystkie
   zebrane pytania zadaj razem na samym końcu (narzędziem pytań z opcjami),
   a nie po jednym w trakcie — użytkownik nie czeka wtedy na każde zadanie.
+- **Nie kończ z niedokończoną robotą** (ustalone z użytkownikiem 2026-11-12: „jak skończysz, a czegoś nie zrobisz,
+  to rób dalej; bez pytania; na koniec testy, czy nie ma błędów, aż do skutku”): po liście zadań sam przejrzyj, co
+  zostało niezrobione albo zrobione połowicznie, i dokończ bez pytania o zgodę; na koniec testy z obszaru (a przed
+  zakończeniem większej serii — pełny przebieg), poprawiaj i powtarzaj, aż będą zielone.
 - Gdy pytasz o decyzję, która sprowadza się do kilku opcji, dawaj pytanie
   z przyciskami do kliknięcia (narzędzie pytań z opcjami), a nie tekst do
   odpisania — użytkownik woli kliknąć niż wpisywać odpowiedź.

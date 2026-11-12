@@ -189,6 +189,50 @@ await zakl('dodaj');
   p = await czekaj('(p.items[1].cab.blatWyciecia || []).length === 1');
   ok('płyta przeniesiona nad szafkę 2', (p.items[1].cab.blatWyciecia || []).length === 1 && !(p.items[0].cab.blatWyciecia || []).length);
 }
+console.log('== płyta przeciągana z góry: ramki i podpis przy wskaźniku ==');
+await start('prosta', CIAG + `p.items[0].cab.blatWyciecia = [{ typ: 'plyta', rozm: '60' }];`, WSZYSTKO);
+{ const a = await srodek(page.locator('[data-el="wyciecie-blatu"]').first());
+  const b = await srodek(page.locator('[data-el="mak-zgory"] [data-el="makieta-szafka"][data-idx="1"]').first());
+  await page.mouse.move(a.x, a.y); await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(a.x + ((b.x - a.x) * i) / 10, a.y + ((b.y - a.y) * i) / 10);
+  await page.waitForTimeout(250);
+  const r = await page.evaluate(() => [...document.querySelectorAll('[data-el="mak-ramka"]')].map((q) => q.getAttribute('data-idx') + ':' + q.getAttribute('data-akt')));
+  ok('w trakcie: ramki na szafce 2 (z góry i z przodu), ta pod wskaźnikiem podświetlona', r.filter((q) => q.startsWith('1:')).length === 2 && r.includes('1:1'), JSON.stringify(r));
+  const nap = await page.locator('[data-el="mak-niesiesz"]').textContent().catch(() => '');
+  ok('przy wskaźniku: „Płyta … → „Szafka 2” — puść”', /→ „Szafka 2” — puść/.test(nap), nap);
+  await page.mouse.up(); await page.waitForTimeout(500);
+  p = await czekaj('(p.items[1].cab.blatWyciecia || []).length === 1');
+  ok('płyta nad szafką 2, ramki i podpis zniknęły', (p.items[1].cab.blatWyciecia || []).length === 1 && !(p.items[0].cab.blatWyciecia || []).length
+    && (await page.locator('[data-el="mak-ramka"], [data-el="mak-niesiesz"]').count()) === 0);
+}
+console.log('== słupek: piekarnik i mikrofala jak klocki (bez „kosmosu”) ==');
+await start('prosta', TRZY.replace("p.items[0].cab.levels[0].cols[0].sprzet = { typ: 'piekarnik' };", '') + 'p.active = 2;', PRZOD);
+await zakl('dodaj');
+{ const sw = page.locator('[data-el="mak-dodaj"] [data-dodaj="agd"]'); if (await sw.count() && (await sw.getAttribute('aria-expanded')) !== 'true') await sw.click().catch(() => {}); await page.waitForTimeout(300); }
+const poz = async (oczek) => { if (oczek) await page.waitForFunction((o) => { const p = JSON.parse(localStorage.getItem('szafki:projekt'));
+    return JSON.stringify(p.items[2].cab.levels.map((q) => [q.h, (q.cols[0].sprzet || {}).typ || 'd'])) === o; }, JSON.stringify(oczek), { timeout: 4000 }).catch(() => {});
+  return (await proj()).items[2].cab.levels.map((q) => [q.h, (q.cols[0].sprzet || {}).typ || 'd']); };
+await page.locator('[data-el="mak-agd"]').filter({ hasText: 'Piekarnik' }).first().click(); await page.waitForTimeout(700);
+await page.locator('[data-el="mak-agd"]').filter({ hasText: 'Mikrofala' }).first().click(); await page.waitForTimeout(700);
+ok('piekarnik na dole, mikrofala nad nim', JSON.stringify(await poz([[590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']])) === JSON.stringify([[590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']]), JSON.stringify(await poz()));
+ok('„Na wysokość blatu (dół 858)” — blat ciągu, nie słupka', /dół 858/.test(await page.locator('[data-el="agd-slupek-blat"]').textContent()));
+await page.locator('[data-el="agd-slupek-blat"]').click(); await page.waitForTimeout(700);
+ok('mikrofala na wysokości blatu: piekarnik zostaje 590, między nimi front 114', JSON.stringify(await poz([[590, 'piekarnik'], [114, 'd'], [373, 'mikrofala'], [null, 'd']])) === JSON.stringify([[590, 'piekarnik'], [114, 'd'], [373, 'mikrofala'], [null, 'd']]), JSON.stringify(await poz()));
+ok('karta dalej pokazuje mikrofalę, dół 858', /Mikrofala/.test(await page.locator('[data-el="makieta-karta-agd"] b').first().textContent()) && (await page.locator('[data-el="agd-slupek-dol"]').inputValue()) === '858');
+await page.locator('[data-el="agd-slupek-razem"]').click(); await page.waitForTimeout(700);
+ok('„Razem”: mikrofala siada na piekarniku (półka między, bez frontu)', JSON.stringify(await poz([[590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']])) === JSON.stringify([[590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']]), JSON.stringify(await poz()));
+ok('„Razem ✓”', /Razem ✓/.test(await page.locator('[data-el="agd-slupek-razem"]').textContent()));
+{ const g = await page.evaluate(() => { const s = [...document.querySelectorAll('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="2"]')].pop(); return s ? s.getBoundingClientRect().top : null; });
+  const m = await page.evaluate(() => { const s = [...document.querySelectorAll('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="2"]')].pop(); const t = s && [...s.querySelectorAll('text')].find((q) => /mikrofala/.test(q.textContent)); return t ? t.getBoundingClientRect().top : null; });
+  ok('mikrofala narysowana w słupku (nie nad nim)', g != null && m != null && m > g, JSON.stringify([g, m])); }
+console.log('== projekt z „kosmosem” (piekarnik 1982) naprawia się przy wczytaniu ==');
+await start('prosta', TRZY.replace("p.items[0].cab.levels[0].cols[0].sprzet = { typ: 'piekarnik' };", '') + `const k0 = p.items[2].cab.levels[0].cols[0];
+  p.items[2].cab.levels = [{ h: 1982, cols: [{ ...k0, sprzet: { typ: 'piekarnik' } }] }, { h: 373, cols: [{ ...k0, sprzet: { typ: 'mikrofala' } }] }, { h: null, cols: [{ ...k0 }] }];`, PRZOD);
+await page.locator('[data-el="makieta"] nav [data-zakl="szafka"]').click(); await page.waitForTimeout(500);
+await page.locator('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="2"]').last().click(); await page.waitForTimeout(500);
+{ const s2 = await page.evaluate(() => { const s = [...document.querySelectorAll('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="2"]')].pop(); return s ? [...s.querySelectorAll('text')].map((t) => t.textContent.trim()) : []; });
+  p = await czekaj('p.items[2].cab.levels[0].h === 590');
+  ok('poziom piekarnika wraca do wnęki (590), mikrofala w słupku', JSON.stringify(p.items[2].cab.levels.map((q) => q.h)) === JSON.stringify([590, 373, null]) || s2.includes('mikrofala'), JSON.stringify(p.items[2].cab.levels.map((q) => q.h))); }
 console.log('== lodówka: dolny front przy 2 frontach ==');
 await start('szczegolowa', TRZY + `p.items[2].cab.levels = [{ h: 1780, cols: [{ ...p.items[2].cab.levels[0].cols[0], sprzet: { typ: 'lodowka', fronty: 2 } }] }, { h: null, cols: [{ ...p.items[2].cab.levels[0].cols[0] }] }]; p.active = 2;`, PRZOD, 'szczegolowa');
 await zakl('dodaj');
