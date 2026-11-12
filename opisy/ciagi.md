@@ -10,6 +10,9 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 - **Wysokość blatu roboczego** (`worktopLevel`): wysokość, na której stoją szafki o największej łącznej szerokości;
   słupek (oznaczony albo wyższy niż 1500 mm) się nie liczy, chyba że w ciągu są same słupki — ciąg „dolna 450 +
   słupek 600” miał blat na słupku (2100 mm; poprawione 2026-11-12). Remis — niższa wysokość.
+- **Szafka wysunięta z lica w ciągu z cokołem** (np. słupek 600 w ciągu 560 wysunięty o 40): cokół ciągu idzie prosto po
+  licu reszty szafek, a przedni rząd nóżek tej szafki cofa się o jej wysunięcie (`cabDoGeo` → `cab.nozkiCofnij`), żeby
+  nóżki nie stały w płycie cokołu (2026-11-12).
 - **Ustawienie**: szafki stoją jedna za drugą od położenia na ścianie, z luzem między korpusami. Wysunięcie z lica i odsunięcie od ściany można ustawić całemu ciągowi albo jednej szafce.
 - **Nowa szafka** („+ szafka”):
   - w pustym ciągu ma 560 mm głębokości;

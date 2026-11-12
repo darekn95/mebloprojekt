@@ -3487,6 +3487,9 @@ function computeGeoLiczy(cab, mat, ctx) {
     legs.uStyku = cab.legs.uStyku === "osobne" ? "osobne" : "wspolne";
     legs.miejsca = legs.xs.flatMap((lx) => [{ x: lx, odTylu: carcassDepth - legs.ins - legs.w }, { x: lx, odTylu: legs.ins }]);
   }
+  // szafka wysunieta z lica ciagu z cokolem (`cabDoGeo`): przedni rzad nozek cofniety o wysuniecie — za plyte cokolu
+  if (Number(cab.nozkiCofnij) > 0) legs.miejsca = legs.miejsca.map((m) => (m.odTylu > legs.ins + legs.w
+    ? { ...m, odTylu: Math.max(legs.ins + legs.w, m.odTylu - Number(cab.nozkiCofnij)) } : m));
   // kawalek plyty pod / nad danym x (bez podzialu — cala plyta, polozenie od wewnetrznej strony lewego boku)
   const kawalekPod = (kaw, x, nazwa) => {
     const q = kaw && kaw.find((k2) => x >= k2.x0 - 0.5 && x <= k2.x1 + 0.5);
@@ -18012,12 +18015,21 @@ const RAIL_NAME = "Listwa montażowa do zawieszek";
    jest zapamietana, zeby pamiec geometrii (geoCache) dalej trafiala. */
 const ciagStoi = (run) => !!run && run.tier !== "gorny" && !(Number(run.mountY) > 0);
 const NA_PODLODZE = new WeakMap();
+/* Szafka wysunieta z lica (`item.offset`, np. slupek 600 w ciagu 560) w ciagu z cokolem: cokol ciagu idzie prosto po licu
+   reszty szafek, wiec jej przedni rzad nozek cofa sie o wysuniecie (`cab.nozkiCofnij` w `computeGeo`) — inaczej nozki
+   staly w plycie cokolu (audyt projektu uzytkownika 2026-11-12: „cokół 18 × 100 × 2454 × noga 40 × 40 × 100”). */
 const cabDoGeo = (project, it) => {
   if (!it || !it.cab) return it && it.cab;
   const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
-  if (!ciagStoi(run) || it.cab.naPodlodze) return it.cab;
-  if (!NA_PODLODZE.has(it.cab)) NA_PODLODZE.set(it.cab, { ...it.cab, naPodlodze: true });
-  return NA_PODLODZE.get(it.cab);
+  const stoi = ciagStoi(run) && !it.cab.naPodlodze;
+  const pl = run && (run.plinth || it.cab.plinth);
+  const off = run && Number(it.offset) > 0 && pl && pl.on && it.cab.legs && it.cab.legs.on ? Math.round(Number(it.offset)) : 0;
+  if (!stoi && !off) return it.cab;
+  let m = NA_PODLODZE.get(it.cab);
+  if (!m) { m = new Map(); NA_PODLODZE.set(it.cab, m); }
+  const k = `${stoi ? 1 : 0}|${off}`;
+  if (!m.has(k)) m.set(k, { ...it.cab, ...(stoi ? { naPodlodze: true } : {}), ...(off ? { nozkiCofnij: off } : {}) });
+  return m.get(k);
 };
 const maZawieszki = (cab) => {
   const stoi = (cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on) || cab.naPodlodze;

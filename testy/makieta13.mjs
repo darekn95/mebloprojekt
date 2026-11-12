@@ -235,6 +235,16 @@ await page.locator('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="
 { const s2 = await page.evaluate(() => { const s = [...document.querySelectorAll('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="2"]')].pop(); return s ? [...s.querySelectorAll('text')].map((t) => t.textContent.trim()) : []; });
   p = await czekaj('p.items[2].cab.levels[0].h === 590');
   ok('poziom piekarnika wraca do wnęki (590), mikrofala w słupku', JSON.stringify(p.items[2].cab.levels.map((q) => q.h)) === JSON.stringify([590, 373, null]) || s2.includes('mikrofala'), JSON.stringify(p.items[2].cab.levels.map((q) => q.h))); }
+console.log('== słupek wysunięty 40 mm w ciągu z cokołem: nóżki za płytą cokołu ==');
+{ await start('prosta', TRZY + `p.items[2].cab.D = 600; p.items[2].offset = 40; p.runs[0].plinth = { on: true, height: 100, mode: 'under', setback: 0 };
+    p.items.forEach((it) => { it.cab.plinth = { on: true, height: 100, mode: 'under', setback: 0 }; it.cab.legs = { ...(it.cab.legs || {}), on: true, height: 100 }; });
+    p.runs.push({ id: 'r2', name: 'Ściana 2', roomId: p.runs[0].roomId, worktop: true, offset: 2500 }); const d2 = JSON.parse(JSON.stringify(p.items[1])); d2.cab.name = 'Szafka 3'; d2.runId = 'r2'; p.items.push(d2);`, PRZOD);
+  const { execFileSync } = await import('node:child_process'), fs = await import('node:fs');
+  const plik = '/tmp/makieta13-cokol.json'; fs.writeFileSync(plik, JSON.stringify(await proj()));
+  let wyj = '';
+  try { wyj = execFileSync('node', [new globalThis.URL('./audytprojektu.mjs', import.meta.url).pathname], { env: { ...process.env, PROJEKT: plik }, encoding: 'utf8', timeout: 240000 }); } catch (e) { wyj = (e.stdout || '') + (e.stderr || ''); }
+  ok('audyt zabudowy: nic na nic nie nachodzi (nóżka słupka nie w cokole)', /OK\s+zabudowa/.test(wyj) && !/BLAD zabudowa/.test(wyj), ((wyj.match(/BLAD zabudowa.*$/m) || [''])[0] || wyj.slice(-300)).slice(0, 300));
+}
 console.log('== lodówka: dolny front przy 2 frontach ==');
 await start('szczegolowa', TRZY + `p.items[2].cab.levels = [{ h: 1780, cols: [{ ...p.items[2].cab.levels[0].cols[0], sprzet: { typ: 'lodowka', fronty: 2 } }] }, { h: null, cols: [{ ...p.items[2].cab.levels[0].cols[0] }] }]; p.active = 2;`, PRZOD, 'szczegolowa');
 await zakl('dodaj');
