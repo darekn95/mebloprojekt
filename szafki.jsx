@@ -1565,12 +1565,15 @@ const wierszBlatu = (p, mat, matLabel) => {
 //         "vertical" = stojacy jak bok. pos: gora/dol. side: dla vertical lewy/prawy.
 // h = wysokosc pasa (front/vertical), depth = glebokosc w glab (shelf/vertical),
 // atDepth = odsuniecie od lica, fromBack = liczone od tylu, reducesDoor = skraca drzwi.
+/* Domyslna szerokosc wzmocnienia (wysokosc stojacego / glebokosc lezacego) — 70 mm (uzytkownik 2026-11-12: „domyślne
+   wzmocnienia robimy na 70 mm zamiast 100”). Zapisane wczesniej wzmocnienia zostaja przy swoich liczbach. */
+const WZM_DOM = 70;
 const newRail = () => ({
   orient: "front",
   pos: "top",
   side: "left",
-  h: 100,
-  depth: 100,
+  h: WZM_DOM,
+  depth: WZM_DOM,
   atDepth: 0,
   fromBack: false,
   reducesDoor: false,
@@ -1666,12 +1669,12 @@ const ROG_WZM_H = 60;
 // `paraPodBlat` — znacznik pary (przenoszenie przy nowym poziomie, usuwanie przy wiencu; N109)
 /* `glab` — ile miejsca w glab ma plaskie wzmocnienie z przodu (do tylnego, stojacego): w szafce
    80 mm plaskie 100 mm wychodzilo 20 mm za korpus (audyt GPT N166) */
-const railPair = (cofniete = 0, odTylu = 0, pionZPrzodu = false, glab = 100) => ([
+const railPair = (cofniete = 0, odTylu = 0, pionZPrzodu = false, glab = WZM_DOM) => ([
   pionZPrzodu
     ? { ...newRail(), orient: "front", pos: "top", h: ROG_WZM_H, atDepth: cofniete, fromBack: false, paraPodBlat: true }
-    : { ...newRail(), orient: "shelf", pos: "top", depth: Math.max(1, Math.min(100, Math.round(glab))), atDepth: cofniete, fromBack: false, paraPodBlat: true },
+    : { ...newRail(), orient: "shelf", pos: "top", depth: Math.max(1, Math.min(WZM_DOM, Math.round(glab))), atDepth: cofniete, fromBack: false, paraPodBlat: true },
   { ...newRail(), orient: "front", pos: "top",
-    h: pionZPrzodu ? ROG_WZM_H : 100, atDepth: odTylu, fromBack: true, paraPodBlat: true },
+    h: pionZPrzodu ? ROG_WZM_H : WZM_DOM, atDepth: odTylu, fromBack: true, paraPodBlat: true },
 ]);
 
 /* Szafka pod blatem roboczym: wieniec schodzi, a kazda kolumna najwyzszego
@@ -1837,7 +1840,23 @@ const slupkiSprzetNorma = (p) => {
   });
   return zmiana ? { ...p, items } : p;
 };
-const naprawProjekt = (p) => slupkiSprzetNorma(slupkiZWiencem(p));
+/* Szafka wysunieta z lica (np. slupek 600 w ciagu 560, wysuniecie 40 — tyl przy scianie) po zmianie glebokosci zostaje tylem przy
+   scianie: wysuniecie zmienia sie o tyle samo co glebokosc (uzytkownik 2026-11-12: „czemu po zmianie głębokości słupka sam się
+   odsunął od ściany?” — wysuniecie zostawalo stare, a tyl odjezdzal od sciany). */
+const wysuniecieZaGlebokoscia = (p, prev) => {
+  if (!p || !prev || !Array.isArray(p.items) || !Array.isArray(prev.items) || p.items.length !== prev.items.length) return p;
+  let zmiana = false;
+  const items = p.items.map((it, i) => {
+    const a = prev.items[i];
+    if (!a || !it.runId || a.runId !== it.runId || a.cab === it.cab || !(Number(a.offset) > 0) || Number(it.offset) !== Number(a.offset)) return it;
+    const dD = Math.round(Number(it.cab.D) || 0) - Math.round(Number(a.cab.D) || 0);
+    if (!dD) return it;
+    zmiana = true;
+    return { ...it, offset: Math.max(0, Math.round(Number(a.offset) + dD)) };
+  });
+  return zmiana ? { ...p, items } : p;
+};
+const naprawProjekt = (p, prev) => slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev)));
 // szafka w ciagu z opcjami wspolnego wienca / dna — przy wlaczeniu i przy dodaniu nowej
 const wedlugCiagu = (cab, mat, run, h = run && run.H) => {
   let c = cab;
@@ -2294,6 +2313,8 @@ const migrateRun = (r) => ({
     ? r.topCutsWlasne.map((n) => Math.round(Number(n))).filter((n) => n > 0).sort((a, b) => a - b) : [],
   // blat roboczy przez caly ciag; w starych projektach pola nie ma, wiec zostaje wylaczony
   worktop: r.worktop === true,
+  // glebokosc blatu wpisana recznie (od sciany do przedniej krawedzi); null — z szafek (`runTop`)
+  blatGl: Number(r.blatGl) > 0 ? Math.round(Number(r.blatGl)) : null,
   /* Rodzaj zabudowy ciagu (uzytkownik 2026-11-09, makieta: „Rodzaj zabudowy” — na ciag): kuchnia (blat, AGD, ciag gorny) /
      szafa w zabudowie (bez blatu) / wolnostojaca (bez sciany). null = kuchnia (stare projekty). Ustawia palete makiety. */
   zabudowa: ["kuchnia", "szafa", "wolnostojaca"].includes(r.zabudowa) ? r.zabudowa : null,
@@ -10358,9 +10379,11 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
               /* wysokosc boku = szafka w rogu z sasiedniej sciany (rysowana albo z jej ciagu); bez niej — szafki tego ciagu bez
                  slupkow (uzytkownik 2026-11-12: po dodaniu slupka „bok 581” mial 2000 mm wysokosci — brana byla najwyzsza szafka ciagu) */
               const rogC = sasiad.pair.rogowa, gW = groups.find((q) => q.run.id === sasiad.pair.wchodzi.run.id);
-              const cW = rogC && gW && gW.cabs.find((c) => c.cab === rogC.cab);
+              // tylko szafka sasiada na tym samym pietrze (ciag gorny ma inna podstawe — wychodzila ujemna wysokosc, „Z tyłu”)
+              const cW = rogC && gW && gW.mount === g.mount && gW.cabs.find((c) => c.cab === rogC.cab);
               const niskie = zrodlo.filter((c) => !(c.cab.slupek || c.cab.H > 1500));
               const hTop = cW ? cW.base + cW.cab.H : Math.max(...(niskie.length ? niskie : zrodlo).map((c) => c.base + c.cab.H));
+              if (!(hTop > g.mount)) return null;
               const bok = (u0, w) => w <= 0 ? null : (
                 <g key={"bok" + u0}>
                   <rect x={mx(n.ex + u0, w)} y={fy(hTop)} width={w} height={hTop - g.mount}
@@ -11057,12 +11080,15 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
     return [...worktopSpans(rt).map((sp, i) => (
       <rect key={"blat" + i} x={lead + sp.x0} y={yS}
         width={sp.x1 - sp.x0} height={rt.depth}
-        fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" />
+        fill={kol} opacity="0.35" stroke={INK} strokeWidth="2" pointerEvents={onPick ? "none" : undefined} />
     )), ...(rt.naBlacie || []).map((q, i) => (
       <rect key={"nb" + i} data-el="na-blacie" data-idx={q.idx} data-k={q.k} x={lead + q.x0} y={yS} width={q.w} height={q.d} rx="10"
         fill={SPRZET_KOLOR} fillOpacity="0.35" stroke={INK} strokeWidth="2" style={onPick ? { cursor: "pointer" } : undefined} />
     )), ...(rt.wyciecia || []).map((q, i) => (
       <g key={"wyc" + i} data-el="wyciecie-blatu" data-idx={q.idx} data-k={q.k} style={onPick ? { cursor: "pointer" } : undefined}>
+        {/* plyta: wyciecie najpierw (pod szklem; widac je przy wylaczonym „AGD”), potem szklo */}
+        {q.typ === "plyta" && q.sw > 0 && q.sd > 0 && <rect data-el="wyciecie-obrys" x={lead + q.x0} y={yS + rt.depth - q.odPrzodu - q.d} width={q.x1 - q.x0} height={q.d}
+          fill="#fafaf9" stroke={INK} strokeWidth="2" strokeDasharray="10 6" />}
         {/* plyta: szklo ciemne i pelne, pola grzewcze jasne (jak w makiecie „Dodaj”; uzytkownik 2026-11-11: „płyta indukcyjna
             też wygląda inaczej”) — wyciecie pod szklem nie jest widoczne */}
         {q.sw > 0 && q.sd > 0 && (
@@ -11139,7 +11165,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
   });
   // margines obejmuje tez grubosc sciany; nazwy scian stoja na niej
   // makieta z wymiarami glebokosci (`glebWym`): przy ciagu dwie kolumny wymiarow z napisami w duzym rozmiarze
-  const pad = (showDims ? 190 : glebWym ? 420 : 40) + SCIANA_GR;
+  const pad = (showDims ? 190 : glebWym ? 680 : 40) + SCIANA_GR;
   const padR = pad;
   const vb = [b.x0 - pad, b.y0 - pad,
     b.x1 - b.x0 + pad + padR, b.y1 - b.y0 + 2 * pad].join(" ");
@@ -11281,7 +11307,8 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
                 przy wolnym koncu ciagu lancuch od sciany — odsuniecie od sciany, glebokosc korpusu, front; obok blat (od sciany
                 do jego przodu); szafka glebsza albo wysunieta (np. slupek) — wymiar od sciany do jej lica w niej samej. */}
             {glebWym && !upper && g.cabs.length > 0 && (() => {
-              const lewo = !(n.lead > 0), kol = (k) => (lewo ? -60 - 200 * k : n.len + 60 + 200 * k);
+              // kolumny daleko od siebie — napisy w makiecie maja 52 jednostki (uzytkownik 2026-11-12: „opisy nachodzą na siebie”)
+              const lewo = !(n.lead > 0), kol = (k) => (lewo ? -60 - 330 * k : n.len + 60 + 330 * k);
               const wz = g.cabs.filter((c) => !c.offset && !(c.cab.slupek || c.cab.H > 1500));
               const t0 = wz[0] || g.cabs[0], tyl = Math.round(n.depth - t0.geo.carcassDepth + t0.offset), lico = Math.round(n.depth + t0.offset);
               const rt = showBlat ? runTop(project, g.run) : null, gs = wallGapOf(g.run, null), yS = gs.bottom - gs.top;
@@ -11290,13 +11317,16 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
               const odS = Math.max(0, Math.round(gs.bottom || 0)), plecy = Math.max(0, tyl - odS);
               return <g data-el="mak-wym-zgory">
                 {odS > 0 && v("odSc", 0, odS, `${fmt(odS)} od ściany`, kol(0))}
-                {v("gl", odS, lico, plecy > 0 ? `${fmt(lico - tyl)} + plecy ${fmt(plecy)}` : fmt(lico - tyl), kol(0))}
+                {v("gl", odS, lico, plecy > 0 ? `${fmt(lico - tyl)}+${fmt(plecy)}` : fmt(lico - tyl), kol(0))}
                 {dv + t0.offset > lico + 1 && v("fr", lico, Math.round(dv + t0.offset), `front ${fmt(Math.round(dv + t0.offset - lico))}`, kol(0))}
                 {rt && v("blat", yS, yS + rt.depth, `blat ${fmt(Math.round(rt.depth))}`, kol(1))}
                 {g.cabs.filter((c) => c !== t0 && (c.offset || Math.round(c.geo.carcassDepth) !== Math.round(t0.geo.carcassDepth))).map((c, i) => {
                   const y1c = Math.round(n.depth + c.offset), x = n.lead + c.x + c.geo.W - 50;
+                  // od sciany do lica — liczba przy kresce; wysuniecie osobnym napisem przy przodzie szafki (dlugi napis wychodzil poza nia)
                   return <g key={"wd" + i} data-el="mak-wym-zgory-szafka">
-                    <DimV y1={0} y2={y1c} x={x} left label={`${fmt(y1c)}${c.offset ? ` (${c.offset > 0 ? "wysunięty " : "cofnięty "}${fmt(Math.abs(c.offset))})` : ""}`} c={MAK_AKCENT} obwodka />
+                    <DimV y1={0} y2={y1c} x={x} left label={fmt(y1c)} c={MAK_AKCENT} obwodka />
+                    {c.offset ? <text x={n.lead + c.x + c.geo.W / 2} y={y1c - 24} textAnchor="middle" fontSize="22" fill={MAK_AKCENT} className="wym"
+                      stroke="#fff" strokeWidth="5" paintOrder="stroke" fontFamily="ui-monospace, monospace">{`${c.offset > 0 ? "wysunięty" : "cofnięty"} ${fmt(Math.abs(c.offset))}`}</text> : null}
                   </g>;
                 })}
               </g>;
@@ -15627,6 +15657,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return { label: "Dobierz podział automatycznie", run: () => runFix && runFix(action) };
     if (action.startsWith("wallw:"))
       return { label: `Wydłuż ścianę do ${fmt(Number(action.split(":")[1]))} mm`, run: () => runFix && runFix(action) };
+    if (action.startsWith("blatgl:"))
+      return { label: Number(action.split(":")[1]) > 0 ? `Blat ${fmt(Number(action.split(":")[1]))} mm` : "Głębokość blatu automatycznie", run: () => runFix && runFix(action) };
     if (action.startsWith("topcut:")) {
       return { label: action === "topcut:1"
         ? "Zamów blat docięty na wymiar"
@@ -16376,7 +16408,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const cof = Math.max(0, Number(rog) || 0);
       return { label: "Dodaj parę wzmocnień pod blat", run: () => editLevels((L) => {
         const c = kolumnaW(L, li, j);
-        c.rails = [...(c.rails || []), ...railPair(cof, cof, cof > 0, glab != null && glab !== "" ? Number(glab) : 100)];
+        c.rails = [...(c.rails || []), ...railPair(cof, cof, cof > 0, glab != null && glab !== "" ? Number(glab) : WZM_DOM)];
       }) };
     }
     // system szuflad aktywnej szafki — wykonuje `runFix` (cala szafka, z historia)
@@ -17301,6 +17333,16 @@ const runTopLiczy = (project, run, bezRogu = false) => {
       const wysiegArkusza = arkusz ? arkusz - doLica : null;
       const pelny = !!arkusz && (run.topCut === false
         || (run.topCut !== true && wysiegArkusza <= WORKTOP_MAX_OVERHANG));
+      /* Glebokosc blatu wpisana recznie dla tej sciany (uzytkownik 2026-11-12: „w opcjach ciągu brakuje do wpisania ręcznej
+         głębokości blatu dla danej ściany”, `run.blatGl`, od sciany do przedniej krawedzi) — arkusz najmniejszy, z ktorego
+         sie ja wytnie; za plytki (nie zakrywa frontow) — uwaga w `worktopMsgs` (wysieg ujemny). */
+      const reczna = worktop && Number(run.blatGl) > 0 ? Math.round(Number(run.blatGl)) : null;
+      if (reczna) {
+        const ark = WORKTOP_DEPTHS.find((d) => d >= reczna) || null;
+        return { surowa, arkusz: ark, docinka: ark ? ark - reczna : 0, pelnyArkusz: ark === reczna, reczna: true,
+          depth: reczna, doLica, wysiegArkusza: ark ? ark - doLica : null, wysieg: reczna - doLica,
+          odSciany: Math.max(0, ...spans.map((s) => s.odSciany || 0)) };
+      }
       const depth = pelny ? arkusz : arkusz ? Math.min(surowa, arkusz) : surowa;
       return { surowa, arkusz, docinka: arkusz ? arkusz - depth : 0, pelnyArkusz: pelny,
         depth, doLica, wysiegArkusza, wysieg: depth - doLica,
@@ -18305,9 +18347,15 @@ const runCabMsgs = (run, c, inne = [], poz = null) => {   // poz: { idx, offset,
   const roznD = run.D != null ? Math.round(c.D) - run.D : 0;
   const slupekGl = roznD > 0 && (c.slupek || c.H > 1500);
   if (slupekGl && poz && Math.round(Number(poz.offset) || 0) >= roznD) {
-    const blat = poz.rt && poz.rt.worktop ? (poz.rt.depth <= WORKTOP_DEPTHS[0] ? WORKTOP_DEPTHS[0] : Math.round(poz.rt.depth)) : null;
-    if (blat != null && Math.round(c.D) > blat)
-      out.push({ level: "warn", text: `Za głęboki słupek: korpus ${fmt(c.D)} mm wychodzi ${fmt(Math.round(c.D) - blat)} mm przed blat (${fmt(blat)} mm) — powinien być z nim na równo.|runcab:D:${blat}` });
+    /* drzwi slupka maja byc na rowno z przednia krawedzia blatu (uzytkownik 2026-11-12: „drzwi słupka wystają przed blat, a powinny
+       być równo z nim”) — liczone lico drzwi (lico ciagu + wysuniecie slupka), nie sam korpus; przyciski: plytszy slupek (tyl
+       zostaje przy scianie) albo glebszy blat tej sciany */
+    const rt = poz.rt, off = Math.round(Number(poz.offset) || 0);
+    const wyst = rt && rt.worktop && rt.doLica > 0 ? Math.round(rt.doLica + off - rt.depth) : 0;
+    if (wyst > 0)
+      out.push({ level: "warn", text: `Za głęboki słupek: jego drzwi wystają ${fmt(wyst)} mm przed blat (blat ${fmt(Math.round(rt.depth))} mm od ściany, drzwi słupka ${fmt(Math.round(rt.doLica + off))} mm) — powinny być z nim na równo. `
+        + `Płytszy słupek (${fmt(Math.round(c.D) - wyst)} mm, tył zostaje przy ścianie) albo głębszy blat tej ściany (${fmt(Math.round(rt.doLica + off))} mm).`
+        + `|runcab:D:${Math.round(c.D) - wyst}|blatgl:${Math.round(rt.doLica + off)}:${run.id}` });
   }
   else if (run.D != null && Math.round(c.D) > run.D)
     out.push({ level: "warn", text:
@@ -18651,7 +18699,7 @@ const worktopMsgs = (project, run) => {
      krawedz frontow, zeby przy krojeniu nie kapalo na nie. Mniej: uwaga.
      Ponad 30 mm: ostrzezenie, bo zwykle zle jest odsuniecie od sciany albo
      glebokosc szafek — a jesli oba sa dobre, blat trzeba dociac. */
-  const naArkusz600 = rt && rt.worktop && rt.arkusz === WORKTOP_DEPTHS[0];
+  const naArkusz600 = rt && rt.worktop && rt.arkusz === WORKTOP_DEPTHS[0] && !rt.reczna;
   let opisanyWysieg = false;
   if (naArkusz600) {
     const w = rt.wysiegArkusza;
@@ -18691,6 +18739,13 @@ const worktopMsgs = (project, run) => {
           : `Teraz zamawiamy go dociętego do ${fmt(rt.depth)} mm — ${fmt(rt.wysieg)} mm przed drzwi.|topcut:0`)
         + naCel });
     }
+  }
+  // glebokosc wpisana recznie: za plytki blat nie zakrywa frontow; inaczej — informacja, ile wystaje
+  if (rt && rt.reczna) {
+    if (rt.wysieg < 0) out.push({ level: "warn", text: `Blat ciągu „${run.name}” ma wpisaną głębokość ${fmt(rt.depth)} mm, a do lica drzwi jest ${fmt(rt.doLica)} mm — fronty wystają ${fmt(-rt.wysieg)} mm przed blat.`
+      + `|blatgl:${Math.round(rt.doLica + WORKTOP_OVERHANG)}:${run.id}|blatgl:0:${run.id}` });
+    else out.push({ level: "info", text: `Blat ciągu „${run.name}” — głębokość wpisana ręcznie: ${fmt(rt.depth)} mm od ściany, ${fmt(rt.wysieg)} mm przed drzwi${rt.arkusz ? `, z arkusza ${fmt(rt.arkusz)} mm` : ""}.` });
+    opisanyWysieg = true;
   }
   // docięty na życzenie albo z arkusza 1200 — mówimy, że tnie go zakład
   if (rt && rt.worktop && !rt.pelnyArkusz && rt.docinka > 0 && !opisanyWysieg) {
@@ -21232,7 +21287,10 @@ const MAK_PELNE = {
 const MAK_ZAKLADKI_SZCZ = [["korpus", "Korpus i plecy"], ["wzmocnienia", "Wzmocnienia"], ["wyciecia", "Wycięcia i kolizje"], ["zamowienie", "Zamówienie"]];
 /* Przelaczniki rysunku jak w makiecie „Dodaj” (uzytkownik 2026-11-09: „widok jak w makiecie — mniej miejsca, większy
    rysunek”): z gory nad widokiem z przodu, ciag gorny / dolny, fronty (wylaczone — wnetrze). */
-const MAK_PRZEL = [["zgory", "Z góry"], ["gorny", "Ciąg górny"], ["dolny", "Ciąg dolny"], ["fronty", "Fronty"], ["kolory", "Kolory płyt"], ["wymiary", "Wymiary"]];
+/* „AGD” (makieta „Dodaj”: przelacznik wyposazenia; uzytkownik 2026-11-12: „gdzie zginął przycisk od wyłączania wyświetlania
+   wyposażenia?”) — wylaczony: bez sprzetu na rysunku (wneki puste, plyta / zlew jako samo wyciecie, bez sprzetu na blacie);
+   domyslnie wlaczony (`przel.agd !== false`) */
+const MAK_PRZEL = [["zgory", "Z góry"], ["gorny", "Ciąg górny"], ["dolny", "Ciąg dolny"], ["fronty", "Fronty"], ["agd", "AGD"], ["kolory", "Kolory płyt"], ["wymiary", "Wymiary"]];
 /* Kolory rysunku makiety (uzytkownik 2026-11-09: „zależnie od trybu — w prostym jak jest [w makiecie], w szczegółowej już
    z kolorami płyt jak w technicznym, na przełączniku”): prosta — jasne jak makieta „Dodaj” (--board, --top), bez slojow;
    szczegolowa — przelacznik „Kolory płyt” (domyslnie wlaczony). Zmienia tylko rysunek (kopia `mat` z kolorami), nie dane. */
@@ -21740,6 +21798,16 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
       {/* jak w makiecie „Dodaj”: powrot do typowej odleglosci od przodu */}
       {raw.odPrzodu != null && Math.round(raw.odPrzodu) !== WYCIECIA_BLATU[q.typ].odPrzodu && <button data-el="agd-odprzodu-dom" onClick={() => ustaw({ odPrzodu: null })}
         className="mt-1 rounded border border-teal-600 px-2 py-0.5 text-[11px] text-teal-700 hover:bg-teal-50">{WYCIECIA_BLATU[q.typ].odPrzodu} od przodu (typowo)</button>}
+      {/* kaseta plyty miedzy bokami szafki (uzytkownik 2026-11-12: „czy program sprawdza, czy kaseta indukcji nie wchodzi na boki?”) */}
+      {q.typ === "plyta" && wq && wq.cabX1 > wq.cabX0 && (() => {
+        const kw = q.kw || q.w, kx0 = (wq.x0 + wq.x1) / 2 - kw / 2, kx1 = kx0 + kw;
+        const w0 = wq.cabX0 + wq.t, w1 = wq.cabX1 - wq.t, zl = Math.round(kx0 - w0), zp = Math.round(w1 - kx1);
+        const wyc0 = Math.round(wq.x0 - w0), wyc1 = Math.round(w1 - wq.x1);
+        const zle = wyc0 < 0 || wyc1 < 0;
+        return <p data-el="agd-kaseta-boki" className={`text-[11px] ${zle ? "font-medium text-red-700" : "text-stone-600"}`}>
+          Kaseta {fmt(kw)} mm we wnętrzu szafki {fmt(Math.round(w1 - w0))} mm: zapas {fmt(zl)} mm z lewej i {fmt(zp)} mm z prawej
+          {zle ? ` — wycięcie wchodzi na bok szafki (${fmt(Math.min(wyc0, wyc1))} mm); program pokazuje to jako błąd w „Uwagach”.` : " (wycięcie mieści się między bokami — program to sprawdza)."}</p>;
+      })()}
       <p className="text-[11px] text-stone-600">Środek wycięcia {q.przesun ? `${fmt(Math.abs(q.przesun))} mm w ${q.przesun > 0 ? "prawo" : "lewo"} od środka szafki „${nazwaSz}”` : `na środku szafki „${nazwaSz}”`}.</p>
       <div className="mt-1 flex flex-wrap gap-1">
         {q.przesun !== 0 && <button data-el="agd-srodek" onClick={() => ustaw({ przesun: null })} className="rounded border border-teal-600 px-2 py-0.5 text-[11px] text-teal-700 hover:bg-teal-50">Na środek szafki</button>}
@@ -22083,17 +22151,17 @@ const makSwiatloPod = (raw, o, gy) => {
    w trybie technicznym, wymiary typowe 100 mm); mocowanie calej kolumny: konfirmaty (domyslnie) albo wkrety 4 × 30. */
 const MAK_WZM = [
   { k: "lezace", l: "leżące u góry", jest: (r) => r.orient === "shelf" && r.pos !== "bottom" && !r.fromBack,
-    nowe: () => ({ ...newRail(), orient: "shelf", pos: "top", depth: 100 }) },
+    nowe: () => ({ ...newRail(), orient: "shelf", pos: "top", depth: WZM_DOM }) },
   { k: "stojace", l: "stojące z przodu u góry", jest: (r) => r.orient === "front" && r.pos !== "bottom" && !r.fromBack,
-    nowe: () => ({ ...newRail(), orient: "front", pos: "top", h: 100 }) },
+    nowe: () => ({ ...newRail(), orient: "front", pos: "top", h: WZM_DOM }) },
   { k: "tylne", l: "tylne u góry", jest: (r) => r.orient === "front" && r.pos !== "bottom" && !!r.fromBack,
-    nowe: () => ({ ...newRail(), orient: "front", pos: "top", h: 100, fromBack: true }) },
+    nowe: () => ({ ...newRail(), orient: "front", pos: "top", h: WZM_DOM, fromBack: true }) },
   { k: "dolP", l: "na dole z przodu", jest: (r) => r.orient === "front" && r.pos === "bottom" && !r.fromBack,
-    nowe: () => ({ ...newRail(), orient: "front", pos: "bottom", h: 100 }) },
+    nowe: () => ({ ...newRail(), orient: "front", pos: "bottom", h: WZM_DOM }) },
   { k: "dolT", l: "na dole z tyłu", jest: (r) => r.orient === "front" && r.pos === "bottom" && !!r.fromBack,
-    nowe: () => ({ ...newRail(), orient: "front", pos: "bottom", h: 100, fromBack: true }) },
+    nowe: () => ({ ...newRail(), orient: "front", pos: "bottom", h: WZM_DOM, fromBack: true }) },
   { k: "pionowe", l: "pionowe", jest: (r) => r.orient === "vertical",
-    nowe: () => ({ ...newRail(), orient: "vertical", side: "left", depth: 100 }) },
+    nowe: () => ({ ...newRail(), orient: "vertical", side: "left", depth: WZM_DOM }) },
 ];
 const makPrzelaczWzm = (col, t) => {
   const rails = col.rails || [];
@@ -23118,6 +23186,14 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       liczba("odsuniecie", "Odsunięcie od ściany", Math.round(wallGapOf(run, null).bottom || 0),
         (v) => ciag.setRun(run.id, { wallGap: migrateWallGap({ ...(run.wallGap || {}), bottom: v }) }), 5, 0),
       ...(!wisi ? [takNie("blat", "Blat roboczy na całym ciągu", run.worktop, (v) => ciag.setRun(run.id, { worktop: v }), "mak-ciag-blat")] : []),
+      /* glebokosc blatu tej sciany wpisana recznie (uzytkownik 2026-11-12) — puste: z szafek (lico drzwi + 10 mm, arkusz 600) */
+      ...(!wisi && run.worktop ? [(() => { const rtB = runTop(project, run); const auto = rtB && !rtB.reczna ? Math.round(rtB.depth) : null;
+        return <label key="blatgl" className="flex items-center justify-between gap-2 border-b border-stone-100 py-1 text-xs"><span className="text-stone-500">Głębokość blatu (od ściany){rtB ? ` — teraz ${fmt(Math.round(rtB.depth))}${rtB.reczna ? ", wpisana" : ", z szafek"}` : ""}</span>
+          <span className="flex items-center gap-1"><input type="number" step="5" defaultValue={run.blatGl ?? ""} placeholder={auto != null ? String(auto) : "auto"} key={`${run.id}-blatgl-${run.blatGl ?? ""}`} data-pole="ciag-blatgl"
+            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+            onBlur={(e) => { const t = e.currentTarget.value.trim(), v = t === "" ? null : Math.round(Number(t)); if ((v || null) !== (run.blatGl || null)) ciag.setRun(run.id, { blatGl: v > 0 ? v : null }); }}
+            className="w-24 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />
+            {run.blatGl ? <Btn el="mak-ciag-blatgl-auto" onClick={() => ciag.setRun(run.id, { blatGl: null })}>auto</Btn> : null}</span></label>; })()] : []),
       ...(tryb === "szczegolowa" ? [
         takNie("wieniec", "Wspólny wieniec z płyty (zamiast blatu roboczego)", run.wspolnyWieniec, (v) => ciag.setRun(run.id, { wspolnyWieniec: v }), "mak-ciag-wieniec"),
         takNie("dno", "Wspólne dno na całym ciągu", run.wspolneDno, (v) => ciag.setRun(run.id, { wspolneDno: v }), "mak-ciag-dno")] : []),
@@ -23468,6 +23544,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   /* „Przesuń” dotknieciem (telefon; makieta „Dodaj”: „dotknij sprzęt, potem miejsce”): przycisk w karcie sprzetu albo
      szafki, potem dotkniecie szafki w zielonej ramce. `przesuwany`: { co: { typ } | { blat } | { szafka }, z, nazwa }. */
   const [przesuwany, setPrzesuwany] = useState(null);
+  const [kat3d, setKat3d] = useState(90);   // kat otwarcia frontow w 3D / 45° makiety
   const [ramki, setRamki] = useState(null);   // { lista: [{ i, x, y, w, h }], akt }
   // prostokat szafki na ekranie (front korpusu z macierzy grupy — bez wymiarow i napisow)
   const ekranSzafki = (g, i, zg) => {
@@ -24346,15 +24423,15 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                 })()}
               </span>}
               {rodzaj !== "wolnostojaca" && scW > 0 && (scW >= dlug
-                ? <span className="text-teal-700" data-el="mak-wolne">wolne {fmt(scW - dlug)} mm</span>
-                : <span className="font-medium text-amber-700" data-el="mak-wolne">brakuje {fmt(dlug - scW)} mm</span>)}
+                ? <span className="text-teal-700" data-el="mak-wolne">na ścianie wolne {fmt(scW - dlug)} mm długości</span>
+                : <span className="font-medium text-amber-700" data-el="mak-wolne">na ścianie brakuje {fmt(dlug - scW)} mm długości</span>)}
             </div>
           );
         })()}
         <div className="mb-1 flex flex-wrap items-center gap-1.5" data-el="mak-przel">
           {MAK_PRZEL.filter(([k]) => (maPietra || (k !== "gorny" && k !== "dolny")) && ((k !== "kolory" && k !== "wymiary") || tryb === "szczegolowa")).map(([k, l]) => (k === "wymiary"
             ? <MakWymiaryMenu key={k} wym={wym} ustaw={(v) => setPrzel((p) => ({ ...p, wymiary: true, wym: v }))} />
-            : <Przelacznik key={k} k={k} l={l} on={!!przel[k]} onClick={() => setPrzel((p) => ({ ...p, [k]: !p[k] }))} />
+            : <Przelacznik key={k} k={k} l={l} on={k === "agd" ? przel.agd !== false : !!przel[k]} onClick={() => setPrzel((p) => ({ ...p, [k]: k === "agd" ? p.agd === false : !p[k] }))} />
           ))}
           <Rozwijana el="mak-widoki" etykieta="Widok" wartosc={widokM}
             opcje={[{ v: "przod", l: "Z przodu", opis: "makieta — przeciąganie po rysunku" }, { v: "bok", l: "Z boku" }, { v: "gora", l: "Z góry" },
@@ -24372,7 +24449,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
             </MiniBtn>
           </span>
         </div>
-        <div data-el="mak-plotno" ref={plotno} className={`overflow-auto ${lg || pelny ? "min-h-0 flex-1" : ""}`}
+        {przel.agd === false && <style>{"[data-el=mak-plotno] [data-el=sprzet-front], [data-el=mak-plotno] [data-el=wyciecie-front], [data-el=mak-plotno] [data-el=na-blacie], [data-el=mak-plotno] [data-el=rant-blatu], [data-el=mak-plotno] [data-el=pola-grzewcze], [data-el=mak-plotno] [data-el=komory], [data-el=mak-plotno] [data-el=ociekacz] { display: none; } [data-el=mak-plotno] [data-el=wyciecie-blatu] text { fill: #44403c; }"}</style>}
+        <div data-el="mak-plotno" data-agd={przel.agd === false ? "0" : "1"} ref={plotno} className={`overflow-auto ${lg || pelny ? "min-h-0 flex-1" : ""}`}
           onClick={(e) => {
             if (przesuwany) { przesunNa(e); return; }
             // sprzet na blacie / wyciecie w blacie (rysunek ciagu) — karta sprzetu
@@ -24442,9 +24520,17 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                 : geo0 && <SideView cab={it0.cab} geo={geo0} mat={it0.mat} showDims showHardware={false} />)}
               {w === "gora" && (zCiagow ? <AssemblyTopView project={projRys} runs={rysowane} showDims showShelves showHardware={false} onPick={wybierz} zazn={zaznM ? project.active : null} />
                 : geo0 && <TopView cab={it0.cab} geo={geo0} mat={it0.mat} showDims showShelves showHardware={false} />)}
-              {w === "3d" && obracany(zCiagow ? <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={90} rpOf={rpOf} />
-                : geo0 && <Scene3D cab={it0.cab} geo={geo0} mat={it0.mat} open={widokRys === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={90} />)}
-              {w === "iso" && <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} yaw={-Math.PI / 4} pitch={-0.45} angle={90} rpOf={rpOf} />}
+              {/* otwarte / zamkniete i kat otwarcia (uzytkownik 2026-11-12: „brak na rysunku otwarte, zamknięte i suwaka do otwierania”,
+                  jak w trybie technicznym) — przycisk ten sam co przelacznik „Fronty” */}
+              {(w === "3d" || w === "iso") && <div className="mb-1 flex flex-wrap items-center gap-2" data-el="mak-3d-otwarcie">
+                <MiniBtn tone={widokRys === "open" ? "on" : "plain"} onClick={() => setPrzel((p) => ({ ...p, fronty: widokRys === "open" }))}>{widokRys === "open" ? "otwarte" : "zamknięte"}</MiniBtn>
+                {widokRys === "open" && <label className="flex items-center gap-2"><span className="text-xs text-stone-500">kąt</span>
+                  <input type="range" min={0} max={110} step={1} value={kat3d} data-el="mak-3d-kat" onChange={(e) => setKat3d(Number(e.target.value))} className="w-32 accent-teal-700" />
+                  <span className="w-10 font-mono text-xs text-stone-500">{kat3d}°</span></label>}
+              </div>}
+              {w === "3d" && obracany(zCiagow ? <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} rpOf={rpOf} />
+                : geo0 && <Scene3D cab={it0.cab} geo={geo0} mat={it0.mat} open={widokRys === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} />)}
+              {w === "iso" && <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} yaw={-Math.PI / 4} pitch={-0.45} angle={kat3d} rpOf={rpOf} />}
               <p className="mt-1 text-[11px] text-stone-500">{w === "3d" ? "Przeciągnij, żeby obrócić. " : ""}Zmiany na rysunku — w widoku „Z przodu”; tu podgląd.</p>
             </div>
           );
@@ -24695,7 +24781,7 @@ export default function App() {
   // kazda zmiana projektu przechodzi tu — zapisuje poprzedni stan do historii
   const setProject = useCallback((next) => {
     setProjectRaw((prev) => {
-      const resolved = naprawProjekt(typeof next === "function" ? next(prev) : next);
+      const resolved = naprawProjekt(typeof next === "function" ? next(prev) : next, prev);
       if (resolved === prev) return prev;
       const h = histRef.current;
       h.past.push(prev);
@@ -26102,6 +26188,8 @@ export default function App() {
     if (action.startsWith("slupekgl:")) { const [, d, ix] = action.split(":");
       setProject((p) => ({ ...p, items: p.items.map((x, k) => (k === Number(ix) ? { ...x, offset: Number(d), cab: { ...x.cab, slupek: true } } : x)) })); return; }
     if (action.startsWith("wallw:")) { const [, v, id] = action.split(":"); if (id && Number(v) > 0) setRun(id, { wallW: Number(v) }); return; }
+    // „blatgl:<mm albo 0>:<ciąg>” — reczna glebokosc blatu ciagu (0 — automatycznie)
+    if (action.startsWith("blatgl:")) { const [, v, id] = action.split(":"); if (id) setRun(id, { blatGl: Number(v) > 0 ? Number(v) : null }); return; }
     if (!runInfo) return;
     if (action === "plinthauto") { setRun(runInfo.run.id, { plinthCuts: null, plinthCutsWlasne: [] }); return; }
     if (action === "topauto") { setRun(runInfo.run.id, { topCuts: null, topCutsWlasne: [] }); return; }
@@ -26382,7 +26470,7 @@ export default function App() {
   // ta sama para co przycisk w uwagach: w rogu stojace, plaskie na tyle, ile miejsca (N166, N167)
   const addRailPair = (i, j) => editLevels((L) => {
     const col = kolumnaW(L, i, j);
-    const [glab, rog] = String(geo.paraArg || "100:0").split(":").map(Number);
+    const [glab, rog] = String(geo.paraArg || `${WZM_DOM}:0`).split(":").map(Number);
     col.rails = [...(col.rails || []), ...railPair(rog, rog, rog > 0, glab)];
   });
   const removeRail = (i, j, k) => editLevels((L) => kolumnaW(L, i, j).rails.splice(k, 1));

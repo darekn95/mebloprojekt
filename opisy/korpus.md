@@ -13,8 +13,8 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - „na boku” — płyta na czołach boków;
   - brak (szafka pod blatem bez wieńca, szafka bez dna).
 - **Szafka pod blatem roboczym** (w ciągu z blatem): wieniec znika, a każda kolumna najwyższego poziomu dostaje parę wzmocnień (znacznik `paraPodBlat` — para idzie razem do nowego najwyższego poziomu i razem znika przy powrocie wieńca; w szafce narożnej także stojąca z przodu, audyt GPT N109).
-  - Z przodu: płaskie, 100 mm głębokości, przy licu.
-  - Z tyłu: stojące, 100 mm wysokości, przy plecach.
+  - Z przodu: płaskie, 70 mm głębokości, przy licu (domyślnie 70 — użytkownik 2026-11-12; wcześniej 100, zapisane zostają).
+  - Z tyłu: stojące, 70 mm wysokości, przy plecach.
   - W szafce narożnej przednie jest pionowe i cofnięte o grubość frontu, a tylne odsunięte o grubość płyty — dochodzi do kątownika.
   - Para zawsze siedzi w najwyższym poziomie, także po zmianach struktury.
 - **Wzmocnienie stojące przy plecach** na wysokości szuflady skraca jej NL; to przy licu — wysokość boku skrzynki.
@@ -133,7 +133,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
 ## Skąd liczby
 
 - **Blat**: arkusze 4100 × 600 / 1200 i ceny PB0090 Śnieżna biel z faktur użytkownika (2026-09-29); brak obracania blatu w rozkroju (2026-10-17).
-- **Wzmocnienia pod blat**: para 100 mm i jej położenie — ustalone z użytkownikiem (narożnik: cofnięcie o front, odsunięcie o płytę).
+- **Wzmocnienia pod blat**: para 70 mm (od 2026-11-12; wcześniej 100) i jej położenie — ustalone z użytkownikiem (narożnik: cofnięcie o front, odsunięcie o płytę). Nowe wzmocnienie z karty / klocka też 70 mm (`WZM_DOM`); konfirmaty na końcu wzmocnienia 70: 18 i 53 mm od krawędzi (¼ i ¾).
 - **Frez**: wręg 16 × 3 zlicowany z tyłem (zmiana starych ustawień przy wczytaniu).
 - **Konfirmaty**: 50 mm od krawędzi, odstęp ok. 200 mm, min. 32 mm między dwoma. Wzmocnienia —
   po 2 na koniec także na 100 i 60 mm (¼ i ¾ szerokości), decyzja użytkownika 2026-11-06.
