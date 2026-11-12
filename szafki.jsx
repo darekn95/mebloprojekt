@@ -1827,7 +1827,10 @@ const slupkiSprzetNorma = (p) => {
        (uzytkownik 2026-11-12: piekarnik w poziomie 722, nad nim 132 mm przerwy pod mikrofala) */
     const za = (N, x) => { if (!makSlupekSprzet(N, x)) return false; const wn = makWnekaH(N[x].cols[0]); if (!wn || N[x].h == null) return false;
       return (N[x].h > wn + MAK_MIN && N[x].h > 0.6 * c.H && N.some((q, y) => y > x && makSlupekSprzet(N, y)))
-        || (N[x].h > wn + 2 && ((x + 1 < N.length && makSlupekSprzet(N, x + 1)) || (x > 0 && makSlupekSprzet(N, x - 1)))); };
+        || (N[x].h > wn + 2 && ((x + 1 < N.length && makSlupekSprzet(N, x + 1)) || (x > 0 && makSlupekSprzet(N, x - 1))))
+        /* wneka nizsza niz sprzet (uzytkownik 2026-11-12: „wnęka na mikrofalę 250 mm — program sam nie powinien na to pozwolić”):
+           poziom wraca do wneki sprzetu, reszte oddaje / bierze najwyzszy poziom bez sprzetu */
+        || (N[x].h < wn - 2 && x < N.length - 1); };
     const zly = L.some((lv, x) => za(L, x));
     if (!zly) return it;
     zmiana = true;
@@ -16300,11 +16303,16 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         }),
       };
     }
+    if (action.startsWith("rogluz:")) {
+      // „rogluz:<ciag z narożnikiem>:<luz w rogu mm>:<ok>” — odsuniecie ciagow w rogu (kolizja otwierania)
+      const [, , mm, wynik] = action.split(":");
+      return { label: `Luz w rogu ${fmt(Number(mm))} mm${poPoprawce(wynik)}`, run: () => runFix && runFix(action) };
+    }
     if (action.startsWith("slepyfix:")) {
-      // „slepyfix:<nr szafki>:<strona fixu>:<szerokosc>" — sam fix, reszta zostaje
-      const [, idx, strona, w] = action.split(":");
+      // „slepyfix:<nr szafki>:<strona fixu>:<szerokosc>[:<drzwi>:<wynik>]" — sam fix, reszta zostaje (drzwi wezsze o tyle)
+      const [, idx, strona, w, drzwiW, wynikF] = action.split(":");
       return {
-        label: `Popraw fix na ${fmt(Number(w))} mm`,
+        label: drzwiW ? `Szerszy fix ${fmt(Number(w))} mm — drzwi ${fmt(Number(drzwiW))} mm${poPoprawce(wynikF)}` : `Popraw fix na ${fmt(Number(w))} mm`,
         run: () => editItemLevels(Number(idx), (L) => L.forEach((lv) => {
           const j = strona === "left" ? 0 : lv.cols.length - 1;
           const col = lv.cols[j];
@@ -18355,7 +18363,7 @@ const runCabMsgs = (run, c, inne = [], poz = null) => {   // poz: { idx, offset,
     if (wyst > 0)
       out.push({ level: "warn", text: `Za głęboki słupek: jego drzwi wystają ${fmt(wyst)} mm przed blat (blat ${fmt(Math.round(rt.depth))} mm od ściany, drzwi słupka ${fmt(Math.round(rt.doLica + off))} mm) — powinny być z nim na równo. `
         + `Płytszy słupek (${fmt(Math.round(c.D) - wyst)} mm, tył zostaje przy ścianie) albo głębszy blat tej ściany (${fmt(Math.round(rt.doLica + off))} mm).`
-        + `|runcab:D:${Math.round(c.D) - wyst}|blatgl:${Math.round(rt.doLica + off)}:${run.id}` });
+        + `|glebokosc:${Math.round(c.D) - wyst}|blatgl:${Math.round(rt.doLica + off)}:${run.id}` });
   }
   else if (run.D != null && Math.round(c.D) > run.D)
     out.push({ level: "warn", text:
@@ -19620,8 +19628,10 @@ const swingBodies = (L, project) => {
         const alt = d.groupN === 1 && !fixTam
           ? swingLeaf(n, u0 + d.x + (prawe ? 0 : d.w), lico, prawe ? 1 : -1, d.w, z0, z1, {})
           : null;
+        // fix w tej kolumnie (slepy narożnik) — przycisk „szerszy fix, wezsze drzwi” przy kolizji
+        const fixK = kol.fix && kol.fix.side !== "none" && Number(kol.fix.w) > 0 ? { idx: c.index, side: kol.fix.side, w: Math.round(Number(kol.fix.w)) } : null;
         skrzydla.push(swingLeaf(n, hu, lico, prawe ? -1 : 1, d.w, z0, z1,
-          { ...kto, klucz, szer: d.w, alt,
+          { ...kto, klucz, szer: d.w, alt, fixK, fixTam,
             flip: alt ? { idx: c.index, lvl: d.lvl, col: d.colJ, side: nowaStrona } : null }));
       });
       /* Sprzet w zabudowie (uzytkownik 2026-11-04): front i uchwyt to przeszkoda dla innych, a drzwi —
@@ -19797,6 +19807,20 @@ const openingMsgs = (L, project) => {
     proby.set(k, wynik);
     return wynik;
   };
+  /* Proby dla przyciskow (uzytkownik 2026-11-12: „opcje wypisane, a gdzie przyciski? wystarczy zwiększyć szerokość fixu, czy tym
+     samym zmniejszyć szerokość drzwi”): szerszy fix (wezsze drzwi) i luz w rogu — ten sam projekt ze zmiana, te same skrzydla */
+  const proba = (p2) => { const L2 = [...projectLayout(p2).pokoje.values()].find((x) => [...L.info.keys()].some((id) => x.info.has(id))); return L2 ? swingBodies(L2, p2) : null; };
+  const zFixem = (f, w) => {
+    const k = `fix|${f.idx}|${f.side}|${w}`; if (proby.has(k)) return proby.get(k);
+    const p2 = { ...project, items: project.items.map((it, i) => (i !== f.idx ? it : { ...it, cab: { ...it.cab, levels: (it.cab.levels || []).map((lv) => {
+      const j = f.side === "left" ? 0 : (lv.cols || []).length - 1; return { ...lv, cols: lv.cols.map((c, x) => (x === j && c.fix ? { ...c, fix: { ...c.fix, w } } : c)) }; }) } })) };
+    const wynik = proba(p2); proby.set(k, wynik); return wynik;
+  };
+  const zLuzem = (rog, mm) => {
+    const k = `luz|${rog.id}|${mm}`; if (proby.has(k)) return proby.get(k);
+    const p2 = { ...project, runs: project.runs.map((r) => (r.id !== rog.id || !r.corner ? r : { ...r, corner: migrateCorner({ ...r.corner, clear: mm }) })) };
+    const wynik = proba(p2); proby.set(k, wynik); return wynik;
+  };
   /* Sprzet: front zachodzacy na sasiedni front tej samej szafki to juz blad z karty szafki
      (computeGeo) — drzwi sprzetu sprawdzamy tylko przeciw uchwytom swojej szafki i reszcie zabudowy. */
   const obcePrzeszkody = (x) => (b) => b.id !== x.id || /^uchwyt/.test(b.co);
@@ -19830,10 +19854,19 @@ const openingMsgs = (L, project) => {
        nie radzimy go (wychodzilo „przeloz zawiasy”, a po drugiej stronie bylo
        gorzej). Przy dwojgu drzwiach i froncie ramienia rada zostaje ogolna. */
     // zespolu skreconego z frontem ramienia nie da sie przelozyc na strone rogu (N135)
+    // po stronie fixu zawiasu nie przelozymy (potrzebny wspornik) — tej rady wtedy nie ma
     const rady = s.zFrontemRamienia ? ["zmień drzwi szafki narożnej z „Skręcone 90°” na „Na wsporniki”"]
-      : !s.flip || akcjaFlip ? ["przełóż zawiasy na drugą stronę"] : [];
+      : (!s.flip && !s.fixTam) || akcjaFlip ? ["przełóż zawiasy na drugą stronę"] : [];
     if (zostaje >= MIN_COL) rady.push(`zwęź front do ${fmt(zostaje)} mm`);
     if (g.b.run !== s.run) rady.push("odsuń ciągi w rogu (karta ciągu → Narożnik → „Luz w rogu”)");
+    // przycisk: szerszy fix — drzwi wezsze o tyle, ile wchodza w przeszkode (sprawdzone na probe)
+    let akcjaFix = "";
+    if (s.fixK && zostaje >= MIN_COL) {
+      const wF = Math.round(s.fixK.w + (s.szer - zostaje));
+      const sb = zFixem(s.fixK, wF), s2 = sb && sb.skrzydla.find((x) => x.klucz === s.klucz);
+      const wynik = s2 ? wynikPoprawki(g, swingStop(s2, sb.bryly)) : null;
+      if (wynik) akcjaFix = `|slepyfix:${s.fixK.idx}:${s.fixK.side}:${wF}:${zostaje}:${wynik}`;
+    }
     const rada = rady.length > 1
       ? rady.slice(0, -1).join(", ") + " albo " + rady[rady.length - 1] : (rady[0] || "zmień układ w rogu");
     /* Kolizja miedzy dwoma ciagami w rogu bez szafki w L: przyciski wstawki —
@@ -19876,6 +19909,13 @@ const openingMsgs = (L, project) => {
             razem.push(`|hingewstawka:${s.flip.idx}:${s.flip.lvl}:${s.flip.col}:${s.flip.side}:${rog.id}:${typ}:${ile}:${wynikF}`);
         }
         akcja += razem.join("");
+        // luz w rogu (odsuniecie ciagow) — najmniejszy z kilku prob, przy ktorym skrzydlo sie otwiera
+        const luz0 = Math.max(0, Math.round(Number(rog.corner.clear) || 0));
+        for (const dod of [Math.ceil((g.ile || 0) / 5) * 5 + 5, 30, 60, 100]) {
+          const mm = luz0 + dod, sb = zLuzem(rog, mm), s2 = sb && sb.skrzydla.find((x) => x.klucz === s.klucz);
+          const wynik = s2 ? wynikPoprawki(g, swingStop(s2, sb.bryly)) : null;
+          if (wynik === "ok") { akcja += `|rogluz:${rog.id}:${mm}:ok`; break; }
+        }
       }
     }
     /* Kat zamiast „brakuje N mm” (uzytkownik 2026-10-11): ile milimetrow
@@ -19885,7 +19925,7 @@ const openingMsgs = (L, project) => {
       `${s.ramie ? "Front ramienia" : s.zFrontemRamienia ? "Skrzydło skręcone z frontem ramienia" : "Skrzydło"} szafki „${s.cab}" (ciąg „${s.run}") nie otworzy się `
       + `${wcale ? "wcale: tuż przed nim" : "do końca: po drodze"} stoi ${g.b.co} ${czyje}`
       + (wcale ? ". " : ` — otworzy się tylko do ok. ${Math.round(g.kat)}°. `)
-      + rada.charAt(0).toUpperCase() + rada.slice(1) + "." + akcjaFlip + akcja });
+      + rada.charAt(0).toUpperCase() + rada.slice(1) + "." + akcjaFlip + akcjaFix + akcja });
   });
   /* Szuflady i klapy (uzytkownik 2026-09-28: kontrola ma objac wszystko, co
      sie otwiera). Kazda sprawdzamy przeciw temu, co stoi — korpusom, frontom
@@ -26173,6 +26213,12 @@ export default function App() {
       if (!r || !r.corner || !r.corner.wstawka) return;
       const { dociac, ...ws } = r.corner.wstawka;
       setCorner(id, r.corner.of, { wstawka: kind === "wstawkaw" ? { ...ws, w: Number(mm) } : { ...ws, dociac: Number(mm) } });
+      return;
+    }
+    if (action.startsWith("rogluz:")) {
+      const [, id, mm] = action.split(":");
+      const r = (project.runs || []).find((x) => x.id === id);
+      if (r && r.corner) setCorner(id, r.corner.of, { clear: Math.max(0, Number(mm) || 0) });
       return;
     }
     if (action.startsWith("wstawka:")) {

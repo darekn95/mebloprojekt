@@ -82,12 +82,12 @@ await czyste('fronty otwarte');
 console.log('== lista „Wymiary” ==');
 const przycisk = page.locator('[data-el="mak-przel"] [data-p="wymiary"]');
 await przycisk.click(); await page.waitForTimeout(250);
-ok('lista z 6 pozycjami do zaznaczania', (await page.locator('[data-el="mak-wymiary-lista"] input[type="checkbox"]').count()) === 6);
+ok('lista z 7 pozycjami do zaznaczania (z „z góry”)', (await page.locator('[data-el="mak-wymiary-lista"] input[type="checkbox"]').count()) === 7);
 await page.locator('[data-wym="wys"]').uncheck(); await page.waitForTimeout(250);
 ok('bez „wysokości”: łańcuch znika, szerokości zostają', (await wys.count()) === 0 && (await page.locator('[data-el="mak-plotno"] svg text.wym', { hasText: /^450$/ }).count()) >= 2);
 await page.locator('[data-wym="wzm"]').uncheck(); await page.waitForTimeout(250);
 ok('bez „wzmocnień”: ramki wzmocnień znikają', (await page.locator('[data-el="mak-wzm-rys"]').count()) === 0);
-ok('przycisk pokazuje licznik 4/6', /Wymiary 4\/6/.test(await przycisk.textContent()), await przycisk.textContent());
+ok('przycisk pokazuje licznik 5/7', /Wymiary 5\/7/.test(await przycisk.textContent()), await przycisk.textContent());
 await page.locator('[data-el="mak-wymiary-zadne"]').click(); await page.waitForTimeout(250);
 ok('„żadne”: bez wymiarów, przełącznik wyłączony', (await przycisk.getAttribute('aria-pressed')) === 'false' && (await page.locator('[data-el="mak-plotno"] svg text.wym').count()) === 0, String(await page.locator('[data-el="mak-plotno"] svg text.wym').count()));
 await page.locator('[data-el="mak-wymiary-wszystkie"]').click(); await page.waitForTimeout(250);
@@ -241,7 +241,14 @@ ok('po wstawieniu otwarta karta sprzętu ze skrótami słupka', (await page.loca
   p = await czekaj('p.items[0].offset === 40');
   await page.waitForTimeout(600);
   const t = await uw.innerText();
-  ok('po kliknięciu: słupek wysunięty 40, bez uwag o głębokości i za szerokim blacie', p.items[0].offset === 40 && !/jest większa niż w ciągu/.test(t) && !/Blat wychodzi/.test(t) && !/Za głęboki słupek/.test(t), t.replace(/\s+/g, ' ').slice(0, 200)); }
+  ok('po kliknięciu: słupek wysunięty 40, bez uwag o głębokości i za szerokim blacie', p.items[0].offset === 40 && !/jest większa niż w ciągu/.test(t) && !/Blat wychodzi/.test(t), t.replace(/\s+/g, ' ').slice(0, 200));
+  /* drzwi slupka 600 (tyl przy scianie) wystaja 23 mm przed blat 600 — ma byc rowno z blatem (uzytkownik 2026-11-12) */
+  ok('„Za głęboki słupek”: drzwi wystają 23 mm przed blat, przyciski „płytszy słupek 577” i „blat 623”', /drzwi wystają 23 mm przed blat/.test(t)
+    && (await uw.locator('button', { hasText: /577/ }).count()) >= 1 && (await uw.locator('button', { hasText: /Blat 623 mm/ }).count()) === 1, t.replace(/\s+/g, ' ').slice(0, 300));
+  await uw.locator('button', { hasText: /577/ }).first().click();
+  p = await czekaj('p.items[0].cab.D === 577');
+  await page.waitForTimeout(600);
+  ok('płytszy słupek 577: wysunięcie 17 (tył dalej przy ścianie), drzwi równo z blatem — bez uwagi', p.items[0].cab.D === 577 && p.items[0].offset === 17 && !/Za głęboki słupek/.test(await uw.innerText()), JSON.stringify([p.items[0].cab.D, p.items[0].offset])); }
 await start('szczegolowa', SLUPEK.replace("p.active = 0;", "p.items[0].cab.D = 560; p.items[1].offset = 60; p.active = 1;"));
 { const uw = page.locator('[data-el="makieta-uwagi"]');
   const b1 = uw.locator('button', { hasText: /Zmniejsz wysunięcie szafki o 53 mm \(blat zakrywa front, nawis 10 mm\)/ });
