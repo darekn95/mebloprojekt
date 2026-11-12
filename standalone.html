@@ -21601,15 +21601,21 @@ const makSlupekWneka = (geo, li, Y) => (c) => {
   // w gore: najwyzszy poziom (auto) zostaje co najmniej MAK_MIN
   const wolne = Math.round(wnetrze - nad(L.length - 1) - MAK_MIN);
   if (d > 0) d = Math.min(d, Math.max(0, wolne));
-  const podSpodem = i > 0 && !makSlupekSprzet(L, i - 1) ? L[i - 1] : null;   // wypelnienie pod sprzetem
+  const podSpodem = d > 0 && i > 0 && !makSlupekSprzet(L, i - 1) ? L[i - 1] : null;   // wypelnienie pod sprzetem
   if (d > 0) {
     if (podSpodem) podSpodem.h += d;
     else if (d >= MAK_MIN + t) { L.splice(i, 0, { ...newLevel(1, 0), h: d - t }); i++; }
     else if (d >= (MAK_MIN + t) / 2 && wolne >= MAK_MIN + t) { L.splice(i, 0, { ...newLevel(1, 0), h: MAK_MIN }); i++; }
-  } else if (d < 0 && podSpodem) {
-    // w dol: wypelnienie maleje; za male — znika i sprzet siada na tym, co pod nim
-    if (podSpodem.h + d >= MAK_MIN) podSpodem.h += d;
-    else L.splice(i - 1, 1);
+  } else if (d < 0) {
+    /* w dol: wypelnienia pod nim (od najblizszego) maleja albo znikaja — sprzet pod nim zjezdza razem (jak w makiecie „Dodaj”:
+       sprzety, ktore by nachodzily, przesuwaja sie pod spod); niżej niż dno szafki nie zejdzie */
+    let need = -d;
+    for (let x = i - 1; x >= 0 && need > 0; x--) {
+      if (makSlupekSprzet(L, x)) continue;
+      const f = L[x];
+      if (f.h - need >= MAK_MIN) { f.h -= need; need = 0; }
+      else { L.splice(x, 1); i--; need = Math.max(0, need - (f.h + t)); }
+    }
   }
   L[L.length - 1].h = null;
 };
@@ -23825,7 +23831,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
       const celH = makWnekaH({ sprzet: { typ: a.typ } });
       const zajety = !!lvS.cols[0].sprzet, hL = Math.round(gS.levels[li].h);
       if (zajety || hL > celH + MAK_MIN + gS.t) {
-        zmien(c.idx, (cab) => {
+        const wstaw = (cab, znacz) => {
           const L = cab.levels;
           L.forEach((lv, x) => { lv.h = Math.round(gS.levels[x].h); });
           // sprzet wstawiony dawniej na caly poziom slupka: poziom wraca do wysokosci wneki — inaczej nowy sprzet
@@ -23833,14 +23839,29 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           L.forEach((lv) => { const wn = makPoziomZeSprzetem(lv) && (lv.cols || []).length === 1 ? makWnekaH(lv.cols[0]) : null; if (wn && lv.h > wn + MAK_MIN) lv.h = wn; });
           const nowy = { ...newLevel(1, 0), h: celH };
           nowy.cols[0].kind = "doors"; nowy.cols[0].sprzet = a.dane ? { ...a.dane } : { typ: a.typ };
+          if (znacz) nowy.__nowy = 1;
           if (zajety) L.splice(li + 1, 0, nowy);
           else { L[li].h = Math.max(MAK_MIN, hL - celH - gS.t); L.splice(li, 0, nowy); }
           let auto = -1; L.forEach((lv, x) => { if (!makPoziomZeSprzetem(lv)) auto = x; });
           if (auto < 0 || auto < L.length - 1) { L.push(newLevel(1, 0)); auto = L.length - 1; }
           L[auto].h = null;
-        });
-        pokazAgd({ i: c.idx, rodz: "kol", li: zajety ? li + 1 : li, j: 0 });
-        return { i: c.idx, rodz: "kol", li: zajety ? li + 1 : li, j: 0 };
+          /* domyslna wysokosc jak w makiecie „Dodaj” (stos sprzetow na dnie slupka, czyli jeszcze nieustawiany): jeden sprzet —
+             dol na wysokosci blatu roboczego, dwa i wiecej — dolny na 700 od podlogi, reszta nad nim (polka miedzy) */
+          const sp = L.map((lv, x) => (makSlupekSprzet(L, x) ? x : -1)).filter((x) => x >= 0);
+          const runS = runOf(it), rtS = runS && runS.tier !== "gorny" ? runTop(project, runS) : null;
+          const Yd = sp.length >= 2 ? 700 : rtS && rtS.worktop ? Math.round(rtS.y + rtS.th) : null;
+          // stos jeszcze nieustawiany: na dnie slupka albo (przy drugim sprzecie) dolny na domyslnej wysokosci blatu
+          const g2 = Yd != null && sp.length ? makGeoKopii(it.mat, ciagStoi(runS) && !cab.naPodlodze)(cab) : null;
+          const dolStosu = g2 && g2.levels[sp[0]] ? Math.round(makBaza(cab, g2) + g2.levels[sp[0]].y0) : null;
+          const domyslny = sp[0] === 0 || (sp.length >= 2 && rtS && rtS.worktop && dolStosu != null && Math.abs(dolStosu - Math.round(rtS.y + rtS.th)) <= 2);
+          if (g2 && domyslny) makSlupekWneka(g2, sp[0], Yd)(cab);
+        };
+        // numer poziomu nowego sprzetu po wstawieniu (wypelnienie pod stosem przesuwa numery) — z proby na kopii
+        const proba = JSON.parse(JSON.stringify(it.cab)); wstaw(proba, true);
+        const liN = Math.max(0, (proba.levels || []).findIndex((l) => l.__nowy));
+        zmien(c.idx, (cab) => wstaw(cab, false));
+        pokazAgd({ i: c.idx, rodz: "kol", li: liN, j: 0 });
+        return { i: c.idx, rodz: "kol", li: liN, j: 0 };
       }
     }
     zmien(c.idx, (cab) => {

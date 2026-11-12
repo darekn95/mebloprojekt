@@ -214,13 +214,15 @@ const poz = async (oczek) => { if (oczek) await page.waitForFunction((o) => { co
   return (await proj()).items[2].cab.levels.map((q) => [q.h, (q.cols[0].sprzet || {}).typ || 'd']); };
 await page.locator('[data-el="mak-agd"]').filter({ hasText: 'Piekarnik' }).first().click(); await page.waitForTimeout(700);
 await page.locator('[data-el="mak-agd"]').filter({ hasText: 'Mikrofala' }).first().click(); await page.waitForTimeout(700);
-ok('piekarnik na dole, mikrofala nad nim', JSON.stringify(await poz([[590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']])) === JSON.stringify([[590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']]), JSON.stringify(await poz()));
+ok('jak w makiecie „Dodaj”: piekarnik 700 od podłogi, mikrofala na nim', JSON.stringify(await poz([[564, 'd'], [590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']])) === JSON.stringify([[564, 'd'], [590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']]), JSON.stringify(await poz()));
 ok('„Na wysokość blatu (dół 858)” — blat ciągu, nie słupka', /dół 858/.test(await page.locator('[data-el="agd-slupek-blat"]').textContent()));
 await page.locator('[data-el="agd-slupek-blat"]').click(); await page.waitForTimeout(700);
-ok('mikrofala na wysokości blatu: piekarnik zostaje 590, między nimi front 114', JSON.stringify(await poz([[590, 'piekarnik'], [114, 'd'], [373, 'mikrofala'], [null, 'd']])) === JSON.stringify([[590, 'piekarnik'], [114, 'd'], [373, 'mikrofala'], [null, 'd']]), JSON.stringify(await poz()));
+ok('mikrofala na wysokości blatu: piekarnik zjeżdża pod nią (front pod piekarnikiem 114)', JSON.stringify(await poz([[114, 'd'], [590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']])) === JSON.stringify([[114, 'd'], [590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']]), JSON.stringify(await poz()));
 ok('karta dalej pokazuje mikrofalę, dół 858', /Mikrofala/.test(await page.locator('[data-el="makieta-karta-agd"] b').first().textContent()) && (await page.locator('[data-el="agd-slupek-dol"]').inputValue()) === '858');
+await page.locator('[data-el="agd-slupek-krok"][data-v="50"]').click(); await page.waitForTimeout(700);
+ok('+50 przy mikrofali: między nią a piekarnikiem front 60', JSON.stringify(await poz([[114, 'd'], [590, 'piekarnik'], [60, 'd'], [373, 'mikrofala'], [null, 'd']])) === JSON.stringify([[114, 'd'], [590, 'piekarnik'], [60, 'd'], [373, 'mikrofala'], [null, 'd']]), JSON.stringify(await poz()));
 await page.locator('[data-el="agd-slupek-razem"]').click(); await page.waitForTimeout(700);
-ok('„Razem”: mikrofala siada na piekarniku (półka między, bez frontu)', JSON.stringify(await poz([[590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']])) === JSON.stringify([[590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']]), JSON.stringify(await poz()));
+ok('„Razem”: mikrofala siada na piekarniku (półka między, bez frontu)', JSON.stringify(await poz([[114, 'd'], [590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']])) === JSON.stringify([[114, 'd'], [590, 'piekarnik'], [373, 'mikrofala'], [null, 'd']]), JSON.stringify(await poz()));
 ok('„Razem ✓”', /Razem ✓/.test(await page.locator('[data-el="agd-slupek-razem"]').textContent()));
 { const g = await page.evaluate(() => { const s = [...document.querySelectorAll('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="2"]')].pop(); return s ? s.getBoundingClientRect().top : null; });
   const m = await page.evaluate(() => { const s = [...document.querySelectorAll('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="2"]')].pop(); const t = s && [...s.querySelectorAll('text')].find((q) => /mikrofala/.test(q.textContent)); return t ? t.getBoundingClientRect().top : null; });

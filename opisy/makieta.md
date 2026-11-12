@@ -465,7 +465,10 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
   i sprzęt siada na tym, co pod nim; sprzęt nie wyjdzie nad szafkę i nie wejdzie w sprzęt pod nim. Wcześniej rósł poziom
   pod sprzętem — gdy stał tam piekarnik, jego poziom puchł (1982 mm), a mikrofala lądowała nad słupkiem. „Razem”
   (`makSlupekRazem`) usuwa wypełnienia między dwoma sprzętami (półka między nimi), „Zamień” zamienia poziomy. Karta
-  sprzętu idzie za nim, gdy dochodzi wypełnienie (zmieniony numer poziomu). Projekt w stanie „w kosmosie” (poziom sprzętu
+  sprzętu idzie za nim, gdy dochodzi wypełnienie (zmieniony numer poziomu). W dół: wypełnienia pod nim maleją albo
+  znikają od najbliższego — sprzęt pod nim zjeżdża razem (jak w makiecie: sprzęty, które by nachodziły, przesuwają się).
+  **Domyślne wysokości jak w makiecie „Dodaj”** (stos jeszcze nieustawiany): sam piekarnik / sama mikrofala — dół na
+  wysokości blatu roboczego (858), dwa sprzęty — dolny na 700 od podłogi, drugi na nim (półka między). Projekt w stanie „w kosmosie” (poziom sprzętu
   ponad 60% szafki, a nad nim drugi sprzęt) naprawia się przy wczytaniu i każdej zmianie (`slupkiSprzetNorma`).
 - **Płyta / zlew / sprzęt na blacie przeciągane z góry** (2026-11-12: „zginęły podświetlenia, gdzie można ją przenieść”):
   zielone ramki na szafkach pod blatem (z góry i z przodu), pod wskaźnikiem podpis „Płyta … → „Szafka 2” — puść”
