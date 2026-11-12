@@ -245,6 +245,40 @@ console.log('== słupek wysunięty 40 mm w ciągu z cokołem: nóżki za płytą
   try { wyj = execFileSync('node', [new globalThis.URL('./audytprojektu.mjs', import.meta.url).pathname], { env: { ...process.env, PROJEKT: plik }, encoding: 'utf8', timeout: 240000 }); } catch (e) { wyj = (e.stdout || '') + (e.stderr || ''); }
   ok('audyt zabudowy: nic na nic nie nachodzi (nóżka słupka nie w cokole)', /OK\s+zabudowa/.test(wyj) && !/BLAD zabudowa/.test(wyj), ((wyj.match(/BLAD zabudowa.*$/m) || [''])[0] || wyj.slice(-300)).slice(0, 300));
 }
+console.log('== razem bez odstępu: piekarnik 722 pod mikrofalą wraca do 590, linii między nimi nie ma ==');
+await start('prosta', TRZY.replace("p.items[0].cab.levels[0].cols[0].sprzet = { typ: 'piekarnik' };", '') + `const k0 = p.items[2].cab.levels[0].cols[0]; p.active = 2;
+  p.items[2].cab.levels = [{ h: 722, cols: [{ ...k0, sprzet: { typ: 'piekarnik' } }] }, { h: 373, cols: [{ ...k0, sprzet: { typ: 'mikrofala' } }] }, { h: null, cols: [{ ...k0 }] }];`, PRZOD);
+p = await czekaj('p.items[2].cab.levels[0].h === 590');
+ok('poziom piekarnika pod mikrofalą = wnęka 590 (bez pustej wnęki nad nim)', p.items[2].cab.levels[0].h === 590, JSON.stringify(p.items[2].cab.levels.map((q) => q.h)));
+await zakl('dodaj');
+ok('w Dodaj: linii między piekarnikiem a mikrofalą do przeciągania nie ma (sprzęt — za uchwyt)', (await page.locator('[data-u="poziom"][data-k="0"]').count()) === 0 && (await page.locator('[data-u="sprzetY"]').count()) === 2);
+
+console.log('== jak w makiecie „Dodaj”: wysokość słupka, dół szafek górnych, płyta „50 od przodu” ==');
+await start('prosta', TRZY.replace("p.items[0].cab.levels[0].cols[0].sprzet = { typ: 'piekarnik' };", '') + `
+  p.runs.push({ id: 'g1', name: 'Ściana 1 — góra', roomId: p.runs[0].roomId, tier: 'gorny', wall: 'r1' });
+  const g = JSON.parse(JSON.stringify(p.items[0])); g.cab.name = 'Górna 1'; g.cab.H = 720; g.cab.D = 300; g.runId = 'g1'; g.cab.legs = { ...(g.cab.legs || {}), on: false }; g.cab.plinth = { ...(g.cab.plinth || {}), on: false }; p.items.push(g);
+  p.items[0].cab.blatWyciecia = [{ typ: 'plyta', rozm: '60', odPrzodu: 90 }]; p.active = 2;`, PRZOD);
+await zakl('szafka');
+{ const ch = await karta('[data-el="mak-slupek-wys"]').allTextContents();
+  ok('słupek: wysokości 1800 / 2000 / 2120 / 2200 i „równo z górnymi”', ['1800', '2000', '2120', '2200'].every((v) => ch.some((t) => t.startsWith(v))) && ch.some((t) => /równo z górnymi/.test(t)), JSON.stringify(ch));
+  await karta('[data-el="mak-slupek-wys"][data-v="2120"]').click();
+  p = await czekaj('p.items[2].cab.H === 2120');
+  ok('klik 2120 — słupek 2120', p.items[2].cab.H === 2120); }
+await page.locator('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="3"]').last().click(); await page.waitForTimeout(500);
+{ const dol = Number(await karta('[data-el="mak-gorny-dol"]').inputValue().catch(() => 0));
+  ok('szafka górna: „dół szafek górnych od podłogi” (blat + prześwit 500)', dol > 1200, String(dol));
+  await karta('[data-el="mak-gorny-krok"][data-v="50"]').click();
+  p = await czekaj('p.runs.find((r) => r.id === "g1").clearance === 550');
+  ok('+50 — prześwit 550, dół o 50 wyżej', p.runs.find((r) => r.id === 'g1').clearance === 550 && Number(await karta('[data-el="mak-gorny-dol"]').inputValue()) === dol + 50);
+  await karta('[data-el="mak-gorny-dom"]').click();
+  p = await czekaj('p.runs.find((r) => r.id === "g1").clearance === 500');
+  ok('„jak domyślnie” — prześwit 500', p.runs.find((r) => r.id === 'g1').clearance === 500); }
+await zakl('dodaj');
+{ const poz = page.locator('[data-el="mak-agd-lista"] button').filter({ hasText: 'Płyta' }).first(); if (await poz.count()) await poz.click(); await page.waitForTimeout(300);
+  ok('płyta 90 od przodu: przycisk „50 od przodu (typowo)”', (await page.locator('[data-el="agd-odprzodu-dom"]').count()) === 1);
+  await page.locator('[data-el="agd-odprzodu-dom"]').click();
+  p = await czekaj('p.items[0].cab.blatWyciecia[0].odPrzodu == null');
+  ok('po kliknięciu — typowo od przodu', p.items[0].cab.blatWyciecia[0].odPrzodu == null); }
 console.log('== lodówka: dolny front przy 2 frontach ==');
 await start('szczegolowa', TRZY + `p.items[2].cab.levels = [{ h: 1780, cols: [{ ...p.items[2].cab.levels[0].cols[0], sprzet: { typ: 'lodowka', fronty: 2 } }] }, { h: null, cols: [{ ...p.items[2].cab.levels[0].cols[0] }] }]; p.active = 2;`, PRZOD, 'szczegolowa');
 await zakl('dodaj');
