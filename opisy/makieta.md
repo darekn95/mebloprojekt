@@ -526,6 +526,8 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
     (jedno liczy drugie, każda ≥ 100 mm — `MAK_MIN_KOL`), „Przegroda na środek”; **Wzmocnienia**: dolna w kuchni — „wzm. leżące /
     stojące / pionowe” i „para pod blat” (leżące z przodu + tylne stojące, jak klocek), szafa i wysoka — tylko pionowe; przełącza we
     wszystkich kolumnach. Szafka z poziomami, ze sprzętem albo z kolumną z poziomami — podpowiedź, w której zakładce to zmienić.
+    Szafka górna — jak karta górnej w makiecie: front 1 / 2 drzwi, Klapa ↑, Bez frontu, półki i „Przegroda”; bez szuflad, drążka
+    i wzmocnień (te — w swoich zakładkach); w innych zakładkach „Wysokość i całą szafkę górną zmienisz w zakładce Szafka.”
   - **biurko**: szuflady w kontenerze 2 / 3 / 4 (`mak-kontener-sz`), ich wysokości od dołu, „Szuflady po równo”, „Miejsce na nogi
     między bokiem a kontenerem: N mm”.
   - **każda zakładka szafki** (Drzwi, Szuflady, Półki, Przegroda, Wzmocnienia): klocki nad kartą także przy zaznaczonej szafce,

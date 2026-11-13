@@ -247,6 +247,18 @@ await zakl('polki');
   p = await proj();
   ok('Esc w trakcie przeciągania półki — nic się nie zmienia', r && (cab0(p).levels[0].cols[0].shelfTargets || []).every((v) => v == null), JSON.stringify(cab0(p).levels[0].cols[0].shelfTargets)); }
 
+console.log('== karta szafki górnej jak w makiecie (front bez szuflad, bez drążka i wzmocnień) ==');
+await start('prosta', CIAG + `p.runs.push({ id: 'g1', name: 'Ściana 1 — góra', roomId: p.runs[0].roomId, tier: 'gorny', wall: 'r1' });
+  const g = JSON.parse(JSON.stringify(p.items[1])); g.cab.name = 'Górna 1'; g.cab.H = 720; g.cab.D = 320; g.cab.levels = [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }];
+  g.runId = 'g1'; p.items.push(g); p.active = 2;`, PRZOD);
+await zakl('szafka');
+ok('górna: front 1 / 2 drzwi, Klapa ↑, Bez frontu (bez szuflad i „Klapa ↓”)', JSON.stringify(await karta('[data-el="mak-sz-front"]').evaluateAll((a) => a.map((x) => x.getAttribute('data-v')))) === '["drzwi-1","drzwi-2","klapa-gora","otwarta"]',
+  JSON.stringify(await karta('[data-el="mak-sz-front"]').evaluateAll((a) => a.map((x) => x.getAttribute('data-v')))));
+ok('górna: półki i „Przegroda”, bez „Drążek” i wzmocnień', await karta('[data-el="mak-sz-polki"]').count() === 2 && await karta('[data-el="mak-sz-przegroda"]').count() === 1
+  && await karta('[data-el="mak-sz-drazek"]').count() === 0 && await karta('[data-el="mak-sz-wzm"]').count() === 0);
+await zakl('drzwi');
+ok('górna, zakładka Drzwi: „Wysokość i całą szafkę górną zmienisz w zakładce Szafka.”', /Wysokość i całą szafkę górną zmienisz w zakładce Szafka/.test(await karta('[data-el="mak-cala-w-szafce"]').innerText().catch(() => '')));
+
 ok('bez błędów strony', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');

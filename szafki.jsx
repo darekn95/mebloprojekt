@@ -23412,6 +23412,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   const pelnaKarta = (() => {
     if (biurko || cab.sprzetCiagu) return [];
     const slupKuch = (cab.slupek || cab.H > 1500) && rodzK === "kuchnia", sd = makSzufDrzwiUklad(cab);
+    // szafka gorna (makieta „Dodaj”, karta gornej): front 1 / 2 drzwi, klapa do gory, bez frontu; bez szuflad, drazka i wzmocnien
+    const gorna = !!(run && run.tier === "gorny");
     if (sd) {
       /* uklad „szuflada + drzwi”: front jak w makiecie; inny front — z powrotem jeden poziom z kolumna drzwi */
       const kD = poziomy[sd.dr].cols[0];
@@ -23434,9 +23436,9 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     if (cols.length === 1) {
       const fk = frontKol(k0), szuf = k0.kind === "drawers" ? (k0.drawers || []).length : 0;
       out.push(wiersz("szfront", "Front", [
-        ...MAK_FRONTY.map(([v, l]) => <Btn key={v} el="mak-sz-front" v={v} on={fk === v} onClick={() => zmienKol(0, 0, (kk) => ustawFront(kk, v))}>{l}</Btn>),
-        ...(slupKuch ? [] : [1, 2, 3, 4].map((n) => <Btn key={`s${n}`} el="mak-sz-front" v={`szu-${n}`} on={szuf === n} onClick={() => zmienKol(0, 0, (kk) => ustawSzuflady(kk, n))}>{n} {plural(n, "szuflada", "szuflady", "szuflad")}</Btn>)),
-        ...(slupKuch || cab.H > 1500 || k0.sprzet ? [] : [<Btn key="szd" el="mak-sz-front" v="szuflada-drzwi" on={false} onClick={() => zmien(idx, (c) => makUstawSzufDrzwi(c, { sys: systemKontekstu(project, idx), geoF: makGeoKopii(it.mat, ciagStoi(run) && !cab.naPodlodze) }))}>Szuflada + drzwi</Btn>]),
+        ...MAK_FRONTY.filter(([v]) => !gorna || v !== "klapa-dol").map(([v, l]) => <Btn key={v} el="mak-sz-front" v={v} on={fk === v} onClick={() => zmienKol(0, 0, (kk) => ustawFront(kk, v))}>{l}</Btn>),
+        ...(slupKuch || gorna ? [] : [1, 2, 3, 4].map((n) => <Btn key={`s${n}`} el="mak-sz-front" v={`szu-${n}`} on={szuf === n} onClick={() => zmienKol(0, 0, (kk) => ustawSzuflady(kk, n))}>{n} {plural(n, "szuflada", "szuflady", "szuflad")}</Btn>)),
+        ...(slupKuch || gorna || cab.H > 1500 || k0.sprzet ? [] : [<Btn key="szd" el="mak-sz-front" v="szuflada-drzwi" on={false} onClick={() => zmien(idx, (c) => makUstawSzufDrzwi(c, { sys: systemKontekstu(project, idx), geoF: makGeoKopii(it.mat, ciagStoi(run) && !cab.naPodlodze) }))}>Szuflada + drzwi</Btn>]),
       ], "mak-sz-front-w"));
       if (slupKuch) out.push(hint("slupek-szuflady", "W słupku szuflad nie ma — dodasz je pod sprzętem, gdy w słupku stoi piekarnik albo mikrofala."));
     } else out.push(hint("fronty-kolumn", "Front każdej kolumny — zakładka Drzwi i klapy (kliknij kolumnę na rysunku)."));
@@ -23444,11 +23446,11 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       const g = geoKarty && (geoKarty.levels || [])[0], dr = (((g && g.cols[0]) || {}).drawers || []).slice().sort((a, b) => a.y - b.y);
       if (dr.length) out.push(hint("szuflady-wys", `Wysokości szuflad od dołu: ${dr.map((d) => fmt(Math.round(d.h))).join(" · ")} mm. Zmienisz je w zakładce Szuflady: przeciągając linię między szufladami.`));
       if ((k0.drawers || []).some((d) => d.front != null)) out.push(<span key="prs" className="block">{poRowno("front", "Szuflady po równo")}</span>);
-      out.push(hint("same-szuflady", "Same szuflady — półek ani przegrody tu nie ma. Wybierz drzwi albo „Szuflada + drzwi”, żeby je dodać."));
-      out.push(wzmWiersz(cols));
+      out.push(hint("same-szuflady", gorna ? "Same szuflady — półek ani przegrody tu nie ma. Wybierz drzwi, żeby je dodać." : "Same szuflady — półek ani przegrody tu nie ma. Wybierz drzwi albo „Szuflada + drzwi”, żeby je dodać."));
+      if (!gorna) out.push(wzmWiersz(cols));
       return out;
     }
-    const mozeDrazek = cab.H >= 1400 || rodzK === "szafa";
+    const mozeDrazek = !gorna && (cab.H >= 1400 || rodzK === "szafa");
     out.push(wiersz("szwn", "Wnętrze", [
       ...cols.flatMap((k, j) => ((k.kind || "doors") !== "doors" ? [] : [
         <span key={`l${j}`} className="text-[11px] text-stone-500">{cols.length === 1 ? "półki" : `półki ${cols.length === 2 ? (j === 0 ? "lewa" : "prawa") : `kol. ${j + 1}`}`}</span>,
@@ -23464,7 +23466,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     if (cols.length > 1) out.push(kolumnySwiatlo(0));
     if (cols.some((k) => (k.shelfTargets || []).some((v) => v != null))) out.push(<span key="prp" className="block">{poRowno("shelfTargets", "Półki po równo")}</span>);
     if (cols.some((k) => makIlePolek(k) > 0)) out.push(hint("polki-hint", "Wysokość półek zmienisz w zakładce Półki: przeciągając półkę albo dwuklikiem (światło)."));
-    out.push(wzmWiersz(cols));
+    if (!gorna) out.push(wzmWiersz(cols));
     return out;
   })();
   /* podpowiedz do wysokosci (makieta „Dodaj”): dolna w kuchni — pod blat jak caly ciag, szafa — cokol pod spodem, wolnostojaca —
@@ -23980,7 +23982,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       {["drzwi", "szuflady", "polki", "przegroda", "wzmocnienia"].includes(zakladka) && (() => { const co = makCoZrobiSzafka(cab, geoKarty, run, it.mat);
         return <div data-el="mak-co-zrobi-w" className="border-b border-stone-100 py-1.5">
           {co && <><p className="mb-0.5 text-[11px] font-medium uppercase tracking-wider text-stone-500">Co zrobi program</p><p className="text-[11px] text-stone-600" data-el="mak-co-zrobi">{co}</p></>}
-          <p className="mt-0.5 text-[11px] text-stone-500" data-el="mak-cala-w-szafce">Całą szafkę (szerokość, wysokość, przesuwanie) zmienisz w zakładce Szafka.</p>
+          <p className="mt-0.5 text-[11px] text-stone-500" data-el="mak-cala-w-szafce">{run && run.tier === "gorny" ? "Wysokość i całą szafkę górną zmienisz w zakładce Szafka." : "Całą szafkę (szerokość, wysokość, przesuwanie) zmienisz w zakładce Szafka."}</p>
         </div>; })()}
       {wskazowka && <p className="text-[11px] text-teal-800" data-el="makieta-wskazowka">{wskazowka}</p>}
       <p className="text-[11px] text-stone-500">
