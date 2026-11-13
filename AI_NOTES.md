@@ -1272,3 +1272,7 @@ mikrofala za drzwiami.
 [AI-INFO] 2026-11-13 (pozniej): decyzje uzytkownika zrobione — „Bez szafki górnej” (`sprzetCiagu.typ = "wolne"`), okap −/+50 tylko
 swoja szafka (`cab.dolGorny`), sprzet nigdy za drzwiami (wneka rosnie sama). Pelny przebieg (1309437): 170 suit, 5509 OK, 0 bledow;
 losowe 66 / 0.
+[AI-INFO] 2026-11-13 (runda 2 porownania z makieta „Dodaj”): akcje makiety (data-akcja / data-*) i zrzuty tej samej kuchni —
+dorobione „↑ górne / ↓ wolne” z gory, „słupek” z gory, dol jednej szafki gornej i gora ciagu, klocki wzmocnien, nazwy z dala od
+komory i uchwytow. Pelny przebieg (a9ef68a): 170 suit, 5518 OK, 0 bledow; losowe 66 / 0. Do decyzji: mimosrody w biurku
+(katalog GTV: WK-CAM-15-DOW63X35-KPL-1T, rozstawu otworow w katalogu brak).
