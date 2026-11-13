@@ -239,6 +239,48 @@ p = await czekaj('p.items[2].cab.levels[2].h > 300');
 ok('po wczytaniu wnęka mikrofali rośnie do jej wnęki (≥ 360), drzwi nad nią nie zasłaniają frontu', p.items[2].cab.levels[2].h >= 360 && !/zachodzi o \d+ mm na drzwi/.test(await uw.innerText().catch(() => '')),
   JSON.stringify(p.items[2].cab.levels.map((l) => l.h)));
 
+console.log('== jak w makiecie „Dodaj” (2026-11-13, runda 2): górne nad blatem z góry, dół szafki górnej, góra ciągu, klocki wzmocnień ==');
+const GORNE = KUCHNIA + `p.runs.push({ id: 'g1', name: 'Ściana 1 — góra', roomId: p.runs[0].roomId, tier: 'gorny', wall: 'r1' });
+  [0, 1].forEach((k) => { const g = JSON.parse(JSON.stringify(p.items[1])); g.cab.name = 'Górna ' + (k + 1); g.cab.H = 720; g.cab.D = 320; g.cab.blatWyciecia = [];
+    g.cab.levels = [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }];
+    g.cab.joints = { ...(g.cab.joints || {}), topL: 'between', topR: 'between' }; g.cab.legs = { ...(g.cab.legs || {}), on: false }; g.cab.plinth = { ...(g.cab.plinth || {}), on: false };
+    g.runId = 'g1'; p.items.push(g); }); p.active = 3;`;
+await start('prosta', GORNE, { ...PRZOD, zgory: true });
+{ const t = await page.locator('[data-el="gorne-nad-blatem"] text').allTextContents();
+  ok('z góry: „↑ górne N” i „↓ wolne N” przy końcu blatu', t.some((q) => /^↑ górne \d+$/.test(q)) && t.some((q) => /^↓ wolne \d+$/.test(q)), JSON.stringify(t));
+  ok('z góry: słupek podpisany „słupek”', (await page.locator('[data-el="mak-zgory"] [data-el="slupek-z-gory"]').count()) === 1); }
+await zakl('szafka');
+ok('szafka górna: „dół tej szafki od podłogi (góra zostaje)” i „góra szafek górnych”', (await karta('[data-el="mak-gorna-dol"]').count()) === 1 && (await karta('[data-el="mak-gorny-gora"]').count()) === 1);
+{ const Y = Number(await karta('[data-el="mak-gorna-dol"]').inputValue());
+  await karta('[data-el="mak-gorna-krok"][data-v="50"]').click();
+  p = await czekaj('p.items[3].cab.dolGorny === 50');
+  ok('+50: tylko ta szafka — 670 mm, dół 50 wyżej; druga górna bez zmian', p.items[3].cab.H === 670 && p.items[3].cab.dolGorny === 50 && p.items[4].cab.H === 720 && !p.items[4].cab.dolGorny
+    && Number(await karta('[data-el="mak-gorna-dol"]').inputValue()) === Y + 50, JSON.stringify([p.items[3].cab.H, p.items[3].cab.dolGorny, p.items[4].cab.H]));
+  const G0 = Number(await karta('[data-el="mak-gorny-gora"]').inputValue());
+  await karta('[data-el="mak-gorny-gora"]').fill(String(G0 + 100)); await karta('[data-el="mak-gorny-gora"]').blur();
+  p = await czekaj('p.items[4].cab.H === 820');
+  ok('„góra szafek górnych” +100: obie wyższe, szafka z własnym dołem dalej z górą równo (770 / 820)', p.items[4].cab.H === 820 && p.items[3].cab.H === 770 && p.items[3].cab.dolGorny === 50,
+    JSON.stringify([p.items[3].cab.H, p.items[4].cab.H]));
+  await karta('[data-el="mak-gorna-jak-inne"]').click();
+  p = await czekaj('!p.items[3].cab.dolGorny');
+  ok('„Jak inne” — szafka znowu jak reszta (820, bez własnego dołu)', p.items[3].cab.H === 820 && !p.items[3].cab.dolGorny, String(p.items[3].cab.H)); }
+// nazwy szafek: „Zlewowa” / szafka z plyta pod kasetą i komorą
+await start('prosta', KUCHNIA + `p.items[1].cab.blatWyciecia = [{ typ: 'zlew', rozm: '1o' }];`, PRZOD);
+{ const r = await page.evaluate(() => { const g = document.querySelector('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="1"]');
+    const t = [...document.querySelectorAll('[data-el="mak-plotno"] svg text')].find((q) => q.textContent.trim() === 'Szafka 2');
+    const k = [...document.querySelectorAll('[data-el="mak-plotno"] [data-el="wyciecie-front"][data-typ="zlew"] rect')];
+    return t && k.length ? { napis: t.getBoundingClientRect().top, komora: Math.max(...k.map((q) => q.getBoundingClientRect().bottom)) } : null; });
+  ok('nazwa szafki pod zlewem — pod komorą (nie na niej)', !!r && r.napis > r.komora, JSON.stringify(r)); }
+// klocki wzmocnien (szczegolowa)
+await start('szczegolowa', CIAG, WSZYSTKO);
+await zakl('wzmocnienia');
+{ const kl = page.locator('[data-el="mak-klocek"][data-id="wzm-pionowe"]');
+  ok('Wzmocnienia: klocki „Para pod blat”, „Leżące”, „Stojące”, „Pionowe”', (await page.locator('[data-el="mak-klocek"][data-id^="wzm-"]').count()) === 4,
+    JSON.stringify(await page.locator('[data-el="mak-klocek"][data-id^="wzm-"]').allTextContents()));
+  await kl.first().click(); await page.waitForTimeout(400);
+  p = await czekaj('p.items[0].cab.levels.some((l) => l.cols.some((k) => (k.rails || []).some((r) => r.orient === "vertical")))');
+  ok('klik „Pionowe” — wzmocnienie pionowe w szafce', p.items[0].cab.levels.some((l) => l.cols.some((k) => (k.rails || []).some((r) => r.orient === 'vertical')))); }
+
 ok('bez błędów strony', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');

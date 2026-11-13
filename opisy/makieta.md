@@ -498,6 +498,14 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
   w ciągu = luzy + lodówka (zmiana luzu albo rozmiaru zmienia szerokość pozycji); drążek — „pod drążkiem ↕N” w Półkach
   (`mak-pod-drazkiem`); przełącznik „Wyposażenie” (wcześniej „AGD”) i legenda nad rysunkiem (`mak-legenda`: zielone ramki,
   „góra: blat z góry · dół: widok z przodu”, „„Wyposażenie” wyłączone”).
+- **Z makiety „Dodaj” — runda 2 (2026-11-13: „jeszcze coś do wyrównania? sprawdź, żebym nie był rozczarowany”)**:
+  rzut z góry — przy końcu blatu „↑ górne N” (ile głębokości zasłaniają szafki górne z frontem albo okap kominowy) i „↓ wolne N”,
+  przerywana linia frontów szafek górnych (`gorne-nad-blatem`), słupek podpisany „słupek”; opis zlewu z góry w makiecie bez
+  „ociekacz z prawej” (był dłuższy niż zlew); szafka górna — „dół tej szafki od podłogi (góra zostaje)” −/+50 i „Jak inne”
+  (`cab.dolGorny`, ta sama zasada co okap) oraz „góra szafek górnych od podłogi — cały ciąg górny” (wysokość szafek ciągu,
+  szafka z własnym dołem zostaje z górą równo — `setRunShared`); nazwa szafki pod komorą zlewu / kasetą płyty i nie na uchwycie
+  szuflady (`makNazwaOd`); klocki wzmocnień w makiecie szczegółowej („Para pod blat”, „Leżące”, „Stojące”, „Pionowe” — dokładają,
+  zdejmuje zakładka Wzmocnienia).
 - **„Bez szafki górnej”** (decyzja użytkownika 2026-11-13, z makiety „Dodaj”): w karcie Szafka szafki z ciągu górnego —
   zamienia ją na **wolne miejsce** tej samej szerokości (np. okno albo otwarta ściana; pozycja bez korpusu `sprzetCiagu.typ = "wolne"`,
   w zamówieniu nic, na rysunku przerywany obrys „wolne — np. okno”, w 3D / z boku nic, listwa zawieszek ma przerwę);

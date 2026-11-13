@@ -11235,9 +11235,26 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
           return <g data-el="komory">{kom(x0 + 25, w - 50)}{sciek(x0 + w / 2)}</g>;
         })()}
         <text x={lead + (q.x0 + q.x1) / 2} y={yS + rt.depth - q.odPrzodu - q.d / 2 + 8} textAnchor="middle"
-          fontSize="22" fill={q.typ === "plyta" && q.sw > 0 && q.sd > 0 ? "#fafaf9" : INK} fontFamily="ui-monospace, monospace">{`${q.krotka} ${fmt(q.w)}×${fmt(q.d)}${q.ociekacz ? ` · ociekacz ${q.ociekacz === "L" ? "z lewej" : "z prawej"}` : ""}`}</text>
+          fontSize="22" fill={q.typ === "plyta" && q.sw > 0 && q.sd > 0 ? "#fafaf9" : INK} fontFamily="ui-monospace, monospace">{`${q.krotka} ${fmt(q.w)}×${fmt(q.d)}${q.ociekacz && !onPick ? ` · ociekacz ${q.ociekacz === "L" ? "z lewej" : "z prawej"}` : ""}`}</text>
       </g>
-    ))];
+    )), ...(() => {
+      /* makieta „Dodaj”: ile glebokosci blatu zaslaniaja szafki gorne (i okap kominowy) — „↑ górne N”, „↓ wolne N” przy koncu
+         blatu (uzytkownik 2026-11-13: „jeszcze coś do wyrównania?”); tylko makieta (`onPick`) */
+      if (!onPick || run.tier === "gorny") return [];
+      const gorne = project.items.filter((x) => (project.runs || []).some((r) => r.tier === "gorny" && r.wall === run.id && r.id === x.runId) && !wolneCiagu(x.cab));
+      if (!gorne.length) return [];
+      const gU = Math.round(Math.max(...gorne.map((x) => { if (okapCiagu(x.cab)) return sprzetCiagu(x.cab).gl;
+        const g = computeGeo(x.cab, x.mat); return g.carcassDepth + (x.cab.frontMode === "inset" ? 0 : HINGE_PLAY + g.tf); })));
+      const wolne = Math.round(rt.depth - (gU - yS));
+      if (!(wolne > 0)) return [];
+      const xT = lead + rt.x0 + rt.total + 24;
+      const napis = (k, y, t) => <text key={k} x={xT} y={y} fontSize="22" fill={MAK_AKCENT} stroke="#fff" strokeWidth="5" paintOrder="stroke" fontFamily="ui-monospace, monospace">{t}</text>;
+      return [<g key="gorne-nad-blatem" data-el="gorne-nad-blatem" pointerEvents="none">
+        <line x1={lead + rt.x0} y1={gU} x2={lead + rt.x0 + rt.total} y2={gU} stroke={MAK_AKCENT} strokeWidth="2" strokeDasharray="10 8" opacity="0.7" />
+        {napis("g", Math.max(yS + 24, gU / 2 + 8), `↑ górne ${fmt(gU)}`)}
+        {napis("w", gU + wolne / 2 + 8, `↓ wolne ${fmt(wolne)}`)}
+      </g>];
+    })()];
   };
   /* Ramie, ktorego sciany nie rysujemy (zakres „ciag"), stawiamy tam, gdzie stoi
      naprawde — obrocone wzdluz drugiej sciany, razem z jej kawalkiem. Przenosi
@@ -11279,7 +11296,8 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
   // margines obejmuje tez grubosc sciany; nazwy scian stoja na niej
   // makieta z wymiarami glebokosci (`glebWym`): przy ciagu dwie kolumny wymiarow z napisami w duzym rozmiarze
   const pad = (showDims ? 190 : glebWym ? 680 : 40) + SCIANA_GR;
-  const padR = pad;
+  // makieta: miejsce na „↑ górne / ↓ wolne” za koncem blatu, gdy nad nim wisza szafki gorne
+  const padR = pad + (onPick && (project.runs || []).some((r) => r.tier === "gorny" && project.items.some((x) => x.runId === r.id)) ? 230 : 0);
   const vb = [b.x0 - pad, b.y0 - pad,
     b.x1 - b.x0 + pad + padR, b.y1 - b.y0 + 2 * pad].join(" ");
   const rozmiar = skala ? { width: Math.round((b.x1 - b.x0 + pad + padR) * skala), height: Math.round((b.y1 - b.y0 + 2 * pad) * skala), maxWidth: "none" } : null;
@@ -11345,6 +11363,9 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
                 <CabTop cab={c.cab} geo={c.geo} mat={c.mat} ghost={upper}
                   arm={armOf.get(c.index)}
                   showShelves={showShelves} showHardware={showHardware} />
+                {/* jak w makiecie „Dodaj”: slupek podpisany na rzucie z gory (na blacie go nie ma) */}
+                {onPick && !upper && (c.cab.slupek || c.cab.H > 1500) && !c.cab.sprzetCiagu && <text pointerEvents="none" data-el="slupek-z-gory" x={c.geo.W / 2} y={c.geo.carcassDepth / 2 + 8}
+                  textAnchor="middle" fontSize="24" fill="#78716c" fontFamily="ui-monospace, monospace">słupek</text>}
                 {onPick && c.index === zazn && (
                   <rect pointerEvents="none" data-el="makieta-zaznaczona" x={0} y={0} width={c.geo.W} height={c.geo.carcassDepth}
                     fill="none" stroke={MAK_AKCENT} strokeWidth="10" />
@@ -21778,12 +21799,19 @@ const makSzuflWys = (cab, geo, li, j, k, v) => {
    (szuflada ponizej 260 mm — „Szuflada + drzwi”), nazwa schodzi na pierwszy wysoki front pod nim — w niskim froncie
    wchodzila na jego wymiar i uchwyt (przeglad 2026-11-11). */
 const makNazwaOd = (cab, geo) => {
-  const H = cab.H, od = ((cab.cutout || {}).on || (cab.cutoutR || {}).on || (cab.blatWyciecia || []).length) ? 150 : 62;
+  /* przy wycieciu nizej — pod kaseta plyty / komora zlewu (uzytkownik 2026-11-13: „Zlewowa 800” na przerywanej komorze; komora
+     200 mm od wierzchu blatu, blat ok. 38) */
+  const podW = Math.max(0, ...wycieciaSzafki(cab).map((q) => Math.round((q.podBlatem || 0) - 38 + 46)));
+  const H = cab.H, od0 = ((cab.cutout || {}).on || (cab.cutoutR || {}).on || (cab.blatWyciecia || []).length) ? Math.max(150, podW) : 62;
   const fr = ((geo && geo.doors) || []).filter((d) => d.h > 0 && d.type !== "blenda" && d.type !== "fix");
-  const tu = fr.filter((d) => d.y <= H - od + 10 && d.y + d.h >= H - od - 10);
-  if (!tu.length || tu.some((d) => d.h >= 260)) return od;
-  const nizej = fr.filter((d) => d.h >= 260 && d.y + d.h < H - od).sort((a, b) => (b.y + b.h) - (a.y + a.h))[0];
-  return nizej ? Math.round(H - (nizej.y + nizej.h) + 62) : od;
+  const tu = fr.filter((d) => d.y <= H - od0 + 10 && d.y + d.h >= H - od0 - 10);
+  const nizej = tu.length && !tu.some((d) => d.h >= 260) ? fr.filter((d) => d.h >= 260 && d.y + d.h < H - od0).sort((a, b) => (b.y + b.h) - (a.y + a.h))[0] : null;
+  let od = nizej ? Math.round(H - (nizej.y + nizej.h) + 62) : od0;
+  /* uchwyt szuflady / klapy na srodku frontu — napis nie na nim (2026-11-13: „Szafka 600” na uchwycie szuflady nad piekarnikiem):
+     nad uchwytem, a gdy brak miejsca — pod nim */
+  const uch = fr.find((d) => (d.type === "drawer" || d.type === "klapa") && Math.abs(H - (d.y + d.h / 2) - od) < 30);
+  if (uch) { const u = H - (uch.y + uch.h / 2); od = u - 30 >= H - (uch.y + uch.h) + 20 ? Math.round(u - 30) : Math.round(u + 44); }
+  return od;
 };
 
 // uchwyty zaznaczonej szafki (uklad szafki: x od lewego boku, y od gory) + podglad przeciagania
@@ -22483,6 +22511,7 @@ const MAK_WZM = [
   { k: "pionowe", l: "pionowe", jest: (r) => r.orient === "vertical",
     nowe: () => ({ ...newRail(), orient: "vertical", side: "left", depth: WZM_DOM }) },
 ];
+const makDodajWzm = (col, kk) => { const t = MAK_WZM.find((x) => x.k === kk); if (t && !(col.rails || []).some((r) => r && t.jest(r))) col.rails = [...(col.rails || []), t.nowe()]; };
 const makPrzelaczWzm = (col, t) => {
   const rails = col.rails || [];
   const x = rails.findIndex((r) => r && t.jest(r));
@@ -22751,6 +22780,8 @@ const ikonaAgd = (id) => {
 };
 // klocki przy swoich zakladkach (jak w makiecie: Szuflady, Polki, Drzwi i klapy, Przegroda)
 const MAK_KLOCKI_ZAKL = { szuflady: ["szu-1", "szu-2", "szu-3", "szu-4"], polki: ["polka", "drazek"],
+  // klocki wzmocnien jak w makiecie „Dodaj” (2026-11-13) — w makiecie szczegolowej
+  wzmocnienia: ["wzm-para", "wzm-lezace", "wzm-stojace", "wzm-pionowe"],
   drzwi: ["drzwi-1", "drzwi-2", "klapa-gora", "klapa-dol", "otwarta", "lustro", "uchwyt", "tipon"], przegroda: ["przegroda"] };
 // lustro na wszystkich skrzydlach kolumny (jak „lustro” przy drzwiach w trybie technicznym — `col.mirrors`)
 const makLustro = (k) => { const n = Math.max(1, k.doors || 1); return (k.mirrors || []).slice(0, n).filter(Boolean).length === n; };
@@ -22768,9 +22799,15 @@ const MAK_KLOCKI = [
   { id: "lustro", nazwa: "Lustro", front: true, fn: (k) => makUstawLustro(k, true) },
   { id: "uchwyt", nazwa: "Uchwyt", front: true, fn: (k) => makUstawTipon(k, false) },
   { id: "tipon", nazwa: "Tip-on", front: true, fn: (k) => makUstawTipon(k, true) },
+  /* wzmocnienia (makieta „Dodaj”: „Para pod blat — leżące + stojące”, „Leżące — jak półka, u góry”, „Stojące — z przodu, u góry”,
+     „Pionowe — przy boku”): dokladaja wzmocnienie tego rodzaju do kolumny, gdy jeszcze go nie ma (zdejmuje — zakladka Wzmocnienia) */
+  { id: "wzm-para", nazwa: "Para pod blat", fn: (k) => { makDodajWzm(k, "lezace"); makDodajWzm(k, "tylne"); } },
+  { id: "wzm-lezace", nazwa: "Leżące", fn: (k) => makDodajWzm(k, "lezace") },
+  { id: "wzm-stojace", nazwa: "Stojące", fn: (k) => makDodajWzm(k, "stojace") },
+  { id: "wzm-pionowe", nazwa: "Pionowe", fn: (k) => makDodajWzm(k, "pionowe") },
 ];
 
-function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia", selAgd, setSelAgd, usunPozycje, geoOf, lodRodzaj, zamienSprzet, przesun, ustawCiag }) {
+function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia", selAgd, setSelAgd, usunPozycje, geoOf, lodRodzaj, zamienSprzet, przesun, ustawCiag, szcz = false }) {
   // zwiniete / rozwiniete grupy „Nowe szafki” na ciag: { [id ciagu | "wolne"]: { [grupa]: true / false } }
   const [grupyOtw, setGrupyOtw] = useState(() => { try { return JSON.parse(localStorage.getItem("mp-mak-grupy") || "{}") || {}; } catch (e) { return {}; } });
   const kafel = (el, id, l, opis, onClick, ikona) => (
@@ -22863,7 +22900,7 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
     <div className="space-y-2" data-el="mak-paleta">
       <p className="text-[12px] text-stone-500">Przeciągnij klocek na kolumnę szafki; klik — do zaznaczonej szafki.</p>
       {kom}
-      {[["szuflady", "Szuflady"], ["polki", "Półki i drążek"], ["drzwi", "Drzwi i klapy"], ["przegroda", "Przegroda"]].map(([z, t]) => (
+      {[["szuflady", "Szuflady"], ["polki", "Półki i drążek"], ["drzwi", "Drzwi i klapy"], ["przegroda", "Przegroda"], ...(szcz ? [["wzmocnienia", "Wzmocnienia"]] : [])].map(([z, t]) => (
         <div key={z}>
           {naglowek(t)}
           <div className="grid grid-cols-3 gap-1">{MAK_KLOCKI_ZAKL[z].map((id) => MAK_KLOCKI.find((k) => k.id === id)).map((k) => kafel("mak-klocek", k.id, k.nazwa, null, () => onKlocek(k, null)))}</div>
@@ -23147,6 +23184,31 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />, krok(50),
       ...(run.wall && run.clearance != null && Math.round(run.clearance) !== 500 ? [<Btn key="d" el="mak-gorny-dom" onClick={() => ciag.setRun(run.id, { clearance: 500 })}>jak domyślnie (prześwit 500)</Btn>] : [])], "mak-gorny-dol-w");
   };
+  /* Gora calego ciagu gornego (makieta „Dodaj”, „Cały ciąg górny”: dół i góra od podłogi) — wysokosc szafek ciagu = gora − dol;
+     szafka z wlasnym dolem zostaje z gora rowno (`setRunShared`) */
+  const gornyGoraW = (k) => {
+    if (!run || run.tier !== "gorny") return null;
+    const Y = tierMountY(project, run), wsz = project.items.filter((x) => x.runId === run.id && !wolneCiagu(x.cab));
+    const G = Math.round(Y + (run.H != null ? run.H : Math.max(0, ...wsz.map((x) => (Number(x.cab.H) || 0) + dolGornej(x.cab)))));
+    return wiersz(k, "góra szafek górnych od podłogi — cały ciąg górny", [
+      <input key={`g${G}`} type="number" step="10" defaultValue={G} data-el="mak-gorny-gora" onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v !== G && v - Y >= 250) ciag.setRunShared(run.id, { H: v - Y }); }}
+        className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />], "mak-gorny-gora-w");
+  };
+  /* Dol tej jednej szafki gornej (makieta „Dodaj”: „Dół szafki od podłogi”, −/+50, „Jak inne”; uzytkownik 2026-11-13) — szafka
+     krotsza albo dluzsza, gora rowno z innymi (`cab.dolGorny`) */
+  const gornaWlasnaW = (() => {
+    if (!run || run.tier !== "gorny" || cab.sprzetCiagu) return null;
+    const Y0 = tierMountY(project, run), dG = dolGornej(cab), Y = Y0 + dG;
+    const ustaw = (v) => { const d = Math.round(v - Y); if (!d) return;
+      zmien(idx, (c) => { const H = Math.round(Number(c.H) || 0) - d; if (H < 250) return; c.H = H; const nd = dolGornej(c) + d; if (nd) c.dolGorny = nd; else delete c.dolGorny; }); };
+    const krok = (d) => <button key={`k${d}`} data-el="mak-gorna-krok" data-v={d} onClick={() => ustaw(Y + d)} className="h-6 w-6 rounded border border-stone-300 bg-white text-sm leading-none text-stone-700 hover:border-teal-600">{d < 0 ? "−" : "+"}</button>;
+    return wiersz("gwl", "dół tej szafki od podłogi (góra zostaje)", [krok(-50),
+      <input key={`i${Y}`} type="number" step="10" defaultValue={Y} data-el="mak-gorna-dol" onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v !== Y) ustaw(v); }}
+        className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />, krok(50),
+      ...(dG ? [<Btn key="jak" el="mak-gorna-jak-inne" onClick={() => zmien(idx, (c) => { c.H = Math.round(Number(c.H) || 0) + dolGornej(c); delete c.dolGorny; })}>Jak inne ({fmt(Y0)})</Btn>] : [])], "mak-gorna-dol-w");
+  })();
   /* Wysokosc slupka (makieta „Dodaj”: 1800 / 2000 / 2120 / 2200 i „równo z górnymi” — gora slupka na gorze ciagu gornego) */
   const slupekWysW = (() => {
     if (!(cab.slupek || cab.H > 1500) || !run || rodzajCiagu(project, run) !== "kuchnia" || !geoKarty) return null;
@@ -23202,7 +23264,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     ...(cab.sprzetCiagu ? [] : [chips("mak-szer", szerChips, cab.W, (v) => zmien(idx, (c) => { c.W = v; }))]),
     <Pole key="pH" k="H" l="Wysokość" />,
     ...(slupekWysW ? [slupekWysW] : []),
-    ...(run && run.tier === "gorny" ? [gornyDolW("gdol")] : []),
+    ...(run && run.tier === "gorny" ? [gornaWlasnaW, gornyDolW("gdol"), gornyGoraW("ggora")] : []),
     ...(rodzK === "wolnostojaca" ? [chips("mak-wys", MAK_WYS_WOLNA, cab.H, (v) => (run && zmienWys ? zmienWys(idx, v) : zmien(idx, (c) => { c.H = v; })))] : []),
     <Pole key="pD" k="D" l="Głębokość" />,
     // bez wiersza „Ciąg” (uzytkownik 2026-11-09: „widać to na górze rysunku” — przycisk „Ciąg ▾”)
@@ -23509,7 +23571,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         ];
       })(),
       liczba("H", "Wysokość szafek", Math.round(run.H ?? cab.H), (v) => ciag.setRunShared(run.id, { H: v })),
-      ...(run.tier === "gorny" ? [gornyDolW("gdolc")] : []),
+      ...(run.tier === "gorny" ? [gornyDolW("gdolc"), gornyGoraW("ggorac")] : []),
       liczba("D", "Głębokość szafek", Math.round(run.D ?? cab.D), (v) => ciag.setRunShared(run.id, { D: v })),
       liczba("gap", "Luz między korpusami", Math.round(Number(run.gap) || 0), (v) => ciag.setRun(run.id, { gap: v }), 1, 0),
       liczba("odsuniecie", "Odsunięcie od ściany", Math.round(wallGapOf(run, null).bottom || 0),
@@ -24660,7 +24722,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                   </button>
                   {dodajCo === k && (
                     <div className="border-t border-stone-200 p-2">
-                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} ustawCiag={ciag && ciag.setRun} selAgd={selAgd} setSelAgd={setSelAgd} usunPozycje={usunPozycje} geoOf={(i) => geoRysunku.current[i]} lodRodzaj={zamienLodowke} zamienSprzet={zamienSprzet} przesun={przesunSel} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} szcz={tryb === "szczegolowa"} ustawCiag={ciag && ciag.setRun} selAgd={selAgd} setSelAgd={setSelAgd} usunPozycje={usunPozycje} geoOf={(i) => geoRysunku.current[i]} lodRodzaj={zamienLodowke} zamienSprzet={zamienSprzet} przesun={przesunSel} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
                         project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
                         zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); setZnacznik(null); }} />
                     </div>
@@ -24671,8 +24733,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           ) : zaznM && aktIt ? (<>
             {/* klocki „Półka” / „Drążek” nad karta Polek takze przy zaznaczonej szafce (uzytkownik 2026-11-10: „brakuje znaczka
                 dołożenia półki do przeciągnięcia w wybrane miejsce, drążek nie jako przycisk obok każdej przestrzeni”) */}
-            {akt === "polki" && <div data-el="mak-klocki-karty">
-              <MakietaPaleta zakladka="polki" rodzaj={rodzaj} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+            {(akt === "polki" || akt === "wzmocnienia") && <div data-el="mak-klocki-karty">
+              <MakietaPaleta zakladka={akt} rodzaj={rodzaj} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
                 project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
                 zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); setZnacznik(null); }} />
             </div>}
@@ -25522,7 +25584,9 @@ export default function App() {
     items: p.items.map((it) => {
       if ((it.runId || null) !== id || naPodlodzeCiagu(it.cab)) return it;
       const { H, ...bezH } = patch;
-      return { ...it, cab: { ...it.cab, ...(it.cab.slupek && H != null ? bezH : patch) } };
+      // szafka gorna z wlasnym dolem (`cab.dolGorny`) — gora zostaje rowno z innymi
+      const dG = H != null ? dolGornej(it.cab) : 0;
+      return { ...it, cab: { ...it.cab, ...(it.cab.slupek && H != null ? bezH : dG ? { ...patch, H: Math.max(100, H - dG) } : patch) } };
     }),
   })), [setProject]);
 

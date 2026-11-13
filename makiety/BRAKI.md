@@ -169,3 +169,8 @@ Decyzje użytkownika (2026-11-13), zrobione:
   na jej froncie — teraz wnęka rośnie sama).
 
 Inaczej z nazwy, działa tak samo: „Przegroda na środek” → „Kolumny po równo”, „Szuflady po równo” → „po równo”.
+
+Runda 2 (2026-11-13, porównanie akcji makiety i zrzutów tej samej kuchni): dorobione „↑ górne / ↓ wolne” na rzucie z góry,
+podpis słupka z góry, dół jednej szafki górnej i góra całego ciągu górnego, klocki wzmocnień, nazwy nie na uchwytach i komorze.
+Do decyzji: łączenie płyty wzmacniającej biurka z bokami — w makiecie „konfirmaty + zaślepki” albo „kołki z mimośrodami”,
+w aplikacji tylko konfirmaty. Inaczej, bez zmian: makieta ma ciemny motyw (gdy telefon / system jest ciemny), aplikacja — jasny.
