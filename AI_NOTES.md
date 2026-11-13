@@ -1269,3 +1269,6 @@ z aplikacja — po napisach i opcjach (skrypt: teksty miedzy tagami i etykiety `
 Dorobione braki (BRAKI.md G, test `makieta14`). Pelne przebiegi: v224 170 suit 5484 OK zielone; v225 5464 OK + falszywy alarm
 `makieta4` (poprawiony `klik`); losowe 66 / 0 w obu. Do decyzji: „Bez szafki górnej”, okap przesuwa tylko swoja szafke,
 mikrofala za drzwiami.
+[AI-INFO] 2026-11-13 (pozniej): decyzje uzytkownika zrobione — „Bez szafki górnej” (`sprzetCiagu.typ = "wolne"`), okap −/+50 tylko
+swoja szafka (`cab.dolGorny`), sprzet nigdy za drzwiami (wneka rosnie sama). Pelny przebieg (1309437): 170 suit, 5509 OK, 0 bledow;
+losowe 66 / 0.
