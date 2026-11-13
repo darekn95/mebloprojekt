@@ -1276,3 +1276,9 @@ losowe 66 / 0.
 dorobione „↑ górne / ↓ wolne” z gory, „słupek” z gory, dol jednej szafki gornej i gora ciagu, klocki wzmocnien, nazwy z dala od
 komory i uchwytow. Pelny przebieg (a9ef68a): 170 suit, 5518 OK, 0 bledow; losowe 66 / 0. Do decyzji: mimosrody w biurku
 (katalog GTV: WK-CAM-15-DOW63X35-KPL-1T, rozstawu otworow w katalogu brak).
+[AI-INFO] 2026-11-13 (runda 3 porownania z makieta „Dodaj”, uzytkownik: „sprawdź wszystko po kolei, żeby już nie wracać”): pelna
+karta Szafka (`pelnaKarta`, `kolumnySwiatlo`, `wzmWiersz`, `biurkoKontSzuf`), klocki nad karta w kazdej zakladce, „Co zrobi” wszedzie,
+wzory nad karta i `MakListaCiagu`, okienko przegrody (`przegOkno`), rysunek (okap–plyta, lodowka, kaseta / komora, wyciecie, alarm
+sciany), Esc w przeciaganiu; test `makieta15`. `testy/build-artifact.mjs` przyjmuje `OUT=` (budowa do innego pliku w trakcie
+pelnego przebiegu — pelny czyta `mebloprojekt-app.html`). Uwaga do testow: tekst z SVG — `textContent`, nie `innerText`; zapis
+projektu do localStorage trwa dluzej niz 400 ms — czytac przez `czekaj(...)`, nie `proj()` od razu.

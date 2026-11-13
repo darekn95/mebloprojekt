@@ -174,3 +174,13 @@ Runda 2 (2026-11-13, porównanie akcji makiety i zrzutów tej samej kuchni): dor
 podpis słupka z góry, dół jednej szafki górnej i góra całego ciągu górnego, klocki wzmocnień, nazwy nie na uchwytach i komorze.
 Łączenie płyty wzmacniającej biurka z bokami — decyzja użytkownika 2026-11-13: dorobione „kołki z mimośrodami”, oś 34 mm
 (trzpień 6,3 × 45 wg katalogu GTV). Inaczej, bez zmian: makieta ma ciemny motyw (gdy telefon / system jest ciemny), aplikacja — jasny.
+
+Runda 3 (2026-11-13, użytkownik: „czy są jeszcze jakieś braki względem makiety testowej — sprawdź wszystko po kolei, żeby już nie
+wracać”): przejrzane po kolei karta szafki (`kartaSzafki`), karta szafki górnej, karty AGD, zakładki z klockami, rysunek z przodu
+i z góry, nagłówek ciągu. Dorobione: pełna karta Szafka (front, szuflady, „Szuflada + drzwi”, wnętrze — półki, przegroda, drążek,
+kolumny — światło, wzmocnienia, podpowiedzi przy wysokości i szufladach), biurko — szuflady kontenera 2 / 3 / 4 i miejsce na nogi,
+klocki nad kartą w każdej zakładce, „Co zrobi program” i „Całą szafkę … w zakładce Szafka” wszędzie, wzory szafek (zwinięte) nad
+kartą i lista ciągu z × pod kartą, przegroda — pola światła, dwuklik / prawy przycisk z wpisaniem; rysunek — od płyty do okapu
+(poniżej 650 pomarańczowo), lodówka wolnostojąca z miejscem i luzami, „wystaje N” z góry, kaseta / komora pomarańczowo przy
+kolizji i z głębokością, wymiary zaznaczonego wycięcia, „szersza niż szafka”; alarm „Ciąg nie mieści się na ścianie” z „Poszerz
+ścianę” i „Usuń …”; Esc przerywa przeciąganie (test `makieta15`). Zostaje inaczej (bez zmian): ciemny motyw makiety.

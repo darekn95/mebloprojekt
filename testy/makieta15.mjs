@@ -1,6 +1,7 @@
 // Makieta — runda 3 wyrownania z makieta „Dodaj” (uzytkownik 2026-11-13: „sprawdź wszystko po kolei, żeby już nie wracać”):
 // pelna karta Szafka (front, szuflady, szuflada + drzwi, wnetrze — polki, przegroda, drazek, kolumny — swiatlo, wzmocnienia,
-// podpowiedzi), biurko z kontenerem (szuflady 2 / 3 / 4, miejsce na nogi).
+// podpowiedzi), biurko z kontenerem (szuflady 2 / 3 / 4, miejsce na nogi); klocki i „Co zrobi” w zakladkach, wzory i lista ciagu,
+// przegroda (swiatlo, dwuklik); rysunek: okap–plyta, lodowka (luzy, wystaje), kaseta / komora, wyciecie, alarm sciany, Esc.
 import pw from './pw.mjs';
 const { chromium } = pw;
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
@@ -194,6 +195,57 @@ p = await czekaj('p.items[0].cab.levels[0].cols[0].w !== 250');
   if (r) { await page.mouse.click(r.x + r.width / 2, r.y + r.height / 2, { button: 'right' }); await page.waitForTimeout(350); }
   await page.keyboard.press('Escape'); await page.waitForTimeout(250);
   ok('Esc zamyka okienko przegrody', await page.locator('[data-el="mak-przegroda-okno"]').count() === 0); }
+
+console.log('== rysunek jak w makiecie: okap–płyta, lodówka (luzy, wystaje), kaseta / komora, wycięcie, alarm ściany, Esc ==');
+const PARA = `p.items.forEach((x) => { x.cab.joints = { ...(x.cab.joints || {}), topL: 'none', topR: 'none' };
+  x.cab.levels[x.cab.levels.length - 1].cols.forEach((c) => { c.rails = [{ orient: 'shelf', pos: 'top', depth: 100, atDepth: 0, fromBack: false, paraPodBlat: true },
+    { orient: 'front', pos: 'top', h: 100, atDepth: 0, fromBack: true, paraPodBlat: true }]; }); });`;
+const RYS = (opcje = '') => CIAG + PARA + `p.items[0].cab.blatWyciecia = [{ typ: 'plyta', rozm: '60' }]; p.items[1].cab.blatWyciecia = [{ typ: 'zlew', rozm: '1' }];
+  p.runs.push({ id: 'g1', name: 'Ściana 1 — góra', roomId: p.runs[0].roomId, tier: 'gorny', wall: 'r1' });
+  [0, 1].forEach((k) => { const g = JSON.parse(JSON.stringify(p.items[1])); g.cab.name = 'Górna ' + (k + 1); g.cab.H = 720; g.cab.D = 320; g.cab.blatWyciecia = [];
+    g.cab.levels = [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }];
+    g.cab.joints = { ...(g.cab.joints || {}), topL: 'between', topR: 'between' }; g.cab.legs = { ...(g.cab.legs || {}), on: false }; g.cab.plinth = { ...(g.cab.plinth || {}), on: false };
+    if (k === 0) g.cab.okap = { typ: 'podszafkowy' }; g.runId = 'g1'; p.items.push(g); });
+  const l = JSON.parse(JSON.stringify(p.items[1])); l.cab = { ...l.cab, name: 'Lodówka', W: 700, H: 2000, blatWyciecia: [], sprzetCiagu: { typ: 'lodowka' } }; l.runId = 'r1'; p.items.push(l); ${opcje}`;
+await start('szczegolowa', RYS(), { zgory: true, gorny: true, dolny: true, fronty: true, kolory: true, wymiary: true });
+{ const od = await page.locator('[data-el="mak-okap-plyta"]').first().getAttribute('data-od').catch(() => null);
+  const t = await page.locator('[data-el="mak-okap-plyta"] text').first().textContent().catch(() => '');
+  ok('z przodu: wymiar od płyty do okapu (poniżej 650 z „< 650”)', od != null && Number(od) > 0 && t.trim() === (Number(od) < 650 ? `${od} < 650` : String(Number(od))), `${od} / ${t}`); }
+{ const luzy = await page.locator('[data-el="lodowka-miejsce-rys"] [data-el="lodowka-luz"]').evaluateAll((a) => a.map((x) => Number(x.getAttribute('data-v'))));
+  ok('lodówka z przodu: miejsce przerywane, luzy 50 / 50 / 100', await page.locator('[data-el="lodowka-miejsce-rys"]').count() === 1 && JSON.stringify(luzy) === '[50,50,100]', JSON.stringify(luzy)); }
+{ const t = await page.locator('[data-el="lodowka-wystaje"]').first().textContent().catch(() => '');
+  ok('z góry: „wystaje N przed korpusy” przy lodówce', /^wystaje \d+ przed korpusy$/.test(t.trim()), t); }
+ok('kaseta płyty wchodzi we wzmocnienie — z przodu na pomarańczowo', await page.locator('[data-el="wyciecie-front"][data-typ="plyta"] [data-el="wyciecie-pod-blatem"][data-zle="1"]').count() >= 1);
+ok('komora zlewu: głębokość pod blatem podpisana (200)', (await page.locator('[data-el="wyciecie-front"][data-typ="zlew"] [data-el="wyciecie-glebokosc"]').first().textContent().catch(() => '')).trim() === '200');
+await zakl('dodaj');
+{ const agd = page.locator('[data-el="mak-dodaj"] [data-dodaj="agd"]'); if ((await agd.getAttribute('aria-expanded').catch(() => 'true')) !== 'true') await agd.click().catch(() => {}); await page.waitForTimeout(300); }
+await page.locator('[data-el="mak-agd-lista"] button').filter({ hasText: /Płyta/ }).first().click(); await page.waitForTimeout(500);
+{ const t = await page.locator('[data-el="mak-zgory"] [data-el="wyciecie-wymiary"]').textContent().catch(() => '');
+  ok('z góry: zaznaczona płyta — wymiar od początku blatu i „od przodu N”', await page.locator('[data-el="mak-zgory"] [data-el="wyciecie-wymiary"]').count() === 1 && /od przodu \d+/.test(t), t.replace(/\s+/g, ' ')); }
+
+await start('szczegolowa', RYS(`p.runs[1].clearance = 900; p.items[0].cab.blatWyciecia = [{ typ: 'plyta', rozm: '90' }]; p.runs[0].wallW = 1000;`), { zgory: true, gorny: true, dolny: true, fronty: true, kolory: true, wymiary: true });
+{ const od = Number(await page.locator('[data-el="mak-okap-plyta"]').first().getAttribute('data-od').catch(() => 0));
+  const t = await page.locator('[data-el="mak-okap-plyta"] text').first().textContent().catch(() => '');
+  ok('okap 750 nad płytą — sama liczba, bez „< 650”', od === 750 && t.trim() === '750', `${od} / ${t}`); }
+ok('płyta 90 na szafce 600 — z góry „szersza niż szafka”', await page.locator('[data-el="wyciecie-za-szerokie"]').count() >= 1);
+{ const t = await page.locator('[data-el="mak-alarm-sciana"]').innerText().catch(() => '');
+  ok('alarm: „Ciąg nie mieści się na ścianie — N mm na ścianie 1000 mm, brakuje N mm”', /Ciąg nie mieści się na ścianie — \d+ mm na ścianie 1000 mm, brakuje \d+ mm/.test(t), t.replace(/\s+/g, ' '));
+  ok('alarm: „Usuń „Lodówka wolnostojąca”” (ostatnia w ciągu)', /Usuń „Lodówka wolnostojąca”/.test(t)); }
+await page.locator('[data-el="mak-alarm-poszerz"]').click(); await page.waitForTimeout(300);
+p = await czekaj('p.runs[0].wallW > 1000');
+ok('„Poszerz ścianę do N mm” — ściana = długość ciągu, alarm znika', p.runs[0].wallW >= 1900 && await page.locator('[data-el="mak-alarm-sciana"]').count() === 0, String(p.runs[0].wallW));
+await start('prosta', RYS(`p.runs[0].wallW = 1000;`), PRZOD);
+{ const n0 = (await proj()).items.filter((x) => x.runId === 'r1').length;
+  await page.locator('[data-el="mak-alarm-usun"]').click(); await page.waitForTimeout(300);
+  p = await czekaj(`p.items.filter((x) => x.runId === 'r1').length === ${n0 - 1}`);
+  ok('„Usuń …” w alarmie — ostatnia pozycja ciągu usunięta', p.items.filter((x) => x.runId === 'r1').length === n0 - 1 && !p.items.some((x) => x.cab.sprzetCiagu && x.cab.sprzetCiagu.typ === 'lodowka')); }
+await start('prosta', CIAG, PRZOD);
+await zakl('polki');
+{ const h = page.locator('[data-el="makieta-rysunek"] [data-u="polka"]').first(); const r = await h.boundingBox();
+  if (r) { await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2 - i * 12);
+    await page.waitForTimeout(150); await page.keyboard.press('Escape'); await page.waitForTimeout(150); await page.mouse.up(); await page.waitForTimeout(700); }
+  p = await proj();
+  ok('Esc w trakcie przeciągania półki — nic się nie zmienia', r && (cab0(p).levels[0].cols[0].shelfTargets || []).every((v) => v == null), JSON.stringify(cab0(p).levels[0].cols[0].shelfTargets)); }
 
 ok('bez błędów strony', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();

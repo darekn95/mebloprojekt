@@ -515,6 +515,35 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
   szafka z własnym dołem zostaje z górą równo — `setRunShared`); nazwa szafki pod komorą zlewu / kasetą płyty i nie na uchwycie
   szuflady (`makNazwaOd`); klocki wzmocnień w makiecie szczegółowej („Para pod blat”, „Leżące”, „Stojące”, „Pionowe” — dokładają,
   zdejmuje zakładka Wzmocnienia).
+- **Z makiety „Dodaj” — runda 3 (2026-11-13: „sprawdź wszystko po kolei, żeby już nie wracać”)**:
+  - **karta Szafka w pełnej wersji** (szafka z jednym poziomem): przy wysokości podpowiedź („Wysokość 720 — pod blat, jak cały ciąg
+    dolny.”, szafa — „cokół / nóżki pod spodem”, wolnostojąca — „całkowita z cokołem w obrysie” / „korpus — nóżki pod spodem”,
+    biurko — „Do wierzchu blatu”); **Front**: 1 / 2 drzwi, klapy, bez frontu, 1–4 szuflady, „Szuflada + drzwi” (słupek w kuchni —
+    bez szuflad, z podpowiedzią; w układzie „szuflada + drzwi” inny front wraca do jednego poziomu); przy szufladach „Wysokości
+    szuflad od dołu: …”, „Szuflady po równo”, „Same szuflady — półek ani przegrody tu nie ma”; **Wnętrze**: półki − N + (osobno
+    lewa / prawa przy przegrodzie, za drzwiami w „szuflada + drzwi”), „Przegroda” (wł. / wył., druga kolumna jak pierwsza),
+    „Drążek” (szafa albo szafka od 1400 mm), „Półki po równo”; **Kolumny — światło** (`mak-kol-swiatlo`): pola lewa / prawa
+    (jedno liczy drugie, każda ≥ 100 mm — `MAK_MIN_KOL`), „Przegroda na środek”; **Wzmocnienia**: dolna w kuchni — „wzm. leżące /
+    stojące / pionowe” i „para pod blat” (leżące z przodu + tylne stojące, jak klocek), szafa i wysoka — tylko pionowe; przełącza we
+    wszystkich kolumnach. Szafka z poziomami, ze sprzętem albo z kolumną z poziomami — podpowiedź, w której zakładce to zmienić.
+  - **biurko**: szuflady w kontenerze 2 / 3 / 4 (`mak-kontener-sz`), ich wysokości od dołu, „Szuflady po równo”, „Miejsce na nogi
+    między bokiem a kontenerem: N mm”.
+  - **każda zakładka szafki** (Drzwi, Szuflady, Półki, Przegroda, Wzmocnienia): klocki nad kartą także przy zaznaczonej szafce,
+    pod kartą „Co zrobi program” i „Całą szafkę (szerokość, wysokość, przesuwanie) zmienisz w zakładce Szafka.”; w Szafce —
+    zwinięte „Wzory szafek — dołóż do ciągu” nad kartą (`mak-wzory-przelacz`, pamięta przeglądarka) i pod kartą lista „Ciąg dolny
+    (N) / Ciąg górny (N) / W ciągu / Na rysunku” z × przy każdej pozycji (`MakListaCiagu`).
+  - **Przegroda**: „Kolumny — światło” w zakładce, dwuklik / prawy przycisk na przegrodzie — okienko „z lewej / z prawej”, „Na środek”
+    (`mak-przegroda-okno`, `makWylicz` z `d.sw`); Esc zamyka.
+  - **rysunek**: z przodu wymiar „od płyty do okapu” przy szafce z okapem / okapie kominowym (`mak-okap-plyta`; poniżej 650 —
+    pomarańczowo „N < 650”, `okapNadPlyta`); lodówka wolnostojąca — przerywane miejsce w ciągu i luzy z lewej / z prawej / nad
+    (`lodowka-miejsce-rys`, `lodowka-luz`); z góry „wystaje N przed korpusy” (`lodowka-wystaje`); kaseta płyty / komora zlewu na
+    pomarańczowo, gdy uwagi blatu mają przy niej błąd (`wyciecie-pod-blatem[data-zle]`), głębokość komory podpisana; zaznaczone
+    wycięcie (Dodaj → AGD) — z góry wymiar od początku blatu i „od przodu N” (`wyciecie-wymiary`); płyta szersza niż szafka —
+    z góry pomarańczowa ramka „szersza niż szafka”; „↑ górne / ↓ wolne” za końcem całego ciągu (nie na lodówce).
+  - **alarm nad rysunkiem**: „Ciąg nie mieści się na ścianie — N mm na ścianie M mm, brakuje K mm” z „Poszerz ścianę do N mm”
+    i „Usuń …” (ostatnia pozycja ciągu; `mak-alarm-sciana`).
+  - **Esc** w trakcie przeciągania na rysunku (półka, szuflada, przegroda, szafka, sprzęt, przewijanie) — przerywa bez zmian.
+  - Inaczej, bez zmian: makieta ma ciemny motyw (gdy system jest ciemny), aplikacja — jasny.
 - **„Bez szafki górnej”** (decyzja użytkownika 2026-11-13, z makiety „Dodaj”): w karcie Szafka szafki z ciągu górnego —
   zamienia ją na **wolne miejsce** tej samej szerokości (np. okno albo otwarta ściana; pozycja bez korpusu `sprzetCiagu.typ = "wolne"`,
   w zamówieniu nic, na rysunku przerywany obrys „wolne — np. okno”, w 3D / z boku nic, listwa zawieszek ma przerwę);
@@ -562,4 +591,5 @@ Kolejne kroki (`makiety/BRAKI.md`, D):
   `testy/makieta3.mjs` (pytanie o wysokość w ciągu i w narożniku), `testy/makieta4.mjs` (przyciski karty),
   `testy/makieta5.mjs` (paleta, klocki, karta do schowania, duży rysunek), `testy/makieta11.mjs` (uwagi 2026-11-10),
   `testy/makieta12.mjs` (lista „Wymiary”, wysokości, zakładka „Ciąg”, zawieszki, blenda, notatka, „Zamówienie”,
-  napisy nieucięte i czytelne).
+  napisy nieucięte i czytelne), `testy/makieta15.mjs` (runda 3 z makietą „Dodaj”: pełna karta Szafka, biurko, klocki i „Co zrobi”
+  w zakładkach, lista ciągu, przegroda, rysunek — okap–płyta, lodówka, kaseta / komora, wycięcie, alarm ściany, Esc).
