@@ -2335,6 +2335,8 @@ const migrateRun = (r) => ({
   worktop: r.worktop === true,
   // glebokosc blatu wpisana recznie (od sciany do przedniej krawedzi); null — z szafek (`runTop`)
   blatGl: Number(r.blatGl) > 0 ? Math.round(Number(r.blatGl)) : null,
+  // ile blat ma wystawac przed fronty (uzytkownik 2026-11-12) — wpisane: glebokosc blatu = lico drzwi + nawis; puste — z szafek
+  blatNawis: r.blatNawis != null && r.blatNawis !== "" && Number.isFinite(Number(r.blatNawis)) ? Math.round(Number(r.blatNawis)) : null,
   /* Rodzaj zabudowy ciagu (uzytkownik 2026-11-09, makieta: „Rodzaj zabudowy” — na ciag): kuchnia (blat, AGD, ciag gorny) /
      szafa w zabudowie (bez blatu) / wolnostojaca (bez sciany). null = kuchnia (stare projekty). Ustawia palete makiety. */
   zabudowa: ["kuchnia", "szafa", "wolnostojaca"].includes(r.zabudowa) ? r.zabudowa : null,
@@ -10841,13 +10843,25 @@ const ScianaDefs = () => (
    spodem; do tego fronty, cokol, nozki, blat roboczy i ciag gorny. Szafki ciagu
    stoja licem rowno (lico = najglebsza szafka od sciany, jak `runFrontDepth`),
    wysuniecie szafki przesuwa jej lico. */
-function AssemblySideView({ project, runs, showDims, showWall = true, showBlat = true }) {
+function AssemblySideView({ project, runs, showDims, showWall = true, showBlat = true, onPick, zazn, agd = true }) {
   const full = projectLayout(project);
   const groups = assemblyParts(project, runs, full).filter((g) => g.cabs.length);
   if (!groups.length) return null;
   const profile = new Map();
   let yBlat = null;
   const blaty = [];
+  /* wzmocnienia pod blatem z boku (uzytkownik 2026-11-12: „w uwagach, że brakuje 13 mm, a na rysunku nic nie widać” — kaseta plyty
+     wchodzila we wzmocnienie): prostokaty wzmocnien kazdej szafki w ukladzie widoku, do rysunku i do kolizji z kaseta / komora */
+  const szynyIdx = new Map();
+  const szynyCab = (c, licoK) => {
+    const out = [], byly = new Set();
+    (c.geo.levels || []).forEach((lv) => lv.cols.forEach((col) => (col.rails || []).forEach((r) => {
+      if (r.wCzesci || !(r.zLen > 0)) return;
+      const q = [licoK - (r.z0 + r.zLen), licoK - r.z0, c.base + r.y0, c.base + r.y1].map((v) => Math.round(v));
+      const k = q.join("|"); if (byly.has(k)) return; byly.add(k); out.push(q);
+    })));
+    return out;
+  };
   groups.forEach((g) => {
     const lico = Math.max(...g.cabs.map((c) => (c.wallGap ? c.wallGap.bottom : 0) + c.geo.glebOdSciany - c.offset));
     g.cabs.forEach((c) => {
@@ -10855,6 +10869,8 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
          z frontem meblowym na drzwiach, lodowka wolnostojaca na podlodze, wysunieta z lica. */
       const sc = c.geo.bezKorpusu ? c.geo.sprzetCiagu : null;
       const licoK = lico + c.offset;
+      const szyny = sc ? [] : szynyCab(c, licoK);
+      szynyIdx.set(c.index, szyny);
       let back = licoK - c.geo.carcassDepth, front = licoK, y0 = c.base, y1 = c.base + c.cab.H;
       if (sc) {
         back = licoK - sc.bryla.d;
@@ -10865,12 +10881,19 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
       const fronty = sc ? (sc.front && !sc.lodowka ? [{ y: c.base + sc.front.y, h: sc.front.h }] : [])
         : [...new Map(c.geo.doors.filter((d) => d.w > 0 && d.h > 0 && !wpuszczony(d))
           .map((d) => [`${Math.round(d.y)}|${Math.round(d.h)}`, { y: y0 + d.y, h: d.h }])).values()];
-      const klucz = [back, front, y0, y1, g.mount, sc ? sc.typ : "", fronty.map((f) => `${Math.round(f.y)}/${Math.round(f.h)}`).join(",")].map((v) => (typeof v === "number" ? Math.round(v) : v)).join("|");
+      /* sprzet w kolumnach (piekarnik, mikrofala w slupku) — z boku bryla i front sprzetu w profilu szafki (uzytkownik
+         2026-11-12: „sprawdzić wszystkie widoki pod kątem wyposażenia”); szafka ze sprzetem nie laczy sie z pusta */
+      const sprzety = sc || !agd ? [] : c.geo.levels.flatMap((lv) => lv.cols.filter((col) => col.sprzet).map((col) => {
+        const sp = col.sprzet, z = sprzetZ(sp);
+        return { b: [licoK - z.bz1, licoK - z.bz0, c.base + sp.bryla.y0, c.base + sp.bryla.y1], f: z.front ? [licoK - z.fz1, licoK - z.fz0, c.base + sp.y0, c.base + sp.y1] : null };
+      }));
+      const klucz = [back, front, y0, y1, g.mount, sc ? sc.typ : "", fronty.map((f) => `${Math.round(f.y)}/${Math.round(f.h)}`).join(","),
+        sprzety.map((q) => q.b.map(Math.round).join("/")).join(",")].map((v) => (typeof v === "number" ? Math.round(v) : v)).join("|");
       const p = profile.get(klucz);
-      if (p) { p.nazwy.push(c.name); return; }
+      if (p) { p.nazwy.push(c.name); p.idxs.push(c.index); return; }
       // front zmywarki przykrecony do jej drzwi — bez luzu zawiasu
       const luzF = sc ? 0 : HINGE_PLAY;
-      profile.set(klucz, { c, g, back, front, y0, y1, fronty, nazwy: [c.name], sprzet: !!sc, luzF,
+      profile.set(klucz, { c, g, back, front, y0, y1, fronty, nazwy: [c.name], idxs: [c.index], sprzety, szyny, sprzet: !!sc, luzF,
         lico: front + (fronty.length ? luzF + c.geo.tf : 0) });
     });
     // blat roboczy ciagu — od sciany na wysokosci blatu (jak w widoku szafki)
@@ -10880,7 +10903,7 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
       const y = Math.max(...(pod.length ? pod : g.cabs).map((c) => c.base + c.cab.H));
       const gs = wallGapOf(g.run, null);
       blaty.push({ x0: gs.bottom - gs.top, x1: gs.bottom - gs.top + rt.depth, y, th: rt.th,
-        kolor: (rt.mat.worktop || {}).color || "#8d7b68" });
+        kolor: (rt.mat.worktop || {}).color || "#8d7b68", wyciecia: agd ? rt.wyciecia || [] : [], naBlacie: agd ? rt.naBlacie || [] : [] });
       yBlat = yBlat == null ? y : Math.max(yBlat, y);
     }
   });
@@ -10916,8 +10939,12 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
         const { c } = p;
         const bf = c.mat.board.color;
         const plecy = c.geo.plecyZa || 0;
+        /* klik w profil zaznacza szafke; profil wspolny dla kilku szafek — kolejny klik zaznacza nastepna z nich */
+        const zazP = onPick && zazn != null && p.idxs.includes(zazn);
+        const klik = onPick ? { "data-el": "makieta-szafka", "data-idx": zazP ? p.idxs[(p.idxs.indexOf(zazn) + 1) % p.idxs.length] : p.idxs[0], style: { cursor: "pointer" } } : {};
         return (
-          <g key={k} data-el="profil-szafki" data-nazwy={p.nazwy.join(", ")}>
+          <g key={k} data-nazwy={p.nazwy.join(", ")} {...klik}>
+          <g data-el="profil-szafki" data-nazwy={p.nazwy.join(", ")}>
             {plecy > 0 && <rect x={p.back - plecy} y={fy(p.y1)} width={plecy} height={p.y1 - p.y0} fill={bf} stroke={INK} strokeWidth="1" opacity="0.6" />}
             {/* listwa dystansowa z plyty / kantowka za plecami, pod wiencem (jak w widoku szafki z boku) */}
             {c.geo.dystansZa && (() => {
@@ -10942,6 +10969,14 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
               <rect key={"n" + li} x={x} y={fy(p.y0 + c.geo.legTop)} width={40} height={c.geo.legH}
                 rx={legRound(c.cab) ? 20 : 0} fill={legColorOf(c.cab)} stroke={INK} strokeWidth="1.5" />
             ))}
+            {p.szyny.map((q, si) => <rect key={"wz" + si} data-el="wzm-z-boku" x={q[0]} y={fy(q[3])} width={Math.max(1, q[1] - q[0])} height={Math.max(1, q[3] - q[2])}
+              fill={bf} fillOpacity="0.8" stroke={INK} strokeWidth="1.5" />)}
+            {p.sprzety.map((q, si) => (
+              <g key={"sp" + si} data-el="sprzet-z-boku">
+                <rect x={q.b[0]} y={fy(q.b[3])} width={Math.max(1, q.b[1] - q.b[0])} height={Math.max(1, q.b[3] - q.b[2])} fill={SPRZET_KOLOR} fillOpacity="0.55" stroke={INK} strokeWidth="1.5" />
+                {q.f && <rect x={q.f[0]} y={fy(q.f[3])} width={Math.max(1, q.f[1] - q.f[0])} height={Math.max(1, q.f[3] - q.f[2])} fill={SPRZET_KOLOR} stroke={INK} strokeWidth="1.5" />}
+              </g>
+            ))}
             {p.y1 - p.y0 > 120 && (() => {
               // podpis miesci sie w profilu — dluzszy ucinamy (ok. 12 jednostek na znak przy 20)
               const pelny = p.nazwy.length > 2 ? `${p.nazwy[0]} i ${p.nazwy.length - 1} inne` : p.nazwy.join(", ");
@@ -10954,10 +10989,45 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
               );
             })()}
           </g>
+          </g>
         );
       })}
       {blaty.map((b, k) => (
         <rect key={"b" + k} data-el="blat" x={b.x0} y={fy(b.y + b.th)} width={b.x1 - b.x0} height={b.th} fill={b.kolor} stroke={INK} strokeWidth="2" />
+      ))}
+      {/* wyposazenie na blacie z boku (jak z przodu w makiecie): plyta — szklo na blacie i kaseta pod nim, zlew — komora pod blatem
+          i bateria, sprzet wolnostojacy przy scianie; klik — karta sprzetu */}
+      {blaty.map((b, k) => {
+        const wierzch = b.y + b.th;
+        return [...b.wyciecia.map((q, i) => {
+          const xA = b.x1 - q.odPrzodu - q.d, xc = xA + q.d / 2, sd = q.sd > 0 ? q.sd : q.d;
+          const kd = q.kd || q.d, xb = xA + 30;
+          // kaseta / komora wchodzi we wzmocnienie szafki pod nia — czesc wspolna na czerwono
+          const kas = q.typ === "plyta" ? [xc - kd / 2, xc + kd / 2, wierzch - q.podBlatem, wierzch] : [xA + 25, xA + q.d - 25, wierzch - Math.min(q.podBlatem, 200), wierzch];
+          const kol = q.podBlatem > 0 ? (szynyIdx.get(q.idx) || []).map((r) => [Math.max(kas[0], r[0]), Math.min(kas[1], r[1]), Math.max(kas[2], r[2]), Math.min(kas[3], r[3])])
+            .filter((r) => r[1] - r[0] > 0.5 && r[3] - r[2] > 0.5) : [];
+          return (
+            <g key={`w${k}-${i}`} data-el="agd-z-boku" data-rodz="wyc" data-typ={q.typ} data-idx={q.idx} data-k={q.k} style={onPick ? { cursor: "pointer" } : undefined}>
+              {q.typ === "plyta" && <rect x={xc - sd / 2} y={fy(wierzch) - 8} width={sd} height="8" fill="#292524" />}
+              {q.podBlatem > 0 && (q.typ === "plyta"
+                ? <rect x={xc - kd / 2} y={fy(wierzch)} width={kd} height={q.podBlatem} fill="#44403c" fillOpacity="0.25" stroke="#57534e" strokeWidth="4" strokeDasharray="14 8" />
+                : <rect x={xA + 25} y={fy(wierzch)} width={Math.max(1, q.d - 50)} height={Math.min(q.podBlatem, 200)} rx="16" fill="#e7e5e4" fillOpacity="0.6" stroke="#57534e" strokeWidth="4" strokeDasharray="14 8" />)}
+              {q.typ !== "plyta" && <path d={`M${xb} ${fy(wierzch)} v-240 q0 -60 60 -60 h110`} fill="none" stroke="#57534e" strokeWidth="22" strokeLinecap="round" />}
+              {kol.map((r, ki) => <rect key={"kol" + ki} data-el="kolizja-z-boku" x={r[0]} y={fy(r[3])} width={r[1] - r[0]} height={r[3] - r[2]} fill="#dc2626" fillOpacity="0.85" stroke="#991b1b" strokeWidth="2" />)}
+              {kol.length > 0 && <text x={xc} y={fy(wierzch - q.podBlatem) + 34} textAnchor="middle" fontSize="22" fill="#b91c1c" stroke="#fff" strokeWidth="5" paintOrder="stroke"
+                fontFamily="ui-monospace, monospace">{`${q.typ === "plyta" ? "kaseta" : "komora"} we wzmocnieniu`}</text>}
+            </g>
+          );
+        }), ...b.naBlacie.map((q, i) => (
+          <g key={`n${k}-${i}`} data-el="agd-z-boku" data-rodz="nb" data-typ={q.typ} data-idx={q.idx} data-k={q.k} style={onPick ? { cursor: "pointer" } : undefined}>
+            <rect x={b.x0} y={fy(wierzch + q.h)} width={q.d} height={q.h} rx="12" fill={SPRZET_KOLOR} fillOpacity="0.75" stroke={INK} strokeWidth="2" />
+          </g>
+        ))];
+      })}
+      {/* zaznaczona szafka — obrys jej profilu na wierzchu */}
+      {onPick && zazn != null && lista.filter((p) => p.idxs.includes(zazn)).map((p) => (
+        <rect key="zazn" data-el="zaznaczona-z-boku" x={p.back - 8} y={fy(p.y1) - 8} width={p.lico - p.back + 16} height={p.y1 - p.y0 + 16}
+          fill="none" stroke="#0f766e" strokeWidth="6" pointerEvents="none" />
       ))}
       {showDims && (
         <g data-el="wymiary-ciagu-z-boku">
@@ -11340,6 +11410,10 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
                 {v("gl", odS, lico, plecy > 0 ? `${fmt(lico - tyl)}+${fmt(plecy)}` : fmt(lico - tyl), kol(0))}
                 {dv + t0.offset > lico + 1 && v("fr", lico, Math.round(dv + t0.offset), `front ${fmt(Math.round(dv + t0.offset - lico))}`, kol(0))}
                 {rt && v("blat", yS, yS + rt.depth, `blat ${fmt(Math.round(rt.depth))}`, kol(1))}
+                {/* ile blat wystaje przed fronty (uzytkownik 2026-11-12) — od lica drzwi do przodu blatu; ponizej 1 mm na czerwono */}
+                {rt && rt.wysieg != null && Math.round(rt.wysieg) !== 0 && <g data-el="mak-wym-nawis">
+                  <DimV y1={yS + Math.min(rt.doLica, rt.depth)} y2={yS + Math.max(rt.doLica, rt.depth)} x={kol(1)} left={lewo}
+                    label={`nawis ${fmt(Math.round(rt.wysieg))}`} c={rt.wysieg < WORKTOP_MIN_OVERHANG ? "#b91c1c" : rt.wysieg > WORKTOP_MAX_OVERHANG ? "#b45309" : MAK_AKCENT} obwodka /></g>}
                 {g.cabs.filter((c) => c !== t0 && (c.offset || Math.round(c.geo.carcassDepth) !== Math.round(t0.geo.carcassDepth))).map((c, i) => {
                   const y1c = Math.round(n.depth + c.offset), x = n.lead + c.x + c.geo.W - 50;
                   // od sciany do lica — liczba przy kresce; wysuniecie osobnym napisem przy przodzie szafki (dlugi napis wychodzil poza nia)
@@ -11472,8 +11546,11 @@ const useAudytWidoku = () => {
   useEffect(() => () => audytBezBryl(ref.current), []);
 };
 
-function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
+function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn, agd = true }) {
   useAudytWidoku();
+  /* `kto` — szafka, do ktorej nalezy biezaca bryla (klik w widoku 45° zaznacza szafke; uzytkownik 2026-11-12: „na widoku
+     45 stopni nie da się zaznaczyć szafki”); blat, cokol i wstawki — niczyje */
+  let kto = null;
   const full = projectLayout(project);
   const groups = assemblyParts(project, runs, full);
   const L = runLayout(groups, full);
@@ -11502,7 +11579,14 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     if (place) v = v.map(place);
     if (poPlace) v = v.map(poPlace);
     audytBryly(x0, y0, z0, x1, y1, z1, color, tag, v, alpha);
-    solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold, bias: bias || 0, tag });
+    solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold, bias: bias || 0, tag, idx: kto });
+  };
+  /* Wyposazenie na blacie (plyta, zlew, sprzet wolnostojacy) — tylko obraz, bez audytu bryl (to nie formatki); z otworami
+     jak `boxOtw` (rant zlewu wokol komory). Uzytkownik 2026-11-12: „miało być wyposażenie, a nie ma płyty” w 45° i 3D. */
+  const boxAgd = (x0, y0, z0, x1, y1, z1, color, tag, otw = null, bias = 0) => {
+    const tr = (v) => { let w = v; if (place) w = w.map(place); return w; };
+    (otw && otw.length ? prostokatyBez([x0, z0, x1, z1], otw) : [[x0, z0, x1, z1]]).forEach(([a0, b0, a1, b1]) =>
+      solids.push({ v: tr(VERTS(a0, y0, b0, a1, y1, b1)), color, alpha: 1, bold: false, bias, tag, idx: kto }));
   };
   /* Plyta z wycieciem / otworem — jak w 3D szafki (`boxOtw` w `Scene3D`): kawalki wokol
      otworow, do audytu jedna bryla w calosci z otworami (po ustawieniu w zabudowie). */
@@ -11512,7 +11596,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     const pozioma = os === "xz";
     const czesc = ([a0, b0, a1, b1]) => tr(pozioma ? VERTS(a0, y0, b0, a1, y1, b1) : VERTS(x0, a0, b0, x1, a1, b1));
     prostokatyBez(pozioma ? [x0, z0, x1, z1] : [y0, z0, y1, z1], otw).forEach((q) =>
-      solids.push({ v: czesc(q), color, alpha: 1, bold, bias, tag }));
+      solids.push({ v: czesc(q), color, alpha: 1, bold, bias, tag, idx: kto }));
     const obrys = (v) => ["x", "y", "z"].map((k) => Math.min(...v.map((q) => q[k]))).concat(["x", "y", "z"].map((k) => Math.max(...v.map((q) => q[k]))));
     audytBryly(x0, y0, z0, x1, y1, z1, color, tag, tr(VERTS(x0, y0, z0, x1, y1, z1)), 1, otw.map((q) => obrys(czesc(q))));
   };
@@ -11526,7 +11610,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     ];
     if (place) v = v.map(place);
     audytBryly(Math.min(x0f, x0b), y0, z0, Math.max(x1f, x1b), y1, z1, color, tag, v, 1);
-    solids.push({ v, color, alpha: 1, bold: !!bold, bias: bias || 0, tag });
+    solids.push({ v, color, alpha: 1, bold: !!bold, bias: bias || 0, tag, idx: kto });
   };
 
   /* Wysuniecie (+) albo cofniecie (-) biezacej szafki z lica ciagu — cala jej
@@ -11561,6 +11645,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     const naWspolnym = rbDno && !rbDno.brak ? new Set(rbDno.idxs) : null;
     g.cabs.forEach((c) => {
       wysun = c.offset || 0;
+      kto = c.index;
       /* Sprzet w ciagu bez korpusu (2026-11-05): bryla sprzetu, front meblowy zmywarki (jak drzwi:
          przed licem, w kolorze frontow) albo przod lodowki wolnostojacej. */
       if (c.geo.bezKorpusu && c.geo.sprzetCiagu) {
@@ -11662,7 +11747,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       // sprzet w zabudowie (2026-11-04) — jak w 3D szafki
       c.geo.levels.forEach((lv) => lv.cols.forEach((col) => {
         const sp = col.sprzet;
-        if (!sp) return;
+        if (!sp || !agd) return;
         const z = sprzetZ(sp);
         box(c.x + sp.bryla.x0, c.base + sp.bryla.y0, z.bz0, c.x + sp.bryla.x1, c.base + sp.bryla.y1, z.bz1, SPRZET_KOLOR, null, 1, false, wGlab, "sprzet");
         if (z.front) box(c.x + sp.x0, c.base + sp.y0, z.fz0, c.x + sp.x1, c.base + sp.y1, z.fz1, SPRZET_KOLOR, null, 1, true, 0, "sprzet-front");
@@ -11754,10 +11839,12 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
       });
     });
     wysun = 0;
+    kto = null;
     /* Ramie szafki naroznej stoi w tym ciagu, ale nalezy do sasiedniego —
         w bryle to ono domyka rog. */
     n.arms.forEach((a) => {
       const c = a.cab;
+      kto = c.index;
       const x0 = a.u0 - n.lead;
       const y0 = c.base, y1 = c.base + c.cab.H;
       /* Grubosc frontu ramienia z plyty, z ktorej jest zamawiany (moze byc
@@ -11900,6 +11987,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
         }));
       }
     });
+    kto = null;
     // wspolne dno: jedna plyta na kazdy ciagly odcinek szafek pod nim
     if (naWspolnym) {
       wysun = 0;
@@ -11946,6 +12034,46 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
             kolB, otw, "xz", Math.round(rt.depth / 2), "blat", true);
         }
       });
+      /* Wyposazenie na blacie — jak na rysunku z gory i z przodu (makieta „Dodaj”): plyta to ciemne szklo z polami grzewczymi
+         i kaseta pod nim, zlew — rant z komora (komorami) i bateria, sprzet wolnostojacy przy scianie. Rzut 3D rysuje tylko
+         prostopadlosciany, wiec pola grzewcze sa kwadratami. */
+      if (agd) {
+        const wierzch = g.mount + rt.y + rt.th, zP = przyScianie - rt.depth;
+        (rt.wyciecia || []).forEach((q) => {
+          kto = q.idx;
+          const cx = (q.x0 + q.x1) / 2, w = q.x1 - q.x0, zA = zP + q.odPrzodu, zc = zA + q.d / 2;
+          const sw = q.sw > 0 ? q.sw : w, sd = q.sd > 0 ? q.sd : q.d;
+          if (q.typ === "plyta") {
+            if (q.podBlatem > 0) boxAgd(cx - (q.kw || w) / 2, wierzch - q.podBlatem, zc - (q.kd || q.d) / 2, cx + (q.kw || w) / 2, wierzch, zc + (q.kd || q.d) / 2, "#44403c", "plyta-kaseta");
+            boxAgd(cx - sw / 2, wierzch, zc - sd / 2, cx + sw / 2, wierzch + 5, zc + sd / 2, "#292524", "plyta-szklo", null, 2);
+            const n2 = q.rozm === "30" ? 2 : q.rozm === "90" ? 5 : 4, m = Math.min(sw, sd);
+            const pkt = n2 === 2 ? [[0.5, 0.28, 0.2], [0.5, 0.72, 0.16]] : n2 === 5 ? [[0.2, 0.3, 0.13], [0.2, 0.72, 0.11], [0.5, 0.5, 0.17], [0.8, 0.3, 0.11], [0.8, 0.72, 0.13]]
+              : [[0.3, 0.3, 0.16], [0.7, 0.3, 0.125], [0.3, 0.72, 0.125], [0.7, 0.72, 0.16]];
+            pkt.forEach(([fx, fz, fr]) => { const r = m * fr * 0.8, px = cx - sw / 2 + fx * sw, pz = zc + sd / 2 - fz * sd;
+              boxAgd(px - r, wierzch + 5, pz - r, px + r, wierzch + 6, pz + r, "#78716c", "pole-grzewcze", null, 3); });
+            return;
+          }
+          // zlew: komory jak na rysunku z gory
+          const kom = q.rozm === "2" ? [[q.x0 + 25, w / 2 - 37], [q.x0 + w / 2 + 12, w / 2 - 37]]
+            : q.ociekacz ? [[q.ociekacz === "L" ? q.x0 + w - 25 - (w * 0.5 - 30) : q.x0 + 25, w * 0.5 - 30]] : [[q.x0 + 25, w - 50]];
+          const kz0 = zA + 25, kz1 = zA + q.d - 25, hb = Math.min(q.podBlatem || 200, 200);
+          kom.forEach(([kx, kw]) => {
+            boxAgd(kx, wierzch - hb, kz0, kx + kw, wierzch - hb + 2, kz1, "#a8a29e", "zlew-komora");
+            [[kx, kz0, kx + 2, kz1], [kx + kw - 2, kz0, kx + kw, kz1], [kx, kz0, kx + kw, kz0 + 2], [kx, kz1 - 2, kx + kw, kz1]].forEach(([a0, b0, a1, b1]) =>
+              boxAgd(a0, wierzch - hb, b0, a1, wierzch, b1, "#d4d4d8", "zlew-komora"));
+          });
+          boxAgd(cx - sw / 2, wierzch, zc - sd / 2, cx + sw / 2, wierzch + 3, zc + sd / 2, "#d4d4d8", "zlew-rant", kom.map(([kx, kw]) => [kx, kz0, kx + kw, kz1]), 2);
+          // bateria za komora, przy scianie
+          const zB = Math.min(przyScianie - 50, zc + sd / 2 + 10), bx = q.ociekacz ? kom[0][0] + kom[0][1] / 2 : cx;
+          boxAgd(bx - 18, wierzch, zB, bx + 18, wierzch + 280, zB + 36, "#57534e", "bateria", null, 3);
+          boxAgd(bx - 14, wierzch + 250, zB - 170, bx + 14, wierzch + 280, zB, "#57534e", "bateria", null, 3);
+        });
+        (rt.naBlacie || []).forEach((q) => {
+          kto = q.idx;
+          boxAgd(q.x0, wierzch, przyScianie - q.d, q.x0 + q.w, wierzch + q.h, przyScianie, SPRZET_KOLOR, "na-blacie");
+        });
+        kto = null;
+      }
     }
   });
   place = null;
@@ -11982,15 +12110,22 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf }) {
     const b = Math.min(255, Math.round((n & 255) * f));
     return `rgb(${r},${g2},${b})`;
   };
+  /* klik w bryle zaznacza szafke (bez przeciagania — widok 45° jest staly); zaznaczona — krawedzie w kolorze zaznaczenia */
+  const czyja = (f) => (solids[f.bryla] || {}).idx;
   return (
     <svg viewBox={vb} className="w-full h-auto" style={{ maxHeight: DRAW_MAX_H }}
-      data-cykle={faces.cykle}>
-      {faces.map((f, i) => (
-        <polygon key={i} points={f.pts.map((p) => `${p.X},${p.Y}`).join(" ")}
-          fill={tint(f.color, f.shade)} fillOpacity={f.alpha}
-          stroke={INK} strokeWidth={f.bold ? 2 : 1} strokeOpacity="0.55"
-          data-el={f.tag || undefined} data-b={f.bryla} />
-      ))}
+      data-cykle={faces.cykle} data-el={onPick ? "bryla-klik" : undefined}
+      onClick={onPick ? (e) => { const t = e.target.closest && e.target.closest("[data-idx]"); if (!t) return; e.stopPropagation(); onPick(Number(t.getAttribute("data-idx"))); } : undefined}>
+      {faces.map((f, i) => {
+        const ci = czyja(f), zaz = onPick && ci != null && ci === zazn;
+        return (
+          <polygon key={i} points={f.pts.map((p) => `${p.X},${p.Y}`).join(" ")}
+            fill={tint(f.color, f.shade)} fillOpacity={f.alpha}
+            stroke={zaz ? "#0f766e" : INK} strokeWidth={zaz ? 4 : f.bold ? 2 : 1} strokeOpacity={zaz ? 1 : 0.55}
+            data-el={f.tag || undefined} data-b={f.bryla} data-idx={onPick && ci != null ? ci : undefined}
+            data-zazn={zaz ? "1" : undefined} style={onPick && ci != null ? { cursor: "pointer" } : undefined} />
+        );
+      })}
     </svg>
   );
 }
@@ -15679,6 +15814,10 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return { label: `Wydłuż ścianę do ${fmt(Number(action.split(":")[1]))} mm`, run: () => runFix && runFix(action) };
     if (action.startsWith("blatgl:"))
       return { label: Number(action.split(":")[1]) > 0 ? `Blat ${fmt(Number(action.split(":")[1]))} mm` : "Głębokość blatu automatycznie", run: () => runFix && runFix(action) };
+    if (action.startsWith("blatnawis:"))
+      return { label: `Blat ${fmt(Number(action.split(":")[1]))} mm przed frontami`, run: () => runFix && runFix(action) };
+    if (action.startsWith("odsun:"))
+      return { label: `Wysuń szafki ciągu o ${fmt(Number(action.split(":")[1]))} mm do przodu`, run: () => runFix && runFix(action) };
     if (action.startsWith("topcut:")) {
       return { label: action === "topcut:1"
         ? "Zamów blat docięty na wymiar"
@@ -17123,7 +17262,11 @@ const WZM_STOJACE_H = 60;       // przednie wzmocnienie na sztorc pod wycieciem 
    dopoki wystaje przed drzwi najwyzej tyle — do sciany i tak dopasowuje sie go
    na miejscu. Wiecej znaczy zwykle, ze zle jest odsuniecie od sciany albo
    glebokosc szafek, i dopiero wtedy pytamy, czy blat ciac. */
-const WORKTOP_MAX_OVERHANG = 30;
+/* Blat przed frontami (uzytkownik 2026-11-12: „dobrze, jakby wystawał 10 mm, minimum 1 mm — poniżej błąd; do 20 mm w normie;
+   ponad 20 mm ostrzeżenie: przytnij blat od ściany albo wysuń szafki ciągu do przodu”): cały arkusz zamawiamy, dopóki
+   wystaje najwyżej WORKTOP_MAX_OVERHANG, dalej domyślnie docięty na 10 mm. Wcześniej granica 30 mm. */
+const WORKTOP_MIN_OVERHANG = 1;
+const WORKTOP_MAX_OVERHANG = 20;
 /* Drzwi na zawiasach puszkowych nie leza na krawedzi korpusu — przy zawiasach
    zostaje ok. 2 mm szczeliny. To wytyczna montazowa: nie ma jej na rysunkach
    ani w wymiarach, liczy sie tylko do tego, ile blat wystaje przed fronty. */
@@ -17361,10 +17504,12 @@ const runTopLiczy = (project, run, bezRogu = false) => {
       /* Glebokosc blatu wpisana recznie dla tej sciany (uzytkownik 2026-11-12: „w opcjach ciągu brakuje do wpisania ręcznej
          głębokości blatu dla danej ściany”, `run.blatGl`, od sciany do przedniej krawedzi) — arkusz najmniejszy, z ktorego
          sie ja wytnie; za plytki (nie zakrywa frontow) — uwaga w `worktopMsgs` (wysieg ujemny). */
-      const reczna = worktop && Number(run.blatGl) > 0 ? Math.round(Number(run.blatGl)) : null;
+      /* albo nawis przed frontami wpisany dla tej sciany (`run.blatNawis`): glebokosc = lico drzwi + nawis, takze po zmianie szafek */
+      const nawisW = worktop && !(Number(run.blatGl) > 0) && run.blatNawis != null && Number.isFinite(Number(run.blatNawis)) ? Math.round(Number(run.blatNawis)) : null;
+      const reczna = worktop && Number(run.blatGl) > 0 ? Math.round(Number(run.blatGl)) : nawisW != null ? Math.max(1, doLica + nawisW) : null;
       if (reczna) {
         const ark = WORKTOP_DEPTHS.find((d) => d >= reczna) || null;
-        return { surowa, arkusz: ark, docinka: ark ? ark - reczna : 0, pelnyArkusz: ark === reczna, reczna: true,
+        return { surowa, arkusz: ark, docinka: ark ? ark - reczna : 0, pelnyArkusz: ark === reczna, reczna: true, nawisWpisany: nawisW != null,
           depth: reczna, doLica, wysiegArkusza: ark ? ark - doLica : null, wysieg: reczna - doLica,
           odSciany: Math.max(0, ...spans.map((s) => s.odSciany || 0)) };
       }
@@ -18721,9 +18866,8 @@ const worktopMsgs = (project, run) => {
       + `|worktop:${WORKTOP_DEPTHS[1]}` });
   }
   /* Ile arkusz 600 wystaje przed drzwi. Standard to 10 mm — blat oslania gorna
-     krawedz frontow, zeby przy krojeniu nie kapalo na nie. Mniej: uwaga.
-     Ponad 30 mm: ostrzezenie, bo zwykle zle jest odsuniecie od sciany albo
-     glebokosc szafek — a jesli oba sa dobre, blat trzeba dociac. */
+     krawedz frontow, zeby przy krojeniu nie kapalo na nie. Od 1 do 20 mm w normie (mniej niz 10 — informacja).
+     Ponad 20 mm: ostrzezenie — przytnij blat od sciany albo wysun szafki ciagu do przodu (uzytkownik 2026-11-12). */
   const naArkusz600 = rt && rt.worktop && rt.arkusz === WORKTOP_DEPTHS[0] && !rt.reczna;
   let opisanyWysieg = false;
   if (naArkusz600) {
@@ -18749,27 +18893,38 @@ const worktopMsgs = (project, run) => {
     const naCel = lvl && lvl.pod.length && cel > 0 && cel !== gl ? `|rundepth:${cel}` : "";
     if (w < WORKTOP_OVERHANG) {
       opisanyWysieg = true;
-      out.push({ level: "warn", text:
-        `Blat ${fmt(rt.arkusz)} mm wystaje przed drzwi tylko ${fmt(w)} mm (${sklad}). `
-        + `Zwykle wychodzi ok. ${fmt(WORKTOP_OVERHANG)} mm i osłania górną krawędź frontów. `
-        + `Zmniejsz głębokość szafek albo odsunięcie od ściany.` + naCel });
+      out.push({ level: "info", text:
+        `Blat ${fmt(rt.arkusz)} mm wystaje przed drzwi tylko ${fmt(w)} mm (${sklad}) — w normie `
+        + `(od ${fmt(WORKTOP_MIN_OVERHANG)} do ${fmt(WORKTOP_MAX_OVERHANG)} mm), najlepiej ok. ${fmt(WORKTOP_OVERHANG)} mm — wtedy osłania górną krawędź frontów. `
+        + `Można zmniejszyć głębokość szafek albo odsunięcie od ściany.` + naCel });
     } else if (w > WORKTOP_MAX_OVERHANG) {
       opisanyWysieg = true;
+      // wysuniecie calego ciagu do przodu (odsuniecie od sciany) o tyle, zeby caly arkusz wystawal 10 mm
+      const odsun = w - WORKTOP_OVERHANG;
       out.push({ level: "warn", text:
         `Cały arkusz ${fmt(rt.arkusz)} mm wystawałby przed drzwi ${fmt(w)} mm (${sklad}) — `
-        + `ponad ${fmt(WORKTOP_MAX_OVERHANG)} mm. Sprawdź odsunięcie od ściany i głębokość szafek; `
-        + `jeśli oba są dobre, blat trzeba dociąć. `
+        + `ponad ${fmt(WORKTOP_MAX_OVERHANG)} mm (w normie ${fmt(WORKTOP_MIN_OVERHANG)}–${fmt(WORKTOP_MAX_OVERHANG)} mm, najlepiej ${fmt(WORKTOP_OVERHANG)}). `
+        + `Przytnij blat od ściany albo wysuń szafki ciągu do przodu o ${fmt(odsun)} mm (odsunięcie od ściany). `
         + (rt.pelnyArkusz
           ? `Teraz zamawiamy cały arkusz.|topcut:1`
           : `Teraz zamawiamy go dociętego do ${fmt(rt.depth)} mm — ${fmt(rt.wysieg)} mm przed drzwi.|topcut:0`)
-        + naCel });
+        + `|odsun:${odsun}:${run.id}` + naCel });
     }
   }
-  // glebokosc wpisana recznie: za plytki blat nie zakrywa frontow; inaczej — informacja, ile wystaje
+  /* glebokosc albo nawis wpisany recznie: ponizej 1 mm przed frontami — blad (blat nie zaslania frontow), ponad 20 mm — ostrzezenie
+     z przyciskami (przytnij blat do 10 mm przed frontami / wysun szafki ciagu do przodu), w normie — informacja, ile wystaje */
   if (rt && rt.reczna) {
-    if (rt.wysieg < 0) out.push({ level: "warn", text: `Blat ciągu „${run.name}” ma wpisaną głębokość ${fmt(rt.depth)} mm, a do lica drzwi jest ${fmt(rt.doLica)} mm — fronty wystają ${fmt(-rt.wysieg)} mm przed blat.`
-      + `|blatgl:${Math.round(rt.doLica + WORKTOP_OVERHANG)}:${run.id}|blatgl:0:${run.id}` });
-    else out.push({ level: "info", text: `Blat ciągu „${run.name}” — głębokość wpisana ręcznie: ${fmt(rt.depth)} mm od ściany, ${fmt(rt.wysieg)} mm przed drzwi${rt.arkusz ? `, z arkusza ${fmt(rt.arkusz)} mm` : ""}.` });
+    const co = rt.nawisWpisany ? `wpisany nawis ${fmt(rt.wysieg)} mm przed frontami` : `wpisaną głębokość ${fmt(rt.depth)} mm`;
+    const na10 = `|blatnawis:${WORKTOP_OVERHANG}:${run.id}`;
+    if (rt.wysieg < WORKTOP_MIN_OVERHANG) out.push({ level: "error", text: `Blat ciągu „${run.name}” ma ${co}, a do lica drzwi jest ${fmt(rt.doLica)} mm — `
+      + (rt.wysieg < 0 ? `fronty wystają ${fmt(-rt.wysieg)} mm przed blat` : `blat kończy się równo z frontami`)
+      + `. Blat musi wystawać przed fronty co najmniej ${fmt(WORKTOP_MIN_OVERHANG)} mm (najlepiej ${fmt(WORKTOP_OVERHANG)}), żeby zasłaniał je od góry.`
+      + na10 + `|blatgl:0:${run.id}` });
+    else if (rt.wysieg > WORKTOP_MAX_OVERHANG) out.push({ level: "warn", text: `Blat ciągu „${run.name}” ma ${co} — wystaje ${fmt(rt.wysieg)} mm przed fronty, `
+      + `ponad ${fmt(WORKTOP_MAX_OVERHANG)} mm (w normie ${fmt(WORKTOP_MIN_OVERHANG)}–${fmt(WORKTOP_MAX_OVERHANG)} mm, najlepiej ${fmt(WORKTOP_OVERHANG)}). `
+      + `Przytnij blat od ściany albo wysuń szafki ciągu do przodu o ${fmt(rt.wysieg - WORKTOP_OVERHANG)} mm.`
+      + na10 + (rt.nawisWpisany ? "" : `|odsun:${rt.wysieg - WORKTOP_OVERHANG}:${run.id}`) });
+    else out.push({ level: "info", text: `Blat ciągu „${run.name}” — ${rt.nawisWpisany ? "nawis wpisany ręcznie" : "głębokość wpisana ręcznie"}: ${fmt(rt.depth)} mm od ściany, ${fmt(rt.wysieg)} mm przed drzwi${rt.arkusz ? `, z arkusza ${fmt(rt.arkusz)} mm` : ""}.` });
     opisanyWysieg = true;
   }
   // docięty na życzenie albo z arkusza 1200 — mówimy, że tnie go zakład
@@ -21370,7 +21525,7 @@ const MAK_ZOOM = [1, 1.25, 1.5, 2, 2.5, 3, 4];
 const MAK_SCIANA = 2300;
 /* Lista „Wymiary” nad rysunkiem makiety szczegolowej — co rysowac (uzytkownik 2026-11-10). */
 const MAK_WYM = [["szer", "szerokości (szafki, ciąg)"], ["wys", "wysokości (nóżki / cokół, korpus, blat)"], ["fronty", "wymiary frontów"],
-  ["swiatla", "światła półek i wnętrza"], ["zgory", "z góry: od ściany, głębokość szafek i blatu"], ["wzm", "wzmocnienia"], ["blat", "blat (grubość, wierzch od podłogi)"]];
+  ["swiatla", "światła półek i wnętrza"], ["zgory", "z góry: od ściany, głębokość szafek i blatu, nawis blatu przed frontami"], ["wzm", "wzmocnienia"], ["blat", "blat (grubość, wierzch od podłogi)"]];
 function MakWymiaryMenu({ wym, ustaw }) {
   const [otw, setOtw] = useState(false);
   const ref = useRef(null);
@@ -23248,9 +23403,23 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         return <label key="blatgl" className="flex items-center justify-between gap-2 border-b border-stone-100 py-1 text-xs"><span className="text-stone-500">Głębokość blatu (od ściany){rtB ? ` — teraz ${fmt(Math.round(rtB.depth))}${rtB.reczna ? ", wpisana" : ", z szafek"}` : ""}</span>
           <span className="flex items-center gap-1"><input type="number" step="5" defaultValue={run.blatGl ?? ""} placeholder={auto != null ? String(auto) : "auto"} key={`${run.id}-blatgl-${run.blatGl ?? ""}`} data-pole="ciag-blatgl"
             onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-            onBlur={(e) => { const t = e.currentTarget.value.trim(), v = t === "" ? null : Math.round(Number(t)); if ((v || null) !== (run.blatGl || null)) ciag.setRun(run.id, { blatGl: v > 0 ? v : null }); }}
+            onBlur={(e) => { const t = e.currentTarget.value.trim(), v = t === "" ? null : Math.round(Number(t)); if ((v || null) !== (run.blatGl || null)) ciag.setRun(run.id, { blatGl: v > 0 ? v : null, ...(v > 0 ? { blatNawis: null } : {}) }); }}
             className="w-24 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />
             {run.blatGl ? <Btn el="mak-ciag-blatgl-auto" onClick={() => ciag.setRun(run.id, { blatGl: null })}>auto</Btn> : null}</span></label>; })()] : []),
+      /* ile blat wystaje przed fronty (uzytkownik 2026-11-12: „brak informacji, ile blat wystaje przed fronty”) — teraz, z kolorem
+         normy (ponizej 1 mm blad, 1–20 w normie, ponad 20 ostrzezenie) i pole do wpisania nawisu (glebokosc = lico drzwi + nawis) */
+      ...(!wisi && run.worktop ? [(() => { const rtB = runTop(project, run); if (!rtB || rtB.wysieg == null) return null;
+        const w = Math.round(rtB.wysieg), kol = w < WORKTOP_MIN_OVERHANG ? "text-red-700" : w > WORKTOP_MAX_OVERHANG ? "text-amber-700" : "text-teal-700";
+        return <div key="nawis" className="border-b border-stone-100 py-1 text-xs" data-el="mak-ciag-nawis">
+          <label className="flex items-center justify-between gap-2"><span className="text-stone-500">Blat przed frontami — <span className={`font-medium ${kol}`} data-el="mak-ciag-nawis-teraz">teraz {fmt(w)} mm</span></span>
+            <span className="flex items-center gap-1"><input type="number" step="1" defaultValue={run.blatNawis ?? ""} placeholder={String(w)} key={`${run.id}-nawis-${run.blatNawis ?? ""}-${run.blatGl ?? ""}`} data-pole="ciag-nawis"
+              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+              onBlur={(e) => { const t = e.currentTarget.value.trim(), v = t === "" ? null : Math.round(Number(t)); if (v !== (run.blatNawis ?? null) && (v == null || Number.isFinite(v))) ciag.setRun(run.id, { blatNawis: v, ...(v != null ? { blatGl: null } : {}) }); }}
+              className="w-16 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" /><span className="text-stone-500">mm</span>
+              {run.blatNawis != null ? <Btn el="mak-ciag-nawis-auto" onClick={() => ciag.setRun(run.id, { blatNawis: null })}>auto</Btn>
+                : w !== WORKTOP_OVERHANG ? <Btn el="mak-ciag-nawis-10" onClick={() => ciag.setRun(run.id, { blatNawis: WORKTOP_OVERHANG, blatGl: null })}>{fmt(WORKTOP_OVERHANG)} mm</Btn> : null}</span></label>
+          <p className="text-[11px] text-stone-500">do lica drzwi {fmt(Math.round(rtB.doLica))} mm od ściany · w normie {fmt(WORKTOP_MIN_OVERHANG)}–{fmt(WORKTOP_MAX_OVERHANG)} mm, najlepiej {fmt(WORKTOP_OVERHANG)}</p>
+        </div>; })()] : []),
       ...(tryb === "szczegolowa" ? [
         takNie("wieniec", "Wspólny wieniec z płyty (zamiast blatu roboczego)", run.wspolnyWieniec, (v) => ciag.setRun(run.id, { wspolnyWieniec: v }), "mak-ciag-wieniec"),
         takNie("dno", "Wspólne dno na całym ciągu", run.wspolneDno, (v) => ciag.setRun(run.id, { wspolneDno: v }), "mak-ciag-dno")] : []),
@@ -23686,6 +23855,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     return { idx, prawa, x: prawa ? r.right : r.left, y: r.top, h: r.height };
   };
   const naPoczatek = (e) => {
+    // widoki podgladu (z boku, z gory, 45°, 3D) — bez przeciagania szafek i sprzetu (zmiany w widoku „Z przodu”)
+    if (e.target.closest && e.target.closest("[data-el=mak-widok-inny]")) return;
     const h = e.target.closest && e.target.closest("[data-u]");
     if (!h && e.button === 0) {
       const sb = e.target.closest && e.target.closest("[data-el=wyciecie-blatu][data-idx], [data-el=na-blacie][data-idx]");
@@ -24511,9 +24682,13 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           onClick={(e) => {
             if (przesuwany) { przesunNa(e); return; }
             // sprzet na blacie / wyciecie w blacie (rysunek ciagu) — karta sprzetu
-            const sb = e.target.closest && e.target.closest("[data-el=wyciecie-blatu][data-idx], [data-el=na-blacie][data-idx]");
-            if (sb) { pokazAgd({ i: Number(sb.getAttribute("data-idx")), rodz: sb.getAttribute("data-el") === "na-blacie" ? "nb" : "wyc", k: Number(sb.getAttribute("data-k")) }); return; }
+            const sb = e.target.closest && e.target.closest("[data-el=wyciecie-blatu][data-idx], [data-el=na-blacie][data-idx], [data-el=agd-z-boku][data-idx]");
+            if (sb) { pokazAgd({ i: Number(sb.getAttribute("data-idx")), rodz: sb.getAttribute("data-el") === "na-blacie" || sb.getAttribute("data-rodz") === "nb" ? "nb" : "wyc", k: Number(sb.getAttribute("data-k")) }); return; }
             const g = e.target.closest && e.target.closest("[data-el=makieta-szafka]");
+            // widoki inne niz „Z przodu” (z boku, z gory, 45°, 3D) to podglad: klik obok szafki (albo koniec obracania 3D) nie zdejmuje zaznaczenia
+            const inny = e.target.closest && e.target.closest("[data-el=mak-widok-inny]");
+            if (inny && (!g || inny.getAttribute("data-widok") === "3d")) { ostatniKlik.current = null; return; }
+            if (inny) { wybierz(Number(g.getAttribute("data-idx"))); ostatniKlik.current = null; return; }
             if (!g) { setZaznM(false); ostatniKlik.current = null; return; }
             // wlasny dwuklik: pierwszy klik zaznacza i przerysowuje, wiec przegladarka nie zawsze laczy klikniecia
             const idx = Number(g.getAttribute("data-idx")), h0 = e.target.closest("[data-u]");
@@ -24573,7 +24748,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           );
           return (
             <div data-el="mak-widok-inny" data-widok={w}>
-              {w === "bok" && (zCiagow ? <AssemblySideView project={projRys} runs={rysowane} showDims />
+              {w === "bok" && (zCiagow ? <AssemblySideView project={projRys} runs={rysowane} showDims onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />
                 : geo0 && <SideView cab={it0.cab} geo={geo0} mat={it0.mat} showDims showHardware={false} />)}
               {w === "gora" && (zCiagow ? <AssemblyTopView project={projRys} runs={rysowane} showDims showShelves showHardware={false} onPick={wybierz} zazn={zaznM ? project.active : null} />
                 : geo0 && <TopView cab={it0.cab} geo={geo0} mat={it0.mat} showDims showShelves showHardware={false} />)}
@@ -24585,10 +24760,12 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                   <input type="range" min={0} max={110} step={1} value={kat3d} data-el="mak-3d-kat" onChange={(e) => setKat3d(Number(e.target.value))} className="w-32 accent-teal-700" />
                   <span className="w-10 font-mono text-xs text-stone-500">{kat3d}°</span></label>}
               </div>}
-              {w === "3d" && obracany(zCiagow ? <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} rpOf={rpOf} />
+              {w === "3d" && obracany(zCiagow ? <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} rpOf={rpOf} agd={przel.agd !== false} />
                 : geo0 && <Scene3D cab={it0.cab} geo={geo0} mat={it0.mat} open={widokRys === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} />)}
-              {w === "iso" && <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} yaw={-Math.PI / 4} pitch={-0.45} angle={kat3d} rpOf={rpOf} />}
-              <p className="mt-1 text-[11px] text-stone-500">{w === "3d" ? "Przeciągnij, żeby obrócić. " : ""}Zmiany na rysunku — w widoku „Z przodu”; tu podgląd.</p>
+              {/* 45° — klik zaznacza szafke (uzytkownik 2026-11-12); 3D — obracanie, bez zaznaczania */}
+              {w === "iso" && <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} yaw={-Math.PI / 4} pitch={-0.45} angle={kat3d} rpOf={rpOf}
+                onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />}
+              <p className="mt-1 text-[11px] text-stone-500">{w === "3d" ? "Przeciągnij, żeby obrócić (tu bez zaznaczania szafek). " : w === "iso" || w === "bok" || w === "gora" ? "Kliknij szafkę, żeby ją zaznaczyć. " : ""}Zmiany na rysunku — w widoku „Z przodu”; tu podgląd.</p>
             </div>
           );
         })()}
@@ -26252,7 +26429,14 @@ export default function App() {
       setProject((p) => ({ ...p, items: p.items.map((x, k) => (k === Number(ix) ? { ...x, offset: Number(d), cab: { ...x.cab, slupek: true } } : x)) })); return; }
     if (action.startsWith("wallw:")) { const [, v, id] = action.split(":"); if (id && Number(v) > 0) setRun(id, { wallW: Number(v) }); return; }
     // „blatgl:<mm albo 0>:<ciąg>” — reczna glebokosc blatu ciagu (0 — automatycznie)
-    if (action.startsWith("blatgl:")) { const [, v, id] = action.split(":"); if (id) setRun(id, { blatGl: Number(v) > 0 ? Number(v) : null }); return; }
+    if (action.startsWith("blatgl:")) { const [, v, id] = action.split(":"); if (id) setRun(id, { blatGl: Number(v) > 0 ? Number(v) : null, blatNawis: null }); return; }
+    // „blatnawis:<mm>:<ciąg>” — blat wystaje tyle przed fronty (glebokosc = lico drzwi + nawis)
+    if (action.startsWith("blatnawis:")) { const [, v, id] = action.split(":"); if (id) setRun(id, { blatNawis: Math.round(Number(v) || 0), blatGl: null }); return; }
+    /* „odsun:<mm>:<ciąg>” — caly ciag do przodu (odsuniecie od sciany, przy podlodze i pod blatem), blat z arkusza wystaje mniej */
+    if (action.startsWith("odsun:")) { const [, v, id] = action.split(":"); const r = (project.runs || []).find((x) => x.id === id);
+      if (r) { const g0 = wallGapOf(r, null), d = Math.round(Number(v) || 0);
+        setRun(id, { wallGap: migrateWallGap({ bottom: g0.bottom + d, top: (r.wallGap && r.wallGap.top != null) ? g0.top + d : null }) }); }
+      return; }
     if (!runInfo) return;
     if (action === "plinthauto") { setRun(runInfo.run.id, { plinthCuts: null, plinthCutsWlasne: [] }); return; }
     if (action === "topauto") { setRun(runInfo.run.id, { topCuts: null, topCutsWlasne: [] }); return; }

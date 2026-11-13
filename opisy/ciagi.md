@@ -10,6 +10,15 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 - **Głębokość blatu wpisana ręcznie** (karta ciągu w makiecie: „Głębokość blatu (od ściany)”, `run.blatGl`; 2026-11-12):
   zastępuje głębokość z szafek (lico drzwi + 10 mm, arkusz 600); arkusz — najmniejszy, z którego się ją wytnie. Za płytki
   (fronty wystają przed blat) — ostrzeżenie z przyciskami „Blat N mm” i „Głębokość blatu automatycznie” (`blatgl`).
+- **Blat przed frontami — nawis** (użytkownik 2026-11-12): dobrze 10 mm (`WORKTOP_OVERHANG`), co najmniej 1 mm
+  (`WORKTOP_MIN_OVERHANG`; mniej — **błąd**: blat nie zasłania frontów od góry), do 20 mm w normie (`WORKTOP_MAX_OVERHANG`, wcześniej 30),
+  ponad 20 mm — **ostrzeżenie**: „przytnij blat od ściany albo wysuń szafki ciągu do przodu”. Z szafek: cały arkusz 600, dopóki
+  wystaje najwyżej 20 mm, dalej domyślnie docięty na 10 mm (ostrzeżenie z „Zamów cały arkusz” / „Zamów blat docięty” i
+  „Wysuń szafki ciągu o N mm do przodu” — akcja `odsun`, odsunięcie ciągu od ściany o N, przy podłodze i pod blatem);
+  od 1 do 9 mm — informacja z „Zmniejsz głębokość szafek”. Nawis wpisany w karcie Ciąg („Blat przed frontami — teraz N mm”,
+  pole `ciag-nawis`, `run.blatNawis`) — głębokość blatu = lico drzwi + nawis, także po zmianie szafek; przyciski w uwagach
+  „Blat 10 mm przed frontami” (`blatnawis`). Wpisanie głębokości blatu czyści nawis i odwrotnie. Na rzucie z góry
+  (szczegółowa, „Wymiary → z góry”) wymiar „nawis N” (`mak-wym-nawis`), z boku „blat N (M przed frontem)”.
 - **Słupek równo z blatem**: drzwi słupka wysuniętego (tył przy ścianie) nie mogą wyjść przed blat — „Za głęboki słupek:
   drzwi wystają N mm przed blat” z przyciskami „Głębokość szafki …” (płytszy, tył zostaje przy ścianie) i „Blat … mm”.
   Zmiana głębokości wysuniętej szafki zmienia jej wysunięcie o tyle samo — tył zostaje przy ścianie

@@ -1257,3 +1257,10 @@ i `mak-niesiesz` przy przeciaganiu plyty), audyt projektu v38: nozki wysunietego
 (`cab.nozkiCofnij`). Zostaje w projekcie uzytkownika: kaseta plyty nad „Szafka 1” wchodzi w lezace wzmocnienie
 przednie (przyciski przy uwadze), plyta za blisko konca blatu. Pelny przebieg v221 (d324799): 169 suit, 5440 OK, 0 bledow;
 losowe 66 / 0. Lekcja: testowac tak, jak klika uzytkownik (paleta → przyciski karty po kolei), a nie tylko gotowe stany.
+[AI-INFO] 2026-11-12 (wieczor): klik w szafke w 45° (`Assembly3D` `onPick` — kazda bryla niesie `idx` szafki, `kto`) i z boku
+(`AssemblySideView` `onPick`, profile ze wspolnym ksztaltem: kolejny klik — nastepna szafka); w 3D bez zaznaczania; w widokach
+podgladu (`mak-widok-inny`) bez przeciagania i klik obok nie odznacza. Wyposazenie w 45° / 3D (`boxAgd` — bez audytu bryl, to nie
+formatki) i z boku (sprzet w slupku, plyta, zlew, AGD na blacie, wzmocnienia, kolizja kasety ze wzmocnieniem na czerwono).
+Nawis blatu: `run.blatNawis`, zasada 1 / 10 / 20 (`WORKTOP_MIN_OVERHANG` / `WORKTOP_OVERHANG` / `WORKTOP_MAX_OVERHANG`, wczesniej
+30), akcje `blatnawis`, `odsun`. Test: `makieta14`. „Brakuje 13 mm” u uzytkownika = kaseta plyty 13 mm pod blatem w lezacym
+wzmocnieniu (nie nawis) — teraz widac to z boku.

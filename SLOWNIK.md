@@ -248,6 +248,8 @@ Narożnik · Cokół · Blat · Wieszanie. Pusta podsekcja się nie pokazuje.
 | wysokość słupka 1800 / 2000 / 2120 / 2200 / „równo z górnymi” (`mak-slupek-wys`), „dół szafek górnych od podłogi” (`mak-gorny-dol`, `mak-gorny-krok`, `mak-gorny-dom`) | `cab.H`; `run.clearance` (górny przy dolnym) albo `run.mountY` — `tierMountY` |
 | „wysunięcie przed lico ciągu” (karta Szafka, `data-pole="wysuniecie"`), wymiary z góry (`mak-wym-zgory`, „Wymiary → z góry”) | `item.offset`; `AssemblyTopView` (`glebWym`), `wallGapOf(run).bottom`, `runTop(...).depth` |
 | „Głębokość blatu (od ściany)” w karcie Ciąg (`data-pole="ciag-blatgl"`, „auto”) | `run.blatGl` → `runTopLiczy` (`reczna`), uwagi `blatgl` |
+| „Blat przed frontami — teraz N mm” w karcie Ciąg (`mak-ciag-nawis`, pole `ciag-nawis`, „10 mm”, „auto”), wymiar „nawis N” z góry (`mak-wym-nawis`) | `run.blatNawis` → `runTopLiczy` (`reczna`, `nawisWpisany`), `rt.wysieg`; `WORKTOP_MIN_OVERHANG` / `WORKTOP_OVERHANG` / `WORKTOP_MAX_OVERHANG` (1 / 10 / 20); uwagi `worktopMsgs`, akcje `blatnawis`, `odsun` |
+| klik w szafkę w 45° i z boku, obrys (`data-zazn`, `zaznaczona-z-boku`), wyposażenie w 45° / 3D / z boku (`plyta-szklo`, `pole-grzewcze`, `zlew-rant`, `bateria`, `agd-z-boku`, `sprzet-z-boku`, `wzm-z-boku`, `kolizja-z-boku`) | `Assembly3D` (`onPick`, `zazn`, `agd`, `boxAgd`, `kto`), `AssemblySideView` (`onPick`, `zazn`, `agd`, `szynyCab`) |
 | przełącznik „AGD” (`data-p="agd"`), 3D / 45°: „otwarte / zamknięte” i „kąt” (`mak-3d-otwarcie`, `mak-3d-kat`) | `przel.agd`, `kat3d` w `MakietaWidok` |
 | „Szerszy fix N mm — drzwi M mm”, „Luz w rogu N mm” (uwaga o kolizji skrzydła w rogu) | `openingMsgs` (`zFixem`, `zLuzem`), akcje `slepyfix`, `rogluz` |
 | wzmocnienie domyślnie 70 mm | `WZM_DOM`, `newRail`, `railPair` |
@@ -643,6 +645,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 
 | Suita | Pilnuje |
 |---|---|
+| `makieta14` | klik w szafkę w 45° i z boku (w 3D bez), płyta / sprzęt w słupku w 45°, 3D i z boku, „AGD” wyłączone, kaseta we wzmocnieniu z boku na czerwono, nawis blatu (pole w Ciągu, wymiar z góry, błąd < 1, ostrzeżenie > 20, „Blat 10 mm przed frontami”, „Wysuń szafki ciągu o N mm do przodu”) |
 | `makieta13` | reszta różnic z makietą „Dodaj”: „Szuflada + drzwi” (Szuflady i Drzwi, front 170 / 200, u góry / na dole, 1 drzwi, „Szuflada typowa”), chwyt całej szuflady (górna / dolna połowa), dwuklik — wysokość frontu, płyta indukcyjna z góry i z przodu, zlew z baterią, piekarnik przeciągnięty na słupek (ramki, własny poziom), „Przesuń do innej szafki”, „Przesuń w ciągu”, „Co zrobi program”, lodówka 2 fronty — dolny 700 |
 | `makieta9` | podstawy kreatora w makiecie: nazwa szafki, „Kopiuj obok”, „Usuń szafkę”, poziomy szafki + / −, przegroda pozioma przeciągana, „Szafa z szufladami” z palety; biurko z kontenerem z palety (kontener z prawej → z lewej, wnętrze 450, „bez”, wzmocnienie 300 przy nogach, uwaga o kolejności montażu, formatka „Wzmocnienie tylne … × 300”, zaślepki, bez zawieszek) |
 | `makieta10` | makieta szczegółowa — karty szczegółowe: nagłówek (ikona, opis z szerokościami kolumn i licznikami), Korpus i plecy (płyta, HDF we frezie, fronty wewnątrz, blat z płyty), Wzmocnienia kolumny 2 (leżące, na dole z tyłu, wkręty, zdjęcie), Wycięcia (narożnik z prawej, 150, zdjęcie) |

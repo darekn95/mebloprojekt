@@ -489,6 +489,15 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
 - **Przełącznik „AGD”** (jak w makiecie „Dodaj”, 2026-11-12): wyłączony — bez sprzętu na rysunku (wnęki puste, płyta i zlew
   jako samo wycięcie, bez sprzętu na blacie); domyślnie włączony (`przel.agd !== false`).
 - **3D i 45°**: przycisk „otwarte / zamknięte” (ten sam co „Fronty”) i suwak kąta 0–110° (`kat3d`), jak w trybie technicznym.
+- **Klik w widokach podglądu** (2026-11-12: „na widoku 45 stopni nie da się zaznaczyć szafki”, „klikalność szafek poza 3D”):
+  z boku, z góry i 45° klik w szafkę ją zaznacza (45° — obrys bryły na zielono, każda ściana bryły ma numer szafki;
+  z boku — profil wspólny dla kilku szafek: kolejny klik zaznacza następną), klik obok nie zdejmuje zaznaczenia;
+  w 3D (obracanym) — bez zaznaczania. W widokach podglądu nie ma przeciągania (zmiany — w widoku „Z przodu”).
+- **Wyposażenie we wszystkich widokach**: 45° i 3D — płyta (ciemne szkło, pola grzewcze jako kwadraty, kaseta pod blatem),
+  zlew (rant, komory, bateria), sprzęt na blacie, sprzęt w słupku; z boku — sprzęt w słupku (bryła i front), szkło płyty i
+  kaseta, komora zlewu z baterią, sprzęt na blacie (klik — karta sprzętu) oraz wzmocnienia pod blatem; kaseta / komora
+  wchodząca we wzmocnienie szafki pod nią — część wspólna na czerwono i „kaseta we wzmocnieniu” (to samo, co błąd w uwagach).
+  Przełącznik „AGD” chowa to wszystko także w 45°, 3D i z boku.
 - **Karta płyty**: kaseta między bokami szafki — „Kaseta 554 mm we wnętrzu szafki 564 mm: zapas 5 / 5 mm”; wycięcie na boku —
   błąd w „Uwagach” (to sprawdzał program już wcześniej).
 - **Wnęka sprzętu w słupku niższa niż sprzęt** — program sam ją podnosi do wnęki sprzętu (`slupkiSprzetNorma`).
