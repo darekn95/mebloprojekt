@@ -34,7 +34,7 @@ src = src.replace(/export default function App/, 'function App');
 const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice', 'buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
-  'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems'];
+  'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1239,6 +1239,20 @@ console.log('\n== Wzmocnienia domyślnie 70 mm (użytkownik 2026-11-12) ==');
   ok('para pod blat: leżące 70 mm w głąb, tylne stojące 70 mm wysokości', r.length === 2 && r[0].orient === 'shelf' && r[0].depth === 70 && r[1].h === 70, JSON.stringify(r.map((q) => [q.orient, q.depth, q.h])));
   const g = G0.computeGeo(G0.migrateCab({ ...c, ...G0.bezWienca(c, 18) }, M0), M0);
   ok('konfirmaty na końcu wzmocnienia 70: 18 i 53 mm od krawędzi', JSON.stringify(g.levels[0].cols[0].rails[0].laczniki.map((l) => l.poz)) === '[[18,53],[18,53]]', JSON.stringify(g.levels[0].cols[0].rails[0].laczniki));
+}
+
+console.log('\n== Biurko: płyta z tyłu na mimośrodach (użytkownik 2026-11-13, oś 34 mm, katalog GTV s. 248) ==');
+{
+  const c = G0.migrateCab(G0.makeFromTemplate('biurko'), M0);
+  G0.biurkoUstawLaczenie(c, 'mimosrody');
+  const g = G0.computeGeo(c, M0);
+  const r = g.levels[0].cols.flatMap((k) => (k.rails || []).filter((q) => q.przyTyle));
+  ok('łączniki płyty 300: mimośrody na obu końcach, po 2', r.length === 1 && r[0].laczniki.every((l) => l.moc === 'mimosrody' && l.poz.length === 2), JSON.stringify(r.map((q) => q.laczniki)));
+  const hw = (re) => g.hardware.find((h) => re.test(h.name));
+  ok('zamówienie (płyta 18): mimośród ⌀15 × 13 i trzpień 6,3 × 45 — po 4 szt., bez konfirmatów płyty', (hw(/^Mimośród ⌀15 × 13/) || {}).qty === 4 && (hw(/^Trzpień do mimośrodu 6,3 × 45/) || {}).qty === 4
+    && !/wzmocnienia/.test((hw(/^Konfirmat/) || {}).spec || ''), g.hardware.map((h) => `${h.name}:${h.qty}`).join(' | '));
+  const w = (g.drillPlan || []).flatMap((p) => p.rows.filter((q) => /mimośród/.test(q.kind)).map((q) => q.note));
+  ok('plan wierceń: w boku ⌀5 × 12 pod trzpień; we wzmocnieniu ⌀8 × 34 w czole i ⌀15 × 13, oś 34 mm od czoła', w.length === 2 && w.every((n) => /⌀5 × 12/.test(n) && /⌀8 × 34/.test(n) && /⌀15 × 13/.test(n) && /oś 34 mm od czoła/.test(n)), JSON.stringify(w));
 }
 
 console.log('\n== Wzmocnienia na konfirmatach (użytkownik 2026-11-06) ==');

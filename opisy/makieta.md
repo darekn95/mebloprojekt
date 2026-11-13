@@ -301,9 +301,17 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
   bok po tej stronie; (2) bok przy nogach; (3) dno i wzmocnienia 100 do przegrody — od strony nóg; (4) bok przy kontenerze;
   (5) blat — trójkąty od spodu; (6) prowadnice i szuflady. Konfirmaty z obu stron przegrody są na różnych wysokościach
   (300 u góry, 100 i dno na dole), więc się nie zasłaniają.
+  **Łączenie płyty z tyłu** (makieta „Dodaj”, decyzja użytkownika 2026-11-13): w karcie biurka „Wzmocnienie z tyłu — łączenie
+  z bokami”: „konfirmaty + zaślepki” (domyślnie) albo „kołki z mimośrodami” (`biurkoUstawLaczenie`, `mocowanie: "mimosrody"`
+  tylnych wzmocnień kolumny nóg). Mimośrody wg katalogu GTV 2023 s. 248–249: mimośród ⌀15 w płycie (×13 do płyty 18 — na
+  zamówienie, ×12 do 16; do 16 mm komplet WK-CAM-15-DOW63X45-KPL-1T), oś `MIMO_OS` = 34 mm od czoła, trzpień 6,3 × 45 (gwint
+  11 mm w boku, 45 − 11 = 34). Położenia jak konfirmaty (2 na koniec płyty 300). Plan wierceń: w boku / przegrodzie ⌀5 × 12,
+  we wzmocnieniu w czole ⌀8 × 34 i od wnętrza ⌀15 × 13. Zamówienie: mimośród + trzpień na złącze (bez konfirmatów i zaślepek
+  płyty). Kolejność montażu (`biurkoMsgs`): trzpienie w boki → płyta na trzpienie jednej płyty (przegrody kontenera) → dosuń
+  drugi bok → mimośrody od przodu pod blatem → blat (trzpienie wystają 34 mm, więc płyty nie wsunie się między stojące boki).
+  Ceny mimośrodu i trzpienia — do wpisania w cenniku (domyślnie 0).
 
 ## Co ustawiasz ręcznie
-
 - Pomieszczenie, ciąg, szafka i widok — przyciski z rozwijaną listą. Ciąg domyślnie: ciąg
   zaznaczonej szafki z piętrem nad nim (cały pokój na raz jest za drobny do chwytania półek);
   „Wszystkie ciągi” — cały pokój i szafki wolnostojące; „Tylko zaznaczona szafka” — duży rysunek

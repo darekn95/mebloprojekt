@@ -281,6 +281,26 @@ await zakl('wzmocnienia');
   p = await czekaj('p.items[0].cab.levels.some((l) => l.cols.some((k) => (k.rails || []).some((r) => r.orient === "vertical")))');
   ok('klik „Pionowe” — wzmocnienie pionowe w szafce', p.items[0].cab.levels.some((l) => l.cols.some((k) => (k.rails || []).some((r) => r.orient === 'vertical')))); }
 
+console.log('== biurko: łączenie płyty z tyłu — konfirmaty albo mimośrody (decyzja 2026-11-13, oś 34 mm) ==');
+await start('prosta', CIAG + `p.runs[0].zabudowa = 'szafa'; p.runs[0].worktop = false;`, PRZOD);
+await zakl('dodaj');
+{ const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded').catch(() => 'true')) !== 'true') await sek.click().catch(() => {}); await page.waitForTimeout(200); }
+await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="biurkoK"]').click();
+p = await czekaj('p.items.some((x) => x.cab.top && x.cab.top.mode === "blat" && x.cab.back === "none")');
+await zakl('szafka');
+ok('karta biurka: „Wzmocnienie z tyłu — łączenie z bokami”, domyślnie konfirmaty', (await page.locator('[data-el="mak-biurko-lacz"][data-v="konfirmaty"]').getAttribute('aria-pressed').catch(() => '')) === 'true');
+await page.locator('[data-el="mak-biurko-lacz"][data-v="mimosrody"]').click();
+p = await czekaj('p.items[p.active].cab.levels[0].cols.some((k) => (k.rails || []).some((r) => r.mocowanie === "mimosrody"))');
+{ const bi = p.items[p.active];
+  ok('„kołki z mimośrodami”: płyta 300 przy nogach na mimośrodach', bi.cab.levels[0].cols.some((k) => (k.rails || []).some((r) => r.h === 300 && r.fromBack && r.mocowanie === 'mimosrody')));
+  await page.waitForTimeout(400);
+  ok('opis w karcie: mimośrody ⌀15, oś 34 mm, trzpienie 6,3 × 45', /mimośrody ⌀15 w płycie \(oś 34 mm od czoła/.test(await page.locator('[data-el="mak-biurko-info"]').innerText().catch(() => '')));
+  ok('uwagi: kolejność montażu na mimośrodach (trzpienie, płyta na trzpienie przegrody, dosuń bok, mimośrody od przodu, blat na końcu)',
+    /kolejność montażu na mimośrodach/.test(await uw.innerText().catch(() => ''))); }
+await page.locator('[data-el="mak-biurko-lacz"][data-v="konfirmaty"]').click();
+p = await czekaj('!p.items[p.active].cab.levels[0].cols.some((k) => (k.rails || []).some((r) => r.mocowanie === "mimosrody"))');
+ok('powrót do konfirmatów', !p.items[p.active].cab.levels[0].cols.some((k) => (k.rails || []).some((r) => r.mocowanie === 'mimosrody')));
+
 ok('bez błędów strony', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
