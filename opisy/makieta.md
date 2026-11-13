@@ -309,7 +309,8 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
   we wzmocnieniu w czole ⌀8 × 34 i od wnętrza ⌀15 × 13. Zamówienie: mimośród + trzpień na złącze (bez konfirmatów i zaślepek
   płyty). Kolejność montażu (`biurkoMsgs`): trzpienie w boki → płyta na trzpienie jednej płyty (przegrody kontenera) → dosuń
   drugi bok → mimośrody od przodu pod blatem → blat (trzpienie wystają 34 mm, więc płyty nie wsunie się między stojące boki).
-  Ceny mimośrodu i trzpienia — do wpisania w cenniku (domyślnie 0).
+  W zamówieniu jedna pozycja „Mimośród z trzpieniem” (`MIMO_NAME`, kody GTV w opisie) — cena 0,30 zł za komplet
+  (użytkownik 2026-11-13: „100 szt. za 30 zł”, `DEFAULT_HW_PRICES`).
 
 ## Co ustawiasz ręcznie
 - Pomieszczenie, ciąg, szafka i widok — przyciski z rozwijaną listą. Ciąg domyślnie: ciąg

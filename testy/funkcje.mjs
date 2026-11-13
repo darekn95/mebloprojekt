@@ -1249,8 +1249,10 @@ console.log('\n== Biurko: płyta z tyłu na mimośrodach (użytkownik 2026-11-13
   const r = g.levels[0].cols.flatMap((k) => (k.rails || []).filter((q) => q.przyTyle));
   ok('łączniki płyty 300: mimośrody na obu końcach, po 2', r.length === 1 && r[0].laczniki.every((l) => l.moc === 'mimosrody' && l.poz.length === 2), JSON.stringify(r.map((q) => q.laczniki)));
   const hw = (re) => g.hardware.find((h) => re.test(h.name));
-  ok('zamówienie (płyta 18): mimośród ⌀15 × 13 i trzpień 6,3 × 45 — po 4 szt., bez konfirmatów płyty', (hw(/^Mimośród ⌀15 × 13/) || {}).qty === 4 && (hw(/^Trzpień do mimośrodu 6,3 × 45/) || {}).qty === 4
-    && !/wzmocnienia/.test((hw(/^Konfirmat/) || {}).spec || ''), g.hardware.map((h) => `${h.name}:${h.qty}`).join(' | '));
+  const mm = hw(/^Mimośród z trzpieniem$/) || {};
+  ok('zamówienie (płyta 18): „Mimośród z trzpieniem” 4 szt. — mimośród ⌀15 × 13 (WK-CAM-15-13-D) + trzpień 6,3 × 45 (WK-DOW63X45B-D), bez konfirmatów płyty',
+    mm.qty === 4 && /WK-CAM-15-13-D/.test(mm.spec || '') && /WK-DOW63X45B-D/.test(mm.spec || '') && !/wzmocnienia/.test((hw(/^Konfirmat/) || {}).spec || ''), g.hardware.map((h) => `${h.name}:${h.qty}`).join(' | '));
+  ok('cena: komplet 0,30 zł (100 szt. za 30 zł)', G0.hwDefaultPrice(mm) === 0.3, String(G0.hwDefaultPrice(mm)));
   const w = (g.drillPlan || []).flatMap((p) => p.rows.filter((q) => /mimośród/.test(q.kind)).map((q) => q.note));
   ok('plan wierceń: w boku ⌀5 × 12 pod trzpień; we wzmocnieniu ⌀8 × 34 w czole i ⌀15 × 13, oś 34 mm od czoła', w.length === 2 && w.every((n) => /⌀5 × 12/.test(n) && /⌀8 × 34/.test(n) && /⌀15 × 13/.test(n) && /oś 34 mm od czoła/.test(n)), JSON.stringify(w));
 }

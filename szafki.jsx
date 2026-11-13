@@ -466,6 +466,8 @@ const DEFAULT_HW_PRICES = {
   "Zaślepka na konfirmat": 0.7, // blister 25 szt.
   Uchwyt: 10,
   "Konfirmat 7 × 50": 0.1,
+  // komplet mimosrod + trzpien — 100 szt. za 30 zl (uzytkownik 2026-11-13)
+  "Mimośród z trzpieniem": 0.3,
   "Kołek podporowy ⌀5": 0.1,
   "Zawieszka meblowa regulowana": 3,
   "Listwa montażowa do zawieszek": 9, // za metr
@@ -17312,9 +17314,12 @@ const trojkatyNaKoncu = (len, druga) => (len >= KONF_DWA_OD
    katalog GTV 2023 s. 248–249 w `instrukcje/`): mimosrod ⌀15 w plycie (×12 do plyty 16, ×13 do 18), trzpien 6,3 z gwintem 11 mm
    w boku — przy osi 34 mm trzpien 6,3 × 45 (45 − 11 = 34). Komplet KPL jest do plyty 16 mm; do 18 — mimosrod i trzpien osobno. */
 const MIMO_OS = 34, MIMO_GWINT = 11;
-const mimoOkucia = (t) => (Math.round(t) <= 16
-  ? [{ name: "Komplet mimośród + trzpień 6,3 × 45 (GTV WK-CAM-15-DOW63X45-KPL-1T)", spec: "mimośród ⌀15 × 12 i trzpień 6,3 × 45 — do płyty 16 mm" }]
-  : [{ name: "Mimośród ⌀15 × 13 (GTV WK-CAM-15-13-D)", spec: "do płyty 18 mm, na zamówienie" }, { name: "Trzpień do mimośrodu 6,3 × 45 (GTV WK-DOW63X45B-D)", spec: `gwint ${MIMO_GWINT} mm w boku, oś mimośrodu ${MIMO_OS} mm od czoła` }]);
+/* Jedna pozycja w zamowieniu — komplet mimosrod z trzpieniem, tak jak sie go kupuje (uzytkownik 2026-11-13: „mimośród z trzpieniem
+   100 szt. za 30 zł”); kody GTV w opisie, zaleznie od grubosci plyty */
+const MIMO_NAME = "Mimośród z trzpieniem";
+const mimoOkucia = (t) => [{ name: MIMO_NAME, spec: Math.round(t) <= 16
+  ? `komplet GTV WK-CAM-15-DOW63X45-KPL-1T (mimośród ⌀15 × 12, trzpień 6,3 × 45) — do płyty 16 mm`
+  : `mimośród ⌀15 × 13 (GTV WK-CAM-15-13-D, do płyty 18 mm, na zamówienie) + trzpień 6,3 × 45 (GTV WK-DOW63X45B-D); oś ${MIMO_OS} mm od czoła, gwint ${MIMO_GWINT} mm w boku` }];
 const lacznikiNaKoncu = (len, moc) => {
   // trojkaty meblowe — po 2 na koniec, jak przy przegrodzie (50 mm od krawedzi, waskie — 1/5 i 3/5)
   if (moc === "trojkaty") return len >= 30 ? trojkatyNaKoncu(len, false) : len >= 14 ? [Math.round(len / 2)] : [];
@@ -21791,7 +21796,8 @@ function makWylicz(cab, geo, d, p) {
   }
   if (d.u === "przeg") {
     const n = lv.cols[lv.cols.indexOf(col) + 1]; if (!n) return null;
-    const suma = col.w + n.w, w = Math.max(MAK_MIN_KOL, Math.min(suma - MAK_MIN_KOL, r10(p.x - geo.t / 2 - col.x0)));
+    // `d.sw` — swiatlo lewej kolumny wpisane (dwuklik na przegrodzie), inaczej z punktu przeciagniecia
+    const suma = col.w + n.w, w = Math.max(MAK_MIN_KOL, Math.min(suma - MAK_MIN_KOL, d.sw != null ? Math.round(d.sw) : r10(p.x - geo.t / 2 - col.x0)));
     const xx = col.x0 + w + geo.t / 2;
     return { wartosc: w, napis: `↔${w} · ↔${Math.round(suma - w)}`, linia: [xx, H - lv.y1, xx, H - lv.y0],
       zmien: (c) => { const rawCols = c.levels[d.li].cols; if (rawCols.length !== lv.cols.length) return;
@@ -23138,7 +23144,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   const wskazowka = { szafka: "Na rysunku: prawa krawędź — szerokość, górna — wysokość; z góry przód — głębokość (zielone znaczki).",
     polki: "Liczba półek przyciskami; wysokość — przeciągnij półkę na rysunku (liczby: światło pod i nad nią) albo dwuklik / prawy przycisk na półce: światło pod i nad nią, „Usuń tę półkę”. Drążek przeciągnij do innego światła (zielony znaczek).",
     szuflady: "Liczba szuflad przyciskami; wysokość frontów — przeciągnij linię między szufladami na rysunku.",
-    przegroda: "Liczba kolumn przyciskami; szerokość — przeciągnij przegrodę na rysunku w lewo albo w prawo.",
+    przegroda: "Liczba kolumn przyciskami; szerokość — przeciągnij przegrodę na rysunku w lewo albo w prawo albo dwuklik / prawy przycisk na przegrodzie: wpisz światło.",
     drzwi: "Front każdej kolumny i otwieranie: uchwyt albo tip-on, lustro; pojedyncze drzwi — zawiasy z lewej albo z prawej." }[zakladka];
   /* ---- krok 4 (uzytkownik 2026-11-09): przyciski jak w makiecie „Dodaj”, zapis do tych samych pol co tryb techniczny ---- */
   const Btn = ({ on, onClick, children, el, v }) => (
@@ -23298,6 +23304,143 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       ...(run ? [<Btn key="c" el="mak-plyta-ciag" v={k} onClick={() => ustawPlyte(k, akt, true)}>cały ciąg</Btn>] : []),
     ], "mak-plyta-wiersz");
   });
+  /* Liczba kolumn poziomu (przegroda): jak przyciski w zakladce Przegroda — nowe kolumny jak ostatnia, szerokosci auto */
+  const ustawKolumny = (li, n) => zmien(idx, (c) => {
+    const L = c.levels[li].cols;
+    if (n > L.length) { const wz = L[L.length - 1]; while (L.length < n) L.push(newColumn((wz && wz.doors) || 1, Math.max(0, ((wz && wz.shelfTargets) || [null]).length - 1))); }
+    else L.splice(n);
+    L.forEach((k) => { k.w = null; });
+    delete L[L.length - 1].noDiv; delete L[L.length - 1].przegrodaPodw;
+  });
+  /* „Kolumny — światło” (makieta „Dodaj”, 2026-11-13): pola szerokosci wnetrza kolumn poziomu; przy dwoch — lewa i prawa (jedna liczy
+     druga), „Przegroda na środek” — po rowno; kazda kolumna co najmniej MAK_MIN_KOL */
+  const kolumnySwiatlo = (li, tuZak = false) => {
+    const cols = (poziomy[li] || {}).cols || [], gl = geoKarty && (geoKarty.levels || []).find((q) => q.i === li);
+    if (cols.length < 2 || !gl) return null;
+    const szer = gl.cols.filter((q) => typeof q.j === "number").map((q) => Math.round(q.w)), suma = szer.reduce((a, b) => a + b, 0);
+    const ustaw = (j, v) => zmien(idx, (c) => {
+      const L = c.levels[li].cols, n = L.length; if (!(v >= MAK_MIN_KOL)) return;
+      if (n === 2) { const lewa = j === 0 ? v : suma - v; if (lewa < MAK_MIN_KOL || suma - lewa < MAK_MIN_KOL) return; L[0].w = Math.round(lewa); L[1].w = null; return; }
+      if (j < n - 1) { L[j].w = Math.round(v); L[n - 1].w = null; }
+    });
+    const nazwa = (j) => (cols.length === 2 ? (j === 0 ? "lewa" : "prawa") : `kol. ${j + 1}`);
+    return <div key={`ksw${li}`} data-el="mak-kol-swiatlo" className="border-b border-stone-100 py-1 text-xs">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-stone-500">Kolumny — światło{poziomy.length > 1 ? ` (poziom ${li + 1})` : ""}</p>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+        {szer.map((w, j) => <label key={j} className="flex items-center gap-1"><span className="text-stone-500">{nazwa(j)}</span>
+          {cols.length > 2 && j === cols.length - 1 ? <b className="font-mono" data-el="mak-kol-swiatlo-auto">{fmt(w)}</b>
+            : <input type="number" step="10" defaultValue={w} key={`${li}-${j}-${w}`} data-el="mak-kol-swiatlo-pole" data-v={j} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+              onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v !== w) ustaw(j, v); }}
+              className="w-16 rounded border border-stone-300 px-1 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />}</label>)}
+        <span className="text-stone-500">mm</span>
+        {cols.some((k) => k.w != null) && <Btn el="mak-przegroda-srodek" onClick={() => zmien(idx, (c) => { c.levels[li].cols.forEach((k) => { k.w = null; }); })}>{cols.length === 2 ? "Przegroda na środek" : "Kolumny po równo"}</Btn>}
+      </div>
+      <p className="mt-0.5 text-[11px] text-stone-500">{tuZak ? "Przegrodę przeciągnij na rysunku w lewo albo w prawo albo kliknij ją dwa razy i wpisz." : "Przegrodę przesuniesz też na rysunku w zakładce Przegroda."} Każda kolumna co najmniej {MAK_MIN_KOL} mm.</p>
+    </div>;
+  };
+  /* Pelna karta w zakladce Szafka (makieta „Dodaj”: zakladka Szafka pokazuje wszystko — front, szuflady, wnetrze, swiatlo kolumn;
+     uzytkownik 2026-11-13: „sprawdź wszystko po kolei, żeby już nie wracać”) — dla szafki z jednym poziomem; szczegoly kolumn,
+     poziomow i podzialow dalej w swoich zakladkach */
+  /* wzmocnienia w karcie Szafka (makieta „Dodaj”): dolna w kuchni — lezace, stojace, pionowe i para pod blat (jak klocek „Para pod
+     blat”: lezace z przodu + tylne stojace); wysoka i poza kuchnia — tylko pionowe. Przelacza we wszystkich kolumnach poziomu;
+     mocowanie i trojkaty — zakladka Wzmocnienia */
+  const wzmWiersz = (cols) => {
+    const dolnaK = rodzK === "kuchnia" && !(cab.slupek || cab.H > 1500) && !(run && run.tier === "gorny");
+    const typy = dolnaK ? ["lezace", "stojace", "pionowe"] : ["pionowe"];
+    const ma = (t) => cols.every((k) => (k.rails || []).some((r) => r && t.jest(r)));
+    const przelacz = (ks) => zmien(idx, (c) => { const L = c.levels[0].cols, ts = ks.map((kk) => MAK_WZM.find((x) => x.k === kk)), wl = ts.every((t) => L.every((k) => (k.rails || []).some((r) => r && t.jest(r))));
+      L.forEach((k) => ts.forEach((t) => { const jest = (k.rails || []).some((r) => r && t.jest(r)); if (jest === wl) makPrzelaczWzm(k, t); })); });
+    const tP = ["lezace", "tylne"].map((kk) => MAK_WZM.find((x) => x.k === kk));
+    return wiersz("szwzm", "Wzmocnienia", [
+      ...typy.map((kk) => { const t = MAK_WZM.find((x) => x.k === kk); return <Btn key={kk} el="mak-sz-wzm" v={kk} on={ma(t)} onClick={() => przelacz([kk])}>wzm. {t.l}</Btn>; }),
+      ...(dolnaK ? [<Btn key="para" el="mak-sz-wzm" v="para" on={tP.every(ma)} onClick={() => przelacz(["lezace", "tylne"])}>para pod blat</Btn>] : []),
+    ], "mak-sz-wzm-w");
+  };
+  const hint = (k, t) => <p key={k} className="border-b border-stone-100 py-1 text-[11px] text-stone-500" data-el={`mak-sz-${k}`}>{t}</p>;
+  const pelnaKarta = (() => {
+    if (biurko || cab.sprzetCiagu) return [];
+    const slupKuch = (cab.slupek || cab.H > 1500) && rodzK === "kuchnia", sd = makSzufDrzwiUklad(cab);
+    if (sd) {
+      /* uklad „szuflada + drzwi”: front jak w makiecie; inny front — z powrotem jeden poziom z kolumna drzwi */
+      const kD = poziomy[sd.dr].cols[0];
+      const jeden = (fn) => zmien(idx, (c) => { const st = makSzufDrzwiUklad(c); if (st) c.levels = [{ ...c.levels[st.dr], h: null }]; fn(c.levels[0].cols[0]); });
+      return [wiersz("szfront", "Front", [
+        ...MAK_FRONTY.map(([v, l]) => <Btn key={v} el="mak-sz-front" v={v} on={false} onClick={() => jeden((kk) => ustawFront(kk, v))}>{l}</Btn>),
+        ...[1, 2, 3, 4].map((n) => <Btn key={`s${n}`} el="mak-sz-front" v={`szu-${n}`} on={false} onClick={() => jeden((kk) => ustawSzuflady(kk, n))}>{n} {plural(n, "szuflada", "szuflady", "szuflad")}</Btn>),
+        <Btn key="szd" el="mak-sz-front" v="szuflada-drzwi" on>Szuflada + drzwi</Btn>], "mak-sz-front-w"),
+        hint("szd-hint", `Szuflada ${sd.dol ? "na dole, nad nią" : "u góry, pod nią"} ${sd.drzwi === 2 ? "dwoje drzwi" : "drzwi"}. Miejsce szuflady, liczbę drzwi i wysokość szuflady zmienisz w zakładce Szuflady.`),
+        wiersz("szwn", "Wnętrze", [<span key="l" className="text-[11px] text-stone-500">półki za drzwiami</span>,
+          <Btn key="m" el="mak-sz-polki" v="0:-1" onClick={() => makIlePolek(kD) > 0 && zmienKol(sd.dr, 0, (kk) => makUstawPolki(kk, makIlePolek(kk) - 1))}>−</Btn>,
+          <b key="n" className="w-5 text-center font-mono text-xs" data-el="mak-sz-polki-n">{makIlePolek(kD)}</b>,
+          <Btn key="p" el="mak-sz-polki" v="0:1" onClick={() => zmienKol(sd.dr, 0, (kk) => makUstawPolki(kk, makIlePolek(kk) + 1))}>+</Btn>], "mak-sz-wnetrze")];
+    }
+    if (poziomy.length !== 1) return [hint("poziomy", "Front i wnętrze poziomów — zakładki Drzwi i klapy, Szuflady i Półki (kliknij kolumnę na rysunku).")];
+    const cols = poziomy[0].cols || [];
+    if (cols.some((k) => k.sprzet)) return [hint("sprzet", "W szafce stoi sprzęt — wnękę wokół niego ustawi program. Sprzęt zmienisz w Dodaj → AGD.")];
+    if (!cols.every((k) => makKolumnaProsta(k))) return [hint("poziomy", "Podział kolumn na poziomy — zakładki Drzwi i klapy, Szuflady i Półki.")];
+    const out = [], k0 = cols[0];
+    if (cols.length === 1) {
+      const fk = frontKol(k0), szuf = k0.kind === "drawers" ? (k0.drawers || []).length : 0;
+      out.push(wiersz("szfront", "Front", [
+        ...MAK_FRONTY.map(([v, l]) => <Btn key={v} el="mak-sz-front" v={v} on={fk === v} onClick={() => zmienKol(0, 0, (kk) => ustawFront(kk, v))}>{l}</Btn>),
+        ...(slupKuch ? [] : [1, 2, 3, 4].map((n) => <Btn key={`s${n}`} el="mak-sz-front" v={`szu-${n}`} on={szuf === n} onClick={() => zmienKol(0, 0, (kk) => ustawSzuflady(kk, n))}>{n} {plural(n, "szuflada", "szuflady", "szuflad")}</Btn>)),
+        ...(slupKuch || cab.H > 1500 || k0.sprzet ? [] : [<Btn key="szd" el="mak-sz-front" v="szuflada-drzwi" on={false} onClick={() => zmien(idx, (c) => makUstawSzufDrzwi(c, { sys: systemKontekstu(project, idx), geoF: makGeoKopii(it.mat, ciagStoi(run) && !cab.naPodlodze) }))}>Szuflada + drzwi</Btn>]),
+      ], "mak-sz-front-w"));
+      if (slupKuch) out.push(hint("slupek-szuflady", "W słupku szuflad nie ma — dodasz je pod sprzętem, gdy w słupku stoi piekarnik albo mikrofala."));
+    } else out.push(hint("fronty-kolumn", "Front każdej kolumny — zakładka Drzwi i klapy (kliknij kolumnę na rysunku)."));
+    if (cols.length === 1 && k0.kind === "drawers") {
+      const g = geoKarty && (geoKarty.levels || [])[0], dr = (((g && g.cols[0]) || {}).drawers || []).slice().sort((a, b) => a.y - b.y);
+      if (dr.length) out.push(hint("szuflady-wys", `Wysokości szuflad od dołu: ${dr.map((d) => fmt(Math.round(d.h))).join(" · ")} mm. Zmienisz je w zakładce Szuflady: przeciągając linię między szufladami.`));
+      if ((k0.drawers || []).some((d) => d.front != null)) out.push(<span key="prs" className="block">{poRowno("front", "Szuflady po równo")}</span>);
+      out.push(hint("same-szuflady", "Same szuflady — półek ani przegrody tu nie ma. Wybierz drzwi albo „Szuflada + drzwi”, żeby je dodać."));
+      out.push(wzmWiersz(cols));
+      return out;
+    }
+    const mozeDrazek = cab.H >= 1400 || rodzK === "szafa";
+    out.push(wiersz("szwn", "Wnętrze", [
+      ...cols.flatMap((k, j) => ((k.kind || "doors") !== "doors" ? [] : [
+        <span key={`l${j}`} className="text-[11px] text-stone-500">{cols.length === 1 ? "półki" : `półki ${cols.length === 2 ? (j === 0 ? "lewa" : "prawa") : `kol. ${j + 1}`}`}</span>,
+        <Btn key={`m${j}`} el="mak-sz-polki" v={`${j}:-1`} onClick={() => makIlePolek(k) > 0 && zmienKol(0, j, (kk) => makUstawPolki(kk, makIlePolek(kk) - 1))}>−</Btn>,
+        <b key={`n${j}`} className="w-5 text-center font-mono text-xs" data-el="mak-sz-polki-n">{makIlePolek(k)}</b>,
+        <Btn key={`p${j}`} el="mak-sz-polki" v={`${j}:1`} onClick={() => zmienKol(0, j, (kk) => makUstawPolki(kk, makIlePolek(kk) + 1))}>+</Btn>])),
+      <Btn key="prz" el="mak-sz-przegroda" on={cols.length > 1} onClick={() => ustawKolumny(0, cols.length > 1 ? 1 : 2)}>Przegroda</Btn>,
+      ...(mozeDrazek ? [<Btn key="dr" el="mak-sz-drazek" on={cols.some((k) => (k.drazki || []).length)} onClick={() => zmien(idx, (c) => {
+        const L = c.levels[0].cols, ma = L.some((k) => (k.drazki || []).length);
+        L.forEach((k) => { if (ma) delete k.drazki; else if ((k.kind || "doors") === "doors") k.drazki = [makIlePolek(k)]; });
+      })}>Drążek</Btn>] : []),
+    ], "mak-sz-wnetrze"));
+    if (cols.length > 1) out.push(kolumnySwiatlo(0));
+    if (cols.some((k) => (k.shelfTargets || []).some((v) => v != null))) out.push(<span key="prp" className="block">{poRowno("shelfTargets", "Półki po równo")}</span>);
+    if (cols.some((k) => makIlePolek(k) > 0)) out.push(hint("polki-hint", "Wysokość półek zmienisz w zakładce Półki: przeciągając półkę albo dwuklikiem (światło)."));
+    out.push(wzmWiersz(cols));
+    return out;
+  })();
+  /* podpowiedz do wysokosci (makieta „Dodaj”): dolna w kuchni — pod blat jak caly ciag, szafa — cokol pod spodem, wolnostojaca —
+     korpus z noznkami / calkowita z cokolem w obrysie / biurko — do wierzchu blatu */
+  /* biurko (makieta „Dodaj”): liczba szuflad kontenera 2 / 3 / 4, ich wysokosci od dolu, „Szuflady po równo”, miejsce na nogi */
+  const biurkoKontSzuf = () => {
+    if (!biurko) return [];
+    const gl = geoKarty && (geoKarty.levels || [])[0], out = [];
+    if (biurko.kont) {
+      const kK = biurko.cols[biurko.kolK], nrS = (kK.segmenty || []).findIndex((sg) => sg && sg.kind === "drawers");
+      const jA = kK.kind === "drawers" ? biurko.kolK : nrS >= 0 ? `${biurko.kolK}s${nrS}` : null;
+      const seg = kK.kind === "drawers" ? kK : (kK.segmenty || [])[nrS] || {}, n = (seg.drawers || []).length;
+      const gK = gl && gl.cols.find((q) => q.j === biurko.kolK), dr = ((gK && gK.drawers) || []).slice().sort((a, b) => a.y - b.y);
+      if (jA != null) out.push(wiersz("kontsz", "szuflady w kontenerze", [2, 3, 4].map((v) => <Btn key={v} el="mak-kontener-sz" v={v} on={n === v}
+        onClick={() => n !== v && zmienKol(0, jA, (kk) => makUstawSzuflady(kk, v, systemKontekstu(project, idx)))}>{v} {plural(v, "szuflada", "szuflady", "szuflad")}</Btn>), "mak-kontener-sz"));
+      if (dr.length) out.push(hint("kont-wys", `Wysokości szuflad od dołu: ${dr.map((d) => fmt(Math.round(d.h))).join(" · ")} mm — w zakładce Szuflady chwyć szufladę na rysunku i przeciągnij w górę / w dół, dwuklik — wpisz wysokość.`));
+      if (jA != null && (seg.drawers || []).some((d) => d.front != null)) out.push(<button key="kontrowno" data-akcja="porowno-kontener" onClick={() => zmienKol(0, jA, (kk) => { (kk.drawers || []).forEach((d) => { d.front = null; }); })}
+        className="mt-1 rounded border border-teal-600 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-50">Szuflady po równo</button>);
+    }
+    const gN = gl && gl.cols.find((q) => q.j === (biurko.kont === "L" ? 1 : 0));
+    if (gN && gN.w > 0) out.push(hint("nogi", `Miejsce na nogi między ${biurko.kont ? "bokiem a kontenerem" : "bokami"}: ${fmt(Math.round(gN.w))} mm.`));
+    return out;
+  };
+  const pod0 = cab.plinth && cab.plinth.on ? Math.round(cab.plinth.height || 0) : 0, nozki0 = cab.legs && cab.legs.on ? Math.round(cab.legs.height || 0) : 0;
+  const wysHint = biurko ? "Do wierzchu blatu (blat na bokach)."
+    : rodzK === "wolnostojaca" ? (geoKarty && geoKarty.plinthInBody && pod0 ? `Całkowita, z cokołem ${fmt(pod0)} mm w obrysie.` : nozki0 ? `Korpus — nóżki ${fmt(nozki0)} mm pod spodem.` : null)
+    : rodzK === "szafa" && !(run && run.tier === "gorny") ? (pod0 || nozki0 ? `Wysokość korpusu — ${pod0 ? `cokół ${fmt(pod0)}` : `nóżki ${fmt(nozki0)}`} mm pod spodem.` : null)
+    : rodzK === "kuchnia" && run && run.tier !== "gorny" && !(cab.slupek || cab.H > 1500) && !cab.sprzetCiagu ? `Wysokość ${fmt(Math.round(cab.H))} — pod blat, jak cały ciąg dolny.` : null;
   if (zakladka === "szafka") tresc = [...naglowekSzafki, <Pole key="pW" k="W" l="Szerokość" />,
     // szerokosci jak w makiecie „Dodaj” (rodzaj zabudowy ciagu; wolnostojaca — tez wysokosci)
     ...(cab.sprzetCiagu ? [] : [chips("mak-szer", szerChips, cab.W, (v) => zmien(idx, (c) => { c.W = v; }))]),
@@ -23305,7 +23448,9 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     ...(slupekWysW ? [slupekWysW] : []),
     ...(run && run.tier === "gorny" ? [gornaWlasnaW, gornyDolW("gdol"), gornyGoraW("ggora")] : []),
     ...(rodzK === "wolnostojaca" ? [chips("mak-wys", MAK_WYS_WOLNA, cab.H, (v) => (run && zmienWys ? zmienWys(idx, v) : zmien(idx, (c) => { c.H = v; })))] : []),
+    ...(wysHint ? [hint("wys-hint", wysHint)] : []),
     <Pole key="pD" k="D" l="Głębokość" />,
+    ...pelnaKarta,
     // bez wiersza „Ciąg” (uzytkownik 2026-11-09: „widać to na górze rysunku” — przycisk „Ciąg ▾”)
     /* szafka w ciagu -> wolnostojaca (uzytkownik 2026-11-10: „brak w opcji szafki, żeby wyłączyć ją z ciągu”): zostaje
        w pomieszczeniu ciagu, bez `runId`; ciag (i jego blat) liczy sie juz bez niej */
@@ -23341,6 +23486,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       <Btn key={v || "bez"} el="mak-kontener" v={v || "bez"} on={(biurko.kont || "") === v} onClick={() => zmien(idx, (c) => biurkoUstawKontener(c, v || null))}>{l}</Btn>), "mak-kontener"),
       ...(biurko.kont ? [wiersz("kontw", "kontener — szerokość wnętrza", BIURKO_KONT_W.map((v) =>
         <Btn key={v} el="mak-kontener-w" v={v} on={Math.round(biurko.cols[biurko.kolK].w || 0) === v} onClick={() => zmien(idx, (c) => biurkoUstawKontener(c, biurko.kont, v))}>{v}</Btn>), "mak-kontener-w")] : []),
+      ...biurkoKontSzuf(),
       wiersz("wzmlacz", "Wzmocnienie z tyłu — łączenie z bokami", [["konfirmaty", "konfirmaty + zaślepki"], ["mimosrody", "kołki z mimośrodami"]].map(([v, l]) =>
         <Btn key={v} el="mak-biurko-lacz" v={v} on={biurkoLaczenie(cab) === v} onClick={() => zmien(idx, (c) => biurkoUstawLaczenie(c, v))}>{l}</Btn>), "mak-biurko-lacz"),
       <p key="bhint" className="text-[11px] text-stone-500" data-el="mak-biurko-info">Z tyłu pod blatem płyta {BIURKO_WZM} mm{biurko.kont ? " między bokiem a kontenerem" : " między bokami"} — {biurkoLaczenie(cab) === "mimosrody"
@@ -23569,7 +23715,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
           L.forEach((k) => { k.w = null; });
           delete L[L.length - 1].noDiv; delete L[L.length - 1].przegrodaPodw;
         })}>{n}</Btn>) : [<span key="t" className="text-[11px] text-stone-500">podział na poziomy kolumny — w trybie Technicznym</span>], "mak-poziom");
-    }), poRowno("w", "Kolumny po równo")];
+    }).flatMap((w, li) => [w, kolumnySwiatlo(li, true)]).filter(Boolean), ...(poziomy.length > 1 ? [poRowno("w", "Kolumny po równo — wszystkie poziomy")] : [])];
   }
   /* Karta „Ciąg” (uzytkownik 2026-11-11): ustawienia calego ciagu zaznaczonej szafki — te same pola co karta ciagu w trybie
      technicznym (`setRun`, `setRunShared`): nazwa, wysokosc i glebokosc szafek, luz miedzy korpusami, odsuniecie od sciany,
@@ -23778,11 +23924,54 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
           className="flex w-full items-center justify-between gap-2 rounded-md bg-teal-700 px-2.5 py-2 text-left text-xs font-semibold text-white shadow-sm hover:bg-teal-800">
           <span>Wszystkie opcje<span className="block text-[10px] font-normal text-teal-50">{MAK_PELNE[zakladka][0]}</span></span><span aria-hidden="true" className="text-base">›</span></button>)}
       <div>{tresc}</div>
+      {/* „Co zrobi program” i podpowiedz w kazdej zakladce szafki (makieta „Dodaj”: pod karta kazdej zakladki) */}
+      {["drzwi", "szuflady", "polki", "przegroda", "wzmocnienia"].includes(zakladka) && (() => { const co = makCoZrobiSzafka(cab, geoKarty, run, it.mat);
+        return <div data-el="mak-co-zrobi-w" className="border-b border-stone-100 py-1.5">
+          {co && <><p className="mb-0.5 text-[11px] font-medium uppercase tracking-wider text-stone-500">Co zrobi program</p><p className="text-[11px] text-stone-600" data-el="mak-co-zrobi">{co}</p></>}
+          <p className="mt-0.5 text-[11px] text-stone-500" data-el="mak-cala-w-szafce">Całą szafkę (szerokość, wysokość, przesuwanie) zmienisz w zakładce Szafka.</p>
+        </div>; })()}
       {wskazowka && <p className="text-[11px] text-teal-800" data-el="makieta-wskazowka">{wskazowka}</p>}
       <p className="text-[11px] text-stone-500">
         {tryb === "szczegolowa" ? "Makieta szczegółowa: zmiany idą od razu do projektu (formatki, okucia, uwagi). Rzadsze ustawienia — przycisk „Wszystkie opcje” albo tryb Techniczny."
           : "Makieta prosta: zmiany idą od razu do projektu (formatki, okucia, uwagi). Czego tu nie ma — w trybie Technicznym."}
       </p>
+    </div>
+  );
+}
+
+/* Lista szafek ciagu pod karta Szafka (makieta „Dodaj”: „Ciąg dolny (N)” / „Ciąg górny (N)” / „W ciągu” / „Na rysunku” z × przy
+   kazdej pozycji): klik wybiera szafke, × usuwa (jak „Usuń szafkę” w karcie). Ciag zaznaczonej szafki i ciag gorny nad nim. */
+function MakListaCiagu({ project, idx, wybierz, usun, rodzaj }) {
+  const it = project.items[idx];
+  if (!it) return null;
+  const runs = project.runs || [], run = it.runId ? runs.find((r) => r.id === it.runId) : null;
+  const dolny = run && (run.tier === "gorny" ? runs.find((r) => r.id === run.wall) : run);
+  const sekcje = dolny ? [[rodzaj === "kuchnia" ? "Ciąg dolny" : "W ciągu", runItems(project, dolny.id)],
+    ...runs.filter((r) => r.tier === "gorny" && r.wall === dolny.id).map((g) => ["Ciąg górny", runItems(project, g.id)])]
+    : run ? [["Ciąg górny", runItems(project, run.id)]]
+    : [["Na rysunku", itemsInRoom(project, roomOfItem(project, it)).filter(({ it: x }) => !x.runId)]];
+  const opis = (c) => (c.sprzetCiagu ? (wolneCiagu(c) ? `${fmt(c.W)} mm · bez szafki` : `${fmt(c.W)} mm · ${sprzetCiagu(c).pelna} (karta w Dodaj → AGD)`)
+    : `${fmt(c.W)} × ${fmt(c.H)} × ${fmt(c.D)} mm`);
+  return (
+    <div className="space-y-2" data-el="mak-lista-ciagu">
+      {sekcje.filter(([, l]) => l.length).map(([t, lista], si) => (
+        <div key={si}>
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-stone-500">{t} ({lista.length})</p>
+          <ul className="space-y-1">
+            {lista.map(({ it: x, i }) => (
+              <li key={i} aria-current={i === idx} data-el="mak-lista-szafka" data-idx={i}
+                className={`flex items-center gap-2 rounded-md border px-2 py-1 text-[12px] ${i === idx ? "border-teal-600 bg-teal-50" : "border-stone-200"}`}>
+                <button className="min-w-0 flex-1 text-left" data-el="mak-lista-wybierz" onClick={() => wybierz(i)}>
+                  <b className="block font-medium text-stone-800">{x.cab.name || "Szafka"}</b><span className="block text-[11px] text-stone-500">{opis(x.cab)}</span>
+                </button>
+                {usun && <button data-el="mak-lista-usun" aria-label={`Usuń ${x.cab.name || "szafkę"}`} title="Usuń"
+                  onClick={() => usun(i)}
+                  className="rounded px-1.5 text-stone-400 hover:bg-stone-100 hover:text-red-700">×</button>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
@@ -23910,16 +24099,31 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     setSzuflWys({ idx, li, j, k, n: L.dr.length, h: Math.round(a.h), x: e.clientX, y: e.clientY });
     return true;
   };
+  /* dwuklik / prawy przycisk na przegrodzie (makieta „Dodaj”: „kliknij ją dwa razy i wpisz”): swiatlo kolumny z lewej i z prawej
+     (jedno liczy drugie), kazda co najmniej MAK_MIN_KOL */
+  const [przegOkno, setPrzegOkno] = useState(null);
+  const otworzPrzegrode = (idx, h, e) => {
+    const geo = geoRysunku.current[idx], li = Number(h.getAttribute("data-li")), j = Number(h.getAttribute("data-j"));
+    const lv = geo && makLv(geo, li), a = lv && lv.cols.find((q) => q.j === j), b = a && lv.cols[lv.cols.indexOf(a) + 1];
+    if (!a || !b) return false;
+    setMenuCo(null); setSwiatloPolki(null); setSzuflWys(null);
+    setPrzegOkno({ idx, li, j, wL: Math.round(a.w), wP: Math.round(b.w), x: e.clientX, y: e.clientY });
+    return true;
+  };
   useEffect(() => {
-    if (!menuCo && !swiatloPolki && !szuflWys) return undefined;
-    const esc = (e) => { if (e.key === "Escape") { setMenuCo(null); setSwiatloPolki(null); setSzuflWys(null); } };
-    const poza = (e) => { if (!(e.target.closest && e.target.closest("[data-el=mak-menu-co], [data-el=mak-swiatlo], [data-el=mak-szuflada-wys]"))) { setMenuCo(null); setSwiatloPolki(null); setSzuflWys(null); } };
+    if (!menuCo && !swiatloPolki && !szuflWys && !przegOkno) return undefined;
+    const zamknijOkna = () => { setMenuCo(null); setSwiatloPolki(null); setSzuflWys(null); setPrzegOkno(null); };
+    const esc = (e) => { if (e.key === "Escape") zamknijOkna(); };
+    const poza = (e) => { if (!(e.target.closest && e.target.closest("[data-el=mak-menu-co], [data-el=mak-swiatlo], [data-el=mak-szuflada-wys], [data-el=mak-przegroda-okno]"))) zamknijOkna(); };
     window.addEventListener("keydown", esc); document.addEventListener("pointerdown", poza, true);
     return () => { window.removeEventListener("keydown", esc); document.removeEventListener("pointerdown", poza, true); };
-  }, [menuCo, swiatloPolki, szuflWys]);
+  }, [menuCo, swiatloPolki, szuflWys, przegOkno]);
   const wybierz = (i) => { setZaznM(true); switchCabinet(i); };
   const dodaj = (...a) => { dodaj0(...a); setZaznM(true); };
   // „Dodaj” — rozwiniety wybor (pamieta przegladarka)
+  // „Wzory szafek” nad karta Szafka (zwiniete / rozwiniete; pamieta przegladarka)
+  const [wzoryOtw, setWzoryOtw] = useState(() => { try { return localStorage.getItem("mp-mak-wzory") === "1"; } catch (e) { return false; } });
+  useEffect(() => { try { localStorage.setItem("mp-mak-wzory", wzoryOtw ? "1" : "0"); } catch (e) { /* bez pamieci */ } }, [wzoryOtw]);
   const [dodajCo, setDodajCo] = useState(() => { try { const v = localStorage.getItem("mp-mak-dodaj"); return v === "" ? null : v || "szafki"; } catch (e) { return "szafki"; } });
   useEffect(() => { try { localStorage.setItem("mp-mak-dodaj", dodajCo || ""); } catch (e) { /* bez pamieci */ } }, [dodajCo]);
   /* Karta do schowania (uzytkownik 2026-11-09: „nie musi być wyświetlana zawsze — wtedy rysunek większy”): klik
@@ -24776,15 +24980,28 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           ) : zaznM && aktIt ? (<>
             {/* klocki „Półka” / „Drążek” nad karta Polek takze przy zaznaczonej szafce (uzytkownik 2026-11-10: „brakuje znaczka
                 dołożenia półki do przeciągnięcia w wybrane miejsce, drążek nie jako przycisk obok każdej przestrzeni”) */}
-            {(akt === "polki" || akt === "wzmocnienia") && <div data-el="mak-klocki-karty">
+            {/* klocki nad karta w kazdej zakladce z klockami, wzory szafek (zwiniete) w zakladce Szafka — jak w makiecie „Dodaj” (2026-11-13) */}
+            {MAK_KLOCKI_ZAKL[akt] && <div data-el="mak-klocki-karty">
               <MakietaPaleta zakladka={akt} rodzaj={rodzaj} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
                 project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
                 zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); setZnacznik(null); }} />
+            </div>}
+            {akt === "szafka" && <div data-el="mak-wzory-nad-karta" className="rounded-md border border-stone-200">
+              <button data-el="mak-wzory-przelacz" aria-expanded={wzoryOtw} onClick={() => setWzoryOtw((v) => !v)}
+                className="flex w-full items-center justify-between gap-2 px-2 py-1 text-left text-[11px] font-medium uppercase tracking-wider text-stone-500 hover:bg-stone-50">
+                <span>Wzory szafek — dołóż do ciągu</span><span aria-hidden="true">{wzoryOtw ? "▾" : "▸"}</span></button>
+              {wzoryOtw && <div className="border-t border-stone-200 p-2">
+                <MakietaPaleta zakladka="szafka" rodzaj={rodzaj} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+                  project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
+                  zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); setZnacznik(null); }} />
+              </div>}
             </div>}
             <MakietaKarta project={project} idx={project.active} tryb={tryb} zakladka={akt} zmien={zmien} zmienWys={zmienWys} zmienProjekt={zmienProjekt} ciag={ciag} pelneOpcje={pelneOpcje} przesunSzafke={przesunSzafke}
               geoOf={(i) => geoRysunku.current[i]} onOdznacz={() => setZaznM(false)}
               kolZ={kolZ && kolZ.idx === project.active ? kolZ : null} wybierzKol={(k) => setKolZ(k ? { idx: project.active, ...k } : null)}
               kopiuj={kopiuj} usun={usunPozycje ? (i) => { usunPozycje(i); setZaznM(false); } : null} />
+            {akt === "szafka" && <MakListaCiagu project={project} idx={project.active} rodzaj={rodzaj} wybierz={wybierz}
+              usun={usunPozycje ? (i) => { const bylaZazn = i === project.active; usunPozycje(i); if (bylaZazn) setZaznM(false); } : null} />}
           </>) : (
             <div className="space-y-2" data-el="mak-bez-zaznaczenia">
               <p className="rounded-md bg-stone-50 px-2 py-1.5 text-[12px] text-stone-600">
@@ -24950,6 +25167,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
             if (!(pop && pop.k === klucz && t - pop.t < 450)) return;
             if (h && h.getAttribute("data-u") === "polka" && otworzPolke(idx, h, e)) return;
             if (h && h.getAttribute("data-u") === "szuflSz" && otworzSzuflade(idx, h, e)) return;
+            if (h && h.getAttribute("data-u") === "przeg" && otworzPrzegrode(idx, h, e)) return;
             setMenuCo({ idx, x: e.clientX, y: e.clientY });
           }}
           onContextMenu={(e) => {
@@ -24960,6 +25178,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
             // prawy przycisk na polce — to samo okienko co dwuklik (uzytkownik 2026-11-10)
             if (h && h.getAttribute("data-u") === "polka" && otworzPolke(idx, h, e)) return;
             if (h && h.getAttribute("data-u") === "szuflSz" && otworzSzuflade(idx, h, e)) return;
+            if (h && h.getAttribute("data-u") === "przeg" && otworzPrzegrode(idx, h, e)) return;
             wybierz(idx); setMenuCo({ idx, x: e.clientX, y: e.clientY });
           }} style={lg || pelny ? undefined : { maxHeight: "calc(100vh - 175px)" }}>
         {widokM !== "przod" && (() => {
@@ -25106,6 +25325,43 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                 className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" /><span>mm</span>
               <button data-el="mak-szuflada-wys-ok" onClick={(e) => zapisz(Math.round(Number(e.currentTarget.parentNode.querySelector("input").value)))}
                 className="ml-auto rounded bg-teal-700 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-teal-800">OK</button>
+            </div>
+          </div>
+        );
+      })()}
+      {/* Okienko przegrody: swiatlo lewej / prawej kolumny (wpisane jedno — drugie przejmuje reszte) */}
+      {przegOkno && (() => {
+        const { idx, li, j, wL, wP } = przegOkno, suma = wL + wP;
+        const zapisz = (lewa) => {
+          const it = project.items[idx], geo = geoRysunku.current[idx];
+          if (it && geo && lewa >= MAK_MIN_KOL && suma - lewa >= MAK_MIN_KOL) { const w = makWylicz(it.cab, geo, { u: "przeg", li, j, sw: lewa }, null); if (w && w.zmien) zmien(idx, w.zmien); }
+          else setKomunikat(`Każda kolumna co najmniej ${MAK_MIN_KOL} mm (razem ${fmt(suma)} mm).`);
+          setPrzegOkno(null);
+        };
+        const ok = (e) => {
+          const box = e.currentTarget.closest("[data-el=mak-przegroda-okno]");
+          const L = Math.round(Number(box.querySelector("[data-el=mak-przeg-l]").value)), P = Math.round(Number(box.querySelector("[data-el=mak-przeg-p]").value));
+          zapisz(L !== wL ? L : P !== wP ? suma - P : wL);
+        };
+        const pole = (el, v, lewa) => <input type="number" step="10" autoFocus={lewa} defaultValue={v} data-el={el}
+          onKeyDown={(e) => { if (e.key === "Enter") { const x = Math.round(Number(e.currentTarget.value)); zapisz(lewa ? x : suma - x); } }}
+          className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />;
+        return (
+          <div role="dialog" aria-label="Przegroda" data-el="mak-przegroda-okno" className="fixed z-50 w-64 rounded-lg border border-stone-200 bg-white p-2 shadow-xl"
+            style={{ left: Math.max(8, Math.min(przegOkno.x + 10, (typeof window !== "undefined" ? window.innerWidth : 1200) - 270)), top: Math.max(8, Math.min(przegOkno.y + 10, oknoH - 150)) }}>
+            <b className="block text-[12px] text-stone-900">Przegroda — światło kolumn</b>
+            <span className="block text-[11px] text-stone-500">Wpisz jedno — drugie przejmie resztę. Każda co najmniej {MAK_MIN_KOL} mm.</span>
+            <div className="mt-1.5 grid grid-cols-[1fr_auto_auto] items-center gap-x-1.5 gap-y-1 text-[11px] text-stone-600">
+              <span>z lewej</span>{pole("mak-przeg-l", wL, true)}<span>mm</span>
+              <span>z prawej</span>{pole("mak-przeg-p", wP, false)}<span>mm</span>
+            </div>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <button data-el="mak-przeg-srodek" onClick={() => {
+                // dwie kolumny — z powrotem auto (po rowno); przy wiekszej liczbie — te dwie kolumny po polowie
+                if (((project.items[idx].cab.levels[li] || {}).cols || []).length === 2) { zmien(idx, (c) => { c.levels[li].cols.forEach((k) => { k.w = null; }); }); setPrzegOkno(null); }
+                else zapisz(Math.round(suma / 2)); }}
+                className="rounded border border-stone-300 px-2 py-0.5 text-[11px] text-stone-700 hover:border-teal-600">Na środek</button>
+              <button data-el="mak-przeg-ok" onClick={ok} className="ml-auto rounded bg-teal-700 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-teal-800">OK</button>
             </div>
           </div>
         );

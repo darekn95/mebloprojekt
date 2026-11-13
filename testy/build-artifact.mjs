@@ -8,7 +8,7 @@ const PROJ = new URL("../", import.meta.url).pathname.replace(/\/$/, "");
 //   npm i @babel/standalone react@18 react-dom@18 @tailwindcss/browser
 const VENDOR = process.env.VENDOR
   || new URL("./vendorpkg/node_modules", import.meta.url).pathname;
-const OUT = new URL("./mebloprojekt-app.html", import.meta.url).pathname;
+const OUT = process.env.OUT || new URL("./mebloprojekt-app.html", import.meta.url).pathname;   // OUT — inny plik (np. w trakcie pelnego przebiegu)
 
 const require = createRequire(VENDOR + "/");
 const Babel = require("@babel/standalone");
