@@ -1097,7 +1097,7 @@ console.log('\n== Wycięcia w blacie: płyta i zlew nad szafką (użytkownik 202
   const m2 = G.worktopMsgs(P2, P2.runs[0]).map((x) => `${x.level} ${x.text}`);
   ok('płyta 50 od przodu nad parą wzmocnień: błąd — korpus płyty (60 od wierzchu, 22 pod blat) wchodzi w leżące wzmocnienie; „Wzmocnienie stojące” i „Wycięcie 60 mm od przodu” (na wycięcie we wzmocnieniu zostałby pasek 20 mm)',
     m2.some((t) => /^error .*korpus płyty sięga 60 mm od wierzchu blatu \(22 mm pod blat\), a wycięcie zaczyna się 20 mm za licem korpusu — nad leżącym wzmocnieniem przednim \(100 mm w głąb\), korpus płyty w nie wchodzi\. Postaw je na sztorc — na wycięcie we wzmocnieniu zostałby pasek 20 mm.*\|wzmblat:0:0:0:0:stoj\|wycblatu:0:0:odPrzodu:60$/.test(t)), m2.join(' // '));
-  ok('płyta 20 mm od początku blatu: ostrzeżenie „za blisko końca blatu” z przyciskiem przesunięcia o 30', m2.some((t) => /^warn .*za blisko końca blatu.*\|wycblatu:0:0:przesun:30$/.test(t)), m2.join(' // '));
+  ok('płyta 20 mm od początku blatu: ostrzeżenie „za blisko końca blatu” (co najmniej 30 mm, uzytkownik 2026-11-13) z przyciskiem przesunięcia o 10', m2.some((t) => /^warn .*za blisko końca blatu — między wycięciem a końcem blatu musi zostać co najmniej 30 mm blatu\.\|wycblatu:0:0:przesun:10$/.test(t)), m2.join(' // '));
   const P3 = projW([szW('Płyta', 450, [{ typ: 'plyta', przesun: 100 }]), szW('B', 600)]);
   const m3 = G.worktopMsgs(P3, P3.runs[0]).map((x) => `${x.level} ${x.text}`);
   ok('płyta 560 nad szafką 450: błąd „wychodzi nad bok szafki — wnętrze 414 mm” (bez przycisku — nie zmieści się)', m3.some((t) => /^error .*płyta grzewcza 560 mm wychodzi nad bok szafki — jej korpus pod blatem nie zmieści się we wnętrzu szafki \(414 mm\)\.$/.test(t)), m3.join(' // '));

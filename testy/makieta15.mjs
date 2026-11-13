@@ -136,7 +136,7 @@ console.log('== biurko z kontenerem: szuflady 2 / 3 / 4, miejsce na nogi ==');
 await start('prosta', CIAG + `p.runs[0].zabudowa = 'szafa'; p.runs[0].worktop = false;`, PRZOD);
 await zakl('dodaj');
 { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded').catch(() => 'true')) !== 'true') await sek.click().catch(() => {}); await page.waitForTimeout(200); }
-await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="biurkoK"]').click();
+await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="biurkoK"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 p = await czekaj('p.items.some((x) => x.cab.top && x.cab.top.mode === "blat" && x.cab.back === "none")');
 await zakl('szafka');
 ok('kontener: 3 szuflady wciśnięte', await wcisniety('[data-el="mak-kontener-sz"][data-v="3"]'));
@@ -214,7 +214,7 @@ await start('szczegolowa', RYS(), { zgory: true, gorny: true, dolny: true, front
 { const luzy = await page.locator('[data-el="lodowka-miejsce-rys"] [data-el="lodowka-luz"]').evaluateAll((a) => a.map((x) => Number(x.getAttribute('data-v'))));
   ok('lodówka z przodu: miejsce przerywane, luzy 50 / 50 / 100', await page.locator('[data-el="lodowka-miejsce-rys"]').count() === 1 && JSON.stringify(luzy) === '[50,50,100]', JSON.stringify(luzy)); }
 { const t = await page.locator('[data-el="lodowka-wystaje"]').first().textContent().catch(() => '');
-  ok('z góry: „wystaje N przed korpusy” przy lodówce', /^wystaje \d+ przed korpusy$/.test(t.trim()), t); }
+  ok('z góry: „wystaje N przed blat” przy lodówce (ciąg z blatem — od przodu blatu, decyzja 2026-11-13)', /^wystaje \d+ przed blat$/.test(t.trim()), t); }
 ok('kaseta płyty wchodzi we wzmocnienie — z przodu na pomarańczowo', await page.locator('[data-el="wyciecie-front"][data-typ="plyta"] [data-el="wyciecie-pod-blatem"][data-zle="1"]').count() >= 1);
 ok('komora zlewu: głębokość pod blatem podpisana (200)', (await page.locator('[data-el="wyciecie-front"][data-typ="zlew"] [data-el="wyciecie-glebokosc"]').first().textContent().catch(() => '')).trim() === '200');
 await zakl('dodaj');

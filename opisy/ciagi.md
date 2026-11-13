@@ -14,11 +14,17 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   (`WORKTOP_MIN_OVERHANG`; mniej — **błąd**: blat nie zasłania frontów od góry), do 20 mm w normie (`WORKTOP_MAX_OVERHANG`, wcześniej 30),
   ponad 20 mm — **ostrzeżenie**: „przytnij blat od ściany albo wysuń szafki ciągu do przodu”. Z szafek: cały arkusz 600, dopóki
   wystaje najwyżej 20 mm, dalej domyślnie docięty na 10 mm (ostrzeżenie z „Zamów cały arkusz” / „Zamów blat docięty” i
-  „Wysuń szafki ciągu o N mm do przodu” — akcja `odsun`, odsunięcie ciągu od ściany o N, przy podłodze i pod blatem);
+  zaleceniem „Zalecane: odsuń szafki ciągu od ściany o N mm — blat zostanie w całej szerokości arkusza (bez docinania)” — przycisk
+  „Odsuń szafki „<ciąg>” od ściany o N mm”, akcja `odsun:N:<ciąg>:<nazwa>`, odsunięcie ciągu od ściany o N, przy podłodze i pod
+  blatem; użytkownik 2026-11-13: „jeśli blat może być dłuższy, nie skracany, zalecamy odsunięcie szafki od ściany”). Blat docięty
+  z innego powodu (na życzenie) — przy docince do 100 mm to samo zalecenie jako ostrzeżenie;
   od 1 do 9 mm — informacja z „Zmniejsz głębokość szafek”. Nawis wpisany w karcie Ciąg („Blat przed frontami — teraz N mm”,
   pole `ciag-nawis`, `run.blatNawis`) — głębokość blatu = lico drzwi + nawis, także po zmianie szafek; przyciski w uwagach
   „Blat 10 mm przed frontami” (`blatnawis`). Wpisanie głębokości blatu czyści nawis i odwrotnie. Na rzucie z góry
   (szczegółowa, „Wymiary → z góry”) wymiar „nawis N” (`mak-wym-nawis`), z boku „blat N (M przed frontem)”.
+- **Różne głębokości blatów w narożniku** (np. 600 i 583) — **informacja** (od 2026-11-13; wcześniej ostrzeżenie): na styku będzie
+  uskok N mm — blat łączony na wprost, np. z zaokrąglonym przodem, tak można (zdjęcie użytkownika: 60 i 58 cm, „jest ok”). Gdy blaty
+  mają być równe: „Odsuń szafki „<płytszy ciąg>” od ściany o N mm” (gdy jego blat jest docięty) albo zmniejszenie głębokości głębszego.
 - **Słupek głębszy w licu ciągu** (bez wysunięcia, np. 580 w ciągu 560): reszta szafek stoi o różnicę od ściany (za nimi pusto),
   a blat sięga do ściany — może wyjść ponad arkusz 600. Uwaga „Blat wychodzi … za dużo na arkusz” i „różne szerokości w rogu” mówią
   wtedy o przyczynie i mają przycisk „To słupek — tył przy ścianie, front wysunięty o N mm” (`glebszeWLicu`, akcja `slupekgl`) zamiast

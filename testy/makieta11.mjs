@@ -77,7 +77,7 @@ ok('bez przycisku „drążek” przy każdym świetle', !(await page.locator('[
 p = await czekaj('p.items[0].cab.levels[0].cols[0].shelfTargets.length === 4');
 const st = kol0(p).shelfTargets;
 ok('„Półka” upuszczona nisko: nowa półka w najniższym świetle (wpisane światło pod nią)', st.length === 4 && st[0] != null && st[0] < 500, JSON.stringify(st));
-await page.locator('[data-el="mak-klocki-karty"] [data-el="mak-klocek"][data-id="drazek"]').click();
+await page.locator('[data-el="mak-klocki-karty"] [data-el="mak-klocek"][data-id="drazek"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 p = await czekaj('(p.items[0].cab.levels[0].cols[0].drazki || []).length === 1');
 ok('klik „Drążek” — w najwyższym świetle', JSON.stringify(kol0(p).drazki) === '[3]', JSON.stringify(kol0(p).drazki));
 ok('„usuń drążek” przy kolumnie z drążkiem', (await page.locator('[data-el="mak-drazek-usun"]').count()) === 1);
@@ -96,7 +96,7 @@ ok('„Dodaj”: sekcje zwinięte po kliknięciu', (await page.locator('[data-el
 await page.locator('[data-el="mak-dodaj"] [data-dodaj="elementy"]').click(); await page.waitForTimeout(250);
 ok('Elementy szafki: lustro, uchwyt, tip-on', (await page.locator('[data-el="mak-paleta"] [data-el="mak-klocek"][data-id="tipon"]').count()) === 1
   && (await page.locator('[data-el="mak-paleta"] [data-el="mak-klocek"][data-id="lustro"]').count()) === 1 && (await page.locator('[data-el="mak-paleta"] [data-el="mak-klocek"][data-id="uchwyt"]').count()) === 1);
-await page.locator('[data-el="mak-paleta"] [data-el="mak-klocek"][data-id="tipon"]').click();
+await page.locator('[data-el="mak-paleta"] [data-el="mak-klocek"][data-id="tipon"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 p = await czekaj('(p.items[0].cab.levels[0].cols[0].otwieranie || [])[0] === "tipon"');
 ok('klik „Tip-on” — drzwi zaznaczonej szafki na tip-on', (kol0(p).otwieranie || [])[0] === 'tipon');
 await zakl('szafka');

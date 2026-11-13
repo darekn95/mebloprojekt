@@ -89,7 +89,7 @@ ok('„Usuń” — sprzęt z kolumny zdjęty, karta zamknięta', !p.items[0].ca
 
 console.log('== zmywarka wolnostojąca w ciągu ==');
 ok('jeden kafelek „Zmywarka” (bez osobnej wolnostojącej)', (await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id^="zmywarka"]').count()) === 1);
-await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="zmywarka"]').click(); await page.waitForTimeout(500);
+await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="zmywarka"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await page.waitForTimeout(500);
 p = await czekaj('p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "zmywarka")');
 const nZ = p.items.length;
 await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { hasText: 'Zmywarka do zabudowy' }).click(); await page.waitForTimeout(300);
@@ -136,7 +136,7 @@ await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:pr
   localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 await dodajSek('agd');
-await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="okap"]').click(); await page.waitForTimeout(500);
+await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="okap"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await page.waitForTimeout(500);
 p = await czekaj('p.items.some((it) => it.cab.okap)');
 const io = p.items.findIndex((it) => it.cab.okap);
 ok('okap kliknięty — do zaznaczonej szafki górnej (teleskopowy 60)', io >= 0 && p.items[io].cab.name === 'Górna 2' && p.items[io].cab.okap.typ === 'teleskopowy', JSON.stringify(p.items[io] && p.items[io].cab.okap));
@@ -199,7 +199,7 @@ await page.locator('[data-el="tryb"] [data-tryb="prosta"]').click(); await page.
 await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.active = p.items.findIndex((it) => it.cab.name === 'Zlew'); localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 await dodajSek('agd');
-await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="lodowkaM"]').click(); await page.waitForTimeout(600);
+await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="lodowkaM"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await page.waitForTimeout(600);
 p = await czekaj('p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "lodowka")');
 const nL = p.items.length;
 await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { hasText: 'Lodówka wolnostojąca' }).click(); await page.waitForTimeout(400);
@@ -227,7 +227,7 @@ await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:pr
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 await dodajSek('agd');
 ok('jeden kafelek „Lodówka” (bez osobnych: do zabudowy / podblatowa / wolnostojąca)', (await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id^="lodowka"]').count()) === 1);
-await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="lodowkaM"]').click();
+await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="lodowkaM"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 p = await czekaj('p.items[p.items.length - 1].cab.levels[0].cols[0].sprzet && p.items[p.items.length - 1].cab.levels[0].cols[0].sprzet.typ === "lodowka"');
 ok('„Lodówka” na zaznaczony słupek — do zabudowy w jego kolumnie', ((p.items[p.items.length - 1].cab.levels[0].cols[0] || {}).sprzet || {}).typ === 'lodowka');
 // jeden kafelek „Mikrofala”: na szafkę pod blatem — na blat; w karcie „do zabudowy” — do najbliższego słupka z wolną kolumną
@@ -235,7 +235,7 @@ ok('jeden kafelek „Mikrofala” i „Ekspres”', (await page.locator('[data-e
 await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.active = p.items.findIndex((it) => it.cab.name === 'Płyta'); localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 await dodajSek('agd');
-await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="mikrofala"]').click();
+await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="mikrofala"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 p = await czekaj('p.items.find((it) => it.cab.name === "Płyta").cab.naBlacie && p.items.find((it) => it.cab.name === "Płyta").cab.naBlacie.length === 1');
 ok('„Mikrofala” na szafkę pod blatem — wolnostojąca na blat', ((p.items.find((it) => it.cab.name === 'Płyta').cab.naBlacie || [])[0] || {}).typ === 'mikrofala');
 await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { hasText: 'Mikrofala wolnostojąca' }).click(); await page.waitForTimeout(300);

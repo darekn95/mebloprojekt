@@ -172,9 +172,10 @@ i głębokość wycięcia, odległość od przedniej krawędzi blatu, przesunię
   arkuszu rozkroju (otwory liczone od tylnej krawędzi), w 3D zabudowy i na rzucie
   z góry ciągu (przerywany prostokąt z podpisem).
 - Kontrole (Uwagi):
-  - × wycięcie na łączeniu kawałków blatu, ! za blisko łączenia (mniej niż 50 mm) —
+  - × wycięcie na łączeniu kawałków blatu, ! za blisko łączenia (mniej niż 50 mm blatu) —
     przyciski przesunięcia w jedną albo drugą stronę;
-  - × poza blatem / ! za blisko końca blatu — przycisk przesunięcia;
+  - × poza blatem / ! za blisko końca blatu (mniej niż 30 mm blatu od końca do wycięcia — `WYCIECIE_KONIEC`, użytkownik 2026-11-13:
+    „30 mm wystarczy”) — przycisk przesunięcia;
   - × poza tyłem blatu / ! za tylną krawędzią mniej niż 50 mm — przycisk „Wycięcie N mm
     od przodu blatu”;
   - ! do przedniej krawędzi blatu mniej niż 30 mm (`WYCIECIE_PRZOD_MIN`; gdy szkło / rant nie wystaje już przed

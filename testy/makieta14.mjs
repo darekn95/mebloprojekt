@@ -134,8 +134,8 @@ await start('szczegolowa', CIAG + `p.runs[0].D = 540; p.items.forEach((x) => { x
 { const t = await uw.innerText(), m = /Cały arkusz 600 mm wystawałby przed drzwi (\d+) mm/.exec(t);
   const n = m ? Number(m[1]) : 0;
   ok('szafki 540: ostrzeżenie „wystawałby … ponad 20 mm”, domyślnie docięty', !!m && n > 20 && /ponad 20 mm/.test(t) && /zamawiamy go dociętego/.test(t), t.replace(/\s+/g, ' ').slice(0, 300));
-  const b = uw.locator('button', { hasText: `Wysuń szafki ciągu o ${n - 10} mm do przodu` });
-  ok(`przycisk „Wysuń szafki ciągu o ${n - 10} mm do przodu”`, (await b.count()) === 1);
+  const b = uw.locator('button', { hasText: `Odsuń szafki „Ściana 1” od ściany o ${n - 10} mm` });
+  ok(`przycisk „Odsuń szafki „Ściana 1” od ściany o ${n - 10} mm” (zalecane, 2026-11-13)`, (await b.count()) === 1 && /Zalecane: odsuń szafki ciągu od ściany o \d+ mm — blat zostanie w całej szerokości arkusza/.test(await uw.innerText()));
   if (await b.count()) { await b.first().click();
     p = await czekaj(`(p.runs[0].wallGap || {}).bottom === ${n - 10}`);
     ok(`po kliknięciu: ciąg ${n - 10} mm od ściany, bez ostrzeżenia`, (p.runs[0].wallGap || {}).bottom === n - 10 && !/wystawałby/.test(await uw.innerText()), JSON.stringify(p.runs[0].wallGap)); } }
@@ -277,7 +277,7 @@ await zakl('wzmocnienia');
 { const kl = page.locator('[data-el="mak-klocek"][data-id="wzm-pionowe"]');
   ok('Wzmocnienia: klocki „Para pod blat”, „Leżące”, „Stojące”, „Pionowe”', (await page.locator('[data-el="mak-klocek"][data-id^="wzm-"]').count()) === 4,
     JSON.stringify(await page.locator('[data-el="mak-klocek"][data-id^="wzm-"]').allTextContents()));
-  await kl.first().click(); await page.waitForTimeout(400);
+  await kl.first().click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await page.waitForTimeout(400);
   p = await czekaj('p.items[0].cab.levels.some((l) => l.cols.some((k) => (k.rails || []).some((r) => r.orient === "vertical")))');
   ok('klik „Pionowe” — wzmocnienie pionowe w szafce', p.items[0].cab.levels.some((l) => l.cols.some((k) => (k.rails || []).some((r) => r.orient === 'vertical')))); }
 
@@ -285,7 +285,7 @@ console.log('== biurko: łączenie płyty z tyłu — konfirmaty albo mimośrody
 await start('prosta', CIAG + `p.runs[0].zabudowa = 'szafa'; p.runs[0].worktop = false;`, PRZOD);
 await zakl('dodaj');
 { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded').catch(() => 'true')) !== 'true') await sek.click().catch(() => {}); await page.waitForTimeout(200); }
-await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="biurkoK"]').click();
+await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="biurkoK"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 p = await czekaj('p.items.some((x) => x.cab.top && x.cab.top.mode === "blat" && x.cab.back === "none")');
 await zakl('szafka');
 ok('karta biurka: „Wzmocnienie z tyłu — łączenie z bokami”, domyślnie konfirmaty', (await page.locator('[data-el="mak-biurko-lacz"][data-v="konfirmaty"]').getAttribute('aria-pressed').catch(() => '')) === 'true');

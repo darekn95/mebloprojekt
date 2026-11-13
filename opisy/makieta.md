@@ -558,6 +558,25 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
   przesuwa się razem z dnem szafki”. Z góry „wystaje N” w obrysie lodówki (wcześniej wychodził poza rysunek bez ciągu górnego).
   **Para pod blat** (decyzja użytkownika 2026-11-13): płaskie wzmocnienie z przodu i stojące z tyłu — tak jak dotąd w aplikacji
   (makieta: leżące + stojące z przodu — nie przenosimy). Ciemny motyw makiety — zostaje bez zmian (decyzja użytkownika).
+- **Decyzje i zgłoszenia 2026-11-13 (po rundzie 4)**:
+  - **„Wystaje” lodówki wolnostojącej od przodu blatu** (jak makieta): na rzucie z góry „wystaje N przed blat”, w uwagach blatu ciągu
+    „Lodówka „X” … wystaje N mm przed blat (M mm przed korpusy)”, w karcie „Wystaje przed blat o N mm” (`lodowkaWystaje`: lico + luz
+    zawiasu + front + nawis `rt.wysieg`); ciąg bez blatu — dalej „przed korpusy” (uwaga z `geoSprzetuCiagu`, w ciągu z blatem
+    wyłączona przez `cab.blatCiagu` z `cabDoGeo`).
+  - **Paleta: dotknij, potem miejsce** (jak makieta; na telefonie przeciąganie z palety bywa zawodne): klik w wzór / klocek / sprzęt
+    go wybiera (podświetlony, zielone ramki tam, gdzie może stanąć — z przodu i na rzucie z góry), dotknięcie szafki stawia go tam
+    (cel jak przy upuszczeniu, `celZ` szuka szafki także spod płyty na blacie); pasek na dole „Wybrany: …” z „Do zaznaczonej szafki”
+    / „Na koniec ciągu” (dawny klik) i „Anuluj”, Esc anuluje (`wybranyK`, `coKafla`, `postawWybrany`, `wstawKafel`). Przeciąganie
+    myszą działa jak dotąd.
+  - **Widok „Z góry”** (zgłoszenie: „nie działa przesuwanie płyty do szafki obok”): rzut działa jak rzut nad widokiem z przodu
+    (`mak-zgory`) — przeciąganie płyty / zlewu / sprzętu na blacie na inną szafkę, zaznaczanie, znaczki szerokości i głębokości,
+    wymiary zaznaczonego wycięcia; „Fronty” znikają, jest **„Blat”** — blat zasłania szafki od góry, widać podział na kawałki
+    („blat 1: N”, linia styku — `kawalkiBlatu`), zaznaczona szafka (obrys i znaczki) nad blatem; wyłączony — przezroczysty.
+    Z boku, 45° i 3D — podgląd (zaznaczanie z boku i w 45°).
+  - **Nazwa zaznaczonej szafki** przy wymiarach wzmocnień (szczegółowa, otwarte) — pod wzmocnieniami u góry (była chowana;
+    zgłoszenie: „czemu szafka 1 c2 nie jest opisana?”).
+  - **Wycięcie w blacie**: od końca blatu co najmniej 30 mm blatu (`WYCIECIE_KONIEC`; użytkownik: „30 mm wystarczy”), przy łączeniu,
+    z tyłu i między wycięciami — 50 mm; w uwagach „blatu”, nie „płyty”.
 - **„Bez szafki górnej”** (decyzja użytkownika 2026-11-13, z makiety „Dodaj”): w karcie Szafka szafki z ciągu górnego —
   zamienia ją na **wolne miejsce** tej samej szerokości (np. okno albo otwarta ściana; pozycja bez korpusu `sprzetCiagu.typ = "wolne"`,
   w zamówieniu nic, na rysunku przerywany obrys „wolne — np. okno”, w 3D / z boku nic, listwa zawieszek ma przerwę);

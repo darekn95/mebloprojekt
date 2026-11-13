@@ -190,5 +190,6 @@ wszystkie napisy makiety (183) i karty AGD każdego sprzętu, zrzuty tej samej k
 ekspresu na blacie i lodówki wolnostojącej, „wystaje przed blat” przy sprzęcie na blacie, podpowiedzi lodówki do zabudowy, „Kaseta
 schodzi …”, okap szerszy niż szafka, „Przesuń w ciągu” przy pozycji ciągu, uwagi o dwóch wycięciach blisko siebie i o wycięciu przy
 przedniej krawędzi, podpowiedzi w karcie Szafka (test `makieta16`). Decyzje użytkownika: ciemny motyw — zostaje jasny; para pod blat —
-płaskie z przodu i stojące z tyłu (jak w aplikacji). Do decyzji: „wystaje” lodówki — od blatu (makieta) czy od korpusów; dotknięcie
-klocka / sprzętu, potem miejsca na rysunku (telefon); lodówka „podblatowa w szafce” (korpus z bokami do podłogi, bez dna).
+płaskie z przodu i stojące z tyłu (jak w aplikacji). Decyzje użytkownika (zrobione): „wystaje” lodówki — od przodu blatu;
+dotknięcie klocka / sprzętu / wzoru, potem miejsca na rysunku (pasek „Wybrany”); widok „Z góry” z przeciąganiem i przełącznikiem „Blat”.
+Do ustalenia: lodówka „podblatowa w szafce” (korpus z bokami do podłogi, bez dna) i mała lodówka / minibar na dnie szafki.
