@@ -332,6 +332,9 @@ const SPRZETY_CIAGU = {
      na srodku miejsca, daszek `h` 90 mm, `gl` 500 mm od sciany; dol okapu `dol` mm nad dolem szafek gornych (moze byc ujemny),
      domyslnie 150 = 650 nad blatem przy przeswicie 500. Komin `kominW` × `kominD` od daszka do gory szafek gornych (z kompletu
      okapu, regulowany — do sufitu wg instrukcji). Wysokosc nad plyta sprawdza `okapMsgs` (650 indukcja / 750 gaz). */
+  /* Wolne miejsce w ciagu gornym (uzytkownik 2026-11-13, z makiety „Dodaj”: „Bez szafki górnej” — np. okno albo otwarta sciana):
+     pozycja bez korpusu i bez niczego w zamowieniu, szerokosc jak szafka, ktora zastapila (`cab.poprzednia` — do „Przywróć”). */
+  wolne: { nazwa: "wolne miejsce", pelna: "Wolne miejsce (bez szafki górnej)" },
   okapK: { nazwa: "okap", pelna: "Okap kominowy", szer: 600, h: 90, gl: 500, kominW: 280, kominD: 250, dol: 150 },
 };
 /* Wysokosc wneki lodowki do zabudowy (uzytkownik 2026-11-09, z makiety — przykladowo; typowo 178, wysokie 194, male do ok.
@@ -380,6 +383,16 @@ const sprzetCiagu = (cab) => {
 const lodowkaCiagu = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === "lodowka");
 // okap kominowy — pozycja ciagu gornego bez korpusu (2026-11-10)
 const okapCiagu = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === "okapK");
+/* Wlasny dol szafki gornej (uzytkownik 2026-11-13, jak w makiecie „Dodaj”: okap −/+50 przesuwa tylko szafke z okapem — krotsza,
+   gora rowno z reszta ciagu): `cab.dolGorny` mm ponad dol ciagu gornego (ujemny — nizej); wysokosc szafki zmienia sie o tyle samo. */
+const dolGornej = (cab) => Math.round(Number(cab && cab.dolGorny) || 0);
+const wolneCiagu = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === "wolne");
+/* „Bez szafki górnej” — szafka gorna zamienia sie w wolne miejsce tej samej szerokosci; poprzednia szafka zostaje w `poprzednia`,
+   „Przywróć szafkę górną” wraca do niej (z obecna szerokoscia). */
+// pelna szafka z szablonu okapu kominowego (bez korpusu, bez cokolu i nozek) — wszystkie pola domyslne jak przy kazdej pozycji
+const cabWolnegoMiejsca = (cab) => ({ ...makeFromTemplate("okap-kominowy"), name: "Wolne miejsce", W: cab.W, H: cab.H, D: cab.D, sprzetCiagu: { typ: "wolne" },
+  realColors: cab.realColors, texture: cab.texture, textureDir: cab.textureDir, poprzednia: JSON.parse(JSON.stringify({ ...cab, poprzednia: undefined })) });
+const cabZWolnegoMiejsca = (cab) => (cab.poprzednia ? { ...cab.poprzednia, W: cab.W } : null);
 /* Stoi na podlodze bez cokolu i nozek (lodowka i zmywarka wolnostojaca): cokol ciagu ma pod nia przerwe, wspolne wymiary
    ciagu (wysokosc, glebokosc, cokol, nozki) jej nie dotycza. Blat konczy sie przy lodowce i zmywarce z pokrywa. */
 const naPodlodzeCiagu = (cab) => !!(cab && cab.sprzetCiagu && (cab.sprzetCiagu.typ === "lodowka" || cab.sprzetCiagu.typ === "zmywarkaW"));
@@ -8331,6 +8344,11 @@ function geoSprzetuCiagu(cab, mat, ctx) {
     add("info", sp.pokrywa
       ? "Zmywarka z własną pokrywą: blat kończy się przy jej boku, cokół ciągu ma przerwę. Bez korpusu i bez frontu meblowego — w zamówieniu nic do niej."
       : "Zmywarka pod blatem: zdejmujesz jej pokrywę, blat idzie nad nią, cokół ciągu ma przerwę (drzwi i listwa zmywarki sięgają podłogi). Bez korpusu i bez frontu meblowego — w zamówieniu nic do niej.");
+  } else if (sp.typ === "wolne") {
+    // nic tu nie stoi — tylko miejsce w ciagu (obrys na rysunku); bryla zerowej glebokosci, zeby wspolne rachunki sie nie wywrocily
+    dane = { ...sp, wolne: true, lodowka: false, front: null, x0: 0, x1: Math.round(W), y0: 0, y1: Math.round(cab.H),
+      bryla: { x0: 0, x1: Math.round(W), y0: 0, y1: Math.round(cab.H), z0: 0, d: 0 }, nisza: { w: Math.round(W), h: Math.round(cab.H), d: Math.round(cd) } };
+    add("info", "Wolne miejsce w ciągu górnym (np. okno albo otwarta ściana) — bez szafki, w zamówieniu nic; szafki obok kończą się przy nim, listwa zawieszek ma tu przerwę.");
   } else if (sp.typ === "okapK") {
     /* Okap kominowy: daszek na srodku miejsca, `dol` nad dolem szafek gornych; od sciany `gl` w glab (wystaje przed szafki
        gorne), front daszka jak przod lodowki (fz), komin od daszka do gory pozycji, przy scianie. */
@@ -8668,7 +8686,7 @@ const assemblyParts = (project, runs, ref) =>
         wallGap: wallGapOf(run, it),
         // wysuniecie (+) albo cofniecie (-) z lica ciagu
         offset: Math.round(Number(it.offset) || 0),
-        base: mount + Math.max(plinthH, legBelow),
+        base: mount + Math.max(plinthH, legBelow) + dolGornej(it.cab),
         name: (it.cab.name || "").trim(),
         frontColor: it.cab.realColors && it.cab.frontSameAsBoard !== false
           ? mat.board.color : mat.front.color,
@@ -9505,6 +9523,17 @@ function KlapaElewacja({ d, fy, ff, open, tf, showDims, showHardware, lustro, x0
 function SprzetCiaguElew({ cab, geo, frontColor, fy, mx = (x) => x }) {
   const s = geo.sprzetCiagu;
   if (!s) return null;
+  if (s.wolne) {
+    // wolne miejsce w ciagu gornym — sam przerywany obrys z podpisem (jak w makiecie „Dodaj”: „Tu nie ma szafki górnej”)
+    const w = s.x1 - s.x0, h = s.y1 - s.y0, X = mx(s.x0, w);
+    return (
+      <g data-el="wolne-miejsce">
+        <rect x={X} y={fy(s.y1)} width={w} height={h} fill="#f5f5f4" fillOpacity="0.5" stroke={LINE} strokeWidth="2" strokeDasharray="16 10" />
+        <text x={X + w / 2} y={fy(s.y0 + h / 2)} textAnchor="middle" fontSize="24" fill="#78716c" fontFamily="ui-monospace, monospace">wolne</text>
+        <text x={X + w / 2} y={fy(s.y0 + h / 2) + 32} textAnchor="middle" fontSize="20" fill="#a8a29e" fontFamily="ui-monospace, monospace">np. okno</text>
+      </g>
+    );
+  }
   if (s.okap) {
     // okap kominowy: komin przy scianie, daszek zwezany ku gorze (jak w makiecie „Dodaj”)
     const w = s.x1 - s.x0, h = s.y1 - s.y0, X = mx(s.x0, w), k = s.komin, sk = Math.min(60, w / 4);
@@ -9563,6 +9592,11 @@ function SprzetCiaguWidok({ cab, geo, mat, widok = "przod" }) {
       </svg>
     );
   }
+  if (widok === "bok" && s.wolne) return (
+    <svg viewBox={`${-pad} ${-pad} ${cd + 2 * pad} ${H + 2 * pad}`} className="w-full h-auto select-none" style={{ maxHeight: DRAW_MAX_H }} data-el="sprzet-ciagu-widok">
+      <rect x="0" y="0" width={cd} height={H} fill="none" stroke={LINE} strokeWidth="2" strokeDasharray="16 10" />
+      <text x={cd / 2} y={H / 2} textAnchor="middle" fontSize="24" fill="#78716c" fontFamily="ui-monospace, monospace">wolne</text>
+    </svg>);
   if (widok === "bok") {
     const zMin = Math.min(0, z.fz0, -geo.tf);
     const x = (zz) => cd - zz;   // sciana po lewej, przod po prawej
@@ -9591,7 +9625,7 @@ function SprzetCiaguWidok({ cab, geo, mat, widok = "przod" }) {
       <DimV y1={fy(H)} y2={fy(-pod)} x={-60} label={fmt(H + pod)} />
       {s.okap && s.y0 !== 0 && <DimV y1={fy(Math.max(0, s.y0))} y2={fy(Math.min(0, s.y0))} x={W + 60} label={`${s.y0 < 0 ? "−" : ""}${fmt(Math.abs(s.y0))}`} />}
       <text x={W / 2} y={fy(yMin) + 60} textAnchor="middle" fontSize="22" fill="#78716c" fontFamily="ui-monospace, monospace">
-        {s.okap ? "okap kominowy — bez korpusu; przerywana linia: dół szafek górnych" : s.zmywW ? "zmywarka wolnostojąca — bez korpusu i frontu meblowego" : s.lodowka ? "lodówka wolnostojąca — bez korpusu" : s.typ === "lodowkaP" ? "lodówka podblatowa — bez korpusu, w zamówieniu tylko front" : "zmywarka — bez korpusu, w zamówieniu tylko front"}
+        {s.wolne ? "wolne miejsce w ciągu górnym — bez szafki, w zamówieniu nic" : s.okap ? "okap kominowy — bez korpusu; przerywana linia: dół szafek górnych" : s.zmywW ? "zmywarka wolnostojąca — bez korpusu i frontu meblowego" : s.lodowka ? "lodówka wolnostojąca — bez korpusu" : s.typ === "lodowkaP" ? "lodówka podblatowa — bez korpusu, w zamówieniu tylko front" : "zmywarka — bez korpusu, w zamówieniu tylko front"}
       </text>
     </svg>
   );
@@ -9986,6 +10020,8 @@ const WycieciaWzmocnienia = ({ r, cd }) => (!(r.otwory || []).length ? null : (
 ));
 
 function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm }) {
+  if (geo.bezKorpusu && geo.sprzetCiagu && geo.sprzetCiagu.wolne) return (
+    <g data-el="wolne-miejsce-z-gory"><rect x="0" y="0" width={geo.W} height={geo.carcassDepth} fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="14 9" /></g>);
   if (geo.bezKorpusu && geo.sprzetCiagu) {
     // sprzet w ciagu z gory (2026-11-05): bryla przerywana, front (zmywarka) albo przod lodowki
     const s = geo.sprzetCiagu, cdS = geo.carcassDepth;
@@ -10854,6 +10890,7 @@ function AssemblySideView({ project, runs, showDims, showWall = true, showBlat =
       /* Sprzet w ciagu (bez korpusu): profil sprzetu, nie korpusu — zmywarka od podlogi pod blat
          z frontem meblowym na drzwiach, lodowka wolnostojaca na podlodze, wysunieta z lica. */
       const sc = c.geo.bezKorpusu ? c.geo.sprzetCiagu : null;
+      if (sc && sc.wolne) return;   // wolne miejsce — z boku nic nie stoi
       const licoK = lico + c.offset;
       const szyny = sc ? [] : szynyCab(c, licoK);
       szynyIdx.set(c.index, szyny);
@@ -11638,6 +11675,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn
       kto = c.index;
       /* Sprzet w ciagu bez korpusu (2026-11-05): bryla sprzetu, front meblowy zmywarki (jak drzwi:
          przed licem, w kolorze frontow) albo przod lodowki wolnostojacej. */
+      if (c.geo.bezKorpusu && c.geo.sprzetCiagu && c.geo.sprzetCiagu.wolne) return;   // wolne miejsce — w bryle nic
       if (c.geo.bezKorpusu && c.geo.sprzetCiagu) {
         const s = c.geo.sprzetCiagu, z = sprzetZ(s), b = s.bryla;
         box(c.x + b.x0, c.base + b.y0, z.bz0, c.x + b.x1, c.base + b.y1, z.bz1, SPRZET_KOLOR, null, 1, false, 0, "sprzet");
@@ -15423,6 +15461,7 @@ function SprzetCiagu3D({ cab, geo, mat: matIn, yaw, pitch, blat }) {
     audytBryly(x0, y0, z0, x1, y1, z1, color, tag, v, alpha);
     solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold });
   };
+  if (s.wolne) return null;
   const b = s.bryla, z = sprzetZ(s);
   if (s.lodowka) {
     box(b.x0, b.y0, z.bz0, b.x1, b.y1, z.bz1, SPRZET_KOLOR, 1, false, "sprzet");
@@ -18298,11 +18337,12 @@ const runRail = (project, run) => {
     const x0 = x, x1 = x + g.W;
     x = x1 + (k < list.length - 1 ? gap : 0);
     if (naListwie(it.cab) && g.backRecess > 0) { biez = null; return; }
-    if (okapCiagu(it.cab)) { biez = null; return; }   // komin okapu na scianie — listwa konczy sie przy nim i zaczyna za nim
+    if (okapCiagu(it.cab) || wolneCiagu(it.cab)) { biez = null; return; }   // komin okapu / wolne miejsce — listwa konczy sie przy nim i zaczyna za nim
     /* Zawieszka wisi gorna krawedzia pod wiencem — szafki rownej wysokosci maja ja na
        jednej linii, wyzsza wyzej. Prosta listwa nie obsluzy dwoch wysokosci, wiec przy
        zmianie zaczyna sie nowy odcinek (audyt GPT N148: H720 i H900 — jedna listwa 1200). */
-    const wys = Math.round((Number(it.cab.H) || 0) - (g.hasTop ? (g.tW || g.t) : 0));
+    // z wlasnym dolem szafki (okap) — gora tam, gdzie u sasiadow, wiec ta sama linia zawieszek
+    const wys = Math.round((Number(it.cab.H) || 0) + dolGornej(it.cab) - (g.hasTop ? (g.tW || g.t) : 0));
     // szafka na listwie dystansowej (`cab.dystans`, N148) ma listwe w innej plaszczyznie — osobny odcinek
     const dyst = Math.max(0, Math.round(Number(it.cab.dystans) || 0));
     if (biez && naListwie(it.cab) && biez.wys != null && (biez.wys !== wys || biez.dyst !== dyst)) { biez = null; }
@@ -18483,7 +18523,7 @@ const runCabMsgs = (run, c, inne = [], poz = null) => {   // poz: { idx, offset,
   /* Slupek — wyzszy niz reszta ciagu z zalozenia (uzytkownik 2026-10-24: „wyjątek
      w ciągu”). Zaznaczony przyciskiem: zostaje informacja, a wspolna wysokosc ciagu
      go nie zmienia (`setRunShared`). Blat konczy sie przy jego boku (`worktopLevel`). */
-  if (run.H != null && Math.round(c.H) !== run.H) {
+  if (run.H != null && Math.round(c.H) !== run.H && Math.round(c.H) + dolGornej(c) !== run.H) {
     const wyzsza = Math.round(c.H) > run.H;
     if (c.slupek && wyzsza)
       out.push({ level: "info", text:
@@ -19058,7 +19098,8 @@ const okapNadPlyta = (project, idx) => {
   if (!ok) return null;
   const runs = project.runs || [], run = runs.find((r) => r.id === it.runId);
   if (!run || run.tier !== "gorny") return { it, kom, ok, run, brak: "ciag" };
-  const mY = tierMountY(project, run), dol = mY + (kom ? kom.dol : -(ok.typ === "podszafkowy" ? ok.h : 0));
+  // dol szafki z okapem — z jej wlasnym dolem (`cab.dolGorny`)
+  const mY = tierMountY(project, run) + (kom ? 0 : dolGornej(it.cab)), dol = mY + (kom ? kom.dol : -(ok.typ === "podszafkowy" ? ok.h : 0));
   const dolny = runs.find((r) => r.id === run.wall);
   const rt = dolny ? runTop(project, dolny) : null;
   if (!rt) return { it, kom, ok, run, mY, dol, brak: "blat" };
@@ -19138,20 +19179,21 @@ const tierMsgs = (project, run) => {
       let x = g.start;
       const gorne = gl.map(({ it, i }) => {
         const W = computeGeo(it.cab, it.mat).W;
-        const o = { x0: x, x1: x + W, nazwa: (it.cab.name || "").trim() || `szafka ${i + 1}` };
+        // wolne miejsce nic nie zajmuje; szafka z wlasnym dolem (okap) zaczyna sie wyzej albo nizej
+        const o = { x0: x, x1: x + W, nazwa: (it.cab.name || "").trim() || `szafka ${i + 1}`, y0: mount + dolGornej(it.cab), wolne: wolneCiagu(it.cab) };
         x += W + gap;
         return o;
-      });
+      }).filter((u) => !u.wolne);
       lvl.poza.forEach((c) => {
         const gora = Math.round((dolny.mountY || 0) + c.y);
-        if (gora <= mount) return;
         const s0 = dz.start + c.x0, s1 = dz.start + c.x1;
-        const nad = gorne.filter((u) => u.x0 < s1 - 1 && u.x1 > s0 + 1);
+        const nad = gorne.filter((u) => u.x0 < s1 - 1 && u.x1 > s0 + 1 && gora > u.y0);
         if (!nad.length) return;
+        const y0 = Math.min(...nad.map((u) => u.y0));
         const nazwa = (c.it.cab.name || "").trim() || `szafka ${c.idx + 1}`;
         out.push({ level: "error", text:
           `„${nazwa}” w ciągu dolnym sięga ${fmt(gora)} mm, a szafki górne nad nią (${nad.map((u) => `„${u.nazwa}”`).join(", ")}) `
-          + `zaczynają się na ${fmt(mount)} mm — wchodzą w nią o ${fmt(gora - mount)} mm. Przesuń ciąg górny albo zostaw nad wysoką szafką przerwę.` });
+          + `zaczynają się na ${fmt(y0)} mm — wchodzą w nią o ${fmt(gora - y0)} mm. Przesuń ciąg górny albo zostaw nad wysoką szafką przerwę.` });
       });
     }
   }
@@ -19159,7 +19201,7 @@ const tierMsgs = (project, run) => {
     const { list } = runJoints(project, gorny);
     if (list.length) {
       const mount = tierMountY(project, gorny);
-      const gora = mount + Math.max(...list.map(({ it }) => Math.round(it.cab.H)));
+      const gora = mount + Math.max(...list.map(({ it }) => Math.round(it.cab.H) + dolGornej(it.cab)));
       const luz = Math.round(gorny.ceiling - gora);
       if (luz < 0)
         out.push({ level: "error", text:
@@ -19729,7 +19771,7 @@ const swingBodies = (L, project) => {
       if (geo.bezKorpusu && geo.sprzetCiagu) {
         const s = geo.sprzetCiagu, zs = sprzetZ(s);
         const klucz = `${kto.id}|sprzet`;
-        if (s.okap) {
+        if (s.wolne) { /* wolne miejsce — nic tu nie stoi */ } else if (s.okap) {
           // okap kominowy: daszek wystaje przed szafki gorne, komin przy scianie; bez drzwi
           bryly.push(roomBox(n, u0 + s.x0, u0 + s.x1, cdV0, cdV1 - zs.fz0, zBase + s.y0, zBase + s.y1, { ...kto, co: "okap", klucz }));
           if (s.komin) bryly.push(roomBox(n, u0 + s.komin.x0, u0 + s.komin.x1, cdV0, cdV1 - s.komin.z0, zBase + s.komin.y0, zBase + s.komin.y1, { ...kto, co: "komin okapu", klucz: `${klucz}k` }));
@@ -22180,13 +22222,19 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
           {n.od != null ? <p data-el="agd-okap-nad-plyta" className={`text-[11px] ${n.od < OKAP_MIN_IND ? "font-medium text-amber-700" : "text-stone-600"}`}>Od płyty do okapu: <b className="font-mono">{fmt(n.od)} mm</b> (indukcja zwykle min. {OKAP_MIN_IND}, gaz {OKAP_MIN_GAZ} — wg instrukcji producenta).</p>
             : n.brak === "plyta" ? <p data-el="agd-okap-bez-plyty" className="text-[11px] font-medium text-amber-700">Pod okapem nie ma płyty — okap wisi zwykle nad płytą.</p>
             : n.brak === "blat" ? <p className="text-[11px] text-stone-600">Pod ciągiem górnym nie ma blatu — wysokości nad płytą nie sprawdzam.</p> : null}
-          {n.run && n.run.tier === "gorny" && ustawCiag && n.mY != null && (() => {
-            const run = n.run, Y = n.mY;
-            const ustawY = (v) => { if (!(v >= 0)) return; if (run.wall) ustawCiag(run.id, { clearance: Math.max(0, Math.round((run.clearance ?? 500) + v - Y)) }); else ustawCiag(run.id, { mountY: Math.max(0, Math.round(v)) }); };
+          {n.run && n.run.tier === "gorny" && n.mY != null && (() => {
+            /* jak w makiecie „Dodaj” (decyzja uzytkownika 2026-11-13): przesuwa sie tylko szafka z okapem — krotsza albo dluzsza,
+               gora zostaje rowno z innymi szafkami gornymi (`cab.dolGorny`) */
+            const Y = n.mY, dG = dolGornej(cab);
+            const ustawY = (v) => { const d = Math.round(v - Y); if (!d) return;
+              zmien(sel.i, (c) => { const H = Math.round(Number(c.H) || 0) - d; if (H < 200) return; c.H = H; const nd = dolGornej(c) + d; if (nd) c.dolGorny = nd; else delete c.dolGorny; }); };
             const krok = (d) => <button key={`k${d}`} data-el="agd-okap-krok" data-v={d} onClick={() => ustawY(Y + d)} className="h-6 w-6 rounded border border-stone-300 bg-white text-sm leading-none text-stone-700 hover:border-teal-600">{d < 0 ? "−" : "+"}</button>;
             return <>{etyk("Wysokość okapu")}
-              <div className="flex items-center justify-between gap-2 py-0.5 text-[11px]"><span className="text-stone-500">dół okapu od podłogi (przesuwa cały ciąg górny)</span>
-                <span className="flex items-center gap-1">{krok(-50)}{liczba("agd-okap-dol-podl", Y - pod, null, (v) => v != null && ustawY(v + pod), "w-20")}{krok(50)}<span className="text-stone-400">mm</span></span></div></>;
+              <div className="flex items-center justify-between gap-2 py-0.5 text-[11px]"><span className="text-stone-500">dół okapu od podłogi (szafka nad okapem krótsza, góra równo z innymi)</span>
+                <span className="flex items-center gap-1">{krok(-50)}{liczba("agd-okap-dol-podl", Y - pod, null, (v) => v != null && ustawY(v + pod), "w-20")}{krok(50)}<span className="text-stone-400">mm</span></span></div>
+              {dG !== 0 && <p className="text-[11px] text-stone-600" data-el="agd-okap-dolgorny">Szafka „{nazwaSz}” ma {fmt(Math.round(cab.H))} mm wysokości, dół {fmt(Math.abs(dG))} mm {dG > 0 ? "wyżej" : "niżej"} niż inne szafki górne.{" "}
+                <button data-el="agd-okap-jak-inne" onClick={() => zmien(sel.i, (c) => { c.H = Math.round(Number(c.H) || 0) + dolGornej(c); delete c.dolGorny; })}
+                  className="rounded border border-teal-600 px-2 py-0.5 text-[11px] text-teal-700 hover:bg-teal-50">jak inne szafki górne</button></p>}</>;
           })()}
         </>; })()}
       <div className="mt-1">{usun(() => { zmien(sel.i, (c) => { delete c.okap; }); zamknij(); })}</div>
@@ -22505,7 +22553,10 @@ const makCoZrobiSprzet = (sel, cab, project) => {
     }
     const nazwa = (SPRZETY[sp.typ] || {}).nazwa || "sprzęt";
     const otw = sp.drzwi === "dol" ? "drzwi otwierane w dół" : sp.drzwi === "lewe" || sp.drzwi === "prawe" ? `drzwi na zawiasie z ${sp.drzwi === "lewe" ? "lewej" : "prawej"}` : sp.drzwi === "wysuw" ? "wysuwa się do przodu" : null;
-    return `Wnęka na ${nazwa} w „${n}”${wys ? " — własny poziom słupka, nad nim i pod nim poziomy z frontami" : ": reszta kolumny — fronty szafki"}; front sprzętu zamiast frontu meblowego. `
+    /* sprzet do zabudowy nigdy za drzwiami (uzytkownik 2026-11-13: „nie może być tak, żeby mikrofalę zamykały drzwi lub ją
+       zasłaniały — ma stać na półce i od góry też mieć półkę”): poziom sprzetu = jego wneka, za niska rosnie sama
+       (`slupkiSprzetNorma`), front wchodzacy na drzwi — blad w „Uwagach” */
+    return `Wnęka na ${nazwa} w „${n}”${wys ? " — własny poziom słupka: stoi na płycie, nad nim płyta, nad i pod nim poziomy z frontami" : ": reszta kolumny — fronty szafki"}; front sprzętu zamiast frontu meblowego — nigdy za drzwiami. `
       + `W „Uwagach” sprawdzam wymiary wnęki z karty modelu${otw ? ` i czy ${otw.startsWith("drzwi") ? `jego ${otw} się otworzą` : `${otw} bez przeszkód`}` : ""}.`
       + (sp.typ === "ekspres" ? " Przed ekspresem nic nie może blokować wysuwu, gniazdko w zasięgu przewodu." : sp.typ === "mikrofala" && wys ? " Mikrofala najwygodniej z dołem do ok. 1 300 mm od podłogi." : "");
   }
@@ -22743,7 +22794,7 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
       const n = it.cab.name || "szafka";
       const usun = (fn) => () => zmien(i, fn);
       return [
-        ...(it.cab.sprzetCiagu ? [{ k: `c${i}`, i, sel: { i, rodz: "ciag" }, l: sprzetCiagu(it.cab).pelna, g: `w ciągu, „${n}”` }] : []),
+        ...(it.cab.sprzetCiagu && !wolneCiagu(it.cab) ? [{ k: `c${i}`, i, sel: { i, rodz: "ciag" }, l: sprzetCiagu(it.cab).pelna, g: `w ciągu, „${n}”` }] : []),
         ...(okapSzafki(it.cab) ? [{ k: `o${i}`, i, sel: { i, rodz: "okap" }, l: okapSzafki(it.cab).nazwa, g: `w „${n}” · ${okapSzafki(it.cab).rozmL}`,
           usun: usun((c) => { delete c.okap; }) }] : []),
         ...wycieciaSzafki(it.cab).map((q) => ({ k: `w${i}-${q.k}`, i, sel: { i, rodz: "wyc", k: q.k }, l: q.pelna, g: `nad szafką „${n}”${q.rozmL ? ` · ${q.rozmL}` : ""}`,
@@ -23100,7 +23151,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   const slupekWysW = (() => {
     if (!(cab.slupek || cab.H > 1500) || !run || rodzajCiagu(project, run) !== "kuchnia" || !geoKarty) return null;
     const gorny = (project.runs || []).find((r) => r.tier === "gorny" && r.wall === run.id && project.items.some((x) => x.runId === r.id));
-    const gH = gorny ? Math.max(...project.items.filter((x) => x.runId === gorny.id).map((x) => Number(x.cab.H) || 0)) : 0;
+    const gH = gorny ? Math.max(...project.items.filter((x) => x.runId === gorny.id).map((x) => (Number(x.cab.H) || 0) + dolGornej(x.cab))) : 0;
     const rowno = gorny ? Math.round(tierMountY(project, gorny) + gH - makBaza(cab, geoKarty)) : null;
     const lista = [...new Set([...(rowno && rowno > 1500 && rowno <= 2600 ? [rowno] : []), 1800, 2000, 2120, 2200])].sort((a, b) => a - b);
     return wiersz("slupH", "wysokość słupka (korpus)", lista.map((v) => <Btn key={v} el="mak-slupek-wys" v={v} on={Math.round(cab.H) === v}
@@ -23116,7 +23167,13 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     <div key="akcje" className="flex flex-wrap gap-1 border-b border-stone-100 py-1.5">
       {kopiuj && <Btn el="mak-kopiuj" onClick={() => kopiuj(idx)}>Kopiuj obok</Btn>}
       {usun && <button data-el="mak-usun-szafke" onClick={() => usun(idx)} className="rounded border border-stone-300 px-2 py-0.5 text-[11px] font-medium text-stone-700 hover:border-red-400 hover:text-red-700">Usuń szafkę</button>}
+      {/* jak w makiecie „Dodaj”: „Bez szafki górnej” (np. okno) — wolne miejsce tej samej szerokosci; „Przywróć szafkę górną” */}
+      {run && run.tier === "gorny" && !cab.sprzetCiagu && <Btn el="mak-bez-gornej" onClick={() => { const nowy = cabWolnegoMiejsca(cab);
+        zmien(idx, (c) => { Object.keys(c).forEach((x) => delete c[x]); Object.assign(c, nowy); }); }}>Bez szafki górnej</Btn>}
+      {wolneCiagu(cab) && <Btn el="mak-przywroc-gorna" onClick={() => { const nowy = cabZWolnegoMiejsca(cab) || { ...makeFromTemplate("wiszaca"), W: cab.W, H: cab.H, D: cab.D };
+        zmien(idx, (c) => { Object.keys(c).forEach((x) => delete c[x]); Object.assign(c, nowy); }); }}>Przywróć szafkę górną</Btn>}
     </div>,
+    ...(wolneCiagu(cab) ? [<p key="wolne" data-el="mak-wolne-info" className="border-b border-stone-100 py-1 text-[11px] text-stone-600">Tu nie ma szafki górnej (np. okno albo otwarta ściana) — wolne miejsce {fmt(Math.round(cab.W))} mm, w zamówieniu nic; szerokość zmienisz polem „Szerokość”.</p>] : []),
   ];
   /* Plyta korpusu i frontu (uzytkownik 2026-11-10: wybor plyty tylko w makiecie szczegolowej) — wzornik `PALETA` jak
      w trybie technicznym (kolor, bez wlasnej plyty, dekor czysci sie); „cały ciąg” — ten sam kolor w szafkach ciagu. */
@@ -24703,7 +24760,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                   const wysIt = (x, mount) => mount + Math.max(x.cab.plinth && x.cab.plinth.on ? Number(x.cab.plinth.height) || 0 : 0, x.cab.legs && x.cab.legs.on ? Number(x.cab.legs.height) || 0 : 0) + (Number(x.cab.H) || 0);
                   const gorne = (project.runs || []).filter((r) => r.tier === "gorny" && r.wall === runN.id);
                   const szczyt = Math.round(Math.max(0, ...project.items.filter((x) => x.runId === runN.id).map((x) => wysIt(x, Number(runN.mountY) || 0)),
-                    ...gorne.flatMap((g) => project.items.filter((x) => x.runId === g.id).map((x) => tierMountY(project, g) + (Number(x.cab.H) || 0)))));
+                    ...gorne.flatMap((g) => project.items.filter((x) => x.runId === g.id).map((x) => tierMountY(project, g) + dolGornej(x.cab) + (Number(x.cab.H) || 0)))));
                   return runN.ceiling > 0 && runN.ceiling < szczyt ? <span className="flex items-center gap-1.5 font-medium text-amber-700" data-el="mak-sciana-niska">
                     ściana niższa niż szafki ({fmt(szczyt)} mm)
                     <button data-el="mak-sciana-wyrownaj" onClick={() => ciag.setRun(runN.id, { ceiling: szczyt })}

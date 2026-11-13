@@ -162,9 +162,10 @@ makiety porównane z `szafki.jsx`. Dorobione: położenie wycięcia („do końc
 „pod okapem nie ma płyty”, wysokość okapu −/+50, lodówka wolnostojąca — rozmiary i luzy nad / z tyłu, „pod drążkiem ↕N”,
 przełącznik „Wyposażenie”, legenda nad rysunkiem (test `makieta14`).
 
-Do decyzji użytkownika:
-- „Bez szafki górnej” / „Przywróć szafkę górną” (puste miejsce w ciągu górnym, np. okno) — w aplikacji szafki ciągu stoją
-  jedna przy drugiej, pustego miejsca w środku ciągu nie ma;
-- wysokość okapu w szafce: w makiecie przesuwa się tylko szafka nad okapem (krótsza), w aplikacji — cały ciąg górny.
+Decyzje użytkownika (2026-11-13), zrobione:
+- „Bez szafki górnej” / „Przywróć szafkę górną” — pozycja „wolne miejsce” w ciągu górnym (bez korpusu, nic w zamówieniu);
+- wysokość okapu w szafce — przesuwa się tylko szafka z okapem (krótsza, góra równo z innymi, `cab.dolGorny`);
+- sprzęt do zabudowy nigdy za drzwiami — stoi na płycie, nad nim płyta (było: za niska wnęka mikrofali, 250 mm, i drzwi nad nią
+  na jej froncie — teraz wnęka rośnie sama).
 
 Inaczej z nazwy, działa tak samo: „Przegroda na środek” → „Kolumny po równo”, „Szuflady po równo” → „po równo”.

@@ -175,9 +175,19 @@ await zListy(/Okap podszafkowy/);
   const m = /Od płyty do okapu: (\d+) mm/.exec(await t());
   ok('okap: „Od płyty do okapu: N mm” w karcie', !!m, await t());
   await page.locator('[data-el="agd-okap-krok"][data-v="50"]').click().catch(() => {});
-  p = await czekaj('p.runs.find((r) => r.id === "g1").clearance === 550'); await page.waitForTimeout(300);
-  const m2 = /Od płyty do okapu: (\d+) mm/.exec(await t());
-  ok('okap +50: ciąg górny wyżej (prześwit 550), od płyty do okapu o 50 więcej', p.runs.find((r) => r.id === 'g1').clearance === 550 && m && m2 && Number(m2[1]) === Number(m[1]) + 50, `${m && m[1]} → ${m2 && m2[1]}`); }
+  const io = (q) => q.items.findIndex((x) => x.cab.okap);
+  p = await czekaj('p.items.some((x) => x.cab.okap && x.cab.dolGorny === 50)'); await page.waitForTimeout(300);
+  const m2 = /Od płyty do okapu: (\d+) mm/.exec(await t()), G = p.items[io(p)];
+  ok('okap +50: tylko szafka z okapem — 670 mm, dół 50 wyżej, góra równo; ciąg górny bez zmian; od płyty do okapu o 50 więcej',
+    G.cab.H === 670 && G.cab.dolGorny === 50 && (p.runs.find((r) => r.id === 'g1').clearance ?? 500) === 500 && m && m2 && Number(m2[1]) === Number(m[1]) + 50,
+    `${G.cab.H} / ${G.cab.dolGorny} / ${p.runs.find((r) => r.id === 'g1').clearance} | ${m && m[1]} → ${m2 && m2[1]}`);
+  ok('uwagi: bez „Wysokość nie zgadza się z ciągiem” przy szafce z okapem', !/Wysokość 670 mm nie zgadza się/.test(await uw.innerText().catch(() => '')));
+  const gory = await page.evaluate(() => { const r = [...document.querySelectorAll('[data-el="mak-plotno"] [data-el="makieta-szafka"]')].filter((g) => ['3', '4'].includes(g.getAttribute('data-idx')))
+    .map((g) => Math.round(g.getBoundingClientRect().top)); return r; });
+  ok('rysunek: góra szafki z okapem równo z sąsiednią górną', gory.length >= 2 && Math.abs(gory[0] - gory[gory.length - 1]) <= 2, JSON.stringify(gory));
+  await page.locator('[data-el="agd-okap-jak-inne"]').click().catch(() => {});
+  p = await czekaj('p.items.some((x) => x.cab.okap && !x.cab.dolGorny)');
+  ok('„jak inne szafki górne” — 720, bez własnego dołu', p.items[io(p)].cab.H === 720 && !p.items[io(p)].cab.dolGorny); }
 await zListy(/Lodówka wolnostojąca/);
 ok('lodówka: rozmiary 60 × 185, 60 × 203, 70 × 203, side by side 91', JSON.stringify(await page.locator('[data-el="agd-lod-rozm-v"]').allTextContents()) === '["60 × 185","60 × 203","70 × 203","side by side 91"]',
   JSON.stringify(await page.locator('[data-el="agd-lod-rozm-v"]').allTextContents()));
@@ -197,6 +207,37 @@ await start('prosta', `const w = p.items[0]; w.runId = null; w.cab.name = 'Szafa
 await zakl('polki');
 ok('drążek: „pod drążkiem ↕N” w zakładce Półki', /^pod drążkiem ↕\d+$/.test((await page.locator('[data-el="mak-pod-drazkiem"]').first().textContent().catch(() => '')) || ''),
   await page.locator('[data-el="mak-pod-drazkiem"]').first().textContent().catch(() => 'brak'));
+
+console.log('== „Bez szafki górnej” (np. okno) i „Przywróć szafkę górną” ==');
+await start('prosta', CIAG + `p.runs.push({ id: 'g1', name: 'Ściana 1 — góra', roomId: p.runs[0].roomId, tier: 'gorny', wall: 'r1' });
+  [0, 1].forEach((k) => { const g = JSON.parse(JSON.stringify(p.items[1])); g.cab.name = 'Górna ' + (k + 1); g.cab.H = 720; g.cab.D = 320;
+    g.cab.levels = [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }]; g.cab.legs = { ...(g.cab.legs || {}), on: false }; g.cab.plinth = { ...(g.cab.plinth || {}), on: false };
+    g.runId = 'g1'; p.items.push(g); }); p.active = 2;`, PRZOD);
+await zakl('szafka');
+ok('karta szafki górnej: „Bez szafki górnej”', (await karta('[data-el="mak-bez-gornej"]').count()) === 1);
+await karta('[data-el="mak-bez-gornej"]').click();
+p = await czekaj('p.items[2].cab.sprzetCiagu && p.items[2].cab.sprzetCiagu.typ === "wolne"');
+ok('pozycja „wolne miejsce”: ta sama szerokość 600, poprzednia szafka zapamiętana', p.items[2].cab.sprzetCiagu.typ === 'wolne' && p.items[2].cab.W === 600 && p.items[2].cab.poprzednia && p.items[2].cab.poprzednia.name === 'Górna 1',
+  JSON.stringify({ W: p.items[2].cab.W, n: (p.items[2].cab.poprzednia || {}).name }));
+await page.waitForTimeout(400);
+ok('rysunek: przerywany obrys „wolne — np. okno”, bez frontów', (await page.locator('[data-el="mak-plotno"] [data-el="wolne-miejsce"]').count()) === 1);
+ok('karta: „Tu nie ma szafki górnej (np. okno albo otwarta ściana)” i „Przywróć szafkę górną”', /Tu nie ma szafki górnej/.test(await karta('[data-el="mak-wolne-info"]').innerText().catch(() => '')) && (await karta('[data-el="mak-przywroc-gorna"]').count()) === 1);
+ok('uwagi bez błędów od wolnego miejsca', !/Wolne miejsce[^\n]*(błąd|brak)/i.test(await uw.innerText().catch(() => '')));
+await widok('iso');
+ok('45°: w miejscu okna nie ma bryły', (await inny('polygon[data-idx="2"]').count()) === 0 && (await inny('polygon[data-idx="3"]').count()) > 0);
+await widok('przod');
+await zakl('szafka');
+await page.locator('[data-el="mak-plotno"] [data-el="makieta-szafka"][data-idx="2"]').last().click().catch(() => {}); await page.waitForTimeout(400);
+await karta('[data-el="mak-przywroc-gorna"]').click().catch(() => {});
+p = await czekaj('!p.items[2].cab.sprzetCiagu');
+ok('„Przywróć szafkę górną” — wraca „Górna 1” z drzwiami', !p.items[2].cab.sprzetCiagu && p.items[2].cab.name === 'Górna 1' && p.items[2].cab.levels[0].cols[0].doors === 1, JSON.stringify([p.items[2].cab.name, !!p.items[2].cab.sprzetCiagu]));
+
+console.log('== sprzęt nigdy za drzwiami: mikrofala we wnęce 250 (projekt użytkownika, wersja 42) ==');
+await start('prosta', KUCHNIA + `p.items[2].cab.levels = [{ h: 344, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }, { h: 590, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null], sprzet: { typ: 'piekarnik' } }] },
+  { h: 250, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], sprzet: { typ: 'mikrofala' } }] }, { h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }];`, PRZOD);
+p = await czekaj('p.items[2].cab.levels[2].h > 300');
+ok('po wczytaniu wnęka mikrofali rośnie do jej wnęki (≥ 360), drzwi nad nią nie zasłaniają frontu', p.items[2].cab.levels[2].h >= 360 && !/zachodzi o \d+ mm na drzwi/.test(await uw.innerText().catch(() => '')),
+  JSON.stringify(p.items[2].cab.levels.map((l) => l.h)));
 
 ok('bez błędów strony', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();

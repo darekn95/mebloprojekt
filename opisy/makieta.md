@@ -491,12 +491,17 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
 - **3D i 45°**: przycisk „otwarte / zamknięte” (ten sam co „Fronty”) i suwak kąta 0–110° (`kat3d`), jak w trybie technicznym.
 - **Z makiety „Dodaj” (porównanie 2026-11-13)**: karta płyty / zlewu — „Do końca blatu zostaje N mm, do tyłu N mm; środek
   wycięcia … od środka szafki” (`agd-polozenie`); karta okapu w szafce — „Od płyty do okapu: N mm” (poniżej 650 na pomarańczowo),
-  „Pod okapem nie ma płyty”, „Wysokość okapu”: dół okapu od podłogi z −/+50 (`agd-okap-krok`) — przesuwa cały ciąg górny
-  (`okapNadPlyta`; w makiecie przesuwała się tylko szafka nad okapem — do decyzji); lodówka wolnostojąca — rozmiary
+  „Pod okapem nie ma płyty”, „Wysokość okapu”: dół okapu od podłogi z −/+50 (`agd-okap-krok`) — przesuwa tylko szafkę z okapem
+  (decyzja użytkownika 2026-11-13, jak w makiecie): szafka krótsza albo dłuższa, góra równo z innymi górnymi (`cab.dolGorny`,
+  `dolGornej`; „jak inne szafki górne” wraca); lodówka wolnostojąca — rozmiary
   60 × 185 / 60 × 203 / 70 × 203 / side by side 91 (`LODOWKI_WOLNE`), luzy z lewej / z prawej / nad / z tyłu, miejsce
   w ciągu = luzy + lodówka (zmiana luzu albo rozmiaru zmienia szerokość pozycji); drążek — „pod drążkiem ↕N” w Półkach
   (`mak-pod-drazkiem`); przełącznik „Wyposażenie” (wcześniej „AGD”) i legenda nad rysunkiem (`mak-legenda`: zielone ramki,
   „góra: blat z góry · dół: widok z przodu”, „„Wyposażenie” wyłączone”).
+- **„Bez szafki górnej”** (decyzja użytkownika 2026-11-13, z makiety „Dodaj”): w karcie Szafka szafki z ciągu górnego —
+  zamienia ją na **wolne miejsce** tej samej szerokości (np. okno albo otwarta ściana; pozycja bez korpusu `sprzetCiagu.typ = "wolne"`,
+  w zamówieniu nic, na rysunku przerywany obrys „wolne — np. okno”, w 3D / z boku nic, listwa zawieszek ma przerwę);
+  „Przywróć szafkę górną” wraca do poprzedniej szafki (`cab.poprzednia`) z obecną szerokością (`cabWolnegoMiejsca`, `cabZWolnegoMiejsca`).
 - **Klik w widokach podglądu** (2026-11-12: „na widoku 45 stopni nie da się zaznaczyć szafki”, „klikalność szafek poza 3D”):
   z boku, z góry i 45° klik w szafkę ją zaznacza (45° — obrys bryły na zielono, każda ściana bryły ma numer szafki;
   z boku — profil wspólny dla kilku szafek: kolejny klik zaznacza następną), klik obok nie zdejmuje zaznaczenia;
@@ -509,6 +514,11 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
 - **Karta płyty**: kaseta między bokami szafki — „Kaseta 554 mm we wnętrzu szafki 564 mm: zapas 5 / 5 mm”; wycięcie na boku —
   błąd w „Uwagach” (to sprawdzał program już wcześniej).
 - **Wnęka sprzętu w słupku niższa niż sprzęt** — program sam ją podnosi do wnęki sprzętu (`slupkiSprzetNorma`).
+- **Sprzęt do zabudowy nigdy za drzwiami** (mikrofala, piekarnik, ekspres; użytkownik 2026-11-13: „ma stać na półce i od góry też
+  mieć półkę, tak by była w środku”): poziom sprzętu to jego wnęka między dwiema płytami, front sprzętu zamiast drzwi; za niska
+  wnęka rośnie sama, a front wchodzący na drzwi, klapę albo szufladę to błąd w „Uwagach” z przyciskiem „Poziom N mm”.
+  W projekcie użytkownika (wersja 42) mikrofala miała wnękę 250 mm i drzwi nad nią zasłaniały jej front — po wczytaniu
+  wnęka ma 373 mm.
 - Na rzucie z góry blat nie przechwytuje kliknięć (szafkę pod nim da się wybrać); napis przy ścianie: „na ścianie wolne
   N mm długości” / „brakuje N mm długości”.
 - **Bok szafki z sąsiedniej ściany w rogu** (widok z przodu): wysokość szafki w rogu (albo szafek ciągu bez słupków) —
