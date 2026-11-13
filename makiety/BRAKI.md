@@ -184,3 +184,11 @@ kartą i lista ciągu z × pod kartą, przegroda — pola światła, dwuklik / p
 (poniżej 650 pomarańczowo), lodówka wolnostojąca z miejscem i luzami, „wystaje N” z góry, kaseta / komora pomarańczowo przy
 kolizji i z głębokością, wymiary zaznaczonego wycięcia, „szersza niż szafka”; alarm „Ciąg nie mieści się na ścianie” z „Poszerz
 ścianę” i „Usuń …”; Esc przerywa przeciąganie (test `makieta15`). Zostaje inaczej (bez zmian): ciemny motyw makiety.
+
+Runda 4 (2026-11-13, użytkownik: „czy jeszcze mamy jakieś różnice? braki w działaniu, wyświetlaniu, elementach?”): porównane
+wszystkie napisy makiety (183) i karty AGD każdego sprzętu, zrzuty tej samej kuchni. Dorobione: wymiary z karty modelu dla mikrofali /
+ekspresu na blacie i lodówki wolnostojącej, „wystaje przed blat” przy sprzęcie na blacie, podpowiedzi lodówki do zabudowy, „Kaseta
+schodzi …”, okap szerszy niż szafka, „Przesuń w ciągu” przy pozycji ciągu, uwagi o dwóch wycięciach blisko siebie i o wycięciu przy
+przedniej krawędzi, podpowiedzi w karcie Szafka (test `makieta16`). Decyzje użytkownika: ciemny motyw — zostaje jasny; para pod blat —
+płaskie z przodu i stojące z tyłu (jak w aplikacji). Do decyzji: „wystaje” lodówki — od blatu (makieta) czy od korpusów; dotknięcie
+klocka / sprzętu, potem miejsca na rysunku (telefon); lodówka „podblatowa w szafce” (korpus z bokami do podłogi, bez dna).

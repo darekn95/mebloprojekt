@@ -546,6 +546,18 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
     i „Usuń …” (ostatnia pozycja ciągu; `mak-alarm-sciana`).
   - **Esc** w trakcie przeciągania na rysunku (półka, szuflada, przegroda, szafka, sprzęt, przewijanie) — przerywa bez zmian.
   - Inaczej, bez zmian: makieta ma ciemny motyw (gdy system jest ciemny), aplikacja — jasny.
+- **Z makiety „Dodaj” — runda 4 (2026-11-13: „czy jeszcze mamy jakieś różnice?”)**: porównane wszystkie napisy makiety (183) i karty
+  AGD każdego sprzętu. Dorobione: mikrofala / ekspres na blacie — „szer. × głęb.” i „wysokość” z karty modelu (`naBlacie[k].w / d / h`,
+  „Wróć do typowych”) i „Głęboka: N mm + 40 od ściany — wystaje N mm przed blat”; lodówka wolnostojąca — szerokość, głębokość
+  i wysokość w karcie (szerokość zmienia miejsce w ciągu: luz + lodówka + luz); lodówka do zabudowy — „Wnęka: szer. 560–570, głęb.
+  od 550…”, typowe wnęki, przy 2 frontach bez wpisanego dolnego — uwaga; płyta / zlew — „Kaseta schodzi N mm od wierzchu blatu —
+  M mm pod blat”; okap szerszy niż szafka — w karcie i w uwagach (`okapSzerszyMsgs`); zmywarka / lodówka / okap kominowy w ciągu —
+  „Przesuń w ciągu” w karcie AGD; uwagi blatu: dwa wycięcia nachodzą / mniej niż 50 mm między nimi, wycięcie bliżej niż 30 mm
+  przedniej krawędzi (opis w `sprzety.md`); karta Szafka — nazwy sprzętu w szafce („W szafce stoi sprzęt (piekarnik)”), pozycja
+  ciągu bez korpusu i okap kominowy — „zmienisz w karcie sprzętu: Dodaj → AGD”, szafka górna z okapem — „Pod szafką okap —
+  przesuwa się razem z dnem szafki”. Z góry „wystaje N” w obrysie lodówki (wcześniej wychodził poza rysunek bez ciągu górnego).
+  **Para pod blat** (decyzja użytkownika 2026-11-13): płaskie wzmocnienie z przodu i stojące z tyłu — tak jak dotąd w aplikacji
+  (makieta: leżące + stojące z przodu — nie przenosimy). Ciemny motyw makiety — zostaje bez zmian (decyzja użytkownika).
 - **„Bez szafki górnej”** (decyzja użytkownika 2026-11-13, z makiety „Dodaj”): w karcie Szafka szafki z ciągu górnego —
   zamienia ją na **wolne miejsce** tej samej szerokości (np. okno albo otwarta ściana; pozycja bez korpusu `sprzetCiagu.typ = "wolne"`,
   w zamówieniu nic, na rysunku przerywany obrys „wolne — np. okno”, w 3D / z boku nic, listwa zawieszek ma przerwę);
@@ -594,4 +606,5 @@ Kolejne kroki (`makiety/BRAKI.md`, D):
   `testy/makieta5.mjs` (paleta, klocki, karta do schowania, duży rysunek), `testy/makieta11.mjs` (uwagi 2026-11-10),
   `testy/makieta12.mjs` (lista „Wymiary”, wysokości, zakładka „Ciąg”, zawieszki, blenda, notatka, „Zamówienie”,
   napisy nieucięte i czytelne), `testy/makieta15.mjs` (runda 3 z makietą „Dodaj”: pełna karta Szafka, biurko, klocki i „Co zrobi”
-  w zakładkach, lista ciągu, przegroda, rysunek — okap–płyta, lodówka, kaseta / komora, wycięcie, alarm ściany, Esc).
+  w zakładkach, lista ciągu, przegroda, rysunek — okap–płyta, lodówka, kaseta / komora, wycięcie, alarm ściany, Esc),
+  `testy/makieta16.mjs` (runda 4: karty AGD, kontrole wycięć, karta Szafka przy sprzęcie i pozycji ciągu).

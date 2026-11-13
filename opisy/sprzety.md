@@ -177,6 +177,10 @@ i głębokość wycięcia, odległość od przedniej krawędzi blatu, przesunię
   - × poza blatem / ! za blisko końca blatu — przycisk przesunięcia;
   - × poza tyłem blatu / ! za tylną krawędzią mniej niż 50 mm — przycisk „Wycięcie N mm
     od przodu blatu”;
+  - ! do przedniej krawędzi blatu mniej niż 30 mm (`WYCIECIE_PRZOD_MIN`; gdy szkło / rant nie wystaje już przed
+    blat) — przycisk „50 mm od przodu” (typowo); z makiety „Dodaj”, 2026-11-13;
+  - × dwa wycięcia na jednym blacie nachodzą na siebie, ! między nimi mniej niż 50 mm płyty — raz na parę (przy lewym),
+    przycisk przesuwa lewe w lewo, gdy zostaje zapas od końca blatu; z makiety „Dodaj”, 2026-11-13;
   - × płyta grzewcza szersza niż wnętrze szafki albo wychodząca nad bok — jej korpus nie
     zmieści się pod blatem („Wycięcie na środku szafki”, gdy pomaga); zlew nad bokiem —
     tylko informacja (komora we wnętrzu, ociekacz nad sąsiednią);
