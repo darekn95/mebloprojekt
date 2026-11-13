@@ -19,6 +19,10 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   pole `ciag-nawis`, `run.blatNawis`) — głębokość blatu = lico drzwi + nawis, także po zmianie szafek; przyciski w uwagach
   „Blat 10 mm przed frontami” (`blatnawis`). Wpisanie głębokości blatu czyści nawis i odwrotnie. Na rzucie z góry
   (szczegółowa, „Wymiary → z góry”) wymiar „nawis N” (`mak-wym-nawis`), z boku „blat N (M przed frontem)”.
+- **Słupek głębszy w licu ciągu** (bez wysunięcia, np. 580 w ciągu 560): reszta szafek stoi o różnicę od ściany (za nimi pusto),
+  a blat sięga do ściany — może wyjść ponad arkusz 600. Uwaga „Blat wychodzi … za dużo na arkusz” i „różne szerokości w rogu” mówią
+  wtedy o przyczynie i mają przycisk „To słupek — tył przy ścianie, front wysunięty o N mm” (`glebszeWLicu`, akcja `slupekgl`) zamiast
+  „Zmniejsz głębokość szafek”; na rzucie z góry osobny wymiar „N pusto” (`mak-wym-pusto`, 2026-11-12: „brakuje 13 mm, a na rysunku nic nie widać”).
 - **Słupek równo z blatem**: drzwi słupka wysuniętego (tył przy ścianie) nie mogą wyjść przed blat — „Za głęboki słupek:
   drzwi wystają N mm przed blat” z przyciskami „Głębokość szafki …” (płytszy, tył zostaje przy ścianie) i „Blat … mm”.
   Zmiana głębokości wysuniętej szafki zmienia jej wysunięcie o tyle samo — tył zostaje przy ścianie

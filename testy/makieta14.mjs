@@ -140,6 +140,22 @@ await start('szczegolowa', CIAG + `p.runs[0].D = 540; p.items.forEach((x) => { x
     p = await czekaj(`(p.runs[0].wallGap || {}).bottom === ${n - 10}`);
     ok(`po kliknięciu: ciąg ${n - 10} mm od ściany, bez ostrzeżenia`, (p.runs[0].wallGap || {}).bottom === n - 10 && !/wystawałby/.test(await uw.innerText()), JSON.stringify(p.runs[0].wallGap)); } }
 
+console.log('== słupek głębszy w licu ciągu: przyczyna „13 mm za dużo”, „20 pusto” z góry ==');
+// slupek 580 bez wysuniecia w ciagu 560 — reszta 20 mm od sciany, blat 613 (projekt uzytkownika 2026-11-12)
+await start('szczegolowa', CIAG + `const s = JSON.parse(JSON.stringify(p.items[1])); s.cab.name = 'Słupek'; s.cab.H = 2000; s.cab.D = 580; s.cab.slupek = true; s.offset = 0;
+  p.items.unshift(s); p.active = 1;`, WSZYSTKO);
+{ const t = await uw.innerText();
+  ok('uwaga „Blat wychodzi 613 mm … Przyczyna: słupek „Słupek” … 20 mm od ściany”', /Blat wychodzi 613 mm — o 13 mm za dużo/.test(t) && /Przyczyna: słupek „Słupek” jest o 20 mm głębszy/.test(t), t.replace(/\s+/g, ' ').slice(0, 400));
+  ok('bez „Zmniejsz głębokość szafek” przy tej przyczynie', !/Szafki są za głębokie/.test(t));
+  const z = await page.locator('[data-el="mak-wym-zgory"] text').allTextContents();
+  ok('z góry: „20 pusto” osobno od pleców („560+3”)', z.includes('20 pusto') && z.includes('560+3'), JSON.stringify(z));
+  const b = uw.locator('button', { hasText: 'To słupek — tył przy ścianie, front wysunięty o 20 mm' });
+  ok('przycisk „To słupek — tył przy ścianie, front wysunięty o 20 mm”', (await b.count()) >= 1);
+  if (await b.count()) { await b.first().click();
+    p = await czekaj('p.items[0].offset === 20');
+    ok('po kliknięciu: słupek wysunięty 20, blat bez „za dużo na arkusz”, bez „pusto” z góry', p.items[0].offset === 20 && !/za dużo na arkusz/.test(await uw.innerText())
+      && !(await page.locator('[data-el="mak-wym-zgory"] text').allTextContents()).includes('20 pusto')); } }
+
 ok('bez błędów strony', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');

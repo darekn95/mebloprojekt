@@ -11387,10 +11387,14 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
               const rt = showBlat ? runTop(project, g.run) : null, gs = wallGapOf(g.run, null), yS = gs.bottom - gs.top;
               const v = (k, y1, y2, label, x) => <DimV key={k} y1={y1} y2={y2} x={x} left={lewo} label={label} c={MAK_AKCENT} obwodka />;
               // odsuniecie od sciany (ustawienie ciagu) i plecy przybijane (stoja za korpusem) — osobno, zeby „3 od ściany” nie mylilo
-              const odS = Math.max(0, Math.round(gs.bottom || 0)), plecy = Math.max(0, tyl - odS);
+              /* pusto za szafkami — glebsza szafka (np. slupek bez wysuniecia) stoi w licu, reszta odsuwa sie od sciany (uzytkownik
+                 2026-11-12: „brakuje 13 mm, a na rysunku nic nie widać” — bylo „560+23”, plecy 3 i 20 pustego razem) */
+              const odS = Math.max(0, Math.round(gs.bottom || 0)), plecyZa = Math.max(0, Math.round(t0.geo.plecyZa || 0));
+              const pusto = Math.max(0, tyl - odS - plecyZa), plecy = Math.max(0, tyl - odS - pusto);
               return <g data-el="mak-wym-zgory">
                 {odS > 0 && v("odSc", 0, odS, `${fmt(odS)} od ściany`, kol(0))}
-                {v("gl", odS, lico, plecy > 0 ? `${fmt(lico - tyl)}+${fmt(plecy)}` : fmt(lico - tyl), kol(0))}
+                {pusto > 0 && <g data-el="mak-wym-pusto"><DimV y1={odS} y2={odS + pusto} x={kol(0)} left={lewo} label={`${fmt(pusto)} pusto`} c="#b45309" obwodka /></g>}
+                {v("gl", odS + pusto, lico, plecy > 0 ? `${fmt(lico - tyl)}+${fmt(plecy)}` : fmt(lico - tyl), kol(0))}
                 {dv + t0.offset > lico + 1 && v("fr", lico, Math.round(dv + t0.offset), `front ${fmt(Math.round(dv + t0.offset - lico))}`, kol(0))}
                 {rt && v("blat", yS, yS + rt.depth, `blat ${fmt(Math.round(rt.depth))}`, kol(1))}
                 {/* ile blat wystaje przed fronty (uzytkownik 2026-11-12) — od lica drzwi do przodu blatu; ponizej 1 mm na czerwono */}
@@ -18606,6 +18610,16 @@ const wallGapMsgs = (project, run) => {
   return out;
 };
 
+/* Glebsza szafka poza blatem (slupek) stojaca w licu ciagu, bez wysuniecia: pozostale szafki stoja o roznice od sciany, a blat
+   siega za nimi do sciany (uzytkownik 2026-11-12: slupek 580 w ciagu 560, blat 613 — „brakuje 13 mm”). `o` — o ile glebsza
+   (z plecami za korpusem), `c` — szafka z `worktopLevel` (`idx`, `it`, `geo`). Najglebsza pierwsza. */
+const glebszeWLicu = (lvl) => {
+  if (!lvl || !lvl.pod.length) return [];
+  const gP = Math.max(...lvl.pod.filter((c) => !(Number(c.it.offset) || 0)).map((c) => Math.round(c.geo.carcassDepth + (c.geo.plecyZa || 0))), 0);
+  if (!gP) return [];
+  return lvl.poza.filter((c) => !c.it.cab.sprzetCiagu && !(Number(c.it.offset) > 0))
+    .map((c) => ({ c, o: Math.round(c.geo.carcassDepth + (c.geo.plecyZa || 0) - gP) })).filter((q) => q.o > 0).sort((x, y) => y.o - x.o);
+};
 const worktopMsgs = (project, run) => {
   const out = [];
   if (!run) return out;
@@ -18831,6 +18845,20 @@ const worktopMsgs = (project, run) => {
     const wysuniecie = Math.max(0, Math.round(rt.doLica - (rt.odSciany || 0) - plecySz0 - glebokosc - (rt.przed ?? HINGE_PLAY + tf)));
     const sugerowana = WORKTOP_DEPTHS[0] - WORKTOP_OVERHANG - (rt.przed ?? HINGE_PLAY + tf) - (rt.odSciany || 0) - plecySz - wysuniecie;
     const maksOffset = Math.max(0, ...project.items.filter((x) => x.runId === run.id).map((x) => Number(x.offset) || 0));
+    /* Przyczyna — glebsza szafka poza blatem (slupek) w licu ciagu: reszta stoi o roznice od sciany, blat siega za nimi do sciany
+       (uzytkownik 2026-11-12: slupek 580 bez wysuniecia, blat 613 — „brakuje 13 mm”). Wtedy najpierw przycisk „To słupek — tył
+       przy ścianie”, a nie „Zmniejsz głębokość szafek”. */
+    const gw = glebszeWLicu(lvl)[0];
+    if (gw) {
+      const po = rt.depth - gw.o;
+      out.push({ level: "warn", text:
+        `Blat wychodzi ${fmt(rt.depth)} mm — o ${fmt(nadmiar)} mm za dużo na arkusz ${fmt(WORKTOP_DEPTHS[0])} mm, a z arkusza `
+        + `${fmt(WORKTOP_DEPTHS[1])} mm zostaje pas odpadu. Przyczyna: ${gw.c.it.cab.slupek || gw.c.it.cab.H > 1500 ? "słupek" : "szafka"} „${gw.c.it.cab.name}” jest o ${fmt(gw.o)} mm `
+        + `głębszy od szafek pod blatem i stoi w ich licu — pozostałe szafki stoją przez to ${fmt(gw.o)} mm od ściany (za nimi pusto), `
+        + `a blat sięga za nimi do ściany. Ustaw go tyłem przy ścianie (front wysunięty o ${fmt(gw.o)} mm przed lico ciągu) — `
+        + (po <= WORKTOP_DEPTHS[0] ? `blat wróci na arkusz ${fmt(WORKTOP_DEPTHS[0])} mm.` : `blat zmniejszy się do ${fmt(po)} mm.`)
+        + `|slupekgl:${gw.o}:${gw.c.idx}|worktop:${WORKTOP_DEPTHS[1]}` });
+    } else
     out.push({ level: "warn", text:
       `Blat wychodzi ${fmt(rt.depth)} mm — o ${fmt(nadmiar)} mm za dużo na arkusz `
       + `${fmt(WORKTOP_DEPTHS[0])} mm, a z arkusza ${fmt(WORKTOP_DEPTHS[1])} mm zostaje pas odpadu. `
@@ -18936,13 +18964,14 @@ const worktopMsgs = (project, run) => {
     const rtG = rt.depth > rtI.depth ? rt : rtI;
     const cel = glOf(glebszy, glebszy.id === run.id ? lvl : worktopLevel(project, glebszy))
       - (rtG.depth - Math.min(rt.depth, rtI.depth));
-    const fix = cel > 0
-      ? `|rundepth:${cel}${glebszy.id === run.id ? "" : "@" + glebszy.id}` : "";
+    const gwR = glebszy.id === run.id ? glebszeWLicu(lvl)[0] : null;
+    const fix = (gwR ? `|slupekgl:${gwR.o}:${gwR.c.idx}` : "") + (cel > 0 && !gwR
+      ? `|rundepth:${cel}${glebszy.id === run.id ? "" : "@" + glebszy.id}` : "");
     out.push({ level: "warn", text:
       `Blat tej ściany ma ${fmt(rt.depth)} mm, a sąsiedniej „${inny.name}" ${fmt(rtI.depth)} mm `
       + `— w narożniku spotkają się dwie różne szerokości i styk wypadnie ze skokiem. `
-      + `Zwykle bierze się to z różnych głębokości szafek na obu ścianach: `
-      + `ciąg „${glebszy.name}" jest głębszy.` + fix });
+      + (gwR ? `Przyczyna: ${gwR.c.it.cab.slupek || gwR.c.it.cab.H > 1500 ? "słupek" : "szafka"} „${gwR.c.it.cab.name}” o ${fmt(gwR.o)} mm głębszy stoi w licu ciągu „${glebszy.name}" — reszta szafek stoi ${fmt(gwR.o)} mm od ściany.`
+        : `Zwykle bierze się to z różnych głębokości szafek na obu ścianach: ciąg „${glebszy.name}" jest głębszy.`) + fix });
     /* Sasiad z blatem ponad arkusz 600 nie ma gdzie o tym powiedziec, gdy stoi
        w nim samo ramie — wtedy mowimy to tutaj, przy szafce naroznej. */
     if (rtI.depth > WORKTOP_DEPTHS[0] && !runItems(project, inny.id).length) {
