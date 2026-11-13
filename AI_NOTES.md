@@ -1264,3 +1264,8 @@ formatki) i z boku (sprzet w slupku, plyta, zlew, AGD na blacie, wzmocnienia, ko
 Nawis blatu: `run.blatNawis`, zasada 1 / 10 / 20 (`WORKTOP_MIN_OVERHANG` / `WORKTOP_OVERHANG` / `WORKTOP_MAX_OVERHANG`, wczesniej
 30), akcje `blatnawis`, `odsun`. Test: `makieta14`. „Brakuje 13 mm” u uzytkownika = kaseta plyty 13 mm pod blatem w lezacym
 wzmocnieniu (nie nawis) — teraz widac to z boku.
+[AI-INFO] 2026-11-13: porownanie makiety „Dodaj” v24 (`makiety/dodaj.html` = artefakt 5m43AjCMCw141KoT2AypyJ, ostatnia zmiana 2026-11-09)
+z aplikacja — po napisach i opcjach (skrypt: teksty miedzy tagami i etykiety `l:`/`label:` z makiety, szukane w `szafki.jsx`).
+Dorobione braki (BRAKI.md G, test `makieta14`). Pelne przebiegi: v224 170 suit 5484 OK zielone; v225 5464 OK + falszywy alarm
+`makieta4` (poprawiony `klik`); losowe 66 / 0 w obu. Do decyzji: „Bez szafki górnej”, okap przesuwa tylko swoja szafke,
+mikrofala za drzwiami.

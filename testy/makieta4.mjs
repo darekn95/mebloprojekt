@@ -45,7 +45,16 @@ const wybierz = async (i) => {
   await page.locator(`[data-el="mak-szafka"] [data-v="${i}"]`).click();
   await page.waitForTimeout(300);
 };
-const klik = async (sel) => { const l = page.locator(`[data-el="makieta-karta"] ${sel}`).first(); await l.scrollIntoViewIfNeeded(); await l.click(); await page.waitForTimeout(250); };
+/* karta przerysowana w trakcie przewijania (pelny przebieg 2026-11-13, 5 suit naraz: „Element is not attached to the DOM”, wolno
+   przechodzi) — jeszcze raz na swiezym elemencie */
+const klik = async (sel) => {
+  for (let n = 0; ; n++) {
+    const l = page.locator(`[data-el="makieta-karta"] ${sel}`).first();
+    try { await l.scrollIntoViewIfNeeded({ timeout: 5000 }); await l.click({ timeout: 5000 }); break; }
+    catch (e) { if (n >= 2) throw e; await page.waitForTimeout(300); }
+  }
+  await page.waitForTimeout(250);
+};
 
 ok('tryb prosty po przeładowaniu', (await page.locator('[data-el="tryb"] [aria-pressed="true"]').getAttribute('data-tryb')) === 'prosta');
 

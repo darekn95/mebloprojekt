@@ -341,6 +341,9 @@ const lodowkaWnekaZakres = (h) => (h === 1780 ? { hMin: null, hMax: null } : { h
 /* Kompaktowe 45 (makieta „Dodaj”, przykladowo): front 455, wneka 450 — jak ekspres. */
 const SPRZET_ROZM = { piekarnik: [{ k: "60", l: "60 cm", frontH: null, hMin: null }, { k: "45", l: "kompakt 45", frontH: 455, hMin: 450 }],
   mikrofala: [{ k: "38", l: "38 cm", frontH: null, hMin: null }, { k: "45", l: "45 cm", frontH: 455, hMin: 450 }] };
+/* Lodowka wolnostojaca — rozmiary przykladowe z makiety „Dodaj” (szer. × wys. × glab.; luzy 50 / 50 / 100 nad / 50 z tylu) */
+const LODOWKI_WOLNE = [{ k: "60", l: "60 × 185", w: 600, h: 1850, d: 650 }, { k: "60w", l: "60 × 203", w: 600, h: 2030, d: 670 },
+  { k: "70", l: "70 × 203", w: 700, h: 2030, d: 670 }, { k: "90", l: "side by side 91", w: 910, h: 1790, d: 720 }];
 const SPRZET_CIAGU_POLA = ["szer", "hMin", "hMax", "hPod", "hPokr", "dMin", "lodW", "lodH", "lodD", "luzBok", "luzL", "luzP", "luzGora", "luzTyl", "drzwi",
   "h", "gl", "kominW", "kominD"];
 const OKAPK_SZER = [600, 900, 500];
@@ -19045,26 +19048,38 @@ const cabSzafkiZOkapem = (project, it, typ) => {
 };
 /* Okap kominowy (pozycja ciagu gornego, 2026-11-10): dol okapu = dol szafek gornych + `dol`; „za nisko” z przyciskiem
    „Okap 650 mm nad płytą” (`okapdol:<dol>:<nad plyta>`). */
-const okapMsgs = (project, idx) => {
+/* Okap nad plyta — wspolne dla uwag i karty okapu w makiecie (makieta „Dodaj”: „Od płyty do okapu: N mm”, „Pod okapem nie ma
+   płyty”): `brak` — "ciag" (nie w ciagu gornym), "blat" (pod ciagiem nie ma blatu), "plyta" (pod okapem nie ma plyty); inaczej `od`
+   (dol okapu nad wierzchem blatu), `dol` (dol okapu od podlogi), `mY` (dol szafek gornych), `wierzch`. */
+const okapNadPlyta = (project, idx) => {
   const it = project.items[idx];
   const kom = it && okapCiagu(it.cab) ? sprzetCiagu(it.cab) : null;
   const ok = it && (kom ? { nazwa: "Okap kominowy", typ: "kominowy", h: kom.h } : okapSzafki(it.cab));
-  if (!ok) return [];
+  if (!ok) return null;
   const runs = project.runs || [], run = runs.find((r) => r.id === it.runId);
-  if (!run || run.tier !== "gorny") return [{ level: "warn", text: kom ? `${ok.nazwa}: pozycja nie jest w ciągu górnym — okap wisi na ścianie nad płytą, w linii szafek górnych.`
-    : `${ok.nazwa}: szafka nie wisi w ciągu górnym — okap montuje się w szafce górnej nad płytą.` }];
+  if (!run || run.tier !== "gorny") return { it, kom, ok, run, brak: "ciag" };
+  const mY = tierMountY(project, run), dol = mY + (kom ? kom.dol : -(ok.typ === "podszafkowy" ? ok.h : 0));
   const dolny = runs.find((r) => r.id === run.wall);
   const rt = dolny ? runTop(project, dolny) : null;
-  if (!rt) return [{ level: "info", text: `${ok.nazwa}: pod ciągiem górnym nie ma blatu — nie sprawdzam wysokości nad płytą.` }];
+  if (!rt) return { it, kom, ok, run, mY, dol, brak: "blat" };
   let x = 0;
   for (const { it: q, i } of runItems(project, run.id)) { if (i === idx) break; x += q.cab.W + Math.max(0, Math.round(run.gap || 0)); }
   const x0 = Math.round(run.offset || 0) + x, x1 = x0 + it.cab.W, odD = Math.round(dolny.offset || 0);
   const plyty = (rt.wyciecia || []).filter((q) => q.typ === "plyta" && Math.min(x1, odD + q.x1 - (rt.x0 || 0)) - Math.max(x0, odD + q.x0 - (rt.x0 || 0)) > 0);
-  if (!plyty.length) return [{ level: "info", text: kom ? `${ok.nazwa} „${it.cab.name || "okap"}”: pod nim nie ma płyty grzewczej — okap wisi zwykle nad płytą.`
+  if (!plyty.length) return { it, kom, ok, run, mY, dol, brak: "plyta" };
+  const wierzch = rt.y + rt.th;
+  return { it, kom, ok, run, mY, dol, wierzch, od: Math.round(dol - wierzch) };
+};
+const okapMsgs = (project, idx) => {
+  const n = okapNadPlyta(project, idx);
+  if (!n) return [];
+  const { it, kom, ok } = n;
+  if (n.brak === "ciag") return [{ level: "warn", text: kom ? `${ok.nazwa}: pozycja nie jest w ciągu górnym — okap wisi na ścianie nad płytą, w linii szafek górnych.`
+    : `${ok.nazwa}: szafka nie wisi w ciągu górnym — okap montuje się w szafce górnej nad płytą.` }];
+  if (n.brak === "blat") return [{ level: "info", text: `${ok.nazwa}: pod ciągiem górnym nie ma blatu — nie sprawdzam wysokości nad płytą.` }];
+  if (n.brak === "plyta") return [{ level: "info", text: kom ? `${ok.nazwa} „${it.cab.name || "okap"}”: pod nim nie ma płyty grzewczej — okap wisi zwykle nad płytą.`
     : `${ok.nazwa} w „${it.cab.name || "szafka"}”: pod nim nie ma płyty grzewczej — okap wisi zwykle nad płytą.` }];
-  const mY = tierMountY(project, run), wierzch = rt.y + rt.th;
-  const dol = mY + (kom ? kom.dol : -(ok.typ === "podszafkowy" ? ok.h : 0));
-  const od = Math.round(dol - wierzch);
+  const { mY, wierzch, od } = n;
   const napraw = kom ? `|okapdol:${Math.round(wierzch + OKAP_MIN_IND - mY)}:${OKAP_MIN_IND}` : "";
   if (od < OKAP_MIN_IND) return [{ level: "warn", text: `${ok.nazwa}: od płyty do okapu tylko ${fmt(od)} mm — przy indukcji zwykle co najmniej ${OKAP_MIN_IND}, przy gazie ${OKAP_MIN_GAZ} (wg instrukcji producenta).${napraw}` }];
   if (od < OKAP_MIN_GAZ) return [{ level: "info", text: `${ok.nazwa}: od płyty do okapu ${fmt(od)} mm — wystarczy przy indukcji (${OKAP_MIN_IND}), przy płycie gazowej zwykle ${OKAP_MIN_GAZ}.` }];
@@ -21514,7 +21529,7 @@ const MAK_ZAKLADKI_SZCZ = [["korpus", "Korpus i plecy"], ["wzmocnienia", "Wzmocn
 /* „AGD” (makieta „Dodaj”: przelacznik wyposazenia; uzytkownik 2026-11-12: „gdzie zginął przycisk od wyłączania wyświetlania
    wyposażenia?”) — wylaczony: bez sprzetu na rysunku (wneki puste, plyta / zlew jako samo wyciecie, bez sprzetu na blacie);
    domyslnie wlaczony (`przel.agd !== false`) */
-const MAK_PRZEL = [["zgory", "Z góry"], ["gorny", "Ciąg górny"], ["dolny", "Ciąg dolny"], ["fronty", "Fronty"], ["agd", "AGD"], ["kolory", "Kolory płyt"], ["wymiary", "Wymiary"]];
+const MAK_PRZEL = [["zgory", "Z góry"], ["gorny", "Ciąg górny"], ["dolny", "Ciąg dolny"], ["fronty", "Fronty"], ["agd", "Wyposażenie"], ["kolory", "Kolory płyt"], ["wymiary", "Wymiary"]];
 /* Kolory rysunku makiety (uzytkownik 2026-11-09: „zależnie od trybu — w prostym jak jest [w makiecie], w szczegółowej już
    z kolorami płyt jak w technicznym, na przełączniku”): prosta — jasne jak makieta „Dodaj” (--board, --top), bez slojow;
    szczegolowa — przelacznik „Kolory płyt” (domyslnie wlaczony). Zmienia tylko rysunek (kopia `mat` z kolorami), nie dane. */
@@ -21833,6 +21848,13 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
       // drazek: chwyt na srodku — przeciagnij do innego swiatla
       (col.drazki || []).forEach((dr) => out.push(pas(`dz${lv.i}-${col.j}-${dr.k}`, "drazek", { ...dane, "data-k": dr.k }, col.x0 + 20, fy(dr.y) - 26, col.w - 40, 52, "ns-resize"),
         chwyt(`dzc${lv.i}-${col.j}-${dr.k}`, col.x0 + col.w / 2, fy(dr.y), true)));
+      /* jak w makiecie „Dodaj”: ile miejsca pod drazkiem (od osi drazka do polki albo dna pod nim) — na ubrania na wieszakach */
+      if (!bezSw) (col.drazki || []).forEach((dr) => {
+        const o = (col.openings || []).find((q) => dr.y >= q.from - 1 && dr.y <= q.to + 1);
+        const pod = o ? Math.round(dr.y - o.from) : null;
+        if (pod > 120) out.push(<text key={`dzp${lv.i}-${col.j}-${dr.k}`} data-el="mak-pod-drazkiem" pointerEvents="none" x={col.x0 + col.w / 2} y={fy(dr.y) + 110} textAnchor="middle"
+          fontSize="30" fill={MAK_AKCENT} stroke="#fff" strokeWidth="5" paintOrder="stroke" fontFamily="ui-monospace, monospace">{`pod drążkiem ↕${fmt(pod)}`}</text>);
+      });
     }
     if (zakladka === "szuflady" && raw.kind === "drawers") {
       const dr = [...(col.drawers || [])].sort((x, y) => x.i - y.i);
@@ -21967,7 +21989,7 @@ const MakBtn = ({ on, onClick, children, el, v }) => (
 /* Karta sprzetu w makiecie (krok 1 planu wyrownania, uzytkownik 2026-11-09): to, co w makiecie „Dodaj” — rozmiar do
    klikniecia, wymiary z karty modelu, polozenie, opcje — zapisane w te same pola co tryb techniczny:
    `cab.blatWyciecia[k]` (wyc), `cab.naBlacie[k]` (nb), `col.sprzet` (kol), `cab.sprzetCiagu` (ciag). `sel`: { i, rodz, k, li, j }. */
-function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ustawSel, lodRodzaj, zamienSprzet, przesun }) {
+function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ustawSel, lodRodzaj, zamienSprzet, przesun, ustawCiag }) {
   const it = project.items[sel.i]; if (!it) return null;
   const cab = it.cab, nazwaSz = cab.name || "szafka";
   const etyk = (t) => <p className="mt-2 text-[11px] font-medium uppercase tracking-wider text-stone-500">{t}</p>;
@@ -22019,6 +22041,9 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
       {etyk("Położenie na blacie")}
       {odPocz != null && para("od początku blatu do lewej krawędzi wycięcia", liczba("agd-odpocz", odPocz, null, (v) => v != null && ustaw({ przesun: (Number(raw.przesun) || 0) + (v - odPocz) }), "w-20"))}
       {para("od przodu blatu", liczba("agd-odprzodu", raw.odPrzodu, WYCIECIA_BLATU[q.typ].odPrzodu, (v) => ustaw({ odPrzodu: v })))}
+      {/* jak w makiecie „Dodaj”: ile zostaje do konca blatu i do tylu, gdzie srodek wyciecia wzgledem szafki */}
+      {wq && <p className="text-[11px] text-stone-600" data-el="agd-polozenie">Do końca blatu zostaje <b className="font-mono">{fmt(Math.round(rt.x0 + rt.total - wq.x1))}</b> mm,
+        do tyłu <b className="font-mono">{fmt(Math.round(rt.depth - q.odPrzodu - q.d))}</b> mm; środek wycięcia {q.przesun ? `${fmt(Math.abs(q.przesun))} mm w ${q.przesun > 0 ? "prawo" : "lewo"} od środka szafki` : "na środku szafki"}.</p>}
       {/* jak w makiecie „Dodaj”: powrot do typowej odleglosci od przodu */}
       {raw.odPrzodu != null && Math.round(raw.odPrzodu) !== WYCIECIA_BLATU[q.typ].odPrzodu && <button data-el="agd-odprzodu-dom" onClick={() => ustaw({ odPrzodu: null })}
         className="mt-1 rounded border border-teal-600 px-2 py-0.5 text-[11px] text-teal-700 hover:bg-teal-50">{WYCIECIA_BLATU[q.typ].odPrzodu} od przodu (typowo)</button>}
@@ -22148,7 +22173,22 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
         {para("od przedniej krawędzi dna", liczba("agd-okap-odprzodu", (cab.okap || {}).odPrzodu, OKAP_OD_PRZODU, (v) => ustaw({ odPrzodu: v })))}
         <p className="text-[11px] text-stone-600" data-el="agd-okap-info">Wycięcie <b className="font-mono">{fmt(ok.wycW)} × {fmt(ok.wycD)}</b> mm na środku dna (propozycja z makiety — wpisz z karty modelu); w formatce „Dno”.</p>
       </> : <p className="text-[11px] text-stone-600">Pod dnem szafki, {fmt(ok.h)} mm w dół — bez wycięcia.</p>}
-      <p className="text-[11px] text-stone-600">Wysokość nad płytą sprawdzam w „Uwagach” (indukcja min. {OKAP_MIN_IND}, gaz {OKAP_MIN_GAZ}).</p>
+      {/* jak w makiecie „Dodaj”: od plyty do okapu, „pod okapem nie ma płyty” i wysokosc okapu (tu: dol szafek gornych — caly ciag) */}
+      {(() => { const n = okapNadPlyta(project, sel.i); if (!n) return null;
+        const pod = ok.typ === "podszafkowy" ? ok.h : 0;
+        return <>
+          {n.od != null ? <p data-el="agd-okap-nad-plyta" className={`text-[11px] ${n.od < OKAP_MIN_IND ? "font-medium text-amber-700" : "text-stone-600"}`}>Od płyty do okapu: <b className="font-mono">{fmt(n.od)} mm</b> (indukcja zwykle min. {OKAP_MIN_IND}, gaz {OKAP_MIN_GAZ} — wg instrukcji producenta).</p>
+            : n.brak === "plyta" ? <p data-el="agd-okap-bez-plyty" className="text-[11px] font-medium text-amber-700">Pod okapem nie ma płyty — okap wisi zwykle nad płytą.</p>
+            : n.brak === "blat" ? <p className="text-[11px] text-stone-600">Pod ciągiem górnym nie ma blatu — wysokości nad płytą nie sprawdzam.</p> : null}
+          {n.run && n.run.tier === "gorny" && ustawCiag && n.mY != null && (() => {
+            const run = n.run, Y = n.mY;
+            const ustawY = (v) => { if (!(v >= 0)) return; if (run.wall) ustawCiag(run.id, { clearance: Math.max(0, Math.round((run.clearance ?? 500) + v - Y)) }); else ustawCiag(run.id, { mountY: Math.max(0, Math.round(v)) }); };
+            const krok = (d) => <button key={`k${d}`} data-el="agd-okap-krok" data-v={d} onClick={() => ustawY(Y + d)} className="h-6 w-6 rounded border border-stone-300 bg-white text-sm leading-none text-stone-700 hover:border-teal-600">{d < 0 ? "−" : "+"}</button>;
+            return <>{etyk("Wysokość okapu")}
+              <div className="flex items-center justify-between gap-2 py-0.5 text-[11px]"><span className="text-stone-500">dół okapu od podłogi (przesuwa cały ciąg górny)</span>
+                <span className="flex items-center gap-1">{krok(-50)}{liczba("agd-okap-dol-podl", Y - pod, null, (v) => v != null && ustawY(v + pod), "w-20")}{krok(50)}<span className="text-stone-400">mm</span></span></div></>;
+          })()}
+        </>; })()}
       <div className="mt-1">{usun(() => { zmien(sel.i, (c) => { delete c.okap; }); zamknij(); })}</div>
     </>;
   } else if (sel.rodz === "ciag" && okapCiagu(cab)) {
@@ -22188,9 +22228,17 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
       {sp.typ === "lodowka" && <>
         {rodzajLodowki(sp.rowno ? "rowno" : "wolna")}
         {etyk("Rodzaj")}{rzad("agd-lod-rowno", [["wolna", "wolnostojąca"], ["rowno", "na równo z meblami"]].map(([v, l]) => <MakBtn key={v} el="agd-lod-rowno-v" v={v} on={(sp.rowno ? "rowno" : "wolna") === v} onClick={() => setSp({ rowno: v === "rowno" ? true : null, luzL: null, luzP: null, luzGora: null })}>{l}</MakBtn>))}
+        {/* rozmiary jak w makiecie „Dodaj” (przykladowe — wpisz z karty modelu w trybie Technicznym); miejsce w ciagu = luzy + lodowka */}
+        {etyk("Rozmiar")}{rzad("agd-lod-rozm", LODOWKI_WOLNE.map((x) => <MakBtn key={x.k} el="agd-lod-rozm-v" v={x.k} on={sp.lodW === x.w && sp.lodH === x.h && sp.lodD === x.d}
+          onClick={() => setSp({ lodW: x.w === SPRZETY_CIAGU.lodowka.lodW ? null : x.w, lodH: x.h === SPRZETY_CIAGU.lodowka.lodH ? null : x.h, lodD: x.d === SPRZETY_CIAGU.lodowka.lodD ? null : x.d },
+            { W: sp.luzL + x.w + sp.luzP })}>{x.l}</MakBtn>))}
+        <p className="text-[11px] text-stone-600" data-el="agd-lod-wym">Lodówka {fmt(sp.lodW)} × {fmt(sp.lodH)} × {fmt(sp.lodD)} mm (szer. × wys. × głęb.) — wymiary przykładowe, wpisz z karty swojego modelu (tryb Techniczny).</p>
         {etyk("Luzy")}
-        {para("z lewej", liczba("agd-luzl", (cab.sprzetCiagu || {}).luzL, sp.luzL, (v) => setSp({ luzL: v })))}
-        {para("z prawej", liczba("agd-luzp", (cab.sprzetCiagu || {}).luzP, sp.luzP, (v) => setSp({ luzP: v })))}
+        {para("z lewej", liczba("agd-luzl", (cab.sprzetCiagu || {}).luzL, sp.luzL, (v) => setSp({ luzL: v }, { W: (v ?? sp.luzL) + sp.lodW + sp.luzP })))}
+        {para("z prawej", liczba("agd-luzp", (cab.sprzetCiagu || {}).luzP, sp.luzP, (v) => setSp({ luzP: v }, { W: sp.luzL + sp.lodW + (v ?? sp.luzP) })))}
+        {para("nad lodówką", liczba("agd-luzg", (cab.sprzetCiagu || {}).luzGora, sp.luzGora, (v) => setSp({ luzGora: v })))}
+        {para("z tyłu", liczba("agd-luzt", (cab.sprzetCiagu || {}).luzTyl, sp.luzTyl, (v) => setSp({ luzTyl: v })))}
+        <p className="text-[11px] text-stone-600">Luz to odstęp od szafki albo ściany obok — na wentylację i otwarcie drzwi; liczy się do miejsca w ciągu. Zwykle 50 z boków i z tyłu, 100 nad lodówką; przy ścianie po stronie zawiasów często trzeba więcej — wg instrukcji modelu.</p>
         <p className="text-[11px] text-stone-600">Miejsce w ciągu: {fmt(sp.luzL)} + lodówka {fmt(sp.lodW)} + {fmt(sp.luzP)} = <b className="font-mono">{fmt(sp.luzL + sp.lodW + sp.luzP)}</b> mm.</p>
         {etyk("Drzwi")}{zaw}
       </>}
@@ -22671,7 +22719,7 @@ const MAK_KLOCKI = [
   { id: "tipon", nazwa: "Tip-on", front: true, fn: (k) => makUstawTipon(k, true) },
 ];
 
-function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia", selAgd, setSelAgd, usunPozycje, geoOf, lodRodzaj, zamienSprzet, przesun }) {
+function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, komunikat, project, pokoj, wybierz, zmien, rodzaj = "kuchnia", selAgd, setSelAgd, usunPozycje, geoOf, lodRodzaj, zamienSprzet, przesun, ustawCiag }) {
   // zwiniete / rozwiniete grupy „Nowe szafki” na ciag: { [id ciagu | "wolne"]: { [grupa]: true / false } }
   const [grupyOtw, setGrupyOtw] = useState(() => { try { return JSON.parse(localStorage.getItem("mp-mak-grupy") || "{}") || {}; } catch (e) { return {}; } });
   const kafel = (el, id, l, opis, onClick, ikona) => (
@@ -22713,7 +22761,7 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
         {kom}
         {naglowek("Sprzęt")}
         <div className="grid grid-cols-2 gap-1">{MAK_AGD.map((a) => kafel("mak-agd", a.id, a.nazwa, a.opis, () => onAgd(a, null), ikonaAgd(a.id)))}</div>
-        {selAgd && <MakietaKartaAgd project={project} sel={selAgd} zmien={zmien} usunPozycje={usunPozycje} zamknij={() => setSelAgd && setSelAgd(null)} geoOf={geoOf} ustawSel={setSelAgd} lodRodzaj={lodRodzaj} zamienSprzet={zamienSprzet} przesun={przesun} />}
+        {selAgd && <MakietaKartaAgd project={project} sel={selAgd} zmien={zmien} usunPozycje={usunPozycje} zamknij={() => setSelAgd && setSelAgd(null)} geoOf={geoOf} ustawSel={setSelAgd} lodRodzaj={lodRodzaj} zamienSprzet={zamienSprzet} przesun={przesun} ustawCiag={ustawCiag} />}
         {naglowek(`W projekcie (${lista.length})`)}
         {lista.length ? (
           <ul className="space-y-1" data-el="mak-agd-lista">
@@ -24555,7 +24603,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                   </button>
                   {dodajCo === k && (
                     <div className="border-t border-stone-200 p-2">
-                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} selAgd={selAgd} setSelAgd={setSelAgd} usunPozycje={usunPozycje} geoOf={(i) => geoRysunku.current[i]} lodRodzaj={zamienLodowke} zamienSprzet={zamienSprzet} przesun={przesunSel} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
+                      <MakietaPaleta zakladka={zak} rodzaj={rodzaj} ustawCiag={ciag && ciag.setRun} selAgd={selAgd} setSelAgd={setSelAgd} usunPozycje={usunPozycje} geoOf={(i) => geoRysunku.current[i]} lodRodzaj={zamienLodowke} zamienSprzet={zamienSprzet} przesun={przesunSel} onWzor={wstawWzor} onKlocek={wstawKlocek} onAgd={wstawAgd} komunikat={komunikat}
                         project={project} pokoj={pokoj} wybierz={wybierz} zmien={zmien}
                         zacznij={(w) => { wlecze.current = w; setKomunikat(null); }} skoncz={() => { wlecze.current = null; setCel(null); setZnacznik(null); }} />
                     </div>
@@ -24690,6 +24738,13 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           </span>
         </div>
         {przel.agd === false && <style>{"[data-el=mak-plotno] [data-el=sprzet-front], [data-el=mak-plotno] [data-el=wyciecie-front], [data-el=mak-plotno] [data-el=na-blacie], [data-el=mak-plotno] [data-el=rant-blatu], [data-el=mak-plotno] [data-el=pola-grzewcze], [data-el=mak-plotno] [data-el=komory], [data-el=mak-plotno] [data-el=ociekacz] { display: none; } [data-el=mak-plotno] [data-el=wyciecie-blatu] text { fill: #44403c; }"}</style>}
+        {/* legenda jak w makiecie „Dodaj”: zielone ramki przy przenoszeniu, wyposazenie wylaczone, dwa widoki naraz */}
+        {((ramki && ramki.lista.length > 0) || przel.agd === false || (przel.zgory && widokM === "przod" && rysowane.length > 0)) && (
+          <p data-el="mak-legenda" className="mb-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] text-stone-500">
+            {ramki && ramki.lista.length > 0 && <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-sm border-2 border-green-600" />tu może stanąć wybrany sprzęt albo klocek</span>}
+            {przel.zgory && widokM === "przod" && rysowane.length > 0 && <span>góra: blat z góry · dół: widok z przodu</span>}
+            {przel.agd === false && <span>„Wyposażenie” wyłączone — wycięcia i puste wnęki</span>}
+          </p>)}
         <div data-el="mak-plotno" data-agd={przel.agd === false ? "0" : "1"} ref={plotno} className={`overflow-auto ${lg || pelny ? "min-h-0 flex-1" : ""}`}
           onClick={(e) => {
             if (przesuwany) { przesunNa(e); return; }

@@ -156,6 +156,48 @@ await start('szczegolowa', CIAG + `const s = JSON.parse(JSON.stringify(p.items[1
     ok('po kliknięciu: słupek wysunięty 20, blat bez „za dużo na arkusz”, bez „pusto” z góry', p.items[0].offset === 20 && !/za dużo na arkusz/.test(await uw.innerText())
       && !(await page.locator('[data-el="mak-wym-zgory"] text').allTextContents()).includes('20 pusto')); } }
 
+console.log('== jak w makiecie „Dodaj”: położenie płyty, okap nad płytą, lodówka wolnostojąca, drążek, „Wyposażenie” ==');
+await start('prosta', KUCHNIA + `p.runs.push({ id: 'g1', name: 'Ściana 1 — góra', roomId: p.runs[0].roomId, tier: 'gorny', wall: 'r1' });
+  [0, 1].forEach((k) => { const g = JSON.parse(JSON.stringify(p.items[1])); g.cab.name = 'Górna ' + (k + 1); g.cab.H = 720; g.cab.D = 320; g.cab.blatWyciecia = [];
+    g.cab.levels = [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }];
+    g.cab.joints = { ...(g.cab.joints || {}), topL: 'between', topR: 'between' }; g.cab.legs = { ...(g.cab.legs || {}), on: false }; g.cab.plinth = { ...(g.cab.plinth || {}), on: false };
+    if (k === 0) g.cab.okap = { typ: 'podszafkowy' }; g.runId = 'g1'; p.items.push(g); });
+  const l = JSON.parse(JSON.stringify(p.items[1])); l.cab = { ...l.cab, name: 'Lodówka', W: 700, H: 2000, sprzetCiagu: { typ: 'lodowka' } }; l.runId = 'r1'; p.items.push(l);`, PRZOD);
+await zakl('dodaj');
+{ const agd = page.locator('[data-el="mak-dodaj"] [data-dodaj="agd"]'); if ((await agd.getAttribute('aria-expanded').catch(() => 'true')) !== 'true') await agd.click().catch(() => {}); await page.waitForTimeout(300); }
+const zListy = async (re) => { const poz = page.locator('[data-el="mak-agd-lista"] button').filter({ hasText: re }).first(); if (await poz.count()) await poz.click(); await page.waitForTimeout(400); return poz.count(); };
+await zListy(/Płyta/);
+ok('płyta: „Do końca blatu zostaje N mm, do tyłu N mm; środek wycięcia na środku szafki”',
+  /Do końca blatu zostaje \d+ mm, do tyłu \d+ mm; środek wycięcia na środku szafki/.test(await page.locator('[data-el="agd-polozenie"]').innerText().catch(() => '')),
+  await page.locator('[data-el="agd-polozenie"]').innerText().catch(() => 'brak'));
+await zListy(/Okap podszafkowy/);
+{ const t = async () => page.locator('[data-el="agd-okap-nad-plyta"]').innerText().catch(() => '');
+  const m = /Od płyty do okapu: (\d+) mm/.exec(await t());
+  ok('okap: „Od płyty do okapu: N mm” w karcie', !!m, await t());
+  await page.locator('[data-el="agd-okap-krok"][data-v="50"]').click().catch(() => {});
+  p = await czekaj('p.runs.find((r) => r.id === "g1").clearance === 550'); await page.waitForTimeout(300);
+  const m2 = /Od płyty do okapu: (\d+) mm/.exec(await t());
+  ok('okap +50: ciąg górny wyżej (prześwit 550), od płyty do okapu o 50 więcej', p.runs.find((r) => r.id === 'g1').clearance === 550 && m && m2 && Number(m2[1]) === Number(m[1]) + 50, `${m && m[1]} → ${m2 && m2[1]}`); }
+await zListy(/Lodówka wolnostojąca/);
+ok('lodówka: rozmiary 60 × 185, 60 × 203, 70 × 203, side by side 91', JSON.stringify(await page.locator('[data-el="agd-lod-rozm-v"]').allTextContents()) === '["60 × 185","60 × 203","70 × 203","side by side 91"]',
+  JSON.stringify(await page.locator('[data-el="agd-lod-rozm-v"]').allTextContents()));
+ok('lodówka: luzy z lewej, z prawej, nad, z tyłu', ['agd-luzl', 'agd-luzp', 'agd-luzg', 'agd-luzt'].every(async () => true) && (await page.locator('[data-el="agd-luzg"]').count()) === 1 && (await page.locator('[data-el="agd-luzt"]').count()) === 1);
+await page.locator('[data-el="agd-lod-rozm-v"][data-v="70"]').click();
+{ const il = (q) => q.items.findIndex((x) => x.cab.sprzetCiagu && x.cab.sprzetCiagu.typ === 'lodowka');
+  p = await czekaj('p.items.some((x) => x.cab.sprzetCiagu && x.cab.sprzetCiagu.lodW === 700)');
+  const L = p.items[il(p)];
+  ok('„70 × 203”: lodówka 700 × 2030 × 670, miejsce w ciągu 50 + 700 + 50 = 800', L.cab.sprzetCiagu.lodW === 700 && L.cab.sprzetCiagu.lodH === 2030 && L.cab.sprzetCiagu.lodD === 670 && L.cab.W === 800, JSON.stringify([L.cab.sprzetCiagu, L.cab.W])); }
+ok('przełącznik nazywa się „Wyposażenie”', /Wyposażenie/.test(await page.locator('[data-el="mak-przel"] [data-p="agd"]').innerText().catch(() => '')));
+await page.locator('[data-el="mak-przel"] [data-p="agd"]').click(); await page.waitForTimeout(400);
+ok('wyłączone — legenda „„Wyposażenie” wyłączone — wycięcia i puste wnęki”', /„Wyposażenie” wyłączone — wycięcia i puste wnęki/.test(await page.locator('[data-el="mak-legenda"]').innerText().catch(() => '')));
+await page.locator('[data-el="mak-przel"] [data-p="agd"]').click(); await page.waitForTimeout(300);
+// szafa z drazkiem: „pod drążkiem ↕N” w zakladce Polki
+await start('prosta', `const w = p.items[0]; w.runId = null; w.cab.name = 'Szafa'; w.cab.W = 600; w.cab.H = 2100; w.cab.D = 560;
+  w.cab.levels = [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null], drazki: [0] }] }]; p.items = [w]; p.runs = []; p.active = 0;`, PRZOD);
+await zakl('polki');
+ok('drążek: „pod drążkiem ↕N” w zakładce Półki', /^pod drążkiem ↕\d+$/.test((await page.locator('[data-el="mak-pod-drazkiem"]').first().textContent().catch(() => '')) || ''),
+  await page.locator('[data-el="mak-pod-drazkiem"]').first().textContent().catch(() => 'brak'));
+
 ok('bez błędów strony', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');

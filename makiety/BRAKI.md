@@ -154,3 +154,17 @@ Wyrównane później tego samego dnia (użytkownik: „wszystko zrób”; opis: 
 - płyta indukcyjna jak w makiecie (ciemne szkło, pola grzewcze; z przodu szkło i kaseta), zlew z baterią;
 - lodówka do zabudowy: pole „dolny front” przy 2 frontach — było, sprawdzone testem.
 
+
+## G. Porównanie makiety (v24) z aplikacją — 2026-11-13
+
+Użytkownik: „czy wszystkie funkcje, wygląd i działanie z artefaktu testowego makiety działa?”. Napisy, przyciski i opcje
+makiety porównane z `szafki.jsx`. Dorobione: położenie wycięcia („do końca blatu, do tyłu”), okap — od płyty do okapu,
+„pod okapem nie ma płyty”, wysokość okapu −/+50, lodówka wolnostojąca — rozmiary i luzy nad / z tyłu, „pod drążkiem ↕N”,
+przełącznik „Wyposażenie”, legenda nad rysunkiem (test `makieta14`).
+
+Do decyzji użytkownika:
+- „Bez szafki górnej” / „Przywróć szafkę górną” (puste miejsce w ciągu górnym, np. okno) — w aplikacji szafki ciągu stoją
+  jedna przy drugiej, pustego miejsca w środku ciągu nie ma;
+- wysokość okapu w szafce: w makiecie przesuwa się tylko szafka nad okapem (krótsza), w aplikacji — cały ciąg górny.
+
+Inaczej z nazwy, działa tak samo: „Przegroda na środek” → „Kolumny po równo”, „Szuflady po równo” → „po równo”.
