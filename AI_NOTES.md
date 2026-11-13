@@ -1282,3 +1282,6 @@ wzory nad karta i `MakListaCiagu`, okienko przegrody (`przegOkno`), rysunek (oka
 sciany), Esc w przeciaganiu; test `makieta15`. `testy/build-artifact.mjs` przyjmuje `OUT=` (budowa do innego pliku w trakcie
 pelnego przebiegu — pelny czyta `mebloprojekt-app.html`). Uwaga do testow: tekst z SVG — `textContent`, nie `innerText`; zapis
 projektu do localStorage trwa dluzej niz 400 ms — czytac przez `czekaj(...)`, nie `proj()` od razu.
+[AI-INFO] 2026-11-13 (runda 3): pelny przebieg (8758766): 171 suit, 5604 OK — jedyne 3 bledy w `makieta15` to testy karty szafki
+gornej dopisane w trakcie przebiegu (build byl starszy); po przebudowie (630738b) `makieta15` 80 OK w obu buildach, makieta4 / 12 / 13 /
+14 zielone; losowe 66 / 0. Audyt projektu uzytkownika v42 bez zmian (43 OK, te same 7 uwag o skrzydle w rogu — uchwyt „Szafka 3”).
