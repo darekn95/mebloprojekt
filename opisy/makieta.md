@@ -576,7 +576,8 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
   - **Nazwa zaznaczonej szafki** przy wymiarach wzmocnień (szczegółowa, otwarte) — pod wzmocnieniami u góry (była chowana;
     zgłoszenie: „czemu szafka 1 c2 nie jest opisana?”).
   - **Wycięcie w blacie**: od końca blatu co najmniej 30 mm blatu (`WYCIECIE_KONIEC`; użytkownik: „30 mm wystarczy”), przy łączeniu,
-    z tyłu i między wycięciami — 50 mm; w uwagach „blatu”, nie „płyty”.
+    z tyłu i między wycięciami — 50 mm; w uwagach „blatu”, nie „płyty”. Różne głębokości blatów w narożniku — informacja: przody schodzą się normalnie, różnica zostaje z tyłu przy
+    ścianie (docięcie na miejscu); opis w `ciagi.md`.
 - **„Bez szafki górnej”** (decyzja użytkownika 2026-11-13, z makiety „Dodaj”): w karcie Szafka szafki z ciągu górnego —
   zamienia ją na **wolne miejsce** tej samej szerokości (np. okno albo otwarta ściana; pozycja bez korpusu `sprzetCiagu.typ = "wolne"`,
   w zamówieniu nic, na rysunku przerywany obrys „wolne — np. okno”, w 3D / z boku nic, listwa zawieszek ma przerwę);

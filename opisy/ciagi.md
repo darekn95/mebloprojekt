@@ -22,9 +22,10 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   pole `ciag-nawis`, `run.blatNawis`) — głębokość blatu = lico drzwi + nawis, także po zmianie szafek; przyciski w uwagach
   „Blat 10 mm przed frontami” (`blatnawis`). Wpisanie głębokości blatu czyści nawis i odwrotnie. Na rzucie z góry
   (szczegółowa, „Wymiary → z góry”) wymiar „nawis N” (`mak-wym-nawis`), z boku „blat N (M przed frontem)”.
-- **Różne głębokości blatów w narożniku** (np. 600 i 583) — **informacja** (od 2026-11-13; wcześniej ostrzeżenie): na styku będzie
-  uskok N mm — blat łączony na wprost, np. z zaokrąglonym przodem, tak można (zdjęcie użytkownika: 60 i 58 cm, „jest ok”). Gdy blaty
-  mają być równe: „Odsuń szafki „<płytszy ciąg>” od ściany o N mm” (gdy jego blat jest docięty) albo zmniejszenie głębokości głębszego.
+- **Różne głębokości blatów w narożniku** (np. 600 i 583) — **informacja** (od 2026-11-13; wcześniej ostrzeżenie „styk ze skokiem”):
+  przy łączeniu na wprost przody blatów schodzą się normalnie, różnica zostaje z tyłu, przy ścianie — zbiera ją docięcie i dopasowanie
+  blatu na miejscu (użytkownik, zdjęcia blatu 60 / 58 cm: „uskok jest od tyłu, nie od przodu blatu”). Gdy blaty mają mieć równą głębokość:
+  „Odsuń szafki „<płytszy ciąg>” od ściany o N mm” (gdy jego blat jest docięty) albo zmniejszenie głębokości głębszego.
 - **Słupek głębszy w licu ciągu** (bez wysunięcia, np. 580 w ciągu 560): reszta szafek stoi o różnicę od ściany (za nimi pusto),
   a blat sięga do ściany — może wyjść ponad arkusz 600. Uwaga „Blat wychodzi … za dużo na arkusz” i „różne szerokości w rogu” mówią
   wtedy o przyczynie i mają przycisk „To słupek — tył przy ścianie, front wysunięty o N mm” (`glebszeWLicu`, akcja `slupekgl`) zamiast

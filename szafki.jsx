@@ -19189,11 +19189,13 @@ const worktopMsgs = (project, run) => {
        roznice: blat w calej szerokosci i rowny z sasiednim */
     const plytszy = glebszy.id === run.id ? inny : run, rtP = plytszy.id === run.id ? rt : rtI, roz = Math.round(rtG.depth - rtP.depth);
     const odsunP = rtP.docinka >= roz - 1 && roz > 0 && roz <= 100 ? `|odsun:${roz}:${plytszy.id}:${String(plytszy.name || "ciąg").replace(/[:|]/g, " ")}` : "";
-    /* rozne glebokosci blatow w rogu (uzytkownik 2026-11-13, zdjecie: blat laczony na wprost 60 / 58 cm, przod zaokraglony — „jest ok”):
-       informacja o uskoku, nie ostrzezenie; przyciski — gdy blaty maja byc rowne */
+    /* rozne glebokosci blatow w rogu (uzytkownik 2026-11-13, zdjecia: blat laczony na wprost 60 / 58 cm — „jest ok”; „uskok jest od tyłu,
+       nie od przodu blatu, i wynika z docięcia go na miejscu i dopasowania do ściany”): sama informacja — przody schodza sie normalnie,
+       roznice zbiera dopasowanie do sciany; przyciski tylko, gdy blaty maja miec rowna glebokosc */
     out.push({ level: "info", text:
-      `Blat tej ściany ma ${fmt(rt.depth)} mm, a sąsiedniej „${inny.name}" ${fmt(rtI.depth)} mm — w narożniku spotkają się dwie różne szerokości, na styku będzie uskok ${fmt(roz)} mm `
-      + `(blat łączony na wprost, np. z zaokrąglonym przodem — tak można); ciąg „${glebszy.name}" jest głębszy. Jeśli blaty mają być równe: `
+      `Blat tej ściany ma ${fmt(rt.depth)} mm, a sąsiedniej „${inny.name}" ${fmt(rtI.depth)} mm — w narożniku spotkają się dwie różne szerokości blatu; ciąg „${glebszy.name}" jest głębszy. `
+      + `Przy łączeniu na wprost to nie przeszkadza: przody blatów schodzą się normalnie, a różnica ${fmt(roz)} mm zostaje z tyłu, przy ścianie — zbiera ją docięcie i dopasowanie blatu na miejscu. `
+      + `Jeśli blaty mają mieć równą głębokość: `
       + (odsunP ? `blat „${plytszy.name}” jest docięty — po odsunięciu jego szafek od ściany o ${fmt(roz)} mm będzie miał ${fmt(Math.round(rtG.depth))} mm jak sąsiedni` : "")
       + (gwR ? `${odsunP ? "; " : ""}przyczyna: ${gwR.c.it.cab.slupek || gwR.c.it.cab.H > 1500 ? "słupek" : "szafka"} „${gwR.c.it.cab.name}” o ${fmt(gwR.o)} mm głębszy stoi w licu ciągu „${glebszy.name}" — reszta szafek stoi ${fmt(gwR.o)} mm od ściany`
         : `${odsunP ? " albo " : ""}zmniejsz głębokość szafek głębszego ciągu „${glebszy.name}"`) + "." + odsunP + fix });
