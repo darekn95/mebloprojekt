@@ -96,8 +96,11 @@ sprzętem albo w zmywarkę / lodówkę w ciągu. Zapis w te same pola co tryb te
 - **rodzaj lodówki** (krok 6 planu, 2026-11-10, jak „Rodzaj lodówki” w makiecie „Dodaj”): w karcie lodówki w kolumnie
   i w ciągu wiersz „do zabudowy (słupek) / podblatowa w ciągu / wolnostojąca / na równo z meblami” — inny rodzaj wstawia
   nową pozycję z szablonu na miejsce starej (słupek z wnęką 1780; na równo — luzy 3 / 3 / 15, miejsce 606); szafka
-  z innymi sprzętami zostaje, lodówka tylko wychodzi z kolumny (`zamienLodowke`, `MAK_LOD_RODZ`). „Podblatowa w szafce”
-  z makiety: wnęka 82 cm w kolumnie (wybór „Wnęka”) albo pozycja w ciągu;
+  z innymi sprzętami zostaje, lodówka tylko wychodzi z kolumny (`zamienLodowke`, `MAK_LOD_RODZ`). Od 2026-11-13 także
+  „podblatowa w szafce” (szafka bez dna z bokami do podłogi, wysokość do spodu blatu, cokół z kratką — opis wnęki zamiast
+  wyboru wnęki, `agd-lod-podblat-info`) i „mała w szafce (na dnie)” (szafka z dnem, lodówka z własnymi drzwiami, nad nią
+  otwarta wnęka; wysokości 45 / 52 / 56 / 64 cm `agd-lod-mala-h`, wymiary `agd-mala-w/h/d`, opis wentylacji) —
+  `opisy/sprzety.md`, test `makieta17`;
 - **w ciągu** (`cab.sprzetCiagu`): zmywarka — model 60 / 45, wolnostojąca — montaż pod blatem / z pokrywą; lodówka
   podblatowa — drzwi; wolnostojąca — rodzaj, luzy z lewej / z prawej, drzwi; „Usuń” (cała pozycja ciągu).
 - Pozostałe pola z karty modelu — w trybie Technicznym (karta to mówi).

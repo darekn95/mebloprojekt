@@ -68,6 +68,34 @@ lodówka) — błąd, za mało luzu — ostrzeżenie, oba z przyciskiem szeroko�
 Głębsza niż wnęka — informacja, ile wystaje przed lico; w kontroli otwierania jej
 drzwi otwierają się od wysuniętego przodu.
 
+### Lodówka w szafce (decyzja użytkownika 2026-11-13: „Oba warianty”)
+
+**Podblatowa w szafce** (`cab.lodowkaPodblat`, `lodowkaPodblatUstaw`): szafka z bokami do podłogi, bez dna, bez pleców
+i bez wieńca; lodówka stoi na podłodze, wnęka od podłogi do spodu blatu (lodówka 820–880 — typowo, np. Bosch KUL15A
+820–870; liczby z karty modelu w polach). Cokół w obrysie między bokami, z kratką wentylacyjną (uwaga na formatce
+„Cokół”, kratka na rysunku z przodu), front od wysokości cokołu (jak w sąsiednich szafkach). Cokół trzyma się tylko
+boków — 2 trójkąty na bok, od środka wnęki. Cokół ciągu ma pod nią przerwę (`naPodlodzeCiagu`), blat idzie nad nią.
+- **U góry**: płaskie wzmocnienie z przodu tylko wtedy, gdy pod nim zostaje wnęka 820 (szafka co najmniej 838) —
+  płyta 18 mm zabiera wysokość z przodu, a przy ciągu 820 (nóżki 100 + korpus 720) lodówka by się pod nią nie
+  wsunęła. Bez wzmocnienia boki trzyma cokół, skręcenie z sąsiednimi szafkami i blat (uwaga „u góry bez
+  wzmocnienia”; ostrzeżenie „nie ma wieńca ani wzmocnienia” jej nie dotyczy). Do potwierdzenia z użytkownikiem.
+- **Wnęka** liczy się do spodu wzmocnienia nad lodówką (`nadL` w kontroli lodówki), nie do góry poziomu.
+- **Idzie za ciągiem** (`lodowkiPodblatZaCiagiem` w `naprawProjekt`, przy każdej zmianie): wysokość = wierzch
+  zwykłych szafek ciągu (najczęstszy), cokół = cokół ciągu albo wysokość nóżek, cofnięcie cokołu i głębokość ciągu
+  (`lodowkaPodblatZCiagu`). Bez zwykłych szafek w ciągu — zostaje, jak jest.
+- **Kolejność montażu** (uwaga szafki): (1) kratka w cokole; (2) prowadniki zawiasów na bokach — od środka wnęki,
+  póki nie ma lodówki (przy froncie „na zawiasach”); (3) cokół na trójkątach (wzmocnienie u góry na konfirmatach przez
+  boki — zanim szafka stanie między sąsiednimi); (4) szafka w ciągu, boki skręcone z sąsiednimi od środka wnęki;
+  (5) blat od spodu, od środka wnęki; (6) lodówka — wypoziomować, przykręcić wg instrukcji; (7) front.
+
+**Mała w szafce (na dnie)** (`lodowkaMalaUstaw`, `lodowkaMalaWSzafce`): szafka dolna z dnem; lodówka / minibar
+z własnymi drzwiami („bez frontu”) stoi na dnie, w poziomie o jej wysokości + 20 mm luzu, nad nią płyta i otwarta
+wnęka (szuflada nad lodówką 520 nie mieści się pod wzmocnieniem pod blatem). Wymiary przykładowe 440 × 520 × 450
+(`LODOWKA_MALA`; minibary do zabudowy, np. Dometic RH 4xx: szer. ok. 420–445, wys. 435–560, głęb. 385–485),
+wysokości w karcie 45 / 52 / 56 / 64 cm (zmiana przestawia też płytę nad wnęką). Lodówka równo z licem korpusu —
+za nią luz (D − 3 − głębokość lodówki, co najmniej 20). Uwaga: otwory wentylacyjne z tyłu dołem i górą (zwykle
+co najmniej 200 cm² każdy), od tyłu co najmniej 20 mm.
+
 ## Sprzęt w ciągu: zmywarka i lodówka wolnostojąca
 
 Pozycja ciągu bez korpusu (użytkownik 2026-11-05: „zależnie od sprzętu” — zmywarka i lodówka

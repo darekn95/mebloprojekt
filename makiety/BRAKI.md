@@ -192,4 +192,6 @@ schodzi …”, okap szerszy niż szafka, „Przesuń w ciągu” przy pozycji c
 przedniej krawędzi, podpowiedzi w karcie Szafka (test `makieta16`). Decyzje użytkownika: ciemny motyw — zostaje jasny; para pod blat —
 płaskie z przodu i stojące z tyłu (jak w aplikacji). Decyzje użytkownika (zrobione): „wystaje” lodówki — od przodu blatu;
 dotknięcie klocka / sprzętu / wzoru, potem miejsca na rysunku (pasek „Wybrany”); widok „Z góry” z przeciąganiem i przełącznikiem „Blat”.
-Do ustalenia: lodówka „podblatowa w szafce” (korpus z bokami do podłogi, bez dna) i mała lodówka / minibar na dnie szafki.
+Lodówka w szafce (decyzja 2026-11-13 „Oba warianty”, zrobione): „podblatowa w szafce” (boki do podłogi, bez dna i pleców, cokół
+z kratką, front od cokołu, kolejność montażu) i „mała w szafce (na dnie)” — w „Rodzaju lodówki” (test `makieta17`). Do potwierdzenia:
+u góry bez wzmocnienia przy ciągu 820 (płyta 18 mm zabrałaby wnękę).

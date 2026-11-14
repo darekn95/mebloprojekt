@@ -1289,3 +1289,12 @@ gornej dopisane w trakcie przebiegu (build byl starszy); po przebudowie (630738b
 i przelacznikiem „Blat”, nazwa zaznaczonej szafki pod wzmocnieniami, blat — zalecenie odsuniecia szafek, od konca blatu 30 mm, rozne glebokosci
 w rogu jako informacja (zdjecie uzytkownika: blat laczony na wprost 60 / 58 cm). Pelny przebieg (3836f76): 172 suit, 5655 OK, 0 bledow; losowe 66 / 0.
 Usuniety artefakt „Przegroda pod blatem”. Do ustalenia: lodowka w szafce (bez dna / mala na dnie), stare artefakty „mebloprojekt-app” z sierpnia.
+[AI-INFO] 2026-11-14 lodowka w szafce (decyzja uzytkownika 2026-11-13 „Oba warianty”): `cab.lodowkaPodblat` — szafka z bokami do podlogi,
+bez dna / plecow / wienca, cokol w obrysie miedzy bokami z kratka (`kratkaCokolu` na rysunku, uwaga na formatce), front od cokolu (`frontOd`
+w `computeGeo`), 2 trojkaty cokolu na bok, uwaga z kolejnoscia montazu; wneka lodowki liczona do spodu wzmocnienia nad nia (`nadL`).
+Szafka idzie za ciagiem w `naprawProjekt` (`lodowkiPodblatZaCiagiem`: wysokosc do spodu blatu, cokol, glebokosc). Mala na dnie —
+`lodowkaMalaUstaw` (440 × 520 × 450 przykladowo, wlasne drzwi, nad nia otwarta wneka), uwaga o wentylacji. Oba w „Rodzaju lodówki”
+(`zamienLodowke` rodzaj `szafka` / `mala`), test `makieta17`. [CHECK] Do potwierdzenia z uzytkownikiem: (1) u gory bez wzmocnienia przy
+ciagu 820 — w pytaniu z 2026-11-13 bylo „płaskie z przodu (nie zabiera wysokości wnęki)”, a plyta 18 mm zabiera wneke z przodu (820 → 802);
+teraz plaskie wzmocnienie tylko, gdy pod nim zostaje 820; (2) cokol na trojkatach (2 na bok) czy inaczej; (3) mala: nad lodowka otwarta
+wneka (szuflada nad lodowka 520 nie miesci sie pod wzmocnieniem pod blatem). Audyt v42 bez zmian.
