@@ -1285,3 +1285,7 @@ projektu do localStorage trwa dluzej niz 400 ms — czytac przez `czekaj(...)`, 
 [AI-INFO] 2026-11-13 (runda 3): pelny przebieg (8758766): 171 suit, 5604 OK — jedyne 3 bledy w `makieta15` to testy karty szafki
 gornej dopisane w trakcie przebiegu (build byl starszy); po przebudowie (630738b) `makieta15` 80 OK w obu buildach, makieta4 / 12 / 13 /
 14 zielone; losowe 66 / 0. Audyt projektu uzytkownika v42 bez zmian (43 OK, te same 7 uwag o skrzydle w rogu — uchwyt „Szafka 3”).
+[AI-INFO] 2026-11-13 (decyzje po rundzie 4): „wystaje” lodowki od przodu blatu, paleta „dotknij, potem miejsce”, widok „Z góry” z przeciaganiem
+i przelacznikiem „Blat”, nazwa zaznaczonej szafki pod wzmocnieniami, blat — zalecenie odsuniecia szafek, od konca blatu 30 mm, rozne glebokosci
+w rogu jako informacja (zdjecie uzytkownika: blat laczony na wprost 60 / 58 cm). Pelny przebieg (3836f76): 172 suit, 5655 OK, 0 bledow; losowe 66 / 0.
+Usuniety artefakt „Przegroda pod blatem”. Do ustalenia: lodowka w szafce (bez dna / mala na dnie), stare artefakty „mebloprojekt-app” z sierpnia.
