@@ -108,8 +108,8 @@ await click('+ nowy ciąg');
 await wiersz(/^Ściana 1/).getByRole('button', { name: '+ szafka', exact: true }).click();
 p = await zapis();
 const pierwsza = p.items.find((it) => it.runId);
-ok('pierwszy ciąg w pomieszczeniu: szafka 560 (nie 500)', pierwsza && pierwsza.cab.D === 560, pierwsza && String(pierwsza.cab.D));
-ok('ciąg przejmuje 560', p.runs[0].D === 560, String(p.runs[0].D));
+ok('pierwszy ciąg w pomieszczeniu: szafka 550 (nie 500; standard od 2026-11-14)', pierwsza && pierwsza.cab.D === 550, pierwsza && String(pierwsza.cab.D));
+ok('ciąg przejmuje 550', p.runs[0].D === 550, String(p.runs[0].D));
 // drugi, pusty ciag w tym samym pomieszczeniu bierze glebokosc pierwszego (tu 570)
 p = { ...p, runs: [{ ...p.runs[0], D: 570 }, { ...p.runs[0], id: 'c9', name: 'Ściana 2', D: null, H: null, plinth: null, corner: null }],
   items: p.items.map((it) => (it.runId ? { ...it, cab: { ...it.cab, D: 570 } } : it)) };
@@ -151,7 +151,8 @@ console.log('\n== 5. pełny wysuw szuflad (V-BOX, folder str. 4) ==');
 console.log('\n== 6. różne NL w jednej kolumnie — informacja ==');
 {
   // szafka pod blatem z aplikacji, 3 szuflady: gorna przed tylnym wzmocnieniem dostaje krotsza NL
-  const z3 = { ...podBlat, cab: { ...podBlat.cab, levels: podBlat.cab.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, kind: 'drawers',
+  // glebokosc 560 przypieta (od 2026-11-14 standard 550 — w nim NL 550 sie nie miesci, tu chodzi o rozne NL w kolumnie)
+  const z3 = { ...podBlat, cab: { ...podBlat.cab, D: 560, levels: podBlat.cab.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, kind: 'drawers',
     drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] })) })) } };
   await wczytaj({ name: 'N', active: 0, prices: {}, runs: p.runs, items: [z3] });
   const u = await page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || '');
@@ -167,7 +168,8 @@ console.log('\n== 7. luz nad skrzynką V-BOX min. 5 mm; reling — albo zostaw b
    Przy froncie > 140 mm ponad bokiem — reling albo „Zostaw bez relingu”. */
 {
   // scenariusz z wzmocnieniami 100 mm (od 2026-11-12 domyslne maja 70) — luz gornej szuflady pod tylnym stojacym
-  const z2 = (h2) => ({ ...podBlat, cab: { ...podBlat.cab, levels: podBlat.cab.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, kind: 'drawers',
+  // glebokosc 560 przypieta (scenariusz z NL 550 sprzed standardu 550, 2026-11-14)
+  const z2 = (h2) => ({ ...podBlat, cab: { ...podBlat.cab, D: 560, levels: podBlat.cab.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, kind: 'drawers',
     rails: (c.rails || []).map((r) => ({ ...r, h: 100, depth: 100 })), drawers: [{ h: 'auto' }, { h: h2 }] })) })) } });
   const uw = () => page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || '');
   const ikona = (re) => page.evaluate((src) => { const sec = [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''));

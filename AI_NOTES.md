@@ -1311,3 +1311,7 @@ wysunieta = info), 3D w zakladkach z wnetrzem — szuflady zamkniete (`szuflady`
 `gornyod`), karta gornej — polozenie ciagu gornego, lista „Ciąg” = sciany, zmywarka — uchwyt i klapa w dol w 3D. Test `makieta17`.
 [AI-TODO] Glebokosc dolnych kuchennych 550 (uzytkownik 2026-11-14) — w toku: szablon stojaca, SZAFKA_KUCHENNA_D, CORNER_L_D, sprzet w ciagu;
 przy 550 szuflady V-BOX NL 500 (NL 550 wymaga 553) — powiedziec uzytkownikowi.
+[AI-INFO] 2026-11-14: glebokosc dolnych kuchennych 550 (szablon stojaca, SZAFKA_KUCHENNA_D, CORNER_L_D → ramie L 650, sprzet w ciagu). Skutki:
+szuflady V-BOX w 550 — NL 500 (NL 550 wymaga 553); nowa kuchnia przy scianie ma ostrzezenie „arkusz 600 wystawalby 27 mm” z przyciskiem
+odsuniecia o 17 mm (uzytkownik w swoim projekcie ma ciag 17 mm od sciany). Pelny przebieg (696bb2d): 173 suity, 5649 OK, 13 suit z oczekiwaniem
+560 — poprawione (BLEDY.md); losowe 66 / 0. Audyt v47: tylko znane uwagi (Szafka 10 nad slupkiem — przycisk „Ciąg górny od 600 mm”, sciana 6 mm).

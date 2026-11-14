@@ -1131,9 +1131,10 @@ console.log('\n== Sprzęt w ciągu bez korpusu: zmywarka i lodówka wolnostojąc
   const gz3 = geo(zmS({ H: 800 }).cab);
   ok('zmywarka pod blatem 900 mm od podłogi: błąd „potrzebuje 815–875 mm”', gz3.msgs.some((x) => x.level === 'error' && /Od podłogi do spodu blatu jest 900 mm — zmywarka do zabudowy potrzebuje 815–875 mm/.test(x.text)), tx(gz3));
   const gl = geo(loS().cab);
-  ok('lodówka wolnostojąca 700: bez formatek, bryła 600 × 1850 na podłodze, wystaje 140 mm przed korpusy (120 przed fronty)',
+  // szablon lodowki wolnostojacej 550 w glab od 2026-11-14 (wczesniej 560): wystaje 150 / 130
+  ok('lodówka wolnostojąca 700: bez formatek, bryła 600 × 1850 na podłodze, wystaje 150 mm przed korpusy (130 przed fronty)',
     gl.bezKorpusu && !gl.panels.length && gl.sprzetCiagu.x1 - gl.sprzetCiagu.x0 === 600 && gl.sprzetCiagu.y1 === 1850
-    && gl.msgs.some((x) => x.level === 'info' && /wystaje 140 mm przed korpusy szafek \(120 mm przed ich fronty\)/.test(x.text)), tx(gl));
+    && gl.msgs.some((x) => x.level === 'info' && /wystaje 150 mm przed korpusy szafek \(130 mm przed ich fronty\)/.test(x.text)), tx(gl));
   const gl2 = geo(loS({ W: 640, H: 1800 }).cab);
   ok('lodówka w miejscu 640 × 1800: luz 20 < 50 z boku i za niska pozycja — ostrzeżenia z „Miejsce 700 mm” i „Wysokość 1850 mm”',
     gl2.msgs.some((x) => x.level === 'warn' && /zostaje 20 mm z boku — na wentylację potrzeba 50 mm.*\|sprzetcw:700$/.test(x.text))

@@ -106,7 +106,7 @@ const D0 = (await stan()).D;
 const nGleb = await page.locator('[data-u="gleb"]').count();
 ok('uchwyt głębokości z góry (wolnostojąca bez rzutu — pomijam)', true, `uchwytów: ${nGleb}`);
 await page.fill('[data-pole="D"]', String(D0 + 40)); await page.locator('[data-pole="D"]').press('Enter'); await page.waitForTimeout(300);
-c = await zapis(() => JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.D !== 560);
+c = await zapis(() => JSON.parse(localStorage.getItem('szafki:projekt')).items[0].cab.D !== 550);   // szablon 550 od 2026-11-14
 ok('głębokość z pola', c.D === D0 + 40, `${D0} -> ${c.D}`);
 
 console.log('bledy strony:', errors.length ? errors.join(' | ') : 'brak');

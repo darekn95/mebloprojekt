@@ -280,7 +280,8 @@ await zakl('dodaj');
   p = await czekaj('p.items[0].cab.blatWyciecia[0].odPrzodu == null');
   ok('po kliknięciu — typowo od przodu', p.items[0].cab.blatWyciecia[0].odPrzodu == null); }
 console.log('== rzut z góry: wymiary od ściany, blat, słupek wysunięty; pole „wysunięcie” ==');
-await start('szczegolowa', TRZY.replace("p.items[0].cab.levels[0].cols[0].sprzet = { typ: 'piekarnik' };", '') + `p.items[2].cab.D = 600; p.items[2].offset = 40; p.runs[0].wallGap = { bottom: 20, top: null }; p.active = 0;`, WSZYSTKO);
+await start('szczegolowa', TRZY.replace("p.items[0].cab.levels[0].cols[0].sprzet = { typ: 'piekarnik' };", '') + `p.items.forEach((it) => { it.cab.D = 560; }); p.runs[0].D = 560; p.items[2].cab.D = 600; p.items[2].offset = 40; p.runs[0].wallGap = { bottom: 20, top: null }; p.active = 0;`, WSZYSTKO);
+// glebokosc 560 przypieta (scenariusz sprzed standardu 550, 2026-11-14)
 { const t = await page.locator('[data-el="mak-wym-zgory"] text').allTextContents();
   ok('z góry: „20 od ściany”, korpus, front, „blat …”', t.includes('20 od ściany') && t.some((q) => /^560/.test(q)) && t.some((q) => /^front \d+/.test(q)) && t.some((q) => /^blat \d+/.test(q)), JSON.stringify(t));
   const sl = await page.locator('[data-el="mak-wym-zgory-szafka"] text').allTextContents();

@@ -76,9 +76,9 @@ ok('bez uwag o wysięgu', wysiegowe(u).length === 0, wysiegowe(u).map((x) => x.t
 ok('uwaga o odstępie od ściany', u.some((x) => /Ciąg stoi 30 mm od ściany/.test(x.t)), u.map((x) => x.t.slice(0, 40)).join(' // '));
 ok('blat ściany ma 600', bl.length > 0 && bl[0].includes('600'), JSON.stringify(bl[0]));
 /* Szafka narozna odsunieta o 30 mm zjada rog razem z odstepem: 30 + plecy 3
-   + korpus 537 + ramie 640 (szafka w L 560 + 640 = 1200 od 2026-09-28) = 1210. */
-ok('ciąg za rogiem zaczyna się 1210 mm od rogu',
-  u.some((x) => /zaczyna się 1210 mm od rogu/.test(x.t)), (u.find((x) => /zaczyna się/.test(x.t)) || {}).t);
+   + korpus 537 + ramie 650 (szafka w L 550 + 650 = 1200 od 2026-11-14, wczesniej 560 + 640) = 1220. */
+ok('ciąg za rogiem zaczyna się 1220 mm od rogu',
+  u.some((x) => /zaczyna się 1220 mm od rogu/.test(x.t)), (u.find((x) => /zaczyna się/.test(x.t)) || {}).t);
 
 console.log('\n== obie ściany 30 mm: ramię zostaje przy korpusie 540 ==');
 /* Ramie lezy przy scianie drugiego ciagu i stoi z jego odstepem — jego plyty
@@ -88,7 +88,7 @@ await uklad(537, { bottom: 30, top: null }, (p) => { p.runs[1].wallGap = { botto
 u = await uwagi();
 bl = await blaty();
 const lka = u.find((x) => /szafką narożną w L/.test(x.t));
-ok('ramię 640 × 537 (głębokość korpusu)', !!lka && /ramię 640 × 537 mm/.test(lka.t), lka && lka.t.slice(0, 160));
+ok('ramię 650 × 537 (głębokość korpusu)', !!lka && /ramię 650 × 537 mm/.test(lka.t), lka && lka.t.slice(0, 160));
 ok('oba blaty po 600, bez uwagi o różnych szerokościach',
   bl.length === 2 && bl.every((r) => r.includes('600')) && !u.some((x) => /różne szerokości/.test(x.t)),
   JSON.stringify(bl.map((r) => r.slice(3, 5))));

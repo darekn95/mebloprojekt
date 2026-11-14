@@ -20,6 +20,8 @@ await page.waitForTimeout(2200);
 await page.evaluate(() => {
   const p = JSON.parse(localStorage.getItem('szafki:projekt'));
   const rog = p.items.find((i) => i.cab.corner && i.cab.corner.on);
+  // glebokosc szafki w L 560 przypieta (scenariusz sprzed standardu 550, 2026-11-14): arkusz 600 nad nia w calosci
+  rog.cab.D = 560; p.runs.forEach((r) => { if (r.id === rog.runId) r.D = 560; });
   p.runs.forEach((r) => { if (r.id !== rog.runId) r.D = 600; });
   localStorage.setItem('szafki:projekt', JSON.stringify(p));
 });

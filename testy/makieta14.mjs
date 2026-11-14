@@ -142,7 +142,8 @@ await start('szczegolowa', CIAG + `p.runs[0].D = 540; p.items.forEach((x) => { x
 
 console.log('== słupek głębszy w licu ciągu: przyczyna „13 mm za dużo”, „20 pusto” z góry ==');
 // slupek 580 bez wysuniecia w ciagu 560 — reszta 20 mm od sciany, blat 613 (projekt uzytkownika 2026-11-12)
-await start('szczegolowa', CIAG + `const s = JSON.parse(JSON.stringify(p.items[1])); s.cab.name = 'Słupek'; s.cab.H = 2000; s.cab.D = 580; s.cab.slupek = true; s.offset = 0;
+// glebokosc 560 przypieta (scenariusz uzytkownika sprzed standardu 550, 2026-11-14)
+await start('szczegolowa', CIAG + `p.items.forEach((it) => { it.cab.D = 560; }); if (p.runs[0]) p.runs[0].D = 560; const s = JSON.parse(JSON.stringify(p.items[1])); s.cab.name = 'Słupek'; s.cab.H = 2000; s.cab.D = 580; s.cab.slupek = true; s.offset = 0;
   p.items.unshift(s); p.active = 1;`, WSZYSTKO);
 { const t = await uw.innerText();
   ok('uwaga „Blat wychodzi 613 mm … Przyczyna: słupek „Słupek” … 20 mm od ściany”', /Blat wychodzi 613 mm — o 13 mm za dużo/.test(t) && /Przyczyna: słupek „Słupek” jest o 20 mm głębszy/.test(t), t.replace(/\s+/g, ' ').slice(0, 400));
