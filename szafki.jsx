@@ -2167,6 +2167,23 @@ const makeUpperRun = (runs, dolny, mountY) => ({
   clearance: 500, ceiling: null, mountY, corner: null,
   offset: 0, offsetFrom: "left",
 });
+/* Nowy ciag gorny zaczyna sie za wysokimi szafkami na poczatku dolnego (slupek przy scianie, uzytkownik 2026-11-14: „jak nowa
+   szafka wisząca mogła dodać się w słupku?”) — przesuniecie od lewej = lico pierwszej szafki dolnego (narożnik, przesuniecie)
+   + szerokosci szafek siegajacych wyzej niz dol szafek gornych. 0, gdy na poczatku nie ma wysokiej szafki. */
+const gornyZaSlupkami = (project, dolny, mount) => {
+  const { list } = runJoints(project, dolny);
+  const gap = Math.max(0, Math.round(dolny.gap || 0));
+  let x = 0;
+  for (const { it } of list) {
+    const geo = computeGeo(it.cab, it.mat);
+    if (Math.round((dolny.mountY || 0) + cabTopY(it.cab, geo)) <= mount) break;
+    x += geo.W + gap;
+  }
+  if (!(x > 0)) return 0;
+  const n = projectLayout(project).info.get(dolny.id);
+  const start = dolny.offsetFrom === "right" ? Math.round((n && n.lead) || 0) : Math.max(Math.round(dolny.offset || 0), Math.round((n && n.lead) || 0));
+  return Math.round(start + x - gap);
+};
 
 /* ---------- kreator rogu ----------
    Drugi ciag pod katem prostym do pierwszego razem z gotowa szafka w rogu —
@@ -8368,7 +8385,13 @@ function geoSprzetuCiagu(cab, mat, ctx) {
        (stopki zmywarki stoja za nim; audyt projektu: bryla do podlogi wchodzila w cokol). */
     const zCok = cab.plinth && cab.plinth.on && podloga > 0 ? Math.round((cab.plinth.setback || 0) + baza.t + 2) : 0;
     const dB = Math.min(cd, sp.dMin) - 5;
-    dane = { ...sp, front: { x: d.x, y: d.y, w: Math.round(d.w), h: Math.round(d.h) },
+    /* Front meblowy sprzetu otwiera sie z jego drzwiami: zmywarka — klapa w dol (os na dolnej krawedzi), lodowka podblatowa —
+       skrzydlo z zawiasem jak jej drzwi; uchwyt jak na frontach szafek (uzytkownik 2026-11-14: „zmywarka otwiera się jak klapa w dół,
+       brak w niej uchwytu i otwieralności”) — `cab.sprzetCiagu.uchwyt: false` bez uchwytu */
+    const fr = { x: d.x, y: d.y, w: Math.round(d.w), h: Math.round(d.h) };
+    const fd = lodP ? { type: "door", hingeSide: sp.drzwi === "prawe" ? "right" : "left", ...fr } : { type: "klapa", klapa: "dol", ...fr };
+    const zUchwytem = (cab.sprzetCiagu || {}).uchwyt !== false;
+    dane = { ...sp, front: { ...fr, ruch: fd, uchwyt: zUchwytem, uch: zUchwytem ? uchwytObrys(fd) : null },
       bryla: { x0, x1: x0 + sp.szer - 4, y0: 0, y1: Math.round(cab.H) - 2, z0: 0, d: dB },
       stopa: podloga > 0 ? { x0, x1: x0 + sp.szer - 4, y0: -podloga, y1: 0, z0: zCok, d: dB } : null,
       nisza: { w: Math.round(W), h: wysNiszy, d: Math.round(cd) } };
@@ -8446,7 +8469,9 @@ function geoSprzetuCiagu(cab, mat, ctx) {
       add("info", `Lodówka (głęb. ${fmt(sp.lodD)} mm z luzem ${fmt(sp.luzTyl)} mm z tyłu) wystaje ${fmt(Math.round(-zPrzod))} mm przed korpusy szafek`
         + (przedFronty > 0 ? ` (${fmt(przedFronty)} mm przed ich fronty).` : ", ale nie przed ich fronty."));
   }
-  return { ...baza, bezKorpusu: true, sprzetCiagu: dane, panels, hardware: [], msgs, doors: [], klapy: [],
+  const hwSprzetu = dane && dane.front && dane.front.uchwyt ? [{ name: "Uchwyt", pk: "Uchwyt", use: `front ${zmyw && sp.typ === "lodowkaP" ? "lodówki" : "zmywarki"}`,
+    spec: sp.typ === "lodowkaP" ? "na front lodówki — pionowo przy wolnej krawędzi" : "na front zmywarki — poziomo u góry, na środku", qty: 1, unit: "szt." }] : [];
+  return { ...baza, bezKorpusu: true, sprzetCiagu: dane, panels, hardware: hwSprzetu, msgs, doors: [], klapy: [],
     hasTop: false, hasBot: false, hasBack: false, isBlat: false, isWorktop: false, blat: null, dividers: [], sepShelves: [],
     zawieszki: [], drillPlan: [], zawiasyMontaz: [], montazKolejnosc: [], dystansZa: null, dnoOtwory: [], wienOtwory: [], dnoKawalki: [], wienKawalki: [],
     levels: baza.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, shelves: [], doors: [], rails: [], drazki: [], sprzet: null })) })) };
@@ -9632,6 +9657,7 @@ function SprzetCiaguElew({ cab, geo, frontColor, fy, mx = (x) => x }) {
       <rect x={mx(b.x0, b.x1 - b.x0)} y={fy(b.y1)} width={b.x1 - b.x0} height={b.y1 - (s.stopa ? s.stopa.y0 : b.y0)} fill={SPRZET_KOLOR} fillOpacity="0.15"
         stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
       <rect x={mx(f.x, f.w)} y={fy(f.y + f.h)} width={f.w} height={f.h} fill={frontColor} stroke={INK} strokeWidth="2" data-el="front-zmywarki" />
+      {f.uch && <rect data-el="uchwyt-sprzetu" x={mx(f.uch.x0, f.uch.x1 - f.uch.x0)} y={fy(f.uch.y1)} width={f.uch.x1 - f.uch.x0} height={f.uch.y1 - f.uch.y0} rx="3" fill="#3f3f46" />}
       <text x={mx(f.x, f.w) + f.w / 2} y={fy(f.y + f.h / 2)} textAnchor="middle" fontSize="22" fill={INK} fontFamily="ui-monospace, monospace">{`${s.nazwa} ${fmt(f.w)}×${fmt(f.h)}`}</text>
     </g>
   );
@@ -11724,7 +11750,9 @@ const useAudytWidoku = () => {
   useEffect(() => () => audytBezBryl(ref.current), []);
 };
 
-function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn, agd = true }) {
+/* `szuflady: false` — fronty otwarte (drzwi, klapy), a szuflady zamkniete: zakladki, w ktorych makieta otwiera wnetrze na sile
+   (Półki, Przegroda, Wzmocnienia), pokazywaly szuflady na stale wysuniete (uzytkownik 2026-11-14) */
+function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn, agd = true, szuflady = true }) {
   useAudytWidoku();
   /* `kto` — szafka, do ktorej nalezy biezaca bryla (klik w widoku 45° zaznacza szafke; uzytkownik 2026-11-12: „na widoku
      45 stopni nie da się zaznaczyć szafki”); blat, cokol i wstawki — niczyje */
@@ -11833,7 +11861,15 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn
         if (s.stopa) box(c.x + s.stopa.x0, c.base + s.stopa.y0, s.stopa.z0, c.x + s.stopa.x1, c.base + s.stopa.y1, s.stopa.d, SPRZET_KOLOR, null, 1, false, 0, "sprzet-stopa");
         if (s.komin) box(c.x + s.komin.x0, c.base + s.komin.y0, s.komin.z0, c.x + s.komin.x1, c.base + s.komin.y1, s.komin.d, SPRZET_KOLOR, null, 1, false, 0, "komin-okapu");
         if (s.lodowka) box(c.x + s.x0, c.base + s.y0, z.fz0, c.x + s.x1, c.base + s.y1, z.fz1, SPRZET_KOLOR, null, 1, true, 0, "sprzet-front");
-        else box(c.x + s.front.x, c.base + s.front.y, -c.geo.tf, c.x + s.front.x + s.front.w, c.base + s.front.y + s.front.h, 0, c.frontColor, null, 1, true, 0, "front-zmywarki");
+        else if (s.front) {
+          /* front meblowy zmywarki / lodowki podblatowej: po otwarciu klapa w dol / skrzydlo, z uchwytem (2026-11-14) */
+          const f = s.front, d = f.ruch || { type: "klapa", klapa: "dol", ...f }, zf = -c.geo.tf;
+          const rotS = !open ? null : d.type === "klapa" ? ((ob) => (p) => { const q = ob({ ...p, y: p.y - c.base }); return { ...q, y: q.y + c.base }; })(klapaObrot(d, angle, zf))
+            : ((left) => (p) => rotAboutY(p, (left ? -1 : 1) * (angle * Math.PI) / 180, c.x + (left ? d.x : d.x + d.w), zf))(d.hingeSide === "left");
+          box(c.x + f.x, c.base + f.y, zf, c.x + f.x + f.w, c.base + f.y + f.h, 0, c.frontColor, rotS, open ? 0.85 : 1, true, 0, "front-zmywarki");
+          const uO = uchwytOut({}, c.cab);
+          if (f.uch && uO > 0) box(c.x + f.uch.x0, c.base + f.uch.y0, zf - uO, c.x + f.uch.x1, c.base + f.uch.y1, zf, "#3f3f46", rotS, 1, false, 0, "uchwyt");
+        }
         return;
       }
       const cd = c.geo.carcassDepth;
@@ -11947,7 +11983,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn
         /* front wpuszczany siedzi w swietle korpusu (z od 0 do tf), nakladany przed
            nim — wczesniej zabudowa rysowala kazdy front jak nakladany (2026-10-04) */
         const zf = d.inset ? 0 : -tf;
-        if (!open) {
+        if (!open || (d.type === "drawer" && !szuflady)) {
           box(c.x + d.x, c.base + d.y, zf, c.x + d.x + d.w, c.base + d.y + d.h, zf + tf, col, null, 1, true);
           if (d.type !== "fix" && d.type !== "blenda") handleBar(d, zf, null);
           return;
@@ -15339,7 +15375,7 @@ const nazwaWzmocnienia = (r) => (r.orient === "front"
   ? (r.przyTyle ? "Wzmocnienie tylne" : "Wzmocnienie czołowe")
   : r.orient === "shelf" ? (r.czescA || r.wCzesci ? "Wzmocnienie poziome nad przegrodą" : "Wzmocnienie poziome") : "Wzmocnienie pionowe");
 
-function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat, podswietl = null }) {
+function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat, podswietl = null, szuflady = true }) {
   useAudytWidoku();
   if (geo.bezKorpusu) return <SprzetCiagu3D cab={cab} geo={geo} mat={matIn} yaw={yaw} pitch={pitch} blat={blat} />;
   const mat = matRysunku(cab, matIn);
@@ -15540,7 +15576,7 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
     const z0 = d.inset ? 0 : -tf;
     const z1 = z0 + tf;
     if (d.type === "drawer") {
-      const pull = open ? wysuwSzuflady(d) : 0;
+      const pull = open && szuflady ? wysuwSzuflady(d) : 0;
       fk = "Front szuflady";
       box(d.x, d.y, z0 - pull, d.x + d.w, d.y + d.h, z1 - pull, ff, null, 1, true);
       handleBar(d, z0 - pull, null);
@@ -15622,6 +15658,7 @@ function SprzetCiagu3D({ cab, geo, mat: matIn, yaw, pitch, blat }) {
     box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z0 + b.d, SPRZET_KOLOR, 1, false, "sprzet");
     if (s.stopa) box(s.stopa.x0, s.stopa.y0, s.stopa.z0, s.stopa.x1, s.stopa.y1, s.stopa.d, SPRZET_KOLOR, 1, false, "sprzet-stopa");
     box(s.front.x, s.front.y, -tf, s.front.x + s.front.w, s.front.y + s.front.h, 0, ff, 1, true, "front-zmywarki");
+    if (s.front.uch) box(s.front.uch.x0, s.front.uch.y0, -tf - uchwytOut({}, cab), s.front.uch.x1, s.front.uch.y1, -tf, "#3f3f46", 1, false, "uchwyt");
     if (blat && blat.roboczy && blat.th > 0)
       blat.korpus.forEach((q) => box(q.x, H, cd - q.y - q.h, q.x + q.w, H + blat.th, cd - q.y, blat.kolor, 1, true, "blat"));
     if (cab.plinth && cab.plinth.on && geo.plinthH > 0) {
@@ -16016,6 +16053,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return { label: `Zmniejsz wysunięcie szafki o ${fmt(Number(mm))} mm (blat zakrywa front, nawis ${fmt(Number(nawis))} mm)`, run: () => runFix && runFix(action) }; }
     if (action.startsWith("slupekgl:"))
       return { label: `To słupek — tył przy ścianie, front wysunięty o ${fmt(Number(action.split(":")[1]))} mm`, run: () => runFix && runFix(action) };
+    if (action.startsWith("gornyod:")) { const [, , mm, nazwa] = action.split(":");
+      return { label: `Ciąg górny od ${fmt(Number(mm))} mm — za „${nazwa}”`, run: () => runFix && runFix(action) }; }
     if (action.startsWith("slupek:"))
       return { label: action === "slupek:1" ? "To słupek — wyjątek w ciągu" : "To jednak zwykła szafka", run: () => runFix && runFix(action) };
     if (action.startsWith("ciagslupki:"))
@@ -19414,9 +19453,12 @@ const tierMsgs = (project, run) => {
         if (!nad.length) return;
         const y0 = Math.min(...nad.map((u) => u.y0));
         const nazwa = (c.it.cab.name || "").trim() || `szafka ${c.idx + 1}`;
+        // wysoka szafka na poczatku sciany (przed nia same wysokie) — przycisk: ciag gorny od jej konca (2026-11-14)
+        const naPoczatku = gorny.offsetFrom !== "right" && lvl.cabs.filter((q) => q.x1 <= c.x0 + 1).every((q) => lvl.poza.includes(q));
         out.push({ level: "error", text:
           `„${nazwa}” w ciągu dolnym sięga ${fmt(gora)} mm, a szafki górne nad nią (${nad.map((u) => `„${u.nazwa}”`).join(", ")}) `
-          + `zaczynają się na ${fmt(y0)} mm — wchodzą w nią o ${fmt(gora - y0)} mm. Przesuń ciąg górny albo zostaw nad wysoką szafką przerwę.` });
+          + `zaczynają się na ${fmt(y0)} mm — wchodzą w nią o ${fmt(gora - y0)} mm. Przesuń ciąg górny albo zostaw nad wysoką szafką przerwę.`
+          + (naPoczatku ? `|gornyod:${gorny.id}:${Math.round(s1)}:${nazwa.replace(/[:|]/g, " ")}` : "") });
       });
     }
   }
@@ -19889,14 +19931,16 @@ const swingKatSkrzydla = (s, b) => {
 
 /* Pierwsza przeszkoda skrzydla: ta, w ktora uderza przy najmniejszym kacie.
    `ile` — najglebsze wejscie w cokolwiek (do rady „zwez front”). */
-const swingStop = (s, bryly) => {
+/* Szuflade obok (i wysuwany sprzet) skrzydlo widzi ZAMKNIETA — skrzydla i szuflady nie otwiera sie naraz (uzytkownik 2026-11-14:
+   blad „po drodze stoi wysunięty front szuflady” w rogu — „to nie jest prawda”). `wysuniete` — tylko wysuniete szuflady / sprzet:
+   do informacji, ze obu naraz sie nie otworzy. */
+const swingStop = (s, bryly, wysuniete = false) => {
   let g = null;
   let ile = 0;
   bryly.forEach((b) => {
     // wlasny front, wlasny uchwyt i wlasny korpus to nie przeszkoda
     if (b.klucz === s.klucz || (b.id === s.id && b.co === "korpus")) return;
-    // szuflade obok skrzydlo widzi wysunieta (to pudelko zawiera zamknieta)
-    if (b.zamknieta) return;
+    if (wysuniete ? !b.wysuw : b.wysuw) return;
     const kat = swingKat(s, b);
     if (kat == null) return;
     // zespol skrecony: zwezanie frontu korpusu nic nie da, wiec bez rady „zwez front”
@@ -20290,7 +20334,18 @@ const openingMsgs = (L, project) => {
   const obcePrzeszkody = (x) => (b) => b.id !== x.id || /^uchwyt/.test(b.co);
   skrzydla.forEach((s) => {
     const g = swingStop(s, s.sprzet ? bryly.filter(obcePrzeszkody(s)) : bryly);
-    if (!g) return;
+    if (!g) {
+      // bez kolizji z zamknietymi — przy wysunietej szufladzie obok tylko informacja (nie otwiera sie obu naraz)
+      const gw = swingStop(s, s.sprzet ? bryly.filter(obcePrzeszkody(s)) : bryly, true);
+      if (gw && gw.b.id !== s.id) {
+        const czyjeW = `szafki „${gw.b.cab}"${gw.b.run === s.run ? "" : ` z ciągu „${gw.b.run}"`}`;
+        const szuf = /szuflad/.test(gw.b.co), coW = szuf ? "szuflada" : gw.b.co.replace(/^wysunięty /, "");
+        out.push({ level: "info", text: `${s.sprzet ? `Drzwi sprzętu (${s.sprzet}) w szafce „${s.cab}"` : `Skrzydło szafki „${s.cab}"`} i ${coW} ${czyjeW} `
+          + `— nie otworzysz ich naraz: gdy ${szuf ? "szuflada jest wysunięta" : `${coW} jest wysunięty`}, ${s.sprzet ? "drzwi otworzą się" : "skrzydło otworzy się"} do ok. ${Math.round(gw.kat)}°. `
+          + `Każde osobno otwiera się do końca — to nie błąd.` });
+      }
+      return;
+    }
     // drzwi sprzetu (mikrofala) — zawias ma sam sprzet, wiec rada tylko o ukladzie
     if (s.sprzet) {
       const czyjeS = g.b.id === s.id ? "tej samej szafki" : `szafki „${g.b.cab}"${g.b.run === s.run ? " w tym samym ciągu" : ` z ciągu „${g.b.run}"`}`;
@@ -23447,6 +23502,29 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v !== G && v - Y >= 250) ciag.setRunShared(run.id, { H: v - Y }); }}
         className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />], "mak-gorny-gora-w");
   };
+  /* Polozenie ciagu gornego wzdluz sciany (uzytkownik 2026-11-14: „nie ma opcji do przesunięcia górnej szafki o wymiar ani od lewej
+     ani od prawej ani żeby była przyległa do słupka”): od lewej / od prawej (`run.offsetFrom`), ile mm (`run.offset`), „Przy słupku”
+     — pierwsza szafka gorna dosunieta do wysokiej szafki na poczatku ciagu dolnego (`gornyZaSlupkami`); przerwa miedzy szafkami
+     gornymi — „Bez szafki górnej” (wolne miejsce) */
+  const gornyPolW = (k) => {
+    if (!run || run.tier !== "gorny") return null;
+    const odP = run.offsetFrom === "right", off = Math.max(0, Math.round(run.offset || 0));
+    const dolny = run.wall ? (project.runs || []).find((r) => r.id === run.wall) : null;
+    const zaSl = dolny ? gornyZaSlupkami(project, dolny, tierMountY(project, run)) : 0;
+    const slupek = zaSl > 0 && dolny ? (runItems(project, dolny.id)[0] || {}).it : null;
+    const ustaw = (patch) => ciag.setRun(run.id, patch);
+    return <div key={`${k}-w`}>{wiersz(k, "ciąg górny wzdłuż ściany — cały ciąg górny", [
+      <Btn key="l" el="mak-gorny-od" v="left" on={!odP} onClick={() => ustaw({ offsetFrom: "left" })}>od lewej</Btn>,
+      <Btn key="p" el="mak-gorny-od" v="right" on={odP} onClick={() => ustaw({ offsetFrom: "right" })}>od prawej</Btn>,
+      <input key={`o${off}${odP}`} type="number" step="10" min="0" defaultValue={off} data-el="mak-gorny-offset" onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        onBlur={(e) => { const v = Math.max(0, Math.round(Number(e.currentTarget.value) || 0)); if (v !== off) ustaw({ offset: v }); }}
+        className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />,
+      <span key="mm" className="text-[11px] text-stone-500">mm</span>,
+      ...(zaSl > 0 ? [<Btn key="sl" el="mak-gorny-przy-slupku" on={!odP && off === zaSl} onClick={() => ustaw({ offsetFrom: "left", offset: zaSl })}>
+        przy słupku{slupek ? ` „${slupek.cab.name || "słupek"}”` : ""} ({fmt(zaSl)})</Btn>] : []),
+      ...(off > 0 ? [<Btn key="0" el="mak-gorny-od-sciany" onClick={() => ustaw({ offset: 0 })}>od samej ściany</Btn>] : [])], "mak-gorny-pol-w")}
+      <p className="border-b border-stone-100 py-1 text-[11px] text-stone-500" data-el="mak-gorny-pol-hint">Przesuwa cały ciąg górny. Przerwę między szafkami górnymi zrobisz przyciskiem „Bez szafki górnej” (wolne miejsce o szerokości szafki).</p></div>;
+  };
   /* Dol tej jednej szafki gornej (makieta „Dodaj”: „Dół szafki od podłogi”, −/+50, „Jak inne”; uzytkownik 2026-11-13) — szafka
      krotsza albo dluzsza, gora rowno z innymi (`cab.dolGorny`) */
   const gornaWlasnaW = (() => {
@@ -23661,7 +23739,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     ...(cab.sprzetCiagu ? [] : [chips("mak-szer", szerChips, cab.W, (v) => zmien(idx, (c) => { c.W = v; }))]),
     <Pole key="pH" k="H" l="Wysokość" />,
     ...(slupekWysW ? [slupekWysW] : []),
-    ...(run && run.tier === "gorny" ? [gornaWlasnaW, gornyDolW("gdol"), gornyGoraW("ggora")] : []),
+    ...(run && run.tier === "gorny" ? [gornaWlasnaW, gornyDolW("gdol"), gornyGoraW("ggora"), gornyPolW("gpol")] : []),
     ...(rodzK === "wolnostojaca" ? [chips("mak-wys", MAK_WYS_WOLNA, cab.H, (v) => (run && zmienWys ? zmienWys(idx, v) : zmien(idx, (c) => { c.H = v; })))] : []),
     ...(wysHint ? [hint("wys-hint", wysHint)] : []),
     <Pole key="pD" k="D" l="Głębokość" />,
@@ -23975,7 +24053,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         ];
       })(),
       liczba("H", "Wysokość szafek", Math.round(run.H ?? cab.H), (v) => ciag.setRunShared(run.id, { H: v })),
-      ...(run.tier === "gorny" ? [gornyDolW("gdolc"), gornyGoraW("ggorac")] : []),
+      ...(run.tier === "gorny" ? [gornyDolW("gdolc"), gornyGoraW("ggorac"), gornyPolW("gpolc")] : []),
       liczba("D", "Głębokość szafek", Math.round(run.D ?? cab.D), (v) => ciag.setRunShared(run.id, { D: v })),
       liczba("gap", "Luz między korpusami", Math.round(Number(run.gap) || 0), (v) => ciag.setRun(run.id, { gap: v }), 1, 0),
       liczba("odsuniecie", "Odsunięcie od ściany", Math.round(wallGapOf(run, null).bottom || 0),
@@ -25073,7 +25151,11 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   const aktIt = project.items[project.active];
   const aktR = aktIt && aktIt.runId ? runs.find((r) => r.id === aktIt.runId) : null;
   const sciana = aktR ? aktR.wall || aktR.id : null;
-  const wybrane = ciagId === "wszystkie" ? runs : ciagId === "aktywny" || ciagId === "szafka" ? runs.filter((r) => r.id === sciana || r.wall === sciana) : runs.filter((r) => r.id === ciagId);
+  /* Wybor „Ciąg” to sciana (uzytkownik 2026-11-14: „ściana to ściana, nie dzielimy jej bardziej, tylko możemy wyświetlać ciągi”) —
+     ciag gorny idzie ze swoja sciana, pokazuja go / chowaja przyciski „Ciąg górny” / „Ciąg dolny”; zapamietany gorny = jego sciana */
+  const ciagSc = (() => { const r = runs.find((x) => x.id === ciagId); return r && r.tier === "gorny" && r.wall ? r.wall : ciagId; })();
+  const wybrane = ciagId === "wszystkie" ? runs : ciagId === "aktywny" || ciagId === "szafka" ? runs.filter((r) => r.id === sciana || r.wall === sciana)
+    : runs.filter((r) => r.id === ciagSc || r.wall === ciagSc);
   const wolne = itemsInRoom(project, pokoj).filter(({ it }) => !it.runId);
   const pokazWolne = ciagId === "wszystkie" || (ciagId === "aktywny" && aktIt && !aktIt.runId);
   // „Tylko zaznaczona szafka” (uzytkownik 2026-11-09: „można by zwiększyć rysunek”) — jedna szafka na cały rysunek
@@ -25291,9 +25373,10 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           <Rozwijana el="mak-pomieszczenie" etykieta="Pomieszczenie" wartosc={pokoj}
             opcje={roomsOf(project).map((r) => ({ v: r.id, l: r.name }))}
             onWybierz={(v) => { setCiagId("aktywny"); switchRoom(v); }} />
-          <Rozwijana el="mak-ciag" etykieta="Ciąg" wartosc={ciagId}
+          <Rozwijana el="mak-ciag" etykieta="Ciąg" wartosc={ciagSc}
             opcje={[{ v: "szafka", l: "Tylko zaznaczona szafka", opis: "duży rysunek do przeciągania" }, { v: "aktywny", l: "Ciąg zaznaczonej szafki", opis: "z ciągiem górnym nad nim" }, { v: "wszystkie", l: "Wszystkie ciągi", opis: wolne.length ? "i szafki wolnostojące" : "" },
-              ...runs.map((r) => ({ v: r.id, l: r.name || "Ciąg", opis: `${runItems(project, r.id).length} szafek` }))]}
+              ...runs.filter((r) => r.tier !== "gorny").map((r) => { const g = runs.find((x) => x.tier === "gorny" && x.wall === r.id), nG = g ? runItems(project, g.id).length : 0;
+                return { v: r.id, l: r.name || "Ciąg", opis: `${runItems(project, r.id).length} szafek` + (nG ? ` + ${nG} ${plural(nG, "górna", "górne", "górnych")}` : "") }; })]}
             onWybierz={setCiagId} />
           <Rozwijana el="mak-szafka" etykieta="Szafka" wartosc={zaznM ? project.active : -1}
             opcje={[{ v: -1, l: "Żadna", opis: "zakładki pokażą, co można dodać" }, ...itemsInRoom(project, pokoj).map(({ it, i }) => ({ v: i, l: it.cab.name || `Szafka ${i + 1}`,
@@ -25494,10 +25577,10 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
                   <input type="range" min={0} max={110} step={1} value={kat3d} data-el="mak-3d-kat" onChange={(e) => setKat3d(Number(e.target.value))} className="w-32 accent-teal-700" />
                   <span className="w-10 font-mono text-xs text-stone-500">{kat3d}°</span></label>}
               </div>}
-              {w === "3d" && obracany(zCiagow ? <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} rpOf={rpOf} agd={przel.agd !== false} />
-                : geo0 && <Scene3D cab={it0.cab} geo={geo0} mat={it0.mat} open={widokRys === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} />)}
+              {w === "3d" && obracany(zCiagow ? <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} rpOf={rpOf} agd={przel.agd !== false} />
+                : geo0 && <Scene3D cab={it0.cab} geo={geo0} mat={it0.mat} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} />)}
               {/* 45° — klik zaznacza szafke (uzytkownik 2026-11-12); 3D — obracanie, bez zaznaczania */}
-              {w === "iso" && <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} yaw={-Math.PI / 4} pitch={-0.45} angle={kat3d} rpOf={rpOf}
+              {w === "iso" && <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} szuflady={widok === "open"} yaw={-Math.PI / 4} pitch={-0.45} angle={kat3d} rpOf={rpOf}
                 onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />}
               <p className="mt-1 text-[11px] text-stone-500" data-el="mak-widok-podpowiedz">{w === "gora"
                 ? "Kliknij szafkę, żeby ją zaznaczyć; płytę, zlew i sprzęt na blacie przeciągnij na inną szafkę (zielone ramki); zaznaczonej — zielone znaczki szerokości i głębokości. „Blat” wyłączony — widać szafki pod blatem. Fronty, półki i szuflady — w widoku „Z przodu”."
@@ -26126,7 +26209,7 @@ export default function App() {
     if (!dolny || runs.some((r) => r.tier === "gorny" && r.wall === dolnyId)) return p;
     const gorny = makeUpperRun(runs, dolny, 0);
     const mount = tierMountY({ ...p, runs: [...runs, gorny] }, gorny);
-    return { ...p, runs: [...runs, { ...gorny, mountY: mount }] };
+    return { ...p, runs: [...runs, { ...gorny, mountY: mount, offset: gornyZaSlupkami(p, dolny, mount) }] };
   }), [setProject]);
 
   /* Kasowanie ciagu. Idzie z nim wszystko, co bez niego nie ma sensu: jego
@@ -27210,6 +27293,8 @@ export default function App() {
     if (action.startsWith("wysun:")) { const [, mm, id] = action.split(":");
       setProject((p) => { const maks = Math.max(0, ...p.items.filter((x) => x.runId === id).map((x) => Number(x.offset) || 0));
         return maks > 0 ? { ...p, items: p.items.map((x) => (x.runId === id && (Number(x.offset) || 0) === maks ? { ...x, offset: Math.max(0, maks - Number(mm)) } : x)) } : p; }); return; }
+    // „gornyod:<ciąg górny>:<mm>” — ciag gorny zaczyna sie tyle od lewej (za slupkiem na poczatku sciany)
+    if (action.startsWith("gornyod:")) { const [, id, mm] = action.split(":"); if (id) setRun(id, { offset: Math.max(0, Math.round(Number(mm) || 0)), offsetFrom: "left" }); return; }
     if (action.startsWith("slupekgl:")) { const [, d, ix] = action.split(":");
       setProject((p) => ({ ...p, items: p.items.map((x, k) => (k === Number(ix) ? { ...x, offset: Number(d), cab: { ...x.cab, slupek: true } } : x)) })); return; }
     if (action.startsWith("wallw:")) { const [, v, id] = action.split(":"); if (id && Number(v) > 0) setRun(id, { wallW: Number(v) }); return; }

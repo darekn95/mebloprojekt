@@ -106,6 +106,11 @@ przy niej bokami; „Scal szafki” jej nie łączy.
   600 mm”; × od podłogi do spodu blatu poza 815–875; × za płytko — „Głębokość …”;
 - otwieranie: drzwi opadają w dół jak klapa (przed cokołem).
 
+**Front zmywarki i lodówki podblatowej** (użytkownik 2026-11-14: „zmywarka otwiera się jak klapa w dół, brak w niej uchwytu
+i otwieralności”): uchwyt jak na frontach szafek — zmywarka poziomo u góry na środku, lodówka pionowo przy wolnej krawędzi
+(rysunek `uchwyt-sprzetu`, 3D, zamówienie „Uchwyt” 1 szt.; `cab.sprzetCiagu.uchwyt: false` — bez). W 3D przy „otwarte” front
+zmywarki opada klapą w dół, front lodówki otwiera się jak skrzydło (`front.ruch`).
+
 **Lodówka podblatowa** (użytkownik 2026-11-09, z makiety — przykładowo, np. Bosch KU22LVFD0, Smeg U8L080DE; szablon
 „Lodówka podblatowa”): jak zmywarka do zabudowy — bez korpusu, w zamówieniu tylko „Front lodówki” przykręcany do jej
 drzwi, cokół i blat ciągu idą dalej (wentylacja — wg instrukcji modelu). Wnęka typowo 820 × 600 × 550: × od podłogi

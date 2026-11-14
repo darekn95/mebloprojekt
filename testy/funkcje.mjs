@@ -1121,9 +1121,10 @@ console.log('\n== Sprzęt w ciągu bez korpusu: zmywarka i lodówka wolnostojąc
   const projS = (items) => G.loadProject({ name: 'P', active: 0, prices: {}, runs: [RUNs], items });
   const tx = (g) => g.msgs.map((x) => `${x.level} ${x.text}`).join(' // ');
   const gz = geo(zmS().cab);
-  ok('zmywarka: bez korpusu — tylko cokół i „Front zmywarki 714 × 596” z płyty frontów (fronty z płyty korpusu → board), bez okuć i wierceń',
+  // 2026-11-14: front zmywarki z uchwytem (uzytkownik: „brak w niej uchwytu”) — w okuciach tylko „Uchwyt” 1 szt.
+  ok('zmywarka: bez korpusu — tylko cokół i „Front zmywarki 714 × 596” z płyty frontów (fronty z płyty korpusu → board), z okuć tylko uchwyt frontu, bez wierceń',
     gz.bezKorpusu && gz.panels.map((q) => `${q.name} ${q.a}×${q.b} ${q.matKey}`).join(' / ') === 'Cokół 600×100 board / Front zmywarki 714×596 board'
-    && !gz.hardware.length && !gz.drillPlan.length && !gz.doors.length && gz.sprzetCiagu.front.w === 596,
+    && gz.hardware.length === 1 && gz.hardware[0].name === 'Uchwyt' && gz.hardware[0].qty === 1 && !gz.drillPlan.length && !gz.doors.length && gz.sprzetCiagu.front.w === 596,
     gz.panels.map((q) => `${q.name} ${q.a}×${q.b} ${q.matKey}`).join(' / '));
   const gz2 = geo(zmS({ W: 590 }).cab);
   ok('zmywarka w miejscu 590: błąd „potrzebuje 600–605 mm” z przyciskiem „Miejsce 600 mm”', gz2.msgs.some((x) => x.level === 'error' && /Miejsce na zmywarkę ma 590 mm — zmywarka 60 cm potrzebuje 600–605 mm\.\|sprzetcw:600$/.test(x.text)), tx(gz2));

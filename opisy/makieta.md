@@ -630,3 +630,10 @@ Kolejne kroki (`makiety/BRAKI.md`, D):
   napisy nieucięte i czytelne), `testy/makieta15.mjs` (runda 3 z makietą „Dodaj”: pełna karta Szafka, biurko, klocki i „Co zrobi”
   w zakładkach, lista ciągu, przegroda, rysunek — okap–płyta, lodówka, kaseta / komora, wycięcie, alarm ściany, Esc),
   `testy/makieta16.mjs` (runda 4: karty AGD, kontrole wycięć, karta Szafka przy sprzęcie i pozycji ciągu).
+
+2026-11-14 (zgłoszenia użytkownika): lista „Ciąg” nad rysunkiem to ściany — ciąg górny nie ma osobnej pozycji (idzie ze swoją ścianą,
+pokazują go przyciski „Ciąg górny / Ciąg dolny”; przy ścianie „N szafek + M górnych”). W widokach 3D i 45° zakładki Półki / Przegroda /
+Wzmocnienie otwierają drzwi (wnętrze), ale szuflady zostają zamknięte (`szuflady` w `Assembly3D` / `Scene3D`); wysuwają się przy ręcznie
+wybranym „otwarte”. Legenda nad rysunkiem ma stałe miejsce (zielone ramki przy przeciąganiu trafiają w szafki). Karta szafki górnej:
+„ciąg górny wzdłuż ściany” — od lewej / od prawej, mm, „przy słupku” (`mak-gorny-od`, `mak-gorny-offset`, `mak-gorny-przy-slupku`).
+Test `makieta17`.

@@ -138,7 +138,9 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 - **Głębokość w rogu**: szafka sąsiedniego ciągu głębsza niż ta w rogu — błąd.
 - **Górny ciąg**:
   - wystaje poza dolny — ostrzeżenie;
-  - szafka dolna sięga w górne (słupek) — błąd;
+  - szafka dolna sięga w górne (słupek) — błąd; gdy słupek stoi na początku ściany — przycisk „Ciąg górny od N mm — za „…””
+    (`gornyod`); nowy ciąg górny sam zaczyna się za słupkami na początku dolnego (`gornyZaSlupkami`, użytkownik 2026-11-14);
+  - położenie ciągu górnego w makiecie (karta szafki górnej): od lewej / od prawej, ile mm, „przy słupku” (`run.offsetFrom`, `run.offset`);
   - górne szafki ponad sufit — błąd; luz do sufitu — informacja.
 - **Kolizje otwierania w rogu**: przyciski „Przełóż zawiasy” i wstawka 18 / 60 mm — tylko gdy pomagają. Fronty „Skręcone 90°” liczą się jako jeden sztywny zespół na zawiasach korpusu — front ramienia obraca się wokół tej samej osi (audyt GPT N135), bez rady o przełożeniu zawiasów.
 - **Ramię szafki w L w zamówieniu**: płyty ramienia mają oklejanie z tabeli formatek jak korpus (N130), zawiasy z grubości płyty frontu ramienia (N123), uchwyt także wpuszczany (wystawanie 0, N124), półki z mocowaniem swojej kolumny i granicy (N131), wzmocnienia z kolumny przy ramieniu bez powtórzeń (N137), plecy ze zszywkami / wkrętami co 100 mm po obwodzie (N138), kątownik od wierzchu dna — też przy cokole w obrysie (N134).

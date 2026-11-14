@@ -225,7 +225,8 @@ console.log('\n== N38: kontrola otwierania wg montażu frontu szuflady ==');
     const B = { name: 'B', W: 600, H: 720, D: 560, plinth: PL, frontMode: fm, handleOut: 30, levels: [{ h: null, cols: [{ kind: 'drawers', drawerMode: dm, w: null, drawers: [{ h: null }, { h: null }] }] }] };
     await seed(proj([{ cab: ROG, runId: 'c1' }, { cab: B, runId: 'c2' }], [RUN('c1', { worktop: false }), RUN('c2', { worktop: false, corner: { of: 'c1', at: 'end', owner: 'of', clear: 26 } })]));
     await page.waitForTimeout(1500);
-    const m = (await uwagi()).match(/otworzy się tylko do ok\. (\d+)°/);
+    // od 2026-11-14 wysunieta szuflada to informacja „nie otworzysz ich naraz … skrzydło otworzy się do ok. N°” (nie blad)
+    const m = (await uwagi()).match(/(?:otworzy się tylko do ok\.|skrzydło otworzy się do ok\.) (\d+)°/);
     kat[k] = m ? Number(m[1]) : null;
   }
   ok('kolumna szuflad wpuszczana w szafce nakładanej liczy się jak wpuszczana', kat.kolumnaWp !== null && kat.kolumnaWp === kat.wpuszczana && kat.kolumnaWp !== kat.nakladana, JSON.stringify(kat));

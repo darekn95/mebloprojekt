@@ -99,6 +99,67 @@ await page.evaluate(() => localStorage.setItem('mp-mak-widok', 'gora')); await p
     r && c ? `ramka y ${Math.round(r.y)} h ${Math.round(r.height)}, szafka y ${Math.round(c.y)} h ${Math.round(c.height)}` : 'brak');
   await page.keyboard.press('Escape'); await page.mouse.up(); await page.waitForTimeout(300); }
 
+console.log('== nowa szafka wisząca za słupkiem; ciąg górny: od lewej / od prawej / przy słupku; lista „Ciąg” = ściany (2026-11-14) ==');
+const SLUP = KUCH.replace("p.items.push(l);", "") + `const s0 = JSON.parse(JSON.stringify(p.items[0])); s0.cab = { ...s0.cab, name: 'Słupek', H: 2000, slupek: true }; p.items.unshift(s0);
+  p.items.forEach((it) => { it.cab.blatWyciecia = []; }); p.items[2].cab.levels = [{ h: null, cols: [{ ...p.items[2].cab.levels[0].cols[0], kind: 'drawers', drawers: [{ h: 'auto', front: null, handle: true }, { h: 'auto', front: null, handle: true }, { h: 'auto', front: null, handle: true }] }] }];
+  const z = JSON.parse(JSON.stringify(p.items[1])); z.cab = { ...z.cab, name: 'Zmywarka', sprzetCiagu: { typ: 'zmywarka' } }; p.items.push(z); p.active = 1;`;
+await start(SLUP);
+await zakl('dodaj');
+{ const a = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await a.getAttribute('aria-expanded').catch(() => 'true')) !== 'true') await a.click().catch(() => {}); await page.waitForTimeout(300); }
+{ const n = page.locator('[data-el="mak-grupa"][data-grupa="Kuchnia — góra"] [data-el="mak-grupa-nagl"]'); if ((await n.getAttribute('aria-expanded').catch(() => 'true')) === 'false') { await n.click(); await page.waitForTimeout(200); } }
+await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="wiszaca"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
+p = await czekaj('(p.runs || []).some((r) => r.tier === "gorny") && p.items.some((it) => (p.runs.find((r) => r.id === it.runId) || {}).tier === "gorny")');
+{ const g = (p.runs || []).find((r) => r.tier === 'gorny');
+  ok('nowy ciąg górny zaczyna się za słupkiem (od lewej 600)', !!g && g.offset === 600 && g.offsetFrom === 'left', g && JSON.stringify({ off: g.offset, od: g.offsetFrom })); }
+{ const t = await uwagi(); ok('bez błędu „szafki górne … wchodzą w nią”', !/wchodzą w nią o/.test(t), t.slice(0, 200)); }
+await zakl('szafka');
+ok('karta górnej: „ciąg górny wzdłuż ściany” — od lewej / od prawej, mm, przy słupku', (await page.locator('[data-el="mak-gorny-od"]').count()) === 2
+  && (await page.locator('[data-el="mak-gorny-offset"]').count()) === 1 && (await page.locator('[data-el="mak-gorny-przy-slupku"]').count()) === 1
+  && (await page.locator('[data-el="mak-gorny-przy-slupku"]').getAttribute('aria-pressed').catch(() => null)) !== 'false');
+{ const f = page.locator('[data-el="mak-gorny-offset"]'); await f.fill('900'); await f.press('Enter'); await page.waitForTimeout(400); }
+p = await czekaj('p.runs.find((r) => r.tier === "gorny").offset === 900');
+ok('wpisane 900 — ciąg górny od lewej 900', p.runs.find((r) => r.tier === 'gorny').offset === 900);
+await page.locator('[data-el="mak-gorny-od"][data-v="right"]').click();
+p = await czekaj('p.runs.find((r) => r.tier === "gorny").offsetFrom === "right"');
+ok('„od prawej” — liczone od prawej', p.runs.find((r) => r.tier === 'gorny').offsetFrom === 'right');
+await page.locator('[data-el="mak-gorny-przy-slupku"]').click();
+p = await czekaj('p.runs.find((r) => r.tier === "gorny").offset === 600 && p.runs.find((r) => r.tier === "gorny").offsetFrom === "left"');
+ok('„przy słupku” — znów od lewej 600', p.runs.find((r) => r.tier === 'gorny').offset === 600 && p.runs.find((r) => r.tier === 'gorny').offsetFrom === 'left');
+// stary ciag gorny od 0 nad slupkiem — blad z przyciskiem „Ciąg górny od 600 mm — za „Słupek””
+await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.runs.find((r) => r.tier === 'gorny').offset = 0; localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
+{ const b = page.locator('[data-el="makieta-uwagi"] button', { hasText: /Ciąg górny od 600 mm — za „Słupek”/ });
+  ok('ciąg górny nad słupkiem: błąd z przyciskiem „Ciąg górny od 600 mm — za „Słupek””', (await b.count()) === 1);
+  if (await b.count()) { await b.first().click(); await page.waitForTimeout(500); } }
+p = await czekaj('p.runs.find((r) => r.tier === "gorny").offset === 600');
+ok('po kliknięciu: ciąg górny od 600, bez błędu', p.runs.find((r) => r.tier === 'gorny').offset === 600 && !/wchodzą w nią o/.test(await uwagi()));
+// lista „Ciąg”: same sciany, gorne w opisie
+await page.locator('[data-el="mak-ciag"] button').first().click(); await page.waitForTimeout(200);
+{ const g = p.runs.find((r) => r.tier === 'gorny');
+  ok('lista „Ciąg”: bez osobnego ciągu górnego, przy ścianie „+ 1 górna”', (await page.locator(`[data-el="mak-ciag"] [data-v="${g.id}"]`).count()) === 0
+    && /\+ 1 górna/.test(await page.locator('[data-el="mak-ciag"] [data-v="r1"]').innerText().catch(() => ''))); }
+await page.locator('[data-el="mak-ciag"] [data-v="r1"]').click(); await page.waitForTimeout(500);
+ok('wybrana ściana: rysunek z szafką górną', (await page.locator('[data-el="makieta"] [data-el="makieta-szafka"]').count()) >= 5);
+
+console.log('== zmywarka: uchwyt, otwieranie klapą w dół; Półki — szuflady zamknięte (2026-11-14) ==');
+ok('zmywarka: uchwyt na froncie (rysunek)', (await page.locator('[data-el="makieta"] [data-el="uchwyt-sprzetu"]').count()) >= 1);
+await page.evaluate(() => { localStorage.setItem('mp-mak-widok', 'iso'); }); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1300);
+await page.evaluate(() => { window.__audytBryl = []; });
+await zakl('polki'); await page.waitForTimeout(800);
+{ const A = await page.evaluate(() => window.__audytBryl || []);
+  const fz = A.filter((b) => b.tag === 'front-zmywarki').slice(-1)[0];
+  ok('Półki (wnętrze otwarte): front zmywarki opada klapą w dół (leży przed szafką)', !!fz && fz.p && (fz.p[5] - fz.p[2]) > 400, fz && JSON.stringify(fz.p));
+  const uz = A.filter((b) => b.tag === 'uchwyt').length;
+  ok('3D: uchwyty są (w tym zmywarki)', uz >= 4, String(uz)); }
+{ const zrzut = process.env.ZRZUT; if (zrzut) await page.locator('[data-el="mak-plotno"]').screenshot({ path: zrzut + '/polki_iso.png' }); }
+{ const n1 = await page.evaluate(() => (window.__audytBryl || []).length);
+  // „otwarte” wybrane recznie (zakladka Szafka): szuflady wysuwaja sie — dochodza bryly skrzynek
+  await page.evaluate(() => { const q = JSON.parse(localStorage.getItem('mp-mak-przel') || '{}'); q.fronty = false; localStorage.setItem('mp-mak-przel', JSON.stringify(q)); });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1300);
+  await page.evaluate(() => { window.__audytBryl = []; }); await zakl('szuflady'); await page.waitForTimeout(800);
+  const n2 = await page.evaluate(() => (window.__audytBryl || []).length);
+  ok('Półki: szuflady zamknięte — przy ręcznym „otwarte” wysuwają się (więcej brył: skrzynki)', n2 >= n1 + 9, `${n1} → ${n2}`); }
+
 ok('bez błędów strony', errors.length === 0, errors.join(' | '));
 await browser.close();
 console.log(bledy ? `BLEDOW: ${bledy}` : 'WSZYSTKO OK');

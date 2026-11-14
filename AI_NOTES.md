@@ -1306,3 +1306,8 @@ w `MAK_LOD_RODZ` robi `lodowkaMalaUstaw`. Zostala poprawka wneki lodowki do spod
 `mak-legenda` jest zawsze (min. wysokosc) — pojawiala sie przy chwyceniu i przesuwala rysunek pod ramkami (widok „Z góry”).
 [CHECK] Uzytkownik podal zlacze Sevroll Blendo 07025 do cokolu i blend (zamiast klipsow na nozki) — instrukcji brak (strony sklepu
 i sevroll.pl nie otwieraja sie z sesji; wyszukiwarka: niewidoczne, rozbieralne zlacze do blend / cokolow, znacznik 07024) — do ustalenia.
+[AI-INFO] 2026-11-14 zgloszenia z projektu v46 / v47: ramki (legenda stala), kolizja skrzydlo–szuflada (skrzydlo widzi szuflade zamknieta,
+wysunieta = info), 3D w zakladkach z wnetrzem — szuflady zamkniete (`szuflady`), nowy ciag gorny za slupkami (`gornyZaSlupkami`, przycisk
+`gornyod`), karta gornej — polozenie ciagu gornego, lista „Ciąg” = sciany, zmywarka — uchwyt i klapa w dol w 3D. Test `makieta17`.
+[AI-TODO] Glebokosc dolnych kuchennych 550 (uzytkownik 2026-11-14) — w toku: szablon stojaca, SZAFKA_KUCHENNA_D, CORNER_L_D, sprzet w ciagu;
+przy 550 szuflady V-BOX NL 500 (NL 550 wymaga 553) — powiedziec uzytkownikowi.

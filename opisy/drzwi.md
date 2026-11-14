@@ -68,7 +68,7 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
   - zero lub mniej — błąd.
 - **Wysokość drzwi zero lub mniej** — błąd.
 - **Szczelina między frontami** w poziomie: 0 lub mniej (fronty się stykają) — błąd, 1 mm — ostrzeżenie, w jednej kolumnie więcej niż „Ostrzegaj powyżej” (5 mm) — błąd „o N mm za dużo”. Luz z karty „Luzy drzwi” powyżej 5 mm — ostrzeżenie.
-- **Otwieranie** (błąd): skrzydło zakreśla ćwiartkę koła wokół zawiasów, sprawdzane w całej zabudowie. Przeszkodą jest korpus, ramię szafki w L, front i uchwyt sąsiada, front szuflady (też wysunięty), blat, maskownica kątownika, wstawka w rogu, sufit. Fronty szafki w L „Skręcone 90°” to jeden zespół: front ramienia obraca się razem z frontem korpusu wokół jego zawiasów (audyt GPT N135).
+- **Otwieranie** (błąd): skrzydło zakreśla ćwiartkę koła wokół zawiasów, sprawdzane w całej zabudowie. Przeszkodą jest korpus, ramię szafki w L, front i uchwyt sąsiada, front szuflady (zamkniętej — skrzydła i szuflady nie otwiera się naraz; gdy przeszkadza tylko wysunięta szuflada, jest informacja „nie otworzysz ich naraz … to nie błąd”, użytkownik 2026-11-14), blat, maskownica kątownika, wstawka w rogu, sufit. Fronty szafki w L „Skręcone 90°” to jeden zespół: front ramienia obraca się razem z frontem korpusu wokół jego zawiasów (audyt GPT N135).
   - Wynik: „nie otworzy się wcale / do końca … — otworzy się tylko do ok. N°”.
   - Gdy pomaga, przyciski: „Przełóż zawiasy na lewą / prawą” (tylko gdy kąt rośnie o co najmniej 20° albo kolizja znika) i wstawka w rogu.
   - Drzwi przy fixie (ślepy narożnik; 2026-11-12: „opcje wypisane, a gdzie przyciski?”): „Szerszy fix N mm — drzwi M mm”
