@@ -43,6 +43,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 - **Ustawienie**: szafki stoją jedna za drugą od położenia na ścianie, z luzem między korpusami. Wysunięcie z lica i odsunięcie od ściany można ustawić całemu ciągowi albo jednej szafce.
 - **Nowa szafka** („+ szafka”):
   - w pustym ciągu ma 550 mm głębokości (standard dolnych kuchennych od 2026-11-14, wcześniej 560);
+  - nowy ciąg kuchenny (z blatem) stoi od razu 17 mm od ściany (`KUCHNIA_OD_SCIANY`, decyzja 2026-11-14): 3 + 550 + 2 + 18 + 17 = 590 — blat 600 cały, 10 mm przed frontami; ciąg górny i szafa — przy ścianie;
   - obok innych bierze wymiary sąsiedniej;
   - pod blatem dostaje parę wzmocnień zamiast wieńca;
   - szuflady dostaje w systemie z kontekstu (szafka → ciąg → pomieszczenie).

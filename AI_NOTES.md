@@ -1315,3 +1315,5 @@ przy 550 szuflady V-BOX NL 500 (NL 550 wymaga 553) — powiedziec uzytkownikowi.
 szuflady V-BOX w 550 — NL 500 (NL 550 wymaga 553); nowa kuchnia przy scianie ma ostrzezenie „arkusz 600 wystawalby 27 mm” z przyciskiem
 odsuniecia o 17 mm (uzytkownik w swoim projekcie ma ciag 17 mm od sciany). Pelny przebieg (696bb2d): 173 suity, 5649 OK, 13 suit z oczekiwaniem
 560 — poprawione (BLEDY.md); losowe 66 / 0. Audyt v47: tylko znane uwagi (Szafka 10 nad slupkiem — przycisk „Ciąg górny od 600 mm”, sciana 6 mm).
+[AI-INFO] 2026-11-14 odpowiedzi uzytkownika: nowy ciag kuchenny od razu 17 mm od sciany (`KUCHNIA_OD_SCIANY` w `makeRun`; gorny i szafa 0);
+szuflady w 550 — NL 500 zostaje; Blendo — uzytkownik przesle instrukcje / zdjecie (wtedy do `instrukcje/` + SPIS i opcja mocowania cokolu).

@@ -413,6 +413,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `front-bok` / `front-gora` (`data-el`) | fronty w widoku z boku / z góry — każdy osobno, łączone tylko przy styku, żeby było widać szczeliny |
 | `tW` (`computeGeo`) | grubość górnej płyty w H: wieniec — płyta (18), blat na bokach — blat (`tTop`, roboczy 38); boki, wnętrze, rysunki i 3D liczą od niej |
 | `wspornikTrojkaty(h)` / `WSPORNIK_TROJKAT_CO` | wspornik pionowy fixu bez płyty nad sobą: trójkąty do fixa co 300 mm, min. 2 (+1 do dna); `supportParts[].nad/pod/trojkatyFix` |
+| `KUCHNIA_OD_SCIANY` | 17 — nowy ciąg kuchenny (z blatem) od ściany (`makeRun` → `wallGap.bottom`; ciąg górny i szafa 0), decyzja 2026-11-14 |
 | `SZAFKA_KUCHENNA_D` | 550 (od 2026-11-14, wcześniej 560) — głębokość „+ szafka” w pustym ciągu dolnym, gdy w pomieszczeniu nie ma innego ciągu dolnego z głębokością |
 | `sufitPrzod` (`computeGeo`, szuflady) | to, co jest nad szufladą z przodu: następna szuflada albo góra światła/płaskie wzmocnienie; bok „auto” = najwyższy, który się pod nim mieści |
 | `migrateCab(cab, mat)` / `migrateRun` / `migrateCorner` | podnoszenie starych projektów do bieżącego formatu |
