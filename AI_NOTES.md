@@ -1317,3 +1317,5 @@ odsuniecia o 17 mm (uzytkownik w swoim projekcie ma ciag 17 mm od sciany). Pelny
 560 — poprawione (BLEDY.md); losowe 66 / 0. Audyt v47: tylko znane uwagi (Szafka 10 nad slupkiem — przycisk „Ciąg górny od 600 mm”, sciana 6 mm).
 [AI-INFO] 2026-11-14 odpowiedzi uzytkownika: nowy ciag kuchenny od razu 17 mm od sciany (`KUCHNIA_OD_SCIANY` w `makeRun`; gorny i szafa 0);
 szuflady w 550 — NL 500 zostaje; Blendo — uzytkownik przesle instrukcje / zdjecie (wtedy do `instrukcje/` + SPIS i opcja mocowania cokolu).
+[AI-INFO] 2026-11-14: pelny przebieg (2f9d68b, 17 mm od sciany): 173 suity, 5677 OK, 2 suity z oczekiwaniem ciagu przy scianie (blatrog, blatrys) —
+poprawione, zielone w obu buildach; losowe 66 / 0. (Pierwsza proba przebiegu nieważna — serwery testowe padly po restarcie kontenera.)

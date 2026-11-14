@@ -37,10 +37,10 @@ for (const l of ['Ciąg', 'Z góry']) await klik(l);
 let bl = await plyty();
 console.log('   ' + JSON.stringify(bl));
 ok('blat jest w rzucie', bl.length === 1, String(bl.length));
-/* Dwie szafki po 600 to jedna plyta 1200, glebokosc HDF 3 + 550 (pusty ciag, standard od 2026-11-14) + luz 2 + front 18 = 573 do lica —
-   arkusz 600 wystawalby 27 mm (ponad 20), wiec blat jest dociety do 583 (10 mm przed frontami) i rysunek pokazuje 583. */
+/* Dwie szafki po 600 to jedna plyta 1200: nowy ciag kuchenny stoi 17 mm od sciany (2026-11-14) + HDF 3 + 550 + luz 2 + front 18 = 590 —
+   arkusz 600 w calosci, 10 mm przed frontami. */
 ok('idzie przez obie szafki', bl.length === 1 && bl[0].w === 1200, bl[0] && String(bl[0].w));
-ok('głębokość to wymiar rzeczywisty (docięty 583)', bl.length === 1 && bl[0].h === 583, bl[0] && String(bl[0].h));
+ok('głębokość to wymiar rzeczywisty (cały arkusz 600)', bl.length === 1 && bl[0].h === 600, bl[0] && String(bl[0].h));
 
 console.log('\n== blat w elewacji ==');
 await klik('Zamk.');

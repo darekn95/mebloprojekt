@@ -17,6 +17,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-11-14 | testy po nowym ciągu kuchennym 17 mm od ściany (decyzja użytkownika): blatrog, blatrys | blatrys — blat cały 600 (590 do lica); blatrog — scenariusz z ciągami przy ścianie, `wallGap` 0 przypięty w danych testu | (ten commit) |
 | 2026-11-14 | testy po zmianie standardowej głębokości dolnych kuchennych 560 → 550 (decyzja użytkownika): blat, blatrog, blatrys, ciag, decyzje, fromcab, funkcje, kreator, makieta13, makieta14, makieta2, odsuniecie, stdfull | oczekiwania z szablonu 560 — tam, gdzie test sprawdza domyślną głębokość, teraz 550 (blat docięty 583, ramię L 650, róg 1220, prowadnica 32..532); tam, gdzie bada co innego (różne NL, luz nad szufladą, słupek głębszy, róg), głębokość 560 przypięta w danych testu | (ten commit) |
 | 2026-11-14 | makieta — zielone ramki przy przeciąganiu w widoku „Z góry” wyżej niż szafki | legenda „tu może stanąć…” pojawiała się po policzeniu ramek i przesuwała rysunek w dół — linijka legendy ma teraz stałe miejsce (`makieta17`) | (ten commit) |
 | 2026-11-14 | kontrola otwierania: błąd „Skrzydło … nie otworzy się do końca: po drodze stoi wysunięty front szuflady” w rogu (projekt użytkownika v46) | skrzydło sprawdzane z szufladą sąsiada wysuniętą — skrzydła i szuflady nie otwiera się naraz; teraz z zamkniętą, wysunięta — informacja (`otwier`) | (ten commit) |

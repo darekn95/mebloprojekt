@@ -22,6 +22,8 @@ await page.evaluate(() => {
   const rog = p.items.find((i) => i.cab.corner && i.cab.corner.on);
   // glebokosc szafki w L 560 przypieta (scenariusz sprzed standardu 550, 2026-11-14): arkusz 600 nad nia w calosci
   rog.cab.D = 560; p.runs.forEach((r) => { if (r.id === rog.runId) r.D = 560; });
+  // ciagi przy scianie (od 2026-11-14 nowy ciag kuchenny stoi 17 mm od niej — scenariusz sprzed tej zmiany)
+  p.runs.forEach((r) => { r.wallGap = { bottom: 0, top: null }; });
   p.runs.forEach((r) => { if (r.id !== rog.runId) r.D = 600; });
   localStorage.setItem('szafki:projekt', JSON.stringify(p));
 });
