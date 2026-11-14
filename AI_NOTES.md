@@ -1298,3 +1298,4 @@ Szafka idzie za ciagiem w `naprawProjekt` (`lodowkiPodblatZaCiagiem`: wysokosc d
 ciagu 820 — w pytaniu z 2026-11-13 bylo „płaskie z przodu (nie zabiera wysokości wnęki)”, a plyta 18 mm zabiera wneke z przodu (820 → 802);
 teraz plaskie wzmocnienie tylko, gdy pod nim zostaje 820; (2) cokol na trojkatach (2 na bok) czy inaczej; (3) mala: nad lodowka otwarta
 wneka (szuflada nad lodowka 520 nie miesci sie pod wzmocnieniem pod blatem). Audyt v42 bez zmian.
+[AI-INFO] 2026-11-14: pelny przebieg (5024a84): 173 suity, 5678 OK, 0 bledow; losowe 66 / 0. Artefakt v233.
