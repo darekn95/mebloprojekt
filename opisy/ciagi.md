@@ -42,7 +42,7 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   nóżki nie stały w płycie cokołu (2026-11-12).
 - **Ustawienie**: szafki stoją jedna za drugą od położenia na ścianie, z luzem między korpusami. Wysunięcie z lica i odsunięcie od ściany można ustawić całemu ciągowi albo jednej szafce.
 - **Nowa szafka** („+ szafka”):
-  - w pustym ciągu ma 560 mm głębokości;
+  - w pustym ciągu ma 550 mm głębokości (standard dolnych kuchennych od 2026-11-14, wcześniej 560);
   - obok innych bierze wymiary sąsiedniej;
   - pod blatem dostaje parę wzmocnień zamiast wieńca;
   - szuflady dostaje w systemie z kontekstu (szafka → ciąg → pomieszczenie).

@@ -413,7 +413,7 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 | `front-bok` / `front-gora` (`data-el`) | fronty w widoku z boku / z góry — każdy osobno, łączone tylko przy styku, żeby było widać szczeliny |
 | `tW` (`computeGeo`) | grubość górnej płyty w H: wieniec — płyta (18), blat na bokach — blat (`tTop`, roboczy 38); boki, wnętrze, rysunki i 3D liczą od niej |
 | `wspornikTrojkaty(h)` / `WSPORNIK_TROJKAT_CO` | wspornik pionowy fixu bez płyty nad sobą: trójkąty do fixa co 300 mm, min. 2 (+1 do dna); `supportParts[].nad/pod/trojkatyFix` |
-| `SZAFKA_KUCHENNA_D` | 560 — głębokość „+ szafka” w pustym ciągu dolnym, gdy w pomieszczeniu nie ma innego ciągu dolnego z głębokością |
+| `SZAFKA_KUCHENNA_D` | 550 (od 2026-11-14, wcześniej 560) — głębokość „+ szafka” w pustym ciągu dolnym, gdy w pomieszczeniu nie ma innego ciągu dolnego z głębokością |
 | `sufitPrzod` (`computeGeo`, szuflady) | to, co jest nad szufladą z przodu: następna szuflada albo góra światła/płaskie wzmocnienie; bok „auto” = najwyższy, który się pod nim mieści |
 | `migrateCab(cab, mat)` / `migrateRun` / `migrateCorner` | podnoszenie starych projektów do bieżącego formatu |
 | `splitAtJoints` | dzieli wspólny cokół/blat na odcinki |
@@ -491,7 +491,7 @@ Wydruk: `ReportSheet`, `PrintReport`, `ReportCutPlan`, `ReportProjectSheet`.
 | `CORNER_BRACKET_W` | 60 | domyślna szerokość wsporników w rogu |
 | `ROG_WZM_H` | 60 | wysokość wzmocnień w szafce narożnej |
 | `LEG_W` / `LEG_INSET` | 40 / 40 | nóżka i jej odsunięcie od krawędzi |
-| `CORNER_L_W` / `CORNER_L_D` / `CORNER_L_TOTAL` | 900 / 560 / 1200 | szablon „narożnik L" |
+| `CORNER_L_W` / `CORNER_L_D` / `CORNER_L_TOTAL` | 900 / 550 / 1200 | szablon „narożnik L" |
 | `CORNER_LG_W` / `CORNER_LG_ARM` | 650 / 350 | szablon „Górna narożna L” (`naroznikLgorny`, 300 w głąb): oba fronty ponad 250 mm; dołożony w górnym ciągu staje przy rogu i zakłada górny ciąg drugiej ściany |
 | `SHEET_W` × `SHEET_H` | 2800 × 2100 | arkusz płyty |
 | `USABLE_W` × `USABLE_H` | 2761,2 × 2061,2 | po okrawaniu |

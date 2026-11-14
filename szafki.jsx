@@ -834,9 +834,9 @@ const CORNER_BRACKET_W = 60;
    CORNER_L_TOTAL to ta wlasnie calkowita szerokosc przy drugiej scianie —
    1200 mm, bo krotsze ramie nie daje sie po nie siegnac przez rog. */
 const CORNER_L_W = 900;
-/* 560 jak szafka stojaca (ustalone z uzytkownikiem 2026-09-28): z HDF za
-   korpusem 563 od sciany, blat nad ramieniem 593 — miesci sie w arkuszu 600. */
-const CORNER_L_D = 560;
+/* Jak szafka stojaca — 550 od 2026-11-14 (wczesniej 560, ustalone 2026-09-28): z HDF za
+   korpusem 553 od sciany, blat nad ramieniem 583 — miesci sie w arkuszu 600. */
+const CORNER_L_D = 550;
 const CORNER_L_TOTAL = 1200;
 const CORNER_L_ARM = CORNER_L_TOTAL - CORNER_L_D;
 /* Gorna szafka w L (szablon „Górna narożna L”): korpus 650 i ramie 350 przy
@@ -2136,8 +2136,8 @@ const nextRunId = (runs) => {
 };
 
 /* Glebokosc pierwszej szafki w pustym ciagu dolnym, gdy w pomieszczeniu nie ma
-   innego ciagu — jak szablon szafki stojacej (plecy za korpusem + 560 = blat 600). */
-const SZAFKA_KUCHENNA_D = 560;
+   innego ciagu — jak szablon szafki stojacej (550 od 2026-11-14, wczesniej 560). */
+const SZAFKA_KUCHENNA_D = 550;
 
 const makeRun = (runs, roomId = null) => {
   /* Numer sciany liczymy w obrebie pomieszczenia — kazde zaczyna od „Ściana 1”.
@@ -2738,15 +2738,15 @@ const TEMPLATES = [
   {
     id: "stojaca",
     label: "Szafka stojąca",
-    /* 560 w glab: z HDF przybijanym 563 od sciany, z drzwiami 581 — blat 600
-       ma zapas na krzywa sciane; lepiej dociac tyl blatu niz zeby zabraklo
-       (ustalone z uzytkownikiem 2026-09-28, wczesniej 570). */
-    hint: "600 × 720 × 560, nóżki 100 mm, dwoje drzwi",
+    /* 550 w glab (uzytkownik 2026-11-14: „zmieniamy standardową głębokość szafek w kuchni dolnych na 550”; wczesniej 560 —
+       2026-09-28, jeszcze wczesniej 570): z HDF przybijanym 553 od sciany, z drzwiami 573 — blat 600 ma zapas na krzywa sciane.
+       Uwaga: szuflady V-BOX NL 550 potrzebuja korpusu 553 — w 550 wchodzi NL 500. */
+    hint: "600 × 720 × 550, nóżki 100 mm, dwoje drzwi",
     /* Na nozkach, bez cokolu — tak samo nowy projekt i nowe pomieszczenie
        (decyzja uzytkownika 2026-10-24: „nóżki wszędzie”). Cokol wlacza sie
        w karcie „Cokół” albo w karcie ciagu. */
     make: () => ({
-      W: 600, H: 720, D: 560,
+      W: 600, H: 720, D: 550,
       plinth: { on: false, height: 100, mode: "under", setback: 0 },
       legs: { on: true, height: 100, color: "#3f3f46", shape: "box", count: null },
       levels: [newLevel(2, autoShelves(innerHeightOf(720)))],
@@ -2839,7 +2839,7 @@ const TEMPLATES = [
     id: "zmywarka",
     label: "Zmywarka",
     hint: "do zabudowy 60 cm, front meblowy, cokół ciągu idzie dalej",
-    make: () => ({ name: "Zmywarka", W: 600, H: 720, D: 560, sprzetCiagu: { typ: "zmywarka" },
+    make: () => ({ name: "Zmywarka", W: 600, H: 720, D: 550, sprzetCiagu: { typ: "zmywarka" },
       plinth: { on: false, height: 100, mode: "under", setback: 0 },
       legs: { on: true, height: 100, color: "#3f3f46", shape: "box", count: null },
       levels: [newLevel(1, 0)] }),
@@ -2848,7 +2848,7 @@ const TEMPLATES = [
     id: "zmywarka-wolno",
     label: "Zmywarka wolnostojąca",
     hint: "60 cm, pod blatem albo z własną pokrywą, bez frontu meblowego",
-    make: () => ({ name: "Zmywarka", W: 600, H: 820, D: 560, sprzetCiagu: { typ: "zmywarkaW" },
+    make: () => ({ name: "Zmywarka", W: 600, H: 820, D: 550, sprzetCiagu: { typ: "zmywarkaW" },
       plinth: { on: false, height: 100, mode: "under", setback: 0 }, legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
       levels: [newLevel(1, 0)] }),
   },
@@ -2856,7 +2856,7 @@ const TEMPLATES = [
     id: "lodowka-pod",
     label: "Lodówka podblatowa",
     hint: "w ciągu jak zmywarka, front meblowy, wnęka 820 × 600 × 550",
-    make: () => ({ name: "Lodówka", W: 600, H: 720, D: 560, sprzetCiagu: { typ: "lodowkaP" },
+    make: () => ({ name: "Lodówka", W: 600, H: 720, D: 550, sprzetCiagu: { typ: "lodowkaP" },
       plinth: { on: false, height: 100, mode: "under", setback: 0 },
       legs: { on: true, height: 100, color: "#3f3f46", shape: "box", count: null },
       levels: [newLevel(1, 0)] }),
@@ -2875,7 +2875,7 @@ const TEMPLATES = [
     id: "lodowka-wolno",
     label: "Lodówka wolnostojąca",
     hint: "600 × 1850 × 650 w miejscu 700 mm, stoi na podłodze",
-    make: () => ({ name: "Lodówka", W: 700, H: 1850, D: 560, sprzetCiagu: { typ: "lodowka" },
+    make: () => ({ name: "Lodówka", W: 700, H: 1850, D: 550, sprzetCiagu: { typ: "lodowka" },
       plinth: { on: false, height: 100, mode: "under", setback: 0 }, legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
       levels: [newLevel(1, 0)] }),
   },
