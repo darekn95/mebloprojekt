@@ -2172,8 +2172,12 @@ const makeRun = (runs, roomId = null) => {
     H: null, D: null, plinth: null, plinthCuts: null, topCuts: null, worktop: true,
     hangerMode: "listwa", mountY: 0, corner: null,
     tier: "dolny", wall: null, clearance: 500, ceiling: null,
-    offset: 0, offsetFrom: "left", wallGap: { bottom: 0, top: null }, topCut: null };
+    offset: 0, offsetFrom: "left", wallGap: { bottom: KUCHNIA_OD_SCIANY, top: null }, topCut: null };
 };
+/* Nowy ciag kuchenny (z blatem) stoi od razu 17 mm od sciany (decyzja uzytkownika 2026-11-14, przy standardzie 550): plecy 3 + 550
+   + luz 2 + front 18 = 573 do lica, z odstepem 17 — 590, blat 600 caly, 10 mm przed frontami (jak w projekcie uzytkownika). Ciag gorny
+   i zabudowa bez blatu (szafa) — przy scianie. */
+const KUCHNIA_OD_SCIANY = 17;
 
 /* Gorny ciag tej samej sciany. Dlugosc sciany i narożnik bierze od dolnego, wiec
    ich tu nie ma. Wisi nad nim, jest plytszy i nie ma cokolu ani blatu. */
@@ -2182,7 +2186,7 @@ const makeUpperRun = (runs, dolny, mountY) => ({
   ...makeRun(runs, dolny.roomId || null), name: dolny.name, tier: "gorny", wall: dolny.id,
   wallW: null, D: GORNY_D, H: null, plinth: null, worktop: false,
   clearance: 500, ceiling: null, mountY, corner: null,
-  offset: 0, offsetFrom: "left",
+  offset: 0, offsetFrom: "left", wallGap: { bottom: 0, top: null },
 });
 /* Nowy ciag gorny zaczyna sie za wysokimi szafkami na poczatku dolnego (slupek przy scianie, uzytkownik 2026-11-14: „jak nowa
    szafka wisząca mogła dodać się w słupku?”) — przesuniecie od lewej = lico pierwszej szafki dolnego (narożnik, przesuniecie)
@@ -23779,7 +23783,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
        szafki albo na koniec ciagu dolnego w tym pomieszczeniu */
     ...(!run && !biurko ? [wiersz("doCiagu", "W ciąg", [
       <Btn key="nowy" el="mak-do-ciagu" v="nowy" onClick={() => zmienProjekt((p) => {
-        const nowy = { ...makeRun(p.runs || [], roomOfItem(p, p.items[idx])), zabudowa: cab.H > 1500 ? "szafa" : "kuchnia", worktop: !(cab.H > 1500) };
+        const nowy = { ...makeRun(p.runs || [], roomOfItem(p, p.items[idx])), zabudowa: cab.H > 1500 ? "szafa" : "kuchnia", worktop: !(cab.H > 1500),
+          ...(cab.H > 1500 ? { wallGap: { bottom: 0, top: null } } : {}) };
         return { ...p, runs: [...(p.runs || []), nowy], items: p.items.map((x, i) => (i === idx ? { ...x, runId: nowy.id } : x)) };
       })}>nowy ciąg z tej szafki</Btn>,
       ...(project.runs || []).filter((r) => r.tier !== "gorny" && roomOfRun(project, r) === roomOfItem(project, it)).map((r) =>
@@ -24775,7 +24780,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
      (kuchnia dol, szafa w zabudowie) dodana bez ciagu — ani na szafke w ciagu, ani przy zaznaczonej w ciagu — zaklada nowy
      ciag (rodzaj zabudowy z grupy wzoru) i staje w nim; nastepne dolaczaja do niego (zaznaczona szafka jest w ciagu). */
   const nowyCiag = (rodzajZab) => {
-    const run = { ...makeRun(project.runs || [], pokoj), zabudowa: rodzajZab, worktop: rodzajZab === "kuchnia" };
+    const run = { ...makeRun(project.runs || [], pokoj), zabudowa: rodzajZab, worktop: rodzajZab === "kuchnia",
+      ...(rodzajZab === "kuchnia" ? {} : { wallGap: { bottom: 0, top: null } }) };
     zmienProjekt((p) => ((p.runs || []).some((r) => r.id === run.id) ? p : { ...p, runs: [...(p.runs || []), run] }));
     return run.id;
   };
