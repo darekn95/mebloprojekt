@@ -395,39 +395,23 @@ const cabWolnegoMiejsca = (cab) => ({ ...makeFromTemplate("okap-kominowy"), name
 const cabZWolnegoMiejsca = (cab) => (cab.poprzednia ? { ...cab.poprzednia, W: cab.W } : null);
 /* Stoi na podlodze bez cokolu i nozek (lodowka i zmywarka wolnostojaca): cokol ciagu ma pod nia przerwe, wspolne wymiary
    ciagu (wysokosc, glebokosc, cokol, nozki) jej nie dotycza. Blat konczy sie przy lodowce i zmywarce z pokrywa. */
-const naPodlodzeCiagu = (cab) => !!(cab && ((cab.sprzetCiagu && (cab.sprzetCiagu.typ === "lodowka" || cab.sprzetCiagu.typ === "zmywarkaW")) || cab.lodowkaPodblat));
-/* Lodowka podblatowa w szafce (decyzja uzytkownika 2026-11-13, makieta „Dodaj”: „podblatowa w szafce”): boki do podlogi, bez dna
-   i bez plecow, cokol z kratka w obrysie miedzy bokami; lodowka stoi na podlodze — wneka od podlogi do spodu blatu (typowo 820–880,
-   np. Bosch KUL15A 820–870), front meblowy od wysokosci cokolu (`cab.lodowkaPodblat`). U gory plaskie wzmocnienie z przodu tylko
-   wtedy, gdy pod nim zostaje wneka 820: plyta 18 mm zabiera wysokosc z przodu, a przy ciagu 820 (nozki 100 + korpus 720) lodowka
-   820 by sie pod nia nie wsunela — wtedy boki trzyma cokol, skrecenie z sasiednimi szafkami i blat (do potwierdzenia z uzytkownikiem). */
-const LODOWKA_PODBLAT_WNEKA = 820;
-const LODOWKA_PODBLAT = { hMin: 820, hMax: 880 };
-const lodowkaPodblatUstaw = (c, { wys = LODOWKA_PODBLAT_WNEKA, cokol = 100, cofniecie = 0, t = 18, gl = null } = {}) => {
-  if (gl > 0) c.D = Math.round(gl);
-  const rails = wys - t >= LODOWKA_PODBLAT.hMin ? [{ ...newRail(), orient: "shelf", pos: "top", depth: 100, atDepth: 0, fromBack: false }] : [];
-  Object.assign(c, { H: Math.round(wys), lodowkaPodblat: true, back: "none",
-    legs: { ...(c.legs || {}), on: false },
-    plinth: { on: true, height: Math.round(cokol), mode: "inbody", setback: Math.max(0, Math.round(cofniecie || 0)) },
-    joints: { ...(c.joints || {}), botL: "none", botR: "none", topL: "none", topR: "none" },
-    levels: [{ h: null, cols: [{ ...newColumn(1, 0), sprzet: { typ: "lodowka", ...LODOWKA_PODBLAT }, rails }] }] });
-  delete c.slupek;
-  return c;
-};
-/* Mala lodowka / minibar w szafce z dnem (decyzja 2026-11-13): stoi na dnie szafki dolnej, z wlasnymi drzwiami (bez frontu meblowego),
-   nad nia plyta i otwarta wneka (szuflada nad lodowka 520 nie miesci sie pod wzmocnieniem pod blatem — 86 mm na skrzynke; zmienia sie
-   ja w karcie Szafka). Wymiary przykladowe — minibary do zabudowy (Dometic RH 4xx: szer. ok. 420–445, wys. 435–560, gleb.
-   385–485); wentylacja wg instrukcji: z tylu dolem wlot i gora wylot, zwykle co najmniej 200 cm² kazdy, od tylu co najmniej 20 mm. */
+const naPodlodzeCiagu = (cab) => !!(cab && cab.sprzetCiagu && (cab.sprzetCiagu.typ === "lodowka" || cab.sprzetCiagu.typ === "zmywarkaW"));
+/* Lodowka podblatowa — dwa rodzaje (uzytkownik 2026-11-14): „w ciągu” jak zmywarka (wypelnia cale miejsce, bez bokow i wzmocnien —
+   `sprzetCiagu.typ: "lodowkaP"`) i „w szafce” — mniejsza (np. na wino) w zwyklej szafce z dnem i bokami, „jakbyśmy wpakowali
+   mikrofalę na dół”: stoi na dnie szafki dolnej, z wlasnymi drzwiami (bez frontu meblowego), nad nia plyta i otwarta wneka (szuflada
+   nad lodowka 520 nie miesci sie pod wzmocnieniem pod blatem — 86 mm na skrzynke; front zmienia sie w karcie Szafka; uzytkownik
+   2026-11-14: „Otwarta wnęka”). Wymiary przykladowe — male lodowki / minibary do zabudowy (np. Dometic RH 4xx: szer. ok. 420–445,
+   wys. 435–560, gleb. 385–485); wentylacja wg instrukcji: z tylu dolem wlot i gora wylot, zwykle co najmniej 200 cm² kazdy, od tylu
+   co najmniej 20 mm. (Wariant z bokami do podlogi bez dna z 2026-11-13 wycofany — to byla w praktyce „w ciągu”.) */
 const LODOWKA_MALA = { lodW: 440, lodH: 520, lodD: 450, luzBok: 10, luzGora: 20, luzTyl: 20 };
 const LODOWKI_MALE = [450, 520, 560, 640];   // wysokosc lodowki (wneka = + luz nad nia)
 const lodowkaMalaUstaw = (c) => {
   c.levels = [{ h: LODOWKA_MALA.lodH + LODOWKA_MALA.luzGora, cols: [{ ...newColumn(1, 0), sprzet: { typ: "lodowka", montaz: "brak", ...LODOWKA_MALA } }] },
     { h: null, cols: [newColumn(0, 0)] }];
-  delete c.lodowkaPodblat;
   return c;
 };
-/* Lodowka „mala w szafce”: lodowka z wlasnymi drzwiami w kolumnie szafki dolnej (nie slupka, nie podblatowej) */
-const lodowkaMalaWSzafce = (cab, sp) => !!(sp && sp.typ === "lodowka" && sp.montaz === "brak" && cab && !cab.lodowkaPodblat && !(cab.slupek || cab.H > 1500));
+/* Lodowka podblatowa w szafce: lodowka z wlasnymi drzwiami w kolumnie szafki dolnej (nie slupka) */
+const lodowkaMalaWSzafce = (cab, sp) => !!(sp && sp.typ === "lodowka" && sp.montaz === "brak" && cab && !(cab.slupek || cab.H > 1500));
 const bezBlatuCiagu = (cab) => lodowkaCiagu(cab) || !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === "zmywarkaW" && cab.sprzetCiagu.pokrywa);
 const SPRZET_POLA = ["frontW", "frontH", "wMin", "wMax", "hMin", "hMax", "dMin", "drzwi", "drzwiWym", "uchwyt", "wysuw",
   "montaz", "fronty", "dolny", "lodW", "lodH", "lodD", "luzBok", "luzGora", "luzTyl"];
@@ -440,15 +424,6 @@ const SPRZET_KOLOR = "#3f3f46";   // jak uchwyty — audyty plyt nie biora tego 
 /* Glebokosci sprzetu od lica korpusu w glab (z): front fz0–fz1 (piekarnik przed licem: −20–0,
    lodowka wolnostojaca wysunieta: drzwi tam, gdzie wypada jej przod), bryla bz0–bz1. Lodowka do
    zabudowy nie ma wlasnego frontu (`front: false`) — jej front to drzwi szafki. */
-/* Kratka wentylacyjna w cokole szafki z lodowka podblatowa (rysunek z przodu): poziome szczeliny na srodku cokolu */
-const kratkaCokolu = (x, y, w, h) => {
-  const kw = Math.min(w - 40, 400), kh = Math.max(10, h * 0.5), x0 = x + (w - kw) / 2, y0 = y + (h - kh) / 2, n = 4;
-  if (!(kw > 0)) return null;
-  return <g data-el="kratka-cokolu" pointerEvents="none">
-    <rect x={x0} y={y0} width={kw} height={kh} fill="none" stroke="#57534e" strokeWidth="1.5" rx="3" />
-    {Array.from({ length: n }, (_, k) => <line key={k} x1={x0 + 8} x2={x0 + kw - 8} y1={y0 + ((k + 1) * kh) / (n + 1)} y2={y0 + ((k + 1) * kh) / (n + 1)} stroke="#57534e" strokeWidth="1.5" />)}
-  </g>;
-};
 const sprzetZ = (s) => ({ fz0: s.fz0 ?? -SPRZET_FRONT_GR, fz1: s.fz1 ?? 0, bz0: s.bryla.z0 ?? 0, bz1: s.bryla.d, front: s.front !== false });
 // parametry sprzetu kolumny: typ z SPRZETY i wpisane pola
 const sprzetKolumny = (col) => {
@@ -1918,40 +1893,7 @@ const wysuniecieZaGlebokoscia = (p, prev) => {
   });
   return zmiana ? { ...p, items } : p;
 };
-const naprawProjekt = (p, prev) => lodowkiPodblatZaCiagiem(slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev))));
-/* Szafka na lodowke podblatowa w ciagu (2026-11-13): wysokosc od podlogi do wierzchu zwyklych szafek ciagu (najczestsza — spod
-   blatu), cokol jak w ciagu (wysokosc cokolu albo nozek — front zaczyna sie nad nim), cofniecie cokolu i glebokosc ciagu.
-   `wzor` — zwykla szafka ciagu, z ktorej to wziete (bez niej zostaje 820 i cokol 100). */
-const lodowkaPodblatZCiagu = (project, run) => {
-  const lista = run && run.tier !== "gorny" ? runItems(project, run.id).filter(({ it }) => !naPodlodzeCiagu(it.cab) && !it.cab.sprzetCiagu
-    && !it.cab.slupek && !(it.cab.H > 1500)) : [];
-  const ys = lista.map(({ it }) => ({ it, y: cabTopY(it.cab, computeGeo(it.cab, it.mat)) }));
-  const ile = new Map(); ys.forEach(({ y }) => ile.set(y, (ile.get(y) || 0) + 1));
-  const yNaj = ys.length ? [...ile.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0] : null;
-  const w = ys.find((q) => q.y === yNaj), wzor = w ? w.it : null;
-  const pl = (run && run.plinth) || (wzor && wzor.cab.plinth) || {};
-  const baza = w ? Math.round(w.y - wzor.cab.H) : 0;
-  return { wzor, wys: w ? w.y : LODOWKA_PODBLAT_WNEKA, cokol: Math.round((pl.on && pl.height) || baza || 100),
-    cofniecie: pl.on ? Math.max(0, Math.round(pl.setback || 0)) : 0, gl: run && run.D != null ? Math.round(run.D) : wzor ? Math.round(wzor.cab.D) : null };
-};
-/* Lodowka podblatowa w szafce idzie za ciagiem (przy kazdej zmianie projektu): wspolne wymiary ciagu (wysokosc, nozki, cokol,
-   glebokosc) jej nie zmieniaja wprost (`naPodlodzeCiagu`), wiec tu dostaje wysokosc do spodu blatu, cokol i glebokosc ciagu —
-   inaczej po zmianie nozek blat by sie przy niej urwal, a front zaczynal na innej wysokosci niz sasiednie. */
-const lodowkiPodblatZaCiagiem = (p) => {
-  if (!p || !(p.items || []).some((it) => it.cab && it.cab.lodowkaPodblat && it.runId)) return p;
-  let zm = false;
-  const items = p.items.map((it) => {
-    if (!it.cab.lodowkaPodblat || !it.runId) return it;
-    const run = (p.runs || []).find((r) => r.id === it.runId); if (!run) return it;
-    const z = lodowkaPodblatZCiagu(p, run); if (!z.wzor) return it;
-    const pl = it.cab.plinth || {};
-    if (Math.round(it.cab.H) === z.wys && pl.on && pl.mode === "inbody" && Math.round(pl.height) === z.cokol && Math.round(pl.setback || 0) === z.cofniecie
-      && (z.gl == null || Math.round(it.cab.D) === z.gl)) return it;
-    zm = true;
-    return { ...it, cab: { ...it.cab, H: z.wys, ...(z.gl != null ? { D: z.gl } : {}), plinth: { ...pl, on: true, height: z.cokol, mode: "inbody", setback: z.cofniecie } } };
-  });
-  return zm ? { ...p, items } : p;
-};
+const naprawProjekt = (p, prev) => slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev)));
 // szafka w ciagu z opcjami wspolnego wienca / dna — przy wlaczeniu i przy dodaniu nowej
 const wedlugCiagu = (cab, mat, run, h = run && run.H) => {
   let c = cab;
@@ -3199,12 +3141,10 @@ function computeGeoLiczy(cab, mat, ctx) {
   const botX1 = postX1 ?? (botR === "between" ? W - t : W);
 
   const pMode = cab.plinth.mode === "between" ? "inbody" : cab.plinth.mode;
-  // lodowka podblatowa w szafce: cokol w obrysie bez dna (lodowka stoi za nim na podlodze), wnetrze od podlogi
   const plinthInBody =
-    cab.plinth.on && pMode === "inbody" && ((botL === "between" && botR === "between") || !!cab.lodowkaPodblat);
+    cab.plinth.on && pMode === "inbody" && botL === "between" && botR === "between";
   const plinthH = cab.plinth.on ? cab.plinth.height : 0;
-  const bottomY = plinthInBody && !cab.lodowkaPodblat ? plinthH : 0;
-  const frontOd = plinthInBody ? plinthH : bottomY;   // dol frontow: nad cokolem (takze bez dna)
+  const bottomY = plinthInBody ? plinthH : 0;
   /* Nozka podpiera dno. Przy cokole w obrysie dno stoi juz na wysokosci cokolu,
      wiec nozka miesci sie w tej przestrzeni i nie podnosi szafki — podnosi ja
      dopiero o tyle, o ile jest wyzsza od cokolu. */
@@ -3815,7 +3755,7 @@ function computeGeoLiczy(cab, mat, ctx) {
        plus pol luzu, przez co zachodzily 8 mm z dolu i 7 z gory, a pole
        „nalozenie na przegrode" nie mialo na nie zadnego wplywu. */
     const ovlLo = lv.i === 0
-      ? frontOd + g.bottom
+      ? bottomY + g.bottom
       : Math.round(sepShelves[lv.i - 1].y + t - divOv);
     const ovlHi = lv.i === levels.length - 1
       ? H - (isBlat ? tW : 0) - g.top
@@ -4190,8 +4130,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       /* Bez wienca gore kolumny trzyma wzmocnienie — bez niego korpus jest od
          gory otwarty: nic nie trzyma bokow w kacie i nie ma do czego przykrecic
          blatu. Tego nikt dotad nie zglaszal (analiza 2026-10-04). */
-      // lodowka podblatowa w szafce: gora bez wzmocnienia, gdy nie ma na nie miejsca — mowi o tym uwaga montazu (`lodowkaPodblatMsgs`)
-      if (lv.i === levels.length - 1 && !hasTop && !cab.lodowkaPodblat && !(c.rails || []).some((r) => r.y1 >= lv.y1 - 1))
+      if (lv.i === levels.length - 1 && !hasTop && !(c.rails || []).some((r) => r.y1 >= lv.y1 - 1))
         add("warn", `${where}: nad tą kolumną nie ma wieńca ani wzmocnienia — korpus jest od góry otwarty, nic nie trzyma boków i nie ma do czego przykręcić blatu.|parablat:${lv.i}:${j}:${paraArg}`);
       const wLicu = (c.rails || []).filter((r) => r.orient !== "vertical" && !r.przyTyle && r.z0 < tf);
       const srodekPoz = (lv.y0 + lv.y1) / 2;
@@ -5786,7 +5725,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       if (wystaje > 0)
         add("info", `${where}: lodówka (głęb. ${fmt(ld)} mm z luzem ${fmt(sp.luzTyl)} mm z tyłu) wystaje ${fmt(wystaje)} mm przed lico szafki.`);
       if (lodowkaMalaWSzafce(cab, sp))
-        add("info", `${where}: mała lodówka stoi na ${lv.i === 0 && hasBot ? "dnie szafki" : "płycie pod wnęką"} — zostaw otwory wentylacyjne wg instrukcji modelu: `
+        add("info", `${where}: lodówka stoi na ${lv.i === 0 && hasBot ? "dnie szafki" : "płycie pod wnęką"} — zostaw otwory wentylacyjne wg instrukcji modelu: `
           + `z tyłu dołem wlot i górą wylot powietrza (zwykle co najmniej 200 cm² każdy — np. wycięcia w plecach${cab.back === "none" ? "" : " i w płycie pod lodówką"} za agregatem), `
           + `od tyłu co najmniej 20 mm luzu. Bez nich lodówka się przegrzewa.`);
       return;
@@ -5819,7 +5758,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     if (!sp) return;
     const where = `Poziom ${lv.i + 1}, kolumna ${j + 1}`;
     const wW = Math.round(c.x1 - c.x0), wH = Math.round(lv.y1 - lv.y0), wD = Math.round(carcassDepth - backIntrusion);
-    /* lodowka: wzmocnienie u gory kolumny (lodowka podblatowa w szafce) zabiera wysokosc wneki — lodowka wsuwa sie pod nie */
+    /* lodowka: wzmocnienie u gory kolumny zabiera wysokosc wneki — lodowka wsuwa sie pod nie */
     const nadL = (c.rails || []).filter((r) => r.y0 > (lv.y0 + lv.y1) / 2).reduce((m, r) => Math.min(m, r.y0), lv.y1);
     if (sp.typ === "lodowka") { lodowkaWneki(lv, c, j, sp, where, wW, Math.round(nadL - lv.y0), wD); return; }
     const cx = (c.x0 + c.x1) / 2, bw = Math.min(wW, sp.wMin) - 4;
@@ -5866,33 +5805,6 @@ function computeGeoLiczy(cab, mat, ctx) {
           : `postaw ${sp.nazwa === "mikrofala" ? "mikrofalę" : sp.nazwa} w osobnej szafce — w szafce z kolumnami front sprzętu kryje prawie całą przegrodę, na którą nakładają się drzwi obok.`));
     });
   }));
-
-  /* Lodowka podblatowa w szafce (decyzja 2026-11-13) — kolejnosc montazu (AGENTS.md: kazde laczenie po kolei, dostep do lbow):
-     prowadniki zawiasow i trojkaty cokolu przykreca sie od srodka wneki — póki nie ma w niej lodowki; konfirmaty wzmocnienia
-     wchodza przez boki — zanim szafka stanie miedzy sasiednimi; boki z sasiednimi i blat — tez od srodka wneki. */
-  if (cab.lodowkaPodblat) {
-    const kL = levels.flatMap((lv) => lv.cols).find((c) => c.sprzet && c.sprzet.typ === "lodowka"), spL = kL && kL.sprzet;
-    const wzmL = levels.some((lv) => lv.cols.some((c) => (c.rails || []).length > 0));
-    const naZaw = !!spL && spL.montaz !== "staly" && spL.montaz !== "brak";
-    let n = 0; const krok = (t) => `(${++n}) ${t}`;
-    add("info", "Lodówka w szafce — kolejność montażu: " + [
-      krok("w cokole wytnij kratkę wentylacyjną (otwór wg instrukcji modelu, zwykle co najmniej 200 cm²)"),
-      ...(naZaw ? [krok("na bokach przykręć prowadniki zawiasów — od środka wnęki, póki nie ma w niej lodówki")] : []),
-      krok("cokół między boki na trójkątach (od środka wnęki)"
-        + (wzmL ? "; wzmocnienie u góry na konfirmatach przez boki — zanim szafka stanie między sąsiednimi (potem łbów nie dokręcisz)" : "")),
-      krok("ustaw szafkę w ciągu i skręć jej boki z bokami sąsiednich szafek — od środka wnęki"),
-      krok("blat — przykręć od spodu (trójkąty na bokach, od środka wnęki)"),
-      krok("wsuń lodówkę, wypoziomuj ją nóżkami i przykręć wg instrukcji (do boków albo do blatu)"),
-      krok(spL && spL.montaz === "staly" ? "front przykręć do drzwi lodówki okuciami z jej kompletu"
-        : spL && spL.montaz === "brak" ? "lodówka ma własne drzwi — bez frontu meblowego" : "front na zawiasach, z drzwiami lodówki połączony prowadnicą ślizgową z jej kompletu"),
-    ].join("; ") + ".");
-    if (!wzmL && spL)
-      add("info", H - t >= spL.hMin
-        ? `Lodówka w szafce: u góry bez wzmocnienia — od podłogi do spodu blatu jest ${fmt(H)} mm, więc pod płytą ${fmt(t)} mm z przodu zostałoby ${fmt(H - t)} mm `
-          + `(lodówka potrzebuje co najmniej ${fmt(spL.hMin)} mm): możesz dołożyć płaskie wzmocnienie z przodu (zakładka Wzmocnienie) — trzyma boki, zanim będzie blat.`
-        : `Lodówka w szafce: u góry bez wzmocnienia — od podłogi do spodu blatu jest ${fmt(H)} mm, a płyta ${fmt(t)} mm z przodu zmniejszyłaby wnękę do ${fmt(H - t)} mm `
-          + `(lodówka potrzebuje co najmniej ${fmt(spL.hMin)} mm). Boki trzyma cokół, skręcenie z sąsiednimi szafkami i blat.`);
-  }
 
   /* --- formatki --- */
   const geoCuts = [];
@@ -6344,8 +6256,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         edges: plinthInBody
           ? { a1: false, a2: true, b1: false, b2: false }
           : { a1: false, a2: true, b1: true, b2: true },
-        note: cab.lodowkaPodblat ? "krawędź dolna; z kratką wentylacyjną dla lodówki (otwór wg instrukcji modelu, zwykle co najmniej 200 cm² netto)"
-          : plinthInBody ? "krawędź dolna" : "krawędź dolna oraz oba końce" });
+        note: plinthInBody ? "krawędź dolna" : "krawędź dolna oraz oba końce" });
   }
 
   if (cab.topFiller?.on && cab.topFiller.height > 0) {
@@ -8205,11 +8116,7 @@ function computeGeoLiczy(cab, mat, ctx) {
          sztywna. Wzdluz dlugiego boku co ok. 300 mm, nie mniej niz dwa. */
       const plinthLen = Math.round(plinthInBody ? innerW : W);
       const alongLong = Math.max(2, Math.ceil(plinthLen / 300));
-      /* Lodowka w szafce bez dna: cokol trzyma sie tylko bokow — po dwa trojkaty na bok (styk ma co najmniej dwa laczniki),
-         przykrecane od srodka wneki, zanim stanie w niej lodowka */
-      if (cab.lodowkaPodblat) hardware.push({ name: "Trójkąt meblarski", use: "cokół lodówki między bokami (bez dna), od środka wnęki",
-        spec: "cokół lodówki w szafce bez dna — trzyma się tylko boków: po 2 na każdy bok", qty: 4, unit: "szt." });
-      else hardware.push({
+      hardware.push({
         name: "Trójkąt meblarski",
         use: "cokół skręcany do korpusu (bez nóżek), po obwodzie co ok. 300 mm",
         spec: `cokół skręcany bez nóżek: po 1 na każdy krótki bok + ${alongLong} wzdłuż ${fmt(plinthLen)} mm (co ok. 300 mm)`,
@@ -9841,7 +9748,6 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         <rect x={mx(geo.interior.x0, geo.innerW)} y={fy(geo.plinthH)} width={geo.innerW} height={geo.plinthH}
           fill={bf} stroke={INK} strokeWidth="2" />
       )}
-      {geo.plinthInBody && cab.lodowkaPodblat && kratkaCokolu(mx(geo.interior.x0, geo.innerW), fy(geo.plinthH), geo.innerW, geo.plinthH)}
       {cab.topFiller?.on && cab.topFiller.height > 0 && (
         <rect x="0" y={-cab.topFiller.height} width={W} height={cab.topFiller.height}
           fill={ff} stroke={INK} strokeWidth="2" opacity="0.75" />
@@ -12850,7 +12756,6 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
         <rect x={geo.interior.x0} y={fy(geo.plinthH)} width={geo.innerW} height={geo.plinthH}
           fill={bf} stroke={INK} strokeWidth="2" />
       )}
-      {geo.plinthInBody && cab.lodowkaPodblat && kratkaCokolu(geo.interior.x0, fy(geo.plinthH), geo.innerW, geo.plinthH)}
       {cab.plinth.on && !geo.plinthInBody && (
         <rect x="0" y={H} width={W} height={geo.plinthH} fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
       )}
@@ -19342,8 +19247,7 @@ const worktopMsgs = (project, run) => {
        szafki z projektow sprzed blatu ciagu, wiec trzeba je zaczepic. */
     const maWzmocnienia = (c.geo.levels || []).some((lv) =>
       (lv.cols || []).some((k) => (k.rails || []).length));
-    // lodowka podblatowa w szafce: bez wzmocnien, gdy zabralyby wneke — mowi o tym uwaga szafki (kolejnosc montazu)
-    if (!maWzmocnienia && !c.it.cab.lodowkaPodblat)
+    if (!maWzmocnienia)
       out.push({ level: "warn", text:
         `Szafka „${nazwa}" nie ma ani wieńca, ani wzmocnień — pod blatem korpus musi się czymś `
         + `usztywnić: z przodu płyta na płask, z tyłu stojąca.`
@@ -22474,28 +22378,22 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
       const o = { ...(k.sprzet || { typ: sp.typ }), ...patch }; Object.keys(o).forEach((x) => { if (o[x] === "" || o[x] == null) delete o[x]; }); k.sprzet = o; });
     tytul = (SPRZETY[sp.typ] || SPRZETY.piekarnik).pelna;
     const rozm = SPRZET_ROZM[sp.typ];
-    // lodowka w szafce (2026-11-13): podblatowa (bez dna, wneka do spodu blatu) albo mala na dnie (wlasne drzwi, szuflada nad nia)
-    const podblat = lod && !!cab.lodowkaPodblat, mala = lod && lodowkaMalaWSzafce(cab, sp);
+    // lodowka podblatowa w szafce (2026-11-14): mniejsza, na dnie szafki dolnej (wlasne drzwi, nad nia otwarta wneka)
+    const mala = lod && lodowkaMalaWSzafce(cab, sp);
     const ustawMala = (patch) => zmien(sel.i, (c) => { const k = kolumnaW(c.levels, sel.li, sel.j); if (!k) return;
       const o = { ...(k.sprzet || { typ: "lodowka" }), ...patch }; Object.keys(o).forEach((x) => { if (o[x] === "" || o[x] == null) delete o[x]; }); k.sprzet = o;
       // poziom lodowki (nie najwyzszy) dostaje jej wysokosc z luzem nad nia — plyta nad wneka idzie za lodowka
       const L = c.levels || [];
       if (patch.lodH != null && L.length > 1 && sel.li < L.length - 1) L[sel.li].h = Math.round(sprzetKolumny(k).lodH + sprzetKolumny(k).luzGora); });
-    if (podblat) tytul = "Lodówka podblatowa w szafce";
-    if (mala) tytul = "Mała lodówka w szafce";
+    if (mala) tytul = "Lodówka podblatowa w szafce";
     tresc = <>
-      {lod && rodzajLodowki(podblat ? "szafka" : mala ? "mala" : "slupek")}
-      {podblat && <p data-el="agd-lod-podblat-info" className="text-[11px] text-stone-600">Szafka z bokami do podłogi, bez dna i pleców — lodówka stoi na podłodze.
-        Wnęka od podłogi do spodu blatu {(() => { const g = (() => { try { return computeGeo(cabDoGeo(project, it), it.mat); } catch (e) { return null; } })();
-          const s0 = g && g.levels[sel.li] && g.levels[sel.li].cols[sel.j] && g.levels[sel.li].cols[sel.j].sprzet;
-          return `${fmt(s0 && s0.wneka ? s0.wneka.h : cab.H)} mm`; })()} (lodówka potrzebuje {fmt(sp.hMin)}–{fmt(sp.hMax)} — z karty modelu), front od cokołu, w cokole kratka wentylacyjna.
-        Kolejność montażu — w uwagach szafki.</p>}
+      {lod && rodzajLodowki(mala ? "szafka" : "slupek")}
       {mala && <>
         {etyk("Wysokość lodówki")}{rzad("agd-lod-mala-h", LODOWKI_MALE.map((h) => <MakBtn key={h} el="agd-lod-mala-h-v" v={h} on={sp.lodH === h} onClick={() => ustawMala({ lodH: h })}>{fmt(h / 10)} cm</MakBtn>))}
         {para("lodówka szer. × głęb.", liczba("agd-mala-w", (col.sprzet || {}).lodW, sp.lodW, (v) => ustawMala({ lodW: v })),
           liczba("agd-mala-d", (col.sprzet || {}).lodD, sp.lodD, (v) => ustawMala({ lodD: v })))}
         {para("wysokość lodówki", liczba("agd-mala-h", (col.sprzet || {}).lodH, sp.lodH, (v) => ustawMala({ lodH: v ?? LODOWKA_MALA.lodH })))}
-        <p data-el="agd-lod-mala-info" className="text-[11px] text-stone-600">Mała lodówka / minibar z własnymi drzwiami stoi na dnie szafki, nad nią płyta i otwarta wnęka (front zmienisz w zakładce Szafka).
+        <p data-el="agd-lod-mala-info" className="text-[11px] text-stone-600">Mniejsza lodówka (np. na wino) z własnymi drzwiami stoi na dnie szafki, jak sprzęt w kolumnie; nad nią płyta i otwarta wnęka (front zmienisz w zakładce Szafka).
           Rozmiar przykładowy ({fmt(sp.lodW)} × {fmt(sp.lodH)} × {fmt(sp.lodD)} mm) — wpisz liczby z karty modelu. Wentylacja: z tyłu dołem i górą (zwykle co najmniej 200 cm² każdy), od tyłu co najmniej 20 mm.</p>
       </>}
       {(sp.typ === "mikrofala" || sp.typ === "ekspres") && rodzajSprzetu([["zab", "do zabudowy"], ["blat", "wolnostojąca na blacie"]], "zab")}
@@ -22506,8 +22404,8 @@ function MakietaKartaAgd({ project, sel, zmien, usunPozycje, zamknij, geoOf, ust
         {etyk("Fronty")}{rzad("agd-lod-fronty", [["1", "1 front"], ["2", "2 fronty"]].map(([v, l]) => <MakBtn key={v} el="agd-lod-fronty-v" v={v} on={String(sp.fronty) === v} onClick={() => setSp({ fronty: v === "2" ? 2 : null })}>{l}</MakBtn>))}
         {sp.fronty === 2 && para("dolny front — wysokość", liczba("agd-lod-dolny", (col.sprzet || {}).dolny, null, (v) => setSp({ dolny: v })))}
         {sp.fronty === 2 && !(col.sprzet || {}).dolny && <p data-el="agd-lod-dolny-uwaga" className="text-[11px] font-medium text-amber-700">Wpisz wysokość dolnego frontu z karty lodówki (podział zamrażarka / chłodziarka) — bez niej fronty po równo.</p>}
-        {!podblat && <>{etyk("Wnęka (wysokość)")}{rzad("agd-lod-wneka", LODOWKA_WNEKI.map((h) => <MakBtn key={h} el="agd-lod-wneka-v" v={h} on={sp.hMin === (h === 1780 ? 1772 : h - 8)} onClick={() => setSp(lodowkaWnekaZakres(h))}>{fmt(h / 10)}</MakBtn>))}
-        <p data-el="agd-lod-wneka-info" className="text-[11px] text-stone-600">Wnęka: szer. 560–570, głęb. od 550, wys. z karty modelu („wymiary wnęki”). Typowe wnęki: 178 cm (najczęściej), 194 (wysokie), 88 (małe), pośrednie 102–158.</p></>}
+        {etyk("Wnęka (wysokość)")}{rzad("agd-lod-wneka", LODOWKA_WNEKI.map((h) => <MakBtn key={h} el="agd-lod-wneka-v" v={h} on={sp.hMin === (h === 1780 ? 1772 : h - 8)} onClick={() => setSp(lodowkaWnekaZakres(h))}>{fmt(h / 10)}</MakBtn>))}
+        <p data-el="agd-lod-wneka-info" className="text-[11px] text-stone-600">Wnęka: szer. 560–570, głęb. od 550, wys. z karty modelu („wymiary wnęki”). Typowe wnęki: 178 cm (najczęściej), 194 (wysokie), 88 (małe), pośrednie 102–158.</p>
       </>}
       {lod && <>{etyk("Zawiasy")}{rzad("agd-drzwi", [["lewe", "z lewej"], ["prawe", "z prawej"]].map(([v, l]) => <MakBtn key={v} el="agd-drzwi-v" v={v} on={sp.drzwi === v} onClick={() => setSp({ drzwi: v === "lewe" ? null : v })}>{l}</MakBtn>))}</>}
       {!lod && <>{etyk("Otwieranie")}{rzad("agd-drzwi", [["dol", "w dół"], ["lewe", "zawias z lewej"], ["prawe", "zawias z prawej"], ...(sp.typ === "ekspres" ? [["wysuw", "wysuwa się"]] : []), ["brak", "nie sprawdzaj"]].map(([v, l]) =>
@@ -23100,10 +22998,10 @@ const makWyjmijSprzet = (geo, li, j) => (c) => {
 };
 /* Rodzaj lodowki w karcie AGD (makieta „Dodaj”: „Rodzaj lodówki” — krok 6 planu, 2026-11-10): do zabudowy (w slupku albo
    w szafce — wneka w kolumnie), podblatowa w ciagu (jak zmywarka), wolnostojaca, na rowno z meblami. Zmiana rodzaju
-   wstawia nowa pozycje na miejsce starej (`zamienLodowke` w `MakietaWidok`). „Podblatowa w szafce” (decyzja 2026-11-13) — szafka
-   z bokami do podlogi, bez dna, wneka od podlogi do spodu blatu (`lodowkaPodblatUstaw`); „mała w szafce” — szafka dolna z dnem,
-   lodowka z wlasnymi drzwiami na dnie, nad nia szuflada (`lodowkaMalaUstaw`). */
-const MAK_LOD_RODZ = [["slupek", "do zabudowy (słupek)"], ["szafka", "podblatowa w szafce"], ["mala", "mała w szafce (na dnie)"], ["ciag", "podblatowa w ciągu"],
+   wstawia nowa pozycje na miejsce starej (`zamienLodowke` w `MakietaWidok`). „Podblatowa w szafce” (uzytkownik 2026-11-14) — mniejsza
+   lodowka (np. na wino) na dnie zwyklej szafki dolnej, z wlasnymi drzwiami, nad nia otwarta wneka (`lodowkaMalaUstaw`); „w ciągu” —
+   jak zmywarka. */
+const MAK_LOD_RODZ = [["slupek", "do zabudowy (słupek)"], ["szafka", "podblatowa w szafce"], ["ciag", "podblatowa w ciągu"],
   ["wolna", "wolnostojąca"], ["rowno", "na równo z meblami"]];
 
 const MAK_WZORY = Object.fromEntries([...MAK_PALETA.flatMap((g) => g.wzory), ...MAK_AGD.filter((a) => a.rodz === "wzor"), MAK_LOD_WOLNA,
@@ -24853,21 +24751,18 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     const it = project.items[sel.i]; if (!it) return;
     let run = runOf(it);
     if (run && run.tier === "gorny") run = (project.runs || []).find((r) => r.id === run.wall) || null;
-    const wSzafce = rodzaj === "szafka" || rodzaj === "mala";
+    const wSzafce = rodzaj === "szafka";
     const tpl = rodzaj === "slupek" ? "slupek" : rodzaj === "ciag" ? "lodowka-pod" : wSzafce ? "stojaca" : "lodowka-wolno";
     const inne = sel.rodz === "kol" && (it.cab.levels || []).some((lv, li) => (lv.cols || []).some((k, j) => k.sprzet && !(li === sel.li && j === sel.j)));
     const zastap = sel.rodz === "ciag" || !inne;
     const mod = rodzaj === "slupek" ? (c) => { c.levels = [{ h: 1780, cols: [{ ...newColumn(1, 0), sprzet: { typ: "lodowka" } }] }, { h: null, cols: [newColumn(1, 0)] }]; }
       : rodzaj === "rowno" ? (c) => { c.sprzetCiagu = { ...(c.sprzetCiagu || {}), rowno: true }; c.W = LODOWKA_ROWNO.luzL + SPRZETY_CIAGU.lodowka.lodW + LODOWKA_ROWNO.luzP; }
-      // mala: poziomy przed para pod blat (dodaje ja `dodaj` do najwyzszego poziomu)
-      : rodzaj === "mala" ? lodowkaMalaUstaw : null;
-    // podblatowa: bez nozek, dna i pleców — po wymiarach ciagu i parze pod blat, ktore `dodaj` daje kazdej szafce
-    const zCiagu = rodzaj === "szafka" ? lodowkaPodblatZCiagu(project, run) : null;
-    const poDodaniu = rodzaj === "szafka" ? (c, m) => { lodowkaPodblatUstaw(c, { ...zCiagu, t: m.board.thickness }); }
-      // mala: lodowka z wlasnymi drzwiami rowno z licem korpusu (za nia luz na wentylacje)
-      : rodzaj === "mala" ? (c) => { const q = c.levels[0].cols[0].sprzet; q.luzTyl = Math.max(LODOWKA_MALA.luzTyl, Math.round(c.D - 3 - q.lodD)); } : null;
+      // w szafce: poziomy przed para pod blat (dodaje ja `dodaj` do najwyzszego poziomu)
+      : wSzafce ? lodowkaMalaUstaw : null;
+    // w szafce: lodowka z wlasnymi drzwiami rowno z licem korpusu (za nia luz na wentylacje)
+    const poDodaniu = wSzafce ? (c) => { const q = c.levels[0].cols[0].sprzet; q.luzTyl = Math.max(LODOWKA_MALA.luzTyl, Math.round(c.D - 3 - q.lodD)); } : null;
     setKomunikat(null);
-    dodaj(tpl, run ? run.id : null, { przed: sel.i + 1, zmien: mod, poDodaniu, wymiaryCiagu: rodzaj === "mala",
+    dodaj(tpl, run ? run.id : null, { przed: sel.i + 1, zmien: mod, poDodaniu, wymiaryCiagu: wSzafce,
       nazwa: rodzaj === "slupek" ? "Słupek" : wSzafce ? "Lodówka" : null });
     if (zastap) usunPozycje(sel.i);
     else zmien(sel.i, (c) => { const k = kolumnaW(c.levels, sel.li, sel.j); if (k) { delete k.sprzet; if (!k.doors) k.doors = 1; } });
@@ -25501,9 +25396,11 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           </span>
         </div>
         {przel.agd === false && <style>{"[data-el=mak-plotno] [data-el=sprzet-front], [data-el=mak-plotno] [data-el=wyciecie-front], [data-el=mak-plotno] [data-el=na-blacie], [data-el=mak-plotno] [data-el=rant-blatu], [data-el=mak-plotno] [data-el=pola-grzewcze], [data-el=mak-plotno] [data-el=komory], [data-el=mak-plotno] [data-el=ociekacz] { display: none; } [data-el=mak-plotno] [data-el=wyciecie-blatu] text { fill: #44403c; }"}</style>}
-        {/* legenda jak w makiecie „Dodaj”: zielone ramki przy przenoszeniu, wyposazenie wylaczone, dwa widoki naraz */}
-        {((ramki && ramki.lista.length > 0) || przel.agd === false || (przel.zgory && widokM === "przod" && rysowane.length > 0)) && (
-          <p data-el="mak-legenda" className="mb-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] text-stone-500">
+        {/* legenda jak w makiecie „Dodaj”: zielone ramki przy przenoszeniu, wyposazenie wylaczone, dwa widoki naraz. Linijka jest zawsze
+            (min. wysokosc) — pojawiajaca sie dopiero przy chwyceniu przesuwala rysunek w dol, a zielone ramki (liczone przy chwyceniu,
+            w ukladzie ekranu) zostawaly wyzej o jej wysokosc (uzytkownik 2026-11-14: „źle się wyświetlają zielone ramki”) */}
+        {(
+          <p data-el="mak-legenda" className="mb-1 flex min-h-[1rem] flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] text-stone-500">
             {ramki && ramki.lista.length > 0 && <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-sm border-2 border-green-600" />tu może stanąć wybrany sprzęt albo klocek</span>}
             {przel.zgory && widokM === "przod" && rysowane.length > 0 && <span>góra: blat z góry · dół: widok z przodu</span>}
             {przel.agd === false && <span>„Wyposażenie” wyłączone — wycięcia i puste wnęki</span>}

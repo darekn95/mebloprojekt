@@ -1299,3 +1299,10 @@ ciagu 820 — w pytaniu z 2026-11-13 bylo „płaskie z przodu (nie zabiera wyso
 teraz plaskie wzmocnienie tylko, gdy pod nim zostaje 820; (2) cokol na trojkatach (2 na bok) czy inaczej; (3) mala: nad lodowka otwarta
 wneka (szuflada nad lodowka 520 nie miesci sie pod wzmocnieniem pod blatem). Audyt v42 bez zmian.
 [AI-INFO] 2026-11-14: pelny przebieg (5024a84): 173 suity, 5678 OK, 0 bledow; losowe 66 / 0. Artefakt v233.
+[AI-INFO] 2026-11-14 (odpowiedz uzytkownika): lodowka podblatowa „w ciągu” = jak zmywarka (bez bokow i wzmocnien), „w szafce” = mniejsza
+(np. na wino) na dnie zwyklej szafki z dnem i bokami („jakbyśmy wpakowali mikrofalę na dół”), nad nia otwarta wneka. Wariant
+`lodowkaPodblat` (boki do podlogi, bez dna, cokol miedzy bokami) WYCOFANY — „cokół trzyma się nóżek na spinki, nie boków”. Rodzaj „szafka”
+w `MAK_LOD_RODZ` robi `lodowkaMalaUstaw`. Zostala poprawka wneki lodowki do spodu wzmocnienia (`nadL`). Zielone ramki: legenda
+`mak-legenda` jest zawsze (min. wysokosc) — pojawiala sie przy chwyceniu i przesuwala rysunek pod ramkami (widok „Z góry”).
+[CHECK] Uzytkownik podal zlacze Sevroll Blendo 07025 do cokolu i blend (zamiast klipsow na nozki) — instrukcji brak (strony sklepu
+i sevroll.pl nie otwieraja sie z sesji; wyszukiwarka: niewidoczne, rozbieralne zlacze do blend / cokolow, znacznik 07024) — do ustalenia.

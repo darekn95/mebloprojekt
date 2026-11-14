@@ -1,6 +1,6 @@
-// Makieta — lodowka w szafce (decyzja uzytkownika 2026-11-13 „Oba warianty”): „podblatowa w szafce” (boki do podlogi, bez dna
-// i plecow, wneka od podlogi do spodu blatu, cokol z kratka, front od cokolu, kolejnosc montazu) i „mała w szafce” (z dnem,
-// lodowka z wlasnymi drzwiami na dnie, szuflada nad nia, wentylacja). Szafka podblatowa idzie za ciagiem (nozki, glebokosc).
+// Makieta — lodowka podblatowa w szafce (uzytkownik 2026-11-14: „w szafce czyli mniejsza lodówka np. na wino … potrzebuje dna,
+// boków — jakbyśmy wpakowali mikrofalę na dół”): szafka dolna z dnem, lodowka z wlasnymi drzwiami na dnie, nad nia otwarta wneka,
+// wentylacja; „w ciągu” jak zmywarka. Zielone ramki przy przeciaganiu w widoku „Z góry” w miejscu szafek (legenda nie przesuwa rysunku).
 import pw from './pw.mjs';
 const { chromium } = pw;
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
@@ -46,73 +46,58 @@ const KUCH = `const w = p.items[0];
   const l = JSON.parse(JSON.stringify(p.items[1])); l.cab = { ...l.cab, name: 'Lodówka', W: 700, H: 1850, sprzetCiagu: { typ: 'lodowka' } }; p.items.push(l);
   p.active = 0;`;
 let p;
+const wpiszK = async (el, v) => { const f = karta.locator(`[data-el="${el}"]`).first(); await f.fill(String(v)); await f.press('Enter'); await page.waitForTimeout(400); };
 
-console.log('== podblatowa w szafce ==');
+console.log('== podblatowa w szafce (mniejsza, np. na wino — na dnie szafki, jak mikrofala na dole) ==');
 await start(KUCH);
 await agd(/Lodówka wolnostojąca/);
-ok('„Rodzaj lodówki”: 6 rodzajów, w tym „podblatowa w szafce” i „mała w szafce”', (await karta.locator('[data-el="agd-lod-rodz-v"]').count()) === 6
-  && (await karta.locator('[data-el="agd-lod-rodz-v"][data-v="szafka"]').count()) === 1 && (await karta.locator('[data-el="agd-lod-rodz-v"][data-v="mala"]').count()) === 1);
+ok('„Rodzaj lodówki”: 5 rodzajów, w tym „podblatowa w szafce” i „podblatowa w ciągu”', (await karta.locator('[data-el="agd-lod-rodz-v"]').count()) === 5
+  && (await karta.locator('[data-el="agd-lod-rodz-v"][data-v="szafka"]').count()) === 1 && (await karta.locator('[data-el="agd-lod-rodz-v"][data-v="ciag"]').count()) === 1
+  && (await karta.locator('[data-el="agd-lod-rodz-v"][data-v="mala"]').count()) === 0);
 await karta.locator('[data-el="agd-lod-rodz-v"][data-v="szafka"]').click();
-p = await czekaj('p.items.some((it) => it.cab.lodowkaPodblat)');
-{ const L = p.items.find((it) => it.cab.lodowkaPodblat), c = L && L.cab, k = c && c.levels[0].cols[0];
-  ok('szafka z lodówką zamiast wolnostojącej (tyle samo pozycji, w ciągu)', !!L && p.items.length === 3 && L.runId === 'r1' && !p.items.some((it) => it.cab.sprzetCiagu));
-  ok('wysokość od podłogi do spodu blatu 820, bez nóżek, cokół 100 w obrysie', !!c && c.H === 820 && !c.legs.on && c.plinth.on && c.plinth.mode === 'inbody' && c.plinth.height === 100, c && JSON.stringify({ H: c.H, legs: c.legs.on, pl: c.plinth }));
-  ok('bez dna, bez pleców, bez wieńca', !!c && c.back === 'none' && c.joints.botL === 'none' && c.joints.botR === 'none' && c.joints.topL === 'none' && c.joints.topR === 'none');
-  ok('kolumna: lodówka, wnęka 820–880; przy 820 bez wzmocnienia u góry (zabrałoby wnękę)', !!k && k.sprzet.typ === 'lodowka' && k.sprzet.hMin === 820 && k.sprzet.hMax === 880 && (k.rails || []).length === 0, k && JSON.stringify(k.rails));
-  ok('nazwa „Lodówka”, głębokość jak szafki ciągu', !!c && /^Lodówka/.test(c.name) && c.D === p.items[0].cab.D, c && `${c.name} ${c.D}/${p.items[0].cab.D}`); }
-ok('karta: tytuł „Lodówka podblatowa w szafce”, rodzaj zaznaczony, opis wnęki zamiast wyboru wnęki', /Lodówka podblatowa w szafce/.test(await karta.innerText())
-  && (await karta.locator('[data-el="agd-lod-rodz-v"][data-v="szafka"]').getAttribute('aria-pressed')) === 'true'
-  && (await karta.locator('[data-el="agd-lod-podblat-info"]').count()) === 1 && (await karta.locator('[data-el="agd-lod-wneka"]').count()) === 0);
-{ const t = await karta.locator('[data-el="agd-lod-podblat-info"]').innerText().catch(() => '');
-  ok('opis: wnęka 820 mm, lodówka 820–880, kratka w cokole', /820 mm/.test(t) && /820–880/.test(t) && /kratka/.test(t), t); }
-{ const t = await uwagi();
-  ok('uwagi: kolejność montażu (kratka, prowadniki od środka wnęki, cokół, sąsiednie, blat, lodówka, front)', /Lodówka w szafce — kolejność montażu: \(1\) w cokole wytnij kratkę/.test(t)
-    && /prowadniki zawiasów — od środka wnęki, póki nie ma w niej lodówki/.test(t) && /\(7\) front na zawiasach/.test(t), t.slice(0, 400));
-  ok('uwagi: u góry bez wzmocnienia — wnęka 802 zamiast 820', /u góry bez wzmocnienia — od podłogi do spodu blatu jest 820 mm/.test(t) && /802 mm/.test(t));
-  ok('bez ostrzeżenia „nad tą kolumną nie ma wieńca ani wzmocnienia” w lodówce', !/Lodówka[^.]*nad tą kolumną nie ma wieńca/.test(t) && !/nad tą kolumną nie ma wieńca/.test(t)); }
-// rysunek: kratka w cokole szafki z lodowka
-ok('rysunek: kratka wentylacyjna w cokole', (await page.locator('[data-el="makieta"] [data-el="kratka-cokolu"]').count()) >= 1);
-{ const zrzut = process.env.ZRZUT; if (zrzut) await page.locator('[data-el="makieta"]').screenshot({ path: zrzut + '/lod_szafka.png' }); }
-
-console.log('== idzie za ciągiem ==');
-// zmiana nozek i glebokosci calego ciagu (jak „wspólne wymiary” — ciag i jego szafki; lodowka w szafce wprost ich nie dostaje)
-await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.runs[0].D = 580;
-  p.items.forEach((it) => { if (!it.cab.lodowkaPodblat) { it.cab.legs = { ...it.cab.legs, height: 150 }; it.cab.D = 580; } });
-  localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
-await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
-// zapis po dowolnej zmianie (naprawa projektu idzie przy kazdej zmianie i przy wczytaniu)
-await agd(/Lodówka/); await karta.locator('[data-el="agd-drzwi-v"][data-v="prawe"]').click().catch(() => {}); await page.waitForTimeout(500);
-p = await czekaj('p.items.find((it) => it.cab.lodowkaPodblat).cab.H === 870 && p.items.find((it) => it.cab.lodowkaPodblat).cab.D === 580');
-{ const c = p.items.find((it) => it.cab.lodowkaPodblat).cab;
-  ok('nóżki ciągu 150: szafka z lodówką 870 do spodu blatu, cokół 150, głębokość ciągu 580', c.H === 870 && c.plinth.height === 150 && c.D === 580, JSON.stringify({ H: c.H, pl: c.plinth.height, D: c.D })); }
-{ const t = await uwagi();
-  ok('przy 870: „możesz dołożyć płaskie wzmocnienie” (pod nim zostaje 852)', /jest 870 mm, więc pod płytą 18 mm z przodu zostałoby 852 mm/.test(t) && /możesz dołożyć płaskie wzmocnienie/.test(t), t.slice(0, 200)); }
-
-console.log('== mała w szafce (z dnem) ==');
-await start(KUCH);
-await agd(/Lodówka wolnostojąca/);
-await karta.locator('[data-el="agd-lod-rodz-v"][data-v="mala"]').click();
 p = await czekaj('p.items.some((it) => it.cab.levels && it.cab.levels[0].cols[0].sprzet && it.cab.levels[0].cols[0].sprzet.montaz === "brak" && it.cab.H < 1500)');
 { const L = p.items.find((it) => it.cab.levels && it.cab.levels[0].cols[0].sprzet && it.cab.H < 1500), c = L && L.cab, s = c && c.levels[0].cols[0].sprzet;
-  ok('szafka dolna z lodówką na dnie (własne drzwi), nad nią płyta i otwarta wnęka', !!c && !c.lodowkaPodblat && s.typ === 'lodowka' && s.montaz === 'brak' && c.levels.length === 2 && c.levels[1].cols[0].kind === 'doors' && !c.levels[1].cols[0].doors, c && JSON.stringify(c.levels.map((l) => l.h)));
-  ok('wymiary przykładowe 440 × 520 × 450, poziom 540 (z luzem 20 nad nią), z dnem i na nóżkach jak ciąg', !!s && s.lodW === 440 && s.lodH === 520 && s.lodD === 450 && c.levels[0].h === 540
-    && c.joints.botL !== 'none' && c.legs.on && c.H === 720, c && JSON.stringify({ s, j: c.joints, legs: c.legs.on, H: c.H }));
+  ok('szafka dolna z lodówką na dnie (własne drzwi), nad nią płyta i otwarta wnęka; zastąpiła wolnostojącą', !!c && s.typ === 'lodowka' && s.montaz === 'brak' && c.levels.length === 2
+    && c.levels[1].cols[0].kind === 'doors' && !c.levels[1].cols[0].doors && p.items.length === 3 && !p.items.some((it) => it.cab.sprzetCiagu) && /^Lodówka/.test(c.name), c && JSON.stringify(c.levels.map((l) => l.h)));
+  ok('wymiary przykładowe 440 × 520 × 450, poziom 540 (z luzem 20 nad nią), z dnem, na nóżkach jak ciąg', !!s && s.lodW === 440 && s.lodH === 520 && s.lodD === 450 && c.levels[0].h === 540
+    && (c.joints || {}).botL !== 'none' && c.legs.on && c.H === 720 && !c.lodowkaPodblat, c && JSON.stringify({ s, j: c.joints, legs: c.legs.on, H: c.H }));
   ok('lodówka równo z licem korpusu (za nią luz na wentylację)', !!s && s.luzTyl === c.D - 3 - s.lodD, s && `${s.luzTyl}`); }
-ok('karta: „Mała lodówka w szafce”, 4 wysokości, pola wymiarów, opis wentylacji', /Mała lodówka w szafce/.test(await karta.innerText())
+ok('karta: „Lodówka podblatowa w szafce”, rodzaj zaznaczony, 4 wysokości, pola wymiarów, opis wentylacji', /Lodówka podblatowa w szafce/.test(await karta.innerText())
+  && (await karta.locator('[data-el="agd-lod-rodz-v"][data-v="szafka"]').getAttribute('aria-pressed')) === 'true'
   && (await karta.locator('[data-el="agd-lod-mala-h-v"]').count()) === 4 && (await karta.locator('[data-el="agd-mala-w"]').count()) === 1
-  && /200 cm²/.test(await karta.locator('[data-el="agd-lod-mala-info"]').innerText().catch(() => '')));
+  && /na wino/.test(await karta.locator('[data-el="agd-lod-mala-info"]').innerText().catch(() => '')) && /200 cm²/.test(await karta.locator('[data-el="agd-lod-mala-info"]').innerText().catch(() => '')));
 await karta.locator('[data-el="agd-lod-mala-h-v"][data-v="560"]').click();
 p = await czekaj('p.items.some((it) => it.cab.levels && it.cab.levels[0].cols[0].sprzet && it.cab.levels[0].cols[0].sprzet.lodH === 560)');
 { const c = p.items.find((it) => it.cab.levels && it.cab.levels[0].cols[0].sprzet && it.cab.levels[0].cols[0].sprzet.lodH === 560);
   ok('wysokość 56 cm: lodówka 560, poziom 580 (płyta nad wnęką idzie za nią)', !!c && c.cab.levels[0].h === 580, c && JSON.stringify(c.cab.levels.map((l) => l.h))); }
+await wpiszK('agd-mala-w', 500);
+p = await czekaj('p.items.some((it) => it.cab.levels && it.cab.levels[0].cols[0].sprzet && it.cab.levels[0].cols[0].sprzet.lodW === 500)');
+ok('szerokość lodówki 500 — zapisana', p.items.some((it) => it.cab.levels && it.cab.levels[0].cols[0].sprzet && it.cab.levels[0].cols[0].sprzet.lodW === 500));
 { const t = await uwagi();
-  ok('uwagi: mała lodówka na dnie — otwory wentylacyjne', /mała lodówka stoi na dnie szafki — zostaw otwory wentylacyjne/.test(t), t.slice(0, 300));
-  ok('bez błędów wnęki lodówki i szuflad', !/wnęka na lodówkę ma/.test(t) && !/skrzynka z bokiem/.test(t), t.slice(0, 300)); }
-{ const zrzut = process.env.ZRZUT; if (zrzut) await page.locator('[data-el="makieta"]').screenshot({ path: zrzut + '/lod_mala.png' }); }
-// z malej z powrotem do podblatowej
-await karta.locator('[data-el="agd-lod-rodz-v"][data-v="szafka"]').click();
-p = await czekaj('p.items.some((it) => it.cab.lodowkaPodblat)');
-ok('mała → podblatowa w szafce: zastąpiona (tyle samo pozycji)', p.items.length === 3 && p.items.filter((it) => it.cab.levels && it.cab.levels[0].cols[0].sprzet).length === 1);
+  ok('uwagi: lodówka na dnie szafki — otwory wentylacyjne', /lodówka stoi na dnie szafki — zostaw otwory wentylacyjne/.test(t), t.slice(0, 300));
+  ok('bez błędów wnęki lodówki i szuflad, bez „nie ma wieńca ani wzmocnienia”', !/wnęka na lodówkę ma/.test(t) && !/skrzynka z bokiem/.test(t) && !/nie ma wieńca ani wzmocnienia/.test(t), t.slice(0, 300)); }
+ok('rysunek: lodówka w szafce', (await page.locator('[data-el="makieta"] [data-el="sprzet-front"]').count()) >= 1);
+{ const zrzut = process.env.ZRZUT; if (zrzut) await page.locator('[data-el="makieta"]').screenshot({ path: zrzut + '/lod_szafka.png' }); }
+await karta.locator('[data-el="agd-lod-rodz-v"][data-v="ciag"]').click();
+p = await czekaj('p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "lodowkaP")');
+ok('w szafce → podblatowa w ciągu (jak zmywarka): zastąpiona, tyle samo pozycji', p.items.length === 3 && p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === 'lodowkaP')
+  && !p.items.some((it) => it.cab.levels && it.cab.levels[0].cols[0] && it.cab.levels[0].cols[0].sprzet));
+
+console.log('== zielone ramki w widoku „Z góry” trafiają w szafki (zgłoszenie 2026-11-14) ==');
+await start(KUCH.replace("p.items.push(l);", "") + `p.items[0].cab.blatWyciecia = [{ typ: 'plyta', rozm: '60' }];`);
+await page.evaluate(() => localStorage.setItem('mp-mak-widok', 'gora')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1300);
+{ const gora = (sel) => page.locator(`[data-el="mak-widok-inny"][data-widok="gora"] ${sel}`);
+  const z = await gora('[data-el="wyciecie-blatu"]').first().boundingBox();
+  await page.mouse.move(z.x + z.width / 2, z.y + z.height / 2); await page.mouse.down();
+  for (let i = 1; i <= 6; i++) await page.mouse.move(z.x + z.width / 2 + i * 15, z.y + z.height / 2);
+  await page.waitForTimeout(300);
+  const r = await page.locator('[data-el="mak-ramka"][data-idx="1"]').first().boundingBox();
+  const c = await gora('[data-el="makieta-szafka"][data-idx="1"]').first().boundingBox();
+  const leg = await page.locator('[data-el="mak-legenda"]').innerText().catch(() => '');
+  ok('w trakcie: legenda „tu może stanąć…”', /tu może stanąć/.test(leg));
+  ok('ramka „Szafka 2” w miejscu szafki na rysunku (±6 px w pionie i poziomie)', !!r && !!c && Math.abs(r.y - c.y) <= 6 && Math.abs(r.x - c.x) <= 6 && Math.abs(r.height - c.height) <= 12,
+    r && c ? `ramka y ${Math.round(r.y)} h ${Math.round(r.height)}, szafka y ${Math.round(c.y)} h ${Math.round(c.height)}` : 'brak');
+  await page.keyboard.press('Escape'); await page.mouse.up(); await page.waitForTimeout(300); }
 
 ok('bez błędów strony', errors.length === 0, errors.join(' | '));
 await browser.close();

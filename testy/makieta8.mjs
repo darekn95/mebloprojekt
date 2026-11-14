@@ -203,7 +203,7 @@ await page.locator('[data-el="mak-paleta"] [data-el="mak-agd"][data-id="lodowkaM
 p = await czekaj('p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "lodowka")');
 const nL = p.items.length;
 await page.locator('[data-el="mak-agd-lista"] [data-el="mak-agd-wybierz"]', { hasText: 'Lodówka wolnostojąca' }).click(); await page.waitForTimeout(400);
-ok('karta lodówki: „Rodzaj lodówki” (6 rodzajów — z „podblatowa w szafce” i „mała w szafce”), wolnostojąca zaznaczona', (await karta.locator('[data-el="agd-lod-rodz-v"]').count()) === 6
+ok('karta lodówki: „Rodzaj lodówki” (5 rodzajów — z „podblatowa w szafce”), wolnostojąca zaznaczona', (await karta.locator('[data-el="agd-lod-rodz-v"]').count()) === 5
   && (await karta.locator('[data-el="agd-lod-rodz-v"][data-v="wolna"]').getAttribute('aria-pressed')) === 'true');
 await karta.locator('[data-el="agd-lod-rodz-v"][data-v="ciag"]').click();
 p = await czekaj(`p.items.length === ${nL} && p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "lodowkaP") && !p.items.some((it) => it.cab.sprzetCiagu && it.cab.sprzetCiagu.typ === "lodowka")`);
