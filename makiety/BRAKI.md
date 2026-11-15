@@ -1,5 +1,8 @@
 # Makieta „Dodaj / zmień” a aplikacja — lista braków (2026-11-09)
 
+> **Aktualny stan: `makiety/ZALOZENIA.md`** (2026-11-15). Ten plik to historia porównań z 9–15.11 — sekcja A pokazuje stan z 9.11
+> (okap, ekspres, lodówki, sprzęt na blacie itd. są już zrobione).
+
 Stan: makieta v24 (`makiety/dodaj.html`, artefakt „Makieta „Dodaj””) i `szafki.jsx` z gałęzi roboczej.
 Cel ustalony z użytkownikiem 2026-11-09: makieta wejdzie do aplikacji jako **osobny tryb** z dwoma
 poziomami — **prostym** i **szczegółowym**. W poziomie szczegółowym mają być **wszystkie funkcje
