@@ -1336,3 +1336,6 @@ okienko: tylko ta / caly ciag (dol) / caly ciag przesun / anuluj.
 [AI-INFO] 2026-11-15: Sevroll Blendo 07025 — od uzytkownika tylko film https://youtu.be/RKg0IBdtUtY (instrukcji brak). YouTube niedostepny
 z kontenera (DNS / siec sesji), w katalogu Sevroll 2026 i GTV 2023 z `instrukcje/` brak „Blendo” / „07025”. Do modelu potrzebne: na czym
 sie trzyma (cokol / noga / dno), otwory w cokole (srednica, glebokosc, odstep od krawedzi), ile na dlugosc cokolu, kolejnosc montazu.
+[AI-INFO] 2026-11-15: rura na wieszaki 60 mm pod plyta (`DRAZEK_POD_PLYTA`, decyzja uzytkownika „to robimy 60”; bylo 70). Blendo: uzytkownik podal
+strone wzornika https://spacetool.pl/szablon-do-zlaczek-sevroll-blendo-p-89.html (wzornik i film). Host dopisany do sieci srodowiska „MebloProjekt”,
+ale WebFetch go nie widzi (wlasna lista), a curl blokuje klasyfikator uprawnien — strona nieprzeczytana; czeka na tekst / zrzut od uzytkownika.

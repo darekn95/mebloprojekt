@@ -262,11 +262,11 @@ const SLIDE_PRICES = {
 /* Okucia dopasowujemy po samej nazwie — specyfikacja bywa zmienna
    (np. zawias nakladany kontra wpuszczany), a cena i tak jest ta sama. */
 /* Rura na wieszaki (uzytkownik 2026-10-24): okragla ⌀25 na dwoch rozetach, os
-   70 mm pod plyta nad swiatlem (wygodnie zawiesic wieszak), w polowie glebokosci
+   60 mm pod plyta nad swiatlem (jak w makiecie „Dodaj” — uzytkownik 2026-11-15: „to robimy 60”; bylo 70), w polowie glebokosci
    wnetrza, dlugosc = swiatlo kolumny − 2 mm. Pod rura ok. 1000 mm na koszule
    (plaszcze ok. 1600 — poradniki). Glebokosc wnetrza od 400 mm (wieszaki pod
    skosem), ponizej 500 ostrzezenie. Opcja przy swietle od 800 mm. */
-const DRAZEK_FI = 25, DRAZEK_POD_PLYTA = 70, DRAZEK_KROTSZY = 2;
+const DRAZEK_FI = 25, DRAZEK_POD_PLYTA = 60, DRAZEK_KROTSZY = 2;
 const DRAZEK_MIN_POD = 1000, DRAZEK_DLUGIE = 1600, DRAZEK_SWIATLO_OPCJA = 800;
 const DRAZEK_GL_MIN = 400, DRAZEK_GL_DOBRA = 500;
 /* Rura dluzsza niz najdluzszy odcinek w sprzedazy (3 m, `RURA_ODCINKI`) — blad; od 2 m ugina sie
@@ -276,7 +276,7 @@ const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀2
 /* Podpora rury na srodku (uzytkownik 2026-10-31 przy audycie GPT N181/N182, zamiast podzialu
    kolumny przy rurze 2–3 m): GTV „Uchwyt WP-10 dystansowy, regulowany” MR-WP-010-01, przelotowy
    do rury ⌀25, 50–80 mm od plyty — katalog GTV 2023 s. 258 (`instrukcje/`); rura wisi
-   DRAZEK_POD_PLYTA = 70 mm pod plyta, wiec miesci sie w regulacji. */
+   DRAZEK_POD_PLYTA = 60 mm pod plyta, wiec miesci sie w regulacji. */
 const PODPORA_RURY_NAME = "Podpora rury ⌀25 GTV WP-10";
 // katownik pod dno szerokiej szuflady V-BOX (Sevroll, decyzja uzytkownika 2026-10-31, N178)
 const KATOWNIK_SZUFLADY_NAME = "Kątownik mocujący Sevroll 40343", KATOWNIK_SZUFLADY_WKRETY = 4;
@@ -12869,7 +12869,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           ))
         )
       )}
-      {/* rura na wieszaki ⌀25 — os 70 mm pod plyta nad swiatlem */}
+      {/* rura na wieszaki ⌀25 — os DRAZEK_POD_PLYTA (60 mm) pod plyta nad swiatlem */}
       {geo.levels.map((lv) => lv.cols.map((c) => (c.drazki || []).map((dr) => (
         <rect key={`dr${lv.i}-${c.j}-${dr.k}`} data-el="rura-wieszaki" x={c.x0 + DRAZEK_KROTSZY / 2} y={fy(dr.y + DRAZEK_FI / 2)}
           width={dr.len} height={DRAZEK_FI} rx={DRAZEK_FI / 2} fill="#a1a1aa" stroke={INK} strokeWidth="1.5" />
@@ -22163,7 +22163,7 @@ function makWylicz(cab, geo, d, p) {
       linia: okL ? [-geo.W, H - yc, 2 * geo.W, H - yc] : [col.x0, H - yc, col.x0 + col.w, H - yc],
       zmien: (c) => { const raw = kolumnaW(c.levels, d.li, d.j); const st = o.map((q) => Math.round(q.h)); st[st.length - 1] = null;
         st[d.k] = sw; if (d.k + 1 < st.length - 1) st[d.k + 1] = Math.round(suma) - sw; raw.shelfTargets = st;
-        /* drazek w swietle nad polka (wisi 70 mm pod plyta nad nim): polka przeciagnieta ponad niego — drazek schodzi do
+        /* drazek w swietle nad polka (wisi DRAZEK_POD_PLYTA pod plyta nad nim): polka przeciagnieta ponad niego — drazek schodzi do
            swiatla pod nia i wisi pod przesunieta polka (zgloszenie 2026-11-09: „przy przesunięciu półki nad drążek znika,
            a powinien się przesunąć w dół”) */
         const drz = (raw.drazki || []).map(Number);
@@ -28075,7 +28075,7 @@ export default function App() {
             c2.shelfTargets = Array(ile + 1).fill(null);
           }
           if (!c2.shelfTargets.length) c2.shelfTargets = [null];
-          /* Rura na wieszaki idzie tylko do poziomu, w ktorym jest (wisi 70 mm pod
+          /* Rura na wieszaki idzie tylko do poziomu, w ktorym jest (wisi DRAZEK_POD_PLYTA pod
              plyta swojego swiatla) — kopia kolumny dawala rure w kazdym poziomie
              (zgloszenie uzytkownika 2026-10-24, szafa 3 kolumny). Numer swiatla
              w nowym poziomie = polki tej kolumny w pasmie ponizej rury. */

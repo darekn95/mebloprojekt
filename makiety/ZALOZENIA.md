@@ -87,7 +87,7 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | „Szuflada + drzwi”: u góry 170 / na dole 200, 1 / 2 drzwi, „Szuflada typowa” | jest |
 | Szuflady w szafie na dole, typowo po 220 mm (Wersja 12, 21) | jest — po 220 też w słupku (decyzja 15.11: „220 wszędzie”, `MAK_SZUFL_SLUPEK`) |
 | Półki po równo, półki w kolumnach przy przegrodzie, „pod drążkiem ↕N”, „↕N od góry” | jest |
-| Drążek 60 mm pod półką (makieta) | inaczej: 70 mm pod płytą (GTV, regulacja rozety) — zostaje z katalogu |
+| Drążek 60 mm pod półką (makieta) | jest — oś rury 60 mm pod płytą (decyzja 15.11: „to robimy 60”, `DRAZEK_POD_PLYTA`; było 70) |
 
 ## 5. AGD
 

@@ -450,7 +450,7 @@ console.log('\n== Rura: niska rura — przesunięcie półki w tym samym ostrze�
     a.split(':')[7].split(',').forEach((q) => { const [i, v] = q.split('=').map(Number); st[i] = v; }); return c; };
   const c1 = rura([250, null, 250]);
   const g1 = geo(c1), a1 = akcje(g1).filter((a) => a.startsWith('drazekpolka:'));
-  const brak = 1070 - g1.levels[0].cols[0].openings[1].h;
+  const brak = 1060 - g1.levels[0].cols[0].openings[1].h;   // 1000 pod rura + 60 (os rury pod plyta, od 2026-11-15)
   ok('ostrzeżenie z „przesunąć półkę o N mm” i dwoma przyciskami (wyżej / niżej)', a1.length === 2 && a1.some((a) => /:gora:/.test(a)) && a1.some((a) => /:dol:/.test(a))
     && uw(g1, new RegExp(`Wystarczy przesunąć półkę o ${brak} mm`)).length === 1, a1.join(' / '));
   ok('po kliknięciu (obie wersje): 1000 mm pod rurą, ostrzeżenie znika, bez nowych uwag o światłach', a1.every((a) => { const g = geo(zastosuj(c1, a));
