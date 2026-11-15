@@ -1333,3 +1333,6 @@ sufitu, „do sufitu” (ciag gorny, blenda), pole „od blatu” (`run.clearanc
 (`gornyBlendaDoSufitu`); piekarnik 1100 potwierdzony; szuflady na dol slupka po 220 (`MAK_SZUFL_SLUPEK`); po przeciagnieciu dolu szafki gornej
 okienko: tylko ta / caly ciag (dol) / caly ciag przesun / anuluj.
 [CHECK] Prog 20 mm (`ZAWIESZKA_LUZ_SUFIT`) dla ostrzezenia o zawieszkach przyjety bez karty producenta — uzytkownik moze zmienic.
+[AI-INFO] 2026-11-15: Sevroll Blendo 07025 — od uzytkownika tylko film https://youtu.be/RKg0IBdtUtY (instrukcji brak). YouTube niedostepny
+z kontenera (DNS / siec sesji), w katalogu Sevroll 2026 i GTV 2023 z `instrukcje/` brak „Blendo” / „07025”. Do modelu potrzebne: na czym
+sie trzyma (cokol / noga / dno), otwory w cokole (srednica, glebokosc, odstep od krawedzi), ile na dlugosc cokolu, kolejnosc montazu.
