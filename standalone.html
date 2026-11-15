@@ -417,7 +417,7 @@ const blendaH = (cab) => (cab && cab.topFiller && cab.topFiller.on && Number(cab
 /* Szafki gorne pod sufitem a zawieszki (uzytkownik 2026-11-15: „na styk + ostrzeżenie i dodatkowy przycisk, żeby wstawić blendę np. 10 cm”):
    zawieszke zaczepia sie o listwe / haczyki, unoszac szafke — korpus na styk z sufitem (mniej niz ZAWIESZKA_LUZ_SUFIT) bez blendy — ostrzezenie.
    `gornyBlendaDoSufitu` — ciag gorny w dol tak, by najwyzsza szafka miala nad soba `b` mm, i blenda kazdej szafki do sufitu */
-const ZAWIESZKA_LUZ_SUFIT = 20;
+const ZAWIESZKA_LUZ_SUFIT = 20;   // zatwierdzone przez uzytkownika 2026-11-15
 const BLENDA_DO_SUFITU = 100;
 const gornyBlendaDoSufitu = (p, runId, b = BLENDA_DO_SUFITU) => {
   const run = (p.runs || []).find((r) => r.id === runId); if (!run || run.tier !== "gorny") return p;
