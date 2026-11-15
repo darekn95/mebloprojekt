@@ -1340,4 +1340,5 @@ sie trzyma (cokol / noga / dno), otwory w cokole (srednica, glebokosc, odstep od
 strone wzornika https://spacetool.pl/szablon-do-zlaczek-sevroll-blendo-p-89.html (wzornik i film). Host dopisany do sieci srodowiska „MebloProjekt”,
 ale WebFetch go nie widzi (wlasna lista), a curl blokuje klasyfikator uprawnien — strona nieprzeczytana. Uzytkownik przyslal zrzuty z filmu
 (`instrukcje/sevroll-blendo/`) i decyzje: polowka pod dnem, co ok. 600 mm, opcja (domyslnie klipsy), tez blenda nad szafkami — zrobione.
-[CHECK] Blendo przy „blendzie przy scianie / wypelnieniu” — w aplikacji nie ma takiego elementu (jest wstawka w rogu i kolumna „Blenda”) — pytanie do uzytkownika.
+[AI-INFO] 2026-11-15: blenda przy scianie — nowa pozycja ciagu `sprzetCiagu.typ = "blenda"` (decyzje: sama do sciany, w licu drzwi, pas w glab
+wzdluz boku szafki — przykrecany od srodka szafki, bez Blendo; dolny i gorny ciag). Szerokosc / wysokosc / strona — `blendyScianyZaCiagiem`.

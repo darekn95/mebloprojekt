@@ -352,6 +352,10 @@ const SPRZETY_CIAGU = {
   /* Wolne miejsce w ciagu gornym (uzytkownik 2026-11-13, z makiety „Dodaj”: „Bez szafki górnej” — np. okno albo otwarta sciana):
      pozycja bez korpusu i bez niczego w zamowieniu, szerokosc jak szafka, ktora zastapila (`cab.poprzednia` — do „Przywróć”). */
   wolne: { nazwa: "wolne miejsce", pelna: "Wolne miejsce (bez szafki górnej)" },
+  /* Blenda przy scianie (uzytkownik 2026-11-15): pozycja ciagu bez korpusu na jego poczatku albo koncu — plyta w licu drzwi od
+     szafki obok do sciany; szerokosc sama do sciany (`auto`), wysokosc jak szafka obok; pas w glab (`pas` mm, 0 — bez) idzie wzdluz
+     boku szafki obok i przykreca sie do niego od srodka szafki. Cokol i blat ciagu ida dalej. */
+  blenda: { nazwa: "blenda", pelna: "Blenda przy ścianie", pas: 0 },
   okapK: { nazwa: "okap", pelna: "Okap kominowy", szer: 600, h: 90, gl: 500, kominW: 280, kominD: 250, dol: 150 },
 };
 /* Wysokosc wneki lodowki do zabudowy (uzytkownik 2026-11-09, z makiety — przykladowo; typowo 178, wysokie 194, male do ok.
@@ -365,7 +369,7 @@ const SPRZET_ROZM = { piekarnik: [{ k: "60", l: "60 cm", frontH: null, hMin: nul
 const LODOWKI_WOLNE = [{ k: "60", l: "60 × 185", w: 600, h: 1850, d: 650 }, { k: "60w", l: "60 × 203", w: 600, h: 2030, d: 670 },
   { k: "70", l: "70 × 203", w: 700, h: 2030, d: 670 }, { k: "90", l: "side by side 91", w: 910, h: 1790, d: 720 }];
 const SPRZET_CIAGU_POLA = ["szer", "hMin", "hMax", "hPod", "hPokr", "dMin", "lodW", "lodH", "lodD", "luzBok", "luzL", "luzP", "luzGora", "luzTyl", "drzwi",
-  "h", "gl", "kominW", "kominD"];
+  "h", "gl", "kominW", "kominD", "pas"];
 const OKAPK_SZER = [600, 900, 500];
 /* Lodowka wolnostojaca w ciagu (uzytkownik 2026-11-09, z makiety „Dodaj”): luz z lewej i z prawej osobno (`luzL` / `luzP`,
    puste = `luzBok`); „na równo z meblami” (`rowno`, np. Samsung Kitchen Fit) — typowo 3 mm z bokow i 15 nad nia, cieplo
@@ -385,6 +389,7 @@ const sprzetCiagu = (cab) => {
     if (sp.dol != null && sp.dol !== "" && Number.isFinite(Number(sp.dol))) out.dol = Math.round(Number(sp.dol));
   }
   if (typ === "zmywarkaW") { out.pokrywa = !!sp.pokrywa; out.drzwi = "dol"; }
+  if (typ === "blenda") { out.auto = sp.auto !== false; out.strona = sp.strona === "prawa" ? "prawa" : "lewa"; }
   if (typ === "lodowka" && out.drzwi !== "prawe") out.drzwi = "lewe";
   if (typ === "lodowka") {
     const pusty = (k) => sp[k] == null || sp[k] === "";
@@ -431,6 +436,8 @@ const gornyBlendaDoSufitu = (p, runId, b = BLENDA_DO_SUFITU) => {
     items: p.items.map((x) => (x.runId === runId && !x.cab.sprzetCiagu ? { ...x, cab: { ...x.cab, topFiller: { ...(x.cab.topFiller || {}), on: true, height: Math.round(suf - gora(x) - dY) } } } : x)) };
 };
 const wolneCiagu = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === "wolne");
+const blendaScianyCab = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === "blenda");
+const BLENDA_PAS = 100;   // pas w glab po wlaczeniu (pole do zmiany)
 /* „Bez szafki górnej” — szafka gorna zamienia sie w wolne miejsce tej samej szerokosci; poprzednia szafka zostaje w `poprzednia`,
    „Przywróć szafkę górną” wraca do niej (z obecna szerokoscia). */
 // pelna szafka z szablonu okapu kominowego (bez korpusu, bez cokolu i nozek) — wszystkie pola domyslne jak przy kazdej pozycji
@@ -1946,7 +1953,44 @@ const wysuniecieZaGlebokoscia = (p, prev) => {
   });
   return zmiana ? { ...p, items } : p;
 };
-const naprawProjekt = (p, prev) => slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev)));
+/* Blenda przy scianie (uzytkownik 2026-11-15) idzie za ciagiem: strona z polozenia (pierwsza — „lewa”, ostatnia — „prawa”),
+   wysokosc i slupek jak szafka obok, szerokosc „sama do sciany” — wolne miejsce na scianie (`runWallW`) minus reszta ciagu,
+   narożnik i odsuniecie gornego; dwie automatyczne — po rowno. Bez szerokosci sciany szerokosc zostaje. */
+const blendyScianyZaCiagiem = (p) => {
+  if (!p.items.some((it) => blendaScianyCab(it.cab))) return p;
+  let items = null;
+  const zmien = (i, patch) => { items = items || p.items.slice(); items[i] = { ...items[i], cab: { ...items[i].cab, ...patch } }; };
+  (p.runs || []).forEach((run) => {
+    const L = runItems(p, run.id);
+    const bl = L.map((q, k) => ({ ...q, k })).filter((q) => blendaScianyCab(q.it.cab));
+    if (!bl.length || L.length < 2) return;
+    bl.forEach(({ it, i, k }) => {
+      const sp = it.cab.sprzetCiagu, strona = k === 0 ? "lewa" : "prawa";
+      const sasiad = (k === 0 ? L.slice(1) : L.slice(0, k).reverse()).find((q) => !blendaScianyCab(q.it.cab));
+      const patch = {};
+      if (sp.strona !== strona) patch.sprzetCiagu = { ...sp, strona };
+      if (sasiad) {
+        const sc = sasiad.it.cab, H = sc.sprzetCiagu ? (run.H || it.cab.H) : sc.H, sl = !!(sc.slupek || (!sc.sprzetCiagu && sc.H > 1500 && run.tier !== "gorny"));
+        if (Math.round(it.cab.H) !== Math.round(H)) patch.H = Math.round(H);
+        if (!!it.cab.slupek !== sl) patch.slupek = sl;
+      }
+      if (Object.keys(patch).length) zmien(i, patch);
+    });
+    const scW = runWallW(p, run);
+    const auto = bl.filter(({ it }) => it.cab.sprzetCiagu.auto !== false);
+    if (!(scW > 0) || !auto.length) return;
+    let tot, len;
+    try { tot = runJoints(p, run).total; len = (projectLayout(p).info.get(run.id) || {}).len || 0; } catch (e) { return; }
+    const autoW = auto.reduce((a, { it }) => a + (Number(it.cab.W) || 0), 0);
+    const zajete = tot - autoW, rog = Math.max(0, len - tot);
+    const odsun = run.tier === "gorny" ? Math.max(0, Math.round(run.offset || 0)) : 0;
+    const wolne = Math.max(0, scW - zajete - rog - odsun);
+    const w = Math.max(10, Math.floor(wolne / auto.length));
+    auto.forEach(({ it, i }) => { if (Math.round(it.cab.W) !== w) zmien(i, { W: w }); });
+  });
+  return items ? { ...p, items } : p;
+};
+const naprawProjekt = (p, prev) => blendyScianyZaCiagiem(slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev))));
 // szafka w ciagu z opcjami wspolnego wienca / dna — przy wlaczeniu i przy dodaniu nowej
 const wedlugCiagu = (cab, mat, run, h = run && run.H) => {
   let c = cab;
@@ -8444,12 +8488,13 @@ function computeGeoLiczy(cab, mat, ctx) {
 function geoSprzetuCiagu(cab, mat, ctx) {
   const sp = sprzetCiagu(cab);
   // zmywarka do zabudowy i lodowka podblatowa: front meblowy na drzwiach sprzetu, cokol ciagu idzie dalej
-  const zmyw = sp.typ === "zmywarka" || sp.typ === "lodowkaP";
+  const zmyw = sp.typ === "zmywarka" || sp.typ === "lodowkaP", blendaSc = sp.typ === "blenda";
   const lodP = sp.typ === "lodowkaP", jego = lodP ? "lodówki" : "zmywarki", ona = lodP ? "lodówkę" : "zmywarkę";
   const baza = computeGeoLiczy({ ...cab, sprzetCiagu: undefined, corner: undefined, obstacles: [], cutout: undefined,
-    blatWyciecia: undefined, top: undefined, joints: { topL: "none", topR: "none", botL: "between", botR: "between" },
-    levels: [{ h: null, cols: [{ kind: "doors", doors: zmyw ? 1 : 0, w: null, shelfTargets: [null], handles: [] }] }],
-    ...(zmyw ? {} : { plinth: { ...(cab.plinth || {}), on: false }, legs: { ...(cab.legs || {}), on: false } }) }, mat, ctx);
+    blatWyciecia: undefined, top: undefined, topFiller: undefined, joints: { topL: "none", topR: "none", botL: "between", botR: "between" },
+    levels: [{ h: null, cols: [{ kind: "doors", doors: zmyw || blendaSc ? 1 : 0, w: null, shelfTargets: [null], handles: [] }] }],
+    ...(zmyw || blendaSc ? {} : { plinth: { ...(cab.plinth || {}), on: false }, legs: { ...(cab.legs || {}), on: false } }) }, mat, ctx);
+  let hwBlendy = [];
   const msgs = [];
   const add = (level, text) => msgs.push({ level, text });
   const W = baza.W, cd = baza.carcassDepth;
@@ -8502,6 +8547,34 @@ function geoSprzetuCiagu(cab, mat, ctx) {
     add("info", sp.pokrywa
       ? "Zmywarka z własną pokrywą: blat kończy się przy jej boku, cokół ciągu ma przerwę. Bez korpusu i bez frontu meblowego — w zamówieniu nic do niej."
       : "Zmywarka pod blatem: zdejmujesz jej pokrywę, blat idzie nad nią, cokół ciągu ma przerwę (drzwi i listwa zmywarki sięgają podłogi). Bez korpusu i bez frontu meblowego — w zamówieniu nic do niej.");
+  } else if (blendaSc) {
+    /* Blenda przy scianie: plyta w licu drzwi (luzy jak drzwi obok), od szafki obok do sciany; pas w glab wzdluz boku szafki obok
+       (przy jej boku: na koncu ciagu — z lewej strony pozycji, na poczatku — z prawej) */
+    const d = (baza.doors || []).find((x) => x.type === "door") || { x: 2, y: 3, w: W - 4, h: cab.H - 6 };
+    const t = baza.t, pas = Math.max(0, Math.round(sp.pas || 0)), Hc = Math.round(cab.H);
+    const pasX0 = sp.strona === "prawa" ? 0 : Math.round(W - t);
+    const fr = { x: d.x, y: d.y, w: Math.round(d.w), h: Math.round(d.h) };
+    dane = { ...sp, blendaSc: true, lodowka: false, front: { ...fr, ruch: null, uchwyt: false, uch: null },
+      pasRect: pas ? { x0: pasX0, x1: pasX0 + t, d: Math.min(pas, Math.round(cd)) } : null,
+      bryla: { x0: 0, x1: Math.round(W), y0: 0, y1: Hc, z0: 0, d: pas ? Math.min(pas, Math.round(cd)) : 0 }, nisza: { w: Math.round(W), h: Hc, d: Math.round(cd) } };
+    const szer = fr.w, zam = Math.max(MIN_PART, szer);
+    panels.push({ name: "Blenda przy ścianie", qty: 1, a: fr.h, b: zam, matKey: plytaFrontu(cab),
+      edges: { a1: true, a2: true, b1: true, b2: true },
+      note: `w licu drzwi, od szafki obok do ściany — krawędź przy ścianie dociąć na miejscu${zam > szer ? `; zamówiona ${fmt(zam)} mm, dociąć ręcznie do ${fmt(szer)} mm` : ""}` });
+    const nTr = Math.max(2, Math.ceil(Hc / 400)), nWk = Math.max(2, Math.ceil(Hc / 200));
+    if (pas) {
+      panels.push({ name: "Pas blendy", qty: 1, a: fr.h, b: Math.max(MIN_PART, pas), matKey: "board", edges: { a1: false, a2: false, b1: false, b2: false },
+        note: "za blendą przy ścianie, wzdłuż boku szafki obok — przykręcony do boku od środka szafki" + (pas < MIN_PART ? `; dociąć do ${fmt(pas)} mm` : "") });
+      hwBlendy = [
+        { name: "Trójkąt meblarski", use: "blenda przy ścianie — z pasem w głąb (w narożniku L)", spec: `blenda + pas: ${nTr} szt. co ok. 400 mm`, qty: nTr, unit: "szt." },
+        { name: "Wkręt 4 × 30", use: "pas blendy przy ścianie — od środka szafki przez bok w pas, co ok. 200 mm", spec: `pas blendy: ${nWk} szt. co ok. 200 mm`, qty: nWk, unit: "szt." }];
+      add("info", `Blenda przy ścianie z pasem ${fmt(pas)} mm w głąb wzdłuż boku szafki obok: blendę i pas skręć na trójkątach przed montażem, potem pas przykręć do boku od środka szafki (wkręty 4 × 30 co ok. 200 mm) — da się to zrobić, gdy szafka już stoi. Krawędź przy ścianie dociąć na miejscu.`);
+    } else {
+      hwBlendy = [{ name: "Trójkąt meblarski", use: "blenda przy ścianie — do boku szafki obok (w narożniku)", spec: `blenda przy ścianie: ${nTr} szt. co ok. 400 mm`, qty: nTr, unit: "szt." }];
+      add("info", "Blenda przy ścianie na trójkątach do boku szafki obok: przykręć ją, zanim dosuniesz szafkę do ściany — między szafką a ścianą nie ma potem dostępu do trójkątów. Albo włącz pas w głąb (przykręcany od środka szafki). Krawędź przy ścianie dociąć na miejscu.");
+    }
+    if (W < 20) add("warn", `Blenda przy ścianie ma ${fmt(Math.round(W))} mm — przy ścianie prawie nie ma miejsca; usuń ją albo sprawdź szerokość ściany.`);
+    else if (szer < MIN_PART) add("info", `Blenda przy ścianie ${fmt(szer)} mm — firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm: zamówiona ${fmt(zam)} mm, dociąć ręcznie.`);
   } else if (sp.typ === "wolne") {
     // nic tu nie stoi — tylko miejsce w ciagu (obrys na rysunku); bryla zerowej glebokosci, zeby wspolne rachunki sie nie wywrocily
     dane = { ...sp, wolne: true, lodowka: false, front: null, x0: 0, x1: Math.round(W), y0: 0, y1: Math.round(cab.H),
@@ -8550,7 +8623,7 @@ function geoSprzetuCiagu(cab, mat, ctx) {
   }
   const hwSprzetu = dane && dane.front && dane.front.uchwyt ? [{ name: "Uchwyt", pk: "Uchwyt", use: `front ${zmyw && sp.typ === "lodowkaP" ? "lodówki" : "zmywarki"}`,
     spec: sp.typ === "lodowkaP" ? "na front lodówki — pionowo przy wolnej krawędzi" : "na front zmywarki — poziomo u góry, na środku", qty: 1, unit: "szt." }] : [];
-  return { ...baza, bezKorpusu: true, sprzetCiagu: dane, panels, hardware: hwSprzetu, msgs, doors: [], klapy: [],
+  return { ...baza, bezKorpusu: true, sprzetCiagu: dane, panels, hardware: [...hwSprzetu, ...hwBlendy], msgs, doors: [], klapy: [],
     hasTop: false, hasBot: false, hasBack: false, isBlat: false, isWorktop: false, blat: null, dividers: [], sepShelves: [],
     zawieszki: [], drillPlan: [], zawiasyMontaz: [], montazKolejnosc: [], dystansZa: null, dnoOtwory: [], wienOtwory: [], dnoKawalki: [], wienKawalki: [],
     levels: baza.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c) => ({ ...c, shelves: [], doors: [], rails: [], drazki: [], sprzet: null })) })) };
@@ -9731,6 +9804,13 @@ function SprzetCiaguElew({ cab, geo, frontColor, fy, mx = (x) => x }) {
     );
   }
   const b = s.bryla, f = s.front;
+  if (s.blendaSc) return (
+    // blenda przy scianie: sama plyta w licu drzwi (bez bryly sprzetu)
+    <g data-el="blenda-przy-scianie">
+      <rect x={mx(f.x, f.w)} y={fy(f.y + f.h)} width={f.w} height={f.h} fill={frontColor} stroke={INK} strokeWidth="2" />
+      {f.w >= 60 && <text x={mx(f.x, f.w) + f.w / 2} y={fy(f.y + f.h / 2)} textAnchor="middle" fontSize="20" fill={INK} fontFamily="ui-monospace, monospace"
+        transform={f.w < 160 ? `rotate(-90 ${mx(f.x, f.w) + f.w / 2} ${fy(f.y + f.h / 2)})` : undefined}>{`blenda ${fmt(f.w)}`}</text>}
+    </g>);
   return (
     <g data-el="sprzet-ciagu">
       <rect x={mx(b.x0, b.x1 - b.x0)} y={fy(b.y1)} width={b.x1 - b.x0} height={b.y1 - (s.stopa ? s.stopa.y0 : b.y0)} fill={SPRZET_KOLOR} fillOpacity="0.15"
@@ -9776,7 +9856,8 @@ function SprzetCiaguWidok({ cab, geo, mat, widok = "przod" }) {
     return (
       <svg viewBox={`${-pad} ${-pad} ${cd - zMin + 2 * pad} ${H + pod + 2 * pad}`} className="w-full h-auto select-none" style={{ maxHeight: DRAW_MAX_H }} data-el="sprzet-ciagu-widok">
         <line x1={-pad / 2} y1={fy(-pod)} x2={cd - zMin + pad / 2} y2={fy(-pod)} stroke={INK} strokeWidth="2" />
-        <rect x={x(z.bz1)} y={fy(b.y1)} width={z.bz1 - z.bz0} height={b.y1 - b.y0} fill={SPRZET_KOLOR} fillOpacity="0.25" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />
+        {s.blendaSc ? (s.pasRect && <rect x={x(s.pasRect.d)} y={fy(s.front.y + s.front.h)} width={s.pasRect.d} height={s.front.h} fill="#e7e5e4" stroke={INK} strokeWidth="1.5" data-el="pas-blendy" />)
+          : <rect x={x(z.bz1)} y={fy(b.y1)} width={z.bz1 - z.bz0} height={b.y1 - b.y0} fill={SPRZET_KOLOR} fillOpacity="0.25" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />}
         {s.stopa && <rect x={x(s.stopa.d)} y={fy(s.stopa.y1)} width={s.stopa.d - s.stopa.z0} height={s.stopa.y1 - s.stopa.y0} fill={SPRZET_KOLOR} fillOpacity="0.25" stroke={INK} strokeWidth="1.5" strokeDasharray="8 6" />}
         {s.komin && <rect x={x(s.komin.d)} y={fy(s.komin.y1)} width={s.komin.d - s.komin.z0} height={s.komin.y1 - s.komin.y0} fill={SPRZET_KOLOR} fillOpacity="0.25" stroke={INK} strokeWidth="1.5" data-el="komin-okapu" />}
         {s.lodowka
@@ -10194,6 +10275,15 @@ const WycieciaWzmocnienia = ({ r, cd }) => (!(r.otwory || []).length ? null : (
 function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm, wystajeBlat = null }) {
   if (geo.bezKorpusu && geo.sprzetCiagu && geo.sprzetCiagu.wolne) return (
     <g data-el="wolne-miejsce-z-gory"><rect x="0" y="0" width={geo.W} height={geo.carcassDepth} fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="14 9" /></g>);
+  if (geo.bezKorpusu && geo.sprzetCiagu && geo.sprzetCiagu.blendaSc) {
+    // blenda przy scianie z gory: plyta w licu drzwi i pas w glab przy boku szafki obok
+    const s = geo.sprzetCiagu, cdS = geo.carcassDepth, ffT = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
+    return (
+      <g data-el="blenda-z-gory">
+        <rect x={s.front.x} y={cdS} width={s.front.w} height={geo.tf} fill={ffT} stroke={INK} strokeWidth="1.5" />
+        {s.pasRect && <rect x={s.pasRect.x0} y={cdS - s.pasRect.d} width={s.pasRect.x1 - s.pasRect.x0} height={s.pasRect.d} fill={mat.board.color} stroke={INK} strokeWidth="1.5" data-el="pas-blendy" />}
+      </g>);
+  }
   if (geo.bezKorpusu && geo.sprzetCiagu) {
     // sprzet w ciagu z gory (2026-11-05): bryla przerywana, front (zmywarka) albo przod lodowki
     const s = geo.sprzetCiagu, cdS = geo.carcassDepth;
@@ -11938,6 +12028,13 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn
       /* Sprzet w ciagu bez korpusu (2026-11-05): bryla sprzetu, front meblowy zmywarki (jak drzwi:
          przed licem, w kolorze frontow) albo przod lodowki wolnostojacej. */
       if (c.geo.bezKorpusu && c.geo.sprzetCiagu && c.geo.sprzetCiagu.wolne) return;   // wolne miejsce — w bryle nic
+      if (c.geo.bezKorpusu && c.geo.sprzetCiagu && c.geo.sprzetCiagu.blendaSc) {
+        // blenda przy scianie: plyta w licu drzwi (nieruchoma) i pas w glab przy boku szafki obok
+        const s = c.geo.sprzetCiagu, f = s.front;
+        box(c.x + f.x, c.base + f.y, -c.geo.tf, c.x + f.x + f.w, c.base + f.y + f.h, 0, c.frontColor, null, 1, true, 0, "blenda");
+        if (s.pasRect) box(c.x + s.pasRect.x0, c.base + f.y, 0, c.x + s.pasRect.x1, c.base + f.y + f.h, s.pasRect.d, c.mat.board.color, null, 1, false, 0, "pas-blendy");
+        return;
+      }
       if (c.geo.bezKorpusu && c.geo.sprzetCiagu) {
         const s = c.geo.sprzetCiagu, z = sprzetZ(s), b = s.bryla;
         box(c.x + b.x0, c.base + b.y0, z.bz0, c.x + b.x1, c.base + b.y1, z.bz1, SPRZET_KOLOR, null, 1, false, 0, "sprzet");
@@ -15733,6 +15830,14 @@ function SprzetCiagu3D({ cab, geo, mat: matIn, yaw, pitch, blat }) {
   };
   if (s.wolne) return null;
   const b = s.bryla, z = sprzetZ(s);
+  if (s.blendaSc) {
+    box(s.front.x, s.front.y, -tf, s.front.x + s.front.w, s.front.y + s.front.h, 0, ff, 1, true, "blenda");
+    if (s.pasRect) box(s.pasRect.x0, s.front.y, 0, s.pasRect.x1, s.front.y + s.front.h, s.pasRect.d, mat.board.color, 1, false, "pas-blendy");
+    if (blat && blat.roboczy && blat.th > 0)
+      blat.korpus.forEach((q) => box(q.x, H, cd - q.y - q.h, q.x + q.w, H + blat.th, cd - q.y, blat.kolor, 1, true, "blat"));
+    if (cab.plinth && cab.plinth.on && geo.plinthH > 0) { const sb = cab.plinth.setback || 0; box(0, -geo.plinthH, sb, W, 0, sb + t, mat.board.color); }
+    return rzut3D(solids, W, H, cd, yaw, pitch);
+  }
   if (s.lodowka) {
     box(b.x0, b.y0, z.bz0, b.x1, b.y1, z.bz1, SPRZET_KOLOR, 1, false, "sprzet");
     box(s.x0, s.y0, z.fz0, s.x1, s.y1, z.fz1, SPRZET_KOLOR, 1, true, "sprzet-front");
@@ -20136,7 +20241,12 @@ const swingBodies = (L, project) => {
       if (geo.bezKorpusu && geo.sprzetCiagu) {
         const s = geo.sprzetCiagu, zs = sprzetZ(s);
         const klucz = `${kto.id}|sprzet`;
-        if (s.wolne) { /* wolne miejsce — nic tu nie stoi */ } else if (s.okap) {
+        if (s.wolne) { /* wolne miejsce — nic tu nie stoi */ } else if (s.blendaSc) {
+          // blenda przy scianie: plyta w licu drzwi (przeszkoda dla drzwi obok) i pas za nia
+          const f = s.front, lico = cdV1 + geo.tf;
+          bryly.push(roomBox(n, u0 + f.x, u0 + f.x + f.w, cdV1, lico, zBase + f.y, zBase + f.y + f.h, { ...kto, co: "blenda przy ścianie", klucz }));
+          if (s.pasRect) bryly.push(roomBox(n, u0 + s.pasRect.x0, u0 + s.pasRect.x1, cdV1 - s.pasRect.d, cdV1, zBase + f.y, zBase + f.y + f.h, { ...kto, co: "pas blendy", klucz: `${klucz}p` }));
+        } else if (s.okap) {
           // okap kominowy: daszek wystaje przed szafki gorne, komin przy scianie; bez drzwi
           bryly.push(roomBox(n, u0 + s.x0, u0 + s.x1, cdV0, cdV1 - zs.fz0, zBase + s.y0, zBase + s.y1, { ...kto, co: "okap", klucz }));
           if (s.komin) bryly.push(roomBox(n, u0 + s.komin.x0, u0 + s.komin.x1, cdV0, cdV1 - s.komin.z0, zBase + s.komin.y0, zBase + s.komin.y1, { ...kto, co: "komin okapu", klucz: `${klucz}k` }));
@@ -22154,8 +22264,9 @@ const MAK_LAP_POLKI = 45;   // makieta „Dodaj”: polka lapie polke obok w 45 
 const makNajblizszy = (lista, v, klucz, lim = MAK_LAP) => lista.reduce((m, q) => { const dd = Math.abs(v - q[klucz]); return dd <= lim && (!m || dd < m.dd) ? { ...q, dd } : m; }, null);
 function makWylicz(cab, geo, d, p) {
   const H = cab.H, gy = p ? H - p.y : 0;   // bez punktu — wartosc wpisana (`d.sw`, dwuklik na polce)
-  if (d.u === "szer") { const W = Math.max(150, Math.min(3000, r10(p.x))); return { wartosc: W, napis: `szer. ${W}`,
-    linia: d.widok === "top" ? [W, 0, W, geo.carcassDepth] : [W, 0, W, H], zmien: (c) => { c.W = W; } }; }
+  if (d.u === "szer") { const W = Math.max(blendaScianyCab(cab) ? 10 : 150, Math.min(3000, r10(p.x))); return { wartosc: W, napis: `szer. ${W}`,
+    // blenda przy scianie przeciagnieta — szerokosc wpisana, juz nie „sama do ściany”
+    linia: d.widok === "top" ? [W, 0, W, geo.carcassDepth] : [W, 0, W, H], zmien: (c) => { c.W = W; if (blendaScianyCab(c)) c.sprzetCiagu = { ...c.sprzetCiagu, auto: false }; } }; }
   if (d.u === "wys") {
     // gora rowno z gora szafki obok (`d.lap`, `makLapanieWys`) — lapie w MAK_LAP mm, linia pomocnicza dluzsza
     const lap = p && d.lap ? makNajblizszy(d.lap, H - p.y, "h") : null;
@@ -22391,7 +22502,8 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
     const hBl = blendaH(cab);
     if (hBl) out.push(pas("b", "blenda", {}, 0, -hBl - 30, W, 60, "ns-resize"), chwyt("bc", W / 2, -hBl, true));
     out.push(pas("s", "szer", {}, W - 30, 0, 60, H, "ew-resize"), chwyt("sc", W, H / 2, false));
-    out.push(pas("h", "wys", {}, 0, -30, W, 60, "ns-resize"), chwyt("hc", W / 2, 0, true));
+    // blenda przy scianie: wysokosc idzie za szafka obok — bez uchwytu wysokosci
+    if (!blendaScianyCab(cab)) out.push(pas("h", "wys", {}, 0, -30, W, 60, "ns-resize"), chwyt("hc", W / 2, 0, true));
     // szafka gorna — tez dolna krawedz (2026-11-15: „górę szafki da się przesuwać, a dołu nie”)
     if (gorna) out.push(pas("d", "dol", {}, 0, H - 30, W, 60, "ns-resize"), chwyt("dc", W / 2, H, true));
     // z wzmocnieniami na rysunku (ramki z wymiarami u gory szafki) napis schodzi pod nie
@@ -23400,7 +23512,7 @@ function MakietaPaleta({ zakladka, onWzor, onKlocek, onAgd, zacznij, skoncz, kom
       const n = it.cab.name || "szafka";
       const usun = (fn) => () => zmien(i, fn);
       return [
-        ...(it.cab.sprzetCiagu && !wolneCiagu(it.cab) ? [{ k: `c${i}`, i, sel: { i, rodz: "ciag" }, l: sprzetCiagu(it.cab).pelna, g: `w ciągu, „${n}”` }] : []),
+        ...(it.cab.sprzetCiagu && !wolneCiagu(it.cab) && !blendaScianyCab(it.cab) ? [{ k: `c${i}`, i, sel: { i, rodz: "ciag" }, l: sprzetCiagu(it.cab).pelna, g: `w ciągu, „${n}”` }] : []),
         ...(okapSzafki(it.cab) ? [{ k: `o${i}`, i, sel: { i, rodz: "okap" }, l: okapSzafki(it.cab).nazwa, g: `w „${n}” · ${okapSzafki(it.cab).rozmL}`,
           usun: usun((c) => { delete c.okap; }) }] : []),
         ...wycieciaSzafki(it.cab).map((q) => ({ k: `w${i}-${q.k}`, i, sel: { i, rodz: "wyc", k: q.k }, l: q.pelna, g: `nad szafką „${n}”${q.rozmL ? ` · ${q.rozmL}` : ""}`,
@@ -23845,7 +23957,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   })();
   /* Wysokosc slupka (makieta „Dodaj”: 1800 / 2000 / 2120 / 2200 i „równo z górnymi” — gora slupka na gorze ciagu gornego) */
   const slupekWysW = (() => {
-    if (!(cab.slupek || cab.H > 1500) || !run || rodzajCiagu(project, run) !== "kuchnia" || !geoKarty) return null;
+    if (!(cab.slupek || cab.H > 1500) || !run || rodzajCiagu(project, run) !== "kuchnia" || !geoKarty || cab.sprzetCiagu) return null;
     const gorny = (project.runs || []).find((r) => r.tier === "gorny" && r.wall === run.id && project.items.some((x) => x.runId === r.id));
     const gH = gorny ? Math.max(...project.items.filter((x) => x.runId === gorny.id).map((x) => (Number(x.cab.H) || 0) + dolGornej(x.cab))) : 0;
     const rowno = gorny ? Math.round(tierMountY(project, gorny) + gH - makBaza(cab, geoKarty)) : null;
@@ -23949,6 +24061,22 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   const pelnaKarta = (() => {
     if (biurko) return [];
     /* pozycja ciagu bez korpusu (makieta „Dodaj”: „Tu wisi okap kominowy zamiast szafki — zmień rodzaj okapu w jego karcie”) */
+    if (blendaScianyCab(cab)) {
+      /* blenda przy scianie (uzytkownik 2026-11-15): szerokosc sama do sciany albo w mm, pas w glab wzdluz boku szafki obok */
+      const sp = sprzetCiagu(cab), ustaw = (patch) => zmien(idx, (c) => { c.sprzetCiagu = { ...c.sprzetCiagu, ...patch }; });
+      return [
+        wiersz("blsw", "szerokość blendy", [<Btn key="a" el="mak-blenda-sc-auto" v="auto" on={sp.auto} onClick={() => ustaw({ auto: true })}>sama do ściany</Btn>,
+          <input key={`w${cab.W}`} type="number" step="10" min="10" defaultValue={Math.round(cab.W)} data-el="mak-blenda-sc-w" onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+            onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v >= 10 && v !== Math.round(cab.W)) zmien(idx, (c) => { c.W = v; c.sprzetCiagu = { ...c.sprzetCiagu, auto: false }; }); }}
+            className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />,
+          <span key="mm" className="text-[11px] text-stone-500">mm</span>], "mak-blenda-sc-w-w"),
+        wiersz("blsp", "pas w głąb (wzdłuż boku szafki obok)", [<Btn key="b" el="mak-blenda-sc-pas" v="bez" on={!sp.pas} onClick={() => ustaw({ pas: 0 })}>bez pasa</Btn>,
+          <Btn key="z" el="mak-blenda-sc-pas" v="z" on={!!sp.pas} onClick={() => ustaw({ pas: sp.pas || BLENDA_PAS })}>z pasem</Btn>,
+          ...(sp.pas ? [<input key={`p${sp.pas}`} type="number" step="10" min="20" defaultValue={sp.pas} data-el="mak-blenda-sc-pas-gl" onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+            onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v >= 20 && v !== sp.pas) ustaw({ pas: v }); }}
+            className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />, <span key="mm" className="text-[11px] text-stone-500">mm</span>] : [])], "mak-blenda-sc-pas-w"),
+        hint("blenda-sc", `Blenda ${sp.strona === "prawa" ? "na końcu" : "na początku"} ciągu, w licu drzwi, wysokość jak szafka obok. ${sp.pas ? "Pas przykręcany do boku szafki obok od jej środka." : "Bez pasa — na trójkątach do boku szafki obok, przykręcana przed dosunięciem szafki do ściany."} Dodasz i usuniesz ją w zakładce „Ciąg”.`)];
+    }
     if (cab.sprzetCiagu) return wolneCiagu(cab) ? [] : [hint("sprzet-ciagu", okapCiagu(cab) ? "Tu wisi okap kominowy zamiast szafki — rodzaj okapu (np. podszafkowy w szafce) zmienisz w jego karcie: Dodaj → AGD."
       : `W ciągu, bez korpusu: ${sprzetCiagu(cab).pelna.toLowerCase()} — rodzaj, model i luzy zmienisz w karcie sprzętu: Dodaj → AGD.`)];
     const slupKuch = (cab.slupek || cab.H > 1500) && rodzK === "kuchnia", sd = makSzufDrzwiUklad(cab);
@@ -24035,10 +24163,10 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     : rodzK === "wolnostojaca" ? (geoKarty && geoKarty.plinthInBody && pod0 ? `Całkowita, z cokołem ${fmt(pod0)} mm w obrysie.` : nozki0 ? `Korpus — nóżki ${fmt(nozki0)} mm pod spodem.` : null)
     : rodzK === "szafa" && !(run && run.tier === "gorny") ? (pod0 || nozki0 ? `Wysokość korpusu — ${pod0 ? `cokół ${fmt(pod0)}` : `nóżki ${fmt(nozki0)}`} mm pod spodem.` : null)
     : rodzK === "kuchnia" && run && run.tier !== "gorny" && !(cab.slupek || cab.H > 1500) && !cab.sprzetCiagu ? `Wysokość ${fmt(Math.round(cab.H))} — pod blat, jak cały ciąg dolny.` : null;
-  if (zakladka === "szafka") tresc = [...naglowekSzafki, <Pole key="pW" k="W" l="Szerokość" />,
+  if (zakladka === "szafka") tresc = [...naglowekSzafki, ...(blendaScianyCab(cab) ? [] : [<Pole key="pW" k="W" l="Szerokość" />]),
     // szerokosci jak w makiecie „Dodaj” (rodzaj zabudowy ciagu; wolnostojaca — tez wysokosci)
     ...(cab.sprzetCiagu ? [] : [chips("mak-szer", szerChips, cab.W, (v) => zmien(idx, (c) => { c.W = v; }))]),
-    <Pole key="pH" k="H" l="Wysokość" />,
+    ...(blendaScianyCab(cab) ? [] : [<Pole key="pH" k="H" l="Wysokość" />]),
     ...(slupekWysW ? [slupekWysW] : []),
     ...(run && run.tier === "gorny" ? [gornaWlasnaW, gornyDolW("gdol"), gornyBlatW("gblat"), gornyGoraW("ggora"), gornyPolW("gpol")] : []),
     ...(blendaSzafkiW ? [blendaSzafkiW] : []),
@@ -24424,6 +24552,25 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
           ...(doSuf.length && !juz ? [wiersz("blsuf", null, [<Btn key="s" el="mak-ciag-blenda-sufit" onClick={naSufit}>Blenda do sufitu ({hS.length === 1 ? `${fmt(hS[0])} mm` : "każda do sufitu"}, sufit {fmt(suf)})</Btn>], "mak-ciag-blenda-sufit-w")] : []),
           ...(suf == null ? [<p key="blsufh" className="border-b border-stone-100 py-1 text-[11px] text-stone-500" data-el="mak-ciag-blenda-bez-sufitu">Blenda do sufitu: wpisz wysokość ściany nad rysunkiem („wys.”).</p>] : [])];
       })(),
+      /* Blenda przy scianie (uzytkownik 2026-11-15) — na poczatku / koncu ciagu, sama do sciany; szczegoly w jej karcie */
+      (() => {
+        const L = runItems(project, run.id), ma = (st) => L.find(({ it }) => blendaScianyCab(it.cab) && sprzetCiagu(it.cab).strona === st);
+        const przelacz = (st) => zmienProjekt((p) => {
+          const LL = runItems(p, run.id); if (!LL.length) return p;
+          const jest = LL.find(({ it }) => blendaScianyCab(it.cab) && sprzetCiagu(it.cab).strona === st);
+          if (jest) { const items = p.items.filter((_, k) => k !== jest.i); return { ...p, items, active: p.active > jest.i ? p.active - 1 : Math.min(p.active, items.length - 1) }; }
+          const ref = st === "lewa" ? LL[0] : LL[LL.length - 1];
+          const nowy = JSON.parse(JSON.stringify(ref.it));
+          nowy.cab = { ...nowy.cab, name: "Blenda przy ścianie", W: 50, sprzetCiagu: { typ: "blenda", strona: st, auto: true, pas: 0 },
+            topFiller: { on: false, height: 100 }, corner: { ...(nowy.cab.corner || {}), on: false }, naBlacie: [], blatWyciecia: [] };
+          delete nowy.cab.dolGorny;
+          const items = p.items.slice(), gdzie = st === "lewa" ? ref.i : ref.i + 1;
+          items.splice(gdzie, 0, nowy);
+          return { ...p, items, active: p.active >= gdzie ? p.active + 1 : p.active };
+        });
+        return wiersz("blsc", "Blenda przy ścianie (od szafki do ściany, w licu drzwi)", [["lewa", "z lewej"], ["prawa", "z prawej"]].map(([st, l]) =>
+          <Btn key={st} el="mak-ciag-blenda-sc" v={st} on={!!ma(st)} onClick={() => przelacz(st)}>{l}{ma(st) ? ` (${fmt(Math.round(ma(st).it.cab.W))})` : ""}</Btn>), "mak-ciag-blenda-sc-w");
+      })(),
       zCiagu,
       <p key="ch" className="pt-1 text-[11px] text-stone-500" data-el="mak-ciag-info">Rodzaj zabudowy i długość ściany — nad rysunkiem. Cokół i nóżki ciągu — zakładka „Cokół i nóżki”.{tryb === "szczegolowa" ? " Narożnik, podział blatu i cokołu, wieszanie — przycisk „Wszystkie opcje” poniżej." : " Narożnik, podział blatu i cokołu, wieszanie — w trybie Technicznym."}</p>,
     ];
@@ -24580,7 +24727,7 @@ function MakListaCiagu({ project, idx, wybierz, usun, rodzaj }) {
     ...runs.filter((r) => r.tier === "gorny" && r.wall === dolny.id).map((g) => ["Ciąg górny", runItems(project, g.id)])]
     : run ? [["Ciąg górny", runItems(project, run.id)]]
     : [["Na rysunku", itemsInRoom(project, roomOfItem(project, it)).filter(({ it: x }) => !x.runId)]];
-  const opis = (c) => (c.sprzetCiagu ? (wolneCiagu(c) ? `${fmt(c.W)} mm · bez szafki` : `${fmt(c.W)} mm · ${sprzetCiagu(c).pelna} (karta w Dodaj → AGD)`)
+  const opis = (c) => (c.sprzetCiagu ? (wolneCiagu(c) ? `${fmt(c.W)} mm · bez szafki` : blendaScianyCab(c) ? `${fmt(c.W)} mm · blenda przy ścianie` : `${fmt(c.W)} mm · ${sprzetCiagu(c).pelna} (karta w Dodaj → AGD)`)
     : `${fmt(c.W)} × ${fmt(c.H)} × ${fmt(c.D)} mm`);
   return (
     <div className="space-y-2" data-el="mak-lista-ciagu">

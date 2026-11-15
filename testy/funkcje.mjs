@@ -1432,3 +1432,16 @@ console.log('\n== 2026-11-15: Sevroll Blendo — cokół i blenda nad szafką ==
   const tb = hw({ ...base, topFiller: { on: true, height: 120, mocowanie: 'blendo' } }), tz = hw({ ...base, topFiller: { on: true, height: 120 } });
   ok('blenda nad szafką na Blendo: 3 komplety więcej; zwykła — bez', ile(tb, 'Złącze Sevroll Blendo 07025') === 3 && ile(tz, 'Złącze Sevroll Blendo 07025') === 0);
 }
+
+console.log('\n== 2026-11-15: blenda przy ścianie (pozycja ciągu bez korpusu) ==');
+{
+  const M0 = G.defaultMaterials;
+  const bl = (o) => G.migrateCab({ name: 'Blenda przy ścianie', W: 200, H: 720, D: 550, legs: { on: true, height: 100 }, plinth: { on: true, height: 100, setback: 0 },
+    sprzetCiagu: { typ: 'blenda', strona: 'prawa', auto: true, pas: 0, ...o }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }, M0);
+  const g0 = G.computeGeo(bl({}), M0), g1 = G.computeGeo(bl({ pas: 100 }), M0);
+  const nm = (g) => g.panels.map((x) => x.name);
+  ok('bez pasa: formatka „Blenda przy ścianie” (196 × 714) i cokół, bez korpusu; trójkąty do boku', g0.bezKorpusu && nm(g0).includes('Blenda przy ścianie') && !nm(g0).some((n) => /Bok|Dno|Wieniec/.test(n))
+    && g0.hardware.some((h) => h.name === 'Trójkąt meblarski') && g0.sprzetCiagu.blendaSc, JSON.stringify(g0.panels.map((x) => [x.name, x.a, x.b])));
+  ok('z pasem 100: „Pas blendy” 100 mm z płyty korpusu, wkręty 4 × 30 od środka szafki, pas przy lewej krawędzi (szafka z lewej)', nm(g1).includes('Pas blendy')
+    && g1.panels.find((x) => x.name === 'Pas blendy').b === 100 && g1.hardware.some((h) => h.name === 'Wkręt 4 × 30') && g1.sprzetCiagu.pasRect.x0 === 0, JSON.stringify(g1.sprzetCiagu.pasRect));
+}

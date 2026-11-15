@@ -197,6 +197,41 @@ await page.locator('[data-el="mak-ciag-blenda-moc"][data-v="blendo"]').click(); 
 p = await czekaj("p.items[3].cab.topFiller.mocowanie === 'blendo'");
 ok('zakładka Ciąg: blenda całego ciągu górnego na Blendo', p.items[2].cab.topFiller.mocowanie === 'blendo' && p.items[3].cab.topFiller.mocowanie === 'blendo');
 
+console.log('== Blenda przy ścianie: sama do ściany, pas w głąb, wysokość jak szafka obok ==');
+await start(FIX + `p.runs[0].wallW = 1600; p.active = 1;`);
+await zakl('ciag');
+await page.locator('[data-el="mak-ciag-blenda-sc"][data-v="prawa"]').click(); await page.waitForTimeout(800);
+p = await czekaj("p.items.some((x) => x.cab.sprzetCiagu && x.cab.sprzetCiagu.typ === 'blenda')");
+let ib = p.items.findIndex((x) => x.cab.sprzetCiagu && x.cab.sprzetCiagu.typ === 'blenda');
+ok('„z prawej” — blenda na końcu ciągu dolnego, sama do ściany (1600 − 600 − 800 = 200), wysokość jak „Dolna”', ib === 2 && p.items[ib].runId === 'r1' && p.items[ib].cab.W === 200 && p.items[ib].cab.H === 720
+  && p.items[ib].cab.sprzetCiagu.strona === 'prawa', JSON.stringify(p.items.map((x) => [x.cab.name, x.cab.W, x.cab.H, x.runId])));
+ok('na ścianie wolne 0 mm', /wolne 0 mm/.test(await page.locator('[data-el="mak-wolne"]').innerText().catch(() => '')));
+await page.locator('[data-el="mak-sciana"]').fill('1700'); await page.locator('[data-el="mak-sciana"]').press('Enter'); await page.waitForTimeout(700);
+p = await czekaj(`p.items[${ib}].cab.W === 300`);
+ok('ściana 1700 — blenda rośnie do 300', p.items[ib].cab.W === 300, String(p.items[ib].cab.W));
+await page.evaluate((i) => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.active = i; localStorage.setItem('szafki:projekt', JSON.stringify(p)); }, ib);
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
+await zakl('szafka');
+ok('karta blendy: szerokość (sama do ściany / mm), pas w głąb; bez pola Wysokość', (await page.locator('[data-el="mak-blenda-sc-auto"]').count()) === 1
+  && (await page.locator('[data-el="mak-blenda-sc-pas"]').count()) === 2 && !(await page.locator('[data-el="makieta-karta"] [data-pole="H"], [data-el="mak-karta-panel"] [data-k="H"]').count()));
+await page.locator('[data-el="mak-blenda-sc-pas"][data-v="z"]').click(); await page.waitForTimeout(600);
+p = await czekaj(`p.items[${ib}].cab.sprzetCiagu.pas === 100`);
+ok('„z pasem” — pas 100 mm w głąb; blenda na rysunku z przodu', p.items[ib].cab.sprzetCiagu.pas === 100 && (await page.locator('[data-el="blenda-przy-scianie"]').count()) >= 1);
+{ const t = await uwagi(); ok('Podpowiedź o montażu pasa (od środka szafki, wkręty 4 × 30)', /Blenda przy ścianie z pasem 100 mm w głąb/.test(t), t.slice(0, 200)); }
+await wpisz('[data-el="mak-blenda-sc-w"]', 250);
+p = await czekaj(`p.items[${ib}].cab.W === 250`);
+ok('wpisana szerokość 250 — już nie „sama do ściany”', p.items[ib].cab.W === 250 && p.items[ib].cab.sprzetCiagu.auto === false);
+// z lewej — przy słupku: wysokość jak słupek
+await zakl('ciag');
+await page.locator('[data-el="mak-ciag-blenda-sc"][data-v="lewa"]').click(); await page.waitForTimeout(800);
+p = await czekaj("p.items[0].cab.sprzetCiagu && p.items[0].cab.sprzetCiagu.typ === 'blenda'");
+ok('„z lewej” — blenda na początku ciągu, wysokość jak słupek (2000), słupek', p.items[0].cab.sprzetCiagu && p.items[0].cab.sprzetCiagu.strona === 'lewa' && p.items[0].cab.H === 2000 && p.items[0].cab.slupek === true,
+  JSON.stringify([p.items[0].cab.name, p.items[0].cab.W, p.items[0].cab.H, p.items[0].cab.slupek]));
+await page.locator('[data-el="mak-ciag-blenda-sc"][data-v="lewa"]').click(); await page.waitForTimeout(600);
+await page.locator('[data-el="mak-ciag-blenda-sc"][data-v="prawa"]').click(); await page.waitForTimeout(600);
+p = await czekaj("!p.items.some((x) => x.cab.sprzetCiagu && x.cab.sprzetCiagu.typ === 'blenda')");
+ok('ponowne kliknięcie usuwa blendy', !p.items.some((x) => x.cab.sprzetCiagu && x.cab.sprzetCiagu.typ === 'blenda') && p.items.length === 4);
+
 ok('bez błędów strony', errors.length === 0, errors.join(' | '));
 await browser.close();
 console.log(bledy ? `BLEDOW: ${bledy}` : 'WSZYSTKO OK');
