@@ -804,3 +804,6 @@ cd testy && bash pelny.sh /tmp/pelny            # albo: bash pelny.sh /tmp/p nar
 ```
 
 | karta szafki górnej / zakładka Ciąg (2026-11-15): „od blatu do dołu szafek górnych (prześwit)” (`mak-gorny-od-blatu`, `mak-gorny-blat-krok`), „do sufitu (N)” przy dole ciągu górnego (`mak-gorny-do-sufitu`), „Blenda nad szafką” w karcie Szafka górnej i słupka (`mak-sz-blenda` tak / nie, `mak-sz-blenda-h`, `mak-sz-blenda-sufit`), „Blenda do sufitu” w zakładce Ciąg (`mak-ciag-blenda-sufit`) | `run.clearance`, `run.mountY`/`clearance` (`gornyDolW`), `cab.topFiller`; `sufitSciany`, `blendaH`, `makOdPodlogi` |
+| okienko po przeciągnięciu dołu szafki górnej (`makieta-pytanie-dol`, przyciski `data-dol` = `ta` / `ciag` / `przesun` / `anuluj`) | `pytDol`, `zmienDol`, `dolCiagu` w `MakietaWidok`; `cab.dolGorny` (ta), `run.clearance` / `run.mountY` + `run.H` i `cab.H` (cały ciąg) |
+| „do sufitu z blendą 100” (`mak-gorny-do-sufitu-blenda`), uwaga „Szafki górne stoją na styk pod sufitem — na zawieszkach ich nie zawiesisz” z przyciskiem `blendasufit:<ciąg górny>:<mm>` | `gornyBlendaDoSufitu`, `ZAWIESZKA_LUZ_SUFIT` (20), `BLENDA_DO_SUFITU` (100), `maZawieszki`; `tierMsgs` |
+| szuflady dokładane na dół słupka (karta Szuflady przy wysokim poziomie) | `slupekSzuflady`, `MAK_SZUFL_SLUPEK` = 220 (było 180) |

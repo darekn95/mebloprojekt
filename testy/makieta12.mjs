@@ -214,7 +214,7 @@ const poziomy = (q) => q.items[0].cab.levels.map((lv) => (lv.cols[0].sprzet || {
 await zakl('szuflady');
 await page.locator('[data-el="mak-szuflady"][data-v="2"]').first().click();
 p = await czekaj('p.items[0].cab.levels.length === 2');
-ok('2 szuflady w słupku: własny niski poziom na dole (360), reszta nad nimi', JSON.stringify(poziomy(p)) === '["szuflady2","drzwi"]' && p.items[0].cab.levels[0].h === 360, JSON.stringify(poziomy(p)));
+ok('2 szuflady w słupku: własny niski poziom na dole (440 — po 220), reszta nad nimi', JSON.stringify(poziomy(p)) === '["szuflady2","drzwi"]' && p.items[0].cab.levels[0].h === 440, JSON.stringify(poziomy(p)));
 await zakl('dodaj');
 if ((await page.locator('[data-el="mak-dodaj"] [data-dodaj="agd"]').getAttribute('aria-expanded')) !== 'true') await page.locator('[data-el="mak-dodaj"] [data-dodaj="agd"]').click();
 await page.waitForTimeout(300);

@@ -80,8 +80,24 @@ ok('„−” przy „od blatu” — 550', p.runs.find((r) => r.id === 'g1').cl
   ok('przycisk „do sufitu (2400)” w karcie szafki górnej', (await b.count()) === 1 && /do sufitu \(2 ?400\)/.test(await b.innerText()), await b.innerText().catch(() => ''));
   await b.click(); await page.waitForTimeout(700); }
 ok('po „do sufitu”: góra ciągu górnego = sufit', (await val('[data-el="mak-gorny-gora"]')) === SUFIT, String(await val('[data-el="mak-gorny-gora"]')));
-{ const t = await uwagi(); ok('Uwagi: „zostaje 0 mm do sufitu”', /zostaje 0 mm do sufitu/.test(t), t.slice(0, 160)); }
-await wpisz('[data-el="mak-gorny-od-blatu"]', 500);
+{ const t = await uwagi(); ok('Uwagi: „zostaje 0 mm do sufitu”', /zostaje 0 mm do sufitu/.test(t), t.slice(0, 160));
+  ok('Uwagi: na styk pod sufitem na zawieszkach — ostrzeżenie (zostaw luz, blenda)', /stoją na styk pod sufitem — na zawieszkach ich nie zawiesisz/.test(t), t.slice(0, 300)); }
+{ const b = page.locator('[data-el="makieta-uwagi"] button', { hasText: /Blenda 100 mm do sufitu/ }).first();
+  ok('przycisk w Uwagach „Blenda 100 mm do sufitu — szafki górne niżej”', (await b.count()) === 1);
+  await b.click().catch(() => {}); await page.waitForTimeout(700); }
+p = await czekaj('p.items[2].cab.topFiller && p.items[2].cab.topFiller.on');
+ok('po przycisku: blenda 100 w obu szafkach, góra korpusów 2300', p.items[2].cab.topFiller.height === 100 && p.items[3].cab.topFiller.height === 100 && (await val('[data-el="mak-gorny-gora"]')) === SUFIT - 100,
+  `${JSON.stringify(p.items[2].cab.topFiller)} góra ${await val('[data-el="mak-gorny-gora"]')}`);
+{ const t = await uwagi(); ok('z blendą — bez ostrzeżenia o zawieszkach', !/na zawieszkach ich nie zawiesisz/.test(t)); }
+// karta: „do sufitu z blendą 100” (bez blendy)
+const bezBlendy = async () => { await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); [2, 3].forEach((i) => { p.items[i].cab.topFiller = { on: false, height: 100 }; });
+  p.runs.find((r) => r.id === 'g1').clearance = 500; localStorage.setItem('szafki:projekt', JSON.stringify(p)); }); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200); await zakl('szafka'); };
+await bezBlendy();
+await page.locator('[data-el="mak-gorny-do-sufitu-blenda"]').click(); await page.waitForTimeout(700);
+p = await czekaj('p.items[3].cab.topFiller && p.items[3].cab.topFiller.on');
+ok('karta: „do sufitu z blendą 100” — blenda 100, góra korpusów 2300', p.items[2].cab.topFiller.height === 100 && p.items[3].cab.topFiller.height === 100 && (await val('[data-el="mak-gorny-gora"]')) === SUFIT - 100,
+  String(await val('[data-el="mak-gorny-gora"]')));
+await bezBlendy();
 
 console.log('== blenda: karta szafki górnej, zakładka Ciąg, „do sufitu” ==');
 { const tak = page.locator('[data-el="mak-sz-blenda"][data-v="tak"]');
@@ -120,6 +136,9 @@ await zakl('szafka');
     const sk2 = await skala(720);
     const { t: t2 } = await ciagnij('dol', sk2.bot - 100 * sk2.s, /dół/);
     ok('dół w trakcie: „dół N od podłogi”', /dół \d[\d ]* od podłogi/.test(t2), t2);
+    { const dlg = page.locator('[data-el="makieta-pytanie-dol"]');
+      ok('po puszczeniu pytanie: tylko ta / cały ciąg (dół) / cały ciąg przesuń / anuluj', (await dlg.count()) === 1 && (await dlg.locator('[data-dol]').count()) === 4, await dlg.innerText().catch(() => ''));
+      await dlg.locator('[data-dol="ta"]').click(); await page.waitForTimeout(600); }
     p = await czekaj('p.items[2].cab.dolGorny === 100');
     ok('po puszczeniu: dół +100, wysokość 620, góra zostaje; druga szafka bez zmian', p.items[2].cab.dolGorny === 100 && p.items[2].cab.H === 620 && !p.items[3].cab.dolGorny && p.items[3].cab.H === 720,
       JSON.stringify([p.items[2].cab.dolGorny, p.items[2].cab.H, p.items[3].cab.dolGorny, p.items[3].cab.H]));
@@ -128,7 +147,23 @@ await zakl('szafka');
     const { t: t3, r: r3 } = await ciagnij('dol', sk3.bot + 85 * sk3.s, /dół/);
     ok('dół blisko innych — „jak inne” i zielona linia', /jak inne/.test(t3) && r3, t3);
     p = await czekaj('!p.items[2].cab.dolGorny && p.items[2].cab.H === 720');
-    ok('po puszczeniu: dół jak inne (720, bez własnego dołu)', !p.items[2].cab.dolGorny && p.items[2].cab.H === 720, JSON.stringify([p.items[2].cab.dolGorny, p.items[2].cab.H]));
+    ok('po puszczeniu: dół jak inne (720, bez własnego dołu) — bez pytania', !p.items[2].cab.dolGorny && p.items[2].cab.H === 720 && !(await page.locator('[data-el="makieta-pytanie-dol"]').count()),
+      JSON.stringify([p.items[2].cab.dolGorny, p.items[2].cab.H]));
+    // cały ciąg: dół wyżej o 100, góra zostaje (obie szafki 620, prześwit 600)
+    const sk5 = await skala(720);
+    await ciagnij('dol', sk5.bot - 100 * sk5.s, /dół/);
+    await page.locator('[data-el="makieta-pytanie-dol"] [data-dol="ciag"]').click(); await page.waitForTimeout(600);
+    p = await czekaj("p.runs.find((r) => r.id === 'g1').clearance === 600");
+    ok('„Cały ciąg — dół, góra zostaje”: prześwit 600, obie szafki 620', p.runs.find((r) => r.id === 'g1').clearance === 600 && p.items[2].cab.H === 620 && p.items[3].cab.H === 620 && !p.items[2].cab.dolGorny,
+      JSON.stringify([p.runs.find((r) => r.id === 'g1').clearance, p.items[2].cab.H, p.items[3].cab.H]));
+    // cały ciąg przesunięty w dół o 100, wysokość zostaje
+    const sk6 = await skala(620);
+    await ciagnij('dol', sk6.bot + 100 * sk6.s, /dół/);
+    await page.locator('[data-el="makieta-pytanie-dol"] [data-dol="przesun"]').click(); await page.waitForTimeout(600);
+    p = await czekaj("p.runs.find((r) => r.id === 'g1').clearance === 500");
+    ok('„Cały ciąg przesuń w dół o 100”: prześwit 500, szafki dalej 620', p.runs.find((r) => r.id === 'g1').clearance === 500 && p.items[2].cab.H === 620 && p.items[3].cab.H === 620,
+      JSON.stringify([p.runs.find((r) => r.id === 'g1').clearance, p.items[2].cab.H, p.items[3].cab.H]));
+    await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); [2, 3].forEach((i) => { p.items[i].cab.H = 720; }); p.runs.find((r) => r.id === 'g1').H = 720; localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
     // wysokosc do sufitu: bez blendy szafka lapie sufit
     await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); [2, 3].forEach((i) => { p.items[i].cab.topFiller = { on: false, height: 100 }; }); localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
     await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200); await zakl('szafka');

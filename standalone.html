@@ -414,6 +414,22 @@ const sufitSciany = (project, run) => {
 };
 // wysokosc blendy nad szafka (`cab.topFiller`), 0 — bez blendy
 const blendaH = (cab) => (cab && cab.topFiller && cab.topFiller.on && Number(cab.topFiller.height) > 0 ? Math.round(Number(cab.topFiller.height)) : 0);
+/* Szafki gorne pod sufitem a zawieszki (uzytkownik 2026-11-15: „na styk + ostrzeżenie i dodatkowy przycisk, żeby wstawić blendę np. 10 cm”):
+   zawieszke zaczepia sie o listwe / haczyki, unoszac szafke — korpus na styk z sufitem (mniej niz ZAWIESZKA_LUZ_SUFIT) bez blendy — ostrzezenie.
+   `gornyBlendaDoSufitu` — ciag gorny w dol tak, by najwyzsza szafka miala nad soba `b` mm, i blenda kazdej szafki do sufitu */
+const ZAWIESZKA_LUZ_SUFIT = 20;
+const BLENDA_DO_SUFITU = 100;
+const gornyBlendaDoSufitu = (p, runId, b = BLENDA_DO_SUFITU) => {
+  const run = (p.runs || []).find((r) => r.id === runId); if (!run || run.tier !== "gorny") return p;
+  const suf = sufitSciany(p, run); if (suf == null) return p;
+  const its = p.items.filter((x) => x.runId === runId && !x.cab.sprzetCiagu); if (!its.length) return p;
+  const Y = tierMountY(p, run), gora = (x) => Y + Math.round(Number(x.cab.H) || 0) + dolGornej(x.cab);
+  const dY = suf - b - Math.max(...its.map(gora));
+  if (Y + dY < 0) return p;
+  return { ...p,
+    runs: p.runs.map((r) => (r.id !== runId ? r : r.wall ? { ...r, clearance: Math.max(0, Math.round((r.clearance ?? 500) + dY)) } : { ...r, mountY: Math.max(0, Math.round(Y + dY)) })),
+    items: p.items.map((x) => (x.runId === runId && !x.cab.sprzetCiagu ? { ...x, cab: { ...x.cab, topFiller: { ...(x.cab.topFiller || {}), on: true, height: Math.round(suf - gora(x) - dY) } } } : x)) };
+};
 const wolneCiagu = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === "wolne");
 /* „Bez szafki górnej” — szafka gorna zamienia sie w wolne miejsce tej samej szerokosci; poprzednia szafka zostaje w `poprzednia`,
    „Przywróć szafkę górną” wraca do niej (z obecna szerokoscia). */
@@ -16089,6 +16105,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return { label: `Zmniejsz wysunięcie szafki o ${fmt(Number(mm))} mm (blat zakrywa front, nawis ${fmt(Number(nawis))} mm)`, run: () => runFix && runFix(action) }; }
     if (action.startsWith("slupekgl:"))
       return { label: `To słupek — tył przy ścianie, front wysunięty o ${fmt(Number(action.split(":")[1]))} mm`, run: () => runFix && runFix(action) };
+    if (action.startsWith("blendasufit:"))
+      return { label: `Blenda ${fmt(Number(action.split(":")[2]) || BLENDA_DO_SUFITU)} mm do sufitu — szafki górne niżej`, run: () => runFix && runFix(action) };
     if (action.startsWith("gornyod:")) { const [, , mm, nazwa] = action.split(":");
       return { label: `Ciąg górny od ${fmt(Number(mm))} mm — za „${nazwa}”`, run: () => runFix && runFix(action) }; }
     if (action.startsWith("slupek:"))
@@ -19516,6 +19534,11 @@ const tierMsgs = (project, run) => {
         out.push({ level: "info", text:
           `Nad szafkami górnymi${zBl ? " (z blendą)" : ""} zostaje ${fmt(luz)} mm do sufitu`
           + (luz > 0 ? (zBl ? " — o tyle da się jeszcze podwyższyć blendę (karta „Ciąg”: „Blenda do sufitu”)." : ` — o tyle da się je jeszcze podwyższyć albo dołożyć blendę.`) : ".") });
+      // korpus na styk z sufitem, bez blendy, na zawieszkach — nie zawiesisz (zaczepienie wymaga uniesienia szafki)
+      if (!zBl && luz < ZAWIESZKA_LUZ_SUFIT && list.some(({ it }) => maZawieszki(it.cab)))
+        out.push({ level: "warn", text:
+          `Szafki górne stoją ${luz ? `${fmt(luz)} mm` : "na styk"} pod sufitem — na zawieszkach ich nie zawiesisz: przy zaczepianiu o listwę `
+          + `(haczyki) szafkę trzeba unieść. Zostaw luz i zakryj go blendą docinaną na miejscu.|blendasufit:${gorny.id}:${BLENDA_DO_SUFITU}` });
     }
   }
   return out;
@@ -21996,7 +22019,8 @@ const makZaWysokoscia = (project, ids, stara, bez) => project.items.map((x, i) =
    do wysokości szafki obok”; makieta „Dodaj”: „Równo z półką obok” — 2026-11-09). Wysokosci od podlogi: dol i gora korpusu kazdej szafki
    tej samej sciany (ciag dolny i gorny); `makLapanieWys` — wysokosci tej szafki, przy ktorych jej gora jest rowno z gora innej,
    `makLapaniePolek` — srodki polek innych kolumn / szafek tej sciany w ukladzie tej szafki (od dolu korpusu). */
-const MAK_LAP = 40;   // mm od celu — lapie
+const MAK_LAP = 40;
+const MAK_SZUFL_SLUPEK = 220;   // szuflada dokladana na dol slupka / szafy (makieta „Dodaj”: SZ_H 220; uzytkownik 2026-11-15)   // mm od celu — lapie
 const makOdPodlogi = (project, i) => {
   const it = project.items[i]; if (!it) return null;
   const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
@@ -22006,7 +22030,7 @@ const makOdPodlogi = (project, i) => {
 };
 /* Sprzet wysoko (makieta „Dodaj”: MIKRO_MAX 1300 — „dół mikrofali wyżej niż to — ostrzeżenie”, uzytkownik 2026-11-08: „kiedyś będzie
    musiało być ostrzeżeniem w aplikacji głównej”; 2026-11-15: „brak ostrzeżenia o mikrofali wysoko i o piekarniku za wysoko”) —
-   dol sprzetu od podlogi; piekarnik: PIEKARNIK_MAX 1100 tymczasowo (do potwierdzenia z uzytkownikiem — w makiecie progu nie bylo) */
+   dol sprzetu od podlogi; piekarnik: PIEKARNIK_MAX 1100 (w makiecie progu nie bylo; potwierdzony przez uzytkownika 2026-11-15) */
 const MIKRO_MAX = 1300, PIEKARNIK_MAX = 1100;
 const sprzetWysokoMsgs = (project, i) => {
   const it = project.items[i]; if (!it || it.cab.sprzetCiagu) return [];
@@ -23697,7 +23721,10 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       ...(() => { const suf = sufitSciany(project, run), wsz = project.items.filter((x) => x.runId === run.id && !wolneCiagu(x.cab));
         if (suf == null || !wsz.length) return [];
         const nY = suf - Math.max(...wsz.map((x) => Math.round(Number(x.cab.H) || 0) + dolGornej(x.cab) + blendaH(x.cab)));
-        return nY >= 0 && nY !== Y ? [<Btn key="suf" el="mak-gorny-do-sufitu" onClick={() => ustaw(nY)}>do sufitu ({fmt(suf)}{wsz.some((x) => blendaH(x.cab)) ? ", z blendą" : ""})</Btn>] : []; })()], "mak-gorny-dol-w");
+        const bezBl = !wsz.some((x) => blendaH(x.cab));
+        return [...(nY >= 0 && nY !== Y ? [<Btn key="suf" el="mak-gorny-do-sufitu" onClick={() => ustaw(nY)}>do sufitu ({fmt(suf)}{bezBl ? "" : ", z blendą"})</Btn>] : []),
+          // korpus pod sufit z blenda (2026-11-15: zawieszki potrzebuja luzu nad szafka) — szafki nizej o 100, blenda do sufitu
+          ...(bezBl ? [<Btn key="sufb" el="mak-gorny-do-sufitu-blenda" onClick={() => zmienProjekt((p) => gornyBlendaDoSufitu(p, run.id))}>do sufitu z blendą {fmt(BLENDA_DO_SUFITU)}</Btn>] : [])]; })()], "mak-gorny-dol-w");
   };
   /* Od blatu do dolu szafek gornych (uzytkownik 2026-11-15: „w ciągu górnym brak opcji wymiaru od blatu, widać, że jest stały 500”) —
      przeswit `run.clearance` wprost, caly ciag gorny (wysokosc szafek zostaje) */
@@ -24083,12 +24110,13 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     return wiersz(`pz${k.li}-${k.jA}`, k.nr == null ? "poziomy kolumny — każdy dostaje swój front" : "poziomy kolumny", przyciski, "mak-poziomy");
   };
   /* Szuflady w slupku (uzytkownik 2026-11-11: „2 niskie szuflady na dół słupka”): w wysokim poziomie (ponad 900 mm) szafki
-     wyzszej niz 1500 szuflady nie zajmuja calego poziomu — dostaja wlasny poziom na jego dole, po 180 mm na szuflade;
-     reszta zostaje nad nimi. Poziomy dostaja obecne wysokosci, najwyzszy bez sprzetu zostaje auto. */
+     wyzszej niz 1500 szuflady nie zajmuja calego poziomu — dostaja wlasny poziom na jego dole, po MAK_SZUFL_SLUPEK mm na szuflade
+     (220 jak w makiecie „Dodaj”, uzytkownik 2026-11-15: „220 wszędzie”; bylo 180); reszta zostaje nad nimi. Poziomy dostaja obecne
+     wysokosci, najwyzszy bez sprzetu zostaje auto. */
   const slupekSzuflady = (k, n) => {
     const g = geoKarty, lvG = g && (g.levels || [])[k.li];
     if (!(cab.slupek || cab.H > 1500) || k.nr != null || k.n !== 1 || k.c.kind === "drawers" || !lvG || (g.levels || []).length !== (cab.levels || []).length || !(lvG.h > 900)) return false;
-    const hS = n * 180;
+    const hS = n * MAK_SZUFL_SLUPEK;
     zmien(idx, (c) => {
       const L = c.levels;
       L.forEach((lv, x) => { lv.h = Math.round(g.levels[x].h); });
@@ -24716,6 +24744,32 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
   };
   const zmienWysRef = useRef(zmienWys);
   zmienWysRef.current = zmienWys;
+  /* Dol szafki gornej przeciagniety (uzytkownik 2026-11-15: „po przesunięciu pytanie, czy cały ciąg, czy tylko ta”): tylko ta szafka
+     (`cab.dolGorny`, gora zostaje), caly ciag — dol (gora zostaje, szafki krotsze / dluzsze) albo przesuniety (wysokosc zostaje).
+     Zlapane „jak inne” — bez pytania (wraca do dolu ciagu). */
+  const [pytDol, setPytDol] = useState(null);
+  const zmienDol = (idx, w) => {
+    const it = project.items[idx]; if (!it || !w || !w.wartosc) return;
+    const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
+    if (!run || run.tier !== "gorny" || /jak inne/.test(w.napis || "")) { zmien(idx, w.zmien); return; }
+    const inne = project.items.filter((x, i) => i !== idx && x.runId === run.id && !x.cab.sprzetCiagu).length;
+    setPytDol({ idx, dy: w.wartosc, zmienTa: w.zmien, run, inne, nazwa: (it.cab.name || "").trim() || "szafka" });
+  };
+  const zmienDolRef = useRef(zmienDol);
+  zmienDolRef.current = zmienDol;
+  const dolCiagu = (przesun) => {
+    const q = pytDol; setPytDol(null); if (!q) return;
+    zmienProjekt((p) => {
+      const run = (p.runs || []).find((r) => r.id === q.run.id); if (!run) return p;
+      const Y = tierMountY(p, run), dy = q.dy;
+      const its = p.items.filter((x) => x.runId === run.id && !x.cab.sprzetCiagu);
+      if (Y + dy < 0 || (!przesun && its.some((x) => Math.round(Number(x.cab.H) || 0) - dy < 250))) return p;
+      return { ...p,
+        runs: p.runs.map((r) => (r.id !== run.id ? r : { ...r, ...(r.wall ? { clearance: Math.max(0, Math.round((r.clearance ?? 500) + dy)) } : { mountY: Math.round(Y + dy) }),
+          ...(!przesun && r.H != null ? { H: Math.round(r.H - dy) } : {}) })),
+        items: przesun ? p.items : p.items.map((x) => (x.runId === run.id && !x.cab.sprzetCiagu ? { ...x, cab: { ...x.cab, H: Math.round(Number(x.cab.H) || 0) - dy } } : x)) };
+    });
+  };
   const wysDla = (ids) => {
     const { idx, stara, nowa } = pytWys;
     zmienProjekt((p) => {
@@ -24995,6 +25049,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           zmien(d.idx, d.wynik.zmien); if (x >= 0) setSelAgd({ i: d.idx, rodz: "kol", li: x, j: 0 }); return; }
       }
       if (d.wynik && d.u === "wys") zmienWysRef.current(d.idx, d.wynik.wartosc);
+      else if (d.wynik && d.u === "dol") zmienDolRef.current(d.idx, d.wynik);
       else if (d.wynik && d.u === "blenda") {
         // blenda calego ciagu na tej samej wysokosci idzie razem (jak „Blenda nad szafkami ciągu”)
         const gr = makGrupaBlendy(project, d.idx), zm = d.wynik.zmien;
@@ -26094,6 +26149,27 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           </div>
         );
       })()}
+      {pytDol && (() => { const q = pytDol, n = fmt(Math.abs(q.dy)), gora = q.dy > 0;
+        return <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/25 p-4" data-el="makieta-pytanie-dol"
+          onClick={(e) => { if (e.target === e.currentTarget) setPytDol(null); }}>
+          <div role="dialog" aria-label="Dół szafki górnej" className="w-full max-w-md rounded-lg bg-white p-4 shadow-xl">
+            <h3 className="text-sm font-semibold text-stone-900">„{q.nazwa}”: dół o {n} mm {gora ? "wyżej" : "niżej"}</h3>
+            <p className="mt-1 text-xs text-stone-600">Zmienić tylko tę szafkę czy cały ciąg górny „{q.run.name || "ciąg"}”?</p>
+            <div className="mt-3 flex flex-col gap-1.5">
+              {q.inne > 0 && <button data-dol="ta" onClick={() => { setPytDol(null); zmien(q.idx, q.zmienTa); }}
+                className="rounded border border-teal-600 bg-teal-700 px-3 py-1.5 text-left text-xs font-medium text-white hover:bg-teal-800">
+                Tylko „{q.nazwa}” — {gora ? "krótsza" : "dłuższa"} o {n} mm, góra zostaje równo z innymi</button>}
+              <button data-dol="ciag" onClick={() => dolCiagu(false)}
+                className={`rounded border border-teal-600 px-3 py-1.5 text-left text-xs font-medium ${q.inne > 0 ? "text-teal-800 hover:bg-teal-50" : "bg-teal-700 text-white hover:bg-teal-800"}`}>
+                Cały ciąg górny — dół o {n} mm {gora ? "wyżej" : "niżej"}, góra zostaje (szafki {gora ? "krótsze" : "dłuższe"} o {n} mm)</button>
+              <button data-dol="przesun" onClick={() => dolCiagu(true)}
+                className="rounded border border-teal-600 px-3 py-1.5 text-left text-xs font-medium text-teal-800 hover:bg-teal-50">
+                Cały ciąg górny {gora ? "w górę" : "w dół"} o {n} mm — wysokość szafek zostaje</button>
+              <button data-dol="anuluj" onClick={() => setPytDol(null)}
+                className="rounded border border-stone-300 px-3 py-1.5 text-left text-xs text-stone-700 hover:bg-stone-100">Anuluj</button>
+            </div>
+          </div>
+        </div>; })()}
       {pytWys && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/25 p-4" data-el="makieta-pytanie-wys"
           onClick={(e) => { if (e.target === e.currentTarget) setPytWys(null); }}>
@@ -27591,6 +27667,8 @@ export default function App() {
         return maks > 0 ? { ...p, items: p.items.map((x) => (x.runId === id && (Number(x.offset) || 0) === maks ? { ...x, offset: Math.max(0, maks - Number(mm)) } : x)) } : p; }); return; }
     // „gornyod:<ciąg górny>:<mm>” — ciag gorny zaczyna sie tyle od lewej (za slupkiem na poczatku sciany)
     if (action.startsWith("gornyod:")) { const [, id, mm] = action.split(":"); if (id) setRun(id, { offset: Math.max(0, Math.round(Number(mm) || 0)), offsetFrom: "left" }); return; }
+    // „blendasufit:<ciąg górny>:<mm>” — szafki gorne nizej o tyle, blenda do sufitu (zawieszki potrzebuja luzu nad szafka)
+    if (action.startsWith("blendasufit:")) { const [, id, mm] = action.split(":"); if (id) setProject((p) => gornyBlendaDoSufitu(p, id, Math.round(Number(mm) || BLENDA_DO_SUFITU))); return; }
     if (action.startsWith("slupekgl:")) { const [, d, ix] = action.split(":");
       setProject((p) => ({ ...p, items: p.items.map((x, k) => (k === Number(ix) ? { ...x, offset: Number(d), cab: { ...x.cab, slupek: true } } : x)) })); return; }
     if (action.startsWith("wallw:")) { const [, v, id] = action.split(":"); if (id && Number(v) > 0) setRun(id, { wallW: Number(v) }); return; }

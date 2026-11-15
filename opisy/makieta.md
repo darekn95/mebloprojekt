@@ -423,7 +423,7 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
   Nazwy szafek pod blatem na froncie. Napis „W × H” przy uchwytach tylko bez wymiarów na rysunku.
 
 - **Szuflady w słupku**: w poziomie wyższym niż 900 mm szafki ponad 1500 przycisk liczby szuflad zakłada własny
-  niski poziom na dole (po 180 mm na szufladę), reszta zostaje nad nim (`slupekSzuflady`). Sprzęt kliknięty z palety
+  niski poziom na dole (po 220 mm na szufladę, jak w makiecie — użytkownik 2026-11-15; było 180), reszta zostaje nad nim (`slupekSzuflady`). Sprzęt kliknięty z palety
   staje nad najwyższym sprzętem słupka albo w najniższym poziomie z drzwiami; po wstawieniu otwiera się jego karta.
 - **Słupek głębszy niż ciąg** (decyzja 2026-11-11): przy uwadze o głębokości przycisk „To słupek — tył przy ścianie,
   front wysunięty o N mm” (`slupekgl:<mm>:<pozycja>` → `item.offset`, `cab.slupek`); pozostałe szafki zostają przy
@@ -646,7 +646,7 @@ na środek; w okienku półki „Półki po równo”, w okienku szuflady „Ta 
 szuflady (`mak-szufl-front`). Wpisana wysokość szuflady zmienia tylko ją — różnicę bierze poziom nad / pod szufladami (słupek), a przy
 szufladach na całą szafkę najwyższa szuflada (`makSzuflWys`, `makSzuflKto`). Ciąg górny to osobny ciąg: jego wysokość idzie za jego
 szafkami (`zmienWys`), sama szafka w ciągu — bez uwagi o wysokości ciągu, przy górnej bez „To słupek”. Z góry z blatem ciąg górny rysuje
-się na blacie. Mikrofala (dół > 1300) i piekarnik (dół > 1100, do potwierdzenia) wysoko — ostrzeżenia w Uwagach (`sprzetWysokoMsgs`).
+się na blacie. Mikrofala (dół > 1300) i piekarnik (dół > 1100, potwierdzone 15.11) wysoko — ostrzeżenia w Uwagach (`sprzetWysokoMsgs`).
 Testy: `makieta17`, `funkcje`.
 
 2026-11-15, drugie zgłoszenia (użytkownik: „brak opcji przesunięcia szafki do samego sufitu”, „ręcznie nie da się złapać, żeby blenda
@@ -666,3 +666,14 @@ górnymi szafkami?”):
   (`mak-ciag-blenda-sufit`); „jest” daje całemu ciągowi jedną wysokość.
 - Uwaga o suficie liczy blendę: „Szafki górne z blendą sięgają …” (błąd), „Nad szafkami górnymi (z blendą) zostaje N mm do sufitu” (info).
 Testy: `makieta18`, `funkcje`.
+
+2026-11-15, decyzje użytkownika: 
+- **Dół szafki górnej przeciągnięty** — okienko „tylko ta / cały ciąg” (`makieta-pytanie-dol`): tylko ta (krótsza / dłuższa, góra zostaje
+  równo z innymi), cały ciąg górny — dół (góra zostaje, wszystkie szafki krótsze / dłuższe, `run.clearance` i `run.H`), cały ciąg
+  przesunięty (wysokość zostaje), anuluj. Złapane „jak inne” — bez pytania.
+- **Szafki górne na styk z sufitem** (korpus mniej niż `ZAWIESZKA_LUZ_SUFIT` = 20 mm pod sufitem, bez blendy, na zawieszkach) —
+  ostrzeżenie: na zawieszkach ich nie zawiesisz (zaczepienie o listwę wymaga uniesienia szafki), zostaw luz i zakryj go blendą; przycisk
+  „Blenda 100 mm do sufitu — szafki górne niżej” (`blendasufit`, `gornyBlendaDoSufitu`). Ten sam ruch w karcie: „do sufitu z blendą 100”
+  (`mak-gorny-do-sufitu-blenda`). „Do sufitu” zostaje na styk (decyzja użytkownika).
+- **Szuflady dokładane na dół słupka** — po 220 mm (`MAK_SZUFL_SLUPEK`, jak w makiecie; było 180). Piekarnik wysoko — próg 1100 potwierdzony.
+Testy: `makieta18`, `makieta12`.

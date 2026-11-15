@@ -26,7 +26,7 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | Uchwyt szerokości (prawa krawędź), co 10 mm | jest |
 | Uchwyt wysokości (górna krawędź; w kuchni nie dolna — pod blat), co 10 mm | jest |
 | **Wysokość łapie górę szafki obok** (użytkownik 15.11: „moment złapania do wysokości szafki obok”) — 40 mm, napis „równo z „…””, ciągła zielona linia | dorobione 15.11 (`makLapanieWys`, `makieta17`); w pliku makiety uchwyt wysokości szedł co 10 mm bez łapania — łapała półka (45 mm) i przegroda (±15) |
-| **Uchwyt dołu szafki górnej** (użytkownik 15.11: „górę szafki da się przesuwać, a dołu nie”) — dół tej szafki, góra zostaje, łapie „jak inne” | dorobione 15.11 (`makLapanieDol`, `makieta18`) |
+| **Uchwyt dołu szafki górnej** (użytkownik 15.11: „górę szafki da się przesuwać, a dołu nie”) — łapie „jak inne”; po puszczeniu pytanie: tylko ta / cały ciąg (dół) / cały ciąg przesuń (decyzja 15.11) | dorobione 15.11 (`makLapanieDol`, `makieta-pytanie-dol`, `makieta18`) |
 | **Blenda — górna krawędź przeciągana, łapie sufit i górę szafek obok** (użytkownik 15.11: „ręcznie nie da się złapać, żeby blenda była do sufitu”) | dorobione 15.11 (`makLapanieBlendy`, cały ciąg z tą samą górą, `makieta18`) |
 | **Wysokość łapie sufit** („do sufitu”, z blendą) | dorobione 15.11 (`makieta18`) |
 | Uchwyt głębokości z góry | jest |
@@ -71,7 +71,7 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | Szafka górna: dół od podłogi, front, półki, przegroda, „Bez szafki górnej” | jest |
 | Cały ciąg górny: dół / góra od podłogi | jest |
 | **Od blatu do dołu szafek górnych (prześwit) — pole** (użytkownik 15.11: „brak opcji wymiaru od blatu, stały 500”) | dorobione 15.11 (`mak-gorny-od-blatu`) |
-| **Ciąg górny „do sufitu”** (użytkownik 15.11: „brak opcji przesunięcia szafki do samego sufitu”) | dorobione 15.11 (`mak-gorny-do-sufitu`); luz na zawieszenie — do decyzji |
+| **Ciąg górny „do sufitu”** (użytkownik 15.11: „brak opcji przesunięcia szafki do samego sufitu”) | dorobione 15.11 (`mak-gorny-do-sufitu`) — na styk; na zawieszkach ostrzeżenie i „Blenda 100 mm do sufitu” (decyzja 15.11) |
 | **Blenda nad szafką w karcie szafki górnej i słupka, „do sufitu”** (użytkownik 15.11: „gdzie jest opcja blendy nad górnymi?”) | dorobione 15.11 (było tylko w zakładce Ciąg i w szczegółowej) |
 | Ciąg górny wzdłuż ściany: od lewej / od prawej, mm, „przy słupku” | dorobione 14.11 |
 | **Ciąg górny to osobny ciąg** — jego wysokość idzie za jego szafkami (użytkownik 14.11) | poprawione 15.11 (bez „nie zgadza się z ciągiem” przy jednej szafce, bez „To słupek” przy górnej) |
@@ -85,7 +85,7 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | Szuflady 1–5, „usuń szuflady”, „Fronty po równo” | jest |
 | **Wysokość każdej szuflady z osobna w karcie** (użytkownik 15.11: „szybka wysokość każdej z osobna”) | dorobione 15.11 (`mak-szufl-fronty`) |
 | „Szuflada + drzwi”: u góry 170 / na dole 200, 1 / 2 drzwi, „Szuflada typowa” | jest |
-| Szuflady w szafie na dole, typowo po 220 mm (Wersja 12, 21) | inaczej: w słupku dochodzą po 180 mm — do decyzji |
+| Szuflady w szafie na dole, typowo po 220 mm (Wersja 12, 21) | jest — po 220 też w słupku (decyzja 15.11: „220 wszędzie”, `MAK_SZUFL_SLUPEK`) |
 | Półki po równo, półki w kolumnach przy przegrodzie, „pod drążkiem ↕N”, „↕N od góry” | jest |
 | Drążek 60 mm pod półką (makieta) | inaczej: 70 mm pod płytą (GTV, regulacja rozety) — zostaje z katalogu |
 
@@ -99,7 +99,7 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | Kaseta / komora pod blatem a wzmocnienie leżące — pomarańczowo na rysunku | jest |
 | Słupek: piekarnik / mikrofala / ekspres, „Na wysokość blatu”, „Pod blat”, „Góra do dołu szafek górnych”, „Zamień miejscami”, „Razem”, −/+50 | jest |
 | **Mikrofala wysoko (dół > 1300) — ostrzeżenie „w aplikacji też”** (08.11) | było tylko w karcie AGD; dorobione 15.11 w Uwagach |
-| **Piekarnik za wysoko** (użytkownik 15.11) | dorobione 15.11 w Uwagach, próg 1100 (dół) — do decyzji |
+| **Piekarnik za wysoko** (użytkownik 15.11) | dorobione 15.11 w Uwagach, próg 1100 (dół) — potwierdzony 15.11 |
 | Okap: rodzaje, 50 / 60 / 90, dół okapu (pole, ±50, „650 nad płytą”), min. 650 / 750, szerszy niż szafka | jest |
 | Lodówka: do zabudowy (wnęki 88–194, ślizgowo / na stałe / bez frontu, 1 / 2 fronty), podblatowa w ciągu, podblatowa w szafce (mała na dnie), wolnostojąca (luzy L / P / nad / tył, „na równo”) | jest (14.11) |
 | Zmywarka do zabudowy 60 / 45, wolnostojąca pod blatem / z pokrywą | jest |
