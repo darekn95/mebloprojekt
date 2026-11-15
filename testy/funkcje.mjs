@@ -35,7 +35,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
-  'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy'];
+  'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1414,4 +1414,21 @@ console.log('\n== 2026-11-15: sufit ściany, blenda i dół szafki górnej ==');
   const wD = G.makWylicz(c, g, { u: 'dol', lapD: [], dol0: 1358 }, { x: 100, y: 720 - 100 });
   const c2 = JSON.parse(JSON.stringify(c)); if (wD) wD.zmien(c2);
   ok('dół +100: „dół 1458 od podłogi”, wysokość 620, własny dół 100', !!wD && /dół 1458 od podłogi/.test(wD.napis) && c2.H === 620 && c2.dolGorny === 100, wD && `${wD.napis} ${c2.H} ${c2.dolGorny}`);
+}
+
+console.log('\n== 2026-11-15: Sevroll Blendo — cokół i blenda nad szafką ==');
+{
+  const M0 = G.defaultMaterials;
+  const base = { name: 'B', W: 800, H: 720, D: 550, legs: { on: true, height: 100 }, plinth: { on: true, height: 100, setback: 0 },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null] }] }] };
+  const hw = (c) => G.computeGeo(G.migrateCab(c, M0), M0).hardware;
+  const kl = hw(base), bl = hw({ ...base, plinth: { ...base.plinth, mocowanie: 'blendo' } });
+  const ile = (h, n) => h.filter((x) => x.name === n).reduce((a, x) => a + x.qty, 0);
+  ok('cokół domyślnie na klipsach (bez Blendo)', ile(kl, 'Złączka do cokołu') > 0 && ile(kl, 'Złącze Sevroll Blendo 07025') === 0, JSON.stringify(kl.filter((x) => /cokoł|Blendo/i.test(x.name + x.use))));
+  ok('cokół na Blendo 800: 3 komplety (co ok. 600, 50 od końców), bez klipsów', ile(bl, 'Złącze Sevroll Blendo 07025') === 3 && ile(bl, 'Złączka do cokołu') === 0,
+    JSON.stringify(bl.filter((x) => /Blendo|cokoł/i.test(x.name + x.use)).map((x) => [x.name, x.qty, x.spec])));
+  ok('blendoIle: 400 → 2, 600 → 2, 1200 → 3, 2400 → 5', G.blendoIle(400) === 2 && G.blendoIle(600) === 2 && G.blendoIle(1200) === 3 && G.blendoIle(2400) === 5,
+    [400, 600, 1200, 2400].map(G.blendoIle).join(','));
+  const tb = hw({ ...base, topFiller: { on: true, height: 120, mocowanie: 'blendo' } }), tz = hw({ ...base, topFiller: { on: true, height: 120 } });
+  ok('blenda nad szafką na Blendo: 3 komplety więcej; zwykła — bez', ile(tb, 'Złącze Sevroll Blendo 07025') === 3 && ile(tz, 'Złącze Sevroll Blendo 07025') === 0);
 }

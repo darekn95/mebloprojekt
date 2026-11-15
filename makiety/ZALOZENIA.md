@@ -115,5 +115,5 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | Blat: zalecenie odsunięcia szafek od ściany; od końca blatu 30 mm; różne głębokości w rogu — informacja | jest |
 | Głębokość dolnych kuchennych 550; nowy ciąg kuchenny 17 mm od ściany; szuflady NL 500 | jest (14.11) |
 | Skrzydło a wysunięta szuflada obok — informacja, nie błąd | jest (14.11) |
-| Złącze Sevroll Blendo do cokołu | czeka na instrukcję od użytkownika |
+| Złącze Sevroll Blendo do cokołu i blendy nad szafkami | jest (15.11): opcja, domyślnie klipsy; pod dnem, co ok. 600 mm (zrzuty z filmu w `instrukcje/sevroll-blendo/`). Blenda przy ścianie — do decyzji (w aplikacji nie ma takiego elementu) |
 | Sufit ściany: pole „wys.” nad rysunkiem działa też dla ciągu górnego (uwaga o suficie liczy blendę) | poprawione 15.11 (`sufitSciany`) |

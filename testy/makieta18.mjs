@@ -174,6 +174,29 @@ await zakl('szafka');
     ok('po puszczeniu: góra szafki górnej pod sufitem', p.items[2].cab.H === 720 + SUFIT - G0, String(p.items[2].cab.H));
   } }
 
+console.log('== Sevroll Blendo: cokół i blenda nad szafką ==');
+await start(FIX + `p.items.forEach((x) => { if (x.runId === 'r1') x.cab.plinth = { on: true, height: 100, mode: 'under', setback: 0 }; }); p.active = 1;`);
+await zakl('cokol');
+{ const b = page.locator('[data-el="mak-cokol-moc"][data-v="blendo"]');
+  ok('Cokół i nóżki: „Mocowanie cokołu” — klipsy na nóżki / złącza Blendo (domyślnie klipsy)', (await b.count()) === 1 && (await page.locator('[data-el="mak-cokol-moc"][data-v="klipsy"]').getAttribute('aria-pressed')) === 'true');
+  await b.click(); await page.waitForTimeout(600); }
+p = await czekaj("p.items.filter((x) => x.runId === 'r1').every((x) => x.cab.plinth.mocowanie === 'blendo')");
+ok('Blendo — cały ciąg dolny (cokół ciągu), podpowiedź z kolejnością', p.items.filter((x) => x.runId === 'r1').every((x) => x.cab.plinth.mocowanie === 'blendo')
+  && /Kolejność: szafki na nóżkach/.test(await page.locator('[data-el="mak-cokol-blendo-hint"]').innerText().catch(() => '')));
+await page.locator('[data-el="mak-cokol-moc"][data-v="klipsy"]').click(); await page.waitForTimeout(600);
+p = await czekaj("p.items.filter((x) => x.runId === 'r1').every((x) => !x.cab.plinth.mocowanie)");
+ok('z powrotem klipsy', p.items.filter((x) => x.runId === 'r1').every((x) => !x.cab.plinth.mocowanie));
+await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.active = 2; [2, 3].forEach((i) => { p.items[i].cab.topFiller = { on: true, height: 100 }; }); localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
+await zakl('szafka');
+await page.locator('[data-el="mak-sz-blenda-moc"][data-v="blendo"]').click(); await page.waitForTimeout(600);
+p = await czekaj("p.items[2].cab.topFiller.mocowanie === 'blendo'");
+ok('karta szafki górnej: blenda na złączach Blendo (tylko ta szafka)', p.items[2].cab.topFiller.mocowanie === 'blendo' && !p.items[3].cab.topFiller.mocowanie);
+await zakl('ciag');
+await page.locator('[data-el="mak-ciag-blenda-moc"][data-v="blendo"]').click(); await page.waitForTimeout(600);
+p = await czekaj("p.items[3].cab.topFiller.mocowanie === 'blendo'");
+ok('zakładka Ciąg: blenda całego ciągu górnego na Blendo', p.items[2].cab.topFiller.mocowanie === 'blendo' && p.items[3].cab.topFiller.mocowanie === 'blendo');
+
 ok('bez błędów strony', errors.length === 0, errors.join(' | '));
 await browser.close();
 console.log(bledy ? `BLEDOW: ${bledy}` : 'WSZYSTKO OK');

@@ -1338,4 +1338,6 @@ z kontenera (DNS / siec sesji), w katalogu Sevroll 2026 i GTV 2023 z `instrukcje
 sie trzyma (cokol / noga / dno), otwory w cokole (srednica, glebokosc, odstep od krawedzi), ile na dlugosc cokolu, kolejnosc montazu.
 [AI-INFO] 2026-11-15: rura na wieszaki 60 mm pod plyta (`DRAZEK_POD_PLYTA`, decyzja uzytkownika „to robimy 60”; bylo 70). Blendo: uzytkownik podal
 strone wzornika https://spacetool.pl/szablon-do-zlaczek-sevroll-blendo-p-89.html (wzornik i film). Host dopisany do sieci srodowiska „MebloProjekt”,
-ale WebFetch go nie widzi (wlasna lista), a curl blokuje klasyfikator uprawnien — strona nieprzeczytana; czeka na tekst / zrzut od uzytkownika.
+ale WebFetch go nie widzi (wlasna lista), a curl blokuje klasyfikator uprawnien — strona nieprzeczytana. Uzytkownik przyslal zrzuty z filmu
+(`instrukcje/sevroll-blendo/`) i decyzje: polowka pod dnem, co ok. 600 mm, opcja (domyslnie klipsy), tez blenda nad szafkami — zrobione.
+[CHECK] Blendo przy „blendzie przy scianie / wypelnieniu” — w aplikacji nie ma takiego elementu (jest wstawka w rogu i kolumna „Blenda”) — pytanie do uzytkownika.

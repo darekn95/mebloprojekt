@@ -18,7 +18,10 @@ Karty „Cokół” i „Nóżki” szafki oraz podsekcje „Cokół” i „Nó
   - Przy cokole w obrysie nóżka podnosi szafkę tylko o tyle, o ile jest wyższa od cokołu.
   - Zamówienie łączy tylko te same warianty (kształt, wysokość, kolor).
 - **Mocowanie cokołu**:
-  - na nóżkach — wpina się klipsami („Złączka do cokołu”, po jednej na nóżkę przedniego rzędu);
+  - na nóżkach — wpina się klipsami („Złączka do cokołu”, po jednej na nóżkę przedniego rzędu); do wyboru złącza Sevroll Blendo
+    (`plinth.mocowanie = "blendo"`, 2026-11-15): połówka pod dnem szafki (cofnięta o cofnięcie cokołu, między nóżkami) i na tylnej
+    stronie cokołu, co ok. 600 mm, pierwsze i ostatnie ok. 50 mm od końca (`blendoIle`; szafka 800 — 3 komplety); wtedy bez klipsów.
+    Kolejność: szafki na nóżkach wypoziomowane → połówki pod dnem → połówki na cokole (wzornik Sevroll) → cokół zatrzaśnięty;
   - bez nóżek — skręcany do korpusu na trójkąty: po 1 na krótki bok i co ok. 300 mm wzdłuż, min. 2.
 
 ## Co ustawiasz ręcznie
@@ -43,7 +46,7 @@ Karty „Cokół” i „Nóżki” szafki oraz podsekcje „Cokół” i „Nó
 
 - **Nóżka MLA-50**: katalog GTV 2023, s. 481 (regulacja 50–75 mm); błąd z przyciskiem to decyzja użytkownika 2026-10-17.
 - **Rozstaw**: 40 mm od krawędzi i para co 900 mm to zasada robocza programu.
-- **Mocowanie**: klipsy na nóżki przedniego rzędu i trójkąty co ok. 300 mm — ustalone z użytkownikiem.
+- **Mocowanie**: klipsy na nóżki przedniego rzędu i trójkąty co ok. 300 mm — ustalone z użytkownikiem; Sevroll Blendo — opcja (domyślnie klipsy, decyzja 2026-11-15).
 
 ## Gdzie w kodzie i testy
 

@@ -503,6 +503,15 @@ const TIPON_OD_STYKU = 20;
 // szafka na zawieszkach: wymuszone albo bez nozek, cokolu i podlogi pod soba (stojacy ciag)
 const szafkaWisi = (cab) => cab.hangers === "always"
   || (cab.hangers !== "never" && !((cab.legs && cab.legs.on) || (cab.plinth && cab.plinth.on) || cab.naPodlodze));
+/* Sevroll BLENDO (07025) — zlacze zatrzaskowe do cokolow i blend (uzytkownik 2026-11-15; zrzuty z filmu montazu w
+   `instrukcje/sevroll-blendo/`): dwie polowki przykrecane na powierzchni, zatrzaskiwane. Cokol: polowka pod dnem szafki (cofnieta
+   o cofniecie cokolu, miedzy nozkami) i polowka na tylnej stronie cokolu; blenda nad szafka: polowka na wierzchu szafki przy licu
+   i na tylnej stronie blendy. Co ok. 600 mm, pierwsze i ostatnie ok. 50 mm od konca (decyzje uzytkownika 2026-11-15). Domyslnie
+   cokol na klipsach (`plinth.mocowanie` puste), blenda bez zlaczy (`topFiller.mocowanie` puste). Polozenie polowek — wzornik Sevroll. */
+const BLENDO_NAME = "Złącze Sevroll Blendo 07025", BLENDO_CO = 600, BLENDO_OD_KONCA = 50;
+const blendoIle = (len) => Math.max(2, Math.ceil(Math.max(0, Math.round(len) - 2 * BLENDO_OD_KONCA) / BLENDO_CO) + 1);
+const cokolBlendo = (cab) => !!(cab && cab.plinth && cab.plinth.mocowanie === "blendo");
+const blendaBlendo = (cab) => !!(cab && cab.topFiller && cab.topFiller.mocowanie === "blendo");
 const DEFAULT_HW_PRICES = {
   Zawias: 3,
   "Nóżka regulowana": 2.3,
@@ -3234,7 +3243,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     const sb = cab.plinth.setback || 0;
     // plyta cokolu w pasie przedniego rzedu nozek (od LEG_INSET do LEG_INSET + LEG_W)
     if (sb > cofMax && sb < LEG_INSET + LEG_W)
-      add("error", `Cokół cofnięty o ${fmt(cab.plinth.setback)} mm wchodzi w nóżki — przedni rząd stoi ${LEG_INSET} mm od lica, a cokół na nóżkach wpina się w nie klipsami, więc stoi przed nimi: najwyżej ${fmt(cofMax)} mm cofnięcia.|cokolcof:${cofMax}`);
+      add("error", `Cokół cofnięty o ${fmt(cab.plinth.setback)} mm wchodzi w nóżki — przedni rząd stoi ${LEG_INSET} mm od lica, ${cokolBlendo(cab) ? "a cokół na złączach Blendo stoi przed nimi" : "a cokół na nóżkach wpina się w nie klipsami, więc stoi przed nimi"}: najwyżej ${fmt(cofMax)} mm cofnięcia.|cokolcof:${cofMax}`);
   }
   const zalecaneNozki = autoLegs(W);
   if (cab.legs && cab.legs.on && Number(cab.legs.count) > 0
@@ -8149,6 +8158,17 @@ function computeGeoLiczy(cab, mat, ctx) {
          Nozka srodkowa (przy nieparzystej liczbie) stoi w glebi, nie pod
          cokolem, wiec do klipsow sie nie liczy. */
       const przod = legs.xs.length;
+      if (cokolBlendo(cab)) {
+        // cokol zatrzaskiwany na zlaczach Blendo pod dnem — zamiast klipsow na nozki (uzytkownik 2026-11-15)
+        const lenB = Math.round(plinthInBody ? innerW : W), nB = blendoIle(lenB);
+        hardware.push({
+          name: BLENDO_NAME,
+          use: "cokół zatrzaskiwany na złączach Blendo (zamiast klipsów na nóżki)",
+          spec: `cokół na złączach Blendo: połówka pod dnem (cofnięta o cofnięcie cokołu, między nóżkami), połówka na tylnej stronie cokołu — co ok. ${BLENDO_CO} mm na ${fmt(lenB)} mm (${nB}); położenie z wzornika Sevroll`,
+          qty: nB,
+          unit: "kpl.",
+        });
+      } else
       hardware.push({
         name: "Złączka do cokołu",
         use: "cokół wpinany w nóżki przedniego rzędu",
@@ -8172,6 +8192,17 @@ function computeGeoLiczy(cab, mat, ctx) {
         unit: "szt.",
       });
     }
+  }
+  // blenda nad szafka na zlaczach Blendo (uzytkownik 2026-11-15): polowka na wierzchu szafki przy licu, polowka na blendzie
+  if (blendaH(cab) && blendaBlendo(cab)) {
+    const nB = blendoIle(W);
+    hardware.push({
+      name: BLENDO_NAME,
+      use: "blenda nad szafką zatrzaskiwana na złączach Blendo",
+      spec: `blenda nad szafką na złączach Blendo: połówka na wierzchu szafki przy licu, połówka na tylnej stronie blendy — co ok. ${BLENDO_CO} mm na ${fmt(W)} mm (${nB}); położenie z wzornika Sevroll`,
+      qty: nB,
+      unit: "kpl.",
+    });
   }
 
   if (shelfPins && pinShelves) {
@@ -18202,6 +18233,10 @@ const cornerArmParts = (a) => {
     const lenC = Math.max(0, len - Math.max(0, Math.round(((cab.plinth || {}).setback) || 0)));
     if (cab.legs && cab.legs.on) {
       const przod = armLegPlan(a).us.length;
+      if (cokolBlendo(cab)) { const nB = blendoIle(lenC);
+        hardware.push({ name: BLENDO_NAME, use: "cokół zatrzaskiwany na złączach Blendo (zamiast klipsów na nóżki)",
+          spec: `cokół ramienia szafki narożnej na złączach Blendo: pod dnem ramienia i na cokole — co ok. ${BLENDO_CO} mm na ${fmt(lenC)} mm (${nB})`, qty: nB, unit: "kpl." }); }
+      else
       hardware.push({ name: "Złączka do cokołu", use: "cokół wpinany w nóżki przedniego rzędu",
         spec: `cokół ramienia szafki narożnej: klips na każdą nóżkę przedniego rzędu (${przod})`, qty: przod, unit: "szt." });
     } else {
@@ -23736,6 +23771,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v >= 20 && v !== hB) zmien(idx, (c) => { c.topFiller = { ...(c.topFiller || {}), on: true, height: v }; }); }}
         className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />, <span key="mm" className="text-[11px] text-stone-500">mm</span>] : []),
       ...(doSuf != null && doSuf !== hB ? [<Btn key="s" el="mak-sz-blenda-sufit" onClick={() => zmien(idx, (c) => { c.topFiller = { ...(c.topFiller || {}), on: true, height: doSuf }; })}>do sufitu ({fmt(doSuf)})</Btn>] : [])], "mak-sz-blenda-w")}
+      {hB ? wiersz("gblm", "mocowanie blendy", [["zwykla", "zwykłe"], ["blendo", "złącza Blendo"]].map(([v, l]) =>
+        <Btn key={v} el="mak-sz-blenda-moc" v={v} on={(blendaBlendo(cab) ? "blendo" : "zwykla") === v} onClick={() => zmien(idx, (c) => { c.topFiller = { ...(c.topFiller || {}), mocowanie: v === "blendo" ? "blendo" : null }; })}>{l}</Btn>), "mak-sz-blenda-moc-w") : null}
       <p className="border-b border-stone-100 py-1 text-[11px] text-stone-500" data-el="mak-sz-blenda-hint">{suf == null ? "Sufit: wpisz wysokość ściany nad rysunkiem („wys.”) — wtedy blenda i szafki łapią się do sufitu. " : ""}Blendę całego ciągu ustawisz w zakładce „Ciąg”; na rysunku przeciągnij jej górną krawędź.</p></div>;
   })();
   /* Gora calego ciagu gornego (makieta „Dodaj”, „Cały ciąg górny”: dół i góra od podłogi) — wysokosc szafek ciagu = gora − dol;
@@ -24364,7 +24401,9 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
           return q ? { ...x, cab: { ...x.cab, topFiller: { ...(x.cab.topFiller || {}), on: true, height: q.h } } } : x; }) }));
         const hS = [...new Set(doSuf.map((q) => q.h))];
         return [takNie("blenda", "Blenda nad szafkami ciągu (maskownica do sufitu)", wszystkie, (v) => ustawB({ on: v }), "mak-ciag-blenda"),
-          ...(wszystkie ? [liczba("blenda-h", "wysokość blendy", hB, (v) => ustawB({ height: v }), 10, 1)] : []),
+          ...(wszystkie ? [liczba("blenda-h", "wysokość blendy", hB, (v) => ustawB({ height: v }), 10, 1),
+            wiersz("blm", "mocowanie blendy", [["zwykla", "zwykłe"], ["blendo", "złącza Blendo"]].map(([v, l]) => <Btn key={v} el="mak-ciag-blenda-moc" v={v}
+              on={(wCiaguIt.every((x) => blendaBlendo(x.cab)) ? "blendo" : "zwykla") === v} onClick={() => ustawB({ mocowanie: v === "blendo" ? "blendo" : null })}>{l}</Btn>), "mak-ciag-blenda-moc-w")] : []),
           ...(doSuf.length && !juz ? [wiersz("blsuf", null, [<Btn key="s" el="mak-ciag-blenda-sufit" onClick={naSufit}>Blenda do sufitu ({hS.length === 1 ? `${fmt(hS[0])} mm` : "każda do sufitu"}, sufit {fmt(suf)})</Btn>], "mak-ciag-blenda-sufit-w")] : []),
           ...(suf == null ? [<p key="blsufh" className="border-b border-stone-100 py-1 text-[11px] text-stone-500" data-el="mak-ciag-blenda-bez-sufitu">Blenda do sufitu: wpisz wysokość ściany nad rysunkiem („wys.”).</p>] : [])];
       })(),
@@ -24396,6 +24435,11 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
           onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
           onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v > 0 && v !== lg.height) wCiagu((c) => { c.legs = { ...(c.legs || {}), height: v }; }); }}
           className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs" /></label>,
+      // mocowanie cokolu na nozkach: klipsy (domyslnie) albo zlacza Sevroll Blendo pod dnem (uzytkownik 2026-11-15)
+      pl.on && lg.on && wiersz("cm", "Mocowanie cokołu", [["klipsy", "klipsy na nóżki"], ["blendo", "złącza Blendo (pod dnem)"]].map(([v, l]) =>
+        <Btn key={v} el="mak-cokol-moc" v={v} on={(pl.mocowanie === "blendo" ? "blendo" : "klipsy") === v} onClick={() => cokolNa({ mocowanie: v === "blendo" ? "blendo" : null })}>{l}</Btn>), "mak-cokol-moc-w"),
+      pl.on && lg.on && pl.mocowanie === "blendo" && <p key="cmh" className="border-b border-stone-100 py-1 text-[11px] text-stone-500" data-el="mak-cokol-blendo-hint">
+        Sevroll Blendo: połówka pod dnem szafki (cofnięta o cofnięcie cokołu, między nóżkami), połówka na tylnej stronie cokołu, co ok. {BLENDO_CO} mm — położenie z wzornika. Kolejność: szafki na nóżkach wypoziomowane → połówki pod dnem → połówki na cokole (wzornik) → cokół zatrzaskujesz; zdejmujesz, ciągnąc do siebie.</p>,
       naCiag,
     ].filter(Boolean);
   }
@@ -24415,6 +24459,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       // blenda nad ta szafka (karta „Blenda nad szafką” trybu technicznego); caly ciag naraz — zakladka „Ciąg”
       rzad("blenda", "Blenda nad szafką (maskownica do sufitu)", [["tak", "jest"], ["nie", "nie ma"]], cab.topFiller && cab.topFiller.on ? "tak" : "nie",
         (c, v) => { c.topFiller = { height: 100, ...(c.topFiller || {}), on: v === "tak" }; }, "mak-blenda"),
+      ...(cab.topFiller && cab.topFiller.on ? [rzad("blm", "mocowanie blendy", [["zwykla", "zwykłe"], ["blendo", "złącza Blendo"]], blendaBlendo(cab) ? "blendo" : "zwykla",
+        (c, v) => { c.topFiller = { ...(c.topFiller || {}), mocowanie: v === "blendo" ? "blendo" : null }; }, "mak-blenda-moc")] : []),
       ...(cab.topFiller && cab.topFiller.on ? [<label key="bh" className="flex items-center justify-between gap-2 border-b border-stone-100 py-1 text-xs"><span className="text-stone-500">wysokość blendy</span>
         <input type="number" step="10" defaultValue={cab.topFiller.height ?? 100} key={`${idx}-bh-${cab.topFiller.height}`} data-pole="blenda-h"
           onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
@@ -32493,6 +32539,12 @@ export default function App() {
                     <Num value={cab.plinth.setback || 0} onChange={(v) => set({ plinth: { ...cab.plinth, setback: v } })} />
                   </Field>
                 </div>
+                {cab.legs?.on && (
+                  <Field label="Mocowanie" hint={cokolBlendo(cab) ? `Połówki pod dnem (między nóżkami) i na cokole, co ok. ${BLENDO_CO} mm — z wzornika Sevroll.` : "Klips na każdą nóżkę przedniego rzędu."}>
+                    <Seg value={cokolBlendo(cab) ? "blendo" : "klipsy"} onChange={(v) => set({ plinth: { ...cab.plinth, mocowanie: v === "blendo" ? "blendo" : null } })}
+                      options={[{ v: "klipsy", l: "Klipsy na nóżki" }, { v: "blendo", l: "Złącza Sevroll Blendo" }]} />
+                  </Field>
+                )}
               </div>
             )}
           </Card>
@@ -32643,6 +32695,12 @@ export default function App() {
               <Field label="Wysokość blendy" hint="maskownica do sufitu / zasłonięcie otworu">
                 <Num value={cab.topFiller.height ?? 100}
                   onChange={(v) => set({ topFiller: { ...cab.topFiller, height: v } })} />
+              </Field>
+            )}
+            {cab.topFiller?.on && (
+              <Field label="Mocowanie" hint={blendaBlendo(cab) ? `Połówki na wierzchu szafki przy licu i na blendzie, co ok. ${BLENDO_CO} mm.` : null}>
+                <Seg value={blendaBlendo(cab) ? "blendo" : "zwykla"} onChange={(v) => set({ topFiller: { ...cab.topFiller, mocowanie: v === "blendo" ? "blendo" : null } })}
+                  options={[{ v: "zwykla", l: "Zwykłe" }, { v: "blendo", l: "Złącza Sevroll Blendo" }]} />
               </Field>
             )}
           </Card>
