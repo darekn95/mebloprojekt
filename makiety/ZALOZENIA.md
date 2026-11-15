@@ -26,6 +26,9 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | Uchwyt szerokości (prawa krawędź), co 10 mm | jest |
 | Uchwyt wysokości (górna krawędź; w kuchni nie dolna — pod blat), co 10 mm | jest |
 | **Wysokość łapie górę szafki obok** (użytkownik 15.11: „moment złapania do wysokości szafki obok”) — 40 mm, napis „równo z „…””, ciągła zielona linia | dorobione 15.11 (`makLapanieWys`, `makieta17`); w pliku makiety uchwyt wysokości szedł co 10 mm bez łapania — łapała półka (45 mm) i przegroda (±15) |
+| **Uchwyt dołu szafki górnej** (użytkownik 15.11: „górę szafki da się przesuwać, a dołu nie”) — dół tej szafki, góra zostaje, łapie „jak inne” | dorobione 15.11 (`makLapanieDol`, `makieta18`) |
+| **Blenda — górna krawędź przeciągana, łapie sufit i górę szafek obok** (użytkownik 15.11: „ręcznie nie da się złapać, żeby blenda była do sufitu”) | dorobione 15.11 (`makLapanieBlendy`, cały ciąg z tą samą górą, `makieta18`) |
+| **Wysokość łapie sufit** („do sufitu”, z blendą) | dorobione 15.11 (`makieta18`) |
 | Uchwyt głębokości z góry | jest |
 | Przegroda przeciągana, co 10 mm, kolumna ≥ 100 | jest (`makieta15`) |
 | **Przegroda ±15 mm od środka — przyciąga na środek** (Wersja 21) | dorobione 15.11 („— na środku”) |
@@ -67,6 +70,9 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | Listy „Ciąg dolny / Ciąg górny” | jest |
 | Szafka górna: dół od podłogi, front, półki, przegroda, „Bez szafki górnej” | jest |
 | Cały ciąg górny: dół / góra od podłogi | jest |
+| **Od blatu do dołu szafek górnych (prześwit) — pole** (użytkownik 15.11: „brak opcji wymiaru od blatu, stały 500”) | dorobione 15.11 (`mak-gorny-od-blatu`) |
+| **Ciąg górny „do sufitu”** (użytkownik 15.11: „brak opcji przesunięcia szafki do samego sufitu”) | dorobione 15.11 (`mak-gorny-do-sufitu`); luz na zawieszenie — do decyzji |
+| **Blenda nad szafką w karcie szafki górnej i słupka, „do sufitu”** (użytkownik 15.11: „gdzie jest opcja blendy nad górnymi?”) | dorobione 15.11 (było tylko w zakładce Ciąg i w szczegółowej) |
 | Ciąg górny wzdłuż ściany: od lewej / od prawej, mm, „przy słupku” | dorobione 14.11 |
 | **Ciąg górny to osobny ciąg** — jego wysokość idzie za jego szafkami (użytkownik 14.11) | poprawione 15.11 (bez „nie zgadza się z ciągiem” przy jednej szafce, bez „To słupek” przy górnej) |
 | Wysokość słupka 1800 / 2000 / 2120 / 2200, „= równo z górnymi” | jest |
@@ -110,3 +116,4 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | Głębokość dolnych kuchennych 550; nowy ciąg kuchenny 17 mm od ściany; szuflady NL 500 | jest (14.11) |
 | Skrzydło a wysunięta szuflada obok — informacja, nie błąd | jest (14.11) |
 | Złącze Sevroll Blendo do cokołu | czeka na instrukcję od użytkownika |
+| Sufit ściany: pole „wys.” nad rysunkiem działa też dla ciągu górnego (uwaga o suficie liczy blendę) | poprawione 15.11 (`sufitSciany`) |

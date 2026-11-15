@@ -1324,3 +1324,9 @@ Uzytkownik zdenerwowany powtarzajacymi sie brakami: przy kazdym porownaniu z mak
 pomocnicze, dwuklik, okienka), nie tylko napisy. Dorobione: przyciaganie wysokosci / polki / przegrody, okienka „po równo”, fronty szuflad
 w karcie (kazda osobno), ciag gorny osobny (wysokosc), blat z gory nie zaslania gornych, mikrofala / piekarnik wysoko w Uwagach.
 [CHECK] Do decyzji: prog „piekarnik wysoko” (dol > 1100 tymczasowo), szuflady w slupku po 180 (makieta: szafa 220).
+[AI-INFO] 2026-11-15: pelny przebieg (0baeff4 + polki): 173 suity, 5702 OK; makieta17 tylko na nowym tescie polek (build sprzed poprawki) —
+po przebudowie zielona w obu buildach; losowe 66 / 0.
+[AI-INFO] 2026-11-15, drugie zgloszenia: sufit sciany `sufitSciany` (pole „wys.” makiety zapisuje `ceiling` w ciagu DOLNYM — kontrola sufitu
+czytala tylko gorny, wiec u uzytkownika nie dzialala), uchwyty `blenda` i `dol` (szafka gorna) w MakietaUchwyty (prop `gorna`), lapanie
+sufitu, „do sufitu” (ciag gorny, blenda), pole „od blatu” (`run.clearance`), blenda w karcie Szafka gornej i slupka. Test `makieta18`.
+[CHECK] Do decyzji: luz nad szafka gorna na zawieszkach przy „do sufitu” (zaczepienie o listwe wymaga uniesienia szafki) — teraz na styk.

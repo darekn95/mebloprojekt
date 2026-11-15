@@ -35,7 +35,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
-  'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs'];
+  'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1397,4 +1397,21 @@ console.log('\n== 2026-11-15: przegroda na środek (±15), półka do półki ob
   const pr = G.loadProject({ name: 'P', active: 0, prices: {}, runs: [], items: [{ cab: sl, mat: M0, runId: null }] });
   const mw = G.sprzetWysokoMsgs(pr, 0);
   ok('mikrofala z dołem ponad 1300 — „Mikrofala wysoko”', mw.some((m) => m.level === 'warn' && /Mikrofala wysoko — dół \d+ mm od podłogi/.test(m.text)), JSON.stringify(mw));
+}
+
+console.log('\n== 2026-11-15: sufit ściany, blenda i dół szafki górnej ==');
+{
+  const runs = [{ id: 'r1', tier: 'dolny', ceiling: 2500 }, { id: 'g1', tier: 'gorny', wall: 'r1', ceiling: null }, { id: 'r2', tier: 'dolny', ceiling: null }];
+  ok('sufit z ciągu dolnego działa dla górnego tej ściany', G.sufitSciany({ runs }, runs[1]) === 2500 && G.sufitSciany({ runs }, runs[0]) === 2500 && G.sufitSciany({ runs }, runs[2]) === null);
+  ok('blendaH: wyłączona — 0, włączona — wysokość', G.blendaH({ topFiller: { on: false, height: 100 } }) === 0 && G.blendaH({ topFiller: { on: true, height: 120 } }) === 120);
+  const M0 = G.defaultMaterials;
+  const c = G.migrateCab({ name: 'G', W: 400, H: 720, D: 320, topFiller: { on: true, height: 100 }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }, M0);
+  const g = G.computeGeo(c, M0);
+  const wB = G.makWylicz(c, g, { u: 'blenda', lapB: [{ h: 300, nazwa: 'sufit', opis: 'do sufitu' }] }, { x: 100, y: -280 });
+  ok('blenda 20 mm od sufitu — łapie („blenda 300 — do sufitu”)', !!wB && wB.wartosc === 300 && wB.rowno && /blenda 300 — do sufitu/.test(wB.napis), wB && wB.napis);
+  const wB2 = G.makWylicz(c, g, { u: 'blenda', lapB: [{ h: 300, nazwa: 'sufit', opis: 'do sufitu' }] }, { x: 100, y: -200 });
+  ok('blenda 100 mm od sufitu — co 10 mm (200)', !!wB2 && wB2.wartosc === 200 && !wB2.rowno, wB2 && wB2.napis);
+  const wD = G.makWylicz(c, g, { u: 'dol', lapD: [], dol0: 1358 }, { x: 100, y: 720 - 100 });
+  const c2 = JSON.parse(JSON.stringify(c)); if (wD) wD.zmien(c2);
+  ok('dół +100: „dół 1458 od podłogi”, wysokość 620, własny dół 100', !!wD && /dół 1458 od podłogi/.test(wD.napis) && c2.H === 620 && c2.dolGorny === 100, wD && `${wD.napis} ${c2.H} ${c2.dolGorny}`);
 }

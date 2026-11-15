@@ -142,7 +142,8 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - szafka dolna sięga w górne (słupek) — błąd; gdy słupek stoi na początku ściany — przycisk „Ciąg górny od N mm — za „…””
     (`gornyod`); nowy ciąg górny sam zaczyna się za słupkami na początku dolnego (`gornyZaSlupkami`, użytkownik 2026-11-14);
   - położenie ciągu górnego w makiecie (karta szafki górnej): od lewej / od prawej, ile mm, „przy słupku” (`run.offsetFrom`, `run.offset`);
-  - górne szafki ponad sufit — błąd; luz do sufitu — informacja.
+  - górne szafki ponad sufit — błąd; luz do sufitu — informacja. Sufit to wysokość pomieszczenia podana przy ciągu dolnym albo górnym
+    tej ściany (`sufitSciany`, 2026-11-15); blenda nad szafką liczy się do wysokości („z blendą”).
 - **Kolizje otwierania w rogu**: przyciski „Przełóż zawiasy” i wstawka 18 / 60 mm — tylko gdy pomagają. Fronty „Skręcone 90°” liczą się jako jeden sztywny zespół na zawiasach korpusu — front ramienia obraca się wokół tej samej osi (audyt GPT N135), bez rady o przełożeniu zawiasów.
 - **Ramię szafki w L w zamówieniu**: płyty ramienia mają oklejanie z tabeli formatek jak korpus (N130), zawiasy z grubości płyty frontu ramienia (N123), uchwyt także wpuszczany (wystawanie 0, N124), półki z mocowaniem swojej kolumny i granicy (N131), wzmocnienia z kolumny przy ramieniu bez powtórzeń (N137), plecy ze zszywkami / wkrętami co 100 mm po obwodzie (N138), kątownik od wierzchu dna — też przy cokole w obrysie (N134).
 - **Wspólne dno ciągu**: rozpoznanie „dno pod bokami” z osadzenia dna, nie z obrzeży (N118); szafki różnie wysunięte z lica — każda zostaje przy swoim dnie (N133); w 3D jedna płyta „Dno ciągu” jak w zamówieniu (N119); płyta porównywana w całości — nazwa, kolor, **dekor**, grubość (`tozsamoscPlyty`): Oak i Ash o tej samej nazwie i kolorze to różne płyty i dna zostają przy szafkach (N154). Tak samo przy łączeniu własnych blatów szafek w jedną płytę ciągu.

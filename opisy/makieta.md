@@ -648,3 +648,21 @@ szufladach na całą szafkę najwyższa szuflada (`makSzuflWys`, `makSzuflKto`).
 szafkami (`zmienWys`), sama szafka w ciągu — bez uwagi o wysokości ciągu, przy górnej bez „To słupek”. Z góry z blatem ciąg górny rysuje
 się na blacie. Mikrofala (dół > 1300) i piekarnik (dół > 1100, do potwierdzenia) wysoko — ostrzeżenia w Uwagach (`sprzetWysokoMsgs`).
 Testy: `makieta17`, `funkcje`.
+
+2026-11-15, drugie zgłoszenia (użytkownik: „brak opcji przesunięcia szafki do samego sufitu”, „ręcznie nie da się złapać, żeby blenda
+była do sufitu”, „górę szafki da się przesuwać, a dołu nie”, „w ciągu górnym brak opcji wymiaru od blatu”, „gdzie jest opcja blendy nad
+górnymi szafkami?”):
+- **Sufit ściany** (`sufitSciany`): wysokość pomieszczenia z ciągu dolnego i górnego tej ściany — pole „wys.” nad rysunkiem zapisuje ją
+  w ciągu dolnym i od teraz działa też dla górnego (uwaga o suficie, łapanie, przyciski, sufit w kontroli otwierania klap).
+- **Rysunek, zakładka Szafka**: blenda nad szafką ma uchwyt górnej krawędzi (`data-u="blenda"`) — co 10 mm, łapie sufit („blenda N —
+  do sufitu”) i górę szafek obok (oraz ich blend) w 40 mm; puszczona zmienia blendę wszystkich szafek ciągu z blendą i tą samą górą
+  (`makLapanieBlendy`, `makGrupaBlendy`). Szafka górna ma też uchwyt dołu (`data-u="dol"`): dół tej szafki, góra zostaje (`cab.dolGorny`,
+  jak „dół tej szafki od podłogi”), łapie dół ciągu („jak inne”) i dół innych górnych (`makLapanieDol`). Uchwyt wysokości łapie też sufit
+  („wys. N — do sufitu”, z blendą — „z blendą N do sufitu”).
+- **Karta szafki górnej / zakładka Ciąg**: „od blatu do dołu szafek górnych (prześwit)” — pole i −/+50 (`run.clearance`, `mak-gorny-od-blatu`);
+  przy „dół szafek górnych od podłogi” przycisk „do sufitu (N)” — góra najwyższej szafki (z blendą) pod sufitem (`mak-gorny-do-sufitu`).
+  W karcie Szafka szafki górnej i słupka wiersz „Blenda nad szafką” (jest / nie ma, wysokość, „do sufitu (N)”; `mak-sz-blenda`); „jest”
+  daje od razu blendę do sufitu, gdy sufit jest podany. W zakładce Ciąg „Blenda do sufitu” — każda szafka ciągu od swojej góry do sufitu
+  (`mak-ciag-blenda-sufit`); „jest” daje całemu ciągowi jedną wysokość.
+- Uwaga o suficie liczy blendę: „Szafki górne z blendą sięgają …” (błąd), „Nad szafkami górnymi (z blendą) zostaje N mm do sufitu” (info).
+Testy: `makieta18`, `funkcje`.

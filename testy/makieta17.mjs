@@ -231,7 +231,7 @@ await zakl('polki');
     ok('nad swoją szafką półka nie łapie półki szafki obok (przesuw co 10 mm)', !nadSwoja);
     const x2 = rr[1].x + rr[1].w / 2; let zlap = null;
     for (let i = 0; i <= n && !zlap; i++) { await page.mouse.move(x2, dol - (dol - y) * i / n); await page.waitForTimeout(40);
-      if (await rowno()) zlap = (await page.locator('[data-el="makieta-uchwyty"] text').allTextContents()).find((q) => /↕/.test(q)) || '?'; }
+      if (await rowno()) { const tt = await page.locator('[data-el="makieta-uchwyty"] text').allTextContents(); zlap = tt.find((q) => /równo z/.test(q)) || tt.find((q) => /↕/.test(q)) || '?'; } }
     ok('nad szafką obok — „równo z półką (Szafka 2)” i zielona linia', !!zlap && /równo z półką \(Szafka 2\)/.test(zlap), zlap || 'nie złapała');
     await page.mouse.up(); await page.waitForTimeout(600);
     p = await czekaj('(p.items[0].cab.levels[0].cols[0].shelfTargets || [])[0] === 200');
