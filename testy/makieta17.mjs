@@ -214,6 +214,29 @@ await zakl('szuflady');
   const po = await page.locator('[data-el="mak-szufl-front"]').evaluateAll((els) => els.map((e) => Number(e.value)));
   p = await czekaj(`p.items[0].cab.levels[0].h === ${450 + 250 - przed[1]}`);
   ok('słupek: szuflada 2 = 250, szuflada 1 bez zmian, poziom szuflad rośnie', po[1] === 250 && po[0] === przed[0] && p.items[0].cab.levels[0].h === 450 + 250 - przed[1], `${przed} → ${po}, poziom ${p.items[0].cab.levels[0].h}`); }
+// polka lapie polke obok tylko, gdy wskaznik jest nad tamta szafka (makieta „Dodaj”: „najedź na półkę innej szafki”)
+await start(KUCH + `p.items[0].cab.levels = [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }] }];
+  p.items[1].cab.levels = [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [200, null] }] }]; p.active = 0;`);
+await zakl('polki');
+{ const h = page.locator('[data-el="makieta-rysunek"] [data-el="makieta-uchwyty"] [data-u="polka"]').first(), b = await h.boundingBox();
+  const rr = await page.evaluate(() => [0, 1].map((i) => { const els = [...document.querySelectorAll(`[data-el="makieta-szafka"][data-idx="${i}"]`)].filter((e) => !e.closest('[data-el="mak-zgory"]'));
+    const r = els.map((e) => e.getBoundingClientRect()).sort((a, b) => b.height - a.height)[0]; return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null; }));
+  ok('uchwyt półki szafki 1 i obie szafki na rysunku', !!b && !!rr[0] && !!rr[1]);
+  if (b && rr[0] && rr[1]) {
+    const x = b.x + b.width / 2, y = b.y + b.height / 2, dol = rr[0].y + rr[0].h - 6, n = 24;
+    const rowno = async () => (await page.locator('[data-el="makieta-podglad"][data-rowno="1"]').count()) > 0;
+    await page.mouse.move(x, y); await page.mouse.down();
+    let nadSwoja = false;
+    for (let i = 1; i <= n; i++) { await page.mouse.move(x, y + (dol - y) * i / n); await page.waitForTimeout(40); if (await rowno()) nadSwoja = true; }
+    ok('nad swoją szafką półka nie łapie półki szafki obok (przesuw co 10 mm)', !nadSwoja);
+    const x2 = rr[1].x + rr[1].w / 2; let zlap = null;
+    for (let i = 0; i <= n && !zlap; i++) { await page.mouse.move(x2, dol - (dol - y) * i / n); await page.waitForTimeout(40);
+      if (await rowno()) zlap = (await page.locator('[data-el="makieta-uchwyty"] text').allTextContents()).find((q) => /↕/.test(q)) || '?'; }
+    ok('nad szafką obok — „równo z półką (Szafka 2)” i zielona linia', !!zlap && /równo z półką \(Szafka 2\)/.test(zlap), zlap || 'nie złapała');
+    await page.mouse.up(); await page.waitForTimeout(600);
+    p = await czekaj('(p.items[0].cab.levels[0].cols[0].shelfTargets || [])[0] === 200');
+    ok('po puszczeniu: półka na wysokości półki obok (200)', (p.items[0].cab.levels[0].cols[0].shelfTargets || [])[0] === 200, JSON.stringify(p.items[0].cab.levels[0].cols[0].shelfTargets)); } }
+await start(GORA);
 // sprzet wysoko — w uwagach
 await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.active = 0; const c = p.items[0].cab;
   c.levels = [{ h: 1250, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }, { h: 373, cols: [{ kind: 'doors', doors: 0, w: null, shelfTargets: [null], sprzet: { typ: 'mikrofala' } }] }, { h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }];

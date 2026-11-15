@@ -22012,12 +22012,14 @@ const makLapaniePolek = (project, idx, li, j) => {
     (o.geo.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => {
       if (i === idx && lv.i === li && c.j === j) return;
       const op = c.openings || [];
-      op.slice(0, -1).forEach((q) => out.push({ y: Math.round(o.dol + q.to + o.geo.ts / 2 - ja.dol), nazwa: i === idx ? "kolumna obok" : o.nazwa }));
+      // i, x0..x1 — szafka i kolumna (w jej ukladzie): lapie tylko, gdy wskaznik jest nad nia (makieta: „najedź na półkę obok”)
+      op.slice(0, -1).forEach((q) => out.push({ y: Math.round(o.dol + q.to + o.geo.ts / 2 - ja.dol), nazwa: i === idx ? "kolumna obok" : o.nazwa, i, x0: c.x0, x1: c.x0 + c.w }));
     }));
   });
   return out;
 };
-const makNajblizszy = (lista, v, klucz) => lista.reduce((m, q) => { const dd = Math.abs(v - q[klucz]); return dd <= MAK_LAP && (!m || dd < m.dd) ? { ...q, dd } : m; }, null);
+const MAK_LAP_POLKI = 45;   // makieta „Dodaj”: polka lapie polke obok w 45 mm
+const makNajblizszy = (lista, v, klucz, lim = MAK_LAP) => lista.reduce((m, q) => { const dd = Math.abs(v - q[klucz]); return dd <= lim && (!m || dd < m.dd) ? { ...q, dd } : m; }, null);
 function makWylicz(cab, geo, d, p) {
   const H = cab.H, gy = p ? H - p.y : 0;   // bez punktu — wartosc wpisana (`d.sw`, dwuklik na polce)
   if (d.u === "szer") { const W = Math.max(150, Math.min(3000, r10(p.x))); return { wartosc: W, napis: `szer. ${W}`,
@@ -22056,7 +22058,7 @@ function makWylicz(cab, geo, d, p) {
   if (d.u === "polka") {
     const o = col.openings || [], a = o[d.k], b = o[d.k + 1]; if (!a || !b) return null;
     // „Równo z półką obok” (makieta „Dodaj”, 2026-11-09): najedz na polke innej kolumny / szafki tej sciany — staje na jej wysokosci
-    const lap = p && d.sw == null && d.lapP ? makNajblizszy(d.lapP, gy, "y") : null;
+    const lap = p && d.sw == null && d.lapP ? makNajblizszy(d.lapP, gy, "y", MAK_LAP_POLKI) : null;
     const swL = lap ? Math.round(lap.y - geo.ts / 2 - a.from) : null, okL = swL != null && swL >= MAK_MIN && swL <= a.h + b.h - MAK_MIN;
     const suma = a.h + b.h, sw = Math.max(MAK_MIN, Math.min(suma - MAK_MIN, d.sw != null ? Math.round(d.sw) : okL ? swL : r10(gy - geo.ts / 2 - a.from)));
     const yc = a.from + sw + geo.ts / 2;
@@ -24799,7 +24801,15 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
       // przyciaganie (2026-11-15): wysokosc do gory szafki obok, polka do polki obok — cele raz, przy pierwszym ruchu
       if (d.u === "wys" && !d.lap) { try { d.lap = makLapanieWys(project, d.idx); } catch (er) { d.lap = []; } }
       if (d.u === "polka" && !d.lapP) { try { d.lapP = makLapaniePolek(project, d.idx, d.li, d.j); } catch (er) { d.lapP = []; } }
-      const w = makWylicz(it.cab, geo, d, p);
+      /* polka: lapie tylko polki szafki / kolumny, nad ktora jest wskaznik (makieta „Dodaj”: przeciagajac, najedz na polke
+         innej szafki albo drugiej kolumny) — inaczej przy kilku szafkach polka przyciagalaby sie wszedzie */
+      let dW = d;
+      if (d.u === "polka" && d.lapP && d.lapP.length) {
+        const gp = (document.elementsFromPoint(e.clientX, e.clientY) || []).map((q) => q.closest && q.closest("[data-el=makieta-szafka][data-idx]")).find((q) => q && !q.closest("[data-el=mak-zgory]"));
+        const iPod = gp ? Number(gp.getAttribute("data-idx")) : null, pp = gp ? (iPod === d.idx ? p : punkt(e, gp)) : null;
+        dW = { ...d, lapP: pp ? d.lapP.filter((q) => q.i === iPod && pp.x >= q.x0 && pp.x <= q.x1) : [] };
+      }
+      const w = makWylicz(it.cab, geo, dW, p);
       d.wynik = w; setPodglad(w ? { ...w, idx: d.idx, widok: d.widok } : null);
     };
     const koniec = (e) => {

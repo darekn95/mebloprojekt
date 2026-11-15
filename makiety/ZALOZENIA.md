@@ -25,14 +25,14 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | Szafka przesuwana w ciągu przeciągnięciem korpusu, znacznik „przed / za” | jest (`makieta6`) |
 | Uchwyt szerokości (prawa krawędź), co 10 mm | jest |
 | Uchwyt wysokości (górna krawędź; w kuchni nie dolna — pod blat), co 10 mm | jest |
-| **Wysokość łapie górę szafki obok** (użytkownik 15.11: „moment złapania do wysokości szafki obok”) — 40 mm, napis „równo z „…””, ciągła zielona linia | dorobione 15.11 (`makLapanieWys`, `makieta17`) |
+| **Wysokość łapie górę szafki obok** (użytkownik 15.11: „moment złapania do wysokości szafki obok”) — 40 mm, napis „równo z „…””, ciągła zielona linia | dorobione 15.11 (`makLapanieWys`, `makieta17`); w pliku makiety uchwyt wysokości szedł co 10 mm bez łapania — łapała półka (45 mm) i przegroda (±15) |
 | Uchwyt głębokości z góry | jest |
 | Przegroda przeciągana, co 10 mm, kolumna ≥ 100 | jest (`makieta15`) |
 | **Przegroda ±15 mm od środka — przyciąga na środek** (Wersja 21) | dorobione 15.11 („— na środku”) |
 | Szuflady: chwyt całej szuflady (górna połowa — linia nad nią, dolna — pod nią), linie między szufladami | jest (`makieta11`) |
 | „Szuflada + drzwi”: szuflada przeciągana pod / nad drzwi, linia podziału (100–400) | jest (`makieta13`) |
 | Półki przeciągane co 10 mm, ≥ 60 od sąsiednich, 40 od dołu / góry | jest (`makieta9`) |
-| **„Równo z półką obok”** — półka najechana na półkę innej szafki / kolumny staje na tej wysokości, linia pomocnicza (Wersja 18) | dorobione 15.11 (`makLapaniePolek`, 40 mm) |
+| **„Równo z półką obok”** — półka najechana na półkę innej szafki / kolumny staje na tej wysokości, linia pomocnicza (Wersja 18) | dorobione 15.11 (`makLapaniePolek`, 45 mm, tylko z wskaźnikiem nad tamtą szafką / kolumną — jak w makiecie; `makieta17`) |
 | Drążek przeciągany między półkami | jest |
 | Uchwyty tylko w zaznaczonej szafce i tylko w swojej zakładce (Wersja 16–17) | jest |
 | Pojedyncze kliknięcie tylko zaznacza; dwuklik / prawy przycisk — „Co zmienić?” | jest (`makieta8`) |

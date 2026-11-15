@@ -640,7 +640,8 @@ Test `makieta17`.
 
 2026-11-15 (użytkownik: „zrób plik założeń … i porównaj”): spis założeń makiety „Dodaj” ze stanem w aplikacji — `makiety/ZALOZENIA.md`.
 Dorobione: przyciąganie przy przeciąganiu — wysokość do góry szafki obok tej samej ściany (40 mm, „równo z „…””, ciągła zielona linia,
-`makLapanieWys`), półka do półki innej kolumny / szafki (`makLapaniePolek`, „Równo z półką obok” z makiety), przegroda ±15 mm od środka —
+`makLapanieWys`), półka do półki innej kolumny / szafki (`makLapaniePolek`, „Równo z półką obok” z makiety: 45 mm i tylko, gdy wskaźnik jest nad
+tamtą szafką / kolumną — nad swoją półka chodzi co 10 mm), przegroda ±15 mm od środka —
 na środek; w okienku półki „Półki po równo”, w okienku szuflady „Ta szuflada jak po równo”; w karcie Szuflady pole wysokości frontu każdej
 szuflady (`mak-szufl-front`). Wpisana wysokość szuflady zmienia tylko ją — różnicę bierze poziom nad / pod szufladami (słupek), a przy
 szufladach na całą szafkę najwyższa szuflada (`makSzuflWys`, `makSzuflKto`). Ciąg górny to osobny ciąg: jego wysokość idzie za jego
