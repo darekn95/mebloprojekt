@@ -34,7 +34,8 @@ src = src.replace(/export default function App/, 'function App');
 const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice', 'buildCutPlan', 'loadProject', 'scalOkucia', 'tozsamoscPlyty', 'defaultMaterials', 'migrateCab', 'bezWienca', 'utrzymajPodBlat', 'zWiencem', 'jestParaPodBlat',
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
-  'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie'];
+  'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
+  'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1361,4 +1362,39 @@ console.log('\n== Wzmocnienia na konfirmatach (użytkownik 2026-11-06) ==');
   ok('wzmocnienie pionowe przy boku zostaje na wkrętach 4 × 30 (4 szt.)', /wzmocnienia 1×4/.test((gP.hardware.find((h) => h.name === 'Wkręt 4 × 30') || {}).spec || '') && gP.levels[0].cols[0].rails[0].mocowanie === 'wkrety'
     && !/wzmocnienia/.test((gP.hardware.find((h) => h.name === 'Konfirmat 7 × 50') || {}).spec || ''),
     JSON.stringify({ hw: gP.hardware.filter((h) => /Wkręt|Konfirmat/.test(h.name)).map((h) => [h.name, h.qty, h.spec]), r: gP.levels[0].cols[0].rails }));
+}
+
+console.log('\n== 2026-11-15: przegroda na środek (±15), półka do półki obok, szuflady osobno, sprzęt wysoko ==');
+{
+  const M0 = G.defaultMaterials;
+  const geo = (c) => G.computeGeo(c, M0);
+  // przegroda: dwie kolumny, przeciagniecie 10 mm od srodka — na srodek
+  const dw = G.migrateCab({ name: 'D', W: 800, H: 720, D: 550, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: 300, shelfTargets: [null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }, M0);
+  const gD = geo(dw), lv = gD.levels[0], c0 = lv.cols[0], suma = c0.w + lv.cols[1].w;
+  const wP = G.makWylicz(dw, gD, { u: 'przeg', li: 0, j: c0.j }, { x: c0.x0 + suma / 2 + 10 + gD.t / 2, y: 300 });
+  ok('przegroda 10 mm od środka — na środek („— na środku”)', !!wP && wP.wartosc === Math.round(suma / 2) && /na środku/.test(wP.napis), wP && `${wP.wartosc} ${wP.napis}`);
+  const wP2 = G.makWylicz(dw, gD, { u: 'przeg', li: 0, j: c0.j }, { x: c0.x0 + suma / 2 + 40 + gD.t / 2, y: 300 });
+  ok('przegroda 40 mm od środka — bez przyciągania', !!wP2 && wP2.wartosc !== Math.round(suma / 2) && !/na środku/.test(wP2.napis), wP2 && wP2.napis);
+  // polka: cel 25 mm od kursora — lapie (napis „równo z półką”)
+  const pk = G.migrateCab({ name: 'P', W: 600, H: 720, D: 550, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }] }] }, M0);
+  const gK = geo(pk), colK = gK.levels[0].cols[0], a = colK.openings[0];
+  const yc = a.from + 200 + gK.ts / 2;
+  const wK = G.makWylicz(pk, gK, { u: 'polka', li: 0, j: colK.j, k: 0, lapP: [{ y: yc, nazwa: 'Szafka obok' }] }, { x: 100, y: pk.H - (yc + 25) });
+  ok('półka 25 mm od półki obok — staje równo („równo z półką”)', !!wK && wK.wartosc === 200 && wK.rowno && /równo z półką/.test(wK.napis), wK && `${wK.wartosc} ${wK.napis}`);
+  const wK2 = G.makWylicz(pk, gK, { u: 'polka', li: 0, j: colK.j, k: 0, lapP: [{ y: yc, nazwa: 'Szafka obok' }] }, { x: 100, y: pk.H - (yc + 80) });
+  ok('półka 80 mm od półki obok — bez przyciągania', !!wK2 && !wK2.rowno, wK2 && wK2.napis);
+  // szuflady na cala szafke: wpisana dolna — roznice bierze najwyzsza, srodkowa bez zmian
+  const sz = G.migrateCab({ name: 'S', W: 600, H: 720, D: 550, levels: [{ h: null, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 'auto' }, { h: 'auto' }, { h: 'auto' }] }] }] }, M0);
+  const gS = geo(sz), drS = [...gS.levels[0].cols[0].drawers].sort((x, y) => x.i - y.i).map((d) => Math.round(d.h));
+  const wS = G.makSzuflWys(sz, gS, 0, gS.levels[0].cols[0].j, 0, drS[0] + 40);
+  const sz2 = JSON.parse(JSON.stringify(sz)); if (wS) wS.zmien(sz2);
+  const drS2 = [...geo(sz2).levels[0].cols[0].drawers].sort((x, y) => x.i - y.i).map((d) => Math.round(d.h));
+  ok('szuflada 1 +40: środkowa bez zmian, najwyższa −40 (każda osobno)', !!wS && drS2[0] === drS[0] + 40 && drS2[1] === drS[1] && drS2[2] === drS[2] - 40, `${drS} → ${drS2}`);
+  ok('kto przejmuje różnicę: „najwyzsza”', G.makSzuflKto(sz, gS, 0, gS.levels[0].cols[0].j, 0) === 'najwyzsza');
+  // mikrofala wysoko — uwaga (szafka wolnostojaca na nozkach)
+  const sl = G.migrateCab({ name: 'Słupek', W: 600, H: 2000, D: 550, slupek: true, legs: { on: true, height: 100 }, levels: [{ h: 1250, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] },
+    { h: 373, cols: [{ kind: 'doors', doors: 0, w: null, shelfTargets: [null], sprzet: { typ: 'mikrofala' } }] }, { h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }, M0);
+  const pr = G.loadProject({ name: 'P', active: 0, prices: {}, runs: [], items: [{ cab: sl, mat: M0, runId: null }] });
+  const mw = G.sprzetWysokoMsgs(pr, 0);
+  ok('mikrofala z dołem ponad 1300 — „Mikrofala wysoko”', mw.some((m) => m.level === 'warn' && /Mikrofala wysoko — dół \d+ mm od podłogi/.test(m.text)), JSON.stringify(mw));
 }

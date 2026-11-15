@@ -25,6 +25,10 @@
   opisy w `opisy/` (spis: `opisy/SPIS.md`). Przeczytaj opis obszaru przed zmianą,
   a zmieniasz zasadę albo liczbę — popraw opis w tej samej zmianie. Na pytania
   użytkownika „jak to działa” odpowiadaj z opisu (i sprawdź w kodzie, gdy wątpliwe).
+- **Założenia makiety** (ustalone z użytkownikiem 2026-11-15): `makiety/ZALOZENIA.md` — spis wszystkiego, co ustaliliśmy przy
+  makiecie „Dodaj” i później, ze stanem w aplikacji. Zmieniasz makietę w aplikacji albo użytkownik dodaje założenie — dopisz /
+  popraw wiersz w tej samej zmianie. Porównując z makietą, sprawdzaj też zachowanie (przeciąganie, przyciąganie, linie pomocnicze,
+  dwuklik, okienka), nie tylko napisy i przyciski.
 - Zanim zaczniesz szukać po całym `szafki.jsx`, zajrzyj do `SLOWNIK.md`:
   wiąże etykietę z interfejsu ze ścieżką w danych i funkcją, która to liczy.
   Dokładasz nowe pole albo nazwę formatki — dopisz tam wiersz w tej samej zmianie.

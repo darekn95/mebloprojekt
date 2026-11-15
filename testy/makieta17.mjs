@@ -160,6 +160,70 @@ await zakl('polki'); await page.waitForTimeout(800);
   const n2 = await page.evaluate(() => (window.__audytBryl || []).length);
   ok('Półki: szuflady zamknięte — przy ręcznym „otwarte” wysuwają się (więcej brył: skrzynki)', n2 >= n1 + 9, `${n1} → ${n2}`); }
 
+console.log('== 2026-11-15: przyciąganie wysokości i półek, przegroda na środek, szuflady osobno, ciąg górny osobny, blat z góry, sprzęt wysoko ==');
+// słupek 2000 + dwie szafki dolne; szafka górna nad szafką 1 (ciąg górny od 600 — za słupkiem)
+const GORA = SLUP + `const g1 = JSON.parse(JSON.stringify(p.items[1])); g1.cab = { ...g1.cab, name: 'Górna', H: 720, D: 320, legs: { ...g1.cab.legs, on: false }, plinth: { ...g1.cab.plinth, on: false },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null] }] }] }; g1.runId = 'g1';
+  p.runs.push({ id: 'g1', name: 'Ściana 1', roomId: p.runs[0].roomId, tier: 'gorny', wall: 'r1', offset: 600, offsetFrom: 'left', H: 720 }); p.items.push(g1); p.active = p.items.length - 1;`;
+await start(GORA);
+await zakl('szafka');
+{ const h = page.locator('[data-el="makieta-uchwyty"] [data-u="wys"]').first();
+  const b = await h.boundingBox();
+  const sl = await page.evaluate(() => { const els = [...document.querySelectorAll('[data-el="makieta-szafka"][data-idx="0"]')].filter((e) => !e.closest('[data-el="mak-zgory"]'));
+    const r = els.map((e) => e.getBoundingClientRect()).sort((a, b) => b.height - a.height)[0]; return r ? { y: r.y } : null; });
+  ok('uchwyt wysokości szafki górnej', !!b && !!sl);
+  if (b && sl) {
+    const x = b.x + b.width / 2, y = b.y + b.height / 2, cel = sl.y + 3;
+    await page.mouse.move(x, y); await page.mouse.down(); for (let i = 1; i <= 10; i++) await page.mouse.move(x, y + (cel - y) * i / 10); await page.waitForTimeout(300);
+    const t = (await page.locator('[data-el="makieta-uchwyty"] text').allTextContents()).find((q) => /wys\./.test(q)) || '';
+    ok('w trakcie: „wys. N — równo z „Słupek”” i zielona linia', /równo z „Słupek”/.test(t) && (await page.locator('[data-el="makieta-podglad"][data-rowno="1"]').count()) === 1, t);
+    await page.mouse.up(); await page.waitForTimeout(600);
+    p = await proj();
+    const gH = p.items[p.items.length - 1].cab.H, gora = 2100;   // slupek 100 + 2000
+    ok('po puszczeniu: góra szafki górnej równo z górą słupka', gH > 700 && gH < 800, String(gH));
+    ok('ciąg górny (sama szafka) idzie za nią — bez „nie zgadza się z ciągiem”', p.runs.find((r) => r.id === 'g1').H === gH && !/nie zgadza się z ciągiem/.test(await uwagi()), String(p.runs.find((r) => r.id === 'g1').H)); } }
+// blat z gory nie zaslania ciagu gornego: szafka gorna rysowana po blacie
+await page.evaluate(() => localStorage.setItem('mp-mak-widok', 'gora')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1300);
+ok('„Z góry” z blatem: szafka górna na blacie (rysowana po nim)', await page.evaluate(() => {
+  const svg = document.querySelector('[data-el="mak-zgory"] svg'); if (!svg) return false;
+  const all = [...svg.querySelectorAll('[data-el="blat-z-gory"], [data-el="makieta-szafka"]')];
+  const iB = all.findIndex((e) => e.getAttribute('data-el') === 'blat-z-gory'), last = all.map((e) => e.getAttribute('data-idx')).lastIndexOf(String(JSON.parse(localStorage.getItem('szafki:projekt')).items.length - 1));
+  return iB >= 0 && last > iB; }));
+await page.evaluate(() => localStorage.setItem('mp-mak-widok', 'przod')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1300);
+// przegroda: ±15 od srodka — na srodek; szuflady: pola frontow, kazda osobno; okienko szuflady „jak po równo”
+await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.active = 2;
+  p.items[1].cab.levels = [{ h: null, cols: [{ kind: 'doors', doors: 1, w: 200, shelfTargets: [null, null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }];
+  localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
+await zakl('szuflady');
+{ const pola = page.locator('[data-el="mak-szufl-front"]');
+  ok('karta Szuflady: pole wysokości frontu każdej szuflady (3)', (await pola.count()) === 3, String(await pola.count()));
+  const przed = await pola.evaluateAll((els) => els.map((e) => Number(e.value)));
+  await pola.nth(0).fill(String(przed[0] + 40)); await pola.nth(0).press('Enter'); await page.waitForTimeout(700);
+  const po = await page.locator('[data-el="mak-szufl-front"]').evaluateAll((els) => els.map((e) => Number(e.value)));
+  ok('szuflada 1 +40 — środkowa bez zmian, różnicę bierze najwyższa', po[0] === przed[0] + 40 && po[1] === przed[1] && po[2] === przed[2] - 40, `${przed} → ${po}`); }
+// slupek z dwiema szufladami w swoim poziomie: kazda osobno, roznice bierze poziom
+await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.active = 0; const c = p.items[0].cab;
+  c.levels = [{ h: 450, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 'auto', front: null, handle: true }, { h: 'auto', front: null, handle: true }] }] }, { h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }];
+  localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
+await zakl('szuflady');
+{ const wyb = page.locator('[data-el="mak-kol-wybor"] [data-el="mak-kol"]'); if (await wyb.count()) { await wyb.first().click(); await page.waitForTimeout(400); }
+  const pola = page.locator('[data-el="mak-szufl-front"]'), przed = await pola.evaluateAll((els) => els.map((e) => Number(e.value)));
+  await pola.nth(1).fill('250'); await pola.nth(1).press('Enter'); await page.waitForTimeout(700);
+  const po = await page.locator('[data-el="mak-szufl-front"]').evaluateAll((els) => els.map((e) => Number(e.value)));
+  p = await czekaj(`p.items[0].cab.levels[0].h === ${450 + 250 - przed[1]}`);
+  ok('słupek: szuflada 2 = 250, szuflada 1 bez zmian, poziom szuflad rośnie', po[1] === 250 && po[0] === przed[0] && p.items[0].cab.levels[0].h === 450 + 250 - przed[1], `${przed} → ${po}, poziom ${p.items[0].cab.levels[0].h}`); }
+// sprzet wysoko — w uwagach
+await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.active = 0; const c = p.items[0].cab;
+  c.levels = [{ h: 1250, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }, { h: 373, cols: [{ kind: 'doors', doors: 0, w: null, shelfTargets: [null], sprzet: { typ: 'mikrofala' } }] }, { h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }];
+  localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
+{ const t = await uwagi(); ok('mikrofala wysoko (dół > 1300) — ostrzeżenie w Uwagach', /Mikrofala wysoko — dół \d[\d ]* mm od podłogi \(więcej niż 1 ?300\)/.test(t), t.slice(0, 200)); }
+await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); const c = p.items[0].cab; c.levels[1].cols[0].sprzet = { typ: 'piekarnik' }; c.levels[1].h = 590; localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
+{ const t = await uwagi(); ok('piekarnik wysoko (dół > 1100) — ostrzeżenie w Uwagach', /Piekarnik wysoko — dół \d[\d ]* mm od podłogi \(więcej niż 1 ?100\)/.test(t), t.slice(0, 200)); }
+
 ok('bez błędów strony', errors.length === 0, errors.join(' | '));
 await browser.close();
 console.log(bledy ? `BLEDOW: ${bledy}` : 'WSZYSTKO OK');

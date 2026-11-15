@@ -637,3 +637,13 @@ Wzmocnienie otwierają drzwi (wnętrze), ale szuflady zostają zamknięte (`szuf
 wybranym „otwarte”. Legenda nad rysunkiem ma stałe miejsce (zielone ramki przy przeciąganiu trafiają w szafki). Karta szafki górnej:
 „ciąg górny wzdłuż ściany” — od lewej / od prawej, mm, „przy słupku” (`mak-gorny-od`, `mak-gorny-offset`, `mak-gorny-przy-slupku`).
 Test `makieta17`.
+
+2026-11-15 (użytkownik: „zrób plik założeń … i porównaj”): spis założeń makiety „Dodaj” ze stanem w aplikacji — `makiety/ZALOZENIA.md`.
+Dorobione: przyciąganie przy przeciąganiu — wysokość do góry szafki obok tej samej ściany (40 mm, „równo z „…””, ciągła zielona linia,
+`makLapanieWys`), półka do półki innej kolumny / szafki (`makLapaniePolek`, „Równo z półką obok” z makiety), przegroda ±15 mm od środka —
+na środek; w okienku półki „Półki po równo”, w okienku szuflady „Ta szuflada jak po równo”; w karcie Szuflady pole wysokości frontu każdej
+szuflady (`mak-szufl-front`). Wpisana wysokość szuflady zmienia tylko ją — różnicę bierze poziom nad / pod szufladami (słupek), a przy
+szufladach na całą szafkę najwyższa szuflada (`makSzuflWys`, `makSzuflKto`). Ciąg górny to osobny ciąg: jego wysokość idzie za jego
+szafkami (`zmienWys`), sama szafka w ciągu — bez uwagi o wysokości ciągu, przy górnej bez „To słupek”. Z góry z blatem ciąg górny rysuje
+się na blacie. Mikrofala (dół > 1300) i piekarnik (dół > 1100, do potwierdzenia) wysoko — ostrzeżenia w Uwagach (`sprzetWysokoMsgs`).
+Testy: `makieta17`, `funkcje`.

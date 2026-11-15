@@ -17,6 +17,11 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-11-15 | makieta: brak przyciągania wysokości do szafki obok, półki do półki obok („Równo z półką obok” z makiety), przegrody na środek; okienka szuflady / półki bez „po równo” | dorobione; spis założeń makiety `makiety/ZALOZENIA.md` (poprzednie porównania szły po napisach i przyciskach, nie po zachowaniu przy przeciąganiu) (`makieta17`, `funkcje`) | (ten commit) |
+| 2026-11-15 | wpisana wysokość szuflady zmieniała też sąsiednią („jedna całość podzielona na 2 szuflady”) | każda szuflada osobno: różnicę bierze poziom nad / pod szufladami albo najwyższa szuflada (`makSzuflWys`) | (ten commit) |
+| 2026-11-15 | „Wysokość 740 mm nie zgadza się z ciągiem „Ściana 1” (720 mm)” przy jedynej szafce górnej | zmiana wysokości w ciągu górnym nie szła do wysokości ciągu (tylko dolne); sama szafka w ciągu — bez tej uwagi; nazwa „ciąg górny” | (ten commit) |
+| 2026-11-15 | widok „Z góry” z blatem: blat zasłaniał ciąg górny | ciąg górny rysowany po blacie | (ten commit) |
+| 2026-11-15 | brak ostrzeżeń „mikrofala wysoko” / „piekarnik za wysoko” w Uwagach | `sprzetWysokoMsgs` (mikrofala 1300 z makiety, piekarnik 1100 — do potwierdzenia) | (ten commit) |
 | 2026-11-14 | testy po nowym ciągu kuchennym 17 mm od ściany (decyzja użytkownika): blatrog, blatrys | blatrys — blat cały 600 (590 do lica); blatrog — scenariusz z ciągami przy ścianie, `wallGap` 0 przypięty w danych testu | (ten commit) |
 | 2026-11-14 | testy po zmianie standardowej głębokości dolnych kuchennych 560 → 550 (decyzja użytkownika): blat, blatrog, blatrys, ciag, decyzje, fromcab, funkcje, kreator, makieta13, makieta14, makieta2, odsuniecie, stdfull | oczekiwania z szablonu 560 — tam, gdzie test sprawdza domyślną głębokość, teraz 550 (blat docięty 583, ramię L 650, róg 1220, prowadnica 32..532); tam, gdzie bada co innego (różne NL, luz nad szufladą, słupek głębszy, róg), głębokość 560 przypięta w danych testu | (ten commit) |
 | 2026-11-14 | makieta — zielone ramki przy przeciąganiu w widoku „Z góry” wyżej niż szafki | legenda „tu może stanąć…” pojawiała się po policzeniu ramek i przesuwała rysunek w dół — linijka legendy ma teraz stałe miejsce (`makieta17`) | (ten commit) |

@@ -1319,3 +1319,8 @@ odsuniecia o 17 mm (uzytkownik w swoim projekcie ma ciag 17 mm od sciany). Pelny
 szuflady w 550 — NL 500 zostaje; Blendo — uzytkownik przesle instrukcje / zdjecie (wtedy do `instrukcje/` + SPIS i opcja mocowania cokolu).
 [AI-INFO] 2026-11-14: pelny przebieg (2f9d68b, 17 mm od sciany): 173 suity, 5677 OK, 2 suity z oczekiwaniem ciagu przy scianie (blatrog, blatrys) —
 poprawione, zielone w obu buildach; losowe 66 / 0. (Pierwsza proba przebiegu nieważna — serwery testowe padly po restarcie kontenera.)
+[AI-INFO] 2026-11-15: `makiety/ZALOZENIA.md` — spis zalozen makiety „Dodaj” (wersje 2–24, decyzje z datami, interakcje) ze stanem w aplikacji.
+Uzytkownik zdenerwowany powtarzajacymi sie brakami: przy kazdym porownaniu z makieta sprawdzac ZACHOWANIE (przeciaganie, przyciaganie, linie
+pomocnicze, dwuklik, okienka), nie tylko napisy. Dorobione: przyciaganie wysokosci / polki / przegrody, okienka „po równo”, fronty szuflad
+w karcie (kazda osobno), ciag gorny osobny (wysokosc), blat z gory nie zaslania gornych, mikrofala / piekarnik wysoko w Uwagach.
+[CHECK] Do decyzji: prog „piekarnik wysoko” (dol > 1100 tymczasowo), szuflady w slupku po 180 (makieta: szafa 220).
