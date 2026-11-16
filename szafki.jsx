@@ -280,13 +280,13 @@ const DRAZEK_UGINA = 2000;
    bezpieczeństwa 80”) — polki, przegrody i drazki za nia. Wozek EVO: skrzydlo do 50 kg, regulacja 0–10 mm. Liczba skrzydel sama — do ok.
    1000 mm na skrzydlo (decyzja uzytkownika), zmiana w karcie. */
 const PRZES = { Z: 34, WD: 40, SW: 36, WW: 3, DLP: 52, SZCZ: 3, STREFA: 80, TOR_G: { h: 38, w: 76 }, TOR_D: { h: 8, w: 45 }, MAX_KG: 50,
-  SKRZ_MAX: 1000, TORY_DL: [1700, 2350, 3000, 4050, 6000], RACZKA_DL: 2700, LISTWA_DL: 3000, DRZWI_GR: 20, TOR_KROK: 24, LUZ_SZUFL: 5 };
+  SKRZ_MAX: 1000, TORY_DL: [1700, 2350, 3000, 4050, 6000], RACZKA_DL: 2700, LISTWA_DL: 3000, DRZWI_GR: 20, TOR_KROK: 24, LUZ_SZUFL: 5, SZYNA_DOL: 18, VBOX_BOK: 127 };
 /* bryly drzwi przesuwnych (3D, wspolne dla szafy i zabudowy): tor gorny — plyta 4 mm pod wiencem i przednia scianka, dolny EVO,
    skrzydla — wypelnienie (formatka) w profilach (raczki, listwy); tor 0 przedni, 1 tylny, krok PRZES.TOR_KROK; `b(x0,y0,z0,x1,y1,z1,kolor,fk,alfa)` */
 const przesuwneBryly = (p, ff, metal, open, b, kb = "#e7e5e4") => {
   if (!p) return;
-  // listwy pod prowadnice szuflad (przy sciance kolumny, od strony skrzydla) — jak przegrody, za strefa torow
-  (p.listwy || []).forEach((q) => b(q.x0, q.y0, q.z0, q.x1, q.y1, q.z1, kb, "Listwa pod prowadnice", 1, null));
+  // boki zabudowy pod szuflady (przy sciankach kolumny) — jak przegrody, za strefa torow
+  (p.listwy || []).forEach((q) => b(q.x0, q.y0, q.z0, q.x1, q.y1, q.z1, kb, "Bok zabudowy szuflad", 1, null));
   b(p.x0, p.y1 - 4, 0, p.x0 + p.SO, p.y1, PRZES.TOR_G.w, metal, null, 1, "tor");
   b(p.x0, p.y1 - PRZES.TOR_G.h, 0, p.x0 + p.SO, p.y1 - 4, 2, metal, null, 1, "tor");
   b(p.x0, p.y0, 4, p.x0 + p.SO, p.y0 + PRZES.TOR_D.h, 4 + PRZES.TOR_D.w, metal, null, 1, "tor");
@@ -3447,9 +3447,10 @@ function computeGeoLiczy(cab, mat, ctx) {
   const levels = [];
   const sepShelves = [];
   let katownikiSzuflad = 0; // szuflady V-BOX szersze niz 600 mm — katownik pod dno (N178)
-  /* Szuflady za drzwiami przesuwnymi (`geoPrzesuwne`, uzytkownik 2026-11-16, zdjecia jego szafy): front w swietle kolumny cofniety
-     za strefe torow (`cof`), pasmo frontow od `y0` (nad torem dolnym) do `y1` (pod torem gornym); listwa pod prowadnice od strony
-     skrzydla (`rawCol.__listwa`) — szuflada wezsza o jej grubosc, prowadnica na listwie. `listwyPrz` — do formatek i rysunkow. */
+  /* Szuflady za drzwiami przesuwnymi (`geoPrzesuwne`, uzytkownik 2026-11-16, jego szafa): front w swietle zabudowy cofniety za strefe
+     torow (`cof`), najnizsza prowadnica `szyna` (18 mm nad dnem), pasmo frontow od `y0` do `y1` (pod torem gornym); zabudowa pod szuflady
+     (`rawCol.__zabudowa`) — boki przy obu sciankach kolumny, szuflada wezsza o nie, prowadnice na nich; auto bok V-BOX najwyzej `bokMax`
+     („szuflady w szafie mam V-BOX, jedne z niższych”). `listwyPrz` — boki zabudowy do formatek i rysunkow. */
   const spz = cab.__szuflPrzes || null, listwyPrz = [];
   let cy = interior.y0;
   for (let i = 0; i < L; i++) {
@@ -4948,12 +4949,12 @@ function computeGeoLiczy(cab, mat, ctx) {
          bokiem i jest o tyle wezsza; bez wspornika skrzynka na cala kolumne
          uderzylaby w fix (uzytkownik 2026-10-17 po audycie GPT N42). */
       let bx0 = c.x0, bx1 = c.x1;
-      const lwP = dCof && rawCol.__listwa && rawCol.__listwa.t > 0 ? rawCol.__listwa : null;
+      const lwP = dCof && rawCol.__zabudowa && rawCol.__zabudowa.t > 0 ? rawCol.__zabudowa : null;
       if (lwP) {
-        if (lwP.side === "left") { bx0 += lwP.t; dsx0 = Math.max(dsx0, bx0 + g.inset); }
-        else { bx1 -= lwP.t; dsx1 = Math.min(dsx1, bx1 - g.inset); }
-        listwyPrz.push({ lvl: lv.i, j: jKol, side: lwP.side, t: lwP.t, x0: lwP.side === "left" ? c.x0 : c.x1 - lwP.t, x1: lwP.side === "left" ? c.x0 + lwP.t : c.x1,
-          y0: Math.round(lv.y0), y1: Math.round(Math.max(lv.y0 + 60, dhi)), where, nKol: lv.cols.length });
+        // boki zabudowy pod wiencem (polka nad szufladami / gora poziomu) — od dna poziomu do jego gory
+        bx0 += lwP.t; bx1 -= lwP.t; dsx0 = Math.max(dsx0, bx0 + g.inset); dsx1 = Math.min(dsx1, bx1 - g.inset);
+        ["left", "right"].forEach((side) => listwyPrz.push({ lvl: lv.i, j: jKol, side, t: lwP.t, x0: side === "left" ? c.x0 : c.x1 - lwP.t, x1: side === "left" ? c.x0 + lwP.t : c.x1,
+          y0: Math.round(lv.y0), y1: Math.round(lv.y1), where, nKol: lv.cols.length }));
       }
       /* Element kolizyjny na drodze skrzynki (w jej szerokosci i wysokosci) skraca NL jak
          wzmocnienie przy plecach — z 4 mm luzu do niego albo do jego zabudowy. Ta sama granica
@@ -5047,7 +5048,7 @@ function computeGeoLiczy(cab, mat, ctx) {
          czyli 27 mm ponizej spodu dna — zakrywa ja (uzytkownik 2026-10-21). */
       const szufladaDxs = (d, i, fhFull, fh) => {
         const where2 = `${where}, szuflada ${i + 1}`;
-        const railY0 = i === 0 ? Math.max(lv.y0 + DXS.nadDnem, y)
+        const railY0 = i === 0 ? Math.max(lv.y0 + DXS.nadDnem, y, dCof ? spz.szyna ?? -Infinity : -Infinity)
           : y + Math.max(0, Math.round(num(g.underRail) ?? 5));
         const bokY0 = railY0 + dxsBokOd;
         const tbok = ts; // boki, dno i tyl z plyty polek
@@ -5161,7 +5162,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (![16, 18, 19].includes(Math.round(tbok)))
           add("warn", `${where2}: DXS-3D jest na skrzynkę z płyty 16–19 mm (instrukcja liczy 18), a płyta półek ma ${fmt(tbok)} mm — sprawdź szerokość skrzynki.`);
         const dr = {
-          i, y, h: fh, x: dsx0, w: dsx1 - dsx0, system: "dxs", hClass: hBok, nl, fixed: num(d.front) !== null, bx0, bx1, listwa: lwP ? lwP.side : null,
+          i, y, h: fh, x: dsx0, w: dsx1 - dsx0, system: "dxs", hClass: hBok, nl, fixed: num(d.front) !== null, bx0, bx1, zabudowa: !!lwP,
           // od spodu prowadnicy: dol boku, spod dna i tylu, gora boku — wspolne dla rysunkow i kontroli
           bokOd: dxsBokOd, dnoOd: DXS.dnoOd, gora: dxsBokOd + hBok,
           rail: { y0: railY0, h: hBok, d: nl || 0, setback: dInsetExtra },
@@ -5225,8 +5226,9 @@ function computeGeoLiczy(cab, mat, ctx) {
            tego poziomu — to ona wyznacza wysokosc, a front sie do niej
            dostosowuje. Wyzsze szuflady nie maja na czym usiasc, wiec ich front
            schodzi ponizej szyny o staly, ustawialny wymiar. */
+        // za drzwiami przesuwnymi najnizsza nad dnem (`spz.szyna`, 18 mm — „łatwo wyznaczyć ręcznie”), front pod nia o „front poniżej prowadnicy”
         const railY0 = i === 0
-          ? lv.y0
+          ? Math.max(lv.y0, dCof ? spz.szyna ?? -Infinity : -Infinity)
           : y + Math.max(0, Math.round(num(g.underRail) ?? 5));
         /* Auto bierze najwyzszy bok, ktory front uniesie — i ktory zmiesci sie
            pod tym, co nad szuflada (front wyzej, gora swiatla, wzmocnienie przy
@@ -5249,7 +5251,7 @@ function computeGeoLiczy(cab, mat, ctx) {
               && r.x1 > dsx0 && r.x0 < dsx1).map((r) => r.y0)));
           // tylko z luzem nad bokiem; gdy zaden nie wchodzi — kontrola nizej zglosi blad
           const wchodzi = [...VBOX.heights]
-            .filter((hc) => VBOX.minFront[dMode][hc] <= fh && railY0 + vboxGora(hc) + SZUFLADA_ZAPAS <= sufitDla(hc)).pop();
+            .filter((hc) => VBOX.minFront[dMode][hc] <= fh && railY0 + vboxGora(hc) + SZUFLADA_ZAPAS <= sufitDla(hc) && !(dCof && spz.bokMax && hc > spz.bokMax)).pop();
           hClass = wchodzi || fitH || VBOX.heights[0];
         } else {
           hClass = VBOX.heights.includes(Number(d.h)) ? Number(d.h) : 127;
@@ -5315,7 +5317,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           hClass,
           nl,
           fixed: num(d.front) !== null,
-          system: "vbox", bx0, bx1, listwa: lwP ? lwP.side : null,
+          system: "vbox", bx0, bx1, zabudowa: !!lwP,
           // od dolu prowadnicy: dol boku, spod dna i tylu, gora boku — wspolne z DXS dla rysunkow
           bokOd: vboxOdProw(hClass), dnoOd: vboxDno(hClass), gora: vboxGora(hClass),
           // prowadnica: 21 mm szerokosci przy kazdym boku, wysokosc z boku
@@ -7277,7 +7279,7 @@ function computeGeoLiczy(cab, mat, ctx) {
               + `; 3 wkręty w otwory prowadnicy, bez nawiercania (górny rząd ${DXS.wkretGora} mm nad kreską)`
             : `dolna krawędź prowadnicy, NL ${fmt(dr.rail.d)}; otwory ${otw} mm od przedniej krawędzi`
             + (sb ? ` (cofnięta o ${fmt(sb)} mm)` : ""); };
-          const note = notka(sb0), noteL = dr.listwa ? notka(Math.max(0, sb0 - ((spz && spz.cof) || 0))) : note;
+          const note = notka(sb0), noteL = dr.zabudowa ? notka(Math.max(0, sb0 - ((spz && spz.cof) || 0))) : note;
           const sk = dr.skrzynka;
           if (dr.system === "dxs" && sk) {
             /* Skrzynka DXS: dno i tyl na konfirmaty przez boki od zewnatrz,
@@ -7312,11 +7314,11 @@ function computeGeoLiczy(cab, mat, ctx) {
           // po stronie elementu stalego prowadnica idzie na wspornik (audyt GPT N42)
           const wsp = c.fix && c.support
             ? { name: lv.cols.length > 1 ? `Wspornik pionowy — kolumna ${c.j + 1}` : "Wspornik pionowy", base: lv.y0, strona: "" } : null;
-          // za drzwiami przesuwnymi: po stronie skrzydla prowadnica na listwie (`listwyPrz`)
-          const lwD = dr.listwa ? { name: lv.cols.length > 1 ? `Listwa pod prowadnice — kolumna ${c.j + 1}` : "Listwa pod prowadnice", base: lv.y0, strona: "", lw: true } : null;
-          const pl = lwD && dr.listwa === "left" ? lwD : wsp && c.fix.side === "left" ? wsp : p.left, pr = lwD && dr.listwa === "right" ? lwD : wsp && c.fix.side === "right" ? wsp : p.right;
+          // za drzwiami przesuwnymi: prowadnice na bokach zabudowy szuflad (`listwyPrz`), odleglosci od ich przedniej krawedzi
+          const lwD = dr.zabudowa ? { name: lv.cols.length > 1 ? `Bok zabudowy szuflad — kolumna ${c.j + 1} (2 szt., lustrzanie)` : "Bok zabudowy szuflad (2 szt., lustrzanie)", base: lv.y0, strona: "", lw: true } : null;
+          const pl = lwD || (wsp && c.fix.side === "left" ? wsp : p.left), pr = lwD ? null : wsp && c.fix.side === "right" ? wsp : p.right;
           drillAdd(lv.i, pl.name, pl.base, "prowadnica", dr.rail.y0, (pl.lw ? noteL : note) + pl.strona);
-          drillAdd(lv.i, pr.name, pr.base, "prowadnica", dr.rail.y0, (pr.lw ? noteL : note) + pr.strona);
+          if (pr) drillAdd(lv.i, pr.name, pr.base, "prowadnica", dr.rail.y0, (pr.lw ? noteL : note) + pr.strona);
         });
       })
     );
@@ -8551,9 +8553,12 @@ function computeGeoLiczy(cab, mat, ctx) {
    w profilach NOVO S. Wymiary — `przesuwneWymiary` (wzory GTV). */
 function geoPrzesuwne(cab, mat, ctx) {
   const P = cab.przesuwne || {};
-  /* Wnetrze: bez drzwi na zawiasach i klap (takze w poziomach kolumny); szuflady z frontem w swietle kolumny, cofnietym za strefe
-     torow (uzytkownik 2026-11-16, zdjecia jego szafy: fronty za torami, najnizszy nad torem dolnym, listwa od strony skrzydla) */
-  const bezDrzwi = (c) => (!c ? c : c.kind === "drawers" ? { ...c, drawerMode: "inset" } : c.kind === "blenda" || c.sprzet ? c : { ...c, doors: 0, klapa: undefined });
+  /* Wnetrze: bez drzwi na zawiasach i klap (takze w poziomach kolumny). Szuflady (uzytkownik 2026-11-16, jego szafa): „dołożona zabudowa pod
+     szuflady — boki i wieniec jako pierwsza półka; szuflady wewnętrzne z podfrezem na palce; zabudowa cofnięta o 80 mm od czoła; dolna szyna
+     18 mm od dna” — front w swietle zabudowy (wpuszczany), cofniety za strefe torow; podfrez, chyba ze kolumna ma recznie wybrane uchwyty
+     (`fingerGrip: false`). Wieniec zabudowy to polka nad szufladami (granica poziomu kolumny albo gora poziomu). */
+  const szufl = (c) => ({ ...c, drawerMode: "inset", ...(c.fingerGrip == null ? { fingerGrip: true, drawers: (c.drawers || []).map((d) => ({ ...d, handle: false })) } : {}) });
+  const bezDrzwi = (c) => (!c ? c : c.kind === "drawers" ? szufl(c) : c.kind === "blenda" || c.sprzet ? c : { ...c, doors: 0, klapa: undefined });
   const kolumna = (c) => { const k = bezDrzwi(c); return Array.isArray(c.segmenty) ? { ...k, segmenty: c.segmenty.map(bezDrzwi) } : k; };
   const zSzufladami = (c) => c.kind === "drawers" || (c.segmenty || []).some((sg) => sg && sg.kind === "drawers");
   const wewn0 = { ...cab, przesuwne: null, shelfExtraSetback: Math.max(Number(cab.shelfExtraSetback) || 0, PRZES.STREFA), __przegrodyCof: PRZES.STREFA,
@@ -8562,27 +8567,16 @@ function geoPrzesuwne(cab, mat, ctx) {
   const SO = Math.round(g.interior.x1 - g.interior.x0), WO = Math.round(g.interior.y1 - g.interior.y0);
   const w = przesuwneWymiary(SO, WO, P);
   const odsl = przesuwneOdslania(w), x0i = g.interior.x0, LUZ = PRZES.LUZ_SZUFL, GI = Number((cab.gaps || {}).inset) || 0;
-  /* Listwa pod prowadnice: front szuflady (w swietle kolumny, luz GI) musi przejsc przez miejsce odsloniete po odsunieciu skrzydla,
-     z luzem LUZ od krawedzi stojacego skrzydla — brakujace mm z jednej strony zabiera listwa z plyty korpusu (1 albo 2 grubosci) */
-  const listwaKol = (c) => {
-    const f0 = c.x0 - x0i + GI, f1 = c.x1 - x0i - GI;
-    const best = odsl.map((o) => ({ L: Math.max(0, o.x0 + (o.x0 > 0.5 ? LUZ : 0) - f0), R: Math.max(0, f1 - (o.x1 - (o.x1 < SO - 0.5 ? LUZ : 0))) }))
-      .map((q) => ({ ...q, suma: q.L + q.R })).sort((a, b) => a.suma - b.suma)[0];
-    if (!best || best.suma <= 0 || (best.L > 0 && best.R > 0)) return { brak: best ? best.suma : 0, lw: null };
-    const need = best.L || best.R, n = Math.ceil(need / g.t);
-    return n > 2 ? { brak: need, lw: null } : { brak: 0, lw: { side: best.L ? "left" : "right", t: Math.round(n * g.t), need: Math.round(need) } };
-  };
   const ileSzufl = (cab.levels || []).some((lv) => (lv.cols || []).some(zSzufladami));
-  const listwy = {};
+  const zabT = Math.round(g.t);
   if (ileSzufl) {
-    (g.levels || []).forEach((lv) => (lv.cols || []).forEach((c, j) => {
-      const raw = ((cab.levels || [])[lv.i] || {}).cols?.[j]; if (!raw || !zSzufladami(raw)) return;
-      const r = listwaKol(c); if (r.lw) listwy[`${lv.i}|${j}`] = r.lw;
-    }));
-    const zLw = (c, li, j) => { const lw = listwy[`${li}|${j}`]; if (!lw) return c; const z = (x) => (x && x.kind === "drawers" ? { ...x, __listwa: lw } : x);
+    // boki zabudowy przy obu sciankach kolumny z szufladami (i w jej poziomach z szufladami)
+    const zZab = (c) => { const z = (x) => (x && x.kind === "drawers" ? { ...x, __zabudowa: { t: zabT } } : x);
       return { ...z(c), ...(Array.isArray(c.segmenty) ? { segmenty: c.segmenty.map(z) } : {}) }; };
-    const wewn = { ...wewn0, __szuflPrzes: { cof: PRZES.STREFA, y0: Math.round(g.interior.y0 + PRZES.TOR_D.h + LUZ), y1: Math.round(g.interior.y1 - PRZES.TOR_G.h - LUZ) },
-      levels: wewn0.levels.map((lv, li) => ({ ...lv, cols: lv.cols.map((c, j) => zLw(c, li, j)) })) };
+    const pod = Math.max(0, Math.round(num(cab.gaps && cab.gaps.underRail) ?? 5));
+    const wewn = { ...wewn0, __szuflPrzes: { cof: PRZES.STREFA, bokMax: PRZES.VBOX_BOK, szyna: Math.round(g.interior.y0 + PRZES.SZYNA_DOL), y0: Math.round(g.interior.y0 + PRZES.SZYNA_DOL - pod),
+      y1: Math.round(g.interior.y1 - PRZES.TOR_G.h - LUZ) },
+      levels: wewn0.levels.map((lv) => ({ ...lv, cols: lv.cols.map(zZab) })) };
     g = computeGeoLiczy(wewn, mat, ctx);
   }
   const msgs = [...g.msgs], add = (level, text) => msgs.push({ level, text });
@@ -8591,8 +8585,10 @@ function geoPrzesuwne(cab, mat, ctx) {
   const skrzydla = w.skrzydla.map((sk) => ({ ...sk, x: Math.round(g.interior.x0 + sk.x0), w: w.SD, y: Math.round(y0), h: w.WD,
     z0: 8 + sk.tor * PRZES.TOR_KROK, z1: 8 + sk.tor * PRZES.TOR_KROK + PRZES.DRZWI_GR }));
   const glListwy = Math.round(g.dividerDepth || g.carcassDepth - PRZES.STREFA);
-  const listwyPl = (g.listwyPrz || []).map((q) => ({ name: q.nKol > 1 ? `Listwa pod prowadnice — kolumna ${q.j + 1}` : "Listwa pod prowadnice", qty: Math.max(1, Math.round(q.t / g.t)), a: Math.round(q.y1 - q.y0), b: glListwy, matKey: "board",
-    edges: { a1: true, a2: false, b1: false, b2: false }, note: `${q.where}: przy ${q.side === "left" ? "lewej" : "prawej"} ściance, ${fmt(q.t)} mm${q.t > g.t ? " (dwie płyty sklejone)" : ""}; prowadnice szuflad na niej; cofnięta o ${PRZES.STREFA} mm jak przegrody` }));
+  // boki zabudowy szuflad: po dwa na kolumne / poziom kolumny (lewy i prawy tej samej wielkosci)
+  const zabudowy = [...new Map((g.listwyPrz || []).map((q) => [`${q.lvl}|${q.j}|${q.y0}`, q])).values()];
+  const listwyPl = zabudowy.map((q) => ({ name: q.nKol > 1 ? `Bok zabudowy szuflad — kolumna ${q.j + 1}` : "Bok zabudowy szuflad", qty: 2, a: Math.round(q.y1 - q.y0), b: glListwy, matKey: "board",
+    edges: { a1: true, a2: false, b1: false, b2: false }, note: `${q.where}: zabudowa pod szuflady przy obu ściankach kolumny, cofnięta o ${PRZES.STREFA} mm jak przegrody; prowadnice na niej; wieniec zabudowy — półka nad szufladami` }));
   const panels = [...g.panels, ...listwyPl, { name: "Wypełnienie drzwi przesuwnych", qty: n, a: w.WW, b: w.SW, matKey: plytaFrontu(cab),
     edges: { a1: false, a2: false, b1: false, b2: false },
     note: `skrzydło ${fmt(w.SD)} × ${fmt(w.WD)} mm (GTV NOVO S): płyta w rączkach i listwach — bez okleiny; frezowanie pod wózki dolne wg instrukcji GTV (s. 24)` }];
@@ -8606,7 +8602,7 @@ function geoPrzesuwne(cab, mat, ctx) {
     { name: "Wózek dolny EVO", use: "drzwi przesuwne — dwa na skrzydło", spec: "A-WD-EVO, regulacja 0–10 mm, skrzydło do 50 kg", qty: 2 * n, unit: "szt." },
     { name: "Prowadnik górny 18 mm", use: "drzwi przesuwne — dwa na skrzydło", spec: "A-PG-18", qty: 2 * n, unit: "szt." },
     { name: "Pozycjoner górny", use: "drzwi przesuwne — w torze górnym (przy torze dolnym EVO zawsze)", spec: "A-PTG", qty: n, unit: "szt." },
-    ...(listwyPl.length ? [{ name: "Wkręt 4 × 30", use: "listwa pod prowadnice szuflad — do ścianki kolumny, od środka", spec: "co ok. 300 mm, w dwóch rzędach",
+    ...(listwyPl.length ? [{ name: "Wkręt 4 × 30", use: "boki zabudowy szuflad — do ścianek kolumny, od środka zabudowy", spec: "co ok. 300 mm, w dwóch rzędach",
       qty: (g.listwyPrz || []).reduce((a, q) => a + 2 * Math.max(2, Math.ceil((q.y1 - q.y0) / 300)), 0), unit: "szt." }] : []),
     ...(w.szczotka ? [{ name: "Szczotka odbojowa 14,5 × 4", use: "drzwi przesuwne — na rączkach przy bokach", spec: `A-SO-145X4: 2 × ${fmt(w.WD)} mm`, qty: 2, unit: "szt." }] : []),
   ];
@@ -8617,21 +8613,22 @@ function geoPrzesuwne(cab, mat, ctx) {
   if (w.SW <= 0 || w.WW <= 0) add("error", "Otwór za mały na drzwi przesuwne.");
   // kolumny wnetrza a skrzydla: kolumna pod dwoma skrzydlami — po odsunieciu jednego czesc zostaje zaslonieta
   const kolumny = [...new Map((g.levels || []).flatMap((lv) => (lv.cols || []).map((c, j) => {
-    const raw = ((cab.levels || [])[lv.i] || {}).cols?.[j], lw = listwy[`${lv.i}|${j}`];
-    return [`${Math.round(c.x0)}|${Math.round(c.x1)}`, { x0: c.x0 - x0i + (lw && lw.side === "left" ? lw.t : 0), x1: c.x1 - x0i - (lw && lw.side === "right" ? lw.t : 0),
-      szuflady: !!raw && zSzufladami(raw), lw }];
+    const raw = ((cab.levels || [])[lv.i] || {}).cols?.[j], sz = !!raw && zSzufladami(raw), zab = sz ? zabT : 0;
+    return [`${Math.round(c.x0)}|${Math.round(c.x1)}`, { x0: c.x0 - x0i + zab, x1: c.x1 - x0i - zab, szuflady: sz }];
   }))).values()];
   if (kolumny.length > 1 || kolumny.some((c) => c.szuflady)) kolumny.forEach((c, kk) => {
     const kto = kolumny.length > 1 ? `Kolumna ${kk + 1}` : "Kolumna";
-    // szuflada: front (luz GI od boku / listwy) z luzem LUZ od stojacego skrzydla; polki: drobna zakladka profili nie przeszkadza (do 50 mm)
+    // szuflada: front (luz GI od boku zabudowy) z luzem LUZ od stojacego skrzydla; polki: drobna zakladka profili nie przeszkadza (do 50 mm)
     const f0 = c.szuflady ? c.x0 + GI : c.x0, f1 = c.szuflady ? c.x1 - GI : c.x1, lz = c.szuflady ? LUZ : 0;
     const naj = odsl.map((o) => ({ ...o, braki: Math.max(0, o.x0 + (o.x0 > 0.5 ? lz : 0) - f0) + Math.max(0, f1 - (o.x1 - (o.x1 < SO - 0.5 ? lz : 0))) })).sort((a, b) => a.braki - b.braki)[0];
     if (naj && naj.braki > (c.szuflady ? 0.5 : 50))
-      add(c.szuflady ? "warn" : "info", `${kto} (${fmt(Math.round(c.x1 - c.x0))} mm) wypada pod dwoma skrzydłami — po odsunięciu skrzydła ${fmt(Math.round(naj.braki))} mm zostaje zasłonięte${c.szuflady ? " i szuflada się nie wysunie" : ""}. Ustaw przegrodę na styku skrzydeł albo zmień liczbę skrzydeł.`);
-    else if (c.lw)
-      add("info", `${kto}: szuflady za drzwiami przesuwnymi — przy ${c.lw.side === "left" ? "lewej" : "prawej"} ściance kolumny listwa ${fmt(c.lw.t)} mm pod prowadnice (krawędź odsuniętego skrzydła ${c.lw.need - LUZ > 0 ? `zachodzi ${fmt(c.lw.need - LUZ)} mm na front szuflady` : `jest tylko ${fmt(LUZ - c.lw.need)} mm od frontu szuflady`}, a potrzeba ${LUZ} mm luzu) — szuflada węższa o tyle. Listwę przykręć do ścianki przed prowadnicami.`);
+      add(c.szuflady ? "warn" : "info", `${kto} (${fmt(Math.round(c.x1 - c.x0))} mm${c.szuflady ? " między bokami zabudowy" : ""}) wypada pod dwoma skrzydłami — po odsunięciu skrzydła ${fmt(Math.round(naj.braki))} mm zostaje zasłonięte${c.szuflady ? " i szuflada się nie wysunie" : ""}. Ustaw przegrodę na styku skrzydeł albo zmień liczbę skrzydeł.`);
   });
-  if (ileSzufl) add("info", `Szuflady za drzwiami przesuwnymi: fronty w świetle kolumny, cofnięte o ${PRZES.STREFA} mm za tory; najniższy front ${fmt(PRZES.TOR_D.h + LUZ)} mm nad dnem (nad torem dolnym), górny najwyżej ${fmt(PRZES.TOR_G.h + LUZ)} mm pod wieńcem (pod torem górnym).`);
+  // uchwyty wybrane recznie: wystaja z frontu cofnietego o strefe — tyl skrzydel jest PRZES.STREFA − zakres torow od lica
+  const tylSkrzydel = 8 + PRZES.TOR_KROK + PRZES.DRZWI_GR, wolne = PRZES.STREFA - tylSkrzydel;
+  const zUchwytem = (g.doors || []).filter((d) => d.type === "drawer" && d.handle && !d.podfrez && uchwytOut(d, cab) > wolne - 3);
+  if (zUchwytem.length) add("warn", `Szuflady za drzwiami przesuwnymi z uchwytem: uchwyt wystaje ${fmt(Math.max(...zUchwytem.map((d) => uchwytOut(d, cab))))} mm, a do skrzydeł jest ${fmt(wolne)} mm — zamknięte drzwi o niego zahaczą. Daj wcięcie na palce (podfrez) zamiast uchwytu.`);
+  if (zabudowy.length) add("info", `Szuflady za drzwiami przesuwnymi: zabudowa pod szuflady — ${zabudowy.length === 1 ? "dwa boki" : `po dwa boki w ${zabudowy.length} kolumnach`} ${fmt(zabT)} mm przy ściankach kolumny i wieniec (półka nad szufladami), cofnięta o ${PRZES.STREFA} mm za tory; fronty wewnętrzne${zUchwytem.length ? "" : " z podfrezem na palce"}; dolna prowadnica ${PRZES.SZYNA_DOL} mm nad dnem, front ${fmt(PRZES.SZYNA_DOL - Math.max(0, Math.round(num(cab.gaps && cab.gaps.underRail) ?? 5)))} mm nad dnem — nad torem dolnym (${PRZES.TOR_D.h} mm). Boki przykręć do ścianek kolumny od środka zabudowy przed prowadnicami.`);
   add("info", `Drzwi przesuwne GTV NOVO S: ${n} ${plural(n, "skrzydło", "skrzydła", "skrzydeł")} ${fmt(w.SD)} × ${fmt(w.WD)} mm (otwór ${fmt(SO)} × ${fmt(WO)}, zakładka ${PRZES.Z} mm${w.szczotka ? ", ze szczotką odbojową" : ""}); półki i przegrody cofnięte o ${PRZES.STREFA} mm za tory. Tory na wkręty z łbem stożkowym (otwory fazowane); maskownicę zapnij przed wstawieniem drzwi.`);
   return { ...g, msgs, panels, hardware: [...g.hardware, ...hw], doors: (g.doors || []).filter((d) => d.type === "drawer"),
     przesuwne: { ...w, skrzydla, strefa: PRZES.STREFA, y0: Math.round(g.interior.y0), y1: Math.round(g.interior.y1), x0: Math.round(g.interior.x0), kg: Math.round(kg),
@@ -9788,7 +9785,7 @@ function PrzesuwneElew({ geo, fy, mx = (x) => x, ff, open }) {
     <g data-el="drzwi-przesuwne" pointerEvents="none">
       <rect data-el="tor-gorny" x={mx(p.x0, p.SO)} y={fy(p.y1)} width={p.SO} height={PRZES.TOR_G.h} fill={tor} stroke={INK} strokeWidth="1" />
       <rect data-el="tor-dolny" x={mx(p.x0, p.SO)} y={fy(p.y0 + PRZES.TOR_D.h)} width={p.SO} height={PRZES.TOR_D.h} fill={tor} stroke={INK} strokeWidth="1" />
-      {(p.listwy || []).map((q, k) => <rect key={"lw" + k} data-el="listwa-prowadnic" x={mx(q.x0, q.x1 - q.x0)} y={fy(q.y1)} width={q.x1 - q.x0} height={q.y1 - q.y0} fill="#e7e5e4" stroke={INK} strokeWidth="1" />)}
+      {(p.listwy || []).map((q, k) => <rect key={"lw" + k} data-el="zabudowa-szuflad" x={mx(q.x0, q.x1 - q.x0)} y={fy(q.y1)} width={q.x1 - q.x0} height={q.y1 - q.y0} fill="#e7e5e4" stroke={INK} strokeWidth="1" />)}
       {sk.map((d) => { const X = mx(d.x, d.w), Y = fy(d.y + d.h);
         return open
           ? <rect key={d.i} data-el="skrzydlo-przesuwne" x={X} y={Y} width={d.w} height={d.h} fill="none" stroke={LINE} strokeWidth="2" strokeDasharray="14 9" />
@@ -10679,7 +10676,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm, wystajeB
       {geo.przesuwne && <g data-el="przesuwne-z-gory" pointerEvents="none">
         <rect x={geo.przesuwne.x0} y={cd - PRZES.TOR_G.w} width={geo.przesuwne.SO} height={PRZES.TOR_G.w} fill="#e7e5e4" stroke={LINE} strokeWidth="1" strokeDasharray="8 6" />
         {geo.przesuwne.skrzydla.map((d) => <rect key={d.i} x={d.x} y={cd - d.z1} width={d.w} height={d.z1 - d.z0} fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="1.5" />)}
-        {(geo.przesuwne.listwy || []).map((q, k) => <rect key={"lw" + k} data-el="listwa-prowadnic" x={q.x0} y={cd - q.z1} width={q.x1 - q.x0} height={q.z1 - q.z0} fill={mat.board.color} stroke={INK} strokeWidth="1" />)}
+        {(geo.przesuwne.listwy || []).map((q, k) => <rect key={"lw" + k} data-el="zabudowa-szuflad" x={q.x0} y={cd - q.z1} width={q.x1 - q.x0} height={q.z1 - q.z0} fill={mat.board.color} stroke={INK} strokeWidth="1" />)}
       </g>}
       {/* Wieniec albo blat z plyty — na wierzchu (uzytkownik 2026-11-10: „w szafie wygląda, jakby wieniec był osobny dla
           każdego elementu, a w biurku, jakby blat był pod, a nie nad”): lezy nad wszystkim, wiec rysowany ostatni,

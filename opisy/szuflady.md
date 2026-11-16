@@ -150,4 +150,4 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 
 ## Szuflady za drzwiami przesuwnymi (2026-11-16)
 
-W szafie z drzwiami przesuwnymi front jest zawsze w świetle kolumny, cofnięty o 80 mm za tory, a najniższy front stoi 13 mm nad dnem. Od strony skrzydła może dojść listwa pod prowadnice (szuflada węższa). Szczegóły: `opisy/przesuwne.md`.
+W szafie z drzwiami przesuwnymi szuflady stoją w zabudowie (dwa boki 18 mm przy ściankach kolumny i wieniec = półka nad szufladami), cofniętej o 80 mm za tory. Front jest wewnętrzny, z podfrezem. Dolna prowadnica 18 mm nad dnem, front 13 mm. Bok V-BOX „auto” najwyżej 127. Szczegóły: `opisy/przesuwne.md`.

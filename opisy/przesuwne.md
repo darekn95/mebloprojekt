@@ -34,32 +34,36 @@ Stan: 2026-11-16. Decyzje użytkownika z 2026-11-16 (w `BLEDY.md`, „Ustalone�
 
 ## Szuflady za drzwiami przesuwnymi
 
-Według zdjęć szafy użytkownika (2026-11-16).
+Jak w szafie użytkownika (2026-11-16): „dołożona zabudowa pod szuflady — boki i wieniec jako pierwsza półka; szuflady wewnętrzne z podfrezem na palce; zabudowa cofnięta o 80 mm od czoła; dolna szyna 18 mm od dna (łatwo wyznaczyć ręcznie)”; „szuflady w szafie mam V-BOX, jedne z niższych” (bok ok. 12 cm).
 
-- **Front w świetle kolumny, cofnięty o 80 mm** za tory (`cab.__szuflPrzes.cof` → `d.cof`).
+- **Zabudowa pod szuflady** (`rawCol.__zabudowa`, `listwyPrz`) w każdej kolumnie i poziomie kolumny z szufladami:
+  - dwa boki z płyty korpusu (18 mm) przy obu ściankach kolumny, od dna poziomu do półki nad szufladami;
+  - głębokość jak przegrody, cofnięte o 80 mm;
+  - wieniec zabudowy to półka nad szufladami (granica poziomu kolumny albo góra poziomu);
+  - szuflada jest węższa o oba boki, prowadnice idą na boki zabudowy;
+  - formatka „Bok zabudowy szuflad — kolumna N” (2 szt.), wkręty 4 × 30 co ok. 300 mm w dwóch rzędach;
+  - w planie wierceń prowadnice na bokach zabudowy, z odległościami od ich przedniej krawędzi.
+- **Front wewnętrzny, cofnięty o 80 mm** za tory (`cab.__szuflPrzes.cof` → `d.cof`).
   - Prowadnice i skrzynka cofają się razem z frontem (`rail.setback` = grubość frontu + 80).
   - NL dobiera się z głębokości, która została.
-- **Pasmo frontów.** Najniższy front 13 mm nad dnem (tor dolny 8 mm + luz 5), górny najwyżej 43 mm pod wieńcem (tor górny 38 + 5).
-- **Listwa pod prowadnice** (`listwyPrz`), od strony skrzydła, które po odsunięciu staje przy szufladach.
-  - Front musi przejść obok krawędzi odsuniętego skrzydła z luzem 5 mm (`PRZES.LUZ_SZUFL`).
-  - Brakujące mm zabiera listwa z płyty korpusu: 1 grubość (18), a gdy trzeba więcej — 2 (sklejone).
-  - Szuflada jest o tyle węższa, prowadnica idzie na listwę.
-  - Formatka „Listwa pod prowadnice — kolumna N” ma głębokość jak przegrody; okucia: wkręty 4 × 30 co ok. 300 mm, w dwóch rzędach.
-  - W planie wierceń listwa ma prowadnicę z odległościami od swojej przedniej krawędzi.
-  - Typowo (2 skrzydła, przegroda na środku) potrzeba 18 mm przy przegrodzie.
+  - Domyślnie podfrez na palce, bez uchwytów. Gdy w kolumnie wybrano uchwyty (wcięcie wyłączone), a uchwyt wystaje więcej niż miejsce do skrzydeł (28 mm, z luzem 3), pojawia się ostrzeżenie.
+- **Dolna prowadnica 18 mm nad dnem** (`PRZES.SZYNA_DOL`, `spz.szyna`). Front schodzi 5 mm poniżej niej (13 mm nad dnem, nad torem dolnym 8 mm). Górny front najwyżej 43 mm pod wieńcem (tor górny 38 + 5).
+- **Bok V-BOX „auto”** najwyżej 127 (`PRZES.VBOX_BOK`). Ręcznie wybrany bok zostaje.
+- **Dostęp.** Front musi przejść obok krawędzi odsuniętego skrzydła z luzem 5 mm (`PRZES.LUZ_SZUFL`). Przy 2 skrzydłach i przegrodzie na środku boki zabudowy (18) to zapewniają.
 - **Szuflady na dół kolumny** (karta Szuflady albo klocek „N szuflad”, szafa z przegrodą; `makSzufladyNaDoleKolumny`):
-  - nowa półka graniczna 220 mm na szufladę nad dnem kolumny;
+  - nowa półka graniczna (wieniec zabudowy) 220 mm na szufladę nad dnem kolumny;
   - pod nią poziom kolumny z szufladami;
   - nad nią zostaje, co było (półki, drążek, górne 300);
   - wysokość dobrana o 0–n−1 mm tak, żeby fronty wyszły równe.
 - **Kontrole:**
-  - (i) „listwa N mm pod prowadnice” dla każdej kolumny z listwą;
-  - (!) kolumna szuflad pod dwoma skrzydłami, której listwa nie ratuje (z obu stron albo ponad 2 grubości) — „szuflada się nie wysunie”;
-  - (i) ogólna informacja o cofnięciu i paśmie frontów.
+  - (i) zabudowa pod szuflady, prowadnica 18 nad dnem, podfrez;
+  - (!) kolumna szuflad pod dwoma skrzydłami (nawet z bokami zabudowy) — „szuflada się nie wysunie”;
+  - (!) uchwyt szuflady wystaje do skrzydeł.
 - **Klocki frontów** (1 / 2 drzwi, klapy, bez frontu, lustro, uchwyt, tip-on) w szafie przesuwnej — komunikat, nic się nie zmienia.
 - **Kolejność montażu:**
-  - listwę przykręca się do ścianki kolumny od środka, zanim wejdą prowadnice;
+  - boki zabudowy przykręca się do ścianek kolumny od środka zabudowy, zanim wejdą prowadnice;
   - tory i skrzydła na końcu — dostęp do wkrętów jest.
+  - Mocowanie wieńca zabudowy (półka nad szufladami): w programie jak półka graniczna poziomu kolumny — do potwierdzenia u użytkownika, `AI_NOTES.md` [CHECK].
 
 ## Szafa do zabudowy (wzór w palecie „Szafa w zabudowie”)
 
@@ -113,7 +117,7 @@ Według zdjęć szafy użytkownika (2026-11-16).
 ## Gdzie w kodzie i testy
 
 - Kod:
-  - szuflady: `cab.__szuflPrzes`, `rawCol.__listwa`, `listwyPrz` w `szufladyKolumny` (`computeGeoLiczy`); `makSzufladyNaDoleKolumny`, `slupekSzuflady` (karta Szuflady);
+  - szuflady: `cab.__szuflPrzes` (cof, szyna, y0, y1, bokMax), `rawCol.__zabudowa`, `listwyPrz` w `szufladyKolumny` (`computeGeoLiczy`); `makSzufladyNaDoleKolumny`, `slupekSzuflady` (karta Szuflady);
   - stałe i wymiary: `PRZES`, `przesuwneOn`, `przesuwneLiczba`, `przesuwneWymiary`, `przesuwneTor`, `przesuwneOdslania`;
   - geometria: `geoPrzesuwne` (wywoływana z `computeGeoLiczy`);
   - rysunki: `PrzesuwneElew` (przód), grupa `przesuwne-z-gory` w `CabTop`, `przesuwneBryly` (3D: `Scene3D`, `Assembly3D`);
@@ -121,5 +125,5 @@ Według zdjęć szafy użytkownika (2026-11-16).
   - wzór: `szafaZab` w `MAK_PALETA` (`doSufitu`).
 - Testy:
   - `testy/funkcje.mjs` — bloki „drzwi przesuwne GTV NOVO S” i „szuflady za drzwiami przesuwnymi”;
-  - `testy/makieta19.mjs` — wzór, sufit, karta Drzwi, szuflady na dół kolumny (listwa), 3D, karta techniczna.
+  - `testy/makieta19.mjs` — wzór, sufit, karta Drzwi, szuflady na dół kolumny (zabudowa, klocek), 3D, karta techniczna.
 - Audyt projektu (`testy/audytprojektu.mjs`): skrzydła przesuwne (znacznik bryły `drzwi-przesuwne`) poza symulacją wysuwu — dostęp sprawdza aplikacja. Tory (`tor`) i metal skrzydeł nie są płytami.

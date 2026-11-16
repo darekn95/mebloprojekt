@@ -1358,11 +1358,13 @@ Pobrana curl-em (siec srodowiska „unrestricted” od uzytkownika; WebFetch w t
 `computeGeoLiczy` -> `geoPrzesuwne` (wnetrze bez drzwi na zawiasach, polki / przegrody cofniete o PRZES.STREFA = 80 przez `shelfExtraSetback` i
 `__przegrodyCof`), rysunki: `PrzesuwneElew`, `przesuwne-z-gory` (CabTop), `przesuwneBryly` (Scene3D, Assembly3D). Sufit szafy: `sufitSzafyMsgs`
 (akcja `szafasufit:<i>`). Testy: `funkcje.mjs` (blok przesuwne), `makieta19.mjs`.
-[CLAUDE-CHANGE] 2026-11-16 (faza B, zdjecia szafy uzytkownika — tylko w czacie, nie w repo): szuflady za drzwiami przesuwnymi. `geoPrzesuwne`
-liczy geometrie dwa razy, gdy sa szuflady: najpierw bez listew (kolumny), potem z `cab.__szuflPrzes` (cof 80, y0 = dno + 13, y1 = wieniec − 43)
-i `rawCol.__listwa` (strona, grubosc 18 / 36) na kolumnach i ich poziomach z szufladami. W `szufladyKolumny`: front wpuszczany cofniety (`d.cof`,
-`rail.setback` = tf + cof), listwa zweza `bx0/bx1` i `dsx0/dsx1`, wpis do `listwyPrz` (formatka, rysunki, plan wiercen „Listwa pod prowadnice”).
-Rysunki z `d.cof`: Scene3D, Assembly3D, CabTop (lico, plaszczyzny). Audyt: bryly z tagiem `drzwi-przesuwne` poza symulacja wysuwu, `tor` i metal
-skrzydel nie sa plytami. Karta Szuflady: w szafie z przegroda „1–5” wstawia szuflady na dol kolumny (`makSzufladyNaDoleKolumny`).
-[CHECK] 2026-11-16: do potwierdzenia u uzytkownika — pozycjoner gorny A-PTG: ile na skrzydlo (dzis 1); waga profili 0,5 kg/mb (bez karty);
-luz 5 mm frontu szuflady od krawedzi odsunietego skrzydla i nad torem dolnym (`PRZES.LUZ_SZUFL`).
+[CLAUDE-CHANGE] 2026-11-16 (faza B, zdjecia szafy uzytkownika — tylko w czacie, nie w repo): szuflady za drzwiami przesuwnymi wg odpowiedzi
+uzytkownika — zabudowa pod szuflady (boki 18 przy obu sciankach kolumny + wieniec = polka nad szufladami), cofnieta 80; fronty wewnetrzne
+z podfrezem (fingerGrip domyslnie, uchwyty tylko recznie — ostrzezenie, gdy wystaja do skrzydel); dolna prowadnica 18 mm nad dnem
+(`PRZES.SZYNA_DOL`), V-BOX auto najwyzej 127 (`PRZES.VBOX_BOK`; „mam V-BOX, jedne z niższych”, bok ok. 12 cm). `geoPrzesuwne` liczy dwa
+razy: bez i z `cab.__szuflPrzes` + `rawCol.__zabudowa`. W `szufladyKolumny`: `d.cof`, `rail.setback` = tf + cof, `bx0/bx1` i `dsx0/dsx1`
+zwezone o boki, `listwyPrz` (2 wpisy na kolumne — formatki, rysunki, plan wiercen „Bok zabudowy szuflad”). Audyt: bryly `drzwi-przesuwne`
+poza symulacja wysuwu. Karta Szuflady i klocek „N szuflad”: w wysokiej szafie z przegroda szuflady na dol kolumny (`makSzufladyNaDoleKolumny`).
+[CHECK] 2026-11-16: pozycjoner gorny 1 na skrzydlo — potwierdzone; waga profili 0,5 kg/mb (bez karty) — nie pytane. Do potwierdzenia:
+mocowanie wienca zabudowy szuflad (dzis jak polka graniczna poziomu kolumny — konfirmaty przez scianki kolumny; u uzytkownika wieniec skrecony z bokami
+zabudowy?) i bok V-BOX 127 jako domyslny za drzwiami przesuwnymi.

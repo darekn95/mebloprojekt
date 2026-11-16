@@ -100,7 +100,7 @@ p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && (it.cab.levels
 { const k2 = szafa(p).cab.levels[0].cols[1];
   ok('„2” w kolumnie 2 szafy: poziom kolumny z 2 szufladami na dole, drążek i półka 300 zostają nad nim', JSON.stringify(k2.podzial) === '[0]' && k2.segmenty[0].kind === 'drawers' && k2.segmenty[0].drawers.length === 2
     && k2.shelfTargets[0] > 400 && k2.shelfTargets[2] === 300 && JSON.stringify(k2.drazki) === '[1]', JSON.stringify({ st: k2.shelfTargets, pz: k2.podzial, dr: k2.drazki })); }
-{ const t = await uwagi(); ok('Uwagi: listwa 18 mm pod prowadnice przy lewej ściance kolumny 2; fronty równe', /Kolumna 2: szuflady za drzwiami przesuwnymi — przy lewej ściance kolumny listwa 18 mm/.test(t) && !/różnią się o/.test(t), t.slice(0, 300)); }
+{ const t = await uwagi(); ok('Uwagi: zabudowa pod szuflady (dwa boki 18 mm), prowadnica 18 nad dnem; fronty równe', /zabudowa pod szuflady — dwa boki 18 mm/.test(t) && /dolna prowadnica 18 mm nad dnem/.test(t) && !/różnią się o/.test(t), t.slice(0, 300)); }
 // klocek „3 szuflady” (dotknij, potem „do zaznaczonej”) na kolumnę 1: szuflady na jej dół, nie na całą wysokość
 { const kw = page.locator('[data-el="mak-kol-wybor"] [title="kolumna 1"]'); if (await kw.count()) { await kw.click(); await page.waitForTimeout(300); } }
 { const kl = page.locator('[data-el="mak-klocki-karty"] [data-el="mak-klocek"][data-id="szu-3"]');
@@ -110,7 +110,7 @@ p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && (it.cab.levels
 { const k1 = szafa(p).cab.levels[0].cols[0];
   ok('klocek „3 szuflady” — na dół kolumny 1 (poziom kolumny 3 × 220), półki nad nim', JSON.stringify(k1.podzial) === '[0]' && k1.segmenty[0].kind === 'drawers' && k1.segmenty[0].drawers.length === 3
     && k1.shelfTargets[0] >= 660 && k1.shelfTargets[0] < 663 && k1.kind !== 'drawers', JSON.stringify({ st: k1.shelfTargets, pz: k1.podzial })); }
-{ const t = await uwagi(); ok('kolumna 1: listwa przy prawej ściance (od przegrody), fronty równe', /Kolumna 1: szuflady za drzwiami przesuwnymi — przy prawej ściance kolumny listwa 18 mm/.test(t) && !/różnią się o/.test(t), t.slice(0, 300)); }
+{ const t = await uwagi(); ok('dwie kolumny z szufladami: „po dwa boki w 2 kolumnach”, fronty równe', /po dwa boki w 2 kolumnach/.test(t) && !/różnią się o/.test(t), t.slice(0, 300)); }
 await zakl('drzwi');
 { const kl = page.locator('[data-el="mak-klocki-karty"] [data-el="mak-klocek"][data-id="drzwi-2"]');
   if (await kl.count()) { await kl.click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await page.waitForTimeout(300); }
@@ -118,7 +118,7 @@ await zakl('drzwi');
     await page.locator('[data-el="mak-komunikat"]').innerText().catch(() => '')); }
 await page.evaluate(() => localStorage.setItem('mp-mak-przel', JSON.stringify({ zgory: true, gorny: true, dolny: true, fronty: false, kolory: true, wymiary: false })));
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
-ok('rysunek (bez frontów): listwa pod prowadnice z przodu i z góry', (await page.locator('[data-el="makieta"] [data-el="listwa-prowadnic"]').count()) >= 2);
+ok('rysunek (bez frontów): boki zabudowy szuflad z przodu i z góry', (await page.locator('[data-el="makieta"] [data-el="zabudowa-szuflad"]').count()) >= 4);
 await page.evaluate(() => localStorage.setItem('mp-mak-przel', JSON.stringify({ zgory: true, gorny: true, dolny: true, fronty: true, kolory: true, wymiary: false })));
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 
