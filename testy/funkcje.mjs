@@ -1429,8 +1429,12 @@ console.log('\n== 2026-11-15: Sevroll Blendo — cokół i blenda nad szafką ==
     JSON.stringify(bl.filter((x) => /Blendo|cokoł/i.test(x.name + x.use)).map((x) => [x.name, x.qty, x.spec])));
   ok('blendoIle: 400 → 2, 600 → 2, 1200 → 3, 2400 → 5', G.blendoIle(400) === 2 && G.blendoIle(600) === 2 && G.blendoIle(1200) === 3 && G.blendoIle(2400) === 5,
     [400, 600, 1200, 2400].map(G.blendoIle).join(','));
-  const tb = hw({ ...base, topFiller: { on: true, height: 120, mocowanie: 'blendo' } }), tz = hw({ ...base, topFiller: { on: true, height: 120 } });
-  ok('blenda nad szafką na Blendo: 3 komplety więcej; zwykła — bez', ile(tb, 'Złącze Sevroll Blendo 07025') === 3 && ile(tz, 'Złącze Sevroll Blendo 07025') === 0);
+  const tb = hw({ ...base, topFiller: { on: true, height: 120, mocowanie: 'blendo' } }), tz = hw({ ...base, topFiller: { on: true, height: 120 } }),
+    tk = hw({ ...base, topFiller: { on: true, height: 120, mocowanie: 'klipsy' } });
+  ok('blenda nad szafką domyślnie na Blendo (3 komplety)', ile(tb, 'Złącze Sevroll Blendo 07025') === 3 && ile(tz, 'Złącze Sevroll Blendo 07025') === 3);
+  ok('blenda „nóżki i klipsy (jak cokół)”: +2 nóżki ok. 120 mm i +2 klipsy, bez Blendo', ile(tk, 'Złącze Sevroll Blendo 07025') === 0
+    && ile(tk, 'Nóżka regulowana') === ile(kl, 'Nóżka regulowana') + 2 && ile(tk, 'Złączka do cokołu') === ile(kl, 'Złączka do cokołu') + 2,
+    JSON.stringify(tk.filter((x) => /Nóżka|Złączka|Blendo/.test(x.name)).map((x) => [x.name, x.qty, x.spec])));
 }
 
 console.log('\n== 2026-11-15: blenda przy ścianie (pozycja ciągu bez korpusu) ==');

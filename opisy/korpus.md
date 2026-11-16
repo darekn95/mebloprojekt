@@ -74,8 +74,10 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - styki kawałków i róg łączy „Złącze do blatów śrubowe”;
   - w rozkroju się nie obraca, bo przód ma fabryczny profil;
   - ceny arkuszy z faktur użytkownika: 563,99 zł (600) i 1128,22 zł (1200).
-- **Blenda nad szafką**: pas nad korpusem o podanej wysokości. Mocowanie: zwykłe albo złącza Sevroll Blendo (`topFiller.mocowanie = "blendo"`,
-  2026-11-15) — połówka na wierzchu szafki przy licu i na tylnej stronie blendy, co ok. 600 mm (`blendoIle`).
+- **Blenda nad szafką**: pas nad korpusem o podanej wysokości. Mocowanie (użytkownik 2026-11-15): domyślnie złącza Sevroll Blendo — połówka
+  na wierzchu szafki przy licu i na tylnej stronie blendy, co ok. 600 mm (`blendoIle`); opcja „nóżki i klipsy (jak cokół)”
+  (`topFiller.mocowanie = "klipsy"`) — nóżki regulowane na wieńcu w przednim rzędzie (tyle co przedni rząd pod szafką tej szerokości),
+  wysokość jak blenda, regulacja do sufitu, blenda wpinana klipsami. Obie da się założyć, gdy szafka już wisi.
 
 - **Dwie przegrody na styku** (scalanie „dwie przegrody”, użytkownik 2026-10-29): dwie płyty obok siebie między wieńcem a dnem, każda z własnymi konfirmatami, kołkami i zawiasami (w planie wierceń „Przegroda N — lewa” / „— prawa”). Skręcone ze sobą 4 wkrętami 4 × 30 (przy płycie 16 mm — 4 × 25, żeby nie wyszedł z drugiej): po dwa przy dole i przy górze poziomu, z przodu i z tyłu. Każdy wkręt:
   1. nad kołkiem półki, w jej grubości (łeb zasłania półka), gdy półka jest do 300 mm od dołu / od góry poziomu, 70 mm od krawędzi — wkręcany od strony tej półki;

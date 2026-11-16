@@ -189,13 +189,17 @@ ok('z powrotem klipsy', p.items.filter((x) => x.runId === 'r1').every((x) => !x.
 await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); p.active = 2; [2, 3].forEach((i) => { p.items[i].cab.topFiller = { on: true, height: 100 }; }); localStorage.setItem('szafki:projekt', JSON.stringify(p)); });
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
 await zakl('szafka');
-await page.locator('[data-el="mak-sz-blenda-moc"][data-v="blendo"]').click(); await page.waitForTimeout(600);
-p = await czekaj("p.items[2].cab.topFiller.mocowanie === 'blendo'");
-ok('karta szafki górnej: blenda na złączach Blendo (tylko ta szafka)', p.items[2].cab.topFiller.mocowanie === 'blendo' && !p.items[3].cab.topFiller.mocowanie);
+ok('mocowanie blendy domyślnie „złącza Blendo”', (await page.locator('[data-el="mak-sz-blenda-moc"][data-v="blendo"]').getAttribute('aria-pressed')) === 'true');
+await page.locator('[data-el="mak-sz-blenda-moc"][data-v="klipsy"]').click(); await page.waitForTimeout(600);
+p = await czekaj("p.items[2].cab.topFiller.mocowanie === 'klipsy'");
+ok('karta szafki górnej: „nóżki i klipsy (jak cokół)” — tylko ta szafka', p.items[2].cab.topFiller.mocowanie === 'klipsy' && !p.items[3].cab.topFiller.mocowanie);
 await zakl('ciag');
+await page.locator('[data-el="mak-ciag-blenda-moc"][data-v="klipsy"]').click(); await page.waitForTimeout(600);
+p = await czekaj("p.items[3].cab.topFiller.mocowanie === 'klipsy'");
+ok('zakładka Ciąg: cały ciąg górny na nóżkach i klipsach', p.items[2].cab.topFiller.mocowanie === 'klipsy' && p.items[3].cab.topFiller.mocowanie === 'klipsy');
 await page.locator('[data-el="mak-ciag-blenda-moc"][data-v="blendo"]').click(); await page.waitForTimeout(600);
-p = await czekaj("p.items[3].cab.topFiller.mocowanie === 'blendo'");
-ok('zakładka Ciąg: blenda całego ciągu górnego na Blendo', p.items[2].cab.topFiller.mocowanie === 'blendo' && p.items[3].cab.topFiller.mocowanie === 'blendo');
+p = await czekaj("!p.items[3].cab.topFiller.mocowanie");
+ok('z powrotem złącza Blendo (domyślne)', !p.items[2].cab.topFiller.mocowanie && !p.items[3].cab.topFiller.mocowanie);
 
 console.log('== Blenda przy ścianie: sama do ściany, pas w głąb, wysokość jak szafka obok ==');
 await start(FIX + `p.runs[0].wallW = 1600; p.active = 1;`);
