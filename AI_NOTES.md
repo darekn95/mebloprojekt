@@ -1352,3 +1352,5 @@ skrzydla, zakladka, wymiar plyty w profilu). allegro.pl / gtv.com.pl dopisane do
 [AI-INFO] 2026-11-16: pelny przebieg (dadba32 + blenda Blendo / nozki): 174 suity, 5750 OK; makieta18 tylko na tescie poprawionym w trakcie
 (build sprzed zmiany) — po przebudowie zielona w obu buildach; losowe 66 / 0. Audyt projektu uzytkownika v50: bez bledow (jedno ostrzezenie — gorne
 2 mm pod sufitem 2100 na zawieszkach).
+[AI-INFO] 2026-11-16: instrukcja GTV NOVO S (18) w `instrukcje/gtv-przesuwne/` — wzory na drzwi przesuwne (SD, WD, SW18, WW, DLP, DR, Z = 34) w SPIS.md.
+Pobrana curl-em (siec srodowiska „unrestricted” od uzytkownika; WebFetch w tej sesji nadal z lista z poczatku sesji).
