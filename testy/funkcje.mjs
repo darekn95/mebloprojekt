@@ -1494,7 +1494,7 @@ console.log('\n== 2026-11-16: drzwi przesuwne GTV NOVO S (wzory z instrukcji, fo
   ok('bez sufitu: info „podaj wysokość ściany”', G.sufitSzafyMsgs({ runs: [{ ...run, ceiling: null }], items: [it(2400)] }, 0).some((m) => /podaj wysokość ściany/.test(m.text)));
 }
 
-console.log('\n== 2026-11-16: szuflady za drzwiami przesuwnymi (zabudowa pod szuflady jak u użytkownika: boki + wieniec, cofnięta 80, szyna 18 nad dnem, podfrez, V-BOX 127) ==');
+console.log('\n== 2026-11-16: szuflady za drzwiami przesuwnymi (zabudowa pod szuflady jak u użytkownika: boki + wieniec, cofnięta 80, szyna 18 nad dnem, podfrez, opcja V-BOX 127) ==');
 {
   const M0 = G.defaultMaterials;
   const szafa = (cols, o = {}) => G.migrateCab({ name: 'Szafa', W: 2000, H: 2400, D: 600, plinth: { on: true, height: 100 }, legs: { on: false }, przesuwne: { on: true, ...o },
@@ -1507,7 +1507,9 @@ console.log('\n== 2026-11-16: szuflady za drzwiami przesuwnymi (zabudowa pod szu
   const x0i = g.interior.x0, bz = p.listwy || [];
   ok('2 szuflady: fronty wewnętrzne, cofnięte o 80 mm, z podfrezem (bez uchwytów)', dr.length === 2 && dr.every((d) => d.inset && d.cof === 80 && d.podfrez && !d.handle), JSON.stringify(dr.map((d) => [d.x, d.w, d.y, d.h, d.cof, d.podfrez, d.handle])));
   ok('najniższa prowadnica 18 mm nad dnem, front 13 mm (5 mm poniżej prowadnicy)', dr[0].dr.rail.y0 === Math.round(g.interior.y0 + 18) && dr[0].y === Math.round(g.interior.y0 + 13), `${dr[0].dr.rail.y0} / ${dr[0].y}`);
-  ok('V-BOX z niskim bokiem 127 (jak u użytkownika), nie najwyższym mieszczącym się', dr.every((d) => d.dr.hClass === 127), dr.map((d) => d.dr.hClass).join(','));
+  ok('bok V-BOX „auto” — najwyższy, jaki się zmieści (178 przy froncie 194)', dr.every((d) => d.dr.hClass === 178), dr.map((d) => d.dr.hClass).join(','));
+  const gn = G.computeGeo(szafa([polki, kol2()], { niskieSzuflady: true }), M0), drn = gn.doors.filter((d) => d.type === 'drawer');
+  ok('opcja „niski bok” szafy przesuwnej — V-BOX 127 (jak u użytkownika)', drn.length === 2 && drn.every((d) => d.dr.hClass === 127), drn.map((d) => d.dr.hClass).join(','));
   ok('fronty równe (pas 441), bez uwagi o 1 mm', dr[0].h === dr[1].h && !g.msgs.some((m) => /różnią się o/.test(m.text)), dr.map((d) => d.h).join(','));
   ok('zabudowa: boki 18 mm przy obu ściankach kolumny 2, cofnięte 80, od dna do półki nad szufladami', bz.length === 2 && bz.some((q) => q.side === 'left') && bz.some((q) => q.side === 'right')
     && bz.every((q) => q.t === 18 && q.z0 === 80 && q.y0 === Math.round(g.interior.y0) && q.y1 === Math.round(g.interior.y0 + 441)), JSON.stringify(bz));

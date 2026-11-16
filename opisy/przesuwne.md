@@ -48,7 +48,7 @@ Jak w szafie użytkownika (2026-11-16): „dołożona zabudowa pod szuflady — 
   - NL dobiera się z głębokości, która została.
   - Domyślnie podfrez na palce, bez uchwytów. Gdy w kolumnie wybrano uchwyty (wcięcie wyłączone), a uchwyt wystaje więcej niż miejsce do skrzydeł (28 mm, z luzem 3), pojawia się ostrzeżenie.
 - **Dolna prowadnica 18 mm nad dnem** (`PRZES.SZYNA_DOL`, `spz.szyna`). Front schodzi 5 mm poniżej niej (13 mm nad dnem, nad torem dolnym 8 mm). Górny front najwyżej 43 mm pod wieńcem (tor górny 38 + 5).
-- **Bok V-BOX „auto”** najwyżej 127 (`PRZES.VBOX_BOK`). Ręcznie wybrany bok zostaje.
+- **Bok V-BOX „auto”** — najwyższy, jaki się zmieści (jak wszędzie). Opcja szafy przesuwnej „niski 127” (`przesuwne.niskieSzuflady`, `PRZES.VBOX_BOK`; karta Szuflady `mak-przes-bok`, techniczny: karta „Drzwi przesuwne”) — jak w szafie użytkownika; włączona w szablonie „Szafa do zabudowy z szufladami”. Ręcznie wybrany bok zostaje.
 - **Dostęp.** Front musi przejść obok krawędzi odsuniętego skrzydła z luzem 5 mm (`PRZES.LUZ_SZUFL`). Przy 2 skrzydłach i przegrodzie na środku boki zabudowy (18) to zapewniają.
 - **Szuflady na dół kolumny** (karta Szuflady albo klocek „N szuflad”, szafa z przegrodą; `makSzufladyNaDoleKolumny`):
   - nowa półka graniczna (wieniec zabudowy) 220 mm na szufladę nad dnem kolumny;
@@ -66,6 +66,9 @@ Jak w szafie użytkownika (2026-11-16): „dołożona zabudowa pod szuflady — 
   - Mocowanie wieńca zabudowy (półka nad szufladami): w programie jak półka graniczna poziomu kolumny — do potwierdzenia u użytkownika, `AI_NOTES.md` [CHECK].
 
 ## Szafa do zabudowy (wzór w palecie „Szafa w zabudowie”)
+
+Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, w kolumnie 2 na dole 2 szuflady w zabudowie (V-BOX niski 127).
+
 
 - Korpus na całą wnękę: 2000 mm szerokości, 600 mm głębokości.
 - Pod spodem cokół 100 i nóżki, jak każda szafka stojąca w ciągu.

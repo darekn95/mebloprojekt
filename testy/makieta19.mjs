@@ -122,6 +122,14 @@ ok('rysunek (bez frontów): boki zabudowy szuflad z przodu i z góry', (await pa
 await page.evaluate(() => localStorage.setItem('mp-mak-przel', JSON.stringify({ zgory: true, gorny: true, dolny: true, fronty: true, kolory: true, wymiary: false })));
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 
+console.log('== bok V-BOX: jaki się zmieści / niski 127 (opcja szafy przesuwnej) ==');
+await zakl('szuflady');
+ok('karta Szuflady: „bok szuflad V-BOX” — domyślnie „jaki się zmieści”', (await page.locator('[data-el="mak-przes-bok"][data-v="auto"]').getAttribute('aria-pressed')) === 'true');
+await page.locator('[data-el="mak-przes-bok"][data-v="127"]').click();
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && it.cab.przesuwne.niskieSzuflady === true)");
+ok('„niski 127” — opcja zapisana w szafie', szafa(p).cab.przesuwne.niskieSzuflady === true);
+await page.locator('[data-el="mak-przes-bok"][data-v="auto"]').click(); await page.waitForTimeout(300);
+
 console.log('== 3D i karta techniczna ==');
 await page.locator('[data-el="mak-widoki"]').first().click(); await page.waitForTimeout(150);
 await page.locator('[data-v="3d"]').last().click(); await page.waitForTimeout(800);
@@ -135,6 +143,17 @@ ok('„na zawiasach” — z powrotem drzwi na zawiasach (bez torów na rysunku)
 await page.locator('[data-el="mak-przesuwne"][data-v="tak"]').click(); await page.waitForTimeout(400);
 await page.evaluate(() => localStorage.setItem('mp-tryb', 'techniczny')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
 { const k = page.locator('#karta-przesuwne'); ok('tryb Techniczny: karta „Drzwi przesuwne (GTV NOVO S)”', (await k.count()) === 1 && /Drzwi przesuwne/.test(await k.innerText())); }
+
+console.log('== wzór „Szafa do zabudowy z szufladami” ==');
+await start(FIX);
+await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZabSz"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa')");
+{ const c = szafa(p).cab, k2 = c.levels[0].cols[1];
+  ok('„Szafa do zabudowy z szufladami”: przesuwne, niski bok V-BOX, w kolumnie 2 na dole 2 szuflady, drążek i półka 300 nad nimi', c.przesuwne.on && c.przesuwne.niskieSzuflady
+    && JSON.stringify(k2.podzial) === '[0]' && k2.segmenty[0].kind === 'drawers' && k2.segmenty[0].drawers.length === 2 && k2.shelfTargets[2] === 300 && JSON.stringify(k2.drazki) === '[1]',
+    JSON.stringify({ pr: c.przesuwne, st: k2.shelfTargets, pz: k2.podzial })); }
+{ const t = await uwagi(); ok('Uwagi: zabudowa pod szuflady, bez błędów', /zabudowa pod szuflady/.test(t) && !/różnią się o/.test(t), t.slice(0, 200)); }
 
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');

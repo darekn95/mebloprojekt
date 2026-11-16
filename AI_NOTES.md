@@ -1361,10 +1361,17 @@ Pobrana curl-em (siec srodowiska „unrestricted” od uzytkownika; WebFetch w t
 [CLAUDE-CHANGE] 2026-11-16 (faza B, zdjecia szafy uzytkownika — tylko w czacie, nie w repo): szuflady za drzwiami przesuwnymi wg odpowiedzi
 uzytkownika — zabudowa pod szuflady (boki 18 przy obu sciankach kolumny + wieniec = polka nad szufladami), cofnieta 80; fronty wewnetrzne
 z podfrezem (fingerGrip domyslnie, uchwyty tylko recznie — ostrzezenie, gdy wystaja do skrzydel); dolna prowadnica 18 mm nad dnem
-(`PRZES.SZYNA_DOL`), V-BOX auto najwyzej 127 (`PRZES.VBOX_BOK`; „mam V-BOX, jedne z niższych”, bok ok. 12 cm). `geoPrzesuwne` liczy dwa
+(`PRZES.SZYNA_DOL`), V-BOX auto jak wszedzie; opcja `przesuwne.niskieSzuflady` — najwyzej 127 (`PRZES.VBOX_BOK`; „mam V-BOX, jedne z niższych”,
+bok ok. 12 cm; „w szafie z drzwiami przesuwnymi jako opcja w szablonie”) — wlaczona we wzorze „Szafa do zabudowy z szufladami” (`szafaZabSz`). `geoPrzesuwne` liczy dwa
 razy: bez i z `cab.__szuflPrzes` + `rawCol.__zabudowa`. W `szufladyKolumny`: `d.cof`, `rail.setback` = tf + cof, `bx0/bx1` i `dsx0/dsx1`
 zwezone o boki, `listwyPrz` (2 wpisy na kolumne — formatki, rysunki, plan wiercen „Bok zabudowy szuflad”). Audyt: bryly `drzwi-przesuwne`
 poza symulacja wysuwu. Karta Szuflady i klocek „N szuflad”: w wysokiej szafie z przegroda szuflady na dol kolumny (`makSzufladyNaDoleKolumny`).
 [CHECK] 2026-11-16: pozycjoner gorny 1 na skrzydlo — potwierdzone; waga profili 0,5 kg/mb (bez karty) — nie pytane. Do potwierdzenia:
 mocowanie wienca zabudowy szuflad (dzis jak polka graniczna poziomu kolumny — konfirmaty przez scianki kolumny; u uzytkownika wieniec skrecony z bokami
 zabudowy?) i bok V-BOX 127 jako domyslny za drzwiami przesuwnymi.
+[AI-TODO] 2026-11-16 (uzytkownik, 7 zdjec jego szafy — tylko w czacie): „cała szafa ma od zewnętrznych stron podwójną płytę — jedną wewnątrz mniejszą
+o 80 mm, a drugą na zewnątrz do ziemi, tak żeby nie było widać konfirmatów, tylko jest kręcona od wewnątrz; wieniec zabudowy szuflad jest skręcony
+na konfirmaty, ale z jednej strony się nie da i albo jest klejony na lamele, albo na trójkąty meblowe od dołu”. Na zdjeciach: bok zewnetrzny do
+podlogi (zaslania cokol z boku), wewnetrzny cofniety o 80 (w linii z przegrodami), tory gorny i dolny miedzy bokami zewnetrznymi; nad wejsciem obok
+szafy szafka-most do sufitu. Konstrukcja podwojnych bokow jeszcze NIE w kodzie — pytania do uzytkownika (dno / wieniec miedzy ktorymi bokami, bok
+zabudowy szuflad od strony boku szafy, mocowanie wienca zabudowy, domyslnie w szablonie czy opcja).
