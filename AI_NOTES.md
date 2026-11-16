@@ -1346,3 +1346,6 @@ wzdluz boku szafki — przykrecany od srodka szafki, bez Blendo; dolny i gorny c
 z katalogu GTV 2023 (kat. s. 505–545: profile, tory EVO / PRO, wozki, listwy, zestawy top-running) — brak wzorow na szerokosc / wysokosc drzwi
 (zakladka, odliczenia) i instrukcji montazu; link Allegro („Szafa GTV 250 x 265 x 7,5 cm”) niedostepny z kontenera. Przed praca: instrukcja GTV
 wybranego systemu (PDF) i wybor systemu (dolny / gorny uklad jezdny, profil, plyta 18 / 10 + szklo 4).
+[AI-INFO] 2026-11-16: system drzwi przesuwnych wskazany przez uzytkownika — GTV zestaw NOVO S 2,5 m / 2D (dolny uklad jezdny: tor dolny EVO,
+wozki dolne z regulacja 10 mm, prowadniki gorne, raczka NOVO S); zrzut w `instrukcje/gtv-przesuwne/`. Brakuje instrukcji z odliczeniami (wysokosc i szerokosc
+skrzydla, zakladka, wymiar plyty w profilu). allegro.pl / gtv.com.pl dopisane do sieci srodowiska, ale WebFetch w tej sesji ich nie widzi.
