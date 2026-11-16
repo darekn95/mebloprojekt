@@ -10180,7 +10180,6 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         )}
 
       {!rear && <SprzetElewacja geo={geo} fy={fy} mx={mx} />}
-      {!rear && <PrzesuwneElew geo={geo} fy={fy} mx={mx} ff={frontColor} open={open} />}
       {/* fronty */}
       {!rear && geo.doors.filter((d) => d.w > 0 && d.h > 0).map((d) => {
         const X = mx(d.x, d.w);
@@ -10269,6 +10268,8 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         );
       })}
 
+      {/* drzwi przesuwne po frontach — zamkniete skrzydla zaslaniaja szuflady za nimi */}
+      {!rear && <PrzesuwneElew geo={geo} fy={fy} mx={mx} ff={frontColor} open={open} />}
       {/* kolki pod polki — po frontach, zeby otwarte skrzydlo ich nie zaslanialo */}
       {open && showHardware && !rear &&
         geo.levels.flatMap((lv) => lv.cols.flatMap((c) =>
@@ -13276,7 +13277,6 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           fill={ff} stroke={INK} strokeWidth="2" />
       ))}
       <SprzetElewacja geo={geo} fy={fy} />
-      <PrzesuwneElew geo={geo} fy={fy} ff={frontColor} open={open} />
       {/* Uchwyt frezowany skraca front o glebokosc uchwytu — w szczelinie widac skrzynke
           (boki i tyl DXS-3D, boki V-BOX). Rysujemy ja pod frontami, jak w bryle 3D
           (audyt 2D szuflad 2026-10-22). */}
@@ -13462,6 +13462,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           </g>
         )
       )}
+      {/* drzwi przesuwne po frontach — zamkniete skrzydla zaslaniaja szuflady za nimi */}
+      <PrzesuwneElew geo={geo} fy={fy} ff={frontColor} open={open} />
 
       {/* kolki podporowe pod polkami — os otworu na dolnej krawedzi polki; rysowane po
           frontach, bo otwarte skrzydlo przy boku zaslanialo kolki (uzytkownik 2026-10-24) */}

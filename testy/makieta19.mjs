@@ -101,8 +101,10 @@ p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && (it.cab.levels
   ok('„2” w kolumnie 2 szafy: poziom kolumny z 2 szufladami na dole, drążek i półka 300 zostają nad nim', JSON.stringify(k2.podzial) === '[0]' && k2.segmenty[0].kind === 'drawers' && k2.segmenty[0].drawers.length === 2
     && k2.shelfTargets[0] > 400 && k2.shelfTargets[2] === 300 && JSON.stringify(k2.drazki) === '[1]', JSON.stringify({ st: k2.shelfTargets, pz: k2.podzial, dr: k2.drazki })); }
 { const t = await uwagi(); ok('Uwagi: listwa 18 mm pod prowadnice przy lewej ściance kolumny 2; fronty równe', /Kolumna 2: szuflady za drzwiami przesuwnymi — przy lewej ściance kolumny listwa 18 mm/.test(t) && !/różnią się o/.test(t), t.slice(0, 300)); }
-// klocek „3 szuflady” (dotknij, potem „do zaznaczonej”) — pierwsza wolna kolumna (1): szuflady na jej dół, nie na całą wysokość
+// klocek „3 szuflady” (dotknij, potem „do zaznaczonej”) na kolumnę 1: szuflady na jej dół, nie na całą wysokość
+{ const kw = page.locator('[data-el="mak-kol-wybor"] [title="kolumna 1"]'); if (await kw.count()) { await kw.click(); await page.waitForTimeout(300); } }
 { const kl = page.locator('[data-el="mak-klocki-karty"] [data-el="mak-klocek"][data-id="szu-3"]');
+  ok('klocek „3 szuflady” w karcie Szuflady', (await kl.count()) === 1);
   if (await kl.count()) { await kl.click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); } }
 p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && (it.cab.levels[0].cols[0].podzial || []).length === 1)");
 { const k1 = szafa(p).cab.levels[0].cols[0];
