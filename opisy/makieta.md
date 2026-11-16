@@ -423,7 +423,10 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
   Nazwy szafek pod blatem na froncie. Napis „W × H” przy uchwytach tylko bez wymiarów na rysunku.
 
 - **Szuflady w słupku**: w poziomie wyższym niż 900 mm szafki ponad 1500 przycisk liczby szuflad zakłada własny
-  niski poziom na dole (po 220 mm na szufladę, jak w makiecie — użytkownik 2026-11-15; było 180), reszta zostaje nad nim (`slupekSzuflady`). Sprzęt kliknięty z palety
+  niski poziom na dole (po 220 mm na szufladę, jak w makiecie — użytkownik 2026-11-15; było 180), reszta zostaje nad nim (`slupekSzuflady`).
+  W szafie z przegrodą (kilka kolumn w poziomie, 2026-11-16) przycisk i klocek „N szuflad” dzielą samą kolumnę: półka graniczna nad
+  szufladami, pod nią poziom kolumny z szufladami, nad nią półki i drążek jak były (`makSzufladyNaDoleKolumny`). Dawniej cała kolumna
+  na wysokość szafy stawała się szufladami. Sprzęt kliknięty z palety
   staje nad najwyższym sprzętem słupka albo w najniższym poziomie z drzwiami; po wstawieniu otwiera się jego karta.
 - **Słupek głębszy niż ciąg** (decyzja 2026-11-11): przy uwadze o głębokości przycisk „To słupek — tył przy ścianie,
   front wysunięty o N mm” (`slupekgl:<mm>:<pozycja>` → `item.offset`, `cab.slupek`); pozostałe szafki zostają przy

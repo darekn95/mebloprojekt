@@ -1358,8 +1358,11 @@ Pobrana curl-em (siec srodowiska „unrestricted” od uzytkownika; WebFetch w t
 `computeGeoLiczy` -> `geoPrzesuwne` (wnetrze bez drzwi na zawiasach, polki / przegrody cofniete o PRZES.STREFA = 80 przez `shelfExtraSetback` i
 `__przegrodyCof`), rysunki: `PrzesuwneElew`, `przesuwne-z-gory` (CabTop), `przesuwneBryly` (Scene3D, Assembly3D). Sufit szafy: `sufitSzafyMsgs`
 (akcja `szafasufit:<i>`). Testy: `funkcje.mjs` (blok przesuwne), `makieta19.mjs`.
-[AI-TODO] 2026-11-16 (faza B, zdjecia szafy uzytkownika — tylko w scratchpadzie, nie do repo): szuflady za drzwiami przesuwnymi — front cofniety
-za strefe torow (80 mm), najnizszy front nad torem dolnym (8 mm + luz), szerokosc szuflady wzgledem wolnego otworu po odsunieciu skrzydla
-(jest juz ostrzezenie > 2 mm), listwa pionowa przy szufladach od strony skrzydla (prowadnice na niej, raczka odsunietego skrzydla nie wchodzi
-w swiatlo szuflady). Dzis szuflady w szafie przesuwnej zostaja na swoich frontach (nakladane) — koliduja ze skrzydlami.
-[CHECK] 2026-11-16: do potwierdzenia u uzytkownika — pozycjoner gorny A-PTG: ile na skrzydlo (dzis 1); waga profili 0,5 kg/mb (bez karty).
+[CLAUDE-CHANGE] 2026-11-16 (faza B, zdjecia szafy uzytkownika — tylko w czacie, nie w repo): szuflady za drzwiami przesuwnymi. `geoPrzesuwne`
+liczy geometrie dwa razy, gdy sa szuflady: najpierw bez listew (kolumny), potem z `cab.__szuflPrzes` (cof 80, y0 = dno + 13, y1 = wieniec − 43)
+i `rawCol.__listwa` (strona, grubosc 18 / 36) na kolumnach i ich poziomach z szufladami. W `szufladyKolumny`: front wpuszczany cofniety (`d.cof`,
+`rail.setback` = tf + cof), listwa zweza `bx0/bx1` i `dsx0/dsx1`, wpis do `listwyPrz` (formatka, rysunki, plan wiercen „Listwa pod prowadnice”).
+Rysunki z `d.cof`: Scene3D, Assembly3D, CabTop (lico, plaszczyzny). Audyt: bryly z tagiem `drzwi-przesuwne` poza symulacja wysuwu, `tor` i metal
+skrzydel nie sa plytami. Karta Szuflady: w szafie z przegroda „1–5” wstawia szuflady na dol kolumny (`makSzufladyNaDoleKolumny`).
+[CHECK] 2026-11-16: do potwierdzenia u uzytkownika — pozycjoner gorny A-PTG: ile na skrzydlo (dzis 1); waga profili 0,5 kg/mb (bez karty);
+luz 5 mm frontu szuflady od krawedzi odsunietego skrzydla i nad torem dolnym (`PRZES.LUZ_SZUFL`).

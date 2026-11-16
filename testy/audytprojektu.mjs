@@ -60,7 +60,9 @@ const bryly = async (zakres, otwarte) => {
   return a;
 };
 const plyty = (sol) => sol.filter((s) => { const d = [...s.d].sort((x, y) => x - y);
-  return d[0] > 0.5 && d[0] <= 40 && d[1] >= 20 && s.color !== '#3f3f46' && s.color !== '#8b8b93' && !/^(uchwyt|noga)/.test(s.tag || ''); });
+  return d[0] > 0.5 && d[0] <= 40 && d[1] >= 20 && s.color !== '#3f3f46' && s.color !== '#8b8b93' && !/^(uchwyt|noga|tor)/.test(s.tag || '')
+    // drzwi przesuwne (2026-11-16): raczki i listwy skrzydla z profilu (metal) — okucia, nie plyty; wypelnienie zostaje
+    && !(s.tag === 'drzwi-przesuwne' && s.color === '#a8a29e'); });
 const opis = (q) => `${q.tag || q.color}${[...q.d].sort((x, y) => x - y).map(Math.round).join('×')}`;
 const nachodzi = (sol) => {
   const s = sol.filter((q) => q.p && q.color !== '#b91c1c' && q.color !== '#b45309' && (q.alpha ?? 1) > 0.2);
@@ -115,7 +117,9 @@ for (let i = 0; i < p2.items.length; i++) {
   const bp = bezPlyty(f, razem), bf = bezFormatki([...f, ...fProj.map((x) => ({ ...x, name: 'Cokół ciągu' }))], zam);
   wynik('formatki = bryła (w obie strony)', !bp.length && !bf.length, [...bp, ...bf].slice(0, 4).join('; '));
   const run = (p2.runs || []).find((r) => r.id === it.runId);
-  const sym = symuluj(zam.map((s) => ({ ...s, color: (s.color || '').toLowerCase() })), { H: it.cab.H, blat: !!(run && run.worktop) });
+  /* skrzydla drzwi przesuwnych odsuwa sie przed wysunieciem szuflady — dostep (miejsce po odsunieciu skrzydla) sprawdza aplikacja
+     (`przesuwneOdslania`); w symulacji bez nich, tory zostaja */
+  const sym = symuluj(zam.filter((s) => s.tag !== 'drzwi-przesuwne').map((s) => ({ ...s, color: (s.color || '').toLowerCase() })), { H: it.cab.H, blat: !!(run && run.worktop) });
   sym.forEach((x) => {
     console.log(`  szuflada ${x.szuflada}: front ${x.front}, boki ${x.boki}, tył ${x.tyl}, nad nią ${x.sufit} — luz nad bokami ${x.luzBoki}, nad tyłem ${x.luzTyl}`);
     wynik(`szuflada ${x.szuflada} wysuwa się bez kolizji`, !x.kolizje.length, x.kolizje.join('; '));

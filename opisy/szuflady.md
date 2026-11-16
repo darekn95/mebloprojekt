@@ -147,3 +147,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
   - Kolumny szuflad o innym podziale mają osobne kolumny wymiarów (`grupySzuflad`); kolumny o tym samym podziale — wspólną.
   - Z boku i z góry każdy front rysuje się wg swojego montażu (`d.inset`) — front szuflad na korpusie w szafce wpuszczanej stoi przed korpusem; obrys skrzynki z góry od `dr.bx0` (np. za wspornikiem fixu).
 - **Testy**: `macierzszuflad` (317 układów, każdy przycisk naprawy sprawdzany), `audyt2d` (rysunki = rzut brył 3D; pełna lista szuflad z `SZUF2D=1`), `szuflady`, `dxs`, `audytszuflad` (klikane jak użytkownik), `tylkol`, `bokszuf`, `audytwierc` (plan wierceń V-BOX), `ruchy`, `audytmacierz`.
+
+## Szuflady za drzwiami przesuwnymi (2026-11-16)
+
+W szafie z drzwiami przesuwnymi front jest zawsze w świetle kolumny, cofnięty o 80 mm za tory, a najniższy front stoi 13 mm nad dnem. Od strony skrzydła może dojść listwa pod prowadnice (szuflada węższa). Szczegóły: `opisy/przesuwne.md`.

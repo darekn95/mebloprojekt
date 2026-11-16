@@ -92,6 +92,34 @@ p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && it.cab.przesuw
 { const t = (await page.locator('[data-el="mak-karta-panel"]').innerText().catch(() => '')).replace(/\s+/g, ' ');
   ok('„Co zrobi program”: drzwi przesuwne GTV NOVO S, nie „Bez frontów”', /Drzwi przesuwne GTV NOVO S: 2 skrzydła/.test(t) && !/Bez frontów/.test(t), t.slice(0, 200)); }
 
+console.log('== szuflady na dół kolumny za drzwiami przesuwnymi ==');
+await zakl('szuflady');
+{ const kw = page.locator('[data-el="mak-kol-wybor"] [title="kolumna 2"]'); if (await kw.count()) { await kw.click(); await page.waitForTimeout(300); } }
+await page.locator('[data-el="mak-szuflady"][data-v="2"]').first().click();
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && (it.cab.levels[0].cols[1].podzial || []).length === 1)");
+{ const k2 = szafa(p).cab.levels[0].cols[1];
+  ok('„2” w kolumnie 2 szafy: poziom kolumny z 2 szufladami na dole, drążek i półka 300 zostają nad nim', JSON.stringify(k2.podzial) === '[0]' && k2.segmenty[0].kind === 'drawers' && k2.segmenty[0].drawers.length === 2
+    && k2.shelfTargets[0] > 400 && k2.shelfTargets[2] === 300 && JSON.stringify(k2.drazki) === '[1]', JSON.stringify({ st: k2.shelfTargets, pz: k2.podzial, dr: k2.drazki })); }
+{ const t = await uwagi(); ok('Uwagi: listwa 18 mm pod prowadnice przy lewej ściance kolumny 2; fronty równe', /Kolumna 2: szuflady za drzwiami przesuwnymi — przy lewej ściance kolumny listwa 18 mm/.test(t) && !/różnią się o/.test(t), t.slice(0, 300)); }
+// klocek „3 szuflady” (dotknij, potem „do zaznaczonej”) — pierwsza wolna kolumna (1): szuflady na jej dół, nie na całą wysokość
+{ const kl = page.locator('[data-el="mak-klocki-karty"] [data-el="mak-klocek"][data-id="szu-3"]');
+  if (await kl.count()) { await kl.click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); } }
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && (it.cab.levels[0].cols[0].podzial || []).length === 1)");
+{ const k1 = szafa(p).cab.levels[0].cols[0];
+  ok('klocek „3 szuflady” — na dół kolumny 1 (poziom kolumny 3 × 220), półki nad nim', JSON.stringify(k1.podzial) === '[0]' && k1.segmenty[0].kind === 'drawers' && k1.segmenty[0].drawers.length === 3
+    && k1.shelfTargets[0] >= 660 && k1.shelfTargets[0] < 663 && k1.kind !== 'drawers', JSON.stringify({ st: k1.shelfTargets, pz: k1.podzial })); }
+{ const t = await uwagi(); ok('kolumna 1: listwa przy prawej ściance (od przegrody), fronty równe', /Kolumna 1: szuflady za drzwiami przesuwnymi — przy prawej ściance kolumny listwa 18 mm/.test(t) && !/różnią się o/.test(t), t.slice(0, 300)); }
+await zakl('drzwi');
+{ const kl = page.locator('[data-el="mak-klocki-karty"] [data-el="mak-klocek"][data-id="drzwi-2"]');
+  if (await kl.count()) { await kl.click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await page.waitForTimeout(300); }
+  ok('klocek „2 drzwi” w szafie przesuwnej — komunikat, bez zmiany', /ma drzwi przesuwne/.test(await page.locator('[data-el="mak-komunikat"]').innerText().catch(() => '')),
+    await page.locator('[data-el="mak-komunikat"]').innerText().catch(() => '')); }
+await page.evaluate(() => localStorage.setItem('mp-mak-przel', JSON.stringify({ zgory: true, gorny: true, dolny: true, fronty: false, kolory: true, wymiary: false })));
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+ok('rysunek (bez frontów): listwa pod prowadnice z przodu i z góry', (await page.locator('[data-el="makieta"] [data-el="listwa-prowadnic"]').count()) >= 2);
+await page.evaluate(() => localStorage.setItem('mp-mak-przel', JSON.stringify({ zgory: true, gorny: true, dolny: true, fronty: true, kolory: true, wymiary: false })));
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+
 console.log('== 3D i karta techniczna ==');
 await page.locator('[data-el="mak-widoki"]').first().click(); await page.waitForTimeout(150);
 await page.locator('[data-v="3d"]').last().click(); await page.waitForTimeout(800);
