@@ -35,7 +35,8 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'computeGeo', 'projectLayout', 'projectParts', 'runBottom', 'wysokoscWienca', 'wedlugCiagu', 'cornerArmParts', 'cornerPairMsgs', 'armPlan', 'wierceniaDodatkowe', 'openingMsgs', 'armCtxOf',
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
-  'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle'];
+  'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'sufitSzafyMsgs'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1448,4 +1449,47 @@ console.log('\n== 2026-11-15: blenda przy ścianie (pozycja ciągu bez korpusu) 
     && g0.hardware.some((h) => h.name === 'Trójkąt meblarski') && g0.sprzetCiagu.blendaSc, JSON.stringify(g0.panels.map((x) => [x.name, x.a, x.b])));
   ok('z pasem 100: „Pas blendy” 100 mm z płyty korpusu, wkręty 4 × 30 od środka szafki, pas przy lewej krawędzi (szafka z lewej)', nm(g1).includes('Pas blendy')
     && g1.panels.find((x) => x.name === 'Pas blendy').b === 100 && g1.hardware.some((h) => h.name === 'Wkręt 4 × 30') && g1.sprzetCiagu.pasRect.x0 === 0, JSON.stringify(g1.sprzetCiagu.pasRect));
+}
+
+console.log('\n== 2026-11-16: drzwi przesuwne GTV NOVO S (wzory z instrukcji, formatki, okucia, waga, dostęp do kolumn) ==');
+{
+  const M0 = G.defaultMaterials;
+  // wzory instrukcji GTV NOVO S (18), s. 23: SD = (SO − 3 + k·34)/n (ze szczotka), WD = WO − 40, SW = SD − 36, WW = WD − 3, DLP = SD − 52
+  const w2 = G.przesuwneWymiary(1964, 2364, {}), w3 = G.przesuwneWymiary(1964, 2364, { n: 3 }), w4 = G.przesuwneWymiary(1964, 2364, { n: 4 }), wb = G.przesuwneWymiary(1964, 2364, { szczotka: false });
+  ok('2 skrzydła, otwór 1964 × 2364: SD 997, WD 2324, SW 961, WW 2321, DLP 945', w2.n === 2 && w2.SD === 997 && w2.WD === 2324 && w2.SW === 961 && w2.WW === 2321 && w2.DLP === 945, JSON.stringify(w2));
+  ok('3 skrzydła: SD = (1964 − 3 + 2·34)/3 = 676', w3.n === 3 && w3.SD === 676, String(w3.SD));
+  ok('4 skrzydła (symetrycznie — jak 2 na pół otworu): SD = (982 − 3 + 34)/2 = 506', w4.n === 4 && w4.SD === 506, String(w4.SD));
+  ok('bez szczotki: SD = (1964 + 34)/2 = 999', wb.SD === 999, String(wb.SD));
+  ok('skrzydła na torach: 2 — tylne z lewej; 3 — środkowe z tyłu; zakładka 34', w2.skrzydla[0].tor === 1 && w2.skrzydla[1].tor === 0 && w2.skrzydla[0].x1 - w2.skrzydla[1].x0 === 30
+    && w3.skrzydla.map((q) => q.tor).join() === '0,1,0', JSON.stringify(w2.skrzydla));
+  ok('liczba skrzydeł sama: do 2000 — 2, do 3000 — 3, wyżej — 4', G.przesuwneLiczba(1964) === 2 && G.przesuwneLiczba(2500) === 3 && G.przesuwneLiczba(3600) === 4 && G.przesuwneLiczba(3600, 3) === 3);
+  ok('tor GTV: 1964 → 2350, 2400 → 3000, 7000 → 6000 (dwa kawałki)', G.przesuwneTor(1964) === 2350 && G.przesuwneTor(2400) === 3000 && G.przesuwneTor(7000) === 6000);
+  const szafa = (o = {}, cols) => G.migrateCab({ name: 'Szafa', W: 2000, H: 2400, D: 600, plinth: { on: true, height: 100 }, legs: { on: false }, przesuwne: { on: true, ...o },
+    levels: [{ h: null, cols: cols || [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null, 300], drazki: [0] }] }] }, M0);
+  const g = G.computeGeo(szafa(), M0), ile = (n) => g.hardware.filter((h) => h.name === n).reduce((a, h) => a + h.qty, 0);
+  const wyp = g.panels.find((x) => x.name === 'Wypełnienie drzwi przesuwnych');
+  ok('szafa 2000 × 2400: wypełnienie 2 × 2321 × 961 z płyty frontu, bez okleiny', wyp && wyp.qty === 2 && wyp.a === 2321 && wyp.b === 961 && !Object.values(wyp.edges || {}).some(Boolean), JSON.stringify(wyp));
+  ok('bez drzwi na zawiasach i bez zawiasów', !(g.doors || []).some((d) => d.type === 'door') && !g.hardware.some((h) => /Zawias/.test(h.name)));
+  ok('okucia: tor górny i dolny 2350, 4 rączki, 4 wózki, 4 prowadniki, szczotka', ile('Tor górny GTV') === 1 && ile('Tor dolny EVO') === 1 && ile('Rączka NOVO S') === 4 && ile('Wózek dolny EVO') === 4
+    && ile('Prowadnik górny 18 mm') === 4 && ile('Szczotka odbojowa 14,5 × 4') === 2 && /2 ?350/.test(g.hardware.find((h) => h.name === 'Tor górny GTV').spec));
+  ok('półki cofnięte o 80 za tory (głębokość półki ≤ korpus − 80)', g.shelfDepth <= g.carcassDepth - 80 && g.dividerDepth <= g.carcassDepth - 80, `${g.shelfDepth} / ${g.dividerDepth} / ${g.carcassDepth}`);
+  ok('geo.przesuwne: 2 skrzydła na wózkach nad torem dolnym, w strefie 8–52 mm od lica', g.przesuwne.n === 2 && g.przesuwne.skrzydla.every((q) => q.z0 >= 8 && q.z1 <= 8 + 24 + 20), JSON.stringify(g.przesuwne.skrzydla));
+  const gc = G.computeGeo(G.migrateCab({ ...szafa(), W: 4200, H: 2700 }, M0), M0);
+  ok('4200 × 2700 — sama 4 skrzydła, bez błędu wagi', gc.przesuwne.n === 4 && !gc.msgs.some((m) => /waży/.test(m.text)), `${gc.przesuwne.n} ${gc.przesuwne.kg} kg`);
+  const gw = G.computeGeo(G.migrateCab({ ...szafa({ n: 2 }), W: 3000, H: 2700 }, M0), M0);
+  ok('3000 × 2700 na 2 skrzydłach — za ciężkie (> 50 kg) albo za szerokie: uwaga z przyciskiem „3 skrzydła”', gw.msgs.some((m) => m.level !== 'info' && /\|przesn:3/.test(m.text)), gw.msgs.filter((m) => /przesn/.test(m.text)).map((m) => m.text).join(' / '));
+  // kolumna z szufladami pod dwoma skrzydłami (przegroda nie na styku) — ostrzeżenie
+  const gs = G.computeGeo(szafa({}, [{ kind: 'doors', doors: 1, w: 600, shelfTargets: [null, null] }, { kind: 'drawers', w: null, drawers: [{ h: 'auto' }, { h: 'auto' }], shelfTargets: [null] }]), M0);
+  ok('szuflady pod dwoma skrzydłami — ostrzeżenie „szuflada się nie wysunie”', gs.msgs.some((m) => m.level === 'warn' && /szuflada się nie wysunie/.test(m.text)), gs.msgs.filter((m) => /Kolumna/.test(m.text)).map((m) => m.text).join(' / '));
+  const gr = G.computeGeo(szafa(), M0);
+  ok('kolumny równo ze skrzydłami (przegroda na środku) — bez uwagi o dostępie', !gr.msgs.some((m) => /wypada pod dwoma skrzydłami/.test(m.text)));
+  // sufit: szafa w ciągu ze ścianą 2600
+  const run = { id: 'r1', name: 'S', tier: 'dolny', ceiling: 2600, mountY: 0 }, it = (H, D = 600, legs = false) => ({ runId: 'r1', mat: M0, cab: { ...szafa(), H, D, legs: { on: legs, height: 100 } } });
+  const sm = (H, D, legs) => G.sufitSzafyMsgs({ runs: [run], items: [it(H, D, legs)] }, 0).map((m) => m.level + ':' + m.text);
+  ok('sufit 2600, cokół 100, H 2400: info „może sięgać sufitu” z przyciskiem', sm(2400).some((t) => /^info:.*zostaje 100 mm do sufitu.*\|szafasufit:0/.test(t)), sm(2400).join(' / '));
+  ok('H 2497 (luz 3): ostrzeżenie „zostaw co najmniej 5 mm”', sm(2497).some((t) => /^warn:.*co najmniej 5 mm/.test(t)), sm(2497).join(' / '));
+  ok('H 2550: błąd „nie zmieści się o 50 mm”', sm(2550).some((t) => /^error:.*nie zmieści się o 50 mm/.test(t)), sm(2550).join(' / '));
+  ok('H 2495, D 800: przekątna 2620 > 2600 — „skręcaj na stojąco”', sm(2495, 800).some((t) => /^info:.*przekątna boku 2 ?620 mm.*na stojąco/.test(t)), sm(2495, 800).join(' / '));
+  ok('H 2495, D 600 bez nóżek: przekątna 2566 — bez uwagi o montażu', !sm(2495, 600).some((t) => /przekątna/.test(t)), sm(2495, 600).join(' / '));
+  ok('bez sufitu: info „podaj wysokość ściany”', G.sufitSzafyMsgs({ runs: [{ ...run, ceiling: null }], items: [it(2400)] }, 0).some((m) => /podaj wysokość ściany/.test(m.text)));
 }

@@ -289,6 +289,54 @@ const DRAZEK_GL_MIN = 400, DRAZEK_GL_DOBRA = 500;
 /* Rura dluzsza niz najdluzszy odcinek w sprzedazy (3 m, `RURA_ODCINKI`) — blad; od 2 m ugina sie
    pod ubraniami — ostrzezenie; oba z „Podziel kolumnę przegrodą” (uzytkownik 2026-10-30, N153). */
 const DRAZEK_UGINA = 2000;
+/* Drzwi przesuwne GTV NOVO S (18) — instrukcja `instrukcje/gtv-przesuwne/GTV_NOVO_S_18_instrukcja.pdf`, s. 23 (uzytkownik 2026-11-16):
+   otwor SO × WO = swiatlo korpusu (tor gorny pod wiencem, dolny EVO na dnie — decyzja uzytkownika), skrzydlo SD = (SO − 3 + k·Z) / n
+   ze szczotka odbojowa (bez niej (SO + k·Z) / n), Z = 34, k = n − 1 (4 skrzydla symetrycznie — jak 2 na polowe otworu), WD = WO − 40;
+   wypelnienie z plyty 18: SW = SD − 36, WW = WD − 3 z katownikiem / profilem C (bez — WD); listwy poziome DLP = SD − 52, raczki DR = WD.
+   Tor gorny 76 × 38 mm, dolny EVO 45 × 8 (karty GTV A-TG, A-TDEVO); strefa drzwi w glab 80 mm (uzytkownik: „tor górny ma 76 mm, dla
+   bezpieczeństwa 80”) — polki, przegrody i drazki za nia. Wozek EVO: skrzydlo do 50 kg, regulacja 0–10 mm. Liczba skrzydel sama — do ok.
+   1000 mm na skrzydlo (decyzja uzytkownika), zmiana w karcie. */
+const PRZES = { Z: 34, WD: 40, SW: 36, WW: 3, DLP: 52, SZCZ: 3, STREFA: 80, TOR_G: { h: 38, w: 76 }, TOR_D: { h: 8, w: 45 }, MAX_KG: 50,
+  SKRZ_MAX: 1000, TORY_DL: [1700, 2350, 3000, 4050, 6000], RACZKA_DL: 2700, LISTWA_DL: 3000, DRZWI_GR: 20, TOR_KROK: 24 };
+/* bryly drzwi przesuwnych (3D, wspolne dla szafy i zabudowy): tor gorny — plyta 4 mm pod wiencem i przednia scianka, dolny EVO,
+   skrzydla — wypelnienie (formatka) w profilach (raczki, listwy); tor 0 przedni, 1 tylny, krok PRZES.TOR_KROK; `b(x0,y0,z0,x1,y1,z1,kolor,fk,alfa)` */
+const przesuwneBryly = (p, ff, metal, open, b) => {
+  if (!p) return;
+  b(p.x0, p.y1 - 4, 0, p.x0 + p.SO, p.y1, PRZES.TOR_G.w, metal, null, 1);
+  b(p.x0, p.y1 - PRZES.TOR_G.h, 0, p.x0 + p.SO, p.y1 - 4, 2, metal, null, 1);
+  b(p.x0, p.y0, 4, p.x0 + p.SO, p.y0 + PRZES.TOR_D.h, 4 + PRZES.TOR_D.w, metal, null, 1);
+  const a = open ? 0.3 : 1, r = 22, l = 14;
+  p.skrzydla.forEach((d) => {
+    const zw = d.z0 + (d.z1 - d.z0 - 18) / 2, xw = d.x + (d.w - p.SW) / 2, yw = d.y + (d.h - p.WW) / 2;
+    b(xw, yw, zw, xw + p.SW, yw + p.WW, zw + 18, ff, "Wypełnienie drzwi przesuwnych", a);
+    b(d.x, d.y, d.z0, d.x + r, d.y + d.h, d.z1, metal, null, a);
+    b(d.x + d.w - r, d.y, d.z0, d.x + d.w, d.y + d.h, d.z1, metal, null, a);
+    b(d.x + r, d.y, d.z0, d.x + d.w - r, Math.min(yw, d.y + l), zw, metal, null, a);
+    b(d.x + r, Math.max(yw + p.WW, d.y + d.h - l), d.z0, d.x + d.w - r, d.y + d.h, zw, metal, null, a);
+  });
+};
+const przesuwneOn = (cab) => !!(cab && cab.przesuwne && cab.przesuwne.on);
+const przesuwneLiczba = (SO, n) => ([2, 3, 4].includes(Number(n)) ? Number(n) : SO <= 2 * PRZES.SKRZ_MAX ? 2 : SO <= 3 * PRZES.SKRZ_MAX ? 3 : 4);
+const przesuwneWymiary = (SO, WO, p = {}) => {
+  const n = przesuwneLiczba(SO, p.n), szczotka = p.szczotka !== false, listwy = p.listwy !== "brak";
+  const [nn, kk, so] = n === 4 ? [2, 1, SO / 2] : [n, n - 1, SO];
+  const SD = Math.floor((so - (szczotka ? PRZES.SZCZ : 0) + kk * PRZES.Z) / nn), WD = Math.round(WO - PRZES.WD);
+  // skrzydla w otworze (od lewej krawedzi swiatla) i tor: 0 — przedni, 1 — tylny
+  const xs = n === 2 ? [0, SO - SD] : n === 3 ? [0, (SO - SD) / 2, SO - SD] : [0, SO / 2 - SD, SO / 2, SO - SD];
+  const tory = n === 2 ? [1, 0] : n === 3 ? [0, 1, 0] : [0, 1, 1, 0];
+  return { n, k: n === 4 ? 2 : n - 1, SD, WD, SW: SD - PRZES.SW, WW: listwy ? WD - PRZES.WW : WD, DLP: SD - PRZES.DLP, DR: WD, SO, WO, szczotka, listwy,
+    skrzydla: xs.map((x, i) => ({ i, x0: Math.round(x), x1: Math.round(x + SD), tor: tory[i] })) };
+};
+// najkrotszy tor GTV, ktory wystarczy na dlugosc (DTM = SO); dluzszy niz 6000 — dwa kawalki
+const przesuwneTor = (L) => PRZES.TORY_DL.find((d) => d >= L) || PRZES.TORY_DL[PRZES.TORY_DL.length - 1];
+/* Dostep do kolumn (uzytkownik 2026-11-16: „podpowiedź tak, by był dostęp do półek czy szuflad po otwarciu drzwi”): kolumna jest dostepna,
+   gdy miesci sie w miejscu, ktore odslania jedno odsuniete skrzydlo (otwor minus pozostale skrzydla stojace na swoim miejscu) */
+const przesuwneOdslania = (w) => w.skrzydla.map((sk) => {
+  const inne = w.skrzydla.filter((q) => q !== sk);
+  let x0 = 0, x1 = w.SO;
+  inne.forEach((q) => { if (q.x1 <= sk.x0 + 1) x0 = Math.max(x0, q.x1); else if (q.x0 >= sk.x1 - 1) x1 = Math.min(x1, q.x0); else if (q.x0 <= sk.x0) x0 = Math.max(x0, q.x1); else x1 = Math.min(x1, q.x0); });
+  return { i: sk.i, x0, x1 };
+});
 const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀25";
 /* Podpora rury na srodku (uzytkownik 2026-10-31 przy audycie GPT N181/N182, zamiast podzialu
    kolumny przy rurze 2–3 m): GTV „Uchwyt WP-10 dystansowy, regulowany” MR-WP-010-01, przelotowy
@@ -3103,6 +3151,7 @@ function computeGeo(cab, mat, ctx) {
 }
 function computeGeoLiczy(cab, mat, ctx) {
   if (cab && cab.sprzetCiagu) return geoSprzetuCiagu(cab, mat, ctx);
+  if (przesuwneOn(cab)) return geoPrzesuwne(cab, mat, ctx);
   const t = mat.board.thickness;
   /* „Fronty z tej samej plyty co korpus” — zamowienie bierze wtedy plyte korpusu,
      wiec i grubosc frontu w geometrii (bryla, glebokosci, ruchy) jest z niej.
@@ -3384,7 +3433,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   const shelfBack = postSide ? Math.max(backIntrusion, postBack + ts) : backIntrusion;
   const shelfFrontL = postSide && ctx && ctx.armBracket ? t : 0;
   const shelfDepth = Math.round(carcassDepth - shelfBack - frontCut - shelfFrontL);
-  const dividerDepth = Math.round(carcassDepth - backIntrusion);
+  // drzwi przesuwne: przegrody za strefa drzwi (torami) — `__przegrodyCof` z `geoPrzesuwne`
+  const dividerDepth = Math.round(carcassDepth - backIntrusion - (cab.__przegrodyCof || 0));
   /* przyciski (audyt GPT N179): cofniecie, przy ktorym polka ma POLKA_MIN_GL mm, i bez dodatkowego
      cofniecia — tylko te, ktore daja dodatnia glebokosc */
   if (shelfDepth <= 0) {
@@ -8492,6 +8542,55 @@ function computeGeoLiczy(cab, mat, ctx) {
   };
 }
 
+/* Szafa z drzwiami przesuwnymi GTV NOVO S (2026-11-16): wnetrze jak w szafie bez frontow (kolumny bez drzwi), polki i przegrody
+   cofniete o strefe drzwi (`PRZES.STREFA`), w swietle korpusu tor gorny pod wiencem i dolny EVO na dnie, skrzydla z wypelnieniem z plyty
+   w profilach NOVO S. Wymiary — `przesuwneWymiary` (wzory GTV). */
+function geoPrzesuwne(cab, mat, ctx) {
+  const P = cab.przesuwne || {};
+  const wewn = { ...cab, przesuwne: null, shelfExtraSetback: Math.max(Number(cab.shelfExtraSetback) || 0, PRZES.STREFA), __przegrodyCof: PRZES.STREFA,
+    levels: (cab.levels || []).map((lv) => ({ ...lv, cols: (lv.cols || []).map((c) => (c.kind === "drawers" || c.kind === "blenda" || c.sprzet ? c : { ...c, doors: 0, klapa: undefined, podzial: undefined })) })) };
+  const g = computeGeoLiczy(wewn, mat, ctx);
+  const msgs = [...g.msgs], add = (level, text) => msgs.push({ level, text });
+  const SO = Math.round(g.interior.x1 - g.interior.x0), WO = Math.round(g.interior.y1 - g.interior.y0);
+  const w = przesuwneWymiary(SO, WO, P);
+  const tf = g.tf, n = w.n;
+  const y0 = g.interior.y0 + PRZES.TOR_D.h + 4, y1 = y0 + w.WD;   // skrzydlo na wozkach nad torem dolnym, gora w torze gornym
+  const skrzydla = w.skrzydla.map((sk) => ({ ...sk, x: Math.round(g.interior.x0 + sk.x0), w: w.SD, y: Math.round(y0), h: w.WD,
+    z0: 8 + sk.tor * PRZES.TOR_KROK, z1: 8 + sk.tor * PRZES.TOR_KROK + PRZES.DRZWI_GR }));
+  const panels = [...g.panels, { name: "Wypełnienie drzwi przesuwnych", qty: n, a: w.WW, b: w.SW, matKey: plytaFrontu(cab),
+    edges: { a1: false, a2: false, b1: false, b2: false },
+    note: `skrzydło ${fmt(w.SD)} × ${fmt(w.WD)} mm (GTV NOVO S): płyta w rączkach i listwach — bez okleiny; frezowanie pod wózki dolne wg instrukcji GTV (s. 24)` }];
+  const torL = przesuwneTor(SO), nListew = 2 * n, naListwe = Math.max(1, Math.floor(PRZES.LISTWA_DL / Math.max(1, w.DLP)));
+  const hw = [
+    { name: "Tor górny GTV", use: "drzwi przesuwne — pod wieńcem, w świetle korpusu", spec: `A-TG, ${fmt(torL)} mm, dociąć do ${fmt(SO)} mm (76 × 38)`, qty: SO > 6000 ? 2 : 1, unit: "szt." },
+    { name: "Tor dolny EVO", use: "drzwi przesuwne — na dnie, w świetle korpusu", spec: `A-TDEVO, ${fmt(torL)} mm, dociąć do ${fmt(SO)} mm (45 × 8)`, qty: SO > 6000 ? 2 : 1, unit: "szt." },
+    { name: "Maskownica toru dolnego EVO", use: "drzwi przesuwne — na torze dolnym", spec: `A-MEVO, ${fmt(torL)} mm, dociąć do ${fmt(SO)} mm`, qty: SO > 6000 ? 2 : 1, unit: "szt." },
+    { name: "Rączka NOVO S", use: "drzwi przesuwne — po dwie na skrzydło", spec: `A-R18NOVS-270, ${fmt(PRZES.RACZKA_DL)} mm, dociąć do ${fmt(w.DR)} mm`, qty: 2 * n, unit: "szt." },
+    { name: "Kątownik 18 mm (listwa pozioma)", use: "drzwi przesuwne — listwa górna i dolna skrzydła", spec: `A-K18-300, ${fmt(PRZES.LISTWA_DL)} mm: ${nListew} × ${fmt(w.DLP)} mm`, qty: Math.ceil(nListew / naListwe), unit: "szt." },
+    { name: "Wózek dolny EVO", use: "drzwi przesuwne — dwa na skrzydło", spec: "A-WD-EVO, regulacja 0–10 mm, skrzydło do 50 kg", qty: 2 * n, unit: "szt." },
+    { name: "Prowadnik górny 18 mm", use: "drzwi przesuwne — dwa na skrzydło", spec: "A-PG-18", qty: 2 * n, unit: "szt." },
+    { name: "Pozycjoner górny", use: "drzwi przesuwne — w torze górnym (przy torze dolnym EVO zawsze)", spec: "A-PTG", qty: n, unit: "szt." },
+    ...(w.szczotka ? [{ name: "Szczotka odbojowa 14,5 × 4", use: "drzwi przesuwne — na rączkach przy bokach", spec: `A-SO-145X4: 2 × ${fmt(w.WD)} mm`, qty: 2, unit: "szt." }] : []),
+  ];
+  // waga skrzydla: plyta wypelnienia + profile (ok. 0,5 kg/mb raczki i listwy — przyjete z gory, bez karty)
+  const kg = wagaFrontu(w.SW, w.WW, tf) + 0.5 * ((2 * w.DR + 2 * w.DLP) / 1000);
+  if (kg > PRZES.MAX_KG) add("error", `Skrzydło drzwi przesuwnych waży ok. ${fmt(Math.round(kg))} kg — wózki EVO udźwigną najwyżej ${PRZES.MAX_KG} kg. Dołóż skrzydło (więcej, węższych).|przesn:${Math.min(4, n + 1)}`);
+  if (w.SD > PRZES.SKRZ_MAX + 150) add("warn", `Skrzydło drzwi przesuwnych ma ${fmt(w.SD)} mm szerokości — szerokie i ciężkie; zwykle do ok. ${fmt(PRZES.SKRZ_MAX)} mm.|przesn:${Math.min(4, n + 1)}`);
+  if (w.SW <= 0 || w.WW <= 0) add("error", "Otwór za mały na drzwi przesuwne.");
+  // kolumny wnetrza a skrzydla: kolumna pod dwoma skrzydlami — po odsunieciu jednego czesc zostaje zaslonieta
+  const odsl = przesuwneOdslania(w), x0i = g.interior.x0;
+  const kolumny = [...new Map((g.levels || []).flatMap((lv) => (lv.cols || []).map((c) => [`${Math.round(c.x0)}|${Math.round(c.x1)}`, { x0: c.x0 - x0i, x1: c.x1 - x0i, szuflady: (c.drawers || []).length > 0 }]))).values()];
+  if (kolumny.length > 1 || kolumny.some((c) => c.szuflady)) kolumny.forEach((c, kk) => {
+    const naj = odsl.map((o) => ({ ...o, braki: Math.max(0, o.x0 - c.x0) + Math.max(0, c.x1 - o.x1) })).sort((a, b) => a.braki - b.braki)[0];
+    // polki: drobna zakladka profili nie przeszkadza (do 50 mm); szuflada musi przejsc cala
+    if (naj && naj.braki > (c.szuflady ? 2 : 50))
+      add(c.szuflady ? "warn" : "info", `${kolumny.length > 1 ? `Kolumna ${kk + 1}` : "Kolumna"} (${fmt(Math.round(c.x1 - c.x0))} mm) wypada pod dwoma skrzydłami — po odsunięciu skrzydła ${fmt(Math.round(naj.braki))} mm zostaje zasłonięte${c.szuflady ? " i szuflada się nie wysunie" : ""}. Ustaw przegrodę na styku skrzydeł albo zmień liczbę skrzydeł.`);
+  });
+  add("info", `Drzwi przesuwne GTV NOVO S: ${n} ${plural(n, "skrzydło", "skrzydła", "skrzydeł")} ${fmt(w.SD)} × ${fmt(w.WD)} mm (otwór ${fmt(SO)} × ${fmt(WO)}, zakładka ${PRZES.Z} mm${w.szczotka ? ", ze szczotką odbojową" : ""}); półki i przegrody cofnięte o ${PRZES.STREFA} mm za tory. Tory na wkręty z łbem stożkowym (otwory fazowane); maskownicę zapnij przed wstawieniem drzwi.`);
+  return { ...g, msgs, panels, hardware: [...g.hardware, ...hw], doors: (g.doors || []).filter((d) => d.type === "drawer"),
+    przesuwne: { ...w, skrzydla, strefa: PRZES.STREFA, y0: Math.round(g.interior.y0), y1: Math.round(g.interior.y1), x0: Math.round(g.interior.x0), kg: Math.round(kg) } };
+}
+
 /* Sprzet w ciagu bez korpusu (2026-11-05). Geometria pustej szafki tej samej szerokosci i wysokosci
    daje wszystkie pola, z ktorych korzystaja uklad ciagu, blat, cokol i rysunki; korpusu nie ma
    (`bezKorpusu`): bez plyt korpusu, okuc i wiercen. Zostaje cokol (ciag i tak go laczy). Zmywarka
@@ -9633,6 +9732,25 @@ const caloscPasow = (ps) => ({ y0: ps[0].y0, h: ps[ps.length - 1].y0 + ps[ps.len
    audyt rysunkow 2D (2026-09-28). */
 /* Sprzet w zabudowie na widoku z przodu (uzytkownik 2026-11-04): ciemny front, obrys drzwi
    (opadajace — od dolu, boczne — od strony zawiasu), uchwyt i podpis. `mx` jak w rzucie ciagu. */
+/* Drzwi przesuwne na rysunku z przodu (2026-11-16): tory (gorny pod wiencem, dolny na dnie) zawsze; zamkniete — skrzydla w kolorze
+   frontow z raczkami NOVO S na bokach (najpierw tylny tor), otwarte — sam przerywany obrys skrzydel, zeby bylo widac wnetrze */
+function PrzesuwneElew({ geo, fy, mx = (x) => x, ff, open }) {
+  const p = geo.przesuwne; if (!p) return null;
+  const tor = "#a8a29e", r = 22, sk = [...p.skrzydla].sort((a, b) => b.tor - a.tor);
+  return (
+    <g data-el="drzwi-przesuwne" pointerEvents="none">
+      <rect data-el="tor-gorny" x={mx(p.x0, p.SO)} y={fy(p.y1)} width={p.SO} height={PRZES.TOR_G.h} fill={tor} stroke={INK} strokeWidth="1" />
+      <rect data-el="tor-dolny" x={mx(p.x0, p.SO)} y={fy(p.y0 + PRZES.TOR_D.h)} width={p.SO} height={PRZES.TOR_D.h} fill={tor} stroke={INK} strokeWidth="1" />
+      {sk.map((d) => { const X = mx(d.x, d.w), Y = fy(d.y + d.h);
+        return open
+          ? <rect key={d.i} data-el="skrzydlo-przesuwne" x={X} y={Y} width={d.w} height={d.h} fill="none" stroke={LINE} strokeWidth="2" strokeDasharray="14 9" />
+          : <g key={d.i} data-el="skrzydlo-przesuwne">
+              <rect x={X} y={Y} width={d.w} height={d.h} fill={ff} stroke={INK} strokeWidth="2" />
+              <rect x={X} y={Y} width={r} height={d.h} fill="#d6d3d1" stroke={INK} strokeWidth="1" />
+              <rect x={X + d.w - r} y={Y} width={r} height={d.h} fill="#d6d3d1" stroke={INK} strokeWidth="1" />
+            </g>; })}
+    </g>);
+}
 function SprzetElewacja({ geo, fy, mx = (x) => x }) {
   return geo.levels.flatMap((lv) => lv.cols.filter((c) => c.sprzet && c.sprzet.front !== false).map((c) => {
     const s = c.sprzet, w = s.x1 - s.x0, h = s.y1 - s.y0, X = mx(s.x0, w);
@@ -10014,6 +10132,7 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         )}
 
       {!rear && <SprzetElewacja geo={geo} fy={fy} mx={mx} />}
+      {!rear && <PrzesuwneElew geo={geo} fy={fy} mx={mx} ff={frontColor} open={open} />}
       {/* fronty */}
       {!rear && geo.doors.filter((d) => d.w > 0 && d.h > 0).map((d) => {
         const X = mx(d.x, d.w);
@@ -10507,6 +10626,11 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm, wystajeB
           )}
         </g>
       ))}
+      {/* drzwi przesuwne z gory: tory w strefie drzwi i skrzydla na dwoch torach (2026-11-16) */}
+      {geo.przesuwne && <g data-el="przesuwne-z-gory" pointerEvents="none">
+        <rect x={geo.przesuwne.x0} y={cd - PRZES.TOR_G.w} width={geo.przesuwne.SO} height={PRZES.TOR_G.w} fill="#e7e5e4" stroke={LINE} strokeWidth="1" strokeDasharray="8 6" />
+        {geo.przesuwne.skrzydla.map((d) => <rect key={d.i} x={d.x} y={cd - d.z1} width={d.w} height={d.z1 - d.z0} fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="1.5" />)}
+      </g>}
       {/* Wieniec albo blat z plyty — na wierzchu (uzytkownik 2026-11-10: „w szafie wygląda, jakby wieniec był osobny dla
           każdego elementu, a w biurku, jakby blat był pod, a nie nad”): lezy nad wszystkim, wiec rysowany ostatni,
           polprzezroczysty (widac, co pod nim), z pelnym obrysem; kawalki tylko tam, gdzie wieniec naprawde jest dzielony. */}
@@ -12168,6 +12292,8 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn
         box(c.x + u.x0, c.base + u.y0, zLico - uchwyt, c.x + u.x1, c.base + u.y1, zLico,
           "#3f3f46", transform, 1, false, 0, "uchwyt");
       };
+      przesuwneBryly(c.geo.przesuwne, c.frontColor, "#a8a29e", open, (x0, y0, z0, x1, y1, z1, kol, nazwa, alfa) =>
+        box(c.x + x0, c.base + y0, z0, c.x + x1, c.base + y1, z1, kol, null, alfa, !!nazwa, 0, nazwa ? "drzwi-przesuwne" : "tor"));
       c.geo.doors.filter((d) => d.w > 0 && d.h > 0).forEach((d) => {
         // jak w 3D szafki: lustro w kolorze lustra, blenda z plyty frontow (audyt GPT N43)
         const col = d.mirror ? c.mat.mirror.color : c.frontColor;
@@ -13101,6 +13227,7 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           fill={ff} stroke={INK} strokeWidth="2" />
       ))}
       <SprzetElewacja geo={geo} fy={fy} />
+      <PrzesuwneElew geo={geo} fy={fy} ff={frontColor} open={open} />
       {/* Uchwyt frezowany skraca front o glebokosc uchwytu — w szczelinie widac skrzynke
           (boki i tyl DXS-3D, boki V-BOX). Rysujemy ja pod frontami, jak w bryle 3D
           (audyt 2D szuflad 2026-10-22). */}
@@ -15811,6 +15938,9 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
 
   // tip-on — odbojnik na korpusie za frontem (okucie w kolorze metalu, nie formatka)
   fk = null;
+  // drzwi przesuwne (2026-11-16): tory i skrzydla w strefie drzwi; otwarte — polprzezroczyste
+  przesuwneBryly(geo.przesuwne, ff, "#a8a29e", open, (x0, y0, z0, x1, y1, z1, kol, nazwa, alfa) => { fk = nazwa; box(x0, y0, z0, x1, y1, z1, kol, null, alfa, !!nazwa); });
+  fk = null;
   geo.doors.forEach((d) => d.tipon && box(d.tipon.x0, d.tipon.y0, d.tipon.z0, d.tipon.x1, d.tipon.y1, d.tipon.z1,
     "#8b8b93", null, 1, false, "tipon"));
 
@@ -16393,6 +16523,10 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       const tryb = action.split(":")[1];
       return { label: tryb === "haczyki" ? "Zawieszki na haczykach" : "Zawieszki na listwie", run: () => runFix && runFix(action) };
     }
+    if (action.startsWith("szafasufit:"))
+      return { label: `Do sufitu z luzem ${SZAFA_LUZ_SUFIT} mm`, run: () => runFix && runFix(action) };
+    if (action.startsWith("przesn:"))
+      return { label: `Drzwi przesuwne: ${action.split(":")[1]} skrzydła`, run: () => runFix && runFix(action) };
     if (action.startsWith("polkicof:")) {
       // „polkicof:<mm>" — cofniecie polek calej szafki (pole „cofnięcie półek”), np. przed podnosnikiem klapy
       const mm = Math.round(Number(action.split(":")[1]) || 0);
@@ -22017,7 +22151,7 @@ const bazaSzafki = (c) => {
 };
 const ikonaWzoru = (w, baza0) => {
   const id = w.id, tpl = w.tpl;
-  const wys = ["slupek", "szafa2", "szafa1", "szafaSz", "regal", "regalW", "szafaW", "lodowka-wolno"].includes(id);
+  const wys = ["slupek", "szafa2", "szafa1", "szafaSz", "szafaZab", "regal", "regalW", "szafaW", "lodowka-wolno"].includes(id);
   const wisi = tpl === "wiszaca" || tpl === "naroznikLgorny";
   const baza = wisi || id === "biurko" || id === "biurkoK" ? null : baza0 !== undefined ? baza0 : bazaWzoru(w, null);
   // podstawa pod korpusem (cokol cofniety albo nozki) zabiera 3 px z dolu; cokol w obrysie — linia w korpusie
@@ -22043,6 +22177,8 @@ const ikonaWzoru = (w, baza0) => {
   else if (id === "regal" || id === "regalW") d = `${box} ${sz(5)}`;
   else if (id === "szafaSz") d = `${box} M${x0} ${y1 - 9}h${x1 - x0} M${x0} ${y1 - 4.5}h${x1 - x0} M${x0} ${y1 - 13.5}h${x1 - x0} M${mid} ${y0}v${y1 - y0 - 13.5}`;
   else if (id === "szafa2") d = `${box} M${mid} ${y0}v${y1 - y0} M${mid + 3} ${y0 + 6}h${x1 - mid - 6}`;
+  // szafa do zabudowy: tor gorny i dolny, dwa skrzydla przesuwne zachodzace na siebie
+  else if (id === "szafaZab") d = `${box} M${x0} ${y0 + 2}h${x1 - x0} M${x0} ${y1 - 2}h${x1 - x0} M${mid + 2} ${y0 + 2}v${y1 - y0 - 4} M${mid - 2} ${y0 + 2}v${y1 - y0 - 4}`;
   else if (id === "zlewowa") d = `${box} M${mid} ${y0}v${y1 - y0} M${mid - 6} ${y0 - 3}h12`;
   else if (id === "dolna1" || id === "szafa1" || id === "slupek") d = `${box} M${x1 - 4} ${(y0 + y1) / 2 - 2}v4`;
   else d = `${box} M${mid} ${y0}v${y1 - y0}`;
@@ -22204,6 +22340,33 @@ const sprzetWysokoMsgs = (project, i) => {
     if (s.typ === "piekarnik" && dol > PIEKARNIK_MAX)
       out.push({ level: "warn", text: `Piekarnik wysoko — dół ${fmt(dol)} mm od podłogi (więcej niż ${fmt(PIEKARNIK_MAX)}): ciężką, gorącą blachę wyjmuje się wtedy wysoko nad łokciem. Daj go niżej — na wysokość blatu albo pod blat (karta piekarnika: Dodaj → AGD).` });
   }));
+  return out;
+};
+/* Wysoka szafa a sufit (uzytkownik 2026-11-16: „szafa może być do sufitu z luzem min. 5 mm”): sufit sciany (`sufitSciany`) — szafa wyzej
+   niz sufit: blad; luz ponizej SZAFA_LUZ_SUFIT: ostrzezenie; szafa z drzwiami przesuwnymi (do zabudowy) z luzem ponad SZAFA_LUZ_DUZY:
+   informacja — przycisk „do sufitu z luzem 5 mm” (wysokosc korpusu). Kolejnosc montazu: korpus skrecony na lezaco stawia sie, obracajac
+   go na podlodze obok cokolu (potem wsuwa na cokol) — przekatna boku (wysokosc korpusu × glebokosc) musi byc mniejsza niz sufit nad
+   podloga; inaczej skrecac na stojaco. Nozki — przykrecic dopiero po postawieniu, gdy z nimi przekatna juz sie nie miesci. */
+const SZAFA_LUZ_SUFIT = 5, SZAFA_LUZ_DUZY = 30;
+const sufitSzafyMsgs = (project, i) => {
+  const it = project.items[i]; if (!it || it.cab.sprzetCiagu || !(it.cab.H > 1500)) return [];
+  const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
+  if (!run || run.tier === "gorny") return [];
+  const nazwa = (it.cab.name || "").trim() || `szafka ${i + 1}`, przes = przesuwneOn(it.cab);
+  const suf = sufitSciany(project, run);
+  if (suf == null) return przes ? [{ level: "info", text: `„${nazwa}” z drzwiami przesuwnymi: podaj wysokość ściany (pole „wys.” nad rysunkiem) — szafa do zabudowy staje do sufitu z luzem co najmniej ${SZAFA_LUZ_SUFIT} mm, a program sprawdzi, czy się zmieści.` }] : [];
+  let o; try { o = makOdPodlogi(project, i); } catch (e) { return []; }
+  if (!o) return [];
+  const gora = o.gora + blendaH(it.cab), luz = Math.round(suf - gora), out = [];
+  if (luz < 0) out.push({ level: "error", text: `„${nazwa}” sięga ${fmt(gora)} mm, a sufit jest na ${fmt(suf)} mm — nie zmieści się o ${fmt(-luz)} mm.|szafasufit:${i}` });
+  else if (luz < SZAFA_LUZ_SUFIT) out.push({ level: "warn", text: `Nad „${nazwa}” zostaje ${fmt(luz)} mm do sufitu — zostaw co najmniej ${SZAFA_LUZ_SUFIT} mm, inaczej korpusu nie wstawisz.|szafasufit:${i}` });
+  else if (przes && !blendaH(it.cab) && luz > SZAFA_LUZ_DUZY) out.push({ level: "info", text: `Nad „${nazwa}” zostaje ${fmt(luz)} mm do sufitu — szafa do zabudowy może sięgać sufitu (luz ${SZAFA_LUZ_SUFIT} mm), bez blendy.|szafasufit:${i}` });
+  const D = Math.round(o.geo.carcassDepth), Hk = Math.round(it.cab.H), noz = it.cab.legs && it.cab.legs.on ? Math.round(o.geo.legBelow || 0) : 0;
+  const miejsce = Math.round(suf - (Number(run.mountY) || 0)), przek = Math.round(Math.hypot(Hk, D)), przekN = Math.round(Math.hypot(Hk + noz, D));
+  if (luz >= 0 && przek > miejsce)
+    out.push({ level: "info", text: `„${nazwa}” ${fmt(Hk)} × ${fmt(D)} mm: przekątna boku ${fmt(przek)} mm, a sufit jest na ${fmt(miejsce)} mm — korpusu skręconego na leżąco nie postawisz (obracając go, zahaczy o sufit). Skręcaj go na stojąco, na miejscu.` });
+  else if (luz >= 0 && noz && przekN > miejsce)
+    out.push({ level: "info", text: `„${nazwa}”: korpus z nóżkami ma przekątną boku ${fmt(przekN)} mm, a sufit jest na ${fmt(miejsce)} mm — nóżki przykręć dopiero po postawieniu korpusu (sam korpus: ${fmt(przek)} mm, zmieści się).` });
   return out;
 };
 const makLapanieWys = (project, idx) => {
@@ -23207,7 +23370,7 @@ const makIkonaSzafki = (cab, gorny) => {
   const cols = (cab.levels || []).flatMap((lv) => lv.cols || []);
   const id = b ? (b.kont ? "biurkoK" : "biurko") : sp === "zmywarka" ? "zmywarka" : sp === "zmywarkaW" ? "zmywarka-wolno"
     : sp === "lodowka" ? "lodowka-wolno" : sp === "lodowkaP" ? "lodowka-pod" : (cab.corner || {}).on ? (gorny ? "naroznikLgorny" : "naroznikL")
-    : cab.H >= 1500 ? (cols.some((k) => k.kind === "drawers") ? "szafaSz" : "slupek")
+    : cab.H >= 1500 ? (przesuwneOn(cab) ? "szafaZab" : cols.some((k) => k.kind === "drawers") ? "szafaSz" : "slupek")
     : cols.length && cols.every((k) => k.kind === "drawers") ? "szuflady" : makSzufDrzwiUklad(cab) ? "szufDrzwi" : "x";
   return ikonaWzoru({ id, tpl: gorny ? "wiszaca" : "" }, bazaSzafki(cab));
 };
@@ -23229,11 +23392,13 @@ const makCoZrobiSzafka = (cab, g, run, mat) => {
   const sprz = cols.filter((c) => c.sprzet).map((c) => ((SPRZETY[c.sprzet.typ] || {}).nazwa || "sprzęt"));
   const sd = makSzufDrzwiUklad(cab);
   if (sd) t.push(`${sd.dol ? "Na dole szuflada, nad nią" : "U góry szuflada, pod nią"} ${sd.drzwi === 2 ? "dwoje drzwi" : "jedne drzwi"}.`);
+  const pr = g.przesuwne;
+  if (pr) t.push(`Drzwi przesuwne GTV NOVO S: ${pr.n} ${plural(pr.n, "skrzydło", "skrzydła", "skrzydeł")} ${fmt(pr.SD)} × ${fmt(pr.WD)} mm w świetle korpusu — tor górny pod wieńcem, dolny na dnie; wypełnienia, profile i wózki liczy program, a półki i przegrody cofa o ${fmt(PRZES.STREFA)} mm za tory.`);
   if (drzwi) t.push(`${drzwi} ${plural(drzwi, "skrzydło", "skrzydła", "skrzydeł")} drzwi na zawiasach puszkowych — liczba zawiasów z wysokości drzwi.`);
   if (klapy) t.push(`${klapy === 1 ? "Klapa" : `${klapy} klapy`} — okucia (podnośniki albo zawiasy z rozpórkami) dobiera program.`);
   if (szufl) t.push(`${szufl} ${plural(szufl, "szuflada", "szuflady", "szuflad")} — prowadnice z systemu szuflad w ustawieniach; program sprawdzi wysuw.`);
   if (sprz.length) t.push(`W środku: ${[...new Set(sprz)].join(", ")} — wnękę i fronty wokół ustawia program, wymiary wnęki sprawdza z karty modelu.`);
-  if (!drzwi && !klapy && !szufl && !sprz.length && cols.length) t.push("Bez frontów — otwarte półki.");
+  if (!pr && !drzwi && !klapy && !szufl && !sprz.length && cols.length) t.push("Bez frontów — otwarte półki.");
   const polki = (g.levels || []).reduce((a, lv) => a + lv.cols.reduce((b, c) => b + (c.shelves || []).length, 0), 0);
   if (polki) { const m = mocowaniePolek(cab); t.push(`${polki} ${plural(polki, "półka", "półki", "półek")} ${m === "confirmat" ? "na konfirmatach" : m === "trojkaty" ? "na trójkątach" : "na kołkach"}.`); }
   if ((g.sepShelves || []).length) t.push(`${g.sepShelves.length} ${plural(g.sepShelves.length, "półka stała", "półki stałe", "półek stałych")} przez całą szerokość (poziomy szafki).`);
@@ -23362,6 +23527,12 @@ const MAK_PALETA = [
     { id: "szafaSz", nazwa: "Szafa z szufladami", opis: "800 mm, 3 szuflady na dole", tpl: "slupek", gdzie: "dol", szafka: "Szafa",
       mod: (c, sys) => { c.W = 800; const dol = newColumn(1, 0), gora = newColumn(2, 2); makUstawSzuflady(dol, 3, sys); makUstawFront(gora, "drzwi-2");
         c.levels = [{ h: 600, cols: [dol] }, { h: null, cols: [gora] }]; } },
+    /* Szafa do zabudowy (uzytkownik 2026-11-16): korpus na cala wneke (boki, wieniec, dno na cokole), drzwi przesuwne GTV NOVO S
+       w swietle korpusu, bez blend; `doSufitu` — przy znanym suficie sciany korpus do sufitu z luzem SZAFA_LUZ_SUFIT (bez sufitu
+       2400 + cokol 100). W srodku przegroda: polki | drazek z polka 300 nad nim. */
+    { id: "szafaZab", nazwa: "Szafa do zabudowy", opis: "2000 mm, drzwi przesuwne, do sufitu", tpl: "slupek", gdzie: "dol", szafka: "Szafa", doSufitu: true,
+      mod: (c) => { c.W = 2000; c.H = 2400; c.przesuwne = { on: true }; c.legs = { ...(c.legs || {}), on: false };
+        const p = newColumn(1, 4), d = newColumn(1, 1); d.shelfTargets = [null, 300]; d.drazki = [0]; c.levels = [{ h: null, cols: [p, d] }]; } },
     { id: "regal", nazwa: "Regał otwarty", opis: "600 mm, 5 półek", tpl: "slupek", gdzie: "dol", szafka: "Regał",
       mod: (c) => { c.W = 600; const k = makK0(c); makUstawFront(k, "otwarta"); makUstawPolki(k, 5); } },
   ] },
@@ -24330,6 +24501,22 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
           onClick={() => zmienKol(k.li, k.jA, (kk) => { kk.hinge = v; })}>{l}</Btn>)]; })() : []),
     ], "mak-kolumna"), poziomyUI(k)].filter(Boolean)).flat();
     if (!tresc.length) tresc = [<p key="brak" className="text-xs text-stone-500">W tej szafce fronty zmienisz w trybie Technicznym.</p>];
+    /* Drzwi przesuwne GTV NOVO S (uzytkownik 2026-11-16) — w szafie (wysokiej): zamiast drzwi na zawiasach, tory w swietle korpusu */
+    if (!cab.sprzetCiagu && (cab.H >= 1400 || rodzK === "szafa") && !(run && run.tier === "gorny")) {
+      const P = cab.przesuwne || {}, on = przesuwneOn(cab), pg = on && geoKarty && geoKarty.przesuwne;
+      const ustawP = (patch) => zmien(idx, (c) => { c.przesuwne = { ...(c.przesuwne || {}), ...patch }; });
+      const blok = [wiersz("przes", "Drzwi przesuwne (GTV NOVO S, tor dolny EVO)", [
+        <Btn key="n" el="mak-przesuwne" v="nie" on={!on} onClick={() => ustawP({ on: false })}>na zawiasach</Btn>,
+        <Btn key="t" el="mak-przesuwne" v="tak" on={on} onClick={() => ustawP({ on: true })}>przesuwne</Btn>], "mak-przesuwne-w"),
+        ...(on ? [
+          wiersz("przesn", "skrzydła", [<Btn key="a" el="mak-przes-n" v="auto" on={![2, 3, 4].includes(Number(P.n))} onClick={() => ustawP({ n: null })}>same{pg ? ` (${pg.n})` : ""}</Btn>,
+            ...[2, 3, 4].map((v) => <Btn key={v} el="mak-przes-n" v={v} on={Number(P.n) === v} onClick={() => ustawP({ n: v })}>{v}</Btn>)], "mak-przes-n-w"),
+          wiersz("przessz", "szczotka odbojowa (przy bokach)", [["tak", "jest"], ["nie", "nie ma"]].map(([v, l]) =>
+            <Btn key={v} el="mak-przes-szczotka" v={v} on={(P.szczotka !== false) === (v === "tak")} onClick={() => ustawP({ szczotka: v === "tak" })}>{l}</Btn>), "mak-przes-szczotka-w"),
+          ...(pg ? [<p key="przesinfo" data-el="mak-przes-info" className="border-b border-stone-100 py-1 text-[11px] text-stone-600">
+            {pg.n} {plural(pg.n, "skrzydło", "skrzydła", "skrzydeł")} {fmt(pg.SD)} × {fmt(pg.WD)} mm (otwór {fmt(pg.SO)} × {fmt(pg.WO)}), wypełnienie z płyty {fmt(pg.SW)} × {fmt(pg.WW)} mm, ok. {fmt(pg.kg)} kg; półki, przegrody i drążki cofnięte o {PRZES.STREFA} mm za tory. Wzory — instrukcja GTV NOVO S (18).</p>] : [])] : [])];
+      tresc = on ? blok : [...blok, ...tresc];
+    }
   }
   else if (zakladka === "szuflady") {
     /* Wysokosci frontow kazdej szuflady z osobna (uzytkownik 2026-11-15: „klikając na szufladę i opcje szuflady nie mamy jej
@@ -25315,7 +25502,12 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     const it = c ? project.items[c.idx] : null;
     let run = c ? runOf(it) : runOf(project.items[project.active]);
     const sys = systemKontekstu(project, c ? c.idx : project.active);
-    const opcje = { zmien: w.mod ? (cab) => w.mod(cab, sys) : null, nazwa: w.szafka || null, wymiaryCiagu: !!w.ciag,
+    // `doSufitu` (szafa do zabudowy): znany sufit sciany — korpus do sufitu z luzem SZAFA_LUZ_SUFIT nad cokolem
+    const runSc = run && run.tier === "gorny" ? (project.runs || []).find((r) => r.id === run.wall) || null : run;
+    const sufW = w.doSufitu && runSc ? sufitSciany(project, runSc) : null;
+    const zmienW = (cab) => { if (w.mod) w.mod(cab, sys);
+      if (sufW) { const pl = cab.plinth && cab.plinth.on ? Math.round(Number(cab.plinth.height) || 0) : 0; const H = Math.round(sufW - SZAFA_LUZ_SUFIT - pl - (Number(runSc.mountY) || 0)); if (H > 1500) cab.H = H; } };
+    const opcje = { zmien: w.mod || sufW ? zmienW : null, nazwa: w.szafka || null, wymiaryCiagu: !!w.ciag,
       poDodaniu: w.po ? (cab, mat, stoi) => w.po(cab, sys, mat, stoi) : null };
     const przed = (r) => (it && r && it.runId === r.id ? c.idx + (c.prawa ? 1 : 0) : null);
     if (w.gdzie === "wolna") { dodaj(w.tpl, null, opcje); return; }
@@ -27531,7 +27723,7 @@ export default function App() {
       const ramie = [...projLayoutGeo.info.values()].map((n) => n.arm)
         .find((a) => a && a.len > 0 && a.cab && a.cab.index === i);
       const inne = c ? runItems(project, c.run.id).filter((x) => x.i !== i).map((x) => x.it.cab) : [];
-      const msgs = [...runCabMsgs(c && c.run, it.cab, inne, { idx: i, offset: it.offset, rt: c && c.rt }), ...odScianyMsgs(project, i), ...sprzetWysokoMsgs(project, i), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
+      const msgs = [...runCabMsgs(c && c.run, it.cab, inne, { idx: i, offset: it.offset, rt: c && c.rt }), ...odScianyMsgs(project, i), ...sprzetWysokoMsgs(project, i), ...sufitSzafyMsgs(project, i), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
         ...wstawkaMsgs(projLayoutGeo, i),
         ...(ramie ? maleFormatkiMsgs(cornerArmParts(ramie).panels, it.cab.dociac, "@") : [])];
       return {
@@ -27612,6 +27804,7 @@ export default function App() {
     return [...runCabMsgs(runInfo.run, c, inne, { idx: project.active, offset: (project.items[project.active] || {}).offset, rt: runTp }),
       ...odScianyMsgs(project, project.active),
       ...sprzetWysokoMsgs(project, project.active),
+      ...sufitSzafyMsgs(project, project.active),
       ...szufladyMsgs(project, project.active),
       ...runWideMsgs(runInfo.run, runInfo.total, runPl, runTp, node ? node.len : 0),
       ...wallGapMsgs(project, runInfo.run),
@@ -27782,6 +27975,22 @@ export default function App() {
         items[p.active] = { ...it, cab: { ...it.cab, hangers: "auto", hangerMode: tryb } };
         return { ...p, items };
       });
+      return;
+    }
+    // „szafasufit:<i>" — wysoka szafa do sufitu z luzem SZAFA_LUZ_SUFIT (wysokosc korpusu)
+    if (action.startsWith("szafasufit:")) {
+      const i = Number(action.split(":")[1]);
+      setProject((p) => { const it = p.items[i]; if (!it) return p; const run = (p.runs || []).find((r) => r.id === it.runId), suf = sufitSciany(p, run);
+        let o; try { o = makOdPodlogi(p, i); } catch (e) { o = null; } if (suf == null || !o) return p;
+        const H = Math.round(suf - SZAFA_LUZ_SUFIT - o.dol - blendaH(it.cab)); if (!(H > 600)) return p;
+        const items = p.items.slice(); items[i] = { ...it, cab: { ...it.cab, H } }; return { ...p, items }; });
+      return;
+    }
+    // „przesn:<n>" — liczba skrzydel drzwi przesuwnych aktywnej szafy
+    if (action.startsWith("przesn:")) {
+      const n = Math.max(2, Math.min(4, Math.round(Number(action.split(":")[1]) || 2)));
+      setProject((p) => { const items = p.items.slice(), it = items[p.active]; if (!it) return p;
+        items[p.active] = { ...it, cab: { ...it.cab, przesuwne: { ...(it.cab.przesuwne || {}), on: true, n } } }; return { ...p, items }; });
       return;
     }
     if (action.startsWith("polkicof:")) {
@@ -32861,6 +33070,21 @@ export default function App() {
                   onChange={(v) => set({ hangerMode: v })}
                   options={[{ v: "listwa", l: "Na listwie" }, { v: "haczyki", l: "Na haczykach" }]} />
               </Field>
+            )}
+          </Card>
+
+          <Card title="Drzwi przesuwne (GTV NOVO S)" collapsible defaultOpen={przesuwneOn(cab)} id="karta-przesuwne">
+            <Check checked={przesuwneOn(cab)} onChange={(v) => set({ przesuwne: { ...(cab.przesuwne || {}), on: v } })} label="Drzwi przesuwne zamiast drzwi na zawiasach" />
+            {przesuwneOn(cab) && geo.przesuwne && (
+              <div className="space-y-2">
+                <Field label="Skrzydła" hint={`Same: do ok. ${fmt(PRZES.SKRZ_MAX)} mm na skrzydło.`}>
+                  <Seg value={[2, 3, 4].includes(Number((cab.przesuwne || {}).n)) ? String(cab.przesuwne.n) : "auto"}
+                    onChange={(v) => set({ przesuwne: { ...cab.przesuwne, n: v === "auto" ? null : Number(v) } })}
+                    options={[{ v: "auto", l: `same (${geo.przesuwne.n})` }, { v: "2", l: "2" }, { v: "3", l: "3" }, { v: "4", l: "4" }]} />
+                </Field>
+                <Check checked={(cab.przesuwne || {}).szczotka !== false} onChange={(v) => set({ przesuwne: { ...cab.przesuwne, szczotka: v } })} label="Szczotka odbojowa przy bokach (skrzydło 3 mm węższe razem)" />
+                <p className="text-xs text-stone-600">{geo.przesuwne.n} skrzydła {fmt(geo.przesuwne.SD)} × {fmt(geo.przesuwne.WD)} mm, wypełnienie {fmt(geo.przesuwne.SW)} × {fmt(geo.przesuwne.WW)} mm, listwy {fmt(geo.przesuwne.DLP)} mm, rączki {fmt(geo.przesuwne.DR)} mm; otwór {fmt(geo.przesuwne.SO)} × {fmt(geo.przesuwne.WO)} mm.</p>
+              </div>
             )}
           </Card>
 

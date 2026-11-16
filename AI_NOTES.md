@@ -1354,3 +1354,12 @@ skrzydla, zakladka, wymiar plyty w profilu). allegro.pl / gtv.com.pl dopisane do
 2 mm pod sufitem 2100 na zawieszkach).
 [AI-INFO] 2026-11-16: instrukcja GTV NOVO S (18) w `instrukcje/gtv-przesuwne/` — wzory na drzwi przesuwne (SD, WD, SW18, WW, DLP, DR, Z = 34) w SPIS.md.
 Pobrana curl-em (siec srodowiska „unrestricted” od uzytkownika; WebFetch w tej sesji nadal z lista z poczatku sesji).
+[CLAUDE-CHANGE] 2026-11-16: drzwi przesuwne GTV NOVO S w szafach + wzor „Szafa do zabudowy” (opis: `opisy/przesuwne.md`). `cab.przesuwne = { on, n, szczotka }`;
+`computeGeoLiczy` -> `geoPrzesuwne` (wnetrze bez drzwi na zawiasach, polki / przegrody cofniete o PRZES.STREFA = 80 przez `shelfExtraSetback` i
+`__przegrodyCof`), rysunki: `PrzesuwneElew`, `przesuwne-z-gory` (CabTop), `przesuwneBryly` (Scene3D, Assembly3D). Sufit szafy: `sufitSzafyMsgs`
+(akcja `szafasufit:<i>`). Testy: `funkcje.mjs` (blok przesuwne), `makieta19.mjs`.
+[AI-TODO] 2026-11-16 (faza B, zdjecia szafy uzytkownika — tylko w scratchpadzie, nie do repo): szuflady za drzwiami przesuwnymi — front cofniety
+za strefe torow (80 mm), najnizszy front nad torem dolnym (8 mm + luz), szerokosc szuflady wzgledem wolnego otworu po odsunieciu skrzydla
+(jest juz ostrzezenie > 2 mm), listwa pionowa przy szufladach od strony skrzydla (prowadnice na niej, raczka odsunietego skrzydla nie wchodzi
+w swiatlo szuflady). Dzis szuflady w szafie przesuwnej zostaja na swoich frontach (nakladane) — koliduja ze skrzydlami.
+[CHECK] 2026-11-16: do potwierdzenia u uzytkownika — pozycjoner gorny A-PTG: ile na skrzydlo (dzis 1); waga profili 0,5 kg/mb (bez karty).

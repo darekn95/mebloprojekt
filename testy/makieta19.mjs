@@ -1,0 +1,112 @@
+// Makieta — szafa do zabudowy z drzwiami przesuwnymi GTV NOVO S (uzytkownik 2026-11-16: „robimy drzwi przesuwne w szafach i dojdzie
+// nowy szablon w szafie do zabudowy”; „sama szafa może być do sufitu z luzem min. 5 mm”): wzór z palety (nowy ciąg, 2000 mm, przesuwne,
+// cokół), sufit ściany — podpowiedź „do sufitu”, błąd za wysokiej, przycisk; karta Drzwi (przesuwne / na zawiasach, skrzydła, szczotka);
+// rysunek z przodu (tory, skrzydła), z góry, 3D, karta techniczna.
+import pw from './pw.mjs';
+const { chromium } = pw;
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await (await browser.newContext({ viewport: { width: 1500, height: 1000 } })).newPage();
+const errors = [];
+page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message));
+page.on('console', (m) => { if (m.type() === 'error' && !/favicon|404|\[BABEL\] Note/.test(m.text())) errors.push('[console] ' + m.text()); });
+let bledy = 0;
+const ok = (l, c, e = '') => { if (!c) bledy++; console.log((c ? '  OK   ' : '  BLAD ') + l + (e ? ' — ' + e : '')); };
+const STD = !!process.env.STD;
+const URL = STD ? 'http://127.0.0.1:5199/standalone-local.html' : `http://127.0.0.1:5205/${process.env.APP || 'mebloprojekt-app.html'}`;
+// szafka startowa wolnostojąca (bez ciągu) — wzór z palety zakłada nowy ciąg „szafa”
+const FIX = `const w = p.items[0]; w.runId = null; w.cab.name = 'Komoda'; p.runs = []; p.items = [w]; p.active = 0;`;
+const start = async (zmien) => {
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForFunction(() => !!localStorage.getItem('szafki:projekt'), null, { timeout: 10000 });
+  await page.evaluate((src) => {
+    const p = JSON.parse(localStorage.getItem('szafki:projekt'));
+    if (src) new Function('p', src)(p);
+    localStorage.setItem('szafki:projekt', JSON.stringify(p));
+    localStorage.setItem('mp-tryb', 'prosta');
+    localStorage.setItem('mp-mak-zoom', JSON.stringify({ pow: false, z: 1 }));
+    localStorage.setItem('mp-mak-przel', JSON.stringify({ zgory: true, gorny: true, dolny: true, fronty: true, kolory: true, wymiary: false }));
+  }, zmien || '');
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(1200);
+};
+const proj = () => page.evaluate(() => JSON.parse(localStorage.getItem('szafki:projekt')));
+const czekaj = async (f) => { await page.waitForFunction((src) => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); try { return new Function('p', 'return ' + src)(p); } catch (e) { return false; } }, f, { timeout: 5000 }).catch(() => {}); return proj(); };
+const zakl = async (k) => { const b = page.locator(`[data-el="makieta"] nav [data-zakl="${k}"]`);
+  if ((await b.getAttribute('aria-pressed')) !== 'true' || !(await page.locator('[data-el="mak-karta-panel"]').count())) await b.click(); await page.waitForTimeout(300); };
+const uwagi = async () => (await page.locator('[data-el="makieta-uwagi"]').innerText().catch(() => '')).replace(/\s+/g, ' ');
+const ust = async (src) => { await page.evaluate((src) => { const p = JSON.parse(localStorage.getItem('szafki:projekt')); new Function('p', src)(p); localStorage.setItem('szafki:projekt', JSON.stringify(p)); }, src);
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000); };
+const szafa = (p) => p.items.find((it) => it.cab.name === 'Szafa');
+
+console.log('== wzór „Szafa do zabudowy” z palety ==');
+await start(FIX);
+await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+const wz = page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZab"]');
+ok('paleta „Szafa w zabudowie”: „Szafa do zabudowy” (drzwi przesuwne, do sufitu)', (await wz.count()) === 1 && /Szafa do zabudowy/.test(await wz.innerText()) && /przesuwne/.test(await wz.innerText()));
+await wz.click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
+let p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa')");
+let s = szafa(p), run = s && p.runs.find((r) => r.id === s.runId);
+ok('dodana w nowym ciągu „szafa”: 2000 × 2400 × 600, drzwi przesuwne, cokół 100', !!s && !!run && run.zabudowa === 'szafa' && s.cab.W === 2000 && s.cab.H === 2400 && s.cab.D === 600
+  && s.cab.przesuwne && s.cab.przesuwne.on && s.cab.plinth.on && s.cab.plinth.height === 100, s && JSON.stringify({ W: s.cab.W, H: s.cab.H, D: s.cab.D, pr: s.cab.przesuwne, z: run && run.zabudowa }));
+ok('wnętrze: przegroda — półki | drążek z półką nad nim; bez blendy', s.cab.levels[0].cols.length === 2 && (s.cab.levels[0].cols[1].drazki || []).length === 1 && !(s.cab.topFiller || {}).on);
+ok('Uwagi: „podaj wysokość ściany” (sufit nieznany)', /podaj wysokość ściany/.test(await uwagi()), (await uwagi()).slice(0, 200));
+ok('rysunek z przodu: tor górny, tor dolny, 2 skrzydła', (await page.locator('[data-el="makieta"] [data-el="tor-gorny"]').count()) >= 1 && (await page.locator('[data-el="makieta"] [data-el="tor-dolny"]').count()) >= 1
+  && (await page.locator('[data-el="makieta"] [data-el="skrzydlo-przesuwne"]').count()) === 2);
+ok('rysunek z góry: skrzydła w strefie toru', (await page.locator('[data-el="przesuwne-z-gory"]').count()) >= 1);
+
+console.log('== sufit: do sufitu z luzem 5 mm ==');
+{ const f = page.locator('[data-el="mak-sciana-wys"]').first(); await f.fill('2600'); await f.press('Tab'); await page.waitForTimeout(600); }
+p = await czekaj("p.runs.some((r) => r.ceiling === 2600)");
+{ const t = await uwagi(); ok('sufit 2600: „zostaje 100 mm do sufitu — może sięgać sufitu (luz 5 mm)”', /zostaje 100 mm do sufitu/.test(t), t.slice(0, 240)); }
+{ const b = page.locator('[data-el="makieta-uwagi"] button', { hasText: /Do sufitu z luzem 5 mm/ }).first();
+  ok('przycisk „Do sufitu z luzem 5 mm”', (await b.count()) === 1);
+  if (await b.count()) await b.click(); }
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && it.cab.H === 2495)");
+ok('po kliknięciu: korpus 2495 (2600 − 5 − cokół 100)', szafa(p).cab.H === 2495, String(szafa(p).cab.H));
+{ const t = await uwagi(); ok('nóżki: „przykręć dopiero po postawieniu” (z nóżkami przekątna 2663 > 2600)', /nóżki przykręć dopiero po postawieniu/.test(t) || !szafa(p).cab.legs.on, t.slice(0, 300)); }
+await ust("const it = p.items.find((x) => x.cab.name === 'Szafa'); it.cab.H = 2560; p.active = p.items.indexOf(it);");
+{ const t = await uwagi(); ok('H 2560: błąd „nie zmieści się o 60 mm”', /nie zmieści się o 60 mm/.test(t), t.slice(0, 240)); }
+await page.locator('[data-el="makieta-uwagi"] button', { hasText: /Do sufitu z luzem 5 mm/ }).first().click().catch(() => {});
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && it.cab.H === 2495)");
+ok('przycisk z błędu — z powrotem 2495', szafa(p).cab.H === 2495, String(szafa(p).cab.H));
+await ust("const it = p.items.find((x) => x.cab.name === 'Szafa'); it.cab.D = 800; it.cab.legs = { ...it.cab.legs, on: false };");
+{ const t = await uwagi(); ok('D 800: „przekątna boku 2620 mm … skręcaj na stojąco”', /przekątna boku 2 ?620 mm/.test(t) && /na stojąco/.test(t), t.slice(0, 300)); }
+await ust("const it = p.items.find((x) => x.cab.name === 'Szafa'); it.cab.D = 600;");
+
+console.log('== karta Drzwi: przesuwne, skrzydła, szczotka ==');
+await zakl('drzwi');
+ok('karta Drzwi: „na zawiasach / przesuwne”, przesuwne zaznaczone', (await page.locator('[data-el="mak-przesuwne"][data-v="tak"]').getAttribute('aria-pressed')) === 'true');
+{ const t = (await page.locator('[data-el="mak-przes-info"]').innerText().catch(() => '')).replace(/\s+/g, ' ');
+  ok('opis: 2 skrzydła 997 × … (otwór 1964 × …), cofnięte o 80 mm', /2 skrzydła 997 ×/.test(t) && /otwór 1 ?964 ×/.test(t) && /80 mm/.test(t), t); }
+await page.locator('[data-el="mak-przes-n"][data-v="3"]').click();
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && it.cab.przesuwne.n === 3)");
+ok('„3” — 3 skrzydła (na rysunku też 3)', szafa(p).cab.przesuwne.n === 3 && (await page.locator('[data-el="makieta"] [data-el="skrzydlo-przesuwne"]').count()) === 3);
+{ const t = await uwagi(); ok('3 skrzydła a przegroda na środku — podpowiedź o kolumnie pod dwoma skrzydłami', /pod dwoma skrzydłami/.test(t), t.slice(0, 300)); }
+await page.locator('[data-el="mak-przes-n"][data-v="auto"]').click();
+await page.locator('[data-el="mak-przes-szczotka"][data-v="nie"]').click();
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && it.cab.przesuwne.szczotka === false)");
+{ const t = (await page.locator('[data-el="mak-przes-info"]').innerText().catch(() => '')).replace(/\s+/g, ' ');
+  ok('bez szczotki: skrzydło 999 (auto, 2 skrzydła)', szafa(p).cab.przesuwne.n == null && /2 skrzydła 999 ×/.test(t), t); }
+{ const t = (await page.locator('[data-el="mak-karta-panel"]').innerText().catch(() => '')).replace(/\s+/g, ' ');
+  ok('„Co zrobi program”: drzwi przesuwne GTV NOVO S, nie „Bez frontów”', /Drzwi przesuwne GTV NOVO S: 2 skrzydła/.test(t) && !/Bez frontów/.test(t), t.slice(0, 200)); }
+
+console.log('== 3D i karta techniczna ==');
+await page.locator('[data-el="mak-widoki"]').first().click(); await page.waitForTimeout(150);
+await page.locator('[data-v="3d"]').last().click(); await page.waitForTimeout(800);
+ok('widok 3D szafy z drzwiami przesuwnymi — bez błędów', (await page.locator('[data-el="mak-widok-inny"][data-widok="3d"] [data-el="mak-3d"]').count()) >= 1 && !errors.length, errors.join(' | '));
+await page.locator('[data-el="mak-widoki"]').first().click(); await page.waitForTimeout(150);
+await page.locator('[data-v="przod"]').last().click(); await page.waitForTimeout(400);
+await zakl('drzwi');
+await page.locator('[data-el="mak-przesuwne"][data-v="nie"]').click();
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && !it.cab.przesuwne.on)");
+ok('„na zawiasach” — z powrotem drzwi na zawiasach (bez torów na rysunku)', !szafa(p).cab.przesuwne.on && (await page.locator('[data-el="makieta"] [data-el="tor-gorny"]').count()) === 0);
+await page.locator('[data-el="mak-przesuwne"][data-v="tak"]').click(); await page.waitForTimeout(400);
+await page.evaluate(() => localStorage.setItem('mp-tryb', 'techniczny')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
+{ const k = page.locator('#karta-przesuwne'); ok('tryb Techniczny: karta „Drzwi przesuwne (GTV NOVO S)”', (await k.count()) === 1 && /Drzwi przesuwne/.test(await k.innerText())); }
+
+ok('bez błędów strony', !errors.length, errors.join(' | '));
+console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
+await browser.close();
+process.exit(bledy ? 1 : 0);
