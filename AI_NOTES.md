@@ -1342,3 +1342,7 @@ ale WebFetch go nie widzi (wlasna lista), a curl blokuje klasyfikator uprawnien 
 (`instrukcje/sevroll-blendo/`) i decyzje: polowka pod dnem, co ok. 600 mm, opcja (domyslnie klipsy), tez blenda nad szafkami — zrobione.
 [AI-INFO] 2026-11-15: blenda przy scianie — nowa pozycja ciagu `sprzetCiagu.typ = "blenda"` (decyzje: sama do sciany, w licu drzwi, pas w glab
 wzdluz boku szafki — przykrecany od srodka szafki, bez Blendo; dolny i gorny ciag). Szerokosc / wysokosc / strona — `blendyScianyZaCiagiem`.
+[AI-TODO] 2026-11-16 (uzytkownik, „w niedalekiej przyszlosci”): drzwi przesuwne w szafach (GTV). W `instrukcje/` jest tylko spis produktow
+z katalogu GTV 2023 (kat. s. 505–545: profile, tory EVO / PRO, wozki, listwy, zestawy top-running) — brak wzorow na szerokosc / wysokosc drzwi
+(zakladka, odliczenia) i instrukcji montazu; link Allegro („Szafa GTV 250 x 265 x 7,5 cm”) niedostepny z kontenera. Przed praca: instrukcja GTV
+wybranego systemu (PDF) i wybor systemu (dolny / gorny uklad jezdny, profil, plyta 18 / 10 + szklo 4).
