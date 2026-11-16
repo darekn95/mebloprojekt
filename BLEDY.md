@@ -17,7 +17,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
-| 2026-11-15 | „mocowanie blendy: zwykłe” — nic nie znaczyło (sama płyta, bez łączników; użytkownik: „co to jest zwykłe?”) | decyzja użytkownika: domyślnie Blendo, opcja nóżki i klipsy jak cokół (nóżki na wieńcu, klipsy) — `blendaKlipsy`, `MAK_BLENDA_MOC` (`funkcje`, `makieta18`) | (ten commit) |
+| 2026-11-15 | „mocowanie blendy: zwykłe” — nic nie znaczyło (sama płyta, bez łączników; użytkownik: „co to jest zwykłe?”) | decyzja użytkownika: domyślnie Blendo, opcja nóżki i klipsy jak cokół (nóżki na wieńcu, klipsy) — `blendaKlipsy`, `MAK_BLENDA_MOC` (`funkcje`, `makieta18`) | ba3dbaf |
 | 2026-11-15 | nowy element: blenda przy ścianie (decyzje użytkownika: sama do ściany, w licu drzwi, pas w głąb wzdłuż boku szafki, dolny i górny ciąg) | pozycja ciągu bez korpusu `sprzetCiagu.typ = "blenda"`, `blendyScianyZaCiagiem`; testy `makieta18`, `funkcje`; audyt projektu — formatki = bryła | dadba32 |
 | 2026-11-15 | Sevroll Blendo (użytkownik: film i zrzuty) — cokół na złączach zamiast klipsów, blenda nad szafką na złączach | opcja: `plinth.mocowanie` / `topFiller.mocowanie` = `"blendo"`, co ok. 600 mm, pod dnem (decyzje użytkownika); test `funkcje`, `makieta18` | 881ffcb |
 | 2026-11-15 | decyzja użytkownika: rura na wieszaki 60 mm pod płytą (jak w makiecie; było 70 „z katalogu”) — „to robimy 60” | `DRAZEK_POD_PLYTA` = 60 (podpora GTV WP-10 ma 50–80 mm); testy `rura` (pod rurą 1486, plan wierceń 1922, „tylko 240 mm”), `funkcje` (1000 + 60) | 19230d6 |

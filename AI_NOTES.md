@@ -1349,3 +1349,6 @@ wybranego systemu (PDF) i wybor systemu (dolny / gorny uklad jezdny, profil, ply
 [AI-INFO] 2026-11-16: system drzwi przesuwnych wskazany przez uzytkownika — GTV zestaw NOVO S 2,5 m / 2D (dolny uklad jezdny: tor dolny EVO,
 wozki dolne z regulacja 10 mm, prowadniki gorne, raczka NOVO S); zrzut w `instrukcje/gtv-przesuwne/`. Brakuje instrukcji z odliczeniami (wysokosc i szerokosc
 skrzydla, zakladka, wymiar plyty w profilu). allegro.pl / gtv.com.pl dopisane do sieci srodowiska, ale WebFetch w tej sesji ich nie widzi.
+[AI-INFO] 2026-11-16: pelny przebieg (dadba32 + blenda Blendo / nozki): 174 suity, 5750 OK; makieta18 tylko na tescie poprawionym w trakcie
+(build sprzed zmiany) — po przebudowie zielona w obu buildach; losowe 66 / 0. Audyt projektu uzytkownika v50: bez bledow (jedno ostrzezenie — gorne
+2 mm pod sufitem 2100 na zawieszkach).
