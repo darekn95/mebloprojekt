@@ -1511,15 +1511,15 @@ console.log('\n== 2026-11-16: szuflady za drzwiami przesuwnymi (zabudowa pod szu
   const gn = G.computeGeo(szafa([polki, kol2()], { niskieSzuflady: true }), M0), drn = gn.doors.filter((d) => d.type === 'drawer');
   ok('opcja „niski bok” szafy przesuwnej — V-BOX 127 (jak u użytkownika)', drn.length === 2 && drn.every((d) => d.dr.hClass === 127), drn.map((d) => d.dr.hClass).join(','));
   ok('fronty równe (pas 441), bez uwagi o 1 mm', dr[0].h === dr[1].h && !g.msgs.some((m) => /różnią się o/.test(m.text)), dr.map((d) => d.h).join(','));
-  ok('zabudowa: boki 18 mm przy obu ściankach kolumny 2, cofnięte 80, od dna do półki nad szufladami', bz.length === 2 && bz.some((q) => q.side === 'left') && bz.some((q) => q.side === 'right')
+  ok('zabudowa: bok 18 mm tylko przy przegrodzie (lewa ścianka kolumny 2), cofnięty 80, od dna do wieńca szuflad; przy boku szafy — prowadnica na boku', bz.length === 1 && bz[0].side === 'left'
     && bz.every((q) => q.t === 18 && q.z0 === 80 && q.y0 === Math.round(g.interior.y0) && q.y1 === Math.round(g.interior.y0 + 441)), JSON.stringify(bz));
   ok('front szuflady ≥ 5 mm od krawędzi odsuniętego skrzydła', dr.every((d) => d.x - x0i >= p.SD + 5), `${dr[0].x - x0i} vs ${p.SD}`);
   const pl = g.panels.find((x) => /^Bok zabudowy szuflad/.test(x.name));
-  ok('formatka „Bok zabudowy szuflad — kolumna 2” 2 szt. z płyty korpusu, 441 × głębokość przegród', !!pl && pl.name === 'Bok zabudowy szuflad — kolumna 2' && pl.qty === 2 && pl.a === 441 && pl.matKey === 'board' && pl.b === g.dividerDepth, JSON.stringify(pl));
+  ok('formatka „Bok zabudowy szuflad — kolumna 2” 1 szt. z płyty korpusu, 441 × głębokość przegród', !!pl && pl.name === 'Bok zabudowy szuflad — kolumna 2' && pl.qty === 1 && pl.a === 441 && pl.matKey === 'board' && pl.b === g.dividerDepth, JSON.stringify(pl));
   ok('wkręty 4 × 30 do boków zabudowy', g.hardware.some((h) => h.name === 'Wkręt 4 × 30' && /boki zabudowy szuflad/.test(h.use)));
   const wl = (g.drillPlan || []).find((x) => /^Bok zabudowy szuflad/.test(x.panel));
   ok('plan wierceń: prowadnice na bokach zabudowy, 18 mm od dołu boku, odległości od jego krawędzi', !!wl && wl.rows.some((r) => r.kind === 'prowadnica' && /cofnięta o 18 mm/.test(r.note) && r.ys[0] === 18), JSON.stringify(wl));
-  ok('uwaga: zabudowa pod szuflady (boki i wieniec), szyna 18 nad dnem; bez „szuflada się nie wysunie”', g.msgs.some((m) => /zabudowa pod szuflady — dwa boki 18 mm/.test(m.text) && /dolna prowadnica 18 mm nad dnem/.test(m.text))
+  ok('uwaga: zabudowa pod szuflady (bok przy przegrodzie, wieniec), szyna 18 nad dnem; bez „szuflada się nie wysunie”', g.msgs.some((m) => /zabudowa pod szuflady — 1 bok 18 mm przy przegrodach/.test(m.text) && /dolna prowadnica 18 mm nad dnem/.test(m.text))
     && !g.msgs.some((m) => /szuflada się nie wysunie/.test(m.text)));
   // uchwyty wybrane recznie (fingerGrip: false) — zahacza o skrzydla
   const gu = G.computeGeo(G.migrateCab({ ...szafa([polki, kol2({ fingerGrip: false })]), handleOut: 35 }, M0), M0);
@@ -1532,4 +1532,43 @@ console.log('\n== 2026-11-16: szuflady za drzwiami przesuwnymi (zabudowa pod szu
   // bez drzwi przesuwnych: szuflady jak dawniej
   const gz = G.computeGeo(szafa([polki, kol2()], { on: false }), M0);
   ok('na zawiasach: szuflady bez cofnięcia, bez zabudowy, z uchwytami', gz.doors.filter((d) => d.type === 'drawer').every((d) => !d.cof && d.handle) && !gz.panels.some((x) => /zabudowy/.test(x.name)));
+}
+
+console.log('\n== 2026-11-16: podwójne boki szafy do zabudowy (zewnętrzny + wewnętrzny cofnięty 80), wiercenia przegród cofniętych ==');
+{
+  const M0 = G.defaultMaterials;
+  const szafa = (cols, o = {}) => G.migrateCab({ name: 'Szafa', W: 2000, H: 2400, D: 600, plinth: { on: true, height: 100, mode: 'inbody' }, legs: { on: false }, przesuwne: { on: true, ...o },
+    levels: [{ h: null, cols }] }, M0);
+  const polki = { kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null] };
+  const kol2 = { kind: 'doors', doors: 1, w: null, shelfTargets: [441, null, 300], drazki: [1], podzial: [0],
+    segmenty: [{ kind: 'drawers', drawers: [{ h: 'auto', front: null, handle: true }, { h: 'auto', front: null, handle: true }] }, null] };
+  const g1 = G.computeGeo(szafa([polki, kol2]), M0), g2 = G.computeGeo(szafa([polki, kol2], { podwBoki: { L: true, R: true } }), M0);
+  const wiersze = (g, re) => (g.drillPlan || []).filter((e) => re.test(e.panel)).flatMap((e) => e.rows.map((r) => ({ panel: e.panel, ...r })));
+  // przegrody cofniete (bez podwojnych bokow): odleglosci od przedniej krawedzi przegrody
+  const kp = wiersze(g1, /^Przegroda 1/).find((r) => r.kind === 'kołek półki');
+  ok('przegroda cofnięta o 80: kołki 50 i 470 mm od przedniej krawędzi przegrody (nie od lica korpusu)', !!kp && /50 i 470 mm od przedniej krawędzi/.test(kp.note), kp && kp.note);
+  const kd = wiersze(g1, /^Dno$/).find((r) => /przegroda 1/.test(r.kind));
+  ok('konfirmaty z dna w przegrodę cofniętą: 130, 340, 550 mm (od lica dna — przegroda zaczyna się na 80)', !!kd && /130, 340, 550 mm/.test(kd.note), kd && kd.note);
+  // podwojne boki
+  const bw = g2.panels.filter((x) => /^Bok wewnętrzny/.test(x.name));
+  ok('formatki: bok wewnętrzny lewy i prawy, od dna do wieńca × głębokość przegród', bw.length === 2 && bw.every((x) => x.a === Math.round(g2.interior.y1 - g2.interior.y0) && x.b === g2.dividerDepth), JSON.stringify(bw.map((x) => [x.name, x.qty, x.a, x.b])));
+  const c1 = g2.levels[0].cols[0], c2 = g2.levels[0].cols[1];
+  ok('kolumny zaczynają się za bokiem wewnętrznym (18 mm węższe z każdej strony)', Math.round(c1.x0) === 36 && Math.round(c2.x1) === 1964, `${c1.x0}..${c2.x1}`);
+  ok('drzwi przesuwne między bokami zewnętrznymi (otwór 1964 jak bez podwójnych boków)', g2.przesuwne.SO === 1964 && g2.przesuwne.SO === g1.przesuwne.SO);
+  ok('bez konfirmatów dna / wieńca przez bok zewnętrzny', !wiersze(g2, /^Bok (lewy|prawy)$/).some((r) => /konfirmat — (dno|wieniec)/.test(r.kind)), JSON.stringify(wiersze(g2, /^Bok (lewy|prawy)$/).map((r) => r.kind)));
+  const kw = wiersze(g2, /^(Dno|Wieniec)$/).filter((r) => /bok wewnętrzny/.test(r.kind));
+  ok('dno i wieniec: konfirmaty w bok wewnętrzny (od spodu dna / od góry wieńca), 130 / 340 / 550 mm', kw.length === 4 && kw.every((r) => /130, 340, 550 mm/.test(r.note)), JSON.stringify(kw.map((r) => [r.panel, r.kind])));
+  const kbw = wiersze(g2, /^Bok wewnętrzny lewy/).find((r) => r.kind === 'kołek półki');
+  ok('kołki kolumny 1 na boku wewnętrznym lewym, od jego krawędzi (50 i 470)', !!kbw && /50 i 470 mm od przedniej krawędzi/.test(kbw.note), kbw && kbw.note);
+  ok('prowadnice szuflad przy boku szafy — na boku wewnętrznym prawym (cofnięta o 18 mm)', wiersze(g2, /^Bok wewnętrzny prawy/).some((r) => r.kind === 'prowadnica' && /cofnięta o 18 mm/.test(r.note)));
+  ok('wkręty bok wewnętrzny → zewnętrzny w planie i w zamówieniu', wiersze(g2, /^Bok wewnętrzny/).some((r) => /wkręt 4 × 30 — bok zewnętrzny/.test(r.kind))
+    && g2.hardware.some((h) => h.name === 'Wkręt 4 × 30' && /podwójne boki/.test(h.use)));
+  // wieniec zabudowy szuflad: od przegrody trojkaty, od boku konfirmat
+  ok('wieniec zabudowy: od przegrody 2 trójkąty od dołu na boku zabudowy (bez konfirmatu w przegrodzie)', wiersze(g2, /^Bok zabudowy/).some((r) => /trójkąt meblowy — wieniec zabudowy/.test(r.kind))
+    && !wiersze(g2, /^Przegroda 1/).some((r) => /konfirmat — półka/.test(r.kind)) && g2.hardware.some((h) => h.name === 'Trójkąt meblarski' && /wieniec zabudowy/.test(h.use) && h.qty === 2));
+  ok('wieniec zabudowy od strony boku — konfirmat w boku wewnętrznym', wiersze(g2, /^Bok wewnętrzny prawy/).some((r) => /konfirmat — półka/.test(r.kind)));
+  ok('uwaga „Podwójne boki (z obu stron)”', g2.msgs.some((m) => /Podwójne boki \(z obu stron\)/.test(m.text)));
+  const gL = G.computeGeo(szafa([polki, kol2], { podwBoki: { L: true } }), M0);
+  ok('tylko z lewej: jeden bok wewnętrzny, prawy jak zwykle (konfirmaty dna przez bok prawy)', gL.panels.filter((x) => /^Bok wewnętrzny/.test(x.name)).length === 1
+    && wiersze(gL, /^Bok prawy$/).some((r) => /konfirmat — dno/.test(r.kind)));
 }

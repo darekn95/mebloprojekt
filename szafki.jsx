@@ -287,6 +287,8 @@ const przesuwneBryly = (p, ff, metal, open, b, kb = "#e7e5e4") => {
   if (!p) return;
   // boki zabudowy pod szuflady (przy sciankach kolumny) — jak przegrody, za strefa torow
   (p.listwy || []).forEach((q) => b(q.x0, q.y0, q.z0, q.x1, q.y1, q.z1, kb, "Bok zabudowy szuflad", 1, null));
+  // podwojne boki: bok wewnetrzny (cofniety o strefe drzwi) obok boku korpusu
+  (p.bokiWewn || []).forEach((q) => b(q.x0, q.y0, q.z0, q.x1, q.y1, q.z1, kb, "Bok wewnętrzny", 1, null));
   b(p.x0, p.y1 - 4, 0, p.x0 + p.SO, p.y1, PRZES.TOR_G.w, metal, null, 1, "tor");
   b(p.x0, p.y1 - PRZES.TOR_G.h, 0, p.x0 + p.SO, p.y1 - 4, 2, metal, null, 1, "tor");
   b(p.x0, p.y0, 4, p.x0 + p.SO, p.y0 + PRZES.TOR_D.h, 4 + PRZES.TOR_D.w, metal, null, 1, "tor");
@@ -1215,6 +1217,13 @@ const plural = (n, one, few, many) => {
   return many;
 };
 
+/* Plan wiercen na plycie cofnietej od lica korpusu (przegrody za drzwiami przesuwnymi, boki wewnetrzne szafy do zabudowy):
+   odleglosci w notatce sa liczone od przedniej krawedzi korpusu — tu od przedniej krawedzi tej plyty (o `cof` mniej) */
+const odPrzoduPlyty = (note, cof) => (!cof || !note ? note
+  : String(note).replace(/(?<![⌀\d.×])((?:\d+(?:\.\d)?(?:, | i ))*\d+(?:\.\d)?)( mm (?:od przedniej krawędzi|za przednią krawędzią))/g,
+    (m, lista, ogon) => lista.replace(/\d+(?:\.\d)?/g, (n) => String(Math.round((Number(n) - cof) * 10) / 10)) + ogon)
+    // prowadnica „cofnięta o N mm” (grubosc frontu + strefa) — od krawedzi tej plyty
+    .replace(/\(cofnięta o (\d+) mm\)/g, (m, n) => (Number(n) - cof > 0 ? `(cofnięta o ${Number(n) - cof} mm)` : "")));
 const fmt = (n) => {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   const r = Math.round(n * 10) / 10;
@@ -3353,6 +3362,10 @@ function computeGeoLiczy(cab, mat, ctx) {
       + ` albo parę na środku.|legs:${zalecaneNozki - 1}|legs:${zalecaneNozki}`);
 
   const interior = { x0: t, x1: W - t, y0: hasBot ? bottomY + t : bottomY, y1: hasTop ? H - tW : H };
+  /* Podwojne boki szafy do zabudowy (`geoPrzesuwne`, uzytkownik 2026-11-16, jego szafa): bok zewnetrzny (ten korpusu) i wewnetrzny cofniety
+     o `cof` (jak przegrody), stojacy na dnie pod wiencem; dno i wieniec miedzy bokami zewnetrznymi. Kolumny zaczynaja sie za bokiem
+     wewnetrznym, elementy kolumny przy boku ida na niego; konfirmaty dna / wienca — w bok wewnetrzny (lby schowane). */
+  const bokWewn = cab.__bokWewn || null, bwL = bokWewn && bokWewn.L ? t : 0, bwR = bokWewn && bokWewn.R ? t : 0, bwCof = bokWewn ? Math.max(0, Math.round(bokWewn.cof || 0)) : 0;
   // elementy kolizyjne (wstecznie: pojedynczy cab.obstacle) i ich obrys — szuflady (NL przed elementem), formatki z otworami i petla elementow
   const obsWlaczone = (Array.isArray(cab.obstacles) && cab.obstacles.length
     ? cab.obstacles
@@ -3478,7 +3491,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     /* `przegrodaPodw` (kolumna po lewej styku, scalanie „dwie przegrody”, uzytkownik
        2026-10-29): na styku dwie przegrody obok siebie, jak dwa boki osobnych szafek. */
     const nDiv = rawCols.slice(0, -1).reduce((a, c) => a + (c.noDiv ? 0 : c.przegrodaPodw ? 2 : 1), 0);
-    const colFree = innerW - nDiv * t;
+    const colFree = innerW - nDiv * t - bwL - bwR;
     const col = distribute(colFree, rawCols.map((c) => c.w));
     if (col.diff !== 0)
       add(
@@ -3489,7 +3502,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           `|fixcolauto:${lv.i}`
       );
 
-    let cx = interior.x0;
+    let cx = interior.x0 + bwL;
     for (let j = 0; j < K; j++) {
       const w = col.sizes[j];
       const c = {
@@ -4949,12 +4962,15 @@ function computeGeoLiczy(cab, mat, ctx) {
          bokiem i jest o tyle wezsza; bez wspornika skrzynka na cala kolumne
          uderzylaby w fix (uzytkownik 2026-10-17 po audycie GPT N42). */
       let bx0 = c.x0, bx1 = c.x1;
-      const lwP = dCof && rawCol.__zabudowa && rawCol.__zabudowa.t > 0 ? rawCol.__zabudowa : null;
+      const zb = dCof && rawCol.__zabudowa && rawCol.__zabudowa.t > 0 ? rawCol.__zabudowa : null;
+      // strony z bokiem zabudowy (przy przegrodzie); bez `L` / `R` — obie (starszy zapis)
+      const lwP = zb && (zb.L !== false || zb.R !== false) ? { ...zb, L: zb.L !== false, R: zb.R !== false } : null;
       if (lwP) {
         // boki zabudowy pod wiencem (polka nad szufladami / gora poziomu) — od dna poziomu do jego gory
-        bx0 += lwP.t; bx1 -= lwP.t; dsx0 = Math.max(dsx0, bx0 + g.inset); dsx1 = Math.min(dsx1, bx1 - g.inset);
-        ["left", "right"].forEach((side) => listwyPrz.push({ lvl: lv.i, j: jKol, side, t: lwP.t, x0: side === "left" ? c.x0 : c.x1 - lwP.t, x1: side === "left" ? c.x0 + lwP.t : c.x1,
-          y0: Math.round(lv.y0), y1: Math.round(lv.y1), where, nKol: lv.cols.length }));
+        if (lwP.L) { bx0 += lwP.t; dsx0 = Math.max(dsx0, bx0 + g.inset); }
+        if (lwP.R) { bx1 -= lwP.t; dsx1 = Math.min(dsx1, bx1 - g.inset); }
+        ["left", "right"].filter((side) => (side === "left" ? lwP.L : lwP.R)).forEach((side) => listwyPrz.push({ lvl: lv.i, j: jKol, side, t: lwP.t,
+          x0: side === "left" ? c.x0 : c.x1 - lwP.t, x1: side === "left" ? c.x0 + lwP.t : c.x1, y0: Math.round(lv.y0), y1: Math.round(lv.y1), where, nKol: lv.cols.length }));
       }
       /* Element kolizyjny na drodze skrzynki (w jej szerokosci i wysokosci) skraca NL jak
          wzmocnienie przy plecach — z 4 mm luzu do niego albo do jego zabudowy. Ta sama granica
@@ -5162,7 +5178,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (![16, 18, 19].includes(Math.round(tbok)))
           add("warn", `${where2}: DXS-3D jest na skrzynkę z płyty 16–19 mm (instrukcja liczy 18), a płyta półek ma ${fmt(tbok)} mm — sprawdź szerokość skrzynki.`);
         const dr = {
-          i, y, h: fh, x: dsx0, w: dsx1 - dsx0, system: "dxs", hClass: hBok, nl, fixed: num(d.front) !== null, bx0, bx1, zabudowa: !!lwP,
+          i, y, h: fh, x: dsx0, w: dsx1 - dsx0, system: "dxs", hClass: hBok, nl, fixed: num(d.front) !== null, bx0, bx1, zabudowa: lwP ? { L: lwP.L, R: lwP.R } : null,
           // od spodu prowadnicy: dol boku, spod dna i tylu, gora boku — wspolne dla rysunkow i kontroli
           bokOd: dxsBokOd, dnoOd: DXS.dnoOd, gora: dxsBokOd + hBok,
           rail: { y0: railY0, h: hBok, d: nl || 0, setback: dInsetExtra },
@@ -5317,7 +5333,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           hClass,
           nl,
           fixed: num(d.front) !== null,
-          system: "vbox", bx0, bx1, zabudowa: !!lwP,
+          system: "vbox", bx0, bx1, zabudowa: lwP ? { L: lwP.L, R: lwP.R } : null,
           // od dolu prowadnicy: dol boku, spod dna i tylu, gora boku — wspolne z DXS dla rysunkow
           bokOd: vboxOdProw(hClass), dnoOd: vboxDno(hClass), gora: vboxGora(hClass),
           // prowadnica: 21 mm szerokosci przy kazdym boku, wysokosc z boku
@@ -7033,8 +7049,12 @@ function computeGeoLiczy(cab, mat, ctx) {
   // dwie przegrody na styku: dlugosc wkretu (nie wychodzi z drugiej plyty) i licznik do zamowienia
   const wkretPary = WKRET_FRONTU_DLUGOSCI.find((l) => l <= 2 * t - WKRET_FRONTU_ZAPAS) ?? WKRET_FRONTU_DLUGOSCI[WKRET_FRONTU_DLUGOSCI.length - 1];
   let wkretyParyN = 0;
-  const drillAdd = (lvI, name, base, kind, y, note) => {
+  // przegrody cofniete za strefe drzwi przesuwnych (`__przegrodyCof`) — odleglosci od przedniej krawedzi przegrody
+  const cofPrzegrod = Math.max(0, Math.round(cab.__przegrodyCof || 0));
+  const drillAdd = (lvI, name, base, kind, y, note0) => {
     if (!name) return;   // strona bez plyty (przelot `noDiv`)
+    const note = cofPrzegrod && /^Przegroda/.test(name) ? odPrzoduPlyty(note0, cofPrzegrod)
+      : bwCof && /^Bok wewnętrzny/.test(name) ? odPrzoduPlyty(note0, bwCof) : note0;
     const key = drillKey(lvI, name);
     if (!drillMap.has(key)) drillMap.set(key, { panel: key, holes: [] });
     drillMap.get(key).holes.push({ kind, y: y == null ? null : Math.round(y - base), note });
@@ -7053,8 +7073,8 @@ function computeGeoLiczy(cab, mat, ctx) {
     // przegroda pary przez szczeline w dnie (osobne dna) zaczyna sie nizej — wysokosci od jej dolnej krawedzi
     const dolPrzegrody = (x) => { const d = dividers.find((q) => q.level === lv.i && Math.abs(q.x - x) < 1); return d ? d.y0 : lv.y0; };
     return {
-      left: { name: c.j === 0 ? "Bok lewy" : bezL ? null : `Przegroda ${c.j}${(lv.cols[c.j - 1] || {}).przegrodaPodw ? " — prawa" : ""}`, base: c.j === 0 ? leftY0 : dolPrzegrody(c.x0 - t), strona: c.j === 0 ? "" : strona },
-      right: { name: c.j === last ? "Bok prawy" : bezP ? null : `Przegroda ${c.j + 1}${c.przegrodaPodw ? " — lewa" : ""}`, base: c.j === last ? rightY0 : dolPrzegrody(c.x1), strona: c.j === last ? "" : strona },
+      left: { name: c.j === 0 ? (bwL ? "Bok wewnętrzny lewy" : "Bok lewy") : bezL ? null : `Przegroda ${c.j}${(lv.cols[c.j - 1] || {}).przegrodaPodw ? " — prawa" : ""}`, base: c.j === 0 ? (bwL ? lv.y0 : leftY0) : dolPrzegrody(c.x0 - t), strona: c.j === 0 ? "" : strona },
+      right: { name: c.j === last ? (bwR ? "Bok wewnętrzny prawy" : "Bok prawy") : bezP ? null : `Przegroda ${c.j + 1}${c.przegrodaPodw ? " — lewa" : ""}`, base: c.j === last ? (bwR ? lv.y0 : rightY0) : dolPrzegrody(c.x1), strona: c.j === last ? "" : strona },
     };
   };
   // polki i rura przy przelocie koncza sie w powietrzu — z tej strony nie maja podparcia (N147)
@@ -7315,8 +7335,9 @@ function computeGeoLiczy(cab, mat, ctx) {
           const wsp = c.fix && c.support
             ? { name: lv.cols.length > 1 ? `Wspornik pionowy — kolumna ${c.j + 1}` : "Wspornik pionowy", base: lv.y0, strona: "" } : null;
           // za drzwiami przesuwnymi: prowadnice na bokach zabudowy szuflad (`listwyPrz`), odleglosci od ich przedniej krawedzi
-          const lwD = dr.zabudowa ? { name: lv.cols.length > 1 ? `Bok zabudowy szuflad — kolumna ${c.j + 1} (2 szt., lustrzanie)` : "Bok zabudowy szuflad (2 szt., lustrzanie)", base: lv.y0, strona: "", lw: true } : null;
-          const pl = lwD || (wsp && c.fix.side === "left" ? wsp : p.left), pr = lwD ? null : wsp && c.fix.side === "right" ? wsp : p.right;
+          const zbD = dr.zabudowa || {}, dwa = zbD.L && zbD.R;
+          const lwD = (side) => ({ name: `Bok zabudowy szuflad${lv.cols.length > 1 ? ` — kolumna ${c.j + 1}` : ""}${dwa ? " (2 szt., lustrzanie)" : side === "left" ? " (przy lewej ściance)" : " (przy prawej ściance)"}`, base: lv.y0, strona: "", lw: true });
+          const pl = zbD.L ? lwD("left") : wsp && c.fix.side === "left" ? wsp : p.left, pr = zbD.R ? (dwa ? null : lwD("right")) : wsp && c.fix.side === "right" ? wsp : p.right;
           drillAdd(lv.i, pl.name, pl.base, "prowadnica", dr.rail.y0, (pl.lw ? noteL : note) + pl.strona);
           if (pr) drillAdd(lv.i, pr.name, pr.base, "prowadnica", dr.rail.y0, (pr.lw ? noteL : note) + pr.strona);
         });
@@ -7534,15 +7555,21 @@ function computeGeoLiczy(cab, mat, ctx) {
       dividers.filter((d) => d.level === lvI && d.j === q.para.j && d.para).forEach((d) =>
         drillAdd(lvI, nazwaPrzegrody(d), d.y0, `konfirmat — ${co === "dna" ? "dno" : "wieniec"}`, yOs, note));
     });
+    // podwojne boki: dno / wieniec przez siebie w czolo boku wewnetrznego (od spodu dna, od gory wienca) — nie przez bok zewnetrzny
+    const wBokWewn = (plyta, x0p, odStrony) => [["lewy", bwL, 1.5 * t], ["prawy", bwR, W - 1.5 * t]].forEach(([str, jest, xs]) => {
+      if (jest) doPlyty(plyta, `konfirmat — bok wewnętrzny ${str}`, xs - x0p,
+        `⌀7 ${odStrony}, ${listaPoz(konfirmatyPoz(dividerDepth, bwCof))} mm od przedniej krawędzi (płyty, od jej lewego końca); w czole boku wewnętrznego ⌀5 × 50`); });
     if (hasTop && !isBlat) {
-      przezBok(top, { nazwa: "wieniec", l: topL === "between", r: topR === "between" }, H - t / 2, carcassDepth, 0, "wieńca");
+      przezBok(top, { nazwa: "wieniec", l: topL === "between" && !bwL, r: topR === "between" && !bwR }, H - t / 2, carcassDepth, 0, "wieńca");
+      if (!wienKawalki) wBokWewn("Wieniec", topX0, "od góry wieńca");
       if (wienKawalki) {
         kawalkiNaBokach(wienKawalki, { l: topL === "over", r: topR === "over" });
         if (wienMiedzy) przezPare(wienKawalki, top, H - t / 2, "wieńca");
       } else naBokach("Wieniec", { l: topL === "over", r: topR === "over" }, carcassDepth, 0, topX0);
     }
     if (hasBot) {
-      przezBok(0, { nazwa: "dno", l: botL === "between", r: botR === "between" }, bottomY + t / 2, carcassDepth, 0, "dna");
+      przezBok(0, { nazwa: "dno", l: botL === "between" && !bwL, r: botR === "between" && !bwR }, bottomY + t / 2, carcassDepth, 0, "dna");
+      if (!dnoKawalki) wBokWewn("Dno", botX0, "od spodu dna");
       if (dnoKawalki) {
         kawalkiNaBokach(dnoKawalki, { l: botL === "over", r: botR === "over" });
         if (dnoMiedzy) przezPare(dnoKawalki, 0, bottomY + t / 2, "dna");
@@ -7629,7 +7656,8 @@ function computeGeoLiczy(cab, mat, ctx) {
     const pod = (lvI) => (lvI === 0 ? (hasBot ? "Dno" : null) : `Półka przelotowa pod poziomem ${lvI + 1}`);
     dividers.forEach((dv, k) => {
       const x = Math.round(dv.x + t / 2 - interior.x0);
-      const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(dividerDepth))} mm od przedniej krawędzi; w czole przegrody ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
+      // przegroda cofnieta (drzwi przesuwne) — konfirmaty w dnie / wiencu od jej przedniej krawedzi, nie od lica
+      const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(dividerDepth, cab.__przegrodyCof || 0))} mm od przedniej krawędzi; w czole przegrody ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
       /* osobne dna / wience: przegroda w kawalku pod / nad nia (polozenie od jego lewego konca); para przez
          szczeline (plyta miedzy bokami) — tu nic, skreca sie przez nia w czolo kawalka (wyzej) */
       const wKawalku = (kaw, nazwa) => {
@@ -8561,7 +8589,12 @@ function geoPrzesuwne(cab, mat, ctx) {
   const bezDrzwi = (c) => (!c ? c : c.kind === "drawers" ? szufl(c) : c.kind === "blenda" || c.sprzet ? c : { ...c, doors: 0, klapa: undefined });
   const kolumna = (c) => { const k = bezDrzwi(c); return Array.isArray(c.segmenty) ? { ...k, segmenty: c.segmenty.map(bezDrzwi) } : k; };
   const zSzufladami = (c) => c.kind === "drawers" || (c.segmenty || []).some((sg) => sg && sg.kind === "drawers");
+  /* podwojne boki (uzytkownik 2026-11-16): `przesuwne.podwBoki = { L, R }` — z tej strony bok wewnetrzny cofniety o strefe drzwi
+     („jeden wewnątrz mniejszy o 80 mm, drugi na zewnątrz do ziemi, żeby nie było widać konfirmatów — skręcana od wewnątrz”); bok
+     zaslonięty (sciana) — bez wewnetrznego */
+  const PB = P.podwBoki || {}, pbL = !!PB.L, pbR = !!PB.R;
   const wewn0 = { ...cab, przesuwne: null, shelfExtraSetback: Math.max(Number(cab.shelfExtraSetback) || 0, PRZES.STREFA), __przegrodyCof: PRZES.STREFA,
+    ...(pbL || pbR ? { __bokWewn: { L: pbL, R: pbR, cof: PRZES.STREFA } } : {}),
     levels: (cab.levels || []).map((lv) => ({ ...lv, cols: (lv.cols || []).map(kolumna) })) };
   let g = computeGeoLiczy(wewn0, mat, ctx);
   const SO = Math.round(g.interior.x1 - g.interior.x0), WO = Math.round(g.interior.y1 - g.interior.y0);
@@ -8570,15 +8603,17 @@ function geoPrzesuwne(cab, mat, ctx) {
   const ileSzufl = (cab.levels || []).some((lv) => (lv.cols || []).some(zSzufladami));
   const zabT = Math.round(g.t);
   if (ileSzufl) {
-    // boki zabudowy przy obu sciankach kolumny z szufladami (i w jej poziomach z szufladami)
-    const zZab = (c) => { const z = (x) => (x && x.kind === "drawers" ? { ...x, __zabudowa: { t: zabT } } : x);
+    /* boki zabudowy szuflad przy przegrodach (uzytkownik 2026-11-16: „od wewnętrznej strony szafy dołożona płyta do przegrody na wysokość
+       półki / wieńca szuflad, żeby szuflady mieściły się w świetle drzwi; prowadnice przykręcone do tego pionowego wzmocnienia na całą
+       głębokość, przykręconego wkrętami do przegrody”); przy boku szafy prowadnice na boku (wewnetrznym) */
+    const zZab = (c, j, n) => { const z = (x) => (x && x.kind === "drawers" ? { ...x, __zabudowa: { t: zabT, L: j > 0, R: j < n - 1 } } : x);
       return { ...z(c), ...(Array.isArray(c.segmenty) ? { segmenty: c.segmenty.map(z) } : {}) }; };
     const pod = Math.max(0, Math.round(num(cab.gaps && cab.gaps.underRail) ?? 5));
     /* bok V-BOX „auto”: jaki sie zmiesci (jak wszedzie); niski 127 — opcja szafy przesuwnej `przesuwne.niskieSzuflady` (uzytkownik
        2026-11-16: „w szafie z drzwiami przesuwnymi jako opcja w szablonie, normalnie taka, jaka się zmieści”) */
     const wewn = { ...wewn0, __szuflPrzes: { cof: PRZES.STREFA, bokMax: P.niskieSzuflady ? PRZES.VBOX_BOK : null, szyna: Math.round(g.interior.y0 + PRZES.SZYNA_DOL), y0: Math.round(g.interior.y0 + PRZES.SZYNA_DOL - pod),
       y1: Math.round(g.interior.y1 - PRZES.TOR_G.h - LUZ) },
-      levels: wewn0.levels.map((lv) => ({ ...lv, cols: lv.cols.map(zZab) })) };
+      levels: wewn0.levels.map((lv) => ({ ...lv, cols: lv.cols.map((c, j) => zZab(c, j, lv.cols.length)) })) };
     g = computeGeoLiczy(wewn, mat, ctx);
   }
   const msgs = [...g.msgs], add = (level, text) => msgs.push({ level, text });
@@ -8587,11 +8622,55 @@ function geoPrzesuwne(cab, mat, ctx) {
   const skrzydla = w.skrzydla.map((sk) => ({ ...sk, x: Math.round(g.interior.x0 + sk.x0), w: w.SD, y: Math.round(y0), h: w.WD,
     z0: 8 + sk.tor * PRZES.TOR_KROK, z1: 8 + sk.tor * PRZES.TOR_KROK + PRZES.DRZWI_GR }));
   const glListwy = Math.round(g.dividerDepth || g.carcassDepth - PRZES.STREFA);
-  // boki zabudowy szuflad: po dwa na kolumne / poziom kolumny (lewy i prawy tej samej wielkosci)
-  const zabudowy = [...new Map((g.listwyPrz || []).map((q) => [`${q.lvl}|${q.j}|${q.y0}`, q])).values()];
-  const listwyPl = zabudowy.map((q) => ({ name: q.nKol > 1 ? `Bok zabudowy szuflad — kolumna ${q.j + 1}` : "Bok zabudowy szuflad", qty: 2, a: Math.round(q.y1 - q.y0), b: glListwy, matKey: "board",
-    edges: { a1: true, a2: false, b1: false, b2: false }, note: `${q.where}: zabudowa pod szuflady przy obu ściankach kolumny, cofnięta o ${PRZES.STREFA} mm jak przegrody; prowadnice na niej; wieniec zabudowy — półka nad szufladami` }));
-  const panels = [...g.panels, ...listwyPl, { name: "Wypełnienie drzwi przesuwnych", qty: n, a: w.WW, b: w.SW, matKey: plytaFrontu(cab),
+  // boki zabudowy szuflad: na kolumne / poziom kolumny — przy przegrodzie (jeden albo dwa tej samej wielkosci)
+  const zabMap = new Map();
+  (g.listwyPrz || []).forEach((q) => { const k = `${q.lvl}|${q.j}|${q.y0}`; const e = zabMap.get(k); if (e) e.ile += 1; else zabMap.set(k, { ...q, ile: 1, strony: [] }); zabMap.get(k).strony.push(q.side); });
+  const zabudowy = [...zabMap.values()];
+  const listwyPl = zabudowy.map((q) => ({ name: q.nKol > 1 ? `Bok zabudowy szuflad — kolumna ${q.j + 1}` : "Bok zabudowy szuflad", qty: q.ile, a: Math.round(q.y1 - q.y0), b: glListwy, matKey: "board",
+    edges: { a1: true, a2: false, b1: false, b2: false }, note: `${q.where}: przy ${q.ile > 1 ? "obu przegrodach" : q.strony[0] === "left" ? "lewej przegrodzie" : "prawej przegrodzie"} kolumny, na całą głębokość (cofnięty o ${PRZES.STREFA} mm jak przegroda), przykręcony do przegrody wkrętami; prowadnice na nim; wieniec zabudowy — półka nad szufladami` }));
+  /* boki wewnetrzne (podwojne boki): od dna do wienca (w kazdym poziomie — miedzy plytami przelotowymi), glebokosc jak przegrody,
+     cofniete o strefe drzwi; do boku zewnetrznego wkretami od srodka szafy */
+  const bokiWewn = [pbL ? ["lewy", g.t, 2 * g.t] : null, pbR ? ["prawy", g.W - 2 * g.t, g.W - g.t] : null].filter(Boolean)
+    .flatMap(([str, x0, x1]) => (g.levels || []).map((lv) => ({ str, x0: Math.round(x0), x1: Math.round(x1), y0: Math.round(lv.y0), y1: Math.round(lv.y1), z0: PRZES.STREFA, z1: PRZES.STREFA + glListwy, lvl: lv.i })));
+  const bokiWewnPl = [...new Map(bokiWewn.map((q) => [`${q.str}|${q.y1 - q.y0}`, { ...q, ile: bokiWewn.filter((r) => r.str === q.str && r.y1 - r.y0 === q.y1 - q.y0).length }])).values()]
+    .map((q) => ({ name: `Bok wewnętrzny ${q.str}`, qty: q.ile, a: q.y1 - q.y0, b: glListwy, matKey: "board", edges: { a1: true, a2: false, b1: false, b2: false },
+      note: `podwójny bok: stoi na dnie pod wieńcem, cofnięty o ${PRZES.STREFA} mm (za drzwiami przesuwnymi); konfirmaty od spodu dna i od góry wieńca; do boku zewnętrznego wkręty 4 × 30 od środka szafy` }));
+  const wkretyBoku = (h) => 2 * Math.max(3, Math.ceil(h / 400));
+  /* Wieniec zabudowy szuflad (polka nad szufladami; uzytkownik 2026-11-16: „skręcony na konfirmaty, ale z jednej strony się nie da —
+     klejony na lamele albo na trójkąty meblowe od dołu”): od strony boku szafy zostaje jak polka (konfirmaty przez bok), od strony
+     przegrody — 2 trojkaty meblowe od dolu, do boku zabudowy; z przegrody zdejmujemy jego zlacze. */
+  const zdjeteKonf = { n: 0 }, zdjeteKolki = { n: 0 }, trojkatyWien = [];
+  const planG = (g.drillPlan || []).map((e) => ({ ...e, rows: e.rows.map((r) => ({ ...r, ys: [...(r.ys || [])] })) }));
+  zabudowy.forEach((q) => q.strony.forEach((side) => {
+    const nrPrz = side === "left" ? q.j : q.j + 1;   // przegroda po tej stronie kolumny
+    const naPrz = planG.filter((e) => new RegExp(`(^|— )Przegroda ${nrPrz}( — (lewa|prawa))?$`).test(e.panel));
+    let zdjete = false;
+    naPrz.forEach((e) => e.rows.forEach((r) => {
+      if (!/^(konfirmat — półka|kołek półki|trójkąt meblowy)/.test(r.kind) || !new RegExp(`\\(od kolumny ${q.j + 1}\\)$`).test(r.note || "")) return;
+      // wysokosc polki nad szufladami od dolu przegrody (dol poziomu): konfirmat w osi, kolek / trojkat pod spodem
+      const yOs = Math.round(q.y1 + g.ts / 2 - q.y0), ySpod = Math.round(q.y1 - q.y0);
+      const k = r.ys.findIndex((y) => Math.abs(y - yOs) <= 1 || Math.abs(y - ySpod) <= 1); if (k < 0) return;
+      r.ys.splice(k, 1); zdjete = true;
+      if (/^konfirmat/.test(r.kind)) zdjeteKonf.n += Math.max(1, (String(r.note).match(/(\d+(?:, | i ))*\d+(?= mm od przedniej)/) || [""])[0].split(/, | i /).length);
+      else if (/^kołek/.test(r.kind)) zdjeteKolki.n += 2;
+    }));
+    if (zdjete) trojkatyWien.push({ q, side });
+  }));
+  // wiersze, z ktorych zdjelismy jedyna wysokosc, znikaja; plyta bez wierszy — tez
+  const drillPlan = planG.map((e) => ({ ...e, rows: e.rows.filter((r) => !(r.ys.length === 0 && /^(konfirmat — półka|kołek półki|trójkąt meblowy)/.test(r.kind))) })).filter((e) => e.rows.length);
+  trojkatyWien.forEach(({ q, side }) => {
+    const name = `${(g.levels || []).length > 1 ? `Poziom ${q.lvl + 1} — ` : ""}Bok zabudowy szuflad${q.nKol > 1 ? ` — kolumna ${q.j + 1}` : ""}${q.ile > 1 ? " (2 szt., lustrzanie)" : side === "left" ? " (przy lewej ściance)" : " (przy prawej ściance)"}`;
+    let e = drillPlan.find((x) => x.panel === name); if (!e) { e = { panel: name, rows: [] }; drillPlan.push(e); }
+    e.rows = [...e.rows, { kind: "trójkąt meblowy — wieniec zabudowy (od dołu)", ys: [Math.round(q.y1 - q.y0)], note: `2 szt. pod wieńcem zabudowy, przy jego przedniej i tylnej krawędzi: 50 i ${fmt(glListwy - 50)} mm od przedniej krawędzi; wysokość = spód wieńca; od strony przegrody (konfirmatu nie da się wkręcić)` }];
+  });
+  // plan wiercen: wkrety boku wewnetrznego w zewnetrzny (dwa rzedy, co ok. 400 mm), odleglosci od przedniej krawedzi boku wewnetrznego
+  bokiWewn.forEach((q) => {
+    const h = q.y1 - q.y0, n2 = wkretyBoku(h) / 2, ys = Array.from({ length: n2 }, (_, k) => Math.round(80 + (k * (h - 160)) / Math.max(1, n2 - 1)));
+    const name = `${(g.levels || []).length > 1 ? `Poziom ${q.lvl + 1} — ` : ""}Bok wewnętrzny ${q.str}`;
+    let e = drillPlan.find((x) => x.panel === name); if (!e) { e = { panel: name, rows: [] }; drillPlan.push(e); }
+    e.rows = [...e.rows, { kind: "wkręt 4 × 30 — bok zewnętrzny", ys, note: `od środka szafy przez bok wewnętrzny w zewnętrzny; 2 rzędy: 50 i ${fmt(glListwy - 50)} mm od przedniej krawędzi` }];
+  });
+  const panels = [...g.panels, ...bokiWewnPl, ...listwyPl, { name: "Wypełnienie drzwi przesuwnych", qty: n, a: w.WW, b: w.SW, matKey: plytaFrontu(cab),
     edges: { a1: false, a2: false, b1: false, b2: false },
     note: `skrzydło ${fmt(w.SD)} × ${fmt(w.WD)} mm (GTV NOVO S): płyta w rączkach i listwach — bez okleiny; frezowanie pod wózki dolne wg instrukcji GTV (s. 24)` }];
   const torL = przesuwneTor(SO), nListew = 2 * n, naListwe = Math.max(1, Math.floor(PRZES.LISTWA_DL / Math.max(1, w.DLP)));
@@ -8604,8 +8683,11 @@ function geoPrzesuwne(cab, mat, ctx) {
     { name: "Wózek dolny EVO", use: "drzwi przesuwne — dwa na skrzydło", spec: "A-WD-EVO, regulacja 0–10 mm, skrzydło do 50 kg", qty: 2 * n, unit: "szt." },
     { name: "Prowadnik górny 18 mm", use: "drzwi przesuwne — dwa na skrzydło", spec: "A-PG-18", qty: 2 * n, unit: "szt." },
     { name: "Pozycjoner górny", use: "drzwi przesuwne — w torze górnym (przy torze dolnym EVO zawsze)", spec: "A-PTG", qty: n, unit: "szt." },
-    ...(listwyPl.length ? [{ name: "Wkręt 4 × 30", use: "boki zabudowy szuflad — do ścianek kolumny, od środka zabudowy", spec: "co ok. 300 mm, w dwóch rzędach",
+    ...(listwyPl.length ? [{ name: "Wkręt 4 × 30", use: "boki zabudowy szuflad — do przegród, od środka zabudowy", spec: "co ok. 300 mm, w dwóch rzędach",
       qty: (g.listwyPrz || []).reduce((a, q) => a + 2 * Math.max(2, Math.ceil((q.y1 - q.y0) / 300)), 0), unit: "szt." }] : []),
+    ...(trojkatyWien.length ? [{ name: "Trójkąt meblarski", use: "wieniec zabudowy szuflad — od dołu, do boku zabudowy przy przegrodzie", spec: `2 szt. na stronę: ${2 * trojkatyWien.length} szt.`, qty: 2 * trojkatyWien.length, unit: "szt." }] : []),
+    ...(bokiWewn.length ? [{ name: "Wkręt 4 × 30", use: "podwójne boki — bok wewnętrzny do zewnętrznego, od środka szafy", spec: "dwa rzędy, co ok. 400 mm",
+      qty: bokiWewn.reduce((a, q) => a + wkretyBoku(q.y1 - q.y0), 0), unit: "szt." }] : []),
     ...(w.szczotka ? [{ name: "Szczotka odbojowa 14,5 × 4", use: "drzwi przesuwne — na rączkach przy bokach", spec: `A-SO-145X4: 2 × ${fmt(w.WD)} mm`, qty: 2, unit: "szt." }] : []),
   ];
   // waga skrzydla: plyta wypelnienia + profile (ok. 0,5 kg/mb raczki i listwy — przyjete z gory, bez karty)
@@ -8615,8 +8697,8 @@ function geoPrzesuwne(cab, mat, ctx) {
   if (w.SW <= 0 || w.WW <= 0) add("error", "Otwór za mały na drzwi przesuwne.");
   // kolumny wnetrza a skrzydla: kolumna pod dwoma skrzydlami — po odsunieciu jednego czesc zostaje zaslonieta
   const kolumny = [...new Map((g.levels || []).flatMap((lv) => (lv.cols || []).map((c, j) => {
-    const raw = ((cab.levels || [])[lv.i] || {}).cols?.[j], sz = !!raw && zSzufladami(raw), zab = sz ? zabT : 0;
-    return [`${Math.round(c.x0)}|${Math.round(c.x1)}`, { x0: c.x0 - x0i + zab, x1: c.x1 - x0i - zab, szuflady: sz }];
+    const raw = ((cab.levels || [])[lv.i] || {}).cols?.[j], sz = !!raw && zSzufladami(raw), zL = sz && j > 0 ? zabT : 0, zR = sz && j < lv.cols.length - 1 ? zabT : 0;
+    return [`${Math.round(c.x0)}|${Math.round(c.x1)}`, { x0: c.x0 - x0i + zL, x1: c.x1 - x0i - zR, szuflady: sz }];
   }))).values()];
   if (kolumny.length > 1 || kolumny.some((c) => c.szuflady)) kolumny.forEach((c, kk) => {
     const kto = kolumny.length > 1 ? `Kolumna ${kk + 1}` : "Kolumna";
@@ -8630,11 +8712,15 @@ function geoPrzesuwne(cab, mat, ctx) {
   const tylSkrzydel = 8 + PRZES.TOR_KROK + PRZES.DRZWI_GR, wolne = PRZES.STREFA - tylSkrzydel;
   const zUchwytem = (g.doors || []).filter((d) => d.type === "drawer" && d.handle && !d.podfrez && uchwytOut(d, cab) > wolne - 3);
   if (zUchwytem.length) add("warn", `Szuflady za drzwiami przesuwnymi z uchwytem: uchwyt wystaje ${fmt(Math.max(...zUchwytem.map((d) => uchwytOut(d, cab))))} mm, a do skrzydeł jest ${fmt(wolne)} mm — zamknięte drzwi o niego zahaczą. Daj wcięcie na palce (podfrez) zamiast uchwytu.`);
-  if (zabudowy.length) add("info", `Szuflady za drzwiami przesuwnymi: zabudowa pod szuflady — ${zabudowy.length === 1 ? "dwa boki" : `po dwa boki w ${zabudowy.length} kolumnach`} ${fmt(zabT)} mm przy ściankach kolumny i wieniec (półka nad szufladami), cofnięta o ${PRZES.STREFA} mm za tory; fronty wewnętrzne${zUchwytem.length ? "" : " z podfrezem na palce"}; dolna prowadnica ${PRZES.SZYNA_DOL} mm nad dnem, front ${fmt(PRZES.SZYNA_DOL - Math.max(0, Math.round(num(cab.gaps && cab.gaps.underRail) ?? 5)))} mm nad dnem — nad torem dolnym (${PRZES.TOR_D.h} mm). Boki przykręć do ścianek kolumny od środka zabudowy przed prowadnicami.`);
+  if (ileSzufl) add("info", `Szuflady za drzwiami przesuwnymi: zabudowa pod szuflady — ${zabudowy.length ? `${zabudowy.reduce((a, q) => a + q.ile, 0)} ${plural(zabudowy.reduce((a, q) => a + q.ile, 0), "bok", "boki", "boków")} ${fmt(zabT)} mm przy przegrodach (prowadnice na nich), przy boku szafy prowadnice na ${pbL || pbR ? "boku wewnętrznym" : "boku"};` : `prowadnice na ${pbL || pbR ? "boku wewnętrznym" : "boku"} szafy;`} wieniec — półka nad szufladami; cofnięta o ${PRZES.STREFA} mm za tory; fronty wewnętrzne${zUchwytem.length ? "" : " z podfrezem na palce"}; dolna prowadnica ${PRZES.SZYNA_DOL} mm nad dnem, front ${fmt(PRZES.SZYNA_DOL - Math.max(0, Math.round(num(cab.gaps && cab.gaps.underRail) ?? 5)))} mm nad dnem — nad torem dolnym (${PRZES.TOR_D.h} mm).${zabudowy.length ? " Boki zabudowy przykręć do przegród od środka zabudowy, zanim wejdą prowadnice." : ""}`);
+  if (bokiWewn.length) add("info", `Podwójne boki (${pbL && pbR ? "z obu stron" : pbL ? "z lewej" : "z prawej"}): bok zewnętrzny na całą głębokość${g.plinthInBody ? " do podłogi" : ""}, wewnętrzny ${fmt(glListwy)} mm cofnięty o ${PRZES.STREFA} mm — stoi na dnie pod wieńcem (konfirmaty od spodu dna i od góry wieńca), do zewnętrznego wkręty 4 × 30 od środka; łbów konfirmatów nie widać. Tory i skrzydła — między bokami zewnętrznymi.`);
   add("info", `Drzwi przesuwne GTV NOVO S: ${n} ${plural(n, "skrzydło", "skrzydła", "skrzydeł")} ${fmt(w.SD)} × ${fmt(w.WD)} mm (otwór ${fmt(SO)} × ${fmt(WO)}, zakładka ${PRZES.Z} mm${w.szczotka ? ", ze szczotką odbojową" : ""}); półki i przegrody cofnięte o ${PRZES.STREFA} mm za tory. Tory na wkręty z łbem stożkowym (otwory fazowane); maskownicę zapnij przed wstawieniem drzwi.`);
-  return { ...g, msgs, panels, hardware: [...g.hardware, ...hw], doors: (g.doors || []).filter((d) => d.type === "drawer"),
+  // zlacza wienca zabudowy zdjete z przegrody — mniej konfirmatow / kolkow w zamowieniu
+  const hwG = (g.hardware || []).map((h) => (h.name === "Konfirmat 7 × 50" && zdjeteKonf.n && /złącza korpusu/.test(h.use || "") ? { ...h, qty: Math.max(0, h.qty - zdjeteKonf.n), spec: `${h.spec}; bez ${zdjeteKonf.n} przy przegrodzie pod wieńcem zabudowy szuflad (trójkąty)` }
+    : h.name === "Kołek podporowy ⌀5" && zdjeteKolki.n ? { ...h, qty: Math.max(0, h.qty - zdjeteKolki.n) } : h)).filter((h) => h.qty > 0);
+  return { ...g, msgs, panels, drillPlan, hardware: [...hwG, ...hw], doors: (g.doors || []).filter((d) => d.type === "drawer"),
     przesuwne: { ...w, skrzydla, strefa: PRZES.STREFA, y0: Math.round(g.interior.y0), y1: Math.round(g.interior.y1), x0: Math.round(g.interior.x0), kg: Math.round(kg),
-      listwy: (g.listwyPrz || []).map((q) => ({ ...q, z0: PRZES.STREFA, z1: PRZES.STREFA + glListwy })) } };
+      listwy: (g.listwyPrz || []).map((q) => ({ ...q, z0: PRZES.STREFA, z1: PRZES.STREFA + glListwy })), bokiWewn } };
 }
 
 /* Sprzet w ciagu bez korpusu (2026-11-05). Geometria pustej szafki tej samej szerokosci i wysokosci
@@ -9788,6 +9874,7 @@ function PrzesuwneElew({ geo, fy, mx = (x) => x, ff, open }) {
       <rect data-el="tor-gorny" x={mx(p.x0, p.SO)} y={fy(p.y1)} width={p.SO} height={PRZES.TOR_G.h} fill={tor} stroke={INK} strokeWidth="1" />
       <rect data-el="tor-dolny" x={mx(p.x0, p.SO)} y={fy(p.y0 + PRZES.TOR_D.h)} width={p.SO} height={PRZES.TOR_D.h} fill={tor} stroke={INK} strokeWidth="1" />
       {(p.listwy || []).map((q, k) => <rect key={"lw" + k} data-el="zabudowa-szuflad" x={mx(q.x0, q.x1 - q.x0)} y={fy(q.y1)} width={q.x1 - q.x0} height={q.y1 - q.y0} fill="#e7e5e4" stroke={INK} strokeWidth="1" />)}
+      {(p.bokiWewn || []).map((q, k) => <rect key={"bw" + k} data-el="bok-wewnetrzny" x={mx(q.x0, q.x1 - q.x0)} y={fy(q.y1)} width={q.x1 - q.x0} height={q.y1 - q.y0} fill="#e7e5e4" stroke={INK} strokeWidth="1.5" />)}
       {sk.map((d) => { const X = mx(d.x, d.w), Y = fy(d.y + d.h);
         return open
           ? <rect key={d.i} data-el="skrzydlo-przesuwne" x={X} y={Y} width={d.w} height={d.h} fill="none" stroke={LINE} strokeWidth="2" strokeDasharray="14 9" />
@@ -10679,6 +10766,7 @@ function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm, wystajeB
         <rect x={geo.przesuwne.x0} y={cd - PRZES.TOR_G.w} width={geo.przesuwne.SO} height={PRZES.TOR_G.w} fill="#e7e5e4" stroke={LINE} strokeWidth="1" strokeDasharray="8 6" />
         {geo.przesuwne.skrzydla.map((d) => <rect key={d.i} x={d.x} y={cd - d.z1} width={d.w} height={d.z1 - d.z0} fill={cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color} stroke={INK} strokeWidth="1.5" />)}
         {(geo.przesuwne.listwy || []).map((q, k) => <rect key={"lw" + k} data-el="zabudowa-szuflad" x={q.x0} y={cd - q.z1} width={q.x1 - q.x0} height={q.z1 - q.z0} fill={mat.board.color} stroke={INK} strokeWidth="1" />)}
+        {(geo.przesuwne.bokiWewn || []).filter((q) => q.lvl === 0).map((q, k) => <rect key={"bw" + k} data-el="bok-wewnetrzny" x={q.x0} y={cd - q.z1} width={q.x1 - q.x0} height={q.z1 - q.z0} fill={mat.board.color} stroke={INK} strokeWidth="1.5" />)}
       </g>}
       {/* Wieniec albo blat z plyty — na wierzchu (uzytkownik 2026-11-10: „w szafie wygląda, jakby wieniec był osobny dla
           każdego elementu, a w biurku, jakby blat był pod, a nie nad”): lezy nad wszystkim, wiec rysowany ostatni,
@@ -23469,7 +23557,8 @@ const makCoZrobiSzafka = (cab, g, run, mat) => {
   const sd = makSzufDrzwiUklad(cab);
   if (sd) t.push(`${sd.dol ? "Na dole szuflada, nad nią" : "U góry szuflada, pod nią"} ${sd.drzwi === 2 ? "dwoje drzwi" : "jedne drzwi"}.`);
   const pr = g.przesuwne;
-  if (pr) t.push(`Drzwi przesuwne GTV NOVO S: ${pr.n} ${plural(pr.n, "skrzydło", "skrzydła", "skrzydeł")} ${fmt(pr.SD)} × ${fmt(pr.WD)} mm w świetle korpusu — tor górny pod wieńcem, dolny na dnie; wypełnienia, profile i wózki liczy program, a półki i przegrody cofa o ${fmt(PRZES.STREFA)} mm za tory.`);
+  if (pr) t.push(`Drzwi przesuwne GTV NOVO S: ${pr.n} ${plural(pr.n, "skrzydło", "skrzydła", "skrzydeł")} ${fmt(pr.SD)} × ${fmt(pr.WD)} mm w świetle korpusu — tor górny pod wieńcem, dolny na dnie; wypełnienia, profile i wózki liczy program, a półki i przegrody cofa o ${fmt(PRZES.STREFA)} mm za tory.`
+    + ((pr.bokiWewn || []).length ? ` Podwójne boki: wewnętrzny cofnięty o ${fmt(PRZES.STREFA)} mm, stoi na dnie pod wieńcem, do zewnętrznego od środka — łbów konfirmatów nie widać.` : ""));
   if (drzwi) t.push(`${drzwi} ${plural(drzwi, "skrzydło", "skrzydła", "skrzydeł")} drzwi na zawiasach puszkowych — liczba zawiasów z wysokości drzwi.`);
   if (klapy) t.push(`${klapy === 1 ? "Klapa" : `${klapy} klapy`} — okucia (podnośniki albo zawiasy z rozpórkami) dobiera program.`);
   if (szufl) t.push(`${szufl} ${plural(szufl, "szuflada", "szuflady", "szuflad")} — prowadnice z systemu szuflad w ustawieniach; program sprawdzi wysuw.`);
@@ -23606,13 +23695,15 @@ const MAK_PALETA = [
     /* Szafa do zabudowy (uzytkownik 2026-11-16): korpus na cala wneke (boki, wieniec, dno na cokole), drzwi przesuwne GTV NOVO S
        w swietle korpusu, bez blend; `doSufitu` — przy znanym suficie sciany korpus do sufitu z luzem SZAFA_LUZ_SUFIT (bez sufitu
        2400 + cokol 100). W srodku przegroda: polki | drazek z polka 300 nad nim. */
-    { id: "szafaZab", nazwa: "Szafa do zabudowy", opis: "2000 mm, drzwi przesuwne, do sufitu", tpl: "slupek", gdzie: "dol", szafka: "Szafa", doSufitu: true,
-      mod: (c) => { c.W = 2000; c.H = 2400; c.przesuwne = { on: true }; c.legs = { ...(c.legs || {}), on: false };
+    { id: "szafaZab", nazwa: "Szafa do zabudowy", opis: "2000 mm, drzwi przesuwne, do sufitu", tpl: "slupek", gdzie: "dol", szafka: "Szafa", doSufitu: true, bezNozek: true,
+      mod: (c) => { c.W = 2000; c.H = 2400; c.przesuwne = { on: true, podwBoki: { L: true, R: true } }; c.legs = { ...(c.legs || {}), on: false };
+        c.plinth = { ...(c.plinth || {}), on: true, mode: "inbody" };
         const p = newColumn(1, 4), d = newColumn(1, 1); d.shelfTargets = [null, 300]; d.drazki = [0]; c.levels = [{ h: null, cols: [p, d] }]; } },
     /* Szafa do zabudowy z szufladami (uzytkownik 2026-11-16, jego szafa): jak wyzej, w kolumnie 2 na dole 2 szuflady w zabudowie,
        bok V-BOX niski 127 (opcja szablonu: „w szafie z drzwiami przesuwnymi jako opcja w szablonie”) */
-    { id: "szafaZabSz", nazwa: "Szafa do zabudowy z szufladami", opis: "2000 mm, drzwi przesuwne, 2 szuflady (V-BOX 127)", tpl: "slupek", gdzie: "dol", szafka: "Szafa", doSufitu: true,
-      mod: (c, sys) => { c.W = 2000; c.H = 2400; c.przesuwne = { on: true, niskieSzuflady: true }; c.legs = { ...(c.legs || {}), on: false };
+    { id: "szafaZabSz", nazwa: "Szafa do zabudowy z szufladami", opis: "2000 mm, drzwi przesuwne, 2 szuflady (V-BOX 127)", tpl: "slupek", gdzie: "dol", szafka: "Szafa", doSufitu: true, bezNozek: true,
+      mod: (c, sys) => { c.W = 2000; c.H = 2400; c.przesuwne = { on: true, niskieSzuflady: true, podwBoki: { L: true, R: true } }; c.legs = { ...(c.legs || {}), on: false };
+        c.plinth = { ...(c.plinth || {}), on: true, mode: "inbody" };
         const p = newColumn(1, 4), d = newColumn(1, 1); d.shelfTargets = [null, 300]; d.drazki = [0]; c.levels = [{ h: null, cols: [p, d] }];
         makSzufladyNaDoleKolumny(d, makWysSzuflNaDole(c, 2), 2, sys); } },
     { id: "regal", nazwa: "Regał otwarty", opis: "600 mm, 5 półek", tpl: "slupek", gdzie: "dol", szafka: "Regał",
@@ -24600,6 +24691,10 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         ...(on ? [
           wiersz("przesn", "skrzydła", [<Btn key="a" el="mak-przes-n" v="auto" on={![2, 3, 4].includes(Number(P.n))} onClick={() => ustawP({ n: null })}>same{pg ? ` (${pg.n})` : ""}</Btn>,
             ...[2, 3, 4].map((v) => <Btn key={v} el="mak-przes-n" v={v} on={Number(P.n) === v} onClick={() => ustawP({ n: v })}>{v}</Btn>)], "mak-przes-n-w"),
+          /* podwojne boki (uzytkownik 2026-11-16): bok zewnetrzny do podlogi + wewnetrzny cofniety o 80 — „nie zawsze potrzebne, czasem bok
+             jest zasłonięty” — osobno z lewej i z prawej */
+          wiersz("przespb", "podwójny bok (zewnętrzny do podłogi + wewnętrzny cofnięty o 80, konfirmatów nie widać)", [["L", "z lewej"], ["R", "z prawej"]].map(([v, l]) =>
+            <Btn key={v} el="mak-przes-podw" v={v} on={!!(P.podwBoki || {})[v]} onClick={() => ustawP({ podwBoki: { ...(P.podwBoki || {}), [v]: !(P.podwBoki || {})[v] } })}>{l}</Btn>), "mak-przes-podw-w"),
           wiersz("przessz", "szczotka odbojowa (przy bokach)", [["tak", "jest"], ["nie", "nie ma"]].map(([v, l]) =>
             <Btn key={v} el="mak-przes-szczotka" v={v} on={(P.szczotka !== false) === (v === "tak")} onClick={() => ustawP({ szczotka: v === "tak" })}>{l}</Btn>), "mak-przes-szczotka-w"),
           ...(pg ? [<p key="przesinfo" data-el="mak-przes-info" className="border-b border-stone-100 py-1 text-[11px] text-stone-600">
@@ -25599,8 +25694,9 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     const runSc = run && run.tier === "gorny" ? (project.runs || []).find((r) => r.id === run.wall) || null : run;
     const sufW = w.doSufitu && runSc ? sufitSciany(project, runSc) : null;
     const zmienW = (cab) => { if (w.mod) w.mod(cab, sys);
-      if (sufW) { const pl = cab.plinth && cab.plinth.on ? Math.round(Number(cab.plinth.height) || 0) : 0; const H = Math.round(sufW - SZAFA_LUZ_SUFIT - pl - (Number(runSc.mountY) || 0)); if (H > 1500) cab.H = H; } };
-    const opcje = { zmien: w.mod || sufW ? zmienW : null, nazwa: w.szafka || null, wymiaryCiagu: !!w.ciag,
+      // cokol pod korpusem — korpus nad nim; cokol w obrysie (boki do podlogi) — w wysokosci korpusu
+      if (sufW) { const pl = cab.plinth && cab.plinth.on && cab.plinth.mode !== "inbody" && cab.plinth.mode !== "between" ? Math.round(Number(cab.plinth.height) || 0) : 0; const H = Math.round(sufW - SZAFA_LUZ_SUFIT - pl - (Number(runSc.mountY) || 0)); if (H > 1500) cab.H = H; } };
+    const opcje = { zmien: w.mod || sufW ? zmienW : null, nazwa: w.szafka || null, wymiaryCiagu: !!w.ciag, bezNozek: !!w.bezNozek,
       poDodaniu: w.po ? (cab, mat, stoi) => w.po(cab, sys, mat, stoi) : null };
     const przed = (r) => (it && r && it.runId === r.id ? c.idx + (c.prawa ? 1 : 0) : null);
     if (w.gdzie === "wolna") { dodaj(w.tpl, null, opcje); return; }
@@ -26941,7 +27037,8 @@ export default function App() {
     const fresh = { cab: { ...base, name: nazwa, ...wymiaryCiagu, ...wyglad,
       ...(run && !spC ? { hangerMode: run.hangerMode || "listwa" } : {}),
       ...(podBlat && !spC ? bezWienca(base, matNowej.front.thickness) : {}),
-      ...(stoi && !(spC && (spC.typ === "lodowka" || spC.typ === "zmywarkaW")) ? { legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } } : {}) },
+      // szafa do zabudowy (wzor `bezNozek`): boki do podlogi, cokol miedzy nimi — bez nozek
+      ...(stoi && !opcje.bezNozek && !(spC && (spC.typ === "lodowka" || spC.typ === "zmywarkaW")) ? { legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } } : {}) },
       mat: matNowej, runId, roomId };
     if (opcje.poDodaniu) opcje.poDodaniu(fresh.cab, fresh.mat, !!stoi);
     /* Nowa szafka ciagu ma stanac na jego koncu, a nie na koncu calego projektu —
@@ -33183,6 +33280,10 @@ export default function App() {
                     options={[{ v: "auto", l: `same (${geo.przesuwne.n})` }, { v: "2", l: "2" }, { v: "3", l: "3" }, { v: "4", l: "4" }]} />
                 </Field>
                 <Check checked={(cab.przesuwne || {}).szczotka !== false} onChange={(v) => set({ przesuwne: { ...cab.przesuwne, szczotka: v } })} label="Szczotka odbojowa przy bokach (skrzydło 3 mm węższe razem)" />
+                <div className="flex flex-wrap gap-3" data-el="karta-przes-podw">
+                  {[["L", "Podwójny bok z lewej"], ["R", "Podwójny bok z prawej"]].map(([v, l]) => <Check key={v} checked={!!((cab.przesuwne || {}).podwBoki || {})[v]}
+                    onChange={(x) => set({ przesuwne: { ...cab.przesuwne, podwBoki: { ...((cab.przesuwne || {}).podwBoki || {}), [v]: x } } })} label={l} />)}
+                </div>
                 <Check checked={!!(cab.przesuwne || {}).niskieSzuflady} onChange={(v) => set({ przesuwne: { ...cab.przesuwne, niskieSzuflady: v } })} label={`Szuflady z niskim bokiem V-BOX ${PRZES.VBOX_BOK} (inaczej — najwyższy, jaki się zmieści)`} />
                 <p className="text-xs text-stone-600">{geo.przesuwne.n} skrzydła {fmt(geo.przesuwne.SD)} × {fmt(geo.przesuwne.WD)} mm, wypełnienie {fmt(geo.przesuwne.SW)} × {fmt(geo.przesuwne.WW)} mm, listwy {fmt(geo.przesuwne.DLP)} mm, rączki {fmt(geo.przesuwne.DR)} mm; otwór {fmt(geo.przesuwne.SO)} × {fmt(geo.przesuwne.WO)} mm.</p>
               </div>

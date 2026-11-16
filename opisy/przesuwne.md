@@ -36,20 +36,21 @@ Stan: 2026-11-16. Decyzje użytkownika z 2026-11-16 (w `BLEDY.md`, „Ustalone�
 
 Jak w szafie użytkownika (2026-11-16): „dołożona zabudowa pod szuflady — boki i wieniec jako pierwsza półka; szuflady wewnętrzne z podfrezem na palce; zabudowa cofnięta o 80 mm od czoła; dolna szyna 18 mm od dna (łatwo wyznaczyć ręcznie)”; „szuflady w szafie mam V-BOX, jedne z niższych” (bok ok. 12 cm).
 
-- **Zabudowa pod szuflady** (`rawCol.__zabudowa`, `listwyPrz`) w każdej kolumnie i poziomie kolumny z szufladami:
-  - dwa boki z płyty korpusu (18 mm) przy obu ściankach kolumny, od dna poziomu do półki nad szufladami;
-  - głębokość jak przegrody, cofnięte o 80 mm;
-  - wieniec zabudowy to półka nad szufladami (granica poziomu kolumny albo góra poziomu);
-  - szuflada jest węższa o oba boki, prowadnice idą na boki zabudowy;
-  - formatka „Bok zabudowy szuflad — kolumna N” (2 szt.), wkręty 4 × 30 co ok. 300 mm w dwóch rzędach;
-  - w planie wierceń prowadnice na bokach zabudowy, z odległościami od ich przedniej krawędzi.
+- **Zabudowa pod szuflady** (`rawCol.__zabudowa` z `L` / `R`, `listwyPrz`) w każdej kolumnie i poziomie kolumny z szufladami — jak u użytkownika: „od strony boku szafy prowadnice na drugiej płycie [boku wewnętrznym], od strony przegrody dołożona płyta na wysokość wieńca szuflad, na całą głębokość, przykręcona wkrętami do przegrody”:
+  - bok zabudowy (18 mm, płyta korpusu) tylko przy przegrodzie, od dna poziomu do półki nad szufladami;
+  - przy boku szafy prowadnice idą na bok (wewnętrzny przy podwójnych bokach);
+  - głębokość jak przegrody, cofnięty o 80 mm;
+  - wieniec zabudowy to półka nad szufladami (granica poziomu kolumny albo góra poziomu): od strony boku konfirmaty, od strony przegrody 2 trójkąty meblowe od dołu do boku zabudowy (konfirmatu nie da się wkręcić); z przegrody jego złącze znika, w zamówieniu mniej konfirmatów, plus trójkąty;
+  - szuflada jest węższa o bok zabudowy;
+  - formatka „Bok zabudowy szuflad — kolumna N”, wkręty 4 × 30 co ok. 300 mm w dwóch rzędach;
+  - w planie wierceń prowadnice na boku zabudowy, z odległościami od jego przedniej krawędzi.
 - **Front wewnętrzny, cofnięty o 80 mm** za tory (`cab.__szuflPrzes.cof` → `d.cof`).
   - Prowadnice i skrzynka cofają się razem z frontem (`rail.setback` = grubość frontu + 80).
   - NL dobiera się z głębokości, która została.
   - Domyślnie podfrez na palce, bez uchwytów. Gdy w kolumnie wybrano uchwyty (wcięcie wyłączone), a uchwyt wystaje więcej niż miejsce do skrzydeł (28 mm, z luzem 3), pojawia się ostrzeżenie.
 - **Dolna prowadnica 18 mm nad dnem** (`PRZES.SZYNA_DOL`, `spz.szyna`). Front schodzi 5 mm poniżej niej (13 mm nad dnem, nad torem dolnym 8 mm). Górny front najwyżej 43 mm pod wieńcem (tor górny 38 + 5).
 - **Bok V-BOX „auto”** — najwyższy, jaki się zmieści (jak wszędzie). Opcja szafy przesuwnej „niski 127” (`przesuwne.niskieSzuflady`, `PRZES.VBOX_BOK`; karta Szuflady `mak-przes-bok`, techniczny: karta „Drzwi przesuwne”) — jak w szafie użytkownika; włączona w szablonie „Szafa do zabudowy z szufladami”. Ręcznie wybrany bok zostaje.
-- **Dostęp.** Front musi przejść obok krawędzi odsuniętego skrzydła z luzem 5 mm (`PRZES.LUZ_SZUFL`). Przy 2 skrzydłach i przegrodzie na środku boki zabudowy (18) to zapewniają.
+- **Dostęp.** Front musi przejść obok krawędzi odsuniętego skrzydła z luzem 5 mm (`PRZES.LUZ_SZUFL`). Przy 2 skrzydłach i przegrodzie na środku bok zabudowy przy przegrodzie (18) to zapewnia.
 - **Szuflady na dół kolumny** (karta Szuflady albo klocek „N szuflad”, szafa z przegrodą; `makSzufladyNaDoleKolumny`):
   - nowa półka graniczna (wieniec zabudowy) 220 mm na szufladę nad dnem kolumny;
   - pod nią poziom kolumny z szufladami;
@@ -61,9 +62,26 @@ Jak w szafie użytkownika (2026-11-16): „dołożona zabudowa pod szuflady — 
   - (!) uchwyt szuflady wystaje do skrzydeł.
 - **Klocki frontów** (1 / 2 drzwi, klapy, bez frontu, lustro, uchwyt, tip-on) w szafie przesuwnej — komunikat, nic się nie zmienia.
 - **Kolejność montażu:**
-  - boki zabudowy przykręca się do ścianek kolumny od środka zabudowy, zanim wejdą prowadnice;
+  - bok zabudowy przykręca się do przegrody od środka zabudowy, zanim wejdą prowadnice;
+  - wieniec zabudowy: od boku konfirmaty przez bok (wewnętrzny — łby schowane za bokiem zewnętrznym), od przegrody trójkąty od dołu;
   - tory i skrzydła na końcu — dostęp do wkrętów jest.
-  - Mocowanie wieńca zabudowy (półka nad szufladami): w programie jak półka graniczna poziomu kolumny — do potwierdzenia u użytkownika, `AI_NOTES.md` [CHECK].
+
+## Podwójne boki (szafa do zabudowy)
+
+Jak w szafie użytkownika (2026-11-16, zdjęcia): „cała szafa ma od zewnętrznych stron podwójną płytę — jedną wewnątrz mniejszą o 80 mm, a drugą na zewnątrz do ziemi, tak żeby nie było widać konfirmatów, tylko jest kręcona od wewnątrz”; „nie zawsze jest to potrzebne — czasem bok jest zasłonięty”.
+
+- `przesuwne.podwBoki = { L, R }` — osobno z lewej i z prawej (karta Drzwi: „podwójny bok — z lewej / z prawej”, techniczny: karta „Drzwi przesuwne”). We wzorach szafy do zabudowy włączone z obu stron.
+- **Bok zewnętrzny** — bok korpusu, na pełną głębokość; przy cokole w obrysie (wzór) do podłogi, cokół między bokami.
+- **Bok wewnętrzny** (formatka „Bok wewnętrzny lewy / prawy”) — od dna do wieńca (w każdym poziomie — między płytami przelotowymi), głębokość jak przegrody, cofnięty o 80 mm (za drzwiami przesuwnymi).
+- **Dno i wieniec między bokami zewnętrznymi.** Bok wewnętrzny stoi na dnie pod wieńcem: konfirmaty od spodu dna i od góry wieńca w jego czoło (130 / 340 / 550 mm od lica dna). Przez bok zewnętrzny konfirmatów nie ma.
+- **Bok wewnętrzny do zewnętrznego** — wkręty 4 × 30 od środka szafy, dwa rzędy co ok. 400 mm (plan wierceń, zamówienie).
+- **Kolumny** zaczynają się za bokiem wewnętrznym (`__bokWewn` w `computeGeoLiczy`): kołki, rozety rury i prowadnice w kolumnie przy boku idą na bok wewnętrzny, z odległościami od jego przedniej krawędzi.
+- **Drzwi przesuwne** — między bokami zewnętrznymi (otwór jak bez podwójnych boków); boki wewnętrzne chowają się za skrzydłami.
+- **Wzór bez nóżek** (`bezNozek`): boki stoją na podłodze, cokół w obrysie między nimi.
+
+## Wiercenia przegród cofniętych
+
+Przegrody i boki wewnętrzne za drzwiami przesuwnymi są cofnięte o 80 mm. W planie wierceń odległości na nich liczą się od ich własnej przedniej krawędzi (`odPrzoduPlyty`: kołki, konfirmaty półek, rozeta rury, prowadnice). Konfirmaty z dna i wieńca w przegrodę: od lica dna z cofnięciem (130 / 340 / 550 przy głębokości 600). Do 2026-11-16 plan liczył je od lica korpusu (błąd, `BLEDY.md`).
 
 ## Szafa do zabudowy (wzór w palecie „Szafa w zabudowie”)
 
@@ -71,11 +89,11 @@ Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, w kolumnie 2 na d
 
 
 - Korpus na całą wnękę: 2000 mm szerokości, 600 mm głębokości.
-- Pod spodem cokół 100 i nóżki, jak każda szafka stojąca w ciągu.
+- Cokół 100 w obrysie (boki do podłogi), bez nóżek; podwójne boki z obu stron.
 - Drzwi przesuwne włączone, bez blendy.
 - W środku przegroda: z jednej strony półki, z drugiej drążek z półką 300 mm nad nim.
 - Wysokość korpusu:
-  - sufit ściany znany (pole „wys.”) — do sufitu z luzem 5 mm: sufit − 5 − cokół;
+  - sufit ściany znany (pole „wys.”) — do sufitu z luzem 5 mm: sufit − 5 (cokół w obrysie — w wysokości; pod korpusem — sufit − 5 − cokół);
   - sufit nieznany — 2400.
 - Dodana bez zaznaczonego ciągu zakłada nowy ciąg „szafa”.
 
@@ -84,6 +102,7 @@ Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, w kolumnie 2 na d
 - **Makieta, karta „Drzwi”** (szafa wysoka, ciąg szafy):
   - „na zawiasach / przesuwne”;
   - „skrzydła”: same, 2, 3 albo 4;
+  - „podwójny bok”: z lewej / z prawej;
   - „szczotka odbojowa”: jest / nie ma;
   - pod przyciskami opis skrzydła i wypełnienia z wymiarami.
 - **Tryb Techniczny:** karta „Drzwi przesuwne (GTV NOVO S)” z tymi samymi polami.
