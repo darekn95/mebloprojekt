@@ -144,6 +144,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 - **Interfejs**: `setColKind`, `addDrawer`, `setDrawerSystem`; przyciski w `NoteLine` (`fixh`, `fixnl`, `fixback`, `szufmniej`, `szufdxs`, `szufsys`, `reling…`, `zwieksz60`) i `przyciskiSzuflad` w `App`.
 - **Rysunki i 3D**: `szufladaOdCzola`, `szufladaZGory`, `szerWnetrzaSzuflady`; bryła 3D `skrzynkaBryly`, wysuw `wysuwSzuflady`.
   - Z przodu (otwarte) skrzynka DXS ma boki, tył i dno; przy uchwycie frezowanym skrzynkę widać też przy zamkniętych frontach (pod frezem).
+  - Z przodu (otwarte) front szuflady zostaje przygaszony; szuflada wewnętrzna za drzwiami przesuwnymi — tylko obrys frontu i skrzynka na prowadnicach (`SzufladaBezFrontu`, 2026-11-17). Prowadnice V-BOX z przodu od `dr.bx0` / `dr.bx1` (bok zabudowy, wspornik fixu).
   - Kolumny szuflad o innym podziale mają osobne kolumny wymiarów (`grupySzuflad`); kolumny o tym samym podziale — wspólną.
   - Z boku i z góry każdy front rysuje się wg swojego montażu (`d.inset`) — front szuflad na korpusie w szafce wpuszczanej stoi przed korpusem; obrys skrzynki z góry od `dr.bx0` (np. za wspornikiem fixu).
 - **Testy**: `macierzszuflad` (317 układów, każdy przycisk naprawy sprawdzany), `audyt2d` (rysunki = rzut brył 3D; pełna lista szuflad z `SZUF2D=1`), `szuflady`, `dxs`, `audytszuflad` (klikane jak użytkownik), `tylkol`, `bokszuf`, `audytwierc` (plan wierceń V-BOX), `ruchy`, `audytmacierz`.

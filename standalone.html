@@ -334,14 +334,31 @@ const przesuwneWymiary = (SO, WO, p = {}) => {
 };
 // najkrotszy tor GTV, ktory wystarczy na dlugosc (DTM = SO); dluzszy niz 6000 — dwa kawalki
 const przesuwneTor = (L) => PRZES.TORY_DL.find((d) => d >= L) || PRZES.TORY_DL[PRZES.TORY_DL.length - 1];
+/* Odsuniecie jednego skrzydla (uzytkownik 2026-11-17: „brak opcji otwarcia — przesunięcia jednych drzwi”; „w szafie może być więcej niż
+   2 skrzydła, mogą być 3 lub 4”): skrzydlo jedzie za / przed najblizsze skrzydlo z drugiego toru, ale nie minie skrzydla na swoim torze
+   (3 skrzydla: skrajne na przednim torze — skrajne zatrzymuje sie na drugim skrajnym, odslania SD − 2 zakladki) ani krawedzi otworu.
+   Kierunek — tam, gdzie odslania wiecej; po rowno (srodkowe z 3) — w lewo. `x` — nowe miejsce skrzydla, `x0..x1` — odsloniete (od
+   lewej krawedzi swiatla) */
+const przesuwneOdsun = (w, i) => {
+  const sk = w.skrzydla[i], SD = sk.x1 - sk.x0, inne = w.skrzydla.filter((q) => q !== sk);
+  const jedz = (dir) => {
+    const drugi = inne.filter((q) => q.tor !== sk.tor && (dir > 0 ? q.x0 > sk.x0 : q.x0 < sk.x0)).sort((a, b) => dir * (a.x0 - b.x0))[0];
+    let x = drugi ? drugi.x0 : dir > 0 ? w.SO - SD : 0;
+    inne.filter((q) => q.tor === sk.tor).forEach((q) => { if (dir > 0 && q.x0 >= sk.x1 - 1) x = Math.min(x, q.x0 - SD); if (dir < 0 && q.x1 <= sk.x0 + 1) x = Math.max(x, q.x1); });
+    x = Math.max(0, Math.min(w.SO - SD, dir > 0 ? Math.max(x, sk.x0) : Math.min(x, sk.x0)));
+    // odsloniete — najdluzsza przerwa w otworze miedzy skrzydlami (przesuwane juz na nowym miejscu)
+    const zaj = [...inne.map((q) => [q.x0, q.x1]), [x, x + SD]].sort((a, b) => a[0] - b[0]);
+    let o = { x0: 0, x1: 0 }, kon = 0;
+    zaj.forEach(([a, b]) => { if (a - kon > o.x1 - o.x0) o = { x0: kon, x1: a }; kon = Math.max(kon, b); });
+    if (w.SO - kon > o.x1 - o.x0) o = { x0: kon, x1: w.SO };
+    return { x, ...o };
+  };
+  const p = jedz(1), l = jedz(-1), dp = p.x1 - p.x0, dl = l.x1 - l.x0;
+  return { i, ...(dp > dl + 0.5 ? p : dl > dp + 0.5 ? l : (sk.x0 + sk.x1) / 2 < w.SO / 2 - 0.5 ? p : l) };
+};
 /* Dostep do kolumn (uzytkownik 2026-11-16: „podpowiedź tak, by był dostęp do półek czy szuflad po otwarciu drzwi”): kolumna jest dostepna,
-   gdy miesci sie w miejscu, ktore odslania jedno odsuniete skrzydlo (otwor minus pozostale skrzydla stojace na swoim miejscu) */
-const przesuwneOdslania = (w) => w.skrzydla.map((sk) => {
-  const inne = w.skrzydla.filter((q) => q !== sk);
-  let x0 = 0, x1 = w.SO;
-  inne.forEach((q) => { if (q.x1 <= sk.x0 + 1) x0 = Math.max(x0, q.x1); else if (q.x0 >= sk.x1 - 1) x1 = Math.min(x1, q.x0); else if (q.x0 <= sk.x0) x0 = Math.max(x0, q.x1); else x1 = Math.min(x1, q.x0); });
-  return { i: sk.i, x0, x1 };
-});
+   gdy miesci sie w miejscu, ktore odslania jedno skrzydlo odsuniete do oporu (`przesuwneOdsun`; pozostale stoja na swoim miejscu) */
+const przesuwneOdslania = (w) => w.skrzydla.map((sk) => { const o = przesuwneOdsun(w, sk.i); return { i: sk.i, x0: o.x0, x1: o.x1 }; });
 const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀25";
 /* Podpora rury na srodku (uzytkownik 2026-10-31 przy audycie GPT N181/N182, zamiast podzialu
    kolumny przy rurze 2–3 m): GTV „Uchwyt WP-10 dystansowy, regulowany” MR-WP-010-01, przelotowy
@@ -1497,7 +1514,8 @@ const RUNNER_W = 21; // szerokosc prowadnicy przy boku
    (33 × 27) — od czola widac przekroj, z gory boki skrzynki i jej tyl. */
 const szufladaOdCzola = (c, dr) => {
   if (dr.system !== "dxs")
-    return [c.x0, c.x1 - RUNNER_W].map((x) => ({ x, y: dr.rail.y0, w: RUNNER_W, h: dr.gora ?? vboxGora(dr.rail.h), rodzaj: "prowadnica" }));
+    // od boku zabudowy szuflad / wspornika fixu (`dr.bx0`, `dr.bx1`), jak z gory — wczesniej od boku kolumny
+    return [dr.bx0 ?? c.x0, (dr.bx1 ?? c.x1) - RUNNER_W].map((x) => ({ x, y: dr.rail.y0, w: RUNNER_W, h: dr.gora ?? vboxGora(dr.rail.h), rodzaj: "prowadnica" }));
   const sk = dr.skrzynka;
   const x0 = dr.bx0 ?? c.x0, x1 = x0 + (sk ? sk.LW : c.x1 - c.x0);
   const tb = sk ? sk.bokT : 18, ob = DXS.odBoku;
@@ -8636,8 +8654,11 @@ function geoPrzesuwne(cab, mat, ctx) {
   const msgs = [...g.msgs], add = (level, text) => msgs.push({ level, text });
   const tf = g.tf, n = w.n;
   const y0 = g.interior.y0 + PRZES.TOR_D.h + 4, y1 = y0 + w.WD;   // skrzydlo na wozkach nad torem dolnym, gora w torze gornym
-  const skrzydla = w.skrzydla.map((sk) => ({ ...sk, x: Math.round(g.interior.x0 + sk.x0), w: w.SD, y: Math.round(y0), h: w.WD,
-    z0: 8 + sk.tor * PRZES.TOR_KROK, z1: 8 + sk.tor * PRZES.TOR_KROK + PRZES.DRZWI_GR }));
+  /* jedno skrzydlo odsuniete (`przesuwne.odsun` — numer skrzydla od 0; wybor w karcie Drzwi, uzytkownik 2026-11-17) — na rysunkach i w 3D
+     stoi tam, gdzie dojedzie (`przesuwneOdsun`); poza zakresem (np. po zmianie liczby skrzydel) — wszystkie zamkniete */
+  const odsun = Number.isInteger(P.odsun) && P.odsun >= 0 && P.odsun < n ? przesuwneOdsun(w, P.odsun) : null;
+  const skrzydla = w.skrzydla.map((sk) => ({ ...sk, x: Math.round(g.interior.x0 + (odsun && odsun.i === sk.i ? odsun.x : sk.x0)), w: w.SD, y: Math.round(y0), h: w.WD,
+    z0: 8 + sk.tor * PRZES.TOR_KROK, z1: 8 + sk.tor * PRZES.TOR_KROK + PRZES.DRZWI_GR, ...(odsun && odsun.i === sk.i ? { odsuniete: true } : {}) }));
   const glListwy = Math.round(g.dividerDepth || g.carcassDepth - PRZES.STREFA);
   // boki zabudowy szuflad: na kolumne / poziom kolumny — przy przegrodzie (jeden albo dwa tej samej wielkosci)
   const zabMap = new Map();
@@ -8736,7 +8757,7 @@ function geoPrzesuwne(cab, mat, ctx) {
   const hwG = (g.hardware || []).map((h) => (h.name === "Konfirmat 7 × 50" && zdjeteKonf.n && /złącza korpusu/.test(h.use || "") ? { ...h, qty: Math.max(0, h.qty - zdjeteKonf.n), spec: `${h.spec}; bez ${zdjeteKonf.n} przy przegrodzie pod wieńcem zabudowy szuflad (trójkąty)` }
     : h.name === "Kołek podporowy ⌀5" && zdjeteKolki.n ? { ...h, qty: Math.max(0, h.qty - zdjeteKolki.n) } : h)).filter((h) => h.qty > 0);
   return { ...g, msgs, panels, drillPlan, hardware: [...hwG, ...hw], doors: (g.doors || []).filter((d) => d.type === "drawer"),
-    przesuwne: { ...w, skrzydla, strefa: PRZES.STREFA, y0: Math.round(g.interior.y0), y1: Math.round(g.interior.y1), x0: Math.round(g.interior.x0), kg: Math.round(kg),
+    przesuwne: { ...w, skrzydla, odsun: odsun ? { i: odsun.i, x0: Math.round(g.interior.x0 + odsun.x0), x1: Math.round(g.interior.x0 + odsun.x1) } : null, strefa: PRZES.STREFA, y0: Math.round(g.interior.y0), y1: Math.round(g.interior.y1), x0: Math.round(g.interior.x0), kg: Math.round(kg),
       listwy: (g.listwyPrz || []).map((q) => ({ ...q, z0: PRZES.STREFA, z1: PRZES.STREFA + glListwy })), bokiWewn } };
 }
 
@@ -9883,6 +9904,20 @@ const caloscPasow = (ps) => ({ y0: ps[0].y0, h: ps[ps.length - 1].y0 + ps[ps.len
    (opadajace — od dolu, boczne — od strony zawiasu), uchwyt i podpis. `mx` jak w rzucie ciagu. */
 /* Drzwi przesuwne na rysunku z przodu (2026-11-16): tory (gorny pod wiencem, dolny na dnie) zawsze; zamkniete — skrzydla w kolorze
    frontow z raczkami NOVO S na bokach (najpierw tylny tor), otwarte — sam przerywany obrys skrzydel, zeby bylo widac wnetrze */
+/* Szuflada wewnetrzna (za drzwiami przesuwnymi) w widoku bez frontow: przerywany obrys frontu, a pod nim skrzynka od czola (V-BOX —
+   prowadnice z bokami, DXS — boki, tyl i prowadnice), zeby bylo widac, co stoi w zabudowie (uzytkownik 2026-11-17). `skrzynka` — false,
+   gdy prowadnice rysuje juz wyposazenie (showHardware) */
+function SzufladaBezFrontu({ d, geo, fy, X, mx = (x) => x, shc, skrzynka = true }) {
+  const kols = geo.levels.flatMap((l) => l.cols);
+  const c = kols.find((q) => (q.drawers || []).includes(d.dr)) || kols.find((q) => (q.drawers || []).length && d.x + d.w / 2 > q.x0 && d.x + d.w / 2 < q.x1 && d.y >= q.y0 - 1 && d.y < q.y1);
+  return (
+    <g data-el="szuflada-bez-frontu">
+      {skrzynka && c && d.dr && szufladaOdCzola(c, d.dr).map((q, si) => (
+        <rect key={si} data-el={q.rodzaj === "prowadnica" ? "prowadnica-szuflady" : `skrzynka-${q.rodzaj}`} x={mx(q.x, q.w)} y={fy(q.y + q.h)} width={q.w} height={q.h}
+          fill={q.rodzaj === "prowadnica" ? "#8b8b93" : shc} stroke={INK} strokeWidth="1.5" />))}
+      <rect x={X} y={fy(d.y + d.h)} width={d.w} height={d.h} fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="12 9" opacity="0.6" />
+    </g>);
+}
 function PrzesuwneElew({ geo, fy, mx = (x) => x, ff, open }) {
   const p = geo.przesuwne; if (!p) return null;
   const tor = "#a8a29e", r = 22, sk = [...p.skrzydla].sort((a, b) => b.tor - a.tor);
@@ -9894,8 +9929,8 @@ function PrzesuwneElew({ geo, fy, mx = (x) => x, ff, open }) {
       {(p.bokiWewn || []).map((q, k) => <rect key={"bw" + k} data-el="bok-wewnetrzny" x={mx(q.x0, q.x1 - q.x0)} y={fy(q.y1)} width={q.x1 - q.x0} height={q.y1 - q.y0} fill="#e7e5e4" stroke={INK} strokeWidth="1.5" />)}
       {sk.map((d) => { const X = mx(d.x, d.w), Y = fy(d.y + d.h);
         return open
-          ? <rect key={d.i} data-el="skrzydlo-przesuwne" x={X} y={Y} width={d.w} height={d.h} fill="none" stroke={LINE} strokeWidth="2" strokeDasharray="14 9" />
-          : <g key={d.i} data-el="skrzydlo-przesuwne">
+          ? <rect key={d.i} data-el="skrzydlo-przesuwne" data-odsuniete={d.odsuniete ? "1" : undefined} x={X} y={Y} width={d.w} height={d.h} fill="none" stroke={LINE} strokeWidth="2" strokeDasharray="14 9" />
+          : <g key={d.i} data-el="skrzydlo-przesuwne" data-odsuniete={d.odsuniete ? "1" : undefined}>
               <rect x={X} y={Y} width={d.w} height={d.h} fill={ff} stroke={INK} strokeWidth="2" />
               <rect x={X} y={Y} width={r} height={d.h} fill="#d6d3d1" stroke={INK} strokeWidth="1" />
               <rect x={X + d.w - r} y={Y} width={r} height={d.h} fill="#d6d3d1" stroke={INK} strokeWidth="1" />
@@ -10311,6 +10346,10 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
               )}
             </g>
           );
+        /* szuflada wewnetrzna za drzwiami przesuwnymi (`d.cof`) bez frontow (uzytkownik 2026-11-17: „przy zdjętych frontach fronty szuflad
+           dalej są widoczne w szafie”) — front tylko przerywanym obrysem, widac skrzynke na prowadnicach */
+        if (open && d.type === "drawer" && d.cof > 0)
+          return <SzufladaBezFrontu key={d.key} d={d} geo={geo} fy={fy} X={X} mx={mx} shc={shelfColorOf(cab, mat)} skrzynka={!showHardware} />;
         if (open)
           return d.type === "drawer" ? (
             <g key={d.key}>
@@ -13442,11 +13481,12 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           <g key={d.key}>
             {d.type === "drawer" ? (
               <>
-                {/* front szuflady zostaje na miejscu, tylko przygaszony */}
-                <rect x={d.x} y={fy(d.y + d.h)} width={d.w} height={d.h}
-                  fill={ff} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
+                {/* front szuflady zostaje na miejscu, tylko przygaszony; szuflada wewnetrzna za drzwiami przesuwnymi — bez frontu (2026-11-17) */}
+                {d.cof > 0 ? <SzufladaBezFrontu d={d} geo={geo} fy={fy} X={d.x} shc={shc} skrzynka={!showHardware} />
+                  : <rect x={d.x} y={fy(d.y + d.h)} width={d.w} height={d.h}
+                  fill={ff} fillOpacity="0.35" stroke={INK} strokeWidth="2" />}
                 {/* przy podfrezie bez kreski — wygladala jak uchwyt (uzytkownik 2026-10-24) */}
-                {d.handle && uchwytOut(d, cab) > 0 ? <UchwytElewacja d={d} fy={fy} /> : !d.podfrez && (
+                {d.cof > 0 ? null : d.handle && uchwytOut(d, cab) > 0 ? <UchwytElewacja d={d} fy={fy} /> : !d.podfrez && (
                   <line data-el="szuflada-kreska" x1={d.x + d.w * 0.25} x2={d.x + d.w * 0.75}
                     y1={fy(d.y + d.h - Math.min(50, d.h / 2))}
                     y2={fy(d.y + d.h - Math.min(50, d.h / 2))}
@@ -24708,6 +24748,11 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         ...(on ? [
           wiersz("przesn", "skrzydła", [<Btn key="a" el="mak-przes-n" v="auto" on={![2, 3, 4].includes(Number(P.n))} onClick={() => ustawP({ n: null })}>same{pg ? ` (${pg.n})` : ""}</Btn>,
             ...[2, 3, 4].map((v) => <Btn key={v} el="mak-przes-n" v={v} on={Number(P.n) === v} onClick={() => ustawP({ n: v })}>{v}</Btn>)], "mak-przes-n-w"),
+          /* odsuniete skrzydlo na rysunku i w 3D (uzytkownik 2026-11-17: „brak opcji otwarcia — przesunięcia jednych drzwi”) — od lewej */
+          ...(pg ? [wiersz("przesodsun", "odsuń skrzydło (rysunek i 3D; od lewej)", [
+            <Btn key="z" el="mak-przes-odsun" v="brak" on={!pg.odsun} onClick={() => ustawP({ odsun: null })}>zamknięte</Btn>,
+            ...pg.skrzydla.map((q) => <Btn key={q.i} el="mak-przes-odsun" v={q.i + 1} on={!!pg.odsun && pg.odsun.i === q.i}
+              onClick={() => ustawP({ odsun: q.i })}>{q.i + 1}</Btn>)], "mak-przes-odsun-w")] : []),
           /* podwojne boki (uzytkownik 2026-11-16): bok zewnetrzny do podlogi + wewnetrzny cofniety o 80 — „nie zawsze potrzebne, czasem bok
              jest zasłonięty” — osobno z lewej i z prawej */
           wiersz("przespb", "podwójny bok (zewnętrzny do podłogi + wewnętrzny cofnięty o 80, konfirmatów nie widać)", [["L", "z lewej"], ["R", "z prawej"]].map(([v, l]) =>
@@ -33295,6 +33340,11 @@ export default function App() {
                   <Seg value={[2, 3, 4].includes(Number((cab.przesuwne || {}).n)) ? String(cab.przesuwne.n) : "auto"}
                     onChange={(v) => set({ przesuwne: { ...cab.przesuwne, n: v === "auto" ? null : Number(v) } })}
                     options={[{ v: "auto", l: `same (${geo.przesuwne.n})` }, { v: "2", l: "2" }, { v: "3", l: "3" }, { v: "4", l: "4" }]} />
+                </Field>
+                <Field label="Odsunięte skrzydło" hint="Na rysunkach i w 3D — jedno skrzydło odsunięte do oporu (od lewej: 1, 2…).">
+                  <div data-el="karta-przes-odsun"><Seg value={geo.przesuwne.odsun ? String(geo.przesuwne.odsun.i) : "brak"}
+                    onChange={(v) => set({ przesuwne: { ...cab.przesuwne, odsun: v === "brak" ? null : Number(v) } })}
+                    options={[{ v: "brak", l: "zamknięte" }, ...geo.przesuwne.skrzydla.map((q) => ({ v: String(q.i), l: String(q.i + 1) }))]} /></div>
                 </Field>
                 <Check checked={(cab.przesuwne || {}).szczotka !== false} onChange={(v) => set({ przesuwne: { ...cab.przesuwne, szczotka: v } })} label="Szczotka odbojowa przy bokach (skrzydło 3 mm węższe razem)" />
                 <div className="flex flex-wrap gap-3" data-el="karta-przes-podw">

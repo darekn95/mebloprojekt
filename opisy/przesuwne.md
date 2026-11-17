@@ -1,6 +1,6 @@
 # Drzwi przesuwne w szafach (GTV NOVO S, tor dolny EVO) i szafa do zabudowy
 
-Stan: 2026-11-16. Decyzje użytkownika z 2026-11-16 (w `BLEDY.md`, „Ustalone”). Szczegóły pól → dane → funkcje: `SLOWNIK.md`.
+Stan: 2026-11-17. Decyzje użytkownika z 2026-11-16 i 2026-11-17 (w `BLEDY.md`, „Ustalone”). Szczegóły pól → dane → funkcje: `SLOWNIK.md`.
 
 ## Co program liczy sam
 
@@ -30,6 +30,20 @@ Stan: 2026-11-16. Decyzje użytkownika z 2026-11-16 (w `BLEDY.md`, „Ustalone�
   - pozycjoner górny — 1 na skrzydło;
   - kątownik 18 mm na listwy poziome (sztangi 3000 mm);
   - szczotka odbojowa — 2 szt. (przy bokach).
+- **Odsunięte skrzydło** (`przesuwneOdsun`, użytkownik 2026-11-17: „brak opcji otwarcia — przesunięcia jednych drzwi”; „mogą być
+  3 lub 4 skrzydła”). Wybrane skrzydło jedzie za albo przed najbliższe skrzydło z drugiego toru, ale nie minie skrzydła na swoim
+  torze ani krawędzi otworu; kierunek — tam, gdzie odsłania więcej (po równo — w lewo). Przy otworze 1964:
+  - 2 skrzydła: lewe za prawe (odsłania 0–967), prawe przed lewe (997–1964);
+  - 3 skrzydła: skrajne są na przednim torze, więc skrajne staje na drugim skrajnym — każde odsłania 612 (SD − 2 zakładki);
+    środkowe chowa się za lewe;
+  - 4 skrzydła: każde za albo przed sąsiada ze swojej połowy — odsłania 476.
+  Na rysunkach i w 3D skrzydło stoi tam, gdzie dojedzie (`przesuwne.odsun`, numer od 0); formatki i okucia bez zmian. Z tego samego
+  liczenia idzie kontrola dostępu do kolumn.
+- **Widok bez frontów** (przełącznik „Fronty” wyłączony, użytkownik 2026-11-17: „przy zdjętych frontach fronty szuflad dalej są
+  widoczne w szafie”): skrzydła tylko przerywanym obrysem, a szuflady wewnętrzne (za drzwiami) — też sam obrys frontu, pod nim
+  skrzynka na prowadnicach (`SzufladaBezFrontu`). Prowadnice V-BOX z przodu stoją przy boku zabudowy / boku wewnętrznym
+  (`dr.bx0`, `dr.bx1`). W innych szafkach front szuflady w tym widoku zostaje przygaszony (jak dotąd). W 3D przy wyłączonych
+  frontach szuflady są wysunięte.
 - **Waga skrzydła** = płyta wypełnienia (gęstość z `wagaFrontu`) + 0,5 kg na metr profili. Te 0,5 kg/mb przyjęto z góry, bez karty — do potwierdzenia.
 
 ## Szuflady za drzwiami przesuwnymi
@@ -102,10 +116,11 @@ Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, w kolumnie 2 na d
 - **Makieta, karta „Drzwi”** (szafa wysoka, ciąg szafy):
   - „na zawiasach / przesuwne”;
   - „skrzydła”: same, 2, 3 albo 4;
+  - „odsuń skrzydło”: zamknięte, 1, 2… (od lewej) — tylko rysunek i 3D;
   - „podwójny bok”: z lewej / z prawej;
   - „szczotka odbojowa”: jest / nie ma;
   - pod przyciskami opis skrzydła i wypełnienia z wymiarami.
-- **Tryb Techniczny:** karta „Drzwi przesuwne (GTV NOVO S)” z tymi samymi polami.
+- **Tryb Techniczny:** karta „Drzwi przesuwne (GTV NOVO S)” z tymi samymi polami (w tym „Odsunięte skrzydło”).
 - **Uwagi:** wysokość korpusu do sufitu — przycisk „Do sufitu z luzem 5 mm”.
 
 ## Kontrole
@@ -113,7 +128,8 @@ Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, w kolumnie 2 na d
 - × Skrzydło cięższe niż 50 kg (wózki EVO). Przycisk dokłada skrzydło (`przesn:<n>`).
 - ! Skrzydło szersze niż ok. 1150 mm. Przycisk jak wyżej.
 - × Otwór za mały: wypełnienie ≤ 0.
-- Dostęp do kolumn (`przesuwneOdslania`). Kolumna musi się zmieścić w miejscu, które odsłania jedno odsunięte skrzydło:
+- Dostęp do kolumn (`przesuwneOdslania`). Kolumna musi się zmieścić w miejscu, które odsłania jedno skrzydło odsunięte do oporu
+  (`przesuwneOdsun`; przy 3 skrzydłach skrajne odsłania 612, nie 644 — staje na drugim skrajnym):
   - (i) kolumna z półkami zasłonięta o więcej niż 50 mm — „ustaw przegrodę na styku skrzydeł albo zmień liczbę skrzydeł”;
   - (!) kolumna z szufladami zasłonięta o więcej niż 2 mm — „szuflada się nie wysunie”.
 - Sufit (`sufitSzafyMsgs`, szafy powyżej 1500 mm w ciągu dolnym):
@@ -140,12 +156,13 @@ Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, w kolumnie 2 na d
 
 - Kod:
   - szuflady: `cab.__szuflPrzes` (cof, szyna, y0, y1, bokMax), `rawCol.__zabudowa`, `listwyPrz` w `szufladyKolumny` (`computeGeoLiczy`); `makSzufladyNaDoleKolumny`, `slupekSzuflady` (karta Szuflady);
-  - stałe i wymiary: `PRZES`, `przesuwneOn`, `przesuwneLiczba`, `przesuwneWymiary`, `przesuwneTor`, `przesuwneOdslania`;
+  - stałe i wymiary: `PRZES`, `przesuwneOn`, `przesuwneLiczba`, `przesuwneWymiary`, `przesuwneTor`, `przesuwneOdsun`, `przesuwneOdslania`;
   - geometria: `geoPrzesuwne` (wywoływana z `computeGeoLiczy`);
-  - rysunki: `PrzesuwneElew` (przód), grupa `przesuwne-z-gory` w `CabTop`, `przesuwneBryly` (3D: `Scene3D`, `Assembly3D`);
+  - rysunki: `PrzesuwneElew` (przód), `SzufladaBezFrontu` (szuflada wewnętrzna bez frontów), grupa `przesuwne-z-gory` w `CabTop`, `przesuwneBryly` (3D: `Scene3D`, `Assembly3D`);
   - sufit: `sufitSzafyMsgs`;
   - wzór: `szafaZab` w `MAK_PALETA` (`doSufitu`).
 - Testy:
   - `testy/funkcje.mjs` — bloki „drzwi przesuwne GTV NOVO S” i „szuflady za drzwiami przesuwnymi”;
-  - `testy/makieta19.mjs` — wzór, sufit, karta Drzwi, szuflady na dół kolumny (zabudowa, klocek), 3D, karta techniczna.
+  - `testy/funkcje.mjs` — blok „odsunięcie jednego skrzydła” (2, 3, 4 skrzydła);
+  - `testy/makieta19.mjs` — wzór, sufit, karta Drzwi, szuflady na dół kolumny (zabudowa, klocek), widok bez frontów, odsuwanie skrzydła, 3D, karta techniczna.
 - Audyt projektu (`testy/audytprojektu.mjs`): skrzydła przesuwne (znacznik bryły `drzwi-przesuwne`) poza symulacją wysuwu — dostęp sprawdza aplikacja. Tory (`tor`) i metal skrzydeł nie są płytami.

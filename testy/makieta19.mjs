@@ -130,8 +130,35 @@ await page.evaluate(() => localStorage.setItem('mp-mak-przel', JSON.stringify({ 
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 ok('rysunek (bez frontów): bok zabudowy szuflad i boki wewnętrzne z przodu i z góry', (await page.locator('[data-el="makieta"] [data-el="zabudowa-szuflad"]').count()) >= 2
   && (await page.locator('[data-el="makieta"] [data-el="bok-wewnetrzny"]').count()) >= 4);
+// uzytkownik 2026-11-17: „przy zdjętych frontach fronty szuflad dalej są widoczne w szafie” — szuflady wewnetrzne tylko obrysem, widac prowadnice
+{ const n = await page.locator('[data-el="makieta"] [data-el="szuflada-bez-frontu"]').count();
+  ok('bez frontów: szuflady za drzwiami przesuwnymi bez frontu (obrys) — 5 szuflad, prowadnice widać', n === 5 && (await page.locator('[data-el="makieta"] [data-el="szuflada-bez-frontu"] [data-el="prowadnica-szuflady"]').count()) === 10, String(n)); }
 await page.evaluate(() => localStorage.setItem('mp-mak-przel', JSON.stringify({ zgory: true, gorny: true, dolny: true, fronty: true, kolory: true, wymiary: false })));
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+ok('z frontami: szuflady z frontami (bez obrysów „bez frontu”)', (await page.locator('[data-el="makieta"] [data-el="szuflada-bez-frontu"]').count()) === 0);
+
+console.log('== odsunięcie jednego skrzydła (2, 3 skrzydła) ==');
+await zakl('drzwi');
+ok('karta Drzwi: „odsuń skrzydło” — zamknięte + po przycisku na skrzydło (2)', (await page.locator('[data-el="mak-przes-odsun"]').count()) === 3
+  && (await page.locator('[data-el="mak-przes-odsun"][data-v="brak"]').getAttribute('aria-pressed')) === 'true');
+await page.locator('[data-el="mak-przes-odsun"][data-v="1"]').click();
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && it.cab.przesuwne.odsun === 0)");
+await page.waitForTimeout(300);
+ok('„1” — lewe skrzydło odsunięte (zapisane w szafie), na rysunku jedno odsunięte', szafa(p).cab.przesuwne.odsun === 0
+  && (await page.locator('[data-el="makieta"] [data-el="skrzydlo-przesuwne"][data-odsuniete="1"]').count()) === 1);
+await page.locator('[data-el="mak-przes-n"][data-v="3"]').click(); await page.waitForTimeout(400);
+ok('3 skrzydła — 4 przyciski (zamknięte, 1–3)', (await page.locator('[data-el="mak-przes-odsun"]').count()) === 4);
+await page.locator('[data-el="mak-przes-odsun"][data-v="2"]').click();
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && it.cab.przesuwne.odsun === 1)");
+await page.waitForTimeout(300);
+ok('„2” z 3 — środkowe odsunięte', szafa(p).cab.przesuwne.odsun === 1 && (await page.locator('[data-el="makieta"] [data-el="skrzydlo-przesuwne"][data-odsuniete="1"]').count()) === 1
+  && (await page.locator('[data-el="makieta"] [data-el="skrzydlo-przesuwne"]').count()) === 3);
+await page.locator('[data-el="mak-przes-odsun"][data-v="brak"]').click();
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && it.cab.przesuwne.odsun == null)");
+await page.waitForTimeout(300);
+ok('„zamknięte” — żadne skrzydło odsunięte', szafa(p).cab.przesuwne.odsun == null && (await page.locator('[data-el="makieta"] [data-odsuniete="1"]').count()) === 0);
+await page.locator('[data-el="mak-przes-n"][data-v="auto"]').click(); await page.waitForTimeout(300);
+await page.locator('[data-el="mak-przes-odsun"][data-v="2"]').click(); await page.waitForTimeout(400);   // do widoku 3D ponizej — prawe odsuniete
 
 console.log('== bok V-BOX: jaki się zmieści / niski 127 (opcja szafy przesuwnej) ==');
 await zakl('szuflady');
@@ -152,8 +179,11 @@ await page.locator('[data-el="mak-przesuwne"][data-v="nie"]').click();
 p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && !it.cab.przesuwne.on)");
 ok('„na zawiasach” — z powrotem drzwi na zawiasach (bez torów na rysunku)', !szafa(p).cab.przesuwne.on && (await page.locator('[data-el="makieta"] [data-el="tor-gorny"]').count()) === 0);
 await page.locator('[data-el="mak-przesuwne"][data-v="tak"]').click(); await page.waitForTimeout(400);
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa' && it.cab.przesuwne.on)");
 await page.evaluate(() => localStorage.setItem('mp-tryb', 'techniczny')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
-{ const k = page.locator('#karta-przesuwne'); ok('tryb Techniczny: karta „Drzwi przesuwne (GTV NOVO S)”', (await k.count()) === 1 && /Drzwi przesuwne/.test(await k.innerText())); }
+if (!(await page.locator('#karta-przesuwne [data-el="karta-przes-odsun"]').count())) { await page.locator('#karta-przesuwne header button').first().click(); await page.waitForTimeout(300); }
+{ const k = page.locator('#karta-przesuwne'); ok('tryb Techniczny: karta „Drzwi przesuwne (GTV NOVO S)” z wyborem odsuniętego skrzydła', (await k.count()) === 1 && /Drzwi przesuwne/.test(await k.innerText())
+  && (await k.locator('[data-el="karta-przes-odsun"] button').count()) === 3, String(await k.locator('[data-el="karta-przes-odsun"] button').count()) + ' ' + (await k.innerText()).replace(/\s+/g, ' ').slice(0, 300)); }
 
 console.log('== wzór „Szafa do zabudowy z szufladami” ==');
 await start(FIX);

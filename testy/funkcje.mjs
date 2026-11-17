@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'sufitSzafyMsgs'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1492,6 +1492,24 @@ console.log('\n== 2026-11-16: drzwi przesuwne GTV NOVO S (wzory z instrukcji, fo
   ok('H 2495, D 800: przekątna 2620 > 2600 — „skręcaj na stojąco”', sm(2495, 800).some((t) => /^info:.*przekątna boku 2 ?620 mm.*na stojąco/.test(t)), sm(2495, 800).join(' / '));
   ok('H 2495, D 600 bez nóżek: przekątna 2566 — bez uwagi o montażu', !sm(2495, 600).some((t) => /przekątna/.test(t)), sm(2495, 600).join(' / '));
   ok('bez sufitu: info „podaj wysokość ściany”', G.sufitSzafyMsgs({ runs: [{ ...run, ceiling: null }], items: [it(2400)] }, 0).some((m) => /podaj wysokość ściany/.test(m.text)));
+}
+
+console.log('\n== 2026-11-17: odsunięcie jednego skrzydła (2, 3 i 4 skrzydła — za / przed sąsiednie, bez mijania na tym samym torze) ==');
+{
+  const M0 = G.defaultMaterials;
+  const w2 = G.przesuwneWymiary(1964, 2364, {}), w3 = G.przesuwneWymiary(1964, 2364, { n: 3 }), w4 = G.przesuwneWymiary(1964, 2364, { n: 4 });
+  const o = (w) => w.skrzydla.map((q) => { const r = G.przesuwneOdsun(w, q.i); return `${r.x}:${r.x0}-${r.x1}`; }).join(' ');
+  ok('2 skrzydła: lewe za prawe (x 967, odsłania 0–967), prawe przed lewe (x 0, odsłania 997–1964)', o(w2) === '967:0-967 0:997-1964', o(w2));
+  ok('3 skrzydła: skrajne na przednim torze stają na drugim skrajnym (x 612 / 676), środkowe w lewo za lewe — każde odsłania 612', o(w3) === '612:0-612 0:676-1288 676:1352-1964', o(w3));
+  ok('4 skrzydła: każde za / przed sąsiada ze swojej połowy — odsłania 476', o(w4) === '476:0-476 0:506-982 1458:982-1458 982:1488-1964', o(w4));
+  ok('dostęp do kolumn liczony z tego samego odsunięcia', JSON.stringify(G.przesuwneOdslania(w3).map((q) => [q.x0, q.x1])) === '[[0,612],[676,1288],[1352,1964]]');
+  const szafa = (o2) => G.migrateCab({ name: 'Szafa', W: 2000, H: 2400, D: 600, plinth: { on: true, height: 100 }, legs: { on: false }, przesuwne: { on: true, ...o2 },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null, 300], drazki: [0] }] }] }, M0);
+  const g0 = G.computeGeo(szafa({}), M0), g1 = G.computeGeo(szafa({ odsun: 1 }), M0), g9 = G.computeGeo(szafa({ odsun: 5 }), M0), x0i = g1.interior.x0;
+  ok('odsun 1 (prawe): skrzydło na x 0 światła, oznaczone, reszta na miejscu', g1.przesuwne.skrzydla[1].x === Math.round(x0i) && g1.przesuwne.skrzydla[1].odsuniete && g1.przesuwne.skrzydla[0].x === g0.przesuwne.skrzydla[0].x
+    && g1.przesuwne.odsun && g1.przesuwne.odsun.i === 1, JSON.stringify(g1.przesuwne.skrzydla.map((q) => [q.x, q.odsuniete])));
+  ok('odsunięcie nie zmienia formatek ani okuć', JSON.stringify(g1.panels) === JSON.stringify(g0.panels) && JSON.stringify(g1.hardware) === JSON.stringify(g0.hardware));
+  ok('odsun spoza liczby skrzydeł — wszystkie zamknięte', !g9.przesuwne.odsun && !g9.przesuwne.skrzydla.some((q) => q.odsuniete));
 }
 
 console.log('\n== 2026-11-16: szuflady za drzwiami przesuwnymi (zabudowa pod szuflady jak u użytkownika: boki + wieniec, cofnięta 80, szyna 18 nad dnem, podfrez, opcja V-BOX 127) ==');
