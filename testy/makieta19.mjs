@@ -130,12 +130,13 @@ await page.evaluate(() => localStorage.setItem('mp-mak-przel', JSON.stringify({ 
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 ok('rysunek (bez frontów): bok zabudowy szuflad i boki wewnętrzne z przodu i z góry', (await page.locator('[data-el="makieta"] [data-el="zabudowa-szuflad"]').count()) >= 2
   && (await page.locator('[data-el="makieta"] [data-el="bok-wewnetrzny"]').count()) >= 4);
-// uzytkownik 2026-11-17: „przy zdjętych frontach fronty szuflad dalej są widoczne w szafie” — szuflady wewnetrzne tylko obrysem, widac prowadnice
-{ const n = await page.locator('[data-el="makieta"] [data-el="szuflada-bez-frontu"]').count();
-  ok('bez frontów: szuflady za drzwiami przesuwnymi bez frontu (obrys) — 5 szuflad, prowadnice widać', n === 5 && (await page.locator('[data-el="makieta"] [data-el="szuflada-bez-frontu"] [data-el="prowadnica-szuflady"]').count()) === 10, String(n)); }
+// uzytkownik 2026-11-17: „może być jak wszędzie przygaszony front szuflad, ale nie było widać prowadnic w szafie z drzwiami przesuwnymi”
+{ const n = await page.locator('[data-el="makieta"] [data-el="szuflada-za-przesuwnymi"]').count();
+  ok('bez frontów: pod przygaszonymi frontami szuflad za drzwiami przesuwnymi widać prowadnice — 5 szuflad, 10 prowadnic', n === 5
+    && (await page.locator('[data-el="makieta"] [data-el="szuflada-za-przesuwnymi"] [data-el="prowadnica-szuflady"]').count()) === 10, String(n)); }
 await page.evaluate(() => localStorage.setItem('mp-mak-przel', JSON.stringify({ zgory: true, gorny: true, dolny: true, fronty: true, kolory: true, wymiary: false })));
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
-ok('z frontami: szuflady z frontami (bez obrysów „bez frontu”)', (await page.locator('[data-el="makieta"] [data-el="szuflada-bez-frontu"]').count()) === 0);
+ok('z frontami (zamknięte): prowadnic szuflad za frontami nie rysuje', (await page.locator('[data-el="makieta"] [data-el="szuflada-za-przesuwnymi"]').count()) === 0);
 
 console.log('== odsunięcie jednego skrzydła (2, 3 skrzydła) ==');
 await zakl('drzwi');
@@ -190,11 +191,29 @@ await start(FIX);
 await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
 await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZabSz"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa')");
-{ const c = szafa(p).cab, k2 = c.levels[0].cols[1];
-  ok('„Szafa do zabudowy z szufladami”: przesuwne, niski bok V-BOX, w kolumnie 2 na dole 2 szuflady, drążek i półka 300 nad nimi', c.przesuwne.on && c.przesuwne.niskieSzuflady
-    && JSON.stringify(k2.podzial) === '[0]' && k2.segmenty[0].kind === 'drawers' && k2.segmenty[0].drawers.length === 2 && k2.shelfTargets[2] === 300 && JSON.stringify(k2.drazki) === '[1]',
-    JSON.stringify({ pr: c.przesuwne, st: k2.shelfTargets, pz: k2.podzial })); }
-{ const t = await uwagi(); ok('Uwagi: zabudowa pod szuflady, bez błędów', /zabudowa pod szuflady/.test(t) && !/różnią się o/.test(t), t.slice(0, 200)); }
+// uzytkownik 2026-11-17: „szafa z szufladami bez drążka, za to szuflady po obu stronach; druga szafa w szablonie z drążkiem bez szuflad”
+{ const c = szafa(p).cab, kol = c.levels[0].cols;
+  ok('„Szafa do zabudowy z szufladami”: przesuwne, niski bok V-BOX, w obu kolumnach na dole 2 szuflady, nad nimi 3 półki, bez drążka', c.przesuwne.on && c.przesuwne.niskieSzuflady
+    && kol.length === 2 && kol.every((k) => JSON.stringify(k.podzial) === '[0]' && k.segmenty[0].kind === 'drawers' && k.segmenty[0].drawers.length === 2 && k.shelfTargets.length === 5 && !(k.drazki || []).length),
+    JSON.stringify(kol.map((k) => ({ st: k.shelfTargets, pz: k.podzial, dr: k.drazki })))); }
+{ const t = await uwagi(); ok('Uwagi: zabudowa pod szuflady (bok przy przegrodzie w każdej kolumnie), bez błędów i bez „nie wysunie się”', /zabudowa pod szuflady — 2 boki/.test(t) && !/różnią się o/.test(t) && !/nie wysunie/.test(t), t.slice(0, 300)); }
+{ const pz = page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZab"]');
+  if (!(await pz.count())) { await zakl('dodaj'); const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.count()) && (await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+  ok('opisy wzorów: „z drążkiem” / „szuflady po obu stronach … bez drążka”', /z drążkiem/.test(await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZab"]').innerText().catch(() => ''))
+    && /po obu stronach/.test(await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZabSz"]').innerText().catch(() => ''))); }
+
+console.log('== panel nad rysunkiem zwijany (jak paski w technicznym) ==');
+{ const rys = page.locator('[data-el="makieta-rysunek"]');
+  const h0 = (await page.locator('[data-el="mak-plotno"]').boundingBox()).y;
+  await rys.locator('[data-el="mak-panel-zwin"]').click(); await page.waitForTimeout(400);
+  const h1 = (await page.locator('[data-el="mak-plotno"]').boundingBox()).y;
+  ok('„▼” zwija panel do jednej linii: bez wyborów, nagłówka i przełączników; zoom zostaje; rysunek wyżej', (await rys.locator('[data-el="mak-panel-zwiniety"]').count()) === 1
+    && (await rys.locator('[data-el="mak-pomieszczenie"], [data-el="mak-naglowek"], [data-el="mak-przel"]').count()) === 0 && (await rys.locator('[data-el="mak-zoom"]').count()) === 1 && h1 < h0 - 25, `${h0} → ${h1}`);
+  ok('streszczenie: pomieszczenie, zabudowa, szafka, widok', /Pomieszczenie.*zabudowa „.*”.*szafka „Szafa”.*z przodu/.test(await rys.locator('[data-el="mak-panel-opis"]').innerText()), await rys.locator('[data-el="mak-panel-opis"]').innerText());
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+  ok('zwinięty zostaje po przeładowaniu (pamięta przeglądarka)', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwiniety"]').count()) === 1);
+  await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwin"]').click(); await page.waitForTimeout(400);
+  ok('kliknięcie rozwija: wybory i przełączniki wracają', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-przel"]').count()) === 1 && (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwiniety"]').count()) === 0); }
 
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');

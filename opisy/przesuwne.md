@@ -39,11 +39,11 @@ Stan: 2026-11-17. Decyzje użytkownika z 2026-11-16 i 2026-11-17 (w `BLEDY.md`, 
   - 4 skrzydła: każde za albo przed sąsiada ze swojej połowy — odsłania 476.
   Na rysunkach i w 3D skrzydło stoi tam, gdzie dojedzie (`przesuwne.odsun`, numer od 0); formatki i okucia bez zmian. Z tego samego
   liczenia idzie kontrola dostępu do kolumn.
-- **Widok bez frontów** (przełącznik „Fronty” wyłączony, użytkownik 2026-11-17: „przy zdjętych frontach fronty szuflad dalej są
-  widoczne w szafie”): skrzydła tylko przerywanym obrysem, a szuflady wewnętrzne (za drzwiami) — też sam obrys frontu, pod nim
-  skrzynka na prowadnicach (`SzufladaBezFrontu`). Prowadnice V-BOX z przodu stoją przy boku zabudowy / boku wewnętrznym
-  (`dr.bx0`, `dr.bx1`). W innych szafkach front szuflady w tym widoku zostaje przygaszony (jak dotąd). W 3D przy wyłączonych
-  frontach szuflady są wysunięte.
+- **Widok bez frontów** (przełącznik „Fronty” wyłączony; użytkownik 2026-11-17: „może być jak wszędzie przygaszony front szuflad,
+  ale nie było widać prowadnic w szafie z drzwiami przesuwnymi”): skrzydła tylko przerywanym obrysem, front szuflady wewnętrznej
+  przygaszony jak wszędzie, a pod nim prowadnice (skrzynka od czoła, `SkrzynkaZaPrzesuwnymi`) — także w makiecie, gdzie innych
+  okuć się nie rysuje. Prowadnice V-BOX z przodu stoją przy boku zabudowy / boku wewnętrznym (`dr.bx0`, `dr.bx1`). W 3D przy
+  wyłączonych frontach szuflady są wysunięte.
 - **Waga skrzydła** = płyta wypełnienia (gęstość z `wagaFrontu`) + 0,5 kg na metr profili. Te 0,5 kg/mb przyjęto z góry, bez karty — do potwierdzenia.
 
 ## Szuflady za drzwiami przesuwnymi
@@ -57,6 +57,11 @@ Jak w szafie użytkownika (2026-11-16): „dołożona zabudowa pod szuflady — 
   - wieniec zabudowy to półka nad szufladami (granica poziomu kolumny albo góra poziomu): od strony boku konfirmaty, od strony przegrody 2 trójkąty meblowe od dołu do boku zabudowy (konfirmatu nie da się wkręcić); z przegrody jego złącze znika, w zamówieniu mniej konfirmatów, plus trójkąty;
   - szuflada jest węższa o bok zabudowy;
   - formatka „Bok zabudowy szuflad — kolumna N”, wkręty 4 × 30 co ok. 300 mm w dwóch rzędach;
+  - szuflady po obu stronach jednej przegrody (wzór z szufladami): oba wieńce zabudowy od przegrody na trójkątach, więc kontrola
+    „konfirmaty po obu stronach przegrody” ich nie liczy; boki zabudowy z obu stron — wkręty drugiej strony przesunięte o ok. 150 mm
+    (wkręt 4 × 30 przez bok 18 wchodzi 12 mm w przegrodę 18 mm; z obu stron w tym samym miejscu spotkałyby się) — w formatce,
+    zamówieniu i uwagach. Kolejność: najpierw bok zabudowy jednej kolumny, potem drugiej (każdy od środka swojej zabudowy), trójkąty
+    od dołu przed szufladami;
   - w planie wierceń prowadnice na boku zabudowy, z odległościami od jego przedniej krawędzi.
 - **Front wewnętrzny, cofnięty o 80 mm** za tory (`cab.__szuflPrzes.cof` → `d.cof`).
   - Prowadnice i skrzynka cofają się razem z frontem (`rail.setback` = grubość frontu + 80).
@@ -99,17 +104,16 @@ Przegrody i boki wewnętrzne za drzwiami przesuwnymi są cofnięte o 80 mm. W pl
 
 ## Szafa do zabudowy (wzór w palecie „Szafa w zabudowie”)
 
-Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, w kolumnie 2 na dole 2 szuflady w zabudowie (V-BOX niski 127).
-
-
 - Korpus na całą wnękę: 2000 mm szerokości, 600 mm głębokości.
 - Cokół 100 w obrysie (boki do podłogi), bez nóżek; podwójne boki z obu stron.
 - Drzwi przesuwne włączone, bez blendy.
-- W środku przegroda: z jednej strony półki, z drugiej drążek z półką 300 mm nad nim.
+- W środku przegroda: z jednej strony półki, z drugiej drążek z półką 300 mm nad nim (bez szuflad).
 - Wysokość korpusu:
   - sufit ściany znany (pole „wys.”) — do sufitu z luzem 5 mm: sufit − 5 (cokół w obrysie — w wysokości; pod korpusem — sufit − 5 − cokół);
   - sufit nieznany — 2400.
 - Dodana bez zaznaczonego ciągu zakłada nowy ciąg „szafa”.
+
+Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, ale bez drążka: w obu kolumnach na dole po 2 szuflady w zabudowie (V-BOX niski 127), nad nimi półki (użytkownik 2026-11-17: „szafa z szufladami bez drążka, za to szuflady po obu stronach; druga szafa w szablonie z drążkiem bez szuflad”).
 
 ## Co ustawiasz ręcznie
 
@@ -158,7 +162,7 @@ Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, w kolumnie 2 na d
   - szuflady: `cab.__szuflPrzes` (cof, szyna, y0, y1, bokMax), `rawCol.__zabudowa`, `listwyPrz` w `szufladyKolumny` (`computeGeoLiczy`); `makSzufladyNaDoleKolumny`, `slupekSzuflady` (karta Szuflady);
   - stałe i wymiary: `PRZES`, `przesuwneOn`, `przesuwneLiczba`, `przesuwneWymiary`, `przesuwneTor`, `przesuwneOdsun`, `przesuwneOdslania`;
   - geometria: `geoPrzesuwne` (wywoływana z `computeGeoLiczy`);
-  - rysunki: `PrzesuwneElew` (przód), `SzufladaBezFrontu` (szuflada wewnętrzna bez frontów), grupa `przesuwne-z-gory` w `CabTop`, `przesuwneBryly` (3D: `Scene3D`, `Assembly3D`);
+  - rysunki: `PrzesuwneElew` (przód), `SkrzynkaZaPrzesuwnymi` (prowadnice szuflady wewnętrznej bez frontów), grupa `przesuwne-z-gory` w `CabTop`, `przesuwneBryly` (3D: `Scene3D`, `Assembly3D`);
   - sufit: `sufitSzafyMsgs`;
   - wzór: `szafaZab` w `MAK_PALETA` (`doSufitu`).
 - Testy:

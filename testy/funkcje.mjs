@@ -1589,4 +1589,20 @@ console.log('\n== 2026-11-16: podwójne boki szafy do zabudowy (zewnętrzny + we
   const gL = G.computeGeo(szafa([polki, kol2], { podwBoki: { L: true } }), M0);
   ok('tylko z lewej: jeden bok wewnętrzny, prawy jak zwykle (konfirmaty dna przez bok prawy)', gL.panels.filter((x) => /^Bok wewnętrzny/.test(x.name)).length === 1
     && wiersze(gL, /^Bok prawy$/).some((r) => /konfirmat — dno/.test(r.kind)));
+  /* wzor „Szafa do zabudowy z szufladami” (uzytkownik 2026-11-17: „szuflady po obu stronach, bez drążka”): wience zabudowy po obu stronach
+     przegrody na tej samej wysokosci — od przegrody oba na trojkatach, wiec bez bledu „konfirmaty po obu stronach przegrody” */
+  const kolSz = () => ({ kind: 'doors', doors: 1, w: null, shelfTargets: [441, null, null, null], podzial: [0],
+    segmenty: [{ kind: 'drawers', drawers: [{ h: 'auto', front: null, handle: true }, { h: 'auto', front: null, handle: true }] }, null] });
+  const gO = G.computeGeo(szafa([kolSz(), kolSz()], { podwBoki: { L: true, R: true } }), M0);
+  ok('szuflady po obu stronach przegrody: bez błędu „konfirmaty po obu stronach przegrody” (wieńce od przegrody na trójkątach)', !gO.msgs.some((m) => m.level === 'error'),
+    gO.msgs.filter((m) => m.level === 'error').map((m) => m.text).join(' / '));
+  ok('… 2 boki zabudowy przy przegrodzie (po jednym w kolumnie), 4 trójkąty, w przegrodzie bez złącza wieńca', gO.panels.filter((x) => /^Bok zabudowy/.test(x.name)).reduce((a, x) => a + x.qty, 0) === 2
+    && gO.hardware.some((h) => h.name === 'Trójkąt meblarski' && /wieniec zabudowy/.test(h.use) && h.qty === 4)
+    && !wiersze(gO, /^Przegroda 1/).some((r) => /konfirmat — półka/.test(r.kind) && r.ys.some((y) => Math.abs(y - 441 - 9) <= 1 || Math.abs(y - 441) <= 1)),
+    JSON.stringify(gO.hardware.filter((h) => /Trójkąt/.test(h.name))));
+  ok('… wkręty boków zabudowy z obu stron przegrody 1 przesunięte o 150 mm (formatka, zamówienie, uwaga)', gO.panels.filter((x) => /^Bok zabudowy/.test(x.name)).every((x) => /przesunięte o ok. 150 mm/.test(x.note))
+    && gO.hardware.some((h) => h.name === 'Wkręt 4 × 30' && /przegrodzie 1 z obu stron/.test(h.spec)) && gO.msgs.some((m) => /Przegroda 1 ma boki zabudowy z obu stron/.test(m.text)));
+  const g1s = G.computeGeo(szafa([polki, kol2]), M0);
+  ok('… z jednej strony — bez uwagi o przesunięciu wkrętów', !g1s.msgs.some((m) => /z obu stron — wkręty/.test(m.text)) && !g1s.panels.some((x) => /przesunięte o ok. 150/.test(x.note || '')));
+  ok('… szuflady w obu kolumnach się wysuwają (bez „nie wysunie się”)', !gO.msgs.some((m) => /nie wysunie/.test(m.text)) && gO.doors.filter((d) => d.type === 'drawer').length === 4);
 }

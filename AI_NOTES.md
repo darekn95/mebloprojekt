@@ -1377,9 +1377,12 @@ Bok zabudowy szuflad tylko przy przegrodzie (`__zabudowa.L/R`); wieniec zabudowy
 `planG`), 2 trojkaty na boku zabudowy, mniej konfirmatow. Wzory: cokol w obrysie, `bezNozek`. Przy okazji: `odPrzoduPlyty` — wiercenia na plytach
 cofnietych (blad z fazy A, `BLEDY.md`).
 
-[CLAUDE-CHANGE] 2026-11-17 (zgloszenie uzytkownika, zrzut): (1) widok bez frontow — szuflada wewnetrzna za drzwiami przesuwnymi (`d.cof > 0`)
-rysowana `SzufladaBezFrontu` (przerywany obrys frontu + skrzynka z `szufladaOdCzola`) w `CabElevation` i `FrontView`; w innych szafkach front
-przygaszony jak dotad. `szufladaOdCzola` dla V-BOX od `dr.bx0` / `dr.bx1` (wczesniej od boku kolumny — z przodu prowadnice wchodzily w bok
+[CLAUDE-CHANGE] 2026-11-17 (zgloszenie uzytkownika, zrzut): (1) widok bez frontow — pod przygaszonym frontem szuflady wewnetrznej za drzwiami
+przesuwnymi (`d.cof > 0`) prowadnice / skrzynka (`SkrzynkaZaPrzesuwnymi`, `szufladaOdCzola`) w `CabElevation` i `FrontView`, tez bez showHardware;
+front przygaszony jak wszedzie (uzytkownik: „może być jak wszędzie przygaszony front szuflad, ale nie było widać prowadnic”). `szufladaOdCzola` dla V-BOX od `dr.bx0` / `dr.bx1` (wczesniej od boku kolumny — z przodu prowadnice wchodzily w bok
 zabudowy / wspornik fixu). (2) „odsun skrzydlo” — `przesuwne.odsun` (nr od 0), `przesuwneOdsun(w, i)`: za / przed najblizsze skrzydlo z drugiego
 toru, bez mijania skrzydla na tym samym torze (3 skrzydla: skrajne odslania 612, nie 644); `przesuwneOdslania` liczy z tego samego.
-[CHECK] Czy w kuchni (szafki bez drzwi przesuwnych) przy wylaczonych frontach tez chowac fronty szuflad — pytanie do uzytkownika 2026-11-17.
+[CLAUDE-CHANGE] 2026-11-17 (dalej): wzor `szafaZabSz` — szuflady na dole obu kolumn (po 2, nad nimi 3 polki), bez drazka; `szafaZab` z drazkiem
+bez szuflad (uzytkownik). Krzyzowka konfirmatow przy przegrodzie pomija wience zabudowy (`wienZab` z `listwyPrz` — od przegrody trojkaty).
+Boki zabudowy z obu stron przegrody: `obustronne` w `geoPrzesuwne` — notka o przesunieciu wkretow 150 mm (formatka, zamowienie, uwaga).
+Panel nad rysunkiem makiety zwijany: `panelZw` / `przelaczPanel` (`mp-mak-panel-zw`), `zoomUI` wspolny dla obu stanow.
