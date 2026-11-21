@@ -8740,8 +8740,20 @@ function geoPrzesuwne(cab, mat, ctx) {
   ];
   // waga skrzydla: plyta wypelnienia + profile (ok. 0,5 kg/mb raczki i listwy — przyjete z gory, bez karty)
   const kg = wagaFrontu(w.SW, w.WW, tf) + 0.5 * ((2 * w.DR + 2 * w.DLP) / 1000);
-  if (kg > PRZES.MAX_KG) add("error", `Skrzydło drzwi przesuwnych waży ok. ${fmt(Math.round(kg))} kg — wózki EVO udźwigną najwyżej ${PRZES.MAX_KG} kg. Dołóż skrzydło (więcej, węższych).|przesn:${Math.min(4, n + 1)}`);
-  if (w.SD > PRZES.SKRZ_MAX + 150) add("warn", `Skrzydło drzwi przesuwnych ma ${fmt(w.SD)} mm szerokości — szerokie i ciężkie; zwykle do ok. ${fmt(PRZES.SKRZ_MAX)} mm.|przesn:${Math.min(4, n + 1)}`);
+  /* analiza 2026-11-21: przy 4 skrzydlach przycisk „4 skrzydła” nic nie zmienial — wiecej system NOVO S nie przewiduje */
+  const wiecejSkrz = n < 4 ? `|przesn:${n + 1}` : " 4 skrzydła to najwięcej w tym systemie — przy szerszym otworze podziel zabudowę na dwie szafy.";
+  if (kg > PRZES.MAX_KG) add("error", `Skrzydło drzwi przesuwnych waży ok. ${fmt(Math.round(kg))} kg — wózki EVO udźwigną najwyżej ${PRZES.MAX_KG} kg.${n < 4 ? " Dołóż skrzydło (więcej, węższych)." : ""}${wiecejSkrz}`);
+  if (w.SD > PRZES.SKRZ_MAX + 150) add("warn", `Skrzydło drzwi przesuwnych ma ${fmt(w.SD)} mm szerokości — szerokie i ciężkie; zwykle do ok. ${fmt(PRZES.SKRZ_MAX)} mm.${wiecejSkrz}`);
+  /* analiza 2026-11-21 (sufit 2900, 3000): raczka NOVO S ma PRZES.RACZKA_DL — wyzszego skrzydla z niej nie bedzie; wypelnienie to formatka
+     dodana tu, poza kontrola arkusza w `computeGeoLiczy` */
+  // obnizyc do nizszej z granic: raczka albo bok z arkusza (inaczej po kliknieciu zostaje blad boku)
+  if (w.DR > PRZES.RACZKA_DL) { const Hn = Math.min(Math.floor(Math.round(cab.H) - (w.DR - PRZES.RACZKA_DL)), szafaMaxH(cab, { panels: g.panels, przesuwne: w }, mat).H);
+    add("error", `Skrzydło drzwi przesuwnych ma ${fmt(w.WD)} mm wysokości, a rączka NOVO S (A-R18NOVS-270) ma ${fmt(PRZES.RACZKA_DL)} mm — za krótka. Obniż szafę do ${fmt(Hn)} mm, a resztę do sufitu zamknij blendą albo nadstawką.|szafah:${Hn}`); }
+  { const arW = ((mat || {})[plytaFrontu(cab)] || {}).arkusz, okrW = (SHEET_W - USABLE_W) / 2;
+    const uW = arW && arW.w > 0 && arW.h > 0 ? { w: arW.w - 2 * okrW, h: arW.h - 2 * okrW } : { w: USABLE_W, h: USABLE_H };
+    const miesci = (a, b) => a <= uW.w + 0.05 && b <= uW.h + 0.05;
+    if (w.WW > 0 && w.SW > 0 && !(miesci(w.WW, w.SW) || (!cab.grainMatters && miesci(w.SW, w.WW))))
+      add("error", `Wypełnienie drzwi przesuwnych ${fmt(w.WW)} × ${fmt(w.SW)} mm nie mieści się na arkuszu — po okrawaniu zostaje ${fmt(uW.w)} × ${fmt(uW.h)} mm.`); }
   if (w.SW <= 0 || w.WW <= 0) add("error", "Otwór za mały na drzwi przesuwne.");
   // kolumny wnetrza a skrzydla: kolumna pod dwoma skrzydlami — po odsunieciu jednego czesc zostaje zaslonieta
   const kolumny = [...new Map((g.levels || []).flatMap((lv) => (lv.cols || []).map((c, j) => {
@@ -16729,6 +16741,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     }
     if (action.startsWith("szafasufit:"))
       return { label: `Do sufitu z luzem ${SZAFA_LUZ_SUFIT} mm`, run: () => runFix && runFix(action) };
+    if (action.startsWith("szafah:"))
+      return { label: `Wysokość szafy ${fmt(Number(action.split(":")[1]))} mm`, run: () => runFix && runFix(action) };
     if (action.startsWith("przesn:"))
       return { label: `Drzwi przesuwne: ${action.split(":")[1]} skrzydła`, run: () => runFix && runFix(action) };
     if (action.startsWith("polkicof:")) {
@@ -22553,6 +22567,19 @@ const sprzetWysokoMsgs = (project, i) => {
    go na podlodze obok cokolu (potem wsuwa na cokol) — przekatna boku (wysokosc korpusu × glebokosc) musi byc mniejsza niz sufit nad
    podloga; inaczej skrecac na stojaco. Nozki — przykrecic dopiero po postawieniu, gdy z nimi przekatna juz sie nie miesci. */
 const SZAFA_LUZ_SUFIT = 5, SZAFA_LUZ_DUZY = 30;
+/* Najwyzsza szafa z arkusza (analiza 2026-11-21: sufit 2900 — „Do sufitu z luzem 5 mm” dawal bok 2895 mm, a arkusz po okrawaniu ma 2761):
+   bok idzie na wysokosc korpusu, wiec korpus najwyzej o tyle wyzszy od boku, ile dluzszy jest arkusz plyty korpusu po okrawaniu; drzwi
+   przesuwne — tez raczka NOVO S (PRZES.RACZKA_DL, skrzydlo WD rosnie 1:1 z korpusem). `geo` — policzone dla obecnej wysokosci. */
+const szafaMaxH = (cab, geo, mat) => {
+  const H = Math.round(Number(cab.H) || 0), ar = ((mat || {}).board || {}).arkusz, okr = (SHEET_W - USABLE_W) / 2;
+  const dl = ar && ar.w > 0 && ar.h > 0 ? Math.max(ar.w, ar.h) - 2 * okr : USABLE_W;
+  const boki = ((geo && geo.panels) || []).filter((q) => /^Bok/.test(q.name || "") && q.matKey === "board" && q.a > 0);
+  const bok = boki.length ? Math.max(...boki.map((q) => Math.max(q.a, q.b))) : H;
+  const hBok = Math.floor(H - bok + dl), pr = geo && geo.przesuwne;
+  const hR = pr && pr.WD > 0 ? Math.floor(H - pr.WD + PRZES.RACZKA_DL) : Infinity;
+  return { H: Math.min(hBok, hR), dl: Math.floor(dl), raczka: hR < hBok };
+};
+const szafaMaxPowod = (mx) => (mx.raczka ? `rączka drzwi przesuwnych NOVO S ma ${fmt(PRZES.RACZKA_DL)} mm` : `bok z arkusza ma najwyżej ${fmt(mx.dl)} mm (arkusz po okrawaniu)`);
 const sufitSzafyMsgs = (project, i) => {
   const it = project.items[i]; if (!it || it.cab.sprzetCiagu || !(it.cab.H > 1500)) return [];
   const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
@@ -22563,9 +22590,15 @@ const sufitSzafyMsgs = (project, i) => {
   let o; try { o = makOdPodlogi(project, i); } catch (e) { return []; }
   if (!o) return [];
   const gora = o.gora + blendaH(it.cab), luz = Math.round(suf - gora), out = [];
+  const mx = szafaMaxH(it.cab, o.geo, it.mat), cel = Math.round(suf - SZAFA_LUZ_SUFIT - o.dol - blendaH(it.cab)), Hc = Math.round(it.cab.H);
+  // bok za dlugi — blad jest juz w formatkach („nie mieści się na arkuszu”), tu rada z przyciskiem; raczka — blad w `geoPrzesuwne`
+  const raczkaZaKrotka = !!(o.geo.przesuwne && o.geo.przesuwne.DR > PRZES.RACZKA_DL);
+  if (Hc > mx.H && !mx.raczka && !raczkaZaKrotka) out.push({ level: "info", text: `„${nazwa}” ma ${fmt(Hc)} mm wysokości, a najwyższa szafa z jednego arkusza to ${fmt(mx.H)} mm — ${szafaMaxPowod(mx)}. Obniż ją, a resztę do sufitu zamknij blendą albo nadstawką (szafką na szafie).|szafah:${mx.H}:${i}` });
   if (luz < 0) out.push({ level: "error", text: `„${nazwa}” sięga ${fmt(gora)} mm, a sufit jest na ${fmt(suf)} mm — nie zmieści się o ${fmt(-luz)} mm.|szafasufit:${i}` });
   else if (luz < SZAFA_LUZ_SUFIT) out.push({ level: "warn", text: `Nad „${nazwa}” zostaje ${fmt(luz)} mm do sufitu — zostaw co najmniej ${SZAFA_LUZ_SUFIT} mm, inaczej korpusu nie wstawisz.|szafasufit:${i}` });
-  else if (przes && !blendaH(it.cab) && luz > SZAFA_LUZ_DUZY) out.push({ level: "info", text: `Nad „${nazwa}” zostaje ${fmt(luz)} mm do sufitu — szafa do zabudowy może sięgać sufitu (luz ${SZAFA_LUZ_SUFIT} mm), bez blendy.|szafasufit:${i}` });
+  else if (przes && !blendaH(it.cab) && luz > SZAFA_LUZ_DUZY) out.push(cel > mx.H
+    ? { level: "info", text: `Nad „${nazwa}” zostaje ${fmt(luz)} mm do sufitu, a do sufitu się nie da — ${szafaMaxPowod(mx)}, więc szafa najwyżej ${fmt(mx.H)} mm. Nad nią zamknij blendą albo dołóż nadstawkę (szafkę na szafie).${Hc < mx.H ? `|szafah:${mx.H}:${i}` : ""}` }
+    : { level: "info", text: `Nad „${nazwa}” zostaje ${fmt(luz)} mm do sufitu — szafa do zabudowy może sięgać sufitu (luz ${SZAFA_LUZ_SUFIT} mm), bez blendy.|szafasufit:${i}` });
   const D = Math.round(o.geo.carcassDepth), Hk = Math.round(it.cab.H), noz = it.cab.legs && it.cab.legs.on ? Math.round(o.geo.legBelow || 0) : 0;
   const miejsce = Math.round(suf - (Number(run.mountY) || 0)), przek = Math.round(Math.hypot(Hk, D)), przekN = Math.round(Math.hypot(Hk + noz, D));
   if (luz >= 0 && przek > miejsce)
@@ -25767,7 +25800,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     const sufW = w.doSufitu && runSc ? sufitSciany(project, runSc) : null;
     const zmienW = (cab) => { if (w.mod) w.mod(cab, sys);
       // cokol pod korpusem — korpus nad nim; cokol w obrysie (boki do podlogi) — w wysokosci korpusu
-      if (sufW) { const pl = cab.plinth && cab.plinth.on && cab.plinth.mode !== "inbody" && cab.plinth.mode !== "between" ? Math.round(Number(cab.plinth.height) || 0) : 0; const H = Math.round(sufW - SZAFA_LUZ_SUFIT - pl - (Number(runSc.mountY) || 0)); if (H > 1500) cab.H = H; } };
+      if (sufW) { const pl = cab.plinth && cab.plinth.on && cab.plinth.mode !== "inbody" && cab.plinth.mode !== "between" ? Math.round(Number(cab.plinth.height) || 0) : 0; const H = Math.min(Math.round(sufW - SZAFA_LUZ_SUFIT - pl - (Number(runSc.mountY) || 0)), Math.floor(USABLE_W)); if (H > 1500) cab.H = H; } };
     const opcje = { zmien: w.mod || sufW ? zmienW : null, nazwa: w.szafka || null, wymiaryCiagu: !!w.ciag, bezNozek: !!w.bezNozek,
       poDodaniu: w.po ? (cab, mat, stoi) => w.po(cab, sys, mat, stoi) : null };
     const przed = (r) => (it && r && it.runId === r.id ? c.idx + (c.prawa ? 1 : 0) : null);
@@ -27131,7 +27164,12 @@ export default function App() {
       return `${nazwaSp} ${k}`;
     })();
     if (spC && spC.typ === "okapK" && run && run.tier === "gorny") base.sprzetCiagu = { ...base.sprzetCiagu, dol: okapKDol(p, run) };
-    const fresh = { cab: { ...base, name: nazwa, ...wymiaryCiagu, ...wyglad,
+    /* Slupek ze wzoru w kuchennym ciagu, w ktorym juz cos stoi (analiza 2026-11-21: po wstawieniu z palety trzy ostrzezenia — wysokosc,
+       cokol, glebokosc): to slupek z nazwy, wiec wyjatek w ciagu (`slupek`, jak przycisk „To słupek — wyjątek w ciągu”), a cokol jak
+       w ciagu — cokol idzie przez caly ciag jedna plaszczyzna. Glebokosc zostaje ze wzoru (uwaga z przyciskiem w ciagu). */
+    const slupekWCiagu = tplId === "slupek" && !opcje.nazwa && run && run.tier !== "gorny" && run.zabudowa !== "szafa"
+      && p.items.some((it) => it.runId === run.id) ? { slupek: true, ...(run.plinth ? { plinth: { ...run.plinth } } : {}) } : {};
+    const fresh = { cab: { ...base, name: nazwa, ...wymiaryCiagu, ...slupekWCiagu, ...wyglad,
       ...(run && !spC ? { hangerMode: run.hangerMode || "listwa" } : {}),
       ...(podBlat && !spC ? bezWienca(base, matNowej.front.thickness) : {}),
       // szafa do zabudowy (wzor `bezNozek`): boki do podlogi, cokol miedzy nimi — bez nozek
@@ -28276,7 +28314,14 @@ export default function App() {
       const i = Number(action.split(":")[1]);
       setProject((p) => { const it = p.items[i]; if (!it) return p; const run = (p.runs || []).find((r) => r.id === it.runId), suf = sufitSciany(p, run);
         let o; try { o = makOdPodlogi(p, i); } catch (e) { o = null; } if (suf == null || !o) return p;
-        const H = Math.round(suf - SZAFA_LUZ_SUFIT - o.dol - blendaH(it.cab)); if (!(H > 600)) return p;
+        const H = Math.min(Math.round(suf - SZAFA_LUZ_SUFIT - o.dol - blendaH(it.cab)), szafaMaxH(it.cab, o.geo, it.mat).H); if (!(H > 600)) return p;
+        const items = p.items.slice(); items[i] = { ...it, cab: { ...it.cab, H } }; return { ...p, items }; });
+      return;
+    }
+    // „szafah:<H>[:<i>]" — wysokosc szafy (najwyzsza z arkusza / pod raczke drzwi przesuwnych); bez <i> — aktywna szafka
+    if (action.startsWith("szafah:")) {
+      const [, hs, is] = action.split(":"), H = Math.round(Number(hs) || 0);
+      setProject((p) => { const i = is != null && is !== "" ? Number(is) : p.active, it = p.items[i]; if (!it || !(H > 600)) return p;
         const items = p.items.slice(); items[i] = { ...it, cab: { ...it.cab, H } }; return { ...p, items }; });
       return;
     }

@@ -1386,3 +1386,10 @@ toru, bez mijania skrzydla na tym samym torze (3 skrzydla: skrajne odslania 612,
 bez szuflad (uzytkownik). Krzyzowka konfirmatow przy przegrodzie pomija wience zabudowy (`wienZab` z `listwyPrz` — od przegrody trojkaty).
 Boki zabudowy z obu stron przegrody: `obustronne` w `geoPrzesuwne` — notka o przesunieciu wkretow 20 mm (uzytkownik 2026-11-21: 2 cm wystarczy, bylo 150 mm) (formatka, zamowienie, uwaga).
 Panel nad rysunkiem makiety zwijany: `panelZw` / `przelaczPanel` (`mp-mak-panel-zw`), `zoomUI` wspolny dla obu stanow.
+
+[CLAUDE-CHANGE] 2026-11-21 pelna analiza (prosba uzytkownika, ok. 1 h): scenariusze kuchnia / salon / pokoj dziecka / szafy na zawiasach /
+zabudowa przesuwna 2000–6500 mm i sufit 2500–3000 przez `testy/audytprojektu.mjs` (skrypty i projekty w scratchpadzie `an/`). Poprawione:
+`szafaMaxH` (najwyzsza szafa z arkusza: bok po okrawaniu, przy przesuwnych tez raczka 2700) — `szafasufit` i wzor `doSufitu` nie podnosza
+ponad nia, uwaga „do sufitu się nie da”, akcja `szafah:<H>[:<i>]`; w `geoPrzesuwne` blad raczki NOVO S i kontrola arkusza wypelnienia; przy
+4 skrzydlach bez przycisku `przesn`; slupek z palety w ciagu kuchennym — `slupek: true` i cokol ciagu (`addCabinet`, `slupekWCiagu`).
+Pomysly i sprawy do decyzji — `POMYSLY.md` (nowy plik) i `BLEDY.md` („Do decyzji”). Wkrety bokow zabudowy z obu stron przegrody: 20 mm (bylo 150).

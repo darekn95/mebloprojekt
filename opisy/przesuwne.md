@@ -109,7 +109,8 @@ Przegrody i boki wewnętrzne za drzwiami przesuwnymi są cofnięte o 80 mm. W pl
 - Drzwi przesuwne włączone, bez blendy.
 - W środku przegroda: z jednej strony półki, z drugiej drążek z półką 300 mm nad nim (bez szuflad).
 - Wysokość korpusu:
-  - sufit ściany znany (pole „wys.”) — do sufitu z luzem 5 mm: sufit − 5 (cokół w obrysie — w wysokości; pod korpusem — sufit − 5 − cokół);
+  - sufit ściany znany (pole „wys.”) — do sufitu z luzem 5 mm: sufit − 5 (cokół w obrysie — w wysokości; pod korpusem — sufit − 5 − cokół),
+    ale najwyżej 2761 mm — bok idzie na całą wysokość, a arkusz 2800 po okrawaniu ma 2761 (analiza 2026-11-21: przy suficie 2900 wzór dawał bok 2895);
   - sufit nieznany — 2400.
 - Dodana bez zaznaczonego ciągu zakłada nowy ciąg „szafa”.
 
@@ -130,8 +131,13 @@ Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, ale bez drążka:
 ## Kontrole
 
 - × Skrzydło cięższe niż 50 kg (wózki EVO). Przycisk dokłada skrzydło (`przesn:<n>`).
-- ! Skrzydło szersze niż ok. 1150 mm. Przycisk jak wyżej.
+- ! Skrzydło szersze niż ok. 1150 mm. Przycisk jak wyżej. Przy 4 skrzydłach przycisku nie ma (więcej system nie przewiduje) —
+  rada „podziel zabudowę na dwie szafy” (analiza 2026-11-21).
 - × Otwór za mały: wypełnienie ≤ 0.
+- × Skrzydło wyższe niż rączka NOVO S (A-R18NOVS-270, 2700 mm, `PRZES.RACZKA_DL`) — przycisk „Wysokość szafy N mm”
+  (`szafah:<H>`): niższa z granic — rączka albo bok z arkusza (`szafaMaxH`). Z płytą 2800 granicą jest bok (2761 mm),
+  rączka dopiero przy dłuższym arkuszu własnej płyty (np. 3050 → szafa najwyżej 2876 mm).
+- × Wypełnienie drzwi nie mieści się na arkuszu płyty frontu (formatka dodawana w `geoPrzesuwne`, poza kontrolą arkusza korpusu).
 - Dostęp do kolumn (`przesuwneOdslania`). Kolumna musi się zmieścić w miejscu, które odsłania jedno skrzydło odsunięte do oporu
   (`przesuwneOdsun`; przy 3 skrzydłach skrajne odsłania 612, nie 644 — staje na drugim skrajnym):
   - (i) kolumna z półkami zasłonięta o więcej niż 50 mm — „ustaw przegrodę na styku skrzydeł albo zmień liczbę skrzydeł”;
@@ -140,7 +146,11 @@ Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, ale bez drążka:
   - × szafa wyżej niż sufit;
   - ! luz poniżej 5 mm;
   - (i) szafa przesuwna bez blendy, luz ponad 30 mm — „może sięgać sufitu”;
-  - wszystkie trzy z przyciskiem „Do sufitu z luzem 5 mm” (`szafasufit:<i>`).
+  - wszystkie trzy z przyciskiem „Do sufitu z luzem 5 mm” (`szafasufit:<i>`) — przycisk nie podnosi ponad najwyższą szafę z arkusza
+    (`szafaMaxH`: bok najwyżej 2761 mm, przy drzwiach przesuwnych też rączka 2700 mm);
+  - sufit wyżej, niż sięgnie najwyższa szafa (pokój ok. 2770 mm i wyższy) — zamiast „może sięgać sufitu”: (i) „do sufitu się nie da …
+    szafa najwyżej N mm; nad nią blenda albo nadstawka” z przyciskiem „Wysokość szafy N mm” (`szafah:<H>:<i>`);
+  - szafa wyższa niż najwyższa z arkusza — obok błędu formatki „Bok … nie mieści się” (i) z tym samym przyciskiem.
 - Szafa przesuwna, sufit nieznany — (i) „podaj wysokość ściany”.
 - **Kolejność montażu.** Korpus skręcony na leżąco stawia się, obracając go na podłodze obok cokołu, i wsuwa na cokół:
   - przekątna boku (wysokość × głębokość) ponad wysokość sufitu — (i) „skręcaj na stojąco, na miejscu”;

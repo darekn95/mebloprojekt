@@ -186,6 +186,10 @@ Zakres „Ciąg” ma widok „Z boku” — przekrój ściany: od ściany głę
 
 ## Słupek głębszy niż ciąg (2026-11-11)
 
+Słupek ze wzoru (paleta makiety „Słupek”, szablon „Słupek”) wstawiony do ciągu, w którym już coś stoi, jest od razu
+wyjątkiem w ciągu (`cab.slupek`, jak przycisk „To słupek — wyjątek w ciągu”) i ma cokół ciągu (cokół idzie przez cały
+ciąg jedną płaszczyzną) — analiza 2026-11-21: wcześniej po wstawieniu były trzy ostrzeżenia. Głębokość zostaje ze wzoru (600).
+
 Szafki ciągu stoją równo w licu, więc głębsza szafka odsuwa pozostałe od ściany o różnicę (stąd też szerszy blat).
 Słupek (szafka wyższa niż 1500 albo oznaczona jako słupek) ma stać inaczej: tył przy ścianie, front wysunięty
 o różnicę głębokości (`item.offset`), pozostałe szafki przy ścianie. Ustawia to przycisk przy uwadze o głębokości

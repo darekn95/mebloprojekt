@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1603,6 +1603,35 @@ console.log('\n== 2026-11-16: podwójne boki szafy do zabudowy (zewnętrzny + we
   ok('… wkręty boków zabudowy z obu stron przegrody 1 przesunięte o 20 mm (formatka, zamówienie, uwaga)', gO.panels.filter((x) => /^Bok zabudowy/.test(x.name)).every((x) => /przesunięte o ok. 20 mm/.test(x.note))
     && gO.hardware.some((h) => h.name === 'Wkręt 4 × 30' && /przegrodzie 1 z obu stron/.test(h.spec)) && gO.msgs.some((m) => /Przegroda 1 ma boki zabudowy z obu stron/.test(m.text)));
   const g1s = G.computeGeo(szafa([polki, kol2]), M0);
-  ok('… z jednej strony — bez uwagi o przesunięciu wkrętów', !g1s.msgs.some((m) => /z obu stron — wkręty/.test(m.text)) && !g1s.panels.some((x) => /przesunięte o ok. 150/.test(x.note || '')));
+  ok('… z jednej strony — bez uwagi o przesunięciu wkrętów', !g1s.msgs.some((m) => /z obu stron — wkręty/.test(m.text)) && !g1s.panels.some((x) => /przesunięte o ok. 20 mm/.test(x.note || '')));
   ok('… szuflady w obu kolumnach się wysuwają (bez „nie wysunie się”)', !gO.msgs.some((m) => /nie wysunie/.test(m.text)) && gO.doors.filter((d) => d.type === 'drawer').length === 4);
+}
+
+console.log('\n== 2026-11-21 (analiza): najwyższa szafa z arkusza, rączka NOVO S 2700, wypełnienie na arkuszu, 4 skrzydła ==');
+{
+  const M0 = G.defaultMaterials;
+  const szafa = (o = {}, x = {}) => G.migrateCab({ name: 'Szafa', W: 2400, H: 2400, D: 600, plinth: { on: true, height: 100, mode: 'inbody' }, legs: { on: false }, przesuwne: { on: true, ...o }, ...x,
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null] }] }] });
+  const run = { id: 'r1', name: 'S', tier: 'dolny', ceiling: 2900, mountY: 0 };
+  const sm = (cab, mat = M0) => G.sufitSzafyMsgs({ runs: [run], items: [{ runId: 'r1', mat, cab }] }, 0);
+  const g24 = G.computeGeo(szafa(), M0), mx = G.szafaMaxH(szafa(), g24, M0);
+  ok('najwyższa szafa (cokół w obrysie, bok = wysokość korpusu): 2761 mm — bok, nie rączka', mx.H === 2761 && !mx.raczka, JSON.stringify(mx));
+  const s1 = sm(szafa());
+  ok('sufit 2900, szafa 2400: info „do sufitu się nie da … najwyżej 2761 mm” z przyciskiem „szafah:2761”, bez „Do sufitu z luzem”', s1.some((m) => m.level === 'info' && /do sufitu się nie da.*najwyżej 2 ?761 mm/.test(m.text) && /\|szafah:2761:0$/.test(m.text))
+    && !s1.some((m) => /\|szafasufit:/.test(m.text)), s1.map((m) => m.text).join(' / '));
+  const g29 = G.computeGeo(szafa({}, { H: 2895 }), M0);
+  ok('szafa 2895: błąd rączki (skrzydło 2719 > 2700) z przyciskiem do 2761 (niższa z granic: bok)', g29.msgs.some((m) => m.level === 'error' && /rączka NOVO S.*2 ?700 mm/.test(m.text) && /\|szafah:2761$/.test(m.text)),
+    g29.msgs.filter((m) => /rączka/.test(m.text)).map((m) => m.text).join(' / '));
+  ok('… bez drugiej rady w sufitSzafyMsgs (błąd rączki już ma przycisk)', !sm(szafa({}, { H: 2895 })).some((m) => /najwyższa szafa z jednego arkusza/.test(m.text)));
+  const Mx = { ...M0, board: { ...M0.board, arkusz: { w: 3050, h: 2070 } } };
+  const mx2 = G.szafaMaxH(szafa({}, { H: 2995 }), G.computeGeo(szafa({}, { H: 2995 }), Mx), Mx);
+  ok('własna płyta 3050: granicą rączka — 2876 mm', mx2.H === 2876 && mx2.raczka, JSON.stringify(mx2));
+  const g2400 = G.computeGeo(szafa(), M0);
+  ok('szafa 2400: bez błędu rączki i wypełnienia', !g2400.msgs.some((m) => /rączka NOVO S|Wypełnienie drzwi przesuwnych .* nie mieści/.test(m.text)));
+  const Mm = { ...M0, board: { ...M0.board, arkusz: { w: 2000, h: 1000 } } };
+  const gm = G.computeGeo(szafa(), Mm);
+  ok('mały arkusz płyty frontu (2000 × 1000): błąd „Wypełnienie drzwi przesuwnych … nie mieści się na arkuszu”', gm.msgs.some((m) => m.level === 'error' && /^Wypełnienie drzwi przesuwnych .* nie mieści się na arkuszu/.test(m.text)));
+  const g4 = G.computeGeo(G.migrateCab({ ...szafa(), W: 6500 }, M0), M0);
+  ok('6500 mm, 4 skrzydła po 1631: ostrzeżenie bez przycisku „4 skrzydła” (więcej system nie ma) — rada „podziel na dwie szafy”', g4.przesuwne.n === 4 && g4.msgs.some((m) => /Skrzydło drzwi przesuwnych ma 1 ?631 mm/.test(m.text) && /dwie szafy/.test(m.text) && !/\|przesn:/.test(m.text)),
+    g4.msgs.filter((m) => /Skrzydło/.test(m.text)).map((m) => m.text).join(' / '));
 }

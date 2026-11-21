@@ -17,6 +17,10 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-11-21 | pełna analiza (prośba użytkownika): wysoki pokój, sufit 2900 / 3000, szafa do zabudowy | „Do sufitu z luzem 5 mm” i wzór przy znanym suficie podnosiły szafę do 2895 / 2995 mm — bok dłuższy niż arkusz po okrawaniu (2761); teraz najwyżej `szafaMaxH` (bok z arkusza, przy drzwiach przesuwnych też rączka 2700), uwaga „do sufitu się nie da … blenda albo nadstawka” i przycisk „Wysokość szafy N mm”; `funkcje`, `makieta19` | (ten commit) |
+| 2026-11-21 | pełna analiza: drzwi przesuwne wyższe niż 2700 mm | brak kontroli rączki NOVO S (A-R18NOVS-270, 2700 mm) — zamówienie mówiło „2700 mm, dociąć do 2819 mm”; teraz błąd z przyciskiem. Wypełnienie skrzydła było poza kontrolą arkusza (formatka dodawana w `geoPrzesuwne`) — teraz sprawdzane; `funkcje` | (ten commit) |
+| 2026-11-21 | pełna analiza: zabudowa przesuwna 6500 mm (4 skrzydła po 1631) | przycisk „Drzwi przesuwne: 4 skrzydła” przy 4 skrzydłach nic nie zmieniał — teraz bez przycisku, rada „podziel zabudowę na dwie szafy”; `funkcje` | (ten commit) |
+| 2026-11-21 | pełna analiza: kuchnia ze wzorów makiety | słupek z palety w ciągu kuchennym dawał od razu 3 ostrzeżenia (wysokość, cokół, głębokość); teraz wchodzi jako wyjątek w ciągu (`cab.slupek`) z cokołem ciągu; głębokość 600 przy kuchni 550 — do decyzji (niżej); `makieta19` | (ten commit) |
 | 2026-11-17 | wzór „Szafa do zabudowy z szufladami” po zmianie na szuflady po obu stronach (prośba użytkownika) — zrzut | fałszywy błąd „półki na konfirmatach po obu stronach przegrody 1 na tej samej wysokości”: kontrola krzyżówek liczyła wieńce zabudowy, a od strony przegrody stoją one na trójkątach (zdejmowane z przegrody dopiero w `geoPrzesuwne`) — teraz pomijane (`wienZab`, `listwyPrz`). Przy okazji: boki zabudowy z obu stron jednej przegrody — wkręty 4 × 30 drugiej strony przesunięte o ok. 20 mm (było 150 mm, użytkownik 2026-11-21: 2 cm wystarczy; inaczej spotkałyby się w przegrodzie 18 mm); `funkcje`, `makieta19` | (ten commit) |
 | 2026-11-17 | zgłoszenie użytkownika (zrzut szafy przesuwnej): „przy zdjętych frontach fronty szuflad dalej są widoczne w szafie”; „brak opcji otwarcia — przesunięcia jednych drzwi” | w widoku otwartym makiety (bez „wyposażenia”) pod przygaszonym frontem szuflady za drzwiami przesuwnymi nie było prowadnic — teraz są (`SkrzynkaZaPrzesuwnymi`; front przygaszony jak wszędzie — decyzja użytkownika); z przodu prowadnice V-BOX stały przy boku kolumny zamiast przy boku zabudowy / wsporniku fixu (`szufladaOdCzola` bez `dr.bx0`). Nowe „odsuń skrzydło” (`przesuwne.odsun`, `przesuwneOdsun`) — przy okazji dostęp do kolumn przy 3 skrzydłach liczony z kolizją skrzydeł na tym samym torze (skrajne odsłania 612, nie 644); `funkcje`, `makieta19` | (ten commit) |
 | 2026-11-16 | plan wierceń szafy z drzwiami przesuwnymi: przegrody cofnięte o 80 mm, a odległości na nich (kołki, konfirmaty półek, rozeta) liczone od lica korpusu; konfirmaty z dna / wieńca w przegrodę na 50 / 260 / 470 mm — przed przegrodą | `drillAdd` liczył wszystko od przedniej krawędzi korpusu — teraz `odPrzoduPlyty` dla przegród i boków wewnętrznych, konfirmaty dna / wieńca z cofnięciem; test `funkcje` (podwójne boki) | (ten commit) |
@@ -487,6 +491,12 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 | 2026-09-27 | `luzy` | podpowiedź o luzie pojawia się przy nierównym podziale; test ustawia luz 3 mm wprost | 3d2690b |
 
 ## Do decyzji użytkownika
+
+**Z pełnej analizy 2026-11-21** (szczegóły i pomysły: `POMYSLY.md`):
+- zabudowa przesuwna szersza niż płyta (ponad 2761 mm: dno, wieniec, cokół, plecy) — program zgłasza błędy, ale nie podaje rozwiązania;
+- co nad szafą w wysokim pokoju (sufit ponad ok. 2770 mm) — blenda do sufitu czy nadstawka (osobny korpus);
+- słupek z palety w kuchni 550 — głębokość 600 (blat 650 i uwagi) czy jak ciąg;
+- szafa przesuwna: kolumny nie pod skrzydłami (wzór ma zawsze 2 kolumny) — przycisk albo wzór dzielący na tyle kolumn, ile skrzydeł.
 
 Otwarte zostają tylko dwa tematy (użytkownik 2026-10-29: „zamykamy wszystkie tematy poza
 szafką skośną i sprzętami”). Kolejność: **najpierw sprzęty**, szafka skośna **dużo później**.

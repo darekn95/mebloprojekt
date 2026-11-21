@@ -215,6 +215,29 @@ console.log('== panel nad rysunkiem zwijany (jak paski w technicznym) ==');
   await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwin"]').click(); await page.waitForTimeout(400);
   ok('kliknięcie rozwija: wybory i przełączniki wracają', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-przel"]').count()) === 1 && (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwiniety"]').count()) === 0); }
 
+console.log('== analiza 2026-11-21: wysoki pokój (sufit 2900) i słupek z palety w kuchni ==');
+await start(FIX);
+await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZab"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa')");
+await ust(`const it = p.items.find((i) => i.cab.name === 'Szafa'); p.runs.find((x) => x.id === it.runId).ceiling = 2900;`);
+{ const t = await uwagi(); ok('sufit 2900: „do sufitu się nie da … najwyżej 2761 mm” i przycisk „Wysokość szafy 2761 mm” (bez „Do sufitu z luzem”)', /do sufitu się nie da.*najwyżej 2 ?761 mm/.test(t)
+    && (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Wysokość szafy 2761 mm' }).count()) === 1 && !(await page.locator('[data-el="makieta-uwagi"] button', { hasText: /Do sufitu z luzem/ }).count()), t.slice(0, 400)); }
+await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Wysokość szafy 2761 mm' }).click();
+p = await czekaj("p.items.find((it) => it.cab.name === 'Szafa').cab.H === 2761");
+{ const t = await uwagi(); ok('po kliknięciu szafa 2761 mm, bez błędu boku i rączki', szafa(p).cab.H === 2761 && !/nie mieści się na arkuszu|rączka NOVO S/.test(t), szafa(p).cab.H + ' ' + t.slice(0, 300)); }
+await ust(`const it = p.items.find((i) => i.cab.name === 'Szafa'); it.cab.H = 2895;`);
+{ const t = await uwagi(); ok('szafa 2895 wpisana ręcznie: błąd boku i rączki NOVO S, przycisk „Wysokość szafy 2761 mm”', /Bok 2 ?895 × 600 mm nie mieści się/.test(t) && /rączka NOVO S/.test(t)
+    && (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Wysokość szafy 2761 mm' }).count()) >= 1, t.slice(0, 400)); }
+// słupek z palety do kuchennego ciągu: wyjątek w ciągu, cokół jak ciąg
+await start(FIX);
+await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+for (const id of ['dolna1', 'slupek']) { const n0 = (await proj()).items.length; await page.locator(`[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="${id}"]`).click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await czekaj(`p.items.length > ${n0}`); }
+p = await proj();
+{ const sl = p.items[p.items.length - 1], run = p.runs.find((r) => r.id === sl.runId), t = await uwagi();
+  ok('słupek z palety w kuchni: „wyjątek w ciągu” (slupek), cokół jak w ciągu — bez uwag o wysokości i cokole', sl.cab.slupek === true && JSON.stringify(sl.cab.plinth) === JSON.stringify(run.plinth)
+    && !/nie zgadza się z ciągiem|Wysokość 2000 mm nie zgadza się/.test(t), JSON.stringify({ sl: sl.cab.slupek, pl: sl.cab.plinth, rp: run.plinth }) + ' ' + t.slice(0, 300)); }
+
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
 await browser.close();
