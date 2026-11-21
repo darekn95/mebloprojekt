@@ -58,7 +58,7 @@ Jak w szafie użytkownika (2026-11-16): „dołożona zabudowa pod szuflady — 
   - szuflada jest węższa o bok zabudowy;
   - formatka „Bok zabudowy szuflad — kolumna N”, wkręty 4 × 30 co ok. 300 mm w dwóch rzędach;
   - szuflady po obu stronach jednej przegrody (wzór z szufladami): oba wieńce zabudowy od przegrody na trójkątach, więc kontrola
-    „konfirmaty po obu stronach przegrody” ich nie liczy; boki zabudowy z obu stron — wkręty drugiej strony przesunięte o ok. 150 mm
+    „konfirmaty po obu stronach przegrody” ich nie liczy; boki zabudowy z obu stron — wkręty drugiej strony przesunięte o ok. 20 mm (ustalone z użytkownikiem 2026-11-21)
     (wkręt 4 × 30 przez bok 18 wchodzi 12 mm w przegrodę 18 mm; z obu stron w tym samym miejscu spotkałyby się) — w formatce,
     zamówieniu i uwagach. Kolejność: najpierw bok zabudowy jednej kolumny, potem drugiej (każdy od środka swojej zabudowy), trójkąty
     od dołu przed szufladami;

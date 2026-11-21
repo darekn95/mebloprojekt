@@ -1384,5 +1384,5 @@ zabudowy / wspornik fixu). (2) „odsun skrzydlo” — `przesuwne.odsun` (nr od
 toru, bez mijania skrzydla na tym samym torze (3 skrzydla: skrajne odslania 612, nie 644); `przesuwneOdslania` liczy z tego samego.
 [CLAUDE-CHANGE] 2026-11-17 (dalej): wzor `szafaZabSz` — szuflady na dole obu kolumn (po 2, nad nimi 3 polki), bez drazka; `szafaZab` z drazkiem
 bez szuflad (uzytkownik). Krzyzowka konfirmatow przy przegrodzie pomija wience zabudowy (`wienZab` z `listwyPrz` — od przegrody trojkaty).
-Boki zabudowy z obu stron przegrody: `obustronne` w `geoPrzesuwne` — notka o przesunieciu wkretow 150 mm (formatka, zamowienie, uwaga).
+Boki zabudowy z obu stron przegrody: `obustronne` w `geoPrzesuwne` — notka o przesunieciu wkretow 20 mm (uzytkownik 2026-11-21: 2 cm wystarczy, bylo 150 mm) (formatka, zamowienie, uwaga).
 Panel nad rysunkiem makiety zwijany: `panelZw` / `przelaczPanel` (`mp-mak-panel-zw`), `zoomUI` wspolny dla obu stanow.

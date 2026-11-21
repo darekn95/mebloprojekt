@@ -1600,7 +1600,7 @@ console.log('\n== 2026-11-16: podwójne boki szafy do zabudowy (zewnętrzny + we
     && gO.hardware.some((h) => h.name === 'Trójkąt meblarski' && /wieniec zabudowy/.test(h.use) && h.qty === 4)
     && !wiersze(gO, /^Przegroda 1/).some((r) => /konfirmat — półka/.test(r.kind) && r.ys.some((y) => Math.abs(y - 441 - 9) <= 1 || Math.abs(y - 441) <= 1)),
     JSON.stringify(gO.hardware.filter((h) => /Trójkąt/.test(h.name))));
-  ok('… wkręty boków zabudowy z obu stron przegrody 1 przesunięte o 150 mm (formatka, zamówienie, uwaga)', gO.panels.filter((x) => /^Bok zabudowy/.test(x.name)).every((x) => /przesunięte o ok. 150 mm/.test(x.note))
+  ok('… wkręty boków zabudowy z obu stron przegrody 1 przesunięte o 20 mm (formatka, zamówienie, uwaga)', gO.panels.filter((x) => /^Bok zabudowy/.test(x.name)).every((x) => /przesunięte o ok. 20 mm/.test(x.note))
     && gO.hardware.some((h) => h.name === 'Wkręt 4 × 30' && /przegrodzie 1 z obu stron/.test(h.spec)) && gO.msgs.some((m) => /Przegroda 1 ma boki zabudowy z obu stron/.test(m.text)));
   const g1s = G.computeGeo(szafa([polki, kol2]), M0);
   ok('… z jednej strony — bez uwagi o przesunięciu wkrętów', !g1s.msgs.some((m) => /z obu stron — wkręty/.test(m.text)) && !g1s.panels.some((x) => /przesunięte o ok. 150/.test(x.note || '')));
