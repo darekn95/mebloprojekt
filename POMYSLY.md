@@ -12,20 +12,19 @@ biurko, szafa 2 drzwi, szafka nocna, regały), szafy na zawiasach w ciągu (2 ×
 2000 × 2500, 3000 × 2600, 3600 × 2700 (z szufladami), 4500 × 2600, 6500 × 2500, 2400 × 2900 i 2400 × 3000.
 Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, formatki = bryła, szuflady się wysuwają.
 
-### Do decyzji (pytania zadane 2026-11-21)
+### Decyzje (odpowiedzi użytkownika 2026-11-21)
 
-1. **Zabudowa przesuwna na całą ścianę szerszą niż płyta (ponad 2761 mm).** Dno, wieniec, cokół i plecy jednej szafy nie mieszczą się
-   na arkuszu — program to zgłasza, ale nie mówi, jak to zrobić. Możliwości: (a) przycisk „Podziel na dwie szafy” — każda z własnymi
-   drzwiami przesuwnymi; (b) kilka korpusów obok siebie i jeden komplet drzwi na całą ścianę (tor do 6000 mm); (c) dno i wieniec
-   z dwóch kawałków łączonych na przegrodzie.
-2. **Wysoki pokój (sufit ponad ok. 2770 mm).** Szafa sięga najwyżej 2761 mm (bok z arkusza); nad nią: (a) blenda do sufitu
-   (maskownica, jak nad szafkami górnymi); (b) nadstawka — osobny korpus z drzwiami na zawiasach albo klapą (np. jak ciąg górny nad
-   szafą); (c) oba do wyboru przyciskiem.
-3. **Słupek z palety w kuchni 550 mm** ma 600 mm głębokości: blat wychodzi 650 mm (za dużo na arkusz 600) i są dwie uwagi
-   z przyciskami. Czy słupek ze wzoru brać głęboki jak ciąg, czy zostawić 600 i od razu ustawić „tył przy ścianie”.
-4. **Kolumny pod skrzydłami w szafie przesuwnej.** Wzór ma zawsze przegrodę na środku; przy 3 skrzydłach (szafa 2400–3000)
-   każda kolumna wypada pod dwoma skrzydłami — jest tylko informacja. Możliwości: przycisk „Przegrody na stykach skrzydeł”
-   albo wzór dzielący na tyle kolumn, ile skrzydeł.
+1. **Zabudowa przesuwna na całą ścianę szerszą niż płyta (ponad 2761 mm)** — dno, wieniec, cokół i plecy jednej szafy nie mieszczą się
+   na arkuszu. Decyzja: **obie drogi** — (a) kilka korpusów obok siebie i jeden komplet drzwi przesuwnych na całą ścianę (tor do 6000 mm);
+   (b) jedna szafa z dnem i wieńcem z dwóch kawałków łączonych na przegrodzie. Do zrobienia; przed robotą pytania o szczegóły
+   (styk modułów: podwójne boki czy jedna wspólna przegroda; czym łączyć kawałki dna i wieńca; tory na modułach czy na suficie).
+2. **Wysoki pokój (sufit ponad ok. 2770 mm)** — szafa najwyżej 2761 mm (zrobione: uwaga i przycisk „Wysokość szafy N mm”). Nad szafą
+   decyzja: **do wyboru** — blenda do sufitu albo nadstawka (osobny korpus na szafie). Do zrobienia; przed robotą pytania o nadstawkę
+   (drzwi na zawiasach czy klapa, czy przesuwne też w nadstawce, jak łączona z szafą).
+3. **Słupek z palety w kuchni** — zrobione 2026-11-21: „słupek nie ma blatu” — tył przy ścianie, drzwi równo z blatem, blat reszty bez zmian.
+4. **Kolumny pod skrzydłami w szafie przesuwnej** — zrobione 2026-11-21: przycisk „Przegrody na stykach skrzydeł” (tyle kolumn, ile
+   skrzydeł), dodatkowe przegrody pomiędzy wolno, kolumna pod dwoma skrzydłami — ostrzeżenie (było: informacja).
+   Do rozważenia: samo przestawianie przegród przy zmianie szerokości (dziś po zmianie jest ostrzeżenie z przyciskiem).
 
 ### Pomysły
 

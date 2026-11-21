@@ -1395,3 +1395,8 @@ ponad nia, uwaga „do sufitu się nie da”, akcja `szafah:<H>[:<i>]`; w `geoPr
 Pomysly i sprawy do decyzji — `POMYSLY.md` (nowy plik) i `BLEDY.md` („Do decyzji”). Wkrety bokow zabudowy z obu stron przegrody: 20 mm (bylo 150).
 [AI-INFO] 2026-11-21: pelny przebieg (d1f3547, w trakcie przebudowa na 7def9ff): 175 suit, 5877 OK, 0 bledow; losowe 66 / 0; po przebudowie 21 suit
 z obszaru (slupek, przesuwne, palety, formatki, wiercenia) — 2141 OK, 0 bledow; makieta19 STD — zielona.
+[CLAUDE-CHANGE] 2026-11-21 (odpowiedzi uzytkownika na pytania z analizy): slupek z palety w kuchni — „słupek nie ma blatu”: tyl przy scianie,
+drzwi rowno z blatem (`addCabinet`: D = ciag + wysieg blatu, `offset`), blat reszty bez zmian; szafa przesuwna — `przesuwneKolumny`,
+akcja `przesprzeg` („Przegrody na stykach skrzydeł”), kolumna pod dwoma skrzydlami — ostrzezenie (bylo info). Testy obszaru: 15 suit 1532 OK,
+makieta19 STD zielona. [AI-TODO] Szeroka sciana (obie drogi: moduly + jeden komplet drzwi; dno / wieniec z 2 kawalkow) i nadstawka /
+blenda nad szafa w wysokim pokoju — czekaja na szczegoly od uzytkownika (`POMYSLY.md`, „Decyzje”).

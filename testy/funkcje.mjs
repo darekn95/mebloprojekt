@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1634,4 +1634,24 @@ console.log('\n== 2026-11-21 (analiza): najwyższa szafa z arkusza, rączka NOVO
   const g4 = G.computeGeo(G.migrateCab({ ...szafa(), W: 6500 }, M0), M0);
   ok('6500 mm, 4 skrzydła po 1631: ostrzeżenie bez przycisku „4 skrzydła” (więcej system nie ma) — rada „podziel na dwie szafy”', g4.przesuwne.n === 4 && g4.msgs.some((m) => /Skrzydło drzwi przesuwnych ma 1 ?631 mm/.test(m.text) && /dwie szafy/.test(m.text) && !/\|przesn:/.test(m.text)),
     g4.msgs.filter((m) => /Skrzydło/.test(m.text)).map((m) => m.text).join(' / '));
+}
+
+console.log('\n== 2026-11-21: przegrody na stykach skrzydeł (tyle kolumn, ile skrzydeł), przesunięta — ostrzeżenie ==');
+{
+  const M0 = G.defaultMaterials;
+  const szafa = (W, cols) => G.migrateCab({ name: 'Szafa', W, H: 2400, D: 600, plinth: { on: true, height: 100, mode: 'inbody' }, legs: { on: false }, przesuwne: { on: true, podwBoki: { L: true, R: true } },
+    levels: [{ h: null, cols }] });
+  const k = (w) => ({ kind: 'doors', doors: 1, w, shelfTargets: [null, null] });
+  const g = G.computeGeo(szafa(2400, [k(null), k(null)]), M0);
+  ok('2400 mm (3 skrzydła), 2 kolumny: ostrzeżenie (nie informacja) z przyciskiem „przesprzeg”', g.msgs.some((m) => m.level === 'warn' && /wypada pod dwoma skrzydłami/.test(m.text) && /\|przesprzeg$/.test(m.text)),
+    g.msgs.filter((m) => /wypada/.test(m.text)).map((m) => m.level + ' ' + m.text).join(' / '));
+  const sw = G.przesuwneKolumny(szafa(2400, [k(null), k(null)]), g, 18);
+  ok('przesuwneKolumny: 3 kolumny — 751, 791, reszta', JSON.stringify(sw) === '[751,791,null]', JSON.stringify(sw));
+  const g3 = G.computeGeo(szafa(2400, sw.map(k)), M0);
+  ok('… po ustawieniu: bez uwag o kolumnach pod dwoma skrzydłami', !g3.msgs.some((m) => /wypada pod dwoma skrzydłami/.test(m.text)), g3.msgs.filter((m) => /wypada/.test(m.text)).map((m) => m.text).join(' / '));
+  const g5 = G.computeGeo(szafa(2400, [k(360), k(373), k(380), k(393), k(null)]), M0);
+  ok('więcej kolumn niż skrzydeł, przegrody na stykach i pomiędzy: bez uwag', !g5.msgs.some((m) => /wypada pod dwoma skrzydłami/.test(m.text)), g5.msgs.filter((m) => /wypada/.test(m.text)).map((m) => m.text).join(' / '));
+  const g2 = G.computeGeo(szafa(2000, [k(null), k(null)]), M0);
+  ok('2000 mm, 2 skrzydła, przegroda na środku (wzór): bez uwag; przesuwneKolumny = [955, null]', !g2.msgs.some((m) => /wypada/.test(m.text)) && JSON.stringify(G.przesuwneKolumny(szafa(2000, [k(null), k(null)]), g2, 18)) === '[955,null]',
+    JSON.stringify(G.przesuwneKolumny(szafa(2000, [k(null), k(null)]), g2, 18)));
 }

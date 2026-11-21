@@ -140,8 +140,13 @@ Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, ale bez drążka:
 - × Wypełnienie drzwi nie mieści się na arkuszu płyty frontu (formatka dodawana w `geoPrzesuwne`, poza kontrolą arkusza korpusu).
 - Dostęp do kolumn (`przesuwneOdslania`). Kolumna musi się zmieścić w miejscu, które odsłania jedno skrzydło odsunięte do oporu
   (`przesuwneOdsun`; przy 3 skrzydłach skrajne odsłania 612, nie 644 — staje na drugim skrajnym):
-  - (i) kolumna z półkami zasłonięta o więcej niż 50 mm — „ustaw przegrodę na styku skrzydeł albo zmień liczbę skrzydeł”;
-  - (!) kolumna z szufladami zasłonięta o więcej niż 2 mm — „szuflada się nie wysunie”.
+  - (!) kolumna z półkami zasłonięta o więcej niż 50 mm — „ustaw przegrody na stykach skrzydeł albo zmień liczbę skrzydeł”
+    (do 2026-11-21 informacja; użytkownik: przegroda zdjęta ze styku skrzydeł — ostrzeżenie);
+  - (!) kolumna z szufladami zasłonięta o więcej niż 2 mm — „szuflada się nie wysunie”;
+  - przycisk „Przegrody na stykach skrzydeł” (`przesprzeg`, `przesuwneKolumny`), gdy w żadnym poziomie nie ma więcej kolumn niż skrzydeł:
+    tyle kolumn, ile skrzydeł (brakujące — kopie ostatniej), przegroda na środku przerwy między miejscami odsłanianymi przez sąsiednie
+    skrzydła; dodatkowe przegrody pomiędzy wolno (kolumna w obrębie jednego skrzydła nie daje uwagi). Np. 2400 mm, 3 skrzydła:
+    kolumny 751 / 791 / reszta.
 - Sufit (`sufitSzafyMsgs`, szafy powyżej 1500 mm w ciągu dolnym):
   - × szafa wyżej niż sufit;
   - ! luz poniżej 5 mm;

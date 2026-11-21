@@ -188,7 +188,10 @@ Zakres „Ciąg” ma widok „Z boku” — przekrój ściany: od ściany głę
 
 Słupek ze wzoru (paleta makiety „Słupek”, szablon „Słupek”) wstawiony do ciągu, w którym już coś stoi, jest od razu
 wyjątkiem w ciągu (`cab.slupek`, jak przycisk „To słupek — wyjątek w ciągu”) i ma cokół ciągu (cokół idzie przez cały
-ciąg jedną płaszczyzną) — analiza 2026-11-21: wcześniej po wstawieniu były trzy ostrzeżenia. Głębokość zostaje ze wzoru (600).
+ciąg jedną płaszczyzną) — analiza 2026-11-21: wcześniej po wstawieniu były trzy ostrzeżenia. Głębokość (użytkownik 2026-11-21: „słupek
+nie ma blatu” — nie może odsuwać reszty od ściany i poszerzać blatu): tył przy ścianie jak reszta ciągu, drzwi równo z przednią krawędzią
+blatu — głębokość ciągu + wysięg blatu przed fronty, wysunięty o tyle (`item.offset`); np. kuchnia 550 z blatem 600 → słupek 560,
+wysunięty 10 mm. Bez blatu roboczego — głębokość ciągu (`addCabinet`, `slupekWCiagu`).
 
 Szafki ciągu stoją równo w licu, więc głębsza szafka odsuwa pozostałe od ściany o różnicę (stąd też szerszy blat).
 Słupek (szafka wyższa niż 1500 albo oznaczona jako słupek) ma stać inaczej: tył przy ścianie, front wysunięty

@@ -342,6 +342,17 @@ const przesuwneOdsun = (w, i) => {
 /* Dostep do kolumn (uzytkownik 2026-11-16: „podpowiedź tak, by był dostęp do półek czy szuflad po otwarciu drzwi”): kolumna jest dostepna,
    gdy miesci sie w miejscu, ktore odslania jedno skrzydlo odsuniete do oporu (`przesuwneOdsun`; pozostale stoja na swoim miejscu) */
 const przesuwneOdslania = (w) => w.skrzydla.map((sk) => { const o = przesuwneOdsun(w, sk.i); return { i: sk.i, x0: o.x0, x1: o.x1 }; });
+/* Przegrody na stykach skrzydel (uzytkownik 2026-11-21: „wzór dzieli sam — tyle kolumn, ile skrzydeł; może być więcej pomiędzy
+   podziałami, ale te na drzwiach — gdyby ktoś je przesunął — ostrzeżenie”): przegroda na srodku przerwy miedzy miejscami, ktore
+   odslaniaja sasiednie skrzydla (`przesuwneOdslania`). Zwraca swiatla kolumn od lewej (ostatnia — null, reszta programu ja liczy);
+   `geo` — policzone (`geo.przesuwne`: SO, WO), `t` — grubosc przegrody i boku wewnetrznego. */
+const przesuwneKolumny = (cab, geo, t = 18) => {
+  const pr = geo && geo.przesuwne; if (!pr) return null;
+  const P = cab.przesuwne || {}, w = przesuwneWymiary(pr.SO, pr.WO, P), rev = przesuwneOdslania(w).slice().sort((a, b) => a.x0 - b.x0);
+  let od = (P.podwBoki || {}).L ? t : 0;
+  const sw = rev.slice(1).map((r, k) => { const c = (rev[k].x1 + r.x0) / 2, s0 = Math.round(c - t / 2 - od); od = c + t / 2; return s0; });
+  return [...sw, null];
+};
 const DRAZEK_NAME = "Rura na wieszaki ⌀25", ROZETA_NAME = "Rozeta do rury ⌀25";
 /* Podpora rury na srodku (uzytkownik 2026-10-31 przy audycie GPT N181/N182, zamiast podzialu
    kolumny przy rurze 2–3 m): GTV „Uchwyt WP-10 dystansowy, regulowany” MR-WP-010-01, przelotowy
@@ -8749,7 +8760,8 @@ function geoPrzesuwne(cab, mat, ctx) {
     const f0 = c.szuflady ? c.x0 + GI : c.x0, f1 = c.szuflady ? c.x1 - GI : c.x1, lz = c.szuflady ? LUZ : 0;
     const naj = odsl.map((o) => ({ ...o, braki: Math.max(0, o.x0 + (o.x0 > 0.5 ? lz : 0) - f0) + Math.max(0, f1 - (o.x1 - (o.x1 < SO - 0.5 ? lz : 0))) })).sort((a, b) => a.braki - b.braki)[0];
     if (naj && naj.braki > (c.szuflady ? 0.5 : 50))
-      add(c.szuflady ? "warn" : "info", `${kto} (${fmt(Math.round(c.x1 - c.x0))} mm${c.szuflady ? " między bokami zabudowy" : ""}) wypada pod dwoma skrzydłami — po odsunięciu skrzydła ${fmt(Math.round(naj.braki))} mm zostaje zasłonięte${c.szuflady ? " i szuflada się nie wysunie" : ""}. Ustaw przegrodę na styku skrzydeł albo zmień liczbę skrzydeł.`);
+      // 2026-11-21 (uzytkownik): przegroda zdjeta ze styku skrzydel — ostrzezenie (bylo: informacja przy polkach); przycisk, gdy kolumn nie wiecej niz skrzydel
+      add("warn", `${kto} (${fmt(Math.round(c.x1 - c.x0))} mm${c.szuflady ? " między bokami zabudowy" : ""}) wypada pod dwoma skrzydłami — po odsunięciu skrzydła ${fmt(Math.round(naj.braki))} mm zostaje zasłonięte${c.szuflady ? " i szuflada się nie wysunie" : ""}. Ustaw przegrody na stykach skrzydeł albo zmień liczbę skrzydeł.${(cab.levels || []).every((lv) => (lv.cols || []).length <= n) ? "|przesprzeg" : ""}`);
   });
   // uchwyty wybrane recznie: wystaja z frontu cofnietego o strefe — tyl skrzydel jest PRZES.STREFA − zakres torow od lica
   const tylSkrzydel = 8 + PRZES.TOR_KROK + PRZES.DRZWI_GR, wolne = PRZES.STREFA - tylSkrzydel;
@@ -16726,6 +16738,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return { label: `Do sufitu z luzem ${SZAFA_LUZ_SUFIT} mm`, run: () => runFix && runFix(action) };
     if (action.startsWith("szafah:"))
       return { label: `Wysokość szafy ${fmt(Number(action.split(":")[1]))} mm`, run: () => runFix && runFix(action) };
+    if (action === "przesprzeg")
+      return { label: "Przegrody na stykach skrzydeł", run: () => runFix && runFix(action) };
     if (action.startsWith("przesn:"))
       return { label: `Drzwi przesuwne: ${action.split(":")[1]} skrzydła`, run: () => runFix && runFix(action) };
     if (action.startsWith("polkicof:")) {
@@ -27170,6 +27184,14 @@ export default function App() {
     // wspolny wieniec / dno ciagu obejmuje tez nowa szafke
     if (run && (run.wspolnyWieniec || run.wspolneDno)) fresh.cab = wedlugCiagu(fresh.cab, fresh.mat, run, wysokoscWienca(p.items, run));
     const items = [...p.items.slice(0, at), fresh, ...p.items.slice(at)];
+    /* Slupek ze wzoru w kuchni (uzytkownik 2026-11-21: „słupek nie ma blatu” — glebszy slupek w licu odsuwal reszte od sciany i blat wychodzil
+       650): tyl przy scianie jak reszta, drzwi rowno z przednia krawedzia blatu (decyzja 2026-11-11) — glebokosc ciagu + wysieg blatu
+       przed fronty, wysuniety o tyle (`offset`); bez blatu roboczego — glebokosc ciagu. */
+    if (slupekWCiagu.slupek && run.D != null) {
+      items[at] = { ...items[at], cab: { ...items[at].cab, D: Math.round(run.D) } };
+      let wys = 0; try { const rt = runTop({ ...p, items }, run); wys = rt && rt.worktop && rt.depth > rt.doLica ? Math.round(rt.depth - rt.doLica) : 0; } catch (e) { wys = 0; }
+      if (wys > 0) items[at] = { ...items[at], offset: wys, cab: { ...items[at].cab, D: Math.round(run.D) + wys } };
+    }
     /* Szablon narożnika składa cały układ, a nie samą szafkę: za rogiem staje
        drugi ciąg pod kątem prostym. Szafek w nim nie zakładamy — dokłada się je
        samemu — ale sam ciąg musi być, bo to od jego głębokości liczy się
@@ -28299,6 +28321,18 @@ export default function App() {
         let o; try { o = makOdPodlogi(p, i); } catch (e) { o = null; } if (suf == null || !o) return p;
         const H = Math.min(Math.round(suf - SZAFA_LUZ_SUFIT - o.dol - blendaH(it.cab)), szafaMaxH(it.cab, o.geo, it.mat).H); if (!(H > 600)) return p;
         const items = p.items.slice(); items[i] = { ...it, cab: { ...it.cab, H } }; return { ...p, items }; });
+      return;
+    }
+    /* „przesprzeg" — aktywna szafa przesuwna: tyle kolumn, ile skrzydel, przegrody na stykach (`przesuwneKolumny`); brakujace kolumny —
+       kopie ostatniej; poziom z wiecej kolumnami niz skrzydel zostaje (dodatkowe przegrody pomiedzy wolno) */
+    if (action === "przesprzeg") {
+      setProject((p) => { const i = p.active, it = p.items[i]; if (!it) return p;
+        let geo; try { geo = computeGeo(cabDoGeo(p, it), it.mat); } catch (e) { return p; }
+        const t = Math.round(Number(((it.mat || {}).board || {}).thickness) || 18), sw = przesuwneKolumny(it.cab, geo, t); if (!sw) return p;
+        const levels = (it.cab.levels || []).map((lv) => { const cols = (lv.cols || []).slice(); if (!cols.length || cols.length > sw.length) return lv;
+          while (cols.length < sw.length) cols.push(JSON.parse(JSON.stringify(cols[cols.length - 1])));
+          return { ...lv, cols: cols.map((c, k) => ({ ...c, w: sw[k] })) }; });
+        const items = p.items.slice(); items[i] = { ...it, cab: { ...it.cab, levels } }; return { ...p, items }; });
       return;
     }
     // „szafah:<H>[:<i>]" — wysokosc szafy (najwyzsza z arkusza / pod raczke drzwi przesuwnych); bez <i> — aktywna szafka

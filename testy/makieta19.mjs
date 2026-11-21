@@ -236,7 +236,23 @@ for (const id of ['dolna1', 'slupek']) { const n0 = (await proj()).items.length;
 p = await proj();
 { const sl = p.items[p.items.length - 1], run = p.runs.find((r) => r.id === sl.runId), t = await uwagi();
   ok('słupek z palety w kuchni: „wyjątek w ciągu” (slupek), cokół jak w ciągu — bez uwag o wysokości i cokole', sl.cab.slupek === true && JSON.stringify(sl.cab.plinth) === JSON.stringify(run.plinth)
-    && !/nie zgadza się z ciągiem|Wysokość 2000 mm nie zgadza się/.test(t), JSON.stringify({ sl: sl.cab.slupek, pl: sl.cab.plinth, rp: run.plinth }) + ' ' + t.slice(0, 300)); }
+    && !/nie zgadza się z ciągiem|Wysokość 2000 mm nie zgadza się/.test(t), JSON.stringify({ sl: sl.cab.slupek, pl: sl.cab.plinth, rp: run.plinth }) + ' ' + t.slice(0, 300));
+  // uzytkownik 2026-11-21: „słupek nie ma blatu” — tył przy ścianie, drzwi równo z blatem, blat reszty bez zmian
+  ok('… głębokość = ciąg + wysięg blatu przed fronty (tył przy ścianie, drzwi równo z blatem): bez uwag o głębokości i blacie', sl.cab.D > run.D && sl.offset === sl.cab.D - run.D
+    && !/Głębokość \d+ mm jest większa|Blat wychodzi|Za głęboki słupek/.test(t), JSON.stringify({ D: sl.cab.D, off: sl.offset, rD: run.D }) + ' ' + t.slice(0, 300)); }
+// szafa przesuwna 2400 (3 skrzydła): przycisk „Przegrody na stykach skrzydeł”
+await start(FIX);
+await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZab"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
+p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa')");
+await ust(`const it = p.items.find((i) => i.cab.name === 'Szafa'); it.cab.W = 2400;`);
+{ const t = await uwagi(), b = page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Przegrody na stykach skrzydeł' });
+  ok('2400 mm (3 skrzydła), 2 kolumny: ostrzeżenie „wypada pod dwoma skrzydłami” z przyciskiem', /wypada pod dwoma skrzydłami/.test(t) && (await b.count()) >= 1, t.slice(0, 300));
+  if (await b.count()) await b.first().click(); }
+p = await czekaj("p.items.find((it) => it.cab.name === 'Szafa').cab.levels[0].cols.length === 3");
+{ const t = await uwagi(), kol = szafa(p).cab.levels[0].cols;
+  ok('po kliknięciu: 3 kolumny (trzecia — kopia ostatniej, z drążkiem), bez uwag o kolumnach', kol.length === 3 && kol[0].w === 751 && kol[1].w === 791 && kol[2].w == null && (kol[2].drazki || []).length === 1
+    && !/wypada pod dwoma skrzydłami/.test(t), JSON.stringify(kol.map((c) => c.w)) + ' ' + t.slice(0, 200)); }
 
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
