@@ -39,6 +39,10 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
 - **Wzory bez uwag od razu po wstawieniu:** „Szafa” wolnostojąca i „Szafa, 1 drzwi” — zawias przesunięty, bo koliduje z półką
   (ostrzeżenie); „Dolna z szufladami” — fronty różnią się o 1 mm (przycisk „Zwiększ luz do 3 mm”). Wzór mógłby od razu ustawić półki
   poza zawiasami i luz, przy którym fronty są równe.
+- **Szafa na zawiasach w wysokim pokoju** (1200 × 2761, 4 półki): fronty 2755 mm są poza tabelą zawiasów GTV (do 2500 mm) —
+  jest ostrzeżenie, a 3 z 5 zawiasów na skrzydło przesuwa się przez półki (6 ostrzeżeń „zawias przesunięty”). Pomysł: przycisk
+  „Półki poza zawiasami” (przesuwa półki o kilka centymetrów zamiast zawiasów); do sprawdzenia w katalogu — prostownik do wysokich
+  drzwi (fronty z płyty powyżej ok. 2,2 m lubią się wyginać).
 - **Szuflady V-BOX w jednej kolumnie z różnymi bokami** (127 i 178 — „auto” dobiera osobno dla każdej szuflady): jeden bok dla całej
   kolumny wygląda równo i to jedna pozycja w zamówieniu.
 - **Start nowego projektu**: otwiera się tryb Techniczny z jedną szafką 600 × 720 poza ciągiem. Pomysł: na start pytanie „Co

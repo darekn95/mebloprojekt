@@ -1393,3 +1393,5 @@ zabudowa przesuwna 2000–6500 mm i sufit 2500–3000 przez `testy/audytprojektu
 ponad nia, uwaga „do sufitu się nie da”, akcja `szafah:<H>[:<i>]`; w `geoPrzesuwne` blad raczki NOVO S i kontrola arkusza wypelnienia; przy
 4 skrzydlach bez przycisku `przesn`; slupek z palety w ciagu kuchennym — `slupek: true` i cokol ciagu (`addCabinet`, `slupekWCiagu`).
 Pomysly i sprawy do decyzji — `POMYSLY.md` (nowy plik) i `BLEDY.md` („Do decyzji”). Wkrety bokow zabudowy z obu stron przegrody: 20 mm (bylo 150).
+[AI-INFO] 2026-11-21: pelny przebieg (d1f3547, w trakcie przebudowa na 7def9ff): 175 suit, 5877 OK, 0 bledow; losowe 66 / 0; po przebudowie 21 suit
+z obszaru (slupek, przesuwne, palety, formatki, wiercenia) — 2141 OK, 0 bledow; makieta19 STD — zielona.
