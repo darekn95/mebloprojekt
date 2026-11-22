@@ -184,6 +184,16 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 
 Zakres „Ciąg” ma widok „Z boku” — przekrój ściany: od ściany głębokość, od podłogi wysokość. Każdy inny profil szafki (głębokość, wysokość, zawieszenie) rysuje się raz, wyższe pod spodem; szafki stoją licem równo (lico ciągu jak przy blacie), fronty nakładane 2 mm przed korpusem. Do tego cokół, nóżki, blat roboczy, ciąg górny i ściana (przełączniki „Ukryj blat” / „Ukryj ścianę”). Wymiary: „z frontem” każdego piętra, „blat N (M przed frontem)”, łańcuch wysokości i wysokość całkowita. Zabudowa z rogami tego widoku nie ma (nie ma jednego boku).
 
+## Maskownica boku (2026-11-22)
+
+Zakładka „Wzmocnienia” (makieta szczegółowa) przy szafce w ciągu: „maskownica boku — z lewej / z prawej” (użytkownik: „płyta na zewnątrz
+od dołu do góry mebla na całą głębokość”; „nie musi być przy ścianie — do wyboru bok szafki, może być między meblami”). To pozycja ciągu
+bez korpusu (`sprzetCiagu.typ = "maskownica"`) przy boku szafki: płyta grubości płyty (18 mm), od podłogi do góry wyższej z szafek obok
+(z cokołem / nóżkami), głębokość jak głębsza z nich (`maskowniceZaCiagiem`); w swojej karcie — głębokość do lica frontów (domyślnie) albo
+korpusu i kolor jak fronty (domyślnie) albo korpus. Formatka „Maskownica boku” (okleina z przodu i u góry), wkręty 4 × 30 od środka
+szafki obok w dwóch rzędach co ok. 400 mm — przykręcić, zanim wejdą półki i szuflady. Stoi na podłodze jak lodówka wolnostojąca
+(`naPodlodzeCiagu`): cokół ciągu kończy się przy niej, bez uwag o wysokości.
+
 ## Biurko w ciągu (2026-11-22)
 
 Wzór biurka (i biurka z kontenerem) upuszczony na szafkę w ciągu dolnym — albo wstawiony przy zaznaczonej szafce w ciągu — staje w tym

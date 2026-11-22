@@ -443,6 +443,10 @@ const SPRZETY_CIAGU = {
      szafki obok do sciany; szerokosc sama do sciany (`auto`), wysokosc jak szafka obok; pas w glab (`pas` mm, 0 — bez) idzie wzdluz
      boku szafki obok i przykreca sie do niego od srodka szafki. Cokol i blat ciagu ida dalej. */
   blenda: { nazwa: "blenda", pelna: "Blenda przy ścianie", pas: 0 },
+  /* Maskownica boku (uzytkownik 2026-11-22: „płyta na zewnątrz od dołu do góry mebla na całą głębokość”, „nie musi być przy ścianie —
+     do wyboru bok szafki, może być między meblami”): plyta stojaca na podlodze przy boku szafki, wysokosc i glebokosc jak szafka obok
+     (`maskowniceZaCiagiem`); `gl` — do lica frontow (domyslnie) / korpusu, `kolor` — jak fronty (domyslnie) / korpus */
+  maskownica: { nazwa: "maskownica", pelna: "Maskownica boku" },
   okapK: { nazwa: "okap", pelna: "Okap kominowy", szer: 600, h: 90, gl: 500, kominW: 280, kominD: 250, dol: 150 },
 };
 /* Wysokosc wneki lodowki do zabudowy (uzytkownik 2026-11-09, z makiety — przykladowo; typowo 178, wysokie 194, male do ok.
@@ -477,6 +481,7 @@ const sprzetCiagu = (cab) => {
   }
   if (typ === "zmywarkaW") { out.pokrywa = !!sp.pokrywa; out.drzwi = "dol"; }
   if (typ === "blenda") { out.auto = sp.auto !== false; out.strona = sp.strona === "prawa" ? "prawa" : "lewa"; }
+  if (typ === "maskownica") { out.gl = sp.gl === "korpus" ? "korpus" : "front"; out.kolor = sp.kolor === "korpus" ? "korpus" : "front"; }
   if (typ === "lodowka" && out.drzwi !== "prawe") out.drzwi = "lewe";
   if (typ === "lodowka") {
     const pusty = (k) => sp[k] == null || sp[k] === "";
@@ -524,6 +529,7 @@ const gornyBlendaDoSufitu = (p, runId, b = BLENDA_DO_SUFITU) => {
 };
 const wolneCiagu = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === "wolne");
 const blendaScianyCab = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === "blenda");
+const maskownicaCab = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === "maskownica");
 const BLENDA_PAS = 100;   // pas w glab po wlaczeniu (pole do zmiany)
 /* „Bez szafki górnej” — szafka gorna zamienia sie w wolne miejsce tej samej szerokosci; poprzednia szafka zostaje w `poprzednia`,
    „Przywróć szafkę górną” wraca do niej (z obecna szerokoscia). */
@@ -535,7 +541,7 @@ const cabZWolnegoMiejsca = (cab) => (cab.poprzednia ? { ...cab.poprzednia, W: ca
    ciagu (wysokosc, glebokosc, cokol, nozki) jej nie dotycza. Blat konczy sie przy lodowce i zmywarce z pokrywa. */
 /* Biurko w ciagu (uzytkownik 2026-11-22: „nie mogę dodać biurka pomiędzy dwie szafki w ciągu”) stoi jak lodowka wolnostojaca: na podlodze,
    wlasna wysokosc (bez uwag o wysokosci i cokole ciagu), cokol ciagu ma przy nim przerwe */
-const naPodlodzeCiagu = (cab) => !!(cab && ((cab.sprzetCiagu && (cab.sprzetCiagu.typ === "lodowka" || cab.sprzetCiagu.typ === "zmywarkaW")) || (!cab.sprzetCiagu && biurkoSzafki(cab))));
+const naPodlodzeCiagu = (cab) => !!(cab && ((cab.sprzetCiagu && (cab.sprzetCiagu.typ === "lodowka" || cab.sprzetCiagu.typ === "zmywarkaW" || cab.sprzetCiagu.typ === "maskownica")) || (!cab.sprzetCiagu && biurkoSzafki(cab))));
 /* Lodowka podblatowa — dwa rodzaje (uzytkownik 2026-11-14): „w ciągu” jak zmywarka (wypelnia cale miejsce, bez bokow i wzmocnien —
    `sprzetCiagu.typ: "lodowkaP"`) i „w szafce” — mniejsza (np. na wino) w zwyklej szafce z dnem i bokami, „jakbyśmy wpakowali
    mikrofalę na dół”: stoi na dnie szafki dolnej, z wlasnymi drzwiami (bez frontu meblowego), nad nia plyta i otwarta wneka (szuflada
@@ -2090,7 +2096,28 @@ const blendyScianyZaCiagiem = (p) => {
   });
   return items ? { ...p, items } : p;
 };
-const naprawProjekt = (p, prev) => blendyScianyZaCiagiem(slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev))));
+/* Maskownica boku — wysokosc od podlogi do gory wyzszej z szafek obok (z cokolem / nozkami / zawieszeniem), glebokosc jak glebsza z nich,
+   szerokosc = grubosc plyty (2026-11-22) */
+const maskowniceZaCiagiem = (p) => {
+  if (!p.items.some((it) => maskownicaCab(it.cab))) return p;
+  let items = null;
+  const gora = (c) => Math.round(Math.max(c.plinth && c.plinth.on && c.plinth.mode !== "inbody" && c.plinth.mode !== "between" ? Number(c.plinth.height) || 0 : 0,
+    c.legs && c.legs.on ? Number(c.legs.height) || 0 : 0) + (Number(c.H) || 0) + dolGornej(c));
+  (p.runs || []).forEach((run) => {
+    const L = runItems(p, run.id);
+    L.forEach(({ it, i }, k) => {
+      if (!maskownicaCab(it.cab)) return;
+      const obok = [L[k - 1], L[k + 1]].filter((q) => q && !maskownicaCab(q.it.cab) && !wolneCiagu(q.it.cab));
+      if (!obok.length) return;
+      const H = Math.max(...obok.map((q) => gora(q.it.cab))), D = Math.max(...obok.map((q) => Math.round(Number(q.it.cab.D) || 0)));
+      const W = Math.round(Number(((it.mat || {}).board || {}).thickness) || 18);
+      if (Math.round(it.cab.H) === H && Math.round(it.cab.D) === D && Math.round(it.cab.W) === W) return;
+      items = items || p.items.slice(); items[i] = { ...it, cab: { ...it.cab, H, D, W } };
+    });
+  });
+  return items ? { ...p, items } : p;
+};
+const naprawProjekt = (p, prev) => maskowniceZaCiagiem(blendyScianyZaCiagiem(slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev)))));
 // szafka w ciagu z opcjami wspolnego wienca / dna — przy wlaczeniu i przy dodaniu nowej
 const wedlugCiagu = (cab, mat, run, h = run && run.H) => {
   let c = cab;
@@ -8910,6 +8937,18 @@ function geoSprzetuCiagu(cab, mat, ctx) {
     }
     if (W < 20) add("warn", `Blenda przy ścianie ma ${fmt(Math.round(W))} mm — przy ścianie prawie nie ma miejsca; usuń ją albo sprawdź szerokość ściany.`);
     else if (szer < MIN_PART) add("info", `Blenda przy ścianie ${fmt(szer)} mm — firma nie tnie formatek węższych niż ${fmt(MIN_PART)} mm: zamówiona ${fmt(zam)} mm, dociąć ręcznie.`);
+  } else if (sp.typ === "maskownica") {
+    /* Maskownica boku: plyta na podlodze przy boku szafki obok, od podlogi do jej gory, na glebokosc korpusu i — domyslnie — strefe
+       frontow (do lica drzwi); przykrecana od srodka szafki obok wkretami 4 × 30 (dwa rzedy co ok. 400 mm), zanim wejda polki i szuflady */
+    const Hc = Math.round(cab.H), przod = sp.gl === "korpus" ? 0 : Math.round(baza.tf + HINGE_PLAY), dM = Math.round(cd + przod);
+    const kKey = sp.kolor === "korpus" ? "board" : plytaFrontu(cab);
+    dane = { ...sp, maskownica: true, lodowka: false, front: null, przod, kolorKey: kKey, kolorKorpusu: ((mat || {}).board || {}).color,
+      bryla: { x0: 0, x1: Math.round(W), y0: 0, y1: Hc, z0: -przod, d: dM }, nisza: { w: Math.round(W), h: Hc, d: Math.round(cd) } };
+    panels.push({ name: "Maskownica boku", qty: 1, a: Hc, b: dM, matKey: kKey, edges: { a1: true, a2: false, b1: true, b2: false },
+      note: `od podłogi do góry szafki obok, ${przod ? "do lica frontów" : "do lica korpusu"} — okleina na krawędzi przedniej i górnej` });
+    const nWk = 2 * Math.max(2, Math.ceil(Hc / 400));
+    hwBlendy = [{ name: "Wkręt 4 × 30", use: "maskownica boku — od środka szafki obok przez bok w maskownicę", spec: `dwa rzędy co ok. 400 mm: ${nWk} szt.`, qty: nWk, unit: "szt." }];
+    add("info", `Maskownica boku ${fmt(Hc)} × ${fmt(dM)} mm: przykręć ją od środka szafki obok wkrętami 4 × 30 (dwa rzędy co ok. 400 mm), zanim włożysz półki i szuflady. Cokół ciągu kończy się przy niej.`);
   } else if (sp.typ === "wolne") {
     // nic tu nie stoi — tylko miejsce w ciagu (obrys na rysunku); bryla zerowej glebokosci, zeby wspolne rachunki sie nie wywrocily
     dane = { ...sp, wolne: true, lodowka: false, front: null, x0: 0, x1: Math.round(W), y0: 0, y1: Math.round(cab.H),
@@ -10174,6 +10213,11 @@ function SprzetCiaguElew({ cab, geo, frontColor, fy, mx = (x) => x }) {
     );
   }
   const b = s.bryla, f = s.front;
+  // maskownica boku (2026-11-22): plyta od podlogi do gory szafki obok — z przodu widac jej krawedz
+  if (s.maskownica) return (
+    <g data-el="maskownica-boku">
+      <rect x={mx(b.x0, b.x1 - b.x0)} y={fy(b.y1)} width={b.x1 - b.x0} height={b.y1 - b.y0} fill={s.kolorKey === "board" ? (s.kolorKorpusu || "#d8c3a0") : frontColor} stroke={INK} strokeWidth="2" />
+    </g>);
   if (s.blendaSc) return (
     // blenda przy scianie: sama plyta w licu drzwi (bez bryly sprzetu)
     <g data-el="blenda-przy-scianie">
@@ -10218,6 +10262,13 @@ function SprzetCiaguWidok({ cab, geo, mat, widok = "przod" }) {
     <svg viewBox={`${-pad} ${-pad} ${cd + 2 * pad} ${H + 2 * pad}`} className="w-full h-auto select-none" style={{ maxHeight: DRAW_MAX_H }} data-el="sprzet-ciagu-widok">
       <rect x="0" y="0" width={cd} height={H} fill="none" stroke={LINE} strokeWidth="2" strokeDasharray="16 10" />
       <text x={cd / 2} y={H / 2} textAnchor="middle" fontSize="24" fill="#78716c" fontFamily="ui-monospace, monospace">wolne</text>
+    </svg>);
+  if (widok === "bok" && s.maskownica) return (
+    <svg viewBox={`${-pad} ${-pad} ${cd + s.przod + 2 * pad} ${H + 2 * pad}`} className="w-full h-auto select-none" style={{ maxHeight: DRAW_MAX_H }} data-el="sprzet-ciagu-widok">
+      <line x1={-pad / 2} y1={fy(0)} x2={cd + s.przod + pad / 2} y2={fy(0)} stroke={INK} strokeWidth="2" />
+      <rect x={0} y={fy(s.bryla.y1)} width={cd + s.przod} height={s.bryla.y1 - s.bryla.y0} fill={s.kolorKey === "board" ? (s.kolorKorpusu || "#d8c3a0") : ff} stroke={INK} strokeWidth="1.5" data-el="maskownica-z-boku" />
+      <DimV y1={fy(H)} y2={fy(0)} x={-60} label={fmt(H)} />
+      <DimH x1={0} x2={cd + s.przod} y={fy(H) - 50} label={fmt(cd + s.przod)} />
     </svg>);
   if (widok === "bok") {
     const zMin = Math.min(0, z.fz0, -geo.tf);
@@ -10649,6 +10700,10 @@ const WycieciaWzmocnienia = ({ r, cd }) => (!(r.otwory || []).length ? null : (
 function CabTop({ cab, geo, mat, showShelves, showHardware, ghost, arm, wystajeBlat = null }) {
   if (geo.bezKorpusu && geo.sprzetCiagu && geo.sprzetCiagu.wolne) return (
     <g data-el="wolne-miejsce-z-gory"><rect x="0" y="0" width={geo.W} height={geo.carcassDepth} fill="none" stroke={LINE} strokeWidth="1.5" strokeDasharray="14 9" /></g>);
+  if (geo.bezKorpusu && geo.sprzetCiagu && geo.sprzetCiagu.maskownica) {
+    const s = geo.sprzetCiagu, cdS = geo.carcassDepth, ffT = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
+    return (<g data-el="maskownica-z-gory"><rect x={s.bryla.x0} y={0} width={s.bryla.x1 - s.bryla.x0} height={cdS + s.przod} fill={s.kolorKey === "board" ? mat.board.color : ffT} stroke={INK} strokeWidth="1.5" /></g>);
+  }
   if (geo.bezKorpusu && geo.sprzetCiagu && geo.sprzetCiagu.blendaSc) {
     // blenda przy scianie z gory: plyta w licu drzwi i pas w glab przy boku szafki obok
     const s = geo.sprzetCiagu, cdS = geo.carcassDepth, ffT = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
@@ -12409,6 +12464,11 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn
       /* Sprzet w ciagu bez korpusu (2026-11-05): bryla sprzetu, front meblowy zmywarki (jak drzwi:
          przed licem, w kolorze frontow) albo przod lodowki wolnostojacej. */
       if (c.geo.bezKorpusu && c.geo.sprzetCiagu && c.geo.sprzetCiagu.wolne) return;   // wolne miejsce — w bryle nic
+      if (c.geo.bezKorpusu && c.geo.sprzetCiagu && c.geo.sprzetCiagu.maskownica) {
+        const s = c.geo.sprzetCiagu, b = s.bryla;
+        box(c.x + b.x0, c.base + b.y0, -s.przod, c.x + b.x1, c.base + b.y1, c.geo.carcassDepth, s.kolorKey === "board" ? c.mat.board.color : c.frontColor, null, 1, true, 0, "maskownica-boku");
+        return;
+      }
       if (c.geo.bezKorpusu && c.geo.sprzetCiagu && c.geo.sprzetCiagu.blendaSc) {
         // blenda przy scianie: plyta w licu drzwi (nieruchoma) i pas w glab przy boku szafki obok
         const s = c.geo.sprzetCiagu, f = s.front;
@@ -16220,6 +16280,10 @@ function SprzetCiagu3D({ cab, geo, mat: matIn, yaw, pitch, blat }) {
   };
   if (s.wolne) return null;
   const b = s.bryla, z = sprzetZ(s);
+  if (s.maskownica) {
+    box(b.x0, b.y0, -s.przod, b.x1, b.y1, cd, s.kolorKey === "board" ? mat.board.color : ff, 1, true, "maskownica-boku");
+    return rzut3D(solids, W, H, cd, yaw, pitch);
+  }
   if (s.blendaSc) {
     box(s.front.x, s.front.y, -tf, s.front.x + s.front.w, s.front.y + s.front.h, 0, ff, 1, true, "blenda");
     if (s.pasRect) box(s.pasRect.x0, s.front.y, 0, s.pasRect.x1, s.front.y + s.front.h, s.pasRect.d, mat.board.color, 1, false, "pas-blendy");
@@ -20664,7 +20728,10 @@ const swingBodies = (L, project) => {
       if (geo.bezKorpusu && geo.sprzetCiagu) {
         const s = geo.sprzetCiagu, zs = sprzetZ(s);
         const klucz = `${kto.id}|sprzet`;
-        if (s.wolne) { /* wolne miejsce — nic tu nie stoi */ } else if (s.blendaSc) {
+        if (s.wolne) { /* wolne miejsce — nic tu nie stoi */ } else if (s.maskownica) {
+          // maskownica boku: plyta od podlogi do gory szafki obok, od tylu korpusu do lica frontow
+          bryly.push(roomBox(n, u0 + s.bryla.x0, u0 + s.bryla.x1, cdV1 - geo.carcassDepth, cdV1 + s.przod, zBase + s.bryla.y0, zBase + s.bryla.y1, { ...kto, co: "maskownica boku", klucz }));
+        } else if (s.blendaSc) {
           // blenda przy scianie: plyta w licu drzwi (przeszkoda dla drzwi obok) i pas za nia
           const f = s.front, lico = cdV1 + geo.tf;
           bryly.push(roomBox(n, u0 + f.x, u0 + f.x + f.w, cdV1, lico, zBase + f.y, zBase + f.y + f.h, { ...kto, co: "blenda przy ścianie", klucz }));
@@ -24579,6 +24646,16 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   const pelnaKarta = (() => {
     if (biurko) return [];
     /* pozycja ciagu bez korpusu (makieta „Dodaj”: „Tu wisi okap kominowy zamiast szafki — zmień rodzaj okapu w jego karcie”) */
+    if (maskownicaCab(cab)) {
+      /* maskownica boku (2026-11-22): glebokosc do lica frontow / korpusu, kolor jak fronty / korpus; wysokosc i glebokosc jak szafka obok */
+      const sp = sprzetCiagu(cab), ustaw = (patch) => zmien(idx, (c) => { c.sprzetCiagu = { ...c.sprzetCiagu, ...patch }; });
+      return [
+        wiersz("mkg", "głębokość maskownicy", [["front", "do lica frontów"], ["korpus", "do lica korpusu"]].map(([v, l]) =>
+          <Btn key={v} el="mak-maskownica-gl" v={v} on={sp.gl === v} onClick={() => ustaw({ gl: v })}>{l}</Btn>), "mak-maskownica-gl-w"),
+        wiersz("mkk", "kolor maskownicy", [["front", "jak fronty"], ["korpus", "jak korpus"]].map(([v, l]) =>
+          <Btn key={v} el="mak-maskownica-kolor" v={v} on={sp.kolor === v} onClick={() => ustaw({ kolor: v })}>{l}</Btn>), "mak-maskownica-kolor-w"),
+        hint("maskownica", `Płyta od podłogi do góry szafki obok (${fmt(Math.round(cab.H))} mm), na głębokość korpusu${sp.gl === "korpus" ? "" : " i frontów"}; przykręcana od środka szafki obok wkrętami 4 × 30.`)];
+    }
     if (blendaScianyCab(cab)) {
       /* blenda przy scianie (uzytkownik 2026-11-15): szerokosc sama do sciany albo w mm, pas w glab wzdluz boku szafki obok */
       const sp = sprzetCiagu(cab), ustaw = (patch) => zmien(idx, (c) => { c.sprzetCiagu = { ...c.sprzetCiagu, ...patch }; });
@@ -25192,6 +25269,28 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   }
   else if (zakladka === "wzmocnienia") {
     const kols = kolumny.map((k) => ({ ...k, jA: k.j }));
+    /* Maskownica boku (uzytkownik 2026-11-22: „brak opcji we wzmocnieniach maskownicy boku … płyta na zewnątrz od dołu do góry mebla
+       na całą głębokość”; „nie musi być przy ścianie — do wyboru bok szafki, może być między meblami”): pozycja ciagu przy boku szafki */
+    const maskL = (() => {
+      if (!run || run.tier === "gorny" || cab.sprzetCiagu) return null;
+      const L = runItems(project, run.id), k = L.findIndex((q) => q.i === idx);
+      const jest = (st) => { const q = st === "lewa" ? L[k - 1] : L[k + 1]; return q && maskownicaCab(q.it.cab) ? q : null; };
+      const przelacz = (st) => zmienProjekt((p) => {
+        const LL = runItems(p, run.id), kk = LL.findIndex((q) => q.i === idx); if (kk < 0) return p;
+        const ten = p.items[idx], sas = st === "lewa" ? LL[kk - 1] : LL[kk + 1];
+        if (sas && maskownicaCab(sas.it.cab)) { const items = p.items.filter((_, j) => j !== sas.i); return { ...p, items, active: Math.max(0, items.indexOf(ten)) }; }
+        const nowy = JSON.parse(JSON.stringify(ten));
+        nowy.cab = { ...nowy.cab, name: "Maskownica boku", W: Math.round(Number(((ten.mat || {}).board || {}).thickness) || 18), sprzetCiagu: { typ: "maskownica", gl: "front", kolor: "front" },
+          topFiller: { on: false, height: 100 }, corner: { ...(nowy.cab.corner || {}), on: false }, naBlacie: [], blatWyciecia: [], slupek: false,
+          plinth: { ...(nowy.cab.plinth || {}), on: false }, legs: { ...(nowy.cab.legs || {}), on: false } };
+        delete nowy.cab.dolGorny; delete nowy.wallGap; nowy.offset = 0;
+        const items = p.items.slice(), gdzie = st === "lewa" ? idx : idx + 1;
+        items.splice(gdzie, 0, nowy);
+        return { ...p, items, active: Math.max(0, items.indexOf(ten)) };
+      });
+      return wiersz("mask", "maskownica boku (płyta od podłogi do góry, na całą głębokość)", [["lewa", "z lewej"], ["prawa", "z prawej"]].map(([st, l]) =>
+        <Btn key={st} el="mak-maskownica" v={st} on={!!jest(st)} onClick={() => przelacz(st)}>{l}</Btn>), "mak-maskownica-w");
+    })();
     /* Trojkaty meblowe w szczegolowej (uzytkownik 2026-11-10: „zgubiła nam się opcja montażu na trójkąty meblowe”) — tam,
        gdzie program je liczy (jak w trybie technicznym): wzmocnienia z obu stron przegrody na tej samej wysokosci (prawa
        kolumna: trojkaty po 2 na koniec albo 1 konfirmat w srodku — `rail.przyPrzegrodzie`) i przegroda nizsza o plyte
@@ -25221,6 +25320,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
           <Btn key={v} el="mak-wzm-moc" v={v} on={mocKol === v} onClick={() => zmienKol(k.li, k.j, (kk) => { (kk.rails || []).forEach((r) => { if (!r || r.orient === "vertical") return; if (v === "konfirmaty") delete r.mocowanie; else r.mocowanie = v; }); })}>{l}</Btn>), "mak-wzm-moc")] : []),
         ...wzmTrojkaty(k)];
     }, true).flat();
+    if (maskL) tresc.unshift(maskL);
+    else if (!run && !cab.sprzetCiagu) tresc.unshift(<p key="mask-bez" className="text-[11px] text-stone-500" data-el="mak-maskownica-bez-ciagu">Maskownica boku — dla szafki w ciągu (zakładka Szafka → „W ciąg”).</p>);
     tresc.push(<p key="wzh" className="text-[11px] text-stone-500">Wymiary typowe (100 mm); wysokość, głębokość i strona pionowego — w trybie Technicznym. Trójkąty meblowe — przy przegrodzie, gdy po obu jej stronach są wzmocnienia na tej samej wysokości, i pod przegrodą niższą o płytę.</p>);
   }
   else if (zakladka === "wyciecia") {
