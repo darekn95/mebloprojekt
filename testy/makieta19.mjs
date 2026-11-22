@@ -293,6 +293,21 @@ p = await proj();
   const t = await uwagi();
   ok('… bez uwag o wysokości, cokole i drzwiach szafy obok', !/nie zgadza się z ciągiem|nie otworzy się/.test(t), t.slice(0, 300)); }
 
+console.log('== 2026-11-22: maskownica boku (zakładka Wzmocnienia, między meblami) ==');
+await page.evaluate(() => localStorage.setItem('mp-tryb', 'szczegolowa')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+await ust(`p.items = p.items.filter((i) => i.cab.name !== 'Biurko'); p.active = p.items.findIndex((i) => i.cab.name === 'Szafa');`);
+await zakl('wzmocnienia');
+ok('zakładka Wzmocnienia: „maskownica boku” — z lewej / z prawej', (await page.locator('[data-el="mak-maskownica"]').count()) === 2);
+await page.locator('[data-el="mak-maskownica"][data-v="prawa"]').click();
+p = await czekaj("p.items.some((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.typ === 'maskownica' && i.cab.H > 1000)");
+{ const kol = p.items.filter((i) => i.runId).map((i) => i.cab.name), m = p.items.find((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.typ === 'maskownica'), sz = p.items.find((i) => i.cab.name === 'Szafa');
+  const gora = Math.max(sz.cab.plinth && sz.cab.plinth.on ? sz.cab.plinth.height : 0, sz.cab.legs && sz.cab.legs.on ? sz.cab.legs.height : 0) + sz.cab.H;
+  ok('maskownica między szafą a regałem: 18 mm, od podłogi do góry szafy, głębokość szafy', JSON.stringify(kol) === '["Szafa","Maskownica boku","Regał"]' && m.cab.W === 18 && m.cab.H === gora && m.cab.D === sz.cab.D,
+    JSON.stringify(kol) + ' ' + JSON.stringify({ W: m.cab.W, H: m.cab.H, D: m.cab.D, gora })); }
+await ust(`p.active = p.items.findIndex((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.typ === 'maskownica');`);
+{ const t = await uwagi(); ok('uwagi maskownicy: wkręty 4 × 30 od środka szafki obok, cokół kończy się przy niej; rysunek', /Maskownica boku \d+ × \d+ mm: przykręć ją od środka szafki obok wkrętami 4 × 30/.test(t)
+    && (await page.locator('[data-el="makieta"] [data-el="maskownica-boku"]').count()) >= 1, t.slice(0, 300)); }
+
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
 await browser.close();
