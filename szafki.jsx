@@ -26468,6 +26468,10 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
      zostaja; stan pamieta przegladarka */
   const [panelZw, setPanelZw] = useState(() => { try { return localStorage.getItem("mp-mak-panel-zw") === "1"; } catch (e) { return false; } });
   const przelaczPanel = () => setPanelZw((v) => { try { localStorage.setItem("mp-mak-panel-zw", v ? "0" : "1"); } catch (e) { /* bez pamieci */ } return !v; });
+  /* osobno zwijane: pomieszczenie i zabudowa (wybory + naglowek ciagu) oraz widoki (przelaczniki i „Widok”) — uzytkownik 2026-11-22:
+     „w makiecie osobne zwijanie pomieszczeń i zabudowy i osobne dla widoków jak w technicznej”; zoom zostaje zawsze */
+  const [widokiZw, setWidokiZw] = useState(() => { try { return localStorage.getItem("mp-mak-widoki-zw") === "1"; } catch (e) { return false; } });
+  const przelaczWidoki = () => setWidokiZw((v) => { try { localStorage.setItem("mp-mak-widoki-zw", v ? "0" : "1"); } catch (e) { /* bez pamieci */ } return !v; });
   const zoomUI = (
     <span className="ml-auto flex items-center gap-1" data-el="mak-zoom">
       <MiniBtn onClick={() => krokZoom(-1)} title="Pomniejsz">−</MiniBtn>
@@ -26478,6 +26482,13 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
         {pelny ? "Zamknij pełny ekran" : "Pełny ekran"}
       </MiniBtn>
     </span>);
+  const zwinWidoki = (
+    <button data-el="mak-widoki-zwin" aria-expanded="false" onClick={przelaczWidoki} title="Pokaż widoki: przełączniki i „Widok”"
+      className="flex min-w-0 items-center gap-1.5 text-left text-[11px] text-stone-500 hover:text-stone-800">
+      <span className="-rotate-90 text-[10px]">▼</span>
+      <span className="font-medium text-stone-600">Widoki</span>
+      <span className="text-stone-400" data-el="mak-widoki-opis">— {({ przod: "z przodu", bok: "z boku", gora: "z góry", "3d": "3D", iso: "45°" })[widokM] || widokM}{!przel.fronty && widokM !== "gora" ? ", bez frontów" : ""}</span>
+    </button>);
   useEffect(() => {
     if (!pelny) return undefined;
     const esc = (e) => { if (e.key === "Escape") setPelny(false); };
@@ -26710,21 +26721,22 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
         style={{ ...(lg && !pelny ? { top: gora, height: oknoH - gora - 8 } : {}), ...(podglad ? { touchAction: "none", userSelect: "none" } : {}), ...(zamAkt ? { display: "none" } : {}) }}>
         {panelZw && (
           <div className="mb-1 flex flex-wrap items-center gap-2" data-el="mak-panel-zwiniety">
-            <button data-el="mak-panel-zwin" aria-expanded="false" onClick={przelaczPanel} title="Pokaż panel: pomieszczenie, ciąg, szafka, ściana, przełączniki"
+            <button data-el="mak-panel-zwin" aria-expanded="false" onClick={przelaczPanel} title="Pokaż: pomieszczenie, ciąg, szafka, ściana"
               className="flex min-w-0 items-center gap-1.5 text-left text-[11px] text-stone-500 hover:text-stone-800">
               <span className="-rotate-90 text-[10px]">▼</span>
-              <span className="font-medium text-stone-600">Panel rysunku</span>
+              <span className="font-medium text-stone-600">Pomieszczenie i zabudowa</span>
               <span className="text-stone-400" data-el="mak-panel-opis">— {(roomsOf(project).find((r) => r.id === pokoj) || {}).name || "Pomieszczenie"}
                 {" · "}{samaSzafka ? "tylko zaznaczona szafka" : ciagId === "wszystkie" ? "wszystkie ciągi" : aktR ? `${rodzaj === "szafa" ? "zabudowa" : "ciąg"} „${(aktR.tier === "gorny" ? (project.runs || []).find((r) => r.id === aktR.wall) || aktR : aktR).name || "ciąg"}”` : "wolnostojące"}
                 {" · "}{zaznM && aktIt ? `szafka „${aktIt.cab.name || "szafka"}”` : "bez zaznaczenia"}
-                {" · "}{({ przod: "z przodu", bok: "z boku", gora: "z góry", "3d": "3D", iso: "45°" })[widokM] || widokM}{!przel.fronty && widokM !== "gora" ? ", bez frontów" : ""}</span>
+</span>
             </button>
-            {zoomUI}
+            {widokiZw && zwinWidoki}
+            {widokiZw && zoomUI}
           </div>
         )}
         {!panelZw && (<>
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <button data-el="mak-panel-zwin" aria-expanded="true" onClick={przelaczPanel} title="Zwiń panel — więcej miejsca na rysunek"
+          <button data-el="mak-panel-zwin" aria-expanded="true" onClick={przelaczPanel} title="Zwiń pomieszczenie i zabudowę — więcej miejsca na rysunek"
             className="flex h-6 w-6 items-center justify-center rounded text-stone-500 hover:bg-stone-100 hover:text-stone-800"><span className="text-[10px]">▼</span></button>
           <Rozwijana el="mak-pomieszczenie" etykieta="Pomieszczenie" wartosc={pokoj}
             opcje={[...roomsOf(project).map((r) => ({ v: r.id, l: r.name })),
@@ -26815,7 +26827,12 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
             {alarm}
           </>);
         })()}
+        </>)}
+        {widokiZw && !panelZw && <div className="mb-1 flex flex-wrap items-center gap-2">{zwinWidoki}{zoomUI}</div>}
+        {!widokiZw && (
         <div className="mb-1 flex flex-wrap items-center gap-1.5" data-el="mak-przel">
+          <button data-el="mak-widoki-zwin" aria-expanded="true" onClick={przelaczWidoki} title="Zwiń widoki — więcej miejsca na rysunek"
+            className="flex h-6 w-6 items-center justify-center rounded text-stone-500 hover:bg-stone-100 hover:text-stone-800"><span className="text-[10px]">▼</span></button>
           {MAK_PRZEL.filter(([k]) => (maPietra || (k !== "gorny" && k !== "dolny")) && ((k !== "kolory" && k !== "wymiary") || tryb === "szczegolowa")
             // „Fronty” — w widoku z przodu, 45° i 3D; „Blat” — gdy jest rzut z gory (nad widokiem z przodu albo widok „Z góry”)
             && (k !== "fronty" || widokM !== "gora") && (k !== "blat" || widokM === "gora" || (widokM === "przod" && przel.zgory))).map(([k, l]) => (k === "wymiary"
@@ -26829,8 +26846,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
           {widokRys !== widok && <span className="text-[11px] text-stone-500">wnętrze — w tej zakładce zawsze</span>}
           {celOpis && <span className="rounded bg-teal-700 px-1.5 py-0.5 text-[11px] font-medium text-white" data-el="mak-cel">upuść: {celOpis}</span>}
           {zoomUI}
-        </div>
-        </>)}
+        </div>)}
         {przel.agd === false && <style>{"[data-el=mak-plotno] [data-el=sprzet-front], [data-el=mak-plotno] [data-el=wyciecie-front], [data-el=mak-plotno] [data-el=na-blacie], [data-el=mak-plotno] [data-el=rant-blatu], [data-el=mak-plotno] [data-el=pola-grzewcze], [data-el=mak-plotno] [data-el=komory], [data-el=mak-plotno] [data-el=ociekacz] { display: none; } [data-el=mak-plotno] [data-el=wyciecie-blatu] text { fill: #44403c; }"}</style>}
         {/* legenda jak w makiecie „Dodaj”: zielone ramki przy przenoszeniu, wyposazenie wylaczone, dwa widoki naraz. Linijka jest zawsze
             (min. wysokosc) — pojawiajaca sie dopiero przy chwyceniu przesuwala rysunek w dol, a zielone ramki (liczone przy chwyceniu,

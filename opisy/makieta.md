@@ -31,6 +31,9 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
   rysunek”): „▼” przed „Pomieszczenie” zwija wybory (pomieszczenie, ciąg, szafka), nagłówek ciągu ze ścianą i przełączniki do
   jednej linii „Panel rysunku — pomieszczenie · ciąg / zabudowa · szafka · widok” (`mak-panel-zwiniety`, `mak-panel-opis`); zoom
   i „Pełny ekran” zostają. Kliknięcie linii rozwija. Stan pamięta przeglądarka (`mp-mak-panel-zw`).
+  Od 2026-11-22 (użytkownik: „osobne zwijanie pomieszczeń i zabudowy i osobne dla widoków jak w technicznej”) dwa osobne „▼”:
+  „Pomieszczenie i zabudowa” (wybory i nagłówek ciągu — `mak-panel-zwin`, linia `mak-panel-zwiniety`, `mak-panel-opis`) i „Widoki”
+  (przełączniki i „Widok” — `mak-widoki-zwin`, streszczenie `mak-widoki-opis`, `mp-mak-widoki-zw`); oba zwinięte — w jednej linii z zoomem.
 - **Widok jak w makiecie „Dodaj”** (użytkownik 2026-11-09: „popraw widok żeby był jak w artefakcie makieta”):
   - nad rysunkiem nagłówek: „Ciąg „…”” i jego długość, **ściana** (− / pole / +, co 100 mm → `run.wallW`)
     i „wolne N mm” (albo „brakuje N mm”); przy szafkach wolnostojących — „Szafki wolnostojące”;

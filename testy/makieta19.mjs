@@ -202,18 +202,27 @@ p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa')");
   ok('opisy wzorów: „z drążkiem” / „szuflady po obu stronach … bez drążka”', /z drążkiem/.test(await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZab"]').innerText().catch(() => ''))
     && /po obu stronach/.test(await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZabSz"]').innerText().catch(() => ''))); }
 
-console.log('== panel nad rysunkiem zwijany (jak paski w technicznym) ==');
+console.log('== panel nad rysunkiem: osobno zwijane pomieszczenie i zabudowa oraz widoki (2026-11-22) ==');
 { const rys = page.locator('[data-el="makieta-rysunek"]');
   const h0 = (await page.locator('[data-el="mak-plotno"]').boundingBox()).y;
   await rys.locator('[data-el="mak-panel-zwin"]').click(); await page.waitForTimeout(400);
   const h1 = (await page.locator('[data-el="mak-plotno"]').boundingBox()).y;
-  ok('„▼” zwija panel do jednej linii: bez wyborów, nagłówka i przełączników; zoom zostaje; rysunek wyżej', (await rys.locator('[data-el="mak-panel-zwiniety"]').count()) === 1
-    && (await rys.locator('[data-el="mak-pomieszczenie"], [data-el="mak-naglowek"], [data-el="mak-przel"]').count()) === 0 && (await rys.locator('[data-el="mak-zoom"]').count()) === 1 && h1 < h0 - 25, `${h0} → ${h1}`);
-  ok('streszczenie: pomieszczenie, zabudowa, szafka, widok', /Pomieszczenie.*zabudowa „.*”.*szafka „Szafa”.*z przodu/.test(await rys.locator('[data-el="mak-panel-opis"]').innerText()), await rys.locator('[data-el="mak-panel-opis"]').innerText());
+  ok('„▼” pomieszczenia i zabudowy: bez wyborów i nagłówka, przełączniki widoków zostają; rysunek wyżej', (await rys.locator('[data-el="mak-panel-zwiniety"]').count()) === 1
+    && (await rys.locator('[data-el="mak-pomieszczenie"], [data-el="mak-naglowek"]').count()) === 0 && (await rys.locator('[data-el="mak-przel"]').count()) === 1 && h1 < h0 - 10, `${h0} → ${h1}`);
+  ok('streszczenie: pomieszczenie, zabudowa, szafka', /Pomieszczenie.*zabudowa „.*”.*szafka „Szafa”/.test(await rys.locator('[data-el="mak-panel-opis"]').innerText()), await rys.locator('[data-el="mak-panel-opis"]').innerText());
+  await rys.locator('[data-el="mak-widoki-zwin"]').click(); await page.waitForTimeout(400);
+  const h2 = (await page.locator('[data-el="mak-plotno"]').boundingBox()).y;
+  ok('„▼” widoków: bez przełączników, streszczenie widoku, zoom zostaje; obie linie w jednej', (await rys.locator('[data-el="mak-przel"]').count()) === 0
+    && /z przodu/.test(await rys.locator('[data-el="mak-widoki-opis"]').innerText()) && (await rys.locator('[data-el="mak-zoom"]').count()) === 1
+    && (await rys.locator('[data-el="mak-panel-zwiniety"] [data-el="mak-widoki-zwin"]').count()) === 1 && h2 < h1 - 10, `${h1} → ${h2}`);
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
-  ok('zwinięty zostaje po przeładowaniu (pamięta przeglądarka)', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwiniety"]').count()) === 1);
+  ok('oba zwinięte zostają po przeładowaniu (pamięta przeglądarka)', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwiniety"]').count()) === 1
+    && (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-przel"]').count()) === 0);
   await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwin"]').click(); await page.waitForTimeout(400);
-  ok('kliknięcie rozwija: wybory i przełączniki wracają', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-przel"]').count()) === 1 && (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwiniety"]').count()) === 0); }
+  ok('rozwinięte pomieszczenie, widoki dalej zwinięte (osobno)', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-pomieszczenie"]').count()) === 1
+    && (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-przel"]').count()) === 0 && (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-zoom"]').count()) === 1);
+  await page.locator('[data-el="makieta-rysunek"] [data-el="mak-widoki-zwin"]').click(); await page.waitForTimeout(400);
+  ok('kliknięcie rozwija widoki: przełączniki wracają', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-przel"]').count()) === 1 && (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwiniety"]').count()) === 0); }
 
 console.log('== analiza 2026-11-21: wysoki pokój (sufit 2900) i słupek z palety w kuchni ==');
 await start(FIX);
