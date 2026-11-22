@@ -1617,7 +1617,7 @@ console.log('\n== 2026-11-21 (analiza): najwyższa szafa z arkusza, rączka NOVO
   const g24 = G.computeGeo(szafa(), M0), mx = G.szafaMaxH(szafa(), g24, M0);
   ok('najwyższa szafa (cokół w obrysie, bok = wysokość korpusu): 2761 mm — bok, nie rączka', mx.H === 2761 && !mx.raczka, JSON.stringify(mx));
   const s1 = sm(szafa());
-  ok('sufit 2900, szafa 2400: info „do sufitu się nie da … najwyżej 2761 mm” z przyciskiem „szafah:2761”, bez „Do sufitu z luzem”', s1.some((m) => m.level === 'info' && /do sufitu się nie da.*najwyżej 2 ?761 mm/.test(m.text) && /\|szafah:2761:0$/.test(m.text))
+  ok('sufit 2900, szafa 2400: info „do sufitu się nie da … najwyżej 2761 mm” z przyciskiem „szafah:2761”, bez „Do sufitu z luzem”', s1.some((m) => m.level === 'info' && /do sufitu się nie da.*najwyżej 2 ?761 mm/.test(m.text) && /\|szafah:2761:0\|szafablenda:0\|nadstawka:0$/.test(m.text))
     && !s1.some((m) => /\|szafasufit:/.test(m.text)), s1.map((m) => m.text).join(' / '));
   const g29 = G.computeGeo(szafa({}, { H: 2895 }), M0);
   ok('szafa 2895: błąd rączki (skrzydło 2719 > 2700) z przyciskiem do 2761 (niższa z granic: bok)', g29.msgs.some((m) => m.level === 'error' && /rączka NOVO S.*2 ?700 mm/.test(m.text) && /\|szafah:2761$/.test(m.text)),
@@ -1681,6 +1681,17 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
   const pan = (c) => G.computeGeo(c, M0).panels.find((x) => x.name === 'Cokół');
   ok('fronty z innej płyty: formatka cokołu z płyty frontów (domyślnie)', pan(cab()).matKey === 'front' && G.cokolKey(cab()) === 'front', pan(cab()).matKey);
   ok('… „jak korpus”: formatka z płyty korpusu', pan(cab({ kolor: 'korpus' })).matKey === 'board');
+  /* plecy HDF za duze na arkusz (2026-11-22, #43): przycisk „Plecy z kawałków” — plecy w kolumnach, laczenia na przegrodach i polkach */
+  { const kolP = () => ({ kind: 'doors', w: null, doors: 1, shelfTargets: [null, null], drazki: [], drawers: [], doorWidths: [], mirrors: [], handles: [], hinges: [], rails: [] });
+    const c0 = { name: 'S', W: 2400, H: 2500, D: 600, back: 'hdf', plinth: { on: false }, legs: { on: false }, levels: [{ h: null, cols: [kolP(), kolP()] }] };
+    const g0 = geo(c0), e0 = g0.msgs.find((m) => /^Plecy HDF .* nie mieści się na arkuszu/.test(m.text));
+    ok('plecy HDF 2398 × 2498 za duże: błąd z przyciskiem „plecykawalki”', !!e0 && /\|plecykawalki/.test(e0.text), e0 ? e0.text : g0.msgs.map((m) => m.text).join(' / ').slice(0, 300));
+    const c1 = JSON.parse(JSON.stringify(c0)); c1.levels.forEach((lv) => lv.cols.forEach((k) => { k.backMode = 'hdf'; }));
+    const g1 = geo(c1), pl = g1.panels.filter((q) => q.name === 'Plecy HDF');
+    ok('po kliknięciu: plecy z dwóch kawałków (łączenie na przegrodzie), bez błędu arkusza', pl.length === 2 && !g1.msgs.some((m) => /nie mieści się na arkuszu/.test(m.text)),
+      JSON.stringify(pl.map((q) => [q.a, q.b])));
+    const c2 = { ...c0, levels: [{ h: null, cols: [kolP()] }] }, e2 = geo(c2).msgs.find((m) => /^Plecy HDF .* nie mieści się/.test(m.text));
+    ok('bez przegród i poziomów — bez przycisku, rada „dodaj przegrodę albo poziom”', !!e2 && !/\|plecykawalki/.test(e2.text) && /dodaj przegrodę/.test(e2.text), e2 && e2.text); }
   /* wzory z palety makiety bez ostrzezen od razu po wstawieniu (2026-11-22, #40): „Szafa”, „Szafa, 1 drzwi” — polki poza zawiasami;
      „Dolna z szufladami” — luz, przy ktorym fronty sa rowne */
   { const wz = G.MAK_PALETA.flatMap((gr) => gr.wzory || []);

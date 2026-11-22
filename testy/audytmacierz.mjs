@@ -184,7 +184,8 @@ for (const [kNazwa, kZmien, wCiagu] of KONSTRUKCJE) {
       const ky0 = Math.min(...korpus.filter((s) => s.p[1] >= -1).map((s) => s.p[1])), ky1 = Math.max(...korpus.map((s) => s.p[4]));
       // nic nie wychodzi ponad korpus (pod blatem: w blat); elementy stale moga dojsc do samej gory
       const gora = ky1 + 0.5;
-      zam.filter((s) => s.color === F).forEach((s) => {
+      // cokol jest w kolorze frontow (2026-11-22: „domyślnie jak fronty”) — stoi pod korpusem, to nie front
+      zam.filter((s) => s.color === F && s.tag !== 'cokol').forEach((s) => {
         if (s.p[0] < kx0 - 0.5 || s.p[3] > kx1 + 0.5 || s.p[4] > gora || s.p[1] < ky0 - 0.5)
           bl.push(`front poza obrysem: ${JSON.stringify(s.p.map(Math.round))} (korpus x ${kx0}–${kx1}, y ${ky0}–${gora})`);
       });

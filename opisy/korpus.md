@@ -70,6 +70,10 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - **płyta** w środku między bokami albo na zewnątrz — wkręty 3,5 × 30;
   - **brak**.
   - Kolumna może mieć własne plecy („jak szafka / HDF / płyta / brak”).
+  - **Plecy HDF za duże na arkusz** (np. szafa 2400 × 2500, użytkownik 2026-11-21: „dzielić na przegrodach lub równych półkach, żeby
+    łączeń nie było widać”) — błąd formatki ma przycisk „Plecy z kawałków — łączenia na przegrodach i półkach” (`plecykawalki`): każda
+    kolumna dostaje plecy HDF jawnie, więc plecy idą kawałkami na kolumnę i poziom, a kawałki stykają się w połowie przegrody i półki
+    przez całą szerokość (tam je przybijasz). Szafka bez przegród i poziomów — bez przycisku, rada „dodaj przegrodę albo poziom”.
   - **Cofnięcie pleców** (płyta wewnątrz, opcja do specjalnego zastosowania, domyślnie 0 — równo z bokami): płyta cofnięta o N mm od tyłu boków, półki, przegrody i szuflady o tyle płytsze; za plecami w każdej szafce listwa montażowa (`opisy/zamowienie.md`). Za duże (z płytą ≥ głębokość korpusu) — błąd (użytkownik 2026-10-24).
   - Plecy w środku albo we frezie skracają głębokość półek, przegród i szuflad.
   - Plecy ustawione w kolumnach są zawsze przybijane za korpusem: szafka stoi od ściany o najgrubsze z nich (płyta 18 w jednej kolumnie → 578 mm przy korpusie 560), wszystkie „brak” — przy samej ścianie; zszywki do HDF i wkręty do płyty liczone z obwodu każdej płyty (audyt GPT N73, N81).

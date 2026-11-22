@@ -232,10 +232,33 @@ p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa')");
 await ust(`const it = p.items.find((i) => i.cab.name === 'Szafa'); p.runs.find((x) => x.id === it.runId).ceiling = 2900;`);
 { const t = await uwagi(); ok('sufit 2900: „do sufitu się nie da … najwyżej 2761 mm” i przycisk „Wysokość szafy 2761 mm” (bez „Do sufitu z luzem”)', /do sufitu się nie da.*najwyżej 2 ?761 mm/.test(t)
     && (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Wysokość szafy 2761 mm' }).count()) === 1 && !(await page.locator('[data-el="makieta-uwagi"] button', { hasText: /Do sufitu z luzem/ }).count()), t.slice(0, 400)); }
+const H0 = szafa(await proj()).cab.H;
+ok('500 mm do sufitu: przyciski „Blenda do sufitu” i „Nadstawka do sufitu (drzwi na zawiasach)” (#41)', (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Blenda do sufitu' }).count()) === 1
+  && (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Nadstawka do sufitu (drzwi na zawiasach)' }).count()) === 1);
 await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Wysokość szafy 2761 mm' }).click();
 p = await czekaj("p.items.find((it) => it.cab.name === 'Szafa').cab.H === 2761");
 { const t = await uwagi(); ok('po kliknięciu szafa 2761 mm, bez błędu boku i rączki', szafa(p).cab.H === 2761 && !/nie mieści się na arkuszu|rączka NOVO S/.test(t), szafa(p).cab.H + ' ' + t.slice(0, 300)); }
-await ust(`const it = p.items.find((i) => i.cab.name === 'Szafa'); it.cab.H = 2895;`);
+// nad szafa do wyboru blenda albo nadstawka (uzytkownik 2026-11-21 / 2026-11-22: nadstawka z drzwiami na zawiasach) — #41
+{ const t = await uwagi(), bB = page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Blenda do sufitu' }), bN = page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Nadstawka do sufitu' });
+  ok('po 2761 (139 mm do sufitu): „Blenda do sufitu”, bez nadstawki (za niska — poniżej 150 mm)', (await bB.count()) === 1 && (await bN.count()) === 0, t.slice(0, 300));
+  await bB.click(); p = await czekaj("p.items.find((it) => it.cab.name === 'Szafa').cab.topFiller && p.items.find((it) => it.cab.name === 'Szafa').cab.topFiller.on");
+  const sz = szafa(p), o = sz.cab.topFiller;
+  ok('„Blenda do sufitu” — blenda nad szafą do sufitu, rada znika', o && o.on && o.height >= 100 && !/do sufitu się nie da/.test(await uwagi()), JSON.stringify(o));
+  await ust(`const it = p.items.find((i) => i.cab.name === 'Szafa'); it.cab.topFiller = { ...it.cab.topFiller, on: false }; it.cab.H = ${H0};`);
+  await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Nadstawka do sufitu' }).click();
+  p = await czekaj("p.items.some((it) => it.cab.nadstawka)"); }
+{ const n = p.items.find((it) => it.cab.nadstawka), sz = szafa(p), g = p.runs.find((r) => r.id === n.runId), dolny = p.runs.find((r) => r.id === sz.runId);
+  ok('nadstawka: w ciągu górnym nad szafą (prześwit 0), szerokość i głębokość szafy, do sufitu z luzem 5, drzwi na zawiasach, bez zawieszek',
+    g && g.tier === 'gorny' && g.wall === dolny.id && g.clearance === 0 && n.cab.W === sz.cab.W && n.cab.D === sz.cab.D && n.cab.hangers === 'never'
+    && n.cab.levels[0].cols.some((k) => (k.kind || 'doors') === 'doors' && k.doors >= 1), JSON.stringify({ W: n.cab.W, H: n.cab.H, D: n.cab.D, g: g && { c: g.clearance, m: g.mountY, o: g.offset } }));
+  await ust(`p.active = p.items.findIndex((i) => i.cab.nadstawka);`);
+  const t = await uwagi();
+  const bezRozkroju = t.replace(/! Rozkrój[^✓]*/g, '');
+  ok('uwagi nadstawki: „stoi na szafie … przykręć od środka przez dno do wieńca” — bez błędów i ostrzeżeń (drzwi po ok. 500 mm)', /Nadstawka stoi na szafie/.test(t) && !/ ! | × /.test(' ' + bezRozkroju.replace(/\d+ × \d+/g, '') + ' ')
+    && n.cab.levels[0].cols.length === 2 && n.cab.levels[0].cols.every((k) => k.doors === 2), bezRozkroju.slice(0, 400));
+  await ust(`p.active = p.items.findIndex((i) => i.cab.name === 'Szafa');`);
+  ok('szafa z nadstawką — rady o blendzie / nadstawce już nie ma', !/do sufitu się nie da/.test(await uwagi())); }
+await ust(`p.items = p.items.filter((i) => !i.cab.nadstawka); p.active = p.items.findIndex((i) => i.cab.name === 'Szafa'); const it = p.items.find((i) => i.cab.name === 'Szafa'); it.cab.H = 2895;`);
 { const t = await uwagi(); ok('szafa 2895 wpisana ręcznie: błąd boku i rączki NOVO S, przycisk „Wysokość szafy 2761 mm”', /Bok 2 ?895 × 600 mm nie mieści się/.test(t) && /rączka NOVO S/.test(t)
     && (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Wysokość szafy 2761 mm' }).count()) >= 1, t.slice(0, 400)); }
 // słupek z palety do kuchennego ciągu: wyjątek w ciągu, cokół jak ciąg
@@ -432,6 +455,24 @@ console.log('== 2026-11-22: kolor HDF — jak korpus, ostrzeżenie z przyciskami
   await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Zostaw HDF tak jak jest' }).first().click();
   p = await czekaj(`p.items.some((i) => i.mat.back && i.mat.back.kolorOk)`);
   ok('„Zostaw HDF tak jak jest” — kolor zostaje (kolorOk), ostrzeżenie znika', p.items.some((i) => i.mat.back.kolorOk && lc(i.mat.back.color) === lc(inny)) && !/Plecy HDF w innym kolorze/.test(await uwagi())); }
+console.log('== 2026-11-22: „Nowy projekt — co projektujesz?” (#44) ==');
+{ await page.evaluate(() => localStorage.setItem('mp-tryb', 'techniczny')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+  await page.getByRole('button', { name: 'Nowy projekt', exact: true }).first().click(); await page.waitForTimeout(300);
+  ok('okno „co projektujesz?”: kuchnia / szafa w zabudowie / pokój / pusta szafka, pola ściany', (await page.locator('[data-el="start-rodzaj"]').count()) === 4 && (await page.locator('[data-pole="start-szer"]').count()) === 1);
+  await page.locator('[data-pole="start-szer"]').fill('3000'); await page.locator('[data-pole="start-wys"]').fill('2600');
+  await page.locator('[data-el="start-rodzaj"][data-v="szafa"]').click(); await page.waitForTimeout(1200);
+  p = await proj();
+  const run = p.runs[0], sz = p.items.filter((i) => i.runId === run.id);
+  ok('„Szafa w zabudowie”, ściana 3000 × 2600: ciąg szafa (bez blatu), ściana i sufit zapisane, dwie szafy po 1500 do sufitu, makieta', p.runs.length === 1 && run.zabudowa === 'szafa' && !run.worktop
+    && run.wallW === 3000 && run.ceiling === 2600 && sz.length === 2 && sz.every((i) => i.cab.W === 1500 && i.cab.H >= 2500) && (await page.evaluate(() => localStorage.getItem('mp-tryb'))) === 'prosta',
+    JSON.stringify({ runs: p.runs.length, z: run.zabudowa, w: run.wallW, c: run.ceiling, sz: sz.map((i) => [i.cab.W, i.cab.H]) }));
+  await page.getByRole('button', { name: 'Nowy projekt', exact: true }).first().click(); await page.waitForTimeout(300);
+  await page.locator('[data-pole="start-szer"]').fill('3600'); await page.locator('[data-pole="start-wys"]').fill('');
+  await page.locator('[data-el="start-rodzaj"][data-v="kuchnia"]').click(); await page.waitForTimeout(1200);
+  p = await proj();
+  ok('„Kuchnia”: ciąg z blatem, ściana 3600, dolna szafka pod blatem na nóżkach', p.runs[0].zabudowa === 'kuchnia' && p.runs[0].worktop === true && p.runs[0].wallW === 3600
+    && p.items.length === 1 && p.items[0].runId === p.runs[0].id && p.items[0].cab.legs.on, JSON.stringify({ r: p.runs[0], it: p.items.map((i) => i.cab.name) }).slice(0, 300));
+  const t = await uwagi(); ok('kuchnia startowa bez błędów i ostrzeżeń', !/ ! | × /.test(' ' + t.replace(/! Rozkrój[^✓]*/g, '') + ' '), t.slice(0, 300)); }
 console.log('== 2026-11-22: zoom makiety poniżej 100% ==');
 await page.evaluate(() => localStorage.setItem('mp-tryb', 'prosta')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 { const minus = page.locator('[data-el="mak-zoom"] button', { hasText: '−' });

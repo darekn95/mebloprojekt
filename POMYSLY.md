@@ -25,9 +25,9 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
      nią a bokami); wieniec może wejść „na pół płyty” na przegrodę styku, o ile ten kawałek ma wcześniej (poza bokiem) jeszcze jedną
      przegrodę, do której jest przykręcony; jeśli nie ma — program sugeruje wieniec wewnątrz boków albo podwójną przegrodę na styku.
 2. **Wysoki pokój (sufit ponad ok. 2770 mm)** — szafa najwyżej 2761 mm (zrobione: uwaga i przycisk „Wysokość szafy N mm”). Nad szafą
-   decyzja: **do wyboru** — blenda do sufitu albo nadstawka (osobny korpus na szafie). Do zrobienia; przed robotą pytania o nadstawkę
-   (drzwi na zawiasach czy klapa, czy przesuwne też w nadstawce, jak łączona z szafą). **Odpowiedź 2026-11-22:** nadstawka domyślnie
-   z drzwiami na zawiasach.
+   decyzja: **do wyboru** — blenda do sufitu albo nadstawka (osobny korpus na szafie). **Odpowiedź 2026-11-22:** nadstawka domyślnie
+   z drzwiami na zawiasach. **Zrobione 2026-11-22** (przyciski „Blenda do sufitu” / „Nadstawka do sufitu”; łączenie z szafą — wkręty
+   od środka przez dno do wieńca, do potwierdzenia przez użytkownika).
 3. **Słupek z palety w kuchni** — zrobione 2026-11-21: „słupek nie ma blatu” — tył przy ścianie, drzwi równo z blatem, blat reszty bez zmian.
 4. **Kolumny pod skrzydłami w szafie przesuwnej** — zrobione 2026-11-21: przycisk „Przegrody na stykach skrzydeł” (tyle kolumn, ile
    skrzydeł), dodatkowe przegrody pomiędzy wolno, kolumna pod dwoma skrzydłami — ostrzeżenie (było: informacja).
@@ -38,8 +38,8 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
 - **Lakierowanie formatek** (użytkownik 2026-11-22, „na przyszłość, nie na dzisiaj”): opcja lakierowania frontów, korpusów i półek —
   do przemyślenia (które formatki, z obu stron czy z jednej, krawędzie, cena za m², osobna pozycja w zamówieniu / wycenie).
 
-- **Plecy HDF za duże na arkusz** (szafa 2400 × 2500 → plecy 2398 × 2398): dziś tylko błąd. Rada z przyciskiem: plecy z dwóch kawałków
-  łączonych na przegrodzie / półce (listwa łącząca) albo bez pleców w zabudowie przy ścianie.
+- ~~**Plecy HDF za duże na arkusz**~~ — zrobione 2026-11-22: przycisk „Plecy z kawałków” (kawałki na kolumnę i poziom, łączenia na
+  przegrodach i półkach). Do rozważenia: mniej kawałków (łączyć tylko tam, gdzie trzeba), „bez pleców” w zabudowie przy ścianie.
 - **Osobne ciągi w jednym pokoju** (np. szafa przy jednej ścianie, regał przy drugiej) — w widoku „Zabudowa” 3D stoją w tym samym
   miejscu i nachodzą na siebie (audyt pokoju), bo pokój nie ma układu ścian. Pomysł: ściany pokoju (A–D z długościami) i ciągi
   przypisane do ścian; na razie choćby rozstawić osobne ciągi obok siebie z odstępem.
@@ -53,7 +53,7 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
   drzwi (fronty z płyty powyżej ok. 2,2 m lubią się wyginać).
 - **Szuflady V-BOX w jednej kolumnie z różnymi bokami** (127 i 178 — „auto” dobiera osobno dla każdej szuflady): jeden bok dla całej
   kolumny wygląda równo i to jedna pozycja w zamówieniu.
-- **Start nowego projektu**: otwiera się tryb Techniczny z jedną szafką 600 × 720 poza ciągiem. Pomysł: na start pytanie „Co
+- ~~**Start nowego projektu**~~ (zrobione 2026-11-22 — okno „Nowy projekt — co projektujesz?”): otwierał się tryb Techniczny z jedną szafką 600 × 720 poza ciągiem. Pomysł: na start pytanie „Co
   projektujesz?” (kuchnia / szafa w zabudowie / pokój) z szerokością i wysokością ściany — od razu makieta z właściwą paletą
   i znanym sufitem (wtedy działają kontrole sufitu).
 - **Uwaga o odpadzie rozkroju** („Arkusz N wykorzystany tylko w X %”) powtarza się przy każdej szafce — wystarczy raz, w projekcie.
