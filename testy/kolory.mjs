@@ -163,9 +163,10 @@ const gdzieKolor = (zebrane, c) => zebrane.flatMap((z) => Object.keys(z.kolory).
 /* Rola kazdej formatki: front / polka / korpus. Tu jest regula, ktorej pilnujemy:
    co widac z przodu jak front, to front; to, na czym sie cos stawia — polka. */
 /* Ustalone z uzytkownikiem 2026-09-30: blenda nad szafka jak fronty; katownik
-   w tylnym narozniku szafki L i tyl szuflady — z plyty polek (jak dno). */
+   w tylnym narozniku szafki L i tyl szuflady — z plyty polek (jak dno).
+   2026-11-22: cokol domyslnie jak fronty („domyślnie powinien być jak fronty”). */
 const ROLA = [
-  [/^(Drzwi|Klapa|Front szuflady|Front ramienia|Fix ramienia|Maskownica kątownika|Wstawka w rogu|Blenda|Element stały)/, 'FRONT'],
+  [/^(Drzwi|Klapa|Front szuflady|Front ramienia|Fix ramienia|Maskownica kątownika|Wstawka w rogu|Blenda|Element stały|Cokół)/, 'FRONT'],
   [/^(Półka|Dno szuflady|Tył szuflady|Kątownik przy ramieniu)/, 'POLKA'],
 ];
 const rolaOf = (n) => (ROLA.find(([re]) => re.test(n)) || [null, 'KORPUS'])[1];

@@ -190,7 +190,7 @@ Zakładka „Wzmocnienia” (makieta szczegółowa) przy szafce w ciągu: „mas
 od dołu do góry mebla na całą głębokość”; „nie musi być przy ścianie — do wyboru bok szafki, może być między meblami”). To pozycja ciągu
 bez korpusu (`sprzetCiagu.typ = "maskownica"`) przy boku szafki: płyta grubości płyty (18 mm), od podłogi do góry wyższej z szafek obok
 (z cokołem / nóżkami), głębokość jak głębsza z nich (`maskowniceZaCiagiem`); w swojej karcie — głębokość do lica frontów (domyślnie) albo
-korpusu i kolor jak korpus (domyślnie, użytkownik 2026-11-22) albo jak fronty — także przy przyciskach maskownicy w zakładce Wzmocnienia („kolor maskownic”). Formatka „Maskownica boku” (okleina z przodu i u góry), wkręty 4 × 30 od środka
+korpusu i kolor jak korpus (domyślnie, użytkownik 2026-11-22) albo jak fronty (tylko wybrane przyciskiem — `kolorWyb`; maskownice zapisane przed zmianą domyślnego wracają do korpusu) — także przy przyciskach maskownicy w zakładce Wzmocnienia („kolor maskownic”). Formatka „Maskownica boku” (okleina z przodu i u góry), wkręty 4 × 30 od środka
 szafki obok w dwóch rzędach co ok. 400 mm — przykręcić, zanim wejdą półki i szuflady. Stoi na podłodze jak lodówka wolnostojąca
 (`naPodlodzeCiagu`): cokół ciągu kończy się przy niej, bez uwag o wysokości.
 
@@ -204,6 +204,9 @@ szafkami, przykręcony do ich boków i do ściany, a „biurko” to skrzynka z 
 - **dno cofnięte** o grubość frontu (`cab.dnoCof` 18 — formatka krótsza, wiercenia i bryła przesunięte), front najniższej szuflady schodzi
   przed nim do spodu korpusu (`cab.frontPodDnem` — tyle niżej, np. 10 mm);
 - **wisi** `cab.dolGorny` (500) mm nad podłogą — blat ok. 750; w ciągu stoi poza wspólną wysokością i cokołem (`naPodlodzeCiagu`);
+  w makiecie (zakładka Szafka) dolna krawędź przesuwa całe biurko i łapie półki szafek obok (`data-u="pion"`, `makLapaniePion`);
+- **przegrody między szufladami cofnięte** o grubość frontu (`cab.przegrodyCof` 18; biurka zapisane wcześniej dostają to raz —
+  `biurkaPrzegrodyCof`), fronty szuflad przed nimi, między frontami tylko luz 2 mm, fronty równe (użytkownik 2026-11-22);
 - **boki skrzynki** przykręcone do maskownic szaf obok (wkręty 4 × 30 od środka skrzynki) — gdy maskownic brak, uwaga to mówi.
 Uwagi (`biurkoWiszaceMsgs`): fronty równo ze spodem dna — „nie ma za co chwycić” z przyciskami „Dodaj uchwyty” / „Front 10 mm poniżej
 dna” (tip-on, push to open — gdy dojdą takie szuflady); szuflady spoza 600–800 mm — „Szuflady po ok. 700 mm”.

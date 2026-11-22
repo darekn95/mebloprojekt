@@ -25,36 +25,50 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
      nią a bokami); wieniec może wejść „na pół płyty” na przegrodę styku, o ile ten kawałek ma wcześniej (poza bokiem) jeszcze jedną
      przegrodę, do której jest przykręcony; jeśli nie ma — program sugeruje wieniec wewnątrz boków albo podwójną przegrodę na styku.
 2. **Wysoki pokój (sufit ponad ok. 2770 mm)** — szafa najwyżej 2761 mm (zrobione: uwaga i przycisk „Wysokość szafy N mm”). Nad szafą
-   decyzja: **do wyboru** — blenda do sufitu albo nadstawka (osobny korpus na szafie). Do zrobienia; przed robotą pytania o nadstawkę
-   (drzwi na zawiasach czy klapa, czy przesuwne też w nadstawce, jak łączona z szafą). **Odpowiedź 2026-11-22:** nadstawka domyślnie
-   z drzwiami na zawiasach.
+   decyzja: **do wyboru** — blenda do sufitu albo nadstawka (osobny korpus na szafie). **Odpowiedź 2026-11-22:** nadstawka domyślnie
+   z drzwiami na zawiasach. **Zrobione 2026-11-22** (przyciski „Blenda do sufitu” / „Nadstawka do sufitu”; łączenie z szafą — wkręty
+   od środka przez dno do wieńca, do potwierdzenia przez użytkownika).
 3. **Słupek z palety w kuchni** — zrobione 2026-11-21: „słupek nie ma blatu” — tył przy ścianie, drzwi równo z blatem, blat reszty bez zmian.
 4. **Kolumny pod skrzydłami w szafie przesuwnej** — zrobione 2026-11-21: przycisk „Przegrody na stykach skrzydeł” (tyle kolumn, ile
    skrzydeł), dodatkowe przegrody pomiędzy wolno, kolumna pod dwoma skrzydłami — ostrzeżenie (było: informacja).
    Do rozważenia: samo przestawianie przegród przy zmianie szerokości (dziś po zmianie jest ostrzeżenie z przyciskiem).
+
+### Szuflady Blum — co znalazłem (2026-11-22, #45; użytkownik: „poszukaj sam”, wdrożenie później — „nowe typy szuflad na później”)
+
+Do pobrania i dopisania do `instrukcje/` (karty z katalogu Blum 2024–2025), zanim wejdą do programu:
+- **TANDEMBOX antaro** (skrzynka ze stalowymi bokami, jak V-BOX): wymiary z dna i tyłu z płyty 16 mm od światła szafki LW —
+  tył z płyty LW − 87, dno LW − 75 × (NL − 24), tył stalowy NL − 22; wysokość tyłu zależy od wysokości skrzynki (np. 199 mm przy D,
+  135 mm w starszym wydaniu) — sprawdzić tabelę „Cutting dimensions for 16 mm chipboard” dla każdej wysokości.
+  Źródła: [katalog Blum 2024–2025, s. 313–315](https://publications.blum.com/2024/catalogue/en/313/),
+  [TANDEMBOX antaro — program](https://www.blum.com/eu/en/products/boxsystems/tandembox/tandembox-antaro/programme/).
+- **TANDEM** (prowadnice pod dnem szuflady drewnianej, 550H / 560H / 563H): wnętrze szuflady = światło szafki − 42 mm (tolerancja
+  0 … +1,5), bok szuflady najwyżej 16 mm, wysokość szuflady najwyżej światło − 20 mm; dno wpuszczone we wręg / podcięte pod
+  prowadnicę — szczegóły i wiercenia w karcie modelu. Źródła: [katalog Blum 2022, s. 261–277](https://publications.blum.com/2022/catalogue/en/265/),
+  [Blum TANDEM plus 563H — specyfikacja (PDF)](https://cdn.shopify.com/s/files/1/0709/8495/8225/files/Blum-Tandem-Plus-563H-Specs.pdf).
+- Przy wdrożeniu: osobny `systemSzuflady` (jak V-BOX / szuflady drewniane), formatki skrzynki z powyższych wzorów, NL z listy
+  prowadnic, kontrola wysuwu (audyt szuflad) i ceny.
 
 ### Pomysły
 
 - **Lakierowanie formatek** (użytkownik 2026-11-22, „na przyszłość, nie na dzisiaj”): opcja lakierowania frontów, korpusów i półek —
   do przemyślenia (które formatki, z obu stron czy z jednej, krawędzie, cena za m², osobna pozycja w zamówieniu / wycenie).
 
-- **Plecy HDF za duże na arkusz** (szafa 2400 × 2500 → plecy 2398 × 2398): dziś tylko błąd. Rada z przyciskiem: plecy z dwóch kawałków
-  łączonych na przegrodzie / półce (listwa łącząca) albo bez pleców w zabudowie przy ścianie.
+- ~~**Plecy HDF za duże na arkusz**~~ — zrobione 2026-11-22: przycisk „Plecy z kawałków” (kawałki na kolumnę i poziom, łączenia na
+  przegrodach i półkach). Do rozważenia: mniej kawałków (łączyć tylko tam, gdzie trzeba), „bez pleców” w zabudowie przy ścianie.
 - **Osobne ciągi w jednym pokoju** (np. szafa przy jednej ścianie, regał przy drugiej) — w widoku „Zabudowa” 3D stoją w tym samym
   miejscu i nachodzą na siebie (audyt pokoju), bo pokój nie ma układu ścian. Pomysł: ściany pokoju (A–D z długościami) i ciągi
   przypisane do ścian; na razie choćby rozstawić osobne ciągi obok siebie z odstępem.
 - **Regał / szafa z palety „Szafa w zabudowie” przy zaznaczonej szafce wolnostojącej** zakłada nowy ciąg („Ściana 2”), zamiast dołożyć
   się do istniejącej zabudowy w pokoju — do rozważenia: dokładać do ostatniego ciągu „szafa” w pokoju.
-- **Wzory bez uwag od razu po wstawieniu:** „Szafa” wolnostojąca i „Szafa, 1 drzwi” — zawias przesunięty, bo koliduje z półką
-  (ostrzeżenie); „Dolna z szufladami” — fronty różnią się o 1 mm (przycisk „Zwiększ luz do 3 mm”). Wzór mógłby od razu ustawić półki
-  poza zawiasami i luz, przy którym fronty są równe.
+- ~~**Wzory bez uwag od razu po wstawieniu**~~ — zrobione 2026-11-22 (`wzorBezUwag`: półki poza zawiasami, luz frontów szuflad).
+  Zostaje „Narożnik L” (dół 896 / góra 646 mm — jedne drzwi poza tabelą zawiasów GTV; jest przycisk „Dwoje drzwi”) — do decyzji.
 - **Szafa na zawiasach w wysokim pokoju** (1200 × 2761, 4 półki): fronty 2755 mm są poza tabelą zawiasów GTV (do 2500 mm) —
   jest ostrzeżenie, a 3 z 5 zawiasów na skrzydło przesuwa się przez półki (6 ostrzeżeń „zawias przesunięty”). Pomysł: przycisk
   „Półki poza zawiasami” (przesuwa półki o kilka centymetrów zamiast zawiasów); do sprawdzenia w katalogu — prostownik do wysokich
   drzwi (fronty z płyty powyżej ok. 2,2 m lubią się wyginać).
 - **Szuflady V-BOX w jednej kolumnie z różnymi bokami** (127 i 178 — „auto” dobiera osobno dla każdej szuflady): jeden bok dla całej
   kolumny wygląda równo i to jedna pozycja w zamówieniu.
-- **Start nowego projektu**: otwiera się tryb Techniczny z jedną szafką 600 × 720 poza ciągiem. Pomysł: na start pytanie „Co
+- ~~**Start nowego projektu**~~ (zrobione 2026-11-22 — okno „Nowy projekt — co projektujesz?”): otwierał się tryb Techniczny z jedną szafką 600 × 720 poza ciągiem. Pomysł: na start pytanie „Co
   projektujesz?” (kuchnia / szafa w zabudowie / pokój) z szerokością i wysokością ściany — od razu makieta z właściwą paletą
   i znanym sufitem (wtedy działają kontrole sufitu).
 - **Uwaga o odpadzie rozkroju** („Arkusz N wykorzystany tylko w X %”) powtarza się przy każdej szafce — wystarczy raz, w projekcie.

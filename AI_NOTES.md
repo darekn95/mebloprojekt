@@ -1404,7 +1404,8 @@ blenda nad szafa w wysokim pokoju — czekaja na szczegoly od uzytkownika (`POMY
 skrecone bokami / wspolna przegroda: dno wewnatrz, wieniec wewnatrz albo na pol przegrody); jedna szafa z dnem / wiencem z 2 kawalkow — dno
 wewnatrz przy pojedynczej przegrodzie, wieniec na pol plyty tylko gdy kawalek ma jeszcze jedna przegrode (poza bokiem) do przykrecenia,
 inaczej sugestia: wieniec wewnatrz bokow albo podwojna przegroda; nadstawka nad szafa — drzwi na zawiasach. Do wdrozenia (duze funkcje).
-[AI-TODO] PRZYPOMNIENIE (uzytkownik 2026-11-22): scalenie do `main` (PR #34, f4cc8cd) poszlo z szybkimi testami — PELNY PRZEBIEG
+[AI-INFO] 2026-11-22: PELNY PRZEBIEG ZROBIONY (po #41) — 175 suit + `losowe` zielone (po poprawce 3 testow z cokolem w kolorze frontow).
+[AI-INFO-STARE] PRZYPOMNIENIE (uzytkownik 2026-11-22): scalenie do `main` (PR #34, f4cc8cd) poszlo z szybkimi testami — PELNY PRZEBIEG
 (`bash testy/pelny.sh` + `node testy/losowe.mjs`) do zrobienia w wolnej chwili (bez innych zadan); jesli sie nie wykona — przypomniec
 uzytkownikowi przy nastepnym scaleniu („przy następnej wrzutce na git”), ze pelnych testow nie bylo.
 [AI-TODO] 2026-11-22 ODLOZONE przez uzytkownika („żeby nie brakło tokenów”): duze funkcje szafy przesuwnej (moduly + jeden komplet drzwi,
@@ -1416,3 +1417,13 @@ Maskownica boku (zgloszona „na już”) — do wyboru bok szafki, takze miedzy
 `dolGornej` do `base`), maskownica boku (`sprzetCiagu.typ = "maskownica"`), kolor cokolu (`plinth.kolor`), biurko w ciagu (`wCiag`).
 [AI-TODO] Biurko wiszace: mimosrody wienca (blatu) z bokami w planie wiercen (dzis konfirmaty + uwaga), tip-on szuflad, makieta prosta —
 rysunek skrzynki na wysokosci w widoku „Z boku” pojedynczej szafki (rysowana od podlogi).
+[CLAUDE-CHANGE] 2026-11-22 (po wznowieniu limitu — „dokończ bieżące i rób po kolei z listy”): kafelek „Płyty i kolory”, maskownica
+domyslnie jak korpus (`kolorWyb`), osobne zwijanie panelu makiety (pomieszczenie i zabudowa / widoki), zoom w widokach z boku, z gory,
+3D i 45°, biurko wiszace przesuwane w gore / w dol (`data-u="pion"`, `makLapaniePion`), kolor HDF (domyslnie jak korpus, `hdfZaKorpusem`,
+ostrzezenie z przyciskami), przegrody pionowe cofniete (`przegrodyCof`, fronty szuflad przed przegrodami, rowne — `distribute(…, ext)`),
+wzory z palety bez ostrzezen (`wzorBezUwag`), nadstawka / blenda do sufitu (`nadstawkaNaSzafie`, `szafablenda`), plecy HDF z kawalkow
+(`plecykawalki`), start „Co projektujesz?” (`projektStartowy`), cokol w obrysie bez wspolnego cokolu ciagu (blad zamowienia: 2000 zamiast
+1964), Blum — dane w POMYSLY. Zostaje do decyzji uzytkownika: #42 szeroka szafa (moduly z jednym kompletem drzwi / dno i wieniec
+z kawalkow — czym laczyc), #46 uklad scian pokoju, narożnik L (jedne drzwi 896 poza tabela zawiasow), lakierowanie formatek.
+[CHECK] Nadstawka laczona z szafa wkretami 4 × 30 od srodka przez dno do wienca (dwa rzedy) — zalozenie, do potwierdzenia przez uzytkownika.
+Przegrody biurka wiszacego cofniete o grubosc frontu (18, jak dno) — do potwierdzenia (18 czy 20 z luzem).

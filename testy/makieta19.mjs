@@ -202,18 +202,27 @@ p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa')");
   ok('opisy wzorów: „z drążkiem” / „szuflady po obu stronach … bez drążka”', /z drążkiem/.test(await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZab"]').innerText().catch(() => ''))
     && /po obu stronach/.test(await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZabSz"]').innerText().catch(() => ''))); }
 
-console.log('== panel nad rysunkiem zwijany (jak paski w technicznym) ==');
+console.log('== panel nad rysunkiem: osobno zwijane pomieszczenie i zabudowa oraz widoki (2026-11-22) ==');
 { const rys = page.locator('[data-el="makieta-rysunek"]');
   const h0 = (await page.locator('[data-el="mak-plotno"]').boundingBox()).y;
   await rys.locator('[data-el="mak-panel-zwin"]').click(); await page.waitForTimeout(400);
   const h1 = (await page.locator('[data-el="mak-plotno"]').boundingBox()).y;
-  ok('„▼” zwija panel do jednej linii: bez wyborów, nagłówka i przełączników; zoom zostaje; rysunek wyżej', (await rys.locator('[data-el="mak-panel-zwiniety"]').count()) === 1
-    && (await rys.locator('[data-el="mak-pomieszczenie"], [data-el="mak-naglowek"], [data-el="mak-przel"]').count()) === 0 && (await rys.locator('[data-el="mak-zoom"]').count()) === 1 && h1 < h0 - 25, `${h0} → ${h1}`);
-  ok('streszczenie: pomieszczenie, zabudowa, szafka, widok', /Pomieszczenie.*zabudowa „.*”.*szafka „Szafa”.*z przodu/.test(await rys.locator('[data-el="mak-panel-opis"]').innerText()), await rys.locator('[data-el="mak-panel-opis"]').innerText());
+  ok('„▼” pomieszczenia i zabudowy: bez wyborów i nagłówka, przełączniki widoków zostają; rysunek wyżej', (await rys.locator('[data-el="mak-panel-zwiniety"]').count()) === 1
+    && (await rys.locator('[data-el="mak-pomieszczenie"], [data-el="mak-naglowek"]').count()) === 0 && (await rys.locator('[data-el="mak-przel"]').count()) === 1 && h1 < h0 - 10, `${h0} → ${h1}`);
+  ok('streszczenie: pomieszczenie, zabudowa, szafka', /Pomieszczenie.*zabudowa „.*”.*szafka „Szafa”/.test(await rys.locator('[data-el="mak-panel-opis"]').innerText()), await rys.locator('[data-el="mak-panel-opis"]').innerText());
+  await rys.locator('[data-el="mak-widoki-zwin"]').click(); await page.waitForTimeout(400);
+  const h2 = (await page.locator('[data-el="mak-plotno"]').boundingBox()).y;
+  ok('„▼” widoków: bez przełączników, streszczenie widoku, zoom zostaje; obie linie w jednej', (await rys.locator('[data-el="mak-przel"]').count()) === 0
+    && /z przodu/.test(await rys.locator('[data-el="mak-widoki-opis"]').innerText()) && (await rys.locator('[data-el="mak-zoom"]').count()) === 1
+    && (await rys.locator('[data-el="mak-panel-zwiniety"] [data-el="mak-widoki-zwin"]').count()) === 1 && h2 < h1 - 10, `${h1} → ${h2}`);
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
-  ok('zwinięty zostaje po przeładowaniu (pamięta przeglądarka)', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwiniety"]').count()) === 1);
+  ok('oba zwinięte zostają po przeładowaniu (pamięta przeglądarka)', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwiniety"]').count()) === 1
+    && (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-przel"]').count()) === 0);
   await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwin"]').click(); await page.waitForTimeout(400);
-  ok('kliknięcie rozwija: wybory i przełączniki wracają', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-przel"]').count()) === 1 && (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwiniety"]').count()) === 0); }
+  ok('rozwinięte pomieszczenie, widoki dalej zwinięte (osobno)', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-pomieszczenie"]').count()) === 1
+    && (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-przel"]').count()) === 0 && (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-zoom"]').count()) === 1);
+  await page.locator('[data-el="makieta-rysunek"] [data-el="mak-widoki-zwin"]').click(); await page.waitForTimeout(400);
+  ok('kliknięcie rozwija widoki: przełączniki wracają', (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-przel"]').count()) === 1 && (await page.locator('[data-el="makieta-rysunek"] [data-el="mak-panel-zwiniety"]').count()) === 0); }
 
 console.log('== analiza 2026-11-21: wysoki pokój (sufit 2900) i słupek z palety w kuchni ==');
 await start(FIX);
@@ -223,10 +232,33 @@ p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa')");
 await ust(`const it = p.items.find((i) => i.cab.name === 'Szafa'); p.runs.find((x) => x.id === it.runId).ceiling = 2900;`);
 { const t = await uwagi(); ok('sufit 2900: „do sufitu się nie da … najwyżej 2761 mm” i przycisk „Wysokość szafy 2761 mm” (bez „Do sufitu z luzem”)', /do sufitu się nie da.*najwyżej 2 ?761 mm/.test(t)
     && (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Wysokość szafy 2761 mm' }).count()) === 1 && !(await page.locator('[data-el="makieta-uwagi"] button', { hasText: /Do sufitu z luzem/ }).count()), t.slice(0, 400)); }
+const H0 = szafa(await proj()).cab.H;
+ok('500 mm do sufitu: przyciski „Blenda do sufitu” i „Nadstawka do sufitu (drzwi na zawiasach)” (#41)', (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Blenda do sufitu' }).count()) === 1
+  && (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Nadstawka do sufitu (drzwi na zawiasach)' }).count()) === 1);
 await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Wysokość szafy 2761 mm' }).click();
 p = await czekaj("p.items.find((it) => it.cab.name === 'Szafa').cab.H === 2761");
 { const t = await uwagi(); ok('po kliknięciu szafa 2761 mm, bez błędu boku i rączki', szafa(p).cab.H === 2761 && !/nie mieści się na arkuszu|rączka NOVO S/.test(t), szafa(p).cab.H + ' ' + t.slice(0, 300)); }
-await ust(`const it = p.items.find((i) => i.cab.name === 'Szafa'); it.cab.H = 2895;`);
+// nad szafa do wyboru blenda albo nadstawka (uzytkownik 2026-11-21 / 2026-11-22: nadstawka z drzwiami na zawiasach) — #41
+{ const t = await uwagi(), bB = page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Blenda do sufitu' }), bN = page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Nadstawka do sufitu' });
+  ok('po 2761 (139 mm do sufitu): „Blenda do sufitu”, bez nadstawki (za niska — poniżej 150 mm)', (await bB.count()) === 1 && (await bN.count()) === 0, t.slice(0, 300));
+  await bB.click(); p = await czekaj("p.items.find((it) => it.cab.name === 'Szafa').cab.topFiller && p.items.find((it) => it.cab.name === 'Szafa').cab.topFiller.on");
+  const sz = szafa(p), o = sz.cab.topFiller;
+  ok('„Blenda do sufitu” — blenda nad szafą do sufitu, rada znika', o && o.on && o.height >= 100 && !/do sufitu się nie da/.test(await uwagi()), JSON.stringify(o));
+  await ust(`const it = p.items.find((i) => i.cab.name === 'Szafa'); it.cab.topFiller = { ...it.cab.topFiller, on: false }; it.cab.H = ${H0};`);
+  await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Nadstawka do sufitu' }).click();
+  p = await czekaj("p.items.some((it) => it.cab.nadstawka)"); }
+{ const n = p.items.find((it) => it.cab.nadstawka), sz = szafa(p), g = p.runs.find((r) => r.id === n.runId), dolny = p.runs.find((r) => r.id === sz.runId);
+  ok('nadstawka: w ciągu górnym nad szafą (prześwit 0), szerokość i głębokość szafy, do sufitu z luzem 5, drzwi na zawiasach, bez zawieszek',
+    g && g.tier === 'gorny' && g.wall === dolny.id && g.clearance === 0 && n.cab.W === sz.cab.W && n.cab.D === sz.cab.D && n.cab.hangers === 'never'
+    && n.cab.levels[0].cols.some((k) => (k.kind || 'doors') === 'doors' && k.doors >= 1), JSON.stringify({ W: n.cab.W, H: n.cab.H, D: n.cab.D, g: g && { c: g.clearance, m: g.mountY, o: g.offset } }));
+  await ust(`p.active = p.items.findIndex((i) => i.cab.nadstawka);`);
+  const t = await uwagi();
+  const bezRozkroju = t.replace(/! Rozkrój[^✓]*/g, '');
+  ok('uwagi nadstawki: „stoi na szafie … przykręć od środka przez dno do wieńca” — bez błędów i ostrzeżeń (drzwi po ok. 500 mm)', /Nadstawka stoi na szafie/.test(t) && !/ ! | × /.test(' ' + bezRozkroju.replace(/\d+ × \d+/g, '') + ' ')
+    && n.cab.levels[0].cols.length === 2 && n.cab.levels[0].cols.every((k) => k.doors === 2), bezRozkroju.slice(0, 400));
+  await ust(`p.active = p.items.findIndex((i) => i.cab.name === 'Szafa');`);
+  ok('szafa z nadstawką — rady o blendzie / nadstawce już nie ma', !/do sufitu się nie da/.test(await uwagi())); }
+await ust(`p.items = p.items.filter((i) => !i.cab.nadstawka); p.active = p.items.findIndex((i) => i.cab.name === 'Szafa'); const it = p.items.find((i) => i.cab.name === 'Szafa'); it.cab.H = 2895;`);
 { const t = await uwagi(); ok('szafa 2895 wpisana ręcznie: błąd boku i rączki NOVO S, przycisk „Wysokość szafy 2761 mm”', /Bok 2 ?895 × 600 mm nie mieści się/.test(t) && /rączka NOVO S/.test(t)
     && (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Wysokość szafy 2761 mm' }).count()) >= 1, t.slice(0, 400)); }
 // słupek z palety do kuchennego ciągu: wyjątek w ciągu, cokół jak ciąg
@@ -311,6 +343,15 @@ ok('zaznaczona maskownica w zakładce Wzmocnienia: jej kolor (jak korpus — wyb
   && (await page.locator('[data-el="mak-maskownica-gl"]').count()) === 2 && (await page.locator('[data-el="mak-wzm"]').count()) === 0);
 await zakl('plyty');
 ok('… w kafelku „Płyty i kolory”: kolor maskownicy', (await page.locator('[data-el="mak-plyty-maskownica"]').count()) === 2);
+// projekt sprzed poprawki: maskownica zapisana ze starym domyslnym „jak fronty” — ma wyjsc jak korpus; „jak fronty” klikniete zostaje
+await ust(`const m = p.items.find((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.typ === 'maskownica'); m.cab.sprzetCiagu = { typ: 'maskownica', gl: 'front', kolor: 'front' };`);
+await zakl('wzmocnienia');
+ok('stara maskownica (kolor: front bez wyboru) — jak korpus', (await page.locator('[data-el="mak-maskownica-kolor"][data-v="korpus"]').getAttribute('aria-pressed')) === 'true');
+await page.locator('[data-el="mak-maskownica-kolor"][data-v="front"]').click();
+p = await czekaj("p.items.some((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.typ === 'maskownica' && i.cab.sprzetCiagu.kolorWyb)");
+ok('„jak fronty” kliknięte — zostaje (kolorWyb)', (await page.locator('[data-el="mak-maskownica-kolor"][data-v="front"]').getAttribute('aria-pressed')) === 'true');
+await page.locator('[data-el="mak-maskownica-kolor"][data-v="korpus"]').click();
+await page.waitForTimeout(500);
 { const t = await uwagi(); ok('uwagi maskownicy: wkręty 4 × 30 od środka szafki obok, cokół kończy się przy niej; rysunek', /Maskownica boku \d+ × \d+ mm: przykręć ją od środka szafki obok wkrętami 4 × 30/.test(t)
     && (await page.locator('[data-el="makieta"] [data-el="maskownica-boku"]').count()) >= 1, t.slice(0, 300)); }
 
@@ -335,6 +376,36 @@ await ust(`p.active = p.items.findIndex((i) => i.cab.biurkoWiszace);`);
   await b.click(); }
 p = await czekaj("p.items.find((i) => i.cab.biurkoWiszace).cab.frontPodDnem === 10");
 ok('„Front 10 mm poniżej dna” — zapisane, ostrzeżenie znika', p.items.find((i) => i.cab.biurkoWiszace).cab.frontPodDnem === 10 && !/nie ma za co chwycić/.test(await uwagi()));
+// przesuwanie biurka w gore / w dol na rysunku (uzytkownik 2026-11-22: „brak możliwości przesunięcia biurka w dół … wyrównać do półki
+// szafki obok”) — dolna krawedz w zakladce Szafka przesuwa cala skrzynke, lapie polki szafy obok
+await zakl('szafka');
+{ const uch = (u) => page.locator(`[data-el="makieta-uchwyty"] [data-u="${u}"]`).first();
+  ok('biurko wiszące: uchwyt dolnej krawędzi (przesuwa całe biurko)', (await page.locator('[data-el="makieta-uchwyty"] [data-u="pion"]').count()) === 1);
+  const a = await uch('wys').boundingBox(), b = await uch('pion').boundingBox(), sk = (b.y - a.y) / 250;
+  const x = b.x + b.width / 2, y = b.y + b.height / 2;
+  await page.mouse.move(x, y); await page.mouse.down();
+  const lapy = [];
+  for (let i = 1; i <= 40; i++) { await page.mouse.move(x, y + 300 * sk * i / 40); await page.waitForTimeout(25);
+    const t = (await page.locator('[data-el="makieta-uchwyty"] text').allTextContents()).find((q) => /od podłogi/.test(q)) || '';
+    if ((await page.locator('[data-el="makieta-podglad"][data-rowno="1"]').count()) > 0) lapy.push(t); }
+  const tK = (await page.locator('[data-el="makieta-uchwyty"] text').allTextContents()).find((q) => /od podłogi/.test(q)) || '';
+  await page.mouse.up(); await page.waitForTimeout(800);
+  p = await proj(); const bw = p.items.find((i) => i.cab.biurkoWiszace);
+  ok('przeciągnięte w dół o ok. 300 mm: „dół … od podłogi”, wysokość biurka bez zmian', bw.cab.dolGorny >= 160 && bw.cab.dolGorny <= 240 && bw.cab.H === 250 && /dół \d+ od podłogi/.test(tK), JSON.stringify({ dG: bw.cab.dolGorny, H: bw.cab.H, tK }));
+  ok('po drodze łapie półkę szafy obok („równo z … półki”)', lapy.some((t) => /półki „Szafa”/.test(t)), JSON.stringify(lapy.slice(0, 4))); }
+// przegrody cofniete (uzytkownik 2026-11-22): biurko — przegrody o grubosc frontu, pole w zakladce Przegroda
+await zakl('przegroda');
+{ const pole = page.locator('[data-pole="przegrody-cof"]');
+  ok('zakładka Przegroda: „przegrody pionowe cofnięte od frontu” — biurko 18 mm, głębokość przegród 582', (await pole.count()) === 1 && Number(await pole.inputValue()) === 18
+    && /głębokość przegród 582 mm/.test(await page.locator('[data-el="mak-przegrody-cof-w"]').innerText()), await page.locator('[data-el="mak-przegrody-cof-w"]').innerText().catch(() => ''));
+  await page.locator('[data-el="mak-przegrody-cof"][data-v="0"]').click();
+  p = await czekaj("p.items.find((i) => i.cab.biurkoWiszace).cab.przegrodyCof === 0");
+  ok('„równo z frontem korpusu” — 0 (zostaje po przeładowaniu)', p.items.find((i) => i.cab.biurkoWiszace).cab.przegrodyCof === 0);
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000); await zakl('przegroda');
+  ok('… po przeładowaniu dalej 0 (biurko nie wraca do 18)', Number(await page.locator('[data-pole="przegrody-cof"]').inputValue()) === 0);
+  await page.locator('[data-pole="przegrody-cof"]').fill('18'); await page.locator('[data-pole="przegrody-cof"]').press('Enter');
+  p = await czekaj("p.items.find((i) => i.cab.biurkoWiszace).cab.przegrodyCof === 18");
+  ok('wpisane 18 — zapisane', p.items.find((i) => i.cab.biurkoWiszace).cab.przegrodyCof === 18); }
 
 console.log('== 2026-11-22: szafka RTV wisząca, „+ nowe pomieszczenie” w makiecie ==');
 await start(FIX);
@@ -367,12 +438,57 @@ await zakl('plyty');
   await page.locator('[data-el="mak-plyta-pokoj"][data-v="board"]').click();
   p = await czekaj(`p.items.filter((i) => !i.cab.sprzetCiagu).every((i) => (i.mat.board.color || '').toLowerCase() === '${'${hex}'}'.toLowerCase())`.replace("${'${hex}'}", hex));
   ok('kolor korpusu z kafelka i „korpus — w całym pomieszczeniu”: wszystkie szafki pomieszczenia', p.items.filter((i) => !i.cab.sprzetCiagu).every((i) => (i.mat.board.color || '').toLowerCase() === hex.toLowerCase()), hex + ' ' + JSON.stringify(p.items.map((i) => i.mat.board.color))); }
+console.log('== 2026-11-22: kolor HDF — jak korpus, ostrzeżenie z przyciskami ==');
+{ const lc = (x) => String(x || '').toLowerCase();
+  const hdfOk = (q) => q.items.filter((i) => !i.cab.sprzetCiagu && i.cab.back === 'hdf').every((i) => lc(i.mat.back.color) === lc(i.mat.board.color));
+  ok('w kafelku „Płyty i kolory”: wiersz „Plecy HDF” z paletą i „jak korpus”', (await page.locator('[data-el="mak-karta-panel"] [data-el="mak-plyta"][data-k="back"]').count()) > 3
+    && (await page.locator('[data-el="mak-plyta-hdf-korpus"]').count()) === 1);
+  ok('po zmianie koloru korpusu HDF idzie za nim (był jak korpus)', hdfOk(p), JSON.stringify(p.items.map((i) => [i.mat.board.color, i.mat.back.color])));
+  const inny = await page.locator('[data-el="mak-karta-panel"] [data-el="mak-plyta"][data-k="back"]').nth(5).getAttribute('data-v');
+  await page.locator('[data-el="mak-karta-panel"] [data-el="mak-plyta"][data-k="back"]').nth(5).click(); await page.waitForTimeout(600);
+  const t = await uwagi(), bK = page.locator('[data-el="makieta-uwagi"] button', { hasText: 'HDF jak korpus' });
+  ok('HDF w innym kolorze: ostrzeżenie i przyciski „HDF jak korpus” / „Zostaw HDF tak jak jest”', /Plecy HDF w innym kolorze niż korpus/.test(t) && (await bK.count()) >= 1
+    && (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Zostaw HDF tak jak jest' }).count()) >= 1, inny + ' ' + t.slice(0, 200));
+  await bK.first().click(); p = await czekaj(`p.items.every((i) => i.cab.back !== 'hdf' || String(i.mat.back.color).toLowerCase() === String(i.mat.board.color).toLowerCase())`);
+  ok('„HDF jak korpus” — kolor korpusu, ostrzeżenie znika', hdfOk(p) && !/Plecy HDF w innym kolorze/.test(await uwagi()));
+  await page.locator('[data-el="mak-karta-panel"] [data-el="mak-plyta"][data-k="back"]').nth(5).click(); await page.waitForTimeout(600);
+  await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Zostaw HDF tak jak jest' }).first().click();
+  p = await czekaj(`p.items.some((i) => i.mat.back && i.mat.back.kolorOk)`);
+  ok('„Zostaw HDF tak jak jest” — kolor zostaje (kolorOk), ostrzeżenie znika', p.items.some((i) => i.mat.back.kolorOk && lc(i.mat.back.color) === lc(inny)) && !/Plecy HDF w innym kolorze/.test(await uwagi())); }
+console.log('== 2026-11-22: „Nowy projekt — co projektujesz?” (#44) ==');
+{ await page.evaluate(() => localStorage.setItem('mp-tryb', 'techniczny')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+  await page.getByRole('button', { name: 'Nowy projekt', exact: true }).first().click(); await page.waitForTimeout(300);
+  ok('okno „co projektujesz?”: kuchnia / szafa w zabudowie / pokój / pusta szafka, pola ściany', (await page.locator('[data-el="start-rodzaj"]').count()) === 4 && (await page.locator('[data-pole="start-szer"]').count()) === 1);
+  await page.locator('[data-pole="start-szer"]').fill('3000'); await page.locator('[data-pole="start-wys"]').fill('2600');
+  await page.locator('[data-el="start-rodzaj"][data-v="szafa"]').click(); await page.waitForTimeout(1200);
+  p = await proj();
+  const run = p.runs[0], sz = p.items.filter((i) => i.runId === run.id);
+  ok('„Szafa w zabudowie”, ściana 3000 × 2600: ciąg szafa (bez blatu), ściana i sufit zapisane, dwie szafy po 1500 do sufitu, makieta', p.runs.length === 1 && run.zabudowa === 'szafa' && !run.worktop
+    && run.wallW === 3000 && run.ceiling === 2600 && sz.length === 2 && sz.every((i) => i.cab.W === 1500 && i.cab.H >= 2500) && (await page.evaluate(() => localStorage.getItem('mp-tryb'))) === 'prosta',
+    JSON.stringify({ runs: p.runs.length, z: run.zabudowa, w: run.wallW, c: run.ceiling, sz: sz.map((i) => [i.cab.W, i.cab.H]) }));
+  await page.getByRole('button', { name: 'Nowy projekt', exact: true }).first().click(); await page.waitForTimeout(300);
+  await page.locator('[data-pole="start-szer"]').fill('3600'); await page.locator('[data-pole="start-wys"]').fill('');
+  await page.locator('[data-el="start-rodzaj"][data-v="kuchnia"]').click(); await page.waitForTimeout(1200);
+  p = await proj();
+  ok('„Kuchnia”: ciąg z blatem, ściana 3600, dolna szafka pod blatem na nóżkach', p.runs[0].zabudowa === 'kuchnia' && p.runs[0].worktop === true && p.runs[0].wallW === 3600
+    && p.items.length === 1 && p.items[0].runId === p.runs[0].id && p.items[0].cab.legs.on, JSON.stringify({ r: p.runs[0], it: p.items.map((i) => i.cab.name) }).slice(0, 300));
+  const t = await uwagi(); ok('kuchnia startowa bez błędów i ostrzeżeń', !/ ! | × /.test(' ' + t.replace(/! Rozkrój[^✓]*/g, '') + ' '), t.slice(0, 300)); }
 console.log('== 2026-11-22: zoom makiety poniżej 100% ==');
 await page.evaluate(() => localStorage.setItem('mp-tryb', 'prosta')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 { const minus = page.locator('[data-el="mak-zoom"] button', { hasText: '−' });
   for (let k = 0; k < 3; k++) { await minus.click(); await page.waitForTimeout(200); }
   ok('„−” oddala poniżej 100% (do 25%)', /^25%$/.test((await page.locator('[data-el="mak-zoom-proc"]').innerText()).trim()), await page.locator('[data-el="mak-zoom-proc"]').innerText());
   await page.locator('[data-el="mak-zoom"] button', { hasText: 'Dopasuj' }).click(); await page.waitForTimeout(200); }
+// zoom w widokach 45°, 3D, z boku, z gory (uzytkownik 2026-11-22: „w 45 i 3d oddalanie widoku poniżej 100% nie działa”)
+for (const w of ['iso', '3d', 'bok', 'gora']) {
+  const szer = async (z) => { await page.evaluate(([w, z]) => { localStorage.setItem('mp-mak-zoom', JSON.stringify({ pow: false, z })); localStorage.setItem('mp-mak-widok', w); }, [w, z]);
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(700);
+    return page.evaluate(() => { const s = document.querySelector('[data-el=mak-widok-inny] svg'); return s ? Math.round(s.getBoundingClientRect().width) : 0; }); };
+  const a = await szer(0.5), b = await szer(1), c = await szer(2);
+  ok(`widok ${w}: 50% / 100% / 200% — rysunek mniejszy i większy`, a > 0 && Math.abs(a * 2 - b) < 4 && Math.abs(c - b * 2) < 4, `${a} / ${b} / ${c}`);
+}
+await page.evaluate(() => { localStorage.setItem('mp-mak-zoom', JSON.stringify({ pow: false, z: 1 })); localStorage.setItem('mp-mak-widok', 'przod'); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(700);
 console.log('== 2026-11-22: „Wczytaj plik” — pytanie: nowe pomieszczenie / zastąp projekt ==');
 { const fs = await import('fs'), plik = '/tmp/mp-test-import.json';
   const inny = JSON.parse(JSON.stringify(await proj())); inny.name = 'Pokój dziecka';

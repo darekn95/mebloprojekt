@@ -47,6 +47,10 @@ const CAB = (name) => ({
     { kind: 'drawers', w: null, drawers: [{}, {}] },
   ] }],
 });
+// HDF domyslnie w kolorze korpusu (2026-11-22) — plecy rozpoznajemy po kolorze, wiec tu HDF w innym kolorze (zostawiony swiadomie)
+const HDF_INNY = { board: { name: 'Płyta', thickness: 18, color: '#d8c3a0' }, front: { name: 'Płyta', thickness: 18, color: '#c2a880' },
+  shelf: { name: 'Płyta', thickness: 18, color: '#d0bb96' }, back: { name: 'HDF', thickness: 3, color: '#9c7b56', kolorOk: true },
+  mirror: { name: 'Lustro', thickness: 4, color: '#c3d0d6' }, worktop: { name: 'Blat roboczy', thickness: 38, color: '#8d7b68', depth: 600 } };
 const seed = async (runs, items) => {
   await page.evaluate(({ rs, its }) => {
     localStorage.clear();
@@ -119,8 +123,8 @@ ok('wisząca szafka bez nóżek', !st.items[st.items.length - 1].cab.legs.on,
 
 console.log('\n== widok z tyłu pokazuje cokół i plecy ==');
 await seed([{ id: 'c1', name: 'S', wallW: null, gap: 0, mountY: 0, H: 720, D: 500, plinth: PL, hangerMode: 'haczyki' }],
-  [{ cab: { name: 'A', W: 800, H: 720, D: 500, plinth: PL }, runId: 'c1' },
-   { cab: { name: 'B', W: 600, H: 720, D: 500, plinth: PL }, runId: 'c1' }]);
+  [{ cab: { name: 'A', W: 800, H: 720, D: 500, plinth: PL }, runId: 'c1', mat: HDF_INNY },
+   { cab: { name: 'B', W: 600, H: 720, D: 500, plinth: PL }, runId: 'c1', mat: HDF_INNY }]);
 await pick('Ciąg');
 await pick('Z tyłu');
 let r = await page.evaluate(() => [...document.querySelectorAll('#rysunek svg rect')].map((q) => ({

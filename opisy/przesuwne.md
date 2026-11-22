@@ -157,7 +157,14 @@ Drugi wzór: „Szafa do zabudowy z szufladami” — to samo, ale bez drążka:
   - wszystkie trzy z przyciskiem „Do sufitu z luzem 5 mm” (`szafasufit:<i>`) — przycisk nie podnosi ponad najwyższą szafę z arkusza
     (`szafaMaxH`: bok najwyżej 2761 mm, przy drzwiach przesuwnych też rączka 2700 mm);
   - sufit wyżej, niż sięgnie najwyższa szafa (pokój ok. 2770 mm i wyższy) — zamiast „może sięgać sufitu”: (i) „do sufitu się nie da …
-    szafa najwyżej N mm; nad nią blenda albo nadstawka” z przyciskiem „Wysokość szafy N mm” (`szafah:<H>:<i>`);
+    szafa najwyżej N mm; nad nią blenda albo nadstawka” z przyciskiem „Wysokość szafy N mm” (`szafah:<H>:<i>`) i (2026-11-22, #41,
+    decyzja użytkownika „do wyboru”) „Blenda do sufitu” (`szafablenda:<i>` — blenda nad szafą na cały luz, docinana na miejscu) oraz
+    „Nadstawka do sufitu (drzwi na zawiasach)” (`nadstawka:<i>`, gdy zostaje co najmniej 150 mm). Dotyczy też szafy na zawiasach.
+    **Nadstawka** (`nadstawkaNaSzafie`, `cab.nadstawka`): szafka w ciągu górnym nad ciągiem szafy (prześwit 0, przesunięcie od lewej
+    nad tę szafę), szerokość i głębokość szafy, do sufitu z luzem 5 mm, kolumny po najwyżej 1200 mm z drzwiami po ok. 500–600 mm
+    (tabela zawiasów), bez zawieszek; blenda szafy znika. Montaż (uwaga i okucia): stawiasz ją na szafie, gdy szafa już stoi,
+    i przykręcasz od środka przez dno do wieńca szafy wkrętami 4 × 30 (dwa rzędy, co ok. 500 mm) — dostęp przez otwarte drzwi
+    nadstawki. Nad szafą już coś jest (ciąg górny ma szafki) — bez tej rady;
   - szafa wyższa niż najwyższa z arkusza — obok błędu formatki „Bok … nie mieści się” (i) z tym samym przyciskiem.
 - Szafa przesuwna, sufit nieznany — (i) „podaj wysokość ściany”.
 - **Kolejność montażu.** Korpus skręcony na leżąco stawia się, obracając go na podłodze obok cokołu, i wsuwa na cokół:

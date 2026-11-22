@@ -40,6 +40,12 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
     kolejność montażu (w karcie „Notatka montażowa” i na stronie szafki w PDF): przykręć prawe jednym
     konfirmatem, obróć je na nim (leżące do pionu), zamontuj lewe (łby od strony prawej kolumny), obróć
     prawe z powrotem i przykręć jego prawy koniec;
+  - **Cofnięcie przegród pionowych od frontu** (`cab.przegrodyCof`, użytkownik 2026-11-22: „brak możliwości manipulowania głębokościami
+    przegród pionowych”) — wszystkie przegrody pionowe szafki krótsze o tyle z przodu (formatka, wiercenia od przedniej krawędzi
+    przegrody, rysunki); za drzwiami przesuwnymi większe z tego i strefy drzwi (`przegrodyCofOf`). Pole w zakładce Przegroda makiety
+    (`przegrody-cof`, „równo z frontem korpusu” / „o grubość frontu”) i w karcie Korpus. Od grubości frontu, przy szufladach
+    z frontami wpuszczanymi, fronty idą przed przegrodą do jej środka — między nimi luz „między drzwiami” (`g.between`), a kolumny
+    auto dobierają się tak, żeby fronty były równe (`distribute(…, ext)`);
   - „Przegroda niższa” (tylko górne wzmocnienia najwyższego poziomu) — przegroda o grubość płyty niżej,
     nad nią jedno leżące wzmocnienie przez obie kolumny z przodu i z tyłu (tylne stojące kładzie się na
     płask, „Przegroda do góry” przywraca). Formatka „Wzmocnienie poziome nad przegrodą” (długość obu
@@ -57,12 +63,17 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - wycięcie tylnego narożnika — wzmocnienie jest krótsze i kończy się na ściance wycięcia;
   - element kolizyjny (rura) — wzmocnienie stoi przed nim i dalej idzie od boku do boku.
 - **Plecy**:
-  - **HDF** nabijany z tyłu — zszywki / gwoździki;
+  - **HDF** nabijany z tyłu — zszywki / gwoździki; kolor HDF domyślnie jak korpus (2026-11-22) i idzie za korpusem przy zmianie jego
+    koloru (`hdfZaKorpusem` w `naprawProjekt`); w makiecie szczegółowej wiersz „Plecy HDF” (paleta, „jak korpus”, „cały ciąg”);
   - **HDF we frezie** — wręg od tyłu w bokach, wieńcu i dnie, domyślnie 16 × 3 mm, zlicowany z tyłem; frez równy albo szerszy niż płyta — błąd („równy grubości płyty” / „szerszy niż płyta”) z „Frez 16 mm (domyślny)” (audyt GPT N190);
   - grubość płyty 0 — błąd z „Grubość korpusu / frontów / półek 18 mm”, „Grubość pleców 3 mm” (fronty i półki z płyty korpusu — tylko korpus; audyt GPT N185);
   - **płyta** w środku między bokami albo na zewnątrz — wkręty 3,5 × 30;
   - **brak**.
   - Kolumna może mieć własne plecy („jak szafka / HDF / płyta / brak”).
+  - **Plecy HDF za duże na arkusz** (np. szafa 2400 × 2500, użytkownik 2026-11-21: „dzielić na przegrodach lub równych półkach, żeby
+    łączeń nie było widać”) — błąd formatki ma przycisk „Plecy z kawałków — łączenia na przegrodach i półkach” (`plecykawalki`): każda
+    kolumna dostaje plecy HDF jawnie, więc plecy idą kawałkami na kolumnę i poziom, a kawałki stykają się w połowie przegrody i półki
+    przez całą szerokość (tam je przybijasz). Szafka bez przegród i poziomów — bez przycisku, rada „dodaj przegrodę albo poziom”.
   - **Cofnięcie pleców** (płyta wewnątrz, opcja do specjalnego zastosowania, domyślnie 0 — równo z bokami): płyta cofnięta o N mm od tyłu boków, półki, przegrody i szuflady o tyle płytsze; za plecami w każdej szafce listwa montażowa (`opisy/zamowienie.md`). Za duże (z płytą ≥ głębokość korpusu) — błąd (użytkownik 2026-10-24).
   - Plecy w środku albo we frezie skracają głębokość półek, przegród i szuflad.
   - Plecy ustawione w kolumnach są zawsze przybijane za korpusem: szafka stoi od ściany o najgrubsze z nich (płyta 18 w jednej kolumnie → 578 mm przy korpusie 560), wszystkie „brak” — przy samej ścianie; zszywki do HDF i wkręty do płyty liczone z obwodu każdej płyty (audyt GPT N73, N81).
@@ -115,6 +126,8 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - luz większy niż frez — błąd;
   - poza głębokością korpusu — błąd;
   - płytszy niż HDF — ostrzeżenie „plecy wystają za tył”.
+- **Kolor HDF inny niż korpus** (użytkownik 2026-11-22) — ostrzeżenie z przyciskami „HDF jak korpus” (wszystkie takie szafki dostają kolor
+  swojego korpusu) i „Zostaw HDF tak jak jest” (`mat.back.kolorOk`, `hdfInnyKolor`).
 - **Szafka płytka**:
   - na styku mieści się jeden konfirmat (poniżej 132 mm) — ostrzeżenie z „Popraw głębokość”;
   - dwa rzędy nóżek nachodzą na siebie — ostrzeżenie.

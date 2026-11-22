@@ -68,14 +68,15 @@ console.log('== 4 szafki sonoma → biały ==');
   await seed(UKLAD());
   let k = await kolory3D('Ciąg');
   // ciąg z górnym piętrem: 4 szafki dolne + górna G
-  ok('przed: korpusy sonoma, fronty w odcieniu sonomy (nie w ukrytym kolorze plyty frontów)', k.ile[SONOMA] > 0 && !k.ile[STARY_FRONT] && k.ile['#baa88a'] === 5, JSON.stringify(k.ile));
+  // cokol ciagu jest w kolorze frontow (uzytkownik 2026-11-22: „domyślnie powinien być jak fronty”) — 5 frontow + cokol ciagu
+  ok('przed: korpusy sonoma, fronty (i cokół ciągu) w odcieniu sonomy (nie w ukrytym kolorze plyty frontów)', k.ile[SONOMA] > 0 && !k.ile[STARY_FRONT] && k.ile['#baa88a'] === 6, JSON.stringify(k.ile));
   await otworzPlyty();
   await karta().locator('button[title="Biały mat"]').first().click(); await page.waitForTimeout(500);
   let q = await pytanie();
   ok('po zmianie: pytanie o ciąg (3), pomieszczenie (4) i projekt (5)',
     /Cały ciąg „Ściana 1” — 3 szafki/.test(q) && /Całe pomieszczenie — 4 szafki/.test(q) && /Cały projekt — 5 szafek/.test(q) && /Tylko ta szafka/.test(q), q);
   k = await kolory3D('Ciąg');
-  ok('aktywna biała z frontem w odcieniu bieli, reszta jeszcze sonoma', k.ile[BIALY] > 0 && k.ile[BIALY_ODCIEN] === 1 && k.ile['#baa88a'] === 4 && !k.ile[STARY_FRONT], JSON.stringify(k.ile));
+  ok('aktywna biała z frontem w odcieniu bieli, reszta jeszcze sonoma', k.ile[BIALY] > 0 && k.ile[BIALY_ODCIEN] === 2 && k.ile['#baa88a'] === 4 && !k.ile[STARY_FRONT], JSON.stringify(k.ile));
   await wPytaniu(/^Cały ciąg/);
   let p = await projekt();
   ok('„Cały ciąg”: A–D białe, górna G i salon S bez zmian', p.items.slice(0, 4).every((it) => it.mat.board.color === BIALY) && p.items[4].mat.board.color === SONOMA && p.items[5].mat.board.color === SONOMA,
@@ -83,7 +84,7 @@ console.log('== 4 szafki sonoma → biały ==');
   q = await pytanie();
   ok('dalej pytanie o pomieszczenie (1) i projekt (2)', /Całe pomieszczenie — 1 szafka/.test(q) && /Cały projekt — 2 szafki/.test(q) && !/Cały ciąg/.test(q), q);
   k = await kolory3D('Ciąg');
-  ok('3D ciągu: dolne korpusy białe, 4 fronty w odcieniu bieli, górna G jeszcze sonoma, bez starego beżu', k.ile[BIALY] > 0 && k.ile[BIALY_ODCIEN] === 4 && k.ile['#baa88a'] === 1 && !k.ile[STARY_FRONT], JSON.stringify(k.ile));
+  ok('3D ciągu: dolne korpusy białe, 4 fronty w odcieniu bieli, górna G jeszcze sonoma, bez starego beżu', k.ile[BIALY] > 0 && k.ile[BIALY_ODCIEN] === 5 && k.ile['#baa88a'] === 1 && !k.ile[STARY_FRONT], JSON.stringify(k.ile));
   await wPytaniu(/^Tylko ta szafka/);
   ok('„Tylko ta szafka” zamyka pytanie', !(await pytanie()));
   // pytanie znika przy innej szafce
@@ -110,7 +111,7 @@ console.log('\n== „Realne kolory / Rozróżnij fronty” dla całego projektu 
   p = await projekt();
   ok('„Rozróżnij fronty” wyłącza wszystkie', p.items.every((it) => !it.cab.realColors));
   k = await kolory3D('Zabudowa');
-  ok('3D zabudowy (dół + góra): wszystkie fronty w odcieniu bieli', k.ile[BIALY_ODCIEN] === 5 && !k.ile[STARY_FRONT], JSON.stringify(k.ile));
+  ok('3D zabudowy (dół + góra): wszystkie fronty w odcieniu bieli', k.ile[BIALY_ODCIEN] === 6 && !k.ile[STARY_FRONT], JSON.stringify(k.ile));
   await pick('Realne kolory');
   await page.getByRole('button', { name: '+ szafka', exact: true }).first().click(); await page.waitForTimeout(600);
   p = await projekt();

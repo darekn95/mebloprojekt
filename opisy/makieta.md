@@ -31,6 +31,9 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
   rysunek”): „▼” przed „Pomieszczenie” zwija wybory (pomieszczenie, ciąg, szafka), nagłówek ciągu ze ścianą i przełączniki do
   jednej linii „Panel rysunku — pomieszczenie · ciąg / zabudowa · szafka · widok” (`mak-panel-zwiniety`, `mak-panel-opis`); zoom
   i „Pełny ekran” zostają. Kliknięcie linii rozwija. Stan pamięta przeglądarka (`mp-mak-panel-zw`).
+  Od 2026-11-22 (użytkownik: „osobne zwijanie pomieszczeń i zabudowy i osobne dla widoków jak w technicznej”) dwa osobne „▼”:
+  „Pomieszczenie i zabudowa” (wybory i nagłówek ciągu — `mak-panel-zwin`, linia `mak-panel-zwiniety`, `mak-panel-opis`) i „Widoki”
+  (przełączniki i „Widok” — `mak-widoki-zwin`, streszczenie `mak-widoki-opis`, `mp-mak-widoki-zw`); oba zwinięte — w jednej linii z zoomem.
 - **Widok jak w makiecie „Dodaj”** (użytkownik 2026-11-09: „popraw widok żeby był jak w artefakcie makieta”):
   - nad rysunkiem nagłówek: „Ciąg „…”” i jego długość, **ściana** (− / pole / +, co 100 mm → `run.wallW`)
     i „wolne N mm” (albo „brakuje N mm”); przy szafkach wolnostojących — „Szafki wolnostojące”;
@@ -323,6 +326,9 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
 - Kafelek **„Płyty i kolory”** (makieta szczegółowa, 2026-11-22; kolory zostają też w zakładce Szafka): palety korpusu / frontów / półek zaznaczonej szafki z „cały ciąg”, „jak w tej szafce — w całym pomieszczeniu” (korpus, fronty, półki), kolor cokołu i kolor maskownic przy tej szafce (zaznaczona maskownica — jej kolor); płyty z listy i dekory — „Wszystkie opcje” (karta Płyty).
 - Zaznaczona maskownica w zakładce Wzmocnienia: jej kolor i głębokość (pozycje bez korpusu — bez wzmocnień).
 - Zoom: „−” / „+” w krokach 25–400 % (`MAK_ZOOM`; od 2026-11-22 także poniżej 100 % — rysunek mniejszy niż okno), Ctrl + kółko, „Dopasuj”.
+- **Nowy projekt — „Co projektujesz?”** (2026-11-22, #44; przycisk „Nowy projekt”): kuchnia / szafa w zabudowie / pokój / pusta szafka, pola szerokości i wysokości ściany (`start-szer`, `start-wys`). Projekt ma od razu ciąg tego rodzaju (`zabudowa`, blat tylko w kuchni) ze ścianą i sufitem i pierwszą szafkę ze wzoru palety (kuchnia — „Dolna, 2 drzwi”; szafa — „Szafa do zabudowy” na całą ścianę, przy znanym suficie do sufitu, przy ścianie szerszej niż 2761 mm od razu dwie szafy; pokój — „Szafa” 800 × 2000), potem makieta („prosta”, gdy był Techniczny). „Pusta szafka” — jak dotąd, tryb Techniczny (`projektStartowy`, `START_RODZAJE`). Przy pierwszym uruchomieniu okno się nie pokazuje.
+- **Wzór z palety bez ostrzeżeń** (2026-11-22, `wzorBezUwag` przy dodaniu z `opcje.zmien`): półki przesunięte poza strefy zawiasów (zawias w swoim miejscu ± 27,5 + 30 mm luzu; światła w `shelfTargets`, ostatnie auto, każde co najmniej 120 mm) i luz frontów szuflad z przycisku `fixgap` (równe fronty).
+- Zoom działa też w widokach z boku, z góry, 3D i 45° (użytkownik 2026-11-22: „w 45 i 3d oddalanie poniżej 100% nie działa”): rysunek ma szerokość okna razy zoom (`mak-widok-zoom`); powyżej 100% bez limitu wysokości 3D.
 - „Wczytaj plik” (pasek u góry) przy projekcie z szafkami pyta: dodać jako nowe pomieszczenie czy zastąpić cały projekt (`importOferta`, `dolaczJakoPomieszczenia`). Ciąg domyślnie: ciąg
   zaznaczonej szafki z piętrem nad nim (cały pokój na raz jest za drobny do chwytania półek);
   „Wszystkie ciągi” — cały pokój i szafki wolnostojące; „Tylko zaznaczona szafka” — duży rysunek
@@ -670,6 +676,9 @@ górnymi szafkami?”):
   (`makLapanieBlendy`, `makGrupaBlendy`). Szafka górna ma też uchwyt dołu (`data-u="dol"`): dół tej szafki, góra zostaje (`cab.dolGorny`,
   jak „dół tej szafki od podłogi”), łapie dół ciągu („jak inne”) i dół innych górnych (`makLapanieDol`). Uchwyt wysokości łapie też sufit
   („wys. N — do sufitu”, z blendą — „z blendą N do sufitu”).
+  Biurko wiszące i szafka RTV wisząca (`wiszacaDolna`) mają uchwyt dolnej krawędzi `data-u="pion"` (2026-11-22: „brak możliwości
+  przesunięcia biurka w dół … wyrównać do półki szafki obok”): przesuwa całą szafkę (`cab.dolGorny`, wysokość zostaje, nie niżej niż
+  podłoga), łapie wierzch / spód półek, górę i dół szafek tej ściany (`makLapaniePion`, `MAK_LAP`).
 - **Karta szafki górnej / zakładka Ciąg**: „od blatu do dołu szafek górnych (prześwit)” — pole i −/+50 (`run.clearance`, `mak-gorny-od-blatu`);
   przy „dół szafek górnych od podłogi” przycisk „do sufitu (N)” — góra najwyższej szafki (z blendą) pod sufitem (`mak-gorny-do-sufitu`).
   W karcie Szafka szafki górnej i słupka wiersz „Blenda nad szafką” (jest / nie ma, wysokość, „do sufitu (N)”; `mak-sz-blenda`); „jest”

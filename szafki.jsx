@@ -27,6 +27,9 @@ const PALETA = [
    tylko wtedy, gdy ta sama plyta wystepuje w projekcie w kilku grubosciach. */
 const PALETA_BY_HEX = new Map(PALETA.map(([n, h]) => [h.toLowerCase(), n]));
 const paletteName = (hex) => PALETA_BY_HEX.get(String(hex || "").toLowerCase()) || null;
+const nazwaKoloru = (m) => (m && (paletteName(m.color) || m.decor || m.color)) || "—";
+// HDF innego koloru niz korpus i nie zostawiony swiadomie (`kolorOk`)
+const hdfInnyKolor = (mat) => !!(mat && mat.back && mat.board && String(mat.back.color || "").toLowerCase() !== String(mat.board.color || "").toLowerCase() && !mat.back.kolorOk);
 // kolor spoza wzornika trzeba nazwac samemu, inaczej do zamowienia poszloby
 // bezuzyteczne "kolor wlasny"
 const colorLabel = (m) => ((m && m.decor) || "").trim() || paletteName(m && m.color) || "kolor własny";
@@ -428,7 +431,7 @@ const SPRZETY_CIAGU = {
   blenda: { nazwa: "blenda", pelna: "Blenda przy ścianie", pas: 0 },
   /* Maskownica boku (uzytkownik 2026-11-22: „płyta na zewnątrz od dołu do góry mebla na całą głębokość”, „nie musi być przy ścianie —
      do wyboru bok szafki, może być między meblami”): plyta stojaca na podlodze przy boku szafki, wysokosc i glebokosc jak szafka obok
-     (`maskowniceZaCiagiem`); `gl` — do lica frontow (domyslnie) / korpusu, `kolor` — jak fronty (domyslnie) / korpus */
+     (`maskowniceZaCiagiem`); `gl` — do lica frontow (domyslnie) / korpusu, `kolor` — jak korpus (domyslnie) / fronty; „jak fronty” tylko wybrane recznie (`kolorWyb`) */
   maskownica: { nazwa: "maskownica", pelna: "Maskownica boku" },
   okapK: { nazwa: "okap", pelna: "Okap kominowy", szer: 600, h: 90, gl: 500, kominW: 280, kominD: 250, dol: 150 },
 };
@@ -464,8 +467,10 @@ const sprzetCiagu = (cab) => {
   }
   if (typ === "zmywarkaW") { out.pokrywa = !!sp.pokrywa; out.drzwi = "dol"; }
   if (typ === "blenda") { out.auto = sp.auto !== false; out.strona = sp.strona === "prawa" ? "prawa" : "lewa"; }
-  // kolor domyslnie jak korpus (uzytkownik 2026-11-22: „domyślnie powinna być w kolorze korpusu, a nie frontów”)
-  if (typ === "maskownica") { out.gl = sp.gl === "korpus" ? "korpus" : "front"; out.kolor = sp.kolor === "front" ? "front" : "korpus"; }
+  /* kolor domyslnie jak korpus (uzytkownik 2026-11-22: „domyślnie powinna być w kolorze korpusu, a nie frontów”; potem znowu:
+     „kolor maskownicy domyślnie jak korpus nie fronty”) — maskownice zapisane przed ta zmiana maja `kolor: "front"` ze starego
+     domyslnego, wiec „jak fronty” liczy sie tylko, gdy wybrano je przyciskiem (`kolorWyb`) */
+  if (typ === "maskownica") { out.gl = sp.gl === "korpus" ? "korpus" : "front"; out.kolor = sp.kolor === "front" && sp.kolorWyb ? "front" : "korpus"; }
   if (typ === "lodowka" && out.drzwi !== "prawe") out.drzwi = "lewe";
   if (typ === "lodowka") {
     const pusty = (k) => sp[k] == null || sp[k] === "";
@@ -484,6 +489,10 @@ const okapCiagu = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === 
 /* Wlasny dol szafki gornej (uzytkownik 2026-11-13, jak w makiecie „Dodaj”: okap −/+50 przesuwa tylko szafke z okapem — krotsza,
    gora rowno z reszta ciagu): `cab.dolGorny` mm ponad dol ciagu gornego (ujemny — nizej); wysokosc szafki zmienia sie o tyle samo. */
 const dolGornej = (cab) => Math.round(Number(cab && cab.dolGorny) || 0);
+// cofniecie przegrod pionowych od lica korpusu: za drzwiami przesuwnymi (`__przegrodyCof`) albo recznie (`przegrodyCof`) — wieksze
+const przegrodyCofOf = (cab) => Math.max(0, Math.round(Number(cab && cab.__przegrodyCof) || 0), Math.round(Number(cab && cab.przegrodyCof) || 0));
+// wiszaca w ciagu dolnym albo wolnostojaca (biurko wiszace, szafka RTV wiszaca) — `dolGorny` = dol nad podloga
+const wiszacaDolna = (cab) => !!(cab && (cab.biurkoWiszace || cab.wiszacaRtv));
 /* Sufit sciany (uzytkownik 2026-11-15: „brak opcji przesunięcia szafki do samego sufitu”, „ręcznie nie da się złapać, żeby blenda
    była do sufitu”) — wysokosc pomieszczenia `run.ceiling` ciagu dolnego i gornego tej samej sciany: pole „wys.” nad rysunkiem makiety
    zapisuje ja w ciagu dolnym, karta techniczna — w otwartym ciagu; najwyzsza podana, inaczej null */
@@ -1637,12 +1646,19 @@ function hingePositions(y0, h, n, obstacles) {
 }
 
 /* rozdziela `total` na pola: podane zostaja, puste dziela reszte po rowno */
-function distribute(total, targets) {
+/* `ext` (opcjonalnie): o ile front kolumny jest szerszy od jej swiatla — kolumny auto dostaja takie szerokosci, zeby ich FRONTY byly
+   rowne (fronty szuflad przed cofnietymi przegrodami, 2026-11-22) */
+function distribute(total, targets, ext = null) {
   const t = targets.map(num);
   const fixed = t.reduce((s, v) => s + (v === null ? 0 : v), 0);
   const auto = t.map((v, i) => (v === null ? i : -1)).filter((i) => i >= 0);
   const out = t.slice();
-  if (auto.length) {
+  if (auto.length && ext && total - fixed >= 0) {
+    const rest = total - fixed, F = (rest + auto.reduce((a, i) => a + ext[i], 0)) / auto.length;
+    auto.forEach((i) => { out[i] = Math.floor(F - ext[i]); });
+    let rem = rest - auto.reduce((a, i) => a + out[i], 0);
+    for (let k = 0; rem > 0 && k < auto.length; k++, rem--) out[auto[k]] += 1;
+  } else if (auto.length) {
     const rest = total - fixed;
     const base = rest >= 0 ? Math.floor(rest / auto.length) : 0;
     const rem = rest >= 0 ? rest - base * auto.length : 0;
@@ -1707,7 +1723,8 @@ const defaultMaterials = {
   board: { name: "Płyta", thickness: 18, color: "#d8c3a0" },
   front: { name: "Płyta", thickness: 18, color: "#c2a880" },
   shelf: { name: "Płyta", thickness: 18, color: "#d0bb96" },
-  back: { name: "HDF", thickness: 3, color: "#9c7b56" },
+  // HDF domyslnie w kolorze korpusu (uzytkownik 2026-11-22: „domyślnie powinna być jak korpus”); inny — ostrzezenie z przyciskami
+  back: { name: "HDF", thickness: 3, color: "#d8c3a0" },
   mirror: { name: "Lustro", thickness: 4, color: "#c3d0d6" },
   /* Blat roboczy to nie plyta meblowa: grubszy, kupowany w gotowych odcinkach
      i ciety na dlugosc, wiec nie idzie do rozkroju razem z korpusami. */
@@ -2101,7 +2118,60 @@ const maskowniceZaCiagiem = (p) => {
   });
   return items ? { ...p, items } : p;
 };
-const naprawProjekt = (p, prev) => maskowniceZaCiagiem(blendyScianyZaCiagiem(slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev)))));
+/* HDF w kolorze korpusu idzie za korpusem (2026-11-22): zmieniony kolor korpusu — plecy, ktore mialy jego stary kolor, dostaja nowy */
+const hdfZaKorpusem = (p, prev) => {
+  if (!prev || !prev.items || prev.items.length !== p.items.length) return p;
+  let items = null;
+  p.items.forEach((it, i) => {
+    const a = prev.items[i], m = it.mat, m0 = a && a.mat;
+    if (!m || !m0 || !m.board || !m0.board || !m.back || !m0.back) return;
+    const lc = (x) => String(x || "").toLowerCase();
+    if (lc(m.board.color) === lc(m0.board.color) || lc(m0.back.color) !== lc(m0.board.color) || lc(m.back.color) !== lc(m0.back.color)) return;
+    items = items || p.items.slice(); items[i] = { ...it, mat: { ...m, back: { ...m.back, color: m.board.color } } };
+  });
+  return items ? { ...p, items } : p;
+};
+/* Wzor z palety bez ostrzezen od razu po wstawieniu (analiza 2026-11-21, POMYSLY: „Szafa” — zawiasy przesuniete przez polki;
+   „Dolna z szufladami” — fronty roznia sie o 1 mm): polki z dala od zawiasow (zawias w swoim miejscu, polka na blizszej krawedzi
+   jego strefy ± HINGE_H / 2 + HINGE_CLR; swiatla w `shelfTargets`, ostatnie auto) i luz miedzy frontami szuflad z przycisku
+   „Zwiększ / Zmniejsz luz do N mm” (`fixgap`). Zmienia `cab` w miejscu; tylko gdy pomaga (swiatla co najmniej 120 mm). */
+const wzorBezUwag = (cab, mat) => {
+  for (let pass = 0; pass < 3; pass++) {
+    // na kopii — `computeGeo` pamieta wynik dla tego samego obiektu, a tu `cab` zmienia sie w miejscu
+    let g; try { g = computeGeo(JSON.parse(JSON.stringify(cab)), mat); } catch (e) { return; }
+    let zmiana = false;
+    (g.msgs || []).forEach((m) => { const a = (m.text.split("|").find((x) => x.startsWith("fixgap:")) || "").split(":");
+      if (a.length < 4) return; const k = (((cab.levels || [])[+a[1]] || {}).cols || [])[+a[2]];
+      if (k && k.gapBetween !== +a[3]) { k.gapBetween = +a[3]; zmiana = true; } });
+    (g.levels || []).forEach((lv) => (lv.cols || []).forEach((col) => {
+      const raw = typeof col.j === "number" ? (((cab.levels || [])[lv.i] || {}).cols || [])[col.j] : null;
+      const sh = (col.shelves || []).slice().sort((x, y) => x.y - y.y), op = col.openings || [];
+      if (!raw || raw.kind === "drawers" || (raw.podzial || []).length || !sh.length || op.length !== sh.length + 1) return;
+      const strefy = (col.doors || []).filter((d) => d.type === "door" && d.hinges > 0)
+        .flatMap((d) => hingePositions(d.y, d.h, d.hinges, []).pts).map((y) => ({ y0: y - HINGE_H / 2 - HINGE_CLR, y1: y + HINGE_H / 2 + HINGE_CLR }));
+      if (!strefy.length) return;
+      const ts = g.ts, ys = sh.map((q) => {
+        const z = strefy.find((st) => q.y + ts > st.y0 && q.y < st.y1);
+        if (!z) return q.y;
+        // z zapasem 1 mm w strone od zawiasu (zawias bywa w polowie milimetra)
+        const dol = Math.floor(z.y0 - ts) - 1, gora = Math.ceil(z.y1) + 1;
+        return q.y - dol <= gora - q.y ? dol : gora;
+      });
+      if (ys.every((y, k) => y === sh[k].y)) return;
+      const sw = ys.map((y, k) => Math.round(y - (k ? ys[k - 1] + ts : op[0].from)));
+      const ostatnie = Math.round(op[op.length - 1].to - (ys[ys.length - 1] + ts));
+      if (Math.min(...sw, ostatnie) < 120) return;
+      raw.shelfTargets = [...sw, null]; zmiana = true;
+    }));
+    if (!zmiana) return;
+  }
+};
+const biurkaPrzegrodyCof = (p) => {
+  if (!p.items.some((it) => it.cab && it.cab.biurkoWiszace && it.cab.przegrodyCof == null)) return p;
+  return { ...p, items: p.items.map((it) => (it.cab && it.cab.biurkoWiszace && it.cab.przegrodyCof == null
+    ? { ...it, cab: { ...it.cab, przegrodyCof: Math.round(Number((((it.mat || {}).front || (it.mat || {}).board) || {}).thickness) || 18) } } : it)) };
+};
+const naprawProjekt = (p, prev) => hdfZaKorpusem(biurkaPrzegrodyCof(maskowniceZaCiagiem(blendyScianyZaCiagiem(slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev)))))), prev);
 // szafka w ciagu z opcjami wspolnego wienca / dna — przy wlaczeniu i przy dodaniu nowej
 const wedlugCiagu = (cab, mat, run, h = run && run.H) => {
   let c = cab;
@@ -3002,7 +3072,8 @@ const TEMPLATES = [
     id: "biurko-wiszace",
     label: "Biurko wiszące",
     hint: "2100 × 250 × 600, wisi między szafkami: blat = wieniec, szuflady po ok. 700 mm, dno cofnięte, fronty zasłaniają je od dołu",
-    make: () => ({ W: 2100, H: 250, D: 600, hangers: "never", frontMode: "inset", biurkoWiszace: true, dnoCof: 18, frontPodDnem: 0, dolGorny: 500,
+    // przegrody miedzy szufladami cofniete o grubosc frontu — fronty przed nimi, miedzy soba tylko luz (uzytkownik 2026-11-22)
+    make: () => ({ W: 2100, H: 250, D: 600, hangers: "never", frontMode: "inset", biurkoWiszace: true, dnoCof: 18, przegrodyCof: 18, frontPodDnem: 0, dolGorny: 500,
       plinth: { on: false, height: 100, mode: "under", setback: 0 }, legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
       joints: { topL: "over", topR: "over", botL: "between", botR: "between" },
       levels: [{ h: null, cols: biurkoWiszaceKolumny(2100) }] }),
@@ -3327,6 +3398,12 @@ function computeGeoLiczy(cab, mat, ctx) {
   const g = cab.gaps;
   const msgs = [];
   const add = (level, text) => msgs.push({ level, text });
+  /* plecy HDF w innym kolorze niz korpus (uzytkownik 2026-11-22: „brak ostrzeżenia że jest inna i przycisku że zmień jak korpus albo
+     zostaw tak jak jest”) — „Zostaw” zapisuje `mat.back.kolorOk` */
+  if (cab.back === "hdf" && hdfInnyKolor(mat)) add("warn", `Plecy HDF w innym kolorze niż korpus (HDF: ${nazwaKoloru(mat.back)}, korpus: ${nazwaKoloru(mat.board)}) — zwykle plecy są w kolorze korpusu.|hdfkorpus|hdfzostaw`);
+  // nadstawka na szafie (2026-11-22): stoi na wiencu szafy, przykrecona od srodka przez dno — kolejnosc montazu i dostep do wkretow
+  const nadstawkaWkr = cab.nadstawka ? 2 * Math.max(2, Math.ceil((Number(cab.W) || 0) / 500)) : 0;
+  if (cab.nadstawka) add("info", `Nadstawka stoi na szafie: postaw ją, gdy szafa już stoi i jest wypoziomowana, i przykręć od środka przez dno do wieńca szafy — wkręty 4 × 30, ${nadstawkaWkr} szt. (dwa rzędy); wkręcasz przez otwarte drzwi nadstawki. Bez zawieszek; do ściany możesz ją dodatkowo przykręcić kątownikami.`);
   // szafka RTV wiszaca (2026-11-22): na zawieszkach, dol nad podloga — informacja w karcie (takze poza ciagiem)
   if (cab.wiszacaRtv) add("info", `Szafka RTV wisząca — na zawieszkach do ściany (listwa montażowa albo haczyki), dół ${fmt(Math.round(Number(cab.dolGorny) || 0))} mm nad podłogą (karta Szafka: „dół nad podłogą”). Klapy w dół otwierają się nad podłogą.`);
 
@@ -3552,8 +3629,10 @@ function computeGeoLiczy(cab, mat, ctx) {
   const shelfBack = postSide ? Math.max(backIntrusion, postBack + ts) : backIntrusion;
   const shelfFrontL = postSide && ctx && ctx.armBracket ? t : 0;
   const shelfDepth = Math.round(carcassDepth - shelfBack - frontCut - shelfFrontL);
-  // drzwi przesuwne: przegrody za strefa drzwi (torami) — `__przegrodyCof` z `geoPrzesuwne`
-  const dividerDepth = Math.round(carcassDepth - backIntrusion - (cab.__przegrodyCof || 0));
+  /* drzwi przesuwne: przegrody za strefa drzwi (torami) — `__przegrodyCof` z `geoPrzesuwne`; cofniecie ustawione recznie
+     (`cab.przegrodyCof`, uzytkownik 2026-11-22: „brak możliwości manipulowania głębokościami przegród pionowych”) — wieksze z nich */
+  const przegrodyCofG = przegrodyCofOf(cab);
+  const dividerDepth = Math.round(carcassDepth - backIntrusion - przegrodyCofG);
   /* przyciski (audyt GPT N179): cofniecie, przy ktorym polka ma POLKA_MIN_GL mm, i bez dodatkowego
      cofniecia — tylko te, ktore daja dodatnia glebokosc */
   if (shelfDepth <= 0) {
@@ -3612,7 +3691,13 @@ function computeGeoLiczy(cab, mat, ctx) {
        2026-10-29): na styku dwie przegrody obok siebie, jak dwa boki osobnych szafek. */
     const nDiv = rawCols.slice(0, -1).reduce((a, c) => a + (c.noDiv ? 0 : c.przegrodaPodw ? 2 : 1), 0);
     const colFree = innerW - nDiv * t - bwL - bwR;
-    const col = distribute(colFree, rawCols.map((c) => c.w));
+    /* szuflady z frontami wpuszczanymi przed cofnietymi przegrodami (`przegrodyCof` >= grubosc frontu): kolumny auto tak, zeby fronty
+       byly rowne — skrajne o szpare przy boku i pol przegrody szersze (jak `dsx0` / `dsx1` nizej) */
+    const extFr = !cab.__szuflPrzes && Math.round(Number(cab.przegrodyCof) || 0) >= tf - 0.5 && rawCols.length > 1
+      && rawCols.every((c) => c.kind === "drawers" && (c.drawerMode === "inset" || ((c.drawerMode || "inherit") === "inherit" && cab.frontMode === "inset")))
+      ? rawCols.map((c, j) => (j > 0 && !rawCols[j - 1].noDiv ? (rawCols[j - 1].przegrodaPodw ? 2 * t : t) / 2 - g.between / 2 : -g.inset)
+        + (j < rawCols.length - 1 && !c.noDiv ? (c.przegrodaPodw ? 2 * t : t) / 2 - g.between / 2 : -g.inset)) : null;
+    const col = distribute(colFree, rawCols.map((c) => c.w), extFr);
     if (col.diff !== 0)
       add(
         "error",
@@ -5065,6 +5150,15 @@ function computeGeoLiczy(cab, mat, ctx) {
          zachodzily na fix (audyt GPT N42). */
       let dsx0 = dIn ? insX0 : ovlX0;
       let dsx1 = dIn ? insX1 : ovlX1;
+      /* przegrody cofniete co najmniej o grubosc frontu (recznie `przegrodyCof`, np. biurko wiszace — uzytkownik 2026-11-22: „przegrody
+         pomiędzy szufladami cofnięte, a fronty szuflad szersze i mają między sobą tylko luz”): front wpuszczany szuflady idzie przed
+         przegroda do jej srodka, miedzy frontami luz `g.between`; przy bokach — jak dotad */
+      if (dIn && !dCof && !spz && Math.round(Number(cab.przegrodyCof) || 0) >= tf - 0.5) {
+        // przegroda podwojna (`przegrodaPodw`) — dwie plyty, srodek dalej
+        const tL = j > 0 && rawCols[j - 1].przegrodaPodw ? 2 * t : t, tR = rawCol.przegrodaPodw ? 2 * t : t;
+        if (j > 0 && !rawCols[j - 1].noDiv) dsx0 = Math.round((c.x0 - tL / 2 + g.between / 2) * 10) / 10;
+        if (j < lv.cols.length - 1 && !rawCol.noDiv) dsx1 = Math.round((c.x1 + tR / 2 - g.between / 2) * 10) / 10;
+      }
       if (c.fix) {
         if (c.fix.side === "left") dsx0 = Math.max(dsx0, c.fix.x + c.fix.w + g.between);
         else dsx1 = Math.min(dsx1, c.fix.x - g.between);
@@ -6150,6 +6244,10 @@ function computeGeoLiczy(cab, mat, ctx) {
       add(
         "error",
         `${o.name} ${fmt(o.a)} × ${fmt(o.b)} mm nie mieści się na arkuszu — po okrawaniu zostaje ${fmt(u.w)} × ${fmt(u.h)} mm.`
+        /* plecy HDF na cala szafe za duze (uzytkownik 2026-11-21: „hdf trzeba wtedy dzielić na przegrodach lub równych półkach, żeby
+           łączeń nie było widać”) — przycisk: plecy w kolumnach, kawalki stykaja sie na przegrodach i polkach przez cala szerokosc */
+        + (o.name === "Plecy HDF" && (levels.length > 1 || levels.some((lv) => lv.cols.length > 1)) ? "|plecykawalki"
+          : o.name === "Plecy HDF" ? " Plecy da się podzielić dopiero na przegrodzie albo stałej półce — dodaj przegrodę (kolumny) albo poziom." : "")
       );
     panels.push(key === o.matKey ? o : { ...o, matKey: key });
   };
@@ -7172,8 +7270,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   // dwie przegrody na styku: dlugosc wkretu (nie wychodzi z drugiej plyty) i licznik do zamowienia
   const wkretPary = WKRET_FRONTU_DLUGOSCI.find((l) => l <= 2 * t - WKRET_FRONTU_ZAPAS) ?? WKRET_FRONTU_DLUGOSCI[WKRET_FRONTU_DLUGOSCI.length - 1];
   let wkretyParyN = 0;
-  // przegrody cofniete za strefe drzwi przesuwnych (`__przegrodyCof`) — odleglosci od przedniej krawedzi przegrody
-  const cofPrzegrod = Math.max(0, Math.round(cab.__przegrodyCof || 0));
+  // przegrody cofniete (drzwi przesuwne `__przegrodyCof`, recznie `przegrodyCof`) — odleglosci od przedniej krawedzi przegrody
+  const cofPrzegrod = przegrodyCofOf(cab);
   const drillAdd = (lvI, name, base, kind, y, note0) => {
     if (!name) return;   // strona bez plyty (przelot `noDiv`)
     const note = cofPrzegrod && /^Przegroda/.test(name) ? odPrzoduPlyty(note0, cofPrzegrod)
@@ -7780,7 +7878,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     dividers.forEach((dv, k) => {
       const x = Math.round(dv.x + t / 2 - interior.x0);
       // przegroda cofnieta (drzwi przesuwne) — konfirmaty w dnie / wiencu od jej przedniej krawedzi, nie od lica
-      const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(dividerDepth, cab.__przegrodyCof || 0))} mm od przedniej krawędzi; w czole przegrody ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
+      const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(dividerDepth, przegrodyCofOf(cab)))} mm od przedniej krawędzi; w czole przegrody ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
       /* osobne dna / wience: przegroda w kawalku pod / nad nia (polozenie od jego lewego konca); para przez
          szczeline (plyta miedzy bokami) — tu nic, skreca sie przez nia w czolo kawalka (wyzej) */
       const wKawalku = (kaw, nazwa) => {
@@ -8641,6 +8739,8 @@ function computeGeoLiczy(cab, mat, ctx) {
       unit: "szt.",
     });
 
+  if (nadstawkaWkr) hardware.push({ name: "Wkręt 4 × 30", use: "nadstawka — dno do wieńca szafy, od środka nadstawki",
+    spec: `nadstawka na szafie: ${nadstawkaWkr} szt., dwa rzędy`, qty: nadstawkaWkr, unit: "szt." });
   // wkretow do zawiasow i prowadnic nie liczymy — ida w komplecie z okuciem
 
   /* Plecy w kolumnach (`plecyKolumn`) — kazda plyta przybijana po swoim obwodzie:
@@ -16180,9 +16280,10 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
     fk = "Cokół";
     const sb = cab.plinth.setback || 0;
     // z=0 to przod korpusu; cokol siedzi z przodu, cofniety o setback w glab
+    // `cokol` — znacznik bryly (audyt: cokol w kolorze frontow to nie front poza obrysem korpusu)
     if (geo.plinthInBody)
-      box(geo.interior.x0, 0, sb, geo.interior.x1, geo.plinthH, sb + t, kolorCokolu(cab, mat));
-    else box(0, -geo.plinthH, sb, W, 0, sb + t, kolorCokolu(cab, mat));
+      box(geo.interior.x0, 0, sb, geo.interior.x1, geo.plinthH, sb + t, kolorCokolu(cab, mat), null, undefined, undefined, "cokol");
+    else box(0, -geo.plinthH, sb, W, 0, sb + t, kolorCokolu(cab, mat), null, undefined, undefined, "cokol");
   }
   geo.levels.forEach((lv) => lv.cols.forEach((c) => (c.rails || []).forEach((r) => {
     fk = nazwaWzmocnienia(r);
@@ -16804,6 +16905,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         if (tryb === "auto") { if (/s\d+$/.test(j)) col.silaN = null; else delete col.silaN; }
       }) };
     }
+    if (action === "plecykawalki") return { label: "Plecy z kawałków — łączenia na przegrodach i półkach", run: () => editLevels((L) => L.forEach((lv) => (lv.cols || []).forEach((c) => { c.backMode = "hdf"; }))) };
     if (action.startsWith("fixgap:")) {
       const [, li, j, val, dir] = action.split(":");
       const verb = dir === "down" ? "Zmniejsz" : "Zwiększ";
@@ -16870,6 +16972,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     }
     if (action.startsWith("szafasufit:"))
       return { label: `Do sufitu z luzem ${SZAFA_LUZ_SUFIT} mm`, run: () => runFix && runFix(action) };
+    if (action.startsWith("szafablenda:")) return { label: "Blenda do sufitu", run: () => runFix && runFix(action) };
+    if (action.startsWith("nadstawka:")) return { label: "Nadstawka do sufitu (drzwi na zawiasach)", run: () => runFix && runFix(action) };
     if (action.startsWith("szafah:"))
       return { label: `Wysokość szafy ${fmt(Number(action.split(":")[1]))} mm`, run: () => runFix && runFix(action) };
     if (action === "przesprzeg")
@@ -16881,6 +16985,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action === "przesdziel")
       return { label: "Podziel na dwie szafy", run: () => runFix && runFix(action) };
     if (action === "bwuchwyt") return { label: "Dodaj uchwyty", run: () => runFix && runFix(action) };
+    if (action === "hdfkorpus") return { label: "HDF jak korpus", run: () => runFix && runFix(action) };
+    if (action === "hdfzostaw") return { label: "Zostaw HDF tak jak jest", run: () => runFix && runFix(action) };
     if (action.startsWith("bwfront:")) return { label: `Front ${fmt(Number(action.split(":")[1]))} mm poniżej dna`, run: () => runFix && runFix(action) };
     if (action === "bwkol") return { label: "Szuflady po ok. 700 mm", run: () => runFix && runFix(action) };
     if (action.startsWith("polkicof:")) {
@@ -17902,6 +18008,9 @@ const runPlinth = (project, run) => {
   if (!list.length) return null;
   const p = run.plinth || list[0].it.cab.plinth;
   if (!p || !p.on) return null;
+  /* cokol w obrysie (boki do podlogi, cokol miedzy nimi — szafa do zabudowy): kazda szafka ma swoj cokol miedzy swoimi bokami;
+     wspolny „Cokół ciągu” szedl przez boki na cala dlugosc (2026-11-22, audyt nadstawki: 2000 zamiast 1964 w zamowieniu) */
+  if (p.mode === "inbody" || p.mode === "between") return null;
   const h = Math.max(0, Math.round(p.height || 0));
   if (!(h > 0)) return null;
   /* Cofniecie cokolu od lica — 3D zabudowy rysowalo go zawsze w licu (audyt
@@ -22704,7 +22813,8 @@ const makOdPodlogi = (project, i) => {
   const it = project.items[i]; if (!it) return null;
   const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
   const geo = computeGeo(cabDoGeo(project, it), it.mat);
-  const dol = run && run.tier === "gorny" ? tierMountY(project, run) + dolGornej(it.cab) : Math.round((run && run.mountY) || 0) + cabTopY(it.cab, geo) - Math.round(it.cab.H);
+  const dol = run && run.tier === "gorny" ? tierMountY(project, run) + dolGornej(it.cab)
+    : Math.round((run && run.mountY) || 0) + cabTopY(it.cab, geo) - Math.round(it.cab.H) + (wiszacaDolna(it.cab) ? dolGornej(it.cab) : 0);
   return { dol, gora: dol + Math.round(it.cab.H), geo, nazwa: (it.cab.name || "").trim() || `szafka ${i + 1}`, wall: run ? (run.tier === "gorny" ? run.wall : run.id) : null };
 };
 /* Sprzet wysoko (makieta „Dodaj”: MIKRO_MAX 1300 — „dół mikrofali wyżej niż to — ostrzeżenie”, uzytkownik 2026-11-08: „kiedyś będzie
@@ -22746,6 +22856,34 @@ const szafaMaxH = (cab, geo, mat) => {
   return { H: Math.min(hBok, hR), dl: Math.floor(dl), raczka: hR < hBok };
 };
 const szafaMaxPowod = (mx) => (mx.raczka ? `rączka drzwi przesuwnych NOVO S ma ${fmt(PRZES.RACZKA_DL)} mm` : `bok z arkusza ma najwyżej ${fmt(mx.dl)} mm (arkusz po okrawaniu)`);
+/* Nadstawka (2026-11-22): szafka na szafie do sufitu — w ciagu gornym nad ciagiem szafy (przeswit 0, nad ta szafa), drzwi na zawiasach,
+   bez zawieszek; przykrecona od srodka przez dno do wienca szafy. Blenda ze szafy znika (nadstawka ja zastepuje). */
+const NADSTAWKA_MIN = 150;
+const nadSzafaCos = (project, run) => (project.runs || []).some((r) => r.tier === "gorny" && r.wall === run.id && project.items.some((x) => x.runId === r.id));
+const nadstawkaNaSzafie = (p, i) => {
+  const it = p.items[i], runs = p.runs || [], run = it && it.runId ? runs.find((r) => r.id === it.runId) : null;
+  if (!run || run.tier === "gorny" || nadSzafaCos(p, run)) return p;
+  const suf = sufitSciany(p, run); if (suf == null) return p;
+  let o; try { o = makOdPodlogi(p, i); } catch (e) { return p; }
+  const H = Math.round(suf - SZAFA_LUZ_SUFIT - o.gora); if (H < NADSTAWKA_MIN) return p;
+  const L = runItems(p, run.id), k = L.findIndex((q) => q.i === i), gap = Math.max(0, Math.round(run.gap || 0));
+  const x0 = L.slice(0, k).reduce((a, q) => a + computeGeo(q.it.cab, q.it.mat).W + gap, 0);
+  const n = projectLayout(p).info.get(run.id);
+  const start = run.offsetFrom === "right" ? Math.round((n && n.lead) || 0) : Math.max(Math.round(run.offset || 0), Math.round((n && n.lead) || 0));
+  const stary = runs.find((r) => r.tier === "gorny" && r.wall === run.id);
+  const g0 = { ...(stary || makeUpperRun(runs, run, 0)), clearance: 0, D: Math.round(it.cab.D), offset: Math.round(start + x0), offsetFrom: "left", name: run.name };
+  const runs2 = stary ? runs.map((r) => (r.id === stary.id ? g0 : r)) : [...runs, g0];
+  const p2 = { ...p, runs: runs2, items: p.items.map((x, j) => (j === i && x.cab.topFiller && x.cab.topFiller.on ? { ...x, cab: { ...x.cab, topFiller: { ...x.cab.topFiller, on: false } } } : x)) };
+  const mount = tierMountY(p2, g0), g = { ...g0, mountY: mount };
+  // drzwi najwyzej ok. 600 mm (tabela zawiasow GTV) — kolumny po najwyzej 1200 mm, w kolumnie 1 albo 2 drzwi
+  const W = Math.round(it.cab.W), nKol = Math.max(1, Math.ceil(W / 1200)), drzwi = W / nKol > 600 ? 2 : 1;
+  const cab = { ...makeFromTemplate("wiszaca"), name: "Nadstawka", W, H, D: Math.round(it.cab.D), nadstawka: true, hangers: "never",
+    frontMode: it.cab.frontMode === "inset" ? "inset" : "overlay", realColors: it.cab.realColors, texture: it.cab.texture, textureDir: it.cab.textureDir,
+    levels: [{ h: null, cols: Array.from({ length: nKol }, () => newColumn(drzwi, H >= 500 ? 1 : 0)) }] };
+  const dG = Math.round(o.gora - mount); if (dG) cab.dolGorny = dG;
+  return { ...p2, runs: runs2.map((r) => (r.id === g.id ? g : r)),
+    items: [...p2.items, { cab, mat: JSON.parse(JSON.stringify(it.mat)), runId: g.id, roomId: it.roomId, offset: 0 }] };
+};
 const sufitSzafyMsgs = (project, i) => {
   const it = project.items[i]; if (!it || it.cab.sprzetCiagu || !(it.cab.H > 1500)) return [];
   const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
@@ -22762,8 +22900,11 @@ const sufitSzafyMsgs = (project, i) => {
   if (Hc > mx.H && !mx.raczka && !raczkaZaKrotka) out.push({ level: "info", text: `„${nazwa}” ma ${fmt(Hc)} mm wysokości, a najwyższa szafa z jednego arkusza to ${fmt(mx.H)} mm — ${szafaMaxPowod(mx)}. Obniż ją, a resztę do sufitu zamknij blendą albo nadstawką (szafką na szafie).|szafah:${mx.H}:${i}` });
   if (luz < 0) out.push({ level: "error", text: `„${nazwa}” sięga ${fmt(gora)} mm, a sufit jest na ${fmt(suf)} mm — nie zmieści się o ${fmt(-luz)} mm.|szafasufit:${i}` });
   else if (luz < SZAFA_LUZ_SUFIT) out.push({ level: "warn", text: `Nad „${nazwa}” zostaje ${fmt(luz)} mm do sufitu — zostaw co najmniej ${SZAFA_LUZ_SUFIT} mm, inaczej korpusu nie wstawisz.|szafasufit:${i}` });
-  else if (przes && !blendaH(it.cab) && luz > SZAFA_LUZ_DUZY) out.push(cel > mx.H
-    ? { level: "info", text: `Nad „${nazwa}” zostaje ${fmt(luz)} mm do sufitu, a do sufitu się nie da — ${szafaMaxPowod(mx)}, więc szafa najwyżej ${fmt(mx.H)} mm. Nad nią zamknij blendą albo dołóż nadstawkę (szafkę na szafie).${Hc < mx.H ? `|szafah:${mx.H}:${i}` : ""}` }
+  /* wysoki pokoj — do sufitu sie nie da (uzytkownik 2026-11-21: „do wyboru blenda do sufitu albo nadstawka”, 2026-11-22: „nadstawka
+     domyślnie z drzwiami na zawiasach”): przyciski „Blenda do sufitu” i „Nadstawka do sufitu” — takze szafa na zawiasach; nad szafa
+     juz cos jest (ciag gorny tej sciany ma szafki) — bez tej rady */
+  else if (!blendaH(it.cab) && luz > SZAFA_LUZ_DUZY && (przes || cel > mx.H) && !nadSzafaCos(project, run)) out.push(cel > mx.H
+    ? { level: "info", text: `Nad „${nazwa}” zostaje ${fmt(luz)} mm do sufitu, a do sufitu się nie da — ${szafaMaxPowod(mx)}, więc szafa najwyżej ${fmt(mx.H)} mm. Nad nią zamknij blendą albo dołóż nadstawkę (szafkę na szafie).${Hc < mx.H ? `|szafah:${mx.H}:${i}` : ""}|szafablenda:${i}${luz - SZAFA_LUZ_SUFIT >= NADSTAWKA_MIN ? `|nadstawka:${i}` : ""}` }
     : { level: "info", text: `Nad „${nazwa}” zostaje ${fmt(luz)} mm do sufitu — szafa do zabudowy może sięgać sufitu (luz ${SZAFA_LUZ_SUFIT} mm), bez blendy.|szafasufit:${i}` });
   const D = Math.round(o.geo.carcassDepth), Hk = Math.round(it.cab.H), noz = it.cab.legs && it.cab.legs.on ? Math.round(o.geo.legBelow || 0) : 0;
   const miejsce = Math.round(suf - (Number(run.mountY) || 0)), przek = Math.round(Math.hypot(Hk, D)), przekN = Math.round(Math.hypot(Hk + noz, D));
@@ -22842,6 +22983,25 @@ const makLapanieDol = (project, idx) => {
   });
   return out;
 };
+/* Biurko wiszace / RTV wiszaca przesuwane w gore i w dol (uzytkownik 2026-11-22: „brak możliwości przesunięcia biurka w dół …
+   chciałbym wyrównać sobie do półki szafki obok”): `dy` calej szafki; gora rowno z wierzchem polki obok albo z gora szafki obok,
+   dol rowno ze spodem polki obok albo z dolem szafki obok (szafki tej sciany) */
+const makLapaniePion = (project, idx) => {
+  const ja = makOdPodlogi(project, idx); if (!ja || !ja.wall) return [];
+  const out = [];
+  project.items.forEach((x, i) => {
+    if (i === idx || x.cab.sprzetCiagu) return;
+    const o = makOdPodlogi(project, i); if (!o || o.wall !== ja.wall) return;
+    const ts = o.geo.ts || o.geo.t || 18;
+    (o.geo.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => (c.openings || []).slice(0, -1).forEach((q) => {
+      out.push({ dy: Math.round(o.dol + q.to + ts - ja.gora), kraw: "gora", nazwa: o.nazwa, opis: `góra równo z wierzchem półki „${o.nazwa}”` });
+      out.push({ dy: Math.round(o.dol + q.to - ja.dol), kraw: "dol", nazwa: o.nazwa, opis: `dół równo ze spodem półki „${o.nazwa}”` });
+    })));
+    out.push({ dy: o.gora - ja.gora, kraw: "gora", nazwa: o.nazwa, opis: `góra równo z „${o.nazwa}”` });
+    if (o.dol > 0) out.push({ dy: o.dol - ja.dol, kraw: "dol", nazwa: o.nazwa, opis: `dół równo z „${o.nazwa}”` });
+  });
+  return out.filter((q) => q.dy && ja.dol + q.dy >= 0);
+};
 const makLapaniePolek = (project, idx, li, j) => {
   const ja = makOdPodlogi(project, idx); if (!ja) return [];
   const out = [];
@@ -22886,6 +23046,16 @@ function makWylicz(cab, geo, d, p) {
     return { wartosc: dy, napis: (d.dol0 != null ? `dół ${d.dol0 + dy} od podłogi` : `dół ${dy > 0 ? "+" : ""}${dy}`) + (lap ? ` — ${lap.opis || `równo z „${lap.nazwa}”`}` : ""), rowno: !!lap,
       linia: lap ? [-geo.W, H - dy, 2 * geo.W, H - dy] : [0, H - dy, geo.W, H - dy],
       zmien: (c) => { if (!dy) return; const nH = Math.round(Number(c.H) || 0) - dy; if (nH < 250) return; c.H = nH; const nd = dolGornej(c) + dy; if (nd) c.dolGorny = nd; else delete c.dolGorny; } };
+  }
+  if (d.u === "pion") {
+    // cala szafka (biurko wiszace / RTV wiszaca) w gore / w dol — wysokosc zostaje; dol nie nizej niz podloga
+    const v = p ? H - p.y : 0;
+    const lap = p && d.lapPion ? makNajblizszy(d.lapPion, v, "dy") : null;
+    const dy = Math.max(-(d.dol0 || 0), Math.min(2500, lap ? Math.round(lap.dy) : r10(v)));
+    const yL = lap && lap.kraw === "gora" ? -dy : H - dy;
+    return { wartosc: dy, napis: (d.dol0 != null ? `dół ${d.dol0 + dy} od podłogi` : `${dy > 0 ? "+" : ""}${dy}`) + (lap ? ` — ${lap.opis}` : ""), rowno: !!lap,
+      linia: lap ? [-geo.W, yL, 2 * geo.W, yL] : [0, H - dy, geo.W, H - dy],
+      zmien: (c) => { if (!dy) return; const nd = Math.max(0, dolGornej(c) + dy); if (nd) c.dolGorny = nd; else delete c.dolGorny; } };
   }
   if (d.u === "gleb") { const nD = Math.max(150, Math.min(1200, r10(cab.D + p.y - geo.carcassDepth))); const yy = geo.carcassDepth + nD - cab.D;
     return { wartosc: nD, napis: `gł. ${nD}`, linia: [0, yy, geo.W, yy], zmien: (c) => { c.D = nD; } }; }
@@ -23103,6 +23273,8 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
     if (!blendaScianyCab(cab)) out.push(pas("h", "wys", {}, 0, -30, W, 60, "ns-resize"), chwyt("hc", W / 2, 0, true));
     // szafka gorna — tez dolna krawedz (2026-11-15: „górę szafki da się przesuwać, a dołu nie”)
     if (gorna) out.push(pas("d", "dol", {}, 0, H - 30, W, 60, "ns-resize"), chwyt("dc", W / 2, H, true));
+    // biurko wiszace / RTV wiszaca w ciagu dolnym — dolna krawedz przesuwa cala szafke (lapie polki obok)
+    else if (wiszacaDolna(cab)) out.push(pas("d", "pion", {}, 0, H - 30, W, 60, "ns-resize"), chwyt("dc", W / 2, H, true));
     // z wzmocnieniami na rysunku (ramki z wymiarami u gory szafki) napis schodzi pod nie
     const podWzm = szcz ? Math.max(160, ...(geo.levels || []).flatMap((lv) => lv.cols.flatMap((col) => (col.rails || []).filter((r) => r && fy(r.y1) < 300).map((r) => fy(r.y0))))) + 70 : 60;
     // szer. × wys. przy uchwytach — tylko gdy rysunek nie ma wymiarow (uzytkownik 2026-11-11: „co to za wymiar i czy tu powinien być?”)
@@ -24640,15 +24812,20 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   const inne = (pole) => cab[pole] === false;
   const przelInne = (pole, l) => wiersz(`inne-${pole}`, null, [
     <Btn key="i" el="mak-plyta-inne" v={pole} on={inne(pole)} onClick={() => zmien(idx, (c) => { c[pole] = inne(pole) ? true : false; })}>{l}</Btn>], "mak-plyta-inne-w");
-  const plytyRows = [["board", "Płyta korpusu"], ["frontSameAsBoard", "Fronty inne niż korpus"], ["front", "Fronty"], ["shelfSameAsBoard", "Półki inne niż korpus"], ["shelf", "Półki"]].map(([k, l]) => {
+  const plytyRows = [["board", "Płyta korpusu"], ["frontSameAsBoard", "Fronty inne niż korpus"], ["front", "Fronty"], ["shelfSameAsBoard", "Półki inne niż korpus"], ["shelf", "Półki"], ["back", "Plecy HDF"]].map(([k, l]) => {
     if (k.endsWith("SameAsBoard")) return przelInne(k, l);
     if ((k === "front" && !inne("frontSameAsBoard")) || (k === "shelf" && !inne("shelfSameAsBoard"))) return null;
+    // plecy HDF (uzytkownik 2026-11-22: „w szczegółowej brak koloru hdf!”) — paleta, „jak korpus”, „cały ciąg”; tylko przy plecach z HDF
+    if (k === "back" && (cab.back !== "hdf" || !(it.mat || {}).back)) return null;
     const akt = ((it.mat || {})[k] || (it.mat || {}).board || {}).color || "";
     return wiersz(`mat-${k}`, `${l}: ${paletteName(akt) || ((it.mat || {})[k] || {}).decor || "kolor własny"}`, [
       ...PALETA.map(([n, hex]) => (
         <button key={hex} title={n} data-el="mak-plyta" data-k={k} data-v={hex} onClick={() => ustawPlyte(k, hex, false)}
           className={`h-5 w-5 rounded border ${akt.toLowerCase() === hex.toLowerCase() ? "border-teal-700 ring-1 ring-teal-700" : "border-stone-300"}`} style={{ background: hex }} />
       )),
+      ...(k === "back" ? [<Btn key="jk" el="mak-plyta-hdf-korpus" on={akt.toLowerCase() === String(((it.mat || {}).board || {}).color || "").toLowerCase()}
+        onClick={() => zmienProjekt((p) => ({ ...p, items: p.items.map((x, i) => ((i === idx || (run && x.runId === run.id)) && x.mat && x.mat.back && x.mat.board
+          ? { ...x, mat: { ...x.mat, back: { ...x.mat.back, color: x.mat.board.color, decor: x.mat.board.decor || "" } } } : x)) }))}>jak korpus{run ? " (cały ciąg)" : ""}</Btn>] : []),
       ...(run ? [<Btn key="c" el="mak-plyta-ciag" v={k} onClick={() => ustawPlyte(k, akt, true)}>cały ciąg</Btn>] : []),
     ], "mak-plyta-wiersz");
   });
@@ -24715,7 +24892,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         wiersz("mkg", "głębokość maskownicy", [["front", "do lica frontów"], ["korpus", "do lica korpusu"]].map(([v, l]) =>
           <Btn key={v} el="mak-maskownica-gl" v={v} on={sp.gl === v} onClick={() => ustaw({ gl: v })}>{l}</Btn>), "mak-maskownica-gl-w"),
         wiersz("mkk", "kolor maskownicy", [["korpus", "jak korpus"], ["front", "jak fronty"]].map(([v, l]) =>
-          <Btn key={v} el="mak-maskownica-kolor" v={v} on={sp.kolor === v} onClick={() => ustaw({ kolor: v })}>{l}</Btn>), "mak-maskownica-kolor-w"),
+          <Btn key={v} el="mak-maskownica-kolor" v={v} on={sp.kolor === v} onClick={() => ustaw({ kolor: v, kolorWyb: true })}>{l}</Btn>), "mak-maskownica-kolor-w"),
         hint("maskownica", `Płyta od podłogi do góry szafki obok (${fmt(Math.round(cab.H))} mm), na głębokość korpusu${sp.gl === "korpus" ? "" : " i frontów"}; przykręcana od środka szafki obok wkrętami 4 × 30.`)];
     }
     if (blendaScianyCab(cab)) {
@@ -25144,7 +25321,20 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         if (ost && ost.h != null && g) ost.h = Math.round(ost.h / 2);
         c.levels.push(newLevel(((ost && ost.cols[0]) || {}).doors ?? 1, 0));
       })}>+</Btn>], "mak-poziomy-szafki");
-    tresc = [poziomySzafki, ...poziomy.map((lv, li) => {
+    /* cofniecie przegrod pionowych od frontu (uzytkownik 2026-11-22: „brak możliwości manipulowania głębokościami przegród pionowych”) —
+       glebokosc przegrod = korpus − plecy − cofniecie; o grubosc frontu i wiecej: fronty szuflad wpuszczanych ida przed przegroda */
+    const gP = geoOf ? geoOf(idx) : null, maPrzeg = poziomy.some((lv) => (lv.cols || []).length > 1);
+    const cofP = Math.round(Number(cab.przegrodyCof) || 0), tfP = Math.round(Number((((it.mat || {}).front || (it.mat || {}).board) || {}).thickness) || 18);
+    const ustawCofP = (v) => zmien(idx, (c) => { const x = Math.max(0, Math.min(400, Math.round(Number(v) || 0))); if (x) c.przegrodyCof = x; else c.przegrodyCof = 0; });
+    const przegCof = maPrzeg ? wiersz("pcof", `przegrody pionowe cofnięte od frontu${gP ? ` — głębokość przegród ${fmt(Math.round(gP.dividerDepth))} mm` : ""}`, [
+      <input key={`v-${cofP}`} type="number" step="1" min="0" defaultValue={cofP} data-pole="przegrody-cof"
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value) || 0); if (v !== cofP) ustawCofP(v); }}
+        className="w-16 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />,
+      <span key="mm" className="text-[11px] text-stone-500">mm</span>,
+      <Btn key="0" el="mak-przegrody-cof" v="0" on={!cofP} onClick={() => ustawCofP(0)}>równo z frontem korpusu</Btn>,
+      <Btn key="tf" el="mak-przegrody-cof" v={tfP} on={cofP === tfP} onClick={() => ustawCofP(tfP)}>o grubość frontu ({fmt(tfP)})</Btn>], "mak-przegrody-cof-w") : null;
+    tresc = [poziomySzafki, ...(przegCof ? [przegCof, cofP >= tfP && cab.frontMode === "inset" ? <p key="pcofh" className="text-[11px] text-stone-500" data-el="mak-przegrody-cof-info">Przegrody cofnięte o grubość frontu: fronty szuflad wpuszczanych idą przed przegrodą — między nimi tylko luz.</p> : null].filter(Boolean) : []), ...poziomy.map((lv, li) => {
       const cols = lv.cols || [], proste = cols.every((c) => makKolumnaProsta(c));
       return wiersz(`pz${li}`, `${poziomy.length > 1 ? `poziom ${li + 1} — ` : ""}kolumny (szer. ${cols.map((c) => (c.w ? fmt(c.w) : "auto")).join(" / ")})`,
         proste ? [1, 2, 3, 4].map((n) => <Btn key={n} el="mak-kolumny" v={n} on={cols.length === n} onClick={() => zmien(idx, (c) => {
@@ -25324,7 +25514,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     const Lr = run ? runItems(project, run.id) : [], kk = Lr.findIndex((q) => q.i === idx);
     const maski = maskownicaCab(cab) ? [{ it, i: idx }] : [Lr[kk - 1], Lr[kk + 1]].filter((q) => q && maskownicaCab(q.it.cab));
     const kolorM = maski.length && maski.every((q) => sprzetCiagu(q.it.cab).kolor === "front") ? "front" : "korpus";
-    const ustawM = (v) => zmienProjekt((p) => ({ ...p, items: p.items.map((x, j) => (maski.some((q) => q.i === j) ? { ...x, cab: { ...x.cab, sprzetCiagu: { ...x.cab.sprzetCiagu, kolor: v } } } : x)) }));
+    const ustawM = (v) => zmienProjekt((p) => ({ ...p, items: p.items.map((x, j) => (maski.some((q) => q.i === j) ? { ...x, cab: { ...x.cab, sprzetCiagu: { ...x.cab.sprzetCiagu, kolor: v, kolorWyb: true } } } : x)) }));
     tresc = [
       ...(cab.sprzetCiagu ? [] : plytyRows.filter(Boolean)),
       ...(cab.sprzetCiagu ? [] : [wiersz("pl-pokoj", "jak w tej szafce — w całym pomieszczeniu", [["board", "korpus"], ...(inne("frontSameAsBoard") ? [["front", "fronty"]] : []), ...(inne("shelfSameAsBoard") ? [["shelf", "półki"]] : [])].map(([k, l]) =>
@@ -25365,7 +25555,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       const sp = sprzetCiagu(cab), ustaw = (patch) => zmien(idx, (c) => { c.sprzetCiagu = { ...c.sprzetCiagu, ...patch }; });
       tresc = [
         wiersz("wmkk", "kolor maskownicy", [["korpus", "jak korpus"], ["front", "jak fronty"]].map(([v, l]) =>
-          <Btn key={v} el="mak-maskownica-kolor" v={v} on={sp.kolor === v} onClick={() => ustaw({ kolor: v })}>{l}</Btn>), "mak-maskownica-kolor-w"),
+          <Btn key={v} el="mak-maskownica-kolor" v={v} on={sp.kolor === v} onClick={() => ustaw({ kolor: v, kolorWyb: true })}>{l}</Btn>), "mak-maskownica-kolor-w"),
         wiersz("wmkg", "głębokość maskownicy", [["front", "do lica frontów"], ["korpus", "do lica korpusu"]].map(([v, l]) =>
           <Btn key={v} el="mak-maskownica-gl" v={v} on={sp.gl === v} onClick={() => ustaw({ gl: v })}>{l}</Btn>), "mak-maskownica-gl-w"),
         <p key="wmkh" className="text-[11px] text-stone-500">Maskownica boku: wysokość i głębokość jak szafka obok. Usuniesz ją w zakładce Szafka („Usuń szafkę”) albo przyciskiem przy szafce obok.</p>];
@@ -25394,7 +25584,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       });
       const obecne = ["lewa", "prawa"].map(jest).filter(Boolean);
       const kolorM = obecne.length && obecne.every((q) => sprzetCiagu(q.it.cab).kolor === "front") ? "front" : "korpus";
-      const ustawKolor = (v) => zmienProjekt((p) => ({ ...p, items: p.items.map((x, j) => (obecne.some((q) => q.i === j) ? { ...x, cab: { ...x.cab, sprzetCiagu: { ...x.cab.sprzetCiagu, kolor: v } } } : x)) }));
+      const ustawKolor = (v) => zmienProjekt((p) => ({ ...p, items: p.items.map((x, j) => (obecne.some((q) => q.i === j) ? { ...x, cab: { ...x.cab, sprzetCiagu: { ...x.cab.sprzetCiagu, kolor: v, kolorWyb: true } } } : x)) }));
       return [wiersz("mask", "maskownica boku (płyta od podłogi do góry, na całą głębokość)", [["lewa", "z lewej"], ["prawa", "z prawej"]].map(([st, l]) =>
         <Btn key={st} el="mak-maskownica" v={st} on={!!jest(st)} onClick={() => przelacz(st)}>{l}</Btn>), "mak-maskownica-w"),
         ...(obecne.length ? [wiersz("maskk", "kolor maskownic", [["korpus", "jak korpus"], ["front", "jak fronty"]].map(([v, l]) =>
@@ -25598,6 +25788,27 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladk
     </>
   );
 }
+
+/* Start nowego projektu (POMYSLY 2026-11-21, uzytkownik: „bardzo dobry pomysł z tym, co projektujesz na starcie”): „Co projektujesz?”
+   — kuchnia / szafa w zabudowie / pokoj / pusta szafka; szerokosc i wysokosc sciany od razu w ciagu (dzialaja kontrole sufitu), pierwsza
+   szafka ze wzoru palety w tym ciagu (kuchnia: dolna 2 drzwi pod blatem; szafa: szafa do zabudowy na cala sciane; pokoj: szafa
+   wolnostojaca). Wysokosc szafy do sufitu — `szafasufit` po wczytaniu. */
+const START_RODZAJE = [["kuchnia", "Kuchnia", "ciąg z blatem, dolna szafka 800"], ["szafa", "Szafa w zabudowie", "na całą ścianę, drzwi przesuwne, do sufitu"],
+  ["wolnostojaca", "Pokój", "meble wolnostojące — szafa 800 × 2000"], ["pusty", "Pusta szafka", "jedna szafka w trybie Technicznym, jak dotąd"]];
+const projektStartowy = (rodzaj, o = {}) => {
+  const p = newProject();
+  if (rodzaj === "pusty") return p;
+  const wallW = Number(o.wallW) > 0 ? Math.round(Number(o.wallW)) : null, ceiling = Number(o.ceiling) > 0 ? Math.round(Number(o.ceiling)) : null;
+  const run = { ...makeRun([], ROOM_FIRST.id), zabudowa: rodzaj, worktop: rodzaj === "kuchnia", wallW, ceiling };
+  const w = MAK_PALETA.flatMap((g) => g.wzory || []).find((q) => q.id === (rodzaj === "kuchnia" ? "dolna2" : rodzaj === "szafa" ? "szafaZab" : "szafaW"));
+  let cab = makeFromTemplate(w.tpl); if (w.mod) w.mod(cab, systemKontekstu(p, 0));
+  const mat = defaultMaterials;
+  if (rodzaj === "szafa" && wallW) cab.W = wallW;
+  if (rodzaj === "kuchnia") cab = { ...cab, ...bezWienca(cab, mat.front.thickness), legs: { ...(cab.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } };
+  cab = { ...cab, name: w.szafka || "Szafka 1", hangerMode: run.hangerMode || "listwa" };
+  try { wzorBezUwag(cab, mat); } catch (e) { /* zostaje jak ze wzoru */ }   // jak wzor z palety: polki poza zawiasami
+  return { ...p, runs: [run], items: [{ cab, mat, runId: run.id, roomId: ROOM_FIRST.id, offset: 0 }], active: 0 };
+};
 
 function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, switchCabinet, rpOf, zmien, zmienProjekt, ciag, dodaj: dodaj0, dodajGorny, gora = 96, usunPozycje, kopiuj, zam, setZam, zamowienie, pelneOpcje }) {
   /* Szeroki ekran (lg): zakladki, karta i rysunek przyklejone pod gornym paskiem (`gora` — jego wysokosc jak „rysunek
@@ -25959,6 +26170,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
       if (d.u === "polka" && !d.lapP) { try { d.lapP = makLapaniePolek(project, d.idx, d.li, d.j); } catch (er) { d.lapP = []; } }
       if (d.u === "blenda" && !d.lapB) { try { d.lapB = makLapanieBlendy(project, d.idx); } catch (er) { d.lapB = []; } }
       if (d.u === "dol" && !d.lapD) { try { d.lapD = makLapanieDol(project, d.idx); d.dol0 = (makOdPodlogi(project, d.idx) || {}).dol; } catch (er) { d.lapD = []; } }
+      if (d.u === "pion" && !d.lapPion) { try { d.lapPion = makLapaniePion(project, d.idx); d.dol0 = (makOdPodlogi(project, d.idx) || {}).dol; } catch (er) { d.lapPion = []; } }
       /* polka: lapie tylko polki szafki / kolumny, nad ktora jest wskaznik (makieta „Dodaj”: przeciagajac, najedz na polke
          innej szafki albo drugiej kolumny) — inaczej przy kilku szafkach polka przyciagalaby sie wszedzie */
       let dW = d;
@@ -26466,6 +26678,10 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
      zostaja; stan pamieta przegladarka */
   const [panelZw, setPanelZw] = useState(() => { try { return localStorage.getItem("mp-mak-panel-zw") === "1"; } catch (e) { return false; } });
   const przelaczPanel = () => setPanelZw((v) => { try { localStorage.setItem("mp-mak-panel-zw", v ? "0" : "1"); } catch (e) { /* bez pamieci */ } return !v; });
+  /* osobno zwijane: pomieszczenie i zabudowa (wybory + naglowek ciagu) oraz widoki (przelaczniki i „Widok”) — uzytkownik 2026-11-22:
+     „w makiecie osobne zwijanie pomieszczeń i zabudowy i osobne dla widoków jak w technicznej”; zoom zostaje zawsze */
+  const [widokiZw, setWidokiZw] = useState(() => { try { return localStorage.getItem("mp-mak-widoki-zw") === "1"; } catch (e) { return false; } });
+  const przelaczWidoki = () => setWidokiZw((v) => { try { localStorage.setItem("mp-mak-widoki-zw", v ? "0" : "1"); } catch (e) { /* bez pamieci */ } return !v; });
   const zoomUI = (
     <span className="ml-auto flex items-center gap-1" data-el="mak-zoom">
       <MiniBtn onClick={() => krokZoom(-1)} title="Pomniejsz">−</MiniBtn>
@@ -26476,6 +26692,13 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
         {pelny ? "Zamknij pełny ekran" : "Pełny ekran"}
       </MiniBtn>
     </span>);
+  const zwinWidoki = (
+    <button data-el="mak-widoki-zwin" aria-expanded="false" onClick={przelaczWidoki} title="Pokaż widoki: przełączniki i „Widok”"
+      className="flex min-w-0 items-center gap-1.5 text-left text-[11px] text-stone-500 hover:text-stone-800">
+      <span className="-rotate-90 text-[10px]">▼</span>
+      <span className="font-medium text-stone-600">Widoki</span>
+      <span className="text-stone-400" data-el="mak-widoki-opis">— {({ przod: "z przodu", bok: "z boku", gora: "z góry", "3d": "3D", iso: "45°" })[widokM] || widokM}{!przel.fronty && widokM !== "gora" ? ", bez frontów" : ""}</span>
+    </button>);
   useEffect(() => {
     if (!pelny) return undefined;
     const esc = (e) => { if (e.key === "Escape") setPelny(false); };
@@ -26708,21 +26931,22 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
         style={{ ...(lg && !pelny ? { top: gora, height: oknoH - gora - 8 } : {}), ...(podglad ? { touchAction: "none", userSelect: "none" } : {}), ...(zamAkt ? { display: "none" } : {}) }}>
         {panelZw && (
           <div className="mb-1 flex flex-wrap items-center gap-2" data-el="mak-panel-zwiniety">
-            <button data-el="mak-panel-zwin" aria-expanded="false" onClick={przelaczPanel} title="Pokaż panel: pomieszczenie, ciąg, szafka, ściana, przełączniki"
+            <button data-el="mak-panel-zwin" aria-expanded="false" onClick={przelaczPanel} title="Pokaż: pomieszczenie, ciąg, szafka, ściana"
               className="flex min-w-0 items-center gap-1.5 text-left text-[11px] text-stone-500 hover:text-stone-800">
               <span className="-rotate-90 text-[10px]">▼</span>
-              <span className="font-medium text-stone-600">Panel rysunku</span>
+              <span className="font-medium text-stone-600">Pomieszczenie i zabudowa</span>
               <span className="text-stone-400" data-el="mak-panel-opis">— {(roomsOf(project).find((r) => r.id === pokoj) || {}).name || "Pomieszczenie"}
                 {" · "}{samaSzafka ? "tylko zaznaczona szafka" : ciagId === "wszystkie" ? "wszystkie ciągi" : aktR ? `${rodzaj === "szafa" ? "zabudowa" : "ciąg"} „${(aktR.tier === "gorny" ? (project.runs || []).find((r) => r.id === aktR.wall) || aktR : aktR).name || "ciąg"}”` : "wolnostojące"}
                 {" · "}{zaznM && aktIt ? `szafka „${aktIt.cab.name || "szafka"}”` : "bez zaznaczenia"}
-                {" · "}{({ przod: "z przodu", bok: "z boku", gora: "z góry", "3d": "3D", iso: "45°" })[widokM] || widokM}{!przel.fronty && widokM !== "gora" ? ", bez frontów" : ""}</span>
+</span>
             </button>
-            {zoomUI}
+            {widokiZw && zwinWidoki}
+            {widokiZw && zoomUI}
           </div>
         )}
         {!panelZw && (<>
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <button data-el="mak-panel-zwin" aria-expanded="true" onClick={przelaczPanel} title="Zwiń panel — więcej miejsca na rysunek"
+          <button data-el="mak-panel-zwin" aria-expanded="true" onClick={przelaczPanel} title="Zwiń pomieszczenie i zabudowę — więcej miejsca na rysunek"
             className="flex h-6 w-6 items-center justify-center rounded text-stone-500 hover:bg-stone-100 hover:text-stone-800"><span className="text-[10px]">▼</span></button>
           <Rozwijana el="mak-pomieszczenie" etykieta="Pomieszczenie" wartosc={pokoj}
             opcje={[...roomsOf(project).map((r) => ({ v: r.id, l: r.name })),
@@ -26813,7 +27037,12 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
             {alarm}
           </>);
         })()}
+        </>)}
+        {widokiZw && !panelZw && <div className="mb-1 flex flex-wrap items-center gap-2">{zwinWidoki}{zoomUI}</div>}
+        {!widokiZw && (
         <div className="mb-1 flex flex-wrap items-center gap-1.5" data-el="mak-przel">
+          <button data-el="mak-widoki-zwin" aria-expanded="true" onClick={przelaczWidoki} title="Zwiń widoki — więcej miejsca na rysunek"
+            className="flex h-6 w-6 items-center justify-center rounded text-stone-500 hover:bg-stone-100 hover:text-stone-800"><span className="text-[10px]">▼</span></button>
           {MAK_PRZEL.filter(([k]) => (maPietra || (k !== "gorny" && k !== "dolny")) && ((k !== "kolory" && k !== "wymiary") || tryb === "szczegolowa")
             // „Fronty” — w widoku z przodu, 45° i 3D; „Blat” — gdy jest rzut z gory (nad widokiem z przodu albo widok „Z góry”)
             && (k !== "fronty" || widokM !== "gora") && (k !== "blat" || widokM === "gora" || (widokM === "przod" && przel.zgory))).map(([k, l]) => (k === "wymiary"
@@ -26827,8 +27056,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
           {widokRys !== widok && <span className="text-[11px] text-stone-500">wnętrze — w tej zakładce zawsze</span>}
           {celOpis && <span className="rounded bg-teal-700 px-1.5 py-0.5 text-[11px] font-medium text-white" data-el="mak-cel">upuść: {celOpis}</span>}
           {zoomUI}
-        </div>
-        </>)}
+        </div>)}
         {przel.agd === false && <style>{"[data-el=mak-plotno] [data-el=sprzet-front], [data-el=mak-plotno] [data-el=wyciecie-front], [data-el=mak-plotno] [data-el=na-blacie], [data-el=mak-plotno] [data-el=rant-blatu], [data-el=mak-plotno] [data-el=pola-grzewcze], [data-el=mak-plotno] [data-el=komory], [data-el=mak-plotno] [data-el=ociekacz] { display: none; } [data-el=mak-plotno] [data-el=wyciecie-blatu] text { fill: #44403c; }"}</style>}
         {/* legenda jak w makiecie „Dodaj”: zielone ramki przy przenoszeniu, wyposazenie wylaczone, dwa widoki naraz. Linijka jest zawsze
             (min. wysokosc) — pojawiajaca sie dopiero przy chwyceniu przesuwala rysunek w dol, a zielone ramki (liczone przy chwyceniu,
@@ -26910,14 +27138,19 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
                 setObrot({ yaw: o.yaw + (e.clientX - o.x) * 0.008, pitch: Math.max(-1.2, Math.min(1.2, o.pitch + (e.clientY - o.y) * 0.006)) }); }}
               onPointerUp={() => { obrotStart.current = null; }} onPointerCancel={() => { obrotStart.current = null; }}>{dziecko}</div>
           );
+          /* zoom w widokach z boku, z gory, 3D i 45° (uzytkownik 2026-11-22: „w 45 i 3d oddalanie widoku poniżej 100% nie działa”) —
+             rysunek ma szerokosc okna razy zoom (100% = na szerokosc okna, wiecej — przewijanie) */
+          // powyzej 100% bez limitu wysokosci rysunku (3D ma `max-height`) — inaczej wieksza szerokosc nic nie daje
+          const zoomuj = (el) => (el ? <div data-el="mak-widok-zoom" style={{ width: `${Math.round(zoomM.z * 100)}%`, minWidth: 120, marginInline: zoomM.z < 1 ? "auto" : undefined }}>
+            {zoomM.z > 1 && <style>{"[data-el=mak-widok-zoom] svg{max-height:none!important}"}</style>}{el}</div> : el);
           return (
             <div data-el="mak-widok-inny" data-widok={w}>
-              {w === "bok" && (zCiagow ? <AssemblySideView project={projRys} runs={rysowane} showDims onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />
+              {w === "bok" && zoomuj(zCiagow ? <AssemblySideView project={projRys} runs={rysowane} showDims onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />
                 : geo0 && <SideView cab={it0.cab} geo={geo0} mat={it0.mat} showDims showHardware={false} />)}
               {/* rzut z gory jako glowny widok (uzytkownik 2026-11-13: „w widoku z góry nie działa przesuwanie elementów np. płyty do
                   szafki obok”) — jak rzut nad widokiem z przodu (`mak-zgory`): przeciaganie plyty / zlewu / sprzetu na blacie, ramki,
                   znaczki szerokosci i glebokosci zaznaczonej szafki, wymiary zaznaczonego wyciecia */}
-              {w === "gora" && (zCiagow ? <div data-el="mak-zgory"><AssemblyTopView project={projRys} runs={rysowane} showDims showShelves showHardware={false} onPick={wybierz} zazn={zaznM ? project.active : null} blatKryje={przel.blat !== false}
+              {w === "gora" && zoomuj(zCiagow ? <div data-el="mak-zgory"><AssemblyTopView project={projRys} runs={rysowane} showDims showShelves showHardware={false} onPick={wybierz} zazn={zaznM ? project.active : null} blatKryje={przel.blat !== false}
                 nakladka={nakladkaGora} wycZazn={akt === "dodaj" && dodajCo === "agd" && selAgd && selAgd.rodz === "wyc" ? selAgd : null} /></div>
                 : geo0 && <TopView cab={it0.cab} geo={geo0} mat={it0.mat} showDims showShelves showHardware={false} />)}
               {/* otwarte / zamkniete i kat otwarcia (uzytkownik 2026-11-12: „brak na rysunku otwarte, zamknięte i suwaka do otwierania”,
@@ -26928,11 +27161,11 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
                   <input type="range" min={0} max={110} step={1} value={kat3d} data-el="mak-3d-kat" onChange={(e) => setKat3d(Number(e.target.value))} className="w-32 accent-teal-700" />
                   <span className="w-10 font-mono text-xs text-stone-500">{kat3d}°</span></label>}
               </div>}
-              {w === "3d" && obracany(zCiagow ? <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} rpOf={rpOf} agd={przel.agd !== false} />
-                : geo0 && <Scene3D cab={it0.cab} geo={geo0} mat={it0.mat} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} />)}
+              {w === "3d" && zoomuj(obracany(zCiagow ? <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} rpOf={rpOf} agd={przel.agd !== false} />
+                : geo0 && <Scene3D cab={it0.cab} geo={geo0} mat={it0.mat} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} />))}
               {/* 45° — klik zaznacza szafke (uzytkownik 2026-11-12); 3D — obracanie, bez zaznaczania */}
-              {w === "iso" && <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} szuflady={widok === "open"} yaw={-Math.PI / 4} pitch={-0.45} angle={kat3d} rpOf={rpOf}
-                onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />}
+              {w === "iso" && zoomuj(<Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} szuflady={widok === "open"} yaw={-Math.PI / 4} pitch={-0.45} angle={kat3d} rpOf={rpOf}
+                onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />)}
               <p className="mt-1 text-[11px] text-stone-500" data-el="mak-widok-podpowiedz">{w === "gora"
                 ? "Kliknij szafkę, żeby ją zaznaczyć; płytę, zlew i sprzęt na blacie przeciągnij na inną szafkę (zielone ramki); zaznaczonej — zielone znaczki szerokości i głębokości. „Blat” wyłączony — widać szafki pod blatem. Fronty, półki i szuflady — w widoku „Z przodu”."
                 : `${w === "3d" ? "Przeciągnij, żeby obrócić (tu bez zaznaczania szafek). " : w === "iso" || w === "bok" ? "Kliknij szafkę, żeby ją zaznaczyć. " : ""}Zmiany na rysunku — w widoku „Z przodu”; tu podgląd.`}</p>
@@ -27463,6 +27696,8 @@ export default function App() {
       ...(stoi && !opcje.bezNozek && !(spC && (spC.typ === "lodowka" || spC.typ === "zmywarkaW")) ? { legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } } : {}) },
       mat: matNowej, runId, roomId };
     if (opcje.poDodaniu) opcje.poDodaniu(fresh.cab, fresh.mat, !!stoi);
+    // wzor z palety makiety — od razu bez ostrzezen o zawiasach na polkach i o frontach szuflad rozniacych sie o 1 mm
+    if (tplId && opcje.zmien) { try { wzorBezUwag(fresh.cab, fresh.mat); } catch (e) { /* zostaje jak ze wzoru */ } }
     /* Nowa szafka ciagu ma stanac na jego koncu, a nie na koncu calego projektu —
        inaczej kolejnosc przy scianie zalezalaby od tego, w jakiej kolejnosci
        dokladano szafki do roznych ciagow. */
@@ -28008,6 +28243,7 @@ export default function App() {
   const [saved, setSaved] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
+  const [startSc, setStartSc] = useState({ w: "", h: "" });   // „Co projektujesz?” — szerokosc i wysokosc sciany
   const [printing, setPrinting] = useState(false);
 
 
@@ -28768,6 +29004,18 @@ export default function App() {
     if (action.startsWith("gornyod:")) { const [, id, mm] = action.split(":"); if (id) setRun(id, { offset: Math.max(0, Math.round(Number(mm) || 0)), offsetFrom: "left" }); return; }
     // „blendasufit:<ciąg górny>:<mm>” — szafki gorne nizej o tyle, blenda do sufitu (zawieszki potrzebuja luzu nad szafka)
     if (action.startsWith("blendasufit:")) { const [, id, mm] = action.split(":"); if (id) setProject((p) => gornyBlendaDoSufitu(p, id, Math.round(Number(mm) || BLENDA_DO_SUFITU))); return; }
+    // „szafablenda:<i>” — blenda nad szafa do sufitu (dociac na miejscu); „nadstawka:<i>” — szafka na szafie do sufitu (`nadstawkaNaSzafie`)
+    if (action.startsWith("szafablenda:")) { const ix = Number(action.split(":")[1]);
+      setProject((p) => { const it = p.items[ix], run = it && it.runId ? (p.runs || []).find((r) => r.id === it.runId) : null; if (!run) return p;
+        const suf = sufitSciany(p, run); let o = null; try { o = makOdPodlogi(p, ix); } catch (e) { return p; }
+        const h = suf != null && o ? Math.round(suf - o.gora) : 0; if (!(h >= 20)) return p;
+        return { ...p, items: p.items.map((x, k) => (k === ix ? { ...x, cab: { ...x.cab, topFiller: { ...(x.cab.topFiller || {}), on: true, height: h } } } : x)) }; }); return; }
+    if (action.startsWith("nadstawka:")) { const ix = Number(action.split(":")[1]); setProject((p) => nadstawkaNaSzafie(p, ix)); return; }
+    /* „hdfkorpus” / „hdfzostaw” — plecy HDF w innym kolorze niz korpus: wszystkie takie szafki projektu dostaja kolor swojego
+       korpusu albo zostaja (`kolorOk`) */
+    if (action === "hdfkorpus" || action === "hdfzostaw") {
+      setProject((p) => ({ ...p, items: p.items.map((x) => (x.cab.back === "hdf" && hdfInnyKolor(x.mat)
+        ? { ...x, mat: { ...x.mat, back: action === "hdfkorpus" ? { ...x.mat.back, color: x.mat.board.color, decor: x.mat.board.decor || "" } : { ...x.mat.back, kolorOk: true } } } : x)) })); return; }
     // „slupeksc:<i>:<mm>” — slupek na koncu ciagu przy samej scianie: szpara 0, glebszy o nia (lico w linii)
     if (action.startsWith("slupeksc:")) { const [, ix, mm] = action.split(":"), d = Math.round(Number(mm) || 0);
       setProject((p) => ({ ...p, items: p.items.map((x, k) => (k === Number(ix) ? { ...x, wallGap: { bottom: 0, top: null }, cab: { ...x.cab, D: Math.round(x.cab.D) + d } } : x)) })); return; }
@@ -32388,6 +32636,11 @@ export default function App() {
                   : "Drzwi na korpusie — półka na pełną głębokość."}>
                 <Num value={cab.shelfExtraSetback || 0} onChange={(v) => set({ shelfExtraSetback: v })} />
               </Field>
+              {/* cofniecie przegrod pionowych (uzytkownik 2026-11-22) — glebokosc przegrod; o grubosc frontu: fronty szuflad przed przegroda */}
+              <Field label="Cofnięcie przegród pionowych od frontu"
+                hint={`Głębokość przegród ${fmt(Math.round(geo.dividerDepth))} mm.${cab.frontMode === "inset" ? ` Od ${fmt(geo.tf)} mm (grubość frontu) fronty szuflad idą przed przegrodą — między nimi tylko luz.` : ""}`}>
+                <Num value={cab.przegrodyCof || 0} onChange={(v) => set({ przegrodyCof: Math.max(0, Math.round(Number(v) || 0)) })} />
+              </Field>
             </div>
           </Card>
 
@@ -34306,20 +34559,38 @@ export default function App() {
           onClick={() => setConfirmNew(false)}>
           <div className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}>
-            <h3 className="mb-2 text-sm font-semibold text-stone-800">Zacząć nowy projekt?</h3>
-            <p className="mb-4 text-xs text-stone-500">
-              Bieżący projekt zostanie wyczyszczony. Można go przywrócić przyciskiem Cofnij.
+            <h3 className="mb-1 text-sm font-semibold text-stone-800">Nowy projekt — co projektujesz?</h3>
+            <p className="mb-3 text-xs text-stone-500">
+              Bieżący projekt zostanie wyczyszczony — zapisz go wcześniej do pliku, jeśli będzie potrzebny.
             </p>
+            {/* szerokosc i wysokosc sciany od razu (uzytkownik 2026-11-21: start „Co projektujesz?”) — puste: podasz pozniej */}
+            <div className="mb-3 grid grid-cols-2 gap-2 text-xs" data-el="start-sciana">
+              <label className="flex flex-col gap-0.5"><span className="text-stone-500">szerokość ściany (mm)</span>
+                <input type="number" step="10" min="0" data-pole="start-szer" value={startSc.w} onChange={(e) => setStartSc((v) => ({ ...v, w: e.target.value }))}
+                  placeholder="np. 3000" className="rounded border border-stone-300 px-1.5 py-1 font-mono text-xs" /></label>
+              <label className="flex flex-col gap-0.5"><span className="text-stone-500">wysokość ściany / sufit (mm)</span>
+                <input type="number" step="10" min="0" data-pole="start-wys" value={startSc.h} onChange={(e) => setStartSc((v) => ({ ...v, h: e.target.value }))}
+                  placeholder="np. 2600" className="rounded border border-stone-300 px-1.5 py-1 font-mono text-xs" /></label>
+            </div>
+            <div className="mb-3 grid gap-1.5" data-el="start-rodzaje">
+              {START_RODZAJE.map(([k, l, opis]) => (
+                <button key={k} data-el="start-rodzaj" data-v={k} onClick={() => {
+                    replaceProject(projektStartowy(k, { wallW: startSc.w, ceiling: startSc.h }));
+                    // szafa do zabudowy przy znanym suficie — od razu do sufitu z luzem (najwyzej szafa z jednego arkusza)
+                    if (k === "szafa" && Number(startSc.h) > 0) runFix("szafasufit:0");
+                    // sciana szersza niz szafa z jednego arkusza (dno, wieniec) — od razu dwie szafy obok siebie
+                    if (k === "szafa" && Number(startSc.w) > USABLE_W) runFix("przesdziel");
+                    if (k !== "pusty" && tryb === "techniczny") setTryb("prosta");
+                    if (k === "pusty") setTryb("techniczny");   // „jedna szafka w trybie Technicznym, jak dotąd”
+                    setSaved("nowy projekt"); setConfirmNew(false);
+                  }}
+                  className="flex flex-col items-start rounded border border-stone-300 px-3 py-1.5 text-left hover:border-teal-600 hover:bg-teal-50">
+                  <span className="text-sm font-medium text-stone-800">{l}</span><span className="text-[11px] text-stone-500">{opis}</span>
+                </button>))}
+            </div>
             <div className="flex justify-end gap-2">
               <button onClick={() => setConfirmNew(false)}
                 className="rounded px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-100">Anuluj</button>
-              <button onClick={() => {
-                  replaceProject(newProject());
-                  setSaved("nowy projekt"); setConfirmNew(false);
-                }}
-                className="rounded bg-teal-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-800">
-                Tak, nowy projekt
-              </button>
             </div>
           </div>
         </div>

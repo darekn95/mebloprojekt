@@ -141,9 +141,10 @@ console.log('\n== 5. pełny wysuw szuflad (V-BOX, folder str. 4) ==');
   const nl = dno ? Math.max(...dno.slice(1).map((x) => Number(x) || 0).filter((x) => x > 300)) + 24 : null;
   await click('Szafka'); await click('Zamk.');
   await page.evaluate(() => { window.__audytBryl = []; }); await click('3D');
-  const zam = await page.evaluate(() => (window.__audytBryl || []).filter((s) => s.p && s.color.toLowerCase() === '#2222cc'));
+  // cokol jest w kolorze frontow (2026-11-22) — nie wysuwa sie, to nie front szuflady
+  const zam = await page.evaluate(() => (window.__audytBryl || []).filter((s) => s.p && s.color.toLowerCase() === '#2222cc' && s.tag !== 'cokol'));
   await page.evaluate(() => { window.__audytBryl = []; }); await click('zamknięte'); await page.waitForTimeout(400);
-  const otw = await page.evaluate(() => (window.__audytBryl || []).filter((s) => s.p && s.color.toLowerCase() === '#2222cc'));
+  const otw = await page.evaluate(() => (window.__audytBryl || []).filter((s) => s.p && s.color.toLowerCase() === '#2222cc' && s.tag !== 'cokol'));
   const wysuw = zam.map((f) => { const o = otw.find((q) => Math.abs(q.p[1] - f.p[1]) < 1 && Math.abs(q.p[0] - f.p[0]) < 1); return o ? Math.round(f.p[2] - o.p[2]) : null; });
   ok(`3D: każda szuflada wysuwa się na całą NL (${nl} mm)`, !!nl && wysuw.length === 3 && wysuw.every((w) => w === nl), `wysuw ${wysuw.join(', ')}`);
 }
