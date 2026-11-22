@@ -541,7 +541,7 @@ const cabZWolnegoMiejsca = (cab) => (cab.poprzednia ? { ...cab.poprzednia, W: ca
    ciagu (wysokosc, glebokosc, cokol, nozki) jej nie dotycza. Blat konczy sie przy lodowce i zmywarce z pokrywa. */
 /* Biurko w ciagu (uzytkownik 2026-11-22: „nie mogę dodać biurka pomiędzy dwie szafki w ciągu”) stoi jak lodowka wolnostojaca: na podlodze,
    wlasna wysokosc (bez uwag o wysokosci i cokole ciagu), cokol ciagu ma przy nim przerwe */
-const naPodlodzeCiagu = (cab) => !!(cab && ((cab.sprzetCiagu && (cab.sprzetCiagu.typ === "lodowka" || cab.sprzetCiagu.typ === "zmywarkaW" || cab.sprzetCiagu.typ === "maskownica")) || (!cab.sprzetCiagu && (biurkoSzafki(cab) || cab.biurkoWiszace))));
+const naPodlodzeCiagu = (cab) => !!(cab && ((cab.sprzetCiagu && (cab.sprzetCiagu.typ === "lodowka" || cab.sprzetCiagu.typ === "zmywarkaW" || cab.sprzetCiagu.typ === "maskownica")) || (!cab.sprzetCiagu && (biurkoSzafki(cab) || cab.biurkoWiszace || cab.wiszacaRtv))));
 /* Lodowka podblatowa — dwa rodzaje (uzytkownik 2026-11-14): „w ciągu” jak zmywarka (wypelnia cale miejsce, bez bokow i wzmocnien —
    `sprzetCiagu.typ: "lodowkaP"`) i „w szafce” — mniejsza (np. na wino) w zwyklej szafce z dnem i bokami, „jakbyśmy wpakowali
    mikrofalę na dół”: stoi na dnie szafki dolnej, z wlasnymi drzwiami (bez frontu meblowego), nad nia plyta i otwarta wneka (szuflada
@@ -3319,6 +3319,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   const g = cab.gaps;
   const msgs = [];
   const add = (level, text) => msgs.push({ level, text });
+  // szafka RTV wiszaca (2026-11-22): na zawieszkach, dol nad podloga — informacja w karcie (takze poza ciagiem)
+  if (cab.wiszacaRtv) add("info", `Szafka RTV wisząca — na zawieszkach do ściany (listwa montażowa albo haczyki), dół ${fmt(Math.round(Number(cab.dolGorny) || 0))} mm nad podłogą (karta Szafka: „dół nad podłogą”). Klapy w dół otwierają się nad podłogą.`);
 
   if (blatInside && W <= 2 * t)
     add("error", `Wysunięcia blatu (${fmt(blat.overL)} + ${fmt(blat.overR)} mm) zjadają całą szerokość ${fmt(cab.W)} mm — na korpus nic nie zostaje.`);
@@ -23983,6 +23985,11 @@ const MAK_PALETA = [
       mod: (c, sys) => { Object.assign(c, { W: 800, H: 800, D: 450 }); makUstawSzuflady(makK0(c), 4, sys); } },
     { id: "rtv", nazwa: "Szafka RTV", opis: "1600 × 450, klapy w dół", tpl: "stojaca", gdzie: "wolna", szafka: "Szafka RTV",
       mod: (c) => { Object.assign(c, { W: 1600, H: 450, D: 450 }); const a = newColumn(1, 0), b = newColumn(1, 0); makUstawFront(a, "klapa-dol"); makUstawFront(b, "klapa-dol"); c.levels = [{ h: null, cols: [a, b] }]; } },
+    /* Szafka RTV wiszaca (uzytkownik 2026-11-22, „jako przykład jak biurko wiszące”: klapy w dół, zawieszki do ściany, 1600 × 400 × 450,
+       350 nad podłogą): bez nozek i cokolu — zawieszki same; dol nad podloga `dolGorny` (w ciagu — poza wspolna wysokoscia) */
+    { id: "rtvW", nazwa: "Szafka RTV wisząca", opis: "1600 × 400 × 450, klapy w dół, na zawieszkach, 350 nad podłogą", tpl: "stojaca", gdzie: "wolna", wCiag: true, bezNozek: true, szafka: "Szafka RTV",
+      mod: (c) => { Object.assign(c, { W: 1600, H: 400, D: 450, hangers: "auto", dolGorny: 350, wiszacaRtv: true }); c.legs = { ...(c.legs || {}), on: false }; c.plinth = { ...(c.plinth || {}), on: false };
+        const a = newColumn(1, 0), b = newColumn(1, 0); makUstawFront(a, "klapa-dol"); makUstawFront(b, "klapa-dol"); c.levels = [{ h: null, cols: [a, b] }]; } },
     { id: "nocna", nazwa: "Szafka nocna", opis: "450 × 500, 2 szuflady", tpl: "stojaca", gdzie: "wolna", szafka: "Szafka nocna",
       mod: (c, sys) => { Object.assign(c, { W: 450, H: 500, D: 450 }); makUstawSzuflady(makK0(c), 2, sys); } },
     { id: "regalW", nazwa: "Regał", opis: "800 × 1700, 4 półki", tpl: "stojaca", gdzie: "wolna", szafka: "Regał",
@@ -24806,6 +24813,12 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     ...(cab.sprzetCiagu ? [] : [chips("mak-szer", szerChips, cab.W, (v) => zmien(idx, (c) => { c.W = v; }))]),
     ...(blendaScianyCab(cab) ? [] : [<Pole key="pH" k="H" l="Wysokość" />]),
     ...(slupekWysW ? [slupekWysW] : []),
+    // biurko / szafka RTV wiszaca (2026-11-22): dol nad podloga
+    ...(cab.biurkoWiszace || cab.wiszacaRtv ? [<label key="dnp" className="flex items-center justify-between gap-2 border-b border-stone-100 py-1 text-xs"><span className="text-stone-500">dół nad podłogą</span>
+      <input type="number" step="10" min="0" defaultValue={dolGornej(cab)} key={`dnp-${dolGornej(cab)}`} data-pole="dol-nad-podloga"
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v >= 0 && v !== dolGornej(cab)) zmien(idx, (c) => { c.dolGorny = v; }); }}
+        className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs" /></label>] : []),
     ...(run && run.tier === "gorny" ? [gornaWlasnaW, gornyDolW("gdol"), gornyBlatW("gblat"), gornyGoraW("ggora"), gornyPolW("gpol")] : []),
     ...(blendaSzafkiW ? [blendaSzafkiW] : []),
     ...(rodzK === "wolnostojaca" ? [chips("mak-wys", MAK_WYS_WOLNA, cab.H, (v) => (run && zmienWys ? zmienWys(idx, v) : zmien(idx, (c) => { c.H = v; })))] : []),
@@ -25486,7 +25499,8 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladk
     const mat = texMat(matRysunku(it.cab, it.mat), it.cab.texture, it.cab.textureDir);
     const plinthH = it.cab.plinth && it.cab.plinth.on && !geo.plinthInBody ? geo.plinthH : 0;
     const legBelow = it.cab.legs && it.cab.legs.on ? geo.legBelow : 0;
-    const o = { it, i, geo, mat, x, base: Math.max(plinthH, legBelow), plinthH,
+    // wiszaca (biurko, RTV — `dolGorny` nad podloga) — na rysunku tez nad podloga
+    const o = { it, i, geo, mat, x, base: Math.max(plinthH, legBelow) + (it.cab.biurkoWiszace || it.cab.wiszacaRtv ? dolGornej(it.cab) : 0), plinthH,
       frontColor: it.cab.realColors && it.cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color };
     x += geo.W + ODST;
     return o;
@@ -25532,7 +25546,7 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladk
   );
 }
 
-function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, zmien, zmienProjekt, ciag, dodaj: dodaj0, dodajGorny, gora = 96, usunPozycje, kopiuj, zam, setZam, zamowienie, pelneOpcje }) {
+function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, switchCabinet, rpOf, zmien, zmienProjekt, ciag, dodaj: dodaj0, dodajGorny, gora = 96, usunPozycje, kopiuj, zam, setZam, zamowienie, pelneOpcje }) {
   /* Szeroki ekran (lg): zakladki, karta i rysunek przyklejone pod gornym paskiem (`gora` — jego wysokosc jak „rysunek
      przypiety” w trybie technicznym), rysunek do dolu okna z wlasnym przewijaniem (zgloszenie 2026-11-09: „suwak rysunku
      na dole, ale suwak okna nie na dole i ucina rysunek” — wysokosc liczona z zalozonego paska 100 px). */
@@ -26658,8 +26672,12 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
           <button data-el="mak-panel-zwin" aria-expanded="true" onClick={przelaczPanel} title="Zwiń panel — więcej miejsca na rysunek"
             className="flex h-6 w-6 items-center justify-center rounded text-stone-500 hover:bg-stone-100 hover:text-stone-800"><span className="text-[10px]">▼</span></button>
           <Rozwijana el="mak-pomieszczenie" etykieta="Pomieszczenie" wartosc={pokoj}
-            opcje={roomsOf(project).map((r) => ({ v: r.id, l: r.name }))}
-            onWybierz={(v) => { setCiagId("aktywny"); switchRoom(v); }} />
+            opcje={[...roomsOf(project).map((r) => ({ v: r.id, l: r.name })),
+              // uzytkownik 2026-11-22: „w prostej i szczegółowej nie mamy opcji dodaj pomieszczenie”
+              ...(addRoom ? [{ v: "__nowe", l: "+ nowe pomieszczenie", opis: "własne ściany i szafki, zamówienie wspólne" }] : [])]}
+            onWybierz={(v) => {
+              if (v === "__nowe") { setCiagId("aktywny"); addRoom(); return; }
+              setCiagId("aktywny"); switchRoom(v); }} />
           <Rozwijana el="mak-ciag" etykieta="Ciąg" wartosc={ciagSc}
             opcje={[{ v: "szafka", l: "Tylko zaznaczona szafka", opis: "duży rysunek do przeciągania" }, { v: "aktywny", l: "Ciąg zaznaczonej szafki", opis: "z ciągiem górnym nad nim" }, { v: "wszystkie", l: "Wszystkie ciągi", opis: wolne.length ? "i szafki wolnostojące" : "" },
               ...runs.filter((r) => r.tier !== "gorny").map((r) => { const g = runs.find((x) => x.tier === "gorny" && x.wall === r.id), nG = g ? runItems(project, g.id).length : 0;
@@ -31414,7 +31432,7 @@ export default function App() {
       </div>
       </header>
 
-      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} ciag={{ setRun, setRunShared, assignCabinet }} zam={zamWMak} setZam={setMakZam} zamowienie={zamWMak ? kartyZamowienia : null} pelneOpcje={otworzPelne} dodaj={addCabinet} dodajGorny={addUpperRun} gora={wysNaglowka + PRZYPIETY_ODSTEP} usunPozycje={removeCabinet} kopiuj={duplicateCabinet} />}
+      {makieta && <MakietaWidok project={project} tryb={tryb} pokoj={pokoj} switchRoom={switchRoom} addRoom={addRoom} renameRoom={renameRoom} switchCabinet={switchCabinet} rpOf={rpOf} zmien={makietaZmien} zmienProjekt={setProject} ciag={{ setRun, setRunShared, assignCabinet }} zam={zamWMak} setZam={setMakZam} zamowienie={zamWMak ? kartyZamowienia : null} pelneOpcje={otworzPelne} dodaj={addCabinet} dodajGorny={addUpperRun} gora={wysNaglowka + PRZYPIETY_ODSTEP} usunPozycje={removeCabinet} kopiuj={duplicateCabinet} />}
       {makieta && <div className="print-hide mx-auto max-w-[1900px] px-3 pb-6">{uwagiKarta(false)}</div>}
       {pelneWMak && <>
         <style>{`main[data-szuflada] > div:last-child { display: none; } main[data-szuflada] > div:first-child > :not(${pelneWMak.map((id) => "#" + id).join("):not(")}) { display: none; }`}</style>

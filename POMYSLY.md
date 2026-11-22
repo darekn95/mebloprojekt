@@ -35,6 +35,9 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
 
 ### Pomysły
 
+- **Lakierowanie formatek** (użytkownik 2026-11-22, „na przyszłość, nie na dzisiaj”): opcja lakierowania frontów, korpusów i półek —
+  do przemyślenia (które formatki, z obu stron czy z jednej, krawędzie, cena za m², osobna pozycja w zamówieniu / wycenie).
+
 - **Plecy HDF za duże na arkusz** (szafa 2400 × 2500 → plecy 2398 × 2398): dziś tylko błąd. Rada z przyciskiem: plecy z dwóch kawałków
   łączonych na przegrodzie / półce (listwa łącząca) albo bez pleców w zabudowie przy ścianie.
 - **Osobne ciągi w jednym pokoju** (np. szafa przy jednej ścianie, regał przy drugiej) — w widoku „Zabudowa” 3D stoją w tym samym
