@@ -1400,3 +1400,7 @@ drzwi rowno z blatem (`addCabinet`: D = ciag + wysieg blatu, `offset`), blat res
 akcja `przesprzeg` („Przegrody na stykach skrzydeł”), kolumna pod dwoma skrzydlami — ostrzezenie (bylo info). Testy obszaru: 15 suit 1532 OK,
 makieta19 STD zielona. [AI-TODO] Szeroka sciana (obie drogi: moduly + jeden komplet drzwi; dno / wieniec z 2 kawalkow) i nadstawka /
 blenda nad szafa w wysokim pokoju — czekaja na szczegoly od uzytkownika (`POMYSLY.md`, „Decyzje”).
+[AI-TODO] 2026-11-22 odpowiedzi uzytkownika (szczegoly w `POMYSLY.md`, „Decyzje” 1–2): szeroka zabudowa — moduly do wyboru (pelne korpusy
+skrecone bokami / wspolna przegroda: dno wewnatrz, wieniec wewnatrz albo na pol przegrody); jedna szafa z dnem / wiencem z 2 kawalkow — dno
+wewnatrz przy pojedynczej przegrodzie, wieniec na pol plyty tylko gdy kawalek ma jeszcze jedna przegrode (poza bokiem) do przykrecenia,
+inaczej sugestia: wieniec wewnatrz bokow albo podwojna przegroda; nadstawka nad szafa — drzwi na zawiasach. Do wdrozenia (duze funkcje).

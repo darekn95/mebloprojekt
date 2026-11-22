@@ -18,9 +18,16 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
    na arkuszu. Decyzja: **obie drogi** — (a) kilka korpusów obok siebie i jeden komplet drzwi przesuwnych na całą ścianę (tor do 6000 mm);
    (b) jedna szafa z dnem i wieńcem z dwóch kawałków łączonych na przegrodzie. Do zrobienia; przed robotą pytania o szczegóły
    (styk modułów: podwójne boki czy jedna wspólna przegroda; czym łączyć kawałki dna i wieńca; tory na modułach czy na suficie).
+   **Odpowiedzi 2026-11-22:**
+   - moduły — **do wyboru**: pełne korpusy skręcone bokami (dwa boki na styku) albo wspólna przegroda; przy wspólnej przegrodzie dno
+     raczej wewnątrz (między bokiem a przegrodą), a wieniec też wewnątrz albo „na pół” na przegrodzie (9 mm);
+   - jedna szafa z dnem / wieńcem z dwóch kawałków — dno raczej wewnątrz, gdy przegroda pojedyncza (przegroda do dna, kawałki dna między
+     nią a bokami); wieniec może wejść „na pół płyty” na przegrodę styku, o ile ten kawałek ma wcześniej (poza bokiem) jeszcze jedną
+     przegrodę, do której jest przykręcony; jeśli nie ma — program sugeruje wieniec wewnątrz boków albo podwójną przegrodę na styku.
 2. **Wysoki pokój (sufit ponad ok. 2770 mm)** — szafa najwyżej 2761 mm (zrobione: uwaga i przycisk „Wysokość szafy N mm”). Nad szafą
    decyzja: **do wyboru** — blenda do sufitu albo nadstawka (osobny korpus na szafie). Do zrobienia; przed robotą pytania o nadstawkę
-   (drzwi na zawiasach czy klapa, czy przesuwne też w nadstawce, jak łączona z szafą).
+   (drzwi na zawiasach czy klapa, czy przesuwne też w nadstawce, jak łączona z szafą). **Odpowiedź 2026-11-22:** nadstawka domyślnie
+   z drzwiami na zawiasach.
 3. **Słupek z palety w kuchni** — zrobione 2026-11-21: „słupek nie ma blatu” — tył przy ścianie, drzwi równo z blatem, blat reszty bez zmian.
 4. **Kolumny pod skrzydłami w szafie przesuwnej** — zrobione 2026-11-21: przycisk „Przegrody na stykach skrzydeł” (tyle kolumn, ile
    skrzydeł), dodatkowe przegrody pomiędzy wolno, kolumna pod dwoma skrzydłami — ostrzeżenie (było: informacja).
