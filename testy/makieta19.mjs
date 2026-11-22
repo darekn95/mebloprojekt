@@ -311,6 +311,15 @@ ok('zaznaczona maskownica w zakładce Wzmocnienia: jej kolor (jak korpus — wyb
   && (await page.locator('[data-el="mak-maskownica-gl"]').count()) === 2 && (await page.locator('[data-el="mak-wzm"]').count()) === 0);
 await zakl('plyty');
 ok('… w kafelku „Płyty i kolory”: kolor maskownicy', (await page.locator('[data-el="mak-plyty-maskownica"]').count()) === 2);
+// projekt sprzed poprawki: maskownica zapisana ze starym domyslnym „jak fronty” — ma wyjsc jak korpus; „jak fronty” klikniete zostaje
+await ust(`const m = p.items.find((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.typ === 'maskownica'); m.cab.sprzetCiagu = { typ: 'maskownica', gl: 'front', kolor: 'front' };`);
+await zakl('wzmocnienia');
+ok('stara maskownica (kolor: front bez wyboru) — jak korpus', (await page.locator('[data-el="mak-maskownica-kolor"][data-v="korpus"]').getAttribute('aria-pressed')) === 'true');
+await page.locator('[data-el="mak-maskownica-kolor"][data-v="front"]').click();
+p = await czekaj("p.items.some((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.typ === 'maskownica' && i.cab.sprzetCiagu.kolorWyb)");
+ok('„jak fronty” kliknięte — zostaje (kolorWyb)', (await page.locator('[data-el="mak-maskownica-kolor"][data-v="front"]').getAttribute('aria-pressed')) === 'true');
+await page.locator('[data-el="mak-maskownica-kolor"][data-v="korpus"]').click();
+await page.waitForTimeout(500);
 { const t = await uwagi(); ok('uwagi maskownicy: wkręty 4 × 30 od środka szafki obok, cokół kończy się przy niej; rysunek', /Maskownica boku \d+ × \d+ mm: przykręć ją od środka szafki obok wkrętami 4 × 30/.test(t)
     && (await page.locator('[data-el="makieta"] [data-el="maskownica-boku"]').count()) >= 1, t.slice(0, 300)); }
 

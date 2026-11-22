@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1681,6 +1681,8 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
   const pan = (c) => G.computeGeo(c, M0).panels.find((x) => x.name === 'Cokół');
   ok('fronty z innej płyty: formatka cokołu z płyty frontów (domyślnie)', pan(cab()).matKey === 'front' && G.cokolKey(cab()) === 'front', pan(cab()).matKey);
   ok('… „jak korpus”: formatka z płyty korpusu', pan(cab({ kolor: 'korpus' })).matKey === 'board');
+  { const mk = (sp) => G.sprzetCiagu({ sprzetCiagu: { typ: 'maskownica', ...sp } }).kolor;
+    ok('maskownica: domyślnie jak korpus, stare „front” bez wyboru — korpus, wybrane — fronty', mk({}) === 'korpus' && mk({ kolor: 'front' }) === 'korpus' && mk({ kolor: 'front', kolorWyb: true }) === 'front'); }
   ok('kolor na rysunku: jak fronty / jak korpus', G.kolorCokolu(cab(), M0) === '#112233' && G.kolorCokolu(cab({ kolor: 'korpus' }), M0) === '#ddccbb');
   const same = { ...cab(), frontSameAsBoard: true };
   ok('fronty z płyty korpusu: formatka z płyty korpusu (ta sama płyta)', G.cokolKey(same) === 'board');

@@ -190,7 +190,7 @@ Zakładka „Wzmocnienia” (makieta szczegółowa) przy szafce w ciągu: „mas
 od dołu do góry mebla na całą głębokość”; „nie musi być przy ścianie — do wyboru bok szafki, może być między meblami”). To pozycja ciągu
 bez korpusu (`sprzetCiagu.typ = "maskownica"`) przy boku szafki: płyta grubości płyty (18 mm), od podłogi do góry wyższej z szafek obok
 (z cokołem / nóżkami), głębokość jak głębsza z nich (`maskowniceZaCiagiem`); w swojej karcie — głębokość do lica frontów (domyślnie) albo
-korpusu i kolor jak korpus (domyślnie, użytkownik 2026-11-22) albo jak fronty — także przy przyciskach maskownicy w zakładce Wzmocnienia („kolor maskownic”). Formatka „Maskownica boku” (okleina z przodu i u góry), wkręty 4 × 30 od środka
+korpusu i kolor jak korpus (domyślnie, użytkownik 2026-11-22) albo jak fronty (tylko wybrane przyciskiem — `kolorWyb`; maskownice zapisane przed zmianą domyślnego wracają do korpusu) — także przy przyciskach maskownicy w zakładce Wzmocnienia („kolor maskownic”). Formatka „Maskownica boku” (okleina z przodu i u góry), wkręty 4 × 30 od środka
 szafki obok w dwóch rzędach co ok. 400 mm — przykręcić, zanim wejdą półki i szuflady. Stoi na podłodze jak lodówka wolnostojąca
 (`naPodlodzeCiagu`): cokół ciągu kończy się przy niej, bez uwag o wysokości.
 

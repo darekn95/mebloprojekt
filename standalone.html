@@ -445,7 +445,7 @@ const SPRZETY_CIAGU = {
   blenda: { nazwa: "blenda", pelna: "Blenda przy ścianie", pas: 0 },
   /* Maskownica boku (uzytkownik 2026-11-22: „płyta na zewnątrz od dołu do góry mebla na całą głębokość”, „nie musi być przy ścianie —
      do wyboru bok szafki, może być między meblami”): plyta stojaca na podlodze przy boku szafki, wysokosc i glebokosc jak szafka obok
-     (`maskowniceZaCiagiem`); `gl` — do lica frontow (domyslnie) / korpusu, `kolor` — jak fronty (domyslnie) / korpus */
+     (`maskowniceZaCiagiem`); `gl` — do lica frontow (domyslnie) / korpusu, `kolor` — jak korpus (domyslnie) / fronty; „jak fronty” tylko wybrane recznie (`kolorWyb`) */
   maskownica: { nazwa: "maskownica", pelna: "Maskownica boku" },
   okapK: { nazwa: "okap", pelna: "Okap kominowy", szer: 600, h: 90, gl: 500, kominW: 280, kominD: 250, dol: 150 },
 };
@@ -481,8 +481,10 @@ const sprzetCiagu = (cab) => {
   }
   if (typ === "zmywarkaW") { out.pokrywa = !!sp.pokrywa; out.drzwi = "dol"; }
   if (typ === "blenda") { out.auto = sp.auto !== false; out.strona = sp.strona === "prawa" ? "prawa" : "lewa"; }
-  // kolor domyslnie jak korpus (uzytkownik 2026-11-22: „domyślnie powinna być w kolorze korpusu, a nie frontów”)
-  if (typ === "maskownica") { out.gl = sp.gl === "korpus" ? "korpus" : "front"; out.kolor = sp.kolor === "front" ? "front" : "korpus"; }
+  /* kolor domyslnie jak korpus (uzytkownik 2026-11-22: „domyślnie powinna być w kolorze korpusu, a nie frontów”; potem znowu:
+     „kolor maskownicy domyślnie jak korpus nie fronty”) — maskownice zapisane przed ta zmiana maja `kolor: "front"` ze starego
+     domyslnego, wiec „jak fronty” liczy sie tylko, gdy wybrano je przyciskiem (`kolorWyb`) */
+  if (typ === "maskownica") { out.gl = sp.gl === "korpus" ? "korpus" : "front"; out.kolor = sp.kolor === "front" && sp.kolorWyb ? "front" : "korpus"; }
   if (typ === "lodowka" && out.drzwi !== "prawe") out.drzwi = "lewe";
   if (typ === "lodowka") {
     const pusty = (k) => sp[k] == null || sp[k] === "";
@@ -24732,7 +24734,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         wiersz("mkg", "głębokość maskownicy", [["front", "do lica frontów"], ["korpus", "do lica korpusu"]].map(([v, l]) =>
           <Btn key={v} el="mak-maskownica-gl" v={v} on={sp.gl === v} onClick={() => ustaw({ gl: v })}>{l}</Btn>), "mak-maskownica-gl-w"),
         wiersz("mkk", "kolor maskownicy", [["korpus", "jak korpus"], ["front", "jak fronty"]].map(([v, l]) =>
-          <Btn key={v} el="mak-maskownica-kolor" v={v} on={sp.kolor === v} onClick={() => ustaw({ kolor: v })}>{l}</Btn>), "mak-maskownica-kolor-w"),
+          <Btn key={v} el="mak-maskownica-kolor" v={v} on={sp.kolor === v} onClick={() => ustaw({ kolor: v, kolorWyb: true })}>{l}</Btn>), "mak-maskownica-kolor-w"),
         hint("maskownica", `Płyta od podłogi do góry szafki obok (${fmt(Math.round(cab.H))} mm), na głębokość korpusu${sp.gl === "korpus" ? "" : " i frontów"}; przykręcana od środka szafki obok wkrętami 4 × 30.`)];
     }
     if (blendaScianyCab(cab)) {
@@ -25341,7 +25343,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     const Lr = run ? runItems(project, run.id) : [], kk = Lr.findIndex((q) => q.i === idx);
     const maski = maskownicaCab(cab) ? [{ it, i: idx }] : [Lr[kk - 1], Lr[kk + 1]].filter((q) => q && maskownicaCab(q.it.cab));
     const kolorM = maski.length && maski.every((q) => sprzetCiagu(q.it.cab).kolor === "front") ? "front" : "korpus";
-    const ustawM = (v) => zmienProjekt((p) => ({ ...p, items: p.items.map((x, j) => (maski.some((q) => q.i === j) ? { ...x, cab: { ...x.cab, sprzetCiagu: { ...x.cab.sprzetCiagu, kolor: v } } } : x)) }));
+    const ustawM = (v) => zmienProjekt((p) => ({ ...p, items: p.items.map((x, j) => (maski.some((q) => q.i === j) ? { ...x, cab: { ...x.cab, sprzetCiagu: { ...x.cab.sprzetCiagu, kolor: v, kolorWyb: true } } } : x)) }));
     tresc = [
       ...(cab.sprzetCiagu ? [] : plytyRows.filter(Boolean)),
       ...(cab.sprzetCiagu ? [] : [wiersz("pl-pokoj", "jak w tej szafce — w całym pomieszczeniu", [["board", "korpus"], ...(inne("frontSameAsBoard") ? [["front", "fronty"]] : []), ...(inne("shelfSameAsBoard") ? [["shelf", "półki"]] : [])].map(([k, l]) =>
@@ -25382,7 +25384,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       const sp = sprzetCiagu(cab), ustaw = (patch) => zmien(idx, (c) => { c.sprzetCiagu = { ...c.sprzetCiagu, ...patch }; });
       tresc = [
         wiersz("wmkk", "kolor maskownicy", [["korpus", "jak korpus"], ["front", "jak fronty"]].map(([v, l]) =>
-          <Btn key={v} el="mak-maskownica-kolor" v={v} on={sp.kolor === v} onClick={() => ustaw({ kolor: v })}>{l}</Btn>), "mak-maskownica-kolor-w"),
+          <Btn key={v} el="mak-maskownica-kolor" v={v} on={sp.kolor === v} onClick={() => ustaw({ kolor: v, kolorWyb: true })}>{l}</Btn>), "mak-maskownica-kolor-w"),
         wiersz("wmkg", "głębokość maskownicy", [["front", "do lica frontów"], ["korpus", "do lica korpusu"]].map(([v, l]) =>
           <Btn key={v} el="mak-maskownica-gl" v={v} on={sp.gl === v} onClick={() => ustaw({ gl: v })}>{l}</Btn>), "mak-maskownica-gl-w"),
         <p key="wmkh" className="text-[11px] text-stone-500">Maskownica boku: wysokość i głębokość jak szafka obok. Usuniesz ją w zakładce Szafka („Usuń szafkę”) albo przyciskiem przy szafce obok.</p>];
@@ -25411,7 +25413,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       });
       const obecne = ["lewa", "prawa"].map(jest).filter(Boolean);
       const kolorM = obecne.length && obecne.every((q) => sprzetCiagu(q.it.cab).kolor === "front") ? "front" : "korpus";
-      const ustawKolor = (v) => zmienProjekt((p) => ({ ...p, items: p.items.map((x, j) => (obecne.some((q) => q.i === j) ? { ...x, cab: { ...x.cab, sprzetCiagu: { ...x.cab.sprzetCiagu, kolor: v } } } : x)) }));
+      const ustawKolor = (v) => zmienProjekt((p) => ({ ...p, items: p.items.map((x, j) => (obecne.some((q) => q.i === j) ? { ...x, cab: { ...x.cab, sprzetCiagu: { ...x.cab.sprzetCiagu, kolor: v, kolorWyb: true } } } : x)) }));
       return [wiersz("mask", "maskownica boku (płyta od podłogi do góry, na całą głębokość)", [["lewa", "z lewej"], ["prawa", "z prawej"]].map(([st, l]) =>
         <Btn key={st} el="mak-maskownica" v={st} on={!!jest(st)} onClick={() => przelacz(st)}>{l}</Btn>), "mak-maskownica-w"),
         ...(obecne.length ? [wiersz("maskk", "kolor maskownic", [["korpus", "jak korpus"], ["front", "jak fronty"]].map(([v, l]) =>
