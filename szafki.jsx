@@ -22510,6 +22510,7 @@ const MAK_IKONY = {
   korpus: "M4 4h16v16H4z M7 7h10v10H7z",
   wzmocnienia: "M4 4h16v16H4z M4 8h16 M8 4v4",
   wyciecia: "M4 4h16v16H4z M14 4v6h6",
+  plyty: "M3 6h18v4H3z M3 14h18v4H3z M6 10v4 M18 10v4",
 };
 const MakIkona = ({ d, size = 22 }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d={d} /></svg>
@@ -22578,8 +22579,10 @@ const MAK_PELNE = {
   drzwi: ["zawiasy, uchwyty, lustra, szerokości drzwi", ["struktura"]],
   przegroda: ["kolumny, poziomy, przegrody", ["struktura"]],
   wzmocnienia: ["wysokość, głębokość i położenie wzmocnień", ["struktura"]],
+  plyty: ["płyty z listy, dekory, grubości, własne płyty", ["karta-plyty"]],
 };
-const MAK_ZAKLADKI_SZCZ = [["korpus", "Korpus i plecy"], ["wzmocnienia", "Wzmocnienia"], ["wyciecia", "Wycięcia i kolizje"], ["zamowienie", "Zamówienie"]];
+// „Płyty i kolory” (uzytkownik 2026-11-22: „dorób osobny kafelek płyty, ale kolory w kafelku Szafka bym zostawił”)
+const MAK_ZAKLADKI_SZCZ = [["korpus", "Korpus i plecy"], ["plyty", "Płyty i kolory"], ["wzmocnienia", "Wzmocnienia"], ["wyciecia", "Wycięcia i kolizje"], ["zamowienie", "Zamówienie"]];
 /* Przelaczniki rysunku jak w makiecie „Dodaj” (uzytkownik 2026-11-09: „widok jak w makiecie — mniej miejsca, większy
    rysunek”): z gory nad widokiem z przodu, ciag gorny / dolny, fronty (wylaczone — wnetrze). */
 /* „AGD” (makieta „Dodaj”: przelacznik wyposazenia; uzytkownik 2026-11-12: „gdzie zginął przycisk od wyłączania wyświetlania
@@ -25310,6 +25313,29 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   /* Karty szczegolowe (krok 4 planu): te same pola co w trybie technicznym — plecy (HDF / plyta / brak, HDF przybijane / we
      frezie), fronty na korpusie / wewnatrz, gora wieniec / blat z plyty (gdy szafka ma gore); wzmocnienia wybranej kolumny
      (`MAK_WZM`); wyciecie tylnego naroznika z lewej / z prawej (szer. × gleb.). */
+  else if (zakladka === "plyty") {
+    /* Plyty i kolory (2026-11-22): korpus / fronty / polki zaznaczonej szafki (jak w zakladce Szafka — tam zostaja), do calego ciagu
+       albo pomieszczenia, kolor cokolu i maskownic przy tej szafce — wszystkie kolory w jednym miejscu */
+    const pokoj0 = roomOfItem(project, it);
+    const wPokoju = (k) => zmienProjekt((p) => { const src = (p.items[idx].mat || {})[k] || (p.items[idx].mat || {}).board; if (!src) return p;
+      return { ...p, items: p.items.map((x) => (roomOfItem(p, x) === pokoj0 && !x.cab.sprzetCiagu && x.mat && (x.mat[k] || (k === "shelf" && x.mat.board)) ? { ...x, mat: { ...x.mat, [k]: { ...src } } } : x)) }; });
+    const pl = (run && run.plinth) || cab.plinth || {};
+    const kolorCok = (v) => { if (run) ciag.setRunShared(run.id, { plinth: { ...pl, kolor: v } }); else zmien(idx, (c) => { c.plinth = { ...(c.plinth || {}), kolor: v }; }); };
+    const Lr = run ? runItems(project, run.id) : [], kk = Lr.findIndex((q) => q.i === idx);
+    const maski = maskownicaCab(cab) ? [{ it, i: idx }] : [Lr[kk - 1], Lr[kk + 1]].filter((q) => q && maskownicaCab(q.it.cab));
+    const kolorM = maski.length && maski.every((q) => sprzetCiagu(q.it.cab).kolor === "front") ? "front" : "korpus";
+    const ustawM = (v) => zmienProjekt((p) => ({ ...p, items: p.items.map((x, j) => (maski.some((q) => q.i === j) ? { ...x, cab: { ...x.cab, sprzetCiagu: { ...x.cab.sprzetCiagu, kolor: v } } } : x)) }));
+    tresc = [
+      ...(cab.sprzetCiagu ? [] : plytyRows.filter(Boolean)),
+      ...(cab.sprzetCiagu ? [] : [wiersz("pl-pokoj", "jak w tej szafce — w całym pomieszczeniu", [["board", "korpus"], ...(inne("frontSameAsBoard") ? [["front", "fronty"]] : []), ...(inne("shelfSameAsBoard") ? [["shelf", "półki"]] : [])].map(([k, l]) =>
+        <Btn key={k} el="mak-plyta-pokoj" v={k} onClick={() => wPokoju(k)}>{l}</Btn>), "mak-plyta-pokoj-w")]),
+      ...(pl.on && !cab.sprzetCiagu ? [wiersz("pl-cok", "kolor cokołu", [["front", "jak fronty"], ["korpus", "jak korpus"]].map(([v, l]) =>
+        <Btn key={v} el="mak-plyty-cokol" v={v} on={(cokolJakKorpus(pl) ? "korpus" : "front") === v} onClick={() => kolorCok(v)}>{l}</Btn>), "mak-plyty-cokol-w")] : []),
+      ...(maski.length ? [wiersz("pl-mask", maskownicaCab(cab) ? "kolor maskownicy" : "kolor maskownic przy tej szafce", [["korpus", "jak korpus"], ["front", "jak fronty"]].map(([v, l]) =>
+        <Btn key={v} el="mak-plyty-maskownica" v={v} on={kolorM === v} onClick={() => ustawM(v)}>{l}</Btn>), "mak-plyty-maskownica-w")]
+        : run && !cab.sprzetCiagu ? [<p key="pl-mask-bez" className="text-[11px] text-stone-500">Maskownic przy tej szafce nie ma — dodasz je w zakładce Wzmocnienia.</p>] : []),
+      <p key="pl-h" className="text-[11px] text-stone-500" data-el="mak-plyty-info">Kolory korpusu, frontów i półek są też w zakładce Szafka. Płyty z listy, dekory, grubości i własne płyty — „Wszystkie opcje” (karta Płyty w trybie Technicznym).</p>];
+  }
   else if (zakladka === "korpus") {
     const g = geoKarty;
     const rzad = (k, l, opcje, akt, ustaw, el) => wiersz(k, l, opcje.map(([v, t]) => <Btn key={v} el={el} v={v} on={akt === v} onClick={() => zmien(idx, (c) => ustaw(c, v))}>{t}</Btn>), el);
@@ -25331,6 +25357,19 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
           onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value)); if (v > 0 && v !== cab.topFiller.height) zmien(idx, (c) => { c.topFiller = { ...(c.topFiller || {}), on: true, height: v }; }); }}
           className="w-20 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs" /></label>] : []),
     ];
+  }
+  else if (zakladka === "wzmocnienia" && cab.sprzetCiagu) {
+    /* zaznaczona pozycja bez korpusu (uzytkownik 2026-11-22, zrzut: maskownica w zakladce Wzmocnienia pokazywala wzmocnienia kolumn,
+       „nie widzę koloru maskownicy”) — maskownica: jej glebokosc i kolor; inne pozycje — bez wzmocnien */
+    if (maskownicaCab(cab)) {
+      const sp = sprzetCiagu(cab), ustaw = (patch) => zmien(idx, (c) => { c.sprzetCiagu = { ...c.sprzetCiagu, ...patch }; });
+      tresc = [
+        wiersz("wmkk", "kolor maskownicy", [["korpus", "jak korpus"], ["front", "jak fronty"]].map(([v, l]) =>
+          <Btn key={v} el="mak-maskownica-kolor" v={v} on={sp.kolor === v} onClick={() => ustaw({ kolor: v })}>{l}</Btn>), "mak-maskownica-kolor-w"),
+        wiersz("wmkg", "głębokość maskownicy", [["front", "do lica frontów"], ["korpus", "do lica korpusu"]].map(([v, l]) =>
+          <Btn key={v} el="mak-maskownica-gl" v={v} on={sp.gl === v} onClick={() => ustaw({ gl: v })}>{l}</Btn>), "mak-maskownica-gl-w"),
+        <p key="wmkh" className="text-[11px] text-stone-500">Maskownica boku: wysokość i głębokość jak szafka obok. Usuniesz ją w zakładce Szafka („Usuń szafkę”) albo przyciskiem przy szafce obok.</p>];
+    } else tresc = [<p key="wbez" className="text-[11px] text-stone-500">Ta pozycja nie ma korpusu — bez wzmocnień.</p>];
   }
   else if (zakladka === "wzmocnienia") {
     const kols = kolumny.map((k) => ({ ...k, jA: k.j }));
@@ -33782,7 +33821,7 @@ export default function App() {
           </Card>
 
           </>)}
-          <Card title="Płyty" collapsible defaultOpen={false}>
+          <Card title="Płyty" collapsible defaultOpen={false} id="karta-plyty">
             {[
               "board",
               ...(cab.frontSameAsBoard !== false ? [] : ["front"]),
