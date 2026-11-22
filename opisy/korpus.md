@@ -57,7 +57,8 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - wycięcie tylnego narożnika — wzmocnienie jest krótsze i kończy się na ściance wycięcia;
   - element kolizyjny (rura) — wzmocnienie stoi przed nim i dalej idzie od boku do boku.
 - **Plecy**:
-  - **HDF** nabijany z tyłu — zszywki / gwoździki;
+  - **HDF** nabijany z tyłu — zszywki / gwoździki; kolor HDF domyślnie jak korpus (2026-11-22) i idzie za korpusem przy zmianie jego
+    koloru (`hdfZaKorpusem` w `naprawProjekt`); w makiecie szczegółowej wiersz „Plecy HDF” (paleta, „jak korpus”, „cały ciąg”);
   - **HDF we frezie** — wręg od tyłu w bokach, wieńcu i dnie, domyślnie 16 × 3 mm, zlicowany z tyłem; frez równy albo szerszy niż płyta — błąd („równy grubości płyty” / „szerszy niż płyta”) z „Frez 16 mm (domyślny)” (audyt GPT N190);
   - grubość płyty 0 — błąd z „Grubość korpusu / frontów / półek 18 mm”, „Grubość pleców 3 mm” (fronty i półki z płyty korpusu — tylko korpus; audyt GPT N185);
   - **płyta** w środku między bokami albo na zewnątrz — wkręty 3,5 × 30;
@@ -115,6 +116,8 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - luz większy niż frez — błąd;
   - poza głębokością korpusu — błąd;
   - płytszy niż HDF — ostrzeżenie „plecy wystają za tył”.
+- **Kolor HDF inny niż korpus** (użytkownik 2026-11-22) — ostrzeżenie z przyciskami „HDF jak korpus” (wszystkie takie szafki dostają kolor
+  swojego korpusu) i „Zostaw HDF tak jak jest” (`mat.back.kolorOk`, `hdfInnyKolor`).
 - **Szafka płytka**:
   - na styku mieści się jeden konfirmat (poniżej 132 mm) — ostrzeżenie z „Popraw głębokość”;
   - dwa rzędy nóżek nachodzą na siebie — ostrzeżenie.

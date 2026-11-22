@@ -17,6 +17,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-11-22 | zgłoszenie użytkownika: „w szczegółowej brak koloru hdf! domyślnie powinna być jak korpus, brak ostrzeżenia że jest inna i przycisku” | HDF miał stały brązowy kolor domyślny i nie było go w makiecie; teraz domyślnie jak korpus, idzie za korpusem, wiersz w makiecie, ostrzeżenie z przyciskami; `makieta19` | (ten commit) |
+| 2026-11-22 | `kolory2` (liczba elementów w odcieniu frontów o 1 za duża), `ciag8` (plecy po kolorze `#9c7b56`) | test, nie aplikacja: cokół ciągu jest teraz w kolorze frontów (zmiana z 2026-11-22), a HDF domyślnie jak korpus — oczekiwania testów poprawione | (ten commit) |
 | 2026-11-22 | zgłoszenie użytkownika (zrzut): „brak możliwości przesunięcia biurka w dół … chciałbym wyrównać do półki szafki obok” | biurko wiszące miało tylko pole „dół nad podłogą”; uchwyt dołu był tylko dla górnych. Teraz uchwyt `pion` (cała skrzynka, łapanie półek); `makOdPodlogi` nie liczył `dolGorny` szafek wiszących w ciągu dolnym — poprawione; `makieta19` | (ten commit) |
 | 2026-11-22 | zgłoszenie użytkownika: „w 45 i 3d oddalanie widoku poniżej 100% nie działa” | zoom makiety liczył tylko skalę widoku z przodu; widoki z boku, z góry, 3D i 45° miały zawsze szerokość okna — teraz szerokość × zoom (`mak-widok-zoom`); `makieta19` | (ten commit) |
 | 2026-11-22 | zgłoszenie użytkownika (zrzut): „w makiecie osobne zwijanie pomieszczeń i zabudowy i osobne dla widoków jak w technicznej” | jeden „▼” zwijał cały panel; teraz dwa osobne (pomieszczenie i zabudowa / widoki), pamięta przeglądarka; `makieta19` | (ten commit) |

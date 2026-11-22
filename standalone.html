@@ -44,6 +44,9 @@ const PALETA = [
    tylko wtedy, gdy ta sama plyta wystepuje w projekcie w kilku grubosciach. */
 const PALETA_BY_HEX = new Map(PALETA.map(([n, h]) => [h.toLowerCase(), n]));
 const paletteName = (hex) => PALETA_BY_HEX.get(String(hex || "").toLowerCase()) || null;
+const nazwaKoloru = (m) => (m && (paletteName(m.color) || m.decor || m.color)) || "—";
+// HDF innego koloru niz korpus i nie zostawiony swiadomie (`kolorOk`)
+const hdfInnyKolor = (mat) => !!(mat && mat.back && mat.board && String(mat.back.color || "").toLowerCase() !== String(mat.board.color || "").toLowerCase() && !mat.back.kolorOk);
 // kolor spoza wzornika trzeba nazwac samemu, inaczej do zamowienia poszloby
 // bezuzyteczne "kolor wlasny"
 const colorLabel = (m) => ((m && m.decor) || "").trim() || paletteName(m && m.color) || "kolor własny";
@@ -1728,7 +1731,8 @@ const defaultMaterials = {
   board: { name: "Płyta", thickness: 18, color: "#d8c3a0" },
   front: { name: "Płyta", thickness: 18, color: "#c2a880" },
   shelf: { name: "Płyta", thickness: 18, color: "#d0bb96" },
-  back: { name: "HDF", thickness: 3, color: "#9c7b56" },
+  // HDF domyslnie w kolorze korpusu (uzytkownik 2026-11-22: „domyślnie powinna być jak korpus”); inny — ostrzezenie z przyciskami
+  back: { name: "HDF", thickness: 3, color: "#d8c3a0" },
   mirror: { name: "Lustro", thickness: 4, color: "#c3d0d6" },
   /* Blat roboczy to nie plyta meblowa: grubszy, kupowany w gotowych odcinkach
      i ciety na dlugosc, wiec nie idzie do rozkroju razem z korpusami. */
@@ -2122,7 +2126,20 @@ const maskowniceZaCiagiem = (p) => {
   });
   return items ? { ...p, items } : p;
 };
-const naprawProjekt = (p, prev) => maskowniceZaCiagiem(blendyScianyZaCiagiem(slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev)))));
+/* HDF w kolorze korpusu idzie za korpusem (2026-11-22): zmieniony kolor korpusu — plecy, ktore mialy jego stary kolor, dostaja nowy */
+const hdfZaKorpusem = (p, prev) => {
+  if (!prev || !prev.items || prev.items.length !== p.items.length) return p;
+  let items = null;
+  p.items.forEach((it, i) => {
+    const a = prev.items[i], m = it.mat, m0 = a && a.mat;
+    if (!m || !m0 || !m.board || !m0.board || !m.back || !m0.back) return;
+    const lc = (x) => String(x || "").toLowerCase();
+    if (lc(m.board.color) === lc(m0.board.color) || lc(m0.back.color) !== lc(m0.board.color) || lc(m.back.color) !== lc(m0.back.color)) return;
+    items = items || p.items.slice(); items[i] = { ...it, mat: { ...m, back: { ...m.back, color: m.board.color } } };
+  });
+  return items ? { ...p, items } : p;
+};
+const naprawProjekt = (p, prev) => hdfZaKorpusem(maskowniceZaCiagiem(blendyScianyZaCiagiem(slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev))))), prev);
 // szafka w ciagu z opcjami wspolnego wienca / dna — przy wlaczeniu i przy dodaniu nowej
 const wedlugCiagu = (cab, mat, run, h = run && run.H) => {
   let c = cab;
@@ -3348,6 +3365,9 @@ function computeGeoLiczy(cab, mat, ctx) {
   const g = cab.gaps;
   const msgs = [];
   const add = (level, text) => msgs.push({ level, text });
+  /* plecy HDF w innym kolorze niz korpus (uzytkownik 2026-11-22: „brak ostrzeżenia że jest inna i przycisku że zmień jak korpus albo
+     zostaw tak jak jest”) — „Zostaw” zapisuje `mat.back.kolorOk` */
+  if (cab.back === "hdf" && hdfInnyKolor(mat)) add("warn", `Plecy HDF w innym kolorze niż korpus (HDF: ${nazwaKoloru(mat.back)}, korpus: ${nazwaKoloru(mat.board)}) — zwykle plecy są w kolorze korpusu.|hdfkorpus|hdfzostaw`);
   // szafka RTV wiszaca (2026-11-22): na zawieszkach, dol nad podloga — informacja w karcie (takze poza ciagiem)
   if (cab.wiszacaRtv) add("info", `Szafka RTV wisząca — na zawieszkach do ściany (listwa montażowa albo haczyki), dół ${fmt(Math.round(Number(cab.dolGorny) || 0))} mm nad podłogą (karta Szafka: „dół nad podłogą”). Klapy w dół otwierają się nad podłogą.`);
 
@@ -16902,6 +16922,8 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action === "przesdziel")
       return { label: "Podziel na dwie szafy", run: () => runFix && runFix(action) };
     if (action === "bwuchwyt") return { label: "Dodaj uchwyty", run: () => runFix && runFix(action) };
+    if (action === "hdfkorpus") return { label: "HDF jak korpus", run: () => runFix && runFix(action) };
+    if (action === "hdfzostaw") return { label: "Zostaw HDF tak jak jest", run: () => runFix && runFix(action) };
     if (action.startsWith("bwfront:")) return { label: `Front ${fmt(Number(action.split(":")[1]))} mm poniżej dna`, run: () => runFix && runFix(action) };
     if (action === "bwkol") return { label: "Szuflady po ok. 700 mm", run: () => runFix && runFix(action) };
     if (action.startsWith("polkicof:")) {
@@ -24693,15 +24715,20 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   const inne = (pole) => cab[pole] === false;
   const przelInne = (pole, l) => wiersz(`inne-${pole}`, null, [
     <Btn key="i" el="mak-plyta-inne" v={pole} on={inne(pole)} onClick={() => zmien(idx, (c) => { c[pole] = inne(pole) ? true : false; })}>{l}</Btn>], "mak-plyta-inne-w");
-  const plytyRows = [["board", "Płyta korpusu"], ["frontSameAsBoard", "Fronty inne niż korpus"], ["front", "Fronty"], ["shelfSameAsBoard", "Półki inne niż korpus"], ["shelf", "Półki"]].map(([k, l]) => {
+  const plytyRows = [["board", "Płyta korpusu"], ["frontSameAsBoard", "Fronty inne niż korpus"], ["front", "Fronty"], ["shelfSameAsBoard", "Półki inne niż korpus"], ["shelf", "Półki"], ["back", "Plecy HDF"]].map(([k, l]) => {
     if (k.endsWith("SameAsBoard")) return przelInne(k, l);
     if ((k === "front" && !inne("frontSameAsBoard")) || (k === "shelf" && !inne("shelfSameAsBoard"))) return null;
+    // plecy HDF (uzytkownik 2026-11-22: „w szczegółowej brak koloru hdf!”) — paleta, „jak korpus”, „cały ciąg”; tylko przy plecach z HDF
+    if (k === "back" && (cab.back !== "hdf" || !(it.mat || {}).back)) return null;
     const akt = ((it.mat || {})[k] || (it.mat || {}).board || {}).color || "";
     return wiersz(`mat-${k}`, `${l}: ${paletteName(akt) || ((it.mat || {})[k] || {}).decor || "kolor własny"}`, [
       ...PALETA.map(([n, hex]) => (
         <button key={hex} title={n} data-el="mak-plyta" data-k={k} data-v={hex} onClick={() => ustawPlyte(k, hex, false)}
           className={`h-5 w-5 rounded border ${akt.toLowerCase() === hex.toLowerCase() ? "border-teal-700 ring-1 ring-teal-700" : "border-stone-300"}`} style={{ background: hex }} />
       )),
+      ...(k === "back" ? [<Btn key="jk" el="mak-plyta-hdf-korpus" on={akt.toLowerCase() === String(((it.mat || {}).board || {}).color || "").toLowerCase()}
+        onClick={() => zmienProjekt((p) => ({ ...p, items: p.items.map((x, i) => ((i === idx || (run && x.runId === run.id)) && x.mat && x.mat.back && x.mat.board
+          ? { ...x, mat: { ...x.mat, back: { ...x.mat.back, color: x.mat.board.color, decor: x.mat.board.decor || "" } } } : x)) }))}>jak korpus{run ? " (cały ciąg)" : ""}</Btn>] : []),
       ...(run ? [<Btn key="c" el="mak-plyta-ciag" v={k} onClick={() => ustawPlyte(k, akt, true)}>cały ciąg</Btn>] : []),
     ], "mak-plyta-wiersz");
   });
@@ -28843,6 +28870,11 @@ export default function App() {
     if (action.startsWith("gornyod:")) { const [, id, mm] = action.split(":"); if (id) setRun(id, { offset: Math.max(0, Math.round(Number(mm) || 0)), offsetFrom: "left" }); return; }
     // „blendasufit:<ciąg górny>:<mm>” — szafki gorne nizej o tyle, blenda do sufitu (zawieszki potrzebuja luzu nad szafka)
     if (action.startsWith("blendasufit:")) { const [, id, mm] = action.split(":"); if (id) setProject((p) => gornyBlendaDoSufitu(p, id, Math.round(Number(mm) || BLENDA_DO_SUFITU))); return; }
+    /* „hdfkorpus” / „hdfzostaw” — plecy HDF w innym kolorze niz korpus: wszystkie takie szafki projektu dostaja kolor swojego
+       korpusu albo zostaja (`kolorOk`) */
+    if (action === "hdfkorpus" || action === "hdfzostaw") {
+      setProject((p) => ({ ...p, items: p.items.map((x) => (x.cab.back === "hdf" && hdfInnyKolor(x.mat)
+        ? { ...x, mat: { ...x.mat, back: action === "hdfkorpus" ? { ...x.mat.back, color: x.mat.board.color, decor: x.mat.board.decor || "" } : { ...x.mat.back, kolorOk: true } } } : x)) })); return; }
     // „slupeksc:<i>:<mm>” — slupek na koncu ciagu przy samej scianie: szpara 0, glebszy o nia (lico w linii)
     if (action.startsWith("slupeksc:")) { const [, ix, mm] = action.split(":"), d = Math.round(Number(mm) || 0);
       setProject((p) => ({ ...p, items: p.items.map((x, k) => (k === Number(ix) ? { ...x, wallGap: { bottom: 0, top: null }, cab: { ...x.cab, D: Math.round(x.cab.D) + d } } : x)) })); return; }

@@ -402,6 +402,23 @@ await zakl('plyty');
   await page.locator('[data-el="mak-plyta-pokoj"][data-v="board"]').click();
   p = await czekaj(`p.items.filter((i) => !i.cab.sprzetCiagu).every((i) => (i.mat.board.color || '').toLowerCase() === '${'${hex}'}'.toLowerCase())`.replace("${'${hex}'}", hex));
   ok('kolor korpusu z kafelka i „korpus — w całym pomieszczeniu”: wszystkie szafki pomieszczenia', p.items.filter((i) => !i.cab.sprzetCiagu).every((i) => (i.mat.board.color || '').toLowerCase() === hex.toLowerCase()), hex + ' ' + JSON.stringify(p.items.map((i) => i.mat.board.color))); }
+console.log('== 2026-11-22: kolor HDF — jak korpus, ostrzeżenie z przyciskami ==');
+{ const lc = (x) => String(x || '').toLowerCase();
+  const hdfOk = (q) => q.items.filter((i) => !i.cab.sprzetCiagu && i.cab.back === 'hdf').every((i) => lc(i.mat.back.color) === lc(i.mat.board.color));
+  ok('w kafelku „Płyty i kolory”: wiersz „Plecy HDF” z paletą i „jak korpus”', (await page.locator('[data-el="mak-karta-panel"] [data-el="mak-plyta"][data-k="back"]').count()) > 3
+    && (await page.locator('[data-el="mak-plyta-hdf-korpus"]').count()) === 1);
+  ok('po zmianie koloru korpusu HDF idzie za nim (był jak korpus)', hdfOk(p), JSON.stringify(p.items.map((i) => [i.mat.board.color, i.mat.back.color])));
+  const inny = await page.locator('[data-el="mak-karta-panel"] [data-el="mak-plyta"][data-k="back"]').nth(5).getAttribute('data-v');
+  await page.locator('[data-el="mak-karta-panel"] [data-el="mak-plyta"][data-k="back"]').nth(5).click(); await page.waitForTimeout(600);
+  const t = await uwagi(), bK = page.locator('[data-el="makieta-uwagi"] button', { hasText: 'HDF jak korpus' });
+  ok('HDF w innym kolorze: ostrzeżenie i przyciski „HDF jak korpus” / „Zostaw HDF tak jak jest”', /Plecy HDF w innym kolorze niż korpus/.test(t) && (await bK.count()) >= 1
+    && (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Zostaw HDF tak jak jest' }).count()) >= 1, inny + ' ' + t.slice(0, 200));
+  await bK.first().click(); p = await czekaj(`p.items.every((i) => i.cab.back !== 'hdf' || String(i.mat.back.color).toLowerCase() === String(i.mat.board.color).toLowerCase())`);
+  ok('„HDF jak korpus” — kolor korpusu, ostrzeżenie znika', hdfOk(p) && !/Plecy HDF w innym kolorze/.test(await uwagi()));
+  await page.locator('[data-el="mak-karta-panel"] [data-el="mak-plyta"][data-k="back"]').nth(5).click(); await page.waitForTimeout(600);
+  await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Zostaw HDF tak jak jest' }).first().click();
+  p = await czekaj(`p.items.some((i) => i.mat.back && i.mat.back.kolorOk)`);
+  ok('„Zostaw HDF tak jak jest” — kolor zostaje (kolorOk), ostrzeżenie znika', p.items.some((i) => i.mat.back.kolorOk && lc(i.mat.back.color) === lc(inny)) && !/Plecy HDF w innym kolorze/.test(await uwagi())); }
 console.log('== 2026-11-22: zoom makiety poniżej 100% ==');
 await page.evaluate(() => localStorage.setItem('mp-tryb', 'prosta')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 { const minus = page.locator('[data-el="mak-zoom"] button', { hasText: '−' });
