@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1632,7 +1632,7 @@ console.log('\n== 2026-11-21 (analiza): najwyższa szafa z arkusza, rączka NOVO
   const gm = G.computeGeo(szafa(), Mm);
   ok('mały arkusz płyty frontu (2000 × 1000): błąd „Wypełnienie drzwi przesuwnych … nie mieści się na arkuszu”', gm.msgs.some((m) => m.level === 'error' && /^Wypełnienie drzwi przesuwnych .* nie mieści się na arkuszu/.test(m.text)));
   const g4 = G.computeGeo(G.migrateCab({ ...szafa(), W: 6500 }, M0), M0);
-  ok('6500 mm, 4 skrzydła po 1631: ostrzeżenie bez przycisku „4 skrzydła” (więcej system nie ma) — rada „podziel na dwie szafy”', g4.przesuwne.n === 4 && g4.msgs.some((m) => /Skrzydło drzwi przesuwnych ma 1 ?631 mm/.test(m.text) && /dwie szafy/.test(m.text) && !/\|przesn:/.test(m.text)),
+  ok('6500 mm, 4 skrzydła po 1631: ostrzeżenie z wyborem — „5 skrzydeł” albo „Podziel na dwie szafy” (2026-11-22)', g4.przesuwne.n === 4 && g4.msgs.some((m) => /Skrzydło drzwi przesuwnych ma 1 ?631 mm/.test(m.text) && /dwie szafy/.test(m.text) && /\|przesn:5\|przesdziel$/.test(m.text)),
     g4.msgs.filter((m) => /Skrzydło/.test(m.text)).map((m) => m.text).join(' / '));
 }
 
@@ -1654,4 +1654,34 @@ console.log('\n== 2026-11-21: przegrody na stykach skrzydeł (tyle kolumn, ile s
   const g2 = G.computeGeo(szafa(2000, [k(null), k(null)]), M0);
   ok('2000 mm, 2 skrzydła, przegroda na środku (wzór): bez uwag; przesuwneKolumny = [955, null]', !g2.msgs.some((m) => /wypada/.test(m.text)) && JSON.stringify(G.przesuwneKolumny(szafa(2000, [k(null), k(null)]), g2, 18)) === '[955,null]',
     JSON.stringify(G.przesuwneKolumny(szafa(2000, [k(null), k(null)]), g2, 18)));
+}
+
+console.log('\n== 2026-11-22: 5 i 6 skrzydeł (6 jak 4 — dwie połowy po 3; 5 naprzemiennie), samo dalej najwyżej 4 ==');
+{
+  const o = (w) => w.skrzydla.map((q) => `${q.x0}-${q.x1}:${q.tor}`).join(' ');
+  const w5 = G.przesuwneWymiary(5964, 2400, { n: 5 }), w6 = G.przesuwneWymiary(5964, 2400, { n: 6 });
+  ok('5 skrzydeł na 5964: SD 1219, tory 0 1 0 1 0, zakładki po 34', w5.n === 5 && w5.SD === 1219 && o(w5) === '0-1219:0 1186-2405:1 2373-3592:0 3559-4778:1 4745-5964:0', o(w5));
+  ok('6 skrzydeł na 5964: SD 1015, dwie połowy po 3 (0 1 0 | 0 1 0), na środku na styk', w6.n === 6 && w6.SD === 1015 && o(w6) === '0-1015:0 984-1999:1 1967-2982:0 2982-3997:0 3966-4981:1 4949-5964:0', o(w6));
+  const r6 = G.przesuwneOdslania(w6).map((r) => `${r.x0}-${r.x1}`).join(' ');
+  ok('6 skrzydeł: każde odsłania ok. 952 mm (środkowe stają na sobie na styku)', r6 === '0-952 1015-1967 2030-2982 2982-3934 3997-4949 5012-5964', r6);
+  ok('samo (bez wyboru) przy 5964 — dalej 4 skrzydła', G.przesuwneWymiary(5964, 2400, {}).n === 4);
+  const M0 = G.defaultMaterials;
+  const cab = G.migrateCab({ name: 'Szafa', W: 6000, H: 2400, D: 600, plinth: { on: true, height: 100, mode: 'inbody' }, legs: { on: false }, przesuwne: { on: true, n: 6, podwBoki: { L: true, R: true } },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] });
+  const g = G.computeGeo(cab, M0);
+  ok('6000 mm na 6 skrzydłach: bez uwagi o szerokim skrzydle, 12 wózków, 12 rączek', !g.msgs.some((m) => /Skrzydło drzwi przesuwnych ma/.test(m.text))
+    && g.hardware.some((h) => h.name === 'Wózek dolny EVO' && h.qty === 12) && g.hardware.some((h) => h.name === 'Rączka NOVO S' && h.qty === 12));
+  ok('przegrody na stykach 6 skrzydeł: 957, 997, 966, 966, 997, reszta', JSON.stringify(G.przesuwneKolumny(cab, g, 18)) === '[957,997,966,966,997,null]', JSON.stringify(G.przesuwneKolumny(cab, g, 18)));
+}
+
+console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru jak korpus ==');
+{
+  const M0 = { ...G.defaultMaterials, front: { ...G.defaultMaterials.front, color: '#112233' }, board: { ...G.defaultMaterials.board, color: '#ddccbb' } };
+  const cab = (o = {}) => G.migrateCab({ name: 'S', W: 600, H: 720, D: 550, plinth: { on: true, height: 100, mode: 'under', ...o }, legs: { on: true, height: 100 }, frontSameAsBoard: false });
+  const pan = (c) => G.computeGeo(c, M0).panels.find((x) => x.name === 'Cokół');
+  ok('fronty z innej płyty: formatka cokołu z płyty frontów (domyślnie)', pan(cab()).matKey === 'front' && G.cokolKey(cab()) === 'front', pan(cab()).matKey);
+  ok('… „jak korpus”: formatka z płyty korpusu', pan(cab({ kolor: 'korpus' })).matKey === 'board');
+  ok('kolor na rysunku: jak fronty / jak korpus', G.kolorCokolu(cab(), M0) === '#112233' && G.kolorCokolu(cab({ kolor: 'korpus' }), M0) === '#ddccbb');
+  const same = { ...cab(), frontSameAsBoard: true };
+  ok('fronty z płyty korpusu: formatka z płyty korpusu (ta sama płyta)', G.cokolKey(same) === 'board');
 }

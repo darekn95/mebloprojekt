@@ -304,15 +304,21 @@ const przesuwneBryly = (p, ff, metal, open, b, kb = "#e7e5e4") => {
   });
 };
 const przesuwneOn = (cab) => !!(cab && cab.przesuwne && cab.przesuwne.on);
-const przesuwneLiczba = (SO, n) => ([2, 3, 4].includes(Number(n)) ? Number(n) : SO <= 2 * PRZES.SKRZ_MAX ? 2 : SO <= 3 * PRZES.SKRZ_MAX ? 3 : 4);
+/* 5 i 6 skrzydel (uzytkownik 2026-11-22: „przy tak dużych szafach można pomyśleć albo o 5/6 skrzydłach, albo o 2 szafach”; instrukcja NOVO S
+   podaje 2, 3, 4): 6 — jak 4, symetrycznie, dwie polowy po 3 (srodkowe na jednym torze, na styk); 5 — naprzemiennie na dwoch torach, jak 3.
+   Samo (`n` puste) dalej najwyzej 4 — 5 i 6 tylko z wyboru (przycisk przy szerokim / ciezkim skrzydle). */
+const PRZES_SKRZ = [2, 3, 4, 5, 6];
+const przesuwneLiczba = (SO, n) => (PRZES_SKRZ.includes(Number(n)) ? Number(n) : SO <= 2 * PRZES.SKRZ_MAX ? 2 : SO <= 3 * PRZES.SKRZ_MAX ? 3 : 4);
 const przesuwneWymiary = (SO, WO, p = {}) => {
   const n = przesuwneLiczba(SO, p.n), szczotka = p.szczotka !== false, listwy = p.listwy !== "brak";
-  const [nn, kk, so] = n === 4 ? [2, 1, SO / 2] : [n, n - 1, SO];
+  const [nn, kk, so] = n === 4 ? [2, 1, SO / 2] : n === 6 ? [3, 2, SO / 2] : [n, n - 1, SO];
   const SD = Math.floor((so - (szczotka ? PRZES.SZCZ : 0) + kk * PRZES.Z) / nn), WD = Math.round(WO - PRZES.WD);
   // skrzydla w otworze (od lewej krawedzi swiatla) i tor: 0 — przedni, 1 — tylny
-  const xs = n === 2 ? [0, SO - SD] : n === 3 ? [0, (SO - SD) / 2, SO - SD] : [0, SO / 2 - SD, SO / 2, SO - SD];
-  const tory = n === 2 ? [1, 0] : n === 3 ? [0, 1, 0] : [0, 1, 1, 0];
-  return { n, k: n === 4 ? 2 : n - 1, SD, WD, SW: SD - PRZES.SW, WW: listwy ? WD - PRZES.WW : WD, DLP: SD - PRZES.DLP, DR: WD, SO, WO, szczotka, listwy,
+  const pol = (x0, L) => [x0, x0 + (L - SD) / 2, x0 + L - SD];
+  const xs = n === 2 ? [0, SO - SD] : n === 3 ? pol(0, SO) : n === 4 ? [0, SO / 2 - SD, SO / 2, SO - SD]
+    : n === 5 ? [0, 1, 2, 3, 4].map((k) => (k * (SO - SD)) / 4) : [...pol(0, SO / 2), ...pol(SO / 2, SO / 2)];
+  const tory = n === 2 ? [1, 0] : n === 3 ? [0, 1, 0] : n === 4 ? [0, 1, 1, 0] : n === 5 ? [0, 1, 0, 1, 0] : [0, 1, 0, 0, 1, 0];
+  return { n, k: n === 4 ? 2 : n === 6 ? 4 : n - 1, SD, WD, SW: SD - PRZES.SW, WW: listwy ? WD - PRZES.WW : WD, DLP: SD - PRZES.DLP, DR: WD, SO, WO, szczotka, listwy,
     skrzydla: xs.map((x, i) => ({ i, x0: Math.round(x), x1: Math.round(x + SD), tor: tory[i] })) };
 };
 // najkrotszy tor GTV, ktory wystarczy na dlugosc (DTM = SO); dluzszy niz 6000 — dwa kawalki
@@ -2583,6 +2589,16 @@ const migrateRun = (r) => ({
 });
 
 // cokol porownujemy po wszystkich czterech polach — cofniecie tez psuje lico ciagu
+/* Kolor cokolu (uzytkownik 2026-11-22: „brak opcji koloru cokołu, domyślnie powinien być jak fronty”): `plinth.kolor` — puste / "front"
+   (domyslnie, jak fronty) albo "korpus". `cokolKey` — plyta formatki (fronty z innej plyty niz korpus — plyta frontow), `kolorCokolu` —
+   kolor na rysunkach i w 3D (jak fronty w danym widoku: realne kolory i fronty z plyty korpusu — kolor korpusu). */
+const cokolJakKorpus = (pl) => !!(pl && pl.kolor === "korpus");
+const cokolKey = (cab, pl = cab && cab.plinth) => (!cokolJakKorpus(pl) && cab && cab.frontSameAsBoard === false ? "front" : "board");
+const kolorCokolu = (cab, mat, pl = cab && cab.plinth) => {
+  const m = mat || {}, b = (m.board || {}).color || "#d8c3a0";
+  if (cokolJakKorpus(pl)) return b;
+  return cab && cab.realColors && cab.frontSameAsBoard !== false ? b : (m.front || m.board || {}).color || b;
+};
 const samePlinth = (a, b) => {
   if (!a || !b) return !a === !b;
   if (!a.on || !b.on) return !a.on === !b.on;
@@ -6470,7 +6486,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   if (cab.plinth.on) {
     if (plinthH < 50)
       add("warn", `Cokół ma ${fmt(plinthH)} mm — poniżej rozsądnego minimum 50 mm.`);
-    P({ name: "Cokół", rola: "cokol", qty: 1, a: plinthInBody ? innerW : W, b: plinthH, matKey: "board",
+    P({ name: "Cokół", rola: "cokol", qty: 1, a: plinthInBody ? innerW : W, b: plinthH, matKey: cokolKey(cab),
         edges: plinthInBody
           ? { a1: false, a2: true, b1: false, b2: false }
           : { a1: false, a2: true, b1: true, b2: true },
@@ -8735,9 +8751,12 @@ function geoPrzesuwne(cab, mat, ctx) {
   // waga skrzydla: plyta wypelnienia + profile (ok. 0,5 kg/mb raczki i listwy — przyjete z gory, bez karty)
   const kg = wagaFrontu(w.SW, w.WW, tf) + 0.5 * ((2 * w.DR + 2 * w.DLP) / 1000);
   /* analiza 2026-11-21: przy 4 skrzydlach przycisk „4 skrzydła” nic nie zmienial — wiecej system NOVO S nie przewiduje */
-  const wiecejSkrz = n < 4 ? `|przesn:${n + 1}` : " 4 skrzydła to najwięcej w tym systemie — przy szerszym otworze podziel zabudowę na dwie szafy.";
-  if (kg > PRZES.MAX_KG) add("error", `Skrzydło drzwi przesuwnych waży ok. ${fmt(Math.round(kg))} kg — wózki EVO udźwigną najwyżej ${PRZES.MAX_KG} kg.${n < 4 ? " Dołóż skrzydło (więcej, węższych)." : ""}${wiecejSkrz}`);
-  if (w.SD > PRZES.SKRZ_MAX + 150) add("warn", `Skrzydło drzwi przesuwnych ma ${fmt(w.SD)} mm szerokości — szerokie i ciężkie; zwykle do ok. ${fmt(PRZES.SKRZ_MAX)} mm.${wiecejSkrz}`);
+  /* 2026-11-22 (uzytkownik): przy szerokiej szafie do wyboru wiecej skrzydel (do 6) albo dwie szafy obok siebie („4 to będzie ciężki dostęp
+     do półek, ale nie niemożliwy”) */
+  const rada = n < 4 ? " Dołóż skrzydło (więcej, węższych)." : n < 6 ? " Dołóż skrzydło (więcej, węższych) albo podziel zabudowę na dwie szafy obok siebie." : " 6 skrzydeł to najwięcej — podziel zabudowę na dwie szafy obok siebie.";
+  const akcje = `${n < 6 ? `|przesn:${n + 1}` : ""}${n >= 4 ? "|przesdziel" : ""}`;
+  if (kg > PRZES.MAX_KG) add("error", `Skrzydło drzwi przesuwnych waży ok. ${fmt(Math.round(kg))} kg — wózki EVO udźwigną najwyżej ${PRZES.MAX_KG} kg.${rada}${akcje}`);
+  if (w.SD > PRZES.SKRZ_MAX + 150) add("warn", `Skrzydło drzwi przesuwnych ma ${fmt(w.SD)} mm szerokości — szerokie i ciężkie; zwykle do ok. ${fmt(PRZES.SKRZ_MAX)} mm.${rada}${akcje}`);
   /* analiza 2026-11-21 (sufit 2900, 3000): raczka NOVO S ma PRZES.RACZKA_DL — wyzszego skrzydla z niej nie bedzie; wypelnienie to formatka
      dodana tu, poza kontrola arkusza w `computeGeoLiczy` */
   // obnizyc do nizszej z granic: raczka albo bok z arkusza (inaczej po kliknieciu zostaje blad boku)
@@ -10949,7 +10968,7 @@ function AssemblyView({ project, runs, rpOf, variant, showDims, showHardware, sh
                 {/* przy lodowce wolnostojacej w srodku ciagu cokol ma przerwe — odcinki osobno */}
                 {(rp.segmenty || [[rp.x0 || 0, (rp.x0 || 0) + rp.total]]).map(([s0, s1]) => (
                   <rect key={"ps" + s0} x={mx(ox + s0, s1 - s0)} y={fy(g.mount + plinthH)} width={s1 - s0} height={plinthH}
-                    fill={plyta(g)} stroke={INK} strokeWidth="2" opacity="0.75" data-el="cokol-ciagu" />
+                    fill={g.cabs[0] ? kolorCokolu(g.cabs[0].it ? g.cabs[0].it.cab : g.cabs[0].cab, g.cabs[0].mat, rp) : plyta(g)} stroke={INK} strokeWidth="2" opacity="0.75" data-el="cokol-ciagu" />
                 ))}
                 {rp.cuts.map((c) => (
                   <line key={"pc" + c} x1={mx(ox + c, 0)} y1={fy(g.mount + plinthH)}
@@ -12359,7 +12378,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn
       const cokT = g.cabs[0].geo.t;
       const cokZ = Math.max(0, Math.round(rp.setback || 0));
       (rp.segmenty || [[rp.x0 || 0, (rp.x0 || 0) + rp.total]]).forEach(([s0, s1]) =>
-        box(s0, g.mount, cokZ, s1, g.mount + rp.h, cokZ + cokT, g.cabs[0].mat.board.color, null, 0.95));
+        box(s0, g.mount, cokZ, s1, g.mount + rp.h, cokZ + cokT, kolorCokolu(g.cabs[0].it ? g.cabs[0].it.cab : g.cabs[0].cab, g.cabs[0].mat, rp), null, 0.95));
     }
     /* Wspolne dno ciagu (`runBottom`) — w zamowieniu jedna plyta, wiec i w bryle: szafki
        pod nim bez wlasnego dna, plyta przez cale pasmo (audyt GPT N119: byly dwa dna i szpara). */
@@ -12639,7 +12658,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn
         const u0 = x0 + (przyKoncuBok ? sbA : 0), u1 = x0 + a.len - (przyKoncuBok ? 0 : sbA);
         // cokol pod korpusem pod spodem, w obrysie — pod dnem, w wysokosci szafki (audyt GPT N56)
         const cy0 = c.geo.plinthInBody ? y0 : y0 - c.geo.plinthH;
-        box(u0, cy0, sbA, u1, cy0 + c.geo.plinthH, sbA + tA, c.mat.board.color, null, 0.95);
+        box(u0, cy0, sbA, u1, cy0 + c.geo.plinthH, sbA + tA, kolorCokolu(c.cab, c.mat), null, 0.95);
       }
       /* Front ramienia to zwykle drzwi: konczy sie na maskownicy katownika,
          zawias ma na koncu dalszym od naroza i otwiera sie razem z reszta. */
@@ -13315,10 +13334,10 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
 
       {geo.plinthInBody && (
         <rect x={geo.interior.x0} y={fy(geo.plinthH)} width={geo.innerW} height={geo.plinthH}
-          fill={bf} stroke={INK} strokeWidth="2" />
+          fill={kolorCokolu(cab, mat)} stroke={INK} strokeWidth="2" data-el="cokol-szafki" />
       )}
       {cab.plinth.on && !geo.plinthInBody && (
-        <rect x="0" y={H} width={W} height={geo.plinthH} fill={bf} stroke={INK} strokeWidth="2" opacity="0.75" />
+        <rect x="0" y={H} width={W} height={geo.plinthH} fill={kolorCokolu(cab, mat)} stroke={INK} strokeWidth="2" opacity="0.75" data-el="cokol-szafki" />
       )}
       {cab.topFiller?.on && cab.topFiller.height > 0 && (
         <rect x="0" y={-cab.topFiller.height} width={W} height={cab.topFiller.height}
@@ -15183,7 +15202,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
 
       {cab.plinth.on && geo.plinthInBody && (
         <rect x={D - geo.t - (cab.plinth.setback || 0)} y={fy(geo.plinthH)}
-          width={geo.t} height={geo.plinthH} fill={bf} stroke={INK} strokeWidth="2" />
+          width={geo.t} height={geo.plinthH} fill={kolorCokolu(cab, mat)} stroke={INK} strokeWidth="2" />
       )}
       {/* Cokol pod korpusem to plyta przy licu (cofnieta o `setback`), nie
           klocek na cala glebokosc — z boku widac jej krawedz, jak w bryle 3D. */}
@@ -16051,8 +16070,8 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
     const sb = cab.plinth.setback || 0;
     // z=0 to przod korpusu; cokol siedzi z przodu, cofniety o setback w glab
     if (geo.plinthInBody)
-      box(geo.interior.x0, 0, sb, geo.interior.x1, geo.plinthH, sb + t, bf);
-    else box(0, -geo.plinthH, sb, W, 0, sb + t, bf);
+      box(geo.interior.x0, 0, sb, geo.interior.x1, geo.plinthH, sb + t, kolorCokolu(cab, mat));
+    else box(0, -geo.plinthH, sb, W, 0, sb + t, kolorCokolu(cab, mat));
   }
   geo.levels.forEach((lv) => lv.cols.forEach((c) => (c.rails || []).forEach((r) => {
     fk = nazwaWzmocnienia(r);
@@ -16187,7 +16206,7 @@ function SprzetCiagu3D({ cab, geo, mat: matIn, yaw, pitch, blat }) {
     if (s.pasRect) box(s.pasRect.x0, s.front.y, 0, s.pasRect.x1, s.front.y + s.front.h, s.pasRect.d, mat.board.color, 1, false, "pas-blendy");
     if (blat && blat.roboczy && blat.th > 0)
       blat.korpus.forEach((q) => box(q.x, H, cd - q.y - q.h, q.x + q.w, H + blat.th, cd - q.y, blat.kolor, 1, true, "blat"));
-    if (cab.plinth && cab.plinth.on && geo.plinthH > 0) { const sb = cab.plinth.setback || 0; box(0, -geo.plinthH, sb, W, 0, sb + t, mat.board.color); }
+    if (cab.plinth && cab.plinth.on && geo.plinthH > 0) { const sb = cab.plinth.setback || 0; box(0, -geo.plinthH, sb, W, 0, sb + t, kolorCokolu(cab, mat)); }
     return rzut3D(solids, W, H, cd, yaw, pitch);
   }
   if (s.lodowka) {
@@ -16203,7 +16222,7 @@ function SprzetCiagu3D({ cab, geo, mat: matIn, yaw, pitch, blat }) {
       blat.korpus.forEach((q) => box(q.x, H, cd - q.y - q.h, q.x + q.w, H + blat.th, cd - q.y, blat.kolor, 1, true, "blat"));
     if (cab.plinth && cab.plinth.on && geo.plinthH > 0) {
       const sb = cab.plinth.setback || 0;
-      box(0, -geo.plinthH, sb, W, 0, sb + t, mat.board.color);
+      box(0, -geo.plinthH, sb, W, 0, sb + t, kolorCokolu(cab, mat));
     }
   }
   return rzut3D(solids, W, Math.max(H, s.lodowka ? s.y1 : H), cd, yaw, pitch);
@@ -16740,8 +16759,12 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return { label: `Wysokość szafy ${fmt(Number(action.split(":")[1]))} mm`, run: () => runFix && runFix(action) };
     if (action === "przesprzeg")
       return { label: "Przegrody na stykach skrzydeł", run: () => runFix && runFix(action) };
+    if (action.startsWith("slupeksc:"))
+      return { label: `Słupek do ściany (+${fmt(Number(action.split(":")[2]))} mm)`, run: () => runFix && runFix(action) };
     if (action.startsWith("przesn:"))
-      return { label: `Drzwi przesuwne: ${action.split(":")[1]} skrzydła`, run: () => runFix && runFix(action) };
+      return { label: `Drzwi przesuwne: ${action.split(":")[1]} ${Number(action.split(":")[1]) >= 5 ? "skrzydeł" : "skrzydła"}`, run: () => runFix && runFix(action) };
+    if (action === "przesdziel")
+      return { label: "Podziel na dwie szafy", run: () => runFix && runFix(action) };
     if (action.startsWith("polkicof:")) {
       // „polkicof:<mm>" — cofniecie polek calej szafki (pole „cofnięcie półek”), np. przed podnosnikiem klapy
       const mm = Math.round(Number(action.split(":")[1]) || 0);
@@ -17858,7 +17881,9 @@ const runPlinth = (project, run) => {
     });
   }
   dl = e - a;
-  const wspolne = { h, setback, mat: list[0].it.mat, grainMatters: list[0].it.cab.grainMatters, name: run.name };
+  const wspolne = { h, setback, mat: list[0].it.mat, grainMatters: list[0].it.cab.grainMatters, name: run.name,
+    // kolor cokolu ciagu (2026-11-22): jak fronty, chyba ze „jak korpus”; plyta frontow, gdy fronty z innej niz korpus
+    kolor: (p && p.kolor) || null, matKey: cokolKey(list[0].it.cab, p), cab0: list[0].it.cab };
   if (!luki.length) {
     const sp = splitAtJoints(dl, joints.map((j) => j - a).filter((j) => j > 0 && j < dl),
       Array.isArray(run.plinthCuts) ? run.plinthCuts.map((c) => c - a) : run.plinthCuts, USABLE_W,
@@ -18149,11 +18174,13 @@ const runTopLiczy = (project, run, bezRogu = false) => {
        wysuniecie dalej. Odejmowanie wysuniecia od glebokosci tej szafki dawalo
        blat o tyle PLYTSZY nad szafka wysunieta (audyt GPT N63: 81 mm przed frontem). */
     const glOd = (c) => c.geo.glebOdSciany ?? c.geo.carcassDepth;
-    const licoCiagu = Math.max(...lvl.cabs.map((c) => glOd(c) - (Number(c.it.offset) || 0)));
+    /* lico liczone od sciany (jak w `projectLayout`): szafka z wlasna szpara (slupek dosuniety do sciany, 2026-11-22) — glebsza o szpare,
+       ktorej nie ma, stoi w tym samym licu i nie odsuwa reszty */
+    const licoOdSc = Math.max(...lvl.cabs.map((c) => wallGapOf(run, c.it).top + glOd(c) - (Number(c.it.offset) || 0)));
     lvl.pod.forEach((c) => {
       // od sciany do lica korpusu razem z plecami przybijanymi (szafka stoi o nie dalej)
-      const gl = Math.round(licoCiagu + (Number(c.it.offset) || 0));
       const odSciany = wallGapOf(run, c.it).top;
+      const gl = Math.round(licoOdSc - odSciany + (Number(c.it.offset) || 0));
       /* Front wpuszczany siedzi w obrysie korpusu — przed korpus nie wychodzi
          ani on, ani szczelina przy zawiasach. Liczone zawsze jak nakladany,
          blat 600 przy D580 robil sie 1200 (audyt GPT N48). Kolumna szuflad
@@ -18336,7 +18363,7 @@ const runPlinthPanels = (rp) => {
   const map = new Map();
   rp.lens.forEach((len) => map.set(len, (map.get(len) || 0) + 1));
   return [...map.entries()].map(([len, qty]) => naZamowienie({
-    name: "Cokół ciągu", qty, a: len, b: rp.h, matKey: "board",
+    name: "Cokół ciągu", qty, a: len, b: rp.h, matKey: rp.matKey || "board",
     edges: { a1: false, a2: true, b1: true, b2: true },
     note: rp.n > 1 ? "krawędź dolna oraz oba końce, w tym łączenie" : "krawędź dolna oraz oba końce",
   }));
@@ -18604,7 +18631,7 @@ const cornerArmParts = (a) => {
   // cofniety cokol konczy sie przy rogu na cofnietym cokole korpusu — krotszy o cofniecie (jak w 3D)
   const cokolRamH = cab.plinth && cab.plinth.on ? geo.plinthH : 0;   // takze cokol w obrysie (audyt GPT N56)
   if (cokolRamH > 0)
-    panels.push({ name: "Cokół ramienia", qty: 1, a: Math.max(0, len - Math.max(0, Math.round(((cab.plinth || {}).setback) || 0))), b: cokolRamH, matKey: "board",
+    panels.push({ name: "Cokół ramienia", qty: 1, a: Math.max(0, len - Math.max(0, Math.round(((cab.plinth || {}).setback) || 0))), b: cokolRamH, matKey: cokolKey(cab),
       edges: { a1: false, a2: true, b1: true, b2: true }, note: "krawędź dolna oraz oba końce" });
   /* Fix nie ma zawiasow — trzyma sie na zlaczkach od srodka, zeby z zewnatrz
      nie bylo nic widac. */
@@ -19305,7 +19332,11 @@ const runCabMsgs = (run, c, inne = [], poz = null) => {   // poz: { idx, offset,
      odsuwaja sie od sciany o roznice albo ona sama wystaje, gdy ja cofnac. */
   /* Slupek glebszy niz ciag (decyzja uzytkownika 2026-11-11): tyl przy scianie, front wysuniety o roznice (`item.offset`),
      pozostale szafki zostaja przy scianie; ma byc na rowno z blatem — glebszy niz blat: ostrzezenie „za głęboki słupek”. */
-  const roznD = run.D != null ? Math.round(c.D) - run.D : 0;
+  /* szafka z wlasna szpara od sciany (slupek dosuniety do sciany, 2026-11-22): glebokosc liczona od sciany — glebsza o te szpare, ktorej
+     nie ma, stoi w tym samym licu */
+  const dSzpary = poz && poz.wallGap ? Math.round(wallGapOf(run, null).bottom - wallGapOf(run, { wallGap: poz.wallGap }).bottom) : 0;
+  const dEf = Math.round(c.D) - dSzpary;
+  const roznD = run.D != null ? dEf - run.D : 0;
   const slupekGl = roznD > 0 && (c.slupek || c.H > 1500);
   if (slupekGl && poz && Math.round(Number(poz.offset) || 0) >= roznD) {
     /* drzwi slupka maja byc na rowno z przednia krawedzia blatu (uzytkownik 2026-11-12: „drzwi słupka wystają przed blat, a powinny
@@ -19318,13 +19349,13 @@ const runCabMsgs = (run, c, inne = [], poz = null) => {   // poz: { idx, offset,
         + `Płytszy słupek (${fmt(Math.round(c.D) - wyst)} mm, tył zostaje przy ścianie) albo głębszy blat tej ściany (${fmt(Math.round(rt.doLica + off))} mm).`
         + `|glebokosc:${Math.round(c.D) - wyst}|blatgl:${Math.round(rt.doLica + off)}:${run.id}` });
   }
-  else if (run.D != null && Math.round(c.D) > run.D)
+  else if (run.D != null && dEf > run.D)
     out.push({ level: "warn", text:
       `Głębokość ${fmt(c.D)} mm jest większa niż w ciągu (${fmt(run.D)} mm) o ${fmt(Math.round(c.D) - run.D)} mm. `
       + `Szafki stoją równo w licu, więc pozostałe odsuną się o tyle od ściany (za nimi zostanie pusta przestrzeń), `
       + `a blat i cokół pójdą za tym licem. Jeśli ta ma wystawać przed pozostałe, ustaw jej wysunięcie z lica.`
       + (slupekGl && poz ? `|slupekgl:${roznD}:${poz.idx}` : "") + `|runcab:D:${run.D}|runrun:D:${Math.round(c.D)}` });
-  else if (run.D != null && Math.round(c.D) !== run.D)
+  else if (run.D != null && dEf !== run.D)
     out.push({ level: "warn", text:
       `Głębokość ${fmt(c.D)} mm różni się od ciągu (${fmt(run.D)} mm). Jeśli to celowe — lico zostaje w linii, cofa się tylko tył — zostaw tak; blat licz na najgłębszą szafkę.`
       + `|runcab:D:${run.D}|runrun:D:${Math.round(c.D)}` });
@@ -19403,10 +19434,21 @@ const wallGapMsgs = (project, run) => {
     out.push({ level: "info", text:
       `Ciąg stoi ${opis(gc)} — za plecami zostaje wolna przestrzeń. `
       + `Blat liczymy od ściany na wysokości blatu.` });
+  /* Slupek na koncu ciagu ze szpara za plecami (uzytkownik 2026-11-22: „słupek musi dolegać do ściany, jeśli jest elementem granicznym
+     zabudowy i nie ma obok niego ściany”) — z boku widac szpare; przycisk: szpara 0, glebszy o nia (lico zostaje) */
+  const wRun = runItems(project, run.id);
+  [wRun[0], wRun.length > 1 ? wRun[wRun.length - 1] : null].forEach((q) => {
+    if (!q || !(q.it.cab.slupek || q.it.cab.H > 1500) || q.it.cab.sprzetCiagu || run.tier === "gorny" || run.zabudowa === "szafa") return;
+    const g = wallGapOf(run, q.it); if (!(g.bottom > 0)) return;
+    const nazwa = (q.it.cab.name || "").trim() || "słupek";
+    out.push({ level: "info", text: `Słupek „${nazwa}” na końcu ciągu stoi ${fmt(g.bottom)} mm od ściany — jeśli obok nie ma ściany, z boku widać szparę. Dosuń go do ściany: głębokość +${fmt(g.bottom)} mm, front zostaje w linii.|slupeksc:${q.i}:${Math.round(g.bottom)}` });
+  });
   runItems(project, run.id).forEach(({ it }) => {
     if (!it.wallGap) return;
     const g = wallGapOf(run, it);
     if (g.bottom === gc.bottom && g.top === gc.top) return;
+    // slupek dosuniety do sciany (szpara 0) — celowo, bez uwagi
+    if ((it.cab.slupek || it.cab.H > 1500) && g.bottom === 0 && g.top === 0) return;
     const nazwa = (it.cab.name || "").trim() || "szafka";
     out.push({ level: "info", text:
       `Szafka „${nazwa}" stoi ${opis(g)}, inaczej niż reszta ciągu.` });
@@ -19417,12 +19459,14 @@ const wallGapMsgs = (project, run) => {
 /* Glebsza szafka poza blatem (slupek) stojaca w licu ciagu, bez wysuniecia: pozostale szafki stoja o roznice od sciany, a blat
    siega za nimi do sciany (uzytkownik 2026-11-12: slupek 580 w ciagu 560, blat 613 — „brakuje 13 mm”). `o` — o ile glebsza
    (z plecami za korpusem), `c` — szafka z `worktopLevel` (`idx`, `it`, `geo`). Najglebsza pierwsza. */
-const glebszeWLicu = (lvl) => {
+const glebszeWLicu = (lvl, run = null) => {
   if (!lvl || !lvl.pod.length) return [];
-  const gP = Math.max(...lvl.pod.filter((c) => !(Number(c.it.offset) || 0)).map((c) => Math.round(c.geo.carcassDepth + (c.geo.plecyZa || 0))), 0);
+  /* od sciany: szafka z wlasna szpara (slupek dosuniety do sciany, 2026-11-22) — glebsza o szpare, ktorej nie ma, stoi w tym samym licu */
+  const odSc = (c) => (run ? wallGapOf(run, c.it).bottom : 0) + Math.round(c.geo.carcassDepth + (c.geo.plecyZa || 0));
+  const gP = Math.max(...lvl.pod.filter((c) => !(Number(c.it.offset) || 0)).map(odSc), 0);
   if (!gP) return [];
   return lvl.poza.filter((c) => !c.it.cab.sprzetCiagu && !(Number(c.it.offset) > 0))
-    .map((c) => ({ c, o: Math.round(c.geo.carcassDepth + (c.geo.plecyZa || 0) - gP) })).filter((q) => q.o > 0).sort((x, y) => y.o - x.o);
+    .map((c) => ({ c, o: Math.round(odSc(c) - gP) })).filter((q) => q.o > 0).sort((x, y) => y.o - x.o);
 };
 const worktopMsgs = (project, run) => {
   const out = [];
@@ -19674,7 +19718,7 @@ const worktopMsgs = (project, run) => {
     /* Przyczyna — glebsza szafka poza blatem (slupek) w licu ciagu: reszta stoi o roznice od sciany, blat siega za nimi do sciany
        (uzytkownik 2026-11-12: slupek 580 bez wysuniecia, blat 613 — „brakuje 13 mm”). Wtedy najpierw przycisk „To słupek — tył
        przy ścianie”, a nie „Zmniejsz głębokość szafek”. */
-    const gw = glebszeWLicu(lvl)[0];
+    const gw = glebszeWLicu(lvl, run)[0];
     if (gw) {
       const po = rt.depth - gw.o;
       out.push({ level: "warn", text:
@@ -19798,7 +19842,7 @@ const worktopMsgs = (project, run) => {
     const rtG = rt.depth > rtI.depth ? rt : rtI;
     const cel = glOf(glebszy, glebszy.id === run.id ? lvl : worktopLevel(project, glebszy))
       - (rtG.depth - Math.min(rt.depth, rtI.depth));
-    const gwR = glebszy.id === run.id ? glebszeWLicu(lvl)[0] : null;
+    const gwR = glebszy.id === run.id ? glebszeWLicu(lvl, run)[0] : null;
     const fix = (gwR ? `|slupekgl:${gwR.o}:${gwR.c.idx}` : "") + (cel > 0 && !gwR
       ? `|rundepth:${cel}${glebszy.id === run.id ? "" : "@" + glebszy.id}` : "");
     /* plytszy blat docinany z arkusza (uzytkownik 2026-11-13: zalecamy odsuniecie szafek od sciany) — jego szafki dalej od sciany o
@@ -24786,8 +24830,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         <Btn key="n" el="mak-przesuwne" v="nie" on={!on} onClick={() => ustawP({ on: false })}>na zawiasach</Btn>,
         <Btn key="t" el="mak-przesuwne" v="tak" on={on} onClick={() => ustawP({ on: true })}>przesuwne</Btn>], "mak-przesuwne-w"),
         ...(on ? [
-          wiersz("przesn", "skrzydła", [<Btn key="a" el="mak-przes-n" v="auto" on={![2, 3, 4].includes(Number(P.n))} onClick={() => ustawP({ n: null })}>same{pg ? ` (${pg.n})` : ""}</Btn>,
-            ...[2, 3, 4].map((v) => <Btn key={v} el="mak-przes-n" v={v} on={Number(P.n) === v} onClick={() => ustawP({ n: v })}>{v}</Btn>)], "mak-przes-n-w"),
+          wiersz("przesn", "skrzydła", [<Btn key="a" el="mak-przes-n" v="auto" on={!PRZES_SKRZ.includes(Number(P.n))} onClick={() => ustawP({ n: null })}>same{pg ? ` (${pg.n})` : ""}</Btn>,
+            ...PRZES_SKRZ.map((v) => <Btn key={v} el="mak-przes-n" v={v} on={Number(P.n) === v} onClick={() => ustawP({ n: v })}>{v}</Btn>)], "mak-przes-n-w"),
           /* odsuniete skrzydlo na rysunku i w 3D (uzytkownik 2026-11-17: „brak opcji otwarcia — przesunięcia jednych drzwi”) — od lewej */
           ...(pg ? [wiersz("przesodsun", "odsuń skrzydło (rysunek i 3D; od lewej)", [
             <Btn key="z" el="mak-przes-odsun" v="brak" on={!pg.odsun} onClick={() => ustawP({ odsun: null })}>zamknięte</Btn>,
@@ -25077,6 +25121,9 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     tresc = [
       wiersz("c", "Cokół", [["brak", "brak"], ["under", "pod korpusem"], ["inbody", "w obrysie"]].map(([v, l]) =>
         <Btn key={v} el="mak-cokol" v={v} on={trybCokolu === v} onClick={() => ustawCokol(v)}>{l}</Btn>)),
+      // kolor cokolu (uzytkownik 2026-11-22: „brak opcji koloru cokołu, domyślnie powinien być jak fronty”)
+      pl.on && wiersz("ck", "kolor cokołu", [["front", "jak fronty"], ["korpus", "jak korpus"]].map(([v, l]) =>
+        <Btn key={v} el="mak-cokol-kolor" v={v} on={(cokolJakKorpus(pl) ? "korpus" : "front") === v} onClick={() => cokolNa({ kolor: v })}>{l}</Btn>)),
       pl.on && <label key="ch" className="flex items-center justify-between gap-2 border-b border-stone-100 py-1 text-xs"><span className="text-stone-500">wysokość cokołu</span>
         <input type="number" step="10" defaultValue={pl.height} key={`ch-${pl.height}`} data-pole="cokol-h"
           onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
@@ -25308,7 +25355,7 @@ function MakietaWolnostojace({ project, items, open, onPick, zazn, maxH, nakladk
           <CabElevation cab={c.it.cab} geo={c.geo} mat={c.mat} open={open} showDims={!!wymiary && wymK("fronty")} showHardware={false} makieta
             showLabels frontColor={c.frontColor} />
           {/* cokol pod korpusem (zgloszenie 2026-11-09: „nie wyświetla cokołu”) — jak w widoku szafki: zaslania nozki za nim */}
-          {c.plinthH > 0 && <rect data-el="cokol-szafki" x={0} y={c.it.cab.H} width={c.geo.W} height={c.plinthH} fill={c.mat.board.color} stroke={INK} strokeWidth="2" opacity="0.9" />}
+          {c.plinthH > 0 && <rect data-el="cokol-szafki" x={0} y={c.it.cab.H} width={c.geo.W} height={c.plinthH} fill={kolorCokolu(c.it.cab, c.mat)} stroke={INK} strokeWidth="2" opacity="0.9" />}
           {c.i === zazn && <rect pointerEvents="none" data-el="makieta-zaznaczona" x={0} y={0} width={c.geo.W} height={c.it.cab.H} fill="none" stroke={MAK_AKCENT} strokeWidth="12" />}
           {c.i === zazn && nakladka && nakladka(c.it.cab, c.geo, c.i)}
           {wymiary && wymiarySzafki(c)}
@@ -27185,12 +27232,14 @@ export default function App() {
     if (run && (run.wspolnyWieniec || run.wspolneDno)) fresh.cab = wedlugCiagu(fresh.cab, fresh.mat, run, wysokoscWienca(p.items, run));
     const items = [...p.items.slice(0, at), fresh, ...p.items.slice(at)];
     /* Slupek ze wzoru w kuchni (uzytkownik 2026-11-21: „słupek nie ma blatu” — glebszy slupek w licu odsuwal reszte od sciany i blat wychodzil
-       650): tyl przy scianie jak reszta, drzwi rowno z przednia krawedzia blatu (decyzja 2026-11-11) — glebokosc ciagu + wysieg blatu
-       przed fronty, wysuniety o tyle (`offset`); bez blatu roboczego — glebokosc ciagu. */
+       650; 2026-11-22: „słupek musi dolegać do ściany, jeśli jest elementem granicznym zabudowy i nie ma obok niego ściany; 590 z docięcia
+       blatu o 1 cm”): drzwi w linii frontow ciagu (blat wystaje przed nie jak przed reszte), glebokosc ciagu; na koncu ciagu — przy samej
+       scianie: wlasna szpara 0 (`it.wallGap`) i glebokosc ciagu + szpara ciagu, wiec lico zostaje to samo i reszta sie nie odsuwa. */
     if (slupekWCiagu.slupek && run.D != null) {
-      items[at] = { ...items[at], cab: { ...items[at].cab, D: Math.round(run.D) } };
-      let wys = 0; try { const rt = runTop({ ...p, items }, run); wys = rt && rt.worktop && rt.depth > rt.doLica ? Math.round(rt.depth - rt.doLica) : 0; } catch (e) { wys = 0; }
-      if (wys > 0) items[at] = { ...items[at], offset: wys, cab: { ...items[at].cab, D: Math.round(run.D) + wys } };
+      const wRun = items.map((x, k) => (x.runId === run.id ? k : -1)).filter((k) => k >= 0), szpara = Math.round(wallGapOf(run, null).bottom || 0);
+      const naKoncu = wRun.length > 1 && (at === wRun[0] || at === wRun[wRun.length - 1]);
+      items[at] = { ...items[at], cab: { ...items[at].cab, D: Math.round(run.D) + (naKoncu ? szpara : 0) },
+        ...(naKoncu && szpara > 0 ? { wallGap: { bottom: 0, top: null } } : {}) };
     }
     /* Szablon narożnika składa cały układ, a nie samą szafkę: za rogiem staje
        drugi ciąg pod kątem prostym. Szafek w nim nie zakładamy — dokłada się je
@@ -28060,7 +28109,7 @@ export default function App() {
       const ramie = [...projLayoutGeo.info.values()].map((n) => n.arm)
         .find((a) => a && a.len > 0 && a.cab && a.cab.index === i);
       const inne = c ? runItems(project, c.run.id).filter((x) => x.i !== i).map((x) => x.it.cab) : [];
-      const msgs = [...runCabMsgs(c && c.run, it.cab, inne, { idx: i, offset: it.offset, rt: c && c.rt }), ...odScianyMsgs(project, i), ...sprzetWysokoMsgs(project, i), ...sufitSzafyMsgs(project, i), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
+      const msgs = [...runCabMsgs(c && c.run, it.cab, inne, { idx: i, offset: it.offset, rt: c && c.rt, wallGap: it.wallGap }), ...odScianyMsgs(project, i), ...sprzetWysokoMsgs(project, i), ...sufitSzafyMsgs(project, i), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
         ...wstawkaMsgs(projLayoutGeo, i),
         ...(ramie ? maleFormatkiMsgs(cornerArmParts(ramie).panels, it.cab.dociac, "@") : [])];
       return {
@@ -28138,7 +28187,7 @@ export default function App() {
     const c = project.items[project.active].cab;
     const node = projLayout.info.get(runInfo.run.id);
     const inne = runItems(project, runInfo.run.id).filter((x) => x.i !== project.active).map((x) => x.it.cab);
-    return [...runCabMsgs(runInfo.run, c, inne, { idx: project.active, offset: (project.items[project.active] || {}).offset, rt: runTp }),
+    return [...runCabMsgs(runInfo.run, c, inne, { idx: project.active, offset: (project.items[project.active] || {}).offset, rt: runTp, wallGap: (project.items[project.active] || {}).wallGap }),
       ...odScianyMsgs(project, project.active),
       ...sprzetWysokoMsgs(project, project.active),
       ...sufitSzafyMsgs(project, project.active),
@@ -28335,6 +28384,26 @@ export default function App() {
         const items = p.items.slice(); items[i] = { ...it, cab: { ...it.cab, levels } }; return { ...p, items }; });
       return;
     }
+    /* „przesdziel" — aktywna szafa przesuwna na dwie obok siebie (uzytkownik 2026-11-22: „przy tak dużych szafach … albo o 2 szafach”): po polowie
+       szerokosci, kazda z wlasnymi drzwiami (liczba skrzydel sama), podwojny bok tylko od strony sciany (na styku boki sa schowane miedzy
+       szafami), przegrody na stykach skrzydel kazdej (`przesuwneKolumny`) */
+    if (action === "przesdziel") {
+      setProject((p) => { const i = p.active, it = p.items[i]; if (!it || !przesuwneOn(it.cab)) return p;
+        const W1 = Math.round(it.cab.W / 2), W2 = Math.round(it.cab.W) - W1, PB = (it.cab.przesuwne || {}).podwBoki || {};
+        const polowa = (W, pb, name) => { const cab = { ...JSON.parse(JSON.stringify(it.cab)), W, name, przesuwne: { ...it.cab.przesuwne, n: null, odsun: null, podwBoki: pb } };
+          const x = { ...it, cab }; let geo; try { geo = computeGeo(cabDoGeo({ ...p, items: p.items.map((q, k) => (k === i ? x : q)) }, x), x.mat); } catch (e) { return x; }
+          const t = Math.round(Number(((x.mat || {}).board || {}).thickness) || 18), sw = przesuwneKolumny(cab, geo, t); if (!sw) return x;
+          cab.levels = (cab.levels || []).map((lv) => { const cols = (lv.cols || []).slice(0, sw.length); if (!cols.length) return lv;
+            while (cols.length < sw.length) cols.push(JSON.parse(JSON.stringify(cols[cols.length - 1])));
+            return { ...lv, cols: cols.map((c, k) => ({ ...c, w: sw[k] })) }; });
+          return x; };
+        const zajete = new Set(p.items.map((q) => (q.cab.name || "").trim())), baza = (it.cab.name || "Szafa").trim();
+        let k = 2; while (zajete.has(`${baza} ${k}`)) k++;
+        const a = polowa(W1, { L: !!PB.L, R: false }, it.cab.name), b = polowa(W2, { L: false, R: !!PB.R }, `${baza} ${k}`);
+        const items = [...p.items.slice(0, i), a, b, ...p.items.slice(i + 1)];
+        return { ...p, items, active: i }; });
+      return;
+    }
     // „szafah:<H>[:<i>]" — wysokosc szafy (najwyzsza z arkusza / pod raczke drzwi przesuwnych); bez <i> — aktywna szafka
     if (action.startsWith("szafah:")) {
       const [, hs, is] = action.split(":"), H = Math.round(Number(hs) || 0);
@@ -28344,7 +28413,7 @@ export default function App() {
     }
     // „przesn:<n>" — liczba skrzydel drzwi przesuwnych aktywnej szafy
     if (action.startsWith("przesn:")) {
-      const n = Math.max(2, Math.min(4, Math.round(Number(action.split(":")[1]) || 2)));
+      const n = Math.max(2, Math.min(6, Math.round(Number(action.split(":")[1]) || 2)));
       setProject((p) => { const items = p.items.slice(), it = items[p.active]; if (!it) return p;
         items[p.active] = { ...it, cab: { ...it.cab, przesuwne: { ...(it.cab.przesuwne || {}), on: true, n } } }; return { ...p, items }; });
       return;
@@ -28440,6 +28509,9 @@ export default function App() {
     if (action.startsWith("gornyod:")) { const [, id, mm] = action.split(":"); if (id) setRun(id, { offset: Math.max(0, Math.round(Number(mm) || 0)), offsetFrom: "left" }); return; }
     // „blendasufit:<ciąg górny>:<mm>” — szafki gorne nizej o tyle, blenda do sufitu (zawieszki potrzebuja luzu nad szafka)
     if (action.startsWith("blendasufit:")) { const [, id, mm] = action.split(":"); if (id) setProject((p) => gornyBlendaDoSufitu(p, id, Math.round(Number(mm) || BLENDA_DO_SUFITU))); return; }
+    // „slupeksc:<i>:<mm>” — slupek na koncu ciagu przy samej scianie: szpara 0, glebszy o nia (lico w linii)
+    if (action.startsWith("slupeksc:")) { const [, ix, mm] = action.split(":"), d = Math.round(Number(mm) || 0);
+      setProject((p) => ({ ...p, items: p.items.map((x, k) => (k === Number(ix) ? { ...x, wallGap: { bottom: 0, top: null }, cab: { ...x.cab, D: Math.round(x.cab.D) + d } } : x)) })); return; }
     if (action.startsWith("slupekgl:")) { const [, d, ix] = action.split(":");
       setProject((p) => ({ ...p, items: p.items.map((x, k) => (k === Number(ix) ? { ...x, offset: Number(d), cab: { ...x.cab, slupek: true } } : x)) })); return; }
     if (action.startsWith("wallw:")) { const [, v, id] = action.split(":"); if (id && Number(v) > 0) setRun(id, { wallW: Number(v) }); return; }
@@ -33281,6 +33353,15 @@ export default function App() {
                     <Num value={cab.plinth.setback || 0} onChange={(v) => set({ plinth: { ...cab.plinth, setback: v } })} />
                   </Field>
                 </div>
+                {/* kolor cokolu (uzytkownik 2026-11-22): domyslnie jak fronty */}
+                <Field label="Kolor cokołu" hint={cokolJakKorpus(cab.plinth) ? "Z płyty korpusu." : cab.frontSameAsBoard === false ? "Z płyty frontów." : "Jak fronty (fronty z płyty korpusu)."}>
+                  <div data-el="karta-cokol-kolor">
+                    <Seg value={cokolJakKorpus(cab.plinth) ? "korpus" : "front"} onChange={(v) => { const kolor = v === "korpus" ? "korpus" : "front";
+                      // cokol ciagu to jedna plaszczyzna — kolor dla calego ciagu
+                      if (runInfo && runInfo.run && runInfo.run.plinth) setRunShared(runInfo.run.id, { plinth: { ...runInfo.run.plinth, kolor } }); else set({ plinth: { ...cab.plinth, kolor } }); }}
+                      options={[{ v: "front", l: "Jak fronty" }, { v: "korpus", l: "Jak korpus" }]} />
+                  </div>
+                </Field>
                 {cab.legs?.on && (
                   <Field label="Mocowanie" hint={cokolBlendo(cab) ? `Połówki pod dnem (między nóżkami) i na cokole, co ok. ${BLENDO_CO} mm — z wzornika Sevroll.` : "Klips na każdą nóżkę przedniego rzędu."}>
                     <Seg value={cokolBlendo(cab) ? "blendo" : "klipsy"} onChange={(v) => set({ plinth: { ...cab.plinth, mocowanie: v === "blendo" ? "blendo" : null } })}
@@ -33434,9 +33515,9 @@ export default function App() {
             {przesuwneOn(cab) && geo.przesuwne && (
               <div className="space-y-2">
                 <Field label="Skrzydła" hint={`Same: do ok. ${fmt(PRZES.SKRZ_MAX)} mm na skrzydło.`}>
-                  <Seg value={[2, 3, 4].includes(Number((cab.przesuwne || {}).n)) ? String(cab.przesuwne.n) : "auto"}
+                  <Seg value={PRZES_SKRZ.includes(Number((cab.przesuwne || {}).n)) ? String(cab.przesuwne.n) : "auto"}
                     onChange={(v) => set({ przesuwne: { ...cab.przesuwne, n: v === "auto" ? null : Number(v) } })}
-                    options={[{ v: "auto", l: `same (${geo.przesuwne.n})` }, { v: "2", l: "2" }, { v: "3", l: "3" }, { v: "4", l: "4" }]} />
+                    options={[{ v: "auto", l: `same (${geo.przesuwne.n})` }, ...PRZES_SKRZ.map((v) => ({ v: String(v), l: String(v) }))]} />
                 </Field>
                 <Field label="Odsunięte skrzydło" hint="Na rysunkach i w 3D — jedno skrzydło odsunięte do oporu (od lewej: 1, 2…).">
                   <div data-el="karta-przes-odsun"><Seg value={geo.przesuwne.odsun ? String(geo.przesuwne.odsun.i) : "brak"}

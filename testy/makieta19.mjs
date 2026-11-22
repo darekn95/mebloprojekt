@@ -237,9 +237,18 @@ p = await proj();
 { const sl = p.items[p.items.length - 1], run = p.runs.find((r) => r.id === sl.runId), t = await uwagi();
   ok('słupek z palety w kuchni: „wyjątek w ciągu” (slupek), cokół jak w ciągu — bez uwag o wysokości i cokole', sl.cab.slupek === true && JSON.stringify(sl.cab.plinth) === JSON.stringify(run.plinth)
     && !/nie zgadza się z ciągiem|Wysokość 2000 mm nie zgadza się/.test(t), JSON.stringify({ sl: sl.cab.slupek, pl: sl.cab.plinth, rp: run.plinth }) + ' ' + t.slice(0, 300));
-  // uzytkownik 2026-11-21: „słupek nie ma blatu” — tył przy ścianie, drzwi równo z blatem, blat reszty bez zmian
-  ok('… głębokość = ciąg + wysięg blatu przed fronty (tył przy ścianie, drzwi równo z blatem): bez uwag o głębokości i blacie', sl.cab.D > run.D && sl.offset === sl.cab.D - run.D
-    && !/Głębokość \d+ mm jest większa|Blat wychodzi|Za głęboki słupek/.test(t), JSON.stringify({ D: sl.cab.D, off: sl.offset, rD: run.D }) + ' ' + t.slice(0, 300)); }
+  // uzytkownik 2026-11-21: „słupek nie ma blatu”; 2026-11-22: na końcu zabudowy dolega do ściany, front w linii (590 przy blacie 600)
+  const sz = (run.wallGap || {}).bottom || 0;
+  ok('… na końcu ciągu: przy samej ścianie (szpara 0), głębokość = ciąg + szpara ciągu, front w linii — bez uwag o głębokości, blacie i szparze', sz > 0 && sl.cab.D === run.D + sz
+    && sl.wallGap && sl.wallGap.bottom === 0 && !(Number(sl.offset) > 0) && !/Głębokość \d+ mm jest większa|Blat wychodzi|Za głęboki słupek|na końcu ciągu stoi|inaczej niż reszta ciągu/.test(t),
+    JSON.stringify({ D: sl.cab.D, wg: sl.wallGap, off: sl.offset, rD: run.D, sz }) + ' ' + t.slice(0, 300)); }
+// słupek wstawiony ręcznie na końcu ciągu, 17 mm od ściany — informacja z przyciskiem „Słupek do ściany”
+await ust(`const sl = p.items[p.items.length - 1]; delete sl.wallGap; sl.cab.D = 550; p.active = p.items.length - 1;`);
+{ const b = page.locator('[data-el="makieta-uwagi"] button', { hasText: /Słupek do ściany/ });
+  ok('słupek 17 mm od ściany na końcu ciągu: „jeśli obok nie ma ściany, z boku widać szparę” + przycisk', /na końcu ciągu stoi 17 mm od ściany/.test(await uwagi()) && (await b.count()) === 1, (await uwagi()).slice(0, 300));
+  if (await b.count()) await b.click(); }
+p = await czekaj("p.items[p.items.length - 1].cab.D === 567");
+{ const sl = p.items[p.items.length - 1]; ok('… po kliknięciu: szpara 0, głębokość 567', sl.cab.D === 567 && sl.wallGap && sl.wallGap.bottom === 0, JSON.stringify({ D: sl.cab.D, wg: sl.wallGap })); }
 // szafa przesuwna 2400 (3 skrzydła): przycisk „Przegrody na stykach skrzydeł”
 await start(FIX);
 await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
@@ -253,6 +262,22 @@ p = await czekaj("p.items.find((it) => it.cab.name === 'Szafa').cab.levels[0].co
 { const t = await uwagi(), kol = szafa(p).cab.levels[0].cols;
   ok('po kliknięciu: 3 kolumny (trzecia — kopia ostatniej, z drążkiem), bez uwag o kolumnach', kol.length === 3 && kol[0].w === 751 && kol[1].w === 791 && kol[2].w == null && (kol[2].drazki || []).length === 1
     && !/wypada pod dwoma skrzydłami/.test(t), JSON.stringify(kol.map((c) => c.w)) + ' ' + t.slice(0, 200)); }
+
+console.log('== 2026-11-22: kolor cokołu (domyślnie jak fronty) ==');
+await start(FIX);
+await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+{ const n0 = (await proj()).items.length; await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="dolna1"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await czekaj(`p.items.length > ${n0}`); }
+await ust(`p.active = p.items.length - 1; const it = p.items[p.active]; it.mat.front = { ...it.mat.front, color: '#203040' }; it.mat.board = { ...it.mat.board, color: '#e0d0c0' }; it.cab.frontSameAsBoard = false;`);
+await zakl('cokol');
+await page.locator('[data-el="mak-cokol"][data-v="under"]').click(); await page.waitForTimeout(700);
+{ const b = page.locator('[data-el="mak-cokol-kolor"]');
+  ok('zakładka „Cokół i nóżki”: „kolor cokołu” — jak fronty (wybrane) / jak korpus', (await b.count()) === 2 && (await page.locator('[data-el="mak-cokol-kolor"][data-v="front"]').getAttribute('aria-pressed')) === 'true', String(await b.count())); }
+const fillCokolu = () => page.evaluate(() => { const r = document.querySelector('[data-el="makieta"] [data-el="cokol-ciagu"], [data-el="makieta"] [data-el="cokol-szafki"]'); return r ? (r.getAttribute('fill') || '').toLowerCase() : null; });
+// makieta rysuje jasną paletą (MAK_JASNE: front #f3f0eb, korpus #fbfaf8) — cokół w tonie frontów, po zmianie w tonie korpusu
+ok('rysunek: cokół w kolorze frontów', (await fillCokolu()) === '#f3f0eb', String(await fillCokolu()));
+await page.locator('[data-el="mak-cokol-kolor"][data-v="korpus"]').click(); await page.waitForTimeout(700);
+p = await czekaj("(p.runs.find((r) => r.id === p.items[p.active].runId).plinth || {}).kolor === 'korpus'");
+ok('„jak korpus”: zapisane w ciągu, rysunek w kolorze korpusu', (p.runs.find((r) => r.id === p.items[p.active].runId).plinth || {}).kolor === 'korpus' && (await fillCokolu()) === '#fbfaf8', String(await fillCokolu()));
 
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
