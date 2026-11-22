@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1681,6 +1681,13 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
   const pan = (c) => G.computeGeo(c, M0).panels.find((x) => x.name === 'Cokół');
   ok('fronty z innej płyty: formatka cokołu z płyty frontów (domyślnie)', pan(cab()).matKey === 'front' && G.cokolKey(cab()) === 'front', pan(cab()).matKey);
   ok('… „jak korpus”: formatka z płyty korpusu', pan(cab({ kolor: 'korpus' })).matKey === 'board');
+  /* wzory z palety makiety bez ostrzezen od razu po wstawieniu (2026-11-22, #40): „Szafa”, „Szafa, 1 drzwi” — polki poza zawiasami;
+     „Dolna z szufladami” — luz, przy ktorym fronty sa rowne */
+  { const wz = G.MAK_PALETA.flatMap((gr) => gr.wzory || []);
+    const uwagi = (id) => { const w = wz.find((q) => q.id === id); let c = G.makeFromTemplate(w.tpl); c = JSON.parse(JSON.stringify(c.cab || c)); w.mod(c, 'vbox');
+      c = G.migrateCab(c, M0); G.wzorBezUwag(c, M0); return geo(c).msgs.filter((q) => q.level !== 'info').map((q) => q.text.slice(0, 90)); };
+    for (const id of ['szafaW', 'szafa1', 'szuflady', 'dolna2'])
+      { const u = uwagi(id); ok(`wzór „${(wz.find((q) => q.id === id) || {}).nazwa}” z palety — bez ostrzeżeń (zawiasy poza półkami, równe fronty)`, !u.length, JSON.stringify(u)); } }
   /* przegrody pionowe cofniete (uzytkownik 2026-11-22): biurko wiszace — przegrody o grubosc frontu krotsze, fronty szuflad przed nimi,
      miedzy frontami tylko luz; pole recznie dla kazdej szafki */
   { const tp = G.makeFromTemplate('biurko-wiszace');

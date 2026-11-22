@@ -2131,6 +2131,41 @@ const hdfZaKorpusem = (p, prev) => {
   });
   return items ? { ...p, items } : p;
 };
+/* Wzor z palety bez ostrzezen od razu po wstawieniu (analiza 2026-11-21, POMYSLY: „Szafa” — zawiasy przesuniete przez polki;
+   „Dolna z szufladami” — fronty roznia sie o 1 mm): polki z dala od zawiasow (zawias w swoim miejscu, polka na blizszej krawedzi
+   jego strefy ± HINGE_H / 2 + HINGE_CLR; swiatla w `shelfTargets`, ostatnie auto) i luz miedzy frontami szuflad z przycisku
+   „Zwiększ / Zmniejsz luz do N mm” (`fixgap`). Zmienia `cab` w miejscu; tylko gdy pomaga (swiatla co najmniej 120 mm). */
+const wzorBezUwag = (cab, mat) => {
+  for (let pass = 0; pass < 3; pass++) {
+    // na kopii — `computeGeo` pamieta wynik dla tego samego obiektu, a tu `cab` zmienia sie w miejscu
+    let g; try { g = computeGeo(JSON.parse(JSON.stringify(cab)), mat); } catch (e) { return; }
+    let zmiana = false;
+    (g.msgs || []).forEach((m) => { const a = (m.text.split("|").find((x) => x.startsWith("fixgap:")) || "").split(":");
+      if (a.length < 4) return; const k = (((cab.levels || [])[+a[1]] || {}).cols || [])[+a[2]];
+      if (k && k.gapBetween !== +a[3]) { k.gapBetween = +a[3]; zmiana = true; } });
+    (g.levels || []).forEach((lv) => (lv.cols || []).forEach((col) => {
+      const raw = typeof col.j === "number" ? (((cab.levels || [])[lv.i] || {}).cols || [])[col.j] : null;
+      const sh = (col.shelves || []).slice().sort((x, y) => x.y - y.y), op = col.openings || [];
+      if (!raw || raw.kind === "drawers" || (raw.podzial || []).length || !sh.length || op.length !== sh.length + 1) return;
+      const strefy = (col.doors || []).filter((d) => d.type === "door" && d.hinges > 0)
+        .flatMap((d) => hingePositions(d.y, d.h, d.hinges, []).pts).map((y) => ({ y0: y - HINGE_H / 2 - HINGE_CLR, y1: y + HINGE_H / 2 + HINGE_CLR }));
+      if (!strefy.length) return;
+      const ts = g.ts, ys = sh.map((q) => {
+        const z = strefy.find((st) => q.y + ts > st.y0 && q.y < st.y1);
+        if (!z) return q.y;
+        // z zapasem 1 mm w strone od zawiasu (zawias bywa w polowie milimetra)
+        const dol = Math.floor(z.y0 - ts) - 1, gora = Math.ceil(z.y1) + 1;
+        return q.y - dol <= gora - q.y ? dol : gora;
+      });
+      if (ys.every((y, k) => y === sh[k].y)) return;
+      const sw = ys.map((y, k) => Math.round(y - (k ? ys[k - 1] + ts : op[0].from)));
+      const ostatnie = Math.round(op[op.length - 1].to - (ys[ys.length - 1] + ts));
+      if (Math.min(...sw, ostatnie) < 120) return;
+      raw.shelfTargets = [...sw, null]; zmiana = true;
+    }));
+    if (!zmiana) return;
+  }
+};
 const biurkaPrzegrodyCof = (p) => {
   if (!p.items.some((it) => it.cab && it.cab.biurkoWiszace && it.cab.przegrodyCof == null)) return p;
   return { ...p, items: p.items.map((it) => (it.cab && it.cab.biurkoWiszace && it.cab.przegrodyCof == null
@@ -27593,6 +27628,8 @@ export default function App() {
       ...(stoi && !opcje.bezNozek && !(spC && (spC.typ === "lodowka" || spC.typ === "zmywarkaW")) ? { legs: { ...(base.legs || { height: 100, color: "#3f3f46", shape: "box" }), on: true } } : {}) },
       mat: matNowej, runId, roomId };
     if (opcje.poDodaniu) opcje.poDodaniu(fresh.cab, fresh.mat, !!stoi);
+    // wzor z palety makiety — od razu bez ostrzezen o zawiasach na polkach i o frontach szuflad rozniacych sie o 1 mm
+    if (tplId && opcje.zmien) { try { wzorBezUwag(fresh.cab, fresh.mat); } catch (e) { /* zostaje jak ze wzoru */ } }
     /* Nowa szafka ciagu ma stanac na jego koncu, a nie na koncu calego projektu —
        inaczej kolejnosc przy scianie zalezalaby od tego, w jakiej kolejnosci
        dokladano szafki do roznych ciagow. */

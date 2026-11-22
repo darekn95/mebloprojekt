@@ -45,9 +45,8 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
   przypisane do ścian; na razie choćby rozstawić osobne ciągi obok siebie z odstępem.
 - **Regał / szafa z palety „Szafa w zabudowie” przy zaznaczonej szafce wolnostojącej** zakłada nowy ciąg („Ściana 2”), zamiast dołożyć
   się do istniejącej zabudowy w pokoju — do rozważenia: dokładać do ostatniego ciągu „szafa” w pokoju.
-- **Wzory bez uwag od razu po wstawieniu:** „Szafa” wolnostojąca i „Szafa, 1 drzwi” — zawias przesunięty, bo koliduje z półką
-  (ostrzeżenie); „Dolna z szufladami” — fronty różnią się o 1 mm (przycisk „Zwiększ luz do 3 mm”). Wzór mógłby od razu ustawić półki
-  poza zawiasami i luz, przy którym fronty są równe.
+- ~~**Wzory bez uwag od razu po wstawieniu**~~ — zrobione 2026-11-22 (`wzorBezUwag`: półki poza zawiasami, luz frontów szuflad).
+  Zostaje „Narożnik L” (dół 896 / góra 646 mm — jedne drzwi poza tabelą zawiasów GTV; jest przycisk „Dwoje drzwi”) — do decyzji.
 - **Szafa na zawiasach w wysokim pokoju** (1200 × 2761, 4 półki): fronty 2755 mm są poza tabelą zawiasów GTV (do 2500 mm) —
   jest ostrzeżenie, a 3 z 5 zawiasów na skrzydło przesuwa się przez półki (6 ostrzeżeń „zawias przesunięty”). Pomysł: przycisk
   „Półki poza zawiasami” (przesuwa półki o kilka centymetrów zamiast zawiasów); do sprawdzenia w katalogu — prostownik do wysokich

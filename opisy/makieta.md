@@ -326,6 +326,7 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
 - Kafelek **„Płyty i kolory”** (makieta szczegółowa, 2026-11-22; kolory zostają też w zakładce Szafka): palety korpusu / frontów / półek zaznaczonej szafki z „cały ciąg”, „jak w tej szafce — w całym pomieszczeniu” (korpus, fronty, półki), kolor cokołu i kolor maskownic przy tej szafce (zaznaczona maskownica — jej kolor); płyty z listy i dekory — „Wszystkie opcje” (karta Płyty).
 - Zaznaczona maskownica w zakładce Wzmocnienia: jej kolor i głębokość (pozycje bez korpusu — bez wzmocnień).
 - Zoom: „−” / „+” w krokach 25–400 % (`MAK_ZOOM`; od 2026-11-22 także poniżej 100 % — rysunek mniejszy niż okno), Ctrl + kółko, „Dopasuj”.
+- **Wzór z palety bez ostrzeżeń** (2026-11-22, `wzorBezUwag` przy dodaniu z `opcje.zmien`): półki przesunięte poza strefy zawiasów (zawias w swoim miejscu ± 27,5 + 30 mm luzu; światła w `shelfTargets`, ostatnie auto, każde co najmniej 120 mm) i luz frontów szuflad z przycisku `fixgap` (równe fronty).
 - Zoom działa też w widokach z boku, z góry, 3D i 45° (użytkownik 2026-11-22: „w 45 i 3d oddalanie poniżej 100% nie działa”): rysunek ma szerokość okna razy zoom (`mak-widok-zoom`); powyżej 100% bez limitu wysokości 3D.
 - „Wczytaj plik” (pasek u góry) przy projekcie z szafkami pyta: dodać jako nowe pomieszczenie czy zastąpić cały projekt (`importOferta`, `dolaczJakoPomieszczenia`). Ciąg domyślnie: ciąg
   zaznaczonej szafki z piętrem nad nim (cały pokój na raz jest za drobny do chwytania półek);
