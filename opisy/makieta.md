@@ -674,6 +674,9 @@ górnymi szafkami?”):
   (`makLapanieBlendy`, `makGrupaBlendy`). Szafka górna ma też uchwyt dołu (`data-u="dol"`): dół tej szafki, góra zostaje (`cab.dolGorny`,
   jak „dół tej szafki od podłogi”), łapie dół ciągu („jak inne”) i dół innych górnych (`makLapanieDol`). Uchwyt wysokości łapie też sufit
   („wys. N — do sufitu”, z blendą — „z blendą N do sufitu”).
+  Biurko wiszące i szafka RTV wisząca (`wiszacaDolna`) mają uchwyt dolnej krawędzi `data-u="pion"` (2026-11-22: „brak możliwości
+  przesunięcia biurka w dół … wyrównać do półki szafki obok”): przesuwa całą szafkę (`cab.dolGorny`, wysokość zostaje, nie niżej niż
+  podłoga), łapie wierzch / spód półek, górę i dół szafek tej ściany (`makLapaniePion`, `MAK_LAP`).
 - **Karta szafki górnej / zakładka Ciąg**: „od blatu do dołu szafek górnych (prześwit)” — pole i −/+50 (`run.clearance`, `mak-gorny-od-blatu`);
   przy „dół szafek górnych od podłogi” przycisk „do sufitu (N)” — góra najwyższej szafki (z blendą) pod sufitem (`mak-gorny-do-sufitu`).
   W karcie Szafka szafki górnej i słupka wiersz „Blenda nad szafką” (jest / nie ma, wysokość, „do sufitu (N)”; `mak-sz-blenda`); „jest”

@@ -486,6 +486,8 @@ const okapCiagu = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === 
 /* Wlasny dol szafki gornej (uzytkownik 2026-11-13, jak w makiecie „Dodaj”: okap −/+50 przesuwa tylko szafke z okapem — krotsza,
    gora rowno z reszta ciagu): `cab.dolGorny` mm ponad dol ciagu gornego (ujemny — nizej); wysokosc szafki zmienia sie o tyle samo. */
 const dolGornej = (cab) => Math.round(Number(cab && cab.dolGorny) || 0);
+// wiszaca w ciagu dolnym albo wolnostojaca (biurko wiszace, szafka RTV wiszaca) — `dolGorny` = dol nad podloga
+const wiszacaDolna = (cab) => !!(cab && (cab.biurkoWiszace || cab.wiszacaRtv));
 /* Sufit sciany (uzytkownik 2026-11-15: „brak opcji przesunięcia szafki do samego sufitu”, „ręcznie nie da się złapać, żeby blenda
    była do sufitu”) — wysokosc pomieszczenia `run.ceiling` ciagu dolnego i gornego tej samej sciany: pole „wys.” nad rysunkiem makiety
    zapisuje ja w ciagu dolnym, karta techniczna — w otwartym ciagu; najwyzsza podana, inaczej null */
@@ -22706,7 +22708,8 @@ const makOdPodlogi = (project, i) => {
   const it = project.items[i]; if (!it) return null;
   const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
   const geo = computeGeo(cabDoGeo(project, it), it.mat);
-  const dol = run && run.tier === "gorny" ? tierMountY(project, run) + dolGornej(it.cab) : Math.round((run && run.mountY) || 0) + cabTopY(it.cab, geo) - Math.round(it.cab.H);
+  const dol = run && run.tier === "gorny" ? tierMountY(project, run) + dolGornej(it.cab)
+    : Math.round((run && run.mountY) || 0) + cabTopY(it.cab, geo) - Math.round(it.cab.H) + (wiszacaDolna(it.cab) ? dolGornej(it.cab) : 0);
   return { dol, gora: dol + Math.round(it.cab.H), geo, nazwa: (it.cab.name || "").trim() || `szafka ${i + 1}`, wall: run ? (run.tier === "gorny" ? run.wall : run.id) : null };
 };
 /* Sprzet wysoko (makieta „Dodaj”: MIKRO_MAX 1300 — „dół mikrofali wyżej niż to — ostrzeżenie”, uzytkownik 2026-11-08: „kiedyś będzie
@@ -22844,6 +22847,25 @@ const makLapanieDol = (project, idx) => {
   });
   return out;
 };
+/* Biurko wiszace / RTV wiszaca przesuwane w gore i w dol (uzytkownik 2026-11-22: „brak możliwości przesunięcia biurka w dół …
+   chciałbym wyrównać sobie do półki szafki obok”): `dy` calej szafki; gora rowno z wierzchem polki obok albo z gora szafki obok,
+   dol rowno ze spodem polki obok albo z dolem szafki obok (szafki tej sciany) */
+const makLapaniePion = (project, idx) => {
+  const ja = makOdPodlogi(project, idx); if (!ja || !ja.wall) return [];
+  const out = [];
+  project.items.forEach((x, i) => {
+    if (i === idx || x.cab.sprzetCiagu) return;
+    const o = makOdPodlogi(project, i); if (!o || o.wall !== ja.wall) return;
+    const ts = o.geo.ts || o.geo.t || 18;
+    (o.geo.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => (c.openings || []).slice(0, -1).forEach((q) => {
+      out.push({ dy: Math.round(o.dol + q.to + ts - ja.gora), kraw: "gora", nazwa: o.nazwa, opis: `góra równo z wierzchem półki „${o.nazwa}”` });
+      out.push({ dy: Math.round(o.dol + q.to - ja.dol), kraw: "dol", nazwa: o.nazwa, opis: `dół równo ze spodem półki „${o.nazwa}”` });
+    })));
+    out.push({ dy: o.gora - ja.gora, kraw: "gora", nazwa: o.nazwa, opis: `góra równo z „${o.nazwa}”` });
+    if (o.dol > 0) out.push({ dy: o.dol - ja.dol, kraw: "dol", nazwa: o.nazwa, opis: `dół równo z „${o.nazwa}”` });
+  });
+  return out.filter((q) => q.dy && ja.dol + q.dy >= 0);
+};
 const makLapaniePolek = (project, idx, li, j) => {
   const ja = makOdPodlogi(project, idx); if (!ja) return [];
   const out = [];
@@ -22888,6 +22910,16 @@ function makWylicz(cab, geo, d, p) {
     return { wartosc: dy, napis: (d.dol0 != null ? `dół ${d.dol0 + dy} od podłogi` : `dół ${dy > 0 ? "+" : ""}${dy}`) + (lap ? ` — ${lap.opis || `równo z „${lap.nazwa}”`}` : ""), rowno: !!lap,
       linia: lap ? [-geo.W, H - dy, 2 * geo.W, H - dy] : [0, H - dy, geo.W, H - dy],
       zmien: (c) => { if (!dy) return; const nH = Math.round(Number(c.H) || 0) - dy; if (nH < 250) return; c.H = nH; const nd = dolGornej(c) + dy; if (nd) c.dolGorny = nd; else delete c.dolGorny; } };
+  }
+  if (d.u === "pion") {
+    // cala szafka (biurko wiszace / RTV wiszaca) w gore / w dol — wysokosc zostaje; dol nie nizej niz podloga
+    const v = p ? H - p.y : 0;
+    const lap = p && d.lapPion ? makNajblizszy(d.lapPion, v, "dy") : null;
+    const dy = Math.max(-(d.dol0 || 0), Math.min(2500, lap ? Math.round(lap.dy) : r10(v)));
+    const yL = lap && lap.kraw === "gora" ? -dy : H - dy;
+    return { wartosc: dy, napis: (d.dol0 != null ? `dół ${d.dol0 + dy} od podłogi` : `${dy > 0 ? "+" : ""}${dy}`) + (lap ? ` — ${lap.opis}` : ""), rowno: !!lap,
+      linia: lap ? [-geo.W, yL, 2 * geo.W, yL] : [0, H - dy, geo.W, H - dy],
+      zmien: (c) => { if (!dy) return; const nd = Math.max(0, dolGornej(c) + dy); if (nd) c.dolGorny = nd; else delete c.dolGorny; } };
   }
   if (d.u === "gleb") { const nD = Math.max(150, Math.min(1200, r10(cab.D + p.y - geo.carcassDepth))); const yy = geo.carcassDepth + nD - cab.D;
     return { wartosc: nD, napis: `gł. ${nD}`, linia: [0, yy, geo.W, yy], zmien: (c) => { c.D = nD; } }; }
@@ -23105,6 +23137,8 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
     if (!blendaScianyCab(cab)) out.push(pas("h", "wys", {}, 0, -30, W, 60, "ns-resize"), chwyt("hc", W / 2, 0, true));
     // szafka gorna — tez dolna krawedz (2026-11-15: „górę szafki da się przesuwać, a dołu nie”)
     if (gorna) out.push(pas("d", "dol", {}, 0, H - 30, W, 60, "ns-resize"), chwyt("dc", W / 2, H, true));
+    // biurko wiszace / RTV wiszaca w ciagu dolnym — dolna krawedz przesuwa cala szafke (lapie polki obok)
+    else if (wiszacaDolna(cab)) out.push(pas("d", "pion", {}, 0, H - 30, W, 60, "ns-resize"), chwyt("dc", W / 2, H, true));
     // z wzmocnieniami na rysunku (ramki z wymiarami u gory szafki) napis schodzi pod nie
     const podWzm = szcz ? Math.max(160, ...(geo.levels || []).flatMap((lv) => lv.cols.flatMap((col) => (col.rails || []).filter((r) => r && fy(r.y1) < 300).map((r) => fy(r.y0))))) + 70 : 60;
     // szer. × wys. przy uchwytach — tylko gdy rysunek nie ma wymiarow (uzytkownik 2026-11-11: „co to za wymiar i czy tu powinien być?”)
@@ -25961,6 +25995,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
       if (d.u === "polka" && !d.lapP) { try { d.lapP = makLapaniePolek(project, d.idx, d.li, d.j); } catch (er) { d.lapP = []; } }
       if (d.u === "blenda" && !d.lapB) { try { d.lapB = makLapanieBlendy(project, d.idx); } catch (er) { d.lapB = []; } }
       if (d.u === "dol" && !d.lapD) { try { d.lapD = makLapanieDol(project, d.idx); d.dol0 = (makOdPodlogi(project, d.idx) || {}).dol; } catch (er) { d.lapD = []; } }
+      if (d.u === "pion" && !d.lapPion) { try { d.lapPion = makLapaniePion(project, d.idx); d.dol0 = (makOdPodlogi(project, d.idx) || {}).dol; } catch (er) { d.lapPion = []; } }
       /* polka: lapie tylko polki szafki / kolumny, nad ktora jest wskaznik (makieta „Dodaj”: przeciagajac, najedz na polke
          innej szafki albo drugiej kolumny) — inaczej przy kilku szafkach polka przyciagalaby sie wszedzie */
       let dW = d;

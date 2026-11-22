@@ -353,6 +353,23 @@ await ust(`p.active = p.items.findIndex((i) => i.cab.biurkoWiszace);`);
   await b.click(); }
 p = await czekaj("p.items.find((i) => i.cab.biurkoWiszace).cab.frontPodDnem === 10");
 ok('„Front 10 mm poniżej dna” — zapisane, ostrzeżenie znika', p.items.find((i) => i.cab.biurkoWiszace).cab.frontPodDnem === 10 && !/nie ma za co chwycić/.test(await uwagi()));
+// przesuwanie biurka w gore / w dol na rysunku (uzytkownik 2026-11-22: „brak możliwości przesunięcia biurka w dół … wyrównać do półki
+// szafki obok”) — dolna krawedz w zakladce Szafka przesuwa cala skrzynke, lapie polki szafy obok
+await zakl('szafka');
+{ const uch = (u) => page.locator(`[data-el="makieta-uchwyty"] [data-u="${u}"]`).first();
+  ok('biurko wiszące: uchwyt dolnej krawędzi (przesuwa całe biurko)', (await page.locator('[data-el="makieta-uchwyty"] [data-u="pion"]').count()) === 1);
+  const a = await uch('wys').boundingBox(), b = await uch('pion').boundingBox(), sk = (b.y - a.y) / 250;
+  const x = b.x + b.width / 2, y = b.y + b.height / 2;
+  await page.mouse.move(x, y); await page.mouse.down();
+  const lapy = [];
+  for (let i = 1; i <= 40; i++) { await page.mouse.move(x, y + 300 * sk * i / 40); await page.waitForTimeout(25);
+    const t = (await page.locator('[data-el="makieta-uchwyty"] text').allTextContents()).find((q) => /od podłogi/.test(q)) || '';
+    if ((await page.locator('[data-el="makieta-podglad"][data-rowno="1"]').count()) > 0) lapy.push(t); }
+  const tK = (await page.locator('[data-el="makieta-uchwyty"] text').allTextContents()).find((q) => /od podłogi/.test(q)) || '';
+  await page.mouse.up(); await page.waitForTimeout(800);
+  p = await proj(); const bw = p.items.find((i) => i.cab.biurkoWiszace);
+  ok('przeciągnięte w dół o ok. 300 mm: „dół … od podłogi”, wysokość biurka bez zmian', bw.cab.dolGorny >= 160 && bw.cab.dolGorny <= 240 && bw.cab.H === 250 && /dół \d+ od podłogi/.test(tK), JSON.stringify({ dG: bw.cab.dolGorny, H: bw.cab.H, tK }));
+  ok('po drodze łapie półkę szafy obok („równo z … półki”)', lapy.some((t) => /półki „Szafa”/.test(t)), JSON.stringify(lapy.slice(0, 4))); }
 
 console.log('== 2026-11-22: szafka RTV wisząca, „+ nowe pomieszczenie” w makiecie ==');
 await start(FIX);

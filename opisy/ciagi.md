@@ -204,6 +204,7 @@ szafkami, przykręcony do ich boków i do ściany, a „biurko” to skrzynka z 
 - **dno cofnięte** o grubość frontu (`cab.dnoCof` 18 — formatka krótsza, wiercenia i bryła przesunięte), front najniższej szuflady schodzi
   przed nim do spodu korpusu (`cab.frontPodDnem` — tyle niżej, np. 10 mm);
 - **wisi** `cab.dolGorny` (500) mm nad podłogą — blat ok. 750; w ciągu stoi poza wspólną wysokością i cokołem (`naPodlodzeCiagu`);
+  w makiecie (zakładka Szafka) dolna krawędź przesuwa całe biurko i łapie półki szafek obok (`data-u="pion"`, `makLapaniePion`);
 - **boki skrzynki** przykręcone do maskownic szaf obok (wkręty 4 × 30 od środka skrzynki) — gdy maskownic brak, uwaga to mówi.
 Uwagi (`biurkoWiszaceMsgs`): fronty równo ze spodem dna — „nie ma za co chwycić” z przyciskami „Dodaj uchwyty” / „Front 10 mm poniżej
 dna” (tip-on, push to open — gdy dojdą takie szuflady); szuflady spoza 600–800 mm — „Szuflady po ok. 700 mm”.

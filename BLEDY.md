@@ -17,6 +17,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-11-22 | zgłoszenie użytkownika (zrzut): „brak możliwości przesunięcia biurka w dół … chciałbym wyrównać do półki szafki obok” | biurko wiszące miało tylko pole „dół nad podłogą”; uchwyt dołu był tylko dla górnych. Teraz uchwyt `pion` (cała skrzynka, łapanie półek); `makOdPodlogi` nie liczył `dolGorny` szafek wiszących w ciągu dolnym — poprawione; `makieta19` | (ten commit) |
 | 2026-11-22 | zgłoszenie użytkownika: „w 45 i 3d oddalanie widoku poniżej 100% nie działa” | zoom makiety liczył tylko skalę widoku z przodu; widoki z boku, z góry, 3D i 45° miały zawsze szerokość okna — teraz szerokość × zoom (`mak-widok-zoom`); `makieta19` | (ten commit) |
 | 2026-11-22 | zgłoszenie użytkownika (zrzut): „w makiecie osobne zwijanie pomieszczeń i zabudowy i osobne dla widoków jak w technicznej” | jeden „▼” zwijał cały panel; teraz dwa osobne (pomieszczenie i zabudowa / widoki), pamięta przeglądarka; `makieta19` | (ten commit) |
 | 2026-11-22 | zgłoszenie użytkownika: „kolor maskownicy domyślnie jak korpus nie fronty” — w jego projekcie dwie maskownice „jak fronty” | maskownice dodane przed zmianą domyślnego miały zapisane `kolor: "front"`; teraz „jak fronty” liczy się tylko wybrane przyciskiem (`kolorWyb`), reszta jak korpus; `funkcje`, `makieta19` | (ten commit) |
