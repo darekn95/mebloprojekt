@@ -524,7 +524,7 @@ const cabZWolnegoMiejsca = (cab) => (cab.poprzednia ? { ...cab.poprzednia, W: ca
    ciagu (wysokosc, glebokosc, cokol, nozki) jej nie dotycza. Blat konczy sie przy lodowce i zmywarce z pokrywa. */
 /* Biurko w ciagu (uzytkownik 2026-11-22: „nie mogę dodać biurka pomiędzy dwie szafki w ciągu”) stoi jak lodowka wolnostojaca: na podlodze,
    wlasna wysokosc (bez uwag o wysokosci i cokole ciagu), cokol ciagu ma przy nim przerwe */
-const naPodlodzeCiagu = (cab) => !!(cab && ((cab.sprzetCiagu && (cab.sprzetCiagu.typ === "lodowka" || cab.sprzetCiagu.typ === "zmywarkaW" || cab.sprzetCiagu.typ === "maskownica")) || (!cab.sprzetCiagu && biurkoSzafki(cab))));
+const naPodlodzeCiagu = (cab) => !!(cab && ((cab.sprzetCiagu && (cab.sprzetCiagu.typ === "lodowka" || cab.sprzetCiagu.typ === "zmywarkaW" || cab.sprzetCiagu.typ === "maskownica")) || (!cab.sprzetCiagu && (biurkoSzafki(cab) || cab.biurkoWiszace))));
 /* Lodowka podblatowa — dwa rodzaje (uzytkownik 2026-11-14): „w ciągu” jak zmywarka (wypelnia cale miejsce, bez bokow i wzmocnien —
    `sprzetCiagu.typ: "lodowkaP"`) i „w szafce” — mniejsza (np. na wino) w zwyklej szafce z dnem i bokami, „jakbyśmy wpakowali
    mikrofalę na dół”: stoi na dnie szafki dolnej, z wlasnymi drzwiami (bez frontu meblowego), nad nia plyta i otwarta wneka (szuflada
@@ -2900,6 +2900,10 @@ const biurkoKontener = (w = BIURKO_KONT_W[0], n = 3) => {
 };
 // kolumna kontenera: szuflady w calej kolumnie albo w jej poziomie (kontener z dnem)
 const jestKontener = (k) => !!k && (k.kind === "drawers" || (k.segmenty || []).some((sg) => sg && sg.kind === "drawers"));
+/* Biurko wiszace — szuflady po 600–800 mm (uzytkownik 2026-11-22: „szuflada powinna mieć między 60 a 80 cm, tak jak tu mamy 210 cm,
+   to po 70 cm”): liczba = szerokosc / 700 zaokraglona, kazda kolumna — jedna szuflada na cala wysokosc, front bez uchwytu */
+const biurkoWiszaceKolumny = (W) => Array.from({ length: Math.max(1, Math.round((Number(W) || 0) / 700)) }, () =>
+  ({ kind: "drawers", w: null, drawers: [{ h: "auto", front: null, handle: false }], shelfTargets: [] }));
 const BIURKO_BAZA = () => ({
   W: 1200, H: 750, D: 600, hangers: "never",
   top: { mode: "blat", widthMode: "inside", overL: 50, overR: 50, overFront: 30, overBack: 0 },
@@ -2989,6 +2993,18 @@ const TEMPLATES = [
     label: "Biurko",
     hint: "1200 × 750 × 600, blat na bokach, wzmocnienie 300 z tyłu, bez dna, pleców i drzwi",
     make: () => ({ ...BIURKO_BAZA(), levels: [{ h: null, cols: [biurkoNogi()] }] }),
+  },
+  {
+    /* Biurko wiszace (uzytkownik 2026-11-22, projekt zabudowy pokoju): skrzynka ok. 250 mm miedzy szafkami — wieniec to blat (18 mm,
+       na bokach, do bokow na mimosrody), same szuflady na szerokosc (po 600–800 mm), dno cofniete o front, fronty wewnetrzne zaslaniaja
+       je od dolu; boki skrzynki przykrecone do maskownic szaf obok; dol 500 nad podloga (blat ok. 750) */
+    id: "biurko-wiszace",
+    label: "Biurko wiszące",
+    hint: "2100 × 250 × 600, wisi między szafkami: blat = wieniec, szuflady po ok. 700 mm, dno cofnięte, fronty zasłaniają je od dołu",
+    make: () => ({ W: 2100, H: 250, D: 600, hangers: "never", frontMode: "inset", biurkoWiszace: true, dnoCof: 18, frontPodDnem: 0, dolGorny: 500,
+      plinth: { on: false, height: 100, mode: "under", setback: 0 }, legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
+      joints: { topL: "over", topR: "over", botL: "between", botR: "between" },
+      levels: [{ h: null, cols: biurkoWiszaceKolumny(2100) }] }),
   },
   {
     id: "biurko-kontener",
@@ -3269,6 +3285,9 @@ function computeGeoLiczy(cab, mat, ctx) {
     ? { overL: ov(rawTop.overL), overR: ov(rawTop.overR), overFront: ov(rawTop.overFront), overBack: ov(rawTop.overBack) }
     : null;
   const hasBot = botL !== "none" && botR !== "none";
+  /* Dno cofniete od przodu (biurko wiszace, uzytkownik 2026-11-22: „dno jest cofnięte, szuflady wewnętrzne, ale front szuflad od dołu
+     zasłania dno”) — `cab.dnoCof` mm: dno krotsze o tyle, przy plecach; front najnizszej szuflady schodzi przed nim do spodu korpusu */
+  const dnoCof = hasBot ? Math.max(0, Math.min(200, Math.round(Number(cab.dnoCof) || 0))) : 0;
 
   /* Szerokosc blatu: "outside" (domyslnie) — W to korpus, blat wystaje poza
      niego; "inside" — W to calkowita szerokosc mebla, a boki chowaja sie do
@@ -5027,6 +5046,9 @@ function computeGeoLiczy(cab, mat, ctx) {
          takze w pionie — dotad tylko w poziomie (audyt GPT N38). */
       let dlo = dIn ? insLo : lv.ovlDrawLo;
       let dhi = dIn ? insHi : lv.ovlDrawHi;
+      /* dno cofniete o grubosc frontu (biurko wiszace, 2026-11-22): front wpuszczany najnizszej szuflady schodzi przed dno do spodu korpusu
+         (`cab.frontPodDnem` — tyle nizej, np. 10 mm na chwyt) */
+      if (dIn && dnoCof >= tf - 0.5 && lv.i === 0) dlo = Math.round(bottomY - Math.max(0, Math.min(50, Number(cab.frontPodDnem) || 0)));
       if (topFixGeo) dhi = Math.min(dhi, topFixGeo.y - g.between);
       if (dCof) { dlo = Math.max(dlo, spz.y0 ?? -Infinity); dhi = Math.min(dhi, spz.y1 ?? Infinity); }
       const dbandH = Math.round(dhi - dlo);
@@ -6270,7 +6292,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       }
     : horiz("Wieniec", topL, topR, topX0, topX1);
   // rola „dno” — wspolne dno ciagu zastepuje te formatke (`formatkiSzafki`, `projectParts`)
-  const dno = hasBot ? { ...horiz("Dno", botL, botR, botX0, botX1), rola: "dno" } : null;
+  const dno = hasBot ? { ...horiz("Dno", botL, botR, botX0, botX1), rola: "dno", ...(dnoCof ? { b: carcassDepth - dnoCof } : {}) } : null;
   // wyciecie w nazwie dna i wienca / blatu (element albo wyciecie narozne na cala wysokosc)
   // okap teleskopowy / wklad: wyciecie w dnie (na srodku, `odPrzodu` od przedniej krawedzi) — jak otwor na element
   const okapG = okapSzafki(cab);
@@ -7642,12 +7664,12 @@ function computeGeoLiczy(cab, mat, ctx) {
       } else naBokach("Wieniec", { l: topL === "over", r: topR === "over" }, carcassDepth, 0, topX0);
     }
     if (hasBot) {
-      przezBok(0, { nazwa: "dno", l: botL === "between" && !bwL, r: botR === "between" && !bwR }, bottomY + t / 2, carcassDepth, 0, "dna");
+      przezBok(0, { nazwa: "dno", l: botL === "between" && !bwL, r: botR === "between" && !bwR }, bottomY + t / 2, carcassDepth - dnoCof, dnoCof, "dna");
       if (!dnoKawalki) wBokWewn("Dno", botX0, "od spodu dna");
       if (dnoKawalki) {
         kawalkiNaBokach(dnoKawalki, { l: botL === "over", r: botR === "over" });
         if (dnoMiedzy) przezPare(dnoKawalki, 0, bottomY + t / 2, "dna");
-      } else naBokach("Dno", { l: botL === "over", r: botR === "over" }, carcassDepth, 0, botX0);
+      } else naBokach("Dno", { l: botL === "over", r: botR === "over" }, carcassDepth - dnoCof, 0, botX0);
     }
     /* Szafka w L: po stronie ramienia wieniec i dno skreca sie konfirmatem
        w czolo obu plyt katownika (uzytkownik 2026-09-29) — po jednym na plyte,
@@ -8640,7 +8662,7 @@ function computeGeoLiczy(cab, mat, ctx) {
 
   return {
     hardware,
-    t, tf, tb, ts, carcassDepth, plecyZa, glebOdSciany, hasBack, interior, innerW, innerH, backRecess,
+    t, tf, tb, ts, carcassDepth, plecyZa, glebOdSciany, hasBack, interior, innerW, innerH, backRecess, dnoCof,
     shelfDepth, shelfBack, dividerDepth, backIntrusion, frontCut, levels, sepShelves, dividers, doors, klapy, panels: panelsZam, dystansZa, dnoOtwory, wienOtwory, msgs, maxNL, zawiasyMontaz, montazKolejnosc, plecyKolumn,
     plinthInBody, plinthH, bottomY, legH, legTop, legBelow, legs, pMode, grooved, grOff, grDep, grPlay, geoCuts, geoOb, geoObs,
     backPos, backIsBoard, cornerCut, builtFront,
@@ -12502,7 +12524,7 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn
       const otwXZ = (lista) => (lista || []).map((o) => [c.x + o.x0, cd - o.zb1, c.x + o.x1, cd - o.zb0]);
       const otwYZ = (lista) => (lista || []).map((o) => [c.base + o.y0, cd - o.zb1, c.base + o.y1, cd - o.zb0]);
       if (c.geo.hasBot && !(naWspolnym && naWspolnym.has(c.index)))
-        (c.geo.dnoKawalki || [{ x0: c.geo.botX0, x1: c.geo.botX1 }]).forEach((q) => boxOtw(c.x + q.x0, c.base + c.geo.bottomY, 0,
+        (c.geo.dnoKawalki || [{ x0: c.geo.botX0, x1: c.geo.botX1 }]).forEach((q) => boxOtw(c.x + q.x0, c.base + c.geo.bottomY, c.geo.dnoCof || 0,
           c.x + q.x1, c.base + c.geo.bottomY + t, cd, bf, otwXZ((c.geo.dnoOtwory || []).filter((o) => o.x0 >= q.x0 - 0.5 && o.x1 <= q.x1 + 0.5))));
       if (c.geo.hasTop)
         /* z = 0 to lico korpusu, plecy przy z = cd — wysuniecie przednie idzie
@@ -15254,7 +15276,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
           fill={bf} stroke={INK} strokeWidth="2" />
       )}
       {geo.hasBot && (
-        <rect x={xC} y={fy(geo.bottomY + geo.t)} width={cd} height={geo.t} fill={bf} stroke={INK} strokeWidth="2" />
+        <rect x={xC} y={fy(geo.bottomY + geo.t)} width={cd - (geo.dnoCof || 0)} height={geo.t} fill={bf} stroke={INK} strokeWidth="2" />
       )}
       {/* blat ciagu nad szafka — od sciany po wysiegniecie przed front (jak w rzucie z gory) */}
       {blat && blat.roboczy && blat.th > 0 && blat.korpus.map((b, k) => (
@@ -16050,7 +16072,7 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
   // kawalki — osobne dna / wience przy dwoch przegrodach na styku
   const wKaw = (q, lista) => (lista || []).filter((o) => o.x0 >= q.x0 - 0.5 && o.x1 <= q.x1 + 0.5);
   if (geo.hasBot) (geo.dnoKawalki || [{ x0: geo.botX0, x1: geo.botX1 }]).forEach((q) =>
-    boxOtw(q.x0, geo.bottomY, 0, q.x1, geo.bottomY + t, cd, bf, otwXZ(wKaw(q, geo.dnoOtwory))));
+    boxOtw(q.x0, geo.bottomY, geo.dnoCof || 0, q.x1, geo.bottomY + t, cd, bf, otwXZ(wKaw(q, geo.dnoOtwory))));
   fk = geo.isBlat ? "Blat" : "Wieniec";
   if (geo.hasTop) (geo.wienKawalki || [{ x0: geo.topX0, x1: geo.topX1 }]).forEach((q) =>
     boxOtw(
@@ -16831,6 +16853,9 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
       return { label: `Drzwi przesuwne: ${action.split(":")[1]} ${Number(action.split(":")[1]) >= 5 ? "skrzydeł" : "skrzydła"}`, run: () => runFix && runFix(action) };
     if (action === "przesdziel")
       return { label: "Podziel na dwie szafy", run: () => runFix && runFix(action) };
+    if (action === "bwuchwyt") return { label: "Dodaj uchwyty", run: () => runFix && runFix(action) };
+    if (action.startsWith("bwfront:")) return { label: `Front ${fmt(Number(action.split(":")[1]))} mm poniżej dna`, run: () => runFix && runFix(action) };
+    if (action === "bwkol") return { label: "Szuflady po ok. 700 mm", run: () => runFix && runFix(action) };
     if (action.startsWith("polkicof:")) {
       // „polkicof:<mm>" — cofniecie polek calej szafki (pole „cofnięcie półek”), np. przed podnosnikiem klapy
       const mm = Math.round(Number(action.split(":")[1]) || 0);
@@ -22717,6 +22742,23 @@ const sufitSzafyMsgs = (project, i) => {
     out.push({ level: "info", text: `„${nazwa}”: korpus z nóżkami ma przekątną boku ${fmt(przekN)} mm, a sufit jest na ${fmt(miejsce)} mm — nóżki przykręć dopiero po postawieniu korpusu (sam korpus: ${fmt(przek)} mm, zmieści się).` });
   return out;
 };
+/* Biurko wiszace (2026-11-22): chwyt frontow (rowno ze spodem dna — „opcje: dodać uchwyt albo tip-on albo obniżyć front poniżej dna”),
+   montaz (blat = wieniec na mimosrody, boki do maskownic szaf obok), szuflady po 600–800 mm */
+const biurkoWiszaceMsgs = (project, i) => {
+  const it = project.items[i]; if (!it || !it.cab.biurkoWiszace || it.cab.sprzetCiagu) return [];
+  const c = it.cab, out = [], nazwa = (c.name || "").trim() || "biurko wiszące";
+  const szuflady = (c.levels || []).flatMap((lv) => (lv.cols || []).flatMap((k) => (k.kind === "drawers" ? k.drawers || [] : [])));
+  const bezChwytu = !(Number(c.frontPodDnem) > 0) && szuflady.length && szuflady.every((d) => d.handle === false);
+  if (bezChwytu) out.push({ level: "warn", text: `„${nazwa}”: fronty szuflad równo ze spodem dna — nie ma za co chwycić. Dodaj uchwyty, tip-on albo obniż front 10 mm poniżej dna (szuflady push to open dojdą później).|bwuchwyt|bwfront:10` });
+  const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null, L = run ? runItems(project, run.id) : [], k = L.findIndex((q) => q.i === i);
+  const mask = [L[k - 1], L[k + 1]].filter((q) => q && maskownicaCab(q.it.cab)).length;
+  out.push({ level: "info", text: `„${nazwa}” — wisi ${fmt(dolGornej(c))} mm nad podłogą (blat ${fmt(dolGornej(c) + Math.round(c.H))} mm). Blat to wieniec skrzynki, na bokach: skręć go z bokami na mimośrody od spodu (w planie wierceń są konfirmaty — zamień je na mimośrody, oś 34 mm). `
+    + `Boki skrzynki przykręć do maskownic szaf obok wkrętami 4 × 30 od środka skrzynki${mask < 2 ? ` — ${mask ? "z jednej strony nie ma maskownicy" : "obok nie ma maskownic"}: dodaj je przy szafkach (zakładka Wzmocnienia)` : ""}. Dno cofnięte o ${fmt(Math.round(Number(c.dnoCof) || 0))} mm — fronty zasłaniają je od dołu.` });
+  const g = (() => { try { return computeGeo(cabDoGeo(project, it), it.mat); } catch (e) { return null; } })();
+  const sz = g ? (g.levels[0] || { cols: [] }).cols.map((q) => Math.round(q.x1 - q.x0)) : [];
+  if (sz.some((w) => w < 580 || w > 820)) out.push({ level: "info", text: `„${nazwa}”: szuflady ${sz.map(fmt).join(" / ")} mm — zwykle po 600–800 mm.|bwkol` });
+  return out;
+};
 const makLapanieWys = (project, idx) => {
   const ja = makOdPodlogi(project, idx); if (!ja || !ja.wall) return [];
   const out = [];
@@ -23934,6 +23976,7 @@ const MAK_PALETA = [
     // `wCiag` (uzytkownik 2026-11-22: „nie mogę dodać biurka pomiędzy dwie szafki w ciągu”): upuszczone na szafke w ciagu — do ciagu, przed / za nia
     { id: "biurko", opis: "1200 × 750, blat na bokach", tpl: "biurko", gdzie: "wolna", wCiag: true, szafka: "Biurko" },
     { id: "biurkoK", nazwa: "Biurko z kontenerem", opis: "1200 × 750, 3 szuflady z prawej", tpl: "biurko-kontener", gdzie: "wolna", wCiag: true, szafka: "Biurko" },
+    { id: "biurkoW", nazwa: "Biurko wiszące", opis: "między szafkami: blat 18, szuflady po ok. 700, dół 500 nad podłogą", tpl: "biurko-wiszace", gdzie: "wolna", wCiag: true, bezNozek: true, szafka: "Biurko wiszące" },
   ] },
 ];
 /* Zakladka AGD (jak w makiecie „Dodaj”, uzytkownik 2026-11-09: „zniknął AGD”): sprzet przeciagany na rysunek albo klikany.
@@ -25266,7 +25309,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         nowy.cab = { ...nowy.cab, name: "Maskownica boku", W: Math.round(Number(((ten.mat || {}).board || {}).thickness) || 18), sprzetCiagu: { typ: "maskownica", gl: "front", kolor: "front" },
           topFiller: { on: false, height: 100 }, corner: { ...(nowy.cab.corner || {}), on: false }, naBlacie: [], blatWyciecia: [], slupek: false,
           plinth: { ...(nowy.cab.plinth || {}), on: false }, legs: { ...(nowy.cab.legs || {}), on: false } };
-        delete nowy.cab.dolGorny; delete nowy.wallGap; nowy.offset = 0;
+        ["dolGorny", "biurkoWiszace", "dnoCof", "frontPodDnem"].forEach((k) => { delete nowy.cab[k]; }); delete nowy.wallGap; nowy.offset = 0;
         const items = p.items.slice(), gdzie = st === "lewa" ? idx : idx + 1;
         items.splice(gdzie, 0, nowy);
         return { ...p, items, active: Math.max(0, items.indexOf(ten)) };
@@ -28221,7 +28264,7 @@ export default function App() {
       const ramie = [...projLayoutGeo.info.values()].map((n) => n.arm)
         .find((a) => a && a.len > 0 && a.cab && a.cab.index === i);
       const inne = c ? runItems(project, c.run.id).filter((x) => x.i !== i).map((x) => x.it.cab) : [];
-      const msgs = [...runCabMsgs(c && c.run, it.cab, inne, { idx: i, offset: it.offset, rt: c && c.rt, wallGap: it.wallGap }), ...odScianyMsgs(project, i), ...sprzetWysokoMsgs(project, i), ...sufitSzafyMsgs(project, i), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
+      const msgs = [...runCabMsgs(c && c.run, it.cab, inne, { idx: i, offset: it.offset, rt: c && c.rt, wallGap: it.wallGap }), ...odScianyMsgs(project, i), ...sprzetWysokoMsgs(project, i), ...sufitSzafyMsgs(project, i), ...biurkoWiszaceMsgs(project, i), ...bezWspolnychFormatek(geos[i].msgs, !!(c && c.rp), !!(c && c.rt)),
         ...wstawkaMsgs(projLayoutGeo, i),
         ...(ramie ? maleFormatkiMsgs(cornerArmParts(ramie).panels, it.cab.dociac, "@") : [])];
       return {
@@ -28303,6 +28346,7 @@ export default function App() {
       ...odScianyMsgs(project, project.active),
       ...sprzetWysokoMsgs(project, project.active),
       ...sufitSzafyMsgs(project, project.active),
+      ...biurkoWiszaceMsgs(project, project.active),
       ...szufladyMsgs(project, project.active),
       ...runWideMsgs(runInfo.run, runInfo.total, runPl, runTp, node ? node.len : 0),
       ...wallGapMsgs(project, runInfo.run),
@@ -28514,6 +28558,15 @@ export default function App() {
         const a = polowa(W1, { L: !!PB.L, R: false }, it.cab.name), b = polowa(W2, { L: false, R: !!PB.R }, `${baza} ${k}`);
         const items = [...p.items.slice(0, i), a, b, ...p.items.slice(i + 1)];
         return { ...p, items, active: i }; });
+      return;
+    }
+    // biurko wiszace (2026-11-22): uchwyty szuflad / front ponizej dna / szuflady po ok. 700 mm — aktywna szafka
+    if (action === "bwuchwyt" || action.startsWith("bwfront:") || action === "bwkol") {
+      setProject((p) => { const it = p.items[p.active]; if (!it || !it.cab.biurkoWiszace) return p; const cab = JSON.parse(JSON.stringify(it.cab));
+        if (action === "bwuchwyt") (cab.levels || []).forEach((lv) => (lv.cols || []).forEach((k) => (k.drawers || []).forEach((d) => { d.handle = true; })));
+        else if (action === "bwkol") cab.levels = [{ ...(cab.levels[0] || {}), h: null, cols: biurkoWiszaceKolumny(cab.W) }];
+        else cab.frontPodDnem = Math.max(0, Math.round(Number(action.split(":")[1]) || 0));
+        const items = p.items.slice(); items[p.active] = { ...it, cab }; return { ...p, items }; });
       return;
     }
     // „szafah:<H>[:<i>]" — wysokosc szafy (najwyzsza z arkusza / pod raczke drzwi przesuwnych); bez <i> — aktywna szafka

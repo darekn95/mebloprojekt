@@ -1412,3 +1412,7 @@ dno / wieniec z 2 kawalkow, nadstawka / blenda do sufitu), plecy HDF z kawalkow,
 pokoju, start „Co projektujesz?”, wzory bez ostrzezen, pelny przebieg testow (zalegly od #34). Teraz: projekt uzytkownika — biurko wiszace
 miedzy szafkami (skrzynka ok. 250 mm z szufladami, dno cofniete, fronty zaslaniaja dno od dolu, blat przykrecony do bokow szafek i sciany).
 Maskownica boku (zgloszona „na już”) — do wyboru bok szafki, takze miedzy meblami (nie tylko przy scianie) — jeszcze nie zrobiona.
+[CLAUDE-CHANGE] 2026-11-22: biurko wiszace (`biurkoWiszace`, `dnoCof`, `frontPodDnem`, `dolGorny` w ciagu dolnym — projectLayout bierze
+`dolGornej` do `base`), maskownica boku (`sprzetCiagu.typ = "maskownica"`), kolor cokolu (`plinth.kolor`), biurko w ciagu (`wCiag`).
+[AI-TODO] Biurko wiszace: mimosrody wienca (blatu) z bokami w planie wiercen (dzis konfirmaty + uwaga), tip-on szuflad, makieta prosta —
+rysunek skrzynki na wysokosci w widoku „Z boku” pojedynczej szafki (rysowana od podlogi).

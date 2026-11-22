@@ -308,6 +308,28 @@ await ust(`p.active = p.items.findIndex((i) => i.cab.sprzetCiagu && i.cab.sprzet
 { const t = await uwagi(); ok('uwagi maskownicy: wkręty 4 × 30 od środka szafki obok, cokół kończy się przy niej; rysunek', /Maskownica boku \d+ × \d+ mm: przykręć ją od środka szafki obok wkrętami 4 × 30/.test(t)
     && (await page.locator('[data-el="makieta"] [data-el="maskownica-boku"]').count()) >= 1, t.slice(0, 300)); }
 
+console.log('== 2026-11-22: biurko wiszące między szafkami (maskownice, dno cofnięte, front do spodu dna) ==');
+await ust(`p.items = p.items.filter((i) => !(i.cab.sprzetCiagu && i.cab.sprzetCiagu.typ === 'maskownica')); p.active = p.items.findIndex((i) => i.cab.name === 'Szafa');`);
+await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+{ const n0 = (await proj()).items.length; await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="biurkoW"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await czekaj(`p.items.length > ${n0}`); }
+p = await proj();
+{ const b = p.items.find((i) => i.cab.biurkoWiszace), kol = p.items.filter((i) => i.runId).map((i) => i.cab.name);
+  ok('wzór „Biurko wiszące” przy szafie: w ciągu za nią, 2100 × 250 × 600, 500 nad podłogą, bez nóżek, 3 szuflady, dno cofnięte 18', JSON.stringify(kol) === '["Szafa","Biurko wiszące","Regał"]'
+    && b.cab.W === 2100 && b.cab.H === 250 && b.cab.dolGorny === 500 && !(b.cab.legs && b.cab.legs.on) && b.cab.levels[0].cols.length === 3 && b.cab.dnoCof === 18, JSON.stringify(kol)); }
+await ust(`p.active = p.items.findIndex((i) => i.cab.biurkoWiszace);`);
+await page.evaluate(() => localStorage.setItem('mp-tryb', 'szczegolowa')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+await zakl('wzmocnienia');
+for (const st of ['lewa', 'prawa']) { await page.locator(`[data-el="mak-maskownica"][data-v="${st}"]`).click(); await page.waitForTimeout(800); }
+p = await czekaj("p.items.filter((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.typ === 'maskownica').length === 2");
+{ const m = p.items.filter((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.typ === 'maskownica'), sz = p.items.find((i) => i.cab.name === 'Szafa');
+  ok('maskownice z obu stron biurka: wysokość do góry szafy (wyższej z sąsiadek), bez cech biurka', m.every((q) => q.cab.H >= sz.cab.H && !q.cab.biurkoWiszace && !q.cab.dnoCof), JSON.stringify(m.map((q) => q.cab.H))); }
+await ust(`p.active = p.items.findIndex((i) => i.cab.biurkoWiszace);`);
+{ const t = await uwagi(), b = page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Front 10 mm poniżej dna' });
+  ok('uwagi: fronty bez chwytu — „Dodaj uchwyty” / „Front 10 mm poniżej dna”; wisi 500 (blat 750); maskownice są', /nie ma za co chwycić/.test(t) && (await b.count()) === 1 && /wisi 500 mm nad podłogą \(blat 750 mm\)/.test(t) && !/nie ma maskownic/.test(t), t.slice(0, 400));
+  await b.click(); }
+p = await czekaj("p.items.find((i) => i.cab.biurkoWiszace).cab.frontPodDnem === 10");
+ok('„Front 10 mm poniżej dna” — zapisane, ostrzeżenie znika', p.items.find((i) => i.cab.biurkoWiszace).cab.frontPodDnem === 10 && !/nie ma za co chwycić/.test(await uwagi()));
+
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
 await browser.close();
