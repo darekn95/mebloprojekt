@@ -33,6 +33,21 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
    skrzydeł), dodatkowe przegrody pomiędzy wolno, kolumna pod dwoma skrzydłami — ostrzeżenie (było: informacja).
    Do rozważenia: samo przestawianie przegród przy zmianie szerokości (dziś po zmianie jest ostrzeżenie z przyciskiem).
 
+### Szuflady Blum — co znalazłem (2026-11-22, #45; użytkownik: „poszukaj sam”, wdrożenie później — „nowe typy szuflad na później”)
+
+Do pobrania i dopisania do `instrukcje/` (karty z katalogu Blum 2024–2025), zanim wejdą do programu:
+- **TANDEMBOX antaro** (skrzynka ze stalowymi bokami, jak V-BOX): wymiary z dna i tyłu z płyty 16 mm od światła szafki LW —
+  tył z płyty LW − 87, dno LW − 75 × (NL − 24), tył stalowy NL − 22; wysokość tyłu zależy od wysokości skrzynki (np. 199 mm przy D,
+  135 mm w starszym wydaniu) — sprawdzić tabelę „Cutting dimensions for 16 mm chipboard” dla każdej wysokości.
+  Źródła: [katalog Blum 2024–2025, s. 313–315](https://publications.blum.com/2024/catalogue/en/313/),
+  [TANDEMBOX antaro — program](https://www.blum.com/eu/en/products/boxsystems/tandembox/tandembox-antaro/programme/).
+- **TANDEM** (prowadnice pod dnem szuflady drewnianej, 550H / 560H / 563H): wnętrze szuflady = światło szafki − 42 mm (tolerancja
+  0 … +1,5), bok szuflady najwyżej 16 mm, wysokość szuflady najwyżej światło − 20 mm; dno wpuszczone we wręg / podcięte pod
+  prowadnicę — szczegóły i wiercenia w karcie modelu. Źródła: [katalog Blum 2022, s. 261–277](https://publications.blum.com/2022/catalogue/en/265/),
+  [Blum TANDEM plus 563H — specyfikacja (PDF)](https://cdn.shopify.com/s/files/1/0709/8495/8225/files/Blum-Tandem-Plus-563H-Specs.pdf).
+- Przy wdrożeniu: osobny `systemSzuflady` (jak V-BOX / szuflady drewniane), formatki skrzynki z powyższych wzorów, NL z listy
+  prowadnic, kontrola wysuwu (audyt szuflad) i ceny.
+
 ### Pomysły
 
 - **Lakierowanie formatek** (użytkownik 2026-11-22, „na przyszłość, nie na dzisiaj”): opcja lakierowania frontów, korpusów i półek —
