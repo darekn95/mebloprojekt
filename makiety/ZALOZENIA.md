@@ -53,6 +53,7 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 |---|---|
 | „Z góry” + „Z przodu” razem; Z boku, 3D, 45° | jest |
 | Przełączniki: Z góry, Ciąg górny, Ciąg dolny, Fronty, Blat, Wyposażenie, Kolory płyt, Wymiary | jest |
+| **Przegrody pionowe cofnięte od frontu** (użytkownik 22.11: „brak możliwości manipulowania głębokościami przegród”) — pole i przyciski w zakładce Przegroda; biurko wiszące — o grubość frontu, fronty przed przegrodami z luzem | dorobione 22.11 (`przegrody-cof`, `makieta19`, `funkcje`) |
 | **Biurko wiszące przesuwane w górę / w dół na rysunku** (użytkownik 22.11: „wyrównać do półki szafki obok”) — dolna krawędź przesuwa całe biurko, łapie półki | dorobione 22.11 (`data-u="pion"`, `makieta19`) |
 | **Panel nad rysunkiem zwijany jak paski w technicznym** (użytkownik 17.11: „zasłania rysunek”) — „▼”, jedna linia ze streszczeniem, zoom zostaje, pamięta przeglądarka | dorobione 17.11 (`mak-panel-zwin`, `makieta19`); 22.11 osobno „Pomieszczenie i zabudowa” i „Widoki” (`mak-widoki-zwin`) — „jak w technicznej” |
 | Blat z góry zasłania szafki dolne, podział na kawałki | jest (13.11) |

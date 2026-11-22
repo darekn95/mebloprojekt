@@ -506,6 +506,8 @@ const okapCiagu = (cab) => !!(cab && cab.sprzetCiagu && cab.sprzetCiagu.typ === 
 /* Wlasny dol szafki gornej (uzytkownik 2026-11-13, jak w makiecie „Dodaj”: okap −/+50 przesuwa tylko szafke z okapem — krotsza,
    gora rowno z reszta ciagu): `cab.dolGorny` mm ponad dol ciagu gornego (ujemny — nizej); wysokosc szafki zmienia sie o tyle samo. */
 const dolGornej = (cab) => Math.round(Number(cab && cab.dolGorny) || 0);
+// cofniecie przegrod pionowych od lica korpusu: za drzwiami przesuwnymi (`__przegrodyCof`) albo recznie (`przegrodyCof`) — wieksze
+const przegrodyCofOf = (cab) => Math.max(0, Math.round(Number(cab && cab.__przegrodyCof) || 0), Math.round(Number(cab && cab.przegrodyCof) || 0));
 // wiszaca w ciagu dolnym albo wolnostojaca (biurko wiszace, szafka RTV wiszaca) — `dolGorny` = dol nad podloga
 const wiszacaDolna = (cab) => !!(cab && (cab.biurkoWiszace || cab.wiszacaRtv));
 /* Sufit sciany (uzytkownik 2026-11-15: „brak opcji przesunięcia szafki do samego sufitu”, „ręcznie nie da się złapać, żeby blenda
@@ -1661,12 +1663,19 @@ function hingePositions(y0, h, n, obstacles) {
 }
 
 /* rozdziela `total` na pola: podane zostaja, puste dziela reszte po rowno */
-function distribute(total, targets) {
+/* `ext` (opcjonalnie): o ile front kolumny jest szerszy od jej swiatla — kolumny auto dostaja takie szerokosci, zeby ich FRONTY byly
+   rowne (fronty szuflad przed cofnietymi przegrodami, 2026-11-22) */
+function distribute(total, targets, ext = null) {
   const t = targets.map(num);
   const fixed = t.reduce((s, v) => s + (v === null ? 0 : v), 0);
   const auto = t.map((v, i) => (v === null ? i : -1)).filter((i) => i >= 0);
   const out = t.slice();
-  if (auto.length) {
+  if (auto.length && ext && total - fixed >= 0) {
+    const rest = total - fixed, F = (rest + auto.reduce((a, i) => a + ext[i], 0)) / auto.length;
+    auto.forEach((i) => { out[i] = Math.floor(F - ext[i]); });
+    let rem = rest - auto.reduce((a, i) => a + out[i], 0);
+    for (let k = 0; rem > 0 && k < auto.length; k++, rem--) out[auto[k]] += 1;
+  } else if (auto.length) {
     const rest = total - fixed;
     const base = rest >= 0 ? Math.floor(rest / auto.length) : 0;
     const rem = rest >= 0 ? rest - base * auto.length : 0;
@@ -2139,7 +2148,12 @@ const hdfZaKorpusem = (p, prev) => {
   });
   return items ? { ...p, items } : p;
 };
-const naprawProjekt = (p, prev) => hdfZaKorpusem(maskowniceZaCiagiem(blendyScianyZaCiagiem(slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev))))), prev);
+const biurkaPrzegrodyCof = (p) => {
+  if (!p.items.some((it) => it.cab && it.cab.biurkoWiszace && it.cab.przegrodyCof == null)) return p;
+  return { ...p, items: p.items.map((it) => (it.cab && it.cab.biurkoWiszace && it.cab.przegrodyCof == null
+    ? { ...it, cab: { ...it.cab, przegrodyCof: Math.round(Number((((it.mat || {}).front || (it.mat || {}).board) || {}).thickness) || 18) } } : it)) };
+};
+const naprawProjekt = (p, prev) => hdfZaKorpusem(biurkaPrzegrodyCof(maskowniceZaCiagiem(blendyScianyZaCiagiem(slupkiSprzetNorma(slupkiZWiencem(wysuniecieZaGlebokoscia(p, prev)))))), prev);
 // szafka w ciagu z opcjami wspolnego wienca / dna — przy wlaczeniu i przy dodaniu nowej
 const wedlugCiagu = (cab, mat, run, h = run && run.H) => {
   let c = cab;
@@ -3040,7 +3054,8 @@ const TEMPLATES = [
     id: "biurko-wiszace",
     label: "Biurko wiszące",
     hint: "2100 × 250 × 600, wisi między szafkami: blat = wieniec, szuflady po ok. 700 mm, dno cofnięte, fronty zasłaniają je od dołu",
-    make: () => ({ W: 2100, H: 250, D: 600, hangers: "never", frontMode: "inset", biurkoWiszace: true, dnoCof: 18, frontPodDnem: 0, dolGorny: 500,
+    // przegrody miedzy szufladami cofniete o grubosc frontu — fronty przed nimi, miedzy soba tylko luz (uzytkownik 2026-11-22)
+    make: () => ({ W: 2100, H: 250, D: 600, hangers: "never", frontMode: "inset", biurkoWiszace: true, dnoCof: 18, przegrodyCof: 18, frontPodDnem: 0, dolGorny: 500,
       plinth: { on: false, height: 100, mode: "under", setback: 0 }, legs: { on: false, height: 100, color: "#3f3f46", shape: "box" },
       joints: { topL: "over", topR: "over", botL: "between", botR: "between" },
       levels: [{ h: null, cols: biurkoWiszaceKolumny(2100) }] }),
@@ -3593,8 +3608,10 @@ function computeGeoLiczy(cab, mat, ctx) {
   const shelfBack = postSide ? Math.max(backIntrusion, postBack + ts) : backIntrusion;
   const shelfFrontL = postSide && ctx && ctx.armBracket ? t : 0;
   const shelfDepth = Math.round(carcassDepth - shelfBack - frontCut - shelfFrontL);
-  // drzwi przesuwne: przegrody za strefa drzwi (torami) — `__przegrodyCof` z `geoPrzesuwne`
-  const dividerDepth = Math.round(carcassDepth - backIntrusion - (cab.__przegrodyCof || 0));
+  /* drzwi przesuwne: przegrody za strefa drzwi (torami) — `__przegrodyCof` z `geoPrzesuwne`; cofniecie ustawione recznie
+     (`cab.przegrodyCof`, uzytkownik 2026-11-22: „brak możliwości manipulowania głębokościami przegród pionowych”) — wieksze z nich */
+  const przegrodyCofG = przegrodyCofOf(cab);
+  const dividerDepth = Math.round(carcassDepth - backIntrusion - przegrodyCofG);
   /* przyciski (audyt GPT N179): cofniecie, przy ktorym polka ma POLKA_MIN_GL mm, i bez dodatkowego
      cofniecia — tylko te, ktore daja dodatnia glebokosc */
   if (shelfDepth <= 0) {
@@ -3653,7 +3670,13 @@ function computeGeoLiczy(cab, mat, ctx) {
        2026-10-29): na styku dwie przegrody obok siebie, jak dwa boki osobnych szafek. */
     const nDiv = rawCols.slice(0, -1).reduce((a, c) => a + (c.noDiv ? 0 : c.przegrodaPodw ? 2 : 1), 0);
     const colFree = innerW - nDiv * t - bwL - bwR;
-    const col = distribute(colFree, rawCols.map((c) => c.w));
+    /* szuflady z frontami wpuszczanymi przed cofnietymi przegrodami (`przegrodyCof` >= grubosc frontu): kolumny auto tak, zeby fronty
+       byly rowne — skrajne o szpare przy boku i pol przegrody szersze (jak `dsx0` / `dsx1` nizej) */
+    const extFr = !cab.__szuflPrzes && Math.round(Number(cab.przegrodyCof) || 0) >= tf - 0.5 && rawCols.length > 1
+      && rawCols.every((c) => c.kind === "drawers" && (c.drawerMode === "inset" || ((c.drawerMode || "inherit") === "inherit" && cab.frontMode === "inset")))
+      ? rawCols.map((c, j) => (j > 0 && !rawCols[j - 1].noDiv ? (rawCols[j - 1].przegrodaPodw ? 2 * t : t) / 2 - g.between / 2 : -g.inset)
+        + (j < rawCols.length - 1 && !c.noDiv ? (c.przegrodaPodw ? 2 * t : t) / 2 - g.between / 2 : -g.inset)) : null;
+    const col = distribute(colFree, rawCols.map((c) => c.w), extFr);
     if (col.diff !== 0)
       add(
         "error",
@@ -5106,6 +5129,15 @@ function computeGeoLiczy(cab, mat, ctx) {
          zachodzily na fix (audyt GPT N42). */
       let dsx0 = dIn ? insX0 : ovlX0;
       let dsx1 = dIn ? insX1 : ovlX1;
+      /* przegrody cofniete co najmniej o grubosc frontu (recznie `przegrodyCof`, np. biurko wiszace — uzytkownik 2026-11-22: „przegrody
+         pomiędzy szufladami cofnięte, a fronty szuflad szersze i mają między sobą tylko luz”): front wpuszczany szuflady idzie przed
+         przegroda do jej srodka, miedzy frontami luz `g.between`; przy bokach — jak dotad */
+      if (dIn && !dCof && !spz && Math.round(Number(cab.przegrodyCof) || 0) >= tf - 0.5) {
+        // przegroda podwojna (`przegrodaPodw`) — dwie plyty, srodek dalej
+        const tL = j > 0 && rawCols[j - 1].przegrodaPodw ? 2 * t : t, tR = rawCol.przegrodaPodw ? 2 * t : t;
+        if (j > 0 && !rawCols[j - 1].noDiv) dsx0 = Math.round((c.x0 - tL / 2 + g.between / 2) * 10) / 10;
+        if (j < lv.cols.length - 1 && !rawCol.noDiv) dsx1 = Math.round((c.x1 + tR / 2 - g.between / 2) * 10) / 10;
+      }
       if (c.fix) {
         if (c.fix.side === "left") dsx0 = Math.max(dsx0, c.fix.x + c.fix.w + g.between);
         else dsx1 = Math.min(dsx1, c.fix.x - g.between);
@@ -7213,8 +7245,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   // dwie przegrody na styku: dlugosc wkretu (nie wychodzi z drugiej plyty) i licznik do zamowienia
   const wkretPary = WKRET_FRONTU_DLUGOSCI.find((l) => l <= 2 * t - WKRET_FRONTU_ZAPAS) ?? WKRET_FRONTU_DLUGOSCI[WKRET_FRONTU_DLUGOSCI.length - 1];
   let wkretyParyN = 0;
-  // przegrody cofniete za strefe drzwi przesuwnych (`__przegrodyCof`) — odleglosci od przedniej krawedzi przegrody
-  const cofPrzegrod = Math.max(0, Math.round(cab.__przegrodyCof || 0));
+  // przegrody cofniete (drzwi przesuwne `__przegrodyCof`, recznie `przegrodyCof`) — odleglosci od przedniej krawedzi przegrody
+  const cofPrzegrod = przegrodyCofOf(cab);
   const drillAdd = (lvI, name, base, kind, y, note0) => {
     if (!name) return;   // strona bez plyty (przelot `noDiv`)
     const note = cofPrzegrod && /^Przegroda/.test(name) ? odPrzoduPlyty(note0, cofPrzegrod)
@@ -7821,7 +7853,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     dividers.forEach((dv, k) => {
       const x = Math.round(dv.x + t / 2 - interior.x0);
       // przegroda cofnieta (drzwi przesuwne) — konfirmaty w dnie / wiencu od jej przedniej krawedzi, nie od lica
-      const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(dividerDepth, cab.__przegrodyCof || 0))} mm od przedniej krawędzi; w czole przegrody ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
+      const note = `⌀7 w płycie, ${listaPoz(konfirmatyPoz(dividerDepth, przegrodyCofOf(cab)))} mm od przedniej krawędzi; w czole przegrody ⌀5 × 50; położenie od wewnętrznej strony lewego boku`;
       /* osobne dna / wience: przegroda w kawalku pod / nad nia (polozenie od jego lewego konca); para przez
          szczeline (plyta miedzy bokami) — tu nic, skreca sie przez nia w czolo kawalka (wyzej) */
       const wKawalku = (kaw, nazwa) => {
@@ -25224,7 +25256,20 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         if (ost && ost.h != null && g) ost.h = Math.round(ost.h / 2);
         c.levels.push(newLevel(((ost && ost.cols[0]) || {}).doors ?? 1, 0));
       })}>+</Btn>], "mak-poziomy-szafki");
-    tresc = [poziomySzafki, ...poziomy.map((lv, li) => {
+    /* cofniecie przegrod pionowych od frontu (uzytkownik 2026-11-22: „brak możliwości manipulowania głębokościami przegród pionowych”) —
+       glebokosc przegrod = korpus − plecy − cofniecie; o grubosc frontu i wiecej: fronty szuflad wpuszczanych ida przed przegroda */
+    const gP = geoOf ? geoOf(idx) : null, maPrzeg = poziomy.some((lv) => (lv.cols || []).length > 1);
+    const cofP = Math.round(Number(cab.przegrodyCof) || 0), tfP = Math.round(Number((((it.mat || {}).front || (it.mat || {}).board) || {}).thickness) || 18);
+    const ustawCofP = (v) => zmien(idx, (c) => { const x = Math.max(0, Math.min(400, Math.round(Number(v) || 0))); if (x) c.przegrodyCof = x; else c.przegrodyCof = 0; });
+    const przegCof = maPrzeg ? wiersz("pcof", `przegrody pionowe cofnięte od frontu${gP ? ` — głębokość przegród ${fmt(Math.round(gP.dividerDepth))} mm` : ""}`, [
+      <input key={`v-${cofP}`} type="number" step="1" min="0" defaultValue={cofP} data-pole="przegrody-cof"
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        onBlur={(e) => { const v = Math.round(Number(e.currentTarget.value) || 0); if (v !== cofP) ustawCofP(v); }}
+        className="w-16 rounded border border-stone-300 px-1.5 py-0.5 text-right font-mono text-xs focus:border-teal-600 focus:outline-none" />,
+      <span key="mm" className="text-[11px] text-stone-500">mm</span>,
+      <Btn key="0" el="mak-przegrody-cof" v="0" on={!cofP} onClick={() => ustawCofP(0)}>równo z frontem korpusu</Btn>,
+      <Btn key="tf" el="mak-przegrody-cof" v={tfP} on={cofP === tfP} onClick={() => ustawCofP(tfP)}>o grubość frontu ({fmt(tfP)})</Btn>], "mak-przegrody-cof-w") : null;
+    tresc = [poziomySzafki, ...(przegCof ? [przegCof, cofP >= tfP && cab.frontMode === "inset" ? <p key="pcofh" className="text-[11px] text-stone-500" data-el="mak-przegrody-cof-info">Przegrody cofnięte o grubość frontu: fronty szuflad wpuszczanych idą przed przegrodą — między nimi tylko luz.</p> : null].filter(Boolean) : []), ...poziomy.map((lv, li) => {
       const cols = lv.cols || [], proste = cols.every((c) => makKolumnaProsta(c));
       return wiersz(`pz${li}`, `${poziomy.length > 1 ? `poziom ${li + 1} — ` : ""}kolumny (szer. ${cols.map((c) => (c.w ? fmt(c.w) : "auto")).join(" / ")})`,
         proste ? [1, 2, 3, 4].map((n) => <Btn key={n} el="mak-kolumny" v={n} on={cols.length === n} onClick={() => zmien(idx, (c) => {
@@ -32494,6 +32539,11 @@ export default function App() {
                   ? `Drzwi wewnątrz — półka jest już krótsza o ${fmt(geo.tf + 5)} mm.`
                   : "Drzwi na korpusie — półka na pełną głębokość."}>
                 <Num value={cab.shelfExtraSetback || 0} onChange={(v) => set({ shelfExtraSetback: v })} />
+              </Field>
+              {/* cofniecie przegrod pionowych (uzytkownik 2026-11-22) — glebokosc przegrod; o grubosc frontu: fronty szuflad przed przegroda */}
+              <Field label="Cofnięcie przegród pionowych od frontu"
+                hint={`Głębokość przegród ${fmt(Math.round(geo.dividerDepth))} mm.${cab.frontMode === "inset" ? ` Od ${fmt(geo.tf)} mm (grubość frontu) fronty szuflad idą przed przegrodą — między nimi tylko luz.` : ""}`}>
+                <Num value={cab.przegrodyCof || 0} onChange={(v) => set({ przegrodyCof: Math.max(0, Math.round(Number(v) || 0)) })} />
               </Field>
             </div>
           </Card>

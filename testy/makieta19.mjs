@@ -370,6 +370,19 @@ await zakl('szafka');
   p = await proj(); const bw = p.items.find((i) => i.cab.biurkoWiszace);
   ok('przeciągnięte w dół o ok. 300 mm: „dół … od podłogi”, wysokość biurka bez zmian', bw.cab.dolGorny >= 160 && bw.cab.dolGorny <= 240 && bw.cab.H === 250 && /dół \d+ od podłogi/.test(tK), JSON.stringify({ dG: bw.cab.dolGorny, H: bw.cab.H, tK }));
   ok('po drodze łapie półkę szafy obok („równo z … półki”)', lapy.some((t) => /półki „Szafa”/.test(t)), JSON.stringify(lapy.slice(0, 4))); }
+// przegrody cofniete (uzytkownik 2026-11-22): biurko — przegrody o grubosc frontu, pole w zakladce Przegroda
+await zakl('przegroda');
+{ const pole = page.locator('[data-pole="przegrody-cof"]');
+  ok('zakładka Przegroda: „przegrody pionowe cofnięte od frontu” — biurko 18 mm, głębokość przegród 582', (await pole.count()) === 1 && Number(await pole.inputValue()) === 18
+    && /głębokość przegród 582 mm/.test(await page.locator('[data-el="mak-przegrody-cof-w"]').innerText()), await page.locator('[data-el="mak-przegrody-cof-w"]').innerText().catch(() => ''));
+  await page.locator('[data-el="mak-przegrody-cof"][data-v="0"]').click();
+  p = await czekaj("p.items.find((i) => i.cab.biurkoWiszace).cab.przegrodyCof === 0");
+  ok('„równo z frontem korpusu” — 0 (zostaje po przeładowaniu)', p.items.find((i) => i.cab.biurkoWiszace).cab.przegrodyCof === 0);
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000); await zakl('przegroda');
+  ok('… po przeładowaniu dalej 0 (biurko nie wraca do 18)', Number(await page.locator('[data-pole="przegrody-cof"]').inputValue()) === 0);
+  await page.locator('[data-pole="przegrody-cof"]').fill('18'); await page.locator('[data-pole="przegrody-cof"]').press('Enter');
+  p = await czekaj("p.items.find((i) => i.cab.biurkoWiszace).cab.przegrodyCof === 18");
+  ok('wpisane 18 — zapisane', p.items.find((i) => i.cab.biurkoWiszace).cab.przegrodyCof === 18); }
 
 console.log('== 2026-11-22: szafka RTV wisząca, „+ nowe pomieszczenie” w makiecie ==');
 await start(FIX);

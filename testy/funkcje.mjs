@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1681,6 +1681,19 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
   const pan = (c) => G.computeGeo(c, M0).panels.find((x) => x.name === 'Cokół');
   ok('fronty z innej płyty: formatka cokołu z płyty frontów (domyślnie)', pan(cab()).matKey === 'front' && G.cokolKey(cab()) === 'front', pan(cab()).matKey);
   ok('… „jak korpus”: formatka z płyty korpusu', pan(cab({ kolor: 'korpus' })).matKey === 'board');
+  /* przegrody pionowe cofniete (uzytkownik 2026-11-22): biurko wiszace — przegrody o grubosc frontu krotsze, fronty szuflad przed nimi,
+     miedzy frontami tylko luz; pole recznie dla kazdej szafki */
+  { const tp = G.makeFromTemplate('biurko-wiszace');
+    const c0 = tp.cab || tp, gB = geo(c0), gZ = geo({ ...c0, przegrodyCof: 0 });
+    const fr = (g) => (g.levels[0].cols || []).flatMap((c) => (c.drawers || []).map((d) => ({ x: d.x, w: d.w }))).sort((a, b) => a.x - b.x);
+    const f = fr(gB), f0 = fr(gZ), luz = f.slice(1).map((d, k) => Math.round((d.x - (f[k].x + f[k].w)) * 10) / 10);
+    ok('biurko wiszące: przegrody cofnięte o 18 (głębokość −18), fronty szersze, między frontami luz 2 mm, fronty równe', G.przegrodyCofOf(c0) === 18 && gZ.dividerDepth - gB.dividerDepth === 18
+      && f.length === 3 && f[1].w > f0[1].w + 10 && luz.every((v) => v === 2) && Math.max(...f.map((d) => d.w)) - Math.min(...f.map((d) => d.w)) <= 1
+      && Math.abs(f[0].x - 20) < 0.6 && Math.abs(f[2].x + f[2].w - (c0.W - 20)) < 0.6,
+      JSON.stringify({ cof: G.przegrodyCofOf(c0), d: [gZ.dividerDepth, gB.dividerDepth], w: [f0.map((d) => d.w), f.map((d) => d.w)], x: f.map((d) => d.x), luz }));
+    const fP = (gB.panels || []).find((q) => /^Przegroda pionowa/.test(q.name));
+    ok('formatka „Przegroda pionowa” krótsza o cofnięcie', fP && fP.b === gB.dividerDepth, JSON.stringify(fP && { a: fP.a, b: fP.b }));
+    ok('za drzwiami przesuwnymi — większe z dwóch cofnięć', G.przegrodyCofOf({ __przegrodyCof: 80, przegrodyCof: 18 }) === 80 && G.przegrodyCofOf({ przegrodyCof: 30 }) === 30); }
   { const mk = (sp) => G.sprzetCiagu({ sprzetCiagu: { typ: 'maskownica', ...sp } }).kolor;
     ok('maskownica: domyślnie jak korpus, stare „front” bez wyboru — korpus, wybrane — fronty', mk({}) === 'korpus' && mk({ kolor: 'front' }) === 'korpus' && mk({ kolor: 'front', kolorWyb: true }) === 'front'); }
   ok('kolor na rysunku: jak fronty / jak korpus', G.kolorCokolu(cab(), M0) === '#112233' && G.kolorCokolu(cab({ kolor: 'korpus' }), M0) === '#ddccbb');

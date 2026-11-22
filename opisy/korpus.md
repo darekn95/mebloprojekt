@@ -40,6 +40,12 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
     kolejność montażu (w karcie „Notatka montażowa” i na stronie szafki w PDF): przykręć prawe jednym
     konfirmatem, obróć je na nim (leżące do pionu), zamontuj lewe (łby od strony prawej kolumny), obróć
     prawe z powrotem i przykręć jego prawy koniec;
+  - **Cofnięcie przegród pionowych od frontu** (`cab.przegrodyCof`, użytkownik 2026-11-22: „brak możliwości manipulowania głębokościami
+    przegród pionowych”) — wszystkie przegrody pionowe szafki krótsze o tyle z przodu (formatka, wiercenia od przedniej krawędzi
+    przegrody, rysunki); za drzwiami przesuwnymi większe z tego i strefy drzwi (`przegrodyCofOf`). Pole w zakładce Przegroda makiety
+    (`przegrody-cof`, „równo z frontem korpusu” / „o grubość frontu”) i w karcie Korpus. Od grubości frontu, przy szufladach
+    z frontami wpuszczanymi, fronty idą przed przegrodą do jej środka — między nimi luz „między drzwiami” (`g.between`), a kolumny
+    auto dobierają się tak, żeby fronty były równe (`distribute(…, ext)`);
   - „Przegroda niższa” (tylko górne wzmocnienia najwyższego poziomu) — przegroda o grubość płyty niżej,
     nad nią jedno leżące wzmocnienie przez obie kolumny z przodu i z tyłu (tylne stojące kładzie się na
     płask, „Przegroda do góry” przywraca). Formatka „Wzmocnienie poziome nad przegrodą” (długość obu
