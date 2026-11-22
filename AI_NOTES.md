@@ -1407,3 +1407,8 @@ inaczej sugestia: wieniec wewnatrz bokow albo podwojna przegroda; nadstawka nad 
 [AI-TODO] PRZYPOMNIENIE (uzytkownik 2026-11-22): scalenie do `main` (PR #34, f4cc8cd) poszlo z szybkimi testami — PELNY PRZEBIEG
 (`bash testy/pelny.sh` + `node testy/losowe.mjs`) do zrobienia w wolnej chwili (bez innych zadan); jesli sie nie wykona — przypomniec
 uzytkownikowi przy nastepnym scaleniu („przy następnej wrzutce na git”), ze pelnych testow nie bylo.
+[AI-TODO] 2026-11-22 ODLOZONE przez uzytkownika („żeby nie brakło tokenów”): duze funkcje szafy przesuwnej (moduly + jeden komplet drzwi,
+dno / wieniec z 2 kawalkow, nadstawka / blenda do sufitu), plecy HDF z kawalkow, nowe typy szuflad (Blum Tandembox / Tandem), uklad scian
+pokoju, start „Co projektujesz?”, wzory bez ostrzezen, pelny przebieg testow (zalegly od #34). Teraz: projekt uzytkownika — biurko wiszace
+miedzy szafkami (skrzynka ok. 250 mm z szufladami, dno cofniete, fronty zaslaniaja dno od dolu, blat przykrecony do bokow szafek i sciany).
+Maskownica boku (zgloszona „na już”) — do wyboru bok szafki, takze miedzy meblami (nie tylko przy scianie) — jeszcze nie zrobiona.

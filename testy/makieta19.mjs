@@ -279,6 +279,20 @@ await page.locator('[data-el="mak-cokol-kolor"][data-v="korpus"]').click(); awai
 p = await czekaj("(p.runs.find((r) => r.id === p.items[p.active].runId).plinth || {}).kolor === 'korpus'");
 ok('„jak korpus”: zapisane w ciągu, rysunek w kolorze korpusu', (p.runs.find((r) => r.id === p.items[p.active].runId).plinth || {}).kolor === 'korpus' && (await fillCokolu()) === '#fbfaf8', String(await fillCokolu()));
 
+console.log('== 2026-11-22: biurko w ciągu, między dwiema szafkami ==');
+await start(FIX);
+await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+for (const id of ['szafa2', 'regal']) { const n0 = (await proj()).items.length; await page.locator(`[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="${id}"]`).click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await czekaj(`p.items.length > ${n0}`); }
+await ust(`p.active = p.items.findIndex((i) => i.cab.name === 'Szafa');`);
+await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+{ const n0 = (await proj()).items.length; await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="biurko"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await czekaj(`p.items.length > ${n0}`); }
+p = await proj();
+{ const kol = p.items.filter((i) => i.runId).map((i) => i.cab.name), b = p.items.find((i) => i.cab.name === 'Biurko');
+  ok('biurko przy zaznaczonej szafie w ciągu — w tym ciągu, między szafą a regałem; blat bez nawisu na boki', JSON.stringify(kol) === '["Szafa","Biurko","Regał"]' && b.cab.top.overL === 0 && b.cab.top.overR === 0, JSON.stringify(kol) + ' ' + JSON.stringify(b && b.cab.top));
+  await ust(`p.active = p.items.findIndex((i) => i.cab.name === 'Biurko');`);
+  const t = await uwagi();
+  ok('… bez uwag o wysokości, cokole i drzwiach szafy obok', !/nie zgadza się z ciągiem|nie otworzy się/.test(t), t.slice(0, 300)); }
+
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
 await browser.close();

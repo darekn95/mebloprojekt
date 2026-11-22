@@ -184,6 +184,13 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 
 Zakres „Ciąg” ma widok „Z boku” — przekrój ściany: od ściany głębokość, od podłogi wysokość. Każdy inny profil szafki (głębokość, wysokość, zawieszenie) rysuje się raz, wyższe pod spodem; szafki stoją licem równo (lico ciągu jak przy blacie), fronty nakładane 2 mm przed korpusem. Do tego cokół, nóżki, blat roboczy, ciąg górny i ściana (przełączniki „Ukryj blat” / „Ukryj ścianę”). Wymiary: „z frontem” każdego piętra, „blat N (M przed frontem)”, łańcuch wysokości i wysokość całkowita. Zabudowa z rogami tego widoku nie ma (nie ma jednego boku).
 
+## Biurko w ciągu (2026-11-22)
+
+Wzór biurka (i biurka z kontenerem) upuszczony na szafkę w ciągu dolnym — albo wstawiony przy zaznaczonej szafce w ciągu — staje w tym
+ciągu przed / za nią (`wCiag` w `MAK_PALETA`); „W ciąg” jest też dla biurka. W ciągu: blat bez nawisu na boki (stoi między szafkami),
+głębokość ciągu; stoi na podłodze jak lodówka wolnostojąca (`naPodlodzeCiagu`) — własna wysokość, bez uwag o wysokości i cokole ciągu,
+cokół ciągu ma przy nim przerwę.
+
 ## Słupek głębszy niż ciąg (2026-11-11)
 
 Słupek ze wzoru (paleta makiety „Słupek”, szablon „Słupek”) wstawiony do ciągu, w którym już coś stoi, jest od razu

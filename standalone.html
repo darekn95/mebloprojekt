@@ -533,7 +533,9 @@ const cabWolnegoMiejsca = (cab) => ({ ...makeFromTemplate("okap-kominowy"), name
 const cabZWolnegoMiejsca = (cab) => (cab.poprzednia ? { ...cab.poprzednia, W: cab.W } : null);
 /* Stoi na podlodze bez cokolu i nozek (lodowka i zmywarka wolnostojaca): cokol ciagu ma pod nia przerwe, wspolne wymiary
    ciagu (wysokosc, glebokosc, cokol, nozki) jej nie dotycza. Blat konczy sie przy lodowce i zmywarce z pokrywa. */
-const naPodlodzeCiagu = (cab) => !!(cab && cab.sprzetCiagu && (cab.sprzetCiagu.typ === "lodowka" || cab.sprzetCiagu.typ === "zmywarkaW"));
+/* Biurko w ciagu (uzytkownik 2026-11-22: „nie mogę dodać biurka pomiędzy dwie szafki w ciągu”) stoi jak lodowka wolnostojaca: na podlodze,
+   wlasna wysokosc (bez uwag o wysokosci i cokole ciagu), cokol ciagu ma przy nim przerwe */
+const naPodlodzeCiagu = (cab) => !!(cab && ((cab.sprzetCiagu && (cab.sprzetCiagu.typ === "lodowka" || cab.sprzetCiagu.typ === "zmywarkaW")) || (!cab.sprzetCiagu && biurkoSzafki(cab))));
 /* Lodowka podblatowa — dwa rodzaje (uzytkownik 2026-11-14): „w ciągu” jak zmywarka (wypelnia cale miejsce, bez bokow i wzmocnien —
    `sprzetCiagu.typ: "lodowkaP"`) i „w szafce” — mniejsza (np. na wino) w zwyklej szafce z dnem i bokami, „jakbyśmy wpakowali
    mikrofalę na dół”: stoi na dnie szafki dolnej, z wlasnymi drzwiami (bez frontu meblowego), nad nia plyta i otwarta wneka (szuflada
@@ -23879,8 +23881,9 @@ const MAK_PALETA = [
     { id: "szafaW", nazwa: "Szafa", opis: "800 × 2000, 5 półek, cokół w obrysie", tpl: "slupek", gdzie: "wolna", szafka: "Szafa",
       mod: (c) => { Object.assign(c, { W: 800, H: 2000, D: 600 }); const k = makK0(c); makUstawFront(k, "drzwi-2"); makUstawPolki(k, 5);
         c.plinth = { ...(c.plinth || {}), on: true, mode: "inbody", height: 100 }; c.legs = { ...(c.legs || {}), on: true, height: 100, color: "#3f3f46", shape: "box", count: null }; } },
-    { id: "biurko", opis: "1200 × 750, blat na bokach", tpl: "biurko", gdzie: "wolna", szafka: "Biurko" },
-    { id: "biurkoK", nazwa: "Biurko z kontenerem", opis: "1200 × 750, 3 szuflady z prawej", tpl: "biurko-kontener", gdzie: "wolna", szafka: "Biurko" },
+    // `wCiag` (uzytkownik 2026-11-22: „nie mogę dodać biurka pomiędzy dwie szafki w ciągu”): upuszczone na szafke w ciagu — do ciagu, przed / za nia
+    { id: "biurko", opis: "1200 × 750, blat na bokach", tpl: "biurko", gdzie: "wolna", wCiag: true, szafka: "Biurko" },
+    { id: "biurkoK", nazwa: "Biurko z kontenerem", opis: "1200 × 750, 3 szuflady z prawej", tpl: "biurko-kontener", gdzie: "wolna", wCiag: true, szafka: "Biurko" },
   ] },
 ];
 /* Zakladka AGD (jak w makiecie „Dodaj”, uzytkownik 2026-11-09: „zniknął AGD”): sprzet przeciagany na rysunek albo klikany.
@@ -24705,7 +24708,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
     ...(run ? [zCiagu] : []),
     /* szafka wolnostojaca -> do ciagu (uzytkownik 2026-11-10: „jak utworzyć ciąg z kilku szafek?”): nowy ciag z tej
        szafki albo na koniec ciagu dolnego w tym pomieszczeniu */
-    ...(!run && !biurko ? [wiersz("doCiagu", "W ciąg", [
+    ...(!run ? [wiersz("doCiagu", "W ciąg", [
       <Btn key="nowy" el="mak-do-ciagu" v="nowy" onClick={() => zmienProjekt((p) => {
         const nowy = { ...makeRun(p.runs || [], roomOfItem(p, p.items[idx])), zabudowa: cab.H > 1500 ? "szafa" : "kuchnia", worktop: !(cab.H > 1500),
           ...(cab.H > 1500 ? { wallGap: { bottom: 0, top: null } } : {}) };
@@ -24715,7 +24718,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         <Btn key={r.id} el="mak-do-ciagu" v={r.id} onClick={() => zmienProjekt((p) => {
           const items = p.items.slice(), x = items.splice(idx, 1)[0];
           const ost = items.map((q, i) => (q.runId === r.id ? i : -1)).filter((i) => i >= 0).pop();
-          items.splice(ost == null ? items.length : ost + 1, 0, { ...x, runId: r.id });
+          // biurko do ciagu — blat bez nawisu na boki (miedzy szafkami)
+          items.splice(ost == null ? items.length : ost + 1, 0, { ...x, runId: r.id, ...(biurkoSzafki(x.cab) ? { cab: { ...x.cab, top: { ...x.cab.top, overL: 0, overR: 0 } } } : {}) });
           return { ...p, items, active: items.findIndex((q) => q.runId === r.id && q.cab === x.cab) };
         })}>na koniec „{r.name || "ciąg"}”</Btn>)], "mak-do-ciagu")] : []),
     ...(run && !wisi ? [wiersz("blat", "Blat roboczy ciągu", [
@@ -25865,7 +25869,12 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     const opcje = { zmien: w.mod || sufW ? zmienW : null, nazwa: w.szafka || null, wymiaryCiagu: !!w.ciag, bezNozek: !!w.bezNozek,
       poDodaniu: w.po ? (cab, mat, stoi) => w.po(cab, sys, mat, stoi) : null };
     const przed = (r) => (it && r && it.runId === r.id ? c.idx + (c.prawa ? 1 : 0) : null);
-    if (w.gdzie === "wolna") { dodaj(w.tpl, null, opcje); return; }
+    if (w.gdzie === "wolna") {
+      // biurko na szafce w ciagu dolnym — do tego ciagu (przed / za nia); inaczej wolnostojace
+      const itW = it || project.items[project.active];
+      if (w.wCiag && itW && itW.runId && run && run.tier !== "gorny") { dodaj(w.tpl, run.id, { ...opcje, przed: c ? przed(run) : project.active + 1 }); return; }
+      dodaj(w.tpl, null, opcje); return;
+    }
     if (w.gdzie === "gora") {
       if (!run) { setKomunikat(`„${makNazwaWzoru(w)}” upuść na ciąg — zawiśnie nad nim. Ciąg zaczniesz szafką dolną (kuchnia — dół).`); return; }
       if (run.tier === "gorny") { dodaj(w.tpl, run.id, { ...opcje, przed: przed(run) }); return; }
@@ -26158,7 +26167,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, switchCabinet, rpOf, z
     if (wlecze.current.el === "mak-klocek") return cel.li != null ? `na „${nazwa}”${(it.cab.levels || []).length > 1 || (it.cab.levels[cel.li].cols || []).length > 1 ? `, poziom ${cel.li + 1} kolumna ${cel.j + 1}` : ""}` : `na „${nazwa}”`;
     const w = MAK_WZORY[wlecze.current.id];
     if (!w) return null;
-    if (w.gdzie === "wolna") return "wolnostojąca, obok";
+    if (w.gdzie === "wolna") return w.wCiag && it.runId && (((project.runs || []).find((r) => r.id === it.runId) || {}).tier !== "gorny") ? `${cel.prawa ? "za" : "przed"} „${nazwa}”` : "wolnostojąca, obok";
     return it.runId ? `${cel.prawa ? "za" : "przed"} „${nazwa}”` : "na koniec ciągu";
   })();
   /* Kafel wybrany dotknieciem (decyzja uzytkownika 2026-11-13, jak makieta „Dodaj” — na telefonie przeciaganie z palety bywa
@@ -27228,6 +27237,8 @@ export default function App() {
     /* Slupek ze wzoru w kuchennym ciagu, w ktorym juz cos stoi (analiza 2026-11-21: po wstawieniu z palety trzy ostrzezenia — wysokosc,
        cokol, glebokosc): to slupek z nazwy, wiec wyjatek w ciagu (`slupek`, jak przycisk „To słupek — wyjątek w ciągu”), a cokol jak
        w ciagu — cokol idzie przez caly ciag jedna plaszczyzna. Glebokosc zostaje ze wzoru (uwaga z przyciskiem w ciagu). */
+    /* biurko w ciagu dolnym (2026-11-22): blat bez nawisu na boki (stoi miedzy szafkami — nawis wchodzilby przed ich drzwi), glebokosc ciagu */
+    if (run && run.tier !== "gorny" && biurkoSzafki(base)) { base.top = { ...base.top, overL: 0, overR: 0 }; if (run.D != null) base.D = Math.round(run.D); }
     const slupekWCiagu = tplId === "slupek" && !opcje.nazwa && run && run.tier !== "gorny" && run.zabudowa !== "szafa"
       && p.items.some((it) => it.runId === run.id) ? { slupek: true, ...(run.plinth ? { plinth: { ...run.plinth } } : {}) } : {};
     const fresh = { cab: { ...base, name: nazwa, ...wymiaryCiagu, ...slupekWCiagu, ...wyglad,
