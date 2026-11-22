@@ -261,6 +261,15 @@ p = await czekaj("p.items.find((it) => it.cab.name === 'Szafa').cab.H === 2761")
 await ust(`p.items = p.items.filter((i) => !i.cab.nadstawka); p.active = p.items.findIndex((i) => i.cab.name === 'Szafa'); const it = p.items.find((i) => i.cab.name === 'Szafa'); it.cab.H = 2895;`);
 { const t = await uwagi(); ok('szafa 2895 wpisana ręcznie: błąd boku i rączki NOVO S, przycisk „Wysokość szafy 2761 mm”', /Bok 2 ?895 × 600 mm nie mieści się/.test(t) && /rączka NOVO S/.test(t)
     && (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Wysokość szafy 2761 mm' }).count()) >= 1, t.slice(0, 400)); }
+// szafa szersza niz plyta (#42, decyzja uzytkownika 2026-11-22: podwojna przegroda na styku) — przycisk przy bledzie dna / wienca
+await ust(`const it = p.items.find((i) => i.cab.name === 'Szafa'); it.cab.H = 2400; it.cab.W = 3200; const r = p.runs.find((x) => x.id === it.runId); r.wallW = 3200;`);
+{ const b = page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Dno i wieniec z kawałków' });
+  ok('szafa 3200: błąd „Dno / wieniec … nie mieści się” z przyciskiem „Dno i wieniec z kawałków — dwie przegrody na styku”', (await b.count()) >= 1, (await uwagi()).slice(0, 300));
+  if (await b.count()) await b.first().click();
+  p = await czekaj("p.items.find((i) => i.cab.name === 'Szafa').cab.levels[0].cols.some((k) => k.przegrodaPodw && k.przegrodaOsobneDna)");
+  const sz = szafa(p), t = await uwagi();
+  ok('po kliknięciu: dwie przegrody na styku, osobne dna i wieńce; bez błędu dna, wieńca i cokołu', sz.cab.levels[0].cols.some((k) => k.przegrodaPodw && k.przegrodaOsobneDna)
+    && sz.cab.levels[sz.cab.levels.length - 1].cols.some((k) => k.przegrodaOsobneWience) && !/(Dno|Wieniec|Cokół)[^.]* nie mieści się na arkuszu/.test(t), t.slice(0, 400)); }
 // słupek z palety do kuchennego ciągu: wyjątek w ciągu, cokół jak ciąg
 await start(FIX);
 await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }

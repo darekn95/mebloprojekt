@@ -6247,7 +6247,11 @@ function computeGeoLiczy(cab, mat, ctx) {
         /* plecy HDF na cala szafe za duze (uzytkownik 2026-11-21: „hdf trzeba wtedy dzielić na przegrodach lub równych półkach, żeby
            łączeń nie było widać”) — przycisk: plecy w kolumnach, kawalki stykaja sie na przegrodach i polkach przez cala szerokosc */
         + (o.name === "Plecy HDF" && (levels.length > 1 || levels.some((lv) => lv.cols.length > 1)) ? "|plecykawalki"
-          : o.name === "Plecy HDF" ? " Plecy da się podzielić dopiero na przegrodzie albo stałej półce — dodaj przegrodę (kolumny) albo poziom." : "")
+          : o.name === "Plecy HDF" ? " Plecy da się podzielić dopiero na przegrodzie albo stałej półce — dodaj przegrodę (kolumny) albo poziom."
+          /* dno / wieniec szafy szerszej niz plyta (#42, uzytkownik 2026-11-22: „najlepiej podwójna przegroda na styku”) — dwie przegrody
+             na styku, kazda skrecona ze swoim kawalkiem dna i wienca (jak dwie szafy skrecone razem); bez przegrody — rada */
+          : /^(Dno|Wieniec)( \/ wieniec)?$/.test(o.name) && levels.length && levels[0].cols.length > 1 && levels[levels.length - 1].cols.length > 1 ? "|dnowienstyk"
+          : /^(Dno|Wieniec)( \/ wieniec)?$/.test(o.name) ? " Dno i wieniec da się złożyć z kawałków na dwóch przegrodach na styku — dodaj przegrodę (kolumny) na całą wysokość." : "")
       );
     panels.push(key === o.matKey ? o : { ...o, matKey: key });
   };
@@ -6659,10 +6663,20 @@ function computeGeoLiczy(cab, mat, ctx) {
       add("error", `Blat ${fmt(topX1 - topX0)} mm jest dłuższy niż arkusz blatu (${fmt(WORKTOP_LEN)} mm) — trzeba go podzielić.`);
   }
 
+  let cokolKaw = null;   // cokol w obrysie z kawalkow (#42) — [[x0, x1], …] dla rysunkow 3D
   if (cab.plinth.on) {
     if (plinthH < 50)
       add("warn", `Cokół ma ${fmt(plinthH)} mm — poniżej rozsądnego minimum 50 mm.`);
-    P({ name: "Cokół", rola: "cokol", qty: 1, a: plinthInBody ? innerW : W, b: plinthH, matKey: cokolKey(cab),
+    /* szafa z osobnymi dnami na dwoch przegrodach styku (#42, 2026-11-22) i cokol w obrysie za dlugi na arkusz — cokol z kawalkow
+       stykajacych sie pod para przegrod (w polowie pary), jak dno */
+    const cokL = plinthInBody ? innerW : W;
+    const cokKaw = plinthInBody && dnoKawalki && cokL > USABLE_W
+      ? (() => { const pts = [interior.x0, ...dnoKawalki.filter((q) => q.para).map((q) => q.para.x + t), interior.x1];
+          return pts.slice(1).map((x, k) => Math.round(x - pts[k])); })() : null;
+    cokolKaw = cokKaw ? (() => { let x = interior.x0; return cokKaw.map((a) => { const q = [x, x + a]; x += a; return q; }); })() : null;
+    if (cokKaw) cokKaw.forEach((a, k) => P({ name: `Cokół ${k + 1}`, rola: "cokol", qty: 1, a, b: plinthH, matKey: cokolKey(cab),
+        edges: { a1: false, a2: true, b1: false, b2: false }, note: `krawędź dolna; z ${cokKaw.length} kawałków — styk pod parą przegród na styku` }));
+    else P({ name: "Cokół", rola: "cokol", qty: 1, a: cokL, b: plinthH, matKey: cokolKey(cab),
         edges: plinthInBody
           ? { a1: false, a2: true, b1: false, b2: false }
           : { a1: false, a2: true, b1: true, b2: true },
@@ -8798,7 +8812,7 @@ function computeGeoLiczy(cab, mat, ctx) {
     isBlat, isWorktop, tTop, tW, frezY0, frezY1, plecyPodBlat, blat, blatDepth, blatInside, W, drillPlan,
     topX0, topX1, botX0, botX1, divOv, paraArg, listwyPrz,
     // kawalki dna / wienca do rysunkow (bez podzialu — cala plyta)
-    dnoKawalki: dnoKawalki || (hasBot ? [{ x0: botX0, x1: botX1 }] : []),
+    dnoKawalki: dnoKawalki || (hasBot ? [{ x0: botX0, x1: botX1 }] : []), cokolKaw,
     wienKawalki: wienKawalki || (hasTop ? [{ x0: topX0, x1: topX1 }] : []),
   };
 }
@@ -12650,6 +12664,13 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn
       // otwory z `geo` w ukladzie zabudowy (x + c.x, y + c.base, z = cd − zb)
       const otwXZ = (lista) => (lista || []).map((o) => [c.x + o.x0, cd - o.zb1, c.x + o.x1, cd - o.zb0]);
       const otwYZ = (lista) => (lista || []).map((o) => [c.base + o.y0, cd - o.zb1, c.base + o.y1, cd - o.zb0]);
+      /* cokol w obrysie (boki do podlogi) — przy kazdej szafie, miedzy jej bokami (od 2026-11-22 nie ma za niego wspolnego cokolu
+         ciagu); z kawalkow, gdy szafa ma osobne dna na stykach (#42) */
+      if (!rp && c.cab.plinth && c.cab.plinth.on && c.geo.plinthInBody && c.geo.plinthH > 0) {
+        const sbC = Math.max(0, Math.round(c.cab.plinth.setback || 0));
+        (c.geo.cokolKaw || [[c.geo.interior.x0, c.geo.interior.x1]]).forEach(([a, b]) =>
+          box(c.x + a, c.base, sbC, c.x + b, c.base + c.geo.plinthH, sbC + t, kolorCokolu(c.cab, c.mat), null, 0.95, true, 0, "cokol"));
+      }
       if (c.geo.hasBot && !(naWspolnym && naWspolnym.has(c.index)))
         (c.geo.dnoKawalki || [{ x0: c.geo.botX0, x1: c.geo.botX1 }]).forEach((q) => boxOtw(c.x + q.x0, c.base + c.geo.bottomY, c.geo.dnoCof || 0,
           c.x + q.x1, c.base + c.geo.bottomY + t, cd, bf, otwXZ((c.geo.dnoOtwory || []).filter((o) => o.x0 >= q.x0 - 0.5 && o.x1 <= q.x1 + 0.5))));
@@ -16282,7 +16303,7 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
     // z=0 to przod korpusu; cokol siedzi z przodu, cofniety o setback w glab
     // `cokol` — znacznik bryly (audyt: cokol w kolorze frontow to nie front poza obrysem korpusu)
     if (geo.plinthInBody)
-      box(geo.interior.x0, 0, sb, geo.interior.x1, geo.plinthH, sb + t, kolorCokolu(cab, mat), null, undefined, undefined, "cokol");
+      (geo.cokolKaw || [[geo.interior.x0, geo.interior.x1]]).forEach(([a, b]) => box(a, 0, sb, b, geo.plinthH, sb + t, kolorCokolu(cab, mat), null, undefined, undefined, "cokol"));
     else box(0, -geo.plinthH, sb, W, 0, sb + t, kolorCokolu(cab, mat), null, undefined, undefined, "cokol");
   }
   geo.levels.forEach((lv) => lv.cols.forEach((c) => (c.rails || []).forEach((r) => {
@@ -16905,6 +16926,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         if (tryb === "auto") { if (/s\d+$/.test(j)) col.silaN = null; else delete col.silaN; }
       }) };
     }
+    if (action === "dnowienstyk") return { label: "Dno i wieniec z kawałków — dwie przegrody na styku", run: () => runFix && runFix(action) };
     if (action === "plecykawalki") return { label: "Plecy z kawałków — łączenia na przegrodach i półkach", run: () => editLevels((L) => L.forEach((lv) => (lv.cols || []).forEach((c) => { c.backMode = "hdf"; }))) };
     if (action.startsWith("fixgap:")) {
       const [, li, j, val, dir] = action.split(":");
@@ -24130,7 +24152,8 @@ const MAK_PALETA = [
       po: (c, sys, mat, stoi) => makUstawSzufDrzwi(c, { sys, geoF: makGeoKopii(mat, stoi) }) },
     { id: "zlewowa", nazwa: "Zlewowa", opis: "800 mm, bez półek", tpl: "stojaca", gdzie: "dol", ciag: true, mod: (c) => { c.W = 800; makUstawPolki(makK0(c), 0); } },
     { id: "slupek", opis: "600 × 2000", tpl: "slupek", gdzie: "dol" },
-    { id: "naroznikL", opis: "z ramieniem i ciągiem za rogiem", tpl: "naroznikL", gdzie: "dol" },
+    // wymiary ciagu (wysokosc, glebokosc, cokol) — bez tego od razu „cokół nie zgadza się z ciągiem” (2026-11-22)
+    { id: "naroznikL", opis: "z ramieniem i ciągiem za rogiem", tpl: "naroznikL", gdzie: "dol", ciag: true },
   ] },
   { grupa: "Kuchnia — góra", wzory: [
     { id: "wiszaca", opis: "na ciąg górny", tpl: "wiszaca", gdzie: "gora", ciag: true },
@@ -29004,6 +29027,16 @@ export default function App() {
     if (action.startsWith("gornyod:")) { const [, id, mm] = action.split(":"); if (id) setRun(id, { offset: Math.max(0, Math.round(Number(mm) || 0)), offsetFrom: "left" }); return; }
     // „blendasufit:<ciąg górny>:<mm>” — szafki gorne nizej o tyle, blenda do sufitu (zawieszki potrzebuja luzu nad szafka)
     if (action.startsWith("blendasufit:")) { const [, id, mm] = action.split(":"); if (id) setProject((p) => gornyBlendaDoSufitu(p, id, Math.round(Number(mm) || BLENDA_DO_SUFITU))); return; }
+    /* „dnowienstyk” — aktywna szafa szersza niz plyta (#42, decyzja uzytkownika 2026-11-22: podwojna przegroda na styku): na styku
+       kolumn najblizej srodka dwie przegrody (`przegrodaPodw` w kazdym poziomie), osobne dna (`przegrodaOsobneDna`, najnizszy poziom)
+       i wience (`przegrodaOsobneWience`, najwyzszy) — kazda przegroda skrecona konfirmatami ze swoim kawalkiem, jak bok szafy */
+    if (action === "dnowienstyk") {
+      setProject((p) => { const i = p.active, it = p.items[i]; if (!it) return p; const c = JSON.parse(JSON.stringify(it.cab)), L = c.levels || [];
+        L.forEach((lv, li) => { const n = ((lv && lv.cols) || []).length; if (n < 2) return; const k = lv.cols[Math.ceil(n / 2) - 1];
+          delete k.noDiv; k.przegrodaPodw = true; if (li === 0) k.przegrodaOsobneDna = true; if (li === L.length - 1) k.przegrodaOsobneWience = true; });
+        const items = p.items.slice(); items[i] = { ...it, cab: c }; return { ...p, items }; });
+      return;
+    }
     // „szafablenda:<i>” — blenda nad szafa do sufitu (dociac na miejscu); „nadstawka:<i>” — szafka na szafie do sufitu (`nadstawkaNaSzafie`)
     if (action.startsWith("szafablenda:")) { const ix = Number(action.split(":")[1]);
       setProject((p) => { const it = p.items[ix], run = it && it.runId ? (p.runs || []).find((r) => r.id === it.runId) : null; if (!run) return p;

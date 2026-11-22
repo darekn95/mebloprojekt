@@ -1681,6 +1681,17 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
   const pan = (c) => G.computeGeo(c, M0).panels.find((x) => x.name === 'Cokół');
   ok('fronty z innej płyty: formatka cokołu z płyty frontów (domyślnie)', pan(cab()).matKey === 'front' && G.cokolKey(cab()) === 'front', pan(cab()).matKey);
   ok('… „jak korpus”: formatka z płyty korpusu', pan(cab({ kolor: 'korpus' })).matKey === 'board');
+  /* szafa szersza niz plyta (#42, decyzja uzytkownika 2026-11-22: „podwójna przegroda na styku”): przycisk „dnowienstyk” */
+  { const kolS = () => ({ kind: 'doors', w: null, doors: 1, shelfTargets: [null, null], drazki: [], drawers: [], doorWidths: [], mirrors: [], handles: [], hinges: [], rails: [] });
+    const c0 = { name: 'S', W: 3000, H: 2400, D: 600, back: 'none', plinth: { on: false }, legs: { on: true, height: 100 }, levels: [{ h: null, cols: [kolS(), kolS()] }] };
+    const g0 = geo(c0), e0 = g0.msgs.filter((m) => /^(Dno|Wieniec|Dno \/ wieniec) \d.* nie mieści się na arkuszu/.test(m.text));
+    ok('szafa 3000: dno i wieniec za długie — błąd z przyciskiem „dnowienstyk”', e0.length >= 1 && e0.every((m) => /\|dnowienstyk/.test(m.text)), e0.map((m) => m.text).join(' / ').slice(0, 300));
+    // to, co robi przycisk: dwie przegrody na styku, osobne dna i wience
+    const c1 = JSON.parse(JSON.stringify(c0)); Object.assign(c1.levels[0].cols[0], { przegrodaPodw: true, przegrodaOsobneDna: true, przegrodaOsobneWience: true });
+    const g1 = geo(c1), kaw = g1.panels.filter((q) => /^(Dno|Wieniec) (lewe|prawe|lewy|prawy)$/.test(q.name)), pr = g1.panels.filter((q) => /^Przegroda/.test(q.name));
+    ok('po kliknięciu: dwie przegrody na styku, dno i wieniec z dwóch kawałków, bez błędów arkusza',
+      kaw.length >= 4 && pr.reduce((a, q) => a + q.qty, 0) === 2 && !g1.msgs.some((m) => /nie mieści się na arkuszu/.test(m.text)),
+      JSON.stringify({ kaw: kaw.map((q) => [q.name, q.a, q.qty]), pr: pr.map((q) => [q.name, q.a, q.b, q.qty]) })); }
   /* plecy HDF za duze na arkusz (2026-11-22, #43): przycisk „Plecy z kawałków” — plecy w kolumnach, laczenia na przegrodach i polkach */
   { const kolP = () => ({ kind: 'doors', w: null, doors: 1, shelfTargets: [null, null], drazki: [], drawers: [], doorWidths: [], mirrors: [], handles: [], hinges: [], rails: [] });
     const c0 = { name: 'S', W: 2400, H: 2500, D: 600, back: 'hdf', plinth: { on: false }, legs: { on: false }, levels: [{ h: null, cols: [kolP(), kolP()] }] };

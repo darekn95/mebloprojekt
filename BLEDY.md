@@ -17,6 +17,10 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-11-22 | #42 szafa szersza niż płyta | przycisk „Dno i wieniec z kawałków — dwie przegrody na styku” (decyzja użytkownika); cokół w obrysie z kawałków pod parą; `funkcje`, `makieta19` | (ten commit) |
+| 2026-11-22 | widok „Zabudowa” 3D po poprawce cokołu w obrysie | wspólny cokół ciągu dla cokołu w obrysie zniknął (zamówienie), a 3D zabudowy rysował tylko cokół ciągu — cokół w obrysie znikał z rysunku; teraz rysowany przy każdej szafie | (ten commit) |
+| 2026-11-22 | „Narożnik L” z palety w kuchni | od razu „cokół nie zgadza się z ciągiem” — wzór nie brał wymiarów ciągu (`ciag: true`). Pytanie użytkownika o drzwi 896 mm: to tylko wzór poza rogiem — w rogu jest fix / maskownica kątownika i drzwi są węższe | (ten commit) |
+| 2026-11-22 | [CHECK] „Narożnik L” w kuchni — „zawias przesunięty z 614 na 600 mm, kolizja z wzmocnieniem” (14 mm, wzmocnienie pod blatem) | do sprawdzenia: układ wzmocnień pod blatem w szafce narożnej (stojące z przodu?) | — |
 | 2026-11-22 | pełny przebieg (175 suit, 29 min): `decyzje` (wysuw 0 jednej „szuflady”), `kolory` (Cokół → płyta FRONT, „ma być KORPUS”), `macierzszuflad` (front poza obrysem 100 mm pod korpusem) | testy, nie aplikacja: cokół jest domyślnie jak fronty (decyzja użytkownika 2026-11-22) — testy brały go za front; teraz pomijają bryłę `cokol`, a rola formatki „Cokół” to FRONT. Po poprawce: pełny przebieg zielony, `losowe` 66 kroków bez problemu | (ten commit) |
 | 2026-11-22 | #44 (analiza 2026-11-21: nowy projekt to zawsze jedna szafka w Technicznym, bez ściany i sufitu) | okno „Nowy projekt — co projektujesz?”: ciąg z rodzajem, ścianą i sufitem i pierwsza szafka ze wzoru; `makieta19` | (ten commit) |
 | 2026-11-22 | #43 (analiza 2026-11-21: szafa 2400 × 2500 — plecy HDF 2398 × 2398 nie mieszczą się, był tylko błąd) | przycisk „Plecy z kawałków” — plecy w kolumnach, łączenia na przegrodach i półkach; bez przegród — rada; `funkcje` | (ten commit) |

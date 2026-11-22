@@ -70,6 +70,12 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - **płyta** w środku między bokami albo na zewnątrz — wkręty 3,5 × 30;
   - **brak**.
   - Kolumna może mieć własne plecy („jak szafka / HDF / płyta / brak”).
+  - **Szafa szersza niż płyta** (dno / wieniec ponad 2761 mm, #42; decyzja użytkownika 2026-11-22: „najlepiej podwójna przegroda
+    na styku” — jedna przegroda z konfirmatami z obu stron się nie da: drugi kawałek zasłania łby): błąd „Dno / wieniec … nie mieści
+    się na arkuszu” ma przycisk „Dno i wieniec z kawałków — dwie przegrody na styku” (`dnowienstyk`): na styku kolumn najbliżej
+    środka dwie przegrody (`przegrodaPodw`), osobne dna (`przegrodaOsobneDna`) i wieńce (`przegrodaOsobneWience`) — każda przegroda
+    skręcona ze swoim kawałkiem konfirmatami, jak bok szafy. Cokół w obrysie za długi na arkusz idzie wtedy też z kawałków stykających
+    się pod parą przegród (`cokolKaw`, w 3D też). Bez przegrody — rada „dodaj przegrodę”;
   - **Plecy HDF za duże na arkusz** (np. szafa 2400 × 2500, użytkownik 2026-11-21: „dzielić na przegrodach lub równych półkach, żeby
     łączeń nie było widać”) — błąd formatki ma przycisk „Plecy z kawałków — łączenia na przegrodach i półkach” (`plecykawalki`): każda
     kolumna dostaje plecy HDF jawnie, więc plecy idą kawałkami na kolumnę i poziom, a kawałki stykają się w połowie przegrody i półki

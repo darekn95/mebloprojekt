@@ -18,6 +18,8 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
    na arkuszu. Decyzja: **obie drogi** — (a) kilka korpusów obok siebie i jeden komplet drzwi przesuwnych na całą ścianę (tor do 6000 mm);
    (b) jedna szafa z dnem i wieńcem z dwóch kawałków łączonych na przegrodzie. Do zrobienia; przed robotą pytania o szczegóły
    (styk modułów: podwójne boki czy jedna wspólna przegroda; czym łączyć kawałki dna i wieńca; tory na modułach czy na suficie).
+   **Zrobione 2026-11-22 (b)**: przycisk „Dno i wieniec z kawałków — dwie przegrody na styku” (decyzja: podwójna przegroda; jedna
+   przegroda z konfirmatami z obu stron odpada — drugiej strony nie dokręcisz). Zostaje (a) moduły z jednym kompletem drzwi.
    **Odpowiedzi 2026-11-22:**
    - moduły — **do wyboru**: pełne korpusy skręcone bokami (dwa boki na styku) albo wspólna przegroda; przy wspólnej przegrodzie dno
      raczej wewnątrz (między bokiem a przegrodą), a wieniec też wewnątrz albo „na pół” na przegrodzie (9 mm);
