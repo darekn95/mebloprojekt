@@ -481,7 +481,8 @@ const sprzetCiagu = (cab) => {
   }
   if (typ === "zmywarkaW") { out.pokrywa = !!sp.pokrywa; out.drzwi = "dol"; }
   if (typ === "blenda") { out.auto = sp.auto !== false; out.strona = sp.strona === "prawa" ? "prawa" : "lewa"; }
-  if (typ === "maskownica") { out.gl = sp.gl === "korpus" ? "korpus" : "front"; out.kolor = sp.kolor === "korpus" ? "korpus" : "front"; }
+  // kolor domyslnie jak korpus (uzytkownik 2026-11-22: „domyślnie powinna być w kolorze korpusu, a nie frontów”)
+  if (typ === "maskownica") { out.gl = sp.gl === "korpus" ? "korpus" : "front"; out.kolor = sp.kolor === "front" ? "front" : "korpus"; }
   if (typ === "lodowka" && out.drzwi !== "prawe") out.drzwi = "lewe";
   if (typ === "lodowka") {
     const pusty = (k) => sp[k] == null || sp[k] === "";
@@ -3158,6 +3159,30 @@ const newProject = () => ({
 /* Wejscie do pomieszczenia: aktywna staje sie jego pierwsza szafka. Puste
    pomieszczenie (nowe albo po usunieciu ciagu) dostaje szafke startowa, jak
    nowy projekt — aplikacja zawsze ma jakas szafke do pokazania. */
+/* Wczytany projekt jako nowe pomieszczenia otwartego (uzytkownik 2026-11-22: „po wciśnięciu Wczytaj plik zastępuje całkowicie projekt
+   zamiast zapytać, czy nie stworzyć nowego pomieszczenia”): pomieszczenia i ciagi dostaja nowe numery (odwolania ciagow — rog, ciag
+   gorny — i szafek przepiete), wlasne plyty i kawalki dochodza, ceny zostaja z otwartego projektu. `imp` — po `loadProject`. */
+const dolaczJakoPomieszczenia = (cur, imp) => {
+  const rooms = roomsOf(cur).slice(), runs = (cur.runs || []).slice();
+  const mapR = new Map(), mapC = new Map();
+  roomsOf(imp).forEach((r) => {
+    const nowy = makeRoom(rooms);
+    const domyslna = /^Pomieszczenie \d+$/.test((r.name || "").trim());
+    const nazwa = domyslna && imp.name ? (roomsOf(imp).length === 1 ? imp.name : `${imp.name} — ${r.name}`) : domyslna ? nowy.name : r.name;
+    rooms.push({ ...r, id: nowy.id, name: rooms.some((q) => q.name === nazwa) ? `${nazwa} (2)` : nazwa });
+    mapR.set(r.id, nowy.id);
+  });
+  let n = 1; const wolnyC = () => { while (runs.some((q) => q.id === "c" + n) || [...mapC.values()].includes("c" + n)) n++; return "c" + n; };
+  (imp.runs || []).forEach((r) => mapC.set(r.id, wolnyC()));
+  (imp.runs || []).forEach((r) => runs.push({ ...r, id: mapC.get(r.id), roomId: mapR.get(r.roomId) || r.roomId,
+    ...(r.wall ? { wall: mapC.get(r.wall) || r.wall } : {}), ...(r.corner && r.corner.of ? { corner: { ...r.corner, of: mapC.get(r.corner.of) || r.corner.of } } : {}) }));
+  const nowe = (imp.items || []).map((it) => ({ ...it, runId: it.runId ? mapC.get(it.runId) || null : null, roomId: it.roomId ? mapR.get(it.roomId) || it.roomId : mapR.values().next().value }));
+  const plyty = [...(cur.plyty || []), ...(imp.plyty || []).filter((q) => !(cur.plyty || []).some((x) => x.id === q.id))];
+  const resztki = [...(cur.resztki || []), ...(imp.resztki || [])];
+  const p = { ...cur, rooms, runs, items: [...cur.items, ...nowe], plyty, resztki };
+  const pierwszy = mapR.values().next().value;
+  return pierwszy ? wejdzDoPokoju(p, pierwszy) : p;
+};
 const wejdzDoPokoju = (p, roomId) => {
   const akt = p.items[p.active];
   if (akt && roomOfItem(p, akt) === roomId) return p;
@@ -8965,7 +8990,7 @@ function geoSprzetuCiagu(cab, mat, ctx) {
     /* Maskownica boku: plyta na podlodze przy boku szafki obok, od podlogi do jej gory, na glebokosc korpusu i — domyslnie — strefe
        frontow (do lica drzwi); przykrecana od srodka szafki obok wkretami 4 × 30 (dwa rzedy co ok. 400 mm), zanim wejda polki i szuflady */
     const Hc = Math.round(cab.H), przod = sp.gl === "korpus" ? 0 : Math.round(baza.tf + HINGE_PLAY), dM = Math.round(cd + przod);
-    const kKey = sp.kolor === "korpus" ? "board" : plytaFrontu(cab);
+    const kKey = sp.kolor === "front" ? plytaFrontu(cab) : "board";
     dane = { ...sp, maskownica: true, lodowka: false, front: null, przod, kolorKey: kKey, kolorKorpusu: ((mat || {}).board || {}).color,
       bryla: { x0: 0, x1: Math.round(W), y0: 0, y1: Hc, z0: -przod, d: dM }, nisza: { w: Math.round(W), h: Hc, d: Math.round(cd) } };
     panels.push({ name: "Maskownica boku", qty: 1, a: Hc, b: dM, matKey: kKey, edges: { a1: true, a2: false, b1: true, b2: false },
@@ -22597,7 +22622,8 @@ const makJasneMat = (mat, pal = MAK_JASNE) => {
    większego powiększenia, dopasowania i pełnego ekranu”): „Powiększ” (domyslnie wlaczone) — widok z przodu na wysokosc
    okna; − / + — kroki jak w trybie technicznym na tej podstawie; „Dopasuj” — caly rysunek w oknie (bez Powiększ, 100 %);
    „Pełny ekran” — rysunek na cale okno (Esc zamyka); Ctrl + kolko nad rysunkiem — przyblizanie w miejscu kursora. */
-const MAK_ZOOM = [1, 1.25, 1.5, 2, 2.5, 3, 4];
+// 25–75% (uzytkownik 2026-11-22: „nie da się oddalić poniżej 100%”) — rysunek mniejszy niz okno
+const MAK_ZOOM = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
 // wysokosc sciany na widoku z przodu w makiecie (makieta „Dodaj”: rysunek do 2300 od podlogi)
 const MAK_SCIANA = 2300;
 /* Lista „Wymiary” nad rysunkiem makiety szczegolowej — co rysowac (uzytkownik 2026-11-10). */
@@ -24702,7 +24728,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       return [
         wiersz("mkg", "głębokość maskownicy", [["front", "do lica frontów"], ["korpus", "do lica korpusu"]].map(([v, l]) =>
           <Btn key={v} el="mak-maskownica-gl" v={v} on={sp.gl === v} onClick={() => ustaw({ gl: v })}>{l}</Btn>), "mak-maskownica-gl-w"),
-        wiersz("mkk", "kolor maskownicy", [["front", "jak fronty"], ["korpus", "jak korpus"]].map(([v, l]) =>
+        wiersz("mkk", "kolor maskownicy", [["korpus", "jak korpus"], ["front", "jak fronty"]].map(([v, l]) =>
           <Btn key={v} el="mak-maskownica-kolor" v={v} on={sp.kolor === v} onClick={() => ustaw({ kolor: v })}>{l}</Btn>), "mak-maskownica-kolor-w"),
         hint("maskownica", `Płyta od podłogi do góry szafki obok (${fmt(Math.round(cab.H))} mm), na głębokość korpusu${sp.gl === "korpus" ? "" : " i frontów"}; przykręcana od środka szafki obok wkrętami 4 × 30.`)];
     }
@@ -25336,7 +25362,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         const ten = p.items[idx], sas = st === "lewa" ? LL[kk - 1] : LL[kk + 1];
         if (sas && maskownicaCab(sas.it.cab)) { const items = p.items.filter((_, j) => j !== sas.i); return { ...p, items, active: Math.max(0, items.indexOf(ten)) }; }
         const nowy = JSON.parse(JSON.stringify(ten));
-        nowy.cab = { ...nowy.cab, name: "Maskownica boku", W: Math.round(Number(((ten.mat || {}).board || {}).thickness) || 18), sprzetCiagu: { typ: "maskownica", gl: "front", kolor: "front" },
+        nowy.cab = { ...nowy.cab, name: "Maskownica boku", W: Math.round(Number(((ten.mat || {}).board || {}).thickness) || 18), sprzetCiagu: { typ: "maskownica", gl: "front", kolor: "korpus" },
           topFiller: { on: false, height: 100 }, corner: { ...(nowy.cab.corner || {}), on: false }, naBlacie: [], blatWyciecia: [], slupek: false,
           plinth: { ...(nowy.cab.plinth || {}), on: false }, legs: { ...(nowy.cab.legs || {}), on: false } };
         ["dolGorny", "biurkoWiszace", "dnoCof", "frontPodDnem"].forEach((k) => { delete nowy.cab[k]; }); delete nowy.wallGap; nowy.offset = 0;
@@ -25344,8 +25370,13 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
         items.splice(gdzie, 0, nowy);
         return { ...p, items, active: Math.max(0, items.indexOf(ten)) };
       });
-      return wiersz("mask", "maskownica boku (płyta od podłogi do góry, na całą głębokość)", [["lewa", "z lewej"], ["prawa", "z prawej"]].map(([st, l]) =>
-        <Btn key={st} el="mak-maskownica" v={st} on={!!jest(st)} onClick={() => przelacz(st)}>{l}</Btn>), "mak-maskownica-w");
+      const obecne = ["lewa", "prawa"].map(jest).filter(Boolean);
+      const kolorM = obecne.length && obecne.every((q) => sprzetCiagu(q.it.cab).kolor === "front") ? "front" : "korpus";
+      const ustawKolor = (v) => zmienProjekt((p) => ({ ...p, items: p.items.map((x, j) => (obecne.some((q) => q.i === j) ? { ...x, cab: { ...x.cab, sprzetCiagu: { ...x.cab.sprzetCiagu, kolor: v } } } : x)) }));
+      return [wiersz("mask", "maskownica boku (płyta od podłogi do góry, na całą głębokość)", [["lewa", "z lewej"], ["prawa", "z prawej"]].map(([st, l]) =>
+        <Btn key={st} el="mak-maskownica" v={st} on={!!jest(st)} onClick={() => przelacz(st)}>{l}</Btn>), "mak-maskownica-w"),
+        ...(obecne.length ? [wiersz("maskk", "kolor maskownic", [["korpus", "jak korpus"], ["front", "jak fronty"]].map(([v, l]) =>
+          <Btn key={v} el="mak-maskownica-kolor-szafki" v={v} on={kolorM === v} onClick={() => ustawKolor(v)}>{l}</Btn>), "mak-maskownica-kolor-szafki-w")] : [])];
     })();
     /* Trojkaty meblowe w szczegolowej (uzytkownik 2026-11-10: „zgubiła nam się opcja montażu na trójkąty meblowe”) — tam,
        gdzie program je liczy (jak w trybie technicznym): wzmocnienia z obu stron przegrody na tej samej wysokosci (prawa
@@ -25376,7 +25407,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
           <Btn key={v} el="mak-wzm-moc" v={v} on={mocKol === v} onClick={() => zmienKol(k.li, k.j, (kk) => { (kk.rails || []).forEach((r) => { if (!r || r.orient === "vertical") return; if (v === "konfirmaty") delete r.mocowanie; else r.mocowanie = v; }); })}>{l}</Btn>), "mak-wzm-moc")] : []),
         ...wzmTrojkaty(k)];
     }, true).flat();
-    if (maskL) tresc.unshift(maskL);
+    if (maskL) tresc.unshift(...maskL);
     else if (!run && !cab.sprzetCiagu) tresc.unshift(<p key="mask-bez" className="text-[11px] text-stone-500" data-el="mak-maskownica-bez-ciagu">Maskownica boku — dla szafki w ciągu (zakładka Szafka → „W ciąg”).</p>);
     tresc.push(<p key="wzh" className="text-[11px] text-stone-500">Wymiary typowe (100 mm); wysokość, głębokość i strona pionowego — w trybie Technicznym. Trójkąty meblowe — przy przegrodzie, gdy po obu jej stronach są wzmocnienia na tej samej wysokości, i pod przegrodą niższą o płytę.</p>);
   }
@@ -26530,7 +26561,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
       if (!e.ctrlKey) return;
       e.preventDefault();
       const z0 = zoomRefM.current.z;
-      const z1 = Math.max(1, Math.min(MAK_ZOOM[MAK_ZOOM.length - 1], z0 * Math.exp(-e.deltaY * 0.0015)));
+      const z1 = Math.max(MAK_ZOOM[0], Math.min(MAK_ZOOM[MAK_ZOOM.length - 1], z0 * Math.exp(-e.deltaY * 0.0015)));
       if (Math.abs(z1 - z0) < 1e-3) return;
       const r = el.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
       poZoomie.current = { x: (el.scrollLeft + mx) * (z1 / z0) - mx, y: (el.scrollTop + my) * (z1 / z0) - my };
@@ -27869,11 +27900,15 @@ export default function App() {
     }
   };
 
-  const applyImportText = (raw) => {
+  /* Wczytany plik / tekst: gdy w otwartym projekcie sa szafki — pytanie: zastapic projekt czy dolaczyc jako nowe pomieszczenie
+     (`importOferta`); pusty projekt — od razu zastepuje */
+  const [importOferta, setImportOferta] = useState(null);
+  const applyImportText = (raw, pytaj = true) => {
     try {
       const d = JSON.parse(raw);
       const proj = loadProject(d);
       if (!proj) throw new Error("zły format");
+      if (pytaj && (project.items || []).length > 0) { setImportOferta({ proj, nazwa: proj.name || "", szafek: (proj.items || []).length, pokoi: roomsOf(proj).length }); setTransfer(null); return; }
       replaceProject(proj);
       setSaved("wczytano projekt");
       setTransfer(null);
@@ -27881,6 +27916,8 @@ export default function App() {
       setSaved("nieprawidłowy tekst projektu");
     }
   };
+  const importZastap = () => { if (!importOferta) return; replaceProject(importOferta.proj); setSaved("wczytano projekt"); setImportOferta(null); };
+  const importDolacz = () => { if (!importOferta) return; const imp = importOferta.proj; setProject((p) => dolaczJakoPomieszczenia(p, imp)); setSaved("dodano jako nowe pomieszczenie"); setImportOferta(null); };
 
   const importProject = (e) => {
     const file = e.target.files?.[0];
@@ -31138,10 +31175,18 @@ export default function App() {
               {wyslanyDoWczytania.wyslano ? ` ${new Date(wyslanyDoWczytania.wyslano).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}
               {wyslanyDoWczytania.nazwa ? ` („${wyslanyDoWczytania.nazwa}”` : " ("}
               {wyslanyDoWczytania.szafek != null ? `${wyslanyDoWczytania.nazwa ? ", " : ""}${wyslanyDoWczytania.szafek} szafek)` : ")"}? Zastąpi otwarty projekt.
-              <button onClick={() => { applyImportText(wyslanyDoWczytania.json); setWyslanyDoWczytania(null); }}
+              <button onClick={() => { applyImportText(wyslanyDoWczytania.json, false); setWyslanyDoWczytania(null); }}
                 className="rounded bg-teal-700 px-2 py-0.5 font-medium text-white hover:bg-teal-800">Wczytaj</button>
               <button onClick={() => setWyslanyDoWczytania(null)}
                 className="rounded border border-stone-300 bg-white px-2 py-0.5 text-stone-700 hover:bg-stone-50">Anuluj</button>
+            </span>
+          )}
+          {importOferta && (
+            <span data-el="import-oferta" className="flex flex-wrap items-center gap-1.5 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-stone-800">
+              Wczytany plik{importOferta.nazwa ? ` „${importOferta.nazwa}”` : ""} ({importOferta.szafek} {plural(importOferta.szafek, "szafka", "szafki", "szafek")}{importOferta.pokoi > 1 ? `, ${importOferta.pokoi} pomieszczenia` : ""}):
+              <button data-el="import-dolacz" onClick={importDolacz} className="rounded bg-teal-700 px-2 py-0.5 font-medium text-white hover:bg-teal-800">Dodaj jako nowe pomieszczenie</button>
+              <button data-el="import-zastap" onClick={importZastap} className="rounded border border-stone-300 bg-white px-2 py-0.5 text-stone-700 hover:bg-stone-50">Zastąp cały projekt</button>
+              <button data-el="import-anuluj" onClick={() => setImportOferta(null)} className="rounded border border-stone-300 bg-white px-2 py-0.5 text-stone-700 hover:bg-stone-50">Anuluj</button>
             </span>
           )}
           <label className="cursor-pointer text-xs text-teal-700 hover:underline">
