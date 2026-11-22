@@ -194,6 +194,20 @@ korpusu i kolor jak fronty (domyślnie) albo korpus. Formatka „Maskownica boku
 szafki obok w dwóch rzędach co ok. 400 mm — przykręcić, zanim wejdą półki i szuflady. Stoi na podłodze jak lodówka wolnostojąca
 (`naPodlodzeCiagu`): cokół ciągu kończy się przy niej, bez uwag o wysokości.
 
+## Biurko wiszące (2026-11-22)
+
+Wzór „Biurko wiszące” (paleta „Wolnostojące”; upuszczony na szafkę w ciągu — do ciągu przy niej). Projekt użytkownika: blat wisi między
+szafkami, przykręcony do ich boków i do ściany, a „biurko” to skrzynka z szufladami. Skrzynka 2100 × 250 × 600 mm, `cab.biurkoWiszace`:
+- **blat = wieniec** skrzynki (płyta 18, na bokach) — skręcony z bokami na mimośrody od spodu (w planie wierceń jeszcze konfirmaty —
+  uwaga mówi, żeby je zamienić; `[AI-TODO]`);
+- **szuflady** na szerokość po 600–800 mm (`biurkoWiszaceKolumny`: szerokość / 700), fronty wewnętrzne bez uchwytu;
+- **dno cofnięte** o grubość frontu (`cab.dnoCof` 18 — formatka krótsza, wiercenia i bryła przesunięte), front najniższej szuflady schodzi
+  przed nim do spodu korpusu (`cab.frontPodDnem` — tyle niżej, np. 10 mm);
+- **wisi** `cab.dolGorny` (500) mm nad podłogą — blat ok. 750; w ciągu stoi poza wspólną wysokością i cokołem (`naPodlodzeCiagu`);
+- **boki skrzynki** przykręcone do maskownic szaf obok (wkręty 4 × 30 od środka skrzynki) — gdy maskownic brak, uwaga to mówi.
+Uwagi (`biurkoWiszaceMsgs`): fronty równo ze spodem dna — „nie ma za co chwycić” z przyciskami „Dodaj uchwyty” / „Front 10 mm poniżej
+dna” (tip-on, push to open — gdy dojdą takie szuflady); szuflady spoza 600–800 mm — „Szuflady po ok. 700 mm”.
+
 ## Biurko w ciągu (2026-11-22)
 
 Wzór biurka (i biurka z kontenerem) upuszczony na szafkę w ciągu dolnym — albo wstawiony przy zaznaczonej szafce w ciągu — staje w tym
