@@ -26945,14 +26945,19 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
                 setObrot({ yaw: o.yaw + (e.clientX - o.x) * 0.008, pitch: Math.max(-1.2, Math.min(1.2, o.pitch + (e.clientY - o.y) * 0.006)) }); }}
               onPointerUp={() => { obrotStart.current = null; }} onPointerCancel={() => { obrotStart.current = null; }}>{dziecko}</div>
           );
+          /* zoom w widokach z boku, z gory, 3D i 45° (uzytkownik 2026-11-22: „w 45 i 3d oddalanie widoku poniżej 100% nie działa”) —
+             rysunek ma szerokosc okna razy zoom (100% = na szerokosc okna, wiecej — przewijanie) */
+          // powyzej 100% bez limitu wysokosci rysunku (3D ma `max-height`) — inaczej wieksza szerokosc nic nie daje
+          const zoomuj = (el) => (el ? <div data-el="mak-widok-zoom" style={{ width: `${Math.round(zoomM.z * 100)}%`, minWidth: 120, marginInline: zoomM.z < 1 ? "auto" : undefined }}>
+            {zoomM.z > 1 && <style>{"[data-el=mak-widok-zoom] svg{max-height:none!important}"}</style>}{el}</div> : el);
           return (
             <div data-el="mak-widok-inny" data-widok={w}>
-              {w === "bok" && (zCiagow ? <AssemblySideView project={projRys} runs={rysowane} showDims onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />
+              {w === "bok" && zoomuj(zCiagow ? <AssemblySideView project={projRys} runs={rysowane} showDims onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />
                 : geo0 && <SideView cab={it0.cab} geo={geo0} mat={it0.mat} showDims showHardware={false} />)}
               {/* rzut z gory jako glowny widok (uzytkownik 2026-11-13: „w widoku z góry nie działa przesuwanie elementów np. płyty do
                   szafki obok”) — jak rzut nad widokiem z przodu (`mak-zgory`): przeciaganie plyty / zlewu / sprzetu na blacie, ramki,
                   znaczki szerokosci i glebokosci zaznaczonej szafki, wymiary zaznaczonego wyciecia */}
-              {w === "gora" && (zCiagow ? <div data-el="mak-zgory"><AssemblyTopView project={projRys} runs={rysowane} showDims showShelves showHardware={false} onPick={wybierz} zazn={zaznM ? project.active : null} blatKryje={przel.blat !== false}
+              {w === "gora" && zoomuj(zCiagow ? <div data-el="mak-zgory"><AssemblyTopView project={projRys} runs={rysowane} showDims showShelves showHardware={false} onPick={wybierz} zazn={zaznM ? project.active : null} blatKryje={przel.blat !== false}
                 nakladka={nakladkaGora} wycZazn={akt === "dodaj" && dodajCo === "agd" && selAgd && selAgd.rodz === "wyc" ? selAgd : null} /></div>
                 : geo0 && <TopView cab={it0.cab} geo={geo0} mat={it0.mat} showDims showShelves showHardware={false} />)}
               {/* otwarte / zamkniete i kat otwarcia (uzytkownik 2026-11-12: „brak na rysunku otwarte, zamknięte i suwaka do otwierania”,
@@ -26963,11 +26968,11 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
                   <input type="range" min={0} max={110} step={1} value={kat3d} data-el="mak-3d-kat" onChange={(e) => setKat3d(Number(e.target.value))} className="w-32 accent-teal-700" />
                   <span className="w-10 font-mono text-xs text-stone-500">{kat3d}°</span></label>}
               </div>}
-              {w === "3d" && obracany(zCiagow ? <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} rpOf={rpOf} agd={przel.agd !== false} />
-                : geo0 && <Scene3D cab={it0.cab} geo={geo0} mat={it0.mat} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} />)}
+              {w === "3d" && zoomuj(obracany(zCiagow ? <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} rpOf={rpOf} agd={przel.agd !== false} />
+                : geo0 && <Scene3D cab={it0.cab} geo={geo0} mat={it0.mat} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} />))}
               {/* 45° — klik zaznacza szafke (uzytkownik 2026-11-12); 3D — obracanie, bez zaznaczania */}
-              {w === "iso" && <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} szuflady={widok === "open"} yaw={-Math.PI / 4} pitch={-0.45} angle={kat3d} rpOf={rpOf}
-                onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />}
+              {w === "iso" && zoomuj(<Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} szuflady={widok === "open"} yaw={-Math.PI / 4} pitch={-0.45} angle={kat3d} rpOf={rpOf}
+                onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />)}
               <p className="mt-1 text-[11px] text-stone-500" data-el="mak-widok-podpowiedz">{w === "gora"
                 ? "Kliknij szafkę, żeby ją zaznaczyć; płytę, zlew i sprzęt na blacie przeciągnij na inną szafkę (zielone ramki); zaznaczonej — zielone znaczki szerokości i głębokości. „Blat” wyłączony — widać szafki pod blatem. Fronty, półki i szuflady — w widoku „Z przodu”."
                 : `${w === "3d" ? "Przeciągnij, żeby obrócić (tu bez zaznaczania szafek). " : w === "iso" || w === "bok" ? "Kliknij szafkę, żeby ją zaznaczyć. " : ""}Zmiany na rysunku — w widoku „Z przodu”; tu podgląd.`}</p>

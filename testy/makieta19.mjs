@@ -391,6 +391,16 @@ await page.evaluate(() => localStorage.setItem('mp-tryb', 'prosta')); await page
   for (let k = 0; k < 3; k++) { await minus.click(); await page.waitForTimeout(200); }
   ok('„−” oddala poniżej 100% (do 25%)', /^25%$/.test((await page.locator('[data-el="mak-zoom-proc"]').innerText()).trim()), await page.locator('[data-el="mak-zoom-proc"]').innerText());
   await page.locator('[data-el="mak-zoom"] button', { hasText: 'Dopasuj' }).click(); await page.waitForTimeout(200); }
+// zoom w widokach 45°, 3D, z boku, z gory (uzytkownik 2026-11-22: „w 45 i 3d oddalanie widoku poniżej 100% nie działa”)
+for (const w of ['iso', '3d', 'bok', 'gora']) {
+  const szer = async (z) => { await page.evaluate(([w, z]) => { localStorage.setItem('mp-mak-zoom', JSON.stringify({ pow: false, z })); localStorage.setItem('mp-mak-widok', w); }, [w, z]);
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(700);
+    return page.evaluate(() => { const s = document.querySelector('[data-el=mak-widok-inny] svg'); return s ? Math.round(s.getBoundingClientRect().width) : 0; }); };
+  const a = await szer(0.5), b = await szer(1), c = await szer(2);
+  ok(`widok ${w}: 50% / 100% / 200% — rysunek mniejszy i większy`, a > 0 && Math.abs(a * 2 - b) < 4 && Math.abs(c - b * 2) < 4, `${a} / ${b} / ${c}`);
+}
+await page.evaluate(() => { localStorage.setItem('mp-mak-zoom', JSON.stringify({ pow: false, z: 1 })); localStorage.setItem('mp-mak-widok', 'przod'); });
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(700);
 console.log('== 2026-11-22: „Wczytaj plik” — pytanie: nowe pomieszczenie / zastąp projekt ==');
 { const fs = await import('fs'), plik = '/tmp/mp-test-import.json';
   const inny = JSON.parse(JSON.stringify(await proj())); inny.name = 'Pokój dziecka';
