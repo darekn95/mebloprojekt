@@ -1404,7 +1404,8 @@ blenda nad szafa w wysokim pokoju — czekaja na szczegoly od uzytkownika (`POMY
 skrecone bokami / wspolna przegroda: dno wewnatrz, wieniec wewnatrz albo na pol przegrody); jedna szafa z dnem / wiencem z 2 kawalkow — dno
 wewnatrz przy pojedynczej przegrodzie, wieniec na pol plyty tylko gdy kawalek ma jeszcze jedna przegrode (poza bokiem) do przykrecenia,
 inaczej sugestia: wieniec wewnatrz bokow albo podwojna przegroda; nadstawka nad szafa — drzwi na zawiasach. Do wdrozenia (duze funkcje).
-[AI-TODO] PRZYPOMNIENIE (uzytkownik 2026-11-22): scalenie do `main` (PR #34, f4cc8cd) poszlo z szybkimi testami — PELNY PRZEBIEG
+[AI-INFO] 2026-11-22: PELNY PRZEBIEG ZROBIONY (po #41) — 175 suit + `losowe` zielone (po poprawce 3 testow z cokolem w kolorze frontow).
+[AI-INFO-STARE] PRZYPOMNIENIE (uzytkownik 2026-11-22): scalenie do `main` (PR #34, f4cc8cd) poszlo z szybkimi testami — PELNY PRZEBIEG
 (`bash testy/pelny.sh` + `node testy/losowe.mjs`) do zrobienia w wolnej chwili (bez innych zadan); jesli sie nie wykona — przypomniec
 uzytkownikowi przy nastepnym scaleniu („przy następnej wrzutce na git”), ze pelnych testow nie bylo.
 [AI-TODO] 2026-11-22 ODLOZONE przez uzytkownika („żeby nie brakło tokenów”): duze funkcje szafy przesuwnej (moduly + jeden komplet drzwi,

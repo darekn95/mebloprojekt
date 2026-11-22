@@ -17,6 +17,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-11-22 | pełny przebieg (175 suit, 29 min): `decyzje` (wysuw 0 jednej „szuflady”), `kolory` (Cokół → płyta FRONT, „ma być KORPUS”), `macierzszuflad` (front poza obrysem 100 mm pod korpusem) | testy, nie aplikacja: cokół jest domyślnie jak fronty (decyzja użytkownika 2026-11-22) — testy brały go za front; teraz pomijają bryłę `cokol`, a rola formatki „Cokół” to FRONT. Po poprawce: pełny przebieg zielony, `losowe` 66 kroków bez problemu | (ten commit) |
 | 2026-11-22 | #44 (analiza 2026-11-21: nowy projekt to zawsze jedna szafka w Technicznym, bez ściany i sufitu) | okno „Nowy projekt — co projektujesz?”: ciąg z rodzajem, ścianą i sufitem i pierwsza szafka ze wzoru; `makieta19` | (ten commit) |
 | 2026-11-22 | #43 (analiza 2026-11-21: szafa 2400 × 2500 — plecy HDF 2398 × 2398 nie mieszczą się, był tylko błąd) | przycisk „Plecy z kawałków” — plecy w kolumnach, łączenia na przegrodach i półkach; bez przegród — rada; `funkcje` | (ten commit) |
 | 2026-11-22 | #41 nadstawka — audyt zabudowy: cokół szafy w obrysie (boki do podłogi) jako „Cokół ciągu” 2000 mm przez boki | błąd zamówienia: `runPlinth` brał cokół w obrysie (`inbody` / `between`) jako wspólny cokół ciągu na całą długość, a formatkę szafy (1964 między bokami) zdejmował; teraz cokół w obrysie zostaje przy każdej szafie | (ten commit) |
