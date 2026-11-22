@@ -319,7 +319,7 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
   (użytkownik 2026-11-13: „100 szt. za 30 zł”, `DEFAULT_HW_PRICES`).
 
 ## Co ustawiasz ręcznie
-- Pomieszczenie, ciąg, szafka i widok — przyciski z rozwijaną listą. Ciąg domyślnie: ciąg
+- Pomieszczenie, ciąg, szafka i widok — przyciski z rozwijaną listą. Na liście pomieszczeń „+ nowe pomieszczenie” (2026-11-22) — dodaje je i do niego przechodzi. Ciąg domyślnie: ciąg
   zaznaczonej szafki z piętrem nad nim (cały pokój na raz jest za drobny do chwytania półek);
   „Wszystkie ciągi” — cały pokój i szafki wolnostojące; „Tylko zaznaczona szafka” — duży rysunek
   jednej szafki do przeciągania półek i szuflad.

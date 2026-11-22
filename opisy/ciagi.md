@@ -208,6 +208,13 @@ szafkami, przykręcony do ich boków i do ściany, a „biurko” to skrzynka z 
 Uwagi (`biurkoWiszaceMsgs`): fronty równo ze spodem dna — „nie ma za co chwycić” z przyciskami „Dodaj uchwyty” / „Front 10 mm poniżej
 dna” (tip-on, push to open — gdy dojdą takie szuflady); szuflady spoza 600–800 mm — „Szuflady po ok. 700 mm”.
 
+## Szafka RTV wisząca (2026-11-22)
+
+Wzór „Szafka RTV wisząca” (paleta „Wolnostojące”; decyzje użytkownika: klapy w dół, zawieszki do ściany, 1600 × 400 × 450, 350 nad
+podłogą) — jak biurko wiszące: bez nóżek i cokołu (zawieszki same, `maZawieszki`), dół nad podłogą `cab.dolGorny` (pole „dół nad
+podłogą” w karcie Szafka, też dla biurka wiszącego), `cab.wiszacaRtv`; w ciągu poza wspólną wysokością i cokołem (`naPodlodzeCiagu`),
+na rysunku wolnostojących też nad podłogą. Informacja w uwagach szafki (`computeGeoLiczy`).
+
 ## Biurko w ciągu (2026-11-22)
 
 Wzór biurka (i biurka z kontenerem) upuszczony na szafkę w ciągu dolnym — albo wstawiony przy zaznaczonej szafce w ciągu — staje w tym

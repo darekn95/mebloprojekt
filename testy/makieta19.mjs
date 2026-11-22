@@ -330,6 +330,25 @@ await ust(`p.active = p.items.findIndex((i) => i.cab.biurkoWiszace);`);
 p = await czekaj("p.items.find((i) => i.cab.biurkoWiszace).cab.frontPodDnem === 10");
 ok('„Front 10 mm poniżej dna” — zapisane, ostrzeżenie znika', p.items.find((i) => i.cab.biurkoWiszace).cab.frontPodDnem === 10 && !/nie ma za co chwycić/.test(await uwagi()));
 
+console.log('== 2026-11-22: szafka RTV wisząca, „+ nowe pomieszczenie” w makiecie ==');
+await start(FIX);
+await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+{ const n0 = (await proj()).items.length; await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="rtvW"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await czekaj(`p.items.length > ${n0}`); }
+p = await proj();
+{ const r = p.items.find((i) => i.cab.wiszacaRtv), t = await uwagi();
+  ok('„Szafka RTV wisząca”: 1600 × 400 × 450, 350 nad podłogą, bez nóżek i cokołu, 2 klapy w dół, na zawieszkach', !!r && r.cab.W === 1600 && r.cab.H === 400 && r.cab.D === 450 && r.cab.dolGorny === 350
+    && !(r.cab.legs && r.cab.legs.on) && !(r.cab.plinth && r.cab.plinth.on) && r.cab.levels[0].cols.length === 2 && /na zawieszkach do ściany.*dół 350 mm nad podłogą/.test(t), r && JSON.stringify({ W: r.cab.W, H: r.cab.H, dG: r.cab.dolGorny }) + ' ' + t.slice(0, 200)); }
+await zakl('szafka');
+{ const pole = page.locator('[data-pole="dol-nad-podloga"]'); ok('karta Szafka: pole „dół nad podłogą” (350)', (await pole.count()) === 1 && (await pole.inputValue()) === '350');
+  if (await pole.count()) { await pole.fill('400'); await pole.press('Enter'); } }
+p = await czekaj("p.items.find((i) => i.cab.wiszacaRtv).cab.dolGorny === 400");
+ok('… zmiana na 400 zapisana', p.items.find((i) => i.cab.wiszacaRtv).cab.dolGorny === 400);
+await page.locator('[data-el="mak-pomieszczenie"] > button').click(); await page.waitForTimeout(200);
+await page.locator('[data-el="mak-pomieszczenie"] [role="option"][data-v="__nowe"]').click();
+p = await czekaj("(p.rooms || []).length === 2");
+ok('lista „Pomieszczenie”: „+ nowe pomieszczenie” dodaje pomieszczenie i do niego przechodzi', (p.rooms || []).length === 2 && /Pomieszczenie 2/.test(await page.locator('[data-el="mak-pomieszczenie"]').innerText()),
+  JSON.stringify(p.rooms) + ' ' + (await page.locator('[data-el="mak-pomieszczenie"]').innerText()));
+
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
 await browser.close();
