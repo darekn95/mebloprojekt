@@ -8,6 +8,9 @@ Stan: 2026-11-17. Decyzje użytkownika z 2026-11-16 i 2026-11-17 (w `BLEDY.md`, 
   - tor górny pod wieńcem, tor dolny na dnie;
   - otwór to światło korpusu: SO = szerokość między bokami, WO = wysokość między dnem a wieńcem.
 - **Liczba skrzydeł** („same”): do 2000 mm otworu 2, do 3000 mm 3, wyżej 4 (skrzydło ok. 1000 mm, `PRZES.SKRZ_MAX`).
+  Z wyboru także 5 i 6 (użytkownik 2026-11-22): 6 jak 4 — dwie połowy po 3 (środkowe na jednym torze, na styk), 5 naprzemiennie
+  jak 3 (`PRZES_SKRZ`). Przy szerokim / ciężkim skrzydle przyciski „5 (6) skrzydeł” i „Podziel na dwie szafy” (`przesdziel`:
+  po połowie szerokości, każda z własnymi drzwiami, podwójny bok tylko od ściany, przegrody na stykach skrzydeł).
 - **Wymiary** według instrukcji GTV NOVO S (18), s. 23 (`przesuwneWymiary`):
   - szerokość skrzydła SD = (SO − 3 + k·34) / n ze szczotką odbojową albo (SO + k·34) / n bez niej;
     - k = n − 1;

@@ -7,6 +7,9 @@ Karty „Cokół” i „Nóżki” szafki oraz podsekcje „Cokół” i „Nó
 - **Cokół szafki**: płyta korpusu o podanej wysokości (domyślnie 100 mm), cofnięta od lica o „Cofnięcie w głąb”. Dwa sposoby montażu:
   - **„Pod korpusem”** — pod dnem, dokłada się do wysokości szafki;
   - **„Pod dnem, w obrysie”** — boki schodzą do podłogi, dno stoi nad cokołem, a cokół mieści się w wysokości korpusu. Wymaga dna między bokami.
+- **Kolor cokołu** (użytkownik 2026-11-22): domyślnie **jak fronty**, do wyboru „jak korpus” (`plinth.kolor`; karta Cokół
+  w Technicznym, zakładka „Cokół i nóżki” w makiecie; w ciągu — dla całego ciągu). Formatka idzie z płyty frontów, gdy fronty są
+  z innej płyty niż korpus (`cokolKey`); rysunki i 3D — `kolorCokolu`.
 - **Cokół ciągu**: jedna płaszczyzna pod całym ciągiem, z tym samym sposobem montażu.
   - Dłuższy niż formatka dzieli się na styku korpusów i jest oklejony także na łączeniu.
   - W rogu cokoły dwóch ciągów idą na zakładkę: koniec każdego dochodzi do płaszczyzny drugiego.
