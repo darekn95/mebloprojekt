@@ -320,6 +320,8 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
 
 ## Co ustawiasz ręcznie
 - Pomieszczenie, ciąg, szafka i widok — przyciski z rozwijaną listą. Na liście pomieszczeń „+ nowe pomieszczenie” (2026-11-22) — dodaje je i do niego przechodzi.
+- Kafelek **„Płyty i kolory”** (makieta szczegółowa, 2026-11-22; kolory zostają też w zakładce Szafka): palety korpusu / frontów / półek zaznaczonej szafki z „cały ciąg”, „jak w tej szafce — w całym pomieszczeniu” (korpus, fronty, półki), kolor cokołu i kolor maskownic przy tej szafce (zaznaczona maskownica — jej kolor); płyty z listy i dekory — „Wszystkie opcje” (karta Płyty).
+- Zaznaczona maskownica w zakładce Wzmocnienia: jej kolor i głębokość (pozycje bez korpusu — bez wzmocnień).
 - Zoom: „−” / „+” w krokach 25–400 % (`MAK_ZOOM`; od 2026-11-22 także poniżej 100 % — rysunek mniejszy niż okno), Ctrl + kółko, „Dopasuj”.
 - „Wczytaj plik” (pasek u góry) przy projekcie z szafkami pyta: dodać jako nowe pomieszczenie czy zastąpić cały projekt (`importOferta`, `dolaczJakoPomieszczenia`). Ciąg domyślnie: ciąg
   zaznaczonej szafki z piętrem nad nim (cały pokój na raz jest za drobny do chwytania półek);

@@ -306,6 +306,11 @@ p = await czekaj("p.items.some((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.typ
   ok('maskownica między szafą a regałem: 18 mm, od podłogi do góry szafy, głębokość szafy', JSON.stringify(kol) === '["Szafa","Maskownica boku","Regał"]' && m.cab.W === 18 && m.cab.H === gora && m.cab.D === sz.cab.D,
     JSON.stringify(kol) + ' ' + JSON.stringify({ W: m.cab.W, H: m.cab.H, D: m.cab.D, gora })); }
 await ust(`p.active = p.items.findIndex((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.typ === 'maskownica');`);
+await zakl('wzmocnienia');
+ok('zaznaczona maskownica w zakładce Wzmocnienia: jej kolor (jak korpus — wybrane) i głębokość, bez wzmocnień kolumn', (await page.locator('[data-el="mak-maskownica-kolor"][data-v="korpus"]').getAttribute('aria-pressed')) === 'true'
+  && (await page.locator('[data-el="mak-maskownica-gl"]').count()) === 2 && (await page.locator('[data-el="mak-wzm"]').count()) === 0);
+await zakl('plyty');
+ok('… w kafelku „Płyty i kolory”: kolor maskownicy', (await page.locator('[data-el="mak-plyty-maskownica"]').count()) === 2);
 { const t = await uwagi(); ok('uwagi maskownicy: wkręty 4 × 30 od środka szafki obok, cokół kończy się przy niej; rysunek', /Maskownica boku \d+ × \d+ mm: przykręć ją od środka szafki obok wkrętami 4 × 30/.test(t)
     && (await page.locator('[data-el="makieta"] [data-el="maskownica-boku"]').count()) >= 1, t.slice(0, 300)); }
 
@@ -350,6 +355,18 @@ p = await czekaj("(p.rooms || []).length === 2");
 ok('lista „Pomieszczenie”: „+ nowe pomieszczenie” dodaje pomieszczenie i do niego przechodzi', (p.rooms || []).length === 2 && /Pomieszczenie 2/.test(await page.locator('[data-el="mak-pomieszczenie"]').innerText()),
   JSON.stringify(p.rooms) + ' ' + (await page.locator('[data-el="mak-pomieszczenie"]').innerText()));
 
+console.log('== 2026-11-22: kafelek „Płyty i kolory” (makieta szczegółowa) ==');
+await start(FIX);
+await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+for (const id of ['dolna1', 'dolna2']) { const n0 = (await proj()).items.length; await page.locator(`[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="${id}"]`).click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await czekaj(`p.items.length > ${n0}`); }
+await page.evaluate(() => localStorage.setItem('mp-tryb', 'szczegolowa')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+await zakl('plyty');
+{ const sw = page.locator('[data-el="mak-karta-panel"] [data-el="mak-plyta"][data-k="board"]');
+  ok('kafelek „Płyty i kolory”: paleta korpusu, „w całym pomieszczeniu”, kolor cokołu / maskownic (opis)', (await sw.count()) > 3 && (await page.locator('[data-el="mak-plyta-pokoj"]').count()) >= 1 && (await page.locator('[data-el="mak-plyty-info"]').count()) === 1);
+  const hex = await sw.nth(2).getAttribute('data-v'); await sw.nth(2).click(); await page.waitForTimeout(500);
+  await page.locator('[data-el="mak-plyta-pokoj"][data-v="board"]').click();
+  p = await czekaj(`p.items.filter((i) => !i.cab.sprzetCiagu).every((i) => (i.mat.board.color || '').toLowerCase() === '${'${hex}'}'.toLowerCase())`.replace("${'${hex}'}", hex));
+  ok('kolor korpusu z kafelka i „korpus — w całym pomieszczeniu”: wszystkie szafki pomieszczenia', p.items.filter((i) => !i.cab.sprzetCiagu).every((i) => (i.mat.board.color || '').toLowerCase() === hex.toLowerCase()), hex + ' ' + JSON.stringify(p.items.map((i) => i.mat.board.color))); }
 console.log('== 2026-11-22: zoom makiety poniżej 100% ==');
 await page.evaluate(() => localStorage.setItem('mp-tryb', 'prosta')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
 { const minus = page.locator('[data-el="mak-zoom"] button', { hasText: '−' });
