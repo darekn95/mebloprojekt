@@ -7,9 +7,43 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 ## Co program liczy sam
 
 - **Stoi czy wisi**: ciąg dolny z poziomem montażu 0 stoi na podłodze — także szafki bez nóżek i cokołu (np. RTV): bez zawieszek, haków, listwy i uwag o wieszaniu (`ciagStoi`, `cabDoGeo` → `cab.naPodlodze`; użytkownik 2026-10-24). Ciąg wiszący (także dolny, np. szafki RTV na ścianie) — poziom montażu > 0.
+- **Głębokość blatu wpisana ręcznie** (karta ciągu w makiecie: „Głębokość blatu (od ściany)”, `run.blatGl`; 2026-11-12):
+  zastępuje głębokość z szafek (lico drzwi + 10 mm, arkusz 600); arkusz — najmniejszy, z którego się ją wytnie. Za płytki
+  (fronty wystają przed blat) — ostrzeżenie z przyciskami „Blat N mm” i „Głębokość blatu automatycznie” (`blatgl`).
+- **Blat przed frontami — nawis** (użytkownik 2026-11-12): dobrze 10 mm (`WORKTOP_OVERHANG`), co najmniej 1 mm
+  (`WORKTOP_MIN_OVERHANG`; mniej — **błąd**: blat nie zasłania frontów od góry), do 20 mm w normie (`WORKTOP_MAX_OVERHANG`, wcześniej 30),
+  ponad 20 mm — **ostrzeżenie**: „przytnij blat od ściany albo wysuń szafki ciągu do przodu”. Z szafek: cały arkusz 600, dopóki
+  wystaje najwyżej 20 mm, dalej domyślnie docięty na 10 mm (ostrzeżenie z „Zamów cały arkusz” / „Zamów blat docięty” i
+  zaleceniem „Zalecane: odsuń szafki ciągu od ściany o N mm — blat zostanie w całej szerokości arkusza (bez docinania)” — przycisk
+  „Odsuń szafki „<ciąg>” od ściany o N mm”, akcja `odsun:N:<ciąg>:<nazwa>`, odsunięcie ciągu od ściany o N, przy podłodze i pod
+  blatem; użytkownik 2026-11-13: „jeśli blat może być dłuższy, nie skracany, zalecamy odsunięcie szafki od ściany”). Blat docięty
+  z innego powodu (na życzenie) — przy docince do 100 mm to samo zalecenie jako ostrzeżenie;
+  od 1 do 9 mm — informacja z „Zmniejsz głębokość szafek”. Nawis wpisany w karcie Ciąg („Blat przed frontami — teraz N mm”,
+  pole `ciag-nawis`, `run.blatNawis`) — głębokość blatu = lico drzwi + nawis, także po zmianie szafek; przyciski w uwagach
+  „Blat 10 mm przed frontami” (`blatnawis`). Wpisanie głębokości blatu czyści nawis i odwrotnie. Na rzucie z góry
+  (szczegółowa, „Wymiary → z góry”) wymiar „nawis N” (`mak-wym-nawis`), z boku „blat N (M przed frontem)”.
+- **Różne głębokości blatów w narożniku** (np. 600 i 583) — **informacja** (od 2026-11-13; wcześniej ostrzeżenie „styk ze skokiem”):
+  przy łączeniu na wprost przody blatów schodzą się normalnie, różnica zostaje z tyłu, przy ścianie — zbiera ją docięcie i dopasowanie
+  blatu na miejscu (użytkownik, zdjęcia blatu 60 / 58 cm: „uskok jest od tyłu, nie od przodu blatu”). Gdy blaty mają mieć równą głębokość:
+  „Odsuń szafki „<płytszy ciąg>” od ściany o N mm” (gdy jego blat jest docięty) albo zmniejszenie głębokości głębszego.
+- **Słupek głębszy w licu ciągu** (bez wysunięcia, np. 580 w ciągu 560): reszta szafek stoi o różnicę od ściany (za nimi pusto),
+  a blat sięga do ściany — może wyjść ponad arkusz 600. Uwaga „Blat wychodzi … za dużo na arkusz” i „różne szerokości w rogu” mówią
+  wtedy o przyczynie i mają przycisk „To słupek — tył przy ścianie, front wysunięty o N mm” (`glebszeWLicu`, akcja `slupekgl`) zamiast
+  „Zmniejsz głębokość szafek”; na rzucie z góry osobny wymiar „N pusto” (`mak-wym-pusto`, 2026-11-12: „brakuje 13 mm, a na rysunku nic nie widać”).
+- **Słupek równo z blatem**: drzwi słupka wysuniętego (tył przy ścianie) nie mogą wyjść przed blat — „Za głęboki słupek:
+  drzwi wystają N mm przed blat” z przyciskami „Głębokość szafki …” (płytszy, tył zostaje przy ścianie) i „Blat … mm”.
+  Zmiana głębokości wysuniętej szafki zmienia jej wysunięcie o tyle samo — tył zostaje przy ścianie
+  (`wysuniecieZaGlebokoscia` w `setProject`; 2026-11-12: „czemu po zmianie głębokości słupek sam się odsunął od ściany?”).
+- **Wysokość blatu roboczego** (`worktopLevel`): wysokość, na której stoją szafki o największej łącznej szerokości;
+  słupek (oznaczony albo wyższy niż 1500 mm) się nie liczy, chyba że w ciągu są same słupki — ciąg „dolna 450 +
+  słupek 600” miał blat na słupku (2100 mm; poprawione 2026-11-12). Remis — niższa wysokość.
+- **Szafka wysunięta z lica w ciągu z cokołem** (np. słupek 600 w ciągu 560 wysunięty o 40): cokół ciągu idzie prosto po
+  licu reszty szafek, a przedni rząd nóżek tej szafki cofa się o jej wysunięcie (`cabDoGeo` → `cab.nozkiCofnij`), żeby
+  nóżki nie stały w płycie cokołu (2026-11-12).
 - **Ustawienie**: szafki stoją jedna za drugą od położenia na ścianie, z luzem między korpusami. Wysunięcie z lica i odsunięcie od ściany można ustawić całemu ciągowi albo jednej szafce.
 - **Nowa szafka** („+ szafka”):
-  - w pustym ciągu ma 560 mm głębokości;
+  - w pustym ciągu ma 550 mm głębokości (standard dolnych kuchennych od 2026-11-14, wcześniej 560);
+  - nowy ciąg kuchenny (z blatem) stoi od razu 17 mm od ściany (`KUCHNIA_OD_SCIANY`, decyzja 2026-11-14): 3 + 550 + 2 + 18 + 17 = 590 — blat 600 cały, 10 mm przed frontami; ciąg górny i szafa — przy ścianie;
   - obok innych bierze wymiary sąsiedniej;
   - pod blatem dostaje parę wzmocnień zamiast wieńca;
   - szuflady dostaje w systemie z kontekstu (szafka → ciąg → pomieszczenie).
@@ -39,6 +73,14 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
     - konfirmaty co ok. 300 mm, min. 2.
   - **Blat w rogu**: jeden przechodzi, drugi dojeżdża do jego przedniej krawędzi (styk ze złączem) albo oba na łyżwę (cięte pod 45°).
 - **Górny ciąg**: wysokość montażu = blat + prześwit nad blatem (domyślnie 500 mm).
+- **Blenda przy ścianie** (2026-11-15): pozycja ciągu bez korpusu (`sprzetCiagu.typ = "blenda"`) na początku albo końcu ciągu (dolnego
+  i górnego) — zakładka „Ciąg”: „z lewej / z prawej”. Płyta w licu drzwi (luzy jak drzwi), szerokość „sama do ściany” — wolne miejsce
+  na ścianie (`runWallW`) minus reszta ciągu, narożnik i odsunięcie górnego; dwie automatyczne po równo; wpisana / przeciągnięta —
+  stała (`auto: false`). Wysokość i „słupek” jak szafka obok (`blendyScianyZaCiagiem` w `naprawProjekt`). Cokół i blat idą dalej.
+  Pas w głąb (`pas` mm, domyślnie bez; po włączeniu 100) wzdłuż boku szafki obok, z płyty korpusu — przykręcany od środka szafki
+  wkrętami 4 × 30 co ok. 200 mm, z blendą na trójkątach (składane przed montażem). Bez pasa — trójkąty do boku szafki obok:
+  przykręcić, zanim szafka dosunie się do ściany (potem nie ma dostępu). Węższa niż 60 mm — zamawiana 60 i docinana. Krawędź przy
+  ścianie docina się na miejscu.
   - Wieszanie na listwie montażowej z zawieszkami albo na haczykach.
   - **Szafka wisząca z dala od ściany** (wysunięta z lica albo płytsza od reszty ciągu, więc stoi równo frontami; odstęp = lico ciągu + wysunięcie − głębokość, `odstepOdSciany`) — błąd „zawieszki nie sięgną listwy / haków, szafka zawisłaby w powietrzu” z „Do ściany (wysunięcie N mm)” (wysunięcie, przy którym tył dotyka ściany; bez tego przycisku, gdy przesunęłoby lico całego ciągu) i „Listwa / Haki na dystansie N mm” (`cab.dystans`: dystans równy grubości płyty albo dwóm — formatka „Listwa dystansowa” 60 mm × długość szafki z płyty korpusu, bez okleiny, 1 lub 2 warstwy, w rozkroju z kawałków ze zrzutów; inny — „Kantówka dystansowa” w zamówieniu, przekrój co 5 mm; obie rysowane za plecami pod wieńcem — na rysunku z boku szafki i ciągu (kantówka w kolorze drewna) i w 3D (`geo.dystansZa`, użytkownik 2026-11-04); na hakach — „Klocek dystansowy pod hak”; uwaga mówi, co i gdzie jest, a gdy listwa / kantówka nie równa się odstępowi — ile zostaje do ściany albo o ile jest grubsza (wyrównuje to regulacja wysunięcia zawieszek; szyna też trochę odstaje od ściany — użytkownik 2026-11-03); listwa ciągu dzieli się na odcinki przy innej płaszczyźnie; decyzja użytkownika 2026-10-31). Dystans przy szafce dosuniętej do ściany — ostrzeżenie z „Usuń dystans” (użytkownik 2026-10-30, audyt GPT N148).
   - Listwa jedna przez ciąg, na wymiar (nie tniemy jej pod szafki), od pierwszej do ostatniej szafki z zawieszkami; zakup w odcinkach 1 / 2 m — `opisy/zamowienie.md`. Szafka bez zawieszek w ciągu na listwie — ostrzeżenie „może to być pomyłka” (w środku listwa przechodzi za nią, na końcu kończy się przed nią). Szafka z plecami cofniętymi ma listwę w sobie — listwa ciągu kończy się przy niej.
@@ -105,8 +147,12 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 - **Głębokość w rogu**: szafka sąsiedniego ciągu głębsza niż ta w rogu — błąd.
 - **Górny ciąg**:
   - wystaje poza dolny — ostrzeżenie;
-  - szafka dolna sięga w górne (słupek) — błąd;
-  - górne szafki ponad sufit — błąd; luz do sufitu — informacja.
+  - szafka dolna sięga w górne (słupek) — błąd; gdy słupek stoi na początku ściany — przycisk „Ciąg górny od N mm — za „…””
+    (`gornyod`); nowy ciąg górny sam zaczyna się za słupkami na początku dolnego (`gornyZaSlupkami`, użytkownik 2026-11-14);
+  - położenie ciągu górnego w makiecie (karta szafki górnej): od lewej / od prawej, ile mm, „przy słupku” (`run.offsetFrom`, `run.offset`);
+  - górne szafki ponad sufit — błąd; luz do sufitu — informacja. Sufit to wysokość pomieszczenia podana przy ciągu dolnym albo górnym
+    tej ściany (`sufitSciany`, 2026-11-15); blenda nad szafką liczy się do wysokości („z blendą”). Korpusy na styk z sufitem (< 20 mm),
+    bez blendy, na zawieszkach — ostrzeżenie z przyciskiem „Blenda 100 mm do sufitu” (szafki niżej, blenda do sufitu; `blendasufit`).
 - **Kolizje otwierania w rogu**: przyciski „Przełóż zawiasy” i wstawka 18 / 60 mm — tylko gdy pomagają. Fronty „Skręcone 90°” liczą się jako jeden sztywny zespół na zawiasach korpusu — front ramienia obraca się wokół tej samej osi (audyt GPT N135), bez rady o przełożeniu zawiasów.
 - **Ramię szafki w L w zamówieniu**: płyty ramienia mają oklejanie z tabeli formatek jak korpus (N130), zawiasy z grubości płyty frontu ramienia (N123), uchwyt także wpuszczany (wystawanie 0, N124), półki z mocowaniem swojej kolumny i granicy (N131), wzmocnienia z kolumny przy ramieniu bez powtórzeń (N137), plecy ze zszywkami / wkrętami co 100 mm po obwodzie (N138), kątownik od wierzchu dna — też przy cokole w obrysie (N134).
 - **Wspólne dno ciągu**: rozpoznanie „dno pod bokami” z osadzenia dna, nie z obrzeży (N118); szafki różnie wysunięte z lica — każda zostaje przy swoim dnie (N133); w 3D jedna płyta „Dno ciągu” jak w zamówieniu (N119); płyta porównywana w całości — nazwa, kolor, **dekor**, grubość (`tozsamoscPlyty`): Oak i Ash o tej samej nazwie i kolorze to różne płyty i dna zostają przy szafkach (N154). Tak samo przy łączeniu własnych blatów szafek w jedną płytę ciągu.
@@ -137,3 +183,20 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
 ## Rysunek ciągu z boku (2026-10-24)
 
 Zakres „Ciąg” ma widok „Z boku” — przekrój ściany: od ściany głębokość, od podłogi wysokość. Każdy inny profil szafki (głębokość, wysokość, zawieszenie) rysuje się raz, wyższe pod spodem; szafki stoją licem równo (lico ciągu jak przy blacie), fronty nakładane 2 mm przed korpusem. Do tego cokół, nóżki, blat roboczy, ciąg górny i ściana (przełączniki „Ukryj blat” / „Ukryj ścianę”). Wymiary: „z frontem” każdego piętra, „blat N (M przed frontem)”, łańcuch wysokości i wysokość całkowita. Zabudowa z rogami tego widoku nie ma (nie ma jednego boku).
+
+## Słupek głębszy niż ciąg (2026-11-11)
+
+Słupek ze wzoru (paleta makiety „Słupek”, szablon „Słupek”) wstawiony do ciągu, w którym już coś stoi, jest od razu
+wyjątkiem w ciągu (`cab.slupek`, jak przycisk „To słupek — wyjątek w ciągu”) i ma cokół ciągu (cokół idzie przez cały
+ciąg jedną płaszczyzną) — analiza 2026-11-21: wcześniej po wstawieniu były trzy ostrzeżenia. Głębokość (użytkownik 2026-11-21: „słupek
+nie ma blatu” — nie może odsuwać reszty od ściany i poszerzać blatu): tył przy ścianie jak reszta ciągu, drzwi równo z przednią krawędzią
+blatu — głębokość ciągu + wysięg blatu przed fronty, wysunięty o tyle (`item.offset`); np. kuchnia 550 z blatem 600 → słupek 560,
+wysunięty 10 mm. Bez blatu roboczego — głębokość ciągu (`addCabinet`, `slupekWCiagu`).
+
+Szafki ciągu stoją równo w licu, więc głębsza szafka odsuwa pozostałe od ściany o różnicę (stąd też szerszy blat).
+Słupek (szafka wyższa niż 1500 albo oznaczona jako słupek) ma stać inaczej: tył przy ścianie, front wysunięty
+o różnicę głębokości (`item.offset`), pozostałe szafki przy ścianie. Ustawia to przycisk przy uwadze o głębokości
+(„To słupek — tył przy ścianie, front wysunięty o N mm”). Gdy wysunięcie pokrywa różnicę, uwagi o głębokości nie ma;
+zostaje kontrola z blatem roboczym: korpus słupka głębszy niż blat (arkusz 600 albo blat docięty) — ostrzeżenie
+„Za głęboki słupek” z przyciskiem wyrównania głębokości do blatu (`runCabMsgs`, parametr `poz`).
+

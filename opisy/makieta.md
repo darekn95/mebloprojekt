@@ -27,6 +27,10 @@ Wybór pamięta przeglądarka; nowy użytkownik zaczyna w trybie technicznym.
   wnętrze); wybór pamięta przeglądarka. Szafki wolnostojące stoją obok, z odstępem.
 - Nagłówek w makiecie jest zwarty: bez „Zwiń wszystkie” i „Pokaż rysunek” (to przyciski kart
   trybu technicznego).
+- **Panel nad rysunkiem zwijany** (użytkownik 2026-11-17: „ten panel musi być tak samo zwijany jak w technicznym, bo zasłania
+  rysunek”): „▼” przed „Pomieszczenie” zwija wybory (pomieszczenie, ciąg, szafka), nagłówek ciągu ze ścianą i przełączniki do
+  jednej linii „Panel rysunku — pomieszczenie · ciąg / zabudowa · szafka · widok” (`mak-panel-zwiniety`, `mak-panel-opis`); zoom
+  i „Pełny ekran” zostają. Kliknięcie linii rozwija. Stan pamięta przeglądarka (`mp-mak-panel-zw`).
 - **Widok jak w makiecie „Dodaj”** (użytkownik 2026-11-09: „popraw widok żeby był jak w artefakcie makieta”):
   - nad rysunkiem nagłówek: „Ciąg „…”” i jego długość, **ściana** (− / pole / +, co 100 mm → `run.wallW`)
     i „wolne N mm” (albo „brakuje N mm”); przy szafkach wolnostojących — „Szafki wolnostojące”;
@@ -96,8 +100,10 @@ sprzętem albo w zmywarkę / lodówkę w ciągu. Zapis w te same pola co tryb te
 - **rodzaj lodówki** (krok 6 planu, 2026-11-10, jak „Rodzaj lodówki” w makiecie „Dodaj”): w karcie lodówki w kolumnie
   i w ciągu wiersz „do zabudowy (słupek) / podblatowa w ciągu / wolnostojąca / na równo z meblami” — inny rodzaj wstawia
   nową pozycję z szablonu na miejsce starej (słupek z wnęką 1780; na równo — luzy 3 / 3 / 15, miejsce 606); szafka
-  z innymi sprzętami zostaje, lodówka tylko wychodzi z kolumny (`zamienLodowke`, `MAK_LOD_RODZ`). „Podblatowa w szafce”
-  z makiety: wnęka 82 cm w kolumnie (wybór „Wnęka”) albo pozycja w ciągu;
+  z innymi sprzętami zostaje, lodówka tylko wychodzi z kolumny (`zamienLodowke`, `MAK_LOD_RODZ`). Od 2026-11-14 także
+  „podblatowa w szafce” — mniejsza lodówka (np. na wino) na dnie zwykłej szafki dolnej, z własnymi drzwiami, nad nią otwarta
+  wnęka; wysokości 45 / 52 / 56 / 64 cm (`agd-lod-mala-h`), wymiary (`agd-mala-w/h/d`), opis wentylacji — `opisy/sprzety.md`,
+  test `makieta17`;
 - **w ciągu** (`cab.sprzetCiagu`): zmywarka — model 60 / 45, wolnostojąca — montaż pod blatem / z pokrywą; lodówka
   podblatowa — drzwi; wolnostojąca — rodzaj, luzy z lewej / z prawej, drzwi; „Usuń” (cała pozycja ciągu).
 - Pozostałe pola z karty modelu — w trybie Technicznym (karta to mówi).
@@ -113,7 +119,7 @@ i klapy”, pod frontami wybranej kolumny / poziomu:
 - **scal z wyższym / z niższym** — dwa poziomy w jeden (np. jedne drzwi na dwa poziomy); zostają ustawienia
   wybranego poziomu; półka graniczna zostaje zwykłą półką, a gdy zostają szuflady / blenda — półki i drążek
   z tego poziomu znikają (`makScalPoziomy`, jak „scal” w technicznym);
-- **Drążek**: przeciągnij jego zielony znaczek (zakładka Półki) do innego światła — zawiśnie 70 mm pod płytą nad nim
+- **Drążek**: przeciągnij jego zielony znaczek (zakładka Półki) do innego światła — zawiśnie 60 mm pod płytą nad nim
   (tylko światła z drzwiami / półkami); półka przeciągnięta ponad drążek zabiera go w dół — drążek wisi wtedy pod nią
   (zgłoszenia 2026-11-09).
 - „Bez frontu” działa też w poziomie kolumny (otwarty poziom, `segmenty[nr].doors = 0`).
@@ -301,9 +307,18 @@ Kafelki można przeciągnąć na rysunek albo kliknąć.
   bok po tej stronie; (2) bok przy nogach; (3) dno i wzmocnienia 100 do przegrody — od strony nóg; (4) bok przy kontenerze;
   (5) blat — trójkąty od spodu; (6) prowadnice i szuflady. Konfirmaty z obu stron przegrody są na różnych wysokościach
   (300 u góry, 100 i dno na dole), więc się nie zasłaniają.
+  **Łączenie płyty z tyłu** (makieta „Dodaj”, decyzja użytkownika 2026-11-13): w karcie biurka „Wzmocnienie z tyłu — łączenie
+  z bokami”: „konfirmaty + zaślepki” (domyślnie) albo „kołki z mimośrodami” (`biurkoUstawLaczenie`, `mocowanie: "mimosrody"`
+  tylnych wzmocnień kolumny nóg). Mimośrody wg katalogu GTV 2023 s. 248–249: mimośród ⌀15 w płycie (×13 do płyty 18 — na
+  zamówienie, ×12 do 16; do 16 mm komplet WK-CAM-15-DOW63X45-KPL-1T), oś `MIMO_OS` = 34 mm od czoła, trzpień 6,3 × 45 (gwint
+  11 mm w boku, 45 − 11 = 34). Położenia jak konfirmaty (2 na koniec płyty 300). Plan wierceń: w boku / przegrodzie ⌀5 × 12,
+  we wzmocnieniu w czole ⌀8 × 34 i od wnętrza ⌀15 × 13. Zamówienie: mimośród + trzpień na złącze (bez konfirmatów i zaślepek
+  płyty). Kolejność montażu (`biurkoMsgs`): trzpienie w boki → płyta na trzpienie jednej płyty (przegrody kontenera) → dosuń
+  drugi bok → mimośrody od przodu pod blatem → blat (trzpienie wystają 34 mm, więc płyty nie wsunie się między stojące boki).
+  W zamówieniu jedna pozycja „Mimośród z trzpieniem” (`MIMO_NAME`, kody GTV w opisie) — cena 0,30 zł za komplet
+  (użytkownik 2026-11-13: „100 szt. za 30 zł”, `DEFAULT_HW_PRICES`).
 
 ## Co ustawiasz ręcznie
-
 - Pomieszczenie, ciąg, szafka i widok — przyciski z rozwijaną listą. Ciąg domyślnie: ciąg
   zaznaczonej szafki z piętrem nad nim (cały pokój na raz jest za drobny do chwytania półek);
   „Wszystkie ciągi” — cały pokój i szafki wolnostojące; „Tylko zaznaczona szafka” — duży rysunek
@@ -346,8 +361,9 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
 - **Wzmocnienia (szczegółowa)**: na rysunku każde wzmocnienie w ramce z wymiarem (czołowe szer. × wys., leżące —
   głębokość, pionowe — wys. × gł.); klik otwiera kartę Wzmocnienia jego kolumny. Trójkąty meblowe tam, gdzie program
   je liczy: przy przegrodzie z wzmocnieniami z obu stron („trójkąty meblowe / 1 konfirmat w środku”,
-  `rail.przyPrzegrodzie`) i pod przegrodą niższą o płytę (`col.przegrodaNizszaMoc`). Przy bokach — konfirmaty
-  albo wkręty (jak w technicznym).
+  `rail.przyPrzegrodzie`) i pod przegrodą niższą o płytę (`col.przegrodaNizszaMoc`). Mocowanie do boków /
+  przegród całej kolumny: konfirmaty / wkręty 4 × 30 / trójkąty meblowe (`rail.mocowanie`, decyzja użytkownika
+  2026-11-10 — trójkąty wszędzie, jak w technicznym; opis w `opisy/korpus.md`).
 - **Elementy kolizyjne (szczegółowa)**: plan szafki z góry — klik dodaje element 80 × 80 w tym miejscu,
   przeciągnięcie przesuwa (co 5 mm, od bliższego boku i od tyłu), wybrany: szer. / gł. / od boku / od tyłu,
   wysokość cała albo część (od dna, wys.), zabudowa bez / auto / L / U, usuń (`cab.obstacles`, `MakPlanKolizji`).
@@ -358,6 +374,251 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
   z płyty) jak jej widok z przodu.
 - **Z góry**: wieniec / blat z płyty rysowany na wierzchu (półprzezroczysty, pełny obrys) — wcześniej leżał pod
   półkami i przegrodami i wyglądał jak osobny w każdej kolumnie, a blat biurka jak pod spodem.
+
+## Uwagi 2026-11-11 (wymiary, ciąg, zamówienie)
+
+- **Lista „Wymiary”** (szczegółowa, nad rysunkiem; `MakWymiaryMenu`, `MAK_WYM`, stan `przel.wym`): zaznaczasz, co ma być
+  na rysunku — szerokości (szafki, ciąg), wysokości (nóżki / cokół, korpus, blat i razem), wymiary frontów, światła
+  półek i wnętrza, wzmocnienia, blat nad zaznaczoną szafką; „wszystkie” / „żadne”. Na przycisku licznik „4/6”.
+- **Wysokości** (`mak-wysokosci`): z lewej strony ciągu łańcuch dla zaznaczonej szafki — nóżki albo cokół, korpus,
+  blat roboczy (gdy ją przykrywa) i obok cała wysokość od podłogi. Szafka wolnostojąca: wysokość z nóżkami / cokołem.
+- **Światło poziomu** („wnętrze 684”): rysowane w środku zaznaczonej szafki, przy prawym boku, nisko nad dnem — nie
+  obok szafki, gdzie wyglądało jak wymiar ciągu. Przy samych szufladach go nie ma (są wysokości frontów).
+- **Wielkość napisów**: napis na froncie rośnie z frontem (`fsNapisuFrontu`, 20–46), a każdy napis rysunku ma na ekranie
+  co najmniej ok. 10 px (`MakietaWidok`, najwyżej 48 jednostek rysunku — w bardzo szerokim widoku trzeba powiększyć).
+  Wymiary (`text.wym`) mają 52 jednostki; liczba pod linią wymiarową stoi pod linią, nie na niej.
+- **Wzmocnienia na rysunku** tylko przy otwartych frontach (przełącznik „Fronty” wyłączony albo zakładka
+  „Wzmocnienia”, która sama otwiera fronty) i nie w zakładkach Szuflady / Półki / Drzwi / Przegroda (tam są ich
+  uchwyty i napisy).
+- **Zakładka „Ciąg”** (tylko przy zaznaczonej szafce z ciągu; `MAK_ZAKLADKA_CIAG`): nazwa ciągu, ile szafek i długość,
+  wysokość i głębokość szafek (`setRunShared`), luz między korpusami, odsunięcie od ściany, blat roboczy;
+  w szczegółowej także wspólny wieniec, wspólne dno i blenda nad szafkami całego ciągu (`cab.topFiller` każdej
+  szafki); „Wyłącz szafkę z ciągu” (`assignCabinet(idx, null)` — szafka zostaje w pomieszczeniu jako wolnostojąca
+  i oddaje wieniec / dno ciągu). Ten sam przycisk jest w karcie Szafka. Narożnik, podział blatu i cokołu,
+  wieszanie — w trybie technicznym.
+- **Półki (szczegółowa)**: przy kołkach — otwór od przodu / od tyłu i od czego liczona wysokość otworów
+  (`shelfPin`, `pinDatum`); szafka, która nie stoi — zawieszki ścienne auto / zawsze / nigdy i na listwie /
+  na haczykach (`hangers`, `hangerMode`) — jak karta „Montaż półek i zawieszenie”.
+- **Korpus i plecy (szczegółowa)**: blenda nad szafką (jest / nie ma, wysokość).
+- **Szafka (szczegółowa)**: notatka montażowa (`cab.note`, idzie do PDF) i pod nią kolejność montażu z projektu.
+- **Kafelek „Zamówienie”** (szczegółowa): zamiast rysunku pokazuje karty Formatki, Rozkrój na płycie, Produkty do
+  zamówienia i Wycena — te same co w trybie technicznym (`kartyZamowienia` w `App`, rysowane w jednym miejscu naraz:
+  `zamWMak`). Klik w inny kafelek wraca do rysunku.
+
+- **„Wszystkie opcje: … ›”** (szczegółowa, na dole karty; `MAK_PELNE`, `mak-pelne-otworz`): karta trybu technicznego
+  wysuwa się z prawej jako szuflada nad makietą (`makPelne` w `App`, `main[data-szuflada]`, zamknięcie przyciskiem albo
+  klikiem w tło) — te same pola i kontrole, bez drugiej implementacji. Ciąg → „Ciąg meblowy” (narożnik, podział blatu
+  i cokołu, wieszanie, poziom montażu, położenie na ścianie, prześwit, wysunięcie szafki); Szafka → „Ciąg meblowy”
+  i „Korpus”; Korpus i plecy → „Korpus”; Cokół i nóżki → „Cokół” i „Nóżki”; Szuflady / Półki / Drzwi / Przegroda /
+  Wzmocnienia → „Struktura wnętrza”. Decyzja użytkownika 2026-11-11 (dołożyć: ciąg, korpus / cokół / nóżki, drzwi
+  i szuflady; płyty i luzy drzwi zostają w technicznym).
+- **„Kolory płyt” wyłączone** (szczegółowa): neutralna szarość (`MAK_SZARE`), blat roboczy zostaje brązowy, wieniec
+  i blat z płyty jak reszta korpusu (decyzja użytkownika 2026-11-11). Makieta prosta — jasna paleta `MAK_JASNE`.
+
+- **Sprzęt upuszczony na słupek** (szafka wyższa niż 1500 albo `slupek`; 2026-11-11): dostaje własny poziom szafki
+  o wysokości swojej wnęki (środek zakresu z karty albo front − 9 mm) — nad sprzętem, na który go upuszczono, albo na
+  dole poziomu bez sprzętu; poziomy dostają obecne wysokości, najwyższy bez sprzętu zostaje auto (`wstawAgd`).
+  Wcześniej drugi sprzęt zastępował pierwszy.
+- **Szuflady**: „usuń szuflady” (`mak-szuflady-usun`) — kolumna / poziom wraca do jednych drzwi.
+- **Ściana**: wysokość (`run.ceiling`, pole `mak-sciana-wys` nad rysunkiem i w zakładce Ciąg); bez niej tło ściany
+  kończy się 300 mm nad szafkami; niższa niż szafki — ostrzeżenie i „wyrównaj do szafek” (`mak-sciana-wyrownaj`).
+  Za krótka ściana: „wydłuż do N” w zakładce Ciąg i przycisk przy uwadze (`wallw:<mm>:<ciąg>`).
+- **Kolory płyt włączone** = prawdziwe kolory płyt (`realColors` w `projRys`). Karta Drzwi — grupy w osobnych wierszach.
+  Nazwy szafek pod blatem na froncie. Napis „W × H” przy uchwytach tylko bez wymiarów na rysunku.
+
+- **Szuflady w słupku**: w poziomie wyższym niż 900 mm szafki ponad 1500 przycisk liczby szuflad zakłada własny
+  niski poziom na dole (po 220 mm na szufladę, jak w makiecie — użytkownik 2026-11-15; było 180), reszta zostaje nad nim (`slupekSzuflady`).
+  W szafie z przegrodą (kilka kolumn w poziomie, 2026-11-16) przycisk i klocek „N szuflad” dzielą samą kolumnę: półka graniczna nad
+  szufladami, pod nią poziom kolumny z szufladami, nad nią półki i drążek jak były (`makSzufladyNaDoleKolumny`). Dawniej cała kolumna
+  na wysokość szafy stawała się szufladami. Sprzęt kliknięty z palety
+  staje nad najwyższym sprzętem słupka albo w najniższym poziomie z drzwiami; po wstawieniu otwiera się jego karta.
+- **Słupek głębszy niż ciąg** (decyzja 2026-11-11): przy uwadze o głębokości przycisk „To słupek — tył przy ścianie,
+  front wysunięty o N mm” (`slupekgl:<mm>:<pozycja>` → `item.offset`, `cab.slupek`); pozostałe szafki zostają przy
+  ścianie. Potem kontrola tylko z blatem: korpus głębszy niż blat — „Za głęboki słupek”. Opis reguły: `opisy/ciagi.md`.
+- **Za szeroki blat przez wysunięcie szafki**: przyciski „Zmniejsz wysunięcie szafki o N mm” — o cały nadmiar (nawis
+  10 mm) albo tyle, żeby arkusz kończył się 1 mm przed frontem (`wysun:<mm>:<ciąg>`); blat zawsze zakrywa front.
+
+- **Słupek w ciągu z blatem** (2026-11-11): dostaje wieniec, para wzmocnień pod blat znika (`slupkiZWiencem`, po każdej
+  zmianie projektu) — blat kończy się przy jego boku. Sprzęt wstawiony dawniej na cały poziom słupka: przyciski
+  wysokości i nowy sprzęt najpierw zmniejszają ten poziom do wnęki (`makWnekaH`).
+- **Linia między poziomami szafki** do przeciągania także w zakładkach Szuflady i Dodaj (AGD); nad linią sprzęt —
+  jego wnęka zostaje, różnicę bierze najwyższy poziom (sprzęt jedzie w górę / w dół).
+- **Płyta, zlew, sprzęt na blacie**: przeciągnięcie na rysunku z góry na inną szafkę pod blatem przenosi pozycję
+  (`przenAgd`). **Wygląd sprzętów** jak w makiecie „Dodaj”: szyba piekarnika, szyba i pokrętła mikrofali
+  (`SprzetElewacja`).
+- „Wolne / brakuje” na ścianie liczone z miejscem na narożnik.
+
+- **Reszta różnic z makietą „Dodaj”** (użytkownik 2026-11-11: „wszystko zrób”):
+  - **cała szuflada do chwycenia** (zakładka Szuflady, `data-u="szuflSz"`): górna połowa ciągnie linię nad nią, dolna —
+    pod nią; linia to granica z sąsiednią szufladą (`szufl`) albo — na skraju poziomu szafki z jedną kolumną — przegroda
+    do poziomu obok (`poziom`), jak „Szuflada + drzwi” (`makSzuflLinie`). **Dwuklik / prawy przycisk** na szufladzie —
+    okienko z wysokością frontu (`mak-szuflada-wys`, `makSzuflWys`): różnicę bierze szuflada obok albo poziom obok;
+  - **„Szuflada + drzwi”** jednym przyciskiem (Szuflady i Drzwi i klapy, szafka dolna z jedną kolumną; wzór palety
+    „Dolna, szuflada + drzwi”): dwa poziomy szafki — szuflada i drzwi (1 albo 2, półki zostają przy drzwiach);
+    front szuflady 170 mm u góry, 200 na dole (`MAK_SZ_G`, `MAK_SZ_D`; wysokość poziomu dobrana z geometrii tak,
+    żeby front miał tyle). W Szufladach: u góry / na dole, 1 / 2 drzwi, „Szuflada typowa (170 / 200 mm)” po zmianie
+    (`makSzufDrzwiUklad`, `makUstawSzufDrzwi`). Wzór palety dopasowuje front po wstawieniu (`opcje.poDodaniu`
+    w `addCabinet` — dopiero wtedy szafka ma wysokość ciągu i blat zamiast wieńca);
+  - **sprzęt do innej szafki**: piekarnik / mikrofala / ekspres / lodówka chwycone na rysunku (z przodu; w słupku
+    także za uchwyt `sprzetY` w Dodaj) — po 8 px zielone ramki na szafkach, gdzie może stanąć (`makCelPrzeniesienia`:
+    słupek — własny poziom; szafka z wolną prostą kolumną, piekarnik nie w ciągu górnym; mikrofala / ekspres nad
+    szafką pod blatem — na blat; lodówka do zabudowy — tylko słupek); upuszczony na ramce wychodzi ze starej szafki
+    (`makWyjmijSprzet`: w słupku jego poziom znika, inaczej kolumna wraca do drzwi) i staje w nowej z tymi samymi
+    ustawieniami (`wstawAgd` z `a.dane`). Geometria szafki, która nie jest zaznaczona, liczona na miejscu (`geoSzafki`);
+  - **„Przesuń” dotknięciem** (telefon): w karcie sprzętu „Przesuń do innej szafki” (sprzęt w kolumnie, płyta, zlew,
+    sprzęt na blacie), w karcie Szafka „Przesuń w ciągu”; pasek na dole („Przesuwasz: … — dotknij zieloną ramkę”,
+    Anuluj / Esc), dotknięcie szafki w ramce kończy (`przesunNa`). Ramki przycięte do widocznej części rysunku;
+  - **„Co zrobi program”** w karcie sprzętu (`makCoZrobiSprzet`) i w karcie Szafka (`makCoZrobiSzafka`) — tylko to,
+    co wynika z danych i co program naprawdę sprawdza;
+  - **płyta indukcyjna** jak w makiecie: z góry ciemne szkło i jasne pola grzewcze (dwa większe, dwa mniejsze),
+    z przodu cienkie szkło na blacie i przerywana kaseta pod nim; zlew z przodu — bateria i przerywana komora
+    (`wyciecie-front`, tylko makieta);
+  - lodówka do zabudowy: pole „dolny front — wysokość” przy 2 frontach było już w karcie (`agd-lod-dolny`) — sprawdzone
+    testem (zapis i front 700 na rysunku).
+- **Sprzęt w słupku jak klocki** (użytkownik 2026-11-12: „mikrofala w słupku dalej w kosmosie”, „nie widzę, żeby były
+  razem”): poziom ze sprzętem ma zawsze wysokość swojej wnęki (`makWnekaH`), przerwa pod sprzętem albo między sprzętami
+  to osobny poziom z frontem („wypełnienie”), najwyższy poziom bez sprzętu bierze resztę (auto). Przesunięcie sprzętu
+  (pole „dół wnęki”, −/+50, „Na wysokość blatu”, „Pod blat”, „Do szafek górnych”, uchwyt na rysunku; `makSlupekWneka`)
+  zmienia tylko wypełnienie pod nim — w górę rośnie albo dochodzi nowe (najmniej 60 mm), w dół maleje albo znika
+  i sprzęt siada na tym, co pod nim; sprzęt nie wyjdzie nad szafkę i nie wejdzie w sprzęt pod nim. Wcześniej rósł poziom
+  pod sprzętem — gdy stał tam piekarnik, jego poziom puchł (1982 mm), a mikrofala lądowała nad słupkiem. „Razem”
+  (`makSlupekRazem`) usuwa wypełnienia między dwoma sprzętami (półka między nimi), „Zamień” zamienia poziomy. Karta
+  sprzętu idzie za nim, gdy dochodzi wypełnienie (zmieniony numer poziomu). W dół: wypełnienia pod nim maleją albo
+  znikają od najbliższego — sprzęt pod nim zjeżdża razem (jak w makiecie: sprzęty, które by nachodziły, przesuwają się).
+  **Domyślne wysokości jak w makiecie „Dodaj”** (stos jeszcze nieustawiany): sam piekarnik / sama mikrofala — dół na
+  wysokości blatu roboczego (858), dwa sprzęty — dolny na 700 od podłogi, drugi na nim (półka między). Projekt w stanie „w kosmosie” (poziom sprzętu
+  ponad 60% szafki, a nad nim drugi sprzęt) naprawia się przy wczytaniu i każdej zmianie (`slupkiSprzetNorma`).
+- **Razem bez odstępu** (2026-11-12: „razem to razem — tylko półka między nimi, bez przestrzeni; jak chcę osobno, dodam
+  półkę”): w makiecie poziom sprzętu w słupku ma dokładnie wysokość wnęki (`makSlupekNorma`, `makSlupekWneka`), sprzęty
+  jeden na drugim jadą razem (przesuwa się dół stosu), linii między poziomami przy sprzęcie nie ma (przeciągnięta robiła
+  pustą wnękę nad sprzętem) — sprzęt ma swój uchwyt (turkusowy chwyt u góry, zakładki Dodaj / Szafka / Przegroda /
+  Szuflady). Projekt z pustą wnęką między dwoma sprzętami naprawia się przy wczytaniu (`slupkiSprzetNorma`). Dwa sprzęty
+  domyślnie: dolny nisko tak, żeby górny (mikrofala) miał dół do 1300 od podłogi (makieta: 700 — mikrofala wypadała 1308).
+- **Jak w makiecie „Dodaj”** (porównanie 2026-11-12): wysokości słupka 1800 / 2000 / 2120 / 2200 i „równo z górnymi”
+  (`mak-slupek-wys`); dół szafek górnych od podłogi z −/+50 i „jak domyślnie” w kartach Szafka i Ciąg szafki górnej
+  (`mak-gorny-dol` — prześwit nad blatem `run.clearance`, cały ciąg górny; w aplikacji szafki górne wiszą ciągiem, więc
+  nie pojedynczo jak w makiecie); płyta / zlew „50 od przodu (typowo)”. Inaczej niż w makiecie: „bez szafki górnej”
+  to w aplikacji usunięcie szafki z ciągu górnego; łączenie wzmocnienia biurka — konfirmaty / wkręty / trójkąty
+  (zakładka Wzmocnienia), kołków z mimośrodem aplikacja nie ma.
+- **Rzut z góry z wymiarami** (szczegółowa, „Wymiary → z góry”; 2026-11-12: „brakuje wymiarów od ściany do ciągu,
+  słupka i blatu”): przy wolnym końcu ciągu łańcuch — odsunięcie od ściany, korpus (+ plecy przybijane), front; obok
+  blat od ściany; szafka głębsza albo wysunięta (słupek) — od ściany do jej lica i „wysunięty N” (`mak-wym-zgory`).
+  W karcie Szafka pole „wysunięcie przed lico ciągu” (`item.offset`); cały ciąg — „Odsunięcie od ściany” w zakładce Ciąg.
+- **Przełącznik „AGD”** (jak w makiecie „Dodaj”, 2026-11-12): wyłączony — bez sprzętu na rysunku (wnęki puste, płyta i zlew
+  jako samo wycięcie, bez sprzętu na blacie); domyślnie włączony (`przel.agd !== false`).
+- **3D i 45°**: przycisk „otwarte / zamknięte” (ten sam co „Fronty”) i suwak kąta 0–110° (`kat3d`), jak w trybie technicznym.
+- **Z makiety „Dodaj” (porównanie 2026-11-13)**: karta płyty / zlewu — „Do końca blatu zostaje N mm, do tyłu N mm; środek
+  wycięcia … od środka szafki” (`agd-polozenie`); karta okapu w szafce — „Od płyty do okapu: N mm” (poniżej 650 na pomarańczowo),
+  „Pod okapem nie ma płyty”, „Wysokość okapu”: dół okapu od podłogi z −/+50 (`agd-okap-krok`) — przesuwa tylko szafkę z okapem
+  (decyzja użytkownika 2026-11-13, jak w makiecie): szafka krótsza albo dłuższa, góra równo z innymi górnymi (`cab.dolGorny`,
+  `dolGornej`; „jak inne szafki górne” wraca); lodówka wolnostojąca — rozmiary
+  60 × 185 / 60 × 203 / 70 × 203 / side by side 91 (`LODOWKI_WOLNE`), luzy z lewej / z prawej / nad / z tyłu, miejsce
+  w ciągu = luzy + lodówka (zmiana luzu albo rozmiaru zmienia szerokość pozycji); drążek — „pod drążkiem ↕N” w Półkach
+  (`mak-pod-drazkiem`); przełącznik „Wyposażenie” (wcześniej „AGD”) i legenda nad rysunkiem (`mak-legenda`: zielone ramki,
+  „góra: blat z góry · dół: widok z przodu”, „„Wyposażenie” wyłączone”).
+- **Z makiety „Dodaj” — runda 2 (2026-11-13: „jeszcze coś do wyrównania? sprawdź, żebym nie był rozczarowany”)**:
+  rzut z góry — przy końcu blatu „↑ górne N” (ile głębokości zasłaniają szafki górne z frontem albo okap kominowy) i „↓ wolne N”,
+  przerywana linia frontów szafek górnych (`gorne-nad-blatem`), słupek podpisany „słupek”; opis zlewu z góry w makiecie bez
+  „ociekacz z prawej” (był dłuższy niż zlew); szafka górna — „dół tej szafki od podłogi (góra zostaje)” −/+50 i „Jak inne”
+  (`cab.dolGorny`, ta sama zasada co okap) oraz „góra szafek górnych od podłogi — cały ciąg górny” (wysokość szafek ciągu,
+  szafka z własnym dołem zostaje z górą równo — `setRunShared`); nazwa szafki pod komorą zlewu / kasetą płyty i nie na uchwycie
+  szuflady (`makNazwaOd`); klocki wzmocnień w makiecie szczegółowej („Para pod blat”, „Leżące”, „Stojące”, „Pionowe” — dokładają,
+  zdejmuje zakładka Wzmocnienia).
+- **Z makiety „Dodaj” — runda 3 (2026-11-13: „sprawdź wszystko po kolei, żeby już nie wracać”)**:
+  - **karta Szafka w pełnej wersji** (szafka z jednym poziomem): przy wysokości podpowiedź („Wysokość 720 — pod blat, jak cały ciąg
+    dolny.”, szafa — „cokół / nóżki pod spodem”, wolnostojąca — „całkowita z cokołem w obrysie” / „korpus — nóżki pod spodem”,
+    biurko — „Do wierzchu blatu”); **Front**: 1 / 2 drzwi, klapy, bez frontu, 1–4 szuflady, „Szuflada + drzwi” (słupek w kuchni —
+    bez szuflad, z podpowiedzią; w układzie „szuflada + drzwi” inny front wraca do jednego poziomu); przy szufladach „Wysokości
+    szuflad od dołu: …”, „Szuflady po równo”, „Same szuflady — półek ani przegrody tu nie ma”; **Wnętrze**: półki − N + (osobno
+    lewa / prawa przy przegrodzie, za drzwiami w „szuflada + drzwi”), „Przegroda” (wł. / wył., druga kolumna jak pierwsza),
+    „Drążek” (szafa albo szafka od 1400 mm), „Półki po równo”; **Kolumny — światło** (`mak-kol-swiatlo`): pola lewa / prawa
+    (jedno liczy drugie, każda ≥ 100 mm — `MAK_MIN_KOL`), „Przegroda na środek”; **Wzmocnienia**: dolna w kuchni — „wzm. leżące /
+    stojące / pionowe” i „para pod blat” (leżące z przodu + tylne stojące, jak klocek), szafa i wysoka — tylko pionowe; przełącza we
+    wszystkich kolumnach. Szafka z poziomami, ze sprzętem albo z kolumną z poziomami — podpowiedź, w której zakładce to zmienić.
+    Szafka górna — jak karta górnej w makiecie: front 1 / 2 drzwi, Klapa ↑, Bez frontu, półki i „Przegroda”; bez szuflad, drążka
+    i wzmocnień (te — w swoich zakładkach); w innych zakładkach „Wysokość i całą szafkę górną zmienisz w zakładce Szafka.”
+  - **biurko**: szuflady w kontenerze 2 / 3 / 4 (`mak-kontener-sz`), ich wysokości od dołu, „Szuflady po równo”, „Miejsce na nogi
+    między bokiem a kontenerem: N mm”.
+  - **każda zakładka szafki** (Drzwi, Szuflady, Półki, Przegroda, Wzmocnienia): klocki nad kartą także przy zaznaczonej szafce,
+    pod kartą „Co zrobi program” i „Całą szafkę (szerokość, wysokość, przesuwanie) zmienisz w zakładce Szafka.”; w Szafce —
+    zwinięte „Wzory szafek — dołóż do ciągu” nad kartą (`mak-wzory-przelacz`, pamięta przeglądarka) i pod kartą lista „Ciąg dolny
+    (N) / Ciąg górny (N) / W ciągu / Na rysunku” z × przy każdej pozycji (`MakListaCiagu`).
+  - **Przegroda**: „Kolumny — światło” w zakładce, dwuklik / prawy przycisk na przegrodzie — okienko „z lewej / z prawej”, „Na środek”
+    (`mak-przegroda-okno`, `makWylicz` z `d.sw`); Esc zamyka.
+  - **rysunek**: z przodu wymiar „od płyty do okapu” przy szafce z okapem / okapie kominowym (`mak-okap-plyta`; poniżej 650 —
+    pomarańczowo „N < 650”, `okapNadPlyta`); lodówka wolnostojąca — przerywane miejsce w ciągu i luzy z lewej / z prawej / nad
+    (`lodowka-miejsce-rys`, `lodowka-luz`); z góry „wystaje N przed korpusy” (`lodowka-wystaje`); kaseta płyty / komora zlewu na
+    pomarańczowo, gdy uwagi blatu mają przy niej błąd (`wyciecie-pod-blatem[data-zle]`), głębokość komory podpisana; zaznaczone
+    wycięcie (Dodaj → AGD) — z góry wymiar od początku blatu i „od przodu N” (`wyciecie-wymiary`); płyta szersza niż szafka —
+    z góry pomarańczowa ramka „szersza niż szafka”; „↑ górne / ↓ wolne” za końcem całego ciągu (nie na lodówce).
+  - **alarm nad rysunkiem**: „Ciąg nie mieści się na ścianie — N mm na ścianie M mm, brakuje K mm” z „Poszerz ścianę do N mm”
+    i „Usuń …” (ostatnia pozycja ciągu; `mak-alarm-sciana`).
+  - **Esc** w trakcie przeciągania na rysunku (półka, szuflada, przegroda, szafka, sprzęt, przewijanie) — przerywa bez zmian.
+  - Inaczej, bez zmian: makieta ma ciemny motyw (gdy system jest ciemny), aplikacja — jasny.
+- **Z makiety „Dodaj” — runda 4 (2026-11-13: „czy jeszcze mamy jakieś różnice?”)**: porównane wszystkie napisy makiety (183) i karty
+  AGD każdego sprzętu. Dorobione: mikrofala / ekspres na blacie — „szer. × głęb.” i „wysokość” z karty modelu (`naBlacie[k].w / d / h`,
+  „Wróć do typowych”) i „Głęboka: N mm + 40 od ściany — wystaje N mm przed blat”; lodówka wolnostojąca — szerokość, głębokość
+  i wysokość w karcie (szerokość zmienia miejsce w ciągu: luz + lodówka + luz); lodówka do zabudowy — „Wnęka: szer. 560–570, głęb.
+  od 550…”, typowe wnęki, przy 2 frontach bez wpisanego dolnego — uwaga; płyta / zlew — „Kaseta schodzi N mm od wierzchu blatu —
+  M mm pod blat”; okap szerszy niż szafka — w karcie i w uwagach (`okapSzerszyMsgs`); zmywarka / lodówka / okap kominowy w ciągu —
+  „Przesuń w ciągu” w karcie AGD; uwagi blatu: dwa wycięcia nachodzą / mniej niż 50 mm między nimi, wycięcie bliżej niż 30 mm
+  przedniej krawędzi (opis w `sprzety.md`); karta Szafka — nazwy sprzętu w szafce („W szafce stoi sprzęt (piekarnik)”), pozycja
+  ciągu bez korpusu i okap kominowy — „zmienisz w karcie sprzętu: Dodaj → AGD”, szafka górna z okapem — „Pod szafką okap —
+  przesuwa się razem z dnem szafki”. Z góry „wystaje N” w obrysie lodówki (wcześniej wychodził poza rysunek bez ciągu górnego).
+  **Para pod blat** (decyzja użytkownika 2026-11-13): płaskie wzmocnienie z przodu i stojące z tyłu — tak jak dotąd w aplikacji
+  (makieta: leżące + stojące z przodu — nie przenosimy). Ciemny motyw makiety — zostaje bez zmian (decyzja użytkownika).
+- **Decyzje i zgłoszenia 2026-11-13 (po rundzie 4)**:
+  - **„Wystaje” lodówki wolnostojącej od przodu blatu** (jak makieta): na rzucie z góry „wystaje N przed blat”, w uwagach blatu ciągu
+    „Lodówka „X” … wystaje N mm przed blat (M mm przed korpusy)”, w karcie „Wystaje przed blat o N mm” (`lodowkaWystaje`: lico + luz
+    zawiasu + front + nawis `rt.wysieg`); ciąg bez blatu — dalej „przed korpusy” (uwaga z `geoSprzetuCiagu`, w ciągu z blatem
+    wyłączona przez `cab.blatCiagu` z `cabDoGeo`).
+  - **Paleta: dotknij, potem miejsce** (jak makieta; na telefonie przeciąganie z palety bywa zawodne): klik w wzór / klocek / sprzęt
+    go wybiera (podświetlony, zielone ramki tam, gdzie może stanąć — z przodu i na rzucie z góry), dotknięcie szafki stawia go tam
+    (cel jak przy upuszczeniu, `celZ` szuka szafki także spod płyty na blacie); pasek na dole „Wybrany: …” z „Do zaznaczonej szafki”
+    / „Na koniec ciągu” (dawny klik) i „Anuluj”, Esc anuluje (`wybranyK`, `coKafla`, `postawWybrany`, `wstawKafel`). Przeciąganie
+    myszą działa jak dotąd.
+  - **Widok „Z góry”** (zgłoszenie: „nie działa przesuwanie płyty do szafki obok”): rzut działa jak rzut nad widokiem z przodu
+    (`mak-zgory`) — przeciąganie płyty / zlewu / sprzętu na blacie na inną szafkę, zaznaczanie, znaczki szerokości i głębokości,
+    wymiary zaznaczonego wycięcia; „Fronty” znikają, jest **„Blat”** — blat zasłania szafki od góry, widać podział na kawałki
+    („blat 1: N”, linia styku — `kawalkiBlatu`), zaznaczona szafka (obrys i znaczki) nad blatem; wyłączony — przezroczysty.
+    Z boku, 45° i 3D — podgląd (zaznaczanie z boku i w 45°).
+  - **Nazwa zaznaczonej szafki** przy wymiarach wzmocnień (szczegółowa, otwarte) — pod wzmocnieniami u góry (była chowana;
+    zgłoszenie: „czemu szafka 1 c2 nie jest opisana?”).
+  - **Wycięcie w blacie**: od końca blatu co najmniej 30 mm blatu (`WYCIECIE_KONIEC`; użytkownik: „30 mm wystarczy”), przy łączeniu,
+    z tyłu i między wycięciami — 50 mm; w uwagach „blatu”, nie „płyty”. Różne głębokości blatów w narożniku — informacja: przody schodzą się normalnie, różnica zostaje z tyłu przy
+    ścianie (docięcie na miejscu); opis w `ciagi.md`.
+- **„Bez szafki górnej”** (decyzja użytkownika 2026-11-13, z makiety „Dodaj”): w karcie Szafka szafki z ciągu górnego —
+  zamienia ją na **wolne miejsce** tej samej szerokości (np. okno albo otwarta ściana; pozycja bez korpusu `sprzetCiagu.typ = "wolne"`,
+  w zamówieniu nic, na rysunku przerywany obrys „wolne — np. okno”, w 3D / z boku nic, listwa zawieszek ma przerwę);
+  „Przywróć szafkę górną” wraca do poprzedniej szafki (`cab.poprzednia`) z obecną szerokością (`cabWolnegoMiejsca`, `cabZWolnegoMiejsca`).
+- **Klik w widokach podglądu** (2026-11-12: „na widoku 45 stopni nie da się zaznaczyć szafki”, „klikalność szafek poza 3D”):
+  z boku, z góry i 45° klik w szafkę ją zaznacza (45° — obrys bryły na zielono, każda ściana bryły ma numer szafki;
+  z boku — profil wspólny dla kilku szafek: kolejny klik zaznacza następną), klik obok nie zdejmuje zaznaczenia;
+  w 3D (obracanym) — bez zaznaczania. W widokach podglądu nie ma przeciągania (zmiany — w widoku „Z przodu”).
+- **Wyposażenie we wszystkich widokach**: 45° i 3D — płyta (ciemne szkło, pola grzewcze jako kwadraty, kaseta pod blatem),
+  zlew (rant, komory, bateria), sprzęt na blacie, sprzęt w słupku; z boku — sprzęt w słupku (bryła i front), szkło płyty i
+  kaseta, komora zlewu z baterią, sprzęt na blacie (klik — karta sprzętu) oraz wzmocnienia pod blatem; kaseta / komora
+  wchodząca we wzmocnienie szafki pod nią — część wspólna na czerwono i „kaseta we wzmocnieniu” (to samo, co błąd w uwagach).
+  Przełącznik „AGD” chowa to wszystko także w 45°, 3D i z boku.
+- **Karta płyty**: kaseta między bokami szafki — „Kaseta 554 mm we wnętrzu szafki 564 mm: zapas 5 / 5 mm”; wycięcie na boku —
+  błąd w „Uwagach” (to sprawdzał program już wcześniej).
+- **Wnęka sprzętu w słupku niższa niż sprzęt** — program sam ją podnosi do wnęki sprzętu (`slupkiSprzetNorma`).
+- **Sprzęt do zabudowy nigdy za drzwiami** (mikrofala, piekarnik, ekspres; użytkownik 2026-11-13: „ma stać na półce i od góry też
+  mieć półkę, tak by była w środku”): poziom sprzętu to jego wnęka między dwiema płytami, front sprzętu zamiast drzwi; za niska
+  wnęka rośnie sama, a front wchodzący na drzwi, klapę albo szufladę to błąd w „Uwagach” z przyciskiem „Poziom N mm”.
+  W projekcie użytkownika (wersja 42) mikrofala miała wnękę 250 mm i drzwi nad nią zasłaniały jej front — po wczytaniu
+  wnęka ma 373 mm.
+- Na rzucie z góry blat nie przechwytuje kliknięć (szafkę pod nim da się wybrać); napis przy ścianie: „na ścianie wolne
+  N mm długości” / „brakuje N mm długości”.
+- **Bok szafki z sąsiedniej ściany w rogu** (widok z przodu): wysokość szafki w rogu (albo szafek ciągu bez słupków) —
+  wcześniej najwyższej szafki ciągu, po dodaniu słupka „bok 581” szedł do 2000 mm.
+- **Płyta / zlew / sprzęt na blacie przeciągane z góry** (2026-11-12: „zginęły podświetlenia, gdzie można ją przenieść”):
+  zielone ramki na szafkach pod blatem (z góry i z przodu), pod wskaźnikiem podpis „Płyta … → „Szafka 2” — puść”
+  albo „upuść na zielonej ramce” (`mak-niesiesz`; tak samo przy sprzęcie w kolumnie).
+- W zakładce Półki przy wymiarach świateł (szczegółowa) bez napisów „↕N” przy półkach — dublowały wymiary i wchodziły
+  na „wnętrze N”; „gł. N” w rzucie z góry w środku szafki (wchodził na rzut ciągu pod szafką wiszącą).
+- Klik po przeciągnięciu jest tłumiony tylko raz (`tlumKlikNa`, 60 ms) — wcześniej blokada zostawała, gdy po
+  puszczeniu nie przyszedł klik, i zjadała następny prawdziwy klik.
 
 ## Czego jeszcze nie ma
 
@@ -371,4 +632,55 @@ Kolejne kroki (`makiety/BRAKI.md`, D):
   w `AssemblyView` i `AssemblyTopView`; stan `tryb` w `App`.
 - **Test**: `testy/makieta.mjs` (tryb, rysunek, zaznaczanie), `testy/makieta2.mjs` (uchwyty i zapis),
   `testy/makieta3.mjs` (pytanie o wysokość w ciągu i w narożniku), `testy/makieta4.mjs` (przyciski karty),
-  `testy/makieta5.mjs` (paleta, klocki, karta do schowania, duży rysunek).
+  `testy/makieta5.mjs` (paleta, klocki, karta do schowania, duży rysunek), `testy/makieta11.mjs` (uwagi 2026-11-10),
+  `testy/makieta12.mjs` (lista „Wymiary”, wysokości, zakładka „Ciąg”, zawieszki, blenda, notatka, „Zamówienie”,
+  napisy nieucięte i czytelne), `testy/makieta15.mjs` (runda 3 z makietą „Dodaj”: pełna karta Szafka, biurko, klocki i „Co zrobi”
+  w zakładkach, lista ciągu, przegroda, rysunek — okap–płyta, lodówka, kaseta / komora, wycięcie, alarm ściany, Esc),
+  `testy/makieta16.mjs` (runda 4: karty AGD, kontrole wycięć, karta Szafka przy sprzęcie i pozycji ciągu).
+
+2026-11-14 (zgłoszenia użytkownika): lista „Ciąg” nad rysunkiem to ściany — ciąg górny nie ma osobnej pozycji (idzie ze swoją ścianą,
+pokazują go przyciski „Ciąg górny / Ciąg dolny”; przy ścianie „N szafek + M górnych”). W widokach 3D i 45° zakładki Półki / Przegroda /
+Wzmocnienie otwierają drzwi (wnętrze), ale szuflady zostają zamknięte (`szuflady` w `Assembly3D` / `Scene3D`); wysuwają się przy ręcznie
+wybranym „otwarte”. Legenda nad rysunkiem ma stałe miejsce (zielone ramki przy przeciąganiu trafiają w szafki). Karta szafki górnej:
+„ciąg górny wzdłuż ściany” — od lewej / od prawej, mm, „przy słupku” (`mak-gorny-od`, `mak-gorny-offset`, `mak-gorny-przy-slupku`).
+Test `makieta17`.
+
+2026-11-15 (użytkownik: „zrób plik założeń … i porównaj”): spis założeń makiety „Dodaj” ze stanem w aplikacji — `makiety/ZALOZENIA.md`.
+Dorobione: przyciąganie przy przeciąganiu — wysokość do góry szafki obok tej samej ściany (40 mm, „równo z „…””, ciągła zielona linia,
+`makLapanieWys`), półka do półki innej kolumny / szafki (`makLapaniePolek`, „Równo z półką obok” z makiety: 45 mm i tylko, gdy wskaźnik jest nad
+tamtą szafką / kolumną — nad swoją półka chodzi co 10 mm), przegroda ±15 mm od środka —
+na środek; w okienku półki „Półki po równo”, w okienku szuflady „Ta szuflada jak po równo”; w karcie Szuflady pole wysokości frontu każdej
+szuflady (`mak-szufl-front`). Wpisana wysokość szuflady zmienia tylko ją — różnicę bierze poziom nad / pod szufladami (słupek), a przy
+szufladach na całą szafkę najwyższa szuflada (`makSzuflWys`, `makSzuflKto`). Ciąg górny to osobny ciąg: jego wysokość idzie za jego
+szafkami (`zmienWys`), sama szafka w ciągu — bez uwagi o wysokości ciągu, przy górnej bez „To słupek”. Z góry z blatem ciąg górny rysuje
+się na blacie. Mikrofala (dół > 1300) i piekarnik (dół > 1100, potwierdzone 15.11) wysoko — ostrzeżenia w Uwagach (`sprzetWysokoMsgs`).
+Testy: `makieta17`, `funkcje`.
+
+2026-11-15, drugie zgłoszenia (użytkownik: „brak opcji przesunięcia szafki do samego sufitu”, „ręcznie nie da się złapać, żeby blenda
+była do sufitu”, „górę szafki da się przesuwać, a dołu nie”, „w ciągu górnym brak opcji wymiaru od blatu”, „gdzie jest opcja blendy nad
+górnymi szafkami?”):
+- **Sufit ściany** (`sufitSciany`): wysokość pomieszczenia z ciągu dolnego i górnego tej ściany — pole „wys.” nad rysunkiem zapisuje ją
+  w ciągu dolnym i od teraz działa też dla górnego (uwaga o suficie, łapanie, przyciski, sufit w kontroli otwierania klap).
+- **Rysunek, zakładka Szafka**: blenda nad szafką ma uchwyt górnej krawędzi (`data-u="blenda"`) — co 10 mm, łapie sufit („blenda N —
+  do sufitu”) i górę szafek obok (oraz ich blend) w 40 mm; puszczona zmienia blendę wszystkich szafek ciągu z blendą i tą samą górą
+  (`makLapanieBlendy`, `makGrupaBlendy`). Szafka górna ma też uchwyt dołu (`data-u="dol"`): dół tej szafki, góra zostaje (`cab.dolGorny`,
+  jak „dół tej szafki od podłogi”), łapie dół ciągu („jak inne”) i dół innych górnych (`makLapanieDol`). Uchwyt wysokości łapie też sufit
+  („wys. N — do sufitu”, z blendą — „z blendą N do sufitu”).
+- **Karta szafki górnej / zakładka Ciąg**: „od blatu do dołu szafek górnych (prześwit)” — pole i −/+50 (`run.clearance`, `mak-gorny-od-blatu`);
+  przy „dół szafek górnych od podłogi” przycisk „do sufitu (N)” — góra najwyższej szafki (z blendą) pod sufitem (`mak-gorny-do-sufitu`).
+  W karcie Szafka szafki górnej i słupka wiersz „Blenda nad szafką” (jest / nie ma, wysokość, „do sufitu (N)”; `mak-sz-blenda`); „jest”
+  daje od razu blendę do sufitu, gdy sufit jest podany. W zakładce Ciąg „Blenda do sufitu” — każda szafka ciągu od swojej góry do sufitu
+  (`mak-ciag-blenda-sufit`); „jest” daje całemu ciągowi jedną wysokość.
+- Uwaga o suficie liczy blendę: „Szafki górne z blendą sięgają …” (błąd), „Nad szafkami górnymi (z blendą) zostaje N mm do sufitu” (info).
+Testy: `makieta18`, `funkcje`.
+
+2026-11-15, decyzje użytkownika: 
+- **Dół szafki górnej przeciągnięty** — okienko „tylko ta / cały ciąg” (`makieta-pytanie-dol`): tylko ta (krótsza / dłuższa, góra zostaje
+  równo z innymi), cały ciąg górny — dół (góra zostaje, wszystkie szafki krótsze / dłuższe, `run.clearance` i `run.H`), cały ciąg
+  przesunięty (wysokość zostaje), anuluj. Złapane „jak inne” — bez pytania.
+- **Szafki górne na styk z sufitem** (korpus mniej niż `ZAWIESZKA_LUZ_SUFIT` = 20 mm pod sufitem — próg zatwierdzony 15.11, bez blendy, na zawieszkach) —
+  ostrzeżenie: na zawieszkach ich nie zawiesisz (zaczepienie o listwę wymaga uniesienia szafki), zostaw luz i zakryj go blendą; przycisk
+  „Blenda 100 mm do sufitu — szafki górne niżej” (`blendasufit`, `gornyBlendaDoSufitu`). Ten sam ruch w karcie: „do sufitu z blendą 100”
+  (`mak-gorny-do-sufitu-blenda`). „Do sufitu” zostaje na styk (decyzja użytkownika).
+- **Szuflady dokładane na dół słupka** — po 220 mm (`MAK_SZUFL_SLUPEK`, jak w makiecie; było 180). Piekarnik wysoko — próg 1100 potwierdzony.
+Testy: `makieta18`, `makieta12`.

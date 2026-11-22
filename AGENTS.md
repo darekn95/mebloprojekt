@@ -25,6 +25,10 @@
   opisy w `opisy/` (spis: `opisy/SPIS.md`). Przeczytaj opis obszaru przed zmianą,
   a zmieniasz zasadę albo liczbę — popraw opis w tej samej zmianie. Na pytania
   użytkownika „jak to działa” odpowiadaj z opisu (i sprawdź w kodzie, gdy wątpliwe).
+- **Założenia makiety** (ustalone z użytkownikiem 2026-11-15): `makiety/ZALOZENIA.md` — spis wszystkiego, co ustaliliśmy przy
+  makiecie „Dodaj” i później, ze stanem w aplikacji. Zmieniasz makietę w aplikacji albo użytkownik dodaje założenie — dopisz /
+  popraw wiersz w tej samej zmianie. Porównując z makietą, sprawdzaj też zachowanie (przeciąganie, przyciąganie, linie pomocnicze,
+  dwuklik, okienka), nie tylko napisy i przyciski.
 - Zanim zaczniesz szukać po całym `szafki.jsx`, zajrzyj do `SLOWNIK.md`:
   wiąże etykietę z interfejsu ze ścieżką w danych i funkcją, która to liczy.
   Dokładasz nowe pole albo nazwę formatki — dopisz tam wiersz w tej samej zmianie.
@@ -34,6 +38,10 @@
   odpowiedź, zapisz pytanie i przejdź do następnego zadania z listy. Wszystkie
   zebrane pytania zadaj razem na samym końcu (narzędziem pytań z opcjami),
   a nie po jednym w trakcie — użytkownik nie czeka wtedy na każde zadanie.
+- **Nie kończ z niedokończoną robotą** (ustalone z użytkownikiem 2026-11-12: „jak skończysz, a czegoś nie zrobisz,
+  to rób dalej; bez pytania; na koniec testy, czy nie ma błędów, aż do skutku”): po liście zadań sam przejrzyj, co
+  zostało niezrobione albo zrobione połowicznie, i dokończ bez pytania o zgodę; na koniec testy z obszaru (a przed
+  zakończeniem większej serii — pełny przebieg), poprawiaj i powtarzaj, aż będą zielone.
 - Gdy pytasz o decyzję, która sprowadza się do kilku opcji, dawaj pytanie
   z przyciskami do kliknięcia (narzędzie pytań z opcjami), a nie tekst do
   odpisania — użytkownik woli kliknąć niż wpisywać odpowiedź.

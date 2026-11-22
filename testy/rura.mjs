@@ -1,4 +1,4 @@
-/* Rura na wieszaki (uzytkownik 2026-10-24): okragla ⌀25 na 2 rozetach, os 70 mm
+/* Rura na wieszaki (uzytkownik 2026-10-24): okragla ⌀25 na 2 rozetach, os 60 mm (od 2026-11-15; bylo 70)
    pod plyta nad swiatlem, w polowie glebokosci, dlugosc = swiatlo − 2 mm. Pod rura
    ok. 1000 mm (koszule), plaszcze ok. 1600. Glebokosc od 400 mm, ponizej 500
    ostrzezenie. Opcja w Strukturze przy swietle od 800 mm, podpowiedz w Uwagach. */
@@ -29,7 +29,7 @@ console.log('== podpowiedź i dodanie rury ==');
 {
   await seed(szafa());
   let u = await uwagi();
-  ok('szafa 2000 ze światłem 1546 mm: podpowiedź „zmieści się rura na wieszaki (pod nią 1476 mm: koszule)” z przyciskiem', /kolumna 1: światło 1546 mm — zmieści się rura na wieszaki \(pod nią 1476 mm: koszule\)/.test(u) && /Dodaj rurę na wieszaki/.test(u), linie(u, /rur/));
+  ok('szafa 2000 ze światłem 1546 mm: podpowiedź „zmieści się rura na wieszaki (pod nią 1486 mm: koszule)” z przyciskiem', /kolumna 1: światło 1546 mm — zmieści się rura na wieszaki \(pod nią 1486 mm: koszule\)/.test(u) && /Dodaj rurę na wieszaki/.test(u), linie(u, /rur/));
   const opcja = page.locator('[data-el="rura-wieszaki-opcja"]');
   ok('w Strukturze opcja tylko przy świetle od 800 mm („światło 2 (1546 mm)”)', (await opcja.count()) === 1 && /światło 2 \(1546 mm\)/.test(await opcja.innerText()) && !/światło 1/.test(await opcja.innerText()), await opcja.innerText().catch(() => ''));
   await page.getByRole('button', { name: 'Dodaj rurę na wieszaki' }).first().click(); await page.waitForTimeout(600);
@@ -53,7 +53,7 @@ console.log('== podpowiedź i dodanie rury ==');
   await page.getByRole('button', { name: 'Zestawienie PDF', exact: true }).click(); await page.waitForTimeout(1800);
   const plan = (await page.evaluate(() => window.__snap)) || [];
   const rr = plan.filter((r) => r[1] === 'rura na wieszaki');
-  ok('plan wierceń: rozeta rury na obu bokach, 1912 mm od dołu boku, oś 300 mm od przedniej krawędzi', rr.length === 2 && rr.every((r) => /1912/.test(r[2]) && /rozeta rury ⌀25: oś 300 mm od przedniej krawędzi/.test(r[3])) && rr.some((r) => r[0] === 'Bok lewy') && rr.some((r) => r[0] === 'Bok prawy'),
+  ok('plan wierceń: rozeta rury na obu bokach, 1922 mm od dołu boku, oś 300 mm od przedniej krawędzi', rr.length === 2 && rr.every((r) => /1922/.test(r[2]) && /rozeta rury ⌀25: oś 300 mm od przedniej krawędzi/.test(r[3])) && rr.some((r) => r[0] === 'Bok lewy') && rr.some((r) => r[0] === 'Bok prawy'),
     rr.map((r) => r.join(' | ')).join(' / '));
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   // rysunki
@@ -95,8 +95,8 @@ console.log('\n== światło zmniejszone po dodaniu rury (użytkownik 2026-10-24)
   // rura w swietle 1, ktore zmalalo do 300 mm — dalej da sie ja zdjac albo przeniesc wyzej
   await seed(szafa({}, { shelfTargets: [300, null], drazki: [0] }));
   let u = await uwagi();
-  ok('ostrzeżenie „pod rurą tylko 230 mm” z „Przenieś do światła 2 (1646 mm)” i „Usuń rurę”',
-    /pod rurą tylko 230 mm/.test(u) && /Przenieś do światła 2 \(1646 mm\)/.test(u) && /Usuń rurę/.test(u), linie(u, /rur|Przenieś/));
+  ok('ostrzeżenie „pod rurą tylko 240 mm” z „Przenieś do światła 2 (1646 mm)” i „Usuń rurę”',
+    /pod rurą tylko 240 mm/.test(u) && /Przenieś do światła 2 \(1646 mm\)/.test(u) && /Usuń rurę/.test(u), linie(u, /rur|Przenieś/));
   const opcja = page.locator('[data-el="rura-wieszaki-opcja"]');
   ok('w Strukturze zostaje „światło 1 (300 mm)” z zaznaczeniem — da się odznaczyć', /światło 1 \(300 mm\)/.test(await opcja.innerText())
     && (await opcja.locator('label', { hasText: 'światło 1' }).locator('input').isChecked()), await opcja.innerText().catch(() => ''));

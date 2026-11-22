@@ -13,8 +13,8 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - „na boku” — płyta na czołach boków;
   - brak (szafka pod blatem bez wieńca, szafka bez dna).
 - **Szafka pod blatem roboczym** (w ciągu z blatem): wieniec znika, a każda kolumna najwyższego poziomu dostaje parę wzmocnień (znacznik `paraPodBlat` — para idzie razem do nowego najwyższego poziomu i razem znika przy powrocie wieńca; w szafce narożnej także stojąca z przodu, audyt GPT N109).
-  - Z przodu: płaskie, 100 mm głębokości, przy licu.
-  - Z tyłu: stojące, 100 mm wysokości, przy plecach.
+  - Z przodu: płaskie, 70 mm głębokości, przy licu (domyślnie 70 — użytkownik 2026-11-12; wcześniej 100, zapisane zostają).
+  - Z tyłu: stojące, 70 mm wysokości, przy plecach.
   - W szafce narożnej przednie jest pionowe i cofnięte o grubość frontu, a tylne odsunięte o grubość płyty — dochodzi do kątownika.
   - Para zawsze siedzi w najwyższym poziomie, także po zmianach struktury.
 - **Wzmocnienie stojące przy plecach** na wysokości szuflady skraca jej NL; to przy licu — wysokość boku skrzynki.
@@ -23,8 +23,14 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   60 mm: 15 i 45; szersze niż 132 mm — jak inne styki, 50 mm od krawędzi, co ok. 200 mm), w planie
   wierceń „konfirmat — wzmocnienie poziome / czołowe / tylne”. Pionowe przy boku (lico do lica) —
   wkręty 4 × 30, 4 na wzmocnienie. Koniec bez boku i przegrody (kątownik w rogu, ścianka wycięcia,
-  przelot) — wkręty. W karcie wzmocnienia „Mocowanie: Konfirmaty / Wkręty 4 × 30” (wkręty — po 2 na
-  koniec, bez planu wierceń).
+  przelot) — wkręty. W karcie wzmocnienia „Mocowanie: Konfirmaty / Wkręty 4 × 30 / Trójkąty” (wkręty — po 2 na
+  koniec, bez planu wierceń). **Trójkąty meblowe** (użytkownik 2026-11-10: „wszędzie opcja na trójkąty” — dla
+  wzmocnień prostopadłych do płyty, w technicznym i w makiecie szczegółowej): po 2 na koniec przy boku albo
+  przegrodzie, jak przy przegrodzie z wzmocnieniami z obu stron (100 mm: 20 i 60 mm, szersze — 50 mm od krawędzi);
+  poziome — pod wzmocnieniem (górne) albo na nim (dolne), czołowe — za nim, tylne — przed nim, zawsze od wnętrza,
+  więc dostęp do wkrętów jest przy każdej kolejności montażu. Plan wierceń „trójkąt meblowy — wzmocnienie …”,
+  zamówienie „Trójkąt meblarski — wzmocnienia na trójkątach”. Koniec bez boku i przegrody — wkręty, jak przy
+  konfirmatach. Wybrane trójkąty przy przegrodzie z drugim wzmocnieniem — bez ostrzeżenia o kolejności.
 - **Przegroda z wzmocnieniem tej samej wysokości po obu stronach** (użytkownik 2026-11-08): konfirmatów
   (i wkrętów) przez przegrodę z obu stron nie da się skręcić po kolei — łby drugiej kolumny zasłania
   wzmocnienie pierwszej. Domyślnie **trójkąty meblowe, po 2 na koniec** przy przegrodzie, lewa kolumna
@@ -68,7 +74,10 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
   - styki kawałków i róg łączy „Złącze do blatów śrubowe”;
   - w rozkroju się nie obraca, bo przód ma fabryczny profil;
   - ceny arkuszy z faktur użytkownika: 563,99 zł (600) i 1128,22 zł (1200).
-- **Blenda nad szafką**: pas nad korpusem o podanej wysokości.
+- **Blenda nad szafką**: pas nad korpusem o podanej wysokości. Mocowanie (użytkownik 2026-11-15): domyślnie złącza Sevroll Blendo — połówka
+  na wierzchu szafki przy licu i na tylnej stronie blendy, co ok. 600 mm (`blendoIle`); opcja „nóżki i klipsy (jak cokół)”
+  (`topFiller.mocowanie = "klipsy"`) — nóżki regulowane na wieńcu w przednim rzędzie (tyle co przedni rząd pod szafką tej szerokości),
+  wysokość jak blenda, regulacja do sufitu, blenda wpinana klipsami. Obie da się założyć, gdy szafka już wisi.
 
 - **Dwie przegrody na styku** (scalanie „dwie przegrody”, użytkownik 2026-10-29): dwie płyty obok siebie między wieńcem a dnem, każda z własnymi konfirmatami, kołkami i zawiasami (w planie wierceń „Przegroda N — lewa” / „— prawa”). Skręcone ze sobą 4 wkrętami 4 × 30 (przy płycie 16 mm — 4 × 25, żeby nie wyszedł z drugiej): po dwa przy dole i przy górze poziomu, z przodu i z tyłu. Każdy wkręt:
   1. nad kołkiem półki, w jej grubości (łeb zasłania półka), gdy półka jest do 300 mm od dołu / od góry poziomu, 70 mm od krawędzi — wkręcany od strony tej półki;
@@ -127,7 +136,7 @@ kolumny) — `opisy/poziomy.md`; ciąg i narożnik — `opisy/ciagi.md`.
 ## Skąd liczby
 
 - **Blat**: arkusze 4100 × 600 / 1200 i ceny PB0090 Śnieżna biel z faktur użytkownika (2026-09-29); brak obracania blatu w rozkroju (2026-10-17).
-- **Wzmocnienia pod blat**: para 100 mm i jej położenie — ustalone z użytkownikiem (narożnik: cofnięcie o front, odsunięcie o płytę).
+- **Wzmocnienia pod blat**: para 70 mm (od 2026-11-12; wcześniej 100) i jej położenie — ustalone z użytkownikiem (narożnik: cofnięcie o front, odsunięcie o płytę). Nowe wzmocnienie z karty / klocka też 70 mm (`WZM_DOM`); konfirmaty na końcu wzmocnienia 70: 18 i 53 mm od krawędzi (¼ i ¾).
 - **Frez**: wręg 16 × 3 zlicowany z tyłem (zmiana starych ustawień przy wczytaniu).
 - **Konfirmaty**: 50 mm od krawędzi, odstęp ok. 200 mm, min. 32 mm między dwoma. Wzmocnienia —
   po 2 na koniec także na 100 i 60 mm (¼ i ¾ szerokości), decyzja użytkownika 2026-11-06.

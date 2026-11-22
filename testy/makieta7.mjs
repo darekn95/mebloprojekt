@@ -86,7 +86,8 @@ f = await fille();
 ok('szczegółowa: „Kolory płyt” włączone — kolory materiału', (await page.locator('[data-el="mak-przel"] [data-p="kolory"]').getAttribute('aria-pressed')) === 'true' && f.includes('#d8c3a0'), f.slice(0, 8).join(' '));
 await page.locator('[data-el="mak-przel"] [data-p="kolory"]').click(); await page.waitForTimeout(400);
 f = await fille();
-ok('szczegółowa, „Kolory płyt” wyłączone — jasne', f.includes('#fbfaf8') && !f.includes('#d8c3a0'), f.slice(0, 8).join(' '));
+// decyzja uzytkownika 2026-11-11: wylaczone = neutralna szarosc (MAK_SZARE), blat roboczy brazowy
+ok('szczegółowa, „Kolory płyt” wyłączone — szare', f.includes('#f1f1f0') && !f.includes('#d8c3a0') && !f.includes('#fbfaf8'), f.slice(0, 8).join(' '));
 console.log('== płyty w szczegółowej ==');
 await page.locator('[data-el="makieta"] nav [data-zakl="szafka"]').click().catch(() => {}); await page.waitForTimeout(200);
 if (!(await page.locator('[data-el="mak-plyta-wiersz"]').count())) { await page.locator('[data-el="makieta"] nav [data-zakl="szafka"]').click(); await page.waitForTimeout(200); }

@@ -1199,6 +1199,208 @@ nozkami / cokolem, plyty „inne niz korpus”, szczegolowa: wzmocnienia na rysu
 przegroda nizsza, plan kolizji, „Widok” (przod / bok / gora / 3D / 45°) zamiast „Powiększ”, przesuwanie rysunku
 lewym przyciskiem, drganie przy 125 % (rozmiar okna z paskiem), wieniec z gory na wierzchu, nowy ciag z makiety) —
 zrobione na galezi, opis `opisy/makieta.md` („Uwagi 2026-11-10”), test `testy/makieta11.mjs`.
-[AI-TODO] Trojkaty meblowe przy BOKACH dla wzmocnien (zamiast konfirmatow) — w aplikacji nie ma takiego mocowania (sa
-przy przegrodzie i pod przegroda nizsza). Uzytkownik pytany 2026-11-10; bez odpowiedzi nie dodawac (wiercenia, okucia,
-kolejnosc montazu).
+[AI-INFO] 2026-11-10 (odpowiedz uzytkownika: „jeśli chodzi o te prostopadłe do płyty, to wszędzie powinna być opcja na
+trójkąty — szczegółowy i techniczny”): `rail.mocowanie: "trojkaty"` dla wzmocnien lezacych, czolowych i tylnych — laczniki
+po 2 na koniec (`trojkatyNaKoncu`, jak przy przegrodzie), plan wiercen, zamowienie, karta techniczna (Seg) i szczegolowa
+(`mak-wzm-moc`). Pionowe — bez zmian (wkrety). Opis: `opisy/korpus.md`.
+[AI-INFO] 2026-11-11 (uwagi uzytkownika do makiety szczegolowej): lista „Wymiary” (`MAK_WYM`, `przel.wym`), lancuch
+wysokosci (`mak-wysokosci`), „wnętrze” w srodku szafki, najmniejszy napis ok. 10 px na ekranie (efekt w `MakietaWidok`,
+`text.wym` 52 jednostki), wzmocnienia tylko przy otwartych frontach, zakladka „Ciąg” (takze blenda calego ciagu
+i „Wyłącz szafkę z ciągu” przez `assignCabinet`), Polki: otwory kolkow i zawieszki, Korpus: blenda, Szafka: notatka
+montazowa, kafelek „Zamówienie” (`kartyZamowienia` w `App` — karty zamowienia rysowane w jednym miejscu naraz).
+Opis: `opisy/makieta.md` („Uwagi 2026-11-11”), test `testy/makieta12.mjs`.
+[AI-INFO] Przeglad makiety na przykladach (2026-11-11): skrypt wstawia wzory z „Dodaj” (kuchnia, naroznik, wolnostojace,
+szafy w zabudowie) i bierze projekt uzytkownika; w kazdym stanie (tryb × fronty × widok ciagu × szafka × zakladka) szuka
+bledow strony oraz napisow ucietych przez krawedz rysunku, nizszych niz 8,5 px i nachodzacych na siebie (ponad 30 %
+mniejszego). Ta sama kontrola napisow jest w `testy/makieta12.mjs` (`napisy()`), wiec nowy napis na rysunku makiety
+warto sprawdzic nia przed oddaniem. Nazwa kafelka „Zamówienie” — potwierdzona przez uzytkownika 2026-11-11.
+[AI-INFO] 2026-11-11 (odpowiedzi uzytkownika): brakujace opcje szczegolowej (ciag, korpus / cokol / nozki, drzwi i szuflady)
+— przez szuflade „Wszystkie opcje” z karta trybu technicznego (`MAK_PELNE`, `makPelne`); plyty i luzy drzwi zostaja
+w technicznym. „Kolory płyt” wylaczone = szare, blat roboczy brazowy (`MAK_SZARE`). Scalenie do main dopiero po
+dolozeniu brakow i testach — i tylko na wyrazna prosbe.
+[AI-INFO] 2026-11-11 (druga seria uwag uzytkownika, zrobione): „Kolory płyt” wlaczone = realne kolory (`realColors` w `projRys`,
+`activeCab` z `projRys`), napis frontu wezszy o strefe uchwytow (`data-fs="staly"`), „blat” na liscie Wymiary chowa tez odcinek
+blatu w lancuchu, karta Drzwi w wierszach z podpisami (`mak-drzwi-grupa`), duzy przycisk „Wszystkie opcje” nad trescia,
+plan kolizji bez zaznaczania napisow, sciana: wysokosc (`run.ceiling`, pole `mak-sciana-wys`, bez niej tlo 300 mm nad szafkami),
+dlugosc / wysokosc sciany w zakladce Ciag, uwaga o za krotkiej scianie z przyciskiem `wallw:<mm>:<ciag>`, nazwy szafek pod blatem
+na froncie, bez napisu „W × H” przy wlaczonych wymiarach.
+[AI-TODO] 2026-11-11 (zgloszone, do zrobienia / do pytania): slupek glebszy niz ciag (opcja „to slupek, zostaje 600”), uwaga
+o blacie — „zmniejsz wysunięcie o N mm”, szuflady w makiecie: przeciaganie i usuwanie pojedynczej, slupek: piekarnik + mikrofala
+kasuja sie nawzajem, przyciski „Pod blat” / „Na wysokość blatu” nie dzialaja; scenariusz uzytkownika: 2 niskie szuflady na dole
+slupka, piekarnik, mikrofala, u gory polka i jedne drzwi z zawiasami po lewej. Projekt wyslany z artefaktu — audyt.
+[AI-TODO] 2026-11-11 — decyzje uzytkownika do wdrozenia (pytania z opcjami):
+1. Slupek glebszy niz ciag (np. 600 w ciagu 560): tyl przy scianie, front wystaje — ale ma byc NA ROWNO Z BLATEM (lico slupka
+   = przednia krawedz blatu roboczego); gdy nie jest rowno z blatem — ostrzezenie „za gleboki slupek”. Pozostale szafki zostaja
+   przy scianie (bez odsuwania o roznice), blat konczy sie przy boku slupka. Dzis: lico w jednej linii, reszta odsunieta, blat 633.
+2. Uwaga „Blat wychodzi N mm — za duzo na arkusz”: dwa przyciski — zmniejsz nawis blatu przed drzwiami o N mm oraz zmniejsz
+   wysuniecie szafki z lica o N mm; ograniczenie: blat nie moze byc krotszy niz front — musi go zaslaniac od gory.
+3. Zgloszone bledy makiety do zrobienia: szuflady — przeciaganie pojedynczej i usuwanie; slupek — piekarnik i mikrofala kasuja
+   sie nawzajem (w makiecie testowej „Dodaj” dzialalo); przyciski „Pod blat” / „Na wysokość blatu” w karcie piekarnika nie
+   dzialaja; scenariusz do testu: slupek 600 × 2000 — 2 niskie szuflady na dole, piekarnik, mikrofala, u gory polka i jedne drzwi
+   z zawiasami po lewej. Projekt uzytkownika z 2026-11-11 (wersja 37 w `projekt/biezacy`): audyt — blad dlugosci sciany
+   (2999 > 1800) i skrzydlo „Szafka 1 c2” przy wstawce w rogu; reszta to skutki slupka 600 (pkt 1).
+[AI-INFO] 2026-11-11: zrobione z listy AI-TODO powyzej — slupek glebszy (`slupekgl`), „zmniejsz wysunięcie” (`wysun`), sprzet
+i szuflady w slupku na wlasnych poziomach, „Pod blat” / „Na wysokość blatu” (zaznaczenie idzie za sprzetem), „usuń szuflady”.
+Nie zrobione: przeciaganie pojedynczej szuflady na rysunku (jest przeciaganie linii miedzy szufladami).
+
+
+[AI-INFO] 2026-11-11 (pozniej): uzytkownik „wszystko zrób” — reszta roznic z makieta „Dodaj” (makiety/BRAKI.md F) zrobiona:
+chwyt calej szuflady + dwuklik (`makSzuflLinie`, `makSzuflWys`), „Szuflada + drzwi” (`makUstawSzufDrzwi`, front 170 / 200 —
+odczytane jako WYSOKOSC FRONTU szuflady, tak jak w makiecie „Szuflada typowa (170 mm)”), przenoszenie sprzetu do innej szafki
+(przeciaganie, „Przesuń”, zielone ramki — `makCelPrzeniesienia`), „Co zrobi program”, plyta indukcyjna jak w makiecie.
+Pulapka: `geoRysunku.current[i]` jest tylko dla ZAZNACZONEJ szafki (nakladka) — do innych `geoSzafki(i)`. Test: `makieta13`.
+[AI-INFO] 2026-11-12: decyzja uzytkownika — „Szuflada + drzwi”: 170 (u gory) / 200 (na dole) to wysokosc FRONTU szuflady
+(tak jak jest w `MAK_SZ_G` / `MAK_SZ_D`). Pelne testy v218 (b3c6497): 169 suit, 5423 OK, 0 bledow; losowe 66 / 0.
+[AI-INFO] 2026-11-12: zgloszenia „plyta bez podswietlen przy przeciaganiu”, „mikrofala w kosmosie”, „nie razem” — zrobione
+(slupek jak klocki: `makSlupekWneka`, `makSlupekRazem`, `slupkiSprzetNorma`; blat nie na slupku w `worktopLevel`; ramki
+i `mak-niesiesz` przy przeciaganiu plyty), audyt projektu v38: nozki wysunietego slupka w cokole — naprawione
+(`cab.nozkiCofnij`). Zostaje w projekcie uzytkownika: kaseta plyty nad „Szafka 1” wchodzi w lezace wzmocnienie
+przednie (przyciski przy uwadze), plyta za blisko konca blatu. Pelny przebieg v221 (d324799): 169 suit, 5440 OK, 0 bledow;
+losowe 66 / 0. Lekcja: testowac tak, jak klika uzytkownik (paleta → przyciski karty po kolei), a nie tylko gotowe stany.
+[AI-INFO] 2026-11-12 (wieczor): klik w szafke w 45° (`Assembly3D` `onPick` — kazda bryla niesie `idx` szafki, `kto`) i z boku
+(`AssemblySideView` `onPick`, profile ze wspolnym ksztaltem: kolejny klik — nastepna szafka); w 3D bez zaznaczania; w widokach
+podgladu (`mak-widok-inny`) bez przeciagania i klik obok nie odznacza. Wyposazenie w 45° / 3D (`boxAgd` — bez audytu bryl, to nie
+formatki) i z boku (sprzet w slupku, plyta, zlew, AGD na blacie, wzmocnienia, kolizja kasety ze wzmocnieniem na czerwono).
+Nawis blatu: `run.blatNawis`, zasada 1 / 10 / 20 (`WORKTOP_MIN_OVERHANG` / `WORKTOP_OVERHANG` / `WORKTOP_MAX_OVERHANG`, wczesniej
+30), akcje `blatnawis`, `odsun`. Test: `makieta14`. „Brakuje 13 mm” u uzytkownika = kaseta plyty 13 mm pod blatem w lezacym
+wzmocnieniu (nie nawis) — teraz widac to z boku.
+[AI-INFO] 2026-11-13: porownanie makiety „Dodaj” v24 (`makiety/dodaj.html` = artefakt 5m43AjCMCw141KoT2AypyJ, ostatnia zmiana 2026-11-09)
+z aplikacja — po napisach i opcjach (skrypt: teksty miedzy tagami i etykiety `l:`/`label:` z makiety, szukane w `szafki.jsx`).
+Dorobione braki (BRAKI.md G, test `makieta14`). Pelne przebiegi: v224 170 suit 5484 OK zielone; v225 5464 OK + falszywy alarm
+`makieta4` (poprawiony `klik`); losowe 66 / 0 w obu. Do decyzji: „Bez szafki górnej”, okap przesuwa tylko swoja szafke,
+mikrofala za drzwiami.
+[AI-INFO] 2026-11-13 (pozniej): decyzje uzytkownika zrobione — „Bez szafki górnej” (`sprzetCiagu.typ = "wolne"`), okap −/+50 tylko
+swoja szafka (`cab.dolGorny`), sprzet nigdy za drzwiami (wneka rosnie sama). Pelny przebieg (1309437): 170 suit, 5509 OK, 0 bledow;
+losowe 66 / 0.
+[AI-INFO] 2026-11-13 (runda 2 porownania z makieta „Dodaj”): akcje makiety (data-akcja / data-*) i zrzuty tej samej kuchni —
+dorobione „↑ górne / ↓ wolne” z gory, „słupek” z gory, dol jednej szafki gornej i gora ciagu, klocki wzmocnien, nazwy z dala od
+komory i uchwytow. Pelny przebieg (a9ef68a): 170 suit, 5518 OK, 0 bledow; losowe 66 / 0. Do decyzji: mimosrody w biurku
+(katalog GTV: WK-CAM-15-DOW63X35-KPL-1T, rozstawu otworow w katalogu brak).
+[AI-INFO] 2026-11-13 (runda 3 porownania z makieta „Dodaj”, uzytkownik: „sprawdź wszystko po kolei, żeby już nie wracać”): pelna
+karta Szafka (`pelnaKarta`, `kolumnySwiatlo`, `wzmWiersz`, `biurkoKontSzuf`), klocki nad karta w kazdej zakladce, „Co zrobi” wszedzie,
+wzory nad karta i `MakListaCiagu`, okienko przegrody (`przegOkno`), rysunek (okap–plyta, lodowka, kaseta / komora, wyciecie, alarm
+sciany), Esc w przeciaganiu; test `makieta15`. `testy/build-artifact.mjs` przyjmuje `OUT=` (budowa do innego pliku w trakcie
+pelnego przebiegu — pelny czyta `mebloprojekt-app.html`). Uwaga do testow: tekst z SVG — `textContent`, nie `innerText`; zapis
+projektu do localStorage trwa dluzej niz 400 ms — czytac przez `czekaj(...)`, nie `proj()` od razu.
+[AI-INFO] 2026-11-13 (runda 3): pelny przebieg (8758766): 171 suit, 5604 OK — jedyne 3 bledy w `makieta15` to testy karty szafki
+gornej dopisane w trakcie przebiegu (build byl starszy); po przebudowie (630738b) `makieta15` 80 OK w obu buildach, makieta4 / 12 / 13 /
+14 zielone; losowe 66 / 0. Audyt projektu uzytkownika v42 bez zmian (43 OK, te same 7 uwag o skrzydle w rogu — uchwyt „Szafka 3”).
+[AI-INFO] 2026-11-13 (decyzje po rundzie 4): „wystaje” lodowki od przodu blatu, paleta „dotknij, potem miejsce”, widok „Z góry” z przeciaganiem
+i przelacznikiem „Blat”, nazwa zaznaczonej szafki pod wzmocnieniami, blat — zalecenie odsuniecia szafek, od konca blatu 30 mm, rozne glebokosci
+w rogu jako informacja (zdjecie uzytkownika: blat laczony na wprost 60 / 58 cm). Pelny przebieg (3836f76): 172 suit, 5655 OK, 0 bledow; losowe 66 / 0.
+Usuniety artefakt „Przegroda pod blatem”. Do ustalenia: lodowka w szafce (bez dna / mala na dnie), stare artefakty „mebloprojekt-app” z sierpnia.
+[AI-INFO] 2026-11-14 lodowka w szafce (decyzja uzytkownika 2026-11-13 „Oba warianty”): `cab.lodowkaPodblat` — szafka z bokami do podlogi,
+bez dna / plecow / wienca, cokol w obrysie miedzy bokami z kratka (`kratkaCokolu` na rysunku, uwaga na formatce), front od cokolu (`frontOd`
+w `computeGeo`), 2 trojkaty cokolu na bok, uwaga z kolejnoscia montazu; wneka lodowki liczona do spodu wzmocnienia nad nia (`nadL`).
+Szafka idzie za ciagiem w `naprawProjekt` (`lodowkiPodblatZaCiagiem`: wysokosc do spodu blatu, cokol, glebokosc). Mala na dnie —
+`lodowkaMalaUstaw` (440 × 520 × 450 przykladowo, wlasne drzwi, nad nia otwarta wneka), uwaga o wentylacji. Oba w „Rodzaju lodówki”
+(`zamienLodowke` rodzaj `szafka` / `mala`), test `makieta17`. [CHECK] Do potwierdzenia z uzytkownikiem: (1) u gory bez wzmocnienia przy
+ciagu 820 — w pytaniu z 2026-11-13 bylo „płaskie z przodu (nie zabiera wysokości wnęki)”, a plyta 18 mm zabiera wneke z przodu (820 → 802);
+teraz plaskie wzmocnienie tylko, gdy pod nim zostaje 820; (2) cokol na trojkatach (2 na bok) czy inaczej; (3) mala: nad lodowka otwarta
+wneka (szuflada nad lodowka 520 nie miesci sie pod wzmocnieniem pod blatem). Audyt v42 bez zmian.
+[AI-INFO] 2026-11-14: pelny przebieg (5024a84): 173 suity, 5678 OK, 0 bledow; losowe 66 / 0. Artefakt v233.
+[AI-INFO] 2026-11-14 (odpowiedz uzytkownika): lodowka podblatowa „w ciągu” = jak zmywarka (bez bokow i wzmocnien), „w szafce” = mniejsza
+(np. na wino) na dnie zwyklej szafki z dnem i bokami („jakbyśmy wpakowali mikrofalę na dół”), nad nia otwarta wneka. Wariant
+`lodowkaPodblat` (boki do podlogi, bez dna, cokol miedzy bokami) WYCOFANY — „cokół trzyma się nóżek na spinki, nie boków”. Rodzaj „szafka”
+w `MAK_LOD_RODZ` robi `lodowkaMalaUstaw`. Zostala poprawka wneki lodowki do spodu wzmocnienia (`nadL`). Zielone ramki: legenda
+`mak-legenda` jest zawsze (min. wysokosc) — pojawiala sie przy chwyceniu i przesuwala rysunek pod ramkami (widok „Z góry”).
+[CHECK] Uzytkownik podal zlacze Sevroll Blendo 07025 do cokolu i blend (zamiast klipsow na nozki) — instrukcji brak (strony sklepu
+i sevroll.pl nie otwieraja sie z sesji; wyszukiwarka: niewidoczne, rozbieralne zlacze do blend / cokolow, znacznik 07024) — do ustalenia.
+[AI-INFO] 2026-11-14 zgloszenia z projektu v46 / v47: ramki (legenda stala), kolizja skrzydlo–szuflada (skrzydlo widzi szuflade zamknieta,
+wysunieta = info), 3D w zakladkach z wnetrzem — szuflady zamkniete (`szuflady`), nowy ciag gorny za slupkami (`gornyZaSlupkami`, przycisk
+`gornyod`), karta gornej — polozenie ciagu gornego, lista „Ciąg” = sciany, zmywarka — uchwyt i klapa w dol w 3D. Test `makieta17`.
+[AI-TODO] Glebokosc dolnych kuchennych 550 (uzytkownik 2026-11-14) — w toku: szablon stojaca, SZAFKA_KUCHENNA_D, CORNER_L_D, sprzet w ciagu;
+przy 550 szuflady V-BOX NL 500 (NL 550 wymaga 553) — powiedziec uzytkownikowi.
+[AI-INFO] 2026-11-14: glebokosc dolnych kuchennych 550 (szablon stojaca, SZAFKA_KUCHENNA_D, CORNER_L_D → ramie L 650, sprzet w ciagu). Skutki:
+szuflady V-BOX w 550 — NL 500 (NL 550 wymaga 553); nowa kuchnia przy scianie ma ostrzezenie „arkusz 600 wystawalby 27 mm” z przyciskiem
+odsuniecia o 17 mm (uzytkownik w swoim projekcie ma ciag 17 mm od sciany). Pelny przebieg (696bb2d): 173 suity, 5649 OK, 13 suit z oczekiwaniem
+560 — poprawione (BLEDY.md); losowe 66 / 0. Audyt v47: tylko znane uwagi (Szafka 10 nad slupkiem — przycisk „Ciąg górny od 600 mm”, sciana 6 mm).
+[AI-INFO] 2026-11-14 odpowiedzi uzytkownika: nowy ciag kuchenny od razu 17 mm od sciany (`KUCHNIA_OD_SCIANY` w `makeRun`; gorny i szafa 0);
+szuflady w 550 — NL 500 zostaje; Blendo — uzytkownik przesle instrukcje / zdjecie (wtedy do `instrukcje/` + SPIS i opcja mocowania cokolu).
+[AI-INFO] 2026-11-14: pelny przebieg (2f9d68b, 17 mm od sciany): 173 suity, 5677 OK, 2 suity z oczekiwaniem ciagu przy scianie (blatrog, blatrys) —
+poprawione, zielone w obu buildach; losowe 66 / 0. (Pierwsza proba przebiegu nieważna — serwery testowe padly po restarcie kontenera.)
+[AI-INFO] 2026-11-15: `makiety/ZALOZENIA.md` — spis zalozen makiety „Dodaj” (wersje 2–24, decyzje z datami, interakcje) ze stanem w aplikacji.
+Uzytkownik zdenerwowany powtarzajacymi sie brakami: przy kazdym porownaniu z makieta sprawdzac ZACHOWANIE (przeciaganie, przyciaganie, linie
+pomocnicze, dwuklik, okienka), nie tylko napisy. Dorobione: przyciaganie wysokosci / polki / przegrody, okienka „po równo”, fronty szuflad
+w karcie (kazda osobno), ciag gorny osobny (wysokosc), blat z gory nie zaslania gornych, mikrofala / piekarnik wysoko w Uwagach.
+[AI-INFO] Rozstrzygniete 2026-11-15: piekarnik 1100, szuflady w slupku 220.
+[AI-INFO] 2026-11-15: pelny przebieg (0baeff4 + polki): 173 suity, 5702 OK; makieta17 tylko na nowym tescie polek (build sprzed poprawki) —
+po przebudowie zielona w obu buildach; losowe 66 / 0.
+[AI-INFO] 2026-11-15, drugie zgloszenia: sufit sciany `sufitSciany` (pole „wys.” makiety zapisuje `ceiling` w ciagu DOLNYM — kontrola sufitu
+czytala tylko gorny, wiec u uzytkownika nie dzialala), uchwyty `blenda` i `dol` (szafka gorna) w MakietaUchwyty (prop `gorna`), lapanie
+sufitu, „do sufitu” (ciag gorny, blenda), pole „od blatu” (`run.clearance`), blenda w karcie Szafka gornej i slupka. Test `makieta18`.
+[AI-INFO] 2026-11-15 decyzje: „do sufitu” na styk + ostrzezenie (zawieszki, korpus < 20 mm pod sufitem bez blendy) i przycisk „Blenda 100 mm do sufitu”
+(`gornyBlendaDoSufitu`); piekarnik 1100 potwierdzony; szuflady na dol slupka po 220 (`MAK_SZUFL_SLUPEK`); po przeciagnieciu dolu szafki gornej
+okienko: tylko ta / caly ciag (dol) / caly ciag przesun / anuluj.
+[AI-INFO] Prog 20 mm (`ZAWIESZKA_LUZ_SUFIT`) dla ostrzezenia o zawieszkach — zatwierdzony przez uzytkownika 2026-11-15 („to jest ok”).
+[AI-INFO] 2026-11-15: Sevroll Blendo 07025 — od uzytkownika tylko film https://youtu.be/RKg0IBdtUtY (instrukcji brak). YouTube niedostepny
+z kontenera (DNS / siec sesji), w katalogu Sevroll 2026 i GTV 2023 z `instrukcje/` brak „Blendo” / „07025”. Do modelu potrzebne: na czym
+sie trzyma (cokol / noga / dno), otwory w cokole (srednica, glebokosc, odstep od krawedzi), ile na dlugosc cokolu, kolejnosc montazu.
+[AI-INFO] 2026-11-15: rura na wieszaki 60 mm pod plyta (`DRAZEK_POD_PLYTA`, decyzja uzytkownika „to robimy 60”; bylo 70). Blendo: uzytkownik podal
+strone wzornika https://spacetool.pl/szablon-do-zlaczek-sevroll-blendo-p-89.html (wzornik i film). Host dopisany do sieci srodowiska „MebloProjekt”,
+ale WebFetch go nie widzi (wlasna lista), a curl blokuje klasyfikator uprawnien — strona nieprzeczytana. Uzytkownik przyslal zrzuty z filmu
+(`instrukcje/sevroll-blendo/`) i decyzje: polowka pod dnem, co ok. 600 mm, opcja (domyslnie klipsy), tez blenda nad szafkami — zrobione.
+[AI-INFO] 2026-11-15: blenda przy scianie — nowa pozycja ciagu `sprzetCiagu.typ = "blenda"` (decyzje: sama do sciany, w licu drzwi, pas w glab
+wzdluz boku szafki — przykrecany od srodka szafki, bez Blendo; dolny i gorny ciag). Szerokosc / wysokosc / strona — `blendyScianyZaCiagiem`.
+[AI-TODO] 2026-11-16 (uzytkownik, „w niedalekiej przyszlosci”): drzwi przesuwne w szafach (GTV). W `instrukcje/` jest tylko spis produktow
+z katalogu GTV 2023 (kat. s. 505–545: profile, tory EVO / PRO, wozki, listwy, zestawy top-running) — brak wzorow na szerokosc / wysokosc drzwi
+(zakladka, odliczenia) i instrukcji montazu; link Allegro („Szafa GTV 250 x 265 x 7,5 cm”) niedostepny z kontenera. Przed praca: instrukcja GTV
+wybranego systemu (PDF) i wybor systemu (dolny / gorny uklad jezdny, profil, plyta 18 / 10 + szklo 4).
+[AI-INFO] 2026-11-16: system drzwi przesuwnych wskazany przez uzytkownika — GTV zestaw NOVO S 2,5 m / 2D (dolny uklad jezdny: tor dolny EVO,
+wozki dolne z regulacja 10 mm, prowadniki gorne, raczka NOVO S); zrzut w `instrukcje/gtv-przesuwne/`. Brakuje instrukcji z odliczeniami (wysokosc i szerokosc
+skrzydla, zakladka, wymiar plyty w profilu). allegro.pl / gtv.com.pl dopisane do sieci srodowiska, ale WebFetch w tej sesji ich nie widzi.
+[AI-INFO] 2026-11-16: pelny przebieg (dadba32 + blenda Blendo / nozki): 174 suity, 5750 OK; makieta18 tylko na tescie poprawionym w trakcie
+(build sprzed zmiany) — po przebudowie zielona w obu buildach; losowe 66 / 0. Audyt projektu uzytkownika v50: bez bledow (jedno ostrzezenie — gorne
+2 mm pod sufitem 2100 na zawieszkach).
+[AI-INFO] 2026-11-16: instrukcja GTV NOVO S (18) w `instrukcje/gtv-przesuwne/` — wzory na drzwi przesuwne (SD, WD, SW18, WW, DLP, DR, Z = 34) w SPIS.md.
+Pobrana curl-em (siec srodowiska „unrestricted” od uzytkownika; WebFetch w tej sesji nadal z lista z poczatku sesji).
+[CLAUDE-CHANGE] 2026-11-16: drzwi przesuwne GTV NOVO S w szafach + wzor „Szafa do zabudowy” (opis: `opisy/przesuwne.md`). `cab.przesuwne = { on, n, szczotka }`;
+`computeGeoLiczy` -> `geoPrzesuwne` (wnetrze bez drzwi na zawiasach, polki / przegrody cofniete o PRZES.STREFA = 80 przez `shelfExtraSetback` i
+`__przegrodyCof`), rysunki: `PrzesuwneElew`, `przesuwne-z-gory` (CabTop), `przesuwneBryly` (Scene3D, Assembly3D). Sufit szafy: `sufitSzafyMsgs`
+(akcja `szafasufit:<i>`). Testy: `funkcje.mjs` (blok przesuwne), `makieta19.mjs`.
+[CLAUDE-CHANGE] 2026-11-16 (faza B, zdjecia szafy uzytkownika — tylko w czacie, nie w repo): szuflady za drzwiami przesuwnymi wg odpowiedzi
+uzytkownika — zabudowa pod szuflady (boki 18 przy obu sciankach kolumny + wieniec = polka nad szufladami), cofnieta 80; fronty wewnetrzne
+z podfrezem (fingerGrip domyslnie, uchwyty tylko recznie — ostrzezenie, gdy wystaja do skrzydel); dolna prowadnica 18 mm nad dnem
+(`PRZES.SZYNA_DOL`), V-BOX auto jak wszedzie; opcja `przesuwne.niskieSzuflady` — najwyzej 127 (`PRZES.VBOX_BOK`; „mam V-BOX, jedne z niższych”,
+bok ok. 12 cm; „w szafie z drzwiami przesuwnymi jako opcja w szablonie”) — wlaczona we wzorze „Szafa do zabudowy z szufladami” (`szafaZabSz`). `geoPrzesuwne` liczy dwa
+razy: bez i z `cab.__szuflPrzes` + `rawCol.__zabudowa`. W `szufladyKolumny`: `d.cof`, `rail.setback` = tf + cof, `bx0/bx1` i `dsx0/dsx1`
+zwezone o boki, `listwyPrz` (2 wpisy na kolumne — formatki, rysunki, plan wiercen „Bok zabudowy szuflad”). Audyt: bryly `drzwi-przesuwne`
+poza symulacja wysuwu. Karta Szuflady i klocek „N szuflad”: w wysokiej szafie z przegroda szuflady na dol kolumny (`makSzufladyNaDoleKolumny`).
+[CHECK] 2026-11-16: pozycjoner gorny 1 na skrzydlo, wieniec zabudowy (konfirmat od boku, trojkaty od przegrody), bok V-BOX (auto, 127 opcja) —
+potwierdzone; waga profili 0,5 kg/mb (bez karty) — nie pytane. Polki przelotowe przy podwojnych bokach: boki wewnetrzne dzielone na poziomy,
+konfirmaty polki przelotowej w boki wewnetrzne — jeszcze nie w planie wiercen (rzadkie: wzor ma jeden poziom).
+[CLAUDE-CHANGE] 2026-11-16 (7 zdjec szafy uzytkownika — tylko w czacie): podwojne boki szafy do zabudowy — `przesuwne.podwBoki = { L, R }` ->
+`cab.__bokWewn` w `computeGeoLiczy` (kolumny od `interior.x0 + bwL`, `colFree − bwL − bwR`; `panelsOfCol` j = 0 / ostatnia -> „Bok wewnetrzny …”
+z baza `lv.y0`; dno / wieniec bez `przezBok` po tej stronie, konfirmaty `wBokWewn` od spodu dna / od gory wienca). `geoPrzesuwne`: formatki
+„Bok wewnetrzny lewy / prawy” (na kazdy poziom), wkrety 4 × 30 do boku zewnetrznego (plan + zamowienie), `przesuwne.bokiWewn` (3D, przod, z gory).
+Bok zabudowy szuflad tylko przy przegrodzie (`__zabudowa.L/R`); wieniec zabudowy od przegrody: zlacze z przegrody zdejmowane z planu (post-process
+`planG`), 2 trojkaty na boku zabudowy, mniej konfirmatow. Wzory: cokol w obrysie, `bezNozek`. Przy okazji: `odPrzoduPlyty` — wiercenia na plytach
+cofnietych (blad z fazy A, `BLEDY.md`).
+
+[CLAUDE-CHANGE] 2026-11-17 (zgloszenie uzytkownika, zrzut): (1) widok bez frontow — pod przygaszonym frontem szuflady wewnetrznej za drzwiami
+przesuwnymi (`d.cof > 0`) prowadnice / skrzynka (`SkrzynkaZaPrzesuwnymi`, `szufladaOdCzola`) w `CabElevation` i `FrontView`, tez bez showHardware;
+front przygaszony jak wszedzie (uzytkownik: „może być jak wszędzie przygaszony front szuflad, ale nie było widać prowadnic”). `szufladaOdCzola` dla V-BOX od `dr.bx0` / `dr.bx1` (wczesniej od boku kolumny — z przodu prowadnice wchodzily w bok
+zabudowy / wspornik fixu). (2) „odsun skrzydlo” — `przesuwne.odsun` (nr od 0), `przesuwneOdsun(w, i)`: za / przed najblizsze skrzydlo z drugiego
+toru, bez mijania skrzydla na tym samym torze (3 skrzydla: skrajne odslania 612, nie 644); `przesuwneOdslania` liczy z tego samego.
+[CLAUDE-CHANGE] 2026-11-17 (dalej): wzor `szafaZabSz` — szuflady na dole obu kolumn (po 2, nad nimi 3 polki), bez drazka; `szafaZab` z drazkiem
+bez szuflad (uzytkownik). Krzyzowka konfirmatow przy przegrodzie pomija wience zabudowy (`wienZab` z `listwyPrz` — od przegrody trojkaty).
+Boki zabudowy z obu stron przegrody: `obustronne` w `geoPrzesuwne` — notka o przesunieciu wkretow 20 mm (uzytkownik 2026-11-21: 2 cm wystarczy, bylo 150 mm) (formatka, zamowienie, uwaga).
+Panel nad rysunkiem makiety zwijany: `panelZw` / `przelaczPanel` (`mp-mak-panel-zw`), `zoomUI` wspolny dla obu stanow.
+
+[CLAUDE-CHANGE] 2026-11-21 pelna analiza (prosba uzytkownika, ok. 1 h): scenariusze kuchnia / salon / pokoj dziecka / szafy na zawiasach /
+zabudowa przesuwna 2000–6500 mm i sufit 2500–3000 przez `testy/audytprojektu.mjs` (skrypty i projekty w scratchpadzie `an/`). Poprawione:
+`szafaMaxH` (najwyzsza szafa z arkusza: bok po okrawaniu, przy przesuwnych tez raczka 2700) — `szafasufit` i wzor `doSufitu` nie podnosza
+ponad nia, uwaga „do sufitu się nie da”, akcja `szafah:<H>[:<i>]`; w `geoPrzesuwne` blad raczki NOVO S i kontrola arkusza wypelnienia; przy
+4 skrzydlach bez przycisku `przesn`; slupek z palety w ciagu kuchennym — `slupek: true` i cokol ciagu (`addCabinet`, `slupekWCiagu`).
+Pomysly i sprawy do decyzji — `POMYSLY.md` (nowy plik) i `BLEDY.md` („Do decyzji”). Wkrety bokow zabudowy z obu stron przegrody: 20 mm (bylo 150).
+[AI-INFO] 2026-11-21: pelny przebieg (d1f3547, w trakcie przebudowa na 7def9ff): 175 suit, 5877 OK, 0 bledow; losowe 66 / 0; po przebudowie 21 suit
+z obszaru (slupek, przesuwne, palety, formatki, wiercenia) — 2141 OK, 0 bledow; makieta19 STD — zielona.
+[CLAUDE-CHANGE] 2026-11-21 (odpowiedzi uzytkownika na pytania z analizy): slupek z palety w kuchni — „słupek nie ma blatu”: tyl przy scianie,
+drzwi rowno z blatem (`addCabinet`: D = ciag + wysieg blatu, `offset`), blat reszty bez zmian; szafa przesuwna — `przesuwneKolumny`,
+akcja `przesprzeg` („Przegrody na stykach skrzydeł”), kolumna pod dwoma skrzydlami — ostrzezenie (bylo info). Testy obszaru: 15 suit 1532 OK,
+makieta19 STD zielona. [AI-TODO] Szeroka sciana (obie drogi: moduly + jeden komplet drzwi; dno / wieniec z 2 kawalkow) i nadstawka /
+blenda nad szafa w wysokim pokoju — czekaja na szczegoly od uzytkownika (`POMYSLY.md`, „Decyzje”).
+[AI-TODO] 2026-11-22 odpowiedzi uzytkownika (szczegoly w `POMYSLY.md`, „Decyzje” 1–2): szeroka zabudowa — moduly do wyboru (pelne korpusy
+skrecone bokami / wspolna przegroda: dno wewnatrz, wieniec wewnatrz albo na pol przegrody); jedna szafa z dnem / wiencem z 2 kawalkow — dno
+wewnatrz przy pojedynczej przegrodzie, wieniec na pol plyty tylko gdy kawalek ma jeszcze jedna przegrode (poza bokiem) do przykrecenia,
+inaczej sugestia: wieniec wewnatrz bokow albo podwojna przegroda; nadstawka nad szafa — drzwi na zawiasach. Do wdrozenia (duze funkcje).

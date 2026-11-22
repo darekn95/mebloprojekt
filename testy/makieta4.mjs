@@ -45,7 +45,16 @@ const wybierz = async (i) => {
   await page.locator(`[data-el="mak-szafka"] [data-v="${i}"]`).click();
   await page.waitForTimeout(300);
 };
-const klik = async (sel) => { const l = page.locator(`[data-el="makieta-karta"] ${sel}`).first(); await l.scrollIntoViewIfNeeded(); await l.click(); await page.waitForTimeout(250); };
+/* karta przerysowana w trakcie przewijania (pelny przebieg 2026-11-13, 5 suit naraz: „Element is not attached to the DOM”, wolno
+   przechodzi) — jeszcze raz na swiezym elemencie */
+const klik = async (sel) => {
+  for (let n = 0; ; n++) {
+    const l = page.locator(`[data-el="makieta-karta"] ${sel}`).first();
+    try { await l.scrollIntoViewIfNeeded({ timeout: 5000 }); await l.click({ timeout: 5000 }); break; }
+    catch (e) { if (n >= 2) throw e; await page.waitForTimeout(300); }
+  }
+  await page.waitForTimeout(250);
+};
 
 ok('tryb prosty po przeładowaniu', (await page.locator('[data-el="tryb"] [aria-pressed="true"]').getAttribute('data-tryb')) === 'prosta');
 
@@ -89,7 +98,7 @@ await klik('[data-el="mak-polki"][data-v="1"]');
 await czekaj(`półki ${n0} → ${n0 + 1}`, 'p.items[1].cab.levels[0].cols[0].shelfTargets.length === a + 2', n0);
 ok('licznik półek', Number(await page.locator('[data-el="makieta-karta"] [data-el="mak-polki-n"]').first().textContent()) === n0 + 1);
 // drazek — klocek nad karta Polek (2026-11-10: bez przycisku „drążek” przy kazdym swietle); klik — wybrana kolumna
-await page.locator('[data-el="mak-klocki-karty"] [data-el="mak-klocek"][data-id="drazek"]').click(); await page.waitForTimeout(250);
+await page.locator('[data-el="mak-klocki-karty"] [data-el="mak-klocek"][data-id="drazek"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click(); await page.waitForTimeout(250);
 await czekaj('drążek w najwyższym świetle', 'JSON.stringify(p.items[1].cab.levels[0].cols[0].drazki) === JSON.stringify([a + 1])', n0);
 await klik('[data-el="mak-polki"][data-v="-1"]');
 await czekaj('mniej półek — drążek zostaje na górze', 'const k = p.items[1].cab.levels[0].cols[0]; return k.shelfTargets.length === a + 1 && JSON.stringify(k.drazki) === JSON.stringify([a])', n0);

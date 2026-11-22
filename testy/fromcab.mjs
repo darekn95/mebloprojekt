@@ -21,9 +21,9 @@ const korpus = card(/^Korpus$/);
 await korpus.locator('input[type=number]').first().fill('800');
 await korpus.locator('input[type=number]').first().blur();
 await page.waitForTimeout(900);
-/* Pierwsza szafka jest z szablonu „Szafka stojąca” (560 w głąb), a „+ szafka”
+/* Pierwsza szafka jest z szablonu „Szafka stojąca” (550 w głąb od 2026-11-14), a „+ szafka”
    daje domyślne 500 — wyrównujemy głębokość, żeby boki były wspólne. */
-await korpus.locator('input[type=number]').nth(2).fill('560');
+await korpus.locator('input[type=number]').nth(2).fill('550');
 await korpus.locator('input[type=number]').nth(2).blur();
 await page.waitForTimeout(900);
 

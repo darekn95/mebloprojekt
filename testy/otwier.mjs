@@ -139,17 +139,15 @@ if (await btn.count()) { await btn.click(); await page.waitForTimeout(1200); }
 k = await kolizje();
 ok('po przyjęciu podpowiedzi nie ma kolizji', k.length === 0, skrot(k));
 
-console.log('\n== wysunieta szuflada zza rogu tez jest przeszkoda ==');
+console.log('\n== wysunieta szuflada zza rogu: skrzydla i szuflady nie otwiera sie naraz — informacja, nie blad (2026-11-14) ==');
+/* Uzytkownik 2026-11-14: blad „po drodze stoi wysunięty front szuflady” w rogu — „to nie jest prawda”. Skrzydlo widzi szuflade
+   obok zamknieta; ze obu naraz sie nie otworzy, mowi informacja. */
 await seed(LRUNY(), [CAB('A1', 600, 'c1'), ROGOWA(900), SZUF('B1', 700, 'c2')]);
 k = await kolizje();
-console.log('     ' + k.join('\n     '));
-ok('szuflady zza rogu wchodzą do sprawdzenia', k.length > 0, String(k.length));
-/* Szuflada wysuwa sie na pol metra przed skrzydlo — zadna wstawka tego nie
-   naprawi (po probie skrzydlo dalej staje po kilku stopniach), wiec przycisku
-   wstawki ma nie byc (uzytkownik 2026-10-11: tylko gdy pomaga). */
-ok('wstawka nie pomaga — bez przycisku wstawki',
-  await page.getByRole('button', { name: /wstawk|Wstawka/i }).count() === 0,
-  (await page.getByRole('button', { name: /wstawk|Wstawka/i }).allInnerTexts()).join(' / '));
+ok('szuflada zza rogu (zamknięta) nie blokuje skrzydła — bez błędu', k.every((l) => !/wysunięty front szuflady/.test(l)), skrot(k));
+{ const c = page.locator('[data-el="uwagi"], section').filter({ hasText: 'Uwagi' }).first();
+  const t = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
+  ok('informacja: „nie otworzysz ich naraz … to nie błąd”', /nie otworzysz ich naraz: gdy szuflada jest wysunięta, skrzydło otworzy się do ok\. \d+°/.test(t), (t.match(/[^.]*nie otworzysz[^.]*/) || [''])[0]); }
 
 console.log('\n== luz w rogu rozsuwa ciagi ==');
 /* Im wiekszy luz w rogu, tym dalej stoi drugi ciag — kolizji ma byc mniej. */

@@ -68,6 +68,25 @@ lodówka) — błąd, za mało luzu — ostrzeżenie, oba z przyciskiem szeroko�
 Głębsza niż wnęka — informacja, ile wystaje przed lico; w kontroli otwierania jej
 drzwi otwierają się od wysuniętego przodu.
 
+### Lodówka podblatowa — w ciągu albo w szafce (użytkownik 2026-11-14)
+
+Dwa rodzaje podblatowej: **w ciągu** — jak zmywarka, wypełnia całe miejsce, bez boków i wzmocnień
+(`sprzetCiagu.typ: "lodowkaP"`, niżej), i **w szafce** — mniejsza lodówka (np. na wino) w zwykłej szafce dolnej
+z dnem i bokami, „jakbyśmy wpakowali mikrofalę na dół” (`lodowkaMalaUstaw`, `lodowkaMalaWSzafce`):
+- lodówka z własnymi drzwiami („bez frontu”) stoi na dnie, w poziomie o jej wysokości + 20 mm luzu; nad nią płyta
+  i otwarta wnęka (decyzja 2026-11-14 — szuflada nad lodówką 520 nie mieści się pod wzmocnieniem pod blatem; front
+  zmienia się w karcie Szafka);
+- wymiary przykładowe 440 × 520 × 450 (`LODOWKA_MALA`; małe lodówki / minibary do zabudowy, np. Dometic RH 4xx:
+  szer. ok. 420–445, wys. 435–560, głęb. 385–485), wysokości w karcie 45 / 52 / 56 / 64 cm (zmiana przestawia też
+  płytę nad wnęką), szerokość i głębokość w polach;
+- lodówka równo z licem korpusu — za nią luz (D − 3 − głębokość lodówki, co najmniej 20); uwaga: otwory wentylacyjne
+  z tyłu dołem i górą (zwykle co najmniej 200 cm² każdy), od tyłu co najmniej 20 mm;
+- szafka z ciągu: wysokość, głębokość, nóżki i cokół jak ciąg (cokół ciągu na spinkach do nóżek, jak przy innych).
+
+Wariant „boki do podłogi, bez dna, cokół z kratką między bokami” (2026-11-13) wycofany — użytkownik: to jest
+„w ciągu”, a cokół trzyma się nóżek na spinkach, nie boków. Z tamtej zmiany zostało: wnęka lodówki liczy się do
+spodu wzmocnienia nad nią (`nadL` w kontroli lodówki), nie do góry poziomu.
+
 ## Sprzęt w ciągu: zmywarka i lodówka wolnostojąca
 
 Pozycja ciągu bez korpusu (użytkownik 2026-11-05: „zależnie od sprzętu” — zmywarka i lodówka
@@ -86,6 +105,11 @@ przy niej bokami; „Scal szafki” jej nie łączy.
 - kontrole: × miejsce węższe niż zmywarka, ! szersze o ponad 5 mm — przycisk „Miejsce
   600 mm”; × od podłogi do spodu blatu poza 815–875; × za płytko — „Głębokość …”;
 - otwieranie: drzwi opadają w dół jak klapa (przed cokołem).
+
+**Front zmywarki i lodówki podblatowej** (użytkownik 2026-11-14: „zmywarka otwiera się jak klapa w dół, brak w niej uchwytu
+i otwieralności”): uchwyt jak na frontach szafek — zmywarka poziomo u góry na środku, lodówka pionowo przy wolnej krawędzi
+(rysunek `uchwyt-sprzetu`, 3D, zamówienie „Uchwyt” 1 szt.; `cab.sprzetCiagu.uchwyt: false` — bez). W 3D przy „otwarte” front
+zmywarki opada klapą w dół, front lodówki otwiera się jak skrzydło (`front.ruch`).
 
 **Lodówka podblatowa** (użytkownik 2026-11-09, z makiety — przykładowo, np. Bosch KU22LVFD0, Smeg U8L080DE; szablon
 „Lodówka podblatowa”): jak zmywarka do zabudowy — bez korpusu, w zamówieniu tylko „Front lodówki” przykręcany do jej
@@ -172,11 +196,16 @@ i głębokość wycięcia, odległość od przedniej krawędzi blatu, przesunię
   arkuszu rozkroju (otwory liczone od tylnej krawędzi), w 3D zabudowy i na rzucie
   z góry ciągu (przerywany prostokąt z podpisem).
 - Kontrole (Uwagi):
-  - × wycięcie na łączeniu kawałków blatu, ! za blisko łączenia (mniej niż 50 mm) —
+  - × wycięcie na łączeniu kawałków blatu, ! za blisko łączenia (mniej niż 50 mm blatu) —
     przyciski przesunięcia w jedną albo drugą stronę;
-  - × poza blatem / ! za blisko końca blatu — przycisk przesunięcia;
+  - × poza blatem / ! za blisko końca blatu (mniej niż 30 mm blatu od końca do wycięcia — `WYCIECIE_KONIEC`, użytkownik 2026-11-13:
+    „30 mm wystarczy”) — przycisk przesunięcia;
   - × poza tyłem blatu / ! za tylną krawędzią mniej niż 50 mm — przycisk „Wycięcie N mm
     od przodu blatu”;
+  - ! do przedniej krawędzi blatu mniej niż 30 mm (`WYCIECIE_PRZOD_MIN`; gdy szkło / rant nie wystaje już przed
+    blat) — przycisk „50 mm od przodu” (typowo); z makiety „Dodaj”, 2026-11-13;
+  - × dwa wycięcia na jednym blacie nachodzą na siebie, ! między nimi mniej niż 50 mm płyty — raz na parę (przy lewym),
+    przycisk przesuwa lewe w lewo, gdy zostaje zapas od końca blatu; z makiety „Dodaj”, 2026-11-13;
   - × płyta grzewcza szersza niż wnętrze szafki albo wychodząca nad bok — jej korpus nie
     zmieści się pod blatem („Wycięcie na środku szafki”, gdy pomaga); zlew nad bokiem —
     tylko informacja (komora we wnętrzu, ociekacz nad sąsiednią);

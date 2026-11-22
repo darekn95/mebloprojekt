@@ -74,14 +74,14 @@ p = await czekaj('p.items[1].cab.levels[0].cols[1].shelfTargets.length === 3');
 ok('„równo z kol. 1”: te same światła (2 półki, ostatnie auto)', JSON.stringify(p.items[1].cab.levels[0].cols[1].shelfTargets) === JSON.stringify([300, 500, null]), JSON.stringify(p.items[1].cab.levels[0].cols[1].shelfTargets));
 console.log('== szafa z szufladami z palety ==');
 await zakl('dodaj'); const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200);
-await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaSz"]').click();
+await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaSz"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 p = await czekaj('p.items.length === 3');
 const c = p.items[p.active].cab;
 ok('„Szafa z szufladami”: 800, dwa poziomy — 3 szuflady na dole, 2 drzwi z półkami nad nimi', c.W === 800 && c.levels.length === 2 && c.levels[0].cols[0].kind === 'drawers' && c.levels[0].cols[0].drawers.length === 3 && c.levels[1].cols[0].doors === 2,
   JSON.stringify(c.levels.map((l) => ({ h: l.h, k: l.cols[0].kind, d: l.cols[0].doors, n: (l.cols[0].drawers || []).length }))));
 
 console.log('== biurko z kontenerem (szablon, decyzja 2026-11-10) ==');
-await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="biurkoK"]').click();
+await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="biurkoK"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 p = await czekaj('p.items.length === 4');
 const bi = p.items[p.active], bc = bi.cab.levels[0].cols;
 const kont = (k) => !!k && (k.segmenty || []).some((sg) => sg && sg.kind === 'drawers');

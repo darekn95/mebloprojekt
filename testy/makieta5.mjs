@@ -77,8 +77,11 @@ await page.locator('[data-el="mak-odznacz"]').click(); await page.waitForTimeout
 ok('„odznacz”: „Szafka” pokazuje nowe szafki, rysunek bez obrysu', (await page.locator('[data-el="mak-bez-zaznaczenia"] [data-el="mak-wzor"]').count()) >= 8 && !(await page.locator('[data-el="makieta-zaznaczona"]').count()));
 await zakl('szuflady');
 ok('bez zaznaczenia „Szuflady” — klocki szuflad', (await page.locator('[data-el="mak-bez-zaznaczenia"] [data-el="mak-klocek"]').count()) === 4);
-await kafel('mak-klocek', 'szu-2').click(); await page.waitForTimeout(200);
-ok('klik klocka bez zaznaczenia — komunikat „przeciągnij”', /żadna nie jest zaznaczona/.test(await page.locator('[data-el="mak-komunikat"]').innerText().catch(() => '')));
+await kafel('mak-klocek', 'szu-2').click(); await page.waitForTimeout(300);
+/* klik klocka bez zaznaczonej szafki (decyzja 2026-11-13: „dotknij, potem miejsce”) — wybrany, pasek bez „Do zaznaczonej szafki” */
+ok('klik klocka bez zaznaczenia — wybrany: „dotknij zieloną ramkę”, bez „Do zaznaczonej szafki”', /Wybrany: 2 szuflady — dotknij zieloną ramkę/.test(await page.locator('[data-el="mak-wybrany-pasek"]').innerText().catch(() => ''))
+  && (await page.locator('[data-el="mak-wybrany-teraz"]').count()) === 0);
+await page.locator('[data-el="mak-wybrany-anuluj"]').click(); await page.waitForTimeout(200);
 await page.locator(`${PRZOD}[data-idx="0"]`).first().click({ force: true }); await page.waitForTimeout(300);
 ok('klik w szafkę zaznacza — karta jej opcji', (await page.locator('[data-el="makieta-karta"]').count()) === 1 && (await page.locator('[data-el="makieta-zaznaczona"]').count()) >= 1);
 await page.evaluate(() => { const box = document.querySelector('[data-el="mak-plotno"]'); box.scrollTop = 0; });
@@ -93,7 +96,7 @@ ok('„Szafka ▾” zaznacza z listy', (await page.locator('[data-el="makieta-k
 await dodajSek('szafki');
 
 console.log('== klik: szafka na koniec ciągu ==');
-await kafel('mak-wzor', 'dolna2').click();
+await kafel('mak-wzor', 'dolna2').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 await czekaj('„Dolna, 2 drzwi” za „Prawa”, w ciągu, aktywna', 'p.items.length === 5 && p.items[3].runId === "r1" && p.items[3].cab.W === 800 && p.items[4].cab.name === "Komoda" && p.active === 3');
 
 console.log('== przeciągnięcie szafki przed / za ==');
@@ -115,7 +118,7 @@ await upusc('mak-klocek', 'szu-2', 0, 'prawo');
 await czekaj('„2 szuflady” na prawą kolumnę „Lewa”', 'const L = p.items[0].cab.levels[0].cols; return L[1].kind === "drawers" && L[1].drawers.length === 2 && (L[0].kind || "doors") === "doors"');
 await upusc('mak-klocek', 'polka', 0, 'prawo');
 ok('„Półka” na kolumnę z szufladami — komunikat', /tylko do kolumny z drzwiami/.test(await page.locator('[data-el="mak-komunikat"]').innerText().catch(() => '')));
-await kafel('mak-klocek', 'klapa-gora').click();
+await kafel('mak-klocek', 'klapa-gora').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 await czekaj('klik „Klapa ↑”: pierwsza pasująca kolumna zaznaczonej', 'p.items[0].cab.levels[0].cols[0].klapa === "gora" && p.items[0].cab.levels[0].cols[0].doors === 1');
 
 console.log('== wolnostojące i górne ==');
@@ -124,16 +127,16 @@ await dodajSek('szafki');
 { const n = page.locator('[data-el="mak-grupa"][data-grupa="Wolnostojące"] [data-el="mak-grupa-nagl"]');
   ok('w kuchni „Wolnostojące” zwinięte na start', (await n.getAttribute('aria-expanded')) === 'false');
   await n.click(); await page.waitForTimeout(200); }
-await kafel('mak-wzor', 'komoda').click();
+await kafel('mak-wzor', 'komoda').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 await czekaj('„Komoda” wolnostojąca, nazwa bez powtórki', 'const it = p.items[p.active]; return it.runId == null && it.cab.name === "Komoda 2" && it.cab.W === 800 && it.cab.H === 800 && it.cab.D === 450 && it.cab.levels[0].cols[0].drawers.length === 4');
 // przy wolnostojacej (kontekst „wolne”) kuchnia zwinieta na start — rozwiniecie „Kuchnia — góra”
 { const n = page.locator('[data-el="mak-grupa"][data-grupa="Kuchnia — góra"] [data-el="mak-grupa-nagl"]');
   ok('przy wolnostojącej „Kuchnia — góra” zwinięta, „Wolnostojące” pierwsze', (await n.getAttribute('aria-expanded')) === 'false'
     && (await page.locator('[data-el="mak-grupa"]').first().getAttribute('data-grupa')) === 'Wolnostojące');
   await n.click(); await page.waitForTimeout(200); }
-await kafel('mak-wzor', 'wiszaca').click();
+await kafel('mak-wzor', 'wiszaca').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 ok('wisząca przy wolnostojącej zaznaczonej — komunikat', /upuść na ciąg/.test(await page.locator('[data-el="mak-komunikat"]').innerText().catch(() => '')));
-await kafel('mak-wzor', 'szafaW').click();
+await kafel('mak-wzor', 'szafaW').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
 await czekaj('„Szafa” 800 × 2000, cokół w obrysie i nóżki', 'const c = p.items[p.active].cab; return c.H === 2000 && c.plinth.on && c.plinth.mode === "inbody" && c.legs.on && c.levels[0].cols[0].doors === 2');
 // wroc do ciagu: zaznacz „Lewa” z listy
 await page.locator('[data-el="mak-szafka"] button').first().click();
