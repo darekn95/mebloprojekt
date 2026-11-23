@@ -1427,3 +1427,9 @@ wzory z palety bez ostrzezen (`wzorBezUwag`), nadstawka / blenda do sufitu (`nad
 z kawalkow — czym laczyc), #46 uklad scian pokoju, narożnik L (jedne drzwi 896 poza tabela zawiasow), lakierowanie formatek.
 [CHECK] Nadstawka laczona z szafa wkretami 4 × 30 od srodka przez dno do wienca (dwa rzedy) — zalozenie, do potwierdzenia przez uzytkownika.
 Przegrody biurka wiszacego cofniete o grubosc frontu (18, jak dno) — do potwierdzenia (18 czy 20 z luzem).
+[CLAUDE-CHANGE] 2026-11-23 („mamy jeszcze jakieś błędy?”): pelny przebieg po #42; audyt projektu uzytkownika (v53, 4 pomieszczenia,
+w tym „Projekt bez nazwy” — szafy, biurko wiszace, maskownice) bez bledow, tylko ostrzezenia z przyciskami (HDF w innym kolorze,
+0 mm do sufitu nad Szafka 9, biurko bez uchwytow). Poprawione: `audytprojektu` bral pomieszczenie szafki z `it.roomId` (szafki w ciagu
+maja je w ciagu) — sprawdzal zabudowe tylko pierwszego pomieszczenia. Zgloszenie uzytkownika (zrzut biurka): szuflada bez uchwytu
+miala kreske-symbol, ktora wygladala jak uchwyt — zdjeta we wszystkich widokach (`palce`). [CHECK] narożnika L (zawias −14 mm przy
+stojacym wzmocnieniu w rogu) zamkniety — zgodne z zalozeniem (BLEDY 2026-11-23).

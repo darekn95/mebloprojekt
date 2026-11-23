@@ -189,9 +189,14 @@ for (const [w, v] of [['Szafka', 'Otw.'], ['Szafka', 'Zamk.'], ['Ciąg', 'Otw.']
 }
 await page.getByRole('button', { name: 'Szafka', exact: true }).first().click();
 await seed({ drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: false })) }, 'overlay');
-await view('Otw.');
-const nk = await page.locator('#rysunek svg [data-el="szuflada-kreska"]').count();
-ok('bez podfrezu i bez uchwytu kreska zostaje (symbol szuflady)', nk === 3, String(nk));
+// bez uchwytu (i bez podfrezu) tez bez kreski — wygladala jak uchwyt (uzytkownik 2026-11-23, zrzut biurka wiszacego)
+for (const [w, v] of [['Szafka', 'Otw.'], ['Szafka', 'Zamk.'], ['Ciąg', 'Otw.'], ['Ciąg', 'Zamk.']]) {
+  for (const l of [w, v]) { await page.getByRole('button', { name: l, exact: true }).first().click(); await page.waitForTimeout(400); }
+  const nk = await page.locator('#rysunek svg [data-el="szuflada-kreska"]').count();
+  const nu = await page.locator('#rysunek svg [data-el^="uchwyt"]').count();
+  ok(`${w} / ${v}: szuflady bez uchwytu — bez kreski i bez uchwytu`, nk === 0 && nu === 0, `${nk} kresek, ${nu} uchwytów`);
+}
+await page.getByRole('button', { name: 'Szafka', exact: true }).first().click();
 await view('Zamk.');
 
 console.log('\n== DXS-3D z podfrezem: bok nie wyżej niż front (użytkownik 2026-10-25) ==');

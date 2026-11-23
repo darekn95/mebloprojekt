@@ -10623,12 +10623,8 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
               {/* front szuflady zostaje na miejscu, tylko przygaszony */}
               <rect x={X} y={fy(d.y + d.h)} width={d.w} height={d.h}
                 fill={ff} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
-              {/* jak w widoku samej szafki: uchwyt, a bez uchwytu kreska */}
-              {d.handle && uchwytOut(d, cab) > 0 ? <UchwytElewacja d={d} fy={fy} dx={X - d.x} /> : !d.podfrez && (
-                <line data-el="szuflada-kreska" x1={X + d.w * 0.25} x2={X + d.w * 0.75}
-                  y1={fy(d.y + d.h - Math.min(50, d.h / 2))} y2={fy(d.y + d.h - Math.min(50, d.h / 2))}
-                  stroke={INK} strokeWidth="5" opacity="0.5" />
-              )}
+              {/* jak w widoku samej szafki: uchwyt tylko, gdy jest — bez uchwytu nic (kreska wygladala jak uchwyt, uzytkownik 2026-11-23) */}
+              {d.handle && uchwytOut(d, cab) > 0 && <UchwytElewacja d={d} fy={fy} dx={X - d.x} />}
             </g>
           ) : (
             <g key={d.key}>
@@ -10655,11 +10651,6 @@ function CabElevation({ cab, geo, mat, open, showDims, showHardware, showLabels,
         return (
           <g key={d.key}>
             <rect x={X} y={fy(d.y + d.h)} width={d.w} height={d.h} fill={ff} stroke={INK} strokeWidth="2.5" />
-            {d.type === "drawer" && !d.handle && !d.podfrez && (
-              <line data-el="szuflada-kreska" x1={X + d.w * 0.3} x2={X + d.w * 0.7}
-                y1={fy(d.y + d.h * 0.78)} y2={fy(d.y + d.h * 0.78)}
-                stroke={INK} strokeWidth="4" opacity="0.45" />
-            )}
             {d.handle && d.w > 60 && d.h > 30 && (
               <UchwytElewacja d={d} fy={fy} dx={X - d.x} />
             )}
@@ -13769,13 +13760,8 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
                 {/* front szuflady zostaje na miejscu, tylko przygaszony */}
                 <rect x={d.x} y={fy(d.y + d.h)} width={d.w} height={d.h}
                   fill={ff} fillOpacity="0.35" stroke={INK} strokeWidth="2" />
-                {/* przy podfrezie bez kreski — wygladala jak uchwyt (uzytkownik 2026-10-24) */}
-                {d.handle && uchwytOut(d, cab) > 0 ? <UchwytElewacja d={d} fy={fy} /> : !d.podfrez && (
-                  <line data-el="szuflada-kreska" x1={d.x + d.w * 0.25} x2={d.x + d.w * 0.75}
-                    y1={fy(d.y + d.h - Math.min(50, d.h / 2))}
-                    y2={fy(d.y + d.h - Math.min(50, d.h / 2))}
-                    stroke={INK} strokeWidth="5" opacity="0.5" />
-                )}
+                {/* bez uchwytu bez zadnej kreski — wygladala jak uchwyt (podfrez: uzytkownik 2026-10-24, kazda szuflada: 2026-11-23) */}
+                {d.handle && uchwytOut(d, cab) > 0 && <UchwytElewacja d={d} fy={fy} />}
                 {/* w druku przy prawej krawedzi, i tylko gdy obok powiekszonego
                     wymiaru „od dna” (z lewej) jest na niego miejsce */}
                 {(kz === 1 || d.w > 110 + szerNapisu("000 od dna", 22, kz) + szerNapisu("szuflada", 19, kz)) && (
@@ -13833,11 +13819,6 @@ function FrontView({ cab, geo, mat: matIn, open, showDims, showGaps, showLabels,
           <g key={d.key}>
             <rect x={d.x} y={fy(d.y + d.h)} width={d.w} height={d.h}
               fill={ff} stroke={INK} strokeWidth="2.5" />
-            {d.type === "drawer" && !d.handle && !d.podfrez && (
-              <line data-el="szuflada-kreska" x1={d.x + d.w * 0.3} x2={d.x + d.w * 0.7}
-                y1={fy(d.y + d.h * 0.78)} y2={fy(d.y + d.h * 0.78)}
-                stroke={INK} strokeWidth="4" opacity="0.45" />
-            )}
             {d.handle && d.w > 60 && d.h > 30 && (
               <UchwytElewacja d={d} fy={fy} dx={0} />
             )}

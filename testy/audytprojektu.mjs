@@ -127,10 +127,12 @@ for (let i = 0; i < p2.items.length; i++) {
 }
 // cala zabudowa w kazdym pomieszczeniu
 for (const room of (proj.rooms || [{ id: null, name: '' }])) {
-  const idx = p2.items.findIndex((it) => !room.id || (it.roomId || 'p1') === room.id);
+  // pomieszczenie szafki jak w aplikacji (`roomOfItem`): z jej ciagu, wolnostojaca — z `roomId`
+  const pokoj = (it) => { const r = it.runId && (p2.runs || []).find((x) => x.id === it.runId); return (r ? r.roomId : it.roomId) || (proj.rooms || [])[0]?.id || 'p1'; };
+  const idx = p2.items.findIndex((it) => !room.id || pokoj(it) === room.id);
   if (idx < 0) continue;
   await wczytaj({ ...p2, active: idx });
-  if (!(await page.getByRole('button', { name: 'Zabudowa', exact: true }).count())) continue;
+  if (!(await page.getByRole('button', { name: 'Zabudowa', exact: true }).count())) { console.log(`  (pomieszczenie „${room.name}” bez widoku Zabudowa — szafki wolnostojace)`); continue; }
   const sol = await bryly('Zabudowa', false);
   const n = nachodzi(sol);
   wynik(`zabudowa${room.name ? ' „' + room.name + '”' : ''}: nic na nic nie nachodzi`, !n.length, n.slice(0, 4).join('; '));
