@@ -523,7 +523,7 @@ console.log('\n== system szuflad w szczegółowej ==');
   await page.evaluate(() => localStorage.setItem('mp-tryb', 'szczegolowa')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
   await zakl('szuflady');
   const b = page.locator('[data-el="mak-szuf-system"]');
-  ok('zakładka Szuflady: „prowadnice” — V-BOX / V-BOX PUSH II / DXS-3D / DXP-3D PUSH, zaznaczony V-BOX', (await b.count()) === 4
+  ok('zakładka Szuflady: „prowadnice” — V-BOX / V-BOX PUSH II / DXS-3D / DXP-3D PUSH / TANDEMBOX / TANDEMBOX 65 kg, zaznaczony V-BOX', (await b.count()) === 6
     && (await page.locator('[data-el="mak-szuf-system"][data-v="vbox"]').getAttribute('aria-pressed').catch(() => null)) !== 'false', String(await b.count()));
   await page.locator('[data-el="mak-szuf-system"][data-v="vbox-push"]').click();
   let p = await czekaj("p.items[p.active].cab.levels[0].cols[0].drawers.every((d) => d.push && d.handle === false)");

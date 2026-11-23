@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion', 'ustawPushSzuflady'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion', 'ustawPushSzuflady', 'ustawSystemIPush'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1770,6 +1770,36 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
     ok('V-BOX PUSH II w szafce 500 (front ok. 496): bez drążka; w 600 — z drążkiem; ceny drążek 11, mocowania 10',
       !drz5.length && hw(gV5, /^Prowadnica Sevroll V-BOX 3D Slim PUSH II/).length > 0 && G.hwDefaultPrice({ name: 'Drążek synchronizujący V-BOX 3D Slim PUSH II' }) === 11
       && G.hwDefaultPrice({ name: 'Mocowania drążka synchronizującego V-BOX PUSH II' }) === 10, JSON.stringify(drz5));
+  }
+  /* Blum TANDEMBOX antaro (uzytkownik 2026-11-23): boki jak V-BOX, tabele Blum; dno i tyl z 18 — stale ostrzezenie o frezie do 16 */
+  { const szT = (ext = {}, D = 560) => ({ name: 'T', W: 600, H: 720, D, levels: [{ h: null, cols: [{ kind: 'drawers', w: null,
+      drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: true, system: 'tbx', ...ext })) }] }] });
+    const g = geo(szT()), ds = g.levels[0].cols[0].drawers, LW = 600 - 36;
+    const err = (g.msgs || []).filter((m) => m.level === 'error').map((m) => m.text.slice(0, 120));
+    ok('TANDEMBOX: 3 szuflady bez błędów, system tbx, wysokości z tabeli Blum, NL z listy 270–600', !err.length && ds.length === 3 && ds.every((d) => d.system === 'tbx'
+      && [79.5, 95.5, 127.5, 176, 208].includes(d.hClass) && [270, 300, 350, 400, 450, 500, 550, 600].includes(d.nl)), JSON.stringify({ err, h: ds.map((d) => [d.hClass, d.nl]) }));
+    const hw = (g.hardware || []).filter((h) => h.name === 'Szuflada Blum TANDEMBOX antaro');
+    ok('zamówienie: „Szuflada Blum TANDEMBOX antaro” 3 kpl. (litera, NL, 30 kg — 578), cena 205; bez prowadnic V-BOX', hw.reduce((a, h) => a + h.qty, 0) === 3
+      && hw.every((h) => /^[NMKCD], NL \d+ mm, 30 kg \(prowadnica 578\)/.test(h.spec)) && G.hwDefaultPrice({ name: 'Szuflada Blum TANDEMBOX antaro' }) === 205
+      && !(g.hardware || []).some((h) => /^Prowadnica Sevroll V-BOX/.test(h.name)), JSON.stringify(hw.map((h) => h.spec)));
+    const dno = (g.panels || []).filter((p) => /dno szuflady/i.test(p.name)), tyl = (g.panels || []).filter((p) => /tył szuflady/i.test(p.name));
+    const d0 = ds[0];
+    ok('formatki: dno LW − 75 × NL − 24, tył LW − 87 × (69 / 84 / 116 / 167 / 199)', dno.length > 0 && tyl.length > 0
+      && dno.some((p) => [p.a, p.b].includes(LW - 75) && [p.a, p.b].includes(d0.nl - 24))
+      && tyl.some((p) => [p.a, p.b].includes(LW - 87) && [69, 84, 116, 167, 199].some((v) => [p.a, p.b].includes(v))),
+      JSON.stringify({ dno: dno.map((p) => [p.a, p.b]), tyl: tyl.map((p) => [p.a, p.b]), nl: d0.nl }));
+    const st = (g.msgs || []).find((m) => m.staly);
+    ok('stałe ostrzeżenie: frez dna i tyłu z 18 do 16 mm; w notatce montażowej', !!st && /frezuj do 16 mm/.test(st.text) && (g.montazKolejnosc || []).some((m) => /TANDEMBOX.*16 mm/.test(m)),
+      st && st.text.slice(0, 120));
+    const plan = (g.drillPlan || []).flatMap((p) => p.rows || []).map((r) => r.note || '');
+    ok('plan wierceń: prowadnica Blum 578, oś 33 mm, otwory z tabeli', plan.some((n) => /prowadnicy Blum 578, NL \d+; wkręty w osi 33 mm/.test(n)), plan.find((n) => /Blum/.test(n)) || '');
+    const g65 = geo(szT({ nosnosc: 65 }, 700)), d65 = g65.levels[0].cols[0].drawers;
+    ok('TANDEMBOX 65 kg w korpusie 700: NL 650, bez wysokości N, w zamówieniu 576', d65.every((d) => d.nl === 650 && d.hClass !== 79.5 && d.nosnosc === 65)
+      && (g65.hardware || []).some((h) => h.name === 'Szuflada Blum TANDEMBOX antaro' && /65 kg \(prowadnica 576\)/.test(h.spec)), JSON.stringify(d65.map((d) => [d.hClass, d.nl, d.nosnosc])));
+    const gN = geo(szT({ h: 79.5, nl: 300 })), eN = (gN.msgs || []).find((m) => /TANDEMBOX N ma prowadnice tylko NL/.test(m.text));
+    ok('TANDEMBOX N z NL 300: błąd z przyciskiem NL 400', !!eN && /\|fixnl:0:0:\d:400$/.test(eN.text), eN && eN.text);
+    ok('wybór „TANDEMBOX 65 kg” / powrót do V-BOX czyści nośność', G.ustawSystemIPush({ h: 'auto', handle: true }, 'tbx-65').nosnosc === 65
+      && G.ustawSystemIPush({ system: 'tbx', nosnosc: 65, nl: 650 }, 'tbx').nl === null && !('nosnosc' in G.ustawSystemIPush({ system: 'tbx', nosnosc: 65 }, 'vbox')));
     ok('przełączenie wersji: push — bez uchwytu, NL 600 DXS → puste przy DXP; powrót — uchwyt wraca',
       G.ustawPushSzuflady({ system: 'dxs', nl: 600, handle: true }, true).nl === null && G.ustawPushSzuflady({ system: 'dxs', nl: 600, handle: true }, true).handle === false
       && G.ustawPushSzuflady({ push: true, handle: false }, false).handle === true && !('push' in G.ustawPushSzuflady({ push: true }, false))); }

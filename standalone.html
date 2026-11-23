@@ -675,6 +675,8 @@ const DEFAULT_HW_PRICES = {
   "Prowadnica Sevroll DXS-3D Synchro": 50,
   // DXP-3D PUSH — na razie jak DXS-3D (2026-11-23, do potwierdzenia przez uzytkownika)
   "Prowadnica Sevroll DXP-3D Synchro PUSH": 50,
+  // Blum TANDEMBOX antaro — komplet na szuflade, cena uzytkownika (2026-11-23)
+  "Szuflada Blum TANDEMBOX antaro": 205,
   // drazek synchronizujacy V-BOX PUSH II (szt.) i mocowania (kpl.) — ceny uzytkownika (2026-11-23)
   "Drążek synchronizujący V-BOX 3D Slim PUSH II": 11,
   "Mocowania drążka synchronizującego V-BOX PUSH II": 10,
@@ -1277,8 +1279,31 @@ const dxsBokOd = DXS.dnoOd - DXS.bokPodDnem; // spod prowadnicy → dol boku (17
 /* System szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty na
    prowadnicach dolnego montazu) — `drawer.system`, bez niego V-BOX
    (uzytkownik 2026-10-21: przy kazdej szufladzie, domyslnie V-BOX). */
-const SYSTEMY_SZUFLAD = { vbox: "V-BOX", dxs: "DXS-3D" };
-const systemSzuflady = (d) => (d && d.system === "dxs" ? "dxs" : "vbox");
+const SYSTEMY_SZUFLAD = { vbox: "V-BOX", dxs: "DXS-3D", tbx: "TANDEMBOX" };
+const systemSzuflady = (d) => (d && d.system === "dxs" ? "dxs" : d && d.system === "tbx" ? "tbx" : "vbox");
+/* Blum TANDEMBOX antaro (uzytkownik 2026-11-23: „tandem z bluma … dodać do listy prowadnic”, odpowiedzi na pytania tego dnia;
+   dane: `instrukcje/blum/`, odczyt w `instrukcje/SPIS.md`). Budowa jak V-BOX: boki stalowe na prowadnicy, dno LW − 75 × NL − 24,
+   tyl LW − 87 (wymiary Blum dla plyty 16 — robimy z 18 i frezujemy krawedzie do 16, uzytkownik: „niezamykalne ostrzeżenie
+   i notatka montażowa”). Klasa wysokosci = najmniejszy front (gora boku, przy C / D gora tylu — decyzja uzytkownika): N 79,5,
+   M 95,5, K 127,5, C 176, D 208. `gora` — gora skrzynki z relingiem nad dolem szyny (przestrzen Blum 82,5 / 98,5 / 130,5 / 192 / 224
+   minus 3 mm luzu Blum); spod dna i tylu 9 mm nad dolem szyny (uzytkownik); 30 kg (578, NL 270–600, N tylko 400–550) albo 65 kg
+   (576, NL 450–650, bez N) — `drawer.nosnosc`. */
+const TBX = {
+  heights: [79.5, 95.5, 127.5, 176, 208],
+  litery: { 79.5: "N", 95.5: "M", 127.5: "K", 176: "C", 208: "D" },
+  gora: { 79.5: 79.5, 95.5: 95.5, 127.5: 127.5, 176: 189, 208: 221 },
+  backH: { 79.5: 69, 95.5: 84, 127.5: 116, 176: 167, 208: 199 },
+  dnoOd: 9,
+  zapas: 3,
+  nl30: [270, 300, 350, 400, 450, 500, 550, 600], nl65: [450, 500, 550, 600, 650], nlN: [400, 450, 500, 550],
+  // otwory prowadnicy 578 w boku szafki od przedniej krawedzi (os 33 nad dolem szyny; 19 — opcjonalny), `Blum_TANDEMBOX_otwory-prowadnic_s7.png`
+  otwory: { 270: [19, 37, 115, 133], 300: [19, 37, 133, 165], 350: [19, 37, 133, 165], 400: [19, 37, 165, 229], 450: [19, 37, 165, 261, 293],
+    500: [19, 37, 261, 293], 550: [19, 37, 261, 293], 600: [19, 37, 261, 293] },
+  osOtworow: 33,
+};
+const tbx65 = (d) => Number(d && d.nosnosc) === 65;
+const TBX_NAME = "Szuflada Blum TANDEMBOX antaro";
+const tbxLitera = (hc) => TBX.litery[hc] || "";
 // lista dlugosci prowadnic systemu
 /* Wersja PUSH (push to open, uzytkownik 2026-11-23: „szuflady push to open … dodać do listy prowadnic”): `drawer.push` — V-BOX 3D Slim
    PUSH II (te same wymiary skrzynki, front min. 4 mm od korpusu, drazek synchronizujacy LS = LW − 106 z 1100 mm + 2 kpl. mocowan —
@@ -1287,8 +1312,18 @@ const DXP_NL_MAX = 550;
 const PUSH_SZCZELINA = 4;
 const VBOX_PUSH = { drazek: "223774", drazekL: 1100, mocowania: "223852", lsOdLW: 106, drazekOdFrontu: 500 };
 const pushSzuflady = (d) => !!(d && d.push);
-const nlSystemu = (sys, push) => (sys === "dxs" ? (push ? DXS.nl.filter((v) => v <= DXP_NL_MAX) : DXS.nl) : VBOX.nl);
-const nazwaSystemu = (d) => (systemSzuflady(d) === "dxs" ? (pushSzuflady(d) ? "DXP-3D PUSH" : "DXS-3D") : pushSzuflady(d) ? "V-BOX PUSH II" : "V-BOX");
+const nlSystemu = (sys, push, nos) => (sys === "dxs" ? (push ? DXS.nl.filter((v) => v <= DXP_NL_MAX) : DXS.nl) : sys === "tbx" ? (Number(nos) === 65 ? TBX.nl65 : TBX.nl30) : VBOX.nl);
+const nazwaSystemu = (d) => (systemSzuflady(d) === "dxs" ? (pushSzuflady(d) ? "DXP-3D PUSH" : "DXS-3D") : systemSzuflady(d) === "tbx" ? `TANDEMBOX${tbx65(d) ? " 65 kg" : ""}`
+  : pushSzuflady(d) ? "V-BOX PUSH II" : "V-BOX");
+/* Skrzynka o metalowych bokach — V-BOX albo TANDEMBOX: te same obliczenia w `computeGeo`, rozne tabele (2026-11-23) */
+const boxSystemu = (d) => {
+  if (systemSzuflady(d) !== "tbx") return { sys: "vbox", nazwa: "V-BOX", heights: VBOX.heights, minFront: VBOX.minFront, nl: VBOX.nl, backH: VBOX.backH,
+    gora: vboxGora, dno: vboxDno, odProw: vboxOdProw, zapas: SZUFLADA_ZAPAS, domyslna: 127, et: (hc) => `${hc} mm` };
+  const n65 = tbx65(d), hs = n65 ? TBX.heights.slice(1) : TBX.heights, mf = Object.fromEntries(TBX.heights.map((h) => [h, h]));
+  return { sys: "tbx", nazwa: "TANDEMBOX antaro", heights: hs, minFront: { overlay: mf, inset: mf }, nl: n65 ? TBX.nl65 : TBX.nl30, backH: TBX.backH,
+    gora: (hc) => TBX.gora[hc] ?? hc, dno: () => TBX.dnoOd, odProw: () => 0, zapas: TBX.zapas, domyslna: 95.5,
+    et: (hc) => `${tbxLitera(hc)} (${fmt(hc)} mm)` };
+};
 
 /* polska odmiana liczebnikow: 1 blad, 2-4 bledy, 5+ bledow (12-14 tez bledow) */
 const plural = (n, one, few, many) => {
@@ -2806,11 +2841,20 @@ const naSystemSzuflad = (cab, sys) => {
       : zbiorySzuflad(c).length ? { ...c, segmenty: c.segmenty.map((sg) => (sg && sg.kind === "drawers" ? zmien(sg) : sg)) } : c)) })) };
 };
 /* lista systemow do wyboru (karta szuflady w technicznym, makieta szczegolowa) — wartosc `vbox` / `dxs`, z „-push” — wersja PUSH */
-const MAK_SYSTEMY_SZUF = [["vbox", "V-BOX"], ["vbox-push", "V-BOX PUSH II"], ["dxs", "DXS-3D"], ["dxs-push", "DXP-3D PUSH"]];
+const MAK_SYSTEMY_SZUF = [["vbox", "V-BOX"], ["vbox-push", "V-BOX PUSH II"], ["dxs", "DXS-3D"], ["dxs-push", "DXP-3D PUSH"], ["tbx", "TANDEMBOX"], ["tbx-65", "TANDEMBOX 65 kg"]];
 const ustawSystemIPush = (d, wybor) => {
-  const sys = /^dxs/.test(wybor) ? "dxs" : "vbox", push = /-push$/.test(wybor);
-  return ustawPushSzuflady(systemSzuflady(d) === sys ? d : zmienSystemSzuflady(d, sys), push);
+  const sys = /^dxs/.test(wybor) ? "dxs" : /^tbx/.test(wybor) ? "tbx" : "vbox", push = /-push$/.test(wybor);
+  const out = systemSzuflady(d) === sys ? { ...d } : zmienSystemSzuflady(d, sys);
+  if (sys === "tbx") {
+    // TANDEMBOX: 30 kg (578) albo 65 kg (576, NL od 450) — NL spoza listy wraca na auto
+    if (/-65$/.test(wybor)) out.nosnosc = 65; else delete out.nosnosc;
+    if (out.nl != null && !nlSystemu("tbx", false, out.nosnosc).includes(Number(out.nl))) out.nl = null;
+    if (out.push) { delete out.push; out.handle = true; }
+    return out;
+  }
+  return ustawPushSzuflady(out, push);
 };
+const wartoscSystemu = (d) => (systemSzuflady(d) === "tbx" ? (tbx65(d) ? "tbx-65" : "tbx") : `${systemSzuflady(d)}${pushSzuflady(d) ? "-push" : ""}`);
 /* wersja push (2026-11-23): bez uchwytu (push to open), DXP-3D — NL do 550; powrot do cichego domyku oddaje uchwyt */
 const ustawPushSzuflady = (d, push) => {
   const out = { ...d };
@@ -2820,7 +2864,7 @@ const ustawPushSzuflady = (d, push) => {
 };
 const zmienSystemSzuflady = (d, sys) => {
   const out = { ...d, h: "auto", backHeight: null, tallBack: false };
-  if (sys === "dxs") { out.system = "dxs"; out.reling = false; out.bezRelingu = false; } else delete out.system;
+  if (sys === "dxs") { out.system = "dxs"; out.reling = false; out.bezRelingu = false; } else if (sys === "tbx") { out.system = "tbx"; out.reling = false; out.bezRelingu = false; delete out.push; } else { delete out.system; delete out.nosnosc; }
   if (out.nl != null && !nlSystemu(sys).includes(Number(out.nl))) out.nl = null;
   return out;
 };
@@ -4103,6 +4147,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   const klapy = [];   // podnosniki klapy do okuc i uwag
   const slideGroups = new Map();
   const relingGroups = new Map();   // NL → ile szuflad z relingiem bocznym
+  const tbxGroups = new Map();     // TANDEMBOX: klasa|NL|nosnosc → ile kompletow
+  let tbxSzuflad = 0;
   const drazkiPush = [];        // V-BOX PUSH II — dlugosci drazkow synchronizujacych (LS), fronty > 500 mm
   let pushVbox = 0;             // V-BOX PUSH II — wszystkie szuflady (uwaga)
   const dxsGroups = new Map();      // NL → ile kompletow DXS-3D
@@ -5262,7 +5308,9 @@ function computeGeoLiczy(cab, mat, ctx) {
           + `|fixdel:${lv.i}:${jKol}|fixsup:${lv.i}:${jKol}${nlW ? `:${nlW}` : ""}`);
       }
       const LW = Math.round(bx1 - bx0);
-      const colMaxNL = maxNlFor(dsx0, dsx1, dInsetExtra, lv.y0, lv.y1); // ile realnie wchodzi w tej kolumnie i poziomie
+      /* ile realnie wchodzi w tej kolumnie i poziomie — z listy NL systemu kolumny (TANDEMBOX 65 kg ma NL 650, V-BOX najwyzej 600) */
+      const nlListaKol = ds.some((q) => systemSzuflady(q) === "tbx" && tbx65(q)) ? [...new Set([...VBOX.nl, ...TBX.nl65])].sort((a2, b2) => a2 - b2) : VBOX.nl;
+      const colMaxNL = maxNlFor(dsx0, dsx1, dInsetExtra, lv.y0, lv.y1, nlListaKol);
       const colNl = num(rawCol.nl) ?? colMaxNL; // domyslne dla kolumny
       c.nl = colNl;
       if (colNl === null)
@@ -5503,8 +5551,10 @@ function computeGeoLiczy(cab, mat, ctx) {
           return;
         }
         // wysokosc boku V-BOX: auto dobiera najwyzszy bok mieszczacy sie w froncie
-        const fitH = [...VBOX.heights]
-          .filter((hc) => VBOX.minFront[dMode][hc] <= fh)
+        // V-BOX albo Blum TANDEMBOX antaro — te same obliczenia, rozne tabele (`boxSystemu`, 2026-11-23)
+        const BX = boxSystemu(d);
+        const fitH = [...BX.heights]
+          .filter((hc) => BX.minFront[dMode][hc] <= fh)
           .pop();
         /* Prowadnica najnizszej szuflady siada rowno na dnie albo na przegrodzie
            tego poziomu — to ona wyznacza wysokosc, a front sie do niej
@@ -5529,16 +5579,16 @@ function computeGeoLiczy(cab, mat, ctx) {
              wzmocnienie przy plecach (pod blatem), pod ktorym skrzynka przejezdza —
              samo `sufitPrzod` dawalo bok 238 na styk z nim (zgloszenie uzytkownika
              2026-10-11). Wzmocnienie nizej niz gora boku skraca NL — to nie sufit. */
-          const droga = (colMaxNL ?? Math.max(...VBOX.nl)) + 3 + dInsetExtra;
+          const droga = (colMaxNL ?? Math.max(...BX.nl)) + 3 + dInsetExtra;
           const sufitDla = (hc) => (i + 1 < ds.length ? sufitPrzod
-            : Math.min(sufitPrzod, ...(c.rails || []).filter((r) => r.y0 >= railY0 + vboxGora(hc) && r.z0 < droga
+            : Math.min(sufitPrzod, ...(c.rails || []).filter((r) => r.y0 >= railY0 + BX.gora(hc) && r.z0 < droga
               && r.x1 > dsx0 && r.x0 < dsx1).map((r) => r.y0)));
           // tylko z luzem nad bokiem; gdy zaden nie wchodzi — kontrola nizej zglosi blad
-          const wchodzi = [...VBOX.heights]
-            .filter((hc) => VBOX.minFront[dMode][hc] <= fh && railY0 + vboxGora(hc) + SZUFLADA_ZAPAS <= sufitDla(hc) && !(dCof && spz.bokMax && hc > spz.bokMax)).pop();
-          hClass = wchodzi || fitH || VBOX.heights[0];
+          const wchodzi = [...BX.heights]
+            .filter((hc) => BX.minFront[dMode][hc] <= fh && railY0 + BX.gora(hc) + BX.zapas <= sufitDla(hc) && !(dCof && spz.bokMax && hc > spz.bokMax)).pop();
+          hClass = wchodzi || fitH || BX.heights[0];
         } else {
-          hClass = VBOX.heights.includes(Number(d.h)) ? Number(d.h) : 127;
+          hClass = BX.heights.includes(Number(d.h)) ? Number(d.h) : BX.domyslna;
           // bok wybrany recznie — front moze uniesc wyzszy, wiec to podpowiadamy
           if (fitH && fitH > hClass) wyzszyBok = fitH;
         }
@@ -5547,21 +5597,21 @@ function computeGeoLiczy(cab, mat, ctx) {
            w nie tylem (audyt szuflad 2026-10-04). Automatyczna NL bierze
            najdluzsza, ktora przed nim sie konczy (4 mm luzu, jak przy innych
            przeszkodach z tylu). */
-        const zaSkrzynka = (c.rails || []).filter((r) => r.z0 > 0 && r.y0 < railY0 + vboxGora(hClass) && r.y1 > railY0
+        const zaSkrzynka = (c.rails || []).filter((r) => r.z0 > 0 && r.y0 < railY0 + BX.gora(hClass) && r.y1 > railY0
           && r.x1 > dsx0 && r.x0 < dsx1);
         const limTyl = zaSkrzynka.length ? Math.min(...zaSkrzynka.map((r) => r.z0)) : null;
         const nlTyl = limTyl === null ? null
-          : ([...VBOX.nl].reverse().find((v) => v + 4 + dInsetExtra <= limTyl) ?? null);
+          : ([...BX.nl].reverse().find((v) => v + 4 + dInsetExtra <= limTyl) ?? null);
         const nlMaxTu = nlPrzedElementem(limTyl === null ? colMaxNL
-          : colMaxNL === null ? null : nlTyl === null ? null : Math.min(colMaxNL, nlTyl), VBOX.nl, railY0 + Math.min(vboxOdProw(hClass), vboxDno(hClass)), railY0 + vboxGora(hClass));
+          : colMaxNL === null ? null : nlTyl === null ? null : Math.min(colMaxNL, nlTyl), BX.nl, railY0 + Math.min(BX.odProw(hClass), BX.dno(hClass)), railY0 + BX.gora(hClass));
         const nlAuto = num(rawCol.nl) ?? nlMaxTu;
         const nl = num(d.nl) ?? nlAuto; // NL tej konkretnej szuflady
         /* NL spoza tabeli V-BOX (np. 325 z recznie poprawionego JSON) — selektor
            takiej nie poda, ale import ja przyjmowal i zamowienie mowilo „NL 325”
            (audyt GPT N19). Przycisk: najblizsza krotsza z tabeli, ktora sie miesci. */
-        if (nl !== null && !VBOX.nl.includes(nl)) {
-          const zTabeli = [...VBOX.nl].reverse().find((v) => v <= nl && (nlMaxTu == null || v <= nlMaxTu));
-          add("error", `${where}, szuflada ${i + 1}: prowadnice NL ${nl} — nie ma takiej długości w V-BOX (${VBOX.nl.join(", ")}).`
+        if (nl !== null && !BX.nl.includes(nl)) {
+          const zTabeli = [...BX.nl].reverse().find((v) => v <= nl && (nlMaxTu == null || v <= nlMaxTu));
+          add("error", `${where}, szuflada ${i + 1}: prowadnice NL ${nl} — nie ma takiej długości w ${BX.nazwa} (${BX.nl.join(", ")}).`
             + (zTabeli ? `|fixnl:${lv.i}:${j}:${i}:${zTabeli}` : ""));
         }
         /* Za skrzynka stoi cos tak blisko, ze nie wchodzi nawet najkrotsza
@@ -5569,18 +5619,23 @@ function computeGeoLiczy(cab, mat, ctx) {
            N68). Brak glebokosci calej kolumny zglasza `colNl === null` wyzej. */
         if (nl === null && colNl !== null && limTyl !== null)
           add("error", `${where}, szuflada ${i + 1}: nie mieści się żadna prowadnica — wzmocnienie przy plecach stoi ${fmt(limTyl)} mm od lica, `
-            + `a najkrótsza NL ${VBOX.nl[0]} potrzebuje ${fmt(VBOX.nl[0] + 4 + dInsetExtra)} mm. Odsuń wzmocnienie dalej, przenieś je wyżej albo przesuń szufladę.`);
+            + `a najkrótsza NL ${BX.nl[0]} potrzebuje ${fmt(BX.nl[0] + 4 + dInsetExtra)} mm. Odsuń wzmocnienie dalej, przenieś je wyżej albo przesuń szufladę.`);
         if (nl !== null && limTyl !== null && nl + 4 + dInsetExtra > limTyl)
           add("error",
             `${where}, szuflada ${i + 1}: NL ${nl} wjeżdża tyłem skrzynki we wzmocnienie przy plecach — do niego jest ${fmt(limTyl)} mm od lica.`
             + (nlTyl ? `|fixnl:${lv.i}:${j}:${i}:${nlTyl}` : ""));
+        if (BX.sys === "tbx" && nl !== null && hClass === 79.5 && !TBX.nlN.includes(nl)) {
+          const nN = [...TBX.nlN].reverse().find((v) => v <= nl) ?? TBX.nlN[0];
+          add("error", `${where}, szuflada ${i + 1}: TANDEMBOX N ma prowadnice tylko NL ${TBX.nlN.join(", ")}.|fixnl:${lv.i}:${j}:${i}:${nN}`);
+        }
+        if (BX.sys === "tbx") tbxSzuflad += 1;
         if (nl !== null) {
           const need = nl + 3 + dInsetExtra;
           // wnetrze do plecow: plecy z plyty wewnatrz / HDF we wregu zabieraja glebokosc
           const glWnetrza = carcassDepth - backIntrusion;
           if (need > glWnetrza) {
             // najdluzsza prowadnica, ktora sie tu zmiesci — do przycisku naprawy
-            const fitNl = [...VBOX.nl]
+            const fitNl = [...BX.nl]
               .reverse()
               .find((v) => v + 3 + dInsetExtra <= glWnetrza && (colMaxNL == null || v <= colMaxNL));
             add(
@@ -5601,9 +5656,9 @@ function computeGeoLiczy(cab, mat, ctx) {
           hClass,
           nl,
           fixed: num(d.front) !== null,
-          system: "vbox", push: pushSzuflady(d), bx0, bx1, zabudowa: lwP ? { L: lwP.L, R: lwP.R } : null,
+          system: BX.sys, push: BX.sys === "vbox" && pushSzuflady(d), nosnosc: BX.sys === "tbx" && tbx65(d) ? 65 : undefined, bx0, bx1, zabudowa: lwP ? { L: lwP.L, R: lwP.R } : null,
           // od dolu prowadnicy: dol boku, spod dna i tylu, gora boku — wspolne z DXS dla rysunkow
-          bokOd: vboxOdProw(hClass), dnoOd: vboxDno(hClass), gora: vboxGora(hClass),
+          bokOd: BX.odProw(hClass), dnoOd: BX.dno(hClass), gora: BX.gora(hClass),
           // prowadnica: 21 mm szerokosci przy kazdym boku, wysokosc z boku
           // skrzynki, glebokosc z NL. Front nakladany -> dol szyny o reszte
           // grubosci dna nad dolem frontu, front wpuszczany -> o luz
@@ -5644,21 +5699,24 @@ function computeGeoLiczy(cab, mat, ctx) {
         });
         if (d.handle !== false) handleCount += 1;
         if (nl !== null) {
+          if (BX.sys === "tbx") { const kT = `${hClass}|${nl}|${tbx65(d) ? 65 : 30}`; tbxGroups.set(kT, (tbxGroups.get(kT) || 0) + 1); }
+          else {
           const kk = `${hClass}|${nl}|${pushSzuflady(d) ? 1 : 0}`;
           slideGroups.set(kk, (slideGroups.get(kk) || 0) + 1);
+          }
         }
         /* V-BOX PUSH II: drazek synchronizujacy, LS = LW − 106 (katalog Sevroll 2026 s. 43) — przy froncie szerszym niz 500 mm
            (uzytkownik 2026-11-23: „ostatnio już przy 550 był problem, także powyżej 500”); wezsze — bez drazka */
-        if (pushSzuflady(d) && dsx1 - dsx0 > VBOX_PUSH.drazekOdFrontu) drazkiPush.push(Math.round(LW - VBOX_PUSH.lsOdLW));
-        if (pushSzuflady(d)) pushVbox += 1;
+        if (BX.sys === "vbox" && pushSzuflady(d) && dsx1 - dsx0 > VBOX_PUSH.drazekOdFrontu) drazkiPush.push(Math.round(LW - VBOX_PUSH.lsOdLW));
+        if (BX.sys === "vbox" && pushSzuflady(d)) pushVbox += 1;
         if (d.reling) relingGroups.set(nl ?? 0, (relingGroups.get(nl ?? 0) || 0) + 1);
 
-        const minF = VBOX.minFront[dMode][hClass];
+        const minF = BX.minFront[dMode][hClass];
         /* Front wysoko ponad bokiem: katalog radzi reling boczny. Uzytkownik
            (2026-10-14): do wyboru „Dodaj reling” (idzie do zamowienia, 30 zl za
            komplet) albo „Zostaw bez relingu” — po decyzji zostaje informacja
            z mozliwoscia cofniecia. */
-        if (fh - hClass > 140) {
+        if (BX.sys === "vbox" && fh - hClass > 140) {
           const ponad = `${where}, szuflada ${i + 1}: front wystaje ${fmt(fh - hClass)} mm ponad bok szuflady`;
           if (d.reling) add("info", `${ponad} — z relingiem bocznym (w zamówieniu).|relingusun:${lv.i}:${j}:${i}`);
           else if (d.bezRelingu) add("info", `${ponad} — bez relingu (tak wybrane).|reling:${lv.i}:${j}:${i}:1`);
@@ -5668,15 +5726,15 @@ function computeGeoLiczy(cab, mat, ctx) {
         /* Tyl szuflady bywa podnoszony do wysokosci frontu, zeby rzeczy nie
            wypadaly ponad burte. Nizej niz standardowy tyl zejsc nie moze —
            wtedy nie ma czym spiac skrzynki. */
-        const stdBack = VBOX.backH[hClass];
+        const stdBack = BX.backH[hClass];
         /* Tyl wg instrukcji V-BOX (instrukcje/Folder-Szuflada-V-BOX-18mm-online.pdf,
            „Wymiary montazowe scianki tylnej”): standardowy tyl ma gore rowno
            z gora boku, a dol `tylOd` nad dolem boku; dno dochodzi do niego.
            Podniesiony tyl rosnie od tego samego dolu. */
         // od dolu prowadnicy: spod tylu = spod dna (gora tylu = gora boku)
-        const tylOd = vboxDno(hClass);
+        const tylOd = BX.dno(hClass);
         const tylY0 = railY0 + tylOd;
-        const goraBoku = railY0 + vboxGora(hClass);
+        const goraBoku = railY0 + BX.gora(hClass);
         /* Podniesiony tyl jedzie razem ze skrzynka i musi przejsc pod tym, co
            jest nad szuflada — frontem wyzej albo gora swiatla poziomu — a do
            tego zostawic luz, zeby o nic nie zawadzal. */
@@ -5697,17 +5755,17 @@ function computeGeoLiczy(cab, mat, ctx) {
           : nadSzuflada.some((r) => r.y0 < lv.y1) ? "wzmocnienie pod blatem" : "góra korpusu";
         const maxBack = Math.max(0, Math.round(ceilY - tylY0) - BACK_CLEAR);
         /* Najwyzszy bok, przy ktorym skrzynka (i podniesiony tyl, jesli jest)
-           zmiesci sie pod tym, co wyzej, z luzem SZUFLADA_ZAPAS — do przycisku
+           zmiesci sie pod tym, co wyzej, z luzem BX.zapas — do przycisku
            „zmniejsz bok”. */
-        const miesciSie = (hc) => railY0 + vboxGora(hc) + SZUFLADA_ZAPAS <= ceilY
-          && (!d.tallBack || VBOX.backH[hc] <= Math.round(ceilY - (railY0 + vboxDno(hc))) - BACK_CLEAR)
-          && VBOX.minFront[dMode][hc] <= fh;
-        const nizszyBok = [...VBOX.heights].filter((hc) => hc < hClass && miesciSie(hc)).pop();
+        const miesciSie = (hc) => railY0 + BX.gora(hc) + BX.zapas <= ceilY
+          && (!d.tallBack || BX.backH[hc] <= Math.round(ceilY - (railY0 + BX.dno(hc))) - BACK_CLEAR)
+          && BX.minFront[dMode][hc] <= fh;
+        const nizszyBok = [...BX.heights].filter((hc) => hc < hClass && miesciSie(hc)).pop();
         // bok wybrany recznie, a front uniesie wyzszy — podpowiadamy tylko taki, ktory sie zmiesci (z luzem)
         if (wyzszyBok) {
-          const lepszy = [...VBOX.heights].filter((hc) => hc > hClass && hc <= wyzszyBok && miesciSie(hc)).pop();
+          const lepszy = [...BX.heights].filter((hc) => hc > hClass && hc <= wyzszyBok && miesciSie(hc)).pop();
           if (lepszy)
-            add("warn", `${where}, szuflada ${i + 1}: front uniesie wyższy bok ${lepszy} mm zamiast ${hClass}.|fixh:${lv.i}:${j}:${i}:${lepszy}`);
+            add("warn", `${where}, szuflada ${i + 1}: front uniesie wyższy bok ${BX.et(lepszy)} zamiast ${BX.et(hClass)}.|fixh:${lv.i}:${j}:${i}:${lepszy}`);
         }
         /* Boki skrzynki jada razem z nia — gdy sa wyzsze niz miejsce pod tym,
            co wyzej, szuflada sie nie wsunie. Wczesniej tego nie sprawdzalismy. */
@@ -5719,7 +5777,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         const frontZaNiski = fh < minF;
         if (frontZaNiski)
           add("error",
-            `${where}, szuflada ${i + 1}: front ${fmt(fh)} mm, a minimum dla wysokości ${hClass} mm przy froncie ${
+            `${where}, szuflada ${i + 1}: front ${fmt(fh)} mm, a minimum dla wysokości ${BX.et(hClass)} przy froncie ${
               dIn ? "wpuszczanym" : "na korpusie"
             } to ${minF} mm.` + (nizszyBok ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : `|szufbrak:${lv.i}:${j}`));
         /* Bez nizszego boku, ktory sie zmiesci, App dokleja „Zmniejsz do N szuflad” / „Zmień na
@@ -5728,12 +5786,12 @@ function computeGeoLiczy(cab, mat, ctx) {
           : (frontZaNiski ? "" : `|szufbrak:${lv.i}:${j}`);
         if (goraBoku > ceilY)
           add("error",
-            `${where}, szuflada ${i + 1}: skrzynka z bokiem ${hClass} mm potrzebuje ${vboxGora(hClass)} mm od dołu prowadnicy (bok stoi ${vboxOdProw(hClass)} mm nad nim) i min. ${SZUFLADA_ZAPAS} mm luzu nad bokiem, a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
+            `${where}, szuflada ${i + 1}: skrzynka z bokiem ${BX.et(hClass)} potrzebuje ${BX.gora(hClass)} mm od dołu prowadnicy (bok stoi ${BX.odProw(hClass)} mm nad nim) i min. ${BX.zapas} mm luzu nad bokiem, a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
             + przyciskLuzu);
-        else if (ceilY - goraBoku < SZUFLADA_ZAPAS)
+        else if (ceilY - goraBoku < BX.zapas)
           add("error",
-            `${where}, szuflada ${i + 1}: nad bokiem skrzynki ${hClass} mm zostaje ${fmt(Math.round(ceilY - goraBoku))} mm luzu do tego, co jest wyżej (${coNad}) — `
-            + `potrzeba min. ${SZUFLADA_ZAPAS} mm (katalog V-BOX liczy ${vboxGora(hClass)} mm od dołu prowadnicy bez żadnego luzu).`
+            `${where}, szuflada ${i + 1}: nad bokiem skrzynki ${BX.et(hClass)} zostaje ${fmt(Math.round(ceilY - goraBoku))} mm luzu do tego, co jest wyżej (${coNad}) — `
+            + `potrzeba min. ${BX.zapas} mm (katalog ${BX.nazwa} liczy ${BX.gora(hClass)} mm od dołu prowadnicy${BX.sys === "tbx" ? " i 3 mm luzu" : " bez żadnego luzu"}).`
             + przyciskLuzu);
         /* Tyl nigdy wyzej niz gorna krawedz frontu tej szuflady, a najlepiej
            nizej (uzytkownik 2026-09-28) — domyslny podniesiony tyl konczy sie
@@ -5776,16 +5834,16 @@ function computeGeoLiczy(cab, mat, ctx) {
                tyl (uzytkownik 2026-10-04: „miał być przycisk, który zmniejsza
                wysokość i tył”). */
             const tylPrzy = (hc) => {
-              const od = railY0 + vboxDno(hc);
+              const od = railY0 + BX.dno(hc);
               const mb = Math.max(0, Math.round(ceilY - od) - BACK_CLEAR);
-              return Math.max(VBOX.backH[hc], Math.min(Math.max(0, Math.round(y + fh - od)) - BACK_CLEAR, mb));
+              return Math.max(BX.backH[hc], Math.min(Math.max(0, Math.round(y + fh - od)) - BACK_CLEAR, mb));
             };
             // nizszy bok ma sens tylko wtedy, gdy podniesiony tyl wyjdzie wyzszy niz zwykly teraz
             const warto = nizszyBok && tylPrzy(nizszyBok) > stdBack;
             add("warn",
-              `${where}, szuflada ${i + 1}: skrzynka się mieści — nad bokami ${hClass} mm zostaje ${fmt(Math.round(ceilY - goraBoku))} mm do tego, co wyżej (${coNad}). `
+              `${where}, szuflada ${i + 1}: skrzynka się mieści — nad bokami ${BX.et(hClass)} zostaje ${fmt(Math.round(ceilY - goraBoku))} mm do tego, co wyżej (${coNad}). `
               + `Podniesiony tył potrzebuje nad sobą ${BACK_CLEAR} mm luzu, więc nie ma go gdzie podnieść — zostaje zwykły tył ${stdBack} mm, z górą równo z bokami. `
-              + (warto ? `Zmniejsz bok skrzynki do ${nizszyBok} mm (tył podniesie się do ${fmt(tylPrzy(nizszyBok))} mm) albo wyłącz podniesiony tył.`
+              + (warto ? `Zmniejsz bok skrzynki do ${BX.et(nizszyBok)} (tył podniesie się do ${fmt(tylPrzy(nizszyBok))} mm) albo wyłącz podniesiony tył.`
                 : `Wyłącz podniesiony tył — wyżej się tu nie da, a niższy bok dałby niższy tył.`)
               + (warto ? `|fixh:${lv.i}:${j}:${i}:${nizszyBok}` : "") + `|tylstd:${lv.i}:${j}:${i}`);
           } else if (backH > Math.max(maxBack, stdBack))
@@ -5801,7 +5859,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           // skrzynka do rysunku — te same wymiary co formatki dna i tylu
           // bokOd / tylOd — od dolu prowadnicy (dol boku; spod dna = spod tylu)
           // `grub` — dno i tyl skrzynki sa z plyty polek (formatki `shelf`); bryla rysowala je z korpusu (audyt GPT N12)
-          dr.skrzynka = { LW, nl, bok: hClass, dno: [LW - 75, nl - 24], tyl: [LW - 87, backH], tylOd, bokOd: vboxOdProw(hClass), grub: ts };
+          dr.skrzynka = { LW, nl, bok: hClass, dno: [LW - 75, nl - 24], tyl: [LW - 87, backH], tylOd, bokOd: BX.odProw(hClass), grub: ts };
           drawerParts.push({ kind: "dno", a: LW - 75, b: nl - 24 });
           drawerParts.push({ kind: "tyl", a: LW - 87, b: backH });
         }
@@ -7072,7 +7130,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             const gap = Math.round(freeDepth - drNl); // luz miedzy tylem szuflady a zabudowa
             if (gap >= 4) return; // w porzadku
             // tylko dlugosci z katalogu systemu tej szuflady — DXS nie ma NL 270 (audyt GPT N110)
-            const maxNlFit = [...nlSystemu(dr.system, dr.push)].reverse().find((v) => v + 4 <= freeDepth);
+            const maxNlFit = [...nlSystemu(dr.system, dr.push, dr.nosnosc)].reverse().find((v) => v + 4 <= freeDepth);
             const act = maxNlFit ? `|fixnl:${lv.i}:${jSzuflady(c, dr)}:${dr.i}:${maxNlFit}` : "";
             const gdzie = `${dr.seg ? gdziePoziomKol(lv.i, c.j, dr.seg.nr) : `Poziom ${lv.i + 1}, kolumna ${c.j + 1}`}, szuflada ${dr.i + 1}`;
             if (gap < 0) {
@@ -7228,7 +7286,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             const gap = Math.round(freeDepth - drNl);
             if (gap >= 4) return;
             // tylko dlugosci z katalogu systemu tej szuflady — DXS nie ma NL 270 (audyt GPT N110)
-            const maxNlFit = [...nlSystemu(dr.system, dr.push)].reverse().find((v) => v + 4 <= freeDepth);
+            const maxNlFit = [...nlSystemu(dr.system, dr.push, dr.nosnosc)].reverse().find((v) => v + 4 <= freeDepth);
             const act = maxNlFit ? `|fixnl:${lv.i}:${jSzuflady(c, dr)}:${dr.i}:${maxNlFit}` : "";
             const gdzie = `${dr.seg ? gdziePoziomKol(lv.i, c.j, dr.seg.nr) : `Poziom ${lv.i + 1}, kolumna ${c.j + 1}`}, szuflada ${dr.i + 1}`;
             const co = ob.mask ? "zabudowy elementu" : "elementu";
@@ -7587,6 +7645,11 @@ function computeGeoLiczy(cab, mat, ctx) {
             ? `kreska — spód prowadnicy DXS-3D, NL ${fmt(dr.rail.d)}; przód prowadnicy ${fmt(DXS.odCzola + sb)} mm za przednią krawędzią`
               + (sb ? ` (${DXS.odCzola} + grubość frontu ${fmt(sb)})` : "")
               + `; 3 wkręty w otwory prowadnicy, bez nawiercania (górny rząd ${DXS.wkretGora} mm nad kreską)`
+            : dr.system === "tbx"
+              // Blum TANDEMBOX (578 / 576): otwory z tabeli „Standard applications” s. 7, os 33 mm nad dolem szyny; 19 — opcjonalny
+              ? `dolna krawędź prowadnicy Blum ${dr.nosnosc === 65 ? "576" : "578"}, NL ${fmt(dr.rail.d)}; wkręty w osi ${TBX.osOtworow} mm nad dolną krawędzią, `
+                + `${((TBX.otwory[dr.rail.d] || [19, 37]).map((x) => fmt(x + sb))).join(", ")} mm od przedniej krawędzi (pierwszy — opcjonalny)`
+                + (dr.nosnosc === 65 ? " — przy 576 (65 kg) sprawdź otwory w tabeli Blum" : "") + (sb ? ` (cofnięta o ${fmt(sb)} mm)` : "")
             : `dolna krawędź prowadnicy, NL ${fmt(dr.rail.d)}; otwory ${otw} mm od przedniej krawędzi`
             + (sb ? ` (cofnięta o ${fmt(sb)} mm)` : ""); };
           const note = notka(sb0), noteL = dr.zabudowa ? notka(Math.max(0, sb0 - ((spz && spz.cof) || 0))) : note;
@@ -8249,6 +8312,19 @@ function computeGeoLiczy(cab, mat, ctx) {
       unit: "kpl.",
     });
   });
+  /* Blum TANDEMBOX antaro — komplet na szuflade (prowadnice, boki, mocowania frontu i tylu), 205 zl (uzytkownik 2026-11-23) */
+  [...tbxGroups.entries()].sort((a2, b2) => a2[0].localeCompare(b2[0])).forEach(([kT, qty]) => {
+    const [hcS, nlT, nos] = kT.split("|");
+    hardware.push({ name: TBX_NAME, spec: `${tbxLitera(Number(hcS))}, NL ${nlT} mm, ${nos === "65" ? "65 kg (prowadnica 576)" : "30 kg (prowadnica 578)"} — komplet: prowadnice, boki, mocowania frontu i tyłu`,
+      qty, unit: "kpl." });
+  });
+  /* Dno i tyl z plyty 18 (wymiary Blum dla 16): krawedzie frezowane do 16 mm — ostrzezenie, ktorego nie da sie odhaczyc, i notatka montazowa
+     (uzytkownik 2026-11-23: „konieczne jest niezamykalne ostrzeżenie i notatka montażowa”) */
+  if (tbxSzuflad && Math.round(ts) !== 16) {
+    msgs.push({ level: "warn", staly: true, text: `Szuflady Blum TANDEMBOX (${tbxSzuflad}): dno i tył są z płyty ${fmt(ts)} mm, a profil Blum jest na płytę 16 mm — `
+      + `krawędzie dna (wpust w bok) i tyłu (w mocowaniach tyłu) frezuj do 16 mm (o ${fmt(ts - 16)} mm), inaczej nie wejdą. Wymiary formatek jak dla 16 mm (dno LW − 75 × NL − 24, tył LW − 87).` });
+    montazKolejnosc.push(`Szuflady TANDEMBOX: przed montażem sfrezuj krawędzie dna i tyłu z płyty ${fmt(ts)} mm do 16 mm (wpust w boku i mocowania tyłu są na 16 mm).`);
+  }
   /* V-BOX PUSH II: drazek synchronizujacy (1100 mm, ciety na LS = LW − 106) i 2 kpl. mocowan na drazek — sprzedawane osobno
      (katalog Sevroll 2026 s. 40, 43) */
   if (drazkiPush.length) {
@@ -15664,7 +15740,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
                  (przy NL 600 — 380), od 4 mm za krawedzia, 27 mm wysokosci nad kreska */
               const dxs = dr.system === "dxs";
               const dlP = dxs ? DXS.dlKorpus[dr.rail.d] ?? dr.rail.d : dr.rail.d;
-              const hP = dxs ? DXS.dnoOd : vboxGora(dr.rail.h);
+              const hP = dxs ? DXS.dnoOd : (dr.gora ?? vboxGora(dr.rail.h));
               const rx0 = D - (dr.rail.setback || 0) - (dxs ? DXS.odCzola : 0) - dlP;
               out.push(
                 <g key={`srn${k}`} data-el={dxs ? "prowadnica-dxs" : undefined}>
@@ -28723,7 +28799,7 @@ export default function App() {
         i,
         name: (it.cab.name || "").trim() || `Szafka ${i + 1}`,
         err: msgs.filter((m) => m.level === "error").length,
-        warn: msgs.filter((m) => m.level === "warn" && !przeczytane.has(m.text)).length,
+        warn: msgs.filter((m) => m.level === "warn" && (m.staly || !przeczytane.has(m.text))).length,
       };
     });
   }, [project, przeczytane, projLayoutGeo]);
@@ -29986,7 +30062,7 @@ export default function App() {
                                 className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none">
                                 <option value="">auto {geo.maxNL ? `(${geo.maxNL})` : ""}</option>
                                 {/* dlugosci systemow szuflad tej kolumny (V-BOX ma tez 270, DXS-3D nie) */}
-                                {[...new Set((c.drawers || []).flatMap((dr) => nlSystemu(dr.system, dr.push)))].sort((a, b) => a - b).map((v) => (
+                                {[...new Set((c.drawers || []).flatMap((dr) => nlSystemu(dr.system, dr.push, dr.nosnosc)))].sort((a, b) => a - b).map((v) => (
                                   <option key={v} value={v}>{v}</option>
                                 ))}
                               </select>
@@ -30002,7 +30078,7 @@ export default function App() {
                               <div key={dr.i} className="flex flex-wrap items-center gap-2" data-el="szuflada-wiersz">
                                 {/* system szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty
                                     na prowadnicach dolnego montazu) — uzytkownik 2026-10-21 */}
-                                <select value={`${dr.system || "vbox"}${dr.push ? "-push" : ""}`} data-el="szuflada-system"
+                                <select value={dr.system === "tbx" ? (dr.nosnosc === 65 ? "tbx-65" : "tbx") : `${dr.system || "vbox"}${dr.push ? "-push" : ""}`} data-el="szuflada-system"
                                   title="System szuflady: V-BOX — boki metalowe, DXS-3D — skrzynka z płyty na prowadnicach pod dnem; PUSH — push to open (bez uchwytu): V-BOX 3D Slim PUSH II, DXP-3D Synchro (NL do 550)"
                                   onChange={(e) => setDrawerSystem(lv.i, jA, dr.i, e.target.value)}
                                   className="rounded border border-stone-300 bg-white px-1 py-1 text-[11px] focus:border-teal-600 focus:outline-none">
@@ -30010,6 +30086,8 @@ export default function App() {
                                   <option value="vbox-push">V-BOX PUSH II</option>
                                   <option value="dxs">DXS-3D</option>
                                   <option value="dxs-push">DXP-3D PUSH</option>
+                                  <option value="tbx">TANDEMBOX</option>
+                                  <option value="tbx-65">TANDEMBOX 65 kg</option>
                                 </select>
                                 {dr.system === "dxs" ? (
                                   <label className="flex shrink-0 items-center gap-1" data-el="dxs-bok"
@@ -30026,8 +30104,11 @@ export default function App() {
                                     title="Wysokość boku V-BOX — auto dobiera najwyższy mieszczący się w froncie"
                                     onChange={(e) => setDrawerH(lv.i, jA, dr.i, e.target.value)}
                                     className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none">
-                                    <option value="auto">auto {dr.hClass}</option>
-                                    {VBOX.heights.map((v) => (
+                                    <option value="auto">auto {dr.system === "tbx" ? `${tbxLitera(dr.hClass)} ${fmt(dr.hClass)}` : dr.hClass}</option>
+                                    {dr.system === "tbx"
+                                      // TANDEMBOX: wysokosci N / M / K / C / D (65 kg — bez N)
+                                      ? boxSystemu({ system: "tbx", nosnosc: dr.nosnosc }).heights.map((v) => <option key={v} value={v}>{tbxLitera(v)} — {fmt(v)} mm</option>)
+                                      : VBOX.heights.map((v) => (
                                       <option key={v} value={v}>{v} mm</option>
                                     ))}
                                   </select>
@@ -30102,7 +30183,7 @@ export default function App() {
                                   onChange={(e) => setDrawerNL(lv.i, jA, dr.i, e.target.value)}
                                   className="shrink-0 rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none">
                                   <option value="">NL {dr.nl ?? c.nl ?? "auto"}</option>
-                                  {nlSystemu(dr.system, dr.push).map((v) => (
+                                  {nlSystemu(dr.system, dr.push, dr.nosnosc).map((v) => (
                                     <option key={v} value={v}>{v}</option>
                                   ))}
                                 </select>
@@ -30828,7 +30909,8 @@ export default function App() {
   /* Odhaczone ostrzezenia i podpowiedzi znikaja z licznika u gory — inaczej
      pasek nad projektem straszy liczba, ktora dawno przeczytales. Bledy licza
      sie zawsze: to nie jest cos, co da sie odklikac. */
-  const warnsNowe = warns.filter((m) => !przeczytane.has(m.text));
+  // `staly` (np. frez dna TANDEMBOX z plyty 18) — ostrzezenia nie da sie odhaczyc (uzytkownik 2026-11-23)
+  const warnsNowe = warns.filter((m) => m.staly || !przeczytane.has(m.text));
   const infosNowe = infos.filter((m) => !przeczytane.has(m.text));
   const notesRef = useRef(null);
   const scrollToNotes = () => {
@@ -30868,10 +30950,10 @@ export default function App() {
                 /* Ostrzezenie mozna odhaczyc tak samo jak podpowiedz: odhaczone
                    schodzi pod zwijany naglowek i przestaje sie liczyc u gory.
                    Bledow sie nie odhacza — to nie jest cos, co da sie odklikac. */
-                const stare = warns.filter((m) => przeczytane.has(m.text));
+                const stare = warns.filter((m) => !m.staly && przeczytane.has(m.text));
                 const linia = (m, i, czyt) => (
                   <NoteLine key={(czyt ? "wp" : "w") + i} text={m.text} color={WARNC} icon="!"
-                    przed={znacznik(m.text, czyt)}
+                    przed={m.staly ? <span data-el="uwaga-stala" title="Tego ostrzeżenia nie da się odhaczyć" className="mt-0.5 shrink-0 rounded border border-amber-400 px-1 text-[10px] leading-4 text-amber-600">!</span> : znacznik(m.text, czyt)}
                     editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab}
                     cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} setPlinthSb={setPlinthSb} />
                 );

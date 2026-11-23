@@ -1454,3 +1454,7 @@ gora boku (N 79,5 / M 95,5 / K 127,5; C, D — gora tylu 9 + 167 / 199); wysokos
 dolem szyny): 270 — 19, 37, 115, 133; 300 / 350 — 19, 37, 133, 165; 400 — 19, 37, 165, 229; 450 — 19, 37, 165, 261, 293; 500–600 — 19, 37,
 261, 293 (19 opcjonalny) — odczyt z `instrukcje/blum/Blum_TANDEMBOX_otwory-prowadnic_s7.png`. Plyta 18 na dno / tyl — w dokumentach Blum
 tylko 16 mm (szukane: dokument planowania, katalog 2024–2025, standard applications, wyszukiwarka) — pytanie do uzytkownika.
+[CLAUDE-CHANGE] 2026-11-23: Blum TANDEMBOX antaro w programie (`drawer.system = "tbx"`, `TBX`, `boxSystemu`). Galaz V-BOX w `computeGeo`
+liczy teraz przez `BX = boxSystemu(d)` (te same wzory, tabela wysokosci / NL / tylu / gory skrzynki z systemu). Ostrzezenie `staly` —
+nie da sie go odhaczyc (warnsNowe, licznik, brak ✓). Push przy TANDEMBOX (TIP-ON BLUMOTION) — nie ma; TANDEM (prowadnice pod dno) — nastepny.
+
