@@ -18,6 +18,8 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
    na arkuszu. Decyzja: **obie drogi** — (a) kilka korpusów obok siebie i jeden komplet drzwi przesuwnych na całą ścianę (tor do 6000 mm);
    (b) jedna szafa z dnem i wieńcem z dwóch kawałków łączonych na przegrodzie. Do zrobienia; przed robotą pytania o szczegóły
    (styk modułów: podwójne boki czy jedna wspólna przegroda; czym łączyć kawałki dna i wieńca; tory na modułach czy na suficie).
+   **Zrobione 2026-11-22 (b)**: przycisk „Dno i wieniec z kawałków — dwie przegrody na styku” (decyzja: podwójna przegroda; jedna
+   przegroda z konfirmatami z obu stron odpada — drugiej strony nie dokręcisz). Zostaje (a) moduły z jednym kompletem drzwi.
    **Odpowiedzi 2026-11-22:**
    - moduły — **do wyboru**: pełne korpusy skręcone bokami (dwa boki na styku) albo wspólna przegroda; przy wspólnej przegrodzie dno
      raczej wewnątrz (między bokiem a przegrodą), a wieniec też wewnątrz albo „na pół” na przegrodzie (9 mm);
@@ -34,6 +36,12 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
    Do rozważenia: samo przestawianie przegród przy zmianie szerokości (dziś po zmianie jest ostrzeżenie z przyciskiem).
 
 ### Szuflady Blum — co znalazłem (2026-11-22, #45; użytkownik: „poszukaj sam”, wdrożenie później — „nowe typy szuflad na później”)
+
+**2026-11-23** (użytkownik: „push to open i tandem z bluma trzeba wyszukać i dodać do listy prowadnic … vbox i dxs też są chyba w wersjach na
+cichy domyk i push to open”): instrukcje Blum pobrane do `instrukcje/blum/` (TANDEMBOX antaro — zamawianie i planowanie, TANDEM, TANDEM
+z TIP-ON; opis w `instrukcje/SPIS.md`). Wersje PUSH obecnych systemów Sevroll były już w katalogu w `instrukcje/` i **są w programie**
+(V-BOX PUSH II, DXP-3D PUSH — wybór przy szufladzie). Blum — do wdrożenia jako osobne systemy (formatki skrzynki, NL, wiercenia, rysunki,
+audyt szuflad); kolejność i ceny do ustalenia z użytkownikiem.
 
 Do pobrania i dopisania do `instrukcje/` (karty z katalogu Blum 2024–2025), zanim wejdą do programu:
 - **TANDEMBOX antaro** (skrzynka ze stalowymi bokami, jak V-BOX): wymiary z dna i tyłu z płyty 16 mm od światła szafki LW —

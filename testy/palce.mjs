@@ -188,10 +188,25 @@ for (const [w, v] of [['Szafka', 'Otw.'], ['Szafka', 'Zamk.'], ['Ciąg', 'Otw.']
   ok(`${w} / ${v}: bez kreski na szufladach z podfrezem`, n === 0 && sz > 5, `${n} kresek, ${sz} prostokątów`);
 }
 await page.getByRole('button', { name: 'Szafka', exact: true }).first().click();
+// szafka w ciagu (jest przelacznik Szafka / Ciag), szuflady bez uchwytu i bez podfrezu
+await page.evaluate(() => {
+  localStorage.clear();
+  const cab = { name: 'T', W: 600, H: 720, D: 500, frontMode: 'overlay',
+    levels: [{ h: null, cols: [{ kind: 'drawers', w: null, drawerMode: 'overlay',
+      drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: false })) }] }] };
+  localStorage.setItem('szafki:projekt', JSON.stringify({ name: 'T', active: 0, prices: {},
+    runs: [{ id: 'c1', name: 'Ściana', mountY: 0, H: 720, D: 500, gap: 0 }], items: [{ cab, runId: 'c1', offset: 0 }] }));
+});
+await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2200);
+// bez uchwytu (i bez podfrezu) tez bez kreski — wygladala jak uchwyt (uzytkownik 2026-11-23, zrzut biurka wiszacego)
+for (const [w, v] of [['Szafka', 'Otw.'], ['Szafka', 'Zamk.'], ['Ciąg', 'Otw.'], ['Ciąg', 'Zamk.']]) {
+  for (const l of [w, v]) { await page.getByRole('button', { name: l, exact: true }).first().click(); await page.waitForTimeout(400); }
+  const nk = await page.locator('#rysunek svg [data-el="szuflada-kreska"]').count();
+  const nu = await page.locator('#rysunek svg [data-el^="uchwyt"]').count();
+  ok(`${w} / ${v}: szuflady bez uchwytu — bez kreski i bez uchwytu`, nk === 0 && nu === 0, `${nk} kresek, ${nu} uchwytów`);
+}
+await page.getByRole('button', { name: 'Szafka', exact: true }).first().click();
 await seed({ drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: false })) }, 'overlay');
-await view('Otw.');
-const nk = await page.locator('#rysunek svg [data-el="szuflada-kreska"]').count();
-ok('bez podfrezu i bez uchwytu kreska zostaje (symbol szuflady)', nk === 3, String(nk));
 await view('Zamk.');
 
 console.log('\n== DXS-3D z podfrezem: bok nie wyżej niż front (użytkownik 2026-10-25) ==');

@@ -1425,5 +1425,41 @@ wzory z palety bez ostrzezen (`wzorBezUwag`), nadstawka / blenda do sufitu (`nad
 (`plecykawalki`), start „Co projektujesz?” (`projektStartowy`), cokol w obrysie bez wspolnego cokolu ciagu (blad zamowienia: 2000 zamiast
 1964), Blum — dane w POMYSLY. Zostaje do decyzji uzytkownika: #42 szeroka szafa (moduly z jednym kompletem drzwi / dno i wieniec
 z kawalkow — czym laczyc), #46 uklad scian pokoju, narożnik L (jedne drzwi 896 poza tabela zawiasow), lakierowanie formatek.
-[CHECK] Nadstawka laczona z szafa wkretami 4 × 30 od srodka przez dno do wienca (dwa rzedy) — zalozenie, do potwierdzenia przez uzytkownika.
-Przegrody biurka wiszacego cofniete o grubosc frontu (18, jak dno) — do potwierdzenia (18 czy 20 z luzem).
+[AI-INFO] (bylo [CHECK], potwierdzone przez uzytkownika 2026-11-23) Nadstawka laczona z szafa wkretami 4 × 30 od srodka przez dno do wienca
+(dwa rzedy) — tak. Przegrody biurka wiszacego cofniete o 18 (jak dno) — tak. Szafa z modulow z jednym kompletem drzwi — wystarcza przycisk
+„dwie przegrody na styku”.
+[CLAUDE-CHANGE] 2026-11-23 („mamy jeszcze jakieś błędy?”): pelny przebieg po #42; audyt projektu uzytkownika (v53, 4 pomieszczenia,
+w tym „Projekt bez nazwy” — szafy, biurko wiszace, maskownice) bez bledow, tylko ostrzezenia z przyciskami (HDF w innym kolorze,
+0 mm do sufitu nad Szafka 9, biurko bez uchwytow). Poprawione: `audytprojektu` bral pomieszczenie szafki z `it.roomId` (szafki w ciagu
+maja je w ciagu) — sprawdzal zabudowe tylko pierwszego pomieszczenia. Zgloszenie uzytkownika (zrzut biurka): szuflada bez uchwytu
+miala kreske-symbol, ktora wygladala jak uchwyt — zdjeta we wszystkich widokach (`palce`). [CHECK] narożnika L (zawias −14 mm przy
+stojacym wzmocnieniu w rogu) zamkniety — zgodne z zalozeniem (BLEDY 2026-11-23).
+[CLAUDE-CHANGE] 2026-11-23: blat biurka wiszacego na mimosrodach (`wienMimo`), przeciaganie biurka lapie polke miedzy poziomami
+(`makLapaniePion` + `sepShelves`), szuflady push to open (V-BOX PUSH II, DXP-3D PUSH — `drawer.push`), instrukcje Blum w `instrukcje/blum/`.
+[AI-INFO] Odpowiedzi uzytkownika 2026-11-23: tip-on przy cichym domyku — nie (zostaja uchwyt / front ponizej dna / PUSH); drazek
+synchronizujacy V-BOX PUSH II przy froncie > 500 mm; ceny: drazek 11 zl, mocowania 10 zl (DXP = DXS 50 zl, PUSH II = V-BOX — zostaja);
+Blum — OBA systemy (najpierw TANDEMBOX antaro, potem TANDEM). Szczelina 4 mm przed frontem tylko w uwadze (rysunek bez niej).
+[AI-TODO] Blum TANDEMBOX antaro / TANDEM jako nowe systemy szuflad — po decyzji uzytkownika (kolejnosc, wysokosci, ceny).
+
+[AI-INFO] 2026-11-23 Blum — szukanie wysokosci dna TANDEMBOX antaro (uzytkownik: „szukaj dalej”, potem „Model CAD Blum”): przejrzane — dokument
+zamowien i planowania (w `instrukcje/blum/`), katalog techniczny 2024–2025 (publications.blum.com, URL 312–318, 328, 333–336; numer
+drukowany = URL + 4), instrukcje montazu (4 str., same obrazki), „Standard applications” (s. 7 — otwory prowadnic, w `instrukcje/blum/`).
+Boki: 83,6 (M), 115,6 (K); przestrzen, gora boku, formatki — w `instrukcje/SPIS.md`. Polozenia spodu dna i dolu boku nad prowadnica — BRAK.
+Model CAD / rysunki 2D sa tylko w portalu Blum E-SERVICES (konto: e-services.blum.com/registration; gosc — „basic services”) — bez dostepu.
+[AI-TODO] TANDEMBOX antaro / TANDEM — czeka na decyzje uzytkownika (konto Blum i rysunek / pomiar szuflady / przyjac jak V-BOX).
+[AI-INFO] 2026-11-23 TANDEMBOX antaro — ustalenia z uzytkownikiem: spod dna 9 mm nad dolem szyny (rysunek „Front installation dimensions”,
+„9” — uzytkownik), tyl z plyty na tej samej wysokosci (gora tylu 1,5–2,5 pod gora boku — zgadza sie z rysunkami); najmniejszy front =
+gora boku (N 79,5 / M 95,5 / K 127,5; C, D — gora tylu 9 + 167 / 199); wysokosci N, M, K, C, D; nosnosc 30 kg (578, NL 270–600) albo
+65 kg (576, NL 450–650) do wyboru przy kazdej szufladzie od NL 450; cena kompletu 205 zl. Otwory prowadnicy 578 (od przodu, os 33 nad
+dolem szyny): 270 — 19, 37, 115, 133; 300 / 350 — 19, 37, 133, 165; 400 — 19, 37, 165, 229; 450 — 19, 37, 165, 261, 293; 500–600 — 19, 37,
+261, 293 (19 opcjonalny) — odczyt z `instrukcje/blum/Blum_TANDEMBOX_otwory-prowadnic_s7.png`. Plyta 18 na dno / tyl — w dokumentach Blum
+tylko 16 mm (szukane: dokument planowania, katalog 2024–2025, standard applications, wyszukiwarka) — pytanie do uzytkownika.
+[CLAUDE-CHANGE] 2026-11-23: Blum TANDEMBOX antaro w programie (`drawer.system = "tbx"`, `TBX`, `boxSystemu`). Galaz V-BOX w `computeGeo`
+liczy teraz przez `BX = boxSystemu(d)` (te same wzory, tabela wysokosci / NL / tylu / gory skrzynki z systemu). Ostrzezenie `staly` —
+nie da sie go odhaczyc (warnsNowe, licznik, brak ✓). Push przy TANDEMBOX (TIP-ON BLUMOTION) — nie ma; TANDEM (prowadnice pod dno) — nastepny.
+[CLAUDE-CHANGE] 2026-11-23: Blum TANDEM 17–19 (560F) — DXS-3D z flaga `drawer.blum` (`dxsParam` w `szufladaDxs`: nadDnem 0, dnoOd 27,5,
+bokPodDnem 12, zapas 7, NL z 270; zamowienie `TANDEM_NAME` 100 zl). [CHECK] uzytkownik oglada rysunek DXS-3D (Sevroll s. 112, „2 (min.)”
+od dna szafki do spodu prowadnicy) — „może czeka nad korekta” DXS; czekam na decyzje.
+
+[AI-INFO] 2026-11-23: PELNY PRZEBIEG przed scaleniem (bbb136b, prosba uzytkownika „jak wszystko będzie dobrze to testy audyty i na git”):
+175 suit, 6007 OK, 0 bledow (22 min); `losowe` 66 krokow / 0; audyt projektu uzytkownika (v53, 4 pomieszczenia) 84 OK / 0.

@@ -38,7 +38,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 - **Bok**: V-BOX z listy, DXS-3D w mm.
 - **Front**: wysokość frontu każdej szuflady.
 - **Uchwyt**: włączany osobno na każdym froncie.
-- **Wcięcie na palce (podfrez) zamiast uchwytu** — w kolumnie, przy frontach wpuszczanych i nakładanych (nakładane od 2026-10-24, decyzja użytkownika): każdy front niższy od góry o podaną głębokość (domyślnie 18 mm), prowadnice i podział pasma bez zmian, uchwyty kolumny znikają (pojedynczy można włączyć z powrotem); wyłączenie oddaje uchwyty. W szczelinie nad frontem widać skrzynkę. **Górny front nakładany** zachodzi na płytę nad sobą (wieniec, przegroda, wzmocnienie przy licu), więc jego wcięcie liczy się od spodu tej płyty: front kończy się podaną głębokość pod nią, a nie pod swoją dawną górą (2026-10-24 — przy 18 mm zostawały palcom 3 mm). Przy wpuszczanych i niższych frontach wystarcza głębokość od góry frontu. Niższy górny front może dostać niższy bok skrzynki (np. 189 mm → 127 zamiast 178). Na rysunkach front z podfrezem nie ma kreski, którą oznaczamy szufladę bez uchwytu — wyglądała jak uchwyt.
+- **Wcięcie na palce (podfrez) zamiast uchwytu** — w kolumnie, przy frontach wpuszczanych i nakładanych (nakładane od 2026-10-24, decyzja użytkownika): każdy front niższy od góry o podaną głębokość (domyślnie 18 mm), prowadnice i podział pasma bez zmian, uchwyty kolumny znikają (pojedynczy można włączyć z powrotem); wyłączenie oddaje uchwyty. W szczelinie nad frontem widać skrzynkę. **Górny front nakładany** zachodzi na płytę nad sobą (wieniec, przegroda, wzmocnienie przy licu), więc jego wcięcie liczy się od spodu tej płyty: front kończy się podaną głębokość pod nią, a nie pod swoją dawną górą (2026-10-24 — przy 18 mm zostawały palcom 3 mm). Przy wpuszczanych i niższych frontach wystarcza głębokość od góry frontu. Niższy górny front może dostać niższy bok skrzynki (np. 189 mm → 127 zamiast 178). Na rysunkach front bez uchwytu (z podfrezem czy bez) nie ma żadnej kreski — dawny symbol szuflady wyglądał jak uchwyt (podfrez 2026-10-24, każda szuflada 2026-11-23, zrzut biurka wiszącego); uchwyt rysuje się tylko, gdy jest.
 - **Tył**: V-BOX — podniesiony, DXS-3D — wysokość w mm.
 - **NL**: dla całej kolumny albo dla jednej szuflady.
 - **Luz między frontami**: wspólny z drzwiami, domyślnie 2 mm.
@@ -142,7 +142,32 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 
 - **Obliczenia**: `computeGeo`, kolumna szuflad (gałąź V-BOX, `szufladaDxs`); stałe `VBOX`, `DXS`, `SZUFLADA_ZAPAS`, `BACK_CLEAR`, `MIN_DOCIECIE`.
 - **Interfejs**: `setColKind`, `addDrawer`, `setDrawerSystem`; przyciski w `NoteLine` (`fixh`, `fixnl`, `fixback`, `szufmniej`, `szufdxs`, `szufsys`, `reling…`, `zwieksz60`) i `przyciskiSzuflad` w `App`.
-- **Rysunki i 3D**: `szufladaOdCzola`, `szufladaZGory`, `szerWnetrzaSzuflady`; bryła 3D `skrzynkaBryly`, wysuw `wysuwSzuflady`.
+- **Push to open** (użytkownik 2026-11-23; katalog Sevroll 2026 w `instrukcje/`): przy szufladzie (technicznie) albo dla całej kolumny
+  w makiecie szczegółowej (zakładka Szuflady, „prowadnice”, `mak-szuf-system`) wybór „V-BOX PUSH II” albo „DXP-3D PUSH”
+  (`drawer.push`, `ustawPushSzuflady` — zdejmuje uchwyt, przy DXP NL > 550 wraca na auto; powrót do cichego domyku oddaje uchwyt).
+  Skrzynka i wiercenia jak w wersji z cichym domykiem; DXP-3D tylko NL 250–550 (`nlSystemu(sys, push)`). Zamówienie: prowadnice PUSH II /
+  DXP-3D PUSH, przy V-BOX PUSH II z frontem szerszym niż 500 mm drążek synchronizujący (LS = LW − 106 z 1100 mm, 11 zł) i 2 kpl. mocowań
+  na drążek (10 zł) — użytkownik 2026-11-23: „przy 550 był problem, także powyżej 500”. Uwaga: front co najmniej
+  4 mm od korpusu (DXP 3–5 mm) — w programie tylko w uwadze, rysunek bez szczeliny. Osobnego odbojnika tip-on przy szufladach nie ma:
+  z cichym domykiem nie działa („miękki domyk **lub** system PUSH”).
+- **Blum TANDEMBOX antaro** (użytkownik 2026-11-23; `instrukcje/blum/`, odczyt w `instrukcje/SPIS.md`): system „TANDEMBOX” / „TANDEMBOX 65 kg”
+  przy szufladzie (technicznie) i dla kolumny w makiecie szczegółowej. Liczy się jak V-BOX (`boxSystemu` — te same obliczenia, tabela `TBX`):
+  - wysokości N / M / K / C / D — klasa = najmniejszy front (góra boku, przy C i D góra tyłu — decyzja użytkownika): 79,5 / 95,5 / 127,5 / 176 / 208;
+    góra skrzynki nad dołem szyny 79,5 / 95,5 / 127,5 / 189 / 221 (przestrzeń Blum 82,5 … 224 minus 3), luz nad nią 3 mm (Blum);
+  - spód dna i tyłu 9 mm nad dołem szyny (użytkownik); tył z płyty 69 / 84 / 116 / 167 / 199 mm, dno LW − 75 × NL − 24, tył LW − 87;
+  - **dno i tył z płyty półek (18)** z wymiarami Blum dla 16 mm — **ostrzeżenie, którego nie da się odhaczyć** (`staly`), i notatka montażowa:
+    frezować krawędzie do 16 mm (decyzja użytkownika);
+  - nośność 30 kg (prowadnica 578, NL 270–600; N tylko 400–550 — błąd z przyciskiem) albo 65 kg (576, NL 450–650, bez N) — `drawer.nosnosc`;
+  - plan wierceń: dolna krawędź prowadnicy, wkręty w osi 33 mm, otwory z tabeli Blum (`TBX.otwory`, 19 — opcjonalny);
+  - zamówienie: „Szuflada Blum TANDEMBOX antaro” — komplet (prowadnice, boki, mocowania frontu i tyłu), 205 zł; bez relingu bocznego V-BOX,
+    bez kątownika pod dno; push (TIP-ON BLUMOTION) — jeszcze nie.
+- **Blum TANDEM 17–19 mm (560F)** (użytkownik 2026-11-23; katalog Blum 2026 s. 454–461 w `instrukcje/blum/`): wybór „TANDEM (17–19 mm)”
+  przy szufladzie i „TANDEM” w makiecie szczegółowej. Ta sama budowa co DXS-3D, więc w programie to DXS-3D z flagą `drawer.blum`
+  (`dxsParam`, tabela `TANDEM`): prowadnica najniższej szuflady **na dnie szafki** (Blum nie pokazuje odstępu; DXS-3D — 2 mm),
+  **spód dna 27,5** mm nad dołem szyny, **boki 12** mm poniżej dna (rysunek 12–15), luz nad skrzynką **min. 7** mm, wkręty prowadnicy
+  w osi 37 mm nad dołem szyny, pierwszy 37 mm od przedniej krawędzi; NL 250, 270, 300 … 600; skrzynka i front jak DXS-3D (pełna skrzynka
+  z płyty 18, front od środka 4 × 30); zamówienie „Prowadnica Blum TANDEM 560F” — komplet 100 zł.
+- **Rysunki i 3D** (uchwyt tylko przy `d.handle`, bez uchwytu front bez żadnego znaku — `palce`): `szufladaOdCzola`, `szufladaZGory`, `szerWnetrzaSzuflady`; bryła 3D `skrzynkaBryly`, wysuw `wysuwSzuflady`.
   - Z przodu (otwarte) skrzynka DXS ma boki, tył i dno; przy uchwycie frezowanym skrzynkę widać też przy zamkniętych frontach (pod frezem).
   - Z przodu (otwarte) front szuflady zostaje przygaszony; przy szufladzie wewnętrznej za drzwiami przesuwnymi pod nim widać prowadnice także bez „wyposażenia” (`SkrzynkaZaPrzesuwnymi`, 2026-11-17). Prowadnice V-BOX z przodu od `dr.bx0` / `dr.bx1` (bok zabudowy, wspornik fixu).
   - Kolumny szuflad o innym podziale mają osobne kolumny wymiarów (`grupySzuflad`); kolumny o tym samym podziale — wspólną.

@@ -261,6 +261,15 @@ p = await czekaj("p.items.find((it) => it.cab.name === 'Szafa').cab.H === 2761")
 await ust(`p.items = p.items.filter((i) => !i.cab.nadstawka); p.active = p.items.findIndex((i) => i.cab.name === 'Szafa'); const it = p.items.find((i) => i.cab.name === 'Szafa'); it.cab.H = 2895;`);
 { const t = await uwagi(); ok('szafa 2895 wpisana ręcznie: błąd boku i rączki NOVO S, przycisk „Wysokość szafy 2761 mm”', /Bok 2 ?895 × 600 mm nie mieści się/.test(t) && /rączka NOVO S/.test(t)
     && (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Wysokość szafy 2761 mm' }).count()) >= 1, t.slice(0, 400)); }
+// szafa szersza niz plyta (#42, decyzja uzytkownika 2026-11-22: podwojna przegroda na styku) — przycisk przy bledzie dna / wienca
+await ust(`const it = p.items.find((i) => i.cab.name === 'Szafa'); it.cab.H = 2400; it.cab.W = 3200; const r = p.runs.find((x) => x.id === it.runId); r.wallW = 3200;`);
+{ const b = page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Dno i wieniec z kawałków' });
+  ok('szafa 3200: błąd „Dno / wieniec … nie mieści się” z przyciskiem „Dno i wieniec z kawałków — dwie przegrody na styku”', (await b.count()) >= 1, (await uwagi()).slice(0, 300));
+  if (await b.count()) await b.first().click();
+  p = await czekaj("p.items.find((i) => i.cab.name === 'Szafa').cab.levels[0].cols.some((k) => k.przegrodaPodw && k.przegrodaOsobneDna)");
+  const sz = szafa(p), t = await uwagi();
+  ok('po kliknięciu: dwie przegrody na styku, osobne dna i wieńce; bez błędu dna, wieńca i cokołu', sz.cab.levels[0].cols.some((k) => k.przegrodaPodw && k.przegrodaOsobneDna)
+    && sz.cab.levels[sz.cab.levels.length - 1].cols.some((k) => k.przegrodaOsobneWience) && !/(Dno|Wieniec|Cokół)[^.]* nie mieści się na arkuszu/.test(t), t.slice(0, 400)); }
 // słupek z palety do kuchennego ciągu: wyjątek w ciągu, cokół jak ciąg
 await start(FIX);
 await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
@@ -372,6 +381,8 @@ p = await czekaj("p.items.filter((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.t
   ok('maskownice z obu stron biurka: wysokość do góry szafy (wyższej z sąsiadek), bez cech biurka', m.every((q) => q.cab.H >= sz.cab.H && !q.cab.biurkoWiszace && !q.cab.dnoCof), JSON.stringify(m.map((q) => q.cab.H))); }
 await ust(`p.active = p.items.findIndex((i) => i.cab.biurkoWiszace);`);
 { const t = await uwagi(), b = page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Front 10 mm poniżej dna' });
+  // push to open (2026-11-23): trzeci przycisk — prowadnice w wersji PUSH
+  ok('uwagi biurka: też „Push to open (prowadnice PUSH)”', (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Push to open' }).count()) === 1);
   ok('uwagi: fronty bez chwytu — „Dodaj uchwyty” / „Front 10 mm poniżej dna”; wisi 500 (blat 750); maskownice są', /nie ma za co chwycić/.test(t) && (await b.count()) === 1 && /wisi 500 mm nad podłogą \(blat 750 mm\)/.test(t) && !/nie ma maskownic/.test(t), t.slice(0, 400));
   await b.click(); }
 p = await czekaj("p.items.find((i) => i.cab.biurkoWiszace).cab.frontPodDnem === 10");
@@ -505,6 +516,21 @@ console.log('== 2026-11-22: „Wczytaj plik” — pytanie: nowe pomieszczenie /
   ok('„Dodaj jako nowe pomieszczenie”: pomieszczenia i szafki obu projektów, ciągi z nowymi numerami, nazwa pomieszczenia z pliku', po.items.length === przed.items.length + inny.items.length
     && new Set(idsC).size === idsC.length && (po.rooms || []).some((r) => /^Pokój dziecka/.test(r.name)) && po.items.slice(przed.items.length).every((it) => !it.runId || idsC.includes(it.runId)),
     JSON.stringify({ rooms: po.rooms, runs: idsC, n: po.items.length })); }
+
+// system szuflad w makiecie szczegolowej (uzytkownik 2026-11-23: wybor systemu „też w szczegółowej”) — wszystkie szuflady kolumny
+console.log('\n== system szuflad w szczegółowej ==');
+{ await start(`p.items[p.active].cab.levels = [{ h: null, cols: [{ kind: 'drawers', w: null, drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: true })) }] }];`);
+  await page.evaluate(() => localStorage.setItem('mp-tryb', 'szczegolowa')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+  await zakl('szuflady');
+  const b = page.locator('[data-el="mak-szuf-system"]');
+  ok('zakładka Szuflady: „prowadnice” — V-BOX / V-BOX PUSH II / DXS-3D / DXP-3D PUSH / TANDEMBOX / TANDEMBOX 65 kg / TANDEM, zaznaczony V-BOX', (await b.count()) === 7
+    && (await page.locator('[data-el="mak-szuf-system"][data-v="vbox"]').getAttribute('aria-pressed').catch(() => null)) !== 'false', String(await b.count()));
+  await page.locator('[data-el="mak-szuf-system"][data-v="vbox-push"]').click();
+  let p = await czekaj("p.items[p.active].cab.levels[0].cols[0].drawers.every((d) => d.push && d.handle === false)");
+  ok('„V-BOX PUSH II” — wszystkie szuflady kolumny push, bez uchwytu', p.items[p.active].cab.levels[0].cols[0].drawers.every((d) => d.push && d.handle === false));
+  await page.locator('[data-el="mak-szuf-system"][data-v="dxs"]').click();
+  p = await czekaj("p.items[p.active].cab.levels[0].cols[0].drawers.every((d) => d.system === 'dxs' && !d.push)");
+  ok('„DXS-3D” — skrzynka z płyty, cichy domyk (uchwyt wraca)', p.items[p.active].cab.levels[0].cols[0].drawers.every((d) => d.system === 'dxs' && !d.push && d.handle === true)); }
 
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');

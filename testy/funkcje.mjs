@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion', 'ustawPushSzuflady', 'ustawSystemIPush'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1681,6 +1681,17 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
   const pan = (c) => G.computeGeo(c, M0).panels.find((x) => x.name === 'Cokół');
   ok('fronty z innej płyty: formatka cokołu z płyty frontów (domyślnie)', pan(cab()).matKey === 'front' && G.cokolKey(cab()) === 'front', pan(cab()).matKey);
   ok('… „jak korpus”: formatka z płyty korpusu', pan(cab({ kolor: 'korpus' })).matKey === 'board');
+  /* szafa szersza niz plyta (#42, decyzja uzytkownika 2026-11-22: „podwójna przegroda na styku”): przycisk „dnowienstyk” */
+  { const kolS = () => ({ kind: 'doors', w: null, doors: 1, shelfTargets: [null, null], drazki: [], drawers: [], doorWidths: [], mirrors: [], handles: [], hinges: [], rails: [] });
+    const c0 = { name: 'S', W: 3000, H: 2400, D: 600, back: 'none', plinth: { on: false }, legs: { on: true, height: 100 }, levels: [{ h: null, cols: [kolS(), kolS()] }] };
+    const g0 = geo(c0), e0 = g0.msgs.filter((m) => /^(Dno|Wieniec|Dno \/ wieniec) \d.* nie mieści się na arkuszu/.test(m.text));
+    ok('szafa 3000: dno i wieniec za długie — błąd z przyciskiem „dnowienstyk”', e0.length >= 1 && e0.every((m) => /\|dnowienstyk/.test(m.text)), e0.map((m) => m.text).join(' / ').slice(0, 300));
+    // to, co robi przycisk: dwie przegrody na styku, osobne dna i wience
+    const c1 = JSON.parse(JSON.stringify(c0)); Object.assign(c1.levels[0].cols[0], { przegrodaPodw: true, przegrodaOsobneDna: true, przegrodaOsobneWience: true });
+    const g1 = geo(c1), kaw = g1.panels.filter((q) => /^(Dno|Wieniec) (lewe|prawe|lewy|prawy)$/.test(q.name)), pr = g1.panels.filter((q) => /^Przegroda/.test(q.name));
+    ok('po kliknięciu: dwie przegrody na styku, dno i wieniec z dwóch kawałków, bez błędów arkusza',
+      kaw.length >= 4 && pr.reduce((a, q) => a + q.qty, 0) === 2 && !g1.msgs.some((m) => /nie mieści się na arkuszu/.test(m.text)),
+      JSON.stringify({ kaw: kaw.map((q) => [q.name, q.a, q.qty]), pr: pr.map((q) => [q.name, q.a, q.b, q.qty]) })); }
   /* plecy HDF za duze na arkusz (2026-11-22, #43): przycisk „Plecy z kawałków” — plecy w kolumnach, laczenia na przegrodach i polkach */
   { const kolP = () => ({ kind: 'doors', w: null, doors: 1, shelfTargets: [null, null], drazki: [], drawers: [], doorWidths: [], mirrors: [], handles: [], hinges: [], rails: [] });
     const c0 = { name: 'S', W: 2400, H: 2500, D: 600, back: 'hdf', plinth: { on: false }, legs: { on: false }, levels: [{ h: null, cols: [kolP(), kolP()] }] };
@@ -1712,6 +1723,102 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
     const fP = (gB.panels || []).find((q) => /^Przegroda pionowa/.test(q.name));
     ok('formatka „Przegroda pionowa” krótsza o cofnięcie', fP && fP.b === gB.dividerDepth, JSON.stringify(fP && { a: fP.a, b: fP.b }));
     ok('za drzwiami przesuwnymi — większe z dwóch cofnięć', G.przegrodyCofOf({ __przegrodyCof: 80, przegrodyCof: 18 }) === 80 && G.przegrodyCofOf({ przegrodyCof: 30 }) === 30); }
+  /* blat biurka wiszacego na mimosrodach (uzytkownik 2026-11-23): trzpienie od spodu wienca, mimosrody w bokach i przegrodach
+     34 mm pod ich gora; bez konfirmatow wienca (lby na wierzchu blatu); w zamowieniu „Mimośród z trzpieniem”, kolejnosc montazu */
+  { const tp = G.makeFromTemplate('biurko-wiszace'), c0 = tp.cab || tp, g = geo(c0);
+    const plan = (n) => (g.drillPlan || []).filter((p) => p.panel === n || p.panel.endsWith(n)).flatMap((p) => p.rows || []);
+    const wien = plan('Wieniec'), bokL = plan('Bok lewy'), prz = (g.drillPlan || []).filter((p) => /Przegroda/.test(p.panel)).flatMap((p) => p.rows || []);
+    const mimoBok = bokL.find((r) => /^mimośród — wieniec/.test(r.kind)), mimoPrz = prz.filter((r) => /^mimośród — wieniec/.test(r.kind));
+    const hw = (g.hardware || []).find((h) => h.name === 'Mimośród z trzpieniem');
+    const nPrzeg = (g.dividers || []).length;
+    ok('biurko wiszące: wieniec bez konfirmatów do boków i przegród, trzpienie od spodu (boki + przegrody)', !wien.some((r) => /^konfirmat/.test(r.kind))
+      && wien.filter((r) => /^trzpień mimośrodu/.test(r.kind)).length === 2 + nPrzeg, JSON.stringify(wien.map((r) => r.kind)));
+    ok('mimośród w boku 34 mm pod górą boku, w przegrodach też', !!mimoBok && mimoBok.ys.length === 1 && Math.abs(mimoBok.ys[0] - (c0.H - 18 - 34 - (g.leftY0 || 0))) <= 1 && mimoPrz.length === nPrzeg,
+      JSON.stringify({ bok: mimoBok && mimoBok.ys, prz: mimoPrz.map((r) => r.ys), H: c0.H }));
+    ok('zamówienie: „Mimośród z trzpieniem” na każde złącze blatu, kolejność montażu w notatce', !!hw && hw.qty >= 2 * 2 + nPrzeg * 2
+      && (g.montazKolejnosc || []).some((m) => /Blat \(wieniec\) na mimośrodach/.test(m)), JSON.stringify({ hw: hw && hw.qty, nPrzeg })); }
+  /* przeciaganie biurka wiszacego (uzytkownik 2026-11-23: „nie przyciąga się do półek szafki obok i nie pokazuje tej linii”): szafa
+     obok z szufladami na dole i polka miedzy poziomami tuz pod biurkiem — lapala tylko polki w kolumnach, polki miedzy poziomami nie */
+  { const tp = G.makeFromTemplate('biurko-wiszace'), bw = JSON.parse(JSON.stringify(tp.cab || tp)); bw.dolGorny = 700;
+    const szafa = { name: 'Szafa', W: 600, H: 2500, D: 600, plinth: { on: true, height: 100, mode: 'under', setback: 0 },
+      levels: [{ h: 530, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 'auto', front: null, handle: true }, { h: 'auto', front: null, handle: true }] }] },
+        { h: null, cols: [{ kind: 'doors', w: null, doors: 1, shelfTargets: [null, null] }] }] };
+    const mt = () => JSON.parse(JSON.stringify(G.defaultMaterials));
+    const pr = { name: 'T', active: 1, prices: {}, runs: [{ id: 'c1', name: 'Ściana', mountY: 0, H: 2500, D: 600, gap: 0, tier: 'dolny' }],
+      items: [{ cab: G.migrateCab(szafa), mat: mt(), runId: 'c1', offset: 0 }, { cab: G.migrateCab(bw), mat: mt(), runId: 'c1', offset: 0 }] };
+    const l = G.makLapaniePion(pr, 1).filter((q) => /półki między poziomami/.test(q.opis)).map((q) => q.dy).sort((a, b) => a - b);
+    ok('biurko wiszące 700 nad podłogą przy szafie (cokół 100, szuflady 530): łapie półkę między poziomami — dół −52 (spód) i −34 (wierzch)',
+      l.includes(-52) && l.includes(-34), JSON.stringify(l)); }
+  /* szuflady push to open (uzytkownik 2026-11-23): V-BOX 3D Slim PUSH II i DXP-3D Synchro PUSH (katalog Sevroll 2026 s. 38–43, 114–117) */
+  { const szaf = (sys) => ({ name: 'P', W: 600, H: 720, D: 560, levels: [{ h: null, cols: [{ kind: 'drawers', w: null,
+      drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: false, push: true, ...(sys === 'dxs' ? { system: 'dxs' } : {}) })) }] }] });
+    const gV = geo(szaf('vbox')), gD = geo(szaf('dxs'));
+    const hw = (g, re) => (g.hardware || []).filter((h) => re.test(h.name));
+    const pV = hw(gV, /^Prowadnica Sevroll V-BOX 3D Slim PUSH II/), drz = hw(gV, /^Drążek synchronizujący/)[0], moc = hw(gV, /^Mocowania drążka/)[0];
+    const LW = 600 - 2 * 18;
+    ok('V-BOX PUSH II: prowadnice PUSH II, drążek synchronizujący na szufladę (LS = LW − 106), 2 kpl. mocowań na drążek',
+      pV.reduce((a, h) => a + h.qty, 0) === 3 && drz && drz.qty === 3 && new RegExp(`LS ${LW - 106} mm`).test(drz.spec) && moc && moc.qty === 6,
+      JSON.stringify({ pV: pV.map((h) => h.name + ' ' + h.qty), drz, moc }));
+    const pD = hw(gD, /^Prowadnica Sevroll DXP-3D Synchro PUSH/), nlD = (gD.levels[0].cols[0].drawers || []).map((d) => d.nl);
+    ok('DXP-3D PUSH: komplet na szufladę, NL najwyżej 550 (korpus 560 dałby 550 i tak; bez DXS-3D w zamówieniu)', pD.reduce((a, h) => a + h.qty, 0) === 3
+      && nlD.every((v) => v <= 550) && !hw(gD, /^Prowadnica Sevroll DXS-3D/).length, JSON.stringify({ pD: pD.map((h) => h.spec), nlD }));
+    const gD6 = geo({ ...szaf('dxs'), D: 650 }), nl6 = (gD6.levels[0].cols[0].drawers || []).map((d) => d.nl);
+    ok('DXP-3D PUSH w korpusie 650: NL 550 (DXS-3D dałby 600)', nl6.every((v) => v === 550), JSON.stringify(nl6));
+    ok('uwaga: front min. 4 mm od korpusu, drążek w zamówieniu', (gV.msgs || []).some((m) => /push to open.*co najmniej 4 mm/.test(m.text)), '');
+    // drazek tylko przy froncie szerszym niz 500 mm (uzytkownik 2026-11-23); ceny 11 zl / 10 zl
+    const gV5 = geo({ ...szaf('vbox'), W: 500 }), drz5 = hw(gV5, /^Drążek synchronizujący/);
+    ok('V-BOX PUSH II w szafce 500 (front ok. 496): bez drążka; w 600 — z drążkiem; ceny drążek 11, mocowania 10',
+      !drz5.length && hw(gV5, /^Prowadnica Sevroll V-BOX 3D Slim PUSH II/).length > 0 && G.hwDefaultPrice({ name: 'Drążek synchronizujący V-BOX 3D Slim PUSH II' }) === 11
+      && G.hwDefaultPrice({ name: 'Mocowania drążka synchronizującego V-BOX PUSH II' }) === 10, JSON.stringify(drz5));
+  }
+  /* Blum TANDEMBOX antaro (uzytkownik 2026-11-23): boki jak V-BOX, tabele Blum; dno i tyl z 18 — stale ostrzezenie o frezie do 16 */
+  { const szT = (ext = {}, D = 560) => ({ name: 'T', W: 600, H: 720, D, levels: [{ h: null, cols: [{ kind: 'drawers', w: null,
+      drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: true, system: 'tbx', ...ext })) }] }] });
+    const g = geo(szT()), ds = g.levels[0].cols[0].drawers, LW = 600 - 36;
+    const err = (g.msgs || []).filter((m) => m.level === 'error').map((m) => m.text.slice(0, 120));
+    ok('TANDEMBOX: 3 szuflady bez błędów, system tbx, wysokości z tabeli Blum, NL z listy 270–600', !err.length && ds.length === 3 && ds.every((d) => d.system === 'tbx'
+      && [79.5, 95.5, 127.5, 176, 208].includes(d.hClass) && [270, 300, 350, 400, 450, 500, 550, 600].includes(d.nl)), JSON.stringify({ err, h: ds.map((d) => [d.hClass, d.nl]) }));
+    const hw = (g.hardware || []).filter((h) => h.name === 'Szuflada Blum TANDEMBOX antaro');
+    ok('zamówienie: „Szuflada Blum TANDEMBOX antaro” 3 kpl. (litera, NL, 30 kg — 578), cena 205; bez prowadnic V-BOX', hw.reduce((a, h) => a + h.qty, 0) === 3
+      && hw.every((h) => /^[NMKCD], NL \d+ mm, 30 kg \(prowadnica 578\)/.test(h.spec)) && G.hwDefaultPrice({ name: 'Szuflada Blum TANDEMBOX antaro' }) === 205
+      && !(g.hardware || []).some((h) => /^Prowadnica Sevroll V-BOX/.test(h.name)), JSON.stringify(hw.map((h) => h.spec)));
+    const dno = (g.panels || []).filter((p) => /dno szuflady/i.test(p.name)), tyl = (g.panels || []).filter((p) => /tył szuflady/i.test(p.name));
+    const d0 = ds[0];
+    ok('formatki: dno LW − 75 × NL − 24, tył LW − 87 × (69 / 84 / 116 / 167 / 199)', dno.length > 0 && tyl.length > 0
+      && dno.some((p) => [p.a, p.b].includes(LW - 75) && [p.a, p.b].includes(d0.nl - 24))
+      && tyl.some((p) => [p.a, p.b].includes(LW - 87) && [69, 84, 116, 167, 199].some((v) => [p.a, p.b].includes(v))),
+      JSON.stringify({ dno: dno.map((p) => [p.a, p.b]), tyl: tyl.map((p) => [p.a, p.b]), nl: d0.nl }));
+    const st = (g.msgs || []).find((m) => m.staly);
+    ok('stałe ostrzeżenie: frez dna i tyłu z 18 do 16 mm; w notatce montażowej', !!st && /frezuj do 16 mm/.test(st.text) && (g.montazKolejnosc || []).some((m) => /TANDEMBOX.*16 mm/.test(m)),
+      st && st.text.slice(0, 120));
+    const plan = (g.drillPlan || []).flatMap((p) => p.rows || []).map((r) => r.note || '');
+    ok('plan wierceń: prowadnica Blum 578, oś 33 mm, otwory z tabeli', plan.some((n) => /prowadnicy Blum 578, NL \d+; wkręty w osi 33 mm/.test(n)), plan.find((n) => /Blum/.test(n)) || '');
+    const g65 = geo(szT({ nosnosc: 65 }, 700)), d65 = g65.levels[0].cols[0].drawers;
+    ok('TANDEMBOX 65 kg w korpusie 700: NL 650, bez wysokości N, w zamówieniu 576', d65.every((d) => d.nl === 650 && d.hClass !== 79.5 && d.nosnosc === 65)
+      && (g65.hardware || []).some((h) => h.name === 'Szuflada Blum TANDEMBOX antaro' && /65 kg \(prowadnica 576\)/.test(h.spec)), JSON.stringify(d65.map((d) => [d.hClass, d.nl, d.nosnosc])));
+    const gN = geo(szT({ h: 79.5, nl: 300 })), eN = (gN.msgs || []).find((m) => /TANDEMBOX N ma prowadnice tylko NL/.test(m.text));
+    ok('TANDEMBOX N z NL 300: błąd z przyciskiem NL 400', !!eN && /\|fixnl:0:0:\d:400$/.test(eN.text), eN && eN.text);
+    /* Blum TANDEM 17–19 (560F): jak DXS-3D z liczbami Blum (uzytkownik 2026-11-23) */
+    const szD = (ext = {}) => ({ name: 'T', W: 600, H: 720, D: 560, levels: [{ h: null, cols: [{ kind: 'drawers', w: null,
+      drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: true, system: 'dxs', ...ext })) }] }] });
+    const gT = geo(szD({ blum: true })), gX = geo(szD()), dT = gT.levels[0].cols[0].drawers, dX = gX.levels[0].cols[0].drawers;
+    const errT = (gT.msgs || []).filter((m) => m.level === 'error').map((m) => m.text.slice(0, 100));
+    ok('TANDEM: bez błędów; najniższa prowadnica na dnie (DXS-3D 2 mm wyżej), spód dna 27,5 nad szyną, boki 12 pod dnem', !errT.length
+      && dT.every((d) => d.blum && d.dnoOd === 27.5 && d.bokOd === 15.5) && Math.abs((dX[0].rail.y0 - dT[0].rail.y0) - 2) < 0.01, JSON.stringify({ errT, y: [dT[0].rail.y0, dX[0].rail.y0], d: dT.map((d) => [d.dnoOd, d.bokOd]) }));
+    const hT = (gT.hardware || []).filter((h) => h.name === 'Prowadnica Blum TANDEM 560F');
+    ok('TANDEM w zamówieniu: „Prowadnica Blum TANDEM 560F” 3 kpl., 100 zł; bez kompletów DXS-3D', hT.reduce((a, h) => a + h.qty, 0) === 3
+      && G.hwDefaultPrice({ name: 'Prowadnica Blum TANDEM 560F' }) === 100 && !(gT.hardware || []).some((h) => /^Prowadnica Sevroll DXS/.test(h.name)), JSON.stringify(hT.map((h) => h.spec)));
+    const planT = (gT.drillPlan || []).flatMap((p) => p.rows || []).map((r) => r.note || '');
+    ok('plan wierceń TANDEM: kreska spodu prowadnicy, wkręty w osi 37, pierwszy 37 od przodu', planT.some((n) => /prowadnicy Blum TANDEM 560F, NL \d+; wkręty w osi 37 mm nad kreską, pierwszy 37 mm/.test(n)), planT.find((n) => /TANDEM/.test(n)) || '');
+    ok('wybór „TANDEM”: DXS z flagą blum, NL z listy TANDEM (270 zostaje, DXS-3D go nie ma); powrót do DXS-3D zdejmuje flagę',
+      G.ustawSystemIPush({ h: 'auto', nl: 270 }, 'tandem').blum === true && G.ustawSystemIPush({ h: 'auto', nl: 270 }, 'tandem').nl === 270
+      && G.ustawSystemIPush({ h: 'auto', nl: 270 }, 'tandem').system === 'dxs' && !('blum' in G.ustawSystemIPush({ system: 'dxs', blum: true, nl: 270 }, 'dxs'))
+      && G.ustawSystemIPush({ system: 'dxs', blum: true, nl: 270 }, 'dxs').nl === null);
+    ok('wybór „TANDEMBOX 65 kg” / powrót do V-BOX czyści nośność', G.ustawSystemIPush({ h: 'auto', handle: true }, 'tbx-65').nosnosc === 65
+      && G.ustawSystemIPush({ system: 'tbx', nosnosc: 65, nl: 650 }, 'tbx').nl === null && !('nosnosc' in G.ustawSystemIPush({ system: 'tbx', nosnosc: 65 }, 'vbox')));
+    ok('przełączenie wersji: push — bez uchwytu, NL 600 DXS → puste przy DXP; powrót — uchwyt wraca',
+      G.ustawPushSzuflady({ system: 'dxs', nl: 600, handle: true }, true).nl === null && G.ustawPushSzuflady({ system: 'dxs', nl: 600, handle: true }, true).handle === false
+      && G.ustawPushSzuflady({ push: true, handle: false }, false).handle === true && !('push' in G.ustawPushSzuflady({ push: true }, false))); }
   { const mk = (sp) => G.sprzetCiagu({ sprzetCiagu: { typ: 'maskownica', ...sp } }).kolor;
     ok('maskownica: domyślnie jak korpus, stare „front” bez wyboru — korpus, wybrane — fronty', mk({}) === 'korpus' && mk({ kolor: 'front' }) === 'korpus' && mk({ kolor: 'front', kolorWyb: true }) === 'front'); }
   ok('kolor na rysunku: jak fronty / jak korpus', G.kolorCokolu(cab(), M0) === '#112233' && G.kolorCokolu(cab({ kolor: 'korpus' }), M0) === '#ddccbb');
