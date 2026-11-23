@@ -129,13 +129,17 @@ for (let i = 0; i < p2.items.length; i++) {
 for (const room of (proj.rooms || [{ id: null, name: '' }])) {
   // pomieszczenie szafki jak w aplikacji (`roomOfItem`): z jej ciagu, wolnostojaca — z `roomId`
   const pokoj = (it) => { const r = it.runId && (p2.runs || []).find((x) => x.id === it.runId); return (r ? r.roomId : it.roomId) || (proj.rooms || [])[0]?.id || 'p1'; };
-  const idx = p2.items.findIndex((it) => !room.id || pokoj(it) === room.id);
-  if (idx < 0) continue;
+  const wPokoju = p2.items.map((it, i) => [it, i]).filter(([it]) => !room.id || pokoj(it) === room.id);
+  if (!wPokoju.length) continue;
+  // aktywna szafka z ciagu — przy jednym ciagu w pomieszczeniu nie ma widoku „Zabudowa”, wtedy caly ciag („Ciąg”)
+  const idx = (wPokoju.find(([it]) => it.runId) || wPokoju[0])[1];
   await wczytaj({ ...p2, active: idx });
-  if (!(await page.getByRole('button', { name: 'Zabudowa', exact: true }).count())) { console.log(`  (pomieszczenie „${room.name}” bez widoku Zabudowa — szafki wolnostojace)`); continue; }
-  const sol = await bryly('Zabudowa', false);
+  const jest = async (n) => (await page.getByRole('button', { name: n, exact: true }).count()) > 0;
+  const zakres = (await jest('Zabudowa')) ? 'Zabudowa' : (await jest('Ciąg')) ? 'Ciąg' : null;
+  if (!zakres) { console.log(`  (pomieszczenie „${room.name}”: same szafki wolnostojace — sprawdzone pojedynczo)`); continue; }
+  const sol = await bryly(zakres, false);
   const n = nachodzi(sol);
-  wynik(`zabudowa${room.name ? ' „' + room.name + '”' : ''}: nic na nic nie nachodzi`, !n.length, n.slice(0, 4).join('; '));
+  wynik(`${zakres === 'Ciąg' ? 'ciąg' : 'zabudowa'}${room.name ? ' „' + room.name + '”' : ''}: nic na nic nie nachodzi (${sol.length} brył)`, !n.length, n.slice(0, 4).join('; '));
 }
 wynik('strona bez błędów', !errors.length, errors.join('; ').slice(0, 300));
 await b.close();
