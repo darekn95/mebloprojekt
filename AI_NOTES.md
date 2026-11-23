@@ -1447,3 +1447,10 @@ drukowany = URL + 4), instrukcje montazu (4 str., same obrazki), „Standard app
 Boki: 83,6 (M), 115,6 (K); przestrzen, gora boku, formatki — w `instrukcje/SPIS.md`. Polozenia spodu dna i dolu boku nad prowadnica — BRAK.
 Model CAD / rysunki 2D sa tylko w portalu Blum E-SERVICES (konto: e-services.blum.com/registration; gosc — „basic services”) — bez dostepu.
 [AI-TODO] TANDEMBOX antaro / TANDEM — czeka na decyzje uzytkownika (konto Blum i rysunek / pomiar szuflady / przyjac jak V-BOX).
+[AI-INFO] 2026-11-23 TANDEMBOX antaro — ustalenia z uzytkownikiem: spod dna 9 mm nad dolem szyny (rysunek „Front installation dimensions”,
+„9” — uzytkownik), tyl z plyty na tej samej wysokosci (gora tylu 1,5–2,5 pod gora boku — zgadza sie z rysunkami); najmniejszy front =
+gora boku (N 79,5 / M 95,5 / K 127,5; C, D — gora tylu 9 + 167 / 199); wysokosci N, M, K, C, D; nosnosc 30 kg (578, NL 270–600) albo
+65 kg (576, NL 450–650) do wyboru przy kazdej szufladzie od NL 450; cena kompletu 205 zl. Otwory prowadnicy 578 (od przodu, os 33 nad
+dolem szyny): 270 — 19, 37, 115, 133; 300 / 350 — 19, 37, 133, 165; 400 — 19, 37, 165, 229; 450 — 19, 37, 165, 261, 293; 500–600 — 19, 37,
+261, 293 (19 opcjonalny) — odczyt z `instrukcje/blum/Blum_TANDEMBOX_otwory-prowadnic_s7.png`. Plyta 18 na dno / tyl — w dokumentach Blum
+tylko 16 mm (szukane: dokument planowania, katalog 2024–2025, standard applications, wyszukiwarka) — pytanie do uzytkownika.
