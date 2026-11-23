@@ -658,6 +658,9 @@ const DEFAULT_HW_PRICES = {
   "Prowadnica Sevroll DXS-3D Synchro": 50,
   // DXP-3D PUSH — na razie jak DXS-3D (2026-11-23, do potwierdzenia przez uzytkownika)
   "Prowadnica Sevroll DXP-3D Synchro PUSH": 50,
+  // drazek synchronizujacy V-BOX PUSH II (szt.) i mocowania (kpl.) — ceny uzytkownika (2026-11-23)
+  "Drążek synchronizujący V-BOX 3D Slim PUSH II": 11,
+  "Mocowania drążka synchronizującego V-BOX PUSH II": 10,
   // GTV EM-SBL na styku blatow w rogu (uzytkownik 2026-10-16)
   "Złącze do blatów śrubowe": 9,
   // odbojnik tip-on przy drzwiach bez uchwytu — cena uzytkownika (2026-10-25)
@@ -1265,7 +1268,7 @@ const systemSzuflady = (d) => (d && d.system === "dxs" ? "dxs" : "vbox");
    katalog Sevroll 2026 s. 38–43) albo DXP-3D Synchro PUSH zamiast DXS-3D (NL 250–550, 30 kg, szczelina przed frontem 3–5 mm, s. 114–117) */
 const DXP_NL_MAX = 550;
 const PUSH_SZCZELINA = 4;
-const VBOX_PUSH = { drazek: "223774", drazekL: 1100, mocowania: "223852", lsOdLW: 106 };
+const VBOX_PUSH = { drazek: "223774", drazekL: 1100, mocowania: "223852", lsOdLW: 106, drazekOdFrontu: 500 };
 const pushSzuflady = (d) => !!(d && d.push);
 const nlSystemu = (sys, push) => (sys === "dxs" ? (push ? DXS.nl.filter((v) => v <= DXP_NL_MAX) : DXS.nl) : VBOX.nl);
 const nazwaSystemu = (d) => (systemSzuflady(d) === "dxs" ? (pushSzuflady(d) ? "DXP-3D PUSH" : "DXS-3D") : pushSzuflady(d) ? "V-BOX PUSH II" : "V-BOX");
@@ -4077,7 +4080,8 @@ function computeGeoLiczy(cab, mat, ctx) {
   const klapy = [];   // podnosniki klapy do okuc i uwag
   const slideGroups = new Map();
   const relingGroups = new Map();   // NL → ile szuflad z relingiem bocznym
-  const drazkiPush = [];        // V-BOX PUSH II — dlugosci drazkow synchronizujacych (LS)
+  const drazkiPush = [];        // V-BOX PUSH II — dlugosci drazkow synchronizujacych (LS), fronty > 500 mm
+  let pushVbox = 0;             // V-BOX PUSH II — wszystkie szuflady (uwaga)
   const dxsGroups = new Map();      // NL → ile kompletow DXS-3D
   let dxsKonf = 0;                  // konfirmaty skrzynek DXS (dno i tyl przez boki)
   const supportParts = [];
@@ -5620,8 +5624,10 @@ function computeGeoLiczy(cab, mat, ctx) {
           const kk = `${hClass}|${nl}|${pushSzuflady(d) ? 1 : 0}`;
           slideGroups.set(kk, (slideGroups.get(kk) || 0) + 1);
         }
-        // V-BOX PUSH II: drazek synchronizujacy na szuflade, LS = LW − 106 (katalog Sevroll 2026 s. 43)
-        if (pushSzuflady(d)) drazkiPush.push(Math.round(LW - VBOX_PUSH.lsOdLW));
+        /* V-BOX PUSH II: drazek synchronizujacy, LS = LW − 106 (katalog Sevroll 2026 s. 43) — przy froncie szerszym niz 500 mm
+           (uzytkownik 2026-11-23: „ostatnio już przy 550 był problem, także powyżej 500”); wezsze — bez drazka */
+        if (pushSzuflady(d) && dsx1 - dsx0 > VBOX_PUSH.drazekOdFrontu) drazkiPush.push(Math.round(LW - VBOX_PUSH.lsOdLW));
+        if (pushSzuflady(d)) pushVbox += 1;
         if (d.reling) relingGroups.set(nl ?? 0, (relingGroups.get(nl ?? 0) || 0) + 1);
 
         const minF = VBOX.minFront[dMode][hClass];
@@ -8231,9 +8237,9 @@ function computeGeoLiczy(cab, mat, ctx) {
   }
   {
     const nDxp = [...dxsGroups.entries()].filter(([kD]) => /\|1$/.test(kD)).reduce((a2, [, q]) => a2 + q, 0);
-    if (drazkiPush.length || nDxp) add("info", `Szuflady push to open (${[drazkiPush.length ? `V-BOX PUSH II ${drazkiPush.length}` : "", nDxp ? `DXP-3D ${nDxp}` : ""].filter(Boolean).join(", ")}): `
-      + `front ${drazkiPush.length ? `co najmniej ${PUSH_SZCZELINA} mm` : "3–5 mm"} od korpusu (regulacja głębokości prowadnicy) — inaczej nie da się go nacisnąć`
-      + `${drazkiPush.length ? `; drążek synchronizujący na każdą szufladę V-BOX PUSH II, docięty na LW − ${VBOX_PUSH.lsOdLW} mm (w zamówieniu)` : ""}. Uchwyt niepotrzebny.`);
+    if (pushVbox || nDxp) add("info", `Szuflady push to open (${[pushVbox ? `V-BOX PUSH II ${pushVbox}` : "", nDxp ? `DXP-3D ${nDxp}` : ""].filter(Boolean).join(", ")}): `
+      + `front ${pushVbox ? `co najmniej ${PUSH_SZCZELINA} mm` : "3–5 mm"} od korpusu (regulacja głębokości prowadnicy) — inaczej nie da się go nacisnąć`
+      + `${drazkiPush.length ? `; przy frontach szerszych niż ${VBOX_PUSH.drazekOdFrontu} mm drążek synchronizujący (${drazkiPush.length} szt.), docięty na LW − ${VBOX_PUSH.lsOdLW} mm — w zamówieniu` : ""}. Uchwyt niepotrzebny.`);
   }
   // DXS-3D: komplet na szuflade (prowadnice, zaczepy przednie i tylne)
   [...dxsGroups.entries()].sort((a2, b2) => parseInt(a2[0], 10) - parseInt(b2[0], 10)).forEach(([kD, qty]) => {

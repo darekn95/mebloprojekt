@@ -1436,7 +1436,8 @@ miala kreske-symbol, ktora wygladala jak uchwyt — zdjeta we wszystkich widokac
 stojacym wzmocnieniu w rogu) zamkniety — zgodne z zalozeniem (BLEDY 2026-11-23).
 [CLAUDE-CHANGE] 2026-11-23: blat biurka wiszacego na mimosrodach (`wienMimo`), przeciaganie biurka lapie polke miedzy poziomami
 (`makLapaniePion` + `sepShelves`), szuflady push to open (V-BOX PUSH II, DXP-3D PUSH — `drawer.push`), instrukcje Blum w `instrukcje/blum/`.
-[CHECK] Do potwierdzenia z uzytkownikiem: drazek synchronizujacy V-BOX PUSH II przy kazdej szufladzie (dzis tak); cena DXP-3D PUSH = DXS
-(50 zl), V-BOX PUSH II = V-BOX, drazek i mocowania bez ceny; szczelina 4 mm przed frontem tylko w uwadze (rysunek bez niej).
+[AI-INFO] Odpowiedzi uzytkownika 2026-11-23: tip-on przy cichym domyku — nie (zostaja uchwyt / front ponizej dna / PUSH); drazek
+synchronizujacy V-BOX PUSH II przy froncie > 500 mm; ceny: drazek 11 zl, mocowania 10 zl (DXP = DXS 50 zl, PUSH II = V-BOX — zostaja);
+Blum — OBA systemy (najpierw TANDEMBOX antaro, potem TANDEM). Szczelina 4 mm przed frontem tylko w uwadze (rysunek bez niej).
 [AI-TODO] Blum TANDEMBOX antaro / TANDEM jako nowe systemy szuflad — po decyzji uzytkownika (kolejnosc, wysokosci, ceny).
 

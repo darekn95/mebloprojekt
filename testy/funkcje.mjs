@@ -1765,6 +1765,11 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
     const gD6 = geo({ ...szaf('dxs'), D: 650 }), nl6 = (gD6.levels[0].cols[0].drawers || []).map((d) => d.nl);
     ok('DXP-3D PUSH w korpusie 650: NL 550 (DXS-3D dałby 600)', nl6.every((v) => v === 550), JSON.stringify(nl6));
     ok('uwaga: front min. 4 mm od korpusu, drążek w zamówieniu', (gV.msgs || []).some((m) => /push to open.*co najmniej 4 mm/.test(m.text)), '');
+    // drazek tylko przy froncie szerszym niz 500 mm (uzytkownik 2026-11-23); ceny 11 zl / 10 zl
+    const gV5 = geo({ ...szaf('vbox'), W: 500 }), drz5 = hw(gV5, /^Drążek synchronizujący/);
+    ok('V-BOX PUSH II w szafce 500 (front ok. 496): bez drążka; w 600 — z drążkiem; ceny drążek 11, mocowania 10',
+      !drz5.length && hw(gV5, /^Prowadnica Sevroll V-BOX 3D Slim PUSH II/).length > 0 && G.hwDefaultPrice({ name: 'Drążek synchronizujący V-BOX 3D Slim PUSH II' }) === 11
+      && G.hwDefaultPrice({ name: 'Mocowania drążka synchronizującego V-BOX PUSH II' }) === 10, JSON.stringify(drz5));
     ok('przełączenie wersji: push — bez uchwytu, NL 600 DXS → puste przy DXP; powrót — uchwyt wraca',
       G.ustawPushSzuflady({ system: 'dxs', nl: 600, handle: true }, true).nl === null && G.ustawPushSzuflady({ system: 'dxs', nl: 600, handle: true }, true).handle === false
       && G.ustawPushSzuflady({ push: true, handle: false }, false).handle === true && !('push' in G.ustawPushSzuflady({ push: true }, false))); }
