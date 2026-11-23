@@ -381,6 +381,8 @@ p = await czekaj("p.items.filter((i) => i.cab.sprzetCiagu && i.cab.sprzetCiagu.t
   ok('maskownice z obu stron biurka: wysokość do góry szafy (wyższej z sąsiadek), bez cech biurka', m.every((q) => q.cab.H >= sz.cab.H && !q.cab.biurkoWiszace && !q.cab.dnoCof), JSON.stringify(m.map((q) => q.cab.H))); }
 await ust(`p.active = p.items.findIndex((i) => i.cab.biurkoWiszace);`);
 { const t = await uwagi(), b = page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Front 10 mm poniżej dna' });
+  // push to open (2026-11-23): trzeci przycisk — prowadnice w wersji PUSH
+  ok('uwagi biurka: też „Push to open (prowadnice PUSH)”', (await page.locator('[data-el="makieta-uwagi"] button', { hasText: 'Push to open' }).count()) === 1);
   ok('uwagi: fronty bez chwytu — „Dodaj uchwyty” / „Front 10 mm poniżej dna”; wisi 500 (blat 750); maskownice są', /nie ma za co chwycić/.test(t) && (await b.count()) === 1 && /wisi 500 mm nad podłogą \(blat 750 mm\)/.test(t) && !/nie ma maskownic/.test(t), t.slice(0, 400));
   await b.click(); }
 p = await czekaj("p.items.find((i) => i.cab.biurkoWiszace).cab.frontPodDnem === 10");

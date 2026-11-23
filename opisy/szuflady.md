@@ -142,6 +142,12 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 
 - **Obliczenia**: `computeGeo`, kolumna szuflad (gałąź V-BOX, `szufladaDxs`); stałe `VBOX`, `DXS`, `SZUFLADA_ZAPAS`, `BACK_CLEAR`, `MIN_DOCIECIE`.
 - **Interfejs**: `setColKind`, `addDrawer`, `setDrawerSystem`; przyciski w `NoteLine` (`fixh`, `fixnl`, `fixback`, `szufmniej`, `szufdxs`, `szufsys`, `reling…`, `zwieksz60`) i `przyciskiSzuflad` w `App`.
+- **Push to open** (użytkownik 2026-11-23; katalog Sevroll 2026 w `instrukcje/`): przy szufladzie wybór „V-BOX PUSH II” albo „DXP-3D PUSH”
+  (`drawer.push`, `ustawPushSzuflady` — zdejmuje uchwyt, przy DXP NL > 550 wraca na auto; powrót do cichego domyku oddaje uchwyt).
+  Skrzynka i wiercenia jak w wersji z cichym domykiem; DXP-3D tylko NL 250–550 (`nlSystemu(sys, push)`). Zamówienie: prowadnice PUSH II /
+  DXP-3D PUSH, przy V-BOX PUSH II drążek synchronizujący (LS = LW − 106 z 1100 mm) i 2 kpl. mocowań na drążek. Uwaga: front co najmniej
+  4 mm od korpusu (DXP 3–5 mm) — w programie tylko w uwadze, rysunek bez szczeliny. Osobnego odbojnika tip-on przy szufladach nie ma:
+  z cichym domykiem nie działa („miękki domyk **lub** system PUSH”).
 - **Rysunki i 3D** (uchwyt tylko przy `d.handle`, bez uchwytu front bez żadnego znaku — `palce`): `szufladaOdCzola`, `szufladaZGory`, `szerWnetrzaSzuflady`; bryła 3D `skrzynkaBryly`, wysuw `wysuwSzuflady`.
   - Z przodu (otwarte) skrzynka DXS ma boki, tył i dno; przy uchwycie frezowanym skrzynkę widać też przy zamkniętych frontach (pod frezem).
   - Z przodu (otwarte) front szuflady zostaje przygaszony; przy szufladzie wewnętrznej za drzwiami przesuwnymi pod nim widać prowadnice także bez „wyposażenia” (`SkrzynkaZaPrzesuwnymi`, 2026-11-17). Prowadnice V-BOX z przodu od `dr.bx0` / `dr.bx1` (bok zabudowy, wspornik fixu).

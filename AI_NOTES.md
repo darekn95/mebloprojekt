@@ -1434,3 +1434,9 @@ w tym „Projekt bez nazwy” — szafy, biurko wiszace, maskownice) bez bledow,
 maja je w ciagu) — sprawdzal zabudowe tylko pierwszego pomieszczenia. Zgloszenie uzytkownika (zrzut biurka): szuflada bez uchwytu
 miala kreske-symbol, ktora wygladala jak uchwyt — zdjeta we wszystkich widokach (`palce`). [CHECK] narożnika L (zawias −14 mm przy
 stojacym wzmocnieniu w rogu) zamkniety — zgodne z zalozeniem (BLEDY 2026-11-23).
+[CLAUDE-CHANGE] 2026-11-23: blat biurka wiszacego na mimosrodach (`wienMimo`), przeciaganie biurka lapie polke miedzy poziomami
+(`makLapaniePion` + `sepShelves`), szuflady push to open (V-BOX PUSH II, DXP-3D PUSH — `drawer.push`), instrukcje Blum w `instrukcje/blum/`.
+[CHECK] Do potwierdzenia z uzytkownikiem: drazek synchronizujacy V-BOX PUSH II przy kazdej szufladzie (dzis tak); cena DXP-3D PUSH = DXS
+(50 zl), V-BOX PUSH II = V-BOX, drazek i mocowania bez ceny; szczelina 4 mm przed frontem tylko w uwadze (rysunek bez niej).
+[AI-TODO] Blum TANDEMBOX antaro / TANDEM jako nowe systemy szuflad — po decyzji uzytkownika (kolejnosc, wysokosci, ceny).
+

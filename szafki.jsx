@@ -656,6 +656,8 @@ const DEFAULT_HW_PRICES = {
   "Reling boczny do szuflady": 30,
   // komplet prowadnic DXS-3D na szuflade, bez wzgledu na NL (uzytkownik 2026-10-21)
   "Prowadnica Sevroll DXS-3D Synchro": 50,
+  // DXP-3D PUSH — na razie jak DXS-3D (2026-11-23, do potwierdzenia przez uzytkownika)
+  "Prowadnica Sevroll DXP-3D Synchro PUSH": 50,
   // GTV EM-SBL na styku blatow w rogu (uzytkownik 2026-10-16)
   "Złącze do blatów śrubowe": 9,
   // odbojnik tip-on przy drzwiach bez uchwytu — cena uzytkownika (2026-10-25)
@@ -1258,7 +1260,15 @@ const dxsBokOd = DXS.dnoOd - DXS.bokPodDnem; // spod prowadnicy → dol boku (17
 const SYSTEMY_SZUFLAD = { vbox: "V-BOX", dxs: "DXS-3D" };
 const systemSzuflady = (d) => (d && d.system === "dxs" ? "dxs" : "vbox");
 // lista dlugosci prowadnic systemu
-const nlSystemu = (sys) => (sys === "dxs" ? DXS.nl : VBOX.nl);
+/* Wersja PUSH (push to open, uzytkownik 2026-11-23: „szuflady push to open … dodać do listy prowadnic”): `drawer.push` — V-BOX 3D Slim
+   PUSH II (te same wymiary skrzynki, front min. 4 mm od korpusu, drazek synchronizujacy LS = LW − 106 z 1100 mm + 2 kpl. mocowan —
+   katalog Sevroll 2026 s. 38–43) albo DXP-3D Synchro PUSH zamiast DXS-3D (NL 250–550, 30 kg, szczelina przed frontem 3–5 mm, s. 114–117) */
+const DXP_NL_MAX = 550;
+const PUSH_SZCZELINA = 4;
+const VBOX_PUSH = { drazek: "223774", drazekL: 1100, mocowania: "223852", lsOdLW: 106 };
+const pushSzuflady = (d) => !!(d && d.push);
+const nlSystemu = (sys, push) => (sys === "dxs" ? (push ? DXS.nl.filter((v) => v <= DXP_NL_MAX) : DXS.nl) : VBOX.nl);
+const nazwaSystemu = (d) => (systemSzuflady(d) === "dxs" ? (pushSzuflady(d) ? "DXP-3D PUSH" : "DXS-3D") : pushSzuflady(d) ? "V-BOX PUSH II" : "V-BOX");
 
 /* polska odmiana liczebnikow: 1 blad, 2-4 bledy, 5+ bledow (12-14 tez bledow) */
 const plural = (n, one, few, many) => {
@@ -2775,6 +2785,13 @@ const naSystemSzuflad = (cab, sys) => {
     levels: (cab.levels || []).map((lv) => ({ ...lv, cols: (lv.cols || []).map((c) => (c.kind === "drawers" ? zmien(c)
       : zbiorySzuflad(c).length ? { ...c, segmenty: c.segmenty.map((sg) => (sg && sg.kind === "drawers" ? zmien(sg) : sg)) } : c)) })) };
 };
+/* wersja push (2026-11-23): bez uchwytu (push to open), DXP-3D — NL do 550; powrot do cichego domyku oddaje uchwyt */
+const ustawPushSzuflady = (d, push) => {
+  const out = { ...d };
+  if (push) { out.push = true; out.handle = false; if (systemSzuflady(out) === "dxs" && out.nl != null && Number(out.nl) > DXP_NL_MAX) out.nl = null; }
+  else if (out.push) { delete out.push; out.handle = true; }
+  return out;
+};
 const zmienSystemSzuflady = (d, sys) => {
   const out = { ...d, h: "auto", backHeight: null, tallBack: false };
   if (sys === "dxs") { out.system = "dxs"; out.reling = false; out.bezRelingu = false; } else delete out.system;
@@ -4060,6 +4077,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   const klapy = [];   // podnosniki klapy do okuc i uwag
   const slideGroups = new Map();
   const relingGroups = new Map();   // NL → ile szuflad z relingiem bocznym
+  const drazkiPush = [];        // V-BOX PUSH II — dlugosci drazkow synchronizujacych (LS)
   const dxsGroups = new Map();      // NL → ile kompletow DXS-3D
   let dxsKonf = 0;                  // konfirmaty skrzynek DXS (dno i tyl przez boki)
   const supportParts = [];
@@ -5284,19 +5302,21 @@ function computeGeoLiczy(cab, mat, ctx) {
          ponizej prowadnicy” (jak V-BOX). Front zawsze siega do spodu prowadnicy,
          czyli 27 mm ponizej spodu dna — zakrywa ja (uzytkownik 2026-10-21). */
       const szufladaDxs = (d, i, fhFull, fh) => {
+        // DXP-3D (PUSH) — prowadnice tylko do NL 550 (katalog Sevroll 2026 s. 116)
+        const NLD = nlSystemu("dxs", !!d.push);
         const where2 = `${where}, szuflada ${i + 1}`;
         const railY0 = i === 0 ? Math.max(lv.y0 + DXS.nadDnem, y, dCof ? spz.szyna ?? -Infinity : -Infinity)
           : y + Math.max(0, Math.round(num(g.underRail) ?? 5));
         const bokY0 = railY0 + dxsBokOd;
         const tbok = ts; // boki, dno i tyl z plyty polek
-        const colMaxDxs = maxNlFor(dsx0, dsx1, dInsetExtra, lv.y0, lv.y1, DXS.nl);
+        const colMaxDxs = maxNlFor(dsx0, dsx1, dInsetExtra, lv.y0, lv.y1, NLD);
         const wPasie = (r) => r.x1 > dsx0 && r.x0 < dsx1;
         // co jest nad szuflada z przodu: front wyzej albo gora swiatla / wzmocnienie przy licu
         // (fix u gory stoi w otworze przed skrzynka — jak front wyzej)
         const sufitPrzod = i + 1 < ds.length ? y + fhFull + drGap
           : Math.min(lv.y1, topFixGeo ? topFixGeo.y : Infinity,
             ...(c.rails || []).filter((r) => r.y0 >= railY0 && r.z0 < 100 && wPasie(r)).map((r) => r.y0));
-        const droga = (colMaxDxs ?? Math.max(...DXS.nl)) + DXS.zaTylem + dInsetExtra;
+        const droga = (colMaxDxs ?? Math.max(...NLD)) + DXS.zaTylem + dInsetExtra;
         const sufitDla = (gora) => (i + 1 < ds.length ? sufitPrzod
           : Math.min(sufitPrzod, ...(c.rails || []).filter((r) => r.y0 >= gora && r.z0 < droga && wPasie(r)).map((r) => r.y0)));
         /* Bok „auto”: najwyzszy z luzem SZUFLADA_ZAPAS pod tym, co nad droga
@@ -5322,21 +5342,21 @@ function computeGeoLiczy(cab, mat, ctx) {
         // wzmocnienie przy plecach na wysokosci skrzynki skraca prowadnice (4 mm luzu)
         const zaSkrzynka = (c.rails || []).filter((r) => r.z0 > 0 && r.y0 < goraBoku && r.y1 > railY0 && wPasie(r));
         const limTyl = zaSkrzynka.length ? Math.min(...zaSkrzynka.map((r) => r.z0)) : null;
-        const nlTyl = limTyl === null ? null : ([...DXS.nl].reverse().find((v) => v + 4 + dInsetExtra <= limTyl) ?? null);
+        const nlTyl = limTyl === null ? null : ([...NLD].reverse().find((v) => v + 4 + dInsetExtra <= limTyl) ?? null);
         const nlMaxTu = nlPrzedElementem(limTyl === null ? colMaxDxs
-          : colMaxDxs === null ? null : nlTyl === null ? null : Math.min(colMaxDxs, nlTyl), DXS.nl, railY0 + Math.min(dxsBokOd, DXS.dnoOd), goraBoku);
+          : colMaxDxs === null ? null : nlTyl === null ? null : Math.min(colMaxDxs, nlTyl), NLD, railY0 + Math.min(dxsBokOd, DXS.dnoOd), goraBoku);
         const nlAuto = num(rawCol.nl) ?? nlMaxTu;
         const nl = num(d.nl) ?? nlAuto;
         if (colMaxDxs === null)
-          add("error", `${where2}: korpus za płytki na najkrótszą prowadnicę DXS-3D (potrzeba ${DXS.nl[0] + DXS.zaTylem + dInsetExtra} mm).`);
-        if (nl !== null && !DXS.nl.includes(nl)) {
-          const zTabeli = [...DXS.nl].reverse().find((v) => v <= nl && (nlMaxTu == null || v <= nlMaxTu));
-          add("error", `${where2}: prowadnice NL ${nl} — nie ma takiej długości w DXS-3D (${DXS.nl.join(", ")}).`
+          add("error", `${where2}: korpus za płytki na najkrótszą prowadnicę DXS-3D (potrzeba ${NLD[0] + DXS.zaTylem + dInsetExtra} mm).`);
+        if (nl !== null && !NLD.includes(nl)) {
+          const zTabeli = [...NLD].reverse().find((v) => v <= nl && (nlMaxTu == null || v <= nlMaxTu));
+          add("error", `${where2}: prowadnice NL ${nl} — nie ma takiej długości w DXS-3D (${NLD.join(", ")}).`
             + (zTabeli ? `|fixnl:${lv.i}:${j}:${i}:${zTabeli}` : ""));
         }
         if (nl === null && colMaxDxs !== null && limTyl !== null)
           add("error", `${where2}: nie mieści się żadna prowadnica — wzmocnienie przy plecach stoi ${fmt(limTyl)} mm od lica, `
-            + `a najkrótsza NL ${DXS.nl[0]} potrzebuje ${fmt(DXS.nl[0] + 4 + dInsetExtra)} mm. Odsuń wzmocnienie dalej, przenieś je wyżej albo przesuń szufladę.`);
+            + `a najkrótsza NL ${NLD[0]} potrzebuje ${fmt(NLD[0] + 4 + dInsetExtra)} mm. Odsuń wzmocnienie dalej, przenieś je wyżej albo przesuń szufladę.`);
         if (nl !== null && limTyl !== null && nl + 4 + dInsetExtra > limTyl)
           add("error", `${where2}: NL ${nl} wjeżdża tyłem skrzynki we wzmocnienie przy plecach — do niego jest ${fmt(limTyl)} mm od lica.`
             + (nlTyl ? `|fixnl:${lv.i}:${j}:${i}:${nlTyl}` : ""));
@@ -5344,7 +5364,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           const need = nl + DXS.zaTylem + dInsetExtra;
           const glWnetrza = carcassDepth - backIntrusion;
           if (need > glWnetrza) {
-            const fitNl = [...DXS.nl].reverse().find((v) => v + DXS.zaTylem + dInsetExtra <= glWnetrza && (colMaxDxs == null || v <= colMaxDxs));
+            const fitNl = [...NLD].reverse().find((v) => v + DXS.zaTylem + dInsetExtra <= glWnetrza && (colMaxDxs == null || v <= colMaxDxs));
             add("error", `${where2}: NL ${nl} wymaga ${need} mm głębokości do pleców (DXS-3D: NL + 3${dInsetExtra ? " + grubość frontu" : ""}), a jest ${fmt(glWnetrza)} mm.`
               + (fitNl ? `|fixnl:${lv.i}:${j}:${i}:${fitNl}` : ""));
           } else if (nlMaxTu && nl < nlMaxTu)
@@ -5399,7 +5419,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         if (![16, 18, 19].includes(Math.round(tbok)))
           add("warn", `${where2}: DXS-3D jest na skrzynkę z płyty 16–19 mm (instrukcja liczy 18), a płyta półek ma ${fmt(tbok)} mm — sprawdź szerokość skrzynki.`);
         const dr = {
-          i, y, h: fh, x: dsx0, w: dsx1 - dsx0, system: "dxs", hClass: hBok, nl, fixed: num(d.front) !== null, bx0, bx1, zabudowa: lwP ? { L: lwP.L, R: lwP.R } : null,
+          i, y, h: fh, x: dsx0, w: dsx1 - dsx0, system: "dxs", push: pushSzuflady(d), hClass: hBok, nl, fixed: num(d.front) !== null, bx0, bx1, zabudowa: lwP ? { L: lwP.L, R: lwP.R } : null,
           // od spodu prowadnicy: dol boku, spod dna i tylu, gora boku — wspolne dla rysunkow i kontroli
           bokOd: dxsBokOd, dnoOd: DXS.dnoOd, gora: dxsBokOd + hBok,
           rail: { y0: railY0, h: hBok, d: nl || 0, setback: dInsetExtra },
@@ -5431,7 +5451,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           drawerParts.push({ kind: "dno", a: skw, b: dnoGl });
           drawerParts.push({ kind: "tyl", a: skw, b: backH, zw60: zwT });
           drawerParts.push({ kind: "przod", a: skw, b: przodH });
-          dxsGroups.set(nl, (dxsGroups.get(nl) || 0) + 1);
+          { const kD = `${nl}|${pushSzuflady(d) ? 1 : 0}`; dxsGroups.set(kD, (dxsGroups.get(kD) || 0) + 1); }
           // konfirmaty przez boki od zewnatrz: dno wzdluz boku, tyl i przod na ich wysokosci,
           // z obu stron; przod w czolo dna — od lica przodu (zakrywa je front)
           dxsKonf += 2 * (konfirmatyNaStyk(dnoGl) + konfirmatyNaStyk(backH) + konfirmatyNaStyk(przodH)) + DXS.konfPrzodDno;
@@ -5554,7 +5574,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           hClass,
           nl,
           fixed: num(d.front) !== null,
-          system: "vbox", bx0, bx1, zabudowa: lwP ? { L: lwP.L, R: lwP.R } : null,
+          system: "vbox", push: pushSzuflady(d), bx0, bx1, zabudowa: lwP ? { L: lwP.L, R: lwP.R } : null,
           // od dolu prowadnicy: dol boku, spod dna i tylu, gora boku — wspolne z DXS dla rysunkow
           bokOd: vboxOdProw(hClass), dnoOd: vboxDno(hClass), gora: vboxGora(hClass),
           // prowadnica: 21 mm szerokosci przy kazdym boku, wysokosc z boku
@@ -5597,9 +5617,11 @@ function computeGeoLiczy(cab, mat, ctx) {
         });
         if (d.handle !== false) handleCount += 1;
         if (nl !== null) {
-          const kk = `${hClass}|${nl}`;
+          const kk = `${hClass}|${nl}|${pushSzuflady(d) ? 1 : 0}`;
           slideGroups.set(kk, (slideGroups.get(kk) || 0) + 1);
         }
+        // V-BOX PUSH II: drazek synchronizujacy na szuflade, LS = LW − 106 (katalog Sevroll 2026 s. 43)
+        if (pushSzuflady(d)) drazkiPush.push(Math.round(LW - VBOX_PUSH.lsOdLW));
         if (d.reling) relingGroups.set(nl ?? 0, (relingGroups.get(nl ?? 0) || 0) + 1);
 
         const minF = VBOX.minFront[dMode][hClass];
@@ -7021,7 +7043,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             const gap = Math.round(freeDepth - drNl); // luz miedzy tylem szuflady a zabudowa
             if (gap >= 4) return; // w porzadku
             // tylko dlugosci z katalogu systemu tej szuflady — DXS nie ma NL 270 (audyt GPT N110)
-            const maxNlFit = [...nlSystemu(dr.system)].reverse().find((v) => v + 4 <= freeDepth);
+            const maxNlFit = [...nlSystemu(dr.system, dr.push)].reverse().find((v) => v + 4 <= freeDepth);
             const act = maxNlFit ? `|fixnl:${lv.i}:${jSzuflady(c, dr)}:${dr.i}:${maxNlFit}` : "";
             const gdzie = `${dr.seg ? gdziePoziomKol(lv.i, c.j, dr.seg.nr) : `Poziom ${lv.i + 1}, kolumna ${c.j + 1}`}, szuflada ${dr.i + 1}`;
             if (gap < 0) {
@@ -7177,7 +7199,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             const gap = Math.round(freeDepth - drNl);
             if (gap >= 4) return;
             // tylko dlugosci z katalogu systemu tej szuflady — DXS nie ma NL 270 (audyt GPT N110)
-            const maxNlFit = [...nlSystemu(dr.system)].reverse().find((v) => v + 4 <= freeDepth);
+            const maxNlFit = [...nlSystemu(dr.system, dr.push)].reverse().find((v) => v + 4 <= freeDepth);
             const act = maxNlFit ? `|fixnl:${lv.i}:${jSzuflady(c, dr)}:${dr.i}:${maxNlFit}` : "";
             const gdzie = `${dr.seg ? gdziePoziomKol(lv.i, c.j, dr.seg.nr) : `Poziom ${lv.i + 1}, kolumna ${c.j + 1}`}, szuflada ${dr.i + 1}`;
             const co = ob.mask ? "zabudowy elementu" : "elementu";
@@ -8190,19 +8212,36 @@ function computeGeoLiczy(cab, mat, ctx) {
   /* --- produkty do zamowienia --- */
   const hardware = [];
   slideGroups.forEach((qty, k) => {
-    const [h, nl] = k.split("|");
+    const [h, nl, push] = k.split("|");
     hardware.push({
-      name: `Prowadnica Sevroll V-BOX 3D Slim ${h} mm`,
-      spec: `NL ${nl} mm`,
+      name: `Prowadnica Sevroll V-BOX 3D Slim${push === "1" ? " PUSH II" : ""} ${h} mm`,
+      spec: `NL ${nl} mm${push === "1" ? " — push to open (bez uchwytu), front min. 4 mm od korpusu" : ""}`,
       qty,
       unit: "kpl.",
     });
   });
+  /* V-BOX PUSH II: drazek synchronizujacy (1100 mm, ciety na LS = LW − 106) i 2 kpl. mocowan na drazek — sprzedawane osobno
+     (katalog Sevroll 2026 s. 40, 43) */
+  if (drazkiPush.length) {
+    hardware.push({ name: "Drążek synchronizujący V-BOX 3D Slim PUSH II", use: "szuflady push to open",
+      spec: `ind. ${VBOX_PUSH.drazek}, ${VBOX_PUSH.drazekL} mm — dociąć: LS ${[...new Set(drazkiPush)].sort((a2, b2) => a2 - b2).map((v) => `${fmt(v)} mm`).join(", ")} (LW − ${VBOX_PUSH.lsOdLW})`,
+      qty: drazkiPush.length, unit: "szt." });
+    hardware.push({ name: "Mocowania drążka synchronizującego V-BOX PUSH II", use: "2 kpl. na drążek",
+      spec: `ind. ${VBOX_PUSH.mocowania}`, qty: 2 * drazkiPush.length, unit: "kpl." });
+  }
+  {
+    const nDxp = [...dxsGroups.entries()].filter(([kD]) => /\|1$/.test(kD)).reduce((a2, [, q]) => a2 + q, 0);
+    if (drazkiPush.length || nDxp) add("info", `Szuflady push to open (${[drazkiPush.length ? `V-BOX PUSH II ${drazkiPush.length}` : "", nDxp ? `DXP-3D ${nDxp}` : ""].filter(Boolean).join(", ")}): `
+      + `front ${drazkiPush.length ? `co najmniej ${PUSH_SZCZELINA} mm` : "3–5 mm"} od korpusu (regulacja głębokości prowadnicy) — inaczej nie da się go nacisnąć`
+      + `${drazkiPush.length ? `; drążek synchronizujący na każdą szufladę V-BOX PUSH II, docięty na LW − ${VBOX_PUSH.lsOdLW} mm (w zamówieniu)` : ""}. Uchwyt niepotrzebny.`);
+  }
   // DXS-3D: komplet na szuflade (prowadnice, zaczepy przednie i tylne)
-  [...dxsGroups.entries()].sort((a2, b2) => a2[0] - b2[0]).forEach(([nlD, qty]) => {
+  [...dxsGroups.entries()].sort((a2, b2) => parseInt(a2[0], 10) - parseInt(b2[0], 10)).forEach(([kD, qty]) => {
+    const [nlS, push] = kD.split("|"), nlD = Number(nlS);
     hardware.push({
-      name: "Prowadnica Sevroll DXS-3D Synchro",
-      spec: `NL ${nlD} mm${DXS.indeks[nlD] ? `, ind. ${DXS.indeks[nlD]}` : ""} — komplet na szufladę`,
+      name: push === "1" ? "Prowadnica Sevroll DXP-3D Synchro PUSH" : "Prowadnica Sevroll DXS-3D Synchro",
+      spec: push === "1" ? `NL ${nlD} mm — push to open (bez uchwytu), szczelina przed frontem 3–5 mm; komplet na szufladę`
+        : `NL ${nlD} mm${DXS.indeks[nlD] ? `, ind. ${DXS.indeks[nlD]}` : ""} — komplet na szufladę`,
       qty,
       unit: "kpl.",
     });
@@ -17018,6 +17057,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action === "przesdziel")
       return { label: "Podziel na dwie szafy", run: () => runFix && runFix(action) };
     if (action === "bwuchwyt") return { label: "Dodaj uchwyty", run: () => runFix && runFix(action) };
+    if (action === "bwpush") return { label: "Push to open (prowadnice PUSH)", run: () => runFix && runFix(action) };
     if (action === "hdfkorpus") return { label: "HDF jak korpus", run: () => runFix && runFix(action) };
     if (action === "hdfzostaw") return { label: "Zostaw HDF tak jak jest", run: () => runFix && runFix(action) };
     if (action.startsWith("bwfront:")) return { label: `Front ${fmt(Number(action.split(":")[1]))} mm poniżej dna`, run: () => runFix && runFix(action) };
@@ -22953,8 +22993,10 @@ const biurkoWiszaceMsgs = (project, i) => {
   const it = project.items[i]; if (!it || !it.cab.biurkoWiszace || it.cab.sprzetCiagu) return [];
   const c = it.cab, out = [], nazwa = (c.name || "").trim() || "biurko wiszące";
   const szuflady = (c.levels || []).flatMap((lv) => (lv.cols || []).flatMap((k) => (k.kind === "drawers" ? k.drawers || [] : [])));
-  const bezChwytu = !(Number(c.frontPodDnem) > 0) && szuflady.length && szuflady.every((d) => d.handle === false);
-  if (bezChwytu) out.push({ level: "warn", text: `„${nazwa}”: fronty szuflad równo ze spodem dna — nie ma za co chwycić. Dodaj uchwyty, tip-on albo obniż front 10 mm poniżej dna (szuflady push to open dojdą później).|bwuchwyt|bwfront:10` });
+  const bezChwytu = !(Number(c.frontPodDnem) > 0) && szuflady.length && szuflady.every((d) => d.handle === false && !d.push);
+  /* uzytkownik 2026-11-23: przy cichym domyku uchwyt albo front ponizej dna; otwieranie dotykiem — prowadnice w wersji PUSH (odbojnik
+     tip-on jak przy drzwiach nie dziala z cichym domykiem: domyk wciaga szuflade, nie ma czym jej nacisnac — „miękki domyk lub system PUSH”) */
+  if (bezChwytu) out.push({ level: "warn", text: `„${nazwa}”: fronty szuflad równo ze spodem dna — nie ma za co chwycić. Dodaj uchwyty, obniż front 10 mm poniżej dna albo daj szuflady push to open (prowadnice w wersji PUSH — zwykły odbojnik tip-on nie działa z cichym domykiem).|bwuchwyt|bwfront:10|bwpush` });
   const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null, L = run ? runItems(project, run.id) : [], k = L.findIndex((q) => q.i === i);
   const mask = [L[k - 1], L[k + 1]].filter((q) => q && maskownicaCab(q.it.cab)).length;
   out.push({ level: "info", text: `„${nazwa}” — wisi ${fmt(dolGornej(c))} mm nad podłogą (blat ${fmt(dolGornej(c) + Math.round(c.H))} mm). Blat to wieniec skrzynki, na bokach — na mimośrody (trzpienie od spodu blatu, mimośrody w bokach i przegrodach od środka skrzynki; plan wierceń i kolejność w notatce montażowej). `
@@ -28934,9 +28976,10 @@ export default function App() {
       return;
     }
     // biurko wiszace (2026-11-22): uchwyty szuflad / front ponizej dna / szuflady po ok. 700 mm — aktywna szafka
-    if (action === "bwuchwyt" || action.startsWith("bwfront:") || action === "bwkol") {
+    if (action === "bwuchwyt" || action === "bwpush" || action.startsWith("bwfront:") || action === "bwkol") {
       setProject((p) => { const it = p.items[p.active]; if (!it || !it.cab.biurkoWiszace) return p; const cab = JSON.parse(JSON.stringify(it.cab));
         if (action === "bwuchwyt") (cab.levels || []).forEach((lv) => (lv.cols || []).forEach((k) => (k.drawers || []).forEach((d) => { d.handle = true; })));
+        else if (action === "bwpush") (cab.levels || []).forEach((lv) => (lv.cols || []).forEach((k) => { if (k.drawers) k.drawers = k.drawers.map((d) => ustawPushSzuflady(d, true)); }));
         else if (action === "bwkol") cab.levels = [{ ...(cab.levels[0] || {}), h: null, cols: biurkoWiszaceKolumny(cab.W) }];
         else cab.frontPodDnem = Math.max(0, Math.round(Number(action.split(":")[1]) || 0));
         const items = p.items.slice(); items[p.active] = { ...it, cab }; return { ...p, items }; });
@@ -29351,9 +29394,10 @@ export default function App() {
     const sys = systemKontekstu(project, project.active, kolumnaW(L, i, j));
     kolumnaW(L, i, j).drawers.push(sys === "dxs" ? { ...newDrawer(), system: "dxs" } : newDrawer());
   });
-  const setDrawerSystem = (i, j, k, sys) => editLevels((L) => {
-    const col = kolumnaW(L, i, j);
-    col.drawers[k] = zmienSystemSzuflady(col.drawers[k], sys);
+  // „vbox” / „dxs”, z „-push” — wersja push to open (2026-11-23): bez uchwytu, prowadnice PUSH
+  const setDrawerSystem = (i, j, k, wybor) => editLevels((L) => {
+    const col = kolumnaW(L, i, j), sys = /^dxs/.test(wybor) ? "dxs" : "vbox", push = /-push$/.test(wybor);
+    col.drawers[k] = ustawPushSzuflady(systemSzuflady(col.drawers[k]) === sys ? col.drawers[k] : zmienSystemSzuflady(col.drawers[k], sys), push);
   });
   const removeDrawer = (i, j, k) => editLevels((L) => kolumnaW(L, i, j).drawers.splice(k, 1));
   const addRail = (i, j) => editLevels((L) => { if (!Array.isArray(kolumnaW(L, i, j).rails)) kolumnaW(L, i, j).rails = []; kolumnaW(L, i, j).rails.push(newRail()); });
@@ -29905,7 +29949,7 @@ export default function App() {
                                 className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none">
                                 <option value="">auto {geo.maxNL ? `(${geo.maxNL})` : ""}</option>
                                 {/* dlugosci systemow szuflad tej kolumny (V-BOX ma tez 270, DXS-3D nie) */}
-                                {[...new Set((c.drawers || []).flatMap((dr) => nlSystemu(dr.system)))].sort((a, b) => a - b).map((v) => (
+                                {[...new Set((c.drawers || []).flatMap((dr) => nlSystemu(dr.system, dr.push)))].sort((a, b) => a - b).map((v) => (
                                   <option key={v} value={v}>{v}</option>
                                 ))}
                               </select>
@@ -29921,12 +29965,14 @@ export default function App() {
                               <div key={dr.i} className="flex flex-wrap items-center gap-2" data-el="szuflada-wiersz">
                                 {/* system szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty
                                     na prowadnicach dolnego montazu) — uzytkownik 2026-10-21 */}
-                                <select value={dr.system || "vbox"} data-el="szuflada-system"
-                                  title="System szuflady: V-BOX — boki metalowe, DXS-3D — skrzynka z płyty na prowadnicach pod dnem"
+                                <select value={`${dr.system || "vbox"}${dr.push ? "-push" : ""}`} data-el="szuflada-system"
+                                  title="System szuflady: V-BOX — boki metalowe, DXS-3D — skrzynka z płyty na prowadnicach pod dnem; PUSH — push to open (bez uchwytu): V-BOX 3D Slim PUSH II, DXP-3D Synchro (NL do 550)"
                                   onChange={(e) => setDrawerSystem(lv.i, jA, dr.i, e.target.value)}
                                   className="rounded border border-stone-300 bg-white px-1 py-1 text-[11px] focus:border-teal-600 focus:outline-none">
                                   <option value="vbox">V-BOX</option>
+                                  <option value="vbox-push">V-BOX PUSH II</option>
                                   <option value="dxs">DXS-3D</option>
+                                  <option value="dxs-push">DXP-3D PUSH</option>
                                 </select>
                                 {dr.system === "dxs" ? (
                                   <label className="flex shrink-0 items-center gap-1" data-el="dxs-bok"
@@ -30019,7 +30065,7 @@ export default function App() {
                                   onChange={(e) => setDrawerNL(lv.i, jA, dr.i, e.target.value)}
                                   className="shrink-0 rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none">
                                   <option value="">NL {dr.nl ?? c.nl ?? "auto"}</option>
-                                  {nlSystemu(dr.system).map((v) => (
+                                  {nlSystemu(dr.system, dr.push).map((v) => (
                                     <option key={v} value={v}>{v}</option>
                                   ))}
                                 </select>

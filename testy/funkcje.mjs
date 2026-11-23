@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion', 'ustawPushSzuflady'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1749,6 +1749,25 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
     const l = G.makLapaniePion(pr, 1).filter((q) => /półki między poziomami/.test(q.opis)).map((q) => q.dy).sort((a, b) => a - b);
     ok('biurko wiszące 700 nad podłogą przy szafie (cokół 100, szuflady 530): łapie półkę między poziomami — dół −52 (spód) i −34 (wierzch)',
       l.includes(-52) && l.includes(-34), JSON.stringify(l)); }
+  /* szuflady push to open (uzytkownik 2026-11-23): V-BOX 3D Slim PUSH II i DXP-3D Synchro PUSH (katalog Sevroll 2026 s. 38–43, 114–117) */
+  { const szaf = (sys) => ({ name: 'P', W: 600, H: 720, D: 560, levels: [{ h: null, cols: [{ kind: 'drawers', w: null,
+      drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: false, push: true, ...(sys === 'dxs' ? { system: 'dxs' } : {}) })) }] }] });
+    const gV = geo(szaf('vbox')), gD = geo(szaf('dxs'));
+    const hw = (g, re) => (g.hardware || []).filter((h) => re.test(h.name));
+    const pV = hw(gV, /^Prowadnica Sevroll V-BOX 3D Slim PUSH II/), drz = hw(gV, /^Drążek synchronizujący/)[0], moc = hw(gV, /^Mocowania drążka/)[0];
+    const LW = 600 - 2 * 18;
+    ok('V-BOX PUSH II: prowadnice PUSH II, drążek synchronizujący na szufladę (LS = LW − 106), 2 kpl. mocowań na drążek',
+      pV.reduce((a, h) => a + h.qty, 0) === 3 && drz && drz.qty === 3 && new RegExp(`LS ${LW - 106} mm`).test(drz.spec) && moc && moc.qty === 6,
+      JSON.stringify({ pV: pV.map((h) => h.name + ' ' + h.qty), drz, moc }));
+    const pD = hw(gD, /^Prowadnica Sevroll DXP-3D Synchro PUSH/), nlD = (gD.levels[0].cols[0].drawers || []).map((d) => d.nl);
+    ok('DXP-3D PUSH: komplet na szufladę, NL najwyżej 550 (korpus 560 dałby 550 i tak; bez DXS-3D w zamówieniu)', pD.reduce((a, h) => a + h.qty, 0) === 3
+      && nlD.every((v) => v <= 550) && !hw(gD, /^Prowadnica Sevroll DXS-3D/).length, JSON.stringify({ pD: pD.map((h) => h.spec), nlD }));
+    const gD6 = geo({ ...szaf('dxs'), D: 650 }), nl6 = (gD6.levels[0].cols[0].drawers || []).map((d) => d.nl);
+    ok('DXP-3D PUSH w korpusie 650: NL 550 (DXS-3D dałby 600)', nl6.every((v) => v === 550), JSON.stringify(nl6));
+    ok('uwaga: front min. 4 mm od korpusu, drążek w zamówieniu', (gV.msgs || []).some((m) => /push to open.*co najmniej 4 mm/.test(m.text)), '');
+    ok('przełączenie wersji: push — bez uchwytu, NL 600 DXS → puste przy DXP; powrót — uchwyt wraca',
+      G.ustawPushSzuflady({ system: 'dxs', nl: 600, handle: true }, true).nl === null && G.ustawPushSzuflady({ system: 'dxs', nl: 600, handle: true }, true).handle === false
+      && G.ustawPushSzuflady({ push: true, handle: false }, false).handle === true && !('push' in G.ustawPushSzuflady({ push: true }, false))); }
   { const mk = (sp) => G.sprzetCiagu({ sprzetCiagu: { typ: 'maskownica', ...sp } }).kolor;
     ok('maskownica: domyślnie jak korpus, stare „front” bez wyboru — korpus, wybrane — fronty', mk({}) === 'korpus' && mk({ kolor: 'front' }) === 'korpus' && mk({ kolor: 'front', kolorWyb: true }) === 'front'); }
   ok('kolor na rysunku: jak fronty / jak korpus', G.kolorCokolu(cab(), M0) === '#112233' && G.kolorCokolu(cab({ kolor: 'korpus' }), M0) === '#ddccbb');

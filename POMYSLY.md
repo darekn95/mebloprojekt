@@ -37,6 +37,12 @@ Wynik: kuchnia, salon, szafy na zawiasach — bez błędów, nic nie nachodzi, f
 
 ### Szuflady Blum — co znalazłem (2026-11-22, #45; użytkownik: „poszukaj sam”, wdrożenie później — „nowe typy szuflad na później”)
 
+**2026-11-23** (użytkownik: „push to open i tandem z bluma trzeba wyszukać i dodać do listy prowadnic … vbox i dxs też są chyba w wersjach na
+cichy domyk i push to open”): instrukcje Blum pobrane do `instrukcje/blum/` (TANDEMBOX antaro — zamawianie i planowanie, TANDEM, TANDEM
+z TIP-ON; opis w `instrukcje/SPIS.md`). Wersje PUSH obecnych systemów Sevroll były już w katalogu w `instrukcje/` i **są w programie**
+(V-BOX PUSH II, DXP-3D PUSH — wybór przy szufladzie). Blum — do wdrożenia jako osobne systemy (formatki skrzynki, NL, wiercenia, rysunki,
+audyt szuflad); kolejność i ceny do ustalenia z użytkownikiem.
+
 Do pobrania i dopisania do `instrukcje/` (karty z katalogu Blum 2024–2025), zanim wejdą do programu:
 - **TANDEMBOX antaro** (skrzynka ze stalowymi bokami, jak V-BOX): wymiary z dna i tyłu z płyty 16 mm od światła szafki LW —
   tył z płyty LW − 87, dno LW − 75 × (NL − 24), tył stalowy NL − 22; wysokość tyłu zależy od wysokości skrzynki (np. 199 mm przy D,
