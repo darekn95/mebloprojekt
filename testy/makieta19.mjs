@@ -517,6 +517,21 @@ console.log('== 2026-11-22: „Wczytaj plik” — pytanie: nowe pomieszczenie /
     && new Set(idsC).size === idsC.length && (po.rooms || []).some((r) => /^Pokój dziecka/.test(r.name)) && po.items.slice(przed.items.length).every((it) => !it.runId || idsC.includes(it.runId)),
     JSON.stringify({ rooms: po.rooms, runs: idsC, n: po.items.length })); }
 
+// system szuflad w makiecie szczegolowej (uzytkownik 2026-11-23: wybor systemu „też w szczegółowej”) — wszystkie szuflady kolumny
+console.log('\n== system szuflad w szczegółowej ==');
+{ await start(`p.items[p.active].cab.levels = [{ h: null, cols: [{ kind: 'drawers', w: null, drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: true })) }] }];`);
+  await page.evaluate(() => localStorage.setItem('mp-tryb', 'szczegolowa')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1000);
+  await zakl('szuflady');
+  const b = page.locator('[data-el="mak-szuf-system"]');
+  ok('zakładka Szuflady: „prowadnice” — V-BOX / V-BOX PUSH II / DXS-3D / DXP-3D PUSH, zaznaczony V-BOX', (await b.count()) === 4
+    && (await page.locator('[data-el="mak-szuf-system"][data-v="vbox"]').getAttribute('aria-pressed').catch(() => null)) !== 'false', String(await b.count()));
+  await page.locator('[data-el="mak-szuf-system"][data-v="vbox-push"]').click();
+  let p = await czekaj("p.items[p.active].cab.levels[0].cols[0].drawers.every((d) => d.push && d.handle === false)");
+  ok('„V-BOX PUSH II” — wszystkie szuflady kolumny push, bez uchwytu', p.items[p.active].cab.levels[0].cols[0].drawers.every((d) => d.push && d.handle === false));
+  await page.locator('[data-el="mak-szuf-system"][data-v="dxs"]').click();
+  p = await czekaj("p.items[p.active].cab.levels[0].cols[0].drawers.every((d) => d.system === 'dxs' && !d.push)");
+  ok('„DXS-3D” — skrzynka z płyty, cichy domyk (uchwyt wraca)', p.items[p.active].cab.levels[0].cols[0].drawers.every((d) => d.system === 'dxs' && !d.push && d.handle === true)); }
+
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
 await browser.close();

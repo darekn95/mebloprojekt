@@ -142,7 +142,8 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 
 - **Obliczenia**: `computeGeo`, kolumna szuflad (gałąź V-BOX, `szufladaDxs`); stałe `VBOX`, `DXS`, `SZUFLADA_ZAPAS`, `BACK_CLEAR`, `MIN_DOCIECIE`.
 - **Interfejs**: `setColKind`, `addDrawer`, `setDrawerSystem`; przyciski w `NoteLine` (`fixh`, `fixnl`, `fixback`, `szufmniej`, `szufdxs`, `szufsys`, `reling…`, `zwieksz60`) i `przyciskiSzuflad` w `App`.
-- **Push to open** (użytkownik 2026-11-23; katalog Sevroll 2026 w `instrukcje/`): przy szufladzie wybór „V-BOX PUSH II” albo „DXP-3D PUSH”
+- **Push to open** (użytkownik 2026-11-23; katalog Sevroll 2026 w `instrukcje/`): przy szufladzie (technicznie) albo dla całej kolumny
+  w makiecie szczegółowej (zakładka Szuflady, „prowadnice”, `mak-szuf-system`) wybór „V-BOX PUSH II” albo „DXP-3D PUSH”
   (`drawer.push`, `ustawPushSzuflady` — zdejmuje uchwyt, przy DXP NL > 550 wraca na auto; powrót do cichego domyku oddaje uchwyt).
   Skrzynka i wiercenia jak w wersji z cichym domykiem; DXP-3D tylko NL 250–550 (`nlSystemu(sys, push)`). Zamówienie: prowadnice PUSH II /
   DXP-3D PUSH, przy V-BOX PUSH II z frontem szerszym niż 500 mm drążek synchronizujący (LS = LW − 106 z 1100 mm, 11 zł) i 2 kpl. mocowań

@@ -2805,6 +2805,12 @@ const naSystemSzuflad = (cab, sys) => {
     levels: (cab.levels || []).map((lv) => ({ ...lv, cols: (lv.cols || []).map((c) => (c.kind === "drawers" ? zmien(c)
       : zbiorySzuflad(c).length ? { ...c, segmenty: c.segmenty.map((sg) => (sg && sg.kind === "drawers" ? zmien(sg) : sg)) } : c)) })) };
 };
+/* lista systemow do wyboru (karta szuflady w technicznym, makieta szczegolowa) — wartosc `vbox` / `dxs`, z „-push” — wersja PUSH */
+const MAK_SYSTEMY_SZUF = [["vbox", "V-BOX"], ["vbox-push", "V-BOX PUSH II"], ["dxs", "DXS-3D"], ["dxs-push", "DXP-3D PUSH"]];
+const ustawSystemIPush = (d, wybor) => {
+  const sys = /^dxs/.test(wybor) ? "dxs" : "vbox", push = /-push$/.test(wybor);
+  return ustawPushSzuflady(systemSzuflady(d) === sys ? d : zmienSystemSzuflady(d, sys), push);
+};
 /* wersja push (2026-11-23): bez uchwytu (push to open), DXP-3D — NL do 550; powrot do cichego domyku oddaje uchwyt */
 const ustawPushSzuflady = (d, push) => {
   const out = { ...d };
@@ -25318,7 +25324,15 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       <Btn key={n} el="mak-szuflady" v={n} on={k.c.kind === "drawers" && (k.c.drawers || []).length === n}
         onClick={() => (slupekSzuflady(k, n) ? null : k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawSzuflady(kk, n)) : szufladyOdc(k, n))}>{n}</Btn>).concat(
       // usuwanie szuflad (uzytkownik 2026-11-11: „brak opcji usuwania”): kolumna / poziom wraca do jednych drzwi
-      k.c.kind === "drawers" ? [<Btn key="us" el="mak-szuflady-usun" onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawFront(kk, "drzwi-1")) : frontOdc(k, "drzwi-1"))}>usuń szuflady</Btn>] : []), "mak-kolumna"), frontyW(k)].filter(Boolean));
+      k.c.kind === "drawers" ? [<Btn key="us" el="mak-szuflady-usun" onClick={() => (k.nr == null ? zmienKol(k.li, k.j, (kk) => ustawFront(kk, "drzwi-1")) : frontOdc(k, "drzwi-1"))}>usuń szuflady</Btn>] : []), "mak-kolumna"),
+      /* system szuflad kolumny w szczegolowej (uzytkownik 2026-11-23: wybor systemu „też w szczegółowej”) — wszystkie szuflady kolumny;
+         jak lista przy szufladzie w technicznym (`setDrawerSystem`) */
+      tryb === "szczegolowa" && k.nr == null && k.c.kind === "drawers" && (k.c.drawers || []).length > 0 && wiersz(`sys${k.li}-${k.jA}`, "prowadnice",
+        MAK_SYSTEMY_SZUF.map(([v, l]) => {
+          const ds = k.c.drawers || [], jest = ds.every((d) => `${systemSzuflady(d)}${pushSzuflady(d) ? "-push" : ""}` === v);
+          return <Btn key={v} el="mak-szuf-system" v={v} on={jest} onClick={() => !jest && zmienKol(k.li, k.j, (kk) => { kk.drawers = (kk.drawers || []).map((d) => ustawSystemIPush(d, v)); })}>{l}</Btn>;
+        }), "mak-kolumna"),
+      frontyW(k)].filter(Boolean));
     /* „Szuflada + drzwi” (makieta „Dodaj”): jednym przyciskiem; w ukladzie — szuflada u gory / na dole, drzwi 1 / 2,
        „Szuflada typowa” wraca do 170 / 200 mm frontu */
     const sd = makSzufDrzwiUklad(cab), geoF = makGeoKopii(it.mat, ciagStoi(run) && !cab.naPodlodze);
@@ -29419,8 +29433,8 @@ export default function App() {
   });
   // „vbox” / „dxs”, z „-push” — wersja push to open (2026-11-23): bez uchwytu, prowadnice PUSH
   const setDrawerSystem = (i, j, k, wybor) => editLevels((L) => {
-    const col = kolumnaW(L, i, j), sys = /^dxs/.test(wybor) ? "dxs" : "vbox", push = /-push$/.test(wybor);
-    col.drawers[k] = ustawPushSzuflady(systemSzuflady(col.drawers[k]) === sys ? col.drawers[k] : zmienSystemSzuflady(col.drawers[k], sys), push);
+    const col = kolumnaW(L, i, j);
+    col.drawers[k] = ustawSystemIPush(col.drawers[k], wybor);
   });
   const removeDrawer = (i, j, k) => editLevels((L) => kolumnaW(L, i, j).drawers.splice(k, 1));
   const addRail = (i, j) => editLevels((L) => { if (!Array.isArray(kolumnaW(L, i, j).rails)) kolumnaW(L, i, j).rails = []; kolumnaW(L, i, j).rails.push(newRail()); });
