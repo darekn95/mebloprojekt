@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1723,6 +1723,32 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
     const fP = (gB.panels || []).find((q) => /^Przegroda pionowa/.test(q.name));
     ok('formatka „Przegroda pionowa” krótsza o cofnięcie', fP && fP.b === gB.dividerDepth, JSON.stringify(fP && { a: fP.a, b: fP.b }));
     ok('za drzwiami przesuwnymi — większe z dwóch cofnięć', G.przegrodyCofOf({ __przegrodyCof: 80, przegrodyCof: 18 }) === 80 && G.przegrodyCofOf({ przegrodyCof: 30 }) === 30); }
+  /* blat biurka wiszacego na mimosrodach (uzytkownik 2026-11-23): trzpienie od spodu wienca, mimosrody w bokach i przegrodach
+     34 mm pod ich gora; bez konfirmatow wienca (lby na wierzchu blatu); w zamowieniu „Mimośród z trzpieniem”, kolejnosc montazu */
+  { const tp = G.makeFromTemplate('biurko-wiszace'), c0 = tp.cab || tp, g = geo(c0);
+    const plan = (n) => (g.drillPlan || []).filter((p) => p.panel === n || p.panel.endsWith(n)).flatMap((p) => p.rows || []);
+    const wien = plan('Wieniec'), bokL = plan('Bok lewy'), prz = (g.drillPlan || []).filter((p) => /Przegroda/.test(p.panel)).flatMap((p) => p.rows || []);
+    const mimoBok = bokL.find((r) => /^mimośród — wieniec/.test(r.kind)), mimoPrz = prz.filter((r) => /^mimośród — wieniec/.test(r.kind));
+    const hw = (g.hardware || []).find((h) => h.name === 'Mimośród z trzpieniem');
+    const nPrzeg = (g.dividers || []).length;
+    ok('biurko wiszące: wieniec bez konfirmatów do boków i przegród, trzpienie od spodu (boki + przegrody)', !wien.some((r) => /^konfirmat/.test(r.kind))
+      && wien.filter((r) => /^trzpień mimośrodu/.test(r.kind)).length === 2 + nPrzeg, JSON.stringify(wien.map((r) => r.kind)));
+    ok('mimośród w boku 34 mm pod górą boku, w przegrodach też', !!mimoBok && mimoBok.ys.length === 1 && Math.abs(mimoBok.ys[0] - (c0.H - 18 - 34 - (g.leftY0 || 0))) <= 1 && mimoPrz.length === nPrzeg,
+      JSON.stringify({ bok: mimoBok && mimoBok.ys, prz: mimoPrz.map((r) => r.ys), H: c0.H }));
+    ok('zamówienie: „Mimośród z trzpieniem” na każde złącze blatu, kolejność montażu w notatce', !!hw && hw.qty >= 2 * 2 + nPrzeg * 2
+      && (g.montazKolejnosc || []).some((m) => /Blat \(wieniec\) na mimośrodach/.test(m)), JSON.stringify({ hw: hw && hw.qty, nPrzeg })); }
+  /* przeciaganie biurka wiszacego (uzytkownik 2026-11-23: „nie przyciąga się do półek szafki obok i nie pokazuje tej linii”): szafa
+     obok z szufladami na dole i polka miedzy poziomami tuz pod biurkiem — lapala tylko polki w kolumnach, polki miedzy poziomami nie */
+  { const tp = G.makeFromTemplate('biurko-wiszace'), bw = JSON.parse(JSON.stringify(tp.cab || tp)); bw.dolGorny = 700;
+    const szafa = { name: 'Szafa', W: 600, H: 2500, D: 600, plinth: { on: true, height: 100, mode: 'under', setback: 0 },
+      levels: [{ h: 530, cols: [{ kind: 'drawers', w: null, drawers: [{ h: 'auto', front: null, handle: true }, { h: 'auto', front: null, handle: true }] }] },
+        { h: null, cols: [{ kind: 'doors', w: null, doors: 1, shelfTargets: [null, null] }] }] };
+    const mt = () => JSON.parse(JSON.stringify(G.defaultMaterials));
+    const pr = { name: 'T', active: 1, prices: {}, runs: [{ id: 'c1', name: 'Ściana', mountY: 0, H: 2500, D: 600, gap: 0, tier: 'dolny' }],
+      items: [{ cab: G.migrateCab(szafa), mat: mt(), runId: 'c1', offset: 0 }, { cab: G.migrateCab(bw), mat: mt(), runId: 'c1', offset: 0 }] };
+    const l = G.makLapaniePion(pr, 1).filter((q) => /półki między poziomami/.test(q.opis)).map((q) => q.dy).sort((a, b) => a - b);
+    ok('biurko wiszące 700 nad podłogą przy szafie (cokół 100, szuflady 530): łapie półkę między poziomami — dół −52 (spód) i −34 (wierzch)',
+      l.includes(-52) && l.includes(-34), JSON.stringify(l)); }
   { const mk = (sp) => G.sprzetCiagu({ sprzetCiagu: { typ: 'maskownica', ...sp } }).kolor;
     ok('maskownica: domyślnie jak korpus, stare „front” bez wyboru — korpus, wybrane — fronty', mk({}) === 'korpus' && mk({ kolor: 'front' }) === 'korpus' && mk({ kolor: 'front', kolorWyb: true }) === 'front'); }
   ok('kolor na rysunku: jak fronty / jak korpus', G.kolorCokolu(cab(), M0) === '#112233' && G.kolorCokolu(cab({ kolor: 'korpus' }), M0) === '#ddccbb');

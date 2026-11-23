@@ -1425,8 +1425,9 @@ wzory z palety bez ostrzezen (`wzorBezUwag`), nadstawka / blenda do sufitu (`nad
 (`plecykawalki`), start „Co projektujesz?” (`projektStartowy`), cokol w obrysie bez wspolnego cokolu ciagu (blad zamowienia: 2000 zamiast
 1964), Blum — dane w POMYSLY. Zostaje do decyzji uzytkownika: #42 szeroka szafa (moduly z jednym kompletem drzwi / dno i wieniec
 z kawalkow — czym laczyc), #46 uklad scian pokoju, narożnik L (jedne drzwi 896 poza tabela zawiasow), lakierowanie formatek.
-[CHECK] Nadstawka laczona z szafa wkretami 4 × 30 od srodka przez dno do wienca (dwa rzedy) — zalozenie, do potwierdzenia przez uzytkownika.
-Przegrody biurka wiszacego cofniete o grubosc frontu (18, jak dno) — do potwierdzenia (18 czy 20 z luzem).
+[AI-INFO] (bylo [CHECK], potwierdzone przez uzytkownika 2026-11-23) Nadstawka laczona z szafa wkretami 4 × 30 od srodka przez dno do wienca
+(dwa rzedy) — tak. Przegrody biurka wiszacego cofniete o 18 (jak dno) — tak. Szafa z modulow z jednym kompletem drzwi — wystarcza przycisk
+„dwie przegrody na styku”.
 [CLAUDE-CHANGE] 2026-11-23 („mamy jeszcze jakieś błędy?”): pelny przebieg po #42; audyt projektu uzytkownika (v53, 4 pomieszczenia,
 w tym „Projekt bez nazwy” — szafy, biurko wiszace, maskownice) bez bledow, tylko ostrzezenia z przyciskami (HDF w innym kolorze,
 0 mm do sufitu nad Szafka 9, biurko bez uchwytow). Poprawione: `audytprojektu` bral pomieszczenie szafki z `it.roomId` (szafki w ciagu

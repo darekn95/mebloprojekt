@@ -198,18 +198,24 @@ szafki obok w dwóch rzędach co ok. 400 mm — przykręcić, zanim wejdą pół
 
 Wzór „Biurko wiszące” (paleta „Wolnostojące”; upuszczony na szafkę w ciągu — do ciągu przy niej). Projekt użytkownika: blat wisi między
 szafkami, przykręcony do ich boków i do ściany, a „biurko” to skrzynka z szufladami. Skrzynka 2100 × 250 × 600 mm, `cab.biurkoWiszace`:
-- **blat = wieniec** skrzynki (płyta 18, na bokach) — skręcony z bokami na mimośrody od spodu (w planie wierceń jeszcze konfirmaty —
-  uwaga mówi, żeby je zamienić; `[AI-TODO]`);
+- **blat = wieniec** skrzynki (płyta 18, na bokach) — na mimośrody (użytkownik 2026-11-23; konfirmaty od góry miałyby łby na blacie,
+  `wienMimo` w `computeGeo`): trzpień 6,3 × 45 wkręcony od spodu wieńca (⌀5 × 12) w osi boku / przegrody, w górnym czole boku
+  i przegrody ⌀8 pod trzpień, mimośród ⌀15 × 13 od wnętrza `MIMO_OS` (34) mm pod ich górą — w tych samych miejscach wzdłuż głębokości
+  co konfirmaty; w zamówieniu „Mimośród z trzpieniem” na każde złącze (zamiast konfirmatów wieńca); kolejność montażu w notatce:
+  trzpienie w wieniec → dno z bokami, przegrody → wieniec z góry → mimośrody od środka skrzynki, zanim wejdą szuflady;
 - **szuflady** na szerokość po 600–800 mm (`biurkoWiszaceKolumny`: szerokość / 700), fronty wewnętrzne bez uchwytu;
 - **dno cofnięte** o grubość frontu (`cab.dnoCof` 18 — formatka krótsza, wiercenia i bryła przesunięte), front najniższej szuflady schodzi
   przed nim do spodu korpusu (`cab.frontPodDnem` — tyle niżej, np. 10 mm);
 - **wisi** `cab.dolGorny` (500) mm nad podłogą — blat ok. 750; w ciągu stoi poza wspólną wysokością i cokołem (`naPodlodzeCiagu`);
-  w makiecie (zakładka Szafka) dolna krawędź przesuwa całe biurko i łapie półki szafek obok (`data-u="pion"`, `makLapaniePion`);
+  w makiecie (zakładka Szafka) dolna krawędź przesuwa całe biurko i łapie półki szafek obok (`data-u="pion"`, `makLapaniePion`) —
+  góra i dół biurka do obu krawędzi każdej półki w kolumnach i półki między poziomami (ta ostatnia od 2026-11-23: szafa z szufladami
+  na dole ma przy biurku tylko ją), złapane — długa linia przez zabudowę i napis „dół … równo z …”;
 - **przegrody między szufladami cofnięte** o grubość frontu (`cab.przegrodyCof` 18; biurka zapisane wcześniej dostają to raz —
   `biurkaPrzegrodyCof`), fronty szuflad przed nimi, między frontami tylko luz 2 mm, fronty równe (użytkownik 2026-11-22);
 - **boki skrzynki** przykręcone do maskownic szaf obok (wkręty 4 × 30 od środka skrzynki) — gdy maskownic brak, uwaga to mówi.
 Uwagi (`biurkoWiszaceMsgs`): fronty równo ze spodem dna — „nie ma za co chwycić” z przyciskami „Dodaj uchwyty” / „Front 10 mm poniżej
-dna” (tip-on, push to open — gdy dojdą takie szuflady); szuflady spoza 600–800 mm — „Szuflady po ok. 700 mm”.
+dna” (push to open — prowadnice w wersji PUSH, gdy dojdą; użytkownik 2026-11-23: przy cichym domyku uchwyt, front poniżej dna albo
+tip-on — do ustalenia, `BLEDY.md`); szuflady spoza 600–800 mm — „Szuflady po ok. 700 mm”.
 
 ## Szafka RTV wisząca (2026-11-22)
 

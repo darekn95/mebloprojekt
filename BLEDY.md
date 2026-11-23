@@ -17,6 +17,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-11-23 | zgłoszenie użytkownika (zrzut): „przeciąganie dołu biurka wiszącego nie przyciąga się do półek szafki obok i nie pokazuje tej linii jak w szafkach górnych” | `makLapaniePion` łapał tylko półki w kolumnach — przy biurku stała półka między poziomami szafy (szuflady na dole, 648–666 mm od podłogi), której nie było w celach; teraz też `sepShelves`, obie krawędzie każdej półki (góra i dół biurka), złapane — długa linia jak przy szafkach górnych. Półka przeciągana łapie też półkę między poziomami szafki obok (`makLapaniePolek`); `funkcje`, `makieta19` | (ten commit) |
+| 2026-11-23 | decyzja użytkownika: blat biurka wiszącego na mimośrodach | plan wierceń miał konfirmaty wieńca w boki i przegrody (łby na wierzchu blatu) z uwagą „zamień na mimośrody”; teraz trzpienie od spodu wieńca, mimośrody w bokach i przegrodach 34 mm pod górą, w zamówieniu „Mimośród z trzpieniem” zamiast konfirmatów, kolejność montażu w notatce (`wienMimo`); `funkcje` | (ten commit) |
 | 2026-11-22 | #42 szafa szersza niż płyta | przycisk „Dno i wieniec z kawałków — dwie przegrody na styku” (decyzja użytkownika); cokół w obrysie z kawałków pod parą; `funkcje`, `makieta19` | (ten commit) |
 | 2026-11-22 | widok „Zabudowa” 3D po poprawce cokołu w obrysie | wspólny cokół ciągu dla cokołu w obrysie zniknął (zamówienie), a 3D zabudowy rysował tylko cokół ciągu — cokół w obrysie znikał z rysunku; teraz rysowany przy każdej szafie | (ten commit) |
 | 2026-11-22 | „Narożnik L” z palety w kuchni | od razu „cokół nie zgadza się z ciągiem” — wzór nie brał wymiarów ciągu (`ciag: true`). Pytanie użytkownika o drzwi 896 mm: to tylko wzór poza rogiem — w rogu jest fix / maskownica kątownika i drzwi są węższe | (ten commit) |
@@ -519,6 +521,13 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 | 2026-09-27 | `luzy` | podpowiedź o luzie pojawia się przy nierównym podziale; test ustawia luz 3 mm wprost | 3d2690b |
 
 ## Do decyzji użytkownika
+
+**Rozstrzygnięte 2026-11-23** (odpowiedzi użytkownika): szafa szersza niż płyta z modułów i jednym kompletem drzwi — wystarcza przycisk
+„dwie przegrody na styku” („jak będzie potrzeba, kiedyś się poprawi”); nadstawka do szafy wkrętami 4 × 30 od środka — tak; przegrody
+biurka wiszącego cofnięte 18 mm (jak dno) — tak; blat biurka na mimośrodach — zrobione. **Otwarte:** chwyt szuflad biurka przy cichym
+domyku — użytkownik: „tip-on, uchwyt lub front poniżej dna”; odrębny tip-on (odbojnik jak przy drzwiach) nie współpracuje z prowadnicą
+z cichym domykiem (folder V-BOX: „miękki domyk **lub** system PUSH” — dwie wersje prowadnic) — do potwierdzenia; nowe prowadnice (V-BOX PUSH II,
+DXP-3D PUSH, Blum) — `POMYSLY.md`.
 
 **Z pełnej analizy 2026-11-21** (szczegóły i pomysły: `POMYSLY.md`):
 - zabudowa przesuwna szersza niż płyta (ponad 2761 mm: dno, wieniec, cokół, plecy) — program zgłasza błędy, ale nie podaje rozwiązania;

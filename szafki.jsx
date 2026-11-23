@@ -3384,6 +3384,10 @@ function computeGeoLiczy(cab, mat, ctx) {
   /* Dno cofniete od przodu (biurko wiszace, uzytkownik 2026-11-22: „dno jest cofnięte, szuflady wewnętrzne, ale front szuflad od dołu
      zasłania dno”) — `cab.dnoCof` mm: dno krotsze o tyle, przy plecach; front najnizszej szuflady schodzi przed nim do spodu korpusu */
   const dnoCof = hasBot ? Math.max(0, Math.min(200, Math.round(Number(cab.dnoCof) || 0))) : 0;
+  /* Blat biurka wiszacego na mimosrodach (uzytkownik 2026-11-23, odpowiedz „Mimośrody”): wieniec lezy na bokach i jest blatem — konfirmaty
+     od gory mialyby lby na wierzchu. Trzpien wkreca sie od spodu wienca (gwint w wiencu), wchodzi pionowo w gorne czolo boku / przegrody,
+     mimosrod ⌀15 w boku / przegrodzie od wnetrza, `MIMO_OS` pod jej gora — dokreca sie od srodka skrzynki po wyjeciu szuflad. */
+  const wienMimo = !!cab.biurkoWiszace && !isBlat && topL === "over" && topR === "over";
 
   /* Szerokosc blatu: "outside" (domyslnie) — W to korpus, blat wystaje poza
      niego; "inside" — W to calkowita szerokosc mebla, a boki chowaja sie do
@@ -7800,6 +7804,16 @@ function computeGeoLiczy(cab, mat, ctx) {
       if (wienKawalki) {
         kawalkiNaBokach(wienKawalki, { l: topL === "over", r: topR === "over" });
         if (wienMiedzy) przezPare(wienKawalki, top, H - t / 2, "wieńca");
+      } else if (wienMimo) {
+        // blat biurka wiszacego: trzpienie od spodu wienca, mimosrody w bokach pod ich gora (od wnetrza)
+        const poz = listaPoz(konfirmatyPoz(carcassDepth));
+        [["lewy", "Bok lewy", leftY0, t / 2], ["prawy", "Bok prawy", rightY0, W - t / 2]].forEach(([str, bok, y0b, xs]) => {
+          if ((str === "lewy" && postSide === "left") || (str === "prawy" && postSide === "right")) return;
+          doPlyty("Wieniec", `trzpień mimośrodu — bok ${str}`, xs - topX0,
+            `⌀5 × 12 od spodu wieńca (od jego lewego końca), ${poz} mm od przedniej krawędzi — trzpień 6,3 × 45 wkręcony gwintem w wieniec`);
+          drillAdd(top, bok, y0b, "mimośród — wieniec (blat)", H - t - MIMO_OS,
+            `⌀15 × 13 od wnętrza pod mimośród, ${poz} mm od przedniej krawędzi, oś ${MIMO_OS} mm pod górnym czołem boku; w górnym czole boku ⌀8 × ${MIMO_OS + 2} pod trzpień`);
+        });
       } else naBokach("Wieniec", { l: topL === "over", r: topR === "over" }, carcassDepth, 0, topX0);
     }
     if (hasBot) {
@@ -7901,6 +7915,13 @@ function computeGeoLiczy(cab, mat, ctx) {
       };
       if (dv.level === top && wienKawalki && nad(dv.level)) {
         if (!dv.doWierzchu) { const q = wKawalku(wienKawalki, "Wieniec"); doPlyty(q.nazwa, `konfirmat — przegroda ${k + 1}`, q.x, q.note); }
+      } else if (dv.level === top && wienMimo && nad(dv.level) === "Wieniec" && !dv.nizsza) {
+        // blat biurka wiszacego na mimosrodach — trzpien od spodu wienca w czolo przegrody, mimosrod w przegrodzie pod jej gora
+        const poz = konfirmatyPoz(dividerDepth, przegrodyCofOf(cab));
+        doPlyty("Wieniec", `trzpień mimośrodu — przegroda ${k + 1}`, x,
+          `⌀5 × 12 od spodu wieńca, ${listaPoz(poz)} mm od przedniej krawędzi; położenie od wewnętrznej strony lewego boku — trzpień 6,3 × 45 wkręcony gwintem w wieniec`);
+        drillAdd(dv.level, nazwaPrzegrody(dv), dv.y0, "mimośród — wieniec (blat)", dv.y1 - MIMO_OS,
+          `⌀15 × 13 z jednej strony (od kolumny ${dv.j + 1}) pod mimośród, ${listaPoz(poz.map((p2) => p2 - przegrodyCofOf(cab)))} mm od przedniej krawędzi przegrody, oś ${MIMO_OS} mm pod jej górnym czołem; w górnym czole ⌀8 × ${MIMO_OS + 2} pod trzpień`);
       } else if (nad(dv.level) && !dv.nizsza) doPlyty(nad(dv.level), `konfirmat — przegroda ${k + 1}`, x, note);
       if (dv.level === 0 && dnoKawalki && pod(dv.level)) {
         if (!dv.doSpodu) { const q = wKawalku(dnoKawalki, "Dno"); doPlyty(q.nazwa, dv.dolTrojkaty ? `trójkąt meblowy — przegroda ${k + 1}` : `konfirmat — przegroda ${k + 1}`, q.x, q.note); }
@@ -8148,6 +8169,10 @@ function computeGeoLiczy(cab, mat, ctx) {
     montazKolejnosc.push(`${levels.length > 1 ? `Poziom ${dv.level + 1}, ` : ""}przegroda ${dv.j + 1} (dwie na styku): konfirmaty przez przegrody (${listPl(co)}) mają łby między nimi — `
       + `najpierw skręć lewą część z przegrodą lewą, prawą przegrodę z jej płytami osobno, dopiero potem postaw je obok siebie i skręć 4 wkrętami.`);
   });
+  /* Blat biurka wiszacego na mimosrodach (AGENTS.md: kolejnosc montazu) — trzpienie pionowo, wiec blat zaklada sie z gory na stojace
+     boki i przegrody; mimosrody w bokach / przegrodach od wnetrza — dostep od przodu skrzynki, zanim wejda szuflady. */
+  if (wienMimo && hasTop) montazKolejnosc.push("Blat (wieniec) na mimośrodach: (1) wkręć trzpienie 6,3 × 45 od spodu wieńca; (2) skręć dno z bokami i postaw na nim przegrody; "
+    + `(3) połóż wieniec z góry — trzpienie wchodzą w górne czoła boków i przegród; (4) dokręć mimośrody od środka skrzynki (${MIMO_OS} mm pod górą boków i przegród), zanim włożysz szuflady.`);
   const drillPlan = [...drillMap.values()].map((p) => {
     const by = new Map();
     p.holes.forEach((h) => {
@@ -8379,7 +8404,7 @@ function computeGeoLiczy(cab, mat, ctx) {
   };
   // blat lezy na bokach i jest kryty od gory — mocowany od spodu, nie konfirmatem
   // po stronie ramienia (bez boku) wieniec i dno ida konfirmatem w czolo obu plyt katownika
-  if (hasTop && !isBlat) joint(postSide ? 1 : 2, carcassDepth, "wieniec");
+  if (hasTop && !isBlat && !wienMimo) joint(postSide ? 1 : 2, carcassDepth, "wieniec");
   if (hasBot) joint(postSide ? 1 : 2, carcassDepth, "dno");
   if (postSide) {
     const n = (hasTop && !isBlat ? 1 : 0) + (hasBot ? 1 : 0);
@@ -8387,8 +8412,13 @@ function computeGeoLiczy(cab, mat, ctx) {
   }
   // przegroda dostaje konfirmat tylko od plyty, ktora nad/pod nia jest (bez wienca pod blatem, bez dna) — jak w planie wiercen
   const lvTop = levels.length - 1;
-  joint(dividers.reduce((n, dv) => n + (dv.level === lvTop ? (hasTop && !isBlat ? 1 : 0) : 1) + (dv.level === 0 ? (hasBot ? 1 : 0) : dv.dolTrojkaty ? 0 : 1), 0),
+  joint(dividers.reduce((n, dv) => n + (dv.level === lvTop ? (hasTop && !isBlat && !(wienMimo && !dv.nizsza) ? 1 : 0) : 1) + (dv.level === 0 ? (hasBot ? 1 : 0) : dv.dolTrojkaty ? 0 : 1), 0),
     dividerDepth, "przegrody");
+  /* blat biurka wiszacego na mimosrodach (2026-11-23) — boki i przegrody pod wiencem: mimosrod z trzpieniem zamiast konfirmatu */
+  const mimoBlat = wienMimo && hasTop ? (postSide ? 1 : 2) * confPer(carcassDepth)
+    + dividers.filter((dv) => dv.level === lvTop && !dv.nizsza).length * confPer(dividerDepth) : 0;
+  if (mimoBlat) mimoOkucia(t).forEach((o) => hardware.push({ name: o.name, use: "blat biurka (wieniec) na mimośrodach — do boków i przegród",
+    spec: `${o.spec}; ${mimoBlat} złączy`, qty: mimoBlat, unit: "szt." }));
   /* Krzyzowe polaczenia (uzytkownik 2026-10-17 po audycie GPT N45): konfirmaty
      z obu stron jednej plyty w tej samej osi — drugiego nie da sie wkrecic,
      bo jego leb wypada pod czolem plyty przykreconej z drugiej strony. Blad
@@ -22927,7 +22957,7 @@ const biurkoWiszaceMsgs = (project, i) => {
   if (bezChwytu) out.push({ level: "warn", text: `„${nazwa}”: fronty szuflad równo ze spodem dna — nie ma za co chwycić. Dodaj uchwyty, tip-on albo obniż front 10 mm poniżej dna (szuflady push to open dojdą później).|bwuchwyt|bwfront:10` });
   const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null, L = run ? runItems(project, run.id) : [], k = L.findIndex((q) => q.i === i);
   const mask = [L[k - 1], L[k + 1]].filter((q) => q && maskownicaCab(q.it.cab)).length;
-  out.push({ level: "info", text: `„${nazwa}” — wisi ${fmt(dolGornej(c))} mm nad podłogą (blat ${fmt(dolGornej(c) + Math.round(c.H))} mm). Blat to wieniec skrzynki, na bokach: skręć go z bokami na mimośrody od spodu (w planie wierceń są konfirmaty — zamień je na mimośrody, oś 34 mm). `
+  out.push({ level: "info", text: `„${nazwa}” — wisi ${fmt(dolGornej(c))} mm nad podłogą (blat ${fmt(dolGornej(c) + Math.round(c.H))} mm). Blat to wieniec skrzynki, na bokach — na mimośrody (trzpienie od spodu blatu, mimośrody w bokach i przegrodach od środka skrzynki; plan wierceń i kolejność w notatce montażowej). `
     + `Boki skrzynki przykręć do maskownic szaf obok wkrętami 4 × 30 od środka skrzynki${mask < 2 ? ` — ${mask ? "z jednej strony nie ma maskownicy" : "obok nie ma maskownic"}: dodaj je przy szafkach (zakładka Wzmocnienia)` : ""}. Dno cofnięte o ${fmt(Math.round(Number(c.dnoCof) || 0))} mm — fronty zasłaniają je od dołu.` });
   const g = (() => { try { return computeGeo(cabDoGeo(project, it), it.mat); } catch (e) { return null; } })();
   const sz = g ? (g.levels[0] || { cols: [] }).cols.map((q) => Math.round(q.x1 - q.x0)) : [];
@@ -22996,10 +23026,17 @@ const makLapaniePion = (project, idx) => {
     if (i === idx || x.cab.sprzetCiagu) return;
     const o = makOdPodlogi(project, i); if (!o || o.wall !== ja.wall) return;
     const ts = o.geo.ts || o.geo.t || 18;
-    (o.geo.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => (c.openings || []).slice(0, -1).forEach((q) => {
-      out.push({ dy: Math.round(o.dol + q.to + ts - ja.gora), kraw: "gora", nazwa: o.nazwa, opis: `góra równo z wierzchem półki „${o.nazwa}”` });
-      out.push({ dy: Math.round(o.dol + q.to - ja.dol), kraw: "dol", nazwa: o.nazwa, opis: `dół równo ze spodem półki „${o.nazwa}”` });
-    })));
+    /* polka (spod `y` w ukladzie szafki, grubosc `g`): gora i dol biurka rowno z kazda z jej dwoch krawedzi; takze polka miedzy
+       poziomami (`sepShelves`) — uzytkownik 2026-11-23: „nie przyciąga się do półek szafki obok” (szafa: szuflady, nad nimi polka
+       miedzy poziomami — tylko ta stoi przy biurku, a lapaly sie tylko polki w kolumnach) */
+    const polka = (y, g, jaka) => {
+      out.push({ dy: Math.round(o.dol + y + g - ja.gora), kraw: "gora", nazwa: o.nazwa, opis: `góra równo z wierzchem ${jaka} „${o.nazwa}”` });
+      out.push({ dy: Math.round(o.dol + y - ja.gora), kraw: "gora", nazwa: o.nazwa, opis: `góra równo ze spodem ${jaka} „${o.nazwa}”` });
+      out.push({ dy: Math.round(o.dol + y - ja.dol), kraw: "dol", nazwa: o.nazwa, opis: `dół równo ze spodem ${jaka} „${o.nazwa}”` });
+      out.push({ dy: Math.round(o.dol + y + g - ja.dol), kraw: "dol", nazwa: o.nazwa, opis: `dół równo z wierzchem ${jaka} „${o.nazwa}”` });
+    };
+    (o.geo.levels || []).forEach((lv) => (lv.cols || []).forEach((c) => (c.openings || []).slice(0, -1).forEach((q) => polka(q.to, ts, "półki"))));
+    (o.geo.sepShelves || []).forEach((sh) => polka(sh.y, o.geo.t || 18, "półki między poziomami"));
     out.push({ dy: o.gora - ja.gora, kraw: "gora", nazwa: o.nazwa, opis: `góra równo z „${o.nazwa}”` });
     if (o.dol > 0) out.push({ dy: o.dol - ja.dol, kraw: "dol", nazwa: o.nazwa, opis: `dół równo z „${o.nazwa}”` });
   });
@@ -23017,6 +23054,8 @@ const makLapaniePolek = (project, idx, li, j) => {
       // i, x0..x1 — szafka i kolumna (w jej ukladzie): lapie tylko, gdy wskaznik jest nad nia (makieta: „najedź na półkę obok”)
       op.slice(0, -1).forEach((q) => out.push({ y: Math.round(o.dol + q.to + o.geo.ts / 2 - ja.dol), nazwa: i === idx ? "kolumna obok" : o.nazwa, i, x0: c.x0, x1: c.x0 + c.w }));
     }));
+    // polka miedzy poziomami szafki obok (2026-11-23) — os polki, na calej szerokosci szafki
+    if (i !== idx) (o.geo.sepShelves || []).forEach((sh) => out.push({ y: Math.round(o.dol + sh.y + (o.geo.t || 18) / 2 - ja.dol), nazwa: o.nazwa, i, x0: 0, x1: o.geo.W }));
   });
   return out;
 };
