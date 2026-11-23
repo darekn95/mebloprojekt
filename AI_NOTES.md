@@ -1461,3 +1461,5 @@ nie da sie go odhaczyc (warnsNowe, licznik, brak ✓). Push przy TANDEMBOX (TIP-
 bokPodDnem 12, zapas 7, NL z 270; zamowienie `TANDEM_NAME` 100 zl). [CHECK] uzytkownik oglada rysunek DXS-3D (Sevroll s. 112, „2 (min.)”
 od dna szafki do spodu prowadnicy) — „może czeka nad korekta” DXS; czekam na decyzje.
 
+[AI-INFO] 2026-11-23: PELNY PRZEBIEG przed scaleniem (bbb136b, prosba uzytkownika „jak wszystko będzie dobrze to testy audyty i na git”):
+175 suit, 6007 OK, 0 bledow (22 min); `losowe` 66 krokow / 0; audyt projektu uzytkownika (v53, 4 pomieszczenia) 84 OK / 0.
