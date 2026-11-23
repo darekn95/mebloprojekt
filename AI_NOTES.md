@@ -1441,3 +1441,9 @@ synchronizujacy V-BOX PUSH II przy froncie > 500 mm; ceny: drazek 11 zl, mocowan
 Blum — OBA systemy (najpierw TANDEMBOX antaro, potem TANDEM). Szczelina 4 mm przed frontem tylko w uwadze (rysunek bez niej).
 [AI-TODO] Blum TANDEMBOX antaro / TANDEM jako nowe systemy szuflad — po decyzji uzytkownika (kolejnosc, wysokosci, ceny).
 
+[AI-INFO] 2026-11-23 Blum — szukanie wysokosci dna TANDEMBOX antaro (uzytkownik: „szukaj dalej”, potem „Model CAD Blum”): przejrzane — dokument
+zamowien i planowania (w `instrukcje/blum/`), katalog techniczny 2024–2025 (publications.blum.com, URL 312–318, 328, 333–336; numer
+drukowany = URL + 4), instrukcje montazu (4 str., same obrazki), „Standard applications” (s. 7 — otwory prowadnic, w `instrukcje/blum/`).
+Boki: 83,6 (M), 115,6 (K); przestrzen, gora boku, formatki — w `instrukcje/SPIS.md`. Polozenia spodu dna i dolu boku nad prowadnica — BRAK.
+Model CAD / rysunki 2D sa tylko w portalu Blum E-SERVICES (konto: e-services.blum.com/registration; gosc — „basic services”) — bez dostepu.
+[AI-TODO] TANDEMBOX antaro / TANDEM — czeka na decyzje uzytkownika (konto Blum i rysunek / pomiar szuflady / przyjac jak V-BOX).
