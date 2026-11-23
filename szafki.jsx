@@ -660,6 +660,8 @@ const DEFAULT_HW_PRICES = {
   "Prowadnica Sevroll DXP-3D Synchro PUSH": 50,
   // Blum TANDEMBOX antaro — komplet na szuflade, cena uzytkownika (2026-11-23)
   "Szuflada Blum TANDEMBOX antaro": 205,
+  // Blum TANDEM 17–19 (560F) — komplet prowadnic na szuflade, cena uzytkownika (2026-11-23)
+  "Prowadnica Blum TANDEM 560F": 100,
   // drazek synchronizujacy V-BOX PUSH II (szt.) i mocowania (kpl.) — ceny uzytkownika (2026-11-23)
   "Drążek synchronizujący V-BOX 3D Slim PUSH II": 11,
   "Mocowania drążka synchronizującego V-BOX PUSH II": 10,
@@ -1259,6 +1261,16 @@ const WKRET_FRONTU_DLUGOSCI = [30, 25, 20, 16];
 const wkretFrontuDl = (razem) => WKRET_FRONTU_DLUGOSCI.find((l) => l <= razem - WKRET_FRONTU_ZAPAS) ?? null;
 const wkretFrontuNazwa = (l) => (l === WKRET_FRONTU_DL ? WKRET_FRONTU_NAME : `Wkręt 4 × ${l} do frontu szuflady`);
 const dxsBokOd = DXS.dnoOd - DXS.bokPodDnem; // spod prowadnicy → dol boku (17)
+/* Blum TANDEM 17–19 mm (560F, katalog Blum 2026 s. 454–461 w `instrukcje/blum/`; odczyt rysunkow z uzytkownikiem 2026-11-23): ta sama
+   budowa co DXS-3D (SKW = LW − 49 przy bokach 18, NL − 10, korpus NL + 3, otwor ⌀6 × 10 w tyle 11 / 7) — w programie DXS-3D z flaga
+   `drawer.blum` i innymi liczbami: prowadnica najnizszej szuflady na dnie szafki (Blum nie pokazuje odstepu), spod dna 27,5 nad dolem
+   szyny, boki 12 ponizej dna (rysunek 12–15), luz nad skrzynka min. 7, wkret prowadnicy w osi 37 nad dolem szyny, NL 250–600 z 270,
+   komplet 100 zl; skrzynka i front jak DXS-3D (decyzja uzytkownika). */
+const TANDEM = { nl: [250, 270, 300, 350, 400, 450, 500, 550, 600], nadDnem: 0, dnoOd: 27.5, bokPodDnem: 12, zapas: 7, wkret: 37 };
+const TANDEM_NAME = "Prowadnica Blum TANDEM 560F";
+const dxsParam = (d) => (d && d.blum
+  ? { nazwa: "TANDEM", nadDnem: TANDEM.nadDnem, dnoOd: TANDEM.dnoOd, bokPodDnem: TANDEM.bokPodDnem, bokOd: TANDEM.dnoOd - TANDEM.bokPodDnem, zapas: TANDEM.zapas, nl: TANDEM.nl }
+  : { nazwa: "DXS-3D", nadDnem: DXS.nadDnem, dnoOd: DXS.dnoOd, bokPodDnem: DXS.bokPodDnem, bokOd: dxsBokOd, zapas: SZUFLADA_ZAPAS, nl: null });
 /* System szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty na
    prowadnicach dolnego montazu) — `drawer.system`, bez niego V-BOX
    (uzytkownik 2026-10-21: przy kazdej szufladzie, domyslnie V-BOX). */
@@ -1295,8 +1307,8 @@ const DXP_NL_MAX = 550;
 const PUSH_SZCZELINA = 4;
 const VBOX_PUSH = { drazek: "223774", drazekL: 1100, mocowania: "223852", lsOdLW: 106, drazekOdFrontu: 500 };
 const pushSzuflady = (d) => !!(d && d.push);
-const nlSystemu = (sys, push, nos) => (sys === "dxs" ? (push ? DXS.nl.filter((v) => v <= DXP_NL_MAX) : DXS.nl) : sys === "tbx" ? (Number(nos) === 65 ? TBX.nl65 : TBX.nl30) : VBOX.nl);
-const nazwaSystemu = (d) => (systemSzuflady(d) === "dxs" ? (pushSzuflady(d) ? "DXP-3D PUSH" : "DXS-3D") : systemSzuflady(d) === "tbx" ? `TANDEMBOX${tbx65(d) ? " 65 kg" : ""}`
+const nlSystemu = (sys, push, nos, blum) => (sys === "dxs" ? (blum ? TANDEM.nl : push ? DXS.nl.filter((v) => v <= DXP_NL_MAX) : DXS.nl) : sys === "tbx" ? (Number(nos) === 65 ? TBX.nl65 : TBX.nl30) : VBOX.nl);
+const nazwaSystemu = (d) => (systemSzuflady(d) === "dxs" ? (d && d.blum ? "TANDEM" : pushSzuflady(d) ? "DXP-3D PUSH" : "DXS-3D") : systemSzuflady(d) === "tbx" ? `TANDEMBOX${tbx65(d) ? " 65 kg" : ""}`
   : pushSzuflady(d) ? "V-BOX PUSH II" : "V-BOX");
 /* Skrzynka o metalowych bokach — V-BOX albo TANDEMBOX: te same obliczenia w `computeGeo`, rozne tabele (2026-11-23) */
 const boxSystemu = (d) => {
@@ -1592,8 +1604,8 @@ const szufladaOdCzola = (c, dr) => {
     ...(sk && sk.przod ? [{ x: x0 + ob + tb, y: dr.rail.y0 + sk.tylOd, w: sk.szer, h: sk.przod[1], rodzaj: "przod" }] : []),
     ...(sk ? [{ x: x0 + ob, y: dr.rail.y0 + sk.bokOd, w: tb, h: sk.bok, rodzaj: "bok" },
       { x: x1 - ob - tb, y: dr.rail.y0 + sk.bokOd, w: tb, h: sk.bok, rodzaj: "bok" }] : []),
-    { x: x0 + ob + tb, y: dr.rail.y0, w: DXS.szerProw, h: DXS.dnoOd, rodzaj: "prowadnica" },
-    { x: x1 - ob - tb - DXS.szerProw, y: dr.rail.y0, w: DXS.szerProw, h: DXS.dnoOd, rodzaj: "prowadnica" },
+    { x: x0 + ob + tb, y: dr.rail.y0, w: DXS.szerProw, h: dr.dnoOd ?? DXS.dnoOd, rodzaj: "prowadnica" },
+    { x: x1 - ob - tb - DXS.szerProw, y: dr.rail.y0, w: DXS.szerProw, h: dr.dnoOd ?? DXS.dnoOd, rodzaj: "prowadnica" },
   ];
 };
 // swiatlo szerokosci szuflady: V-BOX — kolumna minus 2 × 21, DXS-3D — wnetrze skrzynki (LW − 49)
@@ -2824,10 +2836,18 @@ const naSystemSzuflad = (cab, sys) => {
       : zbiorySzuflad(c).length ? { ...c, segmenty: c.segmenty.map((sg) => (sg && sg.kind === "drawers" ? zmien(sg) : sg)) } : c)) })) };
 };
 /* lista systemow do wyboru (karta szuflady w technicznym, makieta szczegolowa) — wartosc `vbox` / `dxs`, z „-push” — wersja PUSH */
-const MAK_SYSTEMY_SZUF = [["vbox", "V-BOX"], ["vbox-push", "V-BOX PUSH II"], ["dxs", "DXS-3D"], ["dxs-push", "DXP-3D PUSH"], ["tbx", "TANDEMBOX"], ["tbx-65", "TANDEMBOX 65 kg"]];
+const MAK_SYSTEMY_SZUF = [["vbox", "V-BOX"], ["vbox-push", "V-BOX PUSH II"], ["dxs", "DXS-3D"], ["dxs-push", "DXP-3D PUSH"], ["tbx", "TANDEMBOX"], ["tbx-65", "TANDEMBOX 65 kg"], ["tandem", "TANDEM"]];
 const ustawSystemIPush = (d, wybor) => {
-  const sys = /^dxs/.test(wybor) ? "dxs" : /^tbx/.test(wybor) ? "tbx" : "vbox", push = /-push$/.test(wybor);
+  const sys = /^(dxs|tandem)/.test(wybor) ? "dxs" : /^tbx/.test(wybor) ? "tbx" : "vbox", push = /-push$/.test(wybor);
   const out = systemSzuflady(d) === sys ? { ...d } : zmienSystemSzuflady(d, sys);
+  // Blum TANDEM 17–19 — DXS-3D z liczbami Blum (`drawer.blum`), bez PUSH; NL spoza listy TANDEM wraca na auto
+  if (wybor === "tandem") {
+    out.blum = true; if (out.push) { delete out.push; out.handle = true; }
+    // NL z listy TANDEM zostaje (DXS-3D nie ma 270 — `zmienSystemSzuflady` by ja skasowal)
+    out.nl = d.nl != null && TANDEM.nl.includes(Number(d.nl)) ? d.nl : out.nl != null && TANDEM.nl.includes(Number(out.nl)) ? out.nl : null;
+    return out;
+  }
+  if (sys === "dxs" && out.blum) { delete out.blum; if (out.nl != null && !DXS.nl.includes(Number(out.nl))) out.nl = null; }
   if (sys === "tbx") {
     // TANDEMBOX: 30 kg (578) albo 65 kg (576, NL od 450) — NL spoza listy wraca na auto
     if (/-65$/.test(wybor)) out.nosnosc = 65; else delete out.nosnosc;
@@ -2837,7 +2857,7 @@ const ustawSystemIPush = (d, wybor) => {
   }
   return ustawPushSzuflady(out, push);
 };
-const wartoscSystemu = (d) => (systemSzuflady(d) === "tbx" ? (tbx65(d) ? "tbx-65" : "tbx") : `${systemSzuflady(d)}${pushSzuflady(d) ? "-push" : ""}`);
+const wartoscSystemu = (d) => (systemSzuflady(d) === "tbx" ? (tbx65(d) ? "tbx-65" : "tbx") : systemSzuflady(d) === "dxs" && d && d.blum ? "tandem" : `${systemSzuflady(d)}${pushSzuflady(d) ? "-push" : ""}`);
 /* wersja push (2026-11-23): bez uchwytu (push to open), DXP-3D — NL do 550; powrot do cichego domyku oddaje uchwyt */
 const ustawPushSzuflady = (d, push) => {
   const out = { ...d };
@@ -2847,7 +2867,7 @@ const ustawPushSzuflady = (d, push) => {
 };
 const zmienSystemSzuflady = (d, sys) => {
   const out = { ...d, h: "auto", backHeight: null, tallBack: false };
-  if (sys === "dxs") { out.system = "dxs"; out.reling = false; out.bezRelingu = false; } else if (sys === "tbx") { out.system = "tbx"; out.reling = false; out.bezRelingu = false; delete out.push; } else { delete out.system; delete out.nosnosc; }
+  if (sys === "dxs") { out.system = "dxs"; out.reling = false; out.bezRelingu = false; } else if (sys === "tbx") { out.system = "tbx"; out.reling = false; out.bezRelingu = false; delete out.push; delete out.blum; } else { delete out.system; delete out.nosnosc; delete out.blum; }
   if (out.nl != null && !nlSystemu(sys).includes(Number(out.nl))) out.nl = null;
   return out;
 };
@@ -5360,12 +5380,14 @@ function computeGeoLiczy(cab, mat, ctx) {
          ponizej prowadnicy” (jak V-BOX). Front zawsze siega do spodu prowadnicy,
          czyli 27 mm ponizej spodu dna — zakrywa ja (uzytkownik 2026-10-21). */
       const szufladaDxs = (d, i, fhFull, fh) => {
+        // DXS-3D albo Blum TANDEM 17–19 (`drawer.blum`) — te same obliczenia, inne liczby (`dxsParam`, 2026-11-23)
+        const DS = dxsParam(d);
         // DXP-3D (PUSH) — prowadnice tylko do NL 550 (katalog Sevroll 2026 s. 116)
-        const NLD = nlSystemu("dxs", !!d.push);
+        const NLD = DS.nl || nlSystemu("dxs", !!d.push);
         const where2 = `${where}, szuflada ${i + 1}`;
-        const railY0 = i === 0 ? Math.max(lv.y0 + DXS.nadDnem, y, dCof ? spz.szyna ?? -Infinity : -Infinity)
+        const railY0 = i === 0 ? Math.max(lv.y0 + DS.nadDnem, y, dCof ? spz.szyna ?? -Infinity : -Infinity)
           : y + Math.max(0, Math.round(num(g.underRail) ?? 5));
-        const bokY0 = railY0 + dxsBokOd;
+        const bokY0 = railY0 + DS.bokOd;
         const tbok = ts; // boki, dno i tyl z plyty polek
         const colMaxDxs = maxNlFor(dsx0, dsx1, dInsetExtra, lv.y0, lv.y1, NLD);
         const wPasie = (r) => r.x1 > dsx0 && r.x0 < dsx1;
@@ -5377,14 +5399,14 @@ function computeGeoLiczy(cab, mat, ctx) {
         const droga = (colMaxDxs ?? Math.max(...NLD)) + DXS.zaTylem + dInsetExtra;
         const sufitDla = (gora) => (i + 1 < ds.length ? sufitPrzod
           : Math.min(sufitPrzod, ...(c.rails || []).filter((r) => r.y0 >= gora && r.z0 < droga && wPasie(r)).map((r) => r.y0)));
-        /* Bok „auto”: najwyzszy z luzem SZUFLADA_ZAPAS pod tym, co nad droga
+        /* Bok „auto”: najwyzszy z luzem DS.zapas pod tym, co nad droga
            skrzynki (jak V-BOX); wzmocnienie przy plecach nizej niz gora boku
            skraca NL, nie bok. Recznie — dowolna wysokosc w mm. */
-        let bokMax = Math.floor(sufitPrzod - SZUFLADA_ZAPAS - bokY0);
+        let bokMax = Math.floor(sufitPrzod - DS.zapas - bokY0);
         for (let k = 0; k < 4 && bokMax > 0; k++) {
           const sf = sufitDla(bokY0 + bokMax);
-          if (bokY0 + bokMax + SZUFLADA_ZAPAS <= sf) break;
-          bokMax = Math.floor(sf - SZUFLADA_ZAPAS - bokY0);
+          if (bokY0 + bokMax + DS.zapas <= sf) break;
+          bokMax = Math.floor(sf - DS.zapas - bokY0);
         }
         /* Front nizszy od pasma (podfrez, gorny front pod plyta) — bok nie wystaje ponad
            jego gore, bo widac go w szczelinie nad frontem (uzytkownik 2026-10-25: „jak
@@ -5396,13 +5418,13 @@ function computeGeoLiczy(cab, mat, ctx) {
         const goraBoku = bokY0 + hBok;
         if (recznyBok !== null && fh < fhFull && hBok > bokPodFrontem)
           add("warn", `${where2}: bok ${fmt(hBok)} mm wystaje ${fmt(hBok - bokPodFrontem)} mm ponad front obniżony podfrezem — widać go w szczelinie nad frontem.`
-            + (bokPodFrontem >= DXS.minTyl + DXS.bokPodDnem ? `|fixh:${lv.i}:${j}:${i}:${bokPodFrontem}` : ""));
+            + (bokPodFrontem >= DXS.minTyl + DS.bokPodDnem ? `|fixh:${lv.i}:${j}:${i}:${bokPodFrontem}` : ""));
         // wzmocnienie przy plecach na wysokosci skrzynki skraca prowadnice (4 mm luzu)
         const zaSkrzynka = (c.rails || []).filter((r) => r.z0 > 0 && r.y0 < goraBoku && r.y1 > railY0 && wPasie(r));
         const limTyl = zaSkrzynka.length ? Math.min(...zaSkrzynka.map((r) => r.z0)) : null;
         const nlTyl = limTyl === null ? null : ([...NLD].reverse().find((v) => v + 4 + dInsetExtra <= limTyl) ?? null);
         const nlMaxTu = nlPrzedElementem(limTyl === null ? colMaxDxs
-          : colMaxDxs === null ? null : nlTyl === null ? null : Math.min(colMaxDxs, nlTyl), NLD, railY0 + Math.min(dxsBokOd, DXS.dnoOd), goraBoku);
+          : colMaxDxs === null ? null : nlTyl === null ? null : Math.min(colMaxDxs, nlTyl), NLD, railY0 + Math.min(DS.bokOd, DS.dnoOd), goraBoku);
         const nlAuto = num(rawCol.nl) ?? nlMaxTu;
         const nl = num(d.nl) ?? nlAuto;
         if (colMaxDxs === null)
@@ -5439,47 +5461,47 @@ function computeGeoLiczy(cab, mat, ctx) {
         const ceilY = i + 1 < ds.length ? y + fhFull + drGap : Math.min(sufitKorp, sufitFix);
         const coNad = i + 1 < ds.length ? "front szuflady wyżej" : sufitFix < sufitKorp ? "fix u góry"
           : nadSzuflada.some((r) => r.y0 < lv.y1) ? "wzmocnienie pod blatem" : "góra korpusu";
-        const bokFit = Math.floor(ceilY - SZUFLADA_ZAPAS - bokY0); // najwyzszy bok z luzem
-        const minBok = DXS.minTyl + DXS.bokPodDnem;
+        const bokFit = Math.floor(ceilY - DS.zapas - bokY0); // najwyzszy bok z luzem
+        const minBok = DXS.minTyl + DS.bokPodDnem;
         /* Gdy zaden bok sie nie zmiesci, App dokleja „Zmniejsz do N szuflad” (`szufbrak:`,
            `przyciskiSzuflad`) — decyzja uzytkownika 2026-10-22. */
         const przyciskBoku = bokFit >= minBok && bokFit !== hBok ? `|fixh:${lv.i}:${j}:${i}:${bokFit}` : `|szufbrak:${lv.i}:${j}`;
         /* Za niski bok i tyl zglasza ogolna regula formatek (ponizej 30 mm blad,
            30–60 ostrzezenie z „Zwieksz do 60 mm”) — tu tylko brak miejsca. */
         if (goraBoku > ceilY)
-          add("error", `${where2}: skrzynka z bokiem ${fmt(hBok)} mm sięga ${fmt(goraBoku - railY0)} mm nad spód prowadnicy (bok zaczyna się ${dxsBokOd} mm nad nim), a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
+          add("error", `${where2}: skrzynka z bokiem ${fmt(hBok)} mm sięga ${fmt(goraBoku - railY0)} mm nad spód prowadnicy (bok zaczyna się ${DS.bokOd} mm nad nim), a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.`
             + przyciskBoku);
-        else if (ceilY - goraBoku < SZUFLADA_ZAPAS)
-          add("error", `${where2}: nad bokiem skrzynki ${fmt(hBok)} mm zostaje ${fmt(Math.round(ceilY - goraBoku))} mm luzu do tego, co jest wyżej (${coNad}) — potrzeba min. ${SZUFLADA_ZAPAS} mm.`
+        else if (ceilY - goraBoku < DS.zapas)
+          add("error", `${where2}: nad bokiem skrzynki ${fmt(hBok)} mm zostaje ${fmt(Math.round(ceilY - goraBoku))} mm luzu do tego, co jest wyżej (${coNad}) — potrzeba min. ${DS.zapas} mm.`
             + przyciskBoku);
         /* Bok auto schodzil do kilkunastu mm (6 szuflad w niskim poziomie) — dno wystawalo
            nad bok i wchodzilo we wzmocnienie, a bledu miejsca nie bylo, tylko formatki
            < 30 mm. Najnizsza sensowna skrzynka: tyl MIN_DOCIECIE + 10 pod dnem (audyt
            szuflad 2026-10-22). */
         else if (recznyBok === null && bokFit < minBok)
-          add("error", `${where2}: nie ma miejsca na skrzynkę DXS-3D — najniższa (bok ${minBok} mm, tył ${DXS.minTyl} mm) potrzebuje ${dxsBokOd + minBok + SZUFLADA_ZAPAS} mm od spodu prowadnicy razem z luzem ${SZUFLADA_ZAPAS} mm, a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.|szufbrak:${lv.i}:${j}`);
+          add("error", `${where2}: nie ma miejsca na skrzynkę ${DS.nazwa} — najniższa (bok ${minBok} mm, tył ${DXS.minTyl} mm) potrzebuje ${DS.bokOd + minBok + DS.zapas} mm od spodu prowadnicy razem z luzem ${DS.zapas} mm, a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm.|szufbrak:${lv.i}:${j}`);
         // tyl: dol rowno ze spodem dna, domyslnie gora rowno z bokami (bok − 10); recznie nizej
-        const tylAuto = hBok - DXS.bokPodDnem;
+        const tylAuto = hBok - DS.bokPodDnem;
         const recznyTyl = num(d.backHeight);
         const backH = Math.max(0, recznyTyl !== null ? Math.round(recznyTyl) : tylAuto);
         /* reczny tyl sprawdzamy z tym, co jest nad szuflada — tak jak bok (audyt GPT N128:
            tyl 260 w szafce 300 wchodzil w wieniec, a byla tylko uwaga o wystawaniu nad boki) */
-        const goraTylu = railY0 + DXS.dnoOd + backH;
-        const tylMax = Math.floor(ceilY - SZUFLADA_ZAPAS - (railY0 + DXS.dnoOd));
-        if (recznyTyl !== null && goraTylu > ceilY - SZUFLADA_ZAPAS)
-          add("error", `${where2}: tył ${fmt(backH)} mm sięga ${fmt(Math.round(goraTylu - railY0))} mm nad spód prowadnicy, a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm — wchodzi w nie, skrzynki nie da się złożyć ani wsunąć. Najwyżej ${fmt(Math.max(0, tylMax))} mm (z luzem ${SZUFLADA_ZAPAS} mm).`
+        const goraTylu = railY0 + DS.dnoOd + backH;
+        const tylMax = Math.floor(ceilY - DS.zapas - (railY0 + DS.dnoOd));
+        if (recznyTyl !== null && goraTylu > ceilY - DS.zapas)
+          add("error", `${where2}: tył ${fmt(backH)} mm sięga ${fmt(Math.round(goraTylu - railY0))} mm nad spód prowadnicy, a do tego, co jest wyżej (${coNad}), jest ${fmt(Math.max(0, Math.round(ceilY - railY0)))} mm — wchodzi w nie, skrzynki nie da się złożyć ani wsunąć. Najwyżej ${fmt(Math.max(0, tylMax))} mm (z luzem ${DS.zapas} mm).`
             + (Math.min(tylAuto, tylMax) >= DXS.minTyl ? `|fixback:${lv.i}:${j}:${i}:${Math.min(tylAuto, tylMax)}` : ""));
         else if (recznyTyl !== null && backH > tylAuto)
-          add("warn", `${where2}: tył ${fmt(backH)} mm wystaje ${fmt(backH - tylAuto)} mm ponad boki skrzynki (dół tyłu jest równo ze spodem dna, ${DXS.bokPodDnem} mm nad dołem boków).`
+          add("warn", `${where2}: tył ${fmt(backH)} mm wystaje ${fmt(backH - tylAuto)} mm ponad boki skrzynki (dół tyłu jest równo ze spodem dna, ${DS.bokPodDnem} mm nad dołem boków).`
             + (tylAuto >= DXS.minTyl ? `|fixback:${lv.i}:${j}:${i}:${tylAuto}` : ""));
         const skw = Math.round((LW - 2 * (DXS.odBoku + tbok)) * 10) / 10; // wnetrze skrzynki: LW − 49 przy bokach 18
         if (skw <= 0) add("error", `${where2}: kolumna ${fmt(LW)} mm za wąska na skrzynkę DXS-3D (boki ${fmt(tbok)} mm + ${DXS.odBoku} mm luzu z każdej strony).`);
         if (![16, 18, 19].includes(Math.round(tbok)))
           add("warn", `${where2}: DXS-3D jest na skrzynkę z płyty 16–19 mm (instrukcja liczy 18), a płyta półek ma ${fmt(tbok)} mm — sprawdź szerokość skrzynki.`);
         const dr = {
-          i, y, h: fh, x: dsx0, w: dsx1 - dsx0, system: "dxs", push: pushSzuflady(d), hClass: hBok, nl, fixed: num(d.front) !== null, bx0, bx1, zabudowa: lwP ? { L: lwP.L, R: lwP.R } : null,
+          i, y, h: fh, x: dsx0, w: dsx1 - dsx0, system: "dxs", push: !d.blum && pushSzuflady(d), blum: !!d.blum, hClass: hBok, nl, fixed: num(d.front) !== null, bx0, bx1, zabudowa: lwP ? { L: lwP.L, R: lwP.R } : null,
           // od spodu prowadnicy: dol boku, spod dna i tylu, gora boku — wspolne dla rysunkow i kontroli
-          bokOd: dxsBokOd, dnoOd: DXS.dnoOd, gora: dxsBokOd + hBok,
+          bokOd: DS.bokOd, dnoOd: DS.dnoOd, gora: DS.bokOd + hBok,
           rail: { y0: railY0, h: hBok, d: nl || 0, setback: dInsetExtra },
         };
         c.drawers.push(dr);
@@ -5500,7 +5522,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           const przodH = tylAuto;
           const dnoGl = Math.max(0, bokDl - 2 * tbok);
           dr.skrzynka = { system: "dxs", LW, nl, bok: hBok, bokDl, bokT: tbok, szer: skw, odBoku: DXS.odBoku,
-            dno: [skw, dnoGl], tyl: [skw, backH], przod: [skw, przodH], tylOd: DXS.dnoOd, bokOd: dxsBokOd, grub: ts };
+            dno: [skw, dnoGl], tyl: [skw, backH], przod: [skw, przodH], tylOd: DS.dnoOd, bokOd: DS.bokOd, bokPodDnem: DS.bokPodDnem, grub: ts };
           // bok / tyl wezszy niz MIN_PART: przycisk „Zwieksz do 60 mm” zmienia pole tej szuflady
           // tylko gdy bok 60 mm sie zmiesci — inaczej przycisk dawalby blad miejsca
           const jest60 = bokFit >= MIN_PART;
@@ -5509,7 +5531,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           drawerParts.push({ kind: "dno", a: skw, b: dnoGl });
           drawerParts.push({ kind: "tyl", a: skw, b: backH, zw60: zwT });
           drawerParts.push({ kind: "przod", a: skw, b: przodH });
-          { const kD = `${nl}|${pushSzuflady(d) ? 1 : 0}`; dxsGroups.set(kD, (dxsGroups.get(kD) || 0) + 1); }
+          { const kD = `${nl}|${!d.blum && pushSzuflady(d) ? 1 : 0}|${d.blum ? 1 : 0}`; dxsGroups.set(kD, (dxsGroups.get(kD) || 0) + 1); }
           // konfirmaty przez boki od zewnatrz: dno wzdluz boku, tyl i przod na ich wysokosci,
           // z obu stron; przod w czolo dna — od lica przodu (zakrywa je front)
           dxsKonf += 2 * (konfirmatyNaStyk(dnoGl) + konfirmatyNaStyk(backH) + konfirmatyNaStyk(przodH)) + DXS.konfPrzodDno;
@@ -7113,7 +7135,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             const gap = Math.round(freeDepth - drNl); // luz miedzy tylem szuflady a zabudowa
             if (gap >= 4) return; // w porzadku
             // tylko dlugosci z katalogu systemu tej szuflady — DXS nie ma NL 270 (audyt GPT N110)
-            const maxNlFit = [...nlSystemu(dr.system, dr.push, dr.nosnosc)].reverse().find((v) => v + 4 <= freeDepth);
+            const maxNlFit = [...nlSystemu(dr.system, dr.push, dr.nosnosc, dr.blum)].reverse().find((v) => v + 4 <= freeDepth);
             const act = maxNlFit ? `|fixnl:${lv.i}:${jSzuflady(c, dr)}:${dr.i}:${maxNlFit}` : "";
             const gdzie = `${dr.seg ? gdziePoziomKol(lv.i, c.j, dr.seg.nr) : `Poziom ${lv.i + 1}, kolumna ${c.j + 1}`}, szuflada ${dr.i + 1}`;
             if (gap < 0) {
@@ -7269,7 +7291,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             const gap = Math.round(freeDepth - drNl);
             if (gap >= 4) return;
             // tylko dlugosci z katalogu systemu tej szuflady — DXS nie ma NL 270 (audyt GPT N110)
-            const maxNlFit = [...nlSystemu(dr.system, dr.push, dr.nosnosc)].reverse().find((v) => v + 4 <= freeDepth);
+            const maxNlFit = [...nlSystemu(dr.system, dr.push, dr.nosnosc, dr.blum)].reverse().find((v) => v + 4 <= freeDepth);
             const act = maxNlFit ? `|fixnl:${lv.i}:${jSzuflady(c, dr)}:${dr.i}:${maxNlFit}` : "";
             const gdzie = `${dr.seg ? gdziePoziomKol(lv.i, c.j, dr.seg.nr) : `Poziom ${lv.i + 1}, kolumna ${c.j + 1}`}, szuflada ${dr.i + 1}`;
             const co = ob.mask ? "zabudowy elementu" : "elementu";
@@ -7624,7 +7646,11 @@ function computeGeoLiczy(cab, mat, ctx) {
           const sb0 = dr.rail.setback || 0;
           /* na listwie pod prowadnice (za drzwiami przesuwnymi) odleglosci od jej przedniej krawedzi — listwa cofnieta jak przegrody */
           const notka = (sb) => { const otw = prowadnicaOtwory(dr.rail.d).map((x) => fmt(x + sb)).join(", ");
-          return dr.system === "dxs"
+          return dr.system === "dxs" && dr.blum
+            // Blum TANDEM 17–19: kreska spodu prowadnicy, wkrety w osi 37 mm nad nia, pierwszy 37 od przedniej krawedzi (rozstaw 32) — katalog Blum 2026 s. 455
+            ? `kreska — spód prowadnicy Blum TANDEM 560F, NL ${fmt(dr.rail.d)}; wkręty w osi ${TANDEM.wkret} mm nad kreską, pierwszy ${fmt(37 + sb)} mm od przedniej krawędzi, dalej w otwory prowadnicy`
+              + (sb ? ` (cofnięta o grubość frontu ${fmt(sb)} mm)` : "")
+            : dr.system === "dxs"
             ? `kreska — spód prowadnicy DXS-3D, NL ${fmt(dr.rail.d)}; przód prowadnicy ${fmt(DXS.odCzola + sb)} mm za przednią krawędzią`
               + (sb ? ` (${DXS.odCzola} + grubość frontu ${fmt(sb)})` : "")
               + `; 3 wkręty w otwory prowadnicy, bez nawiercania (górny rząd ${DXS.wkretGora} mm nad kreską)`
@@ -7644,15 +7670,16 @@ function computeGeoLiczy(cab, mat, ctx) {
                Na boku liczone od dolnej i przedniej krawedzi boku. */
             // nazwa jak formatka („Bok szuflady”) + ktora szuflada
             const ktora = `szuflada ${dr.i + 1}${lv.cols.length > 1 ? `, kolumna ${c.j + 1}` : ""}`;
-            const dnoY = DXS.bokPodDnem + sk.grub / 2;
+            const bpd = sk.bokPodDnem ?? DXS.bokPodDnem;
+            const dnoY = bpd + sk.grub / 2;
             // dno zaczyna sie za przodem skrzynki (pelna skrzynka, 2026-10-26)
             const zaPrzodem = sk.przod ? sk.grub : 0;
             const przodDna = konfirmatyPoz(sk.dno[1], zaPrzodem).map((z) => fmt(z)).join(", ");
             drillAdd(lv.i, `Bok szuflady — ${ktora} (2 szt., lustrzanie)`, 0, "konfirmat — dno", dnoY,
-              `oś dna (spód dna ${DXS.bokPodDnem} mm nad dołem boku); ${przodDna} mm od przedniej krawędzi boku; od zewnątrz`);
+              `oś dna (spód dna ${bpd} mm nad dołem boku); ${przodDna} mm od przedniej krawędzi boku; od zewnątrz`);
             if (sk.przod) {
               konfirmatyPoz(sk.przod[1]).forEach((yP) => drillAdd(lv.i, `Bok szuflady — ${ktora} (2 szt., lustrzanie)`, 0,
-                "konfirmat — przód skrzynki", DXS.bokPodDnem + yP, `oś przodu: ${fmt(sk.grub / 2)} mm od przedniej krawędzi boku; od zewnątrz`));
+                "konfirmat — przód skrzynki", bpd + yP, `oś przodu: ${fmt(sk.grub / 2)} mm od przedniej krawędzi boku; od zewnątrz`));
               const xs = [KONF_OD_KRAWEDZI, sk.przod[0] - KONF_OD_KRAWEDZI].map((x) => fmt(x)).join(" i ");
               drillAdd(lv.i, `Przód skrzynki — ${ktora}`, 0, "konfirmat — dno", sk.grub / 2,
                 `oś dna (dół przodu równo ze spodem dna); ${xs} mm od lewej krawędzi; od lica (zakryje je front)`);
@@ -7661,7 +7688,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             }
             const zTylu = sk.bokDl - sk.grub / 2;
             konfirmatyPoz(sk.tyl[1]).forEach((yT) => drillAdd(lv.i, `Bok szuflady — ${ktora} (2 szt., lustrzanie)`, 0,
-              "konfirmat — tył", DXS.bokPodDnem + yT, `oś tyłu: ${fmt(zTylu)} mm od przedniej krawędzi boku; od zewnątrz`));
+              "konfirmat — tył", bpd + yT, `oś tyłu: ${fmt(zTylu)} mm od przedniej krawędzi boku; od zewnątrz`));
             drillAdd(lv.i, `Tył szuflady — ${ktora}`, 0, "zaczep prowadnicy ⌀6 × 10", DXS.zaczepY,
               `od tylnej strony, ${DXS.zaczepX} mm od lewej i od prawej krawędzi (2 otwory)`);
             drillAdd(lv.i, `Dno szuflady — ${ktora}`, null, "zaczep frontu (sprzęgło)", null,
@@ -8318,14 +8345,16 @@ function computeGeoLiczy(cab, mat, ctx) {
       spec: `ind. ${VBOX_PUSH.mocowania}`, qty: 2 * drazkiPush.length, unit: "kpl." });
   }
   {
-    const nDxp = [...dxsGroups.entries()].filter(([kD]) => /\|1$/.test(kD)).reduce((a2, [, q]) => a2 + q, 0);
+    const nDxp = [...dxsGroups.entries()].filter(([kD]) => /^\d+\|1\|/.test(kD)).reduce((a2, [, q]) => a2 + q, 0);
     if (pushVbox || nDxp) add("info", `Szuflady push to open (${[pushVbox ? `V-BOX PUSH II ${pushVbox}` : "", nDxp ? `DXP-3D ${nDxp}` : ""].filter(Boolean).join(", ")}): `
       + `front ${pushVbox ? `co najmniej ${PUSH_SZCZELINA} mm` : "3–5 mm"} od korpusu (regulacja głębokości prowadnicy) — inaczej nie da się go nacisnąć`
       + `${drazkiPush.length ? `; przy frontach szerszych niż ${VBOX_PUSH.drazekOdFrontu} mm drążek synchronizujący (${drazkiPush.length} szt.), docięty na LW − ${VBOX_PUSH.lsOdLW} mm — w zamówieniu` : ""}. Uchwyt niepotrzebny.`);
   }
   // DXS-3D: komplet na szuflade (prowadnice, zaczepy przednie i tylne)
   [...dxsGroups.entries()].sort((a2, b2) => parseInt(a2[0], 10) - parseInt(b2[0], 10)).forEach(([kD, qty]) => {
-    const [nlS, push] = kD.split("|"), nlD = Number(nlS);
+    const [nlS, push, blum] = kD.split("|"), nlD = Number(nlS);
+    // Blum TANDEM 17–19 (2026-11-23): komplet prowadnic ze sprzeglami, 100 zl
+    if (blum === "1") { hardware.push({ name: TANDEM_NAME, spec: `NL ${nlD} mm — prowadnice pod dno z BLUMOTION i sprzęgła (T51.1700.04), boki szuflady 17–19 mm; komplet na szufladę`, qty, unit: "kpl." }); return; }
     hardware.push({
       name: push === "1" ? "Prowadnica Sevroll DXP-3D Synchro PUSH" : "Prowadnica Sevroll DXS-3D Synchro",
       spec: push === "1" ? `NL ${nlD} mm — push to open (bez uchwytu), szczelina przed frontem 3–5 mm; komplet na szufladę`
@@ -15723,7 +15752,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
                  (przy NL 600 — 380), od 4 mm za krawedzia, 27 mm wysokosci nad kreska */
               const dxs = dr.system === "dxs";
               const dlP = dxs ? DXS.dlKorpus[dr.rail.d] ?? dr.rail.d : dr.rail.d;
-              const hP = dxs ? DXS.dnoOd : (dr.gora ?? vboxGora(dr.rail.h));
+              const hP = dxs ? (dr.dnoOd ?? DXS.dnoOd) : (dr.gora ?? vboxGora(dr.rail.h));
               const rx0 = D - (dr.rail.setback || 0) - (dxs ? DXS.odCzola : 0) - dlP;
               out.push(
                 <g key={`srn${k}`} data-el={dxs ? "prowadnica-dxs" : undefined}>
@@ -25388,7 +25417,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
          jak lista przy szufladzie w technicznym (`setDrawerSystem`) */
       tryb === "szczegolowa" && k.nr == null && k.c.kind === "drawers" && (k.c.drawers || []).length > 0 && wiersz(`sys${k.li}-${k.jA}`, "prowadnice",
         MAK_SYSTEMY_SZUF.map(([v, l]) => {
-          const ds = k.c.drawers || [], jest = ds.every((d) => `${systemSzuflady(d)}${pushSzuflady(d) ? "-push" : ""}` === v);
+          const ds = k.c.drawers || [], jest = ds.every((d) => wartoscSystemu(d) === v);
           return <Btn key={v} el="mak-szuf-system" v={v} on={jest} onClick={() => !jest && zmienKol(k.li, k.j, (kk) => { kk.drawers = (kk.drawers || []).map((d) => ustawSystemIPush(d, v)); })}>{l}</Btn>;
         }), "mak-kolumna"),
       frontyW(k)].filter(Boolean));
@@ -30045,7 +30074,7 @@ export default function App() {
                                 className="rounded border border-stone-300 bg-white px-1.5 py-1 font-mono text-xs focus:border-teal-600 focus:outline-none">
                                 <option value="">auto {geo.maxNL ? `(${geo.maxNL})` : ""}</option>
                                 {/* dlugosci systemow szuflad tej kolumny (V-BOX ma tez 270, DXS-3D nie) */}
-                                {[...new Set((c.drawers || []).flatMap((dr) => nlSystemu(dr.system, dr.push, dr.nosnosc)))].sort((a, b) => a - b).map((v) => (
+                                {[...new Set((c.drawers || []).flatMap((dr) => nlSystemu(dr.system, dr.push, dr.nosnosc, dr.blum)))].sort((a, b) => a - b).map((v) => (
                                   <option key={v} value={v}>{v}</option>
                                 ))}
                               </select>
@@ -30061,7 +30090,7 @@ export default function App() {
                               <div key={dr.i} className="flex flex-wrap items-center gap-2" data-el="szuflada-wiersz">
                                 {/* system szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty
                                     na prowadnicach dolnego montazu) — uzytkownik 2026-10-21 */}
-                                <select value={dr.system === "tbx" ? (dr.nosnosc === 65 ? "tbx-65" : "tbx") : `${dr.system || "vbox"}${dr.push ? "-push" : ""}`} data-el="szuflada-system"
+                                <select value={dr.system === "tbx" ? (dr.nosnosc === 65 ? "tbx-65" : "tbx") : dr.system === "dxs" && dr.blum ? "tandem" : `${dr.system || "vbox"}${dr.push ? "-push" : ""}`} data-el="szuflada-system"
                                   title="System szuflady: V-BOX — boki metalowe, DXS-3D — skrzynka z płyty na prowadnicach pod dnem; PUSH — push to open (bez uchwytu): V-BOX 3D Slim PUSH II, DXP-3D Synchro (NL do 550)"
                                   onChange={(e) => setDrawerSystem(lv.i, jA, dr.i, e.target.value)}
                                   className="rounded border border-stone-300 bg-white px-1 py-1 text-[11px] focus:border-teal-600 focus:outline-none">
@@ -30071,6 +30100,7 @@ export default function App() {
                                   <option value="dxs-push">DXP-3D PUSH</option>
                                   <option value="tbx">TANDEMBOX</option>
                                   <option value="tbx-65">TANDEMBOX 65 kg</option>
+                                  <option value="tandem">TANDEM (17–19 mm)</option>
                                 </select>
                                 {dr.system === "dxs" ? (
                                   <label className="flex shrink-0 items-center gap-1" data-el="dxs-bok"
@@ -30166,7 +30196,7 @@ export default function App() {
                                   onChange={(e) => setDrawerNL(lv.i, jA, dr.i, e.target.value)}
                                   className="shrink-0 rounded border border-stone-300 bg-white px-1 py-1 font-mono text-[11px] focus:border-teal-600 focus:outline-none">
                                   <option value="">NL {dr.nl ?? c.nl ?? "auto"}</option>
-                                  {nlSystemu(dr.system, dr.push, dr.nosnosc).map((v) => (
+                                  {nlSystemu(dr.system, dr.push, dr.nosnosc, dr.blum).map((v) => (
                                     <option key={v} value={v}>{v}</option>
                                   ))}
                                 </select>

@@ -161,6 +161,12 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
   - plan wierceń: dolna krawędź prowadnicy, wkręty w osi 33 mm, otwory z tabeli Blum (`TBX.otwory`, 19 — opcjonalny);
   - zamówienie: „Szuflada Blum TANDEMBOX antaro” — komplet (prowadnice, boki, mocowania frontu i tyłu), 205 zł; bez relingu bocznego V-BOX,
     bez kątownika pod dno; push (TIP-ON BLUMOTION) — jeszcze nie.
+- **Blum TANDEM 17–19 mm (560F)** (użytkownik 2026-11-23; katalog Blum 2026 s. 454–461 w `instrukcje/blum/`): wybór „TANDEM (17–19 mm)”
+  przy szufladzie i „TANDEM” w makiecie szczegółowej. Ta sama budowa co DXS-3D, więc w programie to DXS-3D z flagą `drawer.blum`
+  (`dxsParam`, tabela `TANDEM`): prowadnica najniższej szuflady **na dnie szafki** (Blum nie pokazuje odstępu; DXS-3D — 2 mm),
+  **spód dna 27,5** mm nad dołem szyny, **boki 12** mm poniżej dna (rysunek 12–15), luz nad skrzynką **min. 7** mm, wkręty prowadnicy
+  w osi 37 mm nad dołem szyny, pierwszy 37 mm od przedniej krawędzi; NL 250, 270, 300 … 600; skrzynka i front jak DXS-3D (pełna skrzynka
+  z płyty 18, front od środka 4 × 30); zamówienie „Prowadnica Blum TANDEM 560F” — komplet 100 zł.
 - **Rysunki i 3D** (uchwyt tylko przy `d.handle`, bez uchwytu front bez żadnego znaku — `palce`): `szufladaOdCzola`, `szufladaZGory`, `szerWnetrzaSzuflady`; bryła 3D `skrzynkaBryly`, wysuw `wysuwSzuflady`.
   - Z przodu (otwarte) skrzynka DXS ma boki, tył i dno; przy uchwycie frezowanym skrzynkę widać też przy zamkniętych frontach (pod frezem).
   - Z przodu (otwarte) front szuflady zostaje przygaszony; przy szufladzie wewnętrznej za drzwiami przesuwnymi pod nim widać prowadnice także bez „wyposażenia” (`SkrzynkaZaPrzesuwnymi`, 2026-11-17). Prowadnice V-BOX z przodu od `dr.bx0` / `dr.bx1` (bok zabudowy, wspornik fixu).

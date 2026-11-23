@@ -1798,6 +1798,22 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
       && (g65.hardware || []).some((h) => h.name === 'Szuflada Blum TANDEMBOX antaro' && /65 kg \(prowadnica 576\)/.test(h.spec)), JSON.stringify(d65.map((d) => [d.hClass, d.nl, d.nosnosc])));
     const gN = geo(szT({ h: 79.5, nl: 300 })), eN = (gN.msgs || []).find((m) => /TANDEMBOX N ma prowadnice tylko NL/.test(m.text));
     ok('TANDEMBOX N z NL 300: błąd z przyciskiem NL 400', !!eN && /\|fixnl:0:0:\d:400$/.test(eN.text), eN && eN.text);
+    /* Blum TANDEM 17–19 (560F): jak DXS-3D z liczbami Blum (uzytkownik 2026-11-23) */
+    const szD = (ext = {}) => ({ name: 'T', W: 600, H: 720, D: 560, levels: [{ h: null, cols: [{ kind: 'drawers', w: null,
+      drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: true, system: 'dxs', ...ext })) }] }] });
+    const gT = geo(szD({ blum: true })), gX = geo(szD()), dT = gT.levels[0].cols[0].drawers, dX = gX.levels[0].cols[0].drawers;
+    const errT = (gT.msgs || []).filter((m) => m.level === 'error').map((m) => m.text.slice(0, 100));
+    ok('TANDEM: bez błędów; najniższa prowadnica na dnie (DXS-3D 2 mm wyżej), spód dna 27,5 nad szyną, boki 12 pod dnem', !errT.length
+      && dT.every((d) => d.blum && d.dnoOd === 27.5 && d.bokOd === 15.5) && Math.abs((dX[0].rail.y0 - dT[0].rail.y0) - 2) < 0.01, JSON.stringify({ errT, y: [dT[0].rail.y0, dX[0].rail.y0], d: dT.map((d) => [d.dnoOd, d.bokOd]) }));
+    const hT = (gT.hardware || []).filter((h) => h.name === 'Prowadnica Blum TANDEM 560F');
+    ok('TANDEM w zamówieniu: „Prowadnica Blum TANDEM 560F” 3 kpl., 100 zł; bez kompletów DXS-3D', hT.reduce((a, h) => a + h.qty, 0) === 3
+      && G.hwDefaultPrice({ name: 'Prowadnica Blum TANDEM 560F' }) === 100 && !(gT.hardware || []).some((h) => /^Prowadnica Sevroll DXS/.test(h.name)), JSON.stringify(hT.map((h) => h.spec)));
+    const planT = (gT.drillPlan || []).flatMap((p) => p.rows || []).map((r) => r.note || '');
+    ok('plan wierceń TANDEM: kreska spodu prowadnicy, wkręty w osi 37, pierwszy 37 od przodu', planT.some((n) => /prowadnicy Blum TANDEM 560F, NL \d+; wkręty w osi 37 mm nad kreską, pierwszy 37 mm/.test(n)), planT.find((n) => /TANDEM/.test(n)) || '');
+    ok('wybór „TANDEM”: DXS z flagą blum, NL z listy TANDEM (270 zostaje, DXS-3D go nie ma); powrót do DXS-3D zdejmuje flagę',
+      G.ustawSystemIPush({ h: 'auto', nl: 270 }, 'tandem').blum === true && G.ustawSystemIPush({ h: 'auto', nl: 270 }, 'tandem').nl === 270
+      && G.ustawSystemIPush({ h: 'auto', nl: 270 }, 'tandem').system === 'dxs' && !('blum' in G.ustawSystemIPush({ system: 'dxs', blum: true, nl: 270 }, 'dxs'))
+      && G.ustawSystemIPush({ system: 'dxs', blum: true, nl: 270 }, 'dxs').nl === null);
     ok('wybór „TANDEMBOX 65 kg” / powrót do V-BOX czyści nośność', G.ustawSystemIPush({ h: 'auto', handle: true }, 'tbx-65').nosnosc === 65
       && G.ustawSystemIPush({ system: 'tbx', nosnosc: 65, nl: 650 }, 'tbx').nl === null && !('nosnosc' in G.ustawSystemIPush({ system: 'tbx', nosnosc: 65 }, 'vbox')));
     ok('przełączenie wersji: push — bez uchwytu, NL 600 DXS → puste przy DXP; powrót — uchwyt wraca',

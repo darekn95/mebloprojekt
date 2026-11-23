@@ -1457,4 +1457,7 @@ tylko 16 mm (szukane: dokument planowania, katalog 2024–2025, standard applica
 [CLAUDE-CHANGE] 2026-11-23: Blum TANDEMBOX antaro w programie (`drawer.system = "tbx"`, `TBX`, `boxSystemu`). Galaz V-BOX w `computeGeo`
 liczy teraz przez `BX = boxSystemu(d)` (te same wzory, tabela wysokosci / NL / tylu / gory skrzynki z systemu). Ostrzezenie `staly` —
 nie da sie go odhaczyc (warnsNowe, licznik, brak ✓). Push przy TANDEMBOX (TIP-ON BLUMOTION) — nie ma; TANDEM (prowadnice pod dno) — nastepny.
+[CLAUDE-CHANGE] 2026-11-23: Blum TANDEM 17–19 (560F) — DXS-3D z flaga `drawer.blum` (`dxsParam` w `szufladaDxs`: nadDnem 0, dnoOd 27,5,
+bokPodDnem 12, zapas 7, NL z 270; zamowienie `TANDEM_NAME` 100 zl). [CHECK] uzytkownik oglada rysunek DXS-3D (Sevroll s. 112, „2 (min.)”
+od dna szafki do spodu prowadnicy) — „może czeka nad korekta” DXS; czekam na decyzje.
 
