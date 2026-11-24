@@ -40,14 +40,21 @@ const tabela = (re) => page.evaluate((src) => {
 }, re.source);
 const formatki = (rows) => (rows || []).filter((r) => r['Długość'] != null)
   .map((r) => ({ name: r._[0], a: num(r['Długość']), b: num(r['Szerokość']), qty: num(r['Szt.']) }));
-const uwagi = () => page.evaluate(() => {
-  const sec = [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''));
-  if (!sec) return { err: [], warn: [], inf: [] };
-  const l = sec.innerText.split('\n').map((x) => x.trim()).filter(Boolean);
+// uwagi szafki — bez bloku „Cały projekt — rozkrój płyt” (2026-11-24: jest przy kazdej szafce, wypisywany raz, na koncu)
+const uwagi = (rozkroj = false) => page.evaluate((rozkroj) => {
+  const sec0 = [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''));
+  if (!sec0) return { err: [], warn: [], inf: [] };
+  let tekst;
+  if (rozkroj) tekst = sec0.querySelector('[data-el=uwagi-rozkroj]')?.innerText || '';
+  else {
+    const sec = sec0.cloneNode(true); sec.style.position = 'absolute'; document.body.appendChild(sec);
+    sec.querySelector('[data-el=uwagi-rozkroj]')?.remove(); tekst = sec.innerText; sec.remove();
+  }
+  const l = tekst.split('\n').map((x) => x.trim()).filter(Boolean);
   const err = [], warn = [], inf = [];
   l.forEach((x, i) => { if (x === '×' && l[i + 1]) err.push(l[i + 1]); if (x === '!' && l[i + 1]) warn.push(l[i + 1]); if (x === 'i' && l[i + 1]) inf.push(l[i + 1]); });
   return { err, warn, inf };
-});
+}, rozkroj);
 const bryly = async (zakres, otwarte) => {
   await click(zakres); await click('Zamk.');
   await page.evaluate(() => { window.__audytBryl = []; }); await click('3D');
@@ -134,6 +141,8 @@ for (const room of (proj.rooms || [{ id: null, name: '' }])) {
   // aktywna szafka z ciagu — przy jednym ciagu w pomieszczeniu nie ma widoku „Zabudowa”, wtedy caly ciag („Ciąg”)
   const idx = (wPokoju.find(([it]) => it.runId) || wPokoju[0])[1];
   await wczytaj({ ...p2, active: idx });
+  // uwagi rozkroju plyt tego pomieszczenia — raz, nie przy kazdej szafce (2026-11-24)
+  (await uwagi(true)).warn.forEach((e) => console.log(`  ! rozkrój${room.name ? ' („' + room.name + '”)' : ''}: ` + e.slice(0, 200)));
   const jest = async (n) => (await page.getByRole('button', { name: n, exact: true }).count()) > 0;
   const zakres = (await jest('Zabudowa')) ? 'Zabudowa' : (await jest('Ciąg')) ? 'Ciąg' : null;
   if (!zakres) { console.log(`  (pomieszczenie „${room.name}”: same szafki wolnostojace — sprawdzone pojedynczo)`); continue; }

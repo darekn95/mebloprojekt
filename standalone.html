@@ -341,7 +341,7 @@ const przesuwneWymiary = (SO, WO, p = {}) => {
   return { n, k: n === 4 ? 2 : n === 6 ? 4 : n - 1, SD, WD, SW: SD - PRZES.SW, WW: listwy ? WD - PRZES.WW : WD, DLP: SD - PRZES.DLP, DR: WD, SO, WO, szczotka, listwy,
     skrzydla: xs.map((x, i) => ({ i, x0: Math.round(x), x1: Math.round(x + SD), tor: tory[i] })) };
 };
-// najkrotszy tor GTV, ktory wystarczy na dlugosc (DTM = SO); dluzszy niz 6000 — dwa kawalki
+// najkrotszy tor GTV, ktory wystarczy na dlugosc (DTM = SO); otwor ponad 6000 — blad „podziel na dwie szafy” (2026-11-24, torow nie laczymy)
 const przesuwneTor = (L) => PRZES.TORY_DL.find((d) => d >= L) || PRZES.TORY_DL[PRZES.TORY_DL.length - 1];
 /* Odsuniecie jednego skrzydla (uzytkownik 2026-11-17: „brak opcji otwarcia — przesunięcia jednych drzwi”; „w szafie może być więcej niż
    2 skrzydła, mogą być 3 lub 4”): skrzydlo jedzie za / przed najblizsze skrzydlo z drugiego toru, ale nie minie skrzydla na swoim torze
@@ -1311,6 +1311,11 @@ const TBX = {
   // otwory prowadnicy 578 w boku szafki od przedniej krawedzi (os 33 nad dolem szyny; 19 — opcjonalny), `Blum_TANDEMBOX_otwory-prowadnic_s7.png`
   otwory: { 270: [19, 37, 115, 133], 300: [19, 37, 133, 165], 350: [19, 37, 133, 165], 400: [19, 37, 165, 229], 450: [19, 37, 165, 261, 293],
     500: [19, 37, 261, 293], 550: [19, 37, 261, 293], 600: [19, 37, 261, 293] },
+  /* prowadnica 576 (65 kg) — katalog Blum 2027/2028 s. 345 „Montaż prowadnic” (odczyt 2026-11-24, `instrukcje/SPIS.md`): 28 — tylko wkret
+     do plyty wiorowej 4 × 15, 293 — tylko wkret EURO Ø6 × 14,5 (661.1450.HG), reszta — jeden albo drugi; `otwory65Opc` — opcjonalny (stabilnosc) */
+  otwory65: { 450: [19, 28, 37, 115, 165, 261], 500: [19, 28, 37, 115, 261, 293], 550: [19, 28, 37, 115, 261, 293],
+    600: [19, 28, 37, 115, 261, 293], 650: [19, 28, 37, 115, 261, 293] },
+  otwory65Opc: { 450: 357, 500: 453, 550: 453, 600: 517, 650: 549 },
   osOtworow: 33,
 };
 const tbx65 = (d) => Number(d && d.nosnosc) === 65;
@@ -2212,12 +2217,16 @@ const hdfZaKorpusem = (p, prev) => {
    „Dolna z szufladami” — fronty roznia sie o 1 mm): polki z dala od zawiasow (zawias w swoim miejscu, polka na blizszej krawedzi
    jego strefy ± HINGE_H / 2 + HINGE_CLR; swiatla w `shelfTargets`, ostatnie auto) i luz miedzy frontami szuflad z przycisku
    „Zwiększ / Zmniejsz luz do N mm” (`fixgap`). Zmienia `cab` w miejscu; tylko gdy pomaga (swiatla co najmniej 120 mm). */
-const wzorBezUwag = (cab, mat) => {
+/* Polki poza zawiasami (wzory z palety; 2026-11-24 takze przycisk „Półki poza zawiasami” przy ostrzezeniu „zawias przesunięty”):
+   polka w strefie zawiasu (zawias ± HINGE_H / 2 + luz) idzie nad albo pod nia — blizej; swiatla min. 120 mm, inaczej kolumna zostaje.
+   `cab` zmienia sie w miejscu; zwraca, czy cos przesunelo. `bezLuzow` — bez poprawki luzu frontow szuflad (`fixgap`). */
+const wzorBezUwag = (cab, mat, tylkoPolki = false) => {
+  let cokolwiek = false;
   for (let pass = 0; pass < 3; pass++) {
     // na kopii — `computeGeo` pamieta wynik dla tego samego obiektu, a tu `cab` zmienia sie w miejscu
-    let g; try { g = computeGeo(JSON.parse(JSON.stringify(cab)), mat); } catch (e) { return; }
+    let g; try { g = computeGeo(JSON.parse(JSON.stringify(cab)), mat); } catch (e) { return cokolwiek; }
     let zmiana = false;
-    (g.msgs || []).forEach((m) => { const a = (m.text.split("|").find((x) => x.startsWith("fixgap:")) || "").split(":");
+    if (!tylkoPolki) (g.msgs || []).forEach((m) => { const a = (m.text.split("|").find((x) => x.startsWith("fixgap:")) || "").split(":");
       if (a.length < 4) return; const k = (((cab.levels || [])[+a[1]] || {}).cols || [])[+a[2]];
       if (k && k.gapBetween !== +a[3]) { k.gapBetween = +a[3]; zmiana = true; } });
     (g.levels || []).forEach((lv) => (lv.cols || []).forEach((col) => {
@@ -2240,8 +2249,18 @@ const wzorBezUwag = (cab, mat) => {
       if (Math.min(...sw, ostatnie) < 120) return;
       raw.shelfTargets = [...sw, null]; zmiana = true;
     }));
-    if (!zmiana) return;
+    if (!zmiana) return cokolwiek;
+    cokolwiek = true;
   }
+  return cokolwiek;
+};
+const polkiPozaZawiasami = (cab, mat) => wzorBezUwag(cab, mat, true);
+/* Przycisk „Półki poza zawiasami” przy ostrzezeniach „zawias przesunięty” zaznaczonej szafki — tylko gdy przesuniecie polek cos daje
+   (proba na kopii); `idx` — szafka w projekcie (akcja `polkizaw:<idx>` w `NoteLine`). */
+const przyciskPolekZawiasy = (msgs, idx, cab, mat) => {
+  if (!(msgs || []).some((m) => /: zawias przesunięty z /.test(m.text))) return msgs;
+  let da = false; try { da = polkiPozaZawiasami(JSON.parse(JSON.stringify(cab)), mat); } catch (e) { da = false; }
+  return da ? msgs.map((m) => (/: zawias przesunięty z /.test(m.text) ? { ...m, text: `${m.text}|polkizaw:${idx}` } : m)) : msgs;
 };
 const biurkaPrzegrodyCof = (p) => {
   if (!p.items.some((it) => it.cab && it.cab.biurkoWiszace && it.cab.przegrodyCof == null)) return p;
@@ -7672,10 +7691,14 @@ function computeGeoLiczy(cab, mat, ctx) {
               + (sb ? ` (${DXS.odCzola} + grubość frontu ${fmt(sb)})` : "")
               + `; 3 wkręty w otwory prowadnicy, bez nawiercania (górny rząd ${DXS.wkretGora} mm nad kreską)`
             : dr.system === "tbx"
-              // Blum TANDEMBOX (578 / 576): otwory z tabeli „Standard applications” s. 7, os 33 mm nad dolem szyny; 19 — opcjonalny
+              /* Blum TANDEMBOX: 578 — otwory z tabeli „Standard applications” s. 7 (19 — opcjonalny); 576 (65 kg) — katalog s. 345
+                 (`TBX.otwory65`); os 33 mm nad dolem szyny */
               ? `dolna krawędź prowadnicy Blum ${dr.nosnosc === 65 ? "576" : "578"}, NL ${fmt(dr.rail.d)}; wkręty w osi ${TBX.osOtworow} mm nad dolną krawędzią, `
-                + `${((TBX.otwory[dr.rail.d] || [19, 37]).map((x) => fmt(x + sb))).join(", ")} mm od przedniej krawędzi (pierwszy — opcjonalny)`
-                + (dr.nosnosc === 65 ? " — przy 576 (65 kg) sprawdź otwory w tabeli Blum" : "") + (sb ? ` (cofnięta o ${fmt(sb)} mm)` : "")
+                + (dr.nosnosc === 65 && TBX.otwory65[dr.rail.d]
+                  ? `${TBX.otwory65[dr.rail.d].map((x) => fmt(x + sb)).join(", ")} mm od przedniej krawędzi (${fmt(28 + sb)} — tylko wkręt do płyty wiórowej 4 × 15`
+                    + `${TBX.otwory65[dr.rail.d].includes(293) ? `, ${fmt(293 + sb)} — tylko wkręt EURO Ø6 × 14,5` : ""}); opcjonalnie dla stabilności ${fmt(TBX.otwory65Opc[dr.rail.d] + sb)} mm`
+                  : `${((TBX.otwory[dr.rail.d] || [19, 37]).map((x) => fmt(x + sb))).join(", ")} mm od przedniej krawędzi (pierwszy — opcjonalny)`)
+                + (sb ? ` (cofnięta o ${fmt(sb)} mm)` : "")
             : `dolna krawędź prowadnicy, NL ${fmt(dr.rail.d)}; otwory ${otw} mm od przedniej krawędzi`
             + (sb ? ` (cofnięta o ${fmt(sb)} mm)` : ""); };
           const note = notka(sb0), noteL = dr.zabudowa ? notka(Math.max(0, sb0 - ((spz && spz.cof) || 0))) : note;
@@ -9128,9 +9151,9 @@ function geoPrzesuwne(cab, mat, ctx) {
     note: `skrzydło ${fmt(w.SD)} × ${fmt(w.WD)} mm (GTV NOVO S): płyta w rączkach i listwach — bez okleiny; frezowanie pod wózki dolne wg instrukcji GTV (s. 24)` }];
   const torL = przesuwneTor(SO), nListew = 2 * n, naListwe = Math.max(1, Math.floor(PRZES.LISTWA_DL / Math.max(1, w.DLP)));
   const hw = [
-    { name: "Tor górny GTV", use: "drzwi przesuwne — pod wieńcem, w świetle korpusu", spec: `A-TG, ${fmt(torL)} mm, dociąć do ${fmt(SO)} mm (76 × 38)`, qty: SO > 6000 ? 2 : 1, unit: "szt." },
-    { name: "Tor dolny EVO", use: "drzwi przesuwne — na dnie, w świetle korpusu", spec: `A-TDEVO, ${fmt(torL)} mm, dociąć do ${fmt(SO)} mm (45 × 8)`, qty: SO > 6000 ? 2 : 1, unit: "szt." },
-    { name: "Maskownica toru dolnego EVO", use: "drzwi przesuwne — na torze dolnym", spec: `A-MEVO, ${fmt(torL)} mm, dociąć do ${fmt(SO)} mm`, qty: SO > 6000 ? 2 : 1, unit: "szt." },
+    { name: "Tor górny GTV", use: "drzwi przesuwne — pod wieńcem, w świetle korpusu", spec: `A-TG, ${fmt(torL)} mm, dociąć do ${fmt(SO)} mm (76 × 38)`, qty: 1, unit: "szt." },
+    { name: "Tor dolny EVO", use: "drzwi przesuwne — na dnie, w świetle korpusu", spec: `A-TDEVO, ${fmt(torL)} mm, dociąć do ${fmt(SO)} mm (45 × 8)`, qty: 1, unit: "szt." },
+    { name: "Maskownica toru dolnego EVO", use: "drzwi przesuwne — na torze dolnym", spec: `A-MEVO, ${fmt(torL)} mm, dociąć do ${fmt(SO)} mm`, qty: 1, unit: "szt." },
     { name: "Rączka NOVO S", use: "drzwi przesuwne — po dwie na skrzydło", spec: `A-R18NOVS-270, ${fmt(PRZES.RACZKA_DL)} mm, dociąć do ${fmt(w.DR)} mm`, qty: 2 * n, unit: "szt." },
     { name: "Kątownik 18 mm (listwa pozioma)", use: "drzwi przesuwne — listwa górna i dolna skrzydła", spec: `A-K18-300, ${fmt(PRZES.LISTWA_DL)} mm: ${nListew} × ${fmt(w.DLP)} mm`, qty: Math.ceil(nListew / naListwe), unit: "szt." },
     { name: "Wózek dolny EVO", use: "drzwi przesuwne — dwa na skrzydło", spec: "A-WD-EVO, regulacja 0–10 mm, skrzydło do 50 kg", qty: 2 * n, unit: "szt." },
@@ -9150,6 +9173,9 @@ function geoPrzesuwne(cab, mat, ctx) {
      do półek, ale nie niemożliwy”) */
   const rada = n < 4 ? " Dołóż skrzydło (więcej, węższych)." : n < 6 ? " Dołóż skrzydło (więcej, węższych) albo podziel zabudowę na dwie szafy obok siebie." : " 6 skrzydeł to najwięcej — podziel zabudowę na dwie szafy obok siebie.";
   const akcje = `${n < 6 ? `|przesn:${n + 1}` : ""}${n >= 4 ? "|przesdziel" : ""}`;
+  /* tor GTV najwyzej 6000 mm — dluzszych nie laczymy (uzytkownik 2026-11-24: „jeśli max 6m to max 6m i koniec i następna szafa”) */
+  const torMax = PRZES.TORY_DL[PRZES.TORY_DL.length - 1];
+  if (SO > torMax) add("error", `Otwór drzwi przesuwnych ma ${fmt(SO)} mm, a tor GTV ma najwyżej ${fmt(torMax)} mm — torów nie łączymy. Podziel zabudowę na dwie szafy obok siebie.|przesdziel`);
   if (kg > PRZES.MAX_KG) add("error", `Skrzydło drzwi przesuwnych waży ok. ${fmt(Math.round(kg))} kg — wózki EVO udźwigną najwyżej ${PRZES.MAX_KG} kg.${rada}${akcje}`);
   if (w.SD > PRZES.SKRZ_MAX + 150) add("warn", `Skrzydło drzwi przesuwnych ma ${fmt(w.SD)} mm szerokości — szerokie i ciężkie; zwykle do ok. ${fmt(PRZES.SKRZ_MAX)} mm.${rada}${akcje}`);
   /* analiza 2026-11-21 (sufit 2900, 3000): raczka NOVO S ma PRZES.RACZKA_DL — wyzszego skrzydla z niej nie bedzie; wypelnienie to formatka
@@ -10283,7 +10309,25 @@ const runLayout = (groups, ref = null) => {
     });
   };
   const base = { ox: 0, oy: 0, ux: 1, uy: 0, vx: 0, vy: 1 };
-  [...info.values()].filter((n) => !n.corner && !n.dolny).forEach((n) => put(n, base, 0));
+  /* Osobne ciagi w jednym pomieszczeniu (bez naroznika miedzy nimi) staly wszystkie w tym samym miejscu i nachodzily na siebie w 3D,
+     z gory i w rozwinieciu scian (#46; 2026-11-24 — krok przed ukladem scian pokoju): kazdy nastepny lancuch ciagow stoi obok
+     poprzednich, WALL_SEP dalej (z dlugoscia wpisanej sciany), i dostaje kolejne numery scian. Pierwszy zostaje, gdzie byl. */
+  let nastX = null, nastWall = 0;
+  [...info.values()].filter((n) => !n.corner && !n.dolny).forEach((n) => {
+    if (seen.has(n.id)) return;
+    const przed = new Set(seen);
+    put(n, base, 0);
+    const nowe = [...info.values()].filter((k) => seen.has(k.id) && !przed.has(k.id));
+    const xs = nowe.flatMap((k) => { const sc = scianaZasieg(k, k.run.wallW);
+      return [[0, 0], [k.len, 0], [0, k.depth + k.front], [k.len, k.depth + k.front], [sc.u0, 0], [sc.u1, 0]].map(([u, v]) => k.at(u, v).x); });
+    const dx = nastX === null ? 0 : nastX - Math.min(...xs), dW = nastWall - Math.min(...nowe.map((k) => k.wall));
+    nowe.forEach((k) => {
+      if (dx) { const f = { ...k.f, ox: k.f.ox + dx }; k.f = f; k.at = (u, v) => at(f, u, v); }
+      k.wall += dW;
+    });
+    nastX = Math.max(...xs) + dx + WALL_SEP;
+    nastWall = Math.max(...nowe.map((k) => k.wall)) + 1;
+  });
   // gorny ciag dostaje ramke i numer sciany swojego dolnego
   info.forEach((n) => {
     if (!n.dolny || !seen.has(n.dolny.id) || seen.has(n.id)) return;
@@ -17322,6 +17366,11 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
           (col.hinges || []).forEach((v, m) => { if (v === +ile) col.hingesOk[m] = +ile; });
         }),
       };
+    }
+    if (action.startsWith("polkizaw:")) {
+      // „polkizaw:<nr szafki>” — polki w strefie zawiasow nad albo pod zawias (zawiasy wracaja na zwykle miejsca), 2026-11-24
+      const idx = Number(action.split(":")[1]);
+      return { label: "Półki poza zawiasami", run: () => editItemCab && editItemCab(idx, (c, m) => { polkiPozaZawiasami(c, m); }) };
     }
     if (action.startsWith("hingeflip:")) {
       const [, li, j, side] = action.split(":");
@@ -26509,6 +26558,13 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
     setKomunikat(null);
     const it = c ? project.items[c.idx] : null;
     let run = c ? runOf(it) : runOf(project.items[project.active]);
+    /* Przy szafce wolnostojacej (zaznaczonej albo upuszczone na nia) wzor dolny dokleja sie na koniec ostatniego ciagu tego
+       rodzaju w pomieszczeniu (szafa / kuchnia), a dopiero gdy takiego nie ma — zaklada nowa sciane (2026-11-24, z przegladu:
+       „regał z palety przy szafce wolnostojącej zakłada nowy ciąg, zamiast dołożyć się do zabudowy w pokoju”). */
+    if (!run && w.gdzie === "dol") {
+      const rodz = rodzajWzoru(w);
+      run = runsInRoom(project, pokoj).filter((r) => r.tier !== "gorny" && rodzajCiagu(project, r) === rodz).pop() || null;
+    }
     const sys = systemKontekstu(project, c ? c.idx : project.active);
     // `doSufitu` (szafa do zabudowy): znany sufit sciany — korpus do sufitu z luzem SZAFA_LUZ_SUFIT nad cokolem
     const runSc = run && run.tier === "gorny" ? (project.runs || []).find((r) => r.id === run.wall) || null : run;
@@ -30924,15 +30980,16 @@ export default function App() {
   }, [pokazPlan, project, pokoj, zamTylkoPokoj, ambig]);
 
   // uwagi ciagu ida przed uwagami szafki — dotycza calej sciany, wiec sa nadrzedne
-  const allMsgs = useMemo(() => [...runMsgs, ...bezWspolnychFormatek(przyciskiSzuflad(geo.msgs), !!runPl, !!runTp), ...wstawkaMsgs(projLayout, project.active),
+  const allMsgs = useMemo(() => [...runMsgs, ...bezWspolnychFormatek(przyciskPolekZawiasy(przyciskiSzuflad(geo.msgs), project.active, cab, mat), !!runPl, !!runTp), ...wstawkaMsgs(projLayout, project.active),
     ...biurkoMsgs(cab, geo),
     // ramie szafki w L: jego formatki naleza do tej szafki
     ...(cornerNode && cornerNode.arm && cornerNode.arm.len > 0
       ? maleFormatkiMsgs(cornerArmParts(cornerNode.arm).panels, cab.dociac, "@") : []),
-    /* Zuzycie blatu i odpad arkusza z rozkroju — takze w Uwagach, nie tylko
-       w karcie „Rozkrój” (komentarz uzytkownika 2026-10-17); tylko plyty tego pomieszczenia. */
-    ...rozkrojUwagi.tu.map(({ level, text }) => ({ level, text }))],
-    [runMsgs, geo, projLayout, project.active, cornerNode, cab, mat, projLayoutGeo, runPl, runTp, rozkrojUwagi]);
+    /* Zuzycie blatu i odpad arkusza z rozkroju sa w Uwagach (komentarz uzytkownika 2026-10-17), ale osobnym blokiem
+       „Cały projekt — rozkrój płyt” (`rozkrojTu`, ponizej) — nie jako ostrzezenie kazdej szafki (2026-11-24: „uwaga o odpadzie
+       powtarza się przy każdej szafce — wystarczy raz, w projekcie”). */
+    ],
+    [runMsgs, geo, projLayout, project.active, cornerNode, cab, mat, projLayoutGeo, runPl, runTp]);
   const errors = allMsgs.filter((m) => m.level === "error");
   const warns = allMsgs.filter((m) => m.level === "warn");
   const infos = allMsgs.filter((m) => m.level === "info");
@@ -30942,6 +30999,9 @@ export default function App() {
   // `staly` (np. frez dna TANDEMBOX z plyty 18) — ostrzezenia nie da sie odhaczyc (uzytkownik 2026-11-23)
   const warnsNowe = warns.filter((m) => m.staly || !przeczytane.has(m.text));
   const infosNowe = infos.filter((m) => !przeczytane.has(m.text));
+  // uwagi rozkroju calego projektu (tylko plyty tego pomieszczenia) — osobny blok w Uwagach, w liczniku u gory raz
+  const rozkrojTu = rozkrojUwagi.tu, rozkrojNowe = rozkrojTu.filter((m) => !przeczytane.has(m.text));
+  const ostrzNowe = warnsNowe.length + rozkrojNowe.length;
   const notesRef = useRef(null);
   const scrollToNotes = () => {
     // w makiecie karta technicznego jest schowana — uwagi stoja pod rysunkiem makiety
@@ -30972,7 +31032,7 @@ export default function App() {
   /* Karta „Uwagi” (bledy, ostrzezenia z przyciskami poprawek, podpowiedzi, inne szafki i pomieszczenia) — w trybie
      technicznym pod ustawieniami, w makiecie pod rysunkiem (zgloszenie 2026-11-09: „brak w prostym wyświetlanych na dole
      ostrzeżeń i błędów i podpowiedzi”). Dotyczy aktywnej szafki projektu. `zRef` — tylko jedna kopia ma ref do przewijania. */
-  const uwagiKarta = (zRef) => ((errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0 || rozkrojUwagi.inne.length > 0) && (
+  const uwagiKarta = (zRef) => ((errors.length > 0 || warns.length > 0 || infos.length > 0 || otherNotes.length > 0 || rozkrojTu.length > 0 || rozkrojUwagi.inne.length > 0) && (
             <div ref={zRef ? notesRef : undefined} className="scroll-mt-24" data-el={zRef ? undefined : "makieta-uwagi"}>
             {/* uwagi zawsze na wierzchu — bez zwijania (uzytkownik 2026-09-29) */}
             <Card title="Uwagi" collapsible={false}>
@@ -31046,8 +31106,27 @@ export default function App() {
                   </div>
                 );
               })()}
+              {rozkrojTu.length > 0 && (
+                <div className={(errors.length || warns.length || infos.length) ? "border-t border-stone-100 pt-3" : ""} data-el="uwagi-rozkroj">
+                  <div className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">
+                    Cały projekt — rozkrój płyt
+                  </div>
+                  {[false, true].map((czyt) => {
+                    const lista = rozkrojTu.filter((m) => przeczytane.has(m.text) === czyt);
+                    return lista.length > 0 && (
+                      <ul key={czyt ? "rc" : "rn"} className={"space-y-2" + (czyt ? " opacity-60" : "") + (czyt && rozkrojNowe.length ? " mt-2" : "")}>
+                        {lista.map((m, i) => (
+                          <NoteLine key={(czyt ? "rc" : "rn") + i} text={m.text} color={WARNC} icon="!" przed={znacznik(m.text, czyt)}
+                            editLevels={editLevels} editItemLevels={editItemLevels} editItemCab={editItemCab}
+                            cab={cab} setGap={setGap} runFix={runFix} setMatDepth={setMatDepth} setLegs={setLegs} setPlinthSb={setPlinthSb} />
+                        ))}
+                      </ul>
+                    );
+                  })}
+                </div>
+              )}
               {rozkrojUwagi.inne.length > 0 && (
-                <div className={(errors.length || warns.length || infos.length) ? "border-t border-stone-100 pt-3" : ""} data-el="uwagi-inne-pomieszczenia">
+                <div className={(errors.length || warns.length || infos.length || rozkrojTu.length) ? "border-t border-stone-100 pt-3" : ""} data-el="uwagi-inne-pomieszczenia">
                   <div className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">
                     Do sprawdzenia w innych pomieszczeniach
                   </div>
@@ -31068,7 +31147,7 @@ export default function App() {
                 </div>
               )}
               {otherNotes.length > 0 && (
-                <div className={(errors.length || warns.length || infos.length || rozkrojUwagi.inne.length) ? "border-t border-stone-100 pt-3" : ""}>
+                <div className={(errors.length || warns.length || infos.length || rozkrojTu.length || rozkrojUwagi.inne.length) ? "border-t border-stone-100 pt-3" : ""}>
                   <div className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">
                     Do sprawdzenia w innych szafkach
                   </div>
@@ -31724,11 +31803,11 @@ export default function App() {
               {errors.length} {plural(errors.length, "błąd", "błędy", "błędów")}
             </button>
           )}
-          {warnsNowe.length > 0 && (
+          {ostrzNowe > 0 && (
             <button onClick={scrollToNotes} title="Przejdź do uwag"
               className="rounded-full px-2.5 py-1 text-xs font-medium transition hover:brightness-95"
               style={{ background: "#fef3c7", color: WARNC }}>
-              {warnsNowe.length} {plural(warnsNowe.length, "ostrzeżenie", "ostrzeżenia", "ostrzeżeń")}
+              {ostrzNowe} {plural(ostrzNowe, "ostrzeżenie", "ostrzeżenia", "ostrzeżeń")}
             </button>
           )}
           {infosNowe.length > 0 && (
@@ -31738,7 +31817,7 @@ export default function App() {
               {infosNowe.length} {plural(infosNowe.length, "podpowiedź", "podpowiedzi", "podpowiedzi")}
             </button>
           )}
-          {errors.length === 0 && warnsNowe.length === 0 && infosNowe.length === 0 && (
+          {errors.length === 0 && ostrzNowe === 0 && infosNowe.length === 0 && (
             <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800">bez uwag</span>
           )}
           {/* czysta szafka to jeszcze nie czysty projekt — sasiadka moze miec uwagi */}

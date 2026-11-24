@@ -147,6 +147,8 @@ w technicznym, na przełączniku”:
 Jak „Rodzaj zabudowy” w makiecie „Dodaj”, ale **na ciąg** (użytkownik 2026-11-09), `run.zabudowa`:
 - przełącznik „Kuchnia / Szafa (bez blatu) / Wolnostojąca” w nagłówku ciągu (`mak-rodzaj`); ciąg górny — jak dolny;
   szafka bez ciągu — wolnostojąca;
+- wzór dolny z palety przy zaznaczonej szafce wolnostojącej (albo upuszczony na nią) dokleja się na koniec ostatniego ciągu tego rodzaju
+  w pomieszczeniu (szafa / kuchnia); nowa ściana tylko, gdy takiego ciągu nie ma (2026-11-24, `wstawWzor`);
 - **Kuchnia**: blat roboczy ciągu włączony (ciąg stojący), w „Dodaj” jest AGD, paleta zaczyna od „Kuchnia — dół / góra”,
   szerokości do kliknięcia 300–900 (słupek 400–600);
 - **Szafa**: blat ciągu wyłączony, nagłówek „Zabudowa „…””, paleta od „Szafa w zabudowie”, szerokości 400–1200,

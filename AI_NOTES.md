@@ -1467,3 +1467,19 @@ bokPodDnem 12, zapas 7, NL z 270; zamowienie `TANDEM_NAME` 100 zl). [AI-INFO] ry
 
 [CLAUDE-CHANGE] 2026-11-24: decyzja uzytkownika „dla dxs zrób też na 0 na dnie” — `DXS.nadDnem` 2 → 0 (najnizsza prowadnica DXS-3D / DXP-3D
 na dnie szafki, jak TANDEM). Front wpuszczany nadal podnosi prowadnice do dolu frontu (2 mm luzu) — `Math.max(lv.y0 + nadDnem, y, …)`.
+
+[CLAUDE-CHANGE] 2026-11-24 (przegląd „co mamy dalej”): blok „Cały projekt — rozkrój płyt” w Uwagach (`rozkrojTu`, `ostrzNowe`, `data-el=uwagi-rozkroj`;
+`audytprojektu` czyta uwagi szafki bez niego, a blok raz na pomieszczenie); `wstawWzor` — wzór dolny przy wolnostojącej do ostatniego ciągu tego rodzaju
+w pokoju; `runLayout` — osobne łańcuchy ciągów obok siebie (`nastX`, `nastWall`, WALL_SEP), pierwszy bez zmian; otwór przesuwnych > 6000 — błąd
+z `przesdziel` (tory po 1 szt.); `TBX.otwory65` / `otwory65Opc` (katalog s. 345); `polkiPozaZawiasami` = `wzorBezUwag(cab, mat, true)`, akcja `polkizaw:<idx>`
+dokładana w `przyciskPolekZawiasy` (tylko gdy próba na kopii coś zmienia). Jeden bok V-BOX na kolumnę — zrobione i WYCOFANE (decyzja użytkownika).
+[AI-INFO] 2026-11-24 TIP-ON BLUMOTION do TANDEMBOX (katalog Blum s. 407–409, `instrukcje/blum/katalog-2027-2028/04_szuflady…`, PDF 411–413): prowadnice
+te same (578.xx01M 30 kg, 576.xx01M 65 kg); zestaw T60B wg NL i wagi szuflady: NL 270–300 — S0 ≤ 10 kg T60B3030 / S1 > 10–20 kg T60B3130; NL 350–600 —
+L1 ≤ 20 kg T60B3330 / L3 15–30 kg T60B3530 (oba tylko z 578); NL 450–650, 576 — L5 > 30–65 kg T60B3560; synchronizacja: LW ≥ 287 — reling T60.1125W
+(dociąć LW − 240) + 2 × adapter T60.000D (w zestawie), LW 238–286 — T60.300D (LW − 214); LW < 238 — nie; odległość drzwi FS 2,5 mm; wymiar „min 33”
+(oś wkrętów prowadnicy nad wieńcem) rośnie do „min 36” — prowadnica najniższej szuflady ≥ 3 mm nad dnem (Y w tabeli wszędzie + 3); przy 36–39 mm
+i KB ≥ 750 — uchwyt relingu T60B000H + kątownik pod dno Z96.2011; stabilizacja frontu/dna Z96.10E1 (KB < 750: 1, ≥ 750: 2). [AI-TODO] wdrożenie po
+decyzjach użytkownika (położenie prowadnicy 3 / 7 mm, domyślny zestaw wg wagi, ceny).
+[AI-INFO] 2026-11-24 GTV: „Prostownica” A-SN-SDP-TU (płyta 16–22 mm) — katalog GTV 2023 s. 542, dział górnego układu jezdnego (drzwi przesuwne);
+czy do drzwi na zawiasach ponad 2500 mm — pytanie do użytkownika.
+

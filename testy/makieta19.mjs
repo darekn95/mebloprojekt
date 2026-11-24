@@ -532,6 +532,24 @@ console.log('\n== system szuflad w szczegółowej ==');
   p = await czekaj("p.items[p.active].cab.levels[0].cols[0].drawers.every((d) => d.system === 'dxs' && !d.push)");
   ok('„DXS-3D” — skrzynka z płyty, cichy domyk (uchwyt wraca)', p.items[p.active].cab.levels[0].cols[0].drawers.every((d) => d.system === 'dxs' && !d.push && d.handle === true)); }
 
+/* 2026-11-24 (z przeglądu): wzór z palety przy zaznaczonej szafce wolnostojącej dokłada się na koniec ciągu „szafa” w pokoju,
+   a nie zakłada nowej ściany */
+console.log('\n== wzór z palety przy szafce wolnostojącej — do istniejącej zabudowy ==');
+await start(FIX);
+await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZab"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
+{ let p = await czekaj("p.items.some((it) => it.cab.name === 'Szafa')");
+  const runSz = szafa(p).runId, nRun = (p.runs || []).length;
+  await ust(`p.active = p.items.findIndex((it) => it.cab.name === 'Komoda');`);
+  await zakl('dodaj'); { const sek = page.locator('[data-el="mak-dodaj"] [data-dodaj="szafki"]'); if ((await sek.getAttribute('aria-expanded')) !== 'true') await sek.click(); await page.waitForTimeout(200); }
+  const n0 = (await proj()).items.length;
+  await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="regal"]').click(); await page.locator('[data-el="mak-wybrany-teraz"]').click();
+  p = await czekaj(`p.items.length === ${n0 + 1}`);
+  const nowy = p.items[p.items.length - 1], wCiagu = p.items.filter((it) => it.runId === runSz);
+  ok('„Regał otwarty” przy wolnostojącej Komodzie — na końcu ciągu z „Szafą”, bez nowej ściany', nowy.runId === runSz && (p.runs || []).length === nRun
+    && wCiagu[wCiagu.length - 1] === nowy && !p.items.find((it) => it.cab.name === 'Komoda').runId,
+    JSON.stringify({ run: nowy.runId, runSz, runs: (p.runs || []).length, nRun, nazwy: wCiagu.map((it) => it.cab.name) })); }
+
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
 await browser.close();

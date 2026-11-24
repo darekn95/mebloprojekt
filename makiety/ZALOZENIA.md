@@ -18,6 +18,7 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | Założenie (makieta) | Stan w aplikacji |
 |---|---|
 | Sprzęt / klocek / wzór z palety przeciągany na rysunek; zielone ramki tam, gdzie może stanąć | jest (`makieta4`, `makieta5`) |
+| Wzór z palety przy szafce wolnostojącej (zaznaczonej albo upuszczony na nią) — na koniec ciągu tego rodzaju w pokoju (szafa / kuchnia), nowa ściana tylko bez takiego ciągu | jest (24.11, `makieta19`, `opisy/makieta.md`) |
 | „Dotknij, potem miejsce” (telefon); pasek „Wybrany” | jest (13.11, `makieta16`) |
 | Postawiony sprzęt przesuwany przeciąganiem (w słupku, na blacie, wycięcia), też w widoku „Z góry” | jest (`makieta12`, `makieta16`) |
 | „Przesuń” w karcie (przesuwanie dotknięciem) | jest (`agd-przesun`) |

@@ -63,10 +63,10 @@ Do pobrania i dopisania do `instrukcje/` (karty z katalogu Blum 2024–2025), za
 
 - ~~**Plecy HDF za duże na arkusz**~~ — zrobione 2026-11-22: przycisk „Plecy z kawałków” (kawałki na kolumnę i poziom, łączenia na
   przegrodach i półkach). Do rozważenia: mniej kawałków (łączyć tylko tam, gdzie trzeba), „bez pleców” w zabudowie przy ścianie.
-- **Osobne ciągi w jednym pokoju** (np. szafa przy jednej ścianie, regał przy drugiej) — w widoku „Zabudowa” 3D stoją w tym samym
+- **Osobne ciągi w jednym pokoju** — 2026-11-24 krok pośredni: stoją obok siebie z odstępem, każdy na swojej ścianie (już nie nachodzą); pełny układ ścian (#46) — do ustalenia z użytkownikiem. (np. szafa przy jednej ścianie, regał przy drugiej) — w widoku „Zabudowa” 3D stoją w tym samym
   miejscu i nachodzą na siebie (audyt pokoju), bo pokój nie ma układu ścian. Pomysł: ściany pokoju (A–D z długościami) i ciągi
   przypisane do ścian; na razie choćby rozstawić osobne ciągi obok siebie z odstępem.
-- **Regał / szafa z palety „Szafa w zabudowie” przy zaznaczonej szafce wolnostojącej** zakłada nowy ciąg („Ściana 2”), zamiast dołożyć
+- ~~**Regał / szafa z palety „Szafa w zabudowie” przy zaznaczonej szafce wolnostojącej**~~ — zrobione 2026-11-24 (na koniec ciągu tego rodzaju w pokoju). Dawny opis: zakłada nowy ciąg („Ściana 2”), zamiast dołożyć
   się do istniejącej zabudowy w pokoju — do rozważenia: dokładać do ostatniego ciągu „szafa” w pokoju.
 - ~~**Wzory bez uwag od razu po wstawieniu**~~ — zrobione 2026-11-22 (`wzorBezUwag`: półki poza zawiasami, luz frontów szuflad).
   Zostaje „Narożnik L” (dół 896 / góra 646 mm — jedne drzwi poza tabelą zawiasów GTV; jest przycisk „Dwoje drzwi”) — do decyzji.
@@ -74,10 +74,10 @@ Do pobrania i dopisania do `instrukcje/` (karty z katalogu Blum 2024–2025), za
   jest ostrzeżenie, a 3 z 5 zawiasów na skrzydło przesuwa się przez półki (6 ostrzeżeń „zawias przesunięty”). Pomysł: przycisk
   „Półki poza zawiasami” (przesuwa półki o kilka centymetrów zamiast zawiasów); do sprawdzenia w katalogu — prostownik do wysokich
   drzwi (fronty z płyty powyżej ok. 2,2 m lubią się wyginać).
-- **Szuflady V-BOX w jednej kolumnie z różnymi bokami** (127 i 178 — „auto” dobiera osobno dla każdej szuflady): jeden bok dla całej
+- ~~**Szuflady V-BOX w jednej kolumnie z różnymi bokami**~~ — **nie robimy** (użytkownik 2026-11-24: „nie zawsze tak musi być, to raczej są rzadkie przypadki”; „auto” zostaje osobno dla każdej szuflady). Dawny opis: (127 i 178 — „auto” dobiera osobno dla każdej szuflady): jeden bok dla całej
   kolumny wygląda równo i to jedna pozycja w zamówieniu.
 - ~~**Start nowego projektu**~~ (zrobione 2026-11-22 — okno „Nowy projekt — co projektujesz?”): otwierał się tryb Techniczny z jedną szafką 600 × 720 poza ciągiem. Pomysł: na start pytanie „Co
   projektujesz?” (kuchnia / szafa w zabudowie / pokój) z szerokością i wysokością ściany — od razu makieta z właściwą paletą
   i znanym sufitem (wtedy działają kontrole sufitu).
-- **Uwaga o odpadzie rozkroju** („Arkusz N wykorzystany tylko w X %”) powtarza się przy każdej szafce — wystarczy raz, w projekcie.
-- **Tor dłuższy niż 6000 mm** (ściana 6,5 m): zamówienie bierze 2 tory, ale bez informacji, gdzie i jak je łączyć.
+- ~~**Uwaga o odpadzie rozkroju**~~ — zrobione 2026-11-24 (blok „Cały projekt — rozkrój płyt” w Uwagach). Dawny opis: („Arkusz N wykorzystany tylko w X %”) powtarza się przy każdej szafce — wystarczy raz, w projekcie.
+- ~~**Tor dłuższy niż 6000 mm**~~ — decyzja użytkownika 2026-11-24: „max 6 m i koniec, i następna szafa” — błąd z „Podziel na dwie szafy”. Dawny opis: (ściana 6,5 m) zamówienie bierze 2 tory, ale bez informacji, gdzie i jak je łączyć.

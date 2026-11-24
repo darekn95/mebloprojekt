@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion', 'ustawPushSzuflady', 'ustawSystemIPush'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion', 'ustawPushSzuflady', 'ustawSystemIPush', 'polkiPozaZawiasami', 'przyciskPolekZawiasy'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1463,7 +1463,7 @@ console.log('\n== 2026-11-16: drzwi przesuwne GTV NOVO S (wzory z instrukcji, fo
   ok('skrzydła na torach: 2 — tylne z lewej; 3 — środkowe z tyłu; zakładka 34', w2.skrzydla[0].tor === 1 && w2.skrzydla[1].tor === 0 && w2.skrzydla[0].x1 - w2.skrzydla[1].x0 === 30
     && w3.skrzydla.map((q) => q.tor).join() === '0,1,0', JSON.stringify(w2.skrzydla));
   ok('liczba skrzydeł sama: do 2000 — 2, do 3000 — 3, wyżej — 4', G.przesuwneLiczba(1964) === 2 && G.przesuwneLiczba(2500) === 3 && G.przesuwneLiczba(3600) === 4 && G.przesuwneLiczba(3600, 3) === 3);
-  ok('tor GTV: 1964 → 2350, 2400 → 3000, 7000 → 6000 (dwa kawałki)', G.przesuwneTor(1964) === 2350 && G.przesuwneTor(2400) === 3000 && G.przesuwneTor(7000) === 6000);
+  ok('tor GTV: 1964 → 2350, 2400 → 3000, 7000 → 6000 (najdłuższy; otwór ponad 6000 — błąd „podziel”)', G.przesuwneTor(1964) === 2350 && G.przesuwneTor(2400) === 3000 && G.przesuwneTor(7000) === 6000);
   const szafa = (o = {}, cols) => G.migrateCab({ name: 'Szafa', W: 2000, H: 2400, D: 600, plinth: { on: true, height: 100 }, legs: { on: false }, przesuwne: { on: true, ...o },
     levels: [{ h: null, cols: cols || [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null, null, null] }, { kind: 'doors', doors: 1, w: null, shelfTargets: [null, 300], drazki: [0] }] }] }, M0);
   const g = G.computeGeo(szafa(), M0), ile = (n) => g.hardware.filter((h) => h.name === n).reduce((a, h) => a + h.qty, 0);
@@ -1672,6 +1672,40 @@ console.log('\n== 2026-11-22: 5 i 6 skrzydeł (6 jak 4 — dwie połowy po 3; 5 
   ok('6000 mm na 6 skrzydłach: bez uwagi o szerokim skrzydle, 12 wózków, 12 rączek', !g.msgs.some((m) => /Skrzydło drzwi przesuwnych ma/.test(m.text))
     && g.hardware.some((h) => h.name === 'Wózek dolny EVO' && h.qty === 12) && g.hardware.some((h) => h.name === 'Rączka NOVO S' && h.qty === 12));
   ok('przegrody na stykach 6 skrzydeł: 957, 997, 966, 966, 997, reszta', JSON.stringify(G.przesuwneKolumny(cab, g, 18)) === '[957,997,966,966,997,null]', JSON.stringify(G.przesuwneKolumny(cab, g, 18)));
+  // otwor ponad 6000 — torow nie laczymy (uzytkownik 2026-11-24): blad z „Podziel na dwie szafy”, w zamowieniu po 1 torze
+  const g65 = G.computeGeo({ ...JSON.parse(JSON.stringify(cab)), W: 6500 }, M0), e65 = g65.msgs.find((m) => /tor GTV ma najwyżej 6000 mm/.test(m.text));
+  ok('otwór 6464 mm: błąd „tor GTV ma najwyżej 6000 mm — torów nie łączymy” z przyciskiem podziału; tory po 1 szt.', !!e65 && e65.level === 'error' && /\|przesdziel$/.test(e65.text)
+    && ['Tor górny GTV', 'Tor dolny EVO', 'Maskownica toru dolnego EVO'].every((n) => g65.hardware.some((h) => h.name === n && h.qty === 1)), e65 && e65.text);
+  ok('… 6000 mm (otwór 5964): bez tego błędu', !g.msgs.some((m) => /tor GTV ma najwyżej/.test(m.text)));
+}
+
+console.log('\n== 2026-11-24 (#46, krok przed układem ścian): osobne ciągi w jednym pokoju obok siebie, nie w jednym miejscu ==');
+{
+  const PL = { on: true, height: 100, mode: 'under', setback: 0 };
+  const RUN = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null, ...o });
+  const sz = (name, W) => ({ name, W, H: 720, D: 560, plinth: PL, legs: { on: true, height: 100 }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] });
+  const P = G.loadProject({ name: 'P', active: 0, prices: {}, runs: [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2'), RUN('c3', 'Ściana 3', { wallW: 3000 })],
+    items: [{ cab: sz('A', 1200), runId: 'c1' }, { cab: sz('B', 600), runId: 'c2' }, { cab: sz('C', 800), runId: 'c3' }] });
+  const n = [...G.projectLayout(P).info.values()], po = (id) => n.find((x) => x.run.id === id);
+  ok('ciąg 1 na 0, ciąg 2 za nim (1200 + 260), ciąg 3 za ciągiem 2 (1460 + 600 + 260); każdy na swojej ścianie',
+    po('c1').f.ox === 0 && po('c2').f.ox === 1460 && po('c3').f.ox === 2320 && new Set(n.map((x) => x.wall)).size === 3,
+    JSON.stringify(n.map((x) => [x.run.id, x.f.ox, x.wall, x.ex])));
+}
+
+console.log('\n== 2026-11-24: „Półki poza zawiasami” — przycisk przy ostrzeżeniu „zawias przesunięty” (szafa 1200 × 2761, 4 półki) ==');
+{
+  const M0 = G.defaultMaterials;
+  const cab = G.migrateCab({ name: 'Szafa', W: 1200, H: 2761, D: 600, legs: { on: false }, plinth: { on: true, height: 100, mode: 'inbody' },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null, null] }] }] }, M0);
+  const g = G.computeGeo(cab, M0), przes = (gg) => gg.msgs.filter((m) => /: zawias przesunięty z /.test(m.text));
+  const zP = G.przyciskPolekZawiasy(g.msgs, 3, cab, M0).filter((m) => /: zawias przesunięty z /.test(m.text));
+  ok('6 zawiasów przesuniętych przez półki — przy każdym przycisk „polkizaw:3”', przes(g).length === 6 && zP.length === 6 && zP.every((m) => /\|polkizaw:3$/.test(m.text)), String(przes(g).length));
+  const c2 = JSON.parse(JSON.stringify(cab)), zm = G.polkiPozaZawiasami(c2, M0), g2 = G.computeGeo(c2, M0);
+  ok('po kliknięciu: półki nad / pod zawiasami, żaden zawias nie jest przesunięty, bez błędów', zm && !przes(g2).length && !g2.msgs.some((m) => m.level === 'error'),
+    JSON.stringify(c2.levels[0].cols[0].shelfTargets));
+  const c3 = JSON.parse(JSON.stringify(cab)); c3.levels[0].cols[0].shelfTargets = [null, null, null];
+  const g3 = G.computeGeo(c3, M0);
+  ok('bez kolizji (3 półki): bez przycisku', !G.przyciskPolekZawiasy(g3.msgs, 3, c3, M0).some((m) => /polkizaw/.test(m.text)));
 }
 
 console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru jak korpus ==');
@@ -1796,6 +1830,9 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
     const g65 = geo(szT({ nosnosc: 65 }, 700)), d65 = g65.levels[0].cols[0].drawers;
     ok('TANDEMBOX 65 kg w korpusie 700: NL 650, bez wysokości N, w zamówieniu 576', d65.every((d) => d.nl === 650 && d.hClass !== 79.5 && d.nosnosc === 65)
       && (g65.hardware || []).some((h) => h.name === 'Szuflada Blum TANDEMBOX antaro' && /65 kg \(prowadnica 576\)/.test(h.spec)), JSON.stringify(d65.map((d) => [d.hClass, d.nl, d.nosnosc])));
+    // 576 — otwory z katalogu Blum s. 345 (2026-11-24): NL 650 — 19, 28, 37, 115, 261, 293; 28 tylko 4 × 15, 293 tylko EURO; opcjonalny 549
+    const n65 = (g65.drillPlan || []).flatMap((p) => p.rows || []).map((r) => r.note || '').find((n) => /prowadnicy Blum 576/.test(n)) || '';
+    ok('plan wierceń 576 (NL 650): otwory 19, 28, 37, 115, 261, 293; 28 — wkręt 4 × 15, 293 — EURO; opcjonalnie 549', /19, 28, 37, 115, 261, 293 mm od przedniej krawędzi \(28 — tylko wkręt do płyty wiórowej 4 × 15, 293 — tylko wkręt EURO Ø6 × 14,5\); opcjonalnie dla stabilności 549 mm/.test(n65), n65);
     const gN = geo(szT({ h: 79.5, nl: 300 })), eN = (gN.msgs || []).find((m) => /TANDEMBOX N ma prowadnice tylko NL/.test(m.text));
     ok('TANDEMBOX N z NL 300: błąd z przyciskiem NL 400', !!eN && /\|fixnl:0:0:\d:400$/.test(eN.text), eN && eN.text);
     /* Blum TANDEM 17–19 (560F): jak DXS-3D z liczbami Blum (uzytkownik 2026-11-23) */

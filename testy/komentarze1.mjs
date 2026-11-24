@@ -89,6 +89,14 @@ await seed(proj([{ cab: cab({ W: 300, H: 400, D: 300, plinth: { on: false }, bac
 o = await odpad();
 ok('arkusz 2 z 2 wykorzystany poniżej 15% — ostrzeżenie', o.some((t) => /Arkusz 2 z 2 wykorzystany tylko w/.test(t)), o.join(' // '));
 ok('…i w „Uwagach”', /Rozkrój — [^\n]*Arkusz 2 z 2 wykorzystany tylko w/.test(await page.evaluate(() => [...document.querySelectorAll('section')].find((s) => /^Uwagi/.test(s.querySelector('h2')?.textContent || ''))?.innerText || '')));
+// 2026-11-24 (z przeglądu: „uwaga o odpadzie powtarza się przy każdej szafce — wystarczy raz, w projekcie”): osobny blok
+// „Cały projekt — rozkrój płyt”, nie wśród ostrzeżeń szafki; liczy się w liczniku u góry raz, ✓ odhacza ją dla całego projektu
+{ const blok = await page.locator('[data-el="uwagi-rozkroj"]').innerText().catch(() => '');
+  ok('…w osobnym bloku „Cały projekt — rozkrój płyt”', /Cały projekt — rozkrój płyt/i.test(blok) && /Arkusz 2 z 2 wykorzystany tylko w/.test(blok), blok.slice(0, 160));
+  const licz = async () => Number(((await page.locator('header, body').first().innerText()).match(/(\d+) ostrzeże/) || [])[1] || 0);
+  const przed = await licz();
+  await page.locator('[data-el="uwagi-rozkroj"] button[title="Oznacz jako przeczytane"]').first().click(); await page.waitForTimeout(400);
+  ok('✓ przy uwadze rozkroju zdejmuje ją z licznika ostrzeżeń', (await licz()) === przed - 1, `${przed} → ${await licz()}`); }
 
 console.log('\n== oklejanie: wzmocnienia i bok ramienia ==');
 // szafka pod blatem roboczym bez wienca — para wzmocnien (plaskie z przodu, stojace z tylu)

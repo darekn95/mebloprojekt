@@ -28,7 +28,7 @@ Stan: 2026-11-17. Decyzje użytkownika z 2026-11-16 i 2026-11-17 (w `BLEDY.md`, 
 - **Okucia** (`geoPrzesuwne`):
   - tor górny A-TG, tor dolny A-TDEVO i jego maskownica:
     - długości 1700 / 2350 / 3000 / 4050 / 6000, dociąć do SO;
-    - otwór ponad 6000 — po dwa kawałki;
+    - otwór ponad 6000 — błąd z przyciskiem „Podziel na dwie szafy” (użytkownik 2026-11-24: „max 6 m i koniec, i następna szafa” — torów nie łączymy);
   - po 2 rączki NOVO S, 2 wózki dolne EVO i 2 prowadniki górne na skrzydło;
   - pozycjoner górny — 1 na skrzydło;
   - kątownik 18 mm na listwy poziome (sztangi 3000 mm);
