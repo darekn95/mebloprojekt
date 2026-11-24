@@ -19221,7 +19221,7 @@ const cornerArmParts = (a) => {
      czterech. Zawiasow tyle, ile wychodzi z wysokosci i szerokosci skrzydla —
      tak samo jak przy drzwiach szafki. */
   const trojkatow = pasyR.reduce((n, pas) => n + 2 * Math.max(2, Math.ceil(pas.h / 400)), 0);
-  const zawiasow = pasyR.reduce((n, pas) => n + autoHinges(pas.h, armFrontPlan(a).w, tfRamienia(a)), 0);
+  const zawiasow = pasyR.reduce((n, pas) => n + autoHinges(pas.h, armFrontPlan(a).w, tfRamienia(a), false, 0, zawiasyBlum(cab)), 0);
   /* Skrzydla lamane: drugie skrzydlo wisi na pierwszym, a nie na korpusie,
      wiec zwyklych zawiasow do niego nie ma — sa tylko lamane. */
   const hardware = fix
@@ -19230,6 +19230,11 @@ const cornerArmParts = (a) => {
         qty: trojkatow, unit: "szt." }]
     : a.doors === "lamane"
       ? []
+      // zawiasy Blum CLIP top BLUMOTION w szafce (2026-11-24) — front ramienia tez Blum, z prowadnikami
+      : zawiasyBlum(cab)
+        ? [{ name: ZAWIAS_BLUM.nazwa, use: "front ramienia szafki narożnej", wariant: cab.frontMode === "overlay" ? "nakładany" : "wpuszczany",
+            spec: `${ZAWIAS_BLUM.kody[cab.frontMode === "overlay" ? "nakładany" : "wpuszczany"]} — front ramienia szafki narożnej, cichy domyk`, qty: zawiasow, unit: "szt." },
+          { name: ZAWIAS_BLUM.prowadnik, use: "do zawiasów Blum CLIP top", spec: `${ZAWIAS_BLUM.prowadnikKod} — krzyżakowy 37/32, dystans 0 mm, na wkręty`, qty: zawiasow, unit: "szt." }]
       : [{ name: "Zawias", use: "front ramienia szafki narożnej",
           wariant: cab.frontMode === "overlay" ? "nakładany" : "wpuszczany",
           spec: "front ramienia szafki narożnej",
@@ -19412,7 +19417,7 @@ const wierceniaDodatkowe = (a, wstawki = []) => {
       });
     } else if (a.doors !== "lamane") {
       const hys = pasyR.flatMap((pas) => {
-        const n = autoHinges(pas.h, armFrontPlan(a).w, tfRamienia(a));
+        const n = autoHinges(pas.h, armFrontPlan(a).w, tfRamienia(a), false, 0, zawiasyBlum(cab));
         // zawiasy w tej samej wysokosci co drzwi korpusu w tym pasie (gdy maja ich tyle samo)
         const dRef = (geo.doors || []).find((d) => d.h > 0 && d.type === "door" && Math.round(d.y) === pas.y && (d.hingePts || []).length === n);
         return dRef ? dRef.hingePts : hingePositions(pas.y, pas.h, n, []).pts;

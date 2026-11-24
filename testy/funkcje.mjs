@@ -1715,6 +1715,16 @@ console.log('\n== 2026-11-24: zawiasy Blum CLIP top BLUMOTION 110° (wybór GTV 
   ok('Blum wpuszczany: 71B3750', zaw(gW).some(([n, q, k]) => /^Zawias Blum/.test(n) && k === '71B3750'), JSON.stringify(zaw(gW)));
   ok('tabela Blum: 5 zawiasów do 22 kg (GTV do 20) — front 2400 mm 21 kg', G.zawiasyGtv(2400, 600, 18, false, 2.5, true).n === 5 && G.zawiasyGtv(2400, 600, 18, false, 2.5, true).prod === 'Blum'
     && !G.zawiasyGtv(2400, 600, 18, false, 2.5, true).poza && G.zawiasyGtv(2400, 600, 18, false, 2.5).poza, JSON.stringify(G.zawiasyGtv(2400, 600, 18, false, 2.5, true)));
+  // ramie szafki w L: front ramienia tez na zawiasach Blum, gdy szafka ma Blum (2026-11-24)
+  { const PL = { on: true, height: 100, mode: 'under', setback: 0 };
+    const RUN = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 560, plinth: PL, worktop: true, corner: null, ...o });
+    const Lc = (o = {}) => ({ name: 'L', W: 900, H: 720, D: 560, plinth: PL, legs: { on: true, height: 100 }, corner: { on: true, arm: 640, doors: 'wsporniki' }, ...o,
+      levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] });
+    const P = (o) => G.loadProject({ name: 'P', active: 1, prices: {}, runs: [RUN('c1', 'Ściana 1'), RUN('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'self', clear: 0 } })],
+      items: [{ cab: { ...Lc(), name: 'A1', corner: undefined }, runId: 'c1' }, { cab: Lc(o), runId: 'c2' }] });
+    const ram = (Q) => { const n = [...G.projectLayout(Q).info.values()].find((x) => x.arm); return n ? G.cornerArmParts(n.arm).hardware.map((h) => h.name) : []; };
+    ok('ramię szafki w L z zawiasami Blum: „Zawias Blum CLIP top BLUMOTION 110°” + prowadnik (GTV — „Zawias”)', ram(P({ zawiasyBlum: true })).includes('Zawias Blum CLIP top BLUMOTION 110°')
+      && ram(P({ zawiasyBlum: true })).includes('Prowadnik krzyżakowy Blum CLIP 0 mm') && ram(P({})).includes('Zawias'), JSON.stringify([ram(P({ zawiasyBlum: true })), ram(P({}))])); }
   ok('ceny: zawias Blum 14 zł, prowadnik 1 zł', G.hwDefaultPrice({ name: 'Zawias Blum CLIP top BLUMOTION 110°' }) === 14 && G.hwDefaultPrice({ name: 'Prowadnik krzyżakowy Blum CLIP 0 mm' }) === 1);
 }
 
