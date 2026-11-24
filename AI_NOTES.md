@@ -1304,7 +1304,7 @@ wneka (szuflada nad lodowka 520 nie miesci sie pod wzmocnieniem pod blatem). Aud
 `lodowkaPodblat` (boki do podlogi, bez dna, cokol miedzy bokami) WYCOFANY — „cokół trzyma się nóżek na spinki, nie boków”. Rodzaj „szafka”
 w `MAK_LOD_RODZ` robi `lodowkaMalaUstaw`. Zostala poprawka wneki lodowki do spodu wzmocnienia (`nadL`). Zielone ramki: legenda
 `mak-legenda` jest zawsze (min. wysokosc) — pojawiala sie przy chwyceniu i przesuwala rysunek pod ramkami (widok „Z góry”).
-[CHECK] Uzytkownik podal zlacze Sevroll Blendo 07025 do cokolu i blend (zamiast klipsow na nozki) — instrukcji brak (strony sklepu
+[AI-INFO] (bylo [CHECK]; zrobione 2026-11-15 — film i zrzuty od uzytkownika, BLEDY 2026-11-15) Uzytkownik podal zlacze Sevroll Blendo 07025 do cokolu i blend (zamiast klipsow na nozki) — instrukcji brak (strony sklepu
 i sevroll.pl nie otwieraja sie z sesji; wyszukiwarka: niewidoczne, rozbieralne zlacze do blend / cokolow, znacznik 07024) — do ustalenia.
 [AI-INFO] 2026-11-14 zgloszenia z projektu v46 / v47: ramki (legenda stala), kolizja skrzydlo–szuflada (skrzydlo widzi szuflade zamknieta,
 wysunieta = info), 3D w zakladkach z wnetrzem — szuflady zamkniete (`szuflady`), nowy ciag gorny za slupkami (`gornyZaSlupkami`, przycisk
@@ -1368,7 +1368,9 @@ zwezone o boki, `listwyPrz` (2 wpisy na kolumne — formatki, rysunki, plan wier
 poza symulacja wysuwu. Karta Szuflady i klocek „N szuflad”: w wysokiej szafie z przegroda szuflady na dol kolumny (`makSzufladyNaDoleKolumny`).
 [CHECK] 2026-11-16: pozycjoner gorny 1 na skrzydlo, wieniec zabudowy (konfirmat od boku, trojkaty od przegrody), bok V-BOX (auto, 127 opcja) —
 potwierdzone; waga profili 0,5 kg/mb (bez karty) — nie pytane. Polki przelotowe przy podwojnych bokach: boki wewnetrzne dzielone na poziomy,
-konfirmaty polki przelotowej w boki wewnetrzne — jeszcze nie w planie wiercen (rzadkie: wzor ma jeden poziom).
+konfirmaty polki przelotowej w boki wewnetrzne — jeszcze nie w planie wiercen (rzadkie: wzor ma jeden poziom). [AI-INFO] Sprawdzone 2026-11-24
+(przeglad „mamy jakieś błędy”): nieaktualne — polka przelotowa siega bokow zewnetrznych (konfirmaty przez bok zewnetrzny), boki wewnetrzne
+sa dzielone na poziomy (1400 + 846 przy dwoch poziomach) i przykrecone wkretami 4 × 30 do zewnetrznych; kolki polek na kazdej czesci — komplet.
 [CLAUDE-CHANGE] 2026-11-16 (7 zdjec szafy uzytkownika — tylko w czacie): podwojne boki szafy do zabudowy — `przesuwne.podwBoki = { L, R }` ->
 `cab.__bokWewn` w `computeGeoLiczy` (kolumny od `interior.x0 + bwL`, `colFree − bwL − bwR`; `panelsOfCol` j = 0 / ostatnia -> „Bok wewnetrzny …”
 z baza `lv.y0`; dno / wieniec bez `przezBok` po tej stronie, konfirmaty `wBokWewn` od spodu dna / od gory wienca). `geoPrzesuwne`: formatki
@@ -1415,7 +1417,7 @@ miedzy szafkami (skrzynka ok. 250 mm z szufladami, dno cofniete, fronty zaslania
 Maskownica boku (zgloszona „na już”) — do wyboru bok szafki, takze miedzy meblami (nie tylko przy scianie) — jeszcze nie zrobiona.
 [CLAUDE-CHANGE] 2026-11-22: biurko wiszace (`biurkoWiszace`, `dnoCof`, `frontPodDnem`, `dolGorny` w ciagu dolnym — projectLayout bierze
 `dolGornej` do `base`), maskownica boku (`sprzetCiagu.typ = "maskownica"`), kolor cokolu (`plinth.kolor`), biurko w ciagu (`wCiag`).
-[AI-TODO] Biurko wiszace: mimosrody wienca (blatu) z bokami w planie wiercen (dzis konfirmaty + uwaga), tip-on szuflad, makieta prosta —
+[AI-INFO] (stan 2026-11-24) mimosrody — zrobione 2026-11-23, tip-on — decyzja: nie (uchwyt / front ponizej dna / PUSH). Zostaje [AI-TODO]: makieta prosta —
 rysunek skrzynki na wysokosci w widoku „Z boku” pojedynczej szafki (rysowana od podlogi).
 [CLAUDE-CHANGE] 2026-11-22 (po wznowieniu limitu — „dokończ bieżące i rób po kolei z listy”): kafelek „Płyty i kolory”, maskownica
 domyslnie jak korpus (`kolorWyb`), osobne zwijanie panelu makiety (pomieszczenie i zabudowa / widoki), zoom w widokach z boku, z gory,
@@ -1439,14 +1441,14 @@ stojacym wzmocnieniu w rogu) zamkniety — zgodne z zalozeniem (BLEDY 2026-11-23
 [AI-INFO] Odpowiedzi uzytkownika 2026-11-23: tip-on przy cichym domyku — nie (zostaja uchwyt / front ponizej dna / PUSH); drazek
 synchronizujacy V-BOX PUSH II przy froncie > 500 mm; ceny: drazek 11 zl, mocowania 10 zl (DXP = DXS 50 zl, PUSH II = V-BOX — zostaja);
 Blum — OBA systemy (najpierw TANDEMBOX antaro, potem TANDEM). Szczelina 4 mm przed frontem tylko w uwadze (rysunek bez niej).
-[AI-TODO] Blum TANDEMBOX antaro / TANDEM jako nowe systemy szuflad — po decyzji uzytkownika (kolejnosc, wysokosci, ceny).
+[AI-INFO] (bylo AI-TODO; zrobione 2026-11-23) Blum TANDEMBOX antaro / TANDEM jako nowe systemy szuflad.
 
 [AI-INFO] 2026-11-23 Blum — szukanie wysokosci dna TANDEMBOX antaro (uzytkownik: „szukaj dalej”, potem „Model CAD Blum”): przejrzane — dokument
 zamowien i planowania (w `instrukcje/blum/`), katalog techniczny 2024–2025 (publications.blum.com, URL 312–318, 328, 333–336; numer
 drukowany = URL + 4), instrukcje montazu (4 str., same obrazki), „Standard applications” (s. 7 — otwory prowadnic, w `instrukcje/blum/`).
 Boki: 83,6 (M), 115,6 (K); przestrzen, gora boku, formatki — w `instrukcje/SPIS.md`. Polozenia spodu dna i dolu boku nad prowadnica — BRAK.
 Model CAD / rysunki 2D sa tylko w portalu Blum E-SERVICES (konto: e-services.blum.com/registration; gosc — „basic services”) — bez dostepu.
-[AI-TODO] TANDEMBOX antaro / TANDEM — czeka na decyzje uzytkownika (konto Blum i rysunek / pomiar szuflady / przyjac jak V-BOX).
+[AI-INFO] (bylo AI-TODO; rozstrzygniete 2026-11-23 — odczyt rysunkow z uzytkownikiem, nizej) TANDEMBOX antaro / TANDEM — dane z rysunkow.
 [AI-INFO] 2026-11-23 TANDEMBOX antaro — ustalenia z uzytkownikiem: spod dna 9 mm nad dolem szyny (rysunek „Front installation dimensions”,
 „9” — uzytkownik), tyl z plyty na tej samej wysokosci (gora tylu 1,5–2,5 pod gora boku — zgadza sie z rysunkami); najmniejszy front =
 gora boku (N 79,5 / M 95,5 / K 127,5; C, D — gora tylu 9 + 167 / 199); wysokosci N, M, K, C, D; nosnosc 30 kg (578, NL 270–600) albo

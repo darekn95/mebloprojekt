@@ -528,9 +528,8 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 **Rozstrzygnięte 2026-11-23** (odpowiedzi użytkownika): szafa szersza niż płyta z modułów i jednym kompletem drzwi — wystarcza przycisk
 „dwie przegrody na styku” („jak będzie potrzeba, kiedyś się poprawi”); nadstawka do szafy wkrętami 4 × 30 od środka — tak; przegrody
-biurka wiszącego cofnięte 18 mm (jak dno) — tak; blat biurka na mimośrodach — zrobione. **Otwarte:** chwyt szuflad biurka przy cichym
-domyku — użytkownik: „tip-on, uchwyt lub front poniżej dna”; odrębny tip-on (odbojnik jak przy drzwiach) nie współpracuje z prowadnicą
-z cichym domykiem (folder V-BOX: „miękki domyk **lub** system PUSH” — dwie wersje prowadnic) — do potwierdzenia; nowe prowadnice (V-BOX PUSH II,
+biurka wiszącego cofnięte 18 mm (jak dno) — tak; blat biurka na mimośrodach — zrobione. ~~Otwarte: chwyt szuflad biurka przy cichym
+domyku~~ — rozstrzygnięte 2026-11-23: tip-on przy cichym domyku — nie; uchwyt, front poniżej dna albo prowadnice PUSH (V-BOX PUSH II, DXP-3D PUSH — zrobione); nowe prowadnice (V-BOX PUSH II,
 DXP-3D PUSH, Blum) — `POMYSLY.md`.
 
 **Z pełnej analizy 2026-11-21** (szczegóły i pomysły: `POMYSLY.md`):
