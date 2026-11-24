@@ -58,6 +58,13 @@ Do pobrania i dopisania do `instrukcje/` (karty z katalogu Blum 2024–2025), za
 
 ### Pomysły
 
+- **Wizualizacja projektu (kierunek, #46 — użytkownik 2026-11-24)**: zamiast sztywnych ścian A–D — osobny kafelek „Wizualizacja” albo
+  dodatkowy widok na bieżącym rysunku, gdy meble są już zaprojektowane. Pokój z **dowolną liczbą ścian** (nie zawsze 4), na ściany nanosi
+  się zabudowy (ciągi), a do tego **drzwi, okna, podejścia wody, otwory wentylacyjne, zabudowę WC** — „prawdziwa wizualizacja projektu
+  meblowego, ale uproszczona”. Do przemyślenia: osobny rysunek czy warstwa na obecnym; jak przypisać ciąg do ściany (odległość od rogu);
+  kontrole (szafka na oknie, zawór za szafką, wentylacja zasłonięta). Na razie (24.11): osobne ciągi w pokoju stoją obok siebie, nie
+  nachodzą (`runLayout`).
+
 - **Lakierowanie formatek** (użytkownik 2026-11-22, „na przyszłość, nie na dzisiaj”): opcja lakierowania frontów, korpusów i półek —
   do przemyślenia (które formatki, z obu stron czy z jednej, krawędzie, cena za m², osobna pozycja w zamówieniu / wycenie).
 
@@ -70,7 +77,7 @@ Do pobrania i dopisania do `instrukcje/` (karty z katalogu Blum 2024–2025), za
   się do istniejącej zabudowy w pokoju — do rozważenia: dokładać do ostatniego ciągu „szafa” w pokoju.
 - ~~**Wzory bez uwag od razu po wstawieniu**~~ — zrobione 2026-11-22 (`wzorBezUwag`: półki poza zawiasami, luz frontów szuflad).
   Zostaje „Narożnik L” (dół 896 / góra 646 mm — jedne drzwi poza tabelą zawiasów GTV; jest przycisk „Dwoje drzwi”) — do decyzji.
-- **Szafa na zawiasach w wysokim pokoju** (1200 × 2761, 4 półki): fronty 2755 mm są poza tabelą zawiasów GTV (do 2500 mm) —
+- **Szafa na zawiasach w wysokim pokoju** — 2026-11-24: przycisk „Półki poza zawiasami” i 6 zawiasów ponad 2500 mm (decyzja użytkownika); prostownica — nie. Dawny opis: (1200 × 2761, 4 półki): fronty 2755 mm są poza tabelą zawiasów GTV (do 2500 mm) —
   jest ostrzeżenie, a 3 z 5 zawiasów na skrzydło przesuwa się przez półki (6 ostrzeżeń „zawias przesunięty”). Pomysł: przycisk
   „Półki poza zawiasami” (przesuwa półki o kilka centymetrów zamiast zawiasów); do sprawdzenia w katalogu — prostownik do wysokich
   drzwi (fronty z płyty powyżej ok. 2,2 m lubią się wyginać).

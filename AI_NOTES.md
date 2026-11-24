@@ -1478,8 +1478,12 @@ te same (578.xx01M 30 kg, 576.xx01M 65 kg); zestaw T60B wg NL i wagi szuflady: N
 L1 ≤ 20 kg T60B3330 / L3 15–30 kg T60B3530 (oba tylko z 578); NL 450–650, 576 — L5 > 30–65 kg T60B3560; synchronizacja: LW ≥ 287 — reling T60.1125W
 (dociąć LW − 240) + 2 × adapter T60.000D (w zestawie), LW 238–286 — T60.300D (LW − 214); LW < 238 — nie; odległość drzwi FS 2,5 mm; wymiar „min 33”
 (oś wkrętów prowadnicy nad wieńcem) rośnie do „min 36” — prowadnica najniższej szuflady ≥ 3 mm nad dnem (Y w tabeli wszędzie + 3); przy 36–39 mm
-i KB ≥ 750 — uchwyt relingu T60B000H + kątownik pod dno Z96.2011; stabilizacja frontu/dna Z96.10E1 (KB < 750: 1, ≥ 750: 2). [AI-TODO] wdrożenie po
-decyzjach użytkownika (położenie prowadnicy 3 / 7 mm, domyślny zestaw wg wagi, ceny).
+i KB ≥ 750 — uchwyt relingu T60B000H + kątownik pod dno Z96.2011; stabilizacja frontu/dna Z96.10E1 (KB < 750: 1, ≥ 750: 2). [AI-INFO] wdrożone 2026-11-24
+(decyzje: prowadnica 3 mm + dodatki przy KB ≥ 750, domyślnie „do 20 kg” S1 / L1, udźwig przy szufladzie; ceny 0 zł — lista z Allegro u użytkownika).
 [AI-INFO] 2026-11-24 GTV: „Prostownica” A-SN-SDP-TU (płyta 16–22 mm) — katalog GTV 2023 s. 542, dział górnego układu jezdnego (drzwi przesuwne);
 czy do drzwi na zawiasach ponad 2500 mm — pytanie do użytkownika.
-
+[CLAUDE-CHANGE] 2026-11-24 (pozniej): DXS-3D wrocone na 2 mm nad dnem (decyzja uzytkownika) + notatka montazowa (`dxsNadDnem` -> `montazKolejnosc`).
+[CLAUDE-CHANGE] 2026-11-24: TANDEMBOX TIP-ON BLUMOTION (`TIPON_TBX`, `tiponJ`, systemy tbx-push / tbx-65-push, akcja `sysszuf`); 6 zawiasów ponad 2500 mm
+(`ZAWIASY_PONAD_TABELA`); `runLayout` — odsuwa tylko łańcuchy, które w pionie kolidują (stary zapis górnego z samym mountY zostaje nad dolnym, `ciag6`).
+[AI-INFO] 2026-11-24 Blum CLIP top BLUMOTION 110° (katalog s. 69–70, PDF 73–74): nakładany 71B3550, bliźniaczy 71B3650, wpuszczany 71B3750 (wkręty), INSERTA
+71B3590 / 3690 / 3790; prowadnik krzyżakowy 37/32 (np. 173L6100, 0 mm); liczba zawiasów — wykres „Ilość zawiasów” (waga FG i wysokość FH, FB 600) — do odczytu z obrazka, gdy użytkownik zdecyduje.

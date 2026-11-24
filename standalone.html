@@ -222,7 +222,7 @@ const ROZKROJ_DUZY = 40;
 
 // zasada liczby zawiasow — podpowiedz przy polu „zawiasy” drzwi (przeniesiona z listy produktow)
 // opis w dymku pola „zaw.” — te same progi co `ZAWIASY_GTV` (audyt GPT 2026-10-16, N1: zostal stary opis)
-const ZAWIASY_ZASADA = "Liczba zawiasów — puste liczy automatycznie z wagi frontu wg tabeli GTV: 2 do 6 kg, 3 do 12, 4 do 17, 5 do 20 kg (wysokość nie dokłada zawiasów; tabela do 2500 mm wysokości i 600 mm szerokości). Klapa: 2, powyżej 900 mm szerokości 3. Wpis przechodzi na wszystkie skrzydła kolumny.";
+const ZAWIASY_ZASADA = "Liczba zawiasów — puste liczy automatycznie z wagi frontu wg tabeli GTV: 2 do 6 kg, 3 do 12, 4 do 17, 5 do 20 kg (wysokość nie dokłada zawiasów; tabela do 2500 mm wysokości i 600 mm szerokości; front wyższy niż 2500 mm — 6). Klapa: 2, powyżej 900 mm szerokości 3. Wpis przechodzi na wszystkie skrzydła kolumny.";
 // powierzchnia w podsumowaniach: mala (np. wstawka 720 × 60 = 0,04 m²) z dwoma miejscami, zero pomijamy
 const m2Fmt = (v) => (v < 1 ? (Math.round(v * 100) / 100).toFixed(2).replace(/0$/, "") : fmt(v));
 
@@ -1255,7 +1255,7 @@ const DXS = {
   odBoku: 6.5,     // bok korpusu → bok szuflady (24,5 do wnetrza minus bok 18)
   dnoOd: 27,       // spod prowadnicy → spod dna (i dol tylu)
   bokPodDnem: 10,  // boki schodza ponizej dna (instrukcja 10–12, uzytkownik: 10)
-  nadDnem: 0,      // dolna prowadnica na dnie szafki (rysunek: „2 (min.)”; uzytkownik 2026-11-24: „dla dxs zrób też na 0 na dnie”, jak TANDEM)
+  nadDnem: 2,      // dolna prowadnica 2 mm nad dnem szafki (rysunek „2 (min.)”; 2026-11-24 bylo 0, tego dnia wrocone na 2 z notatka montazowa)
   odCzola: 4,      // przod prowadnicy za krawedzia korpusu (+ grubosc frontu wpuszczanego)
   krotsza: 10,     // skrzynka ma NL − 10
   zaTylem: 3,      // glebokosc wnetrza min. NL + 3
@@ -1320,6 +1320,19 @@ const TBX = {
 };
 const tbx65 = (d) => Number(d && d.nosnosc) === 65;
 const TBX_NAME = "Szuflada Blum TANDEMBOX antaro";
+/* Blum TIP-ON BLUMOTION do TANDEMBOX (katalog Blum 2027/2028 s. 407–409, `instrukcje/blum/katalog-2027-2028/04_szuflady…`; decyzje
+   uzytkownika 2026-11-24): te same prowadnice (578 / 576); najnizsza prowadnica 3 mm nad dnem (wymiar do osi wkretow „min 36” zamiast 33),
+   a przy KB ≥ 750 mm uchwyt relingu synchronizacji T60B000H i katownik pod dno Z96.2011; zestaw T60B wg NL i wagi szuflady — domyslnie
+   „do 20 kg” (S1 / L1, 65 kg — L5), przy szufladzie do zmiany (`drawer.tiponJ`); synchronizacja wg LW (≥ 287 — reling okragly T60.1125W
+   dociety na LW − 240, 238–286 — kwadratowa T60.300D na LW − 214, < 238 — nie da sie); front 2,5 mm od korpusu (FS). */
+const TIPON_TBX = {
+  nadDnem: 3, fs: 2.5, kbUchwyt: 750, lwMin: 238, lwReling: 287,
+  jednostki: { S0: { kod: "T60B3030", kg: "do 10 kg" }, S1: { kod: "T60B3130", kg: "10–20 kg" }, L1: { kod: "T60B3330", kg: "do 20 kg" },
+    L3: { kod: "T60B3530", kg: "15–30 kg" }, L5: { kod: "T60B3560", kg: "30–65 kg" } },
+};
+const TIPON_TBX_NAME = "Zestaw Blum TIP-ON BLUMOTION do TANDEMBOX";
+const tiponJednostki = (nl, nos65) => (nos65 ? ["L5"] : Number(nl) <= 300 ? ["S0", "S1"] : ["L1", "L3"]);
+const tiponJednostka = (d, nl) => { const l = tiponJednostki(nl, tbx65(d)); return l.includes(d && d.tiponJ) ? d.tiponJ : l.includes("S1") ? "S1" : l[0]; };
 const tbxLitera = (hc) => TBX.litery[hc] || "";
 // lista dlugosci prowadnic systemu
 /* Wersja PUSH (push to open, uzytkownik 2026-11-23: „szuflady push to open … dodać do listy prowadnic”): `drawer.push` — V-BOX 3D Slim
@@ -1565,6 +1578,7 @@ const wagaLustra = (w, h, mat) => (Math.max(0, w - 1) / 1000) * (Math.max(0, h -
   * ((((mat || {}).mirror || {}).thickness || 4) / 1000) * GESTOSC_SZKLA;
 // najwezsze skrzydlo, przy ktorym uwaga o zawiasach proponuje dwoje drzwi zamiast jednych (`drzwi2:`)
 const DRZWI2_MIN = 200;
+const ZAWIASY_PONAD_TABELA = 6;   // front wyzszy niz 2500 mm (tabela GTV konczy sie na 5 zawiasach)
 function zawiasyGtv(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
   const t = szeroki ? ZAWIASY_GTV.szeroki : ZAWIASY_GTV.standard;
   const kg = wagaFrontu(w, h, grub) + dodatekKg;
@@ -1575,7 +1589,10 @@ function zawiasyGtv(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
   /* Liczbe wyznacza waga frontu: gdy waga miesci sie w mniejszej liczbie, wysokosc
      z tabeli nie dokłada zawiasow (uzytkownik 2026-10-24: „nie ma sensu dawać
      3 zawiasów, jak z wagi 2 wystarczą”). Wysokosc zostaje granica tabeli. */
-  return { n: zWagi, kg, poza: h > ost.h || kg > ost.kg || w > t.szer, szer: t.szer, zWys, zWagi, progi: t.progi };
+  /* front wyzszy niz tabela GTV (2500 mm) — 6 zawiasow, ostrzezenie „poza tabelą” zostaje jako przypomnienie (uzytkownik 2026-11-24, szafa
+     na zawiasach w wysokim pokoju: „6 zawiasów ponad 2500 mm”) */
+  const n = h > ost.h ? Math.max(zWagi, ZAWIASY_PONAD_TABELA) : zWagi;
+  return { n, kg, poza: h > ost.h || kg > ost.kg || w > t.szer, szer: t.szer, zWys, zWagi, progi: t.progi };
 }
 /* Skad liczba z tabeli GTV (uzytkownik 2026-10-24: „czy 2 zawiasy nie moga miec
    takiej wagi czy wymiarow?”): przy za malej liczbie — co jej nie pozwala
@@ -1591,7 +1608,8 @@ const powodZawiasow = (gtv, wpis) => {
   }
   const r = gtv.progi.find((q) => q.n === wpis);
   if (!r) return ` Najmniej ${gtv.progi[0].n} zawiasy.`;
-  return gtv.zWagi > wpis ? ` Waga ok. ${kgFr} kg wymaga ${gtv.zWagi} (${wpis} ${zaw(wpis)} do ${kgTxt(r.kg)} kg).` : "";
+  if (gtv.zWagi > wpis) return ` Waga ok. ${kgFr} kg wymaga ${gtv.zWagi} (${wpis} ${zaw(wpis)} do ${kgTxt(r.kg)} kg).`;
+  return gtv.n > gtv.zWagi ? ` Front wyższy niż ${fmt(gtv.progi[gtv.progi.length - 1].h)} mm — ${gtv.n} zawiasów.` : "";
 };
 function autoHinges(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
   return zawiasyGtv(h, w, grub, szeroki, dodatekKg).n;
@@ -2872,7 +2890,7 @@ const naSystemSzuflad = (cab, sys) => {
       : zbiorySzuflad(c).length ? { ...c, segmenty: c.segmenty.map((sg) => (sg && sg.kind === "drawers" ? zmien(sg) : sg)) } : c)) })) };
 };
 /* lista systemow do wyboru (karta szuflady w technicznym, makieta szczegolowa) — wartosc `vbox` / `dxs`, z „-push” — wersja PUSH */
-const MAK_SYSTEMY_SZUF = [["vbox", "V-BOX"], ["vbox-push", "V-BOX PUSH II"], ["dxs", "DXS-3D"], ["dxs-push", "DXP-3D PUSH"], ["tbx", "TANDEMBOX"], ["tbx-65", "TANDEMBOX 65 kg"], ["tandem", "TANDEM"]];
+const MAK_SYSTEMY_SZUF = [["vbox", "V-BOX"], ["vbox-push", "V-BOX PUSH II"], ["dxs", "DXS-3D"], ["dxs-push", "DXP-3D PUSH"], ["tbx", "TANDEMBOX"], ["tbx-push", "TANDEMBOX TIP-ON"], ["tbx-65", "TANDEMBOX 65 kg"], ["tbx-65-push", "TANDEMBOX 65 kg TIP-ON"], ["tandem", "TANDEM"]];
 const ustawSystemIPush = (d, wybor) => {
   const sys = /^(dxs|tandem)/.test(wybor) ? "dxs" : /^tbx/.test(wybor) ? "tbx" : "vbox", push = /-push$/.test(wybor);
   const out = systemSzuflady(d) === sys ? { ...d } : zmienSystemSzuflady(d, sys);
@@ -2886,14 +2904,16 @@ const ustawSystemIPush = (d, wybor) => {
   if (sys === "dxs" && out.blum) { delete out.blum; if (out.nl != null && !DXS.nl.includes(Number(out.nl))) out.nl = null; }
   if (sys === "tbx") {
     // TANDEMBOX: 30 kg (578) albo 65 kg (576, NL od 450) — NL spoza listy wraca na auto
-    if (/-65$/.test(wybor)) out.nosnosc = 65; else delete out.nosnosc;
+    if (/^tbx-65/.test(wybor)) out.nosnosc = 65; else delete out.nosnosc;
     if (out.nl != null && !nlSystemu("tbx", false, out.nosnosc).includes(Number(out.nl))) out.nl = null;
-    if (out.push) { delete out.push; out.handle = true; }
+    // TIP-ON BLUMOTION (2026-11-24) — push to open bez uchwytu; zestaw wg wagi zostaje, gdy pasuje do NL
+    // (`zmienSystemSzuflady` zdejmuje `push`, wiec uchwyt wraca po push z wejscia `d`)
+    if (push) { out.push = true; out.handle = false; } else { if (out.push || (d && d.push)) out.handle = true; delete out.push; delete out.tiponJ; }
     return out;
   }
   return ustawPushSzuflady(out, push);
 };
-const wartoscSystemu = (d) => (systemSzuflady(d) === "tbx" ? (tbx65(d) ? "tbx-65" : "tbx") : systemSzuflady(d) === "dxs" && d && d.blum ? "tandem" : `${systemSzuflady(d)}${pushSzuflady(d) ? "-push" : ""}`);
+const wartoscSystemu = (d) => (systemSzuflady(d) === "tbx" ? `tbx${tbx65(d) ? "-65" : ""}${pushSzuflady(d) ? "-push" : ""}` : systemSzuflady(d) === "dxs" && d && d.blum ? "tandem" : `${systemSzuflady(d)}${pushSzuflady(d) ? "-push" : ""}`);
 /* wersja push (2026-11-23): bez uchwytu (push to open), DXP-3D — NL do 550; powrot do cichego domyku oddaje uchwyt */
 const ustawPushSzuflady = (d, push) => {
   const out = { ...d };
@@ -4187,11 +4207,15 @@ function computeGeoLiczy(cab, mat, ctx) {
   const slideGroups = new Map();
   const relingGroups = new Map();   // NL → ile szuflad z relingiem bocznym
   const tbxGroups = new Map();     // TANDEMBOX: klasa|NL|nosnosc → ile kompletow
+  const tiponGroups = new Map();   // TIP-ON BLUMOTION do TANDEMBOX: jednostka|NL → ile zestawow
+  const tiponSync = [];             // synchronizacja TIP-ON: { typ: "reling" | "kw", L } na szuflade
+  let tiponUchwyt = 0;              // uchwyt relingu + katownik pod dno (najnizsza szuflada, KB ≥ 750)
   let tbxSzuflad = 0;
   const drazkiPush = [];        // V-BOX PUSH II — dlugosci drazkow synchronizujacych (LS), fronty > 500 mm
   let pushVbox = 0;             // V-BOX PUSH II — wszystkie szuflady (uwaga)
   const dxsGroups = new Map();      // NL → ile kompletow DXS-3D
   let dxsKonf = 0;                  // konfirmaty skrzynek DXS (dno i tyl przez boki)
+  let dxsNadDnem = 0;               // najnizsze szuflady DXS-3D z prowadnica DXS.nadDnem nad dnem / przegroda (notatka montazowa)
   const supportParts = [];
   const insetExtra = cab.frontMode === "inset" ? tf : 0;
   // czy fronty danej kolumny siedza w swietle korpusu — potrzebne sasiadom,
@@ -5411,7 +5435,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       c.fingerGrip = grip;
       /* --- szuflada DXS-3D: skrzynka z plyty na prowadnicach dolnego montazu ---
          Pion od spodu prowadnicy: dol boku +17, spod dna i tylu +27, boki 10 mm
-         ponizej dna. Najnizsza prowadnica na dnie szafki (przegroda; od 2026-11-24, wczesniej 2 mm), ale
+         ponizej dna. Najnizsza prowadnica 2 mm nad dnem szafki (przegroda; notatka montazowa — 2026-11-24), ale
          nie nizej niz dol frontu wpuszczanego; wyzsza — dol frontu + „Front
          ponizej prowadnicy” (jak V-BOX). Front zawsze siega do spodu prowadnicy,
          czyli 27 mm ponizej spodu dna — zakrywa ja (uzytkownik 2026-10-21). */
@@ -5423,6 +5447,7 @@ function computeGeoLiczy(cab, mat, ctx) {
         const where2 = `${where}, szuflada ${i + 1}`;
         const railY0 = i === 0 ? Math.max(lv.y0 + DS.nadDnem, y, dCof ? spz.szyna ?? -Infinity : -Infinity)
           : y + Math.max(0, Math.round(num(g.underRail) ?? 5));
+        if (i === 0 && DS.nadDnem > 0 && Math.abs(railY0 - (lv.y0 + DS.nadDnem)) < 0.5) dxsNadDnem++;
         const bokY0 = railY0 + DS.bokOd;
         const tbok = ts; // boki, dno i tyl z plyty polek
         const colMaxDxs = maxNlFor(dsx0, dsx1, dInsetExtra, lv.y0, lv.y1, NLD);
@@ -5603,7 +5628,8 @@ function computeGeoLiczy(cab, mat, ctx) {
            schodzi ponizej szyny o staly, ustawialny wymiar. */
         // za drzwiami przesuwnymi najnizsza nad dnem (`spz.szyna`, 18 mm — „łatwo wyznaczyć ręcznie”), front pod nia o „front poniżej prowadnicy”
         const railY0 = i === 0
-          ? Math.max(lv.y0, dCof ? spz.szyna ?? -Infinity : -Infinity)
+          // TANDEMBOX z TIP-ON BLUMOTION — najnizsza prowadnica 3 mm nad dnem / przegroda (katalog Blum s. 409, „min 36”)
+          ? Math.max(lv.y0 + (BX.sys === "tbx" && pushSzuflady(d) ? TIPON_TBX.nadDnem : 0), dCof ? spz.szyna ?? -Infinity : -Infinity)
           : y + Math.max(0, Math.round(num(g.underRail) ?? 5));
         /* Auto bierze najwyzszy bok, ktory front uniesie — i ktory zmiesci sie
            pod tym, co nad szuflada (front wyzej, gora swiatla, wzmocnienie przy
@@ -5697,7 +5723,7 @@ function computeGeoLiczy(cab, mat, ctx) {
           hClass,
           nl,
           fixed: num(d.front) !== null,
-          system: BX.sys, push: BX.sys === "vbox" && pushSzuflady(d), nosnosc: BX.sys === "tbx" && tbx65(d) ? 65 : undefined, bx0, bx1, zabudowa: lwP ? { L: lwP.L, R: lwP.R } : null,
+          system: BX.sys, push: (BX.sys === "vbox" || BX.sys === "tbx") && pushSzuflady(d), tiponJ: BX.sys === "tbx" && pushSzuflady(d) && nl !== null ? tiponJednostka(d, nl) : undefined, nosnosc: BX.sys === "tbx" && tbx65(d) ? 65 : undefined, bx0, bx1, zabudowa: lwP ? { L: lwP.L, R: lwP.R } : null,
           // od dolu prowadnicy: dol boku, spod dna i tylu, gora boku — wspolne z DXS dla rysunkow
           bokOd: BX.odProw(hClass), dnoOd: BX.dno(hClass), gora: BX.gora(hClass),
           // prowadnica: 21 mm szerokosci przy kazdym boku, wysokosc z boku
@@ -5740,7 +5766,14 @@ function computeGeoLiczy(cab, mat, ctx) {
         });
         if (d.handle !== false) handleCount += 1;
         if (nl !== null) {
-          if (BX.sys === "tbx") { const kT = `${hClass}|${nl}|${tbx65(d) ? 65 : 30}`; tbxGroups.set(kT, (tbxGroups.get(kT) || 0) + 1); }
+          if (BX.sys === "tbx") { const kT = `${hClass}|${nl}|${tbx65(d) ? 65 : 30}`; tbxGroups.set(kT, (tbxGroups.get(kT) || 0) + 1);
+            // TIP-ON BLUMOTION (push): zestaw wg NL i wagi, synchronizacja wg LW, przy najnizszej szufladzie w korpusie ≥ 750 — uchwyt i katownik
+            if (pushSzuflady(d) && nl !== null) {
+              const J = tiponJednostka(d, nl), kJ = `${J}|${nl}`; tiponGroups.set(kJ, (tiponGroups.get(kJ) || 0) + 1);
+              if (LW < TIPON_TBX.lwMin) add("error", `${where}, szuflada ${i + 1}: TIP-ON BLUMOTION do TANDEMBOX — od szerokości wnętrza ${TIPON_TBX.lwMin} mm, tu ${fmt(LW)} mm. Zmień na TANDEMBOX z uchwytem.|sysszuf:${lv.i}:${j}:${i}:tbx${tbx65(d) ? "-65" : ""}`);
+              else tiponSync.push(LW >= TIPON_TBX.lwReling ? { typ: "reling", L: Math.round(LW - 240) } : { typ: "kw", L: Math.round(LW - 214) });
+              if (i === 0 && LW + 2 * t >= TIPON_TBX.kbUchwyt) tiponUchwyt++;
+            } }
           else {
           const kk = `${hClass}|${nl}|${pushSzuflady(d) ? 1 : 0}`;
           slideGroups.set(kk, (slideGroups.get(kk) || 0) + 1);
@@ -8370,6 +8403,25 @@ function computeGeoLiczy(cab, mat, ctx) {
   });
   /* Dno i tyl z plyty 18 (wymiary Blum dla 16): krawedzie frezowane do 16 mm — ostrzezenie, ktorego nie da sie odhaczyc, i notatka montazowa
      (uzytkownik 2026-11-23: „konieczne jest niezamykalne ostrzeżenie i notatka montażowa”) */
+  /* TIP-ON BLUMOTION do TANDEMBOX (2026-11-24): zestaw na szuflade wg NL i wagi, synchronizacja na szuflade (dociac wg LW), przy najnizszej
+     szufladzie w korpusie ≥ 750 mm uchwyt relingu i katownik pod dno; front 2,5 mm od korpusu, prowadnica najnizszej 3 mm nad dnem */
+  if (tiponGroups.size) {
+    [...tiponGroups.entries()].sort((a2, b2) => a2[0].localeCompare(b2[0])).forEach(([kJ, qty]) => {
+      const [J, nlJ] = kJ.split("|"), u = TIPON_TBX.jednostki[J];
+      hardware.push({ name: TIPON_TBX_NAME, use: "szuflady TANDEMBOX push to open", spec: `${u.kod} — jednostka ${J} (szuflada ${u.kg}), NL ${nlJ} mm; jednostka, zabierak i 2 adaptery synchronizacji`, qty, unit: "kpl." });
+    });
+    const rel = tiponSync.filter((q) => q.typ === "reling"), kw = tiponSync.filter((q) => q.typ === "kw"), dl = (l) => [...new Set(l.map((q) => q.L))].sort((a2, b2) => a2 - b2).map((v) => `${fmt(v)} mm`).join(", ");
+    if (rel.length) hardware.push({ name: "Reling synchronizacji TIP-ON BLUMOTION", use: "szuflady TANDEMBOX TIP-ON (wnętrze od 287 mm)", spec: `T60.1125W, okrągły — dociąć: ${dl(rel)} (LW − 240)`, qty: rel.length, unit: "szt." });
+    if (kw.length) hardware.push({ name: "Synchronizacja TIP-ON BLUMOTION (kwadratowa)", use: "szuflady TANDEMBOX TIP-ON (wnętrze 238–286 mm)", spec: `T60.300D — dociąć: ${dl(kw)} (LW − 214)`, qty: kw.length, unit: "szt." });
+    if (tiponUchwyt) {
+      hardware.push({ name: "Uchwyt relingu synchronizacji TIP-ON BLUMOTION", use: "najniższa szuflada TIP-ON nad dnem / przegrodą, korpus od 750 mm", spec: "T60B000H — przy prowadnicy 3–6 mm nad dnem (oś wkrętów 36–39 mm)", qty: tiponUchwyt, unit: "szt." });
+      hardware.push({ name: "Kątownik podpierający dno TANDEMBOX", use: "najniższa szuflada TIP-ON nad dnem / przegrodą, korpus od 750 mm", spec: "Z96.2011 — podpiera dno szuflady (reling synchronizacji nie zawadzi o wieniec)", qty: tiponUchwyt, unit: "szt." });
+    }
+    const nT = [...tiponGroups.values()].reduce((a2, b2) => a2 + b2, 0);
+    add("info", `Szuflady TANDEMBOX TIP-ON BLUMOTION (${nT}): front ${fmt(TIPON_TBX.fs).replace(".", ",")} mm od korpusu (FS, wzornik Blum 65.5627) — inaczej nie da się go nacisnąć; `
+      + `najniższa prowadnica ${TIPON_TBX.nadDnem} mm nad dnem (oś wkrętów 36 mm); zestaw TIP-ON domyślnie dla szuflady do 20 kg — cięższą wybierzesz przy szufladzie („udźwig”). Uchwyt niepotrzebny.`);
+    montazKolejnosc.push(`Szuflady TANDEMBOX TIP-ON BLUMOTION: prowadnica najniższej szuflady ${TIPON_TBX.nadDnem} mm nad dnem szafki lub przegrodą (Blum: min. 36 mm do osi wkrętów); front ${fmt(TIPON_TBX.fs).replace(".", ",")} mm od korpusu (wzornik szczeliny Blum 65.5627); reling synchronizacji dociąć na wymiar z zamówienia.`);
+  }
   if (tbxSzuflad && Math.round(ts) !== 16) {
     msgs.push({ level: "warn", staly: true, text: `Szuflady Blum TANDEMBOX (${tbxSzuflad}): dno i tył są z płyty ${fmt(ts)} mm, a profil Blum jest na płytę 16 mm — `
       + `krawędzie dna (wpust w bok) i tyłu (w mocowaniach tyłu) frezuj do 16 mm (o ${fmt(ts - 16)} mm), inaczej nie wejdą. Wymiary formatek jak dla 16 mm (dno LW − 75 × NL − 24, tył LW − 87).` });
@@ -8390,6 +8442,10 @@ function computeGeoLiczy(cab, mat, ctx) {
       + `front ${pushVbox ? `co najmniej ${PUSH_SZCZELINA} mm` : "3–5 mm"} od korpusu (regulacja głębokości prowadnicy) — inaczej nie da się go nacisnąć`
       + `${drazkiPush.length ? `; przy frontach szerszych niż ${VBOX_PUSH.drazekOdFrontu} mm drążek synchronizujący (${drazkiPush.length} szt.), docięty na LW − ${VBOX_PUSH.lsOdLW} mm — w zamówieniu` : ""}. Uchwyt niepotrzebny.`);
   }
+  /* DXS-3D: dolna prowadnica 2 mm nad dnem (instrukcja Sevroll „2 (min.)”) — notatka montazowa (uzytkownik 2026-11-24: „wracamy na te 2 mm od dna
+     ale z notatką montażową”) */
+  if (dxsNadDnem) montazKolejnosc.push(`Szuflady DXS-3D (${dxsNadDnem} — najniższe w kolumnach): dolna prowadnica ${DXS.nadDnem} mm nad dnem szafki lub przegrodą `
+    + `(instrukcja Sevroll: „${DXS.nadDnem} (min.)”) — przykręcaj do kreski z planu wierceń, nie kładź prowadnicy na dnie.`);
   // DXS-3D: komplet na szuflade (prowadnice, zaczepy przednie i tylne)
   [...dxsGroups.entries()].sort((a2, b2) => parseInt(a2[0], 10) - parseInt(b2[0], 10)).forEach(([kD, qty]) => {
     const [nlS, push, blum] = kD.split("|"), nlD = Number(nlS);
@@ -10310,8 +10366,13 @@ const runLayout = (groups, ref = null) => {
   };
   const base = { ox: 0, oy: 0, ux: 1, uy: 0, vx: 0, vy: 1 };
   /* Osobne ciagi w jednym pomieszczeniu (bez naroznika miedzy nimi) staly wszystkie w tym samym miejscu i nachodzily na siebie w 3D,
-     z gory i w rozwinieciu scian (#46; 2026-11-24 — krok przed ukladem scian pokoju): kazdy nastepny lancuch ciagow stoi obok
-     poprzednich, WALL_SEP dalej (z dlugoscia wpisanej sciany), i dostaje kolejne numery scian. Pierwszy zostaje, gdzie byl. */
+     z gory i w rozwinieciu scian (#46; 2026-11-24 — krok przed ukladem scian pokoju): lancuch ciagow, ktory w pionie zachodzi na
+     lancuch juz stojacy w poczatku, stoi obok wszystkich poprzednich (WALL_SEP dalej, z dlugoscia wpisanej sciany) i dostaje kolejne
+     numery scian. Lancuch bez kolizji w pionie zostaje w poczatku na scianie 0 — stary zapis ciagu gornego (sam `mountY` nad dolnym,
+     bez `tier: "gorny"`) wisi nad dolnym jak dotad (`ciag6`). */
+  const pion = (k) => { const c = (k.g && k.g.cabs) || [], m = Math.round((k.g && k.g.mount) || 0);
+    return { y0: Math.min(m, ...c.map((q) => Math.round(q.base || 0))), y1: Math.max(m + 1, ...c.map((q) => Math.round((q.base || 0) + (Number(q.cab && q.cab.H) || 0)))) }; };
+  const wPoczatku = [];
   let nastX = null, nastWall = 0;
   [...info.values()].filter((n) => !n.corner && !n.dolny).forEach((n) => {
     if (seen.has(n.id)) return;
@@ -10320,11 +10381,15 @@ const runLayout = (groups, ref = null) => {
     const nowe = [...info.values()].filter((k) => seen.has(k.id) && !przed.has(k.id));
     const xs = nowe.flatMap((k) => { const sc = scianaZasieg(k, k.run.wallW);
       return [[0, 0], [k.len, 0], [0, k.depth + k.front], [k.len, k.depth + k.front], [sc.u0, 0], [sc.u1, 0]].map(([u, v]) => k.at(u, v).x); });
-    const dx = nastX === null ? 0 : nastX - Math.min(...xs), dW = nastWall - Math.min(...nowe.map((k) => k.wall));
-    nowe.forEach((k) => {
-      if (dx) { const f = { ...k.f, ox: k.f.ox + dx }; k.f = f; k.at = (u, v) => at(f, u, v); }
-      k.wall += dW;
-    });
+    const pi = nowe.map(pion), koliduje = wPoczatku.some((q) => pi.some((r) => r.y0 < q.y1 && r.y1 > q.y0));
+    if (nastX === null || !koliduje) {
+      wPoczatku.push(...pi);
+      nastX = Math.max(nastX ?? -Infinity, ...xs) + WALL_SEP;
+      nastWall = Math.max(nastWall, ...nowe.map((k) => k.wall + 1));
+      return;
+    }
+    const dx = nastX - Math.min(...xs), dW = nastWall - Math.min(...nowe.map((k) => k.wall));
+    nowe.forEach((k) => { const f = { ...k.f, ox: k.f.ox + dx }; k.f = f; k.at = (u, v) => at(f, u, v); k.wall += dW; });
     nastX = Math.max(...xs) + dx + WALL_SEP;
     nastWall = Math.max(...nowe.map((k) => k.wall)) + 1;
   });
@@ -17827,6 +17892,12 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
         label: juz === "1" ? "Wróć do ostrzeżenia o relingu" : "Zostaw bez relingu",
         run: () => editLevels((L) => { kolumnaW(L, li, j).drawers[+k].bezRelingu = juz !== "1"; }),
       };
+    }
+    if (action.startsWith("sysszuf:")) {
+      // „sysszuf:<poziom>:<kolumna>:<szuflada>:<wybor>” — inny system szuflady (wartosci jak w `MAK_SYSTEMY_SZUF`), 2026-11-24
+      const [, li, j, k, wybor] = action.split(":");
+      const naz = (MAK_SYSTEMY_SZUF.find(([v]) => v === wybor) || [wybor, wybor])[1];
+      return { label: `Zmień na ${naz}`, run: () => editLevels((L) => { const c = kolumnaW(L, li, j); c.drawers[+k] = ustawSystemIPush(c.drawers[+k], wybor); }) };
     }
     if (action.startsWith("fixh:")) {
       const [, li, j, k, val] = action.split(":");
@@ -30163,7 +30234,7 @@ export default function App() {
                               <div key={dr.i} className="flex flex-wrap items-center gap-2" data-el="szuflada-wiersz">
                                 {/* system szuflady: V-BOX (boki metalowe) albo DXS-3D (skrzynka z plyty
                                     na prowadnicach dolnego montazu) — uzytkownik 2026-10-21 */}
-                                <select value={dr.system === "tbx" ? (dr.nosnosc === 65 ? "tbx-65" : "tbx") : dr.system === "dxs" && dr.blum ? "tandem" : `${dr.system || "vbox"}${dr.push ? "-push" : ""}`} data-el="szuflada-system"
+                                <select value={dr.system === "tbx" ? `tbx${dr.nosnosc === 65 ? "-65" : ""}${dr.push ? "-push" : ""}` : dr.system === "dxs" && dr.blum ? "tandem" : `${dr.system || "vbox"}${dr.push ? "-push" : ""}`} data-el="szuflada-system"
                                   title="System szuflady: V-BOX — boki metalowe, DXS-3D — skrzynka z płyty na prowadnicach pod dnem; PUSH — push to open (bez uchwytu): V-BOX 3D Slim PUSH II, DXP-3D Synchro (NL do 550)"
                                   onChange={(e) => setDrawerSystem(lv.i, jA, dr.i, e.target.value)}
                                   className="rounded border border-stone-300 bg-white px-1 py-1 text-[11px] focus:border-teal-600 focus:outline-none">
@@ -30172,9 +30243,22 @@ export default function App() {
                                   <option value="dxs">DXS-3D</option>
                                   <option value="dxs-push">DXP-3D PUSH</option>
                                   <option value="tbx">TANDEMBOX</option>
+                                  <option value="tbx-push">TANDEMBOX TIP-ON</option>
                                   <option value="tbx-65">TANDEMBOX 65 kg</option>
+                                  <option value="tbx-65-push">TANDEMBOX 65 kg TIP-ON</option>
                                   <option value="tandem">TANDEM (17–19 mm)</option>
                                 </select>
+                                {/* TANDEMBOX TIP-ON BLUMOTION: zestaw wg wagi szuflady (katalog Blum s. 408) — domyslnie do 20 kg (2026-11-24) */}
+                                {dr.system === "tbx" && dr.push && dr.tiponJ && (
+                                  <label className="flex shrink-0 items-center gap-1" data-el="tipon-udzwig"
+                                    title="Zestaw TIP-ON BLUMOTION wg całkowitej wagi szuflady z zawartością (katalog Blum s. 408)">
+                                    <span className="text-[11px] text-stone-500">udźwig</span>
+                                    <select value={dr.tiponJ} onChange={(e) => setDrawer(lv.i, jA, dr.i, { tiponJ: e.target.value })}
+                                      className="rounded border border-stone-300 bg-white px-1 py-1 text-[11px] focus:border-teal-600 focus:outline-none">
+                                      {tiponJednostki(dr.nl, dr.nosnosc === 65).map((J) => <option key={J} value={J}>{TIPON_TBX.jednostki[J].kg} ({J})</option>)}
+                                    </select>
+                                  </label>
+                                )}
                                 {dr.system === "dxs" ? (
                                   <label className="flex shrink-0 items-center gap-1" data-el="dxs-bok"
                                     title="Wysokość boku skrzynki z płyty (mm) — puste: najwyższy z luzem 5 mm pod tym, co wyżej">

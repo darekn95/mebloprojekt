@@ -3,7 +3,7 @@
    Liczby oczekiwane liczone tu niezaleznie, ze wzorow instrukcji:
    - szerokosc wnetrza SKW = LW − 49 (boki 18), skrzynka NL − 10, wnetrze NL + 3
      (front wpuszczany: + grubosc frontu), dno do tylu, tyl = bok − 10,
-   - prowadnica: najnizsza na dnie szafki (od 2026-11-24, wczesniej 2 mm), wyzsza = dol frontu + 5
+   - prowadnica: najnizsza 2 mm nad dnem szafki (notatka montazowa, 2026-11-24), wyzsza = dol frontu + 5
      („Front poniżej prowadnicy”), bok od 17 mm nad spodem prowadnicy,
      bok auto = najwyzszy z luzem 5 mm do tego, co wyzej,
    - zamowienie: komplet DXS-3D na szuflade (50 zl), konfirmaty dna i tylu
@@ -79,16 +79,16 @@ const fronty = fr.flatMap((r) => Array(Number(r[4])).fill(num(r[2])));
 ok('3 fronty szuflad, razem z luzami 714', fronty.length === 3 && fronty.reduce((a, v) => a + v, 0) + 4 === 714, fronty.join('+'));
 const plan = await wiercenia();
 const kreski = plan.filter((r) => r.panel === 'Bok lewy' && r.kind === 'prowadnica').flatMap((r) => r.ys).sort((a, c) => a - c);
-// najnizsza: na dnie 18 (uzytkownik 2026-11-24); wyzsze: dol frontu + 5 (front 1 od 3: 3 + f1 + 2 + 5, front 2: ... + f2 + 2 + 5)
+// najnizsza: dno 18 + 2 (notatka montazowa); wyzsze: dol frontu + 5 (front 1 od 3: 3 + f1 + 2 + 5, front 2: ... + f2 + 2 + 5)
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(800);
 const st = await zapis();
 const geoF = await page.evaluate(() => null);
-const oczekKreski = [t];
+const oczekKreski = [t + 2];
 let yF = 3;
 // kolejnosc frontow od dolu odczytujemy z planu: szukamy podzialu, ktory daje kreski
 const kombinacje = [[237, 237, 236], [237, 236, 237], [236, 237, 237]];
 const pasuje = kombinacje.find((k) => { const y2 = 3 + k[0] + 2, y3 = y2 + k[1] + 2; return kreski[1] === y2 + 5 && kreski[2] === y3 + 5; });
-ok('kreski prowadnic: najniższa na dnie szafki, wyższe 5 mm nad dołem frontu', kreski.length === 3 && kreski[0] === t && !!pasuje,
+ok('kreski prowadnic: najniższa 2 mm nad dnem, wyższe 5 mm nad dołem frontu', kreski.length === 3 && kreski[0] === t + 2 && !!pasuje,
   `plan ${kreski.join(', ')}`);
 const notaKreski = (plan.find((r) => r.panel === 'Bok lewy' && r.kind === 'prowadnica') || {}).note || '';
 ok('w planie: kreska spodu prowadnicy, przód 4 mm za krawędzią, bez nawiercania', /kreska — spód prowadnicy DXS-3D, NL 550; przód prowadnicy 4 mm za przednią krawędzią; 3 wkręty w otwory prowadnicy, bez nawiercania/.test(notaKreski), notaKreski);
@@ -195,12 +195,12 @@ if (await page.getByRole('button', { name: przycisk, exact: true }).count()) {
   const z = await zapis();
   ok('po kliknięciu bok zapisany i błąd znika', z.items[0].cab.levels[0].cols[0].drawers[0].h === boki[0] && !/szuflada 1: skrzynka z bokiem/.test(await uwagi()), String(z.items[0].cab.levels[0].cols[0].drawers[0].h));
 }
-/* Trzy szuflady: nad dolna do szuflady wyzej jest 224 mm (prowadnica na dnie od 2026-11-24; wczesniej 222), wiec tyl 230 (257 nad spodem
+/* Trzy szuflady: nad dolna do szuflady wyzej jest 222 mm, wiec tyl 230 (257 nad spodem
    prowadnicy) wchodzi w nia — blad, nie samo ostrzezenie (audyt GPT N128). */
 await seed(projekt([[szafka('T', { levels: [{ h: null, cols: [szuf([DX({ backHeight: 230 }), DX(), DX()])] }] })]]));
 u = await uwagi();
-ok('tył 230 pod szufladą wyżej (224 mm): błąd „wchodzi w nie” i przycisk „Ustaw tył na 192 mm”', /szuflada 1: tył 230 mm sięga 257 mm nad spód prowadnicy, a do tego, co jest wyżej \(front szuflady wyżej\), jest 224 mm — wchodzi w nie/.test(u)
-  && await page.getByRole('button', { name: 'Ustaw tył na 192 mm', exact: true }).count() === 1, u.split('\n').filter((l) => /tył/.test(l)).join(' / ').slice(0, 200));
+ok('tył 230 pod szufladą wyżej (222 mm): błąd „wchodzi w nie” i przycisk „Ustaw tył na 190 mm”', /szuflada 1: tył 230 mm sięga 257 mm nad spód prowadnicy, a do tego, co jest wyżej \(front szuflady wyżej\), jest 222 mm — wchodzi w nie/.test(u)
+  && await page.getByRole('button', { name: 'Ustaw tył na 190 mm', exact: true }).count() === 1, u.split('\n').filter((l) => /tył/.test(l)).join(' / ').slice(0, 200));
 // jedna szuflada z bokiem 200: nad nia miejsca dosc — tyl 230 tylko wystaje ponad boki
 await seed(projekt([[szafka('T1', { levels: [{ h: null, cols: [szuf([DX({ h: 200, backHeight: 230 })])] }] })]]));
 u = await uwagi();

@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion', 'ustawPushSzuflady', 'ustawSystemIPush', 'polkiPozaZawiasami', 'przyciskPolekZawiasy'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion', 'ustawPushSzuflady', 'ustawSystemIPush', 'polkiPozaZawiasami', 'przyciskPolekZawiasy', 'zawiasyGtv', 'MAK_SYSTEMY_SZUF'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1679,6 +1679,28 @@ console.log('\n== 2026-11-22: 5 i 6 skrzydeł (6 jak 4 — dwie połowy po 3; 5 
   ok('… 6000 mm (otwór 5964): bez tego błędu', !g.msgs.some((m) => /tor GTV ma najwyżej/.test(m.text)));
 }
 
+console.log('\n== 2026-11-24: TANDEMBOX TIP-ON BLUMOTION (katalog Blum s. 407–409; decyzje użytkownika: prowadnica 3 mm nad dnem, zestaw do 20 kg domyślnie) ==');
+{
+  const M0 = G.defaultMaterials;
+  const sz = (W, ext = {}) => G.migrateCab({ name: 'T', W, H: 720, D: 560, levels: [{ h: null, cols: [{ kind: 'drawers', w: null,
+    drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: false, system: 'tbx', push: true, ...ext })) }] }] }, M0);
+  const hw = (g, re) => (g.hardware || []).filter((h) => re.test(h.name));
+  const g8 = G.computeGeo(sz(800), M0), d8 = g8.levels[0].cols[0].drawers;
+  ok('najniższa prowadnica 3 mm nad dnem; push bez uchwytu; zestaw L1 (do 20 kg) × 3', Math.abs(d8[0].rail.y0 - g8.interior.y0 - 3) < 0.01 && d8.every((d) => d.push && d.tiponJ === 'L1')
+    && hw(g8, /^Zestaw Blum TIP-ON BLUMOTION/).reduce((a, h) => a + h.qty, 0) === 3 && hw(g8, /^Zestaw Blum TIP-ON/).every((h) => /T60B3330/.test(h.spec)), JSON.stringify(hw(g8, /TIP-ON/).map((h) => [h.qty, h.spec])));
+  ok('korpus 800: reling T60.1125W na LW − 240 = 524 × 3, uchwyt T60B000H i kątownik Z96.2011 przy najniższej (po 1)', hw(g8, /^Reling synchronizacji/).some((h) => h.qty === 3 && /524 mm/.test(h.spec))
+    && hw(g8, /^Uchwyt relingu/).some((h) => h.qty === 1) && hw(g8, /^Kątownik podpierający dno/).some((h) => h.qty === 1));
+  ok('… info „front 2,5 mm od korpusu”, notatka montażowa TIP-ON', g8.msgs.some((m) => /TIP-ON BLUMOTION \(3\): front 2,5 mm od korpusu/.test(m.text)) && (g8.montazKolejnosc || []).some((t) => /TIP-ON BLUMOTION: prowadnica najniższej szuflady 3 mm nad dnem/.test(t)));
+  const g6 = G.computeGeo(sz(600), M0), g3 = G.computeGeo(sz(300), M0), g2 = G.computeGeo(sz(260), M0);
+  ok('korpus 600: bez uchwytu relingu; 300: synchronizacja kwadratowa T60.300D (LW − 214 = 50); 260: błąd LW < 238 z przyciskiem TANDEMBOX', !hw(g6, /^Uchwyt relingu/).length
+    && hw(g3, /kwadratowa/).some((h) => /50 mm/.test(h.spec) && h.qty === 3) && g2.msgs.some((m) => m.level === 'error' && /od szerokości wnętrza 238 mm/.test(m.text) && /\|sysszuf:0:0:0:tbx$/.test(m.text)));
+  const gL3 = G.computeGeo(sz(600, { tiponJ: 'L3' }), M0), g65 = G.computeGeo(sz(800, { nosnosc: 65 }), M0);
+  ok('udźwig L3 (15–30 kg) → T60B3530; 65 kg → L5 T60B3560', hw(gL3, /^Zestaw Blum TIP-ON/).every((h) => /T60B3530/.test(h.spec)) && hw(g65, /^Zestaw Blum TIP-ON/).every((h) => /T60B3560/.test(h.spec)));
+  const w = G.ustawSystemIPush({ h: 'auto', handle: true, nl: 450 }, 'tbx-65-push'), w2 = G.ustawSystemIPush({ ...w, tiponJ: 'L5' }, 'tbx');
+  ok('wybór „TANDEMBOX 65 kg TIP-ON”: tbx, 65 kg, push, bez uchwytu; powrót na „TANDEMBOX” — uchwyt wraca, bez tiponJ', w.system === 'tbx' && w.nosnosc === 65 && w.push === true && w.handle === false
+    && !w2.push && w2.handle === true && !('tiponJ' in w2) && !('nosnosc' in w2) && G.MAK_SYSTEMY_SZUF.length === 9, JSON.stringify([w, w2]));
+}
+
 console.log('\n== 2026-11-24 (#46, krok przed układem ścian): osobne ciągi w jednym pokoju obok siebie, nie w jednym miejscu ==');
 {
   const PL = { on: true, height: 100, mode: 'under', setback: 0 };
@@ -1690,22 +1712,31 @@ console.log('\n== 2026-11-24 (#46, krok przed układem ścian): osobne ciągi w 
   ok('ciąg 1 na 0, ciąg 2 za nim (1200 + 260), ciąg 3 za ciągiem 2 (1460 + 600 + 260); każdy na swojej ścianie',
     po('c1').f.ox === 0 && po('c2').f.ox === 1460 && po('c3').f.ox === 2320 && new Set(n.map((x) => x.wall)).size === 3,
     JSON.stringify(n.map((x) => [x.run.id, x.f.ox, x.wall, x.ex])));
+  // stary zapis ciagu gornego (sam mountY 1450, bez tier „gorny”) — nad dolnym, nie obok (ciag6)
+  const Q = G.loadProject({ name: 'T', active: 0, prices: {}, runs: [RUN('c1', 'Dolne'), RUN('c2', 'Górne', { mountY: 1450, H: 600, D: 320, plinth: { on: false } })],
+    items: [{ cab: sz('d1', 800), runId: 'c1' }, { cab: { ...sz('g1', 800), H: 600, D: 320, plinth: { on: false }, legs: { on: false } }, runId: 'c2' }] });
+  const q = [...G.projectLayout(Q).info.values()];
+  ok('… ciąg z samym mountY 1450 (stary zapis górnego) zostaje nad dolnym: ox 0, ta sama ściana', q.every((x) => x.f.ox === 0 && x.wall === 0), JSON.stringify(q.map((x) => [x.run.id, x.f.ox, x.wall])));
 }
 
-console.log('\n== 2026-11-24: „Półki poza zawiasami” — przycisk przy ostrzeżeniu „zawias przesunięty” (szafa 1200 × 2761, 4 półki) ==');
+console.log('\n== 2026-11-24: „Półki poza zawiasami” — przycisk przy ostrzeżeniu „zawias przesunięty” (szafa 1200 × 2761, 5 półek, 6 zawiasów) ==');
 {
   const M0 = G.defaultMaterials;
   const cab = G.migrateCab({ name: 'Szafa', W: 1200, H: 2761, D: 600, legs: { on: false }, plinth: { on: true, height: 100, mode: 'inbody' },
-    levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null, null] }] }] }, M0);
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null, null, null, null, null] }] }] }, M0);
   const g = G.computeGeo(cab, M0), przes = (gg) => gg.msgs.filter((m) => /: zawias przesunięty z /.test(m.text));
   const zP = G.przyciskPolekZawiasy(g.msgs, 3, cab, M0).filter((m) => /: zawias przesunięty z /.test(m.text));
-  ok('6 zawiasów przesuniętych przez półki — przy każdym przycisk „polkizaw:3”', przes(g).length === 6 && zP.length === 6 && zP.every((m) => /\|polkizaw:3$/.test(m.text)), String(przes(g).length));
+  ok('8 zawiasów przesuniętych przez półki — przy każdym przycisk „polkizaw:3”', przes(g).length === 8 && zP.length === 8 && zP.every((m) => /\|polkizaw:3$/.test(m.text)), String(przes(g).length));
   const c2 = JSON.parse(JSON.stringify(cab)), zm = G.polkiPozaZawiasami(c2, M0), g2 = G.computeGeo(c2, M0);
   ok('po kliknięciu: półki nad / pod zawiasami, żaden zawias nie jest przesunięty, bez błędów', zm && !przes(g2).length && !g2.msgs.some((m) => m.level === 'error'),
     JSON.stringify(c2.levels[0].cols[0].shelfTargets));
-  const c3 = JSON.parse(JSON.stringify(cab)); c3.levels[0].cols[0].shelfTargets = [null, null, null];
+  // front 2655 mm (ponad tabelę GTV do 2500) — 6 zawiasów (użytkownik 2026-11-24), ostrzeżenie „poza tabelą” zostaje
+  const drz = g.doors.filter((d) => d.type === 'door');
+  ok('front 597 × 2655 mm: 6 zawiasów na skrzydło (ponad 2500 mm), ostrzeżenie „poza tabelą zawiasów GTV” zostaje', drz.length === 2 && drz.every((d) => d.hinges === 6)
+    && g.msgs.some((m) => /poza tabelą zawiasów GTV/.test(m.text)) && G.zawiasyGtv(2500, 597).n === 5, JSON.stringify(drz.map((d) => [Math.round(d.h), d.hinges])));
+  const c3 = JSON.parse(JSON.stringify(cab)); c3.levels[0].cols[0].shelfTargets = [null, null, null, null];
   const g3 = G.computeGeo(c3, M0);
-  ok('bez kolizji (3 półki): bez przycisku', !G.przyciskPolekZawiasy(g3.msgs, 3, c3, M0).some((m) => /polkizaw/.test(m.text)));
+  ok('bez kolizji (4 półki): bez przycisku', !G.przyciskPolekZawiasy(g3.msgs, 3, c3, M0).some((m) => /polkizaw/.test(m.text)));
 }
 
 console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru jak korpus ==');
@@ -1840,8 +1871,10 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
       drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: true, system: 'dxs', ...ext })) }] }] });
     const gT = geo(szD({ blum: true })), gX = geo(szD()), dT = gT.levels[0].cols[0].drawers, dX = gX.levels[0].cols[0].drawers;
     const errT = (gT.msgs || []).filter((m) => m.level === 'error').map((m) => m.text.slice(0, 100));
-    ok('TANDEM: bez błędów; najniższa prowadnica na dnie (DXS-3D też, od 2026-11-24), spód dna 27,5 nad szyną, boki 12 pod dnem', !errT.length
-      && dT.every((d) => d.blum && d.dnoOd === 27.5 && d.bokOd === 15.5) && Math.abs(dX[0].rail.y0 - dT[0].rail.y0) < 0.01 && Math.abs(dX[0].rail.y0 - gX.interior.y0) < 0.01, JSON.stringify({ errT, y: [dT[0].rail.y0, dX[0].rail.y0, gX.interior.y0], d: dT.map((d) => [d.dnoOd, d.bokOd]) }));
+    ok('TANDEM: bez błędów; najniższa prowadnica na dnie (DXS-3D 2 mm wyżej), spód dna 27,5 nad szyną, boki 12 pod dnem', !errT.length
+      && dT.every((d) => d.blum && d.dnoOd === 27.5 && d.bokOd === 15.5) && Math.abs((dX[0].rail.y0 - dT[0].rail.y0) - 2) < 0.01 && Math.abs(dX[0].rail.y0 - gX.interior.y0 - 2) < 0.01, JSON.stringify({ errT, y: [dT[0].rail.y0, dX[0].rail.y0, gX.interior.y0], d: dT.map((d) => [d.dnoOd, d.bokOd]) }));
+    ok('DXS-3D: notatka montażowa „dolna prowadnica 2 mm nad dnem” (2026-11-24); TANDEM bez niej', (gX.montazKolejnosc || []).some((t) => /Szuflady DXS-3D \(1 — najniższe w kolumnach\): dolna prowadnica 2 mm nad dnem szafki/.test(t))
+      && !(gT.montazKolejnosc || []).some((t) => /dolna prowadnica 2 mm nad dnem/.test(t)), (gX.montazKolejnosc || []).join(' / '));
     const hT = (gT.hardware || []).filter((h) => h.name === 'Prowadnica Blum TANDEM 560F');
     ok('TANDEM w zamówieniu: „Prowadnica Blum TANDEM 560F” 3 kpl., 100 zł; bez kompletów DXS-3D', hT.reduce((a, h) => a + h.qty, 0) === 3
       && G.hwDefaultPrice({ name: 'Prowadnica Blum TANDEM 560F' }) === 100 && !(gT.hardware || []).some((h) => /^Prowadnica Sevroll DXS/.test(h.name)), JSON.stringify(hT.map((h) => h.spec)));

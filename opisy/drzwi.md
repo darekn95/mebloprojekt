@@ -13,6 +13,7 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
   - dookoła frontu wpuszczanego 2 mm;
   - nałożenie na przegrodę 7 mm z każdej strony.
 - **Liczba zawiasów** (tabela GTV, `ZAWIASY_GTV`): z wagi frontu — 2 do 6 kg, 3 do 12, 4 do 17, 5 do 20 kg.
+  - **Front wyższy niż 2500 mm** (koniec tabeli GTV) — **6 zawiasów** (`ZAWIASY_PONAD_TABELA`, użytkownik 2026-11-24: szafa na zawiasach w wysokim pokoju); ostrzeżenie „poza tabelą zawiasów GTV” zostaje jako przypomnienie, przy wpisanych 5 — „za mało … Front wyższy niż 2500 mm — 6 zawiasów”.
   - Wysokość nie dokłada zawiasów, gdy waga mieści się w mniejszej liczbie (użytkownik 2026-10-24: „nie ma sensu dawać 3 zawiasów, jak z wagi 2 wystarczą”). Wysokość (do 2500 mm) zostaje granicą tabeli — wyżej „liczba orientacyjna”.
   - Tabela obowiązuje dla frontu do 600 mm szerokości. Szafka narożna ze skrzydłami łamanymi ma ostrzejszą tabelę (do 450 mm, do 15 kg).
   - Waga: płyta frontu 680 kg/m³ plus lustro (szkło 2500 kg/m³).

@@ -101,7 +101,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 - **Pion od spodu prowadnicy**:
   - dół boku na +17 mm;
   - spód dna i tyłu na +27 mm, więc boki schodzą 10 mm poniżej dna;
-  - najniższa prowadnica leży na dnie szafki (decyzja użytkownika 2026-11-24 — w instrukcji Sevroll „2 (min.)”; jak w Blum TANDEM); przy froncie wpuszczanym nie niżej niż dół frontu (2 mm luzu);
+  - najniższa prowadnica stoi 2 mm nad dnem szafki (instrukcja Sevroll „2 (min.)”; 2026-11-24 rano było 0, tego samego dnia decyzja użytkownika: wracamy na 2 mm **z notatką montażową** „przykręcaj do kreski, nie kładź prowadnicy na dnie”); przy froncie wpuszczanym nie niżej niż dół frontu;
   - front zawsze sięga spodu prowadnicy (27 mm poniżej spodu dna) i ją zasłania.
 - **Bok**: auto jak wyżej (najwyższy z luzem 5 mm) albo ręcznie w mm. Puste pole pokazuje „auto N”. Przy froncie obniżonym podfrezem (także górnym pod płytą) bok auto kończy się równo z górą frontu — nie wystaje w szczelinie nad nim (2026-10-25); ręcznie wpisany wyższy — ostrzeżenie z „Zmień bok szuflady na N mm”.
 - **Tył**: auto = bok − 10, góra równo z bokami. Ręcznie można niżej; wyżej daje ostrzeżenie z przyciskiem powrotu, a ponad to, co jest nad szufladą (wieniec, półka, szuflada wyżej, z luzem 5 mm) — błąd „skrzynki nie da się złożyć ani wsunąć” z przyciskiem (audyt GPT N128).
@@ -160,10 +160,11 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
   - nośność 30 kg (prowadnica 578, NL 270–600; N tylko 400–550 — błąd z przyciskiem) albo 65 kg (576, NL 450–650, bez N) — `drawer.nosnosc`;
   - plan wierceń: dolna krawędź prowadnicy, wkręty w osi 33 mm, otwory z tabeli Blum (`TBX.otwory`, 19 — opcjonalny);
   - zamówienie: „Szuflada Blum TANDEMBOX antaro” — komplet (prowadnice, boki, mocowania frontu i tyłu), 205 zł; bez relingu bocznego V-BOX,
-    bez kątownika pod dno; push (TIP-ON BLUMOTION) — jeszcze nie.
+    bez kątownika pod dno; push — TIP-ON BLUMOTION (niżej).
+  - **TIP-ON BLUMOTION** (push, 2026-11-24; katalog Blum 2027/2028 s. 407–409): systemy „TANDEMBOX TIP-ON” / „TANDEMBOX 65 kg TIP-ON” — bez uchwytu, te same prowadnice; prowadnica najniższej szuflady **3 mm nad dnem** / przegrodą („min 36” do osi wkrętów zamiast 33 — decyzja użytkownika); w zamówieniu „Zestaw Blum TIP-ON BLUMOTION do TANDEMBOX” wg NL i wagi szuflady — **„udźwig”** przy szufladzie (`drawer.tiponJ`): NL 270–300 S0 do 10 kg / S1 10–20 kg, NL 350–600 L1 do 20 kg / L3 15–30 kg, 65 kg — L5; domyślnie S1 / L1 („do 20 kg”); synchronizacja na szufladę: wnętrze od 287 mm — reling T60.1125W dociąć LW − 240, 238–286 — T60.300D (LW − 214), węższe — błąd z „Zmień na TANDEMBOX”; najniższa szuflada w korpusie od 750 mm — uchwyt relingu T60B000H i kątownik pod dno Z96.2011 (po 1); informacja „front 2,5 mm od korpusu (FS)” i notatka montażowa. Ceny — do ustalenia z użytkownikiem (Allegro).
 - **Blum TANDEM 17–19 mm (560F)** (użytkownik 2026-11-23; katalog Blum 2026 s. 454–461 w `instrukcje/blum/`): wybór „TANDEM (17–19 mm)”
   przy szufladzie i „TANDEM” w makiecie szczegółowej. Ta sama budowa co DXS-3D, więc w programie to DXS-3D z flagą `drawer.blum`
-  (`dxsParam`, tabela `TANDEM`): prowadnica najniższej szuflady **na dnie szafki** (Blum nie pokazuje odstępu; DXS-3D też na dnie od 2026-11-24),
+  (`dxsParam`, tabela `TANDEM`): prowadnica najniższej szuflady **na dnie szafki** (Blum nie pokazuje odstępu; DXS-3D — 2 mm, z notatką montażową),
   **spód dna 27,5** mm nad dołem szyny, **boki 12** mm poniżej dna (rysunek 12–15), luz nad skrzynką **min. 7** mm, wkręty prowadnicy
   w osi 37 mm nad dołem szyny, pierwszy 37 mm od przedniej krawędzi; NL 250, 270, 300 … 600; skrzynka i front jak DXS-3D (pełna skrzynka
   z płyty 18, front od środka 4 × 30); zamówienie „Prowadnica Blum TANDEM 560F” — komplet 100 zł.
