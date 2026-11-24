@@ -1694,11 +1694,28 @@ console.log('\n== 2026-11-24: TANDEMBOX TIP-ON BLUMOTION (katalog Blum s. 407–
   const g6 = G.computeGeo(sz(600), M0), g3 = G.computeGeo(sz(300), M0), g2 = G.computeGeo(sz(260), M0);
   ok('korpus 600: bez uchwytu relingu; 300: synchronizacja kwadratowa T60.300D (LW − 214 = 50); 260: błąd LW < 238 z przyciskiem TANDEMBOX', !hw(g6, /^Uchwyt relingu/).length
     && hw(g3, /kwadratowa/).some((h) => /50 mm/.test(h.spec) && h.qty === 3) && g2.msgs.some((m) => m.level === 'error' && /od szerokości wnętrza 238 mm/.test(m.text) && /\|sysszuf:0:0:0:tbx$/.test(m.text)));
+  ok('ceny (użytkownik 2026-11-24): zestaw TIP-ON 70 zł, reling 16, T60.300D 5, uchwyt 1, kątownik 5', [['Zestaw Blum TIP-ON BLUMOTION do TANDEMBOX', 70], ['Reling synchronizacji TIP-ON BLUMOTION', 16],
+    ['Synchronizacja TIP-ON BLUMOTION (kwadratowa)', 5], ['Uchwyt relingu synchronizacji TIP-ON BLUMOTION', 1], ['Kątownik podpierający dno TANDEMBOX', 5]].every(([n, c]) => G.hwDefaultPrice({ name: n }) === c));
   const gL3 = G.computeGeo(sz(600, { tiponJ: 'L3' }), M0), g65 = G.computeGeo(sz(800, { nosnosc: 65 }), M0);
   ok('udźwig L3 (15–30 kg) → T60B3530; 65 kg → L5 T60B3560', hw(gL3, /^Zestaw Blum TIP-ON/).every((h) => /T60B3530/.test(h.spec)) && hw(g65, /^Zestaw Blum TIP-ON/).every((h) => /T60B3560/.test(h.spec)));
   const w = G.ustawSystemIPush({ h: 'auto', handle: true, nl: 450 }, 'tbx-65-push'), w2 = G.ustawSystemIPush({ ...w, tiponJ: 'L5' }, 'tbx');
   ok('wybór „TANDEMBOX 65 kg TIP-ON”: tbx, 65 kg, push, bez uchwytu; powrót na „TANDEMBOX” — uchwyt wraca, bez tiponJ', w.system === 'tbx' && w.nosnosc === 65 && w.push === true && w.handle === false
     && !w2.push && w2.handle === true && !('tiponJ' in w2) && !('nosnosc' in w2) && G.MAK_SYSTEMY_SZUF.length === 9, JSON.stringify([w, w2]));
+}
+
+console.log('\n== 2026-11-24: zawiasy Blum CLIP top BLUMOTION 110° (wybór GTV / Blum, katalog Blum s. 69–70) ==');
+{
+  const M0 = G.defaultMaterials;
+  const sz = (o = {}, H = 720, doors = 2) => G.migrateCab({ name: 'D', W: 800, H, D: 560, ...o, levels: [{ h: null, cols: [{ kind: 'doors', doors, w: null, shelfTargets: [null] }] }] }, M0);
+  const zaw = (g) => (g.hardware || []).filter((h) => /^Zawias|^Prowadnik krzyżakowy/.test(h.name)).map((h) => [h.name, h.qty, h.spec.split(' — ')[0]]);
+  const gG = G.computeGeo(sz(), M0), gB = G.computeGeo(sz({ zawiasyBlum: true }), M0);
+  ok('domyślnie GTV: „Zawias” nakładany × 4, bez prowadnika Blum', JSON.stringify(zaw(gG)) === JSON.stringify([['Zawias', 4, 'nakładany, liczba wg tabeli GTV (waga frontu)']]), JSON.stringify(zaw(gG)));
+  ok('Blum: „Zawias Blum CLIP top BLUMOTION 110°” 71B3550 × 4 + prowadnik 173L6100 × 4', JSON.stringify(zaw(gB)) === JSON.stringify([['Zawias Blum CLIP top BLUMOTION 110°', 4, '71B3550'], ['Prowadnik krzyżakowy Blum CLIP 0 mm', 4, '173L6100']]), JSON.stringify(zaw(gB)));
+  const gW = G.computeGeo(sz({ zawiasyBlum: true, frontMode: 'inset' }), M0);
+  ok('Blum wpuszczany: 71B3750', zaw(gW).some(([n, q, k]) => /^Zawias Blum/.test(n) && k === '71B3750'), JSON.stringify(zaw(gW)));
+  ok('tabela Blum: 5 zawiasów do 22 kg (GTV do 20) — front 2400 mm 21 kg', G.zawiasyGtv(2400, 600, 18, false, 2.5, true).n === 5 && G.zawiasyGtv(2400, 600, 18, false, 2.5, true).prod === 'Blum'
+    && !G.zawiasyGtv(2400, 600, 18, false, 2.5, true).poza && G.zawiasyGtv(2400, 600, 18, false, 2.5).poza, JSON.stringify(G.zawiasyGtv(2400, 600, 18, false, 2.5, true)));
+  ok('ceny: zawias Blum 14 zł, prowadnik 1 zł', G.hwDefaultPrice({ name: 'Zawias Blum CLIP top BLUMOTION 110°' }) === 14 && G.hwDefaultPrice({ name: 'Prowadnik krzyżakowy Blum CLIP 0 mm' }) === 1);
 }
 
 console.log('\n== 2026-11-24 (#46, krok przed układem ścian): osobne ciągi w jednym pokoju obok siebie, nie w jednym miejscu ==');

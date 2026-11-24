@@ -218,7 +218,8 @@ u = await uwagi();
 ok('drzwi szersze niż 600 mm: „poza tabelą zawiasów GTV”, liczba orientacyjna', /skrzydło 1: front 700 × 714 mm, ok\. 6,1 kg — poza tabelą zawiasów GTV \(front do 600 mm szerokości/.test(u), linieZaw(u));
 await seed(DRZWI(500, 2700));
 hw = await okucia(); u = await uwagi();
-ok('drzwi 2694 mm (ponad 2500, ok. 16,4 kg): 4 zawiasy z wagi i „poza tabelą”', ilosc(hw, /^Zawias/) === 4 && /poza tabelą zawiasów GTV/.test(u), `zamówienie ${ilosc(hw, /^Zawias/)}; ${linieZaw(u)}`);
+// ponad 2500 mm — 6 zawiasów (użytkownik 2026-11-24: „6 zawiasów ponad 2500 mm”), ostrzeżenie zostaje
+ok('drzwi 2694 mm (ponad 2500, ok. 16,4 kg): 6 zawiasów i „poza tabelą”', ilosc(hw, /^Zawias/) === 6 && /poza tabelą zawiasów GTV/.test(u), `zamówienie ${ilosc(hw, /^Zawias/)}; ${linieZaw(u)}`);
 
 console.log('\n== zawias przesunięty przez półkę: ostrzeżenie + notatka montażowa ==');
 /* Uzytkownik 2026-10-16: ostrzezenie zostaje, a do tego notatka montazowa —

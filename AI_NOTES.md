@@ -1487,3 +1487,6 @@ czy do drzwi na zawiasach ponad 2500 mm — pytanie do użytkownika.
 (`ZAWIASY_PONAD_TABELA`); `runLayout` — odsuwa tylko łańcuchy, które w pionie kolidują (stary zapis górnego z samym mountY zostaje nad dolnym, `ciag6`).
 [AI-INFO] 2026-11-24 Blum CLIP top BLUMOTION 110° (katalog s. 69–70, PDF 73–74): nakładany 71B3550, bliźniaczy 71B3650, wpuszczany 71B3750 (wkręty), INSERTA
 71B3590 / 3690 / 3790; prowadnik krzyżakowy 37/32 (np. 173L6100, 0 mm); liczba zawiasów — wykres „Ilość zawiasów” (waga FG i wysokość FH, FB 600) — do odczytu z obrazka, gdy użytkownik zdecyduje.
+[CLAUDE-CHANGE] 2026-11-24: ceny TIP-ON (70 / 16 / 5 / 1 / 5 zł — decyzja użytkownika), zawiasy Blum CLIP top BLUMOTION (`cab.zawiasyBlum`, `ZAWIASY_BLUM`,
+`ZAWIAS_BLUM`; cena 14 + 1 zł przyjęta ze średniej Allegro — użytkownik może zmienić w cenniku). Porównanie: tabela Blum = GTV, tylko 5 zawiasów do 22 kg.
+

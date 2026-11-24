@@ -662,6 +662,11 @@ const DEFAULT_HW_PRICES = {
   "Szuflada Blum TANDEMBOX antaro": 205,
   // Blum TANDEM 17–19 (560F) — komplet prowadnic na szuflade, cena uzytkownika (2026-11-23)
   "Prowadnica Blum TANDEM 560F": 100,
+  // Blum CLIP top BLUMOTION 110° + prowadnik (Allegro 2026-11-24: zawias ok. 12–18 zł, prowadnik ok. 1 zł)
+  "Zawias Blum CLIP top BLUMOTION 110°": 14, "Prowadnik krzyżakowy Blum CLIP 0 mm": 1,
+  // TIP-ON BLUMOTION do TANDEMBOX (uzytkownik 2026-11-24: jedna cena dla wszystkich zestawow; srednie z Allegro i sklepow)
+  "Zestaw Blum TIP-ON BLUMOTION do TANDEMBOX": 70, "Reling synchronizacji TIP-ON BLUMOTION": 16, "Synchronizacja TIP-ON BLUMOTION (kwadratowa)": 5,
+  "Uchwyt relingu synchronizacji TIP-ON BLUMOTION": 1, "Kątownik podpierający dno TANDEMBOX": 5,
   // drazek synchronizujacy V-BOX PUSH II (szt.) i mocowania (kpl.) — ceny uzytkownika (2026-11-23)
   "Drążek synchronizujący V-BOX 3D Slim PUSH II": 11,
   "Mocowania drążka synchronizującego V-BOX PUSH II": 10,
@@ -1551,6 +1556,14 @@ const ZAWIASY_GTV = {
   standard: { szer: 600, progi: [{ n: 2, h: 750, kg: 6 }, { n: 3, h: 1500, kg: 12 }, { n: 4, h: 2100, kg: 17 }, { n: 5, h: 2500, kg: 20 }] },
   szeroki: { szer: 450, progi: [{ n: 2, h: 750, kg: 4.5 }, { n: 3, h: 1500, kg: 9 }, { n: 4, h: 2100, kg: 12.5 }, { n: 5, h: 2500, kg: 15 }] },
 };
+/* Blum CLIP top BLUMOTION 110° (uzytkownik 2026-11-24: wybor GTV / Blum, domyslnie GTV) — katalog Blum 2027/2028 s. 69, wykres „Ilość zawiasów”
+   (front 600 mm szerokosci): 2 do 6 kg i 750 mm, 3 do 12 / 1500, 4 do 17 / 2100, 5 do 22 kg / 2500 — jak GTV, tylko 5 zawiasow unosi 22 kg
+   zamiast 20. Kody s. 70 (puszka na wkrety): nakladany 71B3550, blizniaczy 71B3650, wpuszczany 71B3750; prowadnik krzyzakowy 37/32 0 mm 173L6100.
+   Skrzydla lamane szafki naroznej — zawias 165° (tabela GTV dla szerokiego kata zostaje). */
+const ZAWIASY_BLUM = { szer: 600, progi: [{ n: 2, h: 750, kg: 6 }, { n: 3, h: 1500, kg: 12 }, { n: 4, h: 2100, kg: 17 }, { n: 5, h: 2500, kg: 22 }] };
+const ZAWIAS_BLUM = { nazwa: "Zawias Blum CLIP top BLUMOTION 110°", kody: { "nakładany": "71B3550", "półnakładany": "71B3650", "wpuszczany": "71B3750" },
+  prowadnik: "Prowadnik krzyżakowy Blum CLIP 0 mm", prowadnikKod: "173L6100" };
+const zawiasyBlum = (cab) => !!(cab && cab.zawiasyBlum);
 // { n, kg, poza, szer } — `poza`: wysokosc, waga albo szerokosc ponad tabele
 // (n = ostatni pasujacy wiersz, a przy wysokosci/wadze ponad tabele — ostatni)
 /* Lustro na froncie: szklo 2500 kg/m3 o grubosci z materialu „Lustro” (4 mm ≈
@@ -1562,8 +1575,9 @@ const wagaLustra = (w, h, mat) => (Math.max(0, w - 1) / 1000) * (Math.max(0, h -
 // najwezsze skrzydlo, przy ktorym uwaga o zawiasach proponuje dwoje drzwi zamiast jednych (`drzwi2:`)
 const DRZWI2_MIN = 200;
 const ZAWIASY_PONAD_TABELA = 6;   // front wyzszy niz 2500 mm (tabela GTV konczy sie na 5 zawiasach)
-function zawiasyGtv(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
-  const t = szeroki ? ZAWIASY_GTV.szeroki : ZAWIASY_GTV.standard;
+function zawiasyGtv(h, w, grub = 18, szeroki = false, dodatekKg = 0, blum = false) {
+  const t = szeroki ? ZAWIASY_GTV.szeroki : blum ? ZAWIASY_BLUM : ZAWIASY_GTV.standard;
+  const prod = blum && !szeroki ? "Blum" : "GTV";
   const kg = wagaFrontu(w, h, grub) + dodatekKg;
   const ost = t.progi[t.progi.length - 1];
   // osobno z wysokosci i z wagi — do wyjasnienia w Uwagach
@@ -1575,7 +1589,7 @@ function zawiasyGtv(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
   /* front wyzszy niz tabela GTV (2500 mm) — 6 zawiasow, ostrzezenie „poza tabelą” zostaje jako przypomnienie (uzytkownik 2026-11-24, szafa
      na zawiasach w wysokim pokoju: „6 zawiasów ponad 2500 mm”) */
   const n = h > ost.h ? Math.max(zWagi, ZAWIASY_PONAD_TABELA) : zWagi;
-  return { n, kg, poza: h > ost.h || kg > ost.kg || w > t.szer, szer: t.szer, zWys, zWagi, progi: t.progi };
+  return { n, kg, poza: h > ost.h || kg > ost.kg || w > t.szer, szer: t.szer, zWys, zWagi, progi: t.progi, prod };
 }
 /* Skad liczba z tabeli GTV (uzytkownik 2026-10-24: „czy 2 zawiasy nie moga miec
    takiej wagi czy wymiarow?”): przy za malej liczbie — co jej nie pozwala
@@ -1594,8 +1608,8 @@ const powodZawiasow = (gtv, wpis) => {
   if (gtv.zWagi > wpis) return ` Waga ok. ${kgFr} kg wymaga ${gtv.zWagi} (${wpis} ${zaw(wpis)} do ${kgTxt(r.kg)} kg).`;
   return gtv.n > gtv.zWagi ? ` Front wyższy niż ${fmt(gtv.progi[gtv.progi.length - 1].h)} mm — ${gtv.n} zawiasów.` : "";
 };
-function autoHinges(h, w, grub = 18, szeroki = false, dodatekKg = 0) {
-  return zawiasyGtv(h, w, grub, szeroki, dodatekKg).n;
+function autoHinges(h, w, grub = 18, szeroki = false, dodatekKg = 0, blum = false) {
+  return zawiasyGtv(h, w, grub, szeroki, dodatekKg, blum).n;
 }
 
 /* prowadnice szuflad: 21 mm na stronę (razem ze ścianką skrzynki) */
@@ -5066,7 +5080,7 @@ function computeGeoLiczy(cab, mat, ctx) {
               gWallL: gwL, gWallR: gwR, colY0: ps.y0, colY1: ps.y1, seg: ps.seg,
               bandLo: ps.pierwszy && lv.i === 0 ? null : clo, bandHi: ps.ostatni && lv.i === L - 1 ? null : chi,
               mirror: !!(rawCol.mirrors || [])[i],
-              hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0),
+              hinges: num((rawCol.hinges || [])[i]) ?? autoHinges(cbandH, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, cbandH, mat) : 0, zawiasyBlum(cab)),
               handle: (rawCol.handles || [])[i] !== false,
               handleOut: num((rawCol.handleOuts || [])[i]),
               handlePos: (rawCol.handlePos || [])[i] === "gora" ? "gora" : "bok",
@@ -5098,7 +5112,7 @@ function computeGeoLiczy(cab, mat, ctx) {
             if (bezZawiasow) d.hinges = 0;
             if (!ps.lodowka) otwieranieFrontu(d, i, OTWIERANIA);
             if (d.otwMm && num((rawCol.hinges || [])[i]) === null)
-              d.hinges = autoHinges(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
+              d.hinges = autoHinges(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0, zawiasyBlum(cab));
             /* Zawias musi miec do czego sie przykrecic: bok szafki albo przegrode.
                Tam, gdzie kolumny stykaja sie bez przegrody (przelot do ramienia
                szafki naroznej), plyty nie ma i drzwi wisialyby w powietrzu. */
@@ -5157,7 +5171,7 @@ function computeGeoLiczy(cab, mat, ctx) {
                2026-10-16: „za duzo” i „za malo” wg tabeli, z przyciskiem). Front
                ponad tabele (wysokosc / waga) — ostrzezenie, ze liczba orientacyjna. */
             if (!bezZawiasow) {
-              const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0);
+              const gtv = zawiasyGtv(d.h, dw, tf, zawiasSzeroki, d.mirror ? wagaLustra(dw, d.h, mat) : 0, zawiasyBlum(cab));
               d.zawiasyTabela = gtv.n;   // ile wg wagi — do porownania drzwi tej samej wysokosci
               const opis = `front ${fmt(Math.round(dw))} × ${fmt(Math.round(d.h))} mm, ok. ${gtv.kg.toFixed(1).replace(".", ",")} kg`;
               const wpis = num((rawCol.hinges || [])[i]);
@@ -5169,14 +5183,14 @@ function computeGeoLiczy(cab, mat, ctx) {
                  DRZWI2_MIN — gdy kazde z dwoch skrzydel potrzebuje mniej zawiasow niz to jedno (albo miesci sie
                  w tabeli, z ktorej jedno wychodzi), przycisk „2 drzwi w kolumnie (po N zawiasy)” (`drzwi2:`). */
               const w2 = (dw - colGap) / 2;
-              const gtv2 = cnt === 1 && w2 >= DRZWI2_MIN ? zawiasyGtv(d.h, w2, tf, zawiasSzeroki, d.mirror ? wagaLustra(w2, d.h, mat) : 0) : null;
+              const gtv2 = cnt === 1 && w2 >= DRZWI2_MIN ? zawiasyGtv(d.h, w2, tf, zawiasSzeroki, d.mirror ? wagaLustra(w2, d.h, mat) : 0, zawiasyBlum(cab)) : null;
               const dwoje = gtv2 && (gtv2.n < gtv.n || (gtv.poza && !gtv2.poza))
                 ? { txt: ` Dwoje drzwi po ${fmt(Math.round(w2))} mm (ok. ${gtv2.kg.toFixed(1).replace(".", ",")} kg) — po ${gtv2.n} ${plural(gtv2.n, "zawias", "zawiasy", "zawiasów")}.`, akcja: `|drzwi2:${lv.i}:${jKey}:${gtv2.n}` }
                 : null;
               if (wpis !== null && wpis !== gtv.n) {
                 const powod = powodZawiasow(gtv, wpis).replace(/\.$/, "");
                 const zaMalo = wpis < gtv.n;
-                add(zostawione ? "info" : "warn", `${where}, skrzydło ${i + 1}: ${wpis > gtv.n ? "za dużo" : "za mało"} zawiasów wg tabeli GTV — ${wpis} zamiast ${gtv.n} (${opis})`
+                add(zostawione ? "info" : "warn", `${where}, skrzydło ${i + 1}: ${wpis > gtv.n ? "za dużo" : "za mało"} zawiasów wg tabeli ${gtv.prod} — ${wpis} zamiast ${gtv.n} (${opis})`
                   + (powod ? "." + powod : "")
                   + (zostawione ? " — zostawione celowo." : ".")
                   + (zaMalo && dwoje && !gtv.poza ? dwoje.txt : "")
@@ -5184,7 +5198,7 @@ function computeGeoLiczy(cab, mat, ctx) {
                   + (zaMalo && dwoje && !gtv.poza ? dwoje.akcja : ""));
               }
               if (gtv.poza)
-                add("warn", `${where}, skrzydło ${i + 1}: ${opis} — poza tabelą zawiasów GTV (front do ${gtv.szer} mm szerokości, 2500 mm wysokości i ${zawiasSzeroki ? 15 : 20} kg), liczba zawiasów orientacyjna.`
+                add("warn", `${where}, skrzydło ${i + 1}: ${opis} — poza tabelą zawiasów ${gtv.prod} (front do ${gtv.szer} mm szerokości, 2500 mm wysokości i ${gtv.progi[gtv.progi.length - 1].kg} kg), liczba zawiasów orientacyjna.`
                   + (dwoje ? dwoje.txt + dwoje.akcja : ""));
             }
             {
@@ -5223,7 +5237,7 @@ function computeGeoLiczy(cab, mat, ctx) {
               mirrorParts.push({ a: d.h - 1, b: dw - 1 });
             if ((rawCol.handles || [])[i] !== false) handleCount += 1;
             // wysokosc frontu po wydluzeniu / podfrezie (bez nich = pasmo)
-            const autoH = autoHinges(d.h, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, d.h, mat) : 0);
+            const autoH = autoHinges(d.h, dw, tf, zawiasSzeroki, (rawCol.mirrors || [])[i] ? wagaLustra(dw, d.h, mat) : 0, zawiasyBlum(cab));
             const ovH = bezZawiasow ? 0 : num((rawCol.hinges || [])[i]);
             hingeCount += ovH !== null ? ovH : autoH;
             /* Na ile front zachodzi na czolo boku albo przegrody, ktora niesie
@@ -8526,7 +8540,19 @@ function computeGeoLiczy(cab, mat, ctx) {
      pierwszym, na zawiasie lamanym, i liczy sie przy ramieniu. */
   const skrzydlaLamane = !!(cab.corner || {}).on && (cab.corner || {}).doors === "lamane";
   const polSzt = skrzydlaLamane ? 0 : Math.min(hingePol, hingeCount);
-  if (hingeCount - polSzt > 0)
+  /* Blum CLIP top BLUMOTION (2026-11-24): te same ilosci, nazwa i kody Blum, do kazdego zawiasu prowadnik krzyzakowy (skrzydla lamane — 165° jak dotad) */
+  const zBlum = zawiasyBlum(cab) && !skrzydlaLamane;
+  const wariantZaw = cab.frontMode === "overlay" ? "nakładany" : "wpuszczany";
+  if (zBlum && hingeCount - polSzt > 0)
+    hardware.push({ name: ZAWIAS_BLUM.nazwa, use: "drzwi szafki", wariant: wariantZaw,
+      spec: `${ZAWIAS_BLUM.kody[wariantZaw]} — ${wariantZaw}, cichy domyk (BLUMOTION), liczba wg tabeli Blum (waga frontu)`
+        + (klapy.length ? "; klapa: te same zawiasy, 2 szt. na górnej lub dolnej krawędzi, powyżej 900 mm 3" : ""), qty: hingeCount - polSzt, unit: "szt." });
+  if (zBlum && polSzt > 0)
+    hardware.push({ name: ZAWIAS_BLUM.nazwa, use: "drzwi szafki", wariant: "półnakładany",
+      spec: `${ZAWIAS_BLUM.kody["półnakładany"]} — bliźniaczy (dwa fronty na jednej płycie), cichy domyk, liczba wg tabeli Blum`, qty: polSzt, unit: "szt." });
+  if (zBlum && hingeCount > 0)
+    hardware.push({ name: ZAWIAS_BLUM.prowadnik, use: "do zawiasów Blum CLIP top", spec: `${ZAWIAS_BLUM.prowadnikKod} — krzyżakowy 37/32, dystans 0 mm, na wkręty`, qty: hingeCount, unit: "szt." });
+  if (!zBlum && hingeCount - polSzt > 0)
     hardware.push({
       name: skrzydlaLamane ? "Zawias 165°" : "Zawias",
       use: skrzydlaLamane
@@ -8542,7 +8568,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       qty: hingeCount - polSzt,
       unit: "szt.",
     });
-  if (polSzt > 0)
+  if (!zBlum && polSzt > 0)
     hardware.push({
       name: "Zawias",
       use: "drzwi szafki",
@@ -25487,6 +25513,10 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
           onClick={() => zmienKol(k.li, k.jA, (kk) => { kk.hinge = v; })}>{l}</Btn>)]; })() : []),
     ], "mak-kolumna"), poziomyUI(k)].filter(Boolean)).flat();
     if (!tresc.length) tresc = [<p key="brak" className="text-xs text-stone-500">W tej szafce fronty zmienisz w trybie Technicznym.</p>];
+    /* zawiasy GTV / Blum CLIP top BLUMOTION (2026-11-24) — cala szafka; przy drzwiach przesuwnych nie ma zawiasow */
+    else if (!przesuwneOn(cab)) tresc = [...tresc, wiersz("zawprod", "Zawiasy (cała szafka)", [
+      <Btn key="g" el="mak-zawiasy-prod" v="gtv" on={!zawiasyBlum(cab)} onClick={() => zmien(idx, (c) => { delete c.zawiasyBlum; })}>GTV</Btn>,
+      <Btn key="b" el="mak-zawiasy-prod" v="blum" on={zawiasyBlum(cab)} onClick={() => zmien(idx, (c) => { c.zawiasyBlum = true; })}>Blum CLIP top BLUMOTION</Btn>], "mak-zawiasy-prod-w")];
     /* Drzwi przesuwne GTV NOVO S (uzytkownik 2026-11-16) — w szafie (wysokiej): zamiast drzwi na zawiasach, tory w swietle korpusu */
     if (!cab.sprzetCiagu && (cab.H >= 1400 || rodzK === "szafa") && !(run && run.tier === "gorny")) {
       const P = cab.przesuwne || {}, on = przesuwneOn(cab), pg = on && geoKarty && geoKarty.przesuwne;
@@ -34423,6 +34453,19 @@ export default function App() {
               </Field>
             )}
           </Card>
+
+          {/* zawiasy GTV albo Blum CLIP top BLUMOTION (uzytkownik 2026-11-24) — cala szafka: drzwi i klapy */}
+          {!przesuwneOn(cab) && (
+            <Card title="Zawiasy" collapsible defaultOpen={zawiasyBlum(cab)} id="karta-zawiasy">
+              <Field label="Producent zawiasów" hint={zawiasyBlum(cab)
+                ? "Blum CLIP top BLUMOTION 110° z cichym domykiem (71B3550 / 71B3650 / 71B3750) i prowadnik 173L6100; liczba wg tabeli Blum — 5 zawiasów do 22 kg"
+                : "GTV — liczba wg tabeli GTV (2 do 6 kg, 3 do 12, 4 do 17, 5 do 20 kg)"}>
+                <Seg value={zawiasyBlum(cab) ? "blum" : "gtv"} el="zawiasy-producent"
+                  onChange={(v) => set({ zawiasyBlum: v === "blum" ? true : undefined })}
+                  options={[{ v: "gtv", l: "GTV" }, { v: "blum", l: "Blum CLIP top BLUMOTION" }]} />
+              </Field>
+            </Card>
+          )}
 
           <Card title="Drzwi przesuwne (GTV NOVO S)" collapsible defaultOpen={przesuwneOn(cab)} id="karta-przesuwne">
             <Check checked={przesuwneOn(cab)} onChange={(v) => set({ przesuwne: { ...(cab.przesuwne || {}), on: v } })} label="Drzwi przesuwne zamiast drzwi na zawiasach" />
