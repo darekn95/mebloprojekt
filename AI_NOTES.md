@@ -1491,4 +1491,6 @@ czy do drzwi na zawiasach ponad 2500 mm — pytanie do użytkownika.
 `ZAWIAS_BLUM`; cena 14 + 1 zł przyjęta ze średniej Allegro — użytkownik może zmienić w cenniku). Porównanie: tabela Blum = GTV, tylko 5 zawiasów do 22 kg.
 [AI-INFO] 2026-11-24: PELNY PRZEBIEG po calej serii (f0846e6): 175 suit, 6032 OK, 0 bledow (24 min); `losowe` 66 / 0; audyt projektu uzytkownika (v53) 84 OK / 0.
 Zmiany na galezi roboczej — do `main` tylko na prosbe uzytkownika.
+[CLAUDE-CHANGE] 2026-11-24: TANDEM z TIP-ON (`tandem-push`, `TANDEM_TIPON`); ramię L — zawiasy Blum. Narożnik L z palety: korpus 900 ma jedne drzwi 896 × 714
+(bez fixa — kątownik i maskownice 60 mm w rogu), front ramienia 568; ostrzeżenie „poza tabelą” + „Dwoje drzwi po 447” — decyzja użytkownika, co we wzorze.
 
