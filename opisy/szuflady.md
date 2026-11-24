@@ -101,7 +101,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
 - **Pion od spodu prowadnicy**:
   - dół boku na +17 mm;
   - spód dna i tyłu na +27 mm, więc boki schodzą 10 mm poniżej dna;
-  - najniższa prowadnica stoi 2 mm nad dnem szafki;
+  - najniższa prowadnica leży na dnie szafki (decyzja użytkownika 2026-11-24 — w instrukcji Sevroll „2 (min.)”; jak w Blum TANDEM); przy froncie wpuszczanym nie niżej niż dół frontu (2 mm luzu);
   - front zawsze sięga spodu prowadnicy (27 mm poniżej spodu dna) i ją zasłania.
 - **Bok**: auto jak wyżej (najwyższy z luzem 5 mm) albo ręcznie w mm. Puste pole pokazuje „auto N”. Przy froncie obniżonym podfrezem (także górnym pod płytą) bok auto kończy się równo z górą frontu — nie wystaje w szczelinie nad nim (2026-10-25); ręcznie wpisany wyższy — ostrzeżenie z „Zmień bok szuflady na N mm”.
 - **Tył**: auto = bok − 10, góra równo z bokami. Ręcznie można niżej; wyżej daje ostrzeżenie z przyciskiem powrotu, a ponad to, co jest nad szufladą (wieniec, półka, szuflada wyżej, z luzem 5 mm) — błąd „skrzynki nie da się złożyć ani wsunąć” z przyciskiem (audyt GPT N128).
@@ -163,7 +163,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
     bez kątownika pod dno; push (TIP-ON BLUMOTION) — jeszcze nie.
 - **Blum TANDEM 17–19 mm (560F)** (użytkownik 2026-11-23; katalog Blum 2026 s. 454–461 w `instrukcje/blum/`): wybór „TANDEM (17–19 mm)”
   przy szufladzie i „TANDEM” w makiecie szczegółowej. Ta sama budowa co DXS-3D, więc w programie to DXS-3D z flagą `drawer.blum`
-  (`dxsParam`, tabela `TANDEM`): prowadnica najniższej szuflady **na dnie szafki** (Blum nie pokazuje odstępu; DXS-3D — 2 mm),
+  (`dxsParam`, tabela `TANDEM`): prowadnica najniższej szuflady **na dnie szafki** (Blum nie pokazuje odstępu; DXS-3D też na dnie od 2026-11-24),
   **spód dna 27,5** mm nad dołem szyny, **boki 12** mm poniżej dna (rysunek 12–15), luz nad skrzynką **min. 7** mm, wkręty prowadnicy
   w osi 37 mm nad dołem szyny, pierwszy 37 mm od przedniej krawędzi; NL 250, 270, 300 … 600; skrzynka i front jak DXS-3D (pełna skrzynka
   z płyty 18, front od środka 4 × 30); zamówienie „Prowadnica Blum TANDEM 560F” — komplet 100 zł.

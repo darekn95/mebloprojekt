@@ -1238,7 +1238,7 @@ const DXS = {
   odBoku: 6.5,     // bok korpusu → bok szuflady (24,5 do wnetrza minus bok 18)
   dnoOd: 27,       // spod prowadnicy → spod dna (i dol tylu)
   bokPodDnem: 10,  // boki schodza ponizej dna (instrukcja 10–12, uzytkownik: 10)
-  nadDnem: 2,      // dolna prowadnica min. 2 mm nad dnem szafki
+  nadDnem: 0,      // dolna prowadnica na dnie szafki (rysunek: „2 (min.)”; uzytkownik 2026-11-24: „dla dxs zrób też na 0 na dnie”, jak TANDEM)
   odCzola: 4,      // przod prowadnicy za krawedzia korpusu (+ grubosc frontu wpuszczanego)
   krotsza: 10,     // skrzynka ma NL − 10
   zaTylem: 3,      // glebokosc wnetrza min. NL + 3
@@ -5375,7 +5375,7 @@ function computeGeoLiczy(cab, mat, ctx) {
       c.fingerGrip = grip;
       /* --- szuflada DXS-3D: skrzynka z plyty na prowadnicach dolnego montazu ---
          Pion od spodu prowadnicy: dol boku +17, spod dna i tylu +27, boki 10 mm
-         ponizej dna. Najnizsza prowadnica 2 mm nad dnem szafki (przegroda), ale
+         ponizej dna. Najnizsza prowadnica na dnie szafki (przegroda; od 2026-11-24, wczesniej 2 mm), ale
          nie nizej niz dol frontu wpuszczanego; wyzsza — dol frontu + „Front
          ponizej prowadnicy” (jak V-BOX). Front zawsze siega do spodu prowadnicy,
          czyli 27 mm ponizej spodu dna — zakrywa ja (uzytkownik 2026-10-21). */

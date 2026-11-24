@@ -1458,8 +1458,10 @@ tylko 16 mm (szukane: dokument planowania, katalog 2024–2025, standard applica
 liczy teraz przez `BX = boxSystemu(d)` (te same wzory, tabela wysokosci / NL / tylu / gory skrzynki z systemu). Ostrzezenie `staly` —
 nie da sie go odhaczyc (warnsNowe, licznik, brak ✓). Push przy TANDEMBOX (TIP-ON BLUMOTION) — nie ma; TANDEM (prowadnice pod dno) — nastepny.
 [CLAUDE-CHANGE] 2026-11-23: Blum TANDEM 17–19 (560F) — DXS-3D z flaga `drawer.blum` (`dxsParam` w `szufladaDxs`: nadDnem 0, dnoOd 27,5,
-bokPodDnem 12, zapas 7, NL z 270; zamowienie `TANDEM_NAME` 100 zl). [CHECK] uzytkownik oglada rysunek DXS-3D (Sevroll s. 112, „2 (min.)”
-od dna szafki do spodu prowadnicy) — „może czeka nad korekta” DXS; czekam na decyzje.
+bokPodDnem 12, zapas 7, NL z 270; zamowienie `TANDEM_NAME` 100 zl). [AI-INFO] rysunek DXS-3D (Sevroll s. 112, „2 (min.)” od dna szafki do spodu prowadnicy) — decyzja 2026-11-24 nizej.
 
 [AI-INFO] 2026-11-23: PELNY PRZEBIEG przed scaleniem (bbb136b, prosba uzytkownika „jak wszystko będzie dobrze to testy audyty i na git”):
 175 suit, 6007 OK, 0 bledow (22 min); `losowe` 66 krokow / 0; audyt projektu uzytkownika (v53, 4 pomieszczenia) 84 OK / 0.
+
+[CLAUDE-CHANGE] 2026-11-24: decyzja uzytkownika „dla dxs zrób też na 0 na dnie” — `DXS.nadDnem` 2 → 0 (najnizsza prowadnica DXS-3D / DXP-3D
+na dnie szafki, jak TANDEM). Front wpuszczany nadal podnosi prowadnice do dolu frontu (2 mm luzu) — `Math.max(lv.y0 + nadDnem, y, …)`.

@@ -1803,8 +1803,8 @@ console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru
       drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: true, system: 'dxs', ...ext })) }] }] });
     const gT = geo(szD({ blum: true })), gX = geo(szD()), dT = gT.levels[0].cols[0].drawers, dX = gX.levels[0].cols[0].drawers;
     const errT = (gT.msgs || []).filter((m) => m.level === 'error').map((m) => m.text.slice(0, 100));
-    ok('TANDEM: bez błędów; najniższa prowadnica na dnie (DXS-3D 2 mm wyżej), spód dna 27,5 nad szyną, boki 12 pod dnem', !errT.length
-      && dT.every((d) => d.blum && d.dnoOd === 27.5 && d.bokOd === 15.5) && Math.abs((dX[0].rail.y0 - dT[0].rail.y0) - 2) < 0.01, JSON.stringify({ errT, y: [dT[0].rail.y0, dX[0].rail.y0], d: dT.map((d) => [d.dnoOd, d.bokOd]) }));
+    ok('TANDEM: bez błędów; najniższa prowadnica na dnie (DXS-3D też, od 2026-11-24), spód dna 27,5 nad szyną, boki 12 pod dnem', !errT.length
+      && dT.every((d) => d.blum && d.dnoOd === 27.5 && d.bokOd === 15.5) && Math.abs(dX[0].rail.y0 - dT[0].rail.y0) < 0.01 && Math.abs(dX[0].rail.y0 - gX.interior.y0) < 0.01, JSON.stringify({ errT, y: [dT[0].rail.y0, dX[0].rail.y0, gX.interior.y0], d: dT.map((d) => [d.dnoOd, d.bokOd]) }));
     const hT = (gT.hardware || []).filter((h) => h.name === 'Prowadnica Blum TANDEM 560F');
     ok('TANDEM w zamówieniu: „Prowadnica Blum TANDEM 560F” 3 kpl., 100 zł; bez kompletów DXS-3D', hT.reduce((a, h) => a + h.qty, 0) === 3
       && G.hwDefaultPrice({ name: 'Prowadnica Blum TANDEM 560F' }) === 100 && !(gT.hardware || []).some((h) => /^Prowadnica Sevroll DXS/.test(h.name)), JSON.stringify(hT.map((h) => h.spec)));
