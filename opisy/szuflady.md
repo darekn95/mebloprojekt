@@ -168,6 +168,7 @@ szuflada S”. Szczegóły podziału — `opisy/poziomy.md`.
   **spód dna 27,5** mm nad dołem szyny, **boki 12** mm poniżej dna (rysunek 12–15), luz nad skrzynką **min. 7** mm, wkręty prowadnicy
   w osi 37 mm nad dołem szyny, pierwszy 37 mm od przedniej krawędzi; NL 250, 270, 300 … 600; skrzynka i front jak DXS-3D (pełna skrzynka
   z płyty 18, front od środka 4 × 30); zamówienie „Prowadnica Blum TANDEM 560F” — komplet 100 zł.
+  - **TANDEM z TIP-ON** (push, 2026-11-24; katalog Blum s. 536–537): wybór „TANDEM TIP-ON (17–19 mm)” — `drawer.blum` + `drawer.push`, bez uchwytu; prowadnica 560F{NL}T (110 zł) zamiast 560F BLUMOTION; spód dna 28,5 nad dołem szyny (zwykły 27,5), boki 16,5, wkręt w osi 38; przy froncie wpuszczanym korpus NL + X + 7 (zwykły + 3); synchronizacja — profil T57.1140S docięty na LW − 39 (do LW 1179, 17 zł); informacja „front co najmniej 3,5 mm od korpusu”.
 - **Rysunki i 3D** (uchwyt tylko przy `d.handle`, bez uchwytu front bez żadnego znaku — `palce`): `szufladaOdCzola`, `szufladaZGory`, `szerWnetrzaSzuflady`; bryła 3D `skrzynkaBryly`, wysuw `wysuwSzuflady`.
   - Z przodu (otwarte) skrzynka DXS ma boki, tył i dno; przy uchwycie frezowanym skrzynkę widać też przy zamkniętych frontach (pod frezem).
   - Z przodu (otwarte) front szuflady zostaje przygaszony; przy szufladzie wewnętrznej za drzwiami przesuwnymi pod nim widać prowadnice także bez „wyposażenia” (`SkrzynkaZaPrzesuwnymi`, 2026-11-17). Prowadnice V-BOX z przodu od `dr.bx0` / `dr.bx1` (bok zabudowy, wspornik fixu).

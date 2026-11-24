@@ -1700,7 +1700,31 @@ console.log('\n== 2026-11-24: TANDEMBOX TIP-ON BLUMOTION (katalog Blum s. 407–
   ok('udźwig L3 (15–30 kg) → T60B3530; 65 kg → L5 T60B3560', hw(gL3, /^Zestaw Blum TIP-ON/).every((h) => /T60B3530/.test(h.spec)) && hw(g65, /^Zestaw Blum TIP-ON/).every((h) => /T60B3560/.test(h.spec)));
   const w = G.ustawSystemIPush({ h: 'auto', handle: true, nl: 450 }, 'tbx-65-push'), w2 = G.ustawSystemIPush({ ...w, tiponJ: 'L5' }, 'tbx');
   ok('wybór „TANDEMBOX 65 kg TIP-ON”: tbx, 65 kg, push, bez uchwytu; powrót na „TANDEMBOX” — uchwyt wraca, bez tiponJ', w.system === 'tbx' && w.nosnosc === 65 && w.push === true && w.handle === false
-    && !w2.push && w2.handle === true && !('tiponJ' in w2) && !('nosnosc' in w2) && G.MAK_SYSTEMY_SZUF.length === 9, JSON.stringify([w, w2]));
+    && !w2.push && w2.handle === true && !('tiponJ' in w2) && !('nosnosc' in w2) && G.MAK_SYSTEMY_SZUF.length === 10, JSON.stringify([w, w2]));
+}
+
+console.log('\n== 2026-11-24: Blum TANDEM 560F z TIP-ON (katalog s. 536–537) ==');
+{
+  const M0 = G.defaultMaterials;
+  const szD = (ext = {}, o = {}) => G.migrateCab({ name: 'T', W: 600, H: 720, D: 560, ...o, levels: [{ h: null, cols: [{ kind: 'drawers', w: null,
+    drawers: [0, 1, 2].map(() => ({ h: 'auto', front: null, handle: false, system: 'dxs', blum: true, push: true, ...ext })) }] }] }, M0);
+  const g = G.computeGeo(szD(), M0), dr = g.levels[0].cols[0].drawers, hw = (re) => (g.hardware || []).filter((h) => re.test(h.name));
+  ok('TANDEM TIP-ON: spód dna 28,5 nad szyną (zwykły 27,5), boki 16,5, push, bez błędów', dr.every((d) => d.dnoOd === 28.5 && d.bokOd === 16.5 && d.tipon && d.push)
+    && !(g.msgs || []).some((m) => m.level === 'error'), JSON.stringify(dr.map((d) => [d.dnoOd, d.bokOd, d.tipon])));
+  ok('zamówienie: „Prowadnica Blum TANDEM 560F z TIP-ON” 560F{NL}T × 3 (110 zł), reling T57.1140S na LW − 39 = 525 × 3 (17 zł), bez zwykłego TANDEM', hw(/^Prowadnica Blum TANDEM 560F z TIP-ON$/).reduce((a, h) => a + h.qty, 0) === 3
+    && hw(/^Prowadnica Blum TANDEM 560F z TIP-ON$/).every((h) => /^560F\d{4}T, NL/.test(h.spec)) && hw(/^Reling synchronizacji TIP-ON do TANDEM$/).some((h) => h.qty === 3 && /525 mm/.test(h.spec))
+    && !hw(/^Prowadnica Blum TANDEM 560F$/).length && G.hwDefaultPrice({ name: 'Prowadnica Blum TANDEM 560F z TIP-ON' }) === 110 && G.hwDefaultPrice({ name: 'Reling synchronizacji TIP-ON do TANDEM' }) === 17,
+    JSON.stringify(hw(/TANDEM/).map((h) => [h.name, h.qty, h.spec.slice(0, 40)])));
+  const plan = (g.drillPlan || []).flatMap((p) => p.rows || []).map((r) => r.note || '');
+  ok('info „front co najmniej 3,5 mm od korpusu”, plan wierceń: TANDEM 560F z TIP-ON, wkręty w osi 38', g.msgs.some((m) => /TANDEM z TIP-ON \(3\): front co najmniej 3,5 mm/.test(m.text))
+    && plan.some((n) => /prowadnicy Blum TANDEM 560F z TIP-ON, NL \d+; wkręty w osi 38 mm/.test(n)), plan.find((n) => /TANDEM/.test(n)) || '');
+  const w = G.ustawSystemIPush({ h: 'auto', handle: true, nl: 270 }, 'tandem-push'), w2 = G.ustawSystemIPush(w, 'tandem');
+  ok('wybór „TANDEM TIP-ON”: dxs + blum + push, bez uchwytu, NL 270 zostaje; powrót na „TANDEM” — uchwyt wraca', w.system === 'dxs' && w.blum && w.push && w.handle === false && w.nl === 270
+    && w2.blum && !w2.push && w2.handle === true, JSON.stringify([w, w2]));
+  // wpuszczany: korpus NL + X + 7 — przy glebokosci 560 i froncie 18 NL 500 (500 + 18 + 7 = 525), zwykly TANDEM tez 500 (550 + 18 + 3 = 571 > 557)
+  const gW = G.computeGeo(szD({}, { frontMode: 'inset', D: 548 }), M0), gWz = G.computeGeo(szD({ push: false }, { frontMode: 'inset', D: 548 }), M0);
+  ok('wpuszczany, korpus 548: TIP-ON NL 500 (500 + 18 + 7 ≤ 530), zwykły TANDEM NL 500 — oba bez błędów', gW.levels[0].cols[0].drawers.every((d) => d.nl === 500) && !gW.msgs.some((m) => m.level === 'error')
+    && gWz.levels[0].cols[0].drawers.every((d) => d.nl === 500), JSON.stringify([gW.levels[0].cols[0].drawers.map((d) => d.nl), gWz.levels[0].cols[0].drawers.map((d) => d.nl)]));
 }
 
 console.log('\n== 2026-11-24: zawiasy Blum CLIP top BLUMOTION 110° (wybór GTV / Blum, katalog Blum s. 69–70) ==');
