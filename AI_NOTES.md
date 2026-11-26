@@ -1417,7 +1417,7 @@ miedzy szafkami (skrzynka ok. 250 mm z szufladami, dno cofniete, fronty zaslania
 Maskownica boku (zgloszona „na już”) — do wyboru bok szafki, takze miedzy meblami (nie tylko przy scianie) — jeszcze nie zrobiona.
 [CLAUDE-CHANGE] 2026-11-22: biurko wiszace (`biurkoWiszace`, `dnoCof`, `frontPodDnem`, `dolGorny` w ciagu dolnym — projectLayout bierze
 `dolGornej` do `base`), maskownica boku (`sprzetCiagu.typ = "maskownica"`), kolor cokolu (`plinth.kolor`), biurko w ciagu (`wCiag`).
-[AI-INFO] (stan 2026-11-24) mimosrody — zrobione 2026-11-23, tip-on — decyzja: nie (uchwyt / front ponizej dna / PUSH). Zostaje [AI-TODO]: makieta prosta —
+[AI-INFO] (stan 2026-11-24) mimosrody — zrobione 2026-11-23, tip-on — decyzja: nie (uchwyt / front ponizej dna / PUSH). Zrobione 2026-11-24 (podloga i wymiar w `SideView`): makieta prosta —
 rysunek skrzynki na wysokosci w widoku „Z boku” pojedynczej szafki (rysowana od podlogi).
 [CLAUDE-CHANGE] 2026-11-22 (po wznowieniu limitu — „dokończ bieżące i rób po kolei z listy”): kafelek „Płyty i kolory”, maskownica
 domyslnie jak korpus (`kolorWyb`), osobne zwijanie panelu makiety (pomieszczenie i zabudowa / widoki), zoom w widokach z boku, z gory,

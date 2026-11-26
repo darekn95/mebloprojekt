@@ -550,6 +550,17 @@ await page.locator('[data-el="mak-paleta"] [data-el="mak-wzor"][data-id="szafaZa
     && wCiagu[wCiagu.length - 1] === nowy && !p.items.find((it) => it.cab.name === 'Komoda').runId,
     JSON.stringify({ run: nowy.runId, runSz, runs: (p.runs || []).length, nRun, nazwy: wCiagu.map((it) => it.cab.name) })); }
 
+/* 2026-11-24: widok „Z boku” szafki wiszącej — podłoga i wymiar „od podłogi” (szafka RTV wisząca 350 mm nad podłogą, wolnostojąca) */
+console.log('\n== widok z boku: szafka wisząca — podłoga i wymiar od podłogi ==');
+await start(FIX + ` w.cab.wiszacaRtv = true; w.cab.dolGorny = 350; w.cab.legs = { ...(w.cab.legs || {}), on: false }; w.cab.plinth = { ...(w.cab.plinth || {}), on: false };`);
+await page.evaluate(() => localStorage.setItem('mp-mak-widok', 'bok')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
+{ const g = page.locator('[data-el="makieta"] [data-el="podloga-bok"]');
+  ok('„Z boku”: podłoga pod szafką i „350 od podłogi”', (await g.count()) === 1 && (await g.getAttribute('data-od')) === '350' && /350 od podłogi/.test(await g.textContent()),
+    `${await g.count()} ${await g.first().getAttribute('data-od').catch(() => '')}`);
+  await ust(`p.items[0].cab.wiszacaRtv = false; delete p.items[0].cab.dolGorny; p.items[0].cab.legs = { on: true, height: 100 };`);
+  ok('… szafka stojąca na nóżkach: bez wymiaru od podłogi (podłoga pod nóżkami jak dotąd)', (await page.locator('[data-el="makieta"] [data-el="podloga-bok"]').count()) === 0); }
+await page.evaluate(() => localStorage.setItem('mp-mak-widok', 'przod'));
+
 ok('bez błędów strony', !errors.length, errors.join(' | '));
 console.log(bledy ? `\nBLEDOW: ${bledy}` : '\nWSZYSTKO OK');
 await browser.close();

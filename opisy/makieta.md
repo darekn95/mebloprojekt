@@ -594,6 +594,7 @@ Własnych nie ma — liczy aplikacja, a uwagi (błędy, ostrzeżenia) widać w n
     wymiary zaznaczonego wycięcia; „Fronty” znikają, jest **„Blat”** — blat zasłania szafki od góry, widać podział na kawałki
     („blat 1: N”, linia styku — `kawalkiBlatu`), zaznaczona szafka (obrys i znaczki) nad blatem; wyłączony — przezroczysty.
     Z boku, 45° i 3D — podgląd (zaznaczanie z boku i w 45°).
+    Widok „Z boku” pojedynczej szafki wiszącej (górna, biurko, RTV) — **podłoga i wymiar „N od podłogi”** (2026-11-24; `SideView` `odPodlogi` z `makOdPodlogi`, `data-el="podloga-bok"`); odstęp dłuższy niż 220 mm rysowany z przerwą (zygzak), ściana do podłogi. To samo w technicznym.
   - **Nazwa zaznaczonej szafki** przy wymiarach wzmocnień (szczegółowa, otwarte) — pod wzmocnieniami u góry (była chowana;
     zgłoszenie: „czemu szafka 1 c2 nie jest opisana?”).
   - **Wycięcie w blacie**: od końca blatu co najmniej 30 mm blatu (`WYCIECIE_KONIEC`; użytkownik: „30 mm wystarczy”), przy łączeniu,
