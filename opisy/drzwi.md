@@ -21,7 +21,7 @@ więcej drzwi (skrzydeł); przy jednych można zamiast skrzydła dać klapę (`o
 - **Rozstaw zawiasów**: środek 100 mm od górnej i dolnej krawędzi frontu, reszta równo.
   - Gdy przy 100 mm zawiasy wypadłyby bliżej niż ich wysokość (55 mm) — przy dwóch zawiasach front niższy niż ok. 255 mm — rozkładają się na całą wysokość frontu (środek 27,5 mm od krawędzi).
   - Zawias, który trafia na półkę albo wzmocnienie przy licu, jest przesuwany nad nią lub pod nią z luzem 30 mm.
-  - Przy ostrzeżeniu „zawias przesunięty” jest przycisk **„Półki poza zawiasami”** (2026-11-24, np. szafa 2761 mm z 4 półkami — 6 przesuniętych zawiasów): półki w strefach zawiasów idą nad albo pod zawias (bliżej), światła min. 120 mm, a zawiasy wracają na zwykłe miejsca (`polkiPozaZawiasami` — to samo co przy wzorach z palety, `wzorBezUwag`; przycisk tylko, gdy próba coś zmienia — `przyciskPolekZawiasy`).
+  - Przy ostrzeżeniu „zawias przesunięty” jest przycisk **„Półki poza zawiasami”** (2026-11-24, np. szafa 2761 mm z 4 półkami — 6 przesuniętych zawiasów): półki w strefach zawiasów idą nad albo pod zawias (bliżej), światła min. 120 mm, a zawiasy wracają na zwykłe miejsca (`polkiPozaZawiasami` — to samo co przy wzorach z palety, `wzorBezUwag`; przycisk tylko, gdy próba coś zmienia — `przyciskPolekZawiasy`). Tylko przy kolizji **z półką** — przy zawiasie przesuniętym przez wzmocnienie (np. stojące czołowe w szafce w L: 614 → 600) przesuwanie półek nic nie da, przycisku nie ma; szafka w L liczona z kontekstem rogu (2026-11-26).
   - Przesunięte zawiasy idą do notatki montażowej w PDF.
 - **Strona zawiasów** przy jednych drzwiach, po kolei:
   1. ustawiona przy kolumnie („zawias”);

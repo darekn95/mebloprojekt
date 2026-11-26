@@ -144,6 +144,13 @@ może być ciąg dolny i górny. Dwa ciągi pod kątem prostym tworzą **narożn
   - kołki półek nie mieszczą się na półce ramienia (płytkie ramię przy płytkim sąsiednim ciągu) — błąd z „Ustaw 50 / 50 mm” dla szafki w L (N136);
   - za duży luz przy boku — błąd;
   - opisy kątownika i zasięgu od rogu — informacje.
+  - Liczby przykładu (szablon „Narożnik L”, korpus 900 × 720 × 550, ramię 650, kątownik 60): ramię z frontem zajmuje 553 + 18 = 571 mm
+    lica korpusu („przejście do ramienia”), zostaje 329 mm, z tego kątownik z luzem 44 mm — **front korpusu 285 × 714** (2 zawiasy);
+    **front ramienia 568 × 714** (650 − 18 drzwi − 2 luz − 60 maskownica − 2 luz; 2 zawiasy). Geometria szafki w L zawsze z kontekstem rogu
+    (`armCtxOf`, w makiecie `geoZProjektu`) — bez niego drzwi wychodzą na całą szerokość korpusu (896, 3 zawiasy), czego w szafce nie ma
+    (makieta tak liczyła do 2026-11-26).
+  - Rysunek 3D w zakresie „Szafka” (techniczny i makieta „Tylko zaznaczona szafka”) pokazuje ramię — te same bryły co w „Ciąg”
+    (`brylyRamienia3D`), z blatem nad ramieniem (2026-11-26; wcześniej sam korpus z otwartym przelotem).
 - **Głębokość w rogu**: szafka sąsiedniego ciągu głębsza niż ta w rogu — błąd.
 - **Górny ciąg**:
   - wystaje poza dolny — ostrzeżenie;

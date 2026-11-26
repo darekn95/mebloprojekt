@@ -2244,11 +2244,11 @@ const hdfZaKorpusem = (p, prev) => {
 /* Polki poza zawiasami (wzory z palety; 2026-11-24 takze przycisk „Półki poza zawiasami” przy ostrzezeniu „zawias przesunięty”):
    polka w strefie zawiasu (zawias ± HINGE_H / 2 + luz) idzie nad albo pod nia — blizej; swiatla min. 120 mm, inaczej kolumna zostaje.
    `cab` zmienia sie w miejscu; zwraca, czy cos przesunelo. `bezLuzow` — bez poprawki luzu frontow szuflad (`fixgap`). */
-const wzorBezUwag = (cab, mat, tylkoPolki = false) => {
+const wzorBezUwag = (cab, mat, tylkoPolki = false, ctx = undefined) => {
   let cokolwiek = false;
   for (let pass = 0; pass < 3; pass++) {
     // na kopii — `computeGeo` pamieta wynik dla tego samego obiektu, a tu `cab` zmienia sie w miejscu
-    let g; try { g = computeGeo(JSON.parse(JSON.stringify(cab)), mat); } catch (e) { return cokolwiek; }
+    let g; try { g = computeGeo(JSON.parse(JSON.stringify(cab)), mat, ctx); } catch (e) { return cokolwiek; }
     let zmiana = false;
     if (!tylkoPolki) (g.msgs || []).forEach((m) => { const a = (m.text.split("|").find((x) => x.startsWith("fixgap:")) || "").split(":");
       if (a.length < 4) return; const k = (((cab.levels || [])[+a[1]] || {}).cols || [])[+a[2]];
@@ -2278,13 +2278,16 @@ const wzorBezUwag = (cab, mat, tylkoPolki = false) => {
   }
   return cokolwiek;
 };
-const polkiPozaZawiasami = (cab, mat) => wzorBezUwag(cab, mat, true);
+const polkiPozaZawiasami = (cab, mat, ctx) => wzorBezUwag(cab, mat, true, ctx);
 /* Przycisk „Półki poza zawiasami” przy ostrzezeniach „zawias przesunięty” zaznaczonej szafki — tylko gdy przesuniecie polek cos daje
    (proba na kopii); `idx` — szafka w projekcie (akcja `polkizaw:<idx>` w `NoteLine`). */
-const przyciskPolekZawiasy = (msgs, idx, cab, mat) => {
-  if (!(msgs || []).some((m) => /: zawias przesunięty z /.test(m.text))) return msgs;
-  let da = false; try { da = polkiPozaZawiasami(JSON.parse(JSON.stringify(cab)), mat); } catch (e) { da = false; }
-  return da ? msgs.map((m) => (/: zawias przesunięty z /.test(m.text) ? { ...m, text: `${m.text}|polkizaw:${idx}` } : m)) : msgs;
+/* Tylko przy kolizji z polka — przy wzmocnieniu przesuniecie polek nic nie daje (narozniki L: stojace wzmocnienie czolowe,
+   2026-11-26). Szafka w L liczona z kontekstem rogu (`ctx`), inaczej drzwi na cala szerokosc dawaly zawias na polce. */
+const zawiasNaPolce = (m) => /: zawias przesunięty z .* kolizja z półką/.test(m.text);
+const przyciskPolekZawiasy = (msgs, idx, cab, mat, ctx) => {
+  if (!(msgs || []).some(zawiasNaPolce)) return msgs;
+  let da = false; try { da = polkiPozaZawiasami(JSON.parse(JSON.stringify(cab)), mat, ctx); } catch (e) { da = false; }
+  return da ? msgs.map((m) => (zawiasNaPolce(m) ? { ...m, text: `${m.text}|polkizaw:${idx}` } : m)) : msgs;
 };
 const biurkaPrzegrodyCof = (p) => {
   if (!p.items.some((it) => it.cab && it.cab.biurkoWiszace && it.cab.przegrodyCof == null)) return p;
@@ -9735,6 +9738,19 @@ const armCtxOf = (ref, index) => {
   });
   return out;
 };
+/* Geometria szafki z projektu — przy szafce w L z kontekstem rogu (`armCtxOf`). Bez niego `computeGeo` liczy drzwi
+   na cala szerokosc korpusu (w narozniku L 896 zamiast 285, 3 zawiasy zamiast 2) — tak liczyla makieta: karta,
+   podglad samej szafki, przeciaganie, „Półki poza zawiasami” (zgloszenie uzytkownika 2026-11-26). */
+// ramie szafki w L z ukladu projektu (null, gdy szafka nie stoi w rogu z ramieniem)
+const ramieSzafki = (project, i) => {
+  let a = null;
+  projectLayout(project).info.forEach((k) => { if (k.arm && k.arm.cab.index === i) a = k.arm; });
+  return a;
+};
+const geoZProjektu = (project, i) => {
+  const it = project.items[i];
+  return computeGeo(cabDoGeo(project, it), it.mat, (it.cab.corner || {}).on ? armCtxOf(projectLayout(project), i) : undefined);
+};
 
 const assemblyParts = (project, runs, ref) =>
   runs.map((run) => {
@@ -12842,6 +12858,152 @@ const useAudytWidoku = () => {
 
 /* `szuflady: false` — fronty otwarte (drzwi, klapy), a szuflady zamkniete: zakladki, w ktorych makieta otwiera wnetrze na sile
    (Półki, Przegroda, Wzmocnienia), pokazywaly szuflady na stale wysuniete (uzytkownik 2026-11-14) */
+/* Bryly ramienia szafki w L w ukladzie ciagu, w ktorym ramie stoi (x wzdluz tamtej sciany, ramie od `x0`; y od podlogi,
+   spod szafki na `base`; z od lica tego ciagu w glab) — wspolne dla 3D zabudowy (`Assembly3D`) i 3D samej szafki
+   (`Scene3D`, tam przeliczane na uklad szafki; uzytkownik 2026-11-26: „Ramię L w 3D szafki”). `box` jak w `Assembly3D`
+   (…, transform, alpha, bold, bias, tag); `obrotSkreconych(dK)` — obrot frontu „Skręcone 90°” razem z drzwiami korpusu
+   `dK` (w ukladzie wyjsciowym, po ustawieniu bryly), `ustawPo` wlacza go i wylacza dla kolejnych bryl. */
+function brylyRamienia3D(a, box, { x0, base, open, angle, frontColor, obrotSkreconych = null, ustawPo = () => {} }) {
+  const c = a.cab;
+  const y0 = base, y1 = base + c.cab.H;
+  /* Grubosc frontu ramienia z plyty, z ktorej jest zamawiany (moze byc
+     sasiada) — nie z frontu szafki w rogu (audyt GPT N53). Wpuszczany
+     siedzi w obrysie ramienia, nakladany przed nim (audyt GPT N57). */
+  const tfA = Math.round(((frontRamienia(a).plyta || {}).thickness) || c.geo.tf);
+  const zFA = armInset(a) ? 0 : -tfA;
+  const przyKoncuBok = a.outerAtEnd;   // rog przy poczatku, wiec bok na koncu
+  /* Ramie rysowane jako pelna kostka wygladalo jak szafka z wiencem, nawet
+     gdy szafka wienca nie ma. Skladamy je z plyt: dno, bok na wolnym koncu,
+     wieniec tylko wtedy, gdy jest, a w jego miejsce para wzmocnien. */
+  const tA = c.geo.t;
+  const bA = c.mat.board.color;
+  // dno i wieniec miedzy korpusem a bokiem ramienia — tak jak w formatkach
+  const pz0 = przyKoncuBok ? x0 : x0 + tA, pz1 = przyKoncuBok ? x0 + a.len - tA : x0 + a.len;
+  const korR = armKorpus(a);   // korpus ramienia konczy sie na plecach
+  // dno na wysokosci dna korpusu — przy cokole w obrysie nad nim (audyt GPT N56)
+  if (c.geo.hasBot) box(pz0, y0 + c.geo.bottomY, 0, pz1, y0 + c.geo.bottomY + tA, korR, bA);
+  const bokU = przyKoncuBok ? x0 + a.len - tA : x0;
+  box(bokU, y0, 0, bokU + tA, y1, korR, bA);
+  if (c.geo.hasTop) {
+    box(pz0, y1 - tA, 0, pz1, y1, korR, bA);
+  } else {
+    /* Z przodu plyta na plask, z tylu stojaca — te same, ktore liczy rzut
+       z gory, wiec bryla nie rozjedzie sie z rysunkiem. W ukladzie ramienia
+       `v` idzie od sciany, a os z w bryle od lica, stad odbicie. */
+    armPlan(a).rails.forEach((r) => {
+      box(x0 + r.u0, y1 - (r.stojace ? r.wys : tA), a.depth - r.v1,
+        x0 + r.u1, y1, a.depth - r.v0, bA);
+    });
+  }
+  /* Polki ramienia — te same plyty co w kolumnie przy nim, wiec i te same
+     wysokosci. Bez nich ramie po otwarciu bylo pustym pudlem. */
+  // polka konczy sie przed plecami ramienia — pelna plyta pleców jest grubsza od HDF (audyt GPT N52)
+  const tbA = armPlan(a).tb;
+  armShelfYs(a.side, c.geo.levels).forEach((sy) => {
+    box(pz0, y0 + sy, a.bracket ? tA : 0, pz1, y0 + sy + c.geo.ts, a.depth - tbA,
+      shelfColorOf(c.cab, c.mat), null, 1, false, -Math.round(a.depth / 2));
+  });
+  const apBack = armPlan(a).back;
+  if (apBack) {
+    // wysokosc jak w zamowieniu: plyta miedzy dnem a gora (H − 2t), HDF H − 2 (audyt GPT N52)
+    const pb0 = apBack.plyta ? y0 + tA : y0 + 1, pb1 = apBack.plyta ? y1 - tA : y1 - 1;
+    box(x0 + apBack.u0, pb0, a.depth - apBack.v1, x0 + apBack.u1, pb1, a.depth - apBack.v0,
+      apBack.plyta ? bA : c.mat.back.color, null, 0.95);
+  }
+  // cokol ramienia to plyta pod frontem, nie kloc na cala glebokosc
+  /* Cofniety jak cokol szafki — i o tyle krotszy od strony rogu, gdzie
+     dochodzi do cofnietego cokolu korpusu (audyt GPT N55). */
+  if (c.cab.plinth && c.cab.plinth.on && c.geo.plinthH > 0) {
+    const sbA = Math.max(0, Math.round((c.cab.plinth || {}).setback || 0));
+    const u0 = x0 + (przyKoncuBok ? sbA : 0), u1 = x0 + a.len - (przyKoncuBok ? 0 : sbA);
+    // cokol pod korpusem pod spodem, w obrysie — pod dnem, w wysokosci szafki (audyt GPT N56)
+    const cy0 = c.geo.plinthInBody ? y0 : y0 - c.geo.plinthH;
+    box(u0, cy0, sbA, u1, cy0 + c.geo.plinthH, sbA + tA, kolorCokolu(c.cab, c.mat), null, 0.95);
+  }
+  /* Front ramienia to zwykle drzwi: konczy sie na maskownicy katownika,
+     zawias ma na koncu dalszym od naroza i otwiera sie razem z reszta. */
+  const przyKoncu = a.outerAtEnd;                 // rog przy poczatku ramienia
+  const kat = a.bracket;
+  /* Front ramienia i maskownice staja w linii drzwi szafki — ta sama
+     wysokosc i te same luzy co jej skrzydla (tak jak w formatkach). */
+  /* Kilka frontow jeden nad drugim (`armPasy`, N132) — kazdy w swoim pasie;
+     maskownice od dolu najnizszego do gory najwyzszego. */
+  const pasyA = armPasy(a);
+  const fy0 = y0 + pasyA[0].y, fy1 = y0 + pasyA[pasyA.length - 1].y + pasyA[pasyA.length - 1].h;
+  // front zachodzi na bok ramienia z luzem — tak samo jak w elewacji
+  const fpA = armFrontPlan(a);
+  const fw = fpA.w;
+  const fu0 = przyKoncu ? fpA.odRogu : a.len - fpA.odRogu - fw;
+  const otwiera = open && a.doors !== "fix";
+  /* Uchwyt idzie przy krawedzi wolnej, czyli od strony rogu — zawias siedzi
+     na przeciwnym koncu. Bez niego front ramienia wygladal w bryle jak
+     zaslepka, choc to zwykle drzwi. */
+  const uchwytA = handleOutOf(c.cab);
+  const hcx = przyKoncu ? x0 + fu0 + UCHWYT_OD_KRAWEDZI : x0 + fu0 + fw - UCHWYT_OD_KRAWEDZI;
+  pasyA.forEach((pas) => {
+    const py0 = y0 + pas.y, py1 = py0 + pas.h;
+    // jeden front — uchwyt w polowie szafki jak dotad, przy kilku — w polowie swojego
+    const hcy = pasyA.length > 1 ? (py0 + py1) / 2 : y0 + c.cab.H / 2;
+    const hh = Math.min(90, (pasyA.length > 1 ? pas.h : c.cab.H) * 0.25);
+    const uchwytBox = (rot) => {
+      if (a.doors === "fix" || !(uchwytA > 0)) return;
+      box(hcx - 6, hcy - hh, zFA - uchwytA, hcx + 6, hcy + hh, zFA, "#3f3f46", rot, 1, false, 400, "uchwyt");
+    };
+    /* Fronty „Skręcone 90°” to jeden sztywny zespol na zawiasach frontu korpusu:
+       front ramienia obraca sie razem z nim, wokol tej samej osi (audyt GPT N54:
+       kazdy krecil sie wokol swojej i odleglosc miedzy nimi sie zmieniala). Przy kilku
+       pasach — z drzwiami korpusu w tym samym pasie. */
+    const frontyK = a.doors === "skrecone" && otwiera
+      ? (c.geo.doors || []).filter((d) => d.type === "door" && d.w > 0 && (pasyA.length === 1 || Math.round(d.y) === pas.y)) : [];
+    const dK = frontyK.length
+      ? frontyK.reduce((m, d) => (a.side === "right" ? (d.x > m.x ? d : m) : (d.x < m.x ? d : m)), frontyK[0]) : null;
+    const poK = dK && obrotSkreconych ? obrotSkreconych(dK) : null;
+    if (poK) {
+      ustawPo(poK);
+      box(x0 + fu0, py0, zFA, x0 + fu0 + fw, py1, zFA + tfA, frontRamienia(a).kolor, null, 0.85, true);
+      uchwytBox(null);
+      ustawPo(null);
+    } else if (!otwiera) {
+      box(x0 + fu0, py0, zFA, x0 + fu0 + fw, py1, zFA + tfA, frontRamienia(a).kolor, null, 1, true);
+      uchwytBox(null);
+    } else {
+      const ang = (angle * Math.PI) / 180;
+      const left = !przyKoncu;                      // zawias po stronie dalszej od rogu
+      const ox = x0 + (left ? fu0 : fu0 + fw);
+      const rot = (p) => rotAboutY(p, (left ? -1 : 1) * ang, ox, zFA);
+      box(x0 + fu0, py0, zFA, x0 + fu0 + fw, py1, zFA + tfA, frontRamienia(a).kolor, rot, 0.85, true);
+      uchwytBox(rot);
+    }
+  });
+  /* Cztery plyty katownika liczy `bracketPlan` — ta sama funkcja co w rzucie
+     z gory, zeby bryla i rzut nie rozjechaly sie o grubosc plyty. W ukladzie
+     ramienia `v` idzie od sciany, a os z w bryle od lica, stad odbicie. */
+  if (kat) {
+    // wewnetrzne plyty katownika z plyty korpusu, jak w zamowieniu (audyt GPT N59; ustalone 2026-09-30)
+    const shcA = c.mat.board.color;
+    bracketPlan(a).forEach((r) => {
+      // plyta wydluzona wzdluz ramienia stoi w jego licu, wzdluz `v` — w licu korpusu
+      const tag = !r.front ? "katownik" : r.w > r.h ? "maska-ramie" : "maska-korpus";
+      // katownik stoi miedzy dnem a gora, maskownice w linii drzwi; od wierzchu dna, takze
+      // podniesionego cokolem w obrysie (audyt GPT N134: stal od 18 mm i przecinal dno i cokol)
+      const ky0 = r.front ? fy0 : y0 + c.geo.interior.y0, ky1 = r.front ? fy1 : y1 - tA;
+      box(x0 + r.u, ky0, a.depth - (r.v + r.h), x0 + r.u + r.w, ky1, a.depth - r.v,
+        r.front ? frontColor : shcA, null, 1, r.front, 0, tag);
+    });
+  }
+  /* Nozki ramienia — te same miejsca, ktore liczy zamowienie i elewacja.
+     W ukladzie ramienia `u` biegnie od rogu, a `v` od sciany. */
+  if (c.cab.legs && c.cab.legs.on && c.geo.legH > 0) {
+    const lp = armLegPlan(a);
+    const gora = base + c.geo.legTop;
+    lp.us.forEach((u) => lp.vs.forEach((v) => {
+      const lx = przyKoncu ? x0 + u : x0 + a.len - u - lp.w;
+      box(lx, gora - c.geo.legH, a.depth - v - lp.w, lx + lp.w, gora, a.depth - v,
+        legColorOf(c.cab), null, 1, false, 0, "noga-ramie");
+    }));
+  }
+}
+
 function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn, agd = true, szuflady = true }) {
   useAudytWidoku();
   /* `kto` — szafka, do ktorej nalezy biezaca bryla (klik w widoku 45° zaznacza szafke; uzytkownik 2026-11-12: „na widoku
@@ -13171,147 +13333,16 @@ function Assembly3D({ project, runs, open, yaw, pitch, angle, rpOf, onPick, zazn
     n.arms.forEach((a) => {
       const c = a.cab;
       kto = c.index;
-      const x0 = a.u0 - n.lead;
-      const y0 = c.base, y1 = c.base + c.cab.H;
-      /* Grubosc frontu ramienia z plyty, z ktorej jest zamawiany (moze byc
-         sasiada) — nie z frontu szafki w rogu (audyt GPT N53). Wpuszczany
-         siedzi w obrysie ramienia, nakladany przed nim (audyt GPT N57). */
-      const tfA = Math.round(((frontRamienia(a).plyta || {}).thickness) || c.geo.tf);
-      const zFA = armInset(a) ? 0 : -tfA;
-      const przyKoncuBok = a.outerAtEnd;   // rog przy poczatku, wiec bok na koncu
-      /* Ramie rysowane jako pelna kostka wygladalo jak szafka z wiencem, nawet
-         gdy szafka wienca nie ma. Skladamy je z plyt: dno, bok na wolnym koncu,
-         wieniec tylko wtedy, gdy jest, a w jego miejsce para wzmocnien. */
-      const tA = c.geo.t;
-      const bA = c.mat.board.color;
-      // dno i wieniec miedzy korpusem a bokiem ramienia — tak jak w formatkach
-      const pz0 = przyKoncuBok ? x0 : x0 + tA, pz1 = przyKoncuBok ? x0 + a.len - tA : x0 + a.len;
-      const korR = armKorpus(a);   // korpus ramienia konczy sie na plecach
-      // dno na wysokosci dna korpusu — przy cokole w obrysie nad nim (audyt GPT N56)
-      if (c.geo.hasBot) box(pz0, y0 + c.geo.bottomY, 0, pz1, y0 + c.geo.bottomY + tA, korR, bA);
-      const bokU = przyKoncuBok ? x0 + a.len - tA : x0;
-      box(bokU, y0, 0, bokU + tA, y1, korR, bA);
-      if (c.geo.hasTop) {
-        box(pz0, y1 - tA, 0, pz1, y1, korR, bA);
-      } else {
-        /* Z przodu plyta na plask, z tylu stojaca — te same, ktore liczy rzut
-           z gory, wiec bryla nie rozjedzie sie z rysunkiem. W ukladzie ramienia
-           `v` idzie od sciany, a os z w bryle od lica, stad odbicie. */
-        armPlan(a).rails.forEach((r) => {
-          box(x0 + r.u0, y1 - (r.stojace ? r.wys : tA), a.depth - r.v1,
-            x0 + r.u1, y1, a.depth - r.v0, bA);
-        });
-      }
-      /* Polki ramienia — te same plyty co w kolumnie przy nim, wiec i te same
-         wysokosci. Bez nich ramie po otwarciu bylo pustym pudlem. */
-      // polka konczy sie przed plecami ramienia — pelna plyta pleców jest grubsza od HDF (audyt GPT N52)
-      const tbA = armPlan(a).tb;
-      armShelfYs(a.side, c.geo.levels).forEach((sy) => {
-        box(pz0, y0 + sy, a.bracket ? tA : 0, pz1, y0 + sy + c.geo.ts, a.depth - tbA,
-          shelfColorOf(c.cab, c.mat), null, 1, false, -Math.round(a.depth / 2));
-      });
-      const apBack = armPlan(a).back;
-      if (apBack) {
-        // wysokosc jak w zamowieniu: plyta miedzy dnem a gora (H − 2t), HDF H − 2 (audyt GPT N52)
-        const pb0 = apBack.plyta ? y0 + tA : y0 + 1, pb1 = apBack.plyta ? y1 - tA : y1 - 1;
-        box(x0 + apBack.u0, pb0, a.depth - apBack.v1, x0 + apBack.u1, pb1, a.depth - apBack.v0,
-          apBack.plyta ? bA : c.mat.back.color, null, 0.95);
-      }
-      // cokol ramienia to plyta pod frontem, nie kloc na cala glebokosc
-      /* Cofniety jak cokol szafki — i o tyle krotszy od strony rogu, gdzie
-         dochodzi do cofnietego cokolu korpusu (audyt GPT N55). */
-      if (c.cab.plinth && c.cab.plinth.on && c.geo.plinthH > 0) {
-        const sbA = Math.max(0, Math.round((c.cab.plinth || {}).setback || 0));
-        const u0 = x0 + (przyKoncuBok ? sbA : 0), u1 = x0 + a.len - (przyKoncuBok ? 0 : sbA);
-        // cokol pod korpusem pod spodem, w obrysie — pod dnem, w wysokosci szafki (audyt GPT N56)
-        const cy0 = c.geo.plinthInBody ? y0 : y0 - c.geo.plinthH;
-        box(u0, cy0, sbA, u1, cy0 + c.geo.plinthH, sbA + tA, kolorCokolu(c.cab, c.mat), null, 0.95);
-      }
-      /* Front ramienia to zwykle drzwi: konczy sie na maskownicy katownika,
-         zawias ma na koncu dalszym od naroza i otwiera sie razem z reszta. */
-      const przyKoncu = a.outerAtEnd;                 // rog przy poczatku ramienia
-      const kat = a.bracket;
-      /* Front ramienia i maskownice staja w linii drzwi szafki — ta sama
-         wysokosc i te same luzy co jej skrzydla (tak jak w formatkach). */
-      /* Kilka frontow jeden nad drugim (`armPasy`, N132) — kazdy w swoim pasie;
-         maskownice od dolu najnizszego do gory najwyzszego. */
-      const pasyA = armPasy(a);
-      const fy0 = y0 + pasyA[0].y, fy1 = y0 + pasyA[pasyA.length - 1].y + pasyA[pasyA.length - 1].h;
-      // front zachodzi na bok ramienia z luzem — tak samo jak w elewacji
-      const fpA = armFrontPlan(a);
-      const fw = fpA.w;
-      const fu0 = przyKoncu ? fpA.odRogu : a.len - fpA.odRogu - fw;
-      const otwiera = open && a.doors !== "fix";
-      /* Uchwyt idzie przy krawedzi wolnej, czyli od strony rogu — zawias siedzi
-         na przeciwnym koncu. Bez niego front ramienia wygladal w bryle jak
-         zaslepka, choc to zwykle drzwi. */
-      const uchwytA = handleOutOf(c.cab);
-      const hcx = przyKoncu ? x0 + fu0 + UCHWYT_OD_KRAWEDZI : x0 + fu0 + fw - UCHWYT_OD_KRAWEDZI;
-      pasyA.forEach((pas) => {
-        const py0 = y0 + pas.y, py1 = py0 + pas.h;
-        // jeden front — uchwyt w polowie szafki jak dotad, przy kilku — w polowie swojego
-        const hcy = pasyA.length > 1 ? (py0 + py1) / 2 : y0 + c.cab.H / 2;
-        const hh = Math.min(90, (pasyA.length > 1 ? pas.h : c.cab.H) * 0.25);
-        const uchwytBox = (rot) => {
-          if (a.doors === "fix" || !(uchwytA > 0)) return;
-          box(hcx - 6, hcy - hh, zFA - uchwytA, hcx + 6, hcy + hh, zFA, "#3f3f46", rot, 1, false, 400, "uchwyt");
-        };
-        /* Fronty „Skręcone 90°” to jeden sztywny zespol na zawiasach frontu korpusu:
-           front ramienia obraca sie razem z nim, wokol tej samej osi (audyt GPT N54:
-           kazdy krecil sie wokol swojej i odleglosc miedzy nimi sie zmieniala). Przy kilku
-           pasach — z drzwiami korpusu w tym samym pasie. */
-        const frontyK = a.doors === "skrecone" && otwiera
-          ? (c.geo.doors || []).filter((d) => d.type === "door" && d.w > 0 && (pasyA.length === 1 || Math.round(d.y) === pas.y)) : [];
-        const dK = frontyK.length
-          ? frontyK.reduce((m, d) => (a.side === "right" ? (d.x > m.x ? d : m) : (d.x < m.x ? d : m)), frontyK[0]) : null;
-        if (dK && a.run && a.run.at) {
+      brylyRamienia3D(a, box, { x0: a.u0 - n.lead, base: c.base, open, angle, frontColor: c.frontColor,
+        obrotSkreconych: (dK) => {
+          if (!(a.run && a.run.at)) return null;
           const leftK = dK.hingeSide === "left";
           const zK = dK.inset ? 0 : -c.geo.tf;
           const q = a.run.at(a.run.lead + c.x + (leftK ? dK.x : dK.x + dK.w), a.run.depth + (c.offset || 0) - zK);
           const angK = (leftK ? -1 : 1) * (angle * Math.PI) / 180;
-          poPlace = (p) => rotAboutY(p, angK, q.x, -q.y);
-          box(x0 + fu0, py0, zFA, x0 + fu0 + fw, py1, zFA + tfA, frontRamienia(a).kolor, null, 0.85, true);
-          uchwytBox(null);
-          poPlace = null;
-        } else if (!otwiera) {
-          box(x0 + fu0, py0, zFA, x0 + fu0 + fw, py1, zFA + tfA, frontRamienia(a).kolor, null, 1, true);
-          uchwytBox(null);
-        } else {
-          const ang = (angle * Math.PI) / 180;
-          const left = !przyKoncu;                      // zawias po stronie dalszej od rogu
-          const ox = x0 + (left ? fu0 : fu0 + fw);
-          const rot = (p) => rotAboutY(p, (left ? -1 : 1) * ang, ox, zFA);
-          box(x0 + fu0, py0, zFA, x0 + fu0 + fw, py1, zFA + tfA, frontRamienia(a).kolor, rot, 0.85, true);
-          uchwytBox(rot);
-        }
-      });
-      /* Cztery plyty katownika liczy `bracketPlan` — ta sama funkcja co w rzucie
-         z gory, zeby bryla i rzut nie rozjechaly sie o grubosc plyty. W ukladzie
-         ramienia `v` idzie od sciany, a os z w bryle od lica, stad odbicie. */
-      if (kat) {
-        // wewnetrzne plyty katownika z plyty korpusu, jak w zamowieniu (audyt GPT N59; ustalone 2026-09-30)
-        const shcA = c.mat.board.color;
-        bracketPlan(a).forEach((r) => {
-          // plyta wydluzona wzdluz ramienia stoi w jego licu, wzdluz `v` — w licu korpusu
-          const tag = !r.front ? "katownik" : r.w > r.h ? "maska-ramie" : "maska-korpus";
-          // katownik stoi miedzy dnem a gora, maskownice w linii drzwi; od wierzchu dna, takze
-          // podniesionego cokolem w obrysie (audyt GPT N134: stal od 18 mm i przecinal dno i cokol)
-          const ky0 = r.front ? fy0 : y0 + c.geo.interior.y0, ky1 = r.front ? fy1 : y1 - tA;
-          box(x0 + r.u, ky0, a.depth - (r.v + r.h), x0 + r.u + r.w, ky1, a.depth - r.v,
-            r.front ? c.frontColor : shcA, null, 1, r.front, 0, tag);
-        });
-      }
-      /* Nozki ramienia — te same miejsca, ktore liczy zamowienie i elewacja.
-         W ukladzie ramienia `u` biegnie od rogu, a `v` od sciany. */
-      if (c.cab.legs && c.cab.legs.on && c.geo.legH > 0) {
-        const lp = armLegPlan(a);
-        const gora = c.base + c.geo.legTop;
-        lp.us.forEach((u) => lp.vs.forEach((v) => {
-          const lx = przyKoncu ? x0 + u : x0 + a.len - u - lp.w;
-          box(lx, gora - c.geo.legH, a.depth - v - lp.w, lx + lp.w, gora, a.depth - v,
-            legColorOf(c.cab), null, 1, false, 0, "noga-ramie");
-        }));
-      }
+          return (p) => rotAboutY(p, angK, q.x, -q.y);
+        },
+        ustawPo: (f) => { poPlace = f; } });
     });
     kto = null;
     // wspolne dno: jedna plyta na kazdy ciagly odcinek szafek pod nim
@@ -16503,7 +16534,7 @@ const nazwaWzmocnienia = (r) => (r.orient === "front"
   ? (r.przyTyle ? "Wzmocnienie tylne" : "Wzmocnienie czołowe")
   : r.orient === "shelf" ? (r.czescA || r.wCzesci ? "Wzmocnienie poziome nad przegrodą" : "Wzmocnienie poziome") : "Wzmocnienie pionowe");
 
-function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat, podswietl = null, szuflady = true }) {
+function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat, podswietl = null, szuflady = true, arm = null }) {
   useAudytWidoku();
   if (geo.bezKorpusu) return <SprzetCiagu3D cab={cab} geo={geo} mat={matIn} yaw={yaw} pitch={pitch} blat={blat} />;
   const mat = matRysunku(cab, matIn);
@@ -16547,6 +16578,10 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
   fk = "Blat ciągu";
   if (blat && blat.roboczy && blat.th > 0)
     blat.korpus.forEach((b) => box(b.x, H, cd - b.y - b.h, b.x + b.w, H + blat.th, cd - b.y, blat.kolor, null, 1, true, "blat"));
+  // i nad ramieniem szafki w L — jak w rzucie z gory (`blat.ramie`: u od lica korpusu w strone ramienia, v od boku przy ramieniu)
+  if (arm && arm.len > 0 && blat && blat.roboczy && blat.th > 0)
+    (blat.ramie || []).forEach((r) => box(arm.side === "left" ? r.v0 : W - r.v1, H, -r.u1, arm.side === "left" ? r.v1 : W - r.v0, H + blat.th, -r.u0,
+      blat.kolor, null, 1, true, "blat"));
 
   // boki skrocone przy narozniku (w 3D z=cd to tyl, wiec ucinamy od strony cd)
   const cutSL = geo.cornerCut?.sideLeftDepth || 0;
@@ -16762,6 +16797,33 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
     box(w.x0, 0, zL + w.odLica, w.x1, w.H, zL + w.odLica + w.gl, ff, null, 1, true);
     if (w.listwa) box(w.x0, 0, zL + w.listwa.odLica, w.x1, w.H, zL + w.listwa.odLica + w.listwa.gl, bf, null, 1, true);
   });
+
+  /* Ramie szafki w L (uzytkownik 2026-11-26: „Ramię L w 3D szafki”) — te same bryly co w 3D zabudowy (`brylyRamienia3D`),
+     z ukladu ciagu ramienia (x wzdluz tamtej sciany, z od jego lica w glab) na uklad szafki: rog przy licu korpusu (z = 0),
+     ramie wychodzi przed nie (z < 0), plecy ramienia przy boku od jego strony (v = 0 na krawedzi korpusu, jak w rzucie
+     z gory). Obrot bez odbicia, wiec skrzydla otwieraja sie w te sama strone. */
+  if (arm && arm.len > 0) {
+    fk = null;
+    const prawa = arm.side !== "left";
+    const naSzafke = (p) => ({ x: prawa ? W - arm.depth + p.z : arm.depth - p.z, y: p.y, z: arm.outerAtEnd ? -p.x : p.x - arm.len });
+    let poR = null;
+    const boxR = (x0, y0, z0, x1, y1, z1, color, transform, alpha, bold, bias, tag) => {
+      let v = VERTS(x0, y0, z0, x1, y1, z1);
+      if (transform) v = v.map(transform);
+      v = v.map(naSzafke);
+      if (poR) v = v.map(poR);
+      audytBryly(x0, y0, z0, x1, y1, z1, color, tag, v, alpha);
+      solids.push({ v, color, alpha: alpha ?? 1, bold: !!bold, bias: bias || 0 });
+    };
+    brylyRamienia3D(arm, boxR, { x0: 0, base: 0, open, angle, frontColor: ff,
+      // front „Skręcone 90°” obraca sie z drzwiami korpusu — wokol ich zawiasu, jak skrzydlo wyzej
+      obrotSkreconych: (dK) => {
+        const leftK = dK.hingeSide === "left";
+        const zK = dK.inset ? 0 : -geo.tf;
+        return (p) => rotAboutY(p, (leftK ? -1 : 1) * (angle * Math.PI) / 180, leftK ? dK.x : dK.x + dK.w, zK);
+      },
+      ustawPo: (f) => { poR = f; } });
+  }
 
   return rzut3D(solids, W, H, cd, yaw, pitch);
 }
@@ -17490,7 +17552,7 @@ const NoteLine = ({ text, color, icon, przed, editLevels, editItemLevels, editIt
     if (action.startsWith("polkizaw:")) {
       // „polkizaw:<nr szafki>” — polki w strefie zawiasow nad albo pod zawias (zawiasy wracaja na zwykle miejsca), 2026-11-24
       const idx = Number(action.split(":")[1]);
-      return { label: "Półki poza zawiasami", run: () => editItemCab && editItemCab(idx, (c, m) => { polkiPozaZawiasami(c, m); }) };
+      return { label: "Półki poza zawiasami", run: () => editItemCab && editItemCab(idx, (c, m, p) => { polkiPozaZawiasami(c, m, p && (c.corner || {}).on ? armCtxOf(projectLayout(p), idx) : undefined); }) };
     }
     if (action.startsWith("hingeflip:")) {
       const [, li, j, side] = action.split(":");
@@ -23199,7 +23261,7 @@ const MAK_SZUFL_SLUPEK = 220;   // szuflada dokladana na dol slupka / szafy (mak
 const makOdPodlogi = (project, i) => {
   const it = project.items[i]; if (!it) return null;
   const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
-  const geo = computeGeo(cabDoGeo(project, it), it.mat);
+  const geo = geoZProjektu(project, i);
   const dol = run && run.tier === "gorny" ? tierMountY(project, run) + dolGornej(it.cab)
     : Math.round((run && run.mountY) || 0) + cabTopY(it.cab, geo) - Math.round(it.cab.H) + (wiszacaDolna(it.cab) ? dolGornej(it.cab) : 0);
   return { dol, gora: dol + Math.round(it.cab.H), geo, nazwa: (it.cab.name || "").trim() || `szafka ${i + 1}`, wall: run ? (run.tier === "gorny" ? run.wall : run.id) : null };
@@ -24941,7 +25003,7 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
   const cab = it.cab;
   const biurko = biurkoSzafki(cab);   // biurko — przelaczniki kontenera szuflad w karcie Szafka
   // geometria liczona tu, na biezaco (`geoOf` z rysunku spoznia sie o jedno odswiezenie — opis i karta Korpus)
-  const geoKarty = computeGeo(cabDoGeo(project, it), it.mat);
+  const geoKarty = geoZProjektu(project, idx);
   const run = it.runId ? (project.runs || []).find((r) => r.id === it.runId) : null;
   const W = (k, v, klucz) => (
     <div key={klucz || k} className="flex justify-between gap-3 border-b border-stone-100 py-1 text-xs">
@@ -26377,7 +26439,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
   const geoRysunku = useRef({});
   // geometria szafki: narysowana (zaznaczona — z kontekstem ciagu) albo policzona (pozostale szafki nie maja nakladki)
   const geoSzafki = (i) => { const it = project.items[i]; if (!it) return null;
-    return geoRysunku.current[i] || (() => { try { return computeGeo(cabDoGeo(project, it), it.mat); } catch (er) { return null; } })(); };
+    return geoRysunku.current[i] || (() => { try { return geoZProjektu(project, i); } catch (er) { return null; } })(); };
   const punkt = (e, grp) => { const m = grp.getScreenCTM(); if (!m) return null; const q = grp.ownerSVGElement.createSVGPoint(); q.x = e.clientX; q.y = e.clientY; return q.matrixTransform(m.inverse()); };
   /* Przesuwanie postawionej szafki w ciagu (makieta „Dodaj”: „postawione przesuwasz, przeciągając po rysunku”): chwyt
      za szafke (nie za uchwyt), po 8 px ruchu zielony znacznik pokazuje, gdzie stanie — przed albo za szafka pod kursorem
@@ -26575,7 +26637,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
         setRamki({ lista: d.ramki || [], akt: null });
       }
       const p = punkt(e, d.grp); if (!p) return;
-      const geo = geoRysunku.current[d.idx] || computeGeo(cabDoGeo(project, it), it.mat);
+      const geo = geoRysunku.current[d.idx] || geoZProjektu(project, d.idx);
       // przyciaganie (2026-11-15): wysokosc do gory szafki obok, polka do polki obok — cele raz, przy pierwszym ruchu
       if (d.u === "wys" && !d.lap) { try { d.lap = makLapanieWys(project, d.idx); } catch (er) { d.lap = []; } }
       if (d.u === "polka" && !d.lapP) { try { d.lapP = makLapaniePolek(project, d.idx, d.li, d.j); } catch (er) { d.lapP = []; } }
@@ -26667,7 +26729,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
     const idx = Number(grp.getAttribute("data-idx")); const it = project.items[idx]; if (!it) return null;
     const p = punkt(e, grp); if (!p) return null;
     const zgory = !!grp.closest("[data-el=mak-zgory]");
-    const geo = geoRysunku.current[idx] || (() => { try { return computeGeo(cabDoGeo(project, it), it.mat); } catch (er) { return null; } })();
+    const geo = geoRysunku.current[idx] || (() => { try { return geoZProjektu(project, idx); } catch (er) { return null; } })();
     let li = null, j = null;
     if (geo) {
       const gy = it.cab.H - p.y;
@@ -27509,7 +27571,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
             }
             if (!g.closest("[data-el=mak-zgory]")) {
               const it = project.items[idx], p = it && punkt(e, g);
-              const geo = it && (geoRysunku.current[idx] || (() => { try { return computeGeo(cabDoGeo(project, it), it.mat); } catch (er) { return null; } })());
+              const geo = it && (geoRysunku.current[idx] || (() => { try { return geoZProjektu(project, idx); } catch (er) { return null; } })());
               if (geo && p) {
                 const gy = it.cab.H - p.y, lv = geo.levels.find((l) => gy >= l.y0 - 1 && gy <= l.y1 + 1);
                 const col = lv && lv.cols.find((q) => p.x >= q.x0 - geo.t && p.x <= q.x0 + q.w + geo.t);
@@ -27547,7 +27609,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
           // podglad jak w trybie technicznym: ciagi na rysunku albo zaznaczona szafka (wolnostojaca / „Tylko zaznaczona”)
           const zCiagow = !samaSzafka && rysowane.length > 0;
           const it0 = projRys.items[project.active];
-          const geo0 = it0 ? (() => { try { return computeGeo(cabDoGeo(projRys, it0), it0.mat); } catch (er) { return null; } })() : null;
+          const geo0 = it0 ? (() => { try { return geoZProjektu(projRys, project.active); } catch (er) { return null; } })() : null;
           const w = widokM === "iso" && !zCiagow ? "3d" : widokM;
           const obracany = (dziecko) => (
             <div className="cursor-grab touch-none active:cursor-grabbing" data-el="mak-3d"
@@ -27580,7 +27642,8 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
                   <span className="w-10 font-mono text-xs text-stone-500">{kat3d}°</span></label>}
               </div>}
               {w === "3d" && zoomuj(obracany(zCiagow ? <Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} rpOf={rpOf} agd={przel.agd !== false} />
-                : geo0 && <Scene3D cab={it0.cab} geo={geo0} mat={it0.mat} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d} />))}
+                : geo0 && <Scene3D cab={it0.cab} geo={geo0} mat={it0.mat} open={widokRys === "open"} szuflady={widok === "open"} yaw={obrot.yaw} pitch={obrot.pitch} angle={kat3d}
+                  arm={(it0.cab.corner || {}).on ? (() => { try { return ramieSzafki(projRys, project.active); } catch (er) { return null; } })() : null} />))}
               {/* 45° — klik zaznacza szafke (uzytkownik 2026-11-12); 3D — obracanie, bez zaznaczania */}
               {w === "iso" && zoomuj(<Assembly3D project={projRys} runs={rysowane} open={widokRys === "open"} szuflady={widok === "open"} yaw={-Math.PI / 4} pitch={-0.45} angle={kat3d} rpOf={rpOf}
                 onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />)}
@@ -29280,7 +29343,7 @@ export default function App() {
        kopie ostatniej; poziom z wiecej kolumnami niz skrzydel zostaje (dodatkowe przegrody pomiedzy wolno) */
     if (action === "przesprzeg") {
       setProject((p) => { const i = p.active, it = p.items[i]; if (!it) return p;
-        let geo; try { geo = computeGeo(cabDoGeo(p, it), it.mat); } catch (e) { return p; }
+        let geo; try { geo = geoZProjektu(p, i); } catch (e) { return p; }
         const t = Math.round(Number(((it.mat || {}).board || {}).thickness) || 18), sw = przesuwneKolumny(it.cab, geo, t); if (!sw) return p;
         const levels = (it.cab.levels || []).map((lv) => { const cols = (lv.cols || []).slice(); if (!cols.length || cols.length > sw.length) return lv;
           while (cols.length < sw.length) cols.push(JSON.parse(JSON.stringify(cols[cols.length - 1])));
@@ -29535,7 +29598,7 @@ export default function App() {
     /* Poprawka z Uwag moze potrzebowac grubosci plyty tej wlasnie szafki (na
        przyklad zeby cofnac wzmocnienie o grubosc frontu), a szafka trzyma swoj
        material osobno — podajemy go razem z szafka. */
-    fn(cab, items[i].mat || defaultMaterials);
+    fn(cab, items[i].mat || defaultMaterials, p);
     items[i] = { ...items[i], cab };
     return { ...p, items };
   }), [setProject]);
@@ -31129,7 +31192,7 @@ export default function App() {
   }, [pokazPlan, project, pokoj, zamTylkoPokoj, ambig]);
 
   // uwagi ciagu ida przed uwagami szafki — dotycza calej sciany, wiec sa nadrzedne
-  const allMsgs = useMemo(() => [...runMsgs, ...bezWspolnychFormatek(przyciskPolekZawiasy(przyciskiSzuflad(geo.msgs), project.active, cab, mat), !!runPl, !!runTp), ...wstawkaMsgs(projLayout, project.active),
+  const allMsgs = useMemo(() => [...runMsgs, ...bezWspolnychFormatek(przyciskPolekZawiasy(przyciskiSzuflad(geo.msgs), project.active, cab, mat, armCtxOf(projLayoutGeo, project.active)), !!runPl, !!runTp), ...wstawkaMsgs(projLayout, project.active),
     ...biurkoMsgs(cab, geo),
     // ramie szafki w L: jego formatki naleza do tej szafki
     ...(cornerNode && cornerNode.arm && cornerNode.arm.len > 0
@@ -34937,7 +35000,7 @@ export default function App() {
                     onPointerCancel={() => (drag.current = null)}
                   >
                     <Scene3D cab={cab} geo={geo} mat={mat} open={open3d} yaw={yaw} pitch={pitch} angle={angle3d} wstawki={wstawkiAktywnej}
-                      blat={blatSzafki} podswietl={podswietl} />
+                      blat={blatSzafki} podswietl={podswietl} arm={cornerNode && cornerNode.arm} />
                     {podswietl && (
                       <div className="mt-1 flex items-center gap-2 text-xs" data-el="podswietlona">
                         <span className="inline-block h-3 w-3 rounded-sm" style={{ background: PODSWIETL }} />

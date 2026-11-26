@@ -84,7 +84,8 @@ Do pobrania i dopisania do `instrukcje/` (karty z katalogu Blum 2024–2025), za
 - ~~**Regał / szafa z palety „Szafa w zabudowie” przy zaznaczonej szafce wolnostojącej**~~ — zrobione 2026-11-24 (na koniec ciągu tego rodzaju w pokoju). Dawny opis: zakłada nowy ciąg („Ściana 2”), zamiast dołożyć
   się do istniejącej zabudowy w pokoju — do rozważenia: dokładać do ostatniego ciągu „szafa” w pokoju.
 - ~~**Wzory bez uwag od razu po wstawieniu**~~ — zrobione 2026-11-22 (`wzorBezUwag`: półki poza zawiasami, luz frontów szuflad).
-  Zostaje „Narożnik L” (dół 896 / góra 646 mm — jedne drzwi poza tabelą zawiasów GTV; jest przycisk „Dwoje drzwi”) — do decyzji.
+  „Narożnik L” — sprawdzone 2026-11-26: w rogu drzwi korpusu mają 285 mm (dół) i 2 zawiasy; 896 / 646 wychodziło z liczenia bez kontekstu rogu
+  (makieta i ta kontrola) — w szafce takich drzwi nie ma. Zostaje tylko ostrzeżenie „zawias 614 → 600” przez stojące wzmocnienie czołowe.
 - **Szafa na zawiasach w wysokim pokoju** — 2026-11-24: przycisk „Półki poza zawiasami” i 6 zawiasów ponad 2500 mm (decyzja użytkownika); prostownica — nie. Dawny opis: (1200 × 2761, 4 półki): fronty 2755 mm są poza tabelą zawiasów GTV (do 2500 mm) —
   jest ostrzeżenie, a 3 z 5 zawiasów na skrzydło przesuwa się przez półki (6 ostrzeżeń „zawias przesunięty”). Pomysł: przycisk
   „Półki poza zawiasami” (przesuwa półki o kilka centymetrów zamiast zawiasów); do sprawdzenia w katalogu — prostownik do wysokich

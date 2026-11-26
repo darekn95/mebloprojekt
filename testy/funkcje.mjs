@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion', 'ustawPushSzuflady', 'ustawSystemIPush', 'polkiPozaZawiasami', 'przyciskPolekZawiasy', 'zawiasyGtv', 'MAK_SYSTEMY_SZUF'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion', 'ustawPushSzuflady', 'ustawSystemIPush', 'polkiPozaZawiasami', 'przyciskPolekZawiasy', 'zawiasyGtv', 'MAK_SYSTEMY_SZUF', 'geoZProjektu', 'ramieSzafki'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1788,6 +1788,29 @@ console.log('\n== 2026-11-24: „Półki poza zawiasami” — przycisk przy ost
   const c3 = JSON.parse(JSON.stringify(cab)); c3.levels[0].cols[0].shelfTargets = [null, null, null, null];
   const g3 = G.computeGeo(c3, M0);
   ok('bez kolizji (4 półki): bez przycisku', !G.przyciskPolekZawiasy(g3.msgs, 3, c3, M0).some((m) => /polkizaw/.test(m.text)));
+}
+
+console.log('\n== 2026-11-26: szafka w L poza widokiem technicznym — z kontekstem rogu (makieta liczyła drzwi 896 zamiast 285) ==');
+{
+  const M0 = G.defaultMaterials;
+  const RUNL = (id, name, o = {}) => ({ id, name, wallW: null, gap: 0, mountY: 0, H: 720, D: 550, plinth: { on: false }, worktop: true, corner: null, ...o });
+  const kolL = { kind: 'doors', doors: 1, w: null, shelfTargets: [null] };
+  const L0 = { name: 'L', W: 900, H: 720, D: 550, legs: { on: true, height: 100 }, corner: { on: true, arm: 650, doors: 'wsporniki' }, levels: [{ h: null, cols: [kolL] }] };
+  const L = { ...L0, ...G.bezWienca(G.migrateCab(L0, M0)) };   // pod blat (para wzmocnien), jak szablon „Narożnik L”
+  const P = G.loadProject({ name: 'P', active: 1, prices: {},
+    runs: [RUNL('c1', 'Ściana 1'), RUNL('c2', 'Ściana 2', { corner: { of: 'c1', at: 'end', owner: 'of', clear: 0 } })],
+    items: [{ cab: { name: 'S2', W: 800, H: 720, D: 550, legs: { on: true, height: 100 }, levels: [{ h: null, cols: [{ kind: 'doors', doors: 2, w: null, shelfTargets: [null] }] }] }, runId: 'c1' },
+      { cab: L, runId: 'c1' }] });
+  const drz = (g) => g.doors.filter((d) => d.type === 'door').map((d) => `${Math.round(d.w)}×${Math.round(d.h)}/${d.hinges}`);
+  const bez = G.computeGeo(G.cabDoGeo(P, P.items[1]), P.items[1].mat), z = G.geoZProjektu(P, 1), a = G.ramieSzafki(P, 1);
+  ok('bez kontekstu rogu drzwi na całą szerokość korpusu (tak liczyła makieta) — z `geoZProjektu` front od tej strony, jak w zamówieniu',
+    drz(bez)[0] !== drz(z)[0] && a && drz(z).length === 1 && Math.round(z.doors.find((d) => d.type === 'door').w) === a.front, `${drz(bez)} → ${drz(z)}, ramię front ${a && a.front}`);
+  ok('front korpusu 285 × 714 na 2 zawiasach, ramię 650 po prawej (`ramieSzafki`), zwykła szafka bez ramienia', drz(z)[0] === '285×714/2'
+    && a.len === 650 && a.side === 'right' && G.ramieSzafki(P, 0) === null && drz(G.geoZProjektu(P, 0)).join() === drz(G.computeGeo(G.cabDoGeo(P, P.items[0]), P.items[0].mat)).join());
+  // zawias przesuniety przez stojace wzmocnienie czolowe w L — przesuniecie polek nic nie da, wiec bez przycisku
+  const ctx = G.armCtxOf(G.projectLayout(P), 1), zw = z.msgs.filter((m) => /: zawias przesunięty z .* kolizja z wzmocnieniem/.test(m.text));
+  ok('„zawias przesunięty — kolizja z wzmocnieniem”: bez przycisku „Półki poza zawiasami” (jest tylko przy kolizji z półką)', zw.length > 0
+    && !G.przyciskPolekZawiasy(z.msgs, 1, P.items[1].cab, P.items[1].mat, ctx).some((m) => /polkizaw/.test(m.text)), String(zw.length));
 }
 
 console.log('\n== 2026-11-22: kolor cokołu — domyślnie jak fronty, do wyboru jak korpus ==');

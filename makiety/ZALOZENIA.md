@@ -55,6 +55,7 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | Założenie | Stan |
 |---|---|
 | „Z góry” + „Z przodu” razem; Z boku, 3D, 45° | jest |
+| „Tylko zaznaczona szafka” przy szafce w L: Z boku / Z góry / 3D z kontekstem rogu (front 285, nie 896), 3D z ramieniem, maskownicami i kątownikiem | poprawione 26.11 (`geoZProjektu`, `brylyRamienia3D`; `funkcje`, `bryla3d`) |
 | Przełączniki: Z góry, Ciąg górny, Ciąg dolny, Fronty, Blat, Wyposażenie, Kolory płyt, Wymiary | jest |
 | **Start „Co projektujesz?”** (użytkownik 21.11: „bardzo dobry pomysł”) — przy „Nowy projekt”: rodzaj, ściana, sufit → ciąg i pierwsza szafka, makieta | dorobione 22.11 (`start-rodzaj`, `makieta19`) |
 | **Przegrody pionowe cofnięte od frontu** (użytkownik 22.11: „brak możliwości manipulowania głębokościami przegród”) — pole i przyciski w zakładce Przegroda; biurko wiszące — o grubość frontu, fronty przed przegrodami z luzem | dorobione 22.11 (`przegrody-cof`, `makieta19`, `funkcje`) |

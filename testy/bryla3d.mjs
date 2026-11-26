@@ -161,6 +161,34 @@ await pick('3D');
 s8 = await osiemStron();
 ok('szafka narożna: bez wymuszeń z ośmiu stron', s8.every((c) => c === 0), s8.join(' '));
 
+console.log('\n== 3D samej szafki narożnej: z ramieniem (użytkownik 2026-11-26: „Ramię L w 3D szafki”) ==');
+/* W zakresie „Szafka” 3D rysowal sam korpus z otwartym przelotem — bez frontu ramienia, maskownic i katownika,
+   choc wszystkie sa w formatkach tej szafki. Teraz te same bryly co w 3D ciagu (`brylyRamienia3D`). */
+await pick('Szafka');
+await pick('Zamk.');
+await page.evaluate(() => { window.__audytBryl = []; });
+await pick('3D');
+const bS = await page.evaluate(() => { const x = window.__audytBryl; window.__audytBryl = null; return x || []; });
+const tagi = new Set(bS.map((q) => q.tag).filter(Boolean));
+ok('Szafka 3D: maskownice (korpus, ramię), kątownik i nóżki ramienia', ['maska-korpus', 'maska-ramie', 'katownik', 'noga-ramie'].every((t) => tagi.has(t)), [...tagi].join(','));
+const tabFormatek = await page.evaluate(() => {
+  const sec = [...document.querySelectorAll('section')].find((x) => /^Formatki do zamówienia/.test(x.querySelector('h2')?.textContent || ''));
+  const t = sec && sec.querySelector('table'); if (!t) return [];
+  const h = [...t.querySelectorAll('thead th')].map((x) => x.textContent.trim());
+  const ia = h.indexOf('Długość'), ib = h.indexOf('Szerokość');
+  return [...t.querySelectorAll('tbody tr')].map((r) => [...r.querySelectorAll('td')].map((x) => x.textContent.trim()))
+    .filter((c) => c.length > Math.max(ia, ib)).map((c) => ({ n: c[0], a: Math.round(+c[ia].replace(',', '.')), b: Math.round(+c[ib].replace(',', '.')) }));
+});
+const plytyS = bS.filter((q) => { const d = [...q.d].sort((x, y) => x - y); return d[0] > 0.5 && d[0] <= 40 && d[1] >= 20 && !/^(uchwyt|noga|blat)/.test(q.tag || ''); });
+const pas = (f, q) => { const [, x, y] = [...q.d].sort((u, v) => u - v).map(Math.round); const bk = (m, n) => Math.abs(m - n) <= 3 || (m === 60 && n < 60);
+  return (bk(f.a, x) && bk(f.b, y)) || (bk(f.a, y) && bk(f.b, x)); };
+const ramFormatki = tabFormatek.filter((f) => /ramienia|kątownika|Kątownik narożnika/.test(f.n));
+const bezBryly = ramFormatki.filter((f) => !plytyS.some((q) => pas(f, q))).map((f) => `${f.n} ${f.a}×${f.b}`);
+ok('każda formatka ramienia i kątownika narożnika ma płytę w 3D szafki', ramFormatki.length >= 8 && !bezBryly.length, `${ramFormatki.length} formatek; brak: ${bezBryly.join('; ')}`);
+s8 = await osiemStron();
+ok('Szafka 3D z ramieniem: bez wymuszeń z ośmiu stron', s8.every((c) => c === 0), s8.join(' '));
+await pick('Zamk.');
+
 console.log('\n== elewacja szafki narożnej: nóżki ramienia jak w zamówieniu ==');
 /* Rysunek szafki naroznej rozwija ramie obok korpusu (900 mm, ramie od x=900).
    Nozki ramienia ida z `armLegPlan`, tak jak w zamowieniu: przy rogu, posrodku

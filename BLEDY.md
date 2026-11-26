@@ -12,12 +12,12 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Suita | Objaw | Przyczyna / stan |
 |---|---|---|
-| audyt projektu (`naroznikL`, przegląd 2026-11-24) | szafka w L w zakresie „Szafka”, widok 3D: brak ramienia (front ramienia, dno, bok, maskownice kątownika) — formatki ramienia są w zamówieniu szafki, bryła tylko w zakresie „Ciąg” | `Scene3D` pojedynczej szafki dostaje sam korpus (`cab`, `geo`), bez `cornerNode.arm`; obliczenia ramienia poprawne (w „Ciąg” formatki = bryła). Do zrobienia: bryły ramienia w 3D szafki (propozycja dla użytkownika) |
 
 ## Naprawione
 
 | Data | Suita / miejsce | Przyczyna | Commit |
 |---|---|---|---|
+| 2026-11-26 | prośba użytkownika „pokaż mi ten narożnik, wydaje mi się, że coś źle liczysz” (narożnik L z palety, drzwi 896?) | (1) aplikacja liczy dobrze: front korpusu 285 × 714 (2 zawiasy), front ramienia 568 × 714 (2 zawiasy), tak też w zamówieniu — 896 dawał skrypt bez kontekstu rogu; ale **makieta** liczyła szafkę w L tak samo bez kontekstu (`computeGeo` bez `armCtxOf`: karta, podgląd samej szafki, przeciąganie, `makOdPodlogi`, poprawki z Uwag) — teraz `geoZProjektu`; (2) „Półki poza zawiasami” pokazywał się też przy zawiasie przesuniętym przez wzmocnienie (stojące czołowe w L) i liczył drzwi bez rogu — teraz tylko przy kolizji z półką, z kontekstem rogu; (3) 3D w zakresie „Szafka” (technicznym i makiecie) bez ramienia — teraz te same bryły co w „Ciąg” (`brylyRamienia3D`) z blatem nad ramieniem; `funkcje`, `bryla3d` | (ten commit) |
 | 2026-11-24 | prośba użytkownika: „Z boku: wysokość od podłogi” | widok z boku pojedynczej szafki wiszącej rysował ją bez podłogi — teraz podłoga, ściana do podłogi i wymiar „N od podłogi” (z przerwą powyżej 220 mm); `makieta19` | (ten commit) |
 | 2026-11-24 | prośba użytkownika: TANDEM z TIP-ON; przegląd — ramię szafki w L zamawiało zawiasy GTV przy wybranych Blum | TANDEM 560F z TIP-ON (`TANDEM_TIPON`: dno 28,5, wkręt 38, wpuszczany + 4, synchronizacja T57.1140S, FS 3,5; 110 + 17 zł); front ramienia w L — zawiasy i prowadniki Blum, liczba wg tabeli Blum; `funkcje`, `makieta19`, suity narożników | 400cfad |
 | 2026-11-24 | odpowiedzi użytkownika: ceny TIP-ON (jedna 70 zł), zawiasy Blum (wybór GTV / Blum, domyślnie GTV); pełny przebieg: `klapy` oczekiwał 4 zawiasów przy drzwiach 2694 mm | ceny TIP-ON w `DEFAULT_HW_PRICES` (zestaw 70, reling 16, T60.300D 5, uchwyt 1, kątownik 5); zawiasy Blum CLIP top BLUMOTION (`cab.zawiasyBlum`, tabela Blum do 22 kg przy 5, kody i prowadnik, 14 + 1 zł); `klapy` — 6 zawiasów ponad 2500 mm (decyzja); `funkcje`, `klapy`, 25 suit drzwi / zawiasów | (ten commit) |

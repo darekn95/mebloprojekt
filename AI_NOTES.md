@@ -1493,6 +1493,12 @@ czy do drzwi na zawiasach ponad 2500 mm — pytanie do użytkownika.
 Zmiany na galezi roboczej — do `main` tylko na prosbe uzytkownika.
 [CLAUDE-CHANGE] 2026-11-24: TANDEM z TIP-ON (`tandem-push`, `TANDEM_TIPON`); ramię L — zawiasy Blum. Narożnik L z palety: korpus 900 ma jedne drzwi 896 × 714
 (bez fixa — kątownik i maskownice 60 mm w rogu), front ramienia 568; ostrzeżenie „poza tabelą” + „Dwoje drzwi po 447” — decyzja użytkownika, co we wzorze.
+[CHECK] 2026-11-26 POPRAWKA powyższego: 896 × 714 to wynik `computeGeo` BEZ kontekstu rogu (skrypt analizy). W aplikacji (z `armCtxOf`) front korpusu
+L ma 285 × 714 (2 zawiasy), front ramienia 568 × 714 — tak też w zamówieniu. Bez kontekstu liczyła jednak makieta (karta, podgląd samej szafki,
+przeciąganie, `makOdPodlogi`, `runFix`) i „Półki poza zawiasami” — teraz `geoZProjektu(project, i)` / ctx. Każde nowe `computeGeo(cabDoGeo(...))`
+w kodzie UI dla dowolnej szafki: przez `geoZProjektu`, inaczej szafka w L wyjdzie z drzwiami na całą szerokość.
+[CLAUDE-CHANGE] 2026-11-26: 3D samej szafki w L z ramieniem — `brylyRamienia3D` (wydzielone z `Assembly3D`), `Scene3D` prop `arm` (technicznie
+`cornerNode.arm`, makieta `ramieSzafki`), przeliczenie układu ciągu ramienia → szafka bez odbicia (`naSzafke`), blat nad ramieniem z `blat.ramie`.
 [AI-INFO] 2026-11-24 przegląd błędów: audyty 17 projektów testowych z analizy (an/*.json) — bez błędów poza (a) zamierzonymi błędami za dużych zabudów
 (z przyciskami) i (b) szafką w L: w 3D zakresu „Szafka” brak ramienia (BLEDY „Do naprawy”). Projekt użytkownika v53 — 84 OK / 0.
 
