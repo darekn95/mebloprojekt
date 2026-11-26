@@ -15645,7 +15645,8 @@ function TopView({ cab, geo, mat: matIn, showDims, showShelves, showHardware, ar
   );
 }
 
-function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap, wstawki, blat }) {
+const PODLOGA_RYS = 220;   // widok z boku: najwiekszy rysowany odstep szafki wiszacej od podlogi (dalej — przerwa)
+function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap, wstawki, blat, odPodlogi }) {
   if (geo.bezKorpusu) return <SprzetCiaguWidok cab={cab} geo={geo} mat={matIn} widok="bok" />;
   const matR = matRysunku(cab, matIn);
   const mat = texMat(matR, cab.texture, cab.textureDir);
@@ -15673,9 +15674,15 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
      plecami: pionowa przy rownym odstepie, pochyla, gdy przy podlodze jest inny
      niz pod blatem. Szafka wolnostojaca sciany nie ma — nie wiadomo, gdzie jest.
      Tyl korpusu to plecy nakladane z zewnatrz albo sam bok. */
+  /* Szafka wiszaca (gorna, biurko, RTV) — podloga pod nia z wymiarem „od podłogi” (uzytkownik 2026-11-24). Rysujemy najwyzej
+     PODLOGA_RYS mm, dluzszy odstep z przerwa (zygzak) — inaczej rysunek bylby w wiekszosci pustym miejscem. */
+  const ponadPod = odPodlogi != null ? Math.max(0, Math.round(odPodlogi) - below) : 0;
+  const pokazPod = ponadPod > 0 ? Math.min(ponadPod, PODLOGA_RYS) : 0;
+  const yPod = H + below + pokazPod;
   const xTyl = xC - (geo.plecyZa || 0);
   const sciana = wallGap ? (() => {
-    const yPodloga = H + below, yBlat = 0;
+    // przy szafce wiszacej sciana idzie do podlogi pod nia
+    const yPodloga = H + below + pokazPod, yBlat = 0;
     const xD = xTyl - wallGap.bottom, xG = xTyl - wallGap.top;
     // przedluzamy linie sciany o 60 mm ponad blat, z tym samym pochyleniem
     const nad = 60;
@@ -15689,7 +15696,7 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
   // wymiar wysokosci idzie wtedy za sciane, zeby na nia nie wchodzil
   const xWysokosc = sciana ? Math.min(sciana.xD, sciana.xN) - SCIANA_GR - 60 : -50 - (dz ? dz.gr : 0);
   const lewo = Math.min(-pad - sOvB, xWysokosc - 110);
-  const vb = `${lewo} ${-pad - 70} ${D + sOvF + pad + rightExtra - lewo} ${H + 2 * pad + 70 + below}`;
+  const vb = `${lewo} ${-pad - 70} ${D + sOvF + pad + rightExtra - lewo + (pokazPod ? 240 : 0)} ${H + 2 * pad + 70 + below + pokazPod}`;
   const hasFront = geo.levels.some((lv) => lv.cols.some((c) => c.count > 0));
   // przod korpusu jest przy x=D; front nakladany wystaje o tf, wpuszczany jest w licu
   const frontFace = D + rightExtra;
@@ -15706,6 +15713,22 @@ function SideView({ cab, geo, mat: matIn, showDims, which, showHardware, wallGap
       <GrainDefs mat={matR} on={cab.texture} dir={cab.textureDir} />
       {sciana && <ScianaDefs />}
       <rect x="0" y="0" width={D} height={H} fill="#fafaf9" stroke={LINE} strokeWidth="1.5" strokeDasharray="8 8" />
+      {pokazPod > 0 && (() => {
+        const xW = frontFace + 70, zyg = ponadPod > pokazPod;
+        const ym = H + below + pokazPod / 2;
+        return (
+          <g data-el="podloga-bok" data-od={Math.round(odPodlogi)}>
+            <line x1={lewo + 20} y1={yPod} x2={D + sOvF + rightExtra + pad + 220} y2={yPod} stroke={INK} strokeWidth="2.5" opacity="0.7" />
+            <text x={lewo + 24} y={yPod + 26} fontSize="20" fill={INK} opacity="0.75" fontFamily="ui-monospace, monospace">podłoga</text>
+            <line x1={xW} y1={H + below} x2={xW} y2={zyg ? ym - 14 : yPod} stroke={DIMC} strokeWidth="1.2" />
+            {zyg && <polyline points={`${xW},${ym - 14} ${xW - 10},${ym - 6} ${xW + 10},${ym + 6} ${xW},${ym + 14}`} fill="none" stroke={DIMC} strokeWidth="1.2" />}
+            {zyg && <line x1={xW} y1={ym + 14} x2={xW} y2={yPod} stroke={DIMC} strokeWidth="1.2" />}
+            <line x1={xW - 8} y1={H + below} x2={xW + 8} y2={H + below} stroke={DIMC} strokeWidth="1.2" />
+            <line x1={xW - 8} y1={yPod} x2={xW + 8} y2={yPod} stroke={DIMC} strokeWidth="1.2" />
+            <text x={xW + 14} y={ym + 7} fontSize="22" fill={DIMC} fontFamily="ui-monospace, monospace">{`${fmt(Math.round(odPodlogi))} od podłogi`}</text>
+          </g>
+        );
+      })()}
       {sciana && (
         <g data-el="sciana">
           <polygon points={`${sciana.xN},${sciana.yN} ${sciana.xD},${sciana.yPodloga} `
@@ -27541,7 +27564,7 @@ function MakietaWidok({ project, tryb, pokoj, switchRoom, addRoom, renameRoom, s
           return (
             <div data-el="mak-widok-inny" data-widok={w}>
               {w === "bok" && zoomuj(zCiagow ? <AssemblySideView project={projRys} runs={rysowane} showDims onPick={wybierz} zazn={zaznM ? project.active : null} agd={przel.agd !== false} />
-                : geo0 && <SideView cab={it0.cab} geo={geo0} mat={it0.mat} showDims showHardware={false} />)}
+                : geo0 && <SideView cab={it0.cab} geo={geo0} mat={it0.mat} showDims showHardware={false} odPodlogi={(() => { try { return (makOdPodlogi(projRys, project.active) || {}).dol; } catch (er) { return null; } })()} />)}
               {/* rzut z gory jako glowny widok (uzytkownik 2026-11-13: „w widoku z góry nie działa przesuwanie elementów np. płyty do
                   szafki obok”) — jak rzut nad widokiem z przodu (`mak-zgory`): przeciaganie plyty / zlewu / sprzetu na blacie, ramki,
                   znaczki szerokosci i glebokosci zaznaczonej szafki, wymiary zaznaczonego wyciecia */}
@@ -34947,7 +34970,8 @@ export default function App() {
               ) : view === "side" ? (
                 <SideView cab={cab} geo={geo} mat={mat} showDims={showDims} which={sideWhich}
                   showHardware={showHardware} wstawki={wstawkiAktywnej} blat={blatSzafki}
-                  wallGap={runInfo && showWall ? wallGapOf(runInfo.run, project.items[project.active]) : null} />
+                  wallGap={runInfo && showWall ? wallGapOf(runInfo.run, project.items[project.active]) : null}
+                  odPodlogi={(() => { try { return (makOdPodlogi(project, project.active) || {}).dol; } catch (er) { return null; } })()} />
               ) : view === "top" ? (
                 <TopView cab={cab} geo={geo} mat={mat} showDims={showDims} showShelves={showShelves}
                   showHardware={showHardware} arm={cornerNode && cornerNode.arm} wstawki={wstawkiAktywnej}
