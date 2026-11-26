@@ -1493,4 +1493,6 @@ czy do drzwi na zawiasach ponad 2500 mm — pytanie do użytkownika.
 Zmiany na galezi roboczej — do `main` tylko na prosbe uzytkownika.
 [CLAUDE-CHANGE] 2026-11-24: TANDEM z TIP-ON (`tandem-push`, `TANDEM_TIPON`); ramię L — zawiasy Blum. Narożnik L z palety: korpus 900 ma jedne drzwi 896 × 714
 (bez fixa — kątownik i maskownice 60 mm w rogu), front ramienia 568; ostrzeżenie „poza tabelą” + „Dwoje drzwi po 447” — decyzja użytkownika, co we wzorze.
+[AI-INFO] 2026-11-24 przegląd błędów: audyty 17 projektów testowych z analizy (an/*.json) — bez błędów poza (a) zamierzonymi błędami za dużych zabudów
+(z przyciskami) i (b) szafką w L: w 3D zakresu „Szafka” brak ramienia (BLEDY „Do naprawy”). Projekt użytkownika v53 — 84 OK / 0.
 

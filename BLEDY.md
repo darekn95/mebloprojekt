@@ -12,6 +12,7 @@ Pełny przebieg testów: `SLOWNIK.md`, sekcja 8. Suity padające tak samo na czy
 
 | Suita | Objaw | Przyczyna / stan |
 |---|---|---|
+| audyt projektu (`naroznikL`, przegląd 2026-11-24) | szafka w L w zakresie „Szafka”, widok 3D: brak ramienia (front ramienia, dno, bok, maskownice kątownika) — formatki ramienia są w zamówieniu szafki, bryła tylko w zakresie „Ciąg” | `Scene3D` pojedynczej szafki dostaje sam korpus (`cab`, `geo`), bez `cornerNode.arm`; obliczenia ramienia poprawne (w „Ciąg” formatki = bryła). Do zrobienia: bryły ramienia w 3D szafki (propozycja dla użytkownika) |
 
 ## Naprawione
 
