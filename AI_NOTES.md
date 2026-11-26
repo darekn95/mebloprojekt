@@ -1502,3 +1502,6 @@ w kodzie UI dla dowolnej szafki: przez `geoZProjektu`, inaczej szafka w L wyjdzi
 [AI-INFO] 2026-11-24 przegląd błędów: audyty 17 projektów testowych z analizy (an/*.json) — bez błędów poza (a) zamierzonymi błędami za dużych zabudów
 (z przyciskami) i (b) szafką w L: w 3D zakresu „Szafka” brak ramienia (BLEDY „Do naprawy”). Projekt użytkownika v53 — 84 OK / 0.
 
+[AI-TODO] 2026-11-26 kolejność następnych zadań (użytkownik): najpierw lakierowanie formatek (koncepcja do uzgodnienia — pytanie z opcjami
+2026-11-26: lakier przy płycie grupy / jeden wybór na projekt / przy formatce; wycena; płyta pod lakier), potem eksport formatek (CSV dla piły /
+hurtowni — POMYSLY „Propozycje z przeglądu 2026-11-24”).

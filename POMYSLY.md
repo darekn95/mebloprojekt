@@ -59,10 +59,11 @@ Do pobrania i dopisania do `instrukcje/` (karty z katalogu Blum 2024–2025), za
 ### Pomysły
 
 - **Propozycje z przeglądu 2026-11-24** (do wyboru przez użytkownika):
-  - szafka w L — ramię także w 3D pojedynczej szafki (dziś tylko w „Ciąg”; `BLEDY.md` „Do naprawy”);
+  - ~~szafka w L — ramię także w 3D pojedynczej szafki~~ — zrobione 2026-11-26 (`brylyRamienia3D`);
   - Blum AVENTOS (podnośniki klap: HK-XS, HK top, HF, HL, HS) jako alternatywa dla GTV — katalog w `instrukcje/blum/katalog-2027-2028/02_…`;
   - kolejne systemy szuflad z katalogu Blum: LEGRABOX (boki stalowe proste), MERIVOBOX — jak TANDEMBOX (tabele z katalogu);
   - eksport listy formatek do pliku dla piły / hurtowni (CSV: nazwa, wymiary, okleina, usłojenie, płyta) — mniej przepisywania przy zamawianiu cięcia;
+    **na liście następnych zadań** (użytkownik 2026-11-26: „eksport też musimy dodać na listę następnych zadań, ale to później” — po lakierowaniu);
   - kosztorys z robocizną i marżą (dziś: materiały i okucia), osobno dla klienta;
   - wcześniej ustalone na później: szafa z modułów z jednym kompletem drzwi, lakierowanie formatek, szafka narożna skośna, wizualizacja pokoju.
 
