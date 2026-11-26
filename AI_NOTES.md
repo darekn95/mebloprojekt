@@ -1505,3 +1505,7 @@ w kodzie UI dla dowolnej szafki: przez `geoZProjektu`, inaczej szafka w L wyjdzi
 [AI-TODO] 2026-11-26 kolejność następnych zadań (użytkownik): najpierw lakierowanie formatek (koncepcja do uzgodnienia — pytanie z opcjami
 2026-11-26: lakier przy płycie grupy / jeden wybór na projekt / przy formatce; wycena; płyta pod lakier), potem eksport formatek (CSV dla piły /
 hurtowni — POMYSLY „Propozycje z przeglądu 2026-11-24”).
+[CLAUDE-CHANGE] 2026-11-26: lakierowanie MDF — `cab.lakier` (fronty / opaski / cokol / korpus / polki, kolor, hex); stałe i `zLakierem` stoją przy
+DEFAULT_PRICES (przed `computeGeo` — `computeGeo` woła je przez `geoZLakierem`); formatki lakierowane mają `zPlyty = { name: "MDF lakierowany",
+lakier: true, kolorLakieru }` i puste `edges`. Każde nowe miejsce, które buduje rozkrój albo tabelę płyt z formatek, MUSI pomijać `jestLakier(p)`
+(dziś: `wierszeRozkroju`, `ReportCutPlan`, tabele w App i PDF); lista lakierni — `TabelaLakierni`. Maskownica boku: `przodMaskownicy(geo)`.

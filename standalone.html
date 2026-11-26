@@ -172,12 +172,15 @@ const ambiguousThickness = (mats, uzyte = mats) => {
    wlasna plyta — jej id, inna — nazwa, kolor, dekor i grubosc. Etykieta (`matLabelOf`)
    dostaje grubosc dopiero, gdy w projekcie jest ta sama nazwa w innej — kawalek zapisany
    z etykieta przestawal wtedy pasowac (audyt GPT N94). */
-const tozsamoscPlyty = (m) => (!m ? "" : m.plyta ? `plyta:${m.plyta}`
+const tozsamoscPlyty = (m) => (!m ? "" : m.lakier ? `lakier:${Math.round(Number(m.thickness) || 0)}|${String(m.kolorLakieru || "").trim()}|${String(m.color || "").toLowerCase()}`
+  : m.plyta ? `plyta:${m.plyta}`
   : [String(m.name || "").trim(), String(m.color || "").toLowerCase(), String(m.decor || "").trim(), Math.round(Number(m.thickness) || 0)].join("|"));
 // wlasny kawalek nalezy do grupy rozkroju: po tozsamosci, stare zapisy (bez niej) — po etykiecie
 const resztkaGrupy = (q, g) => (q && q.matId ? (g.matIds || []).includes(q.matId) : !!q && q.matLabel === g.matLabel);
 
 const matLabelOf = (m, key, ambiguous) => {
+  // MDF lakierowany — zawsze z grubością i kolorem lakieru (do lakierni, nie do rozkroju)
+  if (m && m.lakier) return `${LAKIER_NAZWA} ${Math.round(Number(m.thickness) || 0)} mm${m.kolorLakieru ? ` — ${m.kolorLakieru}` : ""}`;
   // wlasna plyta ma wlasna nazwe — bez dopisku koloru (to ona jest dekorem)
   if (m && m.plyta) {
     const n = (m.name || "").trim() || key;
@@ -247,6 +250,47 @@ const OBRZEZE_ZAPAS = 90;
 /* Ceny startowe — WSZYSTKIE BRUTTO, bo tyle sie faktycznie placi.
    Kazda da sie nadpisac w karcie Wyceny; wpisanie 0 zeruje pozycje.
    Oklejanie liczone jest za kazdy rozpoczety metr, stad zaokraglanie w gore. */
+/* Lakierowanie (uzytkownik 2026-11-26): przy kazdej szafce osobno wybiera sie grupy formatek z MDF lakierowanego — fronty,
+   opaski (blendy, maskownice, wstawka w rogu), cokol, korpus, polki. Takie formatki zamawia sie w osobnej firmie: MDF z lakierem,
+   cena za m² formatki razem z plyta (400 zl, drzwi 2 m × 0,5 m = 1 m²) — nie ida do rozkroju ani do okleiny, w zamowieniu osobna
+   lista „Do lakierni”. Grubosc jak plyta grupy (zmiana grubosci zmienia plyte, wiec i geometrie). Elementy niewidoczne
+   (wzmocnienia, katowniki w srodku, listwy, skrzynki szuflad) zostaja z plyty. `cab.lakier = { fronty, opaski, cokol, korpus,
+   polki, kolor, hex }`. */
+const LAKIER_GRUPY = [["fronty", "Fronty"], ["opaski", "Opaski"], ["cokol", "Cokół"], ["korpus", "Korpus"], ["polki", "Półki"]];
+const LAKIER_OPIS = { fronty: "drzwi, fronty szuflad, klapy, fixy", opaski: "blendy, maskownice, wstawka w rogu", cokol: "cokół szafki (wspólny cokół ciągu — gdy wszystkie jego szafki)",
+  korpus: "boki, dno, wieniec, przegrody, plecy z płyty", polki: "półki" };
+const LAKIER_SKROTY = [["fronty-opaski", "Fronty i opaski", { fronty: true, opaski: true }], ["korpus", "+ korpus", { fronty: true, opaski: true, korpus: true }],
+  ["wszystko", "Wszystko", { fronty: true, opaski: true, cokol: true, korpus: true, polki: true }], ["brak", "Bez lakieru", {}]];
+const LAKIER_NAZWA = "MDF lakierowany";
+const LAKIER_HEX = "#efece6";
+const LAKIER_CENA = 400;   // zl za m² formatki, z plyta MDF (uzytkownik 2026-11-26)
+const grupaLakieru = (p) => {
+  const n = (p && p.name) || "";
+  if (!p || p.matKey === "back" || p.matKey === "worktop" || p.matKey === "mirror") return null;
+  if (p.rola === "cokol" || /^Cokół/.test(n)) return "cokol";
+  if (/^(Drzwi|Front|Klapa|Element stały|Wypełnienie drzwi przesuwnych)/.test(n)) return "fronty";
+  if (/^(Blenda|Pas blendy|Maskownica|Wstawka w rogu)/.test(n)) return "opaski";
+  if (/^Półka/.test(n)) return "polki";
+  // niewidoczne — zostaja z plyty
+  if (/^(Wzmocnienie|Kątownik|Listwa|Bok szuflady|Tył szuflady|Dno szuflady|Przód skrzynki)/.test(n)) return null;
+  return "korpus";
+};
+const lakierOn = (cab) => !!(cab && cab.lakier && LAKIER_GRUPY.some(([k]) => cab.lakier[k]));
+const plytaLakieru = (lk, gr) => ({ name: LAKIER_NAZWA, thickness: gr, color: (lk && lk.hex) || LAKIER_HEX, lakier: true,
+  kolorLakieru: String((lk && lk.kolor) || "").trim() });
+const jestLakier = (p) => !!(p && p.zPlyty && p.zPlyty.lakier);
+const BEZ_OKLEINY = { a1: false, a2: false, b1: false, b2: false };
+// formatki grup lakierowanych — na MDF lakierowany, bez okleiny (krawedzie lakierowane)
+const zLakierem = (cab, mat, panels) => (!lakierOn(cab) ? panels : panels.map((p) => {
+  const g = grupaLakieru(p);
+  if (!g || !cab.lakier[g] || jestLakier(p)) return p;
+  const m = p.zPlyty || (mat || {})[p.matKey] || {};
+  const pl = plytaLakieru(cab.lakier, Math.round(Number(m.thickness) || 18));
+  return { ...p, zPlyty: pl, lakier: g, edges: BEZ_OKLEINY,
+    note: `lakier${pl.kolorLakieru ? ` ${pl.kolorLakieru}` : ""}, krawędzie lakierowane` };
+}));
+const m2Formatek = (lista) => Math.round(lista.reduce((a, p) => a + (p.qty * p.a * p.b) / 1e6, 0) * 1000) / 1000;
+
 const DEFAULT_PRICES = {
   plytaBiala: 223.1, // arkusz 2800 × 2100 × 18, biel
   plytaKolor: 240, // ten sam arkusz w kolorze
@@ -3494,14 +3538,27 @@ const usunPokoj = (p, id, cel) => {
    niezmienne — kazda zmiana tworzy nowy obiekt — wiec wynik zapamietujemy przy
    nich, osobno dla kazdego kontekstu rogu. Wynik jest tylko do odczytu. */
 const geoCache = new WeakMap();
+/* Lakier zamienia tylko liste formatek do zamowienia (plyta MDF, bez okleiny) — geometria zostaje, grubosc jest z plyty. */
+// ile maskownica boku „do lica frontów” wychodzi przed korpus (0 dla innych pozycji)
+const przodMaskownicy = (geo) => (geo && geo.sprzetCiagu && geo.sprzetCiagu.maskownica ? Math.round(geo.sprzetCiagu.przod || 0) : 0);
+const geoZLakierem = (cab, mat, g) => {
+  if (!g || !g.panels || !lakierOn(cab)) return g;
+  const panels = zLakierem(cab, mat, g.panels), lak = panels.filter(jestLakier);
+  if (!lak.length) return g;
+  const lk = cab.lakier;
+  return { ...g, panels, msgs: [...g.msgs, { level: "info", text: `Lakierowane z MDF${lk.kolor ? ` (${String(lk.kolor).trim()})` : ""}: `
+    + `${LAKIER_GRUPY.filter(([k]) => lk[k]).map(([, l]) => l.toLowerCase()).join(", ")} — ${(() => { const n = lak.reduce((a, p) => a + p.qty, 0);
+      return `${n} ${n === 1 ? "formatka" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "formatki" : "formatek"}`; })()}, `
+    + `${String(m2Formatek(lak)).replace(".", ",")} m². Poza rozkrojem i okleiną — osobna lista „Do lakierni” w formatkach do zamówienia.` }] };
+};
 function computeGeo(cab, mat, ctx) {
-  if (!cab || typeof cab !== "object" || !mat || typeof mat !== "object") return computeGeoLiczy(cab, mat, ctx);
+  if (!cab || typeof cab !== "object" || !mat || typeof mat !== "object") return geoZLakierem(cab, mat, computeGeoLiczy(cab, mat, ctx));
   let poMat = geoCache.get(cab);
   if (!poMat) { poMat = new WeakMap(); geoCache.set(cab, poMat); }
   let poCtx = poMat.get(mat);
   if (!poCtx) { poCtx = new Map(); poMat.set(mat, poCtx); }
   const klucz = ctx ? JSON.stringify(ctx) : "";
-  if (!poCtx.has(klucz)) poCtx.set(klucz, computeGeoLiczy(cab, mat, ctx));
+  if (!poCtx.has(klucz)) poCtx.set(klucz, geoZLakierem(cab, mat, computeGeoLiczy(cab, mat, ctx)));
   return poCtx.get(klucz);
 }
 function computeGeoLiczy(cab, mat, ctx) {
@@ -9495,8 +9552,8 @@ function geoSprzetuCiagu(cab, mat, ctx) {
 /* Polki i zabudowa ida z "plyty polek", a ta domyslnie jest ta sama co korpus.
    Kolor na rysunku musi isc za tym samym wyborem co lista formatek, inaczej
    biala szafka dostaje bezowa zabudowe. */
-const shelfColorOf = (cab, mat) =>
-  cab.shelfSameAsBoard !== false ? mat.board.color : ((mat.shelf || mat.board).color);
+const shelfColorOf = (cab, mat) => (lakierOn(cab) && cab.lakier.polki ? cab.lakier.hex || LAKIER_HEX
+  : cab.shelfSameAsBoard !== false ? mat.board.color : ((mat.shelf || mat.board).color));
 
 const TEX_KEYS = ["board", "front", "shelf"];
 const grainId = (hex, dir) =>
@@ -9527,7 +9584,16 @@ const odcienFrontu = (hex) => {
    kolory”) albo jego odcien („Rozróżnij fronty”). Fronty z osobnej plyty
    zawsze maja jej kolor. Zamowienie i rozkroj biora materialy szafki wprost. */
 const matRysunku = (cab, mat) => {
-  if (!mat || !cab || cab.frontSameAsBoard === false || !mat.board) return mat;
+  if (!mat || !cab || !mat.board) return mat;
+  // lakierowane grupy na rysunku w kolorze lakieru (lakier 2026-11-26)
+  if (lakierOn(cab)) {
+    const hex = cab.lakier.hex || LAKIER_HEX, lk = cab.lakier;
+    const m0 = matRysunku({ ...cab, lakier: null }, mat);
+    return { ...m0, ...(lk.korpus ? { board: { ...m0.board, color: hex } } : {}),
+      ...(lk.fronty ? { front: { ...(m0.front || m0.board), color: hex } } : {}),
+      ...(lk.polki ? { shelf: { ...(m0.shelf || m0.board), color: hex } } : {}) };
+  }
+  if (cab.frontSameAsBoard === false) return mat;
   const color = cab.realColors ? mat.board.color : odcienFrontu(mat.board.color);
   return { ...mat, front: { ...(mat.front || mat.board), color } };
 };
@@ -12629,7 +12695,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
                 {onPick && !upper && (c.cab.slupek || c.cab.H > 1500) && !c.cab.sprzetCiagu && <text pointerEvents="none" data-el="slupek-z-gory" x={c.geo.W / 2} y={c.geo.carcassDepth / 2 + 8}
                   textAnchor="middle" fontSize="24" fill="#78716c" fontFamily="ui-monospace, monospace">słupek</text>}
                 {onPick && c.index === zazn && !(blatKryje && !upper) && (
-                  <rect pointerEvents="none" data-el="makieta-zaznaczona" x={0} y={0} width={c.geo.W} height={c.geo.carcassDepth}
+                  <rect pointerEvents="none" data-el="makieta-zaznaczona" x={0} y={0} width={c.geo.W} height={c.geo.carcassDepth + przodMaskownicy(c.geo)}
                     fill="none" stroke={MAK_AKCENT} strokeWidth="10" />
                 )}
                 {onPick && c.index === zazn && nakladka && !(blatKryje && !upper) && nakladka(c.cab, c.geo, c.index)}
@@ -12702,7 +12768,7 @@ function AssemblyTopView({ project, runs, showDims, showShelves, showHardware, s
         const o = n.at(0, 0), deg = Math.round((Math.atan2(n.f.uy, n.f.ux) * 180) / Math.PI);
         return <g key={"zazn-nad-blatem" + g.run.id} transform={`translate(${o.x}, ${o.y}) rotate(${deg})`}>
           <g transform={`translate(${n.lead + c.x}, ${n.depth - c.geo.carcassDepth + c.offset})`} data-el="makieta-szafka" data-idx={c.index} data-nad-blatem="1">
-            <rect pointerEvents="none" data-el="makieta-zaznaczona" x={0} y={0} width={c.geo.W} height={c.geo.carcassDepth} fill="none" stroke={MAK_AKCENT} strokeWidth="10" />
+            <rect pointerEvents="none" data-el="makieta-zaznaczona" x={0} y={0} width={c.geo.W} height={c.geo.carcassDepth + przodMaskownicy(c.geo)} fill="none" stroke={MAK_AKCENT} strokeWidth="10" />
             {nakladka && nakladka(c.cab, c.geo, c.index)}
           </g></g>;
       })}
@@ -16561,7 +16627,7 @@ function Scene3D({ cab, geo, mat: matIn, open, yaw, pitch, angle, wstawki, blat,
   const W = geo.W;
   const bf = mat.board.color;
   const shc = shelfColorOf(cab, mat);
-  const ff = cab.realColors && cab.frontSameAsBoard !== false ? mat.board.color : mat.front.color;
+  const ff = cab.realColors && cab.frontSameAsBoard !== false && !(lakierOn(cab) && cab.lakier.fronty) ? mat.board.color : mat.front.color;
 
   /* --- lista bryl --- */
   const solids = [];
@@ -19143,7 +19209,7 @@ const wstawkaParts = (ws) => {
     : [{ name: "Trójkąt meblarski", use: "wstawka w rogu — po obu jej stronach, co ok. 400 mm",
         spec: `wstawka w rogu: 2 × ${Math.max(2, Math.ceil(H / 400))} szt. (po obu stronach)`,
         qty: 2 * Math.max(2, Math.ceil(H / 400)), unit: "szt." }];
-  return { panels, hardware };
+  return { panels: zLakierem(ws.cab && ws.cab.cab, ws.cab && (ws.cab.rawMat || ws.cab.mat), panels), hardware };
 };
 /* Wstawka wezsza niz MIN_PART (uzytkownik 2026-10-11): blad z pytaniem, czy
    tak ma byc — „Popraw na 60 mm” albo „Tak — docinam recznie”; po potwierdzeniu
@@ -19469,7 +19535,7 @@ const cornerArmParts = (a) => {
     const o = eo[p.name];
     if (o && p.matKey !== "back") { p.edges = { ...p.edges, ...o }; p.note = "oklejanie ustawione ręcznie"; }
   });
-  return { panels: panels.map(naZamowienie), hardware };
+  return { panels: zLakierem(cab, a.cab.rawMat || a.cab.mat, panels.map(naZamowienie)), hardware };
 };
 
 /* Plan wiercen tego, co nie jest w geometrii samej szafki (uzytkownik
@@ -19870,6 +19936,14 @@ const projectParts = (project) => {
     };
   });
   const runs = [];
+  /* Wspolna plyta ciagu (cokol, wieniec, dno) z MDF lakierowanego tylko wtedy, gdy wszystkie jej szafki maja te grupe
+     lakierowana (lakier 2026-11-26); kolor z pierwszej. Inaczej zostaje z plyty. */
+  const lakierCiagu = (idxs) => {
+    const its = idxs.map((i) => project.items[i]).filter((it) => it && !it.cab.sprzetCiagu);
+    return its.length && its.every((it) => lakierOn(it.cab)) ? { lakier: { ...its[0].cab.lakier,
+      ...Object.fromEntries(LAKIER_GRUPY.map(([k]) => [k, its.every((it) => !!it.cab.lakier[k])])) } } : null;
+  };
+  const zLakieremCiagu = (idxs, mat, panels) => { const lc = lakierCiagu(idxs); return lc ? zLakierem(lc, mat, panels) : panels; };
   /* W kilku pomieszczeniach „Ściana 1” jest w kazdym — pozycja ciagu niesie
      wiec nazwe pomieszczenia, zeby w zbiorczym zamowieniu dalo sie je odroznic. */
   const wielePokoi = roomsOf(project).length > 1;
@@ -19880,15 +19954,16 @@ const projectParts = (project) => {
     const base = { mat: (rp || rt || {}).mat
       || (project.items[0] || {}).mat || defaultMaterials,
       grainMatters: (rp || rt || {}).grainMatters };
+    const wCiagu = runItems(project, r0.id).map(({ i }) => i);
     if (rp) runs.push({ ...base, mat: rp.mat, name: `Cokół — ${run.name}`,
-      panels: runPlinthPanels(rp), hardware: [] });
+      panels: zLakieremCiagu(wCiagu, rp.mat, runPlinthPanels(rp)), hardware: [] });
     if (rt) runs.push({ ...base, mat: rt.mat, name: `${rt.wieniec ? "Wieniec" : "Blat"} — ${run.name}`,
-      panels: runTopPanels(rt),
+      panels: zLakieremCiagu(rt.pokryte || wCiagu, rt.mat, runTopPanels(rt)),
       hardware: runTopZlacza(project, r0).map((z) => ({ name: ZLACZE_BLATU, use: z.use,
         spec: `${z.opis}, blat ${fmt(z.gl)} mm; GTV EM-SBL 65 / 100 / 150 (długość śruby do wyboru)`,
         qty: z.qty, unit: "szt." })) });
     if (rb) runs.push({ ...base, mat: rb.mat, grainMatters: rb.grainMatters, name: `Dno — ${run.name}`,
-      panels: runBottomPanels(rb), hardware: [] });
+      panels: zLakieremCiagu(rb.idxs || wCiagu, rb.mat, runBottomPanels(rb)), hardware: [] });
     if (rr) runs.push({ ...base, name: `Listwa — ${run.name}`, panels: [],
       hardware: rr.odcinki.map((o) => ({ name: RAIL_NAME, use: "pod zawieszki szafek wiszących",
         spec: (rr.odcinki.length > 1 && new Set(rr.odcinki.map((q) => q.wys)).size > 1
@@ -22352,6 +22427,113 @@ const PRINT_CSS = `
 }
 `;
 
+/* Ustawienia lakieru szafki (lakier 2026-11-26) — czyste funkcje na pozycji projektu (szafka + material). Grubosc MDF jest grubością
+   plyty grupy: zmiana odlacza fronty / polki od plyty korpusu (gdy byly „z tej samej plyty”), zeby nie ruszyc grup nielakierowanych. */
+const lakierUstaw = (it, patch) => ({ ...it, cab: { ...it.cab, lakier: { ...(it.cab.lakier || {}), ...patch } } });
+const LAKIER_GRUBOSCI = [12, 16, 18, 19, 22, 25];
+const gruboscGrupyLakieru = (cab, mat, g) => Math.round(Number(g === "korpus" ? mat.board.thickness
+  : g === "polki" ? (cab.shelfSameAsBoard !== false ? mat.board : (mat.shelf || mat.board)).thickness
+  : (cab.frontSameAsBoard !== false ? mat.board : (mat.front || mat.board)).thickness) || 18);
+const lakierGrubosc = (it, g, v) => {
+  const cab = { ...it.cab }, mat = { ...(it.mat || defaultMaterials) };
+  const odlacz = (same, k) => { if (cab[same] !== false) { cab[same] = false; mat[k] = { ...mat.board }; } };
+  if (g === "korpus") { odlacz("frontSameAsBoard", "front"); odlacz("shelfSameAsBoard", "shelf"); mat.board = { ...mat.board, thickness: v }; }
+  else if (g === "polki") { odlacz("shelfSameAsBoard", "shelf"); mat.shelf = { ...mat.shelf, thickness: v }; }
+  else { odlacz("frontSameAsBoard", "front"); mat.front = { ...mat.front, thickness: v }; }
+  return { ...it, cab, mat };
+};
+function LakierUstawienia({ it, onItem, el = "lakier" }) {
+  const cab = it.cab, mat = it.mat || defaultMaterials, lk = cab.lakier || {};
+  const on = lakierOn(cab);
+  const grupyGrub = [...(lk.fronty || lk.opaski || lk.cokol ? [["fronty", "fronty i opaski"]] : []), ...(lk.korpus ? [["korpus", "korpus"]] : []), ...(lk.polki ? [["polki", "półki"]] : [])];
+  const skrotOn = (o) => LAKIER_GRUPY.every(([k]) => !!lk[k] === !!o[k]);
+  return (
+    <div data-el={el} className="space-y-1.5 rounded border border-stone-200 bg-white p-2 text-xs">
+      <div className="font-medium text-stone-700">Lakierowanie (MDF)</div>
+      <p className="text-[11px] text-stone-500">Zaznaczone elementy tej szafki z MDF lakierowanego — zamawiane w lakierni (cena za m² formatki razem z płytą), poza rozkrojem i okleiną.</p>
+      <div className="flex flex-wrap gap-1">
+        {LAKIER_SKROTY.map(([v, l, o]) => (
+          <span key={v} data-el="lakier-skrot" data-v={v}>
+            <MiniBtn tone={skrotOn(o) ? "on" : "plain"} onClick={() => onItem((x) => lakierUstaw(x, Object.fromEntries(LAKIER_GRUPY.map(([k]) => [k, !!o[k]]))))}>{l}</MiniBtn>
+          </span>))}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {LAKIER_GRUPY.map(([k, l]) => (
+          <span key={k} data-el="lakier-grupa" data-v={k} data-on={lk[k] ? "1" : "0"}>
+            <MiniBtn tone={lk[k] ? "on" : "plain"} title={LAKIER_OPIS[k]} onClick={() => onItem((x) => lakierUstaw(x, { [k]: !((x.cab.lakier || {})[k]) }))}>{l}</MiniBtn>
+          </span>))}
+      </div>
+      {on && (<>
+        <label className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-stone-500">Kolor lakieru</span>
+          <input data-el="lakier-kolor" defaultValue={lk.kolor || ""} key={`${cab.name}-${lk.kolor || ""}`} placeholder="np. RAL 9016 mat"
+            onBlur={(e) => { const v = e.currentTarget.value; if (v !== (lk.kolor || "")) onItem((x) => lakierUstaw(x, { kolor: v })); }}
+            className="w-36 rounded border border-stone-300 px-1.5 py-0.5 text-xs focus:border-teal-600 focus:outline-none" />
+          <input type="color" data-el="lakier-hex" value={lk.hex || LAKIER_HEX} title="kolor na rysunkach"
+            onChange={(e) => { const v = e.target.value; onItem((x) => lakierUstaw(x, { hex: v })); }} className="h-6 w-8 cursor-pointer rounded border border-stone-300" />
+        </label>
+        {grupyGrub.map(([g, l]) => {
+          const gr = gruboscGrupyLakieru(cab, mat, g);
+          return (
+            <label key={g} className="flex flex-wrap items-center gap-1.5" data-el="lakier-grubosc" data-g={g}>
+              <span className="text-[11px] text-stone-500">Grubość MDF — {l}</span>
+              <select value={gr} onChange={(e) => { const v = Number(e.target.value); onItem((x) => lakierGrubosc(x, g, v)); }}
+                className="rounded border border-stone-300 px-1 py-0.5 font-mono text-xs">
+                {[...new Set([...LAKIER_GRUBOSCI, gr])].sort((a, b) => a - b).map((v) => <option key={v} value={v}>{v} mm</option>)}
+              </select>
+              <span className="text-[11px] text-stone-400">(domyślnie jak płyta)</span>
+            </label>);
+        })}
+      </>)}
+    </div>
+  );
+}
+
+/* Lista „MDF lakierowany — do lakierni” (lakier 2026-11-26): formatki grup lakierowanych, poza rozkrojem i okleina, m² formatki
+   (cena za m² razem z plyta MDF — w wycenie). W aplikacji i na wydruku (`druk`), w liscie projektu z kolumna „Szafka” (`fromLabel`). */
+function TabelaLakierni({ lista, druk = false, zSzafek = false }) {
+  const lak = (lista || []).filter(jestLakier);
+  if (!lak.length) return null;
+  const szt = lak.reduce((a, p) => a + p.qty, 0), m2 = m2Formatek(lak);
+  const naz = (p) => matLabelOf(p.zPlyty, p.matKey);
+  const m2p = (p) => m2Fmt((p.qty * p.a * p.b) / 1e6);
+  if (druk) return (<>
+    <div style={{ fontSize: "10pt", fontWeight: 600, margin: "10px 0 4px" }}>MDF lakierowany — do lakierni (poza rozkrojem i okleiną)</div>
+    <table className="rp-tbl" data-el="lakiernia-druk">
+      <thead><tr><th>Element</th>{zSzafek && <th>Szafka</th>}<th>MDF / lakier</th><th className="num">Długość</th><th className="num">Szerokość</th><th className="num">Szt.</th><th className="num">m²</th></tr></thead>
+      <tbody>
+        {lak.map((p, i) => (<tr key={i}><td>{p.name}</td>{zSzafek && <td>{p.fromLabel}</td>}<td>{naz(p)}</td><td className="num">{fmt(p.a)}</td><td className="num">{fmt(p.b)}</td><td className="num">{p.qty}</td><td className="num">{m2p(p)}</td></tr>))}
+        <tr><td colSpan={zSzafek ? 5 : 4} style={{ fontWeight: 600 }}>Razem</td><td className="num" style={{ fontWeight: 600 }}>{szt}</td><td className="num" style={{ fontWeight: 600 }}>{m2Fmt(m2)}</td></tr>
+      </tbody>
+    </table>
+  </>);
+  return (
+    <div data-el="lakiernia" className="space-y-1 border-t border-stone-200 pt-3">
+      <span className="block text-xs uppercase tracking-wider text-stone-500">MDF lakierowany — do lakierni</span>
+      <p className="text-xs text-stone-500">Zamawiane w lakierni (cena za m² formatki razem z płytą MDF — w wycenie), poza rozkrojem i okleiną; krawędzie lakierowane.</p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
+          <thead><tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
+            <th className="py-2 pr-3 font-medium">Element</th>{zSzafek && <th className="py-2 pr-3 font-medium">Szafka</th>}
+            <th className="py-2 pr-3 font-medium">MDF / lakier</th><th className="py-2 pr-3 text-right font-medium">Długość</th>
+            <th className="py-2 pr-3 text-right font-medium">Szerokość</th><th className="py-2 pr-3 text-right font-medium">Szt.</th><th className="py-2 text-right font-medium">m²</th></tr></thead>
+          <tbody className="font-mono">
+            {lak.map((p, i) => (
+              <tr key={i} className="border-b border-stone-100">
+                <td className="py-2 pr-3 font-sans">{p.name}</td>{zSzafek && <td className="py-2 pr-3 font-sans text-xs text-stone-500">{p.fromLabel}</td>}
+                <td className="py-2 pr-3 font-sans text-stone-500"><span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-3 w-3 shrink-0 rounded-sm border border-stone-300" style={{ background: p.zPlyty.color }} />{naz(p)}</span></td>
+                <td className="py-2 pr-3 text-right">{fmt(p.a)}</td><td className="py-2 pr-3 text-right">{fmt(p.b)}</td>
+                <td className="py-2 pr-3 text-right">{p.qty}</td><td className="py-2 text-right">{m2p(p)}</td>
+              </tr>))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-sm" data-el="lakiernia-razem">Razem: <span className="font-mono">{szt}</span> szt., <span className="font-mono">{m2Fmt(m2)}</span> m²</p>
+    </div>
+  );
+}
+
 /* `ctx` i `arm` przychodza z ukladu calego projektu: bez nich kartka szafki
    naroznej liczyla front przez cala szerokosc korpusu i nie pokazywala ramienia,
    czyli wydruk mowil co innego niz aplikacja i niz lista formatek. */
@@ -22367,7 +22549,8 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
   const realCab = useMemo(() => ({ ...cab, realColors: true }), [cab]);
   // plan wiercen szafki + ramie szafki w L i wstawki w rogu (tego nie ma w geometrii samej szafki)
   const planWiercen = useMemo(() => [...(geo.drillPlan || []), ...wierceniaDodatkowe(arm, wstawki)], [geo, arm, wstawki]);
-  const totalQty = panels.reduce((s, p) => s + p.qty, 0);
+  const plytowe = panels.filter((p) => !jestLakier(p));
+  const totalQty = plytowe.reduce((s, p) => s + p.qty, 0);
   const edgeMm = panels.reduce((s, p) => {
     const e = p.edges;
     return s + p.qty * ((e.a1 ? p.a : 0) + (e.a2 ? p.a : 0) + (e.b1 ? p.b : 0) + (e.b2 ? p.b : 0));
@@ -22448,7 +22631,7 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
             </tr>
           </thead>
           <tbody>
-            {panels.map((p, i) => (
+            {plytowe.map((p, i) => (
               <tr key={i}>
                 <td>{p.name}</td>
                 <td>{matLabelOf(plytaFormatki(p, mat), p.matKey, ambig)}</td>
@@ -22466,6 +22649,7 @@ function ReportSheet({ cab, mat, projectName, index, total, sharedPlinth, shared
             </tr>
           </tbody>
         </table>
+        <TabelaLakierni lista={panels} druk />
 
         <div style={{ fontSize: "10pt", fontWeight: 600, margin: "10px 0 4px" }}>
           Produkty do zamówienia
@@ -22629,7 +22813,8 @@ function ReportCutPlan({ project, projectName }) {
   const groups = useMemo(() => {
     const rows = [];
     projectParts(project).forEach((part) => {
-      groupPanels(part.panels).forEach((p) => {
+      // MDF lakierowany — do lakierni, nie do rozkroju
+      groupPanels(part.panels.filter((p) => !jestLakier(p))).forEach((p) => {
         rows.push({
           name: p.name,
           qty: p.qty,
@@ -22725,7 +22910,7 @@ function ReportProjectSheet({ project, projectName, tytul = null, tytulProduktow
       part.panels.forEach((p) => {
         const m = plytaFormatki(p, part.mat) || {};
         const e = p.edges;
-        const key = [m.name, m.thickness, m.color, p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name].join("|");
+        const key = [m.name, m.thickness, m.color, m.kolorLakieru || "", p.matKey, p.a, p.b, e.a1, e.a2, e.b1, e.b2, p.name].join("|");
         if (map.has(key)) {
           const g2 = map.get(key);
           g2.qty += p.qty;
@@ -22742,12 +22927,13 @@ function ReportProjectSheet({ project, projectName, tytul = null, tytulProduktow
         .join(", "),
     }));
   }, [project]);
-  const totalQty = rows.reduce((s, p) => s + p.qty, 0);
+  const plytowe = rows.filter((p) => !jestLakier(p));
+  const totalQty = plytowe.reduce((s, p) => s + p.qty, 0);
   const edgeMm = rows.reduce((s, p) => {
     const e = p.edges;
     return s + p.qty * ((e.a1 ? p.a : 0) + (e.a2 ? p.a : 0) + (e.b1 ? p.b : 0) + (e.b2 ? p.b : 0));
   }, 0);
-  const { pow: area, blat: blatMb } = powierzchnieIBlat(rows, (p) => p.matName);
+  const { pow: area, blat: blatMb } = powierzchnieIBlat(plytowe, (p) => p.matName);
   Object.keys(area).forEach((k) => { if (area[k] < 0.005) delete area[k]; });
   const hardware = useMemo(() => {
     return scalOkucia(projectParts(project).flatMap((part) => part.hardware));
@@ -22774,7 +22960,7 @@ function ReportProjectSheet({ project, projectName, tytul = null, tytulProduktow
           </tr>
         </thead>
         <tbody>
-          {rows.map((p, i) => (
+          {plytowe.map((p, i) => (
             <tr key={i}>
               <td>{p.name}</td>
               <td>{p.fromLabel}</td>
@@ -22792,6 +22978,7 @@ function ReportProjectSheet({ project, projectName, tytul = null, tytulProduktow
           </tr>
         </tbody>
       </table>
+      <TabelaLakierni lista={rows} druk zSzafek />
       <div style={{ fontSize: "9pt", marginTop: 6 }}>
         {Object.entries(area).map(([k, v]) => (
           <div key={k}>{k}: {m2Fmt(v)} m²</div>
@@ -23534,8 +23721,8 @@ function makWylicz(cab, geo, d, p) {
       linia: lap ? [-geo.W, yL, 2 * geo.W, yL] : [0, H - dy, geo.W, H - dy],
       zmien: (c) => { if (!dy) return; const nd = Math.max(0, dolGornej(c) + dy); if (nd) c.dolGorny = nd; else delete c.dolGorny; } };
   }
-  if (d.u === "gleb") { const nD = Math.max(150, Math.min(1200, r10(cab.D + p.y - geo.carcassDepth))); const yy = geo.carcassDepth + nD - cab.D;
-    return { wartosc: nD, napis: `gł. ${nD}`, linia: [0, yy, geo.W, yy], zmien: (c) => { c.D = nD; } }; }
+  if (d.u === "gleb") { const pr = przodMaskownicy(geo); const nD = Math.max(150, Math.min(1200, r10(cab.D + p.y - geo.carcassDepth - pr))); const yy = geo.carcassDepth + pr + nD - cab.D;
+    return { wartosc: nD, napis: `gł. ${nD + pr}${pr ? ` (${nD} + ${pr} do lica frontów)` : ""}`, linia: [0, yy, geo.W, yy], zmien: (c) => { c.D = nD; } }; }
   if (d.u === "poziom") {
     const a = (geo.levels || [])[d.k], b = (geo.levels || [])[d.k + 1]; if (!a || !b) return null;
     /* nad linia stoi sprzet (slupek): jego wneka zostaje, a roznice bierze najwyzszy poziom — linia przesuwa sprzet
@@ -23734,12 +23921,14 @@ function MakietaUchwyty({ cab, geo, zakladka, widok, podglad, kolZ, szcz, blat, 
     return <text key={key} pointerEvents="none" x={x} y={yy} fontSize="30" textAnchor={kotwica} fill={MAK_AKCENT} fontFamily="ui-monospace, monospace">{t}</text>;
   };
   if (widok === "top") {
-    const D = geo.carcassDepth;
+    /* maskownica boku „do lica frontów” siega o strefe drzwi przed korpus — uchwyt i napis przy jej przedniej krawedzi, z cala
+       glebokoscia plyty (uzytkownik 2026-11-26: „korpus 600 i maskownica 600, a wyświetla się źle” — napis mowil 600, plyta 620) */
+    const pr = przodMaskownicy(geo), D = geo.carcassDepth + pr;
     if (zakladka === "szafka") {
       out.push(pas("ts", "szer", { "data-widok": "top" }, W - 30, 0, 60, D, "ew-resize"), chwyt("tsc", W, D / 2, false));
       out.push(pas("tg", "gleb", { "data-widok": "top" }, 0, D - 30, W, 60, "ns-resize"), chwyt("tgc", W / 2, D, true));
       // w srodku przy przedniej krawedzi (pod spodem bywa rzut ciagu dolnego — „gł. 300” wchodzil na plyte, przeglad 2026-11-12)
-      out.push(napis("tgn", W / 2, D - 44, `gł. ${fmt(cab.D)}`));
+      out.push(napis("tgn", W / 2, D - 44, pr ? `gł. ${fmt(Math.round(cab.D) + pr)} (${fmt(Math.round(cab.D))} + ${pr})` : `gł. ${fmt(cab.D)}`));
     }
   } else if (zakladka === "szafka") {
     // blenda nad szafka — gorna krawedz (2026-11-15: „do sufitu” przeciaganiem); pod uchwytem wysokosci, gdy blenda niska
@@ -25371,7 +25560,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
           <Btn key={v} el="mak-maskownica-gl" v={v} on={sp.gl === v} onClick={() => ustaw({ gl: v })}>{l}</Btn>), "mak-maskownica-gl-w"),
         wiersz("mkk", "kolor maskownicy", [["korpus", "jak korpus"], ["front", "jak fronty"]].map(([v, l]) =>
           <Btn key={v} el="mak-maskownica-kolor" v={v} on={sp.kolor === v} onClick={() => ustaw({ kolor: v, kolorWyb: true })}>{l}</Btn>), "mak-maskownica-kolor-w"),
-        hint("maskownica", `Płyta od podłogi do góry szafki obok (${fmt(Math.round(cab.H))} mm), na głębokość korpusu${sp.gl === "korpus" ? "" : " i frontów"}; przykręcana od środka szafki obok wkrętami 4 × 30.`)];
+        hint("maskownica", (() => { const g = geoKarty && geoKarty.sprzetCiagu, dM = g && g.bryla ? g.bryla.d : Math.round(cab.D), pr = g ? g.przod || 0 : 0;
+          return `Płyta od podłogi do góry szafki obok (${fmt(Math.round(cab.H))} mm), głęb. ${fmt(dM)} mm — ${pr ? `${fmt(dM - pr)} korpusu + ${fmt(pr)} do lica frontów (drzwi szafki obok)` : "do lica korpusu"}; przykręcana od środka szafki obok wkrętami 4 × 30.`; })())];
     }
     if (blendaScianyCab(cab)) {
       /* blenda przy scianie (uzytkownik 2026-11-15): szerokosc sama do sciany albo w mm, pas w glab wzdluz boku szafki obok */
@@ -25535,7 +25725,11 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       <p key="bhint" className="text-[11px] text-stone-500" data-el="mak-biurko-info">Z tyłu pod blatem płyta {BIURKO_WZM} mm{biurko.kont ? " między bokiem a kontenerem" : " między bokami"} — {biurkoLaczenie(cab) === "mimosrody"
         ? `mimośrody ⌀15 w płycie (oś ${MIMO_OS} mm od czoła, dokręcane od przodu), trzpienie 6,3 × 45 w bokach`
         : "konfirmaty przez boki, zaślepki"}. Szuflady kontenera — zakładka Szuflady.</p>] : []),
-    W("Cokół", cokol), W("Nóżki", nozki), ...(tryb === "szczegolowa" ? [W("Poziomy / kolumny", `${poziomy.length} / ${kolumny.length}`), ...plytyRows.filter(Boolean)] : []), ...listaKol(null),
+    W("Cokół", cokol), W("Nóżki", nozki), ...(tryb === "szczegolowa" ? [W("Poziomy / kolumny", `${poziomy.length} / ${kolumny.length}`), ...plytyRows.filter(Boolean)] : []),
+    // lakier przy kazdej szafce (uzytkownik 2026-11-26) — w obu makietach
+    ...(!cab.sprzetCiagu ? [<div key="lakier" className="border-b border-stone-100 py-1.5"><LakierUstawienia it={it} el="mak-lakier"
+      onItem={(f) => zmienProjekt((p) => ({ ...p, items: p.items.map((x, i) => (i === idx ? f(x) : x)) }))} /></div>] : []),
+    ...listaKol(null),
     /* Notatka montazowa (uzytkownik 2026-11-11: „w opcjach szafki notatkę montażową”) — `cab.note`, jak karta trybu
        technicznego: trafia na strone szafki w zestawieniu PDF; pod nia kolejnosc montazu policzona z projektu */
     ...(tryb === "szczegolowa" ? [<div key="notatka" data-el="mak-notatka-w" className="border-b border-stone-100 py-1.5">
@@ -25543,6 +25737,8 @@ function MakietaKarta({ project, idx, tryb, zakladka, zmien, zmienWys, zmienProj
       <textarea defaultValue={cab.note || ""} key={`${idx}-note-${cab.note || ""}`} rows={3} data-pole="notatka" placeholder="np. idzie pod okno, uważać na rurę przy prawym boku"
         onBlur={(e) => { const v = e.currentTarget.value; if (v !== (cab.note || "")) zmien(idx, (c) => { c.note = v; }); }}
         className="w-full rounded border border-stone-300 bg-white px-1.5 py-1 text-xs focus:border-teal-600 focus:outline-none" />
+      {((geoKarty && geoKarty.zawiasyMontaz) || []).length > 0 && <div data-el="mak-zawiasy-montazu" className="mt-1 text-[11px] text-stone-600">
+        <b className="font-medium text-stone-700">Zawiasy przesunięte (z projektu, idzie do PDF):</b> {geoKarty.zawiasyMontaz.join(" ")}</div>}
       {((geoKarty && geoKarty.montazKolejnosc) || []).length > 0 && <div data-el="mak-kolejnosc-montazu" className="mt-1 text-[11px] text-stone-600">
         <b className="font-medium text-stone-700">Kolejność montażu (z projektu):</b>
         {geoKarty.montazKolejnosc.map((m, i) => <p key={i} className="mt-0.5">{m}</p>)}</div>}
@@ -30945,8 +31141,9 @@ export default function App() {
      koloru korpusu, polek albo frontow przelicza rozkroj (inna plyta, osobne
      arkusze). Lustro, uchwyty, zawiasy czy plan wiercen formatek nie zmieniaja
      i niczego nie ruszaja (uzytkownik 2026-09-29). */
+  // MDF lakierowany zamawia sie w lakierni (cena za m² z plyta) — nie idzie pod pile (lakier 2026-11-26)
   const wierszeRozkroju = useCallback((scope) => (scope === "project"
-    ? projectCutList.map((p) => ({
+    ? projectCutList.filter((p) => !jestLakier(p)).map((p) => ({
         name: p.name,
         qty: p.qty,
         a: p.a,
@@ -30960,7 +31157,7 @@ export default function App() {
         ...arkuszWlasnej(project, p.plytaM),
         ...(p.matKey === "worktop" ? wierszBlatu(p, mat, p.matName) : {}),
       }))
-    : cutList.map((p) => ({
+    : cutList.filter((p) => !jestLakier(p)).map((p) => ({
         name: p.name,
         qty: p.qty,
         a: p.a,
@@ -31084,7 +31281,7 @@ export default function App() {
     return isWhiteBoard(info.color) ? DEFAULT_PRICES.plytaBiala : DEFAULT_PRICES.plytaKolor;
   };
 
-  const wycenaZ = (planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, wlasneKawalki = 0) => {
+  const wycenaZ = (planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, wlasneKawalki = 0, lakierLista = []) => {
     const rows = [];
     // kazda pozycja niesie swoja cene domyslna, wiec dziala tez dla materialow
     // i okuc, ktorych nie da sie z gory wypisac w stalej
@@ -31126,6 +31323,13 @@ export default function App() {
       add({ key: "oklejanie", label: "Oklejanie prostoliniowe",
         spec: `usługa od okleiny z zapasem: ${qtyFmt(zZapasem(projectEdgeMb, projectEdgeBoki))} mb w górę do pełnego metra`,
         qty: Math.ceil(zZapasem(projectEdgeMb, projectEdgeBoki) - 1e-9), unit: "mb", def: DEFAULT_PRICES.oklejanie });
+    /* MDF lakierowany z lakierni — za m² formatki, cena z plyta (uzytkownik 2026-11-26: 400 zl); jedna cena dla wszystkich
+       kolorow, pozycja na kazdy kolor / grubosc */
+    const lakPoEt = new Map();
+    lakierLista.filter(jestLakier).forEach((p) => { const k = matLabelOf(p.zPlyty, p.matKey); lakPoEt.set(k, [...(lakPoEt.get(k) || []), p]); });
+    lakPoEt.forEach((lista, et) => add({ key: "lakier", label: `${et} — lakiernia`,
+      spec: `${(() => { const n = lista.reduce((a, p) => a + p.qty, 0); return `${n} ${plural(n, "formatka", "formatki", "formatek")}`; })()}, cena za m² formatki razem z płytą MDF`,
+      qty: m2Formatek(lista), unit: "m²", def: LAKIER_CENA }));
     projectHardware.forEach((h) => {
       /* Klucz ceny: nazwa i wariant (a dla pozycji bez `use` — opis produktu bez
          ilosci), nie opis zastosowan z iloscia — inaczej wlasna cena gubila sie
@@ -31138,15 +31342,15 @@ export default function App() {
     return { rows, sum };
   };
   const planWlasne = autoAktualny ? autoPlan.groups.reduce((a, g) => a + (g.zWlasnych || 0), 0) : 0;
-  const quote = useMemo(() => wycenaZ(planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, planWlasne),
-    [planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, prices, matByLabel, planWlasne]); // eslint-disable-line react-hooks/exhaustive-deps
+  const quote = useMemo(() => wycenaZ(planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, planWlasne, projectCutList),
+    [planSheets, projectEdgeMb, projectEdgeBlatMb, projectEdgeBoki, projectEdgeBlatBoki, projectHardware, prices, matByLabel, planWlasne, projectCutList]); // eslint-disable-line react-hooks/exhaustive-deps
   // wycena samej szafki (karta „Wycena” na „Szafka”): jej arkusze, obrzeze i okucia
   const quoteSzafki = (() => {
     if (!naSzafke("wycena")) return null;
     const by = planSzafki ? {} : null;
     if (planSzafki) planSzafki.groups.forEach((g) => { by[g.matLabel] = (by[g.matLabel] || 0) + (g.kupic ?? g.sheets.length); });
     return wycenaZ(by, krawedzieMb(cutList, false), krawedzieMb(cutList, true), krawedzieBoki(cutList, false), krawedzieBoki(cutList, true), cabHardware,
-      planSzafki ? planSzafki.groups.reduce((a, g) => a + (g.zWlasnych || 0), 0) : 0);
+      planSzafki ? planSzafki.groups.reduce((a, g) => a + (g.zWlasnych || 0), 0) : 0, cutList);
   })();
   const qW = quoteSzafki || quote;
 
@@ -31440,7 +31644,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody className="font-mono">
-                  {cutList.map((p, i) => (
+                  {cutList.filter((p) => !jestLakier(p)).map((p, i) => (
                     <tr key={i} className={"border-b border-stone-100" + (podswietl === p.name ? " bg-blue-50" : "")}>
                       <td className="py-2 pr-3 font-sans">
                         {/* klik — podswietlenie na rysunku 3D szafki; drugi klik zdejmuje */}
@@ -31470,6 +31674,7 @@ export default function App() {
                 </tbody>
               </table>
             </div>
+            <TabelaLakierni lista={cutList} />
             {(cab.extraParts || []).length > 0 && (
               <div className="space-y-2 border-t border-stone-200 pt-3">
                 <span className="block text-xs uppercase tracking-wider text-stone-500">
@@ -31526,7 +31731,7 @@ export default function App() {
             <div className="grid gap-3 border-t border-stone-200 pt-3 text-sm sm:grid-cols-3">
               <div>
                 <span className="block text-xs uppercase tracking-wider text-stone-500">Sztuk razem</span>
-                <span className="font-mono text-lg">{cutList.reduce((s, p) => s + p.qty, 0)}</span>
+                <span className="font-mono text-lg">{cutList.filter((p) => !jestLakier(p)).reduce((s, p) => s + p.qty, 0)}</span>
               </div>
               <div>
                 <span className="block text-xs uppercase tracking-wider text-stone-500">Obrzeże PCV</span>
@@ -31536,7 +31741,7 @@ export default function App() {
                 <span className="block text-xs uppercase tracking-wider text-stone-500">Powierzchnia</span>
                 <span className="font-mono text-sm">
                   {(() => {
-                    const { pow, blat } = powierzchnieIBlat(cutList, (p) => p.matKey);
+                    const { pow, blat } = powierzchnieIBlat(cutList.filter((p) => !jestLakier(p)), (p) => p.matKey);
                     return (<>
                       {Object.entries(pow).filter(([, v]) => v >= 0.005).map(([k, v]) => (
                         <span key={k} className="block">{mat[k].name}: {m2Fmt(v)} m²</span>
@@ -31593,7 +31798,7 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody className="font-mono">
-                    {projectCutList.map((p, i) => {
+                    {projectCutList.filter((p) => !jestLakier(p)).map((p, i) => {
                       const eg = [];
                       if (p.edges.a1) eg.push(`przód ${fmt(p.a)}`);
                       if (p.edges.a2) eg.push(`tył ${fmt(p.a)}`);
@@ -31620,10 +31825,11 @@ export default function App() {
                   </tbody>
                 </table>
               </div>
+              <TabelaLakierni lista={projectCutList} zSzafek />
               <div className="grid gap-3 border-t border-stone-200 pt-3 text-sm sm:grid-cols-3">
                 <div>
                   <span className="block text-xs uppercase tracking-wider text-stone-500">Sztuk razem</span>
-                  <span className="font-mono text-lg">{projectCutList.reduce((s, p) => s + p.qty, 0)}</span>
+                  <span className="font-mono text-lg">{projectCutList.filter((p) => !jestLakier(p)).reduce((s, p) => s + p.qty, 0)}</span>
                 </div>
                 <div>
                   <span className="block text-xs uppercase tracking-wider text-stone-500">Obrzeże PCV</span>
@@ -31633,7 +31839,7 @@ export default function App() {
                   <span className="block text-xs uppercase tracking-wider text-stone-500">Powierzchnia</span>
                   <span className="font-mono text-sm">
                     {(() => {
-                      const { pow, blat } = powierzchnieIBlat(projectCutList, (p) => p.matName);
+                      const { pow, blat } = powierzchnieIBlat(projectCutList.filter((p) => !jestLakier(p)), (p) => p.matName);
                       return (<>
                         {Object.entries(pow).filter(([, v]) => v >= 0.005).map(([k, v]) => (
                           <span key={k} className="block">{k}: {m2Fmt(v)} m²</span>
@@ -34827,6 +35033,8 @@ export default function App() {
               label="Półki z tej samej płyty co korpus" />
             <Check checked={cab.grainMatters} onChange={(v) => set({ grainMatters: v })}
               label="Kierunek usłojenia ma znaczenie" />
+            <LakierUstawienia it={project.items[project.active]} el="lakier-karta"
+              onItem={(f) => setProject((p) => { const items = p.items.slice(); items[p.active] = f(items[p.active]); return { ...p, items }; })} />
             <Check checked={!!cab.texture} onChange={(v) => set({ texture: v })}
               label="Rysuj strukturę słojów zamiast gładkiego koloru" />
             {cab.texture && (
@@ -35102,6 +35310,14 @@ export default function App() {
               placeholder="np. idzie pod okno, uważać na rurę przy prawym boku"
               onChange={(e) => set({ note: e.target.value })}
               className="w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-teal-600 focus:outline-none" />
+            {/* zawiasy przesuniete przez polke / wzmocnienie — same ida do PDF; widac je i tu (uzytkownik 2026-11-26: ostrzezenie
+                zostaje, „o ile od razu dopisuje do notatki montażowej”) */}
+            {(geo.zawiasyMontaz || []).length > 0 && (
+              <div data-el="zawiasy-montazu" className="mt-2 text-xs text-stone-600">
+                <div className="font-medium text-stone-700">Zawiasy przesunięte (z projektu, idzie do PDF):</div>
+                {geo.zawiasyMontaz.map((m, i) => <p key={i} className="mt-1">{m}</p>)}
+              </div>
+            )}
             {/* liczone z projektu — laczniki, ktore da sie skrecic tylko po kolei (AGENTS.md, 2026-11-08) */}
             {(geo.montazKolejnosc || []).length > 0 && (
               <div data-el="kolejnosc-montazu" className="mt-2 text-xs text-stone-600">

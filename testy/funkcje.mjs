@@ -36,7 +36,7 @@ const nazwy = ['runTopPanels', 'worktopLevel', 'prostokatyBez', 'hwDefaultPrice'
   'ambiguousThickness', 'matyUzyte', 'matLabelOf', 'scalSzafki', 'cabDoGeo', 'okuciaSzafki', 'wierszBlatu', 'scalenieBlad', 'runTop', 'worktopMsgs', 'runTopZlacza', 'tierMountY', 'runRail', 'kolumnaZPrzelotu', 'roznePlyty', 'kolumnaNaDwie', 'odScianyMsgs', 'odstepOdSciany',
   'runPlinth', 'runPlinthPanels', 'runCabMsgs', 'makeFromTemplate', 'runWideMsgs', 'runItems', 'biurkoUstawLaczenie',
   'makWylicz', 'makLapaniePolek', 'makLapanieWys', 'makSzuflWys', 'makSzuflKto', 'sprzetWysokoMsgs', 'sufitSciany', 'blendaH', 'makLapanieBlendy', 'makLapanieDol', 'makGrupaBlendy', 'blendoIle',
-  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion', 'ustawPushSzuflady', 'ustawSystemIPush', 'polkiPozaZawiasami', 'przyciskPolekZawiasy', 'zawiasyGtv', 'MAK_SYSTEMY_SZUF', 'geoZProjektu', 'ramieSzafki'];
+  'przesuwneWymiary', 'przesuwneLiczba', 'przesuwneTor', 'przesuwneOdslania', 'przesuwneOdsun', 'sufitSzafyMsgs', 'szafaMaxH', 'przesuwneKolumny', 'cokolKey', 'kolorCokolu', 'sprzetCiagu', 'przegrodyCofOf', 'wzorBezUwag', 'MAK_PALETA', 'makOdPodlogi', 'makLapaniePion', 'ustawPushSzuflady', 'ustawSystemIPush', 'polkiPozaZawiasami', 'przyciskPolekZawiasy', 'zawiasyGtv', 'MAK_SYSTEMY_SZUF', 'geoZProjektu', 'ramieSzafki', 'grupaLakieru', 'zLakierem', 'lakierGrubosc', 'gruboscGrupyLakieru', 'm2Formatek', 'matLabelOf', 'jestLakier', 'LAKIER_CENA', 'przodMaskownicy', 'tozsamoscPlyty'];
 src += '\nmodule.exports = {' + nazwy.map((n) => `${n}: typeof ${n} !== "undefined" ? ${n} : undefined`).join(',') + '};\n';
 const out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]], filename: 'szafki.jsx', compact: true }).code;
 const m = { exports: {} };
@@ -1788,6 +1788,46 @@ console.log('\n== 2026-11-24: „Półki poza zawiasami” — przycisk przy ost
   const c3 = JSON.parse(JSON.stringify(cab)); c3.levels[0].cols[0].shelfTargets = [null, null, null, null];
   const g3 = G.computeGeo(c3, M0);
   ok('bez kolizji (4 półki): bez przycisku', !G.przyciskPolekZawiasy(g3.msgs, 3, c3, M0).some((m) => /polkizaw/.test(m.text)));
+}
+
+console.log('\n== 2026-11-26: lakierowanie — MDF lakierowany przy szafce, poza rozkrojem i okleiną ==');
+{
+  const M0 = G.defaultMaterials;
+  const gr = (name, o = {}) => G.grupaLakieru({ name, matKey: 'board', ...o });
+  ok('grupy: drzwi / front szuflady / klapa / fix → fronty; blenda, maskownice, wstawka → opaski; cokół; półka; bok, dno, wieniec, przegroda → korpus',
+    gr('Drzwi nakładane') === 'fronty' && gr('Front szuflady') === 'fronty' && gr('Klapa') === 'fronty' && gr('Element stały (fix)') === 'fronty' && gr('Front ramienia') === 'fronty'
+    && gr('Blenda nad szafką') === 'opaski' && gr('Maskownica boku') === 'opaski' && gr('Maskownica kątownika — nachodząca') === 'opaski' && gr('Wstawka w rogu') === 'opaski'
+    && gr('Cokół', { rola: 'cokol' }) === 'cokol' && gr('Cokół ciągu') === 'cokol' && gr('Półka') === 'polki' && gr('Półka ramienia') === 'polki'
+    && ['Bok lewy', 'Dno', 'Wieniec', 'Przegroda pionowa', 'Dno / wieniec'].every((n) => gr(n) === 'korpus'));
+  ok('niewidoczne zostają z płyty: wzmocnienia, kątowniki w środku, listwy, skrzynki szuflad, plecy HDF, blat roboczy',
+    ['Wzmocnienie czołowe', 'Wzmocnienie tylne', 'Kątownik narożnika — doczołowy', 'Kątownik przy ramieniu — bok', 'Listwa wstawki', 'Bok szuflady', 'Tył szuflady', 'Dno szuflady', 'Przód skrzynki'].every((n) => gr(n) === null)
+    && gr('Plecy HDF', { matKey: 'back' }) === null && gr('Blat ciągu', { matKey: 'worktop' }) === null);
+  const cab0 = G.migrateCab({ name: 'S', W: 600, H: 720, D: 550, plinth: { on: true, height: 100, mode: 'under' }, legs: { on: false },
+    levels: [{ h: null, cols: [{ kind: 'doors', doors: 1, w: null, shelfTargets: [null] }] }] }, M0);
+  const g0 = G.computeGeo(cab0, M0), g1 = G.computeGeo({ ...cab0, lakier: { fronty: true, kolor: 'RAL 9016' } }, M0);
+  const drz = (g) => g.panels.find((p) => /^Drzwi/.test(p.name));
+  ok('fronty lakierowane: drzwi na MDF lakierowanym 18 mm (grubość jak płyta), bez okleiny; geometria bez zmian', G.jestLakier(drz(g1)) && drz(g1).zPlyty.thickness === 18
+    && Object.values(drz(g1).edges).every((v) => !v) && drz(g0).a === drz(g1).a && drz(g0).b === drz(g1).b && g1.tf === g0.tf && !G.jestLakier(g1.panels.find((p) => /^Bok/.test(p.name))));
+  ok('etykieta „MDF lakierowany 18 mm — RAL 9016”, tożsamość płyty z kolorem lakieru', G.matLabelOf(drz(g1).zPlyty, 'board') === 'MDF lakierowany 18 mm — RAL 9016'
+    && G.tozsamoscPlyty(drz(g1).zPlyty) !== G.tozsamoscPlyty({ ...drz(g1).zPlyty, kolorLakieru: 'RAL 7016' }));
+  ok('informacja w uwagach o lakierze (1 formatka)', g1.msgs.some((m) => m.level === 'info' && /^Lakierowane z MDF \(RAL 9016\): fronty — 1 formatka, /.test(m.text)) && !g0.msgs.some((m) => /Lakierowane z MDF/.test(m.text)));
+  ok('m² formatek: drzwi 2000 × 500 = 1 m² (przykład użytkownika), cena domyślna 400 zł/m²', G.m2Formatek([{ qty: 1, a: 2000, b: 500 }]) === 1 && G.LAKIER_CENA === 400);
+  // grubosc MDF — domyslnie jak plyta, zmiana odlacza grupe od plyty korpusu (geometria z nowej grubosci)
+  const it = { cab: { ...cab0, lakier: { fronty: true } }, mat: M0 };
+  const it22 = G.lakierGrubosc(it, 'fronty', 22), g22 = G.computeGeo(it22.cab, it22.mat);
+  ok('grubość MDF frontów 22: fronty z własnej płyty 22, korpus 18, w geometrii tf 22, w lakierni 22 mm', G.gruboscGrupyLakieru(it.cab, M0, 'fronty') === 18
+    && it22.cab.frontSameAsBoard === false && it22.mat.front.thickness === 22 && it22.mat.board.thickness === 18 && g22.tf === 22 && drz(g22).zPlyty.thickness === 22);
+  const itK = G.lakierGrubosc({ cab: { ...cab0, lakier: { korpus: true } }, mat: M0 }, 'korpus', 19);
+  ok('grubość MDF korpusu 19: fronty i półki odłączone ze starą grubością 18 (nielakierowane się nie zmieniają)', itK.mat.board.thickness === 19
+    && itK.cab.frontSameAsBoard === false && itK.mat.front.thickness === 18 && itK.cab.shelfSameAsBoard === false && itK.mat.shelf.thickness === 18);
+  // cokol ciagu — z MDF tylko, gdy wszystkie szafki ciagu maja lakierowany cokol
+  const RUNc = { id: 'c1', name: 'Ś', wallW: null, gap: 0, mountY: 0, H: 720, D: 550, plinth: { on: true, height: 100, mode: 'under', setback: 0 }, worktop: true, corner: null };
+  const Pc = (l2) => G.loadProject({ name: 'P', active: 0, prices: {}, runs: [RUNc], items: [{ cab: { ...cab0, lakier: { cokol: true } }, runId: 'c1' }, { cab: { ...cab0, name: 'S2', lakier: l2 }, runId: 'c1' }] });
+  const cokCiagu = (P) => G.projectParts(P).flatMap((x) => x.panels).find((p) => p.name === 'Cokół ciągu');
+  ok('cokół ciągu: jedna szafka bez lakierowanego cokołu — z płyty; obie — MDF lakierowany', !G.jestLakier(cokCiagu(Pc(null))) && !G.jestLakier(cokCiagu(Pc({ fronty: true })))
+    && G.jestLakier(cokCiagu(Pc({ cokol: true }))), JSON.stringify([cokCiagu(Pc(null)), cokCiagu(Pc({ cokol: true }))].map((p) => p && p.zPlyty)));
+  ok('maskownica boku: przód 20 mm przed korpusem przy „do lica frontów”, 0 przy „do lica korpusu” i dla zwykłej szafki',
+    G.przodMaskownicy({ sprzetCiagu: { maskownica: true, przod: 20 } }) === 20 && G.przodMaskownicy({ sprzetCiagu: { maskownica: true, przod: 0 } }) === 0 && G.przodMaskownicy(g0) === 0);
 }
 
 console.log('\n== 2026-11-26: szafka w L poza widokiem technicznym — z kontekstem rogu (makieta liczyła drzwi 896 zamiast 285) ==');

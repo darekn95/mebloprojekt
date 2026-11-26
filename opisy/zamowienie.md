@@ -40,6 +40,10 @@ zamówienia: „Cały projekt” albo „To pomieszczenie”.
 - **Dystans szafki wiszącej** (kantówka, klocki pod haki): grubość / przekrój jako wariant — różne grubości to osobne wiersze listy projektu i ceny (N160). Listwa z płyty jest w formatkach.
 - **Cena okucia** zapisuje się pod kluczem „nazwa | wariant”, bez ilości — zmiana liczby sztuk jej nie gubi.
 
+- **MDF lakierowany** (2026-11-26): pozycja „MDF lakierowany N mm — kolor — lakiernia” za m² formatki (drzwi 2000 × 500 = 1 m²),
+  cena domyślna **400 zł/m²** razem z płytą MDF (`LAKIER_CENA`, klucz ceny `lakier` — jedna cena dla wszystkich kolorów); te formatki nie
+  wchodzą do arkuszy, formatowania ani okleiny. Opis — `formatki.md`, „Lakierowanie”.
+
 ## Co ustawiasz ręcznie
 
 - **Ceny**: każdą w karcie „Wycena”, zapisaną w projekcie.

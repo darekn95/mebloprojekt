@@ -74,8 +74,9 @@ Do pobrania i dopisania do `instrukcje/` (karty z katalogu Blum 2024–2025), za
   kontrole (szafka na oknie, zawór za szafką, wentylacja zasłonięta). Na razie (24.11): osobne ciągi w pokoju stoją obok siebie, nie
   nachodzą (`runLayout`).
 
-- **Lakierowanie formatek** (użytkownik 2026-11-22, „na przyszłość, nie na dzisiaj”): opcja lakierowania frontów, korpusów i półek —
-  do przemyślenia (które formatki, z obu stron czy z jednej, krawędzie, cena za m², osobna pozycja w zamówieniu / wycenie).
+- ~~**Lakierowanie formatek**~~ — zrobione 2026-11-26 (przy każdej szafce: fronty / opaski / cokół / korpus / półki z MDF lakierowanego, poza
+  rozkrojem, lista „Do lakierni”, 400 zł/m² formatki z płytą; `opisy/formatki.md`). Do ewentualnej decyzji: czy niewidoczne elementy
+  (wzmocnienia, skrzynki szuflad) przy lakierowanym korpusie też z MDF — dziś z płyty.
 
 - ~~**Plecy HDF za duże na arkusz**~~ — zrobione 2026-11-22: przycisk „Plecy z kawałków” (kawałki na kolumnę i poziom, łączenia na
   przegrodach i półkach). Do rozważenia: mniej kawałków (łączyć tylko tam, gdzie trzeba), „bez pleców” w zabudowie przy ścianie.

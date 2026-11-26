@@ -35,6 +35,22 @@ projektu” (wszystkie szafki plus cokół i blat ciągów).
 - **W ciągu z cokołem / blatem ciągu** własny cokół i blat szafki nie idą do zamówienia — zastępuje je wspólna formatka ciągu. Tak samo wspólny wieniec („Wieniec ciągu” zamiast blatów z płyty szafek) i wspólne dno („Dno ciągu” zamiast den; „Dno / wieniec” 2 szt. zostaje samym wieńcem — `bezPlytCiagu`).
 - **Dodatkowe formatki** (karta „Dodatkowe formatki”): wpisane ręcznie, z własną nazwą (puste — „Dodatkowa formatka N”), materiałem i okleiną.
 
+## Lakierowanie — MDF lakierowany (2026-11-26)
+
+Przy **każdej szafce osobno** (technicznie: karta „Płyty”; makieta prosta i szczegółowa: zakładka Szafka) — blok „Lakierowanie (MDF)”:
+grupy **Fronty** (drzwi, fronty szuflad, klapy, fixy, front ramienia), **Opaski** (blendy, pas blendy, maskownice boku i kątownika,
+wstawka w rogu), **Cokół**, **Korpus** (boki, dno, wieniec, przegrody, plecy z płyty, własny blat z płyty), **Półki**; skróty
+„Fronty i opaski”, „+ korpus”, „Wszystko”, „Bez lakieru”. Kolor lakieru (tekst do zamówienia, np. „RAL 9016 mat”) i kolor na rysunkach.
+- Formatki zaznaczonych grup idą na płytę „MDF lakierowany N mm — kolor” (`zPlyty.lakier`), **bez okleiny** (krawędzie lakierowane),
+  **poza rozkrojem** — zamawia się je w lakierni (cena za m² formatki razem z płytą). W „Formatkach do zamówienia” (szafka, projekt, PDF)
+  osobna lista **„MDF lakierowany — do lakierni”** z m² każdej formatki i sumą; tabela płyt i jej suma ich nie zawierają.
+- **Grubość** domyślnie jak płyta grupy (fronty — płyta frontów albo korpusu, korpus, półki); wybór grubości w bloku zmienia tę płytę,
+  więc i geometrię. Fronty / półki „z tej samej płyty co korpus” odłączają się wtedy od korpusu z jego dotychczasową grubością.
+- Zostają z płyty (niewidoczne): wzmocnienia, kątowniki w środku narożnika i przy ramieniu, listwy (dystansowa, wstawki), skrzynki
+  szuflad, plecy HDF, blat roboczy.
+- Wspólne płyty ciągu (cokół, wieniec, dno ciągu) z MDF tylko wtedy, gdy **wszystkie** szafki pod nimi mają tę grupę lakierowaną.
+- W uwagach informacja „Lakierowane z MDF (kolor): grupy — N formatek, X m². Poza rozkrojem i okleiną…”.
+
 ## Wąskie formatki (reguła 60 / 30 mm)
 
 Firma nie tnie i nie okleja formatek węższych niż 60 mm (`MIN_PART`). Węższą niż

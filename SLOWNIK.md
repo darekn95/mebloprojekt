@@ -358,6 +358,7 @@ szerokość frontu w rogu i przycięcie podniesionych tyłów szuflad.
 | Grubość / Nazwa dekoru | `mat.board/front/shelf/back/mirror.thickness`, `.decor` |
 | Arkusz blatu roboczego | `mat.worktop`, `worktopDepth(mat)` |
 | Kierunek usłojenia ma znaczenie | `cab.grainMatters`, `cab.texture`, `cab.textureDir` |
+| Lakierowanie (MDF): Fronty / Opaski / Cokół / Korpus / Półki, skróty „Fronty i opaski” / „+ korpus” / „Wszystko” / „Bez lakieru”, kolor lakieru, kolor na rysunkach, „Grubość MDF — …” (2026-11-26; też makieta, zakładka Szafka — `mak-lakier`) | `cab.lakier = { fronty, opaski, cokol, korpus, polki, kolor, hex }`; komponent `LakierUstawienia` (`data-el` `lakier-karta`, `lakier-grupa`, `lakier-skrot`, `lakier-kolor`, `lakier-hex`, `lakier-grubosc`); grupa formatki `grupaLakieru(p)`; zamiana `zLakierem(cab, mat, panels)` (po `computeGeo` — `geoZLakierem`, w `cornerArmParts`, `wstawkaParts`, płyty ciągu w `projectParts`); grubość `lakierGrubosc(it, grupa, v)` / `gruboscGrupyLakieru` |
 | Kolor płyty (paleta / własny) i pytanie „Zmienić ten kolor także w innych szafkach?” — Cały ciąg / Całe pomieszczenie / Cały projekt / Tylko ta szafka | `mat[k].color`, `.decor`; stan `zmianaKoloru` (`{ idx, k }`), `kolorDlaInnych(k, idxs)`, `uzywaPlyty(cab, k)`, `tenSamKolor` (`data-el="kolor-dla-innych"`) |
 | Rysunek: „Realne kolory” / „Rozróżnij fronty” | `cab.realColors` — ustawiany we wszystkich szafkach naraz (`setRealColors`); kolor frontów na rysunku z `matRysunku(cab, mat)` |
 | Nazwa uchwytu (karta produktów) / wystawanie uchwytu (przy drzwiach; domyślne 20 mm) | `cab.handleName`, `cab.handleOut` (pola globalnego od 2026-09-29 nie ma — jest `col.handleOuts[]` przy drzwiach) |
@@ -393,6 +394,8 @@ W geometrii wyniki siedzą w `geo.geoCuts` (`onLeft` mówi, który to narożnik)
 |---|---|
 | `computeGeo(cab, mat, ctx)` | **serce aplikacji** — z opisu szafki robi geometrię, formatki, okucia i uwagi. `ctx` (z `armCtxOf`) jest OBOWIĄZKOWY dla szafki narożnej. Wynik zapamiętany (`geoCache`: szafka → materiały → `JSON(ctx)`), liczy `computeGeoLiczy` — **wyniku nie wolno zmieniać**, a szafki ani materiałów nie zmienia się w miejscu (zawsze nowy obiekt) |
 | `armCtxOf(layout, index)` | kontekst rogu dla szafki narożnej: `armFront`, `armSide`, `armFree` |
+| `jestLakier(p)`, `m2Formatek(lista)`, `TabelaLakierni({ lista, druk, zSzafek })` | formatka z MDF lakierowanego (`p.zPlyty.lakier`); m² formatek; lista „MDF lakierowany — do lakierni” (`data-el` `lakiernia`, w PDF `lakiernia-druk`) — w formatkach szafki, projektu i na wydruku; rozkrój (`wierszeRozkroju`, `ReportCutPlan`) i tabela płyt ją pomijają, wycena — `wycenaZ(…, lakierLista)` (klucz `lakier`, `LAKIER_CENA` = 400 zł/m²) |
+| `przodMaskownicy(geo)` | ile maskownica boku „do lica frontów” wychodzi przed korpus (grubość frontu + luz, np. 20) — napis „gł. 620 (600 + 20)”, uchwyt i ramka w rzucie makiety |
 | `geoZProjektu(project, i)` / `ramieSzafki(project, i)` | geometria szafki z projektu — przy szafce w L z kontekstem rogu (makieta: karta, podgląd samej szafki, przeciąganie, `makOdPodlogi`, poprawki z Uwag; 2026-11-26 — wcześniej drzwi L 896 zamiast 285); ramię szafki z `projectLayout` albo `null` |
 | `brylyRamienia3D(a, box, { x0, base, open, angle, frontColor, obrotSkreconych, ustawPo })` | bryły ramienia szafki w L w układzie ciągu ramienia — wspólne dla `Assembly3D` i `Scene3D` (prop `arm`; tam przeliczane na układ szafki, blat nad ramieniem z `blat.ramie`) |
 | `projectLayout(project)` | rozstawia ciągi w rzucie z góry, liczy rogi — **osobno w każdym pomieszczeniu** (`.pokoje` = Map pomieszczenie → układ, `.info` = wszystkie ciągi); kolizje otwierania biorą układ pomieszczenia |
@@ -735,6 +738,7 @@ pauzy w teście). Nowy test: `import pw from './pw.mjs';`.
 | `rysrog` | rysunki narożnika: front na bok z luzem, zawiasy, rzut z góry, tył, nóżki ramienia |
 | `blatrog` / `blatrys` / `blat` / `blatciag` | blat roboczy: róg, rysunki, ciąg, wieniec |
 | `okucia3` | liczby okuc z wymiaru: klipsy, trójkąty, fix, zawiasy 165°/90°; tabela GTV dla 165° (skrzydło 579 × 1994 mm: 5, na zwykłym zawiasie 4) |
+| `lakier` | lakierowanie MDF (2026-11-26): karta w „Płyty”, skrót „Fronty i opaski”, kolor, lista „Do lakierni” zamiast drzwi w tabeli płyt, rozkrój bez MDF, uwaga, wycena 0,426 m² × 400 zł, grubość 22 (fronty odłączone od korpusu), cokół ciągu tylko przy wszystkich szafkach, „Wszystko” — w rozkroju HDF; makieta: blok w karcie; maskownica boku „gł. 620 (600 + 20)” i podpowiedź |
 | `bryla3d` | co widać na wierzchu w 45° i 3D: blat, maskownice, uchwyty; nóżki; zero wymuszeń kolejności z ośmiu stron |
 | `wyslij` | przycisk „Wyślij do Claude”: bez magazynu go nie ma, z atrapą zapisuje pełny projekt |
 | `opisy` | żaden napis na rysunku nie jest przykryty płytą, nóżką ani blatem — wszystkie zakresy i widoki szafki narożnej |

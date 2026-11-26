@@ -55,6 +55,7 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 | Założenie | Stan |
 |---|---|
 | „Z góry” + „Z przodu” razem; Z boku, 3D, 45° | jest |
+| Maskownica boku „do lica frontów” w rzucie z góry: napis „gł. 620 (600 + 20)”, uchwyt głębokości i ramka zaznaczenia przy przedniej krawędzi płyty (nie na linii korpusu) | poprawione 26.11 (zgłoszenie użytkownika; `lakier`) |
 | „Tylko zaznaczona szafka” przy szafce w L: Z boku / Z góry / 3D z kontekstem rogu (front 285, nie 896), 3D z ramieniem, maskownicami i kątownikiem | poprawione 26.11 (`geoZProjektu`, `brylyRamienia3D`; `funkcje`, `bryla3d`) |
 | Przełączniki: Z góry, Ciąg górny, Ciąg dolny, Fronty, Blat, Wyposażenie, Kolory płyt, Wymiary | jest |
 | **Start „Co projektujesz?”** (użytkownik 21.11: „bardzo dobry pomysł”) — przy „Nowy projekt”: rodzaj, ściana, sufit → ciąg i pierwsza szafka, makieta | dorobione 22.11 (`start-rodzaj`, `makieta19`) |
@@ -74,6 +75,7 @@ przeciąganiu i dwukliku** (przyciąganie, linie pomocnicze, okienka). Tego zabr
 
 | Założenie | Stan |
 |---|---|
+| Lakierowanie (MDF) w zakładce Szafka (prosta i szczegółowa): fronty / opaski / cokół / korpus / półki, skróty, kolor, grubość MDF | jest (26.11, `lakier`) |
 | Wzory (1 drzwi 450, 2 drzwi 800, szuflady 600, zlewowa 800, słupek 600, szafa, komoda, biurko, biurko z kontenerem) | jest |
 | Szerokość (chipy), front, wnętrze (półki, przegroda, drążek), wzmocnienia (para pod blat), „Co zrobi program”, „Przesuń w ciągu”, „Usuń” | jest (runda 3, `makieta15`) |
 | Listy „Ciąg dolny / Ciąg górny” | jest |
